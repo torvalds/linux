@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -39,7 +39,7 @@
 
 #include "core.h"
 
-struct tipc_node;
+struct tipc_yesde;
 struct tipc_msg;
 struct tipc_nl_msg;
 struct tipc_nlist;
@@ -61,14 +61,14 @@ struct tipc_nlist {
 
 void tipc_nlist_init(struct tipc_nlist *nl, u32 self);
 void tipc_nlist_purge(struct tipc_nlist *nl);
-void tipc_nlist_add(struct tipc_nlist *nl, u32 node);
-void tipc_nlist_del(struct tipc_nlist *nl, u32 node);
+void tipc_nlist_add(struct tipc_nlist *nl, u32 yesde);
+void tipc_nlist_del(struct tipc_nlist *nl, u32 yesde);
 
 /* Cookie to be used between socket and broadcast layer
  * @rcast: replicast (instead of broadcast) was used at previous xmit
  * @mandatory: broadcast/replicast indication was set by user
  * @deferredq: defer queue to make message in order
- * @expires: re-evaluate non-mandatory transmit method if we are past this
+ * @expires: re-evaluate yesn-mandatory transmit method if we are past this
  */
 struct tipc_mc_method {
 	bool rcast;

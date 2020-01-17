@@ -6,26 +6,26 @@ Multiple Mount Protection
 Multiple mount protection (MMP) is a feature that protects the
 filesystem against multiple hosts trying to use the filesystem
 simultaneously. When a filesystem is opened (for mounting, or fsck,
-etc.), the MMP code running on the node (call it node A) checks a
+etc.), the MMP code running on the yesde (call it yesde A) checks a
 sequence number. If the sequence number is EXT4\_MMP\_SEQ\_CLEAN, the
 open continues. If the sequence number is EXT4\_MMP\_SEQ\_FSCK, then
 fsck is (hopefully) running, and open fails immediately. Otherwise, the
 open code will wait for twice the specified MMP check interval and check
 the sequence number again. If the sequence number has changed, then the
-filesystem is active on another machine and the open fails. If the MMP
+filesystem is active on ayesther machine and the open fails. If the MMP
 code passes all of those checks, a new MMP sequence number is generated
 and written to the MMP block, and the mount proceeds.
 
 While the filesystem is live, the kernel sets up a timer to re-check the
 MMP block at the specified MMP check interval. To perform the re-check,
-the MMP sequence number is re-read; if it does not match the in-memory
-MMP sequence number, then another node (node B) has mounted the
-filesystem, and node A remounts the filesystem read-only. If the
+the MMP sequence number is re-read; if it does yest match the in-memory
+MMP sequence number, then ayesther yesde (yesde B) has mounted the
+filesystem, and yesde A remounts the filesystem read-only. If the
 sequence numbers match, the sequence number is incremented both in
 memory and on disk, and the re-check is complete.
 
 The hostname and device filename are written into the MMP block whenever
-an open operation succeeds. The MMP code does not use these values; they
+an open operation succeeds. The MMP code does yest use these values; they
 are provided purely for informational purposes.
 
 The checksum is calculated against the FS UUID and the MMP structure.
@@ -53,8 +53,8 @@ The MMP structure (``struct mmp_struct``) is as follows:
      - Time that the MMP block was last updated.
    * - 0x10
      - char[64]
-     - mmp\_nodename
-     - Hostname of the node that opened the filesystem.
+     - mmp\_yesdename
+     - Hostname of the yesde that opened the filesystem.
    * - 0x50
      - char[32]
      - mmp\_bdevname

@@ -46,7 +46,7 @@ struct goldfish_audio {
 
 /*
  *  We will allocate two read buffers and two write buffers.
- *  Having two read buffers facilitate stereo -> mono conversion.
+ *  Having two read buffers facilitate stereo -> moyes conversion.
  *  Having two write buffers facilitate interleaved IO.
  */
 #define READ_BUFFER_SIZE	16384
@@ -203,7 +203,7 @@ static ssize_t goldfish_audio_write(struct file *fp, const char __user *buf,
 	return result;
 }
 
-static int goldfish_audio_open(struct inode *ip, struct file *fp)
+static int goldfish_audio_open(struct iyesde *ip, struct file *fp)
 {
 	if (!audio_data)
 		return -ENODEV;
@@ -220,7 +220,7 @@ static int goldfish_audio_open(struct inode *ip, struct file *fp)
 	return -EBUSY;
 }
 
-static int goldfish_audio_release(struct inode *ip, struct file *fp)
+static int goldfish_audio_release(struct iyesde *ip, struct file *fp)
 {
 	atomic_dec(&open_count);
 	/* FIXME: surely this is wrong for the multi-opened case */
@@ -273,7 +273,7 @@ static const struct file_operations goldfish_audio_fops = {
 };
 
 static struct miscdevice goldfish_audio_device = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "eac",
 	.fops = &goldfish_audio_fops,
 };

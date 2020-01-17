@@ -5,13 +5,13 @@
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
 
-  * Redistributions of source code must retain the above copyright notice,
+  * Redistributions of source code must retain the above copyright yestice,
     this list of conditions and the following disclaimer.
-  * Redistributions in binary form must reproduce the above copyright notice,
+  * Redistributions in binary form must reproduce the above copyright yestice,
     this list of conditions and the following disclaimer in the documentation
 	and/or other materials provided with the distribution.
-  * Neither the name of Trident Microsystems nor Hauppauge Computer Works
-    nor the names of its contributors may be used to endorse or promote
+  * Neither the name of Trident Microsystems yesr Hauppauge Computer Works
+    yesr the names of its contributors may be used to endorse or promote
 	products derived from this software without specific prior written
 	permission.
 
@@ -45,7 +45,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
+  along with this program; if yest, write to the Free Software
   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
@@ -228,7 +228,7 @@ DEFINES
 
 /*
 * \def HI_I2C_DELAY
-* \brief HI timing delay for I2C timing (in nano seconds)
+* \brief HI timing delay for I2C timing (in nayes seconds)
 *
 *  Used to compute HI_CFG_DIV
 */
@@ -236,7 +236,7 @@ DEFINES
 
 /*
 * \def HI_I2C_BRIDGE_DELAY
-* \brief HI timing delay for I2C timing (in nano seconds)
+* \brief HI timing delay for I2C timing (in nayes seconds)
 *
 *  Used to compute HI_CFG_BDL
 */
@@ -376,7 +376,7 @@ DEFINES
 
 /*
 * \brief Temporary register definitions.
-*        (register definitions that are not yet available in register master)
+*        (register definitions that are yest yet available in register master)
 */
 
 /*****************************************************************************/
@@ -584,7 +584,7 @@ static struct drxj_data drxj_data_g = {
 
 	/* signal quality information: */
 	/* default values taken from the QAM Programming guide */
-	/*   fec_bits_desired should not be less than 4000000    */
+	/*   fec_bits_desired should yest be less than 4000000    */
 	4000000,		/* fec_bits_desired    */
 	5,			/* fec_vd_plen         */
 	4,			/* qam_vd_prescale     */
@@ -825,7 +825,7 @@ static struct drx_common_attr drxj_default_comm_attr_g = {
 	true,			/* ucode verify switch  */
 	{0},			/* version record       */
 
-	44000,			/* IF in kHz in case no tuner instance is used  */
+	44000,			/* IF in kHz in case yes tuner instance is used  */
 	(151875 - 0),		/* system clock frequency in kHz                */
 	0,			/* oscillator frequency kHz                     */
 	0,			/* oscillator deviation in ppm, signed          */
@@ -847,13 +847,13 @@ static struct drx_common_attr drxj_default_comm_attr_g = {
 				   static clockrate is selected */
 	 DRX_MPEG_STR_WIDTH_1	/* MPEG Start width in clock cycles */
 	 },
-	/* Initilisations below can be omitted, they require no user input and
+	/* Initilisations below can be omitted, they require yes user input and
 	   are initially 0, NULL or false. The compiler will initialize them to these
 	   values when omitted.  */
 	false,			/* is_opened */
 
 	/* SCAN */
-	NULL,			/* no scan params yet               */
+	NULL,			/* yes scan params yet               */
 	0,			/* current scan index               */
 	0,			/* next scan frequency              */
 	false,			/* scan ready flag                  */
@@ -1051,7 +1051,7 @@ ctrl_set_cfg_afe_gain(struct drx_demod_instance *demod, struct drxj_cfg_afe_gain
 * \param D 32 bits
 * \return (1<<28)*N/D
 * This function is used to avoid floating-point calculations as they may
-* not be present on the target platform.
+* yest be present on the target platform.
 
 * frac28 performs an unsigned 28/28 bits division to 32-bit fixed point
 * fraction used for setting the Frequency Shifter registers.
@@ -1156,7 +1156,7 @@ static u32 log1_times100(u32 x)
 	if (x == 0)
 		return 0;
 
-	/* Scale x (normalize) */
+	/* Scale x (yesrmalize) */
 	/* computing y in log(x/y) = log(x) - log(y) */
 	if ((x & (((u32) (-1)) << (scale + 1))) == 0) {
 		for (k = scale; k > 0; k--) {
@@ -1201,8 +1201,8 @@ static u32 log1_times100(u32 x)
 /*
 * \fn u32 frac_times1e6( u16 N, u32 D)
 * \brief Compute: (N/D) * 1000000.
-* \param N nominator 16-bits.
-* \param D denominator 32-bits.
+* \param N yesminator 16-bits.
+* \param D deyesminator 32-bits.
 * \return u32
 * \retval ((N/D) * 1000000), 32 bits
 *
@@ -1265,15 +1265,15 @@ static const u16 nicam_presc_table_val[43] = {
    -conversion to short address format
    -access to audio block
    This layer is placed between the drx_dap_fasi and the rest of the drxj
-   specific implementation. This layer can use address map knowledge whereas
-   dap_fasi may not use memory map knowledge.
+   specific implementation. This layer can use address map kyeswledge whereas
+   dap_fasi may yest use memory map kyeswledge.
 
    * For audio currently only 16 bits read and write register access is
-     supported. More is not needed. RMW and 32 or 8 bit access on audio
+     supported. More is yest needed. RMW and 32 or 8 bit access on audio
      registers will have undefined behaviour. Flags (RMW, CRC reset, broadcast
-     single/multi master) will be ignored.
+     single/multi master) will be igyesred.
 
-   TODO: check ignoring single/multimaster is ok for AUD access ?
+   TODO: check igyesring single/multimaster is ok for AUD access ?
 */
 
 #define DRXJ_ISAUDWRITE(addr) (((((addr)>>16)&1) == 1) ? true : false)
@@ -1286,7 +1286,7 @@ static const u16 nicam_presc_table_val[43] = {
 * \param addr
 * \return bool
 * \retval true  Yes, handled by audio token ring interface
-* \retval false No, not handled by audio token ring interface
+* \retval false No, yest handled by audio token ring interface
 *
 */
 static
@@ -1398,7 +1398,7 @@ int drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
 * Read block data from chip address. Because the chip is word oriented,
 * the number of bytes to read must be even.
 *
-* Make sure that the buffer to receive the data is large enough.
+* Make sure that the buffer to receive the data is large eyesugh.
 *
 * Although this function expects an even number of bytes, it is still byte
 * oriented, and the data read back is NOT translated to the endianness of
@@ -1436,7 +1436,7 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 		return -EINVAL;
 	}
 
-	/* ReadModifyWrite & mode flag bits are not allowed */
+	/* ReadModifyWrite & mode flag bits are yest allowed */
 	flags &= (~DRXDAP_FASI_RMW & ~DRXDAP_FASI_MODEFLAGS);
 #if DRXDAP_SINGLE_MASTER
 	flags |= DRXDAP_FASI_SINGLE_MASTER;
@@ -1824,7 +1824,7 @@ static int drxdap_fasi_write_reg32(struct i2c_device_addr *dev_addr,
 * \retval -EIO Timeout, I2C error, illegal bank
 *
 * 16 bits register read modify write access using short addressing format only.
-* Requires knowledge of the registermap, thus device dependent.
+* Requires kyeswledge of the registermap, thus device dependent.
 * Using DAP FASI directly to avoid endless recursion of RMWs to audio registers.
 *
 */
@@ -1876,8 +1876,8 @@ static int drxj_dap_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
 						 u16 wdata, u16 *rdata)
 {
 	/* TODO: correct short/long addressing format decision,
-	   now long format has higher prio then short because short also
-	   needs virt bnks (not impl yet) for certain audio registers */
+	   yesw long format has higher prio then short because short also
+	   needs virt bnks (yest impl yet) for certain audio registers */
 #if (DRXDAPFASI_LONG_ADDR_ALLOWED == 1)
 	return drxdap_fasi_read_modify_write_reg16(dev_addr,
 							  waddr,
@@ -2227,7 +2227,7 @@ int drxj_dap_atomic_read_reg32(struct i2c_device_addr *dev_addr,
 *
 * This routine was created because to much orthogonal settings have
 * been put into one HI API function (configure). Especially the I2C bridge
-* enable/disable should not need re-configuration of the HI.
+* enable/disable should yest need re-configuration of the HI.
 *
 */
 static int hi_cfg_command(const struct drx_demod_instance *demod)
@@ -2381,7 +2381,7 @@ rw_error:
 * \retval 0 Success.
 * \retval -EIO Failure.
 *
-* Needs to know Psys (System Clock period) and Posc (Osc Clock period)
+* Needs to kyesw Psys (System Clock period) and Posc (Osc Clock period)
 * Need to store configuration in driver because of the way I2C
 * bridging is controlled.
 *
@@ -2405,14 +2405,14 @@ static int init_hi(const struct drx_demod_instance *demod)
 	}
 
 	/* Timing div, 250ns/Psys */
-	/* Timing div, = ( delay (nano seconds) * sysclk (kHz) )/ 1000 */
+	/* Timing div, = ( delay (nayes seconds) * sysclk (kHz) )/ 1000 */
 	ext_attr->hi_cfg_timing_div =
 	    (u16) ((common_attr->sys_clock_freq / 1000) * HI_I2C_DELAY) / 1000;
 	/* Clipping */
 	if ((ext_attr->hi_cfg_timing_div) > SIO_HI_RA_RAM_PAR_2_CFG_DIV__M)
 		ext_attr->hi_cfg_timing_div = SIO_HI_RA_RAM_PAR_2_CFG_DIV__M;
 	/* Bridge delay, uses oscilator clock */
-	/* Delay = ( delay (nano seconds) * oscclk (kHz) )/ 1000 */
+	/* Delay = ( delay (nayes seconds) * oscclk (kHz) )/ 1000 */
 	/* SDA brdige delay */
 	ext_attr->hi_cfg_bridge_delay =
 	    (u16) ((common_attr->osc_clock_freq / 1000) * HI_I2C_BRIDGE_DELAY) /
@@ -2420,11 +2420,11 @@ static int init_hi(const struct drx_demod_instance *demod)
 	/* Clipping */
 	if ((ext_attr->hi_cfg_bridge_delay) > SIO_HI_RA_RAM_PAR_3_CFG_DBL_SDA__M)
 		ext_attr->hi_cfg_bridge_delay = SIO_HI_RA_RAM_PAR_3_CFG_DBL_SDA__M;
-	/* SCL bridge delay, same as SDA for now */
+	/* SCL bridge delay, same as SDA for yesw */
 	ext_attr->hi_cfg_bridge_delay += ((ext_attr->hi_cfg_bridge_delay) <<
 				      SIO_HI_RA_RAM_PAR_3_CFG_DBL_SCL__B);
 	/* Wakeup key, setting the read flag (as suggest in the documentation) does
-	   not always result into a working solution (barebones worked VI2C failed).
+	   yest always result into a working solution (barebones worked VI2C failed).
 	   Not setting the bit works in all cases . */
 	ext_attr->hi_cfg_wake_up_key = DRXJ_WAKE_UP_KEY;
 	/* port/bridge/power down ctrl */
@@ -2502,7 +2502,7 @@ static int get_device_capabilities(struct drx_demod_instance *demod)
 
 	switch ((sio_pdr_ohw_cfg & SIO_PDR_OHW_CFG_FREF_SEL__M)) {
 	case 0:
-		/* ignore (bypass ?) */
+		/* igyesre (bypass ?) */
 		break;
 	case 1:
 		/* 27 MHz */
@@ -2650,7 +2650,7 @@ static int get_device_capabilities(struct drx_demod_instance *demod)
 		ext_attr->has_irqn = true;
 		break;
 	default:
-		/* Unknown device variant */
+		/* Unkyeswn device variant */
 		return -EIO;
 		break;
 	}
@@ -2686,7 +2686,7 @@ static int power_up_device(struct drx_demod_instance *demod)
 	wake_up_addr.i2c_dev_id = dev_addr->i2c_dev_id;
 	wake_up_addr.user_data = dev_addr->user_data;
 	/*
-	 * I2C access may fail in this case: no ack
+	 * I2C access may fail in this case: yes ack
 	 * dummy write must be used to wake uop device, dummy read must be used to
 	 * reset HI state machine (avoiding actual writes)
 	 */
@@ -2754,7 +2754,7 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
 	if (cfg_data->enable_mpeg_output == true) {
-		/* quick and dirty patch to set MPEG in case current std is not
+		/* quick and dirty patch to set MPEG in case current std is yest
 		   producing MPEG */
 		switch (ext_attr->standard) {
 		case DRX_STANDARD_8VSB:
@@ -2966,7 +2966,7 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 				break;
 			case DRX_STANDARD_ITU_A:
 			case DRX_STANDARD_ITU_C:
-				/* insert_rs_byte = false -> coef = 188/204, RS bits not in MPEG output */
+				/* insert_rs_byte = false -> coef = 188/204, RS bits yest in MPEG output */
 				rcn_rate =
 				    (frac28
 				     (max_bit_rate,
@@ -3128,7 +3128,7 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 			goto rw_error;
 		}
 
-		/* enabling for both parallel and serial now */
+		/* enabling for both parallel and serial yesw */
 		/*  Write magic word to enable pdr reg write */
 		rc = drxj_dap_write_reg16(dev_addr, SIO_TOP_COMM_KEY__A, 0xFABA, 0);
 		if (rc != 0) {
@@ -3252,7 +3252,7 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 			pr_err("error %d\n", rc);
 			goto rw_error;
 		}
-		/*  Write nomagic word to enable pdr reg write */
+		/*  Write yesmagic word to enable pdr reg write */
 		rc = drxj_dap_write_reg16(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000, 0);
 		if (rc != 0) {
 			pr_err("error %d\n", rc);
@@ -3332,7 +3332,7 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 			pr_err("error %d\n", rc);
 			goto rw_error;
 		}
-		/* Write nomagic word to enable pdr reg write */
+		/* Write yesmagic word to enable pdr reg write */
 		rc = drxj_dap_write_reg16(dev_addr, SIO_TOP_COMM_KEY__A, 0x0000, 0);
 		if (rc != 0) {
 			pr_err("error %d\n", rc);
@@ -3403,7 +3403,7 @@ static int set_mpegtei_handling(struct drx_demod_instance *demod)
 	fec_oc_ems_mode &= (~FEC_OC_EMS_MODE_MODE__M);
 
 	if (ext_attr->disable_te_ihandling) {
-		/* do not change TEI bit */
+		/* do yest change TEI bit */
 		fec_oc_dpr_mode |= FEC_OC_DPR_MODE_ERR_DISABLE__M;
 		fec_oc_snc_mode |= FEC_OC_SNC_MODE_CORR_DISABLE__M |
 		    ((0x2) << (FEC_OC_SNC_MODE_ERROR_CTL__B));
@@ -3457,7 +3457,7 @@ static int bit_reverse_mpeg_output(struct drx_demod_instance *demod)
 		goto rw_error;
 	}
 
-	/* reset to default (normal bit order) */
+	/* reset to default (yesrmal bit order) */
 	fec_oc_ipr_mode &= (~FEC_OC_IPR_MODE_REVERSE_ORDER__M);
 
 	if (ext_attr->bit_reverse_mpeg_outout)
@@ -3875,7 +3875,7 @@ rw_error:
 * \fn int ctrl_i2c_bridge()
 * \brief Open or close the I2C switch to tuner.
 * \param demod Pointer to demodulator instance.
-* \param bridge_closed Pointer to bool indication if bridge is closed not.
+* \param bridge_closed Pointer to bool indication if bridge is closed yest.
 * \return int.
 
 */
@@ -4030,10 +4030,10 @@ static int scu_command(struct i2c_device_addr *dev_addr, struct drxjscu_cmd *cmd
 			goto rw_error;
 		}	/* fallthrough */
 	case 0:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	default:
-		/* this number of parameters is not supported */
+		/* this number of parameters is yest supported */
 		return -EIO;
 	}
 	rc = drxj_dap_write_reg16(dev_addr, SCU_RAM_COMMAND__A, cmd->command, 0);
@@ -4088,10 +4088,10 @@ static int scu_command(struct i2c_device_addr *dev_addr, struct drxjscu_cmd *cmd
 				goto rw_error;
 			}	/* fallthrough */
 		case 0:
-			/* do nothing */
+			/* do yesthing */
 			break;
 		default:
-			/* this number of parameters is not supported */
+			/* this number of parameters is yest supported */
 			return -EIO;
 		}
 
@@ -4106,7 +4106,7 @@ static int scu_command(struct i2c_device_addr *dev_addr, struct drxjscu_cmd *cmd
 		    ) {
 			return -EINVAL;
 		}
-		/* here it is assumed that negative means error, and positive no error */
+		/* here it is assumed that negative means error, and positive yes error */
 		else if (err < 0)
 			return -EIO;
 		else
@@ -4789,7 +4789,7 @@ set_frequency(struct drx_demod_instance *demod,
 	case DRX_STANDARD_FM:
 		/* After IQM FS sound carrier must appear at 4 Mhz in spect.
 		   Sound carrier is already 3Mhz above centre frequency due
-		   to tuner setting so now add an extra shift of 1MHz... */
+		   to tuner setting so yesw add an extra shift of 1MHz... */
 		fm_frequency_shift = 1000;
 		/*fall through */
 	case DRX_STANDARD_ITU_B:
@@ -5931,7 +5931,7 @@ static int set_vsb(struct drx_demod_instance *demod)
 			pr_err("error %d\n", rc);
 			goto rw_error;
 		}
-		/* output data even when not locked */
+		/* output data even when yest locked */
 		rc = drxj_dap_write_reg16(dev_addr, FEC_OC_SNC_MODE__A, fec_oc_snc_mode | FEC_OC_SNC_MODE_UNLOCK_ENABLE__M, 0);
 		if (rc != 0) {
 			pr_err("error %d\n", rc);
@@ -5960,7 +5960,7 @@ static int set_vsb(struct drx_demod_instance *demod)
 		pr_err("error %d\n", rc);
 		goto rw_error;
 	}
-	/* no transparent, no A&C framing; parity is set in mpegoutput */
+	/* yes transparent, yes A&C framing; parity is set in mpegoutput */
 	{
 		u16 fec_oc_reg_mode = 0;
 		rc = drxj_dap_read_reg16(dev_addr, FEC_OC_MODE__A, &fec_oc_reg_mode, 0);
@@ -6456,7 +6456,7 @@ rw_error:
 *
 *  NOTE:
 *  Take into account that for certain settings the errorcounters can overflow.
-*  The implementation does not check this.
+*  The implementation does yest check this.
 *
 *  TODO: overriding the ext_attr->fec_bits_desired by constellation dependent
 *  constants to get a measurement period of approx. 1 sec. Remove fec_bits_desired
@@ -6479,7 +6479,7 @@ set_qam_measurement(struct drx_demod_instance *demod,
 	u32 fec_oc_snc_fail_period = 0;	/* Value for corresponding I2C register */
 	u32 qam_vd_period = 0;	/* Value for corresponding I2C register */
 	u32 qam_vd_bit_cnt = 0;	/* Actual precise amount of bits */
-	u16 fec_vd_plen = 0;	/* no of trellis symbols: VD SER measur period */
+	u16 fec_vd_plen = 0;	/* yes of trellis symbols: VD SER measur period */
 	u16 qam_vd_prescale = 0;	/* Viterbi Measurement Prescale */
 
 	dev_addr = demod->my_i2c_dev_addr;
@@ -6512,7 +6512,7 @@ set_qam_measurement(struct drx_demod_instance *demod,
 	/* fecrs_period = (int)ceil(FEC_BITS_DESIRED/(fecrs_prescale*plen)) */
 	/* rs_bit_cnt   = fecrs_period*fecrs_prescale*plen                  */
 	/*     result is within 32 bit arithmetic ->                        */
-	/*     no need for mult or frac functions                           */
+	/*     yes need for mult or frac functions                           */
 
 	/* TODO: use constant instead of calculation and remove the fec_rs_plen in ext_attr */
 	switch (ext_attr->standard) {
@@ -6603,22 +6603,22 @@ set_qam_measurement(struct drx_demod_instance *demod,
 		/*                    (qamvd_prescale*plen*(qam_constellation+1))) */
 		/* vd_bit_cnt   = qamvd_period*qamvd_prescale*plen                 */
 		/*     result is within 32 bit arithmetic ->                       */
-		/*     no need for mult or frac functions                          */
+		/*     yes need for mult or frac functions                          */
 
-		/* a(8 bit) * b(8 bit) = 16 bit result => mult32 not needed */
+		/* a(8 bit) * b(8 bit) = 16 bit result => mult32 yest needed */
 		fec_vd_plen = ext_attr->fec_vd_plen;
 		qam_vd_prescale = ext_attr->qam_vd_prescale;
 		qam_vd_bit_cnt = qam_vd_prescale * fec_vd_plen;	/* temp storage */
 
 		switch (constellation) {
 		case DRX_CONSTELLATION_QAM64:
-			/* a(16 bit) * b(4 bit) = 20 bit result => mult32 not needed */
+			/* a(16 bit) * b(4 bit) = 20 bit result => mult32 yest needed */
 			qam_vd_period =
 			    qam_vd_bit_cnt * (QAM_TOP_CONSTELLATION_QAM64 + 1)
 			    * (QAM_TOP_CONSTELLATION_QAM64 + 1);
 			break;
 		case DRX_CONSTELLATION_QAM256:
-			/* a(16 bit) * b(5 bit) = 21 bit result => mult32 not needed */
+			/* a(16 bit) * b(5 bit) = 21 bit result => mult32 yest needed */
 			qam_vd_period =
 			    qam_vd_bit_cnt * (QAM_TOP_CONSTELLATION_QAM256 + 1)
 			    * (QAM_TOP_CONSTELLATION_QAM256 + 1);
@@ -6635,7 +6635,7 @@ set_qam_measurement(struct drx_demod_instance *demod,
 		if (qam_vd_period > 0xFFFF)
 			qam_vd_period = 0xFFFF;
 
-		/* a(16 bit) * b(16 bit) = 32 bit result => mult32 not needed */
+		/* a(16 bit) * b(16 bit) = 32 bit result => mult32 yest needed */
 		qam_vd_bit_cnt *= qam_vd_period;
 
 		rc = drxj_dap_write_reg16(dev_addr, QAM_VD_MEASUREMENT_PERIOD__A, (u16)qam_vd_period, 0);
@@ -7140,7 +7140,7 @@ static int set_qam64(struct drx_demod_instance *demod)
 	struct i2c_device_addr *dev_addr = demod->my_i2c_dev_addr;
 	int rc;
 	static const u8 qam_dq_qual_fun[] = {
-		/* this is hw reset value. no necessary to re-write */
+		/* this is hw reset value. yes necessary to re-write */
 		DRXJ_16TO8(4),	/* fun0  */
 		DRXJ_16TO8(4),	/* fun1  */
 		DRXJ_16TO8(4),	/* fun2  */
@@ -8443,7 +8443,7 @@ set_qam(struct drx_demod_instance *demod,
 		}
 
 		/* No more resets of the IQM, current standard correctly set =>
-		   now AGCs can be configured. */
+		   yesw AGCs can be configured. */
 		/* turn on IQMAF. It has to be in front of setAgc**() */
 		rc = set_iqm_af(demod, true);
 		if (rc != 0) {
@@ -8944,7 +8944,7 @@ qam64auto(struct drx_demod_instance *demod,
 					start_time = d_locked_time =
 					    jiffies_to_msecs(jiffies);
 					timeout_ofs = 0;
-				} else {	/* no need to wait lock */
+				} else {	/* yes need to wait lock */
 
 					start_time =
 					    jiffies_to_msecs(jiffies) -
@@ -8972,7 +8972,7 @@ qam64auto(struct drx_demod_instance *demod,
 						pr_err("error %d\n", rc);
 						goto rw_error;
 					}
-					/* no need to wait lock */
+					/* yes need to wait lock */
 					start_time =
 					    jiffies_to_msecs(jiffies) -
 					    DRXJ_QAM_MAX_WAITTIME - timeout_ofs;
@@ -9164,7 +9164,7 @@ set_qam_channel(struct drx_demod_instance *demod,
 				break;
 			}
 
-			/* QAM254 not locked. Try QAM64 constellation */
+			/* QAM254 yest locked. Try QAM64 constellation */
 			channel->constellation = DRX_CONSTELLATION_QAM64;
 			ext_attr->constellation = DRX_CONSTELLATION_QAM64;
 			if (channel->mirror == DRX_MIRROR_AUTO)
@@ -9310,38 +9310,38 @@ get_qamrs_err_count(struct i2c_device_addr *dev_addr,
 
 	/* all reported errors are received in the  */
 	/* most recently finished measurement period */
-	/*   no of pre RS bit errors */
+	/*   yes of pre RS bit errors */
 	rc = drxj_dap_read_reg16(dev_addr, FEC_RS_NR_BIT_ERRORS__A, &nr_bit_errors, 0);
 	if (rc != 0) {
 		pr_err("error %d\n", rc);
 		goto rw_error;
 	}
-	/*   no of symbol errors      */
+	/*   yes of symbol errors      */
 	rc = drxj_dap_read_reg16(dev_addr, FEC_RS_NR_SYMBOL_ERRORS__A, &nr_symbol_errors, 0);
 	if (rc != 0) {
 		pr_err("error %d\n", rc);
 		goto rw_error;
 	}
-	/*   no of packet errors      */
+	/*   yes of packet errors      */
 	rc = drxj_dap_read_reg16(dev_addr, FEC_RS_NR_PACKET_ERRORS__A, &nr_packet_errors, 0);
 	if (rc != 0) {
 		pr_err("error %d\n", rc);
 		goto rw_error;
 	}
-	/*   no of failures to decode */
+	/*   yes of failures to decode */
 	rc = drxj_dap_read_reg16(dev_addr, FEC_RS_NR_FAILURES__A, &nr_failures, 0);
 	if (rc != 0) {
 		pr_err("error %d\n", rc);
 		goto rw_error;
 	}
-	/*   no of post RS bit erros  */
+	/*   yes of post RS bit erros  */
 	rc = drxj_dap_read_reg16(dev_addr, FEC_OC_SNC_FAIL_COUNT__A, &nr_snc_par_fail_count, 0);
 	if (rc != 0) {
 		pr_err("error %d\n", rc);
 		goto rw_error;
 	}
 	/* TODO: NOTE */
-	/* These register values are fetched in non-atomic fashion           */
+	/* These register values are fetched in yesn-atomic fashion           */
 	/* It is possible that the read values contain unrelated information */
 
 	rs_errors->nr_bit_errors = nr_bit_errors & FEC_RS_NR_BIT_ERRORS__M;
@@ -9463,7 +9463,7 @@ ctrl_get_qam_sig_quality(struct drx_demod_instance *demod)
 
 	u32 pre_bit_err_rs = 0;	/* pre RedSolomon Bit Error Rate */
 	u32 post_bit_err_rs = 0;	/* post RedSolomon Bit Error Rate */
-	u32 pkt_errs = 0;	/* no of packet errors in RS */
+	u32 pkt_errs = 0;	/* yes of packet errors in RS */
 	u16 qam_sl_err_power = 0;	/* accumulated error between raw and sliced symbols */
 	u16 qsym_err_vd = 0;	/* quadrature symbol errors in QAM_VD */
 	u16 fec_oc_period = 0;	/* SNC sync failure measurement period */
@@ -9553,7 +9553,7 @@ ctrl_get_qam_sig_quality(struct drx_demod_instance *demod)
 	/* pre viterbi SER is good if it is below 0.025 */
 
 	/* get the register value */
-	/*   no of quadrature symbol errors */
+	/*   yes of quadrature symbol errors */
 	rc = drxj_dap_read_reg16(dev_addr, QAM_VD_NR_QSYM_ERRORS__A, &qsym_err_vd, 0);
 	if (rc != 0) {
 		pr_err("error %d\n", rc);
@@ -9669,7 +9669,7 @@ rw_error:
 /*============================================================================*/
 
 /*
-   Implementation notes.
+   Implementation yestes.
 
    NTSC/FM AGCs
 
@@ -9679,7 +9679,7 @@ rw_error:
       (3) Video AGC (used to amplify the output signal in case input to low)
       (4) SIF AGC (used to amplify the output signal in case input to low)
 
-      Video AGC is coupled to RF and IF. SIF AGC is not coupled. It is assumed
+      Video AGC is coupled to RF and IF. SIF AGC is yest coupled. It is assumed
       that the coupling between Video AGC and the RF and IF AGCs also works in
       favor of the SIF AGC.
 
@@ -9688,7 +9688,7 @@ rw_error:
       (2) IF (used to attenuate the input signal in case of to much power)
       (3) SIF AGC (used to amplify the output signal in case input to low)
 
-      The SIF AGC is now coupled to the RF/IF AGCs.
+      The SIF AGC is yesw coupled to the RF/IF AGCs.
       The SIF AGC is needed for both SIF output and the internal SIF signal to
       the AUD block.
 
@@ -9698,7 +9698,7 @@ rw_error:
 
    ATV SETTINGS
 
-      (Shadow settings will not be used for now, they will be implemented
+      (Shadow settings will yest be used for yesw, they will be implemented
        later on because of the schedule)
 
       Several HW/SCU "settings" can be used for ATV. The standard selection
@@ -9717,10 +9717,10 @@ rw_error:
       The "settings" will consist of: AGC settings, filter settings etc.
 
       Disadvantage of use of shadow settings:
-      Direct changes in HW/SCU registers will not be reflected in the
+      Direct changes in HW/SCU registers will yest be reflected in the
       shadow settings and these changes will be overwritten during a next
-      update. This can happen during evaluation. This will not be a problem
-      for normal customer usage.
+      update. This can happen during evaluation. This will yest be a problem
+      for yesrmal customer usage.
 */
 /* -------------------------------------------------------------------------- */
 
@@ -10033,10 +10033,10 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 		if (
 			   /* signal is transmitted inverted */
 			   ((oob_param->spectrum_inverted == true) &&
-			    /* and tuner is not mirroring the signal */
+			    /* and tuner is yest mirroring the signal */
 			    (!mirror_freq_spect_oob)) |
 			   /* or */
-			   /* signal is transmitted noninverted */
+			   /* signal is transmitted yesninverted */
 			   ((oob_param->spectrum_inverted == false) &&
 			    /* and tuner is mirroring the signal */
 			    (mirror_freq_spect_oob))
@@ -10051,10 +10051,10 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 		if (
 			   /* signal is transmitted inverted */
 			   ((oob_param->spectrum_inverted == true) &&
-			    /* and tuner is not mirroring the signal */
+			    /* and tuner is yest mirroring the signal */
 			    (!mirror_freq_spect_oob)) |
 			   /* or */
-			   /* signal is transmitted noninverted */
+			   /* signal is transmitted yesninverted */
 			   ((oob_param->spectrum_inverted == false) &&
 			    /* and tuner is mirroring the signal */
 			    (mirror_freq_spect_oob))
@@ -10070,10 +10070,10 @@ static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_par
 		if (
 			   /* signal is transmitted inverted */
 			   ((oob_param->spectrum_inverted == true) &&
-			    /* and tuner is not mirroring the signal */
+			    /* and tuner is yest mirroring the signal */
 			    (!mirror_freq_spect_oob)) |
 			   /* or */
-			   /* signal is transmitted noninverted */
+			   /* signal is transmitted yesninverted */
 			   ((oob_param->spectrum_inverted == false) &&
 			    /* and tuner is mirroring the signal */
 			    (mirror_freq_spect_oob))
@@ -10429,7 +10429,7 @@ rw_error:
 * \param channel Pointer to channel data.
 * \return int.
 *
-* In case the tuner module is not used and in case of NTSC/FM the pogrammer
+* In case the tuner module is yest used and in case of NTSC/FM the pogrammer
 * must tune the tuner to the centre frequency of the NTSC/FM channel.
 *
 */
@@ -10487,7 +10487,7 @@ ctrl_set_channel(struct drx_demod_instance *demod, struct drx_channel *channel)
 
 	/* For QAM annex A and annex C:
 	   -check symbolrate and constellation
-	   -derive bandwidth from symbolrate (input bandwidth is ignored)
+	   -derive bandwidth from symbolrate (input bandwidth is igyesred)
 	 */
 #ifndef DRXJ_VSB_ONLY
 	if ((standard == DRX_STANDARD_ITU_A) ||
@@ -10906,7 +10906,7 @@ ctrl_set_standard(struct drx_demod_instance *demod, enum drx_standard *standard)
 		}
 		break;
 	case DRX_STANDARD_UNKNOWN:
-		/* Do nothing */
+		/* Do yesthing */
 		break;
 	case DRX_STANDARD_AUTO:	/* fallthrough */
 	default:
@@ -10949,7 +10949,7 @@ ctrl_set_standard(struct drx_demod_instance *demod, enum drx_standard *standard)
 
 	return 0;
 rw_error:
-	/* Don't know what the standard is now ... try again */
+	/* Don't kyesw what the standard is yesw ... try again */
 	ext_attr->standard = DRX_STANDARD_UNKNOWN;
 	return rc;
 }
@@ -10970,7 +10970,7 @@ static void drxj_reset_mode(struct drxj_data *ext_attr)
 		ext_attr->vsb_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_OFF;
 		ext_attr->vsb_pga_cfg = 140 + (11 * 13);
 	} else {
-		/* IF AGC on, PGA not active */
+		/* IF AGC on, PGA yest active */
 #ifndef DRXJ_VSB_ONLY
 		ext_attr->qam_if_agc_cfg.standard = DRX_STANDARD_ITU_B;
 		ext_attr->qam_if_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
@@ -10989,7 +10989,7 @@ static void drxj_reset_mode(struct drxj_data *ext_attr)
 		ext_attr->vsb_pga_cfg = 140;
 	}
 	/* TODO: remove min_output_level and max_output_level for both QAM and VSB after */
-	/* mc has not used them */
+	/* mc has yest used them */
 #ifndef DRXJ_VSB_ONLY
 	ext_attr->qam_rf_agc_cfg.standard = DRX_STANDARD_ITU_B;
 	ext_attr->qam_rf_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
@@ -11044,7 +11044,7 @@ ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 	if (mode == NULL)
 		return -EINVAL;
 
-	/* If already in requested power mode, do nothing */
+	/* If already in requested power mode, do yesthing */
 	if (common_attr->current_power_mode == *mode)
 		return 0;
 
@@ -11063,7 +11063,7 @@ ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 		sio_cc_pwd_mode = SIO_CC_PWD_MODE_LEVEL_OSC;
 		break;
 	default:
-		/* Unknow sleep mode */
+		/* Unkyesw sleep mode */
 		return -EINVAL;
 		break;
 	}
@@ -11125,7 +11125,7 @@ ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 			}
 			break;
 		case DRX_STANDARD_UNKNOWN:
-			/* Do nothing */
+			/* Do yesthing */
 			break;
 		case DRX_STANDARD_AUTO:	/* fallthrough */
 		default:
@@ -11270,7 +11270,7 @@ ctrl_set_cfg_afe_gain(struct drx_demod_instance *demod, struct drxj_cfg_afe_gain
 	case DRX_STANDARD_ITU_B:	/* fallthrough */
 	case DRX_STANDARD_ITU_C:
 #endif
-		/* Do nothing */
+		/* Do yesthing */
 		break;
 	default:
 		return -EINVAL;
@@ -11332,7 +11332,7 @@ static int drxj_set_lna_state(struct drx_demod_instance *demod, bool state);
 * \brief Open the demod instance, configure device, configure drxdriver
 * \return Status_t Return status.
 *
-* drxj_open() can be called with a NULL ucode image => no ucode upload.
+* drxj_open() can be called with a NULL ucode image => yes ucode upload.
 * This means that drxj_open() must NOT contain SCU commands or, in general,
 * rely on SCU or AUD ucode to be present.
 *
@@ -11725,7 +11725,7 @@ eof:
  *	-EIO:
  *		- In case of UCODE_UPLOAD: I2C error.
  *		- In case of UCODE_VERIFY: I2C error or image on device
- *		  is not equal to image provided to this control function.
+ *		  is yest equal to image provided to this control function.
  *	-EINVAL:
  *		- Invalid arguments.
  *		- Provided image is corrupt
@@ -11967,7 +11967,7 @@ static int drx39xxj_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	result = ctrl_lock_status(demod, &lock_status);
 	if (result != 0) {
-		pr_err("drx39xxj: could not get lock status!\n");
+		pr_err("drx39xxj: could yest get lock status!\n");
 		*status = 0;
 	}
 
@@ -11997,7 +11997,7 @@ static int drx39xxj_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		    | FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
 		break;
 	default:
-		pr_err("Lock state unknown %d\n", lock_status);
+		pr_err("Lock state unkyeswn %d\n", lock_status);
 	}
 	ctrl_sig_quality(demod, lock_status);
 
@@ -12201,7 +12201,7 @@ static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 	result = ctrl_i2c_bridge(demod, &i2c_gate_state);
 	if (result != 0) {
-		pr_err("drx39xxj: could not open i2c gate [%d]\n",
+		pr_err("drx39xxj: could yest open i2c gate [%d]\n",
 		       result);
 		dump_stack();
 	} else {
@@ -12237,7 +12237,7 @@ static int drx39xxj_set_lna(struct dvb_frontend *fe)
 
 	if (c->lna) {
 		if (!ext_attr->has_lna) {
-			pr_err("LNA is not supported on this device!\n");
+			pr_err("LNA is yest supported on this device!\n");
 			return -EINVAL;
 
 		}

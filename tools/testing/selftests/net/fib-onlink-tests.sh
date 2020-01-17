@@ -3,7 +3,7 @@
 
 # IPv4 and IPv6 onlink tests
 
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
+PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=yes}
 VERBOSE=0
 
 # Network interfaces
@@ -96,7 +96,7 @@ log_test()
 	else
 		nfail=$((nfail+1))
 		printf "    TEST: %-50s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "no" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -200,14 +200,14 @@ setup()
 	for n in 1 3 5 7; do
 		ip li set ${NETIFS[p${n}]} up
 		ip addr add ${V4ADDRS[p${n}]}/24 dev ${NETIFS[p${n}]}
-		ip addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} nodad
+		ip addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} yesdad
 	done
 
 	# move peer interfaces to namespace and add addresses
 	for n in 2 4 6 8; do
 		ip li set ${NETIFS[p${n}]} netns ${PEER_NS} up
 		ip -netns ${PEER_NS} addr add ${V4ADDRS[p${n}]}/24 dev ${NETIFS[p${n}]}
-		ip -netns ${PEER_NS} addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} nodad
+		ip -netns ${PEER_NS} addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} yesdad
 	done
 
 	ip -6 ro add default via ${V6ADDRS[p3]/::[0-9]/::64}
@@ -487,7 +487,7 @@ nfail=0
 while getopts :t:pPhv o
 do
 	case $o in
-		p) PAUSE_ON_FAIL=yes;;
+		p) PAUSE_ON_FAIL=no;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -499,7 +499,7 @@ setup
 run_onlink_tests
 cleanup
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "yesne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

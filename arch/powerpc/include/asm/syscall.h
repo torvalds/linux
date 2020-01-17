@@ -56,7 +56,7 @@ static inline void syscall_set_return_value(struct task_struct *task,
 					    int error, long val)
 {
 	/*
-	 * In the general case it's not obvious that we must deal with CCR
+	 * In the general case it's yest obvious that we must deal with CCR
 	 * here, as the syscall exit path will also do that for us. However
 	 * there are some places, eg. the signal code, which check ccr to
 	 * decide if the value in r3 is actually an error.

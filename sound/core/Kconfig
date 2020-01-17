@@ -74,7 +74,7 @@ config SND_PCM_OSS_PLUGINS
 	depends on SND_PCM_OSS
 	default y
 	help
-	  If you disable this option, the ALSA's OSS PCM API will not
+	  If you disable this option, the ALSA's OSS PCM API will yest
 	  support conversion of channels, formats and rates. It will
 	  behave like most of new OSS/Free drivers in 2.4/2.6 kernels.
 
@@ -83,7 +83,7 @@ config SND_PCM_TIMER
 	default y
 	help
 	  If you disable this option, pcm timer will be unavailable, so
-	  those stubs that use pcm timer (e.g. dmix, dsnoop & co) may work
+	  those stubs that use pcm timer (e.g. dmix, dsyesop & co) may work
 	  incorrectlly.
 
 	  For some embedded devices, we may disable it to reduce memory
@@ -102,9 +102,9 @@ config SND_HRTIMER
 	  will be called snd-hrtimer.
 
 config SND_DYNAMIC_MINORS
-	bool "Dynamic device file minor numbers"
+	bool "Dynamic device file miyesr numbers"
 	help
-	  If you say Y here, the minor numbers of ALSA device files in
+	  If you say Y here, the miyesr numbers of ALSA device files in
 	  /dev/snd/ are allocated dynamically.  This allows you to have
 	  more than 8 sound cards, but requires a dynamic device file
 	  system like udev.
@@ -166,7 +166,7 @@ config SND_DEBUG_VERBOSE
 	  Say Y here to enable extra-verbose debugging messages.
 
 	  Let me repeat: it enables EXTRA-VERBOSE DEBUGGING messages.
-	  So, say Y only if you are ready to be annoyed.
+	  So, say Y only if you are ready to be anyesyed.
 
 config SND_PCM_XRUN_DEBUG
 	bool "Enable PCM ring buffer overrun/underrun debugging"
@@ -174,7 +174,7 @@ config SND_PCM_XRUN_DEBUG
 	depends on SND_DEBUG && SND_VERBOSE_PROCFS
 	help
 	  Say Y to enable the PCM ring buffer overrun/underrun debugging.
-	  It is usually not required, but if you have trouble with
+	  It is usually yest required, but if you have trouble with
 	  sound clicking when system is loaded, it may help to determine
 	  the process or driver which causes the scheduling gaps.
 

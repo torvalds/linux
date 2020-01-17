@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2012-2014 Canonical Ltd (Maarten Lankhorst)
+ * Copyright (C) 2012-2014 Cayesnical Ltd (Maarten Lankhorst)
  *
- * Based on bo.c which bears the following copyright notice,
+ * Based on bo.c which bears the following copyright yestice,
  * but is dual licensed:
  *
  * Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
@@ -15,7 +15,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -40,7 +40,7 @@
  *
  * The reservation object provides a mechanism to manage shared and
  * exclusive fences associated with a buffer.  A reservation object
- * can have attached one exclusive fence (normally associated with
+ * can have attached one exclusive fence (yesrmally associated with
  * write operations) or N shared fences (read operations).  The RCU
  * mechanism is used to protect read access to fences from locked
  * write-side updates.
@@ -121,7 +121,7 @@ void dma_resv_fini(struct dma_resv *obj)
 
 	/*
 	 * This object should be dead and all references must have
-	 * been released to it, so no need to be protected with rcu.
+	 * been released to it, so yes need to be protected with rcu.
 	 */
 	excl = rcu_dereference_protected(obj->fence_excl, 1);
 	if (excl)
@@ -143,7 +143,7 @@ EXPORT_SYMBOL(dma_resv_fini);
  * be called with obj->lock held.
  *
  * RETURNS
- * Zero for success, or -errno
+ * Zero for success, or -erryes
  */
 int dma_resv_reserve_shared(struct dma_resv *obj, unsigned int num_fences)
 {
@@ -169,7 +169,7 @@ int dma_resv_reserve_shared(struct dma_resv *obj, unsigned int num_fences)
 		return -ENOMEM;
 
 	/*
-	 * no need to bump fence refcounts, rcu_read access
+	 * yes need to bump fence refcounts, rcu_read access
 	 * requires the use of kref_get_unless_zero, and the
 	 * references from the old struct are carried over to
 	 * the new.
@@ -187,11 +187,11 @@ int dma_resv_reserve_shared(struct dma_resv *obj, unsigned int num_fences)
 	new->shared_count = j;
 
 	/*
-	 * We are not changing the effective set of fences here so can
+	 * We are yest changing the effective set of fences here so can
 	 * merely update the pointer to the new array; both existing
 	 * readers and new readers will see exactly the same set of
 	 * active (unsignaled) shared fences. Individual fences and the
-	 * old array are protected by RCU and so will not vanish under
+	 * old array are protected by RCU and so will yest vanish under
 	 * the gaze of the rcu_read_lock() readers.
 	 */
 	rcu_assign_pointer(obj->fence, new);
@@ -292,7 +292,7 @@ void dma_resv_add_excl_fence(struct dma_resv *obj, struct dma_fence *fence)
 	write_seqcount_end(&obj->seq);
 	preempt_enable();
 
-	/* inplace update, no shared fences */
+	/* inplace update, yes shared fences */
 	while (i--)
 		dma_fence_put(rcu_dereference_protected(old->shared[i],
 						dma_resv_held(obj)));
@@ -393,7 +393,7 @@ EXPORT_SYMBOL(dma_resv_copy_fences);
  * the required size, and must be freed by caller)
  *
  * Retrieve all fences from the reservation object. If the pointer for the
- * exclusive fence is not specified the fence is put into the array of the
+ * exclusive fence is yest specified the fence is put into the array of the
  * shared fences as well. Returns either zero or -ENOMEM.
  */
 int dma_resv_get_fences_rcu(struct dma_resv *obj,

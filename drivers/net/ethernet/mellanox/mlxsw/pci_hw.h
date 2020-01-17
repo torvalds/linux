@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #ifndef _MLXSW_PCI_HW_H
 #define _MLXSW_PCI_HW_H
@@ -81,11 +81,11 @@ MLXSW_ITEM32(pci, wqe, c, 0x00, 31, 1);
 /* pci_wqe_lp
  * Local Processing, set if packet should be processed by the local
  * switch hardware:
- * For Ethernet EMAD (Direct Route and non Direct Route) -
+ * For Ethernet EMAD (Direct Route and yesn Direct Route) -
  * must be set if packet destination is local device
  * For InfiniBand CTL - must be set if packet destination is local device
  * Otherwise it must be clear
- * Local Process packets must not exceed the size of 2K (including payload
+ * Local Process packets must yest exceed the size of 2K (including payload
  * and headers).
  */
 MLXSW_ITEM32(pci, wqe, lp, 0x00, 30, 1);

@@ -29,7 +29,7 @@ struct fqdir {
  * @INET_FRAG_FIRST_IN: first fragment has arrived
  * @INET_FRAG_LAST_IN: final fragment has arrived
  * @INET_FRAG_COMPLETE: frag queue has been processed and is due for destruction
- * @INET_FRAG_HASH_DEAD: inet_frag_kill() has not removed fq from rhashtable
+ * @INET_FRAG_HASH_DEAD: inet_frag_kill() has yest removed fq from rhashtable
  */
 enum {
 	INET_FRAG_FIRST_IN	= BIT(0),
@@ -58,7 +58,7 @@ struct frag_v6_compare_key {
 /**
  * struct inet_frag_queue - fragment queue
  *
- * @node: rhash node
+ * @yesde: rhash yesde
  * @key: keys identifying this frag.
  * @timer: queue expiration timer
  * @lock: spinlock protecting this frag
@@ -75,7 +75,7 @@ struct frag_v6_compare_key {
  * @rcu: rcu head for freeing deferall
  */
 struct inet_frag_queue {
-	struct rhash_head	node;
+	struct rhash_head	yesde;
 	union {
 		struct frag_v4_compare_key v4;
 		struct frag_v6_compare_key v6;

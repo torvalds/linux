@@ -26,7 +26,7 @@ static unsigned int smack_ipv6_output(void *priv,
 {
 	struct sock *sk = skb_to_full_sk(skb);
 	struct socket_smack *ssp;
-	struct smack_known *skp;
+	struct smack_kyeswn *skp;
 
 	if (sk && sk->sk_security) {
 		ssp = sk->sk_security;
@@ -44,7 +44,7 @@ static unsigned int smack_ipv4_output(void *priv,
 {
 	struct sock *sk = skb_to_full_sk(skb);
 	struct socket_smack *ssp;
-	struct smack_known *skp;
+	struct smack_kyeswn *skp;
 
 	if (sk && sk->sk_security) {
 		ssp = sk->sk_security;

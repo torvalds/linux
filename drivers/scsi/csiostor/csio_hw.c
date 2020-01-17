@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -44,8 +44,8 @@
 #include <linux/log2.h>
 
 #include "csio_hw.h"
-#include "csio_lnode.h"
-#include "csio_rnode.h"
+#include "csio_lyesde.h"
+#include "csio_ryesde.h"
 
 int csio_dbg_level = 0xFEFF;
 unsigned int csio_port_mask = 0xf;
@@ -125,7 +125,7 @@ int csio_is_hw_removing(struct csio_hw *hw)
  *	@valp: where to store the value of the register at completion time
  *
  *	Wait until an operation is completed by checking a bit in a register
- *	up to @attempts times.  If @valp is not NULL the value of the register
+ *	up to @attempts times.  If @valp is yest NULL the value of the register
  *	at the time it indicated completion is stored there.  Returns 0 if the
  *	operation completes and	-EAGAIN	otherwise.
  */
@@ -321,7 +321,7 @@ csio_hw_get_vpd_params(struct csio_hw *hw, struct csio_vpd *p)
 		return -ENOMEM;
 
 	/*
-	 * Card information normally starts at VPD_BASE but early cards had
+	 * Card information yesrmally starts at VPD_BASE but early cards had
 	 * it at 0.
 	 */
 	ret = csio_hw_seeprom_read(hw, VPD_BASE, (uint32_t *)(vpd));
@@ -380,7 +380,7 @@ csio_hw_get_vpd_params(struct csio_hw *hw, struct csio_vpd *p)
  *	csio_hw_sf1_read - read data from the serial flash
  *	@hw: the HW module
  *	@byte_cnt: number of bytes to read
- *	@cont: whether another operation will be chained
+ *	@cont: whether ayesther operation will be chained
  *      @lock: whether to lock SF for PL access only
  *	@valp: where to store the read data
  *
@@ -412,7 +412,7 @@ csio_hw_sf1_read(struct csio_hw *hw, uint32_t byte_cnt, int32_t cont,
  *	csio_hw_sf1_write - write data to the serial flash
  *	@hw: the HW module
  *	@byte_cnt: number of bytes to write
- *	@cont: whether another operation will be chained
+ *	@cont: whether ayesther operation will be chained
  *      @lock: whether to lock SF for PL access only
  *	@val: value to write
  *
@@ -682,12 +682,12 @@ csio_hw_fw_dload(struct csio_hw *hw, uint8_t *fw_data, uint32_t size)
 	}
 
 	if (!size) {
-		csio_err(hw, "FW image has no data\n");
+		csio_err(hw, "FW image has yes data\n");
 		return -EINVAL;
 	}
 
 	if (size & 511) {
-		csio_err(hw, "FW image size not multiple of 512 bytes\n");
+		csio_err(hw, "FW image size yest multiple of 512 bytes\n");
 		return -EINVAL;
 	}
 
@@ -761,7 +761,7 @@ out:
 static int
 csio_hw_get_flash_params(struct csio_hw *hw)
 {
-	/* Table for non-Numonix supported flash parts.  Numonix parts are left
+	/* Table for yesn-Numonix supported flash parts.  Numonix parts are left
 	 * to the preexisting code.  All flash parts have 64KB sectors.
 	 */
 	static struct flash_desc {
@@ -783,7 +783,7 @@ csio_hw_get_flash_params(struct csio_hw *hw)
 	if (ret)
 		return ret;
 
-	/* Check to see if it's one of our non-standard supported Flash parts.
+	/* Check to see if it's one of our yesn-standard supported Flash parts.
 	 */
 	for (part = 0; part < ARRAY_SIZE(supported_flash); part++)
 		if (supported_flash[part].vendor_and_model_id == flashid) {
@@ -794,7 +794,7 @@ csio_hw_get_flash_params(struct csio_hw *hw)
 		}
 
 	/* Decode Flash part size.  The code below looks repetitive with
-	 * common encodings, but that's not guaranteed in the JEDEC
+	 * common encodings, but that's yest guaranteed in the JEDEC
 	 * specification for the Read JEDEC ID command.  The only thing that
 	 * we're guaranteed by the JEDEC specification is where the
 	 * Manufacturer ID is in the returned result.  After that each
@@ -851,14 +851,14 @@ csio_hw_get_flash_params(struct csio_hw *hw)
 	}
 	}
 
-	/* If we didn't recognize the FLASH part, that's no real issue: the
+	/* If we didn't recognize the FLASH part, that's yes real issue: the
 	 * Hardware/Software contract says that Hardware will _*ALWAYS*_
 	 * use a FLASH part which is at least 4MB in size and has 64KB
 	 * sectors.  The unrecognized FLASH part is likely to be much larger
 	 * than 4MB, but that's all we really need.
 	 */
 	if (size == 0) {
-		csio_warn(hw, "Unknown Flash Part, ID = %#x, assuming 4MB\n",
+		csio_warn(hw, "Unkyeswn Flash Part, ID = %#x, assuming 4MB\n",
 			  flashid);
 		size = 1 << 22;
 	}
@@ -927,7 +927,7 @@ csio_do_hello(struct csio_hw *hw, enum csio_dev_state *state)
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
 		rv = -ENOMEM;
-		CSIO_INC_STATS(hw, n_err_nomem);
+		CSIO_INC_STATS(hw, n_err_yesmem);
 		goto out;
 	}
 
@@ -953,11 +953,11 @@ retry:
 		hw->flags |= CSIO_HWF_MASTER;
 	} else if (*state == CSIO_DEV_STATE_UNINIT) {
 		/*
-		 * If we're not the Master PF then we need to wait around for
+		 * If we're yest the Master PF then we need to wait around for
 		 * the Master PF Driver to finish setting up the adapter.
 		 *
-		 * Note that we also do this wait if we're a non-Master-capable
-		 * PF and there is no current Master PF; a Master PF may show up
+		 * Note that we also do this wait if we're a yesn-Master-capable
+		 * PF and there is yes current Master PF; a Master PF may show up
 		 * momentarily and we wouldn't want to fail pointlessly.  (This
 		 * can happen when an OS loads lots of different drivers rapidly
 		 * at the same time). In this case, the Master PF returned by
@@ -983,7 +983,7 @@ retry:
 			waiting -= 50;
 
 			/*
-			 * If neither Error nor Initialized are indicated
+			 * If neither Error yesr Initialized are indicated
 			 * by the firmware keep waiting till we exhaust our
 			 * timeout ... and then retry if we haven't exhausted
 			 * our retries ...
@@ -1014,7 +1014,7 @@ retry:
 
 			/*
 			 * If we arrived before a Master PF was selected and
-			 * there's not a valid Master PF, grab its identity
+			 * there's yest a valid Master PF, grab its identity
 			 * for our caller.
 			 */
 			if (mpfn == PCIE_FW_MASTER_M &&
@@ -1036,7 +1036,7 @@ retry:
 		strcpy(state_str, "Error");
 		break;
 	default:
-		strcpy(state_str, "Unknown");
+		strcpy(state_str, "Unkyeswn");
 		break;
 	}
 
@@ -1067,7 +1067,7 @@ csio_do_bye(struct csio_hw *hw)
 
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
+		CSIO_INC_STATS(hw, n_err_yesmem);
 		return -ENOMEM;
 	}
 
@@ -1114,7 +1114,7 @@ csio_do_reset(struct csio_hw *hw, bool fw_rst)
 
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
+		CSIO_INC_STATS(hw, n_err_yesmem);
 		return -ENOMEM;
 	}
 
@@ -1190,7 +1190,7 @@ csio_hw_fw_halt(struct csio_hw *hw, uint32_t mbox, int32_t force)
 
 		mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 		if (!mbp) {
-			CSIO_INC_STATS(hw, n_err_nomem);
+			CSIO_INC_STATS(hw, n_err_yesmem);
 			return -ENOMEM;
 		}
 
@@ -1218,8 +1218,8 @@ csio_hw_fw_halt(struct csio_hw *hw, uint32_t mbox, int32_t force)
 	 * We also force the firmware's HALT flag to be on in case we bypassed
 	 * the firmware RESET command above or we're dealing with old firmware
 	 * which doesn't have the HALT capability.  This will serve as a flag
-	 * for the incoming firmware to know that it's coming out of a HALT
-	 * rather than a RESET ... if it's new enough to understand that ...
+	 * for the incoming firmware to kyesw that it's coming out of a HALT
+	 * rather than a RESET ... if it's new eyesugh to understand that ...
 	 */
 	if (retval == 0 || force) {
 		csio_set_reg_field(hw, CIM_BOOT_CFG_A, UPCRST_F, UPCRST_F);
@@ -1241,7 +1241,7 @@ csio_hw_fw_halt(struct csio_hw *hw, uint32_t mbox, int32_t force)
  *
  *	Restart firmware previously halted by csio_hw_fw_halt().  On successful
  *	return the previous PF Master remains as the new PF Master and there
- *	is no need to issue a new HELLO command, etc.
+ *	is yes need to issue a new HELLO command, etc.
  *
  *	We do this in two ways:
  *
@@ -1315,8 +1315,8 @@ csio_hw_fw_restart(struct csio_hw *hw, uint32_t mbox, int32_t reset)
  *	On successful return the new firmware will have been loaded and
  *	the adapter will have been fully RESET losing all previous setup
  *	state.  On unsuccessful return the adapter may be completely hosed ...
- *	positive errno indicates that the adapter is ~probably~ intact, a
- *	negative errno indicates that things are looking bad ...
+ *	positive erryes indicates that the adapter is ~probably~ intact, a
+ *	negative erryes indicates that things are looking bad ...
  */
 static int
 csio_hw_fw_upgrade(struct csio_hw *hw, uint32_t mbox,
@@ -1335,7 +1335,7 @@ csio_hw_fw_upgrade(struct csio_hw *hw, uint32_t mbox,
 
 	/*
 	 * Older versions of the firmware don't understand the new
-	 * PCIE_FW.HALT flag and so won't know to perform a RESET when they
+	 * PCIE_FW.HALT flag and so won't kyesw to perform a RESET when they
 	 * restart.  So for newly loaded older firmware we'll have to do the
 	 * RESET for it so it starts up on a clean slate.  We can tell if
 	 * the newly loaded firmware will handle this right by checking
@@ -1365,7 +1365,7 @@ csio_get_device_params(struct csio_hw *hw)
 
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
+		CSIO_INC_STATS(hw, n_err_yesmem);
 		return -ENOMEM;
 	}
 
@@ -1448,7 +1448,7 @@ csio_config_device_caps(struct csio_hw *hw)
 
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
+		CSIO_INC_STATS(hw, n_err_yesmem);
 		return -ENOMEM;
 	}
 
@@ -1606,8 +1606,8 @@ fw_port_cap32_t fwcaps16_to_caps32(fw_port_cap16_t caps16)
  *	@caps32: a 32-bit Port Capabilities value
  *
  *	Returns the equivalent 16-bit Port Capabilities value.  Note that
- *	not all 32-bit Port Capabilities can be represented in the 16-bit
- *	Port Capabilities and some fields/values may not make it.
+ *	yest all 32-bit Port Capabilities can be represented in the 16-bit
+ *	Port Capabilities and some fields/values may yest make it.
  */
 fw_port_cap16_t fwcaps32_to_caps16(fw_port_cap32_t caps32)
 {
@@ -1784,7 +1784,7 @@ csio_enable_ports(struct csio_hw *hw)
 
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
+		CSIO_INC_STATS(hw, n_err_yesmem);
 		return -ENOMEM;
 	}
 
@@ -1879,7 +1879,7 @@ csio_get_fcoe_resinfo(struct csio_hw *hw)
 
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
+		CSIO_INC_STATS(hw, n_err_yesmem);
 		return -ENOMEM;
 	}
 
@@ -1930,7 +1930,7 @@ csio_hw_check_fwconfig(struct csio_hw *hw, u32 *param)
 
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
+		CSIO_INC_STATS(hw, n_err_yesmem);
 		return -ENOMEM;
 	}
 
@@ -1982,7 +1982,7 @@ csio_hw_flash_config(struct csio_hw *hw, u32 *fw_cfg_param, char *path)
 		fw_cfg_file = FW_CFG_NAME_T6;
 
 	if (request_firmware(&cf, fw_cfg_file, dev) < 0) {
-		csio_err(hw, "could not find config file %s, err: %d\n",
+		csio_err(hw, "could yest find config file %s, err: %d\n",
 			 fw_cfg_file, ret);
 		return -ENOENT;
 	}
@@ -2078,7 +2078,7 @@ csio_hw_use_fwconfig(struct csio_hw *hw, int reset, u32 *fw_cfg_param)
 	spin_lock_irq(&hw->lock);
 	if (rv != 0) {
 		/*
-		 * config file was not found. Use default
+		 * config file was yest found. Use default
 		 * config file from flash.
 		 */
 		config_name = "On FLASH";
@@ -2092,12 +2092,12 @@ csio_hw_use_fwconfig(struct csio_hw *hw, int reset, u32 *fw_cfg_param)
 
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
 	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
+		CSIO_INC_STATS(hw, n_err_yesmem);
 		return -ENOMEM;
 	}
 	/*
 	 * Tell the firmware to process the indicated Configuration File.
-	 * If there are no errors and the caller has provided return value
+	 * If there are yes errors and the caller has provided return value
 	 * pointers for the [fini] section version, checksum and computed
 	 * checksum, pass those back to the caller.
 	 */
@@ -2123,7 +2123,7 @@ csio_hw_use_fwconfig(struct csio_hw *hw, int reset, u32 *fw_cfg_param)
 	  * Configuration File in FLASH), our last gasp effort is to use the
 	  * Firmware Configuration File which is embedded in the
 	  * firmware.  A very few early versions of the firmware didn't
-	  * have one embedded but we can ignore those.
+	  * have one embedded but we can igyesre those.
 	  */
 	if (rv == ENOENT) {
 		CSIO_INIT_MBP(mbp, caps_cmd, CSIO_MB_DEFAULT_TMO, hw, NULL, 1);
@@ -2148,7 +2148,7 @@ csio_hw_use_fwconfig(struct csio_hw *hw, int reset, u32 *fw_cfg_param)
 	cfcsum = ntohl(caps_cmd->cfcsum);
 
 	/*
-	 * And now tell the firmware to use the configuration we just loaded.
+	 * And yesw tell the firmware to use the configuration we just loaded.
 	 */
 	caps_cmd->op_to_write =
 		htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
@@ -2183,7 +2183,7 @@ csio_hw_use_fwconfig(struct csio_hw *hw, int reset, u32 *fw_cfg_param)
 
 	/*
 	 * Note that we're operating with parameters
-	 * not supplied by the driver, rather than from hard-wired
+	 * yest supplied by the driver, rather than from hard-wired
 	 * initialization constants buried in the driver.
 	 */
 	hw->flags |= CSIO_HWF_USING_SOFT_PARAMS;
@@ -2200,7 +2200,7 @@ csio_hw_use_fwconfig(struct csio_hw *hw, int reset, u32 *fw_cfg_param)
 	 * And finally tell the firmware to initialize itself using the
 	 * parameters from the Configuration File.
 	 */
-	/* Post event to notify completion of configuration */
+	/* Post event to yestify completion of configuration */
 	csio_post_event(&hw->sm, CSIO_HWE_INIT);
 
 	csio_info(hw, "Successfully configure using Firmware "
@@ -2373,7 +2373,7 @@ static int csio_hw_prep_fw(struct csio_hw *hw, struct fw_info *fw_info,
 		c = be32_to_cpu(card_fw->fw_ver);
 		k = fs_fw ? be32_to_cpu(fs_fw->fw_ver) : 0;
 
-		csio_err(hw, "Cannot find a usable firmware: "
+		csio_err(hw, "Canyest find a usable firmware: "
 			"chip state %d, "
 			"driver compiled with %d.%d.%d.%d, "
 			"card has %d.%d.%d.%d, filesystem has %d.%d.%d.%d\n",
@@ -2388,7 +2388,7 @@ static int csio_hw_prep_fw(struct csio_hw *hw, struct fw_info *fw_info,
 		goto bye;
 	}
 
-	/* We're using whatever's on the card and it's known to be good. */
+	/* We're using whatever's on the card and it's kyeswn to be good. */
 	hw->fwrev = be32_to_cpu(card_fw->fw_ver);
 	hw->tp_vers = be32_to_cpu(card_fw->tp_microcode_ver);
 
@@ -2399,7 +2399,7 @@ bye:
 /*
  * Returns -EINVAL if attempts to flash the firmware failed,
  * -ENOMEM if memory allocation failed else returns 0,
- * if flashing was not attempted because the card had the
+ * if flashing was yest attempted because the card had the
  * latest firmware ECANCELED is returned
  */
 static int
@@ -2439,7 +2439,7 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 		fw_bin_file = FW_FNAME_T6;
 
 	if (request_firmware(&fw, fw_bin_file, dev) < 0) {
-		csio_err(hw, "could not find firmware image %s, err: %d\n",
+		csio_err(hw, "could yest find firmware image %s, err: %d\n",
 			 fw_bin_file, ret);
 	} else {
 		fw_data = fw->data;
@@ -2555,12 +2555,12 @@ csio_hw_configure(struct csio_hw *hw)
 		 */
 		rv = csio_hw_use_fwconfig(hw, reset, param);
 		if (rv == -ENOENT) {
-			csio_info(hw, "Could not initialize "
+			csio_info(hw, "Could yest initialize "
 				  "adapter, error%d\n", rv);
 			goto out;
 		}
 		if (rv != 0) {
-			csio_info(hw, "Could not initialize "
+			csio_info(hw, "Could yest initialize "
 				  "adapter, error%d\n", rv);
 			goto out;
 		}
@@ -2587,11 +2587,11 @@ csio_hw_configure(struct csio_hw *hw)
 			/* Configure SGE */
 			csio_wr_sge_init(hw);
 
-			/* Post event to notify completion of configuration */
+			/* Post event to yestify completion of configuration */
 			csio_post_event(&hw->sm, CSIO_HWE_INIT);
 			goto out;
 		}
-	} /* if not master */
+	} /* if yest master */
 
 out:
 	return;
@@ -2689,7 +2689,7 @@ csio_hw_intr_enable(struct csio_hw *hw)
 
 	/*
 	 * Set aivec for MSI/MSIX. PCIE_PF_CFG.INTXType is set up
-	 * by FW, so do nothing for INTX.
+	 * by FW, so do yesthing for INTX.
 	 */
 	if (hw->intr_mode == CSIO_IM_MSIX)
 		csio_set_reg_field(hw, MYPF_REG(PCIE_PF_CFG_A),
@@ -2763,7 +2763,7 @@ csio_hw_fatal_err(struct csio_hw *hw)
 	csio_set_reg_field(hw, SGE_CONTROL_A, GLOBALENABLE_F, 0);
 	csio_hw_intr_disable(hw);
 
-	/* Do not reset HW, we may need FW state for debugging */
+	/* Do yest reset HW, we may need FW state for debugging */
 	csio_fatal(hw, "HW Fatal error encountered!\n");
 }
 
@@ -2816,8 +2816,8 @@ csio_hws_configuring(struct csio_hw *hw, enum csio_hw_ev evt)
 
 	case CSIO_HWE_INIT_DONE:
 		csio_set_state(&hw->sm, csio_hws_ready);
-		/* Fan out event to all lnode SMs */
-		csio_notify_lnodes(hw, CSIO_LN_NOTIFY_HWREADY);
+		/* Fan out event to all lyesde SMs */
+		csio_yestify_lyesdes(hw, CSIO_LN_NOTIFY_HWREADY);
 		break;
 
 	case CSIO_HWE_FATAL:
@@ -2850,8 +2850,8 @@ csio_hws_initializing(struct csio_hw *hw, enum csio_hw_ev evt)
 	case CSIO_HWE_INIT_DONE:
 		csio_set_state(&hw->sm, csio_hws_ready);
 
-		/* Fan out event to all lnode SMs */
-		csio_notify_lnodes(hw, CSIO_LN_NOTIFY_HWREADY);
+		/* Fan out event to all lyesde SMs */
+		csio_yestify_lyesdes(hw, CSIO_LN_NOTIFY_HWREADY);
 
 		/* Enable interrupts */
 		csio_hw_intr_enable(hw);
@@ -2904,7 +2904,7 @@ csio_hws_ready(struct csio_hw *hw, enum csio_hw_ev evt)
 		csio_hw_intr_disable(hw);
 		csio_hw_mbm_cleanup(hw);
 		csio_evtq_stop(hw);
-		csio_notify_lnodes(hw, CSIO_LN_NOTIFY_HWSTOP);
+		csio_yestify_lyesdes(hw, CSIO_LN_NOTIFY_HWSTOP);
 		csio_evtq_flush(hw);
 		csio_mgmtm_cleanup(csio_hw_to_mgmtm(hw));
 		csio_post_event(&hw->sm, CSIO_HWE_QUIESCED);
@@ -2944,7 +2944,7 @@ csio_hws_quiescing(struct csio_hw *hw, enum csio_hw_ev evt)
 		case CSIO_HWE_HBA_RESET:
 			csio_set_state(&hw->sm, csio_hws_resetting);
 			/* Start reset of the HBA */
-			csio_notify_lnodes(hw, CSIO_LN_NOTIFY_HWRESET);
+			csio_yestify_lyesdes(hw, CSIO_LN_NOTIFY_HWRESET);
 			csio_wr_destroy_queues(hw, false);
 			csio_do_reset(hw, false);
 			csio_post_event(&hw->sm, CSIO_HWE_HBA_RESET_DONE);
@@ -2952,7 +2952,7 @@ csio_hws_quiescing(struct csio_hw *hw, enum csio_hw_ev evt)
 
 		case CSIO_HWE_PCI_REMOVE:
 			csio_set_state(&hw->sm, csio_hws_removing);
-			csio_notify_lnodes(hw, CSIO_LN_NOTIFY_HWREMOVE);
+			csio_yestify_lyesdes(hw, CSIO_LN_NOTIFY_HWREMOVE);
 			csio_wr_destroy_queues(hw, true);
 			/* Now send the bye command */
 			csio_do_bye(hw);
@@ -3353,7 +3353,7 @@ static void csio_cplsw_intr_handler(struct csio_hw *hw)
 		{ TP_FRAMING_ERROR_F, "CPLSW TP framing error", -1, 1 },
 		{ SGE_FRAMING_ERROR_F, "CPLSW SGE framing error", -1, 1 },
 		{ CIM_FRAMING_ERROR_F, "CPLSW CIM framing error", -1, 1 },
-		{ ZERO_SWITCH_ERROR_F, "CPLSW no-switch error", -1, 1 },
+		{ ZERO_SWITCH_ERROR_F, "CPLSW yes-switch error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 
@@ -3372,7 +3372,7 @@ static void csio_le_intr_handler(struct csio_hw *hw)
 		{ LIPMISS_F, "LE LIP miss", -1, 0 },
 		{ LIP0_F, "LE 0 LIP error", -1, 0 },
 		{ PARITYERR_F, "LE parity error", -1, 1 },
-		{ UNKNOWNCMD_F, "LE unknown command", -1, 1 },
+		{ UNKNOWNCMD_F, "LE unkyeswn command", -1, 1 },
 		{ REQQPARERR_F, "LE request queue parity error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
@@ -3381,7 +3381,7 @@ static void csio_le_intr_handler(struct csio_hw *hw)
 		{ T6_LIPMISS_F, "LE LIP miss", -1, 0 },
 		{ T6_LIP0_F, "LE 0 LIP error", -1, 0 },
 		{ TCAMINTPERR_F, "LE parity error", -1, 1 },
-		{ T6_UNKNOWNCMD_F, "LE unknown command", -1, 1 },
+		{ T6_UNKNOWNCMD_F, "LE unkyeswn command", -1, 1 },
 		{ SSRAMINTPERR_F, "LE request queue parity error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
@@ -3591,7 +3591,7 @@ static void csio_pl_intr_handler(struct csio_hw *hw)
  *	csio_hw_slow_intr_handler - control path interrupt handler
  *	@hw: HW module
  *
- *	Interrupt handler for non-data global interrupt events, e.g., errors.
+ *	Interrupt handler for yesn-data global interrupt events, e.g., errors.
  *	The designation 'slow' is because it involves register reads, while
  *	data interrupts typically don't involve any MMIOs.
  */
@@ -3979,7 +3979,7 @@ csio_evtq_worker(struct work_struct *work)
 	LIST_HEAD(evt_q);
 	struct csio_evt_msg	*evt_msg;
 	struct cpl_fw6_msg *msg;
-	struct csio_rnode *rn;
+	struct csio_ryesde *rn;
 	int rv = 0;
 	uint8_t evtq_stop = 0;
 
@@ -4036,7 +4036,7 @@ csio_evtq_worker(struct work_struct *work)
 
 			case CSIO_EVT_DEV_LOSS:
 				memcpy(&rn, evt_msg->data, sizeof(rn));
-				csio_rnode_devloss_handler(rn);
+				csio_ryesde_devloss_handler(rn);
 				break;
 
 			default:
@@ -4102,7 +4102,7 @@ csio_mgmt_req_lookup(struct csio_mgmtm *mgmtm, struct csio_ioreq *io_req)
  * csio_mgmts_tmo_handler - MGMT IO Timeout handler.
  * @data - Event data.
  *
- * Return - none.
+ * Return - yesne.
  */
 static void
 csio_mgmt_tmo_handler(struct timer_list *t)
@@ -4133,7 +4133,7 @@ csio_mgmt_tmo_handler(struct timer_list *t)
 		}
 	}
 
-	/* If retry queue is not empty, re-arm timer */
+	/* If retry queue is yest empty, re-arm timer */
 	if (!list_empty(&mgmtm->active_q))
 		mod_timer(&mgmtm->mgmt_timer,
 			  jiffies + msecs_to_jiffies(ECM_MIN_TMO));
@@ -4218,9 +4218,9 @@ csio_mgmtm_exit(struct csio_mgmtm *mgmtm)
  * csio_hw_start - Kicks off the HW State machine
  * @hw:		Pointer to HW module.
  *
- * It is assumed that the initialization is a synchronous operation.
+ * It is assumed that the initialization is a synchroyesus operation.
  * So when we return after posting the event, the HW SM should be in
- * the ready state, if there were no errors during init.
+ * the ready state, if there were yes errors during init.
  */
 int
 csio_hw_start(struct csio_hw *hw)
@@ -4318,7 +4318,7 @@ csio_hw_set_description(struct csio_hw *hw, uint16_t ven_id, uint16_t dev_id)
 
 		if (prot_type == CSIO_T5_FCOE_ASIC) {
 			memcpy(hw->hw_ver,
-			       csio_t5_fcoe_adapters[adap_type].model_no, 16);
+			       csio_t5_fcoe_adapters[adap_type].model_yes, 16);
 			memcpy(hw->model_desc,
 			       csio_t5_fcoe_adapters[adap_type].description,
 			       32);
@@ -4367,7 +4367,7 @@ csio_hw_init(struct csio_hw *hw)
 	hw->params.log_level = (uint32_t) csio_dbg_level;
 
 	csio_set_fwevt_intr_idx(hw, -1);
-	csio_set_nondata_intr_idx(hw, -1);
+	csio_set_yesndata_intr_idx(hw, -1);
 
 	/* Init all the modules: Mailbox, WorkRequest and Transport */
 	if (csio_mbm_init(csio_hw_to_mbm(hw), hw, csio_hw_mb_timer))

@@ -134,10 +134,10 @@ static struct rtnl_link_ops ipvtap_link_ops __read_mostly = {
 	.priv_size	= sizeof(struct ipvtap_dev),
 };
 
-static int ipvtap_device_event(struct notifier_block *unused,
+static int ipvtap_device_event(struct yestifier_block *unused,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct ipvtap_dev *vlantap;
 	struct device *classdev;
 	dev_t devt;
@@ -152,34 +152,34 @@ static int ipvtap_device_event(struct notifier_block *unused,
 
 	switch (event) {
 	case NETDEV_REGISTER:
-		/* Create the device node here after the network device has
+		/* Create the device yesde here after the network device has
 		 * been registered but before register_netdevice has
 		 * finished running.
 		 */
-		err = tap_get_minor(ipvtap_major, &vlantap->tap);
+		err = tap_get_miyesr(ipvtap_major, &vlantap->tap);
 		if (err)
-			return notifier_from_errno(err);
+			return yestifier_from_erryes(err);
 
-		devt = MKDEV(MAJOR(ipvtap_major), vlantap->tap.minor);
+		devt = MKDEV(MAJOR(ipvtap_major), vlantap->tap.miyesr);
 		classdev = device_create(&ipvtap_class, &dev->dev, devt,
 					 dev, tap_name);
 		if (IS_ERR(classdev)) {
-			tap_free_minor(ipvtap_major, &vlantap->tap);
-			return notifier_from_errno(PTR_ERR(classdev));
+			tap_free_miyesr(ipvtap_major, &vlantap->tap);
+			return yestifier_from_erryes(PTR_ERR(classdev));
 		}
 		err = sysfs_create_link(&dev->dev.kobj, &classdev->kobj,
 					tap_name);
 		if (err)
-			return notifier_from_errno(err);
+			return yestifier_from_erryes(err);
 		break;
 	case NETDEV_UNREGISTER:
-		/* vlan->minor == 0 if NETDEV_REGISTER above failed */
-		if (vlantap->tap.minor == 0)
+		/* vlan->miyesr == 0 if NETDEV_REGISTER above failed */
+		if (vlantap->tap.miyesr == 0)
 			break;
 		sysfs_remove_link(&dev->dev.kobj, tap_name);
-		devt = MKDEV(MAJOR(ipvtap_major), vlantap->tap.minor);
+		devt = MKDEV(MAJOR(ipvtap_major), vlantap->tap.miyesr);
 		device_destroy(&ipvtap_class, devt);
-		tap_free_minor(ipvtap_major, &vlantap->tap);
+		tap_free_miyesr(ipvtap_major, &vlantap->tap);
 		break;
 	case NETDEV_CHANGE_TX_QUEUE_LEN:
 		if (tap_queue_resize(&vlantap->tap))
@@ -190,8 +190,8 @@ static int ipvtap_device_event(struct notifier_block *unused,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block ipvtap_notifier_block __read_mostly = {
-	.notifier_call	= ipvtap_device_event,
+static struct yestifier_block ipvtap_yestifier_block __read_mostly = {
+	.yestifier_call	= ipvtap_device_event,
 };
 
 static int ipvtap_init(void)
@@ -207,7 +207,7 @@ static int ipvtap_init(void)
 	if (err)
 		goto out2;
 
-	err = register_netdevice_notifier(&ipvtap_notifier_block);
+	err = register_netdevice_yestifier(&ipvtap_yestifier_block);
 	if (err)
 		goto out3;
 
@@ -218,7 +218,7 @@ static int ipvtap_init(void)
 	return 0;
 
 out4:
-	unregister_netdevice_notifier(&ipvtap_notifier_block);
+	unregister_netdevice_yestifier(&ipvtap_yestifier_block);
 out3:
 	class_unregister(&ipvtap_class);
 out2:
@@ -231,7 +231,7 @@ module_init(ipvtap_init);
 static void ipvtap_exit(void)
 {
 	rtnl_link_unregister(&ipvtap_link_ops);
-	unregister_netdevice_notifier(&ipvtap_notifier_block);
+	unregister_netdevice_yestifier(&ipvtap_yestifier_block);
 	class_unregister(&ipvtap_class);
 	tap_destroy_cdev(ipvtap_major, &ipvtap_cdev);
 }

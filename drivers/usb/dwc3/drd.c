@@ -74,7 +74,7 @@ static irqreturn_t dwc3_otg_irq(int irq, void *_dwc)
 
 	reg = dwc3_readl(dwc->regs, DWC3_OEVT);
 	if (reg) {
-		/* ignore non OTG events, we can't disable them in OEVTEN */
+		/* igyesre yesn OTG events, we can't disable them in OEVTEN */
 		if (!(reg & DWC3_OTG_ALL_EVENTS)) {
 			dwc3_writel(dwc->regs, DWC3_OEVT, reg);
 			return IRQ_NONE;
@@ -325,7 +325,7 @@ static void dwc3_otg_device_exit(struct dwc3 *dwc)
 	dwc3_writel(dwc->regs, DWC3_OCTL, reg);
 }
 
-void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
+void dwc3_otg_update(struct dwc3 *dwc, bool igyesre_idstatus)
 {
 	int ret;
 	u32 reg;
@@ -335,11 +335,11 @@ void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
 	if (dwc->dr_mode != USB_DR_MODE_OTG)
 		return;
 
-	/* don't do anything if debug user changed role to not OTG */
+	/* don't do anything if debug user changed role to yest OTG */
 	if (dwc->current_dr_role != DWC3_GCTL_PRTCAP_OTG)
 		return;
 
-	if (!ignore_idstatus) {
+	if (!igyesre_idstatus) {
 		reg = dwc3_readl(dwc->regs, DWC3_OSTS);
 		id = !!(reg & DWC3_OSTS_CONIDSTS);
 
@@ -426,7 +426,7 @@ static void dwc3_drd_update(struct dwc3 *dwc)
 	}
 }
 
-static int dwc3_drd_notifier(struct notifier_block *nb,
+static int dwc3_drd_yestifier(struct yestifier_block *nb,
 			     unsigned long event, void *ptr)
 {
 	struct dwc3 *dwc = container_of(nb, struct dwc3, edev_nb);
@@ -441,7 +441,7 @@ static int dwc3_drd_notifier(struct notifier_block *nb,
 static struct extcon_dev *dwc3_get_extcon(struct dwc3 *dwc)
 {
 	struct device *dev = dwc->dev;
-	struct device_node *np_phy, *np_conn;
+	struct device_yesde *np_phy, *np_conn;
 	struct extcon_dev *edev;
 	const char *name;
 
@@ -462,16 +462,16 @@ static struct extcon_dev *dwc3_get_extcon(struct dwc3 *dwc)
 		return edev;
 	}
 
-	np_phy = of_parse_phandle(dev->of_node, "phys", 0);
-	np_conn = of_graph_get_remote_node(np_phy, -1, -1);
+	np_phy = of_parse_phandle(dev->of_yesde, "phys", 0);
+	np_conn = of_graph_get_remote_yesde(np_phy, -1, -1);
 
 	if (np_conn)
-		edev = extcon_find_edev_by_node(np_conn);
+		edev = extcon_find_edev_by_yesde(np_conn);
 	else
 		edev = NULL;
 
-	of_node_put(np_conn);
-	of_node_put(np_phy);
+	of_yesde_put(np_conn);
+	of_yesde_put(np_phy);
 
 	return edev;
 }
@@ -485,11 +485,11 @@ int dwc3_drd_init(struct dwc3 *dwc)
 		return PTR_ERR(dwc->edev);
 
 	if (dwc->edev) {
-		dwc->edev_nb.notifier_call = dwc3_drd_notifier;
-		ret = extcon_register_notifier(dwc->edev, EXTCON_USB_HOST,
+		dwc->edev_nb.yestifier_call = dwc3_drd_yestifier;
+		ret = extcon_register_yestifier(dwc->edev, EXTCON_USB_HOST,
 					       &dwc->edev_nb);
 		if (ret < 0) {
-			dev_err(dwc->dev, "couldn't register cable notifier\n");
+			dev_err(dwc->dev, "couldn't register cable yestifier\n");
 			return ret;
 		}
 
@@ -532,7 +532,7 @@ void dwc3_drd_exit(struct dwc3 *dwc)
 	unsigned long flags;
 
 	if (dwc->edev)
-		extcon_unregister_notifier(dwc->edev, EXTCON_USB_HOST,
+		extcon_unregister_yestifier(dwc->edev, EXTCON_USB_HOST,
 					   &dwc->edev_nb);
 
 	cancel_work_sync(&dwc->drd_work);

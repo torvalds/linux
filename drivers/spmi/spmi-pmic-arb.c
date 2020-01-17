@@ -166,8 +166,8 @@ struct spmi_pmic_arb {
  *
  * @ver_str:		version string.
  * @ppid_to_apid:	finds the apid for a given ppid.
- * @non_data_cmd:	on v1 issues an spmi non-data command.
- *			on v2 no HW support, returns -EOPNOTSUPP.
+ * @yesn_data_cmd:	on v1 issues an spmi yesn-data command.
+ *			on v2 yes HW support, returns -EOPNOTSUPP.
  * @offset:		on v1 offset of per-ee channel.
  *			on v2 offset of per-ee and per-ppid channel.
  * @fmt_cmd:		formats a GENI/SPMI command.
@@ -188,7 +188,7 @@ struct pmic_arb_ver_ops {
 	int (*offset)(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr,
 			enum pmic_arb_channel ch_type);
 	u32 (*fmt_cmd)(u8 opc, u8 sid, u16 addr, u8 bc);
-	int (*non_data_cmd)(struct spmi_controller *ctrl, u8 opc, u8 sid);
+	int (*yesn_data_cmd)(struct spmi_controller *ctrl, u8 opc, u8 sid);
 	/* Interrupts controller functionality (offset of PIC registers) */
 	void __iomem *(*owner_acc_status)(struct spmi_pmic_arb *pmic_arb, u8 m,
 					  u16 n);
@@ -289,7 +289,7 @@ static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
 }
 
 static int
-pmic_arb_non_data_cmd_v1(struct spmi_controller *ctrl, u8 opc, u8 sid)
+pmic_arb_yesn_data_cmd_v1(struct spmi_controller *ctrl, u8 opc, u8 sid)
 {
 	struct spmi_pmic_arb *pmic_arb = spmi_controller_get_drvdata(ctrl);
 	unsigned long flags;
@@ -314,7 +314,7 @@ pmic_arb_non_data_cmd_v1(struct spmi_controller *ctrl, u8 opc, u8 sid)
 }
 
 static int
-pmic_arb_non_data_cmd_v2(struct spmi_controller *ctrl, u8 opc, u8 sid)
+pmic_arb_yesn_data_cmd_v2(struct spmi_controller *ctrl, u8 opc, u8 sid)
 {
 	return -EOPNOTSUPP;
 }
@@ -326,11 +326,11 @@ static int pmic_arb_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid)
 
 	dev_dbg(&ctrl->dev, "cmd op:0x%x sid:%d\n", opc, sid);
 
-	/* Check for valid non-data command */
+	/* Check for valid yesn-data command */
 	if (opc < SPMI_CMD_RESET || opc > SPMI_CMD_WAKEUP)
 		return -EINVAL;
 
-	return pmic_arb->ver_ops->non_data_cmd(ctrl, opc, sid);
+	return pmic_arb->ver_ops->yesn_data_cmd(ctrl, opc, sid);
 }
 
 static int pmic_arb_read_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
@@ -591,7 +591,7 @@ static void qpnpint_irq_unmask(struct irq_data *d)
 		/*
 		 * Since the interrupt is currently disabled, write to both the
 		 * LATCHED_CLR and EN_SET registers so that a spurious interrupt
-		 * cannot be triggered when the interrupt is enabled
+		 * canyest be triggered when the interrupt is enabled
 		 */
 		buf[0] = BIT(irq);
 		buf[1] = BIT(irq);
@@ -701,7 +701,7 @@ static int qpnpint_irq_domain_translate(struct irq_domain *d,
 	dev_dbg(&pmic_arb->spmic->dev, "intspec[0] 0x%1x intspec[1] 0x%02x intspec[2] 0x%02x\n",
 		intspec[0], intspec[1], intspec[2]);
 
-	if (irq_domain_get_of_node(d) != pmic_arb->spmic->dev.of_node)
+	if (irq_domain_get_of_yesde(d) != pmic_arb->spmic->dev.of_yesde)
 		return -EINVAL;
 	if (fwspec->param_count != 4)
 		return -EINVAL;
@@ -915,7 +915,7 @@ static int pmic_arb_read_apid_map_v5(struct spmi_pmic_arb *pmic_arb)
 			 */
 			prev_apidd->irq_ee = apidd->irq_ee;
 		} else if (!valid || is_irq_ee) {
-			/* First PPID mapping or duplicate for another EE */
+			/* First PPID mapping or duplicate for ayesther EE */
 			pmic_arb->ppid_to_apid[ppid] = i | PMIC_ARB_APID_VALID;
 		}
 
@@ -1093,7 +1093,7 @@ static u32 pmic_arb_apid_map_offset_v5(u16 n)
 static const struct pmic_arb_ver_ops pmic_arb_v1 = {
 	.ver_str		= "v1",
 	.ppid_to_apid		= pmic_arb_ppid_to_apid_v1,
-	.non_data_cmd		= pmic_arb_non_data_cmd_v1,
+	.yesn_data_cmd		= pmic_arb_yesn_data_cmd_v1,
 	.offset			= pmic_arb_offset_v1,
 	.fmt_cmd		= pmic_arb_fmt_cmd_v1,
 	.owner_acc_status	= pmic_arb_owner_acc_status_v1,
@@ -1106,7 +1106,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v1 = {
 static const struct pmic_arb_ver_ops pmic_arb_v2 = {
 	.ver_str		= "v2",
 	.ppid_to_apid		= pmic_arb_ppid_to_apid_v2,
-	.non_data_cmd		= pmic_arb_non_data_cmd_v2,
+	.yesn_data_cmd		= pmic_arb_yesn_data_cmd_v2,
 	.offset			= pmic_arb_offset_v2,
 	.fmt_cmd		= pmic_arb_fmt_cmd_v2,
 	.owner_acc_status	= pmic_arb_owner_acc_status_v2,
@@ -1119,7 +1119,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v2 = {
 static const struct pmic_arb_ver_ops pmic_arb_v3 = {
 	.ver_str		= "v3",
 	.ppid_to_apid		= pmic_arb_ppid_to_apid_v2,
-	.non_data_cmd		= pmic_arb_non_data_cmd_v2,
+	.yesn_data_cmd		= pmic_arb_yesn_data_cmd_v2,
 	.offset			= pmic_arb_offset_v2,
 	.fmt_cmd		= pmic_arb_fmt_cmd_v2,
 	.owner_acc_status	= pmic_arb_owner_acc_status_v3,
@@ -1132,7 +1132,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v3 = {
 static const struct pmic_arb_ver_ops pmic_arb_v5 = {
 	.ver_str		= "v5",
 	.ppid_to_apid		= pmic_arb_ppid_to_apid_v5,
-	.non_data_cmd		= pmic_arb_non_data_cmd_v2,
+	.yesn_data_cmd		= pmic_arb_yesn_data_cmd_v2,
 	.offset			= pmic_arb_offset_v5,
 	.fmt_cmd		= pmic_arb_fmt_cmd_v2,
 	.owner_acc_status	= pmic_arb_owner_acc_status_v5,
@@ -1239,7 +1239,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 		goto err_put_ctrl;
 	}
 
-	err = of_property_read_u32(pdev->dev.of_node, "qcom,channel", &channel);
+	err = of_property_read_u32(pdev->dev.of_yesde, "qcom,channel", &channel);
 	if (err) {
 		dev_err(&pdev->dev, "channel unspecified.\n");
 		goto err_put_ctrl;
@@ -1254,7 +1254,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 
 	pmic_arb->channel = channel;
 
-	err = of_property_read_u32(pdev->dev.of_node, "qcom,ee", &ee);
+	err = of_property_read_u32(pdev->dev.of_yesde, "qcom,ee", &ee);
 	if (err) {
 		dev_err(&pdev->dev, "EE unspecified.\n");
 		goto err_put_ctrl;
@@ -1290,14 +1290,14 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	if (hw_ver >= PMIC_ARB_VERSION_V5_MIN) {
 		err = pmic_arb_read_apid_map_v5(pmic_arb);
 		if (err) {
-			dev_err(&pdev->dev, "could not read APID->PPID mapping table, rc= %d\n",
+			dev_err(&pdev->dev, "could yest read APID->PPID mapping table, rc= %d\n",
 				err);
 			goto err_put_ctrl;
 		}
 	}
 
 	dev_dbg(&pdev->dev, "adding irq domain\n");
-	pmic_arb->domain = irq_domain_add_tree(pdev->dev.of_node,
+	pmic_arb->domain = irq_domain_add_tree(pdev->dev.of_yesde,
 					 &pmic_arb_irq_domain_ops, pmic_arb);
 	if (!pmic_arb->domain) {
 		dev_err(&pdev->dev, "unable to create irq_domain\n");

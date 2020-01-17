@@ -49,17 +49,17 @@ void test_fexit_stress(void)
 	for (i = 0; i < CNT; i++) {
 		fexit_fd[i] = bpf_load_program_xattr(&load_attr, error, sizeof(error));
 		if (CHECK(fexit_fd[i] < 0, "fexit loaded",
-			  "failed: %d errno %d\n", fexit_fd[i], errno))
+			  "failed: %d erryes %d\n", fexit_fd[i], erryes))
 			goto out;
 		link_fd[i] = bpf_raw_tracepoint_open(NULL, fexit_fd[i]);
 		if (CHECK(link_fd[i] < 0, "fexit attach failed",
-			  "prog %d failed: %d err %d\n", i, link_fd[i], errno))
+			  "prog %d failed: %d err %d\n", i, link_fd[i], erryes))
 			goto out;
 	}
 
 	filter_fd = bpf_load_program_xattr(&skb_load_attr, error, sizeof(error));
-	if (CHECK(filter_fd < 0, "test_program_loaded", "failed: %d errno %d\n",
-		  filter_fd, errno))
+	if (CHECK(filter_fd < 0, "test_program_loaded", "failed: %d erryes %d\n",
+		  filter_fd, erryes))
 		goto out;
 
 	err = bpf_prog_test_run(filter_fd, 1, test_skb, sizeof(test_skb), 0,

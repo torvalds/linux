@@ -42,12 +42,12 @@ enum gelic_eurus_command {
 /* for GELIC_EURUS_CMD_COMMON_CFG */
 enum gelic_eurus_bss_type {
 	GELIC_EURUS_BSS_INFRA = 0,
-	GELIC_EURUS_BSS_ADHOC = 1, /* not supported */
+	GELIC_EURUS_BSS_ADHOC = 1, /* yest supported */
 };
 
 enum gelic_eurus_auth_method {
 	GELIC_EURUS_AUTH_OPEN = 0, /* FIXME: WLAN_AUTH_OPEN */
-	GELIC_EURUS_AUTH_SHARED = 1, /* not supported */
+	GELIC_EURUS_AUTH_SHARED = 1, /* yest supported */
 };
 
 enum gelic_eurus_opmode {

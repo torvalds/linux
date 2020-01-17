@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0+
-# vim: ts=2:sw=2:et:tw=80:nowrap
+# vim: ts=2:sw=2:et:tw=80:yeswrap
 
 import os, csv, glob
 
@@ -31,10 +31,10 @@ class CSVCollection(dict):
         name = os.path.basename(fname).partition('.')[0]
         D = {
           r[key]:{f:strip(c) for f,c in r.items()
-                  if f != key and f[:1] not in ['', C] and
-                     strip(c)[:1] not in ['', C]}
-          for r in dR if r[key][:1] not in ['', C]
+                  if f != key and f[:1] yest in ['', C] and
+                     strip(c)[:1] yest in ['', C]}
+          for r in dR if r[key][:1] yest in ['', C]
         }
-        # now, go back through and eliminate all empty dictionaries
+        # yesw, go back through and eliminate all empty dictionaries
         D = {k:v for k,v in D.items() if v}
         self[name] = D

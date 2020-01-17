@@ -115,10 +115,10 @@ static int ltq_mm_probe(struct platform_device *pdev)
 	chip->mmchip.save_regs = ltq_mm_save_regs;
 
 	/* store the shadow value if one was passed by the devicetree */
-	if (!of_property_read_u32(pdev->dev.of_node, "lantiq,shadow", &shadow))
+	if (!of_property_read_u32(pdev->dev.of_yesde, "lantiq,shadow", &shadow))
 		chip->shadow = shadow;
 
-	return of_mm_gpiochip_add_data(pdev->dev.of_node, &chip->mmchip, chip);
+	return of_mm_gpiochip_add_data(pdev->dev.of_yesde, &chip->mmchip, chip);
 }
 
 static int ltq_mm_remove(struct platform_device *pdev)

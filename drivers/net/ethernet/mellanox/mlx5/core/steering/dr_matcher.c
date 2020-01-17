@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #include "dr_types.h"
 
@@ -188,7 +188,7 @@ int mlx5dr_matcher_select_builders(struct mlx5dr_matcher *matcher,
 
 	if (!nic_matcher->num_of_builders) {
 		mlx5dr_dbg(matcher->tbl->dmn,
-			   "Rule not supported on this matcher due to IP related fields\n");
+			   "Rule yest supported on this matcher due to IP related fields\n");
 		return -EINVAL;
 	}
 
@@ -388,7 +388,7 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 		mlx5dr_ste_build_empty_always_hit(&sb[idx++], rx);
 
 	if (idx == 0) {
-		mlx5dr_dbg(dmn, "Cannot generate any valid rules from mask\n");
+		mlx5dr_dbg(dmn, "Canyest generate any valid rules from mask\n");
 		return -EINVAL;
 	}
 
@@ -563,7 +563,7 @@ static int dr_matcher_set_all_ste_builders(struct mlx5dr_matcher *matcher,
 	dr_matcher_set_ste_builders(matcher, nic_matcher, DR_RULE_IPV6, DR_RULE_IPV6);
 
 	if (!nic_matcher->ste_builder) {
-		mlx5dr_dbg(dmn, "Cannot generate IPv4 or IPv6 rules with given mask\n");
+		mlx5dr_dbg(dmn, "Canyest generate IPv4 or IPv6 rules with given mask\n");
 		return -EINVAL;
 	}
 

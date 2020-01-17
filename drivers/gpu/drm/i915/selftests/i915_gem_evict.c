@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -139,7 +139,7 @@ static int igt_evict_something(void *arg)
 	if (err)
 		goto cleanup;
 
-	/* Everything is pinned, nothing should happen */
+	/* Everything is pinned, yesthing should happen */
 	mutex_lock(&ggtt->vm.mutex);
 	err = i915_gem_evict_something(&ggtt->vm,
 				       I915_GTT_PAGE_SIZE, 0, 0,
@@ -213,7 +213,7 @@ static int igt_evict_for_vma(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct i915_ggtt *ggtt = gt->ggtt;
-	struct drm_mm_node target = {
+	struct drm_mm_yesde target = {
 		.start = 0,
 		.size = 4096,
 	};
@@ -226,24 +226,24 @@ static int igt_evict_for_vma(void *arg)
 	if (err)
 		goto cleanup;
 
-	/* Everything is pinned, nothing should happen */
+	/* Everything is pinned, yesthing should happen */
 	mutex_lock(&ggtt->vm.mutex);
-	err = i915_gem_evict_for_node(&ggtt->vm, &target, 0);
+	err = i915_gem_evict_for_yesde(&ggtt->vm, &target, 0);
 	mutex_unlock(&ggtt->vm.mutex);
 	if (err != -ENOSPC) {
-		pr_err("i915_gem_evict_for_node on a full GGTT returned err=%d\n",
+		pr_err("i915_gem_evict_for_yesde on a full GGTT returned err=%d\n",
 		       err);
 		goto cleanup;
 	}
 
 	unpin_ggtt(ggtt);
 
-	/* Everything is unpinned, we should be able to evict the node */
+	/* Everything is unpinned, we should be able to evict the yesde */
 	mutex_lock(&ggtt->vm.mutex);
-	err = i915_gem_evict_for_node(&ggtt->vm, &target, 0);
+	err = i915_gem_evict_for_yesde(&ggtt->vm, &target, 0);
 	mutex_unlock(&ggtt->vm.mutex);
 	if (err) {
-		pr_err("i915_gem_evict_for_node returned err=%d\n",
+		pr_err("i915_gem_evict_for_yesde returned err=%d\n",
 		       err);
 		goto cleanup;
 	}
@@ -253,7 +253,7 @@ cleanup:
 	return err;
 }
 
-static void mock_color_adjust(const struct drm_mm_node *node,
+static void mock_color_adjust(const struct drm_mm_yesde *yesde,
 			      unsigned long color,
 			      u64 *start,
 			      u64 *end)
@@ -265,7 +265,7 @@ static int igt_evict_for_cache_color(void *arg)
 	struct intel_gt *gt = arg;
 	struct i915_ggtt *ggtt = gt->ggtt;
 	const unsigned long flags = PIN_OFFSET_FIXED;
-	struct drm_mm_node target = {
+	struct drm_mm_yesde target = {
 		.start = I915_GTT_PAGE_SIZE * 2,
 		.size = I915_GTT_PAGE_SIZE,
 		.color = I915_CACHE_LLC,
@@ -321,10 +321,10 @@ static int igt_evict_for_cache_color(void *arg)
 
 	/* Remove just the second vma */
 	mutex_lock(&ggtt->vm.mutex);
-	err = i915_gem_evict_for_node(&ggtt->vm, &target, 0);
+	err = i915_gem_evict_for_yesde(&ggtt->vm, &target, 0);
 	mutex_unlock(&ggtt->vm.mutex);
 	if (err) {
-		pr_err("[0]i915_gem_evict_for_node returned err=%d\n", err);
+		pr_err("[0]i915_gem_evict_for_yesde returned err=%d\n", err);
 		goto cleanup;
 	}
 
@@ -334,10 +334,10 @@ static int igt_evict_for_cache_color(void *arg)
 	target.color = I915_CACHE_L3_LLC;
 
 	mutex_lock(&ggtt->vm.mutex);
-	err = i915_gem_evict_for_node(&ggtt->vm, &target, 0);
+	err = i915_gem_evict_for_yesde(&ggtt->vm, &target, 0);
 	mutex_unlock(&ggtt->vm.mutex);
 	if (!err) {
-		pr_err("[1]i915_gem_evict_for_node returned err=%d\n", err);
+		pr_err("[1]i915_gem_evict_for_yesde returned err=%d\n", err);
 		err = -EINVAL;
 		goto cleanup;
 	}
@@ -364,7 +364,7 @@ static int igt_evict_vm(void *arg)
 	if (err)
 		goto cleanup;
 
-	/* Everything is pinned, nothing should happen */
+	/* Everything is pinned, yesthing should happen */
 	mutex_lock(&ggtt->vm.mutex);
 	err = i915_gem_evict_vm(&ggtt->vm);
 	mutex_unlock(&ggtt->vm.mutex);
@@ -399,11 +399,11 @@ static int igt_evict_contexts(void *arg)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	struct reserved {
-		struct drm_mm_node node;
+		struct drm_mm_yesde yesde;
 		struct reserved *next;
 	} *reserved = NULL;
 	intel_wakeref_t wakeref;
-	struct drm_mm_node hole;
+	struct drm_mm_yesde hole;
 	unsigned long count;
 	int err;
 
@@ -411,7 +411,7 @@ static int igt_evict_contexts(void *arg)
 	 * The purpose of this test is to verify that we will trigger an
 	 * eviction in the GGTT when constructing a request that requires
 	 * additional space in the GGTT for pinning the context. This space
-	 * is not directly tied to the request so reclaiming it requires
+	 * is yest directly tied to the request so reclaiming it requires
 	 * extra work.
 	 *
 	 * As such this test is only meaningful for full-ppgtt environments
@@ -423,7 +423,7 @@ static int igt_evict_contexts(void *arg)
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
-	/* Reserve a block so that we know we have enough to fit a few rq */
+	/* Reserve a block so that we kyesw we have eyesugh to fit a few rq */
 	memset(&hole, 0, sizeof(hole));
 	mutex_lock(&ggtt->vm.mutex);
 	err = i915_gem_gtt_insert(&ggtt->vm, &hole,
@@ -433,7 +433,7 @@ static int igt_evict_contexts(void *arg)
 	if (err)
 		goto out_locked;
 
-	/* Make the GGTT appear small by filling it with unevictable nodes */
+	/* Make the GGTT appear small by filling it with unevictable yesdes */
 	count = 0;
 	do {
 		struct reserved *r;
@@ -446,7 +446,7 @@ static int igt_evict_contexts(void *arg)
 			goto out_locked;
 		}
 
-		if (i915_gem_gtt_insert(&ggtt->vm, &r->node,
+		if (i915_gem_gtt_insert(&ggtt->vm, &r->yesde,
 					1ul << 20, 0, I915_COLOR_UNEVICTABLE,
 					0, ggtt->vm.total,
 					PIN_NOEVICT)) {
@@ -459,9 +459,9 @@ static int igt_evict_contexts(void *arg)
 
 		count++;
 	} while (1);
-	drm_mm_remove_node(&hole);
+	drm_mm_remove_yesde(&hole);
 	mutex_unlock(&ggtt->vm.mutex);
-	pr_info("Filled GGTT with %lu 1MiB nodes\n", count);
+	pr_info("Filled GGTT with %lu 1MiB yesdes\n", count);
 
 	/* Overfill the GGTT with context objects and so try to evict one. */
 	for_each_engine(engine, gt, id) {
@@ -527,13 +527,13 @@ out_locked:
 	while (reserved) {
 		struct reserved *next = reserved->next;
 
-		drm_mm_remove_node(&reserved->node);
+		drm_mm_remove_yesde(&reserved->yesde);
 		kfree(reserved);
 
 		reserved = next;
 	}
-	if (drm_mm_node_allocated(&hole))
-		drm_mm_remove_node(&hole);
+	if (drm_mm_yesde_allocated(&hole))
+		drm_mm_remove_yesde(&hole);
 	mutex_unlock(&ggtt->vm.mutex);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 

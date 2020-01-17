@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -65,8 +65,8 @@ nvif_client_init(struct nvif_client *parent, const char *name, u64 device,
 	struct nvif_client_v0 args = { .device = device };
 	struct {
 		struct nvif_ioctl_v0 ioctl;
-		struct nvif_ioctl_nop_v0 nop;
-	} nop = {};
+		struct nvif_ioctl_yesp_v0 yesp;
+	} yesp = {};
 	int ret;
 
 	strncpy(args.name, name, sizeof(args.name));
@@ -83,8 +83,8 @@ nvif_client_init(struct nvif_client *parent, const char *name, u64 device,
 	client->driver = parent->driver;
 
 	if (ret == 0) {
-		ret = nvif_client_ioctl(client, &nop, sizeof(nop));
-		client->version = nop.nop.version;
+		ret = nvif_client_ioctl(client, &yesp, sizeof(yesp));
+		client->version = yesp.yesp.version;
 	}
 
 	if (ret)

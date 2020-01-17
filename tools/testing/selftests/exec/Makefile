@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 CFLAGS = -Wall
-CFLAGS += -Wno-nonnull
+CFLAGS += -Wyes-yesnnull
 CFLAGS += -D_GNU_SOURCE
 
 TEST_GEN_PROGS := execveat

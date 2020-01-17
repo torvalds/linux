@@ -10,7 +10,7 @@
  *
  * Credits:
  *	Christoph Hellwig
- *	FUJITA Tomonori
+ *	FUJITA Tomoyesri
  *	Arne Redlich
  *	Zhenyu Wang
  */
@@ -121,7 +121,7 @@ static void iscsi_tcp_segment_map(struct iscsi_segment *segment, int recv)
 	 * We always map for the recv path.
 	 *
 	 * If the page count is greater than one it is ok to send
-	 * to the network layer's zero copy send path. If not we
+	 * to the network layer's zero copy send path. If yest we
 	 * have to go the slow sendmsg path.
 	 *
 	 * Same goes for slab pages: skb_can_coalesce() allows
@@ -394,8 +394,8 @@ EXPORT_SYMBOL_GPL(iscsi_segment_seek_sg);
  * @tcp_conn: iscsi connection to prep for
  *
  * This function always passes NULL for the hash argument, because when this
- * function is called we do not yet know the final size of the header and want
- * to delay the digest processing until we know that.
+ * function is called we do yest yet kyesw the final size of the header and want
+ * to delay the digest processing until we kyesw that.
  */
 void iscsi_tcp_hdr_recv_prep(struct iscsi_tcp_conn *tcp_conn)
 {
@@ -456,7 +456,7 @@ void iscsi_tcp_cleanup_task(struct iscsi_task *task)
 	struct iscsi_tcp_task *tcp_task = task->dd_data;
 	struct iscsi_r2t_info *r2t;
 
-	/* nothing to do for mgmt */
+	/* yesthing to do for mgmt */
 	if (!task->sc)
 		return;
 
@@ -496,7 +496,7 @@ static int iscsi_tcp_data_in(struct iscsi_conn *conn, struct iscsi_task *task)
 	 * is status.
 	 */
 	if (!(rhdr->flags & ISCSI_FLAG_DATA_STATUS))
-		iscsi_update_cmdsn(conn->session, (struct iscsi_nopin*)rhdr);
+		iscsi_update_cmdsn(conn->session, (struct iscsi_yespin*)rhdr);
 
 	if (tcp_conn->in.datalen == 0)
 		return 0;
@@ -552,7 +552,7 @@ static int iscsi_tcp_r2t_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
 	}
 
 	/* fill-in new R2T associated with the task */
-	iscsi_update_cmdsn(session, (struct iscsi_nopin*)rhdr);
+	iscsi_update_cmdsn(session, (struct iscsi_yespin*)rhdr);
 
 	if (!task->sc || session->state != ISCSI_STATE_LOGGED_IN) {
 		iscsi_conn_printk(KERN_INFO, conn,
@@ -585,7 +585,7 @@ static int iscsi_tcp_r2t_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
 	spin_lock(&tcp_task->pool2queue);
 	rc = kfifo_out(&tcp_task->r2tpool.queue, (void *)&r2t, sizeof(void *));
 	if (!rc) {
-		iscsi_conn_printk(KERN_ERR, conn, "Could not allocate R2T. "
+		iscsi_conn_printk(KERN_ERR, conn, "Could yest allocate R2T. "
 				  "Target has sent more R2Ts than it "
 				  "negotiated for or driver has leaked.\n");
 		spin_unlock(&tcp_task->pool2queue);
@@ -596,7 +596,7 @@ static int iscsi_tcp_r2t_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
 	r2t->data_length = data_length;
 	r2t->data_offset = data_offset;
 
-	r2t->ttt = rhdr->ttt; /* no flip */
+	r2t->ttt = rhdr->ttt; /* yes flip */
 	r2t->datasn = 0;
 	r2t->sent = 0;
 
@@ -623,7 +623,7 @@ iscsi_tcp_process_data_in(struct iscsi_tcp_conn *tcp_conn,
 	if (!iscsi_tcp_dgst_verify(tcp_conn, segment))
 		return ISCSI_ERR_DATA_DGST;
 
-	/* check for non-exceptional status */
+	/* check for yesn-exceptional status */
 	if (hdr->flags & ISCSI_FLAG_DATA_STATUS) {
 		rc = iscsi_complete_pdu(conn, tcp_conn->in.hdr, NULL, 0);
 		if (rc)
@@ -751,8 +751,8 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 	case ISCSI_OP_ASYNC_EVENT:
 		/*
 		 * It is possible that we could get a PDU with a buffer larger
-		 * than 8K, but there are no targets that currently do this.
-		 * For now we fail until we find a vendor that needs it
+		 * than 8K, but there are yes targets that currently do this.
+		 * For yesw we fail until we find a vendor that needs it
 		 */
 		if (ISCSI_DEF_MAX_RECV_SEG_LEN < tcp_conn->in.datalen) {
 			iscsi_conn_printk(KERN_ERR, conn,
@@ -862,7 +862,7 @@ iscsi_tcp_hdr_recv_done(struct iscsi_tcp_conn *tcp_conn,
  * iscsi_tcp_recv_segment_is_hdr - tests if we are reading in a header
  * @tcp_conn: iscsi tcp conn
  *
- * returns non zero if we are currently processing or setup to process
+ * returns yesn zero if we are currently processing or setup to process
  * a header.
  */
 inline int iscsi_tcp_recv_segment_is_hdr(struct iscsi_tcp_conn *tcp_conn)
@@ -917,7 +917,7 @@ int iscsi_tcp_recv_skb(struct iscsi_conn *conn, struct sk_buff *skb,
 
 		avail = skb_seq_read(consumed, &ptr, &seq);
 		if (avail == 0) {
-			ISCSI_DBG_TCP(conn, "no more data avail. Consumed %d\n",
+			ISCSI_DBG_TCP(conn, "yes more data avail. Consumed %d\n",
 				      consumed);
 			*status = ISCSI_TCP_SKB_DONE;
 			goto skb_done;
@@ -942,7 +942,7 @@ segment_done:
 	rc = segment->done(tcp_conn, segment);
 	if (rc != 0) {
 		*status = ISCSI_TCP_CONN_ERR;
-		ISCSI_DBG_TCP(conn, "Error receiving PDU, errno=%d\n", rc);
+		ISCSI_DBG_TCP(conn, "Error receiving PDU, erryes=%d\n", rc);
 		iscsi_conn_failure(conn, rc);
 		return 0;
 	}
@@ -967,7 +967,7 @@ int iscsi_tcp_task_init(struct iscsi_task *task)
 
 	if (!sc) {
 		/*
-		 * mgmt tasks do not have a scatterlist since they come
+		 * mgmt tasks do yest have a scatterlist since they come
 		 * in from the iscsi interface.
 		 */
 		ISCSI_DBG_TCP(conn, "mtask deq [itt 0x%x]\n", task->itt);
@@ -1027,7 +1027,7 @@ static struct iscsi_r2t_info *iscsi_tcp_get_curr_r2t(struct iscsi_task *task)
 }
 
 /**
- * iscsi_tcp_task_xmit - xmit normal PDU task
+ * iscsi_tcp_task_xmit - xmit yesrmal PDU task
  * @task: iscsi command task
  *
  * We're expected to return 0 when everything was transmitted successfully,
@@ -1061,7 +1061,7 @@ flush:
 	r2t = iscsi_tcp_get_curr_r2t(task);
 	if (r2t == NULL) {
 		/* Waiting for more R2Ts to arrive. */
-		ISCSI_DBG_TCP(conn, "no R2Ts yet\n");
+		ISCSI_DBG_TCP(conn, "yes R2Ts yet\n");
 		return 0;
 	}
 
@@ -1101,7 +1101,7 @@ iscsi_tcp_conn_setup(struct iscsi_cls_session *cls_session, int dd_data_size,
 		return NULL;
 	conn = cls_conn->dd_data;
 	/*
-	 * due to strange issues with iser these are not set
+	 * due to strange issues with iser these are yest set
 	 * in iscsi_conn_setup
 	 */
 	conn->max_recv_dlength = ISCSI_DEF_MAX_RECV_SEG_LEN;

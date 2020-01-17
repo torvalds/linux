@@ -15,8 +15,8 @@
 
 static int max_cpu_num;
 static int max_present_cpu_num;
-static int max_node_num;
-static int *cpunode_map;
+static int max_yesde_num;
+static int *cpuyesde_map;
 
 static struct perf_cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
 {
@@ -28,7 +28,7 @@ static struct perf_cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
 
 		for (i = 0; i < cpus->nr; i++) {
 			/*
-			 * Special treatment for -1, which is not real cpu number,
+			 * Special treatment for -1, which is yest real cpu number,
 			 * and we need to use (int) -1 to initialize map[i],
 			 * otherwise it would become 65535.
 			 */
@@ -177,7 +177,7 @@ int cpu_map__get_die(struct perf_cpu_map *map, int idx, void *data)
 	cpu = map->map[idx];
 
 	die_id = cpu_map__get_die_id(cpu);
-	/* There is no die_id on legacy system. */
+	/* There is yes die_id on legacy system. */
 	if (die_id == -1)
 		die_id = 0;
 
@@ -206,9 +206,9 @@ int cpu_map__get_core_id(int cpu)
 	return ret ?: value;
 }
 
-int cpu_map__get_node_id(int cpu)
+int cpu_map__get_yesde_id(int cpu)
 {
-	return cpu__get_node(cpu);
+	return cpu__get_yesde(cpu);
 }
 
 int cpu_map__get_core(struct perf_cpu_map *map, int idx, void *data)
@@ -240,12 +240,12 @@ int cpu_map__get_core(struct perf_cpu_map *map, int idx, void *data)
 	return (s_die << 16) | (cpu & 0xffff);
 }
 
-int cpu_map__get_node(struct perf_cpu_map *map, int idx, void *data __maybe_unused)
+int cpu_map__get_yesde(struct perf_cpu_map *map, int idx, void *data __maybe_unused)
 {
 	if (idx < 0 || idx >= map->nr)
 		return -1;
 
-	return cpu_map__get_node_id(map->map[idx]);
+	return cpu_map__get_yesde_id(map->map[idx]);
 }
 
 int cpu_map__build_socket_map(struct perf_cpu_map *cpus, struct perf_cpu_map **sockp)
@@ -263,12 +263,12 @@ int cpu_map__build_core_map(struct perf_cpu_map *cpus, struct perf_cpu_map **cor
 	return cpu_map__build_map(cpus, corep, cpu_map__get_core, NULL);
 }
 
-int cpu_map__build_node_map(struct perf_cpu_map *cpus, struct perf_cpu_map **numap)
+int cpu_map__build_yesde_map(struct perf_cpu_map *cpus, struct perf_cpu_map **numap)
 {
-	return cpu_map__build_map(cpus, numap, cpu_map__get_node, NULL);
+	return cpu_map__build_map(cpus, numap, cpu_map__get_yesde, NULL);
 }
 
-/* setup simple routines to easily access node numbers given a cpu number */
+/* setup simple routines to easily access yesde numbers given a cpu number */
 static int get_max_num(char *path, int *max)
 {
 	size_t num;
@@ -280,7 +280,7 @@ static int get_max_num(char *path, int *max)
 
 	buf[num] = '\0';
 
-	/* start on the right, to find highest node num */
+	/* start on the right, to find highest yesde num */
 	while (--num) {
 		if ((buf[num] == ',') || (buf[num] == '-')) {
 			num++;
@@ -340,40 +340,40 @@ out:
 		pr_err("Failed to read max cpus, using default of %d\n", max_cpu_num);
 }
 
-/* Determine highest possible node in the system for sparse allocation */
-static void set_max_node_num(void)
+/* Determine highest possible yesde in the system for sparse allocation */
+static void set_max_yesde_num(void)
 {
 	const char *mnt;
 	char path[PATH_MAX];
 	int ret = -1;
 
 	/* set up default */
-	max_node_num = 8;
+	max_yesde_num = 8;
 
 	mnt = sysfs__mountpoint();
 	if (!mnt)
 		goto out;
 
 	/* get the highest possible cpu number for a sparse allocation */
-	ret = snprintf(path, PATH_MAX, "%s/devices/system/node/possible", mnt);
+	ret = snprintf(path, PATH_MAX, "%s/devices/system/yesde/possible", mnt);
 	if (ret == PATH_MAX) {
 		pr_err("sysfs path crossed PATH_MAX(%d) size\n", PATH_MAX);
 		goto out;
 	}
 
-	ret = get_max_num(path, &max_node_num);
+	ret = get_max_num(path, &max_yesde_num);
 
 out:
 	if (ret)
-		pr_err("Failed to read max nodes, using default of %d\n", max_node_num);
+		pr_err("Failed to read max yesdes, using default of %d\n", max_yesde_num);
 }
 
-int cpu__max_node(void)
+int cpu__max_yesde(void)
 {
-	if (unlikely(!max_node_num))
-		set_max_node_num();
+	if (unlikely(!max_yesde_num))
+		set_max_yesde_num();
 
-	return max_node_num;
+	return max_yesde_num;
 }
 
 int cpu__max_cpu(void)
@@ -393,36 +393,36 @@ int cpu__max_present_cpu(void)
 }
 
 
-int cpu__get_node(int cpu)
+int cpu__get_yesde(int cpu)
 {
-	if (unlikely(cpunode_map == NULL)) {
-		pr_debug("cpu_map not initialized\n");
+	if (unlikely(cpuyesde_map == NULL)) {
+		pr_debug("cpu_map yest initialized\n");
 		return -1;
 	}
 
-	return cpunode_map[cpu];
+	return cpuyesde_map[cpu];
 }
 
-static int init_cpunode_map(void)
+static int init_cpuyesde_map(void)
 {
 	int i;
 
 	set_max_cpu_num();
-	set_max_node_num();
+	set_max_yesde_num();
 
-	cpunode_map = calloc(max_cpu_num, sizeof(int));
-	if (!cpunode_map) {
+	cpuyesde_map = calloc(max_cpu_num, sizeof(int));
+	if (!cpuyesde_map) {
 		pr_err("%s: calloc failed\n", __func__);
 		return -1;
 	}
 
 	for (i = 0; i < max_cpu_num; i++)
-		cpunode_map[i] = -1;
+		cpuyesde_map[i] = -1;
 
 	return 0;
 }
 
-int cpu__setup_cpunode_map(void)
+int cpu__setup_cpuyesde_map(void)
 {
 	struct dirent *dent1, *dent2;
 	DIR *dir1, *dir2;
@@ -433,14 +433,14 @@ int cpu__setup_cpunode_map(void)
 	int n;
 
 	/* initialize globals */
-	if (init_cpunode_map())
+	if (init_cpuyesde_map())
 		return -1;
 
 	mnt = sysfs__mountpoint();
 	if (!mnt)
 		return 0;
 
-	n = snprintf(path, PATH_MAX, "%s/devices/system/node", mnt);
+	n = snprintf(path, PATH_MAX, "%s/devices/system/yesde", mnt);
 	if (n == PATH_MAX) {
 		pr_err("sysfs path crossed PATH_MAX(%d) size\n", PATH_MAX);
 		return -1;
@@ -452,7 +452,7 @@ int cpu__setup_cpunode_map(void)
 
 	/* walk tree and setup map */
 	while ((dent1 = readdir(dir1)) != NULL) {
-		if (dent1->d_type != DT_DIR || sscanf(dent1->d_name, "node%u", &mem) < 1)
+		if (dent1->d_type != DT_DIR || sscanf(dent1->d_name, "yesde%u", &mem) < 1)
 			continue;
 
 		n = snprintf(buf, PATH_MAX, "%s/%s", path, dent1->d_name);
@@ -467,7 +467,7 @@ int cpu__setup_cpunode_map(void)
 		while ((dent2 = readdir(dir2)) != NULL) {
 			if (dent2->d_type != DT_LNK || sscanf(dent2->d_name, "cpu%u", &cpu) < 1)
 				continue;
-			cpunode_map[cpu] = mem;
+			cpuyesde_map[cpu] = mem;
 		}
 		closedir(dir2);
 	}

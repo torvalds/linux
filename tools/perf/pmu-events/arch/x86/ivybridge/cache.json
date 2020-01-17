@@ -373,7 +373,7 @@
         "UMask": "0x2",
         "EventName": "OFFCORE_REQUESTS.DEMAND_CODE_RD",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Cacheable and noncachaeble code read requests",
+        "BriefDescription": "Cacheable and yesncachaeble code read requests",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -397,13 +397,13 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Cases when offcore requests buffer cannot take more entries for core.",
+        "PublicDescription": "Cases when offcore requests buffer canyest take more entries for core.",
         "EventCode": "0xB2",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "EventName": "OFFCORE_REQUESTS_BUFFER.SQ_FULL",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cases when offcore requests buffer cannot take more entries for core",
+        "BriefDescription": "Cases when offcore requests buffer canyest take more entries for core",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -503,7 +503,7 @@
         "UMask": "0x4",
         "EventName": "MEM_LOAD_UOPS_RETIRED.LLC_HIT",
         "SampleAfterValue": "50021",
-        "BriefDescription": "Retired load uops which data sources were data hits in LLC without snoops required.",
+        "BriefDescription": "Retired load uops which data sources were data hits in LLC without syesops required.",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -533,7 +533,7 @@
         "UMask": "0x20",
         "EventName": "MEM_LOAD_UOPS_RETIRED.LLC_MISS",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unknown data-source.",
+        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unkyeswn data-source.",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -543,7 +543,7 @@
         "UMask": "0x40",
         "EventName": "MEM_LOAD_UOPS_RETIRED.HIT_LFB",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data not ready.",
+        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data yest ready.",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -553,7 +553,7 @@
         "UMask": "0x1",
         "EventName": "MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_MISS",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load uops which data sources were LLC hit and cross-core snoop missed in on-pkg core cache.",
+        "BriefDescription": "Retired load uops which data sources were LLC hit and cross-core syesop missed in on-pkg core cache.",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -563,7 +563,7 @@
         "UMask": "0x2",
         "EventName": "MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HIT",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load uops which data sources were LLC and cross-core snoop hits in on-pkg core cache.",
+        "BriefDescription": "Retired load uops which data sources were LLC and cross-core syesop hits in on-pkg core cache.",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -583,11 +583,11 @@
         "UMask": "0x8",
         "EventName": "MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_NONE",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops which data sources were hits in LLC without snoops required.",
+        "BriefDescription": "Retired load uops which data sources were hits in LLC without syesops required.",
         "CounterHTOff": "0,1,2,3"
     },
     {
-        "PublicDescription": "Retired load uops whose data source was local memory (cross-socket snoop not needed or missed).",
+        "PublicDescription": "Retired load uops whose data source was local memory (cross-socket syesop yest needed or missed).",
         "EventCode": "0xD3",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -796,7 +796,7 @@
         "EventName": "OFFCORE_RESPONSE.ALL_CODE_RD.LLC_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand & prefetch code reads that hit in the LLC and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores",
+        "BriefDescription": "Counts demand & prefetch code reads that hit in the LLC and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -820,7 +820,7 @@
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand & prefetch data reads that hit in the LLC and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
+        "BriefDescription": "Counts demand & prefetch data reads that hit in the LLC and the syesops to sibling cores hit in either E/S state and the line is yest forwarded",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -832,7 +832,7 @@
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand & prefetch data reads that hit in the LLC and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
+        "BriefDescription": "Counts demand & prefetch data reads that hit in the LLC and the syesop to one of the sibling cores hits the line in M state and the line is forwarded",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -844,7 +844,7 @@
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand & prefetch data reads that hit in the LLC and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores",
+        "BriefDescription": "Counts demand & prefetch data reads that hit in the LLC and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -868,7 +868,7 @@
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.LLC_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand & prefetch RFOs that hit in the LLC and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores",
+        "BriefDescription": "Counts demand & prefetch RFOs that hit in the LLC and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -904,7 +904,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.LLC_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand code reads that hit in the LLC and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores",
+        "BriefDescription": "Counts demand code reads that hit in the LLC and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -928,7 +928,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand data reads that hit in the LLC and the snoops to sibling cores hit in either E/S state and the line is not forwarded",
+        "BriefDescription": "Counts demand data reads that hit in the LLC and the syesops to sibling cores hit in either E/S state and the line is yest forwarded",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -940,7 +940,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand data reads that hit in the LLC and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
+        "BriefDescription": "Counts demand data reads that hit in the LLC and the syesop to one of the sibling cores hits the line in M state and the line is forwarded",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -952,7 +952,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand data reads that hit in the LLC and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores",
+        "BriefDescription": "Counts demand data reads that hit in the LLC and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -976,7 +976,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.LLC_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand data writes (RFOs) that hit in the LLC and the snoop to one of the sibling cores hits the line in M state and the line is forwarded",
+        "BriefDescription": "Counts demand data writes (RFOs) that hit in the LLC and the syesop to one of the sibling cores hits the line in M state and the line is forwarded",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -988,7 +988,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.LLC_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand data writes (RFOs) that hit in the LLC and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores",
+        "BriefDescription": "Counts demand data writes (RFOs) that hit in the LLC and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -1024,7 +1024,7 @@
         "EventName": "OFFCORE_RESPONSE.STREAMING_STORES.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts non-temporal stores",
+        "BriefDescription": "Counts yesn-temporal stores",
         "CounterHTOff": "0,1,2,3"
     },
     {

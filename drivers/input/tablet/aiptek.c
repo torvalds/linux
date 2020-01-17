@@ -25,7 +25,7 @@
  *             corrected control sequences, timing, dynamic configuration,
  *             support of 6000U - 12000U, procfs, and macro key support
  *             (Jan-1-2003 - Feb-5-2003, Bryan W. Headley)
- *      v1.0 - Added support for diagnostic messages, count of messages
+ *      v1.0 - Added support for diagyesstic messages, count of messages
  *             received from URB - Mar-8-2003, Bryan W. Headley
  *      v1.1 - added support for tablet resolution, changed DV and proximity
  *             some corrections - Jun-22-2003, martin schneebacher
@@ -37,9 +37,9 @@
  *      v1.3 - Repaired issue of kernel thread going nuts on single-processor
  *             machines, introduced programmableDelay as a command line
  *             parameter. Feb 7 2004, Bryan W. Headley.
- *      v1.4 - Re-wire jitter so it does not require a thread. Courtesy of
+ *      v1.4 - Re-wire jitter so it does yest require a thread. Courtesy of
  *             Rene van Paassen. Added reporting of physical pointer device
- *             (e.g., stylus, mouse in reports 2, 3, 4, 5. We don't know
+ *             (e.g., stylus, mouse in reports 2, 3, 4, 5. We don't kyesw
  *             for reports 1, 6.)
  *             what physical device reports for reports 1, 6.) Also enabled
  *             MOUSE and LENS tool button modes. Renamed "rubber" to "eraser".
@@ -51,7 +51,7 @@
  *      This kernel driver is augmented by the "Aiptek" XFree86 input
  *      driver for your X server, as well as the Gaiptek GUI Front-end
  *      "Tablet Manager".
- *      These three products are highly interactive with one another,
+ *      These three products are highly interactive with one ayesther,
  *      so therefore it's easier to document them all as one subsystem.
  *      Please visit the project's "home page", located at,
  *      http://aiptektablet.sourceforge.net.
@@ -159,7 +159,7 @@
  * (10) FilterOn (Command)
  * (11) AutoGainOn (Command)
  *
- * (Step 9 can be omitted, but you'll then have no function keys.)
+ * (Step 9 can be omitted, but you'll then have yes function keys.)
  */
 
 #define USB_VENDOR_ID_AIPTEK				0x08ca
@@ -211,7 +211,7 @@
 #define AIPTEK_TOOL_BUTTON_MOUSE_MODE			BTN_TOOL_MOUSE
 #define AIPTEK_TOOL_BUTTON_LENS_MODE			BTN_TOOL_LENS
 
-	/* Diagnostic message codes
+	/* Diagyesstic message codes
 	 */
 #define AIPTEK_DIAGNOSTIC_NA				0
 #define AIPTEK_DIAGNOSTIC_SENDING_RELATIVE_IN_ABSOLUTE	1
@@ -252,7 +252,7 @@
 
 	/* We report in EV_MISC both the proximity and
 	 * whether the report came from the stylus, tablet mouse
-	 * or "unknown" -- Unknown when the tablet is in relative
+	 * or "unkyeswn" -- Unkyeswn when the tablet is in relative
 	 * mode, because we only get report 1's.
 	 */
 #define AIPTEK_REPORT_TOOL_UNKNOWN		0x10
@@ -264,7 +264,7 @@ static int jitterDelay = AIPTEK_JITTER_DELAY_DEFAULT;
 
 struct aiptek_features {
 	int odmCode;		/* Tablet manufacturer code       */
-	int modelCode;		/* Tablet model code (not unique) */
+	int modelCode;		/* Tablet model code (yest unique) */
 	int firmwareCode;	/* prom/eeprom version            */
 	char usbPath[64 + 1];	/* device's physical usb path     */
 };
@@ -294,7 +294,7 @@ struct aiptek {
 	struct aiptek_settings curSetting;	/* tablet's current programmable */
 	struct aiptek_settings newSetting;	/* ... and new param settings    */
 	unsigned int ifnum;			/* interface number for IO       */
-	int diagnostic;				/* tablet diagnostic codes       */
+	int diagyesstic;				/* tablet diagyesstic codes       */
 	unsigned long eventCount;		/* event count                   */
 	int inDelay;				/* jitter: in jitter delay?      */
 	unsigned long endDelay;			/* jitter: time when delay ends  */
@@ -328,7 +328,7 @@ static const int buttonEvents[] = {
 /*
  * Permit easy lookup of keyboard events to send, versus
  * the bitmap which comes from the tablet. This hides the
- * issue that the F_keys are not sequentially numbered.
+ * issue that the F_keys are yest sequentially numbered.
  */
 static const int macroKeyEvents[] = {
 	KEY_ESC, KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5,
@@ -372,7 +372,7 @@ static const char *map_val_to_str(const struct aiptek_map *map, int val)
 		if (val == p->value)
 			return p->string;
 
-	return "unknown";
+	return "unkyeswn";
 }
 
 /***********************************************************************
@@ -390,19 +390,19 @@ static const char *map_val_to_str(const struct aiptek_map *map, int val)
  * tablet driver and clients such as gpm and XFree86's tablet drivers.
  *
  * Of the information received from the tablet, the one piece I
- * cannot transmit is the proximity bit (without resorting to an EV_MSC
+ * canyest transmit is the proximity bit (without resorting to an EV_MSC
  * convention above.) I therefore have taken over REL_MISC and ABS_MISC
  * (for relative and absolute reports, respectively) for communicating
- * Proximity. Why two events? I thought it interesting to know if the
+ * Proximity. Why two events? I thought it interesting to kyesw if the
  * Proximity event occurred while the tablet was in absolute or relative
  * mode.
- * Update: REL_MISC proved not to be such a good idea. With REL_MISC you
+ * Update: REL_MISC proved yest to be such a good idea. With REL_MISC you
  * get an event transmitted each time. ABS_MISC works better, since it
- * can be set and re-set. Thus, only using ABS_MISC from now on.
+ * can be set and re-set. Thus, only using ABS_MISC from yesw on.
  *
- * Other tablets use the notion of a certain minimum stylus pressure
+ * Other tablets use the yestion of a certain minimum stylus pressure
  * to infer proximity. While that could have been done, that is yet
- * another 'by convention' behavior, the documentation for which
+ * ayesther 'by convention' behavior, the documentation for which
  * would be spread between two (or more) pieces of software.
  *
  * EV_MSC usage was terminated for this purpose in Linux 2.5.x, and
@@ -432,7 +432,7 @@ static void aiptek_irq(struct urb *urb)
 		return;
 
 	default:
-		dev_dbg(&intf->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&intf->dev, "%s - yesnzero urb status received: %d\n",
 			__func__, urb->status);
 		goto exit;
 	}
@@ -447,13 +447,13 @@ static void aiptek_irq(struct urb *urb)
 	aiptek->eventCount++;
 
 	/* Report 1 delivers relative coordinates with either a stylus
-	 * or the mouse. You do not know, however, which input
+	 * or the mouse. You do yest kyesw, however, which input
 	 * tool generated the event.
 	 */
 	if (data[0] == 1) {
 		if (aiptek->curSetting.coordinateMode ==
 		    AIPTEK_COORDINATE_ABSOLUTE_MODE) {
-			aiptek->diagnostic =
+			aiptek->diagyesstic =
 			    AIPTEK_DIAGNOSTIC_SENDING_RELATIVE_IN_ABSOLUTE;
 		} else {
 			x = (signed char) data[2];
@@ -463,7 +463,7 @@ static void aiptek_irq(struct urb *urb)
 			 * We're also using it to remap the physical mouse button mask
 			 * to pseudo-settings. (We don't specifically care about it's
 			 * value after moving/transposing mouse button bitmasks, except
-			 * that a non-zero value indicates that one or more
+			 * that a yesn-zero value indicates that one or more
 			 * mouse button was pressed.)
 			 */
 			jitterable = data[1] & 0x07;
@@ -502,10 +502,10 @@ static void aiptek_irq(struct urb *urb)
 	 */
 	else if (data[0] == 2) {
 		if (aiptek->curSetting.coordinateMode == AIPTEK_COORDINATE_RELATIVE_MODE) {
-			aiptek->diagnostic = AIPTEK_DIAGNOSTIC_SENDING_ABSOLUTE_IN_RELATIVE;
+			aiptek->diagyesstic = AIPTEK_DIAGNOSTIC_SENDING_ABSOLUTE_IN_RELATIVE;
 		} else if (!AIPTEK_POINTER_ALLOW_STYLUS_MODE
 			    (aiptek->curSetting.pointerMode)) {
-				aiptek->diagnostic = AIPTEK_DIAGNOSTIC_TOOL_DISALLOWED;
+				aiptek->diagyesstic = AIPTEK_DIAGNOSTIC_TOOL_DISALLOWED;
 		} else {
 			x = get_unaligned_le16(data + 1);
 			y = get_unaligned_le16(data + 3);
@@ -523,7 +523,7 @@ static void aiptek_irq(struct urb *urb)
 			pck = (data[5] & aiptek->curSetting.stylusButtonUpper) != 0 ? 1 : 0;
 
 			/* dv indicates 'data valid' (e.g., the tablet is in sync
-			 * and has delivered a "correct" report) We will ignore
+			 * and has delivered a "correct" report) We will igyesre
 			 * all 'bad' reports...
 			 */
 			if (dv != 0) {
@@ -587,10 +587,10 @@ static void aiptek_irq(struct urb *urb)
 	 */
 	else if (data[0] == 3) {
 		if (aiptek->curSetting.coordinateMode == AIPTEK_COORDINATE_RELATIVE_MODE) {
-			aiptek->diagnostic = AIPTEK_DIAGNOSTIC_SENDING_ABSOLUTE_IN_RELATIVE;
+			aiptek->diagyesstic = AIPTEK_DIAGNOSTIC_SENDING_ABSOLUTE_IN_RELATIVE;
 		} else if (!AIPTEK_POINTER_ALLOW_MOUSE_MODE
 			(aiptek->curSetting.pointerMode)) {
-			aiptek->diagnostic = AIPTEK_DIAGNOSTIC_TOOL_DISALLOWED;
+			aiptek->diagyesstic = AIPTEK_DIAGNOSTIC_TOOL_DISALLOWED;
 		} else {
 			x = get_unaligned_le16(data + 1);
 			y = get_unaligned_le16(data + 3);
@@ -729,10 +729,10 @@ static void aiptek_irq(struct urb *urb)
 				 p | AIPTEK_REPORT_TOOL_MOUSE);
 		input_sync(inputdev);
 	}
-	/* We have no idea which tool can generate a report 6. Theoretically,
+	/* We have yes idea which tool can generate a report 6. Theoretically,
 	 * neither need to, having been given reports 4 & 5 for such use.
 	 * However, report 6 is the 'official-looking' report for macroKeys;
-	 * reports 4 & 5 supposively are used to support unnamed, unknown
+	 * reports 4 & 5 supposively are used to support unnamed, unkyeswn
 	 * hat switches (which just so happen to be the macroKeys.)
 	 */
 	else if (data[0] == 6) {
@@ -765,7 +765,7 @@ static void aiptek_irq(struct urb *urb)
 				 1 | AIPTEK_REPORT_TOOL_UNKNOWN);
 		input_sync(inputdev);
 	} else {
-		dev_dbg(&intf->dev, "Unknown report %d\n", data[0]);
+		dev_dbg(&intf->dev, "Unkyeswn report %d\n", data[0]);
 	}
 
 	/* Jitter may occur when the user presses a button on the stlyus
@@ -774,8 +774,8 @@ static void aiptek_irq(struct urb *urb)
 	 * stabilize itself.
 	 *
 	 * We just introduced aiptek->previousJitterable to carry forth the
-	 * notion that jitter occurs when the button state changes from on to off:
-	 * a person drawing, holding a button down is not subject to jittering.
+	 * yestion that jitter occurs when the button state changes from on to off:
+	 * a person drawing, holding a button down is yest subject to jittering.
 	 * With that in mind, changing from upper button depressed to lower button
 	 * WILL transition through a jitter delay.
 	 */
@@ -798,12 +798,12 @@ exit:
 }
 
 /***********************************************************************
- * These are the USB id's known so far. We do not identify them to
+ * These are the USB id's kyeswn so far. We do yest identify them to
  * specific Aiptek model numbers, because there has been overlaps,
  * use, and reuse of id's in existing models. Certain models have
- * been known to use more than one ID, indicative perhaps of
+ * been kyeswn to use more than one ID, indicative perhaps of
  * manufacturing revisions. In any event, we consider these
- * IDs to not be model-specific nor unique.
+ * IDs to yest be model-specific yesr unique.
  */
 static const struct usb_device_id aiptek_ids[] = {
 	{USB_DEVICE(USB_VENDOR_ID_AIPTEK, 0x01)},
@@ -845,7 +845,7 @@ static void aiptek_close(struct input_dev *inputdev)
 
 /***********************************************************************
  * aiptek_set_report and aiptek_get_report() are borrowed from Linux 2.4.x,
- * where they were known as usb_set_report and usb_get_report.
+ * where they were kyeswn as usb_set_report and usb_get_report.
  */
 static int
 aiptek_set_report(struct aiptek *aiptek,
@@ -1016,7 +1016,7 @@ static int aiptek_program_tablet(struct aiptek *aiptek)
 
 	/* Reset the eventCount, so we track events from last (re)programming
 	 */
-	aiptek->diagnostic = AIPTEK_DIAGNOSTIC_NA;
+	aiptek->diagyesstic = AIPTEK_DIAGNOSTIC_NA;
 	aiptek->eventCount = 0;
 
 	return 0;
@@ -1322,17 +1322,17 @@ static ssize_t show_tabletEventsReceived(struct device *dev, struct device_attri
 static DEVICE_ATTR(event_count, S_IRUGO, show_tabletEventsReceived, NULL);
 
 /***********************************************************************
- * support routines for the 'diagnostic' file. Note that this file
+ * support routines for the 'diagyesstic' file. Note that this file
  * only displays current setting.
  */
-static ssize_t show_tabletDiagnosticMessage(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_tabletDiagyessticMessage(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 	char *retMsg;
 
-	switch (aiptek->diagnostic) {
+	switch (aiptek->diagyesstic) {
 	case AIPTEK_DIAGNOSTIC_NA:
-		retMsg = "no errors\n";
+		retMsg = "yes errors\n";
 		break;
 
 	case AIPTEK_DIAGNOSTIC_SENDING_RELATIVE_IN_ABSOLUTE:
@@ -1358,7 +1358,7 @@ static ssize_t show_tabletDiagnosticMessage(struct device *dev, struct device_at
 	return snprintf(buf, PAGE_SIZE, retMsg);
 }
 
-static DEVICE_ATTR(diagnostic, S_IRUGO, show_tabletDiagnosticMessage, NULL);
+static DEVICE_ATTR(diagyesstic, S_IRUGO, show_tabletDiagyessticMessage, NULL);
 
 /***********************************************************************
  * support routines for the 'stylus_upper' file. Note that this file
@@ -1565,7 +1565,7 @@ static DEVICE_ATTR(wheel,
  */
 static ssize_t show_tabletExecute(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	/* There is nothing useful to display, so a one-line manual
+	/* There is yesthing useful to display, so a one-line manual
 	 * is in order...
 	 */
 	return snprintf(buf, PAGE_SIZE,
@@ -1577,7 +1577,7 @@ store_tabletExecute(struct device *dev, struct device_attribute *attr, const cha
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
-	/* We do not care what you write to this file. Merely the action
+	/* We do yest care what you write to this file. Merely the action
 	 * of writing to this file triggers a tablet reprogramming.
 	 */
 	memcpy(&aiptek->curSetting, &aiptek->newSetting,
@@ -1642,7 +1642,7 @@ static struct attribute *aiptek_attributes[] = {
 	&dev_attr_jitter.attr,
 	&dev_attr_delay.attr,
 	&dev_attr_event_count.attr,
-	&dev_attr_diagnostic.attr,
+	&dev_attr_diagyesstic.attr,
 	&dev_attr_odm_code.attr,
 	&dev_attr_model_code.attr,
 	&dev_attr_firmware_code.attr,
@@ -1686,7 +1686,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * delay is kept. We make it the first element of speeds[],
 	 * so therefore, your override speed is tried first, then the
 	 * remainder. Note that the default value of 400ms will be tried
-	 * if you do not specify any command line parameter.
+	 * if you do yest specify any command line parameter.
 	 */
 	speeds[0] = programmableDelay;
 
@@ -1694,20 +1694,20 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	inputdev = input_allocate_device();
 	if (!aiptek || !inputdev) {
 		dev_warn(&intf->dev,
-			 "cannot allocate memory or input device\n");
+			 "canyest allocate memory or input device\n");
 		goto fail1;
         }
 
 	aiptek->data = usb_alloc_coherent(usbdev, AIPTEK_PACKET_LENGTH,
 					  GFP_KERNEL, &aiptek->data_dma);
         if (!aiptek->data) {
-		dev_warn(&intf->dev, "cannot allocate usb buffer\n");
+		dev_warn(&intf->dev, "canyest allocate usb buffer\n");
 		goto fail1;
 	}
 
 	aiptek->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!aiptek->urb) {
-	        dev_warn(&intf->dev, "cannot allocate urb\n");
+	        dev_warn(&intf->dev, "canyest allocate urb\n");
 		goto fail2;
 	}
 
@@ -1722,7 +1722,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* Set up the curSettings struct. Said struct contains the current
 	 * programmable parameters. The newSetting struct contains changes
 	 * the user makes to the settings via the sysfs interface. Those
-	 * changes are not "committed" to curSettings until the user
+	 * changes are yest "committed" to curSettings until the user
 	 * writes to the sysfs/.../execute file.
 	 */
 	aiptek->curSetting.pointerMode = AIPTEK_POINTER_EITHER_MODE;
@@ -1743,7 +1743,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	aiptek->newSetting = aiptek->curSetting;
 
 	/* Determine the usb devices' physical path.
-	 * Asketh not why we always pretend we're using "../input0",
+	 * Asketh yest why we always pretend we're using "../input0",
 	 * but I suspect this will have to be refactored one
 	 * day if a single USB device can be a keyboard & a mouse
 	 * & a tablet, and the inputX number actually will tell
@@ -1789,8 +1789,8 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		__set_bit(macroKeyEvents[i], inputdev->keybit);
 
 	/*
-	 * Program the input device coordinate capacities. We do not yet
-	 * know what maximum X, Y, and Z values are, so we're putting fake
+	 * Program the input device coordinate capacities. We do yest yet
+	 * kyesw what maximum X, Y, and Z values are, so we're putting fake
 	 * values in. Later, we'll ask the tablet to put in the correct
 	 * values.
 	 */
@@ -1832,7 +1832,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * delay, we often get sizes of 0x0. Let's use that as an indicator
 	 * to try faster delays, up to 25 ms. If that logic fails, well, you'll
 	 * have to explain to us how your tablet thinks it's 0x0, and yet that's
-	 * not an error :-)
+	 * yest an error :-)
 	 */
 
 	for (i = 0; i < ARRAY_SIZE(speeds); ++i) {
@@ -1850,7 +1850,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	   above test. That's you, Frederic Rodrigo */
 	if (i == ARRAY_SIZE(speeds)) {
 		dev_info(&intf->dev,
-			 "Aiptek tried all speeds, no sane response\n");
+			 "Aiptek tried all speeds, yes sane response\n");
 		err = -EINVAL;
 		goto fail3;
 	}
@@ -1863,7 +1863,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 */
 	err = sysfs_create_group(&intf->dev.kobj, &aiptek_attribute_group);
 	if (err) {
-		dev_warn(&intf->dev, "cannot create sysfs group err: %d\n",
+		dev_warn(&intf->dev, "canyest create sysfs group err: %d\n",
 			 err);
 		goto fail3;
         }

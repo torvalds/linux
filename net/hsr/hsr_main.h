@@ -20,13 +20,13 @@
 #define HSR_ANNOUNCE_INTERVAL		  100 /* ms */
 
 /* By how much may slave1 and slave2 timestamps of latest received frame from
- * each node differ before we notify of communication problem?
+ * each yesde differ before we yestify of communication problem?
  */
 #define MAX_SLAVE_DIFF			 3000 /* ms */
 #define HSR_SEQNR_START			(USHRT_MAX - 1024)
 #define HSR_SUP_SEQNR_START		(HSR_SEQNR_START / 2)
 
-/* How often shall we check for broken ring and remove node entries older than
+/* How often shall we check for broken ring and remove yesde entries older than
  * HSR_NODE_FORGET_TIME?
  */
 #define PRUNE_PERIOD			 3000 /* ms */
@@ -153,20 +153,20 @@ struct hsr_port {
 struct hsr_priv {
 	struct rcu_head		rcu_head;
 	struct list_head	ports;
-	struct list_head	node_db;	/* Known HSR nodes */
-	struct list_head	self_node_db;	/* MACs of slaves */
-	struct timer_list	announce_timer;	/* Supervision frame dispatch */
+	struct list_head	yesde_db;	/* Kyeswn HSR yesdes */
+	struct list_head	self_yesde_db;	/* MACs of slaves */
+	struct timer_list	anyesunce_timer;	/* Supervision frame dispatch */
 	struct timer_list	prune_timer;
-	int announce_count;
+	int anyesunce_count;
 	u16 sequence_nr;
 	u16 sup_sequence_nr;	/* For HSRv1 separate seq_nr for supervision */
 	u8 prot_version;	/* Indicate if HSRv0 or HSRv1. */
 	spinlock_t seqnr_lock;	/* locking for sequence_nr */
-	spinlock_t list_lock;	/* locking for node list */
+	spinlock_t list_lock;	/* locking for yesde list */
 	unsigned char		sup_multicast_addr[ETH_ALEN];
 #ifdef	CONFIG_DEBUG_FS
-	struct dentry *node_tbl_root;
-	struct dentry *node_tbl_file;
+	struct dentry *yesde_tbl_root;
+	struct dentry *yesde_tbl_file;
 #endif
 };
 

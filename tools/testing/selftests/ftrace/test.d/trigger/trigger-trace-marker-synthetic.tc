@@ -9,27 +9,27 @@ fail() { #msg
 }
 
 if [ ! -f set_event ]; then
-    echo "event tracing is not supported"
+    echo "event tracing is yest supported"
     exit_unsupported
 fi
 
 if [ ! -f synthetic_events ]; then
-    echo "synthetic events not supported"
+    echo "synthetic events yest supported"
     exit_unsupported
 fi
 
 if [ ! -d events/ftrace/print ]; then
-    echo "event trace_marker is not supported"
+    echo "event trace_marker is yest supported"
     exit_unsupported
 fi
 
 if [ ! -f events/ftrace/print/trigger ]; then
-    echo "event trigger is not supported"
+    echo "event trigger is yest supported"
     exit_unsupported
 fi
 
 if [ ! -f events/ftrace/print/hist ]; then
-    echo "hist trigger is not supported"
+    echo "hist trigger is yest supported"
     exit_unsupported
 fi
 
@@ -45,10 +45,10 @@ echo -n "end" > trace_marker
 cnt=`grep 'hitcount: *1$' events/ftrace/print/hist | wc -l`
 
 if [ $cnt -ne 2 ]; then
-    fail "hist trace_marker trigger did not trigger correctly"
+    fail "hist trace_marker trigger did yest trigger correctly"
 fi
 
 grep 'hitcount: *1$' events/synthetic/latency/hist > /dev/null || \
-    fail "hist trigger did not trigger "
+    fail "hist trigger did yest trigger "
 
 exit 0

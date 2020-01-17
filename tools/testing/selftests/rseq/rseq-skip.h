@@ -2,7 +2,7 @@
 /*
  * rseq-skip.h
  *
- * (C) Copyright 2017-2018 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * (C) Copyright 2017-2018 - Mathieu Desyesyers <mathieu.desyesyers@efficios.com>
  */
 
 static inline __attribute__((always_inline))
@@ -12,7 +12,7 @@ int rseq_cmpeqv_storev(intptr_t *v, intptr_t expect, intptr_t newv, int cpu)
 }
 
 static inline __attribute__((always_inline))
-int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
+int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectyest,
 			       off_t voffp, intptr_t *load, int cpu)
 {
 	return -1;

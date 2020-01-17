@@ -43,7 +43,7 @@ static struct eisa_root_device eisa_bus_root = {
 
 static void virtual_eisa_release (struct device *dev)
 {
-	/* nothing really to do here */
+	/* yesthing really to do here */
 }
 
 static int __init virtual_eisa_root_init (void)

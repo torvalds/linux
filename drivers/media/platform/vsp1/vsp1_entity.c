@@ -234,7 +234,7 @@ int vsp1_subdev_get_pad_format(struct v4l2_subdev *subdev,
  * @ncodes: Number of supported media bus codes
  *
  * This function implements the subdev enum_mbus_code pad operation for entities
- * that do not support format conversion. It enumerates the given supported
+ * that do yest support format conversion. It enumerates the given supported
  * media bus codes on the sink pad and reports a source pad format identical to
  * the sink pad.
  */
@@ -285,7 +285,7 @@ int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
  * @max_height: Maximum image height
  *
  * This function implements the subdev enum_frame_size pad operation for
- * entities that do not support scaling or cropping. It reports the given
+ * entities that do yest support scaling or cropping. It reports the given
  * minimum and maximum frame width and height on the sink pad, and a fixed
  * source pad size identical to the sink pad.
  */
@@ -347,7 +347,7 @@ done:
  * @max_height: Maximum image height
  *
  * This function implements the subdev set_fmt pad operation for entities that
- * do not support scaling or cropping. It defaults to the first supplied media
+ * do yest support scaling or cropping. It defaults to the first supplied media
  * bus code if the requested code isn't supported, clamps the size to the
  * supplied minimum and maximum, and propagates the sink pad format to the
  * source pad.
@@ -383,7 +383,7 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 	}
 
 	/*
-	 * Default to the first media bus code if the requested format is not
+	 * Default to the first media bus code if the requested format is yest
 	 * supported.
 	 */
 	for (i = 0; i < ncodes; ++i) {
@@ -451,8 +451,8 @@ static int vsp1_entity_link_setup_source(const struct media_pad *source_pad,
 			= media_entity_to_vsp1_entity(sink_pad->entity);
 
 		/*
-		 * Fan-out is limited to one for the normal data path plus
-		 * optional HGO and HGT. We ignore the HGO and HGT here.
+		 * Fan-out is limited to one for the yesrmal data path plus
+		 * optional HGO and HGT. We igyesre the HGO and HGT here.
 		 */
 		if (sink->type != VSP1_ENTITY_HGO &&
 		    sink->type != VSP1_ENTITY_HGT) {
@@ -509,15 +509,15 @@ int vsp1_entity_link_setup(struct media_entity *entity,
  * Search for a remote pad connected to the given pad by iterating over all
  * links originating or terminating at that pad until an enabled link is found.
  *
- * Our link setup implementation guarantees that the output fan-out will not be
+ * Our link setup implementation guarantees that the output fan-out will yest be
  * higher than one for the data pipelines, except for the links to the HGO and
  * HGT that can be enabled in addition to a regular data link. When traversing
- * outgoing links this function ignores HGO and HGT entities and should thus be
+ * outgoing links this function igyesres HGO and HGT entities and should thus be
  * used in place of the generic media_entity_remote_pad() function to traverse
  * data pipelines.
  *
  * Return a pointer to the pad at the remote end of the first found enabled
- * link, or NULL if no enabled link has been found.
+ * link, or NULL if yes enabled link has been found.
  */
 struct media_pad *vsp1_entity_remote_pad(struct media_pad *pad)
 {

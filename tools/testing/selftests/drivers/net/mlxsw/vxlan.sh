@@ -35,7 +35,7 @@ sanitization_single_dev_test_pass()
 	ip link set dev vxlan0 master br0
 	check_err $?
 
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 yesmaster
 
 	ip link set dev $swp1 master br0
 	check_err $?
@@ -48,7 +48,7 @@ sanitization_single_dev_test_fail()
 	ip link set dev vxlan0 master br0 &> /dev/null
 	check_fail $?
 
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 yesmaster
 
 	ip link set dev vxlan0 master br0
 	check_err $?
@@ -60,9 +60,9 @@ sanitization_single_dev_valid_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	sanitization_single_dev_test_pass
@@ -77,9 +77,9 @@ sanitization_single_dev_vlan_aware_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0 vlan_filtering 1
+	ip link add dev br0 type bridge mcast_syesoping 0 vlan_filtering 1
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	sanitization_single_dev_test_pass
@@ -96,7 +96,7 @@ sanitization_single_dev_mcast_enabled_test()
 
 	ip link add dev br0 type bridge
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	sanitization_single_dev_test_fail
@@ -111,10 +111,10 @@ sanitization_single_dev_mcast_group_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
 	ip link add name dummy1 up type dummy
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789 \
 		dev dummy1 group 239.0.0.1
 
@@ -127,13 +127,13 @@ sanitization_single_dev_mcast_group_test()
 	log_test "vxlan device with a multicast group"
 }
 
-sanitization_single_dev_no_local_ip_test()
+sanitization_single_dev_yes_local_ip_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit dstport 4789
 
 	sanitization_single_dev_test_fail
@@ -141,16 +141,16 @@ sanitization_single_dev_no_local_ip_test()
 	ip link del dev vxlan0
 	ip link del dev br0
 
-	log_test "vxlan device with no local ip"
+	log_test "vxlan device with yes local ip"
 }
 
 sanitization_single_dev_local_ipv6_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 2001:db8::1 dstport 4789
 
 	sanitization_single_dev_test_fail
@@ -165,9 +165,9 @@ sanitization_single_dev_learning_enabled_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
 
-	ip link add name vxlan0 up type vxlan id 10 learning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 learning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	sanitization_single_dev_test_pass
@@ -182,10 +182,10 @@ sanitization_single_dev_local_interface_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
 	ip link add name dummy1 up type dummy
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789 dev dummy1
 
 	sanitization_single_dev_test_fail
@@ -201,9 +201,9 @@ sanitization_single_dev_port_range_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789 \
 		srcport 4000 5000
 
@@ -219,9 +219,9 @@ sanitization_single_dev_tos_static_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos 20 local 198.51.100.1 dstport 4789
 
 	sanitization_single_dev_test_fail
@@ -236,9 +236,9 @@ sanitization_single_dev_ttl_inherit_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl inherit tos inherit local 198.51.100.1 dstport 4789
 
 	sanitization_single_dev_test_fail
@@ -253,9 +253,9 @@ sanitization_single_dev_udp_checksum_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning udpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning udpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	sanitization_single_dev_test_fail
@@ -269,12 +269,12 @@ sanitization_single_dev_udp_checksum_test()
 sanitization_single_dev_test()
 {
 	# These tests make sure that we correctly sanitize VxLAN device
-	# configurations we do not support
+	# configurations we do yest support
 	sanitization_single_dev_valid_test
 	sanitization_single_dev_vlan_aware_test
 	sanitization_single_dev_mcast_enabled_test
 	sanitization_single_dev_mcast_group_test
-	sanitization_single_dev_no_local_ip_test
+	sanitization_single_dev_yes_local_ip_test
 	sanitization_single_dev_local_ipv6_test
 	sanitization_single_dev_learning_enabled_test
 	sanitization_single_dev_local_interface_test
@@ -295,8 +295,8 @@ sanitization_multi_devs_test_pass()
 	ip link set dev vxlan1 master br1
 	check_err $?
 
-	ip link set dev $swp2 nomaster
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp2 yesmaster
+	ip link set dev $swp1 yesmaster
 
 	ip link set dev $swp1 master br0
 	check_err $?
@@ -315,8 +315,8 @@ sanitization_multi_devs_test_fail()
 	ip link set dev vxlan1 master br1 &> /dev/null
 	check_fail $?
 
-	ip link set dev $swp2 nomaster
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp2 yesmaster
+	ip link set dev $swp1 yesmaster
 
 	ip link set dev vxlan1 master br1
 	check_err $?
@@ -330,12 +330,12 @@ sanitization_multi_devs_valid_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
-	ip link add dev br1 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
+	ip link add dev br1 type bridge mcast_syesoping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
-	ip link add name vxlan1 up type vxlan id 20 nolearning noudpcsum \
+	ip link add name vxlan1 up type vxlan id 20 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	sanitization_multi_devs_test_pass
@@ -352,12 +352,12 @@ sanitization_multi_devs_ttl_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
-	ip link add dev br1 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
+	ip link add dev br1 type bridge mcast_syesoping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
-	ip link add name vxlan1 up type vxlan id 20 nolearning noudpcsum \
+	ip link add name vxlan1 up type vxlan id 20 yeslearning yesudpcsum \
 		ttl 40 tos inherit local 198.51.100.1 dstport 4789
 
 	sanitization_multi_devs_test_fail
@@ -374,12 +374,12 @@ sanitization_multi_devs_udp_dstport_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
-	ip link add dev br1 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
+	ip link add dev br1 type bridge mcast_syesoping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
-	ip link add name vxlan1 up type vxlan id 20 nolearning noudpcsum \
+	ip link add name vxlan1 up type vxlan id 20 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 5789
 
 	sanitization_multi_devs_test_fail
@@ -396,12 +396,12 @@ sanitization_multi_devs_local_ip_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0
-	ip link add dev br1 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_syesoping 0
+	ip link add dev br1 type bridge mcast_syesoping 0
 
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
-	ip link add name vxlan1 up type vxlan id 20 nolearning noudpcsum \
+	ip link add name vxlan1 up type vxlan id 20 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.2 dstport 4789
 
 	sanitization_multi_devs_test_fail
@@ -436,18 +436,18 @@ offload_indication_setup_create()
 {
 	# Create a simple setup with two bridges, each with a VxLAN device
 	# and one local port
-	ip link add name br0 up type bridge mcast_snooping 0
-	ip link add name br1 up type bridge mcast_snooping 0
+	ip link add name br0 up type bridge mcast_syesoping 0
+	ip link add name br1 up type bridge mcast_syesoping 0
 
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br1
 
 	ip address add 198.51.100.1/32 dev lo
 
-	ip link add name vxlan0 up master br0 type vxlan id 10 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
-	ip link add name vxlan1 up master br1 type vxlan id 20 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan0 up master br0 type vxlan id 10 yeslearning \
+		yesudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan1 up master br1 type vxlan id 20 yeslearning \
+		yesudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
 }
 
 offload_indication_setup_destroy()
@@ -457,8 +457,8 @@ offload_indication_setup_destroy()
 
 	ip address del 198.51.100.1/32 dev lo
 
-	ip link set dev $swp2 nomaster
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp2 yesmaster
+	ip link set dev $swp1 yesmaster
 
 	ip link del dev br1
 	ip link del dev br0
@@ -496,7 +496,7 @@ offload_indication_fdb_bridge_test()
 	log_test "vxlan entry offload indication - initial state"
 
 	# Remove FDB entry from the bridge driver and check that corresponding
-	# entry in the VxLAN driver is not marked as offloaded
+	# entry in the VxLAN driver is yest marked as offloaded
 	RET=0
 
 	bridge fdb del de:ad:be:ef:13:37 dev vxlan0 master
@@ -521,7 +521,7 @@ offload_indication_fdb_bridge_test()
 	log_test "vxlan entry offload indication - after re-add to bridge"
 
 	# Remove FDB entry from the VxLAN driver and check that corresponding
-	# entry in the bridge driver is not marked as offloaded
+	# entry in the bridge driver is yest marked as offloaded
 	RET=0
 
 	bridge fdb del de:ad:be:ef:13:37 dev vxlan0 self
@@ -597,11 +597,11 @@ offload_indication_decap_route_test()
 
 	RET=0
 
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 yesmaster
 	ip route show table local | grep 198.51.100.1 | grep -q offload
 	check_err $?
 
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 yesmaster
 	ip route show table local | grep 198.51.100.1 | grep -q offload
 	check_fail $?
 
@@ -626,8 +626,8 @@ offload_indication_decap_route_test()
 
 	RET=0
 
-	ip link add name br0 up type bridge mcast_snooping 0
-	ip link add name br1 up type bridge mcast_snooping 0
+	ip link add name br0 up type bridge mcast_syesoping 0
+	ip link add name br1 up type bridge mcast_syesoping 0
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br1
 	ip link set dev vxlan0 master br0
@@ -645,10 +645,10 @@ offload_indication_decap_route_test()
 
 	log_test "vxlan decap route - vxlan device deletion"
 
-	ip link add name vxlan0 up master br0 type vxlan id 10 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
-	ip link add name vxlan1 up master br1 type vxlan id 20 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan0 up master br0 type vxlan id 10 yeslearning \
+		yesudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan1 up master br1 type vxlan id 20 yeslearning \
+		yesudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
 }
 
 check_fdb_offloaded()
@@ -665,7 +665,7 @@ check_fdb_offloaded()
 	check_err $?
 }
 
-check_vxlan_fdb_not_offloaded()
+check_vxlan_fdb_yest_offloaded()
 {
 	local mac=00:11:22:33:44:55
 	local zmac=00:00:00:00:00:00
@@ -681,7 +681,7 @@ check_vxlan_fdb_not_offloaded()
 	check_fail $?
 }
 
-check_bridge_fdb_not_offloaded()
+check_bridge_fdb_yest_offloaded()
 {
 	local mac=00:11:22:33:44:55
 	local zmac=00:00:00:00:00:00
@@ -705,7 +705,7 @@ __offload_indication_join_vxlan_first()
 	bridge fdb add dev vxlan0 $mac self master static dst 198.51.100.2
 
 	RET=0
-	check_vxlan_fdb_not_offloaded
+	check_vxlan_fdb_yest_offloaded
 	ip link set dev $swp1 master br0
 	sleep .1
 	check_fdb_offloaded
@@ -713,8 +713,8 @@ __offload_indication_join_vxlan_first()
 
 	RET=0
 	ip link set dev vxlan0 down
-	check_vxlan_fdb_not_offloaded
-	check_bridge_fdb_not_offloaded
+	check_vxlan_fdb_yest_offloaded
+	check_bridge_fdb_yest_offloaded
 	log_test "offload indication - set vxlan down"
 
 	RET=0
@@ -726,14 +726,14 @@ __offload_indication_join_vxlan_first()
 	if [[ ! -z $vid ]]; then
 		RET=0
 		bridge vlan del dev vxlan0 vid $vid
-		check_vxlan_fdb_not_offloaded
-		check_bridge_fdb_not_offloaded
+		check_vxlan_fdb_yest_offloaded
+		check_bridge_fdb_yest_offloaded
 		log_test "offload indication - delete VLAN"
 
 		RET=0
 		bridge vlan add dev vxlan0 vid $vid
-		check_vxlan_fdb_not_offloaded
-		check_bridge_fdb_not_offloaded
+		check_vxlan_fdb_yest_offloaded
+		check_bridge_fdb_yest_offloaded
 		log_test "offload indication - add tagged VLAN"
 
 		RET=0
@@ -744,15 +744,15 @@ __offload_indication_join_vxlan_first()
 	fi
 
 	RET=0
-	ip link set dev $swp1 nomaster
-	check_vxlan_fdb_not_offloaded
+	ip link set dev $swp1 yesmaster
+	check_vxlan_fdb_yest_offloaded
 	log_test "offload indication - detach port"
 }
 
 offload_indication_join_vxlan_first()
 {
-	ip link add dev br0 up type bridge mcast_snooping 0
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add dev br0 up type bridge mcast_syesoping 0
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	__offload_indication_join_vxlan_first
@@ -784,8 +784,8 @@ __offload_indication_join_vxlan_last()
 
 offload_indication_join_vxlan_last()
 {
-	ip link add dev br0 up type bridge mcast_snooping 0
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add dev br0 up type bridge mcast_syesoping 0
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	__offload_indication_join_vxlan_last
@@ -810,13 +810,13 @@ sanitization_vlan_aware_test()
 {
 	RET=0
 
-	ip link add dev br0 type bridge mcast_snooping 0 vlan_filtering 1
+	ip link add dev br0 type bridge mcast_syesoping 0 vlan_filtering 1
 
-	ip link add name vxlan10 up master br0 type vxlan id 10 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan10 up master br0 type vxlan id 10 yeslearning \
+		yesudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
-	ip link add name vxlan20 up master br0 type vxlan id 20 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan20 up master br0 type vxlan id 20 yeslearning \
+		yesudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	# Test that when each VNI is mapped to a different VLAN we can enslave
 	# a port to the bridge
@@ -841,7 +841,7 @@ sanitization_vlan_aware_test()
 	# are mapped to the same VLAN
 	RET=0
 
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 yesmaster
 
 	bridge vlan del vid 20 dev vxlan20 pvid untagged
 	bridge vlan add vid 10 dev vxlan20 pvid untagged
@@ -878,7 +878,7 @@ offload_indication_vlan_aware_setup_create()
 {
 	# Create a simple setup with two VxLAN devices and a single VLAN-aware
 	# bridge
-	ip link add name br0 up type bridge mcast_snooping 0 vlan_filtering 1 \
+	ip link add name br0 up type bridge mcast_syesoping 0 vlan_filtering 1 \
 		vlan_default_pvid 0
 
 	ip link set dev $swp1 master br0
@@ -888,10 +888,10 @@ offload_indication_vlan_aware_setup_create()
 
 	ip address add 198.51.100.1/32 dev lo
 
-	ip link add name vxlan10 up master br0 type vxlan id 10 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
-	ip link add name vxlan20 up master br0 type vxlan id 20 nolearning \
-		noudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan10 up master br0 type vxlan id 10 yeslearning \
+		yesudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
+	ip link add name vxlan20 up master br0 type vxlan id 20 yeslearning \
+		yesudpcsum ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	bridge vlan add vid 10 dev vxlan10 pvid untagged
 	bridge vlan add vid 20 dev vxlan20 pvid untagged
@@ -910,7 +910,7 @@ offload_indication_vlan_aware_setup_destroy()
 	bridge vlan del vid 20 dev $swp1
 	bridge vlan del vid 10 dev $swp1
 
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 yesmaster
 
 	ip link del dev br0
 }
@@ -934,7 +934,7 @@ offload_indication_vlan_aware_fdb_test()
 	log_test "vxlan entry offload indication - initial state"
 
 	# Remove FDB entry from the bridge driver and check that corresponding
-	# entry in the VxLAN driver is not marked as offloaded
+	# entry in the VxLAN driver is yest marked as offloaded
 	RET=0
 
 	bridge fdb del de:ad:be:ef:13:37 dev vxlan10 master vlan 10
@@ -959,7 +959,7 @@ offload_indication_vlan_aware_fdb_test()
 	log_test "vxlan entry offload indication - after re-add to bridge"
 
 	# Remove FDB entry from the VxLAN driver and check that corresponding
-	# entry in the bridge driver is not marked as offloaded
+	# entry in the bridge driver is yest marked as offloaded
 	RET=0
 
 	bridge fdb del de:ad:be:ef:13:37 dev vxlan10 self
@@ -1000,7 +1000,7 @@ offload_indication_vlan_aware_decap_route_test()
 	ip route show table local | grep 198.51.100.1 | grep -q offload
 	check_err $?
 
-	# Toggle PVID flag on second VxLAN device and make sure route is no
+	# Toggle PVID flag on second VxLAN device and make sure route is yes
 	# longer marked as offloaded
 	bridge vlan add vid 20 dev vxlan20 untagged
 
@@ -1019,9 +1019,9 @@ offload_indication_vlan_aware_decap_route_test()
 
 offload_indication_vlan_aware_join_vxlan_first()
 {
-	ip link add dev br0 up type bridge mcast_snooping 0 \
+	ip link add dev br0 up type bridge mcast_syesoping 0 \
 		vlan_filtering 1 vlan_default_pvid 1
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	__offload_indication_join_vxlan_first 1
@@ -1032,9 +1032,9 @@ offload_indication_vlan_aware_join_vxlan_first()
 
 offload_indication_vlan_aware_join_vxlan_last()
 {
-	ip link add dev br0 up type bridge mcast_snooping 0 \
+	ip link add dev br0 up type bridge mcast_syesoping 0 \
 		vlan_filtering 1 vlan_default_pvid 1
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	__offload_indication_join_vxlan_last
@@ -1050,25 +1050,25 @@ offload_indication_vlan_aware_l3vni_test()
 	RET=0
 
 	sysctl_set net.ipv6.conf.default.disable_ipv6 1
-	ip link add dev br0 up type bridge mcast_snooping 0 \
+	ip link add dev br0 up type bridge mcast_syesoping 0 \
 		vlan_filtering 1 vlan_default_pvid 0
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 up type vxlan id 10 yeslearning yesudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	ip link set dev $swp1 master br0
 
 	# The test will use the offload indication on the FDB entry to
-	# understand if the tunnel is offloaded or not
+	# understand if the tunnel is offloaded or yest
 	bridge fdb append $zmac dev vxlan0 self dst 192.0.2.1
 
 	ip link set dev vxlan0 master br0
 	bridge vlan add dev vxlan0 vid 10 pvid untagged
 
 	# No local port or router port is member in the VLAN, so tunnel should
-	# not be offloaded
+	# yest be offloaded
 	bridge fdb show brport vxlan0 | grep $zmac | grep self \
 		| grep -q offload
-	check_fail $? "vxlan tunnel offloaded when should not"
+	check_fail $? "vxlan tunnel offloaded when should yest"
 
 	# Configure a VLAN interface and make sure tunnel is offloaded
 	ip link add link br0 name br10 up type vlan id 10
@@ -1076,11 +1076,11 @@ offload_indication_vlan_aware_l3vni_test()
 	ip -6 address add 2001:db8:1::1/64 dev br10
 	bridge fdb show brport vxlan0 | grep $zmac | grep self \
 		| grep -q offload
-	check_err $? "vxlan tunnel not offloaded when should"
+	check_err $? "vxlan tunnel yest offloaded when should"
 
-	# Unlink the VXLAN device, make sure tunnel is no longer offloaded,
+	# Unlink the VXLAN device, make sure tunnel is yes longer offloaded,
 	# then add it back to the bridge and make sure it is offloaded
-	ip link set dev vxlan0 nomaster
+	ip link set dev vxlan0 yesmaster
 	bridge fdb show brport vxlan0 | grep $zmac | grep self \
 		| grep -q offload
 	check_fail $? "vxlan tunnel offloaded after unlinked from bridge"
@@ -1088,12 +1088,12 @@ offload_indication_vlan_aware_l3vni_test()
 	ip link set dev vxlan0 master br0
 	bridge fdb show brport vxlan0 | grep $zmac | grep self \
 		| grep -q offload
-	check_fail $? "vxlan tunnel offloaded despite no matching vid"
+	check_fail $? "vxlan tunnel offloaded despite yes matching vid"
 
 	bridge vlan add dev vxlan0 vid 10 pvid untagged
 	bridge fdb show brport vxlan0 | grep $zmac | grep self \
 		| grep -q offload
-	check_err $? "vxlan tunnel not offloaded after adding vid"
+	check_err $? "vxlan tunnel yest offloaded after adding vid"
 
 	log_test "vxlan - l3 vni"
 

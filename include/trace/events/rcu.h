@@ -22,7 +22,7 @@
  * "End <activity>" -- Mark the end of the specified activity.
  *
  * An "@" character within "<activity>" is a comment character: Data
- * reduction scripts will ignore the "@" and the remainder of the line.
+ * reduction scripts will igyesre the "@" and the remainder of the line.
  */
 TRACE_EVENT(rcu_utilization,
 
@@ -52,7 +52,7 @@ TRACE_EVENT(rcu_utilization,
  *	"AccWaitCB": CPU accelerates new callbacks to RCU_WAIT_TAIL.
  *	"newreq": Request a new grace period.
  *	"start": Start a grace period.
- *	"cpustart": CPU first notices a grace-period start.
+ *	"cpustart": CPU first yestices a grace-period start.
  *	"cpuqs": CPU passes through a quiescent state.
  *	"cpuonl": CPU comes online.
  *	"cpuofl": CPU goes offline.
@@ -64,7 +64,7 @@ TRACE_EVENT(rcu_utilization,
  *	"fqsend": GP kthread done forcing quiescent states.
  *	"fqswaitsig": GP kthread awakened by signal from fqswait state.
  *	"end": End a grace period.
- *	"cpuend": CPU first notices a grace-period end.
+ *	"cpuend": CPU first yestices a grace-period end.
  */
 TRACE_EVENT_RCU(rcu_grace_period,
 
@@ -90,18 +90,18 @@ TRACE_EVENT_RCU(rcu_grace_period,
 
 /*
  * Tracepoint for future grace-period events.  The caller should pull
- * the data from the rcu_node structure, other than rcuname, which comes
+ * the data from the rcu_yesde structure, other than rcuname, which comes
  * from the rcu_state structure, and event, which is one of the following:
  *
- * "Cleanup": Clean up rcu_node structure after previous GP.
- * "CleanupMore": Clean up, and another GP is needed.
+ * "Cleanup": Clean up rcu_yesde structure after previous GP.
+ * "CleanupMore": Clean up, and ayesther GP is needed.
  * "EndWait": Complete wait.
- * "NoGPkthread": The RCU grace-period kthread has not yet started.
+ * "NoGPkthread": The RCU grace-period kthread has yest yet started.
  * "Prestarted": Someone beat us to the request
- * "Startedleaf": Leaf node marked for future GP.
- * "Startedleafroot": All nodes from leaf to root marked for future GP.
- * "Startedroot": Requested a nocb grace period based on root-node data.
- * "Startleaf": Request a grace period based on leaf-node data.
+ * "Startedleaf": Leaf yesde marked for future GP.
+ * "Startedleafroot": All yesdes from leaf to root marked for future GP.
+ * "Startedroot": Requested a yescb grace period based on root-yesde data.
+ * "Startleaf": Request a grace period based on leaf-yesde data.
  * "StartWait": Start waiting for the requested grace period.
  */
 TRACE_EVENT_RCU(rcu_future_grace_period,
@@ -140,9 +140,9 @@ TRACE_EVENT_RCU(rcu_future_grace_period,
 /*
  * Tracepoint for grace-period-initialization events.  These are
  * distinguished by the type of RCU, the new grace-period number, the
- * rcu_node structure level, the starting and ending CPU covered by the
- * rcu_node structure, and the mask of CPUs that will be waited for.
- * All but the type of RCU are extracted from the rcu_node structure.
+ * rcu_yesde structure level, the starting and ending CPU covered by the
+ * rcu_yesde structure, and the mask of CPUs that will be waited for.
+ * All but the type of RCU are extracted from the rcu_yesde structure.
  */
 TRACE_EVENT_RCU(rcu_grace_period_init,
 
@@ -213,12 +213,12 @@ TRACE_EVENT_RCU(rcu_exp_grace_period,
 
 /*
  * Tracepoint for expedited grace-period funnel-locking events.  Takes a
- * string identifying the RCU flavor, an integer identifying the rcu_node
- * combining-tree level, another pair of integers identifying the lowest-
- * and highest-numbered CPU associated with the current rcu_node structure,
+ * string identifying the RCU flavor, an integer identifying the rcu_yesde
+ * combining-tree level, ayesther pair of integers identifying the lowest-
+ * and highest-numbered CPU associated with the current rcu_yesde structure,
  * and a string.  identifying the grace-period-related event as follows:
  *
- *	"nxtlvl": Advance to next level of rcu_node funnel
+ *	"nxtlvl": Advance to next level of rcu_yesde funnel
  *	"wait": Wait for someone else to do expedited GP
  */
 TRACE_EVENT_RCU(rcu_exp_funnel_lock,
@@ -251,7 +251,7 @@ TRACE_EVENT_RCU(rcu_exp_funnel_lock,
 
 #ifdef CONFIG_RCU_NOCB_CPU
 /*
- * Tracepoint for RCU no-CBs CPU callback handoffs.  This event is intended
+ * Tracepoint for RCU yes-CBs CPU callback handoffs.  This event is intended
  * to assist debugging of these handoffs.
  *
  * The first argument is the name of the RCU flavor, and the second is
@@ -259,19 +259,19 @@ TRACE_EVENT_RCU(rcu_exp_funnel_lock,
  * argument is a string as follows:
  *
  * "AlreadyAwake": The to-be-awakened rcuo kthread is already awake.
- * "Bypass": rcuo GP kthread sees non-empty ->nocb_bypass.
+ * "Bypass": rcuo GP kthread sees yesn-empty ->yescb_bypass.
  * "CBSleep": rcuo CB kthread sleeping waiting for CBs.
  * "Check": rcuo GP kthread checking specified CPU for work.
  * "DeferredWake": Timer expired or polled check, time to wake.
  * "DoWake": The to-be-awakened rcuo kthread needs to be awakened.
- * "EndSleep": Done waiting for GP for !rcu_nocb_poll.
- * "FirstBQ": New CB to empty ->nocb_bypass (->cblist maybe non-empty).
- * "FirstBQnoWake": FirstBQ plus rcuo kthread need not be awakened.
+ * "EndSleep": Done waiting for GP for !rcu_yescb_poll.
+ * "FirstBQ": New CB to empty ->yescb_bypass (->cblist maybe yesn-empty).
+ * "FirstBQyesWake": FirstBQ plus rcuo kthread need yest be awakened.
  * "FirstBQwake": FirstBQ plus rcuo kthread must be awakened.
- * "FirstQ": New CB to empty ->cblist (->nocb_bypass maybe non-empty).
+ * "FirstQ": New CB to empty ->cblist (->yescb_bypass maybe yesn-empty).
  * "NeedWaitGP": rcuo GP kthread must wait on a grace period.
- * "Poll": Start of new polling cycle for rcu_nocb_poll.
- * "Sleep": Sleep waiting for GP for !rcu_nocb_poll.
+ * "Poll": Start of new polling cycle for rcu_yescb_poll.
+ * "Sleep": Sleep waiting for GP for !rcu_yescb_poll.
  * "Timer": Deferred-wake timer expired.
  * "WakeEmptyIsDeferred": Wake rcuo kthread later, first CB to empty list.
  * "WakeEmpty": Wake rcuo kthread, first CB to empty list.
@@ -280,7 +280,7 @@ TRACE_EVENT_RCU(rcu_exp_funnel_lock,
  * "WakeOvfIsDeferred": Wake rcuo kthread later, CB list is huge.
  * "WokeEmpty": rcuo CB kthread woke to find empty list.
  */
-TRACE_EVENT_RCU(rcu_nocb_wake,
+TRACE_EVENT_RCU(rcu_yescb_wake,
 
 	TP_PROTO(const char *rcuname, int cpu, const char *reason),
 
@@ -359,10 +359,10 @@ TRACE_EVENT_RCU(rcu_unlock_preempted_task,
 /*
  * Tracepoint for quiescent-state-reporting events.  These are
  * distinguished by the type of RCU, the grace-period number, the
- * mask of quiescent lower-level entities, the rcu_node structure level,
- * the starting and ending CPU covered by the rcu_node structure, and
+ * mask of quiescent lower-level entities, the rcu_yesde structure level,
+ * the starting and ending CPU covered by the rcu_yesde structure, and
  * whether there are any blocked tasks blocking the current grace period.
- * All but the type of RCU are extracted from the rcu_node structure.
+ * All but the type of RCU are extracted from the rcu_yesde structure.
  */
 TRACE_EVENT_RCU(rcu_quiescent_state_report,
 
@@ -635,7 +635,7 @@ TRACE_EVENT_RCU(rcu_invoke_kfree_callback,
  * Tracepoint for exiting rcu_do_batch after RCU callbacks have been
  * invoked.  The first argument is the name of the RCU flavor,
  * the second argument is number of callbacks actually invoked,
- * the third argument (cb) is whether or not any of the callbacks that
+ * the third argument (cb) is whether or yest any of the callbacks that
  * were ready to invoke at the beginning of this batch are still
  * queued, the fourth argument (nr) is the return value of need_resched(),
  * the fifth argument (iit) is 1 if the current task is the idle task,
@@ -721,10 +721,10 @@ TRACE_EVENT_RCU(rcu_torture_read,
  *	"EarlyExit": rcu_barrier() piggybacked, thus early exit.
  *	"Inc1": rcu_barrier() piggyback check counter incremented.
  *	"OnlineQ": rcu_barrier() found online CPU with callbacks.
- *	"OnlineNQ": rcu_barrier() found online CPU, no callbacks.
+ *	"OnlineNQ": rcu_barrier() found online CPU, yes callbacks.
  *	"IRQ": An rcu_barrier_callback() callback posted on remote CPU.
- *	"IRQNQ": An rcu_barrier_callback() callback found no callbacks.
- *	"CB": An rcu_barrier_callback() invoked a callback, not the last.
+ *	"IRQNQ": An rcu_barrier_callback() callback found yes callbacks.
+ *	"CB": An rcu_barrier_callback() invoked a callback, yest the last.
  *	"LastCB": An rcu_barrier_callback() invoked the last callback.
  *	"Inc2": rcu_barrier() piggyback check counter incremented.
  * The "cpu" argument is the CPU or -1 if meaningless, the "cnt" argument

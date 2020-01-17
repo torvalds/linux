@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techyeslogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -159,23 +159,23 @@ static inline void tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 
 	data_offset = tcp_hdr_ptr->doff << 2;
 	if (total_length == (ihl + data_offset)) {
-		u32 seq_no, ack_no;
+		u32 seq_yes, ack_yes;
 
-		seq_no = ntohl(tcp_hdr_ptr->seq);
-		ack_no = ntohl(tcp_hdr_ptr->ack_seq);
+		seq_yes = ntohl(tcp_hdr_ptr->seq);
+		ack_yes = ntohl(tcp_hdr_ptr->ack_seq);
 		for (i = 0; i < f->tcp_session; i++) {
 			u32 j = f->ack_session_info[i].seq_num;
 
 			if (i < 2 * MAX_TCP_SESSION &&
-			    j == seq_no) {
-				update_tcp_session(vif, i, ack_no);
+			    j == seq_yes) {
+				update_tcp_session(vif, i, ack_yes);
 				break;
 			}
 		}
 		if (i == f->tcp_session)
-			add_tcp_session(vif, 0, 0, seq_no);
+			add_tcp_session(vif, 0, 0, seq_yes);
 
-		add_tcp_pending_ack(vif, ack_no, i, tqe);
+		add_tcp_pending_ack(vif, ack_yes, i, tqe);
 	}
 
 out:
@@ -455,21 +455,21 @@ void chip_wakeup(struct wilc *wilc)
 }
 EXPORT_SYMBOL_GPL(chip_wakeup);
 
-void host_wakeup_notify(struct wilc *wilc)
+void host_wakeup_yestify(struct wilc *wilc)
 {
 	acquire_bus(wilc, WILC_BUS_ACQUIRE_ONLY);
 	wilc->hif_func->hif_write_reg(wilc, 0x10b0, 1);
 	release_bus(wilc, WILC_BUS_RELEASE_ONLY);
 }
-EXPORT_SYMBOL_GPL(host_wakeup_notify);
+EXPORT_SYMBOL_GPL(host_wakeup_yestify);
 
-void host_sleep_notify(struct wilc *wilc)
+void host_sleep_yestify(struct wilc *wilc)
 {
 	acquire_bus(wilc, WILC_BUS_ACQUIRE_ONLY);
 	wilc->hif_func->hif_write_reg(wilc, 0x10ac, 1);
 	release_bus(wilc, WILC_BUS_RELEASE_ONLY);
 }
-EXPORT_SYMBOL_GPL(host_sleep_notify);
+EXPORT_SYMBOL_GPL(host_sleep_yestify);
 
 int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 {
@@ -717,7 +717,7 @@ static void wilc_wlan_handle_rx_buff(struct wilc *wilc, u8 *buffer, int size)
 							  pkt_len,
 							  &rsp);
 				if (rsp.type == WILC_CFG_RSP) {
-					if (wilc->cfg_seq_no == rsp.seq_no)
+					if (wilc->cfg_seq_yes == rsp.seq_yes)
 						complete(&wilc->cfg_event);
 				} else if (rsp.type == WILC_CFG_RSP_STATUS) {
 					wilc_mac_indicate(wilc);
@@ -753,7 +753,7 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 	} while (1);
 }
 
-static void wilc_unknown_isr_ext(struct wilc *wilc)
+static void wilc_unkyeswn_isr_ext(struct wilc *wilc)
 {
 	wilc->hif_func->hif_clear_int_ext(wilc, 0);
 }
@@ -811,7 +811,7 @@ void wilc_handle_isr(struct wilc *wilc)
 		wilc_wlan_handle_isr_ext(wilc, int_status);
 
 	if (!(int_status & (ALL_INT_EXT)))
-		wilc_unknown_isr_ext(wilc);
+		wilc_unkyeswn_isr_ext(wilc);
 
 	release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP);
 }
@@ -1027,10 +1027,10 @@ static int wilc_wlan_cfg_commit(struct wilc_vif *vif, int type,
 	else
 		cfg->hdr.cmd_type = 'Q';
 
-	cfg->hdr.seq_no = wilc->cfg_seq_no % 256;
+	cfg->hdr.seq_yes = wilc->cfg_seq_yes % 256;
 	cfg->hdr.total_len = cpu_to_le16(t_len);
 	cfg->hdr.driver_handler = cpu_to_le32(drv_handler);
-	wilc->cfg_seq_no = cfg->hdr.seq_no;
+	wilc->cfg_seq_yes = cfg->hdr.seq_yes;
 
 	if (!wilc_wlan_txq_add_cfg_pkt(vif, (u8 *)&cfg->hdr, t_len))
 		return -1;
@@ -1061,7 +1061,7 @@ int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u16 wid, u8 *buffer,
 		return ret_size;
 	}
 
-	netdev_dbg(vif->ndev, "%s: seqno[%d]\n", __func__, wilc->cfg_seq_no);
+	netdev_dbg(vif->ndev, "%s: seqyes[%d]\n", __func__, wilc->cfg_seq_yes);
 
 	if (wilc_wlan_cfg_commit(vif, WILC_CFG_SET, drv_handler))
 		ret_size = 0;
@@ -1073,7 +1073,7 @@ int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u16 wid, u8 *buffer,
 	}
 
 	wilc->cfg_frame_offset = 0;
-	wilc->cfg_seq_no += 1;
+	wilc->cfg_seq_yes += 1;
 	mutex_unlock(&wilc->cfg_cmd_lock);
 
 	return ret_size;
@@ -1110,7 +1110,7 @@ int wilc_wlan_cfg_get(struct wilc_vif *vif, int start, u16 wid, int commit,
 		ret_size = 0;
 	}
 	wilc->cfg_frame_offset = 0;
-	wilc->cfg_seq_no += 1;
+	wilc->cfg_seq_yes += 1;
 	mutex_unlock(&wilc->cfg_cmd_lock);
 
 	return ret_size;

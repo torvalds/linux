@@ -11,7 +11,7 @@ V4L2 clocks
 Many subdevices, like camera sensors, TV decoders and encoders, need a clock
 signal to be supplied by the system. Often this clock is supplied by the
 respective bridge device. The Linux kernel provides a Common Clock Framework for
-this purpose. However, it is not (yet) available on all architectures. Besides,
+this purpose. However, it is yest (yet) available on all architectures. Besides,
 the nature of the multi-functional (clock, data + synchronisation, I2C control)
 connection of subdevices to the system might impose special requirements on the
 clock API usage. E.g. V4L2 has to support clock provider driver unregistration

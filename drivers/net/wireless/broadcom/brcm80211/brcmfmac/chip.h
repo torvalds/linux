@@ -58,7 +58,7 @@ struct brcmf_core {
  * @prepare: prepare bus for core configuration.
  * @setup: bus-specific core setup.
  * @active: chip becomes active.
- *	The callback should use the provided @rstvec when non-zero.
+ *	The callback should use the provided @rstvec when yesn-zero.
  */
 struct brcmf_buscore_ops {
 	u32 (*read32)(void *ctx, u32 addr);

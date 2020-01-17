@@ -233,7 +233,7 @@ void __init probe_roms(void)
 	request_resource(&iomem_resource, &system_rom_resource);
 	upper = system_rom_resource.start;
 
-	/* check for extension rom (ignore length byte!) */
+	/* check for extension rom (igyesre length byte!) */
 	rom = isa_bus_to_virt(extension_rom_resource.start);
 	if (romsignature(rom)) {
 		length = resource_size(&extension_rom_resource);

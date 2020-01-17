@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Helper functions for indirect PCM data transfer to a simple FIFO in
- * hardware (small, no possibility to read "hardware io position",
+ * hardware (small, yes possibility to read "hardware io position",
  * updating position done by interrupt, ...)
  *
  *  Copyright (c) by 2007  Joachim Foerster <JOFT@gmx.de>
@@ -99,8 +99,8 @@ void snd_pcm_indirect2_stat(struct snd_pcm_substream *substream,
 	}
 	snd_printk(KERN_DEBUG "\n");
 	snd_printk(KERN_DEBUG
-		   "STAT: zero_times_saved: %d, zero_times_notsaved: %d\n",
-		   rec->zero_times_saved, rec->zero_times_notsaved);
+		   "STAT: zero_times_saved: %d, zero_times_yestsaved: %d\n",
+		   rec->zero_times_saved, rec->zero_times_yestsaved);
 	/* snd_printk(KERN_DEBUG "STAT: zero_times[]\n");
 	i = 0;
 	for (j = 0; j < 3750; j++) {
@@ -131,7 +131,7 @@ snd_pcm_indirect2_increase_min_periods(struct snd_pcm_substream *substream,
 			if (rec->sw_io >= rec->sw_buffer_size)
 				rec->sw_io -= rec->sw_buffer_size;
 		} else if (isplay) {
-			/* If application does not write data in multiples of
+			/* If application does yest write data in multiples of
 			 * a period, move sw_data to the next correctly aligned
 			 * position, so that sw_io can converge to it (in the
 			 * next step).
@@ -252,7 +252,7 @@ snd_pcm_indirect2_playback_transfer(struct snd_pcm_substream *substream,
 			diff += runtime->boundary;
 		/* number of bytes "added" by ALSA increases the number of
 		 * bytes which are ready to "be transferred to HW"/"played"
-		 * Then, set rec->appl_ptr to not count bytes twice next time.
+		 * Then, set rec->appl_ptr to yest count bytes twice next time.
 		 */
 		rec->sw_ready += (int)frames_to_bytes(runtime, diff);
 		rec->appl_ptr = appl_ptr;
@@ -277,7 +277,7 @@ snd_pcm_indirect2_playback_transfer(struct snd_pcm_substream *substream,
 			rec->zero_times[(jiffies - rec->firstzerotime)]++;
 			rec->zero_times_saved++;
 		} else
-			rec->zero_times_notsaved++;
+			rec->zero_times_yestsaved++;
 #endif
 		bytes = zero(substream, rec);
 
@@ -317,7 +317,7 @@ snd_pcm_indirect2_playback_transfer(struct snd_pcm_substream *substream,
 		/* copy bytes from intermediate buffer position sw_data to the
 		 * HW and return number of bytes actually written
 		 * Furthermore, set hw_ready to 0, if the fifo isn't empty
-		 * now => more could be transferred to fifo
+		 * yesw => more could be transferred to fifo
 		 */
 		bytes = copy(substream, rec, bytes);
 		rec->bytes2hw += bytes;
@@ -337,7 +337,7 @@ snd_pcm_indirect2_playback_transfer(struct snd_pcm_substream *substream,
 		rec->sw_data += bytes;
 		if (rec->sw_data == rec->sw_buffer_size)
 			rec->sw_data = 0;
-		/* now sw_data is the position where ALSA is going to write
+		/* yesw sw_data is the position where ALSA is going to write
 		 * in the intermediate buffer next time = position we are going
 		 * to read from next time
 		 */
@@ -347,7 +347,7 @@ snd_pcm_indirect2_playback_transfer(struct snd_pcm_substream *substream,
 
 		/* we read bytes from intermediate buffer, so we need to say
 		 * that the number of bytes ready for transfer are decreased
-		 * now
+		 * yesw
 		 */
 		rec->sw_ready -= bytes;
 	}
@@ -369,8 +369,8 @@ snd_pcm_indirect2_playback_interrupt(struct snd_pcm_substream *substream,
 	/* hardware played some bytes, so there is room again (in fifo) */
 	rec->hw_ready = 1;
 
-	/* don't call ack() now, instead call transfer() function directly
-	 * (normally called by ack() )
+	/* don't call ack() yesw, instead call transfer() function directly
+	 * (yesrmally called by ack() )
 	 */
 	snd_pcm_indirect2_playback_transfer(substream, rec, copy, zero);
 
@@ -438,7 +438,7 @@ snd_pcm_indirect2_capture_transfer(struct snd_pcm_substream *substream,
 			rec->zero_times[(jiffies - rec->firstzerotime)]++;
 			rec->zero_times_saved++;
 		} else
-			rec->zero_times_notsaved++;
+			rec->zero_times_yestsaved++;
 #endif
 		bytes = null(substream, rec);
 
@@ -485,7 +485,7 @@ snd_pcm_indirect2_capture_transfer(struct snd_pcm_substream *substream,
 		/* copy bytes from the intermediate buffer (position sw_data)
 		 * to the HW at most and return number of bytes actually copied
 		 * from HW
-		 * Furthermore, set hw_ready to 0, if the fifo is empty now.
+		 * Furthermore, set hw_ready to 0, if the fifo is empty yesw.
 		 */
 		bytes = copy(substream, rec, bytes);
 		rec->bytes2hw += bytes;
@@ -534,8 +534,8 @@ snd_pcm_indirect2_capture_interrupt(struct snd_pcm_substream *substream,
 	 */
 	rec->hw_ready = 1;
 
-	/* don't call ack() now, instead call transfer() function directly
-	 * (normally called by ack() )
+	/* don't call ack() yesw, instead call transfer() function directly
+	 * (yesrmally called by ack() )
 	 */
 	snd_pcm_indirect2_capture_transfer(substream, rec, copy, null);
 

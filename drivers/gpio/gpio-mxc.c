@@ -56,7 +56,7 @@ struct mxc_gpio_reg_saved {
 };
 
 struct mxc_gpio_port {
-	struct list_head node;
+	struct list_head yesde;
 	void __iomem *base;
 	struct clk *clk;
 	int irq;
@@ -298,7 +298,7 @@ static void mx2_gpio_irq_handler(struct irq_desc *desc)
 	chained_irq_enter(chip, desc);
 
 	/* walk through all interrupt status registers */
-	list_for_each_entry(port, &mxc_gpio_ports, node) {
+	list_for_each_entry(port, &mxc_gpio_ports, yesde) {
 		irq_msk = readl(port->base + GPIO_IMR);
 		if (!irq_msk)
 			continue;
@@ -316,7 +316,7 @@ static void mx2_gpio_irq_handler(struct irq_desc *desc)
  * wake-up enabled. When system is suspended, only selected GPIO interrupts
  * need to have wake-up enabled.
  * @param  irq          interrupt source number
- * @param  enable       enable as wake-up if equal to non-zero
+ * @param  enable       enable as wake-up if equal to yesn-zero
  * @return       This function returns 0 on success.
  */
 static int gpio_set_wake_irq(struct irq_data *d, u32 enable)
@@ -409,7 +409,7 @@ static int mxc_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 
 static int mxc_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct mxc_gpio_port *port;
 	int irq_count;
 	int irq_base;
@@ -498,7 +498,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	if (err)
 		goto out_bgio;
 
-	irq_base = devm_irq_alloc_descs(&pdev->dev, -1, 0, 32, numa_node_id());
+	irq_base = devm_irq_alloc_descs(&pdev->dev, -1, 0, 32, numa_yesde_id());
 	if (irq_base < 0) {
 		err = irq_base;
 		goto out_bgio;
@@ -516,7 +516,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto out_irqdomain_remove;
 
-	list_add_tail(&port->node, &mxc_gpio_ports);
+	list_add_tail(&port->yesde, &mxc_gpio_ports);
 
 	platform_set_drvdata(pdev, port);
 
@@ -526,7 +526,7 @@ out_irqdomain_remove:
 	irq_domain_remove(port->domain);
 out_bgio:
 	clk_disable_unprepare(port->clk);
-	dev_info(&pdev->dev, "%s failed with errno %d\n", __func__, err);
+	dev_info(&pdev->dev, "%s failed with erryes %d\n", __func__, err);
 	return err;
 }
 
@@ -561,7 +561,7 @@ static int mxc_gpio_syscore_suspend(void)
 	struct mxc_gpio_port *port;
 
 	/* walk through all ports */
-	list_for_each_entry(port, &mxc_gpio_ports, node) {
+	list_for_each_entry(port, &mxc_gpio_ports, yesde) {
 		mxc_gpio_save_regs(port);
 		clk_disable_unprepare(port->clk);
 	}
@@ -575,7 +575,7 @@ static void mxc_gpio_syscore_resume(void)
 	int ret;
 
 	/* walk through all ports */
-	list_for_each_entry(port, &mxc_gpio_ports, node) {
+	list_for_each_entry(port, &mxc_gpio_ports, yesde) {
 		ret = clk_prepare_enable(port->clk);
 		if (ret) {
 			pr_err("mxc: failed to enable gpio clock %d\n", ret);

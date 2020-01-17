@@ -12,7 +12,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/tracehook.h>
@@ -263,13 +263,13 @@ void do_rt_sigreturn(struct pt_regs *regs)
 	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	synchronize_user_stack ();
 	sf = (struct rt_signal_frame __user *)
 		(regs->u_regs [UREG_FP] + STACK_BIAS);
 
-	/* 1. Make sure we are not getting garbage from the user */
+	/* 1. Make sure we are yest getting garbage from the user */
 	if (invalid_frame_pointer(sf))
 		goto segv;
 
@@ -338,9 +338,9 @@ static inline void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *re
 	sp = sigsp(sp, ksig) - framesize;
 
 	/* Always align the stack frame.  This handles two cases.  First,
-	 * sigaltstack need not be mindful of platform specific stack
+	 * sigaltstack need yest be mindful of platform specific stack
 	 * alignment.  Second, if we took this signal because the stack
-	 * is not aligned properly, we'd like to take the signal cleanly
+	 * is yest aligned properly, we'd like to take the signal cleanly
 	 * and report that.
 	 */
 	sp &= ~15UL;
@@ -420,7 +420,7 @@ setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO)
 		err |= copy_siginfo_to_user(&sf->info, &ksig->info);
 	else {
-		err |= __put_user(ksig->sig, &sf->info.si_signo);
+		err |= __put_user(ksig->sig, &sf->info.si_sigyes);
 		err |= __put_user(SI_NOINFO, &sf->info.si_code);
 	}
 	if (err)
@@ -455,13 +455,13 @@ static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
 	switch (regs->u_regs[UREG_I0]) {
 	case ERESTART_RESTARTBLOCK:
 	case ERESTARTNOHAND:
-	no_system_call_restart:
+	yes_system_call_restart:
 		regs->u_regs[UREG_I0] = EINTR;
 		regs->tstate |= (TSTATE_ICARRY|TSTATE_XCARRY);
 		break;
 	case ERESTARTSYS:
 		if (!(sa->sa_flags & SA_RESTART))
-			goto no_system_call_restart;
+			goto yes_system_call_restart;
 		/* fallthrough */
 	case ERESTARTNOINTR:
 		regs->u_regs[UREG_I0] = orig_i0;
@@ -471,7 +471,7 @@ static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
 }
 
 /* Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  */
 static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
@@ -493,7 +493,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	 * preserved across a system call trap by various pieces of
 	 * code in glibc.
 	 *
-	 * %g7 is used as the "thread register".   %g6 is not used in
+	 * %g7 is used as the "thread register".   %g6 is yest used in
 	 * any fixed manner.  %g6 is used as a scratch register and
 	 * a compiler temporary, but it's value is never used across
 	 * a system call.  Therefore %g6 is usable for orig_i0 storage.
@@ -545,16 +545,16 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	}
 }
 
-void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, unsigned long thread_info_flags)
+void do_yestify_resume(struct pt_regs *regs, unsigned long orig_i0, unsigned long thread_info_flags)
 {
 	user_exit();
 	if (thread_info_flags & _TIF_UPROBE)
-		uprobe_notify_resume(regs);
+		uprobe_yestify_resume(regs);
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs, orig_i0);
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 	}
 	user_enter();
 }

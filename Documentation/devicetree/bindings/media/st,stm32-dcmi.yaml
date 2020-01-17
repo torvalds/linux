@@ -39,8 +39,8 @@ properties:
   port:
     type: object
     description:
-      DCMI supports a single port node with parallel bus. It should contain
-      one 'port' child node with child 'endpoint' node. Please refer to the
+      DCMI supports a single port yesde with parallel bus. It should contain
+      one 'port' child yesde with child 'endpoint' yesde. Please refer to the
       bindings defined in
       Documentation/devicetree/bindings/media/video-interfaces.txt.
 

@@ -382,7 +382,7 @@ static int mce_find_instr_ea_and_phys(struct pt_regs *regs, uint64_t *addr,
 		}
 		/*
 		 * analyse_instr() might fail if the instruction
-		 * is not a load/store, although this is unexpected
+		 * is yest a load/store, although this is unexpected
 		 * for load/store errors or if we got the NIP
 		 * wrong
 		 */
@@ -421,7 +421,7 @@ static int mce_handle_ierror(struct pt_regs *regs,
 			break;
 		}
 
-		/* now fill in mce_error_info */
+		/* yesw fill in mce_error_info */
 		mce_err->error_type = table[i].error_type;
 		mce_err->error_class = table[i].error_class;
 		switch (table[i].error_type) {
@@ -519,7 +519,7 @@ static int mce_handle_derror(struct pt_regs *regs,
 		if (found)
 			continue;
 
-		/* now fill in mce_error_info */
+		/* yesw fill in mce_error_info */
 		mce_err->error_type = table[i].error_type;
 		mce_err->error_class = table[i].error_class;
 		switch (table[i].error_type) {
@@ -583,7 +583,7 @@ static long mce_handle_ue_error(struct pt_regs *regs,
 
 	entry = search_kernel_exception_table(regs->nip);
 	if (entry) {
-		mce_err->ignore_event = true;
+		mce_err->igyesre_event = true;
 		regs->nip = extable_fixup(entry);
 		return 1;
 	}
@@ -644,7 +644,7 @@ long __machine_check_early_realmode_p9(struct pt_regs *regs)
 	/*
 	 * On POWER9 DD2.1 and below, it's possible to get a machine check
 	 * caused by a paste instruction where only DSISR bit 25 is set. This
-	 * will result in the MCE handler seeing an unknown event and the kernel
+	 * will result in the MCE handler seeing an unkyeswn event and the kernel
 	 * crashing. An MCE that occurs like this is spurious, so we don't need
 	 * to do anything in terms of servicing it. If there is something that
 	 * needs to be serviced, the CPU will raise the MCE again with the

@@ -3,7 +3,7 @@
  * Microchip PIC32 SPI controller driver.
  *
  * Purna Chandra Mandal <purna.mandal@microchip.com>
- * Copyright (c) 2016, Microchip Technology Inc.
+ * Copyright (c) 2016, Microchip Techyeslogy Inc.
  */
 
 #include <linux/clk.h>
@@ -45,7 +45,7 @@ struct pic32_spi_regs {
 /* Bit fields of SPI Control Register */
 #define CTRL_RX_INT_SHIFT	0  /* Rx interrupt generation */
 #define  RX_FIFO_EMPTY		0
-#define  RX_FIFO_NOT_EMPTY	1 /* not empty */
+#define  RX_FIFO_NOT_EMPTY	1 /* yest empty */
 #define  RX_FIFO_HALF_FULL	2 /* full by half or more */
 #define  RX_FIFO_FULL		3 /* completely full */
 
@@ -166,7 +166,7 @@ static u32 pic32_tx_max(struct pic32_spi *pic32s, int n_bytes)
 	tx_room = pic32s->fifo_n_elm - pic32_tx_fifo_level(pic32s);
 
 	/*
-	 * Another concern is about the tx/rx mismatch, we
+	 * Ayesther concern is about the tx/rx mismatch, we
 	 * though to use (pic32s->fifo_n_byte - rxfl - txfl) as
 	 * one maximum value for tx, but it doesn't cover the
 	 * data which is out of tx/rx fifo and inside the
@@ -219,9 +219,9 @@ BUILD_SPI_FIFO_RW(dword, u32, l);
 static void pic32_err_stop(struct pic32_spi *pic32s, const char *msg)
 {
 	/* disable all interrupts */
-	disable_irq_nosync(pic32s->fault_irq);
-	disable_irq_nosync(pic32s->rx_irq);
-	disable_irq_nosync(pic32s->tx_irq);
+	disable_irq_yessync(pic32s->fault_irq);
+	disable_irq_yessync(pic32s->rx_irq);
+	disable_irq_yessync(pic32s->tx_irq);
 
 	/* Show err message and abort xfer with err */
 	dev_err(&pic32s->master->dev, "%s\n", msg);
@@ -251,7 +251,7 @@ static irqreturn_t pic32_spi_fault_irq(int irq, void *dev_id)
 	}
 
 	if (!pic32s->master->cur_msg) {
-		pic32_err_stop(pic32s, "err_irq: no mesg");
+		pic32_err_stop(pic32s, "err_irq: yes mesg");
 		return IRQ_NONE;
 	}
 
@@ -267,8 +267,8 @@ static irqreturn_t pic32_spi_rx_irq(int irq, void *dev_id)
 	/* rx complete ? */
 	if (pic32s->rx_end == pic32s->rx) {
 		/* disable all interrupts */
-		disable_irq_nosync(pic32s->fault_irq);
-		disable_irq_nosync(pic32s->rx_irq);
+		disable_irq_yessync(pic32s->fault_irq);
+		disable_irq_yessync(pic32s->rx_irq);
 
 		/* complete current xfer */
 		complete(&pic32s->xfer_done);
@@ -285,12 +285,12 @@ static irqreturn_t pic32_spi_tx_irq(int irq, void *dev_id)
 
 	/* tx complete? disable tx interrupt */
 	if (pic32s->tx_end == pic32s->tx)
-		disable_irq_nosync(pic32s->tx_irq);
+		disable_irq_yessync(pic32s->tx_irq);
 
 	return IRQ_HANDLED;
 }
 
-static void pic32_spi_dma_rx_notify(void *data)
+static void pic32_spi_dma_rx_yestify(void *data)
 {
 	struct pic32_spi *pic32s = data;
 
@@ -330,7 +330,7 @@ static int pic32_spi_dma_transfer(struct pic32_spi *pic32s,
 	}
 
 	/* Put callback on the RX transfer, that should finish last */
-	desc_rx->callback = pic32_spi_dma_rx_notify;
+	desc_rx->callback = pic32_spi_dma_rx_yestify;
 	desc_rx->callback_param = pic32s;
 
 	cookie = dmaengine_submit(desc_rx);
@@ -411,7 +411,7 @@ static int pic32_spi_set_word_size(struct pic32_spi *pic32s, u8 bits_per_word)
 		dmawidth = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
 	default:
-		/* not supported */
+		/* yest supported */
 		return -EINVAL;
 	}
 
@@ -564,7 +564,7 @@ static int pic32_spi_one_transfer(struct spi_master *master,
 static int pic32_spi_unprepare_message(struct spi_master *master,
 				       struct spi_message *msg)
 {
-	/* nothing to do */
+	/* yesthing to do */
 	return 0;
 }
 
@@ -587,7 +587,7 @@ static int pic32_spi_setup(struct spi_device *spi)
 
 	/* PIC32 spi controller can drive /CS during transfer depending
 	 * on tx fifo fill-level. /CS will stay asserted as long as TX
-	 * fifo is non-empty, else will be deasserted indicating
+	 * fifo is yesn-empty, else will be deasserted indicating
 	 * completion of the ongoing transfer. This might result into
 	 * unreliable/erroneous SPI transactions.
 	 * To avoid that we will always handle /CS by toggling GPIO.
@@ -616,7 +616,7 @@ static int pic32_spi_dma_prep(struct pic32_spi *pic32s, struct device *dev)
 		if (PTR_ERR(master->dma_rx) == -EPROBE_DEFER)
 			ret = -EPROBE_DEFER;
 		else
-			dev_warn(dev, "RX channel not found.\n");
+			dev_warn(dev, "RX channel yest found.\n");
 
 		master->dma_rx = NULL;
 		goto out_err;
@@ -627,7 +627,7 @@ static int pic32_spi_dma_prep(struct pic32_spi *pic32s, struct device *dev)
 		if (PTR_ERR(master->dma_tx) == -EPROBE_DEFER)
 			ret = -EPROBE_DEFER;
 		else
-			dev_warn(dev, "TX channel not found.\n");
+			dev_warn(dev, "TX channel yest found.\n");
 
 		master->dma_tx = NULL;
 		goto out_err;
@@ -736,7 +736,7 @@ static int pic32_spi_hw_probe(struct platform_device *pdev,
 	/* get clock */
 	pic32s->clk = devm_clk_get(&pdev->dev, "mck0");
 	if (IS_ERR(pic32s->clk)) {
-		dev_err(&pdev->dev, "clk not found\n");
+		dev_err(&pdev->dev, "clk yest found\n");
 		ret = PTR_ERR(pic32s->clk);
 		goto err_unmap_mem;
 	}
@@ -771,7 +771,7 @@ static int pic32_spi_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_master;
 
-	master->dev.of_node	= pdev->dev.of_node;
+	master->dev.of_yesde	= pdev->dev.of_yesde;
 	master->mode_bits	= SPI_MODE_3 | SPI_MODE_0 | SPI_CS_HIGH;
 	master->num_chipselect	= 1; /* single chip-select */
 	master->max_speed_hz	= clk_get_rate(pic32s->clk);

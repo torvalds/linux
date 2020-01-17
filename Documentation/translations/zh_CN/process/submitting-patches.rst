@@ -91,7 +91,7 @@
 :ref:`cn_split_changes`
 
 如果你用 ``git`` , ``git rebase -i`` 可以帮助你这一点。如果你不用 ``git``,
-``quilt`` <http://savannah.nongnu.org/projects/quilt> 另外一个流行的选择。
+``quilt`` <http://savannah.yesngnu.org/projects/quilt> 另外一个流行的选择。
 
 .. _cn_describe_changes:
 
@@ -507,7 +507,7 @@ Fixes: 指示补丁在以前的提交中修复了一个问题。它可以很容�
 版本。这是指示补丁修复的错误的首选方法。请参阅 :ref:`cn_describe_changes`
 描述您的更改以了解更多详细信息。
 
-.. _cn_the_canonical_patch_format:
+.. _cn_the_cayesnical_patch_format:
 
 12）标准补丁格式
 ----------------
@@ -673,7 +673,7 @@ NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
 Kernel Documentation/process/coding-style.rst:
   :ref:`Documentation/translations/zh_CN/process/coding-style.rst <cn_codingstyle>`
 
-Linus Torvalds's mail on the canonical patch format:
+Linus Torvalds's mail on the cayesnical patch format:
   <http://lkml.org/lkml/2005/4/7/183>
 
 Andi Kleen, "On submitting kernel patches"

@@ -16,7 +16,7 @@
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 #include <linux/uaccess.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <net/ndisc.h>
 
 #include "gdm_lte.h"
@@ -452,7 +452,7 @@ static netdev_tx_t gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
 	if (nic_type & NIC_TYPE_ICMPV6)
 		nic_type = NIC_TYPE_ICMPV6;
 
-	/* If it is not a dhcp packet, clear all the flag bits :
+	/* If it is yest a dhcp packet, clear all the flag bits :
 	 * original NIC, otherwise the special flag (IPVX | DHCP)
 	 */
 	if (!(nic_type & NIC_TYPE_F_DHCP))
@@ -648,7 +648,7 @@ static void gdm_lte_netif_rx(struct net_device *dev, char *buf,
 			eth.h_proto = htons(ETH_P_IPV6);
 			vlan_eth.h_vlan_encapsulated_proto = htons(ETH_P_IPV6);
 		} else {
-			netdev_err(dev, "Unknown IP version %d\n", ip_version);
+			netdev_err(dev, "Unkyeswn IP version %d\n", ip_version);
 			return;
 		}
 	}

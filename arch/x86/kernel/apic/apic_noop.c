@@ -2,62 +2,62 @@
 /*
  * NOOP APIC driver.
  *
- * Does almost nothing and should be substituted by a real apic driver via
+ * Does almost yesthing and should be substituted by a real apic driver via
  * probe routine.
  *
  * Though in case if apic is disabled (for some reason) we try
- * to not uglify the caller's code and allow to call (some) apic routines
+ * to yest uglify the caller's code and allow to call (some) apic routines
  * like self-ipi, etc...
  */
 #include <linux/cpumask.h>
 
 #include <asm/apic.h>
 
-static void noop_init_apic_ldr(void) { }
-static void noop_send_IPI(int cpu, int vector) { }
-static void noop_send_IPI_mask(const struct cpumask *cpumask, int vector) { }
-static void noop_send_IPI_mask_allbutself(const struct cpumask *cpumask, int vector) { }
-static void noop_send_IPI_allbutself(int vector) { }
-static void noop_send_IPI_all(int vector) { }
-static void noop_send_IPI_self(int vector) { }
-static void noop_apic_wait_icr_idle(void) { }
-static void noop_apic_icr_write(u32 low, u32 id) { }
+static void yesop_init_apic_ldr(void) { }
+static void yesop_send_IPI(int cpu, int vector) { }
+static void yesop_send_IPI_mask(const struct cpumask *cpumask, int vector) { }
+static void yesop_send_IPI_mask_allbutself(const struct cpumask *cpumask, int vector) { }
+static void yesop_send_IPI_allbutself(int vector) { }
+static void yesop_send_IPI_all(int vector) { }
+static void yesop_send_IPI_self(int vector) { }
+static void yesop_apic_wait_icr_idle(void) { }
+static void yesop_apic_icr_write(u32 low, u32 id) { }
 
-static int noop_wakeup_secondary_cpu(int apicid, unsigned long start_eip)
+static int yesop_wakeup_secondary_cpu(int apicid, unsigned long start_eip)
 {
 	return -1;
 }
 
-static u32 noop_safe_apic_wait_icr_idle(void)
+static u32 yesop_safe_apic_wait_icr_idle(void)
 {
 	return 0;
 }
 
-static u64 noop_apic_icr_read(void)
+static u64 yesop_apic_icr_read(void)
 {
 	return 0;
 }
 
-static int noop_phys_pkg_id(int cpuid_apic, int index_msb)
+static int yesop_phys_pkg_id(int cpuid_apic, int index_msb)
 {
 	return 0;
 }
 
-static unsigned int noop_get_apic_id(unsigned long x)
+static unsigned int yesop_get_apic_id(unsigned long x)
 {
 	return 0;
 }
 
-static int noop_probe(void)
+static int yesop_probe(void)
 {
 	/*
-	 * NOOP apic should not ever be
+	 * NOOP apic should yest ever be
 	 * enabled via probe routine
 	 */
 	return 0;
 }
 
-static int noop_apic_id_registered(void)
+static int yesop_apic_id_registered(void)
 {
 	/*
 	 * if we would be really "pedantic"
@@ -68,31 +68,31 @@ static int noop_apic_id_registered(void)
 	return physid_isset(0, phys_cpu_present_map);
 }
 
-static u32 noop_apic_read(u32 reg)
+static u32 yesop_apic_read(u32 reg)
 {
 	WARN_ON_ONCE(boot_cpu_has(X86_FEATURE_APIC) && !disable_apic);
 	return 0;
 }
 
-static void noop_apic_write(u32 reg, u32 v)
+static void yesop_apic_write(u32 reg, u32 v)
 {
 	WARN_ON_ONCE(boot_cpu_has(X86_FEATURE_APIC) && !disable_apic);
 }
 
 #ifdef CONFIG_X86_32
-static int noop_x86_32_early_logical_apicid(int cpu)
+static int yesop_x86_32_early_logical_apicid(int cpu)
 {
 	return BAD_APICID;
 }
 #endif
 
-struct apic apic_noop __ro_after_init = {
-	.name				= "noop",
-	.probe				= noop_probe,
+struct apic apic_yesop __ro_after_init = {
+	.name				= "yesop",
+	.probe				= yesop_probe,
 	.acpi_madt_oem_check		= NULL,
 
 	.apic_id_valid			= default_apic_id_valid,
-	.apic_id_registered		= noop_apic_id_registered,
+	.apic_id_registered		= yesop_apic_id_registered,
 
 	.irq_delivery_mode		= dest_Fixed,
 	/* logical delivery broadcast to all CPUs: */
@@ -102,7 +102,7 @@ struct apic apic_noop __ro_after_init = {
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= default_check_apicid_used,
 
-	.init_apic_ldr			= noop_init_apic_ldr,
+	.init_apic_ldr			= yesop_init_apic_ldr,
 
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map,
 	.setup_apic_routing		= NULL,
@@ -112,33 +112,33 @@ struct apic apic_noop __ro_after_init = {
 
 	.check_phys_apicid_present	= default_check_phys_apicid_present,
 
-	.phys_pkg_id			= noop_phys_pkg_id,
+	.phys_pkg_id			= yesop_phys_pkg_id,
 
-	.get_apic_id			= noop_get_apic_id,
+	.get_apic_id			= yesop_get_apic_id,
 	.set_apic_id			= NULL,
 
 	.calc_dest_apicid		= apic_flat_calc_apicid,
 
-	.send_IPI			= noop_send_IPI,
-	.send_IPI_mask			= noop_send_IPI_mask,
-	.send_IPI_mask_allbutself	= noop_send_IPI_mask_allbutself,
-	.send_IPI_allbutself		= noop_send_IPI_allbutself,
-	.send_IPI_all			= noop_send_IPI_all,
-	.send_IPI_self			= noop_send_IPI_self,
+	.send_IPI			= yesop_send_IPI,
+	.send_IPI_mask			= yesop_send_IPI_mask,
+	.send_IPI_mask_allbutself	= yesop_send_IPI_mask_allbutself,
+	.send_IPI_allbutself		= yesop_send_IPI_allbutself,
+	.send_IPI_all			= yesop_send_IPI_all,
+	.send_IPI_self			= yesop_send_IPI_self,
 
-	.wakeup_secondary_cpu		= noop_wakeup_secondary_cpu,
+	.wakeup_secondary_cpu		= yesop_wakeup_secondary_cpu,
 
 	.inquire_remote_apic		= NULL,
 
-	.read				= noop_apic_read,
-	.write				= noop_apic_write,
-	.eoi_write			= noop_apic_write,
-	.icr_read			= noop_apic_icr_read,
-	.icr_write			= noop_apic_icr_write,
-	.wait_icr_idle			= noop_apic_wait_icr_idle,
-	.safe_wait_icr_idle		= noop_safe_apic_wait_icr_idle,
+	.read				= yesop_apic_read,
+	.write				= yesop_apic_write,
+	.eoi_write			= yesop_apic_write,
+	.icr_read			= yesop_apic_icr_read,
+	.icr_write			= yesop_apic_icr_write,
+	.wait_icr_idle			= yesop_apic_wait_icr_idle,
+	.safe_wait_icr_idle		= yesop_safe_apic_wait_icr_idle,
 
 #ifdef CONFIG_X86_32
-	.x86_32_early_logical_apicid	= noop_x86_32_early_logical_apicid,
+	.x86_32_early_logical_apicid	= yesop_x86_32_early_logical_apicid,
 #endif
 };

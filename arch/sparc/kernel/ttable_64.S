@@ -98,7 +98,7 @@ tl0_resv076:	BTRAP(0x76) BTRAP(0x77) BTRAP(0x78) BTRAP(0x79) BTRAP(0x7a) BTRAP(0
 tl0_cpu_mondo:	TRAP_NOSAVE(sun4v_cpu_mondo)
 tl0_dev_mondo:	TRAP_NOSAVE(sun4v_dev_mondo)
 tl0_res_mondo:	TRAP_NOSAVE(sun4v_res_mondo)
-tl0_nres_mondo:	TRAP_NOSAVE(sun4v_nonres_mondo)
+tl0_nres_mondo:	TRAP_NOSAVE(sun4v_yesnres_mondo)
 tl0_s0n:	SPILL_0_NORMAL
 tl0_s1n:	SPILL_1_NORMAL
 tl0_s2n:	SPILL_2_NORMAL

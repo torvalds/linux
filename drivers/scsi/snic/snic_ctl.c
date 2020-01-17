@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 
@@ -231,7 +231,7 @@ exch_cmpl_end:
 /*
  * snic_get_conf
  *
- * Synchronous call, and Retrieves snic params.
+ * Synchroyesus call, and Retrieves snic params.
  */
 int
 snic_get_conf(struct snic *snic)
@@ -251,7 +251,7 @@ snic_get_conf(struct snic *snic)
 	msleep(50);
 
 	/*
-	 * Exch ver req can be ignored by FW, if HW Resource initialization
+	 * Exch ver req can be igyesred by FW, if HW Resource initialization
 	 * is in progress, Hence retry.
 	 */
 	do {

@@ -68,7 +68,7 @@ bool rtl92e_check_adapter(struct pci_dev *pdev, struct net_device *dev)
 
 	if (priv->ops->nic_type != priv->card_8192) {
 		dev_info(&pdev->dev,
-			 "Detect info(%x) and hardware info(%x) not match!\n",
+			 "Detect info(%x) and hardware info(%x) yest match!\n",
 			 priv->ops->nic_type, priv->card_8192);
 		dev_info(&pdev->dev,
 			 "Please select proper driver before install!!!!\n");

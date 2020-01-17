@@ -5,7 +5,7 @@
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
  * Copyright (C) 2008-2010 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #ifndef __ACX_H__
@@ -57,7 +57,7 @@ struct acx_header {
 	/* acx (or information element) header */
 	__le16 id;
 
-	/* payload length (not including headers */
+	/* payload length (yest including headers */
 	__le16 len;
 } __packed;
 
@@ -227,7 +227,7 @@ struct acx_beacon_filter_option {
 } __packed;
 
 /*
- * ACXBeaconFilterEntry (not 221)
+ * ACXBeaconFilterEntry (yest 221)
  * Byte Offset     Size (Bytes)    Definition
  * ===========     ============    ==========
  * 0               1               IE identifier
@@ -653,7 +653,7 @@ struct wl1271_acx_rssi_snr_avg_weights {
 };
 
 
-/* special capability bit (not employed by the 802.11n spec) */
+/* special capability bit (yest employed by the 802.11n spec) */
 #define WL12XX_HT_CAP_HT_OPERATION BIT(16)
 
 /*
@@ -671,7 +671,7 @@ struct wl1271_acx_ht_capabilities {
 	u8 hlid;
 
 	/*
-	 * This the maximum A-MPDU length supported by the AP. The FW may not
+	 * This the maximum A-MPDU length supported by the AP. The FW may yest
 	 * exceed this length when sending A-MPDUs
 	 */
 	u8 ampdu_max_length;
@@ -691,23 +691,23 @@ struct wl1271_acx_ht_information {
 
 	u8 role_id;
 
-	/* Values: 0 - RIFS not allowed, 1 - RIFS allowed */
+	/* Values: 0 - RIFS yest allowed, 1 - RIFS allowed */
 	u8 rifs_mode;
 
 	/* Values: 0 - 3 like in spec */
 	u8 ht_protection;
 
-	/* Values: 0 - GF protection not required, 1 - GF protection required */
+	/* Values: 0 - GF protection yest required, 1 - GF protection required */
 	u8 gf_protection;
 
-	/*Values: 0 - TX Burst limit not required, 1 - TX Burst Limit required*/
+	/*Values: 0 - TX Burst limit yest required, 1 - TX Burst Limit required*/
 	u8 ht_tx_burst_limit;
 
 	/*
-	 * Values: 0 - Dual CTS protection not required,
+	 * Values: 0 - Dual CTS protection yest required,
 	 *         1 - Dual CTS Protection required
 	 * Note: When this value is set to 1 FW will protect all TXOP with RTS
-	 * frame and will not use CTS-to-self regardless of the value of the
+	 * frame and will yest use CTS-to-self regardless of the value of the
 	 * ACX_CTS_PROTECTION information element
 	 */
 	u8 dual_cts_protection;

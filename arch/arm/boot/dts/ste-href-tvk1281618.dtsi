@@ -58,7 +58,7 @@
 					debounce-delay-ms = <4>;
 					keypad,num-columns = <8>;
 					keypad,num-rows = <8>;
-					linux,no-autorepeat;
+					linux,yes-autorepeat;
 					wakeup-source;
 					linux,keymap = <0x0301006b
 						        0x04010066
@@ -94,9 +94,9 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&accel_tvk_mode>;
 				/*
-				 * These interrupts cannot be used: the other component
+				 * These interrupts canyest be used: the other component
 				 * ST-Micro L3D4200D gyro that is connected to the same lines
-				 * cannot set its DRDY line to open drain, so it cannot be
+				 * canyest set its DRDY line to open drain, so it canyest be
 				 * shared with other peripherals. The should be defined for
 				 * the falling edge if they could be wired together.
 				 *
@@ -112,9 +112,9 @@
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
 				vddio-supply = <&db8500_vsmps2_reg>;
 				/*
-				 * These interrupts cannot be used: the other component
+				 * These interrupts canyest be used: the other component
 				 * ST-Micro L3D4200D gyro that is connected to the same lines
-				 * cannot set its DRDY line to open drain, so it cannot be
+				 * canyest set its DRDY line to open drain, so it canyest be
 				 * shared with other peripherals. The should be defined for
 				 * the falling edge if they could be wired together.
 				 *
@@ -146,9 +146,9 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&gyro_magn_tvk_mode>;
 				/*
-				 * These interrupts cannot be used: the other component
+				 * These interrupts canyest be used: the other component
 				 * ST-Micro L3D4200D gyro that is connected to the same lines
-				 * cannot set its DRDY line to open drain, so it cannot be
+				 * canyest set its DRDY line to open drain, so it canyest be
 				 * shared with other peripherals. The should be defined for
 				 * the falling edge if they could be wired together.
 				 *
@@ -195,7 +195,7 @@
 
 				rmi-f01@1 {
 					reg = <0x1>;
-					syna,nosleep = <1>;
+					syna,yessleep = <1>;
 				};
 				rmi-f11@11 {
 					reg = <0x11>;

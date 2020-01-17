@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -67,7 +67,7 @@
  *
  * A host command is a command issued by the upper layer to the fw. There are
  * several versions of fw that have several APIs. The transport layer is
- * completely agnostic to these differences.
+ * completely agyesstic to these differences.
  * The transport does provide helper functionality (i.e. SYNC / ASYNC mode),
  */
 #define SEQ_TO_QUEUE(s)	(((s) >> 8) & 0x1f)
@@ -115,7 +115,7 @@ static inline u32 iwl_cmd_id(u8 opcode, u8 groupid, u8 version)
  * struct iwl_cmd_header - (short) command header format
  *
  * This header format appears in the beginning of each command sent from the
- * driver, and each response/notification received from uCode.
+ * driver, and each response/yestification received from uCode.
  */
 struct iwl_cmd_header {
 	/**
@@ -131,23 +131,23 @@ struct iwl_cmd_header {
 	 * Sequence number for the command.
 	 *
 	 * The driver sets up the sequence number to values of its choosing.
-	 * uCode does not use this value, but passes it back to the driver
+	 * uCode does yest use this value, but passes it back to the driver
 	 * when sending the response to each driver-originated command, so
 	 * the driver can match the response to the command.  Since the values
 	 * don't get used by uCode, the driver may set up an arbitrary format.
 	 *
 	 * There is one exception:  uCode sets bit 15 when it originates
-	 * the response/notification, i.e. when the response/notification
-	 * is not a direct response to a command sent by the driver.  For
+	 * the response/yestification, i.e. when the response/yestification
+	 * is yest a direct response to a command sent by the driver.  For
 	 * example, uCode issues REPLY_RX when it sends a received frame
-	 * to the driver; it is not a direct response to any driver command.
+	 * to the driver; it is yest a direct response to any driver command.
 	 *
 	 * The Linux driver uses the following format:
 	 *
 	 *  0:7		tfd index - position within TX queue
 	 *  8:12	TX queue id
 	 *  13:14	reserved
-	 *  15		unsolicited RX or uCode-originated notification
+	 *  15		unsolicited RX or uCode-originated yestification
 	 */
 	__le16 sequence;
 } __packed;
@@ -156,7 +156,7 @@ struct iwl_cmd_header {
  * struct iwl_cmd_header_wide
  *
  * This header format appears in the beginning of each command sent from the
- * driver, and each response/notification received from uCode.
+ * driver, and each response/yestification received from uCode.
  * this is the wide version that contains more information about the command
  * like length, version and command type
  *
@@ -177,12 +177,12 @@ struct iwl_cmd_header_wide {
 } __packed;
 
 /**
- * struct iwl_calib_res_notif_phy_db - Receive phy db chunk after calibrations
- * @type: type of the result - mostly ignored
+ * struct iwl_calib_res_yestif_phy_db - Receive phy db chunk after calibrations
+ * @type: type of the result - mostly igyesred
  * @length: length of the data
  * @data: data, length in @length
  */
-struct iwl_calib_res_notif_phy_db {
+struct iwl_calib_res_yestif_phy_db {
 	__le16 type;
 	__le16 length;
 	u8 data[];

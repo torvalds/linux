@@ -14,14 +14,14 @@
  * v4l2_subdev's load_fw operation in order to load the driver's firmware.
  * This will load the firmware on the first invocation (further ones are NOP).
  * Without this the audio standard detection will fail and you will
- * only get mono.
+ * only get moyes.
  * Alternatively, you can call the reset operation (this can be done
  * multiple times if needed, each invocation will fully reinitialize
  * the device).
  *
  * Since loading the firmware is often problematic when the driver is
  * compiled into the kernel I recommend postponing calling this function
- * until the first open of the video device. Another reason for
+ * until the first open of the video device. Ayesther reason for
  * postponing it is that loading this firmware takes a long time (seconds)
  * due to the slow i2c bus speed. So it will speed up the boot process if
  * you can avoid loading the fw as long as the video device isn't used.

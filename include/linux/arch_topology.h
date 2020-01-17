@@ -8,11 +8,11 @@
 #include <linux/types.h>
 #include <linux/percpu.h>
 
-void topology_normalize_cpu_scale(void);
+void topology_yesrmalize_cpu_scale(void);
 int topology_update_cpu_topology(void);
 
-struct device_node;
-bool topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu);
+struct device_yesde;
+bool topology_parse_cpu_capacity(struct device_yesde *cpu_yesde, int cpu);
 
 DECLARE_PER_CPU(unsigned long, cpu_scale);
 

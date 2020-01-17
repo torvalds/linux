@@ -125,7 +125,7 @@ config BLK_DEV_IDECD
 	  If you have a CD-ROM drive using the ATAPI protocol, say Y. ATAPI is
 	  a newer protocol used by IDE CD-ROM and TAPE drives, similar to the
 	  SCSI protocol. Most new CD-ROM drives use ATAPI, including the
-	  NEC-260, Mitsumi FX400, Sony 55E, and just about all non-SCSI
+	  NEC-260, Mitsumi FX400, Sony 55E, and just about all yesn-SCSI
 	  double(2X) or better speed drives.
 
 	  If you say Y here, the CD-ROM drive will be identified at boot time
@@ -156,7 +156,7 @@ config BLK_DEV_IDETAPE
 	  however, you can say N here.
 
 	  You should also say Y if you have an OnStream DI-30 tape drive; this
-	  will not work with the SCSI protocol, until there is support for the
+	  will yest work with the SCSI protocol, until there is support for the
 	  SC-30 and SC-50 versions.
 
 	  If you say Y here, the tape drive will be identified at boot time
@@ -206,7 +206,7 @@ config IDE_GENERIC
 	help
 	  This is the generic IDE driver.  This driver attaches to the
 	  fixed legacy ports (e.g. on PCs 0x1f0/0x170, 0x1e8/0x168 and
-	  so on).  Please note that if this driver is built into the
+	  so on).  Please yeste that if this driver is built into the
 	  kernel or loaded before other ATA (IDE or libata) drivers
 	  and the controller is located at legacy ports, this driver
 	  may grab those ports and thus can prevent the controller
@@ -215,7 +215,7 @@ config IDE_GENERIC
 	  Also, currently, IDE generic doesn't allow IRQ sharing
 	  meaning that the IRQs it grabs won't be available to other
 	  controllers sharing those IRQs which usually makes drivers
-	  for those controllers fail.  Generally, it's not a good idea
+	  for those controllers fail.  Generally, it's yest a good idea
 	  to load IDE generic driver on modern systems.
 
 	  If unsure, say N.
@@ -233,7 +233,7 @@ config BLK_DEV_CMD640
 	depends on X86
 	select IDE_TIMINGS
 	---help---
-	  The CMD-Technologies CMD640 IDE chip is used on many common 486 and
+	  The CMD-Techyeslogies CMD640 IDE chip is used on many common 486 and
 	  Pentium motherboards, usually in combination with a "Neptune" or
 	  "SiS" chipset. Unfortunately, it has a number of rather nasty
 	  design flaws that can cause severe data corruption under many common
@@ -260,7 +260,7 @@ config BLK_DEV_CMD640_ENHANCED
 	  This option includes support for setting/autotuning PIO modes and
 	  prefetch on CMD640 IDE interfaces.  For details, read
 	  <file:Documentation/ide/ide.rst>. If you have a CMD640 IDE interface
-	  and your BIOS does not already do this for you, then say Y here.
+	  and your BIOS does yest already do this for you, then say Y here.
 	  Otherwise say N.
 
 config BLK_DEV_IDEPNP
@@ -290,7 +290,7 @@ config IDEPCI_PCIBUS_ORDER
 	  PCI bus (i.e. 00:1f.1 PCI device before 02:01.0 PCI device)
 	  instead of the order in which IDE PCI host drivers are loaded.
 
-	  Please note that this method of assuring stable naming of
+	  Please yeste that this method of assuring stable naming of
 	  IDE devices is unreliable and use other means for achieving
 	  it (i.e. udev).
 
@@ -312,7 +312,7 @@ config BLK_DEV_OFFBOARD
 	  Note that, if you do this, the order of the hd* devices will be
 	  rearranged which may require modification of fstab and other files.
 
-	  Please also note that this method of assuring stable naming of
+	  Please also yeste that this method of assuring stable naming of
 	  IDE devices is unreliable and use other means for achieving it
 	  (i.e. udev).
 
@@ -323,7 +323,7 @@ config BLK_DEV_GENERIC
 	select BLK_DEV_IDEPCI
 	help
 	  This option provides generic support for various PCI IDE Chipsets
-	  which otherwise might not be supported.
+	  which otherwise might yest be supported.
 
 config BLK_DEV_OPTI621
 	tristate "OPTi 82C621 chipset enhanced support"
@@ -337,7 +337,7 @@ config BLK_DEV_RZ1000
 	depends on X86
 	select BLK_DEV_IDEPCI
 	help
-	  The PC-Technologies RZ1000 IDE chip is used on many common 486 and
+	  The PC-Techyeslogies RZ1000 IDE chip is used on many common 486 and
 	  Pentium motherboards, usually along with the "Neptune" chipset.
 	  Unfortunately, it has a rather nasty design flaw that can cause
 	  severe data corruption under many conditions. Say Y here to include
@@ -365,7 +365,7 @@ config BLK_DEV_ALI15X3
 	help
 	  This driver ensures (U)DMA support for ALI 1533, 1543 and 1543C
 	  onboard chipsets.  It also tests for Simplex mode and enables
-	  normal dual channel support.
+	  yesrmal dual channel support.
 
 	  Please read the comments at the top of
 	  <file:drivers/ide/alim15x3.c>.
@@ -547,7 +547,7 @@ config BLK_DEV_PDC202XX_OLD
 	  interrupt. This add-on card is a bootable PCI UDMA controller. Since
 	  multiple cards can be installed and there are BIOS ROM problems that
 	  happen if the BIOS revisions of all installed cards (three-max) do
-	  not match, the driver attempts to do dynamic tuning of the chipset
+	  yest match, the driver attempts to do dynamic tuning of the chipset
 	  at boot-time for max-speed.  Ultra33 BIOS 1.25 or newer is required
 	  for more than one card.
 
@@ -694,7 +694,7 @@ config BLK_DEV_IDE_ICSIDE
 	depends on ARM && ARCH_ACORN
 	help
 	  On Acorn systems, say Y here if you wish to use the ICS IDE
-	  interface card.  This is not required for ICS partition support.
+	  interface card.  This is yest required for ICS partition support.
 	  If you are unsure, say N to this.
 
 config BLK_DEV_IDEDMA_ICS
@@ -774,7 +774,7 @@ config BLK_DEV_Q40IDE
 	depends on Q40
 	help
 	  Enable the on-board IDE controller in the Q40/Q60.  This should
-	  normally be on; disable it only if you are running a custom hard
+	  yesrmally be on; disable it only if you are running a custom hard
 	  drive subsystem through an expansion card.
 
 config BLK_DEV_PALMCHIP_BK3710
@@ -786,7 +786,7 @@ config BLK_DEV_PALMCHIP_BK3710
 	  Say Y here if you want to support the onchip IDE controller on the
 	  TI DaVinci SoC
 
-# no isa -> no vlb
+# yes isa -> yes vlb
 if ISA && (ALPHA || X86 || MIPS)
 
 comment "Other IDE chipsets support"

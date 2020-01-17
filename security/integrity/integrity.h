@@ -17,7 +17,7 @@
 #define IMA_MEASURED		0x00000002
 #define IMA_APPRAISE		0x00000004
 #define IMA_APPRAISED		0x00000008
-/*#define IMA_COLLECT		0x00000010  do not use this flag */
+/*#define IMA_COLLECT		0x00000010  do yest use this flag */
 #define IMA_COLLECTED		0x00000020
 #define IMA_AUDIT		0x00000040
 #define IMA_AUDITED		0x00000080
@@ -111,17 +111,17 @@ struct signature_v2_hdr {
 	uint8_t type;		/* xattr type */
 	uint8_t version;	/* signature format version */
 	uint8_t	hash_algo;	/* Digest algorithm [enum hash_algo] */
-	__be32 keyid;		/* IMA key identifier - not X509/PGP specific */
+	__be32 keyid;		/* IMA key identifier - yest X509/PGP specific */
 	__be16 sig_size;	/* signature size */
 	uint8_t sig[0];		/* signature payload */
 } __packed;
 
-/* integrity data associated with an inode */
+/* integrity data associated with an iyesde */
 struct integrity_iint_cache {
-	struct rb_node rb_node;	/* rooted in integrity_iint_tree */
+	struct rb_yesde rb_yesde;	/* rooted in integrity_iint_tree */
 	struct mutex mutex;	/* protects: version, flags, digest */
-	struct inode *inode;	/* back pointer to inode in question */
-	u64 version;		/* track inode changes */
+	struct iyesde *iyesde;	/* back pointer to iyesde in question */
+	u64 version;		/* track iyesde changes */
 	unsigned long flags;
 	unsigned long measured_pcrs;
 	unsigned long atomic_flags;
@@ -135,9 +135,9 @@ struct integrity_iint_cache {
 };
 
 /* rbtree tree calls to lookup, insert, delete
- * integrity data associated with an inode.
+ * integrity data associated with an iyesde.
  */
-struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
+struct integrity_iint_cache *integrity_iint_find(struct iyesde *iyesde);
 
 int integrity_kernel_read(struct file *file, loff_t offset,
 			  void *addr, unsigned long count);
@@ -229,7 +229,7 @@ static inline void evm_load_x509(void)
 
 #ifdef CONFIG_INTEGRITY_AUDIT
 /* declarations */
-void integrity_audit_msg(int audit_msgno, struct inode *inode,
+void integrity_audit_msg(int audit_msgyes, struct iyesde *iyesde,
 			 const unsigned char *fname, const char *op,
 			 const char *cause, int result, int info);
 
@@ -240,7 +240,7 @@ integrity_audit_log_start(struct audit_context *ctx, gfp_t gfp_mask, int type)
 }
 
 #else
-static inline void integrity_audit_msg(int audit_msgno, struct inode *inode,
+static inline void integrity_audit_msg(int audit_msgyes, struct iyesde *iyesde,
 				       const unsigned char *fname,
 				       const char *op, const char *cause,
 				       int result, int info)

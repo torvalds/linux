@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -27,12 +27,12 @@ struct wmi_event_txrate {
 
 struct wmi_cmd_hdr {
 	__be16 command_id;
-	__be16 seq_no;
+	__be16 seq_yes;
 } __packed;
 
 struct wmi_fw_version {
 	__be16 major;
-	__be16 minor;
+	__be16 miyesr;
 
 } __packed;
 

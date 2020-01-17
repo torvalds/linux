@@ -628,7 +628,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
 
-	/* Remaining rings are distributed equally amongs VF's for now */
+	/* Remaining rings are distributed equally amongs VF's for yesw */
 	vf_cp_rings = bnxt_get_avail_cp_rings_for_en(bp) / num_vfs;
 	vf_stat_ctx = bnxt_get_avail_stat_ctxs_for_en(bp) / num_vfs;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
@@ -743,7 +743,7 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 
 	/* Check if we can enable requested num of vf's. At a mininum
 	 * we require 1 RX 1 TX rings for each VF. In this minimum conf
-	 * features like TPA will not be available.
+	 * features like TPA will yest be available.
 	 */
 	vfs_supported = *num_vfs;
 
@@ -784,7 +784,7 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 	}
 
 	if (!vfs_supported) {
-		netdev_err(bp->dev, "Cannot enable VF's as all resources are used by PF\n");
+		netdev_err(bp->dev, "Canyest enable VF's as all resources are used by PF\n");
 		return -EINVAL;
 	}
 
@@ -858,7 +858,7 @@ int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	struct bnxt *bp = netdev_priv(dev);
 
 	if (!(bp->flags & BNXT_FLAG_USING_MSIX)) {
-		netdev_warn(dev, "Not allow SRIOV if the irq mode is not MSIX\n");
+		netdev_warn(dev, "Not allow SRIOV if the irq mode is yest MSIX\n");
 		return 0;
 	}
 
@@ -1016,9 +1016,9 @@ static int bnxt_vf_validate_set_mac(struct bnxt *bp, struct bnxt_vf_info *vf)
 			mac_ok = true;
 	} else {
 		/* There are two cases:
-		 * 1.If firmware spec < 0x10202,VF MAC address is not forwarded
+		 * 1.If firmware spec < 0x10202,VF MAC address is yest forwarded
 		 *   to the PF and so it doesn't have to match
-		 * 2.Allow VF to modify it's own MAC when PF has not assigned a
+		 * 2.Allow VF to modify it's own MAC when PF has yest assigned a
 		 *   valid MAC address and firmware spec >= 0x10202
 		 */
 		mac_ok = true;
@@ -1176,7 +1176,7 @@ int bnxt_approve_mac(struct bnxt *bp, u8 *mac, bool strict)
 mac_done:
 	if (rc && strict) {
 		rc = -EADDRNOTAVAIL;
-		netdev_warn(bp->dev, "VF MAC address %pM not approved by the PF\n",
+		netdev_warn(bp->dev, "VF MAC address %pM yest approved by the PF\n",
 			    mac);
 		return rc;
 	}
@@ -1197,7 +1197,7 @@ void bnxt_sriov_disable(struct bnxt *bp)
 
 void bnxt_hwrm_exec_fwd_req(struct bnxt *bp)
 {
-	netdev_err(bp->dev, "Invalid VF message received when SRIOV is not enable\n");
+	netdev_err(bp->dev, "Invalid VF message received when SRIOV is yest enable\n");
 }
 
 void bnxt_update_vf_mac(struct bnxt *bp)

@@ -6,8 +6,8 @@
  * Copyright (C) 2015 QWERTY Embedded Design
  * Copyright (C) 2015 EMAC Inc.
  *
- * Author: Lauri Leukkunen <lauri.leukkunen@nokia.com>
- * based on TSC2301 driver by Klaus K. Pedersen <klaus.k.pedersen@nokia.com>
+ * Author: Lauri Leukkunen <lauri.leukkunen@yeskia.com>
+ * based on TSC2301 driver by Klaus K. Pedersen <klaus.k.pedersen@yeskia.com>
  */
 
 #include <linux/kernel.h>
@@ -34,7 +34,7 @@
  *    values.
  * 6) tsc200x_irq_thread() reports coordinates to input layer and sets up
  *    tsc200x_penup_timer() to be called after TSC200X_PENUP_TIME_MS (40ms).
- * 7) When the penup timer expires, there have not been touch or DAV interrupts
+ * 7) When the penup timer expires, there have yest been touch or DAV interrupts
  *    during the last 40ms which means the pen has been lifted.
  *
  * ESD recovery via a hardware reset is done if the TSC200X doesn't respond
@@ -47,8 +47,8 @@ static const struct regmap_range tsc200x_writable_ranges[] = {
 };
 
 static const struct regmap_access_table tsc200x_writable_table = {
-	.yes_ranges = tsc200x_writable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(tsc200x_writable_ranges),
+	.no_ranges = tsc200x_writable_ranges,
+	.n_no_ranges = ARRAY_SIZE(tsc200x_writable_ranges),
 };
 
 const struct regmap_config tsc200x_regmap_config = {
@@ -168,7 +168,7 @@ static irqreturn_t tsc200x_irq_thread(int irq, void *_ts)
 
 	/*
 	 * At this point we are happy we have a valid and useful reading.
-	 * Remember it for later comparisons. We may now begin downsampling.
+	 * Remember it for later comparisons. We may yesw begin downsampling.
 	 */
 	ts->in_x = tsdata.x;
 	ts->in_y = tsdata.y;
@@ -365,7 +365,7 @@ static void tsc200x_esd_work(struct work_struct *work)
 		/*
 		 * If the mutex is taken, it means that disable or enable is in
 		 * progress. In that case just reschedule the work. If the work
-		 * is not needed, it will be canceled by disable.
+		 * is yest needed, it will be canceled by disable.
 		 */
 		goto reschedule;
 	}
@@ -382,11 +382,11 @@ static void tsc200x_esd_work(struct work_struct *work)
 	}
 
 	/*
-	 * If we could not read our known value from configuration register 0
+	 * If we could yest read our kyeswn value from configuration register 0
 	 * then we should reset the controller as if from power-up and start
 	 * scanning again.
 	 */
-	dev_info(ts->dev, "TSC200X not responding - resetting\n");
+	dev_info(ts->dev, "TSC200X yest responding - resetting\n");
 
 	disable_irq(ts->irq);
 	del_timer_sync(&ts->penup_timer);
@@ -448,7 +448,7 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 	int error;
 
 	if (irq <= 0) {
-		dev_err(dev, "no irq\n");
+		dev_err(dev, "yes irq\n");
 		return -ENODEV;
 	}
 
@@ -456,7 +456,7 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 		return PTR_ERR(regmap);
 
 	if (!tsc200x_cmd) {
-		dev_err(dev, "no cmd function\n");
+		dev_err(dev, "yes cmd function\n");
 		return -ENODEV;
 	}
 
@@ -624,6 +624,6 @@ static int __maybe_unused tsc200x_resume(struct device *dev)
 SIMPLE_DEV_PM_OPS(tsc200x_pm_ops, tsc200x_suspend, tsc200x_resume);
 EXPORT_SYMBOL_GPL(tsc200x_pm_ops);
 
-MODULE_AUTHOR("Lauri Leukkunen <lauri.leukkunen@nokia.com>");
+MODULE_AUTHOR("Lauri Leukkunen <lauri.leukkunen@yeskia.com>");
 MODULE_DESCRIPTION("TSC200x Touchscreen Driver Core");
 MODULE_LICENSE("GPL");

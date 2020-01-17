@@ -25,7 +25,7 @@ struct xilly_endpoint_hardware;
 struct xilly_buffer {
 	void *addr;
 	dma_addr_t dma_addr;
-	int end_offset; /* Counting elements, not bytes */
+	int end_offset; /* Counting elements, yest bytes */
 };
 
 struct xilly_idt_handle {
@@ -35,7 +35,7 @@ struct xilly_idt_handle {
 };
 
 /*
- * Read-write confusion: wr_* and rd_* notation sticks to FPGA view, so
+ * Read-write confusion: wr_* and rd_* yestation sticks to FPGA view, so
  * wr_* buffers are those consumed by read(), since the FPGA writes to them
  * and vice versa.
  */
@@ -62,10 +62,10 @@ struct xilly_channel {
 	wait_queue_head_t wr_wait;
 	wait_queue_head_t wr_ready_wait;
 	int wr_ref_count;
-	int wr_synchronous;
+	int wr_synchroyesus;
 	int wr_allow_partial;
 	int wr_exclusive_open;
-	int wr_supports_nonempty;
+	int wr_supports_yesnempty;
 
 	struct xilly_buffer **rd_buffers; /* FPGA reads, driver writes! */
 	int num_rd_buffers;
@@ -79,7 +79,7 @@ struct xilly_channel {
 	wait_queue_head_t rd_wait;
 	int rd_ref_count;
 	int rd_allow_partial;
-	int rd_synchronous;
+	int rd_synchroyesus;
 	int rd_exclusive_open;
 	struct delayed_work rd_workitem;
 	unsigned char rd_leftovers[4];
@@ -106,7 +106,7 @@ struct xilly_endpoint {
 	struct cdev cdev;
 
 	int major;
-	int lowest_minor; /* Highest minor = lowest_minor + num_channels - 1 */
+	int lowest_miyesr; /* Highest miyesr = lowest_miyesr + num_channels - 1 */
 
 	int num_channels; /* EXCLUDING message buffer */
 	struct xilly_channel **channels;

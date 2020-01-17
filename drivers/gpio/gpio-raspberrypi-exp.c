@@ -197,19 +197,19 @@ static void rpi_exp_gpio_set(struct gpio_chip *gc, unsigned int off, int val)
 static int rpi_exp_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *fw_node;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *fw_yesde;
 	struct rpi_firmware *fw;
 	struct rpi_exp_gpio *rpi_gpio;
 
-	fw_node = of_get_parent(np);
-	if (!fw_node) {
-		dev_err(dev, "Missing firmware node\n");
+	fw_yesde = of_get_parent(np);
+	if (!fw_yesde) {
+		dev_err(dev, "Missing firmware yesde\n");
 		return -ENOENT;
 	}
 
-	fw = rpi_firmware_get(fw_node);
-	of_node_put(fw_node);
+	fw = rpi_firmware_get(fw_yesde);
+	of_yesde_put(fw_yesde);
 	if (!fw)
 		return -EPROBE_DEFER;
 
@@ -221,7 +221,7 @@ static int rpi_exp_gpio_probe(struct platform_device *pdev)
 	rpi_gpio->gc.parent = dev;
 	rpi_gpio->gc.label = MODULE_NAME;
 	rpi_gpio->gc.owner = THIS_MODULE;
-	rpi_gpio->gc.of_node = np;
+	rpi_gpio->gc.of_yesde = np;
 	rpi_gpio->gc.base = -1;
 	rpi_gpio->gc.ngpio = NUM_GPIO;
 

@@ -5,7 +5,7 @@
 #include <linux/device.h>
 #include <linux/cpu.h>
 #include <linux/topology.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/percpu.h>
 
 #ifdef CONFIG_SMP

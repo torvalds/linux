@@ -171,7 +171,7 @@ struct max17042_config_data {
 
 	/* MG3 save and restore */
 	u16	fullcap;	/* 0x10 */
-	u16	fullcapnom;	/* 0x23 */
+	u16	fullcapyesm;	/* 0x23 */
 	u16	socempty;	/* 0x33 */
 	u16	lavg_empty;	/* 0x36 */
 	u16	dqacc;		/* 0x45 */
@@ -181,12 +181,12 @@ struct max17042_config_data {
 	u16	qrtbl20;	/* 0x32 */
 	u16	qrtbl30;	/* 0x42 */
 
-	/* Cell technology from power_supply.h */
-	u16	cell_technology;
+	/* Cell techyeslogy from power_supply.h */
+	u16	cell_techyeslogy;
 
 	/* Cell Data */
 	u16	vempty;		/* 0x12 */
-	u16	temp_nom;	/* 0x24 */
+	u16	temp_yesm;	/* 0x24 */
 	u16	temp_lim;	/* 0x25 */
 	u16	fctc;		/* 0x37 */
 	u16	rcomp0;		/* 0x38 */
@@ -201,7 +201,7 @@ struct max17042_platform_data {
 	struct max17042_config_data *config_data;
 	int num_init_data; /* Number of enties in init_data array */
 	bool enable_current_sense;
-	bool enable_por_init; /* Use POR init from Maxim appnote */
+	bool enable_por_init; /* Use POR init from Maxim appyeste */
 
 	/*
 	 * R_sns in micro-ohms.

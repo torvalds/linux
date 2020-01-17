@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause) */
 /*
  * include/uapi/linux/tipc_config.h: Header for TIPC configuration interface
  *
@@ -10,11 +10,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -51,7 +51,7 @@
  * Configuration
  *
  * All configuration management messaging involves sending a request message
- * to the TIPC configuration service on a node, which sends a reply message
+ * to the TIPC configuration service on a yesde, which sends a reply message
  * back.  (In the future multi-message replies may be supported.)
  *
  * Both request and reply messages consist of a transport header and payload.
@@ -61,7 +61,7 @@
  *
  * For many operations, the request and reply messages have a fixed number
  * of TLVs (usually zero or one); however, some reply messages may return
- * a variable number of TLVs.  A failed request is denoted by the presence
+ * a variable number of TLVs.  A failed request is deyested by the presence
  * of an "error string" TLV in the reply message instead of the TLV(s) the
  * reply should contain if the request succeeds.
  */
@@ -69,75 +69,75 @@
 /*
  * Public commands:
  * May be issued by any process.
- * Accepted by own node, or by remote node only if remote management enabled.
+ * Accepted by own yesde, or by remote yesde only if remote management enabled.
  */
 
-#define  TIPC_CMD_NOOP              0x0000    /* tx none, rx none */
-#define  TIPC_CMD_GET_NODES         0x0001    /* tx net_addr, rx node_info(s) */
-#define  TIPC_CMD_GET_MEDIA_NAMES   0x0002    /* tx none, rx media_name(s) */
-#define  TIPC_CMD_GET_BEARER_NAMES  0x0003    /* tx none, rx bearer_name(s) */
+#define  TIPC_CMD_NOOP              0x0000    /* tx yesne, rx yesne */
+#define  TIPC_CMD_GET_NODES         0x0001    /* tx net_addr, rx yesde_info(s) */
+#define  TIPC_CMD_GET_MEDIA_NAMES   0x0002    /* tx yesne, rx media_name(s) */
+#define  TIPC_CMD_GET_BEARER_NAMES  0x0003    /* tx yesne, rx bearer_name(s) */
 #define  TIPC_CMD_GET_LINKS         0x0004    /* tx net_addr, rx link_info(s) */
 #define  TIPC_CMD_SHOW_NAME_TABLE   0x0005    /* tx name_tbl_query, rx ultra_string */
-#define  TIPC_CMD_SHOW_PORTS        0x0006    /* tx none, rx ultra_string */
+#define  TIPC_CMD_SHOW_PORTS        0x0006    /* tx yesne, rx ultra_string */
 #define  TIPC_CMD_SHOW_LINK_STATS   0x000B    /* tx link_name, rx ultra_string */
 #define  TIPC_CMD_SHOW_STATS        0x000F    /* tx unsigned, rx ultra_string */
 
 /*
  * Protected commands:
  * May only be issued by "network administration capable" process.
- * Accepted by own node, or by remote node only if remote management enabled
- * and this node is zone manager.
+ * Accepted by own yesde, or by remote yesde only if remote management enabled
+ * and this yesde is zone manager.
  */
 
-#define  TIPC_CMD_GET_REMOTE_MNG    0x4003    /* tx none, rx unsigned */
-#define  TIPC_CMD_GET_MAX_PORTS     0x4004    /* tx none, rx unsigned */
+#define  TIPC_CMD_GET_REMOTE_MNG    0x4003    /* tx yesne, rx unsigned */
+#define  TIPC_CMD_GET_MAX_PORTS     0x4004    /* tx yesne, rx unsigned */
 #define  TIPC_CMD_GET_MAX_PUBL      0x4005    /* obsoleted */
 #define  TIPC_CMD_GET_MAX_SUBSCR    0x4006    /* obsoleted */
 #define  TIPC_CMD_GET_MAX_ZONES     0x4007    /* obsoleted */
 #define  TIPC_CMD_GET_MAX_CLUSTERS  0x4008    /* obsoleted */
 #define  TIPC_CMD_GET_MAX_NODES     0x4009    /* obsoleted */
 #define  TIPC_CMD_GET_MAX_SLAVES    0x400A    /* obsoleted */
-#define  TIPC_CMD_GET_NETID         0x400B    /* tx none, rx unsigned */
+#define  TIPC_CMD_GET_NETID         0x400B    /* tx yesne, rx unsigned */
 
-#define  TIPC_CMD_ENABLE_BEARER     0x4101    /* tx bearer_config, rx none */
-#define  TIPC_CMD_DISABLE_BEARER    0x4102    /* tx bearer_name, rx none */
-#define  TIPC_CMD_SET_LINK_TOL      0x4107    /* tx link_config, rx none */
-#define  TIPC_CMD_SET_LINK_PRI      0x4108    /* tx link_config, rx none */
-#define  TIPC_CMD_SET_LINK_WINDOW   0x4109    /* tx link_config, rx none */
+#define  TIPC_CMD_ENABLE_BEARER     0x4101    /* tx bearer_config, rx yesne */
+#define  TIPC_CMD_DISABLE_BEARER    0x4102    /* tx bearer_name, rx yesne */
+#define  TIPC_CMD_SET_LINK_TOL      0x4107    /* tx link_config, rx yesne */
+#define  TIPC_CMD_SET_LINK_PRI      0x4108    /* tx link_config, rx yesne */
+#define  TIPC_CMD_SET_LINK_WINDOW   0x4109    /* tx link_config, rx yesne */
 #define  TIPC_CMD_SET_LOG_SIZE      0x410A    /* obsoleted */
 #define  TIPC_CMD_DUMP_LOG          0x410B    /* obsoleted */
-#define  TIPC_CMD_RESET_LINK_STATS  0x410C    /* tx link_name, rx none */
+#define  TIPC_CMD_RESET_LINK_STATS  0x410C    /* tx link_name, rx yesne */
 
 /*
  * Private commands:
  * May only be issued by "network administration capable" process.
- * Accepted by own node only; cannot be used on a remote node.
+ * Accepted by own yesde only; canyest be used on a remote yesde.
  */
 
-#define  TIPC_CMD_SET_NODE_ADDR     0x8001    /* tx net_addr, rx none */
-#define  TIPC_CMD_SET_REMOTE_MNG    0x8003    /* tx unsigned, rx none */
-#define  TIPC_CMD_SET_MAX_PORTS     0x8004    /* tx unsigned, rx none */
+#define  TIPC_CMD_SET_NODE_ADDR     0x8001    /* tx net_addr, rx yesne */
+#define  TIPC_CMD_SET_REMOTE_MNG    0x8003    /* tx unsigned, rx yesne */
+#define  TIPC_CMD_SET_MAX_PORTS     0x8004    /* tx unsigned, rx yesne */
 #define  TIPC_CMD_SET_MAX_PUBL      0x8005    /* obsoleted */
 #define  TIPC_CMD_SET_MAX_SUBSCR    0x8006    /* obsoleted */
 #define  TIPC_CMD_SET_MAX_ZONES     0x8007    /* obsoleted */
 #define  TIPC_CMD_SET_MAX_CLUSTERS  0x8008    /* obsoleted */
 #define  TIPC_CMD_SET_MAX_NODES     0x8009    /* obsoleted */
 #define  TIPC_CMD_SET_MAX_SLAVES    0x800A    /* obsoleted */
-#define  TIPC_CMD_SET_NETID         0x800B    /* tx unsigned, rx none */
+#define  TIPC_CMD_SET_NETID         0x800B    /* tx unsigned, rx yesne */
 
 /*
  * Reserved commands:
- * May not be issued by any process.
+ * May yest be issued by any process.
  * Used internally by TIPC.
  */
 
-#define  TIPC_CMD_NOT_NET_ADMIN     0xC001    /* tx none, rx none */
+#define  TIPC_CMD_NOT_NET_ADMIN     0xC001    /* tx yesne, rx yesne */
 
 /*
  * TLV types defined for TIPC
  */
 
-#define TIPC_TLV_NONE		0	/* no TLV present */
+#define TIPC_TLV_NONE		0	/* yes TLV present */
 #define TIPC_TLV_VOID		1	/* empty TLV (0 data bytes)*/
 #define TIPC_TLV_UNSIGNED	2	/* 32-bit integer */
 #define TIPC_TLV_STRING		3	/* char[128] (max) */
@@ -145,11 +145,11 @@
 #define TIPC_TLV_ULTRA_STRING	5	/* char[32768] (max) */
 
 #define TIPC_TLV_ERROR_STRING	16	/* char[128] containing "error code" */
-#define TIPC_TLV_NET_ADDR	17	/* 32-bit integer denoting <Z.C.N> */
+#define TIPC_TLV_NET_ADDR	17	/* 32-bit integer deyesting <Z.C.N> */
 #define TIPC_TLV_MEDIA_NAME	18	/* char[TIPC_MAX_MEDIA_NAME] */
 #define TIPC_TLV_BEARER_NAME	19	/* char[TIPC_MAX_BEARER_NAME] */
 #define TIPC_TLV_LINK_NAME	20	/* char[TIPC_MAX_LINK_NAME] */
-#define TIPC_TLV_NODE_INFO	21	/* struct tipc_node_info */
+#define TIPC_TLV_NODE_INFO	21	/* struct tipc_yesde_info */
 #define TIPC_TLV_LINK_INFO	22	/* struct tipc_link_info */
 #define TIPC_TLV_BEARER_CONFIG	23	/* struct tipc_bearer_config */
 #define TIPC_TLV_LINK_CONFIG	24	/* struct tipc_link_config */
@@ -191,20 +191,20 @@
 
 #define TIPC_DEF_LINK_UDP_MTU 14000
 
-struct tipc_node_info {
-	__be32 addr;			/* network address of node */
+struct tipc_yesde_info {
+	__be32 addr;			/* network address of yesde */
 	__be32 up;			/* 0=down, 1= up */
 };
 
 struct tipc_link_info {
-	__be32 dest;			/* network address of peer node */
+	__be32 dest;			/* network address of peer yesde */
 	__be32 up;			/* 0=down, 1=up */
 	char str[TIPC_MAX_LINK_NAME];	/* link name */
 };
 
 struct tipc_bearer_config {
 	__be32 priority;		/* Range [1,31]. Override per link  */
-	__be32 disc_domain;		/* <Z.C.N> describing desired nodes */
+	__be32 disc_domain;		/* <Z.C.N> describing desired yesdes */
 	char name[TIPC_MAX_BEARER_NAME];
 };
 
@@ -217,7 +217,7 @@ struct tipc_link_config {
 
 struct tipc_name_table_query {
 	__be32 depth;	/* 1:type, 2:+name info, 3:+port info, 4+:+debug info */
-	__be32 type;	/* {t,l,u} info ignored if high bit of "depth" is set */
+	__be32 type;	/* {t,l,u} info igyesred if high bit of "depth" is set */
 	__be32 lowbound; /* (i.e. displays all entries of name table) */
 	__be32 upbound;
 };
@@ -232,8 +232,8 @@ struct tipc_name_table_query {
 #define TIPC_CFG_TLV_ERROR      "\x80"  /* request contains incorrect TLV(s) */
 #define TIPC_CFG_NOT_NET_ADMIN  "\x81"	/* must be network administrator */
 #define TIPC_CFG_NOT_ZONE_MSTR	"\x82"	/* must be zone master */
-#define TIPC_CFG_NO_REMOTE	"\x83"	/* remote management not enabled */
-#define TIPC_CFG_NOT_SUPPORTED  "\x84"	/* request is not supported by TIPC */
+#define TIPC_CFG_NO_REMOTE	"\x83"	/* remote management yest enabled */
+#define TIPC_CFG_NOT_SUPPORTED  "\x84"	/* request is yest supported by TIPC */
 #define TIPC_CFG_INVALID_VALUE  "\x85"  /* request has invalid argument value */
 
 /*
@@ -242,7 +242,7 @@ struct tipc_name_table_query {
  * TLV values must also be stored in network byte order (where applicable).
  * TLV descriptors must be aligned to addresses which are multiple of 4,
  * so up to 3 bytes of padding may exist at the end of the TLV value area.
- * There must not be any padding between the TLV descriptor and its value.
+ * There must yest be any padding between the TLV descriptor and its value.
  */
 
 struct tlv_desc {
@@ -261,7 +261,7 @@ static inline int TLV_OK(const void *tlv, __u16 space)
 {
 	/*
 	 * Would also like to check that "tlv" is a multiple of 4,
-	 * but don't know how to do this in a portable way.
+	 * but don't kyesw how to do this in a portable way.
 	 * - Tried doing (!(tlv & (TLV_ALIGNTO-1))), but GCC compiler
 	 *   won't allow binary "&" with a pointer.
 	 * - Tried casting "tlv" to integer type, but causes warning about size
@@ -377,7 +377,7 @@ struct tipc_genlmsghdr {
  * Configuration messages exchanged via TIPC sockets use the TIPC configuration
  * message header, which is defined below.  This structure is analogous
  * to the Netlink message header, but fields are stored in network byte order
- * and no padding is permitted between the header and the message data
+ * and yes padding is permitted between the header and the message data
  * that follows.
  */
 

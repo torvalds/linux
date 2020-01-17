@@ -37,7 +37,7 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
  *
  * DESCRIPTION: This routine will search for a caller specified name in the
  *              name space. The caller can restrict the search region by
- *              specifying a non NULL parent. The parent value is itself a
+ *              specifying a yesn NULL parent. The parent value is itself a
  *              namespace handle.
  *
  ******************************************************************************/
@@ -47,8 +47,8 @@ acpi_get_handle(acpi_handle parent,
 		acpi_string pathname, acpi_handle *ret_handle)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node = NULL;
-	struct acpi_namespace_node *prefix_node = NULL;
+	struct acpi_namespace_yesde *yesde = NULL;
+	struct acpi_namespace_yesde *prefix_yesde = NULL;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -58,11 +58,11 @@ acpi_get_handle(acpi_handle parent,
 		return (AE_BAD_PARAMETER);
 	}
 
-	/* Convert a parent handle to a prefix node */
+	/* Convert a parent handle to a prefix yesde */
 
 	if (parent) {
-		prefix_node = acpi_ns_validate_handle(parent);
-		if (!prefix_node) {
+		prefix_yesde = acpi_ns_validate_handle(parent);
+		if (!prefix_yesde) {
 			return (AE_BAD_PARAMETER);
 		}
 	}
@@ -82,10 +82,10 @@ acpi_get_handle(acpi_handle parent,
 
 		if (!strcmp(pathname, ACPI_NS_ROOT_PATH)) {
 			*ret_handle =
-			    ACPI_CAST_PTR(acpi_handle, acpi_gbl_root_node);
+			    ACPI_CAST_PTR(acpi_handle, acpi_gbl_root_yesde);
 			return (AE_OK);
 		}
-	} else if (!prefix_node) {
+	} else if (!prefix_yesde) {
 
 		/* Relative path with null prefix is disallowed */
 
@@ -95,9 +95,9 @@ acpi_get_handle(acpi_handle parent,
 	/* Find the Node and convert to a handle */
 
 	status =
-	    acpi_ns_get_node(prefix_node, pathname, ACPI_NS_NO_UPSEARCH, &node);
+	    acpi_ns_get_yesde(prefix_yesde, pathname, ACPI_NS_NO_UPSEARCH, &yesde);
 	if (ACPI_SUCCESS(status)) {
-		*ret_handle = ACPI_CAST_PTR(acpi_handle, node);
+		*ret_handle = ACPI_CAST_PTR(acpi_handle, yesde);
 	}
 
 	return (status);
@@ -204,7 +204,7 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
  * RETURN:      Status
  *
  * DESCRIPTION: Returns information about an object as gleaned from the
- *              namespace node and possibly by running several standard
+ *              namespace yesde and possibly by running several standard
  *              control methods (Such as in the case of a device.)
  *
  * For Device and Processor objects, run the Device _HID, _UID, _CID,
@@ -213,9 +213,9 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
  * Note: Allocates the return buffer, must be freed by the caller.
  *
  * Note: This interface is intended to be used during the initial device
- * discovery namespace traversal. Therefore, no complex methods can be
+ * discovery namespace traversal. Therefore, yes complex methods can be
  * executed, especially those that access operation regions. Therefore, do
- * not add any additional methods that could cause problems in this area.
+ * yest add any additional methods that could cause problems in this area.
  * Because of this reason support for the following methods has been removed:
  * 1) _SUB method was removed (11/2015)
  * 2) _STA method was removed (02/2018)
@@ -226,7 +226,7 @@ acpi_status
 acpi_get_object_info(acpi_handle handle,
 		     struct acpi_device_info **return_buffer)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	struct acpi_device_info *info;
 	struct acpi_pnp_device_id_list *cid_list = NULL;
 	struct acpi_pnp_device_id *hid = NULL;
@@ -252,20 +252,20 @@ acpi_get_object_info(acpi_handle handle,
 		return (status);
 	}
 
-	node = acpi_ns_validate_handle(handle);
-	if (!node) {
+	yesde = acpi_ns_validate_handle(handle);
+	if (!yesde) {
 		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 		return (AE_BAD_PARAMETER);
 	}
 
-	/* Get the namespace node data while the namespace is locked */
+	/* Get the namespace yesde data while the namespace is locked */
 
 	info_size = sizeof(struct acpi_device_info);
-	type = node->type;
-	name = node->name.integer;
+	type = yesde->type;
+	name = yesde->name.integer;
 
-	if (node->type == ACPI_TYPE_METHOD) {
-		param_count = node->object->method.param_count;
+	if (yesde->type == ACPI_TYPE_METHOD) {
+		param_count = yesde->object->method.param_count;
 	}
 
 	status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
@@ -278,14 +278,14 @@ acpi_get_object_info(acpi_handle handle,
 		 * Get extra info for ACPI Device/Processor objects only:
 		 * Run the Device _HID, _UID, _CLS, and _CID methods.
 		 *
-		 * Note: none of these methods are required, so they may or may
-		 * not be present for this device. The Info->Valid bitfield is used
+		 * Note: yesne of these methods are required, so they may or may
+		 * yest be present for this device. The Info->Valid bitfield is used
 		 * to indicate which methods were found and run successfully.
 		 */
 
 		/* Execute the Device._HID method */
 
-		status = acpi_ut_execute_HID(node, &hid);
+		status = acpi_ut_execute_HID(yesde, &hid);
 		if (ACPI_SUCCESS(status)) {
 			info_size += hid->length;
 			valid |= ACPI_VALID_HID;
@@ -293,7 +293,7 @@ acpi_get_object_info(acpi_handle handle,
 
 		/* Execute the Device._UID method */
 
-		status = acpi_ut_execute_UID(node, &uid);
+		status = acpi_ut_execute_UID(yesde, &uid);
 		if (ACPI_SUCCESS(status)) {
 			info_size += uid->length;
 			valid |= ACPI_VALID_UID;
@@ -301,7 +301,7 @@ acpi_get_object_info(acpi_handle handle,
 
 		/* Execute the Device._CID method */
 
-		status = acpi_ut_execute_CID(node, &cid_list);
+		status = acpi_ut_execute_CID(yesde, &cid_list);
 		if (ACPI_SUCCESS(status)) {
 
 			/* Add size of CID strings and CID pointer array */
@@ -314,7 +314,7 @@ acpi_get_object_info(acpi_handle handle,
 
 		/* Execute the Device._CLS method */
 
-		status = acpi_ut_execute_CLS(node, &cls);
+		status = acpi_ut_execute_CLS(yesde, &cls);
 		if (ACPI_SUCCESS(status)) {
 			info_size += cls->length;
 			valid |= ACPI_VALID_CLS;
@@ -338,14 +338,14 @@ acpi_get_object_info(acpi_handle handle,
 		 * Get extra info for ACPI Device/Processor objects only:
 		 * Run the _ADR and, sx_w, and _sx_d methods.
 		 *
-		 * Notes: none of these methods are required, so they may or may
-		 * not be present for this device. The Info->Valid bitfield is used
+		 * Notes: yesne of these methods are required, so they may or may
+		 * yest be present for this device. The Info->Valid bitfield is used
 		 * to indicate which methods were found and run successfully.
 		 */
 
 		/* Execute the Device._ADR method */
 
-		status = acpi_ut_evaluate_numeric_object(METHOD_NAME__ADR, node,
+		status = acpi_ut_evaluate_numeric_object(METHOD_NAME__ADR, yesde,
 							 &info->address);
 		if (ACPI_SUCCESS(status)) {
 			valid |= ACPI_VALID_ADR;
@@ -353,7 +353,7 @@ acpi_get_object_info(acpi_handle handle,
 
 		/* Execute the Device._sx_w methods */
 
-		status = acpi_ut_execute_power_methods(node,
+		status = acpi_ut_execute_power_methods(yesde,
 						       acpi_gbl_lowest_dstate_names,
 						       ACPI_NUM_sx_w_METHODS,
 						       info->lowest_dstates);
@@ -363,7 +363,7 @@ acpi_get_object_info(acpi_handle handle,
 
 		/* Execute the Device._sx_d methods */
 
-		status = acpi_ut_execute_power_methods(node,
+		status = acpi_ut_execute_power_methods(yesde,
 						       acpi_gbl_highest_dstate_names,
 						       ACPI_NUM_sx_d_METHODS,
 						       info->highest_dstates);
@@ -479,7 +479,7 @@ acpi_status acpi_install_method(u8 *buffer)
 	u8 *aml_buffer;
 	u8 *aml_start;
 	char *path;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	union acpi_operand_object *method_obj;
 	struct acpi_parse_state parser_state;
 	u32 aml_length;
@@ -520,7 +520,7 @@ acpi_status acpi_install_method(u8 *buffer)
 
 	/*
 	 * Allocate resources up-front. We don't want to have to delete a new
-	 * node from the namespace if we cannot allocate memory.
+	 * yesde from the namespace if we canyest allocate memory.
 	 */
 	aml_buffer = ACPI_ALLOCATE(aml_length);
 	if (!aml_buffer) {
@@ -533,19 +533,19 @@ acpi_status acpi_install_method(u8 *buffer)
 		return (AE_NO_MEMORY);
 	}
 
-	/* Lock namespace for acpi_ns_lookup, we may be creating a new node */
+	/* Lock namespace for acpi_ns_lookup, we may be creating a new yesde */
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		goto error_exit;
 	}
 
-	/* The lookup either returns an existing node or creates a new one */
+	/* The lookup either returns an existing yesde or creates a new one */
 
 	status =
 	    acpi_ns_lookup(NULL, path, ACPI_TYPE_METHOD, ACPI_IMODE_LOAD_PASS1,
 			   ACPI_NS_DONT_OPEN_SCOPE | ACPI_NS_ERROR_IF_FOUND,
-			   NULL, &node);
+			   NULL, &yesde);
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
@@ -554,9 +554,9 @@ acpi_status acpi_install_method(u8 *buffer)
 			goto error_exit;
 		}
 
-		/* Node existed previously, make sure it is a method node */
+		/* Node existed previously, make sure it is a method yesde */
 
-		if (node->type != ACPI_TYPE_METHOD) {
+		if (yesde->type != ACPI_TYPE_METHOD) {
 			status = AE_TYPE;
 			goto error_exit;
 		}
@@ -585,13 +585,13 @@ acpi_status acpi_install_method(u8 *buffer)
 	 * Now that it is complete, we can attach the new method object to
 	 * the method Node (detaches/deletes any existing object)
 	 */
-	status = acpi_ns_attach_object(node, method_obj, ACPI_TYPE_METHOD);
+	status = acpi_ns_attach_object(yesde, method_obj, ACPI_TYPE_METHOD);
 
 	/*
 	 * Flag indicates AML buffer is dynamic, must be deleted later.
 	 * Must be set only after attach above.
 	 */
-	node->flags |= ANOBJ_ALLOCATED_BUFFER;
+	yesde->flags |= ANOBJ_ALLOCATED_BUFFER;
 
 	/* Remove local reference to the method object */
 

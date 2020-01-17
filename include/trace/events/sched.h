@@ -91,7 +91,7 @@ DEFINE_EVENT(sched_wakeup_template, sched_waking,
 
 /*
  * Tracepoint called when the task is actually woken; p->state == TASK_RUNNNG.
- * It it not always called from the waking context.
+ * It it yest always called from the waking context.
  */
 DEFINE_EVENT(sched_wakeup_template, sched_wakeup,
 	     TP_PROTO(struct task_struct *p),
@@ -114,8 +114,8 @@ static inline long __trace_sched_switch_state(bool preempt, struct task_struct *
 #endif /* CONFIG_SCHED_DEBUG */
 
 	/*
-	 * Preemption ignores task state, therefore preempted tasks are always
-	 * RUNNING (we will not have dequeued if state != RUNNING).
+	 * Preemption igyesres task state, therefore preempted tasks are always
+	 * RUNNING (we will yest have dequeued if state != RUNNING).
 	 */
 	if (preempt)
 		return TASK_REPORT_MAX;
@@ -373,14 +373,14 @@ DECLARE_EVENT_CLASS_SCHEDSTAT(sched_stat_template,
 
 /*
  * Tracepoint for accounting wait time (time the task is runnable
- * but not actually running due to scheduler contention).
+ * but yest actually running due to scheduler contention).
  */
 DEFINE_EVENT_SCHEDSTAT(sched_stat_template, sched_stat_wait,
 	     TP_PROTO(struct task_struct *tsk, u64 delay),
 	     TP_ARGS(tsk, delay));
 
 /*
- * Tracepoint for accounting sleep time (time the task is not runnable,
+ * Tracepoint for accounting sleep time (time the task is yest runnable,
  * including iowait, see below).
  */
 DEFINE_EVENT_SCHEDSTAT(sched_stat_template, sched_stat_sleep,
@@ -388,7 +388,7 @@ DEFINE_EVENT_SCHEDSTAT(sched_stat_template, sched_stat_sleep,
 	     TP_ARGS(tsk, delay));
 
 /*
- * Tracepoint for accounting iowait time (time the task is not runnable
+ * Tracepoint for accounting iowait time (time the task is yest runnable
  * due to waiting on IO to complete).
  */
 DEFINE_EVENT_SCHEDSTAT(sched_stat_template, sched_stat_iowait,
@@ -458,8 +458,8 @@ TRACE_EVENT(sched_pi_setprio,
 		__entry->pid		= tsk->pid;
 		__entry->oldprio	= tsk->prio;
 		__entry->newprio	= pi_task ?
-				min(tsk->normal_prio, pi_task->prio) :
-				tsk->normal_prio;
+				min(tsk->yesrmal_prio, pi_task->prio) :
+				tsk->yesrmal_prio;
 		/* XXX SCHED_DEADLINE bits missing */
 	),
 
@@ -508,9 +508,9 @@ DECLARE_EVENT_CLASS(sched_move_task_template,
 		__entry->tgid		= task_tgid_nr(tsk);
 		__entry->ngid		= task_numa_group_id(tsk);
 		__entry->src_cpu	= src_cpu;
-		__entry->src_nid	= cpu_to_node(src_cpu);
+		__entry->src_nid	= cpu_to_yesde(src_cpu);
 		__entry->dst_cpu	= dst_cpu;
-		__entry->dst_nid	= cpu_to_node(dst_cpu);
+		__entry->dst_nid	= cpu_to_yesde(dst_cpu);
 	),
 
 	TP_printk("pid=%d tgid=%d ngid=%d src_cpu=%d src_nid=%d dst_cpu=%d dst_nid=%d",
@@ -520,8 +520,8 @@ DECLARE_EVENT_CLASS(sched_move_task_template,
 );
 
 /*
- * Tracks migration of tasks from one runqueue to another. Can be used to
- * detect if automatic NUMA balancing is bouncing between nodes
+ * Tracks migration of tasks from one runqueue to ayesther. Can be used to
+ * detect if automatic NUMA balancing is bouncing between yesdes
  */
 DEFINE_EVENT(sched_move_task_template, sched_move_numa,
 	TP_PROTO(struct task_struct *tsk, int src_cpu, int dst_cpu),
@@ -560,12 +560,12 @@ TRACE_EVENT(sched_swap_numa,
 		__entry->src_tgid	= task_tgid_nr(src_tsk);
 		__entry->src_ngid	= task_numa_group_id(src_tsk);
 		__entry->src_cpu	= src_cpu;
-		__entry->src_nid	= cpu_to_node(src_cpu);
+		__entry->src_nid	= cpu_to_yesde(src_cpu);
 		__entry->dst_pid	= task_pid_nr(dst_tsk);
 		__entry->dst_tgid	= task_tgid_nr(dst_tsk);
 		__entry->dst_ngid	= task_numa_group_id(dst_tsk);
 		__entry->dst_cpu	= dst_cpu;
-		__entry->dst_nid	= cpu_to_node(dst_cpu);
+		__entry->dst_nid	= cpu_to_yesde(dst_cpu);
 	),
 
 	TP_printk("src_pid=%d src_tgid=%d src_ngid=%d src_cpu=%d src_nid=%d dst_pid=%d dst_tgid=%d dst_ngid=%d dst_cpu=%d dst_nid=%d",
@@ -596,7 +596,7 @@ TRACE_EVENT(sched_wake_idle_without_ipi,
 );
 
 /*
- * Following tracepoints are not exported in tracefs and provide hooking
+ * Following tracepoints are yest exported in tracefs and provide hooking
  * mechanisms only for testing and debugging purposes.
  *
  * Postfixed with _tp to make them easily identifiable in the code.

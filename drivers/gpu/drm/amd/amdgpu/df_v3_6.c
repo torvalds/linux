@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -141,7 +141,7 @@ static void df_v3_6_set_fica(struct amdgpu_device *adev, uint32_t ficaa_val,
 /*
  * df_v3_6_perfmon_rreg - read perfmon lo and hi
  *
- * required to be atomic.  no mmio method provided so subsequent reads for lo
+ * required to be atomic.  yes mmio method provided so subsequent reads for lo
  * and hi require to preserve df finite state machine
  */
 static void df_v3_6_perfmon_rreg(struct amdgpu_device *adev,
@@ -164,8 +164,8 @@ static void df_v3_6_perfmon_rreg(struct amdgpu_device *adev,
 /*
  * df_v3_6_perfmon_wreg - write to perfmon lo and hi
  *
- * required to be atomic.  no mmio method provided so subsequent reads after
- * data writes cannot occur to preserve data fabrics finite state machine.
+ * required to be atomic.  yes mmio method provided so subsequent reads after
+ * data writes canyest occur to preserve data fabrics finite state machine.
  */
 static void df_v3_6_perfmon_wreg(struct amdgpu_device *adev, uint32_t lo_addr,
 			    uint32_t lo_val, uint32_t hi_addr, uint32_t hi_val)
@@ -378,7 +378,7 @@ static int df_v3_6_pmc_get_ctrl_settings(struct amdgpu_device *adev,
 	df_v3_6_pmc_get_addr(adev, config, 1, lo_base_addr, hi_base_addr);
 
 	if ((*lo_base_addr == 0) || (*hi_base_addr == 0)) {
-		DRM_ERROR("[DF PMC] addressing not retrieved! Lo: %x, Hi: %x",
+		DRM_ERROR("[DF PMC] addressing yest retrieved! Lo: %x, Hi: %x",
 				*lo_base_addr, *hi_base_addr);
 		return -ENXIO;
 	}

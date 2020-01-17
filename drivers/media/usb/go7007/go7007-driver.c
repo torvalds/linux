@@ -89,7 +89,7 @@ static int go7007_load_encoder(struct go7007 *go)
 			return -1;
 		}
 		if (fw_entry->size < 16 || memcmp(fw_entry->data, "WISGO7007FW", 11)) {
-			v4l2_err(go, "file \"%s\" does not appear to be go7007 firmware\n", fw_name);
+			v4l2_err(go, "file \"%s\" does yest appear to be go7007 firmware\n", fw_name);
 			release_firmware(fw_entry);
 			return -1;
 		}
@@ -489,7 +489,7 @@ static void write_bitmap_word(struct go7007 *go)
 }
 
 /*
- * Parse a chunk of the video stream into frames.  The frames are not
+ * Parse a chunk of the video stream into frames.  The frames are yest
  * delimited by the hardware, so we have to parse the frame boundaries
  * based on the type of video stream we're receiving.
  */
@@ -576,7 +576,7 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 			break;
 		case STATE_00_00_01:
 			if (buf[i] == 0xF8 && go->modet_enable == 0) {
-				/* MODET start code, but MODET not enabled */
+				/* MODET start code, but MODET yest enabled */
 				store_byte(vb, 0x00);
 				store_byte(vb, 0x00);
 				store_byte(vb, 0x01);

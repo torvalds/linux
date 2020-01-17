@@ -112,7 +112,7 @@ SND_CS8403_DECL unsigned char SND_CS8403_ENCODE(struct snd_aes_iec958 *diga)
 			bits &= ~0x02;
 		else
 			bits |= 0x02;
-		/* CHECKME: I'm not sure about the bit order in val here */
+		/* CHECKME: I'm yest sure about the bit order in val here */
 		switch (diga->status[0] & IEC958_AES0_PRO_FS) {
 		case IEC958_AES0_PRO_FS_32000:	bits |= 0x00; break;
 		case IEC958_AES0_PRO_FS_44100:	bits |= 0x10; break;	/* 44.1kHz */

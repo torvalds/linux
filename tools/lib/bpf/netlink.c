@@ -7,7 +7,7 @@
 #include <linux/bpf.h>
 #include <linux/rtnetlink.h>
 #include <sys/socket.h>
-#include <errno.h>
+#include <erryes.h>
 #include <time.h>
 
 #include "bpf.h"
@@ -40,21 +40,21 @@ int libbpf_netlink_open(__u32 *nl_pid)
 
 	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (sock < 0)
-		return -errno;
+		return -erryes;
 
 	if (setsockopt(sock, SOL_NETLINK, NETLINK_EXT_ACK,
 		       &one, sizeof(one)) < 0) {
-		pr_warn("Netlink error reporting not supported\n");
+		pr_warn("Netlink error reporting yest supported\n");
 	}
 
 	if (bind(sock, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
-		ret = -errno;
+		ret = -erryes;
 		goto cleanup;
 	}
 
 	addrlen = sizeof(sa);
 	if (getsockname(sock, (struct sockaddr *)&sa, &addrlen) < 0) {
-		ret = -errno;
+		ret = -erryes;
 		goto cleanup;
 	}
 
@@ -85,7 +85,7 @@ static int bpf_netlink_recv(int sock, __u32 nl_pid, int seq,
 		multipart = false;
 		len = recv(sock, buf, sizeof(buf), 0);
 		if (len < 0) {
-			ret = -errno;
+			ret = -erryes;
 			goto done;
 		}
 
@@ -178,7 +178,7 @@ int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags)
 	req.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
 
 	if (send(sock, &req, req.nh.nlmsg_len, 0) < 0) {
-		ret = -errno;
+		ret = -erryes;
 		goto cleanup;
 	}
 	ret = bpf_netlink_recv(sock, nl_pid, seq, NULL, NULL, NULL);
@@ -326,7 +326,7 @@ int libbpf_nl_get_link(int sock, unsigned int nl_pid,
 
 	req.nlh.nlmsg_seq = seq;
 	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
-		return -errno;
+		return -erryes;
 
 	return bpf_netlink_recv(sock, nl_pid, seq, __dump_link_nlmsg,
 				dump_link_nlmsg, cookie);
@@ -365,7 +365,7 @@ int libbpf_nl_get_class(int sock, unsigned int nl_pid, int ifindex,
 
 	req.nlh.nlmsg_seq = seq;
 	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
-		return -errno;
+		return -erryes;
 
 	return bpf_netlink_recv(sock, nl_pid, seq, __dump_class_nlmsg,
 				dump_class_nlmsg, cookie);
@@ -404,7 +404,7 @@ int libbpf_nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
 
 	req.nlh.nlmsg_seq = seq;
 	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
-		return -errno;
+		return -erryes;
 
 	return bpf_netlink_recv(sock, nl_pid, seq, __dump_qdisc_nlmsg,
 				dump_qdisc_nlmsg, cookie);
@@ -444,7 +444,7 @@ int libbpf_nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
 
 	req.nlh.nlmsg_seq = seq;
 	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
-		return -errno;
+		return -erryes;
 
 	return bpf_netlink_recv(sock, nl_pid, seq, __dump_filter_nlmsg,
 				dump_filter_nlmsg, cookie);

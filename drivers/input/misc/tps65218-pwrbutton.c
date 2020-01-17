@@ -95,7 +95,7 @@ static int tps6521x_pb_probe(struct platform_device *pdev)
 	int error;
 	int irq;
 
-	match = of_match_node(of_tps6521x_pb_match, dev->of_node);
+	match = of_match_yesde(of_tps6521x_pb_match, dev->of_yesde);
 	if (!match)
 		return -ENXIO;
 

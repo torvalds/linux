@@ -24,7 +24,7 @@
 #endif
 
 #if !defined(__UX500_PHYS_UART)
-#error Unknown SOC
+#error Unkyeswn SOC
 #endif
 
 #define UX500_PHYS_UART(n)	__UX500_PHYS_UART(n)
@@ -32,8 +32,8 @@
 #define UART_VIRT_BASE	(0xfff07000)
 
 	.macro	addruart, rp, rv, tmp
-	ldr	\rp, =UART_PHYS_BASE		@ no, physical address
-	ldr	\rv, =UART_VIRT_BASE		@ yes, virtual address
+	ldr	\rp, =UART_PHYS_BASE		@ yes, physical address
+	ldr	\rv, =UART_VIRT_BASE		@ no, virtual address
 	.endm
 
 #include <debug/pl01x.S>

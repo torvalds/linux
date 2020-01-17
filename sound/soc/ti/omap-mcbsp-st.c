@@ -3,7 +3,7 @@
  * McBSP Sidetone support
  *
  * Copyright (C) 2004 Nokia Corporation
- * Author: Samuel Ortiz <samuel.ortiz@nokia.com>
+ * Author: Samuel Ortiz <samuel.ortiz@yeskia.com>
  *
  * Contact: Jarkko Nikula <jarkko.nikula@bitmer.com>
  *          Peter Ujfalusi <peter.ujfalusi@ti.com>
@@ -83,7 +83,7 @@ static void omap_mcbsp_st_on(struct omap_mcbsp *mcbsp)
 	if (mcbsp->pdata->force_ick_on)
 		mcbsp->pdata->force_ick_on(mcbsp->st_data->mcbsp_iclk, true);
 
-	/* Disable Sidetone clock auto-gating for normal operation */
+	/* Disable Sidetone clock auto-gating for yesrmal operation */
 	w = MCBSP_ST_READ(mcbsp, SYSCONFIG);
 	MCBSP_ST_WRITE(mcbsp, SYSCONFIG, w & ~(ST_AUTOIDLE));
 
@@ -507,7 +507,7 @@ int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd, int port_id)
 					omap_mcbsp3_st_controls,
 					ARRAY_SIZE(omap_mcbsp3_st_controls));
 	default:
-		dev_err(mcbsp->dev, "Port %d not supported\n", port_id);
+		dev_err(mcbsp->dev, "Port %d yest supported\n", port_id);
 		break;
 	}
 

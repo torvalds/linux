@@ -11,7 +11,7 @@
  * arch/mips/mips-boards/xx files.
  *
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 1999,2000 MIPS Techyeslogies, Inc.  All rights reserved.
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -30,7 +30,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -148,7 +148,7 @@ int get_ethernet_addr(char *ethaddr_name, char *ethernet_addr)
 
 	ethaddr_str = prom_getenv(ethaddr_name);
 	if (!ethaddr_str) {
-		printk(KERN_WARNING "%s not set in boot prom\n", ethaddr_name);
+		printk(KERN_WARNING "%s yest set in boot prom\n", ethaddr_name);
 		return -1;
 	}
 
@@ -314,7 +314,7 @@ void  __init prom_init_cmdline(void)
 	char *cp;
 	int actr;
 
-	actr = 1; /* Always ignore argv[0] */
+	actr = 1; /* Always igyesre argv[0] */
 
 	cp = &(arcs_cmdline[0]);
 	while (actr < prom_argc) {
@@ -438,7 +438,7 @@ struct prom_pmemblock *__init prom_getmdesc(void)
 
 	str = prom_getenv(memsz_env);
 	if (!str) {
-		ppfinit("memsize not set in boot prom, "
+		ppfinit("memsize yest set in boot prom, "
 			"set to default (32Mb)\n");
 		memsize = 0x02000000;
 	} else {
@@ -456,7 +456,7 @@ struct prom_pmemblock *__init prom_getmdesc(void)
 	str = prom_getenv(heaptop_env);
 	if (!str) {
 		heaptop = CPHYSADDR((u32)&_text);
-		ppfinit("heaptop not set in boot prom, "
+		ppfinit("heaptop yest set in boot prom, "
 			"set to default 0x%08x\n", heaptop);
 	} else {
 		heaptop = simple_strtol(str, NULL, 16);

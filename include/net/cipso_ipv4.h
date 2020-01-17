@@ -30,7 +30,7 @@
 #include <linux/refcount.h>
 #include <asm/unaligned.h>
 
-/* known doi values */
+/* kyeswn doi values */
 #define CIPSO_V4_DOI_UNKNOWN          0x00000000
 
 /* standard tag types */
@@ -41,7 +41,7 @@
 #define CIPSO_V4_TAG_PBITMAP          6
 #define CIPSO_V4_TAG_FREEFORM         7
 
-/* non-standard tag types (tags > 127) */
+/* yesn-standard tag types (tags > 127) */
 #define CIPSO_V4_TAG_LOCAL            128
 
 /* doi mapping types */

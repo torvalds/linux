@@ -56,11 +56,11 @@ int raw_pci_write(unsigned int domain, unsigned int bus,
 
 #ifdef CONFIG_NUMA
 
-int pcibus_to_node(struct pci_bus *bus)
+int pcibus_to_yesde(struct pci_bus *bus)
 {
-	return dev_to_node(&bus->dev);
+	return dev_to_yesde(&bus->dev);
 }
-EXPORT_SYMBOL(pcibus_to_node);
+EXPORT_SYMBOL(pcibus_to_yesde);
 
 #endif
 
@@ -88,7 +88,7 @@ int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 		struct device *bus_dev = &bridge->bus->dev;
 
 		ACPI_COMPANION_SET(&bridge->dev, adev);
-		set_dev_node(bus_dev, acpi_get_node(acpi_device_handle(adev)));
+		set_dev_yesde(bus_dev, acpi_get_yesde(acpi_device_handle(adev)));
 	}
 
 	return 0;
@@ -125,7 +125,7 @@ pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
 
 	ret = pci_mcfg_lookup(root, &cfgres, &ecam_ops);
 	if (ret) {
-		dev_err(dev, "%04x:%pR ECAM region not found\n", seg, bus_res);
+		dev_err(dev, "%04x:%pR ECAM region yest found\n", seg, bus_res);
 		return NULL;
 	}
 
@@ -134,7 +134,7 @@ pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
 		dev_info(dev, "ECAM area %pR reserved by %s\n", &cfgres,
 			 dev_name(&adev->dev));
 	else
-		dev_warn(dev, FW_BUG "ECAM area %pR not reserved in ACPI namespace\n",
+		dev_warn(dev, FW_BUG "ECAM area %pR yest reserved in ACPI namespace\n",
 			 &cfgres);
 
 	cfg = pci_ecam_create(dev, &cfgres, bus_res, ecam_ops);
@@ -190,7 +190,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	if (!bus)
 		return NULL;
 
-	/* If we must preserve the resource configuration, claim now */
+	/* If we must preserve the resource configuration, claim yesw */
 	host = pci_find_host_bridge(bus);
 	if (host->preserve_config)
 		pci_bus_claim_resources(bus);
@@ -201,7 +201,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	 */
 	pci_assign_unassigned_root_bus_resources(bus);
 
-	list_for_each_entry(child, &bus->children, node)
+	list_for_each_entry(child, &bus->children, yesde)
 		pcie_bus_configure_settings(child);
 
 	return bus;

@@ -27,13 +27,13 @@
   * reader.  Like many other USB CompactFlash readers, the Jumpshot contains
   * a USB-to-ATA chip. 
   *
-  * This driver supports reading and writing.  If you're truly paranoid,
+  * This driver supports reading and writing.  If you're truly parayesid,
   * however, you can force the driver into a write-protected state by setting
   * the WP enable bits in jumpshot_handle_mode_sense.  See the comments
   * in that routine.
   */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
@@ -164,7 +164,7 @@ static int jumpshot_read_data(struct us_data *us,
 	struct scatterlist *sg = NULL;
 
 	// we're working in LBA mode.  according to the ATA spec, 
-	// we can support up to 28-bit addressing.  I don't know if Jumpshot
+	// we can support up to 28-bit addressing.  I don't kyesw if Jumpshot
 	// supports beyond 24-bit addressing.  It's kind of hard to test 
 	// since it requires > 8GB CF card.
 
@@ -241,7 +241,7 @@ static int jumpshot_write_data(struct us_data *us,
 	struct scatterlist *sg = NULL;
 
 	// we're working in LBA mode.  according to the ATA spec, 
-	// we can support up to 28-bit addressing.  I don't know if Jumpshot
+	// we can support up to 28-bit addressing.  I don't kyesw if Jumpshot
 	// supports beyond 24-bit addressing.  It's kind of hard to test 
 	// since it requires > 8GB CF card.
 	//
@@ -297,7 +297,7 @@ static int jumpshot_write_data(struct us_data *us,
 		do {
 			result = jumpshot_get_status(us);
 			if (result != USB_STOR_TRANSPORT_GOOD) {
-				// I have not experimented to find the smallest value.
+				// I have yest experimented to find the smallest value.
 				//
 				msleep(50); 
 			}
@@ -608,8 +608,8 @@ static int jumpshot_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	if (srb->cmnd[0] == ALLOW_MEDIUM_REMOVAL) {
 		/*
-		 * sure.  whatever.  not like we can stop the user from popping
-		 * the media out of the device (no locking doors, etc)
+		 * sure.  whatever.  yest like we can stop the user from popping
+		 * the media out of the device (yes locking doors, etc)
 		 */
 		return USB_STOR_TRANSPORT_GOOD;
 	}
@@ -635,7 +635,7 @@ static int jumpshot_transport(struct scsi_cmnd *srb, struct us_data *us)
 		return rc;
 	}
 
-	usb_stor_dbg(us, "Gah! Unknown command: %d (0x%x)\n",
+	usb_stor_dbg(us, "Gah! Unkyeswn command: %d (0x%x)\n",
 		     srb->cmnd[0], srb->cmnd[0]);
 	info->sense_key = 0x05;
 	info->sense_asc = 0x20;
@@ -677,7 +677,7 @@ static struct usb_driver jumpshot_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	jumpshot_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 };
 
 module_usb_stor_driver(jumpshot_driver, jumpshot_host_template, DRV_NAME);

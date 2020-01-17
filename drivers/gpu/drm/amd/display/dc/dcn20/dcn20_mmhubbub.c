@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -131,7 +131,7 @@ static void mmhubbub2_config_mcif_buf(struct mcif_wb *mcif_wb,
 	REG_UPDATE(MCIF_WB_BUF_4_ADDR_C_OFFSET, MCIF_WB_BUF_4_ADDR_C_OFFSET, 0);
 
 	/* setup luma & chroma size
-	 * should be enough to contain a whole frame Luma data,
+	 * should be eyesugh to contain a whole frame Luma data,
 	 * the programmed value is frame buffer size [27:8], 256-byte aligned
 	 */
 	REG_UPDATE(MCIF_WB_BUF_LUMA_SIZE, MCIF_WB_BUF_LUMA_SIZE, (params->luma_pitch>>8) * dest_height);

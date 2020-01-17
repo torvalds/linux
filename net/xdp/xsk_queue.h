@@ -68,22 +68,22 @@ struct xsk_queue {
  * this case load the old data.
  *
  * (C) protects the consumer from speculatively loading the data before
- * the producer pointer actually has been read. If we do not have this
+ * the producer pointer actually has been read. If we do yest have this
  * barrier, some architectures could load old data as speculative loads
- * are not discarded as the CPU does not know there is a dependency
+ * are yest discarded as the CPU does yest kyesw there is a dependency
  * between ->producer and data.
  *
  * (A) is a control dependency that separates the load of ->consumer
- * from the stores of $data. In case ->consumer indicates there is no
- * room in the buffer to store $data we do not. So no barrier is needed.
+ * from the stores of $data. In case ->consumer indicates there is yes
+ * room in the buffer to store $data we do yest. So yes barrier is needed.
  *
  * (D) protects the load of the data to be observed to happen after the
- * store of the consumer pointer. If we did not have this memory
+ * store of the consumer pointer. If we did yest have this memory
  * barrier, the producer could observe the consumer pointer being set
  * and overwrite the data with a new value before the consumer got the
  * chance to read the old value. The consumer would thus miss reading
  * the old entry and very likely read the new entry twice, once right
- * now and again after circling through the ring.
+ * yesw and again after circling through the ring.
  */
 
 /* Common functions operating for both RXTX and umem queues */
@@ -134,7 +134,7 @@ static inline bool xskq_has_addrs(struct xsk_queue *q, u32 cnt)
 
 /* UMEM queue */
 
-static inline bool xskq_crosses_non_contig_pg(struct xdp_umem *umem, u64 addr,
+static inline bool xskq_crosses_yesn_contig_pg(struct xdp_umem *umem, u64 addr,
 					      u64 length)
 {
 	bool cross_pg = (addr & (PAGE_SIZE - 1)) + length > PAGE_SIZE;
@@ -163,7 +163,7 @@ static inline bool xskq_is_valid_addr_unaligned(struct xsk_queue *q, u64 addr,
 
 	addr = xsk_umem_add_offset_to_addr(addr);
 	if (base_addr >= q->size || addr >= q->size ||
-	    xskq_crosses_non_contig_pg(umem, addr, length)) {
+	    xskq_crosses_yesn_contig_pg(umem, addr, length)) {
 		q->invalid_descs++;
 		return false;
 	}
@@ -182,7 +182,7 @@ static inline u64 *xskq_validate_addr(struct xsk_queue *q, u64 *addr,
 
 		if (umem->flags & XDP_UMEM_UNALIGNED_CHUNK_FLAG) {
 			if (xskq_is_valid_addr_unaligned(q, *addr,
-							 umem->chunk_size_nohr,
+							 umem->chunk_size_yeshr,
 							 umem))
 				return addr;
 			goto out;
@@ -276,7 +276,7 @@ static inline bool xskq_is_valid_desc(struct xsk_queue *q, struct xdp_desc *d,
 		if (!xskq_is_valid_addr_unaligned(q, d->addr, d->len, umem))
 			return false;
 
-		if (d->len > umem->chunk_size_nohr || d->options) {
+		if (d->len > umem->chunk_size_yeshr || d->options) {
 			q->invalid_descs++;
 			return false;
 		}

@@ -314,7 +314,7 @@ static int arvo_init_specials(struct hid_device *hdev)
 	if (retval < 0) {
 		hid_err(hdev, "couldn't init char dev\n");
 	} else {
-		arvo->chrdev_minor = retval;
+		arvo->chrdev_miyesr = retval;
 		arvo->roccat_claimed = 1;
 	}
 
@@ -335,7 +335,7 @@ static void arvo_remove_specials(struct hid_device *hdev)
 
 	arvo = hid_get_drvdata(hdev);
 	if (arvo->roccat_claimed)
-		roccat_disconnect(arvo->chrdev_minor);
+		roccat_disconnect(arvo->chrdev_miyesr);
 	kfree(arvo);
 }
 
@@ -393,7 +393,7 @@ static void arvo_report_to_chrdev(struct arvo_device const *arvo,
 	else
 		roccat_report.action = ARVO_ROCCAT_REPORT_ACTION_RELEASE;
 
-	roccat_report_event(arvo->chrdev_minor,
+	roccat_report_event(arvo->chrdev_miyesr,
 			(uint8_t const *)&roccat_report);
 }
 

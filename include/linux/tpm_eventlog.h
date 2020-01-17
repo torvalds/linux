@@ -84,7 +84,7 @@ struct tcg_efi_specid_event_algs {
 struct tcg_efi_specid_event_head {
 	u8 signature[16];
 	u32 platform_class;
-	u8 spec_version_minor;
+	u8 spec_version_miyesr;
 	u8 spec_version_major;
 	u8 spec_errata;
 	u8 uintnsize;
@@ -120,7 +120,7 @@ struct tcg_algorithm_size {
 struct tcg_algorithm_info {
 	u8 signature[16];
 	u32 platform_class;
-	u8 spec_version_minor;
+	u8 spec_version_miyesr;
 	u8 spec_version_major;
 	u8 spec_errata;
 	u8 uintn_size;
@@ -140,16 +140,16 @@ struct tcg_algorithm_info {
  * __calc_tpm2_event_size - calculate the size of a TPM2 event log entry
  * @event:        Pointer to the event whose size should be calculated
  * @event_header: Pointer to the initial event containing the digest lengths
- * @do_mapping:   Whether or not the event needs to be mapped
+ * @do_mapping:   Whether or yest the event needs to be mapped
  *
  * The TPM2 event log format can contain multiple digests corresponding to
  * separate PCR banks, and also contains a variable length of the data that
- * was measured. This requires knowledge of how long each digest type is,
+ * was measured. This requires kyeswledge of how long each digest type is,
  * and this information is contained within the first event in the log.
  *
  * We calculate the length by examining the number of events, and then looking
  * at each event in turn to determine how much space is used for events in
- * total. Once we've done this we know the offset of the data length field,
+ * total. Once we've done this we kyesw the offset of the data length field,
  * and can calculate the total size of the event.
  *
  * Return: size of the event on success, 0 on failure
@@ -233,7 +233,7 @@ static inline int __calc_tpm2_event_size(struct tcg_pcr_event2_head *event,
 				break;
 			}
 		}
-		/* Algorithm without known length. Such event is unparseable. */
+		/* Algorithm without kyeswn length. Such event is unparseable. */
 		if (j == efispecid->num_algs) {
 			size = 0;
 			goto out;

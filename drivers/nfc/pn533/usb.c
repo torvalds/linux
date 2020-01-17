@@ -2,7 +2,7 @@
 /*
  * Driver for NXP PN533 NFC Chip - USB transport layer
  *
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Nokia de Tecyeslogia
  * Copyright (C) 2012-2013 Tieto Poland
  */
 
@@ -195,7 +195,7 @@ static void pn533_usb_abort_cmd(struct pn533 *dev, gfp_t flags)
 {
 	struct pn533_usb_phy *phy = dev->phy;
 
-	/* ACR122U does not support any command which aborts last
+	/* ACR122U does yest support any command which aborts last
 	 * issued command i.e. as ACK for standard PN533. Additionally,
 	 * it behaves stange, sending broken or incorrect responses,
 	 * when we cancel urb before the chip will send response.
@@ -482,7 +482,7 @@ static int pn533_usb_probe(struct usb_interface *interface,
 
 	if (!in_endpoint || !out_endpoint) {
 		nfc_err(&interface->dev,
-			"Could not find bulk-in or bulk-out endpoint\n");
+			"Could yest find bulk-in or bulk-out endpoint\n");
 		rc = -ENODEV;
 		goto error;
 	}
@@ -528,7 +528,7 @@ static int pn533_usb_probe(struct usb_interface *interface,
 		break;
 
 	default:
-		nfc_err(&interface->dev, "Unknown device type %lu\n",
+		nfc_err(&interface->dev, "Unkyeswn device type %lu\n",
 			id->driver_info);
 		rc = -EINVAL;
 		goto error;

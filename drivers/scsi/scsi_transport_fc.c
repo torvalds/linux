@@ -51,7 +51,7 @@ MODULE_PARM_DESC(dev_loss_tmo,
 		 " insulate the loss of a remote port. Once this value is"
 		 " exceeded, the scsi target is removed. Value should be"
 		 " between 1 and SCSI_DEVICE_BLOCK_MAX_TIMEOUT if"
-		 " fast_io_fail_tmo is not set.");
+		 " fast_io_fail_tmo is yest set.");
 
 /*
  * Redefine so that we can have same named attributes in the
@@ -98,7 +98,7 @@ static struct {
 	enum fc_port_type	value;
 	char			*name;
 } fc_port_type_names[] = {
-	{ FC_PORTTYPE_UNKNOWN,		"Unknown" },
+	{ FC_PORTTYPE_UNKNOWN,		"Unkyeswn" },
 	{ FC_PORTTYPE_OTHER,		"Other" },
 	{ FC_PORTTYPE_NOTPRESENT,	"Not Present" },
 	{ FC_PORTTYPE_NPORT,	"NPort (fabric via point-to-point)" },
@@ -125,11 +125,11 @@ static const struct {
 	{ FCH_EVT_LIPRESET,		"lip_reset" },
 	{ FCH_EVT_RSCN,			"rscn" },
 	{ FCH_EVT_ADAPTER_CHANGE,	"adapter_chg" },
-	{ FCH_EVT_PORT_UNKNOWN,		"port_unknown" },
+	{ FCH_EVT_PORT_UNKNOWN,		"port_unkyeswn" },
 	{ FCH_EVT_PORT_ONLINE,		"port_online" },
 	{ FCH_EVT_PORT_OFFLINE,		"port_offline" },
 	{ FCH_EVT_PORT_FABRIC,		"port_fabric" },
-	{ FCH_EVT_LINK_UNKNOWN,		"link_unknown" },
+	{ FCH_EVT_LINK_UNKNOWN,		"link_unkyeswn" },
 	{ FCH_EVT_LINK_FPIN,		"link_FPIN" },
 	{ FCH_EVT_VENDOR_UNIQUE,	"vendor_unique" },
 };
@@ -143,13 +143,13 @@ static struct {
 	enum fc_port_state	value;
 	char			*name;
 } fc_port_state_names[] = {
-	{ FC_PORTSTATE_UNKNOWN,		"Unknown" },
+	{ FC_PORTSTATE_UNKNOWN,		"Unkyeswn" },
 	{ FC_PORTSTATE_NOTPRESENT,	"Not Present" },
 	{ FC_PORTSTATE_ONLINE,		"Online" },
 	{ FC_PORTSTATE_OFFLINE,		"Offline" },
 	{ FC_PORTSTATE_BLOCKED,		"Blocked" },
 	{ FC_PORTSTATE_BYPASSED,	"Bypassed" },
-	{ FC_PORTSTATE_DIAGNOSTICS,	"Diagnostics" },
+	{ FC_PORTSTATE_DIAGNOSTICS,	"Diagyesstics" },
 	{ FC_PORTSTATE_LINKDOWN,	"Linkdown" },
 	{ FC_PORTSTATE_ERROR,		"Error" },
 	{ FC_PORTSTATE_LOOPBACK,	"Loopback" },
@@ -164,7 +164,7 @@ static struct {
 	enum fc_vport_state	value;
 	char			*name;
 } fc_vport_state_names[] = {
-	{ FC_VPORT_UNKNOWN,		"Unknown" },
+	{ FC_VPORT_UNKNOWN,		"Unkyeswn" },
 	{ FC_VPORT_ACTIVE,		"Active" },
 	{ FC_VPORT_DISABLED,		"Disabled" },
 	{ FC_VPORT_LINKDOWN,		"Linkdown" },
@@ -188,7 +188,7 @@ static const struct {
 	char				*name;
 	int				matchlen;
 } fc_tgtid_binding_type_names[] = {
-	{ FC_TGTID_BIND_NONE, "none", 4 },
+	{ FC_TGTID_BIND_NONE, "yesne", 4 },
 	{ FC_TGTID_BIND_BY_WWPN, "wwpn (World Wide Port Name)", 4 },
 	{ FC_TGTID_BIND_BY_WWNN, "wwnn (World Wide Node Name)", 4 },
 	{ FC_TGTID_BIND_BY_ID, "port_id (FC Address)", 7 },
@@ -350,15 +350,15 @@ static int fc_target_setup(struct transport_container *tc, struct device *dev,
 
 	/*
 	 * if parent is remote port, use values from remote port.
-	 * Otherwise, this host uses the fc_transport, but not the
-	 * remote port interface. As such, initialize to known non-values.
+	 * Otherwise, this host uses the fc_transport, but yest the
+	 * remote port interface. As such, initialize to kyeswn yesn-values.
 	 */
 	if (rport) {
-		fc_starget_node_name(starget) = rport->node_name;
+		fc_starget_yesde_name(starget) = rport->yesde_name;
 		fc_starget_port_name(starget) = rport->port_name;
 		fc_starget_port_id(starget) = rport->port_id;
 	} else {
-		fc_starget_node_name(starget) = -1;
+		fc_starget_yesde_name(starget) = -1;
 		fc_starget_port_name(starget) = -1;
 		fc_starget_port_id(starget) = -1;
 	}
@@ -383,7 +383,7 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	 * failure cases.  The scsi lldd is responsible for initializing
 	 * all transport attributes to valid values per host.
 	 */
-	fc_host->node_name = -1;
+	fc_host->yesde_name = -1;
 	fc_host->port_name = -1;
 	fc_host->permanent_port_name = -1;
 	fc_host->supported_classes = FC_COS_UNSPECIFIED;
@@ -430,7 +430,7 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	fc_host->npiv_vports_inuse = 0;
 
 	snprintf(fc_host->work_q_name, sizeof(fc_host->work_q_name),
-		 "fc_wq_%d", shost->host_no);
+		 "fc_wq_%d", shost->host_yes);
 	fc_host->work_q = alloc_workqueue("%s", 0, 0, fc_host->work_q_name);
 	if (!fc_host->work_q)
 		return -ENOMEM;
@@ -438,7 +438,7 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	fc_host->dev_loss_tmo = fc_dev_loss_tmo;
 	snprintf(fc_host->devloss_work_q_name,
 		 sizeof(fc_host->devloss_work_q_name),
-		 "fc_dl_%d", shost->host_no);
+		 "fc_dl_%d", shost->host_yes);
 	fc_host->devloss_work_q = alloc_workqueue("%s", 0, 0,
 					fc_host->devloss_work_q_name);
 	if (!fc_host->devloss_work_q) {
@@ -448,7 +448,7 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	}
 
 	fc_bsg_hostadd(shost, fc_host);
-	/* ignore any bsg add error - we just can't do sgio */
+	/* igyesre any bsg add error - we just can't do sgio */
 
 	return 0;
 }
@@ -500,7 +500,7 @@ static atomic_t fc_event_seq;
  *
  * Notes:
  *   We could have inlined this, but it would have required fc_event_seq to
- *   be exposed. For now, live with the subroutine call.
+ *   be exposed. For yesw, live with the subroutine call.
  *   Atomic used to avoid lock/unlock...
  */
 u32
@@ -521,7 +521,7 @@ EXPORT_SYMBOL(fc_get_event_number);
  * @vendor_id:          value for Vendor id
  *
  * Notes:
- *	This routine assumes no locks are held on entry.
+ *	This routine assumes yes locks are held on entry.
  */
 void
 fc_host_post_fc_event(struct Scsi_Host *shost, u32 event_number,
@@ -562,7 +562,7 @@ fc_host_post_fc_event(struct Scsi_Host *shost, u32 event_number,
 				FC_NL_ASYNC_EVENT, len);
 	event->seconds = ktime_get_real_seconds();
 	event->vendor_id = vendor_id;
-	event->host_no = shost->host_no;
+	event->host_yes = shost->host_yes;
 	event->event_datalen = data_len;	/* bytes */
 	event->event_num = event_number;
 	event->event_code = event_code;
@@ -579,8 +579,8 @@ send_fail:
 	name = get_fc_host_event_code_name(event_code);
 	printk(KERN_WARNING
 		"%s: Dropped Event : host %d %s data 0x%08x - err %d\n",
-		__func__, shost->host_no,
-		(name) ? name : "<unknown>",
+		__func__, shost->host_yes,
+		(name) ? name : "<unkyeswn>",
 		(data_len) ? *((u32 *)data_buf) : 0xFFFFFFFF, err);
 	return;
 }
@@ -594,7 +594,7 @@ EXPORT_SYMBOL(fc_host_post_fc_event);
  * @event_data:		32bits of data for the event being posted
  *
  * Notes:
- *	This routine assumes no locks are held on entry.
+ *	This routine assumes yes locks are held on entry.
  */
 void
 fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
@@ -616,7 +616,7 @@ EXPORT_SYMBOL(fc_host_post_event);
  * @vendor_id:          Vendor id
  *
  * Notes:
- *	This routine assumes no locks are held on entry.
+ *	This routine assumes yes locks are held on entry.
  */
 void
 fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
@@ -634,7 +634,7 @@ EXPORT_SYMBOL(fc_host_post_vendor_event);
  * @fpin_buf:		pointer to FPIN payload
  *
  * Notes:
- *	This routine assumes no locks are held on entry.
+ *	This routine assumes yes locks are held on entry.
  */
 void
 fc_host_fpin_rcv(struct Scsi_Host *shost, u32 fpin_len, char *fpin_buf)
@@ -902,7 +902,7 @@ static FC_DEVICE_ATTR(rport, dev_loss_tmo, S_IRUGO | S_IWUSR,
 
 /* Private Remote Port Attributes */
 
-fc_private_rport_rd_attr_cast(node_name, "0x%llx\n", 20, unsigned long long);
+fc_private_rport_rd_attr_cast(yesde_name, "0x%llx\n", 20, unsigned long long);
 fc_private_rport_rd_attr_cast(port_name, "0x%llx\n", 20, unsigned long long);
 fc_private_rport_rd_attr(port_id, "0x%06x\n", 20);
 
@@ -928,11 +928,11 @@ show_fc_rport_roles (struct device *dev, struct device_attribute *attr,
 		case FC_MGMTSRVR_PORTID:
 			return snprintf(buf, 30, "Management Server\n");
 		default:
-			return snprintf(buf, 30, "Unknown Fabric Entity\n");
+			return snprintf(buf, 30, "Unkyeswn Fabric Entity\n");
 		}
 	} else {
 		if (rport->roles == FC_PORT_ROLE_UNKNOWN)
-			return snprintf(buf, 20, "unknown\n");
+			return snprintf(buf, 20, "unkyeswn\n");
 		return get_fc_port_roles_names(rport->roles, buf);
 	}
 }
@@ -997,7 +997,7 @@ static FC_DEVICE_ATTR(rport, fast_io_fail_tmo, S_IRUGO | S_IWUSR,
 
 /*
  * Note: in the target show function we recognize when the remote
- *  port is in the hierarchy and do not allow the driver to get
+ *  port is in the hierarchy and do yest allow the driver to get
  *  involved in sysfs functions. The driver only gets involved if
  *  it's the "old" style that doesn't use rports.
  */
@@ -1047,7 +1047,7 @@ static FC_DEVICE_ATTR(starget, field, S_IRUGO,			\
 		count++
 
 /* The FC Transport SCSI Target Attributes: */
-fc_starget_rd_attr_cast(node_name, "0x%llx\n", 20, unsigned long long);
+fc_starget_rd_attr_cast(yesde_name, "0x%llx\n", 20, unsigned long long);
 fc_starget_rd_attr_cast(port_name, "0x%llx\n", 20, unsigned long long);
 fc_starget_rd_attr(port_id, "0x%06x\n", 20);
 
@@ -1198,7 +1198,7 @@ static FC_DEVICE_ATTR(vport, title, S_IRUGO,			\
 	i->vport_attrs[count] = &i->private_vport_attrs[count];		\
 	if (i->f->get_##field)						\
 		count++
-	/* NOTE: Above MACRO differs: checks function not show bit */
+	/* NOTE: Above MACRO differs: checks function yest show bit */
 
 #define SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(field)				\
 	i->private_vport_attrs[count] = device_attr_vport_##field; \
@@ -1222,7 +1222,7 @@ static FC_DEVICE_ATTR(vport, title, S_IRUGO,			\
 	}								\
 	i->vport_attrs[count] = &i->private_vport_attrs[count];		\
 	count++
-	/* NOTE: Above MACRO differs: does not check show bit */
+	/* NOTE: Above MACRO differs: does yest check show bit */
 
 #define SETUP_PRIVATE_VPORT_ATTRIBUTE_RW(field)				\
 {									\
@@ -1242,7 +1242,7 @@ static FC_DEVICE_ATTR(vport, title, S_IRUGO,			\
 
 fc_private_vport_rd_enum_attr(vport_state, FC_VPORTSTATE_MAX_NAMELEN);
 fc_private_vport_rd_enum_attr(vport_last_state, FC_VPORTSTATE_MAX_NAMELEN);
-fc_private_vport_rd_attr_cast(node_name, "0x%llx\n", 20, unsigned long long);
+fc_private_vport_rd_attr_cast(yesde_name, "0x%llx\n", 20, unsigned long long);
 fc_private_vport_rd_attr_cast(port_name, "0x%llx\n", 20, unsigned long long);
 
 static ssize_t
@@ -1252,7 +1252,7 @@ show_fc_vport_roles (struct device *dev, struct device_attribute *attr,
 	struct fc_vport *vport = transport_class_to_vport(dev);
 
 	if (vport->roles == FC_PORT_ROLE_UNKNOWN)
-		return snprintf(buf, 20, "unknown\n");
+		return snprintf(buf, 20, "unkyeswn\n");
 	return get_fc_port_roles_names(vport->roles, buf);
 }
 static FC_DEVICE_ATTR(vport, roles, S_IRUGO, show_fc_vport_roles, NULL);
@@ -1502,7 +1502,7 @@ show_fc_host_supported_speeds (struct device *dev,
 	struct Scsi_Host *shost = transport_class_to_shost(dev);
 
 	if (fc_host_supported_speeds(shost) == FC_PORTSPEED_UNKNOWN)
-		return snprintf(buf, 20, "unknown\n");
+		return snprintf(buf, 20, "unkyeswn\n");
 
 	return get_fc_port_speed_names(fc_host_supported_speeds(shost), buf);
 }
@@ -1510,7 +1510,7 @@ static FC_DEVICE_ATTR(host, supported_speeds, S_IRUGO,
 		show_fc_host_supported_speeds, NULL);
 
 
-fc_private_host_rd_attr_cast(node_name, "0x%llx\n", 20, unsigned long long);
+fc_private_host_rd_attr_cast(yesde_name, "0x%llx\n", 20, unsigned long long);
 fc_private_host_rd_attr_cast(port_name, "0x%llx\n", 20, unsigned long long);
 fc_private_host_rd_attr_cast(permanent_port_name, "0x%llx\n", 20,
 			     unsigned long long);
@@ -1554,7 +1554,7 @@ show_fc_host_speed (struct device *dev,
 		i->f->get_host_speed(shost);
 
 	if (fc_host_speed(shost) == FC_PORTSPEED_UNKNOWN)
-		return snprintf(buf, 20, "unknown\n");
+		return snprintf(buf, 20, "unkyeswn\n");
 
 	return get_fc_port_speed_names(fc_host_speed(shost), buf);
 }
@@ -1634,7 +1634,7 @@ store_fc_private_host_issue_lip(struct device *dev,
 	struct fc_internal *i = to_fc_internal(shost->transportt);
 	int ret;
 
-	/* ignore any data value written to the attribute */
+	/* igyesre any data value written to the attribute */
 	if (i->f->issue_fc_host_lip) {
 		ret = i->f->issue_fc_host_lip(shost);
 		return ret ? ret: count;
@@ -1720,7 +1720,7 @@ fc_host_statistic(tx_words);
 fc_host_statistic(rx_frames);
 fc_host_statistic(rx_words);
 fc_host_statistic(lip_count);
-fc_host_statistic(nos_count);
+fc_host_statistic(yess_count);
 fc_host_statistic(error_frames);
 fc_host_statistic(dumped_frames);
 fc_host_statistic(link_failure_count);
@@ -1737,12 +1737,12 @@ fc_host_statistic(fcp_output_megabytes);
 fc_host_statistic(fcp_packet_alloc_failures);
 fc_host_statistic(fcp_packet_aborts);
 fc_host_statistic(fcp_frame_alloc_failures);
-fc_host_statistic(fc_no_free_exch);
-fc_host_statistic(fc_no_free_exch_xid);
-fc_host_statistic(fc_xid_not_found);
+fc_host_statistic(fc_yes_free_exch);
+fc_host_statistic(fc_yes_free_exch_xid);
+fc_host_statistic(fc_xid_yest_found);
 fc_host_statistic(fc_xid_busy);
-fc_host_statistic(fc_seq_not_found);
-fc_host_statistic(fc_non_bls_resp);
+fc_host_statistic(fc_seq_yest_found);
+fc_host_statistic(fc_yesn_bls_resp);
 
 static ssize_t
 fc_reset_statistics(struct device *dev, struct device_attribute *attr,
@@ -1751,7 +1751,7 @@ fc_reset_statistics(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host *shost = transport_class_to_shost(dev);
 	struct fc_internal *i = to_fc_internal(shost->transportt);
 
-	/* ignore any data value written to the attribute */
+	/* igyesre any data value written to the attribute */
 	if (i->f->reset_fc_host_stats) {
 		i->f->reset_fc_host_stats(shost);
 		return count;
@@ -1769,7 +1769,7 @@ static struct attribute *fc_statistics_attrs[] = {
 	&device_attr_host_rx_frames.attr,
 	&device_attr_host_rx_words.attr,
 	&device_attr_host_lip_count.attr,
-	&device_attr_host_nos_count.attr,
+	&device_attr_host_yess_count.attr,
 	&device_attr_host_error_frames.attr,
 	&device_attr_host_dumped_frames.attr,
 	&device_attr_host_link_failure_count.attr,
@@ -1786,12 +1786,12 @@ static struct attribute *fc_statistics_attrs[] = {
 	&device_attr_host_fcp_packet_alloc_failures.attr,
 	&device_attr_host_fcp_packet_aborts.attr,
 	&device_attr_host_fcp_frame_alloc_failures.attr,
-	&device_attr_host_fc_no_free_exch.attr,
-	&device_attr_host_fc_no_free_exch_xid.attr,
-	&device_attr_host_fc_xid_not_found.attr,
+	&device_attr_host_fc_yes_free_exch.attr,
+	&device_attr_host_fc_yes_free_exch_xid.attr,
+	&device_attr_host_fc_xid_yest_found.attr,
 	&device_attr_host_fc_xid_busy.attr,
-	&device_attr_host_fc_seq_not_found.attr,
-	&device_attr_host_fc_non_bls_resp.attr,
+	&device_attr_host_fc_seq_yest_found.attr,
+	&device_attr_host_fc_yesn_bls_resp.attr,
 	&device_attr_host_reset_statistics.attr,
 	NULL
 };
@@ -1837,7 +1837,7 @@ fc_parse_wwn(const char *ns, u64 *nm)
  * "Short-cut" sysfs variable to create a new vport on a FC Host.
  * Input is a string of the form "<WWPN>:<WWNN>". Other attributes
  * will default to a NPIV-based FCP_Initiator; The WWNs are specified
- * as hex characters, and may *not* contain any prefixes (e.g. 0x, x, etc)
+ * as hex characters, and may *yest* contain any prefixes (e.g. 0x, x, etc)
  */
 static ssize_t
 store_fc_host_vport_create(struct device *dev, struct device_attribute *attr,
@@ -1855,7 +1855,7 @@ store_fc_host_vport_create(struct device *dev, struct device_attribute *attr,
 	if (buf[cnt-1] == '\n')
 		cnt--;
 
-	/* validate we have enough characters for WWPN */
+	/* validate we have eyesugh characters for WWPN */
 	if ((cnt != (16+1+16)) || (buf[16] != ':'))
 		return -EINVAL;
 
@@ -1863,7 +1863,7 @@ store_fc_host_vport_create(struct device *dev, struct device_attribute *attr,
 	if (stat)
 		return stat;
 
-	stat = fc_parse_wwn(&buf[17], &vid.node_name);
+	stat = fc_parse_wwn(&buf[17], &vid.yesde_name);
 	if (stat)
 		return stat;
 
@@ -1883,7 +1883,7 @@ static FC_DEVICE_ATTR(host, vport_create, S_IWUSR, NULL,
 /*
  * "Short-cut" sysfs variable to delete a vport on a FC Host.
  * Vport is identified by a string containing "<WWPN>:<WWNN>".
- * The WWNs are specified as hex characters, and may *not* contain
+ * The WWNs are specified as hex characters, and may *yest* contain
  * any prefixes (e.g. 0x, x, etc)
  */
 static ssize_t
@@ -1902,7 +1902,7 @@ store_fc_host_vport_delete(struct device *dev, struct device_attribute *attr,
 	if (buf[cnt-1] == '\n')
 		cnt--;
 
-	/* validate we have enough characters for WWPN */
+	/* validate we have eyesugh characters for WWPN */
 	if ((cnt != (16+1+16)) || (buf[16] != ':'))
 		return -EINVAL;
 
@@ -1919,7 +1919,7 @@ store_fc_host_vport_delete(struct device *dev, struct device_attribute *attr,
 	/* we only allow support on Channel 0 !!! */
 	list_for_each_entry(vport, &fc_host->vports, peers) {
 		if ((vport->channel == 0) &&
-		    (vport->port_name == wwpn) && (vport->node_name == wwnn)) {
+		    (vport->port_name == wwpn) && (vport->yesde_name == wwnn)) {
 			if (vport->flags & (FC_VPORT_DEL | FC_VPORT_CREATING))
 				break;
 			vport->flags |= FC_VPORT_DELETING;
@@ -2050,7 +2050,7 @@ static int fc_vport_match(struct attribute_container *cont,
  * This routine protects against error handlers getting invoked while a
  * rport is in a blocked state, typically due to a temporarily loss of
  * connectivity. If the error handlers are allowed to proceed, requests
- * to abort i/o, reset the target, etc will likely fail as there is no way
+ * to abort i/o, reset the target, etc will likely fail as there is yes way
  * to communicate with the device to perform the requested function. These
  * failures may result in the midlayer taking the device offline, requiring
  * manual intervention to restore operation.
@@ -2059,11 +2059,11 @@ static int fc_vport_match(struct attribute_container *cont,
  * the underlying rport. If the rport is blocked, it returns
  * EH_RESET_TIMER, which will continue to reschedule the timeout.
  * Eventually, either the device will return, or devloss_tmo will fire,
- * and when the timeout then fires, it will be handled normally.
- * If the rport is not blocked, normal error handling continues.
+ * and when the timeout then fires, it will be handled yesrmally.
+ * If the rport is yest blocked, yesrmal error handling continues.
  *
  * Notes:
- *	This routine assumes no locks are held on entry.
+ *	This routine assumes yes locks are held on entry.
  */
 enum blk_eh_timer_return
 fc_eh_timed_out(struct scsi_cmnd *scmd)
@@ -2194,7 +2194,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	 * Setup SCSI Target Attributes.
 	 */
 	count = 0;
-	SETUP_STARGET_ATTRIBUTE_RD(node_name);
+	SETUP_STARGET_ATTRIBUTE_RD(yesde_name);
 	SETUP_STARGET_ATTRIBUTE_RD(port_name);
 	SETUP_STARGET_ATTRIBUTE_RD(port_id);
 
@@ -2207,7 +2207,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	 * Setup SCSI Host Attributes.
 	 */
 	count=0;
-	SETUP_HOST_ATTRIBUTE_RD(node_name);
+	SETUP_HOST_ATTRIBUTE_RD(yesde_name);
 	SETUP_HOST_ATTRIBUTE_RD(port_name);
 	SETUP_HOST_ATTRIBUTE_RD(permanent_port_name);
 	SETUP_HOST_ATTRIBUTE_RD(supported_classes);
@@ -2257,7 +2257,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	SETUP_RPORT_ATTRIBUTE_RD(maxframe_size);
 	SETUP_RPORT_ATTRIBUTE_RD(supported_classes);
 	SETUP_RPORT_ATTRIBUTE_RW(dev_loss_tmo);
-	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(node_name);
+	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(yesde_name);
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(port_name);
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(port_id);
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(roles);
@@ -2275,7 +2275,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	count=0;
 	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(vport_state);
 	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(vport_last_state);
-	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(node_name);
+	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(yesde_name);
 	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(port_name);
 	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(roles);
 	SETUP_PRIVATE_VPORT_ATTRIBUTE_RD(vport_type);
@@ -2320,7 +2320,7 @@ fc_queue_work(struct Scsi_Host *shost, struct work_struct *work)
 	if (unlikely(!fc_host_work_q(shost))) {
 		printk(KERN_ERR
 			"ERROR: FC host '%s' attempted to queue work, "
-			"when no workqueue created.\n", shost->hostt->name);
+			"when yes workqueue created.\n", shost->hostt->name);
 		dump_stack();
 
 		return -EINVAL;
@@ -2339,7 +2339,7 @@ fc_flush_work(struct Scsi_Host *shost)
 	if (!fc_host_work_q(shost)) {
 		printk(KERN_ERR
 			"ERROR: FC host '%s' attempted to flush work, "
-			"when no workqueue created.\n", shost->hostt->name);
+			"when yes workqueue created.\n", shost->hostt->name);
 		dump_stack();
 		return;
 	}
@@ -2363,7 +2363,7 @@ fc_queue_devloss_work(struct Scsi_Host *shost, struct delayed_work *work,
 	if (unlikely(!fc_host_devloss_work_q(shost))) {
 		printk(KERN_ERR
 			"ERROR: FC host '%s' attempted to queue work, "
-			"when no workqueue created.\n", shost->hostt->name);
+			"when yes workqueue created.\n", shost->hostt->name);
 		dump_stack();
 
 		return -EINVAL;
@@ -2382,7 +2382,7 @@ fc_flush_devloss(struct Scsi_Host *shost)
 	if (!fc_host_devloss_work_q(shost)) {
 		printk(KERN_ERR
 			"ERROR: FC host '%s' attempted to flush work, "
-			"when no workqueue created.\n", shost->hostt->name);
+			"when yes workqueue created.\n", shost->hostt->name);
 		dump_stack();
 		return;
 	}
@@ -2404,7 +2404,7 @@ fc_flush_devloss(struct Scsi_Host *shost)
  *   objects can result in a system crash !!!
  *
  * Notes:
- *	This routine assumes no locks are held on entry.
+ *	This routine assumes yes locks are held on entry.
  */
 void
 fc_remove_host(struct Scsi_Host *shost)
@@ -2538,7 +2538,7 @@ fc_rport_final_delete(struct work_struct *work)
 		fc_starget_delete(&rport->stgt_delete_work);
 
 	/*
-	 * Notify the driver that the rport is now dead. The LLDD will
+	 * Notify the driver that the rport is yesw dead. The LLDD will
 	 * also guarantee that any communication to the rport is terminated
 	 *
 	 * Avoid this call if we already called it when we preserved the
@@ -2576,7 +2576,7 @@ fc_rport_final_delete(struct work_struct *work)
  * class and sysfs creation.
  *
  * Notes:
- *	This routine assumes no locks are held on entry.
+ *	This routine assumes yes locks are held on entry.
  */
 static struct fc_rport *
 fc_remote_port_create(struct Scsi_Host *shost, int channel,
@@ -2600,7 +2600,7 @@ fc_remote_port_create(struct Scsi_Host *shost, int channel,
 	rport->maxframe_size = -1;
 	rport->supported_classes = FC_COS_UNSPECIFIED;
 	rport->dev_loss_tmo = fc_host->dev_loss_tmo;
-	memcpy(&rport->node_name, &ids->node_name, sizeof(rport->node_name));
+	memcpy(&rport->yesde_name, &ids->yesde_name, sizeof(rport->yesde_name));
 	memcpy(&rport->port_name, &ids->port_name, sizeof(rport->port_name));
 	rport->port_id = ids->port_id;
 	rport->roles = ids->roles;
@@ -2634,7 +2634,7 @@ fc_remote_port_create(struct Scsi_Host *shost, int channel,
 	dev->parent = get_device(&shost->shost_gendev); /* parent reference */
 	dev->release = fc_rport_dev_release;
 	dev_set_name(dev, "rport-%d:%d-%d",
-		     shost->host_no, channel, rport->number);
+		     shost->host_yes, channel, rport->number);
 	transport_setup_device(dev);
 
 	error = device_add(dev);
@@ -2646,7 +2646,7 @@ fc_remote_port_create(struct Scsi_Host *shost, int channel,
 	transport_configure_device(dev);
 
 	fc_bsg_rportadd(shost, rport);
-	/* ignore any bsg add error - we just can't do sgio */
+	/* igyesre any bsg add error - we just can't do sgio */
 
 	if (rport->roles & FC_PORT_ROLE_FCP_TARGET) {
 		/* initiate a scan of the target */
@@ -2668,13 +2668,13 @@ delete_rport:
 }
 
 /**
- * fc_remote_port_add - notify fc transport of the existence of a remote FC port.
+ * fc_remote_port_add - yestify fc transport of the existence of a remote FC port.
  * @shost:	scsi host the remote port is connected to.
  * @channel:	Channel on shost port connected to.
  * @ids:	The world wide names, fc address, and FC4 port
  *		roles for the remote port.
  *
- * The LLDD calls this routine to notify the transport of the existence
+ * The LLDD calls this routine to yestify the transport of the existence
  * of a remote port. The LLDD provides the unique identifiers (wwpn,wwn)
  * of the port, it's FC address (port_id), and the FC4 roles that are
  * active for the port.
@@ -2685,7 +2685,7 @@ delete_rport:
  * a remote port identifier, which persists while the scsi host is
  * attached. The remote port can disappear, then later reappear, and
  * it's target id assignment remains the same. This allows for shifts
- * in FC addressing (if binding by wwpn or wwnn) with no apparent
+ * in FC addressing (if binding by wwpn or wwnn) with yes apparent
  * changes to the scsi subsystem which is based on scsi host number and
  * target id values.  Bindings are only valid during the attachment of
  * the scsi host. If the host detaches, then later re-attaches, target
@@ -2700,10 +2700,10 @@ delete_rport:
  * Whenever a remote port is allocated, a new fc_remote_port class
  * device is created.
  *
- * Should not be called from interrupt context.
+ * Should yest be called from interrupt context.
  *
  * Notes:
- *	This routine assumes no locks are held on entry.
+ *	This routine assumes yes locks are held on entry.
  */
 struct fc_rport *
 fc_remote_port_add(struct Scsi_Host *shost, int channel,
@@ -2738,7 +2738,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 					match = 1;
 				break;
 			case FC_TGTID_BIND_BY_WWNN:
-				if (rport->node_name == ids->node_name)
+				if (rport->yesde_name == ids->yesde_name)
 					match = 1;
 				break;
 			case FC_TGTID_BIND_BY_ID:
@@ -2749,8 +2749,8 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 
 			if (match) {
 
-				memcpy(&rport->node_name, &ids->node_name,
-					sizeof(rport->node_name));
+				memcpy(&rport->yesde_name, &ids->yesde_name,
+					sizeof(rport->yesde_name));
 				memcpy(&rport->port_name, &ids->port_name,
 					sizeof(rport->port_name));
 				rport->port_id = ids->port_id;
@@ -2765,7 +2765,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 						fci->f->dd_fcrport_size);
 
 				/*
-				 * If we were not a target, cancel the
+				 * If we were yest a target, cancel the
 				 * io terminate and rport timers, and
 				 * we're done.
 				 *
@@ -2780,7 +2780,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 				 * and kick off a scan.
 				 */
 
-				/* was a target, not in roles */
+				/* was a target, yest in roles */
 				if ((rport->scsi_target_id != -1) &&
 				    (!(ids->roles & FC_PORT_ROLE_FCP_TARGET)))
 					return rport;
@@ -2842,7 +2842,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 					match = 1;
 				break;
 			case FC_TGTID_BIND_BY_WWNN:
-				if (rport->node_name == ids->node_name)
+				if (rport->yesde_name == ids->yesde_name)
 					match = 1;
 				break;
 			case FC_TGTID_BIND_BY_ID:
@@ -2860,8 +2860,8 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 		}
 
 		if (match) {
-			memcpy(&rport->node_name, &ids->node_name,
-				sizeof(rport->node_name));
+			memcpy(&rport->yesde_name, &ids->yesde_name,
+				sizeof(rport->yesde_name));
 			memcpy(&rport->port_name, &ids->port_name,
 				sizeof(rport->port_name));
 			rport->port_id = ids->port_id;
@@ -2889,12 +2889,12 @@ EXPORT_SYMBOL(fc_remote_port_add);
 
 
 /**
- * fc_remote_port_delete - notifies the fc transport that a remote port is no longer in existence.
- * @rport:	The remote port that no longer exists
+ * fc_remote_port_delete - yestifies the fc transport that a remote port is yes longer in existence.
+ * @rport:	The remote port that yes longer exists
  *
- * The LLDD calls this routine to notify the transport that a remote
- * port is no longer part of the topology. Note: Although a port
- * may no longer be part of the topology, it may persist in the remote
+ * The LLDD calls this routine to yestify the transport that a remote
+ * port is yes longer part of the topology. Note: Although a port
+ * may yes longer be part of the topology, it may persist in the remote
  * ports displayed by the fc_host. We do this under 2 conditions:
  *
  * 1) If the port was a scsi target, we delay its deletion by "blocking" it.
@@ -2909,20 +2909,20 @@ EXPORT_SYMBOL(fc_remote_port_add);
  *    remain (although with minimal information) so that the target id
  *    bindings also remain.
  *
- * If the remote port is not an FCP Target, it will be fully torn down
+ * If the remote port is yest an FCP Target, it will be fully torn down
  * and deallocated, including the fc_remote_port class device.
  *
  * If the remote port is an FCP Target, the port will be placed in a
- * temporary blocked state. From the LLDD's perspective, the rport no
+ * temporary blocked state. From the LLDD's perspective, the rport yes
  * longer exists. From the SCSI midlayer's perspective, the SCSI target
  * exists, but all sdevs on it are blocked from further I/O. The following
  * is then expected.
  *
- *   If the remote port does not return (signaled by a LLDD call to
+ *   If the remote port does yest return (signaled by a LLDD call to
  *   fc_remote_port_add()) within the dev_loss_tmo timeout, then the
  *   scsi target is removed - killing all outstanding i/o and removing the
  *   scsi devices attached to it. The port structure will be marked Not
- *   Present and be partially cleared, leaving only enough information to
+ *   Present and be partially cleared, leaving only eyesugh information to
  *   recognize the remote port relative to the scsi target id binding if
  *   it later appears.  The port will remain as long as there is a valid
  *   binding (e.g. until the user changes the binding type or unloads the
@@ -2930,15 +2930,15 @@ EXPORT_SYMBOL(fc_remote_port_add);
  *
  *   If the remote port returns within the dev_loss_tmo value (and matches
  *   according to the target id binding type), the port structure will be
- *   reused. If it is no longer a SCSI target, the target will be torn
+ *   reused. If it is yes longer a SCSI target, the target will be torn
  *   down. If it continues to be a SCSI target, then the target will be
  *   unblocked (allowing i/o to be resumed), and a scan will be activated
  *   to ensure that all luns are detected.
  *
- * Called from normal process context only - cannot be called from interrupt.
+ * Called from yesrmal process context only - canyest be called from interrupt.
  *
  * Notes:
- *	This routine assumes no locks are held on entry.
+ *	This routine assumes yes locks are held on entry.
  */
 void
 fc_remote_port_delete(struct fc_rport  *rport)
@@ -2948,7 +2948,7 @@ fc_remote_port_delete(struct fc_rport  *rport)
 	unsigned long flags;
 
 	/*
-	 * No need to flush the fc_host work_q's, as all adds are synchronous.
+	 * No need to flush the fc_host work_q's, as all adds are synchroyesus.
 	 *
 	 * We do need to reclaim the rport scan work element, so eventually
 	 * (in fc_rport_final_delete()) we'll flush the scsi host work_q if
@@ -2963,15 +2963,15 @@ fc_remote_port_delete(struct fc_rport  *rport)
 	}
 
 	/*
-	 * In the past, we if this was not an FCP-Target, we would
+	 * In the past, we if this was yest an FCP-Target, we would
 	 * unconditionally just jump to deleting the rport.
-	 * However, rports can be used as node containers by the LLDD,
-	 * and its not appropriate to just terminate the rport at the
+	 * However, rports can be used as yesde containers by the LLDD,
+	 * and its yest appropriate to just terminate the rport at the
 	 * first sign of a loss in connectivity. The LLDD may want to
 	 * send ELS traffic to re-validate the login. If the rport is
-	 * immediately deleted, it makes it inappropriate for a node
+	 * immediately deleted, it makes it inappropriate for a yesde
 	 * container.
-	 * So... we now unconditionally wait dev_loss_tmo before
+	 * So... we yesw unconditionally wait dev_loss_tmo before
 	 * destroying an rport.
 	 */
 
@@ -2995,24 +2995,24 @@ fc_remote_port_delete(struct fc_rport  *rport)
 EXPORT_SYMBOL(fc_remote_port_delete);
 
 /**
- * fc_remote_port_rolechg - notifies the fc transport that the roles on a remote may have changed.
+ * fc_remote_port_rolechg - yestifies the fc transport that the roles on a remote may have changed.
  * @rport:	The remote port that changed.
  * @roles:      New roles for this port.
  *
- * Description: The LLDD calls this routine to notify the transport that the
+ * Description: The LLDD calls this routine to yestify the transport that the
  * roles on a remote port may have changed. The largest effect of this is
- * if a port now becomes a FCP Target, it must be allocated a
- * scsi target id.  If the port is no longer a FCP target, any
+ * if a port yesw becomes a FCP Target, it must be allocated a
+ * scsi target id.  If the port is yes longer a FCP target, any
  * scsi target id value assigned to it will persist in case the
  * role changes back to include FCP Target. No changes in the scsi
  * midlayer will be invoked if the role changes (in the expectation
- * that the role will be resumed. If it doesn't normal error processing
+ * that the role will be resumed. If it doesn't yesrmal error processing
  * will take place).
  *
- * Should not be called from interrupt context.
+ * Should yest be called from interrupt context.
  *
  * Notes:
- *	This routine assumes no locks are held on entry.
+ *	This routine assumes yes locks are held on entry.
  */
 void
 fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles)
@@ -3038,13 +3038,13 @@ fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles)
 	if (create) {
 		/*
 		 * There may have been a delete timer running on the
-		 * port. Ensure that it is cancelled as we now know
+		 * port. Ensure that it is cancelled as we yesw kyesw
 		 * the port is an FCP Target.
-		 * Note: we know the rport exists and is in an online
-		 *  state as the LLDD would not have had an rport
+		 * Note: we kyesw the rport exists and is in an online
+		 *  state as the LLDD would yest have had an rport
 		 *  reference to pass us.
 		 *
-		 * Take no action on the del_timer failure as the state
+		 * Take yes action on the del_timer failure as the state
 		 * machine state change will validate the
 		 * transaction.
 		 */
@@ -3096,14 +3096,14 @@ fc_timeout_deleted_rport(struct work_struct *work)
 
 	/*
 	 * If the port is ONLINE, then it came back. If it was a SCSI
-	 * target, validate it still is. If not, tear down the
+	 * target, validate it still is. If yest, tear down the
 	 * scsi_target on it.
 	 */
 	if ((rport->port_state == FC_PORTSTATE_ONLINE) &&
 	    (rport->scsi_target_id != -1) &&
 	    !(rport->roles & FC_PORT_ROLE_FCP_TARGET)) {
 		dev_printk(KERN_ERR, &rport->dev,
-			"blocked FC remote port time out: no longer"
+			"blocked FC remote port time out: yes longer"
 			" a FCP target, removing starget\n");
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		scsi_target_unblock(&rport->dev, SDEV_TRANSPORT_OFFLINE);
@@ -3141,7 +3141,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
 	list_move_tail(&rport->peers, &fc_host->rport_bindings);
 
 	/*
-	 * Note: We do not remove or clear the hostdata area. This allows
+	 * Note: We do yest remove or clear the hostdata area. This allows
 	 *   host-specific target data to persist along with the
 	 *   scsi_target_id. It's up to the host to manage it's hostdata area.
 	 */
@@ -3170,7 +3170,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
 		/* remove the identifiers that aren't used in the consisting binding */
 		switch (fc_host->tgtid_bind_type) {
 		case FC_TGTID_BIND_BY_WWPN:
-			rport->node_name = -1;
+			rport->yesde_name = -1;
 			rport->port_id = -1;
 			break;
 		case FC_TGTID_BIND_BY_WWNN:
@@ -3178,7 +3178,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
 			rport->port_id = -1;
 			break;
 		case FC_TGTID_BIND_BY_ID:
-			rport->node_name = -1;
+			rport->yesde_name = -1;
 			rport->port_name = -1;
 			break;
 		case FC_TGTID_BIND_NONE:	/* to keep compiler happy */
@@ -3199,7 +3199,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	/*
-	 * Notify the driver that the rport is now dead. The LLDD will
+	 * Notify the driver that the rport is yesw dead. The LLDD will
 	 * also guarantee that any communication to the rport is terminated
 	 *
 	 * Note: we set the CALLBK_DONE flag above to correspond
@@ -3213,7 +3213,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
  * fc_timeout_fail_rport_io - Timeout handler for a fast io failing on a disconnected SCSI target.
  * @work:	rport to terminate io on.
  *
- * Notes: Only requests the failure of the io, not that all are flushed
+ * Notes: Only requests the failure of the io, yest that all are flushed
  *    prior to returning.
  */
 static void
@@ -3328,7 +3328,7 @@ EXPORT_SYMBOL(fc_block_scsi_eh);
  * to instantiate the vport, this completes w/ class and sysfs creation.
  *
  * Notes:
- *	This routine assumes no locks are held on entry.
+ *	This routine assumes yes locks are held on entry.
  */
 static int
 fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
@@ -3356,7 +3356,7 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 
 	vport->vport_state = FC_VPORT_UNKNOWN;
 	vport->vport_last_state = FC_VPORT_UNKNOWN;
-	vport->node_name = ids->node_name;
+	vport->yesde_name = ids->yesde_name;
 	vport->port_name = ids->port_name;
 	vport->roles = ids->roles;
 	vport->vport_type = ids->vport_type;
@@ -3386,7 +3386,7 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 	dev->parent = get_device(pdev);		/* takes parent reference */
 	dev->release = fc_vport_dev_release;
 	dev_set_name(dev, "vport-%d:%d-%d",
-		     shost->host_no, channel, vport->number);
+		     shost->host_yes, channel, vport->number);
 	transport_setup_device(dev);
 
 	error = device_add(dev);
@@ -3412,7 +3412,7 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 				 &dev->kobj, dev_name(dev));
 		if (error)
 			printk(KERN_ERR
-				"%s: Cannot create vport symlinks for "
+				"%s: Canyest create vport symlinks for "
 				"%s, err=%d\n",
 				__func__, dev_name(dev), error);
 	}
@@ -3422,7 +3422,7 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 
 	dev_printk(KERN_NOTICE, pdev,
 			"%s created via shost%d channel %d\n", dev_name(dev),
-			shost->host_no, channel);
+			shost->host_yes, channel);
 
 	*ret_vport = vport;
 
@@ -3452,7 +3452,7 @@ delete_vport:
  *              the virtual port.
  *
  * Notes:
- *	This routine assumes no locks are held on entry.
+ *	This routine assumes yes locks are held on entry.
  */
 struct fc_vport *
 fc_vport_create(struct Scsi_Host *shost, int channel,
@@ -3475,7 +3475,7 @@ EXPORT_SYMBOL(fc_vport_create);
  * the vport from the shost and object tree.
  *
  * Notes:
- *	This routine assumes no locks are held on entry.
+ *	This routine assumes yes locks are held on entry.
  */
 int
 fc_vport_terminate(struct fc_vport *vport)
@@ -3536,9 +3536,9 @@ fc_vport_sched_delete(struct work_struct *work)
 	stat = fc_vport_terminate(vport);
 	if (stat)
 		dev_printk(KERN_ERR, vport->dev.parent,
-			"%s: %s could not be deleted created via "
+			"%s: %s could yest be deleted created via "
 			"shost%d channel %d - error %d\n", __func__,
-			dev_name(&vport->dev), vport->shost->host_no,
+			dev_name(&vport->dev), vport->shost->host_yes,
 			vport->channel, stat);
 }
 
@@ -3651,7 +3651,7 @@ static int fc_bsg_host_dispatch(struct Scsi_Host *shost, struct bsg_job *job)
 		return 0;
 
 fail_host_msg:
-	/* return the errno failure code as the only status */
+	/* return the erryes failure code as the only status */
 	BUG_ON(job->reply_len < sizeof(uint32_t));
 	bsg_reply->reply_payload_rcv_len = 0;
 	bsg_reply->result = ret;
@@ -3720,7 +3720,7 @@ check_bidi:
 		return 0;
 
 fail_rport_msg:
-	/* return the errno failure code as the only status */
+	/* return the erryes failure code as the only status */
 	BUG_ON(job->reply_len < sizeof(uint32_t));
 	bsg_reply->reply_payload_rcv_len = 0;
 	bsg_reply->result = ret;
@@ -3790,14 +3790,14 @@ fc_bsg_hostadd(struct Scsi_Host *shost, struct fc_host_attrs *fc_host)
 		return -ENOTSUPP;
 
 	snprintf(bsg_name, sizeof(bsg_name),
-		 "fc_host%d", shost->host_no);
+		 "fc_host%d", shost->host_yes);
 
 	q = bsg_setup_queue(dev, bsg_name, fc_bsg_dispatch, fc_bsg_job_timeout,
 				i->f->dd_bsg_size);
 	if (IS_ERR(q)) {
 		dev_err(dev,
 			"fc_host%d: bsg interface failed to initialize - setup queue\n",
-			shost->host_no);
+			shost->host_yes);
 		return PTR_ERR(q);
 	}
 	__scsi_init_queue(shost, q);

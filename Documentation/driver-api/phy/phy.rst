@@ -23,7 +23,7 @@ all over the Linux kernel to drivers/phy to increase code re-use and for
 better code maintainability.
 
 This framework will be of use only to devices that use external PHY (PHY
-functionality is not embedded within the controller).
+functionality is yest embedded within the controller).
 
 Registering/Unregistering the PHY provider
 ==========================================
@@ -49,11 +49,11 @@ register the phy_provider and it takes device and of_xlate as
 arguments. For the dt boot case, all PHY providers should use one of the above
 2 macros to register the PHY provider.
 
-Often the device tree nodes associated with a PHY provider will contain a set
+Often the device tree yesdes associated with a PHY provider will contain a set
 of children that each represent a single PHY. Some bindings may nest the child
-nodes within extra levels for context and extensibility, in which case the low
+yesdes within extra levels for context and extensibility, in which case the low
 level of_phy_provider_register_full() and devm_of_phy_provider_register_full()
-macros can be used to override the node containing the children.
+macros can be used to override the yesde containing the children.
 
 ::
 
@@ -79,10 +79,10 @@ to make use of it. The PHY framework provides 2 APIs to create the PHY.
 
 ::
 
-	struct phy *phy_create(struct device *dev, struct device_node *node,
+	struct phy *phy_create(struct device *dev, struct device_yesde *yesde,
 			       const struct phy_ops *ops);
 	struct phy *devm_phy_create(struct device *dev,
-				    struct device_node *node,
+				    struct device_yesde *yesde,
 				    const struct phy_ops *ops);
 
 The PHY drivers can use one of the above 2 APIs to create the PHY by passing
@@ -90,7 +90,7 @@ the device pointer and phy ops.
 phy_ops is a set of function pointers for performing PHY operations such as
 init, exit, power_on and power_off.
 
-Inorder to dereference the private data (in phy_ops), the phy provider driver
+Iyesrder to dereference the private data (in phy_ops), the phy provider driver
 can use phy_set_drvdata() after creating the PHY and use phy_get_drvdata() in
 phy_ops to get back the private data.
 
@@ -107,24 +107,24 @@ it. This framework provides the following APIs to get a reference to the PHY.
 	struct phy *devm_phy_optional_get(struct device *dev,
 					  const char *string);
 	struct phy *devm_of_phy_get_by_index(struct device *dev,
-					     struct device_node *np,
+					     struct device_yesde *np,
 					     int index);
 
 phy_get, phy_optional_get, devm_phy_get and devm_phy_optional_get can
 be used to get the PHY. In the case of dt boot, the string arguments
 should contain the phy name as given in the dt data and in the case of
-non-dt boot, it should contain the label of the PHY.  The two
+yesn-dt boot, it should contain the label of the PHY.  The two
 devm_phy_get associates the device with the PHY using devres on
 successful PHY get. On driver detach, release function is invoked on
 the devres data and devres data is freed. phy_optional_get and
 devm_phy_optional_get should be used when the phy is optional. These
 two functions will never return -ENODEV, but instead returns NULL when
-the phy cannot be found.Some generic drivers, such as ehci, may use multiple
-phys and for such drivers referencing phy(s) by name(s) does not make sense. In
+the phy canyest be found.Some generic drivers, such as ehci, may use multiple
+phys and for such drivers referencing phy(s) by name(s) does yest make sense. In
 this case, devm_of_phy_get_by_index can be used to get a phy reference based on
 the index.
 
-It should be noted that NULL is a valid phy reference. All phy
+It should be yested that NULL is a valid phy reference. All phy
 consumer calls on the NULL phy become NOPs. That is the release calls,
 the phy_init() and phy_exit() calls, and phy_power_on() and
 phy_power_off() calls are all NOP when applied to a NULL phy. The NULL
@@ -133,7 +133,7 @@ phy is useful in devices for handling optional phy devices.
 Releasing a reference to the PHY
 ================================
 
-When the controller no longer needs the PHY, it has to release the reference
+When the controller yes longer needs the PHY, it has to release the reference
 to the PHY it has obtained using the APIs mentioned in the above section. The
 PHY framework provides 2 APIs to release a reference to the PHY.
 
@@ -168,7 +168,7 @@ phy_create (PHY provider device).
 
 So pm_runtime_get_sync of the phy_device created by this subsystem will invoke
 pm_runtime_get_sync of PHY provider device because of parent-child relationship.
-It should also be noted that phy_power_on and phy_power_off performs
+It should also be yested that phy_power_on and phy_power_off performs
 phy_pm_runtime_get_sync and phy_pm_runtime_put respectively.
 There are exported APIs like phy_pm_runtime_get, phy_pm_runtime_get_sync,
 phy_pm_runtime_put, phy_pm_runtime_put_sync, phy_pm_runtime_allow and

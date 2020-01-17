@@ -148,7 +148,7 @@ enum aarch64_insn_condition {
 	AARCH64_INSN_COND_MI = 0x4, /* < 0 */
 	AARCH64_INSN_COND_PL = 0x5, /* >= 0 */
 	AARCH64_INSN_COND_VS = 0x6, /* overflow */
-	AARCH64_INSN_COND_VC = 0x7, /* no overflow */
+	AARCH64_INSN_COND_VC = 0x7, /* yes overflow */
 	AARCH64_INSN_COND_HI = 0x8, /* unsigned > */
 	AARCH64_INSN_COND_LS = 0x9, /* unsigned <= */
 	AARCH64_INSN_COND_GE = 0xa, /* signed >= */
@@ -344,7 +344,7 @@ __AARCH64_INSN_FUNCS(msr_reg,	0xFFF00000, 0xD5100000)
 
 #undef	__AARCH64_INSN_FUNCS
 
-bool aarch64_insn_is_nop(u32 insn);
+bool aarch64_insn_is_yesp(u32 insn);
 bool aarch64_insn_is_branch_imm(u32 insn);
 
 static inline bool aarch64_insn_is_adr_adrp(u32 insn)
@@ -371,7 +371,7 @@ u32 aarch64_insn_gen_comp_branch_imm(unsigned long pc, unsigned long addr,
 u32 aarch64_insn_gen_cond_branch_imm(unsigned long pc, unsigned long addr,
 				     enum aarch64_insn_condition cond);
 u32 aarch64_insn_gen_hint(enum aarch64_insn_hint_op op);
-u32 aarch64_insn_gen_nop(void);
+u32 aarch64_insn_gen_yesp(void);
 u32 aarch64_insn_gen_branch_reg(enum aarch64_insn_register reg,
 				enum aarch64_insn_branch_type type);
 u32 aarch64_insn_gen_load_store_reg(enum aarch64_insn_register reg,
@@ -460,7 +460,7 @@ u32 aarch64_insn_gen_prefetch(enum aarch64_insn_register base,
 s32 aarch64_get_branch_offset(u32 insn);
 u32 aarch64_set_branch_offset(u32 insn, s32 offset);
 
-int aarch64_insn_patch_text_nosync(void *addr, u32 insn);
+int aarch64_insn_patch_text_yessync(void *addr, u32 insn);
 int aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt);
 
 s32 aarch64_insn_adrp_get_offset(u32 insn);

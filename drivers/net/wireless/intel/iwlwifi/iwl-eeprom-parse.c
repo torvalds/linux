@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -555,7 +555,7 @@ static void iwl_mod_ht40_chan_info(struct device *dev,
 			 eeprom_ch->max_power_avg,
 			 ((eeprom_ch->flags & EEPROM_CHANNEL_IBSS) &&
 			  !(eeprom_ch->flags & EEPROM_CHANNEL_RADAR)) ? ""
-								      : "not ");
+								      : "yest ");
 
 	if (eeprom_ch->flags & EEPROM_CHANNEL_VALID)
 		chan->flags &= ~clear_ht40_extension_channel;
@@ -609,7 +609,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 				ieee80211_channel_to_frequency(
 					channel->hw_value, channel->band);
 
-			/* set no-HT40, will enable as appropriate later */
+			/* set yes-HT40, will enable as appropriate later */
 			channel->flags = IEEE80211_CHAN_NO_HT40;
 
 			if (!(eeprom_ch->flags & EEPROM_CHANNEL_IBSS))
@@ -640,7 +640,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 							EEPROM_CHANNEL_IBSS) &&
 					  !(eeprom_ch_info[ch_idx].flags &
 							EEPROM_CHANNEL_RADAR))
-						? "" : "not ");
+						? "" : "yest ");
 		}
 	}
 

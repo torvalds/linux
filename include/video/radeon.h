@@ -387,7 +387,7 @@
 #define SC_BOTTOM_RIGHT                        0x16F0
 #define SRC_SC_BOTTOM_RIGHT                    0x16F4
 #define RB2D_DSTCACHE_MODE		       0x3428
-#define RB2D_DSTCACHE_CTLSTAT_broken	       0x342C /* do not use */
+#define RB2D_DSTCACHE_CTLSTAT_broken	       0x342C /* do yest use */
 #define LVDS_GEN_CNTL			       0x02d0
 #define LVDS_PLL_CNTL			       0x02d4
 #define FP2_GEN_CNTL                           0x0288

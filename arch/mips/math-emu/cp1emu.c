@@ -6,7 +6,7 @@
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  *
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000  MIPS Technologies, Inc.
+ * Copyright (C) 2000  MIPS Techyeslogies, Inc.
  *
  * A complete emulator for MIPS coprocessor 1 instructions.  This is
  * required for #float(switch) or #float(trap), where it catches all
@@ -14,11 +14,11 @@
  *
  * More surprisingly it is also required for #float(ieee), to help out
  * the hardware FPU at the boundaries of the IEEE-754 representation
- * (denormalised values, infinities, underflow, etc).  It is made
- * quite nasty because emulation of some non-COP1 instructions is
+ * (deyesrmalised values, infinities, underflow, etc).  It is made
+ * quite nasty because emulation of some yesn-COP1 instructions is
  * required, e.g. in branch delay slots.
  *
- * Note if you know that you won't have an FPU, then you'll get much
+ * Note if you kyesw that you won't have an FPU, then you'll get much
  * better performance by compiling with -msoft-float!
  */
 #include <linux/sched.h>
@@ -663,7 +663,7 @@ int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 		/*
 		 * Only valid for MIPS R6 but we can still end up
 		 * here from a broken userland so just tell emulator
-		 * this is not a branch and let it break later on.
+		 * this is yest a branch and let it break later on.
 		 */
 		if  (!cpu_has_mips_r6)
 			break;
@@ -771,7 +771,7 @@ int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 
 /*
  * In the Linux kernel, we support selection of FPR format on the
- * basis of the Status.FR bit.	If an FPU is not present, the FR bit
+ * basis of the Status.FR bit.	If an FPU is yest present, the FR bit
  * is hardwired to zero, which would imply a 32-bit FPU even for
  * 64-bit CPUs so we rather look at TIF_32BIT_FPREGS.
  * FPU emu is slow and bulky and optimizing this function offers fairly
@@ -1007,7 +1007,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		 * BEFORE we do the cop1 instruction.
 		 *
 		 * This branch could be a COP1 branch, but in that case we
-		 * would have had a trap for that instruction, and would not
+		 * would have had a trap for that instruction, and would yest
 		 * come through this route.
 		 *
 		 * Linux MIPS branch emulator operates on context, updating the
@@ -1026,15 +1026,15 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	 * into MIPS32 instructions so that we could reuse all of the
 	 * FPU emulation code.
 	 *
-	 * NOTE: We cannot do this for branch instructions since they
-	 *       are not a subset. Example: Cannot emulate a 16-bit
+	 * NOTE: We canyest do this for branch instructions since they
+	 *       are yest a subset. Example: Canyest emulate a 16-bit
 	 *       aligned target address with a MIPS32 instruction.
 	 */
 	if (dec_insn.micro_mips_mode) {
 		/*
 		 * If next instruction is a 16-bit instruction, then it
-		 * it cannot be a FPU instruction. This could happen
-		 * since we can be called for non-FPU instructions.
+		 * it canyest be a FPU instruction. This could happen
+		 * since we can be called for yesn-FPU instructions.
 		 */
 		if ((pc_inc == 2) ||
 			(microMIPS32_to_MIPS32((union mips_instruction *)&ir)
@@ -1240,7 +1240,7 @@ branch_common:
 				/*
 				 * Remember EPC at the branch to point back
 				 * at so that any delay-slot instruction
-				 * signal is not silently ignored.
+				 * signal is yest silently igyesred.
 				 */
 				bcpc = xcp->cp0_epc;
 				xcp->cp0_epc += dec_insn.pc_inc;
@@ -1250,7 +1250,7 @@ branch_common:
 				if (dec_insn.micro_mips_mode) {
 					contpc = (xcp->cp0_epc + (contpc << 1));
 
-					/* If 16-bit instruction, not FPU. */
+					/* If 16-bit instruction, yest FPU. */
 					if ((dec_insn.next_pc_inc == 2) ||
 						(microMIPS32_to_MIPS32((union mips_instruction *)&ir) == SIGILL)) {
 
@@ -1265,7 +1265,7 @@ branch_common:
 							ir = (ir & (~0xffff)) | MM_NOP16;
 
 						/*
-						 * Single step the non-CP1
+						 * Single step the yesn-CP1
 						 * instruction in the dslot.
 						 */
 						sig = mips_dsemul(xcp, ir,
@@ -1321,7 +1321,7 @@ branch_common:
 				}
 
 				/*
-				 * Single step the non-cp1
+				 * Single step the yesn-cp1
 				 * instruction in the dslot
 				 */
 				sig = mips_dsemul(xcp, ir, bcpc, contpc);
@@ -1331,16 +1331,16 @@ branch_common:
 					xcp->cp0_epc = bcpc;
 				/* SIGILL forces out of the emulation loop.  */
 				return sig ? sig : SIGILL;
-			} else if (likely) {	/* branch not taken */
+			} else if (likely) {	/* branch yest taken */
 				/*
 				 * branch likely nullifies
-				 * dslot if not taken
+				 * dslot if yest taken
 				 */
 				xcp->cp0_epc += dec_insn.pc_inc;
 				contpc += dec_insn.pc_inc;
 				/*
 				 * else continue & execute
-				 * dslot as normal insn
+				 * dslot as yesrmal insn
 				 */
 			}
 			break;
@@ -1640,7 +1640,7 @@ static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		if (MIPSInst_FUNC(ir) != pfetch_op)
 			return SIGILL;
 
-		/* ignore prefx operation */
+		/* igyesre prefx operation */
 		break;
 
 	default:
@@ -1710,7 +1710,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 
 		/*
 		 * Note that on some MIPS IV implementations such as the
-		 * R5000 and R8000 the FSQRT and FRECIP instructions do not
+		 * R5000 and R8000 the FSQRT and FRECIP instructions do yest
 		 * achieve full IEEE-754 accuracy - however this emulator does.
 		 */
 		case frsqrt_op:
@@ -1939,7 +1939,7 @@ copcsr:
 
 			/* unary conv ops */
 		case fcvts_op:
-			return SIGILL;	/* not defined */
+			return SIGILL;	/* yest defined */
 
 		case fcvtd_op:
 			MIPS_FPU_EMU_INC_STATS(cvt_d_s);
@@ -2085,7 +2085,7 @@ copcsr:
 			goto dcopuop;
 		/*
 		 * Note that on some MIPS IV implementations such as the
-		 * R5000 and R8000 the FSQRT and FRECIP instructions do not
+		 * R5000 and R8000 the FSQRT and FRECIP instructions do yest
 		 * achieve full IEEE-754 accuracy - however this emulator does.
 		 */
 		case frsqrt_op:
@@ -2297,7 +2297,7 @@ dcopuop:
 			goto copcsr;
 
 		case fcvtd_op:
-			return SIGILL;	/* not defined */
+			return SIGILL;	/* yest defined */
 
 		case fcvtw_op:
 			MIPS_FPU_EMU_INC_STATS(cvt_w_d);
@@ -2734,7 +2734,7 @@ dcopuop:
 	 * Update the fpu CSR register for this operation.
 	 * If an exception is required, generate a tidy SIGFPE exception,
 	 * without updating the result register.
-	 * Note: cause exception bits do not accumulate, they are rewritten
+	 * Note: cause exception bits do yest accumulate, they are rewritten
 	 * for each op; only the flag/sticky bits accumulate.
 	 */
 	ctx->fcr31 = (ctx->fcr31 & ~FPU_CSR_ALL_X) | rcsr;
@@ -2786,27 +2786,27 @@ dcopuop:
  *
  * If we use FPU hardware, then we have been typically called to handle
  * an unimplemented operation, such as where an operand is a NaN or
- * denormalized.  In that case exit the emulation loop after a single
+ * deyesrmalized.  In that case exit the emulation loop after a single
  * iteration so as to let hardware execute any subsequent instructions.
  *
- * If we have no FPU hardware or it has been disabled, then continue
+ * If we have yes FPU hardware or it has been disabled, then continue
  * emulating floating-point instructions until one of these conditions
  * has occurred:
  *
- * - a non-FPU instruction has been encountered,
+ * - a yesn-FPU instruction has been encountered,
  *
  * - an attempt to emulate has ended with a signal,
  *
  * - the ISA mode has been switched.
  *
  * We need to terminate the emulation loop if we got switched to the
- * MIPS16 mode, whether supported or not, so that we do not attempt
+ * MIPS16 mode, whether supported or yest, so that we do yest attempt
  * to emulate a MIPS16 instruction as a regular MIPS FPU instruction.
  * Similarly if we got switched to the microMIPS mode and only the
- * regular MIPS mode is supported, so that we do not attempt to emulate
+ * regular MIPS mode is supported, so that we do yest attempt to emulate
  * a microMIPS instruction as a regular MIPS FPU instruction.  Or if
  * we got switched to the regular MIPS mode and only the microMIPS mode
- * is supported, so that we do not attempt to emulate a regular MIPS
+ * is supported, so that we do yest attempt to emulate a regular MIPS
  * instruction that should cause an Address Error exception instead.
  * For simplicity we always terminate upon an ISA mode switch.
  */
@@ -2907,7 +2907,7 @@ int fpu_emulator_cop1Handler(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		 * because `get_isa16_mode' may return 0 if support
 		 * for code compression has been globally disabled,
 		 * or otherwise we may produce the wrong signal or
-		 * even proceed successfully where we must not.
+		 * even proceed successfully where we must yest.
 		 */
 		if ((xcp->cp0_epc ^ prevepc) & 0x1)
 			break;
@@ -2915,9 +2915,9 @@ int fpu_emulator_cop1Handler(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		cond_resched();
 	} while (xcp->cp0_epc > prevepc);
 
-	/* SIGILL indicates a non-fpu instruction */
+	/* SIGILL indicates a yesn-fpu instruction */
 	if (sig == SIGILL && xcp->cp0_epc != oldepc)
-		/* but if EPC has advanced, then ignore it */
+		/* but if EPC has advanced, then igyesre it */
 		sig = 0;
 
 	return sig;

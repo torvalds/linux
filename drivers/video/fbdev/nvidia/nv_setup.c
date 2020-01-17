@@ -4,11 +4,11 @@
 |*                                                                           *|
 |*     NOTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
 |*     international laws.  Users and possessors of this source code are     *|
-|*     hereby granted a nonexclusive,  royalty-free copyright license to     *|
+|*     hereby granted a yesnexclusive,  royalty-free copyright license to     *|
 |*     use this code in individual and commercial software.                  *|
 |*                                                                           *|
 |*     Any use of this source code must include,  in the user documenta-     *|
-|*     tion and  internal comments to the code,  notices to the end user     *|
+|*     tion and  internal comments to the code,  yestices to the end user     *|
 |*     as follows:                                                           *|
 |*                                                                           *|
 |*       Copyright 2003 NVIDIA, Corporation.  All rights reserved.           *|
@@ -41,10 +41,10 @@
  * GPL Licensing Note - According to Mark Vojkovich, author of the Xorg/
  * XFree86 'nv' driver, this source code is provided under MIT-style licensing
  * where the source code is provided "as is" without warranty of any kind.
- * The only usage restriction is for the copyright notices to be retained
+ * The only usage restriction is for the copyright yestices to be retained
  * whenever code is used.
  *
- * Antonino Daplas <adaplas@pol.net> 2005-03-11
+ * Antoniyes Daplas <adaplas@pol.net> 2005-03-11
  */
 
 #include <video/vga.h>
@@ -171,7 +171,7 @@ static int NVIsConnected(struct nvidia_par *par, int output)
 	if (present)
 		printk("nvidiafb: CRTC%i analog found\n", output);
 	else
-		printk("nvidiafb: CRTC%i analog not found\n", output);
+		printk("nvidiafb: CRTC%i analog yest found\n", output);
 
 	if (output)
 	    NV_WR32(par->PRAMDAC0, 0x0608, dac0_reg608);
@@ -327,7 +327,7 @@ int NVCommonSetup(struct fb_info *info)
 
 	par->BlendingPossible = ((par->Chipset & 0xffff) != 0x0020);
 
-	/* look for known laptop chips */
+	/* look for kyeswn laptop chips */
 	switch (par->Chipset & 0xffff) {
 	case 0x0112:
 	case 0x0174:

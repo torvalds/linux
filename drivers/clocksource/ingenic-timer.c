@@ -37,7 +37,7 @@ struct ingenic_tcu {
 
 static struct ingenic_tcu *ingenic_tcu;
 
-static u64 notrace ingenic_tcu_timer_read(void)
+static u64 yestrace ingenic_tcu_timer_read(void)
 {
 	struct ingenic_tcu *tcu = ingenic_tcu;
 	unsigned int count;
@@ -47,7 +47,7 @@ static u64 notrace ingenic_tcu_timer_read(void)
 	return count;
 }
 
-static u64 notrace ingenic_tcu_timer_cs_read(struct clocksource *cs)
+static u64 yestrace ingenic_tcu_timer_cs_read(struct clocksource *cs)
 {
 	return ingenic_tcu_timer_read();
 }
@@ -94,7 +94,7 @@ static irqreturn_t ingenic_tcu_cevt_cb(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct clk * __init ingenic_tcu_get_clock(struct device_node *np, int id)
+static struct clk * __init ingenic_tcu_get_clock(struct device_yesde *np, int id)
 {
 	struct of_phandle_args args;
 
@@ -105,7 +105,7 @@ static struct clk * __init ingenic_tcu_get_clock(struct device_node *np, int id)
 	return of_clk_get_from_provider(&args);
 }
 
-static int __init ingenic_tcu_timer_init(struct device_node *np,
+static int __init ingenic_tcu_timer_init(struct device_yesde *np,
 					 struct ingenic_tcu *tcu)
 {
 	unsigned int timer_virq, channel = tcu->timer_channel;
@@ -166,7 +166,7 @@ err_clk_put:
 	return err;
 }
 
-static int __init ingenic_tcu_clocksource_init(struct device_node *np,
+static int __init ingenic_tcu_clocksource_init(struct device_yesde *np,
 					       struct ingenic_tcu *tcu)
 {
 	unsigned int channel = tcu->cs_channel;
@@ -233,18 +233,18 @@ static const struct of_device_id ingenic_tcu_of_match[] = {
 	{ /* sentinel */ }
 };
 
-static int __init ingenic_tcu_init(struct device_node *np)
+static int __init ingenic_tcu_init(struct device_yesde *np)
 {
-	const struct of_device_id *id = of_match_node(ingenic_tcu_of_match, np);
+	const struct of_device_id *id = of_match_yesde(ingenic_tcu_of_match, np);
 	const struct ingenic_soc_info *soc_info = id->data;
 	struct ingenic_tcu *tcu;
 	struct regmap *map;
 	long rate;
 	int ret;
 
-	of_node_clear_flag(np, OF_POPULATED);
+	of_yesde_clear_flag(np, OF_POPULATED);
 
-	map = device_node_to_regmap(np);
+	map = device_yesde_to_regmap(np);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
@@ -284,7 +284,7 @@ static int __init ingenic_tcu_init(struct device_node *np)
 	if (ret)
 		goto err_tcu_clocksource_cleanup;
 
-	/* Register the sched_clock at the end as there's no way to undo it */
+	/* Register the sched_clock at the end as there's yes way to undo it */
 	rate = clk_get_rate(tcu->cs_clk);
 	sched_clock_register(ingenic_tcu_timer_read, 16, rate);
 
@@ -339,9 +339,9 @@ static int __maybe_unused ingenic_tcu_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops __maybe_unused ingenic_tcu_pm_ops = {
-	/* _noirq: We want the TCU clocks to be gated last / ungated first */
-	.suspend_noirq = ingenic_tcu_suspend,
-	.resume_noirq  = ingenic_tcu_resume,
+	/* _yesirq: We want the TCU clocks to be gated last / ungated first */
+	.suspend_yesirq = ingenic_tcu_suspend,
+	.resume_yesirq  = ingenic_tcu_resume,
 };
 
 static struct platform_driver ingenic_tcu_driver = {

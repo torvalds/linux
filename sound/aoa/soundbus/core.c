@@ -73,19 +73,19 @@ static int soundbus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	of = &soundbus_dev->ofdev;
 
 	/* stuff we want to pass to /sbin/hotplug */
-	retval = add_uevent_var(env, "OF_NAME=%pOFn", of->dev.of_node);
+	retval = add_uevent_var(env, "OF_NAME=%pOFn", of->dev.of_yesde);
 	if (retval)
 		return retval;
 
-	retval = add_uevent_var(env, "OF_TYPE=%s", of_node_get_device_type(of->dev.of_node));
+	retval = add_uevent_var(env, "OF_TYPE=%s", of_yesde_get_device_type(of->dev.of_yesde));
 	if (retval)
 		return retval;
 
 	/* Since the compatible field can contain pretty much anything
-	 * it's not really legal to split it out with commas. We split it
+	 * it's yest really legal to split it out with commas. We split it
 	 * up using a number of environment variables instead. */
 
-	compat = of_get_property(of->dev.of_node, "compatible", &cplen);
+	compat = of_get_property(of->dev.of_yesde, "compatible", &cplen);
 	while (compat && cplen > 0) {
 		int tmp = env->buflen;
 		retval = add_uevent_var(env, "OF_COMPATIBLE_%d=%s", seen, compat);
@@ -142,7 +142,7 @@ int soundbus_add_one(struct soundbus_dev *dev)
 
 	/* sanity checks */
 	if (!dev->attach_codec ||
-	    !dev->ofdev.dev.of_node ||
+	    !dev->ofdev.dev.of_yesde ||
 	    dev->pcmname ||
 	    dev->pcmid != -1) {
 		printk(KERN_ERR "soundbus: adding device failed sanity check!\n");

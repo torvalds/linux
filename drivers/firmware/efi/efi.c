@@ -3,8 +3,8 @@
  * efi.c - EFI subsystem
  *
  * Copyright (C) 2001,2003,2004 Dell <Matt_Domsch@dell.com>
- * Copyright (C) 2004 Intel Corporation <matthew.e.tolentino@intel.com>
- * Copyright (C) 2013 Tom Gundersen <teg@jklm.no>
+ * Copyright (C) 2004 Intel Corporation <matthew.e.tolentiyes@intel.com>
+ * Copyright (C) 2013 Tom Gundersen <teg@jklm.yes>
  *
  * This code registers /sys/firmware/efi{,/efivars} when EFI is supported,
  * allowing the efivarfs to be mounted or the efivars module to be loaded.
@@ -69,12 +69,12 @@ struct mm_struct efi_mm = {
 struct workqueue_struct *efi_rts_wq;
 
 static bool disable_runtime;
-static int __init setup_noefi(char *arg)
+static int __init setup_yesefi(char *arg)
 {
 	disable_runtime = true;
 	return 0;
 }
-early_param("noefi", setup_noefi);
+early_param("yesefi", setup_yesefi);
 
 bool efi_runtime_disabled(void)
 {
@@ -96,10 +96,10 @@ static int __init parse_efi_cmdline(char *str)
 	if (parse_option_str(str, "debug"))
 		set_bit(EFI_DBG, &efi.flags);
 
-	if (parse_option_str(str, "noruntime"))
+	if (parse_option_str(str, "yesruntime"))
 		disable_runtime = true;
 
-	if (parse_option_str(str, "nosoftreserve"))
+	if (parse_option_str(str, "yessoftreserve"))
 		set_bit(EFI_MEM_NO_SOFT_RESERVE, &efi.flags);
 
 	return 0;
@@ -109,9 +109,9 @@ early_param("efi", parse_efi_cmdline);
 struct kobject *efi_kobj;
 
 /*
- * Let's not leave out systab information that snuck into
+ * Let's yest leave out systab information that snuck into
  * the efivars driver
- * Note, do not add more fields in systab sysfs file as it breaks sysfs
+ * Note, do yest add more fields in systab sysfs file as it breaks sysfs
  * one value per file rule!
  */
 static ssize_t systab_show(struct kobject *kobj,
@@ -213,7 +213,7 @@ static int generic_ops_register(void)
 {
 	generic_ops.get_variable = efi.get_variable;
 	generic_ops.set_variable = efi.set_variable;
-	generic_ops.set_variable_nonblocking = efi.set_variable_nonblocking;
+	generic_ops.set_variable_yesnblocking = efi.set_variable_yesnblocking;
 	generic_ops.get_next_variable = efi.get_next_variable;
 	generic_ops.query_variable_store = efi_query_variable_store;
 
@@ -405,7 +405,7 @@ int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 	efi_memory_desc_t *md;
 
 	if (!efi_enabled(EFI_MEMMAP)) {
-		pr_err_once("EFI_MEMMAP is not enabled.\n");
+		pr_err_once("EFI_MEMMAP is yest enabled.\n");
 		return -EINVAL;
 	}
 
@@ -462,7 +462,7 @@ void __init efi_mem_reserve(phys_addr_t addr, u64 size)
 	 * until efi_free_boot_services() because of buggy firmware
 	 * implementations. This means the above memblock_reserve() is
 	 * superfluous on x86 and instead what it needs to do is
-	 * ensure the @start, @size is not freed.
+	 * ensure the @start, @size is yest freed.
 	 */
 	efi_arch_mem_reserve(addr, size);
 }
@@ -555,17 +555,17 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 			size = seed->size;
 			early_memunmap(seed, sizeof(*seed));
 		} else {
-			pr_err("Could not map UEFI random seed!\n");
+			pr_err("Could yest map UEFI random seed!\n");
 		}
 		if (size > 0) {
 			seed = early_memremap(efi.rng_seed,
 					      sizeof(*seed) + size);
 			if (seed != NULL) {
-				pr_notice("seeding entropy pool\n");
+				pr_yestice("seeding entropy pool\n");
 				add_bootloader_randomness(seed->bits, seed->size);
 				early_memunmap(seed, sizeof(*seed) + size);
 			} else {
-				pr_err("Could not map UEFI random seed!\n");
+				pr_err("Could yest map UEFI random seed!\n");
 			}
 		}
 	}
@@ -581,7 +581,7 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 
 		tbl = early_memremap(efi.properties_table, sizeof(*tbl));
 		if (tbl == NULL) {
-			pr_err("Could not map Properties table!\n");
+			pr_err("Could yest map Properties table!\n");
 			return -ENOMEM;
 		}
 
@@ -603,12 +603,12 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 			/*
 			 * Just map a full page: that is what we will get
 			 * anyway, and it permits us to map the entire entry
-			 * before knowing its size.
+			 * before kyeswing its size.
 			 */
 			p = early_memremap(ALIGN_DOWN(prsv, PAGE_SIZE),
 					   PAGE_SIZE);
 			if (p == NULL) {
-				pr_err("Could not map UEFI memreserve entry!\n");
+				pr_err("Could yest map UEFI memreserve entry!\n");
 				return -ENOMEM;
 			}
 
@@ -649,7 +649,7 @@ int __init efi_config_init(efi_config_table_type_t *arch_tables)
 	config_tables = early_memremap(efi.systab->tables,
 				       efi.systab->nr_tables * sz);
 	if (config_tables == NULL) {
-		pr_err("Could not map Configuration table!\n");
+		pr_err("Could yest map Configuration table!\n");
 		return -ENOMEM;
 	}
 
@@ -711,7 +711,7 @@ static __initdata struct params xen_fdt_params[] = {
 
 static __initdata struct {
 	const char *uname;
-	const char *subnode;
+	const char *subyesde;
 	struct params *params;
 } dt_params[] = {
 	{ "hypervisor", "uefi", xen_fdt_params },
@@ -724,7 +724,7 @@ struct param_info {
 	const char *missing;
 };
 
-static int __init __find_uefi_params(unsigned long node,
+static int __init __find_uefi_params(unsigned long yesde,
 				     struct param_info *info,
 				     struct params *params)
 {
@@ -734,7 +734,7 @@ static int __init __find_uefi_params(unsigned long node,
 	int i, len;
 
 	for (i = 0; i < EFI_FDT_PARAMS_SIZE; i++) {
-		prop = of_get_flat_dt_prop(node, params[i].propname, &len);
+		prop = of_get_flat_dt_prop(yesde, params[i].propname, &len);
 		if (!prop) {
 			info->missing = params[i].name;
 			return 0;
@@ -758,30 +758,30 @@ static int __init __find_uefi_params(unsigned long node,
 	return 1;
 }
 
-static int __init fdt_find_uefi_params(unsigned long node, const char *uname,
+static int __init fdt_find_uefi_params(unsigned long yesde, const char *uname,
 				       int depth, void *data)
 {
 	struct param_info *info = data;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dt_params); i++) {
-		const char *subnode = dt_params[i].subnode;
+		const char *subyesde = dt_params[i].subyesde;
 
 		if (depth != 1 || strcmp(uname, dt_params[i].uname) != 0) {
 			info->missing = dt_params[i].params[0].name;
 			continue;
 		}
 
-		if (subnode) {
-			int err = of_get_flat_dt_subnode_by_name(node, subnode);
+		if (subyesde) {
+			int err = of_get_flat_dt_subyesde_by_name(yesde, subyesde);
 
 			if (err < 0)
 				return 0;
 
-			node = err;
+			yesde = err;
 		}
 
-		return __find_uefi_params(node, info, dt_params[i].params);
+		return __find_uefi_params(yesde, info, dt_params[i].params);
 	}
 
 	return 0;
@@ -799,7 +799,7 @@ int __init efi_get_fdt_params(struct efi_fdt_params *params)
 
 	ret = of_scan_flat_dt(fdt_find_uefi_params, &info);
 	if (!info.found)
-		pr_info("UEFI not found.\n");
+		pr_info("UEFI yest found.\n");
 	else if (!ret)
 		pr_err("Can't find '%s' in device tree!\n",
 		       info.missing);
@@ -1026,7 +1026,7 @@ int __ref efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
 		memunmap(rsv);
 	}
 
-	/* no slot found - allocate a new linked list entry */
+	/* yes slot found - allocate a new linked list entry */
 	rsv = (struct linux_efi_memreserve *)__get_free_page(GFP_ATOMIC);
 	if (!rsv)
 		return -ENOMEM;
@@ -1067,7 +1067,7 @@ static int __init efi_memreserve_root_init(void)
 early_initcall(efi_memreserve_root_init);
 
 #ifdef CONFIG_KEXEC
-static int update_efi_random_seed(struct notifier_block *nb,
+static int update_efi_random_seed(struct yestifier_block *nb,
 				  unsigned long code, void *unused)
 {
 	struct linux_efi_random_seed *seed;
@@ -1081,7 +1081,7 @@ static int update_efi_random_seed(struct notifier_block *nb,
 		size = min(seed->size, EFI_RANDOM_SEED_SIZE);
 		memunmap(seed);
 	} else {
-		pr_err("Could not map UEFI random seed!\n");
+		pr_err("Could yest map UEFI random seed!\n");
 	}
 	if (size > 0) {
 		seed = memremap(efi.rng_seed, sizeof(*seed) + size,
@@ -1091,21 +1091,21 @@ static int update_efi_random_seed(struct notifier_block *nb,
 			get_random_bytes(seed->bits, seed->size);
 			memunmap(seed);
 		} else {
-			pr_err("Could not map UEFI random seed!\n");
+			pr_err("Could yest map UEFI random seed!\n");
 		}
 	}
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block efi_random_seed_nb = {
-	.notifier_call = update_efi_random_seed,
+static struct yestifier_block efi_random_seed_nb = {
+	.yestifier_call = update_efi_random_seed,
 };
 
 static int register_update_efi_random_seed(void)
 {
 	if (efi.rng_seed == EFI_INVALID_TABLE_ADDR)
 		return 0;
-	return register_reboot_notifier(&efi_random_seed_nb);
+	return register_reboot_yestifier(&efi_random_seed_nb);
 }
 late_initcall(register_update_efi_random_seed);
 #endif

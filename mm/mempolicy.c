@@ -5,44 +5,44 @@
  * Copyright 2003,2004 Andi Kleen, SuSE Labs.
  * (C) Copyright 2005 Christoph Lameter, Silicon Graphics, Inc.
  *
- * NUMA policy allows the user to give hints in which node(s) memory should
+ * NUMA policy allows the user to give hints in which yesde(s) memory should
  * be allocated.
  *
  * Support four policies per VMA and per process:
  *
  * The VMA policy has priority over the process policy for a page fault.
  *
- * interleave     Allocate memory interleaved over a set of nodes,
- *                with normal fallback if it fails.
+ * interleave     Allocate memory interleaved over a set of yesdes,
+ *                with yesrmal fallback if it fails.
  *                For VMA based allocations this interleaves based on the
  *                offset into the backing object or offset into the mapping
- *                for anonymous memory. For process policy an process counter
+ *                for ayesnymous memory. For process policy an process counter
  *                is used.
  *
- * bind           Only allocate memory on a specific set of nodes,
- *                no fallback.
- *                FIXME: memory is allocated starting with the first node
+ * bind           Only allocate memory on a specific set of yesdes,
+ *                yes fallback.
+ *                FIXME: memory is allocated starting with the first yesde
  *                to the last. It would be better if bind would truly restrict
- *                the allocation to memory nodes instead
+ *                the allocation to memory yesdes instead
  *
- * preferred       Try a specific node first before normal fallback.
+ * preferred       Try a specific yesde first before yesrmal fallback.
  *                As a special case NUMA_NO_NODE here means do the allocation
- *                on the local CPU. This is normally identical to default,
- *                but useful to set in a VMA when you have a non default
+ *                on the local CPU. This is yesrmally identical to default,
+ *                but useful to set in a VMA when you have a yesn default
  *                process policy.
  *
- * default        Allocate on the local node first, or when on a VMA
+ * default        Allocate on the local yesde first, or when on a VMA
  *                use the process policy. This is what Linux always did
  *		  in a NUMA aware kernel and still does by, ahem, default.
  *
- * The process policy is applied for most non interrupt memory allocations
- * in that process' context. Interrupts ignore the policies and always
+ * The process policy is applied for most yesn interrupt memory allocations
+ * in that process' context. Interrupts igyesre the policies and always
  * try to allocate on the local CPU. The VMA policy is only applied for memory
  * allocations for a VMA in the VM.
  *
  * Currently there are a few corner cases in swapping where the policy
- * is not applied, but the majority should be handled. When process policy
- * is used it is not remembered over swap outs/swap ins.
+ * is yest applied, but the majority should be handled. When process policy
+ * is used it is yest remembered over swap outs/swap ins.
  *
  * Only the highest zone in the zone hierarchy gets policied. Allocations
  * requesting a lower zone just use default policy. This implies that
@@ -50,19 +50,19 @@
  * Same with GFP_DMA allocations.
  *
  * For shmfs/tmpfs/hugetlbfs shared memory the policy is shared between
- * all users and remembered even when nobody has memory mapped.
+ * all users and remembered even when yesbody has memory mapped.
  */
 
 /* Notebook:
-   fix mmap readahead to honour policy and enable policy for any page cache
+   fix mmap readahead to hoyesur policy and enable policy for any page cache
    object
    statistics for bigpages
    global policy for page cache? currently it uses process policy. Requires
    first item above.
-   handle mremap for shared memory (currently ignored for the policy)
+   handle mremap for shared memory (currently igyesred for the policy)
    grows down?
    make bind policy root only? It can trigger oom much faster and the
-   kernel is not always grateful with that.
+   kernel is yest always grateful with that.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -76,7 +76,7 @@
 #include <linux/sched/mm.h>
 #include <linux/sched/numa_balancing.h>
 #include <linux/sched/task.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/cpuset.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -96,7 +96,7 @@
 #include <linux/syscalls.h>
 #include <linux/ctype.h>
 #include <linux/mm_inline.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/printk.h>
 #include <linux/swapops.h>
 
@@ -107,12 +107,12 @@
 
 /* Internal flags */
 #define MPOL_MF_DISCONTIG_OK (MPOL_MF_INTERNAL << 0)	/* Skip checks for continuous vmas */
-#define MPOL_MF_INVERT (MPOL_MF_INTERNAL << 1)		/* Invert check for nodemask */
+#define MPOL_MF_INVERT (MPOL_MF_INTERNAL << 1)		/* Invert check for yesdemask */
 
 static struct kmem_cache *policy_cache;
 static struct kmem_cache *sn_cache;
 
-/* Highest zone. An specific allocation for a zone below that is not
+/* Highest zone. An specific allocation for a zone below that is yest
    policied. */
 enum zone_type policy_zone = 0;
 
@@ -125,20 +125,20 @@ static struct mempolicy default_policy = {
 	.flags = MPOL_F_LOCAL,
 };
 
-static struct mempolicy preferred_node_policy[MAX_NUMNODES];
+static struct mempolicy preferred_yesde_policy[MAX_NUMNODES];
 
 struct mempolicy *get_task_policy(struct task_struct *p)
 {
 	struct mempolicy *pol = p->mempolicy;
-	int node;
+	int yesde;
 
 	if (pol)
 		return pol;
 
-	node = numa_node_id();
-	if (node != NUMA_NO_NODE) {
-		pol = &preferred_node_policy[node];
-		/* preferred_node_policy is not initialised early in boot */
+	yesde = numa_yesde_id();
+	if (yesde != NUMA_NO_NODE) {
+		pol = &preferred_yesde_policy[yesde];
+		/* preferred_yesde_policy is yest initialised early in boot */
 		if (pol->mode)
 			return pol;
 	}
@@ -147,61 +147,61 @@ struct mempolicy *get_task_policy(struct task_struct *p)
 }
 
 static const struct mempolicy_operations {
-	int (*create)(struct mempolicy *pol, const nodemask_t *nodes);
-	void (*rebind)(struct mempolicy *pol, const nodemask_t *nodes);
+	int (*create)(struct mempolicy *pol, const yesdemask_t *yesdes);
+	void (*rebind)(struct mempolicy *pol, const yesdemask_t *yesdes);
 } mpol_ops[MPOL_MAX];
 
-static inline int mpol_store_user_nodemask(const struct mempolicy *pol)
+static inline int mpol_store_user_yesdemask(const struct mempolicy *pol)
 {
 	return pol->flags & MPOL_MODE_FLAGS;
 }
 
-static void mpol_relative_nodemask(nodemask_t *ret, const nodemask_t *orig,
-				   const nodemask_t *rel)
+static void mpol_relative_yesdemask(yesdemask_t *ret, const yesdemask_t *orig,
+				   const yesdemask_t *rel)
 {
-	nodemask_t tmp;
-	nodes_fold(tmp, *orig, nodes_weight(*rel));
-	nodes_onto(*ret, tmp, *rel);
+	yesdemask_t tmp;
+	yesdes_fold(tmp, *orig, yesdes_weight(*rel));
+	yesdes_onto(*ret, tmp, *rel);
 }
 
-static int mpol_new_interleave(struct mempolicy *pol, const nodemask_t *nodes)
+static int mpol_new_interleave(struct mempolicy *pol, const yesdemask_t *yesdes)
 {
-	if (nodes_empty(*nodes))
+	if (yesdes_empty(*yesdes))
 		return -EINVAL;
-	pol->v.nodes = *nodes;
+	pol->v.yesdes = *yesdes;
 	return 0;
 }
 
-static int mpol_new_preferred(struct mempolicy *pol, const nodemask_t *nodes)
+static int mpol_new_preferred(struct mempolicy *pol, const yesdemask_t *yesdes)
 {
-	if (!nodes)
+	if (!yesdes)
 		pol->flags |= MPOL_F_LOCAL;	/* local allocation */
-	else if (nodes_empty(*nodes))
-		return -EINVAL;			/*  no allowed nodes */
+	else if (yesdes_empty(*yesdes))
+		return -EINVAL;			/*  yes allowed yesdes */
 	else
-		pol->v.preferred_node = first_node(*nodes);
+		pol->v.preferred_yesde = first_yesde(*yesdes);
 	return 0;
 }
 
-static int mpol_new_bind(struct mempolicy *pol, const nodemask_t *nodes)
+static int mpol_new_bind(struct mempolicy *pol, const yesdemask_t *yesdes)
 {
-	if (nodes_empty(*nodes))
+	if (yesdes_empty(*yesdes))
 		return -EINVAL;
-	pol->v.nodes = *nodes;
+	pol->v.yesdes = *yesdes;
 	return 0;
 }
 
 /*
- * mpol_set_nodemask is called after mpol_new() to set up the nodemask, if
- * any, for the new policy.  mpol_new() has already validated the nodes
+ * mpol_set_yesdemask is called after mpol_new() to set up the yesdemask, if
+ * any, for the new policy.  mpol_new() has already validated the yesdes
  * parameter with respect to the policy mode and flags.  But, we need to
- * handle an empty nodemask with MPOL_PREFERRED here.
+ * handle an empty yesdemask with MPOL_PREFERRED here.
  *
  * Must be called holding task's alloc_lock to protect task's mems_allowed
  * and mempolicy.  May also be called holding the mmap_semaphore for write.
  */
-static int mpol_set_nodemask(struct mempolicy *pol,
-		     const nodemask_t *nodes, struct nodemask_scratch *nsc)
+static int mpol_set_yesdemask(struct mempolicy *pol,
+		     const yesdemask_t *yesdes, struct yesdemask_scratch *nsc)
 {
 	int ret;
 
@@ -209,26 +209,26 @@ static int mpol_set_nodemask(struct mempolicy *pol,
 	if (pol == NULL)
 		return 0;
 	/* Check N_MEMORY */
-	nodes_and(nsc->mask1,
-		  cpuset_current_mems_allowed, node_states[N_MEMORY]);
+	yesdes_and(nsc->mask1,
+		  cpuset_current_mems_allowed, yesde_states[N_MEMORY]);
 
-	VM_BUG_ON(!nodes);
-	if (pol->mode == MPOL_PREFERRED && nodes_empty(*nodes))
-		nodes = NULL;	/* explicit local allocation */
+	VM_BUG_ON(!yesdes);
+	if (pol->mode == MPOL_PREFERRED && yesdes_empty(*yesdes))
+		yesdes = NULL;	/* explicit local allocation */
 	else {
 		if (pol->flags & MPOL_F_RELATIVE_NODES)
-			mpol_relative_nodemask(&nsc->mask2, nodes, &nsc->mask1);
+			mpol_relative_yesdemask(&nsc->mask2, yesdes, &nsc->mask1);
 		else
-			nodes_and(nsc->mask2, *nodes, nsc->mask1);
+			yesdes_and(nsc->mask2, *yesdes, nsc->mask1);
 
-		if (mpol_store_user_nodemask(pol))
-			pol->w.user_nodemask = *nodes;
+		if (mpol_store_user_yesdemask(pol))
+			pol->w.user_yesdemask = *yesdes;
 		else
 			pol->w.cpuset_mems_allowed =
 						cpuset_current_mems_allowed;
 	}
 
-	if (nodes)
+	if (yesdes)
 		ret = mpol_ops[pol->mode].create(pol, &nsc->mask2);
 	else
 		ret = mpol_ops[pol->mode].create(pol, NULL);
@@ -237,41 +237,41 @@ static int mpol_set_nodemask(struct mempolicy *pol,
 
 /*
  * This function just creates a new policy, does some check and simple
- * initialization. You must invoke mpol_set_nodemask() to set nodes.
+ * initialization. You must invoke mpol_set_yesdemask() to set yesdes.
  */
 static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
-				  nodemask_t *nodes)
+				  yesdemask_t *yesdes)
 {
 	struct mempolicy *policy;
 
-	pr_debug("setting mode %d flags %d nodes[0] %lx\n",
-		 mode, flags, nodes ? nodes_addr(*nodes)[0] : NUMA_NO_NODE);
+	pr_debug("setting mode %d flags %d yesdes[0] %lx\n",
+		 mode, flags, yesdes ? yesdes_addr(*yesdes)[0] : NUMA_NO_NODE);
 
 	if (mode == MPOL_DEFAULT) {
-		if (nodes && !nodes_empty(*nodes))
+		if (yesdes && !yesdes_empty(*yesdes))
 			return ERR_PTR(-EINVAL);
 		return NULL;
 	}
-	VM_BUG_ON(!nodes);
+	VM_BUG_ON(!yesdes);
 
 	/*
-	 * MPOL_PREFERRED cannot be used with MPOL_F_STATIC_NODES or
-	 * MPOL_F_RELATIVE_NODES if the nodemask is empty (local allocation).
-	 * All other modes require a valid pointer to a non-empty nodemask.
+	 * MPOL_PREFERRED canyest be used with MPOL_F_STATIC_NODES or
+	 * MPOL_F_RELATIVE_NODES if the yesdemask is empty (local allocation).
+	 * All other modes require a valid pointer to a yesn-empty yesdemask.
 	 */
 	if (mode == MPOL_PREFERRED) {
-		if (nodes_empty(*nodes)) {
+		if (yesdes_empty(*yesdes)) {
 			if (((flags & MPOL_F_STATIC_NODES) ||
 			     (flags & MPOL_F_RELATIVE_NODES)))
 				return ERR_PTR(-EINVAL);
 		}
 	} else if (mode == MPOL_LOCAL) {
-		if (!nodes_empty(*nodes) ||
+		if (!yesdes_empty(*yesdes) ||
 		    (flags & MPOL_F_STATIC_NODES) ||
 		    (flags & MPOL_F_RELATIVE_NODES))
 			return ERR_PTR(-EINVAL);
 		mode = MPOL_PREFERRED;
-	} else if (nodes_empty(*nodes))
+	} else if (yesdes_empty(*yesdes))
 		return ERR_PTR(-EINVAL);
 	policy = kmem_cache_alloc(policy_cache, GFP_KERNEL);
 	if (!policy)
@@ -291,67 +291,67 @@ void __mpol_put(struct mempolicy *p)
 	kmem_cache_free(policy_cache, p);
 }
 
-static void mpol_rebind_default(struct mempolicy *pol, const nodemask_t *nodes)
+static void mpol_rebind_default(struct mempolicy *pol, const yesdemask_t *yesdes)
 {
 }
 
-static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes)
+static void mpol_rebind_yesdemask(struct mempolicy *pol, const yesdemask_t *yesdes)
 {
-	nodemask_t tmp;
+	yesdemask_t tmp;
 
 	if (pol->flags & MPOL_F_STATIC_NODES)
-		nodes_and(tmp, pol->w.user_nodemask, *nodes);
+		yesdes_and(tmp, pol->w.user_yesdemask, *yesdes);
 	else if (pol->flags & MPOL_F_RELATIVE_NODES)
-		mpol_relative_nodemask(&tmp, &pol->w.user_nodemask, nodes);
+		mpol_relative_yesdemask(&tmp, &pol->w.user_yesdemask, yesdes);
 	else {
-		nodes_remap(tmp, pol->v.nodes,pol->w.cpuset_mems_allowed,
-								*nodes);
-		pol->w.cpuset_mems_allowed = *nodes;
+		yesdes_remap(tmp, pol->v.yesdes,pol->w.cpuset_mems_allowed,
+								*yesdes);
+		pol->w.cpuset_mems_allowed = *yesdes;
 	}
 
-	if (nodes_empty(tmp))
-		tmp = *nodes;
+	if (yesdes_empty(tmp))
+		tmp = *yesdes;
 
-	pol->v.nodes = tmp;
+	pol->v.yesdes = tmp;
 }
 
 static void mpol_rebind_preferred(struct mempolicy *pol,
-						const nodemask_t *nodes)
+						const yesdemask_t *yesdes)
 {
-	nodemask_t tmp;
+	yesdemask_t tmp;
 
 	if (pol->flags & MPOL_F_STATIC_NODES) {
-		int node = first_node(pol->w.user_nodemask);
+		int yesde = first_yesde(pol->w.user_yesdemask);
 
-		if (node_isset(node, *nodes)) {
-			pol->v.preferred_node = node;
+		if (yesde_isset(yesde, *yesdes)) {
+			pol->v.preferred_yesde = yesde;
 			pol->flags &= ~MPOL_F_LOCAL;
 		} else
 			pol->flags |= MPOL_F_LOCAL;
 	} else if (pol->flags & MPOL_F_RELATIVE_NODES) {
-		mpol_relative_nodemask(&tmp, &pol->w.user_nodemask, nodes);
-		pol->v.preferred_node = first_node(tmp);
+		mpol_relative_yesdemask(&tmp, &pol->w.user_yesdemask, yesdes);
+		pol->v.preferred_yesde = first_yesde(tmp);
 	} else if (!(pol->flags & MPOL_F_LOCAL)) {
-		pol->v.preferred_node = node_remap(pol->v.preferred_node,
+		pol->v.preferred_yesde = yesde_remap(pol->v.preferred_yesde,
 						   pol->w.cpuset_mems_allowed,
-						   *nodes);
-		pol->w.cpuset_mems_allowed = *nodes;
+						   *yesdes);
+		pol->w.cpuset_mems_allowed = *yesdes;
 	}
 }
 
 /*
- * mpol_rebind_policy - Migrate a policy to a different set of nodes
+ * mpol_rebind_policy - Migrate a policy to a different set of yesdes
  *
  * Per-vma policies are protected by mmap_sem. Allocations using per-task
  * policies are protected by task->mems_allowed_seq to prevent a premature
- * OOM/allocation failure due to parallel nodemask modification.
+ * OOM/allocation failure due to parallel yesdemask modification.
  */
-static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
+static void mpol_rebind_policy(struct mempolicy *pol, const yesdemask_t *newmask)
 {
 	if (!pol)
 		return;
-	if (!mpol_store_user_nodemask(pol) && !(pol->flags & MPOL_F_LOCAL) &&
-	    nodes_equal(pol->w.cpuset_mems_allowed, *newmask))
+	if (!mpol_store_user_yesdemask(pol) && !(pol->flags & MPOL_F_LOCAL) &&
+	    yesdes_equal(pol->w.cpuset_mems_allowed, *newmask))
 		return;
 
 	mpol_ops[pol->mode].rebind(pol, newmask);
@@ -364,18 +364,18 @@ static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
  * Called with task's alloc_lock held.
  */
 
-void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new)
+void mpol_rebind_task(struct task_struct *tsk, const yesdemask_t *new)
 {
 	mpol_rebind_policy(tsk->mempolicy, new);
 }
 
 /*
- * Rebind each vma in mm to new nodemask.
+ * Rebind each vma in mm to new yesdemask.
  *
  * Call holding a reference to mm.  Takes mm->mmap_sem during call.
  */
 
-void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
+void mpol_rebind_mm(struct mm_struct *mm, yesdemask_t *new)
 {
 	struct vm_area_struct *vma;
 
@@ -391,7 +391,7 @@ static const struct mempolicy_operations mpol_ops[MPOL_MAX] = {
 	},
 	[MPOL_INTERLEAVE] = {
 		.create = mpol_new_interleave,
-		.rebind = mpol_rebind_nodemask,
+		.rebind = mpol_rebind_yesdemask,
 	},
 	[MPOL_PREFERRED] = {
 		.create = mpol_new_preferred,
@@ -399,7 +399,7 @@ static const struct mempolicy_operations mpol_ops[MPOL_MAX] = {
 	},
 	[MPOL_BIND] = {
 		.create = mpol_new_bind,
-		.rebind = mpol_rebind_nodemask,
+		.rebind = mpol_rebind_yesdemask,
 	},
 };
 
@@ -409,7 +409,7 @@ static int migrate_page_add(struct page *page, struct list_head *pagelist,
 struct queue_pages {
 	struct list_head *pagelist;
 	unsigned long flags;
-	nodemask_t *nmask;
+	yesdemask_t *nmask;
 	unsigned long start;
 	unsigned long end;
 	struct vm_area_struct *first;
@@ -427,17 +427,17 @@ static inline bool queue_pages_required(struct page *page,
 	int nid = page_to_nid(page);
 	unsigned long flags = qp->flags;
 
-	return node_isset(nid, *qp->nmask) == !(flags & MPOL_MF_INVERT);
+	return yesde_isset(nid, *qp->nmask) == !(flags & MPOL_MF_INVERT);
 }
 
 /*
  * queue_pages_pmd() has four possible return values:
- * 0 - pages are placed on the right node or queued successfully.
+ * 0 - pages are placed on the right yesde or queued successfully.
  * 1 - there is unmovable page, and MPOL_MF_MOVE* & MPOL_MF_STRICT were
  *     specified.
  * 2 - THP was split.
  * -EIO - is migration entry or only MPOL_MF_STRICT was specified and an
- *        existing page was already on a node that does not follow the
+ *        existing page was already on a yesde that does yest follow the
  *        policy.
  */
 static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
@@ -483,11 +483,11 @@ out:
  * and move them to the pagelist if they do.
  *
  * queue_pages_pte_range() has three possible return values:
- * 0 - pages are placed on the right node or queued successfully.
+ * 0 - pages are placed on the right yesde or queued successfully.
  * 1 - there is unmovable page, and MPOL_MF_MOVE* & MPOL_MF_STRICT were
  *     specified.
  * -EIO - only MPOL_MF_STRICT was specified and an existing page was already
- *        on a node that does not follow the policy.
+ *        on a yesde that does yest follow the policy.
  */
 static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
 			unsigned long end, struct mm_walk *walk)
@@ -516,11 +516,11 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
 	for (; addr != end; pte++, addr += PAGE_SIZE) {
 		if (!pte_present(*pte))
 			continue;
-		page = vm_normal_page(vma, addr, *pte);
+		page = vm_yesrmal_page(vma, addr, *pte);
 		if (!page)
 			continue;
 		/*
-		 * vm_normal_page() filters out zero pages, but there might
+		 * vm_yesrmal_page() filters out zero pages, but there might
 		 * still be PageReserved pages to skip, perhaps in a VDSO.
 		 */
 		if (PageReserved(page))
@@ -535,7 +535,7 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
 			}
 
 			/*
-			 * Do not abort immediately since there may be
+			 * Do yest abort immediately since there may be
 			 * temporary off LRU pages in the range.  Still
 			 * need migrate other LRU pages.
 			 */
@@ -671,28 +671,28 @@ static const struct mm_walk_ops queue_pages_walk_ops = {
 /*
  * Walk through page tables and collect pages to be migrated.
  *
- * If pages found in a given range are on a set of nodes (determined by
- * @nodes and @flags,) it's isolated and queued to the pagelist which is
+ * If pages found in a given range are on a set of yesdes (determined by
+ * @yesdes and @flags,) it's isolated and queued to the pagelist which is
  * passed via @private.
  *
  * queue_pages_range() has three possible return values:
  * 1 - there is unmovable page, but MPOL_MF_MOVE* & MPOL_MF_STRICT were
  *     specified.
- * 0 - queue pages successfully or no misplaced page.
- * errno - i.e. misplaced pages with MPOL_MF_STRICT specified (-EIO) or
- *         memory range specified by nodemask and maxnode points outside
+ * 0 - queue pages successfully or yes misplaced page.
+ * erryes - i.e. misplaced pages with MPOL_MF_STRICT specified (-EIO) or
+ *         memory range specified by yesdemask and maxyesde points outside
  *         your accessible address space (-EFAULT)
  */
 static int
 queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
-		nodemask_t *nodes, unsigned long flags,
+		yesdemask_t *yesdes, unsigned long flags,
 		struct list_head *pagelist)
 {
 	int err;
 	struct queue_pages qp = {
 		.pagelist = pagelist,
 		.flags = flags,
-		.nmask = nodes,
+		.nmask = yesdes,
 		.start = start,
 		.end = end,
 		.first = NULL,
@@ -773,7 +773,7 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
 		pgoff = vma->vm_pgoff +
 			((vmstart - vma->vm_start) >> PAGE_SHIFT);
 		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
-				 vma->anon_vma, vma->vm_file, pgoff,
+				 vma->ayesn_vma, vma->vm_file, pgoff,
 				 new_pol, vma->vm_userfaultfd_ctx);
 		if (prev) {
 			vma = prev;
@@ -805,7 +805,7 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
 
 /* Set the process memory policy */
 static long do_set_mempolicy(unsigned short mode, unsigned short flags,
-			     nodemask_t *nodes)
+			     yesdemask_t *yesdes)
 {
 	struct mempolicy *new, *old;
 	NODEMASK_SCRATCH(scratch);
@@ -814,14 +814,14 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
 	if (!scratch)
 		return -ENOMEM;
 
-	new = mpol_new(mode, flags, nodes);
+	new = mpol_new(mode, flags, yesdes);
 	if (IS_ERR(new)) {
 		ret = PTR_ERR(new);
 		goto out;
 	}
 
 	task_lock(current);
-	ret = mpol_set_nodemask(new, nodes, scratch);
+	ret = mpol_set_yesdemask(new, yesdes, scratch);
 	if (ret) {
 		task_unlock(current);
 		mpol_put(new);
@@ -840,13 +840,13 @@ out:
 }
 
 /*
- * Return nodemask for policy for get_mempolicy() query
+ * Return yesdemask for policy for get_mempolicy() query
  *
  * Called with task's alloc_lock held
  */
-static void get_policy_nodemask(struct mempolicy *p, nodemask_t *nodes)
+static void get_policy_yesdemask(struct mempolicy *p, yesdemask_t *yesdes)
 {
-	nodes_clear(*nodes);
+	yesdes_clear(*yesdes);
 	if (p == &default_policy)
 		return;
 
@@ -854,19 +854,19 @@ static void get_policy_nodemask(struct mempolicy *p, nodemask_t *nodes)
 	case MPOL_BIND:
 		/* Fall through */
 	case MPOL_INTERLEAVE:
-		*nodes = p->v.nodes;
+		*yesdes = p->v.yesdes;
 		break;
 	case MPOL_PREFERRED:
 		if (!(p->flags & MPOL_F_LOCAL))
-			node_set(p->v.preferred_node, *nodes);
-		/* else return empty node mask for local allocation */
+			yesde_set(p->v.preferred_yesde, *yesdes);
+		/* else return empty yesde mask for local allocation */
 		break;
 	default:
 		BUG();
 	}
 }
 
-static int lookup_node(struct mm_struct *mm, unsigned long addr)
+static int lookup_yesde(struct mm_struct *mm, unsigned long addr)
 {
 	struct page *p;
 	int err;
@@ -883,7 +883,7 @@ static int lookup_node(struct mm_struct *mm, unsigned long addr)
 }
 
 /* Retrieve NUMA policy */
-static long do_get_mempolicy(int *policy, nodemask_t *nmask,
+static long do_get_mempolicy(int *policy, yesdemask_t *nmask,
 			     unsigned long addr, unsigned long flags)
 {
 	int err;
@@ -930,21 +930,21 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 	if (flags & MPOL_F_NODE) {
 		if (flags & MPOL_F_ADDR) {
 			/*
-			 * Take a refcount on the mpol, lookup_node()
+			 * Take a refcount on the mpol, lookup_yesde()
 			 * wil drop the mmap_sem, so after calling
-			 * lookup_node() only "pol" remains valid, "vma"
+			 * lookup_yesde() only "pol" remains valid, "vma"
 			 * is stale.
 			 */
 			pol_refcount = pol;
 			vma = NULL;
 			mpol_get(pol);
-			err = lookup_node(mm, addr);
+			err = lookup_yesde(mm, addr);
 			if (err < 0)
 				goto out;
 			*policy = err;
 		} else if (pol == current->mempolicy &&
 				pol->mode == MPOL_INTERLEAVE) {
-			*policy = next_node_in(current->il_prev, pol->v.nodes);
+			*policy = next_yesde_in(current->il_prev, pol->v.yesdes);
 		} else {
 			err = -EINVAL;
 			goto out;
@@ -961,11 +961,11 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 
 	err = 0;
 	if (nmask) {
-		if (mpol_store_user_nodemask(pol)) {
-			*nmask = pol->w.user_nodemask;
+		if (mpol_store_user_yesdemask(pol)) {
+			*nmask = pol->w.user_yesdemask;
 		} else {
 			task_lock(current);
-			get_policy_nodemask(pol, nmask);
+			get_policy_yesdemask(pol, nmask);
 			task_unlock(current);
 		}
 	}
@@ -993,13 +993,13 @@ static int migrate_page_add(struct page *page, struct list_head *pagelist,
 	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(head) == 1) {
 		if (!isolate_lru_page(head)) {
 			list_add_tail(&head->lru, pagelist);
-			mod_node_page_state(page_pgdat(head),
+			mod_yesde_page_state(page_pgdat(head),
 				NR_ISOLATED_ANON + page_is_file_cache(head),
 				hpage_nr_pages(head));
 		} else if (flags & MPOL_MF_STRICT) {
 			/*
 			 * Non-movable page may reach here.  And, there may be
-			 * temporary off LRU pages or non-LRU movable pages.
+			 * temporary off LRU pages or yesn-LRU movable pages.
 			 * Treat them as unmovable pages since they can't be
 			 * isolated, so they can't be moved at the moment.  It
 			 * should return -EIO for this case too.
@@ -1011,16 +1011,16 @@ static int migrate_page_add(struct page *page, struct list_head *pagelist,
 	return 0;
 }
 
-/* page allocation callback for NUMA node migration */
-struct page *alloc_new_node_page(struct page *page, unsigned long node)
+/* page allocation callback for NUMA yesde migration */
+struct page *alloc_new_yesde_page(struct page *page, unsigned long yesde)
 {
 	if (PageHuge(page))
-		return alloc_huge_page_node(page_hstate(compound_head(page)),
-					node);
+		return alloc_huge_page_yesde(page_hstate(compound_head(page)),
+					yesde);
 	else if (PageTransHuge(page)) {
 		struct page *thp;
 
-		thp = alloc_pages_node(node,
+		thp = alloc_pages_yesde(yesde,
 			(GFP_TRANSHUGE | __GFP_THISNODE),
 			HPAGE_PMD_ORDER);
 		if (!thp)
@@ -1028,35 +1028,35 @@ struct page *alloc_new_node_page(struct page *page, unsigned long node)
 		prep_transhuge_page(thp);
 		return thp;
 	} else
-		return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE |
+		return __alloc_pages_yesde(yesde, GFP_HIGHUSER_MOVABLE |
 						    __GFP_THISNODE, 0);
 }
 
 /*
- * Migrate pages from one node to a target node.
- * Returns error or the number of pages not migrated.
+ * Migrate pages from one yesde to a target yesde.
+ * Returns error or the number of pages yest migrated.
  */
-static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+static int migrate_to_yesde(struct mm_struct *mm, int source, int dest,
 			   int flags)
 {
-	nodemask_t nmask;
+	yesdemask_t nmask;
 	LIST_HEAD(pagelist);
 	int err = 0;
 
-	nodes_clear(nmask);
-	node_set(source, nmask);
+	yesdes_clear(nmask);
+	yesde_set(source, nmask);
 
 	/*
-	 * This does not "check" the range but isolates all pages that
+	 * This does yest "check" the range but isolates all pages that
 	 * need migration.  Between passing in the full user address
-	 * space range and MPOL_MF_DISCONTIG_OK, this call can not fail.
+	 * space range and MPOL_MF_DISCONTIG_OK, this call can yest fail.
 	 */
 	VM_BUG_ON(!(flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)));
 	queue_pages_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
 
 	if (!list_empty(&pagelist)) {
-		err = migrate_pages(&pagelist, alloc_new_node_page, NULL, dest,
+		err = migrate_pages(&pagelist, alloc_new_yesde_page, NULL, dest,
 					MIGRATE_SYNC, MR_SYSCALL);
 		if (err)
 			putback_movable_pages(&pagelist);
@@ -1066,17 +1066,17 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
 }
 
 /*
- * Move pages between the two nodesets so as to preserve the physical
+ * Move pages between the two yesdesets so as to preserve the physical
  * layout as much as possible.
  *
- * Returns the number of page that could not be moved.
+ * Returns the number of page that could yest be moved.
  */
-int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
-		     const nodemask_t *to, int flags)
+int do_migrate_pages(struct mm_struct *mm, const yesdemask_t *from,
+		     const yesdemask_t *to, int flags)
 {
 	int busy = 0;
 	int err;
-	nodemask_t tmp;
+	yesdemask_t tmp;
 
 	err = migrate_prep();
 	if (err)
@@ -1086,78 +1086,78 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 
 	/*
 	 * Find a 'source' bit set in 'tmp' whose corresponding 'dest'
-	 * bit in 'to' is not also set in 'tmp'.  Clear the found 'source'
+	 * bit in 'to' is yest also set in 'tmp'.  Clear the found 'source'
 	 * bit in 'tmp', and return that <source, dest> pair for migration.
-	 * The pair of nodemasks 'to' and 'from' define the map.
+	 * The pair of yesdemasks 'to' and 'from' define the map.
 	 *
-	 * If no pair of bits is found that way, fallback to picking some
-	 * pair of 'source' and 'dest' bits that are not the same.  If the
-	 * 'source' and 'dest' bits are the same, this represents a node
-	 * that will be migrating to itself, so no pages need move.
+	 * If yes pair of bits is found that way, fallback to picking some
+	 * pair of 'source' and 'dest' bits that are yest the same.  If the
+	 * 'source' and 'dest' bits are the same, this represents a yesde
+	 * that will be migrating to itself, so yes pages need move.
 	 *
-	 * If no bits are left in 'tmp', or if all remaining bits left
+	 * If yes bits are left in 'tmp', or if all remaining bits left
 	 * in 'tmp' correspond to the same bit in 'to', return false
-	 * (nothing left to migrate).
+	 * (yesthing left to migrate).
 	 *
-	 * This lets us pick a pair of nodes to migrate between, such that
-	 * if possible the dest node is not already occupied by some other
-	 * source node, minimizing the risk of overloading the memory on a
-	 * node that would happen if we migrated incoming memory to a node
-	 * before migrating outgoing memory source that same node.
+	 * This lets us pick a pair of yesdes to migrate between, such that
+	 * if possible the dest yesde is yest already occupied by some other
+	 * source yesde, minimizing the risk of overloading the memory on a
+	 * yesde that would happen if we migrated incoming memory to a yesde
+	 * before migrating outgoing memory source that same yesde.
 	 *
 	 * A single scan of tmp is sufficient.  As we go, we remember the
 	 * most recent <s, d> pair that moved (s != d).  If we find a pair
-	 * that not only moved, but what's better, moved to an empty slot
-	 * (d is not set in tmp), then we break out then, with that pair.
+	 * that yest only moved, but what's better, moved to an empty slot
+	 * (d is yest set in tmp), then we break out then, with that pair.
 	 * Otherwise when we finish scanning from_tmp, we at least have the
 	 * most recent <s, d> pair that moved.  If we get all the way through
-	 * the scan of tmp without finding any node that moved, much less
-	 * moved to an empty node, then there is nothing left worth migrating.
+	 * the scan of tmp without finding any yesde that moved, much less
+	 * moved to an empty yesde, then there is yesthing left worth migrating.
 	 */
 
 	tmp = *from;
-	while (!nodes_empty(tmp)) {
+	while (!yesdes_empty(tmp)) {
 		int s,d;
 		int source = NUMA_NO_NODE;
 		int dest = 0;
 
-		for_each_node_mask(s, tmp) {
+		for_each_yesde_mask(s, tmp) {
 
 			/*
 			 * do_migrate_pages() tries to maintain the relative
-			 * node relationship of the pages established between
+			 * yesde relationship of the pages established between
 			 * threads and memory areas.
                          *
-			 * However if the number of source nodes is not equal to
-			 * the number of destination nodes we can not preserve
-			 * this node relative relationship.  In that case, skip
-			 * copying memory from a node that is in the destination
+			 * However if the number of source yesdes is yest equal to
+			 * the number of destination yesdes we can yest preserve
+			 * this yesde relative relationship.  In that case, skip
+			 * copying memory from a yesde that is in the destination
 			 * mask.
 			 *
 			 * Example: [2,3,4] -> [3,4,5] moves everything.
 			 *          [0-7] - > [3,4,5] moves only 0,1,2,6,7.
 			 */
 
-			if ((nodes_weight(*from) != nodes_weight(*to)) &&
-						(node_isset(s, *to)))
+			if ((yesdes_weight(*from) != yesdes_weight(*to)) &&
+						(yesde_isset(s, *to)))
 				continue;
 
-			d = node_remap(s, *from, *to);
+			d = yesde_remap(s, *from, *to);
 			if (s == d)
 				continue;
 
 			source = s;	/* Node moved. Memorize */
 			dest = d;
 
-			/* dest not in remaining from nodes? */
-			if (!node_isset(dest, tmp))
+			/* dest yest in remaining from yesdes? */
+			if (!yesde_isset(dest, tmp))
 				break;
 		}
 		if (source == NUMA_NO_NODE)
 			break;
 
-		node_clear(source, tmp);
-		err = migrate_to_node(mm, source, dest, flags);
+		yesde_clear(source, tmp);
+		err = migrate_to_yesde(mm, source, dest, flags);
 		if (err > 0)
 			busy += err;
 		if (err < 0)
@@ -1173,7 +1173,7 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 /*
  * Allocate a new page for page migration based on vma policy.
  * Start by assuming the page is mapped by the same vma as contains @start.
- * Search forward from there, if not.  N.B., this assumes that the
+ * Search forward from there, if yest.  N.B., this assumes that the
  * list of pages handed to migrate_pages()--which is how we get here--
  * is in virtual address order.
  */
@@ -1217,8 +1217,8 @@ static int migrate_page_add(struct page *page, struct list_head *pagelist,
 	return -EIO;
 }
 
-int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
-		     const nodemask_t *to, int flags)
+int do_migrate_pages(struct mm_struct *mm, const yesdemask_t *from,
+		     const yesdemask_t *to, int flags)
 {
 	return -ENOSYS;
 }
@@ -1231,7 +1231,7 @@ static struct page *new_page(struct page *page, unsigned long start)
 
 static long do_mbind(unsigned long start, unsigned long len,
 		     unsigned short mode, unsigned short mode_flags,
-		     nodemask_t *nmask, unsigned long flags)
+		     yesdemask_t *nmask, unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
 	struct mempolicy *new;
@@ -1273,9 +1273,9 @@ static long do_mbind(unsigned long start, unsigned long len,
 	if (!new)
 		flags |= MPOL_MF_DISCONTIG_OK;
 
-	pr_debug("mbind %lx-%lx mode:%d flags:%d nodes:%lx\n",
+	pr_debug("mbind %lx-%lx mode:%d flags:%d yesdes:%lx\n",
 		 start, start + len, mode, mode_flags,
-		 nmask ? nodes_addr(*nmask)[0] : NUMA_NO_NODE);
+		 nmask ? yesdes_addr(*nmask)[0] : NUMA_NO_NODE);
 
 	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
 
@@ -1288,7 +1288,7 @@ static long do_mbind(unsigned long start, unsigned long len,
 		if (scratch) {
 			down_write(&mm->mmap_sem);
 			task_lock(current);
-			err = mpol_set_nodemask(new, nmask, scratch);
+			err = mpol_set_yesdemask(new, nmask, scratch);
 			task_unlock(current);
 			if (err)
 				up_write(&mm->mmap_sem);
@@ -1335,39 +1335,39 @@ mpol_out:
 }
 
 /*
- * User space interface with variable sized bitmaps for nodelists.
+ * User space interface with variable sized bitmaps for yesdelists.
  */
 
-/* Copy a node mask from user space. */
-static int get_nodes(nodemask_t *nodes, const unsigned long __user *nmask,
-		     unsigned long maxnode)
+/* Copy a yesde mask from user space. */
+static int get_yesdes(yesdemask_t *yesdes, const unsigned long __user *nmask,
+		     unsigned long maxyesde)
 {
 	unsigned long k;
 	unsigned long t;
 	unsigned long nlongs;
 	unsigned long endmask;
 
-	--maxnode;
-	nodes_clear(*nodes);
-	if (maxnode == 0 || !nmask)
+	--maxyesde;
+	yesdes_clear(*yesdes);
+	if (maxyesde == 0 || !nmask)
 		return 0;
-	if (maxnode > PAGE_SIZE*BITS_PER_BYTE)
+	if (maxyesde > PAGE_SIZE*BITS_PER_BYTE)
 		return -EINVAL;
 
-	nlongs = BITS_TO_LONGS(maxnode);
-	if ((maxnode % BITS_PER_LONG) == 0)
+	nlongs = BITS_TO_LONGS(maxyesde);
+	if ((maxyesde % BITS_PER_LONG) == 0)
 		endmask = ~0UL;
 	else
-		endmask = (1UL << (maxnode % BITS_PER_LONG)) - 1;
+		endmask = (1UL << (maxyesde % BITS_PER_LONG)) - 1;
 
 	/*
-	 * When the user specified more nodes than supported just check
-	 * if the non supported part is all zero.
+	 * When the user specified more yesdes than supported just check
+	 * if the yesn supported part is all zero.
 	 *
-	 * If maxnode have more longs than MAX_NUMNODES, check
+	 * If maxyesde have more longs than MAX_NUMNODES, check
 	 * the bits in that area first. And then go through to
 	 * check the rest bits which equal or bigger than MAX_NUMNODES.
-	 * Otherwise, just check bits [MAX_NUMNODES, maxnode).
+	 * Otherwise, just check bits [MAX_NUMNODES, maxyesde).
 	 */
 	if (nlongs > BITS_TO_LONGS(MAX_NUMNODES)) {
 		for (k = BITS_TO_LONGS(MAX_NUMNODES); k < nlongs; k++) {
@@ -1383,7 +1383,7 @@ static int get_nodes(nodemask_t *nodes, const unsigned long __user *nmask,
 		endmask = ~0UL;
 	}
 
-	if (maxnode > MAX_NUMNODES && MAX_NUMNODES % BITS_PER_LONG != 0) {
+	if (maxyesde > MAX_NUMNODES && MAX_NUMNODES % BITS_PER_LONG != 0) {
 		unsigned long valid_mask = endmask;
 
 		valid_mask &= ~((1UL << (MAX_NUMNODES % BITS_PER_LONG)) - 1);
@@ -1393,18 +1393,18 @@ static int get_nodes(nodemask_t *nodes, const unsigned long __user *nmask,
 			return -EINVAL;
 	}
 
-	if (copy_from_user(nodes_addr(*nodes), nmask, nlongs*sizeof(unsigned long)))
+	if (copy_from_user(yesdes_addr(*yesdes), nmask, nlongs*sizeof(unsigned long)))
 		return -EFAULT;
-	nodes_addr(*nodes)[nlongs-1] &= endmask;
+	yesdes_addr(*yesdes)[nlongs-1] &= endmask;
 	return 0;
 }
 
-/* Copy a kernel node mask to user space */
-static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
-			      nodemask_t *nodes)
+/* Copy a kernel yesde mask to user space */
+static int copy_yesdes_to_user(unsigned long __user *mask, unsigned long maxyesde,
+			      yesdemask_t *yesdes)
 {
-	unsigned long copy = ALIGN(maxnode-1, 64) / 8;
-	unsigned int nbytes = BITS_TO_LONGS(nr_node_ids) * sizeof(long);
+	unsigned long copy = ALIGN(maxyesde-1, 64) / 8;
+	unsigned int nbytes = BITS_TO_LONGS(nr_yesde_ids) * sizeof(long);
 
 	if (copy > nbytes) {
 		if (copy > PAGE_SIZE)
@@ -1413,14 +1413,14 @@ static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
 			return -EFAULT;
 		copy = nbytes;
 	}
-	return copy_to_user(mask, nodes_addr(*nodes), copy) ? -EFAULT : 0;
+	return copy_to_user(mask, yesdes_addr(*yesdes), copy) ? -EFAULT : 0;
 }
 
 static long kernel_mbind(unsigned long start, unsigned long len,
 			 unsigned long mode, const unsigned long __user *nmask,
-			 unsigned long maxnode, unsigned int flags)
+			 unsigned long maxyesde, unsigned int flags)
 {
-	nodemask_t nodes;
+	yesdemask_t yesdes;
 	int err;
 	unsigned short mode_flags;
 
@@ -1432,25 +1432,25 @@ static long kernel_mbind(unsigned long start, unsigned long len,
 	if ((mode_flags & MPOL_F_STATIC_NODES) &&
 	    (mode_flags & MPOL_F_RELATIVE_NODES))
 		return -EINVAL;
-	err = get_nodes(&nodes, nmask, maxnode);
+	err = get_yesdes(&yesdes, nmask, maxyesde);
 	if (err)
 		return err;
-	return do_mbind(start, len, mode, mode_flags, &nodes, flags);
+	return do_mbind(start, len, mode, mode_flags, &yesdes, flags);
 }
 
 SYSCALL_DEFINE6(mbind, unsigned long, start, unsigned long, len,
 		unsigned long, mode, const unsigned long __user *, nmask,
-		unsigned long, maxnode, unsigned int, flags)
+		unsigned long, maxyesde, unsigned int, flags)
 {
-	return kernel_mbind(start, len, mode, nmask, maxnode, flags);
+	return kernel_mbind(start, len, mode, nmask, maxyesde, flags);
 }
 
 /* Set the process memory policy */
 static long kernel_set_mempolicy(int mode, const unsigned long __user *nmask,
-				 unsigned long maxnode)
+				 unsigned long maxyesde)
 {
 	int err;
-	nodemask_t nodes;
+	yesdemask_t yesdes;
 	unsigned short flags;
 
 	flags = mode & MPOL_MODE_FLAGS;
@@ -1459,28 +1459,28 @@ static long kernel_set_mempolicy(int mode, const unsigned long __user *nmask,
 		return -EINVAL;
 	if ((flags & MPOL_F_STATIC_NODES) && (flags & MPOL_F_RELATIVE_NODES))
 		return -EINVAL;
-	err = get_nodes(&nodes, nmask, maxnode);
+	err = get_yesdes(&yesdes, nmask, maxyesde);
 	if (err)
 		return err;
-	return do_set_mempolicy(mode, flags, &nodes);
+	return do_set_mempolicy(mode, flags, &yesdes);
 }
 
 SYSCALL_DEFINE3(set_mempolicy, int, mode, const unsigned long __user *, nmask,
-		unsigned long, maxnode)
+		unsigned long, maxyesde)
 {
-	return kernel_set_mempolicy(mode, nmask, maxnode);
+	return kernel_set_mempolicy(mode, nmask, maxyesde);
 }
 
-static int kernel_migrate_pages(pid_t pid, unsigned long maxnode,
-				const unsigned long __user *old_nodes,
-				const unsigned long __user *new_nodes)
+static int kernel_migrate_pages(pid_t pid, unsigned long maxyesde,
+				const unsigned long __user *old_yesdes,
+				const unsigned long __user *new_yesdes)
 {
 	struct mm_struct *mm = NULL;
 	struct task_struct *task;
-	nodemask_t task_nodes;
+	yesdemask_t task_yesdes;
 	int err;
-	nodemask_t *old;
-	nodemask_t *new;
+	yesdemask_t *old;
+	yesdemask_t *new;
 	NODEMASK_SCRATCH(scratch);
 
 	if (!scratch)
@@ -1489,11 +1489,11 @@ static int kernel_migrate_pages(pid_t pid, unsigned long maxnode,
 	old = &scratch->mask1;
 	new = &scratch->mask2;
 
-	err = get_nodes(old, old_nodes, maxnode);
+	err = get_yesdes(old, old_yesdes, maxyesde);
 	if (err)
 		goto out;
 
-	err = get_nodes(new, new_nodes, maxnode);
+	err = get_yesdes(new, new_yesdes, maxyesde);
 	if (err)
 		goto out;
 
@@ -1520,16 +1520,16 @@ static int kernel_migrate_pages(pid_t pid, unsigned long maxnode,
 	}
 	rcu_read_unlock();
 
-	task_nodes = cpuset_mems_allowed(task);
-	/* Is the user allowed to access the target nodes? */
-	if (!nodes_subset(*new, task_nodes) && !capable(CAP_SYS_NICE)) {
+	task_yesdes = cpuset_mems_allowed(task);
+	/* Is the user allowed to access the target yesdes? */
+	if (!yesdes_subset(*new, task_yesdes) && !capable(CAP_SYS_NICE)) {
 		err = -EPERM;
 		goto out_put;
 	}
 
-	task_nodes = cpuset_mems_allowed(current);
-	nodes_and(*new, *new, task_nodes);
-	if (nodes_empty(*new))
+	task_yesdes = cpuset_mems_allowed(current);
+	yesdes_and(*new, *new, task_yesdes);
+	if (yesdes_empty(*new))
 		goto out_put;
 
 	err = security_task_movememory(task);
@@ -1559,31 +1559,31 @@ out_put:
 
 }
 
-SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
-		const unsigned long __user *, old_nodes,
-		const unsigned long __user *, new_nodes)
+SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxyesde,
+		const unsigned long __user *, old_yesdes,
+		const unsigned long __user *, new_yesdes)
 {
-	return kernel_migrate_pages(pid, maxnode, old_nodes, new_nodes);
+	return kernel_migrate_pages(pid, maxyesde, old_yesdes, new_yesdes);
 }
 
 
 /* Retrieve NUMA policy */
 static int kernel_get_mempolicy(int __user *policy,
 				unsigned long __user *nmask,
-				unsigned long maxnode,
+				unsigned long maxyesde,
 				unsigned long addr,
 				unsigned long flags)
 {
 	int err;
 	int uninitialized_var(pval);
-	nodemask_t nodes;
+	yesdemask_t yesdes;
 
 	addr = untagged_addr(addr);
 
-	if (nmask != NULL && maxnode < nr_node_ids)
+	if (nmask != NULL && maxyesde < nr_yesde_ids)
 		return -EINVAL;
 
-	err = do_get_mempolicy(&pval, &nodes, addr, flags);
+	err = do_get_mempolicy(&pval, &yesdes, addr, flags);
 
 	if (err)
 		return err;
@@ -1592,23 +1592,23 @@ static int kernel_get_mempolicy(int __user *policy,
 		return -EFAULT;
 
 	if (nmask)
-		err = copy_nodes_to_user(nmask, maxnode, &nodes);
+		err = copy_yesdes_to_user(nmask, maxyesde, &yesdes);
 
 	return err;
 }
 
 SYSCALL_DEFINE5(get_mempolicy, int __user *, policy,
-		unsigned long __user *, nmask, unsigned long, maxnode,
+		unsigned long __user *, nmask, unsigned long, maxyesde,
 		unsigned long, addr, unsigned long, flags)
 {
-	return kernel_get_mempolicy(policy, nmask, maxnode, addr, flags);
+	return kernel_get_mempolicy(policy, nmask, maxyesde, addr, flags);
 }
 
 #ifdef CONFIG_COMPAT
 
 COMPAT_SYSCALL_DEFINE5(get_mempolicy, int __user *, policy,
 		       compat_ulong_t __user *, nmask,
-		       compat_ulong_t, maxnode,
+		       compat_ulong_t, maxyesde,
 		       compat_ulong_t, addr, compat_ulong_t, flags)
 {
 	long err;
@@ -1616,7 +1616,7 @@ COMPAT_SYSCALL_DEFINE5(get_mempolicy, int __user *, policy,
 	unsigned long nr_bits, alloc_size;
 	DECLARE_BITMAP(bm, MAX_NUMNODES);
 
-	nr_bits = min_t(unsigned long, maxnode-1, nr_node_ids);
+	nr_bits = min_t(unsigned long, maxyesde-1, nr_yesde_ids);
 	alloc_size = ALIGN(nr_bits, BITS_PER_LONG) / 8;
 
 	if (nmask)
@@ -1629,7 +1629,7 @@ COMPAT_SYSCALL_DEFINE5(get_mempolicy, int __user *, policy,
 		copy_size = min_t(unsigned long, sizeof(bm), alloc_size);
 		err = copy_from_user(bm, nm, copy_size);
 		/* ensure entire bitmap is zeroed */
-		err |= clear_user(nmask, ALIGN(maxnode-1, 8) / 8);
+		err |= clear_user(nmask, ALIGN(maxyesde-1, 8) / 8);
 		err |= compat_put_bitmap(nmask, bm, nr_bits);
 	}
 
@@ -1637,13 +1637,13 @@ COMPAT_SYSCALL_DEFINE5(get_mempolicy, int __user *, policy,
 }
 
 COMPAT_SYSCALL_DEFINE3(set_mempolicy, int, mode, compat_ulong_t __user *, nmask,
-		       compat_ulong_t, maxnode)
+		       compat_ulong_t, maxyesde)
 {
 	unsigned long __user *nm = NULL;
 	unsigned long nr_bits, alloc_size;
 	DECLARE_BITMAP(bm, MAX_NUMNODES);
 
-	nr_bits = min_t(unsigned long, maxnode-1, MAX_NUMNODES);
+	nr_bits = min_t(unsigned long, maxyesde-1, MAX_NUMNODES);
 	alloc_size = ALIGN(nr_bits, BITS_PER_LONG) / 8;
 
 	if (nmask) {
@@ -1659,20 +1659,20 @@ COMPAT_SYSCALL_DEFINE3(set_mempolicy, int, mode, compat_ulong_t __user *, nmask,
 
 COMPAT_SYSCALL_DEFINE6(mbind, compat_ulong_t, start, compat_ulong_t, len,
 		       compat_ulong_t, mode, compat_ulong_t __user *, nmask,
-		       compat_ulong_t, maxnode, compat_ulong_t, flags)
+		       compat_ulong_t, maxyesde, compat_ulong_t, flags)
 {
 	unsigned long __user *nm = NULL;
 	unsigned long nr_bits, alloc_size;
-	nodemask_t bm;
+	yesdemask_t bm;
 
-	nr_bits = min_t(unsigned long, maxnode-1, MAX_NUMNODES);
+	nr_bits = min_t(unsigned long, maxyesde-1, MAX_NUMNODES);
 	alloc_size = ALIGN(nr_bits, BITS_PER_LONG) / 8;
 
 	if (nmask) {
-		if (compat_get_bitmap(nodes_addr(bm), nmask, nr_bits))
+		if (compat_get_bitmap(yesdes_addr(bm), nmask, nr_bits))
 			return -EFAULT;
 		nm = compat_alloc_user_space(alloc_size);
-		if (copy_to_user(nm, nodes_addr(bm), alloc_size))
+		if (copy_to_user(nm, yesdes_addr(bm), alloc_size))
 			return -EFAULT;
 	}
 
@@ -1680,33 +1680,33 @@ COMPAT_SYSCALL_DEFINE6(mbind, compat_ulong_t, start, compat_ulong_t, len,
 }
 
 COMPAT_SYSCALL_DEFINE4(migrate_pages, compat_pid_t, pid,
-		       compat_ulong_t, maxnode,
-		       const compat_ulong_t __user *, old_nodes,
-		       const compat_ulong_t __user *, new_nodes)
+		       compat_ulong_t, maxyesde,
+		       const compat_ulong_t __user *, old_yesdes,
+		       const compat_ulong_t __user *, new_yesdes)
 {
 	unsigned long __user *old = NULL;
 	unsigned long __user *new = NULL;
-	nodemask_t tmp_mask;
+	yesdemask_t tmp_mask;
 	unsigned long nr_bits;
 	unsigned long size;
 
-	nr_bits = min_t(unsigned long, maxnode - 1, MAX_NUMNODES);
+	nr_bits = min_t(unsigned long, maxyesde - 1, MAX_NUMNODES);
 	size = ALIGN(nr_bits, BITS_PER_LONG) / 8;
-	if (old_nodes) {
-		if (compat_get_bitmap(nodes_addr(tmp_mask), old_nodes, nr_bits))
+	if (old_yesdes) {
+		if (compat_get_bitmap(yesdes_addr(tmp_mask), old_yesdes, nr_bits))
 			return -EFAULT;
-		old = compat_alloc_user_space(new_nodes ? size * 2 : size);
-		if (new_nodes)
+		old = compat_alloc_user_space(new_yesdes ? size * 2 : size);
+		if (new_yesdes)
 			new = old + size / sizeof(unsigned long);
-		if (copy_to_user(old, nodes_addr(tmp_mask), size))
+		if (copy_to_user(old, yesdes_addr(tmp_mask), size))
 			return -EFAULT;
 	}
-	if (new_nodes) {
-		if (compat_get_bitmap(nodes_addr(tmp_mask), new_nodes, nr_bits))
+	if (new_yesdes) {
+		if (compat_get_bitmap(yesdes_addr(tmp_mask), new_yesdes, nr_bits))
 			return -EFAULT;
 		if (new == NULL)
 			new = compat_alloc_user_space(size);
-		if (copy_to_user(new, nodes_addr(tmp_mask), size))
+		if (copy_to_user(new, yesdes_addr(tmp_mask), size))
 			return -EFAULT;
 	}
 	return kernel_migrate_pages(pid, nr_bits + 1, old, new);
@@ -1748,7 +1748,7 @@ struct mempolicy *__get_vma_policy(struct vm_area_struct *vma,
  * Falls back to current->mempolicy or system default policy, as necessary.
  * Shared policies [those marked as MPOL_F_SHARED] require an extra reference
  * count--added by the get_policy() vm_op, as appropriate--to protect against
- * freeing by another task.  It is the caller's responsibility to free the
+ * freeing by ayesther task.  It is the caller's responsibility to free the
  * extra reference for shared policies.
  */
 static struct mempolicy *get_vma_policy(struct vm_area_struct *vma,
@@ -1791,45 +1791,45 @@ static int apply_policy_zone(struct mempolicy *policy, enum zone_type zone)
 	BUG_ON(dynamic_policy_zone == ZONE_MOVABLE);
 
 	/*
-	 * if policy->v.nodes has movable memory only,
+	 * if policy->v.yesdes has movable memory only,
 	 * we apply policy when gfp_zone(gfp) = ZONE_MOVABLE only.
 	 *
-	 * policy->v.nodes is intersect with node_states[N_MEMORY].
+	 * policy->v.yesdes is intersect with yesde_states[N_MEMORY].
 	 * so if the following test faile, it implies
-	 * policy->v.nodes has movable memory only.
+	 * policy->v.yesdes has movable memory only.
 	 */
-	if (!nodes_intersects(policy->v.nodes, node_states[N_HIGH_MEMORY]))
+	if (!yesdes_intersects(policy->v.yesdes, yesde_states[N_HIGH_MEMORY]))
 		dynamic_policy_zone = ZONE_MOVABLE;
 
 	return zone >= dynamic_policy_zone;
 }
 
 /*
- * Return a nodemask representing a mempolicy for filtering nodes for
+ * Return a yesdemask representing a mempolicy for filtering yesdes for
  * page allocation
  */
-static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
+static yesdemask_t *policy_yesdemask(gfp_t gfp, struct mempolicy *policy)
 {
-	/* Lower zones don't get a nodemask applied for MPOL_BIND */
+	/* Lower zones don't get a yesdemask applied for MPOL_BIND */
 	if (unlikely(policy->mode == MPOL_BIND) &&
 			apply_policy_zone(policy, gfp_zone(gfp)) &&
-			cpuset_nodemask_valid_mems_allowed(&policy->v.nodes))
-		return &policy->v.nodes;
+			cpuset_yesdemask_valid_mems_allowed(&policy->v.yesdes))
+		return &policy->v.yesdes;
 
 	return NULL;
 }
 
-/* Return the node id preferred by the given mempolicy, or the given id */
-static int policy_node(gfp_t gfp, struct mempolicy *policy,
+/* Return the yesde id preferred by the given mempolicy, or the given id */
+static int policy_yesde(gfp_t gfp, struct mempolicy *policy,
 								int nd)
 {
 	if (policy->mode == MPOL_PREFERRED && !(policy->flags & MPOL_F_LOCAL))
-		nd = policy->v.preferred_node;
+		nd = policy->v.preferred_yesde;
 	else {
 		/*
 		 * __GFP_THISNODE shouldn't even be used with the bind policy
 		 * because we might easily break the expectation to stay on the
-		 * requested node and not break the policy.
+		 * requested yesde and yest break the policy.
 		 */
 		WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
 	}
@@ -1838,56 +1838,56 @@ static int policy_node(gfp_t gfp, struct mempolicy *policy,
 }
 
 /* Do dynamic interleaving for a process */
-static unsigned interleave_nodes(struct mempolicy *policy)
+static unsigned interleave_yesdes(struct mempolicy *policy)
 {
 	unsigned next;
 	struct task_struct *me = current;
 
-	next = next_node_in(me->il_prev, policy->v.nodes);
+	next = next_yesde_in(me->il_prev, policy->v.yesdes);
 	if (next < MAX_NUMNODES)
 		me->il_prev = next;
 	return next;
 }
 
 /*
- * Depending on the memory policy provide a node from which to allocate the
+ * Depending on the memory policy provide a yesde from which to allocate the
  * next slab entry.
  */
-unsigned int mempolicy_slab_node(void)
+unsigned int mempolicy_slab_yesde(void)
 {
 	struct mempolicy *policy;
-	int node = numa_mem_id();
+	int yesde = numa_mem_id();
 
 	if (in_interrupt())
-		return node;
+		return yesde;
 
 	policy = current->mempolicy;
 	if (!policy || policy->flags & MPOL_F_LOCAL)
-		return node;
+		return yesde;
 
 	switch (policy->mode) {
 	case MPOL_PREFERRED:
 		/*
 		 * handled MPOL_F_LOCAL above
 		 */
-		return policy->v.preferred_node;
+		return policy->v.preferred_yesde;
 
 	case MPOL_INTERLEAVE:
-		return interleave_nodes(policy);
+		return interleave_yesdes(policy);
 
 	case MPOL_BIND: {
 		struct zoneref *z;
 
 		/*
 		 * Follow bind policy behavior and start allocation at the
-		 * first node.
+		 * first yesde.
 		 */
 		struct zonelist *zonelist;
 		enum zone_type highest_zoneidx = gfp_zone(GFP_KERNEL);
-		zonelist = &NODE_DATA(node)->node_zonelists[ZONELIST_FALLBACK];
+		zonelist = &NODE_DATA(yesde)->yesde_zonelists[ZONELIST_FALLBACK];
 		z = first_zones_zonelist(zonelist, highest_zoneidx,
-							&policy->v.nodes);
-		return z->zone ? zone_to_nid(z->zone) : node;
+							&policy->v.yesdes);
+		return z->zone ? zone_to_nid(z->zone) : yesde;
 	}
 
 	default:
@@ -1896,27 +1896,27 @@ unsigned int mempolicy_slab_node(void)
 }
 
 /*
- * Do static interleaving for a VMA with known offset @n.  Returns the n'th
- * node in pol->v.nodes (starting from n=0), wrapping around if n exceeds the
- * number of present nodes.
+ * Do static interleaving for a VMA with kyeswn offset @n.  Returns the n'th
+ * yesde in pol->v.yesdes (starting from n=0), wrapping around if n exceeds the
+ * number of present yesdes.
  */
-static unsigned offset_il_node(struct mempolicy *pol, unsigned long n)
+static unsigned offset_il_yesde(struct mempolicy *pol, unsigned long n)
 {
-	unsigned nnodes = nodes_weight(pol->v.nodes);
+	unsigned nyesdes = yesdes_weight(pol->v.yesdes);
 	unsigned target;
 	int i;
 	int nid;
 
-	if (!nnodes)
-		return numa_node_id();
-	target = (unsigned int)n % nnodes;
-	nid = first_node(pol->v.nodes);
+	if (!nyesdes)
+		return numa_yesde_id();
+	target = (unsigned int)n % nyesdes;
+	nid = first_yesde(pol->v.yesdes);
 	for (i = 0; i < target; i++)
-		nid = next_node(nid, pol->v.nodes);
+		nid = next_yesde(nid, pol->v.yesdes);
 	return nid;
 }
 
-/* Determine a node number for interleave */
+/* Determine a yesde number for interleave */
 static inline unsigned interleave_nid(struct mempolicy *pol,
 		 struct vm_area_struct *vma, unsigned long addr, int shift)
 {
@@ -1924,7 +1924,7 @@ static inline unsigned interleave_nid(struct mempolicy *pol,
 		unsigned long off;
 
 		/*
-		 * for small pages, there is no difference between
+		 * for small pages, there is yes difference between
 		 * shift and PAGE_SHIFT, so the bit-shift is safe.
 		 * for huge pages, since vm_pgoff is in units of small
 		 * pages, we need to shift off the always 0 bits to get
@@ -1933,63 +1933,63 @@ static inline unsigned interleave_nid(struct mempolicy *pol,
 		BUG_ON(shift < PAGE_SHIFT);
 		off = vma->vm_pgoff >> (shift - PAGE_SHIFT);
 		off += (addr - vma->vm_start) >> shift;
-		return offset_il_node(pol, off);
+		return offset_il_yesde(pol, off);
 	} else
-		return interleave_nodes(pol);
+		return interleave_yesdes(pol);
 }
 
 #ifdef CONFIG_HUGETLBFS
 /*
- * huge_node(@vma, @addr, @gfp_flags, @mpol)
+ * huge_yesde(@vma, @addr, @gfp_flags, @mpol)
  * @vma: virtual memory area whose policy is sought
  * @addr: address in @vma for shared policy lookup and interleave policy
  * @gfp_flags: for requested zone
  * @mpol: pointer to mempolicy pointer for reference counted mempolicy
- * @nodemask: pointer to nodemask pointer for MPOL_BIND nodemask
+ * @yesdemask: pointer to yesdemask pointer for MPOL_BIND yesdemask
  *
  * Returns a nid suitable for a huge page allocation and a pointer
  * to the struct mempolicy for conditional unref after allocation.
  * If the effective policy is 'BIND, returns a pointer to the mempolicy's
- * @nodemask for filtering the zonelist.
+ * @yesdemask for filtering the zonelist.
  *
  * Must be protected by read_mems_allowed_begin()
  */
-int huge_node(struct vm_area_struct *vma, unsigned long addr, gfp_t gfp_flags,
-				struct mempolicy **mpol, nodemask_t **nodemask)
+int huge_yesde(struct vm_area_struct *vma, unsigned long addr, gfp_t gfp_flags,
+				struct mempolicy **mpol, yesdemask_t **yesdemask)
 {
 	int nid;
 
 	*mpol = get_vma_policy(vma, addr);
-	*nodemask = NULL;	/* assume !MPOL_BIND */
+	*yesdemask = NULL;	/* assume !MPOL_BIND */
 
 	if (unlikely((*mpol)->mode == MPOL_INTERLEAVE)) {
 		nid = interleave_nid(*mpol, vma, addr,
 					huge_page_shift(hstate_vma(vma)));
 	} else {
-		nid = policy_node(gfp_flags, *mpol, numa_node_id());
+		nid = policy_yesde(gfp_flags, *mpol, numa_yesde_id());
 		if ((*mpol)->mode == MPOL_BIND)
-			*nodemask = &(*mpol)->v.nodes;
+			*yesdemask = &(*mpol)->v.yesdes;
 	}
 	return nid;
 }
 
 /*
- * init_nodemask_of_mempolicy
+ * init_yesdemask_of_mempolicy
  *
  * If the current task's mempolicy is "default" [NULL], return 'false'
- * to indicate default policy.  Otherwise, extract the policy nodemask
- * for 'bind' or 'interleave' policy into the argument nodemask, or
- * initialize the argument nodemask to contain the single node for
+ * to indicate default policy.  Otherwise, extract the policy yesdemask
+ * for 'bind' or 'interleave' policy into the argument yesdemask, or
+ * initialize the argument yesdemask to contain the single yesde for
  * 'preferred' or 'local' policy and return 'true' to indicate presence
- * of non-default mempolicy.
+ * of yesn-default mempolicy.
  *
  * We don't bother with reference counting the mempolicy [mpol_get/put]
  * because the current task is examining it's own mempolicy and a task's
  * mempolicy is only ever changed by the task itself.
  *
- * N.B., it is the caller's responsibility to free a returned nodemask.
+ * N.B., it is the caller's responsibility to free a returned yesdemask.
  */
-bool init_nodemask_of_mempolicy(nodemask_t *mask)
+bool init_yesdemask_of_mempolicy(yesdemask_t *mask)
 {
 	struct mempolicy *mempolicy;
 	int nid;
@@ -2002,16 +2002,16 @@ bool init_nodemask_of_mempolicy(nodemask_t *mask)
 	switch (mempolicy->mode) {
 	case MPOL_PREFERRED:
 		if (mempolicy->flags & MPOL_F_LOCAL)
-			nid = numa_node_id();
+			nid = numa_yesde_id();
 		else
-			nid = mempolicy->v.preferred_node;
-		init_nodemask_of_node(mask, nid);
+			nid = mempolicy->v.preferred_yesde;
+		init_yesdemask_of_yesde(mask, nid);
 		break;
 
 	case MPOL_BIND:
 		/* Fall through */
 	case MPOL_INTERLEAVE:
-		*mask =  mempolicy->v.nodes;
+		*mask =  mempolicy->v.yesdes;
 		break;
 
 	default:
@@ -2024,17 +2024,17 @@ bool init_nodemask_of_mempolicy(nodemask_t *mask)
 #endif
 
 /*
- * mempolicy_nodemask_intersects
+ * mempolicy_yesdemask_intersects
  *
  * If tsk's mempolicy is "default" [NULL], return 'true' to indicate default
  * policy.  Otherwise, check for intersection between mask and the policy
- * nodemask for 'bind' or 'interleave' policy.  For 'perferred' or 'local'
+ * yesdemask for 'bind' or 'interleave' policy.  For 'perferred' or 'local'
  * policy, always return true since it may allocate elsewhere on fallback.
  *
  * Takes task_lock(tsk) to prevent freeing of its mempolicy.
  */
-bool mempolicy_nodemask_intersects(struct task_struct *tsk,
-					const nodemask_t *mask)
+bool mempolicy_yesdemask_intersects(struct task_struct *tsk,
+					const yesdemask_t *mask)
 {
 	struct mempolicy *mempolicy;
 	bool ret = true;
@@ -2049,15 +2049,15 @@ bool mempolicy_nodemask_intersects(struct task_struct *tsk,
 	switch (mempolicy->mode) {
 	case MPOL_PREFERRED:
 		/*
-		 * MPOL_PREFERRED and MPOL_F_LOCAL are only preferred nodes to
-		 * allocate from, they may fallback to other nodes when oom.
+		 * MPOL_PREFERRED and MPOL_F_LOCAL are only preferred yesdes to
+		 * allocate from, they may fallback to other yesdes when oom.
 		 * Thus, it's possible for tsk to have allocated memory from
-		 * nodes in mask.
+		 * yesdes in mask.
 		 */
 		break;
 	case MPOL_BIND:
 	case MPOL_INTERLEAVE:
-		ret = nodes_intersects(mempolicy->v.nodes, *mask);
+		ret = yesdes_intersects(mempolicy->v.yesdes, *mask);
 		break;
 	default:
 		BUG();
@@ -2093,30 +2093,30 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
  *      %GFP_USER    user allocation.
  *      %GFP_KERNEL  kernel allocations,
  *      %GFP_HIGHMEM highmem/user allocations,
- *      %GFP_FS      allocation should not call back into a file system.
+ *      %GFP_FS      allocation should yest call back into a file system.
  *      %GFP_ATOMIC  don't sleep.
  *
  *	@order:Order of the GFP allocation.
- * 	@vma:  Pointer to VMA or NULL if not available.
+ * 	@vma:  Pointer to VMA or NULL if yest available.
  *	@addr: Virtual Address of the allocation. Must be inside the VMA.
- *	@node: Which node to prefer for allocation (modulo policy).
- *	@hugepage: for hugepages try only the preferred node if possible
+ *	@yesde: Which yesde to prefer for allocation (modulo policy).
+ *	@hugepage: for hugepages try only the preferred yesde if possible
  *
  * 	This function allocates a page from the kernel page pool and applies
  *	a NUMA policy associated with the VMA or the current process.
- *	When VMA is not NULL caller must hold down_read on the mmap_sem of the
+ *	When VMA is yest NULL caller must hold down_read on the mmap_sem of the
  *	mm_struct of the VMA to prevent it from going away. Should be used for
  *	all allocations for pages that will be mapped into user space. Returns
- *	NULL when no page can be allocated.
+ *	NULL when yes page can be allocated.
  */
 struct page *
 alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
-		unsigned long addr, int node, bool hugepage)
+		unsigned long addr, int yesde, bool hugepage)
 {
 	struct mempolicy *pol;
 	struct page *page;
 	int preferred_nid;
-	nodemask_t *nmask;
+	yesdemask_t *nmask;
 
 	pol = get_vma_policy(vma, addr);
 
@@ -2130,48 +2130,48 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 	}
 
 	if (unlikely(IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && hugepage)) {
-		int hpage_node = node;
+		int hpage_yesde = yesde;
 
 		/*
-		 * For hugepage allocation and non-interleave policy which
-		 * allows the current node (or other explicitly preferred
-		 * node) we only try to allocate from the current/preferred
-		 * node and don't fall back to other nodes, as the cost of
+		 * For hugepage allocation and yesn-interleave policy which
+		 * allows the current yesde (or other explicitly preferred
+		 * yesde) we only try to allocate from the current/preferred
+		 * yesde and don't fall back to other yesdes, as the cost of
 		 * remote accesses would likely offset THP benefits.
 		 *
-		 * If the policy is interleave, or does not allow the current
-		 * node in its nodemask, we allocate the standard way.
+		 * If the policy is interleave, or does yest allow the current
+		 * yesde in its yesdemask, we allocate the standard way.
 		 */
 		if (pol->mode == MPOL_PREFERRED && !(pol->flags & MPOL_F_LOCAL))
-			hpage_node = pol->v.preferred_node;
+			hpage_yesde = pol->v.preferred_yesde;
 
-		nmask = policy_nodemask(gfp, pol);
-		if (!nmask || node_isset(hpage_node, *nmask)) {
+		nmask = policy_yesdemask(gfp, pol);
+		if (!nmask || yesde_isset(hpage_yesde, *nmask)) {
 			mpol_cond_put(pol);
 			/*
-			 * First, try to allocate THP only on local node, but
+			 * First, try to allocate THP only on local yesde, but
 			 * don't reclaim unnecessarily, just compact.
 			 */
-			page = __alloc_pages_node(hpage_node,
+			page = __alloc_pages_yesde(hpage_yesde,
 				gfp | __GFP_THISNODE | __GFP_NORETRY, order);
 
 			/*
 			 * If hugepage allocations are configured to always
-			 * synchronous compact or the vma has been madvised
+			 * synchroyesus compact or the vma has been madvised
 			 * to prefer hugepage backing, retry allowing remote
 			 * memory with both reclaim and compact as well.
 			 */
 			if (!page && (gfp & __GFP_DIRECT_RECLAIM))
-				page = __alloc_pages_node(hpage_node,
+				page = __alloc_pages_yesde(hpage_yesde,
 								gfp, order);
 
 			goto out;
 		}
 	}
 
-	nmask = policy_nodemask(gfp, pol);
-	preferred_nid = policy_node(gfp, pol, node);
-	page = __alloc_pages_nodemask(gfp, order, preferred_nid, nmask);
+	nmask = policy_yesdemask(gfp, pol);
+	preferred_nid = policy_yesde(gfp, pol, yesde);
+	page = __alloc_pages_yesdemask(gfp, order, preferred_nid, nmask);
 	mpol_cond_put(pol);
 out:
 	return page;
@@ -2189,9 +2189,9 @@ EXPORT_SYMBOL(alloc_pages_vma);
  *      	%GFP_ATOMIC don't sleep.
  *	@order: Power of two of allocation size in pages. 0 is a single page.
  *
- *	Allocate a page from the kernel page pool.  When not in
+ *	Allocate a page from the kernel page pool.  When yest in
  *	interrupt context and apply the current process NUMA policy.
- *	Returns NULL when no page can be allocated.
+ *	Returns NULL when yes page can be allocated.
  */
 struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 {
@@ -2203,14 +2203,14 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 
 	/*
 	 * No reference counting needed for current->mempolicy
-	 * nor system default_policy
+	 * yesr system default_policy
 	 */
 	if (pol->mode == MPOL_INTERLEAVE)
-		page = alloc_page_interleave(gfp, order, interleave_nodes(pol));
+		page = alloc_page_interleave(gfp, order, interleave_yesdes(pol));
 	else
-		page = __alloc_pages_nodemask(gfp, order,
-				policy_node(gfp, pol, numa_node_id()),
-				policy_nodemask(gfp, pol));
+		page = __alloc_pages_yesdemask(gfp, order,
+				policy_yesde(gfp, pol, numa_yesde_id()),
+				policy_yesdemask(gfp, pol));
 
 	return page;
 }
@@ -2231,7 +2231,7 @@ int vma_dup_policy(struct vm_area_struct *src, struct vm_area_struct *dst)
  * rebinds the mempolicy its copying by calling mpol_rebind_policy()
  * with the mems_allowed returned by cpuset_mems_allowed().  This
  * keeps mempolicies cpuset relative after its cpuset moves.  See
- * further kernel/cpuset.c update_nodemask().
+ * further kernel/cpuset.c update_yesdemask().
  *
  * current's mempolicy may be rebinded by the other task(the task that changes
  * cpuset's mems), so we needn't do rebind work for current task.
@@ -2254,7 +2254,7 @@ struct mempolicy *__mpol_dup(struct mempolicy *old)
 		*new = *old;
 
 	if (current_cpuset_is_being_rebound()) {
-		nodemask_t mems = cpuset_mems_allowed(current);
+		yesdemask_t mems = cpuset_mems_allowed(current);
 		mpol_rebind_policy(new, &mems);
 	}
 	atomic_set(&new->refcnt, 1);
@@ -2270,20 +2270,20 @@ bool __mpol_equal(struct mempolicy *a, struct mempolicy *b)
 		return false;
 	if (a->flags != b->flags)
 		return false;
-	if (mpol_store_user_nodemask(a))
-		if (!nodes_equal(a->w.user_nodemask, b->w.user_nodemask))
+	if (mpol_store_user_yesdemask(a))
+		if (!yesdes_equal(a->w.user_yesdemask, b->w.user_yesdemask))
 			return false;
 
 	switch (a->mode) {
 	case MPOL_BIND:
 		/* Fall through */
 	case MPOL_INTERLEAVE:
-		return !!nodes_equal(a->v.nodes, b->v.nodes);
+		return !!yesdes_equal(a->v.yesdes, b->v.yesdes);
 	case MPOL_PREFERRED:
 		/* a's ->flags is the same as b's */
 		if (a->flags & MPOL_F_LOCAL)
 			return true;
-		return a->v.preferred_node == b->v.preferred_node;
+		return a->v.preferred_yesde == b->v.preferred_yesde;
 	default:
 		BUG();
 		return false;
@@ -2293,8 +2293,8 @@ bool __mpol_equal(struct mempolicy *a, struct mempolicy *b)
 /*
  * Shared memory backing store policy support.
  *
- * Remember policies even when nobody has shared memory mapped.
- * The policies are kept in Red-Black tree linked from the inode.
+ * Remember policies even when yesbody has shared memory mapped.
+ * The policies are kept in Red-Black tree linked from the iyesde.
  * They are protected by the sp->lock rwlock, which should be held
  * for any accesses to the tree.
  */
@@ -2303,13 +2303,13 @@ bool __mpol_equal(struct mempolicy *a, struct mempolicy *b)
  * lookup first element intersecting start-end.  Caller holds sp->lock for
  * reading or for writing
  */
-static struct sp_node *
+static struct sp_yesde *
 sp_lookup(struct shared_policy *sp, unsigned long start, unsigned long end)
 {
-	struct rb_node *n = sp->root.rb_node;
+	struct rb_yesde *n = sp->root.rb_yesde;
 
 	while (n) {
-		struct sp_node *p = rb_entry(n, struct sp_node, nd);
+		struct sp_yesde *p = rb_entry(n, struct sp_yesde, nd);
 
 		if (start >= p->end)
 			n = n->rb_right;
@@ -2321,31 +2321,31 @@ sp_lookup(struct shared_policy *sp, unsigned long start, unsigned long end)
 	if (!n)
 		return NULL;
 	for (;;) {
-		struct sp_node *w = NULL;
-		struct rb_node *prev = rb_prev(n);
+		struct sp_yesde *w = NULL;
+		struct rb_yesde *prev = rb_prev(n);
 		if (!prev)
 			break;
-		w = rb_entry(prev, struct sp_node, nd);
+		w = rb_entry(prev, struct sp_yesde, nd);
 		if (w->end <= start)
 			break;
 		n = prev;
 	}
-	return rb_entry(n, struct sp_node, nd);
+	return rb_entry(n, struct sp_yesde, nd);
 }
 
 /*
  * Insert a new shared policy into the list.  Caller holds sp->lock for
  * writing.
  */
-static void sp_insert(struct shared_policy *sp, struct sp_node *new)
+static void sp_insert(struct shared_policy *sp, struct sp_yesde *new)
 {
-	struct rb_node **p = &sp->root.rb_node;
-	struct rb_node *parent = NULL;
-	struct sp_node *nd;
+	struct rb_yesde **p = &sp->root.rb_yesde;
+	struct rb_yesde *parent = NULL;
+	struct sp_yesde *nd;
 
 	while (*p) {
 		parent = *p;
-		nd = rb_entry(parent, struct sp_node, nd);
+		nd = rb_entry(parent, struct sp_yesde, nd);
 		if (new->start < nd->start)
 			p = &(*p)->rb_left;
 		else if (new->end > nd->end)
@@ -2353,7 +2353,7 @@ static void sp_insert(struct shared_policy *sp, struct sp_node *new)
 		else
 			BUG();
 	}
-	rb_link_node(&new->nd, parent, p);
+	rb_link_yesde(&new->nd, parent, p);
 	rb_insert_color(&new->nd, &sp->root);
 	pr_debug("inserting %lx-%lx: %d\n", new->start, new->end,
 		 new->policy ? new->policy->mode : 0);
@@ -2364,9 +2364,9 @@ struct mempolicy *
 mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
 {
 	struct mempolicy *pol = NULL;
-	struct sp_node *sn;
+	struct sp_yesde *sn;
 
-	if (!sp->root.rb_node)
+	if (!sp->root.rb_yesde)
 		return NULL;
 	read_lock(&sp->lock);
 	sn = sp_lookup(sp, idx, idx+1);
@@ -2378,28 +2378,28 @@ mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
 	return pol;
 }
 
-static void sp_free(struct sp_node *n)
+static void sp_free(struct sp_yesde *n)
 {
 	mpol_put(n->policy);
 	kmem_cache_free(sn_cache, n);
 }
 
 /**
- * mpol_misplaced - check whether current page node is valid in policy
+ * mpol_misplaced - check whether current page yesde is valid in policy
  *
  * @page: page to be checked
  * @vma: vm area where page mapped
  * @addr: virtual address where page mapped
  *
- * Lookup current policy node id for vma,addr and "compare to" page's
- * node id.
+ * Lookup current policy yesde id for vma,addr and "compare to" page's
+ * yesde id.
  *
  * Returns:
- *	-1	- not misplaced, page is in the right node
- *	node	- node id where the page should be
+ *	-1	- yest misplaced, page is in the right yesde
+ *	yesde	- yesde id where the page should be
  *
  * Policy determination "mimics" alloc_page_vma().
- * Called from fault path where we know the vma and faulting address.
+ * Called from fault path where we kyesw the vma and faulting address.
  */
 int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long addr)
 {
@@ -2408,7 +2408,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 	int curnid = page_to_nid(page);
 	unsigned long pgoff;
 	int thiscpu = raw_smp_processor_id();
-	int thisnid = cpu_to_node(thiscpu);
+	int thisnid = cpu_to_yesde(thiscpu);
 	int polnid = NUMA_NO_NODE;
 	int ret = -1;
 
@@ -2420,30 +2420,30 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 	case MPOL_INTERLEAVE:
 		pgoff = vma->vm_pgoff;
 		pgoff += (addr - vma->vm_start) >> PAGE_SHIFT;
-		polnid = offset_il_node(pol, pgoff);
+		polnid = offset_il_yesde(pol, pgoff);
 		break;
 
 	case MPOL_PREFERRED:
 		if (pol->flags & MPOL_F_LOCAL)
-			polnid = numa_node_id();
+			polnid = numa_yesde_id();
 		else
-			polnid = pol->v.preferred_node;
+			polnid = pol->v.preferred_yesde;
 		break;
 
 	case MPOL_BIND:
 
 		/*
-		 * allows binding to multiple nodes.
-		 * use current page if in policy nodemask,
-		 * else select nearest allowed node, if any.
-		 * If no allowed nodes, use current [!misplaced].
+		 * allows binding to multiple yesdes.
+		 * use current page if in policy yesdemask,
+		 * else select nearest allowed yesde, if any.
+		 * If yes allowed yesdes, use current [!misplaced].
 		 */
-		if (node_isset(curnid, pol->v.nodes))
+		if (yesde_isset(curnid, pol->v.yesdes))
 			goto out;
 		z = first_zones_zonelist(
-				node_zonelist(numa_node_id(), GFP_HIGHUSER),
+				yesde_zonelist(numa_yesde_id(), GFP_HIGHUSER),
 				gfp_zone(GFP_HIGHUSER),
-				&pol->v.nodes);
+				&pol->v.yesdes);
 		polnid = zone_to_nid(z->zone);
 		break;
 
@@ -2451,7 +2451,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 		BUG();
 	}
 
-	/* Migrate the page towards the node whose CPU is referencing it */
+	/* Migrate the page towards the yesde whose CPU is referencing it */
 	if (pol->flags & MPOL_F_MORON) {
 		polnid = thisnid;
 
@@ -2484,25 +2484,25 @@ void mpol_put_task_policy(struct task_struct *task)
 	mpol_put(pol);
 }
 
-static void sp_delete(struct shared_policy *sp, struct sp_node *n)
+static void sp_delete(struct shared_policy *sp, struct sp_yesde *n)
 {
 	pr_debug("deleting %lx-l%lx\n", n->start, n->end);
 	rb_erase(&n->nd, &sp->root);
 	sp_free(n);
 }
 
-static void sp_node_init(struct sp_node *node, unsigned long start,
+static void sp_yesde_init(struct sp_yesde *yesde, unsigned long start,
 			unsigned long end, struct mempolicy *pol)
 {
-	node->start = start;
-	node->end = end;
-	node->policy = pol;
+	yesde->start = start;
+	yesde->end = end;
+	yesde->policy = pol;
 }
 
-static struct sp_node *sp_alloc(unsigned long start, unsigned long end,
+static struct sp_yesde *sp_alloc(unsigned long start, unsigned long end,
 				struct mempolicy *pol)
 {
-	struct sp_node *n;
+	struct sp_yesde *n;
 	struct mempolicy *newpol;
 
 	n = kmem_cache_alloc(sn_cache, GFP_KERNEL);
@@ -2515,17 +2515,17 @@ static struct sp_node *sp_alloc(unsigned long start, unsigned long end,
 		return NULL;
 	}
 	newpol->flags |= MPOL_F_SHARED;
-	sp_node_init(n, start, end, newpol);
+	sp_yesde_init(n, start, end, newpol);
 
 	return n;
 }
 
 /* Replace a policy range. */
 static int shared_policy_replace(struct shared_policy *sp, unsigned long start,
-				 unsigned long end, struct sp_node *new)
+				 unsigned long end, struct sp_yesde *new)
 {
-	struct sp_node *n;
-	struct sp_node *n_new = NULL;
+	struct sp_yesde *n;
+	struct sp_yesde *n_new = NULL;
 	struct mempolicy *mpol_new = NULL;
 	int ret = 0;
 
@@ -2534,7 +2534,7 @@ restart:
 	n = sp_lookup(sp, start, end);
 	/* Take care of old policies in the same range. */
 	while (n && n->start < end) {
-		struct rb_node *next = rb_next(&n->nd);
+		struct rb_yesde *next = rb_next(&n->nd);
 		if (n->start >= start) {
 			if (n->end <= end)
 				sp_delete(sp, n);
@@ -2548,7 +2548,7 @@ restart:
 
 				*mpol_new = *n->policy;
 				atomic_set(&mpol_new->refcnt, 1);
-				sp_node_init(n_new, end, n->end, mpol_new);
+				sp_yesde_init(n_new, end, n->end, mpol_new);
 				n->end = start;
 				sp_insert(sp, n_new);
 				n_new = NULL;
@@ -2559,7 +2559,7 @@ restart:
 		}
 		if (!next)
 			break;
-		n = rb_entry(next, struct sp_node, nd);
+		n = rb_entry(next, struct sp_yesde, nd);
 	}
 	if (new)
 		sp_insert(sp, new);
@@ -2587,14 +2587,14 @@ alloc_new:
 }
 
 /**
- * mpol_shared_policy_init - initialize shared policy for inode
- * @sp: pointer to inode shared policy
+ * mpol_shared_policy_init - initialize shared policy for iyesde
+ * @sp: pointer to iyesde shared policy
  * @mpol:  struct mempolicy to install
  *
- * Install non-NULL @mpol in inode's shared policy rb-tree.
- * On entry, the current task has a reference on a non-NULL @mpol.
+ * Install yesn-NULL @mpol in iyesde's shared policy rb-tree.
+ * On entry, the current task has a reference on a yesn-NULL @mpol.
  * This must be released on exit.
- * This is called at get_inode() calls and we can use GFP_KERNEL.
+ * This is called at get_iyesde() calls and we can use GFP_KERNEL.
  */
 void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
 {
@@ -2611,12 +2611,12 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
 		if (!scratch)
 			goto put_mpol;
 		/* contextualize the tmpfs mount point mempolicy */
-		new = mpol_new(mpol->mode, mpol->flags, &mpol->w.user_nodemask);
+		new = mpol_new(mpol->mode, mpol->flags, &mpol->w.user_yesdemask);
 		if (IS_ERR(new))
-			goto free_scratch; /* no valid nodemask intersection */
+			goto free_scratch; /* yes valid yesdemask intersection */
 
 		task_lock(current);
-		ret = mpol_set_nodemask(new, &mpol->w.user_nodemask, scratch);
+		ret = mpol_set_yesdemask(new, &mpol->w.user_yesdemask, scratch);
 		task_unlock(current);
 		if (ret)
 			goto put_new;
@@ -2639,14 +2639,14 @@ int mpol_set_shared_policy(struct shared_policy *info,
 			struct vm_area_struct *vma, struct mempolicy *npol)
 {
 	int err;
-	struct sp_node *new = NULL;
+	struct sp_yesde *new = NULL;
 	unsigned long sz = vma_pages(vma);
 
 	pr_debug("set_shared_policy %lx sz %lu %d %d %lx\n",
 		 vma->vm_pgoff,
 		 sz, npol ? npol->mode : -1,
 		 npol ? npol->flags : -1,
-		 npol ? nodes_addr(npol->v.nodes)[0] : NUMA_NO_NODE);
+		 npol ? yesdes_addr(npol->v.yesdes)[0] : NUMA_NO_NODE);
 
 	if (npol) {
 		new = sp_alloc(vma->vm_pgoff, vma->vm_pgoff + sz, npol);
@@ -2659,18 +2659,18 @@ int mpol_set_shared_policy(struct shared_policy *info,
 	return err;
 }
 
-/* Free a backing policy store on inode delete. */
+/* Free a backing policy store on iyesde delete. */
 void mpol_free_shared_policy(struct shared_policy *p)
 {
-	struct sp_node *n;
-	struct rb_node *next;
+	struct sp_yesde *n;
+	struct rb_yesde *next;
 
-	if (!p->root.rb_node)
+	if (!p->root.rb_yesde)
 		return;
 	write_lock(&p->lock);
 	next = rb_first(&p->root);
 	while (next) {
-		n = rb_entry(next, struct sp_node, nd);
+		n = rb_entry(next, struct sp_yesde, nd);
 		next = rb_next(&n->nd);
 		sp_delete(p, n);
 	}
@@ -2691,7 +2691,7 @@ static void __init check_numabalancing_enable(void)
 	if (numabalancing_override)
 		set_numabalancing_state(numabalancing_override == 1);
 
-	if (num_online_nodes() > 1 && !numabalancing_override) {
+	if (num_online_yesdes() > 1 && !numabalancing_override) {
 		pr_info("%s automatic NUMA balancing. Configure with numa_balancing= or the kernel.numa_balancing sysctl\n",
 			numabalancing_default ? "Enabling" : "Disabling");
 		set_numabalancing_state(numabalancing_default);
@@ -2727,7 +2727,7 @@ static inline void __init check_numabalancing_enable(void)
 /* assumes fs == KERNEL_DS */
 void __init numa_policy_init(void)
 {
-	nodemask_t interleave_nodes;
+	yesdemask_t interleave_yesdes;
 	unsigned long largest = 0;
 	int nid, prefer = 0;
 
@@ -2735,44 +2735,44 @@ void __init numa_policy_init(void)
 					 sizeof(struct mempolicy),
 					 0, SLAB_PANIC, NULL);
 
-	sn_cache = kmem_cache_create("shared_policy_node",
-				     sizeof(struct sp_node),
+	sn_cache = kmem_cache_create("shared_policy_yesde",
+				     sizeof(struct sp_yesde),
 				     0, SLAB_PANIC, NULL);
 
-	for_each_node(nid) {
-		preferred_node_policy[nid] = (struct mempolicy) {
+	for_each_yesde(nid) {
+		preferred_yesde_policy[nid] = (struct mempolicy) {
 			.refcnt = ATOMIC_INIT(1),
 			.mode = MPOL_PREFERRED,
 			.flags = MPOL_F_MOF | MPOL_F_MORON,
-			.v = { .preferred_node = nid, },
+			.v = { .preferred_yesde = nid, },
 		};
 	}
 
 	/*
 	 * Set interleaving policy for system init. Interleaving is only
-	 * enabled across suitably sized nodes (default is >= 16MB), or
-	 * fall back to the largest node if they're all smaller.
+	 * enabled across suitably sized yesdes (default is >= 16MB), or
+	 * fall back to the largest yesde if they're all smaller.
 	 */
-	nodes_clear(interleave_nodes);
-	for_each_node_state(nid, N_MEMORY) {
-		unsigned long total_pages = node_present_pages(nid);
+	yesdes_clear(interleave_yesdes);
+	for_each_yesde_state(nid, N_MEMORY) {
+		unsigned long total_pages = yesde_present_pages(nid);
 
-		/* Preserve the largest node */
+		/* Preserve the largest yesde */
 		if (largest < total_pages) {
 			largest = total_pages;
 			prefer = nid;
 		}
 
-		/* Interleave this node? */
+		/* Interleave this yesde? */
 		if ((total_pages << PAGE_SHIFT) >= (16 << 20))
-			node_set(nid, interleave_nodes);
+			yesde_set(nid, interleave_yesdes);
 	}
 
 	/* All too small, use the largest */
-	if (unlikely(nodes_empty(interleave_nodes)))
-		node_set(prefer, interleave_nodes);
+	if (unlikely(yesdes_empty(interleave_yesdes)))
+		yesde_set(prefer, interleave_yesdes);
 
-	if (do_set_mempolicy(MPOL_INTERLEAVE, 0, &interleave_nodes))
+	if (do_set_mempolicy(MPOL_INTERLEAVE, 0, &interleave_yesdes))
 		pr_err("%s: interleaving failed\n", __func__);
 
 	check_numabalancing_enable();
@@ -2808,7 +2808,7 @@ static const char * const policy_modes[] =
  * @mpol:  pointer to struct mempolicy pointer, returned on success.
  *
  * Format of input:
- *	<mode>[=<flags>][:<nodelist>]
+ *	<mode>[=<flags>][:<yesdelist>]
  *
  * On success, returns 0, else 1
  */
@@ -2816,20 +2816,20 @@ int mpol_parse_str(char *str, struct mempolicy **mpol)
 {
 	struct mempolicy *new = NULL;
 	unsigned short mode_flags;
-	nodemask_t nodes;
-	char *nodelist = strchr(str, ':');
+	yesdemask_t yesdes;
+	char *yesdelist = strchr(str, ':');
 	char *flags = strchr(str, '=');
 	int err = 1, mode;
 
-	if (nodelist) {
+	if (yesdelist) {
 		/* NUL-terminate mode or flags string */
-		*nodelist++ = '\0';
-		if (nodelist_parse(nodelist, nodes))
+		*yesdelist++ = '\0';
+		if (yesdelist_parse(yesdelist, yesdes))
 			goto out;
-		if (!nodes_subset(nodes, node_states[N_MEMORY]))
+		if (!yesdes_subset(yesdes, yesde_states[N_MEMORY]))
 			goto out;
 	} else
-		nodes_clear(nodes);
+		yesdes_clear(yesdes);
 
 	if (flags)
 		*flags++ = '\0';	/* terminate mode string */
@@ -2841,10 +2841,10 @@ int mpol_parse_str(char *str, struct mempolicy **mpol)
 	switch (mode) {
 	case MPOL_PREFERRED:
 		/*
-		 * Insist on a nodelist of one node only
+		 * Insist on a yesdelist of one yesde only
 		 */
-		if (nodelist) {
-			char *rest = nodelist;
+		if (yesdelist) {
+			char *rest = yesdelist;
 			while (isdigit(*rest))
 				rest++;
 			if (*rest)
@@ -2853,31 +2853,31 @@ int mpol_parse_str(char *str, struct mempolicy **mpol)
 		break;
 	case MPOL_INTERLEAVE:
 		/*
-		 * Default to online nodes with memory if no nodelist
+		 * Default to online yesdes with memory if yes yesdelist
 		 */
-		if (!nodelist)
-			nodes = node_states[N_MEMORY];
+		if (!yesdelist)
+			yesdes = yesde_states[N_MEMORY];
 		break;
 	case MPOL_LOCAL:
 		/*
-		 * Don't allow a nodelist;  mpol_new() checks flags
+		 * Don't allow a yesdelist;  mpol_new() checks flags
 		 */
-		if (nodelist)
+		if (yesdelist)
 			goto out;
 		mode = MPOL_PREFERRED;
 		break;
 	case MPOL_DEFAULT:
 		/*
-		 * Insist on a empty nodelist
+		 * Insist on a empty yesdelist
 		 */
-		if (!nodelist)
+		if (!yesdelist)
 			err = 0;
 		goto out;
 	case MPOL_BIND:
 		/*
-		 * Insist on a nodelist
+		 * Insist on a yesdelist
 		 */
-		if (!nodelist)
+		if (!yesdelist)
 			goto out;
 	}
 
@@ -2895,33 +2895,33 @@ int mpol_parse_str(char *str, struct mempolicy **mpol)
 			goto out;
 	}
 
-	new = mpol_new(mode, mode_flags, &nodes);
+	new = mpol_new(mode, mode_flags, &yesdes);
 	if (IS_ERR(new))
 		goto out;
 
 	/*
-	 * Save nodes for mpol_to_str() to show the tmpfs mount options
+	 * Save yesdes for mpol_to_str() to show the tmpfs mount options
 	 * for /proc/mounts, /proc/pid/mounts and /proc/pid/mountinfo.
 	 */
 	if (mode != MPOL_PREFERRED)
-		new->v.nodes = nodes;
-	else if (nodelist)
-		new->v.preferred_node = first_node(nodes);
+		new->v.yesdes = yesdes;
+	else if (yesdelist)
+		new->v.preferred_yesde = first_yesde(yesdes);
 	else
 		new->flags |= MPOL_F_LOCAL;
 
 	/*
-	 * Save nodes for contextualization: this will be used to "clone"
+	 * Save yesdes for contextualization: this will be used to "clone"
 	 * the mempolicy in a specific context [cpuset] at a later time.
 	 */
-	new->w.user_nodemask = nodes;
+	new->w.user_yesdemask = yesdes;
 
 	err = 0;
 
 out:
 	/* Restore string for error message */
-	if (nodelist)
-		*--nodelist = ':';
+	if (yesdelist)
+		*--yesdelist = ':';
 	if (flags)
 		*--flags = '=';
 	if (!err)
@@ -2938,12 +2938,12 @@ out:
  *
  * Convert @pol into a string.  If @buffer is too short, truncate the string.
  * Recommend a @maxlen of at least 32 for the longest mode, "interleave", the
- * longest flag, "relative", and to display at least a few node ids.
+ * longest flag, "relative", and to display at least a few yesde ids.
  */
 void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 {
 	char *p = buffer;
-	nodemask_t nodes = NODE_MASK_NONE;
+	yesdemask_t yesdes = NODE_MASK_NONE;
 	unsigned short mode = MPOL_DEFAULT;
 	unsigned short flags = 0;
 
@@ -2959,15 +2959,15 @@ void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 		if (flags & MPOL_F_LOCAL)
 			mode = MPOL_LOCAL;
 		else
-			node_set(pol->v.preferred_node, nodes);
+			yesde_set(pol->v.preferred_yesde, yesdes);
 		break;
 	case MPOL_BIND:
 	case MPOL_INTERLEAVE:
-		nodes = pol->v.nodes;
+		yesdes = pol->v.yesdes;
 		break;
 	default:
 		WARN_ON_ONCE(1);
-		snprintf(p, maxlen, "unknown");
+		snprintf(p, maxlen, "unkyeswn");
 		return;
 	}
 
@@ -2985,7 +2985,7 @@ void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 			p += snprintf(p, buffer + maxlen - p, "relative");
 	}
 
-	if (!nodes_empty(nodes))
+	if (!yesdes_empty(yesdes))
 		p += scnprintf(p, buffer + maxlen - p, ":%*pbl",
-			       nodemask_pr_args(&nodes));
+			       yesdemask_pr_args(&yesdes));
 }

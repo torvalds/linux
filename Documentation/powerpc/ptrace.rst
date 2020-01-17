@@ -78,13 +78,13 @@ Sets a hardware breakpoint or watchpoint, according to the provided structure::
         uint64_t condition_value;
   };
 
-A request specifies one event, not necessarily just one register to be set.
+A request specifies one event, yest necessarily just one register to be set.
 For instance, if the request is for a watchpoint with a condition, both the
 DAC and DVC registers will be set in the same request.
 
 With this GDB can ask for all kinds of hardware breakpoints and watchpoints
 that the BookE supports. COMEFROM breakpoints available in server processors
-are not contemplated, but that is out of the scope of this work.
+are yest contemplated, but that is out of the scope of this work.
 
 ptrace will return an integer (handle) uniquely identifying the breakpoint or
 watchpoint just created. This integer will be used in the PTRACE_DELHWDEBUG

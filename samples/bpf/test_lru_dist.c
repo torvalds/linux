@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <linux/bpf.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <assert.h>
 #include <sched.h>
@@ -86,14 +86,14 @@ static inline void list_move(struct list_head *list, struct list_head *head)
 #define list_last_entry(ptr, type, member) \
 	list_entry((ptr)->prev, type, member)
 
-struct pfect_lru_node {
+struct pfect_lru_yesde {
 	struct list_head list;
 	unsigned long long key;
 };
 
 struct pfect_lru {
 	struct list_head list;
-	struct pfect_lru_node *free_nodes;
+	struct pfect_lru_yesde *free_yesdes;
 	unsigned int cur_size;
 	unsigned int lru_size;
 	unsigned int nr_unique;
@@ -107,12 +107,12 @@ static void pfect_lru_init(struct pfect_lru *lru, unsigned int lru_size,
 {
 	lru->map_fd = bpf_create_map(BPF_MAP_TYPE_HASH,
 				     sizeof(unsigned long long),
-				     sizeof(struct pfect_lru_node *),
+				     sizeof(struct pfect_lru_yesde *),
 				     nr_possible_elems, 0);
 	assert(lru->map_fd != -1);
 
-	lru->free_nodes = malloc(lru_size * sizeof(struct pfect_lru_node));
-	assert(lru->free_nodes);
+	lru->free_yesdes = malloc(lru_size * sizeof(struct pfect_lru_yesde));
+	assert(lru->free_yesdes);
 
 	INIT_LIST_HEAD(&lru->list);
 	lru->cur_size = 0;
@@ -123,45 +123,45 @@ static void pfect_lru_init(struct pfect_lru *lru, unsigned int lru_size,
 static void pfect_lru_destroy(struct pfect_lru *lru)
 {
 	close(lru->map_fd);
-	free(lru->free_nodes);
+	free(lru->free_yesdes);
 }
 
 static int pfect_lru_lookup_or_insert(struct pfect_lru *lru,
 				      unsigned long long key)
 {
-	struct pfect_lru_node *node = NULL;
+	struct pfect_lru_yesde *yesde = NULL;
 	int seen = 0;
 
 	lru->total++;
-	if (!bpf_map_lookup_elem(lru->map_fd, &key, &node)) {
-		if (node) {
-			list_move(&node->list, &lru->list);
+	if (!bpf_map_lookup_elem(lru->map_fd, &key, &yesde)) {
+		if (yesde) {
+			list_move(&yesde->list, &lru->list);
 			return 1;
 		}
 		seen = 1;
 	}
 
 	if (lru->cur_size < lru->lru_size) {
-		node =  &lru->free_nodes[lru->cur_size++];
-		INIT_LIST_HEAD(&node->list);
+		yesde =  &lru->free_yesdes[lru->cur_size++];
+		INIT_LIST_HEAD(&yesde->list);
 	} else {
-		struct pfect_lru_node *null_node = NULL;
+		struct pfect_lru_yesde *null_yesde = NULL;
 
-		node = list_last_entry(&lru->list,
-				       struct pfect_lru_node,
+		yesde = list_last_entry(&lru->list,
+				       struct pfect_lru_yesde,
 				       list);
-		bpf_map_update_elem(lru->map_fd, &node->key, &null_node, BPF_EXIST);
+		bpf_map_update_elem(lru->map_fd, &yesde->key, &null_yesde, BPF_EXIST);
 	}
 
-	node->key = key;
-	list_move(&node->list, &lru->list);
+	yesde->key = key;
+	list_move(&yesde->list, &lru->list);
 
 	lru->nr_misses++;
 	if (seen) {
-		assert(!bpf_map_update_elem(lru->map_fd, &key, &node, BPF_EXIST));
+		assert(!bpf_map_update_elem(lru->map_fd, &key, &yesde, BPF_EXIST));
 	} else {
 		lru->nr_unique++;
-		assert(!bpf_map_update_elem(lru->map_fd, &key, &node, BPF_NOEXIST));
+		assert(!bpf_map_update_elem(lru->map_fd, &key, &yesde, BPF_NOEXIST));
 	}
 
 	return seen;
@@ -190,7 +190,7 @@ static unsigned int read_keys(const char *dist_file,
 		if (b[i] == '\n')
 			counts++;
 	}
-	counts++; /* in case the last line has no \n */
+	counts++; /* in case the last line has yes \n */
 
 	retkeys = malloc(counts * sizeof(unsigned long long));
 	assert(retkeys);
@@ -288,8 +288,8 @@ static void do_test_lru_dist(int task, void *data)
 			continue;
 
 		if (bpf_map_update_elem(lru_map_fd, &key, &value, BPF_NOEXIST)) {
-			printf("bpf_map_update_elem(lru_map_fd, %llu): errno:%d\n",
-			       key, errno);
+			printf("bpf_map_update_elem(lru_map_fd, %llu): erryes:%d\n",
+			       key, erryes);
 			assert(0);
 		}
 
@@ -520,7 +520,7 @@ int main(int argc, char **argv)
 
 	dist_key_counts = read_keys(dist_file, &dist_keys);
 	if (!dist_key_counts) {
-		printf("%s has no key\n", dist_file);
+		printf("%s has yes key\n", dist_file);
 		return -1;
 	}
 

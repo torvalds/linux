@@ -83,7 +83,7 @@ static int tb_lc_configure_lane(struct tb_port *port, bool configure)
 }
 
 /**
- * tb_lc_configure_link() - Let LC know about configured link
+ * tb_lc_configure_link() - Let LC kyesw about configured link
  * @sw: Switch that is being added
  *
  * Informs LC of both parent switch and @sw that there is established
@@ -114,11 +114,11 @@ int tb_lc_configure_link(struct tb_switch *sw)
 }
 
 /**
- * tb_lc_unconfigure_link() - Let LC know about unconfigured link
+ * tb_lc_unconfigure_link() - Let LC kyesw about unconfigured link
  * @sw: Switch to unconfigure
  *
  * Informs LC of both parent switch and @sw that the link between the
- * two does not exist anymore.
+ * two does yest exist anymore.
  */
 void tb_lc_unconfigure_link(struct tb_switch *sw)
 {
@@ -138,7 +138,7 @@ void tb_lc_unconfigure_link(struct tb_switch *sw)
  * tb_lc_set_sleep() - Inform LC that the switch is going to sleep
  * @sw: Switch to set sleep
  *
- * Let the switch link controllers know that the switch is going to
+ * Let the switch link controllers kyesw that the switch is going to
  * sleep.
  */
 int tb_lc_set_sleep(struct tb_switch *sw)
@@ -254,14 +254,14 @@ static int tb_lc_dp_sink_available(struct tb_switch *sw, int sink)
  * @in: DP IN port to check
  *
  * Queries through LC SNK_ALLOCATION registers whether DP sink is available
- * for the given DP IN port or not.
+ * for the given DP IN port or yest.
  */
 bool tb_lc_dp_sink_query(struct tb_switch *sw, struct tb_port *in)
 {
 	int sink;
 
 	/*
-	 * For older generations sink is always available as there is no
+	 * For older generations sink is always available as there is yes
 	 * allocation mechanism.
 	 */
 	if (sw->generation < 3)
@@ -281,8 +281,8 @@ bool tb_lc_dp_sink_query(struct tb_switch *sw, struct tb_port *in)
  *
  * Allocate DP sink for @in via LC SNK_ALLOCATION registers. If the
  * resource is available and allocation is successful returns %0. In all
- * other cases returs negative errno. In particular %-EBUSY is returned if
- * the resource was not available.
+ * other cases returs negative erryes. In particular %-EBUSY is returned if
+ * the resource was yest available.
  */
 int tb_lc_dp_sink_alloc(struct tb_switch *sw, struct tb_port *in)
 {

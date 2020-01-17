@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* drivers/gpu/drm/exynos/regs-rotator.h
+/* drivers/gpu/drm/exyyess/regs-rotator.h
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/

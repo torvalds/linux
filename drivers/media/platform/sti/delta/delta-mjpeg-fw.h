@@ -73,7 +73,7 @@ enum jpeg_rcn_ref_disp_enable_t {
 
 /* identifies the horizontal decimation factor */
 enum jpeg_horizontal_deci_factor_t {
-	/* no resize */
+	/* yes resize */
 	JPEG_HDEC_1 = 0x00000000,
 	/* Advanced H/2 resize using improved 8-tap filters */
 	JPEG_HDEC_ADVANCED_2 = 0x00000101,
@@ -83,7 +83,7 @@ enum jpeg_horizontal_deci_factor_t {
 
 /* identifies the vertical decimation factor */
 enum jpeg_vertical_deci_factor_t {
-	/* no resize */
+	/* yes resize */
 	JPEG_VDEC_1 = 0x00000000,
 	/* V/2 , progressive resize */
 	JPEG_VDEC_ADVANCED_2_PROG = 0x00000204,

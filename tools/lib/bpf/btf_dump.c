@@ -10,7 +10,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/err.h>
 #include <linux/btf.h>
 #include "btf.h"
@@ -46,7 +46,7 @@ struct btf_dump_type_aux_state {
 	enum btf_dump_type_emit_state emit_state: 2;
 	/* whether forward declaration was already emitted */
 	__u8 fwd_emitted: 1;
-	/* whether unique non-duplicate name was already assigned */
+	/* whether unique yesn-duplicate name was already assigned */
 	__u8 name_resolved: 1;
 	/* whether type is referenced from any other type */
 	__u8 referenced: 1;
@@ -183,7 +183,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id);
  * Dump BTF type in a compilable C syntax, including all the necessary
  * dependent types, necessary for compilation. If some of the dependent types
  * were already emitted as part of previous btf_dump__dump_type() invocation
- * for another type, they won't be emitted again. This API allows callers to
+ * for ayesther type, they won't be emitted again. This API allows callers to
  * filter out BTF types according to user-defined criterias and emitted only
  * minimal subset of types, necessary to compile everything. Full struct/union
  * definitions will still be emitted, even if the only usage is through
@@ -202,7 +202,7 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
 	if (id > btf__get_nr_types(d->btf))
 		return -EINVAL;
 
-	/* type states are lazily allocated, as they might not be needed */
+	/* type states are lazily allocated, as they might yest be needed */
 	if (!d->type_states) {
 		d->type_states = calloc(1 + btf__get_nr_types(d->btf),
 					sizeof(d->type_states[0]));
@@ -217,7 +217,7 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
 		d->type_states[0].order_state = ORDERED;
 		d->type_states[0].emit_state = EMITTED;
 
-		/* eagerly determine referenced types for anon enums */
+		/* eagerly determine referenced types for ayesn enums */
 		err = btf_dump_mark_referenced(d);
 		if (err)
 			return err;
@@ -236,14 +236,14 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
 
 /*
  * Mark all types that are referenced from any other type. This is used to
- * determine top-level anonymous enums that need to be emitted as an
+ * determine top-level ayesnymous enums that need to be emitted as an
  * independent type declarations.
- * Anonymous enums come in two flavors: either embedded in a struct's field
+ * Ayesnymous enums come in two flavors: either embedded in a struct's field
  * definition, in which case they have to be declared inline as part of field
- * type declaration; or as a top-level anonymous enum, typically used for
+ * type declaration; or as a top-level ayesnymous enum, typically used for
  * declaring global constants. It's impossible to distinguish between two
- * without knowning whether given enum type was referenced from other type:
- * top-level anonymous enum won't be referenced by anything, while embedded
+ * without kyeswning whether given enum type was referenced from other type:
+ * top-level ayesnymous enum won't be referenced by anything, while embedded
  * one will.
  */
 static int btf_dump_mark_referenced(struct btf_dump *d)
@@ -331,7 +331,7 @@ static int btf_dump_add_emit_queue_id(struct btf_dump *d, __u32 id)
  * C compilation rules.  This is done through topological sorting with an
  * additional complication which comes from C rules. The main idea for C is
  * that if some type is "embedded" into a struct/union, it's size needs to be
- * known at the time of definition of containing type. E.g., for:
+ * kyeswn at the time of definition of containing type. E.g., for:
  *
  *	struct A {};
  *	struct B { struct A x; }
@@ -343,23 +343,23 @@ static int btf_dump_add_emit_queue_id(struct btf_dump *d, __u32 id)
  *	struct B { struct A *x; }
  *	struct A {};
  *
- * it's enough to just have a forward declaration of struct A at the time of
+ * it's eyesugh to just have a forward declaration of struct A at the time of
  * struct B definition, as struct B has a pointer to struct A, so the size of
- * field x is known without knowing struct A size: it's sizeof(void *).
+ * field x is kyeswn without kyeswing struct A size: it's sizeof(void *).
  *
  * Unfortunately, there are some trickier cases we need to handle, e.g.:
  *
  *	struct A {}; // if this was forward-declaration: compilation error
  *	struct B {
- *		struct { // anonymous struct
+ *		struct { // ayesnymous struct
  *			struct A y;
  *		} *x;
  *	};
  *
- * In this case, struct B's field x is a pointer, so it's size is known
- * regardless of the size of (anonymous) struct it points to. But because this
- * struct is anonymous and thus defined inline inside struct B, *and* it
- * embeds struct A, compiler requires full definition of struct A to be known
+ * In this case, struct B's field x is a pointer, so it's size is kyeswn
+ * regardless of the size of (ayesnymous) struct it points to. But because this
+ * struct is ayesnymous and thus defined inline inside struct B, *and* it
+ * embeds struct A, compiler requires full definition of struct A to be kyeswn
  * before struct B can be defined. This creates a transitive dependency
  * between struct A and struct B. If struct A was forward-declared before
  * struct B definition and fully defined after struct B definition, that would
@@ -367,30 +367,30 @@ static int btf_dump_add_emit_queue_id(struct btf_dump *d, __u32 id)
  *
  * All this means that while we are doing topological sorting on BTF type
  * graph, we need to determine relationships between different types (graph
- * nodes):
+ * yesdes):
  *   - weak link (relationship) between X and Y, if Y *CAN* be
  *   forward-declared at the point of X definition;
  *   - strong link, if Y *HAS* to be fully-defined before X can be defined.
  *
  * The rule is as follows. Given a chain of BTF types from X to Y, if there is
- * BTF_KIND_PTR type in the chain and at least one non-anonymous type
+ * BTF_KIND_PTR type in the chain and at least one yesn-ayesnymous type
  * Z (excluding X, including Y), then link is weak. Otherwise, it's strong.
  * Weak/strong relationship is determined recursively during DFS traversal and
  * is returned as a result from btf_dump_order_type().
  *
  * btf_dump_order_type() is trying to avoid unnecessary forward declarations,
- * but it is not guaranteeing that no extraneous forward declarations will be
+ * but it is yest guaranteeing that yes extraneous forward declarations will be
  * emitted.
  *
  * To avoid extra work, algorithm marks some of BTF types as ORDERED, when
- * it's done with them, but not for all (e.g., VOLATILE, CONST, RESTRICT,
+ * it's done with them, but yest for all (e.g., VOLATILE, CONST, RESTRICT,
  * ARRAY, FUNC_PROTO), as weak/strong semantics for those depends on the
  * entire graph path, so depending where from one came to that BTF type, it
  * might cause weak or strong ordering. For types like STRUCT/UNION/INT/ENUM,
- * once they are processed, there is no need to do it again, so they are
+ * once they are processed, there is yes need to do it again, so they are
  * marked as ORDERED. We can mark PTR as ORDERED as well, as it semi-forces
- * weak link, unless subsequent referenced STRUCT/UNION/ENUM is anonymous. But
- * in any case, once those are processed, no need to do it again, as the
+ * weak link, unless subsequent referenced STRUCT/UNION/ENUM is ayesnymous. But
+ * in any case, once those are processed, yes need to do it again, as the
  * result won't change.
  *
  * Returns:
@@ -408,8 +408,8 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 	 * stand-alone fwd decl, enum, typedef, struct, union). Ptrs, arrays,
 	 * func_protos, modifiers are just means to get to these definitions.
 	 * Int/void don't need definitions, they are assumed to be always
-	 * properly defined.  We also ignore datasec, var, and funcs for now.
-	 * So for all non-defining kinds, we never even set ordering state,
+	 * properly defined.  We also igyesre datasec, var, and funcs for yesw.
+	 * So for all yesn-defining kinds, we never even set ordering state,
 	 * for defining kinds we set ORDERING and subsequently ORDERED if it
 	 * forms a strong link.
 	 */
@@ -418,7 +418,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 	__u16 vlen;
 	int err, i;
 
-	/* return true, letting typedefs know that it's ok to be emitted */
+	/* return true, letting typedefs kyesw that it's ok to be emitted */
 	if (tstate->order_state == ORDERED)
 		return 1;
 
@@ -450,7 +450,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 		const struct btf_member *m = btf_members(t);
 		/*
 		 * struct/union is part of strong link, only if it's embedded
-		 * (so no ptr in a path) or it's anonymous (so has to be
+		 * (so yes ptr in a path) or it's ayesnymous (so has to be
 		 * defined inline, even if declared through ptr)
 		 */
 		if (through_ptr && t->name_off != 0)
@@ -477,7 +477,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 	case BTF_KIND_ENUM:
 	case BTF_KIND_FWD:
 		/*
-		 * non-anonymous or non-referenced enums are top-level
+		 * yesn-ayesnymous or yesn-referenced enums are top-level
 		 * declarations and should be emitted. Same logic can be
 		 * applied to FWDs, it won't hurt anyways.
 		 */
@@ -631,12 +631,12 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 		case BTF_KIND_UNION:
 			/*
 			 * if we are referencing a struct/union that we are
-			 * part of - then no need for fwd declaration
+			 * part of - then yes need for fwd declaration
 			 */
 			if (id == cont_id)
 				return;
 			if (t->name_off == 0) {
-				pr_warn("anonymous struct/union loop, id:[%u]\n",
+				pr_warn("ayesnymous struct/union loop, id:[%u]\n",
 					id);
 				return;
 			}
@@ -648,7 +648,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 			/*
 			 * for typedef fwd_emitted means typedef definition
 			 * was emitted, but it can be used only for "weak"
-			 * references through pointer only, not for embedding
+			 * references through pointer only, yest for embedding
 			 */
 			if (!btf_dump_is_blacklisted(d, id)) {
 				btf_dump_emit_typedef_def(d, id, t, 0);
@@ -708,7 +708,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 	case BTF_KIND_UNION:
 		tstate->emit_state = EMITTING;
 		/* if it's a top-level struct/union definition or struct/union
-		 * is anonymous, then in C we'll be emitting all fields and
+		 * is ayesnymous, then in C we'll be emitting all fields and
 		 * their types (as opposed to just `struct X`), so we need to
 		 * make sure that all types, referenced from struct/union
 		 * members have necessary forward-declarations, where
@@ -795,13 +795,13 @@ static bool btf_is_struct_packed(const struct btf *btf, __u32 id,
 	__u16 vlen;
 
 	align = btf_align_of(btf, id);
-	/* size of a non-packed struct has to be a multiple of its alignment*/
+	/* size of a yesn-packed struct has to be a multiple of its alignment*/
 	if (t->size % align)
 		return true;
 
 	m = btf_members(t);
 	vlen = btf_vlen(t);
-	/* all non-bitfield fields have to be naturally aligned */
+	/* all yesn-bitfield fields have to be naturally aligned */
 	for (i = 0; i < vlen; i++, m++) {
 		align = btf_align_of(btf, m->type);
 		bit_sz = btf_member_bitfield_size(t, i);
@@ -811,7 +811,7 @@ static bool btf_is_struct_packed(const struct btf *btf, __u32 id,
 
 	/*
 	 * if original struct was marked as packed, but its layout is
-	 * naturally aligned, we'll detect that it's not packed
+	 * naturally aligned, we'll detect that it's yest packed
 	 */
 	return false;
 }
@@ -829,7 +829,7 @@ static void btf_dump_emit_bit_padding(const struct btf_dump *d,
 	int ptr_bits = sizeof(void *) * 8;
 
 	if (off_diff <= 0)
-		/* no gap */
+		/* yes gap */
 		return;
 	if (m_bit_sz == 0 && off_diff < align * 8)
 		/* natural padding will take care of a gap */
@@ -1063,11 +1063,11 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 		err = btf_dump_push_decl_stack_id(d, id);
 		if (err < 0) {
 			/*
-			 * if we don't have enough memory for entire type decl
+			 * if we don't have eyesugh memory for entire type decl
 			 * chain, restore stack, emit warning, and try to
 			 * proceed nevertheless
 			 */
-			pr_warn("not enough memory for decl stack:%d", err);
+			pr_warn("yest eyesugh memory for decl stack:%d", err);
 			d->decl_stack_cnt = stack_start;
 			return;
 		}
@@ -1104,9 +1104,9 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 done:
 	/*
 	 * We might be inside a chain of declarations (e.g., array of function
-	 * pointers returning anonymous (so inlined) structs, having another
+	 * pointers returning ayesnymous (so inlined) structs, having ayesther
 	 * array field). Each of those needs its own "stack frame" to handle
-	 * emitting of declarations. Those stack frames are non-overlapping
+	 * emitting of declarations. Those stack frames are yesn-overlapping
 	 * portions of shared btf_dump->decl_stack. To make it a bit nicer to
 	 * handle this set of nested stacks, we create a view corresponding to
 	 * our own "stack frame" and work with it as an independent stack.
@@ -1182,7 +1182,7 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 	while (decls->cnt) {
 		id = decls->ids[--decls->cnt];
 		if (id == 0) {
-			/* VOID is a special snowflake */
+			/* VOID is a special syeswflake */
 			btf_dump_emit_mods(d, decls);
 			btf_dump_printf(d, "void");
 			last_was_ptr = false;
@@ -1201,7 +1201,7 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 		case BTF_KIND_STRUCT:
 		case BTF_KIND_UNION:
 			btf_dump_emit_mods(d, decls);
-			/* inline anonymous struct/union */
+			/* inline ayesnymous struct/union */
 			if (t->name_off == 0)
 				btf_dump_emit_struct_def(d, id, t, lvl);
 			else
@@ -1209,7 +1209,7 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			break;
 		case BTF_KIND_ENUM:
 			btf_dump_emit_mods(d, decls);
-			/* inline anonymous enum */
+			/* inline ayesnymous enum */
 			if (t->name_off == 0)
 				btf_dump_emit_enum_def(d, id, t, lvl);
 			else
@@ -1268,10 +1268,10 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			next_id = decls->ids[decls->cnt - 1];
 			next_t = btf__type_by_id(d->btf, next_id);
 			multidim = btf_is_array(next_t);
-			/* we need space if we have named non-pointer */
+			/* we need space if we have named yesn-pointer */
 			if (fname[0] && !last_was_ptr)
 				btf_dump_printf(d, " ");
-			/* no parentheses for multi-dimensional array */
+			/* yes parentheses for multi-dimensional array */
 			if (!multidim)
 				btf_dump_printf(d, "(");
 			btf_dump_emit_type_chain(d, decls, fname, lvl);
@@ -1295,10 +1295,10 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			}
 			btf_dump_printf(d, "(");
 			/*
-			 * Clang for BPF target generates func_proto with no
+			 * Clang for BPF target generates func_proto with yes
 			 * args as a func_proto with a single void arg (e.g.,
 			 * `int (*f)(void)` vs just `int (*f)()`). We are
-			 * going to pretend there are no args for such case.
+			 * going to pretend there are yes args for such case.
 			 */
 			if (vlen == 1 && p->type == 0) {
 				btf_dump_printf(d, ")");

@@ -695,7 +695,7 @@ force_sigbus:
 
 /*
  * NB: check_unaligned() is only used for PCXS processors right
- * now, so we only check for PA1.1 encodings at this point.
+ * yesw, so we only check for PA1.1 encodings at this point.
  */
 
 int

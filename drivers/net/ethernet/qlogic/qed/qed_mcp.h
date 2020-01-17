@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -128,7 +128,7 @@ struct qed_mcp_function_info {
 	u8				mac[ETH_ALEN];
 
 	u64				wwn_port;
-	u64				wwn_node;
+	u64				wwn_yesde;
 
 #define QED_MCP_VLAN_UNSET              (0xffff)
 	u16				ovlan;
@@ -469,7 +469,7 @@ int qed_start_recovery_process(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
 /**
  * @brief A recovery handler must call this function as its first step.
- *        It is assumed that the handler is not run from an interrupt context.
+ *        It is assumed that the handler is yest run from an interrupt context.
  *
  *  @param cdev
  *  @param p_ptt
@@ -617,7 +617,7 @@ qed_mcp_get_nvm_image_att(struct qed_hwfn *p_hwfn,
  * @param p_buffer - allocated buffer into which to fill data
  * @param buffer_len - length of the allocated buffer.
  *
- * @return 0 iff p_buffer now contains the nvram image.
+ * @return 0 iff p_buffer yesw contains the nvram image.
  */
 int qed_mcp_get_nvm_image(struct qed_hwfn *p_hwfn,
 			  enum qed_nvm_images image_id,
@@ -651,7 +651,7 @@ int qed_mcp_bist_clock_test(struct qed_hwfn *p_hwfn,
  *  @param p_hwfn       - hw function
  *  @param p_ptt        - PTT required for register access
  *  @param num_images   - number of images if operation was
- *			  successful. 0 if not.
+ *			  successful. 0 if yest.
  *
  * @return int - 0 - operation was successful.
  */
@@ -685,7 +685,7 @@ int qed_mcp_bist_nvm_get_image_att(struct qed_hwfn *p_hwfn,
  */
 int qed_mfw_process_tlv_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
-/* Using hwfn number (and not pf_num) is required since in CMT mode,
+/* Using hwfn number (and yest pf_num) is required since in CMT mode,
  * same pf_num may be used by two different hwfn
  * TODO - this shouldn't really be in .h file, but until all fields
  * required during hw-init will be placed in their correct place in shmem
@@ -752,7 +752,7 @@ struct qed_mcp_mb_params {
 
 struct qed_drv_tlv_hdr {
 	u8 tlv_type;
-	u8 tlv_length;	/* In dwords - not including this header */
+	u8 tlv_length;	/* In dwords - yest including this header */
 	u8 tlv_reserved;
 #define QED_DRV_TLV_FLAGS_CHANGED 0x01
 	u8 tlv_flags;
@@ -1075,7 +1075,7 @@ struct qed_resc_lock_params {
 	/* Resource number [valid values are 0..31] */
 	u8 resource;
 
-	/* Lock timeout value in seconds [default, none or 1..254] */
+	/* Lock timeout value in seconds [default, yesne or 1..254] */
 	u8 timeout;
 #define QED_MCP_RESC_LOCK_TO_DEFAULT    0
 #define QED_MCP_RESC_LOCK_TO_NONE       255
@@ -1117,7 +1117,7 @@ struct qed_resc_unlock_params {
 	/* Resource number [valid values are 0..31] */
 	u8 resource;
 
-	/* Allow to release a resource even if belongs to another PF */
+	/* Allow to release a resource even if belongs to ayesther PF */
 	bool b_force;
 
 	/* Will be set as true if the resource is released */

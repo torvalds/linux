@@ -51,8 +51,8 @@
 #define ADIS16350_YTEMP_OUT 0x12 /* Y-axis gyroscope temperature measurement */
 #define ADIS16350_ZTEMP_OUT 0x14 /* Z-axis gyroscope temperature measurement */
 
-#define ADIS16300_PITCH_OUT 0x12 /* X axis inclinometer output measurement */
-#define ADIS16300_ROLL_OUT  0x14 /* Y axis inclinometer output measurement */
+#define ADIS16300_PITCH_OUT 0x12 /* X axis incliyesmeter output measurement */
+#define ADIS16300_ROLL_OUT  0x14 /* Y axis incliyesmeter output measurement */
 #define ADIS16300_AUX_ADC   0x16 /* Auxiliary ADC measurement */
 
 #define ADIS16448_BARO_OUT	0x16 /* Barometric pressure output */
@@ -160,7 +160,7 @@ struct adis16400_chip_info {
 	const long flags;
 	unsigned int gyro_scale_micro;
 	unsigned int accel_scale_micro;
-	int temp_scale_nano;
+	int temp_scale_nayes;
 	int temp_offset;
 	int (*set_freq)(struct adis16400_state *st, unsigned int freq);
 	int (*get_freq)(struct adis16400_state *st);
@@ -471,7 +471,7 @@ static int adis16400_initial_setup(struct iio_dev *indio_dev)
 		}
 
 		if (prod_id != device_id)
-			dev_warn(&indio_dev->dev, "Device ID(%u) and product ID(%u) do not match.",
+			dev_warn(&indio_dev->dev, "Device ID(%u) and product ID(%u) do yest match.",
 					device_id, prod_id);
 
 		dev_info(&indio_dev->dev, "%s: prod_id 0x%04x at CS%d (irq %d)\n",
@@ -584,8 +584,8 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 			*val2 = 500; /* 0.5 mgauss */
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_TEMP:
-			*val = st->variant->temp_scale_nano / 1000000;
-			*val2 = (st->variant->temp_scale_nano % 1000000);
+			*val = st->variant->temp_scale_nayes / 1000000;
+			*val2 = (st->variant->temp_scale_nayes % 1000000);
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_PRESSURE:
 			/* 20 uBar = 0.002kPascal */
@@ -678,7 +678,7 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
 		pf->timestamp);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -938,7 +938,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 				ADIS16400_HAS_SERIAL_NUMBER,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
 		.accel_scale_micro = 5884,
-		.temp_scale_nano = 140000000, /* 0.14 C */
+		.temp_scale_nayes = 140000000, /* 0.14 C */
 		.temp_offset = 25000000 / 140000, /* 25 C = 0x00 */
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
@@ -950,7 +950,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 				ADIS16400_HAS_SERIAL_NUMBER,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
-		.temp_scale_nano = 67850000, /* 0.06785 C */
+		.temp_scale_nayes = 67850000, /* 0.06785 C */
 		.temp_offset = 25000000 / 67850, /* 25 C = 0x00 */
 		.set_freq = adis16334_set_freq,
 		.get_freq = adis16334_get_freq,
@@ -960,7 +960,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.num_channels = ARRAY_SIZE(adis16350_channels),
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(73260), /* 0.07326 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(2522), /* 0.002522 g */
-		.temp_scale_nano = 145300000, /* 0.1453 C */
+		.temp_scale_nayes = 145300000, /* 0.1453 C */
 		.temp_offset = 25000000 / 145300, /* 25 C = 0x00 */
 		.flags = ADIS16400_NO_BURST | ADIS16400_HAS_SLOW_MODE,
 		.set_freq = adis16400_set_freq,
@@ -973,7 +973,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 				ADIS16400_HAS_SERIAL_NUMBER,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
-		.temp_scale_nano = 136000000, /* 0.136 C */
+		.temp_scale_nayes = 136000000, /* 0.136 C */
 		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
@@ -985,7 +985,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 				ADIS16400_HAS_SERIAL_NUMBER,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(333), /* 0.333 mg */
-		.temp_scale_nano = 136000000, /* 0.136 C */
+		.temp_scale_nayes = 136000000, /* 0.136 C */
 		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
@@ -997,7 +997,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 				ADIS16400_HAS_SERIAL_NUMBER,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
-		.temp_scale_nano = 136000000, /* 0.136 C */
+		.temp_scale_nayes = 136000000, /* 0.136 C */
 		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
@@ -1009,7 +1009,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 				ADIS16400_HAS_SERIAL_NUMBER,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(2000), /* 0.2 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
-		.temp_scale_nano = 136000000, /* 0.136 C */
+		.temp_scale_nayes = 136000000, /* 0.136 C */
 		.temp_offset = 25000000 / 136000, /* 25 C = 0x00 */
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
@@ -1020,7 +1020,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.flags = ADIS16400_HAS_PROD_ID | ADIS16400_HAS_SLOW_MODE,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(3333), /* 3.333 mg */
-		.temp_scale_nano = 140000000, /* 0.14 C */
+		.temp_scale_nayes = 140000000, /* 0.14 C */
 		.temp_offset = 25000000 / 140000, /* 25 C = 0x00 */
 		.set_freq = adis16400_set_freq,
 		.get_freq = adis16400_get_freq,
@@ -1033,7 +1033,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 				ADIS16400_BURST_DIAG_STAT,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(10000), /* 0.01 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(250), /* 1/4000 g */
-		.temp_scale_nano = 73860000, /* 0.07386 C */
+		.temp_scale_nayes = 73860000, /* 0.07386 C */
 		.temp_offset = 31000000 / 73860, /* 31 C = 0x00 */
 		.set_freq = adis16334_set_freq,
 		.get_freq = adis16334_get_freq,
@@ -1046,7 +1046,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 				ADIS16400_BURST_DIAG_STAT,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(40000), /* 0.04 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(833), /* 1/1200 g */
-		.temp_scale_nano = 73860000, /* 0.07386 C */
+		.temp_scale_nayes = 73860000, /* 0.07386 C */
 		.temp_offset = 31000000 / 73860, /* 31 C = 0x00 */
 		.set_freq = adis16334_set_freq,
 		.get_freq = adis16334_get_freq,

@@ -10,11 +10,11 @@
 
 #if (!defined(__GNUC__) && !defined(__GNUG__))
 
-     You will not be able to compile this file correctly without gcc, because
+     You will yest be able to compile this file correctly without gcc, because
      it is necessary to pack the "wavefront_alias" structure to a size
      of 22 bytes, corresponding to 16-bit alignment (as would have been
-     the case on the original platform, MS-DOS). If this is not done,
-     then WavePatch-format files cannot be read/written correctly.
+     the case on the original platform, MS-DOS). If this is yest done,
+     then WavePatch-format files canyest be read/written correctly.
      The method used to do this here ("__attribute__((packed)") is
      completely compiler dependent.
      
@@ -23,7 +23,7 @@
 
 #else
 
-     /* However, note that as of G++ 2.7.3.2, g++ was unable to
+     /* However, yeste that as of G++ 2.7.3.2, g++ was unable to
 	correctly parse *type* __attribute__ tags. It will do the
 	right thing if we use the "packed" attribute on each struct
 	member, which has the same semantics anyway. 
@@ -67,7 +67,7 @@ typedef s8 CHAR8;
 typedef u8 UCHAR8;
 #endif
 
-/* Pseudo-commands not part of the WaveFront command set.
+/* Pseudo-commands yest part of the WaveFront command set.
    These are used for various driver controls and direct
    hardware control.
  */
@@ -267,11 +267,11 @@ struct wf_patch
     u8 sample_msb:1;
     u8 Unused3:3;
 
-    u8 mono:1;
+    u8 moyes:1;
     u8 retrigger:1;
-    u8 nohold:1;
+    u8 yeshold:1;
     u8 restart:1;
-    u8 filterconfig:2; /* SDK says "not used" */
+    u8 filterconfig:2; /* SDK says "yest used" */
     u8 reuse:1;
     u8 reset_lfo:1;    
 
@@ -387,14 +387,14 @@ typedef struct wf_sample_offset wavefront_sample_offset;
   data without forcing user-level extraction of the relevant bytes.
   
   So, we need a way of specifying which channel to use (the WaveFront
-  only handles mono samples in a given slot), and the only way to do
+  only handles moyes samples in a given slot), and the only way to do
   this without using some struct other than wavefront_sample as the
   interface is the awful hack of using the unused bits in a
   wavefront_sample:
   
   Val      Meaning
   ---      -------
-  0        no channel selection (use channel 1, sample is MONO)
+  0        yes channel selection (use channel 1, sample is MONO)
   1        use first channel, and skip one
   2        use second channel, and skip one
   3        use third channel, and skip two
@@ -519,7 +519,7 @@ typedef struct wf_patch_info {
     */
 
     s16   key;               /* Use WAVEFRONT_PATCH here */
-    u16  devno;             /* fill in when sending */
+    u16  devyes;             /* fill in when sending */
     u8  subkey;            /* WF_ST_{SAMPLE,ALIAS,etc.} */
 
 #define WAVEFRONT_FIND_FREE_SAMPLE_SLOT 999

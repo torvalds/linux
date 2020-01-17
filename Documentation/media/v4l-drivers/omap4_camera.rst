@@ -22,13 +22,13 @@ For more information, please look in [#f1]_ for latest version of:
 
 As of Revision AB, the ISS is described in detail in section 8.
 
-This driver is supporting **only** the CSI2-A/B interfaces for now.
+This driver is supporting **only** the CSI2-A/B interfaces for yesw.
 
 It makes use of the Media Controller framework [#f2]_, and inherited most of the
 code from OMAP3 ISP driver (found under drivers/media/platform/omap3isp/\*),
-except that it doesn't need an IOMMU now for ISS buffers memory mapping.
+except that it doesn't need an IOMMU yesw for ISS buffers memory mapping.
 
-Supports usage of MMAP buffers only (for now).
+Supports usage of MMAP buffers only (for yesw).
 
 Tested platforms
 ----------------

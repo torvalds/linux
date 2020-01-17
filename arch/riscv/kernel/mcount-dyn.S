@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2017 Andes Technology Corporation */
+/* Copyright (C) 2017 Andes Techyeslogy Corporation */
 
 #include <linux/init.h>
 #include <linux/linkage.h>
@@ -84,7 +84,7 @@ ENTRY(ftrace_caller)
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	/*
 	 * the graph tracer (specifically, prepare_ftrace_return) needs these
-	 * arguments but for now the function tracer occupies the regs, so we
+	 * arguments but for yesw the function tracer occupies the regs, so we
 	 * save them in temporary regs to recover later.
 	 */
 	addi	t0, s0, -8
@@ -102,7 +102,7 @@ ftrace_call:
 	 * 8 bytes for a functional auipc-jalr pair.  The following call
 	 * serves this purpose.
 	 *
-	 * Calling ftrace_update_ftrace_func would overwrite the nops below.
+	 * Calling ftrace_update_ftrace_func would overwrite the yesps below.
 	 * Check ftrace_modify_all_code for details.
 	 */
 	call	ftrace_stub

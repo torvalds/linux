@@ -75,7 +75,7 @@ static bool __init acpi_cpu_is_threaded(int cpu)
 }
 
 /*
- * Propagate the topology information of the processor_topology_node tree to the
+ * Propagate the topology information of the processor_topology_yesde tree to the
  * cpu_topology array.
  */
 int __init parse_acpi_topology(void)

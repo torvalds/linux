@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,7 +33,7 @@ read_div(struct nv50_clk *clk)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
 	switch (device->chipset) {
-	case 0x50: /* it exists, but only has bit 31, not the dividers.. */
+	case 0x50: /* it exists, but only has bit 31, yest the dividers.. */
 	case 0x84:
 	case 0x86:
 	case 0x98:
@@ -317,7 +317,7 @@ nv50_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 		break;
 	}
 
-	nvkm_debug(subdev, "unknown clock source %d %08x\n", src, mast);
+	nvkm_debug(subdev, "unkyeswn clock source %d %08x\n", src, mast);
 	return -EINVAL;
 }
 
@@ -390,7 +390,7 @@ nv50_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 	clk_setf(hwsq, 0x10, 0x00); /* disable fb */
 	clk_wait(hwsq, 0x00, 0x01); /* wait for fb disabled */
 
-	/* vdec: avoid modifying xpll until we know exactly how the other
+	/* vdec: avoid modifying xpll until we kyesw exactly how the other
 	 * clock domains work, i suspect at least some of them can also be
 	 * tied to xpll...
 	 */
@@ -484,7 +484,7 @@ nv50_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 		clk_mask(hwsq, mast, 0x00100033, 0x00000033);
 	}
 
-	/* restore normal operation */
+	/* restore yesrmal operation */
 	clk_setf(hwsq, 0x10, 0x01); /* enable fb */
 	clk_wait(hwsq, 0x00, 0x00); /* wait for fb enabled */
 	clk_wr32(hwsq, fifo, 0x00000000); /* un-block fifo */

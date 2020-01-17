@@ -191,7 +191,7 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 				IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
 		break;
 	default:
-		/* nothing */
+		/* yesthing */
 		break;
 	}
 
@@ -286,7 +286,7 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	 */
 	if (vht_cap->vht_mcs.rx_mcs_map == cpu_to_le16(0xFFFF)) {
 		vht_cap->vht_supported = false;
-		sdata_info(sdata, "Ignoring VHT IE from %pM due to invalid rx_mcs_map\n",
+		sdata_info(sdata, "Igyesring VHT IE from %pM due to invalid rx_mcs_map\n",
 			   sta->addr);
 		return;
 	}
@@ -305,7 +305,7 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 			break;
 
 		/*
-		 * If this is non-zero, then it does support 160 MHz after all,
+		 * If this is yesn-zero, then it does support 160 MHz after all,
 		 * in one form or the other. We don't distinguish here (or even
 		 * above) between 160 and 80+80 yet.
 		 */
@@ -350,7 +350,7 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta)
 		return IEEE80211_STA_RX_BW_160;
 
 	/*
-	 * If this is non-zero, then it does support 160 MHz after all,
+	 * If this is yesn-zero, then it does support 160 MHz after all,
 	 * in one form or the other. We don't distinguish here (or even
 	 * above) between 160 and 80+80 yet.
 	 */
@@ -460,7 +460,7 @@ void ieee80211_sta_set_rx_nss(struct sta_info *sta)
 {
 	u8 ht_rx_nss = 0, vht_rx_nss = 0;
 
-	/* if we received a notification already don't overwrite it */
+	/* if we received a yestification already don't overwrite it */
 	if (sta->sta.rx_nss)
 		return;
 
@@ -506,7 +506,7 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 	u32 changed = 0;
 	u8 nss;
 
-	/* ignore - no support for BF yet */
+	/* igyesre - yes support for BF yet */
 	if (opmode & IEEE80211_OPMODE_NOTIF_RX_NSS_TYPE_BF)
 		return 0;
 
@@ -545,7 +545,7 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (sta_opmode.changed)
-		cfg80211_sta_opmode_change_notify(sdata->dev, sta->addr,
+		cfg80211_sta_opmode_change_yestify(sdata->dev, sta->addr,
 						  &sta_opmode, GFP_KERNEL);
 
 	return changed;
@@ -559,20 +559,20 @@ void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
 	if (!sdata->vif.mu_mimo_owner)
 		return;
 
-	if (!memcmp(mgmt->u.action.u.vht_group_notif.position,
+	if (!memcmp(mgmt->u.action.u.vht_group_yestif.position,
 		    bss_conf->mu_group.position, WLAN_USER_POSITION_LEN) &&
-	    !memcmp(mgmt->u.action.u.vht_group_notif.membership,
+	    !memcmp(mgmt->u.action.u.vht_group_yestif.membership,
 		    bss_conf->mu_group.membership, WLAN_MEMBERSHIP_LEN))
 		return;
 
 	memcpy(bss_conf->mu_group.membership,
-	       mgmt->u.action.u.vht_group_notif.membership,
+	       mgmt->u.action.u.vht_group_yestif.membership,
 	       WLAN_MEMBERSHIP_LEN);
 	memcpy(bss_conf->mu_group.position,
-	       mgmt->u.action.u.vht_group_notif.position,
+	       mgmt->u.action.u.vht_group_yestif.position,
 	       WLAN_USER_POSITION_LEN);
 
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_MU_GROUPS);
+	ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_MU_GROUPS);
 }
 
 void ieee80211_update_mu_groups(struct ieee80211_vif *vif,

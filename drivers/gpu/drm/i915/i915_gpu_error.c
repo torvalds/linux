@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -456,11 +456,11 @@ static void error_print_request(struct drm_i915_error_state_buf *m,
 				const struct drm_i915_error_request *erq,
 				const unsigned long epoch)
 {
-	if (!erq->seqno)
+	if (!erq->seqyes)
 		return;
 
-	err_printf(m, "%s pid %d, seqno %8x:%08x%s%s, prio %d, emitted %dms, start %08x, head %08x, tail %08x\n",
-		   prefix, erq->pid, erq->context, erq->seqno,
+	err_printf(m, "%s pid %d, seqyes %8x:%08x%s%s, prio %d, emitted %dms, start %08x, head %08x, tail %08x\n",
+		   prefix, erq->pid, erq->context, erq->seqyes,
 		   test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
 			    &erq->flags) ? "!" : "",
 		   test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
@@ -486,7 +486,7 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	int n;
 
 	err_printf(m, "%s command stream:\n", ee->engine->name);
-	err_printf(m, "  IDLE?: %s\n", yesno(ee->idle));
+	err_printf(m, "  IDLE?: %s\n", noyes(ee->idle));
 	err_printf(m, "  START: 0x%08x\n", ee->start);
 	err_printf(m, "  HEAD:  0x%08x [0x%08x]\n", ee->head, ee->rq_head);
 	err_printf(m, "  TAIL:  0x%08x [0x%08x, 0x%08x]\n",
@@ -701,15 +701,15 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 		struct intel_csr *csr = &m->i915->csr;
 
 		err_printf(m, "DMC loaded: %s\n",
-			   yesno(csr->dmc_payload != NULL));
+			   noyes(csr->dmc_payload != NULL));
 		err_printf(m, "DMC fw version: %d.%d\n",
 			   CSR_VERSION_MAJOR(csr->version),
 			   CSR_VERSION_MINOR(csr->version));
 	}
 
-	err_printf(m, "GT awake: %s\n", yesno(error->awake));
-	err_printf(m, "RPM wakelock: %s\n", yesno(error->wakelock));
-	err_printf(m, "PM suspended: %s\n", yesno(error->suspended));
+	err_printf(m, "GT awake: %s\n", noyes(error->awake));
+	err_printf(m, "RPM wakelock: %s\n", noyes(error->wakelock));
+	err_printf(m, "PM suspended: %s\n", noyes(error->suspended));
 	err_printf(m, "EIR: 0x%08x\n", error->eir);
 	err_printf(m, "IER: 0x%08x\n", error->ier);
 	for (i = 0; i < error->ngtier; i++)
@@ -997,18 +997,18 @@ i915_error_object_create(struct drm_i915_private *i915,
 		return NULL;
 	}
 
-	dst->gtt_offset = vma->node.start;
-	dst->gtt_size = vma->node.size;
+	dst->gtt_offset = vma->yesde.start;
+	dst->gtt_size = vma->yesde.size;
 	dst->gtt_page_sizes = vma->page_sizes.gtt;
 	dst->num_pages = num_pages;
 	dst->page_count = 0;
 	dst->unused = 0;
 
 	compress->wc = i915_gem_object_is_lmem(vma->obj) ||
-		       drm_mm_node_allocated(&ggtt->error_capture);
+		       drm_mm_yesde_allocated(&ggtt->error_capture);
 
 	ret = -EINVAL;
-	if (drm_mm_node_allocated(&ggtt->error_capture)) {
+	if (drm_mm_yesde_allocated(&ggtt->error_capture)) {
 		void __iomem *s;
 		dma_addr_t dma;
 
@@ -1066,7 +1066,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 }
 
 /*
- * Generate a semi-unique error code. The code is not meant to have meaning, The
+ * Generate a semi-unique error code. The code is yest meant to have meaning, The
  * code's only purpose is to try to prevent false duplicated bug reports by
  * grossly estimating a GPU error state.
  *
@@ -1224,7 +1224,7 @@ static void record_request(const struct i915_request *request,
 
 	erq->flags = request->fence.flags;
 	erq->context = request->fence.context;
-	erq->seqno = request->fence.seqno;
+	erq->seqyes = request->fence.seqyes;
 	erq->sched_attr = request->sched.attr;
 	erq->jiffies = request->emitted_jiffies;
 	erq->start = i915_ggtt_offset(request->ring->vma);
@@ -1273,7 +1273,7 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 			 * slightly incorrect as a consequence since we
 			 * are typically only interested in the request
 			 * list state at the point of error state
-			 * capture, not in any changes happening during
+			 * capture, yest in any changes happening during
 			 * the capture.
 			 */
 			break;
@@ -1318,7 +1318,7 @@ static bool record_context(struct drm_i915_error_context *e,
 	e->guilty = atomic_read(&ctx->guilty_count);
 	e->active = atomic_read(&ctx->active_count);
 
-	return i915_gem_context_no_error_capture(ctx);
+	return i915_gem_context_yes_error_capture(ctx);
 }
 
 struct capture_vma {
@@ -1397,7 +1397,7 @@ capture_object(struct drm_i915_private *dev_priv,
 {
 	if (obj && i915_gem_object_has_pages(obj)) {
 		struct i915_vma fake = {
-			.node = { .start = U64_MAX, .size = obj->base.size },
+			.yesde = { .start = U64_MAX, .size = obj->base.size },
 			.size = obj->base.size,
 			.pages = obj->mm.pages,
 			.obj = obj,
@@ -1438,7 +1438,7 @@ gem_record_rings(struct i915_gpu_state *error, struct compress *compress)
 		error->simulated |= record_context(&ee->context, request);
 
 		/*
-		 * We need to copy these to an anonymous buffer
+		 * We need to copy these to an ayesnymous buffer
 		 * as the simplest method to avoid being overwritten
 		 * by userspace.
 		 */
@@ -1521,7 +1521,7 @@ capture_uc_state(struct i915_gpu_state *error, struct compress *compress)
 	struct i915_error_uc *error_uc = &error->uc;
 	struct intel_uc *uc = &i915->gt.uc;
 
-	/* Capturing uC state won't be useful if there is no GuC */
+	/* Capturing uC state won't be useful if there is yes GuC */
 	if (!error->device_info.has_gt_uc)
 		return;
 
@@ -1539,7 +1539,7 @@ capture_uc_state(struct i915_gpu_state *error, struct compress *compress)
 						     compress);
 }
 
-/* Capture all registers which don't fit into another category. */
+/* Capture all registers which don't fit into ayesther category. */
 static void capture_reg_state(struct i915_gpu_state *error)
 {
 	struct drm_i915_private *i915 = error->i915;
@@ -1716,7 +1716,7 @@ static void capture_finish(struct i915_gpu_state *error)
 {
 	struct i915_ggtt *ggtt = &error->i915->ggtt;
 
-	if (drm_mm_node_allocated(&ggtt->error_capture)) {
+	if (drm_mm_yesde_allocated(&ggtt->error_capture)) {
 		const u64 slot = ggtt->error_capture.start;
 
 		ggtt->vm.clear_range(&ggtt->vm, slot, PAGE_SIZE);
@@ -1821,7 +1821,7 @@ void i915_capture_error_state(struct drm_i915_private *i915,
 	    ktime_get_real_seconds() - DRIVER_TIMESTAMP < DAY_AS_SECONDS(180)) {
 		pr_info("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
 		pr_info("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
-		pr_info("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
+		pr_info("drm/i915 developers can then reassign to the right component if it's yest a kernel issue.\n");
 		pr_info("The GPU crash dump is required to analyze GPU hangs, so please always attach it.\n");
 		pr_info("GPU crash dump saved to /sys/class/drm/card%d/error\n",
 			i915->drm.primary->index);

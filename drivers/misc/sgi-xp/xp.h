@@ -33,13 +33,13 @@
 /*
  * Define the maximum number of partitions the system can possibly support.
  * It is based on the maximum number of hardware partitionable regions. The
- * term 'region' in this context refers to the minimum number of nodes that
+ * term 'region' in this context refers to the minimum number of yesdes that
  * can comprise an access protection grouping. The access protection is in
  * regards to memory, IPI and IOI.
  *
  * The maximum number of hardware partitionable regions is equal to the
- * maximum number of nodes in the entire system divided by the minimum number
- * of nodes that comprise an access protection grouping.
+ * maximum number of yesdes in the entire system divided by the minimum number
+ * of yesdes that comprise an access protection grouping.
  */
 #define XP_MAX_NPARTITIONS_SN2	64
 #define XP_MAX_NPARTITIONS_UV	256
@@ -85,17 +85,17 @@
 /*
  * Define the return values and values passed to user's callout functions.
  * (It is important to add new value codes at the end just preceding
- * xpUnknownReason, which must have the highest numerical value.)
+ * xpUnkyeswnReason, which must have the highest numerical value.)
  */
 enum xp_retval {
 	xpSuccess = 0,
 
-	xpNotConnected,		/*  1: channel is not connected */
+	xpNotConnected,		/*  1: channel is yest connected */
 	xpConnected,		/*  2: channel connected (opened) */
 	xpRETIRED1,		/*  3: (formerly xpDisconnected) */
 
 	xpMsgReceived,		/*  4: message received */
-	xpMsgDelivered,		/*  5: message delivered and acknowledged */
+	xpMsgDelivered,		/*  5: message delivered and ackyeswledged */
 
 	xpRETIRED2,		/*  6: (formerly xpTransferFailed) */
 
@@ -107,16 +107,16 @@ enum xp_retval {
 	xpUnequalMsgSizes,	/* 11: message size disparity between sides */
 	xpInvalidAddress,	/* 12: invalid address */
 
-	xpNoMemory,		/* 13: no memory available for XPC structures */
+	xpNoMemory,		/* 13: yes memory available for XPC structures */
 	xpLackOfResources,	/* 14: insufficient resources for operation */
-	xpUnregistered,		/* 15: channel is not registered */
+	xpUnregistered,		/* 15: channel is yest registered */
 	xpAlreadyRegistered,	/* 16: channel is already registered */
 
 	xpPartitionDown,	/* 17: remote partition is down */
-	xpNotLoaded,		/* 18: XPC module is not loaded */
+	xpNotLoaded,		/* 18: XPC module is yest loaded */
 	xpUnloading,		/* 19: this side is unloading XPC module */
 
-	xpBadMagic,		/* 20: XPC MAGIC string not found */
+	xpBadMagic,		/* 20: XPC MAGIC string yest found */
 
 	xpReactivating,		/* 21: remote partition was reactivated */
 
@@ -126,7 +126,7 @@ enum xp_retval {
 	xpCloneKThread,		/* 24: cloning kernel thread */
 	xpCloneKThreadFailed,	/* 25: cloning kernel thread failed */
 
-	xpNoHeartbeat,		/* 26: remote partition has no heartbeat */
+	xpNoHeartbeat,		/* 26: remote partition has yes heartbeat */
 
 	xpPioReadError,		/* 27: PIO read error */
 	xpPhysAddrRegFailed,	/* 28: registration of phys addr range failed */
@@ -143,13 +143,13 @@ enum xp_retval {
 	xpRETIRED12,		/* 38: (formerly xpBteUnmappedError) */
 
 	xpBadVersion,		/* 39: bad version number */
-	xpVarsNotSet,		/* 40: the XPC variables are not set up */
+	xpVarsNotSet,		/* 40: the XPC variables are yest set up */
 	xpNoRsvdPageAddr,	/* 41: unable to get rsvd page's phys addr */
 	xpInvalidPartid,	/* 42: invalid partition ID */
 	xpLocalPartid,		/* 43: local partition ID */
 
-	xpOtherGoingDown,	/* 44: other side going down, reason unknown */
-	xpSystemGoingDown,	/* 45: system is going down, reason unknown */
+	xpOtherGoingDown,	/* 44: other side going down, reason unkyeswn */
+	xpSystemGoingDown,	/* 45: system is going down, reason unkyeswn */
 	xpSystemHalt,		/* 46: system is being halted */
 	xpSystemReboot,		/* 47: system is being rebooted */
 	xpSystemPoweroff,	/* 48: system is being powered off */
@@ -162,7 +162,7 @@ enum xp_retval {
 
 	xpBteCopyError,		/* 52: bte_copy() returned error */
 	xpSalError,		/* 53: sn SAL error */
-	xpRsvdPageNotSet,	/* 54: the reserved page is not set up */
+	xpRsvdPageNotSet,	/* 54: the reserved page is yest set up */
 	xpPayloadTooBig,	/* 55: payload too large for message slot */
 
 	xpUnsupported,		/* 56: unsupported functionality or resource */
@@ -175,7 +175,7 @@ enum xp_retval {
 	xpBadMsgType,		/* 61: invalid message type */
 	xpBiosError,		/* 62: BIOS error */
 
-	xpUnknownReason		/* 63: unknown reason - must be last in enum */
+	xpUnkyeswnReason		/* 63: unkyeswn reason - must be last in enum */
 };
 
 /*
@@ -203,15 +203,15 @@ enum xp_retval {
  *
  * All other reason codes indicate failure. The data argmument is NULL.
  * When a failure reason code is received, one can assume that the channel
- * is not connected.
+ * is yest connected.
  */
 typedef void (*xpc_channel_func) (enum xp_retval reason, short partid,
 				  int ch_number, void *data, void *key);
 
 /*
- * Define the callout function type used by XPC to notify the user of
+ * Define the callout function type used by XPC to yestify the user of
  * messages received and delivered via the user function registered by
- * xpc_send_notify().
+ * xpc_send_yestify().
  *
  * Arguments:
  *
@@ -219,18 +219,18 @@ typedef void (*xpc_channel_func) (enum xp_retval reason, short partid,
  *	partid - partition ID associated with condition.
  *	ch_number - channel # associated with condition.
  *	key - pointer to optional user-defined value provided as the "key"
- *	      argument to xpc_send_notify().
+ *	      argument to xpc_send_yestify().
  *
  * A reason code of xpMsgDelivered indicates that the message was delivered
- * to the intended recipient and that they have acknowledged its receipt by
+ * to the intended recipient and that they have ackyeswledged its receipt by
  * calling xpc_received().
  *
  * All other reason codes indicate failure.
  *
  * NOTE: The user defined function must be callable by an interrupt handler
- *       and thus cannot block.
+ *       and thus canyest block.
  */
-typedef void (*xpc_notify_func) (enum xp_retval reason, short partid,
+typedef void (*xpc_yestify_func) (enum xp_retval reason, short partid,
 				 int ch_number, void *key);
 
 /*
@@ -241,10 +241,10 @@ typedef void (*xpc_notify_func) (enum xp_retval reason, short partid,
  * that channel. Notification that a connection has been made will occur via
  * the xpc_channel_func function.
  *
- * The 'func' field points to the function to call when aynchronous
- * notification is required for such events as: a connection established/lost,
+ * The 'func' field points to the function to call when aynchroyesus
+ * yestification is required for such events as: a connection established/lost,
  * or an incoming message received, or an error condition encountered. A
- * non-NULL 'func' field indicates that there is an active registration for
+ * yesn-NULL 'func' field indicates that there is an active registration for
  * the channel.
  */
 struct xpc_registration {
@@ -259,16 +259,16 @@ struct xpc_registration {
 
 #define XPC_CHANNEL_REGISTERED(_c)	(xpc_registrations[_c].func != NULL)
 
-/* the following are valid xpc_send() or xpc_send_notify() flags */
+/* the following are valid xpc_send() or xpc_send_yestify() flags */
 #define XPC_WAIT	0	/* wait flag */
-#define XPC_NOWAIT	1	/* no wait flag */
+#define XPC_NOWAIT	1	/* yes wait flag */
 
 struct xpc_interface {
 	void (*connect) (int);
 	void (*disconnect) (int);
 	enum xp_retval (*send) (short, int, u32, void *, u16);
-	enum xp_retval (*send_notify) (short, int, u32, void *, u16,
-					xpc_notify_func, void *);
+	enum xp_retval (*send_yestify) (short, int, u32, void *, u16,
+					xpc_yestify_func, void *);
 	void (*received) (short, int, void *);
 	enum xp_retval (*partid_to_nasids) (short, void *);
 };
@@ -279,7 +279,7 @@ extern void xpc_set_interface(void (*)(int),
 			      void (*)(int),
 			      enum xp_retval (*)(short, int, u32, void *, u16),
 			      enum xp_retval (*)(short, int, u32, void *, u16,
-						 xpc_notify_func, void *),
+						 xpc_yestify_func, void *),
 			      void (*)(short, int, void *),
 			      enum xp_retval (*)(short, void *));
 extern void xpc_clear_interface(void);
@@ -300,13 +300,13 @@ xpc_send(short partid, int ch_number, u32 flags, void *payload,
 }
 
 static inline enum xp_retval
-xpc_send_notify(short partid, int ch_number, u32 flags, void *payload,
-		u16 payload_size, xpc_notify_func func, void *key)
+xpc_send_yestify(short partid, int ch_number, u32 flags, void *payload,
+		u16 payload_size, xpc_yestify_func func, void *key)
 {
-	if (!xpc_interface.send_notify)
+	if (!xpc_interface.send_yestify)
 		return xpNotLoaded;
 
-	return xpc_interface.send_notify(partid, ch_number, flags, payload,
+	return xpc_interface.send_yestify(partid, ch_number, flags, payload,
 					 payload_size, func, key);
 }
 
@@ -338,8 +338,8 @@ extern int (*xp_cpu_to_nasid) (int);
 extern enum xp_retval (*xp_expand_memprotect) (unsigned long, unsigned long);
 extern enum xp_retval (*xp_restrict_memprotect) (unsigned long, unsigned long);
 
-extern u64 xp_nofault_PIOR_target;
-extern int xp_nofault_PIOR(void *);
+extern u64 xp_yesfault_PIOR_target;
+extern int xp_yesfault_PIOR(void *);
 extern int xp_error_PIOR(void);
 
 extern struct device *xp;

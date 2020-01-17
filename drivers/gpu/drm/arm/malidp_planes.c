@@ -77,7 +77,7 @@ static void malidp_de_plane_destroy(struct drm_plane *plane)
 
 /*
  * Replicate what the default ->reset hook does: free the state pointer and
- * allocate a new empty object. We just need enough space to store
+ * allocate a new empty object. We just need eyesugh space to store
  * a malidp_plane_state instead of a drm_plane_state.
  */
 static void malidp_plane_reset(struct drm_plane *plane)
@@ -166,7 +166,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 	}
 
 	if ((modifier >> 56) != DRM_FORMAT_MOD_VENDOR_ARM) {
-		DRM_ERROR("Unknown modifier (not Arm)\n");
+		DRM_ERROR("Unkyeswn modifier (yest Arm)\n");
 		return false;
 	}
 
@@ -193,7 +193,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 		modifiers++;
 	}
 
-	/* return false, if the modifier was not found */
+	/* return false, if the modifier was yest found */
 	if (*modifiers == DRM_FORMAT_MOD_INVALID) {
 		DRM_DEBUG_KMS("Unsupported modifier\n");
 		return false;
@@ -213,7 +213,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 	}
 
 	/*
-	 * RGB formats need to provide YTR modifier and YUV formats should not
+	 * RGB formats need to provide YTR modifier and YUV formats should yest
 	 * provide YTR modifier.
 	 */
 	if (!(info->is_yuv) != !!(modifier & AFBC_FORMAT_MOD_YTR)) {
@@ -226,7 +226,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 	if (modifier & AFBC_SPLIT) {
 		if (!info->is_yuv) {
 			if (info->cpp[0] <= 2) {
-				DRM_DEBUG_KMS("RGB formats <= 16bpp are not supported with SPLIT\n");
+				DRM_DEBUG_KMS("RGB formats <= 16bpp are yest supported with SPLIT\n");
 				return false;
 			}
 		}
@@ -242,7 +242,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 
 	if (modifier & AFBC_CBR) {
 		if ((info->hsub == 1) || (info->vsub == 1)) {
-			DRM_DEBUG_KMS("Formats which are not sub-sampled should not have CBR set\n");
+			DRM_DEBUG_KMS("Formats which are yest sub-sampled should yest have CBR set\n");
 			return false;
 		}
 	}
@@ -295,7 +295,7 @@ static int malidp_se_check_scaling(struct malidp_plane *mp,
 	}
 
 	if ((state->crtc_w == src_w) && (state->crtc_h == src_h)) {
-		/* Scaling not necessary for this plane. */
+		/* Scaling yest necessary for this plane. */
 		mc->scaled_planes_mask &= ~(mp->layer->id);
 		return 0;
 	}
@@ -378,7 +378,7 @@ static bool malidp_partial_prefetch_supported(u32 format, u64 modifier,
 {
 	bool afbc, sparse;
 
-	/* rotation and horizontal flip not supported for partial prefetch */
+	/* rotation and horizontal flip yest supported for partial prefetch */
 	if (rotation & (DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_180 |
 			DRM_MODE_ROTATE_270 | DRM_MODE_REFLECT_X))
 		return false;
@@ -411,14 +411,14 @@ static bool malidp_partial_prefetch_supported(u32 format, u64 modifier,
 		return (!afbc) || (afbc && sparse);
 
 	case DRM_FORMAT_BGR888:
-		/* supported, but not for AFBC */
+		/* supported, but yest for AFBC */
 		return !afbc;
 
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_YUV420:
-		/* not supported */
+		/* yest supported */
 		return false;
 
 	default:
@@ -581,9 +581,9 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 			return -EINVAL;
 	}
 
-	/* SMART layer does not support AFBC */
+	/* SMART layer does yest support AFBC */
 	if (mp->layer->id == DE_SMART && fb->modifier) {
-		DRM_ERROR("AFBC framebuffer not supported in SMART layer");
+		DRM_ERROR("AFBC framebuffer yest supported in SMART layer");
 		return -EINVAL;
 	}
 
@@ -726,7 +726,7 @@ static void malidp_set_plane_base_addr(struct drm_framebuffer *fb,
 	 * drm_fb_cma_get_gem_addr() alters the physical base address of the
 	 * framebuffer as per the plane's src_x, src_y co-ordinates (ie to
 	 * take care of source cropping).
-	 * For AFBC, this is not needed as the cropping is handled by _AD_CROP_H
+	 * For AFBC, this is yest needed as the cropping is handled by _AD_CROP_H
 	 * and _AD_CROP_V registers.
 	 */
 	if (!afbc) {
@@ -754,7 +754,7 @@ static void malidp_de_set_plane_afbc(struct drm_plane *plane)
 
 	mp = to_malidp_plane(plane);
 
-	/* no afbc_decoder_offset means AFBC is not supported on this plane */
+	/* yes afbc_decoder_offset means AFBC is yest supported on this plane */
 	if (!mp->layer->afbc_decoder_offset)
 		return;
 
@@ -943,7 +943,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 
 	if (!(map->features & MALIDP_DEVICE_AFBC_SUPPORT_SPLIT)) {
 		/*
-		 * Since our hardware does not support SPLIT, so build the list
+		 * Since our hardware does yest support SPLIT, so build the list
 		 * of supported modifiers excluding SPLIT ones.
 		 */
 		while (*modifiers != DRM_FORMAT_MOD_INVALID) {

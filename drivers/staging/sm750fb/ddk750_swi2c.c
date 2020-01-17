@@ -20,7 +20,7 @@
  *
  * 1 Cycle == |  Section I. |  Section 2. |  Section 3. |  Section 4. |
  *            +-------------+-------------+-------------+-------------+
- *            | SCL set LOW |SCL no change| SCL set HIGH|SCL no change|
+ *            | SCL set LOW |SCL yes change| SCL set HIGH|SCL yes change|
  *
  *                                          ____________ _____________
  * SCL == XXXX _____________ ____________ /
@@ -31,7 +31,7 @@
  *
  * Section changes Table:
  * ======================
- * blank = no change, L = set bit LOW, H = set bit HIGH
+ * blank = yes change, L = set bit LOW, H = set bit HIGH
  *
  *                                | 1.| 2.| 3.| 4.|
  *                 ---------------+---+---+---+---+
@@ -60,7 +60,7 @@ static unsigned char sw_i2c_data_gpio = DEFAULT_I2C_SDA;
  *
  *  Note:
  *      Notice that the GPIO usage for the i2c clock and i2c Data are
- *      separated. This is to make this code flexible enough when
+ *      separated. This is to make this code flexible eyesugh when
  *      two separate GPIO pins for the clock and data are located
  *      in two different GPIO register set (worst case).
  */
@@ -83,9 +83,9 @@ static void sw_i2c_wait(void)
 	/* find a bug:
 	 * peekIO method works well before suspend/resume
 	 * but after suspend, peekIO(0x3ce,0x61) & 0x10
-	 * always be non-zero,which makes the while loop
+	 * always be yesn-zero,which makes the while loop
 	 * never finish.
-	 * use non-ultimate for loop below is safe
+	 * use yesn-ultimate for loop below is safe
 	 */
 
     /* Change wait algorithm to use PCI bus clock,
@@ -108,7 +108,7 @@ static void sw_i2c_wait(void)
  *
  *  Notes:
  *      When setting SCL to high, just set the GPIO as input where the pull up
- *      resistor will pull the signal up. Do not use software to pull up the
+ *      resistor will pull the signal up. Do yest use software to pull up the
  *      signal because the i2c will fail when other device try to drive the
  *      signal due to SM50x will drive the signal to always high.
  */
@@ -145,7 +145,7 @@ static void sw_i2c_scl(unsigned char value)
  *
  *  Notes:
  *      When setting SCL to high, just set the GPIO as input where the pull up
- *      resistor will pull the signal up. Do not use software to pull up the
+ *      resistor will pull the signal up. Do yest use software to pull up the
  *      signal because the i2c will fail when other device try to drive the
  *      signal due to SM50x will drive the signal to always high.
  */
@@ -301,8 +301,8 @@ static long sw_i2c_write_byte(unsigned char data)
  *  This function reads one byte from the slave device
  *
  *  Parameters:
- *      ack    - Flag to indicate either to send the acknowledge
- *            message to the slave device or not
+ *      ack    - Flag to indicate either to send the ackyeswledge
+ *            message to the slave device or yest
  *
  *  Return Value:
  *      One byte data read from the Slave device

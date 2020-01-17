@@ -5,7 +5,7 @@
 
     bt848/bt878/cx2388x risc code generator.
 
-    (c) 2000-03 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+    (c) 2000-03 Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]
 
 
 */
@@ -24,7 +24,7 @@
 
 static unsigned int btcx_debug;
 module_param(btcx_debug, int, 0644);
-MODULE_PARM_DESC(btcx_debug,"debug messages, default is 0 (no)");
+MODULE_PARM_DESC(btcx_debug,"debug messages, default is 0 (yes)");
 
 #define dprintk(fmt, arg...) do {				\
 	if (btcx_debug)						\

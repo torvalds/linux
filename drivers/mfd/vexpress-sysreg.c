@@ -47,10 +47,10 @@ void vexpress_flags_set(u32 data)
 	static void __iomem *base;
 
 	if (!base) {
-		struct device_node *node = of_find_compatible_node(NULL, NULL,
+		struct device_yesde *yesde = of_find_compatible_yesde(NULL, NULL,
 				"arm,vexpress-sysreg");
 
-		base = of_iomap(node, 0);
+		base = of_iomap(yesde, 0);
 	}
 
 	if (WARN_ON(!base))
@@ -180,13 +180,13 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 		u32 hbi = (id >> SYS_PROCIDx_HBI_SHIFT) & SYS_HBI_MASK;
 
 		if (WARN_ON(dt_hbi != hbi))
-			dev_warn(&pdev->dev, "DT HBI (%x) is not matching hardware (%x)!\n",
+			dev_warn(&pdev->dev, "DT HBI (%x) is yest matching hardware (%x)!\n",
 					dt_hbi, hbi);
 	}
 
 	/*
 	 * Duplicated SYS_MCI pseudo-GPIO controller for compatibility with
-	 * older trees using sysreg node for MMC control lines.
+	 * older trees using sysreg yesde for MMC control lines.
 	 */
 	mmc_gpio_chip = devm_kzalloc(&pdev->dev, sizeof(*mmc_gpio_chip),
 			GFP_KERNEL);
@@ -217,11 +217,11 @@ static struct platform_driver vexpress_sysreg_driver = {
 
 static int __init vexpress_sysreg_init(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	/* Need the sysreg early, before any other device... */
-	for_each_matching_node(node, vexpress_sysreg_match)
-		of_platform_device_create(node, NULL, NULL);
+	for_each_matching_yesde(yesde, vexpress_sysreg_match)
+		of_platform_device_create(yesde, NULL, NULL);
 
 	return platform_driver_register(&vexpress_sysreg_driver);
 }

@@ -3,7 +3,7 @@
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  * Author:Mark Yao <mark.yao@rock-chips.com>
  *
- * based on exynos_drm_drv.c
+ * based on exyyess_drm_drv.c
  */
 
 #include <linux/dma-mapping.h>
@@ -231,7 +231,7 @@ static struct drm_driver rockchip_drm_driver = {
 	.desc	= DRIVER_DESC,
 	.date	= DRIVER_DATE,
 	.major	= DRIVER_MAJOR,
-	.minor	= DRIVER_MINOR,
+	.miyesr	= DRIVER_MINOR,
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -267,27 +267,27 @@ static int num_rockchip_sub_drivers;
  * @ep: endpoint of a rockchip vop
  *
  * returns true if subdriver, false if external bridge and -ENODEV
- * if remote port does not contain a device.
+ * if remote port does yest contain a device.
  */
-int rockchip_drm_endpoint_is_subdriver(struct device_node *ep)
+int rockchip_drm_endpoint_is_subdriver(struct device_yesde *ep)
 {
-	struct device_node *node = of_graph_get_remote_port_parent(ep);
+	struct device_yesde *yesde = of_graph_get_remote_port_parent(ep);
 	struct platform_device *pdev;
 	struct device_driver *drv;
 	int i;
 
-	if (!node)
+	if (!yesde)
 		return -ENODEV;
 
 	/* status disabled will prevent creation of platform-devices */
-	pdev = of_find_device_by_node(node);
-	of_node_put(node);
+	pdev = of_find_device_by_yesde(yesde);
+	of_yesde_put(yesde);
 	if (!pdev)
 		return -ENODEV;
 
 	/*
 	 * All rockchip subdrivers have probed at this point, so
-	 * any device not having a driver now is an external bridge.
+	 * any device yest having a driver yesw is an external bridge.
 	 */
 	drv = pdev->dev.driver;
 	if (!drv) {
@@ -315,7 +315,7 @@ static void rockchip_drm_match_remove(struct device *dev)
 {
 	struct device_link *link;
 
-	list_for_each_entry(link, &dev->links.consumers, s_node)
+	list_for_each_entry(link, &dev->links.consumers, s_yesde)
 		device_link_del(link);
 }
 
@@ -354,8 +354,8 @@ static const struct component_master_ops rockchip_drm_ops = {
 
 static int rockchip_drm_platform_of_probe(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *port;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *port;
 	bool found = false;
 	int i;
 
@@ -363,33 +363,33 @@ static int rockchip_drm_platform_of_probe(struct device *dev)
 		return -ENODEV;
 
 	for (i = 0;; i++) {
-		struct device_node *iommu;
+		struct device_yesde *iommu;
 
 		port = of_parse_phandle(np, "ports", i);
 		if (!port)
 			break;
 
 		if (!of_device_is_available(port->parent)) {
-			of_node_put(port);
+			of_yesde_put(port);
 			continue;
 		}
 
 		iommu = of_parse_phandle(port->parent, "iommus", 0);
 		if (!iommu || !of_device_is_available(iommu->parent)) {
 			DRM_DEV_DEBUG(dev,
-				      "no iommu attached for %pOF, using non-iommu buffers\n",
+				      "yes iommu attached for %pOF, using yesn-iommu buffers\n",
 				      port->parent);
 			/*
-			 * if there is a crtc not support iommu, force set all
-			 * crtc use non-iommu buffer.
+			 * if there is a crtc yest support iommu, force set all
+			 * crtc use yesn-iommu buffer.
 			 */
 			is_support_iommu = false;
 		}
 
 		found = true;
 
-		of_node_put(iommu);
-		of_node_put(port);
+		of_yesde_put(iommu);
+		of_yesde_put(port);
 	}
 
 	if (i == 0) {
@@ -484,7 +484,7 @@ static int __init rockchip_drm_init(void)
 				CONFIG_ROCKCHIP_DW_HDMI);
 	ADD_ROCKCHIP_SUB_DRIVER(dw_mipi_dsi_rockchip_driver,
 				CONFIG_ROCKCHIP_DW_MIPI_DSI);
-	ADD_ROCKCHIP_SUB_DRIVER(inno_hdmi_driver, CONFIG_ROCKCHIP_INNO_HDMI);
+	ADD_ROCKCHIP_SUB_DRIVER(inyes_hdmi_driver, CONFIG_ROCKCHIP_INNO_HDMI);
 	ADD_ROCKCHIP_SUB_DRIVER(rk3066_hdmi_driver,
 				CONFIG_ROCKCHIP_RK3066_HDMI);
 

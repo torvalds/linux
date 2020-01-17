@@ -5,13 +5,13 @@
  *
  * Copyright (C) 2004 Nokia Corporation
  * Written by Tony Lindgren <tony@atomide.com>
- * Major cleanups by Juha Yrjölä <juha.yrjola@nokia.com>
+ * Major cleanups by Juha Yrjölä <juha.yrjola@yeskia.com>
  *
  * Completely re-written to support various OMAP chips with bank specific
  * interrupt handlers.
  *
  * Some snippets of the code taken from the older OMAP interrupt handler
- * Copyright (C) 2001 RidgeRun, Inc. Greg Lonnon <glonnon@ridgerun.com>
+ * Copyright (C) 2001 RidgeRun, Inc. Greg Lonyesn <glonyesn@ridgerun.com>
  *
  * GPIO interrupt handler moved to gpio.c by Juha Yrjola
  *
@@ -32,7 +32,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if yest, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/gpio.h>
@@ -95,7 +95,7 @@ static void omap_mask_ack_irq(struct irq_data *d)
 /*
  * Allows tuning the IRQ type and priority
  *
- * NOTE: There is currently no OMAP fiq handler for Linux. Read the
+ * NOTE: There is currently yes OMAP fiq handler for Linux. Read the
  *	 mailing list threads on FIQ handlers if you are planning to
  *	 add a FIQ handler for OMAP.
  */

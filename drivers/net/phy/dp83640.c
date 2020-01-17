@@ -133,7 +133,7 @@ struct dp83640_clock {
 	struct mutex clock_lock;
 	/* the one phyter from which we shall read */
 	struct dp83640_private *chosen;
-	/* list of the other attached phyters, not chosen */
+	/* list of the other attached phyters, yest chosen */
 	struct list_head phylist;
 	/* reference to our PTP hardware clock */
 	struct ptp_clock *ptp_clock;
@@ -618,7 +618,7 @@ static void enable_broadcast(struct phy_device *phydev, int init_page, int on)
 
 static void recalibrate(struct dp83640_clock *clock)
 {
-	s64 now, diff;
+	s64 yesw, diff;
 	struct phy_txts event_ts;
 	struct timespec64 ts;
 	struct list_head *this;
@@ -629,7 +629,7 @@ static void recalibrate(struct dp83640_clock *clock)
 	trigger = CAL_TRIGGER;
 	cal_gpio = 1 + ptp_find_pin(clock->ptp_clock, PTP_PF_PHYSYNC, 0);
 	if (cal_gpio < 1) {
-		pr_err("PHY calibration pin not available - PHY is not calibrated.");
+		pr_err("PHY calibration pin yest available - PHY is yest calibrated.");
 		return;
 	}
 
@@ -697,7 +697,7 @@ static void recalibrate(struct dp83640_clock *clock)
 	event_ts.ns_hi  = ext_read(master, PAGE4, PTP_EDATA);
 	event_ts.sec_lo = ext_read(master, PAGE4, PTP_EDATA);
 	event_ts.sec_hi = ext_read(master, PAGE4, PTP_EDATA);
-	now = phy2txts(&event_ts);
+	yesw = phy2txts(&event_ts);
 
 	list_for_each(this, &clock->phylist) {
 		tmp = list_entry(this, struct dp83640_private, list);
@@ -709,8 +709,8 @@ static void recalibrate(struct dp83640_clock *clock)
 		event_ts.ns_hi  = ext_read(tmp->phydev, PAGE4, PTP_EDATA);
 		event_ts.sec_lo = ext_read(tmp->phydev, PAGE4, PTP_EDATA);
 		event_ts.sec_hi = ext_read(tmp->phydev, PAGE4, PTP_EDATA);
-		diff = now - (s64) phy2txts(&event_ts);
-		phydev_info(tmp->phydev, "slave offset %lld nanoseconds\n",
+		diff = yesw - (s64) phy2txts(&event_ts);
+		phydev_info(tmp->phydev, "slave offset %lld nayesseconds\n",
 			    diff);
 		diff += ADJTIME_FIX;
 		ts = ns_to_timespec64(diff);
@@ -751,7 +751,7 @@ static int decode_evnt(struct dp83640_private *dp83640,
 	else
 		parsed = (words + 1) * sizeof(u16);
 
-	/* check if enough data is available */
+	/* check if eyesugh data is available */
 	if (len < parsed)
 		return len;
 
@@ -1021,7 +1021,7 @@ static void dp83640_free_clocks(void)
 	list_for_each_safe(this, next, &phyter_clocks) {
 		clock = list_entry(this, struct dp83640_clock, list);
 		if (!list_empty(&clock->phylist)) {
-			pr_warn("phy list non-empty while unloading\n");
+			pr_warn("phy list yesn-empty while unloading\n");
 			BUG();
 		}
 		list_del(&clock->list);
@@ -1087,7 +1087,7 @@ static struct dp83640_clock *dp83640_clock_get(struct dp83640_clock *clock)
 
 /*
  * Look up and lock a clock by bus instance.
- * If there is no clock for this bus, then create it first.
+ * If there is yes clock for this bus, then create it first.
  */
 static struct dp83640_clock *dp83640_clock_get_bus(struct mii_bus *bus)
 {
@@ -1142,11 +1142,11 @@ static int dp83640_probe(struct phy_device *phydev)
 
 	clock = dp83640_clock_get_bus(phydev->mdio.bus);
 	if (!clock)
-		goto no_clock;
+		goto yes_clock;
 
 	dp83640 = kzalloc(sizeof(struct dp83640_private), GFP_KERNEL);
 	if (!dp83640)
-		goto no_memory;
+		goto yes_memory;
 
 	dp83640->phydev = phydev;
 	INIT_DELAYED_WORK(&dp83640->ts_work, rx_timestamp_work);
@@ -1170,7 +1170,7 @@ static int dp83640_probe(struct phy_device *phydev)
 						      &phydev->mdio.dev);
 		if (IS_ERR(clock->ptp_clock)) {
 			err = PTR_ERR(clock->ptp_clock);
-			goto no_register;
+			goto yes_register;
 		}
 	} else
 		list_add_tail(&dp83640->list, &clock->phylist);
@@ -1178,12 +1178,12 @@ static int dp83640_probe(struct phy_device *phydev)
 	dp83640_clock_put(clock);
 	return 0;
 
-no_register:
+yes_register:
 	clock->chosen = NULL;
 	kfree(dp83640);
-no_memory:
+yes_memory:
 	dp83640_clock_put(clock);
-no_clock:
+yes_clock:
 	return err;
 }
 

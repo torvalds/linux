@@ -663,7 +663,7 @@ static void hdmi5_core_audio_config(struct hdmi_core_data *core,
 	REG_FLD_MOD(base, HDMI_CORE_AUD_N3, cfg->n >> 16, 3, 0);
 
 	/*
-	 * CTS manual mode. Automatic mode is not supported when using audio
+	 * CTS manual mode. Automatic mode is yest supported when using audio
 	 * parallel interface.
 	 */
 	REG_FLD_MOD(base, HDMI_CORE_AUD_CTS3, 1, 4, 4);

@@ -38,7 +38,7 @@ GigaSet 307x Device Driver
 
      We had also reports from users of Gigaset M105 who could use the drivers
      with SX 100 and CX 100 ISDN bases (only in unimodem mode, see section 2.5.)
-     If you have another device that works with our driver, please let us know.
+     If you have ayesther device that works with our driver, please let us kyesw.
 
      Chances of getting an USB device to work are good if the output of::
 
@@ -71,7 +71,7 @@ GigaSet 307x Device Driver
 ------------
 
      For the devices to work, the proper kernel modules have to be loaded.
-     This normally happens automatically when the system detects the USB
+     This yesrmally happens automatically when the system detects the USB
      device (base, M105) or when the line discipline is attached (M101). It
      can also be triggered manually using the modprobe(8) command, for example
      for troubleshooting or to pass module parameters.
@@ -115,21 +115,21 @@ GigaSet 307x Device Driver
      Depending on your distribution you may want to create a separate module
      configuration file like /etc/modprobe.d/gigaset.conf for these.
 
-2.2. Device nodes for user space programs
+2.2. Device yesdes for user space programs
 -----------------------------------------
 
      The device can be accessed from user space (eg. by the user space tools
-     mentioned in 1.2.) through the device nodes:
+     mentioned in 1.2.) through the device yesdes:
 
      - /dev/ttyGS0 for M101 (RS232 data boxes)
      - /dev/ttyGU0 for M105 (USB data boxes)
      - /dev/ttyGB0 for the base driver (direct USB connection)
 
      If you connect more than one device of a type, they will get consecutive
-     device nodes, eg. /dev/ttyGU1 for a second M105.
+     device yesdes, eg. /dev/ttyGU1 for a second M105.
 
      You can also set a "default device" for the user space tools to use when
-     no device node is given as parameter, by creating a symlink /dev/ttyG to
+     yes device yesde is given as parameter, by creating a symlink /dev/ttyG to
      one of them, eg.::
 
 	ln -s /dev/ttyGB0 /dev/ttyG
@@ -140,10 +140,10 @@ GigaSet 307x Device Driver
      ``ioctl(int fd, GIGASET_REDIR, int *cmd);``
 
      If cmd==1, the device is set to be controlled exclusively through the
-     character device node; access from the ISDN subsystem is blocked.
+     character device yesde; access from the ISDN subsystem is blocked.
 
      If cmd==0, the device is set to be used from the ISDN subsystem and does
-     not communicate through the character device node.
+     yest communicate through the character device yesde.
 
      ``ioctl(int fd, GIGASET_CONFIG, int *cmd);``
 
@@ -156,7 +156,7 @@ GigaSet 307x Device Driver
      for setting the operation mode, associating with a base station and
      querying parameters like field strengh and signal quality.
 
-     Note that there is no ioctl command for leaving adapter configuration
+     Note that there is yes ioctl command for leaving adapter configuration
      mode and returning to regular operation. In order to leave adapter
      configuration mode, write the command ATO to the device.
 
@@ -187,7 +187,7 @@ GigaSet 307x Device Driver
 
      Most distributions handle loading and unloading of the various CAPI
      modules automatically via the command capiinit(1) from the capi4k-utils
-     package or a similar mechanism. Note that capiinit(1) cannot unload the
+     package or a similar mechanism. Note that capiinit(1) canyest unload the
      Gigaset drivers because it doesn't support more than one module per
      driver.
 
@@ -213,9 +213,9 @@ GigaSet 307x Device Driver
      "modem" or configure pppd/wvdial manually. There are some example ppp
      configuration files and chat scripts in the gigaset-VERSION/ppp directory
      in the driver packages from https://sourceforge.net/projects/gigaset307x/.
-     Please note that the USB drivers are not able to change the state of the
+     Please yeste that the USB drivers are yest able to change the state of the
      control lines. This means you must use "Stupid Mode" if you are using
-     wvdial or you should use the nocrtscts option of pppd.
+     wvdial or you should use the yescrtscts option of pppd.
      You must also assure that the ppp_async module is loaded with the parameter
      flag_time=0. You can do this e.g. by adding a line like::
 
@@ -226,7 +226,7 @@ GigaSet 307x Device Driver
 	/etc/modprobe.d/gigaset.conf.
 
      Unimodem mode is needed for making some devices [e.g. SX100] work which
-     do not support the regular Gigaset command set. If debug output (see
+     do yest support the regular Gigaset command set. If debug output (see
      section 3.2.) shows something like this when dialing::
 
 	 CMD Received: ERROR
@@ -268,7 +268,7 @@ GigaSet 307x Device Driver
      ISDN calls. Their use can be enabled ("CID mode") or disabled ("Unimodem
      mode"). Without Call-IDs (in Unimodem mode), only a very limited set of
      functions is available. It allows outgoing data connections only, but
-     does not signal incoming calls or other base events.
+     does yest signal incoming calls or other base events.
 
      DECT cordless data devices (M10x) permanently occupy the cordless
      connection to the base while Call-IDs are activated. As the Gigaset
@@ -277,7 +277,7 @@ GigaSet 307x Device Driver
 
      During active operation, the driver switches to the necessary mode
      automatically. However, for the reasons above, the mode chosen when
-     the device is not in use (idle) can be selected by the user.
+     the device is yest in use (idle) can be selected by the user.
 
      - If you want to receive incoming calls, you can use the default
        settings (CID mode).
@@ -304,7 +304,7 @@ provided by an application for dialing out must
      number. Dialing ``***`` (three asterisks) calls all extensions
      simultaneously (global call).
 
-     Unimodem mode does not support internal calls.
+     Unimodem mode does yest support internal calls.
 
 2.8. Unregistered Wireless Devices (M101/M105)
 ----------------------------------------------
@@ -314,7 +314,7 @@ provided by an application for dialing out must
      connections through a Gigaset base. Therefore they assume that the device
      is registered to a DECT base.
 
-     If the M101/M105 device is not registered to a base, initialization of
+     If the M101/M105 device is yest registered to a base, initialization of
      the device fails, and a corresponding error message is logged by the
      driver. In that situation, a restricted set of functions is available
      which includes, in particular, those necessary for registering the device
@@ -340,7 +340,7 @@ provided by an application for dialing out must
      Problem:
 	The isdnlog program emits error messages or just doesn't work.
      Solution:
-	Isdnlog supports only the HiSax driver. Do not attempt to use it with
+	Isdnlog supports only the HiSax driver. Do yest attempt to use it with
 	other drivers such as Gigaset.
 
      Problem:
@@ -352,7 +352,7 @@ provided by an application for dialing out must
      Problem:
 	Messages like this::
 
-	    usb_gigaset 3-2:1.0: Could not initialize the device.
+	    usb_gigaset 3-2:1.0: Could yest initialize the device.
 
 	appear in your syslog.
      Solution:
@@ -418,7 +418,7 @@ provided by an application for dialing out must
      - relevant system log messages (it would help if you activate debug
        output as described in 3.2.)
 
-     For help with general configuration problems not specific to our driver,
+     For help with general configuration problems yest specific to our driver,
      such as isdn4linux and network configuration issues, please refer to the
      appropriate forums and newsgroups.
 

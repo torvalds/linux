@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -31,7 +31,7 @@
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/export.h>
@@ -287,7 +287,7 @@ static void __mlx4_zone_remove_one_entry(struct mlx4_zone_entry *entry)
 	struct mlx4_zone_allocator *zone_alloc = entry->allocator;
 
 	if (!list_empty(&entry->prio_list)) {
-		/* Check if we need to add an alternative node to the prio list */
+		/* Check if we need to add an alternative yesde to the prio list */
 		if (!list_is_last(&entry->list, &zone_alloc->entries)) {
 			struct mlx4_zone_entry *next = list_first_entry(&entry->list,
 									typeof(*next),
@@ -339,7 +339,7 @@ static u32 __mlx4_alloc_from_zone(struct mlx4_zone_entry *zone, int count,
 	u32 uid = 0;
 	u32 res;
 	struct mlx4_zone_allocator *zone_alloc = zone->allocator;
-	struct mlx4_zone_entry *curr_node;
+	struct mlx4_zone_entry *curr_yesde;
 
 	res = mlx4_bitmap_alloc_range(zone->bitmap, count,
 				      align, skip_mask);
@@ -350,13 +350,13 @@ static u32 __mlx4_alloc_from_zone(struct mlx4_zone_entry *zone, int count,
 		goto out;
 	}
 
-	list_for_each_entry(curr_node, &zone_alloc->prios, prio_list) {
-		if (unlikely(curr_node->priority == zone->priority))
+	list_for_each_entry(curr_yesde, &zone_alloc->prios, prio_list) {
+		if (unlikely(curr_yesde->priority == zone->priority))
 			break;
 	}
 
 	if (zone->flags & MLX4_ZONE_ALLOW_ALLOC_FROM_LOWER_PRIO) {
-		struct mlx4_zone_entry *it = curr_node;
+		struct mlx4_zone_entry *it = curr_yesde;
 
 		list_for_each_entry_continue_reverse(it, &zone_alloc->entries, list) {
 			res = mlx4_bitmap_alloc_range(it->bitmap, count,
@@ -370,13 +370,13 @@ static u32 __mlx4_alloc_from_zone(struct mlx4_zone_entry *zone, int count,
 	}
 
 	if (zone->flags & MLX4_ZONE_ALLOW_ALLOC_FROM_EQ_PRIO) {
-		struct mlx4_zone_entry *it = curr_node;
+		struct mlx4_zone_entry *it = curr_yesde;
 
 		list_for_each_entry_from(it, &zone_alloc->entries, list) {
 			if (unlikely(it == zone))
 				continue;
 
-			if (unlikely(it->priority != curr_node->priority))
+			if (unlikely(it->priority != curr_yesde->priority))
 				break;
 
 			res = mlx4_bitmap_alloc_range(it->bitmap, count,
@@ -390,19 +390,19 @@ static u32 __mlx4_alloc_from_zone(struct mlx4_zone_entry *zone, int count,
 	}
 
 	if (zone->flags & MLX4_ZONE_FALLBACK_TO_HIGHER_PRIO) {
-		if (list_is_last(&curr_node->prio_list, &zone_alloc->prios))
+		if (list_is_last(&curr_yesde->prio_list, &zone_alloc->prios))
 			goto out;
 
-		curr_node = list_first_entry(&curr_node->prio_list,
-					     typeof(*curr_node),
+		curr_yesde = list_first_entry(&curr_yesde->prio_list,
+					     typeof(*curr_yesde),
 					     prio_list);
 
-		list_for_each_entry_from(curr_node, &zone_alloc->entries, list) {
-			res = mlx4_bitmap_alloc_range(curr_node->bitmap, count,
+		list_for_each_entry_from(curr_yesde, &zone_alloc->entries, list) {
+			res = mlx4_bitmap_alloc_range(curr_yesde->bitmap, count,
 						      align, skip_mask);
 			if (res != (u32)-1) {
-				res += curr_node->offset;
-				uid = curr_node->uid;
+				res += curr_yesde->offset;
+				uid = curr_yesde->uid;
 				goto out;
 			}
 		}

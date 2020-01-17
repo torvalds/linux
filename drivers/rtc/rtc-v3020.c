@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* drivers/rtc/rtc-v3020.c
  *
- * Copyright (C) 2006 8D Technologies inc.
+ * Copyright (C) 2006 8D Techyeslogies inc.
  * Copyright (C) 2004 Compulab Ltd.
  *
  * Driver for the V3020 RTC
@@ -266,8 +266,8 @@ static int v3020_set_time(struct device *dev, struct rtc_time *dt)
 	/* ...and set the clock. */
 	v3020_set_reg(chip, V3020_CMD_RAM2CLOCK, 0);
 
-	/* Compulab used this delay here. I dont know why,
-	 * the datasheet does not specify a delay. */
+	/* Compulab used this delay here. I dont kyesw why,
+	 * the datasheet does yest specify a delay. */
 	/*mdelay(5);*/
 
 	return 0;

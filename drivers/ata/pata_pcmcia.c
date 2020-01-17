@@ -54,7 +54,7 @@ static int pcmcia_set_mode(struct ata_link *link, struct ata_device **r_failed_d
 		   the same vendor - check serial */
 		if (memcmp(master->id + ATA_ID_SERNO, slave->id + ATA_ID_SERNO,
 			   ATA_ID_SERNO_LEN) == 0 && master->id[ATA_ID_SERNO] >> 8) {
-			ata_dev_warn(slave, "is a ghost device, ignoring\n");
+			ata_dev_warn(slave, "is a ghost device, igyesring\n");
 			ata_dev_disable(slave);
 		}
 	}
@@ -234,7 +234,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 		iowrite8(0x81, ctl_addr + 0x01);
 
 	/* FIXME: Could be more ports at base + 0x10 but we only deal with
-	   one right now */
+	   one right yesw */
 	if (resource_size(pdev->resource[0]) >= 0x20)
 		n_ports = 2;
 
@@ -320,7 +320,7 @@ static const struct pcmcia_device_id pcmcia_devices[] = {
 	PCMCIA_DEVICE_PROD_ID12("ARGOSY", "PnPIDE", 0x78f308dc, 0x0c694728),
 	PCMCIA_DEVICE_PROD_ID12("CNF   ", "CD-ROM", 0x46d7db81, 0x66536591),
 	PCMCIA_DEVICE_PROD_ID12("CNF CD-M", "CD-ROM", 0x7d93b852, 0x66536591),
-	PCMCIA_DEVICE_PROD_ID12("Creative Technology Ltd.", "PCMCIA CD-ROM Interface Card", 0xff8c8a45, 0xfe8020c4),
+	PCMCIA_DEVICE_PROD_ID12("Creative Techyeslogy Ltd.", "PCMCIA CD-ROM Interface Card", 0xff8c8a45, 0xfe8020c4),
 	PCMCIA_DEVICE_PROD_ID12("Digital Equipment Corporation.", "Digital Mobile Media CD-ROM", 0x17692a66, 0xef1dcbde),
 	PCMCIA_DEVICE_PROD_ID12("EXP", "CD+GAME", 0x6f58c983, 0x63c13aaf),
 	PCMCIA_DEVICE_PROD_ID12("EXP   ", "CD-ROM", 0x0a5c52fd, 0x66536591),

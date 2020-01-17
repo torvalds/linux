@@ -13,7 +13,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/aer.h>
 #include "portdrv.h"
 #include "../pci.h"
@@ -56,7 +56,7 @@ static int report_error_detected(struct pci_dev *dev,
 		!dev->driver->err_handler ||
 		!dev->driver->err_handler->error_detected) {
 		/*
-		 * If any device in the subtree does not have an error_detected
+		 * If any device in the subtree does yest have an error_detected
 		 * callback, PCI_ERS_RESULT_NO_AER_DRIVER prevents subsequent
 		 * error callbacks of "any" device in the subtree, and will
 		 * exit in the disconnected error state.
@@ -80,9 +80,9 @@ static int report_frozen_detected(struct pci_dev *dev, void *data)
 	return report_error_detected(dev, pci_channel_io_frozen, data);
 }
 
-static int report_normal_detected(struct pci_dev *dev, void *data)
+static int report_yesrmal_detected(struct pci_dev *dev, void *data)
 {
-	return report_error_detected(dev, pci_channel_io_normal, data);
+	return report_error_detected(dev, pci_channel_io_yesrmal, data);
 }
 
 static int report_mmio_enabled(struct pci_dev *dev, void *data)
@@ -128,7 +128,7 @@ static int report_resume(struct pci_dev *dev, void *data)
 	const struct pci_error_handlers *err_handler;
 
 	device_lock(&dev->dev);
-	if (!pci_dev_set_io_state(dev, pci_channel_io_normal) ||
+	if (!pci_dev_set_io_state(dev, pci_channel_io_yesrmal) ||
 		!dev->driver ||
 		!dev->driver->err_handler ||
 		!dev->driver->err_handler->resume)
@@ -147,7 +147,7 @@ out:
  * @dev: pointer to pci_dev data structure
  *
  * Invoked when performing link reset on a Downstream Port or a
- * Root Port with no aer driver.
+ * Root Port with yes aer driver.
  */
 static pci_ers_result_t default_reset_link(struct pci_dev *dev)
 {
@@ -169,7 +169,7 @@ static pci_ers_result_t reset_link(struct pci_dev *dev, u32 service)
 	} else if (pcie_downstream_port(dev)) {
 		status = default_reset_link(dev);
 	} else {
-		pci_printk(KERN_DEBUG, dev, "no link-reset support at upstream device %s\n",
+		pci_printk(KERN_DEBUG, dev, "yes link-reset support at upstream device %s\n",
 			pci_name(dev));
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
@@ -202,7 +202,7 @@ void pcie_do_recovery(struct pci_dev *dev, enum pci_channel_state state,
 	if (state == pci_channel_io_frozen)
 		pci_walk_bus(bus, report_frozen_detected, &status);
 	else
-		pci_walk_bus(bus, report_normal_detected, &status);
+		pci_walk_bus(bus, report_yesrmal_detected, &status);
 
 	if (state == pci_channel_io_frozen &&
 	    reset_link(dev, service) != PCI_ERS_RESULT_RECOVERED)

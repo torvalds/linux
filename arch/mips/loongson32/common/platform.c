@@ -77,7 +77,7 @@ struct platform_device ls1x_cpufreq_pdev = {
 	},
 };
 
-/* Synopsys Ethernet GMAC */
+/* Syyespsys Ethernet GMAC */
 static struct stmmac_mdio_bus_data ls1x_mdio_bus_data = {
 	.phy_mask	= 0,
 };

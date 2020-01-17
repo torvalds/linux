@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Userspace interface to the pkey device driver
  *
@@ -203,11 +203,11 @@ struct pkey_kblob2pkey {
  * Generate either a CCA AES secure key or a CCA AES cipher key.
  * There needs to be a list of apqns given with at least one entry in there.
  * All apqns in the list need to be exact apqns, 0xFFFF as ANY card or domain
- * is not supported. The implementation walks through the list of apqns and
+ * is yest supported. The implementation walks through the list of apqns and
  * tries to send the request to each apqn without any further checking (like
  * card type or online state). If the apqn fails, simple the next one in the
  * list is tried until success (return 0) or the end of the list is reached
- * (return -1 with errno ENODEV). You may use the PKEY_APQNS4KT ioctl to
+ * (return -1 with erryes ENODEV). You may use the PKEY_APQNS4KT ioctl to
  * generate a list of apqns based on the key type to generate.
  * The keygenflags argument is passed to the low level generation functions
  * individual for the key type and has a key type specific meaning. Currently
@@ -233,11 +233,11 @@ struct pkey_genseck2 {
  * value.
  * There needs to be a list of apqns given with at least one entry in there.
  * All apqns in the list need to be exact apqns, 0xFFFF as ANY card or domain
- * is not supported. The implementation walks through the list of apqns and
+ * is yest supported. The implementation walks through the list of apqns and
  * tries to send the request to each apqn without any further checking (like
  * card type or online state). If the apqn fails, simple the next one in the
  * list is tried until success (return 0) or the end of the list is reached
- * (return -1 with errno ENODEV). You may use the PKEY_APQNS4KT ioctl to
+ * (return -1 with erryes ENODEV). You may use the PKEY_APQNS4KT ioctl to
  * generate a list of apqns based on the key type to generate.
  * The keygenflags argument is passed to the low level generation functions
  * individual for the key type and has a key type specific meaning. Currently
@@ -260,7 +260,7 @@ struct pkey_clr2seck2 {
 
 /*
  * Verify the given secure key, version 2.
- * Check for correct key type. If cardnr and domain are given (are not
+ * Check for correct key type. If cardnr and domain are given (are yest
  * 0xFFFF) also check if this apqn is able to handle this type of key.
  * If cardnr and/or domain is 0xFFFF, on return these values are filled
  * with one apqn able to handle this key.
@@ -276,7 +276,7 @@ struct pkey_clr2seck2 {
  * bit enabled (XPRTCPAC) in the kmf1 field.
  * The ioctl returns 0 as long as the given or found apqn matches to
  * matches with the current or alternate mkvp to the key's mkvp. If the given
- * apqn does not match or there is no such apqn found, -1 with errno
+ * apqn does yest match or there is yes such apqn found, -1 with erryes
  * ENODEV is returned.
  */
 struct pkey_verifykey2 {
@@ -294,11 +294,11 @@ struct pkey_verifykey2 {
  * Transform a key blob (of any type) into a protected key, version 2.
  * There needs to be a list of apqns given with at least one entry in there.
  * All apqns in the list need to be exact apqns, 0xFFFF as ANY card or domain
- * is not supported. The implementation walks through the list of apqns and
+ * is yest supported. The implementation walks through the list of apqns and
  * tries to send the request to each apqn without any further checking (like
  * card type or online state). If the apqn fails, simple the next one in the
  * list is tried until success (return 0) or the end of the list is reached
- * (return -1 with errno ENODEV). You may use the PKEY_APQNS4K ioctl to
+ * (return -1 with erryes ENODEV). You may use the PKEY_APQNS4K ioctl to
  * generate a list of apqns based on the key.
  */
 struct pkey_kblob2pkey2 {
@@ -327,9 +327,9 @@ struct pkey_kblob2pkey2 {
  * argument and the number of stored entries goes into apqn_entries. If the list
  * is empty (apqn_entries is 0) the apqn_entries field is updated to the number
  * of apqn targets found and the ioctl returns with 0. If apqn_entries is > 0
- * but the number of apqn targets does not fit into the list, the apqn_targets
- * field is updatedd with the number of reqired entries but there are no apqn
- * values stored in the list and the ioctl returns with ENOSPC. If no matching
+ * but the number of apqn targets does yest fit into the list, the apqn_targets
+ * field is updatedd with the number of reqired entries but there are yes apqn
+ * values stored in the list and the ioctl returns with ENOSPC. If yes matching
  * APQN is found, the ioctl returns with 0 but the apqn_entries value is 0.
  */
 struct pkey_apqns4key {
@@ -354,15 +354,15 @@ struct pkey_apqns4key {
  * should match. If the PKEY_FLAGS_MATCH_CUR_MKVP is given, only the current
  * mkvp of each apqn is compared. Likewise with the PKEY_FLAGS_MATCH_ALT_MKVP.
  * If both are given, it is assumed to return apqns where either the
- * current or the alternate mkvp matches. If no match flag is given
- * (flags is 0) the mkvp values are ignored for the match process.
+ * current or the alternate mkvp matches. If yes match flag is given
+ * (flags is 0) the mkvp values are igyesred for the match process.
  * The list of matching apqns is stored into the space given by the apqns
  * argument and the number of stored entries goes into apqn_entries. If the list
  * is empty (apqn_entries is 0) the apqn_entries field is updated to the number
  * of apqn targets found and the ioctl returns with 0. If apqn_entries is > 0
- * but the number of apqn targets does not fit into the list, the apqn_targets
- * field is updatedd with the number of reqired entries but there are no apqn
- * values stored in the list and the ioctl returns with ENOSPC. If no matching
+ * but the number of apqn targets does yest fit into the list, the apqn_targets
+ * field is updatedd with the number of reqired entries but there are yes apqn
+ * values stored in the list and the ioctl returns with ENOSPC. If yes matching
  * APQN is found, the ioctl returns with 0 but the apqn_entries value is 0.
  */
 struct pkey_apqns4keytype {

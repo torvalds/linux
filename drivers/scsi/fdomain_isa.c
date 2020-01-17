@@ -102,7 +102,7 @@ static int fdomain_isa_match(struct device *dev, unsigned int ndev)
 					    signatures[i].signature,
 					    signatures[i].length))
 				break;
-		if (i == SIGNATURE_COUNT)	/* no signature found */
+		if (i == SIGNATURE_COUNT)	/* yes signature found */
 			goto fail_unmap;
 		sig = &signatures[i];
 		bios_base = addresses[ndev];
@@ -116,7 +116,7 @@ static int fdomain_isa_match(struct device *dev, unsigned int ndev)
 				 bios_base, base);
 		else
 			dev_info(dev, "BIOS at 0x%lx\n", bios_base);
-		if (!base) {	/* no I/O base in BIOS area */
+		if (!base) {	/* yes I/O base in BIOS area */
 			/* save BIOS signature for later use in port probing */
 			saved_sig = sig;
 			return 0;
@@ -167,7 +167,7 @@ static int fdomain_isa_param_match(struct device *dev, unsigned int ndev)
 
 	sh = fdomain_create(io[ndev], irq_, scsi_id[ndev], dev);
 	if (!sh) {
-		dev_err(dev, "controller not found at base 0x%x", io[ndev]);
+		dev_err(dev, "controller yest found at base 0x%x", io[ndev]);
 		release_region(io[ndev], FDOMAIN_REGION_SIZE);
 		return 0;
 	}

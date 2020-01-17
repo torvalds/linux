@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_ASM_POWERPC_SIGNAL_H
 #define _UAPI_ASM_POWERPC_SIGNAL_H
 
@@ -56,14 +56,14 @@ typedef struct {
 #define SIGSYS		31
 #define	SIGUNUSED	31
 
-/* These should not be considered constants from userland.  */
+/* These should yest be considered constants from userland.  */
 #define SIGRTMIN	32
 #define SIGRTMAX	_NSIG
 
 /*
  * SA_FLAGS values:
  *
- * SA_ONSTACK is not currently supported, but will allow sigaltstack(2).
+ * SA_ONSTACK is yest currently supported, but will allow sigaltstack(2).
  * SA_RESTART flag to get restarting signals (which were the default long ago)
  * SA_NOCLDSTOP flag to turn off SIGCHLD when children stop.
  * SA_RESETHAND clears the handler when the signal is delivered.

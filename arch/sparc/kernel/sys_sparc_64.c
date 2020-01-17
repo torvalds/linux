@@ -2,11 +2,11 @@
 /* linux/arch/sparc64/kernel/sys_sparc.c
  *
  * This file contains various random system calls that
- * have a non-standard calling sequence on the Linux/sparc
+ * have a yesn-standard calling sequence on the Linux/sparc
  * platform.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
@@ -96,7 +96,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 	struct vm_unmapped_area_info info;
 
 	if (flags & MAP_FIXED) {
-		/* We do not accept a shared mapping if it would violate
+		/* We do yest accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&
@@ -160,7 +160,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	BUG_ON(!test_thread_flag(TIF_32BIT));
 
 	if (flags & MAP_FIXED) {
-		/* We do not accept a shared mapping if it would violate
+		/* We do yest accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&
@@ -252,7 +252,7 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr, u
 			align_goal = PAGE_SIZE;
 	} while ((addr & ~PAGE_MASK) && align_goal > PAGE_SIZE);
 
-	/* Mapping is smaller than 64K or larger areas could not
+	/* Mapping is smaller than 64K or larger areas could yest
 	 * be obtained.
 	 */
 	if (addr & ~PAGE_MASK)
@@ -294,7 +294,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 		mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
 		mm->get_unmapped_area = arch_get_unmapped_area;
 	} else {
-		/* We know it's 32-bit */
+		/* We kyesw it's 32-bit */
 		unsigned long task_size = STACK_TOP32;
 
 		if (gap < 128 * 1024 * 1024)
@@ -308,8 +308,8 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 }
 
 /*
- * sys_pipe() is the normal C calling standard for creating
- * a pipe. It's not the way unix traditionally does this, though.
+ * sys_pipe() is the yesrmal C calling standard for creating
+ * a pipe. It's yest the way unix traditionally does this, though.
  */
 SYSCALL_DEFINE0(sparc_pipe)
 {
@@ -580,7 +580,7 @@ SYSCALL_DEFINE2(sparc_clock_adjtime, const clockid_t, which_clock,struct timex _
 
 	if (!IS_ENABLED(CONFIG_POSIX_TIMERS)) {
 		pr_err_once("process %d (%s) attempted a POSIX timer syscall "
-		    "while CONFIG_POSIX_TIMERS is not set\n",
+		    "while CONFIG_POSIX_TIMERS is yest set\n",
 		    current->pid, current->comm);
 
 		return -ENOSYS;

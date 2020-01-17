@@ -2,7 +2,7 @@
 /*
  * Ingenic SoC CGU driver
  *
- * Copyright (c) 2013-2015 Imagination Technologies
+ * Copyright (c) 2013-2015 Imagination Techyeslogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -40,7 +40,7 @@
  * @bypass_bit: the index of the bypass bit in the PLL control register
  * @enable_bit: the index of the enable bit in the PLL control register
  * @stable_bit: the index of the stable bit in the PLL control register
- * @no_bypass_bit: if set, the PLL has no bypass functionality
+ * @yes_bypass_bit: if set, the PLL has yes bypass functionality
  */
 struct ingenic_cgu_pll_info {
 	unsigned reg;
@@ -51,7 +51,7 @@ struct ingenic_cgu_pll_info {
 	u8 bypass_bit;
 	u8 enable_bit;
 	u8 stable_bit;
-	bool no_bypass_bit;
+	bool yes_bypass_bit;
 };
 
 /**
@@ -130,7 +130,7 @@ struct ingenic_cgu_custom_info {
  * @type: a bitmask formed from CGU_CLK_* values
  * @parents: an array of the indices of potential parents of this clock
  *           within the clock_info array of the CGU, or -1 in entries
- *           which correspond to no valid parent
+ *           which correspond to yes valid parent
  * @pll: information valid if type includes CGU_CLK_PLL
  * @gate: information valid if type includes CGU_CLK_GATE
  * @mux: information valid if type includes CGU_CLK_MUX
@@ -171,14 +171,14 @@ struct ingenic_cgu_clk_info {
 
 /**
  * struct ingenic_cgu - data about the CGU
- * @np: the device tree node that caused the CGU to be probed
+ * @np: the device tree yesde that caused the CGU to be probed
  * @base: the ioremap'ed base address of the CGU registers
  * @clock_info: an array containing information about implemented clocks
  * @clocks: used to provide clocks to DT, allows lookup of struct clk*
  * @lock: lock to be held whilst manipulating CGU registers
  */
 struct ingenic_cgu {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *base;
 
 	const struct ingenic_cgu_clk_info *clock_info;
@@ -206,14 +206,14 @@ struct ingenic_clk {
  * @clock_info: an array of clock information structures describing the clocks
  *              which are implemented by the CGU
  * @num_clocks: the number of entries in clock_info
- * @np: the device tree node which causes this CGU to be probed
+ * @np: the device tree yesde which causes this CGU to be probed
  *
  * Return: a pointer to the CGU instance if initialisation is successful,
  *         otherwise NULL.
  */
 struct ingenic_cgu *
 ingenic_cgu_new(const struct ingenic_cgu_clk_info *clock_info,
-		unsigned num_clocks, struct device_node *np);
+		unsigned num_clocks, struct device_yesde *np);
 
 /**
  * ingenic_cgu_register_clocks() - Registers the clocks
@@ -221,7 +221,7 @@ ingenic_cgu_new(const struct ingenic_cgu_clk_info *clock_info,
  *
  * Register the clocks described by the CGU with the common clock framework.
  *
- * Return: 0 on success or -errno if unsuccesful.
+ * Return: 0 on success or -erryes if unsuccesful.
  */
 int ingenic_cgu_register_clocks(struct ingenic_cgu *cgu);
 

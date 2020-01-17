@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __LINUX_PKT_CLS_H
 #define __LINUX_PKT_CLS_H
 
@@ -585,7 +585,7 @@ enum {
 
 /* Ematch type assignments
  *   1..32767		Reserved for ematches inside kernel tree
- *   32768..65535	Free to use, not reliable
+ *   32768..65535	Free to use, yest reliable
  */
 #define	TCF_EM_CONTAINER	0
 #define	TCF_EM_CMP		1

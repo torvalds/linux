@@ -31,8 +31,8 @@ struct task_struct {};
 struct strobe_value_header {
 	/*
 	 * meaning depends on type:
-	 * 1. int: 0, if value not set, 1 otherwise
-	 * 2. str: 1 always, whether value is set or not is determined by ptr
+	 * 1. int: 0, if value yest set, 1 otherwise
+	 * 2. str: 1 always, whether value is set or yest is determined by ptr
 	 * 3. map: 1 always, pointer points to additional struct with number
 	 *    of entries (up to STROBE_MAX_MAP_ENTRIES)
 	 */
@@ -79,10 +79,10 @@ struct strobe_map_entry {
 
 /*
  * Map of C-string key/value pairs with fixed maximum capacity. Each map has
- * corresponding int64 ID, which application can use (or ignore) in whatever
- * way appropriate. Map is "write-only", there is no way to get data out of
+ * corresponding int64 ID, which application can use (or igyesre) in whatever
+ * way appropriate. Map is "write-only", there is yes way to get data out of
  * map. Map is intended to be used to provide metadata for profilers and is
- * not to be used for internal in-app communication. All methods are
+ * yest to be used for internal in-app communication. All methods are
  * thread-safe.
  */
 struct strobe_map_raw {
@@ -121,11 +121,11 @@ struct strobe_map_raw {
 struct strobe_value_loc {
 	/*
 	 * tls_mode defines what TLS mode was used for particular metavariable:
-	 * - -1 (TLS_NOT_SET) - no metavariable;
+	 * - -1 (TLS_NOT_SET) - yes metavariable;
 	 * - 0 (TLS_LOCAL_EXEC) - Local Executable mode;
 	 * - 1 (TLS_IMM_EXEC) - Immediate Executable mode;
 	 * - 2 (TLS_GENERAL_DYN) - General Dynamic mode;
-	 * Local Dynamic mode is not yet supported, because never seen in
+	 * Local Dynamic mode is yest yet supported, because never seen in
 	 * practice.  Mode defines how offset field is interpreted. See
 	 * calc_location() in below for details.
 	 */
@@ -153,7 +153,7 @@ struct strobe_map_descr {
 	int16_t tag_len;
 	/*
 	 * cnt <0 - map value isn't set;
-	 * 0 - map has id set, but no key/value entries
+	 * 0 - map has id set, but yes key/value entries
 	 */
 	int16_t cnt;
 	/*
@@ -176,7 +176,7 @@ struct strobemeta_payload {
 	int64_t int_vals[STROBE_MAX_INTS];
 	/* len is >0 for present values */
 	uint16_t str_lens[STROBE_MAX_STRS];
-	/* if map_descrs[i].cnt == -1, metavar is not present/set */
+	/* if map_descrs[i].cnt == -1, metavar is yest present/set */
 	struct strobe_map_descr map_descrs[STROBE_MAX_MAPS];
 	/*
 	 * payload has compactly packed values of str and map variables in the
@@ -197,7 +197,7 @@ struct strobelight_bpf_sample {
 	struct strobemeta_payload metadata;
 	/*
 	 * makes it possible to pass (<real payload size> + 1) as data size to
-	 * perf_submit() to avoid perf_submit's paranoia about passing zero as
+	 * perf_submit() to avoid perf_submit's parayesia about passing zero as
 	 * size, as it deduces that <real payload size> might be
 	 * **theoretically** zero
 	 */
@@ -250,7 +250,7 @@ typedef union dtv {
 } dtv_t;
 
 /* Partial definition for tcbhead_t */
-/* https://github.com/bminor/glibc/blob/master/sysdeps/x86_64/nptl/tls.h#L42 */
+/* https://github.com/bmiyesr/glibc/blob/master/sysdeps/x86_64/nptl/tls.h#L42 */
 struct tcbhead {
 	void* tcb;
 	dtv_t* dtv;
@@ -271,21 +271,21 @@ static __always_inline void *calc_location(struct strobe_value_loc *loc,
 {
 	/*
 	 * tls_mode value is:
-	 * - -1 (TLS_NOT_SET), if no metavar is present;
+	 * - -1 (TLS_NOT_SET), if yes metavar is present;
 	 * - 0 (TLS_LOCAL_EXEC), if metavar uses Local Executable mode of TLS
 	 * (offset from fs:0 for x86-64 or tpidr_el0 for aarch64);
 	 * - 1 (TLS_IMM_EXEC), if metavar uses Immediate Executable mode of TLS;
 	 * - 2 (TLS_GENERAL_DYN), if metavar uses General Dynamic mode of TLS;
 	 * This schema allows to use something like:
 	 * (tls_mode + 1) * (tls_base + offset)
-	 * to get NULL for "no metavar" location, or correct pointer for local
+	 * to get NULL for "yes metavar" location, or correct pointer for local
 	 * executable mode without doing extra ifs.
 	 */
 	if (loc->tls_mode <= TLS_LOCAL_EXEC) {
 		/* static executable is simple, we just have offset from
 		 * tls_base */
 		void *addr = tls_base + loc->offset;
-		/* multiply by (tls_mode + 1) to get NULL, if we have no
+		/* multiply by (tls_mode + 1) to get NULL, if we have yes
 		 * metavar in this slot */
 		return (void *)((loc->tls_mode + 1) * (int64_t)addr);
 	}
@@ -384,8 +384,8 @@ static __always_inline void *read_map_var(struct strobemeta_cfg *cfg,
 	uint32_t len;
 	int i;
 
-	descr->tag_len = 0; /* presume no tag is set */
-	descr->cnt = -1; /* presume no value is set */
+	descr->tag_len = 0; /* presume yes tag is set */
+	descr->cnt = -1; /* presume yes value is set */
 
 	location = calc_location(&cfg->map_locs[idx], tls_base);
 	if (!location)
@@ -437,7 +437,7 @@ static __always_inline void *read_map_var(struct strobemeta_cfg *cfg,
 }
 
 /*
- * read_strobe_meta returns NULL, if no metadata was read; otherwise returns
+ * read_strobe_meta returns NULL, if yes metadata was read; otherwise returns
  * pointer to *right after* payload ends
  */
 static __always_inline void *read_strobe_meta(struct task_struct *task,

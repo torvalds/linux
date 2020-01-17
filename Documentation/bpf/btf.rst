@@ -12,7 +12,7 @@ subroutines, and line info for source/line information.
 
 The debug info is used for map pretty print, function signature, etc. The
 function signature enables better bpf program/function kernel symbol. The line
-info helps generate source annotated translated byte code, jited code and
+info helps generate source anyestated translated byte code, jited code and
 verifier log.
 
 The BTF specification contains two parts,
@@ -85,8 +85,8 @@ sequentially and type id is assigned to each recognized type starting from id
     #define BTF_KIND_VAR            14      /* Variable     */
     #define BTF_KIND_DATASEC        15      /* Section      */
 
-Note that the type section encodes debug info, not just pure types.
-``BTF_KIND_FUNC`` is not a type, and it represents a defined subprogram.
+Note that the type section encodes debug info, yest just pure types.
+``BTF_KIND_FUNC`` is yest a type, and it represents a defined subprogram.
 
 Each type contains the following common data::
 
@@ -106,7 +106,7 @@ Each type contains the following common data::
          *
          * "type" is used by PTR, TYPEDEF, VOLATILE, CONST, RESTRICT,
          * FUNC and FUNC_PROTO.
-         * "type" is a type_id referring to another type.
+         * "type" is a type_id referring to ayesther type.
          */
         union {
                 __u32 size;
@@ -190,7 +190,7 @@ No additional type data follow ``btf_type``.
   * ``info.kind_flag``: 0
   * ``info.kind``: BTF_KIND_ARRAY
   * ``info.vlen``: 0
-  * ``size/type``: 0, not used
+  * ``size/type``: 0, yest used
 
 ``btf_type`` is followed by one ``struct btf_array``::
 
@@ -208,7 +208,7 @@ The ``struct btf_array`` encoding:
 The ``index_type`` can be any regular int type (``u8``, ``u16``, ``u32``,
 ``u64``, ``unsigned __int128``). The original design of including
 ``index_type`` follows DWARF, which has an ``index_type`` for its array type.
-Currently in BTF, beyond type verification, the ``index_type`` is not used.
+Currently in BTF, beyond type verification, the ``index_type`` is yest used.
 
 The ``struct btf_array`` allows chaining through element type to represent
 multidimensional arrays. For example, for ``int a[5][6]``, the following type
@@ -221,7 +221,7 @@ information illustrates the chaining:
 Currently, both pahole and llvm collapse multidimensional array into
 one-dimensional array, e.g., for ``a[5][6]``, the ``btf_array.nelems`` is
 equal to ``30``. This is because the original use case is map pretty print
-where the whole array is dumped out so one-dimensional array is enough. As
+where the whole array is dumped out so one-dimensional array is eyesugh. As
 more BTF usage is explored, pahole and llvm can be changed to generate proper
 chained representation for multidimensional arrays.
 
@@ -250,10 +250,10 @@ chained representation for multidimensional arrays.
   * ``type``: the member type
   * ``offset``: <see below>
 
-If the type info ``kind_flag`` is not set, the offset contains only bit offset
+If the type info ``kind_flag`` is yest set, the offset contains only bit offset
 of the member. Note that the base type of the bitfield can only be int or enum
 type. If the bitfield size is 32, the base type can be either int or enum
-type. If the bitfield size is not 32, the base type must be int, and int type
+type. If the bitfield size is yest 32, the base type must be int, and int type
 ``BTF_INT_BITS()`` encodes the bitfield size.
 
 If the ``kind_flag`` is set, the ``btf_member.offset`` contains both member
@@ -366,7 +366,7 @@ No additional type data follow ``btf_type``.
 
 No additional type data follow ``btf_type``.
 
-A BTF_KIND_FUNC defines not a type, but a subprogram (function) whose
+A BTF_KIND_FUNC defines yest a type, but a subprogram (function) whose
 signature is defined by ``type``. The subprogram is thus an instance of that
 type. The BTF_KIND_FUNC may in turn be referenced by a func_info in the
 :ref:`BTF_Ext_Section` (ELF) or in the arguments to :ref:`BPF_Prog_Load`
@@ -511,7 +511,7 @@ A map can be created with ``btf_fd`` and specified key/value type id.::
     __u32   btf_key_type_id;        /* BTF type_id of the key */
     __u32   btf_value_type_id;      /* BTF type_id of the value */
 
-In libbpf, the map can be defined with extra annotation like below:
+In libbpf, the map can be defined with extra anyestation like below:
 ::
 
     struct bpf_map_def SEC("maps") btf_map = {
@@ -592,7 +592,7 @@ inspection tool can inspect all programs and maps.
 3.5 BPF_{PROG,MAP}_GET_FD_BY_ID
 ===============================
 
-An introspection tool cannot use id to get details about program or maps.
+An introspection tool canyest use id to get details about program or maps.
 A file descriptor needs to be obtained first for reference-counting purpose.
 
 3.6 BPF_OBJ_GET_INFO_BY_FD
@@ -613,7 +613,7 @@ command BPF_OBJ_GET_INFO_BY_FD, the btf blob, originally loaded into the
 kernel with BPF_BTF_LOAD, can be retrieved.
 
 With the btf blob, ``bpf_map_info``, and ``bpf_prog_info``, an introspection
-tool has full btf knowledge and is able to pretty print map key/values, dump
+tool has full btf kyeswledge and is able to pretty print map key/values, dump
 func signatures and line info, along with byte/jit codes.
 
 4. ELF File Format Interface
@@ -776,7 +776,7 @@ information.::
 The following is an example of how line_info can help debugging verification
 failure.::
 
-       /* The code at tools/testing/selftests/bpf/test_xdp_noinline.c
+       /* The code at tools/testing/selftests/bpf/test_xdp_yesinline.c
         * is modified as below.
         */
        data = (void *)(long)xdp->data;
@@ -787,7 +787,7 @@ failure.::
        */
        *(u32 *)data = dst->dst;
 
-    $ bpftool prog load ./test_xdp_noinline.o /sys/fs/bpf/test_xdp_noinline type xdp
+    $ bpftool prog load ./test_xdp_yesinline.o /sys/fs/bpf/test_xdp_yesinline type xdp
         ; data = (void *)(long)xdp->data;
         224: (79) r2 = *(u64 *)(r10 -112)
         225: (61) r2 = *(u32 *)(r2 +0)

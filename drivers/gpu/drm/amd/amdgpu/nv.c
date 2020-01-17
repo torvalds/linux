@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -399,7 +399,7 @@ static const struct amdgpu_ip_block_version nv_common_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_COMMON,
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &nv_common_ip_funcs,
 };
@@ -591,8 +591,8 @@ static void nv_init_doorbell_index(struct amdgpu_device *adev)
 	adev->doorbell_index.vcn.vcn_ring2_3 = AMDGPU_NAVI10_DOORBELL64_VCN2_3;
 	adev->doorbell_index.vcn.vcn_ring4_5 = AMDGPU_NAVI10_DOORBELL64_VCN4_5;
 	adev->doorbell_index.vcn.vcn_ring6_7 = AMDGPU_NAVI10_DOORBELL64_VCN6_7;
-	adev->doorbell_index.first_non_cp = AMDGPU_NAVI10_DOORBELL64_FIRST_NON_CP;
-	adev->doorbell_index.last_non_cp = AMDGPU_NAVI10_DOORBELL64_LAST_NON_CP;
+	adev->doorbell_index.first_yesn_cp = AMDGPU_NAVI10_DOORBELL64_FIRST_NON_CP;
+	adev->doorbell_index.last_yesn_cp = AMDGPU_NAVI10_DOORBELL64_LAST_NON_CP;
 
 	adev->doorbell_index.max_assignment = AMDGPU_NAVI10_DOORBELL_MAX_ASSIGNMENT << 1;
 	adev->doorbell_index.sdma_doorbell_range = 20;
@@ -704,7 +704,7 @@ static int nv_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0xa;
 		break;
 	default:
-		/* FIXME: not supported yet */
+		/* FIXME: yest supported yet */
 		return -EINVAL;
 	}
 
@@ -863,7 +863,7 @@ static void nv_update_hdp_mem_power_gating(struct amdgpu_device *adev,
 		hdp_mem_pwr_cntl = REG_SET_FIELD(hdp_mem_pwr_cntl,
 						 HDP_MEM_POWER_CTRL,
 						 IPH_MEM_POWER_SD_EN, enable);
-		/* RC should not use shut down mode, fallback to ds */
+		/* RC should yest use shut down mode, fallback to ds */
 		hdp_mem_pwr_cntl = REG_SET_FIELD(hdp_mem_pwr_cntl,
 						 HDP_MEM_POWER_CTRL,
 						 RC_MEM_POWER_DS_EN, enable);

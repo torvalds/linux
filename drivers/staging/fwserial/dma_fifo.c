@@ -32,7 +32,7 @@ static bool addr_check(unsigned int check, unsigned int lo, unsigned int hi)
 }
 
 /**
- * dma_fifo_init: initialize the fifo to a valid but inoperative state
+ * dma_fifo_init: initialize the fifo to a valid but iyesperative state
  * @fifo: address of in-place "struct dma_fifo" object
  */
 void dma_fifo_init(struct dma_fifo *fifo)
@@ -53,7 +53,7 @@ void dma_fifo_init(struct dma_fifo *fifo)
  * @gfp_mask: get_free_pages mask, passed to kmalloc()
  *
  * The 'apparent' size will be rounded up to next greater aligned size.
- * Returns 0 if no error, otherwise an error code
+ * Returns 0 if yes error, otherwise an error code
  */
 int dma_fifo_alloc(struct dma_fifo *fifo, int size, unsigned int align,
 		   int tx_limit, int open_limit, gfp_t gfp_mask)
@@ -89,7 +89,7 @@ int dma_fifo_alloc(struct dma_fifo *fifo, int size, unsigned int align,
  * dma_fifo_free - frees the fifo
  * @fifo: address of in-place "struct dma_fifo" to free
  *
- * Also reinits the fifo to a valid but inoperative state. This
+ * Also reinits the fifo to a valid but iyesperative state. This
  * allows the fifo to be reused with a different target requiring
  * different fifo parameters.
  */
@@ -174,10 +174,10 @@ int dma_fifo_in(struct dma_fifo *fifo, const void *src, int n)
  * dma_fifo_out_pend - gets address/len of next avail read and marks as pended
  * @fifo: address of in-place "struct dma_fifo" to read from
  * @pended: address of structure to fill with read address/len
- *          The data/len fields will be NULL/0 if no dma is pended.
+ *          The data/len fields will be NULL/0 if yes dma is pended.
  *
  * Returns the # of used bytes remaining in fifo (ie, if > 0, more data
- * remains in the fifo that was not pended). If < 0, return is error code.
+ * remains in the fifo that was yest pended). If < 0, return is error code.
  */
 int dma_fifo_out_pend(struct dma_fifo *fifo, struct dma_pending *pended)
 {

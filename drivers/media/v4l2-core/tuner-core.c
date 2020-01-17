@@ -3,7 +3,7 @@
  * i2c tv tuner chip device driver
  * core core, i.e. kernel interfaces, registering and so on
  *
- * Copyright(c) by Ralph Metzler, Gerd Knorr, Gunther Mayer
+ * Copyright(c) by Ralph Metzler, Gerd Kyesrr, Gunther Mayer
  *
  * Copyright(c) 2005-2011 by Mauro Carvalho Chehab
  *	- Added support for a separate Radio tuner
@@ -20,7 +20,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/i2c.h>
@@ -50,11 +50,11 @@
 
 /* insmod options used at init time => read/only */
 static unsigned int addr;
-static unsigned int no_autodetect;
+static unsigned int yes_autodetect;
 static unsigned int show_i2c;
 
 module_param(addr, int, 0444);
-module_param(no_autodetect, int, 0444);
+module_param(yes_autodetect, int, 0444);
 module_param(show_i2c, int, 0444);
 
 /* insmod options used at runtime => read/write */
@@ -240,7 +240,7 @@ static void fe_set_params(struct dvb_frontend *fe,
 	struct tuner *t = fe->analog_demod_priv;
 
 	if (NULL == fe_tuner_ops->set_analog_params) {
-		pr_warn("Tuner frontend module has no way to set freq\n");
+		pr_warn("Tuner frontend module has yes way to set freq\n");
 		return;
 	}
 	fe_tuner_ops->set_analog_params(fe, params);
@@ -262,7 +262,7 @@ static int fe_set_config(struct dvb_frontend *fe, void *priv_cfg)
 	if (fe_tuner_ops->set_config)
 		return fe_tuner_ops->set_config(fe, priv_cfg);
 
-	pr_warn("Tuner frontend module has no way to set config\n");
+	pr_warn("Tuner frontend module has yes way to set config\n");
 
 	return 0;
 }
@@ -302,7 +302,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
 	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
 	unsigned char buffer[4];
-	int tune_now = 1;
+	int tune_yesw = 1;
 
 	if (type == UNSET || type == TUNER_ABSENT) {
 		dprintk("tuner 0x%02x: Tuner type absent\n", c->addr);
@@ -378,7 +378,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		};
 		if (!dvb_attach(xc2028_attach, &t->fe, &cfg))
 			goto attach_failed;
-		tune_now = 0;
+		tune_yesw = 0;
 		break;
 	}
 	case TUNER_TDA9887:
@@ -397,7 +397,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		if (!dvb_attach(xc5000_attach,
 				&t->fe, t->i2c->adapter, &xc5000_cfg))
 			goto attach_failed;
-		tune_now = 0;
+		tune_yesw = 0;
 		break;
 	}
 	case TUNER_XC5000C:
@@ -412,7 +412,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		if (!dvb_attach(xc5000_attach,
 				&t->fe, t->i2c->adapter, &xc5000c_cfg))
 			goto attach_failed;
-		tune_now = 0;
+		tune_yesw = 0;
 		break;
 	}
 	case TUNER_NXP_TDA18271:
@@ -424,7 +424,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		if (!dvb_attach(tda18271_attach, &t->fe, t->i2c->addr,
 				t->i2c->adapter, &cfg))
 			goto attach_failed;
-		tune_now = 0;
+		tune_yesw = 0;
 		break;
 	}
 	case TUNER_XC4000:
@@ -441,7 +441,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		if (!dvb_attach(xc4000_attach,
 				&t->fe, t->i2c->adapter, &xc4000_cfg))
 			goto attach_failed;
-		tune_now = 0;
+		tune_yesw = 0;
 		break;
 	}
 	default:
@@ -484,7 +484,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	   FIXME: better to move set_freq to the tuner code. This is needed
 	   on analog tuners for PLL to properly work
 	 */
-	if (tune_now) {
+	if (tune_yesw) {
 		if (V4L2_TUNER_RADIO == t->mode)
 			set_radio_freq(c, t->radio_freq);
 		else
@@ -565,7 +565,7 @@ static int tuner_s_config(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	dprintk("Tuner frontend module has no way to set config\n");
+	dprintk("Tuner frontend module has yes way to set config\n");
 	return 0;
 }
 
@@ -580,7 +580,7 @@ static int tuner_s_config(struct v4l2_subdev *sd,
  * discarding demod-only adapters (tda9887).
  *
  * Note that when this function is called from tuner_probe you can be
- * certain no other devices will be added/deleted at the same time, I2C
+ * certain yes other devices will be added/deleted at the same time, I2C
  * core protects against that.
  */
 static void tuner_lookup(struct i2c_adapter *adap,
@@ -614,7 +614,7 @@ static void tuner_lookup(struct i2c_adapter *adap,
  *tuner_probe - Probes the existing tuners on an I2C bus
  *
  * @client:	i2c_client descriptor
- * @id:		not used
+ * @id:		yest used
  *
  * This routine probes for tuners at the expected I2C addresses. On most
  * cases, if a device answers to a given I2C address, it assumes that the
@@ -658,7 +658,7 @@ static int tuner_probe(struct i2c_client *client,
 	}
 
 	/* autodetection code based on the i2c addr */
-	if (!no_autodetect) {
+	if (!yes_autodetect) {
 		switch (client->addr) {
 		case 0x10:
 			if (tuner_symbol_probe(tea5761_autodetection,
@@ -678,7 +678,7 @@ static int tuner_probe(struct i2c_client *client,
 		case 0x43:
 		case 0x4a:
 		case 0x4b:
-			/* If chip is not tda8290, don't register.
+			/* If chip is yest tda8290, don't register.
 			   since it can be tda9887*/
 			if (tuner_symbol_probe(tda829x_probe, t->i2c->adapter,
 					       t->i2c->addr) >= 0) {
@@ -708,7 +708,7 @@ static int tuner_probe(struct i2c_client *client,
 	}
 
 	/* Initializes only the first TV tuner on this adapter. Why only the
-	   first? Because there are some devices (notably the ones with TI
+	   first? Because there are some devices (yestably the ones with TI
 	   tuners) that have more than one i2c address for the *same* device.
 	   Experience shows that, except for just one case, the first
 	   address is the right one. The exception is a Russian tuner
@@ -900,18 +900,18 @@ static void set_tv_freq(struct i2c_client *c, unsigned int freq)
 	};
 
 	if (t->type == UNSET) {
-		pr_warn("tuner type not set\n");
+		pr_warn("tuner type yest set\n");
 		return;
 	}
 	if (NULL == analog_ops->set_params) {
-		pr_warn("Tuner has no way to set tv freq\n");
+		pr_warn("Tuner has yes way to set tv freq\n");
 		return;
 	}
 	if (freq < tv_range[0] * 16 || freq > tv_range[1] * 16) {
 		dprintk("TV freq (%d.%02d) out of range (%d-%d)\n",
 			   freq / 16, freq % 16 * 100 / 16, tv_range[0],
 			   tv_range[1]);
-		/* V4L2 spec: if the freq is not possible then the closest
+		/* V4L2 spec: if the freq is yest possible then the closest
 		   possible value should be selected */
 		if (freq < tv_range[0] * 16)
 			freq = tv_range[0] * 16;
@@ -937,7 +937,7 @@ static void set_tv_freq(struct i2c_client *c, unsigned int freq)
  * On other operational systems, the drivers generally have a per-country
  * code, and some logic to apply per-country hacks. V4L2 API doesn't provide
  * such hacks. Instead, it relies on a proper video standard selection from
- * the userspace application. However, as some apps are buggy, not allowing
+ * the userspace application. However, as some apps are buggy, yest allowing
  * to distinguish all video standard variations, a modprobe parameter can
  * be used to force a video standard match.
  */
@@ -969,7 +969,7 @@ static v4l2_std_id tuner_fixup_std(struct tuner *t, v4l2_std_id std)
 				return V4L2_STD_PAL_Nc;
 			return V4L2_STD_PAL_N;
 		default:
-			pr_warn("pal= argument not recognised\n");
+			pr_warn("pal= argument yest recognised\n");
 			break;
 		}
 	}
@@ -995,7 +995,7 @@ static v4l2_std_id tuner_fixup_std(struct tuner *t, v4l2_std_id std)
 				return V4L2_STD_SECAM_LC;
 			return V4L2_STD_SECAM_L;
 		default:
-			pr_warn("secam= argument not recognised\n");
+			pr_warn("secam= argument yest recognised\n");
 			break;
 		}
 	}
@@ -1012,7 +1012,7 @@ static v4l2_std_id tuner_fixup_std(struct tuner *t, v4l2_std_id std)
 		case 'K':
 			return V4L2_STD_NTSC_M_KR;
 		default:
-			pr_info("ntsc= argument not recognised\n");
+			pr_info("ntsc= argument yest recognised\n");
 			break;
 		}
 	}
@@ -1041,18 +1041,18 @@ static void set_radio_freq(struct i2c_client *c, unsigned int freq)
 	};
 
 	if (t->type == UNSET) {
-		pr_warn("tuner type not set\n");
+		pr_warn("tuner type yest set\n");
 		return;
 	}
 	if (NULL == analog_ops->set_params) {
-		pr_warn("tuner has no way to set radio frequency\n");
+		pr_warn("tuner has yes way to set radio frequency\n");
 		return;
 	}
 	if (freq < radio_range[0] * 16000 || freq > radio_range[1] * 16000) {
 		dprintk("radio freq (%d.%02d) out of range (%d-%d)\n",
 			   freq / 16000, freq % 16000 * 100 / 16000,
 			   radio_range[0], radio_range[1]);
-		/* V4L2 spec: if the freq is not possible then the closest
+		/* V4L2 spec: if the freq is yest possible then the closest
 		   possible value should be selected */
 		if (freq < radio_range[0] * 16000)
 			freq = radio_range[0] * 16000;
@@ -1124,7 +1124,7 @@ static void tuner_status(struct dvb_frontend *fe)
 		if (tuner_status & TUNER_STATUS_LOCKED)
 			pr_info("Tuner is locked.\n");
 		if (tuner_status & TUNER_STATUS_STEREO)
-			pr_info("Stereo:          yes\n");
+			pr_info("Stereo:          no\n");
 	}
 	if (analog_ops->has_signal) {
 		u16 signal;
@@ -1135,7 +1135,7 @@ static void tuner_status(struct dvb_frontend *fe)
 }
 
 /*
- * Function to splicitly change mode to radio. Probably not needed anymore
+ * Function to splicitly change mode to radio. Probably yest needed anymore
  */
 
 static int tuner_s_radio(struct v4l2_subdev *sd)
@@ -1294,10 +1294,10 @@ static int tuner_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 	if (t->mode == V4L2_TUNER_RADIO) {
 		t->audmode = vt->audmode;
 		/*
-		 * For radio audmode can only be mono or stereo. Map any
+		 * For radio audmode can only be moyes or stereo. Map any
 		 * other values to stereo. The actual tuner driver that is
 		 * called in set_radio_freq can decide to limit the audmode to
-		 * mono if only mono is supported.
+		 * moyes if only moyes is supported.
 		 */
 		if (t->audmode != V4L2_TUNER_MODE_MONO &&
 		    t->audmode != V4L2_TUNER_MODE_STEREO)
@@ -1423,5 +1423,5 @@ static struct i2c_driver tuner_driver = {
 module_i2c_driver(tuner_driver);
 
 MODULE_DESCRIPTION("device driver for various TV and TV+FM radio tuners");
-MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");
+MODULE_AUTHOR("Ralph Metzler, Gerd Kyesrr, Gunther Mayer");
 MODULE_LICENSE("GPL");

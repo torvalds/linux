@@ -12,7 +12,7 @@
 #include <linux/sched.h>
 #include <linux/bug.h>
 #include <linux/mm.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/preempt.h>
 #include <linux/msi.h>
 #include <linux/slab.h>
@@ -25,7 +25,7 @@
 #include <linux/irqbypass.h>
 #include <linux/swait.h>
 #include <linux/refcount.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <asm/signal.h>
 
 #include <linux/kvm.h>
@@ -51,9 +51,9 @@
  * e.g. is temporarily set for the duration of install_new_memslots().
  * This flag effectively creates a unique generation number that is used to
  * mark cached memslot data, e.g. MMIO accesses, as potentially being stale,
- * i.e. may (or may not) have come from the previous memslots generation.
+ * i.e. may (or may yest) have come from the previous memslots generation.
  *
- * This is necessary because the actual memslots update is not atomic with
+ * This is necessary because the actual memslots update is yest atomic with
  * respect to the generation number update.  Updating the generation number
  * first would allow a vCPU to cache a spte from the old memslots using the
  * new generation number, and updating the generation number after switching
@@ -75,9 +75,9 @@
 #endif
 
 /*
- * For the normal pfn, the highest 12 bits should be zero,
+ * For the yesrmal pfn, the highest 12 bits should be zero,
  * so we can mask bit 62 ~ bit 52  to indicate the error pfn,
- * mask bit 63 to indicate the noslot pfn.
+ * mask bit 63 to indicate the yesslot pfn.
  */
 #define KVM_PFN_ERR_MASK	(0x7ffULL << 52)
 #define KVM_PFN_ERR_NOSLOT_MASK	(0xfffULL << 52)
@@ -97,17 +97,17 @@ static inline bool is_error_pfn(kvm_pfn_t pfn)
 }
 
 /*
- * error_noslot pfns indicate that the gfn can not be
- * translated to pfn - it is not in slot or failed to
+ * error_yesslot pfns indicate that the gfn can yest be
+ * translated to pfn - it is yest in slot or failed to
  * translate it to pfn.
  */
-static inline bool is_error_noslot_pfn(kvm_pfn_t pfn)
+static inline bool is_error_yesslot_pfn(kvm_pfn_t pfn)
 {
 	return !!(pfn & KVM_PFN_ERR_NOSLOT_MASK);
 }
 
-/* noslot pfn indicates that the gfn is not in slot. */
-static inline bool is_noslot_pfn(kvm_pfn_t pfn)
+/* yesslot pfn indicates that the gfn is yest in slot. */
+static inline bool is_yesslot_pfn(kvm_pfn_t pfn)
 {
 	return pfn == KVM_PFN_NOSLOT;
 }
@@ -230,9 +230,9 @@ struct kvm_host_map {
 	/*
 	 * Only valid if the 'pfn' is managed by the host kernel (i.e. There is
 	 * a 'struct page' for it. When using mem= kernel parameter some memory
-	 * can be used as guest memory but they are not managed by host
+	 * can be used as guest memory but they are yest managed by host
 	 * kernel).
-	 * If 'pfn' is not managed by the host kernel, this field is
+	 * If 'pfn' is yest managed by the host kernel, this field is
 	 * initialized to KVM_UNMAPPED_PAGE.
 	 */
 	struct page *page;
@@ -242,7 +242,7 @@ struct kvm_host_map {
 };
 
 /*
- * Used to check if the mapping is valid or not. Never use 'kvm_host_map'
+ * Used to check if the mapping is valid or yest. Never use 'kvm_host_map'
  * directly to check for that.
  */
 static inline bool kvm_vcpu_mapped(struct kvm_host_map *map)
@@ -263,7 +263,7 @@ struct kvm_mmio_fragment {
 struct kvm_vcpu {
 	struct kvm *kvm;
 #ifdef CONFIG_PREEMPT_NOTIFIERS
-	struct preempt_notifier preempt_notifier;
+	struct preempt_yestifier preempt_yestifier;
 #endif
 	int cpu;
 	int vcpu_id; /* id given by userspace at creation */
@@ -326,7 +326,7 @@ struct kvm_vcpu {
 static inline int kvm_vcpu_exiting_guest_mode(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * The memory barrier ensures a previous write to vcpu->requests cannot
+	 * The memory barrier ensures a previous write to vcpu->requests canyest
 	 * be reordered with the read of vcpu->mode.  It pairs with the general
 	 * memory barrier following the write of vcpu->mode in VCPU RUN.
 	 */
@@ -335,8 +335,8 @@ static inline int kvm_vcpu_exiting_guest_mode(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Some of the bitops functions do not support too long bitmaps.
- * This number must be determined not to exceed such limits.
+ * Some of the bitops functions do yest support too long bitmaps.
+ * This number must be determined yest to exceed such limits.
  */
 #define KVM_MEM_MAX_NR_PAGES ((1UL << 31) - 1)
 
@@ -396,7 +396,7 @@ struct kvm_kernel_irq_routing_entry {
 		struct kvm_s390_adapter_int adapter;
 		struct kvm_hv_sint hv_sint;
 	};
-	struct hlist_node link;
+	struct hlist_yesde link;
 };
 
 #ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
@@ -428,7 +428,7 @@ static inline int kvm_arch_vcpu_memslots_id(struct kvm_vcpu *vcpu)
 
 /*
  * Note:
- * memslots are not sorted by id anymore, please use id_to_memslot()
+ * memslots are yest sorted by id anymore, please use id_to_memslot()
  * to get the memslot by its id.
  */
 struct kvm_memslots {
@@ -485,13 +485,13 @@ struct kvm {
 	struct kvm_irq_routing_table __rcu *irq_routing;
 #endif
 #ifdef CONFIG_HAVE_KVM_IRQFD
-	struct hlist_head irq_ack_notifier_list;
+	struct hlist_head irq_ack_yestifier_list;
 #endif
 
 #if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
-	struct mmu_notifier mmu_notifier;
-	unsigned long mmu_notifier_seq;
-	long mmu_notifier_count;
+	struct mmu_yestifier mmu_yestifier;
+	unsigned long mmu_yestifier_seq;
+	long mmu_yestifier_count;
 #endif
 	long tlbs_dirty;
 	struct list_head devices;
@@ -539,7 +539,7 @@ static inline struct kvm_io_bus *kvm_get_bus(struct kvm *kvm, enum kvm_bus idx)
 static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 {
 	int num_vcpus = atomic_read(&kvm->online_vcpus);
-	i = array_index_nospec(i, num_vcpus);
+	i = array_index_yesspec(i, num_vcpus);
 
 	/* Pairs with smp_wmb() in kvm_vm_ioctl_create_vcpu.  */
 	smp_rmb();
@@ -586,10 +586,10 @@ void vcpu_load(struct kvm_vcpu *vcpu);
 void vcpu_put(struct kvm_vcpu *vcpu);
 
 #ifdef __KVM_HAVE_IOAPIC
-void kvm_arch_post_irq_ack_notifier_list_update(struct kvm *kvm);
+void kvm_arch_post_irq_ack_yestifier_list_update(struct kvm *kvm);
 void kvm_arch_post_irq_routing_update(struct kvm *kvm);
 #else
-static inline void kvm_arch_post_irq_ack_notifier_list_update(struct kvm *kvm)
+static inline void kvm_arch_post_irq_ack_yestifier_list_update(struct kvm *kvm)
 {
 }
 static inline void kvm_arch_post_irq_routing_update(struct kvm *kvm)
@@ -616,11 +616,11 @@ void kvm_exit(void);
 
 void kvm_get_kvm(struct kvm *kvm);
 void kvm_put_kvm(struct kvm *kvm);
-void kvm_put_kvm_no_destroy(struct kvm *kvm);
+void kvm_put_kvm_yes_destroy(struct kvm *kvm);
 
 static inline struct kvm_memslots *__kvm_memslots(struct kvm *kvm, int as_id)
 {
-	as_id = array_index_nospec(as_id, KVM_ADDRESS_SPACE_NUM);
+	as_id = array_index_yesspec(as_id, KVM_ADDRESS_SPACE_NUM);
 	return srcu_dereference_check(kvm->memslots[as_id], &kvm->srcu,
 			lockdep_is_held(&kvm->slots_lock) ||
 			!refcount_read(&kvm->users_count));
@@ -800,7 +800,7 @@ void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu);
 bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu);
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
 int kvm_vcpu_yield_to(struct kvm_vcpu *target);
-void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu, bool usermode_vcpu_not_eligible);
+void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu, bool usermode_vcpu_yest_eligible);
 
 void kvm_flush_remote_tlbs(struct kvm *kvm);
 void kvm_reload_remote_mmus(struct kvm *kvm);
@@ -918,19 +918,19 @@ static inline int kvm_arch_flush_remote_tlb(struct kvm *kvm)
 #endif
 
 #ifdef __KVM_HAVE_ARCH_NONCOHERENT_DMA
-void kvm_arch_register_noncoherent_dma(struct kvm *kvm);
-void kvm_arch_unregister_noncoherent_dma(struct kvm *kvm);
-bool kvm_arch_has_noncoherent_dma(struct kvm *kvm);
+void kvm_arch_register_yesncoherent_dma(struct kvm *kvm);
+void kvm_arch_unregister_yesncoherent_dma(struct kvm *kvm);
+bool kvm_arch_has_yesncoherent_dma(struct kvm *kvm);
 #else
-static inline void kvm_arch_register_noncoherent_dma(struct kvm *kvm)
+static inline void kvm_arch_register_yesncoherent_dma(struct kvm *kvm)
 {
 }
 
-static inline void kvm_arch_unregister_noncoherent_dma(struct kvm *kvm)
+static inline void kvm_arch_unregister_yesncoherent_dma(struct kvm *kvm)
 {
 }
 
-static inline bool kvm_arch_has_noncoherent_dma(struct kvm *kvm)
+static inline bool kvm_arch_has_yesncoherent_dma(struct kvm *kvm)
 {
 	return false;
 }
@@ -967,7 +967,7 @@ static inline struct swait_queue_head *kvm_arch_vcpu_wq(struct kvm_vcpu *vcpu)
 /*
  * returns true if the virtual interrupt controller is initialized and
  * ready to accept virtual IRQ. On some architectures the virtual interrupt
- * controller is dynamically instantiated and this is not always true.
+ * controller is dynamically instantiated and this is yest always true.
  */
 bool kvm_arch_intc_initialized(struct kvm *kvm);
 #else
@@ -987,10 +987,10 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
 bool kvm_is_reserved_pfn(kvm_pfn_t pfn);
 bool kvm_is_zone_device_pfn(kvm_pfn_t pfn);
 
-struct kvm_irq_ack_notifier {
-	struct hlist_node link;
+struct kvm_irq_ack_yestifier {
+	struct hlist_yesde link;
 	unsigned gsi;
-	void (*irq_acked)(struct kvm_irq_ack_notifier *kian);
+	void (*irq_acked)(struct kvm_irq_ack_yestifier *kian);
 };
 
 int kvm_irq_map_gsi(struct kvm *kvm,
@@ -1004,20 +1004,20 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *irq_entry, struct kvm *kvm,
 int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
 			       struct kvm *kvm, int irq_source_id,
 			       int level, bool line_status);
-bool kvm_irq_has_notifier(struct kvm *kvm, unsigned irqchip, unsigned pin);
-void kvm_notify_acked_gsi(struct kvm *kvm, int gsi);
-void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin);
-void kvm_register_irq_ack_notifier(struct kvm *kvm,
-				   struct kvm_irq_ack_notifier *kian);
-void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
-				   struct kvm_irq_ack_notifier *kian);
+bool kvm_irq_has_yestifier(struct kvm *kvm, unsigned irqchip, unsigned pin);
+void kvm_yestify_acked_gsi(struct kvm *kvm, int gsi);
+void kvm_yestify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin);
+void kvm_register_irq_ack_yestifier(struct kvm *kvm,
+				   struct kvm_irq_ack_yestifier *kian);
+void kvm_unregister_irq_ack_yestifier(struct kvm *kvm,
+				   struct kvm_irq_ack_yestifier *kian);
 int kvm_request_irq_source_id(struct kvm *kvm);
 void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
 bool kvm_arch_irqfd_allowed(struct kvm *kvm, struct kvm_irqfd *args);
 
 /*
  * search_memslots() and __gfn_to_memslot() are here because they are
- * used in non-modular code in arch/powerpc/kvm/book3s_hv_rm_mmu.c.
+ * used in yesn-modular code in arch/powerpc/kvm/book3s_hv_rm_mmu.c.
  * gfn_to_memslot() itself isn't here as an inline because that would
  * bloat other code too much.
  */
@@ -1124,22 +1124,22 @@ extern struct kvm_stats_debugfs_item debugfs_entries[];
 extern struct dentry *kvm_debugfs_dir;
 
 #if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
-static inline int mmu_notifier_retry(struct kvm *kvm, unsigned long mmu_seq)
+static inline int mmu_yestifier_retry(struct kvm *kvm, unsigned long mmu_seq)
 {
-	if (unlikely(kvm->mmu_notifier_count))
+	if (unlikely(kvm->mmu_yestifier_count))
 		return 1;
 	/*
-	 * Ensure the read of mmu_notifier_count happens before the read
-	 * of mmu_notifier_seq.  This interacts with the smp_wmb() in
-	 * mmu_notifier_invalidate_range_end to make sure that the caller
-	 * either sees the old (non-zero) value of mmu_notifier_count or
-	 * the new (incremented) value of mmu_notifier_seq.
+	 * Ensure the read of mmu_yestifier_count happens before the read
+	 * of mmu_yestifier_seq.  This interacts with the smp_wmb() in
+	 * mmu_yestifier_invalidate_range_end to make sure that the caller
+	 * either sees the old (yesn-zero) value of mmu_yestifier_count or
+	 * the new (incremented) value of mmu_yestifier_seq.
 	 * PowerPC Book3s HV KVM calls this under a per-page lock
 	 * rather than under kvm->mmu_lock, for scalability, so
 	 * can't rely on kvm->mmu_lock to keep things ordered.
 	 */
 	smp_rmb();
-	if (kvm->mmu_notifier_seq != mmu_seq)
+	if (kvm->mmu_yestifier_seq != mmu_seq)
 		return 1;
 	return 0;
 }
@@ -1263,7 +1263,7 @@ struct kvm_device {
 	const struct kvm_device_ops *ops;
 	struct kvm *kvm;
 	void *private;
-	struct list_head vm_node;
+	struct list_head vm_yesde;
 };
 
 /* create, destroy, and name are mandatory */
@@ -1271,7 +1271,7 @@ struct kvm_device_ops {
 	const char *name;
 
 	/*
-	 * create is called holding kvm->lock and any operations not suitable
+	 * create is called holding kvm->lock and any operations yest suitable
 	 * to do while holding the lock should be deferred to init (see
 	 * below).
 	 */
@@ -1296,7 +1296,7 @@ struct kvm_device_ops {
 	/*
 	 * Release is an alternative method to free the device. It is
 	 * called when the device file descriptor is closed. Once
-	 * release is called, the destroy method will not be called
+	 * release is called, the destroy method will yest be called
 	 * anymore as the device is removed from the device list of
 	 * the VM. kvm->lock is held.
 	 */
@@ -1369,10 +1369,10 @@ static inline bool vcpu_valid_wakeup(struct kvm_vcpu *vcpu)
 #endif /* CONFIG_HAVE_KVM_INVALID_WAKEUPS */
 
 #ifdef CONFIG_HAVE_KVM_NO_POLL
-/* Callback that tells if we must not poll */
-bool kvm_arch_no_poll(struct kvm_vcpu *vcpu);
+/* Callback that tells if we must yest poll */
+bool kvm_arch_yes_poll(struct kvm_vcpu *vcpu);
 #else
-static inline bool kvm_arch_no_poll(struct kvm_vcpu *vcpu)
+static inline bool kvm_arch_yes_poll(struct kvm_vcpu *vcpu)
 {
 	return false;
 }
@@ -1390,7 +1390,7 @@ static inline long kvm_arch_vcpu_async_ioctl(struct file *filp,
 }
 #endif /* CONFIG_HAVE_KVM_VCPU_ASYNC_IOCTL */
 
-int kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+int kvm_arch_mmu_yestifier_invalidate_range(struct kvm *kvm,
 		unsigned long start, unsigned long end, bool blockable);
 
 #ifdef CONFIG_HAVE_KVM_VCPU_RUN_PID_CHANGE

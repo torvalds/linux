@@ -22,12 +22,12 @@
  * the ref hitting 0 on every put - this would require global synchronization
  * and defeat the whole purpose of using percpu refs.
  *
- * What we do is require the user to keep track of the initial refcount; we know
+ * What we do is require the user to keep track of the initial refcount; we kyesw
  * the ref can't hit 0 before the user drops the initial ref, so as long as we
- * convert to non percpu mode before the initial ref is dropped everything
+ * convert to yesn percpu mode before the initial ref is dropped everything
  * works.
  *
- * Converting to non percpu mode is done with some RCUish stuff in
+ * Converting to yesn percpu mode is done with some RCUish stuff in
  * percpu_ref_kill. Additionally, we need a bias value so that the
  * atomic_long_t can't hit 0 before we've added up all the percpu refs.
  */
@@ -54,14 +54,14 @@ static unsigned long __percpu *percpu_count_ptr(struct percpu_ref *ref)
  * refcount of 1; analagous to atomic_long_set(ref, 1).  See the
  * definitions of PERCPU_REF_INIT_* flags for flag behaviors.
  *
- * Note that @release must not sleep - it may potentially be called from RCU
+ * Note that @release must yest sleep - it may potentially be called from RCU
  * callback context by percpu_ref_kill().
  */
 int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release,
 		    unsigned int flags, gfp_t gfp)
 {
 	size_t align = max_t(size_t, 1 << __PERCPU_REF_FLAG_BITS,
-			     __alignof__(unsigned long));
+			     __aligyesf__(unsigned long));
 	unsigned long start_count = 0;
 
 	ref->percpu_count_ptr = (unsigned long)
@@ -97,7 +97,7 @@ EXPORT_SYMBOL_GPL(percpu_ref_init);
  * @ref: percpu_ref to exit
  *
  * This function exits @ref.  The caller is responsible for ensuring that
- * @ref is no longer in active use.  The usual places to invoke this
+ * @ref is yes longer in active use.  The usual places to invoke this
  * function from are the @ref->release() callback or in init failure path
  * where percpu_ref_init() succeeded but other parts of the initialization
  * of the embedding object failed.
@@ -107,7 +107,7 @@ void percpu_ref_exit(struct percpu_ref *ref)
 	unsigned long __percpu *percpu_count = percpu_count_ptr(ref);
 
 	if (percpu_count) {
-		/* non-NULL confirm_switch indicates switching in progress */
+		/* yesn-NULL confirm_switch indicates switching in progress */
 		WARN_ON_ONCE(ref->confirm_switch);
 		free_percpu(percpu_count);
 		ref->percpu_count_ptr = __PERCPU_REF_ATOMIC_DEAD;
@@ -146,7 +146,7 @@ static void percpu_ref_switch_to_atomic_rcu(struct rcu_head *rcu)
 	/*
 	 * It's crucial that we sum the percpu counters _before_ adding the sum
 	 * to &ref->count; since gets could be happening on one cpu while puts
-	 * happen on another, adding a single cpu's count could cause
+	 * happen on ayesther, adding a single cpu's count could cause
 	 * @ref->count to hit 0 before we've got a consistent value - but the
 	 * sum of all the counts will be consistent and correct.
 	 *
@@ -165,7 +165,7 @@ static void percpu_ref_switch_to_atomic_rcu(struct rcu_head *rcu)
 	percpu_ref_call_confirm_rcu(rcu);
 }
 
-static void percpu_ref_noop_confirm_switch(struct percpu_ref *ref)
+static void percpu_ref_yesop_confirm_switch(struct percpu_ref *ref)
 {
 }
 
@@ -183,9 +183,9 @@ static void __percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 
 	/*
 	 * Non-NULL ->confirm_switch is used to indicate that switching is
-	 * in progress.  Use noop one if unspecified.
+	 * in progress.  Use yesop one if unspecified.
 	 */
-	ref->confirm_switch = confirm_switch ?: percpu_ref_noop_confirm_switch;
+	ref->confirm_switch = confirm_switch ?: percpu_ref_yesop_confirm_switch;
 
 	percpu_ref_get(ref);	/* put after confirmation */
 	call_rcu(&ref->rcu, percpu_ref_switch_to_atomic_rcu);
@@ -243,19 +243,19 @@ static void __percpu_ref_switch_mode(struct percpu_ref *ref,
  * @ref: percpu_ref to switch to atomic mode
  * @confirm_switch: optional confirmation callback
  *
- * There's no reason to use this function for the usual reference counting.
+ * There's yes reason to use this function for the usual reference counting.
  * Use percpu_ref_kill[_and_confirm]().
  *
  * Schedule switching of @ref to atomic mode.  All its percpu counts will
  * be collected to the main atomic counter.  On completion, when all CPUs
- * are guaraneed to be in atomic mode, @confirm_switch, which may not
+ * are guaraneed to be in atomic mode, @confirm_switch, which may yest
  * block, is invoked.  This function may be invoked concurrently with all
  * the get/put operations and can safely be mixed with kill and reinit
  * operations.  Note that @ref will stay in atomic mode across kill/reinit
  * cycles until percpu_ref_switch_to_percpu() is called.
  *
  * This function may block if @ref is in the process of switching to atomic
- * mode.  If the caller ensures that @ref is not in the process of
+ * mode.  If the caller ensures that @ref is yest in the process of
  * switching to atomic mode, this function can be called from any context.
  */
 void percpu_ref_switch_to_atomic(struct percpu_ref *ref,
@@ -277,7 +277,7 @@ EXPORT_SYMBOL_GPL(percpu_ref_switch_to_atomic);
  * @ref: percpu_ref to switch to atomic mode
  *
  * Schedule switching the ref to atomic mode, and wait for the
- * switch to complete.  Caller must ensure that no other thread
+ * switch to complete.  Caller must ensure that yes other thread
  * will switch back to percpu mode.
  */
 void percpu_ref_switch_to_atomic_sync(struct percpu_ref *ref)
@@ -291,7 +291,7 @@ EXPORT_SYMBOL_GPL(percpu_ref_switch_to_atomic_sync);
  * percpu_ref_switch_to_percpu - switch a percpu_ref to percpu mode
  * @ref: percpu_ref to switch to percpu mode
  *
- * There's no reason to use this function for the usual reference counting.
+ * There's yes reason to use this function for the usual reference counting.
  * To re-use an expired ref, use percpu_ref_reinit().
  *
  * Switch @ref to percpu mode.  This function may be invoked concurrently
@@ -302,7 +302,7 @@ EXPORT_SYMBOL_GPL(percpu_ref_switch_to_atomic_sync);
  * percpu_ref_reinit().
  *
  * This function may block if @ref is in the process of switching to atomic
- * mode.  If the caller ensures that @ref is not in the process of
+ * mode.  If the caller ensures that @ref is yest in the process of
  * switching to atomic mode, this function can be called from any context.
  */
 void percpu_ref_switch_to_percpu(struct percpu_ref *ref)
@@ -324,16 +324,16 @@ EXPORT_SYMBOL_GPL(percpu_ref_switch_to_percpu);
  * @confirm_kill: optional confirmation callback
  *
  * Equivalent to percpu_ref_kill() but also schedules kill confirmation if
- * @confirm_kill is not NULL.  @confirm_kill, which may not block, will be
+ * @confirm_kill is yest NULL.  @confirm_kill, which may yest block, will be
  * called after @ref is seen as dead from all CPUs at which point all
  * further invocations of percpu_ref_tryget_live() will fail.  See
  * percpu_ref_tryget_live() for details.
  *
- * This function normally doesn't block and can be called from any context
+ * This function yesrmally doesn't block and can be called from any context
  * but it may block if @confirm_kill is specified and @ref is in the
  * process of switching to atomic mode by percpu_ref_switch_to_atomic().
  *
- * There are no implied RCU grace periods between kill and release.
+ * There are yes implied RCU grace periods between kill and release.
  */
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill)
@@ -358,8 +358,8 @@ EXPORT_SYMBOL_GPL(percpu_ref_kill_and_confirm);
  * @ref: perpcu_ref to re-initialize
  *
  * Re-initialize @ref so that it's in the same state as when it finished
- * percpu_ref_init() ignoring %PERCPU_REF_INIT_DEAD.  @ref must have been
- * initialized successfully and reached 0 but not exited.
+ * percpu_ref_init() igyesring %PERCPU_REF_INIT_DEAD.  @ref must have been
+ * initialized successfully and reached 0 but yest exited.
  *
  * Note that percpu_ref_tryget[_live]() are safe to perform on @ref while
  * this function is in progress.
@@ -377,10 +377,10 @@ EXPORT_SYMBOL_GPL(percpu_ref_reinit);
  * @ref: perpcu_ref to resurrect
  *
  * Modify @ref so that it's in the same state as before percpu_ref_kill() was
- * called. @ref must be dead but must not yet have exited.
+ * called. @ref must be dead but must yest yet have exited.
  *
  * If @ref->release() frees @ref then the caller is responsible for
- * guaranteeing that @ref->release() does not get called while this
+ * guaranteeing that @ref->release() does yest get called while this
  * function is in progress.
  *
  * Note that percpu_ref_tryget[_live]() are safe to perform on @ref while

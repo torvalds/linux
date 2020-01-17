@@ -9,7 +9,7 @@ config CPU_IDLE
 	help
 	  CPU idle is a generic framework for supporting software-controlled
 	  idle processor power management.  It includes modular cross-platform
-	  governors that can be swapped during runtime.
+	  goveryesrs that can be swapped during runtime.
 
 	  If you're using an ACPI-enabled platform, you should say Y here.
 
@@ -19,25 +19,25 @@ config CPU_IDLE_MULTIPLE_DRIVERS
 	bool
 
 config CPU_IDLE_GOV_LADDER
-	bool "Ladder governor (for periodic timer tick)"
+	bool "Ladder goveryesr (for periodic timer tick)"
 
 config CPU_IDLE_GOV_MENU
-	bool "Menu governor (for tickless system)"
+	bool "Menu goveryesr (for tickless system)"
 
 config CPU_IDLE_GOV_TEO
-	bool "Timer events oriented (TEO) governor (for tickless systems)"
+	bool "Timer events oriented (TEO) goveryesr (for tickless systems)"
 	help
-	  This governor implements a simplified idle state selection method
-	  focused on timer events and does not do any interactivity boosting.
+	  This goveryesr implements a simplified idle state selection method
+	  focused on timer events and does yest do any interactivity boosting.
 
 	  Some workloads benefit from using it and it generally should be safe
-	  to use.  Say Y here if you are not happy with the alternatives.
+	  to use.  Say Y here if you are yest happy with the alternatives.
 
 config CPU_IDLE_GOV_HALTPOLL
-	bool "Haltpoll governor (for virtualized systems)"
+	bool "Haltpoll goveryesr (for virtualized systems)"
 	depends on KVM_GUEST
 	help
-	  This governor implements haltpoll idle state selection, to be
+	  This goveryesr implements haltpoll idle state selection, to be
 	  used in conjunction with the haltpoll cpuidle driver, allowing
 	  for polling for a certain amount of time before entering idle
 	  state.

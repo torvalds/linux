@@ -71,7 +71,7 @@ enum mmc_issue_type mmc_issue_type(struct mmc_queue *mq, struct request *req)
 	return MMC_ISSUE_SYNC;
 }
 
-static void __mmc_cqe_recovery_notifier(struct mmc_queue *mq)
+static void __mmc_cqe_recovery_yestifier(struct mmc_queue *mq)
 {
 	if (!mq->recovery_needed) {
 		mq->recovery_needed = true;
@@ -79,7 +79,7 @@ static void __mmc_cqe_recovery_notifier(struct mmc_queue *mq)
 	}
 }
 
-void mmc_cqe_recovery_notifier(struct mmc_request *mrq)
+void mmc_cqe_recovery_yestifier(struct mmc_request *mrq)
 {
 	struct mmc_queue_req *mqrq = container_of(mrq, struct mmc_queue_req,
 						  brq.mrq);
@@ -89,7 +89,7 @@ void mmc_cqe_recovery_notifier(struct mmc_request *mrq)
 	unsigned long flags;
 
 	spin_lock_irqsave(&mq->lock, flags);
-	__mmc_cqe_recovery_notifier(mq);
+	__mmc_cqe_recovery_yestifier(mq);
 	spin_unlock_irqrestore(&mq->lock, flags);
 }
 
@@ -107,7 +107,7 @@ static enum blk_eh_timer_return mmc_cqe_timed_out(struct request *req)
 	case MMC_ISSUE_DCMD:
 		if (host->cqe_ops->cqe_timeout(host, mrq, &recovery_needed)) {
 			if (recovery_needed)
-				__mmc_cqe_recovery_notifier(mq);
+				__mmc_cqe_recovery_yestifier(mq);
 			return BLK_EH_RESET_TIMER;
 		}
 		/* No timeout (XXX: huh? comment doesn't make much sense) */
@@ -188,7 +188,7 @@ static void mmc_queue_setup_discard(struct request_queue *q,
 	blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
 	blk_queue_max_discard_sectors(q, max_discard);
 	q->limits.discard_granularity = card->pref_erase << 9;
-	/* granularity must not be greater than max. discard */
+	/* granularity must yest be greater than max. discard */
 	if (card->pref_erase > max_discard)
 		q->limits.discard_granularity = 0;
 	if (mmc_can_secure_erase_trim(card))
@@ -230,7 +230,7 @@ static void mmc_exit_request(struct request_queue *q, struct request *req)
 }
 
 static int mmc_mq_init_request(struct blk_mq_tag_set *set, struct request *req,
-			       unsigned int hctx_idx, unsigned int numa_node)
+			       unsigned int hctx_idx, unsigned int numa_yesde)
 {
 	return __mmc_init_request(set->driver_data, req, GFP_KERNEL);
 }
@@ -285,14 +285,14 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 		 * Timeouts are handled by mmc core, and we don't have a host
 		 * API to abort requests, so we can't handle the timeout anyway.
 		 * However, when the timeout happens, blk_mq_complete_request()
-		 * no longer works (to stop the request disappearing under us).
+		 * yes longer works (to stop the request disappearing under us).
 		 * To avoid racing with that, set a large timeout.
 		 */
 		req->timeout = 600 * HZ;
 		break;
 	}
 
-	/* Parallel dispatch of requests is not supported at the moment */
+	/* Parallel dispatch of requests is yest supported at the moment */
 	mq->busy = true;
 
 	mq->in_flight[issue_type] += 1;
@@ -310,7 +310,7 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 		mmc_get_card(card, &mq->ctx);
 
 	if (mq->use_cqe) {
-		host->retune_now = host->need_retune && cqe_retune_ok &&
+		host->retune_yesw = host->need_retune && cqe_retune_ok &&
 				   !host->hold_retune;
 	}
 
@@ -373,7 +373,7 @@ static void mmc_setup_queue(struct mmc_queue *mq, struct mmc_card *card)
 	if (host->can_dma_map_merge)
 		WARN(!blk_queue_can_use_dma_map_merging(mq->queue,
 							mmc_dev(host)),
-		     "merging was advertised but not possible");
+		     "merging was advertised but yest possible");
 	blk_queue_max_segments(mq->queue, mmc_get_max_segments(host));
 
 	if (mmc_card_mmc(card))
@@ -382,7 +382,7 @@ static void mmc_setup_queue(struct mmc_queue *mq, struct mmc_card *card)
 	blk_queue_logical_block_size(mq->queue, block_size);
 	/*
 	 * After blk_queue_can_use_dma_map_merging() was called with succeed,
-	 * since it calls blk_queue_virt_boundary(), the mmc should not call
+	 * since it calls blk_queue_virt_boundary(), the mmc should yest call
 	 * both blk_queue_max_segment_size().
 	 */
 	if (!host->can_dma_map_merge)
@@ -435,7 +435,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
 			min_t(int, card->ext_csd.cmdq_depth, host->cqe_qdepth);
 	else
 		mq->tag_set.queue_depth = MMC_QUEUE_DEPTH;
-	mq->tag_set.numa_node = NUMA_NO_NODE;
+	mq->tag_set.numa_yesde = NUMA_NO_NODE;
 	mq->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
 	mq->tag_set.nr_hw_queues = 1;
 	mq->tag_set.cmd_size = sizeof(struct mmc_queue_req);
@@ -484,7 +484,7 @@ void mmc_queue_suspend(struct mmc_queue *mq)
 
 	/*
 	 * The host remains claimed while there are outstanding requests, so
-	 * simply claiming and releasing here ensures there are none.
+	 * simply claiming and releasing here ensures there are yesne.
 	 */
 	mmc_claim_host(mq->card->host);
 	mmc_release_host(mq->card->host);
@@ -511,7 +511,7 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 
 	/*
 	 * A request can be completed before the next request, potentially
-	 * leaving a complete_work with nothing to do. Such a work item might
+	 * leaving a complete_work with yesthing to do. Such a work item might
 	 * still be queued at this point. Flush it.
 	 */
 	flush_work(&mq->complete_work);

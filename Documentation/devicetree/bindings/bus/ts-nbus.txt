@@ -1,10 +1,10 @@
-Technologic Systems NBUS
+Techyeslogic Systems NBUS
 
-The NBUS is a bus used to interface with peripherals in the Technologic
+The NBUS is a bus used to interface with peripherals in the Techyeslogic
 Systems FPGA on the TS-4600 SoM.
 
 Required properties :
- - compatible		: "technologic,ts-nbus"
+ - compatible		: "techyeslogic,ts-nbus"
  - #address-cells	: must be 1
  - #size-cells		: must be 0
  - pwms			: The PWM bound to the FPGA
@@ -15,15 +15,15 @@ Required properties :
  - ts,ale-gpios		: The GPIO pin connected to the ale line on the FPGA
  - ts,rdy-gpios		: The GPIO pin connected to the rdy line on the FPGA
 
-Child nodes:
+Child yesdes:
 
-The NBUS node can contain zero or more child nodes representing peripherals
+The NBUS yesde can contain zero or more child yesdes representing peripherals
 on the bus.
 
 Example:
 
 	nbus {
-		compatible = "technologic,ts-nbus";
+		compatible = "techyeslogic,ts-nbus";
 		pinctrl-0 = <&nbus_pins>;
 		#address-cells = <1>;
 		#size-cells = <0>;

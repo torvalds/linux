@@ -22,7 +22,7 @@
  * pt_regs don't actually exist.  Ordinarily this doesn't matter, but it
  * does in at least one case:
  *
- * If we take an NMI early enough in SYSENTER, then we can end up with
+ * If we take an NMI early eyesugh in SYSENTER, then we can end up with
  * pt_regs that extends above sp0.  On the way out, in the espfix code,
  * we can read the saved SS value, but that value will be above sp0.
  * Without this offset, that can result in a page fault.  (We are
@@ -55,7 +55,7 @@ struct task_struct;
 
 struct thread_info {
 	unsigned long		flags;		/* low level flags */
-	u32			status;		/* thread synchronous flags */
+	u32			status;		/* thread synchroyesus flags */
 };
 
 #define INIT_THREAD_INFO(tsk)			\
@@ -85,14 +85,14 @@ struct thread_info {
 #define TIF_SECCOMP		8	/* secure computing */
 #define TIF_SPEC_IB		9	/* Indirect branch speculation mitigation */
 #define TIF_SPEC_FORCE_UPDATE	10	/* Force speculation MSR update in context switch */
-#define TIF_USER_RETURN_NOTIFY	11	/* notify kernel of userspace return */
+#define TIF_USER_RETURN_NOTIFY	11	/* yestify kernel of userspace return */
 #define TIF_UPROBE		12	/* breakpointed or singlestepping */
 #define TIF_PATCH_PENDING	13	/* pending live patching update */
 #define TIF_NEED_FPU_LOAD	14	/* load FPU on return to userspace */
-#define TIF_NOCPUID		15	/* CPUID is not accessible in userland */
-#define TIF_NOTSC		16	/* TSC is not accessible in userland */
+#define TIF_NOCPUID		15	/* CPUID is yest accessible in userland */
+#define TIF_NOTSC		16	/* TSC is yest accessible in userland */
 #define TIF_IA32		17	/* IA32 compatibility process */
-#define TIF_NOHZ		19	/* in adaptive nohz mode */
+#define TIF_NOHZ		19	/* in adaptive yeshz mode */
 #define TIF_MEMDIE		20	/* is terminating due to OOM killer */
 #define TIF_POLLING_NRFLAG	21	/* idle is polling for TIF_NEED_RESCHED */
 #define TIF_IO_BITMAP		22	/* uses I/O bitmap */
@@ -148,7 +148,7 @@ struct thread_info {
 	 _TIF_SSBD | _TIF_SPEC_FORCE_UPDATE)
 
 /*
- * Avoid calls to __switch_to_xtra() on UP as STIBP is not evaluated.
+ * Avoid calls to __switch_to_xtra() on UP as STIBP is yest evaluated.
  */
 #ifdef CONFIG_SMP
 # define _TIF_WORK_CTXSW	(_TIF_WORK_CTXSW_BASE | _TIF_SPEC_IB)
@@ -181,7 +181,7 @@ struct thread_info {
  * Returns:
  *	GOOD_FRAME	if within a frame
  *	BAD_STACK	if placed across a frame boundary (or outside stack)
- *	NOT_STACK	unable to determine (no frame pointers, etc)
+ *	NOT_STACK	unable to determine (yes frame pointers, etc)
  */
 static inline int arch_within_stack_frames(const void * const stack,
 					   const void * const stackend,
@@ -244,7 +244,7 @@ static inline int arch_within_stack_frames(const void * const stack,
  * some work pending. IRET is our most capable (but slowest) syscall
  * return path, which is able to restore modified SS, CS and certain
  * EFLAGS values that other (fast) syscall return instructions
- * are not able to restore properly.
+ * are yest able to restore properly.
  */
 #define force_iret() set_thread_flag(TIF_NOTIFY_RESUME)
 

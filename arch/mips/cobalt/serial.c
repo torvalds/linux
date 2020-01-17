@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2007  Yoichi Yuasa <yuasa@linux-mips.org>
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
@@ -43,7 +43,7 @@ static __init int cobalt_uart_add(void)
 	int retval;
 
 	/*
-	 * Cobalt Qube1 has no UART.
+	 * Cobalt Qube1 has yes UART.
 	 */
 	if (cobalt_board_id == COBALT_BRD_ID_QUBE1)
 		return 0;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI__LINUX_RTNETLINK_H
 #define _UAPI__LINUX_RTNETLINK_H
 
@@ -252,12 +252,12 @@ enum {
 
 #define RTPROT_UNSPEC	0
 #define RTPROT_REDIRECT	1	/* Route installed by ICMP redirects;
-				   not used by current IPv4 */
+				   yest used by current IPv4 */
 #define RTPROT_KERNEL	2	/* Route installed by kernel		*/
 #define RTPROT_BOOT	3	/* Route installed during boot		*/
 #define RTPROT_STATIC	4	/* Route installed by administrator	*/
 
-/* Values of protocol >= RTPROT_STATIC are not interpreted by kernel;
+/* Values of protocol >= RTPROT_STATIC are yest interpreted by kernel;
    they are just passed from user and back as is.
    It will be used by hypothetical multiple routing daemons.
    Note that protocol values should be standardized in order to
@@ -283,8 +283,8 @@ enum {
 
 /* rtm_scope
 
-   Really it is not scope, but sort of distance to the destination.
-   NOWHERE are reserved for not existing destinations, HOST is our
+   Really it is yest scope, but sort of distance to the destination.
+   NOWHERE are reserved for yest existing destinations, HOST is our
    local addresses, LINK are destinations, located on directly attached
    link and UNIVERSE is everywhere in the Universe.
 
@@ -336,11 +336,11 @@ enum rtattr_type_t {
 	RTA_PREFSRC,
 	RTA_METRICS,
 	RTA_MULTIPATH,
-	RTA_PROTOINFO, /* no longer used */
+	RTA_PROTOINFO, /* yes longer used */
 	RTA_FLOW,
 	RTA_CACHEINFO,
-	RTA_SESSION, /* no longer used */
-	RTA_MP_ALGO, /* no longer used */
+	RTA_SESSION, /* yes longer used */
+	RTA_MP_ALGO, /* yes longer used */
 	RTA_TABLE,
 	RTA_MARK,
 	RTA_MFC_STATS,
@@ -516,7 +516,7 @@ struct rtgenmsg {
  ****/
 
 /* struct ifinfomsg
- * passes link level specific information, not dependent
+ * passes link level specific information, yest dependent
  * on network protocol.
  */
 

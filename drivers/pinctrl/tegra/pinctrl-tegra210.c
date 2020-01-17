@@ -174,7 +174,7 @@
 #define TEGRA_PIN_QSPI_IO2_PEE4			_GPIO(244)
 #define TEGRA_PIN_QSPI_IO3_PEE5			_GPIO(245)
 
-/* All non-GPIO pins follow */
+/* All yesn-GPIO pins follow */
 #define NUM_GPIOS				(TEGRA_PIN_QSPI_IO3_PEE5 + 1)
 #define _PIN(offset)				(NUM_GPIOS + (offset))
 

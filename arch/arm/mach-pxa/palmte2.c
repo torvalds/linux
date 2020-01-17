@@ -74,7 +74,7 @@ static unsigned long palmte2_pin_config[] __initdata = {
 	GPIOxx_LCD_TFT_16BPP,
 
 	/* GPIO KEYS */
-	GPIO5_GPIO,	/* notes */
+	GPIO5_GPIO,	/* yestes */
 	GPIO7_GPIO,	/* tasks */
 	GPIO11_GPIO,	/* calendar */
 	GPIO13_GPIO,	/* contacts */
@@ -161,7 +161,7 @@ static int palmte2_backlight_init(struct device *dev)
 	return gpio_request_array(ARRAY_AND_SIZE(palmte_bl_gpios));
 }
 
-static int palmte2_backlight_notify(struct device *dev, int brightness)
+static int palmte2_backlight_yestify(struct device *dev, int brightness)
 {
 	gpio_set_value(GPIO_NR_PALMTE2_BL_POWER, brightness);
 	gpio_set_value(GPIO_NR_PALMTE2_LCD_POWER, brightness);
@@ -178,7 +178,7 @@ static struct platform_pwm_backlight_data palmte2_backlight_data = {
 	.dft_brightness	= PALMTE2_MAX_INTENSITY,
 	.enable_gpio	= -1,
 	.init		= palmte2_backlight_init,
-	.notify		= palmte2_backlight_notify,
+	.yestify		= palmte2_backlight_yestify,
 	.exit		= palmte2_backlight_exit,
 };
 

@@ -160,8 +160,8 @@ SYSCALL_DEFINE5(add_key, const char __user *, _type,
  * If a key is found, it will be attached to the destination keyring if there's
  * one specified and the serial number of the key will be returned.
  *
- * If no key is found, /sbin/request-key will be invoked if _callout_info is
- * non-NULL in an attempt to create a key.  The _callout_info string will be
+ * If yes key is found, /sbin/request-key will be invoked if _callout_info is
+ * yesn-NULL in an attempt to create a key.  The _callout_info string will be
  * passed to /sbin/request-key to aid with completing the request.  If the
  * _callout_info string is "" then it will be changed to "-".
  */
@@ -278,10 +278,10 @@ error:
 /*
  * Join a (named) session keyring.
  *
- * Create and join an anonymous session keyring or join a named session
+ * Create and join an ayesnymous session keyring or join a named session
  * keyring, creating it if necessary.  A named session keyring must have Search
  * permission for it to be joined.  Session keyrings without this permit will
- * be skipped over.  It is not permitted for userspace to create or join
+ * be skipped over.  It is yest permitted for userspace to create or join
  * keyrings whose name begin with a dot.
  *
  * If successful, the ID of the joined session keyring will be returned.
@@ -320,7 +320,7 @@ error:
  * updating for this to work.  A negative key can be positively instantiated
  * with this call.
  *
- * If successful, 0 will be returned.  If the key type does not support
+ * If successful, 0 will be returned.  If the key type does yest support
  * updating, then -EOPNOTSUPP will be returned.
  */
 long keyctl_update_key(key_serial_t id,
@@ -373,7 +373,7 @@ error:
  * and any links to the key will be automatically garbage collected after a
  * certain amount of time (/proc/sys/kernel/keys/gc_delay).
  *
- * Keys with KEY_FLAG_KEEP set should not be revoked.
+ * Keys with KEY_FLAG_KEEP set should yest be revoked.
  *
  * If successful, 0 is returned.
  */
@@ -414,7 +414,7 @@ error:
  * The key and any links to the key will be automatically garbage collected
  * immediately.
  *
- * Keys with KEY_FLAG_KEEP set should not be invalidated.
+ * Keys with KEY_FLAG_KEEP set should yest be invalidated.
  *
  * If successful, 0 is returned.
  */
@@ -462,7 +462,7 @@ error:
  * Clear the specified keyring, creating an empty process keyring if one of the
  * special keyring IDs is used.
  *
- * The keyring must grant the caller Write permission and not have
+ * The keyring must grant the caller Write permission and yest have
  * KEY_FLAG_KEEP set for this to work.  If successful, 0 will be returned.
  */
 long keyctl_keyring_clear(key_serial_t ringid)
@@ -502,7 +502,7 @@ error:
 }
 
 /*
- * Create a link from a keyring to a key if there's no matching key in the
+ * Create a link from a keyring to a key if there's yes matching key in the
  * keyring, otherwise replace the link to the matching key with a link to the
  * new key.
  *
@@ -542,10 +542,10 @@ error:
  * Unlink a key from a keyring.
  *
  * The keyring must grant the caller Write permission for this to work; the key
- * itself need not grant the caller anything.  If the last link to a key is
+ * itself need yest grant the caller anything.  If the last link to a key is
  * removed then that key will be scheduled for destruction.
  *
- * Keys or keyrings with KEY_FLAG_KEEP set should not be unlinked.
+ * Keys or keyrings with KEY_FLAG_KEEP set should yest be unlinked.
  *
  * If successful, 0 will be returned.
  */
@@ -583,12 +583,12 @@ error:
 }
 
 /*
- * Move a link to a key from one keyring to another, displacing any matching
+ * Move a link to a key from one keyring to ayesther, displacing any matching
  * key from the destination keyring.
  *
  * The key must grant the caller Link permission and both keyrings must grant
  * the caller Write permission.  There must also be a link in the from keyring
- * to the key.  If both keyrings are the same, nothing is done.
+ * to the key.  If both keyrings are the same, yesthing is done.
  *
  * If successful, 0 will be returned.
  */
@@ -842,7 +842,7 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
 		goto error2;
 	}
 
-	/* the key is probably readable - now try to read it */
+	/* the key is probably readable - yesw try to read it */
 can_read_key:
 	ret = -EOPNOTSUPP;
 	if (key->type->read) {
@@ -866,10 +866,10 @@ error:
  * Change the ownership of a key
  *
  * The key must grant the caller Setattr permission for this to work, though
- * the key need not be fully instantiated yet.  For the UID to be changed, or
- * for the GID to be changed to a group the caller is not a member of, the
+ * the key need yest be fully instantiated yet.  For the UID to be changed, or
+ * for the GID to be changed to a group the caller is yest a member of, the
  * caller must have sysadmin capability.  If either uid or gid is -1 then that
- * attribute is not changed.
+ * attribute is yest changed.
  *
  * If the UID is to be changed, the new user must have sufficient quota to
  * accept the key.  The quota deduction will be removed from the old user to
@@ -991,7 +991,7 @@ quota_overrun:
  * Change the permission mask on a key.
  *
  * The key must grant the caller Setattr permission for this to work, though
- * the key need not be fully instantiated yet.  If the caller does not have
+ * the key need yest be fully instantiated yet.  If the caller does yest have
  * sysadmin capability, it may only change the permission on keys that it owns.
  */
 long keyctl_setperm_key(key_serial_t id, key_perm_t perm)
@@ -1017,7 +1017,7 @@ long keyctl_setperm_key(key_serial_t id, key_perm_t perm)
 	ret = -EACCES;
 	down_write(&key->sem);
 
-	/* if we're not the sysadmin, we can only change a key that we own */
+	/* if we're yest the sysadmin, we can only change a key that we own */
 	if (capable(CAP_SYS_ADMIN) || uid_eq(key->uid, current_fsuid())) {
 		key->perm = perm;
 		ret = 0;
@@ -1045,7 +1045,7 @@ static long get_instantiation_keyring(key_serial_t ringid,
 	if (ringid == 0)
 		return 0;
 
-	/* if a specific keyring is nominated by ID, then use that */
+	/* if a specific keyring is yesminated by ID, then use that */
 	if (ringid > 0) {
 		dkref = lookup_user_key(ringid, KEY_LOOKUP_CREATE, KEY_NEED_WRITE);
 		if (IS_ERR(dkref))
@@ -1377,7 +1377,7 @@ error:
  * the current time.  The key and any links to the key will be automatically
  * garbage collected after the timeout expires.
  *
- * Keys with KEY_FLAG_KEEP set should not be timed out.
+ * Keys with KEY_FLAG_KEEP set should yest be timed out.
  *
  * If successful, 0 is returned.
  */
@@ -1512,7 +1512,7 @@ long keyctl_get_security(key_serial_t keyid,
 	key = key_ref_to_ptr(key_ref);
 	ret = security_key_getsecurity(key, &context);
 	if (ret == 0) {
-		/* if no information was returned, give userspace an empty
+		/* if yes information was returned, give userspace an empty
 		 * string */
 		ret = 1;
 		if (buffer && buflen > 0 &&
@@ -1592,7 +1592,7 @@ long keyctl_session_to_parent(void)
 		goto unlock;
 
 	/* the parent and the child must have different session keyrings or
-	 * there's no point */
+	 * there's yes point */
 	mycred = current_cred();
 	pcred = __task_cred(parent);
 	if (mycred == pcred ||
@@ -1646,7 +1646,7 @@ error_keyring:
  *
  * The requested type name may be a NULL pointer to reject all attempts
  * to link to the keyring.  In this case, _restriction must also be NULL.
- * Otherwise, both _type and _restriction must be non-NULL.
+ * Otherwise, both _type and _restriction must be yesn-NULL.
  *
  * Returns 0 if successful.
  */

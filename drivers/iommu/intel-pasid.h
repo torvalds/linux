@@ -32,7 +32,7 @@
 /*
  * The SUPERVISOR_MODE flag indicates a first level translation which
  * can be used for access to kernel addresses. It is valid only for
- * access to the kernel's static 1:1 mapping of physical memory — not
+ * access to the kernel's static 1:1 mapping of physical memory — yest
  * to vmalloc or even module mappings.
  */
 #define PASID_FLAG_SUPERVISOR_MODE	BIT(0)

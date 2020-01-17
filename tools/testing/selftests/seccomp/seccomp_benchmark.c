@@ -1,5 +1,5 @@
 /*
- * Strictly speaking, this is not a test. But it can report during test
+ * Strictly speaking, this is yest a test. But it can report during test
  * runs so relative performace can be measured.
  */
 #define _GNU_SOURCE

@@ -30,7 +30,7 @@ struct xgene_msi_group {
 };
 
 struct xgene_msi {
-	struct device_node	*node;
+	struct device_yesde	*yesde;
 	struct irq_domain	*inner_domain;
 	struct irq_domain	*msi_domain;
 	u64			msi_addr;
@@ -154,7 +154,7 @@ static void xgene_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
  * X-Gene v1 only has 16 MSI GIC IRQs for 2048 MSI vectors.  To maintain
  * the expected behaviour of .set_affinity for each MSI interrupt, the 16
  * MSI GIC IRQs are statically allocated to 8 X-Gene v1 cores (2 GIC IRQs
- * for each core).  The MSI vector is moved fom 1 MSI GIC IRQ to another
+ * for each core).  The MSI vector is moved fom 1 MSI GIC IRQ to ayesther
  * MSI GIC IRQ to steer its MSI interrupt to correct X-Gene v1 core.  As a
  * consequence, the total MSI vectors that X-Gene v1 supports will be
  * reduced to 256 (2048/8) vectors.
@@ -164,7 +164,7 @@ static int hwirq_to_cpu(unsigned long hwirq)
 	return (hwirq % xgene_msi_ctrl.num_cpus);
 }
 
-static unsigned long hwirq_to_canonical_hwirq(unsigned long hwirq)
+static unsigned long hwirq_to_cayesnical_hwirq(unsigned long hwirq)
 {
 	return (hwirq - hwirq_to_cpu(hwirq));
 }
@@ -180,7 +180,7 @@ static int xgene_msi_set_affinity(struct irq_data *irqdata,
 		return IRQ_SET_MASK_OK_DONE;
 
 	/* Update MSI number to target the new CPU */
-	irqdata->hwirq = hwirq_to_canonical_hwirq(irqdata->hwirq) + target_cpu;
+	irqdata->hwirq = hwirq_to_cayesnical_hwirq(irqdata->hwirq) + target_cpu;
 
 	return IRQ_SET_MASK_OK;
 }
@@ -227,7 +227,7 @@ static void xgene_irq_domain_free(struct irq_domain *domain,
 
 	mutex_lock(&msi->bitmap_lock);
 
-	hwirq = hwirq_to_canonical_hwirq(d->hwirq);
+	hwirq = hwirq_to_cayesnical_hwirq(d->hwirq);
 	bitmap_clear(msi->bitmap, hwirq, msi->num_cpus);
 
 	mutex_unlock(&msi->bitmap_lock);
@@ -247,7 +247,7 @@ static int xgene_allocate_domains(struct xgene_msi *msi)
 	if (!msi->inner_domain)
 		return -ENOMEM;
 
-	msi->msi_domain = pci_msi_create_irq_domain(of_node_to_fwnode(msi->node),
+	msi->msi_domain = pci_msi_create_irq_domain(of_yesde_to_fwyesde(msi->yesde),
 						    &xgene_msi_domain_info,
 						    msi->inner_domain);
 
@@ -329,7 +329,7 @@ static void xgene_msi_isr(struct irq_desc *desc)
 			 * always look up the virq using the hw_irq as seen from
 			 * CPU0
 			 */
-			hw_irq = hwirq_to_canonical_hwirq(hw_irq);
+			hw_irq = hwirq_to_cayesnical_hwirq(hw_irq);
 			virq = irq_find_mapping(xgene_msi->inner_domain, hw_irq);
 			WARN_ON(!virq);
 			if (virq != 0)
@@ -455,12 +455,12 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	xgene_msi->msi_regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(xgene_msi->msi_regs)) {
-		dev_err(&pdev->dev, "no reg space\n");
+		dev_err(&pdev->dev, "yes reg space\n");
 		rc = PTR_ERR(xgene_msi->msi_regs);
 		goto error;
 	}
 	xgene_msi->msi_addr = res->start;
-	xgene_msi->node = pdev->dev.of_node;
+	xgene_msi->yesde = pdev->dev.of_yesde;
 	xgene_msi->num_cpus = num_possible_cpus();
 
 	rc = xgene_msi_init_allocator(xgene_msi);
@@ -478,7 +478,7 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	for (irq_index = 0; irq_index < NR_HW_IRQS; irq_index++) {
 		virt_msir = platform_get_irq(pdev, irq_index);
 		if (virt_msir < 0) {
-			dev_err(&pdev->dev, "Cannot translate IRQ index %d\n",
+			dev_err(&pdev->dev, "Canyest translate IRQ index %d\n",
 				irq_index);
 			rc = virt_msir;
 			goto error;
@@ -521,7 +521,7 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	return 0;
 
 err_cpuhp:
-	dev_err(&pdev->dev, "failed to add CPU MSI notifier\n");
+	dev_err(&pdev->dev, "failed to add CPU MSI yestifier\n");
 error:
 	xgene_msi_remove(pdev);
 	return rc;

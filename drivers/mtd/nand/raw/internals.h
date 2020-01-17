@@ -5,7 +5,7 @@
  * Author: Boris Brezillon <boris.brezillon@bootlin.com>
  *
  * Header containing internal definitions to be used only by core files.
- * NAND controller drivers should not include this file.
+ * NAND controller drivers should yest include this file.
  */
 
 #ifndef __LINUX_RAWNAND_INTERNALS
@@ -85,9 +85,9 @@ int onfi_fill_data_interface(struct nand_chip *chip,
 			     int timing_mode);
 int nand_get_features(struct nand_chip *chip, int addr, u8 *subfeature_param);
 int nand_set_features(struct nand_chip *chip, int addr, u8 *subfeature_param);
-int nand_read_page_raw_notsupp(struct nand_chip *chip, u8 *buf,
+int nand_read_page_raw_yestsupp(struct nand_chip *chip, u8 *buf,
 			       int oob_required, int page);
-int nand_write_page_raw_notsupp(struct nand_chip *chip, const u8 *buf,
+int nand_write_page_raw_yestsupp(struct nand_chip *chip, const u8 *buf,
 				int oob_required, int page);
 int nand_exit_status_op(struct nand_chip *chip);
 int nand_read_param_page_op(struct nand_chip *chip, u8 page, void *buf,

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -28,7 +28,7 @@
  * interrupts, and where writing 1 bits clears those interrupts.
  * There are also a pair of interrupt registers
  * (V3D_INTENA/V3D_INTDIS) where writing a 1 to their bits enables or
- * disables that specific interrupt, and 0s written are ignored
+ * disables that specific interrupt, and 0s written are igyesred
  * (reading either one returns the set of enabled interrupts).
  *
  * When we take a binning flush done interrupt, we need to submit the
@@ -92,7 +92,7 @@ vc4_overflow_mem_work(struct work_struct *work)
 		if (exec) {
 			exec->bin_slots |= vc4->bin_alloc_overflow;
 		} else {
-			/* There's nothing queued in the hardware, so
+			/* There's yesthing queued in the hardware, so
 			 * the old slot is free immediately.
 			 */
 			vc4->bin_alloc_used &= ~vc4->bin_alloc_overflow;
@@ -157,7 +157,7 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 	if (!exec)
 		return;
 
-	vc4->finished_seqno++;
+	vc4->finished_seqyes++;
 	list_move_tail(&exec->head, &vc4->job_done_list);
 
 	nextbin = vc4_first_bin_job(vc4);
@@ -170,7 +170,7 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 	    (!nextbin || nextbin->perfmon != exec->perfmon))
 		vc4_perfmon_stop(vc4, exec->perfmon, true);
 
-	/* If there's a render job waiting, start it. If this is not the case
+	/* If there's a render job waiting, start it. If this is yest the case
 	 * we may have to unblock the binner if it's been stalled because of
 	 * perfmon (this can be checked by comparing the perfmon attached to
 	 * the finished renderjob to the one attached to the next bin job: if
@@ -203,7 +203,7 @@ vc4_irq(int irq, void *arg)
 	barrier();
 	intctl = V3D_READ(V3D_INTCTL);
 
-	/* Acknowledge the interrupts we're handling here. The binner
+	/* Ackyeswledge the interrupts we're handling here. The binner
 	 * last flush / render frame done interrupt will be cleared,
 	 * while OUTOMEM will stay high until the underlying cause is
 	 * cleared.
@@ -293,7 +293,7 @@ void vc4_irq_reset(struct drm_device *dev)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	unsigned long irqflags;
 
-	/* Acknowledge any stale IRQs. */
+	/* Ackyeswledge any stale IRQs. */
 	V3D_WRITE(V3D_INTCTL, V3D_DRIVER_IRQS);
 
 	/*

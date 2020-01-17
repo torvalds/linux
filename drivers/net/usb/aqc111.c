@@ -22,12 +22,12 @@
 
 #define DRIVER_NAME "aqc111"
 
-static int aqc111_read_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
+static int aqc111_read_cmd_yespm(struct usbnet *dev, u8 cmd, u16 value,
 				u16 index, u16 size, void *data)
 {
 	int ret;
 
-	ret = usbnet_read_cmd_nopm(dev, cmd, USB_DIR_IN | USB_TYPE_VENDOR |
+	ret = usbnet_read_cmd_yespm(dev, cmd, USB_DIR_IN | USB_TYPE_VENDOR |
 				   USB_RECIP_DEVICE, value, index, data, size);
 
 	if (unlikely(ret < 0))
@@ -54,12 +54,12 @@ static int aqc111_read_cmd(struct usbnet *dev, u8 cmd, u16 value,
 	return ret;
 }
 
-static int aqc111_read16_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
+static int aqc111_read16_cmd_yespm(struct usbnet *dev, u8 cmd, u16 value,
 				  u16 index, u16 *data)
 {
 	int ret = 0;
 
-	ret = aqc111_read_cmd_nopm(dev, cmd, value, index, sizeof(*data), data);
+	ret = aqc111_read_cmd_yespm(dev, cmd, value, index, sizeof(*data), data);
 	le16_to_cpus(data);
 
 	return ret;
@@ -107,7 +107,7 @@ out:
 	return err;
 }
 
-static int aqc111_write_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
+static int aqc111_write_cmd_yespm(struct usbnet *dev, u8 cmd, u16 value,
 				 u16 index, u16 size, void *data)
 {
 	int ret;
@@ -134,14 +134,14 @@ static int aqc111_write_cmd(struct usbnet *dev, u8 cmd, u16 value,
 	return ret;
 }
 
-static int aqc111_write16_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
+static int aqc111_write16_cmd_yespm(struct usbnet *dev, u8 cmd, u16 value,
 				   u16 index, u16 *data)
 {
 	u16 tmp = *data;
 
 	cpu_to_le16s(&tmp);
 
-	return aqc111_write_cmd_nopm(dev, cmd, value, index, sizeof(tmp), &tmp);
+	return aqc111_write_cmd_yespm(dev, cmd, value, index, sizeof(tmp), &tmp);
 }
 
 static int aqc111_write16_cmd(struct usbnet *dev, u8 cmd, u16 value,
@@ -154,14 +154,14 @@ static int aqc111_write16_cmd(struct usbnet *dev, u8 cmd, u16 value,
 	return aqc111_write_cmd(dev, cmd, value, index, sizeof(tmp), &tmp);
 }
 
-static int aqc111_write32_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
+static int aqc111_write32_cmd_yespm(struct usbnet *dev, u8 cmd, u16 value,
 				   u16 index, u32 *data)
 {
 	u32 tmp = *data;
 
 	cpu_to_le32s(&tmp);
 
-	return aqc111_write_cmd_nopm(dev, cmd, value, index, sizeof(tmp), &tmp);
+	return aqc111_write_cmd_yespm(dev, cmd, value, index, sizeof(tmp), &tmp);
 }
 
 static int aqc111_write32_cmd(struct usbnet *dev, u8 cmd, u16 value,
@@ -204,7 +204,7 @@ static void aqc111_get_drvinfo(struct net_device *net,
 	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
 	snprintf(info->fw_version, sizeof(info->fw_version), "%u.%u.%u",
 		 aqc111_data->fw_ver.major,
-		 aqc111_data->fw_ver.minor,
+		 aqc111_data->fw_ver.miyesr,
 		 aqc111_data->fw_ver.rev);
 	info->eedump_len = 0x00;
 	info->regdump_len = 0x00;
@@ -673,7 +673,7 @@ static void aqc111_read_fw_version(struct usbnet *dev,
 	aqc111_read_cmd(dev, AQ_ACCESS_MAC, AQ_FW_VER_MAJOR,
 			1, 1, &aqc111_data->fw_ver.major);
 	aqc111_read_cmd(dev, AQ_ACCESS_MAC, AQ_FW_VER_MINOR,
-			1, 1, &aqc111_data->fw_ver.minor);
+			1, 1, &aqc111_data->fw_ver.miyesr);
 	aqc111_read_cmd(dev, AQ_ACCESS_MAC, AQ_FW_VER_REV,
 			1, 1, &aqc111_data->fw_ver.rev);
 
@@ -728,7 +728,7 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->netdev_ops = &aqc111_netdev_ops;
 	dev->net->ethtool_ops = &aqc111_ethtool_ops;
 
-	if (usb_device_no_sg_constraint(dev->udev))
+	if (usb_device_yes_sg_constraint(dev->udev))
 		dev->can_dma_sg = 1;
 
 	dev->net->hw_features |= AQ_SUPPORT_HW_FEATURE;
@@ -756,17 +756,17 @@ static void aqc111_unbind(struct usbnet *dev, struct usb_interface *intf)
 
 	/* Force bz */
 	reg16 = SFR_PHYPWR_RSTCTL_BZ;
-	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_PHYPWR_RSTCTL,
+	aqc111_write16_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_PHYPWR_RSTCTL,
 				2, &reg16);
 	reg16 = 0;
-	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_PHYPWR_RSTCTL,
+	aqc111_write16_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_PHYPWR_RSTCTL,
 				2, &reg16);
 
 	/* Power down ethernet PHY */
 	aqc111_data->phy_cfg &= ~AQ_ADV_MASK;
 	aqc111_data->phy_cfg |= AQ_LOW_POWER;
 	aqc111_data->phy_cfg &= ~AQ_PHY_POWER_EN;
-	aqc111_write32_cmd_nopm(dev, AQ_PHY_OPS, 0, 0,
+	aqc111_write32_cmd_yespm(dev, AQ_PHY_OPS, 0, 0,
 				&aqc111_data->phy_cfg);
 
 	kfree(aqc111_data);
@@ -993,7 +993,7 @@ static int aqc111_reset(struct usbnet *dev)
 
 	dev->rx_urb_size = URB_SIZE;
 
-	if (usb_device_no_sg_constraint(dev->udev))
+	if (usb_device_yes_sg_constraint(dev->udev))
 		dev->can_dma_sg = 1;
 
 	dev->net->hw_features |= AQ_SUPPORT_HW_FEATURE;
@@ -1325,29 +1325,29 @@ static int aqc111_suspend(struct usb_interface *intf, pm_message_t message)
 
 	usbnet_suspend(intf, message);
 
-	aqc111_read16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
+	aqc111_read16_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
 	temp_rx_ctrl = reg16;
 	/* Stop RX operations*/
 	reg16 &= ~SFR_RX_CTL_START;
-	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
+	aqc111_write16_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
 	/* Force bz */
-	aqc111_read16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_PHYPWR_RSTCTL,
+	aqc111_read16_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_PHYPWR_RSTCTL,
 			       2, &reg16);
 	reg16 |= SFR_PHYPWR_RSTCTL_BZ;
-	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_PHYPWR_RSTCTL,
+	aqc111_write16_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_PHYPWR_RSTCTL,
 				2, &reg16);
 
 	reg8 = SFR_BULK_OUT_EFF_EN;
-	aqc111_write_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_BULK_OUT_CTRL,
+	aqc111_write_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_BULK_OUT_CTRL,
 			      1, 1, &reg8);
 
 	temp_rx_ctrl &= ~(SFR_RX_CTL_START | SFR_RX_CTL_RF_WAK |
 			  SFR_RX_CTL_AP | SFR_RX_CTL_AM);
-	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_RX_CTL,
+	aqc111_write16_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_RX_CTL,
 				2, &temp_rx_ctrl);
 
 	reg8 = 0x00;
-	aqc111_write_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_ETH_MAC_PATH,
+	aqc111_write_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_ETH_MAC_PATH,
 			      1, 1, &reg8);
 
 	if (aqc111_data->wol_flags) {
@@ -1360,35 +1360,35 @@ static int aqc111_suspend(struct usb_interface *intf, pm_message_t message)
 		wol_cfg.flags = aqc111_data->wol_flags;
 
 		temp_rx_ctrl |= (SFR_RX_CTL_AB | SFR_RX_CTL_START);
-		aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_RX_CTL,
+		aqc111_write16_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_RX_CTL,
 					2, &temp_rx_ctrl);
 		reg8 = 0x00;
-		aqc111_write_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_BM_INT_MASK,
+		aqc111_write_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_BM_INT_MASK,
 				      1, 1, &reg8);
 		reg8 = SFR_BMRX_DMA_EN;
-		aqc111_write_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_BMRX_DMA_CONTROL,
+		aqc111_write_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_BMRX_DMA_CONTROL,
 				      1, 1, &reg8);
 		reg8 = SFR_RX_PATH_READY;
-		aqc111_write_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_ETH_MAC_PATH,
+		aqc111_write_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_ETH_MAC_PATH,
 				      1, 1, &reg8);
 		reg8 = 0x07;
-		aqc111_write_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_RX_BULKIN_QCTRL,
+		aqc111_write_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_RX_BULKIN_QCTRL,
 				      1, 1, &reg8);
 		reg8 = 0x00;
-		aqc111_write_cmd_nopm(dev, AQ_ACCESS_MAC,
+		aqc111_write_cmd_yespm(dev, AQ_ACCESS_MAC,
 				      SFR_RX_BULKIN_QTIMR_LOW, 1, 1, &reg8);
-		aqc111_write_cmd_nopm(dev, AQ_ACCESS_MAC,
+		aqc111_write_cmd_yespm(dev, AQ_ACCESS_MAC,
 				      SFR_RX_BULKIN_QTIMR_HIGH, 1, 1, &reg8);
 		reg8 = 0xFF;
-		aqc111_write_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_RX_BULKIN_QSIZE,
+		aqc111_write_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_RX_BULKIN_QSIZE,
 				      1, 1, &reg8);
-		aqc111_write_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_RX_BULKIN_QIFG,
+		aqc111_write_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_RX_BULKIN_QIFG,
 				      1, 1, &reg8);
 
-		aqc111_read16_cmd_nopm(dev, AQ_ACCESS_MAC,
+		aqc111_read16_cmd_yespm(dev, AQ_ACCESS_MAC,
 				       SFR_MEDIUM_STATUS_MODE, 2, &reg16);
 		reg16 |= SFR_MEDIUM_RECEIVE_EN;
-		aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC,
+		aqc111_write16_cmd_yespm(dev, AQ_ACCESS_MAC,
 					SFR_MEDIUM_STATUS_MODE, 2, &reg16);
 
 		aqc111_write_cmd(dev, AQ_WOL_CFG, 0, 0,
@@ -1401,10 +1401,10 @@ static int aqc111_suspend(struct usb_interface *intf, pm_message_t message)
 				   &aqc111_data->phy_cfg);
 
 		/* Disable RX path */
-		aqc111_read16_cmd_nopm(dev, AQ_ACCESS_MAC,
+		aqc111_read16_cmd_yespm(dev, AQ_ACCESS_MAC,
 				       SFR_MEDIUM_STATUS_MODE, 2, &reg16);
 		reg16 &= ~SFR_MEDIUM_RECEIVE_EN;
-		aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC,
+		aqc111_write16_cmd_yespm(dev, AQ_ACCESS_MAC,
 					SFR_MEDIUM_STATUS_MODE, 2, &reg16);
 	}
 
@@ -1426,26 +1426,26 @@ static int aqc111_resume(struct usb_interface *intf)
 	aqc111_data->phy_cfg &= ~AQ_WOL;
 
 	reg8 = 0xFF;
-	aqc111_write_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_BM_INT_MASK,
+	aqc111_write_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_BM_INT_MASK,
 			      1, 1, &reg8);
 	/* Configure RX control register => start operation */
 	reg16 = aqc111_data->rxctl;
 	reg16 &= ~SFR_RX_CTL_START;
-	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
+	aqc111_write16_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
 
 	reg16 |= SFR_RX_CTL_START;
-	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
+	aqc111_write16_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
 
 	aqc111_set_phy_speed(dev, aqc111_data->autoneg,
 			     aqc111_data->advertised_speed);
 
-	aqc111_read16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
+	aqc111_read16_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
 			       2, &reg16);
 	reg16 |= SFR_MEDIUM_RECEIVE_EN;
-	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
+	aqc111_write16_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
 				2, &reg16);
 	reg8 = SFR_RX_PATH_READY;
-	aqc111_write_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_ETH_MAC_PATH,
+	aqc111_write_cmd_yespm(dev, AQ_ACCESS_MAC, SFR_ETH_MAC_PATH,
 			      1, 1, &reg8);
 	reg8 = 0x0;
 	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_BMRX_DMA_CONTROL, 1, 1, &reg8);

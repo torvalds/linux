@@ -7,7 +7,7 @@
  *
  * These devices require firmware exported from a PC-based configuration tool
  * made available by the vendor. Firmware files may be pushed to the device's
- * nonvolatile memory by writing the filename to the 'fw_file' sysfs control.
+ * yesnvolatile memory by writing the filename to the 'fw_file' sysfs control.
  *
  * Link to PC-based configuration tool and data sheet: http://www.azoteq.com/
  */
@@ -107,7 +107,7 @@ struct iqs5xx_dev_id_info {
 	__be16 prod_num;
 	__be16 proj_num;
 	u8 major_ver;
-	u8 minor_ver;
+	u8 miyesr_ver;
 	u8 bl_status;
 } __packed;
 
@@ -332,7 +332,7 @@ static int iqs5xx_bl_open(struct i2c_client *client)
 
 	/*
 	 * The device opens a bootloader polling window for 2 ms following the
-	 * release of reset. If the host cannot establish communication during
+	 * release of reset. If the host canyest establish communication during
 	 * this time frame, it must cycle reset again.
 	 */
 	for (i = 0; i < IQS5XX_BL_ATTEMPTS; i++) {
@@ -614,7 +614,7 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 	/*
 	 * A000 and B000 devices use 8-bit and 16-bit addressing, respectively.
 	 * Querying an A000 device's version information with 16-bit addressing
-	 * gives the appearance that the data is shifted by one byte; a nonzero
+	 * gives the appearance that the data is shifted by one byte; a yesnzero
 	 * leading array element suggests this could be the case (in which case
 	 * the missing zero is prepended).
 	 */
@@ -708,7 +708,7 @@ static irqreturn_t iqs5xx_irq(int irq, void *data)
 	int error, i;
 
 	/*
-	 * This check is purely a precaution, as the device does not assert the
+	 * This check is purely a precaution, as the device does yest assert the
 	 * RDY output during bootloader mode. If the device operates outside of
 	 * bootloader mode, the input device is guaranteed to be allocated.
 	 */
@@ -767,11 +767,11 @@ static int iqs5xx_fw_file_parse(struct i2c_client *client,
 	/*
 	 * Firmware exported from the vendor's configuration tool deviates from
 	 * standard ihex as follows: (1) the checksum for records corresponding
-	 * to user-exported settings is not recalculated, and (2) an address of
+	 * to user-exported settings is yest recalculated, and (2) an address of
 	 * 0xFFFF is used for the EOF record.
 	 *
-	 * Because the ihex2fw tool tolerates neither (1) nor (2), the slightly
-	 * nonstandard ihex firmware is parsed directly by the driver.
+	 * Because the ihex2fw tool tolerates neither (1) yesr (2), the slightly
+	 * yesnstandard ihex firmware is parsed directly by the driver.
 	 */
 	error = request_firmware(&fw, fw_file, &client->dev);
 	if (error) {
@@ -902,7 +902,7 @@ static int iqs5xx_fw_file_write(struct i2c_client *client, const char *fw_file)
 
 	/*
 	 * Disable the interrupt line in case the first attempt(s) to enter the
-	 * bootloader don't happen quickly enough, in which case the device may
+	 * bootloader don't happen quickly eyesugh, in which case the device may
 	 * assert the RDY output until the next attempt.
 	 */
 	disable_irq(client->irq);
@@ -979,7 +979,7 @@ static ssize_t fw_file_store(struct device *dev, struct device_attribute *attr,
 		return error;
 
 	/*
-	 * If the input device was not allocated already, it is guaranteed to
+	 * If the input device was yest allocated already, it is guaranteed to
 	 * be allocated by this point and can finally be registered.
 	 */
 	if (input_reg) {

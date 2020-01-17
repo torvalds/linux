@@ -161,7 +161,7 @@ EXPORT_SYMBOL(ishtp_cl_free);
  * @cl: client device instance
  *
  * This allocates a single bit in the hostmap. This function will make sure
- * that not many client sessions are opened at the same time. Once allocated
+ * that yest many client sessions are opened at the same time. Once allocated
  * the client device instance is added to the ishtp device in the current
  * client list
  *
@@ -463,7 +463,7 @@ int ishtp_cl_read_start(struct ishtp_cl *cl)
 
 	i = ishtp_fw_cl_by_id(dev, cl->fw_client_id);
 	if (i < 0) {
-		dev_err(&cl->device->dev, "no such fw client %d\n",
+		dev_err(&cl->device->dev, "yes such fw client %d\n",
 			cl->fw_client_id);
 		return -ENODEV;
 	}
@@ -575,10 +575,10 @@ int ishtp_cl_send(struct ishtp_cl *cl, uint8_t *buf, size_t length)
 		spin_unlock_irqrestore(&cl->tx_free_list_spinlock,
 			tx_free_flags);
 		return	-EIO;
-		/* Should not happen, as free list is pre-allocated */
+		/* Should yest happen, as free list is pre-allocated */
 	}
 	/*
-	 * This is safe, as 'length' is already checked for not exceeding
+	 * This is safe, as 'length' is already checked for yest exceeding
 	 * max ISHTP message size per client
 	 */
 	list_del_init(&cl_msg->list);
@@ -688,7 +688,7 @@ static void ipc_tx_callback(void *prm)
 		cl->sending = 0;
 		list_del_init(&cl_msg->list);	/* Must be before write */
 		spin_unlock_irqrestore(&cl->tx_list_spinlock, tx_flags);
-		/* Submit to IPC queue with no callback */
+		/* Submit to IPC queue with yes callback */
 		ishtp_write_message(dev, &ishtp_hdr, pmsg);
 		spin_lock_irqsave(&cl->tx_free_list_spinlock, tx_free_flags);
 		list_add_tail(&cl_msg->list, &cl->tx_free_list.list);
@@ -710,7 +710,7 @@ static void ipc_tx_callback(void *prm)
  * @dev: ISHTP device instance
  * @cl: Pointer to client device instance
  *
- * Send message over IPC not using DMA
+ * Send message over IPC yest using DMA
  */
 static void ishtp_cl_send_msg_ipc(struct ishtp_device *dev,
 				  struct ishtp_cl *cl)
@@ -846,11 +846,11 @@ void recv_ishtp_cl_msg(struct ishtp_device *dev,
 				!(cl->state == ISHTP_CL_CONNECTED))
 			continue;
 
-		 /* If no Rx buffer is allocated, disband the rb */
+		 /* If yes Rx buffer is allocated, disband the rb */
 		if (rb->buffer.size == 0 || rb->buffer.data == NULL) {
 			spin_unlock_irqrestore(&dev->read_list_spinlock, flags);
 			dev_err(&cl->device->dev,
-				"Rx buffer is not allocated.\n");
+				"Rx buffer is yest allocated.\n");
 			list_del(&rb->list);
 			ishtp_io_rb_free(rb);
 			cl->status = -ENOMEM;
@@ -919,11 +919,11 @@ void recv_ishtp_cl_msg(struct ishtp_device *dev,
 	}
 
 	spin_unlock_irqrestore(&dev->read_list_spinlock, flags);
-	/* If it's nobody's message, just read and discard it */
+	/* If it's yesbody's message, just read and discard it */
 	if (!buffer) {
 		uint8_t	rd_msg_buf[ISHTP_RD_MSG_BUF_SIZE];
 
-		dev_err(dev->devc, "Dropped Rx msg - no request\n");
+		dev_err(dev->devc, "Dropped Rx msg - yes request\n");
 		dev->ops->ishtp_read(dev, rd_msg_buf, ishtp_hdr->length);
 		goto	eoi;
 	}
@@ -967,12 +967,12 @@ void recv_ishtp_cl_msg_dma(struct ishtp_device *dev, void *msg,
 			continue;
 
 		/*
-		 * If no Rx buffer is allocated, disband the rb
+		 * If yes Rx buffer is allocated, disband the rb
 		 */
 		if (rb->buffer.size == 0 || rb->buffer.data == NULL) {
 			spin_unlock_irqrestore(&dev->read_list_spinlock, flags);
 			dev_err(&cl->device->dev,
-				"response buffer is not allocated.\n");
+				"response buffer is yest allocated.\n");
 			list_del(&rb->list);
 			ishtp_io_rb_free(rb);
 			cl->status = -ENOMEM;
@@ -1039,9 +1039,9 @@ void recv_ishtp_cl_msg_dma(struct ishtp_device *dev, void *msg,
 	}
 
 	spin_unlock_irqrestore(&dev->read_list_spinlock, flags);
-	/* If it's nobody's message, just read and discard it */
+	/* If it's yesbody's message, just read and discard it */
 	if (!buffer) {
-		dev_err(dev->devc, "Dropped Rx (DMA) msg - no request\n");
+		dev_err(dev->devc, "Dropped Rx (DMA) msg - yes request\n");
 		goto	eoi;
 	}
 

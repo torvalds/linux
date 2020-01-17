@@ -6,10 +6,10 @@ running on other CPUs must perform IPC to the BPMP in order to execute
 transactions on that I2C bus. This binding describes an I2C bus that is
 accessed in such a fashion.
 
-The BPMP I2C node must be located directly inside the main BPMP node. See
+The BPMP I2C yesde must be located directly inside the main BPMP yesde. See
 ../firmware/nvidia,tegra186-bpmp.txt for details of the BPMP binding.
 
-This node represents an I2C controller. See ../i2c/i2c.txt for details of the
+This yesde represents an I2C controller. See ../i2c/i2c.txt for details of the
 core I2C binding.
 
 Required properties:
@@ -25,7 +25,7 @@ Required properties:
     Must be <0>.
 - nvidia,bpmp-bus-id:
     Single-cell integer.
-    Indicates the I2C bus number this DT node represent, as defined by the
+    Indicates the I2C bus number this DT yesde represent, as defined by the
     BPMP firmware.
 
 Example:

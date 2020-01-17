@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r.h
  *      For use with ATTO ExpressSAS R6xx SAS/SATA RAID controllers
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techyeslogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but yest limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
  *
@@ -36,7 +36,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -131,7 +131,7 @@ extern int num_io_requests;
 #define HIWORD(d) ((u16)(((u32)(d)) >> 16))
 #define MAKEDWORD(lo, hi) ((u32)((u16)(lo) | ((u32)(u16)(hi) << 16)))
 
-/* macro to get the lowest nonzero bit of a value */
+/* macro to get the lowest yesnzero bit of a value */
 #define LOBIT(x) ((x) & (0 - (x)))
 
 /* These functions are provided to access the chip's control registers.
@@ -757,7 +757,7 @@ enum fw_event_type {
 	fw_event_null,
 	fw_event_lun_change,
 	fw_event_present,
-	fw_event_not_present,
+	fw_event_yest_present,
 	fw_event_vda_ae
 };
 
@@ -872,7 +872,7 @@ struct esas2r_adapter {
 	#define ESAS2R_INIT_MSG_INIT        2
 	#define ESAS2R_INIT_MSG_GET_INIT    3
 	#define ESAS2R_INIT_MSG_REINIT      4
-	u16 cmd_ref_no;
+	u16 cmd_ref_yes;
 	u32 fw_version;
 	u32 fw_build;
 	u32 chip_init_time;
@@ -928,12 +928,12 @@ struct esas2r_adapter {
 	struct workqueue_struct *fw_event_q;
 	struct list_head fw_event_list;
 	spinlock_t fw_event_lock;
-	u8 fw_events_off;                       /* if '1', then ignore events */
+	u8 fw_events_off;                       /* if '1', then igyesre events */
 	char fw_event_q_name[ESAS2R_KOBJ_NAME_LEN];
 	/*
 	 * intr_mode stores the interrupt mode currently being used by this
 	 * adapter. it is based on the interrupt_mode module parameter, but
-	 * can be changed based on the ability (or not) to utilize the
+	 * can be changed based on the ability (or yest) to utilize the
 	 * mode requested by the parameter.
 	 */
 	int intr_mode;
@@ -1106,7 +1106,7 @@ bool esas2r_build_sg_list_sge(struct esas2r_adapter *a,
 bool esas2r_build_sg_list_prd(struct esas2r_adapter *a,
 			      struct esas2r_sg_context *sgc);
 void esas2r_targ_db_initialize(struct esas2r_adapter *a);
-void esas2r_targ_db_remove_all(struct esas2r_adapter *a, bool notify);
+void esas2r_targ_db_remove_all(struct esas2r_adapter *a, bool yestify);
 void esas2r_targ_db_report_changes(struct esas2r_adapter *a);
 struct esas2r_target *esas2r_targ_db_add_raid(struct esas2r_adapter *a,
 					      struct esas2r_disc_context *dc);
@@ -1218,12 +1218,12 @@ static inline void esas2r_rq_init_request(struct esas2r_request *rq,
 	 * clear the size of the VDA request.  esas2r_build_sg_list() will
 	 * only allow the size of the request to grow.  there are some
 	 * management requests that go through there twice and the second
-	 * time through sets a smaller request size.  if this is not modified
+	 * time through sets a smaller request size.  if this is yest modified
 	 * at all we'll set it to the size of the entire VDA request.
 	 */
 	rq->vda_req_sz = RQ_SIZE_DEFAULT;
 
-	/* req_table entry should be NULL at this point - if not, halt */
+	/* req_table entry should be NULL at this point - if yest, halt */
 
 	if (a->req_table[LOWORD(vrq->scsi.handle)])
 		esas2r_bugon();
@@ -1237,12 +1237,12 @@ static inline void esas2r_rq_init_request(struct esas2r_request *rq,
 	 * add a reference number to the handle to make it unique (until it
 	 * wraps of course) while preserving the least significant word
 	 */
-	vrq->scsi.handle = (a->cmd_ref_no++ << 16) | (u16)vrq->scsi.handle;
+	vrq->scsi.handle = (a->cmd_ref_yes++ << 16) | (u16)vrq->scsi.handle;
 
 	/*
 	 * the following formats a SCSI request.  the caller can override as
 	 * necessary.  clear_vda_request can be called to clear the VDA
-	 * request for another type of request.
+	 * request for ayesther type of request.
 	 */
 	vrq->scsi.function = VDA_FUNC_SCSI;
 	vrq->scsi.sense_len = SENSE_DATA_SZ;
@@ -1322,7 +1322,7 @@ static inline void esas2r_enable_chip_interrupts(struct esas2r_adapter *a)
 					    ESAS2R_INT_ENB_MASK);
 }
 
-/* Schedule a TASKLET to perform non-interrupt tasks that may require delays
+/* Schedule a TASKLET to perform yesn-interrupt tasks that may require delays
  * or long completion times.
  */
 static inline void esas2r_schedule_tasklet(struct esas2r_adapter *a)
@@ -1387,7 +1387,7 @@ static inline u16 esas2r_targ_get_id(struct esas2r_target *t,
 	return (u16)(uintptr_t)(t - a->targetdb);
 }
 
-/*  Build and start an asynchronous event request */
+/*  Build and start an asynchroyesus event request */
 static inline void esas2r_start_ae_request(struct esas2r_adapter *a,
 					   struct esas2r_request *rq)
 {

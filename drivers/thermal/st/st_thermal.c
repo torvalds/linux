@@ -93,7 +93,7 @@ static int st_thermal_calibration(struct st_thermal_sensor *sensor)
 
 	if (!val) {
 		/*
-		 * Sensor calibration value not set by bootloader,
+		 * Sensor calibration value yest set by bootloader,
 		 * default calibration data to be used
 		 */
 		ret = regmap_field_write(sensor->dcorrect,
@@ -181,14 +181,14 @@ int st_thermal_register(struct platform_device *pdev,
 {
 	struct st_thermal_sensor *sensor;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const struct of_device_id *match;
 
 	int polling_delay;
 	int ret;
 
 	if (!np) {
-		dev_err(dev, "device tree node not found\n");
+		dev_err(dev, "device tree yesde yest found\n");
 		return -EINVAL;
 	}
 

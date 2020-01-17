@@ -9,7 +9,7 @@
  *  Chip        #vin    #fan    #pwm    #temp   devid
  *  PC87427     -       8       4       6       0xF2
  *
- *  This driver assumes that no more than one chip is present.
+ *  This driver assumes that yes more than one chip is present.
  *  Only fans are fully supported so far. Temperatures are in read-only
  *  mode, and voltages aren't supported at all.
  */
@@ -72,7 +72,7 @@ struct pc87427_data {
 struct pc87427_sio_data {
 	unsigned short address[2];
 	u8 has_fanin;
-	u8 has_fanout;
+	u8 has_fayesut;
 };
 
 /*
@@ -195,7 +195,7 @@ static void pc87427_readall_fan(struct pc87427_data *data, u8 nr)
 
 /*
  * The 2 LSB of fan speed registers are used for something different.
- * The actual 2 LSB of the measurements are not available.
+ * The actual 2 LSB of the measurements are yest available.
  */
 static inline unsigned long fan_from_reg(u16 reg)
 {
@@ -205,7 +205,7 @@ static inline unsigned long fan_from_reg(u16 reg)
 	return 5400000UL / reg;
 }
 
-/* The 2 LSB of the fan speed limit registers are not significant. */
+/* The 2 LSB of the fan speed limit registers are yest significant. */
 static inline u16 fan_to_reg(unsigned long val)
 {
 	if (val < 83UL)
@@ -330,7 +330,7 @@ static inline unsigned int temp_type_from_reg(u8 reg)
 
 /*
  * We assume 8-bit thermal sensors; 9-bit thermal sensors are possible
- * too, but I have no idea how to figure out when they are used.
+ * too, but I have yes idea how to figure out when they are used.
  */
 static inline long temp_from_reg(s16 reg)
 {
@@ -621,8 +621,8 @@ static ssize_t pwm_store(struct device *dev, struct device_attribute *devattr,
 	pc87427_readall_pwm(data, nr);
 	mode = data->pwm_enable[nr] & PWM_ENABLE_MODE_MASK;
 	if (mode != PWM_MODE_MANUAL && mode != PWM_MODE_OFF) {
-		dev_notice(dev,
-			   "Can't set PWM%d duty cycle while not in manual mode\n",
+		dev_yestice(dev,
+			   "Can't set PWM%d duty cycle while yest in manual mode\n",
 			   nr + 1);
 		mutex_unlock(&data->lock);
 		return -EPERM;
@@ -966,7 +966,7 @@ static void pc87427_init_device(struct device *dev)
 	/* The FMC module should be ready */
 	reg = pc87427_read8(data, LD_FAN, PC87427_REG_BANK);
 	if (!(reg & 0x80))
-		dev_warn(dev, "%s module not ready!\n", "FMC");
+		dev_warn(dev, "%s module yest ready!\n", "FMC");
 
 	/* Check which fans are enabled */
 	for (i = 0; i < 8; i++) {
@@ -992,7 +992,7 @@ static void pc87427_init_device(struct device *dev)
 
 	/* Check which PWM outputs are enabled */
 	for (i = 0; i < 4; i++) {
-		if (!(sio_data->has_fanout & (1 << i)))	/* Not wired */
+		if (!(sio_data->has_fayesut & (1 << i)))	/* Not wired */
 			continue;
 		reg = pc87427_read8_bank(data, LD_FAN, BANK_FC(i),
 					 PC87427_REG_PWM_ENABLE);
@@ -1014,7 +1014,7 @@ static void pc87427_init_device(struct device *dev)
 	/* The HMC module should be ready */
 	reg = pc87427_read8(data, LD_TEMP, PC87427_REG_BANK);
 	if (!(reg & 0x80))
-		dev_warn(dev, "%s module not ready!\n", "HMC");
+		dev_warn(dev, "%s module yest ready!\n", "HMC");
 
 	/* Check which temperature channels are enabled */
 	for (i = 0; i < 6; i++) {
@@ -1215,7 +1215,7 @@ static int __init pc87427_find(int sioaddr, struct pc87427_sio_data *sio_data)
 
 		val = superio_inb(sioaddr, SIOREG_ACT);
 		if (!(val & 0x01)) {
-			pr_info("Logical device 0x%02x not activated\n",
+			pr_info("Logical device 0x%02x yest activated\n",
 				logdev[i]);
 			continue;
 		}
@@ -1230,7 +1230,7 @@ static int __init pc87427_find(int sioaddr, struct pc87427_sio_data *sio_data)
 		val = (superio_inb(sioaddr, SIOREG_IOBASE) << 8)
 		    | superio_inb(sioaddr, SIOREG_IOBASE + 1);
 		if (!val) {
-			pr_info("I/O base address not set for logical device 0x%02x\n",
+			pr_info("I/O base address yest set for logical device 0x%02x\n",
 				logdev[i]);
 			continue;
 		}
@@ -1267,24 +1267,24 @@ static int __init pc87427_find(int sioaddr, struct pc87427_sio_data *sio_data)
 		sio_data->has_fanin |= (1 << 6);	/* FANIN6 */
 
 	/* Check which fan outputs are wired */
-	sio_data->has_fanout = (1 << 0);		/* FANOUT0 */
+	sio_data->has_fayesut = (1 << 0);		/* FANOUT0 */
 	if (cfg_b & (1 << 0))
-		sio_data->has_fanout |= (1 << 3);	/* FANOUT3 */
+		sio_data->has_fayesut |= (1 << 3);	/* FANOUT3 */
 
 	cfg = superio_inb(sioaddr, SIOREG_CFC);
 	if (!(cfg & (1 << 4))) {
 		if (cfg_b & (1 << 1))
-			sio_data->has_fanout |= (1 << 1); /* FANOUT1 */
+			sio_data->has_fayesut |= (1 << 1); /* FANOUT1 */
 		if (cfg_b & (1 << 2))
-			sio_data->has_fanout |= (1 << 2); /* FANOUT2 */
+			sio_data->has_fayesut |= (1 << 2); /* FANOUT2 */
 	}
 
 	/* FANOUT1 and FANOUT2 can each be routed to 2 different pins */
 	cfg = superio_inb(sioaddr, SIOREG_CF5);
 	if (cfg & (1 << 6))
-		sio_data->has_fanout |= (1 << 1);	/* FANOUT1 */
+		sio_data->has_fayesut |= (1 << 1);	/* FANOUT1 */
 	if (cfg & (1 << 5))
-		sio_data->has_fanout |= (1 << 2);	/* FANOUT2 */
+		sio_data->has_fayesut |= (1 << 2);	/* FANOUT2 */
 
 exit:
 	superio_exit(sioaddr);

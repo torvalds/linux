@@ -112,7 +112,7 @@ struct ieee802154_hw {
  *
  * @IEEE802154_HW_RX_OMIT_CKSUM: Indicates that receiver omits FCS.
  *
- * @IEEE802154_HW_RX_DROP_BAD_CKSUM: Indicates that receiver will not filter
+ * @IEEE802154_HW_RX_DROP_BAD_CKSUM: Indicates that receiver will yest filter
  *	frames with bad checksum.
  */
 enum ieee802154_hw_flags {
@@ -147,8 +147,8 @@ enum ieee802154_hw_flags {
  *	  skb cntains the buffer starting from the IEEE 802.15.4 header.
  *	  The low-level driver should send the frame based on available
  *	  configuration. This is called by a workqueue and useful for
- *	  synchronous 802.15.4 drivers.
- *	  This function should return zero or negative errno.
+ *	  synchroyesus 802.15.4 drivers.
+ *	  This function should return zero or negative erryes.
  *
  *	  WARNING:
  *	  This will be deprecated soon. We don't accept synced xmit callbacks
@@ -159,48 +159,48 @@ enum ieee802154_hw_flags {
  *	  skb cntains the buffer starting from the IEEE 802.15.4 header.
  *	  The low-level driver should send the frame based on available
  *	  configuration.
- *	  This function should return zero or negative errno.
+ *	  This function should return zero or negative erryes.
  *
  * ed:    Handler that 802.15.4 module calls for Energy Detection.
  *	  This function should place the value for detected energy
  *	  (usually device-dependant) in the level pointer and return
- *	  either zero or negative errno. Called with pib_lock held.
+ *	  either zero or negative erryes. Called with pib_lock held.
  *
  * set_channel:
  * 	  Set radio for listening on specific channel.
  *	  Set the device for listening on specified channel.
- *	  Returns either zero, or negative errno. Called with pib_lock held.
+ *	  Returns either zero, or negative erryes. Called with pib_lock held.
  *
  * set_hw_addr_filt:
  *	  Set radio for listening on specific address.
  *	  Set the device for listening on specified address.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erryes.
  *
  * set_txpower:
  *	  Set radio transmit power in mBm. Called with pib_lock held.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erryes.
  *
  * set_lbt
  *	  Enables or disables listen before talk on the device. Called with
  *	  pib_lock held.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erryes.
  *
  * set_cca_mode
  *	  Sets the CCA mode used by the device. Called with pib_lock held.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erryes.
  *
  * set_cca_ed_level
  *	  Sets the CCA energy detection threshold in mBm. Called with pib_lock
  *	  held.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erryes.
  *
  * set_csma_params
  *	  Sets the CSMA parameter set for the PHY. Called with pib_lock held.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erryes.
  *
  * set_frame_retries
  *	  Sets the retransmission attempt limit. Called with pib_lock held.
- *	  Returns either zero, or negative errno.
+ *	  Returns either zero, or negative erryes.
  *
  * set_promiscuous_mode
  *	  Enables or disable promiscuous mode.
@@ -295,7 +295,7 @@ static inline unsigned char *ieee802154_skb_src_pan(__le16 fc,
 		break;
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_SHORT):
 	case cpu_to_le16(IEEE802154_FCTL_SADDR_EXTENDED):
-		/* if intra-pan and source addr mode is non none,
+		/* if intra-pan and source addr mode is yesn yesne,
 		 * then source pan id is equal destination pan id.
 		 */
 		if (ieee802154_is_intra_pan(fc)) {
@@ -350,7 +350,7 @@ static inline bool ieee802154_skb_is_intra_pan_addressing(__le16 fc,
 	unsigned char *dst_pan = ieee802154_skb_dst_pan(fc, skb),
 		      *src_pan = ieee802154_skb_src_pan(fc, skb);
 
-	/* if one is NULL is no intra pan addressing */
+	/* if one is NULL is yes intra pan addressing */
 	if (!dst_pan || !src_pan)
 		return false;
 

@@ -237,7 +237,7 @@ static int snd_opl3sa2_detect(struct snd_card *card)
 		/* 0x03 - YM715B */
 		/* 0x04 - YM719 - OPL-SA4? */
 		/* 0x05 - OPL3-SA3 - Libretto 100 */
-		/* 0x07 - unknown - Neomagic MagicWave 3D */
+		/* 0x07 - unkyeswn - Neomagic MagicWave 3D */
 		break;
 	}
 	str[0] = chip->version + '0';
@@ -314,9 +314,9 @@ static irqreturn_t snd_opl3sa2_interrupt(int irq, void *dev_id)
 		snd_opl3sa2_read(chip, OPL3SA2_MASTER_RIGHT);
 		snd_opl3sa2_read(chip, OPL3SA2_MASTER_LEFT);
 		if (chip->master_switch && chip->master_volume) {
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 					&chip->master_switch->id);
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 					&chip->master_volume->id);
 		}
 	}
@@ -495,26 +495,26 @@ static int snd_opl3sa2_mixer(struct snd_card *card)
         strcpy(id1.name, "Aux Playback Switch");
         strcpy(id2.name, "CD Playback Switch");
         if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0) {
-		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
+		snd_printk(KERN_ERR "Canyest rename opl3sa2 control\n");
                 return err;
 	}
         strcpy(id1.name, "Aux Playback Volume");
         strcpy(id2.name, "CD Playback Volume");
         if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0) {
-		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
+		snd_printk(KERN_ERR "Canyest rename opl3sa2 control\n");
                 return err;
 	}
 	/* reassign AUX1 to FM */
         strcpy(id1.name, "Aux Playback Switch"); id1.index = 1;
         strcpy(id2.name, "FM Playback Switch");
         if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0) {
-		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
+		snd_printk(KERN_ERR "Canyest rename opl3sa2 control\n");
                 return err;
 	}
         strcpy(id1.name, "Aux Playback Volume");
         strcpy(id2.name, "FM Playback Volume");
         if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0) {
-		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
+		snd_printk(KERN_ERR "Canyest rename opl3sa2 control\n");
                 return err;
 	}
 	/* add OPL3SA2 controls */
@@ -664,7 +664,7 @@ static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 			     xirq, xdma1, xdma2,
 			     WSS_HW_OPL3SA2, WSS_HWSHARE_IRQ, &wss);
 	if (err < 0) {
-		snd_printd("Oops, WSS not detected at 0x%lx\n", wss_port[dev] + 4);
+		snd_printd("Oops, WSS yest detected at 0x%lx\n", wss_port[dev] + 4);
 		return err;
 	}
 	chip->wss = wss;
@@ -714,7 +714,7 @@ static int snd_opl3sa2_pnp_detect(struct pnp_dev *pdev,
 	struct snd_card *card;
 
 	if (pnp_device_is_isapnp(pdev))
-		return -ENOENT;	/* we have another procedure - card */
+		return -ENOENT;	/* we have ayesther procedure - card */
 	for (; dev < SNDRV_CARDS; dev++) {
 		if (enable[dev] && isapnp[dev])
 			break;

@@ -258,7 +258,7 @@ static void rda_uart_set_termios(struct uart_port *port,
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
 	case CS6:
-		dev_warn(port->dev, "bit size not supported, using 7 bits\n");
+		dev_warn(port->dev, "bit size yest supported, using 7 bits\n");
 		/* Fall through */
 	case CS7:
 		ctrl &= ~RDA_UART_DBITS_8;
@@ -498,7 +498,7 @@ static int rda_uart_request_port(struct uart_port *port)
 		return -EBUSY;
 
 	if (port->flags & UPF_IOREMAP) {
-		port->membase = devm_ioremap_nocache(port->dev, port->mapbase,
+		port->membase = devm_ioremap_yescache(port->dev, port->mapbase,
 						     resource_size(res));
 		if (!port->membase)
 			return -EBUSY;
@@ -518,7 +518,7 @@ static void rda_uart_config_port(struct uart_port *port, int flags)
 
 	spin_lock_irqsave(&port->lock, irq_flags);
 
-	/* Clear mask, so no surprise interrupts. */
+	/* Clear mask, so yes surprise interrupts. */
 	rda_uart_write(port, 0, RDA_UART_IRQ_MASK);
 
 	/* Clear status register */
@@ -720,8 +720,8 @@ static int rda_uart_probe(struct platform_device *pdev)
 	struct rda_uart_port *rda_port;
 	int ret, irq;
 
-	if (pdev->dev.of_node)
-		pdev->id = of_alias_get_id(pdev->dev.of_node, "serial");
+	if (pdev->dev.of_yesde)
+		pdev->id = of_alias_get_id(pdev->dev.of_yesde, "serial");
 
 	if (pdev->id < 0 || pdev->id >= RDA_UART_PORT_NUM) {
 		dev_err(&pdev->dev, "id %d out of range\n", pdev->id);
@@ -730,7 +730,7 @@ static int rda_uart_probe(struct platform_device *pdev)
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_mem) {
-		dev_err(&pdev->dev, "could not get mem\n");
+		dev_err(&pdev->dev, "could yest get mem\n");
 		return -ENODEV;
 	}
 
@@ -749,7 +749,7 @@ static int rda_uart_probe(struct platform_device *pdev)
 
 	rda_port->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(rda_port->clk)) {
-		dev_err(&pdev->dev, "could not get clk\n");
+		dev_err(&pdev->dev, "could yest get clk\n");
 		return PTR_ERR(rda_port->clk);
 	}
 

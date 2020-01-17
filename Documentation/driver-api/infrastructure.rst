@@ -25,7 +25,7 @@ Device Drivers Base
 .. kernel-doc:: drivers/base/class.c
    :export:
 
-.. kernel-doc:: drivers/base/node.c
+.. kernel-doc:: drivers/base/yesde.c
    :internal:
 
 .. kernel-doc:: drivers/base/firmware_loader/main.c

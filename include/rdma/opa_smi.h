@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -96,18 +96,18 @@ struct opa_smp {
 #define OPA_ATTRIB_ID_BUFFER_CONTROL_TABLE	cpu_to_be16(0x008A)
 /* ... */
 
-struct opa_node_description {
+struct opa_yesde_description {
 	u8 data[64];
 } __packed;
 
-struct opa_node_info {
+struct opa_yesde_info {
 	u8      base_version;
 	u8      class_version;
-	u8      node_type;
+	u8      yesde_type;
 	u8      num_ports;
 	__be32  reserved;
 	__be64  system_image_guid;
-	__be64  node_guid;
+	__be64  yesde_guid;
 	__be64  port_guid;
 	__be16  partition_cap;
 	__be16  device_id;

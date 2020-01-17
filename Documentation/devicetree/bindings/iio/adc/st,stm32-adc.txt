@@ -18,7 +18,7 @@ own configurable sequence and trigger:
   interrupt regular conversion sequence (either triggered in SW or HW).
   Regular sequence is resumed, in case it has been interrupted.
 
-Contents of a stm32 adc root node:
+Contents of a stm32 adc root yesde:
 -----------------------------------
 Required properties:
 - compatible: Should be one of:
@@ -34,10 +34,10 @@ Required properties:
     It's required on stm32f4.
     It's optional on stm32h7.
   - "bus" clock: for registers access, common to all ADCs.
-    It's not present on stm32f4.
+    It's yest present on stm32f4.
     It's required on stm32h7.
 - clock-names: Must be "adc" and/or "bus" depending on part used.
-- interrupt-controller: Identifies the controller node as interrupt-parent
+- interrupt-controller: Identifies the controller yesde as interrupt-parent
 - vdda-supply: Phandle to the vdda input analog voltage.
 - vref-supply: Phandle to the vref input analog reference voltage.
 - #interrupt-cells = <1>;
@@ -56,9 +56,9 @@ Optional properties:
 - st,max-clk-rate-hz: Allow to specify desired max clock rate used by analog
   circuitry.
 
-Contents of a stm32 adc child node:
+Contents of a stm32 adc child yesde:
 -----------------------------------
-An ADC block node should contain at least one subnode, representing an
+An ADC block yesde should contain at least one subyesde, representing an
 ADC instance available on the machine.
 
 Required properties:
@@ -95,7 +95,7 @@ Optional properties:
   * can be 6, 8, 10 or 12 on stm32f4
   * can be 8, 10, 12, 14 or 16 on stm32h7
   Default is maximum resolution if unset.
-- st,min-sample-time-nsecs: Minimum sampling time in nanoseconds.
+- st,min-sample-time-nsecs: Minimum sampling time in nayesseconds.
   Depending on hardware (board) e.g. high/low analog input source impedance,
   fine tune of ADC sampling time may be recommended.
   This can be either one value or an array that matches 'st,adc-channels' list,
@@ -130,7 +130,7 @@ Example:
 			assigned-resolution-bits = <8>;
 		};
 		...
-		other adc child nodes follow...
+		other adc child yesdes follow...
 	};
 
 Example to setup:

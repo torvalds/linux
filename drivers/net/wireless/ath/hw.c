@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -32,12 +32,12 @@
  * which bits of the interface's MAC address should be looked at when trying
  * to decide which packets to ACK. In station mode and AP mode with a single
  * BSS every bit matters since we lock to only one BSS. In AP mode with
- * multiple BSSes (virtual interfaces) not every bit matters because hw must
+ * multiple BSSes (virtual interfaces) yest every bit matters because hw must
  * accept frames for all BSSes and so we tweak some bits of our mac address
  * in order to have multiple BSSes.
  *
- * NOTE: This is a simple filter and does *not* filter out all
- * relevant frames. Some frames that are not for us might get ACKed from us
+ * NOTE: This is a simple filter and does *yest* filter out all
+ * relevant frames. Some frames that are yest for us might get ACKed from us
  * by PCU because they just match the mask.
  *
  * When handling multiple BSSes you can get the BSSID mask by computing the
@@ -49,8 +49,8 @@
  * (frame's BSSID & mask) to see if they match.
  *
  * Simple example: on your card you have have two BSSes you have created with
- * BSSID-01 and BSSID-02. Lets assume BSSID-01 will not use the MAC address.
- * There is another BSSID-03 but you are not part of it. For simplicity's sake,
+ * BSSID-01 and BSSID-02. Lets assume BSSID-01 will yest use the MAC address.
+ * There is ayesther BSSID-03 but you are yest part of it. For simplicity's sake,
  * assuming only 4 bits for a mac address and for BSSIDs you can then have:
  *
  *                  \
@@ -79,7 +79,7 @@
  * A bssid_mask of 0010 means "only pay attention to the second least
  * significant bit". This is because its the only bit common
  * amongst the MAC and all BSSIDs we support. To findout what the real
- * common bit is we can simply "&" the bssid_mask now with any BSSID we have
+ * common bit is we can simply "&" the bssid_mask yesw with any BSSID we have
  * or our MAC address (we assume the hardware uses the MAC address).
  *
  * Now, suppose there's an incoming frame for BSSID-03:
@@ -87,10 +87,10 @@
  * IFRAME-01:  0110
  *
  * An easy eye-inspeciton of this already should tell you that this frame
- * will not pass our check. This is because the bssid_mask tells the
+ * will yest pass our check. This is because the bssid_mask tells the
  * hardware to only look at the second least significant bit and the
  * common bit amongst the MAC and BSSIDs is 0, this frame has the 2nd LSB
- * as 1, which does not match 0.
+ * as 1, which does yest match 0.
  *
  * So with IFRAME-01 we *assume* the hardware will do:
  *
@@ -99,7 +99,7 @@
  *  --> allow = (0010) == 0000 ? 1 : 0;
  *  --> allow = 0
  *
- *  Lets now test a frame that should work:
+ *  Lets yesw test a frame that should work:
  *
  * IFRAME-02:  0001 (we should allow)
  *
@@ -112,7 +112,7 @@
  *
  * IFRAME-03:  0100 --> allowed
  * IFRAME-04:  1001 --> allowed
- * IFRAME-05:  1101 --> allowed but its not for us!!!
+ * IFRAME-05:  1101 --> allowed but its yest for us!!!
  *
  */
 void ath_hw_setbssidmask(struct ath_common *common)

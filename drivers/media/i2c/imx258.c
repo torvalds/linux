@@ -773,7 +773,7 @@ static int imx258_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		dev_info(&client->dev,
-			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
+			 "ctrl(id:0x%x,val:0x%x) is yest handled\n",
 			 ctrl->id, ctrl->val);
 		ret = -EINVAL;
 		break;
@@ -966,7 +966,7 @@ static int imx258_stop_streaming(struct imx258 *imx258)
 		dev_err(&client->dev, "%s failed to set stream\n", __func__);
 
 	/*
-	 * Return success even if it was an error, as there is nothing the
+	 * Return success even if it was an error, as there is yesthing the
 	 * caller can do about it.
 	 */
 	return 0;
@@ -987,7 +987,7 @@ static int imx258_set_stream(struct v4l2_subdev *sd, int enable)
 	if (enable) {
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+			pm_runtime_put_yesidle(&client->dev);
 			goto err_unlock;
 		}
 
@@ -1207,7 +1207,7 @@ static int imx258_probe(struct i2c_client *client)
 
 	/*
 	 * Check that the device is mounted upside down. The driver only
-	 * supports a single pixel order right now.
+	 * supports a single pixel order right yesw.
 	 */
 	ret = device_property_read_u32(&client->dev, "rotation", &val);
 	if (ret || val != 180)

@@ -60,9 +60,9 @@ struct rt8973a_muic_info {
 
 	/*
 	 * Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * yestify cable state to yestifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should yestify cable state to upper layer.
 	 */
 	struct delayed_work wq_detcable;
 };
@@ -244,12 +244,12 @@ static int rt8973a_muic_set_path(struct rt8973a_muic_info *info,
 					con_sw);
 		if (ret < 0) {
 			dev_err(info->dev,
-				"cannot update DM_CON/DP_CON switch\n");
+				"canyest update DM_CON/DP_CON switch\n");
 			return ret;
 		}
 		break;
 	default:
-		dev_err(info->dev, "Unknown DM_CON/DP_CON switch type (%d)\n",
+		dev_err(info->dev, "Unkyeswn DM_CON/DP_CON switch type (%d)\n",
 				con_sw);
 		return -EINVAL;
 	}
@@ -321,7 +321,7 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 		break;
 	default:
 		dev_err(info->dev,
-			"Cannot handle this event (event:%d)\n", event);
+			"Canyest handle this event (event:%d)\n", event);
 		return -EINVAL;
 	}
 	prev_cable_type = cable_type;
@@ -357,7 +357,7 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 	case RT8973A_MUIC_ADC_UNKNOWN_ACC_4:
 	case RT8973A_MUIC_ADC_UNKNOWN_ACC_5:
 		dev_warn(info->dev,
-			"Unknown accessory type (adc:0x%x)\n", cable_type);
+			"Unkyeswn accessory type (adc:0x%x)\n", cable_type);
 		return 0;
 	case RT8973A_MUIC_ADC_AUDIO_SEND_END_BUTTON:
 	case RT8973A_MUIC_ADC_AUDIO_REMOTE_S1_BUTTON:
@@ -385,7 +385,7 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 		return 0;
 	default:
 		dev_err(info->dev,
-			"Cannot handle this cable_type (adc:0x%x)\n",
+			"Canyest handle this cable_type (adc:0x%x)\n",
 			cable_type);
 		return -EINVAL;
 	}
@@ -477,7 +477,7 @@ static irqreturn_t rt8973a_muic_irq_handler(int irq, void *data)
 	case RT8973A_INT2_OVP_OCP:
 	default:
 		dev_dbg(info->dev,
-			"Cannot handle this interrupt (%d)\n", irq_type);
+			"Canyest handle this interrupt (%d)\n", irq_type);
 		break;
 	}
 
@@ -492,7 +492,7 @@ static void rt8973a_muic_detect_cable_wq(struct work_struct *work)
 				struct rt8973a_muic_info, wq_detcable);
 	int ret;
 
-	/* Notify the state of connector cable or not  */
+	/* Notify the state of connector cable or yest  */
 	ret = rt8973a_muic_cable_handler(info, RT8973A_EVENT_ATTACH);
 	if (ret < 0)
 		dev_warn(info->dev, "failed to detect cable state\n");
@@ -533,7 +533,7 @@ static void rt8973a_init_dev_type(struct rt8973a_muic_info *info)
 		regmap_update_bits(info->regmap, reg, mask, val);
 	}
 
-	/* Check whether RT8973A is auto switching mode or not */
+	/* Check whether RT8973A is auto switching mode or yest */
 	ret = regmap_read(info->regmap, RT8973A_REG_CONTROL1, &data);
 	if (ret) {
 		dev_err(info->dev,
@@ -552,7 +552,7 @@ static void rt8973a_init_dev_type(struct rt8973a_muic_info *info)
 static int rt8973a_muic_i2c_probe(struct i2c_client *i2c,
 				 const struct i2c_device_id *id)
 {
-	struct device_node *np = i2c->dev.of_node;
+	struct device_yesde *np = i2c->dev.of_yesde;
 	struct rt8973a_muic_info *info;
 	int i, ret, irq_flags;
 
@@ -633,9 +633,9 @@ static int rt8973a_muic_i2c_probe(struct i2c_client *i2c,
 	 * Detect accessory after completing the initialization of platform
 	 *
 	 * - Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * yestify cable state to yestifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should yestify cable state to upper layer.
 	 */
 	INIT_DELAYED_WORK(&info->wq_detcable, rt8973a_muic_detect_cable_wq);
 	queue_delayed_work(system_power_efficient_wq, &info->wq_detcable,

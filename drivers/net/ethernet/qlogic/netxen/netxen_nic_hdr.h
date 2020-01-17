@@ -122,7 +122,7 @@ enum {
 	NETXEN_HW_OCM1_CRB_AGT_ADR = 0x07
 };
 
-/*  Floaters - non existent modules */
+/*  Floaters - yesn existent modules */
 #define NETXEN_HW_EFC_RPMX0_CRB_AGT_ADR	0x67
 
 /*  This field defines PCI/X adr [25:20] of agents on the CRB */
@@ -780,7 +780,7 @@ enum {
 /*
  * CrbPortPhanCntrHi/Lo is used to pass the address of HostPhantomIndex address
  * which can be read by the Phantom host to get producer/consumer indexes from
- * Phantom/Casper. If it is not HOST_SHARED_MEMORY, then the following
+ * Phantom/Casper. If it is yest HOST_SHARED_MEMORY, then the following
  * registers will be used for the addresses of the ring's shared memory
  * on the Phantom.
  */

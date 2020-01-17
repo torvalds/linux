@@ -16,7 +16,7 @@
 #include "ar-internal.h"
 
 static const struct rxrpc_security *rxrpc_security_types[] = {
-	[RXRPC_SECURITY_NONE]	= &rxrpc_no_security,
+	[RXRPC_SECURITY_NONE]	= &rxrpc_yes_security,
 #ifdef CONFIG_RXKAD
 	[RXRPC_SECURITY_RXKAD]	= &rxkad,
 #endif
@@ -92,7 +92,7 @@ int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 
 	ret = conn->security->init_connection_security(conn);
 	if (ret < 0) {
-		conn->security = &rxrpc_no_security;
+		conn->security = &rxrpc_yes_security;
 		return ret;
 	}
 
@@ -145,9 +145,9 @@ bool rxrpc_look_up_server_security(struct rxrpc_local *local, struct rxrpc_sock 
 	if (IS_ERR(kref)) {
 		trace_rxrpc_abort(0, "SVK",
 				  sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
-				  sec->no_key_abort, EKEYREJECTED);
+				  sec->yes_key_abort, EKEYREJECTED);
 		skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
-		skb->priority = sec->no_key_abort;
+		skb->priority = sec->yes_key_abort;
 		return false;
 	}
 

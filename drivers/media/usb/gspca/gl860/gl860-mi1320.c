@@ -189,7 +189,7 @@ void mi1320_init_settings(struct gspca_dev *gspca_dev)
 	sd->vmax.backlight  =  2;
 	sd->vmax.brightness =  8;
 	sd->vmax.sharpness  =  7;
-	sd->vmax.contrast   =  0; /* 10 but not working with this driver */
+	sd->vmax.contrast   =  0; /* 10 but yest working with this driver */
 	sd->vmax.gamma      = 40;
 	sd->vmax.hue        =  5 + 1;
 	sd->vmax.saturation =  8;
@@ -437,7 +437,7 @@ static int mi1320_camera_settings(struct gspca_dev *gspca_dev)
 	}
 
 	if (hue != sd->vold.hue) {
-		/* 0=normal  1=NB  2="sepia"  3=negative  4=other  5=other2 */
+		/* 0=yesrmal  1=NB  2="sepia"  3=negative  4=other  5=other2 */
 		if (hue < 0 || hue > sd->vmax.hue)
 			hue = 0;
 		if (hue == sd->vmax.hue)

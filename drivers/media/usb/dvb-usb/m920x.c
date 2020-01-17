@@ -42,7 +42,7 @@ static inline int m920x_read(struct usb_device *udev, u8 request, u16 value,
 	}
 
 	if (ret != size) {
-		deb("m920x_read = no data\n");
+		deb("m920x_read = yes data\n");
 		return -EIO;
 	}
 
@@ -204,7 +204,7 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		}
 
 	if (rc_state[1] != 0)
-		deb("Unknown rc key %02x\n", rc_state[1]);
+		deb("Unkyeswn rc key %02x\n", rc_state[1]);
 
 	*state = REMOTE_NO_KEY_PRESSED;
 
@@ -260,7 +260,7 @@ static int m920x_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int nu
 			/* For a 0 byte message, I think sending the address
 			 * to index 0x80|0x40 would be the correct thing to
 			 * do.  However, zero byte messages are only used for
-			 * probing, and since we don't know how to get the
+			 * probing, and since we don't kyesw how to get the
 			 * slave's ack, we can't probe. */
 			ret = -ENOTSUPP;
 			goto unlock;
@@ -367,20 +367,20 @@ static int m920x_update_filters(struct dvb_usb_adapter *adap)
 	return ret;
 }
 
-static int m920x_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int m920x_pid_filter_ctrl(struct dvb_usb_adapter *adap, int oyesff)
 {
 	struct m920x_state *m = adap->dev->priv;
 
-	m->filtering_enabled[adap->id] = onoff ? 1 : 0;
+	m->filtering_enabled[adap->id] = oyesff ? 1 : 0;
 
 	return m920x_update_filters(adap);
 }
 
-static int m920x_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
+static int m920x_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int oyesff)
 {
 	struct m920x_state *m = adap->dev->priv;
 
-	m->filters[adap->id][index] = onoff ? pid : 0;
+	m->filters[adap->id][index] = oyesff ? pid : 0;
 
 	return m920x_update_filters(adap);
 }
@@ -508,7 +508,7 @@ static int m920x_mt352_demod_init(struct dvb_frontend *fe)
 
 static struct mt352_config m920x_mt352_config = {
 	.demod_address = 0x0f,
-	.no_tuner = 1,
+	.yes_tuner = 1,
 	.demod_init = m920x_mt352_demod_init,
 };
 
@@ -564,7 +564,7 @@ static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 static int m920x_mt352_frontend_attach_vp7049(struct dvb_usb_adapter *adap)
 {
 	struct m920x_inits vp7049_fe_init_seq[] = {
-		/* XXX without these commands the frontend cannot be detected,
+		/* XXX without these commands the frontend canyest be detected,
 		 * they must be sent BEFORE the frontend is attached */
 		{ 0xff28,         0x00 },
 		{ 0xff23,         0x00 },
@@ -834,7 +834,7 @@ static int m920x_probe(struct usb_interface *intf,
 		ret = dvb_usb_device_init(intf, &digivox_mini_ii_properties,
 					  THIS_MODULE, &d, adapter_nr);
 		if (ret == 0) {
-			/* No remote control, so no rc_init_seq */
+			/* No remote control, so yes rc_init_seq */
 			goto found;
 		}
 
@@ -849,7 +849,7 @@ static int m920x_probe(struct usb_interface *intf,
 		ret = dvb_usb_device_init(intf, &dposh_properties,
 					  THIS_MODULE, &d, adapter_nr);
 		if (ret == 0) {
-			/* Remote controller not supported yet. */
+			/* Remote controller yest supported yet. */
 			goto found;
 		}
 
@@ -869,11 +869,11 @@ static int m920x_probe(struct usb_interface *intf,
 
 		return ret;
 	} else {
-		/* Another interface on a multi-tuner device */
+		/* Ayesther interface on a multi-tuner device */
 
 		/* The LifeView TV Walker Twin gets here, but struct
 		 * tvwalkertwin_properties already configured both
-		 * tuners, so there is nothing for us to do here
+		 * tuners, so there is yesthing for us to do here
 		 */
 	}
 

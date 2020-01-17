@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * This file describes the structure passed from the BootX application
  * (for MacOS) when it is used to boot Linux.
@@ -95,7 +95,7 @@ typedef struct boot_infos
     __u32       dispDeviceRowBytes;      /* rowbytes (in bytes) */
     __u32       dispDeviceColorsOffset;  /* Colormap (8 bits only) or 0 (*) */
     /* Optional offset in the registry to the current
-     * MacOS display. (Can be 0 when not detected) */
+     * MacOS display. (Can be 0 when yest detected) */
      __u32      dispDeviceRegEntryOffset;
 
     /* Optional pointer to boot ramdisk (offset from this structure) */
@@ -108,7 +108,7 @@ typedef struct boot_infos
     /* ALL BELOW NEW (vers. 4) */
 
     /* This defines the physical memory. Valid with BOOT_ARCH_NUBUS flag
-       (non-PCI) only. On PCI, memory is contiguous and it's size is in the
+       (yesn-PCI) only. On PCI, memory is contiguous and it's size is in the
        device-tree. */
     boot_info_map_entry_t
     	        physMemoryMap[MAX_MEM_MAP_SIZE]; /* Where the phys memory is */

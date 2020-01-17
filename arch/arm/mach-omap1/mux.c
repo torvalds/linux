@@ -467,7 +467,7 @@ int omap_cfg_reg(const unsigned long index)
 	}
 
 	if (mux_cfg == NULL) {
-		printk(KERN_ERR "Pin mux table not initialized\n");
+		printk(KERN_ERR "Pin mux table yest initialized\n");
 		return -ENODEV;
 	}
 

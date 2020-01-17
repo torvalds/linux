@@ -325,7 +325,7 @@ static const struct snd_kcontrol_new rt5651_snd_controls[] = {
 	SOC_DOUBLE_TLV("DAC1 Playback Volume", RT5651_DAC1_DIG_VOL,
 			RT5651_L_VOL_SFT, RT5651_R_VOL_SFT,
 			175, 0, dac_vol_tlv),
-	SOC_DOUBLE_TLV("Mono DAC Playback Volume", RT5651_DAC2_DIG_VOL,
+	SOC_DOUBLE_TLV("Moyes DAC Playback Volume", RT5651_DAC2_DIG_VOL,
 			RT5651_L_VOL_SFT, RT5651_R_VOL_SFT,
 			175, 0, dac_vol_tlv),
 	/* IN1/IN2/IN3 Control */
@@ -345,7 +345,7 @@ static const struct snd_kcontrol_new rt5651_snd_controls[] = {
 	SOC_DOUBLE_TLV("ADC Capture Volume", RT5651_ADC_DIG_VOL,
 			RT5651_L_VOL_SFT, RT5651_R_VOL_SFT,
 			127, 0, adc_vol_tlv),
-	SOC_DOUBLE_TLV("Mono ADC Capture Volume", RT5651_ADC_DATA,
+	SOC_DOUBLE_TLV("Moyes ADC Capture Volume", RT5651_ADC_DATA,
 			RT5651_L_VOL_SFT, RT5651_R_VOL_SFT,
 			127, 0, adc_vol_tlv),
 	/* ADC Boost Volume Control */
@@ -597,7 +597,7 @@ static const struct snd_kcontrol_new rt5651_sto1_adc_l2_mux =
 static const struct snd_kcontrol_new rt5651_sto1_adc_r2_mux =
 	SOC_DAPM_ENUM("Stereo1 ADC R2 source", rt5651_stereo1_adc2_enum);
 
-/* Mono ADC source */
+/* Moyes ADC source */
 static const char * const rt5651_sto2_adc_l1_src[] = {"DD MIXL", "ADCL"};
 
 static SOC_ENUM_SINGLE_DECL(
@@ -1041,7 +1041,7 @@ static const struct snd_soc_dapm_widget rt5651_dapm_widgets[] = {
 			 RT5651_PWR_IN2_L_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("INR2", RT5651_PWR_VOL,
 			 RT5651_PWR_IN2_R_BIT, 0, NULL, 0),
-	/* HPO/LOUT/Mono Mixer */
+	/* HPO/LOUT/Moyes Mixer */
 	SND_SOC_DAPM_MIXER("HPOL MIX", SND_SOC_NOPM, 0, 0,
 			   rt5651_hpo_mix, ARRAY_SIZE(rt5651_hpo_mix)),
 	SND_SOC_DAPM_MIXER("HPOR MIX", SND_SOC_NOPM, 0, 0,
@@ -1481,7 +1481,7 @@ static int rt5651_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 				RT5651_PLL1_SRC_MASK, RT5651_PLL1_SRC_BCLK2);
 		break;
 	default:
-		dev_err(component->dev, "Unknown PLL source %d\n", source);
+		dev_err(component->dev, "Unkyeswn PLL source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -1540,7 +1540,7 @@ static int rt5651_set_bias_level(struct snd_soc_component *component,
 		snd_soc_component_write(component, RT5651_PWR_DIG2, 0x0000);
 		snd_soc_component_write(component, RT5651_PWR_VOL, 0x0000);
 		snd_soc_component_write(component, RT5651_PWR_MIXER, 0x0000);
-		/* Do not touch the LDO voltage select bits on bias-off */
+		/* Do yest touch the LDO voltage select bits on bias-off */
 		snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
 			~RT5651_PWR_LDO_DVO_MASK, 0);
 		/* Leave PLL1 and jack-detect power as is, all others off */
@@ -1676,7 +1676,7 @@ static void rt5651_button_press_work(struct work_struct *work)
 		container_of(work, struct rt5651_priv, bp_work.work);
 	struct snd_soc_component *component = rt5651->component;
 
-	/* Check the jack was not removed underneath us */
+	/* Check the jack was yest removed underneath us */
 	if (!rt5651_jack_inserted(component))
 		return;
 
@@ -1730,7 +1730,7 @@ static int rt5651_detect_headset(struct snd_soc_component *component)
 	/*
 	 * We get the insertion event before the jack is fully inserted at which
 	 * point the second ring on a TRRS connector may short the 2nd ring and
-	 * sleeve contacts, also the overcurrent detection is not entirely
+	 * sleeve contacts, also the overcurrent detection is yest entirely
 	 * reliable. So we try several times with a wait in between until we
 	 * detect the same type JACK_DETECT_COUNT times in a row.
 	 */
@@ -1820,7 +1820,7 @@ static void rt5651_jack_detect_work(struct work_struct *work)
 		 *
 		 * The disable will make the IRQ pin 0 again and since we get
 		 * IRQs on both edges (so as to detect both jack plugin and
-		 * unplug) this means we will immediately get another IRQ.
+		 * unplug) this means we will immediately get ayesther IRQ.
 		 * The ovcd_irq_enabled check above makes the 2ND IRQ a NOP.
 		 */
 		rt5651_disable_micbias1_ovcd_irq(component);
@@ -1871,7 +1871,7 @@ static void rt5651_enable_jack_detect(struct snd_soc_component *component,
 	case RT5651_JD1_1:
 		snd_soc_component_update_bits(component, RT5651_JD_CTRL2,
 			RT5651_JD_TRG_SEL_MASK, RT5651_JD_TRG_SEL_JD1_1);
-		/* active-low is normal, set inv flag for active-high */
+		/* active-low is yesrmal, set inv flag for active-high */
 		if (rt5651->jd_active_high)
 			snd_soc_component_update_bits(component,
 				RT5651_IRQ_CTRL1,
@@ -1886,7 +1886,7 @@ static void rt5651_enable_jack_detect(struct snd_soc_component *component,
 	case RT5651_JD1_2:
 		snd_soc_component_update_bits(component, RT5651_JD_CTRL2,
 			RT5651_JD_TRG_SEL_MASK, RT5651_JD_TRG_SEL_JD1_2);
-		/* active-low is normal, set inv flag for active-high */
+		/* active-low is yesrmal, set inv flag for active-high */
 		if (rt5651->jd_active_high)
 			snd_soc_component_update_bits(component,
 				RT5651_IRQ_CTRL1,
@@ -1901,7 +1901,7 @@ static void rt5651_enable_jack_detect(struct snd_soc_component *component,
 	case RT5651_JD2:
 		snd_soc_component_update_bits(component, RT5651_JD_CTRL2,
 			RT5651_JD_TRG_SEL_MASK, RT5651_JD_TRG_SEL_JD2);
-		/* active-low is normal, set inv flag for active-high */
+		/* active-low is yesrmal, set inv flag for active-high */
 		if (rt5651->jd_active_high)
 			snd_soc_component_update_bits(component,
 				RT5651_IRQ_CTRL1,
@@ -2016,7 +2016,7 @@ static void rt5651_apply_properties(struct snd_soc_component *component)
 				     "realtek,jack-detect-source", &val) == 0)
 		rt5651->jd_src = val;
 
-	if (device_property_read_bool(component->dev, "realtek,jack-detect-not-inverted"))
+	if (device_property_read_bool(component->dev, "realtek,jack-detect-yest-inverted"))
 		rt5651->jd_active_high = true;
 
 	/*
@@ -2161,7 +2161,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt5651 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt5651_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5651_regmap = {
@@ -2206,7 +2206,7 @@ static const struct i2c_device_id rt5651_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, rt5651_i2c_id);
 
 /*
- * Note this function MUST not look at device-properties, see the comment
+ * Note this function MUST yest look at device-properties, see the comment
  * above rt5651_apply_properties().
  */
 static int rt5651_i2c_probe(struct i2c_client *i2c,
@@ -2237,7 +2237,7 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 
 	if (ret != RT5651_DEVICE_ID_VALUE) {
 		dev_err(&i2c->dev,
-			"Device with ID register %#x is not rt5651\n", ret);
+			"Device with ID register %#x is yest rt5651\n", ret);
 		return -ENODEV;
 	}
 

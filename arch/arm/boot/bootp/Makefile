@@ -8,7 +8,7 @@
 
 GCOV_PROFILE	:= n
 
-LDFLAGS_bootp	:= --no-undefined -X \
+LDFLAGS_bootp	:= --yes-undefined -X \
 		 --defsym initrd_phys=$(INITRD_PHYS) \
 		 --defsym params_phys=$(PARAMS_PHYS) -T
 AFLAGS_initrd.o :=-DINITRD=\"$(INITRD)\"
@@ -20,7 +20,7 @@ $(obj)/bootp:	$(src)/bootp.lds $(addprefix $(obj)/,init.o kernel.o initrd.o) FOR
 	$(call if_changed,ld)
 
 # kernel.o and initrd.o includes a binary image using
-# .incbin, a dependency which is not tracked automatically
+# .incbin, a dependency which is yest tracked automatically
 
 $(obj)/kernel.o: arch/arm/boot/zImage FORCE
 

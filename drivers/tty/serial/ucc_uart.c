@@ -9,7 +9,7 @@
  * This driver adds support for UART devices via Freescale's QUICC Engine
  * found on some Freescale SOCs.
  *
- * If Soft-UART support is needed but not already present, then this driver
+ * If Soft-UART support is needed but yest already present, then this driver
  * will request and upload the "Soft-UART" microcode upon probe.  The
  * filename of the microcode should be fsl_qe_ucode_uart_X_YZ.bin, where "X"
  * is the name of the SOC (e.g. 8323), and YZ is the revision of the SOC,
@@ -35,7 +35,7 @@
 #include <asm/reg.h>
 
 /*
- * The GUMR flag for Soft UART.  This would normally be defined in qe.h,
+ * The GUMR flag for Soft UART.  This would yesrmally be defined in qe.h,
  * but Soft-UART is a hack and we want to keep everything related to it in
  * this file.
  */
@@ -54,16 +54,16 @@ static int firmware_loaded;
    mode */
 /* #define LOOPBACK */
 
-/* The major and minor device numbers are defined in
+/* The major and miyesr device numbers are defined in
  * http://www.lanana.org/docs/device-list/devices-2.6+.txt.  For the QE
- * UART, we have major number 204 and minor numbers 46 - 49, which are the
- * same as for the CPM2.  This decision was made because no Freescale part
+ * UART, we have major number 204 and miyesr numbers 46 - 49, which are the
+ * same as for the CPM2.  This decision was made because yes Freescale part
  * has both a CPM and a QE.
  */
 #define SERIAL_QE_MAJOR 204
 #define SERIAL_QE_MINOR 46
 
-/* Since we only have minor numbers 46 - 49, there is a hard limit of 4 ports */
+/* Since we only have miyesr numbers 46 - 49, there is a hard limit of 4 ports */
 #define UCC_MAX_UART    4
 
 /* The number of buffer descriptors for receiving characters. */
@@ -93,7 +93,7 @@ struct ucc_uart_pram {
 	__be16 brkcr;   	/* Break count register */
 	__be16 parec;   	/* receive parity error counter */
 	__be16 frmec;   	/* receive framing error counter */
-	__be16 nosec;   	/* receive noise counter */
+	__be16 yessec;   	/* receive yesise counter */
 	__be16 brkec;   	/* receive break condition counter */
 	__be16 brkln;   	/* last received break length */
 	__be16 uaddr[2];	/* UART address character 1 & 2 */
@@ -176,8 +176,8 @@ struct uart_qe_port {
 	struct ucc_uart_pram __iomem *uccup;
 	struct ucc_slow_info us_info;
 	struct ucc_slow_private *us_private;
-	struct device_node *np;
-	unsigned int ucc_num;   /* First ucc is 0, not 1 */
+	struct device_yesde *np;
+	unsigned int ucc_num;   /* First ucc is 0, yest 1 */
 
 	u16 rx_nrfifos;
 	u16 rx_fifosize;
@@ -201,7 +201,7 @@ static struct uart_driver ucc_uart_driver = {
 	.driver_name    = "ucc_uart",
 	.dev_name       = "ttyQE",
 	.major  	= SERIAL_QE_MAJOR,
-	.minor  	= SERIAL_QE_MINOR,
+	.miyesr  	= SERIAL_QE_MINOR,
 	.nr     	= UCC_MAX_UART,
 };
 
@@ -245,9 +245,9 @@ static inline void *qe2cpu_addr(dma_addr_t addr, struct uart_qe_port *qe_port)
 /*
  * Return 1 if the QE is done transmitting all buffers for this port
  *
- * This function scans each BD in sequence.  If we find a BD that is not
+ * This function scans each BD in sequence.  If we find a BD that is yest
  * ready (READY=1), then we return 0 indicating that the QE is still sending
- * data.  If we reach the last BD (WRAP=1), then we know we've scanned
+ * data.  If we reach the last BD (WRAP=1), then we kyesw we've scanned
  * the entire list, and all BDs are done.
  */
 static unsigned int qe_uart_tx_empty(struct uart_port *port)
@@ -258,7 +258,7 @@ static unsigned int qe_uart_tx_empty(struct uart_port *port)
 
 	while (1) {
 		if (in_be16(&bdp->status) & BD_SC_READY)
-			/* This BD is not done, so return "not done" */
+			/* This BD is yest done, so return "yest done" */
 			return 0;
 
 		if (in_be16(&bdp->status) & BD_SC_WRAP)
@@ -298,8 +298,8 @@ static unsigned int qe_uart_get_mctrl(struct uart_port *port)
 /*
  * Disable the transmit interrupt.
  *
- * Although this function is called "stop_tx", it does not actually stop
- * transmission of data.  Instead, it tells the QE to not generate an
+ * Although this function is called "stop_tx", it does yest actually stop
+ * transmission of data.  Instead, it tells the QE to yest generate an
  * interrupt when the UCC is finished sending characters.
  */
 static void qe_uart_stop_tx(struct uart_port *port)
@@ -316,11 +316,11 @@ static void qe_uart_stop_tx(struct uart_port *port)
  * This function will attempt to stuff of all the characters from the
  * kernel's transmit buffer into TX BDs.
  *
- * A return value of non-zero indicates that it successfully stuffed all
+ * A return value of yesn-zero indicates that it successfully stuffed all
  * characters from the kernel buffer.
  *
  * A return value of zero indicates that there are still characters in the
- * kernel's buffer that have not been transmitted, but there are no more BDs
+ * kernel's buffer that have yest been transmitted, but there are yes more BDs
  * available.  This function should be called again after a BD has been made
  * available.
  */
@@ -478,11 +478,11 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 		/* get number of characters, and check space in RX buffer */
 		i = in_be16(&bdp->length);
 
-		/* If we don't have enough room in RX buffer for the entire BD,
+		/* If we don't have eyesugh room in RX buffer for the entire BD,
 		 * then we try later, which will be the next RX interrupt.
 		 */
 		if (tty_buffer_request_room(tport, i) < i) {
-			dev_dbg(port->dev, "ucc-uart: no room in RX buffer\n");
+			dev_dbg(port->dev, "ucc-uart: yes room in RX buffer\n");
 			return;
 		}
 
@@ -537,7 +537,7 @@ handle_error:
 	if (status & BD_SC_OV)
 		port->icount.overrun++;
 
-	/* Mask out ignored conditions */
+	/* Mask out igyesred conditions */
 	status &= port->read_status_mask;
 
 	/* Handle the remaining ones */
@@ -548,7 +548,7 @@ handle_error:
 	else if (status & BD_SC_FR)
 		flg = TTY_FRAME;
 
-	/* Overrun does not affect the current character ! */
+	/* Overrun does yest affect the current character ! */
 	if (status & BD_SC_OV)
 		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 #ifdef SUPPORT_SYSRQ
@@ -664,7 +664,7 @@ static void qe_uart_init_ucc(struct uart_qe_port *qe_port)
 	out_be16(&uccup->brkcr, 1);
 	out_be16(&uccup->parec, 0);
 	out_be16(&uccup->frmec, 0);
-	out_be16(&uccup->nosec, 0);
+	out_be16(&uccup->yessec, 0);
 	out_be16(&uccup->brkec, 0);
 	out_be16(&uccup->uaddr[0], 0);
 	out_be16(&uccup->uaddr[1], 0);
@@ -784,7 +784,7 @@ static int qe_uart_startup(struct uart_port *port)
 	 * firmware has been uploaded first.
 	 */
 	if (soft_uart && !firmware_loaded) {
-		dev_err(port->dev, "Soft-UART firmware not uploaded\n");
+		dev_err(port->dev, "Soft-UART firmware yest uploaded\n");
 		return -ENODEV;
 	}
 
@@ -795,7 +795,7 @@ static int qe_uart_startup(struct uart_port *port)
 	ret = request_irq(port->irq, qe_uart_int, IRQF_SHARED, "ucc-uart",
 		qe_port);
 	if (ret) {
-		dev_err(port->dev, "could not claim IRQ %u\n", port->irq);
+		dev_err(port->dev, "could yest claim IRQ %u\n", port->irq);
 		return ret;
 	}
 
@@ -928,22 +928,22 @@ static void qe_uart_set_termios(struct uart_port *port,
 		port->read_status_mask |= BD_SC_BR;
 
 	/*
-	 * Characters to ignore
+	 * Characters to igyesre
 	 */
-	port->ignore_status_mask = 0;
+	port->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= BD_SC_PR | BD_SC_FR;
+		port->igyesre_status_mask |= BD_SC_PR | BD_SC_FR;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= BD_SC_BR;
+		port->igyesre_status_mask |= BD_SC_BR;
 		/*
-		 * If we're ignore parity and break indicators, ignore
+		 * If we're igyesre parity and break indicators, igyesre
 		 * overruns too.  (For real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= BD_SC_OV;
+			port->igyesre_status_mask |= BD_SC_OV;
 	}
 	/*
-	 * !!! ignore all characters if CREAD is not set
+	 * !!! igyesre all characters if CREAD is yest set
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
 		port->read_status_mask &= ~BD_SC_EMPTY;
@@ -996,7 +996,7 @@ static int qe_uart_request_port(struct uart_port *port)
 
 	ret = ucc_slow_init(us_info, &uccs);
 	if (ret) {
-		dev_err(port->dev, "could not initialize UCC%u\n",
+		dev_err(port->dev, "could yest initialize UCC%u\n",
 		       qe_port->ucc_num);
 		return ret;
 	}
@@ -1017,7 +1017,7 @@ static int qe_uart_request_port(struct uart_port *port)
 	bd_virt = dma_alloc_coherent(port->dev, rx_size + tx_size, &bd_dma_addr,
 		GFP_KERNEL);
 	if (!bd_virt) {
-		dev_err(port->dev, "could not allocate buffer descriptors\n");
+		dev_err(port->dev, "could yest allocate buffer descriptors\n");
 		return -ENOMEM;
 	}
 
@@ -1126,13 +1126,13 @@ static const struct uart_ops qe_uart_pops = {
  */
 static unsigned int soc_info(unsigned int *rev_h, unsigned int *rev_l)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const char *soc_string;
 	unsigned int svr;
 	unsigned int soc;
 
-	/* Find the CPU node */
-	np = of_find_node_by_type(NULL, "cpu");
+	/* Find the CPU yesde */
+	np = of_find_yesde_by_type(NULL, "cpu");
 	if (!np)
 		return 0;
 	/* Find the compatible property */
@@ -1154,7 +1154,7 @@ static unsigned int soc_info(unsigned int *rev_h, unsigned int *rev_l)
 }
 
 /*
- * requst_firmware_nowait() callback function
+ * requst_firmware_yeswait() callback function
  *
  * This function is called by the kernel when a firmware is made available,
  * or if it times out waiting for the firmware.
@@ -1166,7 +1166,7 @@ static void uart_firmware_cont(const struct firmware *fw, void *context)
 	int ret;
 
 	if (!fw) {
-		dev_err(dev, "firmware not found\n");
+		dev_err(dev, "firmware yest found\n");
 		return;
 	}
 
@@ -1179,7 +1179,7 @@ static void uart_firmware_cont(const struct firmware *fw, void *context)
 
 	ret = qe_upload_firmware(firmware);
 	if (ret) {
-		dev_err(dev, "could not load firmware\n");
+		dev_err(dev, "could yest load firmware\n");
 		goto out;
 	}
 
@@ -1190,7 +1190,7 @@ static void uart_firmware_cont(const struct firmware *fw, void *context)
 
 static int ucc_uart_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	const unsigned int *iprop;      /* Integer OF properties */
 	const char *sprop;      /* String OF properties */
 	struct uart_qe_port *qe_port = NULL;
@@ -1225,7 +1225,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 
 			soc = soc_info(&rev_h, &rev_l);
 			if (!soc) {
-				dev_err(&ofdev->dev, "unknown CPU model\n");
+				dev_err(&ofdev->dev, "unkyeswn CPU model\n");
 				return -ENXIO;
 			}
 			sprintf(filename, "fsl_qe_ucode_uart_%u_%u%u.bin",
@@ -1235,18 +1235,18 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 				filename);
 
 			/*
-			 * We call request_firmware_nowait instead of
+			 * We call request_firmware_yeswait instead of
 			 * request_firmware so that the driver can load and
 			 * initialize the ports without holding up the rest of
 			 * the kernel.  If hotplug support is enabled in the
 			 * kernel, then we use it.
 			 */
-			ret = request_firmware_nowait(THIS_MODULE,
+			ret = request_firmware_yeswait(THIS_MODULE,
 				FW_ACTION_HOTPLUG, filename, &ofdev->dev,
 				GFP_KERNEL, &ofdev->dev, uart_firmware_cont);
 			if (ret) {
 				dev_err(&ofdev->dev,
-					"could not load firmware %s\n",
+					"could yest load firmware %s\n",
 					filename);
 				return ret;
 			}
@@ -1286,15 +1286,15 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 	}
 
 	if ((*iprop < 1) || (*iprop > UCC_MAX_NUM)) {
-		dev_err(&ofdev->dev, "no support for UCC%u\n", *iprop);
+		dev_err(&ofdev->dev, "yes support for UCC%u\n", *iprop);
 		ret = -ENODEV;
 		goto out_free;
 	}
 	qe_port->ucc_num = *iprop - 1;
 
 	/*
-	 * In the future, we should not require the BRG to be specified in the
-	 * device tree.  If no clock-source is specified, then just pick a BRG
+	 * In the future, we should yest require the BRG to be specified in the
+	 * device tree.  If yes clock-source is specified, then just pick a BRG
 	 * to use.  This requires a new QE library function that manages BRG
 	 * assignments.
 	 */
@@ -1350,7 +1350,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 
 	qe_port->port.irq = irq_of_parse_and_map(np, 0);
 	if (qe_port->port.irq == 0) {
-		dev_err(&ofdev->dev, "could not map IRQ for UCC%u\n",
+		dev_err(&ofdev->dev, "could yest map IRQ for UCC%u\n",
 		       qe_port->ucc_num + 1);
 		ret = -EINVAL;
 		goto out_free;
@@ -1358,13 +1358,13 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 
 	/*
 	 * Newer device trees have an "fsl,qe" compatible property for the QE
-	 * node, but we still need to support older device trees.
+	 * yesde, but we still need to support older device trees.
 	 */
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,qe");
 	if (!np) {
-		np = of_find_node_by_type(NULL, "qe");
+		np = of_find_yesde_by_type(NULL, "qe");
 		if (!np) {
-			dev_err(&ofdev->dev, "could not find 'qe' node\n");
+			dev_err(&ofdev->dev, "could yest find 'qe' yesde\n");
 			ret = -EINVAL;
 			goto out_free;
 		}
@@ -1382,7 +1382,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 		qe_port->port.uartclk = *iprop;
 	else {
 		/*
-		 * Older versions of U-Boot do not initialize the brg-frequency
+		 * Older versions of U-Boot do yest initialize the brg-frequency
 		 * property, so in this case we assume the BRG frequency is
 		 * half the QE bus frequency.
 		 */
@@ -1435,7 +1435,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 	 */
 	ret = uart_add_one_port(&ucc_uart_driver, &qe_port->port);
 	if (ret) {
-		dev_err(&ofdev->dev, "could not add /dev/ttyQE%u\n",
+		dev_err(&ofdev->dev, "could yest add /dev/ttyQE%u\n",
 		       qe_port->port.line);
 		goto out_np;
 	}
@@ -1445,14 +1445,14 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 	dev_info(&ofdev->dev, "UCC%u assigned to /dev/ttyQE%u\n",
 		qe_port->ucc_num + 1, qe_port->port.line);
 
-	/* Display the mknod command for this device */
-	dev_dbg(&ofdev->dev, "mknod command is 'mknod /dev/ttyQE%u c %u %u'\n",
+	/* Display the mkyesd command for this device */
+	dev_dbg(&ofdev->dev, "mkyesd command is 'mkyesd /dev/ttyQE%u c %u %u'\n",
 	       qe_port->port.line, SERIAL_QE_MAJOR,
 	       SERIAL_QE_MINOR + qe_port->port.line);
 
 	return 0;
 out_np:
-	of_node_put(np);
+	of_yesde_put(np);
 out_free:
 	kfree(qe_port);
 	return ret;
@@ -1503,14 +1503,14 @@ static int __init ucc_uart_init(void)
 
 	ret = uart_register_driver(&ucc_uart_driver);
 	if (ret) {
-		printk(KERN_ERR "ucc-uart: could not register UART driver\n");
+		printk(KERN_ERR "ucc-uart: could yest register UART driver\n");
 		return ret;
 	}
 
 	ret = platform_driver_register(&ucc_uart_of_driver);
 	if (ret) {
 		printk(KERN_ERR
-		       "ucc-uart: could not register platform driver\n");
+		       "ucc-uart: could yest register platform driver\n");
 		uart_unregister_driver(&ucc_uart_driver);
 	}
 

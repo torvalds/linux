@@ -2,7 +2,7 @@
 /*
   USB Driver for GSM modems
 
-  Copyright (C) 2005  Matthias Urlichs <smurf@smurf.noris.de>
+  Copyright (C) 2005  Matthias Urlichs <smurf@smurf.yesris.de>
 
   Portions copied from the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 
@@ -10,10 +10,10 @@
 
   Work sponsored by: Sigos GmbH, Germany <info@sigos.de>
 
-  This driver exists because the "normal" serial driver doesn't work too well
+  This driver exists because the "yesrmal" serial driver doesn't work too well
   with GSM modems. Issues:
-  - data loss -- one single Receive URB is not nearly enough
-  - nonstandard flow (Option devices) control
+  - data loss -- one single Receive URB is yest nearly eyesugh
+  - yesnstandard flow (Option devices) control
   - controlling the baud rate doesn't make sense
 
   This driver is named "option" because the most common device it's
@@ -21,16 +21,16 @@
   which the GSM interface sits), made by Option Inc.
 
   Some of the "one port" devices actually exhibit multiple USB instances
-  on the USB bus. This is not a bug, these ports are used for different
+  on the USB bus. This is yest a bug, these ports are used for different
   device features.
 */
 
-#define DRIVER_AUTHOR "Matthias Urlichs <smurf@smurf.noris.de>"
+#define DRIVER_AUTHOR "Matthias Urlichs <smurf@smurf.yesris.de>"
 #define DRIVER_DESC "USB Driver for GSM modems"
 
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/slab.h>
@@ -101,9 +101,9 @@ static void option_instat_callback(struct urb *urb);
  * NOVATEL WIRELESS PRODUCTS
  *
  * Note from Novatel Wireless:
- * If your Novatel modem does not work on linux, don't
+ * If your Novatel modem does yest work on linux, don't
  * change the option module, but check our website. If
- * that does not help, contact ddeschepper@nvtl.com
+ * that does yest help, contact ddeschepper@nvtl.com
 */
 /* MERLIN EVDO PRODUCTS */
 #define NOVATELWIRELESS_PRODUCT_V640		0x1100
@@ -132,7 +132,7 @@ static void option_instat_callback(struct urb *urb);
 /*
  * Note from Novatel Wireless:
  * All PID in the 5xxx range are currently reserved for
- * auto-install CDROMs, and should not be added to this
+ * auto-install CDROMs, and should yest be added to this
  * module.
  *
  * #define NOVATELWIRELESS_PRODUCT_U727		0x5010
@@ -541,7 +541,7 @@ static void option_instat_callback(struct urb *urb);
 #define CHANGHONG_VENDOR_ID			0x2077
 #define CHANGHONG_PRODUCT_CH690			0x7001
 
-/* Inovia */
+/* Iyesvia */
 #define INOVIA_VENDOR_ID			0x20a6
 #define INOVIA_SEW858				0x1105
 
@@ -558,7 +558,7 @@ static void option_instat_callback(struct urb *urb);
 
 /* Device flags */
 
-/* Interface does not support modem-control requests */
+/* Interface does yest support modem-control requests */
 #define NCTRL(ifnum)	((BIT(ifnum) & 0xff) << 8)
 
 /* Interface is reserved */

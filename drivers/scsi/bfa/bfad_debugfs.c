@@ -18,8 +18,8 @@
  * BFA debufs interface
  *
  * To access the interface, debugfs file system should be mounted
- * if not already mounted using:
- * mount -t debugfs none /sys/kernel/debug
+ * if yest already mounted using:
+ * mount -t debugfs yesne /sys/kernel/debug
  *
  * BFA Hierarchy:
  *	- bfa/pci_dev:<pci_name>
@@ -40,9 +40,9 @@ struct bfad_debug_info {
 };
 
 static int
-bfad_debugfs_open_drvtrc(struct inode *inode, struct file *file)
+bfad_debugfs_open_drvtrc(struct iyesde *iyesde, struct file *file)
 {
-	struct bfad_port_s *port = inode->i_private;
+	struct bfad_port_s *port = iyesde->i_private;
 	struct bfad_s *bfad = port->bfad;
 	struct bfad_debug_info *debug;
 
@@ -59,9 +59,9 @@ bfad_debugfs_open_drvtrc(struct inode *inode, struct file *file)
 }
 
 static int
-bfad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
+bfad_debugfs_open_fwtrc(struct iyesde *iyesde, struct file *file)
 {
-	struct bfad_port_s *port = inode->i_private;
+	struct bfad_port_s *port = iyesde->i_private;
 	struct bfad_s *bfad = port->bfad;
 	struct bfad_debug_info *fw_debug;
 	unsigned long flags;
@@ -77,7 +77,7 @@ bfad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 	if (!fw_debug->debug_buffer) {
 		kfree(fw_debug);
 		printk(KERN_INFO "bfad[%d]: Failed to allocate fwtrc buffer\n",
-				bfad->inst_no);
+				bfad->inst_yes);
 		return -ENOMEM;
 	}
 
@@ -91,7 +91,7 @@ bfad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 		fw_debug->debug_buffer = NULL;
 		kfree(fw_debug);
 		printk(KERN_INFO "bfad[%d]: Failed to collect fwtrc\n",
-				bfad->inst_no);
+				bfad->inst_yes);
 		return -ENOMEM;
 	}
 
@@ -101,9 +101,9 @@ bfad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 }
 
 static int
-bfad_debugfs_open_fwsave(struct inode *inode, struct file *file)
+bfad_debugfs_open_fwsave(struct iyesde *iyesde, struct file *file)
 {
-	struct bfad_port_s *port = inode->i_private;
+	struct bfad_port_s *port = iyesde->i_private;
 	struct bfad_s *bfad = port->bfad;
 	struct bfad_debug_info *fw_debug;
 	unsigned long flags;
@@ -119,7 +119,7 @@ bfad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 	if (!fw_debug->debug_buffer) {
 		kfree(fw_debug);
 		printk(KERN_INFO "bfad[%d]: Failed to allocate fwsave buffer\n",
-				bfad->inst_no);
+				bfad->inst_yes);
 		return -ENOMEM;
 	}
 
@@ -133,7 +133,7 @@ bfad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 		fw_debug->debug_buffer = NULL;
 		kfree(fw_debug);
 		printk(KERN_INFO "bfad[%d]: Failed to collect fwsave\n",
-				bfad->inst_no);
+				bfad->inst_yes);
 		return -ENOMEM;
 	}
 
@@ -143,7 +143,7 @@ bfad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 }
 
 static int
-bfad_debugfs_open_reg(struct inode *inode, struct file *file)
+bfad_debugfs_open_reg(struct iyesde *iyesde, struct file *file)
 {
 	struct bfad_debug_info *reg_debug;
 
@@ -151,7 +151,7 @@ bfad_debugfs_open_reg(struct inode *inode, struct file *file)
 	if (!reg_debug)
 		return -ENOMEM;
 
-	reg_debug->i_private = inode->i_private;
+	reg_debug->i_private = iyesde->i_private;
 
 	file->private_data = reg_debug;
 
@@ -258,7 +258,7 @@ bfad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	if (rc < 2 || len > (UINT_MAX >> 2)) {
 		printk(KERN_INFO
 			"bfad[%d]: %s failed to read user buf\n",
-			bfad->inst_no, __func__);
+			bfad->inst_yes, __func__);
 		kfree(kern_buf);
 		return -EINVAL;
 	}
@@ -271,7 +271,7 @@ bfad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	bfad->regdata = kzalloc(len << 2, GFP_KERNEL);
 	if (!bfad->regdata) {
 		printk(KERN_INFO "bfad[%d]: Failed to allocate regrd buffer\n",
-				bfad->inst_no);
+				bfad->inst_yes);
 		return -ENOMEM;
 	}
 
@@ -283,7 +283,7 @@ bfad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	rc = bfad_reg_offset_check(bfa, addr, len);
 	if (rc) {
 		printk(KERN_INFO "bfad[%d]: Failed reg offset check\n",
-				bfad->inst_no);
+				bfad->inst_yes);
 		kfree(bfad->regdata);
 		bfad->regdata = NULL;
 		bfad->reglen = 0;
@@ -325,7 +325,7 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 	if (rc < 2) {
 		printk(KERN_INFO
 			"bfad[%d]: %s failed to read user buf\n",
-			bfad->inst_no, __func__);
+			bfad->inst_yes, __func__);
 		kfree(kern_buf);
 		return -EINVAL;
 	}
@@ -338,7 +338,7 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 	if (rc) {
 		printk(KERN_INFO
 			"bfad[%d]: Failed reg offset check\n",
-			bfad->inst_no);
+			bfad->inst_yes);
 		return -EINVAL;
 	}
 
@@ -351,7 +351,7 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 }
 
 static int
-bfad_debugfs_release(struct inode *inode, struct file *file)
+bfad_debugfs_release(struct iyesde *iyesde, struct file *file)
 {
 	struct bfad_debug_info *debug = file->private_data;
 
@@ -364,7 +364,7 @@ bfad_debugfs_release(struct inode *inode, struct file *file)
 }
 
 static int
-bfad_debugfs_release_fwtrc(struct inode *inode, struct file *file)
+bfad_debugfs_release_fwtrc(struct iyesde *iyesde, struct file *file)
 {
 	struct bfad_debug_info *fw_debug = file->private_data;
 

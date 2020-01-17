@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (C) 2019 Marvell Technology Group Ltd.
+ * Copyright (C) 2019 Marvell Techyeslogy Group Ltd.
  *
  * Device Tree file for Marvell Armada AP80x.
  */
@@ -39,7 +39,7 @@
 
 		psci-area@4000000 {
 			reg = <0x0 0x4000000 0x0 0x200000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -240,7 +240,7 @@
 				clock-names = "core";
 				clocks = <&ap_clk 4>;
 				dma-coherent;
-				marvell,xenon-phy-slow-mode;
+				marvell,xeyesn-phy-slow-mode;
 				status = "disabled";
 			};
 

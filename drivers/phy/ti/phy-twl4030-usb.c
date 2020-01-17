@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2004-2007 Texas Instruments
  * Copyright (C) 2008 Nokia Corporation
- * Contact: Felipe Balbi <felipe.balbi@nokia.com>
+ * Contact: Felipe Balbi <felipe.balbi@yeskia.com>
  *
  * Current status:
  *	- HS USB ULPI mode works.
@@ -67,9 +67,9 @@
 #define OTHER_INT_STS			0x8C
 #define OTHER_INT_LATCH			0x8D
 #define OTHER_INT_VB_SESS_VLD		(1 << 7)
-#define OTHER_INT_DM_HI			(1 << 6) /* not valid for "latch" reg */
-#define OTHER_INT_DP_HI			(1 << 5) /* not valid for "latch" reg */
-#define OTHER_INT_BDIS_ACON		(1 << 3) /* not valid for "fall" regs */
+#define OTHER_INT_DM_HI			(1 << 6) /* yest valid for "latch" reg */
+#define OTHER_INT_DP_HI			(1 << 5) /* yest valid for "latch" reg */
+#define OTHER_INT_BDIS_ACON		(1 << 3) /* yest valid for "fall" regs */
 #define OTHER_INT_MANU			(1 << 1)
 #define OTHER_INT_ABNORMAL_STRESS	(1 << 0)
 
@@ -98,7 +98,7 @@
 #define OTHER_FUNC_CTRL2		0xB8
 #define OTHER_FUNC_CTRL2_VBAT_TIMER_EN	(1 << 0)
 
-/* following registers do not have separate _clr and _set registers */
+/* following registers do yest have separate _clr and _set registers */
 #define VBUS_DEBOUNCE			0xC0
 #define ID_DEBOUNCE			0xC1
 #define VBAT_TIMER			0xD3
@@ -133,7 +133,7 @@
 
 static irqreturn_t twl4030_usb_irq(int irq, void *_twl);
 /*
- * If VBUS is valid or ID is ground, then we know a
+ * If VBUS is valid or ID is ground, then we kyesw a
  * cable is present and we need to be runtime-enabled
  */
 static inline bool cable_present(enum musb_vbus_id_status stat)
@@ -254,7 +254,7 @@ static bool twl4030_is_driving_vbus(struct twl4030_usb *twl)
 	ret = twl4030_usb_read(twl, PHY_CLK_CTRL_STS);
 	if (ret < 0 || !(ret & PHY_DPLL_CLK))
 		/*
-		 * if clocks are off, registers are not updated,
+		 * if clocks are off, registers are yest updated,
 		 * but we can assume we don't drive VBUS in this case
 		 */
 		return false;
@@ -390,8 +390,8 @@ static int __maybe_unused twl4030_usb_suspend(struct device *dev)
 
 	/*
 	 * we need enabled runtime on resume,
-	 * so turn irq off here, so we do not get it early
-	 * note: wakeup on usb plug works independently of this
+	 * so turn irq off here, so we do yest get it early
+	 * yeste: wakeup on usb plug works independently of this
 	 */
 	dev_dbg(twl->dev, "%s\n", __func__);
 	disable_irq(twl->irq);
@@ -507,7 +507,7 @@ static int twl4030_usb_ldo_init(struct twl4030_usb *twl)
 	/* Keep VUSB3V1 LDO in sleep state until VBUS/ID change detected*/
 	/*twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER, 0, VUSB_DEDICATED2);*/
 
-	/* input to VUSB3V1 LDO is from VBAT, not VBUS */
+	/* input to VUSB3V1 LDO is from VBAT, yest VBUS */
 	twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER, 0x14, VUSB_DEDICATED1);
 
 	/* Initialize 3.1V regulator */
@@ -600,7 +600,7 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 	}
 
 	if (irq)
-		sysfs_notify(&twl->dev->kobj, NULL, "vbus");
+		sysfs_yestify(&twl->dev->kobj, NULL, "vbus");
 
 	return IRQ_HANDLED;
 }
@@ -671,7 +671,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	struct phy		*phy;
 	int			status, err;
 	struct usb_otg		*otg;
-	struct device_node	*np = pdev->dev.of_node;
+	struct device_yesde	*np = pdev->dev.of_yesde;
 	struct phy_provider	*phy_provider;
 
 	twl = devm_kzalloc(&pdev->dev, sizeof(*twl), GFP_KERNEL);
@@ -734,9 +734,9 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, twl);
 	if (device_create_file(&pdev->dev, &dev_attr_vbus))
-		dev_warn(&pdev->dev, "could not create sysfs file\n");
+		dev_warn(&pdev->dev, "could yest create sysfs file\n");
 
-	ATOMIC_INIT_NOTIFIER_HEAD(&twl->phy.notifier);
+	ATOMIC_INIT_NOTIFIER_HEAD(&twl->phy.yestifier);
 
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 2000);
@@ -744,7 +744,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	/* Our job is to use irqs and status from the power module
-	 * to keep the transceiver disabled when nothing's connected.
+	 * to keep the transceiver disabled when yesthing's connected.
 	 *
 	 * FIXME we actually shouldn't start enabling it until the
 	 * USB controller drivers have said they're ready, by calling
@@ -787,7 +787,7 @@ static int twl4030_usb_remove(struct platform_device *pdev)
 
 	/* idle ulpi before powering off */
 	if (cable_present(twl->linkstat))
-		pm_runtime_put_noidle(twl->dev);
+		pm_runtime_put_yesidle(twl->dev);
 	pm_runtime_mark_last_busy(twl->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(twl->dev);

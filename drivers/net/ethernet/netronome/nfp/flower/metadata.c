@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #include <linux/hash.h>
 #include <linux/hashtable.h>
@@ -13,7 +13,7 @@
 #include "../nfp_app.h"
 
 struct nfp_mask_id_table {
-	struct hlist_node link;
+	struct hlist_yesde link;
 	u32 hash_key;
 	u32 ref_cnt;
 	u8 mask_id;
@@ -25,14 +25,14 @@ struct nfp_fl_flow_table_cmp_arg {
 };
 
 struct nfp_fl_stats_ctx_to_flow {
-	struct rhash_head ht_node;
+	struct rhash_head ht_yesde;
 	u32 stats_cxt;
 	struct nfp_fl_payload *flow;
 };
 
 static const struct rhashtable_params stats_ctx_table_params = {
 	.key_offset	= offsetof(struct nfp_fl_stats_ctx_to_flow, stats_cxt),
-	.head_offset	= offsetof(struct nfp_fl_stats_ctx_to_flow, ht_node),
+	.head_offset	= offsetof(struct nfp_fl_stats_ctx_to_flow, ht_yesde),
 	.key_len	= sizeof(u32),
 };
 
@@ -168,7 +168,7 @@ static int nfp_mask_alloc(struct nfp_app *app, u8 *mask_id)
 
 	/* Checking if buffer is empty. */
 	if (ring->head == ring->tail)
-		goto err_not_found;
+		goto err_yest_found;
 
 	memcpy(&temp_id, &ring->buf[ring->tail], NFP_FLOWER_MASK_ELEMENT_RS);
 	*mask_id = temp_id;
@@ -177,7 +177,7 @@ static int nfp_mask_alloc(struct nfp_app *app, u8 *mask_id)
 				     NFP_FL_MASK_REUSE_TIME_NS);
 
 	if (ktime_before(ktime_get(), reuse_timeout))
-		goto err_not_found;
+		goto err_yest_found;
 
 	memcpy(&ring->buf[ring->tail], &freed_id, NFP_FLOWER_MASK_ELEMENT_RS);
 	ring->tail = (ring->tail + NFP_FLOWER_MASK_ELEMENT_RS) %
@@ -185,7 +185,7 @@ static int nfp_mask_alloc(struct nfp_app *app, u8 *mask_id)
 
 	return 0;
 
-err_not_found:
+err_yest_found:
 	*mask_id = freed_id;
 	return -ENOENT;
 }
@@ -304,7 +304,7 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 
 	err = nfp_get_stats_entry(app, &stats_cxt);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot allocate new stats context");
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: canyest allocate new stats context");
 		return err;
 	}
 
@@ -321,7 +321,7 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 	ctx_entry->stats_cxt = stats_cxt;
 	ctx_entry->flow = nfp_flow;
 
-	if (rhashtable_insert_fast(&priv->stats_ctx_table, &ctx_entry->ht_node,
+	if (rhashtable_insert_fast(&priv->stats_ctx_table, &ctx_entry->ht_yesde,
 				   stats_ctx_table_params)) {
 		err = -ENOMEM;
 		goto err_free_ctx_entry;
@@ -331,9 +331,9 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 	if (!nfp_check_mask_add(app, nfp_flow->mask_data,
 				nfp_flow->meta.mask_len,
 				&nfp_flow->meta.flags, &new_mask_id)) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot allocate a new mask id");
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: canyest allocate a new mask id");
 		if (nfp_release_stats_entry(app, stats_cxt)) {
-			NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot release stats context");
+			NL_SET_ERR_MSG_MOD(extack, "invalid entry: canyest release stats context");
 			err = -EINVAL;
 			goto err_remove_rhash;
 		}
@@ -352,9 +352,9 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 
 	check_entry = nfp_flower_search_fl_table(app, flow->cookie, netdev);
 	if (check_entry) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot offload duplicate flow entry");
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: canyest offload duplicate flow entry");
 		if (nfp_release_stats_entry(app, stats_cxt)) {
-			NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot release stats context");
+			NL_SET_ERR_MSG_MOD(extack, "invalid entry: canyest release stats context");
 			err = -EINVAL;
 			goto err_remove_mask;
 		}
@@ -362,7 +362,7 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 		if (!nfp_check_mask_remove(app, nfp_flow->mask_data,
 					   nfp_flow->meta.mask_len,
 					   NULL, &new_mask_id)) {
-			NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot release mask id");
+			NL_SET_ERR_MSG_MOD(extack, "invalid entry: canyest release mask id");
 			err = -EINVAL;
 			goto err_remove_mask;
 		}
@@ -378,7 +378,7 @@ err_remove_mask:
 			      NULL, &new_mask_id);
 err_remove_rhash:
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->stats_ctx_table,
-					    &ctx_entry->ht_node,
+					    &ctx_entry->ht_yesde,
 					    stats_ctx_table_params));
 err_free_ctx_entry:
 	kfree(ctx_entry);
@@ -422,7 +422,7 @@ int nfp_modify_flow_metadata(struct nfp_app *app,
 		return -ENOENT;
 
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->stats_ctx_table,
-					    &ctx_entry->ht_node,
+					    &ctx_entry->ht_yesde,
 					    stats_ctx_table_params));
 	kfree(ctx_entry);
 
@@ -473,7 +473,7 @@ static u32 nfp_fl_key_hashfn(const void *data, u32 len, u32 seed)
 }
 
 const struct rhashtable_params nfp_flower_table_params = {
-	.head_offset		= offsetof(struct nfp_fl_payload, fl_node),
+	.head_offset		= offsetof(struct nfp_fl_payload, fl_yesde),
 	.hashfn			= nfp_fl_key_hashfn,
 	.obj_cmpfn		= nfp_fl_obj_cmpfn,
 	.obj_hashfn		= nfp_fl_obj_hashfn,

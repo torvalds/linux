@@ -18,11 +18,11 @@
 #include <asm/fixmap.h>
 
 #if CONFIG_PGTABLE_LEVELS == 2
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 #elif CONFIG_PGTABLE_LEVELS == 3
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-yespud.h>
 #else
-#include <asm-generic/pgtable-nop4d.h>
+#include <asm-generic/pgtable-yesp4d.h>
 #endif
 
 /*
@@ -78,7 +78,7 @@
  *
  * For 16kB page size we use a 2 level page tree which permits a total of
  * 36 bits of virtual address space.  We could add a third level but it seems
- * like at the moment there's no need for this.
+ * like at the moment there's yes need for this.
  *
  * For 64kB page size we use a 2 level page table tree for a total of 42 bits
  * of virtual address space.
@@ -176,7 +176,7 @@ extern pte_t invalid_pte_table[PTRS_PER_PTE];
 /*
  * For 4-level pagetables we defines these ourselves, for 3-level the
  * definitions are below, for 2-level the
- * definitions are supplied by <asm-generic/pgtable-nopmd.h>.
+ * definitions are supplied by <asm-generic/pgtable-yespmd.h>.
  */
 typedef struct { unsigned long pud; } pud_t;
 #define pud_val(x)	((x).pud)
@@ -187,7 +187,7 @@ extern pud_t invalid_pud_table[PTRS_PER_PUD];
 /*
  * Empty pgd entries point to the invalid_pud_table.
  */
-static inline int p4d_none(p4d_t p4d)
+static inline int p4d_yesne(p4d_t p4d)
 {
 	return p4d_val(p4d) == (unsigned long)invalid_pud_table;
 }
@@ -237,7 +237,7 @@ static inline void set_p4d(p4d_t *p4d, p4d_t p4dval)
 #ifndef __PAGETABLE_PMD_FOLDED
 /*
  * For 3-level pagetables we defines these ourselves, for 2-level the
- * definitions are supplied by <asm-generic/pgtable-nopmd.h>.
+ * definitions are supplied by <asm-generic/pgtable-yespmd.h>.
  */
 typedef struct { unsigned long pmd; } pmd_t;
 #define pmd_val(x)	((x).pmd)
@@ -250,7 +250,7 @@ extern pmd_t invalid_pmd_table[PTRS_PER_PMD];
 /*
  * Empty pgd/pmd entries point to the invalid_pte_table.
  */
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_yesne(pmd_t pmd)
 {
 	return pmd_val(pmd) == (unsigned long) invalid_pte_table;
 }
@@ -288,7 +288,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 /*
  * Empty pud entries point to the invalid_pmd_table.
  */
-static inline int pud_none(pud_t pud)
+static inline int pud_yesne(pud_t pud)
 {
 	return pud_val(pud) == (unsigned long) invalid_pmd_table;
 }

@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
@@ -35,7 +35,7 @@ static char *sgiseeqstr = "SGI Seeq8003";
  * stupid Lance from a driver architecture perspective.  Only difference is that
  * here our "ring buffer" looks and acts like a real Lance one does but is
  * laid out like how the HPC DMA and the Seeq want it to.  You'd be surprised
- * how a stupid idea like this can pay off in performance, not to mention
+ * how a stupid idea like this can pay off in performance, yest to mention
  * making this driver 2,000 times easier to write. ;-)
  */
 
@@ -193,7 +193,7 @@ static int seeq_init_ring(struct net_device *dev)
 		dma_sync_desc_dev(dev, &sp->tx_desc[i]);
 	}
 
-	/* And now the rx ring. */
+	/* And yesw the rx ring. */
 	for (i = 0; i < SEEQ_RX_BUFFERS; i++) {
 		if (!sp->rx_desc[i].skb) {
 			dma_addr_t dma_addr;
@@ -229,7 +229,7 @@ static void seeq_purge_ring(struct net_device *dev)
 		}
 	}
 
-	/* And now the rx ring. */
+	/* And yesw the rx ring. */
 	for (i = 0; i < SEEQ_RX_BUFFERS; i++) {
 		if (sp->rx_desc[i].skb) {
 			dev_kfree_skb(sp->rx_desc[i].skb);
@@ -428,11 +428,11 @@ static inline void kick_tx(struct net_device *dev,
 	struct sgiseeq_tx_desc *td;
 	int i = sp->tx_old;
 
-	/* If the HPC aint doin nothin, and there are more packets
+	/* If the HPC aint doin yesthin, and there are more packets
 	 * with ETXD cleared and XIU set we must make very certain
 	 * that we restart the HPC else we risk locking up the
 	 * adapter.  The following code is only safe iff the HPCDMA
-	 * is not active!
+	 * is yest active!
 	 */
 	td = &sp->tx_desc[i];
 	dma_sync_desc_cpu(dev, td);
@@ -609,12 +609,12 @@ sgiseeq_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * descriptor to the chain:
 	 * 1) Assume that the HPC is off processing a DMA chain while
 	 *    we are changing all of the following.
-	 * 2) Do no allow the HPC to look at a new descriptor until
+	 * 2) Do yes allow the HPC to look at a new descriptor until
 	 *    we have completely set up it's state.  This means, do
-	 *    not clear HPCDMA_EOX in the current last descritptor
+	 *    yest clear HPCDMA_EOX in the current last descritptor
 	 *    until the one we are adding looks consistent and could
-	 *    be processes right now.
-	 * 3) The tx interrupt code must notice when we've added a new
+	 *    be processes right yesw.
+	 * 3) The tx interrupt code must yestice when we've added a new
 	 *    entry and the HPC got to the end of the chain before we
 	 *    added this new entry and restarted it.
 	 */
@@ -666,7 +666,7 @@ static void sgiseeq_set_multicast(struct net_device *dev)
 	else
 		sp->mode = SEEQ_RCMD_RBCAST;
 
-	/* XXX I know this sucks, but is there a better way to reprogram
+	/* XXX I kyesw this sucks, but is there a better way to reprogram
 	 * XXX the receiver? At least, this shouldn't happen too often.
 	 */
 
@@ -752,7 +752,7 @@ static int sgiseeq_probe(struct platform_device *pdev)
 	sp->tx_desc = sp->srings->txvector;
 	spin_lock_init(&sp->tx_lock);
 
-	/* A couple calculations now, saves many cycles later. */
+	/* A couple calculations yesw, saves many cycles later. */
 	setup_rx_ring(dev, sp->rx_desc, SEEQ_RX_BUFFERS);
 	setup_tx_ring(dev, sp->tx_desc, SEEQ_TX_BUFFERS);
 
@@ -791,7 +791,7 @@ static int sgiseeq_probe(struct platform_device *pdev)
 	dev->irq		= irq;
 
 	if (register_netdev(dev)) {
-		printk(KERN_ERR "Sgiseeq: Cannot register net device, "
+		printk(KERN_ERR "Sgiseeq: Canyest register net device, "
 		       "aborting.\n");
 		err = -ENODEV;
 		goto err_out_free_attrs;

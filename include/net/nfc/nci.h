@@ -8,7 +8,7 @@
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
- *  Acknowledgements:
+ *  Ackyeswledgements:
  *  This file is based on hci.h, which was written
  *  by Maxim Krasnyansky.
  */
@@ -71,7 +71,7 @@
 #define NCI_NFCEE_DISCOVERY_ACTION_DISABLE			0x00
 #define NCI_NFCEE_DISCOVERY_ACTION_ENABLE			0x01
 
-/* NCI RF Technology and Mode */
+/* NCI RF Techyeslogy and Mode */
 #define NCI_NFC_A_PASSIVE_POLL_MODE				0x00
 #define NCI_NFC_B_PASSIVE_POLL_MODE				0x01
 #define NCI_NFC_F_PASSIVE_POLL_MODE				0x02
@@ -86,7 +86,7 @@
 
 #define NCI_RF_TECH_MODE_LISTEN_MASK				0x80
 
-/* NCI RF Technologies */
+/* NCI RF Techyeslogies */
 #define NCI_NFC_RF_TECHNOLOGY_A					0x00
 #define NCI_NFC_RF_TECHNOLOGY_B					0x01
 #define NCI_NFC_RF_TECHNOLOGY_F					0x02
@@ -230,7 +230,7 @@ struct set_config_param {
 
 struct nci_core_set_config_cmd {
 	__u8	num_params;
-	struct	set_config_param param; /* support 1 param per cmd is enough */
+	struct	set_config_param param; /* support 1 param per cmd is eyesugh */
 } __packed;
 
 #define NCI_OP_CORE_CONN_CREATE_CMD	nci_opcode_pack(NCI_GID_CORE, 0x04)

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2018 Syyespsys, Inc. and/or its affiliates.
  *
- * Author: Vitor Soares <vitor.soares@synopsys.com>
+ * Author: Vitor Soares <vitor.soares@syyespsys.com>
  */
 
 #include <linux/kernel.h>
@@ -52,6 +52,6 @@ static struct i3c_driver st_lsm6dsx_driver = {
 };
 module_i3c_driver(st_lsm6dsx_driver);
 
-MODULE_AUTHOR("Vitor Soares <vitor.soares@synopsys.com>");
+MODULE_AUTHOR("Vitor Soares <vitor.soares@syyespsys.com>");
 MODULE_DESCRIPTION("STMicroelectronics st_lsm6dsx i3c driver");
 MODULE_LICENSE("GPL v2");

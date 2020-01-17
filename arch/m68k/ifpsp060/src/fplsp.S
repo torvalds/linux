@@ -18,10 +18,10 @@ IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 (INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+Motorola assumes yes responsibility for the maintenance and support of the SOFTWARE.
 
 You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-so long as this entire notice is retained without alteration in any modified and/or
+so long as this entire yestice is retained without alteration in any modified and/or
 redistributed versions, and that such modified versions are clearly identified as such.
 No licenses are granted by implication, estoppel or otherwise under any patents
 or trademarks of Motorola, Inc.
@@ -306,7 +306,7 @@ set EXC_D0,		EXC_DREGS+(0*4)
 
 set EXC_FP0,		EXC_FPREGS+(0*12)	# offset of saved fp0
 set EXC_FP1,		EXC_FPREGS+(1*12)	# offset of saved fp1
-set EXC_FP2,		EXC_FPREGS+(2*12)	# offset of saved fp2 (not used)
+set EXC_FP2,		EXC_FPREGS+(2*12)	# offset of saved fp2 (yest used)
 
 set FP_SCR1,		LV+80			# fp scratch 1
 set FP_SCR1_EX,		FP_SCR1+0
@@ -348,7 +348,7 @@ set L_SCR3,		LV+28			# integer scratch 3
 set L_SCR2,		LV+24			# integer scratch 2
 set L_SCR1,		LV+20			# integer scratch 1
 
-set STORE_FLG,		LV+19			# flag: operand store (ie. not fcmp/ftst)
+set STORE_FLG,		LV+19			# flag: operand store (ie. yest fcmp/ftst)
 
 set EXC_TEMP2,		LV+24			# temporary space
 set EXC_TEMP,		LV+16			# temporary space
@@ -421,7 +421,7 @@ set nan_bit,		0x0			# NAN result
 
 set q_sn_bit,		0x7			# sign bit of quotient byte
 
-set bsun_bit,		7			# branch on unordered
+set bsun_bit,		7			# branch on uyesrdered
 set snan_bit,		6			# signalling NAN
 set operr_bit,		5			# operand error
 set ovfl_bit,		4			# overflow
@@ -589,25 +589,25 @@ _fsins_:
 	bra.b		_L0_6s
 _L0_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L0_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L0_3s			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L0_6s
 _L0_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L0_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L0_4s			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L0_6s
 _L0_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L0_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L0_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L0_6s
 _L0_5s:
 	bsr.l		ssind			# operand is a DENORM
 _L0_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -647,25 +647,25 @@ _fsind_:
 	bra.b		_L0_6d
 _L0_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L0_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L0_3d			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L0_6d
 _L0_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L0_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L0_4d			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L0_6d
 _L0_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L0_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L0_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L0_6d
 _L0_5d:
 	bsr.l		ssind			# operand is a DENORM
 _L0_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -705,25 +705,25 @@ _fsinx_:
 	bra.b		_L0_6x
 _L0_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L0_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L0_3x			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L0_6x
 _L0_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L0_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L0_4x			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L0_6x
 _L0_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L0_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L0_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L0_6x
 _L0_5x:
 	bsr.l		ssind			# operand is a DENORM
 _L0_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -766,25 +766,25 @@ _fcoss_:
 	bra.b		_L1_6s
 _L1_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L1_3s			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L1_3s			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L1_6s
 _L1_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L1_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L1_4s			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L1_6s
 _L1_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L1_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L1_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L1_6s
 _L1_5s:
 	bsr.l		scosd			# operand is a DENORM
 _L1_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -824,25 +824,25 @@ _fcosd_:
 	bra.b		_L1_6d
 _L1_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L1_3d			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L1_3d			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L1_6d
 _L1_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L1_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L1_4d			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L1_6d
 _L1_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L1_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L1_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L1_6d
 _L1_5d:
 	bsr.l		scosd			# operand is a DENORM
 _L1_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -882,25 +882,25 @@ _fcosx_:
 	bra.b		_L1_6x
 _L1_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L1_3x			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L1_3x			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L1_6x
 _L1_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L1_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L1_4x			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L1_6x
 _L1_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L1_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L1_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L1_6x
 _L1_5x:
 	bsr.l		scosd			# operand is a DENORM
 _L1_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -943,25 +943,25 @@ _fsinhs_:
 	bra.b		_L2_6s
 _L2_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L2_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L2_3s			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L2_6s
 _L2_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L2_4s			# no
-	bsr.l		src_inf			# yes
+	bne.b		_L2_4s			# yes
+	bsr.l		src_inf			# no
 	bra.b		_L2_6s
 _L2_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L2_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L2_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L2_6s
 _L2_5s:
 	bsr.l		ssinhd			# operand is a DENORM
 _L2_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1001,25 +1001,25 @@ _fsinhd_:
 	bra.b		_L2_6d
 _L2_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L2_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L2_3d			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L2_6d
 _L2_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L2_4d			# no
-	bsr.l		src_inf			# yes
+	bne.b		_L2_4d			# yes
+	bsr.l		src_inf			# no
 	bra.b		_L2_6d
 _L2_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L2_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L2_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L2_6d
 _L2_5d:
 	bsr.l		ssinhd			# operand is a DENORM
 _L2_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1059,25 +1059,25 @@ _fsinhx_:
 	bra.b		_L2_6x
 _L2_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L2_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L2_3x			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L2_6x
 _L2_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L2_4x			# no
-	bsr.l		src_inf			# yes
+	bne.b		_L2_4x			# yes
+	bsr.l		src_inf			# no
 	bra.b		_L2_6x
 _L2_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L2_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L2_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L2_6x
 _L2_5x:
 	bsr.l		ssinhd			# operand is a DENORM
 _L2_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1120,25 +1120,25 @@ _flognp1s_:
 	bra.b		_L3_6s
 _L3_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L3_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L3_3s			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L3_6s
 _L3_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L3_4s			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L3_4s			# yes
+	bsr.l		sopr_inf			# no
 	bra.b		_L3_6s
 _L3_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L3_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L3_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L3_6s
 _L3_5s:
 	bsr.l		slognp1d			# operand is a DENORM
 _L3_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1178,25 +1178,25 @@ _flognp1d_:
 	bra.b		_L3_6d
 _L3_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L3_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L3_3d			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L3_6d
 _L3_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L3_4d			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L3_4d			# yes
+	bsr.l		sopr_inf			# no
 	bra.b		_L3_6d
 _L3_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L3_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L3_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L3_6d
 _L3_5d:
 	bsr.l		slognp1d			# operand is a DENORM
 _L3_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1236,25 +1236,25 @@ _flognp1x_:
 	bra.b		_L3_6x
 _L3_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L3_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L3_3x			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L3_6x
 _L3_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L3_4x			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L3_4x			# yes
+	bsr.l		sopr_inf			# no
 	bra.b		_L3_6x
 _L3_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L3_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L3_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L3_6x
 _L3_5x:
 	bsr.l		slognp1d			# operand is a DENORM
 _L3_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1297,25 +1297,25 @@ _fetoxm1s_:
 	bra.b		_L4_6s
 _L4_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L4_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L4_3s			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L4_6s
 _L4_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L4_4s			# no
-	bsr.l		setoxm1i			# yes
+	bne.b		_L4_4s			# yes
+	bsr.l		setoxm1i			# no
 	bra.b		_L4_6s
 _L4_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L4_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L4_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L4_6s
 _L4_5s:
 	bsr.l		setoxm1d			# operand is a DENORM
 _L4_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1355,25 +1355,25 @@ _fetoxm1d_:
 	bra.b		_L4_6d
 _L4_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L4_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L4_3d			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L4_6d
 _L4_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L4_4d			# no
-	bsr.l		setoxm1i			# yes
+	bne.b		_L4_4d			# yes
+	bsr.l		setoxm1i			# no
 	bra.b		_L4_6d
 _L4_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L4_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L4_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L4_6d
 _L4_5d:
 	bsr.l		setoxm1d			# operand is a DENORM
 _L4_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1413,25 +1413,25 @@ _fetoxm1x_:
 	bra.b		_L4_6x
 _L4_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L4_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L4_3x			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L4_6x
 _L4_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L4_4x			# no
-	bsr.l		setoxm1i			# yes
+	bne.b		_L4_4x			# yes
+	bsr.l		setoxm1i			# no
 	bra.b		_L4_6x
 _L4_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L4_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L4_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L4_6x
 _L4_5x:
 	bsr.l		setoxm1d			# operand is a DENORM
 _L4_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1474,25 +1474,25 @@ _ftanhs_:
 	bra.b		_L5_6s
 _L5_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L5_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L5_3s			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L5_6s
 _L5_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L5_4s			# no
-	bsr.l		src_one			# yes
+	bne.b		_L5_4s			# yes
+	bsr.l		src_one			# no
 	bra.b		_L5_6s
 _L5_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L5_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L5_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L5_6s
 _L5_5s:
 	bsr.l		stanhd			# operand is a DENORM
 _L5_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1532,25 +1532,25 @@ _ftanhd_:
 	bra.b		_L5_6d
 _L5_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L5_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L5_3d			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L5_6d
 _L5_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L5_4d			# no
-	bsr.l		src_one			# yes
+	bne.b		_L5_4d			# yes
+	bsr.l		src_one			# no
 	bra.b		_L5_6d
 _L5_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L5_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L5_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L5_6d
 _L5_5d:
 	bsr.l		stanhd			# operand is a DENORM
 _L5_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1590,25 +1590,25 @@ _ftanhx_:
 	bra.b		_L5_6x
 _L5_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L5_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L5_3x			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L5_6x
 _L5_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L5_4x			# no
-	bsr.l		src_one			# yes
+	bne.b		_L5_4x			# yes
+	bsr.l		src_one			# no
 	bra.b		_L5_6x
 _L5_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L5_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L5_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L5_6x
 _L5_5x:
 	bsr.l		stanhd			# operand is a DENORM
 _L5_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1651,25 +1651,25 @@ _fatans_:
 	bra.b		_L6_6s
 _L6_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L6_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L6_3s			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L6_6s
 _L6_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L6_4s			# no
-	bsr.l		spi_2			# yes
+	bne.b		_L6_4s			# yes
+	bsr.l		spi_2			# no
 	bra.b		_L6_6s
 _L6_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L6_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L6_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L6_6s
 _L6_5s:
 	bsr.l		satand			# operand is a DENORM
 _L6_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1709,25 +1709,25 @@ _fatand_:
 	bra.b		_L6_6d
 _L6_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L6_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L6_3d			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L6_6d
 _L6_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L6_4d			# no
-	bsr.l		spi_2			# yes
+	bne.b		_L6_4d			# yes
+	bsr.l		spi_2			# no
 	bra.b		_L6_6d
 _L6_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L6_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L6_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L6_6d
 _L6_5d:
 	bsr.l		satand			# operand is a DENORM
 _L6_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1767,25 +1767,25 @@ _fatanx_:
 	bra.b		_L6_6x
 _L6_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L6_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L6_3x			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L6_6x
 _L6_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L6_4x			# no
-	bsr.l		spi_2			# yes
+	bne.b		_L6_4x			# yes
+	bsr.l		spi_2			# no
 	bra.b		_L6_6x
 _L6_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L6_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L6_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L6_6x
 _L6_5x:
 	bsr.l		satand			# operand is a DENORM
 _L6_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1828,25 +1828,25 @@ _fasins_:
 	bra.b		_L7_6s
 _L7_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L7_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L7_3s			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L7_6s
 _L7_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L7_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L7_4s			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L7_6s
 _L7_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L7_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L7_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L7_6s
 _L7_5s:
 	bsr.l		sasind			# operand is a DENORM
 _L7_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1886,25 +1886,25 @@ _fasind_:
 	bra.b		_L7_6d
 _L7_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L7_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L7_3d			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L7_6d
 _L7_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L7_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L7_4d			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L7_6d
 _L7_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L7_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L7_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L7_6d
 _L7_5d:
 	bsr.l		sasind			# operand is a DENORM
 _L7_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -1944,25 +1944,25 @@ _fasinx_:
 	bra.b		_L7_6x
 _L7_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L7_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L7_3x			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L7_6x
 _L7_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L7_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L7_4x			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L7_6x
 _L7_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L7_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L7_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L7_6x
 _L7_5x:
 	bsr.l		sasind			# operand is a DENORM
 _L7_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2005,25 +2005,25 @@ _fatanhs_:
 	bra.b		_L8_6s
 _L8_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L8_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L8_3s			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L8_6s
 _L8_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L8_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L8_4s			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L8_6s
 _L8_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L8_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L8_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L8_6s
 _L8_5s:
 	bsr.l		satanhd			# operand is a DENORM
 _L8_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2063,25 +2063,25 @@ _fatanhd_:
 	bra.b		_L8_6d
 _L8_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L8_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L8_3d			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L8_6d
 _L8_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L8_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L8_4d			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L8_6d
 _L8_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L8_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L8_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L8_6d
 _L8_5d:
 	bsr.l		satanhd			# operand is a DENORM
 _L8_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2121,25 +2121,25 @@ _fatanhx_:
 	bra.b		_L8_6x
 _L8_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L8_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L8_3x			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L8_6x
 _L8_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L8_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L8_4x			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L8_6x
 _L8_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L8_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L8_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L8_6x
 _L8_5x:
 	bsr.l		satanhd			# operand is a DENORM
 _L8_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2182,25 +2182,25 @@ _ftans_:
 	bra.b		_L9_6s
 _L9_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L9_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L9_3s			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L9_6s
 _L9_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L9_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L9_4s			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L9_6s
 _L9_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L9_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L9_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L9_6s
 _L9_5s:
 	bsr.l		stand			# operand is a DENORM
 _L9_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2240,25 +2240,25 @@ _ftand_:
 	bra.b		_L9_6d
 _L9_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L9_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L9_3d			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L9_6d
 _L9_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L9_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L9_4d			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L9_6d
 _L9_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L9_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L9_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L9_6d
 _L9_5d:
 	bsr.l		stand			# operand is a DENORM
 _L9_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2298,25 +2298,25 @@ _ftanx_:
 	bra.b		_L9_6x
 _L9_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L9_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L9_3x			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L9_6x
 _L9_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L9_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L9_4x			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L9_6x
 _L9_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L9_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L9_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L9_6x
 _L9_5x:
 	bsr.l		stand			# operand is a DENORM
 _L9_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2359,25 +2359,25 @@ _fetoxs_:
 	bra.b		_L10_6s
 _L10_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L10_3s			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L10_3s			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L10_6s
 _L10_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L10_4s			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L10_4s			# yes
+	bsr.l		szr_inf			# no
 	bra.b		_L10_6s
 _L10_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L10_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L10_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L10_6s
 _L10_5s:
 	bsr.l		setoxd			# operand is a DENORM
 _L10_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2417,25 +2417,25 @@ _fetoxd_:
 	bra.b		_L10_6d
 _L10_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L10_3d			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L10_3d			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L10_6d
 _L10_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L10_4d			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L10_4d			# yes
+	bsr.l		szr_inf			# no
 	bra.b		_L10_6d
 _L10_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L10_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L10_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L10_6d
 _L10_5d:
 	bsr.l		setoxd			# operand is a DENORM
 _L10_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2475,25 +2475,25 @@ _fetoxx_:
 	bra.b		_L10_6x
 _L10_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L10_3x			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L10_3x			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L10_6x
 _L10_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L10_4x			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L10_4x			# yes
+	bsr.l		szr_inf			# no
 	bra.b		_L10_6x
 _L10_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L10_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L10_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L10_6x
 _L10_5x:
 	bsr.l		setoxd			# operand is a DENORM
 _L10_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2536,25 +2536,25 @@ _ftwotoxs_:
 	bra.b		_L11_6s
 _L11_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L11_3s			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L11_3s			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L11_6s
 _L11_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L11_4s			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L11_4s			# yes
+	bsr.l		szr_inf			# no
 	bra.b		_L11_6s
 _L11_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L11_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L11_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L11_6s
 _L11_5s:
 	bsr.l		stwotoxd			# operand is a DENORM
 _L11_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2594,25 +2594,25 @@ _ftwotoxd_:
 	bra.b		_L11_6d
 _L11_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L11_3d			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L11_3d			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L11_6d
 _L11_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L11_4d			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L11_4d			# yes
+	bsr.l		szr_inf			# no
 	bra.b		_L11_6d
 _L11_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L11_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L11_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L11_6d
 _L11_5d:
 	bsr.l		stwotoxd			# operand is a DENORM
 _L11_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2652,25 +2652,25 @@ _ftwotoxx_:
 	bra.b		_L11_6x
 _L11_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L11_3x			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L11_3x			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L11_6x
 _L11_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L11_4x			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L11_4x			# yes
+	bsr.l		szr_inf			# no
 	bra.b		_L11_6x
 _L11_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L11_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L11_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L11_6x
 _L11_5x:
 	bsr.l		stwotoxd			# operand is a DENORM
 _L11_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2713,25 +2713,25 @@ _ftentoxs_:
 	bra.b		_L12_6s
 _L12_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L12_3s			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L12_3s			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L12_6s
 _L12_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L12_4s			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L12_4s			# yes
+	bsr.l		szr_inf			# no
 	bra.b		_L12_6s
 _L12_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L12_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L12_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L12_6s
 _L12_5s:
 	bsr.l		stentoxd			# operand is a DENORM
 _L12_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2771,25 +2771,25 @@ _ftentoxd_:
 	bra.b		_L12_6d
 _L12_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L12_3d			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L12_3d			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L12_6d
 _L12_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L12_4d			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L12_4d			# yes
+	bsr.l		szr_inf			# no
 	bra.b		_L12_6d
 _L12_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L12_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L12_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L12_6d
 _L12_5d:
 	bsr.l		stentoxd			# operand is a DENORM
 _L12_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2829,25 +2829,25 @@ _ftentoxx_:
 	bra.b		_L12_6x
 _L12_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L12_3x			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L12_3x			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L12_6x
 _L12_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L12_4x			# no
-	bsr.l		szr_inf			# yes
+	bne.b		_L12_4x			# yes
+	bsr.l		szr_inf			# no
 	bra.b		_L12_6x
 _L12_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L12_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L12_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L12_6x
 _L12_5x:
 	bsr.l		stentoxd			# operand is a DENORM
 _L12_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2890,25 +2890,25 @@ _flogns_:
 	bra.b		_L13_6s
 _L13_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L13_3s			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L13_3s			# yes
+	bsr.l		t_dz2			# no
 	bra.b		_L13_6s
 _L13_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L13_4s			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L13_4s			# yes
+	bsr.l		sopr_inf			# no
 	bra.b		_L13_6s
 _L13_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L13_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L13_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L13_6s
 _L13_5s:
 	bsr.l		slognd			# operand is a DENORM
 _L13_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -2948,25 +2948,25 @@ _flognd_:
 	bra.b		_L13_6d
 _L13_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L13_3d			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L13_3d			# yes
+	bsr.l		t_dz2			# no
 	bra.b		_L13_6d
 _L13_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L13_4d			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L13_4d			# yes
+	bsr.l		sopr_inf			# no
 	bra.b		_L13_6d
 _L13_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L13_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L13_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L13_6d
 _L13_5d:
 	bsr.l		slognd			# operand is a DENORM
 _L13_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3006,25 +3006,25 @@ _flognx_:
 	bra.b		_L13_6x
 _L13_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L13_3x			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L13_3x			# yes
+	bsr.l		t_dz2			# no
 	bra.b		_L13_6x
 _L13_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L13_4x			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L13_4x			# yes
+	bsr.l		sopr_inf			# no
 	bra.b		_L13_6x
 _L13_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L13_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L13_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L13_6x
 _L13_5x:
 	bsr.l		slognd			# operand is a DENORM
 _L13_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3067,25 +3067,25 @@ _flog10s_:
 	bra.b		_L14_6s
 _L14_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L14_3s			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L14_3s			# yes
+	bsr.l		t_dz2			# no
 	bra.b		_L14_6s
 _L14_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L14_4s			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L14_4s			# yes
+	bsr.l		sopr_inf			# no
 	bra.b		_L14_6s
 _L14_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L14_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L14_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L14_6s
 _L14_5s:
 	bsr.l		slog10d			# operand is a DENORM
 _L14_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3125,25 +3125,25 @@ _flog10d_:
 	bra.b		_L14_6d
 _L14_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L14_3d			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L14_3d			# yes
+	bsr.l		t_dz2			# no
 	bra.b		_L14_6d
 _L14_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L14_4d			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L14_4d			# yes
+	bsr.l		sopr_inf			# no
 	bra.b		_L14_6d
 _L14_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L14_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L14_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L14_6d
 _L14_5d:
 	bsr.l		slog10d			# operand is a DENORM
 _L14_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3183,25 +3183,25 @@ _flog10x_:
 	bra.b		_L14_6x
 _L14_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L14_3x			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L14_3x			# yes
+	bsr.l		t_dz2			# no
 	bra.b		_L14_6x
 _L14_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L14_4x			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L14_4x			# yes
+	bsr.l		sopr_inf			# no
 	bra.b		_L14_6x
 _L14_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L14_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L14_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L14_6x
 _L14_5x:
 	bsr.l		slog10d			# operand is a DENORM
 _L14_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3244,25 +3244,25 @@ _flog2s_:
 	bra.b		_L15_6s
 _L15_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L15_3s			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L15_3s			# yes
+	bsr.l		t_dz2			# no
 	bra.b		_L15_6s
 _L15_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L15_4s			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L15_4s			# yes
+	bsr.l		sopr_inf			# no
 	bra.b		_L15_6s
 _L15_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L15_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L15_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L15_6s
 _L15_5s:
 	bsr.l		slog2d			# operand is a DENORM
 _L15_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3302,25 +3302,25 @@ _flog2d_:
 	bra.b		_L15_6d
 _L15_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L15_3d			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L15_3d			# yes
+	bsr.l		t_dz2			# no
 	bra.b		_L15_6d
 _L15_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L15_4d			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L15_4d			# yes
+	bsr.l		sopr_inf			# no
 	bra.b		_L15_6d
 _L15_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L15_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L15_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L15_6d
 _L15_5d:
 	bsr.l		slog2d			# operand is a DENORM
 _L15_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3360,25 +3360,25 @@ _flog2x_:
 	bra.b		_L15_6x
 _L15_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L15_3x			# no
-	bsr.l		t_dz2			# yes
+	bne.b		_L15_3x			# yes
+	bsr.l		t_dz2			# no
 	bra.b		_L15_6x
 _L15_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L15_4x			# no
-	bsr.l		sopr_inf			# yes
+	bne.b		_L15_4x			# yes
+	bsr.l		sopr_inf			# no
 	bra.b		_L15_6x
 _L15_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L15_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L15_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L15_6x
 _L15_5x:
 	bsr.l		slog2d			# operand is a DENORM
 _L15_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3421,25 +3421,25 @@ _fcoshs_:
 	bra.b		_L16_6s
 _L16_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L16_3s			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L16_3s			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L16_6s
 _L16_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L16_4s			# no
-	bsr.l		ld_pinf			# yes
+	bne.b		_L16_4s			# yes
+	bsr.l		ld_pinf			# no
 	bra.b		_L16_6s
 _L16_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L16_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L16_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L16_6s
 _L16_5s:
 	bsr.l		scoshd			# operand is a DENORM
 _L16_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3479,25 +3479,25 @@ _fcoshd_:
 	bra.b		_L16_6d
 _L16_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L16_3d			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L16_3d			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L16_6d
 _L16_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L16_4d			# no
-	bsr.l		ld_pinf			# yes
+	bne.b		_L16_4d			# yes
+	bsr.l		ld_pinf			# no
 	bra.b		_L16_6d
 _L16_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L16_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L16_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L16_6d
 _L16_5d:
 	bsr.l		scoshd			# operand is a DENORM
 _L16_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3537,25 +3537,25 @@ _fcoshx_:
 	bra.b		_L16_6x
 _L16_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L16_3x			# no
-	bsr.l		ld_pone			# yes
+	bne.b		_L16_3x			# yes
+	bsr.l		ld_pone			# no
 	bra.b		_L16_6x
 _L16_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L16_4x			# no
-	bsr.l		ld_pinf			# yes
+	bne.b		_L16_4x			# yes
+	bsr.l		ld_pinf			# no
 	bra.b		_L16_6x
 _L16_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L16_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L16_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L16_6x
 _L16_5x:
 	bsr.l		scoshd			# operand is a DENORM
 _L16_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3598,25 +3598,25 @@ _facoss_:
 	bra.b		_L17_6s
 _L17_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L17_3s			# no
-	bsr.l		ld_ppi2			# yes
+	bne.b		_L17_3s			# yes
+	bsr.l		ld_ppi2			# no
 	bra.b		_L17_6s
 _L17_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L17_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L17_4s			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L17_6s
 _L17_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L17_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L17_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L17_6s
 _L17_5s:
 	bsr.l		sacosd			# operand is a DENORM
 _L17_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3656,25 +3656,25 @@ _facosd_:
 	bra.b		_L17_6d
 _L17_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L17_3d			# no
-	bsr.l		ld_ppi2			# yes
+	bne.b		_L17_3d			# yes
+	bsr.l		ld_ppi2			# no
 	bra.b		_L17_6d
 _L17_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L17_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L17_4d			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L17_6d
 _L17_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L17_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L17_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L17_6d
 _L17_5d:
 	bsr.l		sacosd			# operand is a DENORM
 _L17_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3714,25 +3714,25 @@ _facosx_:
 	bra.b		_L17_6x
 _L17_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L17_3x			# no
-	bsr.l		ld_ppi2			# yes
+	bne.b		_L17_3x			# yes
+	bsr.l		ld_ppi2			# no
 	bra.b		_L17_6x
 _L17_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L17_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L17_4x			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L17_6x
 _L17_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L17_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L17_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L17_6x
 _L17_5x:
 	bsr.l		sacosd			# operand is a DENORM
 _L17_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3775,25 +3775,25 @@ _fgetexps_:
 	bra.b		_L18_6s
 _L18_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L18_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L18_3s			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L18_6s
 _L18_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L18_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L18_4s			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L18_6s
 _L18_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L18_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L18_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L18_6s
 _L18_5s:
 	bsr.l		sgetexpd			# operand is a DENORM
 _L18_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3833,25 +3833,25 @@ _fgetexpd_:
 	bra.b		_L18_6d
 _L18_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L18_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L18_3d			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L18_6d
 _L18_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L18_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L18_4d			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L18_6d
 _L18_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L18_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L18_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L18_6d
 _L18_5d:
 	bsr.l		sgetexpd			# operand is a DENORM
 _L18_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3891,25 +3891,25 @@ _fgetexpx_:
 	bra.b		_L18_6x
 _L18_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L18_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L18_3x			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L18_6x
 _L18_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L18_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L18_4x			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L18_6x
 _L18_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L18_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L18_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L18_6x
 _L18_5x:
 	bsr.l		sgetexpd			# operand is a DENORM
 _L18_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -3952,25 +3952,25 @@ _fgetmans_:
 	bra.b		_L19_6s
 _L19_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L19_3s			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L19_3s			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L19_6s
 _L19_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L19_4s			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L19_4s			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L19_6s
 _L19_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L19_5s			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L19_5s			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L19_6s
 _L19_5s:
 	bsr.l		sgetmand			# operand is a DENORM
 _L19_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4010,25 +4010,25 @@ _fgetmand_:
 	bra.b		_L19_6d
 _L19_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L19_3d			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L19_3d			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L19_6d
 _L19_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L19_4d			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L19_4d			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L19_6d
 _L19_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L19_5d			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L19_5d			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L19_6d
 _L19_5d:
 	bsr.l		sgetmand			# operand is a DENORM
 _L19_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4068,25 +4068,25 @@ _fgetmanx_:
 	bra.b		_L19_6x
 _L19_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L19_3x			# no
-	bsr.l		src_zero			# yes
+	bne.b		_L19_3x			# yes
+	bsr.l		src_zero			# no
 	bra.b		_L19_6x
 _L19_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L19_4x			# no
-	bsr.l		t_operr			# yes
+	bne.b		_L19_4x			# yes
+	bsr.l		t_operr			# no
 	bra.b		_L19_6x
 _L19_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L19_5x			# no
-	bsr.l		src_qnan			# yes
+	bne.b		_L19_5x			# yes
+	bsr.l		src_qnan			# no
 	bra.b		_L19_6x
 _L19_5x:
 	bsr.l		sgetmand			# operand is a DENORM
 _L19_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4129,31 +4129,31 @@ _fsincoss_:
 	bra.b		_L20_6s
 _L20_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L20_3s			# no
-	bsr.l		ssincosz			# yes
+	bne.b		_L20_3s			# yes
+	bsr.l		ssincosz			# no
 	bra.b		_L20_6s
 _L20_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L20_4s			# no
-	bsr.l		ssincosi			# yes
+	bne.b		_L20_4s			# yes
+	bsr.l		ssincosi			# no
 	bra.b		_L20_6s
 _L20_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L20_5s			# no
-	bsr.l		ssincosqnan			# yes
+	bne.b		_L20_5s			# yes
+	bsr.l		ssincosqnan			# no
 	bra.b		_L20_6s
 _L20_5s:
 	bsr.l		ssincosd			# operand is a DENORM
 _L20_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
 	fmovm.x		&0x03,-(%sp)		# store off fp0/fp1
-	fmovm.x		(%sp)+,&0x40		# fp0 now in fp1
-	fmovm.x		(%sp)+,&0x80		# fp1 now in fp0
+	fmovm.x		(%sp)+,&0x40		# fp0 yesw in fp1
+	fmovm.x		(%sp)+,&0x80		# fp1 yesw in fp0
 	unlk		%a6
 	rts
 
@@ -4189,31 +4189,31 @@ _fsincosd_:
 	bra.b		_L20_6d
 _L20_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L20_3d			# no
-	bsr.l		ssincosz			# yes
+	bne.b		_L20_3d			# yes
+	bsr.l		ssincosz			# no
 	bra.b		_L20_6d
 _L20_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L20_4d			# no
-	bsr.l		ssincosi			# yes
+	bne.b		_L20_4d			# yes
+	bsr.l		ssincosi			# no
 	bra.b		_L20_6d
 _L20_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L20_5d			# no
-	bsr.l		ssincosqnan			# yes
+	bne.b		_L20_5d			# yes
+	bsr.l		ssincosqnan			# no
 	bra.b		_L20_6d
 _L20_5d:
 	bsr.l		ssincosd			# operand is a DENORM
 _L20_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
 	fmovm.x		&0x03,-(%sp)		# store off fp0/fp1
-	fmovm.x		(%sp)+,&0x40		# fp0 now in fp1
-	fmovm.x		(%sp)+,&0x80		# fp1 now in fp0
+	fmovm.x		(%sp)+,&0x40		# fp0 yesw in fp1
+	fmovm.x		(%sp)+,&0x80		# fp1 yesw in fp0
 	unlk		%a6
 	rts
 
@@ -4249,31 +4249,31 @@ _fsincosx_:
 	bra.b		_L20_6x
 _L20_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L20_3x			# no
-	bsr.l		ssincosz			# yes
+	bne.b		_L20_3x			# yes
+	bsr.l		ssincosz			# no
 	bra.b		_L20_6x
 _L20_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L20_4x			# no
-	bsr.l		ssincosi			# yes
+	bne.b		_L20_4x			# yes
+	bsr.l		ssincosi			# no
 	bra.b		_L20_6x
 _L20_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L20_5x			# no
-	bsr.l		ssincosqnan			# yes
+	bne.b		_L20_5x			# yes
+	bsr.l		ssincosqnan			# no
 	bra.b		_L20_6x
 _L20_5x:
 	bsr.l		ssincosd			# operand is a DENORM
 _L20_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
 	fmovm.x		&0x03,-(%sp)		# store off fp0/fp1
-	fmovm.x		(%sp)+,&0x40		# fp0 now in fp1
-	fmovm.x		(%sp)+,&0x80		# fp1 now in fp0
+	fmovm.x		(%sp)+,&0x40		# fp0 yesw in fp1
+	fmovm.x		(%sp)+,&0x80		# fp1 yesw in fp0
 	unlk		%a6
 	rts
 
@@ -4317,29 +4317,29 @@ _frems_:
 
 	tst.b		%d1
 	bne.b		_L21_2s
-	bsr.l		srem_snorm			# operand is a NORM
+	bsr.l		srem_syesrm			# operand is a NORM
 	bra.b		_L21_6s
 _L21_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L21_3s			# no
-	bsr.l		srem_szero			# yes
+	bne.b		_L21_3s			# yes
+	bsr.l		srem_szero			# no
 	bra.b		_L21_6s
 _L21_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L21_4s			# no
-	bsr.l		srem_sinf			# yes
+	bne.b		_L21_4s			# yes
+	bsr.l		srem_sinf			# no
 	bra.b		_L21_6s
 _L21_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L21_5s			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L21_5s			# yes
+	bsr.l		sop_sqnan			# no
 	bra.b		_L21_6s
 _L21_5s:
 	bsr.l		srem_sdnrm			# operand is a DENORM
 _L21_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4383,29 +4383,29 @@ _fremd_:
 
 	tst.b		%d1
 	bne.b		_L21_2d
-	bsr.l		srem_snorm			# operand is a NORM
+	bsr.l		srem_syesrm			# operand is a NORM
 	bra.b		_L21_6d
 _L21_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L21_3d			# no
-	bsr.l		srem_szero			# yes
+	bne.b		_L21_3d			# yes
+	bsr.l		srem_szero			# no
 	bra.b		_L21_6d
 _L21_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L21_4d			# no
-	bsr.l		srem_sinf			# yes
+	bne.b		_L21_4d			# yes
+	bsr.l		srem_sinf			# no
 	bra.b		_L21_6d
 _L21_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L21_5d			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L21_5d			# yes
+	bsr.l		sop_sqnan			# no
 	bra.b		_L21_6d
 _L21_5d:
 	bsr.l		srem_sdnrm			# operand is a DENORM
 _L21_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4451,29 +4451,29 @@ _fremx_:
 
 	tst.b		%d1
 	bne.b		_L21_2x
-	bsr.l		srem_snorm			# operand is a NORM
+	bsr.l		srem_syesrm			# operand is a NORM
 	bra.b		_L21_6x
 _L21_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L21_3x			# no
-	bsr.l		srem_szero			# yes
+	bne.b		_L21_3x			# yes
+	bsr.l		srem_szero			# no
 	bra.b		_L21_6x
 _L21_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L21_4x			# no
-	bsr.l		srem_sinf			# yes
+	bne.b		_L21_4x			# yes
+	bsr.l		srem_sinf			# no
 	bra.b		_L21_6x
 _L21_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L21_5x			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L21_5x			# yes
+	bsr.l		sop_sqnan			# no
 	bra.b		_L21_6x
 _L21_5x:
 	bsr.l		srem_sdnrm			# operand is a DENORM
 _L21_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4521,29 +4521,29 @@ _fmods_:
 
 	tst.b		%d1
 	bne.b		_L22_2s
-	bsr.l		smod_snorm			# operand is a NORM
+	bsr.l		smod_syesrm			# operand is a NORM
 	bra.b		_L22_6s
 _L22_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L22_3s			# no
-	bsr.l		smod_szero			# yes
+	bne.b		_L22_3s			# yes
+	bsr.l		smod_szero			# no
 	bra.b		_L22_6s
 _L22_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L22_4s			# no
-	bsr.l		smod_sinf			# yes
+	bne.b		_L22_4s			# yes
+	bsr.l		smod_sinf			# no
 	bra.b		_L22_6s
 _L22_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L22_5s			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L22_5s			# yes
+	bsr.l		sop_sqnan			# no
 	bra.b		_L22_6s
 _L22_5s:
 	bsr.l		smod_sdnrm			# operand is a DENORM
 _L22_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4587,29 +4587,29 @@ _fmodd_:
 
 	tst.b		%d1
 	bne.b		_L22_2d
-	bsr.l		smod_snorm			# operand is a NORM
+	bsr.l		smod_syesrm			# operand is a NORM
 	bra.b		_L22_6d
 _L22_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L22_3d			# no
-	bsr.l		smod_szero			# yes
+	bne.b		_L22_3d			# yes
+	bsr.l		smod_szero			# no
 	bra.b		_L22_6d
 _L22_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L22_4d			# no
-	bsr.l		smod_sinf			# yes
+	bne.b		_L22_4d			# yes
+	bsr.l		smod_sinf			# no
 	bra.b		_L22_6d
 _L22_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L22_5d			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L22_5d			# yes
+	bsr.l		sop_sqnan			# no
 	bra.b		_L22_6d
 _L22_5d:
 	bsr.l		smod_sdnrm			# operand is a DENORM
 _L22_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4655,29 +4655,29 @@ _fmodx_:
 
 	tst.b		%d1
 	bne.b		_L22_2x
-	bsr.l		smod_snorm			# operand is a NORM
+	bsr.l		smod_syesrm			# operand is a NORM
 	bra.b		_L22_6x
 _L22_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L22_3x			# no
-	bsr.l		smod_szero			# yes
+	bne.b		_L22_3x			# yes
+	bsr.l		smod_szero			# no
 	bra.b		_L22_6x
 _L22_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L22_4x			# no
-	bsr.l		smod_sinf			# yes
+	bne.b		_L22_4x			# yes
+	bsr.l		smod_sinf			# no
 	bra.b		_L22_6x
 _L22_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L22_5x			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L22_5x			# yes
+	bsr.l		sop_sqnan			# no
 	bra.b		_L22_6x
 _L22_5x:
 	bsr.l		smod_sdnrm			# operand is a DENORM
 _L22_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4725,29 +4725,29 @@ _fscales_:
 
 	tst.b		%d1
 	bne.b		_L23_2s
-	bsr.l		sscale_snorm			# operand is a NORM
+	bsr.l		sscale_syesrm			# operand is a NORM
 	bra.b		_L23_6s
 _L23_2s:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L23_3s			# no
-	bsr.l		sscale_szero			# yes
+	bne.b		_L23_3s			# yes
+	bsr.l		sscale_szero			# no
 	bra.b		_L23_6s
 _L23_3s:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L23_4s			# no
-	bsr.l		sscale_sinf			# yes
+	bne.b		_L23_4s			# yes
+	bsr.l		sscale_sinf			# no
 	bra.b		_L23_6s
 _L23_4s:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L23_5s			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L23_5s			# yes
+	bsr.l		sop_sqnan			# no
 	bra.b		_L23_6s
 _L23_5s:
 	bsr.l		sscale_sdnrm			# operand is a DENORM
 _L23_6s:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4791,29 +4791,29 @@ _fscaled_:
 
 	tst.b		%d1
 	bne.b		_L23_2d
-	bsr.l		sscale_snorm			# operand is a NORM
+	bsr.l		sscale_syesrm			# operand is a NORM
 	bra.b		_L23_6d
 _L23_2d:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L23_3d			# no
-	bsr.l		sscale_szero			# yes
+	bne.b		_L23_3d			# yes
+	bsr.l		sscale_szero			# no
 	bra.b		_L23_6d
 _L23_3d:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L23_4d			# no
-	bsr.l		sscale_sinf			# yes
+	bne.b		_L23_4d			# yes
+	bsr.l		sscale_sinf			# no
 	bra.b		_L23_6d
 _L23_4d:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L23_5d			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L23_5d			# yes
+	bsr.l		sop_sqnan			# no
 	bra.b		_L23_6d
 _L23_5d:
 	bsr.l		sscale_sdnrm			# operand is a DENORM
 _L23_6d:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4859,29 +4859,29 @@ _fscalex_:
 
 	tst.b		%d1
 	bne.b		_L23_2x
-	bsr.l		sscale_snorm			# operand is a NORM
+	bsr.l		sscale_syesrm			# operand is a NORM
 	bra.b		_L23_6x
 _L23_2x:
 	cmpi.b		%d1,&ZERO		# is operand a ZERO?
-	bne.b		_L23_3x			# no
-	bsr.l		sscale_szero			# yes
+	bne.b		_L23_3x			# yes
+	bsr.l		sscale_szero			# no
 	bra.b		_L23_6x
 _L23_3x:
 	cmpi.b		%d1,&INF		# is operand an INF?
-	bne.b		_L23_4x			# no
-	bsr.l		sscale_sinf			# yes
+	bne.b		_L23_4x			# yes
+	bsr.l		sscale_sinf			# no
 	bra.b		_L23_6x
 _L23_4x:
 	cmpi.b		%d1,&QNAN		# is operand a QNAN?
-	bne.b		_L23_5x			# no
-	bsr.l		sop_sqnan			# yes
+	bne.b		_L23_5x			# yes
+	bsr.l		sop_sqnan			# no
 	bra.b		_L23_6x
 _L23_5x:
 	bsr.l		sscale_sdnrm			# operand is a DENORM
 _L23_6x:
 
 #
-#	Result is now in FP0
+#	Result is yesw in FP0
 #
 	movm.l		EXC_DREGS(%a6),&0x0303	# restore d0-d1/a0-a1
 	fmovm.l		USER_FPCR(%a6),%fpcr,%fpsr # restore ctrl regs
@@ -4891,12 +4891,12 @@ _L23_6x:
 
 
 #########################################################################
-# ssin():     computes the sine of a normalized input			#
-# ssind():    computes the sine of a denormalized input			#
-# scos():     computes the cosine of a normalized input			#
-# scosd():    computes the cosine of a denormalized input		#
-# ssincos():  computes the sine and cosine of a normalized input	#
-# ssincosd(): computes the sine and cosine of a denormalized input	#
+# ssin():     computes the sine of a yesrmalized input			#
+# ssind():    computes the sine of a deyesrmalized input			#
+# scos():     computes the cosine of a yesrmalized input			#
+# scosd():    computes the cosine of a deyesrmalized input		#
+# ssincos():  computes the sine and cosine of a yesrmalized input	#
+# ssincosd(): computes the sine and cosine of a deyesrmalized input	#
 #									#
 # INPUT *************************************************************** #
 #	a0 = pointer to extended precision input			#
@@ -4912,7 +4912,7 @@ _L23_6x:
 # ACCURACY and MONOTONICITY ******************************************* #
 #	The returned result is within 1 ulp in 64 significant bit, i.e.	#
 #	within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moyestonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -4930,12 +4930,12 @@ _L23_6x:
 #									#
 #	5. (k is odd) Set j := (k-1)/2, sgn := (-1)**j.			#
 #		Return sgn*cos(r) where cos(r) is approximated by an	#
-#		even polynomial in r, 1 + r*r*(B1+s*(B2+ ... + s*B8)),	#
+#		even polyyesmial in r, 1 + r*r*(B1+s*(B2+ ... + s*B8)),	#
 #		s = r*r.						#
 #		Exit.							#
 #									#
 #	6. (k is even) Set j := k/2, sgn := (-1)**j. Return sgn*sin(r)	#
-#		where sin(r) is approximated by an odd polynomial in r	#
+#		where sin(r) is approximated by an odd polyyesmial in r	#
 #		r + r*s*(A1+s*(A2+ ... + s*A7)),	s = r*r.	#
 #		Exit.							#
 #									#
@@ -4960,12 +4960,12 @@ _L23_6x:
 #		sgn1 := (-1)**j1, sgn2 := (-1)**j2.			#
 #		SIN(X) = sgn1 * cos(r) and COS(X) = sgn2*sin(r) where	#
 #		sin(r) and cos(r) are computed as odd and even		#
-#		polynomials in r, respectively. Exit			#
+#		polyyesmials in r, respectively. Exit			#
 #									#
 #	5. (k is even) Set j1 := k/2, sgn1 := (-1)**j1.			#
 #		SIN(X) = sgn1 * sin(r) and COS(X) = sgn1*cos(r) where	#
 #		sin(r) and cos(r) are computed as odd and even		#
-#		polynomials in r, respectively. Exit			#
+#		polyyesmials in r, respectively. Exit			#
 #									#
 #	6. If |X| > 1, go to 8.						#
 #									#
@@ -5013,13 +5013,13 @@ COSB1:	long		0xBF000000
 ############################################
 	global		ssin
 ssin:
-	mov.l		&0,ADJN(%a6)		# yes; SET ADJN TO 0
+	mov.l		&0,ADJN(%a6)		# no; SET ADJN TO 0
 	bra.b		SINBGN
 
 ############################################
 	global		scos
 scos:
-	mov.l		&1,ADJN(%a6)		# yes; SET ADJN TO 1
+	mov.l		&1,ADJN(%a6)		# no; SET ADJN TO 1
 
 ############################################
 SINBGN:
@@ -5034,13 +5034,13 @@ SINBGN:
 	and.l		&0x7FFFFFFF,%d1		# strip sign
 
 	cmpi.l		%d1,&0x3FD78000		# is |X| >= 2**(-40)?
-	bge.b		SOK1			# no
-	bra.w		SINSM			# yes; input is very small
+	bge.b		SOK1			# yes
+	bra.w		SINSM			# no; input is very small
 
 SOK1:
 	cmp.l		%d1,&0x4004BC7E		# is |X| < 15 PI?
-	blt.b		SINMAIN			# no
-	bra.w		SREDUCEX		# yes; input is very large
+	blt.b		SINMAIN			# yes
+	bra.w		SREDUCEX		# no; input is very large
 
 #--THIS IS THE USUAL CASE, |X| <= 15 PI.
 #--THE ARGUMENT REDUCTION IS DONE BY TABLE LOOK UP.
@@ -5201,7 +5201,7 @@ SINSM:
 	bgt.b		COSTINY
 
 # here, the operation may underflow iff the precision is sgl or dbl.
-# extended denorms are handled through another entry point.
+# extended deyesrms are handled through ayesther entry point.
 SINTINY:
 #	mov.w		&0x0000,XDCARE(%a6)	# JUST IN CASE
 
@@ -5472,9 +5472,9 @@ SREDUCEX:
 #--case, reduce argument by one remainder step to make subsequent reduction
 #--safe.
 	cmp.l		%d1,&0x7ffeffff		# is arg dangerously large?
-	bne.b		SLOOP			# no
+	bne.b		SLOOP			# yes
 
-# yes; create 2**16383*PI/2
+# no; create 2**16383*PI/2
 	mov.w		&0x7ffe,FP_SCR0_EX(%a6)
 	mov.l		&0xc90fdaa2,FP_SCR0_HI(%a6)
 	clr.l		FP_SCR0_LO(%a6)
@@ -5561,7 +5561,7 @@ SWORK:
 
 	mov.b		ENDFLAG(%a6),%d1
 
-#--We are now ready to perform (R+r) - N*P1 - N*P2, P1 = 2**(L) * Piby2_1 and
+#--We are yesw ready to perform (R+r) - N*P1 - N*P2, P1 = 2**(L) * Piby2_1 and
 #--P2 = 2**(L) * Piby2_2
 	fmov.x		%fp2,%fp4		# fp4 = N
 	fmul.x		FP_SCR0(%a6),%fp4	# fp4 = W = N*P1
@@ -5580,7 +5580,7 @@ SWORK:
 	fmov.x		%fp0,%fp3		# fp3 = A
 	fsub.x		%fp4,%fp1		# fp1 = a := r - p
 
-#--Now we need to normalize (A,a) to  "new (R,r)" where R+r = A+a but
+#--Now we need to yesrmalize (A,a) to  "new (R,r)" where R+r = A+a but
 #--|r| <= half ulp of R.
 	fadd.x		%fp1,%fp0		# fp0 = R := A+a
 #--No need to calculate r if this is the last loop
@@ -5604,8 +5604,8 @@ SRESTORE:
 	bra.w		SCCONT
 
 #########################################################################
-# stan():  computes the tangent of a normalized input			#
-# stand(): computes the tangent of a denormalized input			#
+# stan():  computes the tangent of a yesrmalized input			#
+# stand(): computes the tangent of a deyesrmalized input			#
 #									#
 # INPUT *************************************************************** #
 #	a0 = pointer to extended precision input			#
@@ -5617,7 +5617,7 @@ SRESTORE:
 # ACCURACY and MONOTONICITY ******************************************* #
 #	The returned result is within 3 ulp in 64 significant bit, i.e. #
 #	within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moyestonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM *********************************************************** #
@@ -5903,9 +5903,9 @@ REDUCEX:
 #--case, reduce argument by one remainder step to make subsequent reduction
 #--safe.
 	cmp.l		%d1,&0x7ffeffff		# is arg dangerously large?
-	bne.b		LOOP			# no
+	bne.b		LOOP			# yes
 
-# yes; create 2**16383*PI/2
+# no; create 2**16383*PI/2
 	mov.w		&0x7ffe,FP_SCR0_EX(%a6)
 	mov.l		&0xc90fdaa2,FP_SCR0_HI(%a6)
 	clr.l		FP_SCR0_LO(%a6)
@@ -5992,7 +5992,7 @@ WORK:
 
 	mov.b		ENDFLAG(%a6),%d1
 
-#--We are now ready to perform (R+r) - N*P1 - N*P2, P1 = 2**(L) * Piby2_1 and
+#--We are yesw ready to perform (R+r) - N*P1 - N*P2, P1 = 2**(L) * Piby2_1 and
 #--P2 = 2**(L) * Piby2_2
 	fmov.x		%fp2,%fp4		# fp4 = N
 	fmul.x		FP_SCR0(%a6),%fp4	# fp4 = W = N*P1
@@ -6011,7 +6011,7 @@ WORK:
 	fmov.x		%fp0,%fp3		# fp3 = A
 	fsub.x		%fp4,%fp1		# fp1 = a := r - p
 
-#--Now we need to normalize (A,a) to  "new (R,r)" where R+r = A+a but
+#--Now we need to yesrmalize (A,a) to  "new (R,r)" where R+r = A+a but
 #--|r| <= half ulp of R.
 	fadd.x		%fp1,%fp0		# fp0 = R := A+a
 #--No need to calculate r if this is the last loop
@@ -6034,8 +6034,8 @@ RESTORE:
 	bra.w		TANCONT
 
 #########################################################################
-# satan():  computes the arctangent of a normalized number		#
-# satand(): computes the arctangent of a denormalized number		#
+# satan():  computes the arctangent of a yesrmalized number		#
+# satand(): computes the arctangent of a deyesrmalized number		#
 #									#
 # INPUT	*************************************************************** #
 #	a0 = pointer to extended precision input			#
@@ -6047,7 +6047,7 @@ RESTORE:
 # ACCURACY and MONOTONICITY ******************************************* #
 #	The returned result is within 2 ulps in	64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moyestonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM *********************************************************** #
@@ -6059,17 +6059,17 @@ RESTORE:
 #		significant bits of X with a bit-1 attached at the 6-th	#
 #		bit position. Define u to be u = (X-F) / (1 + X*F).	#
 #									#
-#	Step 3. Approximate arctan(u) by a polynomial poly.		#
+#	Step 3. Approximate arctan(u) by a polyyesmial poly.		#
 #									#
 #	Step 4. Return arctan(F) + poly, arctan(F) is fetched from a	#
 #		table of values calculated beforehand. Exit.		#
 #									#
 #	Step 5. If |X| >= 16, go to Step 7.				#
 #									#
-#	Step 6. Approximate arctan(X) by an odd polynomial in X. Exit.	#
+#	Step 6. Approximate arctan(X) by an odd polyyesmial in X. Exit.	#
 #									#
 #	Step 7. Define X' = -1/X. Approximate arctan(X') by an odd	#
-#		polynomial in X'.					#
+#		polyyesmial in X'.					#
 #		Arctan(X) = sign(X)*Pi/2 + arctan(X'). Exit.		#
 #									#
 #########################################################################
@@ -6484,8 +6484,8 @@ satand:
 	bra		t_extdnrm
 
 #########################################################################
-# sasin():  computes the inverse sine of a normalized input		#
-# sasind(): computes the inverse sine of a denormalized input		#
+# sasin():  computes the inverse sine of a yesrmalized input		#
+# sasind(): computes the inverse sine of a deyesrmalized input		#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -6497,7 +6497,7 @@ satand:
 # ACCURACY and MONOTONICITY *******************************************	#
 #	The returned result is within 3 ulps in	64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moyestonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -6531,7 +6531,7 @@ sasin:
 
 # This catch is added here for the '060 QSP. Originally, the call to
 # satan() would handle this case by causing the exception which would
-# not be caught until gen_except(). Now, with the exceptions being
+# yest be caught until gen_except(). Now, with the exceptions being
 # detected inside of satan(), the exception would have been handled there
 # instead of inside sasin() as expected.
 	cmp.l		%d1,&0x3FD78000
@@ -6585,8 +6585,8 @@ sasind:
 	bra		t_extdnrm
 
 #########################################################################
-# sacos():  computes the inverse cosine of a normalized input		#
-# sacosd(): computes the inverse cosine of a denormalized input		#
+# sacos():  computes the inverse cosine of a yesrmalized input		#
+# sacosd(): computes the inverse cosine of a deyesrmalized input		#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -6598,7 +6598,7 @@ sasind:
 # ACCURACY and MONOTONICITY *******************************************	#
 #	The returned result is within 3 ulps in	64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moyestonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM *********************************************************** #
@@ -6679,10 +6679,10 @@ sacosd:
 	bra		t_pinx2
 
 #########################################################################
-# setox():    computes the exponential for a normalized input		#
-# setoxd():   computes the exponential for a denormalized input		#
-# setoxm1():  computes the exponential minus 1 for a normalized input	#
-# setoxm1d(): computes the exponential minus 1 for a denormalized input	#
+# setox():    computes the exponential for a yesrmalized input		#
+# setoxd():   computes the exponential for a deyesrmalized input		#
+# setoxm1():  computes the exponential minus 1 for a yesrmalized input	#
+# setoxm1d(): computes the exponential minus 1 for a deyesrmalized input	#
 #									#
 # INPUT	*************************************************************** #
 #	a0 = pointer to extended precision input			#
@@ -6694,7 +6694,7 @@ sacosd:
 # ACCURACY and MONOTONICITY ******************************************* #
 #	The returned result is within 0.85 ulps in 64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently #
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moyestonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM and IMPLEMENTATION **************************************** #
@@ -6726,7 +6726,7 @@ sacosd:
 #		by integer comparison. Note also that the constant	#
 #		16380 log(2) used in Step 1.3 is also in the compact	#
 #		form. Thus taking the branch to Step 2 guarantees	#
-#		|X| < 16380 log(2). There is no harm to have a small	#
+#		|X| < 16380 log(2). There is yes harm to have a small	#
 #		number of cases where |X| is less than,	but close to,	#
 #		16380 log(2) and the branch to Step 9 is taken.		#
 #									#
@@ -6747,7 +6747,7 @@ sacosd:
 #			constant := single-precision( 64/log 2 ).	#
 #									#
 #		Using a single-precision constant avoids memory		#
-#		access. Another effect of using a single-precision	#
+#		access. Ayesther effect of using a single-precision	#
 #		"constant" is that the calculated value Z is		#
 #									#
 #			Z = X*(64/log2)*(1+eps), |eps| <= 2^(-24).	#
@@ -6761,8 +6761,8 @@ sacosd:
 #				L2 := extended-precision(-log2/64 - L1).#
 #	Notes:	a) The way L1 and L2 are chosen ensures L1+L2		#
 #		approximate the value -log2/64 to 88 bits of accuracy.	#
-#		b) N*L1 is exact because N is no longer than 22 bits	#
-#		and L1 is no longer than 24 bits.			#
+#		b) N*L1 is exact because N is yes longer than 22 bits	#
+#		and L1 is yes longer than 24 bits.			#
 #		c) The calculation X+N*L1 is also exact due to		#
 #		cancellation. Thus, R is practically X+N(L1+L2) to full	#
 #		64 bits.						#
@@ -6781,7 +6781,7 @@ sacosd:
 #					<= 0.57 log2/64.		#
 #		 This bound will be used in Step 4.			#
 #									#
-#	Step 4.	Approximate exp(R)-1 by a polynomial			#
+#	Step 4.	Approximate exp(R)-1 by a polyyesmial			#
 #		p = R + R*R*(A1 + R*(A2 + R*(A3 + R*(A4 + R*A5))))	#
 #	Notes:	a) In order to reduce memory access, the coefficients	#
 #		are made as "short" as possible: A1 (which is 1/2), A4	#
@@ -6816,14 +6816,14 @@ sacosd:
 #		6.4	Return ans := ans * Scale. Exit.		#
 #	Notes:	If AdjFlag = 0, we have X = Mlog2 + Jlog2/64 + R,	#
 #		|M| <= 16380, and Scale = 2^M. Moreover, exp(X) will	#
-#		neither overflow nor underflow. If AdjFlag = 1, that	#
+#		neither overflow yesr underflow. If AdjFlag = 1, that	#
 #		means that						#
 #			X = (M1+M)log2 + Jlog2/64 + R, |M1+M| >= 16380.	#
 #		Hence, exp(X) may overflow or underflow or neither.	#
 #		When that is the case, AdjScale = 2^(M1) where M1 is	#
 #		approximately M. Thus 6.2 will never cause		#
 #		over/underflow. Possible exception in 6.4 is overflow	#
-#		or underflow. The inexact exception is not generated in	#
+#		or underflow. The inexact exception is yest generated in	#
 #		6.4. Although one can argue that the inexact flag	#
 #		should always be raised, to simulate that exception	#
 #		cost to much than the flag is worth in practical uses.	#
@@ -6832,13 +6832,13 @@ sacosd:
 #		7.1	ans := X					#
 #		7.2	Restore user FPCR.				#
 #		7.3	Return ans := 1 + ans. Exit			#
-#	Notes:	For non-zero X, the inexact exception will always be	#
+#	Notes:	For yesn-zero X, the inexact exception will always be	#
 #		raised by 7.3. That is the only exception raised by 7.3.#
 #		Note also that we use the FMOVEM instruction to move X	#
 #		in Step 7.1 to avoid unnecessary trapping. (Although	#
-#		the FMOVEM may not seem relevant since X is normalized,	#
+#		the FMOVEM may yest seem relevant since X is yesrmalized,	#
 #		the precaution will be useful in the library version of	#
-#		this code where the separate entry for denormalized	#
+#		this code where the separate entry for deyesrmalized	#
 #		inputs will be done away with.)				#
 #									#
 #	Step 8.	Handle exp(X) where |X| >= 16380log2.			#
@@ -6852,7 +6852,7 @@ sacosd:
 #			2^(J/64).					#
 #		8.6	Create the values Scale = 2^M, AdjScale = 2^M1.	#
 #		8.7	Go to Step 3.					#
-#	Notes:	Refer to notes for 2.2 - 2.6.				#
+#	Notes:	Refer to yestes for 2.2 - 2.6.				#
 #									#
 #	Step 9.	Handle exp(X), |X| > 16480 log2.			#
 #		9.1	If X < 0, go to 9.3				#
@@ -6887,7 +6887,7 @@ sacosd:
 #		However, it is conceivable |X| can be small very often	#
 #		because EXPM1 is intended to evaluate exp(X)-1		#
 #		accurately when |X| is small. For further details on	#
-#		the comparisons, see the notes on Step 1 of setox.	#
+#		the comparisons, see the yestes on Step 1 of setox.	#
 #									#
 #	Step 2.	Calculate N = round-to-nearest-int( X * 64/log2 ).	#
 #		2.1	N := round-to-nearest-integer( X * 64/log2 ).	#
@@ -6898,7 +6898,7 @@ sacosd:
 #			2^(J/64).					#
 #		2.5	Create the values Sc = 2^M and			#
 #			OnebySc := -2^(-M).				#
-#	Notes:	See the notes on Step 2 of setox.			#
+#	Notes:	See the yestes on Step 2 of setox.			#
 #									#
 #	Step 3.	Calculate X - N*log2/64.				#
 #		3.1	R := X + N*L1,					#
@@ -6906,10 +6906,10 @@ sacosd:
 #		3.2	R := R + N*L2,					#
 #				L2 := extended-precision(-log2/64 - L1).#
 #	Notes:	Applying the analysis of Step 3 of setox in this case	#
-#		shows that |R| <= 0.0055 (note that |X| <= 70 log2 in	#
+#		shows that |R| <= 0.0055 (yeste that |X| <= 70 log2 in	#
 #		this case).						#
 #									#
-#	Step 4.	Approximate exp(R)-1 by a polynomial			#
+#	Step 4.	Approximate exp(R)-1 by a polyyesmial			#
 #			p = R+R*R*(A1+R*(A2+R*(A3+R*(A4+R*(A5+R*A6)))))	#
 #	Notes:	a) In order to reduce memory access, the coefficients	#
 #		are made as "short" as possible: A1 (which is 1/2), A5	#
@@ -6934,7 +6934,7 @@ sacosd:
 #		zero. The reason for such a special form is that T-1,	#
 #		T-2, and T-8 will all be exact --- a property that will	#
 #		be exploited in Step 6 below. The total relative error	#
-#		in p is no bigger than 2^(-67.7) compared to the final	#
+#		in p is yes bigger than 2^(-67.7) compared to the final	#
 #		result.							#
 #									#
 #	Step 6.	Reconstruction of exp(X)-1				#
@@ -6962,12 +6962,12 @@ sacosd:
 #		 Return ans := ans*2^(140). Exit			#
 #	Notes:	The idea is to return "X - tiny" under the user		#
 #		precision and rounding modes. To avoid unnecessary	#
-#		inefficiency, we stay away from denormalized numbers	#
+#		inefficiency, we stay away from deyesrmalized numbers	#
 #		the best we can. For |X| >= 2^(-16312), the		#
 #		straightforward 8.2 generates the inexact exception as	#
 #		the case warrants.					#
 #									#
-#	Step 9.	Calculate exp(X)-1, |X| < 1/4, by a polynomial		#
+#	Step 9.	Calculate exp(X)-1, |X| < 1/4, by a polyyesmial		#
 #			p = X + X*X*(B1 + X*(B2 + ... + X*B12))		#
 #	Notes:	a) In order to reduce memory access, the coefficients	#
 #		are made as "short" as possible: B1 (which is 1/2), B9	#
@@ -6977,7 +6977,7 @@ sacosd:
 #			|p - (exp(X)-1)| < |X| 2^(-70.6)		#
 #		for all |X| <= 0.251.					#
 #		Note that 0.251 is slightly bigger than 1/4.		#
-#		c) To fully preserve accuracy, the polynomial is	#
+#		c) To fully preserve accuracy, the polyyesmial is	#
 #		computed as						#
 #			X + ( S*B1 +	Q ) where S = X*X and		#
 #			Q	=	X*S*(B2 + X*(B3 + ... + X*B12))	#
@@ -7099,25 +7099,25 @@ EEXPTBL:
 
 	global		setox
 setox:
-#--entry point for EXP(X), here X is finite, non-zero, and not NaN's
+#--entry point for EXP(X), here X is finite, yesn-zero, and yest NaN's
 
 #--Step 1.
 	mov.l		(%a0),%d1		# load part of input X
 	and.l		&0x7FFF0000,%d1		# biased expo. of X
 	cmp.l		%d1,&0x3FBE0000		# 2^(-65)
-	bge.b		EXPC1			# normal case
+	bge.b		EXPC1			# yesrmal case
 	bra		EXPSM
 
 EXPC1:
 #--The case |X| >= 2^(-65)
 	mov.w		4(%a0),%d1		# expo. and partial sig. of |X|
 	cmp.l		%d1,&0x400CB167		# 16380 log2 trunc. 16 bits
-	blt.b		EXPMAIN			# normal case
+	blt.b		EXPMAIN			# yesrmal case
 	bra		EEXPBIG
 
 EXPMAIN:
 #--Step 2.
-#--This is the normal branch:	2^(-65) <= |X| < 16380 log2.
+#--This is the yesrmal branch:	2^(-65) <= |X| < 16380 log2.
 	fmov.x		(%a0),%fp0		# load input from (a0)
 
 	fmov.x		%fp0,%fp1
@@ -7135,7 +7135,7 @@ EXPMAIN:
 	mov.l		L_SCR1(%a6),%d1
 	asr.l		&6,%d1			# D0 is M
 	add.w		&0x3FFF,%d1		# biased expo. of 2^(M)
-	mov.w		L2(%pc),L_SCR1(%a6)	# prefetch L2, no need in CB
+	mov.w		L2(%pc),L_SCR1(%a6)	# prefetch L2, yes need in CB
 
 EXPCONT1:
 #--Step 3.
@@ -7249,7 +7249,7 @@ EXP2BIG:
 
 	global		setoxd
 setoxd:
-#--entry point for EXP(X), X is denormalized
+#--entry point for EXP(X), X is deyesrmalized
 	mov.l		(%a0),-(%sp)
 	andi.l		&0x80000000,(%sp)
 	ori.l		&0x00800000,(%sp)	# sign(X)*2^(-126)
@@ -7262,7 +7262,7 @@ setoxd:
 
 	global		setoxm1
 setoxm1:
-#--entry point for EXPM1(X), here X is finite, non-zero, non-NaN
+#--entry point for EXPM1(X), here X is finite, yesn-zero, yesn-NaN
 
 #--Step 1.
 #--Step 1.1
@@ -7425,7 +7425,7 @@ EM12TINY:
 	bra		t_catch
 
 EM1POLY:
-#--Step 9	exp(X)-1 by a simple polynomial
+#--Step 9	exp(X)-1 by a simple polyyesmial
 	fmov.x		(%a0),%fp0		# fp0 is X
 	fmul.x		%fp0,%fp0		# fp0 is S := X*X
 	fmovm.x		&0xc,-(%sp)		# save fp2 {%fp2/%fp3}
@@ -7488,7 +7488,7 @@ EM1BIG:
 
 	global		setoxm1d
 setoxm1d:
-#--entry point for EXPM1(X), here X is denormalized
+#--entry point for EXPM1(X), here X is deyesrmalized
 #--Step 0.
 	bra		t_extdnrm
 
@@ -7496,13 +7496,13 @@ setoxm1d:
 # sgetexp():  returns the exponent portion of the input argument.	#
 #	      The exponent bias is removed and the exponent value is	#
 #	      returned as an extended precision number in fp0.		#
-# sgetexpd(): handles denormalized numbers.				#
+# sgetexpd(): handles deyesrmalized numbers.				#
 #									#
 # sgetman():  extracts the mantissa of the input argument. The		#
 #	      mantissa is converted to an extended precision number w/	#
 #	      an exponent of $3fff and is returned in fp0. The range of #
 #	      the result is [1.0 - 2.0).				#
-# sgetmand(): handles denormalized numbers.				#
+# sgetmand(): handles deyesrmalized numbers.				#
 #									#
 # INPUT *************************************************************** #
 #	a0  = pointer to extended precision input			#
@@ -7527,7 +7527,7 @@ sgetexpn:
 
 	global		sgetexpd
 sgetexpd:
-	bsr.l		norm			# normalize
+	bsr.l		yesrm			# yesrmalize
 	neg.w		%d0			# new exp = -(shft amt)
 	subi.w		&0x3fff,%d0		# subtract off the bias
 	fmov.w		%d0,%fp0		# return exp in fp0
@@ -7540,7 +7540,7 @@ sgetman:
 	ori.w		&0x7fff,%d0		# clear old exp
 	bclr		&0xe,%d0		# make it the new exp +-3fff
 
-# here, we build the result in a tmp location so as not to disturb the input
+# here, we build the result in a tmp location so as yest to disturb the input
 	mov.l		SRC_HI(%a0),FP_SCR0_HI(%a6) # copy to tmp loc
 	mov.l		SRC_LO(%a0),FP_SCR0_LO(%a6) # copy to tmp loc
 	mov.w		%d0,FP_SCR0_EX(%a6)	# insert new exponent
@@ -7553,17 +7553,17 @@ sgetmann:
 	rts
 
 #
-# For denormalized numbers, shift the mantissa until the j-bit = 1,
+# For deyesrmalized numbers, shift the mantissa until the j-bit = 1,
 # then load the exponent with +/1 $3fff.
 #
 	global		sgetmand
 sgetmand:
-	bsr.l		norm			# normalize exponent
+	bsr.l		yesrm			# yesrmalize exponent
 	bra.b		sgetman
 
 #########################################################################
-# scosh():  computes the hyperbolic cosine of a normalized input	#
-# scoshd(): computes the hyperbolic cosine of a denormalized input	#
+# scosh():  computes the hyperbolic cosine of a yesrmalized input	#
+# scoshd(): computes the hyperbolic cosine of a deyesrmalized input	#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -7575,7 +7575,7 @@ sgetmand:
 # ACCURACY and MONOTONICITY *******************************************	#
 #	The returned result is within 3 ulps in 64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moyestonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -7676,8 +7676,8 @@ scoshd:
 	bra		t_pinx2
 
 #########################################################################
-# ssinh():  computes the hyperbolic sine of a normalized input		#
-# ssinhd(): computes the hyperbolic sine of a denormalized input	#
+# ssinh():  computes the hyperbolic sine of a yesrmalized input		#
+# ssinhd(): computes the hyperbolic sine of a deyesrmalized input	#
 #									#
 # INPUT *************************************************************** #
 #	a0 = pointer to extended precision input			#
@@ -7689,7 +7689,7 @@ scoshd:
 # ACCURACY and MONOTONICITY *******************************************	#
 #	The returned result is within 3 ulps in 64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently #
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moyestonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM *********************************************************** #
@@ -7794,8 +7794,8 @@ ssinhd:
 	bra		t_extdnrm
 
 #########################################################################
-# stanh():  computes the hyperbolic tangent of a normalized input	#
-# stanhd(): computes the hyperbolic tangent of a denormalized input	#
+# stanh():  computes the hyperbolic tangent of a yesrmalized input	#
+# stanhd(): computes the hyperbolic tangent of a deyesrmalized input	#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -7807,7 +7807,7 @@ ssinhd:
 # ACCURACY and MONOTONICITY *******************************************	#
 #	The returned result is within 3 ulps in 64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently #
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moyestonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -7857,9 +7857,9 @@ stanh:
 	mov.l		%d1,X(%a6)
 	and.l		&0x7FFFFFFF,%d1
 	cmp.l		%d1, &0x3fd78000	# is |X| < 2^(-40)?
-	blt.w		TANHBORS		# yes
+	blt.w		TANHBORS		# no
 	cmp.l		%d1, &0x3fffddce	# is |X| > (5/2)LOG2?
-	bgt.w		TANHBORS		# yes
+	bgt.w		TANHBORS		# no
 
 #--THIS IS THE USUAL CASE
 #--Y = 2|X|, Z = EXPM1(Y), TANH(X) = SIGN(X) * Z / (Z+2).
@@ -7958,10 +7958,10 @@ stanhd:
 	bra		t_extdnrm
 
 #########################################################################
-# slogn():    computes the natural logarithm of a normalized input	#
-# slognd():   computes the natural logarithm of a denormalized input	#
-# slognp1():  computes the log(1+X) of a normalized input		#
-# slognp1d(): computes the log(1+X) of a denormalized input		#
+# slogn():    computes the natural logarithm of a yesrmalized input	#
+# slognd():   computes the natural logarithm of a deyesrmalized input	#
+# slognp1():  computes the log(1+X) of a yesrmalized input		#
+# slognp1d(): computes the log(1+X) of a deyesrmalized input		#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -7973,13 +7973,13 @@ stanhd:
 # ACCURACY and MONOTONICITY *******************************************	#
 #	The returned result is within 2 ulps in 64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moyestonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
 #	LOGN:								#
 #	Step 1. If |X-1| < 1/16, approximate log(X) by an odd		#
-#		polynomial in u, where u = 2(X-1)/(X+1). Otherwise,	#
+#		polyyesmial in u, where u = 2(X-1)/(X+1). Otherwise,	#
 #		move on to Step 2.					#
 #									#
 #	Step 2. X = 2**k * Y where 1 <= Y < 2. Define F to be the first	#
@@ -7988,7 +7988,7 @@ stanhd:
 #		of Y. Note that |Y-F| <= 2**(-7).			#
 #									#
 #	Step 3. Define u = (Y-F)/F. Approximate log(1+u) by a		#
-#		polynomial in u, log(1+u) = poly.			#
+#		polyyesmial in u, log(1+u) = poly.			#
 #									#
 #	Step 4. Reconstruct						#
 #		log(X) = log( 2**k * Y ) = k*log(2) + log(F) + log(1+u)	#
@@ -7997,7 +7997,7 @@ stanhd:
 #									#
 #	lognp1:								#
 #	Step 1: If |X| < 1/16, approximate log(1+X) by an odd		#
-#		polynomial in u where u = 2X/(2+X). Otherwise, move on	#
+#		polyyesmial in u where u = 2X/(2+X). Otherwise, move on	#
 #		to Step 2.						#
 #									#
 #	Step 2: Let 1+X = 2**k * Y, where 1 <= Y < 2. Define F as done	#
@@ -8015,7 +8015,7 @@ stanhd:
 #		the value Y-F has to be calculated carefully when	#
 #		1/2 <= X < 3/2.						#
 #									#
-#	Note 3. To fully exploit the pipeline, polynomials are usually	#
+#	Note 3. To fully exploit the pipeline, polyyesmials are usually	#
 #		separated into two parts evaluated independently before	#
 #		being added up.						#
 #									#
@@ -8322,7 +8322,7 @@ LOGNEAR1:
 # if these 2 lines weren't here, the correct answer would be returned
 # but the INEX2 bit would be set.
 	fcmp.b		%fp0,&0x1		# is it equal to one?
-	fbeq.l		ld_pzero		# yes
+	fbeq.l		ld_pzero		# no
 
 #--REGISTERS SAVED: FPCR, FP1. FP0 CONTAINS THE INPUT.
 	fmov.x		%fp0,%fp1
@@ -8381,19 +8381,19 @@ slognd:
 
 	mov.l		&-100,ADJK(%a6)		# INPUT = 2^(ADJK) * FP0
 
-#----normalize the input value by left shifting k bits (k to be determined
+#----yesrmalize the input value by left shifting k bits (k to be determined
 #----below), adjusting exponent and storing -k to  ADJK
-#----the value TWOTO100 is no longer needed.
-#----Note that this code assumes the denormalized input is NON-ZERO.
+#----the value TWOTO100 is yes longer needed.
+#----Note that this code assumes the deyesrmalized input is NON-ZERO.
 
 	movm.l		&0x3f00,-(%sp)		# save some registers  {d2-d7}
-	mov.l		(%a0),%d3		# D3 is exponent of smallest norm. #
+	mov.l		(%a0),%d3		# D3 is exponent of smallest yesrm. #
 	mov.l		4(%a0),%d4
 	mov.l		8(%a0),%d5		# (D4,D5) is (Hi_X,Lo_X)
 	clr.l		%d2			# D2 used for holding K
 
 	tst.l		%d4
-	bne.b		Hi_not0
+	bne.b		Hi_yest0
 
 Hi_0:
 	mov.l		%d5,%d4
@@ -8402,7 +8402,7 @@ Hi_0:
 	clr.l		%d6
 	bfffo		%d4{&0:&32},%d6
 	lsl.l		%d6,%d4
-	add.l		%d6,%d2			# (D3,D4,D5) is normalized
+	add.l		%d6,%d2			# (D3,D4,D5) is yesrmalized
 
 	mov.l		%d3,X(%a6)
 	mov.l		%d4,XFRAC(%a6)
@@ -8414,7 +8414,7 @@ Hi_0:
 	lea		X(%a6),%a0
 	bra.w		LOGBGN			# begin regular log(X)
 
-Hi_not0:
+Hi_yest0:
 	clr.l		%d6
 	bfffo		%d4{&0:&32},%d6		# find first 1
 	mov.l		%d6,%d2			# get k
@@ -8424,7 +8424,7 @@ Hi_not0:
 	neg.l		%d6
 	add.l		&32,%d6
 	lsr.l		%d6,%d7
-	or.l		%d7,%d4			# (D3,D4,D5) normalized
+	or.l		%d7,%d4			# (D3,D4,D5) yesrmalized
 
 	mov.l		%d3,X(%a6)
 	mov.l		%d4,XFRAC(%a6)
@@ -8550,13 +8550,13 @@ LP1NEG:
 
 	global		slognp1d
 #--ENTRY POINT FOR LOG(1+Z) FOR DENORMALIZED INPUT
-# Simply return the denorm
+# Simply return the deyesrm
 slognp1d:
 	bra		t_extdnrm
 
 #########################################################################
-# satanh():  computes the inverse hyperbolic tangent of a norm input	#
-# satanhd(): computes the inverse hyperbolic tangent of a denorm input	#
+# satanh():  computes the inverse hyperbolic tangent of a yesrm input	#
+# satanhd(): computes the inverse hyperbolic tangent of a deyesrm input	#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -8568,7 +8568,7 @@ slognp1d:
 # ACCURACY and MONOTONICITY *******************************************	#
 #	The returned result is within 3 ulps in	64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moyestonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -8643,10 +8643,10 @@ satanhd:
 	bra		t_extdnrm
 
 #########################################################################
-# slog10():  computes the base-10 logarithm of a normalized input	#
-# slog10d(): computes the base-10 logarithm of a denormalized input	#
-# slog2():   computes the base-2 logarithm of a normalized input	#
-# slog2d():  computes the base-2 logarithm of a denormalized input	#
+# slog10():  computes the base-10 logarithm of a yesrmalized input	#
+# slog10d(): computes the base-10 logarithm of a deyesrmalized input	#
+# slog2():   computes the base-2 logarithm of a yesrmalized input	#
+# slog2d():  computes the base-2 logarithm of a deyesrmalized input	#
 #									#
 # INPUT *************************************************************** #
 #	a0 = pointer to extended precision input			#
@@ -8658,7 +8658,7 @@ satanhd:
 # ACCURACY and MONOTONICITY *******************************************	#
 #	The returned result is within 1.7 ulps in 64 significant bit,	#
 #	i.e. within 0.5003 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moyestonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -8667,11 +8667,11 @@ satanhd:
 #									#
 #       Step 0.	If X < 0, create a NaN and raise the invalid operation	#
 #               flag. Otherwise, save FPCR in D1; set FpCR to default.	#
-#       Notes:  Default means round-to-nearest mode, no floating-point	#
+#       Notes:  Default means round-to-nearest mode, yes floating-point	#
 #               traps, and precision control = double extended.		#
 #									#
 #       Step 1. Call slognd to obtain Y = log(X), the natural log of X.	#
-#       Notes:  Even if X is denormalized, log(X) is always normalized.	#
+#       Notes:  Even if X is deyesrmalized, log(X) is always yesrmalized.	#
 #									#
 #       Step 2.  Compute log_10(X) = log(X) * (1/log(10)).		#
 #            2.1 Restore the user FPCR					#
@@ -8681,7 +8681,7 @@ satanhd:
 #									#
 #       Step 0. If X < 0, create a NaN and raise the invalid operation	#
 #               flag. Otherwise, save FPCR in D1; set FpCR to default.	#
-#       Notes:  Default means round-to-nearest mode, no floating-point	#
+#       Notes:  Default means round-to-nearest mode, yes floating-point	#
 #               traps, and precision control = double extended.		#
 #									#
 #       Step 1. Call sLogN to obtain Y = log(X), the natural log of X.	#
@@ -8694,11 +8694,11 @@ satanhd:
 #									#
 #       Step 0. If X < 0, create a NaN and raise the invalid operation	#
 #               flag. Otherwise, save FPCR in D1; set FpCR to default.	#
-#       Notes:  Default means round-to-nearest mode, no floating-point	#
+#       Notes:  Default means round-to-nearest mode, yes floating-point	#
 #               traps, and precision control = double extended.		#
 #									#
 #       Step 1. Call slognd to obtain Y = log(X), the natural log of X.	#
-#       Notes:  Even if X is denormalized, log(X) is always normalized.	#
+#       Notes:  Even if X is deyesrmalized, log(X) is always yesrmalized.	#
 #									#
 #       Step 2.   Compute log_10(X) = log(X) * (1/log(2)).		#
 #            2.1  Restore the user FPCR					#
@@ -8708,10 +8708,10 @@ satanhd:
 #									#
 #       Step 0. If X < 0, create a NaN and raise the invalid operation	#
 #               flag. Otherwise, save FPCR in D1; set FpCR to default.	#
-#       Notes:  Default means round-to-nearest mode, no floating-point	#
+#       Notes:  Default means round-to-nearest mode, yes floating-point	#
 #               traps, and precision control = double extended.		#
 #									#
-#       Step 1. If X is not an integer power of two, i.e., X != 2^k,	#
+#       Step 1. If X is yest an integer power of two, i.e., X != 2^k,	#
 #               go to Step 3.						#
 #									#
 #       Step 2.   Return k.						#
@@ -8734,7 +8734,7 @@ INV_L2:
 	long		0x3FFF0000,0xB8AA3B29,0x5C17F0BC,0x00000000
 
 	global		slog10
-#--entry point for Log10(X), X is normalized
+#--entry point for Log10(X), X is yesrmalized
 slog10:
 	fmov.b		&0x1,%fp0
 	fcmp.x		%fp0,(%a0)		# if operand == 1,
@@ -8744,31 +8744,31 @@ slog10:
 	blt.w		invalid
 	mov.l		%d0,-(%sp)
 	clr.l		%d0
-	bsr		slogn			# log(X), X normal.
+	bsr		slogn			# log(X), X yesrmal.
 	fmov.l		(%sp)+,%fpcr
 	fmul.x		INV_L10(%pc),%fp0
 	bra		t_inx2
 
 	global		slog10d
-#--entry point for Log10(X), X is denormalized
+#--entry point for Log10(X), X is deyesrmalized
 slog10d:
 	mov.l		(%a0),%d1
 	blt.w		invalid
 	mov.l		%d0,-(%sp)
 	clr.l		%d0
-	bsr		slognd			# log(X), X denorm.
+	bsr		slognd			# log(X), X deyesrm.
 	fmov.l		(%sp)+,%fpcr
 	fmul.x		INV_L10(%pc),%fp0
 	bra		t_minx2
 
 	global		slog2
-#--entry point for Log2(X), X is normalized
+#--entry point for Log2(X), X is yesrmalized
 slog2:
 	mov.l		(%a0),%d1
 	blt.w		invalid
 
 	mov.l		8(%a0),%d1
-	bne.b		continue		# X is not 2^k
+	bne.b		continue		# X is yest 2^k
 
 	mov.l		4(%a0),%d1
 	and.l		&0x7FFFFFFF,%d1
@@ -8786,7 +8786,7 @@ slog2:
 continue:
 	mov.l		%d0,-(%sp)
 	clr.l		%d0
-	bsr		slogn			# log(X), X normal.
+	bsr		slogn			# log(X), X yesrmal.
 	fmov.l		(%sp)+,%fpcr
 	fmul.x		INV_L2(%pc),%fp0
 	bra		t_inx2
@@ -8795,22 +8795,22 @@ invalid:
 	bra		t_operr
 
 	global		slog2d
-#--entry point for Log2(X), X is denormalized
+#--entry point for Log2(X), X is deyesrmalized
 slog2d:
 	mov.l		(%a0),%d1
 	blt.w		invalid
 	mov.l		%d0,-(%sp)
 	clr.l		%d0
-	bsr		slognd			# log(X), X denorm.
+	bsr		slognd			# log(X), X deyesrm.
 	fmov.l		(%sp)+,%fpcr
 	fmul.x		INV_L2(%pc),%fp0
 	bra		t_minx2
 
 #########################################################################
-# stwotox():  computes 2**X for a normalized input			#
-# stwotoxd(): computes 2**X for a denormalized input			#
-# stentox():  computes 10**X for a normalized input			#
-# stentoxd(): computes 10**X for a denormalized input			#
+# stwotox():  computes 2**X for a yesrmalized input			#
+# stwotoxd(): computes 2**X for a deyesrmalized input			#
+# stentox():  computes 10**X for a yesrmalized input			#
+# stentoxd(): computes 10**X for a deyesrmalized input			#
 #									#
 # INPUT ***************************************************************	#
 #	a0 = pointer to extended precision input			#
@@ -8822,7 +8822,7 @@ slog2d:
 # ACCURACY and MONOTONICITY *******************************************	#
 #	The returned result is within 2 ulps in 64 significant bit,	#
 #	i.e. within 0.5001 ulp to 53 bits if the result is subsequently	#
-#	rounded to double precision. The result is provably monotonic	#
+#	rounded to double precision. The result is provably moyestonic	#
 #	in double precision.						#
 #									#
 # ALGORITHM ***********************************************************	#
@@ -9219,7 +9219,7 @@ set	SIGN,		L_SCR1
 
 	global		sscale
 sscale:
-	mov.l		%d0,-(%sp)		# store off ctrl bits for now
+	mov.l		%d0,-(%sp)		# store off ctrl bits for yesw
 
 	mov.w		DST_EX(%a1),%d1		# get dst exponent
 	smi.b		SIGN(%a6)		# use SIGN to hold dst sign
@@ -9228,9 +9228,9 @@ sscale:
 	mov.w		SRC_EX(%a0),%d0		# check src bounds
 	andi.w		&0x7fff,%d0		# clr src sign bit
 	cmpi.w		%d0,&0x3fff		# is src ~ ZERO?
-	blt.w		src_small		# yes
-	cmpi.w		%d0,&0x400c		# no; is src too big?
-	bgt.w		src_out			# yes
+	blt.w		src_small		# no
+	cmpi.w		%d0,&0x400c		# yes; is src too big?
+	bgt.w		src_out			# no
 
 #
 # Source is within 2^14 range.
@@ -9242,58 +9242,58 @@ src_ok:
 # we may need to read the fpsr for the last fp op in t_catch2().
 	fmov.l		&0x0,%fpsr
 
-	tst.b		DST_HI(%a1)		# is dst denormalized?
-	bmi.b		sok_norm
+	tst.b		DST_HI(%a1)		# is dst deyesrmalized?
+	bmi.b		sok_yesrm
 
-# the dst is a DENORM. normalize the DENORM and add the adjustment to
-# the src value. then, jump to the norm part of the routine.
+# the dst is a DENORM. yesrmalize the DENORM and add the adjustment to
+# the src value. then, jump to the yesrm part of the routine.
 sok_dnrm:
-	mov.l		%d0,-(%sp)		# save src for now
+	mov.l		%d0,-(%sp)		# save src for yesw
 
 	mov.w		DST_EX(%a1),FP_SCR0_EX(%a6) # make a copy
 	mov.l		DST_HI(%a1),FP_SCR0_HI(%a6)
 	mov.l		DST_LO(%a1),FP_SCR0_LO(%a6)
 
 	lea		FP_SCR0(%a6),%a0	# pass ptr to DENORM
-	bsr.l		norm			# normalize the DENORM
+	bsr.l		yesrm			# yesrmalize the DENORM
 	neg.l		%d0
 	add.l		(%sp)+,%d0		# add adjustment to src
 
-	fmovm.x		FP_SCR0(%a6),&0x80	# load normalized DENORM
+	fmovm.x		FP_SCR0(%a6),&0x80	# load yesrmalized DENORM
 
 	cmpi.w		%d0,&-0x3fff		# is the shft amt really low?
-	bge.b		sok_norm2		# thank goodness no
+	bge.b		sok_yesrm2		# thank goodness yes
 
-# the multiply factor that we're trying to create should be a denorm
+# the multiply factor that we're trying to create should be a deyesrm
 # for the multiply to work. therefore, we're going to actually do a
-# multiply with a denorm which will cause an unimplemented data type
+# multiply with a deyesrm which will cause an unimplemented data type
 # exception to be put into the machine which will be caught and corrected
 # later. we don't do this with the DENORMs above because this method
 # is slower. but, don't fret, I don't see it being used much either.
 	fmov.l		(%sp)+,%fpcr		# restore user fpcr
-	mov.l		&0x80000000,%d1		# load normalized mantissa
+	mov.l		&0x80000000,%d1		# load yesrmalized mantissa
 	subi.l		&-0x3fff,%d0		# how many should we shift?
 	neg.l		%d0			# make it positive
 	cmpi.b		%d0,&0x20		# is it > 32?
-	bge.b		sok_dnrm_32		# yes
-	lsr.l		%d0,%d1			# no; bit stays in upper lw
+	bge.b		sok_dnrm_32		# no
+	lsr.l		%d0,%d1			# yes; bit stays in upper lw
 	clr.l		-(%sp)			# insert zero low mantissa
 	mov.l		%d1,-(%sp)		# insert new high mantissa
 	clr.l		-(%sp)			# make zero exponent
-	bra.b		sok_norm_cont
+	bra.b		sok_yesrm_cont
 sok_dnrm_32:
 	subi.b		&0x20,%d0		# get shift count
 	lsr.l		%d0,%d1			# make low mantissa longword
 	mov.l		%d1,-(%sp)		# insert new low mantissa
 	clr.l		-(%sp)			# insert zero high mantissa
 	clr.l		-(%sp)			# make zero exponent
-	bra.b		sok_norm_cont
+	bra.b		sok_yesrm_cont
 
 # the src will force the dst to a DENORM value or worse. so, let's
 # create an fp multiply that will create the result.
-sok_norm:
-	fmovm.x		DST(%a1),&0x80		# load fp0 with normalized src
-sok_norm2:
+sok_yesrm:
+	fmovm.x		DST(%a1),&0x80		# load fp0 with yesrmalized src
+sok_yesrm2:
 	fmov.l		(%sp)+,%fpcr		# restore user fpcr
 
 	addi.w		&0x3fff,%d0		# turn src amt into exp value
@@ -9302,7 +9302,7 @@ sok_norm2:
 	mov.l		&0x80000000,-(%sp)	# insert new high mantissa
 	mov.l		%d0,-(%sp)		# insert new lo mantissa
 
-sok_norm_cont:
+sok_yesrm_cont:
 	fmov.l		%fpcr,%d0		# d0 needs fpcr for t_catch2
 	mov.b		&FMUL_OP,%d1		# last inst is MUL
 	fmul.x		(%sp)+,%fp0		# do the multiply
@@ -9316,19 +9316,19 @@ src_out:
 	mov.l		(%sp)+,%d0		# restore ctrl bits
 	exg		%a0,%a1			# swap src,dst ptrs
 	tst.b		SRC_EX(%a1)		# is src negative?
-	bmi		t_unfl			# yes; underflow
-	bra		t_ovfl_sc		# no; overflow
+	bmi		t_unfl			# no; underflow
+	bra		t_ovfl_sc		# yes; overflow
 
 #
-# The source input is below 1, so we check for denormalized numbers
+# The source input is below 1, so we check for deyesrmalized numbers
 # and set unfl.
 #
 src_small:
-	tst.b		DST_HI(%a1)		# is dst denormalized?
-	bpl.b		ssmall_done		# yes
+	tst.b		DST_HI(%a1)		# is dst deyesrmalized?
+	bpl.b		ssmall_done		# no
 
 	mov.l		(%sp)+,%d0
-	fmov.l		%d0,%fpcr		# no; load control bits
+	fmov.l		%d0,%fpcr		# yes; load control bits
 	mov.b		&FMOV_OP,%d1		# last inst is MOVE
 	fmov.x		DST(%a1),%fp0		# simply return dest
 	bra		t_catch2
@@ -9346,8 +9346,8 @@ ssmall_done:
 #	a1 = pointer to extended precision input Y			#
 #	d0 = round precision,mode					#
 #									#
-#	The input operands X and Y can be either normalized or		#
-#	denormalized.							#
+#	The input operands X and Y can be either yesrmalized or		#
+#	deyesrmalized.							#
 #									#
 # OUTPUT ************************************************************** #
 #      fp0 = FREM(X,Y) or FMOD(X,Y)					#
@@ -9444,7 +9444,7 @@ Mod_Rem:
 
 	mov.l		&0x00003FFE,%d3		# $3FFD + 1
 	tst.l		%d4
-	bne.b		HiY_not0
+	bne.b		HiY_yest0
 
 HiY_0:
 	mov.l		%d5,%d4
@@ -9453,11 +9453,11 @@ HiY_0:
 	clr.l		%d6
 	bfffo		%d4{&0:&32},%d6
 	lsl.l		%d6,%d4
-	sub.l		%d6,%d3			# (D3,D4,D5) is normalized
+	sub.l		%d6,%d3			# (D3,D4,D5) is yesrmalized
 #	                                        ...with bias $7FFD
 	bra.b		Chk_X
 
-HiY_not0:
+HiY_yest0:
 	clr.l		%d6
 	bfffo		%d4{&0:&32},%d6
 	sub.l		%d6,%d3
@@ -9467,12 +9467,12 @@ HiY_not0:
 	neg.l		%d6
 	add.l		&32,%d6
 	lsr.l		%d6,%d7
-	or.l		%d7,%d4			# (D3,D4,D5) normalized
+	or.l		%d7,%d4			# (D3,D4,D5) yesrmalized
 #                                       ...with bias $7FFD
 	bra.b		Chk_X
 
 Y_Normal:
-	add.l		&0x00003FFE,%d3		# (D3,D4,D5) normalized
+	add.l		&0x00003FFE,%d3		# (D3,D4,D5) yesrmalized
 #                                       ...with bias $7FFD
 
 Chk_X:
@@ -9489,7 +9489,7 @@ Chk_X:
 	bne.b		X_Normal
 	mov.l		&0x00003FFE,%d0
 	tst.l		%d1
-	bne.b		HiX_not0
+	bne.b		HiX_yest0
 
 HiX_0:
 	mov.l		%d2,%d1
@@ -9498,11 +9498,11 @@ HiX_0:
 	clr.l		%d6
 	bfffo		%d1{&0:&32},%d6
 	lsl.l		%d6,%d1
-	sub.l		%d6,%d0			# (D0,D1,D2) is normalized
+	sub.l		%d6,%d0			# (D0,D1,D2) is yesrmalized
 #                                       ...with bias $7FFD
 	bra.b		Init
 
-HiX_not0:
+HiX_yest0:
 	clr.l		%d6
 	bfffo		%d1{&0:&32},%d6
 	sub.l		%d6,%d0
@@ -9512,12 +9512,12 @@ HiX_not0:
 	neg.l		%d6
 	add.l		&32,%d6
 	lsr.l		%d6,%d7
-	or.l		%d7,%d1			# (D0,D1,D2) normalized
+	or.l		%d7,%d1			# (D0,D1,D2) yesrmalized
 #                                       ...with bias $7FFD
 	bra.b		Init
 
 X_Normal:
-	add.l		&0x00003FFE,%d0		# (D0,D1,D2) normalized
+	add.l		&0x00003FFE,%d0		# (D0,D1,D2) yesrmalized
 #                                       ...with bias $7FFD
 
 Init:
@@ -9585,10 +9585,10 @@ R_LT_Y:
 PostLoop:
 #..k = L, j = 0, Carry = 0, R = (D1,D2) = X - QY, R < Y.
 
-#..normalize R.
+#..yesrmalize R.
 	mov.l		L_SCR1(%a6),%d0		# new biased expo of R
 	tst.l		%d1
-	bne.b		HiR_not0
+	bne.b		HiR_yest0
 
 HiR_0:
 	mov.l		%d2,%d1
@@ -9597,14 +9597,14 @@ HiR_0:
 	clr.l		%d6
 	bfffo		%d1{&0:&32},%d6
 	lsl.l		%d6,%d1
-	sub.l		%d6,%d0			# (D0,D1,D2) is normalized
+	sub.l		%d6,%d0			# (D0,D1,D2) is yesrmalized
 #                                       ...with bias $7FFD
 	bra.b		Get_Mod
 
-HiR_not0:
+HiR_yest0:
 	clr.l		%d6
 	bfffo		%d1{&0:&32},%d6
-	bmi.b		Get_Mod			# already normalized
+	bmi.b		Get_Mod			# already yesrmalized
 	sub.l		%d6,%d0
 	lsl.l		%d6,%d1
 	mov.l		%d2,%d7			# a copy of D2
@@ -9612,7 +9612,7 @@ HiR_not0:
 	neg.l		%d6
 	add.l		&32,%d6
 	lsr.l		%d6,%d7
-	or.l		%d7,%d1			# (D0,D1,D2) normalized
+	or.l		%d7,%d1			# (D0,D1,D2) yesrmalized
 
 #
 Get_Mod:
@@ -9626,7 +9626,7 @@ Do_Scale:
 	mov.w		%d6,Y(%a6)
 	mov.l		%d4,Y_Hi(%a6)
 	mov.l		%d5,Y_Lo(%a6)
-	fmov.x		R(%a6),%fp0		# no exception
+	fmov.x		R(%a6),%fp0		# yes exception
 	mov.b		&1,Sc_Flag(%a6)
 	bra.b		ModOrRem
 No_Scale:
@@ -9665,7 +9665,7 @@ Not_EQ:
 
 Last_Sub:
 #
-	fsub.x		Y(%a6),%fp0		# no exceptions
+	fsub.x		Y(%a6),%fp0		# yes exceptions
 	addq.l		&1,%d3			# Q := Q + 1
 
 #
@@ -9702,10 +9702,10 @@ Restore:
 	fmul.x		Scale(%pc),%fp0		# may cause underflow
 	bra		t_catch2
 # the '040 package did this apparently to see if the dst operand for the
-# preceding fmul was a denorm. but, it better not have been since the
-# algorithm just got done playing with fp0 and expected no exceptions
+# preceding fmul was a deyesrm. but, it better yest have been since the
+# algorithm just got done playing with fp0 and expected yes exceptions
 # as a result. trust me...
-#	bra		t_avoid_unsupp		# check for denorm as a
+#	bra		t_avoid_unsupp		# check for deyesrm as a
 #						;result of the scaling
 
 Finish:
@@ -9763,8 +9763,8 @@ Tie_Case:
 # ALGORITHM ***********************************************************	#
 #	Simply test the exponent, j-bit, and mantissa values to		#
 # determine the type of operand.					#
-#	If it's an unnormalized zero, alter the operand and force it	#
-# to be a normal zero.							#
+#	If it's an unyesrmalized zero, alter the operand and force it	#
+# to be a yesrmal zero.							#
 #									#
 #########################################################################
 
@@ -9774,30 +9774,30 @@ tag:
 	andi.w		&0x7fff, %d0		# strip off sign
 	cmpi.w		%d0, &0x7fff		# is (EXP == MAX)?
 	beq.b		inf_or_nan_x
-not_inf_or_nan_x:
+yest_inf_or_nan_x:
 	btst		&0x7,FTEMP_HI(%a0)
-	beq.b		not_norm_x
-is_norm_x:
+	beq.b		yest_yesrm_x
+is_yesrm_x:
 	mov.b		&NORM, %d0
 	rts
-not_norm_x:
+yest_yesrm_x:
 	tst.w		%d0			# is exponent = 0?
-	bne.b		is_unnorm_x
-not_unnorm_x:
+	bne.b		is_unyesrm_x
+yest_unyesrm_x:
 	tst.l		FTEMP_HI(%a0)
-	bne.b		is_denorm_x
+	bne.b		is_deyesrm_x
 	tst.l		FTEMP_LO(%a0)
-	bne.b		is_denorm_x
+	bne.b		is_deyesrm_x
 is_zero_x:
 	mov.b		&ZERO, %d0
 	rts
-is_denorm_x:
+is_deyesrm_x:
 	mov.b		&DENORM, %d0
 	rts
-is_unnorm_x:
-	bsr.l		unnorm_fix		# convert to norm,denorm,or zero
+is_unyesrm_x:
+	bsr.l		unyesrm_fix		# convert to yesrm,deyesrm,or zero
 	rts
-is_unnorm_reg_x:
+is_unyesrm_reg_x:
 	mov.b		&UNNORM, %d0
 	rts
 inf_or_nan_x:
@@ -10022,7 +10022,7 @@ unf_pos:
 # emulation in the 060FPLSP. Create an overflow by using "fmul"		#
 # and two very lareg numbers of appropriate sign so the operating	#
 # system can log the event.						#
-#	For t_ovfl_sc() we take special care not to lose the INEX2 bit.	#
+#	For t_ovfl_sc() we take special care yest to lose the INEX2 bit.	#
 #									#
 #########################################################################
 
@@ -10034,7 +10034,7 @@ t_ovfl_sc:
 	andi.b		&0xc0,%d1		# extract prec
 	beq.w		ovfl_work
 
-# dst op is a DENORM. we have to normalize the mantissa to see if the
+# dst op is a DENORM. we have to yesrmalize the mantissa to see if the
 # result would be inexact for the given precision. make a copy of the
 # dst so we don't screw up the version passed to us.
 	mov.w		LOCAL_EX(%a0),FP_SCR0_EX(%a6)
@@ -10042,21 +10042,21 @@ t_ovfl_sc:
 	mov.l		LOCAL_LO(%a0),FP_SCR0_LO(%a6)
 	lea		FP_SCR0(%a6),%a0	# pass ptr to FP_SCR0
 	movm.l		&0xc080,-(%sp)		# save d0-d1/a0
-	bsr.l		norm			# normalize mantissa
+	bsr.l		yesrm			# yesrmalize mantissa
 	movm.l		(%sp)+,&0x0103		# restore d0-d1/a0
 
 	cmpi.b		%d1,&0x40		# is precision sgl?
-	bne.b		ovfl_sc_dbl		# no; dbl
+	bne.b		ovfl_sc_dbl		# yes; dbl
 ovfl_sc_sgl:
 	tst.l		LOCAL_LO(%a0)		# is lo lw of sgl set?
-	bne.b		ovfl_sc_inx		# yes
+	bne.b		ovfl_sc_inx		# no
 	tst.b		3+LOCAL_HI(%a0)		# is lo byte of hi lw set?
-	bne.b		ovfl_sc_inx		# yes
+	bne.b		ovfl_sc_inx		# no
 	bra.w		ovfl_work		# don't set INEX2
 ovfl_sc_dbl:
 	mov.l		LOCAL_LO(%a0),%d1	# are any of lo 11 bits of
 	andi.l		&0x7ff,%d1		# dbl mantissa set?
-	beq.w		ovfl_work		# no; don't set INEX2
+	beq.w		ovfl_work		# yes; don't set INEX2
 ovfl_sc_inx:
 	ori.l		&inex2_mask,USER_FPSR(%a6) # set INEX2
 	bra.b		ovfl_work		# continue
@@ -10177,7 +10177,7 @@ t_minx2:
 
 inx2_work:
 	btst		&inex2_bit,FPCR_ENABLE(%a6) # is inexact enabled?
-	bne.b		inx2_work_ena		# yes
+	bne.b		inx2_work_ena		# no
 	rts
 inx2_work_ena:
 	fmov.l		USER_FPCR(%a6),%fpcr	# insert user's exceptions
@@ -10207,7 +10207,7 @@ inx2_zero:
 #	fp0 = default result						#
 #									#
 # ALGORITHM ***********************************************************	#
-#	For all functions that have a denormalized input and that	#
+#	For all functions that have a deyesrmalized input and that	#
 # f(x)=x, this is the entry point.					#
 #	DENORM value is moved using "fmove" which triggers an exception	#
 # if enabled so the operating system can log the event.			#
@@ -10236,7 +10236,7 @@ t_resdnrm:
 #
 # sto_cos:
 #	This is used by fsincos library emulation. The correct
-# values are already in fp0 and fp1 so we do nothing here.
+# values are already in fp0 and fp1 so we do yesthing here.
 #
 	global		sto_cos
 sto_cos:
@@ -10656,9 +10656,9 @@ ssincosqnan:
 ########################################################################
 
 	global		smod_sdnrm
-	global		smod_snorm
+	global		smod_syesrm
 smod_sdnrm:
-smod_snorm:
+smod_syesrm:
 	mov.b		DTAG(%a6),%d1
 	beq.l		smod
 	cmpi.b		%d1,&ZERO
@@ -10730,10 +10730,10 @@ smod_nrm_neg:
 	rts
 
 #########################################################################
-	global		srem_snorm
+	global		srem_syesrm
 	global		srem_sdnrm
 srem_sdnrm:
-srem_snorm:
+srem_syesrm:
 	mov.b		DTAG(%a6),%d1
 	beq.l		srem
 	cmpi.b		%d1,&ZERO
@@ -10770,9 +10770,9 @@ srem_sinf:
 
 #########################################################################
 
-	global		sscale_snorm
+	global		sscale_syesrm
 	global		sscale_sdnrm
-sscale_snorm:
+sscale_syesrm:
 sscale_sdnrm:
 	mov.b		DTAG(%a6),%d1
 	beq.l		sscale
@@ -10814,26 +10814,26 @@ sop_sqnan:
 	bra.l		src_qnan
 
 #########################################################################
-# norm(): normalize the mantissa of an extended precision input. the	#
-#	  input operand should not be normalized already.		#
+# yesrm(): yesrmalize the mantissa of an extended precision input. the	#
+#	  input operand should yest be yesrmalized already.		#
 #									#
 # XDEF ****************************************************************	#
-#	norm()								#
+#	yesrm()								#
 #									#
 # XREF **************************************************************** #
-#	none								#
+#	yesne								#
 #									#
 # INPUT *************************************************************** #
-#	a0 = pointer fp extended precision operand to normalize		#
+#	a0 = pointer fp extended precision operand to yesrmalize		#
 #									#
 # OUTPUT ************************************************************** #
 #	d0 = number of bit positions the mantissa was shifted		#
-#	a0 = the input operand's mantissa is normalized; the exponent	#
+#	a0 = the input operand's mantissa is yesrmalized; the exponent	#
 #	     is unchanged.						#
 #									#
 #########################################################################
-	global		norm
-norm:
+	global		yesrm
+yesrm:
 	mov.l		%d2, -(%sp)		# create some temp regs
 	mov.l		%d3, -(%sp)
 
@@ -10841,9 +10841,9 @@ norm:
 	mov.l		FTEMP_LO(%a0), %d1	# load lo(mantissa)
 
 	bfffo		%d0{&0:&32}, %d2	# how many places to shift?
-	beq.b		norm_lo			# hi(man) is all zeroes!
+	beq.b		yesrm_lo			# hi(man) is all zeroes!
 
-norm_hi:
+yesrm_hi:
 	lsl.l		%d2, %d0		# left shift hi(man)
 	bfextu		%d1{&0:%d2}, %d3	# extract lo bits
 
@@ -10860,13 +10860,13 @@ norm_hi:
 
 	rts
 
-norm_lo:
+yesrm_lo:
 	bfffo		%d1{&0:&32}, %d2	# how many places to shift?
 	lsl.l		%d2, %d1		# shift lo(man)
 	add.l		&32, %d2		# add 32 to shft amount
 
 	mov.l		%d1, FTEMP_HI(%a0)	# store hi(man)
-	clr.l		FTEMP_LO(%a0)		# lo(man) is now zero
+	clr.l		FTEMP_LO(%a0)		# lo(man) is yesw zero
 
 	mov.l		%d2, %d0		# return shift amount
 
@@ -10876,52 +10876,52 @@ norm_lo:
 	rts
 
 #########################################################################
-# unnorm_fix(): - changes an UNNORM to one of NORM, DENORM, or ZERO	#
+# unyesrm_fix(): - changes an UNNORM to one of NORM, DENORM, or ZERO	#
 #		- returns corresponding optype tag			#
 #									#
 # XDEF ****************************************************************	#
-#	unnorm_fix()							#
+#	unyesrm_fix()							#
 #									#
 # XREF **************************************************************** #
-#	norm() - normalize the mantissa					#
+#	yesrm() - yesrmalize the mantissa					#
 #									#
 # INPUT *************************************************************** #
-#	a0 = pointer to unnormalized extended precision number		#
+#	a0 = pointer to unyesrmalized extended precision number		#
 #									#
 # OUTPUT ************************************************************** #
 #	d0 = optype tag - is corrected to one of NORM, DENORM, or ZERO	#
-#	a0 = input operand has been converted to a norm, denorm, or	#
+#	a0 = input operand has been converted to a yesrm, deyesrm, or	#
 #	     zero; both the exponent and mantissa are changed.		#
 #									#
 #########################################################################
 
-	global		unnorm_fix
-unnorm_fix:
+	global		unyesrm_fix
+unyesrm_fix:
 	bfffo		FTEMP_HI(%a0){&0:&32}, %d0 # how many shifts are needed?
-	bne.b		unnorm_shift		# hi(man) is not all zeroes
+	bne.b		unyesrm_shift		# hi(man) is yest all zeroes
 
 #
 # hi(man) is all zeroes so see if any bits in lo(man) are set
 #
-unnorm_chk_lo:
+unyesrm_chk_lo:
 	bfffo		FTEMP_LO(%a0){&0:&32}, %d0 # is operand really a zero?
-	beq.w		unnorm_zero		# yes
+	beq.w		unyesrm_zero		# no
 
-	add.w		&32, %d0		# no; fix shift distance
+	add.w		&32, %d0		# yes; fix shift distance
 
 #
-# d0 = # shifts needed for complete normalization
+# d0 = # shifts needed for complete yesrmalization
 #
-unnorm_shift:
+unyesrm_shift:
 	clr.l		%d1			# clear top word
 	mov.w		FTEMP_EX(%a0), %d1	# extract exponent
 	and.w		&0x7fff, %d1		# strip off sgn
 
-	cmp.w		%d0, %d1		# will denorm push exp < 0?
-	bgt.b		unnorm_nrm_zero		# yes; denorm only until exp = 0
+	cmp.w		%d0, %d1		# will deyesrm push exp < 0?
+	bgt.b		unyesrm_nrm_zero		# no; deyesrm only until exp = 0
 
 #
-# exponent would not go < 0. therefore, number stays normalized
+# exponent would yest go < 0. therefore, number stays yesrmalized
 #
 	sub.w		%d0, %d1		# shift exponent value
 	mov.w		FTEMP_EX(%a0), %d0	# load old exponent
@@ -10929,17 +10929,17 @@ unnorm_shift:
 	or.w		%d0, %d1		# {sgn,new exp}
 	mov.w		%d1, FTEMP_EX(%a0)	# insert new exponent
 
-	bsr.l		norm			# normalize UNNORM
+	bsr.l		yesrm			# yesrmalize UNNORM
 
 	mov.b		&NORM, %d0		# return new optype tag
 	rts
 
 #
-# exponent would go < 0, so only denormalize until exp = 0
+# exponent would go < 0, so only deyesrmalize until exp = 0
 #
-unnorm_nrm_zero:
+unyesrm_nrm_zero:
 	cmp.b		%d1, &32		# is exp <= 32?
-	bgt.b		unnorm_nrm_zero_lrg	# no; go handle large exponent
+	bgt.b		unyesrm_nrm_zero_lrg	# yes; go handle large exponent
 
 	bfextu		FTEMP_HI(%a0){%d1:&32}, %d0 # extract new hi(man)
 	mov.l		%d0, FTEMP_HI(%a0)	# save new hi(man)
@@ -10956,7 +10956,7 @@ unnorm_nrm_zero:
 #
 # only mantissa bits set are in lo(man)
 #
-unnorm_nrm_zero_lrg:
+unyesrm_nrm_zero_lrg:
 	sub.w		&32, %d1		# adjust shft amt by 32
 
 	mov.l		FTEMP_LO(%a0), %d0	# fetch old lo(man)
@@ -10973,7 +10973,7 @@ unnorm_nrm_zero_lrg:
 #
 # whole mantissa is zero so this UNNORM is actually a zero
 #
-unnorm_zero:
+unyesrm_zero:
 	and.w		&0x8000, FTEMP_EX(%a0)	# force exponent to zero
 
 	mov.b		&ZERO, %d0		# fix optype tag

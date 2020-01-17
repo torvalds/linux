@@ -94,7 +94,7 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 	int ret;
 	struct hi655x_pmic *pmic;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	void __iomem *base;
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);

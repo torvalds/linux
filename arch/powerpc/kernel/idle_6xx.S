@@ -5,7 +5,7 @@
  *
  *  Warning ! This code assumes that if your machine has a 750fx
  *  it will have PLL 1 set to low speed mode (used during NAP/DOZE).
- *  if this is not the case some additional changes will have to
+ *  if this is yest the case some additional changes will have to
  *  be done to check a runtime var (a bit like powersave-nap)
  */
 
@@ -22,7 +22,7 @@
 
 /*
  * Init idle, called at early CPU setup time from head.S for each CPU
- * Make sure no rest of NAP mode remains in HID0, save default
+ * Make sure yes rest of NAP mode remains in HID0, save default
  * values for some CPU specific registers. Called with r24
  * containing CPU number and r3 reloc offset
  */
@@ -88,7 +88,7 @@ BEGIN_FTR_SECTION
 	/* Disable L2 prefetch on some 745x and try to ensure
 	 * L2 prefetch engines are idle. As explained by errata
 	 * text, we can't be sure they are, we just hope very hard
-	 * that well be enough (sic !). At least I noticed Apple
+	 * that well be eyesugh (sic !). At least I yesticed Apple
 	 * doesn't even bother doing the dcbf's here...
 	 */
 	mfspr	r4,SPRN_MSSCR0
@@ -116,7 +116,7 @@ BEGIN_FTR_SECTION
 1:	
 END_FTR_SECTION_IFSET(CPU_FTR_DUAL_PLL_750FX)
 
-	/* Go to NAP or DOZE now */	
+	/* Go to NAP or DOZE yesw */	
 	mfspr	r4,SPRN_HID0
 	lis	r5,(HID0_NAP|HID0_SLEEP)@h
 BEGIN_FTR_SECTION

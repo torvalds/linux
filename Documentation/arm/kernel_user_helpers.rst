@@ -8,7 +8,7 @@ with some operations which require kernel help because of unimplemented
 native feature and/or instructions in many ARM CPUs. The idea is for this
 code to be executed directly in user mode for best efficiency but which is
 too intimate with the kernel counter part to be left to user libraries.
-In fact this code might even differ from one CPU to another depending on
+In fact this code might even differ from one CPU to ayesther depending on
 the available instruction set, or whether it is a SMP systems. In other
 words, the kernel reserves the right to change this code as needed without
 warning. Only the entry points and their results as documented here are
@@ -23,12 +23,12 @@ overhead to such minimalistic operations.
 
 User space is expected to bypass those helpers and implement those things
 inline (either in the code emitted directly by the compiler, or part of
-the implementation of a library call) when optimizing for a recent enough
+the implementation of a library call) when optimizing for a recent eyesugh
 processor that has the necessary native support, but only if resulting
 binaries are already to be incompatible with earlier ARM processors due to
 usage of similar native instructions for other things.  In other words
 don't make binaries unable to run on earlier processors just for the sake
-of not using these kernel helpers if your compiled code is not going to
+of yest using these kernel helpers if your compiled code is yest going to
 use new instructions for other purpose.
 
 New helpers may be added over time, so an older kernel may be missing some
@@ -36,7 +36,7 @@ helpers present in a newer kernel.  For this reason, programs must check
 the value of __kuser_helper_version (see below) before assuming that it is
 safe to call any particular helper.  This check should ideally be
 performed only once at process startup time, and execution aborted early
-if the required helpers are not provided by the kernel version that
+if the required helpers are yest provided by the kernel version that
 process is running on.
 
 kuser_helper_version
@@ -92,7 +92,7 @@ Output:
 
 Clobbered registers:
 
-  none
+  yesne
 
 Definition:
 
@@ -131,7 +131,7 @@ Input:
 
 Output:
 
-  r0 = success code (zero or non-zero)
+  r0 = success code (zero or yesn-zero)
   C flag = set if r0 == 0, clear if r0 != 0
 
 Clobbered registers:
@@ -141,7 +141,7 @@ Clobbered registers:
 Definition:
 
   Atomically store newval in `*ptr` only if `*ptr` is equal to oldval.
-  Return zero if `*ptr` was changed or non-zero if no exchange happened.
+  Return zero if `*ptr` was changed or yesn-zero if yes exchange happened.
   The C flag is also set if `*ptr` was changed to allow for assembly
   optimization in the calling code.
 
@@ -183,11 +183,11 @@ Input:
 
 Output:
 
-  none
+  yesne
 
 Clobbered registers:
 
-  none
+  yesne
 
 Definition:
 
@@ -223,7 +223,7 @@ Input:
 
 Output:
 
-  r0 = success code (zero or non-zero)
+  r0 = success code (zero or yesn-zero)
   C flag = set if r0 == 0, clear if r0 != 0
 
 Clobbered registers:
@@ -234,7 +234,7 @@ Definition:
 
   Atomically store the 64-bit value pointed by `*newval` in `*ptr` only if `*ptr`
   is equal to the 64-bit value pointed by `*oldval`.  Return zero if `*ptr` was
-  changed or non-zero if no exchange happened.
+  changed or yesn-zero if yes exchange happened.
 
   The C flag is also set if `*ptr` was changed to allow for assembly
   optimization in the calling code.
@@ -263,6 +263,6 @@ Notes:
   - This routine already includes memory barriers as needed.
 
   - Due to the length of this sequence, this spans 2 conventional kuser
-    "slots", therefore 0xffff0f80 is not used as a valid entry point.
+    "slots", therefore 0xffff0f80 is yest used as a valid entry point.
 
   - Valid only if __kuser_helper_version >= 5 (from kernel version 3.1).

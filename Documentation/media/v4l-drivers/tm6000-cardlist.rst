@@ -15,7 +15,7 @@ TM6000 cards list
      - USB IDs
 
    * - 0
-     - Unknown tm6000 video grabber
+     - Unkyeswn tm6000 video grabber
      -
 
    * - 1

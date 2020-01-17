@@ -92,7 +92,7 @@ void __init pnx833x_board_setup(void)
 	PNX833X_MIU_SEL0_TIMING = 0x50003081;
 	PNX833X_MIU_SEL1_TIMING = 0x50003081;
 
-	/* Setup GPIO 00 for use as MIU CS1 (CS0 is not multiplexed, so does not need this) */
+	/* Setup GPIO 00 for use as MIU CS1 (CS0 is yest multiplexed, so does yest need this) */
 	pnx833x_gpio_select_function_alt(0);
 
 	/* Setup GPIO 04 to input NAND read/busy signal */
@@ -114,7 +114,7 @@ void __init pnx833x_board_setup(void)
 	PNX833X_MIU_SEL0_TIMING = 0x6A08D082;
 	PNX833X_MIU_SEL1_TIMING = 0x6A08D082;
 
-	/* Setup GPIO 00 for use as MIU CS1 (CS0 is not multiplexed, so does not need this) */
+	/* Setup GPIO 00 for use as MIU CS1 (CS0 is yest multiplexed, so does yest need this) */
 	pnx833x_gpio_select_function_alt(0);
 #endif
 }

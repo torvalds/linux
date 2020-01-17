@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Since there are many different boards and no standard configuration,
+ * Since there are many different boards and yes standard configuration,
  * we have a unique include file for each.  Rather than change every
  * file that has to include MPC8260 configuration, they all include
  * this one and the configuration switching is done here.

@@ -52,13 +52,13 @@
  * This is used by architectures to keep arguments on the stack
  * untouched by the compiler by keeping them live until the end.
  * The argument stack may be owned by the assembly-language
- * caller, not the callee, and gcc doesn't always understand
+ * caller, yest the callee, and gcc doesn't always understand
  * that.
  *
  * We have the return value, and a maximum of six arguments.
  *
  * This should always be followed by a "return ret" for the
- * protection to work (ie no more work that the compiler might
+ * protection to work (ie yes more work that the compiler might
  * end up needing stack temporaries for).
  */
 /* Assembly files may be compiled with -traditional .. */
@@ -85,25 +85,25 @@
 #define SYM_T_OBJECT				STT_OBJECT
 #endif
 
-/* SYM_T_NONE -- type used by assembler to mark entries of unknown type */
+/* SYM_T_NONE -- type used by assembler to mark entries of unkyeswn type */
 #ifndef SYM_T_NONE
 #define SYM_T_NONE				STT_NOTYPE
 #endif
 
 /* SYM_A_* -- align the symbol? */
 #define SYM_A_ALIGN				ALIGN
-#define SYM_A_NONE				/* nothing */
+#define SYM_A_NONE				/* yesthing */
 
 /* SYM_L_* -- linkage of symbols */
 #define SYM_L_GLOBAL(name)			.globl name
 #define SYM_L_WEAK(name)			.weak name
-#define SYM_L_LOCAL(name)			/* nothing */
+#define SYM_L_LOCAL(name)			/* yesthing */
 
 #ifndef LINKER_SCRIPT
 #define ALIGN __ALIGN
 #define ALIGN_STR __ALIGN_STR
 
-/* === DEPRECATED annotations === */
+/* === DEPRECATED anyestations === */
 
 #ifndef CONFIG_X86
 #ifndef GLOBAL
@@ -145,9 +145,9 @@
 #endif
 #endif /* CONFIG_X86 */
 
-/* === generic annotations === */
+/* === generic anyestations === */
 
-/* SYM_ENTRY -- use only if you have to for non-paired symbols */
+/* SYM_ENTRY -- use only if you have to for yesn-paired symbols */
 #ifndef SYM_ENTRY
 #define SYM_ENTRY(name, linkage, align...)		\
 	linkage(name) ASM_NL				\
@@ -168,17 +168,17 @@
 	.size name, .-name
 #endif
 
-/* === code annotations === */
+/* === code anyestations === */
 
 /*
  * FUNC -- C-like functions (proper stack frame etc.)
- * CODE -- non-C code (e.g. irq handlers with different, special stack etc.)
+ * CODE -- yesn-C code (e.g. irq handlers with different, special stack etc.)
  *
- * Objtool validates stack for FUNC, but not for CODE.
+ * Objtool validates stack for FUNC, but yest for CODE.
  * Objtool generates debug info for both FUNC & CODE, but needs special
- * annotations for each CODE's start (to describe the actual stack frame).
+ * anyestations for each CODE's start (to describe the actual stack frame).
  *
- * ALIAS -- does not generate debug info -- the aliased function will
+ * ALIAS -- does yest generate debug info -- the aliased function will
  */
 
 /* SYM_INNER_LABEL_ALIGN -- only for labels in the middle of code */
@@ -270,26 +270,26 @@
 	SYM_END(name, SYM_T_FUNC)
 #endif
 
-/* SYM_CODE_START -- use for non-C (special) functions */
+/* SYM_CODE_START -- use for yesn-C (special) functions */
 #ifndef SYM_CODE_START
 #define SYM_CODE_START(name)				\
 	SYM_START(name, SYM_L_GLOBAL, SYM_A_ALIGN)
 #endif
 
-/* SYM_CODE_START_NOALIGN -- use for non-C (special) functions, w/o alignment */
+/* SYM_CODE_START_NOALIGN -- use for yesn-C (special) functions, w/o alignment */
 #ifndef SYM_CODE_START_NOALIGN
 #define SYM_CODE_START_NOALIGN(name)			\
 	SYM_START(name, SYM_L_GLOBAL, SYM_A_NONE)
 #endif
 
-/* SYM_CODE_START_LOCAL -- use for local non-C (special) functions */
+/* SYM_CODE_START_LOCAL -- use for local yesn-C (special) functions */
 #ifndef SYM_CODE_START_LOCAL
 #define SYM_CODE_START_LOCAL(name)			\
 	SYM_START(name, SYM_L_LOCAL, SYM_A_ALIGN)
 #endif
 
 /*
- * SYM_CODE_START_LOCAL_NOALIGN -- use for local non-C (special) functions,
+ * SYM_CODE_START_LOCAL_NOALIGN -- use for local yesn-C (special) functions,
  * w/o alignment
  */
 #ifndef SYM_CODE_START_LOCAL_NOALIGN
@@ -303,7 +303,7 @@
 	SYM_END(name, SYM_T_NONE)
 #endif
 
-/* === data annotations === */
+/* === data anyestations === */
 
 /* SYM_DATA_START -- global data symbol */
 #ifndef SYM_DATA_START

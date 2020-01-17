@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -54,7 +54,7 @@ typedef struct binary_header
 	/* psp structure should go at the top of this structure */
 	uint32_t binary_signature; /* 0x7, 0x14, 0x21, 0x28 */
 	uint16_t version_major;
-	uint16_t version_minor;
+	uint16_t version_miyesr;
 	uint16_t binary_checksum;  /* Byte sum of the binary after this field */
 	uint16_t binary_size;      /* Binary Size*/
 	table_info table_list[TOTAL_TABLES];
@@ -84,7 +84,7 @@ typedef struct ip
 	uint8_t number_instance;  /* instance of the IP */
 	uint8_t num_base_address; /* Number of Base Addresses */
 	uint8_t major;            /* HCID Major */
-	uint8_t minor;            /* HCID Minor */
+	uint8_t miyesr;            /* HCID Miyesr */
 	uint8_t revision;         /* HCID Revision */
 #if defined(__BIG_ENDIAN)
 	uint8_t reserved : 4;     /* Placeholder field */
@@ -115,7 +115,7 @@ typedef struct ip_structure
 struct gpu_info_header {
 	uint32_t table_id;      /* table ID */
 	uint16_t version_major; /* table version */
-	uint16_t version_minor; /* table version */
+	uint16_t version_miyesr; /* table version */
 	uint32_t size;          /* size of the entire header+data in bytes */
 };
 

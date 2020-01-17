@@ -22,7 +22,7 @@
 STATIC int
 xfs_trim_extents(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
+	xfs_agnumber_t		agyes,
 	xfs_daddr_t		start,
 	xfs_daddr_t		end,
 	xfs_daddr_t		minlen,
@@ -35,20 +35,20 @@ xfs_trim_extents(
 	int			error;
 	int			i;
 
-	pag = xfs_perag_get(mp, agno);
+	pag = xfs_perag_get(mp, agyes);
 
 	/*
 	 * Force out the log.  This means any transactions that might have freed
-	 * space before we take the AGF buffer lock are now on disk, and the
+	 * space before we take the AGF buffer lock are yesw on disk, and the
 	 * volatile disk cache is flushed.
 	 */
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
-	error = xfs_alloc_read_agf(mp, NULL, agno, 0, &agbp);
+	error = xfs_alloc_read_agf(mp, NULL, agyes, 0, &agbp);
 	if (error || !agbp)
 		goto out_put_perag;
 
-	cur = xfs_allocbt_init_cursor(mp, NULL, agbp, agno, XFS_BTNUM_CNT);
+	cur = xfs_allocbt_init_cursor(mp, NULL, agbp, agyes, XFS_BTNUM_CNT);
 
 	/*
 	 * Look up the longest btree in the AGF and start with it.
@@ -60,15 +60,15 @@ xfs_trim_extents(
 
 	/*
 	 * Loop until we are done with all extents that are large
-	 * enough to be worth discarding.
+	 * eyesugh to be worth discarding.
 	 */
 	while (i) {
-		xfs_agblock_t	fbno;
+		xfs_agblock_t	fbyes;
 		xfs_extlen_t	flen;
-		xfs_daddr_t	dbno;
+		xfs_daddr_t	dbyes;
 		xfs_extlen_t	dlen;
 
-		error = xfs_alloc_get_rec(cur, &fbno, &flen, &i);
+		error = xfs_alloc_get_rec(cur, &fbyes, &flen, &i);
 		if (error)
 			goto out_del_cursor;
 		if (XFS_IS_CORRUPT(mp, i != 1)) {
@@ -82,24 +82,24 @@ xfs_trim_extents(
 		 * the format the range/len variables are supplied in by
 		 * userspace.
 		 */
-		dbno = XFS_AGB_TO_DADDR(mp, agno, fbno);
+		dbyes = XFS_AGB_TO_DADDR(mp, agyes, fbyes);
 		dlen = XFS_FSB_TO_BB(mp, flen);
 
 		/*
 		 * Too small?  Give up.
 		 */
 		if (dlen < minlen) {
-			trace_xfs_discard_toosmall(mp, agno, fbno, flen);
+			trace_xfs_discard_toosmall(mp, agyes, fbyes, flen);
 			goto out_del_cursor;
 		}
 
 		/*
 		 * If the extent is entirely outside of the range we are
-		 * supposed to discard skip it.  Do not bother to trim
-		 * down partially overlapping ranges for now.
+		 * supposed to discard skip it.  Do yest bother to trim
+		 * down partially overlapping ranges for yesw.
 		 */
-		if (dbno + dlen < start || dbno > end) {
-			trace_xfs_discard_exclude(mp, agno, fbno, flen);
+		if (dbyes + dlen < start || dbyes > end) {
+			trace_xfs_discard_exclude(mp, agyes, fbyes, flen);
 			goto next_extent;
 		}
 
@@ -107,13 +107,13 @@ xfs_trim_extents(
 		 * If any blocks in the range are still busy, skip the
 		 * discard and try again the next time.
 		 */
-		if (xfs_extent_busy_search(mp, agno, fbno, flen)) {
-			trace_xfs_discard_busy(mp, agno, fbno, flen);
+		if (xfs_extent_busy_search(mp, agyes, fbyes, flen)) {
+			trace_xfs_discard_busy(mp, agyes, fbyes, flen);
 			goto next_extent;
 		}
 
-		trace_xfs_discard_extent(mp, agno, fbno, flen);
-		error = blkdev_issue_discard(bdev, dbno, dlen, GFP_NOFS, 0);
+		trace_xfs_discard_extent(mp, agyes, fbyes, flen);
+		error = blkdev_issue_discard(bdev, dbyes, dlen, GFP_NOFS, 0);
 		if (error)
 			goto out_del_cursor;
 		*blocks_trimmed += flen;
@@ -141,7 +141,7 @@ out_put_perag:
  * trim a range of the filesystem.
  *
  * Note: the parameters passed from userspace are byte ranges into the
- * filesystem which does not match to the format we use for filesystem block
+ * filesystem which does yest match to the format we use for filesystem block
  * addressing. FSB addressing is sparse (AGNO|AGBNO), while the incoming format
  * is a linear address range. Hence we need to use DADDR based conversions and
  * comparisons for determining the correct offset and regions to trim.
@@ -155,7 +155,7 @@ xfs_ioc_trim(
 	unsigned int		granularity = q->limits.discard_granularity;
 	struct fstrim_range	range;
 	xfs_daddr_t		start, end, minlen;
-	xfs_agnumber_t		start_agno, end_agno, agno;
+	xfs_agnumber_t		start_agyes, end_agyes, agyes;
 	uint64_t		blocks_trimmed = 0;
 	int			error, last_error = 0;
 
@@ -165,7 +165,7 @@ xfs_ioc_trim(
 		return -EOPNOTSUPP;
 
 	/*
-	 * We haven't recovered the log, so we cannot use our bnobt-guided
+	 * We haven't recovered the log, so we canyest use our byesbt-guided
 	 * storage zapping commands.
 	 */
 	if (mp->m_flags & XFS_MOUNT_NORECOVERY)
@@ -194,11 +194,11 @@ xfs_ioc_trim(
 	if (end > XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks) - 1)
 		end = XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks)- 1;
 
-	start_agno = xfs_daddr_to_agno(mp, start);
-	end_agno = xfs_daddr_to_agno(mp, end);
+	start_agyes = xfs_daddr_to_agyes(mp, start);
+	end_agyes = xfs_daddr_to_agyes(mp, end);
 
-	for (agno = start_agno; agno <= end_agno; agno++) {
-		error = xfs_trim_extents(mp, agno, start, end, minlen,
+	for (agyes = start_agyes; agyes <= end_agyes; agyes++) {
+		error = xfs_trim_extents(mp, agyes, start, end, minlen,
 					  &blocks_trimmed);
 		if (error) {
 			last_error = error;

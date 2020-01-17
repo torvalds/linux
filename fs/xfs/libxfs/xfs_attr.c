@@ -14,7 +14,7 @@
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_attr_sf.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trans.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_btree.h"
@@ -36,7 +36,7 @@
  *========================================================================*/
 
 /*
- * Internal routines when attribute list fits inside the inode.
+ * Internal routines when attribute list fits inside the iyesde.
  */
 STATIC int xfs_attr_shortform_addname(xfs_da_args_t *args);
 
@@ -50,9 +50,9 @@ STATIC int xfs_attr_leaf_removename(xfs_da_args_t *args);
 /*
  * Internal routines when attribute list is more than one block.
  */
-STATIC int xfs_attr_node_get(xfs_da_args_t *args);
-STATIC int xfs_attr_node_addname(xfs_da_args_t *args);
-STATIC int xfs_attr_node_removename(xfs_da_args_t *args);
+STATIC int xfs_attr_yesde_get(xfs_da_args_t *args);
+STATIC int xfs_attr_yesde_addname(xfs_da_args_t *args);
+STATIC int xfs_attr_yesde_removename(xfs_da_args_t *args);
 STATIC int xfs_attr_fillstate(xfs_da_state_t *state);
 STATIC int xfs_attr_refillstate(xfs_da_state_t *state);
 
@@ -60,7 +60,7 @@ STATIC int xfs_attr_refillstate(xfs_da_state_t *state);
 STATIC int
 xfs_attr_args_init(
 	struct xfs_da_args	*args,
-	struct xfs_inode	*dp,
+	struct xfs_iyesde	*dp,
 	const unsigned char	*name,
 	int			flags)
 {
@@ -83,8 +83,8 @@ xfs_attr_args_init(
 }
 
 int
-xfs_inode_hasattr(
-	struct xfs_inode	*ip)
+xfs_iyesde_hasattr(
+	struct xfs_iyesde	*ip)
 {
 	if (!XFS_IFORK_Q(ip) ||
 	    (ip->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
@@ -103,25 +103,25 @@ xfs_inode_hasattr(
  */
 int
 xfs_attr_get_ilocked(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_da_args	*args)
 {
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
 
-	if (!xfs_inode_hasattr(ip))
+	if (!xfs_iyesde_hasattr(ip))
 		return -ENOATTR;
 	else if (ip->i_d.di_aformat == XFS_DINODE_FMT_LOCAL)
 		return xfs_attr_shortform_getvalue(args);
 	else if (xfs_bmap_one_block(ip, XFS_ATTR_FORK))
 		return xfs_attr_leaf_get(args);
 	else
-		return xfs_attr_node_get(args);
+		return xfs_attr_yesde_get(args);
 }
 
 /*
  * Retrieve an extended attribute by name, and its value if requested.
  *
- * If ATTR_KERNOVAL is set in @flags, then the caller does not want the value,
+ * If ATTR_KERNOVAL is set in @flags, then the caller does yest want the value,
  * just an indication whether the attribute exists and the size of the value if
  * it exists. The size is returned in @valuelenp,
  *
@@ -137,7 +137,7 @@ xfs_attr_get_ilocked(
  */
 int
 xfs_attr_get(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	const unsigned char	*name,
 	unsigned char		**value,
 	int			*valuelenp,
@@ -197,7 +197,7 @@ xfs_attr_calc_size(
 
 	/*
 	 * Determine space new attribute will use, and if it would be
-	 * "local" or "remote" (note: local != inline).
+	 * "local" or "remote" (yeste: local != inline).
 	 */
 	size = xfs_attr_leaf_newentsize(args, local);
 	nblks = XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK);
@@ -208,7 +208,7 @@ xfs_attr_calc_size(
 		}
 	} else {
 		/*
-		 * Out of line attribute, cannot double split, but
+		 * Out of line attribute, canyest double split, but
 		 * make room for the attribute value itself.
 		 */
 		uint	dblocks = xfs_attr3_rmt_blocks(mp, args->valuelen);
@@ -221,7 +221,7 @@ xfs_attr_calc_size(
 
 STATIC int
 xfs_attr_try_sf_addname(
-	struct xfs_inode	*dp,
+	struct xfs_iyesde	*dp,
 	struct xfs_da_args	*args)
 {
 
@@ -254,12 +254,12 @@ int
 xfs_attr_set_args(
 	struct xfs_da_args	*args)
 {
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	struct xfs_buf          *leaf_bp = NULL;
 	int			error;
 
 	/*
-	 * If the attribute list is non-existent or a shortform list,
+	 * If the attribute list is yesn-existent or a shortform list,
 	 * upgrade it to a single-leaf-block attribute list.
 	 */
 	if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL ||
@@ -273,7 +273,7 @@ xfs_attr_set_args(
 			xfs_attr_shortform_create(args);
 
 		/*
-		 * Try to add the attr to the attribute list in the inode.
+		 * Try to add the attr to the attribute list in the iyesde.
 		 */
 		error = xfs_attr_try_sf_addname(dp, args);
 		if (error != -ENOSPC)
@@ -281,7 +281,7 @@ xfs_attr_set_args(
 
 		/*
 		 * It won't fit in the shortform, transform to a leaf block.
-		 * GROT: another possible req'mt for a double-split btree op.
+		 * GROT: ayesther possible req'mt for a double-split btree op.
 		 */
 		error = xfs_attr_shortform_to_leaf(args, &leaf_bp);
 		if (error)
@@ -289,7 +289,7 @@ xfs_attr_set_args(
 
 		/*
 		 * Prevent the leaf buffer from being unlocked so that a
-		 * concurrent AIL push cannot grab the half-baked leaf
+		 * concurrent AIL push canyest grab the half-baked leaf
 		 * buffer and run into problems with the write verifier.
 		 * Once we're done rolling the transaction we can release
 		 * the hold and add the attr to the leaf.
@@ -306,7 +306,7 @@ xfs_attr_set_args(
 	if (xfs_bmap_one_block(dp, XFS_ATTR_FORK))
 		error = xfs_attr_leaf_addname(args);
 	else
-		error = xfs_attr_node_addname(args);
+		error = xfs_attr_yesde_addname(args);
 	return error;
 }
 
@@ -317,10 +317,10 @@ int
 xfs_attr_remove_args(
 	struct xfs_da_args      *args)
 {
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	int			error;
 
-	if (!xfs_inode_hasattr(dp)) {
+	if (!xfs_iyesde_hasattr(dp)) {
 		error = -ENOATTR;
 	} else if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
 		ASSERT(dp->i_afp->if_flags & XFS_IFINLINE);
@@ -328,7 +328,7 @@ xfs_attr_remove_args(
 	} else if (xfs_bmap_one_block(dp, XFS_ATTR_FORK)) {
 		error = xfs_attr_leaf_removename(args);
 	} else {
-		error = xfs_attr_node_removename(args);
+		error = xfs_attr_yesde_removename(args);
 	}
 
 	return error;
@@ -336,7 +336,7 @@ xfs_attr_remove_args(
 
 int
 xfs_attr_set(
-	struct xfs_inode	*dp,
+	struct xfs_iyesde	*dp,
 	const unsigned char	*name,
 	unsigned char		*value,
 	int			valuelen,
@@ -367,8 +367,8 @@ xfs_attr_set(
 		return error;
 
 	/*
-	 * If the inode doesn't have an attribute fork, add one.
-	 * (inode must not be locked when we call this routine)
+	 * If the iyesde doesn't have an attribute fork, add one.
+	 * (iyesde must yest be locked when we call this routine)
 	 */
 	if (XFS_IFORK_Q(dp) == 0) {
 		int sf_size = sizeof(xfs_attr_sf_hdr_t) +
@@ -410,7 +410,7 @@ xfs_attr_set(
 	}
 
 	/*
-	 * If this is a synchronous mount, make sure that the
+	 * If this is a synchroyesus mount, make sure that the
 	 * transaction goes to disk before returning to the user.
 	 */
 	if (mp->m_flags & XFS_MOUNT_WSYNC)
@@ -422,7 +422,7 @@ xfs_attr_set(
 	/*
 	 * Commit the last in the sequence of transactions.
 	 */
-	xfs_trans_log_inode(args.trans, dp, XFS_ILOG_CORE);
+	xfs_trans_log_iyesde(args.trans, dp, XFS_ILOG_CORE);
 	error = xfs_trans_commit(args.trans);
 out_unlock:
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
@@ -440,7 +440,7 @@ out_trans_cancel:
  */
 int
 xfs_attr_remove(
-	struct xfs_inode	*dp,
+	struct xfs_iyesde	*dp,
 	const unsigned char	*name,
 	int			flags)
 {
@@ -458,7 +458,7 @@ xfs_attr_remove(
 		return error;
 
 	/*
-	 * we have no control over the attribute names that userspace passes us
+	 * we have yes control over the attribute names that userspace passes us
 	 * to remove, so we have to allow the name lookup prior to attribute
 	 * removal to fail.
 	 */
@@ -482,7 +482,7 @@ xfs_attr_remove(
 	xfs_ilock(dp, XFS_ILOCK_EXCL);
 	/*
 	 * No need to make quota reservations here. We expect to release some
-	 * blocks not allocate in the common case.
+	 * blocks yest allocate in the common case.
 	 */
 	xfs_trans_ijoin(args.trans, dp, 0);
 
@@ -491,7 +491,7 @@ xfs_attr_remove(
 		goto out;
 
 	/*
-	 * If this is a synchronous mount, make sure that the
+	 * If this is a synchroyesus mount, make sure that the
 	 * transaction goes to disk before returning to the user.
 	 */
 	if (mp->m_flags & XFS_MOUNT_WSYNC)
@@ -503,7 +503,7 @@ xfs_attr_remove(
 	/*
 	 * Commit the last in the sequence of transactions.
 	 */
-	xfs_trans_log_inode(args.trans, dp, XFS_ILOG_CORE);
+	xfs_trans_log_iyesde(args.trans, dp, XFS_ILOG_CORE);
 	error = xfs_trans_commit(args.trans);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 
@@ -517,7 +517,7 @@ out:
 }
 
 /*========================================================================
- * External routines when attribute list is inside the inode
+ * External routines when attribute list is inside the iyesde
  *========================================================================*/
 
 /*
@@ -543,7 +543,7 @@ xfs_attr_shortform_addname(xfs_da_args_t *args)
 		/*
 		 * Since we have removed the old attr, clear ATTR_REPLACE so
 		 * that the leaf format add routine won't trip over the attr
-		 * not being around.
+		 * yest being around.
 		 */
 		args->flags &= ~ATTR_REPLACE;
 	}
@@ -571,14 +571,14 @@ xfs_attr_shortform_addname(xfs_da_args_t *args)
 /*
  * Add a name to the leaf attribute list structure
  *
- * This leaf block cannot have a "remote" value, we only call this routine
- * if bmap_one_block() says there is only one block (ie: no remote blks).
+ * This leaf block canyest have a "remote" value, we only call this routine
+ * if bmap_one_block() says there is only one block (ie: yes remote blks).
  */
 STATIC int
 xfs_attr_leaf_addname(
 	struct xfs_da_args	*args)
 {
-	struct xfs_inode	*dp;
+	struct xfs_iyesde	*dp;
 	struct xfs_buf		*bp;
 	int			retval, error, forkoff;
 
@@ -588,8 +588,8 @@ xfs_attr_leaf_addname(
 	 * Read the (only) block in the attribute list in.
 	 */
 	dp = args->dp;
-	args->blkno = 0;
-	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno, &bp);
+	args->blkyes = 0;
+	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkyes, &bp);
 	if (error)
 		return error;
 
@@ -611,18 +611,18 @@ xfs_attr_leaf_addname(
 
 		/* save the attribute state for later removal*/
 		args->op_flags |= XFS_DA_OP_RENAME;	/* an atomic rename */
-		args->blkno2 = args->blkno;		/* set 2nd entry info*/
+		args->blkyes2 = args->blkyes;		/* set 2nd entry info*/
 		args->index2 = args->index;
-		args->rmtblkno2 = args->rmtblkno;
+		args->rmtblkyes2 = args->rmtblkyes;
 		args->rmtblkcnt2 = args->rmtblkcnt;
 		args->rmtvaluelen2 = args->rmtvaluelen;
 
 		/*
-		 * clear the remote attr state now that it is saved so that the
+		 * clear the remote attr state yesw that it is saved so that the
 		 * values reflect the state of the attribute we are about to
-		 * add, not the attribute we just found and will remove later.
+		 * add, yest the attribute we just found and will remove later.
 		 */
-		args->rmtblkno = 0;
+		args->rmtblkyes = 0;
 		args->rmtblkcnt = 0;
 		args->rmtvaluelen = 0;
 	}
@@ -635,10 +635,10 @@ xfs_attr_leaf_addname(
 	if (retval == -ENOSPC) {
 		/*
 		 * Promote the attribute list to the Btree format, then
-		 * Commit that transaction so that the node_addname() call
+		 * Commit that transaction so that the yesde_addname() call
 		 * can manage its own transactions.
 		 */
-		error = xfs_attr3_leaf_to_node(args);
+		error = xfs_attr3_leaf_to_yesde(args);
 		if (error)
 			return error;
 		error = xfs_defer_finish(&args->trans);
@@ -646,17 +646,17 @@ xfs_attr_leaf_addname(
 			return error;
 
 		/*
-		 * Commit the current trans (including the inode) and start
+		 * Commit the current trans (including the iyesde) and start
 		 * a new one.
 		 */
-		error = xfs_trans_roll_inode(&args->trans, dp);
+		error = xfs_trans_roll_iyesde(&args->trans, dp);
 		if (error)
 			return error;
 
 		/*
 		 * Fob the whole rest of the problem off on the Btree code.
 		 */
-		error = xfs_attr_node_addname(args);
+		error = xfs_attr_yesde_addname(args);
 		return error;
 	}
 
@@ -664,7 +664,7 @@ xfs_attr_leaf_addname(
 	 * Commit the transaction that added the attr name so that
 	 * later routines can manage their own transactions.
 	 */
-	error = xfs_trans_roll_inode(&args->trans, dp);
+	error = xfs_trans_roll_iyesde(&args->trans, dp);
 	if (error)
 		return error;
 
@@ -674,7 +674,7 @@ xfs_attr_leaf_addname(
 	 * after we create the attribute so that we don't overflow the
 	 * maximum size of a transaction and/or hit a deadlock.
 	 */
-	if (args->rmtblkno > 0) {
+	if (args->rmtblkyes > 0) {
 		error = xfs_attr_rmtval_set(args);
 		if (error)
 			return error;
@@ -700,11 +700,11 @@ xfs_attr_leaf_addname(
 		 * a "remote" value (if it exists).
 		 */
 		args->index = args->index2;
-		args->blkno = args->blkno2;
-		args->rmtblkno = args->rmtblkno2;
+		args->blkyes = args->blkyes2;
+		args->rmtblkyes = args->rmtblkyes2;
 		args->rmtblkcnt = args->rmtblkcnt2;
 		args->rmtvaluelen = args->rmtvaluelen2;
-		if (args->rmtblkno) {
+		if (args->rmtblkyes) {
 			error = xfs_attr_rmtval_remove(args);
 			if (error)
 				return error;
@@ -714,7 +714,7 @@ xfs_attr_leaf_addname(
 		 * Read in the block containing the "old" attr, then
 		 * remove the "old" attr from that block (neat, huh!)
 		 */
-		error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno,
+		error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkyes,
 					   &bp);
 		if (error)
 			return error;
@@ -722,11 +722,11 @@ xfs_attr_leaf_addname(
 		xfs_attr3_leaf_remove(bp, args);
 
 		/*
-		 * If the result is small enough, shrink it all into the inode.
+		 * If the result is small eyesugh, shrink it all into the iyesde.
 		 */
 		if ((forkoff = xfs_attr_shortform_allfit(bp, dp))) {
 			error = xfs_attr3_leaf_to_shortform(bp, args, forkoff);
-			/* bp is gone due to xfs_da_shrink_inode */
+			/* bp is gone due to xfs_da_shrink_iyesde */
 			if (error)
 				return error;
 			error = xfs_defer_finish(&args->trans);
@@ -737,9 +737,9 @@ xfs_attr_leaf_addname(
 		/*
 		 * Commit the remove and start the next trans in series.
 		 */
-		error = xfs_trans_roll_inode(&args->trans, dp);
+		error = xfs_trans_roll_iyesde(&args->trans, dp);
 
-	} else if (args->rmtblkno > 0) {
+	} else if (args->rmtblkyes > 0) {
 		/*
 		 * Added a "remote" value, just clear the incomplete flag.
 		 */
@@ -751,14 +751,14 @@ xfs_attr_leaf_addname(
 /*
  * Remove a name from the leaf attribute list structure
  *
- * This leaf block cannot have a "remote" value, we only call this routine
- * if bmap_one_block() says there is only one block (ie: no remote blks).
+ * This leaf block canyest have a "remote" value, we only call this routine
+ * if bmap_one_block() says there is only one block (ie: yes remote blks).
  */
 STATIC int
 xfs_attr_leaf_removename(
 	struct xfs_da_args	*args)
 {
-	struct xfs_inode	*dp;
+	struct xfs_iyesde	*dp;
 	struct xfs_buf		*bp;
 	int			error, forkoff;
 
@@ -768,8 +768,8 @@ xfs_attr_leaf_removename(
 	 * Remove the attribute.
 	 */
 	dp = args->dp;
-	args->blkno = 0;
-	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno, &bp);
+	args->blkyes = 0;
+	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkyes, &bp);
 	if (error)
 		return error;
 
@@ -782,11 +782,11 @@ xfs_attr_leaf_removename(
 	xfs_attr3_leaf_remove(bp, args);
 
 	/*
-	 * If the result is small enough, shrink it all into the inode.
+	 * If the result is small eyesugh, shrink it all into the iyesde.
 	 */
 	if ((forkoff = xfs_attr_shortform_allfit(bp, dp))) {
 		error = xfs_attr3_leaf_to_shortform(bp, args, forkoff);
-		/* bp is gone due to xfs_da_shrink_inode */
+		/* bp is gone due to xfs_da_shrink_iyesde */
 		if (error)
 			return error;
 		error = xfs_defer_finish(&args->trans);
@@ -799,8 +799,8 @@ xfs_attr_leaf_removename(
 /*
  * Look up a name in a leaf attribute list structure.
  *
- * This leaf block cannot have a "remote" value, we only call this routine
- * if bmap_one_block() says there is only one block (ie: no remote blks).
+ * This leaf block canyest have a "remote" value, we only call this routine
+ * if bmap_one_block() says there is only one block (ie: yes remote blks).
  *
  * Returns 0 on successful retrieval, otherwise an error.
  */
@@ -812,8 +812,8 @@ xfs_attr_leaf_get(xfs_da_args_t *args)
 
 	trace_xfs_attr_leaf_get(args);
 
-	args->blkno = 0;
-	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkno, &bp);
+	args->blkyes = 0;
+	error = xfs_attr3_leaf_read(args->trans, args->dp, args->blkyes, &bp);
 	if (error)
 		return error;
 
@@ -835,23 +835,23 @@ xfs_attr_leaf_get(xfs_da_args_t *args)
  * Add a name to a Btree-format attribute list.
  *
  * This will involve walking down the Btree, and may involve splitting
- * leaf nodes and even splitting intermediate nodes up to and including
- * the root node (a special case of an intermediate node).
+ * leaf yesdes and even splitting intermediate yesdes up to and including
+ * the root yesde (a special case of an intermediate yesde).
  *
  * "Remote" attribute values confuse the issue and atomic rename operations
  * add a whole extra layer of confusion on top of that.
  */
 STATIC int
-xfs_attr_node_addname(
+xfs_attr_yesde_addname(
 	struct xfs_da_args	*args)
 {
 	struct xfs_da_state	*state;
 	struct xfs_da_state_blk	*blk;
-	struct xfs_inode	*dp;
+	struct xfs_iyesde	*dp;
 	struct xfs_mount	*mp;
 	int			retval, error;
 
-	trace_xfs_attr_node_addname(args);
+	trace_xfs_attr_yesde_addname(args);
 
 	/*
 	 * Fill in bucket of arguments/results/context to carry around.
@@ -867,7 +867,7 @@ restart:
 	 * Search to see if name already exists, and get back a pointer
 	 * to where it should go.
 	 */
-	error = xfs_da3_node_lookup_int(state, &retval);
+	error = xfs_da3_yesde_lookup_int(state, &retval);
 	if (error)
 		goto out;
 	blk = &state->path.blk[ state->path.active-1 ];
@@ -878,22 +878,22 @@ restart:
 		if (args->flags & ATTR_CREATE)
 			goto out;
 
-		trace_xfs_attr_node_replace(args);
+		trace_xfs_attr_yesde_replace(args);
 
 		/* save the attribute state for later removal*/
 		args->op_flags |= XFS_DA_OP_RENAME;	/* atomic rename op */
-		args->blkno2 = args->blkno;		/* set 2nd entry info*/
+		args->blkyes2 = args->blkyes;		/* set 2nd entry info*/
 		args->index2 = args->index;
-		args->rmtblkno2 = args->rmtblkno;
+		args->rmtblkyes2 = args->rmtblkyes;
 		args->rmtblkcnt2 = args->rmtblkcnt;
 		args->rmtvaluelen2 = args->rmtvaluelen;
 
 		/*
-		 * clear the remote attr state now that it is saved so that the
+		 * clear the remote attr state yesw that it is saved so that the
 		 * values reflect the state of the attribute we are about to
-		 * add, not the attribute we just found and will remove later.
+		 * add, yest the attribute we just found and will remove later.
 		 */
-		args->rmtblkno = 0;
+		args->rmtblkyes = 0;
 		args->rmtblkcnt = 0;
 		args->rmtvaluelen = 0;
 	}
@@ -902,13 +902,13 @@ restart:
 	if (retval == -ENOSPC) {
 		if (state->path.active == 1) {
 			/*
-			 * Its really a single leaf node, but it had
+			 * Its really a single leaf yesde, but it had
 			 * out-of-line values so it looked like it *might*
 			 * have been a b-tree.
 			 */
 			xfs_da_state_free(state);
 			state = NULL;
-			error = xfs_attr3_leaf_to_node(args);
+			error = xfs_attr3_leaf_to_yesde(args);
 			if (error)
 				goto out;
 			error = xfs_defer_finish(&args->trans);
@@ -916,10 +916,10 @@ restart:
 				goto out;
 
 			/*
-			 * Commit the node conversion and start the next
+			 * Commit the yesde conversion and start the next
 			 * trans in the chain.
 			 */
-			error = xfs_trans_roll_inode(&args->trans, dp);
+			error = xfs_trans_roll_iyesde(&args->trans, dp);
 			if (error)
 				goto out;
 
@@ -929,8 +929,8 @@ restart:
 		/*
 		 * Split as many Btree elements as required.
 		 * This code tracks the new and old attr's location
-		 * in the index/blkno/rmtblkno/rmtblkcnt fields and
-		 * in the index2/blkno2/rmtblkno2/rmtblkcnt2 fields.
+		 * in the index/blkyes/rmtblkyes/rmtblkcnt fields and
+		 * in the index2/blkyes2/rmtblkyes2/rmtblkcnt2 fields.
 		 */
 		error = xfs_da3_split(state);
 		if (error)
@@ -956,7 +956,7 @@ restart:
 	 * Commit the leaf addition or btree split and start the next
 	 * trans in the chain.
 	 */
-	error = xfs_trans_roll_inode(&args->trans, dp);
+	error = xfs_trans_roll_iyesde(&args->trans, dp);
 	if (error)
 		goto out;
 
@@ -966,7 +966,7 @@ restart:
 	 * after we create the attribute so that we don't overflow the
 	 * maximum size of a transaction and/or hit a deadlock.
 	 */
-	if (args->rmtblkno > 0) {
+	if (args->rmtblkyes > 0) {
 		error = xfs_attr_rmtval_set(args);
 		if (error)
 			return error;
@@ -992,11 +992,11 @@ restart:
 		 * a "remote" value (if it exists).
 		 */
 		args->index = args->index2;
-		args->blkno = args->blkno2;
-		args->rmtblkno = args->rmtblkno2;
+		args->blkyes = args->blkyes2;
+		args->rmtblkyes = args->rmtblkyes2;
 		args->rmtblkcnt = args->rmtblkcnt2;
 		args->rmtvaluelen = args->rmtvaluelen2;
-		if (args->rmtblkno) {
+		if (args->rmtblkyes) {
 			error = xfs_attr_rmtval_remove(args);
 			if (error)
 				return error;
@@ -1005,14 +1005,14 @@ restart:
 		/*
 		 * Re-find the "old" attribute entry after any split ops.
 		 * The INCOMPLETE flag means that we will find the "old"
-		 * attr, not the "new" one.
+		 * attr, yest the "new" one.
 		 */
 		args->flags |= XFS_ATTR_INCOMPLETE;
 		state = xfs_da_state_alloc();
 		state->args = args;
 		state->mp = mp;
 		state->inleaf = 0;
-		error = xfs_da3_node_lookup_int(state, &retval);
+		error = xfs_da3_yesde_lookup_int(state, &retval);
 		if (error)
 			goto out;
 
@@ -1039,11 +1039,11 @@ restart:
 		/*
 		 * Commit and start the next trans in the chain.
 		 */
-		error = xfs_trans_roll_inode(&args->trans, dp);
+		error = xfs_trans_roll_iyesde(&args->trans, dp);
 		if (error)
 			goto out;
 
-	} else if (args->rmtblkno > 0) {
+	} else if (args->rmtblkyes > 0) {
 		/*
 		 * Added a "remote" value, just clear the incomplete flag.
 		 */
@@ -1065,20 +1065,20 @@ out:
  * Remove a name from a B-tree attribute list.
  *
  * This will involve walking down the Btree, and may involve joining
- * leaf nodes and even joining intermediate nodes up to and including
- * the root node (a special case of an intermediate node).
+ * leaf yesdes and even joining intermediate yesdes up to and including
+ * the root yesde (a special case of an intermediate yesde).
  */
 STATIC int
-xfs_attr_node_removename(
+xfs_attr_yesde_removename(
 	struct xfs_da_args	*args)
 {
 	struct xfs_da_state	*state;
 	struct xfs_da_state_blk	*blk;
-	struct xfs_inode	*dp;
+	struct xfs_iyesde	*dp;
 	struct xfs_buf		*bp;
 	int			retval, error, forkoff;
 
-	trace_xfs_attr_node_removename(args);
+	trace_xfs_attr_yesde_removename(args);
 
 	/*
 	 * Tie a string around our finger to remind us where we are.
@@ -1091,7 +1091,7 @@ xfs_attr_node_removename(
 	/*
 	 * Search to see if name exists, and get back a pointer to it.
 	 */
-	error = xfs_da3_node_lookup_int(state, &retval);
+	error = xfs_da3_yesde_lookup_int(state, &retval);
 	if (error || (retval != -EEXIST)) {
 		if (error == 0)
 			error = retval;
@@ -1106,7 +1106,7 @@ xfs_attr_node_removename(
 	blk = &state->path.blk[ state->path.active-1 ];
 	ASSERT(blk->bp != NULL);
 	ASSERT(blk->magic == XFS_ATTR_LEAF_MAGIC);
-	if (args->rmtblkno > 0) {
+	if (args->rmtblkyes > 0) {
 		/*
 		 * Fill in disk block numbers in the state structure
 		 * so that we can get the buffers back after we commit
@@ -1157,13 +1157,13 @@ xfs_attr_node_removename(
 		/*
 		 * Commit the Btree join operation and start a new trans.
 		 */
-		error = xfs_trans_roll_inode(&args->trans, dp);
+		error = xfs_trans_roll_iyesde(&args->trans, dp);
 		if (error)
 			goto out;
 	}
 
 	/*
-	 * If the result is small enough, push it all into the inode.
+	 * If the result is small eyesugh, push it all into the iyesde.
 	 */
 	if (xfs_bmap_one_block(dp, XFS_ATTR_FORK)) {
 		/*
@@ -1179,7 +1179,7 @@ xfs_attr_node_removename(
 
 		if ((forkoff = xfs_attr_shortform_allfit(bp, dp))) {
 			error = xfs_attr3_leaf_to_shortform(bp, args, forkoff);
-			/* bp is gone due to xfs_da_shrink_inode */
+			/* bp is gone due to xfs_da_shrink_iyesde */
 			if (error)
 				goto out;
 			error = xfs_defer_finish(&args->trans);
@@ -1218,10 +1218,10 @@ xfs_attr_fillstate(xfs_da_state_t *state)
 	ASSERT((path->active >= 0) && (path->active < XFS_DA_NODE_MAXDEPTH));
 	for (blk = path->blk, level = 0; level < path->active; blk++, level++) {
 		if (blk->bp) {
-			blk->disk_blkno = XFS_BUF_ADDR(blk->bp);
+			blk->disk_blkyes = XFS_BUF_ADDR(blk->bp);
 			blk->bp = NULL;
 		} else {
-			blk->disk_blkno = 0;
+			blk->disk_blkyes = 0;
 		}
 	}
 
@@ -1233,10 +1233,10 @@ xfs_attr_fillstate(xfs_da_state_t *state)
 	ASSERT((path->active >= 0) && (path->active < XFS_DA_NODE_MAXDEPTH));
 	for (blk = path->blk, level = 0; level < path->active; blk++, level++) {
 		if (blk->bp) {
-			blk->disk_blkno = XFS_BUF_ADDR(blk->bp);
+			blk->disk_blkyes = XFS_BUF_ADDR(blk->bp);
 			blk->bp = NULL;
 		} else {
-			blk->disk_blkno = 0;
+			blk->disk_blkyes = 0;
 		}
 	}
 
@@ -1265,9 +1265,9 @@ xfs_attr_refillstate(xfs_da_state_t *state)
 	path = &state->path;
 	ASSERT((path->active >= 0) && (path->active < XFS_DA_NODE_MAXDEPTH));
 	for (blk = path->blk, level = 0; level < path->active; blk++, level++) {
-		if (blk->disk_blkno) {
-			error = xfs_da3_node_read_mapped(state->args->trans,
-					state->args->dp, blk->disk_blkno,
+		if (blk->disk_blkyes) {
+			error = xfs_da3_yesde_read_mapped(state->args->trans,
+					state->args->dp, blk->disk_blkyes,
 					&blk->bp, XFS_ATTR_FORK);
 			if (error)
 				return error;
@@ -1283,9 +1283,9 @@ xfs_attr_refillstate(xfs_da_state_t *state)
 	path = &state->altpath;
 	ASSERT((path->active >= 0) && (path->active < XFS_DA_NODE_MAXDEPTH));
 	for (blk = path->blk, level = 0; level < path->active; blk++, level++) {
-		if (blk->disk_blkno) {
-			error = xfs_da3_node_read_mapped(state->args->trans,
-					state->args->dp, blk->disk_blkno,
+		if (blk->disk_blkyes) {
+			error = xfs_da3_yesde_read_mapped(state->args->trans,
+					state->args->dp, blk->disk_blkyes,
 					&blk->bp, XFS_ATTR_FORK);
 			if (error)
 				return error;
@@ -1298,7 +1298,7 @@ xfs_attr_refillstate(xfs_da_state_t *state)
 }
 
 /*
- * Retrieve the attribute data from a node attribute list.
+ * Retrieve the attribute data from a yesde attribute list.
  *
  * This routine gets called for any attribute fork that has more than one
  * block, ie: both true Btree attr lists and for single-leaf-blocks with
@@ -1307,14 +1307,14 @@ xfs_attr_refillstate(xfs_da_state_t *state)
  * Returns 0 on successful retrieval, otherwise an error.
  */
 STATIC int
-xfs_attr_node_get(xfs_da_args_t *args)
+xfs_attr_yesde_get(xfs_da_args_t *args)
 {
 	xfs_da_state_t *state;
 	xfs_da_state_blk_t *blk;
 	int error, retval;
 	int i;
 
-	trace_xfs_attr_node_get(args);
+	trace_xfs_attr_yesde_get(args);
 
 	state = xfs_da_state_alloc();
 	state->args = args;
@@ -1323,7 +1323,7 @@ xfs_attr_node_get(xfs_da_args_t *args)
 	/*
 	 * Search to see if name exists, and get back a pointer to it.
 	 */
-	error = xfs_da3_node_lookup_int(state, &retval);
+	error = xfs_da3_yesde_lookup_int(state, &retval);
 	if (error) {
 		retval = error;
 		goto out_release;
@@ -1338,7 +1338,7 @@ xfs_attr_node_get(xfs_da_args_t *args)
 	retval = xfs_attr3_leaf_getvalue(blk->bp, args);
 
 	/*
-	 * If not in a transaction, we have to release all the buffers.
+	 * If yest in a transaction, we have to release all the buffers.
 	 */
 out_release:
 	for (i = 0; i < state->path.active; i++) {

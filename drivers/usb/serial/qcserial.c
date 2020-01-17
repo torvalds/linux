@@ -68,7 +68,7 @@ static const struct usb_device_id id_table[] = {
 	{DEVICE_G1K(0x05c6, 0x9201)},	/* Generic Gobi QDL device */
 	{DEVICE_G1K(0x05c6, 0x9221)},	/* Generic Gobi QDL device */
 	{DEVICE_G1K(0x05c6, 0x9231)},	/* Generic Gobi QDL device */
-	{DEVICE_G1K(0x1f45, 0x0001)},	/* Unknown Gobi QDL device */
+	{DEVICE_G1K(0x1f45, 0x0001)},	/* Unkyeswn Gobi QDL device */
 	{DEVICE_G1K(0x1bc7, 0x900e)},	/* Telit Gobi QDL device */
 
 	/* Gobi 2000 devices */
@@ -93,8 +93,8 @@ static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(0x05c6, 0x9265)},	/* Asus Gobi 2000 Modem device (VR305) */
 	{USB_DEVICE(0x05c6, 0x9234)},	/* Top Global Gobi 2000 QDL device (VR306) */
 	{USB_DEVICE(0x05c6, 0x9235)},	/* Top Global Gobi 2000 Modem device (VR306) */
-	{USB_DEVICE(0x05c6, 0x9274)},	/* iRex Technologies Gobi 2000 QDL device (VR307) */
-	{USB_DEVICE(0x05c6, 0x9275)},	/* iRex Technologies Gobi 2000 Modem device (VR307) */
+	{USB_DEVICE(0x05c6, 0x9274)},	/* iRex Techyeslogies Gobi 2000 QDL device (VR307) */
+	{USB_DEVICE(0x05c6, 0x9275)},	/* iRex Techyeslogies Gobi 2000 Modem device (VR307) */
 	{USB_DEVICE(0x1199, 0x9000)},	/* Sierra Wireless Gobi 2000 QDL device (VT773) */
 	{USB_DEVICE(0x1199, 0x9001)},	/* Sierra Wireless Gobi 2000 Modem device (VT773) */
 	{USB_DEVICE(0x1199, 0x9002)},	/* Sierra Wireless Gobi 2000 Modem device (VT773) */
@@ -137,7 +137,7 @@ static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(0x12D1, 0x14F1)},	/* Sony Gobi 3000 Composite */
 	{USB_DEVICE(0x0AF0, 0x8120)},	/* Option GTM681W */
 
-	/* non-Gobi Sierra Wireless devices */
+	/* yesn-Gobi Sierra Wireless devices */
 	{DEVICE_SWI(0x03f0, 0x4e1d)},	/* HP lt4111 LTE/EV-DO/HSPA+ Gobi 4G Module */
 	{DEVICE_SWI(0x0f3d, 0x68a2)},	/* Sierra Wireless MC7700 */
 	{DEVICE_SWI(0x114f, 0x68a2)},	/* Sierra Wireless MC7750 */
@@ -276,7 +276,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		 * 3: QMI/net
 		 */
 		if (nintf < 3 || nintf > 4) {
-			dev_err(dev, "unknown number of interfaces: %d\n", nintf);
+			dev_err(dev, "unkyeswn number of interfaces: %d\n", nintf);
 			altsetting = -1;
 			goto done;
 		}
@@ -290,7 +290,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 			altsetting = -1;
 		break;
 	case QCSERIAL_G2K:
-		/* handle non-standard layouts */
+		/* handle yesn-standard layouts */
 		if (nintf == 5 && id->idProduct == QUECTEL_EC20_PID) {
 			altsetting = handle_quectel_ec20(dev, ifnum);
 			goto done;
@@ -304,7 +304,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		 * 3: NMEA
 		 */
 		if (nintf < 3 || nintf > 4) {
-			dev_err(dev, "unknown number of interfaces: %d\n", nintf);
+			dev_err(dev, "unkyeswn number of interfaces: %d\n", nintf);
 			altsetting = -1;
 			goto done;
 		}
@@ -363,8 +363,8 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		 * a specific function, while the subclass indicate a
 		 * specific firmware source
 		 *
-		 * This is a blacklist of functions known to be
-		 * non-serial.  The rest are assumed to be serial and
+		 * This is a blacklist of functions kyeswn to be
+		 * yesn-serial.  The rest are assumed to be serial and
 		 * will be handled by this driver
 		 */
 		switch (intf->desc.bInterfaceProtocol) {
@@ -404,7 +404,7 @@ done:
 		retval = usb_set_interface(serial->dev, ifnum, altsetting);
 		if (retval < 0) {
 			dev_err(dev,
-				"Could not set interface, error %d\n",
+				"Could yest set interface, error %d\n",
 				retval);
 			retval = -ENODEV;
 		}

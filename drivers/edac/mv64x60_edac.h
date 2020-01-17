@@ -55,7 +55,7 @@
 
 #ifdef CONFIG_PCI
 /*
- * Bit 0 of MV64x60_PCIx_ERR_MASK does not exist on the 64360 and because of
+ * Bit 0 of MV64x60_PCIx_ERR_MASK does yest exist on the 64360 and because of
  * errata FEr-#11 and FEr-##16 for the 64460, it should be 0 on that chip as
  * well.  IOW, don't set bit 0.
  */

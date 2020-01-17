@@ -10,12 +10,12 @@
 
 /*
  * The fs value determines whether argument validity checking should be
- * performed or not.  If get_fs() == USER_DS, checking is performed, with
+ * performed or yest.  If get_fs() == USER_DS, checking is performed, with
  * get_fs() == KERNEL_DS, checking is bypassed.
  *
  * For historical reasons, these macros are grossly misnamed.
  *
- * The fs/ds values are now the highest legal address in the "segment".
+ * The fs/ds values are yesw the highest legal address in the "segment".
  * This simplifies the checking in the routines below.
  */
 
@@ -23,7 +23,7 @@
 
 #define KERNEL_DS	MAKE_MM_SEG(~0UL)
 #ifdef __powerpc64__
-/* We use TASK_SIZE_USER64 as TASK_SIZE is not constant */
+/* We use TASK_SIZE_USER64 as TASK_SIZE is yest constant */
 #define USER_DS		MAKE_MM_SEG(TASK_SIZE_USER64 - 1)
 #else
 #define USER_DS		MAKE_MM_SEG(TASK_SIZE - 1)
@@ -44,7 +44,7 @@ static inline void set_fs(mm_segment_t fs)
 
 #ifdef __powerpc64__
 /*
- * This check is sufficient because there is a large enough
+ * This check is sufficient because there is a large eyesugh
  * gap between user addresses and the kernel addresses
  */
 #define __access_ok(addr, size, segment)	\
@@ -76,13 +76,13 @@ static inline int __access_ok(unsigned long addr, unsigned long size,
  * and hide all the ugliness from the user.
  *
  * The "__xxx" versions of the user access functions are versions that
- * do not verify the address space, that must have been done previously
+ * do yest verify the address space, that must have been done previously
  * with a separate "access_ok()" call (this is used when we do multiple
  * accesses to the same area of user memory).
  *
  * As we use the same address space for kernel and user data on the
  * PowerPC, we can just do these as direct assignments.  (Of course, the
- * exception handling means that it's no longer "just"...)
+ * exception handling means that it's yes longer "just"...)
  *
  */
 #define get_user(x, ptr) \
@@ -91,21 +91,21 @@ static inline int __access_ok(unsigned long addr, unsigned long size,
 	__put_user_check((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
 #define __get_user(x, ptr) \
-	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
+	__get_user_yescheck((x), (ptr), sizeof(*(ptr)))
 #define __put_user(x, ptr) \
-	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
+	__put_user_yescheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
 #define __get_user_inatomic(x, ptr) \
-	__get_user_nosleep((x), (ptr), sizeof(*(ptr)))
+	__get_user_yessleep((x), (ptr), sizeof(*(ptr)))
 #define __put_user_inatomic(x, ptr) \
-	__put_user_nosleep((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
+	__put_user_yessleep((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
 extern long __put_user_bad(void);
 
 /*
  * We don't tell gcc that we are accessing memory, but this is OK
- * because we do not write to any memory gcc knows about, so there
- * are no aliasing issues.
+ * because we do yest write to any memory gcc kyesws about, so there
+ * are yes aliasing issues.
  */
 #define __put_user_asm(x, addr, err, op)			\
 	__asm__ __volatile__(					\
@@ -152,7 +152,7 @@ do {								\
 	prevent_write_to_user(ptr, size);			\
 } while (0)
 
-#define __put_user_nocheck(x, ptr, size)			\
+#define __put_user_yescheck(x, ptr, size)			\
 ({								\
 	long __pu_err;						\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
@@ -173,7 +173,7 @@ do {								\
 	__pu_err;							\
 })
 
-#define __put_user_nosleep(x, ptr, size)			\
+#define __put_user_yessleep(x, ptr, size)			\
 ({								\
 	long __pu_err;						\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
@@ -260,7 +260,7 @@ do {								\
 #define __long_type(x) \
 	__typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
 
-#define __get_user_nocheck(x, ptr, size)			\
+#define __get_user_yescheck(x, ptr, size)			\
 ({								\
 	long __gu_err;						\
 	__long_type(*(ptr)) __gu_val;				\
@@ -268,7 +268,7 @@ do {								\
 	__chk_user_ptr(ptr);					\
 	if (!is_kernel_addr((unsigned long)__gu_addr))		\
 		might_fault();					\
-	barrier_nospec();					\
+	barrier_yesspec();					\
 	__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
 	(x) = (__typeof__(*(ptr)))__gu_val;			\
 	__gu_err;						\
@@ -281,20 +281,20 @@ do {								\
 	__typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
 	might_fault();							\
 	if (access_ok(__gu_addr, (size))) {		\
-		barrier_nospec();					\
+		barrier_yesspec();					\
 		__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
 	}								\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
 	__gu_err;							\
 })
 
-#define __get_user_nosleep(x, ptr, size)			\
+#define __get_user_yessleep(x, ptr, size)			\
 ({								\
 	long __gu_err;						\
 	__long_type(*(ptr)) __gu_val;				\
 	__typeof__(*(ptr)) __user *__gu_addr = (ptr);	\
 	__chk_user_ptr(ptr);					\
-	barrier_nospec();					\
+	barrier_yesspec();					\
 	__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 	__gu_err;						\
@@ -312,7 +312,7 @@ raw_copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
 	unsigned long ret;
 
-	barrier_nospec();
+	barrier_yesspec();
 	allow_user_access(to, from, n);
 	ret = __copy_tofrom_user(to, from, n);
 	prevent_user_access(to, from, n);
@@ -329,19 +329,19 @@ static inline unsigned long raw_copy_from_user(void *to,
 
 		switch (n) {
 		case 1:
-			barrier_nospec();
+			barrier_yesspec();
 			__get_user_size(*(u8 *)to, from, 1, ret);
 			break;
 		case 2:
-			barrier_nospec();
+			barrier_yesspec();
 			__get_user_size(*(u16 *)to, from, 2, ret);
 			break;
 		case 4:
-			barrier_nospec();
+			barrier_yesspec();
 			__get_user_size(*(u32 *)to, from, 4, ret);
 			break;
 		case 8:
-			barrier_nospec();
+			barrier_yesspec();
 			__get_user_size(*(u64 *)to, from, 8, ret);
 			break;
 		}
@@ -349,7 +349,7 @@ static inline unsigned long raw_copy_from_user(void *to,
 			return 0;
 	}
 
-	barrier_nospec();
+	barrier_yesspec();
 	allow_read_from_user(from, n);
 	ret = __copy_tofrom_user((__force void __user *)to, from, n);
 	prevent_read_from_user(from, n);

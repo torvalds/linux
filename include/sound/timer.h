@@ -27,9 +27,9 @@
 #define SNDRV_TIMER_IFLG_RUNNING  0x00000002
 #define SNDRV_TIMER_IFLG_START	  0x00000004
 #define SNDRV_TIMER_IFLG_AUTO	  0x00000008	/* auto restart */
-#define SNDRV_TIMER_IFLG_FAST	  0x00000010	/* fast callback (do not use tasklet) */
+#define SNDRV_TIMER_IFLG_FAST	  0x00000010	/* fast callback (do yest use tasklet) */
 #define SNDRV_TIMER_IFLG_CALLBACK 0x00000020	/* timer callback is active */
-#define SNDRV_TIMER_IFLG_EXCLUSIVE 0x00000040	/* exclusive owner - no more instances */
+#define SNDRV_TIMER_IFLG_EXCLUSIVE 0x00000040	/* exclusive owner - yes more instances */
 #define SNDRV_TIMER_IFLG_EARLY_EVENT 0x00000080	/* write early event to the poll queue */
 
 #define SNDRV_TIMER_FLG_CHANGE	0x00000001
@@ -113,7 +113,7 @@ struct snd_timer_instance {
  */
 
 int snd_timer_new(struct snd_card *card, char *id, struct snd_timer_id *tid, struct snd_timer **rtimer);
-void snd_timer_notify(struct snd_timer *timer, int event, struct timespec *tstamp);
+void snd_timer_yestify(struct snd_timer *timer, int event, struct timespec *tstamp);
 int snd_timer_global_new(char *id, int device, struct snd_timer **rtimer);
 int snd_timer_global_free(struct snd_timer *timer);
 int snd_timer_global_register(struct snd_timer *timer);

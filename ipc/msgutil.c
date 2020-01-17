@@ -23,7 +23,7 @@ DEFINE_SPINLOCK(mq_lock);
 /*
  * The next 2 defines are here bc this is the only file
  * compiled when either CONFIG_SYSVIPC and CONFIG_POSIX_MQUEUE
- * and not CONFIG_IPC_NS.
+ * and yest CONFIG_IPC_NS.
  */
 struct ipc_namespace init_ipc_ns = {
 	.count		= REFCOUNT_INIT(1),

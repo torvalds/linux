@@ -3,7 +3,7 @@
 #define _LINUX_REBOOT_H
 
 
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <uapi/linux/reboot.h>
 
 struct device;
@@ -40,13 +40,13 @@ extern int reboot_cpu;
 extern int reboot_force;
 
 
-extern int register_reboot_notifier(struct notifier_block *);
-extern int unregister_reboot_notifier(struct notifier_block *);
+extern int register_reboot_yestifier(struct yestifier_block *);
+extern int unregister_reboot_yestifier(struct yestifier_block *);
 
-extern int devm_register_reboot_notifier(struct device *, struct notifier_block *);
+extern int devm_register_reboot_yestifier(struct device *, struct yestifier_block *);
 
-extern int register_restart_handler(struct notifier_block *);
-extern int unregister_restart_handler(struct notifier_block *);
+extern int register_restart_handler(struct yestifier_block *);
+extern int unregister_restart_handler(struct yestifier_block *);
 extern void do_kernel_restart(char *cmd);
 
 /*

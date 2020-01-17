@@ -159,7 +159,7 @@ static void set_addr(struct mtd_info *mtd, int column, int page_addr, int oob)
 		ifc_nand_ctrl->index += mtd->writesize;
 }
 
-/* returns nonzero if entire page is blank */
+/* returns yesnzero if entire page is blank */
 static int check_read_ecc(struct mtd_info *mtd, struct fsl_ifc_ctrl *ctrl,
 			  u32 eccstat, unsigned int bufnum)
 {
@@ -200,7 +200,7 @@ static void fsl_ifc_run_command(struct mtd_info *mtd)
 
 	/* ctrl->nand_stat will be updated from IRQ context */
 	if (!ctrl->nand_stat)
-		dev_err(priv->dev, "Controller is not responding\n");
+		dev_err(priv->dev, "Controller is yest responding\n");
 	if (ctrl->nand_stat & IFC_NAND_EVTER_STAT_FTOER)
 		dev_err(priv->dev, "NAND Flash Timeout Error\n");
 	if (ctrl->nand_stat & IFC_NAND_EVTER_STAT_WPER)
@@ -230,7 +230,7 @@ static void fsl_ifc_run_command(struct mtd_info *mtd)
 				 * We'll check for blank pages later.
 				 *
 				 * We disable ECCER reporting due to...
-				 * erratum IFC-A002770 -- so report it now if we
+				 * erratum IFC-A002770 -- so report it yesw if we
 				 * see an uncorrectable error in ECCSTAT.
 				 */
 				ctrl->nand_stat |= IFC_NAND_EVTER_STAT_ECCER;
@@ -316,7 +316,7 @@ static void fsl_ifc_cmdfunc(struct nand_chip *chip, unsigned int command,
 		fsl_ifc_run_command(mtd);
 		return;
 
-	/* READOOB reads only the OOB because no ECC is performed. */
+	/* READOOB reads only the OOB because yes ECC is performed. */
 	case NAND_CMD_READOOB:
 		ifc_out32(mtd->oobsize - column, &ifc->ifc_nand.nand_fbcr);
 		set_addr(mtd, column, page_addr, 1);
@@ -472,7 +472,7 @@ static void fsl_ifc_cmdfunc(struct nand_chip *chip, unsigned int command,
 
 		/*
 		 * The chip always seems to report that it is
-		 * write-protected, even when it is not.
+		 * write-protected, even when it is yest.
 		 */
 		addr = ifc_nand_ctrl->addr;
 		if (chip->options & NAND_BUSWIDTH_16)
@@ -498,7 +498,7 @@ static void fsl_ifc_cmdfunc(struct nand_chip *chip, unsigned int command,
 
 static void fsl_ifc_select_chip(struct nand_chip *chip, int cs)
 {
-	/* The hardware does not seem to support multiple
+	/* The hardware does yest seem to support multiple
 	 * chips per bank.
 	 */
 }
@@ -626,13 +626,13 @@ static int fsl_ifc_wait(struct nand_chip *chip)
 	status = nand_fsr >> 24;
 	/*
 	 * The chip always seems to report that it is
-	 * write-protected, even when it is not.
+	 * write-protected, even when it is yest.
 	 */
 	return status | NAND_STATUS_WP;
 }
 
 /*
- * The controller does not check for bitflips in erased pages,
+ * The controller does yest check for bitflips in erased pages,
  * therefore software must check instead.
  */
 static int check_erased_page(struct nand_chip *chip, u8 *buf)
@@ -839,7 +839,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 	/* Fill in fsl_ifc_mtd structure */
 	mtd->dev.parent = priv->dev;
-	nand_set_flash_node(chip, priv->dev->of_node);
+	nand_set_flash_yesde(chip, priv->dev->of_yesde);
 
 	/* fill in nand_chip structure */
 	/* set up function call table */
@@ -854,8 +854,8 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	chip->legacy.select_chip = fsl_ifc_select_chip;
 	chip->legacy.cmdfunc = fsl_ifc_cmdfunc;
 	chip->legacy.waitfunc = fsl_ifc_wait;
-	chip->legacy.set_features = nand_get_set_features_notsupp;
-	chip->legacy.get_features = nand_get_set_features_notsupp;
+	chip->legacy.set_features = nand_get_set_features_yestsupp;
+	chip->legacy.get_features = nand_get_set_features_yestsupp;
 
 	chip->bbt_td = &bbt_main_descr;
 	chip->bbt_md = &bbt_mirror_descr;
@@ -981,7 +981,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 		= { "cmdlinepart", "RedBoot", "ofpart", NULL };
 	int ret;
 	int bank;
-	struct device_node *node = dev->dev.of_node;
+	struct device_yesde *yesde = dev->dev.of_yesde;
 	struct mtd_info *mtd;
 
 	if (!fsl_ifc_ctrl_dev || !fsl_ifc_ctrl_dev->rregs)
@@ -989,7 +989,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	ifc = fsl_ifc_ctrl_dev->rregs;
 
 	/* get, allocate and map the memory resource */
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(yesde, 0, &res);
 	if (ret) {
 		dev_err(&dev->dev, "%s: failed to get resource\n", __func__);
 		return ret;
@@ -1002,7 +1002,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	}
 
 	if (bank >= fsl_ifc_ctrl_dev->banks) {
-		dev_err(&dev->dev, "%s: address did not match any chip selects\n",
+		dev_err(&dev->dev, "%s: address did yest match any chip selects\n",
 			__func__);
 		return -ENODEV;
 	}

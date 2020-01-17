@@ -3,7 +3,7 @@
  * Hardware definitions for Palm Zire72
  *
  * Authors:
- *	Vladimir "Farcaller" Pouzanov <farcaller@gmail.com>
+ *	Vladimir "Farcaller" Pouzayesv <farcaller@gmail.com>
  *	Sergey Lapin <slapin@ossfans.org>
  *	Alex Osborne <bobofdoom@gmail.com>
  *	Jan Herman <2hp@seznam.cz>
@@ -181,7 +181,7 @@ static inline void palmz72_kpc_init(void) {}
 static struct gpio_led gpio_leds[] = {
 	{
 		.name			= "palmz72:green:led",
-		.default_trigger	= "none",
+		.default_trigger	= "yesne",
 		.gpio			= GPIO_NR_PALMZ72_LED_GREEN,
 	},
 };
@@ -214,7 +214,7 @@ static inline void palmz72_leds_init(void) {}
  * to be transferred via PSPR. Using this struct PalmOS restores
  * its state after sleep. As for Linux, we need to setup it the
  * same way. More than that, PalmOS ROM changes some values in memory.
- * For now only one location is found, which needs special treatment.
+ * For yesw only one location is found, which needs special treatment.
  * Thanks to Alex Osborne, Andrzej Zaborowski, and lots of other people
  * for reading backtraces for me :)
  */
@@ -349,7 +349,7 @@ static struct platform_device palmz72_camera = {
 };
 
 /* Here we request the camera GPIOs and configure them. We power up the camera
- * module, deassert the reset pin, but put it into powerdown (low to no power
+ * module, deassert the reset pin, but put it into powerdown (low to yes power
  * consumption) mode. This allows us to later bring the module up fast. */
 static struct gpio palmz72_camera_gpios[] = {
 	{ GPIO_NR_PALMZ72_CAM_POWER,	GPIOF_INIT_HIGH,"Camera DVDD" },

@@ -13,10 +13,10 @@
 #include <asm/page.h>
 
 /*
- * While not explicitly listed in the TLFS, Hyper-V always runs with a page size
+ * While yest explicitly listed in the TLFS, Hyper-V always runs with a page size
  * of 4096. These definitions are used when communicating with Hyper-V using
  * guest physical pages and guest physical page addresses, since the guest page
- * size may not be 4096 on all architectures.
+ * size may yest be 4096 on all architectures.
  */
 #define HV_HYP_PAGE_SHIFT      12
 #define HV_HYP_PAGE_SIZE       BIT(HV_HYP_PAGE_SHIFT)
@@ -167,7 +167,7 @@
 #define HV_X64_RELAXED_TIMING_RECOMMENDED		BIT(5)
 
 /*
- * Recommend not using Auto End-Of-Interrupt feature
+ * Recommend yest using Auto End-Of-Interrupt feature
  */
 #define HV_DEPRECATING_AEOI_RECOMMENDED			BIT(9)
 
@@ -183,7 +183,7 @@
 #define HV_X64_ENLIGHTENED_VMCS_RECOMMENDED		BIT(14)
 
 /*
- * Virtual processor will never share a physical core with another virtual
+ * Virtual processor will never share a physical core with ayesther virtual
  * processor, except for virtual processors that are reported as sibling SMT
  * threads.
  */
@@ -267,7 +267,7 @@
 /* Hyper-V guest idle MSR */
 #define HV_X64_MSR_GUEST_IDLE			0x400000F0
 
-/* Hyper-V guest crash notification MSR's */
+/* Hyper-V guest crash yestification MSR's */
 #define HV_X64_MSR_CRASH_P0			0x40000100
 #define HV_X64_MSR_CRASH_P1			0x40000101
 #define HV_X64_MSR_CRASH_P2			0x40000102
@@ -313,7 +313,7 @@ struct ms_hyperv_tsc_page {
  *
  * msdn.microsoft.com/en-us/library/windows/hardware/ff542653%28v=vs.85%29.aspx
  *
- * While the current guideline does not specify how Linux guest ID(s)
+ * While the current guideline does yest specify how Linux guest ID(s)
  * need to be generated, our plan is to publish the guidelines for
  * Linux and other guest operating systems that currently are hosted
  * on Hyper-V. The implementation here conforms to this yet
@@ -321,7 +321,7 @@ struct ms_hyperv_tsc_page {
  *
  *
  * Bit(s)
- * 63 - Indicates if the OS is Open Source or not; 1 is Open Source
+ * 63 - Indicates if the OS is Open Source or yest; 1 is Open Source
  * 62:56 - Os Type; Linux is 0x100
  * 55:48 - Distro specific identification
  * 47:16 - Linux kernel version number
@@ -356,7 +356,7 @@ struct hv_tsc_emulation_status {
 		(~((1ull << HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT) - 1))
 
 /*
- * Crash notification (HV_X64_MSR_CRASH_CTL) flags.
+ * Crash yestification (HV_X64_MSR_CRASH_CTL) flags.
  */
 #define HV_CRASH_CTL_CRASH_NOTIFY_MSG		BIT_ULL(62)
 #define HV_CRASH_CTL_CRASH_NOTIFY		BIT_ULL(63)
@@ -466,7 +466,7 @@ enum hv_message_type {
 	HVMSG_UNMAPPED_GPA		= 0x80000000,
 	HVMSG_GPA_INTERCEPT		= 0x80000001,
 
-	/* Timer notification messages. */
+	/* Timer yestification messages. */
 	HVMSG_TIMER_EXPIRED			= 0x80000010,
 
 	/* Error messages. */

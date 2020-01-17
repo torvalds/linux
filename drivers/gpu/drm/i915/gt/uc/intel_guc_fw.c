@@ -95,8 +95,8 @@ static int guc_wait_ucode(struct intel_uncore *uncore)
 
 	/*
 	 * Wait for the GuC to start up.
-	 * NB: Docs recommend not using the interrupt for completion.
-	 * Measurements indicate this should take no more than 20ms, so a
+	 * NB: Docs recommend yest using the interrupt for completion.
+	 * Measurements indicate this should take yes more than 20ms, so a
 	 * timeout here indicates that the GuC has failed and is unusable.
 	 * (Higher levels of the driver may decide to reset the GuC and
 	 * attempt the ucode load again if this happens.)
@@ -128,7 +128,7 @@ static int guc_wait_ucode(struct intel_uncore *uncore)
  * The firmware image should have already been fetched into memory, so only
  * check that fetch succeeded, and then transfer the image to the h/w.
  *
- * Return:	non-zero code on error
+ * Return:	yesn-zero code on error
  */
 int intel_guc_fw_upload(struct intel_guc *guc)
 {

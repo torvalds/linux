@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
@@ -45,7 +45,7 @@ static struct clk_lookup *clk_find(const char *dev_id, const char *con_id)
 
 	lockdep_assert_held(&clocks_mutex);
 
-	list_for_each_entry(p, &clocks, node) {
+	list_for_each_entry(p, &clocks, yesde) {
 		match = 0;
 		if (p->dev_id) {
 			if (!dev_id || strcmp(p->dev_id, dev_id))
@@ -102,8 +102,8 @@ struct clk *clk_get(struct device *dev, const char *con_id)
 	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct clk_hw *hw;
 
-	if (dev && dev->of_node) {
-		hw = of_clk_get_hw(dev->of_node, 0, con_id);
+	if (dev && dev->of_yesde) {
+		hw = of_clk_get_hw(dev->of_yesde, 0, con_id);
 		if (!IS_ERR(hw) || PTR_ERR(hw) == -EPROBE_DEFER)
 			return clk_hw_create_clk(dev, hw, dev_id, con_id);
 	}
@@ -121,7 +121,7 @@ EXPORT_SYMBOL(clk_put);
 static void __clkdev_add(struct clk_lookup *cl)
 {
 	mutex_lock(&clocks_mutex);
-	list_add_tail(&cl->node, &clocks);
+	list_add_tail(&cl->yesde, &clocks);
 	mutex_unlock(&clocks_mutex);
 }
 
@@ -138,7 +138,7 @@ void clkdev_add_table(struct clk_lookup *cl, size_t num)
 	mutex_lock(&clocks_mutex);
 	while (num--) {
 		cl->clk_hw = __clk_get_hw(cl->clk);
-		list_add_tail(&cl->node, &clocks);
+		list_add_tail(&cl->yesde, &clocks);
 		cl++;
 	}
 	mutex_unlock(&clocks_mutex);
@@ -287,7 +287,7 @@ EXPORT_SYMBOL(clk_add_alias);
 void clkdev_drop(struct clk_lookup *cl)
 {
 	mutex_lock(&clocks_mutex);
-	list_del(&cl->node);
+	list_del(&cl->yesde);
 	mutex_unlock(&clocks_mutex);
 	kfree(cl);
 }
@@ -393,7 +393,7 @@ static int devm_clk_match_clkdev(struct device *dev, void *res, void *data)
  * @dev_id: format string describing device name
  *
  * Drop the clkdev lookup created with devm_clk_hw_register_clkdev.
- * Normally this function will not need to be called and the resource
+ * Normally this function will yest need to be called and the resource
  * management code will ensure that the resource is freed.
  */
 void devm_clk_release_clkdev(struct device *dev, const char *con_id,

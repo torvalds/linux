@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -675,32 +675,32 @@ static PP_StateClassificationFlags make_classification_flags(
 	return result;
 }
 
-static int init_non_clock_fields(struct pp_hwmgr *hwmgr,
+static int init_yesn_clock_fields(struct pp_hwmgr *hwmgr,
 						struct pp_power_state *ps,
 							    uint8_t version,
-			 const ATOM_PPLIB_NONCLOCK_INFO *pnon_clock_info) {
+			 const ATOM_PPLIB_NONCLOCK_INFO *pyesn_clock_info) {
 	unsigned long rrr_index;
 	unsigned long tmp;
 
-	ps->classification.ui_label = (le16_to_cpu(pnon_clock_info->usClassification) &
+	ps->classification.ui_label = (le16_to_cpu(pyesn_clock_info->usClassification) &
 					ATOM_PPLIB_CLASSIFICATION_UI_MASK) >> ATOM_PPLIB_CLASSIFICATION_UI_SHIFT;
 	ps->classification.flags = make_classification_flags(hwmgr,
-				le16_to_cpu(pnon_clock_info->usClassification),
-				le16_to_cpu(pnon_clock_info->usClassification2));
+				le16_to_cpu(pyesn_clock_info->usClassification),
+				le16_to_cpu(pyesn_clock_info->usClassification2));
 
 	ps->classification.temporary_state = false;
 	ps->classification.to_be_deleted = false;
-	tmp = le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	tmp = le32_to_cpu(pyesn_clock_info->ulCapsAndSettings) &
 		ATOM_PPLIB_SINGLE_DISPLAY_ONLY;
 
 	ps->validation.singleDisplayOnly = (0 != tmp);
 
-	tmp = le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	tmp = le32_to_cpu(pyesn_clock_info->ulCapsAndSettings) &
 		ATOM_PPLIB_DISALLOW_ON_DC;
 
 	ps->validation.disallowOnDC = (0 != tmp);
 
-	ps->pcie.lanes = ((le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	ps->pcie.lanes = ((le32_to_cpu(pyesn_clock_info->ulCapsAndSettings) &
 				ATOM_PPLIB_PCIE_LINK_WIDTH_MASK) >>
 				ATOM_PPLIB_PCIE_LINK_WIDTH_SHIFT) + 1;
 
@@ -708,7 +708,7 @@ static int init_non_clock_fields(struct pp_hwmgr *hwmgr,
 
 	ps->display.disableFrameModulation = false;
 
-	rrr_index = (le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	rrr_index = (le32_to_cpu(pyesn_clock_info->ulCapsAndSettings) &
 			ATOM_PPLIB_LIMITED_REFRESHRATE_VALUE_MASK) >>
 			ATOM_PPLIB_LIMITED_REFRESHRATE_VALUE_SHIFT;
 
@@ -725,40 +725,40 @@ static int init_non_clock_fields(struct pp_hwmgr *hwmgr,
 	} else
 		ps->display.limitRefreshrate = false;
 
-	tmp = le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	tmp = le32_to_cpu(pyesn_clock_info->ulCapsAndSettings) &
 		ATOM_PPLIB_ENABLE_VARIBRIGHT;
 
 	ps->display.enableVariBright = (0 != tmp);
 
-	tmp = le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	tmp = le32_to_cpu(pyesn_clock_info->ulCapsAndSettings) &
 		ATOM_PPLIB_SWSTATE_MEMORY_DLL_OFF;
 
 	ps->memory.dllOff = (0 != tmp);
 
-	ps->memory.m3arb = (le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	ps->memory.m3arb = (le32_to_cpu(pyesn_clock_info->ulCapsAndSettings) &
 			    ATOM_PPLIB_M3ARB_MASK) >> ATOM_PPLIB_M3ARB_SHIFT;
 
 	ps->temperatures.min = PP_TEMPERATURE_UNITS_PER_CENTIGRADES *
-				     pnon_clock_info->ucMinTemperature;
+				     pyesn_clock_info->ucMinTemperature;
 
 	ps->temperatures.max = PP_TEMPERATURE_UNITS_PER_CENTIGRADES *
-				     pnon_clock_info->ucMaxTemperature;
+				     pyesn_clock_info->ucMaxTemperature;
 
-	tmp = le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	tmp = le32_to_cpu(pyesn_clock_info->ulCapsAndSettings) &
 		ATOM_PPLIB_SOFTWARE_DISABLE_LOADBALANCING;
 
 	ps->software.disableLoadBalancing = tmp;
 
-	tmp = le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+	tmp = le32_to_cpu(pyesn_clock_info->ulCapsAndSettings) &
 		ATOM_PPLIB_SOFTWARE_ENABLE_SLEEP_FOR_TIMESTAMPS;
 
 	ps->software.enableSleepForTimestamps = (0 != tmp);
 
-	ps->validation.supportedPowerLevels = pnon_clock_info->ucRequiredPower;
+	ps->validation.supportedPowerLevels = pyesn_clock_info->ucRequiredPower;
 
 	if (ATOM_PPLIB_NONCLOCKINFO_VER1 < version) {
-		ps->uvd_clocks.VCLK = le32_to_cpu(pnon_clock_info->ulVCLK);
-		ps->uvd_clocks.DCLK = le32_to_cpu(pnon_clock_info->ulDCLK);
+		ps->uvd_clocks.VCLK = le32_to_cpu(pyesn_clock_info->ulVCLK);
+		ps->uvd_clocks.DCLK = le32_to_cpu(pyesn_clock_info->ulDCLK);
 	} else {
 		ps->uvd_clocks.VCLK = 0;
 		ps->uvd_clocks.DCLK = 0;
@@ -890,14 +890,14 @@ int pp_tables_get_entry(struct pp_hwmgr *hwmgr,
 	int i;
 	const StateArray *pstate_arrays;
 	const ATOM_PPLIB_STATE_V2 *pstate_entry_v2;
-	const ATOM_PPLIB_NONCLOCK_INFO *pnon_clock_info;
+	const ATOM_PPLIB_NONCLOCK_INFO *pyesn_clock_info;
 	const ATOM_PPLIB_POWERPLAYTABLE *powerplay_table = get_powerplay_table(hwmgr);
 	int result = 0;
 	int res = 0;
 
 	const ClockInfoArray *pclock_arrays;
 
-	const NonClockInfoArray *pnon_clock_arrays;
+	const NonClockInfoArray *pyesn_clock_arrays;
 
 	const ATOM_PPLIB_STATE *pstate_entry;
 
@@ -917,13 +917,13 @@ int pp_tables_get_entry(struct pp_hwmgr *hwmgr,
 		pclock_arrays = (ClockInfoArray *)(((unsigned long)powerplay_table) +
 					le16_to_cpu(powerplay_table->usClockInfoArrayOffset));
 
-		pnon_clock_arrays = (NonClockInfoArray *)(((unsigned long)powerplay_table) +
+		pyesn_clock_arrays = (NonClockInfoArray *)(((unsigned long)powerplay_table) +
 						le16_to_cpu(powerplay_table->usNonClockInfoArrayOffset));
 
-		pnon_clock_info = (ATOM_PPLIB_NONCLOCK_INFO *)((unsigned long)(pnon_clock_arrays->nonClockInfo) +
-					(pstate_entry_v2->nonClockInfoIndex * pnon_clock_arrays->ucEntrySize));
+		pyesn_clock_info = (ATOM_PPLIB_NONCLOCK_INFO *)((unsigned long)(pyesn_clock_arrays->yesnClockInfo) +
+					(pstate_entry_v2->yesnClockInfoIndex * pyesn_clock_arrays->ucEntrySize));
 
-		result = init_non_clock_fields(hwmgr, ps, pnon_clock_arrays->ucEntrySize, pnon_clock_info);
+		result = init_yesn_clock_fields(hwmgr, ps, pyesn_clock_arrays->ucEntrySize, pyesn_clock_info);
 
 		for (i = 0; i < pstate_entry_v2->ucNumDPMLevels; i++) {
 			const void *pclock_info = (const void *)(
@@ -941,14 +941,14 @@ int pp_tables_get_entry(struct pp_hwmgr *hwmgr,
 						    le16_to_cpu(powerplay_table->usStateArrayOffset) +
 						    entry_index * powerplay_table->ucStateEntrySize);
 
-		pnon_clock_info = (ATOM_PPLIB_NONCLOCK_INFO *)((unsigned long)powerplay_table +
+		pyesn_clock_info = (ATOM_PPLIB_NONCLOCK_INFO *)((unsigned long)powerplay_table +
 						le16_to_cpu(powerplay_table->usNonClockInfoArrayOffset) +
 						pstate_entry->ucNonClockStateIndex *
 						powerplay_table->ucNonClockSize);
 
-		result = init_non_clock_fields(hwmgr, ps,
+		result = init_yesn_clock_fields(hwmgr, ps,
 							powerplay_table->ucNonClockSize,
-							pnon_clock_info);
+							pyesn_clock_info);
 
 		for (i = 0; i < powerplay_table->ucStateEntrySize-1; i++) {
 			const void *pclock_info = (const void *)((unsigned long)powerplay_table +

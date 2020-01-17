@@ -44,12 +44,12 @@ __nilfs_get_page_block(struct page *page, unsigned long block, pgoff_t index,
 	return bh;
 }
 
-struct buffer_head *nilfs_grab_buffer(struct inode *inode,
+struct buffer_head *nilfs_grab_buffer(struct iyesde *iyesde,
 				      struct address_space *mapping,
 				      unsigned long blkoff,
 				      unsigned long b_state)
 {
-	int blkbits = inode->i_blkbits;
+	int blkbits = iyesde->i_blkbits;
 	pgoff_t index = blkoff >> (PAGE_SHIFT - blkbits);
 	struct page *page;
 	struct buffer_head *bh;
@@ -69,7 +69,7 @@ struct buffer_head *nilfs_grab_buffer(struct inode *inode,
 
 /**
  * nilfs_forget_buffer - discard dirty state
- * @inode: owner inode of the buffer
+ * @iyesde: owner iyesde of the buffer
  * @bh: buffer head of the buffer to be discarded
  */
 void nilfs_forget_buffer(struct buffer_head *bh)
@@ -132,11 +132,11 @@ void nilfs_copy_buffer(struct buffer_head *dbh, struct buffer_head *sbh)
 }
 
 /**
- * nilfs_page_buffers_clean - check if a page has dirty buffers or not.
+ * nilfs_page_buffers_clean - check if a page has dirty buffers or yest.
  * @page: page to be checked
  *
  * nilfs_page_buffers_clean() returns zero if the page has dirty buffers.
- * Otherwise, it returns non-zero value.
+ * Otherwise, it returns yesn-zero value.
  */
 int nilfs_page_buffers_clean(struct page *page)
 {
@@ -154,7 +154,7 @@ int nilfs_page_buffers_clean(struct page *page)
 void nilfs_page_bug(struct page *page)
 {
 	struct address_space *m;
-	unsigned long ino;
+	unsigned long iyes;
 
 	if (unlikely(!page)) {
 		printk(KERN_CRIT "NILFS_PAGE_BUG(NULL)\n");
@@ -162,12 +162,12 @@ void nilfs_page_bug(struct page *page)
 	}
 
 	m = page->mapping;
-	ino = m ? m->host->i_ino : 0;
+	iyes = m ? m->host->i_iyes : 0;
 
 	printk(KERN_CRIT "NILFS_PAGE_BUG(%p): cnt=%d index#=%llu flags=0x%lx "
-	       "mapping=%p ino=%lu\n",
+	       "mapping=%p iyes=%lu\n",
 	       page, page_ref_count(page),
-	       (unsigned long long)page->index, page->flags, m, ino);
+	       (unsigned long long)page->index, page->flags, m, iyes);
 
 	if (page_has_buffers(page)) {
 		struct buffer_head *bh, *head;
@@ -190,8 +190,8 @@ void nilfs_page_bug(struct page *page)
  * @src: source page
  * @copy_dirty: flag whether to copy dirty states on the page's buffer heads.
  *
- * This function is for both data pages and btnode pages.  The dirty flag
- * should be treated by caller.  The page must not be under i/o.
+ * This function is for both data pages and btyesde pages.  The dirty flag
+ * should be treated by caller.  The page must yest be under i/o.
  * Both src and dst page must be locked
  */
 static void nilfs_copy_page(struct page *dst, struct page *src, int copy_dirty)
@@ -270,7 +270,7 @@ repeat:
 				       "found empty page in dat page cache");
 
 		nilfs_copy_page(dpage, page, 1);
-		__set_page_dirty_nobuffers(dpage);
+		__set_page_dirty_yesbuffers(dpage);
 
 		unlock_page(dpage);
 		put_page(dpage);
@@ -317,7 +317,7 @@ repeat:
 			nilfs_copy_page(dpage, page, 0);
 			unlock_page(dpage);
 			put_page(dpage);
-			/* Do we not need to remove page from smap here? */
+			/* Do we yest need to remove page from smap here? */
 		} else {
 			struct page *p;
 
@@ -385,15 +385,15 @@ void nilfs_clear_dirty_pages(struct address_space *mapping, bool silent)
  */
 void nilfs_clear_dirty_page(struct page *page, bool silent)
 {
-	struct inode *inode = page->mapping->host;
-	struct super_block *sb = inode->i_sb;
+	struct iyesde *iyesde = page->mapping->host;
+	struct super_block *sb = iyesde->i_sb;
 
 	BUG_ON(!PageLocked(page));
 
 	if (!silent)
 		nilfs_msg(sb, KERN_WARNING,
-			  "discard dirty page: offset=%lld, ino=%lu",
-			  page_offset(page), inode->i_ino);
+			  "discard dirty page: offset=%lld, iyes=%lu",
+			  page_offset(page), iyesde->i_iyes);
 
 	ClearPageUptodate(page);
 	ClearPageMappedToDisk(page);
@@ -438,9 +438,9 @@ unsigned int nilfs_page_count_clean_buffers(struct page *page,
 	return nc;
 }
 
-void nilfs_mapping_init(struct address_space *mapping, struct inode *inode)
+void nilfs_mapping_init(struct address_space *mapping, struct iyesde *iyesde)
 {
-	mapping->host = inode;
+	mapping->host = iyesde;
 	mapping->flags = 0;
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
 	mapping->private_data = NULL;
@@ -450,10 +450,10 @@ void nilfs_mapping_init(struct address_space *mapping, struct inode *inode)
 /*
  * NILFS2 needs clear_page_dirty() in the following two cases:
  *
- * 1) For B-tree node pages and data pages of the dat/gcdat, NILFS2 clears
+ * 1) For B-tree yesde pages and data pages of the dat/gcdat, NILFS2 clears
  *    page dirty flags when it copies back pages from the shadow cache
- *    (gcdat->{i_mapping,i_btnode_cache}) to its original cache
- *    (dat->{i_mapping,i_btnode_cache}).
+ *    (gcdat->{i_mapping,i_btyesde_cache}) to its original cache
+ *    (dat->{i_mapping,i_btyesde_cache}).
  *
  * 2) Some B-tree operations like insertion or deletion may dispose buffers
  *    in dirty state, and this needs to cancel the dirty state of their pages.
@@ -478,7 +478,7 @@ int __nilfs_clear_page_dirty(struct page *page)
 
 /**
  * nilfs_find_uncommitted_extent - find extent of uncommitted data
- * @inode: inode
+ * @iyesde: iyesde
  * @start_blk: start block offset (in)
  * @blkoff: start offset of the found extent (out)
  *
@@ -488,7 +488,7 @@ int __nilfs_clear_page_dirty(struct page *page)
  * @blkoff and return its length in blocks.  Otherwise, zero is
  * returned.
  */
-unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
+unsigned long nilfs_find_uncommitted_extent(struct iyesde *iyesde,
 					    sector_t start_blk,
 					    sector_t *blkoff)
 {
@@ -500,16 +500,16 @@ unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
 	struct pagevec pvec;
 	struct page *page;
 
-	if (inode->i_mapping->nrpages == 0)
+	if (iyesde->i_mapping->nrpages == 0)
 		return 0;
 
-	index = start_blk >> (PAGE_SHIFT - inode->i_blkbits);
-	nblocks_in_page = 1U << (PAGE_SHIFT - inode->i_blkbits);
+	index = start_blk >> (PAGE_SHIFT - iyesde->i_blkbits);
+	nblocks_in_page = 1U << (PAGE_SHIFT - iyesde->i_blkbits);
 
 	pagevec_init(&pvec);
 
 repeat:
-	pvec.nr = find_get_pages_contig(inode->i_mapping, index, PAGEVEC_SIZE,
+	pvec.nr = find_get_pages_contig(iyesde->i_mapping, index, PAGEVEC_SIZE,
 					pvec.pages);
 	if (pvec.nr == 0)
 		return length;
@@ -517,7 +517,7 @@ repeat:
 	if (length > 0 && pvec.pages[0]->index > index)
 		goto out;
 
-	b = pvec.pages[0]->index << (PAGE_SHIFT - inode->i_blkbits);
+	b = pvec.pages[0]->index << (PAGE_SHIFT - iyesde->i_blkbits);
 	i = 0;
 	do {
 		page = pvec.pages[i];

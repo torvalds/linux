@@ -16,7 +16,7 @@
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 /*
  * On Book3E CPUs, the vmemmap is currently mapped in the top half of
- * the vmalloc space using normal page tables, though the size of
+ * the vmalloc space using yesrmal page tables, though the size of
  * pages encoded in the PTEs can be different
  */
 int __meminit vmemmap_create_mapping(unsigned long start,
@@ -92,13 +92,13 @@ int __ref map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 	} else {
 		pgdp = pgd_offset_k(ea);
 #ifndef __PAGETABLE_PUD_FOLDED
-		if (pgd_none(*pgdp)) {
+		if (pgd_yesne(*pgdp)) {
 			pudp = early_alloc_pgtable(PUD_TABLE_SIZE);
 			pgd_populate(&init_mm, pgdp, pudp);
 		}
 #endif /* !__PAGETABLE_PUD_FOLDED */
 		pudp = pud_offset(pgdp, ea);
-		if (pud_none(*pudp)) {
+		if (pud_yesne(*pudp)) {
 			pmdp = early_alloc_pgtable(PMD_TABLE_SIZE);
 			pud_populate(&init_mm, pudp, pmdp);
 		}

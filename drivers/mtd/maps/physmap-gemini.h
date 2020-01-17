@@ -4,12 +4,12 @@
 
 #ifdef CONFIG_MTD_PHYSMAP_GEMINI
 int of_flash_probe_gemini(struct platform_device *pdev,
-			  struct device_node *np,
+			  struct device_yesde *np,
 			  struct map_info *map);
 #else
 static inline
 int of_flash_probe_gemini(struct platform_device *pdev,
-			  struct device_node *np,
+			  struct device_yesde *np,
 			  struct map_info *map)
 {
 	return 0;

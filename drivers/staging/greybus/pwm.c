@@ -311,7 +311,7 @@ static void gb_pwm_remove(struct gbphy_device *gbphy_dev)
 
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
-		gbphy_runtime_get_noresume(gbphy_dev);
+		gbphy_runtime_get_yesresume(gbphy_dev);
 
 	pwmchip_remove(&pwmc->chip);
 	gb_connection_disable(connection);

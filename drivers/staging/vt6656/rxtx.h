@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: rxtx.h
@@ -177,7 +177,7 @@ union vnt_tx_data_head {
 	/* cts g */
 	struct vnt_cts cts_g;
 	struct vnt_cts_fb cts_g_fb;
-	/* no rts/cts */
+	/* yes rts/cts */
 	struct vnt_tx_datahead_a_fb data_head_a_fb;
 	struct vnt_tx_datahead_ab data_head_ab;
 };
@@ -217,7 +217,7 @@ struct vnt_tx_fifo_head {
 
 struct vnt_tx_buffer {
 	u8 type;
-	u8 pkt_no;
+	u8 pkt_yes;
 	__le16 tx_byte_count;
 	struct vnt_tx_fifo_head fifo_head;
 	union vnt_tx_head tx_head;
@@ -233,7 +233,7 @@ struct vnt_tx_short_buf_head {
 
 struct vnt_beacon_buffer {
 	u8 type;
-	u8 pkt_no;
+	u8 pkt_yes;
 	__le16 tx_byte_count;
 	struct vnt_tx_short_buf_head short_head;
 	struct ieee80211_mgmt mgmt_hdr;

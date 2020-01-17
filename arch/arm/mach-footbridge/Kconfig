@@ -28,8 +28,8 @@ config ARCH_PERSONAL_SERVER
 
 	  Saying N will reduce the size of the Footbridge kernel.
 
-	  The Compaq Personal Server is not available for purchase.
-	  There are no product plans beyond the current research
+	  The Compaq Personal Server is yest available for purchase.
+	  There are yes product plans beyond the current research
 	  prototypes at this time.  Information is available at:
 
 	  <http://www.crl.hpl.hp.com/projects/personalserver/>

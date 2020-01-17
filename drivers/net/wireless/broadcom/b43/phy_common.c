@@ -5,7 +5,7 @@
   Common PHY routines
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-  Copyright (c) 2005-2007 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (c) 2005-2007 Stefayes Brivio <stefayes.brivio@polimi.it>
   Copyright (c) 2005-2008 Michael Buesch <m@bues.ch>
   Copyright (c) 2005, 2006 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005, 2006 Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -383,7 +383,7 @@ void b43_phy_take_out_of_reset(struct b43_wldev *dev)
 		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
 		udelay(1);
 
-		/* Do not force clock anymore */
+		/* Do yest force clock anymore */
 		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
 		tmp &= ~BCMA_IOCTL_FGC;
 		tmp |= B43_BCMA_IOCTL_PHY_CLKEN;
@@ -481,16 +481,16 @@ void b43_phy_txpower_adjust_work(struct work_struct *work)
 void b43_phy_txpower_check(struct b43_wldev *dev, unsigned int flags)
 {
 	struct b43_phy *phy = &dev->phy;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	enum b43_txpwr_result result;
 
 	if (!(flags & B43_TXPWR_IGNORE_TIME)) {
 		/* Check if it's time for a TXpower check. */
-		if (time_before(now, phy->next_txpwr_check_time))
+		if (time_before(yesw, phy->next_txpwr_check_time))
 			return; /* Not yet */
 	}
 	/* The next check will be needed in two seconds, or later. */
-	phy->next_txpwr_check_time = round_jiffies(now + (HZ * 2));
+	phy->next_txpwr_check_time = round_jiffies(yesw + (HZ * 2));
 
 	if ((dev->dev->board_vendor == SSB_BOARDVENDOR_BCM) &&
 	    (dev->dev->board_type == SSB_BOARD_BU4306))

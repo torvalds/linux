@@ -80,12 +80,12 @@ static void st_fdma_xfer_desc(struct st_fdma_chan *fchan)
 		return;
 
 	fchan->fdesc = to_st_fdma_desc(vdesc);
-	nbytes = fchan->fdesc->node[0].desc->nbytes;
+	nbytes = fchan->fdesc->yesde[0].desc->nbytes;
 	cmd = FDMA_CMD_START(fchan->vchan.chan.chan_id);
-	ch_cmd = fchan->fdesc->node[0].pdesc | FDMA_CH_CMD_STA_START;
+	ch_cmd = fchan->fdesc->yesde[0].pdesc | FDMA_CH_CMD_STA_START;
 
 	/* start the channel for the descriptor */
-	fnode_write(fchan, nbytes, FDMA_CNTN_OFST);
+	fyesde_write(fchan, nbytes, FDMA_CNTN_OFST);
 	fchan_write(fchan, ch_cmd, FDMA_CH_CMD_OFST);
 	writel(cmd,
 		fchan->fdev->slim_rproc->peri + FDMA_CMD_SET_OFST);
@@ -140,7 +140,7 @@ static irqreturn_t st_fdma_irq_handler(int irq, void *dev_id)
 
 		if (fchan->fdesc) {
 			if (!fchan->fdesc->iscyclic) {
-				list_del(&fchan->fdesc->vdesc.node);
+				list_del(&fchan->fdesc->vdesc.yesde);
 				vchan_cookie_complete(&fchan->fdesc->vdesc);
 				fchan->fdesc = NULL;
 				fchan->status = DMA_COMPLETE;
@@ -173,7 +173,7 @@ static struct dma_chan *st_fdma_of_xlate(struct of_phandle_args *dma_spec,
 	if (dma_spec->args_count < 1)
 		return ERR_PTR(-EINVAL);
 
-	if (fdev->dma_device.dev->of_node != dma_spec->np)
+	if (fdev->dma_device.dev->of_yesde != dma_spec->np)
 		return ERR_PTR(-EINVAL);
 
 	ret = rproc_boot(fdev->slim_rproc->rproc);
@@ -188,7 +188,7 @@ static struct dma_chan *st_fdma_of_xlate(struct of_phandle_args *dma_spec,
 
 	fchan = to_st_fdma_chan(chan);
 
-	fchan->cfg.of_node = dma_spec->np;
+	fchan->cfg.of_yesde = dma_spec->np;
 	fchan->cfg.req_line = dma_spec->args[0];
 	fchan->cfg.req_ctrl = 0;
 	fchan->cfg.type = ST_FDMA_TYPE_FREE_RUN;
@@ -227,9 +227,9 @@ static void st_fdma_free_desc(struct virt_dma_desc *vdesc)
 	int i;
 
 	fdesc = to_st_fdma_desc(vdesc);
-	for (i = 0; i < fdesc->n_nodes; i++)
-		dma_pool_free(fdesc->fchan->node_pool, fdesc->node[i].desc,
-			      fdesc->node[i].pdesc);
+	for (i = 0; i < fdesc->n_yesdes; i++)
+		dma_pool_free(fdesc->fchan->yesde_pool, fdesc->yesde[i].desc,
+			      fdesc->yesde[i].pdesc);
 	kfree(fdesc);
 }
 
@@ -239,24 +239,24 @@ static struct st_fdma_desc *st_fdma_alloc_desc(struct st_fdma_chan *fchan,
 	struct st_fdma_desc *fdesc;
 	int i;
 
-	fdesc = kzalloc(struct_size(fdesc, node, sg_len), GFP_NOWAIT);
+	fdesc = kzalloc(struct_size(fdesc, yesde, sg_len), GFP_NOWAIT);
 	if (!fdesc)
 		return NULL;
 
 	fdesc->fchan = fchan;
-	fdesc->n_nodes = sg_len;
+	fdesc->n_yesdes = sg_len;
 	for (i = 0; i < sg_len; i++) {
-		fdesc->node[i].desc = dma_pool_alloc(fchan->node_pool,
-				GFP_NOWAIT, &fdesc->node[i].pdesc);
-		if (!fdesc->node[i].desc)
+		fdesc->yesde[i].desc = dma_pool_alloc(fchan->yesde_pool,
+				GFP_NOWAIT, &fdesc->yesde[i].pdesc);
+		if (!fdesc->yesde[i].desc)
 			goto err;
 	}
 	return fdesc;
 
 err:
 	while (--i >= 0)
-		dma_pool_free(fchan->node_pool, fdesc->node[i].desc,
-			      fdesc->node[i].pdesc);
+		dma_pool_free(fchan->yesde_pool, fdesc->yesde[i].desc,
+			      fdesc->yesde[i].pdesc);
 	kfree(fdesc);
 	return NULL;
 }
@@ -266,13 +266,13 @@ static int st_fdma_alloc_chan_res(struct dma_chan *chan)
 	struct st_fdma_chan *fchan = to_st_fdma_chan(chan);
 
 	/* Create the dma pool for descriptor allocation */
-	fchan->node_pool = dma_pool_create(dev_name(&chan->dev->device),
+	fchan->yesde_pool = dma_pool_create(dev_name(&chan->dev->device),
 					    fchan->fdev->dev,
-					    sizeof(struct st_fdma_hw_node),
-					    __alignof__(struct st_fdma_hw_node),
+					    sizeof(struct st_fdma_hw_yesde),
+					    __aligyesf__(struct st_fdma_hw_yesde),
 					    0);
 
-	if (!fchan->node_pool) {
+	if (!fchan->yesde_pool) {
 		dev_err(fchan->fdev->dev, "unable to allocate desc pool\n");
 		return -ENOMEM;
 	}
@@ -299,8 +299,8 @@ static void st_fdma_free_chan_res(struct dma_chan *chan)
 	fchan->fdesc = NULL;
 	spin_unlock_irqrestore(&fchan->vchan.lock, flags);
 
-	dma_pool_destroy(fchan->node_pool);
-	fchan->node_pool = NULL;
+	dma_pool_destroy(fchan->yesde_pool);
+	fchan->yesde_pool = NULL;
 	memset(&fchan->cfg, 0, sizeof(struct st_fdma_cfg));
 
 	rproc_shutdown(rproc);
@@ -312,7 +312,7 @@ static struct dma_async_tx_descriptor *st_fdma_prep_dma_memcpy(
 {
 	struct st_fdma_chan *fchan;
 	struct st_fdma_desc *fdesc;
-	struct st_fdma_hw_node *hw_node;
+	struct st_fdma_hw_yesde *hw_yesde;
 
 	if (!len)
 		return NULL;
@@ -322,22 +322,22 @@ static struct dma_async_tx_descriptor *st_fdma_prep_dma_memcpy(
 	/* We only require a single descriptor */
 	fdesc = st_fdma_alloc_desc(fchan, 1);
 	if (!fdesc) {
-		dev_err(fchan->fdev->dev, "no memory for desc\n");
+		dev_err(fchan->fdev->dev, "yes memory for desc\n");
 		return NULL;
 	}
 
-	hw_node = fdesc->node[0].desc;
-	hw_node->next = 0;
-	hw_node->control = FDMA_NODE_CTRL_REQ_MAP_FREE_RUN;
-	hw_node->control |= FDMA_NODE_CTRL_SRC_INCR;
-	hw_node->control |= FDMA_NODE_CTRL_DST_INCR;
-	hw_node->control |= FDMA_NODE_CTRL_INT_EON;
-	hw_node->nbytes = len;
-	hw_node->saddr = src;
-	hw_node->daddr = dst;
-	hw_node->generic.length = len;
-	hw_node->generic.sstride = 0;
-	hw_node->generic.dstride = 0;
+	hw_yesde = fdesc->yesde[0].desc;
+	hw_yesde->next = 0;
+	hw_yesde->control = FDMA_NODE_CTRL_REQ_MAP_FREE_RUN;
+	hw_yesde->control |= FDMA_NODE_CTRL_SRC_INCR;
+	hw_yesde->control |= FDMA_NODE_CTRL_DST_INCR;
+	hw_yesde->control |= FDMA_NODE_CTRL_INT_EON;
+	hw_yesde->nbytes = len;
+	hw_yesde->saddr = src;
+	hw_yesde->daddr = dst;
+	hw_yesde->generic.length = len;
+	hw_yesde->generic.sstride = 0;
+	hw_yesde->generic.dstride = 0;
 
 	return vchan_tx_prep(&fchan->vchan, &fdesc->vdesc, flags);
 }
@@ -407,22 +407,22 @@ static int config_reqctrl(struct st_fdma_chan *fchan,
 	return 0;
 }
 
-static void fill_hw_node(struct st_fdma_hw_node *hw_node,
+static void fill_hw_yesde(struct st_fdma_hw_yesde *hw_yesde,
 			struct st_fdma_chan *fchan,
 			enum dma_transfer_direction direction)
 {
 	if (direction == DMA_MEM_TO_DEV) {
-		hw_node->control |= FDMA_NODE_CTRL_SRC_INCR;
-		hw_node->control |= FDMA_NODE_CTRL_DST_STATIC;
-		hw_node->daddr = fchan->cfg.dev_addr;
+		hw_yesde->control |= FDMA_NODE_CTRL_SRC_INCR;
+		hw_yesde->control |= FDMA_NODE_CTRL_DST_STATIC;
+		hw_yesde->daddr = fchan->cfg.dev_addr;
 	} else {
-		hw_node->control |= FDMA_NODE_CTRL_SRC_STATIC;
-		hw_node->control |= FDMA_NODE_CTRL_DST_INCR;
-		hw_node->saddr = fchan->cfg.dev_addr;
+		hw_yesde->control |= FDMA_NODE_CTRL_SRC_STATIC;
+		hw_yesde->control |= FDMA_NODE_CTRL_DST_INCR;
+		hw_yesde->saddr = fchan->cfg.dev_addr;
 	}
 
-	hw_node->generic.sstride = 0;
-	hw_node->generic.dstride = 0;
+	hw_yesde->generic.sstride = 0;
+	hw_yesde->generic.dstride = 0;
 }
 
 static inline struct st_fdma_chan *st_fdma_prep_common(struct dma_chan *chan,
@@ -466,37 +466,37 @@ static struct dma_async_tx_descriptor *st_fdma_prep_dma_cyclic(
 
 	/* the buffer length must be a multiple of period_len */
 	if (len % period_len != 0) {
-		dev_err(fchan->fdev->dev, "len is not multiple of period\n");
+		dev_err(fchan->fdev->dev, "len is yest multiple of period\n");
 		return NULL;
 	}
 
 	sg_len = len / period_len;
 	fdesc = st_fdma_alloc_desc(fchan, sg_len);
 	if (!fdesc) {
-		dev_err(fchan->fdev->dev, "no memory for desc\n");
+		dev_err(fchan->fdev->dev, "yes memory for desc\n");
 		return NULL;
 	}
 
 	fdesc->iscyclic = true;
 
 	for (i = 0; i < sg_len; i++) {
-		struct st_fdma_hw_node *hw_node = fdesc->node[i].desc;
+		struct st_fdma_hw_yesde *hw_yesde = fdesc->yesde[i].desc;
 
-		hw_node->next = fdesc->node[(i + 1) % sg_len].pdesc;
+		hw_yesde->next = fdesc->yesde[(i + 1) % sg_len].pdesc;
 
-		hw_node->control =
+		hw_yesde->control =
 			FDMA_NODE_CTRL_REQ_MAP_DREQ(fchan->dreq_line);
-		hw_node->control |= FDMA_NODE_CTRL_INT_EON;
+		hw_yesde->control |= FDMA_NODE_CTRL_INT_EON;
 
-		fill_hw_node(hw_node, fchan, direction);
+		fill_hw_yesde(hw_yesde, fchan, direction);
 
 		if (direction == DMA_MEM_TO_DEV)
-			hw_node->saddr = buf_addr + (i * period_len);
+			hw_yesde->saddr = buf_addr + (i * period_len);
 		else
-			hw_node->daddr = buf_addr + (i * period_len);
+			hw_yesde->daddr = buf_addr + (i * period_len);
 
-		hw_node->nbytes = period_len;
-		hw_node->generic.length = period_len;
+		hw_yesde->nbytes = period_len;
+		hw_yesde->generic.length = period_len;
 	}
 
 	return vchan_tx_prep(&fchan->vchan, &fdesc->vdesc, flags);
@@ -509,7 +509,7 @@ static struct dma_async_tx_descriptor *st_fdma_prep_slave_sg(
 {
 	struct st_fdma_chan *fchan;
 	struct st_fdma_desc *fdesc;
-	struct st_fdma_hw_node *hw_node;
+	struct st_fdma_hw_yesde *hw_yesde;
 	struct scatterlist *sg;
 	int i;
 
@@ -522,31 +522,31 @@ static struct dma_async_tx_descriptor *st_fdma_prep_slave_sg(
 
 	fdesc = st_fdma_alloc_desc(fchan, sg_len);
 	if (!fdesc) {
-		dev_err(fchan->fdev->dev, "no memory for desc\n");
+		dev_err(fchan->fdev->dev, "yes memory for desc\n");
 		return NULL;
 	}
 
 	fdesc->iscyclic = false;
 
 	for_each_sg(sgl, sg, sg_len, i) {
-		hw_node = fdesc->node[i].desc;
+		hw_yesde = fdesc->yesde[i].desc;
 
-		hw_node->next = fdesc->node[(i + 1) % sg_len].pdesc;
-		hw_node->control = FDMA_NODE_CTRL_REQ_MAP_DREQ(fchan->dreq_line);
+		hw_yesde->next = fdesc->yesde[(i + 1) % sg_len].pdesc;
+		hw_yesde->control = FDMA_NODE_CTRL_REQ_MAP_DREQ(fchan->dreq_line);
 
-		fill_hw_node(hw_node, fchan, direction);
+		fill_hw_yesde(hw_yesde, fchan, direction);
 
 		if (direction == DMA_MEM_TO_DEV)
-			hw_node->saddr = sg_dma_address(sg);
+			hw_yesde->saddr = sg_dma_address(sg);
 		else
-			hw_node->daddr = sg_dma_address(sg);
+			hw_yesde->daddr = sg_dma_address(sg);
 
-		hw_node->nbytes = sg_dma_len(sg);
-		hw_node->generic.length = sg_dma_len(sg);
+		hw_yesde->nbytes = sg_dma_len(sg);
+		hw_yesde->generic.length = sg_dma_len(sg);
 	}
 
-	/* interrupt at end of last node */
-	hw_node->control |= FDMA_NODE_CTRL_INT_EON;
+	/* interrupt at end of last yesde */
+	hw_yesde->control |= FDMA_NODE_CTRL_INT_EON;
 
 	return vchan_tx_prep(&fchan->vchan, &fdesc->vdesc, flags);
 }
@@ -565,12 +565,12 @@ static size_t st_fdma_desc_residue(struct st_fdma_chan *fchan,
 		cur_addr &= FDMA_CH_CMD_DATA_MASK;
 	}
 
-	for (i = fchan->fdesc->n_nodes - 1 ; i >= 0; i--) {
-		if (cur_addr == fdesc->node[i].pdesc) {
-			residue += fnode_read(fchan, FDMA_CNTN_OFST);
+	for (i = fchan->fdesc->n_yesdes - 1 ; i >= 0; i--) {
+		if (cur_addr == fdesc->yesde[i].pdesc) {
+			residue += fyesde_read(fchan, FDMA_CNTN_OFST);
 			break;
 		}
-		residue += fdesc->node[i].desc->nbytes;
+		residue += fdesc->yesde[i].desc->nbytes;
 	}
 
 	return residue;
@@ -715,7 +715,7 @@ static int st_fdma_parse_dt(struct platform_device *pdev,
 	snprintf(fdev->fw_name, FW_NAME_SIZE, "fdma_%s_%d.elf",
 		drvdata->name, drvdata->id);
 
-	return of_property_read_u32(pdev->dev.of_node, "dma-channels",
+	return of_property_read_u32(pdev->dev.of_yesde, "dma-channels",
 				    &fdev->nr_channels);
 }
 #define FDMA_DMA_BUSWIDTHS	(BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
@@ -730,7 +730,7 @@ static void st_fdma_free(struct st_fdma_dev *fdev)
 
 	for (i = 0; i < fdev->nr_channels; i++) {
 		fchan = &fdev->chans[i];
-		list_del(&fchan->vchan.chan.device_node);
+		list_del(&fchan->vchan.chan.device_yesde);
 		tasklet_kill(&fchan->vchan.task);
 	}
 }
@@ -739,7 +739,7 @@ static int st_fdma_probe(struct platform_device *pdev)
 {
 	struct st_fdma_dev *fdev;
 	const struct of_device_id *match;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct st_fdma_driverdata *drvdata;
 	int ret, i;
 
@@ -854,7 +854,7 @@ static int st_fdma_remove(struct platform_device *pdev)
 
 	devm_free_irq(&pdev->dev, fdev->irq, fdev);
 	st_slim_rproc_put(fdev->slim_rproc);
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 
 	return 0;
 }

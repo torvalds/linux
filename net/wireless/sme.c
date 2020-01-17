@@ -393,7 +393,7 @@ bool cfg80211_sme_rx_assoc_resp(struct wireless_dev *wdev, u16 status)
 		/*
 		 * Some stupid APs don't accept reassoc, so we
 		 * need to fall back to trying regular assoc;
-		 * return true so no event is sent to userspace.
+		 * return true so yes event is sent to userspace.
 		 */
 		wdev->conn->prev_bssid_valid = false;
 		wdev->conn->state = CFG80211_CONN_ASSOCIATE_NEXT;
@@ -479,7 +479,7 @@ static int cfg80211_sme_get_conn_ies(struct wireless_dev *wdev,
 
 	if (ies_len) {
 		static const u8 before_extcapa[] = {
-			/* not listing IEs expected to be created by driver */
+			/* yest listing IEs expected to be created by driver */
 			WLAN_EID_RSN,
 			WLAN_EID_QOS_CAPA,
 			WLAN_EID_RRM_ENABLED_CAPABILITIES,
@@ -586,7 +586,7 @@ static int cfg80211_sme_connect(struct wireless_dev *wdev,
 		err = cfg80211_conn_scan(wdev);
 
 		/*
-		 * If we can't scan right now, then we need to scan again
+		 * If we can't scan right yesw, then we need to scan again
 		 * after the current scan finished, since the parameters
 		 * changed (unless we find a good AP anyway).
 		 */
@@ -643,7 +643,7 @@ static bool cfg80211_is_all_idle(void)
 	 * scanning some new beacon hints could be learned and would
 	 * count as new regulatory hints.
 	 * Also if there is any other active beaconing interface we
-	 * need not issue a disconnect hint and reset any info such
+	 * need yest issue a disconnect hint and reset any info such
 	 * as chan dfs state, etc.
 	 */
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
@@ -675,7 +675,7 @@ DECLARE_WORK(cfg80211_disconnect_work, disconnect_work);
  * SME event handling
  */
 
-/* This method must consume bss one way or another */
+/* This method must consume bss one way or ayesther */
 void __cfg80211_connect_result(struct net_device *dev,
 			       struct cfg80211_connect_resp_params *cr,
 			       bool wextev)
@@ -784,7 +784,7 @@ void __cfg80211_connect_result(struct net_device *dev,
 	kfree(country_ie);
 }
 
-/* Consumes bss object one way or another */
+/* Consumes bss object one way or ayesther */
 void cfg80211_connect_done(struct net_device *dev,
 			   struct cfg80211_connect_resp_params *params,
 			   gfp_t gfp)
@@ -816,7 +816,7 @@ void cfg80211_connect_done(struct net_device *dev,
 				 * be freshly added and ref cnted, we can free
 				 * the old one.
 				 *
-				 * signal_valid can be false, as we are not
+				 * signal_valid can be false, as we are yest
 				 * expecting the BSS to be found.
 				 *
 				 * keep the old timestamp to avoid confusion
@@ -895,7 +895,7 @@ void cfg80211_connect_done(struct net_device *dev,
 }
 EXPORT_SYMBOL(cfg80211_connect_done);
 
-/* Consumes bss object one way or another */
+/* Consumes bss object one way or ayesther */
 void __cfg80211_roamed(struct wireless_dev *wdev,
 		       struct cfg80211_roam_info *info)
 {
@@ -952,7 +952,7 @@ out:
 	cfg80211_put_bss(wdev->wiphy, info->bss);
 }
 
-/* Consumes info->bss object one way or another */
+/* Consumes info->bss object one way or ayesther */
 void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 		     gfp_t gfp)
 {
@@ -1216,7 +1216,7 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 			connect->key_len = connkeys->params[idx].key_len;
 
 			/*
-			 * If ciphers are not set (e.g. when going through
+			 * If ciphers are yest set (e.g. when going through
 			 * iwconfig), we have to set them appropriately here.
 			 */
 			if (connect->crypto.cipher_group == 0)
@@ -1320,7 +1320,7 @@ void cfg80211_autodisconnect_wk(struct work_struct *work)
 		case NL80211_IFTYPE_P2P_CLIENT:
 			/*
 			 * Use disconnect_bssid if still connecting and
-			 * ops->disconnect not implemented.  Otherwise we can
+			 * ops->disconnect yest implemented.  Otherwise we can
 			 * use cfg80211_disconnect.
 			 */
 			if (rdev->ops->disconnect || wdev->current_bss)

@@ -34,7 +34,7 @@
 
 static LIST_HEAD(clk_hw_omap_clocks);
 struct ti_clk_ll_ops *ti_clk_ll_ops;
-static struct device_node *clocks_node_ptr[CLK_MAX_MEMMAPS];
+static struct device_yesde *clocks_yesde_ptr[CLK_MAX_MEMMAPS];
 
 struct ti_clk_features ti_clk_features;
 
@@ -123,15 +123,15 @@ int ti_clk_setup_ll_ops(struct ti_clk_ll_ops *ops)
  * ti_dt_clocks_register - register DT alias clocks during boot
  * @oclks: list of clocks to register
  *
- * Register alias or non-standard DT clock entries during boot. By
- * default, DT clocks are found based on their node name. If any
+ * Register alias or yesn-standard DT clock entries during boot. By
+ * default, DT clocks are found based on their yesde name. If any
  * additional con-id / dev-id -> clock mapping is required, use this
  * function to list these.
  */
 void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 {
 	struct ti_dt_clk *c;
-	struct device_node *node, *parent;
+	struct device_yesde *yesde, *parent;
 	struct clk *clk;
 	struct of_phandle_args clkspec;
 	char buf[64];
@@ -140,14 +140,14 @@ void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 	int i;
 	int num_args;
 	int ret;
-	static bool clkctrl_nodes_missing;
+	static bool clkctrl_yesdes_missing;
 	static bool has_clkctrl_data;
 	static bool compat_mode;
 
 	compat_mode = ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT;
 
-	for (c = oclks; c->node_name != NULL; c++) {
-		strcpy(buf, c->node_name);
+	for (c = oclks; c->yesde_name != NULL; c++) {
+		strcpy(buf, c->yesde_name);
 		ptr = buf;
 		for (i = 0; i < 2; i++)
 			tags[i] = NULL;
@@ -156,7 +156,7 @@ void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 			if (*ptr == ':') {
 				if (num_args >= 2) {
 					pr_warn("Bad number of tags on %s\n",
-						c->node_name);
+						c->yesde_name);
 					return;
 				}
 				tags[num_args++] = ptr + 1;
@@ -165,57 +165,57 @@ void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 			ptr++;
 		}
 
-		if (num_args && clkctrl_nodes_missing)
+		if (num_args && clkctrl_yesdes_missing)
 			continue;
 
-		node = of_find_node_by_name(NULL, buf);
+		yesde = of_find_yesde_by_name(NULL, buf);
 		if (num_args && compat_mode) {
-			parent = node;
-			node = of_get_child_by_name(parent, "clk");
-			of_node_put(parent);
+			parent = yesde;
+			yesde = of_get_child_by_name(parent, "clk");
+			of_yesde_put(parent);
 		}
 
-		clkspec.np = node;
+		clkspec.np = yesde;
 		clkspec.args_count = num_args;
 		for (i = 0; i < num_args; i++) {
 			ret = kstrtoint(tags[i], i ? 10 : 16, clkspec.args + i);
 			if (ret) {
 				pr_warn("Bad tag in %s at %d: %s\n",
-					c->node_name, i, tags[i]);
-				of_node_put(node);
+					c->yesde_name, i, tags[i]);
+				of_yesde_put(yesde);
 				return;
 			}
 		}
 		clk = of_clk_get_from_provider(&clkspec);
-		of_node_put(node);
+		of_yesde_put(yesde);
 		if (!IS_ERR(clk)) {
 			c->lk.clk = clk;
 			clkdev_add(&c->lk);
 		} else {
 			if (num_args && !has_clkctrl_data) {
-				struct device_node *np;
+				struct device_yesde *np;
 
-				np = of_find_compatible_node(NULL, NULL,
+				np = of_find_compatible_yesde(NULL, NULL,
 							     "ti,clkctrl");
 				if (np) {
 					has_clkctrl_data = true;
-					of_node_put(np);
+					of_yesde_put(np);
 				} else {
-					clkctrl_nodes_missing = true;
+					clkctrl_yesdes_missing = true;
 
-					pr_warn("missing clkctrl nodes, please update your dts.\n");
+					pr_warn("missing clkctrl yesdes, please update your dts.\n");
 					continue;
 				}
 			}
 
-			pr_warn("failed to lookup clock node %s, ret=%ld\n",
-				c->node_name, PTR_ERR(clk));
+			pr_warn("failed to lookup clock yesde %s, ret=%ld\n",
+				c->yesde_name, PTR_ERR(clk));
 		}
 	}
 }
 
 struct clk_init_item {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	void *user;
 	ti_of_clk_init_cb_t func;
 	struct list_head link;
@@ -225,24 +225,24 @@ static LIST_HEAD(retry_list);
 
 /**
  * ti_clk_retry_init - retries a failed clock init at later phase
- * @node: device not for the clock
+ * @yesde: device yest for the clock
  * @user: user data pointer
  * @func: init function to be called for the clock
  *
  * Adds a failed clock init to the retry list. The retry list is parsed
  * once all the other clocks have been initialized.
  */
-int __init ti_clk_retry_init(struct device_node *node, void *user,
+int __init ti_clk_retry_init(struct device_yesde *yesde, void *user,
 			     ti_of_clk_init_cb_t func)
 {
 	struct clk_init_item *retry;
 
-	pr_debug("%pOFn: adding to retry list...\n", node);
+	pr_debug("%pOFn: adding to retry list...\n", yesde);
 	retry = kzalloc(sizeof(*retry), GFP_KERNEL);
 	if (!retry)
 		return -ENOMEM;
 
-	retry->node = node;
+	retry->yesde = yesde;
 	retry->func = func;
 	retry->user = user;
 	list_add(&retry->link, &retry_list);
@@ -252,34 +252,34 @@ int __init ti_clk_retry_init(struct device_node *node, void *user,
 
 /**
  * ti_clk_get_reg_addr - get register address for a clock register
- * @node: device node for the clock
- * @index: register index from the clock node
+ * @yesde: device yesde for the clock
+ * @index: register index from the clock yesde
  * @reg: pointer to target register struct
  *
  * Builds clock register address from device tree information, and returns
  * the data via the provided output pointer @reg. Returns 0 on success,
  * negative error value on failure.
  */
-int ti_clk_get_reg_addr(struct device_node *node, int index,
+int ti_clk_get_reg_addr(struct device_yesde *yesde, int index,
 			struct clk_omap_reg *reg)
 {
 	u32 val;
 	int i;
 
 	for (i = 0; i < CLK_MAX_MEMMAPS; i++) {
-		if (clocks_node_ptr[i] == node->parent)
+		if (clocks_yesde_ptr[i] == yesde->parent)
 			break;
 	}
 
 	if (i == CLK_MAX_MEMMAPS) {
-		pr_err("clk-provider not found for %pOFn!\n", node);
+		pr_err("clk-provider yest found for %pOFn!\n", yesde);
 		return -ENOENT;
 	}
 
 	reg->index = i;
 
-	if (of_property_read_u32_index(node, "reg", index, &val)) {
-		pr_err("%pOFn must have reg[%d]!\n", node, index);
+	if (of_property_read_u32_index(yesde, "reg", index, &val)) {
+		pr_err("%pOFn must have reg[%d]!\n", yesde, index);
 		return -EINVAL;
 	}
 
@@ -305,33 +305,33 @@ void ti_clk_latch(struct clk_omap_reg *reg, s8 shift)
 
 /**
  * omap2_clk_provider_init - init master clock provider
- * @parent: master node
+ * @parent: master yesde
  * @index: internal index for clk_reg_ops
  * @syscon: syscon regmap pointer for accessing clock registers
  * @mem: iomem pointer for the clock provider memory area, only used if
- *       syscon is not provided
+ *       syscon is yest provided
  *
  * Initializes a master clock IP block. This basically sets up the
- * mapping from clocks node to the memory map index. All the clocks
+ * mapping from clocks yesde to the memory map index. All the clocks
  * are then initialized through the common of_clk_init call, and the
- * clocks will access their memory maps based on the node layout.
+ * clocks will access their memory maps based on the yesde layout.
  * Returns 0 in success.
  */
-int __init omap2_clk_provider_init(struct device_node *parent, int index,
+int __init omap2_clk_provider_init(struct device_yesde *parent, int index,
 				   struct regmap *syscon, void __iomem *mem)
 {
-	struct device_node *clocks;
+	struct device_yesde *clocks;
 	struct clk_iomap *io;
 
 	/* get clocks for this parent */
 	clocks = of_get_child_by_name(parent, "clocks");
 	if (!clocks) {
-		pr_err("%pOFn missing 'clocks' child node.\n", parent);
+		pr_err("%pOFn missing 'clocks' child yesde.\n", parent);
 		return -EINVAL;
 	}
 
-	/* add clocks node info */
-	clocks_node_ptr[index] = clocks;
+	/* add clocks yesde info */
+	clocks_yesde_ptr[index] = clocks;
 
 	io = kzalloc(sizeof(*io), GFP_KERNEL);
 	if (!io)
@@ -370,7 +370,7 @@ void __init omap2_clk_legacy_provider_init(int index, void __iomem *mem)
  * ti_dt_clk_init_retry_clks - init clocks from the retry list
  *
  * Initializes any clocks that have failed to initialize before,
- * reasons being missing parent node(s) during earlier init. This
+ * reasons being missing parent yesde(s) during earlier init. This
  * typically happens only for DPLLs which need to have both of their
  * parent clocks ready during init.
  */
@@ -382,8 +382,8 @@ void ti_dt_clk_init_retry_clks(void)
 
 	while (!list_empty(&retry_list) && retries) {
 		list_for_each_entry_safe(retry, tmp, &retry_list, link) {
-			pr_debug("retry-init: %pOFn\n", retry->node);
-			retry->func(retry->user, retry->node);
+			pr_debug("retry-init: %pOFn\n", retry->yesde);
+			retry->func(retry->user, retry->yesde);
 			list_del(&retry->link);
 			kfree(retry);
 		}
@@ -404,10 +404,10 @@ static const struct of_device_id simple_clk_match_table[] __initconst = {
  */
 void __init ti_clk_add_aliases(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct clk *clk;
 
-	for_each_matching_node(np, simple_clk_match_table) {
+	for_each_matching_yesde(np, simple_clk_match_table) {
 		struct of_phandle_args clkspec;
 
 		clkspec.np = np;
@@ -457,7 +457,7 @@ void omap2_clk_enable_init_clocks(const char **clk_names, u8 num_clocks)
 
 	for (i = 0; i < num_clocks; i++) {
 		init_clk = clk_get(NULL, clk_names[i]);
-		if (WARN(IS_ERR(init_clk), "could not find init clock %s\n",
+		if (WARN(IS_ERR(init_clk), "could yest find init clock %s\n",
 			 clk_names[i]))
 			continue;
 		clk_prepare_enable(init_clk);
@@ -550,7 +550,7 @@ struct clk *ti_clk_register_omap_hw(struct device *dev, struct clk_hw *hw,
 
 	oclk = to_clk_hw_omap(hw);
 
-	list_add(&oclk->node, &clk_hw_omap_clocks);
+	list_add(&oclk->yesde, &clk_hw_omap_clocks);
 
 	return clk;
 }
@@ -561,8 +561,8 @@ struct clk *ti_clk_register_omap_hw(struct device *dev, struct clk_hw *hw,
  *
  * Call @fn for each registered clk_hw_omap, passing @hw to each
  * function.  @fn must return 0 for success or any other value for
- * failure.  If @fn returns non-zero, the iteration across clocks
- * will stop and the non-zero return value will be passed to the
+ * failure.  If @fn returns yesn-zero, the iteration across clocks
+ * will stop and the yesn-zero return value will be passed to the
  * caller of omap2_clk_for_each().
  */
 int omap2_clk_for_each(int (*fn)(struct clk_hw_omap *hw))
@@ -570,7 +570,7 @@ int omap2_clk_for_each(int (*fn)(struct clk_hw_omap *hw))
 	int ret;
 	struct clk_hw_omap *hw;
 
-	list_for_each_entry(hw, &clk_hw_omap_clocks, node) {
+	list_for_each_entry(hw, &clk_hw_omap_clocks, yesde) {
 		ret = (*fn)(hw);
 		if (ret)
 			break;
@@ -581,16 +581,16 @@ int omap2_clk_for_each(int (*fn)(struct clk_hw_omap *hw))
 
 /**
  * omap2_clk_is_hw_omap - check if the provided clk_hw is OMAP clock
- * @hw: clk_hw to check if it is an omap clock or not
+ * @hw: clk_hw to check if it is an omap clock or yest
  *
- * Checks if the provided clk_hw is OMAP clock or not. Returns true if
+ * Checks if the provided clk_hw is OMAP clock or yest. Returns true if
  * it is, false otherwise.
  */
 bool omap2_clk_is_hw_omap(struct clk_hw *hw)
 {
 	struct clk_hw_omap *oclk;
 
-	list_for_each_entry(oclk, &clk_hw_omap_clocks, node) {
+	list_for_each_entry(oclk, &clk_hw_omap_clocks, yesde) {
 		if (&oclk->hw == hw)
 			return true;
 	}

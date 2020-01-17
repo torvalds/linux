@@ -1698,7 +1698,7 @@ static int wm2200_hw_params(struct snd_pcm_substream *substream,
 	int i, bclk, lrclk, wl, fl, sr_code;
 	int *bclk_rates;
 
-	/* Data sizes if not using TDM */
+	/* Data sizes if yest using TDM */
 	wl = params_width(params);
 	if (wl < 0)
 		return wl;
@@ -1715,7 +1715,7 @@ static int wm2200_hw_params(struct snd_pcm_substream *substream,
 		return bclk;
 
 	if (!wm2200->sysclk) {
-		dev_err(component->dev, "SYSCLK has no rate set\n");
+		dev_err(component->dev, "SYSCLK has yes rate set\n");
 		return -EINVAL;
 	}
 
@@ -1794,7 +1794,7 @@ static int wm2200_set_sysclk(struct snd_soc_component *component, int clk_id,
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown clock %d\n", clk_id);
+		dev_err(component->dev, "Unkyeswn clock %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -2112,7 +2112,7 @@ static const struct snd_soc_component_driver soc_component_wm2200 = {
 	.dapm_routes		= wm2200_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(wm2200_dapm_routes),
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static irqreturn_t wm2200_irq(int irq, void *data)
@@ -2289,7 +2289,7 @@ static int wm2200_i2c_probe(struct i2c_client *i2c,
 		break;
 
 	default:
-		dev_err(&i2c->dev, "Device is not a WM2200, ID is %x\n", reg);
+		dev_err(&i2c->dev, "Device is yest a WM2200, ID is %x\n", reg);
 		ret = -EINVAL;
 		goto err_reset;
 	}

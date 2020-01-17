@@ -34,18 +34,18 @@ struct svc_pool_stats {
  *
  * Pool of threads and temporary sockets.  Generally there is only
  * a single one of these per RPC service, but on NUMA machines those
- * services that can benefit from it (i.e. nfs but not lockd) will
- * have one pool per NUMA node.  This optimisation reduces cross-
- * node traffic on multi-node NUMA NFS servers.
+ * services that can benefit from it (i.e. nfs but yest lockd) will
+ * have one pool per NUMA yesde.  This optimisation reduces cross-
+ * yesde traffic on multi-yesde NUMA NFS servers.
  */
 struct svc_pool {
-	unsigned int		sp_id;	    	/* pool id; also node id on NUMA */
+	unsigned int		sp_id;	    	/* pool id; also yesde id on NUMA */
 	spinlock_t		sp_lock;	/* protects all fields */
 	struct list_head	sp_sockets;	/* pending sockets */
 	unsigned int		sp_nrthreads;	/* # of threads in pool */
 	struct list_head	sp_all_threads;	/* all server threads */
 	struct svc_pool_stats	sp_stats;	/* statistics on pool operation */
-#define	SP_TASK_PENDING		(0)		/* still work to do even if no
+#define	SP_TASK_PENDING		(0)		/* still work to do even if yes
 						 * xprt is queued. */
 #define SP_CONGESTED		(1)
 	unsigned long		sp_flags;
@@ -78,7 +78,7 @@ struct svc_serv_ops {
  * It has one or more transport sockets associated with it, and maintains
  * a list of idle threads waiting for input.
  *
- * We currently do not support more than one RPC program per daemon.
+ * We currently do yest support more than one RPC program per daemon.
  */
 struct svc_serv {
 	struct svc_program *	sv_program;	/* RPC program */
@@ -107,7 +107,7 @@ struct svc_serv {
 						 * that arrive over the same
 						 * connection */
 	spinlock_t		sv_cb_lock;	/* protects the svc_cb_list */
-	wait_queue_head_t	sv_cb_waitq;	/* sleep here if there are no
+	wait_queue_head_t	sv_cb_waitq;	/* sleep here if there are yes
 						 * entries in the svc_cb_list */
 	bool			sv_bc_enabled;	/* service uses backchannel */
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
@@ -129,19 +129,19 @@ static inline void svc_get(struct svc_serv *serv)
  * This is use to determine the max number of pages nfsd is
  * willing to return in a single READ operation.
  *
- * These happen to all be powers of 2, which is not strictly
+ * These happen to all be powers of 2, which is yest strictly
  * necessary but helps enforce the real limitation, which is
  * that they should be multiples of PAGE_SIZE.
  *
  * For UDP transports, a block plus NFS,RPC, and UDP headers
  * has to fit into the IP datagram limit of 64K.  The largest
- * feasible number for all known page sizes is probably 48K,
+ * feasible number for all kyeswn page sizes is probably 48K,
  * but we choose 32K here.  This is the same as the historical
  * Linux limit; someone who cares more about NFS/UDP performance
  * can test a larger number.
  *
  * For TCP transports we have more freedom.  A size of 1MB is
- * chosen to match the client limit.  Other OSes are known to
+ * chosen to match the client limit.  Other OSes are kyeswn to
  * have larger limits, but those numbers are probably beyond
  * the point of diminishing returns.
  */
@@ -170,13 +170,13 @@ extern u32 svc_max_payload(const struct svc_rqst *rqstp);
  * The xdr_buf.head kvec always points to the first page in the rq_*pages
  * list.  The xdr_buf.pages pointer points to the second page on that
  * list.  xdr_buf.tail points to the end of the first page.
- * This assumes that the non-page part of an rpc reply will fit
- * in a page - NFSd ensures this.  lockd also has no trouble.
+ * This assumes that the yesn-page part of an rpc reply will fit
+ * in a page - NFSd ensures this.  lockd also has yes trouble.
  *
  * Each request/reply pair can have at most one "payload", plus two pages,
  * one for the request, and one for the reply.
  * We using ->sendfile to return read data, we might need one extra page
- * if the request is not page-aligned.  So add another '1'.
+ * if the request is yest page-aligned.  So add ayesther '1'.
  */
 #define RPCSVC_MAXPAGES		((RPCSVC_MAXPAYLOAD+PAGE_SIZE-1)/PAGE_SIZE \
 				+ 2 + 1)
@@ -466,20 +466,20 @@ struct svc_procedure {
  */
 enum {
 	SVC_POOL_AUTO = -1,	/* choose one of the others */
-	SVC_POOL_GLOBAL,	/* no mapping, just a single global pool
+	SVC_POOL_GLOBAL,	/* yes mapping, just a single global pool
 				 * (legacy & UP mode) */
 	SVC_POOL_PERCPU,	/* one pool per cpu */
-	SVC_POOL_PERNODE	/* one pool per numa node */
+	SVC_POOL_PERNODE	/* one pool per numa yesde */
 };
 
 struct svc_pool_map {
 	int count;			/* How many svc_servs use us */
-	int mode;			/* Note: int not enum to avoid
+	int mode;			/* Note: int yest enum to avoid
 					 * warnings about "enumeration value
-					 * not handled in switch" */
+					 * yest handled in switch" */
 	unsigned int npools;
-	unsigned int *pool_to;		/* maps pool id to cpu or node */
-	unsigned int *to_pool;		/* maps cpu or node to pool id */
+	unsigned int *pool_to;		/* maps pool id to cpu or yesde */
+	unsigned int *to_pool;		/* maps cpu or yesde to pool id */
 };
 
 extern struct svc_pool_map svc_pool_map;
@@ -493,9 +493,9 @@ int svc_bind(struct svc_serv *serv, struct net *net);
 struct svc_serv *svc_create(struct svc_program *, unsigned int,
 			    const struct svc_serv_ops *);
 struct svc_rqst *svc_rqst_alloc(struct svc_serv *serv,
-					struct svc_pool *pool, int node);
+					struct svc_pool *pool, int yesde);
 struct svc_rqst *svc_prepare_thread(struct svc_serv *serv,
-					struct svc_pool *pool, int node);
+					struct svc_pool *pool, int yesde);
 void		   svc_rqst_free(struct svc_rqst *);
 void		   svc_exit_thread(struct svc_rqst *);
 unsigned int	   svc_pool_map_get(void);

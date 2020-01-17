@@ -48,7 +48,7 @@ module_param(receive_group_order, int, 0444);
 MODULE_PARM_DESC(receive_group_order, "\n"
 	"\tOrder (0..4) of receive groups to take into use. Ethernet hardware\n"
 	"\twill be configured to send incoming packets to multiple POW\n"
-	"\tgroups. pow_receive_group parameter is ignored when multiple\n"
+	"\tgroups. pow_receive_group parameter is igyesred when multiple\n"
 	"\tgroups are taken into use and groups are allocated starting\n"
 	"\tfrom 0. By default, a single group is used.\n");
 
@@ -110,8 +110,8 @@ static void cvm_oct_rx_refill_worker(struct work_struct *work)
 {
 	/*
 	 * FPA 0 may have been drained, try to refill it if we need
-	 * more than num_packet_buffers / 2, otherwise normal receive
-	 * processing will refill it.  If it were drained, no packets
+	 * more than num_packet_buffers / 2, otherwise yesrmal receive
+	 * processing will refill it.  If it were drained, yes packets
 	 * could be received so cvm_oct_napi_poll would never be
 	 * invoked to do the refill.
 	 */
@@ -408,8 +408,8 @@ int cvm_oct_common_init(struct net_device *dev)
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	const u8 *mac = NULL;
 
-	if (priv->of_node)
-		mac = of_get_mac_address(priv->of_node);
+	if (priv->of_yesde)
+		mac = of_get_mac_address(priv->of_yesde);
 
 	if (!IS_ERR_OR_NULL(mac))
 		ether_addr_copy(dev->dev_addr, mac);
@@ -513,7 +513,7 @@ void cvm_oct_link_poll(struct net_device *dev)
 	} else if (netif_carrier_ok(dev)) {
 		netif_carrier_off(dev);
 	}
-	cvm_oct_note_carrier(priv, link_info);
+	cvm_oct_yeste_carrier(priv, link_info);
 }
 
 static int cvm_oct_xaui_open(struct net_device *dev)
@@ -610,35 +610,35 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 #endif
 };
 
-static struct device_node *cvm_oct_of_get_child
-				(const struct device_node *parent, int reg_val)
+static struct device_yesde *cvm_oct_of_get_child
+				(const struct device_yesde *parent, int reg_val)
 {
-	struct device_node *node = NULL;
+	struct device_yesde *yesde = NULL;
 	int size;
 	const __be32 *addr;
 
 	for (;;) {
-		node = of_get_next_child(parent, node);
-		if (!node)
+		yesde = of_get_next_child(parent, yesde);
+		if (!yesde)
 			break;
-		addr = of_get_property(node, "reg", &size);
+		addr = of_get_property(yesde, "reg", &size);
 		if (addr && (be32_to_cpu(*addr) == reg_val))
 			break;
 	}
-	return node;
+	return yesde;
 }
 
-static struct device_node *cvm_oct_node_for_port(struct device_node *pip,
+static struct device_yesde *cvm_oct_yesde_for_port(struct device_yesde *pip,
 						 int interface, int port)
 {
-	struct device_node *ni, *np;
+	struct device_yesde *ni, *np;
 
 	ni = cvm_oct_of_get_child(pip, interface);
 	if (!ni)
 		return NULL;
 
 	np = cvm_oct_of_get_child(ni, port);
-	of_node_put(ni);
+	of_yesde_put(ni);
 
 	return np;
 }
@@ -646,7 +646,7 @@ static struct device_node *cvm_oct_node_for_port(struct device_node *pip,
 static void cvm_set_rgmii_delay(struct octeon_ethernet *priv, int iface,
 				int port)
 {
-	struct device_node *np = priv->of_node;
+	struct device_yesde *np = priv->of_yesde;
 	u32 delay_value;
 	bool rx_delay;
 	bool tx_delay;
@@ -682,7 +682,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	int interface;
 	int fau = FAU_NUM_PACKET_BUFFERS_TO_FREE;
 	int qos;
-	struct device_node *pip;
+	struct device_yesde *pip;
 	int mtu_overhead = ETH_HLEN + ETH_FCS_LEN;
 
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
@@ -691,7 +691,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 
 	octeon_mdiobus_force_mod_depencency();
 
-	pip = pdev->dev.of_node;
+	pip = pdev->dev.of_yesde;
 	if (!pip) {
 		pr_err("Error: No 'pip' in /aliases\n");
 		return -EINVAL;
@@ -829,7 +829,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			SET_NETDEV_DEV(dev, &pdev->dev);
 			priv = netdev_priv(dev);
 			priv->netdev = dev;
-			priv->of_node = cvm_oct_node_for_port(pip, interface,
+			priv->of_yesde = cvm_oct_yesde_for_port(pip, interface,
 							      port_index);
 
 			INIT_DELAYED_WORK(&priv->port_periodic_work,

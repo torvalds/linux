@@ -36,8 +36,8 @@ SYM_CODE_END(\name)
 
 #ifdef CONFIG_PREEMPTION
 	THUNK ___preempt_schedule, preempt_schedule
-	THUNK ___preempt_schedule_notrace, preempt_schedule_notrace
+	THUNK ___preempt_schedule_yestrace, preempt_schedule_yestrace
 	EXPORT_SYMBOL(___preempt_schedule)
-	EXPORT_SYMBOL(___preempt_schedule_notrace)
+	EXPORT_SYMBOL(___preempt_schedule_yestrace)
 #endif
 

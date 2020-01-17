@@ -7,7 +7,7 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/usb.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -19,7 +19,7 @@
 
 #define to_chdat(c)		((struct tusb_omap_dma_ch *)(c)->private_data)
 
-#define MAX_DMAREQ		5	/* REVISIT: Really 6, but req5 not OK */
+#define MAX_DMAREQ		5	/* REVISIT: Really 6, but req5 yest OK */
 
 struct tusb_dma_data {
 	s8			dmareq;
@@ -206,7 +206,7 @@ static int tusb_omap_dma_program(struct dma_channel *channel, u16 packet_sz,
 	 * HW issue #10: Async dma will eventually corrupt the XFR_SIZE
 	 * register which will cause missed DMA interrupt. We could try to
 	 * use a timer for the callback, but it is unsafe as the XFR_SIZE
-	 * register is corrupt, and we won't know if the DMA worked.
+	 * register is corrupt, and we won't kyesw if the DMA worked.
 	 */
 	if (dma_addr & 0x2)
 		return false;
@@ -223,7 +223,7 @@ static int tusb_omap_dma_program(struct dma_channel *channel, u16 packet_sz,
 
 	dma_remaining = TUSB_EP_CONFIG_XFR_SIZE(dma_remaining);
 	if (dma_remaining) {
-		dev_dbg(musb->controller, "Busy %s dma, not using: %08x\n",
+		dev_dbg(musb->controller, "Busy %s dma, yest using: %08x\n",
 			chdat->tx ? "tx" : "rx", dma_remaining);
 		return false;
 	}
@@ -238,7 +238,7 @@ static int tusb_omap_dma_program(struct dma_channel *channel, u16 packet_sz,
 	dma_data = chdat->dma_data;
 	if (!tusb_dma->multichannel) {
 		if (tusb_omap_use_shared_dmareq(chdat) != 0) {
-			dev_dbg(musb->controller, "could not get dma for ep%i\n", chdat->epnum);
+			dev_dbg(musb->controller, "could yest get dma for ep%i\n", chdat->epnum);
 			return false;
 		}
 		if (dma_data->dmareq < 0) {
@@ -269,7 +269,7 @@ static int tusb_omap_dma_program(struct dma_channel *channel, u16 packet_sz,
 
 	memset(&dma_cfg, 0, sizeof(dma_cfg));
 
-	/* Use 16-bit transfer if dma_addr is not 32-bit aligned */
+	/* Use 16-bit transfer if dma_addr is yest 32-bit aligned */
 	if ((dma_addr & 0x3) == 0) {
 		dma_cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		dma_cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
@@ -433,7 +433,7 @@ tusb_omap_dma_allocate(struct dma_controller *c,
 	tusb_dma = container_of(c, struct tusb_omap_dma, controller);
 	musb = tusb_dma->controller.musb;
 
-	/* REVISIT: Why does dmareq5 not work? */
+	/* REVISIT: Why does dmareq5 yest work? */
 	if (hw_ep->epnum == 0) {
 		dev_dbg(musb->controller, "Not allowing DMA for ep0 %s\n", tx ? "tx" : "rx");
 		return NULL;
@@ -490,7 +490,7 @@ tusb_omap_dma_allocate(struct dma_controller *c,
 free_dmareq:
 	tusb_omap_dma_free_dmareq(chdat);
 
-	dev_dbg(musb->controller, "ep%i: Could not get a DMA channel\n", chdat->epnum);
+	dev_dbg(musb->controller, "ep%i: Could yest get a DMA channel\n", chdat->epnum);
 	channel->status = MUSB_DMA_STATUS_UNKNOWN;
 
 	return NULL;
@@ -544,7 +544,7 @@ static int tusb_omap_allocate_dma_pool(struct tusb_omap_dma *tusb_dma)
 
 		/*
 		 * Request DMA channels:
-		 * - one channel in case of non multichannel mode
+		 * - one channel in case of yesn multichannel mode
 		 * - MAX_DMAREQ number of channels in multichannel mode
 		 */
 		if (i == 0 || tusb_dma->multichannel) {

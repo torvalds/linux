@@ -109,7 +109,7 @@
 
 	phy-mode = "rgmii";
 	phy-handle = <&phy0>;
-	renesas,no-ether-link;
+	renesas,yes-ether-link;
 	status = "okay";
 
 	phy0: ethernet-phy@0 {

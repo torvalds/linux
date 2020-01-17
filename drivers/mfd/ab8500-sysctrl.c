@@ -38,7 +38,7 @@ static void ab8500_power_off(void)
 	int ret;
 
 	if (sysctrl_dev == NULL) {
-		pr_err("%s: sysctrl not initialized\n", __func__);
+		pr_err("%s: sysctrl yest initialized\n", __func__);
 		return;
 	}
 
@@ -65,13 +65,13 @@ static void ab8500_power_off(void)
 	if (!charger_present)
 		goto shutdown;
 
-	/* Check if battery is known */
+	/* Check if battery is kyeswn */
 	psy = power_supply_get_by_name("ab8500_btemp");
 	if (psy) {
 		ret = power_supply_get_property(psy,
 				POWER_SUPPLY_PROP_TECHNOLOGY, &val);
 		if (!ret && val.intval != POWER_SUPPLY_TECHNOLOGY_UNKNOWN) {
-			pr_info("Charger '%s' is connected with known battery",
+			pr_info("Charger '%s' is connected with kyeswn battery",
 				pss[i]);
 			pr_info(" - Rebooting.\n");
 			machine_restart("charging");

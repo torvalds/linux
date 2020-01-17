@@ -38,16 +38,16 @@
 
 #define DBG(...)
 
-static int novmerge;
+static int yesvmerge;
 
 static void __iommu_free(struct iommu_table *, dma_addr_t, unsigned int);
 
 static int __init setup_iommu(char *str)
 {
-	if (!strcmp(str, "novmerge"))
-		novmerge = 1;
+	if (!strcmp(str, "yesvmerge"))
+		yesvmerge = 1;
 	else if (!strcmp(str, "vmerge"))
-		novmerge = 0;
+		yesvmerge = 0;
 	return 1;
 }
 
@@ -117,7 +117,7 @@ static ssize_t fail_iommu_store(struct device *dev,
 
 static DEVICE_ATTR_RW(fail_iommu);
 
-static int fail_iommu_bus_notify(struct notifier_block *nb,
+static int fail_iommu_bus_yestify(struct yestifier_block *nb,
 				 unsigned long action, void *data)
 {
 	struct device *dev = data;
@@ -133,17 +133,17 @@ static int fail_iommu_bus_notify(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block fail_iommu_bus_notifier = {
-	.notifier_call = fail_iommu_bus_notify
+static struct yestifier_block fail_iommu_bus_yestifier = {
+	.yestifier_call = fail_iommu_bus_yestify
 };
 
 static int __init fail_iommu_setup(void)
 {
 #ifdef CONFIG_PCI
-	bus_register_notifier(&pci_bus_type, &fail_iommu_bus_notifier);
+	bus_register_yestifier(&pci_bus_type, &fail_iommu_bus_yestifier);
 #endif
 #ifdef CONFIG_IBMVIO
-	bus_register_notifier(&vio_bus_type, &fail_iommu_bus_notifier);
+	bus_register_yestifier(&vio_bus_type, &fail_iommu_bus_yestifier);
 #endif
 
 	return 0;
@@ -313,10 +313,10 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 				      (unsigned long)page &
 				      IOMMU_PAGE_MASK(tbl), direction, attrs);
 
-	/* tbl->it_ops->set() only returns non-zero for transient errors.
+	/* tbl->it_ops->set() only returns yesn-zero for transient errors.
 	 * Clean up the table bitmap in this case and return
 	 * DMA_MAPPING_ERROR. For all other errors the functionality is
-	 * not altered.
+	 * yest altered.
 	 */
 	if (unlikely(build_fail)) {
 		__iommu_free(tbl, ret, npages);
@@ -348,7 +348,7 @@ static bool iommu_free_check(struct iommu_table *tbl, dma_addr_t dma_addr,
 			printk(KERN_INFO "\tentry     = 0x%lx\n", entry); 
 			printk(KERN_INFO "\tdma_addr  = 0x%llx\n", (u64)dma_addr);
 			printk(KERN_INFO "\tTable     = 0x%llx\n", (u64)tbl);
-			printk(KERN_INFO "\tbus#      = 0x%llx\n", (u64)tbl->it_busno);
+			printk(KERN_INFO "\tbus#      = 0x%llx\n", (u64)tbl->it_busyes);
 			printk(KERN_INFO "\tsize      = 0x%llx\n", (u64)tbl->it_size);
 			printk(KERN_INFO "\tstartOff  = 0x%llx\n", (u64)tbl->it_offset);
 			printk(KERN_INFO "\tindex     = 0x%llx\n", (u64)tbl->it_index);
@@ -408,7 +408,7 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	__iommu_free(tbl, dma_addr, npages);
 
 	/* Make sure TLB cache is flushed if the HW needs it. We do
-	 * not do an mb() here on purpose, it is not needed on any of
+	 * yest do an mb() here on purpose, it is yest needed on any of
 	 * the current platforms.
 	 */
 	if (tbl->it_ops->flush)
@@ -492,10 +492,10 @@ int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 		/* If we are in an open segment, try merging */
 		if (segstart != s) {
 			DBG("  - trying merge...\n");
-			/* We cannot merge if:
+			/* We canyest merge if:
 			 * - allocated dma_addr isn't contiguous to previous allocation
 			 */
-			if (novmerge || (dma_addr != dma_next) ||
+			if (yesvmerge || (dma_addr != dma_next) ||
 			    (outs->dma_length + s->length > max_seg_size)) {
 				/* Can't merge: create a new segment */
 				segstart = s;
@@ -585,7 +585,7 @@ void ppc_iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 	}
 
 	/* Flush/invalidate TLBs if necessary. As for iommu_free(), we
-	 * do not do an mb() here, the affected platforms do not need it
+	 * do yest do an mb() here, the affected platforms do yest need it
 	 * when freeing.
 	 */
 	if (tbl->it_ops->flush)
@@ -640,7 +640,7 @@ static void iommu_table_reserve_pages(struct iommu_table *tbl,
 
 	WARN_ON_ONCE(res_end < res_start);
 	/*
-	 * Reserve page 0 so it will not be used for any mappings.
+	 * Reserve page 0 so it will yest be used for any mappings.
 	 * This avoids buggy drivers that consider page 0 to be invalid
 	 * to crash the machine or even lose data.
 	 */
@@ -665,7 +665,7 @@ static void iommu_table_release_pages(struct iommu_table *tbl)
 	int i;
 
 	/*
-	 * In case we have reserved the first bit, we should not emit
+	 * In case we have reserved the first bit, we should yest emit
 	 * the warning below.
 	 */
 	if (tbl->it_offset == 0)
@@ -693,7 +693,7 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid,
 	/* number of bytes needed for the bitmap */
 	sz = BITS_TO_LONGS(tbl->it_size) * sizeof(unsigned long);
 
-	page = alloc_pages_node(nid, GFP_KERNEL, get_order(sz));
+	page = alloc_pages_yesde(nid, GFP_KERNEL, get_order(sz));
 	if (!page)
 		panic("iommu_init_table: Can't allocate %ld bytes\n", sz);
 	tbl->it_map = page_address(page);
@@ -728,7 +728,7 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid,
 
 	if (!welcomed) {
 		printk(KERN_INFO "IOMMU table initialized, virtual merging %s\n",
-		       novmerge ? "disabled" : "enabled");
+		       yesvmerge ? "disabled" : "enabled");
 		welcomed = 1;
 	}
 
@@ -753,7 +753,7 @@ static void iommu_table_free(struct kref *kref)
 
 	iommu_table_release_pages(tbl);
 
-	/* verify that table contains no entries */
+	/* verify that table contains yes entries */
 	if (!bitmap_empty(tbl->it_map, tbl->it_size))
 		pr_warn("%s: Unexpected TCEs\n", __func__);
 
@@ -787,7 +787,7 @@ int iommu_tce_table_put(struct iommu_table *tbl)
 EXPORT_SYMBOL_GPL(iommu_tce_table_put);
 
 /* Creates TCEs for a user provided buffer.  The user buffer must be
- * contiguous real kernel storage (not vmalloc).  The address passed here
+ * contiguous real kernel storage (yest vmalloc).  The address passed here
  * comprises a page address and offset into that page. The dma_addr_t
  * returned will point to the same byte within the page as was passed in.
  */
@@ -851,7 +851,7 @@ void iommu_unmap_page(struct iommu_table *tbl, dma_addr_t dma_handle,
  */
 void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 			   size_t size,	dma_addr_t *dma_handle,
-			   unsigned long mask, gfp_t flag, int node)
+			   unsigned long mask, gfp_t flag, int yesde)
 {
 	void *ret = NULL;
 	dma_addr_t mapping;
@@ -876,8 +876,8 @@ void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 	if (!tbl)
 		return NULL;
 
-	/* Alloc enough pages (and possibly more) */
-	page = alloc_pages_node(node, flag, order);
+	/* Alloc eyesugh pages (and possibly more) */
+	page = alloc_pages_yesde(yesde, flag, order);
 	if (!page)
 		return NULL;
 	ret = page_address(page);
@@ -944,7 +944,7 @@ void iommu_register_group(struct iommu_table_group *table_group,
 
 	grp = iommu_group_alloc();
 	if (IS_ERR(grp)) {
-		pr_warn("powerpc iommu api: cannot create new group, err=%ld\n",
+		pr_warn("powerpc iommu api: canyest create new group, err=%ld\n",
 				PTR_ERR(grp));
 		return;
 	}
@@ -1013,7 +1013,7 @@ int iommu_tce_check_gpa(unsigned long page_shift, unsigned long gpa)
 }
 EXPORT_SYMBOL_GPL(iommu_tce_check_gpa);
 
-extern long iommu_tce_xchg_no_kill(struct mm_struct *mm,
+extern long iommu_tce_xchg_yes_kill(struct mm_struct *mm,
 		struct iommu_table *tbl,
 		unsigned long entry, unsigned long *hpa,
 		enum dma_data_direction *direction)
@@ -1021,7 +1021,7 @@ extern long iommu_tce_xchg_no_kill(struct mm_struct *mm,
 	long ret;
 	unsigned long size = 0;
 
-	ret = tbl->it_ops->xchg_no_kill(tbl, entry, hpa, direction, false);
+	ret = tbl->it_ops->xchg_yes_kill(tbl, entry, hpa, direction, false);
 	if (!ret && ((*direction == DMA_FROM_DEVICE) ||
 			(*direction == DMA_BIDIRECTIONAL)) &&
 			!mm_iommu_is_devmem(mm, *hpa, tbl->it_page_shift,
@@ -1030,7 +1030,7 @@ extern long iommu_tce_xchg_no_kill(struct mm_struct *mm,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(iommu_tce_xchg_no_kill);
+EXPORT_SYMBOL_GPL(iommu_tce_xchg_yes_kill);
 
 void iommu_tce_kill(struct iommu_table *tbl,
 		unsigned long entry, unsigned long pages)
@@ -1046,13 +1046,13 @@ int iommu_take_ownership(struct iommu_table *tbl)
 	int ret = 0;
 
 	/*
-	 * VFIO does not control TCE entries allocation and the guest
+	 * VFIO does yest control TCE entries allocation and the guest
 	 * can write new TCEs on top of existing ones so iommu_tce_build()
 	 * must be able to release old pages. This functionality
-	 * requires exchange() callback defined so if it is not
+	 * requires exchange() callback defined so if it is yest
 	 * implemented, we disallow taking ownership over the table.
 	 */
-	if (!tbl->it_ops->xchg_no_kill)
+	if (!tbl->it_ops->xchg_yes_kill)
 		return -EINVAL;
 
 	spin_lock_irqsave(&tbl->large_pool.lock, flags);
@@ -1062,7 +1062,7 @@ int iommu_take_ownership(struct iommu_table *tbl)
 	iommu_table_release_pages(tbl);
 
 	if (!bitmap_empty(tbl->it_map, tbl->it_size)) {
-		pr_err("iommu_tce: it_map is not empty");
+		pr_err("iommu_tce: it_map is yest empty");
 		ret = -EBUSY;
 		/* Undo iommu_table_release_pages, i.e. restore bit#0, etc */
 		iommu_table_reserve_pages(tbl, tbl->it_reserved_start,
@@ -1125,12 +1125,12 @@ EXPORT_SYMBOL_GPL(iommu_add_device);
 void iommu_del_device(struct device *dev)
 {
 	/*
-	 * Some devices might not have IOMMU table and group
+	 * Some devices might yest have IOMMU table and group
 	 * and we needn't detach them from the associated
 	 * IOMMU groups
 	 */
 	if (!device_iommu_mapped(dev)) {
-		pr_debug("iommu_tce: skipping device %s with no tbl\n",
+		pr_debug("iommu_tce: skipping device %s with yes tbl\n",
 			 dev_name(dev));
 		return;
 	}

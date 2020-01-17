@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Most of the string-functions are rather heavily hand-optimized,
- * see especially strsep,strstr,str[c]spn. They should work, but are not
+ * see especially strsep,strstr,str[c]spn. They should work, but are yest
  * very easy to understand. Everything is done entirely within the register
  * set, making the functions fast and clean. String instructions have been
  * used through-out, making for "slightly" unclear code :-)
  *
- * AK: On P4 and K7 using non string instruction implementations might be faster
+ * AK: On P4 and K7 using yesn string instruction implementations might be faster
  * for large memory blocks. But most of them are unlikely to be used on large
  * strings.
  */

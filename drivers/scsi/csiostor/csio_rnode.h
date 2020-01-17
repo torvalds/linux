@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -48,19 +48,19 @@ enum csio_rn_ev {
 	CSIO_RNFE_PRLI_RECV,				/* Received PLOGI */
 	CSIO_RNFE_LOGO_RECV,				/* Received LOGO */
 	CSIO_RNFE_PRLO_RECV,				/* Received PRLO */
-	CSIO_RNFE_DOWN,					/* Rnode is down */
-	CSIO_RNFE_CLOSE,				/* Close rnode */
-	CSIO_RNFE_NAME_MISSING,				/* Rnode name missing
+	CSIO_RNFE_DOWN,					/* Ryesde is down */
+	CSIO_RNFE_CLOSE,				/* Close ryesde */
+	CSIO_RNFE_NAME_MISSING,				/* Ryesde name missing
 							 * in name server.
 							 */
 	CSIO_RNFE_MAX_EVENT,
 };
 
-/* rnode stats */
-struct csio_rnode_stats {
+/* ryesde stats */
+struct csio_ryesde_stats {
 	uint32_t	n_err;		/* error */
 	uint32_t	n_err_inval;	/* invalid parameter */
-	uint32_t	n_err_nomem;	/* error nomem */
+	uint32_t	n_err_yesmem;	/* error yesmem */
 	uint32_t	n_evt_unexp;	/* unexpected event */
 	uint32_t	n_evt_drop;	/* unexpected event */
 	uint32_t	n_evt_fw[PROTO_ERR_IMPL_LOGO + 1];	/* fw events */
@@ -78,26 +78,26 @@ struct csio_rnode_stats {
 					 */
 };
 
-/* Defines for rnode role */
+/* Defines for ryesde role */
 #define	CSIO_RNFR_INITIATOR	0x1
 #define	CSIO_RNFR_TARGET	0x2
 #define CSIO_RNFR_FABRIC	0x4
 #define	CSIO_RNFR_NS		0x8
 #define CSIO_RNFR_NPORT		0x10
 
-struct csio_rnode {
+struct csio_ryesde {
 	struct csio_sm		sm;			/* State machine -
 							 * should be the
 							 * 1st member
 							 */
-	struct csio_lnode	*lnp;			/* Pointer to owning
-							 * Lnode */
+	struct csio_lyesde	*lnp;			/* Pointer to owning
+							 * Lyesde */
 	uint32_t		flowid;			/* Firmware ID */
 	struct list_head	host_cmpl_q;		/* SCSI IOs
 							 * pending to completed
 							 * to Mid-layer.
 							 */
-	/* FC identifiers for remote node */
+	/* FC identifiers for remote yesde */
 	uint32_t		nport_id;
 	uint16_t		fcp_flags;		/* FCP Flags */
 	uint8_t			cur_evt;		/* Current event */
@@ -114,28 +114,28 @@ struct csio_rnode {
 	uint32_t		maxframe_size;	/* Max Frame size */
 	uint32_t		scsi_id;	/* Transport given SCSI id */
 
-	struct csio_rnode_stats	stats;		/* Common rnode stats */
+	struct csio_ryesde_stats	stats;		/* Common ryesde stats */
 };
 
 #define csio_rn_flowid(rn)			((rn)->flowid)
 #define csio_rn_wwpn(rn)			((rn)->rn_sparm.wwpn)
 #define csio_rn_wwnn(rn)			((rn)->rn_sparm.wwnn)
-#define csio_rnode_to_lnode(rn)			((rn)->lnp)
+#define csio_ryesde_to_lyesde(rn)			((rn)->lnp)
 
-int csio_is_rnode_ready(struct csio_rnode *rn);
-void csio_rnode_state_to_str(struct csio_rnode *rn, int8_t *str);
+int csio_is_ryesde_ready(struct csio_ryesde *rn);
+void csio_ryesde_state_to_str(struct csio_ryesde *rn, int8_t *str);
 
-struct csio_rnode *csio_rnode_lookup_portid(struct csio_lnode *, uint32_t);
-struct csio_rnode *csio_confirm_rnode(struct csio_lnode *,
+struct csio_ryesde *csio_ryesde_lookup_portid(struct csio_lyesde *, uint32_t);
+struct csio_ryesde *csio_confirm_ryesde(struct csio_lyesde *,
 					  uint32_t, struct fcoe_rdev_entry *);
 
-void csio_rnode_fwevt_handler(struct csio_rnode *rn, uint8_t fwevt);
+void csio_ryesde_fwevt_handler(struct csio_ryesde *rn, uint8_t fwevt);
 
-void csio_put_rnode(struct csio_lnode *ln, struct csio_rnode *rn);
+void csio_put_ryesde(struct csio_lyesde *ln, struct csio_ryesde *rn);
 
-void csio_reg_rnode(struct csio_rnode *);
-void csio_unreg_rnode(struct csio_rnode *);
+void csio_reg_ryesde(struct csio_ryesde *);
+void csio_unreg_ryesde(struct csio_ryesde *);
 
-void csio_rnode_devloss_handler(struct csio_rnode *);
+void csio_ryesde_devloss_handler(struct csio_ryesde *);
 
 #endif /* ifndef __CSIO_RNODE_H__ */

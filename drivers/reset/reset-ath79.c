@@ -15,7 +15,7 @@
 
 struct ath79_reset {
 	struct reset_controller_dev rcdev;
-	struct notifier_block restart_nb;
+	struct yestifier_block restart_nb;
 	void __iomem *base;
 	spinlock_t lock;
 };
@@ -72,7 +72,7 @@ static const struct reset_control_ops ath79_reset_ops = {
 	.status = ath79_reset_status,
 };
 
-static int ath79_reset_restart_handler(struct notifier_block *nb,
+static int ath79_reset_restart_handler(struct yestifier_block *nb,
 				unsigned long action, void *data)
 {
 	struct ath79_reset *ath79_reset =
@@ -104,7 +104,7 @@ static int ath79_reset_probe(struct platform_device *pdev)
 	spin_lock_init(&ath79_reset->lock);
 	ath79_reset->rcdev.ops = &ath79_reset_ops;
 	ath79_reset->rcdev.owner = THIS_MODULE;
-	ath79_reset->rcdev.of_node = pdev->dev.of_node;
+	ath79_reset->rcdev.of_yesde = pdev->dev.of_yesde;
 	ath79_reset->rcdev.of_reset_n_cells = 1;
 	ath79_reset->rcdev.nr_resets = 32;
 
@@ -112,7 +112,7 @@ static int ath79_reset_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	ath79_reset->restart_nb.notifier_call = ath79_reset_restart_handler;
+	ath79_reset->restart_nb.yestifier_call = ath79_reset_restart_handler;
 	ath79_reset->restart_nb.priority = 128;
 
 	err = register_restart_handler(&ath79_reset->restart_nb);

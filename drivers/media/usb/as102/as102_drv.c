@@ -5,7 +5,7 @@
  * Copyright (C) 2010 Devin Heitmueller <dheitmueller@kernellabs.com>
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mm.h>
@@ -92,7 +92,7 @@ static int as102_start_stream(struct as102_dev_t *dev)
 }
 
 static int as10x_pid_filter(struct as102_dev_t *dev,
-			    int index, u16 pid, int onoff) {
+			    int index, u16 pid, int oyesff) {
 
 	struct as10x_bus_adapter_t *bus_adap = &dev->bus_adap;
 	int ret = -EFAULT;
@@ -103,7 +103,7 @@ static int as10x_pid_filter(struct as102_dev_t *dev,
 		return -EBUSY;
 	}
 
-	switch (onoff) {
+	switch (oyesff) {
 	case 0:
 		ret = as10x_cmd_del_PID_filter(bus_adap, (uint16_t) pid);
 		dev_dbg(&dev->bus_adap.usb_dev->dev,
@@ -237,7 +237,7 @@ static int as102_get_stats(void *priv, struct as10x_demod_stats *demod_stats)
 	ret = as10x_cmd_get_demod_stats(bus_adap, demod_stats);
 	if (ret < 0) {
 		dev_dbg(&bus_adap->usb_dev->dev,
-			"as10x_cmd_get_demod_stats failed (probably not tuned)\n");
+			"as10x_cmd_get_demod_stats failed (probably yest tuned)\n");
 	} else {
 		dev_dbg(&bus_adap->usb_dev->dev,
 			"demod status: fc: 0x%08x, bad fc: 0x%08x, bytes corrected: 0x%08x , MER: 0x%04x\n",

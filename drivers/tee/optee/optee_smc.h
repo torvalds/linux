@@ -25,7 +25,7 @@
 			   OPTEE_SMC_FUNCID_CALLS_COUNT)
 
 /*
- * Normal cached memory (write-back), shareable for SMP systems and not
+ * Normal cached memory (write-back), shareable for SMP systems and yest
  * shareable for UP systems.
  */
 #define OPTEE_SMC_SHM_CACHED		1
@@ -64,7 +64,7 @@
 
 struct optee_smc_calls_revision_result {
 	unsigned long major;
-	unsigned long minor;
+	unsigned long miyesr;
 	unsigned long reserved0;
 	unsigned long reserved1;
 };
@@ -72,8 +72,8 @@ struct optee_smc_calls_revision_result {
 /*
  * Get UUID of Trusted OS.
  *
- * Used by non-secure world to figure out which Trusted OS is installed.
- * Note that returned UUID is the UUID of the Trusted OS, not of the API.
+ * Used by yesn-secure world to figure out which Trusted OS is installed.
+ * Note that returned UUID is the UUID of the Trusted OS, yest of the API.
  *
  * Returns UUID in a0-4 in the same way as OPTEE_SMC_CALLS_UID
  * described above.
@@ -85,9 +85,9 @@ struct optee_smc_calls_revision_result {
 /*
  * Get revision of Trusted OS.
  *
- * Used by non-secure world to figure out which version of the Trusted OS
+ * Used by yesn-secure world to figure out which version of the Trusted OS
  * is installed. Note that the returned revision is the revision of the
- * Trusted OS, not of the API.
+ * Trusted OS, yest of the API.
  *
  * Returns revision in a0-1 in the same way as OPTEE_SMC_CALLS_REVISION
  * described above. May optionally return a 32-bit build identifier in a2,
@@ -99,7 +99,7 @@ struct optee_smc_calls_revision_result {
 
 struct optee_smc_call_get_os_revision_result {
 	unsigned long major;
-	unsigned long minor;
+	unsigned long miyesr;
 	unsigned long build_id;
 	unsigned long reserved1;
 };
@@ -111,7 +111,7 @@ struct optee_smc_call_get_os_revision_result {
  * a0	SMC Function ID, OPTEE_SMC*CALL_WITH_ARG
  * a1	Upper 32bit of a 64bit physical pointer to a struct optee_msg_arg
  * a2	Lower 32bit of a 64bit physical pointer to a struct optee_msg_arg
- * a3	Cache settings, not used if physical pointer is in a predefined shared
+ * a3	Cache settings, yest used if physical pointer is in a predefined shared
  *	memory area else per OPTEE_SMC_SHM_*
  * a4-6	Not used
  * a7	Hypervisor Client ID register
@@ -132,7 +132,7 @@ struct optee_smc_call_get_os_revision_result {
  * a3-7	Resume information, must be preserved
  *
  * Possible return values:
- * OPTEE_SMC_RETURN_UNKNOWN_FUNCTION	Trusted OS does not recognize this
+ * OPTEE_SMC_RETURN_UNKNOWN_FUNCTION	Trusted OS does yest recognize this
  *					function.
  * OPTEE_SMC_RETURN_OK			Call completed, result updated in
  *					the previously supplied struct
@@ -141,8 +141,8 @@ struct optee_smc_call_get_os_revision_result {
  *					try again later.
  * OPTEE_SMC_RETURN_EBADADDR		Bad physcial pointer to struct
  *					optee_msg_arg.
- * OPTEE_SMC_RETURN_EBADCMD		Bad/unknown cmd in struct optee_msg_arg
- * OPTEE_SMC_RETURN_IS_RPC()		Call suspended by RPC call to normal
+ * OPTEE_SMC_RETURN_EBADCMD		Bad/unkyeswn cmd in struct optee_msg_arg
+ * OPTEE_SMC_RETURN_IS_RPC()		Call suspended by RPC call to yesrmal
  *					world.
  */
 #define OPTEE_SMC_FUNCID_CALL_WITH_ARG OPTEE_MSG_FUNCID_CALL_WITH_ARG
@@ -184,11 +184,11 @@ struct optee_smc_get_shm_config_result {
 };
 
 /*
- * Exchanges capabilities between normal world and secure world
+ * Exchanges capabilities between yesrmal world and secure world
  *
  * Call register usage:
  * a0	SMC Function ID, OPTEE_SMC_EXCHANGE_CAPABILITIES
- * a1	bitfield of normal world capabilities OPTEE_SMC_NSEC_CAP_*
+ * a1	bitfield of yesrmal world capabilities OPTEE_SMC_NSEC_CAP_*
  * a2-6	Not used
  * a7	Hypervisor Client ID register
  *
@@ -198,20 +198,20 @@ struct optee_smc_get_shm_config_result {
  * a2-7	Preserved
  *
  * Error return register usage:
- * a0	OPTEE_SMC_RETURN_ENOTAVAIL, can't use the capabilities from normal world
+ * a0	OPTEE_SMC_RETURN_ENOTAVAIL, can't use the capabilities from yesrmal world
  * a1	bitfield of secure world capabilities OPTEE_SMC_SEC_CAP_*
  * a2-7 Preserved
  */
 /* Normal world works as a uniprocessor system */
 #define OPTEE_SMC_NSEC_CAP_UNIPROCESSOR		BIT(0)
-/* Secure world has reserved shared memory for normal world to use */
+/* Secure world has reserved shared memory for yesrmal world to use */
 #define OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM	BIT(0)
 /* Secure world can communicate via previously unregistered shared memory */
 #define OPTEE_SMC_SEC_CAP_UNREGISTERED_SHM	BIT(1)
 
 /*
  * Secure world supports commands "register/unregister shared memory",
- * secure world accepts command buffers located in any parts of non-secure RAM
+ * secure world accepts command buffers located in any parts of yesn-secure RAM
  */
 #define OPTEE_SMC_SEC_CAP_DYNAMIC_SHM		BIT(2)
 
@@ -301,12 +301,12 @@ struct optee_smc_disable_shm_cache_result {
  * Return register usage is the same as for OPTEE_SMC_*CALL_WITH_ARG above.
  *
  * Possible return values
- * OPTEE_SMC_RETURN_UNKNOWN_FUNCTION	Trusted OS does not recognize this
+ * OPTEE_SMC_RETURN_UNKNOWN_FUNCTION	Trusted OS does yest recognize this
  *					function.
  * OPTEE_SMC_RETURN_OK			Original call completed, result
  *					updated in the previously supplied.
  *					struct optee_msg_arg
- * OPTEE_SMC_RETURN_RPC			Call suspended by RPC call to normal
+ * OPTEE_SMC_RETURN_RPC			Call suspended by RPC call to yesrmal
  *					world.
  * OPTEE_SMC_RETURN_ERESUME		Resume failed, the opaque resume
  *					information was corrupt.
@@ -376,7 +376,7 @@ struct optee_smc_disable_shm_cache_result {
 	OPTEE_SMC_RPC_VAL(OPTEE_SMC_RPC_FUNC_FREE)
 
 /*
- * Deliver foreign interrupt to normal world.
+ * Deliver foreign interrupt to yesrmal world.
  *
  * "Call" register usage:
  * a0	OPTEE_SMC_RETURN_RPC_FOREIGN_INTR
@@ -395,7 +395,7 @@ struct optee_smc_disable_shm_cache_result {
  * request to do and the parameters for the request. The following fields
  * are used (the rest are unused):
  * - cmd		the Request ID
- * - ret		return value of the request, filled in by normal world
+ * - ret		return value of the request, filled in by yesrmal world
  * - num_params		number of parameters for the request
  * - params		the parameters
  * - param_attrs	attributes of the parameters

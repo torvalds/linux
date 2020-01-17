@@ -1,20 +1,20 @@
 # SPDX-License-Identifier: GPL-2.0
 
-# Ignore header name
-ignore define _UAPI__LINUX_VIDEODEV2_H
+# Igyesre header name
+igyesre define _UAPI__LINUX_VIDEODEV2_H
 
 #
 # The cross reference valitator for videodev2.h DocBook never cared
 # about enum symbols or defines. Yet, they're all (or almost all?)
-# handled inside V4L API sections. So, for now, it is safe to just
-# ignore. This should be revisited, as validating it helps to avoid
-# having something not documented at the uAPI.
+# handled inside V4L API sections. So, for yesw, it is safe to just
+# igyesre. This should be revisited, as validating it helps to avoid
+# having something yest documented at the uAPI.
 #
 
-# Those symbols should not be used by uAPI - don't document them
-ignore symbol V4L2_BUF_TYPE_PRIVATE
-ignore symbol V4L2_TUNER_DIGITAL_TV
-ignore symbol V4L2_COLORSPACE_BT878
+# Those symbols should yest be used by uAPI - don't document them
+igyesre symbol V4L2_BUF_TYPE_PRIVATE
+igyesre symbol V4L2_TUNER_DIGITAL_TV
+igyesre symbol V4L2_COLORSPACE_BT878
 
 # Documented enum v4l2_field
 replace symbol V4L2_FIELD_ALTERNATE :c:type:`v4l2_field`
@@ -507,39 +507,39 @@ replace define V4L2_CHIP_MATCH_AC97 vidioc_dbg_g_register
 replace define V4L2_CHIP_FL_READABLE vidioc_dbg_g_register
 replace define V4L2_CHIP_FL_WRITABLE vidioc_dbg_g_register
 
-# Ignore reserved ioctl and ancillary macros
+# Igyesre reserved ioctl and ancillary macros
 
-ignore define VIDEO_MAX_FRAME
-ignore define VIDEO_MAX_PLANES
-ignore define v4l2_fourcc
-ignore define v4l2_fourcc_be
-ignore define V4L2_FIELD_HAS_TOP
-ignore define V4L2_FIELD_HAS_BOTTOM
-ignore define V4L2_FIELD_HAS_BOTH
-ignore define V4L2_FIELD_HAS_T_OR_B
-ignore define V4L2_TYPE_IS_MULTIPLANAR
-ignore define V4L2_TYPE_IS_OUTPUT
-ignore define V4L2_TUNER_ADC
-ignore define V4L2_MAP_COLORSPACE_DEFAULT
-ignore define V4L2_MAP_XFER_FUNC_DEFAULT
-ignore define V4L2_MAP_YCBCR_ENC_DEFAULT
-ignore define V4L2_DV_BT_BLANKING_WIDTH
-ignore define V4L2_DV_BT_FRAME_WIDTH
-ignore define V4L2_DV_BT_BLANKING_HEIGHT
-ignore define V4L2_DV_BT_FRAME_HEIGHT
-ignore define V4L2_IN_CAP_CUSTOM_TIMINGS
-ignore define V4L2_CTRL_ID_MASK
-ignore define V4L2_CTRL_ID2CLASS
-ignore define V4L2_CTRL_ID2WHICH
-ignore define V4L2_CTRL_DRIVER_PRIV
-ignore define V4L2_CTRL_MAX_DIMS
-ignore define V4L2_CTRL_WHICH_CUR_VAL
-ignore define V4L2_CTRL_WHICH_DEF_VAL
-ignore define V4L2_CTRL_WHICH_REQUEST_VAL
-ignore define V4L2_OUT_CAP_CUSTOM_TIMINGS
-ignore define V4L2_CID_MAX_CTRLS
+igyesre define VIDEO_MAX_FRAME
+igyesre define VIDEO_MAX_PLANES
+igyesre define v4l2_fourcc
+igyesre define v4l2_fourcc_be
+igyesre define V4L2_FIELD_HAS_TOP
+igyesre define V4L2_FIELD_HAS_BOTTOM
+igyesre define V4L2_FIELD_HAS_BOTH
+igyesre define V4L2_FIELD_HAS_T_OR_B
+igyesre define V4L2_TYPE_IS_MULTIPLANAR
+igyesre define V4L2_TYPE_IS_OUTPUT
+igyesre define V4L2_TUNER_ADC
+igyesre define V4L2_MAP_COLORSPACE_DEFAULT
+igyesre define V4L2_MAP_XFER_FUNC_DEFAULT
+igyesre define V4L2_MAP_YCBCR_ENC_DEFAULT
+igyesre define V4L2_DV_BT_BLANKING_WIDTH
+igyesre define V4L2_DV_BT_FRAME_WIDTH
+igyesre define V4L2_DV_BT_BLANKING_HEIGHT
+igyesre define V4L2_DV_BT_FRAME_HEIGHT
+igyesre define V4L2_IN_CAP_CUSTOM_TIMINGS
+igyesre define V4L2_CTRL_ID_MASK
+igyesre define V4L2_CTRL_ID2CLASS
+igyesre define V4L2_CTRL_ID2WHICH
+igyesre define V4L2_CTRL_DRIVER_PRIV
+igyesre define V4L2_CTRL_MAX_DIMS
+igyesre define V4L2_CTRL_WHICH_CUR_VAL
+igyesre define V4L2_CTRL_WHICH_DEF_VAL
+igyesre define V4L2_CTRL_WHICH_REQUEST_VAL
+igyesre define V4L2_OUT_CAP_CUSTOM_TIMINGS
+igyesre define V4L2_CID_MAX_CTRLS
 
-ignore define BASE_VIDIOC_PRIVATE
+igyesre define BASE_VIDIOC_PRIVATE
 
 # Associate ioctls with their counterparts
 replace ioctl VIDIOC_DBG_S_REGISTER vidioc_dbg_g_register

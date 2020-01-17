@@ -78,7 +78,7 @@ struct perf_tool {
 	bool		ordered_events;
 	bool		ordering_requires_timestamps;
 	bool		namespace_events;
-	bool		no_warn;
+	bool		yes_warn;
 	enum show_feature_header show_feat_hdr;
 };
 

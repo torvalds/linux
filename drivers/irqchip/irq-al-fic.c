@@ -137,13 +137,13 @@ static int al_fic_irq_retrigger(struct irq_data *data)
 	return 1;
 }
 
-static int al_fic_register(struct device_node *node,
+static int al_fic_register(struct device_yesde *yesde,
 			   struct al_fic *fic)
 {
 	struct irq_chip_generic *gc;
 	int ret;
 
-	fic->domain = irq_domain_add_linear(node,
+	fic->domain = irq_domain_add_linear(yesde,
 					    NR_FIC_IRQS,
 					    &irq_generic_chip_ops,
 					    fic);
@@ -187,7 +187,7 @@ err_domain_remove:
 
 /*
  * al_fic_wire_init() - initialize and configure fic in wire mode
- * @of_node: optional pointer to interrupt controller's device tree node.
+ * @of_yesde: optional pointer to interrupt controller's device tree yesde.
  * @base: mmio to fic register
  * @name: name of the fic
  * @parent_irq: interrupt of parent
@@ -197,7 +197,7 @@ err_domain_remove:
  * Interrupt can be generated based on positive edge or level - configuration is
  * to be determined based on connected hardware to this fic.
  */
-static struct al_fic *al_fic_wire_init(struct device_node *node,
+static struct al_fic *al_fic_wire_init(struct device_yesde *yesde,
 				       void __iomem *base,
 				       const char *name,
 				       unsigned int parent_irq)
@@ -222,7 +222,7 @@ static struct al_fic *al_fic_wire_init(struct device_node *node,
 
 	writel_relaxed(control, fic->base + AL_FIC_CONTROL);
 
-	ret = al_fic_register(node, fic);
+	ret = al_fic_register(yesde, fic);
 	if (ret) {
 		pr_err("fail to register irqchip\n");
 		goto err_free;
@@ -238,8 +238,8 @@ err_free:
 	return ERR_PTR(ret);
 }
 
-static int __init al_fic_init_dt(struct device_node *node,
-				 struct device_node *parent)
+static int __init al_fic_init_dt(struct device_yesde *yesde,
+				 struct device_yesde *parent)
 {
 	int ret;
 	void __iomem *base;
@@ -248,30 +248,30 @@ static int __init al_fic_init_dt(struct device_node *node,
 
 	if (!parent) {
 		pr_err("%s: unsupported - device require a parent\n",
-		       node->name);
+		       yesde->name);
 		return -EINVAL;
 	}
 
-	base = of_iomap(node, 0);
+	base = of_iomap(yesde, 0);
 	if (!base) {
-		pr_err("%s: fail to map memory\n", node->name);
+		pr_err("%s: fail to map memory\n", yesde->name);
 		return -ENOMEM;
 	}
 
-	parent_irq = irq_of_parse_and_map(node, 0);
+	parent_irq = irq_of_parse_and_map(yesde, 0);
 	if (!parent_irq) {
-		pr_err("%s: fail to map irq\n", node->name);
+		pr_err("%s: fail to map irq\n", yesde->name);
 		ret = -EINVAL;
 		goto err_unmap;
 	}
 
-	fic = al_fic_wire_init(node,
+	fic = al_fic_wire_init(yesde,
 			       base,
-			       node->name,
+			       yesde->name,
 			       parent_irq);
 	if (IS_ERR(fic)) {
 		pr_err("%s: fail to initialize irqchip (%lu)\n",
-		       node->name,
+		       yesde->name,
 		       PTR_ERR(fic));
 		ret = PTR_ERR(fic);
 		goto err_irq_dispose;

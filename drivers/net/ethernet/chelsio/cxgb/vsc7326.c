@@ -419,7 +419,7 @@ static int mac_get_address(struct cmac *mac, u8 addr[6])
 	return 0;
 }
 
-/* This is intended to reset a port, not the whole MAC */
+/* This is intended to reset a port, yest the whole MAC */
 static int mac_reset(struct cmac *mac)
 {
 	int index = mac->instance->index;

@@ -24,7 +24,7 @@
 	DEBUGFS_FWSTATS_FILE_ARRAY(a, b, c, wl18xx_acx_statistics)
 
 
-WL18XX_DEBUGFS_FWSTATS_FILE(error, error_frame_non_ctrl, "%u");
+WL18XX_DEBUGFS_FWSTATS_FILE(error, error_frame_yesn_ctrl, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(error, error_frame_ctrl, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(error, error_frame_during_protection, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(error, null_frame_tx_start, "%u");
@@ -73,7 +73,7 @@ WL18XX_DEBUGFS_FWSTATS_FILE(tx, frag_mpdu_alloc_failed, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(tx, frag_init_called, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(tx, frag_in_process_called, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(tx, frag_tkip_called, "%u");
-WL18XX_DEBUGFS_FWSTATS_FILE(tx, frag_key_not_found, "%u");
+WL18XX_DEBUGFS_FWSTATS_FILE(tx, frag_key_yest_found, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(tx, frag_need_fragmentation, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(tx, frag_bad_mblk_num, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(tx, frag_failed, "%u");
@@ -81,7 +81,7 @@ WL18XX_DEBUGFS_FWSTATS_FILE(tx, frag_cache_hit, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(tx, frag_cache_miss, "%u");
 
 WL18XX_DEBUGFS_FWSTATS_FILE(rx, rx_beacon_early_term, "%u");
-WL18XX_DEBUGFS_FWSTATS_FILE(rx, rx_out_of_mpdu_nodes, "%u");
+WL18XX_DEBUGFS_FWSTATS_FILE(rx, rx_out_of_mpdu_yesdes, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(rx, rx_hdr_overflow, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(rx, rx_dropped_frame, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(rx, rx_done, "%u");
@@ -100,7 +100,7 @@ WL18XX_DEBUGFS_FWSTATS_FILE(rx, defrag_in_process_called, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(rx, defrag_tkip_called, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(rx, defrag_need_defrag, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(rx, defrag_decrypt_failed, "%u");
-WL18XX_DEBUGFS_FWSTATS_FILE(rx, decrypt_key_not_found, "%u");
+WL18XX_DEBUGFS_FWSTATS_FILE(rx, decrypt_key_yest_found, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(rx, defrag_need_decrypt, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(rx, rx_tkip_replays, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(rx, rx_xfr, "%u");
@@ -266,7 +266,7 @@ static ssize_t radar_detection_write(struct file *file,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -308,7 +308,7 @@ static ssize_t dynamic_fw_traces_write(struct file *file,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -357,7 +357,7 @@ static ssize_t radar_debug_mode_write(struct file *file,
 
 	/* valid values: 0/1 */
 	if (!(value == 0 || value == 1)) {
-		wl1271_warning("value is not in valid!");
+		wl1271_warning("value is yest in valid!");
 		return -EINVAL;
 	}
 
@@ -370,7 +370,7 @@ static ssize_t radar_debug_mode_write(struct file *file,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -415,7 +415,7 @@ int wl18xx_debugfs_add_files(struct wl1271 *wl,
 
 	DEBUGFS_ADD(clear_fw_stats, stats);
 
-	DEBUGFS_FWSTATS_ADD(error, error_frame_non_ctrl);
+	DEBUGFS_FWSTATS_ADD(error, error_frame_yesn_ctrl);
 	DEBUGFS_FWSTATS_ADD(error, error_frame_ctrl);
 	DEBUGFS_FWSTATS_ADD(error, error_frame_during_protection);
 	DEBUGFS_FWSTATS_ADD(error, null_frame_tx_start);
@@ -463,7 +463,7 @@ int wl18xx_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_FWSTATS_ADD(tx, frag_init_called);
 	DEBUGFS_FWSTATS_ADD(tx, frag_in_process_called);
 	DEBUGFS_FWSTATS_ADD(tx, frag_tkip_called);
-	DEBUGFS_FWSTATS_ADD(tx, frag_key_not_found);
+	DEBUGFS_FWSTATS_ADD(tx, frag_key_yest_found);
 	DEBUGFS_FWSTATS_ADD(tx, frag_need_fragmentation);
 	DEBUGFS_FWSTATS_ADD(tx, frag_bad_mblk_num);
 	DEBUGFS_FWSTATS_ADD(tx, frag_failed);
@@ -471,7 +471,7 @@ int wl18xx_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_FWSTATS_ADD(tx, frag_cache_miss);
 
 	DEBUGFS_FWSTATS_ADD(rx, rx_beacon_early_term);
-	DEBUGFS_FWSTATS_ADD(rx, rx_out_of_mpdu_nodes);
+	DEBUGFS_FWSTATS_ADD(rx, rx_out_of_mpdu_yesdes);
 	DEBUGFS_FWSTATS_ADD(rx, rx_hdr_overflow);
 	DEBUGFS_FWSTATS_ADD(rx, rx_dropped_frame);
 	DEBUGFS_FWSTATS_ADD(rx, rx_done);
@@ -490,7 +490,7 @@ int wl18xx_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_FWSTATS_ADD(rx, defrag_tkip_called);
 	DEBUGFS_FWSTATS_ADD(rx, defrag_need_defrag);
 	DEBUGFS_FWSTATS_ADD(rx, defrag_decrypt_failed);
-	DEBUGFS_FWSTATS_ADD(rx, decrypt_key_not_found);
+	DEBUGFS_FWSTATS_ADD(rx, decrypt_key_yest_found);
 	DEBUGFS_FWSTATS_ADD(rx, defrag_need_decrypt);
 	DEBUGFS_FWSTATS_ADD(rx, rx_tkip_replays);
 	DEBUGFS_FWSTATS_ADD(rx, rx_xfr);

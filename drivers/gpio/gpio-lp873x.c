@@ -156,7 +156,7 @@ static int lp873x_gpio_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "Could yest register gpiochip, %d\n", ret);
 		return ret;
 	}
 

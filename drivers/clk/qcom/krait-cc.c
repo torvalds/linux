@@ -30,7 +30,7 @@ static unsigned int pri_mux_map[] = {
  * Notifier function for switching the muxes to safe parent
  * while the hfpll is getting reprogrammed.
  */
-static int krait_notifier_cb(struct notifier_block *nb,
+static int krait_yestifier_cb(struct yestifier_block *nb,
 			     unsigned long event,
 			     void *data)
 {
@@ -43,7 +43,7 @@ static int krait_notifier_cb(struct notifier_block *nb,
 		ret = krait_mux_clk_ops.set_parent(&mux->hw, mux->safe_sel);
 		mux->reparent = false;
 	/*
-	 * By the time POST_RATE_CHANGE notifier is called,
+	 * By the time POST_RATE_CHANGE yestifier is called,
 	 * clk framework itself would have changed the parent for the new rate.
 	 * Only otherwise, put back to the old parent.
 	 */
@@ -53,18 +53,18 @@ static int krait_notifier_cb(struct notifier_block *nb,
 							   mux->old_index);
 	}
 
-	return notifier_from_errno(ret);
+	return yestifier_from_erryes(ret);
 }
 
-static int krait_notifier_register(struct device *dev, struct clk *clk,
+static int krait_yestifier_register(struct device *dev, struct clk *clk,
 				   struct krait_mux_clk *mux)
 {
 	int ret = 0;
 
-	mux->clk_nb.notifier_call = krait_notifier_cb;
-	ret = clk_notifier_register(clk, &mux->clk_nb);
+	mux->clk_nb.yestifier_call = krait_yestifier_cb;
+	ret = clk_yestifier_register(clk, &mux->clk_nb);
 	if (ret)
-		dev_err(dev, "failed to register clock notifier: %d\n", ret);
+		dev_err(dev, "failed to register clock yestifier: %d\n", ret);
 
 	return ret;
 }
@@ -153,7 +153,7 @@ krait_add_sec_mux(struct device *dev, int id, const char *s,
 
 	clk = devm_clk_register(dev, &mux->hw);
 
-	ret = krait_notifier_register(dev, clk, mux);
+	ret = krait_yestifier_register(dev, clk, mux);
 	if (ret)
 		goto unique_aux;
 
@@ -216,7 +216,7 @@ krait_add_pri_mux(struct device *dev, int id, const char *s,
 
 	clk = devm_clk_register(dev, &mux->hw);
 
-	ret = krait_notifier_register(dev, clk, mux);
+	ret = krait_yestifier_register(dev, clk, mux);
 	if (ret)
 		goto err_p3;
 err_p3:
@@ -346,11 +346,11 @@ static int krait_cc_probe(struct platform_device *pdev)
 	/*
 	 * Force reinit of HFPLLs and muxes to overwrite any potential
 	 * incorrect configuration of HFPLLs and muxes by the bootloader.
-	 * While at it, also make sure the cores are running at known rates
+	 * While at it, also make sure the cores are running at kyeswn rates
 	 * and print the current rate.
 	 *
 	 * The clocks are set to aux clock rate first to make sure the
-	 * secondary mux is not sourcing off of QSB. The rate is then set to
+	 * secondary mux is yest sourcing off of QSB. The rate is then set to
 	 * two different rates to force a HFPLL reinit under all
 	 * circumstances.
 	 */
@@ -378,7 +378,7 @@ static int krait_cc_probe(struct platform_device *pdev)
 		pr_info("CPU%d @ %lu KHz\n", cpu, clk_get_rate(clk) / 1000);
 	}
 
-	of_clk_add_provider(dev->of_node, krait_of_get, clks);
+	of_clk_add_provider(dev->of_yesde, krait_of_get, clks);
 
 	return 0;
 }

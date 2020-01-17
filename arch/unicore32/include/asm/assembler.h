@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2001-2010 GUAN Xue-tao
  *
- *  Do not include any C declarations in this file - it is included by
+ *  Do yest include any C declarations in this file - it is included by
  *  assembler source.
  */
 #ifndef __ASSEMBLY__
@@ -58,7 +58,7 @@
 	.long	9999b, 9001f;			\
 	.popsection
 
-	.macro	notcond, cond, nexti = .+8
+	.macro	yestcond, cond, nexti = .+8
 	.ifc	\cond, eq
 		bne	\nexti
 	.else;	.ifc	\cond, ne
@@ -88,7 +88,7 @@
 	.else;	.ifc	\cond, el
 		bsg	\nexti
 	.else;	.ifnc	\cond, al
-		.error  "Unknown cond in notcond macro argument"
+		.error  "Unkyeswn cond in yestcond macro argument"
 	.endif;	.endif;	.endif;	.endif;	.endif;	.endif;	.endif
 	.endif;	.endif;	.endif;	.endif;	.endif;	.endif;	.endif
 	.endif
@@ -96,7 +96,7 @@
 
 	.macro	usracc, instr, reg, ptr, inc, cond, rept, abort
 	.rept	\rept
-	notcond	\cond, .+8
+	yestcond	\cond, .+8
 9999 :
 	.if	\inc == 1
 	\instr\()b.u \reg, [\ptr], #\inc
@@ -121,8 +121,8 @@
 	usracc	ld, \reg, \ptr, \inc, \cond, \rept, \abort
 	.endm
 
-	.macro	nop8
+	.macro	yesp8
 	.rept	8
-		nop
+		yesp
 	.endr
 	.endm

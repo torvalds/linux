@@ -9,9 +9,9 @@
 #include <linux/interrupt.h>
 #include <asm/rtas.h>
 
-struct device_node;
+struct device_yesde;
 
-extern void request_event_sources_irqs(struct device_node *np,
+extern void request_event_sources_irqs(struct device_yesde *np,
 				       irq_handler_t handler, const char *name);
 
 #include <linux/of.h>
@@ -47,12 +47,12 @@ extern unsigned long rtas_poweron_auto;
 extern void hvc_vio_init_early(void);
 
 /* Dynamic logical Partitioning/Mobility */
-extern void dlpar_free_cc_nodes(struct device_node *);
+extern void dlpar_free_cc_yesdes(struct device_yesde *);
 extern void dlpar_free_cc_property(struct property *);
-extern struct device_node *dlpar_configure_connector(__be32,
-						struct device_node *);
-extern int dlpar_attach_node(struct device_node *, struct device_node *);
-extern int dlpar_detach_node(struct device_node *);
+extern struct device_yesde *dlpar_configure_connector(__be32,
+						struct device_yesde *);
+extern int dlpar_attach_yesde(struct device_yesde *, struct device_yesde *);
+extern int dlpar_detach_yesde(struct device_yesde *);
 extern int dlpar_acquire_drc(u32 drc_index);
 extern int dlpar_release_drc(u32 drc_index);
 

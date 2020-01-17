@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2008 Michal Simek
  * Copyright (C) 2007 John Williams
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  */
 
 #ifndef _ASM_MICROBLAZE_DELAY_H
@@ -20,7 +20,7 @@ static inline void __delay(unsigned long loops)
 	asm volatile ("# __delay		\n\t"		\
 			"1: addi	%0, %0, -1\t\n"		\
 			"bneid	%0, 1b		\t\n"		\
-			"nop			\t\n"
+			"yesp			\t\n"
 			: "=r" (loops)
 			: "0" (loops));
 }

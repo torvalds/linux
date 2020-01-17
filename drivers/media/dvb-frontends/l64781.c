@@ -403,7 +403,7 @@ static int l64781_read_snr(struct dvb_frontend* fe, u16* snr)
 	struct l64781_state* state = fe->demodulator_priv;
 
 	u8 avg_quality = 0xff - l64781_readreg (state, 0x33);
-	*snr = (avg_quality << 8) | avg_quality; /* not exact, but...*/
+	*snr = (avg_quality << 8) | avg_quality; /* yest exact, but...*/
 
 	return 0;
 }
@@ -507,7 +507,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 
 	/*
 	 *  the L64781 won't show up before we send the reset_and_configure()
-	 *  broadcast. If nothing responds there is no L64781 on the bus...
+	 *  broadcast. If yesthing responds there is yes L64781 on the bus...
 	 */
 	if (reset_and_configure(state) < 0) {
 		dprintk("No response to reset and configure broadcast...\n");

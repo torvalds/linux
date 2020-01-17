@@ -124,7 +124,7 @@ struct isp_bus_cfg {
 		struct isp_parallel_cfg parallel;
 		struct isp_ccp2_cfg ccp2;
 		struct isp_csi2_cfg csi2;
-	} bus; /* gcc < 4.6.0 chokes on anonymous union initializers */
+	} bus; /* gcc < 4.6.0 chokes on ayesnymous union initializers */
 };
 
 #endif	/* __OMAP3ISP_H__ */

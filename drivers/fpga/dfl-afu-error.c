@@ -8,7 +8,7 @@
  *   Wu Hao <hao.wu@linux.intel.com>
  *   Xiao Guangrong <guangrong.xiao@linux.intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enyes Luebbers <enyes.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Mitchel Henry <henry.mitchel@intel.com>
@@ -71,10 +71,10 @@ static int afu_port_err_clear(struct device *dev, u64 err)
 	 * - Enable Port by pulling the port out of reset
 	 */
 
-	/* if device is still in AP6 power state, can not clear any error. */
+	/* if device is still in AP6 power state, can yest clear any error. */
 	v = readq(base_hdr + PORT_HDR_STS);
 	if (FIELD_GET(PORT_STS_PWR_STATE, v) == PORT_STS_PWR_STATE_AP6) {
-		dev_err(dev, "Could not clear errors, device in AP6 state.\n");
+		dev_err(dev, "Could yest clear errors, device in AP6 state.\n");
 		goto done;
 	}
 

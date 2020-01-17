@@ -100,7 +100,7 @@ static void keyscan_close(struct input_dev *dev)
 static int keypad_matrix_key_parse_dt(struct st_keyscan *keypad_data)
 {
 	struct device *dev = keypad_data->input_dev->dev.parent;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int error;
 
 	error = matrix_keypad_parse_properties(dev, &keypad_data->n_rows,
@@ -126,8 +126,8 @@ static int keyscan_probe(struct platform_device *pdev)
 	struct resource *res;
 	int error;
 
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "no DT data present\n");
+	if (!pdev->dev.of_yesde) {
+		dev_err(&pdev->dev, "yes DT data present\n");
 		return -EINVAL;
 	}
 
@@ -174,7 +174,7 @@ static int keyscan_probe(struct platform_device *pdev)
 
 	keypad_data->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(keypad_data->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "canyest get clock\n");
 		return PTR_ERR(keypad_data->clk);
 	}
 

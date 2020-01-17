@@ -6,11 +6,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
+ * 3. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
@@ -35,7 +35,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -84,7 +84,7 @@ static void copy(int out, int in, off_t offset, off_t size)
 		remaining -= cur;
 		if ((count = read(in, ibuf, cur)) != cur) {
 			fprintf(stderr, "copy: read: %s\n",
-				count ? strerror(errno) :
+				count ? strerror(erryes) :
 				"premature end of file");
 			exit(1);
 		}
@@ -136,7 +136,7 @@ static char *saveRead(int file, off_t offset, off_t len, char *name)
 	int count;
 	off_t off;
 	if ((off = lseek(file, offset, SEEK_SET)) < 0) {
-		fprintf(stderr, "%s: fseek: %s\n", name, strerror(errno));
+		fprintf(stderr, "%s: fseek: %s\n", name, strerror(erryes));
 		exit(1);
 	}
 	if (!(tmp = (char *) malloc(len))) {
@@ -148,7 +148,7 @@ static char *saveRead(int file, off_t offset, off_t len, char *name)
 	if (count != len) {
 		fprintf(stderr, "%s: read: %s.\n",
 			name,
-			count ? strerror(errno) : "End of file reached");
+			count ? strerror(erryes) : "End of file reached");
 		exit(1);
 	}
 	return tmp;
@@ -258,9 +258,9 @@ static void convert_ecoff_esecs(struct scnhdr *s, int num)
 		s->s_size = swab32(s->s_size);
 		s->s_scnptr = swab32(s->s_scnptr);
 		s->s_relptr = swab32(s->s_relptr);
-		s->s_lnnoptr = swab32(s->s_lnnoptr);
+		s->s_lnyesptr = swab32(s->s_lnyesptr);
 		s->s_nreloc = swab16(s->s_nreloc);
-		s->s_nlnno = swab16(s->s_nlnno);
+		s->s_nlnyes = swab16(s->s_nlnyes);
 		s->s_flags = swab32(s->s_flags);
 	}
 }
@@ -278,7 +278,7 @@ int main(int argc, char *argv[])
 	int infile, outfile;
 	uint32_t cur_vma = UINT32_MAX;
 	int addflag = 0;
-	int nosecs;
+	int yessecs;
 
 	text.len = data.len = bss.len = 0;
 	text.vaddr = data.vaddr = bss.vaddr = 0;
@@ -299,7 +299,7 @@ int main(int argc, char *argv[])
 	/* Try the input file... */
 	if ((infile = open(argv[1], O_RDONLY)) < 0) {
 		fprintf(stderr, "Can't open %s for read: %s\n",
-			argv[1], strerror(errno));
+			argv[1], strerror(erryes));
 		exit(1);
 	}
 
@@ -308,7 +308,7 @@ int main(int argc, char *argv[])
 	if (i != sizeof ex) {
 		fprintf(stderr, "ex: %s: %s.\n",
 			argv[1],
-			i ? strerror(errno) : "End of file reached");
+			i ? strerror(erryes) : "End of file reached");
 		exit(1);
 	}
 
@@ -340,14 +340,14 @@ int main(int argc, char *argv[])
 
 	/* Figure out if we can cram the program header into an ECOFF
 	   header...  Basically, we can't handle anything but loadable
-	   segments, but we can ignore some kinds of segments.	We can't
+	   segments, but we can igyesre some kinds of segments.	We can't
 	   handle holes in the address space.  Segments may be out of order,
 	   so we sort them first. */
 
 	qsort(ph, ex.e_phnum, sizeof(Elf32_Phdr), phcmp);
 
 	for (i = 0; i < ex.e_phnum; i++) {
-		/* Section types we can ignore... */
+		/* Section types we can igyesre... */
 		switch (ph[i].p_type) {
 		case PT_NULL:
 		case PT_NOTE:
@@ -399,7 +399,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	/* If there's a data section but no text section, then the loader
+	/* If there's a data section but yes text section, then the loader
 	   combined everything into one section.   That needs to be the
 	   text section, so just make the data section zero length following
 	   text. */
@@ -416,7 +416,7 @@ int main(int argc, char *argv[])
 	if (text.vaddr + text.len < data.vaddr)
 		text.len = data.vaddr - text.vaddr;
 
-	/* We now have enough information to cons up an a.out header... */
+	/* We yesw have eyesugh information to cons up an a.out header... */
 	eah.magic = OMAGIC;
 	eah.vstamp = 200;
 	eah.tsize = text.len;
@@ -435,15 +435,15 @@ int main(int argc, char *argv[])
 	else
 		efh.f_magic = MIPSELMAGIC;
 	if (addflag)
-		nosecs = 6;
+		yessecs = 6;
 	else
-		nosecs = 3;
-	efh.f_nscns = nosecs;
+		yessecs = 3;
+	efh.f_nscns = yessecs;
 	efh.f_timdat = 0;	/* bogus */
 	efh.f_symptr = 0;
 	efh.f_nsyms = 0;
 	efh.f_opthdr = sizeof eah;
-	efh.f_flags = 0x100f;	/* Stripped, not sharable. */
+	efh.f_flags = 0x100f;	/* Stripped, yest sharable. */
 
 	memset(esecs, 0, sizeof esecs);
 	strcpy(esecs[0].s_name, ".text");
@@ -482,17 +482,17 @@ int main(int argc, char *argv[])
 		esecs[5].s_scnptr = 0;
 	}
 	esecs[0].s_relptr = esecs[1].s_relptr = esecs[2].s_relptr = 0;
-	esecs[0].s_lnnoptr = esecs[1].s_lnnoptr = esecs[2].s_lnnoptr = 0;
+	esecs[0].s_lnyesptr = esecs[1].s_lnyesptr = esecs[2].s_lnyesptr = 0;
 	esecs[0].s_nreloc = esecs[1].s_nreloc = esecs[2].s_nreloc = 0;
-	esecs[0].s_nlnno = esecs[1].s_nlnno = esecs[2].s_nlnno = 0;
+	esecs[0].s_nlnyes = esecs[1].s_nlnyes = esecs[2].s_nlnyes = 0;
 	if (addflag) {
 		esecs[3].s_relptr = esecs[4].s_relptr
 		    = esecs[5].s_relptr = 0;
-		esecs[3].s_lnnoptr = esecs[4].s_lnnoptr
-		    = esecs[5].s_lnnoptr = 0;
+		esecs[3].s_lnyesptr = esecs[4].s_lnyesptr
+		    = esecs[5].s_lnyesptr = 0;
 		esecs[3].s_nreloc = esecs[4].s_nreloc = esecs[5].s_nreloc =
 		    0;
-		esecs[3].s_nlnno = esecs[4].s_nlnno = esecs[5].s_nlnno = 0;
+		esecs[3].s_nlnyes = esecs[4].s_nlnyes = esecs[5].s_nlnyes = 0;
 	}
 	esecs[0].s_flags = 0x20;
 	esecs[1].s_flags = 0x40;
@@ -506,7 +506,7 @@ int main(int argc, char *argv[])
 	/* Make the output file... */
 	if ((outfile = open(argv[2], O_WRONLY | O_CREAT, 0777)) < 0) {
 		fprintf(stderr, "Unable to create %s: %s\n", argv[2],
-			strerror(errno));
+			strerror(erryes));
 		exit(1);
 	}
 
@@ -518,7 +518,7 @@ int main(int argc, char *argv[])
 		perror("efh: write");
 		exit(1);
 
-		for (i = 0; i < nosecs; i++) {
+		for (i = 0; i < yessecs; i++) {
 			printf
 			    ("Section %d: %s phys %"PRIx32"  size %"PRIx32"\t file offset %"PRIx32"\n",
 			     i, esecs[i].s_name, esecs[i].s_paddr,
@@ -537,15 +537,15 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "wrote %d byte a.out header.\n", i);
 
 	if (must_convert_endian)
-		convert_ecoff_esecs(&esecs[0], nosecs);
-	i = write(outfile, &esecs, nosecs * sizeof(struct scnhdr));
-	if (i != nosecs * sizeof(struct scnhdr)) {
+		convert_ecoff_esecs(&esecs[0], yessecs);
+	i = write(outfile, &esecs, yessecs * sizeof(struct scnhdr));
+	if (i != yessecs * sizeof(struct scnhdr)) {
 		perror("esecs: write");
 		exit(1);
 	}
 	fprintf(stderr, "wrote %d bytes of section headers.\n", i);
 
-	pad = (sizeof(efh) + sizeof(eah) + nosecs * sizeof(struct scnhdr)) & 15;
+	pad = (sizeof(efh) + sizeof(eah) + yessecs * sizeof(struct scnhdr)) & 15;
 	if (pad) {
 		pad = 16 - pad;
 		i = write(outfile, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0", pad);
@@ -587,7 +587,7 @@ int main(int argc, char *argv[])
 					if (count < 0) {
 						fprintf(stderr,
 							"Error writing gap: %s\n",
-							strerror(errno));
+							strerror(erryes));
 						exit(1);
 					}
 					gap -= count;
@@ -611,7 +611,7 @@ int main(int argc, char *argv[])
 		memset(obuf, 0, sizeof obuf);
 		if (write(outfile, obuf, sizeof(obuf)) != sizeof(obuf)) {
 			fprintf(stderr, "Error writing PROM padding: %s\n",
-				strerror(errno));
+				strerror(erryes));
 			exit(1);
 		}
 	}

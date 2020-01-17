@@ -6,7 +6,7 @@ and power button control functionalities while Tahvo chip provides
 USB transceiver functionality.
 
 Required properties:
-- compatible:		"nokia,retu" or "nokia,tahvo"
+- compatible:		"yeskia,retu" or "yeskia,tahvo"
 - reg:			Specifies the CBUS slave address of the ASIC chip
 - interrupts: 		The interrupt line the device is connected to
 
@@ -16,7 +16,7 @@ cbus0 {
 	compatible = "i2c-cbus-gpio";
 	...
 	retu: retu@1 {
-		compatible = "nokia,retu";
+		compatible = "yeskia,retu";
 		interrupt-parent = <&gpio4>;
 		interrupts = <12 IRQ_TYPE_EDGE_RISING>;
 		reg = <0x1>;

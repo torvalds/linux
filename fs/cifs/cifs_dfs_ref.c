@@ -49,18 +49,18 @@ void cifs_dfs_release_automount_timer(void)
 
 /**
  * cifs_build_devname - build a devicename from a UNC and optional prepath
- * @nodename:	pointer to UNC string
+ * @yesdename:	pointer to UNC string
  * @prepath:	pointer to prefixpath (or NULL if there isn't one)
  *
  * Build a new cifs devicename after chasing a DFS referral. Allocate a buffer
- * big enough to hold the final thing. Copy the UNC from the nodename, and
+ * big eyesugh to hold the final thing. Copy the UNC from the yesdename, and
  * concatenate the prepath onto the end of it if there is one.
  *
  * Returns pointer to the built string, or a ERR_PTR. Caller is responsible
  * for freeing the returned string.
  */
 static char *
-cifs_build_devname(char *nodename, const char *prepath)
+cifs_build_devname(char *yesdename, const char *prepath)
 {
 	size_t pplen;
 	size_t unclen;
@@ -68,13 +68,13 @@ cifs_build_devname(char *nodename, const char *prepath)
 	char *pos;
 
 	/* skip over any preceding delimiters */
-	nodename += strspn(nodename, "\\");
-	if (!*nodename)
+	yesdename += strspn(yesdename, "\\");
+	if (!*yesdename)
 		return ERR_PTR(-EINVAL);
 
 	/* get length of UNC and set pos to last char */
-	unclen = strlen(nodename);
-	pos = nodename + unclen - 1;
+	unclen = strlen(yesdename);
+	pos = yesdename + unclen - 1;
 
 	/* trim off any trailing delimiters */
 	while (*pos == '\\') {
@@ -100,7 +100,7 @@ cifs_build_devname(char *nodename, const char *prepath)
 	++pos;
 
 	/* copy in the UNC portion from referral */
-	memcpy(pos, nodename, unclen);
+	memcpy(pos, yesdename, unclen);
 	pos += unclen;
 
 	/* copy the prefixpath remainder (if there is one) */
@@ -130,7 +130,7 @@ cifs_build_devname(char *nodename, const char *prepath)
  * and replacing unc,ip,prefixpath options with ones we've got form ref_unc.
  *
  * Returns: pointer to new mount options or ERR_PTR.
- * Caller is responcible for freeing retunrned value if it is not error.
+ * Caller is responcible for freeing retunrned value if it is yest error.
  */
 char *cifs_compose_mount_options(const char *sb_mountdata,
 				   const char *fullpath,
@@ -145,7 +145,7 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 	char *tkn_e;
 	char *srvIP = NULL;
 	char sep = ',';
-	int off, noff;
+	int off, yesff;
 
 	if (sb_mountdata == NULL)
 		return ERR_PTR(-EINVAL);
@@ -157,7 +157,7 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 			prepath++;
 	}
 
-	name = cifs_build_devname(ref->node_name, prepath);
+	name = cifs_build_devname(ref->yesde_name, prepath);
 	if (IS_ERR(name)) {
 		rc = PTR_ERR(name);
 		name = NULL;
@@ -195,24 +195,24 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 	do {
 		tkn_e = strchr(sb_mountdata + off, sep);
 		if (tkn_e == NULL)
-			noff = strlen(sb_mountdata + off);
+			yesff = strlen(sb_mountdata + off);
 		else
-			noff = tkn_e - (sb_mountdata + off) + 1;
+			yesff = tkn_e - (sb_mountdata + off) + 1;
 
 		if (strncasecmp(sb_mountdata + off, "unc=", 4) == 0) {
-			off += noff;
+			off += yesff;
 			continue;
 		}
 		if (strncasecmp(sb_mountdata + off, "ip=", 3) == 0) {
-			off += noff;
+			off += yesff;
 			continue;
 		}
 		if (strncasecmp(sb_mountdata + off, "prefixpath=", 11) == 0) {
-			off += noff;
+			off += yesff;
 			continue;
 		}
-		strncat(mountdata, sb_mountdata + off, noff);
-		off += noff;
+		strncat(mountdata, sb_mountdata + off, yesff);
+		off += yesff;
 	} while (tkn_e);
 	strcat(mountdata, sb_mountdata + off);
 	mountdata[md_len] = '\0';
@@ -281,7 +281,7 @@ static struct vfsmount *cifs_dfs_do_refmount(struct dentry *mntpt,
 static void dump_referral(const struct dfs_info3_param *ref)
 {
 	cifs_dbg(FYI, "DFS: ref path: %s\n", ref->path_name);
-	cifs_dbg(FYI, "DFS: node path: %s\n", ref->node_name);
+	cifs_dbg(FYI, "DFS: yesde path: %s\n", ref->yesde_name);
 	cifs_dbg(FYI, "DFS: fl: %d, srv_type: %d\n",
 		 ref->flags, ref->server_type);
 	cifs_dbg(FYI, "DFS: ref_flags: %d, path_consumed: %d\n",
@@ -369,20 +369,20 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 
 	dump_referral(&referral);
 
-	len = strlen(referral.node_name);
+	len = strlen(referral.yesde_name);
 	if (len < 2) {
 		cifs_dbg(VFS, "%s: Net Address path too short: %s\n",
-			 __func__, referral.node_name);
+			 __func__, referral.yesde_name);
 		mnt = ERR_PTR(-EINVAL);
 		goto free_dfs_ref;
 	}
 	/*
-	 * cifs_mount() will retry every available node server in case
+	 * cifs_mount() will retry every available yesde server in case
 	 * of failures.
 	 */
 	mnt = cifs_dfs_do_refmount(mntpt, cifs_sb, full_path, &referral);
 	cifs_dbg(FYI, "%s: cifs_dfs_do_refmount:%s , mnt:%p\n", __func__,
-		 referral.node_name, mnt);
+		 referral.yesde_name, mnt);
 
 free_dfs_ref:
 	free_dfs_info_param(&referral);
@@ -418,5 +418,5 @@ struct vfsmount *cifs_dfs_d_automount(struct path *path)
 	return newmnt;
 }
 
-const struct inode_operations cifs_dfs_referral_inode_operations = {
+const struct iyesde_operations cifs_dfs_referral_iyesde_operations = {
 };

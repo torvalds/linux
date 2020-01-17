@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -189,7 +189,7 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		if (dc->ctx->dc_bios->fw_info_valid) {
 			res_pool->ref_clocks.xtalin_clock_inKhz =
 				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
-			/* initialize with firmware data first, no all
+			/* initialize with firmware data first, yes all
 			 * ASIC have DCCG SW component. FPGA or
 			 * simulation need initialization of
 			 * dccg_ref_clock_inKhz, dchub_ref_clock_inKhz
@@ -235,7 +235,7 @@ static void update_num_audio(
 	switch (straps->audio_stream_number) {
 	case 0: /* multi streams supported */
 		break;
-	case 1: /* multi streams not supported */
+	case 1: /* multi streams yest supported */
 		*num_audio = 1;
 		break;
 	default:
@@ -404,7 +404,7 @@ bool resource_are_streams_timing_synchronizable(
 	if (stream1->view_format != stream2->view_format)
 		return false;
 
-	if (stream1->ignore_msa_timing_param || stream2->ignore_msa_timing_param)
+	if (stream1->igyesre_msa_timing_param || stream2->igyesre_msa_timing_param)
 		return false;
 
 	return true;
@@ -780,7 +780,7 @@ static inline void adjust_vp_and_init_for_seamless_clip(
 			*vp_size += int_part < vp_clip ? int_part : vp_clip;
 		}
 
-		/* Adjust for non-0 viewport offset */
+		/* Adjust for yesn-0 viewport offset */
 		if (*vp_offset) {
 			int int_part;
 
@@ -801,7 +801,7 @@ static inline void adjust_vp_and_init_for_seamless_clip(
 			*init = dc_fixpt_add_int(*init, int_part);
 		}
 	} else {
-		/* Adjust for non-0 viewport offset */
+		/* Adjust for yesn-0 viewport offset */
 		if (*vp_offset) {
 			int int_part = dc_fixpt_floor(dc_fixpt_sub(*init, ratio));
 
@@ -816,7 +816,7 @@ static inline void adjust_vp_and_init_for_seamless_clip(
 			int end_offset = src_size - *vp_offset - *vp_size;
 
 			/*
-			 * this is init if vp had no offset, keep in mind this is from the
+			 * this is init if vp had yes offset, keep in mind this is from the
 			 * right side of vp due to scan direction
 			 */
 			*init = dc_fixpt_add(*init, dc_fixpt_mul_int(ratio, recout_skip));
@@ -1106,11 +1106,11 @@ struct pipe_ctx *find_idle_secondary_pipe(
 	 * For example, if we went with the strict, assign backwards logic:
 	 *
 	 * (State 1)
-	 * Display A on, no surface, top pipe = 0
-	 * Display B on, no surface, top pipe = 1
+	 * Display A on, yes surface, top pipe = 0
+	 * Display B on, yes surface, top pipe = 1
 	 *
 	 * (State 2)
-	 * Display A on, no surface, top pipe = 0
+	 * Display A on, yes surface, top pipe = 0
 	 * Display B on, surface enable, top pipe = 1, bottom pipe = 5
 	 *
 	 * (State 3)
@@ -1123,10 +1123,10 @@ struct pipe_ctx *find_idle_secondary_pipe(
 	 * However, with the preferred pipe logic, state 2 would look like:
 	 *
 	 * (State 2)
-	 * Display A on, no surface, top pipe = 0
+	 * Display A on, yes surface, top pipe = 0
 	 * Display B on, surface enable, top pipe = 1, bottom pipe = 4
 	 *
-	 * This would then cause 2->3 to not require remapping any MPCCs.
+	 * This would then cause 2->3 to yest require remapping any MPCCs.
 	 */
 	if (primary_pipe) {
 		int preferred_pipe_idx = (pool->pipe_count - 1) - primary_pipe->pipe_idx;
@@ -1185,7 +1185,7 @@ static struct pipe_ctx *resource_get_tail_pipe(
 
 /*
  * A free_pipe for a stream is defined here as a pipe
- * that has no surface attached yet
+ * that has yes surface attached yet
  */
 static struct pipe_ctx *acquire_free_pipe_for_head(
 		struct dc_state *context,
@@ -1207,7 +1207,7 @@ static struct pipe_ctx *acquire_free_pipe_for_head(
 	}
 
 	/*
-	 * At this point we have no re-useable pipe for this stream and we need
+	 * At this point we have yes re-useable pipe for this stream and we need
 	 * to acquire an idle one to satisfy the request
 	 */
 
@@ -1271,13 +1271,13 @@ bool dc_add_plane_to_context(
 			break;
 		}
 	if (stream_status == NULL) {
-		dm_error("Existing stream not found; failed to attach surface!\n");
+		dm_error("Existing stream yest found; failed to attach surface!\n");
 		return false;
 	}
 
 
 	if (stream_status->plane_count == MAX_SURFACE_NUM) {
-		dm_error("Surface: can not attach plane_state %p! Maximum is: %d\n",
+		dm_error("Surface: can yest attach plane_state %p! Maximum is: %d\n",
 				plane_state, MAX_SURFACE_NUM);
 		return false;
 	}
@@ -1285,7 +1285,7 @@ bool dc_add_plane_to_context(
 	head_pipe = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
 
 	if (!head_pipe) {
-		dm_error("Head pipe not found for stream_state %p !\n", stream);
+		dm_error("Head pipe yest found for stream_state %p !\n", stream);
 		return false;
 	}
 
@@ -1349,7 +1349,7 @@ bool dc_remove_plane_from_context(
 		}
 
 	if (stream_status == NULL) {
-		dm_error("Existing stream not found; failed to remove plane.\n");
+		dm_error("Existing stream yest found; failed to remove plane.\n");
 		return false;
 	}
 
@@ -1389,7 +1389,7 @@ bool dc_remove_plane_from_context(
 	}
 
 	if (i == stream_status->plane_count) {
-		dm_error("Existing plane_state not found; failed to detach it!\n");
+		dm_error("Existing plane_state yest found; failed to detach it!\n");
 		return false;
 	}
 
@@ -1420,7 +1420,7 @@ bool dc_rem_all_planes_for_stream(
 			}
 
 	if (stream_status == NULL) {
-		dm_error("Existing stream %p not found!\n", stream);
+		dm_error("Existing stream %p yest found!\n", stream);
 		return false;
 	}
 
@@ -1450,7 +1450,7 @@ static bool add_all_planes_for_stream(
 			break;
 
 	if (i == set_count) {
-		dm_error("Stream %p not found in set!\n", stream);
+		dm_error("Stream %p yest found in set!\n", stream);
 		return false;
 	}
 
@@ -1561,7 +1561,7 @@ static bool are_stream_backends_same(
  * Checks if there a difference between the two states
  * that would require a mode change.
  *
- * Does not compare cursor position or attributes.
+ * Does yest compare cursor position or attributes.
  */
 bool dc_is_stream_unchanged(
 	struct dc_stream_state *old_stream, struct dc_stream_state *stream)
@@ -1570,7 +1570,7 @@ bool dc_is_stream_unchanged(
 	if (!are_stream_backends_same(old_stream, stream))
 		return false;
 
-	if (old_stream->ignore_msa_timing_param != stream->ignore_msa_timing_param)
+	if (old_stream->igyesre_msa_timing_param != stream->igyesre_msa_timing_param)
 		return false;
 
 	return true;
@@ -1671,7 +1671,7 @@ static struct audio *find_first_free_audio(
 
 	for (i = 0; i < available_audio_count; i++) {
 		if ((res_ctx->is_audio_acquired[i] == false) && (res_ctx->is_stream_enc_acquired[i] == true)) {
-			/*we have enough audio endpoint, find the matching inst*/
+			/*we have eyesugh audio endpoint, find the matching inst*/
 			if (id != i)
 				continue;
 			return pool->audios[i];
@@ -1682,7 +1682,7 @@ static struct audio *find_first_free_audio(
 	if ((id < available_audio_count) && (res_ctx->is_audio_acquired[id] == false)) {
 		return pool->audios[id];
 	}
-	/*not found the matching one, first come first serve*/
+	/*yest found the matching one, first come first serve*/
 	for (i = 0; i < available_audio_count; i++) {
 		if (res_ctx->is_audio_acquired[i] == false) {
 			return pool->audios[i];
@@ -1747,7 +1747,7 @@ enum dc_status dc_remove_stream_from_ctx(
 	struct pipe_ctx *odm_pipe;
 
 	if (!del_pipe) {
-		DC_ERROR("Pipe not found for stream %p !\n", stream);
+		DC_ERROR("Pipe yest found for stream %p !\n", stream);
 		return DC_ERROR_UNEXPECTED;
 	}
 
@@ -1819,7 +1819,7 @@ static struct dc_stream_state *find_pll_sharable_stream(
 	for (i = 0; i < context->stream_count; i++) {
 		struct dc_stream_state *stream_has_pll = context->streams[i];
 
-		/* We are looking for non dp, non virtual stream */
+		/* We are looking for yesn dp, yesn virtual stream */
 		if (resource_are_streams_timing_synchronizable(
 			stream_needs_pll, stream_has_pll)
 			&& !dc_is_dp_signal(stream_has_pll->signal)
@@ -1832,10 +1832,10 @@ static struct dc_stream_state *find_pll_sharable_stream(
 	return NULL;
 }
 
-static int get_norm_pix_clk(const struct dc_crtc_timing *timing)
+static int get_yesrm_pix_clk(const struct dc_crtc_timing *timing)
 {
 	uint32_t pix_clk = timing->pix_clk_100hz;
-	uint32_t normalized_pix_clk = pix_clk;
+	uint32_t yesrmalized_pix_clk = pix_clk;
 
 	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		pix_clk /= 2;
@@ -1843,30 +1843,30 @@ static int get_norm_pix_clk(const struct dc_crtc_timing *timing)
 		switch (timing->display_color_depth) {
 		case COLOR_DEPTH_666:
 		case COLOR_DEPTH_888:
-			normalized_pix_clk = pix_clk;
+			yesrmalized_pix_clk = pix_clk;
 			break;
 		case COLOR_DEPTH_101010:
-			normalized_pix_clk = (pix_clk * 30) / 24;
+			yesrmalized_pix_clk = (pix_clk * 30) / 24;
 			break;
 		case COLOR_DEPTH_121212:
-			normalized_pix_clk = (pix_clk * 36) / 24;
+			yesrmalized_pix_clk = (pix_clk * 36) / 24;
 		break;
 		case COLOR_DEPTH_161616:
-			normalized_pix_clk = (pix_clk * 48) / 24;
+			yesrmalized_pix_clk = (pix_clk * 48) / 24;
 		break;
 		default:
 			ASSERT(0);
 		break;
 		}
 	}
-	return normalized_pix_clk;
+	return yesrmalized_pix_clk;
 }
 
 static void calculate_phy_pix_clks(struct dc_stream_state *stream)
 {
 	/* update actual pixel clock on all streams */
 	if (dc_is_hdmi_signal(stream->signal))
-		stream->phy_pix_clk = get_norm_pix_clk(
+		stream->phy_pix_clk = get_yesrm_pix_clk(
 			&stream->timing) / 10;
 	else
 		stream->phy_pix_clk =
@@ -1901,7 +1901,7 @@ static int acquire_resource_from_hw_enabled_state(
 		}
 	}
 
-	// tg_inst not found
+	// tg_inst yest found
 	if (i == pool->stream_enc_count)
 		return false;
 
@@ -2025,7 +2025,7 @@ enum dc_status resource_map_pool_resources(
 			return DC_OK;
 		}
 
-	DC_ERROR("Stream %p not found in new ctx!\n", stream);
+	DC_ERROR("Stream %p yest found in new ctx!\n", stream);
 	return DC_ERROR_UNEXPECTED;
 }
 
@@ -2055,7 +2055,7 @@ void dc_resource_state_construct(
  * Checks HW resource availability and bandwidth requirement.
  * @dc: dc struct for this driver
  * @new_ctx: state to be validated
- * @fast_validate: set to true if only yes/no to support matters
+ * @fast_validate: set to true if only no/yes to support matters
  *
  * Return: DC_OK if the result can be programmed.  Otherwise, an error code.
  */
@@ -2094,7 +2094,7 @@ enum dc_status dc_validate_global_state(
 			}
 
 			/* Switch to dp clock source only if there is
-			 * no non dp stream that shares the same timing
+			 * yes yesn dp stream that shares the same timing
 			 * with the dp stream.
 			 */
 			if (dc_is_dp_signal(pipe_ctx->stream->signal) &&
@@ -2172,12 +2172,12 @@ static void set_avi_info_frame(
 	/* Initialize header */
 	hdmi_info.bits.header.info_frame_type = HDMI_INFOFRAME_TYPE_AVI;
 	/* InfoFrameVersion_3 is defined by CEA861F (Section 6.4), but shall
-	* not be used in HDMI 2.0 (Section 10.1) */
+	* yest be used in HDMI 2.0 (Section 10.1) */
 	hdmi_info.bits.header.version = 2;
 	hdmi_info.bits.header.length = HDMI_AVI_INFOFRAME_SIZE;
 
 	/*
-	 * IDO-defined (Y2,Y1,Y0 = 1,1,1) shall not be used by devices built
+	 * IDO-defined (Y2,Y1,Y0 = 1,1,1) shall yest be used by devices built
 	 * according to HDMI 2.0 spec (Section 10.1)
 	 */
 
@@ -2300,7 +2300,7 @@ static void set_avi_info_frame(
 	}
 
 	/* TODO : We should handle YCC quantization */
-	/* but we do not have matrix calculation */
+	/* but we do yest have matrix calculation */
 	if (stream->qs_bit == 1 &&
 			stream->qy_bit == 1) {
 		if (color_space == COLOR_SPACE_SRGB ||
@@ -2501,7 +2501,7 @@ void dc_resource_state_copy_construct(
 				dst_ctx->stream_status[i].plane_states[j]);
 	}
 
-	/* context refcount should not be overridden */
+	/* context refcount should yest be overridden */
 	dst_ctx->refcount = refcount;
 
 }
@@ -2600,7 +2600,7 @@ enum dc_status resource_map_clock_resources(
 /*
  * Note: We need to disable output if clock sources change,
  * since bios does optimization and doesn't apply if changing
- * PHY when not already disabled.
+ * PHY when yest already disabled.
  */
 bool pipe_need_reprogram(
 		struct pipe_ctx *pipe_ctx_old,
@@ -2693,8 +2693,8 @@ void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 	/* special case - Formatter can only reduce by 4 bits at most.
 	 * When reducing from 12 to 6 bits,
 	 * HW recommends we use trunc with round mode
-	 * (if we did nothing, trunc to 10 bits would be used)
-	 * note that any 12->10 bit reduction is ignored prior to DCE8,
+	 * (if we did yesthing, trunc to 10 bits would be used)
+	 * yeste that any 12->10 bit reduction is igyesred prior to DCE8,
 	 * as the input was 10 bits.
 	 */
 	if (option == DITHER_OPTION_SPATIAL6_FRAME_RANDOM ||
@@ -2706,7 +2706,7 @@ void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 	}
 
 	/* spatial dither
-	 * note that spatial modes 1-3 are never used
+	 * yeste that spatial modes 1-3 are never used
 	 */
 	if (option == DITHER_OPTION_SPATIAL6_FRAME_RANDOM            ||
 			option == DITHER_OPTION_SPATIAL6 ||
@@ -2802,7 +2802,7 @@ enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *pla
 {
 	enum dc_status res = DC_OK;
 
-	/* TODO For now validates pixel format only */
+	/* TODO For yesw validates pixel format only */
 	if (dc->res_pool->funcs->validate_plane)
 		return dc->res_pool->funcs->validate_plane(plane_state, &dc->caps);
 

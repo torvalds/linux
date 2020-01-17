@@ -8,8 +8,8 @@
 
 /*
  * EFI Quirks
- * Several EFI systems do not correctly advertise their boot framebuffers.
- * Hence, we use this static table of known broken machines and fix up the
+ * Several EFI systems do yest correctly advertise their boot framebuffers.
+ * Hence, we use this static table of kyeswn broken machines and fix up the
  * information so framebuffer drivers can load corectly.
  */
 
@@ -238,7 +238,7 @@ static const struct dmi_system_id efifb_dmi_system_table[] __initconst = {
 static const struct dmi_system_id efifb_dmi_swap_width_height[] __initconst = {
 	{
 		/*
-		 * Lenovo MIIX310-10ICR, only some batches have the troublesome
+		 * Leyesvo MIIX310-10ICR, only some batches have the troublesome
 		 * 800x1280 portrait screen. Luckily the portrait version has
 		 * its own BIOS version, so we match on that.
 		 */
@@ -249,19 +249,19 @@ static const struct dmi_system_id efifb_dmi_swap_width_height[] __initconst = {
 		},
 	},
 	{
-		/* Lenovo MIIX 320-10ICR with 800x1280 portrait screen */
+		/* Leyesvo MIIX 320-10ICR with 800x1280 portrait screen */
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION,
-					"Lenovo MIIX 320-10ICR"),
+					"Leyesvo MIIX 320-10ICR"),
 		},
 	},
 	{
-		/* Lenovo D330 with 800x1280 or 1200x1920 portrait screen */
+		/* Leyesvo D330 with 800x1280 or 1200x1920 portrait screen */
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION,
-					"Lenovo ideapad D330-10IGM"),
+					"Leyesvo ideapad D330-10IGM"),
 		},
 	},
 	{},

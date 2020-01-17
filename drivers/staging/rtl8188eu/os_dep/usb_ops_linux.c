@@ -477,9 +477,9 @@ u32 usb_read_port(struct adapter *adapter, u32 addr, struct recv_buf *precvbuf)
 	err = usb_submit_urb(purb, GFP_ATOMIC);
 	if ((err) && (err != (-EPERM))) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("cannot submit rx in-token(err=0x%.8x), URB_STATUS =0x%.8x",
+			 ("canyest submit rx in-token(err=0x%.8x), URB_STATUS =0x%.8x",
 			 err, purb->status));
-		DBG_88E("cannot submit rx in-token(err = 0x%08x),urb_status = %d\n",
+		DBG_88E("canyest submit rx in-token(err = 0x%08x),urb_status = %d\n",
 			err, purb->status);
 		ret = _FAIL;
 	}

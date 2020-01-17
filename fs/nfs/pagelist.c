@@ -6,7 +6,7 @@
  * The main purpose of these routines is to provide support for the
  * coalescing of several requests into a single RPC call.
  *
- * Copyright 2000, 2001 (c) Trond Myklebust <trond.myklebust@fys.uio.no>
+ * Copyright 2000, 2001 (c) Trond Myklebust <trond.myklebust@fys.uio.yes>
  *
  */
 
@@ -47,7 +47,7 @@ void nfs_pgheader_init(struct nfs_pageio_descriptor *desc,
 
 
 	hdr->req = nfs_list_entry(mirror->pg_list.next);
-	hdr->inode = desc->pg_inode;
+	hdr->iyesde = desc->pg_iyesde;
 	hdr->cred = nfs_req_openctx(hdr->req)->cred;
 	hdr->io_start = req_offset(hdr->req);
 	hdr->good_bytes = mirror->pg_count;
@@ -115,16 +115,16 @@ nfs_iocounter_wait(struct nfs_lock_context *l_ctx)
 bool
 nfs_async_iocounter_wait(struct rpc_task *task, struct nfs_lock_context *l_ctx)
 {
-	struct inode *inode = d_inode(l_ctx->open_context->dentry);
+	struct iyesde *iyesde = d_iyesde(l_ctx->open_context->dentry);
 	bool ret = false;
 
 	if (atomic_read(&l_ctx->io_count) > 0) {
-		rpc_sleep_on(&NFS_SERVER(inode)->uoc_rpcwaitq, task, NULL);
+		rpc_sleep_on(&NFS_SERVER(iyesde)->uoc_rpcwaitq, task, NULL);
 		ret = true;
 	}
 
 	if (atomic_read(&l_ctx->io_count) == 0) {
-		rpc_wake_up_queued_task(&NFS_SERVER(inode)->uoc_rpcwaitq, task);
+		rpc_wake_up_queued_task(&NFS_SERVER(iyesde)->uoc_rpcwaitq, task);
 		ret = false;
 	}
 
@@ -233,7 +233,7 @@ bool nfs_page_group_sync_on_bit(struct nfs_page *req, unsigned int bit)
 static inline void
 nfs_page_group_init(struct nfs_page *req, struct nfs_page *prev)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	WARN_ON_ONCE(prev == req);
 
 	if (!prev) {
@@ -256,17 +256,17 @@ nfs_page_group_init(struct nfs_page *req, struct nfs_page *prev)
 		 * has extra ref from the write/commit path to handle handoff
 		 * between write and commit lists. */
 		if (test_bit(PG_INODE_REF, &prev->wb_head->wb_flags)) {
-			inode = page_file_mapping(req->wb_page)->host;
+			iyesde = page_file_mapping(req->wb_page)->host;
 			set_bit(PG_INODE_REF, &req->wb_flags);
 			kref_get(&req->wb_kref);
-			atomic_long_inc(&NFS_I(inode)->nrequests);
+			atomic_long_inc(&NFS_I(iyesde)->nrequests);
 		}
 	}
 }
 
 /*
  * nfs_page_group_destroy - sync the destruction of page groups
- * @req - request that no longer needs the page group
+ * @req - request that yes longer needs the page group
  *
  * releases the page group reference from each member once all
  * members have called this function.
@@ -317,7 +317,7 @@ __nfs_create_request(struct nfs_lock_context *l_ctx, struct page *page,
 
 	/* Initialize the request struct. Initially, we assume a
 	 * long write-back delay. This will be adjusted in
-	 * update_nfs_request below if the region is not locked. */
+	 * update_nfs_request below if the region is yest locked. */
 	req->wb_page    = page;
 	if (page) {
 		req->wb_index = page_index(page);
@@ -426,7 +426,7 @@ static void nfs_clear_request(struct nfs_page *req)
 			wake_up_var(&l_ctx->io_count);
 			ctx = l_ctx->open_context;
 			if (test_bit(NFS_CONTEXT_UNLOCK, &ctx->flags))
-				rpc_wake_up(&NFS_SERVER(d_inode(ctx->dentry))->uoc_rpcwaitq);
+				rpc_wake_up(&NFS_SERVER(d_iyesde(ctx->dentry))->uoc_rpcwaitq);
 		}
 		nfs_put_lock_context(l_ctx);
 		req->wb_lock_context = NULL;
@@ -443,7 +443,7 @@ void nfs_free_request(struct nfs_page *req)
 {
 	WARN_ON_ONCE(req->wb_this_page != req);
 
-	/* extra debug: make sure no sync bits are still set */
+	/* extra debug: make sure yes sync bits are still set */
 	WARN_ON_ONCE(test_bit(PG_TEARDOWN, &req->wb_flags));
 	WARN_ON_ONCE(test_bit(PG_UNLOCKPAGE, &req->wb_flags));
 	WARN_ON_ONCE(test_bit(PG_UPTODATE, &req->wb_flags));
@@ -486,7 +486,7 @@ EXPORT_SYMBOL_GPL(nfs_wait_on_request);
  * @prev: previous request in desc, or NULL
  * @req: this request
  *
- * Returns zero if @req cannot be coalesced into @desc, otherwise it returns
+ * Returns zero if @req canyest be coalesced into @desc, otherwise it returns
  * the size of the request.
  */
 size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
@@ -566,9 +566,9 @@ static void nfs_pgio_rpcsetup(struct nfs_pgio_header *hdr,
 	struct nfs_page *req = hdr->req;
 
 	/* Set up the RPC argument and reply structs
-	 * NB: take care not to mess about with hdr->commit et al. */
+	 * NB: take care yest to mess about with hdr->commit et al. */
 
-	hdr->args.fh     = NFS_FH(hdr->inode);
+	hdr->args.fh     = NFS_FH(hdr->iyesde);
 	hdr->args.offset = req_offset(req);
 	/* pnfs_set_layoutcommit needs this */
 	hdr->mds_offset = hdr->args.offset;
@@ -605,7 +605,7 @@ static void nfs_pgio_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_pgio_header *hdr = calldata;
 	int err;
-	err = NFS_PROTO(hdr->inode)->pgio_rpc_prepare(task, hdr);
+	err = NFS_PROTO(hdr->iyesde)->pgio_rpc_prepare(task, hdr);
 	if (err)
 		rpc_exit(task, err);
 }
@@ -635,8 +635,8 @@ int nfs_initiate_pgio(struct rpc_clnt *clnt, struct nfs_pgio_header *hdr,
 
 	dprintk("NFS: initiated pgio call "
 		"(req %s/%llu, %u bytes @ offset %llu)\n",
-		hdr->inode->i_sb->s_id,
-		(unsigned long long)NFS_FILEID(hdr->inode),
+		hdr->iyesde->i_sb->s_id,
+		(unsigned long long)NFS_FILEID(hdr->iyesde),
 		hdr->args.count,
 		(unsigned long long)hdr->args.offset);
 
@@ -690,7 +690,7 @@ static void nfs_pageio_mirror_init(struct nfs_pgio_mirror *mirror,
 /**
  * nfs_pageio_init - initialise a page io descriptor
  * @desc: pointer to descriptor
- * @inode: pointer to inode
+ * @iyesde: pointer to iyesde
  * @pg_ops: pointer to pageio operations
  * @compl_ops: pointer to pageio completion operations
  * @rw_ops: pointer to nfs read/write operations
@@ -698,7 +698,7 @@ static void nfs_pageio_mirror_init(struct nfs_pgio_mirror *mirror,
  * @io_flags: extra parameters for the io function
  */
 void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
-		     struct inode *inode,
+		     struct iyesde *iyesde,
 		     const struct nfs_pageio_ops *pg_ops,
 		     const struct nfs_pgio_completion_ops *compl_ops,
 		     const struct nfs_rw_ops *rw_ops,
@@ -706,7 +706,7 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 		     int io_flags)
 {
 	desc->pg_moreio = 0;
-	desc->pg_inode = inode;
+	desc->pg_iyesde = iyesde;
 	desc->pg_ops = pg_ops;
 	desc->pg_completion_ops = compl_ops;
 	desc->pg_rw_ops = rw_ops;
@@ -734,12 +734,12 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 static void nfs_pgio_result(struct rpc_task *task, void *calldata)
 {
 	struct nfs_pgio_header *hdr = calldata;
-	struct inode *inode = hdr->inode;
+	struct iyesde *iyesde = hdr->iyesde;
 
 	dprintk("NFS: %s: %5u, (status %d)\n", __func__,
 		task->tk_pid, task->tk_status);
 
-	if (hdr->rw_ops->rw_done(task, hdr, inode) != 0)
+	if (hdr->rw_ops->rw_done(task, hdr, iyesde) != 0)
 		return;
 	if (task->tk_status < 0)
 		nfs_set_pgio_error(hdr, task->tk_status, hdr->args.offset);
@@ -751,9 +751,9 @@ static void nfs_pgio_result(struct rpc_task *task, void *calldata)
  * Create an RPC task for the given read or write request and kick it.
  * The page must have been locked by the caller.
  *
- * It may happen that the page we're passed is not marked dirty.
+ * It may happen that the page we're passed is yest marked dirty.
  * This is the case if nfs_updatepage detects a conflicting request
- * that has been written but not committed.
+ * that has been written but yest committed.
  */
 int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 		     struct nfs_pgio_header *hdr)
@@ -784,7 +784,7 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 		}
 	}
 
-	nfs_init_cinfo(&cinfo, desc->pg_inode, desc->pg_dreq);
+	nfs_init_cinfo(&cinfo, desc->pg_iyesde, desc->pg_dreq);
 	pages = hdr->page_array.pagevec;
 	last_page = NULL;
 	pageused = 0;
@@ -829,10 +829,10 @@ static int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
 	nfs_pgheader_init(desc, hdr, nfs_pgio_header_free);
 	ret = nfs_generic_pgio(desc, hdr);
 	if (ret == 0)
-		ret = nfs_initiate_pgio(NFS_CLIENT(hdr->inode),
+		ret = nfs_initiate_pgio(NFS_CLIENT(hdr->iyesde),
 					hdr,
 					hdr->cred,
-					NFS_PROTO(hdr->inode),
+					NFS_PROTO(hdr->iyesde),
 					desc->pg_rpc_callops,
 					desc->pg_ioflags, 0);
 	return ret;
@@ -932,7 +932,7 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 	if (prev) {
 		if (!nfs_match_open_context(nfs_req_openctx(req), nfs_req_openctx(prev)))
 			return false;
-		flctx = d_inode(nfs_req_openctx(req)->dentry)->i_flctx;
+		flctx = d_iyesde(nfs_req_openctx(req)->dentry)->i_flctx;
 		if (flctx != NULL &&
 		    !(list_empty_careful(&flctx->flc_posix) &&
 		      list_empty_careful(&flctx->flc_flock)) &&
@@ -983,7 +983,7 @@ static int nfs_pageio_do_add_request(struct nfs_pageio_descriptor *desc,
 	}
 
 	if (desc->pg_maxretrans && req->wb_nio > desc->pg_maxretrans) {
-		if (NFS_SERVER(desc->pg_inode)->flags & NFS_MOUNT_SOFTERR)
+		if (NFS_SERVER(desc->pg_iyesde)->flags & NFS_MOUNT_SOFTERR)
 			desc->pg_error = -ETIMEDOUT;
 		else
 			desc->pg_error = -EIO;
@@ -1057,7 +1057,7 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 
 	do {
 		if (!nfs_pageio_do_add_request(desc, subreq)) {
-			/* make sure pg_test call(s) did nothing */
+			/* make sure pg_test call(s) did yesthing */
 			WARN_ON_ONCE(subreq->wb_bytes != bytes_left);
 			WARN_ON_ONCE(subreq->wb_offset != offset);
 			WARN_ON_ONCE(subreq->wb_pgbase != pgbase);
@@ -1297,10 +1297,10 @@ void nfs_pageio_complete(struct nfs_pageio_descriptor *desc)
  * @index: page index
  *
  * It is important to ensure that processes don't try to take locks
- * on non-contiguous ranges of pages as that might deadlock. This
+ * on yesn-contiguous ranges of pages as that might deadlock. This
  * function should be called before attempting to wait on a locked
  * nfs_page. It will complete the I/O if the page index 'index'
- * is not contiguous with the existing list of pages in 'desc'.
+ * is yest contiguous with the existing list of pages in 'desc'.
  */
 void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *desc, pgoff_t index)
 {

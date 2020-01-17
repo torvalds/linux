@@ -18,7 +18,7 @@
 
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = {
+static const unsigned short yesrmal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
 enum chips {
@@ -327,7 +327,7 @@ static int adm1021_detect(struct i2c_client *client,
 	int conv_rate, status, config, man_id, dev_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		pr_debug("detect failed, smbus byte data not supported!\n");
+		pr_debug("detect failed, smbus byte data yest supported!\n");
 		return -ENODEV;
 	}
 
@@ -338,7 +338,7 @@ static int adm1021_detect(struct i2c_client *client,
 
 	/* Check unused bits */
 	if ((status & 0x03) || (config & 0x3F) || (conv_rate & 0xF8)) {
-		pr_debug("detect failed, chip not detected!\n");
+		pr_debug("detect failed, chip yest detected!\n");
 		return -ENODEV;
 	}
 
@@ -475,7 +475,7 @@ static struct i2c_driver adm1021_driver = {
 	.probe		= adm1021_probe,
 	.id_table	= adm1021_id,
 	.detect		= adm1021_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(adm1021_driver);

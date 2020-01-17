@@ -30,7 +30,7 @@
  * @WLAN_STA_PS_STA: Station is in power-save mode
  * @WLAN_STA_AUTHORIZED: Station is authorized to send/receive traffic.
  *	This bit is always checked so needs to be enabled for all stations
- *	when virtual port control is not in use.
+ *	when virtual port control is yest in use.
  * @WLAN_STA_SHORT_PREAMBLE: Station is capable of receiving short-preamble
  *	frames.
  * @WLAN_STA_WDS: Station is one of our WDS peers.
@@ -198,7 +198,7 @@ struct tid_ampdu_tx {
  * @reorder_buf: buffer to reorder incoming aggregated MPDUs. An MPDU may be an
  *	A-MSDU with individually reported subframes.
  * @reorder_buf_filtered: bitmap indicating where there are filtered frames in
- *	the reorder buffer that should be ignored when releasing frames
+ *	the reorder buffer that should be igyesred when releasing frames
  * @reorder_time: jiffies when skb was added
  * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
  * @reorder_timer: releases expired frames from the reorder buffer.
@@ -249,7 +249,7 @@ struct tid_ampdu_rx {
 /**
  * struct sta_ampdu_mlme - STA aggregation information.
  *
- * @mtx: mutex to protect all TX data (except non-NULL assignments
+ * @mtx: mutex to protect all TX data (except yesn-NULL assignments
  *	to tid_tx[idx], which are protected by the sta spinlock)
  *	tid_start_tx is also protected by sta->lock.
  * @tid_rx: aggregation info for Rx per TID -- RCU protected
@@ -290,7 +290,7 @@ struct sta_ampdu_mlme {
 };
 
 
-/* Value to indicate no TID reservation */
+/* Value to indicate yes TID reservation */
 #define IEEE80211_TID_UNRESERVED	0xff
 
 #define IEEE80211_FAST_XMIT_MAX_IV	18
@@ -302,11 +302,11 @@ struct sta_ampdu_mlme {
  * @hdr_len: actual 802.11 header length
  * @sa_offs: offset of the SA
  * @da_offs: offset of the DA
- * @pn_offs: offset where to put PN for crypto (or 0 if not needed)
+ * @pn_offs: offset where to put PN for crypto (or 0 if yest needed)
  * @band: band this will be transmitted on, for tx_info
  * @rcu_head: RCU head to free this struct
  *
- * This struct is small enough so that the common case (maximum crypto
+ * This struct is small eyesugh so that the common case (maximum crypto
  * header length of 8 like for CCMP/GCMP) fits into a single 64-byte
  * cache line.
  */
@@ -331,7 +331,7 @@ struct ieee80211_fast_tx {
  * @expected_ds_bits: from/to DS bits expected
  * @icv_len: length of the MIC if present
  * @key: bool indicating encryption is expected (key is set)
- * @sta_notify: notify the MLME code (once)
+ * @sta_yestify: yestify the MLME code (once)
  * @internal_forward: forward froms internally on AP/VLAN type interfaces
  * @uses_rss: copy of USES_RSS hw flag
  * @da_offs: offset of the DA in the header (for header conversion)
@@ -347,7 +347,7 @@ struct ieee80211_fast_rx {
 	__le16 expected_ds_bits;
 	u8 icv_len;
 	u8 key:1,
-	   sta_notify:1,
+	   sta_yestify:1,
 	   internal_forward:1,
 	   uses_rss:1;
 	u8 da_offs, sa_offs;
@@ -376,7 +376,7 @@ DECLARE_EWMA(mesh_tx_rate_avg, 8, 16)
  * 	calculating clockdrift
  * @local_pm: local link-specific power save mode
  * @peer_pm: peer-specific power save mode towards local STA
- * @nonpeer_pm: STA power save mode towards non-peer neighbors
+ * @yesnpeer_pm: STA power save mode towards yesn-peer neighbors
  * @processed_beacon: set to true after peer rates and capabilities are
  *	processed
  * @connected_to_gate: true if mesh STA has a path to a mesh gate
@@ -406,7 +406,7 @@ struct mesh_sta {
 	/* mesh power save */
 	enum nl80211_mesh_power_mode local_pm;
 	enum nl80211_mesh_power_mode peer_pm;
-	enum nl80211_mesh_power_mode nonpeer_pm;
+	enum nl80211_mesh_power_mode yesnpeer_pm;
 
 	/* moving percentage of failed MSDUs */
 	struct ewma_mesh_fail_avg fail_avg;
@@ -447,7 +447,7 @@ struct ieee80211_sta_rx_stats {
  *
  * @list: global linked list entry
  * @free_list: list entry for keeping track of stations to free
- * @hash_node: hash node for rhashtable
+ * @hash_yesde: hash yesde for rhashtable
  * @addr: station's MAC address - duplicated from public part to
  *	let the hash table work with just a single cacheline
  * @local: pointer to the global information
@@ -463,7 +463,7 @@ struct ieee80211_sta_rx_stats {
  *	in the header file.
  * @drv_deliver_wk: used for delivering frames after driver PS unblocking
  * @listen_interval: listen interval of this station, when we're acting as AP
- * @_flags: STA flags, see &enum ieee80211_sta_info_flags, do not use directly
+ * @_flags: STA flags, see &enum ieee80211_sta_info_flags, do yest use directly
  * @ps_lock: used for powersave (when mac80211 is the AP) related locking
  * @ps_tx_buf: buffers (per AC) of frames to transmit to this station
  *	when it leaves power saving state or polls
@@ -476,7 +476,7 @@ struct ieee80211_sta_rx_stats {
  * @assoc_at: clock boottime (in ns) of last association
  * @last_connected: time (in seconds) when a station got connected
  * @last_seq_ctrl: last received seq/frag number from this STA (per TID
- *	plus one for non-QoS frames)
+ *	plus one for yesn-QoS frames)
  * @tid_seq: per-TID sequence numbers for sending to this STA
  * @airtime: per-AC struct airtime_info describing airtime statistics for this
  *	station
@@ -491,8 +491,8 @@ struct ieee80211_sta_rx_stats {
  * @sta_state: duplicates information about station state (for debug)
  * @rcu_head: RCU head used for freeing this station struct
  * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
- *	taken from HT/VHT capabilities or VHT operating mode notification
- * @known_smps_mode: the smps_mode the client thinks we are in. Relevant for
+ *	taken from HT/VHT capabilities or VHT operating mode yestification
+ * @kyeswn_smps_mode: the smps_mode the client thinks we are in. Relevant for
  *	AP only.
  * @cipher_scheme: optional cipher scheme for this station
  * @cparams: CoDel parameters for this station.
@@ -529,7 +529,7 @@ struct sta_info {
 	/* General information, mostly static */
 	struct list_head list, free_list;
 	struct rcu_head rcu_head;
-	struct rhlist_head hash_node;
+	struct rhlist_head hash_yesde;
 	u8 addr[ETH_ALEN];
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
@@ -573,17 +573,17 @@ struct sta_info {
 	u64 assoc_at;
 	long last_connected;
 
-	/* Updated from RX path only, no locking requirements */
+	/* Updated from RX path only, yes locking requirements */
 	struct ieee80211_sta_rx_stats rx_stats;
 	struct {
 		struct ewma_signal signal;
 		struct ewma_signal chain_signal[IEEE80211_MAX_CHAINS];
 	} rx_stats_avg;
 
-	/* Plus 1 for non-QoS frames */
+	/* Plus 1 for yesn-QoS frames */
 	__le16 last_seq_ctrl[IEEE80211_NUM_TIDS + 1];
 
-	/* Updated from TX status path only, no locking requirements */
+	/* Updated from TX status path only, yes locking requirements */
 	struct {
 		unsigned long filtered;
 		unsigned long retry_failed, retry_count;
@@ -597,7 +597,7 @@ struct sta_info {
 		struct ewma_avg_signal avg_ack_signal;
 	} status_stats;
 
-	/* Updated from TX path only, no locking requirements */
+	/* Updated from TX path only, yes locking requirements */
 	struct {
 		u64 packets[IEEE80211_NUM_ACS];
 		u64 bytes[IEEE80211_NUM_ACS];
@@ -620,7 +620,7 @@ struct sta_info {
 
 	enum ieee80211_sta_rx_bandwidth cur_max_bandwidth;
 
-	enum ieee80211_smps_mode known_smps_mode;
+	enum ieee80211_smps_mode kyeswn_smps_mode;
 	const struct ieee80211_cipher_scheme *cipher_scheme;
 
 	struct codel_params cparams;
@@ -738,7 +738,7 @@ struct sta_info *sta_info_get_by_addrs(struct ieee80211_local *local,
 
 #define for_each_sta_info(local, _addr, _sta, _tmp)			\
 	rhl_for_each_entry_rcu(_sta, _tmp,				\
-			       sta_info_hash_lookup(local, _addr), hash_node)
+			       sta_info_hash_lookup(local, _addr), hash_yesde)
 
 /*
  * Get STA info by index, BROKEN!
@@ -758,7 +758,7 @@ void sta_info_free(struct ieee80211_local *local, struct sta_info *sta);
  * Insert STA info into hash table/list, returns zero or a
  * -EEXIST if (if the same MAC address is already present).
  *
- * Calling the non-rcu version makes the caller relinquish,
+ * Calling the yesn-rcu version makes the caller relinquish,
  * the _rcu version calls read_lock_rcu() and must be called
  * without it held.
  */

@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-yeste */
 /*
  * video.h - DEPRECATED MPEG-TS video decoder API
  *
- * NOTE: should not be used on future drivers
+ * NOTE: should yest be used on future drivers
  *
  * Copyright (C) 2000 Marcus Metzler <marcus@convergence.de>
  *                  & Ralph  Metzler <ralph@convergence.de>
@@ -19,7 +19,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */
@@ -80,7 +80,7 @@ typedef enum {
 #define VIDEO_CMD_STOP_IMMEDIATELY	(1 << 1)
 
 /* Play input formats: */
-/* The decoder has no special format requirements */
+/* The decoder has yes special format requirements */
 #define VIDEO_PLAY_FMT_NONE         (0)
 /* The decoder requires full GOPs */
 #define VIDEO_PLAY_FMT_GOP          (1)
@@ -96,11 +96,11 @@ struct video_command {
 		} stop;
 
 		struct {
-			/* 0 or 1000 specifies normal speed,
+			/* 0 or 1000 specifies yesrmal speed,
 			   1 specifies forward single stepping,
 			   -1 specifies backward single stepping,
-			   >1: playback at speed/1000 of the normal speed,
-			   <-1: reverse playback at (-speed/1000) of the normal speed. */
+			   >1: playback at speed/1000 of the yesrmal speed,
+			   <-1: reverse playback at (-speed/1000) of the yesrmal speed. */
 			__s32 speed;
 			__u32 format;
 		} play;
@@ -111,8 +111,8 @@ struct video_command {
 	};
 };
 
-/* FIELD_UNKNOWN can be used if the hardware does not know whether
-   the Vsync is for an odd, even or progressive (i.e. non-interlaced)
+/* FIELD_UNKNOWN can be used if the hardware does yest kyesw whether
+   the Vsync is for an odd, even or progressive (i.e. yesn-interlaced)
    field. */
 #define VIDEO_VSYNC_FIELD_UNKNOWN	(0)
 #define VIDEO_VSYNC_FIELD_ODD		(1)
@@ -130,7 +130,7 @@ struct video_event {
 	union {
 		video_size_t size;
 		unsigned int frame_rate;	/* in frames per 1000sec */
-		unsigned char vsync_field;	/* unknown/odd/even/progressive */
+		unsigned char vsync_field;	/* unkyeswn/odd/even/progressive */
 	} u;
 };
 
@@ -156,10 +156,10 @@ typedef __u16 video_attributes_t;
 /*   13-12 TV system (0=525/60, 1=625/50) */
 /*   11-10 Aspect ratio (0=4:3, 3=16:9) */
 /*    9- 8 permitted display mode on 4:3 monitor (0=both, 1=only pan-sca */
-/*    7    line 21-1 data present in GOP (1=yes, 0=no) */
-/*    6    line 21-2 data present in GOP (1=yes, 0=no) */
+/*    7    line 21-1 data present in GOP (1=no, 0=yes) */
+/*    6    line 21-2 data present in GOP (1=no, 0=yes) */
 /*    5- 3 source resolution (0=720x480/576, 1=704x480/576, 2=352x480/57 */
-/*    2    source letterboxed (1=yes, 0=no) */
+/*    2    source letterboxed (1=no, 0=yes) */
 /*    0    film/camera mode (0=
  *camera, 1=film (625/50 only)) */
 
@@ -174,7 +174,7 @@ typedef __u16 video_attributes_t;
 #define VIDEO_CAP_SYS     4
 #define VIDEO_CAP_PROG    8
 /* can the driver also handle SPU, NAVI and CSS encoded data?
-   (CSS API is not present yet) */
+   (CSS API is yest present yet) */
 #define VIDEO_CAP_SPU    16
 #define VIDEO_CAP_NAVI   32
 #define VIDEO_CAP_CSS    64

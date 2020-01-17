@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -79,7 +79,7 @@ static inline enum mod_hdcp_status check_link_integrity_dp(
 			MOD_HDCP_STATUS_SUCCESS;
 }
 
-static inline enum mod_hdcp_status check_no_reauthentication_request_dp(
+static inline enum mod_hdcp_status check_yes_reauthentication_request_dp(
 		struct mod_hdcp *hdcp)
 {
 	return (hdcp->auth.msg.hdcp1.bstatus & BSTATUS_REAUTH_REQUEST_MASK_DP) ?
@@ -87,7 +87,7 @@ static inline enum mod_hdcp_status check_no_reauthentication_request_dp(
 			MOD_HDCP_STATUS_SUCCESS;
 }
 
-static inline enum mod_hdcp_status check_no_max_cascade(struct mod_hdcp *hdcp)
+static inline enum mod_hdcp_status check_yes_max_cascade(struct mod_hdcp *hdcp)
 {
 	enum mod_hdcp_status status;
 
@@ -104,7 +104,7 @@ static inline enum mod_hdcp_status check_no_max_cascade(struct mod_hdcp *hdcp)
 	return status;
 }
 
-static inline enum mod_hdcp_status check_no_max_devs(struct mod_hdcp *hdcp)
+static inline enum mod_hdcp_status check_yes_max_devs(struct mod_hdcp *hdcp)
 {
 	enum mod_hdcp_status status;
 
@@ -288,7 +288,7 @@ static enum mod_hdcp_status wait_for_ready(struct mod_hdcp *hdcp,
 				&input->link_integiry_check, &status,
 				hdcp, "link_integiry_check"))
 			goto out;
-		if (!mod_hdcp_execute_and_set(check_no_reauthentication_request_dp,
+		if (!mod_hdcp_execute_and_set(check_yes_reauthentication_request_dp,
 				&input->reauth_request_check, &status,
 				hdcp, "reauth_request_check"))
 			goto out;
@@ -329,11 +329,11 @@ static enum mod_hdcp_status read_ksv_list(struct mod_hdcp *hdcp,
 				hdcp, "bstatus_read"))
 			goto out;
 	}
-	if (!mod_hdcp_execute_and_set(check_no_max_cascade,
+	if (!mod_hdcp_execute_and_set(check_yes_max_cascade,
 			&input->max_cascade_check, &status,
 			hdcp, "max_cascade_check"))
 		goto out;
-	if (!mod_hdcp_execute_and_set(check_no_max_devs,
+	if (!mod_hdcp_execute_and_set(check_yes_max_devs,
 			&input->max_devs_check, &status,
 			hdcp, "max_devs_check"))
 		goto out;
@@ -436,7 +436,7 @@ static enum mod_hdcp_status authenticated_dp(struct mod_hdcp *hdcp,
 			&input->link_integiry_check, &status,
 			hdcp, "link_integiry_check"))
 		goto out;
-	if (!mod_hdcp_execute_and_set(check_no_reauthentication_request_dp,
+	if (!mod_hdcp_execute_and_set(check_yes_reauthentication_request_dp,
 			&input->reauth_request_check, &status,
 			hdcp, "reauth_request_check"))
 		goto out;

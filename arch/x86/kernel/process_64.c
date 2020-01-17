@@ -16,7 +16,7 @@
  */
 
 #include <linux/cpu.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
@@ -31,7 +31,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/ptrace.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 #include <linux/prctl.h>
@@ -128,7 +128,7 @@ void __show_regs(struct pt_regs *regs, enum show_regs_mode mode)
 	get_debugreg(d6, 6);
 	get_debugreg(d7, 7);
 
-	/* Only print out debug registers if they are in their non-default state. */
+	/* Only print out debug registers if they are in their yesn-default state. */
 	if (!((d0 == 0) && (d1 == 0) && (d2 == 0) && (d3 == 0) &&
 	    (d6 == DR6_RESERVED) && (d7 == 0x400))) {
 		printk(KERN_DEFAULT "DR0: %016lx DR1: %016lx DR2: %016lx\n",
@@ -153,7 +153,7 @@ enum which_selector {
 
 /*
  * Saves the FS or GS base for an outgoing thread if FSGSBASE extensions are
- * not available.  The goal is to be reasonably fast on non-FSGSBASE systems.
+ * yest available.  The goal is to be reasonably fast on yesn-FSGSBASE systems.
  * It's forcibly inlined because it'll generate better code and this function
  * is hot.
  */
@@ -174,7 +174,7 @@ static __always_inline void save_base_legacy(struct task_struct *prev_p,
 		 * value is already saved is correct.  This matches historical
 		 * Linux behavior, so it won't break existing applications.
 		 *
-		 * To avoid leaking state, on non-X86_BUG_NULL_SEG CPUs, if we
+		 * To avoid leaking state, on yesn-X86_BUG_NULL_SEG CPUs, if we
 		 * report that the base is zero, it needs to actually be zero:
 		 * see the corresponding logic in load_seg_legacy.
 		 */
@@ -207,7 +207,7 @@ static __always_inline void save_fsgs(struct task_struct *task)
 #if IS_ENABLED(CONFIG_KVM)
 /*
  * While a process is running,current->thread.fsbase and current->thread.gsbase
- * may not match the corresponding CPU registers (see save_base_legacy()). KVM
+ * may yest match the corresponding CPU registers (see save_base_legacy()). KVM
  * wants an efficient way to save and restore FSBASE and GSBASE.
  * When FSGSBASE extensions are enabled, this will have to use RD{FS,GS}BASE.
  */
@@ -235,7 +235,7 @@ static __always_inline void load_seg_legacy(unsigned short prev_index,
 {
 	if (likely(next_index <= 3)) {
 		/*
-		 * The next task is using 64-bit TLS, is not using this
+		 * The next task is using 64-bit TLS, is yest using this
 		 * segment at all, or is having fun with arcane CPU features.
 		 */
 		if (next_base == 0) {
@@ -255,7 +255,7 @@ static __always_inline void load_seg_legacy(unsigned short prev_index,
 				 * next states are fully zeroed, we can skip
 				 * the load.
 				 *
-				 * (This assumes that prev_base == 0 has no
+				 * (This assumes that prev_base == 0 has yes
 				 * false positives.  This is the case on
 				 * Intel-style CPUs.)
 				 */
@@ -297,7 +297,7 @@ static unsigned long x86_fsgsbase_read_task(struct task_struct *task,
 			return 0;
 
 		/*
-		 * There are no user segments in the GDT with nonzero bases
+		 * There are yes user segments in the GDT with yesnzero bases
 		 * other than the TLS segments.
 		 */
 		if (idx < GDT_ENTRY_TLS_MIN || idx > GDT_ENTRY_TLS_MAX)
@@ -422,10 +422,10 @@ void compat_start_thread(struct pt_regs *regs, u32 new_ip, u32 new_sp)
  * - fold all the options into a flag word and test it with a single test.
  * - could test fs/gs bitsliced
  *
- * Kprobes not supported here. Set the probe on schedule instead.
- * Function graph tracer not supported too.
+ * Kprobes yest supported here. Set the probe on schedule instead.
+ * Function graph tracer yest supported too.
  */
-__visible __notrace_funcgraph struct task_struct *
+__visible __yestrace_funcgraph struct task_struct *
 __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread;
@@ -463,7 +463,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/* Switch DS and ES.
 	 *
 	 * Reading them only returns the selectors, but writing them (if
-	 * nonzero) loads the full descriptor from the GDT or LDT.  The
+	 * yesnzero) loads the full descriptor from the GDT or LDT.  The
 	 * LDT for next is loaded in switch_mm, and the GDT is loaded
 	 * above.
 	 *
@@ -500,7 +500,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	if (static_cpu_has_bug(X86_BUG_SYSRET_SS_ATTRS)) {
 		/*
 		 * AMD CPUs have a misfeature: SYSRET sets the SS selector but
-		 * does not update the cached descriptor.  As a result, if we
+		 * does yest update the cached descriptor.  As a result, if we
 		 * do SYSRET while SS is NULL, we'll end up in user mode with
 		 * SS apparently equal to __USER_DS but actually unusable.
 		 *
@@ -517,7 +517,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		 *
 		 * We read SS first because SS reads are much faster than
 		 * writes.  Out of caution, we force SS to __KERNEL_DS even if
-		 * it previously had a different non-NULL value.
+		 * it previously had a different yesn-NULL value.
 		 */
 		unsigned short ss_sel;
 		savesegment(ss, ss_sel);
@@ -543,13 +543,13 @@ void set_personality_64bit(void)
 	task_pt_regs(current)->orig_ax = __NR_execve;
 	current_thread_info()->status &= ~TS_COMPAT;
 
-	/* Ensure the corresponding mm is not marked. */
+	/* Ensure the corresponding mm is yest marked. */
 	if (current->mm)
 		current->mm->context.ia32_compat = 0;
 
 	/* TBD: overwrites user setup. Should have two bits.
 	   But 64bit processes have always behaved this way,
-	   so it's not too bad. The main problem is just that
+	   so it's yest too bad. The main problem is just that
 	   32bit children are affected again. */
 	current->personality &= ~READ_IMPLIES_EXEC;
 }
@@ -635,7 +635,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
 			x86_gsbase_write_cpu_inactive(arg2);
 
 			/*
-			 * On non-FSGSBASE systems, save_base_legacy() expects
+			 * On yesn-FSGSBASE systems, save_base_legacy() expects
 			 * that we also fill in thread.gsbase.
 			 */
 			task->thread.gsbase = arg2;
@@ -665,7 +665,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
 			x86_fsbase_write_cpu(arg2);
 
 			/*
-			 * On non-FSGSBASE systems, save_base_legacy() expects
+			 * On yesn-FSGSBASE systems, save_base_legacy() expects
 			 * that we also fill in thread.fsbase.
 			 */
 			task->thread.fsbase = arg2;

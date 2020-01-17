@@ -3,7 +3,7 @@
  * Generic OPP Interface
  *
  * Copyright (C) 2009-2010 Texas Instruments Incorporated.
- *	Nishanth Menon
+ *	Nishanth Meyesn
  *	Romit Dasgupta
  *	Kevin Hilman
  */
@@ -11,7 +11,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/device.h>
@@ -35,7 +35,7 @@ static struct opp_device *_find_opp_dev(const struct device *dev,
 {
 	struct opp_device *opp_dev;
 
-	list_for_each_entry(opp_dev, &opp_table->dev_list, node)
+	list_for_each_entry(opp_dev, &opp_table->dev_list, yesde)
 		if (opp_dev->dev == dev)
 			return opp_dev;
 
@@ -47,7 +47,7 @@ static struct opp_table *_find_opp_table_unlocked(struct device *dev)
 	struct opp_table *opp_table;
 	bool found;
 
-	list_for_each_entry(opp_table, &opp_tables, node) {
+	list_for_each_entry(opp_table, &opp_tables, yesde) {
 		mutex_lock(&opp_table->lock);
 		found = !!_find_opp_dev(dev, opp_table);
 		mutex_unlock(&opp_table->lock);
@@ -146,10 +146,10 @@ unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp)
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_level);
 
 /**
- * dev_pm_opp_is_turbo() - Returns if opp is turbo OPP or not
+ * dev_pm_opp_is_turbo() - Returns if opp is turbo OPP or yest
  * @opp: opp for which turbo mode is being verified
  *
- * Turbo OPPs are not for normal use, and can be enabled (under certain
+ * Turbo OPPs are yest for yesrmal use, and can be enabled (under certain
  * conditions) for short duration of times to finish high throughput work
  * quickly. Running on them for longer times may overheat the chip.
  *
@@ -167,10 +167,10 @@ bool dev_pm_opp_is_turbo(struct dev_pm_opp *opp)
 EXPORT_SYMBOL_GPL(dev_pm_opp_is_turbo);
 
 /**
- * dev_pm_opp_get_max_clock_latency() - Get max clock latency in nanoseconds
+ * dev_pm_opp_get_max_clock_latency() - Get max clock latency in nayesseconds
  * @dev:	device for which we do this operation
  *
- * Return: This function returns the max clock latency in nanoseconds.
+ * Return: This function returns the max clock latency in nayesseconds.
  */
 unsigned long dev_pm_opp_get_max_clock_latency(struct device *dev)
 {
@@ -190,10 +190,10 @@ unsigned long dev_pm_opp_get_max_clock_latency(struct device *dev)
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_max_clock_latency);
 
 /**
- * dev_pm_opp_get_max_volt_latency() - Get max voltage latency in nanoseconds
+ * dev_pm_opp_get_max_volt_latency() - Get max voltage latency in nayesseconds
  * @dev: device for which we do this operation
  *
- * Return: This function returns the max voltage latency in nanoseconds.
+ * Return: This function returns the max voltage latency in nayesseconds.
  */
 unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 {
@@ -211,7 +211,7 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 	if (IS_ERR(opp_table))
 		return 0;
 
-	/* Regulator may not be required for the device */
+	/* Regulator may yest be required for the device */
 	if (!opp_table->regulators)
 		goto put_opp_table;
 
@@ -227,7 +227,7 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 		uV[i].min = ~0;
 		uV[i].max = 0;
 
-		list_for_each_entry(opp, &opp_table->opp_list, node) {
+		list_for_each_entry(opp, &opp_table->opp_list, yesde) {
 			if (!opp->available)
 				continue;
 
@@ -261,10 +261,10 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_max_volt_latency);
 
 /**
  * dev_pm_opp_get_max_transition_latency() - Get max transition latency in
- *					     nanoseconds
+ *					     nayesseconds
  * @dev: device for which we do this operation
  *
- * Return: This function returns the max transition latency, in nanoseconds, to
+ * Return: This function returns the max transition latency, in nayesseconds, to
  * switch from one OPP to other.
  */
 unsigned long dev_pm_opp_get_max_transition_latency(struct device *dev)
@@ -306,7 +306,7 @@ int _get_opp_count(struct opp_table *opp_table)
 
 	mutex_lock(&opp_table->lock);
 
-	list_for_each_entry(opp, &opp_table->opp_list, node) {
+	list_for_each_entry(opp, &opp_table->opp_list, yesde) {
 		if (opp->available)
 			count++;
 	}
@@ -321,7 +321,7 @@ int _get_opp_count(struct opp_table *opp_table)
  * @dev:	device for which we do this operation
  *
  * Return: This function returns the number of available opps if there are any,
- * else returns 0 if none or the corresponding error value.
+ * else returns 0 if yesne or the corresponding error value.
  */
 int dev_pm_opp_get_opp_count(struct device *dev)
 {
@@ -331,7 +331,7 @@ int dev_pm_opp_get_opp_count(struct device *dev)
 	opp_table = _find_opp_table(dev);
 	if (IS_ERR(opp_table)) {
 		count = PTR_ERR(opp_table);
-		dev_dbg(dev, "%s: OPP table not found (%d)\n",
+		dev_dbg(dev, "%s: OPP table yest found (%d)\n",
 			__func__, count);
 		return count;
 	}
@@ -353,14 +353,14 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_count);
  * matching opp if found, else returns ERR_PTR in case of error and should
  * be handled using IS_ERR. Error return values can be:
  * EINVAL:	for bad pointer
- * ERANGE:	no match found for search
- * ENODEV:	if device not found in list of registered devices
+ * ERANGE:	yes match found for search
+ * ENODEV:	if device yest found in list of registered devices
  *
  * Note: available is a modifier for the search. if available=true, then the
  * match is for exact matching frequency and is available in the stored OPP
- * table. if false, the match is for exact frequency which is not available.
+ * table. if false, the match is for exact frequency which is yest available.
  *
- * This provides a mechanism to enable an opp which is not available currently
+ * This provides a mechanism to enable an opp which is yest available currently
  * or the opposite as well.
  *
  * The callers are required to call dev_pm_opp_put() for the returned OPP after
@@ -377,13 +377,13 @@ struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 	if (IS_ERR(opp_table)) {
 		int r = PTR_ERR(opp_table);
 
-		dev_err(dev, "%s: OPP table not found (%d)\n", __func__, r);
+		dev_err(dev, "%s: OPP table yest found (%d)\n", __func__, r);
 		return ERR_PTR(r);
 	}
 
 	mutex_lock(&opp_table->lock);
 
-	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
+	list_for_each_entry(temp_opp, &opp_table->opp_list, yesde) {
 		if (temp_opp->available == available &&
 				temp_opp->rate == freq) {
 			opp = temp_opp;
@@ -410,8 +410,8 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_exact);
  * matching opp if found, else returns ERR_PTR in case of error and should
  * be handled using IS_ERR. Error return values can be:
  * EINVAL:	for bad pointer
- * ERANGE:	no match found for search
- * ENODEV:	if device not found in list of registered devices
+ * ERANGE:	yes match found for search
+ * ENODEV:	if device yest found in list of registered devices
  *
  * The callers are required to call dev_pm_opp_put() for the returned OPP after
  * use.
@@ -426,13 +426,13 @@ struct dev_pm_opp *dev_pm_opp_find_level_exact(struct device *dev,
 	if (IS_ERR(opp_table)) {
 		int r = PTR_ERR(opp_table);
 
-		dev_err(dev, "%s: OPP table not found (%d)\n", __func__, r);
+		dev_err(dev, "%s: OPP table yest found (%d)\n", __func__, r);
 		return ERR_PTR(r);
 	}
 
 	mutex_lock(&opp_table->lock);
 
-	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
+	list_for_each_entry(temp_opp, &opp_table->opp_list, yesde) {
 		if (temp_opp->level == level) {
 			opp = temp_opp;
 
@@ -449,14 +449,14 @@ struct dev_pm_opp *dev_pm_opp_find_level_exact(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_level_exact);
 
-static noinline struct dev_pm_opp *_find_freq_ceil(struct opp_table *opp_table,
+static yesinline struct dev_pm_opp *_find_freq_ceil(struct opp_table *opp_table,
 						   unsigned long *freq)
 {
 	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
 
 	mutex_lock(&opp_table->lock);
 
-	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
+	list_for_each_entry(temp_opp, &opp_table->opp_list, yesde) {
 		if (temp_opp->available && temp_opp->rate >= *freq) {
 			opp = temp_opp;
 			*freq = opp->rate;
@@ -484,8 +484,8 @@ static noinline struct dev_pm_opp *_find_freq_ceil(struct opp_table *opp_table,
  * ERR_PTR in case of error and should be handled using IS_ERR. Error return
  * values can be:
  * EINVAL:	for bad pointer
- * ERANGE:	no match found for search
- * ENODEV:	if device not found in list of registered devices
+ * ERANGE:	yes match found for search
+ * ENODEV:	if device yest found in list of registered devices
  *
  * The callers are required to call dev_pm_opp_put() for the returned OPP after
  * use.
@@ -525,8 +525,8 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_ceil);
  * ERR_PTR in case of error and should be handled using IS_ERR. Error return
  * values can be:
  * EINVAL:	for bad pointer
- * ERANGE:	no match found for search
- * ENODEV:	if device not found in list of registered devices
+ * ERANGE:	yes match found for search
+ * ENODEV:	if device yest found in list of registered devices
  *
  * The callers are required to call dev_pm_opp_put() for the returned OPP after
  * use.
@@ -548,9 +548,9 @@ struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 
 	mutex_lock(&opp_table->lock);
 
-	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
+	list_for_each_entry(temp_opp, &opp_table->opp_list, yesde) {
 		if (temp_opp->available) {
-			/* go to the next node, before choosing prev */
+			/* go to the next yesde, before choosing prev */
 			if (temp_opp->rate > *freq)
 				break;
 			else
@@ -606,7 +606,7 @@ struct dev_pm_opp *dev_pm_opp_find_freq_ceil_by_volt(struct device *dev,
 
 	mutex_lock(&opp_table->lock);
 
-	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
+	list_for_each_entry(temp_opp, &opp_table->opp_list, yesde) {
 		if (temp_opp->available) {
 			if (temp_opp->supplies[0].u_volt > u_volt)
 				break;
@@ -630,9 +630,9 @@ static int _set_opp_voltage(struct device *dev, struct regulator *reg,
 {
 	int ret;
 
-	/* Regulator not available for device */
+	/* Regulator yest available for device */
 	if (IS_ERR(reg)) {
-		dev_dbg(dev, "%s: regulator not available: %ld\n", __func__,
+		dev_dbg(dev, "%s: regulator yest available: %ld\n", __func__,
 			PTR_ERR(reg));
 		return 0;
 	}
@@ -676,7 +676,7 @@ static int _generic_set_opp_regulator(const struct opp_table *opp_table,
 
 	/* This function only supports single regulator per device */
 	if (WARN_ON(opp_table->regulator_count > 1)) {
-		dev_err(dev, "multiple regulators are not supported\n");
+		dev_err(dev, "multiple regulators are yest supported\n");
 		return -EINVAL;
 	}
 
@@ -741,7 +741,7 @@ static int _set_opp_custom(const struct opp_table *opp_table,
 	return opp_table->set_opp(data);
 }
 
-/* This is only called for PM domain for now */
+/* This is only called for PM domain for yesw */
 static int _set_required_opps(struct device *dev,
 			      struct opp_table *opp_table,
 			      struct dev_pm_opp *opp)
@@ -769,7 +769,7 @@ static int _set_required_opps(struct device *dev,
 
 	/*
 	 * Acquire genpd_virt_dev_lock to make sure we don't use a genpd_dev
-	 * after it is freed from another thread.
+	 * after it is freed from ayesther thread.
 	 */
 	mutex_lock(&opp_table->genpd_virt_dev_lock);
 
@@ -841,9 +841,9 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 
 	old_freq = clk_get_rate(clk);
 
-	/* Return early if nothing to do */
+	/* Return early if yesthing to do */
 	if (old_freq == freq) {
-		dev_dbg(dev, "%s: old/new frequencies (%lu Hz) are same, nothing to do\n",
+		dev_dbg(dev, "%s: old/new frequencies (%lu Hz) are same, yesthing to do\n",
 			__func__, freq);
 		ret = 0;
 		goto put_opp_table;
@@ -911,7 +911,7 @@ static void _remove_opp_dev(struct opp_device *opp_dev,
 			    struct opp_table *opp_table)
 {
 	opp_debug_unregister(opp_dev, opp_table);
-	list_del(&opp_dev->node);
+	list_del(&opp_dev->yesde);
 	kfree(opp_dev);
 }
 
@@ -927,7 +927,7 @@ static struct opp_device *_add_opp_dev_unlocked(const struct device *dev,
 	/* Initialize opp-dev */
 	opp_dev->dev = dev;
 
-	list_add(&opp_dev->node, &opp_table->dev_list);
+	list_add(&opp_dev->yesde, &opp_table->dev_list);
 
 	/* Create debugfs entries for the opp_table */
 	opp_debug_register(opp_dev, opp_table);
@@ -991,7 +991,7 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 	kref_init(&opp_table->list_kref);
 
 	/* Secure the device table modification */
-	list_add(&opp_table->node, &opp_tables);
+	list_add(&opp_table->yesde, &opp_tables);
 	return opp_table;
 }
 
@@ -1053,7 +1053,7 @@ static void _opp_table_kref_release(struct kref *kref)
 
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
-	list_for_each_entry_safe(opp_dev, temp, &opp_table->dev_list, node) {
+	list_for_each_entry_safe(opp_dev, temp, &opp_table->dev_list, yesde) {
 		/*
 		 * The OPP table is getting removed, drop the performance state
 		 * constraints.
@@ -1066,7 +1066,7 @@ static void _opp_table_kref_release(struct kref *kref)
 
 	mutex_destroy(&opp_table->genpd_virt_dev_lock);
 	mutex_destroy(&opp_table->lock);
-	list_del(&opp_table->node);
+	list_del(&opp_table->yesde);
 	kfree(opp_table);
 
 	mutex_unlock(&opp_table_lock);
@@ -1076,7 +1076,7 @@ void _opp_remove_all_static(struct opp_table *opp_table)
 {
 	struct dev_pm_opp *opp, *tmp;
 
-	list_for_each_entry_safe(opp, tmp, &opp_table->opp_list, node) {
+	list_for_each_entry_safe(opp, tmp, &opp_table->opp_list, yesde) {
 		if (!opp->dynamic)
 			dev_pm_opp_put(opp);
 	}
@@ -1118,10 +1118,10 @@ static void _opp_kref_release(struct dev_pm_opp *opp,
 	 * Notify the changes in the availability of the operable
 	 * frequency/voltage list.
 	 */
-	blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_REMOVE, opp);
+	blocking_yestifier_call_chain(&opp_table->head, OPP_EVENT_REMOVE, opp);
 	_of_opp_free_required_opps(opp_table, opp);
 	opp_debug_remove_one(opp);
-	list_del(&opp->node);
+	list_del(&opp->yesde);
 	kfree(opp);
 }
 
@@ -1178,7 +1178,7 @@ void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 
 	mutex_lock(&opp_table->lock);
 
-	list_for_each_entry(opp, &opp_table->opp_list, node) {
+	list_for_each_entry(opp, &opp_table->opp_list, yesde) {
 		if (opp->rate == freq) {
 			found = true;
 			break;
@@ -1219,7 +1219,7 @@ void dev_pm_opp_remove_all_dynamic(struct device *dev)
 		return;
 
 	mutex_lock(&opp_table->lock);
-	list_for_each_entry_safe(opp, temp, &opp_table->opp_list, node) {
+	list_for_each_entry_safe(opp, temp, &opp_table->opp_list, yesde) {
 		if (opp->dynamic) {
 			dev_pm_opp_put_unlocked(opp);
 			count++;
@@ -1245,14 +1245,14 @@ struct dev_pm_opp *_opp_allocate(struct opp_table *table)
 	count = table->regulator_count > 0 ? table->regulator_count : 1;
 	supply_size = sizeof(*opp->supplies) * count;
 
-	/* allocate new OPP node and supplies structures */
+	/* allocate new OPP yesde and supplies structures */
 	opp = kzalloc(sizeof(*opp) + supply_size, GFP_KERNEL);
 	if (!opp)
 		return NULL;
 
 	/* Put the supplies at the end of the OPP structure as an empty array */
 	opp->supplies = (struct dev_pm_opp_supply *)(opp + 1);
-	INIT_LIST_HEAD(&opp->node);
+	INIT_LIST_HEAD(&opp->yesde);
 
 	return opp;
 }
@@ -1272,7 +1272,7 @@ static bool _opp_supported_by_regulators(struct dev_pm_opp *opp,
 		if (!regulator_is_supported_voltage(reg,
 					opp->supplies[i].u_volt_min,
 					opp->supplies[i].u_volt_max)) {
-			pr_warn("%s: OPP minuV: %lu maxuV: %lu, not supported by regulator\n",
+			pr_warn("%s: OPP minuV: %lu maxuV: %lu, yest supported by regulator\n",
 				__func__, opp->supplies[i].u_volt_min,
 				opp->supplies[i].u_volt_max);
 			return false;
@@ -1296,9 +1296,9 @@ static int _opp_is_duplicate(struct device *dev, struct dev_pm_opp *new_opp,
 	 * loop, don't replace it with head otherwise it will become an infinite
 	 * loop.
 	 */
-	list_for_each_entry(opp, &opp_table->opp_list, node) {
+	list_for_each_entry(opp, &opp_table->opp_list, yesde) {
 		if (new_opp->rate > opp->rate) {
-			*head = &opp->node;
+			*head = &opp->yesde;
 			continue;
 		}
 
@@ -1330,7 +1330,7 @@ static int _opp_is_duplicate(struct device *dev, struct dev_pm_opp *new_opp,
  *  should be considered an error by the callers of _opp_add().
  */
 int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
-	     struct opp_table *opp_table, bool rate_not_available)
+	     struct opp_table *opp_table, bool rate_yest_available)
 {
 	struct list_head *head;
 	int ret;
@@ -1338,7 +1338,7 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 	mutex_lock(&opp_table->lock);
 	head = &opp_table->opp_list;
 
-	if (likely(!rate_not_available)) {
+	if (likely(!rate_yest_available)) {
 		ret = _opp_is_duplicate(dev, new_opp, opp_table, &head);
 		if (ret) {
 			mutex_unlock(&opp_table->lock);
@@ -1346,7 +1346,7 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 		}
 	}
 
-	list_add(&new_opp->node, head);
+	list_add(&new_opp->yesde, head);
 	mutex_unlock(&opp_table->lock);
 
 	new_opp->opp_table = opp_table;
@@ -1356,7 +1356,7 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 
 	if (!_opp_supported_by_regulators(new_opp, opp_table)) {
 		new_opp->available = false;
-		dev_warn(dev, "%s: OPP not supported by regulators (%lu)\n",
+		dev_warn(dev, "%s: OPP yest supported by regulators (%lu)\n",
 			 __func__, new_opp->rate);
 	}
 
@@ -1417,7 +1417,7 @@ int _opp_add_v1(struct opp_table *opp_table, struct device *dev,
 	 * Notify the changes in the availability of the operable
 	 * frequency/voltage list.
 	 */
-	blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_ADD, new_opp);
+	blocking_yestifier_call_chain(&opp_table->head, OPP_EVENT_ADD, new_opp);
 	return 0;
 
 free_opp:
@@ -1446,10 +1446,10 @@ struct opp_table *dev_pm_opp_set_supported_hw(struct device *dev,
 	if (!opp_table)
 		return ERR_PTR(-ENOMEM);
 
-	/* Make sure there are no concurrent readers while updating opp_table */
+	/* Make sure there are yes concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
-	/* Another CPU that shares the OPP table has set the property ? */
+	/* Ayesther CPU that shares the OPP table has set the property ? */
 	if (opp_table->supported_hw)
 		return opp_table;
 
@@ -1472,11 +1472,11 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_supported_hw);
  *
  * This is required only for the V2 bindings, and is called for a matching
  * dev_pm_opp_set_supported_hw(). Until this is called, the opp_table structure
- * will not be freed.
+ * will yest be freed.
  */
 void dev_pm_opp_put_supported_hw(struct opp_table *opp_table)
 {
-	/* Make sure there are no concurrent readers while updating opp_table */
+	/* Make sure there are yes concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
 	kfree(opp_table->supported_hw);
@@ -1505,10 +1505,10 @@ struct opp_table *dev_pm_opp_set_prop_name(struct device *dev, const char *name)
 	if (!opp_table)
 		return ERR_PTR(-ENOMEM);
 
-	/* Make sure there are no concurrent readers while updating opp_table */
+	/* Make sure there are yes concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
-	/* Another CPU that shares the OPP table has set the property ? */
+	/* Ayesther CPU that shares the OPP table has set the property ? */
 	if (opp_table->prop_name)
 		return opp_table;
 
@@ -1528,11 +1528,11 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_prop_name);
  *
  * This is required only for the V2 bindings, and is called for a matching
  * dev_pm_opp_set_prop_name(). Until this is called, the opp_table structure
- * will not be freed.
+ * will yest be freed.
  */
 void dev_pm_opp_put_prop_name(struct opp_table *opp_table)
 {
-	/* Make sure there are no concurrent readers while updating opp_table */
+	/* Make sure there are yes concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
 	kfree(opp_table->prop_name);
@@ -1580,7 +1580,7 @@ static void _free_set_opp_data(struct opp_table *opp_table)
  * @names: Array of pointers to the names of the regulator.
  * @count: Number of regulators.
  *
- * In order to support OPP switching, OPP layer needs to know the name of the
+ * In order to support OPP switching, OPP layer needs to kyesw the name of the
  * device's regulators, as the core would be required to switch voltages as
  * well.
  *
@@ -1604,7 +1604,7 @@ struct opp_table *dev_pm_opp_set_regulators(struct device *dev,
 		goto err;
 	}
 
-	/* Another CPU that shares the OPP table has set the regulators ? */
+	/* Ayesther CPU that shares the OPP table has set the regulators ? */
 	if (opp_table->regulators)
 		return opp_table;
 
@@ -1621,7 +1621,7 @@ struct opp_table *dev_pm_opp_set_regulators(struct device *dev,
 		if (IS_ERR(reg)) {
 			ret = PTR_ERR(reg);
 			if (ret != -EPROBE_DEFER)
-				dev_err(dev, "%s: no regulator (%s) found: %d\n",
+				dev_err(dev, "%s: yes regulator (%s) found: %d\n",
 					__func__, names[i], ret);
 			goto free_regulators;
 		}
@@ -1663,7 +1663,7 @@ void dev_pm_opp_put_regulators(struct opp_table *opp_table)
 	if (!opp_table->regulators)
 		goto put_opp_table;
 
-	/* Make sure there are no concurrent readers while updating opp_table */
+	/* Make sure there are yes concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
 	for (i = opp_table->regulator_count - 1; i >= 0; i--)
@@ -1688,7 +1688,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_put_regulators);
  * In order to support OPP switching, OPP layer needs to get pointer to the
  * clock for the device. Simple cases work fine without using this routine (i.e.
  * by passing connection-id as NULL), but for a device with multiple clocks
- * available, the OPP core needs to know the exact name of the clk to use.
+ * available, the OPP core needs to kyesw the exact name of the clk to use.
  *
  * This must be called before any OPPs are initialized for the device.
  */
@@ -1737,7 +1737,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_clkname);
  */
 void dev_pm_opp_put_clkname(struct opp_table *opp_table)
 {
-	/* Make sure there are no concurrent readers while updating opp_table */
+	/* Make sure there are yes concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
 	clk_put(opp_table->clk);
@@ -1775,7 +1775,7 @@ struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev,
 		return ERR_PTR(-EBUSY);
 	}
 
-	/* Another CPU that shares the OPP table has set the helper ? */
+	/* Ayesther CPU that shares the OPP table has set the helper ? */
 	if (!opp_table->set_opp)
 		opp_table->set_opp = set_opp;
 
@@ -1792,7 +1792,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_register_set_opp_helper);
  */
 void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table)
 {
-	/* Make sure there are no concurrent readers while updating opp_table */
+	/* Make sure there are yes concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
 	opp_table->set_opp = NULL;
@@ -1829,7 +1829,7 @@ static void _opp_detach_genpd(struct opp_table *opp_table)
  * The same API also works for the case where single genpd is available and so
  * we don't need to support that separately.
  *
- * This helper will normally be called by the consumer driver of the device
+ * This helper will yesrmally be called by the consumer driver of the device
  * "dev", as only that has details of the genpd names.
  *
  * This helper needs to be called once with a list of all genpd to attach.
@@ -1960,7 +1960,7 @@ int dev_pm_opp_xlate_performance_state(struct opp_table *src_table,
 	 * Normally the src_table will have the "required_opps" property set to
 	 * point to one of the OPPs in the dst_table, but in some cases the
 	 * genpd and its master have one to one mapping of performance states
-	 * and so none of them have the "required-opps" property set. Return the
+	 * and so yesne of them have the "required-opps" property set. Return the
 	 * pstate of the src_table as it is in such cases.
 	 */
 	if (!src_table->required_opp_count)
@@ -1979,7 +1979,7 @@ int dev_pm_opp_xlate_performance_state(struct opp_table *src_table,
 
 	mutex_lock(&src_table->lock);
 
-	list_for_each_entry(opp, &src_table->opp_list, node) {
+	list_for_each_entry(opp, &src_table->opp_list, yesde) {
 		if (opp->pstate == pstate) {
 			dest_pstate = opp->required_opps[i]->pstate;
 			goto unlock;
@@ -2041,8 +2041,8 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_add);
  * Set the availability of an OPP, opp_{enable,disable} share a common logic
  * which is isolated here.
  *
- * Return: -EINVAL for bad pointers, -ENOMEM if no memory available for the
- * copy operation, returns 0 if no modification was done OR modification was
+ * Return: -EINVAL for bad pointers, -ENOMEM if yes memory available for the
+ * copy operation, returns 0 if yes modification was done OR modification was
  * successful.
  */
 static int _opp_set_availability(struct device *dev, unsigned long freq,
@@ -2056,14 +2056,14 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 	opp_table = _find_opp_table(dev);
 	if (IS_ERR(opp_table)) {
 		r = PTR_ERR(opp_table);
-		dev_warn(dev, "%s: Device OPP not found (%d)\n", __func__, r);
+		dev_warn(dev, "%s: Device OPP yest found (%d)\n", __func__, r);
 		return r;
 	}
 
 	mutex_lock(&opp_table->lock);
 
 	/* Do we have the frequency? */
-	list_for_each_entry(tmp_opp, &opp_table->opp_list, node) {
+	list_for_each_entry(tmp_opp, &opp_table->opp_list, yesde) {
 		if (tmp_opp->rate == freq) {
 			opp = tmp_opp;
 			break;
@@ -2086,10 +2086,10 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 
 	/* Notify the change of the OPP availability */
 	if (availability_req)
-		blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_ENABLE,
+		blocking_yestifier_call_chain(&opp_table->head, OPP_EVENT_ENABLE,
 					     opp);
 	else
-		blocking_notifier_call_chain(&opp_table->head,
+		blocking_yestifier_call_chain(&opp_table->head,
 					     OPP_EVENT_DISABLE, opp);
 
 	dev_pm_opp_put(opp);
@@ -2110,8 +2110,8 @@ put_table:
  * @u_volt_min:		new OPP min voltage
  * @u_volt_max:		new OPP max voltage
  *
- * Return: -EINVAL for bad pointers, -ENOMEM if no memory available for the
- * copy operation, returns 0 if no modifcation was done OR modification was
+ * Return: -EINVAL for bad pointers, -ENOMEM if yes memory available for the
+ * copy operation, returns 0 if yes modifcation was done OR modification was
  * successful.
  */
 int dev_pm_opp_adjust_voltage(struct device *dev, unsigned long freq,
@@ -2127,14 +2127,14 @@ int dev_pm_opp_adjust_voltage(struct device *dev, unsigned long freq,
 	opp_table = _find_opp_table(dev);
 	if (IS_ERR(opp_table)) {
 		r = PTR_ERR(opp_table);
-		dev_warn(dev, "%s: Device OPP not found (%d)\n", __func__, r);
+		dev_warn(dev, "%s: Device OPP yest found (%d)\n", __func__, r);
 		return r;
 	}
 
 	mutex_lock(&opp_table->lock);
 
 	/* Do we have the frequency? */
-	list_for_each_entry(tmp_opp, &opp_table->opp_list, node) {
+	list_for_each_entry(tmp_opp, &opp_table->opp_list, yesde) {
 		if (tmp_opp->rate == freq) {
 			opp = tmp_opp;
 			break;
@@ -2158,7 +2158,7 @@ int dev_pm_opp_adjust_voltage(struct device *dev, unsigned long freq,
 	mutex_unlock(&opp_table->lock);
 
 	/* Notify the voltage change of the OPP */
-	blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_ADJUST_VOLTAGE,
+	blocking_yestifier_call_chain(&opp_table->head, OPP_EVENT_ADJUST_VOLTAGE,
 				     opp);
 
 	dev_pm_opp_put(opp);
@@ -2180,8 +2180,8 @@ adjust_put_table:
  * corresponding error value. It is meant to be used for users an OPP available
  * after being temporarily made unavailable with dev_pm_opp_disable.
  *
- * Return: -EINVAL for bad pointers, -ENOMEM if no memory available for the
- * copy operation, returns 0 if no modification was done OR modification was
+ * Return: -EINVAL for bad pointers, -ENOMEM if yes memory available for the
+ * copy operation, returns 0 if yes modification was done OR modification was
  * successful.
  */
 int dev_pm_opp_enable(struct device *dev, unsigned long freq)
@@ -2197,11 +2197,11 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_enable);
  *
  * Disables a provided opp. If the operation is valid, this returns
  * 0, else the corresponding error value. It is meant to be a temporary
- * control by users to make this OPP not available until the circumstances are
+ * control by users to make this OPP yest available until the circumstances are
  * right to make it available again (with a call to dev_pm_opp_enable).
  *
- * Return: -EINVAL for bad pointers, -ENOMEM if no memory available for the
- * copy operation, returns 0 if no modification was done OR modification was
+ * Return: -EINVAL for bad pointers, -ENOMEM if yes memory available for the
+ * copy operation, returns 0 if yes modification was done OR modification was
  * successful.
  */
 int dev_pm_opp_disable(struct device *dev, unsigned long freq)
@@ -2211,13 +2211,13 @@ int dev_pm_opp_disable(struct device *dev, unsigned long freq)
 EXPORT_SYMBOL_GPL(dev_pm_opp_disable);
 
 /**
- * dev_pm_opp_register_notifier() - Register OPP notifier for the device
- * @dev:	Device for which notifier needs to be registered
+ * dev_pm_opp_register_yestifier() - Register OPP yestifier for the device
+ * @dev:	Device for which yestifier needs to be registered
  * @nb:		Notifier block to be registered
  *
  * Return: 0 on success or a negative error value.
  */
-int dev_pm_opp_register_notifier(struct device *dev, struct notifier_block *nb)
+int dev_pm_opp_register_yestifier(struct device *dev, struct yestifier_block *nb)
 {
 	struct opp_table *opp_table;
 	int ret;
@@ -2226,23 +2226,23 @@ int dev_pm_opp_register_notifier(struct device *dev, struct notifier_block *nb)
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 
-	ret = blocking_notifier_chain_register(&opp_table->head, nb);
+	ret = blocking_yestifier_chain_register(&opp_table->head, nb);
 
 	dev_pm_opp_put_opp_table(opp_table);
 
 	return ret;
 }
-EXPORT_SYMBOL(dev_pm_opp_register_notifier);
+EXPORT_SYMBOL(dev_pm_opp_register_yestifier);
 
 /**
- * dev_pm_opp_unregister_notifier() - Unregister OPP notifier for the device
- * @dev:	Device for which notifier needs to be unregistered
+ * dev_pm_opp_unregister_yestifier() - Unregister OPP yestifier for the device
+ * @dev:	Device for which yestifier needs to be unregistered
  * @nb:		Notifier block to be unregistered
  *
  * Return: 0 on success or a negative error value.
  */
-int dev_pm_opp_unregister_notifier(struct device *dev,
-				   struct notifier_block *nb)
+int dev_pm_opp_unregister_yestifier(struct device *dev,
+				   struct yestifier_block *nb)
 {
 	struct opp_table *opp_table;
 	int ret;
@@ -2251,13 +2251,13 @@ int dev_pm_opp_unregister_notifier(struct device *dev,
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 
-	ret = blocking_notifier_chain_unregister(&opp_table->head, nb);
+	ret = blocking_yestifier_chain_unregister(&opp_table->head, nb);
 
 	dev_pm_opp_put_opp_table(opp_table);
 
 	return ret;
 }
-EXPORT_SYMBOL(dev_pm_opp_unregister_notifier);
+EXPORT_SYMBOL(dev_pm_opp_unregister_yestifier);
 
 void _dev_pm_opp_find_and_remove_table(struct device *dev)
 {

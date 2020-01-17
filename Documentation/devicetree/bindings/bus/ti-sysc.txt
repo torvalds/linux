@@ -90,11 +90,11 @@ Optional properties:
 - ti,hwmods	optional TI interconnect module name to use legacy
 		hwmod platform data
 
-- ti,no-reset-on-init	interconnect target module should not be reset at init
+- ti,yes-reset-on-init	interconnect target module should yest be reset at init
 
-- ti,no-idle-on-init	interconnect target module should not be idled at init
+- ti,yes-idle-on-init	interconnect target module should yest be idled at init
 
-- ti,no-idle		interconnect target module should not be idled
+- ti,yes-idle		interconnect target module should yest be idled
 
 Example: Single instance of MUSB controller on omap4 using interconnect ranges
 using offsets from l4_cfg second segment (0x4a000000 + 0x80000 = 0x4a0ab000):

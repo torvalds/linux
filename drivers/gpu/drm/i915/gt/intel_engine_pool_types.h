@@ -19,7 +19,7 @@ struct intel_engine_pool {
 	struct list_head cache_list[4];
 };
 
-struct intel_engine_pool_node {
+struct intel_engine_pool_yesde {
 	struct i915_active active;
 	struct drm_i915_gem_object *obj;
 	struct list_head link;

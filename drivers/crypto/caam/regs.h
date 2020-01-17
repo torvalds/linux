@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-yesnatomic-hi-lo.h>
 
 /*
  * Architecture-specific register access methods
@@ -20,7 +20,7 @@
  * CAAM's bus-addressable registers are 64 bits internally.
  * They have been wired to be safely accessible on 32-bit
  * architectures, however. Registers were organized such
- * that (a) they can be contained in 32 bits, (b) if not, then they
+ * that (a) they can be contained in 32 bits, (b) if yest, then they
  * can be treated as two 32-bit entities, or finally (c) if they
  * must be treated as a single 64-bit value, then this can safely
  * be done with two 32-bit cycles.
@@ -39,7 +39,7 @@
  * - Bits 63-32 are a 32-bit word at base+0x0000 (numerically-lower)
  * - Bits 31-0 are a 32-bit word at base+0x0004 (numerically-higher)
  *
- * (and on Power, the convention is 0-31, 32-63, I know...)
+ * (and on Power, the convention is 0-31, 32-63, I kyesw...)
  *
  * Assuming a 64-bit write to this MCFG to perform a software reset
  * would then require a write of 0 to base+0x0000, followed by a
@@ -54,7 +54,7 @@
  * clean transition to 64-bit is possible when it becomes necessary.
  *
  * There are limitations to this that the developer must recognize.
- * 32-bit architectures cannot enforce an atomic-64 operation,
+ * 32-bit architectures canyest enforce an atomic-64 operation,
  * Therefore:
  *
  * - On writes, since the HW is assumed to latch the cycle on the
@@ -443,7 +443,7 @@ struct caam_perfmon {
 #define MSTRID_LIODN_MASK	0x0fff
 struct masterid {
 	u32 liodn_ms;	/* lock and make-trusted control bits */
-	u32 liodn_ls;	/* LIODN for non-sequence and seq access */
+	u32 liodn_ls;	/* LIODN for yesn-sequence and seq access */
 };
 
 /* Partition ID for DMA configuration */
@@ -578,7 +578,7 @@ struct caam_ctrl {
 	u32 tkek[TKEK_KEY_SIZE];	/* TDKEKR - Trusted Desc KEK */
 	u32 tdsk[TDSK_KEY_SIZE];	/* TDSKR - Trusted Desc Signing Key */
 	u32 rsvd7[32];
-	u64 sknonce;			/* SKNR - Secure Key Nonce */
+	u64 skyesnce;			/* SKNR - Secure Key Nonce */
 	u32 rsvd8[70];
 
 	/* RNG Test/Verification/Debug Access                   600-7ff */
@@ -693,7 +693,7 @@ struct caam_job_ring {
 /*
  * jrstatus - Job Ring Output Status
  * All values in lo word
- * Also note, same values written out as status through QI
+ * Also yeste, same values written out as status through QI
  * in the command/status field of a frame descriptor
  */
 #define JRSTA_SSRC_SHIFT            28
@@ -981,7 +981,7 @@ struct caam_deco {
 	u32 op_status_hi;	/* DxOPSTA - DECO Operation Status */
 	u32 op_status_lo;
 	u32 rsvd24[2];
-	u32 liodn;		/* DxLSR - DECO LIODN Status - non-seq */
+	u32 liodn;		/* DxLSR - DECO LIODN Status - yesn-seq */
 	u32 td_liodn;	/* DxLSR - DECO LIODN Status - trustdesc */
 	u32 rsvd26[6];
 	u64 math[4];		/* DxMTH - Math register */

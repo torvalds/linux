@@ -88,7 +88,7 @@
 
 #define TRANSPORT_GOOD		0   /* Transport good, command good	   */
 #define TRANSPORT_FAILED	1   /* Transport good, command failed   */
-#define TRANSPORT_NO_SENSE	2  /* Command failed, no auto-sense    */
+#define TRANSPORT_NO_SENSE	2  /* Command failed, yes auto-sense    */
 #define TRANSPORT_ERROR		3   /* Transport bad (i.e. device dead) */
 
 /*
@@ -143,9 +143,9 @@
 /*---- sense key ----*/
 #define ILI                     0x20    /* ILI bit is on                    */
 
-#define NO_SENSE                0x00    /* not exist sense key              */
+#define NO_SENSE                0x00    /* yest exist sense key              */
 #define RECOVER_ERR             0x01    /* Target/Logical unit is recoverd  */
-#define NOT_READY               0x02    /* Logical unit is not ready        */
+#define NOT_READY               0x02    /* Logical unit is yest ready        */
 #define MEDIA_ERR               0x03    /* medium/data error                */
 #define HARDWARE_ERR            0x04    /* hardware error                   */
 #define ILGAL_REQ               0x05    /* CDB/parameter/identify msg error */
@@ -227,7 +227,7 @@ struct sense_data_t {
 	/* bit6-0 : error * code */
 	/*  (0x70 : current * error) */
 	/*  (0x71 : specific command error) */
-	unsigned char   seg_no;		/* segment No.                      */
+	unsigned char   seg_yes;		/* segment No.                      */
 	unsigned char   sense_key;	/* byte5 : ILI                      */
 	/* bit3-0 : sense key              */
 	unsigned char   info[4];	/* information                       */
@@ -513,7 +513,7 @@ struct sd_info {
 #ifdef SUPPORT_SD_LOCK
 	u8 sd_lock_status;
 	u8 sd_erase_status;
-	u8 sd_lock_notify;
+	u8 sd_lock_yestify;
 #endif
 	int need_retune;
 };
@@ -834,7 +834,7 @@ struct rtsx_chip {
 
 	int remote_wakeup_en;
 
-	int ignore_sd;
+	int igyesre_sd;
 	int use_hw_setting;
 
 	int ss_idle_period;
@@ -960,8 +960,8 @@ void rtsx_stop_cmd(struct rtsx_chip *chip, int card);
 int rtsx_write_register(struct rtsx_chip *chip, u16 addr, u8 mask, u8 data);
 int rtsx_read_register(struct rtsx_chip *chip, u16 addr, u8 *data);
 int rtsx_write_cfg_dw(struct rtsx_chip *chip,
-		      u8 func_no, u16 addr, u32 mask, u32 val);
-int rtsx_read_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 *val);
+		      u8 func_yes, u16 addr, u32 mask, u32 val);
+int rtsx_read_cfg_dw(struct rtsx_chip *chip, u8 func_yes, u16 addr, u32 *val);
 int rtsx_write_cfg_seq(struct rtsx_chip *chip,
 		       u8 func, u16 addr, u8 *buf, int len);
 int rtsx_read_cfg_seq(struct rtsx_chip *chip,

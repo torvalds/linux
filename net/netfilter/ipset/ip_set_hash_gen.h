@@ -69,7 +69,7 @@ struct hbucket {
 	u8 size;		/* size of the array */
 	u8 pos;			/* position of the first free entry */
 	unsigned char value[0]	/* the array of the values */
-		__aligned(__alignof__(u64));
+		__aligned(__aligyesf__(u64));
 };
 
 /* The hash table: the table size stored here in order to make resizing easy */
@@ -137,7 +137,7 @@ htable_bits(u32 hashsize)
 #define NCIDR_GET(cidr)		((cidr) - 1)
 
 #ifdef IP_SET_HASH_WITH_NETS_PACKED
-/* When cidr is packed with nomatch, cidr - 1 is stored in the data entry */
+/* When cidr is packed with yesmatch, cidr - 1 is stored in the data entry */
 #define DCIDR_PUT(cidr)		((cidr) - 1)
 #define DCIDR_GET(cidr, i)	(__CIDR(cidr, i) + 1)
 #else
@@ -165,15 +165,15 @@ htable_bits(u32 hashsize)
 #endif /* _IP_SET_HASH_GEN_H */
 
 #ifndef MTYPE
-#error "MTYPE is not defined!"
+#error "MTYPE is yest defined!"
 #endif
 
 #ifndef HTYPE
-#error "HTYPE is not defined!"
+#error "HTYPE is yest defined!"
 #endif
 
 #ifndef HOST_MASK
-#error "HOST_MASK is not defined!"
+#error "HOST_MASK is yest defined!"
 #endif
 
 /* Family dependent templates */
@@ -442,7 +442,7 @@ mtype_same_set(const struct ip_set *a, const struct ip_set *b)
 	const struct htype *x = a->data;
 	const struct htype *y = b->data;
 
-	/* Resizing changes htable_bits, so we ignore it */
+	/* Resizing changes htable_bits, so we igyesre it */
 	return x->maxelem == y->maxelem &&
 	       a->timeout == b->timeout &&
 #ifdef IP_SET_HASH_WITH_NETMASK
@@ -573,7 +573,7 @@ retry:
 	htable_bits++;
 	if (!htable_bits) {
 		/* In case we have plenty of memory :-) */
-		pr_warn("Cannot increase the hashsize of set %s further\n",
+		pr_warn("Canyest increase the hashsize of set %s further\n",
 			set->name);
 		ret = -IPSET_ERR_HASH_FULL;
 		goto out;
@@ -587,7 +587,7 @@ retry:
 
 	spin_lock_bh(&set->lock);
 	orig = __ipset_dereference_protected(h->table, 1);
-	/* There can't be another parallel resizing, but dumping is possible */
+	/* There can't be ayesther parallel resizing, but dumping is possible */
 	atomic_set(&orig->ref, 1);
 	atomic_inc(&orig->uref);
 	extsize = 0;
@@ -603,7 +603,7 @@ retry:
 			data = ahash_data(n, j, dsize);
 #ifdef IP_SET_HASH_WITH_NETS
 			/* We have readers running parallel with us,
-			 * so the live data cannot be modified.
+			 * so the live data canyest be modified.
 			 */
 			flags = 0;
 			memcpy(tmp, data, dsize);
@@ -664,7 +664,7 @@ retry:
 
 	pr_debug("set %s resized from %u (%p) to %u (%p)\n", set->name,
 		 orig->htable_bits, orig, t->htable_bits, t);
-	/* If there's nobody else dumping the table, destroy it */
+	/* If there's yesbody else dumping the table, destroy it */
 	if (atomic_dec_and_test(&orig->uref)) {
 		pr_debug("Table destroy by resize %p\n", orig);
 		mtype_ahash_destroy(set, orig, false);
@@ -915,7 +915,7 @@ mtype_data_match(struct mtype_elem *data, const struct ip_set_ext *ext,
 {
 	if (!ip_set_match_extensions(set, ext, mext, flags, data))
 		return 0;
-	/* nomatch entries return -ENOTEMPTY */
+	/* yesmatch entries return -ENOTEMPTY */
 	return mtype_do_data_match(data);
 }
 
@@ -993,7 +993,7 @@ mtype_test(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 
 	t = rcu_dereference_bh(h->table);
 #ifdef IP_SET_HASH_WITH_NETS
-	/* If we test an IP address and not a network address,
+	/* If we test an IP address and yest a network address,
 	 * try all possible network sizes
 	 */
 	for (i = 0; i < IPSET_NET_COUNT; i++)
@@ -1037,7 +1037,7 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 
 	/* If any members have expired, set->elements will be wrong
 	 * mytype_expire function will update it with the right count.
-	 * we do not hold set->lock here, so grab it first.
+	 * we do yest hold set->lock here, so grab it first.
 	 * set->elements can still be incorrect in the case of a huge set,
 	 * because elements might time out during the listing.
 	 */
@@ -1126,7 +1126,7 @@ mtype_list(const struct ip_set *set,
 
 	pr_debug("list hash set %s\n", set->name);
 	t = (const struct htable *)cb->args[IPSET_CB_PRIVATE];
-	/* Expire may replace a hbucket with another one */
+	/* Expire may replace a hbucket with ayesther one */
 	rcu_read_lock();
 	for (; cb->args[IPSET_CB_ARG0] < jhash_size(t->htable_bits);
 	     cb->args[IPSET_CB_ARG0]++) {
@@ -1171,7 +1171,7 @@ mtype_list(const struct ip_set *set,
 nla_put_failure:
 	nlmsg_trim(skb, incomplete);
 	if (unlikely(first == cb->args[IPSET_CB_ARG0])) {
-		pr_warn("Can't list set %s: one bucket does not fit into a message. Please report it!\n",
+		pr_warn("Can't list set %s: one bucket does yest fit into a message. Please report it!\n",
 			set->name);
 		cb->args[IPSET_CB_ARG0] = 0;
 		ret = -EMSGSIZE;
@@ -1190,7 +1190,7 @@ IPSET_TOKEN(MTYPE, _kadt)(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 IPSET_TOKEN(MTYPE, _uadt)(struct ip_set *set, struct nlattr *tb[],
-			  enum ipset_adt adt, u32 *lineno, u32 flags,
+			  enum ipset_adt adt, u32 *lineyes, u32 flags,
 			  bool retried);
 
 static const struct ip_set_type_variant mtype_variant = {
@@ -1314,13 +1314,13 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 		set->variant = &IPSET_TOKEN(HTYPE, 4_variant);
 		set->dsize = ip_set_elem_len(set, tb,
 			sizeof(struct IPSET_TOKEN(HTYPE, 4_elem)),
-			__alignof__(struct IPSET_TOKEN(HTYPE, 4_elem)));
+			__aligyesf__(struct IPSET_TOKEN(HTYPE, 4_elem)));
 #ifndef IP_SET_PROTO_UNDEF
 	} else {
 		set->variant = &IPSET_TOKEN(HTYPE, 6_variant);
 		set->dsize = ip_set_elem_len(set, tb,
 			sizeof(struct IPSET_TOKEN(HTYPE, 6_elem)),
-			__alignof__(struct IPSET_TOKEN(HTYPE, 6_elem)));
+			__aligyesf__(struct IPSET_TOKEN(HTYPE, 6_elem)));
 	}
 #endif
 	set->timeout = IPSET_NO_TIMEOUT;

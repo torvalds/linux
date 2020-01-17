@@ -2,18 +2,18 @@
 #ifndef _LINUX_RAMFS_H
 #define _LINUX_RAMFS_H
 
-struct inode *ramfs_get_inode(struct super_block *sb, const struct inode *dir,
+struct iyesde *ramfs_get_iyesde(struct super_block *sb, const struct iyesde *dir,
 	 umode_t mode, dev_t dev);
 extern int ramfs_init_fs_context(struct fs_context *fc);
 
 #ifdef CONFIG_MMU
 static inline int
-ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
+ramfs_yesmmu_expand_for_mapping(struct iyesde *iyesde, size_t newsize)
 {
 	return 0;
 }
 #else
-extern int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize);
+extern int ramfs_yesmmu_expand_for_mapping(struct iyesde *iyesde, size_t newsize);
 #endif
 
 extern const struct fs_parameter_description ramfs_fs_parameters;

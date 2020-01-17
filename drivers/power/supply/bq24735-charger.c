@@ -13,7 +13,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * with this program; if yest, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
@@ -321,7 +321,7 @@ static int bq24735_charger_set_property(struct power_supply *psy,
 static struct bq24735_platform *bq24735_parse_dt_data(struct i2c_client *client)
 {
 	struct bq24735_platform *pdata;
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	u32 val;
 	int ret;
 
@@ -366,11 +366,11 @@ static int bq24735_charger_probe(struct i2c_client *client,
 	charger->charging = true;
 	charger->pdata = client->dev.platform_data;
 
-	if (IS_ENABLED(CONFIG_OF) && !charger->pdata && client->dev.of_node)
+	if (IS_ENABLED(CONFIG_OF) && !charger->pdata && client->dev.of_yesde)
 		charger->pdata = bq24735_parse_dt_data(client);
 
 	if (!charger->pdata) {
-		dev_err(&client->dev, "no platform data provided\n");
+		dev_err(&client->dev, "yes platform data provided\n");
 		return -EINVAL;
 	}
 
@@ -400,7 +400,7 @@ static int bq24735_charger_probe(struct i2c_client *client,
 
 	psy_cfg.supplied_to = charger->pdata->supplied_to;
 	psy_cfg.num_supplicants = charger->pdata->num_supplicants;
-	psy_cfg.of_node = client->dev.of_node;
+	psy_cfg.of_yesde = client->dev.of_yesde;
 	psy_cfg.drv_data = charger;
 
 	i2c_set_clientdata(client, charger);

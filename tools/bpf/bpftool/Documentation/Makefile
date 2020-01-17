@@ -4,7 +4,7 @@ include ../../../scripts/utilities.mak
 
 INSTALL ?= install
 RM ?= rm -f
-RMDIR ?= rmdir --ignore-fail-on-non-empty
+RMDIR ?= rmdir --igyesre-fail-on-yesn-empty
 
 ifeq ($(V),1)
   Q =
@@ -31,7 +31,7 @@ RST2MAN_DEP := $(shell command -v rst2man 2>/dev/null)
 
 $(OUTPUT)%.8: %.rst
 ifndef RST2MAN_DEP
-	$(error "rst2man not found, but required to generate man pages")
+	$(error "rst2man yest found, but required to generate man pages")
 endif
 	$(QUIET_GEN)rst2man $< > $@
 

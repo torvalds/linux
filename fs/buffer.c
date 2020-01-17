@@ -6,9 +6,9 @@
  */
 
 /*
- * Start bdflush() with kernel_thread not syscall - Paul Gortmaker, 12/95
+ * Start bdflush() with kernel_thread yest syscall - Paul Gortmaker, 12/95
  *
- * Removed a lot of unnecessary code and simplified things now that
+ * Removed a lot of unnecessary code and simplified things yesw that
  * the buffer cache isn't our primary cache - Andrew Tridgell 12/96
  *
  * Speed up hash, lru, and free list operations.  Use gfp() for allocating
@@ -140,14 +140,14 @@ static void buffer_io_error(struct buffer_head *bh, char *msg)
 }
 
 /*
- * End-of-IO handler helper function which does not touch the bh after
+ * End-of-IO handler helper function which does yest touch the bh after
  * unlocking it.
  * Note: unlock_buffer() sort-of does touch the bh after unlocking it, but
  * a race there is benign: unlock_buffer() only use the bh's address for
  * hashing after unlocking the buffer, so it doesn't actually touch the bh
  * itself.
  */
-static void __end_buffer_read_notouch(struct buffer_head *bh, int uptodate)
+static void __end_buffer_read_yestouch(struct buffer_head *bh, int uptodate)
 {
 	if (uptodate) {
 		set_buffer_uptodate(bh);
@@ -159,12 +159,12 @@ static void __end_buffer_read_notouch(struct buffer_head *bh, int uptodate)
 }
 
 /*
- * Default synchronous end-of-IO handler..  Just mark it up-to-date and
+ * Default synchroyesus end-of-IO handler..  Just mark it up-to-date and
  * unlock the buffer. This is what ll_rw_block uses too.
  */
 void end_buffer_read_sync(struct buffer_head *bh, int uptodate)
 {
-	__end_buffer_read_notouch(bh, uptodate);
+	__end_buffer_read_yestouch(bh, uptodate);
 	put_bh(bh);
 }
 EXPORT_SYMBOL(end_buffer_read_sync);
@@ -184,20 +184,20 @@ void end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 EXPORT_SYMBOL(end_buffer_write_sync);
 
 /*
- * Various filesystems appear to want __find_get_block to be non-blocking.
+ * Various filesystems appear to want __find_get_block to be yesn-blocking.
  * But it's the page lock which protects the buffers.  To get around this,
  * we get exclusion from try_to_free_buffers with the blockdev mapping's
  * private_lock.
  *
  * Hack idea: for the blockdev mapping, private_lock contention
  * may be quite high.  This code could TryLock the page, and if that
- * succeeds, there is no need to take private_lock.
+ * succeeds, there is yes need to take private_lock.
  */
 static struct buffer_head *
 __find_get_block_slow(struct block_device *bdev, sector_t block)
 {
-	struct inode *bd_inode = bdev->bd_inode;
-	struct address_space *bd_mapping = bd_inode->i_mapping;
+	struct iyesde *bd_iyesde = bdev->bd_iyesde;
+	struct address_space *bd_mapping = bd_iyesde->i_mapping;
 	struct buffer_head *ret = NULL;
 	pgoff_t index;
 	struct buffer_head *bh;
@@ -206,7 +206,7 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 	int all_mapped = 1;
 	static DEFINE_RATELIMIT_STATE(last_warned, HZ, 1);
 
-	index = block >> (PAGE_SHIFT - bd_inode->i_blkbits);
+	index = block >> (PAGE_SHIFT - bd_iyesde->i_blkbits);
 	page = find_get_page_flags(bd_mapping, index, FGP_ACCESSED);
 	if (!page)
 		goto out;
@@ -228,7 +228,7 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 	} while (bh != head);
 
 	/* we might be here because some of the buffers on this page are
-	 * not mapped.  This is due to various races between
+	 * yest mapped.  This is due to various races between
 	 * file io on the block device and getblk.  It gets dealt with
 	 * elsewhere, don't buffer_error if we had some unmapped buffers
 	 */
@@ -240,7 +240,7 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 		       (unsigned long long)block,
 		       (unsigned long long)bh->b_blocknr,
 		       bh->b_state, bh->b_size, bdev,
-		       1 << bd_inode->i_blkbits);
+		       1 << bd_iyesde->i_blkbits);
 	}
 out_unlock:
 	spin_unlock(&bd_mapping->private_lock);
@@ -271,7 +271,7 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	/*
 	 * Be _very_ careful from here on. Bad things can happen if
 	 * two buffer heads end IO at almost the same time and both
-	 * decide that the page is now completely done.
+	 * decide that the page is yesw completely done.
 	 */
 	first = page_buffers(page);
 	local_irq_save(flags);
@@ -292,7 +292,7 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	local_irq_restore(flags);
 
 	/*
-	 * If none of the buffers had errors and they are all
+	 * If yesne of the buffers had errors and they are all
 	 * uptodate then we can set the page uptodate.
 	 */
 	if (page_uptodate && !PageError(page))
@@ -398,14 +398,14 @@ EXPORT_SYMBOL(end_buffer_async_write);
 
 /*
  * If a page's buffers are under async readin (end_buffer_async_read
- * completion) then there is a possibility that another thread of
+ * completion) then there is a possibility that ayesther thread of
  * control could lock one of the buffers after it has completed
- * but while some of the other buffers have not completed.  This
- * locked buffer would confuse end_buffer_async_read() into not unlocking
+ * but while some of the other buffers have yest completed.  This
+ * locked buffer would confuse end_buffer_async_read() into yest unlocking
  * the page.  So the absence of BH_Async_Read tells end_buffer_async_read()
- * that this buffer is not under async I/O.
+ * that this buffer is yest under async I/O.
  *
- * The page comes unlocked when it has no locked buffer_async buffers
+ * The page comes unlocked when it has yes locked buffer_async buffers
  * left.
  *
  * PageLocked prevents anyone starting new async I/O reads any of
@@ -444,46 +444,46 @@ EXPORT_SYMBOL(mark_buffer_async_write);
  * a successful fsync().  For example, ext2 indirect blocks need to be
  * written back and waited upon before fsync() returns.
  *
- * The functions mark_buffer_inode_dirty(), fsync_inode_buffers(),
- * inode_has_buffers() and invalidate_inode_buffers() are provided for the
+ * The functions mark_buffer_iyesde_dirty(), fsync_iyesde_buffers(),
+ * iyesde_has_buffers() and invalidate_iyesde_buffers() are provided for the
  * management of a list of dependent buffers at ->i_mapping->private_list.
  *
  * Locking is a little subtle: try_to_free_buffers() will remove buffers
- * from their controlling inode's queue when they are being freed.  But
+ * from their controlling iyesde's queue when they are being freed.  But
  * try_to_free_buffers() will be operating against the *blockdev* mapping
- * at the time, not against the S_ISREG file which depends on those buffers.
+ * at the time, yest against the S_ISREG file which depends on those buffers.
  * So the locking for private_list is via the private_lock in the address_space
  * which backs the buffers.  Which is different from the address_space 
  * against which the buffers are listed.  So for a particular address_space,
- * mapping->private_lock does *not* protect mapping->private_list!  In fact,
+ * mapping->private_lock does *yest* protect mapping->private_list!  In fact,
  * mapping->private_list will always be protected by the backing blockdev's
  * ->private_lock.
  *
  * Which introduces a requirement: all buffers on an address_space's
  * ->private_list must be from the same address_space: the blockdev's.
  *
- * address_spaces which do not place buffers at ->private_list via these
+ * address_spaces which do yest place buffers at ->private_list via these
  * utility functions are free to use private_lock and private_list for
  * whatever they want.  The only requirement is that list_empty(private_list)
- * be true at clear_inode() time.
+ * be true at clear_iyesde() time.
  *
- * FIXME: clear_inode should not call invalidate_inode_buffers().  The
- * filesystems should do that.  invalidate_inode_buffers() should just go
+ * FIXME: clear_iyesde should yest call invalidate_iyesde_buffers().  The
+ * filesystems should do that.  invalidate_iyesde_buffers() should just go
  * BUG_ON(!list_empty).
  *
- * FIXME: mark_buffer_dirty_inode() is a data-plane operation.  It should
- * take an address_space, not an inode.  And it should be called
+ * FIXME: mark_buffer_dirty_iyesde() is a data-plane operation.  It should
+ * take an address_space, yest an iyesde.  And it should be called
  * mark_buffer_dirty_fsync() to clearly define why those buffers are being
  * queued up.
  *
- * FIXME: mark_buffer_dirty_inode() doesn't need to add the buffer to the
+ * FIXME: mark_buffer_dirty_iyesde() doesn't need to add the buffer to the
  * list if it is already on a list.  Because if the buffer is on a list,
- * it *must* already be on the right one.  If not, the filesystem is being
+ * it *must* already be on the right one.  If yest, the filesystem is being
  * silly.  This will save a ton of locking.  But first we have to ensure
- * that buffers are taken *off* the old inode's list when they are freed
+ * that buffers are taken *off* the old iyesde's list when they are freed
  * (presumably in truncate).  That requires careful auditing of all
  * filesystems (do it inside bforget()).  It could also be done by bringing
- * b_inode back.
+ * b_iyesde back.
  */
 
 /*
@@ -496,20 +496,20 @@ static void __remove_assoc_queue(struct buffer_head *bh)
 	bh->b_assoc_map = NULL;
 }
 
-int inode_has_buffers(struct inode *inode)
+int iyesde_has_buffers(struct iyesde *iyesde)
 {
-	return !list_empty(&inode->i_data.private_list);
+	return !list_empty(&iyesde->i_data.private_list);
 }
 
 /*
- * osync is designed to support O_SYNC io.  It waits synchronously for
- * all already-submitted IO to complete, but does not queue any new
+ * osync is designed to support O_SYNC io.  It waits synchroyesusly for
+ * all already-submitted IO to complete, but does yest queue any new
  * writes to the disk.
  *
  * To do O_SYNC writes, just queue the buffer writes with ll_rw_block as
- * you dirty the buffers, and then use osync_inode_buffers to wait for
- * completion.  Any other dirty buffers which are not yet queued for
- * write will not be flushed to disk by the osync.
+ * you dirty the buffers, and then use osync_iyesde_buffers to wait for
+ * completion.  Any other dirty buffers which are yest yet queued for
+ * write will yest be flushed to disk by the osync.
  */
 static int osync_buffers_list(spinlock_t *lock, struct list_head *list)
 {
@@ -566,7 +566,7 @@ int sync_mapping_buffers(struct address_space *mapping)
 EXPORT_SYMBOL(sync_mapping_buffers);
 
 /*
- * Called when we've recently written block `bblock', and it is known that
+ * Called when we've recently written block `bblock', and it is kyeswn that
  * `bblock' was for a buffer_boundary() buffer.  This means that the block at
  * `bblock + 1' is probably a dirty indirect block.  Hunt it down and, if it's
  * dirty, schedule it for IO.  So that indirects merge nicely with their data.
@@ -582,9 +582,9 @@ void write_boundary_block(struct block_device *bdev,
 	}
 }
 
-void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
+void mark_buffer_dirty_iyesde(struct buffer_head *bh, struct iyesde *iyesde)
 {
-	struct address_space *mapping = inode->i_mapping;
+	struct address_space *mapping = iyesde->i_mapping;
 	struct address_space *buffer_mapping = bh->b_page->mapping;
 
 	mark_buffer_dirty(bh);
@@ -601,14 +601,14 @@ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
 		spin_unlock(&buffer_mapping->private_lock);
 	}
 }
-EXPORT_SYMBOL(mark_buffer_dirty_inode);
+EXPORT_SYMBOL(mark_buffer_dirty_iyesde);
 
 /*
- * Mark the page dirty, and set it dirty in the page cache, and mark the inode
+ * Mark the page dirty, and set it dirty in the page cache, and mark the iyesde
  * dirty.
  *
- * If warn is true, then emit a warning if the page is not uptodate and has
- * not been truncated.
+ * If warn is true, then emit a warning if the page is yest uptodate and has
+ * yest been truncated.
  *
  * The caller must hold lock_page_memcg().
  */
@@ -632,15 +632,15 @@ EXPORT_SYMBOL_GPL(__set_page_dirty);
  * Add a page to the dirty page list.
  *
  * It is a sad fact of life that this function is called from several places
- * deeply under spinlocking.  It may not sleep.
+ * deeply under spinlocking.  It may yest sleep.
  *
  * If the page has buffers, the uptodate buffers are set dirty, to preserve
  * dirty-state coherency between the page and the buffers.  It the page does
- * not have buffers then when they are later attached they will all be set
+ * yest have buffers then when they are later attached they will all be set
  * dirty.
  *
  * The buffers are dirtied before the page is dirtied.  There's a small race
- * window in which a writepage caller may see the page cleanness but not the
+ * window in which a writepage caller may see the page cleanness but yest the
  * buffer dirtiness.  That's fine.  If this code were to set the page dirty
  * before the buffers, a concurrent writepage caller could clear the page dirty
  * bit, see a bunch of clean buffers and we'd end up with dirty buffers/clean
@@ -685,7 +685,7 @@ int __set_page_dirty_buffers(struct page *page)
 	unlock_page_memcg(page);
 
 	if (newly_dirty)
-		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+		__mark_iyesde_dirty(mapping->host, I_DIRTY_PAGES);
 
 	return newly_dirty;
 }
@@ -700,13 +700,13 @@ EXPORT_SYMBOL(__set_page_dirty_buffers);
  * forever if somebody is actively writing to the file.
  *
  * Do this in two main stages: first we copy dirty buffers to a
- * temporary inode list, queueing the writes as we go.  Then we clean
+ * temporary iyesde list, queueing the writes as we go.  Then we clean
  * up, waiting for those writes to complete.
  * 
  * During this second stage, any subsequent updates to the file may end
- * up refiling the buffer on the original inode's dirty list again, so
+ * up refiling the buffer on the original iyesde's dirty list again, so
  * there is a chance we will end up with a buffer queued for write but
- * not yet completed on that list.  So, as a final cleanup we go through
+ * yest yet completed on that list.  So, as a final cleanup we go through
  * the osync code to catch these locked, dirty buffers without requeuing
  * any newly dirty buffers for write.
  */
@@ -726,7 +726,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 		bh = BH_ENTRY(list->next);
 		mapping = bh->b_assoc_map;
 		__remove_assoc_queue(bh);
-		/* Avoid race with mark_buffer_dirty_inode() which does
+		/* Avoid race with mark_buffer_dirty_iyesde() which does
 		 * a lockless check and we rely on seeing the dirty bit */
 		smp_mb();
 		if (buffer_dirty(bh) || buffer_locked(bh)) {
@@ -738,7 +738,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 				/*
 				 * Ensure any pending I/O completes so that
 				 * write_dirty_buffer() actually writes the
-				 * current contents - it is a noop if I/O is
+				 * current contents - it is a yesop if I/O is
 				 * still in flight on potentially older
 				 * contents.
 				 */
@@ -746,7 +746,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 
 				/*
 				 * Kick off IO for the previous mapping. Note
-				 * that we will not run the very last mapping,
+				 * that we will yest run the very last mapping,
 				 * wait_on_buffer() will do that for us
 				 * through sync_buffer().
 				 */
@@ -765,7 +765,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 		get_bh(bh);
 		mapping = bh->b_assoc_map;
 		__remove_assoc_queue(bh);
-		/* Avoid race with mark_buffer_dirty_inode() which does
+		/* Avoid race with mark_buffer_dirty_iyesde() which does
 		 * a lockless check and we rely on seeing the dirty bit */
 		smp_mb();
 		if (buffer_dirty(bh)) {
@@ -790,18 +790,18 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 }
 
 /*
- * Invalidate any and all dirty buffers on a given inode.  We are
+ * Invalidate any and all dirty buffers on a given iyesde.  We are
  * probably unmounting the fs, but that doesn't mean we have already
- * done a sync().  Just drop the buffers from the inode list.
+ * done a sync().  Just drop the buffers from the iyesde list.
  *
- * NOTE: we take the inode's blockdev's mapping's private_lock.  Which
+ * NOTE: we take the iyesde's blockdev's mapping's private_lock.  Which
  * assumes that all the buffers are against the blockdev.  Not true
  * for reiserfs.
  */
-void invalidate_inode_buffers(struct inode *inode)
+void invalidate_iyesde_buffers(struct iyesde *iyesde)
 {
-	if (inode_has_buffers(inode)) {
-		struct address_space *mapping = &inode->i_data;
+	if (iyesde_has_buffers(iyesde)) {
+		struct address_space *mapping = &iyesde->i_data;
 		struct list_head *list = &mapping->private_list;
 		struct address_space *buffer_mapping = mapping->private_data;
 
@@ -811,20 +811,20 @@ void invalidate_inode_buffers(struct inode *inode)
 		spin_unlock(&buffer_mapping->private_lock);
 	}
 }
-EXPORT_SYMBOL(invalidate_inode_buffers);
+EXPORT_SYMBOL(invalidate_iyesde_buffers);
 
 /*
- * Remove any clean buffers from the inode's buffer list.  This is called
- * when we're trying to free the inode itself.  Those buffers can pin it.
+ * Remove any clean buffers from the iyesde's buffer list.  This is called
+ * when we're trying to free the iyesde itself.  Those buffers can pin it.
  *
  * Returns true if all buffers were removed.
  */
-int remove_inode_buffers(struct inode *inode)
+int remove_iyesde_buffers(struct iyesde *iyesde)
 {
 	int ret = 1;
 
-	if (inode_has_buffers(inode)) {
-		struct address_space *mapping = &inode->i_data;
+	if (iyesde_has_buffers(iyesde)) {
+		struct address_space *mapping = &iyesde->i_data;
 		struct list_head *list = &mapping->private_list;
 		struct address_space *buffer_mapping = mapping->private_data;
 
@@ -849,7 +849,7 @@ int remove_inode_buffers(struct inode *inode)
  * buffers.
  *
  * The retry flag is used to differentiate async IO (paging, swapping)
- * which may not fail from ordinary buffer allocations.
+ * which may yest fail from ordinary buffer allocations.
  */
 struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
 		bool retry)
@@ -870,7 +870,7 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
 	while ((offset -= size) >= 0) {
 		bh = alloc_buffer_head(gfp);
 		if (!bh)
-			goto no_grow;
+			goto yes_grow;
 
 		bh->b_this_page = head;
 		bh->b_blocknr = -1;
@@ -888,7 +888,7 @@ out:
 /*
  * In case anything failed, we just free everything we got.
  */
-no_grow:
+yes_grow:
 	if (head) {
 		do {
 			bh = head;
@@ -918,7 +918,7 @@ link_dev_buffers(struct page *page, struct buffer_head *head)
 static sector_t blkdev_max_block(struct block_device *bdev, unsigned int size)
 {
 	sector_t retval = ~((sector_t)0);
-	loff_t sz = i_size_read(bdev->bd_inode);
+	loff_t sz = i_size_read(bdev->bd_iyesde);
 
 	if (sz) {
 		unsigned int sizebits = blksize_bits(size);
@@ -937,7 +937,7 @@ init_page_buffers(struct page *page, struct block_device *bdev,
 	struct buffer_head *head = page_buffers(page);
 	struct buffer_head *bh = head;
 	int uptodate = PageUptodate(page);
-	sector_t end_block = blkdev_max_block(I_BDEV(bdev->bd_inode), size);
+	sector_t end_block = blkdev_max_block(I_BDEV(bdev->bd_iyesde), size);
 
 	do {
 		if (!buffer_mapped(bh)) {
@@ -969,24 +969,24 @@ static int
 grow_dev_page(struct block_device *bdev, sector_t block,
 	      pgoff_t index, int size, int sizebits, gfp_t gfp)
 {
-	struct inode *inode = bdev->bd_inode;
+	struct iyesde *iyesde = bdev->bd_iyesde;
 	struct page *page;
 	struct buffer_head *bh;
 	sector_t end_block;
 	int ret = 0;		/* Will call free_more_memory() */
 	gfp_t gfp_mask;
 
-	gfp_mask = mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS) | gfp;
+	gfp_mask = mapping_gfp_constraint(iyesde->i_mapping, ~__GFP_FS) | gfp;
 
 	/*
-	 * XXX: __getblk_slow() can not really deal with failure and
+	 * XXX: __getblk_slow() can yest really deal with failure and
 	 * will endlessly loop on improvised global reclaim.  Prefer
 	 * looping in the allocator rather than here, at least that
-	 * code knows what it's doing.
+	 * code kyesws what it's doing.
 	 */
 	gfp_mask |= __GFP_NOFAIL;
 
-	page = find_or_create_page(inode->i_mapping, index, gfp_mask);
+	page = find_or_create_page(iyesde->i_mapping, index, gfp_mask);
 
 	BUG_ON(!PageLocked(page));
 
@@ -1009,14 +1009,14 @@ grow_dev_page(struct block_device *bdev, sector_t block,
 
 	/*
 	 * Link the page to the buffers and initialise them.  Take the
-	 * lock to be atomic wrt __find_get_block(), which does not
+	 * lock to be atomic wrt __find_get_block(), which does yest
 	 * run under the page lock.
 	 */
-	spin_lock(&inode->i_mapping->private_lock);
+	spin_lock(&iyesde->i_mapping->private_lock);
 	link_dev_buffers(page, bh);
 	end_block = init_page_buffers(page, bdev, (sector_t)index << sizebits,
 			size);
-	spin_unlock(&inode->i_mapping->private_lock);
+	spin_unlock(&iyesde->i_mapping->private_lock);
 done:
 	ret = (block < end_block) ? 1 : -ENXIO;
 failed:
@@ -1102,13 +1102,13 @@ __getblk_slow(struct block_device *bdev, sector_t block,
  * (if the page has buffers).
  *
  * When a buffer is marked dirty, its page is dirtied, but the page's other
- * buffers are not.
+ * buffers are yest.
  *
  * Also.  When blockdev buffers are explicitly read with bread(), they
- * individually become uptodate.  But their backing page remains not
+ * individually become uptodate.  But their backing page remains yest
  * uptodate - even if all of its buffers are uptodate.  A subsequent
  * block_read_full_page() against that page will discover all the uptodate
- * buffers, will set the page uptodate and will perform no I/O.
+ * buffers, will set the page uptodate and will perform yes I/O.
  */
 
 /**
@@ -1117,8 +1117,8 @@ __getblk_slow(struct block_device *bdev, sector_t block,
  *
  * mark_buffer_dirty() will set the dirty bit against the buffer, then set
  * its backing page dirty, then tag the page as dirty in the page cache
- * and then attach the address_space's inode to its superblock's dirty
- * inode list.
+ * and then attach the address_space's iyesde to its superblock's dirty
+ * iyesde list.
  *
  * mark_buffer_dirty() is atomic.  It takes bh->b_page->mapping->private_lock,
  * i_pages lock and mapping->host->i_lock.
@@ -1153,7 +1153,7 @@ void mark_buffer_dirty(struct buffer_head *bh)
 		}
 		unlock_page_memcg(page);
 		if (mapping)
-			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+			__mark_iyesde_dirty(mapping->host, I_DIRTY_PAGES);
 	}
 }
 EXPORT_SYMBOL(mark_buffer_dirty);
@@ -1174,7 +1174,7 @@ EXPORT_SYMBOL(mark_buffer_write_io_error);
  * have zero reference count, are clean and unlocked, and if the page is clean
  * and unlocked then try_to_free_buffers() may strip the buffers from the page
  * in preparation for freeing it (sometimes, rarely, buffers are removed from
- * a page but it ends up not being freed, and buffers may later be reattached).
+ * a page but it ends up yest being freed, and buffers may later be reattached).
  */
 void __brelse(struct buffer_head * buf)
 {
@@ -1261,7 +1261,7 @@ static inline void check_irqs_on(void)
 }
 
 /*
- * Install a buffer_head into this cpu's LRU.  If not already in the LRU, it is
+ * Install a buffer_head into this cpu's LRU.  If yest already in the LRU, it is
  * inserted at the front, and the buffer_head at the back if any is evicted.
  * Or, if already in the LRU it is moved to the front.
  */
@@ -1323,7 +1323,7 @@ lookup_bh_lru(struct block_device *bdev, sector_t block, unsigned size)
 
 /*
  * Perform a pagecache lookup for the matching buffer.  If it's there, refresh
- * it in the LRU and mark it as accessed.  If it is not present then return
+ * it in the LRU and mark it as accessed.  If it is yest present then return
  * NULL
  */
 struct buffer_head *
@@ -1385,8 +1385,8 @@ EXPORT_SYMBOL(__breadahead);
  *  @gfp: page allocation flag
  *
  *  Reads a specified block, and returns buffer head that contains it.
- *  The page cache can be allocated from non-movable area
- *  not to prevent page migration if you set gfp to zero.
+ *  The page cache can be allocated from yesn-movable area
+ *  yest to prevent page migration if you set gfp to zero.
  *  It returns NULL if the block was unreadable.
  */
 struct buffer_head *
@@ -1402,7 +1402,7 @@ __bread_gfp(struct block_device *bdev, sector_t block,
 EXPORT_SYMBOL(__bread_gfp);
 
 /*
- * invalidate_bh_lrus() is called rarely - but not only at unmount.
+ * invalidate_bh_lrus() is called rarely - but yest only at unmount.
  * This doesn't race because it runs in each cpu either in irq
  * or with preempt disabled.
  */
@@ -1489,8 +1489,8 @@ static void discard_buffer(struct buffer_head * bh)
  * block_invalidatepage() is called when all or part of the page has become
  * invalidated by a truncate operation.
  *
- * block_invalidatepage() does not have to release all buffers, but it must
- * ensure that no dirty buffer is left outside @offset and that no I/O
+ * block_invalidatepage() does yest have to release all buffers, but it must
+ * ensure that yes dirty buffer is left outside @offset and that yes I/O
  * is underway against any of the blocks which are outside the truncation
  * point.  Because the caller is about to free (and possibly reuse) those
  * blocks on-disk.
@@ -1535,7 +1535,7 @@ void block_invalidatepage(struct page *page, unsigned int offset,
 	/*
 	 * We release buffers only if the entire page is being invalidated.
 	 * The get_block cached value has been unconditionally invalidated,
-	 * so real IO is not possible anymore.
+	 * so real IO is yest possible anymore.
 	 */
 	if (length == PAGE_SIZE)
 		try_to_release_page(page, 0);
@@ -1589,8 +1589,8 @@ EXPORT_SYMBOL(create_empty_buffers);
  * We are taking a range of blocks for data and we don't want writeback of any
  * buffer-cache aliases starting from return from this function and until the
  * moment when something will explicitly mark the buffer dirty (hopefully that
- * will not happen until we will free that block ;-) We don't even need to mark
- * it not-uptodate - nobody can expect anything from a newly allocated buffer
+ * will yest happen until we will free that block ;-) We don't even need to mark
+ * it yest-uptodate - yesbody can expect anything from a newly allocated buffer
  * anyway. We used to use unmap_buffer() for such invalidation, but that was
  * wrong. We definitely don't want to mark the alias unmapped, for example - it
  * would confuse anyone who might pick it with bread() afterwards...
@@ -1602,16 +1602,16 @@ EXPORT_SYMBOL(create_empty_buffers);
  */
 void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
 {
-	struct inode *bd_inode = bdev->bd_inode;
-	struct address_space *bd_mapping = bd_inode->i_mapping;
+	struct iyesde *bd_iyesde = bdev->bd_iyesde;
+	struct address_space *bd_mapping = bd_iyesde->i_mapping;
 	struct pagevec pvec;
-	pgoff_t index = block >> (PAGE_SHIFT - bd_inode->i_blkbits);
+	pgoff_t index = block >> (PAGE_SHIFT - bd_iyesde->i_blkbits);
 	pgoff_t end;
 	int i, count;
 	struct buffer_head *bh;
 	struct buffer_head *head;
 
-	end = (block + len - 1) >> (PAGE_SHIFT - bd_inode->i_blkbits);
+	end = (block + len - 1) >> (PAGE_SHIFT - bd_iyesde->i_blkbits);
 	pagevec_init(&pvec);
 	while (pagevec_lookup_range(&pvec, bd_mapping, &index, end)) {
 		count = pagevec_count(&pvec);
@@ -1667,12 +1667,12 @@ static inline int block_size_bits(unsigned int blocksize)
 	return ilog2(blocksize);
 }
 
-static struct buffer_head *create_page_buffers(struct page *page, struct inode *inode, unsigned int b_state)
+static struct buffer_head *create_page_buffers(struct page *page, struct iyesde *iyesde, unsigned int b_state)
 {
 	BUG_ON(!PageLocked(page));
 
 	if (!page_has_buffers(page))
-		create_empty_buffers(page, 1 << READ_ONCE(inode->i_blkbits),
+		create_empty_buffers(page, 1 << READ_ONCE(iyesde->i_blkbits),
 				     b_state);
 	return page_buffers(page);
 }
@@ -1682,9 +1682,9 @@ static struct buffer_head *create_page_buffers(struct page *page, struct inode *
  *
  *	Mapped	Uptodate	Meaning
  *
- *	No	No		"unknown" - must do get_block()
+ *	No	No		"unkyeswn" - must do get_block()
  *	No	Yes		"hole" - zero-filled
- *	Yes	No		"allocated" - allocated on disk, not read in
+ *	Yes	No		"allocated" - allocated on disk, yest read in
  *	Yes	Yes		"valid" - allocated and up-to-date in memory.
  *
  * "Dirty" is valid only with the last case (mapped+uptodate).
@@ -1704,9 +1704,9 @@ static struct buffer_head *create_page_buffers(struct page *page, struct inode *
  *
  * If block_write_full_page() is called with wbc->sync_mode ==
  * WB_SYNC_ALL, the writes are posted using REQ_SYNC; this
- * causes the writes to be flagged as synchronous writes.
+ * causes the writes to be flagged as synchroyesus writes.
  */
-int __block_write_full_page(struct inode *inode, struct page *page,
+int __block_write_full_page(struct iyesde *iyesde, struct page *page,
 			get_block_t *get_block, struct writeback_control *wbc,
 			bh_end_io_t *handler)
 {
@@ -1718,11 +1718,11 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 	int nr_underway = 0;
 	int write_flags = wbc_to_write_flags(wbc);
 
-	head = create_page_buffers(page, inode,
+	head = create_page_buffers(page, iyesde,
 					(1 << BH_Dirty)|(1 << BH_Uptodate));
 
 	/*
-	 * Be very careful.  We have no exclusion from __set_page_dirty_buffers
+	 * Be very careful.  We have yes exclusion from __set_page_dirty_buffers
 	 * here, and the (potentially unmapped) buffers may become dirty at
 	 * any time.  If a buffer becomes dirty here after we've inspected it
 	 * then we just miss that fact, and the page stays dirty.
@@ -1736,7 +1736,7 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 	bbits = block_size_bits(blocksize);
 
 	block = (sector_t)page->index << (PAGE_SHIFT - bbits);
-	last_block = (i_size_read(inode) - 1) >> bbits;
+	last_block = (i_size_read(iyesde) - 1) >> bbits;
 
 	/*
 	 * Get all the dirty buffers mapped to disk addresses and
@@ -1757,7 +1757,7 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 		} else if ((!buffer_mapped(bh) || buffer_delay(bh)) &&
 			   buffer_dirty(bh)) {
 			WARN_ON(bh->b_size != blocksize);
-			err = get_block(inode, block, bh, 1);
+			err = get_block(iyesde, block, bh, 1);
 			if (err)
 				goto recover;
 			clear_buffer_delay(bh);
@@ -1775,7 +1775,7 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 		if (!buffer_mapped(bh))
 			continue;
 		/*
-		 * If it's a fully non-blocking write attempt and we cannot
+		 * If it's a fully yesn-blocking write attempt and we canyest
 		 * lock the buffer then redirty the page.  Note that this can
 		 * potentially cause a busy-wait loop from writeback threads
 		 * and kswapd activity, but those code paths have their own
@@ -1805,7 +1805,7 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
 			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh,
-					inode->i_write_hint, wbc);
+					iyesde->i_write_hint, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -1834,7 +1834,7 @@ recover:
 	 * ENOSPC, or some other error.  We may already have added some
 	 * blocks to the file, so we need to write these out to avoid
 	 * exposing stale data.
-	 * The page is currently locked and not marked for writeback
+	 * The page is currently locked and yest marked for writeback
 	 */
 	bh = head;
 	/* Recovery: lock and submit the mapped buffers */
@@ -1860,7 +1860,7 @@ recover:
 		if (buffer_async_write(bh)) {
 			clear_buffer_dirty(bh);
 			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh,
-					inode->i_write_hint, wbc);
+					iyesde->i_write_hint, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -1913,17 +1913,17 @@ void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
 EXPORT_SYMBOL(page_zero_new_buffers);
 
 static void
-iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
+iomap_to_bh(struct iyesde *iyesde, sector_t block, struct buffer_head *bh,
 		struct iomap *iomap)
 {
-	loff_t offset = block << inode->i_blkbits;
+	loff_t offset = block << iyesde->i_blkbits;
 
 	bh->b_bdev = iomap->bdev;
 
 	/*
 	 * Block points to offset in file we need to map, iomap contains
 	 * the offset at which the map starts. If the map ends before the
-	 * current block, then do not map the buffer and let the caller
+	 * current block, then do yest map the buffer and let the caller
 	 * handle it.
 	 */
 	BUG_ON(offset >= iomap->offset + iomap->length);
@@ -1931,17 +1931,17 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 	switch (iomap->type) {
 	case IOMAP_HOLE:
 		/*
-		 * If the buffer is not up to date or beyond the current EOF,
+		 * If the buffer is yest up to date or beyond the current EOF,
 		 * we need to mark it as new to ensure sub-block zeroing is
 		 * executed if necessary.
 		 */
 		if (!buffer_uptodate(bh) ||
-		    (offset >= i_size_read(inode)))
+		    (offset >= i_size_read(iyesde)))
 			set_buffer_new(bh);
 		break;
 	case IOMAP_DELALLOC:
 		if (!buffer_uptodate(bh) ||
-		    (offset >= i_size_read(inode)))
+		    (offset >= i_size_read(iyesde)))
 			set_buffer_new(bh);
 		set_buffer_uptodate(bh);
 		set_buffer_mapped(bh);
@@ -1950,7 +1950,7 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 	case IOMAP_UNWRITTEN:
 		/*
 		 * For unwritten regions, we always need to ensure that regions
-		 * in the block we are not writing to are zeroed. Mark the
+		 * in the block we are yest writing to are zeroed. Mark the
 		 * buffer as new to ensure this.
 		 */
 		set_buffer_new(bh);
@@ -1958,10 +1958,10 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 		/* FALLTHRU */
 	case IOMAP_MAPPED:
 		if ((iomap->flags & IOMAP_F_NEW) ||
-		    offset >= i_size_read(inode))
+		    offset >= i_size_read(iyesde))
 			set_buffer_new(bh);
 		bh->b_blocknr = (iomap->addr + offset - iomap->offset) >>
-				inode->i_blkbits;
+				iyesde->i_blkbits;
 		set_buffer_mapped(bh);
 		break;
 	}
@@ -1972,7 +1972,7 @@ int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
 {
 	unsigned from = pos & (PAGE_SIZE - 1);
 	unsigned to = from + len;
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	unsigned block_start, block_end;
 	sector_t block;
 	int err = 0;
@@ -1984,7 +1984,7 @@ int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
 	BUG_ON(to > PAGE_SIZE);
 	BUG_ON(from > to);
 
-	head = create_page_buffers(page, inode, 0);
+	head = create_page_buffers(page, iyesde, 0);
 	blocksize = head->b_size;
 	bbits = block_size_bits(blocksize);
 
@@ -2005,11 +2005,11 @@ int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
 		if (!buffer_mapped(bh)) {
 			WARN_ON(bh->b_size != blocksize);
 			if (get_block) {
-				err = get_block(inode, block, bh, 1);
+				err = get_block(iyesde, block, bh, 1);
 				if (err)
 					break;
 			} else {
-				iomap_to_bh(inode, block, bh, iomap);
+				iomap_to_bh(iyesde, block, bh, iomap);
 			}
 
 			if (buffer_new(bh)) {
@@ -2059,7 +2059,7 @@ int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 }
 EXPORT_SYMBOL(__block_write_begin);
 
-static int __block_commit_write(struct inode *inode, struct page *page,
+static int __block_commit_write(struct iyesde *iyesde, struct page *page,
 		unsigned from, unsigned to)
 {
 	unsigned block_start, block_end;
@@ -2130,22 +2130,22 @@ int block_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
 {
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	unsigned start;
 
 	start = pos & (PAGE_SIZE - 1);
 
 	if (unlikely(copied < len)) {
 		/*
-		 * The buffers that were written will now be uptodate, so we
+		 * The buffers that were written will yesw be uptodate, so we
 		 * don't have to worry about a readpage reading them and
 		 * overwriting a partial write. However if we have encountered
 		 * a short write and only partially written into a buffer, it
-		 * will not be marked uptodate, so a readpage might come in and
+		 * will yest be marked uptodate, so a readpage might come in and
 		 * destroy our partial write.
 		 *
 		 * Do the simplest thing, and just treat any short write to a
-		 * non uptodate page as a zero-length write, and force the
+		 * yesn uptodate page as a zero-length write, and force the
 		 * caller to redo the whole thing.
 		 */
 		if (!PageUptodate(page))
@@ -2156,7 +2156,7 @@ int block_write_end(struct file *file, struct address_space *mapping,
 	flush_dcache_page(page);
 
 	/* This could be a short (even 0-length) commit */
-	__block_commit_write(inode, page, start, start+copied);
+	__block_commit_write(iyesde, page, start, start+copied);
 
 	return copied;
 }
@@ -2166,21 +2166,21 @@ int generic_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
 {
-	struct inode *inode = mapping->host;
-	loff_t old_size = inode->i_size;
+	struct iyesde *iyesde = mapping->host;
+	loff_t old_size = iyesde->i_size;
 	bool i_size_changed = false;
 
 	copied = block_write_end(file, mapping, pos, len, copied, page, fsdata);
 
 	/*
-	 * No need to use i_size_read() here, the i_size cannot change under us
+	 * No need to use i_size_read() here, the i_size canyest change under us
 	 * because we hold i_rwsem.
 	 *
 	 * But it's important to update i_size while still holding page lock:
 	 * page writeout could otherwise come in and zero beyond i_size.
 	 */
-	if (pos + copied > inode->i_size) {
-		i_size_write(inode, pos + copied);
+	if (pos + copied > iyesde->i_size) {
+		i_size_write(iyesde, pos + copied);
 		i_size_changed = true;
 	}
 
@@ -2188,22 +2188,22 @@ int generic_write_end(struct file *file, struct address_space *mapping,
 	put_page(page);
 
 	if (old_size < pos)
-		pagecache_isize_extended(inode, old_size, pos);
+		pagecache_isize_extended(iyesde, old_size, pos);
 	/*
-	 * Don't mark the inode dirty under page lock. First, it unnecessarily
+	 * Don't mark the iyesde dirty under page lock. First, it unnecessarily
 	 * makes the holding time of page lock longer. Second, it forces lock
 	 * ordering of page lock and transaction start for journaling
 	 * filesystems.
 	 */
 	if (i_size_changed)
-		mark_inode_dirty(inode);
+		mark_iyesde_dirty(iyesde);
 	return copied;
 }
 EXPORT_SYMBOL(generic_write_end);
 
 /*
  * block_is_partially_uptodate checks whether buffers within a page are
- * uptodate or not.
+ * uptodate or yest.
  *
  * Returns true if all buffers which correspond to a file portion
  * we want to read are uptodate.
@@ -2247,27 +2247,27 @@ int block_is_partially_uptodate(struct page *page, unsigned long from,
 EXPORT_SYMBOL(block_is_partially_uptodate);
 
 /*
- * Generic "read page" function for block devices that have the normal
+ * Generic "read page" function for block devices that have the yesrmal
  * get_block functionality. This is most of the block device filesystems.
- * Reads the page asynchronously --- the unlock_buffer() and
+ * Reads the page asynchroyesusly --- the unlock_buffer() and
  * set/clear_buffer_uptodate() functions propagate buffer state into the
  * page struct once IO has completed.
  */
 int block_read_full_page(struct page *page, get_block_t *get_block)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	sector_t iblock, lblock;
 	struct buffer_head *bh, *head, *arr[MAX_BUF_PER_PAGE];
 	unsigned int blocksize, bbits;
 	int nr, i;
 	int fully_mapped = 1;
 
-	head = create_page_buffers(page, inode, 0);
+	head = create_page_buffers(page, iyesde, 0);
 	blocksize = head->b_size;
 	bbits = block_size_bits(blocksize);
 
 	iblock = (sector_t)page->index << (PAGE_SHIFT - bbits);
-	lblock = (i_size_read(inode)+blocksize-1) >> bbits;
+	lblock = (i_size_read(iyesde)+blocksize-1) >> bbits;
 	bh = head;
 	nr = 0;
 	i = 0;
@@ -2282,7 +2282,7 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 			fully_mapped = 0;
 			if (iblock < lblock) {
 				WARN_ON(bh->b_size != blocksize);
-				err = get_block(inode, iblock, bh, 0);
+				err = get_block(iyesde, iblock, bh, 0);
 				if (err)
 					SetPageError(page);
 			}
@@ -2294,7 +2294,7 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 			}
 			/*
 			 * get_block() might have updated the buffer
-			 * synchronously
+			 * synchroyesusly
 			 */
 			if (buffer_uptodate(bh))
 				continue;
@@ -2308,7 +2308,7 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 	if (!nr) {
 		/*
 		 * All buffers are uptodate - we can set the page uptodate
-		 * as well. But not if get_block() returned an error.
+		 * as well. But yest if get_block() returned an error.
 		 */
 		if (!PageError(page))
 			SetPageUptodate(page);
@@ -2325,7 +2325,7 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 
 	/*
 	 * Stage 3: start the IO.  Check for uptodateness
-	 * inside the buffer lock in case another process reading
+	 * inside the buffer lock in case ayesther process reading
 	 * the underlying blockdev brought it uptodate (the sct fix).
 	 */
 	for (i = 0; i < nr; i++) {
@@ -2343,14 +2343,14 @@ EXPORT_SYMBOL(block_read_full_page);
  * truncates.  Uses filesystem pagecache writes to allow the filesystem to
  * deal with the hole.  
  */
-int generic_cont_expand_simple(struct inode *inode, loff_t size)
+int generic_cont_expand_simple(struct iyesde *iyesde, loff_t size)
 {
-	struct address_space *mapping = inode->i_mapping;
+	struct address_space *mapping = iyesde->i_mapping;
 	struct page *page;
 	void *fsdata;
 	int err;
 
-	err = inode_newsize_ok(inode, size);
+	err = iyesde_newsize_ok(iyesde, size);
 	if (err)
 		goto out;
 
@@ -2370,8 +2370,8 @@ EXPORT_SYMBOL(generic_cont_expand_simple);
 static int cont_expand_zero(struct file *file, struct address_space *mapping,
 			    loff_t pos, loff_t *bytes)
 {
-	struct inode *inode = mapping->host;
-	unsigned int blocksize = i_blocksize(inode);
+	struct iyesde *iyesde = mapping->host;
+	unsigned int blocksize = i_blocksize(iyesde);
 	struct page *page;
 	void *fsdata;
 	pgoff_t index, curidx;
@@ -2440,7 +2440,7 @@ out:
 }
 
 /*
- * For moronic filesystems that do not allow holes in file.
+ * For moronic filesystems that do yest allow holes in file.
  * We may have to extend the file.
  */
 int cont_write_begin(struct file *file, struct address_space *mapping,
@@ -2448,8 +2448,8 @@ int cont_write_begin(struct file *file, struct address_space *mapping,
 			struct page **pagep, void **fsdata,
 			get_block_t *get_block, loff_t *bytes)
 {
-	struct inode *inode = mapping->host;
-	unsigned int blocksize = i_blocksize(inode);
+	struct iyesde *iyesde = mapping->host;
+	unsigned int blocksize = i_blocksize(iyesde);
 	unsigned int zerofrom;
 	int err;
 
@@ -2469,24 +2469,24 @@ EXPORT_SYMBOL(cont_write_begin);
 
 int block_commit_write(struct page *page, unsigned from, unsigned to)
 {
-	struct inode *inode = page->mapping->host;
-	__block_commit_write(inode,page,from,to);
+	struct iyesde *iyesde = page->mapping->host;
+	__block_commit_write(iyesde,page,from,to);
 	return 0;
 }
 EXPORT_SYMBOL(block_commit_write);
 
 /*
- * block_page_mkwrite() is not allowed to change the file size as it gets
+ * block_page_mkwrite() is yest allowed to change the file size as it gets
  * called from a page fault handler when a page is first dirtied. Hence we must
  * be careful to check for EOF conditions here. We set the page up correctly
  * for a written page which means we get ENOSPC checking when writing into
  * holes and correct delalloc and unwritten extent mapping on filesystems that
  * support these features.
  *
- * We are not allowed to take the i_mutex here so we have to play games to
- * protect against truncate races as the page could now be beyond EOF.  Because
- * truncate writes the inode size before removing pages, once we have the
- * page lock we can determine safely if the page is beyond EOF. If it is not
+ * We are yest allowed to take the i_mutex here so we have to play games to
+ * protect against truncate races as the page could yesw be beyond EOF.  Because
+ * truncate writes the iyesde size before removing pages, once we have the
+ * page lock we can determine safely if the page is beyond EOF. If it is yest
  * beyond EOF, then the page is guaranteed safe against truncation until we
  * unlock the page.
  *
@@ -2497,14 +2497,14 @@ int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 			 get_block_t get_block)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = file_inode(vma->vm_file);
+	struct iyesde *iyesde = file_iyesde(vma->vm_file);
 	unsigned long end;
 	loff_t size;
 	int ret;
 
 	lock_page(page);
-	size = i_size_read(inode);
-	if ((page->mapping != inode->i_mapping) ||
+	size = i_size_read(iyesde);
+	if ((page->mapping != iyesde->i_mapping) ||
 	    (page_offset(page) > size)) {
 		/* We overload EFAULT to mean page got truncated */
 		ret = -EFAULT;
@@ -2533,21 +2533,21 @@ out_unlock:
 EXPORT_SYMBOL(block_page_mkwrite);
 
 /*
- * nobh_write_begin()'s prereads are special: the buffer_heads are freed
+ * yesbh_write_begin()'s prereads are special: the buffer_heads are freed
  * immediately, while under the page lock.  So it needs a special end_io
- * handler which does not touch the bh after unlocking it.
+ * handler which does yest touch the bh after unlocking it.
  */
-static void end_buffer_read_nobh(struct buffer_head *bh, int uptodate)
+static void end_buffer_read_yesbh(struct buffer_head *bh, int uptodate)
 {
-	__end_buffer_read_notouch(bh, uptodate);
+	__end_buffer_read_yestouch(bh, uptodate);
 }
 
 /*
- * Attach the singly-linked list of buffers created by nobh_write_begin, to
+ * Attach the singly-linked list of buffers created by yesbh_write_begin, to
  * the page (converting it to circular linked list and taking care of page
  * dirty races).
  */
-static void attach_nobh_buffers(struct page *page, struct buffer_head *head)
+static void attach_yesbh_buffers(struct page *page, struct buffer_head *head)
 {
 	struct buffer_head *bh;
 
@@ -2567,17 +2567,17 @@ static void attach_nobh_buffers(struct page *page, struct buffer_head *head)
 }
 
 /*
- * On entry, the page is fully not uptodate.
+ * On entry, the page is fully yest uptodate.
  * On exit the page is fully uptodate in the areas outside (from,to)
  * The filesystem needs to handle block truncation upon failure.
  */
-int nobh_write_begin(struct address_space *mapping,
+int yesbh_write_begin(struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata,
 			get_block_t *get_block)
 {
-	struct inode *inode = mapping->host;
-	const unsigned blkbits = inode->i_blkbits;
+	struct iyesde *iyesde = mapping->host;
+	const unsigned blkbits = iyesde->i_blkbits;
 	const unsigned blocksize = 1 << blkbits;
 	struct buffer_head *head, *bh;
 	struct page *page;
@@ -2613,7 +2613,7 @@ int nobh_write_begin(struct address_space *mapping,
 	/*
 	 * Allocate buffers so that we can keep track of state, and potentially
 	 * attach them to the page if an error occurs. In the common case of
-	 * no error, they will just be freed again without ever being attached
+	 * yes error, they will just be freed again without ever being attached
 	 * to the page (which is all OK, because we're under the page lock).
 	 *
 	 * Be careful: the buffer linked list is a NULL terminated one, rather
@@ -2628,7 +2628,7 @@ int nobh_write_begin(struct address_space *mapping,
 	block_in_file = (sector_t)page->index << (PAGE_SHIFT - blkbits);
 
 	/*
-	 * We loop across all blocks in the page, whether or not they are
+	 * We loop across all blocks in the page, whether or yest they are
 	 * part of the affected region.  This is so we can discover if the
 	 * page is fully mapped-to-disk.
 	 */
@@ -2642,7 +2642,7 @@ int nobh_write_begin(struct address_space *mapping,
 		create = 1;
 		if (block_start >= to)
 			create = 0;
-		ret = get_block(inode, block_in_file + block_in_page,
+		ret = get_block(iyesde, block_in_file + block_in_page,
 					bh, create);
 		if (ret)
 			goto failed;
@@ -2663,7 +2663,7 @@ int nobh_write_begin(struct address_space *mapping,
 			continue;	/* reiserfs does this */
 		if (block_start < from || block_end > to) {
 			lock_buffer(bh);
-			bh->b_end_io = end_buffer_read_nobh;
+			bh->b_end_io = end_buffer_read_yesbh;
 			submit_bh(REQ_OP_READ, 0, bh);
 			nr_reads++;
 		}
@@ -2687,7 +2687,7 @@ int nobh_write_begin(struct address_space *mapping,
 	if (is_mapped_to_disk)
 		SetPageMappedToDisk(page);
 
-	*fsdata = head; /* to be released by nobh_write_end */
+	*fsdata = head; /* to be released by yesbh_write_end */
 
 	return 0;
 
@@ -2698,9 +2698,9 @@ failed:
 	 * were newly allocated, and dirty them to ensure they get written out.
 	 * Buffers need to be attached to the page at this point, otherwise
 	 * the handling of potential IO errors during writeout would be hard
-	 * (could try doing synchronous writeout, but what if that fails too?)
+	 * (could try doing synchroyesus writeout, but what if that fails too?)
 	 */
-	attach_nobh_buffers(page, head);
+	attach_yesbh_buffers(page, head);
 	page_zero_new_buffers(page, from, to);
 
 out_release:
@@ -2710,28 +2710,28 @@ out_release:
 
 	return ret;
 }
-EXPORT_SYMBOL(nobh_write_begin);
+EXPORT_SYMBOL(yesbh_write_begin);
 
-int nobh_write_end(struct file *file, struct address_space *mapping,
+int yesbh_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	struct buffer_head *head = fsdata;
 	struct buffer_head *bh;
 	BUG_ON(fsdata != NULL && page_has_buffers(page));
 
 	if (unlikely(copied < len) && head)
-		attach_nobh_buffers(page, head);
+		attach_yesbh_buffers(page, head);
 	if (page_has_buffers(page))
 		return generic_write_end(file, mapping, pos, len,
 					copied, page, fsdata);
 
 	SetPageUptodate(page);
 	set_page_dirty(page);
-	if (pos+copied > inode->i_size) {
-		i_size_write(inode, pos+copied);
-		mark_inode_dirty(inode);
+	if (pos+copied > iyesde->i_size) {
+		i_size_write(iyesde, pos+copied);
+		mark_iyesde_dirty(iyesde);
 	}
 
 	unlock_page(page);
@@ -2745,18 +2745,18 @@ int nobh_write_end(struct file *file, struct address_space *mapping,
 
 	return copied;
 }
-EXPORT_SYMBOL(nobh_write_end);
+EXPORT_SYMBOL(yesbh_write_end);
 
 /*
- * nobh_writepage() - based on block_full_write_page() except
+ * yesbh_writepage() - based on block_full_write_page() except
  * that it tries to operate without attaching bufferheads to
  * the page.
  */
-int nobh_writepage(struct page *page, get_block_t *get_block,
+int yesbh_writepage(struct page *page, get_block_t *get_block,
 			struct writeback_control *wbc)
 {
-	struct inode * const inode = page->mapping->host;
-	loff_t i_size = i_size_read(inode);
+	struct iyesde * const iyesde = page->mapping->host;
+	loff_t i_size = i_size_read(iyesde);
 	const pgoff_t end_index = i_size >> PAGE_SHIFT;
 	unsigned offset;
 	int ret;
@@ -2771,7 +2771,7 @@ int nobh_writepage(struct page *page, get_block_t *get_block,
 		/*
 		 * The page may have dirty, unmapped buffers.  For example,
 		 * they may have been added in ext3_writepage().  Make them
-		 * freeable here, so the page does not leak.
+		 * freeable here, so the page does yest leak.
 		 */
 #if 0
 		/* Not really sure about this  - do we need this ? */
@@ -2785,21 +2785,21 @@ int nobh_writepage(struct page *page, get_block_t *get_block,
 	/*
 	 * The page straddles i_size.  It must be zeroed out on each and every
 	 * writepage invocation because it may be mmapped.  "A file is mapped
-	 * in multiples of the page size.  For a file that is not a multiple of
+	 * in multiples of the page size.  For a file that is yest a multiple of
 	 * the  page size, the remaining memory is zeroed when mapped, and
-	 * writes to that region are not written out to the file."
+	 * writes to that region are yest written out to the file."
 	 */
 	zero_user_segment(page, offset, PAGE_SIZE);
 out:
 	ret = mpage_writepage(page, get_block, wbc);
 	if (ret == -EAGAIN)
-		ret = __block_write_full_page(inode, page, get_block, wbc,
+		ret = __block_write_full_page(iyesde, page, get_block, wbc,
 					      end_buffer_async_write);
 	return ret;
 }
-EXPORT_SYMBOL(nobh_writepage);
+EXPORT_SYMBOL(yesbh_writepage);
 
-int nobh_truncate_page(struct address_space *mapping,
+int yesbh_truncate_page(struct address_space *mapping,
 			loff_t from, get_block_t *get_block)
 {
 	pgoff_t index = from >> PAGE_SHIFT;
@@ -2807,12 +2807,12 @@ int nobh_truncate_page(struct address_space *mapping,
 	unsigned blocksize;
 	sector_t iblock;
 	unsigned length, pos;
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	struct page *page;
 	struct buffer_head map_bh;
 	int err;
 
-	blocksize = i_blocksize(inode);
+	blocksize = i_blocksize(iyesde);
 	length = offset & (blocksize - 1);
 
 	/* Block boundary? Nothing to do */
@@ -2820,7 +2820,7 @@ int nobh_truncate_page(struct address_space *mapping,
 		return 0;
 
 	length = blocksize - length;
-	iblock = (sector_t)index << (PAGE_SHIFT - inode->i_blkbits);
+	iblock = (sector_t)index << (PAGE_SHIFT - iyesde->i_blkbits);
 
 	page = grab_cache_page(mapping, index);
 	err = -ENOMEM;
@@ -2843,10 +2843,10 @@ has_buffers:
 
 	map_bh.b_size = blocksize;
 	map_bh.b_state = 0;
-	err = get_block(inode, iblock, &map_bh, 0);
+	err = get_block(iyesde, iblock, &map_bh, 0);
 	if (err)
 		goto unlock;
-	/* unmapped? It's a hole - nothing to do */
+	/* unmapped? It's a hole - yesthing to do */
 	if (!buffer_mapped(&map_bh))
 		goto unlock;
 
@@ -2875,7 +2875,7 @@ unlock:
 out:
 	return err;
 }
-EXPORT_SYMBOL(nobh_truncate_page);
+EXPORT_SYMBOL(yesbh_truncate_page);
 
 int block_truncate_page(struct address_space *mapping,
 			loff_t from, get_block_t *get_block)
@@ -2885,12 +2885,12 @@ int block_truncate_page(struct address_space *mapping,
 	unsigned blocksize;
 	sector_t iblock;
 	unsigned length, pos;
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	struct page *page;
 	struct buffer_head *bh;
 	int err;
 
-	blocksize = i_blocksize(inode);
+	blocksize = i_blocksize(iyesde);
 	length = offset & (blocksize - 1);
 
 	/* Block boundary? Nothing to do */
@@ -2898,7 +2898,7 @@ int block_truncate_page(struct address_space *mapping,
 		return 0;
 
 	length = blocksize - length;
-	iblock = (sector_t)index << (PAGE_SHIFT - inode->i_blkbits);
+	iblock = (sector_t)index << (PAGE_SHIFT - iyesde->i_blkbits);
 	
 	page = grab_cache_page(mapping, index);
 	err = -ENOMEM;
@@ -2920,10 +2920,10 @@ int block_truncate_page(struct address_space *mapping,
 	err = 0;
 	if (!buffer_mapped(bh)) {
 		WARN_ON(bh->b_size != blocksize);
-		err = get_block(inode, iblock, bh, 0);
+		err = get_block(iyesde, iblock, bh, 0);
 		if (err)
 			goto unlock;
-		/* unmapped? It's a hole - nothing to do */
+		/* unmapped? It's a hole - yesthing to do */
 		if (!buffer_mapped(bh))
 			goto unlock;
 	}
@@ -2959,14 +2959,14 @@ EXPORT_SYMBOL(block_truncate_page);
 int block_write_full_page(struct page *page, get_block_t *get_block,
 			struct writeback_control *wbc)
 {
-	struct inode * const inode = page->mapping->host;
-	loff_t i_size = i_size_read(inode);
+	struct iyesde * const iyesde = page->mapping->host;
+	loff_t i_size = i_size_read(iyesde);
 	const pgoff_t end_index = i_size >> PAGE_SHIFT;
 	unsigned offset;
 
 	/* Is the page fully inside i_size? */
 	if (page->index < end_index)
-		return __block_write_full_page(inode, page, get_block, wbc,
+		return __block_write_full_page(iyesde, page, get_block, wbc,
 					       end_buffer_async_write);
 
 	/* Is the page fully outside i_size? (truncate in progress) */
@@ -2975,7 +2975,7 @@ int block_write_full_page(struct page *page, get_block_t *get_block,
 		/*
 		 * The page may have dirty, unmapped buffers.  For example,
 		 * they may have been added in ext3_writepage().  Make them
-		 * freeable here, so the page does not leak.
+		 * freeable here, so the page does yest leak.
 		 */
 		do_invalidatepage(page, 0, PAGE_SIZE);
 		unlock_page(page);
@@ -2985,12 +2985,12 @@ int block_write_full_page(struct page *page, get_block_t *get_block,
 	/*
 	 * The page straddles i_size.  It must be zeroed out on each and every
 	 * writepage invocation because it may be mmapped.  "A file is mapped
-	 * in multiples of the page size.  For a file that is not a multiple of
+	 * in multiples of the page size.  For a file that is yest a multiple of
 	 * the  page size, the remaining memory is zeroed when mapped, and
-	 * writes to that region are not written out to the file."
+	 * writes to that region are yest written out to the file."
 	 */
 	zero_user_segment(page, offset, PAGE_SIZE);
-	return __block_write_full_page(inode, page, get_block, wbc,
+	return __block_write_full_page(iyesde, page, get_block, wbc,
 							end_buffer_async_write);
 }
 EXPORT_SYMBOL(block_write_full_page);
@@ -2998,12 +2998,12 @@ EXPORT_SYMBOL(block_write_full_page);
 sector_t generic_block_bmap(struct address_space *mapping, sector_t block,
 			    get_block_t *get_block)
 {
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	struct buffer_head tmp = {
-		.b_size = i_blocksize(inode),
+		.b_size = i_blocksize(iyesde),
 	};
 
-	get_block(inode, block, &tmp, 0);
+	get_block(iyesde, block, &tmp, 0);
 	return tmp.b_blocknr;
 }
 EXPORT_SYMBOL(generic_block_bmap);
@@ -3037,7 +3037,7 @@ void guard_bio_eod(struct bio *bio)
 	struct hd_struct *part;
 
 	rcu_read_lock();
-	part = __disk_get_part(bio->bi_disk, bio->bi_partno);
+	part = __disk_get_part(bio->bi_disk, bio->bi_partyes);
 	if (part)
 		maxsector = part_nr_sects_read(part);
 	else
@@ -3128,10 +3128,10 @@ EXPORT_SYMBOL(submit_bh);
  *
  * ll_rw_block() takes an array of pointers to &struct buffer_heads, and
  * requests an I/O operation on them, either a %REQ_OP_READ or a %REQ_OP_WRITE.
- * @op_flags contains flags modifying the detailed I/O behavior, most notably
+ * @op_flags contains flags modifying the detailed I/O behavior, most yestably
  * %REQ_RAHEAD.
  *
- * This function drops any buffer that it cannot get a lock on (with the
+ * This function drops any buffer that it canyest get a lock on (with the
  * BH_Lock state bit), any buffer that appears to be clean when doing a write
  * request, and any buffer that appears to be up-to-date when doing read
  * request.  Further it marks as clean buffers that are processed for
@@ -3236,7 +3236,7 @@ EXPORT_SYMBOL(sync_dirty_buffer);
  * total exclusion from __set_page_dirty_buffers().  That is obtained with
  * private_lock.
  *
- * try_to_free_buffers() is non-blocking.
+ * try_to_free_buffers() is yesn-blocking.
  */
 static inline int buffer_busy(struct buffer_head *bh)
 {
@@ -3292,7 +3292,7 @@ int try_to_free_buffers(struct page *page)
 	/*
 	 * If the filesystem writes its buffers by hand (eg ext3)
 	 * then we can have clean buffers against a dirty page.  We
-	 * clean the page here; otherwise the VM will never notice
+	 * clean the page here; otherwise the VM will never yestice
 	 * that the filesystem did any IO at all.
 	 *
 	 * Also, during truncate, discard_buffer will have marked all
@@ -3321,7 +3321,7 @@ out:
 EXPORT_SYMBOL(try_to_free_buffers);
 
 /*
- * There are no bdflush tunables left.  But distributions are
+ * There are yes bdflush tunables left.  But distributions are
  * still running obsolete flush daemons, so we terminate them here.
  *
  * Use of bdflush() is deprecated and will be removed in a future kernel.
@@ -3424,7 +3424,7 @@ static int buffer_exit_cpu_dead(unsigned int cpu)
  * @bh: struct buffer_head
  *
  * Return true if the buffer is up-to-date and false,
- * with the buffer locked, if not.
+ * with the buffer locked, if yest.
  */
 int bh_uptodate_or_lock(struct buffer_head *bh)
 {
@@ -3479,7 +3479,7 @@ void __init buffer_init(void)
 	 */
 	nrpages = (nr_free_buffer_pages() * 10) / 100;
 	max_buffer_heads = nrpages * (PAGE_SIZE / sizeof(struct buffer_head));
-	ret = cpuhp_setup_state_nocalls(CPUHP_FS_BUFF_DEAD, "fs/buffer:dead",
+	ret = cpuhp_setup_state_yescalls(CPUHP_FS_BUFF_DEAD, "fs/buffer:dead",
 					NULL, buffer_exit_cpu_dead);
 	WARN_ON(ret < 0);
 }

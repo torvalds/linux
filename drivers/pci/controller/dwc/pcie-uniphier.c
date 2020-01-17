@@ -252,7 +252,7 @@ static void uniphier_pcie_irq_handler(struct irq_desc *desc)
 	if (val & PCL_CFG_BW_MGT_STATUS)
 		dev_dbg(pci->dev, "Link Bandwidth Management Event\n");
 	if (val & PCL_CFG_LINK_AUTO_BW_STATUS)
-		dev_dbg(pci->dev, "Link Autonomous Bandwidth Event\n");
+		dev_dbg(pci->dev, "Link Autoyesmous Bandwidth Event\n");
 	if (val & PCL_CFG_AER_RC_ERR_MSI_STATUS)
 		dev_dbg(pci->dev, "Root Error\n");
 	if (val & PCL_CFG_PME_MSI_STATUS)
@@ -278,13 +278,13 @@ static int uniphier_pcie_config_legacy_irq(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
-	struct device_node *np = pci->dev->of_node;
-	struct device_node *np_intc;
+	struct device_yesde *np = pci->dev->of_yesde;
+	struct device_yesde *np_intc;
 	int ret = 0;
 
 	np_intc = of_get_child_by_name(np, "legacy-interrupt-controller");
 	if (!np_intc) {
-		dev_err(pci->dev, "Failed to get legacy-interrupt-controller node\n");
+		dev_err(pci->dev, "Failed to get legacy-interrupt-controller yesde\n");
 		return -EINVAL;
 	}
 
@@ -292,7 +292,7 @@ static int uniphier_pcie_config_legacy_irq(struct pcie_port *pp)
 	if (!pp->irq) {
 		dev_err(pci->dev, "Failed to get an IRQ entry in legacy-interrupt-controller\n");
 		ret = -EINVAL;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	priv->legacy_irq_domain = irq_domain_add_linear(np_intc, PCI_NUM_INTX,
@@ -300,14 +300,14 @@ static int uniphier_pcie_config_legacy_irq(struct pcie_port *pp)
 	if (!priv->legacy_irq_domain) {
 		dev_err(pci->dev, "Failed to get INTx domain\n");
 		ret = -ENODEV;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	irq_set_chained_handler_and_data(pp->irq, uniphier_pcie_irq_handler,
 					 pp);
 
-out_put_node:
-	of_node_put(np_intc);
+out_put_yesde:
+	of_yesde_put(np_intc);
 	return ret;
 }
 

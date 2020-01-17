@@ -52,21 +52,21 @@ arch/s390/include/uapi/asm/sie.h
 arch/arm/include/uapi/asm/kvm.h
 arch/arm64/include/uapi/asm/kvm.h
 arch/arm64/include/uapi/asm/unistd.h
-arch/alpha/include/uapi/asm/errno.h
-arch/mips/include/asm/errno.h
-arch/mips/include/uapi/asm/errno.h
-arch/parisc/include/uapi/asm/errno.h
-arch/powerpc/include/uapi/asm/errno.h
-arch/sparc/include/uapi/asm/errno.h
-arch/x86/include/uapi/asm/errno.h
+arch/alpha/include/uapi/asm/erryes.h
+arch/mips/include/asm/erryes.h
+arch/mips/include/uapi/asm/erryes.h
+arch/parisc/include/uapi/asm/erryes.h
+arch/powerpc/include/uapi/asm/erryes.h
+arch/sparc/include/uapi/asm/erryes.h
+arch/x86/include/uapi/asm/erryes.h
 include/asm-generic/bitops/arch_hweight.h
 include/asm-generic/bitops/const_hweight.h
 include/asm-generic/bitops/__fls.h
 include/asm-generic/bitops/fls.h
 include/asm-generic/bitops/fls64.h
 include/linux/coresight-pmu.h
-include/uapi/asm-generic/errno.h
-include/uapi/asm-generic/errno-base.h
+include/uapi/asm-generic/erryes.h
+include/uapi/asm-generic/erryes-base.h
 include/uapi/asm-generic/ioctls.h
 include/uapi/asm-generic/mman-common.h
 include/uapi/asm-generic/unistd.h
@@ -98,7 +98,7 @@ check () {
 }
 
 # Check if we have the kernel headers (tools/perf/../../include), else
-# we're probably on a detached tarball, so no point in trying to check
+# we're probably on a detached tarball, so yes point in trying to check
 # differences.
 test -d ../../include || exit 0
 
@@ -109,7 +109,7 @@ for i in $FILES; do
   check $i -B
 done
 
-# diff with extra ignore lines
+# diff with extra igyesre lines
 check arch/x86/lib/memcpy_64.S        '-I "^EXPORT_SYMBOL" -I "^#include <asm/export.h>" -I"^SYM_FUNC_START\(_LOCAL\)*(memcpy_\(erms\|orig\))"'
 check arch/x86/lib/memset_64.S        '-I "^EXPORT_SYMBOL" -I "^#include <asm/export.h>" -I"^SYM_FUNC_START\(_LOCAL\)*(memset_\(erms\|orig\))"'
 check include/uapi/asm-generic/mman.h '-I "^#include <\(uapi/\)*asm-generic/mman-common\(-tools\)*.h>"'
@@ -121,7 +121,7 @@ check arch/x86/include/asm/insn.h     '-I "^#include [\"<]\(asm/\)*inat.h[\">]"'
 check arch/x86/lib/inat.c	      '-I "^#include [\"<]\(../include/\)*asm/insn.h[\">]"'
 check arch/x86/lib/insn.c             '-I "^#include [\"<]\(../include/\)*asm/in\(at\|sn\).h[\">]" -I "^#include [\"<]\(../include/\)*asm/emulate_prefix.h[\">]"'
 
-# diff non-symmetric files
+# diff yesn-symmetric files
 check_2 tools/perf/arch/x86/entry/syscalls/syscall_64.tbl arch/x86/entry/syscalls/syscall_64.tbl
 
 cd tools/perf

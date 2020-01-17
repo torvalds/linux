@@ -15,7 +15,7 @@ static int uwb_radio_select_channel(struct uwb_rc *rc)
 {
 	/*
 	 * Default to channel 9 (BG1, TFC1) unless the user has
-	 * selected a specific channel or there are no active PALs.
+	 * selected a specific channel or there are yes active PALs.
 	 */
 	if (rc->active_pals == 0)
 		return -1;
@@ -32,7 +32,7 @@ static void uwb_radio_channel_changed(struct uwb_rc *rc, int channel)
 {
 	struct uwb_pal *pal;
 
-	list_for_each_entry(pal, &rc->pals, node) {
+	list_for_each_entry(pal, &rc->pals, yesde) {
 		if (pal->channel && channel != pal->channel) {
 			pal->channel = channel;
 			if (pal->channel_changed)
@@ -42,10 +42,10 @@ static void uwb_radio_channel_changed(struct uwb_rc *rc, int channel)
 }
 
 /*
- * Change to a new channel and notify any active PALs of the new
+ * Change to a new channel and yestify any active PALs of the new
  * channel.
  *
- * When stopping the radio, PALs need to be notified first so they can
+ * When stopping the radio, PALs need to be yestified first so they can
  * terminate any active reservations.
  */
 static int uwb_radio_change_channel(struct uwb_rc *rc, int channel)
@@ -82,7 +82,7 @@ static int uwb_radio_change_channel(struct uwb_rc *rc, int channel)
  * uwb_radio_start - request that the radio be started
  * @pal: the PAL making the request.
  *
- * If the radio is not already active, a suitable channel is selected
+ * If the radio is yest already active, a suitable channel is selected
  * and beacons are started.
  */
 int uwb_radio_start(struct uwb_pal *pal)
@@ -107,7 +107,7 @@ EXPORT_SYMBOL_GPL(uwb_radio_start);
  * uwb_radio_stop - request that the radio be stopped.
  * @pal: the PAL making the request.
  *
- * Stops the radio if no other PAL is making use of it.
+ * Stops the radio if yes other PAL is making use of it.
  */
 void uwb_radio_stop(struct uwb_pal *pal)
 {
@@ -148,7 +148,7 @@ int uwb_radio_force_channel(struct uwb_rc *rc, int channel)
  * uwb_radio_setup - setup the radio manager
  * @rc: the radio controller.
  *
- * The radio controller is reset to ensure it's in a known state
+ * The radio controller is reset to ensure it's in a kyeswn state
  * before it's used.
  */
 int uwb_radio_setup(struct uwb_rc *rc)
@@ -169,7 +169,7 @@ void uwb_radio_reset_state(struct uwb_rc *rc)
 
 	mutex_lock(&rc->uwb_dev.mutex);
 
-	list_for_each_entry(pal, &rc->pals, node) {
+	list_for_each_entry(pal, &rc->pals, yesde) {
 		if (pal->channel) {
 			pal->channel = -1;
 			if (pal->channel_changed)

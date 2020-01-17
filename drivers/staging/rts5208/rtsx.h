@@ -96,7 +96,7 @@ struct rtsx_dev {
 	struct completion	cmnd_ready;	 /* to sleep thread on	    */
 	struct completion	control_exit;	 /* control thread exit	    */
 	struct completion	polling_exit;	 /* polling thread exit	    */
-	struct completion	notify;		 /* thread begin/end	    */
+	struct completion	yestify;		 /* thread begin/end	    */
 	struct completion	scanning_done;	 /* wait for scan thread    */
 
 	wait_queue_head_t	delay_wait;	 /* wait during scan, reset */

@@ -45,7 +45,7 @@ static void bridge_platform_create(int widget, int masterwid)
 
 	wd = kzalloc(sizeof(*wd), GFP_KERNEL);
 	if (!wd)
-		goto no_mem;
+		goto yes_mem;
 
 	snprintf(wd->dev_id, sizeof(wd->dev_id), "bridge-%012lx",
 		 IP30_SWIN_BASE(widget));
@@ -59,7 +59,7 @@ static void bridge_platform_create(int widget, int masterwid)
 	pdev = platform_device_alloc("sgi_w1", PLATFORM_DEVID_AUTO);
 	if (!pdev) {
 		kfree(wd);
-		goto no_mem;
+		goto yes_mem;
 	}
 	platform_device_add_resources(pdev, &w1_res, 1);
 	platform_device_add_data(pdev, wd, sizeof(*wd));
@@ -67,11 +67,11 @@ static void bridge_platform_create(int widget, int masterwid)
 
 	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
 	if (!bd)
-		goto no_mem;
+		goto yes_mem;
 	pdev = platform_device_alloc("xtalk-bridge", PLATFORM_DEVID_AUTO);
 	if (!pdev) {
 		kfree(bd);
-		goto no_mem;
+		goto yes_mem;
 	}
 
 	bd->bridge_addr	= IP30_RAW_SWIN_BASE(widget);
@@ -96,7 +96,7 @@ static void bridge_platform_create(int widget, int masterwid)
 	pr_info("xtalk:%x bridge widget\n", widget);
 	return;
 
-no_mem:
+yes_mem:
 	pr_warn("xtalk:%x bridge create out of memory\n", widget);
 }
 
@@ -130,7 +130,7 @@ static void __init xtalk_init_widget(s8 wid, s8 masterwid)
 		bridge_platform_create(wid, masterwid);
 		break;
 	default:
-		pr_info("xtalk:%x unknown widget (0x%x)\n", wid, partnum);
+		pr_info("xtalk:%x unkyeswn widget (0x%x)\n", wid, partnum);
 		break;
 	}
 }

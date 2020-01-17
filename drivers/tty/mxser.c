@@ -2,21 +2,21 @@
 /*
  *          mxser.c  -- MOXA Smartio/Industio family multiport serial driver.
  *
- *      Copyright (C) 1999-2006  Moxa Technologies (support@moxa.com).
+ *      Copyright (C) 1999-2006  Moxa Techyeslogies (support@moxa.com).
  *	Copyright (C) 2006-2008  Jiri Slaby <jirislaby@gmail.com>
  *
  *      This code is loosely based on the 1.8 moxa driver which is based on
  *	Linux serial driver, written by Linus Torvalds, Theodore T'so and
  *	others.
  *
- *	Fed through a cleanup, indent and remove of non 2.6 code by Alan Cox
+ *	Fed through a cleanup, indent and remove of yesn 2.6 code by Alan Cox
  *	<alan@lxorguk.ukuu.org.uk>. The original 1.8 code is available on
  *	www.moxa.com.
  *	- Fixed x86_64 cleanness
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -245,14 +245,14 @@ struct mxser_port {
 	unsigned int timeout;
 
 	int read_status_mask;
-	int ignore_status_mask;
+	int igyesre_status_mask;
 	unsigned int xmit_fifo_size;
 	int xmit_head;
 	int xmit_tail;
 	int xmit_cnt;
 	int closing;
 
-	struct ktermios normal_termios;
+	struct ktermios yesrmal_termios;
 
 	struct mxser_mon mon_data;
 
@@ -761,17 +761,17 @@ static int mxser_change_speed(struct tty_struct *tty)
 	if (I_BRKINT(tty) || I_PARMRK(tty))
 		info->read_status_mask |= UART_LSR_BI;
 
-	info->ignore_status_mask = 0;
+	info->igyesre_status_mask = 0;
 
 	if (I_IGNBRK(tty)) {
-		info->ignore_status_mask |= UART_LSR_BI;
+		info->igyesre_status_mask |= UART_LSR_BI;
 		info->read_status_mask |= UART_LSR_BI;
 		/*
-		 * If we're ignore parity and break indicators, ignore
+		 * If we're igyesre parity and break indicators, igyesre
 		 * overruns too.  (For real raw support).
 		 */
 		if (I_IGNPAR(tty)) {
-			info->ignore_status_mask |=
+			info->igyesre_status_mask |=
 						UART_LSR_OE |
 						UART_LSR_PE |
 						UART_LSR_FE;
@@ -889,8 +889,8 @@ static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 			info->ioaddr + UART_FCR);
 
 	/*
-	 * At this point there's no way the LSR could still be 0xFF;
-	 * if it is, then bail out, because there's likely no UART
+	 * At this point there's yes way the LSR could still be 0xFF;
+	 * if it is, then bail out, because there's likely yes UART
 	 * here.
 	 */
 	if (inb(info->ioaddr + UART_LSR) == 0xff) {
@@ -1067,7 +1067,7 @@ static void mxser_close_port(struct tty_port *port)
  * This routine is called when the serial port gets closed.  First, we
  * wait for the last remaining data to be sent.  Then, we unlink its
  * async structure from the interrupt chain if necessary, and we free
- * that IRQ if nothing is left in the chain.
+ * that IRQ if yesthing is left in the chain.
  */
 static void mxser_close(struct tty_struct *tty, struct file *filp)
 {
@@ -1088,7 +1088,7 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	tty_port_set_initialized(port, 0);
 	mutex_unlock(&port->mutex);
 	info->closing = 0;
-	/* Right now the tty_port set is done outside of the close_end helper
+	/* Right yesw the tty_port set is done outside of the close_end helper
 	   as we don't yet have everyone using refcounts */	
 	tty_port_close_end(port, tty);
 	tty_port_tty_set(port, NULL);
@@ -1315,7 +1315,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
  * Purpose: Let user call ioctl() to get info when the UART physically
  *	    is emptied.  On bus types like RS485, the transmitter must
  *	    release the bus after transmitting. This must be done when
- *	    the transmit shift register is empty, not be done when the
+ *	    the transmit shift register is empty, yest be done when the
  *	    transmit holding register is empty.  This functionality
  *	    allows an RS485 driver to be written in user space.
  */
@@ -1424,7 +1424,7 @@ static int __init mxser_program_mode(int port)
 	return id;
 }
 
-static void __init mxser_normal_mode(int port)
+static void __init mxser_yesrmal_mode(int port)
 {
 	int i, n;
 
@@ -1488,7 +1488,7 @@ static int __init mxser_read_register(int port, unsigned short *regs)
 		regs[i] = value;
 		outb(0, port);
 	}
-	mxser_normal_mode(port);
+	mxser_yesrmal_mode(port);
 	return id;
 }
 
@@ -1536,7 +1536,7 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 				tty = tty_port_tty_get(port);
 
 				if (!tty)
-					ms.cflag = ip->normal_termios.c_cflag;
+					ms.cflag = ip->yesrmal_termios.c_cflag;
 				else
 					ms.cflag = tty->termios.c_cflag;
 				tty_kref_put(tty);
@@ -1605,9 +1605,9 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 				tty = tty_port_tty_get(&ip->port);
 
 				if (!tty) {
-					cflag = ip->normal_termios.c_cflag;
-					iflag = ip->normal_termios.c_iflag;
-					me->baudrate[p] = tty_termios_baud_rate(&ip->normal_termios);
+					cflag = ip->yesrmal_termios.c_cflag;
+					iflag = ip->yesrmal_termios.c_iflag;
+					me->baudrate[p] = tty_termios_baud_rate(&ip->yesrmal_termios);
 				} else {
 					cflag = tty->termios.c_cflag;
 					iflag = tty->termios.c_iflag;
@@ -1653,20 +1653,20 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 static int mxser_cflags_changed(struct mxser_port *info, unsigned long arg,
 		struct async_icount *cprev)
 {
-	struct async_icount cnow;
+	struct async_icount cyesw;
 	unsigned long flags;
 	int ret;
 
 	spin_lock_irqsave(&info->slock, flags);
-	cnow = info->icount;	/* atomic copy */
+	cyesw = info->icount;	/* atomic copy */
 	spin_unlock_irqrestore(&info->slock, flags);
 
-	ret =	((arg & TIOCM_RNG) && (cnow.rng != cprev->rng)) ||
-		((arg & TIOCM_DSR) && (cnow.dsr != cprev->dsr)) ||
-		((arg & TIOCM_CD)  && (cnow.dcd != cprev->dcd)) ||
-		((arg & TIOCM_CTS) && (cnow.cts != cprev->cts));
+	ret =	((arg & TIOCM_RNG) && (cyesw.rng != cprev->rng)) ||
+		((arg & TIOCM_DSR) && (cyesw.dsr != cprev->dsr)) ||
+		((arg & TIOCM_CD)  && (cyesw.dcd != cprev->dcd)) ||
+		((arg & TIOCM_CTS) && (cyesw.cts != cprev->cts));
 
-	*cprev = cnow;
+	*cprev = cyesw;
 
 	return ret;
 }
@@ -1675,7 +1675,7 @@ static int mxser_ioctl(struct tty_struct *tty,
 		unsigned int cmd, unsigned long arg)
 {
 	struct mxser_port *info = tty->driver_data;
-	struct async_icount cnow;
+	struct async_icount cyesw;
 	unsigned long flags;
 	void __user *argp = (void __user *)arg;
 
@@ -1735,11 +1735,11 @@ static int mxser_ioctl(struct tty_struct *tty,
 		 */
 	case TIOCMIWAIT:
 		spin_lock_irqsave(&info->slock, flags);
-		cnow = info->icount;	/* note the counters on entry */
+		cyesw = info->icount;	/* yeste the counters on entry */
 		spin_unlock_irqrestore(&info->slock, flags);
 
 		return wait_event_interruptible(info->port.delta_msr_wait,
-				mxser_cflags_changed(info, arg, &cnow));
+				mxser_cflags_changed(info, arg, &cyesw));
 	case MOXA_HighSpeedOn:
 		return put_user(info->baud_base != 115200 ? 1 : 0, (int __user *)argp);
 	case MOXA_SDS_RSTICOUNTER:
@@ -1824,24 +1824,24 @@ static int mxser_get_icount(struct tty_struct *tty,
 
 {
 	struct mxser_port *info = tty->driver_data;
-	struct async_icount cnow;
+	struct async_icount cyesw;
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->slock, flags);
-	cnow = info->icount;
+	cyesw = info->icount;
 	spin_unlock_irqrestore(&info->slock, flags);
 
-	icount->frame = cnow.frame;
-	icount->brk = cnow.brk;
-	icount->overrun = cnow.overrun;
-	icount->buf_overrun = cnow.buf_overrun;
-	icount->parity = cnow.parity;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
+	icount->frame = cyesw.frame;
+	icount->brk = cyesw.brk;
+	icount->overrun = cyesw.overrun;
+	icount->buf_overrun = cyesw.buf_overrun;
+	icount->parity = cyesw.parity;
+	icount->rx = cyesw.rx;
+	icount->tx = cyesw.tx;
+	icount->cts = cyesw.cts;
+	icount->dsr = cyesw.dsr;
+	icount->rng = cyesw.rng;
+	icount->dcd = cyesw.dcd;
 	return 0;
 }
 
@@ -2058,7 +2058,7 @@ static void mxser_receive_chars(struct tty_struct *tty,
 				struct mxser_port *port, int *status)
 {
 	unsigned char ch, gdl;
-	int ignored = 0;
+	int igyesred = 0;
 	int cnt = 0;
 	int recv_room;
 	int max = 256;
@@ -2101,8 +2101,8 @@ intr_old:
 		if (port->board->chip_flag && (*status & UART_LSR_OE))
 			outb(0x23, port->ioaddr + UART_FCR);
 		*status &= port->read_status_mask;
-		if (*status & port->ignore_status_mask) {
-			if (++ignored > 100)
+		if (*status & port->igyesre_status_mask) {
+			if (++igyesred > 100)
 				break;
 		} else {
 			char flag = 0;
@@ -2346,7 +2346,7 @@ static const struct tty_port_operations mxser_port_ops = {
 
 static bool allow_overlapping_vector;
 module_param(allow_overlapping_vector, bool, S_IRUGO);
-MODULE_PARM_DESC(allow_overlapping_vector, "whether we allow ISA cards to be configured such that vector overlabs IO ports (default=no)");
+MODULE_PARM_DESC(allow_overlapping_vector, "whether we allow ISA cards to be configured such that vector overlabs IO ports (default=yes)");
 
 static bool mxser_overlapping_vector(struct mxser_board *brd)
 {
@@ -2403,7 +2403,7 @@ static int mxser_initbrd(struct mxser_board *brd)
 		info->custom_divisor = info->baud_base * 16;
 		info->port.close_delay = 5 * HZ / 10;
 		info->port.closing_wait = 30 * HZ;
-		info->normal_termios = mxvar_sdriver->init_termios;
+		info->yesrmal_termios = mxvar_sdriver->init_termios;
 		memset(&info->mon_data, 0, sizeof(struct mxser_mon));
 		info->err_shadow = 0;
 		spin_lock_init(&info->slock);
@@ -2419,7 +2419,7 @@ static int mxser_initbrd(struct mxser_board *brd)
 		for (i = 0; i < brd->info->nports; i++)
 			tty_port_destroy(&brd->ports[i].port);
 		printk(KERN_ERR "Board %s: Request irq failed, IRQ (%d) may "
-			"conflict with another device.\n",
+			"conflict with ayesther device.\n",
 			brd->info->name, brd->irq);
 	}
 
@@ -2568,7 +2568,7 @@ static int mxser_probe(struct pci_dev *pdev,
 
 	if (i >= MXSER_BOARDS) {
 		dev_err(&pdev->dev, "too many boards found (maximum %d), board "
-				"not configured\n", MXSER_BOARDS);
+				"yest configured\n", MXSER_BOARDS);
 		goto err;
 	}
 
@@ -2714,7 +2714,7 @@ static int __init mxser_module_init(void)
 	/* Initialize the tty_driver structure */
 	mxvar_sdriver->name = "ttyMI";
 	mxvar_sdriver->major = ttymajor;
-	mxvar_sdriver->minor_start = 0;
+	mxvar_sdriver->miyesr_start = 0;
 	mxvar_sdriver->type = TTY_DRIVER_TYPE_SERIAL;
 	mxvar_sdriver->subtype = SERIAL_TYPE_NORMAL;
 	mxvar_sdriver->init_termios = tty_std_termios;

@@ -25,7 +25,7 @@ static u8 odm_query_rxpwrpercentage(s8 antpower)
 }
 
 /*  2012/01/12 MH MOve some signal strength smooth method to MP HAL layer. */
-/*  IF other SW team do not support the feature, remove this section.?? */
+/*  IF other SW team do yest support the feature, remove this section.?? */
 static s32 odm_signal_scale_mapping(struct odm_dm_struct *dm_odm, s32 currsig)
 {
 	s32 retsig = 0;
@@ -88,7 +88,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 		u8 cck_agc_rpt;
 
 		dm_odm->PhyDbgInfo.NumQryPhyStatusCCK++;
-		/*  (1)Hardware does not provide RSSI for CCK */
+		/*  (1)Hardware does yest provide RSSI for CCK */
 		/*  (2)PWDB, Average PWDB calculated by hardware (for rate adaptive) */
 
 		cck_highpwr = dm_odm->bCckHighPower;
@@ -174,7 +174,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 		/*  (1)Get RSSI for HT rate */
 
 		for (i = RF_PATH_A; i < RF_PATH_MAX; i++) {
-			/*  2008/01/30 MH we will judge RF RX path now. */
+			/*  2008/01/30 MH we will judge RF RX path yesw. */
 			if (dm_odm->RFPathRxEnable & BIT(i))
 				rf_rx_num++;
 
@@ -221,9 +221,9 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			max_spatial_stream = 1; /* only spatial stream 1 makes sense */
 
 		for (i = 0; i < max_spatial_stream; i++) {
-			/*  Do not use shift operation like "rx_evmX >>= 1" because the compilor of free build environment */
+			/*  Do yest use shift operation like "rx_evmX >>= 1" because the compilor of free build environment */
 			/*  fill most significant bit to "zero" when doing shifting operation which may change a negative */
-			/*  value to positive one, then the dbm value (which is supposed to be negative)  is not correct anymore. */
+			/*  value to positive one, then the dbm value (which is supposed to be negative)  is yest correct anymore. */
 			EVM = odm_evm_db_to_percentage((pPhyStaRpt->stream_rxevm[i]));	/* dbm */
 
 			if (pPktinfo->bPacketMatchBSSID) {

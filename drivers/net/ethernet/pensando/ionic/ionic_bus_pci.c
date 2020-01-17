@@ -62,7 +62,7 @@ static int ionic_map_bars(struct ionic *ionic)
 			bars[j].vaddr = pci_iomap(pdev, i, bars[j].len);
 			if (!bars[j].vaddr) {
 				dev_err(dev,
-					"Cannot memory-map BAR %d, aborting\n",
+					"Canyest memory-map BAR %d, aborting\n",
 					i);
 				return -ENODEV;
 			}
@@ -132,13 +132,13 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Setup PCI device */
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		dev_err(dev, "Cannot enable PCI device: %d, aborting\n", err);
+		dev_err(dev, "Canyest enable PCI device: %d, aborting\n", err);
 		goto err_out_debugfs_del_dev;
 	}
 
 	err = pci_request_regions(pdev, IONIC_DRV_NAME);
 	if (err) {
-		dev_err(dev, "Cannot request PCI regions: %d, aborting\n", err);
+		dev_err(dev, "Canyest request PCI regions: %d, aborting\n", err);
 		goto err_out_pci_disable_device;
 	}
 
@@ -151,32 +151,32 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Configure the device */
 	err = ionic_setup(ionic);
 	if (err) {
-		dev_err(dev, "Cannot setup device: %d, aborting\n", err);
+		dev_err(dev, "Canyest setup device: %d, aborting\n", err);
 		goto err_out_unmap_bars;
 	}
 
 	err = ionic_identify(ionic);
 	if (err) {
-		dev_err(dev, "Cannot identify device: %d, aborting\n", err);
+		dev_err(dev, "Canyest identify device: %d, aborting\n", err);
 		goto err_out_teardown;
 	}
 
 	err = ionic_init(ionic);
 	if (err) {
-		dev_err(dev, "Cannot init device: %d, aborting\n", err);
+		dev_err(dev, "Canyest init device: %d, aborting\n", err);
 		goto err_out_teardown;
 	}
 
 	/* Configure the ports */
 	err = ionic_port_identify(ionic);
 	if (err) {
-		dev_err(dev, "Cannot identify port: %d, aborting\n", err);
+		dev_err(dev, "Canyest identify port: %d, aborting\n", err);
 		goto err_out_reset;
 	}
 
 	err = ionic_port_init(ionic);
 	if (err) {
-		dev_err(dev, "Cannot init port: %d, aborting\n", err);
+		dev_err(dev, "Canyest init port: %d, aborting\n", err);
 		goto err_out_reset;
 	}
 
@@ -184,37 +184,37 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = ionic_lif_identify(ionic, IONIC_LIF_TYPE_CLASSIC,
 				 &ionic->ident.lif);
 	if (err) {
-		dev_err(dev, "Cannot identify LIFs: %d, aborting\n", err);
+		dev_err(dev, "Canyest identify LIFs: %d, aborting\n", err);
 		goto err_out_port_reset;
 	}
 
 	err = ionic_lifs_size(ionic);
 	if (err) {
-		dev_err(dev, "Cannot size LIFs: %d, aborting\n", err);
+		dev_err(dev, "Canyest size LIFs: %d, aborting\n", err);
 		goto err_out_port_reset;
 	}
 
 	err = ionic_lifs_alloc(ionic);
 	if (err) {
-		dev_err(dev, "Cannot allocate LIFs: %d, aborting\n", err);
+		dev_err(dev, "Canyest allocate LIFs: %d, aborting\n", err);
 		goto err_out_free_irqs;
 	}
 
 	err = ionic_lifs_init(ionic);
 	if (err) {
-		dev_err(dev, "Cannot init LIFs: %d, aborting\n", err);
+		dev_err(dev, "Canyest init LIFs: %d, aborting\n", err);
 		goto err_out_free_lifs;
 	}
 
 	err = ionic_lifs_register(ionic);
 	if (err) {
-		dev_err(dev, "Cannot register LIFs: %d, aborting\n", err);
+		dev_err(dev, "Canyest register LIFs: %d, aborting\n", err);
 		goto err_out_deinit_lifs;
 	}
 
 	err = ionic_devlink_register(ionic);
 	if (err) {
-		dev_err(dev, "Cannot register devlink: %d\n", err);
+		dev_err(dev, "Canyest register devlink: %d\n", err);
 		goto err_out_deregister_lifs;
 	}
 

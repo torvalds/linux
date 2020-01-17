@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -67,9 +67,9 @@ struct vmw_validation_mem {
  * buffer objects
  * @mem_size_left: Free memory left in the last page in @page_list
  * @page_address: Kernel virtual address of the last page in @page_list
- * @vm: A pointer to the memory reservation interface or NULL if no
+ * @vm: A pointer to the memory reservation interface or NULL if yes
  * memory reservation is needed.
- * @vm_size_left: Amount of reserved memory that so far has not been allocated.
+ * @vm_size_left: Amount of reserved memory that so far has yest been allocated.
  * @total_mem: Amount of reserved memory.
  */
 struct vmw_validation_context {
@@ -96,11 +96,11 @@ struct vmw_fence_obj;
 /**
  * DECLARE_VAL_CONTEXT - Declare a validation context with initialization
  * @_name: The name of the variable
- * @_ht: The hash table used to find dups or NULL if none
+ * @_ht: The hash table used to find dups or NULL if yesne
  * @_merge_dups: Whether to merge duplicate buffer object- or resource
  * entries. If set to true, ideally a hash table pointer should be supplied
  * as well unless the number of resources and buffer objects per validation
- * is known to be very small
+ * is kyeswn to be very small
  */
 #endif
 #define DECLARE_VAL_CONTEXT(_name, _ht, _merge_dups)			\
@@ -229,7 +229,7 @@ int vmw_validation_add_resource(struct vmw_validation_context *ctx,
 				struct vmw_resource *res,
 				size_t priv_size,
 				u32 dirty,
-				void **p_node,
+				void **p_yesde,
 				bool *first_usage);
 void vmw_validation_drop_ht(struct vmw_validation_context *ctx);
 int vmw_validation_res_reserve(struct vmw_validation_context *ctx,

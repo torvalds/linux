@@ -441,7 +441,7 @@ static void lpuart_dma_tx(struct lpuart_port *sport)
 					DMA_PREP_INTERRUPT);
 	if (!sport->dma_tx_desc) {
 		dma_unmap_sg(dev, sgl, sport->dma_tx_nents, DMA_TO_DEVICE);
-		dev_err(dev, "Cannot prepare TX slave DMA!\n");
+		dev_err(dev, "Canyest prepare TX slave DMA!\n");
 		return;
 	}
 
@@ -775,7 +775,7 @@ static void lpuart32_start_tx(struct uart_port *port)
 	}
 }
 
-/* return TIOCSER_TEMT when transmitter is not busy */
+/* return TIOCSER_TEMT when transmitter is yest busy */
 static unsigned int lpuart_tx_empty(struct uart_port *port)
 {
 	struct lpuart_port *sport = container_of(port,
@@ -819,7 +819,7 @@ static void lpuart_txint(struct lpuart_port *sport)
 
 static void lpuart_rxint(struct lpuart_port *sport)
 {
-	unsigned int flg, ignored = 0, overrun = 0;
+	unsigned int flg, igyesred = 0, overrun = 0;
 	struct tty_port *port = &sport->port.state->port;
 	unsigned long flags;
 	unsigned char rx, sr;
@@ -848,8 +848,8 @@ static void lpuart_rxint(struct lpuart_port *sport)
 			if (sr & UARTSR1_OR)
 				overrun++;
 
-			if (sr & sport->port.ignore_status_mask) {
-				if (++ignored > 100)
+			if (sr & sport->port.igyesre_status_mask) {
+				if (++igyesred > 100)
 					goto out;
 				continue;
 			}
@@ -900,7 +900,7 @@ static void lpuart32_txint(struct lpuart_port *sport)
 
 static void lpuart32_rxint(struct lpuart_port *sport)
 {
-	unsigned int flg, ignored = 0;
+	unsigned int flg, igyesred = 0;
 	struct tty_port *port = &sport->port.state->port;
 	unsigned long flags;
 	unsigned long rx, sr;
@@ -930,8 +930,8 @@ static void lpuart32_rxint(struct lpuart_port *sport)
 			if (sr & UARTSTAT_OR)
 				sport->port.icount.overrun++;
 
-			if (sr & sport->port.ignore_status_mask) {
-				if (++ignored > 100)
+			if (sr & sport->port.igyesre_status_mask) {
+				if (++igyesred > 100)
 					goto out;
 				continue;
 			}
@@ -1077,7 +1077,7 @@ static void lpuart_copy_rx_to_tty(struct lpuart_port *sport)
 	 * ring->head points to the end of data already written by the DMA.
 	 * ring->tail points to the beginning of data to be read by the
 	 * framework.
-	 * The current transfer size should not be larger than the dma buffer
+	 * The current transfer size should yest be larger than the dma buffer
 	 * length.
 	 */
 	ring->head = sport->rx_sgl.length - state.residue;
@@ -1192,7 +1192,7 @@ static inline int lpuart_start_rx_dma(struct lpuart_port *sport)
 				 DMA_DEV_TO_MEM,
 				 DMA_PREP_INTERRUPT);
 	if (!sport->dma_rx_desc) {
-		dev_err(sport->port.dev, "Cannot prepare cyclic DMA\n");
+		dev_err(sport->port.dev, "Canyest prepare cyclic DMA\n");
 		return -EFAULT;
 	}
 
@@ -1250,7 +1250,7 @@ static int lpuart_config_rs485(struct uart_port *port,
 
 		/*
 		 * RTS needs to be logic HIGH either during transer _or_ after
-		 * transfer, other variants are not supported by the hardware.
+		 * transfer, other variants are yest supported by the hardware.
 		 */
 
 		if (!(rs485->flags & (SER_RS485_RTS_ON_SEND |
@@ -1301,7 +1301,7 @@ static int lpuart32_config_rs485(struct uart_port *port,
 
 		/*
 		 * RTS needs to be logic HIGH either during transer _or_ after
-		 * transfer, other variants are not supported by the hardware.
+		 * transfer, other variants are yest supported by the hardware.
 		 */
 
 		if (!(rs485->flags & (SER_RS485_RTS_ON_SEND |
@@ -1367,7 +1367,7 @@ static void lpuart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	struct lpuart_port *sport = container_of(port,
 				struct lpuart_port, port);
 
-	/* Make sure RXRTSE bit is not set when RS485 is enabled */
+	/* Make sure RXRTSE bit is yest set when RS485 is enabled */
 	if (!(sport->port.rs485.flags & SER_RS485_ENABLED)) {
 		temp = readb(sport->port.membase + UARTMODEM) &
 			~(UARTMODEM_RXRTSE | UARTMODEM_TXCTSE);
@@ -1768,18 +1768,18 @@ lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		sport->port.read_status_mask |= UARTSR1_FE;
 
-	/* characters to ignore */
-	sport->port.ignore_status_mask = 0;
+	/* characters to igyesre */
+	sport->port.igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		sport->port.ignore_status_mask |= UARTSR1_PE;
+		sport->port.igyesre_status_mask |= UARTSR1_PE;
 	if (termios->c_iflag & IGNBRK) {
-		sport->port.ignore_status_mask |= UARTSR1_FE;
+		sport->port.igyesre_status_mask |= UARTSR1_FE;
 		/*
-		 * if we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * if we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			sport->port.ignore_status_mask |= UARTSR1_OR;
+			sport->port.igyesre_status_mask |= UARTSR1_OR;
 	}
 
 	/* update the per-port timeout */
@@ -1990,18 +1990,18 @@ lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		sport->port.read_status_mask |= UARTSTAT_FE;
 
-	/* characters to ignore */
-	sport->port.ignore_status_mask = 0;
+	/* characters to igyesre */
+	sport->port.igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		sport->port.ignore_status_mask |= UARTSTAT_PE;
+		sport->port.igyesre_status_mask |= UARTSTAT_PE;
 	if (termios->c_iflag & IGNBRK) {
-		sport->port.ignore_status_mask |= UARTSTAT_FE;
+		sport->port.igyesre_status_mask |= UARTSTAT_FE;
 		/*
-		 * if we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * if we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			sport->port.ignore_status_mask |= UARTSTAT_OR;
+			sport->port.igyesre_status_mask |= UARTSTAT_OR;
 	}
 
 	/* update the per-port timeout */
@@ -2036,7 +2036,7 @@ static const char *lpuart_type(struct uart_port *port)
 
 static void lpuart_release_port(struct uart_port *port)
 {
-	/* nothing to do */
+	/* yesthing to do */
 }
 
 static int lpuart_request_port(struct uart_port *port)
@@ -2420,7 +2420,7 @@ static int lpuart_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id = of_match_device(lpuart_dt_ids,
 							   &pdev->dev);
 	const struct lpuart_soc_data *sdata = of_id->data;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct lpuart_port *sport;
 	struct resource *res;
 	int ret;
@@ -2586,9 +2586,9 @@ static int lpuart_suspend(struct device *dev)
 	if (sport->lpuart_dma_rx_use) {
 		/*
 		 * EDMA driver during suspend will forcefully release any
-		 * non-idle DMA channels. If port wakeup is enabled or if port
-		 * is console port or 'no_console_suspend' is set the Rx DMA
-		 * cannot resume as as expected, hence gracefully release the
+		 * yesn-idle DMA channels. If port wakeup is enabled or if port
+		 * is console port or 'yes_console_suspend' is set the Rx DMA
+		 * canyest resume as as expected, hence gracefully release the
 		 * Rx DMA path before suspend and start Rx DMA path on resume.
 		 */
 		if (irq_wake) {

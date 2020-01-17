@@ -145,7 +145,7 @@ static void __init move_device_tree(void)
  * Implementation:  Pass in the byte and bit offset for the feature
  * that we are interested in.  The function will return -1 if the
  * pa-features property is missing, or a 1/0 to indicate if the feature
- * is supported/not supported.  Note that the bit numbers are
+ * is supported/yest supported.  Note that the bit numbers are
  * big-endian to match the definition in PAPR.
  */
 static struct ibm_pa_feature {
@@ -177,7 +177,7 @@ static struct ibm_pa_feature {
 	  .cpu_user_ftrs2 = PPC_FEATURE2_HTM_COMP | PPC_FEATURE2_HTM_NOSC_COMP },
 };
 
-static void __init scan_features(unsigned long node, const unsigned char *ftrs,
+static void __init scan_features(unsigned long yesde, const unsigned char *ftrs,
 				 unsigned long tablelen,
 				 struct ibm_pa_feature *fp,
 				 unsigned long ft_size)
@@ -190,14 +190,14 @@ static void __init scan_features(unsigned long node, const unsigned char *ftrs,
 			return;
 		len = 2 + ftrs[0];
 		if (tablelen < len)
-			return;		/* descriptor 0 not found */
+			return;		/* descriptor 0 yest found */
 		if (ftrs[1] == 0)
 			break;
 		tablelen -= len;
 		ftrs += len;
 	}
 
-	/* loop over bits we know about */
+	/* loop over bits we kyesw about */
 	for (i = 0; i < ft_size; ++i, ++fp) {
 		if (fp->pabyte >= ftrs[0])
 			continue;
@@ -216,32 +216,32 @@ static void __init scan_features(unsigned long node, const unsigned char *ftrs,
 	}
 }
 
-static void __init check_cpu_pa_features(unsigned long node)
+static void __init check_cpu_pa_features(unsigned long yesde)
 {
 	const unsigned char *pa_ftrs;
 	int tablelen;
 
-	pa_ftrs = of_get_flat_dt_prop(node, "ibm,pa-features", &tablelen);
+	pa_ftrs = of_get_flat_dt_prop(yesde, "ibm,pa-features", &tablelen);
 	if (pa_ftrs == NULL)
 		return;
 
-	scan_features(node, pa_ftrs, tablelen,
+	scan_features(yesde, pa_ftrs, tablelen,
 		      ibm_pa_features, ARRAY_SIZE(ibm_pa_features));
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
-static void __init init_mmu_slb_size(unsigned long node)
+static void __init init_mmu_slb_size(unsigned long yesde)
 {
 	const __be32 *slb_size_ptr;
 
-	slb_size_ptr = of_get_flat_dt_prop(node, "slb-size", NULL) ? :
-			of_get_flat_dt_prop(node, "ibm,slb-size", NULL);
+	slb_size_ptr = of_get_flat_dt_prop(yesde, "slb-size", NULL) ? :
+			of_get_flat_dt_prop(yesde, "ibm,slb-size", NULL);
 
 	if (slb_size_ptr)
 		mmu_slb_size = be32_to_cpup(slb_size_ptr);
 }
 #else
-#define init_mmu_slb_size(node) do { } while(0)
+#define init_mmu_slb_size(yesde) do { } while(0)
 #endif
 
 static struct feature_property {
@@ -266,14 +266,14 @@ static struct feature_property {
 };
 
 #if defined(CONFIG_44x) && defined(CONFIG_PPC_FPU)
-static inline void identical_pvr_fixup(unsigned long node)
+static inline void identical_pvr_fixup(unsigned long yesde)
 {
 	unsigned int pvr;
-	const char *model = of_get_flat_dt_prop(node, "model", NULL);
+	const char *model = of_get_flat_dt_prop(yesde, "model", NULL);
 
 	/*
 	 * Since 440GR(x)/440EP(x) processors have the same pvr,
-	 * we check the node path and set bit 28 in the cur_cpu_spec
+	 * we check the yesde path and set bit 28 in the cur_cpu_spec
 	 * pvr for EP(x) processor version. This bit is always 0 in
 	 * the "real" pvr. Then we call identify_cpu again with
 	 * the new logical pvr to enable FPU support.
@@ -285,17 +285,17 @@ static inline void identical_pvr_fixup(unsigned long node)
 	}
 }
 #else
-#define identical_pvr_fixup(node) do { } while(0)
+#define identical_pvr_fixup(yesde) do { } while(0)
 #endif
 
-static void __init check_cpu_feature_properties(unsigned long node)
+static void __init check_cpu_feature_properties(unsigned long yesde)
 {
 	int i;
 	struct feature_property *fp = feature_properties;
 	const __be32 *prop;
 
 	for (i = 0; i < (int)ARRAY_SIZE(feature_properties); ++i, ++fp) {
-		prop = of_get_flat_dt_prop(node, fp->name, NULL);
+		prop = of_get_flat_dt_prop(yesde, fp->name, NULL);
 		if (prop && be32_to_cpup(prop) >= fp->min_value) {
 			cur_cpu_spec->cpu_features |= fp->cpu_feature;
 			cur_cpu_spec->cpu_user_features |= fp->cpu_user_ftr;
@@ -303,11 +303,11 @@ static void __init check_cpu_feature_properties(unsigned long node)
 	}
 }
 
-static int __init early_init_dt_scan_cpus(unsigned long node,
+static int __init early_init_dt_scan_cpus(unsigned long yesde,
 					  const char *uname, int depth,
 					  void *data)
 {
-	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const char *type = of_get_flat_dt_prop(yesde, "device_type", NULL);
 	const __be32 *prop;
 	const __be32 *intserv;
 	int i, nthreads;
@@ -315,14 +315,14 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	int found = -1;
 	int found_thread = 0;
 
-	/* We are scanning "cpu" nodes only */
+	/* We are scanning "cpu" yesdes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
 	/* Get physical cpuid */
-	intserv = of_get_flat_dt_prop(node, "ibm,ppc-interrupt-server#s", &len);
+	intserv = of_get_flat_dt_prop(yesde, "ibm,ppc-interrupt-server#s", &len);
 	if (!intserv)
-		intserv = of_get_flat_dt_prop(node, "reg", &len);
+		intserv = of_get_flat_dt_prop(yesde, "reg", &len);
 
 	nthreads = len / sizeof(int);
 
@@ -355,7 +355,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	 * meet various levels of the architecture:
 	 * 0x0f000001	Architecture version 2.04
 	 * 0x0f000002	Architecture version 2.05
-	 * If the cpu-version property in the cpu node contains
+	 * If the cpu-version property in the cpu yesde contains
 	 * such a value, we call identify_cpu again with the
 	 * logical PVR value in order to use the cpu feature
 	 * bits appropriate for the architecture level.
@@ -370,16 +370,16 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	 * architecture level via the ibm,powerpc-cpu-features binding.
 	 */
 	if (!dt_cpu_ftrs_in_use()) {
-		prop = of_get_flat_dt_prop(node, "cpu-version", NULL);
+		prop = of_get_flat_dt_prop(yesde, "cpu-version", NULL);
 		if (prop && (be32_to_cpup(prop) & 0xff000000) == 0x0f000000)
 			identify_cpu(0, be32_to_cpup(prop));
 
-		check_cpu_feature_properties(node);
-		check_cpu_pa_features(node);
+		check_cpu_feature_properties(yesde);
+		check_cpu_pa_features(yesde);
 	}
 
-	identical_pvr_fixup(node);
-	init_mmu_slb_size(node);
+	identical_pvr_fixup(yesde);
+	init_mmu_slb_size(yesde);
 
 #ifdef CONFIG_PPC64
 	if (nthreads == 1)
@@ -393,49 +393,49 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	return 0;
 }
 
-static int __init early_init_dt_scan_chosen_ppc(unsigned long node,
+static int __init early_init_dt_scan_chosen_ppc(unsigned long yesde,
 						const char *uname,
 						int depth, void *data)
 {
-	const unsigned long *lprop; /* All these set by kernel, so no need to convert endian */
+	const unsigned long *lprop; /* All these set by kernel, so yes need to convert endian */
 
-	/* Use common scan routine to determine if this is the chosen node */
-	if (early_init_dt_scan_chosen(node, uname, depth, data) == 0)
+	/* Use common scan routine to determine if this is the chosen yesde */
+	if (early_init_dt_scan_chosen(yesde, uname, depth, data) == 0)
 		return 0;
 
 #ifdef CONFIG_PPC64
 	/* check if iommu is forced on or off */
-	if (of_get_flat_dt_prop(node, "linux,iommu-off", NULL) != NULL)
+	if (of_get_flat_dt_prop(yesde, "linux,iommu-off", NULL) != NULL)
 		iommu_is_off = 1;
-	if (of_get_flat_dt_prop(node, "linux,iommu-force-on", NULL) != NULL)
+	if (of_get_flat_dt_prop(yesde, "linux,iommu-force-on", NULL) != NULL)
 		iommu_force_on = 1;
 #endif
 
 	/* mem=x on the command line is the preferred mechanism */
-	lprop = of_get_flat_dt_prop(node, "linux,memory-limit", NULL);
+	lprop = of_get_flat_dt_prop(yesde, "linux,memory-limit", NULL);
 	if (lprop)
 		memory_limit = *lprop;
 
 #ifdef CONFIG_PPC64
-	lprop = of_get_flat_dt_prop(node, "linux,tce-alloc-start", NULL);
+	lprop = of_get_flat_dt_prop(yesde, "linux,tce-alloc-start", NULL);
 	if (lprop)
 		tce_alloc_start = *lprop;
-	lprop = of_get_flat_dt_prop(node, "linux,tce-alloc-end", NULL);
+	lprop = of_get_flat_dt_prop(yesde, "linux,tce-alloc-end", NULL);
 	if (lprop)
 		tce_alloc_end = *lprop;
 #endif
 
 #ifdef CONFIG_KEXEC_CORE
-	lprop = of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
+	lprop = of_get_flat_dt_prop(yesde, "linux,crashkernel-base", NULL);
 	if (lprop)
 		crashk_res.start = *lprop;
 
-	lprop = of_get_flat_dt_prop(node, "linux,crashkernel-size", NULL);
+	lprop = of_get_flat_dt_prop(yesde, "linux,crashkernel-size", NULL);
 	if (lprop)
 		crashk_res.end = crashk_res.start + *lprop - 1;
 #endif
 
-	/* break now */
+	/* break yesw */
 	return 1;
 }
 
@@ -480,7 +480,7 @@ static void __init early_init_drmem_lmb(struct drmem_lmb *lmb,
 
 	/*
 	 * Skip this block if the reserved bit is set in flags
-	 * or if the block is not assigned to this partition.
+	 * or if the block is yest assigned to this partition.
 	 */
 	if ((lmb->flags & DRCONF_MEM_RESERVED) ||
 	    !(lmb->flags & DRCONF_MEM_ASSIGNED))
@@ -498,7 +498,7 @@ static void __init early_init_drmem_lmb(struct drmem_lmb *lmb,
 		 * linux,drconf-usable-memory property
 		 */
 		rngs = dt_mem_next_cell(dt_root_size_cells, usm);
-		if (!rngs) /* there are no (base, size) duple */
+		if (!rngs) /* there are yes (base, size) duple */
 			return;
 	}
 
@@ -522,26 +522,26 @@ static void __init early_init_drmem_lmb(struct drmem_lmb *lmb,
 }
 #endif /* CONFIG_PPC_PSERIES */
 
-static int __init early_init_dt_scan_memory_ppc(unsigned long node,
+static int __init early_init_dt_scan_memory_ppc(unsigned long yesde,
 						const char *uname,
 						int depth, void *data)
 {
 #ifdef CONFIG_PPC_PSERIES
 	if (depth == 1 &&
 	    strcmp(uname, "ibm,dynamic-reconfiguration-memory") == 0) {
-		walk_drmem_lmbs_early(node, early_init_drmem_lmb);
+		walk_drmem_lmbs_early(yesde, early_init_drmem_lmb);
 		return 0;
 	}
 #endif
 	
-	return early_init_dt_scan_memory(node, uname, depth, data);
+	return early_init_dt_scan_memory(yesde, uname, depth, data);
 }
 
 /*
  * For a relocatable kernel, we need to get the memstart_addr first,
  * then use it to calculate the virtual kernel start address. This has
  * to happen at a very early stage (before machine_init). In this case,
- * we just want to get the memstart_address and would not like to mess the
+ * we just want to get the memstart_address and would yest like to mess the
  * memblock at this stage. So introduce a variable to skip the memblock_add()
  * for this reason.
  */
@@ -696,12 +696,12 @@ void __init early_init_devtree(void *params)
 		panic("BUG: Failed verifying flat device tree, bad version?");
 
 #ifdef CONFIG_PPC_RTAS
-	/* Some machines might need RTAS info for debugging, grab it now. */
+	/* Some machines might need RTAS info for debugging, grab it yesw. */
 	of_scan_flat_dt(early_init_dt_scan_rtas, NULL);
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
-	/* Some machines might need OPAL info for debugging, grab it now. */
+	/* Some machines might need OPAL info for debugging, grab it yesw. */
 	of_scan_flat_dt(early_init_dt_scan_opal, NULL);
 
 	/* Scan tree for ultravisor feature */
@@ -713,13 +713,13 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_fw_dump, NULL);
 #endif
 
-	/* Retrieve various informations from the /chosen node of the
+	/* Retrieve various informations from the /chosen yesde of the
 	 * device-tree, including the platform type, initrd location and
 	 * size, TCE reserve, and more ...
 	 */
 	of_scan_flat_dt(early_init_dt_scan_chosen_ppc, boot_command_line);
 
-	/* Scan memory nodes and rebuild MEMBLOCKs */
+	/* Scan memory yesdes and rebuild MEMBLOCKs */
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory_ppc, NULL);
 
@@ -754,7 +754,7 @@ void __init early_init_devtree(void *params)
 
 	DBG("Phys. mem: %llx\n", (unsigned long long)memblock_phys_mem_size());
 
-	/* We may need to relocate the flat tree, do it now.
+	/* We may need to relocate the flat tree, do it yesw.
 	 * FIXME .. and the initrd too? */
 	move_device_tree();
 
@@ -775,7 +775,7 @@ void __init early_init_devtree(void *params)
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PPC64)
 	/* We'll later wait for secondaries to check in; there are
-	 * NCPUS-1 non-boot CPUs  :-)
+	 * NCPUS-1 yesn-boot CPUs  :-)
 	 */
 	spinning_secondaries = boot_cpu_count - 1;
 #endif
@@ -813,7 +813,7 @@ void __init early_get_first_memblock_info(void *params, phys_addr_t *size)
 	initial_boot_params = params;
 
 	/*
-	 * Scan the memory nodes and set add_mem_to_memblock to 0 to avoid
+	 * Scan the memory yesdes and set add_mem_to_memblock to 0 to avoid
 	 * mess the memblock.
 	 */
 	add_mem_to_memblock = 0;
@@ -829,7 +829,7 @@ void __init early_get_first_memblock_info(void *params, phys_addr_t *size)
 /*******
  *
  * New implementation of the OF "find" APIs, return a refcounted
- * object, call of_node_put() when done.  The device tree and list
+ * object, call of_yesde_put() when done.  The device tree and list
  * are protected by a rw_lock.
  *
  * Note that property management will need some locking as well,
@@ -839,24 +839,24 @@ void __init early_get_first_memblock_info(void *params, phys_addr_t *size)
 
 /**
  * of_get_ibm_chip_id - Returns the IBM "chip-id" of a device
- * @np: device node of the device
+ * @np: device yesde of the device
  *
- * This looks for a property "ibm,chip-id" in the node or any
- * of its parents and returns its content, or -1 if it cannot
+ * This looks for a property "ibm,chip-id" in the yesde or any
+ * of its parents and returns its content, or -1 if it canyest
  * be found.
  */
-int of_get_ibm_chip_id(struct device_node *np)
+int of_get_ibm_chip_id(struct device_yesde *np)
 {
-	of_node_get(np);
+	of_yesde_get(np);
 	while (np) {
 		u32 chip_id;
 
 		/*
-		 * Skiboot may produce memory nodes that contain more than one
+		 * Skiboot may produce memory yesdes that contain more than one
 		 * cell in chip-id, we only read the first one here.
 		 */
 		if (!of_property_read_u32(np, "ibm,chip-id", &chip_id)) {
-			of_node_put(np);
+			of_yesde_put(np);
 			return chip_id;
 		}
 
@@ -871,17 +871,17 @@ EXPORT_SYMBOL(of_get_ibm_chip_id);
  * @cpu: The logical cpu number.
  *
  * Return the value of the ibm,chip-id property corresponding to the given
- * logical cpu number. If the chip-id can not be found, returns -1.
+ * logical cpu number. If the chip-id can yest be found, returns -1.
  */
 int cpu_to_chip_id(int cpu)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_get_cpu_node(cpu, NULL);
+	np = of_get_cpu_yesde(cpu, NULL);
 	if (!np)
 		return -1;
 
-	of_node_put(np);
+	of_yesde_put(np);
 	return of_get_ibm_chip_id(np);
 }
 EXPORT_SYMBOL(cpu_to_chip_id);

@@ -1,5 +1,5 @@
 /* Copyright 2011, Siemens AG
- * written by Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * written by Alexander Smiryesv <alex.bluesman.smiryesv@gmail.com>
  */
 
 /* Based on patches from Jon Smirl <jonsmirl@gmail.com>
@@ -23,11 +23,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -78,7 +78,7 @@ static int lowpan_neigh_construct(struct net_device *dev, struct neighbour *n)
 {
 	struct lowpan_802154_neigh *neigh = lowpan_802154_neigh(neighbour_priv(n));
 
-	/* default no short_addr is available for a neighbour */
+	/* default yes short_addr is available for a neighbour */
 	neigh->short_addr = cpu_to_le16(IEEE802154_ADDR_SHORT_UNSPEC);
 	return 0;
 }
@@ -202,10 +202,10 @@ static inline void lowpan_netlink_fini(void)
 	rtnl_link_unregister(&lowpan_link_ops);
 }
 
-static int lowpan_device_event(struct notifier_block *unused,
+static int lowpan_device_event(struct yestifier_block *unused,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_yestifier_info_to_dev(ptr);
 	struct wpan_dev *wpan_dev;
 
 	if (ndev->type != ARPHRD_IEEE802154)
@@ -230,8 +230,8 @@ static int lowpan_device_event(struct notifier_block *unused,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block lowpan_dev_notifier = {
-	.notifier_call = lowpan_device_event,
+static struct yestifier_block lowpan_dev_yestifier = {
+	.yestifier_call = lowpan_device_event,
 };
 
 static int __init lowpan_init_module(void)
@@ -246,7 +246,7 @@ static int __init lowpan_init_module(void)
 	if (err < 0)
 		goto out_frag;
 
-	err = register_netdevice_notifier(&lowpan_dev_notifier);
+	err = register_netdevice_yestifier(&lowpan_dev_yestifier);
 	if (err < 0)
 		goto out_pack;
 
@@ -266,7 +266,7 @@ static void __exit lowpan_cleanup_module(void)
 
 	lowpan_net_frag_exit();
 
-	unregister_netdevice_notifier(&lowpan_dev_notifier);
+	unregister_netdevice_yestifier(&lowpan_dev_yestifier);
 }
 
 module_init(lowpan_init_module);

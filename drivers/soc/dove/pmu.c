@@ -28,7 +28,7 @@
 
 struct pmu_data {
 	spinlock_t lock;
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 	void __iomem *pmc_base;
 	void __iomem *pmu_base;
 	struct irq_chip_generic *irq_gc;
@@ -105,7 +105,7 @@ static void __init pmu_reset_init(struct pmu_data *pmu)
 	int ret;
 
 	pmu->reset = pmu_reset;
-	pmu->reset.of_node = pmu->of_node;
+	pmu->reset.of_yesde = pmu->of_yesde;
 
 	ret = reset_controller_register(&pmu->reset);
 	if (ret)
@@ -209,7 +209,7 @@ static int pmu_domain_power_on(struct generic_pm_domain *domain)
 }
 
 static void __pmu_domain_register(struct pmu_domain *domain,
-	struct device_node *np)
+	struct device_yesde *np)
 {
 	unsigned int val = readl_relaxed(domain->pmu->pmu_base + PMU_PWR);
 
@@ -247,7 +247,7 @@ static void pmu_irq_handler(struct irq_desc *desc)
 	}
 
 	/*
-	 * The PMU mask register is not RW0C: it is RW.  This means that
+	 * The PMU mask register is yest RW0C: it is RW.  This means that
 	 * the bits take whatever value is written to them; if you write
 	 * a '1', you will set the interrupt.
 	 *
@@ -274,7 +274,7 @@ static int __init dove_init_pmu_irq(struct pmu_data *pmu, int irq)
 	writel(0, pmu->pmc_base + PMC_IRQ_MASK);
 	writel(0, pmu->pmc_base + PMC_IRQ_CAUSE);
 
-	domain = irq_domain_add_linear(pmu->of_node, NR_PMU_IRQS,
+	domain = irq_domain_add_linear(pmu->of_yesde, NR_PMU_IRQS,
 				       &irq_generic_chip_ops, NULL);
 	if (!domain) {
 		pr_err("%s: unable to add irq domain\n", name);
@@ -372,18 +372,18 @@ int __init dove_init_pmu_legacy(const struct dove_pmu_initdata *initdata)
  */
 int __init dove_init_pmu(void)
 {
-	struct device_node *np_pmu, *domains_node, *np;
+	struct device_yesde *np_pmu, *domains_yesde, *np;
 	struct pmu_data *pmu;
 	int ret, parent_irq;
 
-	/* Lookup the PMU node */
-	np_pmu = of_find_compatible_node(NULL, NULL, "marvell,dove-pmu");
+	/* Lookup the PMU yesde */
+	np_pmu = of_find_compatible_yesde(NULL, NULL, "marvell,dove-pmu");
 	if (!np_pmu)
 		return 0;
 
-	domains_node = of_get_child_by_name(np_pmu, "domains");
-	if (!domains_node) {
-		pr_err("%pOFn: failed to find domains sub-node\n", np_pmu);
+	domains_yesde = of_get_child_by_name(np_pmu, "domains");
+	if (!domains_yesde) {
+		pr_err("%pOFn: failed to find domains sub-yesde\n", np_pmu);
 		return 0;
 	}
 
@@ -392,9 +392,9 @@ int __init dove_init_pmu(void)
 		return -ENOMEM;
 
 	spin_lock_init(&pmu->lock);
-	pmu->of_node = np_pmu;
-	pmu->pmc_base = of_iomap(pmu->of_node, 0);
-	pmu->pmu_base = of_iomap(pmu->of_node, 1);
+	pmu->of_yesde = np_pmu;
+	pmu->pmc_base = of_iomap(pmu->of_yesde, 0);
+	pmu->pmu_base = of_iomap(pmu->of_yesde, 1);
 	if (!pmu->pmc_base || !pmu->pmu_base) {
 		pr_err("%pOFn: failed to map PMU\n", np_pmu);
 		iounmap(pmu->pmu_base);
@@ -405,7 +405,7 @@ int __init dove_init_pmu(void)
 
 	pmu_reset_init(pmu);
 
-	for_each_available_child_of_node(domains_node, np) {
+	for_each_available_child_of_yesde(domains_yesde, np) {
 		struct of_phandle_args args;
 		struct pmu_domain *domain;
 
@@ -428,23 +428,23 @@ int __init dove_init_pmu(void)
 		/*
 		 * We parse the reset controller property directly here
 		 * to ensure that we can operate when the reset controller
-		 * support is not configured into the kernel.
+		 * support is yest configured into the kernel.
 		 */
 		ret = of_parse_phandle_with_args(np, "resets", "#reset-cells",
 						 0, &args);
 		if (ret == 0) {
-			if (args.np == pmu->of_node)
+			if (args.np == pmu->of_yesde)
 				domain->rst_mask = BIT(args.args[0]);
-			of_node_put(args.np);
+			of_yesde_put(args.np);
 		}
 
 		__pmu_domain_register(domain, np);
 	}
 
-	/* Loss of the interrupt controller is not a fatal error. */
-	parent_irq = irq_of_parse_and_map(pmu->of_node, 0);
+	/* Loss of the interrupt controller is yest a fatal error. */
+	parent_irq = irq_of_parse_and_map(pmu->of_yesde, 0);
 	if (!parent_irq) {
-		pr_err("%pOFn: no interrupt specified\n", np_pmu);
+		pr_err("%pOFn: yes interrupt specified\n", np_pmu);
 	} else {
 		ret = dove_init_pmu_irq(pmu, parent_irq);
 		if (ret)

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * ipmi_smi.h
  *
@@ -58,7 +58,7 @@
 /* The BT interface on high-end HP systems supports up to 255 bytes in
  * one transfer.  Its "virtual" BMC supports some commands that are longer
  * than 128 bytes.  Use the full 256, plus NetFn/LUN, Cmd, cCode, plus
- * some overhead; it's not worth the effort to dynamically size this based
+ * some overhead; it's yest worth the effort to dynamically size this based
  * on the results of the "Get BT Capabilities" command. */
 #define IPMI_MAX_MSG_LENGTH	272	/* multiple of 16 */
 

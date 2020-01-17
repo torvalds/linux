@@ -53,7 +53,7 @@ static inline void _memcpy_toio(volatile void __iomem *dst, const void *src,
  * SBus accessors.
  *
  * SBus has only one, memory mapped, I/O space.
- * We do not need to flip bytes for SBus of course.
+ * We do yest need to flip bytes for SBus of course.
  */
 static inline u8 sbus_readb(const volatile void __iomem *addr)
 {
@@ -125,7 +125,7 @@ static inline void sbus_memcpy_toio(volatile void __iomem *dst,
 
 /*
  * Bus number may be embedded in the higher bits of the physical address.
- * This is why we have no bus number argument to ioremap().
+ * This is why we have yes bus number argument to ioremap().
  */
 void __iomem *ioremap(phys_addr_t offset, size_t size);
 void iounmap(volatile void __iomem *addr);

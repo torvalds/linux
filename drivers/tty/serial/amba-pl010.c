@@ -8,9 +8,9 @@
  *  Copyright (C) 2000 Deep Blue Solutions Ltd.
  *
  * This is a generic driver for ARM AMBA-type serial ports.  They
- * have a lot of 16550-like features, but are not register compatible.
+ * have a lot of 16550-like features, but are yest register compatible.
  * Note that although they do have CTS, DCD and DSR inputs, they do
- * not have an RI input, nor do they have DTR or RTS outputs.  If
+ * yest have an RI input, yesr do they have DTR or RTS outputs.  If
  * required, these have to be supplied via some other means (eg, GPIO)
  * and hooked into this driver.
  */
@@ -137,7 +137,7 @@ static void pl010_rx_chars(struct uart_amba_port *uap)
 				rsr &= ~(UART01x_RSR_FE | UART01x_RSR_PE);
 				uap->port.icount.brk++;
 				if (uart_handle_break(&uap->port))
-					goto ignore_char;
+					goto igyesre_char;
 			} else if (rsr & UART01x_RSR_PE)
 				uap->port.icount.parity++;
 			else if (rsr & UART01x_RSR_FE)
@@ -156,11 +156,11 @@ static void pl010_rx_chars(struct uart_amba_port *uap)
 		}
 
 		if (uart_handle_sysrq_char(&uap->port, ch))
-			goto ignore_char;
+			goto igyesre_char;
 
 		uart_insert_char(&uap->port, rsr, UART01x_RSR_OE, ch, flag);
 
-	ignore_char:
+	igyesre_char:
 		status = readb(uap->port.membase + UART01x_FR);
 	}
 	spin_unlock(&uap->port.lock);
@@ -431,26 +431,26 @@ pl010_set_termios(struct uart_port *port, struct ktermios *termios,
 		uap->port.read_status_mask |= UART01x_RSR_BE;
 
 	/*
-	 * Characters to ignore
+	 * Characters to igyesre
 	 */
-	uap->port.ignore_status_mask = 0;
+	uap->port.igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		uap->port.ignore_status_mask |= UART01x_RSR_FE | UART01x_RSR_PE;
+		uap->port.igyesre_status_mask |= UART01x_RSR_FE | UART01x_RSR_PE;
 	if (termios->c_iflag & IGNBRK) {
-		uap->port.ignore_status_mask |= UART01x_RSR_BE;
+		uap->port.igyesre_status_mask |= UART01x_RSR_BE;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			uap->port.ignore_status_mask |= UART01x_RSR_OE;
+			uap->port.igyesre_status_mask |= UART01x_RSR_OE;
 	}
 
 	/*
-	 * Ignore all characters if CREAD is not set.
+	 * Igyesre all characters if CREAD is yest set.
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		uap->port.ignore_status_mask |= UART_DUMMY_RSR_RX;
+		uap->port.igyesre_status_mask |= UART_DUMMY_RSR_RX;
 
 	/* first, disable everything */
 	old_cr = readb(uap->port.membase + UART010_CR) & ~UART010_CR_MSIE;
@@ -690,7 +690,7 @@ static struct uart_driver amba_reg = {
 	.driver_name		= "ttyAM",
 	.dev_name		= "ttyAM",
 	.major			= SERIAL_AMBA_MAJOR,
-	.minor			= SERIAL_AMBA_MINOR,
+	.miyesr			= SERIAL_AMBA_MINOR,
 	.nr			= UART_NR,
 	.cons			= AMBA_CONSOLE,
 };

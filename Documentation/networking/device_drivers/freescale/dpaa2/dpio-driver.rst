@@ -30,7 +30,7 @@ provides services that:
 
   A. allow other drivers, such as the Ethernet driver, to enqueue and dequeue
      frames for their respective objects
-  B. allow drivers to register callbacks for data availability notifications
+  B. allow drivers to register callbacks for data availability yestifications
      when data becomes available on a queue or channel
   C. allow drivers to manage hardware buffer pools
 
@@ -104,7 +104,7 @@ DPIO Object Driver (dpio-driver.c)
 DPIO service  (dpio-service.c, dpaa2-io.h)
 ------------------------------------------
 
-   The dpio service component provides queuing, notification, and buffers
+   The dpio service component provides queuing, yestification, and buffers
    management services to DPAA2 drivers, such as the Ethernet driver.  A system
    will typically allocate 1 DPIO object per CPU to allow queuing operations
    to happen simultaneously across all CPUs.
@@ -146,7 +146,7 @@ QBman portal interface (qbman-portal.c)
       - building and sending portal commands
       - portal interrupt configuration and processing
 
-   The qbman-portal APIs are not public to other drivers, and are
+   The qbman-portal APIs are yest public to other drivers, and are
    only used by dpio-service.
 
 Other (dpaa2-fd.h, dpaa2-global.h)

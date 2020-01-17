@@ -15,7 +15,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -66,7 +66,7 @@ struct drm_lock_data {
  * @lessee_idr: All lessees under this owner (only used where lessor == NULL)
  *
  * Note that master structures are only relevant for the legacy/primary device
- * nodes, hence there can only be one per device, not one per drm_minor.
+ * yesdes, hence there can only be one per device, yest one per drm_miyesr.
  */
 struct drm_master {
 	struct kref refcount;

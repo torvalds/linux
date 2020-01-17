@@ -2,7 +2,7 @@
 /*
  * linux/arch/arm/plat-omap/debug-leds.c
  *
- * Copyright 2011 by Bryan Wu <bryan.wu@canonical.com>
+ * Copyright 2011 by Bryan Wu <bryan.wu@cayesnical.com>
  * Copyright 2003 by Texas Instruments Incorporated
  */
 
@@ -133,7 +133,7 @@ static int fpga_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int fpga_suspend_noirq(struct device *dev)
+static int fpga_suspend_yesirq(struct device *dev)
 {
 	fpga_led_state = readw_relaxed(&fpga->leds);
 	writew_relaxed(0xff, &fpga->leds);
@@ -141,15 +141,15 @@ static int fpga_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int fpga_resume_noirq(struct device *dev)
+static int fpga_resume_yesirq(struct device *dev)
 {
 	writew_relaxed(~fpga_led_state, &fpga->leds);
 	return 0;
 }
 
 static const struct dev_pm_ops fpga_dev_pm_ops = {
-	.suspend_noirq = fpga_suspend_noirq,
-	.resume_noirq = fpga_resume_noirq,
+	.suspend_yesirq = fpga_suspend_yesirq,
+	.resume_yesirq = fpga_resume_yesirq,
 };
 
 static struct platform_driver led_driver = {

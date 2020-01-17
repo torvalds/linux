@@ -7,7 +7,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
@@ -32,8 +32,8 @@
 #define NOKIA_ID_BCM2048	0x04
 #define NOKIA_ID_TI1271		0x31
 
-#define FIRMWARE_BCM2048	"nokia/bcmfw.bin"
-#define FIRMWARE_TI1271		"nokia/ti1273.bin"
+#define FIRMWARE_BCM2048	"yeskia/bcmfw.bin"
+#define FIRMWARE_TI1271		"yeskia/ti1273.bin"
 
 #define HCI_NOKIA_NEG_PKT	0x06
 #define HCI_NOKIA_ALIVE_PKT	0x07
@@ -76,11 +76,11 @@
 	.lsize = 1, \
 	.maxlen = HCI_NOKIA_MAX_RADIO_SIZE \
 
-struct hci_nokia_neg_hdr {
+struct hci_yeskia_neg_hdr {
 	u8	dlen;
 } __packed;
 
-struct hci_nokia_neg_cmd {
+struct hci_yeskia_neg_cmd {
 	u8	ack;
 	u16	baud;
 	u16	unused1;
@@ -92,16 +92,16 @@ struct hci_nokia_neg_cmd {
 #define NOKIA_ALIVE_REQ   0x55
 #define NOKIA_ALIVE_RESP  0xcc
 
-struct hci_nokia_alive_hdr {
+struct hci_yeskia_alive_hdr {
 	u8	dlen;
 } __packed;
 
-struct hci_nokia_alive_pkt {
+struct hci_yeskia_alive_pkt {
 	u8	mid;
 	u8	unused;
 } __packed;
 
-struct hci_nokia_neg_evt {
+struct hci_yeskia_neg_evt {
 	u8	ack;
 	u16	baud;
 	u16	unused1;
@@ -116,12 +116,12 @@ struct hci_nokia_neg_evt {
 #define SETUP_BAUD_RATE		921600
 #define INIT_BAUD_RATE		120000
 
-struct hci_nokia_radio_hdr {
+struct hci_yeskia_radio_hdr {
 	u8	evt;
 	u8	dlen;
 } __packed;
 
-struct nokia_bt_dev {
+struct yeskia_bt_dev {
 	struct hci_uart hu;
 	struct serdev_device *serdev;
 
@@ -146,9 +146,9 @@ struct nokia_bt_dev {
 	bool rx_enabled;
 };
 
-static int nokia_enqueue(struct hci_uart *hu, struct sk_buff *skb);
+static int yeskia_enqueue(struct hci_uart *hu, struct sk_buff *skb);
 
-static void nokia_flow_control(struct serdev_device *serdev, bool enable)
+static void yeskia_flow_control(struct serdev_device *serdev, bool enable)
 {
 	if (enable) {
 		serdev_device_set_rts(serdev, true);
@@ -161,7 +161,7 @@ static void nokia_flow_control(struct serdev_device *serdev, bool enable)
 
 static irqreturn_t wakeup_handler(int irq, void *data)
 {
-	struct nokia_bt_dev *btdev = data;
+	struct yeskia_bt_dev *btdev = data;
 	struct device *dev = &btdev->serdev->dev;
 	int wake_state = gpiod_get_value(btdev->wakeup_host);
 
@@ -178,9 +178,9 @@ static irqreturn_t wakeup_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int nokia_reset(struct hci_uart *hu)
+static int yeskia_reset(struct hci_uart *hu)
 {
-	struct nokia_bt_dev *btdev = hu->priv;
+	struct yeskia_bt_dev *btdev = hu->priv;
 	struct device *dev = &btdev->serdev->dev;
 	int err;
 
@@ -193,7 +193,7 @@ static int nokia_reset(struct hci_uart *hu)
 	/* safety check */
 	err = gpiod_get_value_cansleep(btdev->wakeup_host);
 	if (err == 1) {
-		dev_err(dev, "reset: host wakeup not low!");
+		dev_err(dev, "reset: host wakeup yest low!");
 		return -EPROTO;
 	}
 
@@ -201,7 +201,7 @@ static int nokia_reset(struct hci_uart *hu)
 	serdev_device_write_flush(btdev->serdev);
 
 	/* init uart */
-	nokia_flow_control(btdev->serdev, false);
+	yeskia_flow_control(btdev->serdev, false);
 	serdev_device_set_baudrate(btdev->serdev, INIT_BAUD_RATE);
 
 	gpiod_set_value_cansleep(btdev->reset, 0);
@@ -209,21 +209,21 @@ static int nokia_reset(struct hci_uart *hu)
 	/* wait for cts */
 	err = serdev_device_wait_for_cts(btdev->serdev, true, 200);
 	if (err < 0) {
-		dev_err(dev, "CTS not received: %d", err);
+		dev_err(dev, "CTS yest received: %d", err);
 		return err;
 	}
 
-	nokia_flow_control(btdev->serdev, true);
+	yeskia_flow_control(btdev->serdev, true);
 
 	return 0;
 }
 
-static int nokia_send_alive_packet(struct hci_uart *hu)
+static int yeskia_send_alive_packet(struct hci_uart *hu)
 {
-	struct nokia_bt_dev *btdev = hu->priv;
+	struct yeskia_bt_dev *btdev = hu->priv;
 	struct device *dev = &btdev->serdev->dev;
-	struct hci_nokia_alive_hdr *hdr;
-	struct hci_nokia_alive_pkt *pkt;
+	struct hci_yeskia_alive_hdr *hdr;
+	struct hci_yeskia_alive_pkt *pkt;
 	struct sk_buff *skb;
 	int len;
 
@@ -242,7 +242,7 @@ static int nokia_send_alive_packet(struct hci_uart *hu)
 	pkt = skb_put(skb, sizeof(*pkt));
 	pkt->mid = NOKIA_ALIVE_REQ;
 
-	nokia_enqueue(hu, skb);
+	yeskia_enqueue(hu, skb);
 	hci_uart_tx_wakeup(hu);
 
 	dev_dbg(dev, "Alive sent");
@@ -258,12 +258,12 @@ static int nokia_send_alive_packet(struct hci_uart *hu)
 	return 0;
 }
 
-static int nokia_send_negotiation(struct hci_uart *hu)
+static int yeskia_send_negotiation(struct hci_uart *hu)
 {
-	struct nokia_bt_dev *btdev = hu->priv;
+	struct yeskia_bt_dev *btdev = hu->priv;
 	struct device *dev = &btdev->serdev->dev;
-	struct hci_nokia_neg_cmd *neg_cmd;
-	struct hci_nokia_neg_hdr *neg_hdr;
+	struct hci_yeskia_neg_cmd *neg_cmd;
+	struct hci_yeskia_neg_hdr *neg_hdr;
 	struct sk_buff *skb;
 	int len, err;
 	u16 baud = DIV_ROUND_CLOSEST(btdev->sysclk_speed * 10, SETUP_BAUD_RATE);
@@ -290,7 +290,7 @@ static int nokia_send_negotiation(struct hci_uart *hu)
 	btdev->init_error = 0;
 	init_completion(&btdev->init_completion);
 
-	nokia_enqueue(hu, skb);
+	yeskia_enqueue(hu, skb);
 	hci_uart_tx_wakeup(hu);
 
 	dev_dbg(dev, "Negotiation sent");
@@ -307,23 +307,23 @@ static int nokia_send_negotiation(struct hci_uart *hu)
 	 * is disabled until bluetooth adapter is ready to avoid
 	 * broken bytes being received.
 	 */
-	nokia_flow_control(btdev->serdev, false);
+	yeskia_flow_control(btdev->serdev, false);
 	serdev_device_set_baudrate(btdev->serdev, SETUP_BAUD_RATE);
 	err = serdev_device_wait_for_cts(btdev->serdev, true, 200);
 	if (err < 0) {
-		dev_err(dev, "CTS not received: %d", err);
+		dev_err(dev, "CTS yest received: %d", err);
 		return err;
 	}
-	nokia_flow_control(btdev->serdev, true);
+	yeskia_flow_control(btdev->serdev, true);
 
 	dev_dbg(dev, "Negotiation successful");
 
 	return 0;
 }
 
-static int nokia_setup_fw(struct hci_uart *hu)
+static int yeskia_setup_fw(struct hci_uart *hu)
 {
-	struct nokia_bt_dev *btdev = hu->priv;
+	struct yeskia_bt_dev *btdev = hu->priv;
 	struct device *dev = &btdev->serdev->dev;
 	const char *fwname;
 	const struct firmware *fw;
@@ -390,15 +390,15 @@ done:
 	return err;
 }
 
-static int nokia_setup(struct hci_uart *hu)
+static int yeskia_setup(struct hci_uart *hu)
 {
-	struct nokia_bt_dev *btdev = hu->priv;
+	struct yeskia_bt_dev *btdev = hu->priv;
 	struct device *dev = &btdev->serdev->dev;
 	int err;
 
 	btdev->initialized = false;
 
-	nokia_flow_control(btdev->serdev, false);
+	yeskia_flow_control(btdev->serdev, false);
 
 	pm_runtime_get_sync(dev);
 
@@ -411,36 +411,36 @@ static int nokia_setup(struct hci_uart *hu)
 	dev_dbg(dev, "protocol setup");
 
 	/* 0. reset connection */
-	err = nokia_reset(hu);
+	err = yeskia_reset(hu);
 	if (err < 0) {
 		dev_err(dev, "Reset failed: %d", err);
 		goto out;
 	}
 
 	/* 1. negotiate speed etc */
-	err = nokia_send_negotiation(hu);
+	err = yeskia_send_negotiation(hu);
 	if (err < 0) {
 		dev_err(dev, "Negotiation failed: %d", err);
 		goto out;
 	}
 
 	/* 2. verify correct setup using alive packet */
-	err = nokia_send_alive_packet(hu);
+	err = yeskia_send_alive_packet(hu);
 	if (err < 0) {
 		dev_err(dev, "Alive check failed: %d", err);
 		goto out;
 	}
 
 	/* 3. send firmware */
-	err = nokia_setup_fw(hu);
+	err = yeskia_setup_fw(hu);
 	if (err < 0) {
-		dev_err(dev, "Could not setup FW: %d", err);
+		dev_err(dev, "Could yest setup FW: %d", err);
 		goto out;
 	}
 
-	nokia_flow_control(btdev->serdev, false);
+	yeskia_flow_control(btdev->serdev, false);
 	serdev_device_set_baudrate(btdev->serdev, MAX_BAUD_RATE);
-	nokia_flow_control(btdev->serdev, true);
+	yeskia_flow_control(btdev->serdev, true);
 
 	if (btdev->man_id == NOKIA_ID_BCM2048) {
 		hu->hdev->set_bdaddr = btbcm_set_bdaddr;
@@ -462,7 +462,7 @@ out:
 	return err;
 }
 
-static int nokia_open(struct hci_uart *hu)
+static int yeskia_open(struct hci_uart *hu)
 {
 	struct device *dev = &hu->serdev->dev;
 
@@ -473,9 +473,9 @@ static int nokia_open(struct hci_uart *hu)
 	return 0;
 }
 
-static int nokia_flush(struct hci_uart *hu)
+static int yeskia_flush(struct hci_uart *hu)
 {
-	struct nokia_bt_dev *btdev = hu->priv;
+	struct yeskia_bt_dev *btdev = hu->priv;
 
 	dev_dbg(&btdev->serdev->dev, "flush device");
 
@@ -484,9 +484,9 @@ static int nokia_flush(struct hci_uart *hu)
 	return 0;
 }
 
-static int nokia_close(struct hci_uart *hu)
+static int yeskia_close(struct hci_uart *hu)
 {
-	struct nokia_bt_dev *btdev = hu->priv;
+	struct yeskia_bt_dev *btdev = hu->priv;
 	struct device *dev = &btdev->serdev->dev;
 
 	dev_dbg(dev, "close device");
@@ -507,9 +507,9 @@ static int nokia_close(struct hci_uart *hu)
 }
 
 /* Enqueue frame for transmittion (padding, crc, etc) */
-static int nokia_enqueue(struct hci_uart *hu, struct sk_buff *skb)
+static int yeskia_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 {
-	struct nokia_bt_dev *btdev = hu->priv;
+	struct yeskia_bt_dev *btdev = hu->priv;
 	int err;
 
 	/* Prepend skb with frame type */
@@ -528,17 +528,17 @@ static int nokia_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	return 0;
 }
 
-static int nokia_recv_negotiation_packet(struct hci_dev *hdev,
+static int yeskia_recv_negotiation_packet(struct hci_dev *hdev,
 					 struct sk_buff *skb)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
-	struct nokia_bt_dev *btdev = hu->priv;
+	struct yeskia_bt_dev *btdev = hu->priv;
 	struct device *dev = &btdev->serdev->dev;
-	struct hci_nokia_neg_hdr *hdr;
-	struct hci_nokia_neg_evt *evt;
+	struct hci_yeskia_neg_hdr *hdr;
+	struct hci_yeskia_neg_evt *evt;
 	int ret = 0;
 
-	hdr = (struct hci_nokia_neg_hdr *)skb->data;
+	hdr = (struct hci_yeskia_neg_hdr *)skb->data;
 	if (hdr->dlen != sizeof(*evt)) {
 		btdev->init_error = -EIO;
 		ret = -EIO;
@@ -566,16 +566,16 @@ finish_neg:
 	return ret;
 }
 
-static int nokia_recv_alive_packet(struct hci_dev *hdev, struct sk_buff *skb)
+static int yeskia_recv_alive_packet(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
-	struct nokia_bt_dev *btdev = hu->priv;
+	struct yeskia_bt_dev *btdev = hu->priv;
 	struct device *dev = &btdev->serdev->dev;
-	struct hci_nokia_alive_hdr *hdr;
-	struct hci_nokia_alive_pkt *pkt;
+	struct hci_yeskia_alive_hdr *hdr;
+	struct hci_yeskia_alive_pkt *pkt;
 	int ret = 0;
 
-	hdr = (struct hci_nokia_alive_hdr *)skb->data;
+	hdr = (struct hci_yeskia_alive_hdr *)skb->data;
 	if (hdr->dlen != sizeof(*pkt)) {
 		dev_err(dev, "Corrupted alive message");
 		btdev->init_error = -EIO;
@@ -601,7 +601,7 @@ finish_alive:
 	return ret;
 }
 
-static int nokia_recv_radio(struct hci_dev *hdev, struct sk_buff *skb)
+static int yeskia_recv_radio(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	/* Packets received on the dedicated radio channel are
 	 * HCI events and so feed them back into the core.
@@ -611,18 +611,18 @@ static int nokia_recv_radio(struct hci_dev *hdev, struct sk_buff *skb)
 }
 
 /* Recv data */
-static const struct h4_recv_pkt nokia_recv_pkts[] = {
+static const struct h4_recv_pkt yeskia_recv_pkts[] = {
 	{ H4_RECV_ACL,		.recv = hci_recv_frame },
 	{ H4_RECV_SCO,		.recv = hci_recv_frame },
 	{ H4_RECV_EVENT,	.recv = hci_recv_frame },
-	{ NOKIA_RECV_ALIVE,	.recv = nokia_recv_alive_packet },
-	{ NOKIA_RECV_NEG,	.recv = nokia_recv_negotiation_packet },
-	{ NOKIA_RECV_RADIO,	.recv = nokia_recv_radio },
+	{ NOKIA_RECV_ALIVE,	.recv = yeskia_recv_alive_packet },
+	{ NOKIA_RECV_NEG,	.recv = yeskia_recv_negotiation_packet },
+	{ NOKIA_RECV_RADIO,	.recv = yeskia_recv_radio },
 };
 
-static int nokia_recv(struct hci_uart *hu, const void *data, int count)
+static int yeskia_recv(struct hci_uart *hu, const void *data, int count)
 {
-	struct nokia_bt_dev *btdev = hu->priv;
+	struct yeskia_bt_dev *btdev = hu->priv;
 	struct device *dev = &btdev->serdev->dev;
 	int err;
 
@@ -630,7 +630,7 @@ static int nokia_recv(struct hci_uart *hu, const void *data, int count)
 		return -EUNATCH;
 
 	btdev->rx_skb = h4_recv_buf(hu->hdev, btdev->rx_skb, data, count,
-				  nokia_recv_pkts, ARRAY_SIZE(nokia_recv_pkts));
+				  yeskia_recv_pkts, ARRAY_SIZE(yeskia_recv_pkts));
 	if (IS_ERR(btdev->rx_skb)) {
 		err = PTR_ERR(btdev->rx_skb);
 		dev_err(dev, "Frame reassembly failed (%d)", err);
@@ -641,9 +641,9 @@ static int nokia_recv(struct hci_uart *hu, const void *data, int count)
 	return count;
 }
 
-static struct sk_buff *nokia_dequeue(struct hci_uart *hu)
+static struct sk_buff *yeskia_dequeue(struct hci_uart *hu)
 {
-	struct nokia_bt_dev *btdev = hu->priv;
+	struct yeskia_bt_dev *btdev = hu->priv;
 	struct device *dev = &btdev->serdev->dev;
 	struct sk_buff *result = skb_dequeue(&btdev->txq);
 
@@ -667,23 +667,23 @@ static struct sk_buff *nokia_dequeue(struct hci_uart *hu)
 	return result;
 }
 
-static const struct hci_uart_proto nokia_proto = {
+static const struct hci_uart_proto yeskia_proto = {
 	.id		= HCI_UART_NOKIA,
 	.name		= "Nokia",
-	.open		= nokia_open,
-	.close		= nokia_close,
-	.recv		= nokia_recv,
-	.enqueue	= nokia_enqueue,
-	.dequeue	= nokia_dequeue,
-	.flush		= nokia_flush,
-	.setup		= nokia_setup,
+	.open		= yeskia_open,
+	.close		= yeskia_close,
+	.recv		= yeskia_recv,
+	.enqueue	= yeskia_enqueue,
+	.dequeue	= yeskia_dequeue,
+	.flush		= yeskia_flush,
+	.setup		= yeskia_setup,
 	.manufacturer	= 1,
 };
 
-static int nokia_bluetooth_serdev_probe(struct serdev_device *serdev)
+static int yeskia_bluetooth_serdev_probe(struct serdev_device *serdev)
 {
 	struct device *dev = &serdev->dev;
-	struct nokia_bt_dev *btdev;
+	struct yeskia_bt_dev *btdev;
 	struct clk *sysclk;
 	int err = 0;
 
@@ -697,14 +697,14 @@ static int nokia_bluetooth_serdev_probe(struct serdev_device *serdev)
 	btdev->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(btdev->reset)) {
 		err = PTR_ERR(btdev->reset);
-		dev_err(dev, "could not get reset gpio: %d", err);
+		dev_err(dev, "could yest get reset gpio: %d", err);
 		return err;
 	}
 
 	btdev->wakeup_host = devm_gpiod_get(dev, "host-wakeup", GPIOD_IN);
 	if (IS_ERR(btdev->wakeup_host)) {
 		err = PTR_ERR(btdev->wakeup_host);
-		dev_err(dev, "could not get host wakeup gpio: %d", err);
+		dev_err(dev, "could yest get host wakeup gpio: %d", err);
 		return err;
 	}
 
@@ -723,14 +723,14 @@ static int nokia_bluetooth_serdev_probe(struct serdev_device *serdev)
 					   GPIOD_OUT_LOW);
 	if (IS_ERR(btdev->wakeup_bt)) {
 		err = PTR_ERR(btdev->wakeup_bt);
-		dev_err(dev, "could not get BT wakeup gpio: %d", err);
+		dev_err(dev, "could yest get BT wakeup gpio: %d", err);
 		return err;
 	}
 
 	sysclk = devm_clk_get(dev, "sysclk");
 	if (IS_ERR(sysclk)) {
 		err = PTR_ERR(sysclk);
-		dev_err(dev, "could not get sysclk: %d", err);
+		dev_err(dev, "could yest get sysclk: %d", err);
 		return err;
 	}
 
@@ -743,63 +743,63 @@ static int nokia_bluetooth_serdev_probe(struct serdev_device *serdev)
 	btdev->hu.priv = btdev;
 	btdev->hu.alignment = 2; /* Nokia H4+ is word aligned */
 
-	err = hci_uart_register_device(&btdev->hu, &nokia_proto);
+	err = hci_uart_register_device(&btdev->hu, &yeskia_proto);
 	if (err) {
-		dev_err(dev, "could not register bluetooth uart: %d", err);
+		dev_err(dev, "could yest register bluetooth uart: %d", err);
 		return err;
 	}
 
 	return 0;
 }
 
-static void nokia_bluetooth_serdev_remove(struct serdev_device *serdev)
+static void yeskia_bluetooth_serdev_remove(struct serdev_device *serdev)
 {
-	struct nokia_bt_dev *btdev = serdev_device_get_drvdata(serdev);
+	struct yeskia_bt_dev *btdev = serdev_device_get_drvdata(serdev);
 
 	hci_uart_unregister_device(&btdev->hu);
 }
 
-static int nokia_bluetooth_runtime_suspend(struct device *dev)
+static int yeskia_bluetooth_runtime_suspend(struct device *dev)
 {
 	struct serdev_device *serdev = to_serdev_device(dev);
 
-	nokia_flow_control(serdev, false);
+	yeskia_flow_control(serdev, false);
 	return 0;
 }
 
-static int nokia_bluetooth_runtime_resume(struct device *dev)
+static int yeskia_bluetooth_runtime_resume(struct device *dev)
 {
 	struct serdev_device *serdev = to_serdev_device(dev);
 
-	nokia_flow_control(serdev, true);
+	yeskia_flow_control(serdev, true);
 	return 0;
 }
 
-static const struct dev_pm_ops nokia_bluetooth_pm_ops = {
-	SET_RUNTIME_PM_OPS(nokia_bluetooth_runtime_suspend,
-			   nokia_bluetooth_runtime_resume,
+static const struct dev_pm_ops yeskia_bluetooth_pm_ops = {
+	SET_RUNTIME_PM_OPS(yeskia_bluetooth_runtime_suspend,
+			   yeskia_bluetooth_runtime_resume,
 			   NULL)
 };
 
 #ifdef CONFIG_OF
-static const struct of_device_id nokia_bluetooth_of_match[] = {
-	{ .compatible = "nokia,h4p-bluetooth", },
+static const struct of_device_id yeskia_bluetooth_of_match[] = {
+	{ .compatible = "yeskia,h4p-bluetooth", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, nokia_bluetooth_of_match);
+MODULE_DEVICE_TABLE(of, yeskia_bluetooth_of_match);
 #endif
 
-static struct serdev_device_driver nokia_bluetooth_serdev_driver = {
-	.probe = nokia_bluetooth_serdev_probe,
-	.remove = nokia_bluetooth_serdev_remove,
+static struct serdev_device_driver yeskia_bluetooth_serdev_driver = {
+	.probe = yeskia_bluetooth_serdev_probe,
+	.remove = yeskia_bluetooth_serdev_remove,
 	.driver = {
-		.name = "nokia-bluetooth",
-		.pm = &nokia_bluetooth_pm_ops,
-		.of_match_table = of_match_ptr(nokia_bluetooth_of_match),
+		.name = "yeskia-bluetooth",
+		.pm = &yeskia_bluetooth_pm_ops,
+		.of_match_table = of_match_ptr(yeskia_bluetooth_of_match),
 	},
 };
 
-module_serdev_device_driver(nokia_bluetooth_serdev_driver);
+module_serdev_device_driver(yeskia_bluetooth_serdev_driver);
 
 MODULE_AUTHOR("Sebastian Reichel <sre@kernel.org>");
 MODULE_DESCRIPTION("Bluetooth HCI UART Nokia H4+ driver ver " VERSION);

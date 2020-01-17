@@ -4,7 +4,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 #include <string.h>
 #include <pthread.h>
@@ -102,7 +102,7 @@ cleanup:
  * test that C can't be used until it is turned into a
  * threaded cgroup.  "cgroup.type" file will report "domain (invalid)" in
  * these cases. Operations which fail due to invalid topology use
- * EOPNOTSUPP as the errno.
+ * EOPNOTSUPP as the erryes.
  */
 static int test_cgcore_invalid_domain(const char *root)
 {
@@ -133,7 +133,7 @@ static int test_cgcore_invalid_domain(const char *root)
 	if (!cg_enter_current(child))
 		goto cleanup;
 
-	if (errno != EOPNOTSUPP)
+	if (erryes != EOPNOTSUPP)
 		goto cleanup;
 
 	ret = KSFT_PASS;
@@ -192,10 +192,10 @@ cleanup:
 }
 
 /*
- * Test that there's no internal process constrain on threaded cgroups.
+ * Test that there's yes internal process constrain on threaded cgroups.
  * You can add threads/processes on a parent with a controller enabled.
  */
-static int test_cgcore_no_internal_process_constraint_on_threads(const char *root)
+static int test_cgcore_yes_internal_process_constraint_on_threads(const char *root)
 {
 	int ret = KSFT_FAIL;
 	char *parent = NULL, *child = NULL;
@@ -244,7 +244,7 @@ cleanup:
 }
 
 /*
- * Test that you can't enable a controller on a child if it's not enabled
+ * Test that you can't enable a controller on a child if it's yest enabled
  * on the parent.
  */
 static int test_cgcore_top_down_constraint_enable(const char *root)
@@ -506,7 +506,7 @@ struct corecg_test {
 	T(test_cgcore_internal_process_constraint),
 	T(test_cgcore_top_down_constraint_enable),
 	T(test_cgcore_top_down_constraint_disable),
-	T(test_cgcore_no_internal_process_constraint_on_threads),
+	T(test_cgcore_yes_internal_process_constraint_on_threads),
 	T(test_cgcore_parent_becomes_threaded),
 	T(test_cgcore_invalid_domain),
 	T(test_cgcore_populated),

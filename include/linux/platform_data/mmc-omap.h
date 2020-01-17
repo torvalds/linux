@@ -23,7 +23,7 @@ struct omap_mmc_platform_data {
 	/* switch the bus to a new slot */
 	int (*switch_slot)(struct device *dev, int slot);
 	/* initialize board-specific MMC functionality, can be NULL if
-	 * not supported */
+	 * yest supported */
 	int (*init)(struct device *dev);
 	void (*cleanup)(struct device *dev);
 	void (*shutdown)(struct device *dev);
@@ -48,10 +48,10 @@ struct omap_mmc_platform_data {
 		u32 pm_caps;	/* PM capabilities of the mmc */
 
 		/*
-		 * nomux means "standard" muxing is wrong on this board, and
+		 * yesmux means "standard" muxing is wrong on this board, and
 		 * that board-specific code handled it before common init logic.
 		 */
-		unsigned nomux:1;
+		unsigned yesmux:1;
 
 		/* switch pin can be for card detect (default) or card cover */
 		unsigned cover:1;
@@ -59,17 +59,17 @@ struct omap_mmc_platform_data {
 		/* use the internal clock */
 		unsigned internal_clock:1;
 
-		/* nonremovable e.g. eMMC */
-		unsigned nonremovable:1;
+		/* yesnremovable e.g. eMMC */
+		unsigned yesnremovable:1;
 
 		/* Try to sleep or power off when possible */
 		unsigned power_saving:1;
 
-		/* If using power_saving and the MMC power is not to go off */
-		unsigned no_off:1;
+		/* If using power_saving and the MMC power is yest to go off */
+		unsigned yes_off:1;
 
-		/* eMMC does not handle power off when not in sleep state */
-		unsigned no_regulator_off_init:1;
+		/* eMMC does yest handle power off when yest in sleep state */
+		unsigned yes_regulator_off_init:1;
 
 		/* Regulator off remapped to sleep */
 		unsigned vcc_aux_disable_is_sleep:1;
@@ -97,7 +97,7 @@ struct omap_mmc_platform_data {
 		/* if we have special card, init it using this callback */
 		void (*init_card)(struct mmc_card *card);
 
-		/* return MMC cover switch state, can be NULL if not supported.
+		/* return MMC cover switch state, can be NULL if yest supported.
 		 *
 		 * possible return values:
 		 *   0 - closed

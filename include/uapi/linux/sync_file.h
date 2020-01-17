@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2012 Google, Inc.
  *
@@ -37,7 +37,7 @@ struct sync_merge_data {
 * @driver_name:	name of driver implementing the parent
 * @status:		status of the fence 0:active 1:signaled <0:error
  * @flags:		fence_info flags
- * @timestamp_ns:	timestamp of status change in nanoseconds
+ * @timestamp_ns:	timestamp of status change in nayesseconds
  */
 struct sync_fence_info {
 	char	obj_name[32];
@@ -73,7 +73,7 @@ struct sync_file_info {
  * Opcodes  0, 1 and 2 were burned during a API change to avoid users of the
  * old API to get weird errors when trying to handling sync_files. The API
  * change happened during the de-stage of the Sync Framework when there was
- * no upstream users available.
+ * yes upstream users available.
  */
 
 /**

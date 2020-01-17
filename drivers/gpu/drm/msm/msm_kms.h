@@ -36,7 +36,7 @@ struct msm_kms_funcs {
 	 *
 	 * Note that in the case of async commits, the funcs which take
 	 * a crtc_mask (ie. ->flush_commit(), and ->complete_commit())
-	 * might not be evenly balanced with ->prepare_commit(), however
+	 * might yest be evenly balanced with ->prepare_commit(), however
 	 * each crtc that effected by a ->prepare_commit() (potentially
 	 * multiple times) will eventually (at end of vsync period) be
 	 * flushed and completed.
@@ -82,7 +82,7 @@ struct msm_kms_funcs {
 
 	/**
 	 * Wait for any in-progress flush to complete on the specified
-	 * crtcs.  This should not block if there is no in-progress
+	 * crtcs.  This should yest block if there is yes in-progress
 	 * commit (ie. don't just wait for a vblank), as it will also
 	 * be called before ->prepare_commit() to ensure any potential
 	 * "async" commit has completed.
@@ -124,7 +124,7 @@ struct msm_kms_funcs {
 	void (*destroy)(struct msm_kms *kms);
 #ifdef CONFIG_DEBUG_FS
 	/* debugfs: */
-	int (*debugfs_init)(struct msm_kms *kms, struct drm_minor *minor);
+	int (*debugfs_init)(struct msm_kms *kms, struct drm_miyesr *miyesr);
 #endif
 };
 
@@ -148,7 +148,7 @@ struct msm_kms {
 	/* irq number to be passed on to drm_irq_install */
 	int irq;
 
-	/* mapper-id used to request GEM buffer mapped for scanout: */
+	/* mapper-id used to request GEM buffer mapped for scayesut: */
 	struct msm_gem_address_space *aspace;
 
 	/*

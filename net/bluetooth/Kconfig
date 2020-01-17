@@ -17,9 +17,9 @@ menuconfig BT
 	select CRYPTO_SHA256
 	select CRYPTO_ECDH
 	help
-	  Bluetooth is low-cost, low-power, short-range wireless technology.
+	  Bluetooth is low-cost, low-power, short-range wireless techyeslogy.
 	  It was designed as a replacement for cables and other short-range
-	  technologies like IrDA.  Bluetooth operates in personal area range
+	  techyeslogies like IrDA.  Bluetooth operates in personal area range
 	  that typically extends up to 10 meters.  More information about
 	  Bluetooth can be found at <http://www.bluetooth.com/>.
 

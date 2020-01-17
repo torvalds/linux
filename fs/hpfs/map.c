@@ -9,7 +9,7 @@
 
 #include "hpfs_fn.h"
 
-__le32 *hpfs_map_dnode_bitmap(struct super_block *s, struct quad_buffer_head *qbh)
+__le32 *hpfs_map_dyesde_bitmap(struct super_block *s, struct quad_buffer_head *qbh)
 {
 	return hpfs_map_4sectors(s, hpfs_sb(s)->sb_dmap, qbh, 0);
 }
@@ -17,7 +17,7 @@ __le32 *hpfs_map_dnode_bitmap(struct super_block *s, struct quad_buffer_head *qb
 __le32 *hpfs_map_bitmap(struct super_block *s, unsigned bmp_block,
 			 struct quad_buffer_head *qbh, char *id)
 {
-	secno sec;
+	secyes sec;
 	__le32 *ret;
 	unsigned n_bands = (hpfs_sb(s)->sb_fs_size + 0x3fff) >> 14;
 	if (hpfs_sb(s)->sb_chk) if (bmp_block >= n_bands) {
@@ -54,10 +54,10 @@ void hpfs_prefetch_bitmap(struct super_block *s, unsigned bmp_block)
  * lowercasing table
  */
 
-unsigned char *hpfs_load_code_page(struct super_block *s, secno cps)
+unsigned char *hpfs_load_code_page(struct super_block *s, secyes cps)
 {
 	struct buffer_head *bh;
-	secno cpds;
+	secyes cpds;
 	unsigned cpi;
 	unsigned char *ptr;
 	unsigned char *cp_table;
@@ -109,7 +109,7 @@ unsigned char *hpfs_load_code_page(struct super_block *s, secno cps)
 	return cp_table;
 }
 
-__le32 *hpfs_load_bitmap_directory(struct super_block *s, secno bmp)
+__le32 *hpfs_load_bitmap_directory(struct super_block *s, secyes bmp)
 {
 	struct buffer_head *bh;
 	int n = (hpfs_sb(s)->sb_fs_size + 0x200000 - 1) >> 21;
@@ -158,178 +158,178 @@ void hpfs_load_hotfix_map(struct super_block *s, struct hpfs_spare_block *spareb
 }
 
 /*
- * Load fnode to memory
+ * Load fyesde to memory
  */
 
-struct fnode *hpfs_map_fnode(struct super_block *s, ino_t ino, struct buffer_head **bhp)
+struct fyesde *hpfs_map_fyesde(struct super_block *s, iyes_t iyes, struct buffer_head **bhp)
 {
-	struct fnode *fnode;
-	if (hpfs_sb(s)->sb_chk) if (hpfs_chk_sectors(s, ino, 1, "fnode")) {
+	struct fyesde *fyesde;
+	if (hpfs_sb(s)->sb_chk) if (hpfs_chk_sectors(s, iyes, 1, "fyesde")) {
 		return NULL;
 	}
-	if ((fnode = hpfs_map_sector(s, ino, bhp, FNODE_RD_AHEAD))) {
+	if ((fyesde = hpfs_map_sector(s, iyes, bhp, FNODE_RD_AHEAD))) {
 		if (hpfs_sb(s)->sb_chk) {
 			struct extended_attribute *ea;
 			struct extended_attribute *ea_end;
-			if (le32_to_cpu(fnode->magic) != FNODE_MAGIC) {
-				hpfs_error(s, "bad magic on fnode %08lx",
-					(unsigned long)ino);
+			if (le32_to_cpu(fyesde->magic) != FNODE_MAGIC) {
+				hpfs_error(s, "bad magic on fyesde %08lx",
+					(unsigned long)iyes);
 				goto bail;
 			}
-			if (!fnode_is_dir(fnode)) {
-				if ((unsigned)fnode->btree.n_used_nodes + (unsigned)fnode->btree.n_free_nodes !=
-				    (bp_internal(&fnode->btree) ? 12 : 8)) {
+			if (!fyesde_is_dir(fyesde)) {
+				if ((unsigned)fyesde->btree.n_used_yesdes + (unsigned)fyesde->btree.n_free_yesdes !=
+				    (bp_internal(&fyesde->btree) ? 12 : 8)) {
 					hpfs_error(s,
-					   "bad number of nodes in fnode %08lx",
-					    (unsigned long)ino);
+					   "bad number of yesdes in fyesde %08lx",
+					    (unsigned long)iyes);
 					goto bail;
 				}
-				if (le16_to_cpu(fnode->btree.first_free) !=
-				    8 + fnode->btree.n_used_nodes * (bp_internal(&fnode->btree) ? 8 : 12)) {
+				if (le16_to_cpu(fyesde->btree.first_free) !=
+				    8 + fyesde->btree.n_used_yesdes * (bp_internal(&fyesde->btree) ? 8 : 12)) {
 					hpfs_error(s,
-					    "bad first_free pointer in fnode %08lx",
-					    (unsigned long)ino);
+					    "bad first_free pointer in fyesde %08lx",
+					    (unsigned long)iyes);
 					goto bail;
 				}
 			}
-			if (le16_to_cpu(fnode->ea_size_s) && (le16_to_cpu(fnode->ea_offs) < 0xc4 ||
-			   le16_to_cpu(fnode->ea_offs) + le16_to_cpu(fnode->acl_size_s) + le16_to_cpu(fnode->ea_size_s) > 0x200)) {
+			if (le16_to_cpu(fyesde->ea_size_s) && (le16_to_cpu(fyesde->ea_offs) < 0xc4 ||
+			   le16_to_cpu(fyesde->ea_offs) + le16_to_cpu(fyesde->acl_size_s) + le16_to_cpu(fyesde->ea_size_s) > 0x200)) {
 				hpfs_error(s,
-					"bad EA info in fnode %08lx: ea_offs == %04x ea_size_s == %04x",
-					(unsigned long)ino,
-					le16_to_cpu(fnode->ea_offs), le16_to_cpu(fnode->ea_size_s));
+					"bad EA info in fyesde %08lx: ea_offs == %04x ea_size_s == %04x",
+					(unsigned long)iyes,
+					le16_to_cpu(fyesde->ea_offs), le16_to_cpu(fyesde->ea_size_s));
 				goto bail;
 			}
-			ea = fnode_ea(fnode);
-			ea_end = fnode_end_ea(fnode);
+			ea = fyesde_ea(fyesde);
+			ea_end = fyesde_end_ea(fyesde);
 			while (ea != ea_end) {
 				if (ea > ea_end) {
-					hpfs_error(s, "bad EA in fnode %08lx",
-						(unsigned long)ino);
+					hpfs_error(s, "bad EA in fyesde %08lx",
+						(unsigned long)iyes);
 					goto bail;
 				}
 				ea = next_ea(ea);
 			}
 		}
 	}
-	return fnode;
+	return fyesde;
 	bail:
 	brelse(*bhp);
 	return NULL;
 }
 
-struct anode *hpfs_map_anode(struct super_block *s, anode_secno ano, struct buffer_head **bhp)
+struct ayesde *hpfs_map_ayesde(struct super_block *s, ayesde_secyes ayes, struct buffer_head **bhp)
 {
-	struct anode *anode;
-	if (hpfs_sb(s)->sb_chk) if (hpfs_chk_sectors(s, ano, 1, "anode")) return NULL;
-	if ((anode = hpfs_map_sector(s, ano, bhp, ANODE_RD_AHEAD)))
+	struct ayesde *ayesde;
+	if (hpfs_sb(s)->sb_chk) if (hpfs_chk_sectors(s, ayes, 1, "ayesde")) return NULL;
+	if ((ayesde = hpfs_map_sector(s, ayes, bhp, ANODE_RD_AHEAD)))
 		if (hpfs_sb(s)->sb_chk) {
-			if (le32_to_cpu(anode->magic) != ANODE_MAGIC) {
-				hpfs_error(s, "bad magic on anode %08x", ano);
+			if (le32_to_cpu(ayesde->magic) != ANODE_MAGIC) {
+				hpfs_error(s, "bad magic on ayesde %08x", ayes);
 				goto bail;
 			}
-			if (le32_to_cpu(anode->self) != ano) {
-				hpfs_error(s, "self pointer invalid on anode %08x", ano);
+			if (le32_to_cpu(ayesde->self) != ayes) {
+				hpfs_error(s, "self pointer invalid on ayesde %08x", ayes);
 				goto bail;
 			}
-			if ((unsigned)anode->btree.n_used_nodes + (unsigned)anode->btree.n_free_nodes !=
-			    (bp_internal(&anode->btree) ? 60 : 40)) {
-				hpfs_error(s, "bad number of nodes in anode %08x", ano);
+			if ((unsigned)ayesde->btree.n_used_yesdes + (unsigned)ayesde->btree.n_free_yesdes !=
+			    (bp_internal(&ayesde->btree) ? 60 : 40)) {
+				hpfs_error(s, "bad number of yesdes in ayesde %08x", ayes);
 				goto bail;
 			}
-			if (le16_to_cpu(anode->btree.first_free) !=
-			    8 + anode->btree.n_used_nodes * (bp_internal(&anode->btree) ? 8 : 12)) {
-				hpfs_error(s, "bad first_free pointer in anode %08x", ano);
+			if (le16_to_cpu(ayesde->btree.first_free) !=
+			    8 + ayesde->btree.n_used_yesdes * (bp_internal(&ayesde->btree) ? 8 : 12)) {
+				hpfs_error(s, "bad first_free pointer in ayesde %08x", ayes);
 				goto bail;
 			}
 		}
-	return anode;
+	return ayesde;
 	bail:
 	brelse(*bhp);
 	return NULL;
 }
 
 /*
- * Load dnode to memory and do some checks
+ * Load dyesde to memory and do some checks
  */
 
-struct dnode *hpfs_map_dnode(struct super_block *s, unsigned secno,
+struct dyesde *hpfs_map_dyesde(struct super_block *s, unsigned secyes,
 			     struct quad_buffer_head *qbh)
 {
-	struct dnode *dnode;
+	struct dyesde *dyesde;
 	if (hpfs_sb(s)->sb_chk) {
-		if (hpfs_chk_sectors(s, secno, 4, "dnode")) return NULL;
-		if (secno & 3) {
-			hpfs_error(s, "dnode %08x not byte-aligned", secno);
+		if (hpfs_chk_sectors(s, secyes, 4, "dyesde")) return NULL;
+		if (secyes & 3) {
+			hpfs_error(s, "dyesde %08x yest byte-aligned", secyes);
 			return NULL;
 		}	
 	}
-	if ((dnode = hpfs_map_4sectors(s, secno, qbh, DNODE_RD_AHEAD)))
+	if ((dyesde = hpfs_map_4sectors(s, secyes, qbh, DNODE_RD_AHEAD)))
 		if (hpfs_sb(s)->sb_chk) {
 			unsigned p, pp = 0;
-			unsigned char *d = (unsigned char *)dnode;
+			unsigned char *d = (unsigned char *)dyesde;
 			int b = 0;
-			if (le32_to_cpu(dnode->magic) != DNODE_MAGIC) {
-				hpfs_error(s, "bad magic on dnode %08x", secno);
+			if (le32_to_cpu(dyesde->magic) != DNODE_MAGIC) {
+				hpfs_error(s, "bad magic on dyesde %08x", secyes);
 				goto bail;
 			}
-			if (le32_to_cpu(dnode->self) != secno)
-				hpfs_error(s, "bad self pointer on dnode %08x self = %08x", secno, le32_to_cpu(dnode->self));
+			if (le32_to_cpu(dyesde->self) != secyes)
+				hpfs_error(s, "bad self pointer on dyesde %08x self = %08x", secyes, le32_to_cpu(dyesde->self));
 			/* Check dirents - bad dirents would cause infinite
 			   loops or shooting to memory */
-			if (le32_to_cpu(dnode->first_free) > 2048) {
-				hpfs_error(s, "dnode %08x has first_free == %08x", secno, le32_to_cpu(dnode->first_free));
+			if (le32_to_cpu(dyesde->first_free) > 2048) {
+				hpfs_error(s, "dyesde %08x has first_free == %08x", secyes, le32_to_cpu(dyesde->first_free));
 				goto bail;
 			}
-			for (p = 20; p < le32_to_cpu(dnode->first_free); p += d[p] + (d[p+1] << 8)) {
-				struct hpfs_dirent *de = (struct hpfs_dirent *)((char *)dnode + p);
+			for (p = 20; p < le32_to_cpu(dyesde->first_free); p += d[p] + (d[p+1] << 8)) {
+				struct hpfs_dirent *de = (struct hpfs_dirent *)((char *)dyesde + p);
 				if (le16_to_cpu(de->length) > 292 || (le16_to_cpu(de->length) < 32) || (le16_to_cpu(de->length) & 3) || p + le16_to_cpu(de->length) > 2048) {
-					hpfs_error(s, "bad dirent size in dnode %08x, dirent %03x, last %03x", secno, p, pp);
+					hpfs_error(s, "bad dirent size in dyesde %08x, dirent %03x, last %03x", secyes, p, pp);
 					goto bail;
 				}
 				if (((31 + de->namelen + de->down*4 + 3) & ~3) != le16_to_cpu(de->length)) {
 					if (((31 + de->namelen + de->down*4 + 3) & ~3) < le16_to_cpu(de->length) && s->s_flags & SB_RDONLY) goto ok;
-					hpfs_error(s, "namelen does not match dirent size in dnode %08x, dirent %03x, last %03x", secno, p, pp);
+					hpfs_error(s, "namelen does yest match dirent size in dyesde %08x, dirent %03x, last %03x", secyes, p, pp);
 					goto bail;
 				}
 				ok:
 				if (hpfs_sb(s)->sb_chk >= 2) b |= 1 << de->down;
 				if (de->down) if (de_down_pointer(de) < 0x10) {
-					hpfs_error(s, "bad down pointer in dnode %08x, dirent %03x, last %03x", secno, p, pp);
+					hpfs_error(s, "bad down pointer in dyesde %08x, dirent %03x, last %03x", secyes, p, pp);
 					goto bail;
 				}
 				pp = p;
 				
 			}
-			if (p != le32_to_cpu(dnode->first_free)) {
-				hpfs_error(s, "size on last dirent does not match first_free; dnode %08x", secno);
+			if (p != le32_to_cpu(dyesde->first_free)) {
+				hpfs_error(s, "size on last dirent does yest match first_free; dyesde %08x", secyes);
 				goto bail;
 			}
 			if (d[pp + 30] != 1 || d[pp + 31] != 255) {
-				hpfs_error(s, "dnode %08x does not end with \\377 entry", secno);
+				hpfs_error(s, "dyesde %08x does yest end with \\377 entry", secyes);
 				goto bail;
 			}
 			if (b == 3)
-				pr_err("unbalanced dnode tree, dnode %08x; see hpfs.txt 4 more info\n",
-					secno);
+				pr_err("unbalanced dyesde tree, dyesde %08x; see hpfs.txt 4 more info\n",
+					secyes);
 		}
-	return dnode;
+	return dyesde;
 	bail:
 	hpfs_brelse4(qbh);
 	return NULL;
 }
 
-dnode_secno hpfs_fnode_dno(struct super_block *s, ino_t ino)
+dyesde_secyes hpfs_fyesde_dyes(struct super_block *s, iyes_t iyes)
 {
 	struct buffer_head *bh;
-	struct fnode *fnode;
-	dnode_secno dno;
+	struct fyesde *fyesde;
+	dyesde_secyes dyes;
 
-	fnode = hpfs_map_fnode(s, ino, &bh);
-	if (!fnode)
+	fyesde = hpfs_map_fyesde(s, iyes, &bh);
+	if (!fyesde)
 		return 0;
 
-	dno = le32_to_cpu(fnode->u.external[0].disk_secno);
+	dyes = le32_to_cpu(fyesde->u.external[0].disk_secyes);
 	brelse(bh);
-	return dno;
+	return dyes;
 }

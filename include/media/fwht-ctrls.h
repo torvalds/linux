@@ -3,7 +3,7 @@
  * These are the FWHT state controls for use with stateless FWHT
  * codec drivers.
  *
- * It turns out that these structs are not stable yet and will undergo
+ * It turns out that these structs are yest stable yet and will undergo
  * more changes. So keep them private until they are stable and ready to
  * become part of the official public API.
  */

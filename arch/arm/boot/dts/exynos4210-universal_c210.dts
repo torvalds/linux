@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos4210 based Universal C210 board device tree source
+ * Samsung's Exyyess4210 based Universal C210 board device tree source
  *
  * Copyright (c) 2012-2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Device tree source file for Samsung's Universal C210 board which is based on
- * Samsung's Exynos4210 rev0 SoC.
+ * Samsung's Exyyess4210 rev0 SoC.
  */
 
 /dts-v1/;
-#include "exynos4210.dtsi"
+#include "exyyess4210.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Samsung Universal C210 based on Exynos4210 rev0";
-	compatible = "samsung,universal_c210", "samsung,exynos4210", "samsung,exynos4";
+	model = "Samsung Universal C210 based on Exyyess4210 rev0";
+	compatible = "samsung,universal_c210", "samsung,exyyess4210", "samsung,exyyess4";
 
 	memory@40000000 {
 		device_type = "memory";
@@ -204,11 +204,11 @@
 
 &ehci {
 	status = "okay";
-	phys = <&exynos_usbphy 1>;
+	phys = <&exyyess_usbphy 1>;
 	phy-names = "host";
 };
 
-&exynos_usbphy {
+&exyyess_usbphy {
 	status = "okay";
 	vbus-supply = <&safeout1_reg>;
 };
@@ -505,7 +505,7 @@
 };
 
 &mct {
-	compatible = "none";
+	compatible = "yesne";
 };
 
 &mdma1 {
@@ -549,7 +549,7 @@
 
 &sdhci_0 {
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus8>;
 	pinctrl-names = "default";
 	vmmc-supply = <&vemmc_reg>;
@@ -595,7 +595,7 @@
 	};
 
 	smp-sysram@5000 {
-		compatible = "samsung,exynos4210-sysram";
+		compatible = "samsung,exyyess4210-sysram";
 		reg = <0x5000 0x1000>;
 	};
 

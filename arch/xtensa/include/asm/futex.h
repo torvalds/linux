@@ -14,7 +14,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #if XCHAL_HAVE_EXCLUSIVE
 #define __futex_atomic_op(insn, ret, old, uaddr, arg)	\

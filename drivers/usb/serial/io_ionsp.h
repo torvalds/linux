@@ -53,7 +53,7 @@ This gives 2 possible formats:
     for command and status codes that need variable-length parameters.
 
 
-In addition, we use another interrupt pipe (endpoint) which the host polls
+In addition, we use ayesther interrupt pipe (endpoint) which the host polls
 periodically for flow control information. The peripheral, when there has
 been a change, sends the following 10-byte packet:
 
@@ -168,7 +168,7 @@ struct int_status_pkt {
 
 //
 // Extended Command values, used with IOSP_EXT_CMD, may
-// or may not use parameter P2.
+// or may yest use parameter P2.
 //
 
 #define	IOSP_CMD_OPEN_PORT		0x00		// Enable ints, init UART. (NO PARAM)
@@ -221,7 +221,7 @@ do {									\
 //
 //	Note that the 'FlowTypes' parameter is a bit mask; that is,
 //	more than one flow control type can be active at the same time.
-//	FlowTypes = 0 means 'no flow control'.
+//	FlowTypes = 0 means 'yes flow control'.
 //
 
 //
@@ -236,7 +236,7 @@ do {									\
 
 #define IOSP_RX_FLOW_RTS		0x01	// Edgeport drops RTS to stop incoming data
 #define IOSP_RX_FLOW_DTR		0x02	// Edgeport drops DTR to stop incoming data
-#define IOSP_RX_FLOW_DSR_SENSITIVITY	0x04	// Ignores Rx data unless DSR high
+#define IOSP_RX_FLOW_DSR_SENSITIVITY	0x04	// Igyesres Rx data unless DSR high
 
 // Not currently implemented by firmware.
 #define IOSP_RX_FLOW_XON_XOFF		0x08	// Edgeport sends XOFF char to stop incoming data.
@@ -263,13 +263,13 @@ do {									\
 // Host must have previously programmed the
 // XON/XOFF values with SET_XON/SET_XOFF
 // before enabling this bit.
-#define IOSP_TX_FLOW_XOFF_CONTINUE	0x10	// If not set, Edgeport stops Tx when
+#define IOSP_TX_FLOW_XOFF_CONTINUE	0x10	// If yest set, Edgeport stops Tx when
 
 // sending XOFF in order to fix broken
 // systems that interpret the next
 // received char as XON.
 // If set, Edgeport continues Tx
-// normally after transmitting XOFF.
+// yesrmally after transmitting XOFF.
 // Not currently implemented by firmware.
 #define IOSP_TX_TOGGLE_RTS		0x20	// Edgeport drives RTS as a true half-duplex
 
@@ -315,7 +315,7 @@ do {									\
 //  It is up to the device driver to timeout waiting for the
 //  RX_CHECK_RSP.  If a RX_CHECK_RSP is received, the driver is
 //	sure that all data has been received from the edgeport and
-//	may now purge any internal RX buffers.
+//	may yesw purge any internal RX buffers.
 //  Note tat the sequence numbers may be used to detect lost
 //  CHECK_REQs.
 
@@ -340,7 +340,7 @@ do {									\
 //
 //	ssss:	00-07	2-byte status.	ssss identifies which UART register
 //					has changed value, and the new value is in P1.
-//					Note that the ssss values do not correspond to the
+//					Note that the ssss values do yest correspond to the
 //					16554 register numbers given in 16554.H. Instead,
 //					see below for definitions of the ssss numbers
 //					used in this status message.

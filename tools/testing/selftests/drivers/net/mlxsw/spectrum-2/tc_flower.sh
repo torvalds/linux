@@ -92,7 +92,7 @@ tp_check_hits_any()
 single_mask_test()
 {
 	# When only a single mask is required, the device uses the master
-	# mask and not the eRP table. Verify that under this mode the right
+	# mask and yest the eRP table. Verify that under this mode the right
 	# filter is matched
 
 	RET=0
@@ -104,7 +104,7 @@ single_mask_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Single filter - did not match"
+	check_err $? "Single filter - did yest match"
 
 	tc filter add dev $h2 ingress protocol ip pref 2 handle 102 flower \
 		$tcflags dst_ip 198.51.100.2 action drop
@@ -113,13 +113,13 @@ single_mask_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 2
-	check_err $? "Two filters - did not match highest priority"
+	check_err $? "Two filters - did yest match highest priority"
 
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 198.51.100.1 -B 198.51.100.2 \
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Two filters - did not match lowest priority"
+	check_err $? "Two filters - did yest match lowest priority"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 
@@ -127,7 +127,7 @@ single_mask_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 102 2
-	check_err $? "Single filter - did not match after delete"
+	check_err $? "Single filter - did yest match after delete"
 
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 
@@ -152,7 +152,7 @@ identical_filters_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match A-TCAM filter"
+	check_err $? "Did yest match A-TCAM filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 
@@ -160,7 +160,7 @@ identical_filters_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match C-TCAM filter after A-TCAM delete"
+	check_err $? "Did yest match C-TCAM filter after A-TCAM delete"
 
 	tc filter add dev $h2 ingress protocol ip pref 3 handle 103 flower \
 		$tcflags dst_ip 192.0.2.2 action drop
@@ -169,7 +169,7 @@ identical_filters_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 102 2
-	check_err $? "Did not match C-TCAM filter after A-TCAM add"
+	check_err $? "Did yest match C-TCAM filter after A-TCAM add"
 
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 
@@ -177,7 +177,7 @@ identical_filters_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Did not match A-TCAM filter after C-TCAM delete"
+	check_err $? "Did yest match A-TCAM filter after C-TCAM delete"
 
 	tc filter del dev $h2 ingress protocol ip pref 3 handle 103 flower
 
@@ -200,7 +200,7 @@ two_masks_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Two filters - did not match highest priority"
+	check_err $? "Two filters - did yest match highest priority"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 
@@ -208,7 +208,7 @@ two_masks_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Single filter - did not match"
+	check_err $? "Single filter - did yest match"
 
 	tc filter add dev $h2 ingress protocol ip pref 2 handle 102 flower \
 		$tcflags dst_ip 192.0.2.0/24 action drop
@@ -217,7 +217,7 @@ two_masks_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Two filters - did not match highest priority after add"
+	check_err $? "Two filters - did yest match highest priority after add"
 
 	tc filter del dev $h2 ingress protocol ip pref 3 handle 103 flower
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
@@ -250,10 +250,10 @@ multiple_masks_test()
 
 		if ((i > NUM_ERPS)); then
 			exp_hits=1
-			err_msg="$i filters - C-TCAM spill did not happen when it was expected"
+			err_msg="$i filters - C-TCAM spill did yest happen when it was expected"
 		else
 			exp_hits=0
-			err_msg="$i filters - C-TCAM spill happened when it should not"
+			err_msg="$i filters - C-TCAM spill happened when it should yest"
 		fi
 
 		tp_record "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" \
@@ -270,7 +270,7 @@ multiple_masks_test()
 			-B 192.0.2.2 -t ip -q
 
 		tc_check_packets "dev $h2 ingress" $index 1
-		check_err $? "$i filters - did not match highest priority (add)"
+		check_err $? "$i filters - did yest match highest priority (add)"
 	done
 
 	for i in $(eval echo {$NUM_MASKS..1}); do
@@ -280,7 +280,7 @@ multiple_masks_test()
 			-B 192.0.2.2 -t ip -q
 
 		tc_check_packets "dev $h2 ingress" $index 2
-		check_err $? "$i filters - did not match highest priority (del)"
+		check_err $? "$i filters - did yest match highest priority (del)"
 
 		tc filter del dev $h2 ingress protocol ip pref $index \
 			handle $index flower
@@ -311,7 +311,7 @@ ctcam_two_atcam_masks_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match A-TCAM filter"
+	check_err $? "Did yest match A-TCAM filter"
 
 	# Delete both A-TCAM and C-TCAM filters and make sure the remaining
 	# A-TCAM filter still works
@@ -322,7 +322,7 @@ ctcam_two_atcam_masks_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Did not match A-TCAM filter"
+	check_err $? "Did yest match A-TCAM filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 3 handle 103 flower
 
@@ -347,7 +347,7 @@ ctcam_one_atcam_mask_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match C-TCAM filter"
+	check_err $? "Did yest match C-TCAM filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 
@@ -355,18 +355,18 @@ ctcam_one_atcam_mask_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match A-TCAM filter"
+	check_err $? "Did yest match A-TCAM filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 
 	log_test "ctcam with one atcam mask test ($tcflags)"
 }
 
-ctcam_no_atcam_masks_test()
+ctcam_yes_atcam_masks_test()
 {
 	RET=0
 
-	# Third case: C-TCAM is disabled when there are no A-TCAM masks
+	# Third case: C-TCAM is disabled when there are yes A-TCAM masks
 	# This test exercises the code path that transitions the eRP table
 	# to its initial state after deleting the last C-TCAM mask
 
@@ -380,7 +380,7 @@ ctcam_no_atcam_masks_test()
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 
-	log_test "ctcam with no atcam masks test ($tcflags)"
+	log_test "ctcam with yes atcam masks test ($tcflags)"
 }
 
 ctcam_edge_cases_test()
@@ -391,7 +391,7 @@ ctcam_edge_cases_test()
 
 	ctcam_two_atcam_masks_test
 	ctcam_one_atcam_mask_test
-	ctcam_no_atcam_masks_test
+	ctcam_yes_atcam_masks_test
 }
 
 delta_simple_test()
@@ -410,7 +410,7 @@ delta_simple_test()
 		   pref 1 handle 101 flower $tcflags dst_ip 192.0.0.0/24 \
 		   action drop"
 	tp_check_hits "objagg:objagg_obj_root_create" 1
-	check_err $? "eRP was not created"
+	check_err $? "eRP was yest created"
 
 	tp_record "objagg:*" "tc filter add dev $h2 ingress protocol ip \
 		   pref 2 handle 102 flower $tcflags dst_ip 192.0.2.2 \
@@ -418,7 +418,7 @@ delta_simple_test()
 	tp_check_hits "objagg:objagg_obj_root_create" 0
 	check_err $? "eRP was incorrectly created"
 	tp_check_hits "objagg:objagg_obj_parent_assign" 1
-	check_err $? "delta was not created"
+	check_err $? "delta was yest created"
 
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip -q
@@ -427,7 +427,7 @@ delta_simple_test()
 	check_fail $? "Matched a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did yest match on correct filter"
 
 	tp_record "objagg:*" "tc filter del dev $h2 ingress protocol ip \
 		   pref 1 handle 101 flower"
@@ -440,14 +440,14 @@ delta_simple_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 102 2
-	check_err $? "Did not match on correct filter after the first was removed"
+	check_err $? "Did yest match on correct filter after the first was removed"
 
 	tp_record "objagg:*" "tc filter del dev $h2 ingress protocol ip \
 		   pref 2 handle 102 flower"
 	tp_check_hits "objagg:objagg_obj_parent_unassign" 1
-	check_err $? "delta was not destroyed"
+	check_err $? "delta was yest destroyed"
 	tp_check_hits "objagg:objagg_obj_root_destroy" 1
-	check_err $? "eRP was not destroyed"
+	check_err $? "eRP was yest destroyed"
 
 	log_test "delta simple test ($tcflags)"
 }
@@ -456,7 +456,7 @@ delta_two_masks_one_key_test()
 {
 	# If 2 keys are the same and only differ in mask in a way that
 	# they belong under the same ERP (second is delta of the first),
-	# there should be no C-TCAM spill.
+	# there should be yes C-TCAM spill.
 
 	RET=0
 
@@ -480,7 +480,7 @@ delta_two_masks_one_key_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did yest match on correct filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 
@@ -488,7 +488,7 @@ delta_two_masks_one_key_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did yest match on correct filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 
@@ -534,22 +534,22 @@ delta_simple_rehash_test()
 	check_fail $? "Matched a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did yest match on correct filter"
 
 	tp_record_all mlxsw:* 3
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
-	check_err $? "Rehash trace was not hit"
+	check_err $? "Rehash trace was yest hit"
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
-	check_err $? "Migrate trace was not hit"
+	check_err $? "Migrate trace was yest hit"
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate_end
-	check_err $? "Migrate end trace was not hit"
+	check_err $? "Migrate end trace was yest hit"
 	tp_record_all mlxsw:* 3
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
-	check_err $? "Rehash trace was not hit"
+	check_err $? "Rehash trace was yest hit"
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
-	check_fail $? "Migrate trace was hit when no migration should happen"
+	check_fail $? "Migrate trace was hit when yes migration should happen"
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate_end
-	check_fail $? "Migrate end trace was hit when no migration should happen"
+	check_fail $? "Migrate end trace was hit when yes migration should happen"
 
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip -q
@@ -561,7 +561,7 @@ delta_simple_rehash_test()
 	check_fail $? "Matched a wrong filter after rehash"
 
 	tc_check_packets "dev $h2 ingress" 102 2
-	check_err $? "Did not match on correct filter after rehash"
+	check_err $? "Did yest match on correct filter after rehash"
 
 	tc filter del dev $h2 ingress protocol ip pref 3 handle 103 flower
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
@@ -609,22 +609,22 @@ delta_simple_ipv6_rehash_test()
 	check_fail $? "Matched a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did yest match on correct filter"
 
 	tp_record_all mlxsw:* 3
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
-	check_err $? "Rehash trace was not hit"
+	check_err $? "Rehash trace was yest hit"
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
-	check_err $? "Migrate trace was not hit"
+	check_err $? "Migrate trace was yest hit"
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate_end
-	check_err $? "Migrate end trace was not hit"
+	check_err $? "Migrate end trace was yest hit"
 	tp_record_all mlxsw:* 3
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
-	check_err $? "Rehash trace was not hit"
+	check_err $? "Rehash trace was yest hit"
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
-	check_fail $? "Migrate trace was hit when no migration should happen"
+	check_fail $? "Migrate trace was hit when yes migration should happen"
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate_end
-	check_fail $? "Migrate end trace was hit when no migration should happen"
+	check_fail $? "Migrate end trace was hit when yes migration should happen"
 
 	$MZ $h1 -6 -c 1 -p 64 -a $h1mac -b $h2mac \
 		-A 2001:db8:2::1 -B 2001:db8:2::2 -t udp -q
@@ -636,7 +636,7 @@ delta_simple_ipv6_rehash_test()
 	check_fail $? "Matched a wrong filter after rehash"
 
 	tc_check_packets "dev $h2 ingress" 102 2
-	check_err $? "Did not match on correct filter after rehash"
+	check_err $? "Did yest match on correct filter after rehash"
 
 	tc filter del dev $h2 ingress protocol ipv6 pref 3 handle 103 flower
 	tc filter del dev $h2 ingress protocol ipv6 pref 2 handle 102 flower
@@ -778,7 +778,7 @@ delta_massive_ipv6_rehash_test()
 	check_fail $? "Matched a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did yest match on correct filter"
 
 	echo -n -e $batch | tc -b -
 
@@ -796,7 +796,7 @@ delta_massive_ipv6_rehash_test()
 	check_fail $? "Matched a wrong filter after rehash"
 
 	tc_check_packets "dev $h2 ingress" 102 2
-	check_err $? "Did not match on correct filter after rehash"
+	check_err $? "Did yest match on correct filter after rehash"
 
 	tc filter del dev $h2 ingress protocol ipv6 pref 3 handle 103 flower
 	tc filter del dev $h2 ingress protocol ipv6 pref 2 handle 102 flower
@@ -814,9 +814,9 @@ delta_massive_ipv6_rehash_test()
 bloom_simple_test()
 {
 	# Bloom filter requires that the eRP table is used. This test
-	# verifies that Bloom filter is not harming correctness of ACLs.
+	# verifies that Bloom filter is yest harming correctness of ACLs.
 	# First, make sure that eRP table is used and then set rule patterns
-	# which are distant enough and will result skipping a lookup after
+	# which are distant eyesugh and will result skipping a lookup after
 	# consulting the Bloom filter. Although some eRP lookups are skipped,
 	# the correct filter should be hit.
 
@@ -833,13 +833,13 @@ bloom_simple_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Two filters - did not match highest priority"
+	check_err $? "Two filters - did yest match highest priority"
 
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 198.51.100.1 -B 198.51.100.2 \
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 104 1
-	check_err $? "Single filter - did not match"
+	check_err $? "Single filter - did yest match"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 
@@ -847,7 +847,7 @@ bloom_simple_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Low prio filter - did not match"
+	check_err $? "Low prio filter - did yest match"
 
 	tc filter add dev $h2 ingress protocol ip pref 2 handle 102 flower \
 		$tcflags dst_ip 198.0.0.0/8 action drop
@@ -856,7 +856,7 @@ bloom_simple_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Two filters - did not match highest priority after add"
+	check_err $? "Two filters - did yest match highest priority after add"
 
 	tc filter del dev $h2 ingress protocol ip pref 3 handle 103 flower
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
@@ -927,7 +927,7 @@ bloom_complex_test()
 	for i in $(eval echo {0..$NUM_CHAINS}); do
 		index=$((BASE_INDEX + i + 1))
 		tc_check_packets "dev $h2 ingress" $index 1
-		check_err $? "Did not match chain $i"
+		check_err $? "Did yest match chain $i"
 	done
 
 	# Rules cleanup
@@ -952,7 +952,7 @@ bloom_complex_test()
 bloom_delta_test()
 {
 	# When multiple masks are used, the eRP table is activated. When
-	# masks are close enough (delta) the masks reside on the same
+	# masks are close eyesugh (delta) the masks reside on the same
 	# eRP table. This test verifies that the eRP table is correctly
 	# allocated and used in delta condition and that Bloom filter is
 	# still functional with delta.
@@ -966,7 +966,7 @@ bloom_delta_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Single filter - did not match"
+	check_err $? "Single filter - did yest match"
 
 	tc filter add dev $h2 ingress protocol ip pref 2 handle 102 flower \
 		$tcflags dst_ip 192.2.1.0/24 action drop
@@ -975,7 +975,7 @@ bloom_delta_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Delta filters - did not match second filter"
+	check_err $? "Delta filters - did yest match second filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 3 handle 103 flower
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
@@ -1014,7 +1014,7 @@ setup_wait
 tests_run
 
 if ! tc_offload_check; then
-	check_err 1 "Could not test offloaded functionality"
+	check_err 1 "Could yest test offloaded functionality"
 	log_test "mlxsw-specific tests for tc flower"
 	exit
 else

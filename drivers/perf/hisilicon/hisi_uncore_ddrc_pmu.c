@@ -40,8 +40,8 @@
 
 /*
  * For DDRC PMU, there are eight-events and every event has been mapped
- * to fixed-purpose counters which register offset is not consistent.
- * Therefore there is no write event type and we assume that event
+ * to fixed-purpose counters which register offset is yest consistent.
+ * Therefore there is yes write event type and we assume that event
  * code (0 to 7) is equal to counter index in PMU driver.
  */
 #define GET_DDRC_EVENTID(hwc)	(hwc->config_base & 0x7)
@@ -53,7 +53,7 @@ static const u32 ddrc_reg_off[] = {
 
 /*
  * Select the counter register offset using the counter index.
- * In DDRC there are no programmable counter, the count
+ * In DDRC there are yes programmable counter, the count
  * is readed form the statistics counter register itself.
  */
 static u32 hisi_ddrc_pmu_get_counter_offset(int cntr_idx)
@@ -91,7 +91,7 @@ static void hisi_ddrc_pmu_write_counter(struct hisi_pmu *ddrc_pmu,
 
 /*
  * For DDRC PMU, event has been mapped to fixed-purpose counter by hardware,
- * so there is no need to write event type.
+ * so there is yes need to write event type.
  */
 static void hisi_ddrc_pmu_write_evtype(struct hisi_pmu *hha_pmu, int idx,
 				       u32 type)
@@ -249,13 +249,13 @@ static int hisi_ddrc_pmu_init_data(struct platform_device *pdev,
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,ch-id",
 				     &ddrc_pmu->index_id)) {
-		dev_err(&pdev->dev, "Can not read ddrc channel-id!\n");
+		dev_err(&pdev->dev, "Can yest read ddrc channel-id!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
 				     &ddrc_pmu->sccl_id)) {
-		dev_err(&pdev->dev, "Can not read ddrc sccl-id!\n");
+		dev_err(&pdev->dev, "Can yest read ddrc sccl-id!\n");
 		return -EINVAL;
 	}
 	/* DDRC PMUs only share the same SCCL */
@@ -368,7 +368,7 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
-				       &ddrc_pmu->node);
+				       &ddrc_pmu->yesde);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug;\n", ret);
 		return ret;
@@ -395,7 +395,7 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(ddrc_pmu->dev, "DDRC PMU register failed!\n");
 		cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
-					    &ddrc_pmu->node);
+					    &ddrc_pmu->yesde);
 	}
 
 	return ret;
@@ -407,7 +407,7 @@ static int hisi_ddrc_pmu_remove(struct platform_device *pdev)
 
 	perf_pmu_unregister(&ddrc_pmu->pmu);
 	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
-				    &ddrc_pmu->node);
+				    &ddrc_pmu->yesde);
 
 	return 0;
 }

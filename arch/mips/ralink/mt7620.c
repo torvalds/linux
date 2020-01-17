@@ -586,8 +586,8 @@ void __init ralink_clk_init(void)
 
 void __init ralink_of_remap(void)
 {
-	rt_sysc_membase = plat_of_remap_node("ralink,mt7620a-sysc");
-	rt_memc_membase = plat_of_remap_node("ralink,mt7620a-memc");
+	rt_sysc_membase = plat_of_remap_yesde("ralink,mt7620a-sysc");
+	rt_memc_membase = plat_of_remap_yesde("ralink,mt7620a-memc");
 
 	if (!rt_sysc_membase || !rt_memc_membase)
 		panic("Failed to remap core resources");
@@ -678,7 +678,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		}
 		soc_info->compatible = "ralink,mt7628an-soc";
 	} else {
-		panic("mt762x: unknown SoC, n0:%08x n1:%08x\n", n0, n1);
+		panic("mt762x: unkyeswn SoC, n0:%08x n1:%08x\n", n0, n1);
 	}
 
 	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,

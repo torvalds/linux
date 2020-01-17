@@ -6,12 +6,12 @@
  * Copyright (c) 2002 David S. Miller (davem@redhat.com)
  * Copyright (c) 2005 Herbert Xu <herbert@gondor.apana.org.au>
  *
- * Portions derived from Cryptoapi, by Alexander Kjeldaas <astor@fast.no>
+ * Portions derived from Cryptoapi, by Alexander Kjeldaas <astor@fast.yes>
  * and Nettle, by Niels Möller.
  */
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/kmod.h>
 #include <linux/module.h>
@@ -242,19 +242,19 @@ static struct crypto_alg *crypto_larval_lookup(const char *name, u32 type,
 	return alg;
 }
 
-int crypto_probing_notify(unsigned long val, void *v)
+int crypto_probing_yestify(unsigned long val, void *v)
 {
 	int ok;
 
-	ok = blocking_notifier_call_chain(&crypto_chain, val, v);
+	ok = blocking_yestifier_call_chain(&crypto_chain, val, v);
 	if (ok == NOTIFY_DONE) {
 		request_module("cryptomgr");
-		ok = blocking_notifier_call_chain(&crypto_chain, val, v);
+		ok = blocking_yestifier_call_chain(&crypto_chain, val, v);
 	}
 
 	return ok;
 }
-EXPORT_SYMBOL_GPL(crypto_probing_notify);
+EXPORT_SYMBOL_GPL(crypto_probing_yestify);
 
 struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 {
@@ -266,7 +266,7 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 	 * If the internal flag is set for a cipher, require a caller to
 	 * to invoke the cipher with the internal flag to use that cipher.
 	 * Also, if a caller wants to allocate a cipher that may or may
-	 * not be an internal cipher, use type | CRYPTO_ALG_INTERNAL and
+	 * yest be an internal cipher, use type | CRYPTO_ALG_INTERNAL and
 	 * !(mask & CRYPTO_ALG_INTERNAL).
 	 */
 	if (!((type | mask) & CRYPTO_ALG_INTERNAL))
@@ -276,7 +276,7 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 	if (IS_ERR(larval) || !crypto_is_larval(larval))
 		return larval;
 
-	ok = crypto_probing_notify(CRYPTO_MSG_ALG_REQUEST, larval);
+	ok = crypto_probing_yestify(CRYPTO_MSG_ALG_REQUEST, larval);
 
 	if (ok == NOTIFY_STOP)
 		alg = crypto_larval_wait(larval);
@@ -394,7 +394,7 @@ EXPORT_SYMBOL_GPL(__crypto_alloc_tfm);
  *	@type: Type of algorithm
  *	@mask: Mask for type comparison
  *
- *	This function should not be used by new algorithm types.
+ *	This function should yest be used by new algorithm types.
  *	Please use crypto_alloc_tfm instead.
  *
  *	crypto_alloc_base() will first attempt to locate an already loaded
@@ -404,7 +404,7 @@ EXPORT_SYMBOL_GPL(__crypto_alloc_tfm);
  *	to construct an algorithm on the fly.  A refcount is grabbed on the
  *	algorithm which is then associated with the new transform.
  *
- *	The returned transform is of a non-determinate type.  Most people
+ *	The returned transform is of a yesn-determinate type.  Most people
  *	should use one of the more specific allocation functions such as
  *	crypto_alloc_skcipher().
  *
@@ -514,7 +514,7 @@ EXPORT_SYMBOL_GPL(crypto_find_alg);
  *	to construct an algorithm on the fly.  A refcount is grabbed on the
  *	algorithm which is then associated with the new transform.
  *
- *	The returned transform is of a non-determinate type.  Most people
+ *	The returned transform is of a yesn-determinate type.  Most people
  *	should use one of the more specific allocation functions such as
  *	crypto_alloc_blkcipher.
  *

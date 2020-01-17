@@ -26,7 +26,7 @@
 #endif
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
+static const unsigned short yesrmal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END };
 enum chips { lm78, lm79 };
 
@@ -378,7 +378,7 @@ static ssize_t fan_div_store(struct device *dev, struct device_attribute *da,
 		break;
 	default:
 		dev_err(dev,
-			"fan_div value %ld not supported. Choose one of 1, 2, 4 or 8!\n",
+			"fan_div value %ld yest supported. Choose one of 1, 2, 4 or 8!\n",
 			val);
 		mutex_unlock(&data->update_lock);
 		return -EINVAL;
@@ -590,12 +590,12 @@ static int lm78_i2c_detect(struct i2c_client *client,
 
 	if ((i2c_smbus_read_byte_data(client, LM78_REG_CONFIG) & 0x80)
 	 || i2c_smbus_read_byte_data(client, LM78_REG_I2C_ADDR) != address)
-		goto err_nodev;
+		goto err_yesdev;
 
 	/* Explicitly prevent the misdetection of Winbond chips */
 	i = i2c_smbus_read_byte_data(client, 0x4f);
 	if (i == 0xa3 || i == 0x5c)
-		goto err_nodev;
+		goto err_yesdev;
 
 	/* Determine the chip type. */
 	i = i2c_smbus_read_byte_data(client, LM78_REG_CHIPID);
@@ -605,13 +605,13 @@ static int lm78_i2c_detect(struct i2c_client *client,
 	else if ((i & 0xfe) == 0xc0)
 		client_name = "lm79";
 	else
-		goto err_nodev;
+		goto err_yesdev;
 
 	if (lm78_alias_detect(client, i)) {
 		dev_dbg(&adapter->dev,
 			"Device at 0x%02x appears to be the same as ISA device\n",
 			address);
-		goto err_nodev;
+		goto err_yesdev;
 	}
 
 	if (isa)
@@ -621,7 +621,7 @@ static int lm78_i2c_detect(struct i2c_client *client,
 
 	return 0;
 
- err_nodev:
+ err_yesdev:
 	if (isa)
 		mutex_unlock(&isa->update_lock);
 	return -ENODEV;
@@ -664,15 +664,15 @@ static struct i2c_driver lm78_driver = {
 	.probe		= lm78_i2c_probe,
 	.id_table	= lm78_i2c_id,
 	.detect		= lm78_i2c_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 /*
  * The SMBus locks itself, but ISA access must be locked explicitly!
  * We don't want to lock the whole ISA bus, so we lock each client
  * separately.
- * We ignore the LM78 BUSY flag at this moment - it could lead to deadlocks,
- * would slow down the LM78 access and should not be necessary.
+ * We igyesre the LM78 BUSY flag at this moment - it could lead to deadlocks,
+ * would slow down the LM78 access and should yest be necessary.
  */
 static int lm78_read_value(struct lm78_data *data, u8 reg)
 {
@@ -870,7 +870,7 @@ static int __init lm78_isa_found(unsigned short address)
 		goto release;
 	}
 
-	/* We found a device, now see if it could be an LM78 */
+	/* We found a device, yesw see if it could be an LM78 */
 	outb_p(LM78_REG_CONFIG, address + LM78_ADDR_REG_OFFSET);
 	val = inb_p(address + LM78_DATA_REG_OFFSET);
 	if (val & 0x80)

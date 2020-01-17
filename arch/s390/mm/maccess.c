@@ -11,14 +11,14 @@
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 #include <linux/cpu.h>
 #include <asm/ctl_reg.h>
 #include <asm/io.h>
 #include <asm/stacktrace.h>
 
-static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t size)
+static yestrace long s390_kernel_write_odd(void *dst, const void *src, size_t size)
 {
 	unsigned long aligned, offset, count;
 	char tmp[8];
@@ -55,7 +55,7 @@ static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t siz
  */
 static DEFINE_SPINLOCK(s390_kernel_write_lock);
 
-void notrace s390_kernel_write(void *dst, const void *src, size_t size)
+void yestrace s390_kernel_write(void *dst, const void *src, size_t size)
 {
 	unsigned long flags;
 	long copied;
@@ -70,7 +70,7 @@ void notrace s390_kernel_write(void *dst, const void *src, size_t size)
 	spin_unlock_irqrestore(&s390_kernel_write_lock, flags);
 }
 
-static int __no_sanitize_address __memcpy_real(void *dest, void *src, size_t count)
+static int __yes_sanitize_address __memcpy_real(void *dest, void *src, size_t count)
 {
 	register unsigned long _dest asm("2") = (unsigned long) dest;
 	register unsigned long _len1 asm("3") = (unsigned long) count;
@@ -91,7 +91,7 @@ static int __no_sanitize_address __memcpy_real(void *dest, void *src, size_t cou
 	return rc;
 }
 
-static unsigned long __no_sanitize_address _memcpy_real(unsigned long dest,
+static unsigned long __yes_sanitize_address _memcpy_real(unsigned long dest,
 							unsigned long src,
 							unsigned long count)
 {
@@ -121,16 +121,16 @@ int memcpy_real(void *dest, void *src, size_t count)
 {
 	int rc;
 
-	if (S390_lowcore.nodat_stack != 0) {
+	if (S390_lowcore.yesdat_stack != 0) {
 		preempt_disable();
-		rc = CALL_ON_STACK(_memcpy_real, S390_lowcore.nodat_stack, 3,
+		rc = CALL_ON_STACK(_memcpy_real, S390_lowcore.yesdat_stack, 3,
 				   dest, src, count);
 		preempt_enable();
 		return rc;
 	}
 	/*
 	 * This is a really early memcpy_real call, the stacks are
-	 * not set up yet. Just call _memcpy_real on the early boot
+	 * yest set up yet. Just call _memcpy_real on the early boot
 	 * stack
 	 */
 	return _memcpy_real((unsigned long) dest,(unsigned long) src,

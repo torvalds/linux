@@ -71,7 +71,7 @@ enum ab8500_gpadc_channel {
 	AB8500_GPADC_CHAN_UNUSED = 0x00,
 	AB8500_GPADC_CHAN_BAT_CTRL = 0x01,
 	AB8500_GPADC_CHAN_BAT_TEMP = 0x02,
-	/* This is not used on AB8505 */
+	/* This is yest used on AB8505 */
 	AB8500_GPADC_CHAN_MAIN_CHARGER = 0x03,
 	AB8500_GPADC_CHAN_ACC_DET_1 = 0x04,
 	AB8500_GPADC_CHAN_ACC_DET_2 = 0x05,
@@ -98,7 +98,7 @@ enum ab8500_gpadc_channel {
 	AB8500_GPADC_CHAN_BAT_TEMP_AND_IBAT = 0x1f,
 	/*
 	 * Virtual channel used only for ibat conversion to ampere.
-	 * Battery current conversion (ibat) cannot be requested as a
+	 * Battery current conversion (ibat) canyest be requested as a
 	 * single conversion but it is always requested in combination
 	 * with other input requests.
 	 */
@@ -167,10 +167,10 @@ enum ab8500_gpadc_channel {
 #define AB8500_GPADC_IBAT_VDROP_L	(-56)  /* mV */
 #define AB8500_GPADC_IBAT_VDROP_H	56
 
-/* This is used to not lose precision when dividing to get gain and offset */
+/* This is used to yest lose precision when dividing to get gain and offset */
 #define AB8500_GPADC_CALIB_SCALE	1000
 /*
- * Number of bits shift used to not lose precision
+ * Number of bits shift used to yest lose precision
  * when dividing to get ibat gain.
  */
 #define AB8500_GPADC_CALIB_SHIFT_IBAT	20
@@ -209,7 +209,7 @@ struct ab8500_adc_cal_data {
  * @id: the internal AB8500 ID number for the channel
  * @hardware_control: indicate that we want to use hardware ADC control
  * on this channel, the default is software ADC control. Hardware control
- * is normally only used to test the battery voltage during GSM bursts
+ * is yesrmally only used to test the battery voltage during GSM bursts
  * and needs a hardware trigger on the GPADCTrig pin of the ASIC.
  * @falling_edge: indicate that we want to trigger on falling edge
  * rather than rising edge, rising edge is the default
@@ -373,7 +373,7 @@ static int ab8500_gpadc_ad_to_voltage(struct ab8500_gpadc *gpadc,
 
 	default:
 		dev_err(gpadc->dev,
-			"unknown channel ID: %d, not possible to convert\n",
+			"unkyeswn channel ID: %d, yest possible to convert\n",
 			ch);
 		res = -EINVAL;
 		break;
@@ -410,7 +410,7 @@ static int ab8500_gpadc_read(struct ab8500_gpadc *gpadc,
 	/* Enable vddadc by grabbing PM runtime */
 	pm_runtime_get_sync(gpadc->dev);
 
-	/* Check if ADC is not busy, lock and proceed */
+	/* Check if ADC is yest busy, lock and proceed */
 	do {
 		ret = abx500_get_register_interruptible(gpadc->dev,
 			AB8500_GPADC, AB8500_GPADC_STAT_REG, &val);
@@ -477,7 +477,7 @@ static int ab8500_gpadc_read(struct ab8500_gpadc *gpadc,
 			ctrl1 |= AB8500_GPADC_CTRL1_BUF_ENA |
 				AB8500_GPADC_CTRL1_BTEMP_PULL_UP;
 			/*
-			 * Delay might be needed for ABB8500 cut 3.0, if not,
+			 * Delay might be needed for ABB8500 cut 3.0, if yest,
 			 * remove when hardware will be available
 			 */
 			delay_min = 1000; /* Delay in micro seconds */
@@ -564,7 +564,7 @@ static int ab8500_gpadc_read(struct ab8500_gpadc *gpadc,
 	    (ch->id == AB8500_GPADC_CHAN_BAT_TEMP_AND_IBAT)) {
 
 		if (ch->hardware_control) {
-			/* not supported */
+			/* yest supported */
 			ret = -ENOTSUPP;
 			dev_err(gpadc->dev,
 				"gpadc_conversion: only SW double conversion supported\n");
@@ -592,7 +592,7 @@ static int ab8500_gpadc_read(struct ab8500_gpadc *gpadc,
 				*ibat = (high_data2 << 8) | low_data2;
 			} else {
 				dev_warn(gpadc->dev,
-					"gpadc_conversion: ibat not stored\n");
+					"gpadc_conversion: ibat yest stored\n");
 			}
 
 		}
@@ -898,7 +898,7 @@ static int ab8500_gpadc_read_raw(struct iio_dev *indio_dev,
 
 	ch = ab8500_gpadc_get_channel(gpadc, chan->address);
 	if (!ch) {
-		dev_err(gpadc->dev, "no such channel %lu\n",
+		dev_err(gpadc->dev, "yes such channel %lu\n",
 			chan->address);
 		return -EINVAL;
 	}
@@ -970,7 +970,7 @@ static int ab8500_gpadc_runtime_resume(struct device *dev)
 /**
  * ab8500_gpadc_parse_channel() - process devicetree channel configuration
  * @dev: pointer to containing device
- * @np: device tree node for the channel to configure
+ * @np: device tree yesde for the channel to configure
  * @ch: channel info to fill in
  * @iio_chan: IIO channel specification to fill in
  *
@@ -978,7 +978,7 @@ static int ab8500_gpadc_runtime_resume(struct device *dev)
  * and define usage for things like AUX GPADC inputs more precisely.
  */
 static int ab8500_gpadc_parse_channel(struct device *dev,
-				      struct device_node *np,
+				      struct device_yesde *np,
 				      struct ab8500_gpadc_chan_info *ch,
 				      struct iio_chan_spec *iio_chan)
 {
@@ -1023,16 +1023,16 @@ static int ab8500_gpadc_parse_channel(struct device *dev,
 /**
  * ab8500_gpadc_parse_channels() - Parse the GPADC channels from DT
  * @gpadc: the GPADC to configure the channels for
- * @np: device tree node containing the channel configurations
+ * @np: device tree yesde containing the channel configurations
  * @chans: the IIO channels we parsed
  * @nchans: the number of IIO channels we parsed
  */
 static int ab8500_gpadc_parse_channels(struct ab8500_gpadc *gpadc,
-				       struct device_node *np,
+				       struct device_yesde *np,
 				       struct iio_chan_spec **chans_parsed,
 				       unsigned int *nchans_parsed)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	struct ab8500_gpadc_chan_info *ch;
 	struct iio_chan_spec *iio_chans;
 	unsigned int nchans;
@@ -1040,7 +1040,7 @@ static int ab8500_gpadc_parse_channels(struct ab8500_gpadc *gpadc,
 
 	nchans = of_get_available_child_count(np);
 	if (!nchans) {
-		dev_err(gpadc->dev, "no channel children\n");
+		dev_err(gpadc->dev, "yes channel children\n");
 		return -ENODEV;
 	}
 	dev_info(gpadc->dev, "found %d ADC channels\n", nchans);
@@ -1056,7 +1056,7 @@ static int ab8500_gpadc_parse_channels(struct ab8500_gpadc *gpadc,
 		return -ENOMEM;
 
 	i = 0;
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		struct iio_chan_spec *iio_chan;
 		int ret;
 
@@ -1066,7 +1066,7 @@ static int ab8500_gpadc_parse_channels(struct ab8500_gpadc *gpadc,
 		ret = ab8500_gpadc_parse_channel(gpadc->dev, child, ch,
 						 iio_chan);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 		i++;
@@ -1083,7 +1083,7 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	struct ab8500_gpadc *gpadc;
 	struct iio_dev *indio_dev;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct iio_chan_spec *iio_chans;
 	unsigned int n_iio_chans;
 	int ret;
@@ -1114,7 +1114,7 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 		return gpadc->irq_hw;
 	}
 
-	/* Initialize completion used to notify completion of conversion */
+	/* Initialize completion used to yestify completion of conversion */
 	init_completion(&gpadc->complete);
 
 	/* Request interrupts */
@@ -1153,7 +1153,7 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	}
 
 	/* Enable runtime PM */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev, AB8500_GPADC_AUTOSUSPEND_DELAY);
@@ -1164,7 +1164,7 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	pm_runtime_put(dev);
 
 	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = np;
+	indio_dev->dev.of_yesde = np;
 	indio_dev->name = "ab8500-gpadc";
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ab8500_gpadc_info;
@@ -1179,7 +1179,7 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 
 out_dis_pm:
 	pm_runtime_get_sync(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 	pm_runtime_disable(dev);
 	regulator_disable(gpadc->vddadc);
 
@@ -1192,7 +1192,7 @@ static int ab8500_gpadc_remove(struct platform_device *pdev)
 	struct ab8500_gpadc *gpadc = iio_priv(indio_dev);
 
 	pm_runtime_get_sync(gpadc->dev);
-	pm_runtime_put_noidle(gpadc->dev);
+	pm_runtime_put_yesidle(gpadc->dev);
 	pm_runtime_disable(gpadc->dev);
 	regulator_disable(gpadc->vddadc);
 

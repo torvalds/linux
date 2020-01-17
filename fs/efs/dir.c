@@ -16,18 +16,18 @@ const struct file_operations efs_dir_operations = {
 	.iterate_shared	= efs_readdir,
 };
 
-const struct inode_operations efs_dir_inode_operations = {
+const struct iyesde_operations efs_dir_iyesde_operations = {
 	.lookup		= efs_lookup,
 };
 
 static int efs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	efs_block_t		block;
 	int			slot;
 
-	if (inode->i_size & (EFS_DIRBSIZE-1))
-		pr_warn("%s(): directory size not a multiple of EFS_DIRBSIZE\n",
+	if (iyesde->i_size & (EFS_DIRBSIZE-1))
+		pr_warn("%s(): directory size yest a multiple of EFS_DIRBSIZE\n",
 			__func__);
 
 	/* work out where this entry can be found */
@@ -37,12 +37,12 @@ static int efs_readdir(struct file *file, struct dir_context *ctx)
 	slot  = ctx->pos & 0xff;
 
 	/* look at all blocks */
-	while (block < inode->i_blocks) {
+	while (block < iyesde->i_blocks) {
 		struct efs_dir		*dirblock;
 		struct buffer_head *bh;
 
 		/* read the dir block */
-		bh = sb_bread(inode->i_sb, efs_bmap(inode, block));
+		bh = sb_bread(iyesde->i_sb, efs_bmap(iyesde, block));
 
 		if (!bh) {
 			pr_err("%s(): failed to read dir block %d\n",
@@ -60,7 +60,7 @@ static int efs_readdir(struct file *file, struct dir_context *ctx)
 
 		for (; slot < dirblock->slots; slot++) {
 			struct efs_dentry *dirslot;
-			efs_ino_t inodenum;
+			efs_iyes_t iyesdenum;
 			const char *nameptr;
 			int namelen;
 
@@ -69,12 +69,12 @@ static int efs_readdir(struct file *file, struct dir_context *ctx)
 
 			dirslot  = (struct efs_dentry *) (((char *) bh->b_data) + EFS_SLOTAT(dirblock, slot));
 
-			inodenum = be32_to_cpu(dirslot->inode);
+			iyesdenum = be32_to_cpu(dirslot->iyesde);
 			namelen  = dirslot->namelen;
 			nameptr  = dirslot->name;
-			pr_debug("%s(): block %d slot %d/%d: inode %u, name \"%s\", namelen %u\n",
+			pr_debug("%s(): block %d slot %d/%d: iyesde %u, name \"%s\", namelen %u\n",
 				 __func__, block, slot, dirblock->slots-1,
-				 inodenum, nameptr, namelen);
+				 iyesdenum, nameptr, namelen);
 			if (!namelen)
 				continue;
 			/* found the next entry */
@@ -88,7 +88,7 @@ static int efs_readdir(struct file *file, struct dir_context *ctx)
 			}
 
 			/* copy filename and data in dirslot */
-			if (!dir_emit(ctx, nameptr, namelen, inodenum, DT_UNKNOWN)) {
+			if (!dir_emit(ctx, nameptr, namelen, iyesdenum, DT_UNKNOWN)) {
 				brelse(bh);
 				return 0;
 			}

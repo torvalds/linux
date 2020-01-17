@@ -5,12 +5,12 @@ Contact:	Richard Purdie <rpurdie@rpsys.net>
 Description:
 		Set the brightness of the LED. Most LEDs don't
 		have hardware brightness support, so will just be turned on for
-		non-zero brightness settings. The value is between 0 and
+		yesn-zero brightness settings. The value is between 0 and
 		/sys/class/leds/<led>/max_brightness.
 
 		Writing 0 to this file clears active trigger.
 
-		Writing non-zero to this file while trigger is active changes the
+		Writing yesn-zero to this file while trigger is active changes the
 		top brightness trigger is going to use.
 
 What:		/sys/class/leds/<led>/max_brightness
@@ -20,7 +20,7 @@ Contact:	Richard Purdie <rpurdie@rpsys.net>
 Description:
 		Maximum brightness level for this LED, default is 255 (LED_FULL).
 
-		If the LED does not support different brightness levels, this
+		If the LED does yest support different brightness levels, this
 		should be 1.
 
 What:		/sys/class/leds/<led>/brightness_hw_changed
@@ -28,7 +28,7 @@ Date:		January 2017
 KernelVersion:	4.11
 Description:
 		Last hardware set brightness level for this LED. Some LEDs
-		may be changed autonomously by hardware/firmware. Only LEDs
+		may be changed autoyesmously by hardware/firmware. Only LEDs
 		where this happens and the driver can detect this, will have
 		this file.
 
@@ -37,7 +37,7 @@ Description:
 
 		Reading this file will return the last brightness level set
 		by the hardware, this may be different from the current
-		brightness. Reading this file when no hw brightness change
+		brightness. Reading this file when yes hw brightness change
 		event has happened will return an ENODATA error.
 
 What:		/sys/class/leds/<led>/trigger

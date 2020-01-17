@@ -27,7 +27,7 @@ static void __iomem *cs5530_port_base(struct ata_port *ap)
 {
 	unsigned long bmdma = (unsigned long)ap->ioaddr.bmdma_addr;
 
-	return (void __iomem *)((bmdma & ~0x0F) + 0x20 + 0x10 * ap->port_no);
+	return (void __iomem *)((bmdma & ~0x0F) + 0x20 + 0x10 * ap->port_yes);
 }
 
 /**
@@ -54,7 +54,7 @@ static void cs5530_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	format = (tuning & 0x80000000UL) ? 1 : 0;
 
 	/* Now load the right timing register */
-	if (adev->devno)
+	if (adev->devyes)
 		base += 0x08;
 
 	iowrite32(cs5530_pio_timings[format][adev->pio_mode - XFER_PIO_0], base);
@@ -65,7 +65,7 @@ static void cs5530_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	@ap: ATA interface
  *	@adev: Device being configured
  *
- *	We cannot mix MWDMA and UDMA without reloading timings each switch
+ *	We canyest mix MWDMA and UDMA without reloading timings each switch
  *	master to slave. We track the last DMA setup in order to minimise
  *	reloads.
  */
@@ -97,7 +97,7 @@ static void cs5530_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	}
 	/* Merge in the PIO format bit */
 	timing |= (tuning & 0x80000000UL);
-	if (adev->devno == 0) /* Master */
+	if (adev->devyes == 0) /* Master */
 		iowrite32(timing, base + 0x04);
 	else {
 		if (timing & 0x00100000)
@@ -110,7 +110,7 @@ static void cs5530_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 	/* Set the DMA capable bit in the BMDMA area */
 	reg = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-	reg |= (1 << (5 + adev->devno));
+	reg |= (1 << (5 + adev->devyes));
 	iowrite8(reg, ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 
 	/* Remember the last DMA setup we did */
@@ -288,7 +288,7 @@ static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.udma_mask = ATA_UDMA2,
 		.port_ops = &cs5530_port_ops
 	};
-	/* The docking connector doesn't do UDMA, and it seems not MWDMA */
+	/* The docking connector doesn't do UDMA, and it seems yest MWDMA */
 	static const struct ata_port_info info_palmax_secondary = {
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = ATA_PIO4,

@@ -47,7 +47,7 @@ echo 1 > events/kprobes1/event1/enable
 modprobe trace-printk
 grep "event1:" trace
 
-:;: "Remove the module again and check the event is not locked"
+:;: "Remove the module again and check the event is yest locked"
 rmmod trace-printk
 echo 0 > events/kprobes1/event1/enable
 echo "-:kprobes1/event1" >> kprobe_events

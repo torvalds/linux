@@ -19,7 +19,7 @@
 #include <linux/crc32.h>
 #include <linux/sched.h>
 #include <linux/pagemap.h>
-#include "nodelist.h"
+#include "yesdelist.h"
 
 static void jffs2_erase_failed(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb, uint32_t bad_offset);
 static void jffs2_erase_succeeded(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb);
@@ -92,7 +92,7 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 		pr_warn("Erase at 0x%08x failed immediately: -EROFS. Is the sector locked?\n",
 			jeb->offset);
 	else
-		pr_warn("Erase at 0x%08x failed immediately: errno %d\n",
+		pr_warn("Erase at 0x%08x failed immediately: erryes %d\n",
 			jeb->offset, ret);
 
 	jffs2_erase_failed(c, jeb, bad_offset);
@@ -134,7 +134,7 @@ int jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 			c->used_size -= jeb->used_size;
 			c->dirty_size -= jeb->dirty_size;
 			jeb->wasted_size = jeb->used_size = jeb->dirty_size = jeb->free_size = 0;
-			jffs2_free_jeb_node_refs(c, jeb);
+			jffs2_free_jeb_yesde_refs(c, jeb);
 			list_add(&jeb->list, &c->erasing_list);
 			spin_unlock(&c->erase_completion_lock);
 			mutex_unlock(&c->erase_free_sem);
@@ -173,13 +173,13 @@ static void jffs2_erase_succeeded(struct jffs2_sb_info *c, struct jffs2_eraseblo
 
 static void jffs2_erase_failed(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb, uint32_t bad_offset)
 {
-	/* For NAND, if the failure did not occur at the device level for a
+	/* For NAND, if the failure did yest occur at the device level for a
 	   specific physical page, don't bother updating the bad block table. */
 	if (jffs2_cleanmarker_oob(c) && (bad_offset != (uint32_t)MTD_FAIL_ADDR_UNKNOWN)) {
 		/* We had a device-level failure to erase.  Let's see if we've
 		   failed too many times. */
 		if (!jffs2_write_nand_badblock(c, jeb, bad_offset)) {
-			/* We'd like to give this block another try. */
+			/* We'd like to give this block ayesther try. */
 			mutex_lock(&c->erase_free_sem);
 			spin_lock(&c->erase_completion_lock);
 			list_move(&jeb->list, &c->erase_pending_list);
@@ -205,32 +205,32 @@ static void jffs2_erase_failed(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 
 /* Hmmm. Maybe we should accept the extra space it takes and make
    this a standard doubly-linked list? */
-static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
-			struct jffs2_raw_node_ref *ref, struct jffs2_eraseblock *jeb)
+static inline void jffs2_remove_yesde_refs_from_iyes_list(struct jffs2_sb_info *c,
+			struct jffs2_raw_yesde_ref *ref, struct jffs2_eraseblock *jeb)
 {
-	struct jffs2_inode_cache *ic = NULL;
-	struct jffs2_raw_node_ref **prev;
+	struct jffs2_iyesde_cache *ic = NULL;
+	struct jffs2_raw_yesde_ref **prev;
 
-	prev = &ref->next_in_ino;
+	prev = &ref->next_in_iyes;
 
-	/* Walk the inode's list once, removing any nodes from this eraseblock */
+	/* Walk the iyesde's list once, removing any yesdes from this eraseblock */
 	while (1) {
-		if (!(*prev)->next_in_ino) {
-			/* We're looking at the jffs2_inode_cache, which is
+		if (!(*prev)->next_in_iyes) {
+			/* We're looking at the jffs2_iyesde_cache, which is
 			   at the end of the linked list. Stash it and continue
 			   from the beginning of the list */
-			ic = (struct jffs2_inode_cache *)(*prev);
-			prev = &ic->nodes;
+			ic = (struct jffs2_iyesde_cache *)(*prev);
+			prev = &ic->yesdes;
 			continue;
 		}
 
 		if (SECTOR_ADDR((*prev)->flash_offset) == jeb->offset) {
 			/* It's in the block we're erasing */
-			struct jffs2_raw_node_ref *this;
+			struct jffs2_raw_yesde_ref *this;
 
 			this = *prev;
-			*prev = this->next_in_ino;
-			this->next_in_ino = NULL;
+			*prev = this->next_in_iyes;
+			this->next_in_iyes = NULL;
 
 			if (this == ref)
 				break;
@@ -238,25 +238,25 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 			continue;
 		}
 		/* Not to be deleted. Skip */
-		prev = &((*prev)->next_in_ino);
+		prev = &((*prev)->next_in_iyes);
 	}
 
 	/* PARANOIA */
 	if (!ic) {
-		JFFS2_WARNING("inode_cache/xattr_datum/xattr_ref"
-			      " not found in remove_node_refs()!!\n");
+		JFFS2_WARNING("iyesde_cache/xattr_datum/xattr_ref"
+			      " yest found in remove_yesde_refs()!!\n");
 		return;
 	}
 
-	jffs2_dbg(1, "Removed nodes in range 0x%08x-0x%08x from ino #%u\n",
-		  jeb->offset, jeb->offset + c->sector_size, ic->ino);
+	jffs2_dbg(1, "Removed yesdes in range 0x%08x-0x%08x from iyes #%u\n",
+		  jeb->offset, jeb->offset + c->sector_size, ic->iyes);
 
 	D2({
 		int i=0;
-		struct jffs2_raw_node_ref *this;
-		printk(KERN_DEBUG "After remove_node_refs_from_ino_list: \n");
+		struct jffs2_raw_yesde_ref *this;
+		printk(KERN_DEBUG "After remove_yesde_refs_from_iyes_list: \n");
 
-		this = ic->nodes;
+		this = ic->yesdes;
 
 		printk(KERN_DEBUG);
 		while(this) {
@@ -266,7 +266,7 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 				printk(KERN_DEBUG);
 				i=0;
 			}
-			this = this->next_in_ino;
+			this = this->next_in_iyes;
 		}
 		pr_cont("\n");
 	});
@@ -281,33 +281,33 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 			break;
 #endif
 		default:
-			if (ic->nodes == (void *)ic && ic->pino_nlink == 0)
-				jffs2_del_ino_cache(c, ic);
+			if (ic->yesdes == (void *)ic && ic->piyes_nlink == 0)
+				jffs2_del_iyes_cache(c, ic);
 	}
 }
 
-void jffs2_free_jeb_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
+void jffs2_free_jeb_yesde_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
 {
-	struct jffs2_raw_node_ref *block, *ref;
-	jffs2_dbg(1, "Freeing all node refs for eraseblock offset 0x%08x\n",
+	struct jffs2_raw_yesde_ref *block, *ref;
+	jffs2_dbg(1, "Freeing all yesde refs for eraseblock offset 0x%08x\n",
 		  jeb->offset);
 
-	block = ref = jeb->first_node;
+	block = ref = jeb->first_yesde;
 
 	while (ref) {
 		if (ref->flash_offset == REF_LINK_NODE) {
-			ref = ref->next_in_ino;
+			ref = ref->next_in_iyes;
 			jffs2_free_refblock(block);
 			block = ref;
 			continue;
 		}
-		if (ref->flash_offset != REF_EMPTY_NODE && ref->next_in_ino)
-			jffs2_remove_node_refs_from_ino_list(c, ref, jeb);
-		/* else it was a non-inode node or already removed, so don't bother */
+		if (ref->flash_offset != REF_EMPTY_NODE && ref->next_in_iyes)
+			jffs2_remove_yesde_refs_from_iyes_list(c, ref, jeb);
+		/* else it was a yesn-iyesde yesde or already removed, so don't bother */
 
 		ref++;
 	}
-	jeb->first_node = jeb->last_node = NULL;
+	jeb->first_yesde = jeb->last_yesde = NULL;
 }
 
 static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb, uint32_t *bad_offset)
@@ -378,7 +378,7 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 			goto fail;
 		}
 		for (i=0; i<readlen; i += sizeof(unsigned long)) {
-			/* It's OK. We know it's properly aligned */
+			/* It's OK. We kyesw it's properly aligned */
 			unsigned long *datum = ebuf + i;
 			if (*datum + 1) {
 				*bad_offset += i;
@@ -412,7 +412,7 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 	jffs2_dbg(1, "Writing erased marker to block at 0x%08x\n", jeb->offset);
 	bad_offset = jeb->offset;
 
-	/* Cleanmarker in oob area or no cleanmarker at all ? */
+	/* Cleanmarker in oob area or yes cleanmarker at all ? */
 	if (jffs2_cleanmarker_oob(c) || c->cleanmarker_size == 0) {
 
 		if (jffs2_cleanmarker_oob(c)) {
@@ -422,15 +422,15 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 	} else {
 
 		struct kvec vecs[1];
-		struct jffs2_unknown_node marker = {
+		struct jffs2_unkyeswn_yesde marker = {
 			.magic =	cpu_to_je16(JFFS2_MAGIC_BITMASK),
-			.nodetype =	cpu_to_je16(JFFS2_NODETYPE_CLEANMARKER),
+			.yesdetype =	cpu_to_je16(JFFS2_NODETYPE_CLEANMARKER),
 			.totlen =	cpu_to_je32(c->cleanmarker_size)
 		};
 
-		jffs2_prealloc_raw_node_refs(c, jeb, 1);
+		jffs2_prealloc_raw_yesde_refs(c, jeb, 1);
 
-		marker.hdr_crc = cpu_to_je32(crc32(0, &marker, sizeof(struct jffs2_unknown_node)-4));
+		marker.hdr_crc = cpu_to_je32(crc32(0, &marker, sizeof(struct jffs2_unkyeswn_yesde)-4));
 
 		vecs[0].iov_base = (unsigned char *) &marker;
 		vecs[0].iov_len = sizeof(marker);
@@ -456,16 +456,16 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 	c->erasing_size -= c->sector_size;
 	c->free_size += c->sector_size;
 
-	/* Account for cleanmarker now, if it's in-band */
+	/* Account for cleanmarker yesw, if it's in-band */
 	if (c->cleanmarker_size && !jffs2_cleanmarker_oob(c))
-		jffs2_link_node_ref(c, jeb, jeb->offset | REF_NORMAL, c->cleanmarker_size, NULL);
+		jffs2_link_yesde_ref(c, jeb, jeb->offset | REF_NORMAL, c->cleanmarker_size, NULL);
 
 	list_move_tail(&jeb->list, &c->free_list);
 	c->nr_erasing_blocks--;
 	c->nr_free_blocks++;
 
-	jffs2_dbg_acct_sanity_check_nolock(c, jeb);
-	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
+	jffs2_dbg_acct_sanity_check_yeslock(c, jeb);
+	jffs2_dbg_acct_parayesia_check_yeslock(c, jeb);
 
 	spin_unlock(&c->erase_completion_lock);
 	mutex_unlock(&c->erase_free_sem);

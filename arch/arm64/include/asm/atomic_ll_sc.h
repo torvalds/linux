@@ -127,7 +127,7 @@ ATOMIC_OPS(xor, eor, K)
  * an AND (immediate) instruction with the immediate inverted. We don't
  * have a constraint for this, so fall back to register.
  */
-ATOMIC_OPS(andnot, bic, )
+ATOMIC_OPS(andyest, bic, )
 
 #undef ATOMIC_OPS
 #undef ATOMIC_FETCH_OP
@@ -226,7 +226,7 @@ ATOMIC64_OPS(xor, eor, L)
  * an AND (immediate) instruction with the immediate inverted. We don't
  * have a constraint for this, so fall back to register.
  */
-ATOMIC64_OPS(andnot, bic, )
+ATOMIC64_OPS(andyest, bic, )
 
 #undef ATOMIC64_OPS
 #undef ATOMIC64_FETCH_OP
@@ -267,7 +267,7 @@ __ll_sc__cmpxchg_case_##name##sz(volatile void *ptr,			\
 									\
 	/*								\
 	 * Sub-word sizes require explicit casting so that the compare  \
-	 * part of the cmpxchg doesn't end up interpreting non-zero	\
+	 * part of the cmpxchg doesn't end up interpreting yesn-zero	\
 	 * upper bits of the register containing "old".			\
 	 */								\
 	if (sz < 32)							\
@@ -292,8 +292,8 @@ __ll_sc__cmpxchg_case_##name##sz(volatile void *ptr,			\
 }
 
 /*
- * Earlier versions of GCC (no later than 8.1.0) appear to incorrectly
- * handle the 'K' constraint for the value 4294967295 - thus we use no
+ * Earlier versions of GCC (yes later than 8.1.0) appear to incorrectly
+ * handle the 'K' constraint for the value 4294967295 - thus we use yes
  * constraint for 32 bit operations.
  */
 __CMPXCHG_CASE(w, b,     ,  8,        ,  ,  ,         , K)

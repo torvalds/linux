@@ -52,7 +52,7 @@
 #include "common.h"
 
 static struct map_desc n30_iodesc[] __initdata = {
-	/* nothing here yet */
+	/* yesthing here yet */
 };
 
 static struct s3c2410_uartcfg n30_uartcfgs[] = {
@@ -403,9 +403,9 @@ static struct s3c2410_platform_i2c __initdata n30_i2ccfg = {
  * state so that we can boot Linux directly from flash. */
 static void __init n30_hwinit(void)
 {
-	/* GPA0-11 special functions -- unknown what they do
-	 * GPA12 N30 special function -- unknown what it does
-	 *       N35/PiN output -- unknown what it does
+	/* GPA0-11 special functions -- unkyeswn what they do
+	 * GPA12 N30 special function -- unkyeswn what it does
+	 *       N35/PiN output -- unkyeswn what it does
 	 *
 	 * A12 is nGCS1 on the N30 and an output on the N35/PiN.  I
 	 * don't think it does anything useful on the N30, so I ought
@@ -421,11 +421,11 @@ static void __init n30_hwinit(void)
 	 * GPB1 output 1=backlight on
 	 * GPB2 output IrDA enable 0=transceiver enabled, 1=disabled
 	 * GPB3 output USB D+ pull up 0=disabled, 1=enabled
-	 * GPB4 N30 output -- unknown function
+	 * GPB4 N30 output -- unkyeswn function
 	 *      N30/PiN GPS control 0=GPS enabled, 1=GPS disabled
-	 * GPB5 output -- unknown function
-	 * GPB6 input -- unknown function
-	 * GPB7 output -- unknown function
+	 * GPB5 output -- unkyeswn function
+	 * GPB6 input -- unkyeswn function
+	 * GPB7 output -- unkyeswn function
 	 * GPB8 output -- probably LCD driver enable
 	 * GPB9 output -- probably LCD VSYNC driver enable
 	 * GPB10 output -- probably LCD HSYNC driver enable
@@ -440,12 +440,12 @@ static void __init n30_hwinit(void)
 	 * GPC3 input RS232 DCD/DSR/RI
 	 * GPC4 LCD
 	 * GPC5 output 0=NAND write enabled, 1=NAND write protect
-	 * GPC6 input -- unknown function
+	 * GPC6 input -- unkyeswn function
 	 * GPC7 input charger status 0=charger connected
 	 *      this input can be triggered by power on the USB device
 	 *      port too, but will go back to disconnected soon after.
-	 * GPC8 N30/N35 output -- unknown function, always driven to 1
-	 *      PiN input -- unknown function, always read as 1
+	 * GPC8 N30/N35 output -- unkyeswn function, always driven to 1
+	 *      PiN input -- unkyeswn function, always read as 1
 	 *      Make it an input with a pull up for all models.
 	 * GPC9-15 LCD
 	 */
@@ -453,12 +453,12 @@ static void __init n30_hwinit(void)
 	__raw_writel(0x0000014c, S3C2410_GPCDAT);
 	__raw_writel(0x0000fef2, S3C2410_GPCUP);
 
-	/* GPD0 input -- unknown function
+	/* GPD0 input -- unkyeswn function
 	 * GPD1-D7 LCD
-	 * GPD8 N30 output -- unknown function
+	 * GPD8 N30 output -- unkyeswn function
 	 *      N35/PiN output 1=GPS LED on
-	 * GPD9 output 0=power led blinks red, 1=normal power led function
-	 * GPD10 output -- unknown function
+	 * GPD9 output 0=power led blinks red, 1=yesrmal power led function
+	 * GPD10 output -- unkyeswn function
 	 * GPD11-15 LCD drivers
 	 */
 	__raw_writel(0xaa95aaa4, S3C2410_GPDCON);
@@ -467,7 +467,7 @@ static void __init n30_hwinit(void)
 
 	/* GPE0-4 I2S audio bus
 	 * GPE5-10 SD/MMC bus
-	 * E11-13 outputs -- unknown function, probably power management
+	 * E11-13 outputs -- unkyeswn function, probably power management
 	 * E14-15 I2C bus connected to the battery controller
 	 */
 	__raw_writel(0xa56aaaaa, S3C2410_GPECON);
@@ -478,7 +478,7 @@ static void __init n30_hwinit(void)
 	 * GPF1  input SD/MMC switch 0=card present
 	 * GPF2  N30 1=reset button pressed (inverted compared to the rest)
 	 *	 N35/PiN 0=reset button pressed
-	 * GPF3  N30/PiN input -- unknown function
+	 * GPF3  N30/PiN input -- unkyeswn function
 	 *       N35 input GPS antenna position, 0=antenna closed, 1=open
 	 * GPF4  input 0=button 4 pressed
 	 * GPF5  input 0=button 3 pressed
@@ -491,10 +491,10 @@ static void __init n30_hwinit(void)
 
 	/* GPG0  input RS232 DCD/DSR/RI
 	 * GPG1  input 1=USB gadget port has power from a host
-	 * GPG2  N30 input -- unknown function
-	 *       N35/PiN input 0=headphones plugged in, 1=not plugged in
-	 * GPG3  N30 output -- unknown function
-	 *       N35/PiN input with unknown function
+	 * GPG2  N30 input -- unkyeswn function
+	 *       N35/PiN input 0=headphones plugged in, 1=yest plugged in
+	 * GPG3  N30 output -- unkyeswn function
+	 *       N35/PiN input with unkyeswn function
 	 * GPG4  N30 output 0=MMC enabled, 1=MMC disabled
 	 * GPG5  N30 output 0=BlueTooth chip disabled, 1=enabled
 	 *       N35/PiN input joystick right
@@ -504,9 +504,9 @@ static void __init n30_hwinit(void)
 	 * GPG8  input 0=thumbwheel down
 	 * GPG9  input 0=thumbwheel up
 	 * GPG10 input SD/MMC write protect switch
-	 * GPG11 N30 input -- unknown function
-	 *       N35 output 0=GPS antenna powered, 1=not powered
-	 *       PiN output -- unknown function
+	 * GPG11 N30 input -- unkyeswn function
+	 *       N35 output 0=GPS antenna powered, 1=yest powered
+	 *       PiN output -- unkyeswn function
 	 * GPG12-15 touch screen functions
 	 *
 	 * The pullups differ between the models, so enable all
@@ -523,13 +523,13 @@ static void __init n30_hwinit(void)
 	 * GPH4/5 IrDA serial port
 	 * GPH6/7  N30 BlueTooth serial port
 	 *         N35/PiN GPS receiver
-	 * GPH8 input -- unknown function
-	 * GPH9 CLKOUT0 HCLK -- unknown use
-	 * GPH10 CLKOUT1 FCLK -- unknown use
+	 * GPH8 input -- unkyeswn function
+	 * GPH9 CLKOUT0 HCLK -- unkyeswn use
+	 * GPH10 CLKOUT1 FCLK -- unkyeswn use
 	 *
-	 * The pull ups for H6/H7 are enabled on N30 but not on the
+	 * The pull ups for H6/H7 are enabled on N30 but yest on the
 	 * N35/PiN.  I suppose is useful for a budget model of the N30
-	 * with no bluetooth.  It doesn't hurt to have the pull ups
+	 * with yes bluetooth.  It doesn't hurt to have the pull ups
 	 * enabled on the N35, so leave them enabled for all models.
 	 */
 	__raw_writel(0x0028aaaa, S3C2410_GPHCON);
@@ -583,7 +583,7 @@ static void __init n30_init(void)
 	if (machine_is_n35()) {
 		/* Turn off suspend and switch the selectable USB port
 		 * to USB device mode.  Turn on suspend for the host
-		 * port since it is not connected on the N35.
+		 * port since it is yest connected on the N35.
 		 *
 		 * Actually, the host port is available at some pads
 		 * on the back of the device, so it would actually be

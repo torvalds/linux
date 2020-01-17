@@ -287,7 +287,7 @@ static const struct attribute_group emc1404_group = {
  * EMC14x2 uses a different register and different bits to report alarm and
  * fault status. For simplicity, provide a separate attribute group for this
  * chip series.
- * Since we can not re-use the same attribute names, create a separate attribute
+ * Since we can yest re-use the same attribute names, create a separate attribute
  * array.
  */
 static struct sensor_device_attribute_2 emc1402_alarms[] = {

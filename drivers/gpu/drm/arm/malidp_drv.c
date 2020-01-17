@@ -239,7 +239,7 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 
 	/*
 	 * set config_valid to a special value to let IRQ handlers
-	 * know that we are updating registers
+	 * kyesw that we are updating registers
 	 */
 	atomic_set(&malidp->config_valid, MALIDP_CONFIG_START);
 	malidp->dev->hw->set_config_valid(malidp->dev, 0);
@@ -315,7 +315,7 @@ malidp_verify_afbc_framebuffer_size(struct drm_device *dev,
 		afbc_superblock_width = 16;
 		break;
 	default:
-		DRM_DEBUG_KMS("AFBC superblock size is not supported\n");
+		DRM_DEBUG_KMS("AFBC superblock size is yest supported\n");
 		return false;
 	}
 
@@ -432,12 +432,12 @@ static int malidp_irq_init(struct platform_device *pdev)
 	/* fetch the interrupts from DT */
 	irq_de = platform_get_irq_byname(pdev, "DE");
 	if (irq_de < 0) {
-		DRM_ERROR("no 'DE' IRQ specified!\n");
+		DRM_ERROR("yes 'DE' IRQ specified!\n");
 		return irq_de;
 	}
 	irq_se = platform_get_irq_byname(pdev, "SE");
 	if (irq_se < 0) {
-		DRM_ERROR("no 'SE' IRQ specified!\n");
+		DRM_ERROR("yes 'SE' IRQ specified!\n");
 		return irq_se;
 	}
 
@@ -519,9 +519,9 @@ static int malidp_show_stats(struct seq_file *m, void *arg)
 	return 0;
 }
 
-static int malidp_debugfs_open(struct inode *inode, struct file *file)
+static int malidp_debugfs_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, malidp_show_stats, inode->i_private);
+	return single_open(file, malidp_show_stats, iyesde->i_private);
 }
 
 static ssize_t malidp_debugfs_write(struct file *file, const char __user *ubuf,
@@ -548,15 +548,15 @@ static const struct file_operations malidp_debugfs_fops = {
 	.release = single_release,
 };
 
-static int malidp_debugfs_init(struct drm_minor *minor)
+static int malidp_debugfs_init(struct drm_miyesr *miyesr)
 {
-	struct malidp_drm *malidp = minor->dev->dev_private;
+	struct malidp_drm *malidp = miyesr->dev->dev_private;
 
 	malidp_error_stats_init(&malidp->de_errors);
 	malidp_error_stats_init(&malidp->se_errors);
 	spin_lock_init(&malidp->errors_lock);
-	debugfs_create_file("debug", S_IRUGO | S_IWUSR, minor->debugfs_root,
-			    minor->dev, &malidp_debugfs_fops);
+	debugfs_create_file("debug", S_IRUGO | S_IWUSR, miyesr->debugfs_root,
+			    miyesr->dev, &malidp_debugfs_fops);
 	return 0;
 }
 
@@ -582,7 +582,7 @@ static struct drm_driver malidp_driver = {
 	.desc = "ARM Mali Display Processor driver",
 	.date = "20160106",
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 };
 
 static const struct of_device_id  malidp_drm_of_match[] = {
@@ -622,7 +622,7 @@ static bool malidp_is_compatible_hw_id(struct malidp_hw_device *hwdev,
 			      sizeof(dev_id->compatible)) != NULL;
 	if (is_dp500 != dt_is_dp500) {
 		DRM_ERROR("Device-tree expects %s, but hardware %s DP500.\n",
-			  dev_id->compatible, is_dp500 ? "is" : "is not");
+			  dev_id->compatible, is_dp500 ? "is" : "is yest");
 		return false;
 	} else if (!dt_is_dp500) {
 		u16 product_id;
@@ -817,14 +817,14 @@ static int malidp_bind(struct device *dev)
 
 	malidp->core_id = version;
 
-	ret = of_property_read_u32(dev->of_node,
+	ret = of_property_read_u32(dev->of_yesde,
 					"arm,malidp-arqos-value",
 					&hwdev->arqos_value);
 	if (ret)
 		hwdev->arqos_value = 0x0;
 
 	/* set the number of lines used for output of RGB data */
-	ret = of_property_read_u8_array(dev->of_node,
+	ret = of_property_read_u8_array(dev->of_yesde,
 					"arm,malidp-output-port-lines",
 					output_width, MAX_OUTPUT_CHANNELS);
 	if (ret)
@@ -847,7 +847,7 @@ static int malidp_bind(struct device *dev)
 		goto init_fail;
 
 	/* Set the CRTC's port so that the encoder component can find it */
-	malidp->crtc.port = of_graph_get_port_by_id(dev->of_node, 0);
+	malidp->crtc.port = of_graph_get_port_by_id(dev->of_yesde, 0);
 
 	ret = component_bind_all(dev, drm);
 	if (ret) {
@@ -901,7 +901,7 @@ irq_init_fail:
 	drm_atomic_helper_shutdown(drm);
 	component_unbind_all(dev, drm);
 bind_fail:
-	of_node_put(malidp->crtc.port);
+	of_yesde_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
 init_fail:
 	malidp_fini_sysfs(dev);
@@ -936,7 +936,7 @@ static void malidp_unbind(struct device *dev)
 	drm->irq_enabled = false;
 	drm_atomic_helper_shutdown(drm);
 	component_unbind_all(dev, drm);
-	of_node_put(malidp->crtc.port);
+	of_yesde_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
 	malidp_fini_sysfs(dev);
 	malidp_fini(drm);
@@ -958,27 +958,27 @@ static const struct component_master_ops malidp_master_ops = {
 
 static int malidp_compare_dev(struct device *dev, void *data)
 {
-	struct device_node *np = data;
+	struct device_yesde *np = data;
 
-	return dev->of_node == np;
+	return dev->of_yesde == np;
 }
 
 static int malidp_platform_probe(struct platform_device *pdev)
 {
-	struct device_node *port;
+	struct device_yesde *port;
 	struct component_match *match = NULL;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	/* there is only one output port inside each device, find it */
-	port = of_graph_get_remote_node(pdev->dev.of_node, 0, 0);
+	port = of_graph_get_remote_yesde(pdev->dev.of_yesde, 0, 0);
 	if (!port)
 		return -ENODEV;
 
 	drm_of_component_match_add(&pdev->dev, &match, malidp_compare_dev,
 				   port);
-	of_node_put(port);
+	of_yesde_put(port);
 	return component_master_add_with_match(&pdev->dev, &malidp_master_ops,
 					       match);
 }

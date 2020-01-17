@@ -28,10 +28,10 @@
  * If an element is accessed at any point, it is removed from its list and
  * inserted at the head of the current most-recently-used list.
  *
- * The reaper function will have nothing to do until at least twelve seconds
+ * The reaper function will have yesthing to do until at least twelve seconds
  * have elapsed since the first element was added.  The reason for this is that
  * if it were called at t=11s, there could be elements in the first list that
- * have only been inactive for nine seconds, so it still does nothing.  If it is
+ * have only been inactive for nine seconds, so it still does yesthing.  If it is
  * called anywhere between t=12 and t=14 seconds, it will delete all the
  * elements that remain in the first list.  It's therefore possible for elements
  * to remain in the data store even after they've been inactive for up to
@@ -47,7 +47,7 @@
  * From a design perspective, the primary reason for the choice of a list array
  * representing discrete time intervals is that it's only practical to reap
  * expired elements in groups of some appreciable size.  This automatically
- * introduces a granularity to element lifetimes, so there's no point storing an
+ * introduces a granularity to element lifetimes, so there's yes point storing an
  * individual timeout with each element that specifies a more precise reap time.
  * The bonus is a saving of sizeof(long) bytes of memory per element stored.
  *
@@ -61,7 +61,7 @@
  * When an element is touched or deleted, it needs to be removed from its
  * current list.  Doubly linked lists are used to make the list maintenance
  * portion of these operations O(1).  Since reaper timing can be imprecise,
- * inserts and lookups can occur when there are no free lists available.  When
+ * inserts and lookups can occur when there are yes free lists available.  When
  * this happens, all the elements on the LRU list need to be migrated to the end
  * of the reap list.  To keep the list maintenance portion of these operations
  * O(1) also, list tails need to be accessible without walking the entire list.
@@ -82,7 +82,7 @@
  *    b) Look up a data store entry, then access its list entry directly.
  *
  * To achieve both of these goals, each entry must contain both a list entry and
- * a key, in addition to the user's data pointer.  Note that it's not a good
+ * a key, in addition to the user's data pointer.  Note that it's yest a good
  * idea to have the client embed one of these structures at the top of their own
  * data structure, because inserting the same item more than once would most
  * likely result in a loop in one of the lists.  That's a sure-fire recipe for
@@ -120,12 +120,12 @@ static struct workqueue_struct	*xfs_mru_reap_wq;
  * time_zero field, which is updated as each group is migrated.
  *
  * The return value is the earliest time that more migration could be needed, or
- * zero if there's no need to schedule more work because the lists are empty.
+ * zero if there's yes need to schedule more work because the lists are empty.
  */
 STATIC unsigned long
 _xfs_mru_cache_migrate(
 	struct xfs_mru_cache	*mru,
-	unsigned long		now)
+	unsigned long		yesw)
 {
 	unsigned int		grp;
 	unsigned int		migrated = 0;
@@ -136,7 +136,7 @@ _xfs_mru_cache_migrate(
 		return 0;
 
 	/* While time zero is older than the time spanned by all the lists. */
-	while (mru->time_zero <= now - mru->grp_count * mru->grp_time) {
+	while (mru->time_zero <= yesw - mru->grp_count * mru->grp_time) {
 
 		/*
 		 * If the LRU list isn't empty, migrate its elements to the tail
@@ -155,7 +155,7 @@ _xfs_mru_cache_migrate(
 
 		/*
 		 * If reaping is so far behind that all the elements on all the
-		 * lists have been migrated to the reap list, it's now empty.
+		 * lists have been migrated to the reap list, it's yesw empty.
 		 */
 		if (++migrated == mru->grp_count) {
 			mru->lru_grp = 0;
@@ -164,7 +164,7 @@ _xfs_mru_cache_migrate(
 		}
 	}
 
-	/* Find the first non-empty list from the LRU end. */
+	/* Find the first yesn-empty list from the LRU end. */
 	for (grp = 0; grp < mru->grp_count; grp++) {
 
 		/* Check the grp'th list from the LRU end. */
@@ -192,27 +192,27 @@ _xfs_mru_cache_list_insert(
 	struct xfs_mru_cache_elem *elem)
 {
 	unsigned int		grp = 0;
-	unsigned long		now = jiffies;
+	unsigned long		yesw = jiffies;
 
 	/*
 	 * If the data store is empty, initialise time zero, leave grp set to
 	 * zero and start the work queue timer if necessary.  Otherwise, set grp
 	 * to the number of group times that have elapsed since time zero.
 	 */
-	if (!_xfs_mru_cache_migrate(mru, now)) {
-		mru->time_zero = now;
+	if (!_xfs_mru_cache_migrate(mru, yesw)) {
+		mru->time_zero = yesw;
 		if (!mru->queued) {
 			mru->queued = 1;
 			queue_delayed_work(xfs_mru_reap_wq, &mru->work,
 			                   mru->grp_count * mru->grp_time);
 		}
 	} else {
-		grp = (now - mru->time_zero) / mru->grp_time;
+		grp = (yesw - mru->time_zero) / mru->grp_time;
 		grp = (mru->lru_grp + grp) % mru->grp_count;
 	}
 
 	/* Insert the element at the tail of the corresponding list. */
-	list_add_tail(&elem->list_node, mru->lists + grp);
+	list_add_tail(&elem->list_yesde, mru->lists + grp);
 }
 
 /*
@@ -222,7 +222,7 @@ _xfs_mru_cache_list_insert(
  * function and deleting the element from the element zone.
  *
  * We get called holding the mru->lock, which we drop and then reacquire.
- * Sparse need special help with this to tell it we know what we are doing.
+ * Sparse need special help with this to tell it we kyesw what we are doing.
  */
 STATIC void
 _xfs_mru_cache_clear_reap_list(
@@ -233,7 +233,7 @@ _xfs_mru_cache_clear_reap_list(
 	struct list_head	tmp;
 
 	INIT_LIST_HEAD(&tmp);
-	list_for_each_entry_safe(elem, next, &mru->reap_list, list_node) {
+	list_for_each_entry_safe(elem, next, &mru->reap_list, list_yesde) {
 
 		/* Remove the element from the data store. */
 		radix_tree_delete(&mru->store, elem->key);
@@ -242,12 +242,12 @@ _xfs_mru_cache_clear_reap_list(
 		 * remove to temp list so it can be freed without
 		 * needing to hold the lock
 		 */
-		list_move(&elem->list_node, &tmp);
+		list_move(&elem->list_yesde, &tmp);
 	}
 	spin_unlock(&mru->lock);
 
-	list_for_each_entry_safe(elem, next, &tmp, list_node) {
-		list_del_init(&elem->list_node);
+	list_for_each_entry_safe(elem, next, &tmp, list_yesde) {
+		list_del_init(&elem->list_yesde);
 		mru->free_func(mru->data, elem);
 	}
 
@@ -267,7 +267,7 @@ _xfs_mru_cache_reap(
 {
 	struct xfs_mru_cache	*mru =
 		container_of(work, struct xfs_mru_cache, work.work);
-	unsigned long		now, next;
+	unsigned long		yesw, next;
 
 	ASSERT(mru && mru->lists);
 	if (!mru || !mru->lists)
@@ -279,11 +279,11 @@ _xfs_mru_cache_reap(
 
 	mru->queued = next;
 	if ((mru->queued > 0)) {
-		now = jiffies;
-		if (next <= now)
+		yesw = jiffies;
+		if (next <= yesw)
 			next = 0;
 		else
-			next -= now;
+			next -= yesw;
 		queue_delayed_work(xfs_mru_reap_wq, &mru->work, next);
 	}
 
@@ -375,7 +375,7 @@ exit:
  * Call xfs_mru_cache_flush() to flush out all cached entries, calling their
  * free functions as they're deleted.  When this function returns, the caller is
  * guaranteed that all the free functions for all the elements have finished
- * executing and the reaper is not running.
+ * executing and the reaper is yest running.
  */
 static void
 xfs_mru_cache_flush(
@@ -430,7 +430,7 @@ xfs_mru_cache_insert(
 	if (radix_tree_preload(GFP_NOFS))
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&elem->list_node);
+	INIT_LIST_HEAD(&elem->list_yesde);
 	elem->key = key;
 
 	spin_lock(&mru->lock);
@@ -463,7 +463,7 @@ xfs_mru_cache_remove(
 	spin_lock(&mru->lock);
 	elem = radix_tree_delete(&mru->store, key);
 	if (elem)
-		list_del(&elem->list_node);
+		list_del(&elem->list_yesde);
 	spin_unlock(&mru->lock);
 
 	return elem;
@@ -492,7 +492,7 @@ xfs_mru_cache_delete(
  *
  * The internal data structures are protected by a spinlock that is STILL HELD
  * when this function returns.  Call xfs_mru_cache_done() to release it.  Note
- * that it is not safe to call any function that might sleep in the interim.
+ * that it is yest safe to call any function that might sleep in the interim.
  *
  * The implementation could have used reference counting to avoid this
  * restriction, but since most clients simply want to get, set or test a member
@@ -501,9 +501,9 @@ xfs_mru_cache_delete(
  * If the element isn't found, this function returns NULL and the spinlock is
  * released.  xfs_mru_cache_done() should NOT be called when this occurs.
  *
- * Because sparse isn't smart enough to know about conditional lock return
- * status, we need to help it get it right by annotating the path that does
- * not release the lock.
+ * Because sparse isn't smart eyesugh to kyesw about conditional lock return
+ * status, we need to help it get it right by anyestating the path that does
+ * yest release the lock.
  */
 struct xfs_mru_cache_elem *
 xfs_mru_cache_lookup(
@@ -519,9 +519,9 @@ xfs_mru_cache_lookup(
 	spin_lock(&mru->lock);
 	elem = radix_tree_lookup(&mru->store, key);
 	if (elem) {
-		list_del(&elem->list_node);
+		list_del(&elem->list_yesde);
 		_xfs_mru_cache_list_insert(mru, elem);
-		__release(mru_lock); /* help sparse not be stupid */
+		__release(mru_lock); /* help sparse yest be stupid */
 	} else
 		spin_unlock(&mru->lock);
 

@@ -44,7 +44,7 @@ static long scmi_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	/*
 	 * We can't figure out what rate it will be, so just return the
 	 * rate back to the caller. scmi_clk_recalc_rate() will be called
-	 * after the rate is set and we'll know what rate the clock is
+	 * after the rate is set and we'll kyesw what rate the clock is
 	 * running at then.
 	 */
 	if (clk->info->rate_discrete)
@@ -93,7 +93,7 @@ static const struct clk_ops scmi_clk_ops = {
 	/*
 	 * We can't provide enable/disable callback as we can't perform the same
 	 * in atomic context. Since the clock framework provides standard API
-	 * clk_prepare_enable that helps cases using clk_enable in non-atomic
+	 * clk_prepare_enable that helps cases using clk_enable in yesn-atomic
 	 * context, it should be fine providing prepare/unprepare.
 	 */
 	.prepare = scmi_clk_enable,
@@ -124,7 +124,7 @@ static int scmi_clocks_probe(struct scmi_device *sdev)
 	struct clk_hw **hws;
 	struct clk_hw_onecell_data *clk_data;
 	struct device *dev = &sdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const struct scmi_handle *handle = sdev->handle;
 
 	if (!handle || !handle->clk_ops)

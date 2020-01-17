@@ -1,7 +1,7 @@
 /*
- * Synopsys AXS10X SDP Generic PLL clock driver
+ * Syyespsys AXS10X SDP Generic PLL clock driver
  *
- * Copyright (C) 2017 Synopsys
+ * Copyright (C) 2017 Syyespsys
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -236,9 +236,9 @@ static int axs10x_pll_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(pll_clk->lock))
 		return PTR_ERR(pll_clk->lock);
 
-	init.name = dev->of_node->name;
+	init.name = dev->of_yesde->name;
 	init.ops = &axs10x_pll_ops;
-	parent_name = of_clk_get_parent_name(dev->of_node, 0);
+	parent_name = of_clk_get_parent_name(dev->of_yesde, 0);
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 	pll_clk->hw.init = &init;
@@ -256,17 +256,17 @@ static int axs10x_pll_clk_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_simple_get,
+	return of_clk_add_hw_provider(dev->of_yesde, of_clk_hw_simple_get,
 			&pll_clk->hw);
 }
 
 static int axs10x_pll_clk_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 	return 0;
 }
 
-static void __init of_axs10x_pll_clk_setup(struct device_node *node)
+static void __init of_axs10x_pll_clk_setup(struct device_yesde *yesde)
 {
 	const char *parent_name;
 	struct axs10x_pll_clk *pll_clk;
@@ -277,21 +277,21 @@ static void __init of_axs10x_pll_clk_setup(struct device_node *node)
 	if (!pll_clk)
 		return;
 
-	pll_clk->base = of_iomap(node, 0);
+	pll_clk->base = of_iomap(yesde, 0);
 	if (!pll_clk->base) {
 		pr_err("failed to map pll div registers\n");
 		goto err_free_pll_clk;
 	}
 
-	pll_clk->lock = of_iomap(node, 1);
+	pll_clk->lock = of_iomap(yesde, 1);
 	if (!pll_clk->lock) {
 		pr_err("failed to map pll lock register\n");
 		goto err_unmap_base;
 	}
 
-	init.name = node->name;
+	init.name = yesde->name;
 	init.ops = &axs10x_pll_ops;
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(yesde, 0);
 	init.parent_names = &parent_name;
 	init.num_parents = parent_name ? 1 : 0;
 	pll_clk->hw.init = &init;
@@ -299,13 +299,13 @@ static void __init of_axs10x_pll_clk_setup(struct device_node *node)
 
 	ret = clk_hw_register(NULL, &pll_clk->hw);
 	if (ret) {
-		pr_err("failed to register %pOFn clock\n", node);
+		pr_err("failed to register %pOFn clock\n", yesde);
 		goto err_unmap_lock;
 	}
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_simple_get, &pll_clk->hw);
+	ret = of_clk_add_hw_provider(yesde, of_clk_hw_simple_get, &pll_clk->hw);
 	if (ret) {
-		pr_err("failed to add hw provider for %pOFn clock\n", node);
+		pr_err("failed to add hw provider for %pOFn clock\n", yesde);
 		goto err_unregister_clk;
 	}
 
@@ -339,6 +339,6 @@ static struct platform_driver axs10x_pll_clk_driver = {
 };
 builtin_platform_driver(axs10x_pll_clk_driver);
 
-MODULE_AUTHOR("Vlad Zakharov <vzakhar@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys AXS10X SDP Generic PLL Clock Driver");
+MODULE_AUTHOR("Vlad Zakharov <vzakhar@syyespsys.com>");
+MODULE_DESCRIPTION("Syyespsys AXS10X SDP Generic PLL Clock Driver");
 MODULE_LICENSE("GPL v2");

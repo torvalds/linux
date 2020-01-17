@@ -11,14 +11,14 @@ static bool msm_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
 {
 	/* NOTE: we are *closer* to being able to get rid of
 	 * mutex_trylock_recursive().. the msm_gem code itself does
-	 * not need struct_mutex, although codepaths that can trigger
+	 * yest need struct_mutex, although codepaths that can trigger
 	 * shrinker are still called in code-paths that hold the
 	 * struct_mutex.
 	 *
 	 * Also, msm_obj->madv is protected by struct_mutex.
 	 *
 	 * The next step is probably split out a seperate lock for
-	 * protecting inactive_list, so that shrinker does not need
+	 * protecting inactive_list, so that shrinker does yest need
 	 * struct_mutex.
 	 */
 	switch (mutex_trylock_recursive(&dev->struct_mutex)) {
@@ -93,10 +93,10 @@ msm_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 }
 
 static int
-msm_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr)
+msm_gem_shrinker_vmap(struct yestifier_block *nb, unsigned long event, void *ptr)
 {
 	struct msm_drm_private *priv =
-		container_of(nb, struct msm_drm_private, vmap_notifier);
+		container_of(nb, struct msm_drm_private, vmap_yestifier);
 	struct drm_device *dev = priv->dev;
 	struct msm_gem_object *msm_obj;
 	unsigned unmapped = 0;
@@ -108,7 +108,7 @@ msm_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr)
 	list_for_each_entry(msm_obj, &priv->inactive_list, mm_list) {
 		if (is_vunmapable(msm_obj)) {
 			msm_gem_vunmap(&msm_obj->base, OBJ_LOCK_SHRINKER);
-			/* since we don't know any better, lets bail after a few
+			/* since we don't kyesw any better, lets bail after a few
 			 * and if necessary the shrinker will be invoked again.
 			 * Seems better than unmapping *everything*
 			 */
@@ -142,8 +142,8 @@ void msm_gem_shrinker_init(struct drm_device *dev)
 	priv->shrinker.seeks = DEFAULT_SEEKS;
 	WARN_ON(register_shrinker(&priv->shrinker));
 
-	priv->vmap_notifier.notifier_call = msm_gem_shrinker_vmap;
-	WARN_ON(register_vmap_purge_notifier(&priv->vmap_notifier));
+	priv->vmap_yestifier.yestifier_call = msm_gem_shrinker_vmap;
+	WARN_ON(register_vmap_purge_yestifier(&priv->vmap_yestifier));
 }
 
 /**
@@ -157,7 +157,7 @@ void msm_gem_shrinker_cleanup(struct drm_device *dev)
 	struct msm_drm_private *priv = dev->dev_private;
 
 	if (priv->shrinker.nr_deferred) {
-		WARN_ON(unregister_vmap_purge_notifier(&priv->vmap_notifier));
+		WARN_ON(unregister_vmap_purge_yestifier(&priv->vmap_yestifier));
 		unregister_shrinker(&priv->shrinker);
 	}
 }

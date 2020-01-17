@@ -7,7 +7,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
@@ -450,7 +450,7 @@ static int h5_rx_3wire_hdr(struct hci_uart *hu, unsigned char c)
 
 	if (h5->state != H5_ACTIVE &&
 	    H5_HDR_PKT_TYPE(hdr) != HCI_3WIRE_LINK_PKT) {
-		BT_ERR("Non-link packet received in non-active state");
+		BT_ERR("Non-link packet received in yesn-active state");
 		h5_reset_rx(h5);
 		return 0;
 	}
@@ -582,7 +582,7 @@ static int h5_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	}
 
 	if (h5->state != H5_ACTIVE) {
-		BT_ERR("Ignoring HCI data in non-active state");
+		BT_ERR("Igyesring HCI data in yesn-active state");
 		kfree_skb(skb);
 		return 0;
 	}
@@ -598,7 +598,7 @@ static int h5_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		break;
 
 	default:
-		BT_ERR("Unknown packet type %u", hci_skb_pkt_type(skb));
+		BT_ERR("Unkyeswn packet type %u", hci_skb_pkt_type(skb));
 		kfree_skb(skb);
 		break;
 	}
@@ -653,7 +653,7 @@ static struct sk_buff *h5_prepare_pkt(struct hci_uart *hu, u8 pkt_type,
 	int i;
 
 	if (!valid_packet_type(pkt_type)) {
-		BT_ERR("Unknown packet type %u", pkt_type);
+		BT_ERR("Unkyeswn packet type %u", pkt_type);
 		return NULL;
 	}
 
@@ -730,7 +730,7 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 		}
 
 		skb_queue_head(&h5->unrel, skb);
-		BT_ERR("Could not dequeue pkt because alloc_skb failed");
+		BT_ERR("Could yest dequeue pkt because alloc_skb failed");
 	}
 
 	spin_lock_irqsave_nested(&h5->unack.lock, flags, SINGLE_DEPTH_NESTING);
@@ -750,7 +750,7 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 		}
 
 		skb_queue_head(&h5->rel, skb);
-		BT_ERR("Could not dequeue pkt because alloc_skb failed");
+		BT_ERR("Could yest dequeue pkt because alloc_skb failed");
 	}
 
 unlock:

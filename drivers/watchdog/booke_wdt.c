@@ -22,7 +22,7 @@
  * Also, the wdt_period sets the watchdog timer period timeout.
  * For E500 cpus the wdt_period sets which bit changing from 0->1 will
  * trigger a watchdog timeout. This watchdog timeout will occur 3 times, the
- * first time nothing will happen, the second time a watchdog exception will
+ * first time yesthing will happen, the second time a watchdog exception will
  * occur, and the final time the board will reset.
  */
 
@@ -147,7 +147,7 @@ static void __booke_wdt_enable(void *data)
  *
  * This function is called on each CPU.  It disables the watchdog on that CPU.
  *
- * TCR[WRC] cannot be changed once it has been set to non-zero, but we can
+ * TCR[WRC] canyest be changed once it has been set to yesn-zero, but we can
  * effectively disable the watchdog by setting its period to the maximum value.
  */
 static void __booke_wdt_disable(void *data)
@@ -158,7 +158,7 @@ static void __booke_wdt_disable(void *data)
 	val &= ~(TCR_WIE | WDTP_MASK);
 	mtspr(SPRN_TCR, val);
 
-	/* clear status to make sure nothing is pending */
+	/* clear status to make sure yesthing is pending */
 	__booke_wdt_ping(NULL);
 
 }
@@ -215,13 +215,13 @@ static void __exit booke_wdt_exit(void)
 static int __init booke_wdt_init(void)
 {
 	int ret = 0;
-	bool nowayout = WATCHDOG_NOWAYOUT;
+	bool yeswayout = WATCHDOG_NOWAYOUT;
 
 	pr_info("powerpc book-e watchdog driver loaded\n");
 	booke_wdt_info.firmware_version = cur_cpu_spec->pvr_value;
 	booke_wdt_set_timeout(&booke_wdt_dev,
 			      period_to_sec(booke_wdt_period));
-	watchdog_set_nowayout(&booke_wdt_dev, nowayout);
+	watchdog_set_yeswayout(&booke_wdt_dev, yeswayout);
 	booke_wdt_dev.max_timeout = MAX_WDT_TIMEOUT;
 	if (booke_wdt_enabled)
 		booke_wdt_start(&booke_wdt_dev);

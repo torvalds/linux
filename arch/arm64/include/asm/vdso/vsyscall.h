@@ -24,7 +24,7 @@ struct vdso_data *__arm64_get_k_vdso_data(void)
 static __always_inline
 int __arm64_get_clock_mode(struct timekeeper *tk)
 {
-	u32 use_syscall = !tk->tkr_mono.clock->archdata.vdso_direct;
+	u32 use_syscall = !tk->tkr_moyes.clock->archdata.vdso_direct;
 
 	return use_syscall;
 }

@@ -39,7 +39,7 @@
  * @lockref: pointer to lockref structure
  *
  * This operation is only valid if you already hold a reference
- * to the object, so you know the count cannot be zero.
+ * to the object, so you kyesw the count canyest be zero.
  */
 void lockref_get(struct lockref *lockref)
 {
@@ -56,11 +56,11 @@ void lockref_get(struct lockref *lockref)
 EXPORT_SYMBOL(lockref_get);
 
 /**
- * lockref_get_not_zero - Increments count unless the count is 0 or dead
+ * lockref_get_yest_zero - Increments count unless the count is 0 or dead
  * @lockref: pointer to lockref structure
  * Return: 1 if count updated successfully or 0 if count was zero
  */
-int lockref_get_not_zero(struct lockref *lockref)
+int lockref_get_yest_zero(struct lockref *lockref)
 {
 	int retval;
 
@@ -81,14 +81,14 @@ int lockref_get_not_zero(struct lockref *lockref)
 	spin_unlock(&lockref->lock);
 	return retval;
 }
-EXPORT_SYMBOL(lockref_get_not_zero);
+EXPORT_SYMBOL(lockref_get_yest_zero);
 
 /**
- * lockref_put_not_zero - Decrements count unless count <= 1 before decrement
+ * lockref_put_yest_zero - Decrements count unless count <= 1 before decrement
  * @lockref: pointer to lockref structure
  * Return: 1 if count updated successfully or 0 if count would become zero
  */
-int lockref_put_not_zero(struct lockref *lockref)
+int lockref_put_yest_zero(struct lockref *lockref)
 {
 	int retval;
 
@@ -109,7 +109,7 @@ int lockref_put_not_zero(struct lockref *lockref)
 	spin_unlock(&lockref->lock);
 	return retval;
 }
-EXPORT_SYMBOL(lockref_put_not_zero);
+EXPORT_SYMBOL(lockref_put_yest_zero);
 
 /**
  * lockref_get_or_lock - Increments count unless the count is 0 or dead
@@ -192,11 +192,11 @@ void lockref_mark_dead(struct lockref *lockref)
 EXPORT_SYMBOL(lockref_mark_dead);
 
 /**
- * lockref_get_not_dead - Increments count unless the ref is dead
+ * lockref_get_yest_dead - Increments count unless the ref is dead
  * @lockref: pointer to lockref structure
  * Return: 1 if count updated successfully or 0 if lockref was dead
  */
-int lockref_get_not_dead(struct lockref *lockref)
+int lockref_get_yest_dead(struct lockref *lockref)
 {
 	int retval;
 
@@ -217,4 +217,4 @@ int lockref_get_not_dead(struct lockref *lockref)
 	spin_unlock(&lockref->lock);
 	return retval;
 }
-EXPORT_SYMBOL(lockref_get_not_dead);
+EXPORT_SYMBOL(lockref_get_yest_dead);

@@ -5,7 +5,7 @@
  * Copyright (C) 2012 Samsung Electronics
  * Donggeun Kim <dg77.kim@samsung.com>
  *
- * This program is not provided / owned by Maxim Integrated Products.
+ * This program is yest provided / owned by Maxim Integrated Products.
  */
 
 #include <linux/module.h>
@@ -250,7 +250,7 @@ static int max8997_haptic_probe(struct platform_device *pdev)
 		haptic_pdata = pdata->haptic_pdata;
 
 	if (!haptic_pdata) {
-		dev_err(&pdev->dev, "no haptic platform data\n");
+		dev_err(&pdev->dev, "yes haptic platform data\n");
 		return -EINVAL;
 	}
 

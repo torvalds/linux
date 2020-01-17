@@ -174,14 +174,14 @@ pfm_mont_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cn
 	/*
 	 * we must clear the debug registers if pmc41 has a value which enable
 	 * memory pipeline event constraints. In this case we need to clear the
-	 * the debug registers if they have not yet been accessed. This is required
+	 * the debug registers if they have yest yet been accessed. This is required
 	 * to avoid picking stale state.
 	 * PMC41 is "active" if:
 	 * 	one of the pmc41.cfg_dtagXX field is different from 0x3
 	 * AND
 	 * 	at the corresponding pmc41.en_dbrpXX is set.
 	 * AND
-	 *	ctx_fl_using_dbreg == 0  (i.e., dbr not yet used)
+	 *	ctx_fl_using_dbreg == 0  (i.e., dbr yest yet used)
 	 */
 	DPRINT(("cnum=%u val=0x%lx, using_dbreg=%d loaded=%d\n", cnum, tmpval, ctx->ctx_fl_using_dbreg, is_loaded));
 
@@ -204,7 +204,7 @@ pfm_mont_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cn
 	 * we must clear the (instruction) debug registers if:
 	 * 	pmc38.ig_ibrpX is 0 (enabled)
 	 * AND
-	 *	ctx_fl_using_dbreg == 0  (i.e., dbr not yet used)
+	 *	ctx_fl_using_dbreg == 0  (i.e., dbr yest yet used)
 	 */
 	if (cnum == 38 && is_loaded && ((tmpval & 0x492UL) != 0x492UL) && ctx->ctx_fl_using_dbreg == 0) {
 

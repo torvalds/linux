@@ -35,7 +35,7 @@ struct vop_device_id {
  * @hw_ops: the hardware ops supported by this device.
  * @id: the device type identification (used to match it with a driver).
  * @dev: underlying device.
- * @dnode - The destination node which this device will communicate with.
+ * @dyesde - The destination yesde which this device will communicate with.
  * @aper: Aperture memory window
  * @dma_ch - DMA channel
  * @index: unique position on the vop bus
@@ -44,7 +44,7 @@ struct vop_device {
 	struct vop_hw_ops *hw_ops;
 	struct vop_device_id id;
 	struct device dev;
-	u8 dnode;
+	u8 dyesde;
 	struct mic_mw *aper;
 	struct dma_chan *dma_ch;
 	int index;
@@ -54,7 +54,7 @@ struct vop_device {
  * vop_driver - operations for a vop I/O driver
  * @driver: underlying device driver (populate name and owner).
  * @id_table: the ids serviced by this driver.
- * @probe: the function to call when a device is found.  Returns 0 or -errno.
+ * @probe: the function to call when a device is found.  Returns 0 or -erryes.
  * @remove: the function to call when a device is removed.
  */
 struct vop_driver {
@@ -70,16 +70,16 @@ struct vop_driver {
  * @next_db: Obtain the next available doorbell.
  * @request_irq: Request an interrupt on a particular doorbell.
  * @free_irq: Free an interrupt requested previously.
- * @ack_interrupt: acknowledge an interrupt in the ISR.
+ * @ack_interrupt: ackyeswledge an interrupt in the ISR.
  * @get_remote_dp: Get access to the virtio device page used by the remote
- *                 node to add/remove/configure virtio devices.
+ *                 yesde to add/remove/configure virtio devices.
  * @get_dp: Get access to the virtio device page used by the self
- *          node to add/remove/configure virtio devices.
- * @send_intr: Send an interrupt to the peer node on a specified doorbell.
+ *          yesde to add/remove/configure virtio devices.
+ * @send_intr: Send an interrupt to the peer yesde on a specified doorbell.
  * @remap: Map a buffer with the specified DMA address and length.
  * @unmap: Unmap a buffer previously mapped.
  * @dma_filter: The DMA filter function to use for obtaining access to
- *		a DMA channel on the peer node.
+ *		a DMA channel on the peer yesde.
  */
 struct vop_hw_ops {
 	int (*next_db)(struct vop_device *vpdev);
@@ -101,7 +101,7 @@ struct vop_hw_ops {
 struct vop_device *
 vop_register_device(struct device *pdev, int id,
 		    const struct dma_map_ops *dma_ops,
-		    struct vop_hw_ops *hw_ops, u8 dnode, struct mic_mw *aper,
+		    struct vop_hw_ops *hw_ops, u8 dyesde, struct mic_mw *aper,
 		    struct dma_chan *chan);
 void vop_unregister_device(struct vop_device *dev);
 int vop_register_driver(struct vop_driver *drv);

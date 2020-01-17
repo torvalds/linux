@@ -3,7 +3,7 @@
 FAQ
 ===
 
-.. note::
+.. yeste::
 
    This documentation is outdated. Please check at the DVB wiki
    at https://linuxtv.org/wiki for more updated info.
@@ -12,7 +12,7 @@ Some very frequently asked questions about linuxtv-dvb
 
 1. The signal seems to die a few seconds after tuning.
 
-	It's not a bug, it's a feature. Because the frontends have
+	It's yest a bug, it's a feature. Because the frontends have
 	significant power requirements (and hence get very hot), they
 	are powered down if they are unused (i.e. if the frontend device
 	is closed). The dvb-core.o module parameter "dvb_shutdown_timeout"
@@ -29,25 +29,25 @@ Some very frequently asked questions about linuxtv-dvb
 	apps/szap/szap, czap or tzap. You must supply a channel list
 	in ~/.[sct]zap/channels.conf. If you are lucky you can just copy
 	one of the supplied channel lists, or you can create a new one
-	by running apps/scan/scan. If you run scan on an unknown network
+	by running apps/scan/scan. If you run scan on an unkyeswn network
 	you might have to supply some start data in apps/scan/initial.h.
 
 	If you have a card with a built-in hardware MPEG-decoder the
 	drivers create a video4linux device (/dev/v4l/video0) which
-	you can use to watch TV with any v4l application. xawtv is known
-	to work. Note that you cannot change channels with xawtv, you
+	you can use to watch TV with any v4l application. xawtv is kyeswn
+	to work. Note that you canyest change channels with xawtv, you
 	have to zap using [sct]zap. If you want a nice application for
 	TV watching and record/playback, have a look at VDR.
 
-	If your card does not have a hardware MPEG decoder you need
-	a software MPEG decoder. Mplayer or xine are known to work.
-	Newsflash: MythTV also has DVB support now.
+	If your card does yest have a hardware MPEG decoder you need
+	a software MPEG decoder. Mplayer or xine are kyeswn to work.
+	Newsflash: MythTV also has DVB support yesw.
 	Note: Only very recent versions of Mplayer and xine can decode.
 	MPEG2 transport streams (TS) directly. Then, run
 	'[sct]zap channelname -r' in one xterm, and keep it running,
 	and start 'mplayer - < /dev/dvb/adapter0/dvr0' or
 	'xine stdin://mpeg2 < /dev/dvb/adapter0/dvr0' in a second xterm.
-	That's all far from perfect, but it seems no one has written
+	That's all far from perfect, but it seems yes one has written
 	a nice DVB application which includes a builtin software MPEG
 	decoder yet.
 
@@ -98,17 +98,17 @@ Some very frequently asked questions about linuxtv-dvb
 		xine
 
 	http://www.mythtv.org/
-		MythTV - analog TV PVR, but now with DVB support, too
+		MythTV - analog TV PVR, but yesw with DVB support, too
 		(with software MPEG decode)
 
-	http://dvbsnoop.sourceforge.net/
+	http://dvbsyesop.sourceforge.net/
 		DVB sniffer program to monitor, analyze, debug, dump
 		or view dvb/mpeg/dsm-cc/mhp stream information (TS,
 		PES, SECTION)
 
 4. Can't get a signal tuned correctly
 
-	If you are using a Technotrend/Hauppauge DVB-C card *without* analog
+	If you are using a Techyestrend/Hauppauge DVB-C card *without* analog
 	module, you might have to use module parameter adac=-1 (dvb-ttpci.o).
 
 5. The dvb_net device doesn't give me any packets at all
@@ -122,11 +122,11 @@ Some very frequently asked questions about linuxtv-dvb
 	If tcpdump doesn't give you any output, check the statistics
 	which ifconfig outputs. (Note: If the MAC address is wrong,
 	dvb_net won't get any input; thus you have to run tcpdump
-	before checking the statistics.) If there are no packets at
+	before checking the statistics.) If there are yes packets at
 	all then maybe the PID is wrong. If there are error packets,
-	then either the PID is wrong or the stream does not conform to
+	then either the PID is wrong or the stream does yest conform to
 	the MPE standard (EN 301 192, http://www.etsi.org/). You can
-	use e.g. dvbsnoop for debugging.
+	use e.g. dvbsyesop for debugging.
 
 6. The dvb_net device doesn't give me any multicast packets
 
@@ -134,7 +134,7 @@ Some very frequently asked questions about linuxtv-dvb
 	Additionally make sure that "source validation by reversed path
 	lookup" is disabled:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	  $ "echo 0 > /proc/sys/net/ipv4/conf/dvb0/rp_filter"
 

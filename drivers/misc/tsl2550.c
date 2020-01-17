@@ -154,7 +154,7 @@ static int tsl2550_calculate_lux(u8 ch0, u8 ch1)
 	 */
 	u8 r = 128;
 
-	/* Avoid division by 0 and count 1 cannot be greater than count 0 */
+	/* Avoid division by 0 and count 1 canyest be greater than count 0 */
 	if (c1 <= c0)
 		if (c0) {
 			r = c1 * 128 / c0;
@@ -274,7 +274,7 @@ static ssize_t tsl2550_show_lux1_input(struct device *dev,
 	struct tsl2550_data *data = i2c_get_clientdata(client);
 	int ret;
 
-	/* No LUX data if not operational */
+	/* No LUX data if yest operational */
 	if (!data->power_state)
 		return -EBUSY;
 

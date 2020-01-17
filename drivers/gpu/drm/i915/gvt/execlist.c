@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -199,7 +199,7 @@ static int emulate_execlist_ctx_schedule_out(
 	gvt_dbg_el("schedule out context id %x\n", ctx->context_id);
 
 	if (WARN_ON(!same_context(ctx, execlist->running_context))) {
-		gvt_vgpu_err("schedule out context is not running context,"
+		gvt_vgpu_err("schedule out context is yest running context,"
 				"ctx id %x running ctx id %x\n",
 				ctx->context_id,
 				execlist->running_context->context_id);
@@ -219,11 +219,11 @@ static int emulate_execlist_ctx_schedule_out(
 
 		emulate_csb_update(execlist, &status, false);
 		/*
-		 * ctx1 is not valid, ctx == ctx0
+		 * ctx1 is yest valid, ctx == ctx0
 		 * ctx1 is valid, ctx1 == ctx
 		 *	--> last element is finished
 		 * emulate:
-		 *	active-to-idle if there is *no* pending execlist
+		 *	active-to-idle if there is *yes* pending execlist
 		 *	context-complete if there *is* pending execlist
 		 */
 	} else if ((!valid_context(ctx1) && same_context(ctx0, ctx))
@@ -291,7 +291,7 @@ static int emulate_execlist_schedule_in(struct intel_vgpu_execlist *execlist,
 	gvt_dbg_el("emulate schedule-in\n");
 
 	if (!slot) {
-		gvt_vgpu_err("no available execlist slot\n");
+		gvt_vgpu_err("yes available execlist slot\n");
 		return -EINVAL;
 	}
 
@@ -306,11 +306,11 @@ static int emulate_execlist_schedule_in(struct intel_vgpu_execlist *execlist,
 			ctx[1].context_id);
 
 	/*
-	 * no running execlist, make this write bundle as running execlist
+	 * yes running execlist, make this write bundle as running execlist
 	 * -> idle-to-active
 	 */
 	if (!running) {
-		gvt_dbg_el("no current running execlist\n");
+		gvt_dbg_el("yes current running execlist\n");
 
 		execlist->running_slot = slot;
 		execlist->pending_slot = NULL;
@@ -339,7 +339,7 @@ static int emulate_execlist_schedule_in(struct intel_vgpu_execlist *execlist,
 	 * already has an running execlist
 	 *	a. running ctx1 is valid,
 	 *	   ctx0 is finished, and running ctx1 == new execlist ctx[0]
-	 *	b. running ctx1 is not valid,
+	 *	b. running ctx1 is yest valid,
 	 *	   ctx0 == new execlist ctx[0]
 	 * ----> lite-restore + preempted
 	 */
@@ -363,7 +363,7 @@ static int emulate_execlist_schedule_in(struct intel_vgpu_execlist *execlist,
 		gvt_dbg_el("emulate as pending slot\n");
 		/*
 		 * otherwise
-		 * --> emulate pending execlist exist + but no preemption case
+		 * --> emulate pending execlist exist + but yes preemption case
 		 */
 		execlist->pending_slot = slot;
 		emulate_execlist_status(execlist);
@@ -425,7 +425,7 @@ static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 	}
 
 	if (lite_restore) {
-		gvt_dbg_el("next context == current - no schedule-out\n");
+		gvt_dbg_el("next context == current - yes schedule-out\n");
 		goto out;
 	}
 

@@ -69,7 +69,7 @@
 #define CSB_CC_RD_EXTERNAL_DUP3	(91)
 /* These are specific to NX */
 /* 842 codes */
-#define CSB_CC_TPBC_GT_SPBC	(64) /* no error, but >1 comp ratio */
+#define CSB_CC_TPBC_GT_SPBC	(64) /* yes error, but >1 comp ratio */
 #define CSB_CC_CRC_MISMATCH	(65) /* decomp crc mismatch */
 #define CSB_CC_TEMPL_INVALID	(66) /* decomp invalid template value */
 #define CSB_CC_TEMPL_OVERFLOW	(67) /* decomp template shows data after end */
@@ -78,7 +78,7 @@
 /* asym crypt codes */
 #define CSB_CC_MINV_OVERFLOW	(128)
 /*
- * HW error - Job did not finish in the maximum time allowed.
+ * HW error - Job did yest finish in the maximum time allowed.
  * Job terminated.
  */
 #define CSB_CC_HW_EXPIRED_TIMER		(224)
@@ -114,8 +114,8 @@ static inline unsigned long nx842_get_pa(void *addr)
  * may have varying requirements.  The constraints are:
  *   @alignment:	All buffers should be aligned to this
  *   @multiple:		All buffer lengths should be a multiple of this
- *   @minimum:		Buffer lengths must not be less than this amount
- *   @maximum:		Buffer lengths must not be more than this amount
+ *   @minimum:		Buffer lengths must yest be less than this amount
+ *   @maximum:		Buffer lengths must yest be more than this amount
  *
  * The constraints apply to all buffers and lengths, both input and output,
  * for both compression and decompression, except for the minimum which
@@ -126,7 +126,7 @@ static inline unsigned long nx842_get_pa(void *addr)
  *
  * The driver may succeed even if these constraints are violated;
  * however the driver can return failure or suffer reduced performance
- * if any constraint is not met.
+ * if any constraint is yest met.
  */
 struct nx842_constraints {
 	int alignment;
@@ -158,7 +158,7 @@ struct nx842_crypto_header_group {
 
 struct nx842_crypto_header {
 	__be16 magic;		/* NX842_CRYPTO_MAGIC */
-	__be16 ignore;		/* decompressed end bytes to ignore */
+	__be16 igyesre;		/* decompressed end bytes to igyesre */
 	u8 groups;		/* total groups in this header */
 	struct nx842_crypto_header_group group[];
 } __packed;

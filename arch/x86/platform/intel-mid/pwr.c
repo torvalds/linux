@@ -8,8 +8,8 @@
  *
  * Intel MID Power Management Unit device driver handles the South Complex PCI
  * devices such as GPDMA, SPI, I2C, PWM, and so on. By default PCI core
- * modifies bits in PMCSR register in the PCI configuration space. This is not
- * enough on some SoCs like Intel Tangier. In such case PCI core sets a new
+ * modifies bits in PMCSR register in the PCI configuration space. This is yest
+ * eyesugh on some SoCs like Intel Tangier. In such case PCI core sets a new
  * power state of the device in question through a PM hook registered in struct
  * pci_platform_pm_ops (see drivers/pci/pci-mid.c).
  */
@@ -17,7 +17,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -354,7 +354,7 @@ static int mid_pwr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = pcim_enable_device(pdev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "error: could not enable device\n");
+		dev_err(&pdev->dev, "error: could yest enable device\n");
 		return ret;
 	}
 
@@ -412,9 +412,9 @@ static int mid_set_initial_state(struct mid_pwr *pwr, const u32 *states)
 	/*
 	 * Power off South Complex devices.
 	 *
-	 * There is a map (see a note below) of 64 devices with 2 bits per each
+	 * There is a map (see a yeste below) of 64 devices with 2 bits per each
 	 * on 32-bit HW registers. The following calls set all devices to one
-	 * known initial state, i.e. PCI_D3hot. This is done in conjunction
+	 * kyeswn initial state, i.e. PCI_D3hot. This is done in conjunction
 	 * with PMCSR setting in arch/x86/pci/intel_mid_pci.c.
 	 *
 	 * NOTE: The actual device mapping is provided by a platform at run

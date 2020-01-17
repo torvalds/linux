@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 *************
 Frontend type
@@ -77,7 +77,7 @@ fe_type_t type, defined as:
        -  ``SYS_ATSC`` (terrestrial) or ``SYS_DVBC_ANNEX_B`` (cable)
 
 
-Newer formats like DVB-S2, ISDB-T, ISDB-S and DVB-T2 are not described
+Newer formats like DVB-S2, ISDB-T, ISDB-S and DVB-T2 are yest described
 at the above, as they're supported via the new
 :ref:`FE_GET_PROPERTY/FE_GET_SET_PROPERTY <FE_GET_PROPERTY>`
 ioctl's, using the :ref:`DTV_DELIVERY_SYSTEM <DTV-DELIVERY-SYSTEM>`

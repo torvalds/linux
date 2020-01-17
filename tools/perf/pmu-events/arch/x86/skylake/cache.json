@@ -1,12 +1,12 @@
 [
     {
-        "PublicDescription": "Counts the number of demand Data Read requests that miss L2 cache. Only not rejected loads are counted.",
+        "PublicDescription": "Counts the number of demand Data Read requests that miss L2 cache. Only yest rejected loads are counted.",
         "EventCode": "0x24",
         "Counter": "0,1,2,3",
         "UMask": "0x21",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_MISS",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Demand Data Read miss L2, no rejects",
+        "BriefDescription": "Demand Data Read miss L2, yes rejects",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -100,7 +100,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts the number of demand Data Read requests (including requests from L1D hardware prefetchers). These loads may hit or miss L2 cache. Only non rejected loads are counted.",
+        "PublicDescription": "Counts the number of demand Data Read requests (including requests from L1D hardware prefetchers). These loads may hit or miss L2 cache. Only yesn rejected loads are counted.",
         "EventCode": "0x24",
         "Counter": "0,1,2,3",
         "UMask": "0xe1",
@@ -160,7 +160,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts core-originated cacheable requests that miss the L3 cache (Longest Latency cache). Requests include data and code reads, Reads-for-Ownership (RFOs), speculative accesses and hardware prefetches from L1 and L2. It does not include all misses to the L3.",
+        "PublicDescription": "Counts core-originated cacheable requests that miss the L3 cache (Longest Latency cache). Requests include data and code reads, Reads-for-Ownership (RFOs), speculative accesses and hardware prefetches from L1 and L2. It does yest include all misses to the L3.",
         "EventCode": "0x2E",
         "Counter": "0,1,2,3",
         "UMask": "0x41",
@@ -171,7 +171,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts core-originated cacheable requests to the  L3 cache (Longest Latency cache). Requests include data and code reads, Reads-for-Ownership (RFOs), speculative accesses and hardware prefetches from L1 and L2.  It does not include all accesses to the L3.",
+        "PublicDescription": "Counts core-originated cacheable requests to the  L3 cache (Longest Latency cache). Requests include data and code reads, Reads-for-Ownership (RFOs), speculative accesses and hardware prefetches from L1 and L2.  It does yest include all accesses to the L3.",
         "EventCode": "0x2E",
         "Counter": "0,1,2,3",
         "UMask": "0x4f",
@@ -182,7 +182,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts duration of L1D miss outstanding, that is each cycle number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by non-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand from the demand Hit FB, if it is allocated by hardware or software prefetch.Note: In the L1D, a Demand Read contains cacheable or noncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
+        "PublicDescription": "Counts duration of L1D miss outstanding, that is each cycle number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by yesn-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand from the demand Hit FB, if it is allocated by hardware or software prefetch.Note: In the L1D, a Demand Read contains cacheable or yesncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
         "EventCode": "0x48",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -214,13 +214,13 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Number of times a request needed a FB (Fill Buffer) entry but there was no entry available for it. A request includes cacheable/uncacheable demands that are load, store or SW prefetch instructions.",
+        "PublicDescription": "Number of times a request needed a FB (Fill Buffer) entry but there was yes entry available for it. A request includes cacheable/uncacheable demands that are load, store or SW prefetch instructions.",
         "EventCode": "0x48",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "EventName": "L1D_PEND_MISS.FB_FULL",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of times a request needed a FB entry but there was no entry available for it. That is the FB unavailability was dominant reason for blocking the request. A request includes cacheable/uncacheable demands that is load, store or SW prefetch.",
+        "BriefDescription": "Number of times a request needed a FB entry but there was yes entry available for it. That is the FB unavailability was dominant reason for blocking the request. A request includes cacheable/uncacheable demands that is load, store or SW prefetch.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -338,13 +338,13 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts both cacheable and non-cacheable code read requests.",
+        "PublicDescription": "Counts both cacheable and yesn-cacheable code read requests.",
         "EventCode": "0xB0",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "EventName": "OFFCORE_REQUESTS.DEMAND_CODE_RD",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Cacheable and noncachaeble code read requests",
+        "BriefDescription": "Cacheable and yesncachaeble code read requests",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -358,7 +358,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts the demand and prefetch data reads. All Core Data Reads include cacheable 'Demands' and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
+        "PublicDescription": "Counts the demand and prefetch data reads. All Core Data Reads include cacheable 'Demands' and L2 prefetchers (yest L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
         "EventCode": "0xB0",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
@@ -378,13 +378,13 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts the number of cases when the offcore requests buffer cannot take more entries for the core. This can happen when the superqueue does not contain eligible entries, or when L1D writeback pending FIFO requests is full.Note: Writeback pending FIFO has six entries.",
+        "PublicDescription": "Counts the number of cases when the offcore requests buffer canyest take more entries for the core. This can happen when the superqueue does yest contain eligible entries, or when L1D writeback pending FIFO requests is full.Note: Writeback pending FIFO has six entries.",
         "EventCode": "0xB2",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "EventName": "OFFCORE_REQUESTS_BUFFER.SQ_FULL",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Offcore requests buffer cannot take more entries for this thread core.",
+        "BriefDescription": "Offcore requests buffer canyest take more entries for this thread core.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -554,13 +554,13 @@
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Counts retired load instructions with at least one uop was load missed in L1 but hit FB (Fill Buffers) due to preceding miss to the same cache line with data not ready.",
+        "PublicDescription": "Counts retired load instructions with at least one uop was load missed in L1 but hit FB (Fill Buffers) due to preceding miss to the same cache line with data yest ready.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x40",
         "EventName": "MEM_LOAD_RETIRED.FB_HIT",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Retired load instructions which data sources were load missed L1 but hit FB due to preceding miss to the same cache line with data not ready",
+        "BriefDescription": "Retired load instructions which data sources were load missed L1 but hit FB due to preceding miss to the same cache line with data yest ready",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
@@ -571,19 +571,19 @@
         "UMask": "0x1",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_MISS",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load instructions which data sources were L3 hit and cross-core snoop missed in on-pkg core cache.",
+        "BriefDescription": "Retired load instructions which data sources were L3 hit and cross-core syesop missed in on-pkg core cache.",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load instructions which data sources were L3 and cross-core snoop hits in on-pkg core cache.",
+        "PublicDescription": "Retired load instructions which data sources were L3 and cross-core syesop hits in on-pkg core cache.",
         "EventCode": "0xD2",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_HIT",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load instructions which data sources were L3 and cross-core snoop hits in on-pkg core cache",
+        "BriefDescription": "Retired load instructions which data sources were L3 and cross-core syesop hits in on-pkg core cache",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
@@ -601,13 +601,13 @@
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load instructions which data sources were hits in L3 without snoops required.",
+        "PublicDescription": "Retired load instructions which data sources were hits in L3 without syesops required.",
         "EventCode": "0xD2",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_NONE",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load instructions which data sources were hits in L3 without snoops required",
+        "BriefDescription": "Retired load instructions which data sources were hits in L3 without syesops required",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
@@ -633,7 +633,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts the number of L2 cache lines filling the L2. Counting does not cover rejects.",
+        "PublicDescription": "Counts the number of L2 cache lines filling the L2. Counting does yest cover rejects.",
         "EventCode": "0xF1",
         "Counter": "0,1,2,3",
         "UMask": "0x1f",
@@ -648,7 +648,7 @@
         "UMask": "0x1",
         "EventName": "L2_LINES_OUT.SILENT",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of lines that are silently dropped by L2 cache when triggered by an L2 cache fill. These lines are typically in Shared or Exclusive state. A non-threaded event.",
+        "BriefDescription": "Counts the number of lines that are silently dropped by L2 cache when triggered by an L2 cache fill. These lines are typically in Shared or Exclusive state. A yesn-threaded event.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -676,7 +676,7 @@
         "UMask": "0x4",
         "EventName": "L2_LINES_OUT.USELESS_HWPF",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of lines that have been hardware prefetched but not used and now evicted by L2 cache",
+        "BriefDescription": "Counts the number of lines that have been hardware prefetched but yest used and yesw evicted by L2 cache",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {

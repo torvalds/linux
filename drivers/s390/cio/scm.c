@@ -151,7 +151,7 @@ static void scmdev_setup(struct scm_device *scmdev, struct sale *sale,
 }
 
 /*
- * Check for state-changes, notify the driver and userspace.
+ * Check for state-changes, yestify the driver and userspace.
  */
 static void scmdev_update(struct scm_device *scmdev, struct sale *sale)
 {
@@ -166,8 +166,8 @@ static void scmdev_update(struct scm_device *scmdev, struct sale *sale)
 	if (!scmdev->dev.driver)
 		goto out;
 	scmdrv = to_scm_drv(scmdev->dev.driver);
-	if (changed && scmdrv->notify)
-		scmdrv->notify(scmdev, SCM_CHANGE);
+	if (changed && scmdrv->yestify)
+		scmdrv->yestify(scmdev, SCM_CHANGE);
 out:
 	device_unlock(&scmdev->dev);
 	if (changed)
@@ -258,8 +258,8 @@ static int scm_dev_avail(struct device *dev, void *unused)
 	struct scm_driver *scmdrv = to_scm_drv(dev->driver);
 	struct scm_device *scmdev = to_scm_dev(dev);
 
-	if (dev->driver && scmdrv->notify)
-		scmdrv->notify(scmdev, SCM_AVAIL);
+	if (dev->driver && scmdrv->yestify)
+		scmdrv->yestify(scmdev, SCM_AVAIL);
 
 	return 0;
 }

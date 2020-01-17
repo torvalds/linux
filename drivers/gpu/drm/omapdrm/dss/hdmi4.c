@@ -72,8 +72,8 @@ static irqreturn_t hdmi_irq_handler(int irq, void *data)
 		/*
 		 * If we get both connect and disconnect interrupts at the same
 		 * time, turn off the PHY, clear interrupts, and restart, which
-		 * raises connect interrupt if a cable is connected, or nothing
-		 * if cable is not connected.
+		 * raises connect interrupt if a cable is connected, or yesthing
+		 * if cable is yest connected.
 		 */
 		hdmi_wp_set_phy_pwr(wp, HDMI_PHYPWRCMD_OFF);
 
@@ -517,7 +517,7 @@ static int hdmi_audio_start(struct device *dev)
 
 	if (hd->display_enabled) {
 		if (!hdmi_mode_has_audio(&hd->cfg))
-			DSSERR("%s: Video mode does not support audio\n",
+			DSSERR("%s: Video mode does yest support audio\n",
 			       __func__);
 		hdmi_start_audio_stream(hd);
 	}
@@ -696,16 +696,16 @@ static void hdmi4_uninit_output(struct omap_hdmi *hdmi)
 static int hdmi4_probe_of(struct omap_hdmi *hdmi)
 {
 	struct platform_device *pdev = hdmi->pdev;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *ep;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *ep;
 	int r;
 
-	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(yesde, 0, 0);
 	if (!ep)
 		return 0;
 
 	r = hdmi_parse_lanes_of(pdev, ep, &hdmi->phy);
-	of_node_put(ep);
+	of_yesde_put(ep);
 	return r;
 }
 

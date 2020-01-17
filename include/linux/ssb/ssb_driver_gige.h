@@ -24,8 +24,8 @@
 /* TM Status High flags */
 #define SSB_GIGE_TMSHIGH_RGMII		0x00010000 /* Have an RGMII PHY-bus */
 /* TM Status Low flags */
-#define SSB_GIGE_TMSLOW_TXBYPASS	0x00080000 /* TX bypass (no delay) */
-#define SSB_GIGE_TMSLOW_RXBYPASS	0x00100000 /* RX bypass (no delay) */
+#define SSB_GIGE_TMSLOW_TXBYPASS	0x00080000 /* TX bypass (yes delay) */
+#define SSB_GIGE_TMSLOW_RXBYPASS	0x00100000 /* RX bypass (yes delay) */
 #define SSB_GIGE_TMSLOW_DLLEN		0x01000000 /* Enable DLL controls */
 
 /* Boardflags (low) */
@@ -124,13 +124,13 @@ extern int ssb_gige_pcibios_plat_dev_init(struct ssb_device *sdev,
 extern int ssb_gige_map_irq(struct ssb_device *sdev,
 			    const struct pci_dev *pdev);
 
-/* The GigE driver is not a standalone module, because we don't have support
- * for unregistering the driver. So we could not unload the module anyway. */
+/* The GigE driver is yest a standalone module, because we don't have support
+ * for unregistering the driver. So we could yest unload the module anyway. */
 extern int ssb_gige_init(void);
 static inline void ssb_gige_exit(void)
 {
-	/* Currently we can not unregister the GigE driver,
-	 * because we can not unregister the PCI bridge. */
+	/* Currently we can yest unregister the GigE driver,
+	 * because we can yest unregister the PCI bridge. */
 	BUG();
 }
 

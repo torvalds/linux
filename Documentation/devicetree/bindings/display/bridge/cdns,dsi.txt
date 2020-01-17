@@ -18,7 +18,7 @@ Optional properties:
 - resets: DSI reset lines.
 - reset-names: can contain "dsi_p_rst".
 
-Required subnodes:
+Required subyesdes:
 - ports: Ports as described in Documentation/devicetree/bindings/graph.txt.
   2 ports are available:
   * port 0: this port is only needed if some of your DSI devices are
@@ -28,7 +28,7 @@ Required subnodes:
   * port 1: represents the DPI input.
   Other ports will be added later to support the new kind of inputs.
 
-- one subnode per DSI device connected on the DSI bus. Each DSI device should
+- one subyesde per DSI device connected on the DSI bus. Each DSI device should
   contain a reg property encoding its virtual channel.
 
 Example:

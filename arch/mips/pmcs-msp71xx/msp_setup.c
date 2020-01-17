@@ -68,7 +68,7 @@ void msp7120_reset(void)
 	 * IMPORTANT!
 	 * DO NOT do anything from here on out that might even
 	 * think about fetching from RAM - i.e., don't call any
-	 * non-inlined functions, and be VERY sure that any inline
+	 * yesn-inlined functions, and be VERY sure that any inline
 	 * functions you do call do NOT access any sort of RAM
 	 * anywhere!
 	 */
@@ -81,8 +81,8 @@ void msp7120_reset(void)
 	 * Set GPIO 9 HI, (tied to board reset logic)
 	 * GPIO 9 is the 4th GPIO of register 3
 	 *
-	 * NOTE: We cannot use the higher-level msp_gpio_mode()/out()
-	 * as GPIO char driver may not be enabled and it would look up
+	 * NOTE: We canyest use the higher-level msp_gpio_mode()/out()
+	 * as GPIO char driver may yest be enabled and it would look up
 	 * data inRAM!
 	 */
 	set_value_reg32(GPIO_CFG3_REG, 0xf000, 0x8000);
@@ -156,7 +156,7 @@ void __init prom_init(void)
 	/*
 	 * Someday we can use this with PMON2000 to get a
 	 * platform call prom routines for output etc. without
-	 * having to use grody hacks.  For now it's unused.
+	 * having to use grody hacks.  For yesw it's unused.
 	 *
 	 * struct callvectors *cv = (struct callvectors *) fw_arg3;
 	 */

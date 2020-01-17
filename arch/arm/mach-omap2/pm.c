@@ -131,7 +131,7 @@ void omap_common_suspend_init(void *pm_suspend)
 }
 #endif /* CONFIG_SUSPEND */
 
-int __maybe_unused omap_pm_nop_init(void)
+int __maybe_unused omap_pm_yesp_init(void)
 {
 	return 0;
 }

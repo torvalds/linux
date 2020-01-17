@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -208,8 +208,8 @@ void qed_memcpy_to(struct qed_hwfn *p_hwfn,
 		   void *src,
 		   size_t n);
 /**
- * @brief qed_fid_pretend - pretend to another function when
- *        accessing the ptt window. There is no way to unpretend
+ * @brief qed_fid_pretend - pretend to ayesther function when
+ *        accessing the ptt window. There is yes way to unpretend
  *        a function. The only way to cancel a pretend is to
  *        pretend back to the original function.
  *
@@ -223,7 +223,7 @@ void qed_fid_pretend(struct qed_hwfn *p_hwfn,
 		     u16 fid);
 
 /**
- * @brief qed_port_pretend - pretend to another port when
+ * @brief qed_port_pretend - pretend to ayesther port when
  *        accessing the ptt window
  *
  * @param p_hwfn
@@ -245,7 +245,7 @@ void qed_port_unpretend(struct qed_hwfn *p_hwfn,
 			struct qed_ptt *p_ptt);
 
 /**
- * @brief qed_port_fid_pretend - pretend to another port and another function
+ * @brief qed_port_fid_pretend - pretend to ayesther port and ayesther function
  *        when accessing the ptt window
  *
  * @param p_hwfn

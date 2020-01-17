@@ -22,7 +22,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-subdev.h>
 
 /* min/typical/max system clock (xclk) frequencies */
@@ -221,7 +221,7 @@ struct ov5640_dev {
 	struct i2c_client *i2c_client;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	struct v4l2_fwnode_endpoint ep; /* the parsed DT endpoint info */
+	struct v4l2_fwyesde_endpoint ep; /* the parsed DT endpoint info */
 	struct clk *xclk; /* system clock to OV5640 */
 	u32 xclk_freq;
 
@@ -266,7 +266,7 @@ static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
 /*
  * FIXME: all of these register tables are likely filled with
  * entries that set the register to their power-on default values,
- * and which are otherwise not touched by this driver. Those entries
+ * and which are otherwise yest touched by this driver. Those entries
  * should be identified and removed to speed register load time
  * over i2c.
  */
@@ -791,7 +791,7 @@ static int ov5640_mod_reg(struct ov5640_dev *sensor, u16 reg,
 #define OV5640_SYSDIV_MAX	16
 
 /*
- * Hardcode these values for scaler and non-scaler modes.
+ * Hardcode these values for scaler and yesn-scaler modes.
  * FIXME: to be re-calcualted for 1 data lanes setups
  */
 #define OV5640_MIPI_DIV_PCLK	2
@@ -835,7 +835,7 @@ static unsigned long ov5640_compute_sys_clk(struct ov5640_dev *sensor,
 {
 	unsigned long sysclk = sensor->xclk_freq / pll_prediv * pll_mult;
 
-	/* PLL1 output cannot exceed 1GHz. */
+	/* PLL1 output canyest exceed 1GHz. */
 	if (sysclk / 1000000 > 1000)
 		return 0;
 
@@ -860,7 +860,7 @@ static unsigned long ov5640_calc_sys_clk(struct ov5640_dev *sensor,
 			unsigned long _rate;
 
 			/*
-			 * The PLL multiplier cannot be odd if above
+			 * The PLL multiplier canyest be odd if above
 			 * 127.
 			 */
 			if (_pll_mult > 127 && (_pll_mult % 2))
@@ -923,13 +923,13 @@ out:
  *	PCLK_DIV	= 1;
  *
  * The MIPI clock generation differs for modes that use the scaler and modes
- * that do not. In case the scaler is in use, the MIPI_SCLK generates the MIPI
+ * that do yest. In case the scaler is in use, the MIPI_SCLK generates the MIPI
  * BIT CLk, and thus:
  *
  * - mipi_sclk = bpl / MIPI_DIV / 2;
  *   MIPI_DIV = 1;
  *
- * For modes that do not go through the scaler, the MIPI BIT CLOCK is generated
+ * For modes that do yest go through the scaler, the MIPI BIT CLOCK is generated
  * from the pixel clock, and thus:
  *
  * - sample_rate = bpl / (bpp / num_lanes);
@@ -1216,7 +1216,7 @@ static int ov5640_set_stream_dvp(struct ov5640_dev *sensor, bool on)
 	 *
 	 * Control lines polarity can be configured through
 	 * devicetree endpoint control lines properties.
-	 * If no endpoint control lines properties are set,
+	 * If yes endpoint control lines properties are set,
 	 * polarity will be as below:
 	 * - VSYNC:	active high
 	 * - HREF:	active low
@@ -1303,7 +1303,7 @@ static int ov5640_set_stream_mipi(struct ov5640_dev *sensor, bool on)
 	 * FIXME: the sensor manual (version 2.03) reports
 	 * [7:5] = 000  : 1 data lane mode
 	 * [7:5] = 001  : 2 data lanes mode
-	 * But this settings do not work, while the following ones
+	 * But this settings do yest work, while the following ones
 	 * have been validated for 2 data lanes mode.
 	 *
 	 * [7:5] = 010	: 2 data lanes mode
@@ -1606,7 +1606,7 @@ ov5640_find_mode(struct ov5640_dev *sensor, enum ov5640_frame_rate fr,
 	    (!nearest && (mode->hact != width || mode->vact != height)))
 		return NULL;
 
-	/* Only 640x480 can operate at 60fps (for now) */
+	/* Only 640x480 can operate at 60fps (for yesw) */
 	if (fr == OV5640_60_FPS &&
 	    !(mode->hact == 640 && mode->vact == 480))
 		return NULL;
@@ -1919,7 +1919,7 @@ static int ov5640_restore_mode(struct ov5640_dev *sensor)
 	if (ret)
 		return ret;
 
-	/* now restore the last capture mode */
+	/* yesw restore the last capture mode */
 	ret = ov5640_set_mode(sensor);
 	if (ret < 0)
 		return ret;
@@ -2017,7 +2017,7 @@ static int ov5640_set_power(struct ov5640_dev *sensor, bool on)
 		 * Power up MIPI HS Tx and LS Rx; 2 data lanes mode
 		 *
 		 * 0x300e = 0x40
-		 * [7:5] = 010	: 2 data lanes mode (see FIXME note in
+		 * [7:5] = 010	: 2 data lanes mode (see FIXME yeste in
 		 *		  "ov5640_set_stream_mipi()")
 		 * [4] = 0	: Power up MIPI HS Tx
 		 * [3] = 0	: Power up MIPI LS Rx
@@ -2029,11 +2029,11 @@ static int ov5640_set_power(struct ov5640_dev *sensor, bool on)
 			goto power_off;
 
 		/*
-		 * Gate clock and set LP11 in 'no packets mode' (idle)
+		 * Gate clock and set LP11 in 'yes packets mode' (idle)
 		 *
 		 * 0x4800 = 0x24
-		 * [5] = 1	: Gate clock when 'no packets'
-		 * [2] = 1	: MIPI bus in LP11 when 'no packets'
+		 * [5] = 1	: Gate clock when 'yes packets'
+		 * [2] = 1	: MIPI bus in LP11 when 'yes packets'
 		 */
 		ret = ov5640_write_reg(sensor,
 				       OV5640_REG_MIPI_CTRL00, 0x24);
@@ -2123,13 +2123,13 @@ static int ov5640_try_frame_interval(struct ov5640_dev *sensor,
 	maxfps = ov5640_framerates[OV5640_60_FPS];
 
 	if (fi->numerator == 0) {
-		fi->denominator = maxfps;
+		fi->deyesminator = maxfps;
 		fi->numerator = 1;
 		rate = OV5640_60_FPS;
 		goto find_mode;
 	}
 
-	fps = clamp_val(DIV_ROUND_CLOSEST(fi->denominator, fi->numerator),
+	fps = clamp_val(DIV_ROUND_CLOSEST(fi->deyesminator, fi->numerator),
 			minfps, maxfps);
 
 	best_fps = minfps;
@@ -2143,7 +2143,7 @@ static int ov5640_try_frame_interval(struct ov5640_dev *sensor,
 	}
 
 	fi->numerator = 1;
-	fi->denominator = best_fps;
+	fi->deyesminator = best_fps;
 
 find_mode:
 	mode = ov5640_find_mode(sensor, rate, width, height, false);
@@ -2610,8 +2610,8 @@ static int ov5640_s_ctrl(struct v4l2_ctrl *ctrl)
 	/* v4l2_ctrl_lock() locks our own mutex */
 
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any controls to H/W at this time. Instead
+	 * If the device is yest powered up by the host driver do
+	 * yest apply any controls to H/W at this time. Instead
 	 * the controls will be restored right after power-up.
 	 */
 	if (sensor->power_count == 0)
@@ -2775,7 +2775,7 @@ static int ov5640_enum_frame_interval(
 		return -EINVAL;
 
 	tpf.numerator = 1;
-	tpf.denominator = ov5640_framerates[fie->index];
+	tpf.deyesminator = ov5640_framerates[fie->index];
 
 	ret = ov5640_try_frame_interval(sensor, &tpf,
 					fie->width, fie->height);
@@ -2964,7 +2964,7 @@ power_off:
 static int ov5640_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct fwnode_handle *endpoint;
+	struct fwyesde_handle *endpoint;
 	struct ov5640_dev *sensor;
 	struct v4l2_mbus_framefmt *fmt;
 	u32 rotation;
@@ -2990,7 +2990,7 @@ static int ov5640_probe(struct i2c_client *client)
 	fmt->height = 480;
 	fmt->field = V4L2_FIELD_NONE;
 	sensor->frame_interval.numerator = 1;
-	sensor->frame_interval.denominator = ov5640_framerates[OV5640_30_FPS];
+	sensor->frame_interval.deyesminator = ov5640_framerates[OV5640_30_FPS];
 	sensor->current_fr = OV5640_30_FPS;
 	sensor->current_mode =
 		&ov5640_mode_data[OV5640_MODE_VGA_640_480];
@@ -2999,7 +2999,7 @@ static int ov5640_probe(struct i2c_client *client)
 	sensor->ae_target = 52;
 
 	/* optional indication of physical rotation of sensor */
-	ret = fwnode_property_read_u32(dev_fwnode(&client->dev), "rotation",
+	ret = fwyesde_property_read_u32(dev_fwyesde(&client->dev), "rotation",
 				       &rotation);
 	if (!ret) {
 		switch (rotation) {
@@ -3009,22 +3009,22 @@ static int ov5640_probe(struct i2c_client *client)
 		case 0:
 			break;
 		default:
-			dev_warn(dev, "%u degrees rotation is not supported, ignoring...\n",
+			dev_warn(dev, "%u degrees rotation is yest supported, igyesring...\n",
 				 rotation);
 		}
 	}
 
-	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev),
+	endpoint = fwyesde_graph_get_next_endpoint(dev_fwyesde(&client->dev),
 						  NULL);
 	if (!endpoint) {
-		dev_err(dev, "endpoint node not found\n");
+		dev_err(dev, "endpoint yesde yest found\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(endpoint, &sensor->ep);
-	fwnode_handle_put(endpoint);
+	ret = v4l2_fwyesde_endpoint_parse(endpoint, &sensor->ep);
+	fwyesde_handle_put(endpoint);
 	if (ret) {
-		dev_err(dev, "Could not parse endpoint\n");
+		dev_err(dev, "Could yest parse endpoint\n");
 		return ret;
 	}
 

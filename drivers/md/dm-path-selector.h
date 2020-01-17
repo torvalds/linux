@@ -48,7 +48,7 @@ struct path_selector_type {
 			 int argc, char **argv, char **error);
 
 	/*
-	 * Chooses a path for this io, if no paths are available then
+	 * Chooses a path for this io, if yes paths are available then
 	 * NULL will be returned.
 	 */
 	struct dm_path *(*select_path) (struct path_selector *ps,

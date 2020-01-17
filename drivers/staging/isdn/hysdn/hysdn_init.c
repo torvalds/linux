@@ -53,7 +53,7 @@ static hysdn_card *card_last = NULL;	/* pointer to first card */
 /* things like autodetect...                                                */
 /* If the return value of this function is 0 the init has been successful   */
 /* and the module is added to the list in /proc/modules, otherwise an error */
-/* is assumed and the module will not be kept in memory.                    */
+/* is assumed and the module will yest be kept in memory.                    */
 /****************************************************************************/
 
 static int hysdn_pci_init_one(struct pci_dev *akt_pcidev,
@@ -79,9 +79,9 @@ static int hysdn_pci_init_one(struct pci_dev *akt_pcidev,
 	card->iobase = pci_resource_start(akt_pcidev, PCI_REG_PLX_IO_BASE);
 	card->plxbase = pci_resource_start(akt_pcidev, PCI_REG_PLX_MEM_BASE);
 	card->membase = pci_resource_start(akt_pcidev, PCI_REG_MEMORY_BASE);
-	card->brdtype = BD_NONE;	/* unknown */
+	card->brdtype = BD_NONE;	/* unkyeswn */
 	card->debug_flags = DEF_DEB_FLAGS;	/* set default debug */
-	card->faxchans = 0;	/* default no fax channels */
+	card->faxchans = 0;	/* default yes fax channels */
 	card->bchans = 2;	/* and 2 b-channels */
 	card->brdtype = ent->driver_data;
 
@@ -182,7 +182,7 @@ hysdn_init(void)
 	}
 #endif /* CONFIG_HYSDN_CAPI */
 
-	return 0;		/* no error */
+	return 0;		/* yes error */
 }				/* init_module */
 
 
@@ -190,7 +190,7 @@ hysdn_init(void)
 /* cleanup_module is called when the module is released by the kernel. */
 /* The routine is only called if init_module has been successful and   */
 /* the module counter has a value of 0. Otherwise this function will   */
-/* not be called. This function must release all resources still allo- */
+/* yest be called. This function must release all resources still allo- */
 /* cated as after the return from this function the module code will   */
 /* be removed from memory.                                             */
 /***********************************************************************/

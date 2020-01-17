@@ -131,7 +131,7 @@ static void scif_release_dev(struct device *d)
 
 struct scif_hw_dev *
 scif_register_device(struct device *pdev, int id, const struct dma_map_ops *dma_ops,
-		     struct scif_hw_ops *hw_ops, u8 dnode, u8 snode,
+		     struct scif_hw_ops *hw_ops, u8 dyesde, u8 syesde,
 		     struct mic_mw *mmio, struct mic_mw *aper, void *dp,
 		     void __iomem *rdp, struct dma_chan **chan, int num_chan,
 		     bool card_rel_da)
@@ -149,8 +149,8 @@ scif_register_device(struct device *pdev, int id, const struct dma_map_ops *dma_
 	sdev->dev.dma_ops = dma_ops;
 	sdev->dev.release = scif_release_dev;
 	sdev->hw_ops = hw_ops;
-	sdev->dnode = dnode;
-	sdev->snode = snode;
+	sdev->dyesde = dyesde;
+	sdev->syesde = syesde;
 	dev_set_drvdata(&sdev->dev, sdev);
 	sdev->dev.bus = &scif_bus;
 	sdev->mmio = mmio;
@@ -162,7 +162,7 @@ scif_register_device(struct device *pdev, int id, const struct dma_map_ops *dma_
 	sdev->dma_ch = chan;
 	sdev->num_dma_ch = num_chan;
 	sdev->card_rel_da = card_rel_da;
-	dev_set_name(&sdev->dev, "scif-dev%u", sdev->dnode);
+	dev_set_name(&sdev->dev, "scif-dev%u", sdev->dyesde);
 	/*
 	 * device_register() causes the bus infrastructure to look for a
 	 * matching driver.

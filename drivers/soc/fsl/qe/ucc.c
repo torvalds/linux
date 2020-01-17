@@ -10,7 +10,7 @@
  * 		Li Yang <leoli@freescale.com>
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/stddef.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>

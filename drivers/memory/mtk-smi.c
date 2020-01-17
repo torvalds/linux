@@ -30,7 +30,7 @@
 /*
  * every port have 4 bit to control, bit[port + 3] control virtual or physical,
  * bit[port + 2 : port + 1] control the domain, bit[port] control the security
- * or non-security.
+ * or yesn-security.
  */
 #define SMI_SECUR_CON_VAL_MSK(id)	(~(0xf << (((id) & 0x7) << 2)))
 #define SMI_SECUR_CON_VAL_VIRT(id)	BIT((((id) & 0x7) << 2) + 3)
@@ -196,7 +196,7 @@ static void mtk_smi_larb_config_port_gen1(struct device *dev)
 			/* bit[port + 3] controls the virtual or physical */
 			sec_con_val = SMI_SECUR_CON_VAL_VIRT(m4u_port_id);
 		} else {
-			/* do not need to enable m4u for this port */
+			/* do yest need to enable m4u for this port */
 			continue;
 		}
 		reg_val = readl(common->smi_ao_base
@@ -213,7 +213,7 @@ static void mtk_smi_larb_config_port_gen1(struct device *dev)
 static void
 mtk_smi_larb_unbind(struct device *dev, struct device *master, void *data)
 {
-	/* Do nothing as the iommu is always enabled. */
+	/* Do yesthing as the iommu is always enabled. */
 }
 
 static const struct component_ops mtk_smi_larb_component_ops = {
@@ -222,7 +222,7 @@ static const struct component_ops mtk_smi_larb_component_ops = {
 };
 
 static const struct mtk_smi_larb_gen mtk_smi_larb_mt8173 = {
-	/* mt8173 do not need the port in larb */
+	/* mt8173 do yest need the port in larb */
 	.config_port = mtk_smi_larb_config_port_mt8173,
 };
 
@@ -271,7 +271,7 @@ static int mtk_smi_larb_probe(struct platform_device *pdev)
 	struct mtk_smi_larb *larb;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
-	struct device_node *smi_node;
+	struct device_yesde *smi_yesde;
 	struct platform_device *smi_pdev;
 
 	larb = devm_kzalloc(dev, sizeof(*larb), GFP_KERNEL);
@@ -302,12 +302,12 @@ static int mtk_smi_larb_probe(struct platform_device *pdev)
 	}
 	larb->smi.dev = dev;
 
-	smi_node = of_parse_phandle(dev->of_node, "mediatek,smi", 0);
-	if (!smi_node)
+	smi_yesde = of_parse_phandle(dev->of_yesde, "mediatek,smi", 0);
+	if (!smi_yesde)
 		return -EINVAL;
 
-	smi_pdev = of_find_device_by_node(smi_node);
-	of_node_put(smi_node);
+	smi_pdev = of_find_device_by_yesde(smi_yesde);
+	of_yesde_put(smi_yesde);
 	if (smi_pdev) {
 		if (!platform_get_drvdata(smi_pdev))
 			return -EPROBE_DEFER;
@@ -449,7 +449,7 @@ static int mtk_smi_common_probe(struct platform_device *pdev)
 	/*
 	 * for mtk smi gen 1, we need to get the ao(always on) base to config
 	 * m4u port, and we need to enable the aync clock for transform the smi
-	 * clock into emi clock domain, but for mtk smi gen2, there's no smi ao
+	 * clock into emi clock domain, but for mtk smi gen2, there's yes smi ao
 	 * base.
 	 */
 	if (common->plat->gen == MTK_SMI_GEN1) {

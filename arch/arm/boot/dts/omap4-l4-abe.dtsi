@@ -203,7 +203,7 @@
 			/*
 			 * Child device unsupported by davinci-mcasp. At least
 			 * RX path is disabled for omap4, and only DIT mode
-			 * works with no I2S. See also old Android kernel
+			 * works with yes I2S. See also old Android kernel
 			 * omap-mcasp driver for more information.
 			 */
 		};

@@ -14,7 +14,7 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <linux/smp.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
@@ -116,7 +116,7 @@ int regs_query_register_offset(const char *name)
  * @addr:      address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If yest, returns false.
  */
 static bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
 {
@@ -146,7 +146,7 @@ unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
 }
 
 /*
- * TODO: does not yet catch signals sent when the child dies.
+ * TODO: does yest yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
 
@@ -176,23 +176,23 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 
 #ifdef CONFIG_COMPAT
 	if (is_compat_task()) {
-		int si_errno = 0;
+		int si_erryes = 0;
 		int i;
 
 		for (i = 0; i < ARM_MAX_BRP; ++i) {
 			if (current->thread.debug.hbp_break[i] == bp) {
-				si_errno = (i << 1) + 1;
+				si_erryes = (i << 1) + 1;
 				break;
 			}
 		}
 
 		for (i = 0; i < ARM_MAX_WRP; ++i) {
 			if (current->thread.debug.hbp_watch[i] == bp) {
-				si_errno = -((i << 1) + 1);
+				si_erryes = -((i << 1) + 1);
 				break;
 			}
 		}
-		arm64_force_sig_ptrace_errno_trap(si_errno,
+		arm64_force_sig_ptrace_erryes_trap(si_erryes,
 						  (void __user *)bkpt->trigger,
 						  desc);
 	}
@@ -231,23 +231,23 @@ void ptrace_hw_copy_thread(struct task_struct *tsk)
 	memset(&tsk->thread.debug, 0, sizeof(struct debug_info));
 }
 
-static struct perf_event *ptrace_hbp_get_event(unsigned int note_type,
+static struct perf_event *ptrace_hbp_get_event(unsigned int yeste_type,
 					       struct task_struct *tsk,
 					       unsigned long idx)
 {
 	struct perf_event *bp = ERR_PTR(-EINVAL);
 
-	switch (note_type) {
+	switch (yeste_type) {
 	case NT_ARM_HW_BREAK:
 		if (idx >= ARM_MAX_BRP)
 			goto out;
-		idx = array_index_nospec(idx, ARM_MAX_BRP);
+		idx = array_index_yesspec(idx, ARM_MAX_BRP);
 		bp = tsk->thread.debug.hbp_break[idx];
 		break;
 	case NT_ARM_HW_WATCH:
 		if (idx >= ARM_MAX_WRP)
 			goto out;
-		idx = array_index_nospec(idx, ARM_MAX_WRP);
+		idx = array_index_yesspec(idx, ARM_MAX_WRP);
 		bp = tsk->thread.debug.hbp_watch[idx];
 		break;
 	}
@@ -256,25 +256,25 @@ out:
 	return bp;
 }
 
-static int ptrace_hbp_set_event(unsigned int note_type,
+static int ptrace_hbp_set_event(unsigned int yeste_type,
 				struct task_struct *tsk,
 				unsigned long idx,
 				struct perf_event *bp)
 {
 	int err = -EINVAL;
 
-	switch (note_type) {
+	switch (yeste_type) {
 	case NT_ARM_HW_BREAK:
 		if (idx >= ARM_MAX_BRP)
 			goto out;
-		idx = array_index_nospec(idx, ARM_MAX_BRP);
+		idx = array_index_yesspec(idx, ARM_MAX_BRP);
 		tsk->thread.debug.hbp_break[idx] = bp;
 		err = 0;
 		break;
 	case NT_ARM_HW_WATCH:
 		if (idx >= ARM_MAX_WRP)
 			goto out;
-		idx = array_index_nospec(idx, ARM_MAX_WRP);
+		idx = array_index_yesspec(idx, ARM_MAX_WRP);
 		tsk->thread.debug.hbp_watch[idx] = bp;
 		err = 0;
 		break;
@@ -284,7 +284,7 @@ out:
 	return err;
 }
 
-static struct perf_event *ptrace_hbp_create(unsigned int note_type,
+static struct perf_event *ptrace_hbp_create(unsigned int yeste_type,
 					    struct task_struct *tsk,
 					    unsigned long idx)
 {
@@ -292,7 +292,7 @@ static struct perf_event *ptrace_hbp_create(unsigned int note_type,
 	struct perf_event_attr attr;
 	int err, type;
 
-	switch (note_type) {
+	switch (yeste_type) {
 	case NT_ARM_HW_BREAK:
 		type = HW_BREAKPOINT_X;
 		break;
@@ -318,14 +318,14 @@ static struct perf_event *ptrace_hbp_create(unsigned int note_type,
 	if (IS_ERR(bp))
 		return bp;
 
-	err = ptrace_hbp_set_event(note_type, tsk, idx, bp);
+	err = ptrace_hbp_set_event(yeste_type, tsk, idx, bp);
 	if (err)
 		return ERR_PTR(err);
 
 	return bp;
 }
 
-static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
+static int ptrace_hbp_fill_attr_ctrl(unsigned int yeste_type,
 				     struct arch_hw_breakpoint_ctrl ctrl,
 				     struct perf_event_attr *attr)
 {
@@ -339,7 +339,7 @@ static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
 	if (err)
 		return err;
 
-	switch (note_type) {
+	switch (yeste_type) {
 	case NT_ARM_HW_BREAK:
 		if ((type & HW_BREAKPOINT_X) != type)
 			return -EINVAL;
@@ -359,12 +359,12 @@ static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
 	return 0;
 }
 
-static int ptrace_hbp_get_resource_info(unsigned int note_type, u32 *info)
+static int ptrace_hbp_get_resource_info(unsigned int yeste_type, u32 *info)
 {
 	u8 num;
 	u32 reg = 0;
 
-	switch (note_type) {
+	switch (yeste_type) {
 	case NT_ARM_HW_BREAK:
 		num = hw_breakpoint_slots(TYPE_INST);
 		break;
@@ -383,12 +383,12 @@ static int ptrace_hbp_get_resource_info(unsigned int note_type, u32 *info)
 	return 0;
 }
 
-static int ptrace_hbp_get_ctrl(unsigned int note_type,
+static int ptrace_hbp_get_ctrl(unsigned int yeste_type,
 			       struct task_struct *tsk,
 			       unsigned long idx,
 			       u32 *ctrl)
 {
-	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+	struct perf_event *bp = ptrace_hbp_get_event(yeste_type, tsk, idx);
 
 	if (IS_ERR(bp))
 		return PTR_ERR(bp);
@@ -397,12 +397,12 @@ static int ptrace_hbp_get_ctrl(unsigned int note_type,
 	return 0;
 }
 
-static int ptrace_hbp_get_addr(unsigned int note_type,
+static int ptrace_hbp_get_addr(unsigned int yeste_type,
 			       struct task_struct *tsk,
 			       unsigned long idx,
 			       u64 *addr)
 {
-	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+	struct perf_event *bp = ptrace_hbp_get_event(yeste_type, tsk, idx);
 
 	if (IS_ERR(bp))
 		return PTR_ERR(bp);
@@ -411,19 +411,19 @@ static int ptrace_hbp_get_addr(unsigned int note_type,
 	return 0;
 }
 
-static struct perf_event *ptrace_hbp_get_initialised_bp(unsigned int note_type,
+static struct perf_event *ptrace_hbp_get_initialised_bp(unsigned int yeste_type,
 							struct task_struct *tsk,
 							unsigned long idx)
 {
-	struct perf_event *bp = ptrace_hbp_get_event(note_type, tsk, idx);
+	struct perf_event *bp = ptrace_hbp_get_event(yeste_type, tsk, idx);
 
 	if (!bp)
-		bp = ptrace_hbp_create(note_type, tsk, idx);
+		bp = ptrace_hbp_create(yeste_type, tsk, idx);
 
 	return bp;
 }
 
-static int ptrace_hbp_set_ctrl(unsigned int note_type,
+static int ptrace_hbp_set_ctrl(unsigned int yeste_type,
 			       struct task_struct *tsk,
 			       unsigned long idx,
 			       u32 uctrl)
@@ -433,7 +433,7 @@ static int ptrace_hbp_set_ctrl(unsigned int note_type,
 	struct perf_event_attr attr;
 	struct arch_hw_breakpoint_ctrl ctrl;
 
-	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
+	bp = ptrace_hbp_get_initialised_bp(yeste_type, tsk, idx);
 	if (IS_ERR(bp)) {
 		err = PTR_ERR(bp);
 		return err;
@@ -441,14 +441,14 @@ static int ptrace_hbp_set_ctrl(unsigned int note_type,
 
 	attr = bp->attr;
 	decode_ctrl_reg(uctrl, &ctrl);
-	err = ptrace_hbp_fill_attr_ctrl(note_type, ctrl, &attr);
+	err = ptrace_hbp_fill_attr_ctrl(yeste_type, ctrl, &attr);
 	if (err)
 		return err;
 
 	return modify_user_hw_breakpoint(bp, &attr);
 }
 
-static int ptrace_hbp_set_addr(unsigned int note_type,
+static int ptrace_hbp_set_addr(unsigned int yeste_type,
 			       struct task_struct *tsk,
 			       unsigned long idx,
 			       u64 addr)
@@ -457,7 +457,7 @@ static int ptrace_hbp_set_addr(unsigned int note_type,
 	struct perf_event *bp;
 	struct perf_event_attr attr;
 
-	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
+	bp = ptrace_hbp_get_initialised_bp(yeste_type, tsk, idx);
 	if (IS_ERR(bp)) {
 		err = PTR_ERR(bp);
 		return err;
@@ -478,13 +478,13 @@ static int hw_break_get(struct task_struct *target,
 			unsigned int pos, unsigned int count,
 			void *kbuf, void __user *ubuf)
 {
-	unsigned int note_type = regset->core_note_type;
+	unsigned int yeste_type = regset->core_yeste_type;
 	int ret, idx = 0, offset, limit;
 	u32 info, ctrl;
 	u64 addr;
 
 	/* Resource info */
-	ret = ptrace_hbp_get_resource_info(note_type, &info);
+	ret = ptrace_hbp_get_resource_info(yeste_type, &info);
 	if (ret)
 		return ret;
 
@@ -504,7 +504,7 @@ static int hw_break_get(struct task_struct *target,
 	offset = offsetof(struct user_hwdebug_state, dbg_regs);
 	limit = regset->n * regset->size;
 	while (count && offset < limit) {
-		ret = ptrace_hbp_get_addr(note_type, target, idx, &addr);
+		ret = ptrace_hbp_get_addr(yeste_type, target, idx, &addr);
 		if (ret)
 			return ret;
 		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &addr,
@@ -513,7 +513,7 @@ static int hw_break_get(struct task_struct *target,
 			return ret;
 		offset += PTRACE_HBP_ADDR_SZ;
 
-		ret = ptrace_hbp_get_ctrl(note_type, target, idx, &ctrl);
+		ret = ptrace_hbp_get_ctrl(yeste_type, target, idx, &ctrl);
 		if (ret)
 			return ret;
 		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &ctrl,
@@ -539,14 +539,14 @@ static int hw_break_set(struct task_struct *target,
 			unsigned int pos, unsigned int count,
 			const void *kbuf, const void __user *ubuf)
 {
-	unsigned int note_type = regset->core_note_type;
+	unsigned int yeste_type = regset->core_yeste_type;
 	int ret, idx = 0, offset, limit;
 	u32 ctrl;
 	u64 addr;
 
 	/* Resource info and pad */
 	offset = offsetof(struct user_hwdebug_state, dbg_regs);
-	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, offset);
+	ret = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf, 0, offset);
 	if (ret)
 		return ret;
 
@@ -559,7 +559,7 @@ static int hw_break_set(struct task_struct *target,
 					 offset, offset + PTRACE_HBP_ADDR_SZ);
 		if (ret)
 			return ret;
-		ret = ptrace_hbp_set_addr(note_type, target, idx, addr);
+		ret = ptrace_hbp_set_addr(yeste_type, target, idx, addr);
 		if (ret)
 			return ret;
 		offset += PTRACE_HBP_ADDR_SZ;
@@ -570,12 +570,12 @@ static int hw_break_set(struct task_struct *target,
 					 offset, offset + PTRACE_HBP_CTRL_SZ);
 		if (ret)
 			return ret;
-		ret = ptrace_hbp_set_ctrl(note_type, target, idx, ctrl);
+		ret = ptrace_hbp_set_ctrl(yeste_type, target, idx, ctrl);
 		if (ret)
 			return ret;
 		offset += PTRACE_HBP_CTRL_SZ;
 
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		ret = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 						offset,
 						offset + PTRACE_HBP_PAD_SZ);
 		if (ret)
@@ -718,10 +718,10 @@ static int system_call_get(struct task_struct *target,
 			   unsigned int pos, unsigned int count,
 			   void *kbuf, void __user *ubuf)
 {
-	int syscallno = task_pt_regs(target)->syscallno;
+	int syscallyes = task_pt_regs(target)->syscallyes;
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &syscallno, 0, -1);
+				   &syscallyes, 0, -1);
 }
 
 static int system_call_set(struct task_struct *target,
@@ -729,14 +729,14 @@ static int system_call_set(struct task_struct *target,
 			   unsigned int pos, unsigned int count,
 			   const void *kbuf, const void __user *ubuf)
 {
-	int syscallno = task_pt_regs(target)->syscallno;
+	int syscallyes = task_pt_regs(target)->syscallyes;
 	int ret;
 
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &syscallno, 0, -1);
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &syscallyes, 0, -1);
 	if (ret)
 		return ret;
 
-	task_pt_regs(target)->syscallno = syscallno;
+	task_pt_regs(target)->syscallyes = syscallyes;
 	return ret;
 }
 
@@ -924,7 +924,7 @@ static int sve_set(struct task_struct *target,
 
 	start = end;
 	end = SVE_PT_SVE_FPSR_OFFSET(vq);
-	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+	ret = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 					start, end);
 	if (ret)
 		goto out;
@@ -1118,7 +1118,7 @@ enum aarch64_regset {
 
 static const struct user_regset aarch64_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_yeste_type = NT_PRSTATUS,
 		.n = sizeof(struct user_pt_regs) / sizeof(u64),
 		.size = sizeof(u64),
 		.align = sizeof(u64),
@@ -1126,7 +1126,7 @@ static const struct user_regset aarch64_regsets[] = {
 		.set = gpr_set
 	},
 	[REGSET_FPR] = {
-		.core_note_type = NT_PRFPREG,
+		.core_yeste_type = NT_PRFPREG,
 		.n = sizeof(struct user_fpsimd_state) / sizeof(u32),
 		/*
 		 * We pretend we have 32-bit registers because the fpsr and
@@ -1138,7 +1138,7 @@ static const struct user_regset aarch64_regsets[] = {
 		.set = fpr_set
 	},
 	[REGSET_TLS] = {
-		.core_note_type = NT_ARM_TLS,
+		.core_yeste_type = NT_ARM_TLS,
 		.n = 1,
 		.size = sizeof(void *),
 		.align = sizeof(void *),
@@ -1147,7 +1147,7 @@ static const struct user_regset aarch64_regsets[] = {
 	},
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	[REGSET_HW_BREAK] = {
-		.core_note_type = NT_ARM_HW_BREAK,
+		.core_yeste_type = NT_ARM_HW_BREAK,
 		.n = sizeof(struct user_hwdebug_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -1155,7 +1155,7 @@ static const struct user_regset aarch64_regsets[] = {
 		.set = hw_break_set,
 	},
 	[REGSET_HW_WATCH] = {
-		.core_note_type = NT_ARM_HW_WATCH,
+		.core_yeste_type = NT_ARM_HW_WATCH,
 		.n = sizeof(struct user_hwdebug_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -1164,7 +1164,7 @@ static const struct user_regset aarch64_regsets[] = {
 	},
 #endif
 	[REGSET_SYSTEM_CALL] = {
-		.core_note_type = NT_ARM_SYSTEM_CALL,
+		.core_yeste_type = NT_ARM_SYSTEM_CALL,
 		.n = 1,
 		.size = sizeof(int),
 		.align = sizeof(int),
@@ -1173,7 +1173,7 @@ static const struct user_regset aarch64_regsets[] = {
 	},
 #ifdef CONFIG_ARM64_SVE
 	[REGSET_SVE] = { /* Scalable Vector Extension */
-		.core_note_type = NT_ARM_SVE,
+		.core_yeste_type = NT_ARM_SVE,
 		.n = DIV_ROUND_UP(SVE_PT_SIZE(SVE_VQ_MAX, SVE_PT_REGS_SVE),
 				  SVE_VQ_BYTES),
 		.size = SVE_VQ_BYTES,
@@ -1185,16 +1185,16 @@ static const struct user_regset aarch64_regsets[] = {
 #endif
 #ifdef CONFIG_ARM64_PTR_AUTH
 	[REGSET_PAC_MASK] = {
-		.core_note_type = NT_ARM_PAC_MASK,
+		.core_yeste_type = NT_ARM_PAC_MASK,
 		.n = sizeof(struct user_pac_mask) / sizeof(u64),
 		.size = sizeof(u64),
 		.align = sizeof(u64),
 		.get = pac_mask_get,
-		/* this cannot be set dynamically */
+		/* this canyest be set dynamically */
 	},
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	[REGSET_PACA_KEYS] = {
-		.core_note_type = NT_ARM_PACA_KEYS,
+		.core_yeste_type = NT_ARM_PACA_KEYS,
 		.n = sizeof(struct user_pac_address_keys) / sizeof(__uint128_t),
 		.size = sizeof(__uint128_t),
 		.align = sizeof(__uint128_t),
@@ -1202,7 +1202,7 @@ static const struct user_regset aarch64_regsets[] = {
 		.set = pac_address_keys_set,
 	},
 	[REGSET_PACG_KEYS] = {
-		.core_note_type = NT_ARM_PACG_KEYS,
+		.core_yeste_type = NT_ARM_PACG_KEYS,
 		.n = sizeof(struct user_pac_generic_keys) / sizeof(__uint128_t),
 		.size = sizeof(__uint128_t),
 		.align = sizeof(__uint128_t),
@@ -1426,7 +1426,7 @@ static int compat_tls_set(struct task_struct *target,
 
 static const struct user_regset aarch32_regsets[] = {
 	[REGSET_COMPAT_GPR] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_yeste_type = NT_PRSTATUS,
 		.n = COMPAT_ELF_NGREG,
 		.size = sizeof(compat_elf_greg_t),
 		.align = sizeof(compat_elf_greg_t),
@@ -1434,7 +1434,7 @@ static const struct user_regset aarch32_regsets[] = {
 		.set = compat_gpr_set
 	},
 	[REGSET_COMPAT_VFP] = {
-		.core_note_type = NT_ARM_VFP,
+		.core_yeste_type = NT_ARM_VFP,
 		.n = VFP_STATE_SIZE / sizeof(compat_ulong_t),
 		.size = sizeof(compat_ulong_t),
 		.align = sizeof(compat_ulong_t),
@@ -1450,7 +1450,7 @@ static const struct user_regset_view user_aarch32_view = {
 
 static const struct user_regset aarch32_ptrace_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_yeste_type = NT_PRSTATUS,
 		.n = COMPAT_ELF_NGREG,
 		.size = sizeof(compat_elf_greg_t),
 		.align = sizeof(compat_elf_greg_t),
@@ -1458,7 +1458,7 @@ static const struct user_regset aarch32_ptrace_regsets[] = {
 		.set = compat_gpr_set
 	},
 	[REGSET_FPR] = {
-		.core_note_type = NT_ARM_VFP,
+		.core_yeste_type = NT_ARM_VFP,
 		.n = VFP_STATE_SIZE / sizeof(compat_ulong_t),
 		.size = sizeof(compat_ulong_t),
 		.align = sizeof(compat_ulong_t),
@@ -1466,7 +1466,7 @@ static const struct user_regset aarch32_ptrace_regsets[] = {
 		.set = compat_vfp_set
 	},
 	[REGSET_TLS] = {
-		.core_note_type = NT_ARM_TLS,
+		.core_yeste_type = NT_ARM_TLS,
 		.n = 1,
 		.size = sizeof(compat_ulong_t),
 		.align = sizeof(compat_ulong_t),
@@ -1475,7 +1475,7 @@ static const struct user_regset aarch32_ptrace_regsets[] = {
 	},
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	[REGSET_HW_BREAK] = {
-		.core_note_type = NT_ARM_HW_BREAK,
+		.core_yeste_type = NT_ARM_HW_BREAK,
 		.n = sizeof(struct user_hwdebug_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -1483,7 +1483,7 @@ static const struct user_regset aarch32_ptrace_regsets[] = {
 		.set = hw_break_set,
 	},
 	[REGSET_HW_WATCH] = {
-		.core_note_type = NT_ARM_HW_WATCH,
+		.core_yeste_type = NT_ARM_HW_WATCH,
 		.n = sizeof(struct user_hwdebug_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -1492,7 +1492,7 @@ static const struct user_regset aarch32_ptrace_regsets[] = {
 	},
 #endif
 	[REGSET_SYSTEM_CALL] = {
-		.core_note_type = NT_ARM_SYSTEM_CALL,
+		.core_yeste_type = NT_ARM_SYSTEM_CALL,
 		.n = 1,
 		.size = sizeof(int),
 		.align = sizeof(int),
@@ -1590,7 +1590,7 @@ static int compat_ptrace_hbp_get_resource_info(u32 *kdata)
 	return 0;
 }
 
-static int compat_ptrace_hbp_get(unsigned int note_type,
+static int compat_ptrace_hbp_get(unsigned int yeste_type,
 				 struct task_struct *tsk,
 				 compat_long_t num,
 				 u32 *kdata)
@@ -1601,17 +1601,17 @@ static int compat_ptrace_hbp_get(unsigned int note_type,
 	int err, idx = compat_ptrace_hbp_num_to_idx(num);
 
 	if (num & 1) {
-		err = ptrace_hbp_get_addr(note_type, tsk, idx, &addr);
+		err = ptrace_hbp_get_addr(yeste_type, tsk, idx, &addr);
 		*kdata = (u32)addr;
 	} else {
-		err = ptrace_hbp_get_ctrl(note_type, tsk, idx, &ctrl);
+		err = ptrace_hbp_get_ctrl(yeste_type, tsk, idx, &ctrl);
 		*kdata = ctrl;
 	}
 
 	return err;
 }
 
-static int compat_ptrace_hbp_set(unsigned int note_type,
+static int compat_ptrace_hbp_set(unsigned int yeste_type,
 				 struct task_struct *tsk,
 				 compat_long_t num,
 				 u32 *kdata)
@@ -1623,10 +1623,10 @@ static int compat_ptrace_hbp_set(unsigned int note_type,
 
 	if (num & 1) {
 		addr = *kdata;
-		err = ptrace_hbp_set_addr(note_type, tsk, idx, addr);
+		err = ptrace_hbp_set_addr(yeste_type, tsk, idx, addr);
 	} else {
 		ctrl = *kdata;
-		err = ptrace_hbp_set_ctrl(note_type, tsk, idx, ctrl);
+		err = ptrace_hbp_set_ctrl(yeste_type, tsk, idx, ctrl);
 	}
 
 	return err;
@@ -1716,7 +1716,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			break;
 
 		case COMPAT_PTRACE_SET_SYSCALL:
-			task_pt_regs(child)->syscallno = data;
+			task_pt_regs(child)->syscallyes = data;
 			ret = 0;
 			break;
 
@@ -1787,23 +1787,23 @@ enum ptrace_syscall_dir {
 static void tracehook_report_syscall(struct pt_regs *regs,
 				     enum ptrace_syscall_dir dir)
 {
-	int regno;
+	int regyes;
 	unsigned long saved_reg;
 
 	/*
 	 * A scratch register (ip(r12) on AArch32, x7 on AArch64) is
-	 * used to denote syscall entry/exit:
+	 * used to deyeste syscall entry/exit:
 	 */
-	regno = (is_compat_task() ? 12 : 7);
-	saved_reg = regs->regs[regno];
-	regs->regs[regno] = dir;
+	regyes = (is_compat_task() ? 12 : 7);
+	saved_reg = regs->regs[regyes];
+	regs->regs[regyes] = dir;
 
 	if (dir == PTRACE_SYSCALL_EXIT)
 		tracehook_report_syscall_exit(regs, 0);
 	else if (tracehook_report_syscall_entry(regs))
 		forget_syscall(regs);
 
-	regs->regs[regno] = saved_reg;
+	regs->regs[regyes] = saved_reg;
 }
 
 int syscall_trace_enter(struct pt_regs *regs)
@@ -1820,12 +1820,12 @@ int syscall_trace_enter(struct pt_regs *regs)
 		return -1;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
-		trace_sys_enter(regs, regs->syscallno);
+		trace_sys_enter(regs, regs->syscallyes);
 
-	audit_syscall_entry(regs->syscallno, regs->orig_x0, regs->regs[1],
+	audit_syscall_entry(regs->syscallyes, regs->orig_x0, regs->regs[1],
 			    regs->regs[2], regs->regs[3]);
 
-	return regs->syscallno;
+	return regs->syscallyes;
 }
 
 void syscall_trace_exit(struct pt_regs *regs)
@@ -1844,11 +1844,11 @@ void syscall_trace_exit(struct pt_regs *regs)
 /*
  * SPSR_ELx bits which are always architecturally RES0 per ARM DDI 0487D.a.
  * We permit userspace to set SSBS (AArch64 bit 12, AArch32 bit 23) which is
- * not described in ARM DDI 0487D.a.
+ * yest described in ARM DDI 0487D.a.
  * We treat PAN and UAO as RES0 bits, as they are meaningless at EL0, and may
  * be allocated an EL0 meaning in future.
- * Userspace cannot use these until they have an architectural meaning.
- * Note that this follows the SPSR_ELx format, not the AArch32 PSR format.
+ * Userspace canyest use these until they have an architectural meaning.
+ * Note that this follows the SPSR_ELx format, yest the AArch32 PSR format.
  * We also reserve IL for the kernel; SS is handled dynamically.
  */
 #define SPSR_EL1_AARCH64_RES0_BITS \

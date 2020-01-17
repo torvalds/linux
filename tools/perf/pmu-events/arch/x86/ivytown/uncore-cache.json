@@ -116,7 +116,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "LLC misses for PCIe non-snoop reads. Derived from unc_c_tor_inserts.miss_opcode.pcie_read",
+        "BriefDescription": "LLC misses for PCIe yesn-syesop reads. Derived from unc_c_tor_inserts.miss_opcode.pcie_read",
         "Counter": "0,1",
         "EventCode": "0x35",
         "EventName": "LLC_MISSES.PCIE_NON_SNOOP_READ",
@@ -127,7 +127,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "LLC misses for PCIe non-snoop writes (full line). Derived from unc_c_tor_inserts.miss_opcode.pcie_write",
+        "BriefDescription": "LLC misses for PCIe yesn-syesop writes (full line). Derived from unc_c_tor_inserts.miss_opcode.pcie_write",
         "Counter": "0,1",
         "EventCode": "0x35",
         "EventName": "LLC_MISSES.PCIE_NON_SNOOP_WRITE",
@@ -204,7 +204,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "PCIe non-snoop reads. Derived from unc_c_tor_inserts.opcode.pcie_read",
+        "BriefDescription": "PCIe yesn-syesop reads. Derived from unc_c_tor_inserts.opcode.pcie_read",
         "Counter": "0,1",
         "EventCode": "0x35",
         "EventName": "LLC_REFERENCES.PCIE_NS_READ",
@@ -215,7 +215,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "PCIe non-snoop writes (partial). Derived from unc_c_tor_inserts.opcode.pcie_partial_write",
+        "BriefDescription": "PCIe yesn-syesop writes (partial). Derived from unc_c_tor_inserts.opcode.pcie_partial_write",
         "Counter": "0,1",
         "EventCode": "0x35",
         "EventName": "LLC_REFERENCES.PCIE_NS_PARTIAL_WRITE",
@@ -226,7 +226,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "PCIe non-snoop writes (full line). Derived from unc_c_tor_inserts.opcode.pcie_full_write",
+        "BriefDescription": "PCIe yesn-syesop writes (full line). Derived from unc_c_tor_inserts.opcode.pcie_full_write",
         "Counter": "0,1",
         "EventCode": "0x35",
         "EventName": "LLC_REFERENCES.PCIE_NS_WRITE",
@@ -290,7 +290,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "M line forwarded from remote cache with no writeback to memory",
+        "BriefDescription": "M line forwarded from remote cache with yes writeback to memory",
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_H_SNOOP_RESP.RSPIFWD",

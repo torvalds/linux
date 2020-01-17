@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -40,7 +40,7 @@
 
 static void tipc_sub_send_event(struct tipc_subscription *sub,
 				u32 found_lower, u32 found_upper,
-				u32 event, u32 port, u32 node)
+				u32 event, u32 port, u32 yesde)
 {
 	struct tipc_event *evt = &sub->evt;
 
@@ -50,7 +50,7 @@ static void tipc_sub_send_event(struct tipc_subscription *sub,
 	tipc_evt_write(evt, found_lower, found_lower);
 	tipc_evt_write(evt, found_upper, found_upper);
 	tipc_evt_write(evt, port.ref, port);
-	tipc_evt_write(evt, port.node, node);
+	tipc_evt_write(evt, port.yesde, yesde);
 	tipc_topsrv_queue_evt(sub->net, sub->conid, event, evt);
 }
 
@@ -74,7 +74,7 @@ int tipc_sub_check_overlap(struct tipc_name_seq *seq, u32 found_lower,
 
 void tipc_sub_report_overlap(struct tipc_subscription *sub,
 			     u32 found_lower, u32 found_upper,
-			     u32 event, u32 port, u32 node,
+			     u32 event, u32 port, u32 yesde,
 			     u32 scope, int must)
 {
 	struct tipc_subscr *s = &sub->evt.s;
@@ -96,7 +96,7 @@ void tipc_sub_report_overlap(struct tipc_subscription *sub,
 		return;
 	spin_lock(&sub->lock);
 	tipc_sub_send_event(sub, found_lower, found_upper,
-			    event, port, node);
+			    event, port, yesde);
 	spin_unlock(&sub->lock);
 }
 
@@ -142,7 +142,7 @@ struct tipc_subscription *tipc_sub_subscribe(struct net *net,
 	}
 	sub = kmalloc(sizeof(*sub), GFP_ATOMIC);
 	if (!sub) {
-		pr_warn("Subscription rejected, no memory\n");
+		pr_warn("Subscription rejected, yes memory\n");
 		return NULL;
 	}
 	INIT_LIST_HEAD(&sub->service_list);

@@ -50,7 +50,7 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	data->clk = devm_clk_get(&pdev->dev, NULL);
 	ret = PTR_ERR_OR_ZERO(data->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "could not get clk: %d\n", ret);
+		dev_err(&pdev->dev, "could yest get clk: %d\n", ret);
 		return ret;
 	}
 
@@ -63,7 +63,7 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	/* map the main registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "memory resource not found");
+		dev_err(&pdev->dev, "memory resource yest found");
 		return -EINVAL;
 	}
 	data->uart.port.membase = devm_ioremap_resource(&pdev->dev, res);
@@ -72,7 +72,7 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Check for a fixed line number */
-	ret = of_alias_get_id(pdev->dev.of_node, "serial");
+	ret = of_alias_get_id(pdev->dev.of_yesde, "serial");
 	if (ret >= 0)
 		data->uart.port.line = ret;
 

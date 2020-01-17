@@ -140,7 +140,7 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define BDL_SIZE		4096
 #define AZX_MAX_BDL_ENTRIES	(BDL_SIZE / 16)
 #define AZX_MAX_FRAG		32
-/* max buffer size - no h/w limit, you can increase as you like */
+/* max buffer size - yes h/w limit, you can increase as you like */
 #define AZX_MAX_BUF_SIZE	(1024*1024*1024)
 
 /* RIRB int mask: overrun[2], response[0] */
@@ -216,7 +216,7 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_REG_PP_PPCTL		0x04
 #define AZX_PPCTL_PIE			(1<<31)
 #define AZX_PPCTL_GPROCEN		(1<<30)
-/* _X_ = dma engine # and cannot * exceed 29 (per spec max 30 dma engines) */
+/* _X_ = dma engine # and canyest * exceed 29 (per spec max 30 dma engines) */
 #define AZX_PPCTL_PROCEN(_X_)		(1<<(_X_))
 
 #define AZX_REG_PP_PPSTS		0x08

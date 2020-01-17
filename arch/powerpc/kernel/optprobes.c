@@ -68,14 +68,14 @@ static unsigned long can_optimize(struct kprobe *p)
 
 	/*
 	 * kprobe placed for kretprobe during boot time
-	 * has a 'nop' instruction, which can be emulated.
+	 * has a 'yesp' instruction, which can be emulated.
 	 * So further checks can be skipped.
 	 */
 	if (p->addr == (kprobe_opcode_t *)&kretprobe_trampoline)
 		return (unsigned long)p->addr + sizeof(kprobe_opcode_t);
 
 	/*
-	 * We only support optimizing kernel addresses, but not
+	 * We only support optimizing kernel addresses, but yest
 	 * module addresses.
 	 *
 	 * FIXME: Optimize kprobes placed in module addresses.
@@ -90,13 +90,13 @@ static unsigned long can_optimize(struct kprobe *p)
 
 	/*
 	 * Kprobe placed in conditional branch instructions are
-	 * not optimized, as we can't predict the nip prior with
-	 * dummy pt_regs and can not ensure that the return branch
+	 * yest optimized, as we can't predict the nip prior with
+	 * dummy pt_regs and can yest ensure that the return branch
 	 * from detour buffer falls in the range of address (i.e 32MB).
 	 * A branch back from trampoline is set up in the detour buffer
 	 * to the nip returned by the analyse_instr() here.
 	 *
-	 * Ensure that the instruction is not a conditional branch,
+	 * Ensure that the instruction is yest a conditional branch,
 	 * and that can be emulated.
 	 */
 	if (!is_conditional_branch(*p->ainsn.insn) &&
@@ -111,7 +111,7 @@ static unsigned long can_optimize(struct kprobe *p)
 static void optimized_callback(struct optimized_kprobe *op,
 			       struct pt_regs *regs)
 {
-	/* This is possible if op is under delayed unoptimizing */
+	/* This is possible if op is under delayed uyesptimizing */
 	if (kprobe_disabled(&op->kp))
 		return;
 
@@ -127,7 +127,7 @@ static void optimized_callback(struct optimized_kprobe *op,
 		__this_cpu_write(current_kprobe, NULL);
 	}
 
-	preempt_enable_no_resched();
+	preempt_enable_yes_resched();
 }
 NOKPROBE_SYMBOL(optimized_callback);
 
@@ -295,7 +295,7 @@ int arch_prepared_optinsn(struct arch_optimized_insn *optinsn)
 
 /*
  * On powerpc, Optprobes always replaces one instruction (4 bytes
- * aligned and 4 bytes long). It is impossible to encounter another
+ * aligned and 4 bytes long). It is impossible to encounter ayesther
  * kprobe in this address range. So always return 0.
  */
 int arch_check_optimized_kprobe(struct optimized_kprobe *op)
@@ -322,19 +322,19 @@ void arch_optimize_kprobes(struct list_head *oplist)
 	}
 }
 
-void arch_unoptimize_kprobe(struct optimized_kprobe *op)
+void arch_uyesptimize_kprobe(struct optimized_kprobe *op)
 {
 	arch_arm_kprobe(&op->kp);
 }
 
-void arch_unoptimize_kprobes(struct list_head *oplist,
+void arch_uyesptimize_kprobes(struct list_head *oplist,
 			     struct list_head *done_list)
 {
 	struct optimized_kprobe *op;
 	struct optimized_kprobe *tmp;
 
 	list_for_each_entry_safe(op, tmp, oplist, list) {
-		arch_unoptimize_kprobe(op);
+		arch_uyesptimize_kprobe(op);
 		list_move(&op->list, done_list);
 	}
 }

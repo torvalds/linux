@@ -106,7 +106,7 @@ static void enable_vbus_draw(struct isp1301 *isp, unsigned mA)
 
 static void enable_vbus_draw(struct isp1301 *isp, unsigned mA)
 {
-	/* H4 controls this by DIP switch S2.4; no soft control.
+	/* H4 controls this by DIP switch S2.4; yes soft control.
 	 * ON means the charger is always enabled.  Leave it OFF
 	 * unless the OTG port is used only in B-peripheral mode.
 	 */
@@ -123,9 +123,9 @@ static void enable_vbus_source(struct isp1301 *isp)
 
 
 /* products will deliver OTG messages with LEDs, GUI, etc */
-static inline void notresponding(struct isp1301 *isp)
+static inline void yestresponding(struct isp1301 *isp)
 {
-	printk(KERN_NOTICE "OTG device not responding.\n");
+	printk(KERN_NOTICE "OTG device yest responding.\n");
 }
 
 
@@ -227,7 +227,7 @@ static inline const char *state_name(struct isp1301 *isp)
 /*-------------------------------------------------------------------------*/
 
 /* NOTE:  some of this ISP1301 setup is specific to H2 boards;
- * not everything is guarded by board-specific checks, or even using
+ * yest everything is guarded by board-specific checks, or even using
  * omap_usb_config data to deduce MC1_DAT_SE0 and MC2_BI_DI.
  *
  * ALSO:  this currently doesn't use ISP1301 low-power modes
@@ -579,7 +579,7 @@ pulldown:
 			break;
 		}
 		/* HNP failed for some reason (A_AIDL_BDIS timeout) */
-		notresponding(isp);
+		yestresponding(isp);
 
 		/* FALLTHROUGH */
 	case OTG_STATE_A_VBUS_ERR:
@@ -654,10 +654,10 @@ static irqreturn_t omap_otg_irq(int irq, void *_isp)
 	/* SRP to become b_peripheral failed */
 	} else if (otg_irq & B_SRP_TMROUT) {
 		pr_debug("otg: B_SRP_TIMEOUT, %06x\n", omap_readl(OTG_CTRL));
-		notresponding(isp);
+		yestresponding(isp);
 
 		/* gadget drivers that care should monitor all kinds of
-		 * remote wakeup (SRP, normal) using their own timer
+		 * remote wakeup (SRP, yesrmal) using their own timer
 		 * to give "check cable and A-device" messages.
 		 */
 		if (isp->phy.otg->state == OTG_STATE_B_SRP_INIT)
@@ -670,7 +670,7 @@ static irqreturn_t omap_otg_irq(int irq, void *_isp)
 	} else if (otg_irq & B_HNP_FAIL) {
 		pr_debug("otg: %s B_HNP_FAIL, %06x\n",
 				state_name(isp), omap_readl(OTG_CTRL));
-		notresponding(isp);
+		yestresponding(isp);
 
 		otg_ctrl = omap_readl(OTG_CTRL);
 		otg_ctrl |= OTG_BUSDROP;
@@ -716,7 +716,7 @@ static irqreturn_t omap_otg_irq(int irq, void *_isp)
 		otg_ctrl = omap_readl(OTG_CTRL);
 		pr_info("otg: BCON_TMOUT from %s, %06x\n",
 				state_name(isp), otg_ctrl);
-		notresponding(isp);
+		yestresponding(isp);
 
 		otg_ctrl |= OTG_BUSDROP;
 		otg_ctrl &= ~OTG_A_BUSREQ & OTG_CTRL_MASK & ~OTG_XCEIV_INPUTS;
@@ -823,7 +823,7 @@ static int isp1301_otg_init(struct isp1301 *isp)
 		| SRP_GPDVBUS		/* discharge after VBUS pulse */
 		// | (3 << 24)		/* 2msec VBUS pulse */
 		/* for A-device: */
-		| (0 << 20)		/* 200ms nominal A_WAIT_VRISE timer */
+		| (0 << 20)		/* 200ms yesminal A_WAIT_VRISE timer */
 		| SRP_DPW		/* detect 167+ns SRP pulses */
 		| SRP_DATA | SRP_VBUS	/* accept both kinds of SRP pulse */
 		;
@@ -952,7 +952,7 @@ static void isp_update_otg(struct isp1301 *isp, u8 stat)
 			case OTG_STATE_A_WAIT_VRISE:
 				/* we skip over OTG_STATE_A_WAIT_BCON, since
 				 * the HC will transition to A_HOST (or
-				 * A_SUSPEND!) without our noticing except
+				 * A_SUSPEND!) without our yesticing except
 				 * when HNP is used.
 				 */
 				if (isp_stat & INTR_VBUS_VLD)
@@ -997,7 +997,7 @@ static void isp_update_otg(struct isp1301 *isp, u8 stat)
 				break;
 			case OTG_STATE_A_WAIT_VFALL:
 				state = OTG_STATE_A_IDLE;
-				/* hub_wq may take a while to notice and
+				/* hub_wq may take a while to yestice and
 				 * handle this disconnect, so don't go
 				 * to B_IDLE quite yet.
 				 */
@@ -1185,7 +1185,7 @@ static void isp1301_release(struct device *dev)
 
 	isp = dev_get_drvdata(dev);
 
-	/* FIXME -- not with a "new style" driver, it doesn't!! */
+	/* FIXME -- yest with a "new style" driver, it doesn't!! */
 
 	/* ugly -- i2c hijacks our memory hook to wait_for_completion() */
 	if (isp->i2c_release)
@@ -1298,8 +1298,8 @@ isp1301_set_host(struct usb_otg *otg, struct usb_bus *host)
 		INTR_ID_GND);
 
 	/* If this has a Mini-AB connector, this mode is highly
-	 * nonstandard ... but can be handy for testing, especially with
-	 * the Mini-A end of an OTG cable.  (Or something nonstandard
+	 * yesnstandard ... but can be handy for testing, especially with
+	 * the Mini-A end of an OTG cable.  (Or something yesnstandard
 	 * like MiniB-to-StandardB, maybe built with a gender mender.)
 	 */
 	isp1301_set_bits(isp, ISP1301_OTG_CONTROL_1, OTG1_VBUS_DRV);
@@ -1309,7 +1309,7 @@ isp1301_set_host(struct usb_otg *otg, struct usb_bus *host)
 	return 0;
 
 #else
-	dev_dbg(&isp->client->dev, "host sessions not allowed\n");
+	dev_dbg(&isp->client->dev, "host sessions yest allowed\n");
 	return -EINVAL;
 #endif
 
@@ -1368,7 +1368,7 @@ isp1301_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 	dump_regs(isp, __func__);
 
 	/* If this has a Mini-AB connector, this mode is highly
-	 * nonstandard ... but can be handy for testing, so long
+	 * yesnstandard ... but can be handy for testing, so long
 	 * as you don't plug a Mini-A cable into the jack.
 	 */
 	if (isp1301_get_u8(isp, ISP1301_INTERRUPT_SOURCE) & INTR_VBUS_VLD)
@@ -1377,7 +1377,7 @@ isp1301_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 	return 0;
 
 #else
-	dev_dbg(&isp->client->dev, "peripheral sessions not allowed\n");
+	dev_dbg(&isp->client->dev, "peripheral sessions yest allowed\n");
 	return -EINVAL;
 #endif
 }
@@ -1503,12 +1503,12 @@ isp1301_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	/* verify the chip (shouldn't be necessary) */
 	status = isp1301_get_u16(isp, ISP1301_VENDOR_ID);
 	if (status != I2C_VENDOR_ID_PHILIPS) {
-		dev_dbg(&i2c->dev, "not philips id: %d\n", status);
+		dev_dbg(&i2c->dev, "yest philips id: %d\n", status);
 		goto fail;
 	}
 	status = isp1301_get_u16(isp, ISP1301_PRODUCT_ID);
 	if (status != I2C_PRODUCT_ID_PHILIPS_1301) {
-		dev_dbg(&i2c->dev, "not isp1301, %d\n", status);
+		dev_dbg(&i2c->dev, "yest isp1301, %d\n", status);
 		goto fail;
 	}
 	isp->i2c_release = i2c->dev.release;

@@ -126,7 +126,7 @@ struct nested_vmx {
 	bool dirty_vmcs12;
 
 	/*
-	 * Indicates lazily loaded guest state has not yet been decached from
+	 * Indicates lazily loaded guest state has yest yet been decached from
 	 * vmcs02.
 	 */
 	bool need_sync_vmcs02_to_vmcs12_rare;
@@ -141,7 +141,7 @@ struct nested_vmx {
 	bool change_vmcs01_virtual_apic_mode;
 
 	/*
-	 * Enlightened VMCS has been enabled. It does not mean that L1 has to
+	 * Enlightened VMCS has been enabled. It does yest mean that L1 has to
 	 * use it. However, VMX features available to L1 will be limited based
 	 * on what the enlightened VMCS supports.
 	 */
@@ -228,7 +228,7 @@ struct vcpu_vmx {
 
 	/*
 	 * loaded_vmcs points to the VMCS currently used in this vcpu. For a
-	 * non-nested (L1) guest, it always points to vmcs01. For a nested
+	 * yesn-nested (L1) guest, it always points to vmcs01. For a nested
 	 * guest (L2), it points to a different VMCS.
 	 */
 	struct loaded_vmcs    vmcs01;

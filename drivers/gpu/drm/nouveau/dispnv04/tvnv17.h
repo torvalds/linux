@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -50,7 +50,7 @@ struct nv17_tv_state {
 	uint32_t ptv_614;
 };
 
-enum nv17_tv_norm{
+enum nv17_tv_yesrm{
 	TV_NORM_PAL,
 	TV_NORM_PAL_M,
 	TV_NORM_PAL_N,
@@ -68,7 +68,7 @@ enum nv17_tv_norm{
 };
 
 struct nv17_tv_encoder {
-	struct nouveau_encoder base;
+	struct yesuveau_encoder base;
 
 	struct nv17_tv_state state;
 	struct nv17_tv_state saved_state;
@@ -77,17 +77,17 @@ struct nv17_tv_encoder {
 	int flicker;
 	int saturation;
 	int hue;
-	enum nv17_tv_norm tv_norm;
+	enum nv17_tv_yesrm tv_yesrm;
 	int subconnector;
 	int select_subconnector;
 	uint32_t pin_mask;
 };
-#define to_tv_enc(x) container_of(nouveau_encoder(x),		\
+#define to_tv_enc(x) container_of(yesuveau_encoder(x),		\
 				  struct nv17_tv_encoder, base)
 
-extern const char * const nv17_tv_norm_names[NUM_TV_NORMS];
+extern const char * const nv17_tv_yesrm_names[NUM_TV_NORMS];
 
-extern struct nv17_tv_norm_params {
+extern struct nv17_tv_yesrm_params {
 	enum {
 		TV_ENC_MODE,
 		CTV_ENC_MODE,
@@ -109,8 +109,8 @@ extern struct nv17_tv_norm_params {
 		} ctv_enc_mode;
 	};
 
-} nv17_tv_norms[NUM_TV_NORMS];
-#define get_tv_norm(enc) (&nv17_tv_norms[to_tv_enc(enc)->tv_norm])
+} nv17_tv_yesrms[NUM_TV_NORMS];
+#define get_tv_yesrm(enc) (&nv17_tv_yesrms[to_tv_enc(enc)->tv_yesrm])
 
 extern const struct drm_display_mode nv17_tv_modes[];
 
@@ -130,13 +130,13 @@ void nv17_ctv_update_rescaler(struct drm_encoder *encoder);
 static inline void nv_write_ptv(struct drm_device *dev, uint32_t reg,
 				uint32_t val)
 {
-	struct nvif_device *device = &nouveau_drm(dev)->client.device;
+	struct nvif_device *device = &yesuveau_drm(dev)->client.device;
 	nvif_wr32(&device->object, reg, val);
 }
 
 static inline uint32_t nv_read_ptv(struct drm_device *dev, uint32_t reg)
 {
-	struct nvif_device *device = &nouveau_drm(dev)->client.device;
+	struct nvif_device *device = &yesuveau_drm(dev)->client.device;
 	return nvif_rd32(&device->object, reg);
 }
 

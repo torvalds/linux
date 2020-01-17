@@ -290,7 +290,7 @@ void cxl_adapter_context_put(struct cxl *adapter)
 int cxl_adapter_context_lock(struct cxl *adapter)
 {
 	int rc;
-	/* no active contexts -> contexts_num == 0 */
+	/* yes active contexts -> contexts_num == 0 */
 	rc = atomic_cmpxchg(&adapter->contexts_num, 0, -1);
 	return rc ? -EBUSY : 0;
 }
@@ -301,7 +301,7 @@ void cxl_adapter_context_unlock(struct cxl *adapter)
 
 	/*
 	 * contexts lock taken -> contexts_num == -1
-	 * If not true then show a warning and force reset the lock.
+	 * If yest true then show a warning and force reset the lock.
 	 * This will happen when context_unlock was requested without
 	 * doing a context_lock.
 	 */

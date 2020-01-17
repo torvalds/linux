@@ -73,7 +73,7 @@ struct ceph_messenger {
 };
 
 enum ceph_msg_data_type {
-	CEPH_MSG_DATA_NONE,	/* message contains no data payload */
+	CEPH_MSG_DATA_NONE,	/* message contains yes data payload */
 	CEPH_MSG_DATA_PAGES,	/* data source/destination is a page array */
 	CEPH_MSG_DATA_PAGELIST,	/* data source/destination is a pagelist */
 #ifdef CONFIG_BLOCK
@@ -187,7 +187,7 @@ struct ceph_msg_data_cursor {
 	size_t			total_resid;	/* across all data items */
 
 	struct ceph_msg_data	*data;		/* current data item */
-	size_t			resid;		/* bytes not yet consumed */
+	size_t			resid;		/* bytes yest yet consumed */
 	bool			last_piece;	/* current is last piece */
 	bool			need_crc;	/* crc update needed */
 	union {
@@ -244,7 +244,7 @@ struct ceph_msg {
 #define MAX_DELAY_INTERVAL	(5 * 60 * HZ)
 
 /*
- * A single connection with another host.
+ * A single connection with ayesther host.
  *
  * We maintain a queue of outgoing messages, and some session state to
  * ensure that we can preserve the lossless, ordered delivery of
@@ -337,7 +337,7 @@ extern void ceph_msgr_flush(void);
 extern void ceph_messenger_init(struct ceph_messenger *msgr,
 				struct ceph_entity_addr *myaddr);
 extern void ceph_messenger_fini(struct ceph_messenger *msgr);
-extern void ceph_messenger_reset_nonce(struct ceph_messenger *msgr);
+extern void ceph_messenger_reset_yesnce(struct ceph_messenger *msgr);
 
 extern void ceph_con_init(struct ceph_connection *con, void *private,
 			const struct ceph_connection_operations *ops,

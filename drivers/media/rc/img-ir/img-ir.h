@@ -2,7 +2,7 @@
 /*
  * ImgTec IR Decoder found in PowerDown Controller.
  *
- * Copyright 2010-2014 Imagination Technologies Ltd.
+ * Copyright 2010-2014 Imagination Techyeslogies Ltd.
  */
 
 #ifndef _IMG_IR_H_

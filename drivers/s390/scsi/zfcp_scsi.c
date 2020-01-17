@@ -41,7 +41,7 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdev)
 {
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 
-	/* if previous slave_alloc returned early, there is nothing to do */
+	/* if previous slave_alloc returned early, there is yesthing to do */
 	if (!zfcp_sdev->port)
 		return;
 
@@ -87,7 +87,7 @@ int zfcp_scsi_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scpnt)
 		     !(atomic_read(&zfcp_sdev->port->status) &
 		       ZFCP_STATUS_COMMON_ERP_FAILED)) {
 		/* only LUN access denied, but port is good
-		 * not covered by FC transport, have to fail here */
+		 * yest covered by FC transport, have to fail here */
 		zfcp_scsi_command_fail(scpnt, DID_ERROR);
 		return 0;
 	}
@@ -175,7 +175,7 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	int retry = 3;
 	char *dbf_tag;
 
-	/* avoid race condition between late normal completion and abort */
+	/* avoid race condition between late yesrmal completion and abort */
 	write_lock_irqsave(&adapter->abort_lock, flags);
 
 	old_req = zfcp_reqlist_find(adapter->req_list, old_reqid);
@@ -238,7 +238,7 @@ static void zfcp_scsi_forget_cmnd(struct zfcp_fsf_req *old_req, void *data)
 	struct zfcp_scsi_req_filter *filter =
 		(struct zfcp_scsi_req_filter *)data;
 
-	/* already aborted - prevent side-effects - or not a SCSI command */
+	/* already aborted - prevent side-effects - or yest a SCSI command */
 	if (old_req->data == NULL ||
 	    zfcp_fsf_req_is_status_read_buffer(old_req) ||
 	    old_req->qtcb->header.fsf_command != FSF_QTCB_FCP_CMND)
@@ -272,7 +272,7 @@ static void zfcp_scsi_forget_cmnds(struct zfcp_scsi_dev *zsdev, u8 tm_flags)
 
 	/*
 	 * abort_lock secures against other processings - in the abort-function
-	 * and normal cmnd-handler - of (struct zfcp_fsf_req *)->data
+	 * and yesrmal cmnd-handler - of (struct zfcp_fsf_req *)->data
 	 */
 	write_lock_irqsave(&adapter->abort_lock, flags);
 	zfcp_reqlist_apply_for_all(adapter->req_list, zfcp_scsi_forget_cmnd,
@@ -358,7 +358,7 @@ static int zfcp_scsi_eh_target_reset_handler(struct scsi_cmnd *scpnt)
 	}
 	if (!sdev) {
 		ret = FAILED;
-		zfcp_dbf_scsi_eh("tr_nosd", adapter, starget->id, ret);
+		zfcp_dbf_scsi_eh("tr_yessd", adapter, starget->id, ret);
 		return ret;
 	}
 
@@ -394,7 +394,7 @@ static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 /**
  * zfcp_scsi_sysfs_host_reset() - Support scsi_host sysfs attribute host_reset.
  * @shost: Pointer to Scsi_Host to perform action on.
- * @reset_type: We support %SCSI_ADAPTER_RESET but not %SCSI_FIRMWARE_RESET.
+ * @reset_type: We support %SCSI_ADAPTER_RESET but yest %SCSI_FIRMWARE_RESET.
  *
  * Return: 0 on %SCSI_ADAPTER_RESET, -%EOPNOTSUPP otherwise.
  *
@@ -476,7 +476,7 @@ int zfcp_scsi_adapter_register(struct zfcp_adapter *adapter)
 	adapter->scsi_host->max_id = 511;
 	adapter->scsi_host->max_lun = 0xFFFFFFFF;
 	adapter->scsi_host->max_channel = 0;
-	adapter->scsi_host->unique_id = dev_id.devno;
+	adapter->scsi_host->unique_id = dev_id.devyes;
 	adapter->scsi_host->max_cmd_len = 16; /* in struct fcp_cmnd */
 	adapter->scsi_host->transportt = zfcp_scsi_transport_template;
 
@@ -540,7 +540,7 @@ static void zfcp_scsi_adjust_fc_host_stats(struct fc_host_statistics *fc_stats,
 	fc_stats->rx_frames = data->rx_frames - old->rx_frames;
 	fc_stats->rx_words = data->rx_words - old->rx_words;
 	fc_stats->lip_count = data->lip - old->lip;
-	fc_stats->nos_count = data->nos - old->nos;
+	fc_stats->yess_count = data->yess - old->yess;
 	fc_stats->error_frames = data->error_frames - old->error_frames;
 	fc_stats->dumped_frames = data->dumped_frames - old->dumped_frames;
 	fc_stats->link_failure_count = data->link_failure - old->link_failure;
@@ -571,7 +571,7 @@ static void zfcp_scsi_set_fc_host_stats(struct fc_host_statistics *fc_stats,
 	fc_stats->rx_frames = data->rx_frames;
 	fc_stats->rx_words = data->rx_words;
 	fc_stats->lip_count = data->lip;
-	fc_stats->nos_count = data->nos;
+	fc_stats->yess_count = data->yess;
 	fc_stats->error_frames = data->error_frames;
 	fc_stats->dumped_frames = data->dumped_frames;
 	fc_stats->link_failure_count = data->link_failure;
@@ -674,8 +674,8 @@ static void zfcp_scsi_set_rport_dev_loss_tmo(struct fc_rport *rport,
  * Abort all pending SCSI commands for a port by closing the
  * port. Using a reopen avoids a conflict with a shutdown
  * overwriting a reopen. The "forced" ensures that a disappeared port
- * is not opened again as valid due to the cached plogi data in
- * non-NPIV mode.
+ * is yest opened again as valid due to the cached plogi data in
+ * yesn-NPIV mode.
  */
 static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 {
@@ -690,7 +690,7 @@ static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 		zfcp_erp_port_forced_reopen(port, 0, "sctrpi1");
 		put_device(&port->dev);
 	} else {
-		zfcp_erp_port_forced_no_port_dbf(
+		zfcp_erp_port_forced_yes_port_dbf(
 			"sctrpin", adapter,
 			rport->port_name /* zfcp_scsi_rport_register */,
 			rport->port_id /* zfcp_scsi_rport_register */);
@@ -705,7 +705,7 @@ static void zfcp_scsi_rport_register(struct zfcp_port *port)
 	if (port->rport)
 		return;
 
-	ids.node_name = port->wwnn;
+	ids.yesde_name = port->wwnn;
 	ids.port_name = port->wwpn;
 	ids.port_id = port->d_id;
 	ids.roles = FC_RPORT_ROLE_FCP_TARGET;
@@ -844,11 +844,11 @@ void zfcp_scsi_dif_sense_error(struct scsi_cmnd *scmd, int ascq)
 struct fc_function_template zfcp_transport_functions = {
 	.show_starget_port_id = 1,
 	.show_starget_port_name = 1,
-	.show_starget_node_name = 1,
+	.show_starget_yesde_name = 1,
 	.show_rport_supported_classes = 1,
 	.show_rport_maxframe_size = 1,
 	.show_rport_dev_loss_tmo = 1,
-	.show_host_node_name = 1,
+	.show_host_yesde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_permanent_port_name = 1,
 	.show_host_supported_classes = 1,
@@ -865,7 +865,7 @@ struct fc_function_template zfcp_transport_functions = {
 	.show_host_active_fc4s = 1,
 	.bsg_request = zfcp_fc_exec_bsg_job,
 	.bsg_timeout = zfcp_fc_timeout_bsg_job,
-	/* no functions registered for following dynamic attributes but
+	/* yes functions registered for following dynamic attributes but
 	   directly set by LLDD */
 	.show_host_port_type = 1,
 	.show_host_symbolic_name = 1,

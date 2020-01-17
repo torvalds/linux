@@ -11,7 +11,7 @@ SYNOPSIS
 
 DESCRIPTION
 -----------
-With no options given, the 'perf version' prints the perf version
+With yes options given, the 'perf version' prints the perf version
 on the standard output.
 
 If the option '--build-options' is given, then the status of

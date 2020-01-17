@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -158,14 +158,14 @@ struct amd_ip_funcs {
 	 * @early_init:
 	 *
 	 * sets up early driver state (pre sw_init),
-	 * does not configure hw - Optional
+	 * does yest configure hw - Optional
 	 */
 	int (*early_init)(void *handle);
 	/** @late_init: sets up late driver/hw state (post hw_init) - Optional */
 	int (*late_init)(void *handle);
-	/** @sw_init: sets up driver state, does not configure hw */
+	/** @sw_init: sets up driver state, does yest configure hw */
 	int (*sw_init)(void *handle);
-	/** @sw_fini: tears down driver state, does not configure hw */
+	/** @sw_fini: tears down driver state, does yest configure hw */
 	int (*sw_fini)(void *handle);
 	/** @hw_init: sets up the hw state */
 	int (*hw_init)(void *handle);

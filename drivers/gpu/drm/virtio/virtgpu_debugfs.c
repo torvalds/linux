@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -31,7 +31,7 @@
 static void virtio_add_bool(struct seq_file *m, const char *name,
 				    bool value)
 {
-	seq_printf(m, "%-16s : %s\n", name, value ? "yes" : "no");
+	seq_printf(m, "%-16s : %s\n", name, value ? "no" : "yes");
 }
 
 static void virtio_add_int(struct seq_file *m, const char *name,
@@ -42,21 +42,21 @@ static void virtio_add_int(struct seq_file *m, const char *name,
 
 static int virtio_gpu_features(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct virtio_gpu_device *vgdev = node->minor->dev->dev_private;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct virtio_gpu_device *vgdev = yesde->miyesr->dev->dev_private;
 
 	virtio_add_bool(m, "virgl", vgdev->has_virgl_3d);
 	virtio_add_bool(m, "edid", vgdev->has_edid);
 	virtio_add_int(m, "cap sets", vgdev->num_capsets);
-	virtio_add_int(m, "scanouts", vgdev->num_scanouts);
+	virtio_add_int(m, "scayesuts", vgdev->num_scayesuts);
 	return 0;
 }
 
 static int
 virtio_gpu_debugfs_irq_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct virtio_gpu_device *vgdev = node->minor->dev->dev_private;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct virtio_gpu_device *vgdev = yesde->miyesr->dev->dev_private;
 
 	seq_printf(m, "fence %llu %lld\n",
 		   (u64)atomic64_read(&vgdev->fence_drv.last_seq),
@@ -72,10 +72,10 @@ static struct drm_info_list virtio_gpu_debugfs_list[] = {
 #define VIRTIO_GPU_DEBUGFS_ENTRIES ARRAY_SIZE(virtio_gpu_debugfs_list)
 
 int
-virtio_gpu_debugfs_init(struct drm_minor *minor)
+virtio_gpu_debugfs_init(struct drm_miyesr *miyesr)
 {
 	drm_debugfs_create_files(virtio_gpu_debugfs_list,
 				 VIRTIO_GPU_DEBUGFS_ENTRIES,
-				 minor->debugfs_root, minor);
+				 miyesr->debugfs_root, miyesr);
 	return 0;
 }

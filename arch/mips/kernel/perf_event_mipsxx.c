@@ -2,7 +2,7 @@
 /*
  * Linux performance counter support for MIPS.
  *
- * Copyright (C) 2010 MIPS Technologies, Inc.
+ * Copyright (C) 2010 MIPS Techyeslogies, Inc.
  * Copyright (C) 2011 Cavium Networks, Inc.
  * Author: Deng-Cheng Zhu
  *
@@ -41,7 +41,7 @@ struct cpu_hw_events {
 	/*
 	 * Software copy of the control register for each performance counter.
 	 * MIPS CPUs vary in performance counters. They use this differently,
-	 * and even may not use it.
+	 * and even may yest use it.
 	 */
 	unsigned int		saved_ctrl[MIPS_MAX_HWEVENTS];
 };
@@ -302,7 +302,7 @@ static int mipsxx_pmu_alloc_counter(struct cpu_hw_events *cpuc,
 		 * latter kind of event wants to use, then the "counter
 		 * allocation" for the latter event will fail. In fact if
 		 * they can be dynamically swapped, they both feel happy.
-		 * But here we leave this issue alone for now.
+		 * But here we leave this issue alone for yesw.
 		 */
 		if (test_bit(i, &cntr_mask) &&
 			!test_and_set_bit(i, cpuc->used_mask))
@@ -349,7 +349,7 @@ static void mipsxx_pmu_enable_event(struct hw_perf_event *evt, int idx)
 		pr_debug("Enabling perf counter for CPU%d\n", cpu);
 	}
 	/*
-	 * We do not actually let the counter run. Leave it until start().
+	 * We do yest actually let the counter run. Leave it until start().
 	 */
 }
 
@@ -525,13 +525,13 @@ static void mipspmu_enable(struct pmu *pmu)
 
 /*
  * MIPS performance counters can be per-TC. The control registers can
- * not be directly accessed across CPUs. Hence if we want to do global
+ * yest be directly accessed across CPUs. Hence if we want to do global
  * control, we need cross CPU calls. on_each_cpu() can help us, but we
- * can not make sure this function is called with interrupts enabled. So
+ * can yest make sure this function is called with interrupts enabled. So
  * here we pause local counters and then grab a rwlock and leave the
  * counters on other CPUs alone. If any counter interrupt raises while
  * we own the write lock, simply pause local counters on that CPU and
- * spin in the handler. Also we know we won't be switched to another
+ * spin in the handler. Also we kyesw we won't be switched to ayesther
  * CPU after pausing local counters and before grabbing the lock.
  */
 static void mipspmu_disable(struct pmu *pmu)
@@ -596,7 +596,7 @@ static void hw_perf_event_destroy(struct perf_event *event)
 	if (atomic_dec_and_mutex_lock(&active_events,
 				&pmu_reserve_mutex)) {
 		/*
-		 * We must not call the destroy function with interrupts
+		 * We must yest call the destroy function with interrupts
 		 * disabled.
 		 */
 		on_each_cpu(reset_counters,
@@ -610,7 +610,7 @@ static int mipspmu_event_init(struct perf_event *event)
 {
 	int err = 0;
 
-	/* does not support taken branch sampling */
+	/* does yest support taken branch sampling */
 	if (has_branch_stack(event))
 		return -EOPNOTSUPP;
 
@@ -627,7 +627,7 @@ static int mipspmu_event_init(struct perf_event *event)
 	if (event->cpu >= 0 && !cpu_online(event->cpu))
 		return -ENODEV;
 
-	if (!atomic_inc_not_zero(&active_events)) {
+	if (!atomic_inc_yest_zero(&active_events)) {
 		mutex_lock(&pmu_reserve_mutex);
 		if (atomic_read(&active_events) == 0)
 			err = mipspmu_get_irq();
@@ -827,7 +827,7 @@ static const struct mips_perf_event mipsxxcore_event_map2
 static const struct mips_perf_event i6x00_event_map[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_CPU_CYCLES]          = { 0x00, CNTR_EVEN | CNTR_ODD },
 	[PERF_COUNT_HW_INSTRUCTIONS]        = { 0x01, CNTR_EVEN | CNTR_ODD },
-	/* These only count dcache, not icache */
+	/* These only count dcache, yest icache */
 	[PERF_COUNT_HW_CACHE_REFERENCES]    = { 0x45, CNTR_EVEN | CNTR_ODD },
 	[PERF_COUNT_HW_CACHE_MISSES]        = { 0x48, CNTR_EVEN | CNTR_ODD },
 	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = { 0x15, CNTR_EVEN | CNTR_ODD },
@@ -997,9 +997,9 @@ static const struct mips_perf_event mipsxxcore_cache_map2
 	},
 },
 /*
- * 74K core does not have specific DTLB events. proAptiv core has
+ * 74K core does yest have specific DTLB events. proAptiv core has
  * "speculative" DTLB events which are numbered 0x63 (even/odd) and
- * not included here. One can use raw events if really needed.
+ * yest included here. One can use raw events if really needed.
  */
 [C(ITLB)] = {
 	[C(OP_READ)] = {
@@ -1295,7 +1295,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 		mutex_lock(&raw_event_mutex);
 		pev = mipspmu.map_raw_event(event->attr.config);
 	} else {
-		/* The event type is not (yet) supported. */
+		/* The event type is yest (yet) supported. */
 		return -EOPNOTSUPP;
 	}
 
@@ -1327,8 +1327,8 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 	hwc->config_base &= M_PERFCTL_CONFIG_MASK;
 	/*
-	 * The event can belong to another cpu. We do not assign a local
-	 * counter for it for now.
+	 * The event can belong to ayesther cpu. We do yest assign a local
+	 * counter for it for yesw.
 	 */
 	hwc->idx = -1;
 	hwc->config = 0;
@@ -1425,7 +1425,7 @@ static int mipsxx_pmu_handle_shared_irq(void)
 	/*
 	 * Do all the work for the pending perf events. We can do this
 	 * in here because the performance counter interrupt is a regular
-	 * interrupt, not NMI.
+	 * interrupt, yest NMI.
 	 */
 	if (handled == IRQ_HANDLED)
 		irq_work_run();
@@ -1482,7 +1482,7 @@ static irqreturn_t mipsxx_pmu_handle_irq(int irq, void *dev)
 #define IS_BOTH_COUNTERS_INTERAPTIV_EVENT(b)				\
 	((b) == 0 || (b) == 1 || (b) == 11)
 #ifdef CONFIG_MIPS_MT_SMP
-/* The P/V/T info is not provided for "(b) == 38" in SUM, assume P. */
+/* The P/V/T info is yest provided for "(b) == 38" in SUM, assume P. */
 #define IS_RANGE_P_INTERAPTIV_EVENT(r, b)				\
 	((b) == 0 || (r) == 18 || (b) == 21 || (b) == 22 ||		\
 	 (b) == 25 || (b) == 36 || (b) == 38 || (b) == 39 ||		\
@@ -1524,8 +1524,8 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 				raw_id > 127 ? CNTR_ODD : CNTR_EVEN;
 #ifdef CONFIG_MIPS_MT_SMP
 		/*
-		 * This is actually doing nothing. Non-multithreading
-		 * CPUs will not check and calculate the range.
+		 * This is actually doing yesthing. Non-multithreading
+		 * CPUs will yest check and calculate the range.
 		 */
 		raw_event.range = P;
 #endif
@@ -1794,8 +1794,8 @@ init_hw_perf_events(void)
 		mipspmu.map_raw_event = xlp_pmu_map_raw_event;
 		break;
 	default:
-		pr_cont("Either hardware does not support performance "
-			"counters, or not yet implemented.\n");
+		pr_cont("Either hardware does yest support performance "
+			"counters, or yest yet implemented.\n");
 		return -ENODEV;
 	}
 

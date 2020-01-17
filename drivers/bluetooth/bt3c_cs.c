@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
@@ -178,7 +178,7 @@ static int bt3c_write(unsigned int iobase, int fifo_size, __u8 *buf, int len)
 static void bt3c_write_wakeup(struct bt3c_info *info)
 {
 	if (!info) {
-		BT_ERR("Unknown device");
+		BT_ERR("Unkyeswn device");
 		return;
 	}
 
@@ -219,7 +219,7 @@ static void bt3c_receive(struct bt3c_info *info)
 	int size = 0, avail;
 
 	if (!info) {
-		BT_ERR("Unknown device");
+		BT_ERR("Unkyeswn device");
 		return;
 	}
 
@@ -267,8 +267,8 @@ static void bt3c_receive(struct bt3c_info *info)
 				break;
 
 			default:
-				/* Unknown packet */
-				BT_ERR("Unknown HCI packet with type 0x%02x received",
+				/* Unkyeswn packet */
+				BT_ERR("Unkyeswn HCI packet with type 0x%02x received",
 				       hci_skb_pkt_type(info->rx_skb));
 				info->hdev->stat.err_rx++;
 
@@ -658,7 +658,7 @@ static int bt3c_check_config(struct pcmcia_device *p_dev, void *priv_data)
 	return pcmcia_request_io(p_dev);
 }
 
-static int bt3c_check_config_notpicky(struct pcmcia_device *p_dev,
+static int bt3c_check_config_yestpicky(struct pcmcia_device *p_dev,
 				      void *priv_data)
 {
 	static unsigned int base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
@@ -686,7 +686,7 @@ static int bt3c_config(struct pcmcia_device *link)
 	int i;
 	unsigned long try;
 
-	/* First pass: look for a config entry that looks normal.
+	/* First pass: look for a config entry that looks yesrmal.
 	 * Two tries: without IO aliases, then with aliases
 	 */
 	for (try = 0; try < 2; try++)
@@ -697,7 +697,7 @@ static int bt3c_config(struct pcmcia_device *link)
 	 * its base address, then try to grab any standard serial port
 	 * address, and finally try to get any free port.
 	 */
-	if (!pcmcia_loop_config(link, bt3c_check_config_notpicky, NULL))
+	if (!pcmcia_loop_config(link, bt3c_check_config_yestpicky, NULL))
 		goto found_port;
 
 	BT_ERR("No usable port range found");

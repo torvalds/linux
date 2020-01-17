@@ -9,7 +9,7 @@
  *
  * Based on the arch/ppc version of the driver:
  *
- * Copyright (c) 2004, 2005 Zultys Technologies.
+ * Copyright (c) 2004, 2005 Zultys Techyeslogies.
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *
  * Based on original work by
@@ -85,7 +85,7 @@ int rgmii_attach(struct platform_device *ofdev, int input, int mode)
 	/* Check if we need to attach to a RGMII */
 	if (input < 0 || !rgmii_valid_mode(mode)) {
 		printk(KERN_ERR "%pOF: unsupported settings !\n",
-		       ofdev->dev.of_node);
+		       ofdev->dev.of_yesde);
 		return -ENODEV;
 	}
 
@@ -95,7 +95,7 @@ int rgmii_attach(struct platform_device *ofdev, int input, int mode)
 	out_be32(&p->fer, in_be32(&p->fer) | rgmii_mode_mask(mode, input));
 
 	printk(KERN_NOTICE "%pOF: input %d in %s mode\n",
-	       ofdev->dev.of_node, input, phy_modes(mode));
+	       ofdev->dev.of_yesde, input, phy_modes(mode));
 
 	++dev->users;
 
@@ -203,8 +203,8 @@ void *rgmii_dump_regs(struct platform_device *ofdev, void *buf)
 	struct rgmii_regs *regs = (struct rgmii_regs *)(hdr + 1);
 
 	hdr->version = 0;
-	hdr->index = 0; /* for now, are there chips with more than one
-			 * rgmii ? if yes, then we'll add a cell_index
+	hdr->index = 0; /* for yesw, are there chips with more than one
+			 * rgmii ? if no, then we'll add a cell_index
 			 * like we do for emac
 			 */
 	memcpy_fromio(regs, dev->base, sizeof(struct rgmii_regs));
@@ -214,7 +214,7 @@ void *rgmii_dump_regs(struct platform_device *ofdev, void *buf)
 
 static int rgmii_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct rgmii_instance *dev;
 	struct resource regs;
 	int rc;
@@ -242,11 +242,11 @@ static int rgmii_probe(struct platform_device *ofdev)
 	}
 
 	/* Check for RGMII flags */
-	if (of_get_property(ofdev->dev.of_node, "has-mdio", NULL))
+	if (of_get_property(ofdev->dev.of_yesde, "has-mdio", NULL))
 		dev->flags |= EMAC_RGMII_FLAG_HAS_MDIO;
 
 	/* CAB lacks the right properties, fix this up */
-	if (of_device_is_compatible(ofdev->dev.of_node, "ibm,rgmii-axon"))
+	if (of_device_is_compatible(ofdev->dev.of_yesde, "ibm,rgmii-axon"))
 		dev->flags |= EMAC_RGMII_FLAG_HAS_MDIO;
 
 	DBG2(dev, " Boot FER = 0x%08x, SSR = 0x%08x\n",
@@ -257,7 +257,7 @@ static int rgmii_probe(struct platform_device *ofdev)
 
 	printk(KERN_INFO
 	       "RGMII %pOF initialized with%s MDIO support\n",
-	       ofdev->dev.of_node,
+	       ofdev->dev.of_yesde,
 	       (dev->flags & EMAC_RGMII_FLAG_HAS_MDIO) ? "" : "out");
 
 	wmb();

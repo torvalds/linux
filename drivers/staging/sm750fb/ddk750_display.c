@@ -23,7 +23,7 @@ static void set_display_control(int ctrl, int disp_state)
 	if (disp_state) {
 		/*
 		 * Timing should be enabled first before enabling the
-		 * plane because changing at the same time does not
+		 * plane because changing at the same time does yest
 		 * guarantee that the plane will also enabled or
 		 * disabled.
 		 */
@@ -33,7 +33,7 @@ static void set_display_control(int ctrl, int disp_state)
 		val |= DISPLAY_CTRL_PLANE;
 
 		/*
-		 * Somehow the register value on the plane is not set
+		 * Somehow the register value on the plane is yest set
 		 * until a few delay. Need to write and read it a
 		 * couple times
 		 */
@@ -44,9 +44,9 @@ static void set_display_control(int ctrl, int disp_state)
 		pr_debug("Set Plane enbit:after tried %d times\n", cnt);
 	} else {
 		/*
-		 * When turning off, there is no rule on the
+		 * When turning off, there is yes rule on the
 		 * programming sequence since whenever the clock is
-		 * off, then it does not matter whether the plane is
+		 * off, then it does yest matter whether the plane is
 		 * enabled or disabled.  Note: Modifying the plane bit
 		 * will take effect on the next vertical sync. Need to
 		 * find out if it is necessary to wait for 1 vsync
@@ -65,7 +65,7 @@ static void primary_wait_vertical_sync(int delay)
 	unsigned int status;
 
 	/*
-	 * Do not wait when the Primary PLL is off or display control is
+	 * Do yest wait when the Primary PLL is off or display control is
 	 * already off. This will prevent the software to wait forever.
 	 */
 	if (!(peek32(PANEL_PLL_CTRL) & PLL_CTRL_POWER) ||

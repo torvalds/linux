@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Support for s390 CPU measurement counter set diagnostic facility
+ * Support for s390 CPU measurement counter set diagyesstic facility
  *
  * Copyright IBM Corp. 2019
    Author(s): Hendrik Brueckner <brueckner@linux.ibm.com>
@@ -9,7 +9,7 @@
 #ifndef S390_CPUMCF_KERNEL_H
 #define S390_CPUMCF_KERNEL_H
 
-#define	S390_CPUMCF_DIAG_DEF	0xfeef	/* Counter diagnostic entry ID */
+#define	S390_CPUMCF_DIAG_DEF	0xfeef	/* Counter diagyesstic entry ID */
 #define	PERF_EVENT_CPUM_CF_DIAG	0xBC000	/* Event: Counter sets */
 
 struct cf_ctrset_entry {	/* CPU-M CF counter set entry (8 byte) */
@@ -58,5 +58,5 @@ struct cf_trailer_entry {	/* CPU-M CF trailer for raw traces (64 byte) */
 #define	CPUMF_CTR_SET_USER	1	/* Problem-State Counter Set */
 #define	CPUMF_CTR_SET_CRYPTO	2	/* Crypto-Activity Counter Set */
 #define	CPUMF_CTR_SET_EXT	3	/* Extended Counter Set */
-#define	CPUMF_CTR_SET_MT_DIAG	4	/* MT-diagnostic Counter Set */
+#define	CPUMF_CTR_SET_MT_DIAG	4	/* MT-diagyesstic Counter Set */
 #endif

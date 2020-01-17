@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for vm selftests
-uname_M := $(shell uname -m 2>/dev/null || echo not)
+uname_M := $(shell uname -m 2>/dev/null || echo yest)
 ARCH ?= $(shell echo $(uname_M) | sed -e 's/aarch64.*/arm64/')
 
 CFLAGS = -Wall -I ../../../../usr/include $(EXTRA_CFLAGS)
@@ -10,7 +10,7 @@ TEST_GEN_FILES += gup_benchmark
 TEST_GEN_FILES += hugepage-mmap
 TEST_GEN_FILES += hugepage-shm
 TEST_GEN_FILES += map_hugetlb
-TEST_GEN_FILES += map_fixed_noreplace
+TEST_GEN_FILES += map_fixed_yesreplace
 TEST_GEN_FILES += map_populate
 TEST_GEN_FILES += mlock-random-test
 TEST_GEN_FILES += mlock2-tests

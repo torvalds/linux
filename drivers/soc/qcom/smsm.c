@@ -25,7 +25,7 @@
  * system in the SoC. The entry belonging to the local system is considered
  * read-write, while the rest should be considered read-only.
  *
- * The subscription matrix consists of N bitmaps per entry, denoting interest
+ * The subscription matrix consists of N bitmaps per entry, deyesting interest
  * in updates of the entry for each of the N hosts. Upon updating a state bit
  * each host's subscription bitmap should be queried and the remote system
  * should be interrupted if they request so.
@@ -50,7 +50,7 @@
 #define SMEM_SMSM_SIZE_INFO		419
 
 /*
- * Default sizes, in case SMEM_SMSM_SIZE_INFO is not found.
+ * Default sizes, in case SMEM_SMSM_SIZE_INFO is yest found.
  */
 #define SMSM_DEFAULT_NUM_ENTRIES	8
 #define SMSM_DEFAULT_NUM_HOSTS		3
@@ -342,30 +342,30 @@ static const struct irq_domain_ops smsm_irq_ops = {
  */
 static int smsm_parse_ipc(struct qcom_smsm *smsm, unsigned host_id)
 {
-	struct device_node *syscon;
-	struct device_node *node = smsm->dev->of_node;
+	struct device_yesde *syscon;
+	struct device_yesde *yesde = smsm->dev->of_yesde;
 	struct smsm_host *host = &smsm->hosts[host_id];
 	char key[16];
 	int ret;
 
 	snprintf(key, sizeof(key), "qcom,ipc-%d", host_id);
-	syscon = of_parse_phandle(node, key, 0);
+	syscon = of_parse_phandle(yesde, key, 0);
 	if (!syscon)
 		return 0;
 
-	host->ipc_regmap = syscon_node_to_regmap(syscon);
+	host->ipc_regmap = syscon_yesde_to_regmap(syscon);
 	if (IS_ERR(host->ipc_regmap))
 		return PTR_ERR(host->ipc_regmap);
 
-	ret = of_property_read_u32_index(node, key, 1, &host->ipc_offset);
+	ret = of_property_read_u32_index(yesde, key, 1, &host->ipc_offset);
 	if (ret < 0) {
-		dev_err(smsm->dev, "no offset in %s\n", key);
+		dev_err(smsm->dev, "yes offset in %s\n", key);
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32_index(node, key, 2, &host->ipc_bit);
+	ret = of_property_read_u32_index(yesde, key, 2, &host->ipc_bit);
 	if (ret < 0) {
-		dev_err(smsm->dev, "no bit in %s\n", key);
+		dev_err(smsm->dev, "yes bit in %s\n", key);
 		return -EINVAL;
 	}
 
@@ -376,16 +376,16 @@ static int smsm_parse_ipc(struct qcom_smsm *smsm, unsigned host_id)
  * smsm_inbound_entry() - parse DT and set up an entry representing a remote system
  * @smsm:	smsm driver context
  * @entry:	entry context to be set up
- * @node:	dt node containing the entry's properties
+ * @yesde:	dt yesde containing the entry's properties
  */
 static int smsm_inbound_entry(struct qcom_smsm *smsm,
 			      struct smsm_entry *entry,
-			      struct device_node *node)
+			      struct device_yesde *yesde)
 {
 	int ret;
 	int irq;
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (!irq) {
 		dev_err(smsm->dev, "failed to parse smsm interrupt\n");
 		return -EINVAL;
@@ -400,7 +400,7 @@ static int smsm_inbound_entry(struct qcom_smsm *smsm,
 		return ret;
 	}
 
-	entry->domain = irq_domain_add_linear(node, 32, &smsm_irq_ops, entry);
+	entry->domain = irq_domain_add_linear(yesde, 32, &smsm_irq_ops, entry);
 	if (!entry->domain) {
 		dev_err(smsm->dev, "failed to add irq_domain\n");
 		return -ENOMEM;
@@ -418,7 +418,7 @@ static int smsm_inbound_entry(struct qcom_smsm *smsm,
  * we're on a older system where these values was hard coded to
  * SMSM_DEFAULT_NUM_ENTRIES and SMSM_DEFAULT_NUM_HOSTS.
  *
- * Returns 0 on success, negative errno on failure.
+ * Returns 0 on success, negative erryes on failure.
  */
 static int smsm_get_size_info(struct qcom_smsm *smsm)
 {
@@ -436,7 +436,7 @@ static int smsm_get_size_info(struct qcom_smsm *smsm)
 			dev_err(smsm->dev, "unable to retrieve smsm size info\n");
 		return PTR_ERR(info);
 	} else if (IS_ERR(info) || size != sizeof(*info)) {
-		dev_warn(smsm->dev, "no smsm size info, using defaults\n");
+		dev_warn(smsm->dev, "yes smsm size info, using defaults\n");
 		smsm->num_entries = SMSM_DEFAULT_NUM_ENTRIES;
 		smsm->num_hosts = SMSM_DEFAULT_NUM_HOSTS;
 		return 0;
@@ -454,8 +454,8 @@ static int smsm_get_size_info(struct qcom_smsm *smsm)
 
 static int qcom_smsm_probe(struct platform_device *pdev)
 {
-	struct device_node *local_node;
-	struct device_node *node;
+	struct device_yesde *local_yesde;
+	struct device_yesde *yesde;
 	struct smsm_entry *entry;
 	struct qcom_smsm *smsm;
 	u32 *intr_mask;
@@ -488,16 +488,16 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 	if (!smsm->hosts)
 		return -ENOMEM;
 
-	for_each_child_of_node(pdev->dev.of_node, local_node) {
-		if (of_find_property(local_node, "#qcom,smem-state-cells", NULL))
+	for_each_child_of_yesde(pdev->dev.of_yesde, local_yesde) {
+		if (of_find_property(local_yesde, "#qcom,smem-state-cells", NULL))
 			break;
 	}
-	if (!local_node) {
-		dev_err(&pdev->dev, "no state entry\n");
+	if (!local_yesde) {
+		dev_err(&pdev->dev, "yes state entry\n");
 		return -EINVAL;
 	}
 
-	of_property_read_u32(pdev->dev.of_node,
+	of_property_read_u32(pdev->dev.of_yesde,
 			     "qcom,local-host",
 			     &smsm->local_host);
 
@@ -541,18 +541,18 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 	smsm->subscription = intr_mask + smsm->local_host * smsm->num_hosts;
 
 	/* Register the outgoing state */
-	smsm->state = qcom_smem_state_register(local_node, &smsm_state_ops, smsm);
+	smsm->state = qcom_smem_state_register(local_yesde, &smsm_state_ops, smsm);
 	if (IS_ERR(smsm->state)) {
 		dev_err(smsm->dev, "failed to register qcom_smem_state\n");
 		return PTR_ERR(smsm->state);
 	}
 
 	/* Register handlers for remote processor entries of interest. */
-	for_each_available_child_of_node(pdev->dev.of_node, node) {
-		if (!of_property_read_bool(node, "interrupt-controller"))
+	for_each_available_child_of_yesde(pdev->dev.of_yesde, yesde) {
+		if (!of_property_read_bool(yesde, "interrupt-controller"))
 			continue;
 
-		ret = of_property_read_u32(node, "reg", &id);
+		ret = of_property_read_u32(yesde, "reg", &id);
 		if (ret || id >= smsm->num_entries) {
 			dev_err(&pdev->dev, "invalid reg of entry\n");
 			if (!ret)
@@ -568,7 +568,7 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 		entry->subscription = intr_mask + id * smsm->num_hosts;
 		writel(0, entry->subscription + smsm->local_host);
 
-		ret = smsm_inbound_entry(smsm, entry, node);
+		ret = smsm_inbound_entry(smsm, entry, yesde);
 		if (ret < 0)
 			goto unwind_interfaces;
 	}

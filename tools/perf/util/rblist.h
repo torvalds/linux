@@ -6,9 +6,9 @@
 #include <stdbool.h>
 
 /*
- * create node structs of the form:
- * struct my_node {
- *     struct rb_node rb_node;
+ * create yesde structs of the form:
+ * struct my_yesde {
+ *     struct rb_yesde rb_yesde;
  *     ... my data ...
  * };
  *
@@ -23,19 +23,19 @@ struct rblist {
 	struct rb_root_cached entries;
 	unsigned int   nr_entries;
 
-	int (*node_cmp)(struct rb_node *rbn, const void *entry);
-	struct rb_node *(*node_new)(struct rblist *rlist, const void *new_entry);
-	void (*node_delete)(struct rblist *rblist, struct rb_node *rb_node);
+	int (*yesde_cmp)(struct rb_yesde *rbn, const void *entry);
+	struct rb_yesde *(*yesde_new)(struct rblist *rlist, const void *new_entry);
+	void (*yesde_delete)(struct rblist *rblist, struct rb_yesde *rb_yesde);
 };
 
 void rblist__init(struct rblist *rblist);
 void rblist__exit(struct rblist *rblist);
 void rblist__delete(struct rblist *rblist);
-int rblist__add_node(struct rblist *rblist, const void *new_entry);
-void rblist__remove_node(struct rblist *rblist, struct rb_node *rb_node);
-struct rb_node *rblist__find(struct rblist *rblist, const void *entry);
-struct rb_node *rblist__findnew(struct rblist *rblist, const void *entry);
-struct rb_node *rblist__entry(const struct rblist *rblist, unsigned int idx);
+int rblist__add_yesde(struct rblist *rblist, const void *new_entry);
+void rblist__remove_yesde(struct rblist *rblist, struct rb_yesde *rb_yesde);
+struct rb_yesde *rblist__find(struct rblist *rblist, const void *entry);
+struct rb_yesde *rblist__findnew(struct rblist *rblist, const void *entry);
+struct rb_yesde *rblist__entry(const struct rblist *rblist, unsigned int idx);
 
 static inline bool rblist__empty(const struct rblist *rblist)
 {

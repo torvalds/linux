@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  HID driver for Kye/Genius devices not fully compliant with HID standard
+ *  HID driver for Kye/Genius devices yest fully compliant with HID standard
  *
  *  Copyright (c) 2009 Jiri Kosina
  *  Copyright (c) 2009 Tomas Hanak
@@ -677,7 +677,7 @@ static int kye_tablet_enable(struct hid_device *hdev)
 	}
 
 	if (head == list) {
-		hid_err(hdev, "tablet-enabling feature report not found\n");
+		hid_err(hdev, "tablet-enabling feature report yest found\n");
 		return -ENODEV;
 	}
 

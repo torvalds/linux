@@ -42,7 +42,7 @@ void phy_set_bb_reg(struct adapter *adapt, u32 regaddr, u32 bitmask, u32 data)
 {
 	u32 original_value, bit_shift;
 
-	if (bitmask != bMaskDWord) { /* if not "double word" write */
+	if (bitmask != bMaskDWord) { /* if yest "double word" write */
 		original_value = usb_read32(adapt, regaddr);
 		bit_shift = cal_bit_shift(bitmask);
 		data = (original_value & (~bitmask)) | (data << bit_shift);
@@ -603,7 +603,7 @@ static u8 phy_path_a_rx_iqk(struct adapter *adapt, bool configPathB)
 	    (((reg_e94 & 0x03FF0000)>>16) != 0x142) &&
 	    (((reg_e9c & 0x03FF0000)>>16) != 0x42))
 		result |= 0x01;
-	else					/* if Tx not OK, ignore Rx */
+	else					/* if Tx yest OK, igyesre Rx */
 		return result;
 
 	u4tmp = 0x80007C00 | (reg_e94&0x3FF0000)  | ((reg_e9c&0x3FF0000) >> 16);

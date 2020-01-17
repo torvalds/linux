@@ -82,13 +82,13 @@ static const struct of_device_id ebi_match[] = {
 
 static int ap_flash_init(struct platform_device *pdev)
 {
-	struct device_node *ebi;
+	struct device_yesde *ebi;
 	void __iomem *ebi_base;
 	u32 val;
 	int ret;
 
 	/* Look up the EBI */
-	ebi = of_find_matching_node(NULL, ebi_match);
+	ebi = of_find_matching_yesde(NULL, ebi_match);
 	if (!ebi) {
 		return -ENODEV;
 	}
@@ -184,10 +184,10 @@ static void versatile_flash_set_vpp(struct map_info *map, int on)
 }
 
 int of_flash_probe_versatile(struct platform_device *pdev,
-			     struct device_node *np,
+			     struct device_yesde *np,
 			     struct map_info *map)
 {
-	struct device_node *sysnp;
+	struct device_yesde *sysnp;
 	const struct of_device_id *devid;
 	struct regmap *rmap;
 	static enum versatile_flashprot versatile_flashprot;
@@ -199,14 +199,14 @@ int of_flash_probe_versatile(struct platform_device *pdev,
 
 	/* For first chip probed, look up the syscon regmap */
 	if (!syscon_regmap) {
-		sysnp = of_find_matching_node_and_match(NULL,
+		sysnp = of_find_matching_yesde_and_match(NULL,
 							syscon_match,
 							&devid);
 		if (!sysnp)
 			return -ENODEV;
 
 		versatile_flashprot = (enum versatile_flashprot)devid->data;
-		rmap = syscon_node_to_regmap(sysnp);
+		rmap = syscon_yesde_to_regmap(sysnp);
 		if (IS_ERR(rmap))
 			return PTR_ERR(rmap);
 
@@ -232,7 +232,7 @@ int of_flash_probe_versatile(struct platform_device *pdev,
 		break;
 	default:
 		dev_info(&pdev->dev, "device marked as Versatile flash "
-			 "but no system controller was found\n");
+			 "but yes system controller was found\n");
 		break;
 	}
 

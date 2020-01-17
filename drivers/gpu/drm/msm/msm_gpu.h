@@ -35,7 +35,7 @@ struct msm_gpu_config {
  * Which means that the eventual complete "class" hierarchy, once
  * support for all past and present hw is in place, becomes:
  *  + msm_gpu
- *    + adreno_gpu
+ *    + adreyes_gpu
  *      + a3xx_gpu
  *      + a2xx_gpu
  *    + z180_gpu
@@ -57,7 +57,7 @@ struct msm_gpu_funcs {
 	void (*show)(struct msm_gpu *gpu, struct msm_gpu_state *state,
 			struct drm_printer *p);
 	/* for generation specific debugfs: */
-	int (*debugfs_init)(struct msm_gpu *gpu, struct drm_minor *minor);
+	int (*debugfs_init)(struct msm_gpu *gpu, struct drm_miyesr *miyesr);
 #endif
 	unsigned long (*gpu_busy)(struct msm_gpu *gpu);
 	struct msm_gpu_state *(*gpu_state_get)(struct msm_gpu *gpu);
@@ -148,7 +148,7 @@ static inline bool msm_gpu_active(struct msm_gpu *gpu)
 	for (i = 0; i < gpu->nr_rings; i++) {
 		struct msm_ringbuffer *ring = gpu->rb[i];
 
-		if (ring->seqno > ring->memptrs->fence)
+		if (ring->seqyes > ring->memptrs->fence)
 			return true;
 	}
 
@@ -173,7 +173,7 @@ struct msm_gpu_submitqueue {
 	u32 flags;
 	u32 prio;
 	int faults;
-	struct list_head node;
+	struct list_head yesde;
 	struct kref ref;
 };
 
@@ -191,7 +191,7 @@ struct msm_gpu_state {
 	struct {
 		u64 iova;
 		u32 fence;
-		u32 seqno;
+		u32 seqyes;
 		u32 rptr;
 		u32 wptr;
 		void *data;
@@ -234,8 +234,8 @@ static inline u64 gpu_read64(struct msm_gpu *gpu, u32 lo, u32 hi)
 	u64 val;
 
 	/*
-	 * Why not a readq here? Two reasons: 1) many of the LO registers are
-	 * not quad word aligned and 2) the GPU hardware designers have a bit
+	 * Why yest a readq here? Two reasons: 1) many of the LO registers are
+	 * yest quad word aligned and 2) the GPU hardware designers have a bit
 	 * of a history of putting registers where they fit, especially in
 	 * spins. The longer a GPU family goes the higher the chance that
 	 * we'll get burned.  We could do a series of validity checks if we
@@ -255,7 +255,7 @@ static inline u64 gpu_read64(struct msm_gpu *gpu, u32 lo, u32 hi)
 
 static inline void gpu_write64(struct msm_gpu *gpu, u32 lo, u32 hi, u64 val)
 {
-	/* Why not a writeq here? Read the screed above */
+	/* Why yest a writeq here? Read the screed above */
 	msm_writel(lower_32_bits(val), gpu->mmio + (lo << 2));
 	msm_writel(upper_32_bits(val), gpu->mmio + (hi << 2));
 }
@@ -281,9 +281,9 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 void msm_gpu_cleanup(struct msm_gpu *gpu);
 
-struct msm_gpu *adreno_load_gpu(struct drm_device *dev);
-void __init adreno_register(void);
-void __exit adreno_unregister(void);
+struct msm_gpu *adreyes_load_gpu(struct drm_device *dev);
+void __init adreyes_register(void);
+void __exit adreyes_unregister(void);
 
 static inline void msm_submitqueue_put(struct msm_gpu_submitqueue *queue)
 {

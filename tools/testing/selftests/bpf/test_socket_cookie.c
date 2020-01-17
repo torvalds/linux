@@ -99,7 +99,7 @@ static int validate_map(struct bpf_map *map, int client_fd)
 	int map_fd;
 
 	if (!map) {
-		log_err("Map not found in BPF object");
+		log_err("Map yest found in BPF object");
 		goto err;
 	}
 

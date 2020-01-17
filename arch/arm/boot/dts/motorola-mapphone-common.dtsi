@@ -85,9 +85,9 @@
 		#phy-cells = <0>;
 	};
 
-	/* HS USB host TLL nop-phy on port 2 for w3glte */
+	/* HS USB host TLL yesp-phy on port 2 for w3glte */
 	hsusb2_phy: usb-phy@2 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-yesp-xceiv";
 		#phy-cells = <0>;
 	};
 
@@ -121,7 +121,7 @@
 			gpios = <&gpio5 26 GPIO_ACTIVE_LOW>; /* gpio154 */
 			linux,code = <KEY_VOLUMEDOWN>;
 			linux,can-disable;
-			/* Value above 7.95ms for no GPIO hardware debounce */
+			/* Value above 7.95ms for yes GPIO hardware debounce */
 			debounce-interval = <10>;
 		};
 
@@ -131,7 +131,7 @@
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_KEYPAD_SLIDE>;
 			linux,can-disable;
-			/* Value above 7.95ms for no GPIO hardware debounce */
+			/* Value above 7.95ms for yes GPIO hardware debounce */
 			debounce-interval = <10>;
 		};
 	};
@@ -346,7 +346,7 @@
 &mmc2 {
 	vmmc-supply = <&vsdio>;
 	bus-width = <8>;
-	ti,non-removable;
+	ti,yesn-removable;
 };
 
 &mmc3 {
@@ -355,7 +355,7 @@
 	interrupts-extended = <&wakeupgen GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH
 			       &omap4_pmx_core 0xde>;
 	interrupt-names = "irq", "wakeup";
-	non-removable;
+	yesn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 	keep-power-in-suspend;
@@ -562,7 +562,7 @@
 	/*
 	 * Note that the v3.0.8 stock userspace dynamically remuxes uart1
 	 * rts pin probably for PM purposes to PIN_INPUT_PULLUP | MUX_MODE7
-	 * when not used. If needed, we can add rts pin remux later based
+	 * when yest used. If needed, we can add rts pin remux later based
 	 * on power measurements.
 	 */
 	uart1_pins: pinmux_uart1_pins {

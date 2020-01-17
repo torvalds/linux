@@ -64,7 +64,7 @@ static int get_mac_address(struct mantis_pci *mantis)
 #define MANTIS_MODEL_UNKNOWN	"UNKNOWN"
 #define MANTIS_DEV_UNKNOWN	"UNKNOWN"
 
-struct mantis_hwconfig unknown_device = {
+struct mantis_hwconfig unkyeswn_device = {
 	.model_name	= MANTIS_MODEL_UNKNOWN,
 	.dev_type	= MANTIS_DEV_UNKNOWN,
 };
@@ -94,7 +94,7 @@ static void mantis_load_config(struct mantis_pci *mantis)
 		mantis->hwconfig = &vp3030_mantis_config;
 		break;
 	default:
-		mantis->hwconfig = &unknown_device;
+		mantis->hwconfig = &unkyeswn_device;
 		break;
 	}
 }
@@ -178,7 +178,7 @@ void gpio_set_bits(struct mantis_pci *mantis, u32 bitpos, u8 value)
 	udelay(100);
 }
 
-/* direction = 0 , no CI passthrough ; 1 , CI passthrough */
+/* direction = 0 , yes CI passthrough ; 1 , CI passthrough */
 void mantis_set_direction(struct mantis_pci *mantis, int direction)
 {
 	u32 reg;

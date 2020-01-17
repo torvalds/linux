@@ -771,7 +771,7 @@ static bool _rtl92c_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 	struct swchnlcmd *pcmd;
 
 	if (cmdtable == NULL) {
-		WARN_ONCE(true, "rtl8192c-common: cmdtable cannot be NULL.\n");
+		WARN_ONCE(true, "rtl8192c-common: cmdtable canyest be NULL.\n");
 		return false;
 	}
 
@@ -885,7 +885,7 @@ bool _rtl92c_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case %#x not processed\n",
+				 "switch case %#x yest processed\n",
 				 currentcmd->cmdid);
 			break;
 		}
@@ -1539,7 +1539,7 @@ bool rtl92c_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype)
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case %#x not processed\n", iotype);
+				 "switch case %#x yest processed\n", iotype);
 			break;
 		}
 	} while (false);
@@ -1577,7 +1577,7 @@ void rtl92c_phy_set_io(struct ieee80211_hw *hw)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case %#x not processed\n",
+			 "switch case %#x yest processed\n",
 			 rtlphy->current_io_type);
 		break;
 	}

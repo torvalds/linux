@@ -35,7 +35,7 @@ struct i2c_par {
 	struct i2c_algo_bit_data algo_data;
 	struct i2c_smbus_alert_setup alert_data;
 	struct i2c_client *ara;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static LIST_HEAD(adapter_list);
@@ -131,7 +131,7 @@ static int parport_getsda(void *data)
 /* Encapsulate the functions above in the correct structure.
    Note that this is only a template, from which the real structures are
    copied. The attaching code will set getscl to NULL for adapters that
-   cannot read SCL back, and will also make the data field point to
+   canyest read SCL back, and will also make the data field point to
    the parallel port structure. */
 static const struct i2c_algo_bit_data parport_algo_data = {
 	.setsda		= parport_setsda,
@@ -154,7 +154,7 @@ static void i2c_parport_irq(void *data)
 		i2c_handle_smbus_alert(ara);
 	} else
 		dev_dbg(&adapter->adapter.dev,
-			"SMBus alert received but no ARA client!\n");
+			"SMBus alert received but yes ARA client!\n");
 }
 
 static void i2c_parport_attach(struct parport *port)
@@ -208,7 +208,7 @@ static void i2c_parport_attach(struct parport *port)
 
 	if (parport_claim_or_block(adapter->pdev) < 0) {
 		dev_err(&adapter->pdev->dev,
-			"Could not claim parallel port\n");
+			"Could yest claim parallel port\n");
 		goto err_unregister;
 	}
 
@@ -240,7 +240,7 @@ static void i2c_parport_attach(struct parport *port)
 
 	/* Add the new adapter to the list */
 	mutex_lock(&adapter_list_lock);
-	list_add_tail(&adapter->node, &adapter_list);
+	list_add_tail(&adapter->yesde, &adapter_list);
 	mutex_unlock(&adapter_list_lock);
 	return;
 
@@ -257,7 +257,7 @@ static void i2c_parport_detach(struct parport *port)
 
 	/* Walk the list */
 	mutex_lock(&adapter_list_lock);
-	list_for_each_entry_safe(adapter, _n, &adapter_list, node) {
+	list_for_each_entry_safe(adapter, _n, &adapter_list, yesde) {
 		if (adapter->pdev->port == port) {
 			if (adapter->ara) {
 				parport_disable_irq(port);
@@ -271,7 +271,7 @@ static void i2c_parport_detach(struct parport *port)
 
 			parport_release(adapter->pdev);
 			parport_unregister_device(adapter->pdev);
-			list_del(&adapter->node);
+			list_del(&adapter->yesde);
 			kfree(adapter);
 		}
 	}

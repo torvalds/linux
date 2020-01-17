@@ -24,7 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/in.h>
 #include <linux/ioport.h>
 #include <linux/bitops.h>
@@ -195,13 +195,13 @@ MODULE_VERSION(DRV_VERSION);
  *
  * The Au1000 MACs use a simple rx and tx descriptor ring scheme.
  * There are four receive and four transmit descriptors.  These
- * descriptors are not in memory; rather, they are just a set of
+ * descriptors are yest in memory; rather, they are just a set of
  * hardware registers.
  *
  * Since the Au1000 has a coherent data cache, the receive and
  * transmit buffers are allocated from the KSEG0 segment. The
  * hardware registers, however, are still mapped at KSEG1 to
- * make sure there's no out-of-order writes, and that all writes
+ * make sure there's yes out-of-order writes, and that all writes
  * complete immediately.
  */
 
@@ -215,16 +215,16 @@ MODULE_VERSION(DRV_VERSION);
  *
  * mii_probe() first searches the current MAC's MII bus for a PHY,
  * selecting the first (or last, if phy_search_highest_addr is
- * defined) PHY address not already claimed by another netdev.
+ * defined) PHY address yest already claimed by ayesther netdev.
  *
- * If nothing was found that way when searching for the 2nd ethernet
+ * If yesthing was found that way when searching for the 2nd ethernet
  * controller's PHY and phy1_search_mac0 is defined, then
  * the first MII bus is searched as well for an unclaimed PHY; this is
  * needed in case of a dual-PHY accessible only through the MAC0's MII
  * bus.
  *
- * Finally, if no PHY is found, then the corresponding ethernet
- * controller is not registered to the network subsystem.
+ * Finally, if yes PHY is found, then the corresponding ethernet
+ * controller is yest registered to the network subsystem.
  */
 
 /* autodetection defaults: phy1_search_mac0 */
@@ -234,7 +234,7 @@ MODULE_VERSION(DRV_VERSION);
  * most boards PHY setup should be detectable properly with the
  * autodetection algorithm in mii_probe(), but in some cases (e.g. if
  * you have a switch attached, or want to use the PHY's interrupt
- * notification capabilities) you can provide a static PHY
+ * yestification capabilities) you can provide a static PHY
  * configuration here
  *
  * IRQs may only be set, if a PHY address was configured
@@ -413,7 +413,7 @@ au1000_adjust_link(struct net_device *dev)
 		case SPEED_100:
 			break;
 		default:
-			netdev_warn(dev, "Speed (%d) is not 10/100 ???\n",
+			netdev_warn(dev, "Speed (%d) is yest 10/100 ???\n",
 							phydev->speed);
 			break;
 		}
@@ -502,11 +502,11 @@ static int au1000_mii_probe(struct net_device *dev)
 	if (aup->phy1_search_mac0) {
 		/* try harder to find a PHY */
 		if (!phydev && (aup->mac_id == 1)) {
-			/* no PHY found, maybe we have a dual PHY? */
-			dev_info(&dev->dev, ": no PHY found on MAC1, "
+			/* yes PHY found, maybe we have a dual PHY? */
+			dev_info(&dev->dev, ": yes PHY found on MAC1, "
 				"let's see if it's attached to MAC0...\n");
 
-			/* find the first (lowest address) non-attached
+			/* find the first (lowest address) yesn-attached
 			 * PHY on the MAC0 MII bus
 			 */
 			for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
@@ -517,7 +517,7 @@ static int au1000_mii_probe(struct net_device *dev)
 				if (aup->mac_id == 1)
 					break;
 
-				/* no PHY here... */
+				/* yes PHY here... */
 				if (!tmp_phydev)
 					continue;
 
@@ -532,18 +532,18 @@ static int au1000_mii_probe(struct net_device *dev)
 	}
 
 	if (!phydev) {
-		netdev_err(dev, "no PHY found\n");
+		netdev_err(dev, "yes PHY found\n");
 		return -1;
 	}
 
-	/* now we are supposed to have a proper phydev, to attach to... */
+	/* yesw we are supposed to have a proper phydev, to attach to... */
 	BUG_ON(phydev->attached_dev);
 
 	phydev = phy_connect(dev, phydev_name(phydev),
 			     &au1000_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
-		netdev_err(dev, "Could not attach to PHY\n");
+		netdev_err(dev, "Could yest attach to PHY\n");
 		return PTR_ERR(phydev);
 	}
 
@@ -629,7 +629,7 @@ static void au1000_reset_mac(struct net_device *dev)
 /*
  * Setup the receive and transmit "rings".  These pointers are the addresses
  * of the rx and tx MAC DMA registers so they are fixed by the hardware --
- * these are not descriptors sitting in memory.
+ * these are yest descriptors sitting in memory.
  */
 static void
 au1000_setup_hw_rings(struct au1000_private *aup, void __iomem *tx_base)
@@ -861,7 +861,7 @@ static void au1000_update_tx_stats(struct net_device *dev, u32 status)
 }
 
 /*
- * Called from the interrupt service routine to acknowledge
+ * Called from the interrupt service routine to ackyeswledge
  * the TX DONE bits.  This is a must if the irq is setup as
  * edge triggered.
  */
@@ -1059,7 +1059,7 @@ static int au1000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return -EINVAL;
 
 	if (!dev->phydev)
-		return -EINVAL; /* PHY not controllable */
+		return -EINVAL; /* PHY yest controllable */
 
 	return phy_mii_ioctl(dev->phydev, rq, cmd);
 }
@@ -1147,7 +1147,7 @@ static int au1000_probe(struct platform_device *pdev)
 				AU1000_DEF_MSG_ENABLE : au1000_debug);
 
 	/* Allocate the data buffers
-	 * Snooping works fine with eth on all au1xxx
+	 * Syesoping works fine with eth on all au1xxx
 	 */
 	aup->vaddr = (u32)dma_alloc_attrs(&pdev->dev, MAX_BUF_SIZE *
 					  (NUM_TX_BUFFS + NUM_RX_BUFFS),
@@ -1161,7 +1161,7 @@ static int au1000_probe(struct platform_device *pdev)
 
 	/* aup->mac is the base address of the MAC's registers */
 	aup->mac = (struct mac_reg *)
-			ioremap_nocache(base->start, resource_size(base));
+			ioremap_yescache(base->start, resource_size(base));
 	if (!aup->mac) {
 		dev_err(&pdev->dev, "failed to ioremap MAC registers\n");
 		err = -ENXIO;
@@ -1169,7 +1169,7 @@ static int au1000_probe(struct platform_device *pdev)
 	}
 
 	/* Setup some variables for quick register address access */
-	aup->enable = (u32 *)ioremap_nocache(macen->start,
+	aup->enable = (u32 *)ioremap_yescache(macen->start,
 						resource_size(macen));
 	if (!aup->enable) {
 		dev_err(&pdev->dev, "failed to ioremap MAC enable register\n");
@@ -1178,7 +1178,7 @@ static int au1000_probe(struct platform_device *pdev)
 	}
 	aup->mac_id = pdev->id;
 
-	aup->macdma = ioremap_nocache(macdma->start, resource_size(macdma));
+	aup->macdma = ioremap_yescache(macdma->start, resource_size(macdma));
 	if (!aup->macdma) {
 		dev_err(&pdev->dev, "failed to ioremap MACDMA registers\n");
 		err = -ENXIO;
@@ -1192,14 +1192,14 @@ static int au1000_probe(struct platform_device *pdev)
 
 	pd = dev_get_platdata(&pdev->dev);
 	if (!pd) {
-		dev_info(&pdev->dev, "no platform_data passed,"
+		dev_info(&pdev->dev, "yes platform_data passed,"
 					" PHY search on MAC0\n");
 		aup->phy1_search_mac0 = 1;
 	} else {
 		if (is_valid_ether_addr(pd->mac)) {
 			memcpy(dev->dev_addr, pd->mac, ETH_ALEN);
 		} else {
-			/* Set a random MAC since no valid provided by platform_data. */
+			/* Set a random MAC since yes valid provided by platform_data. */
 			eth_hw_addr_random(dev);
 		}
 
@@ -1212,7 +1212,7 @@ static int au1000_probe(struct platform_device *pdev)
 	}
 
 	if (aup->phy_busid > 0) {
-		dev_err(&pdev->dev, "MAC0-associated PHY attached 2nd MACs MII bus not supported yet\n");
+		dev_err(&pdev->dev, "MAC0-associated PHY attached 2nd MACs MII bus yest supported yet\n");
 		err = -ENODEV;
 		goto err_mdiobus_alloc;
 	}
@@ -1232,7 +1232,7 @@ static int au1000_probe(struct platform_device *pdev)
 	snprintf(aup->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		pdev->name, aup->mac_id);
 
-	/* if known, set corresponding PHY IRQs */
+	/* if kyeswn, set corresponding PHY IRQs */
 	if (aup->phy_static_config)
 		if (aup->phy_irq && aup->phy_busid == aup->mac_id)
 			aup->mii_bus->irq[aup->phy_addr] = aup->phy_irq;
@@ -1294,7 +1294,7 @@ static int au1000_probe(struct platform_device *pdev)
 
 	err = register_netdev(dev);
 	if (err) {
-		netdev_err(dev, "Cannot register net device, aborting.\n");
+		netdev_err(dev, "Canyest register net device, aborting.\n");
 		goto err_out;
 	}
 

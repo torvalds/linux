@@ -371,7 +371,7 @@ void hid_ishtp_set_feature(struct hid_device *hid, char *buf, unsigned int len,
 
 	rv = ishtp_hid_link_ready_wait(client_data);
 	if (rv) {
-		hid_ishtp_trace(client_data,  "%s hid %p link not ready\n",
+		hid_ishtp_trace(client_data,  "%s hid %p link yest ready\n",
 				__func__, hid);
 		return;
 	}
@@ -416,7 +416,7 @@ void hid_ishtp_get_report(struct hid_device *hid, int report_id,
 	hid_ishtp_trace(client_data,  "%s hid %p\n", __func__, hid);
 	rv = ishtp_hid_link_ready_wait(client_data);
 	if (rv) {
-		hid_ishtp_trace(client_data,  "%s hid %p link not ready\n",
+		hid_ishtp_trace(client_data,  "%s hid %p link yest ready\n",
 				__func__, hid);
 		return;
 	}
@@ -449,7 +449,7 @@ void hid_ishtp_get_report(struct hid_device *hid, int report_id,
  * If the transport link started suspend process, then wait, till either
  * resumed or timeout
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, yesn zero on error
  */
 int ishtp_hid_link_ready_wait(struct ishtp_cl_data *client_data)
 {
@@ -463,7 +463,7 @@ int ishtp_hid_link_ready_wait(struct ishtp_cl_data *client_data)
 					5 * HZ);
 
 		if (rc == 0) {
-			hid_ishtp_trace(client_data,  "link not ready\n");
+			hid_ishtp_trace(client_data,  "link yest ready\n");
 			return -EIO;
 		}
 		hid_ishtp_trace(client_data,  "link ready\n");
@@ -478,7 +478,7 @@ int ishtp_hid_link_ready_wait(struct ishtp_cl_data *client_data)
  *
  * Helper function to send request to firmware to enumerate HID devices
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, yesn zero on error
  */
 static int ishtp_enum_enum_devices(struct ishtp_cl *hid_ishtp_cl)
 {
@@ -534,7 +534,7 @@ static int ishtp_enum_enum_devices(struct ishtp_cl *hid_ishtp_cl)
  *
  * Helper function to send request to firmware get HID descriptor of a device
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, yesn zero on error
  */
 static int ishtp_get_hid_descriptor(struct ishtp_cl *hid_ishtp_cl, int index)
 {
@@ -580,7 +580,7 @@ static int ishtp_get_hid_descriptor(struct ishtp_cl *hid_ishtp_cl, int index)
  * Helper function to send request to firmware get HID report descriptor of
  * a device
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, yesn zero on error
  */
 static int ishtp_get_report_descriptor(struct ishtp_cl *hid_ishtp_cl,
 				       int index)
@@ -629,7 +629,7 @@ static int ishtp_get_report_descriptor(struct ishtp_cl *hid_ishtp_cl,
  *	Get report description of each device
  *	Register each device wik hid core by calling ishtp_hid_probe
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, yesn zero on error
  */
 static int hid_ishtp_cl_init(struct ishtp_cl *hid_ishtp_cl, int reset)
 {
@@ -660,7 +660,7 @@ static int hid_ishtp_cl_init(struct ishtp_cl *hid_ishtp_cl, int reset)
 	fw_client = ishtp_fw_cl_get_client(dev, &hid_ishtp_guid);
 	if (!fw_client) {
 		dev_err(cl_data_to_dev(client_data),
-			"ish client uuid not found\n");
+			"ish client uuid yest found\n");
 		return -ENOENT;
 	}
 	ishtp_cl_set_fw_client_id(hid_ishtp_cl,
@@ -787,7 +787,7 @@ void (*hid_print_trace)(void *unused, const char *format, ...);
  *
  * This function gets called on device create on ISHTP bus
  *
- * Return: 0 on success, non zero on error
+ * Return: 0 on success, yesn zero on error
  */
 static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 {

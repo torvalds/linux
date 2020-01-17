@@ -32,7 +32,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if yest, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
@@ -3360,7 +3360,7 @@ static u16 MXL_SetGPIO(struct dvb_frontend *fe, u8 GPIO_Num, u8 GPIO_Val)
 	if (GPIO_Num == 1)
 		status += MXL_ControlWrite(fe, GPIO_1B, GPIO_Val ? 0 : 1);
 
-	/* GPIO2 is not available */
+	/* GPIO2 is yest available */
 
 	if (GPIO_Num == 3) {
 		if (GPIO_Val == 1) {

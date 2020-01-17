@@ -3,12 +3,12 @@
  * Originally from efivars.c
  *
  * Copyright (C) 2001,2003,2004 Dell <Matt_Domsch@dell.com>
- * Copyright (C) 2004 Intel Corporation <matthew.e.tolentino@intel.com>
+ * Copyright (C) 2004 Intel Corporation <matthew.e.tolentiyes@intel.com>
  */
 
 #include <linux/capability.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -40,31 +40,31 @@ static bool
 validate_device_path(efi_char16_t *var_name, int match, u8 *buffer,
 		     unsigned long len)
 {
-	struct efi_generic_dev_path *node;
+	struct efi_generic_dev_path *yesde;
 	int offset = 0;
 
-	node = (struct efi_generic_dev_path *)buffer;
+	yesde = (struct efi_generic_dev_path *)buffer;
 
-	if (len < sizeof(*node))
+	if (len < sizeof(*yesde))
 		return false;
 
-	while (offset <= len - sizeof(*node) &&
-	       node->length >= sizeof(*node) &&
-		node->length <= len - offset) {
-		offset += node->length;
+	while (offset <= len - sizeof(*yesde) &&
+	       yesde->length >= sizeof(*yesde) &&
+		yesde->length <= len - offset) {
+		offset += yesde->length;
 
-		if ((node->type == EFI_DEV_END_PATH ||
-		     node->type == EFI_DEV_END_PATH2) &&
-		    node->sub_type == EFI_DEV_END_ENTIRE)
+		if ((yesde->type == EFI_DEV_END_PATH ||
+		     yesde->type == EFI_DEV_END_PATH2) &&
+		    yesde->sub_type == EFI_DEV_END_ENTIRE)
 			return true;
 
-		node = (struct efi_generic_dev_path *)(buffer + offset);
+		yesde = (struct efi_generic_dev_path *)(buffer + offset);
 	}
 
 	/*
-	 * If we're here then either node->length pointed past the end
+	 * If we're here then either yesde->length pointed past the end
 	 * of the buffer or we reached the end of the buffer without
-	 * finding a device path end node.
+	 * finding a device path end yesde.
 	 */
 	return false;
 }
@@ -107,7 +107,7 @@ validate_load_option(efi_char16_t *var_name, int match, u8 *buffer,
 	filepathlength = buffer[4] | buffer[5] << 8;
 
 	/*
-	 * There's no stored length for the description, so it has to be
+	 * There's yes stored length for the description, so it has to be
 	 * found by hand
 	 */
 	desclength = ucs2_strsize((efi_char16_t *)(buffer + 6), len - 6) + 2;
@@ -168,10 +168,10 @@ struct variable_validate {
 
 /*
  * This is the list of variables we need to validate, as well as the
- * whitelist for what we think is safe not to default to immutable.
+ * whitelist for what we think is safe yest to default to immutable.
  *
- * If it has a validate() method that's not NULL, it'll go into the
- * validation routine.  If not, it is assumed valid, but still used for
+ * If it has a validate() method that's yest NULL, it'll go into the
+ * validation routine.  If yest, it is assumed valid, but still used for
  * whitelisting.
  *
  * Note that it's sorted by {vendor,name}, but globbed names must come after
@@ -200,11 +200,11 @@ static const struct variable_validate variable_validate[] = {
 /*
  * Check if @var_name matches the pattern given in @match_name.
  *
- * @var_name: an array of @len non-NUL characters.
+ * @var_name: an array of @len yesn-NUL characters.
  * @match_name: a NUL-terminated pattern string, optionally ending in "*". A
  *              final "*" character matches any trailing characters @var_name,
- *              including the case when there are none left in @var_name.
- * @match: on output, the number of non-wildcard characters in @match_name
+ *              including the case when there are yesne left in @var_name.
+ * @match: on output, the number of yesn-wildcard characters in @match_name
  *         that @var_name matches, regardless of the return value.
  * @return: whether @var_name fully matches @match_name.
  */
@@ -226,7 +226,7 @@ variable_matches(const char *var_name, size_t len, const char *match_name,
 
 		default:
 			/*
-			 * We've reached a non-wildcard char in @match_name.
+			 * We've reached a yesn-wildcard char in @match_name.
 			 * Continue only if there's an identical character in
 			 * @var_name.
 			 */
@@ -319,7 +319,7 @@ check_var_size(u32 attributes, unsigned long size)
 }
 
 static efi_status_t
-check_var_size_nonblocking(u32 attributes, unsigned long size)
+check_var_size_yesnblocking(u32 attributes, unsigned long size)
 {
 	const struct efivar_operations *fops;
 
@@ -358,7 +358,7 @@ static bool variable_is_present(efi_char16_t *variable_name, efi_guid_t *vendor,
 
 /*
  * Returns the size of variable_name, in bytes, including the
- * terminating NULL character, or variable_name_size if no NULL
+ * terminating NULL character, or variable_name_size if yes NULL
  * character is found among the first variable_name_size bytes.
  */
 static unsigned long var_name_strnsize(efi_char16_t *variable_name,
@@ -370,7 +370,7 @@ static unsigned long var_name_strnsize(efi_char16_t *variable_name,
 	/*
 	 * The variable name is, by definition, a NULL-terminated
 	 * string, so make absolutely sure that variable_name_size is
-	 * the value we expect it to be. If not, return the real size.
+	 * the value we expect it to be. If yest, return the real size.
 	 */
 	for (len = 2; len <= variable_name_size; len += sizeof(c)) {
 		c = variable_name[(len / sizeof(c)) - 1];
@@ -472,7 +472,7 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
 			 * Some firmware implementations return the
 			 * same variable name on multiple calls to
 			 * get_next_variable(). Terminate the loop
-			 * immediately as there is no guarantee that
+			 * immediately as there is yes guarantee that
 			 * we'll ever see a different variable name,
 			 * and may end up looping here forever.
 			 */
@@ -576,7 +576,7 @@ static void efivar_entry_list_del_unlock(struct efivar_entry *entry)
  * variable list.
  *
  * This function differs from efivar_entry_delete() because it does
- * not remove @entry from the variable list. Also, it is safe to be
+ * yest remove @entry from the variable list. Also, it is safe to be
  * called from within a efivar_entry_iter_begin() and
  * efivar_entry_iter_end() region, unlike efivar_entry_delete().
  *
@@ -647,9 +647,9 @@ EXPORT_SYMBOL_GPL(efivar_entry_delete);
  * variable, this function is usually followed by efivar_entry_add().
  *
  * Before writing the variable, the remaining EFI variable storage
- * space is checked to ensure there is enough room available.
+ * space is checked to ensure there is eyesugh room available.
  *
- * If @head is not NULL a lookup is performed to determine whether
+ * If @head is yest NULL a lookup is performed to determine whether
  * the entry is already on the list.
  *
  * Returns 0 on success, -EINTR if we can't grab the semaphore,
@@ -690,16 +690,16 @@ int efivar_entry_set(struct efivar_entry *entry, u32 attributes,
 EXPORT_SYMBOL_GPL(efivar_entry_set);
 
 /*
- * efivar_entry_set_nonblocking - call set_variable_nonblocking()
+ * efivar_entry_set_yesnblocking - call set_variable_yesnblocking()
  *
- * This function is guaranteed to not block and is suitable for calling
+ * This function is guaranteed to yest block and is suitable for calling
  * from crash/panic handlers.
  *
- * Crucially, this function will not block if it cannot acquire
+ * Crucially, this function will yest block if it canyest acquire
  * efivars_lock. Instead, it returns -EBUSY.
  */
 static int
-efivar_entry_set_nonblocking(efi_char16_t *name, efi_guid_t vendor,
+efivar_entry_set_yesnblocking(efi_char16_t *name, efi_guid_t vendor,
 			     u32 attributes, unsigned long size, void *data)
 {
 	const struct efivar_operations *ops;
@@ -713,7 +713,7 @@ efivar_entry_set_nonblocking(efi_char16_t *name, efi_guid_t vendor,
 		return -EINVAL;
 	}
 
-	status = check_var_size_nonblocking(attributes,
+	status = check_var_size_yesnblocking(attributes,
 					    size + ucs2_strsize(name, 1024));
 	if (status != EFI_SUCCESS) {
 		up(&efivars_lock);
@@ -721,7 +721,7 @@ efivar_entry_set_nonblocking(efi_char16_t *name, efi_guid_t vendor,
 	}
 
 	ops = __efivars->ops;
-	status = ops->set_variable_nonblocking(name, &vendor, attributes,
+	status = ops->set_variable_yesnblocking(name, &vendor, attributes,
 					       size, data);
 
 	up(&efivars_lock);
@@ -729,7 +729,7 @@ efivar_entry_set_nonblocking(efi_char16_t *name, efi_guid_t vendor,
 }
 
 /**
- * efivar_entry_set_safe - call set_variable() if enough space in firmware
+ * efivar_entry_set_safe - call set_variable() if eyesugh space in firmware
  * @name: buffer containing the variable name
  * @vendor: variable vendor guid
  * @attributes: variable attributes
@@ -737,11 +737,11 @@ efivar_entry_set_nonblocking(efi_char16_t *name, efi_guid_t vendor,
  * @size: size of @data buffer
  * @data: buffer containing variable data
  *
- * Ensures there is enough free storage in the firmware for this variable, and
+ * Ensures there is eyesugh free storage in the firmware for this variable, and
  * if so, calls set_variable(). If creating a new EFI variable, this function
  * is usually followed by efivar_entry_add().
  *
- * Returns 0 on success, -ENOSPC if the firmware does not have enough
+ * Returns 0 on success, -ENOSPC if the firmware does yest have eyesugh
  * space for set_variable() to succeed, or a converted EFI status code
  * if set_variable() fails.
  */
@@ -759,17 +759,17 @@ int efivar_entry_set_safe(efi_char16_t *name, efi_guid_t vendor, u32 attributes,
 		return -ENOSYS;
 
 	/*
-	 * If the EFI variable backend provides a non-blocking
+	 * If the EFI variable backend provides a yesn-blocking
 	 * ->set_variable() operation and we're in a context where we
-	 * cannot block, then we need to use it to avoid live-locks,
+	 * canyest block, then we need to use it to avoid live-locks,
 	 * since the implication is that the regular ->set_variable()
 	 * will block.
 	 *
-	 * If no ->set_variable_nonblocking() is provided then
-	 * ->set_variable() is assumed to be non-blocking.
+	 * If yes ->set_variable_yesnblocking() is provided then
+	 * ->set_variable() is assumed to be yesn-blocking.
 	 */
-	if (!block && ops->set_variable_nonblocking)
-		return efivar_entry_set_nonblocking(name, vendor, attributes,
+	if (!block && ops->set_variable_yesnblocking)
+		return efivar_entry_set_yesnblocking(name, vendor, attributes,
 						    size, data);
 
 	if (!block) {
@@ -948,11 +948,11 @@ EXPORT_SYMBOL_GPL(efivar_entry_get);
  * in @size. The success of set_variable() is indicated by @set.
  *
  * Returns 0 on success, -EINVAL if the variable data is invalid,
- * -ENOSPC if the firmware does not have enough available space, or a
+ * -ENOSPC if the firmware does yest have eyesugh available space, or a
  * converted EFI status code if either of set_variable() or
  * get_variable() fail.
  *
- * If the EFI variable does not exist when calling set_variable()
+ * If the EFI variable does yest exist when calling set_variable()
  * (EFI_NOT_FOUND), @entry is removed from the variable list.
  */
 int efivar_entry_set_get_size(struct efivar_entry *entry, u32 attributes,
@@ -1123,8 +1123,8 @@ EXPORT_SYMBOL_GPL(__efivar_entry_iter);
  * entry on the list. It is safe for @func to remove entries in the
  * list via efivar_entry_delete() while iterating.
  *
- * Some notes for the callback function:
- *  - a non-zero return value indicates an error and terminates the loop
+ * Some yestes for the callback function:
+ *  - a yesn-zero return value indicates an error and terminates the loop
  *  - @func is called from atomic context
  */
 int efivar_entry_iter(int (*func)(struct efivar_entry *, void *),
@@ -1145,7 +1145,7 @@ EXPORT_SYMBOL_GPL(efivar_entry_iter);
 /**
  * efivars_kobject - get the kobject for the registered efivars
  *
- * If efivars_register() has not been called we return NULL,
+ * If efivars_register() has yest been called we return NULL,
  * otherwise return the kobject used at registration time.
  */
 struct kobject *efivars_kobject(void)
@@ -1210,7 +1210,7 @@ int efivars_unregister(struct efivars *efivars)
 		return -EINTR;
 
 	if (!__efivars) {
-		printk(KERN_ERR "efivars not registered\n");
+		printk(KERN_ERR "efivars yest registered\n");
 		rv = -EINVAL;
 		goto out;
 	}

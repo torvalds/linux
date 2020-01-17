@@ -109,7 +109,7 @@ handle_line() {
 	# Remove hex numbers. Do it ourselves until it happens in the
 	# kernel
 
-	# We need to know the index of the last element before we
+	# We need to kyesw the index of the last element before we
 	# remove elements because arrays are sparse
 	local last=$(( ${#words[@]} - 1 ))
 

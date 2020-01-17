@@ -39,19 +39,19 @@ static const char *const h2cStaString[] = {
 	"successful",
 	"h2c busy",
 	"rf off",
-	"fw not read",
+	"fw yest read",
 };
 
 static const char *const ioStaString[] = {
 	"success",
-	"can not IO",
+	"can yest IO",
 	"rf off",
-	"fw not read",
+	"fw yest read",
 	"wait io timeout",
 	"invalid len",
 	"idle Q empty",
 	"insert waitQ fail",
-	"unknown fail",
+	"unkyeswn fail",
 	"wrong level",
 	"h2c stopped",
 };
@@ -66,7 +66,7 @@ static u8 GLBtcDbgBuf[BT_TMP_BUF_SIZE];
 typedef struct _btcoexdbginfo {
 	u8 *info;
 	u32 size; /*  buffer total size */
-	u32 len; /*  now used length */
+	u32 len; /*  yesw used length */
 } BTCDBGINFO, *PBTCDBGINFO;
 
 static BTCDBGINFO GLBtcDbgInfo;
@@ -424,8 +424,8 @@ static u8 halbtcoutsrc_Get(void *pBtcContext, u8 getType, void *pOutBuf)
 		break;
 
 	case BTC_GET_BL_WIFI_SCAN:
-		/* Use the value of the new variable GLBtcWiFiInScanState to judge whether WiFi is in scan state or not, since the originally used flag
-			WIFI_SITE_MONITOR in fwstate may not be cleared in time */
+		/* Use the value of the new variable GLBtcWiFiInScanState to judge whether WiFi is in scan state or yest, since the originally used flag
+			WIFI_SITE_MONITOR in fwstate may yest be cleared in time */
 		*pu8 = GLBtcWiFiInScanState;
 		break;
 
@@ -1059,7 +1059,7 @@ void EXhalbtcoutsrc_IpsNotify(PBTC_COEXIST pBtCoexist, u8 type)
 	else
 		ipsType = BTC_IPS_ENTER;
 
-	/*  All notify is called in cmd thread, don't need to leave low power again */
+	/*  All yestify is called in cmd thread, don't need to leave low power again */
 /* 	halbtcoutsrc_LeaveLowPower(pBtCoexist); */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
@@ -1111,7 +1111,7 @@ void EXhalbtcoutsrc_ScanNotify(PBTC_COEXIST pBtCoexist, u8 type)
 		GLBtcWiFiInScanState = false;
 	}
 
-	/*  All notify is called in cmd thread, don't need to leave low power again */
+	/*  All yestify is called in cmd thread, don't need to leave low power again */
 /* 	halbtcoutsrc_LeaveLowPower(pBtCoexist); */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
@@ -1137,7 +1137,7 @@ void EXhalbtcoutsrc_ConnectNotify(PBTC_COEXIST pBtCoexist, u8 action)
 	else
 		assoType = BTC_ASSOCIATE_FINISH;
 
-	/*  All notify is called in cmd thread, don't need to leave low power again */
+	/*  All yestify is called in cmd thread, don't need to leave low power again */
 /* 	halbtcoutsrc_LeaveLowPower(pBtCoexist); */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
@@ -1164,7 +1164,7 @@ void EXhalbtcoutsrc_MediaStatusNotify(PBTC_COEXIST pBtCoexist, RT_MEDIA_STATUS m
 	else
 		mStatus = BTC_MEDIA_DISCONNECT;
 
-	/*  All notify is called in cmd thread, don't need to leave low power again */
+	/*  All yestify is called in cmd thread, don't need to leave low power again */
 /* 	halbtcoutsrc_LeaveLowPower(pBtCoexist); */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
@@ -1195,7 +1195,7 @@ void EXhalbtcoutsrc_SpecialPacketNotify(PBTC_COEXIST pBtCoexist, u8 pktType)
 		return;
 	}
 
-	/*  All notify is called in cmd thread, don't need to leave low power again */
+	/*  All yestify is called in cmd thread, don't need to leave low power again */
 /* 	halbtcoutsrc_LeaveLowPower(pBtCoexist); */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
@@ -1213,7 +1213,7 @@ void EXhalbtcoutsrc_BtInfoNotify(PBTC_COEXIST pBtCoexist, u8 *tmpBuf, u8 length)
 
 	pBtCoexist->statistics.cntBtInfoNotify++;
 
-	/*  All notify is called in cmd thread, don't need to leave low power again */
+	/*  All yestify is called in cmd thread, don't need to leave low power again */
 /* 	halbtcoutsrc_LeaveLowPower(pBtCoexist); */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 2)
@@ -1243,8 +1243,8 @@ void EXhalbtcoutsrc_PnpNotify(PBTC_COEXIST pBtCoexist, u8 pnpState)
 		return;
 
 	/*  */
-	/*  currently only 1ant we have to do the notification, */
-	/*  once pnp is notified to sleep state, we have to leave LPS that we can sleep normally. */
+	/*  currently only 1ant we have to do the yestification, */
+	/*  once pnp is yestified to sleep state, we have to leave LPS that we can sleep yesrmally. */
 	/*  */
 
 	if (pBtCoexist->boardInfo.btdmAntNum == 1)
@@ -1315,7 +1315,7 @@ void EXhalbtcoutsrc_DisplayBtCoexInfo(PBTC_COEXIST pBtCoexist)
 
 /*
  * Description:
- *Run BT-Coexist mechanism or not
+ *Run BT-Coexist mechanism or yest
  *
  */
 void hal_btcoex_SetBTCoexist(struct adapter *padapter, u8 bBtExist)
@@ -1329,7 +1329,7 @@ void hal_btcoex_SetBTCoexist(struct adapter *padapter, u8 bBtExist)
 
 /*
  * Dewcription:
- *Check is co-exist mechanism enabled or not
+ *Check is co-exist mechanism enabled or yest
  *
  * Return:
  *true	Enable BT co-exist mechanism

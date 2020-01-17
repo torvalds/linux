@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause) */
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
@@ -27,12 +27,12 @@
  * are met:
  *
  * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ *   yestice, this list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the
  *   distribution.
- * * Neither the name of Intel Corporation nor the names of its
+ * * Neither the name of Intel Corporation yesr the names of its
  *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
  *
@@ -63,18 +63,18 @@
 
 /**
  * struct scif_port_id - SCIF port information
- * @node:	node on which port resides
+ * @yesde:	yesde on which port resides
  * @port:	local port number
  */
 struct scif_port_id {
-	__u16 node;
+	__u16 yesde;
 	__u16 port;
 };
 
 /**
  * struct scifioctl_connect - used for SCIF_CONNECT IOCTL
  * @self:	used to read back the assigned port_id
- * @peer:	destination node and port to connect to
+ * @peer:	destination yesde and port to connect to
  */
 struct scifioctl_connect {
 	struct scif_port_id	self;
@@ -184,13 +184,13 @@ struct scifioctl_fence_signal {
 };
 
 /**
- * struct scifioctl_node_ids - used for SCIF_GET_NODEIDS IOCTL
- * @nodes:	pointer to an array of node_ids
- * @self:	ID of the current node
+ * struct scifioctl_yesde_ids - used for SCIF_GET_NODEIDS IOCTL
+ * @yesdes:	pointer to an array of yesde_ids
+ * @self:	ID of the current yesde
  * @len:	length of array
  */
-struct scifioctl_node_ids {
-	__u64	nodes;
+struct scifioctl_yesde_ids {
+	__u64	yesdes;
 	__u64	self;
 	__s32	len;
 };
@@ -208,7 +208,7 @@ struct scifioctl_node_ids {
 #define SCIF_WRITETO		_IOWR('s', 11, struct scifioctl_copy)
 #define SCIF_VREADFROM		_IOWR('s', 12, struct scifioctl_copy)
 #define SCIF_VWRITETO		_IOWR('s', 13, struct scifioctl_copy)
-#define SCIF_GET_NODEIDS	_IOWR('s', 14, struct scifioctl_node_ids)
+#define SCIF_GET_NODEIDS	_IOWR('s', 14, struct scifioctl_yesde_ids)
 #define SCIF_FENCE_MARK		_IOWR('s', 15, struct scifioctl_fence_mark)
 #define SCIF_FENCE_WAIT		_IOWR('s', 16, __s32)
 #define SCIF_FENCE_SIGNAL	_IOWR('s', 17, struct scifioctl_fence_signal)

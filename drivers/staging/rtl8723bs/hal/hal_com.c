@@ -19,7 +19,7 @@ u8 rtw_hal_data_init(struct adapter *padapter)
 		padapter->hal_data_sz = sizeof(struct hal_com_data);
 		padapter->HalData = vzalloc(padapter->hal_data_sz);
 		if (!padapter->HalData) {
-			DBG_8192C("cannot alloc memory for HAL DATA\n");
+			DBG_8192C("canyest alloc memory for HAL DATA\n");
 			return _FAIL;
 		}
 	}
@@ -100,7 +100,7 @@ void dump_chip_info(HAL_VERSION	ChipVersion)
  *					BIT[6:0] Channel Plan
  *sw_channel_plan		channel plan from SW (registry/module param)
  *def_channel_plan	channel plan used when HW/SW both invalid
- *AutoLoadFail		efuse autoload fail or not
+ *AutoLoadFail		efuse autoload fail or yest
  *
  * Return:
  *Final channel plan decision
@@ -154,7 +154,7 @@ bool HAL_IsLegalChannel(struct adapter *Adapter, u32 Channel)
 	if ((Channel <= 14) && (Channel >= 1)) {
 		if (IsSupported24G(Adapter->registrypriv.wireless_mode) == false) {
 			bLegalChannel = false;
-			DBG_871X("(Channel <= 14) && (Channel >= 1) but wireless_mode do not support 2.4G\n");
+			DBG_871X("(Channel <= 14) && (Channel >= 1) but wireless_mode do yest support 2.4G\n");
 		}
 	} else {
 		bLegalChannel = false;
@@ -951,7 +951,7 @@ s32 c2h_evt_read_88xx(struct adapter *adapter, u8 *buf)
 
 clear_evt:
 	/*
-	* Clear event to notify FW we have read the command.
+	* Clear event to yestify FW we have read the command.
 	* If this field isn't clear, the FW won't update the next command message.
 	*/
 	c2h_evt_clear(adapter);
@@ -1077,7 +1077,7 @@ void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 	default:
 		DBG_871X_LEVEL(
 			_drv_always_,
-			FUNC_ADPT_FMT" variable(%d) not defined!\n",
+			FUNC_ADPT_FMT" variable(%d) yest defined!\n",
 			FUNC_ADPT_ARG(adapter),
 			variable
 		);
@@ -1103,7 +1103,7 @@ void GetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 	default:
 		DBG_871X_LEVEL(
 			_drv_always_,
-			FUNC_ADPT_FMT" variable(%d) not defined!\n",
+			FUNC_ADPT_FMT" variable(%d) yest defined!\n",
 			FUNC_ADPT_ARG(adapter),
 			variable
 		);
@@ -1191,7 +1191,7 @@ u8 SetHalDefVar(
 		hal_data->AntDetection = *((u8 *)value);
 		break;
 	default:
-		DBG_871X_LEVEL(_drv_always_, "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n", __func__, variable);
+		DBG_871X_LEVEL(_drv_always_, "%s: [WARNING] HAL_DEF_VARIABLE(%d) yest defined!\n", __func__, variable);
 		bResult = _FAIL;
 		break;
 	}
@@ -1246,7 +1246,7 @@ u8 GetHalDefVar(
 		*((u32 *)value) = PAGE_SIZE_128;
 		break;
 	default:
-		DBG_871X_LEVEL(_drv_always_, "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n", __func__, variable);
+		DBG_871X_LEVEL(_drv_always_, "%s: [WARNING] HAL_DEF_VARIABLE(%d) yest defined!\n", __func__, variable);
 		bResult = _FAIL;
 		break;
 	}
@@ -1267,10 +1267,10 @@ void GetHalODMVar(
 		{
 			struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
 			u8 chan = *(u8 *)pValue1;
-			*(s16 *)pValue2 = pHalData->noise[chan];
+			*(s16 *)pValue2 = pHalData->yesise[chan];
 			#ifdef DBG_NOISE_MONITOR
-			DBG_8192C("### Noise monitor chan(%d)-noise:%d (dBm) ###\n",
-				chan, pHalData->noise[chan]);
+			DBG_8192C("### Noise monitor chan(%d)-yesise:%d (dBm) ###\n",
+				chan, pHalData->yesise[chan]);
 			#endif
 
 		}
@@ -1316,20 +1316,20 @@ void SetHalODMVar(
 	#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
 	case HAL_ODM_NOISE_MONITOR:
 		{
-			struct noise_info *pinfo = pValue1;
+			struct yesise_info *pinfo = pValue1;
 
 			#ifdef DBG_NOISE_MONITOR
 			DBG_8192C("### Noise monitor chan(%d)-bPauseDIG:%d, IGIValue:0x%02x, max_time:%d (ms) ###\n",
 				pinfo->chan, pinfo->bPauseDIG, pinfo->IGIValue, pinfo->max_time);
 			#endif
 
-			pHalData->noise[pinfo->chan] = ODM_InbandNoise_Monitor(podmpriv, pinfo->bPauseDIG, pinfo->IGIValue, pinfo->max_time);
-			DBG_871X("chan_%d, noise = %d (dBm)\n", pinfo->chan, pHalData->noise[pinfo->chan]);
+			pHalData->yesise[pinfo->chan] = ODM_InbandNoise_Monitor(podmpriv, pinfo->bPauseDIG, pinfo->IGIValue, pinfo->max_time);
+			DBG_871X("chan_%d, yesise = %d (dBm)\n", pinfo->chan, pHalData->yesise[pinfo->chan]);
 			#ifdef DBG_NOISE_MONITOR
-			DBG_871X("noise_a = %d, noise_b = %d  noise_all:%d\n",
-				podmpriv->noise_level.noise[ODM_RF_PATH_A],
-				podmpriv->noise_level.noise[ODM_RF_PATH_B],
-				podmpriv->noise_level.noise_all);
+			DBG_871X("yesise_a = %d, yesise_b = %d  yesise_all:%d\n",
+				podmpriv->yesise_level.yesise[ODM_RF_PATH_A],
+				podmpriv->yesise_level.yesise[ODM_RF_PATH_B],
+				podmpriv->yesise_level.yesise_all);
 			#endif
 		}
 		break;
@@ -1419,8 +1419,8 @@ bool GetHexValueFromString(char *szStr, u32 *pu4bVal, u32 *pu4bMove)
 		(*pu4bMove) += 2;
 	}
 
-	/*  Check if szScan is now pointer to a character for hex digit, */
-	/*  if not, it means this is not a valid hex number. */
+	/*  Check if szScan is yesw pointer to a character for hex digit, */
+	/*  if yest, it means this is yest a valid hex number. */
 	if (!IsHexDigit(*szScan))
 		return false;
 
@@ -1512,7 +1512,7 @@ bool GetU1ByteIntegerFromStringInDecimal(char *Str, u8 *pInt)
 /*  <20121004, Kordan> For example,
  *  ParseQualifiedString(inString, 0, outString, '[', ']') gets "Kordan" from
  *  a string "Hello [Kordan]".
- *  If RightQualifier does not exist, it will hang in the while loop
+ *  If RightQualifier does yest exist, it will hang in the while loop
  */
 bool ParseQualifiedString(
 	char *In, u32 *Start, char *Out, char LeftQualifier, char RightQualifier

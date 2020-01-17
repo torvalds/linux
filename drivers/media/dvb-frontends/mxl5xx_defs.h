@@ -38,7 +38,7 @@ enum MXL_HYDRA_HOST_CMD_ID_E {
 	MXL_HYDRA_DEV_SET_POWER_MODE_CMD = 1,
 	MXL_HYDRA_DEV_SET_OVERWRITE_DEF_CMD = 2,
 
-	/* Host-used CMD, not used by firmware */
+	/* Host-used CMD, yest used by firmware */
 	MXL_HYDRA_DEV_FIRMWARE_DOWNLOAD_CMD = 3,
 
 	/* Additional CONTROL types from DTV */
@@ -83,7 +83,7 @@ enum MXL_HYDRA_HOST_CMD_ID_E {
 	/* -- Demod scramblle code */
 	MXL_HYDRA_DEMOD_SCRAMBLE_CODE_CMD = 24,
 
-	/* ---For host to know how many commands in total */
+	/* ---For host to kyesw how many commands in total */
 	MXL_HYDRA_LAST_HOST_CMD = 25,
 
 	MXL_HYDRA_DEMOD_INTR_TYPE_CMD = 47,
@@ -665,7 +665,7 @@ struct MXL_HYDRA_DEMOD_SCRAMBLE_CODE_T {
 
 struct MXL_INTR_CFG_T {
 	u32 intr_type;
-	u32 intr_duration_in_nano_secs;
+	u32 intr_duration_in_nayes_secs;
 	u32 intr_mask;
 };
 

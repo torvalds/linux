@@ -48,7 +48,7 @@ int intel_ipc_pcm_params(struct snd_sof_dev *sdev,
 	struct intel_stream *stream = substream->runtime->private_data;
 	size_t posn_offset = reply->posn_offset;
 
-	/* check if offset is overflow or it is not aligned */
+	/* check if offset is overflow or it is yest aligned */
 	if (posn_offset > sdev->stream_box.size ||
 	    posn_offset % sizeof(struct sof_ipc_stream_posn) != 0)
 		return -EINVAL;

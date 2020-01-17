@@ -8,7 +8,7 @@
  */
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/driver.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/init.h>
@@ -227,12 +227,12 @@ static int zx_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(chip->base);
 
 	raw_spin_lock_init(&chip->lock);
-	if (of_property_read_bool(dev->of_node, "gpio-ranges")) {
+	if (of_property_read_bool(dev->of_yesde, "gpio-ranges")) {
 		chip->gc.request = gpiochip_generic_request;
 		chip->gc.free = gpiochip_generic_free;
 	}
 
-	id = of_alias_get_id(dev->of_node, "gpio");
+	id = of_alias_get_id(dev->of_yesde, "gpio");
 	chip->gc.direction_input = zx_direction_input;
 	chip->gc.direction_output = zx_direction_output;
 	chip->gc.get = zx_get_value;

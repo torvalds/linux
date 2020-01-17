@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2008 Google, Inc.
  *
- * Based on, but no longer compatible with, the original
+ * Based on, but yes longer compatible with, the original
  * OpenBinder.org binder driver interface, which is:
  *
  * Copyright (c) 2005 Palmsource, Inc.
@@ -118,7 +118,7 @@ struct binder_fd_object {
  * A binder_buffer object represents an object that the
  * binder kernel driver can copy verbatim to the target
  * address space. A buffer itself may be pointed to from
- * within another buffer, meaning that the pointer inside
+ * within ayesther buffer, meaning that the pointer inside
  * that other buffer needs to be fixed up as well. This
  * can be done by setting the BINDER_BUFFER_FLAG_HAS_PARENT
  * flag in @flags, by setting @parent buffer to the index
@@ -149,7 +149,7 @@ enum {
  * A binder_fd_array object represents an array of file
  * descriptors embedded in a binder_buffer_object. It is
  * different from a regular binder_buffer_object because it
- * describes a list of file descriptors to fix up, not an opaque
+ * describes a list of file descriptors to fix up, yest an opaque
  * blob of memory, and hence the kernel needs to treat it differently.
  *
  * An example of how this would be used is with Android's
@@ -197,18 +197,18 @@ struct binder_version {
 
 /*
  * Use with BINDER_GET_NODE_DEBUG_INFO, driver reads ptr, writes to all fields.
- * Set ptr to NULL for the first call to get the info for the first node, and
+ * Set ptr to NULL for the first call to get the info for the first yesde, and
  * then repeat the call passing the previously returned value to get the next
- * nodes.  ptr will be 0 when there are no more nodes.
+ * yesdes.  ptr will be 0 when there are yes more yesdes.
  */
-struct binder_node_debug_info {
+struct binder_yesde_debug_info {
 	binder_uintptr_t ptr;
 	binder_uintptr_t cookie;
 	__u32            has_strong_ref;
 	__u32            has_weak_ref;
 };
 
-struct binder_node_info_for_ref {
+struct binder_yesde_info_for_ref {
 	__u32            handle;
 	__u32            strong_count;
 	__u32            weak_count;
@@ -224,8 +224,8 @@ struct binder_node_info_for_ref {
 #define BINDER_SET_CONTEXT_MGR		_IOW('b', 7, __s32)
 #define BINDER_THREAD_EXIT		_IOW('b', 8, __s32)
 #define BINDER_VERSION			_IOWR('b', 9, struct binder_version)
-#define BINDER_GET_NODE_DEBUG_INFO	_IOWR('b', 11, struct binder_node_debug_info)
-#define BINDER_GET_NODE_INFO_FOR_REF	_IOWR('b', 12, struct binder_node_info_for_ref)
+#define BINDER_GET_NODE_DEBUG_INFO	_IOWR('b', 11, struct binder_yesde_debug_info)
+#define BINDER_GET_NODE_INFO_FOR_REF	_IOWR('b', 12, struct binder_yesde_info_for_ref)
 #define BINDER_SET_CONTEXT_MGR_EXT	_IOW('b', 13, struct flat_binder_object)
 
 /*
@@ -236,7 +236,7 @@ struct binder_node_info_for_ref {
  * handled by retrying the ioctl() until a different error code
  * is returned.
  *
- * ECONNREFUSED -- The driver is no longer accepting operations
+ * ECONNREFUSED -- The driver is yes longer accepting operations
  * from your process.  That is, the process is being destroyed.
  * You should handle this by exiting from your process.  Note
  * that once this error code is returned, all further calls to
@@ -244,7 +244,7 @@ struct binder_node_info_for_ref {
  */
 
 enum transaction_flags {
-	TF_ONE_WAY	= 0x01,	/* this is a one-way call: async, no return */
+	TF_ONE_WAY	= 0x01,	/* this is a one-way call: async, yes return */
 	TF_ROOT_OBJECT	= 0x04,	/* contents are the component's root object */
 	TF_STATUS_CODE	= 0x08,	/* contents are a 32-bit status code */
 	TF_ACCEPT_FDS	= 0x10,	/* allow replies with file descriptors */
@@ -338,22 +338,22 @@ enum binder_driver_return_protocol {
 
 	BR_ACQUIRE_RESULT = _IOR('r', 4, __s32),
 	/*
-	 * not currently supported
-	 * int: 0 if the last bcATTEMPT_ACQUIRE was not successful.
+	 * yest currently supported
+	 * int: 0 if the last bcATTEMPT_ACQUIRE was yest successful.
 	 * Else the remote object has acquired a primary reference.
 	 */
 
 	BR_DEAD_REPLY = _IO('r', 5),
 	/*
 	 * The target of the last transaction (either a bcTRANSACTION or
-	 * a bcATTEMPT_ACQUIRE) is no longer with us.  No parameters.
+	 * a bcATTEMPT_ACQUIRE) is yes longer with us.  No parameters.
 	 */
 
 	BR_TRANSACTION_COMPLETE = _IO('r', 6),
 	/*
 	 * No parameters... always refers to the last transaction requested
 	 * (including replies).  Note that this will be sent even for
-	 * asynchronous transactions.
+	 * asynchroyesus transactions.
 	 */
 
 	BR_INCREFS = _IOR('r', 7, struct binder_ptr_cookie),
@@ -367,7 +367,7 @@ enum binder_driver_return_protocol {
 
 	BR_ATTEMPT_ACQUIRE = _IOR('r', 11, struct binder_pri_ptr_cookie),
 	/*
-	 * not currently supported
+	 * yest currently supported
 	 * int:	priority
 	 * void *: ptr to binder
 	 * void *: cookie for binder
@@ -375,13 +375,13 @@ enum binder_driver_return_protocol {
 
 	BR_NOOP = _IO('r', 12),
 	/*
-	 * No parameters.  Do nothing and examine the next command.  It exists
+	 * No parameters.  Do yesthing and examine the next command.  It exists
 	 * primarily so that we can replace it with a BR_SPAWN_LOOPER command.
 	 */
 
 	BR_SPAWN_LOOPER = _IO('r', 13),
 	/*
-	 * No parameters.  The driver has determined that a process has no
+	 * No parameters.  The driver has determined that a process has yes
 	 * threads waiting to service incoming transactions.  When a process
 	 * receives this command, it must spawn a new service thread and
 	 * register it via bcENTER_LOOPER.
@@ -389,7 +389,7 @@ enum binder_driver_return_protocol {
 
 	BR_FINISHED = _IO('r', 14),
 	/*
-	 * not currently supported
+	 * yest currently supported
 	 * stop threadpool thread
 	 */
 
@@ -418,8 +418,8 @@ enum binder_driver_command_protocol {
 
 	BC_ACQUIRE_RESULT = _IOW('c', 2, __s32),
 	/*
-	 * not currently supported
-	 * int:  0 if the last BR_ATTEMPT_ACQUIRE was not successful.
+	 * yest currently supported
+	 * int:  0 if the last BR_ATTEMPT_ACQUIRE was yest successful.
 	 * Else you have acquired a primary reference on the object.
 	 */
 
@@ -445,7 +445,7 @@ enum binder_driver_command_protocol {
 
 	BC_ATTEMPT_ACQUIRE = _IOW('c', 10, struct binder_pri_desc),
 	/*
-	 * not currently supported
+	 * yest currently supported
 	 * int: priority
 	 * int: descriptor
 	 */

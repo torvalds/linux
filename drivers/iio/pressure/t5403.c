@@ -81,7 +81,7 @@ static int t5403_comp_pressure(struct t5403_data *data, int *val, int *val2)
 		goto done;
 	p_r = ret;
 
-	/* see EPCOS application note */
+	/* see EPCOS application yeste */
 	S = T5403_C_U16(3) + (s32) T5403_C_U16(4) * t_r / 0x20000 +
 		T5403_C(5) * t_r / 0x8000 * t_r / 0x80000 +
 		T5403_C(9) * t_r / 0x8000 * t_r / 0x8000 * t_r / 0x10000;
@@ -114,7 +114,7 @@ static int t5403_comp_temp(struct t5403_data *data, int *val)
 		goto done;
 	t_r = ret;
 
-	/* see EPCOS application note */
+	/* see EPCOS application yeste */
 	*val = ((s32) T5403_C_U16(1) * t_r / 0x100 +
 		(s32) T5403_C_U16(2) * 0x40) * 1000 / 0x10000;
 

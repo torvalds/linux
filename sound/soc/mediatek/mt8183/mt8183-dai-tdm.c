@@ -451,7 +451,7 @@ static int mtk_dai_tdm_cal_mclk(struct mtk_base_afe *afe,
 
 	if (apll_rate % freq != 0) {
 		dev_warn(afe->dev,
-			 "%s(), APLL cannot generate %d Hz", __func__, freq);
+			 "%s(), APLL canyest generate %d Hz", __func__, freq);
 		return -EINVAL;
 	}
 
@@ -477,7 +477,7 @@ static int mtk_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_format_t format = params_format(params);
 	unsigned int tdm_con = 0;
 
-	/* calculate mclk_rate, if not set explicitly */
+	/* calculate mclk_rate, if yest set explicitly */
 	if (!tdm_priv->mclk_rate) {
 		tdm_priv->mclk_rate = rate * tdm_priv->mclk_multiple;
 		mtk_dai_tdm_cal_mclk(afe,
@@ -494,7 +494,7 @@ static int mtk_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 		dev_warn(afe->dev, "%s(), bck_rate > mclk_rate rate", __func__);
 
 	if (tdm_priv->mclk_rate % tdm_priv->bck_rate != 0)
-		dev_warn(afe->dev, "%s(), bck cannot generate", __func__);
+		dev_warn(afe->dev, "%s(), bck canyest generate", __func__);
 
 	dev_info(afe->dev, "%s(), id %d, rate %d, channels %d, format %d, mclk_rate %d, bck_rate %d\n",
 		 __func__,

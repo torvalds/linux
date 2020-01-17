@@ -15,7 +15,7 @@
 #include <linux/mutex.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = {
+static const unsigned short yesrmal_i2c[] = {
 	0x2c, 0x2d, 0x2e, I2C_CLIENT_END
 };
 
@@ -50,7 +50,7 @@ static struct asc7621_chip asc7621_chips[] = {
 		.company_id = 0x61,
 		.verstep_reg = 0x3f,
 		.verstep_id = 0x6c,
-		.addresses = normal_i2c,
+		.addresses = yesrmal_i2c,
 	 },
 	{
 		.name = "asc7621a",
@@ -59,12 +59,12 @@ static struct asc7621_chip asc7621_chips[] = {
 		.company_id = 0x61,
 		.verstep_reg = 0x3f,
 		.verstep_id = 0x6d,
-		.addresses = normal_i2c,
+		.addresses = yesrmal_i2c,
 	 },
 };
 
 /*
- * Defines the highest register to be used, not the count.
+ * Defines the highest register to be used, yest the count.
  * The actual count will probably be smaller because of gaps
  * in the implementation (unused register locations).
  * This define will safely set the array size of both the parameter
@@ -112,7 +112,7 @@ struct asc7621_param {
 
 /*
  * This is the map that ultimately indicates whether we'll be
- * retrieving a register value or not, and at what frequency.
+ * retrieving a register value or yest, and at what frequency.
  */
 static u8 asc7621_register_priorities[255];
 
@@ -158,7 +158,7 @@ static inline int write_byte(struct i2c_client *client, u8 reg, u8 data)
 	struct asc7621_param *param = to_asc7621_param(sda)
 
 /*
- * u8 is just what it sounds like...an unsigned byte with no
+ * u8 is just what it sounds like...an unsigned byte with yes
  * special formatting.
  */
 static ssize_t show_u8(struct device *dev, struct device_attribute *attr,
@@ -274,9 +274,9 @@ static ssize_t store_fan16(struct device *dev,
 }
 
 /*
- * Voltages are scaled in the device so that the nominal voltage
+ * Voltages are scaled in the device so that the yesminal voltage
  * is 3/4ths of the 0-255 range (i.e. 192).
- * If all voltages are 'normal' then all voltage registers will
+ * If all voltages are 'yesrmal' then all voltage registers will
  * read 0xC0.
  *
  * The data sheet provides us with the 3/4 scale value for each voltage
@@ -557,12 +557,12 @@ static ssize_t show_pwm_enable(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	SETUP_SHOW_DATA_PARAM(dev, attr);
-	u8 config, altbit, minoff, val, newval;
+	u8 config, altbit, miyesff, val, newval;
 
 	mutex_lock(&data->update_lock);
 	config = (data->reg[param->msb[0]] >> param->shift[0]) & param->mask[0];
 	altbit = (data->reg[param->msb[1]] >> param->shift[1]) & param->mask[1];
-	minoff = (data->reg[param->msb[2]] >> param->shift[2]) & param->mask[2];
+	miyesff = (data->reg[param->msb[2]] >> param->shift[2]) & param->mask[2];
 	mutex_unlock(&data->update_lock);
 
 	val = config | (altbit << 3);
@@ -573,7 +573,7 @@ static ssize_t show_pwm_enable(struct device *dev,
 		newval = 0;
 	else if (val == 7)
 		newval = 1;
-	else if (minoff == 1)
+	else if (miyesff == 1)
 		newval = 2;
 	else
 		newval = 3;
@@ -587,7 +587,7 @@ static ssize_t store_pwm_enable(struct device *dev,
 {
 	SETUP_STORE_DATA_PARAM(dev, attr);
 	long reqval;
-	u8 currval, config, altbit, newval, minoff = 255;
+	u8 currval, config, altbit, newval, miyesff = 255;
 
 	if (kstrtol(buf, 10, &reqval))
 		return -EINVAL;
@@ -601,11 +601,11 @@ static ssize_t store_pwm_enable(struct device *dev,
 		break;
 	case 2:
 		newval = 0x00;
-		minoff = 1;
+		miyesff = 1;
 		break;
 	case 3:
 		newval = 0x00;
-		minoff = 0;
+		miyesff = 0;
 		break;
 	case 255:
 		newval = 0x03;
@@ -625,11 +625,11 @@ static ssize_t store_pwm_enable(struct device *dev,
 	newval = altbit | (newval & ~(param->mask[1] << param->shift[1]));
 	data->reg[param->msb[0]] = newval;
 	write_byte(client, param->msb[0], newval);
-	if (minoff < 255) {
-		minoff = (minoff & param->mask[2]) << param->shift[2];
+	if (miyesff < 255) {
+		miyesff = (miyesff & param->mask[2]) << param->shift[2];
 		currval = read_byte(client, param->msb[2]);
 		newval =
-		    minoff | (currval & ~(param->mask[2] << param->shift[2]));
+		    miyesff | (currval & ~(param->mask[2] << param->shift[2]));
 		data->reg[param->msb[2]] = newval;
 		write_byte(client, param->msb[2], newval);
 	}
@@ -786,7 +786,7 @@ static ssize_t store_temp_st(struct device *dev,
 /*
  * End of data handlers
  *
- * These defines do nothing more than make the table easier
+ * These defines do yesthing more than make the table easier
  * to read when wrapped at column 80.
  */
 
@@ -1062,7 +1062,7 @@ static void asc7621_init_client(struct i2c_client *client)
 {
 	int value;
 
-	/* Warn if part was not "READY" */
+	/* Warn if part was yest "READY" */
 
 	value = read_byte(client, 0x40);
 
@@ -1072,7 +1072,7 @@ static void asc7621_init_client(struct i2c_client *client)
 			i2c_adapter_id(client->adapter), client->addr);
 	}
 	if (!(value & 0x04)) {
-		dev_err(&client->dev, "Client (%d,0x%02x) is not ready.\n",
+		dev_err(&client->dev, "Client (%d,0x%02x) is yest ready.\n",
 			i2c_adapter_id(client->adapter), client->addr);
 	}
 
@@ -1197,7 +1197,7 @@ static struct i2c_driver asc7621_driver = {
 	.remove = asc7621_remove,
 	.id_table = asc7621_id,
 	.detect = asc7621_detect,
-	.address_list = normal_i2c,
+	.address_list = yesrmal_i2c,
 };
 
 static int __init sm_asc7621_init(void)

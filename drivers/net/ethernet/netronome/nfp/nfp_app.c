@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #include <linux/bug.h>
 #include <linux/lockdep.h>
@@ -49,7 +49,7 @@ struct nfp_app *nfp_app_from_netdev(struct net_device *netdev)
 		return repr->app;
 	}
 
-	WARN(1, "Unknown netdev type for nfp_app\n");
+	WARN(1, "Unkyeswn netdev type for nfp_app\n");
 
 	return NULL;
 }
@@ -171,12 +171,12 @@ nfp_app_netdev_feat_change(struct nfp_app *app, struct net_device *netdev)
 }
 
 static int
-nfp_app_netdev_event(struct notifier_block *nb, unsigned long event, void *ptr)
+nfp_app_netdev_event(struct yestifier_block *nb, unsigned long event, void *ptr)
 {
 	struct net_device *netdev;
 	struct nfp_app *app;
 
-	netdev = netdev_notifier_info_to_dev(ptr);
+	netdev = netdev_yestifier_info_to_dev(ptr);
 	app = container_of(nb, struct nfp_app, netdev_nb);
 
 	/* Handle events common code is interested in */
@@ -204,8 +204,8 @@ int nfp_app_start(struct nfp_app *app, struct nfp_net *ctrl)
 			return err;
 	}
 
-	app->netdev_nb.notifier_call = nfp_app_netdev_event;
-	err = register_netdevice_notifier(&app->netdev_nb);
+	app->netdev_nb.yestifier_call = nfp_app_netdev_event;
+	err = register_netdevice_yestifier(&app->netdev_nb);
 	if (err)
 		goto err_app_stop;
 
@@ -219,7 +219,7 @@ err_app_stop:
 
 void nfp_app_stop(struct nfp_app *app)
 {
-	unregister_netdevice_notifier(&app->netdev_nb);
+	unregister_netdevice_yestifier(&app->netdev_nb);
 
 	if (app->type->stop)
 		app->type->stop(app);
@@ -230,7 +230,7 @@ struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id)
 	struct nfp_app *app;
 
 	if (id >= ARRAY_SIZE(apps) || !apps[id]) {
-		nfp_err(pf->cpp, "unknown FW app ID 0x%02hhx, driver too old or support for FW not built in\n", id);
+		nfp_err(pf->cpp, "unkyeswn FW app ID 0x%02hhx, driver too old or support for FW yest built in\n", id);
 		return ERR_PTR(-EINVAL);
 	}
 

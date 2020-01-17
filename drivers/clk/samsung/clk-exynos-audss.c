@@ -16,13 +16,13 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
-#include <dt-bindings/clock/exynos-audss-clk.h>
+#include <dt-bindings/clock/exyyess-audss-clk.h>
 
 static DEFINE_SPINLOCK(lock);
 static void __iomem *reg_base;
 static struct clk_hw_onecell_data *clk_data;
 /*
- * On Exynos5420 this will be a clock which has to be enabled before any
+ * On Exyyess5420 this will be a clock which has to be enabled before any
  * access to audss registers. Typically a child of EPLL.
  *
  * On other platforms this will be -ENODEV.
@@ -39,7 +39,7 @@ static unsigned long reg_save[][2] = {
 	{ ASS_CLK_GATE, 0 },
 };
 
-static int __maybe_unused exynos_audss_clk_suspend(struct device *dev)
+static int __maybe_unused exyyess_audss_clk_suspend(struct device *dev)
 {
 	int i;
 
@@ -49,7 +49,7 @@ static int __maybe_unused exynos_audss_clk_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused exynos_audss_clk_resume(struct device *dev)
+static int __maybe_unused exyyess_audss_clk_resume(struct device *dev)
 {
 	int i;
 
@@ -59,48 +59,48 @@ static int __maybe_unused exynos_audss_clk_resume(struct device *dev)
 	return 0;
 }
 
-struct exynos_audss_clk_drvdata {
+struct exyyess_audss_clk_drvdata {
 	unsigned int has_adma_clk:1;
 	unsigned int has_mst_clk:1;
 	unsigned int enable_epll:1;
 	unsigned int num_clks;
 };
 
-static const struct exynos_audss_clk_drvdata exynos4210_drvdata = {
+static const struct exyyess_audss_clk_drvdata exyyess4210_drvdata = {
 	.num_clks	= EXYNOS_AUDSS_MAX_CLKS - 1,
 	.enable_epll	= 1,
 };
 
-static const struct exynos_audss_clk_drvdata exynos5410_drvdata = {
+static const struct exyyess_audss_clk_drvdata exyyess5410_drvdata = {
 	.num_clks	= EXYNOS_AUDSS_MAX_CLKS - 1,
 	.has_mst_clk	= 1,
 };
 
-static const struct exynos_audss_clk_drvdata exynos5420_drvdata = {
+static const struct exyyess_audss_clk_drvdata exyyess5420_drvdata = {
 	.num_clks	= EXYNOS_AUDSS_MAX_CLKS,
 	.has_adma_clk	= 1,
 	.enable_epll	= 1,
 };
 
-static const struct of_device_id exynos_audss_clk_of_match[] = {
+static const struct of_device_id exyyess_audss_clk_of_match[] = {
 	{
-		.compatible	= "samsung,exynos4210-audss-clock",
-		.data		= &exynos4210_drvdata,
+		.compatible	= "samsung,exyyess4210-audss-clock",
+		.data		= &exyyess4210_drvdata,
 	}, {
-		.compatible	= "samsung,exynos5250-audss-clock",
-		.data		= &exynos4210_drvdata,
+		.compatible	= "samsung,exyyess5250-audss-clock",
+		.data		= &exyyess4210_drvdata,
 	}, {
-		.compatible	= "samsung,exynos5410-audss-clock",
-		.data		= &exynos5410_drvdata,
+		.compatible	= "samsung,exyyess5410-audss-clock",
+		.data		= &exyyess5410_drvdata,
 	}, {
-		.compatible	= "samsung,exynos5420-audss-clock",
-		.data		= &exynos5420_drvdata,
+		.compatible	= "samsung,exyyess5420-audss-clock",
+		.data		= &exyyess5420_drvdata,
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, exynos_audss_clk_of_match);
+MODULE_DEVICE_TABLE(of, exyyess_audss_clk_of_match);
 
-static void exynos_audss_clk_teardown(void)
+static void exyyess_audss_clk_teardown(void)
 {
 	int i;
 
@@ -120,14 +120,14 @@ static void exynos_audss_clk_teardown(void)
 	}
 }
 
-/* register exynos_audss clocks */
-static int exynos_audss_clk_probe(struct platform_device *pdev)
+/* register exyyess_audss clocks */
+static int exyyess_audss_clk_probe(struct platform_device *pdev)
 {
 	const char *mout_audss_p[] = {"fin_pll", "fout_epll"};
 	const char *mout_i2s_p[] = {"mout_audss", "cdclk0", "sclk_audio0"};
 	const char *sclk_pcm_p = "sclk_pcm0";
 	struct clk *pll_ref, *pll_in, *cdclk, *sclk_audio, *sclk_pcm_in;
-	const struct exynos_audss_clk_drvdata *variant;
+	const struct exyyess_audss_clk_drvdata *variant;
 	struct clk_hw **clk_table;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
@@ -179,7 +179,7 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 	 * PM usage count before registering the clocks, to prevent the
 	 * clock core from runtime suspending the device.
 	 */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -248,7 +248,7 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
+	ret = of_clk_add_hw_provider(dev->of_yesde, of_clk_hw_onecell_get,
 				     clk_data);
 	if (ret) {
 		dev_err(dev, "failed to add clock provider\n");
@@ -260,7 +260,7 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 	return 0;
 
 unregister:
-	exynos_audss_clk_teardown();
+	exyyess_audss_clk_teardown();
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 
@@ -270,11 +270,11 @@ unregister:
 	return ret;
 }
 
-static int exynos_audss_clk_remove(struct platform_device *pdev)
+static int exyyess_audss_clk_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 
-	exynos_audss_clk_teardown();
+	exyyess_audss_clk_teardown();
 	pm_runtime_disable(&pdev->dev);
 
 	if (!IS_ERR(epll))
@@ -283,26 +283,26 @@ static int exynos_audss_clk_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct dev_pm_ops exynos_audss_clk_pm_ops = {
-	SET_RUNTIME_PM_OPS(exynos_audss_clk_suspend, exynos_audss_clk_resume,
+static const struct dev_pm_ops exyyess_audss_clk_pm_ops = {
+	SET_RUNTIME_PM_OPS(exyyess_audss_clk_suspend, exyyess_audss_clk_resume,
 			   NULL)
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				     pm_runtime_force_resume)
 };
 
-static struct platform_driver exynos_audss_clk_driver = {
+static struct platform_driver exyyess_audss_clk_driver = {
 	.driver	= {
-		.name = "exynos-audss-clk",
-		.of_match_table = exynos_audss_clk_of_match,
-		.pm = &exynos_audss_clk_pm_ops,
+		.name = "exyyess-audss-clk",
+		.of_match_table = exyyess_audss_clk_of_match,
+		.pm = &exyyess_audss_clk_pm_ops,
 	},
-	.probe = exynos_audss_clk_probe,
-	.remove = exynos_audss_clk_remove,
+	.probe = exyyess_audss_clk_probe,
+	.remove = exyyess_audss_clk_remove,
 };
 
-module_platform_driver(exynos_audss_clk_driver);
+module_platform_driver(exyyess_audss_clk_driver);
 
 MODULE_AUTHOR("Padmavathi Venna <padma.v@samsung.com>");
-MODULE_DESCRIPTION("Exynos Audio Subsystem Clock Controller");
+MODULE_DESCRIPTION("Exyyess Audio Subsystem Clock Controller");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:exynos-audss-clk");
+MODULE_ALIAS("platform:exyyess-audss-clk");

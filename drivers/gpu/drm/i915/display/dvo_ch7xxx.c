@@ -12,7 +12,7 @@ distribute, sub license, and/or sell copies of the Software, and to
 permit persons to whom the Software is furnished to do so, subject to
 the following conditions:
 
-The above copyright notice and this permission notice (including the
+The above copyright yestice and this permission yestice (including the
 next paragraph) shall be included in all copies or substantial portions
 of the Software.
 
@@ -218,7 +218,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 
 	name = ch7xxx_get_id(vendor);
 	if (!name) {
-		DRM_DEBUG_KMS("ch7xxx not detected; got VID 0x%02x from %s slave %d.\n",
+		DRM_DEBUG_KMS("ch7xxx yest detected; got VID 0x%02x from %s slave %d.\n",
 			      vendor, adapter->name, dvo->slave_addr);
 		goto out;
 	}
@@ -229,7 +229,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 
 	devid = ch7xxx_get_did(device);
 	if (!devid) {
-		DRM_DEBUG_KMS("ch7xxx not detected; got DID 0x%02x from %s slave %d.\n",
+		DRM_DEBUG_KMS("ch7xxx yest detected; got DID 0x%02x from %s slave %d.\n",
 			      device, adapter->name, dvo->slave_addr);
 		goto out;
 	}

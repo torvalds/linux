@@ -19,16 +19,16 @@ static __always_inline bool arch_static_branch(struct static_key *key,
 					       bool branch)
 {
 	asm_volatile_goto(
-		"1:	nop					\n\t"
+		"1:	yesp					\n\t"
 		 "	.pushsection	__jump_table, \"aw\"	\n\t"
 		 "	.align		3			\n\t"
-		 "	.long		1b - ., %l[l_yes] - .	\n\t"
+		 "	.long		1b - ., %l[l_no] - .	\n\t"
 		 "	.quad		%c0 - .			\n\t"
 		 "	.popsection				\n\t"
-		 :  :  "i"(&((char *)key)[branch]) :  : l_yes);
+		 :  :  "i"(&((char *)key)[branch]) :  : l_no);
 
 	return false;
-l_yes:
+l_no:
 	return true;
 }
 
@@ -36,16 +36,16 @@ static __always_inline bool arch_static_branch_jump(struct static_key *key,
 						    bool branch)
 {
 	asm_volatile_goto(
-		"1:	b		%l[l_yes]		\n\t"
+		"1:	b		%l[l_no]		\n\t"
 		 "	.pushsection	__jump_table, \"aw\"	\n\t"
 		 "	.align		3			\n\t"
-		 "	.long		1b - ., %l[l_yes] - .	\n\t"
+		 "	.long		1b - ., %l[l_no] - .	\n\t"
 		 "	.quad		%c0 - .			\n\t"
 		 "	.popsection				\n\t"
-		 :  :  "i"(&((char *)key)[branch]) :  : l_yes);
+		 :  :  "i"(&((char *)key)[branch]) :  : l_no);
 
 	return false;
-l_yes:
+l_no:
 	return true;
 }
 

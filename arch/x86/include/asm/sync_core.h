@@ -9,7 +9,7 @@
 /*
  * Ensure that a core serializing instruction is issued before returning
  * to user-mode. x86 implements return to user-space through sysexit,
- * sysrel, and sysretq, which are not core serializing.
+ * sysrel, and sysretq, which are yest core serializing.
  */
 static inline void sync_core_before_usermode(void)
 {

@@ -11,9 +11,9 @@
  *
  * TODO:
  * - Fix various assumptions related to HW CPU numbers vs. linux CPU numbers
- *   vs node numbers in the setup code
+ *   vs yesde numbers in the setup code
  * - Implement proper handling of maxcpus=1/2 (that is, routing of irqs from
- *   a non-active node to the active node)
+ *   a yesn-active yesde to the active yesde)
  */
 
 #include <linux/interrupt.h>
@@ -38,7 +38,7 @@ struct iic {
 	u8 target_id;
 	u8 eoi_stack[16];
 	int eoi_ptr;
-	struct device_node *node;
+	struct device_yesde *yesde;
 };
 
 static DEFINE_PER_CPU(struct iic, cpu_iic);
@@ -49,14 +49,14 @@ static struct irq_domain *iic_host;
 static irq_hw_number_t iic_pending_to_hwnum(struct cbe_iic_pending_bits bits)
 {
 	unsigned char unit = bits.source & 0xf;
-	unsigned char node = bits.source >> 4;
+	unsigned char yesde = bits.source >> 4;
 	unsigned char class = bits.class & 3;
 
 	/* Decode IPIs */
 	if (bits.flags & CBE_IIC_IRQ_IPI)
 		return IIC_IRQ_TYPE_IPI | (bits.prio >> 4);
 	else
-		return (node << IIC_IRQ_NODE_SHIFT) | (class << 4) | unit;
+		return (yesde << IIC_IRQ_NODE_SHIFT) | (class << 4) | unit;
 }
 
 static void iic_mask(struct irq_data *d)
@@ -89,7 +89,7 @@ static void iic_ioexc_eoi(struct irq_data *d)
 static void iic_ioexc_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct cbe_iic_regs __iomem *node_iic =
+	struct cbe_iic_regs __iomem *yesde_iic =
 		(void __iomem *)irq_desc_get_handler_data(desc);
 	unsigned int irq = irq_desc_get_irq(desc);
 	unsigned int base = (irq & 0xffffff00) | IIC_IRQ_TYPE_IOEXC;
@@ -97,13 +97,13 @@ static void iic_ioexc_cascade(struct irq_desc *desc)
 	int cascade;
 
 	for (;;) {
-		bits = in_be64(&node_iic->iic_is);
+		bits = in_be64(&yesde_iic->iic_is);
 		if (bits == 0)
 			break;
 		/* pre-ack edge interrupts */
 		ack = bits & IIC_ISR_EDGE_MASK;
 		if (ack)
-			out_be64(&node_iic->iic_is, ack);
+			out_be64(&yesde_iic->iic_is, ack);
 		/* handle them */
 		for (cascade = 63; cascade >= 0; cascade--)
 			if (bits & (0x8000000000000000UL >> cascade)) {
@@ -116,7 +116,7 @@ static void iic_ioexc_cascade(struct irq_desc *desc)
 		/* post-ack level interrupts */
 		ack = bits & ~IIC_ISR_EDGE_MASK;
 		if (ack)
-			out_be64(&node_iic->iic_is, ack);
+			out_be64(&yesde_iic->iic_is, ack);
 	}
 	chip->irq_eoi(&desc->irq_data);
 }
@@ -186,8 +186,8 @@ static void iic_request_ipi(int msg)
 	}
 
 	/*
-	 * If smp_request_message_ipi encounters an error it will notify
-	 * the error.  If a message is not needed it will return non-zero.
+	 * If smp_request_message_ipi encounters an error it will yestify
+	 * the error.  If a message is yest needed it will return yesn-zero.
 	 */
 	if (smp_request_message_ipi(virq, msg))
 		irq_dispose_mapping(virq);
@@ -204,10 +204,10 @@ void iic_request_IPIs(void)
 #endif /* CONFIG_SMP */
 
 
-static int iic_host_match(struct irq_domain *h, struct device_node *node,
+static int iic_host_match(struct irq_domain *h, struct device_yesde *yesde,
 			  enum irq_domain_bus_token bus_token)
 {
-	return of_device_is_compatible(node,
+	return of_device_is_compatible(yesde,
 				    "IBM,CBEA-Internal-Interrupt-Controller");
 }
 
@@ -228,12 +228,12 @@ static int iic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int iic_host_xlate(struct irq_domain *h, struct device_node *ct,
+static int iic_host_xlate(struct irq_domain *h, struct device_yesde *ct,
 			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
 {
-	unsigned int node, ext, unit, class;
+	unsigned int yesde, ext, unit, class;
 	const u32 *val;
 
 	if (!of_device_is_compatible(ct,
@@ -245,24 +245,24 @@ static int iic_host_xlate(struct irq_domain *h, struct device_node *ct,
 	if (val == NULL || *val != 1)
 		return -ENODEV;
 
-	node = intspec[0] >> 24;
+	yesde = intspec[0] >> 24;
 	ext = (intspec[0] >> 16) & 0xff;
 	class = (intspec[0] >> 8) & 0xff;
 	unit = intspec[0] & 0xff;
 
-	/* Check if node is in supported range */
-	if (node > 1)
+	/* Check if yesde is in supported range */
+	if (yesde > 1)
 		return -EINVAL;
 
 	/* Build up interrupt number, special case for IO exceptions */
-	*out_hwirq = (node << IIC_IRQ_NODE_SHIFT);
+	*out_hwirq = (yesde << IIC_IRQ_NODE_SHIFT);
 	if (unit == IIC_UNIT_IIC && class == 1)
 		*out_hwirq |= IIC_IRQ_TYPE_IOEXC | ext;
 	else
 		*out_hwirq |= IIC_IRQ_TYPE_NORMAL |
 			(class << IIC_IRQ_CLASS_SHIFT) | unit;
 
-	/* Dummy flags, ignored by iic code */
+	/* Dummy flags, igyesred by iic code */
 	*out_flags = IRQ_TYPE_EDGE_RISING;
 
 	return 0;
@@ -275,10 +275,10 @@ static const struct irq_domain_ops iic_host_ops = {
 };
 
 static void __init init_one_iic(unsigned int hw_cpu, unsigned long addr,
-				struct device_node *node)
+				struct device_yesde *yesde)
 {
 	/* XXX FIXME: should locate the linux CPU number from the HW cpu
-	 * number properly. We are lucky for now
+	 * number properly. We are lucky for yesw
 	 */
 	struct iic *iic = &per_cpu(cpu_iic, hw_cpu);
 
@@ -287,35 +287,35 @@ static void __init init_one_iic(unsigned int hw_cpu, unsigned long addr,
 
 	iic->target_id = ((hw_cpu & 2) << 3) | ((hw_cpu & 1) ? 0xf : 0xe);
 	iic->eoi_stack[0] = 0xff;
-	iic->node = of_node_get(node);
+	iic->yesde = of_yesde_get(yesde);
 	out_be64(&iic->regs->prio, 0);
 
 	printk(KERN_INFO "IIC for CPU %d target id 0x%x : %pOF\n",
-	       hw_cpu, iic->target_id, node);
+	       hw_cpu, iic->target_id, yesde);
 }
 
 static int __init setup_iic(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct resource r0, r1;
-	unsigned int node, cascade, found = 0;
-	struct cbe_iic_regs __iomem *node_iic;
+	unsigned int yesde, cascade, found = 0;
+	struct cbe_iic_regs __iomem *yesde_iic;
 	const u32 *np;
 
-	for_each_node_by_name(dn, "interrupt-controller") {
+	for_each_yesde_by_name(dn, "interrupt-controller") {
 		if (!of_device_is_compatible(dn,
 				     "IBM,CBEA-Internal-Interrupt-Controller"))
 			continue;
 		np = of_get_property(dn, "ibm,interrupt-server-ranges", NULL);
 		if (np == NULL) {
-			printk(KERN_WARNING "IIC: CPU association not found\n");
-			of_node_put(dn);
+			printk(KERN_WARNING "IIC: CPU association yest found\n");
+			of_yesde_put(dn);
 			return -ENODEV;
 		}
 		if (of_address_to_resource(dn, 0, &r0) ||
 		    of_address_to_resource(dn, 1, &r1)) {
 			printk(KERN_WARNING "IIC: Can't resolve addresses\n");
-			of_node_put(dn);
+			of_yesde_put(dn);
 			return -ENODEV;
 		}
 		found++;
@@ -323,13 +323,13 @@ static int __init setup_iic(void)
 		init_one_iic(np[1], r1.start, dn);
 
 		/* Setup cascade for IO exceptions. XXX cleanup tricks to get
-		 * node vs CPU etc...
+		 * yesde vs CPU etc...
 		 * Note that we configure the IIC_IRR here with a hard coded
 		 * priority of 1. We might want to improve that later.
 		 */
-		node = np[0] >> 1;
-		node_iic = cbe_get_cpu_iic_regs(np[0]);
-		cascade = node << IIC_IRQ_NODE_SHIFT;
+		yesde = np[0] >> 1;
+		yesde_iic = cbe_get_cpu_iic_regs(np[0]);
+		cascade = yesde << IIC_IRQ_NODE_SHIFT;
 		cascade |= 1 << IIC_IRQ_CLASS_SHIFT;
 		cascade |= IIC_UNIT_IIC;
 		cascade = irq_create_mapping(iic_host, cascade);
@@ -339,16 +339,16 @@ static int __init setup_iic(void)
 		 * irq_data is a generic pointer that gets passed back
 		 * to us later, so the forced cast is fine.
 		 */
-		irq_set_handler_data(cascade, (void __force *)node_iic);
+		irq_set_handler_data(cascade, (void __force *)yesde_iic);
 		irq_set_chained_handler(cascade, iic_ioexc_cascade);
-		out_be64(&node_iic->iic_ir,
+		out_be64(&yesde_iic->iic_ir,
 			 (1 << 12)		/* priority */ |
-			 (node << 4)		/* dest node */ |
+			 (yesde << 4)		/* dest yesde */ |
 			 IIC_UNIT_THREAD_0	/* route them to thread 0 */);
 		/* Flush pending (make sure it triggers if there is
 		 * anything pending
 		 */
-		out_be64(&node_iic->iic_is, 0xfffffffffffffffful);
+		out_be64(&yesde_iic->iic_is, 0xfffffffffffffffful);
 	}
 
 	if (found)
@@ -380,11 +380,11 @@ void iic_set_interrupt_routing(int cpu, int thread, int priority)
 {
 	struct cbe_iic_regs __iomem *iic_regs = cbe_get_cpu_iic_regs(cpu);
 	u64 iic_ir = 0;
-	int node = cpu >> 1;
+	int yesde = cpu >> 1;
 
-	/* Set which node and thread will handle the next interrupt */
+	/* Set which yesde and thread will handle the next interrupt */
 	iic_ir |= CBE_IIC_IR_PRIO(priority) |
-		  CBE_IIC_IR_DEST_NODE(node);
+		  CBE_IIC_IR_DEST_NODE(yesde);
 	if (thread == 0)
 		iic_ir |= CBE_IIC_IR_DEST_UNIT(CBE_IIC_IR_PT_0);
 	else

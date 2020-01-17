@@ -77,7 +77,7 @@ static const u_short my_sagp = 0xffff ;	/* short group address (n.u.) */
  * define my address
  */
 #ifdef	USE_CAN_ADDR
-#define MA	smc->hw.fddi_canon_addr
+#define MA	smc->hw.fddi_cayesn_addr
 #else
 #define MA	smc->hw.fddi_home_addr
 #endif
@@ -221,7 +221,7 @@ static void set_txptr(struct s_smc *smc)
 	outpw(FM_A(FM_CMDREG2),FM_IRSTQ) ;	/* reset transmit queues */
 
 	/*
-	 * initialize the pointer for asynchronous transmit queue
+	 * initialize the pointer for asynchroyesus transmit queue
 	 */
 	outpw(FM_A(FM_RPXA0),smc->hw.fp.fifo.tx_a0_start) ;	/* RPXA0 */
 	outpw(FM_A(FM_SWPXA0),smc->hw.fp.fifo.tx_a0_start) ;	/* SWPXA0 */
@@ -229,7 +229,7 @@ static void set_txptr(struct s_smc *smc)
 	outpw(FM_A(FM_EAA0),smc->hw.fp.fifo.rx2_fifo_start-1) ;	/* EAA0 */
 
 	/*
-	 * initialize the pointer for synchronous transmit queue
+	 * initialize the pointer for synchroyesus transmit queue
 	 */
 	if (smc->hw.fp.fifo.tx_s_size) {
 		outpw(FM_A(FM_RPXS),smc->hw.fp.fifo.tx_s_start) ;
@@ -289,7 +289,7 @@ static void init_rx(struct s_smc *smc)
 }
 
 /*
- * set the TSYNC register of the FORMAC to regulate synchronous transmission
+ * set the TSYNC register of the FORMAC to regulate synchroyesus transmission
  */
 void set_formac_tsync(struct s_smc *smc, long sync_bw)
 {
@@ -304,7 +304,7 @@ static void init_tx(struct s_smc *smc)
 	struct s_smt_tx_queue	*queue ;
 
 	/*
-	 * init all tx data structures for the synchronous queue
+	 * init all tx data structures for the synchroyesus queue
 	 */
 	smc->hw.fp.tx[QUEUE_S] = queue = &smc->hw.fp.tx_q[QUEUE_S] ;
 	queue->tx_bmu_ctl = (HW_PTR) ADDR(B0_XS_CSR) ;
@@ -315,7 +315,7 @@ static void init_tx(struct s_smc *smc)
 #endif
 
 	/*
-	 * init all tx data structures for the asynchronous queue 0
+	 * init all tx data structures for the asynchroyesus queue 0
 	 */
 	smc->hw.fp.tx[QUEUE_A0] = queue = &smc->hw.fp.tx_q[QUEUE_A0] ;
 	queue->tx_bmu_ctl = (HW_PTR) ADDR(B0_XA_CSR) ;
@@ -446,7 +446,7 @@ static void directed_beacon(struct s_smc *smc)
 	/*
 	 * set UNA in frame
 	 * enable FORMAC to send endless queue of directed beacon
-	 * important: the UNA starts at byte 1 (not at byte 0)
+	 * important: the UNA starts at byte 1 (yest at byte 0)
 	 */
 	* (char *) a = (char) ((long)DBEACON_INFO<<24L) ;
 	a[1] = 0 ;
@@ -568,15 +568,15 @@ Function	DOWNCALL	(SMT, fplustm.c)
 		enable_tx_irq() enables the FORMACs transmit complete
 		interrupt of the queue.
 
-Para	queue	= QUEUE_S:	synchronous queue
-		= QUEUE_A0:	asynchronous queue
+Para	queue	= QUEUE_S:	synchroyesus queue
+		= QUEUE_A0:	asynchroyesus queue
 
 Note	After any ring operational change the transmit complete
 	interrupts are disabled.
 	The operating system dependent module must enable
 	the transmit complete interrupt of a queue,
 		- when it queues the first frame,
-		  because of no transmit resources are beeing
+		  because of yes transmit resources are beeing
 		  available and
 		- when it escapes from the function llc_restart_tx
 		  while some frames are still queued.
@@ -584,7 +584,7 @@ Note	After any ring operational change the transmit complete
 	END_MANUAL_ENTRY
  */
 void enable_tx_irq(struct s_smc *smc, u_short queue)
-/* u_short queue; 0 = synchronous queue, 1 = asynchronous queue 0 */
+/* u_short queue; 0 = synchroyesus queue, 1 = asynchroyesus queue 0 */
 {
 	u_short	imask ;
 
@@ -609,17 +609,17 @@ Function	DOWNCALL	(SMT, fplustm.c)
 		disable_tx_irq disables the FORMACs transmit complete
 		interrupt of the queue
 
-Para	queue	= QUEUE_S:	synchronous queue
-		= QUEUE_A0:	asynchronous queue
+Para	queue	= QUEUE_S:	synchroyesus queue
+		= QUEUE_A0:	asynchroyesus queue
 
 Note	The operating system dependent module should disable
 	the transmit complete interrupts if it escapes from the
-	function llc_restart_tx and no frames are queued.
+	function llc_restart_tx and yes frames are queued.
 
 	END_MANUAL_ENTRY
  */
 void disable_tx_irq(struct s_smc *smc, u_short queue)
-/* u_short queue; 0 = synchronous queue, 1 = asynchronous queue 0 */
+/* u_short queue; 0 = synchroyesus queue, 1 = asynchroyesus queue 0 */
 {
 	u_short	imask ;
 
@@ -726,7 +726,7 @@ void mac2_irq(struct s_smc *smc, u_short code_s2u, u_short code_s2l)
 	}
 	if ((code_s2u & FM_SMYCLM) && !(code_s2l & FM_SDUPCLM)) {
 		/*
-		 * This is my claim and that claim is not detected as a
+		 * This is my claim and that claim is yest detected as a
 		 * duplicate one.
 		 */
 		queue_event(smc,EVENT_RMT,RM_MY_CLAIM) ;
@@ -790,7 +790,7 @@ void mac2_irq(struct s_smc *smc, u_short code_s2u, u_short code_s2l)
 		SMT_PANIC(smc,SMT_E0114, SMT_E0114_MSG) ;
 	}
 mac2_end:
-	/* notice old status */
+	/* yestice old status */
 	smc->hw.fp.s2l = code_s2l ;
 	smc->hw.fp.s2u = code_s2u ;
 	outpw(FM_A(FM_IMSK2U),~mac_imsk2u) ;
@@ -862,7 +862,7 @@ int init_fplus(struct s_smc *smc)
 	if (smc->s.sas == SMT_DAS)
 		smc->hw.fp.mdr3init |= FM_MENDAS ;
 
-	smc->hw.mac_ct.mac_nobuf_counter = 0 ;
+	smc->hw.mac_ct.mac_yesbuf_counter = 0 ;
 	smc->hw.mac_ct.mac_r_restart_counter = 0 ;
 
 	smc->hw.fp.fm_st1u = (HW_PTR) ADDR(B0_ST1U) ;
@@ -937,7 +937,7 @@ static int init_mac(struct s_smc *smc, int all)
 	/* set timer */
 	/*
 	 * errata #22 fplus:
-	 * T_MAX must not be FFFE
+	 * T_MAX must yest be FFFE
 	 * or one of FFDF, FFB8, FF91 (-0x27 etc..)
 	 */
 	t_max = (u_short)(smc->mib.m[MAC0].fddiMACT_Max/32) ;
@@ -1004,7 +1004,7 @@ void config_mux(struct s_smc *smc, int mux)
  * called by RMT
  * enable CLAIM/BEACON interrupts
  * (only called if these events are of interest, e.g. in DETECT state
- * the interrupt must not be permanently enabled
+ * the interrupt must yest be permanently enabled
  * RMT calls this function periodically (timer driven polling)
  */
 void sm_mac_check_beacon_claim(struct s_smc *smc)
@@ -1038,7 +1038,7 @@ void sm_ma_control(struct s_smc *smc, int mode)
 		break ;
 	case MA_TREQ :
 		/*
-		 * no actions necessary, TREQ is already set
+		 * yes actions necessary, TREQ is already set
 		 */
 		break ;
 	}
@@ -1074,7 +1074,7 @@ static struct s_fpmc* mac_get_mc_table(struct s_smc *smc,
 	}
 	slot = NULL;
 	for (i = 0, tb = smc->hw.fp.mc.table ; i < FPMAX_MULTICAST ; i++, tb++){
-		if (!tb->n) {		/* not used */
+		if (!tb->n) {		/* yest used */
 			if (!del && !slot)	/* if !del save first free */
 				slot = tb ;
 			continue ;
@@ -1102,8 +1102,8 @@ void mac_clear_multicast(struct s_smc *smc)
 	struct s_fpmc	*tb ;
 	int i ;
 
-	smc->hw.fp.os_slots_used = 0 ;	/* note the SMT addresses */
-					/* will not be deleted */
+	smc->hw.fp.os_slots_used = 0 ;	/* yeste the SMT addresses */
+					/* will yest be deleted */
 	for (i = 0, tb = smc->hw.fp.mc.table ; i < FPMAX_MULTICAST ; i++, tb++){
 		if (!tb->perm) {
 			tb->n = 0 ;
@@ -1124,7 +1124,7 @@ Function	DOWNCALL	(SMC, fplustm.c)
 
 Para	addr	pointer to a multicast address
 	can	= 0:	the multicast address has the physical format
-		= 1:	the multicast address has the canonical format
+		= 1:	the multicast address has the cayesnical format
 		| 0x80	permanent
 
 Returns	0: success
@@ -1377,7 +1377,7 @@ static void smt_split_up_fifo(struct s_smc *smc)
 	----------------------------------------------------------------------
 		   |		   |    9 kB	  |     R2_RxD
 	rx queue 2 |	0 kB	   | RX_SMALL_FIFO| ------------- * 63,75 kB
-		   |  (not used)   |		  | R1_RxD+R2_RxD
+		   |  (yest used)   |		  | R1_RxD+R2_RxD
 
 	END_MANUAL_ENTRY
 */
@@ -1397,7 +1397,7 @@ static void smt_split_up_fifo(struct s_smc *smc)
 		smc->hw.fp.fifo.rx1_fifo_size = RX_LARGE_FIFO ;
 		smc->hw.fp.fifo.rx2_fifo_size = RX_SMALL_FIFO ;
 		break ;
-	default:	/* this is not the real defaule */
+	default:	/* this is yest the real defaule */
 		smc->hw.fp.fifo.rx1_fifo_size = RX_FIFO_SPACE *
 		SMT_R1_RXD_COUNT/(SMT_R1_RXD_COUNT+SMT_R2_RXD_COUNT) ;
 		smc->hw.fp.fifo.rx2_fifo_size = RX_FIFO_SPACE *
@@ -1412,7 +1412,7 @@ static void smt_split_up_fifo(struct s_smc *smc)
 	-------------------------------------------------------------
 
 
-		 | no sync bw	| sync bw available and | sync bw available and
+		 | yes sync bw	| sync bw available and | sync bw available and
 		 | available	| SynchTxMode = SPLIT	| SynchTxMode = ALL
 	-----------------------------------------------------------------------
 	sync tx	 |     0 kB	|	32 kB		|	55 kB
@@ -1477,8 +1477,8 @@ static void smt_split_up_fifo(struct s_smc *smc)
 void formac_reinit_tx(struct s_smc *smc)
 {
 	/*
-	 * Split up the FIFO and reinitialize the MAC if synchronous
-	 * bandwidth becomes available but no synchronous queue is
+	 * Split up the FIFO and reinitialize the MAC if synchroyesus
+	 * bandwidth becomes available but yes synchroyesus queue is
 	 * configured.
 	 */
 	if (!smc->hw.fp.fifo.tx_s_size && smc->mib.a[PATH0].fddiPATHSbaPayload){

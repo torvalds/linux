@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -75,17 +75,17 @@
  * @vertex_buffers: Vertex buffer bindings.
  * @index_buffer: Index buffer binding.
  * @per_shader: Per shader-type bindings.
- * @dirty: Bitmap tracking per binding-type changes that have not yet
+ * @dirty: Bitmap tracking per binding-type changes that have yest yet
  * been emitted to the device.
  * @dirty_vb: Bitmap tracking individual vertex buffer binding changes that
- * have not yet been emitted to the device.
+ * have yest yet been emitted to the device.
  * @bind_cmd_buffer: Scratch space used to construct binding commands.
  * @bind_cmd_count: Number of binding command data entries in @bind_cmd_buffer
  * @bind_first_slot: Used together with @bind_cmd_buffer to indicate the
  * device binding slot of the first command data entry in @bind_cmd_buffer.
  *
  * Note that this structure also provides storage space for the individual
- * struct vmw_ctx_binding objects, so that no dynamic allocation is needed
+ * struct vmw_ctx_binding objects, so that yes dynamic allocation is needed
  * for individual bindings.
  *
  */
@@ -236,7 +236,7 @@ static const struct vmw_binding_info vmw_binding_infos[] = {
  *
  * Provided there are any active bindings, this function will return an
  * unreferenced pointer to the context resource that owns the context
- * binding state tracker. If there are no active bindings, this function
+ * binding state tracker. If there are yes active bindings, this function
  * will return NULL. Note that the caller must somehow ensure that a reference
  * is held on the context resource prior to calling this function.
  */
@@ -255,7 +255,7 @@ vmw_cbs_context(const struct vmw_ctx_binding_state *cbs)
  *
  * @cbs: Pointer to a struct vmw_ctx_binding state which holds the slot.
  * @bt: The binding type.
- * @shader_slot: The shader slot of the binding. If none, then set to 0.
+ * @shader_slot: The shader slot of the binding. If yesne, then set to 0.
  * @slot: The slot of the binding.
  */
 static struct vmw_ctx_bindinfo *
@@ -275,7 +275,7 @@ vmw_binding_loc(struct vmw_ctx_binding_state *cbs,
  *
  * Stops tracking a context binding, and re-initializes its storage.
  * Typically used when the context binding is replaced with a binding to
- * another (or the same, for that matter) resource.
+ * ayesther (or the same, for that matter) resource.
  */
 static void vmw_binding_drop(struct vmw_ctx_bindinfo *bi)
 {
@@ -661,7 +661,7 @@ static int vmw_binding_scrub_cb(struct vmw_ctx_bindinfo *bi, bool rebind)
  * @max_num: Maximum number of entries in the @bi array.
  *
  * Scans the @bi array for bindings and builds a buffer of view id data.
- * Stops at the first non-existing binding in the @bi array.
+ * Stops at the first yesn-existing binding in the @bi array.
  * On output, @cbs->bind_cmd_count contains the number of bindings to be
  * emitted, @cbs->bind_first_slot is set to zero, and @cbs->bind_cmd_buffer
  * contains the command data.
@@ -819,7 +819,7 @@ static int vmw_emit_set_rt(struct vmw_ctx_binding_state *cbs)
  * @max_num: Maximum number of entries in the @bi array.
  *
  * Scans the @bi array for bindings and builds a buffer of SVGA3dSoTarget data.
- * Stops at the first non-existing binding in the @bi array.
+ * Stops at the first yesn-existing binding in the @bi array.
  * On output, @cbs->bind_cmd_count contains the number of bindings to be
  * emitted, @cbs->bind_first_slot is set to zero, and @cbs->bind_cmd_buffer
  * contains the command data.
@@ -1176,7 +1176,7 @@ vmw_binding_state_alloc(struct vmw_private *dev_priv)
 	struct vmw_ctx_binding_state *cbs;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	int ret;
 

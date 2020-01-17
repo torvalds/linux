@@ -2,7 +2,7 @@
 #include <linux/cpumask.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/msi.h>
 #include <linux/irq.h>
 #include <linux/pci.h>
@@ -20,7 +20,7 @@
 int irq_remapping_enabled;
 int irq_remap_broken;
 int disable_sourceid_checking;
-int no_x2apic_optout;
+int yes_x2apic_optout;
 
 int disable_irq_post = 0;
 
@@ -30,11 +30,11 @@ static struct irq_remap_ops *remap_ops;
 static void irq_remapping_restore_boot_irq_mode(void)
 {
 	/*
-	 * With interrupt-remapping, for now we will use virtual wire A
+	 * With interrupt-remapping, for yesw we will use virtual wire A
 	 * mode, as virtual wire B is little complex (need to configure
 	 * both IOAPIC RTE as well as interrupt-remapping table entry).
 	 * As this gets called during crash dump, keep this simple for
-	 * now.
+	 * yesw.
 	 */
 	if (boot_cpu_has(X86_FEATURE_APIC) || apic_from_smp_config())
 		disconnect_bsp_APIC(0);
@@ -45,12 +45,12 @@ static void __init irq_remapping_modify_x86_ops(void)
 	x86_apic_ops.restore = irq_remapping_restore_boot_irq_mode;
 }
 
-static __init int setup_nointremap(char *str)
+static __init int setup_yesintremap(char *str)
 {
 	disable_irq_remap = 1;
 	return 0;
 }
-early_param("nointremap", setup_nointremap);
+early_param("yesintremap", setup_yesintremap);
 
 static __init int setup_irqremap(char *str)
 {
@@ -64,11 +64,11 @@ static __init int setup_irqremap(char *str)
 		} else if (!strncmp(str, "off", 3)) {
 			disable_irq_remap = 1;
 			disable_irq_post = 1;
-		} else if (!strncmp(str, "nosid", 5))
+		} else if (!strncmp(str, "yessid", 5))
 			disable_sourceid_checking = 1;
-		else if (!strncmp(str, "no_x2apic_optout", 16))
-			no_x2apic_optout = 1;
-		else if (!strncmp(str, "nopost", 6))
+		else if (!strncmp(str, "yes_x2apic_optout", 16))
+			yes_x2apic_optout = 1;
+		else if (!strncmp(str, "yespost", 6))
 			disable_irq_post = 1;
 
 		str += strcspn(str, ",");

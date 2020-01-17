@@ -109,7 +109,7 @@ struct vgic_irq {
 	bool pending_latch;		/* The pending latch state used to calculate
 					 * the pending state for both level
 					 * and edge triggered IRQs. */
-	bool active;			/* not used for LPIs */
+	bool active;			/* yest used for LPIs */
 	bool enabled;
 	bool hw;			/* Tied to HW IRQ */
 	struct kref refcount;		/* Used for LPIs */
@@ -130,7 +130,7 @@ struct vgic_irq {
 	 * state of the input level of mapped level-triggered IRQ faster than
 	 * peaking into the physical GIC.
 	 *
-	 * Always called in non-preemptible section and the functions can use
+	 * Always called in yesn-preemptible section and the functions can use
 	 * kvm_arm_get_running_vcpu() to get the vcpu pointer for private
 	 * IRQs.
 	 */
@@ -275,7 +275,7 @@ struct vgic_v2_cpu_if {
 struct vgic_v3_cpu_if {
 	u32		vgic_hcr;
 	u32		vgic_vmcr;
-	u32		vgic_sre;	/* Restored only, change ignored */
+	u32		vgic_sre;	/* Restored only, change igyesred */
 	u32		vgic_ap0r[4];
 	u32		vgic_ap1r[4];
 	u64		vgic_lr[VGIC_V3_MAX_LRS];
@@ -304,7 +304,7 @@ struct vgic_cpu {
 	/*
 	 * List of IRQs that this VCPU should consider because they are either
 	 * Active or Pending (hence the name; AP list), or because they recently
-	 * were one of the two and need to be migrated off this list to another
+	 * were one of the two and need to be migrated off this list to ayesther
 	 * VCPU.
 	 */
 	struct list_head ap_list_head;

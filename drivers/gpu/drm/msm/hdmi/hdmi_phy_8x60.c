@@ -11,7 +11,7 @@
 static void hdmi_phy_8x60_powerup(struct hdmi_phy *phy,
 		unsigned long int pixclock)
 {
-	/* De-serializer delay D/C for non-lbk mode: */
+	/* De-serializer delay D/C for yesn-lbk mode: */
 	hdmi_phy_write(phy, REG_HDMI_8x60_PHY_REG0,
 		       HDMI_8x60_PHY_REG0_DESER_DEL_CTRL(3));
 

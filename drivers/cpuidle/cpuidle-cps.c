@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2014 Imagination Technologies
+ * Copyright (C) 2014 Imagination Techyeslogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -14,7 +14,7 @@
 /* Enumeration of the various idle states this driver may enter */
 enum cps_idle_state {
 	STATE_WAIT = 0,		/* MIPS wait instruction, coherent */
-	STATE_NC_WAIT,		/* MIPS wait instruction, non-coherent */
+	STATE_NC_WAIT,		/* MIPS wait instruction, yesn-coherent */
 	STATE_CLOCK_GATED,	/* Core clock gated */
 	STATE_POWER_GATED,	/* Core power gated */
 	STATE_COUNT
@@ -76,7 +76,7 @@ static struct cpuidle_driver cps_driver = {
 			.exit_latency		= 200,
 			.target_residency	= 450,
 			.name	= "nc-wait",
-			.desc	= "non-coherent MIPS wait",
+			.desc	= "yesn-coherent MIPS wait",
 		},
 		[STATE_CLOCK_GATED] = {
 			.enter	= cps_nc_enter,
@@ -133,7 +133,7 @@ static int __init cps_cpuidle_init(void)
 			pr_cont("coherent wait\n");
 			break;
 		case STATE_NC_WAIT:
-			pr_cont("non-coherent wait\n");
+			pr_cont("yesn-coherent wait\n");
 			break;
 		case STATE_CLOCK_GATED:
 			pr_cont("clock gating\n");

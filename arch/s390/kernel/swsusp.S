@@ -13,7 +13,7 @@
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
-#include <asm/nospec-insn.h>
+#include <asm/yesspec-insn.h>
 #include <asm/sigp.h>
 
 /*
@@ -181,7 +181,7 @@ pgm_check_entry:
 	llgh	%r2,0(%r1)
 	llgh	%r1,__LC_EXT_CPU_ADDR(%r0)	/* Suspend CPU address: r1 */
 	cgr	%r1,%r2
-	je	restore_registers		/* r1 = r2 -> nothing to do */
+	je	restore_registers		/* r1 = r2 -> yesthing to do */
 	larl	%r4,.Lrestart_suspend_psw	/* Set new restart PSW */
 	mvc	__LC_RST_NEW_PSW(16,%r0),0(%r4)
 3:
@@ -189,7 +189,7 @@ pgm_check_entry:
 	brc	8,4f				/* accepted */
 	brc	2,3b				/* busy, try again */
 
-	/* Suspend CPU not available -> panic */
+	/* Suspend CPU yest available -> panic */
 	larl	%r15,init_thread_union+THREAD_SIZE-STACK_FRAME_OVERHEAD
 	larl	%r2,.Lpanic_string
 	brasl	%r14,sclp_early_printk_force
@@ -218,7 +218,7 @@ restore_registers:
 	/* Restore registers */
 	lghi	%r13,0x1000		/* %r1 = pointer to save area */
 
-	/* Ignore time spent in suspended state. */
+	/* Igyesre time spent in suspended state. */
 	llgf	%r1,0x318(%r13)
 	stck	__LC_LAST_UPDATE_CLOCK(%r1)
 	spt	0x328(%r13)		/* reprogram timer */
@@ -261,12 +261,12 @@ restore_registers:
 	BR_EX	%r14
 ENDPROC(swsusp_arch_resume)
 
-	.section .data..nosave,"aw",@progbits
+	.section .data..yessave,"aw",@progbits
 	.align	8
 .Ldisabled_wait_31:
 	.long  0x000a0000,0x00000000
 .Lpanic_string:
-	.asciz	"Resume not possible because suspend CPU is no longer available\n"
+	.asciz	"Resume yest possible because suspend CPU is yes longer available\n"
 	.align	8
 .Lrestart_suspend_psw:
 	.quad	0x0000000180000000,restart_suspend

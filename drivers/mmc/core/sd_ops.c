@@ -56,12 +56,12 @@ static int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 
 	/*
 	 * We have to resend MMC_APP_CMD for each attempt so
-	 * we cannot use the retries field in mmc_command.
+	 * we canyest use the retries field in mmc_command.
 	 */
 	for (i = 0; i <= MMC_CMD_RETRIES; i++) {
 		err = mmc_app_cmd(host, card);
 		if (err) {
-			/* no point in retrying; no APP commands allowed */
+			/* yes point in retrying; yes APP commands allowed */
 			if (mmc_host_is_spi(host)) {
 				if (cmd->resp[0] & R1_SPI_ILLEGAL_COMMAND)
 					break;
@@ -83,7 +83,7 @@ static int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 		if (!cmd->error)
 			break;
 
-		/* no point in retrying illegal APP commands */
+		/* yes point in retrying illegal APP commands */
 		if (mmc_host_is_spi(host)) {
 			if (cmd->resp[0] & R1_SPI_ILLEGAL_COMMAND)
 				break;
@@ -222,8 +222,8 @@ int mmc_app_send_scr(struct mmc_card *card)
 	if (err)
 		return err;
 
-	/* dma onto stack is unsafe/nonportable, but callers to this
-	 * routine normally provide temporary on-stack buffers ...
+	/* dma onto stack is unsafe/yesnportable, but callers to this
+	 * routine yesrmally provide temporary on-stack buffers ...
 	 */
 	scr = kmalloc(sizeof(card->raw_scr), GFP_KERNEL);
 	if (!scr)

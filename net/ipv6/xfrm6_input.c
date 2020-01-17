@@ -4,7 +4,7 @@
  *
  * Authors:
  *	Mitsuru KANDA @USAGI
- *	Kazunori MIYAZAWA @USAGI
+ *	Kazuyesri MIYAZAWA @USAGI
  *	Kunihiro Ishiguro <kunihiro@ipinfusion.com>
  *	YOSHIFUJI Hideaki @USAGI
  *		IPv6 support
@@ -143,7 +143,7 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 
 	if (!x) {
 		XFRM_INC_STATS(net, LINUX_MIB_XFRMINNOSTATES);
-		xfrm_audit_state_notfound_simple(skb, AF_INET6);
+		xfrm_audit_state_yestfound_simple(skb, AF_INET6);
 		goto drop;
 	}
 

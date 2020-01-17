@@ -10,10 +10,10 @@
 
 /*
  * FIXME: to support all arches we have to improve this, for
- * now, to build on older systems without things like TIOCGEXCL,
+ * yesw, to build on older systems without things like TIOCGEXCL,
  * get it directly from our copy.
  *
- * Right now only x86 is being supported for beautifying ioctl args
+ * Right yesw only x86 is being supported for beautifying ioctl args
  * in 'perf trace', see tools/perf/trace/beauty/Build and builtin-trace.c
  */
 #include <uapi/asm-generic/ioctls.h>

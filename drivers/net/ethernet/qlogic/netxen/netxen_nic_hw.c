@@ -5,7 +5,7 @@
  * All rights reserved.
  */
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/slab.h>
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
@@ -758,7 +758,7 @@ int netxen_config_intr_coalesce(struct netxen_adapter *adapter)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "ERROR. Could not send "
+		printk(KERN_ERR "ERROR. Could yest send "
 			"interrupt coalescing parameters\n");
 	}
 
@@ -785,7 +785,7 @@ int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "ERROR. Could not send "
+		printk(KERN_ERR "ERROR. Could yest send "
 			"configure hw lro request\n");
 	}
 
@@ -813,7 +813,7 @@ int netxen_config_bridged_mode(struct netxen_adapter *adapter, int enable)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "ERROR. Could not send "
+		printk(KERN_ERR "ERROR. Could yest send "
 				"configure bridge mode request\n");
 	}
 
@@ -865,7 +865,7 @@ int netxen_config_rss(struct netxen_adapter *adapter, int enable)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "%s: could not configure RSS\n",
+		printk(KERN_ERR "%s: could yest configure RSS\n",
 				adapter->netdev->name);
 	}
 
@@ -889,7 +889,7 @@ int netxen_config_ipaddr(struct netxen_adapter *adapter, __be32 ip, int cmd)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "%s: could not notify %s IP 0x%x request\n",
+		printk(KERN_ERR "%s: could yest yestify %s IP 0x%x request\n",
 				adapter->netdev->name,
 				(cmd == NX_IP_UP) ? "Add" : "Remove", ip);
 	}
@@ -911,7 +911,7 @@ int netxen_linkevent_request(struct netxen_adapter *adapter, int enable)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "%s: could not configure link notification\n",
+		printk(KERN_ERR "%s: could yest configure link yestification\n",
 				adapter->netdev->name);
 	}
 
@@ -938,7 +938,7 @@ int netxen_send_lro_cleanup(struct netxen_adapter *adapter)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "%s: could not cleanup lro flows\n",
+		printk(KERN_ERR "%s: could yest cleanup lro flows\n",
 				adapter->netdev->name);
 	}
 	return rv;
@@ -1074,10 +1074,10 @@ netxen_nic_pci_set_crbwindow_128M(struct netxen_adapter *adapter,
 }
 
 /*
- * Returns < 0 if off is not valid,
+ * Returns < 0 if off is yest valid,
  *	 1 if window access is needed. 'off' is set to offset from
  *	   CRB space in 128M pci map
- *	 0 if no window access is needed. 'off' is set to 2M addr
+ *	 0 if yes window access is needed. 'off' is set to 2M addr
  * In: 'off' is offset from base in 128M pci map
  */
 static int
@@ -1382,7 +1382,7 @@ netxen_nic_pci_mem_access_direct(struct netxen_adapter *adapter, u64 off,
 	} else {
 		addr = pci_base_offset(adapter, start);
 		if (addr)
-			goto noremap;
+			goto yesremap;
 
 		mem_base = pci_resource_start(adapter->pdev, 0) +
 					(start & PAGE_MASK);
@@ -1394,7 +1394,7 @@ netxen_nic_pci_mem_access_direct(struct netxen_adapter *adapter, u64 off,
 
 		addr = mem_ptr + (start & (PAGE_SIZE-1));
 	}
-noremap:
+yesremap:
 	if (op == 0)	/* read */
 		*data = readq(addr);
 	else		/* write */
@@ -1825,7 +1825,7 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 			NETXEN_NIC_XGBE : NETXEN_NIC_GBE;
 		break;
 	default:
-		dev_err(&pdev->dev, "unknown board type %x\n", board_type);
+		dev_err(&pdev->dev, "unkyeswn board type %x\n", board_type);
 		adapter->ahw.port_type = NETXEN_NIC_XGBE;
 		break;
 	}
@@ -2304,7 +2304,7 @@ netxen_md_rdqueue(struct netxen_adapter *adapter,
 
 
 /*
-* We catch an error where driver does not read
+* We catch an error where driver does yest read
 * as much data as we expect from the entry.
 */
 
@@ -2540,7 +2540,7 @@ netxen_dump_fw(struct netxen_adapter *adapter)
 
 	} else {
 		dev_info(&adapter->pdev->dev,
-					"Cannot overwrite previously collected "
+					"Canyest overwrite previously collected "
 							"firmware minidump.\n");
 		adapter->fw_mdump_rdy = 1;
 		return;

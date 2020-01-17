@@ -4,7 +4,7 @@ Besides being used to interface with external memory devices, the
 General-Purpose Memory Controller can be used to connect Pseudo-SRAM devices
 such as ethernet controllers to processors using the TI GPMC as a data bus.
 
-Ethernet controllers connected to TI GPMC are represented as child nodes of
+Ethernet controllers connected to TI GPMC are represented as child yesdes of
 the GPMC controller with an "ethernet" name.
 
 All timing relevant properties as well as generic GPMC child properties are
@@ -15,7 +15,7 @@ For the properties relevant to the ethernet controller connected to the GPMC
 refer to the binding documentation of the device. For example, the documentation
 for the SMSC 911x is Documentation/devicetree/bindings/net/smsc911x.txt
 
-Child nodes need to specify the GPMC bus address width using the "bank-width"
+Child yesdes need to specify the GPMC bus address width using the "bank-width"
 property but is possible that an ethernet controller also has a property to
 specify the I/O registers address width. Even when the GPMC has a maximum 16-bit
 address width, it supports devices with 32-bit word registers.

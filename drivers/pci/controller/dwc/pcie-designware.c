@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Synopsys DesignWare PCIe host controller driver
+ * Syyespsys DesignWare PCIe host controller driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -17,7 +17,7 @@
 /*
  * These interfaces resemble the pci_find_*capability() interfaces, but these
  * are for configuring host controllers, which are bridges *to* PCI devices but
- * are not PCI devices themselves.
+ * are yest PCI devices themselves.
  */
 static u8 __dw_pcie_find_next_cap(struct dw_pcie *pci, u8 cap_ptr,
 				  u8 cap)
@@ -68,7 +68,7 @@ static u16 dw_pcie_find_next_ext_capability(struct dw_pcie *pci, u16 start,
 
 	header = dw_pcie_readl_dbi(pci, pos);
 	/*
-	 * If we have no capabilities, this is indicated by cap ID,
+	 * If we have yes capabilities, this is indicated by cap ID,
 	 * cap version and next pointer all being 0.
 	 */
 	if (header == 0)
@@ -271,7 +271,7 @@ static void dw_pcie_prog_outbound_atu_unroll(struct dw_pcie *pci, int index,
 
 		mdelay(LINK_WAIT_IATU);
 	}
-	dev_err(pci->dev, "Outbound iATU is not being enabled\n");
+	dev_err(pci->dev, "Outbound iATU is yest being enabled\n");
 }
 
 void dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index, int type,
@@ -314,7 +314,7 @@ void dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index, int type,
 
 		mdelay(LINK_WAIT_IATU);
 	}
-	dev_err(pci->dev, "Outbound iATU is not being enabled\n");
+	dev_err(pci->dev, "Outbound iATU is yest being enabled\n");
 }
 
 static u32 dw_pcie_readl_ib_unroll(struct dw_pcie *pci, u32 index, u32 reg)
@@ -372,7 +372,7 @@ static int dw_pcie_prog_inbound_atu_unroll(struct dw_pcie *pci, int index,
 
 		mdelay(LINK_WAIT_IATU);
 	}
-	dev_err(pci->dev, "Inbound iATU is not being enabled\n");
+	dev_err(pci->dev, "Inbound iATU is yest being enabled\n");
 
 	return -EBUSY;
 }
@@ -418,7 +418,7 @@ int dw_pcie_prog_inbound_atu(struct dw_pcie *pci, int index, int bar,
 
 		mdelay(LINK_WAIT_IATU);
 	}
-	dev_err(pci->dev, "Inbound iATU is not being enabled\n");
+	dev_err(pci->dev, "Inbound iATU is yest being enabled\n");
 
 	return -EBUSY;
 }
@@ -447,7 +447,7 @@ int dw_pcie_wait_for_link(struct dw_pcie *pci)
 {
 	int retries;
 
-	/* Check if the link is up or not */
+	/* Check if the link is up or yest */
 	for (retries = 0; retries < LINK_WAIT_MAX_RETRIES; retries++) {
 		if (dw_pcie_link_up(pci)) {
 			dev_info(pci->dev, "Link up\n");
@@ -491,7 +491,7 @@ void dw_pcie_setup(struct dw_pcie *pci)
 	u32 val;
 	u32 lanes;
 	struct device *dev = pci->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	if (pci->version >= 0x480A || (!pci->version &&
 				       dw_pcie_iatu_unroll_enabled(pci))) {

@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -207,12 +207,12 @@ static int opt_set_target_ns(const struct option *opt __maybe_unused,
 	struct nsinfo *nsip;
 
 	if (str) {
-		errno = 0;
+		erryes = 0;
 		ns_pid = (pid_t)strtol(str, NULL, 10);
-		if (errno != 0) {
-			ret = -errno;
+		if (erryes != 0) {
+			ret = -erryes;
 			pr_warning("Failed to parse %s as a pid: %s\n", str,
-				   strerror(errno));
+				   strerror(erryes));
 			return ret;
 		}
 		nsip = nsinfo__new(ns_pid);
@@ -378,7 +378,7 @@ static int perf_add_probe_events(struct perf_probe_event *pevs, int npevs)
 	/* Note that it is possible to skip all events because of blacklist */
 	if (event) {
 		/* Show how to use the event. */
-		pr_info("\nYou can now use it in all perf tools, such as:\n\n");
+		pr_info("\nYou can yesw use it in all perf tools, such as:\n\n");
 		pr_info("\tperf record -e %s:%s -aR sleep 1\n\n", group, event);
 	}
 
@@ -392,12 +392,12 @@ static int del_perf_probe_caches(struct strfilter *filter)
 {
 	struct probe_cache *cache;
 	struct strlist *bidlist;
-	struct str_node *nd;
+	struct str_yesde *nd;
 	int ret;
 
 	bidlist = build_id_cache__list_all(false);
 	if (!bidlist) {
-		ret = -errno;
+		ret = -erryes;
 		pr_debug("Failed to get buildids: %d\n", ret);
 		return ret ?: -ENOMEM;
 	}
@@ -419,7 +419,7 @@ static int perf_del_probe_events(struct strfilter *filter)
 	int ret, ret2, ufd = -1, kfd = -1;
 	char *str = strfilter__string(filter);
 	struct strlist *klist = NULL, *ulist = NULL;
-	struct str_node *ent;
+	struct str_yesde *ent;
 
 	if (!str)
 		return -EINVAL;
@@ -462,7 +462,7 @@ static int perf_del_probe_events(struct strfilter *filter)
 	}
 
 	if (ret == -ENOENT && ret2 == -ENOENT)
-		pr_warning("\"%s\" does not hit any event.\n", str);
+		pr_warning("\"%s\" does yest hit any event.\n", str);
 	else
 		ret = 0;
 
@@ -506,7 +506,7 @@ __cmd_probe(int argc, const char **argv)
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
 	OPT_BOOLEAN('q', "quiet", &params.quiet,
-		    "be quiet (do not show any messages)"),
+		    "be quiet (do yest show any messages)"),
 	OPT_CALLBACK_DEFAULT('l', "list", NULL, "[GROUP:]EVENT",
 			     "list up probe events",
 			     opt_set_filter_with_command, DEFAULT_LIST_FILTER),
@@ -549,7 +549,7 @@ __cmd_probe(int argc, const char **argv)
 		   "file", "vmlinux pathname"),
 	OPT_STRING('s', "source", &symbol_conf.source_prefix,
 		   "directory", "path to kernel source"),
-	OPT_BOOLEAN('\0', "no-inlines", &probe_conf.no_inlines,
+	OPT_BOOLEAN('\0', "yes-inlines", &probe_conf.yes_inlines,
 		"Don't search inlined functions"),
 	OPT__DRY_RUN(&probe_event_dry_run),
 	OPT_INTEGER('\0', "max-probes", &probe_conf.max_probes,
@@ -588,15 +588,15 @@ __cmd_probe(int argc, const char **argv)
 	set_option_flag(options, 'L', "line", PARSE_OPT_EXCLUSIVE);
 	set_option_flag(options, 'V', "vars", PARSE_OPT_EXCLUSIVE);
 #else
-# define set_nobuild(s, l, c) set_option_nobuild(options, s, l, "NO_DWARF=1", c)
-	set_nobuild('L', "line", false);
-	set_nobuild('V', "vars", false);
-	set_nobuild('\0', "externs", false);
-	set_nobuild('\0', "range", false);
-	set_nobuild('k', "vmlinux", true);
-	set_nobuild('s', "source", true);
-	set_nobuild('\0', "no-inlines", true);
-# undef set_nobuild
+# define set_yesbuild(s, l, c) set_option_yesbuild(options, s, l, "NO_DWARF=1", c)
+	set_yesbuild('L', "line", false);
+	set_yesbuild('V', "vars", false);
+	set_yesbuild('\0', "externs", false);
+	set_yesbuild('\0', "range", false);
+	set_yesbuild('k', "vmlinux", true);
+	set_yesbuild('s', "source", true);
+	set_yesbuild('\0', "yes-inlines", true);
+# undef set_yesbuild
 #endif
 	set_option_flag(options, 'F', "funcs", PARSE_OPT_EXCLUSIVE);
 
@@ -605,11 +605,11 @@ __cmd_probe(int argc, const char **argv)
 	if (argc > 0) {
 		if (strcmp(argv[0], "-") == 0) {
 			usage_with_options_msg(probe_usage, options,
-				"'-' is not supported.\n");
+				"'-' is yest supported.\n");
 		}
 		if (params.command && params.command != 'a') {
 			usage_with_options_msg(probe_usage, options,
-				"another command except --add is set.\n");
+				"ayesther command except --add is set.\n");
 		}
 		ret = parse_probe_event_argv(argc, argv);
 		if (ret < 0) {
@@ -637,11 +637,11 @@ __cmd_probe(int argc, const char **argv)
 
 	/*
 	 * Except for --list, --del and --add, other command doesn't depend
-	 * nor change running kernel. So if user gives offline vmlinux,
-	 * ignore its buildid.
+	 * yesr change running kernel. So if user gives offline vmlinux,
+	 * igyesre its buildid.
 	 */
 	if (!strchr("lda", params.command) && symbol_conf.vmlinux_name)
-		symbol_conf.ignore_vmlinux_buildid = true;
+		symbol_conf.igyesre_vmlinux_buildid = true;
 
 	switch (params.command) {
 	case 'l':

@@ -57,11 +57,11 @@
 
 /* ifdef UNDER_MPTEST */
 #define	WIFI_MP_STATE							0x00010000
-#define	WIFI_MP_CTX_BACKGROUND				0x00020000	/*  in continous tx background */
-#define	WIFI_MP_CTX_ST						0x00040000	/*  in continous tx with single-tone */
-#define	WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000	/*  pending in continous tx background due to out of skb */
-#define	WIFI_MP_CTX_CCK_HW					0x00100000	/*  in continous tx */
-#define	WIFI_MP_CTX_CCK_CS					0x00200000	/*  in continous tx with carrier suppression */
+#define	WIFI_MP_CTX_BACKGROUND				0x00020000	/*  in contiyesus tx background */
+#define	WIFI_MP_CTX_ST						0x00040000	/*  in contiyesus tx with single-tone */
+#define	WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000	/*  pending in contiyesus tx background due to out of skb */
+#define	WIFI_MP_CTX_CCK_HW					0x00100000	/*  in contiyesus tx */
+#define	WIFI_MP_CTX_CCK_CS					0x00200000	/*  in contiyesus tx with carrier suppression */
 #define   WIFI_MP_LPBK_STATE					0x00400000
 /* endif */
 
@@ -120,7 +120,7 @@ Each struct __queue has its own locks, already.
 Other items are protected by mlme_priv.lock.
 
 To avoid possible dead lock, any thread trying to modifiying mlme_priv
-SHALL not lock up more than one locks at a time!
+SHALL yest lock up more than one locks at a time!
 
 */
 
@@ -178,19 +178,19 @@ struct tx_provdisc_req_info{
 	struct ndis_802_11_ssid	ssid;
 	u8 			peerDevAddr[ ETH_ALEN ];		/* 	Peer device address */
 	u8 			peerIFAddr[ ETH_ALEN ];		/* 	Peer interface address */
-	u8 			benable;					/* 	This provision discovery request frame is trigger to send or not */
+	u8 			benable;					/* 	This provision discovery request frame is trigger to send or yest */
 };
 
 struct rx_provdisc_req_info{	/* When peer device issue prov_disc_req first, we should store the following informations */
 	u8 			peerDevAddr[ ETH_ALEN ];		/* 	Peer device address */
 	u8 			strconfig_method_desc_of_prov_disc_req[4];	/* 	description for the config method located in the provisioning discovery request frame. */
-																	/* 	The UI must know this information to know which config method the remote p2p device is requiring. */
+																	/* 	The UI must kyesw this information to kyesw which config method the remote p2p device is requiring. */
 };
 
 struct tx_nego_req_info{
 	u16 				peer_channel_num[2];		/* 	The channel number which the receiver stands. */
 	u8 			peerDevAddr[ ETH_ALEN ];		/* 	Peer device address */
-	u8 			benable;					/* 	This negoitation request frame is trigger to send or not */
+	u8 			benable;					/* 	This negoitation request frame is trigger to send or yest */
 };
 
 struct group_id_info{
@@ -257,7 +257,7 @@ struct wifidirect_info{
 	u8 				nego_ssidlen;
 	u8 				p2p_group_ssid[WLAN_SSID_MAXLEN];
 	u8 				p2p_group_ssid_len;
-	u8 				persistent_supported;		/* 	Flag to know the persistent function should be supported or not. */
+	u8 				persistent_supported;		/* 	Flag to kyesw the persistent function should be supported or yest. */
 														/* 	In the Sigma test, the Sigma will provide this enable from the sta_set_p2p CAPI. */
 														/* 	0: disable */
 														/* 	1: enable */
@@ -331,7 +331,7 @@ enum {
 struct mlme_priv {
 
 	_lock	lock;
-	sint	fw_state;	/* shall we protect this variable? maybe not necessarily... */
+	sint	fw_state;	/* shall we protect this variable? maybe yest necessarily... */
 	u8 bScanInProcess;
 	u8 to_join; /* flag */
 
@@ -345,7 +345,7 @@ struct mlme_priv {
 
 	u8 *nic_hdl;
 
-	u8 not_indic_disco;
+	u8 yest_indic_disco;
 	struct list_head		*pscanned;
 	struct __queue	free_bss_pool;
 	struct __queue	scanned_queue;
@@ -358,7 +358,7 @@ struct mlme_priv {
 	struct wlan_network	cur_network;
 	struct wlan_network *cur_network_scanned;
 
-	/* uint wireless_mode; no used, remove it */
+	/* uint wireless_mode; yes used, remove it */
 
 	u32 auto_scan_int_ms;
 
@@ -375,8 +375,8 @@ struct mlme_priv {
 
 	struct qos_priv qospriv;
 
-	/* Number of non-HT AP/stations */
-	int num_sta_no_ht;
+	/* Number of yesn-HT AP/stations */
+	int num_sta_yes_ht;
 
 	/* Number of HT AP/stations 20 MHz */
 	/* int num_sta_ht_20mhz; */
@@ -398,21 +398,21 @@ struct mlme_priv {
 
 	/* Number of associated Non-ERP stations (i.e., stations using 802.11b
 	 * in 802.11g BSS) */
-	int num_sta_non_erp;
+	int num_sta_yesn_erp;
 
-	/* Number of associated stations that do not support Short Slot Time */
-	int num_sta_no_short_slot_time;
+	/* Number of associated stations that do yest support Short Slot Time */
+	int num_sta_yes_short_slot_time;
 
-	/* Number of associated stations that do not support Short Preamble */
-	int num_sta_no_short_preamble;
+	/* Number of associated stations that do yest support Short Preamble */
+	int num_sta_yes_short_preamble;
 
 	int olbc; /* Overlapping Legacy BSS Condition */
 
-	/* Number of HT associated stations that do not support greenfield */
-	int num_sta_ht_no_gf;
+	/* Number of HT associated stations that do yest support greenfield */
+	int num_sta_ht_yes_gf;
 
-	/* Number of associated non-HT stations */
-	/* int num_sta_no_ht; */
+	/* Number of associated yesn-HT stations */
+	/* int num_sta_yes_ht; */
 
 	/* Number of HT associated stations 20 MHz */
 	int num_sta_ht_20mhz;
@@ -599,7 +599,7 @@ extern struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv);
 
 
 extern void _rtw_free_network(struct mlme_priv *pmlmepriv, struct wlan_network *pnetwork, u8 isfreeall);
-extern void _rtw_free_network_nolock(struct mlme_priv *pmlmepriv, struct wlan_network *pnetwork);
+extern void _rtw_free_network_yeslock(struct mlme_priv *pmlmepriv, struct wlan_network *pnetwork);
 
 
 extern struct wlan_network* _rtw_find_network(struct __queue *scanned_queue, u8 *addr);

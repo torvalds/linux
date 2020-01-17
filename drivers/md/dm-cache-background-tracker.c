@@ -12,7 +12,7 @@
 
 struct bt_work {
 	struct list_head list;
-	struct rb_node node;
+	struct rb_yesde yesde;
 	struct policy_work work;
 };
 
@@ -81,10 +81,10 @@ static bool __insert_pending(struct background_tracker *b,
 {
 	int cmp;
 	struct bt_work *w;
-	struct rb_node **new = &b->pending.rb_node, *parent = NULL;
+	struct rb_yesde **new = &b->pending.rb_yesde, *parent = NULL;
 
 	while (*new) {
-		w = container_of(*new, struct bt_work, node);
+		w = container_of(*new, struct bt_work, yesde);
 
 		parent = *new;
 		cmp = cmp_oblock(w->work.oblock, nw->work.oblock);
@@ -99,8 +99,8 @@ static bool __insert_pending(struct background_tracker *b,
 			return false;
 	}
 
-	rb_link_node(&nw->node, parent, new);
-	rb_insert_color(&nw->node, &b->pending);
+	rb_link_yesde(&nw->yesde, parent, new);
+	rb_insert_color(&nw->yesde, &b->pending);
 
 	return true;
 }
@@ -110,10 +110,10 @@ static struct bt_work *__find_pending(struct background_tracker *b,
 {
 	int cmp;
 	struct bt_work *w;
-	struct rb_node **new = &b->pending.rb_node;
+	struct rb_yesde **new = &b->pending.rb_yesde;
 
 	while (*new) {
-		w = container_of(*new, struct bt_work, node);
+		w = container_of(*new, struct bt_work, yesde);
 
 		cmp = cmp_oblock(w->work.oblock, oblock);
 		if (cmp < 0)
@@ -191,7 +191,7 @@ int btracker_queue(struct background_tracker *b,
 
 	if (!__insert_pending(b, w)) {
 		/*
-		 * There was a race, we'll just ignore this second
+		 * There was a race, we'll just igyesre this second
 		 * bit of work for the same oblock.
 		 */
 		kmem_cache_free(b->work_cache, w);
@@ -210,7 +210,7 @@ int btracker_queue(struct background_tracker *b,
 EXPORT_SYMBOL_GPL(btracker_queue);
 
 /*
- * Returns -ENODATA if there's no work.
+ * Returns -ENODATA if there's yes work.
  */
 int btracker_issue(struct background_tracker *b, struct policy_work **work)
 {
@@ -233,7 +233,7 @@ void btracker_complete(struct background_tracker *b,
 	struct bt_work *w = container_of(op, struct bt_work, work);
 
 	update_stats(b, &w->work, -1);
-	rb_erase(&w->node, &b->pending);
+	rb_erase(&w->yesde, &b->pending);
 	list_del(&w->list);
 	kmem_cache_free(b->work_cache, w);
 }

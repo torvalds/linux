@@ -23,7 +23,7 @@
 #define E1000_ICS      0x000C8  /* Interrupt Cause Set - WO */
 #define E1000_IMS      0x000D0  /* Interrupt Mask Set - RW */
 #define E1000_IMC      0x000D8  /* Interrupt Mask Clear - WO */
-#define E1000_IAM      0x000E0  /* Interrupt Acknowledge Auto Mask */
+#define E1000_IAM      0x000E0  /* Interrupt Ackyeswledge Auto Mask */
 #define E1000_RCTL     0x00100  /* RX Control - RW */
 #define E1000_FCTTV    0x00170  /* Flow Control Transmit Timer Value - RW */
 #define E1000_TXCW     0x00178  /* TX Configuration Word - RW */

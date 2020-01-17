@@ -310,7 +310,7 @@ static const struct mtk_eint_xt mtk_eint_xt = {
 
 int mtk_build_eint(struct mtk_pinctrl *hw, struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct resource *res;
 
 	if (!IS_ENABLED(CONFIG_EINT_MTK))
@@ -617,7 +617,7 @@ int mtk_pinconf_adv_pull_set(struct mtk_pinctrl *hw,
 
 	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_PUPD, arg);
 
-	/* If PUPD register is not supported for that pin, let's fallback to
+	/* If PUPD register is yest supported for that pin, let's fallback to
 	 * general bias control.
 	 */
 	if (err == -ENOTSUPP) {
@@ -642,7 +642,7 @@ int mtk_pinconf_adv_pull_get(struct mtk_pinctrl *hw,
 
 	err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_PUPD, &t);
 
-	/* If PUPD register is not supported for that pin, let's fallback to
+	/* If PUPD register is yest supported for that pin, let's fallback to
 	 * general bias control.
 	 */
 	if (err == -ENOTSUPP) {

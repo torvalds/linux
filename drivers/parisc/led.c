@@ -60,7 +60,7 @@ static unsigned int led_diskio    __read_mostly = 1;
 static unsigned int led_lanrxtx   __read_mostly = 1;
 static char lcd_text[32]          __read_mostly;
 static char lcd_text_default[32]  __read_mostly;
-static int  lcd_no_led_support    __read_mostly = 0; /* KittyHawk doesn't support LED on its LCD */
+static int  lcd_yes_led_support    __read_mostly = 0; /* KittyHawk doesn't support LED on its LCD */
 
 
 static struct workqueue_struct *led_wq;
@@ -90,7 +90,7 @@ struct pdc_chassis_lcd_info_ret_block {
 	unsigned int min_cmd_delay;	/* delay in uS after cmd-write (LCD only) */
 	unsigned char reset_cmd1;	/* command #1 for writing LCD string (LCD only) */
 	unsigned char reset_cmd2;	/* command #2 for writing LCD string (LCD only) */
-	unsigned char act_enable;	/* 0 = no activity (LCD only) */
+	unsigned char act_enable;	/* 0 = yes activity (LCD only) */
 	struct lcd_block heartbeat;
 	struct lcd_block disk_io;
 	struct lcd_block lan_rcv;
@@ -129,11 +129,11 @@ lcd_info __attribute__((aligned(8))) __read_mostly =
 /* The workqueue must be created at init-time */
 static int start_task(void) 
 {	
-	/* Display the default text now */
+	/* Display the default text yesw */
 	if (led_type == LED_HASLCD) lcd_print( lcd_text_default );
 
-	/* KittyHawk has no LED support on its LCD */
-	if (lcd_no_led_support) return 0;
+	/* KittyHawk has yes LED support on its LCD */
+	if (lcd_yes_led_support) return 0;
 
 	/* Create the work queue and queue the LED task */
 	led_wq = create_singlethread_workqueue("led_wq");	
@@ -166,16 +166,16 @@ static int led_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int led_proc_open(struct inode *inode, struct file *file)
+static int led_proc_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, led_proc_show, PDE_DATA(inode));
+	return single_open(file, led_proc_show, PDE_DATA(iyesde));
 }
 
 
 static ssize_t led_proc_write(struct file *file, const char __user *buf,
 	size_t count, loff_t *pos)
 {
-	void *data = PDE_DATA(file_inode(file));
+	void *data = PDE_DATA(file_iyesde(file));
 	char *cur, lbuf[32];
 	int d;
 
@@ -249,7 +249,7 @@ static int __init led_create_procfs(void)
 	proc_pdc_root = proc_mkdir("pdc", NULL);
 	if (!proc_pdc_root) return -1;
 
-	if (!lcd_no_led_support)
+	if (!lcd_yes_led_support)
 	{
 		ent = proc_create_data("led", S_IRUGO|S_IWUSR, proc_pdc_root,
 					&led_proc_fops, (void *)LED_NOLCD); /* LED */
@@ -405,8 +405,8 @@ static __inline__ int led_get_diskio_activity(void)
 
 	all_vm_events(events);
 
-	/* Just use a very simple calculation here. Do not care about overflow,
-	   since we only want to know if there was activity or not. */
+	/* Just use a very simple calculation here. Do yest care about overflow,
+	   since we only want to kyesw if there was activity or yest. */
 	changed = (events[PGPGIN] != last_pgpgin) ||
 		  (events[PGPGOUT] != last_pgpgout);
 	last_pgpgin  = events[PGPGIN];
@@ -439,7 +439,7 @@ static void led_work_func (struct work_struct *unused)
 	static unsigned long count_HZ; /* counter in range 0..HZ */
 	unsigned char currentleds = 0; /* stores current value of the LEDs */
 
-	/* exit if not initialized */
+	/* exit if yest initialized */
 	if (!led_func_ptr)
 	    return;
 
@@ -490,26 +490,26 @@ static void led_work_func (struct work_struct *unused)
 /*
    ** led_halt()
    ** 
-   ** called by the reboot notifier chain at shutdown and stops all
+   ** called by the reboot yestifier chain at shutdown and stops all
    ** LED/LCD activities.
    ** 
  */
 
-static int led_halt(struct notifier_block *, unsigned long, void *);
+static int led_halt(struct yestifier_block *, unsigned long, void *);
 
-static struct notifier_block led_notifier = {
-	.notifier_call = led_halt,
+static struct yestifier_block led_yestifier = {
+	.yestifier_call = led_halt,
 };
-static int notifier_disabled = 0;
+static int yestifier_disabled = 0;
 
-static int led_halt(struct notifier_block *nb, unsigned long event, void *buf) 
+static int led_halt(struct yestifier_block *nb, unsigned long event, void *buf) 
 {
 	char *txt;
 
-	if (notifier_disabled)
+	if (yestifier_disabled)
 		return NOTIFY_OK;
 
-	notifier_disabled = 1;
+	yestifier_disabled = 1;
 	switch (event) {
 	case SYS_RESTART:	txt = "SYSTEM RESTART";
 				break;
@@ -587,10 +587,10 @@ int __init register_led_driver(int model, unsigned long cmd_reg, unsigned long d
 		return 1;
 	}
 	
-	/* mark the LCD/LED driver now as initialized and 
-	 * register to the reboot notifier chain */
+	/* mark the LCD/LED driver yesw as initialized and 
+	 * register to the reboot yestifier chain */
 	initialized++;
-	register_reboot_notifier(&led_notifier);
+	register_reboot_yestifier(&led_yestifier);
 
 	/* Ensure the work is queued */
 	if (led_wq) {
@@ -604,8 +604,8 @@ int __init register_led_driver(int model, unsigned long cmd_reg, unsigned long d
    ** register_led_regions()
    ** 
    ** register_led_regions() registers the LCD/LED regions for /procfs.
-   ** At bootup - where the initialisation of the LCD/LED normally happens - 
-   ** not all internal structures of request_region() are properly set up,
+   ** At bootup - where the initialisation of the LCD/LED yesrmally happens - 
+   ** yest all internal structures of request_region() are properly set up,
    ** so that we delay the led-registration until after busdevices_init() 
    ** has been executed.
    **
@@ -699,7 +699,7 @@ int __init led_init(void)
 	case 0x58B:		/* KittyHawk DC2 100 (K200) */
 		printk(KERN_INFO "%s: KittyHawk-Machine (hversion 0x%x) found, "
 				"LED detection skipped.\n", __FILE__, CPU_HVERSION);
-		lcd_no_led_support = 1;
+		lcd_yes_led_support = 1;
 		goto found;	/* use the preinitialized values of lcd_info */
 	}
 
@@ -714,7 +714,7 @@ int __init led_init(void)
 			 "%s: sizecnt=%d, actcnt=%ld, maxcnt=%ld\n",
 		         __FILE__, lcd_info.model,
 			 (lcd_info.model==DISPLAY_MODEL_LCD) ? "LCD" :
-			  (lcd_info.model==DISPLAY_MODEL_LASI) ? "LED" : "unknown",
+			  (lcd_info.model==DISPLAY_MODEL_LASI) ? "LED" : "unkyeswn",
 			 lcd_info.lcd_width, lcd_info.min_cmd_delay,
 			 __FILE__, sizeof(lcd_info), 
 			 chassis_info.actcnt, chassis_info.maxcnt));
@@ -725,32 +725,32 @@ int __init led_init(void)
 	
 		/* check the results. Some machines have a buggy PDC */
 		if (chassis_info.actcnt <= 0 || chassis_info.actcnt != chassis_info.maxcnt)
-			goto not_found;
+			goto yest_found;
 
 		switch (lcd_info.model) {
 		case DISPLAY_MODEL_LCD:		/* LCD display */
 			if (chassis_info.actcnt < 
 				offsetof(struct pdc_chassis_lcd_info_ret_block, _pad)-1)
-				goto not_found;
+				goto yest_found;
 			if (!lcd_info.act_enable) {
 				DPRINTK((KERN_INFO "PDC prohibited usage of the LCD.\n"));
-				goto not_found;
+				goto yest_found;
 			}
 			break;
 
-		case DISPLAY_MODEL_NONE:	/* no LED or LCD available */
-			printk(KERN_INFO "PDC reported no LCD or LED.\n");
-			goto not_found;
+		case DISPLAY_MODEL_NONE:	/* yes LED or LCD available */
+			printk(KERN_INFO "PDC reported yes LCD or LED.\n");
+			goto yest_found;
 
 		case DISPLAY_MODEL_LASI:	/* Lasi style 8 bit LED display */
 			if (chassis_info.actcnt != 8 && chassis_info.actcnt != 32)
-				goto not_found;
+				goto yest_found;
 			break;
 
 		default:
-			printk(KERN_WARNING "PDC reported unknown LCD/LED model %d\n",
+			printk(KERN_WARNING "PDC reported unkyeswn LCD/LED model %d\n",
 			       lcd_info.model);
-			goto not_found;
+			goto yest_found;
 		} /* switch() */
 
 found:
@@ -762,14 +762,14 @@ found:
 		DPRINTK((KERN_INFO "pdc_chassis_info call failed with retval = %d\n", ret));
 	}
 
-not_found:
+yest_found:
 	lcd_info.model = DISPLAY_MODEL_NONE;
 	return 1;
 }
 
 static void __exit led_exit(void)
 {
-	unregister_reboot_notifier(&led_notifier);
+	unregister_reboot_yestifier(&led_yestifier);
 	return;
 }
 

@@ -2,7 +2,7 @@
 /*
  * PLL clock descriptions for TI DM355
  *
- * Copyright (C) 2018 David Lechner <david@lechnology.com>
+ * Copyright (C) 2018 David Lechner <david@lechyeslogy.com>
  */
 
 #include <linux/bitops.h>

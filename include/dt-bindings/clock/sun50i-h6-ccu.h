@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ or MIT)
 /*
- * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2017 Iceyeswy Zheng <iceyeswy@aosc.io>
  */
 
 #ifndef _DT_BINDINGS_CLK_SUN50I_H6_H_

@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/watchdog.h>
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 
 struct max77620_wdt {
 	struct device			*dev;
@@ -153,7 +153,7 @@ static int max77620_wdt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Check if WDT running and if yes then set flags properly */
+	/* Check if WDT running and if no then set flags properly */
 	ret = regmap_read(wdt->rmap, MAX77620_REG_CNFGGLBL2, &regval);
 	if (ret < 0) {
 		dev_err(wdt->dev, "Failed to read WDT CFG register: %d\n", ret);
@@ -178,7 +178,7 @@ static int max77620_wdt_probe(struct platform_device *pdev)
 	if (regval & MAX77620_WDTEN)
 		set_bit(WDOG_HW_RUNNING, &wdt_dev->status);
 
-	watchdog_set_nowayout(wdt_dev, nowayout);
+	watchdog_set_yeswayout(wdt_dev, yeswayout);
 	watchdog_set_drvdata(wdt_dev, wdt);
 
 	watchdog_stop_on_unregister(wdt_dev);
@@ -203,8 +203,8 @@ module_platform_driver(max77620_wdt_driver);
 
 MODULE_DESCRIPTION("Max77620 watchdog timer driver");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started "
 	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");

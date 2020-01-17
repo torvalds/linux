@@ -113,7 +113,7 @@ int get_stack_info(unsigned long *stack, struct task_struct *task,
 		   struct stack_info *info, unsigned long *visit_mask)
 {
 	if (!stack)
-		goto unknown;
+		goto unkyeswn;
 
 	task = task ? : current;
 
@@ -121,7 +121,7 @@ int get_stack_info(unsigned long *stack, struct task_struct *task,
 		goto recursion_check;
 
 	if (task != current)
-		goto unknown;
+		goto unkyeswn;
 
 	if (in_entry_stack(stack, info))
 		goto recursion_check;
@@ -135,25 +135,25 @@ int get_stack_info(unsigned long *stack, struct task_struct *task,
 	if (in_doublefault_stack(stack, info))
 		goto recursion_check;
 
-	goto unknown;
+	goto unkyeswn;
 
 recursion_check:
 	/*
 	 * Make sure we don't iterate through any given stack more than once.
 	 * If it comes up a second time then there's something wrong going on:
-	 * just break out and report an unknown stack type.
+	 * just break out and report an unkyeswn stack type.
 	 */
 	if (visit_mask) {
 		if (*visit_mask & (1UL << info->type)) {
 			printk_deferred_once(KERN_WARNING "WARNING: stack recursion on stack type %d\n", info->type);
-			goto unknown;
+			goto unkyeswn;
 		}
 		*visit_mask |= 1UL << info->type;
 	}
 
 	return 0;
 
-unknown:
+unkyeswn:
 	info->type = STACK_TYPE_UNKNOWN;
 	return -EINVAL;
 }

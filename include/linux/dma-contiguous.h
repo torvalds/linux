@@ -19,7 +19,7 @@
  *
  * Why is it needed?
  *
- *   Various devices on embedded systems have no scatter-getter and/or
+ *   Various devices on embedded systems have yes scatter-getter and/or
  *   IO map support and require contiguous blocks of memory to
  *   operate.  They include devices such as cameras, hardware video
  *   coders, etc.
@@ -41,7 +41,7 @@
  *
  * Driver usage
  *
- *   CMA should not be used by the device drivers directly. It is
+ *   CMA should yest be used by the device drivers directly. It is
  *   only a helper framework for dma-mapping subsystem.
  *
  *   For more information, see kernel-docs in kernel/dma/contiguous.c
@@ -109,7 +109,7 @@ static inline int dma_declare_contiguous(struct device *dev, phys_addr_t size,
 }
 
 struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
-				       unsigned int order, bool no_warn);
+				       unsigned int order, bool yes_warn);
 bool dma_release_from_contiguous(struct device *dev, struct page *pages,
 				 int count);
 struct page *dma_alloc_contiguous(struct device *dev, size_t size, gfp_t gfp);
@@ -144,7 +144,7 @@ int dma_declare_contiguous(struct device *dev, phys_addr_t size,
 
 static inline
 struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
-				       unsigned int order, bool no_warn)
+				       unsigned int order, bool yes_warn)
 {
 	return NULL;
 }

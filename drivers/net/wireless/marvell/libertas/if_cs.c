@@ -82,7 +82,7 @@ MODULE_FIRMWARE("libertas_cs.fw");
 /********************************************************************/
 
 /* This define enables wrapper functions which allow you
-   to dump all register accesses. You normally won't this,
+   to dump all register accesses. You yesrmally won't this,
    except for development */
 /* #define DEBUG_IO */
 
@@ -147,15 +147,15 @@ static inline void if_cs_write16_rep(
 
 
 /*
- * I know that polling/delaying is frowned upon. However, this procedure
+ * I kyesw that polling/delaying is frowned upon. However, this procedure
  * with polling is needed while downloading the firmware. At this stage,
- * the hardware does unfortunately not create any interrupts.
+ * the hardware does unfortunately yest create any interrupts.
  *
  * Fortunately, this function is never used once the firmware is in
  * the card. :-)
  *
  * As a reference, see the "Firmware Specification v5.1", page 18
- * and 19. I did not follow their suggested timing to the word,
+ * and 19. I did yest follow their suggested timing to the word,
  * but this works nice & fast anyway.
  */
 static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 reg)
@@ -186,14 +186,14 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 
 
 /*
- * It's not really clear to me what the host status register is for. It
+ * It's yest really clear to me what the host status register is for. It
  * needs to be set almost in union with "host int cause". The following
  * bits from above are used:
  *
  *   IF_CS_BIT_TX         driver downloaded a data packet
  *   IF_CS_BIT_RX         driver got a data packet
  *   IF_CS_BIT_COMMAND    driver downloaded a command
- *   IF_CS_BIT_RESP       not used (has some meaning with powerdown)
+ *   IF_CS_BIT_RESP       yest used (has some meaning with powerdown)
  *   IF_CS_BIT_EVENT      driver read a host event
  */
 #define IF_CS_HOST_STATUS		0x00000000
@@ -205,7 +205,7 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
  *   IF_CS_BIT_TX         a data packet has been downloaded
  *   IF_CS_BIT_RX         a received data packet has retrieved
  *   IF_CS_BIT_COMMAND    a firmware block or a command has been downloaded
- *   IF_CS_BIT_RESP       not used (has some meaning with powerdown)
+ *   IF_CS_BIT_RESP       yest used (has some meaning with powerdown)
  *   IF_CS_BIT_EVENT      a host event (link lost etc) has been retrieved
  */
 #define IF_CS_HOST_INT_CAUSE		0x00000002
@@ -254,12 +254,12 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 #define IF_CS_CARD_STATUS_MASK		0x7f00
 
 /*
- * The card int cause register is used by the card/firmware to notify us
+ * The card int cause register is used by the card/firmware to yestify us
  * about the following events:
  *
  *   IF_CS_BIT_TX        a data packet has successfully been sentx
  *   IF_CS_BIT_RX        a data packet has been received and can be retrieved
- *   IF_CS_BIT_COMMAND   not used
+ *   IF_CS_BIT_COMMAND   yest used
  *   IF_CS_BIT_RESP      the firmware has a command response for us
  *   IF_CS_BIT_EVENT     the card has a event for use (link lost, snr low etc)
  */
@@ -303,7 +303,7 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 
 /*
  * FIXME: just use the 'driver_info' field of 'struct pcmcia_device_id' when
- * that gets fixed.  Currently there's no way to access it from the probe hook.
+ * that gets fixed.  Currently there's yes way to access it from the probe hook.
  */
 static inline u32 get_model(u16 manf_id, u16 card_id)
 {
@@ -348,7 +348,7 @@ static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 		if (status & IF_CS_BIT_COMMAND)
 			break;
 		if (++loops > 100) {
-			netdev_err(priv->dev, "card not ready for commands\n");
+			netdev_err(priv->dev, "card yest ready for commands\n");
 			goto done;
 		}
 		mdelay(1);
@@ -412,7 +412,7 @@ static int if_cs_receive_cmdres(struct lbs_private *priv, u8 *data, u32 *len)
 	/* is hardware ready? */
 	status = if_cs_read16(priv->card, IF_CS_CARD_STATUS);
 	if ((status & IF_CS_BIT_RESP) == 0) {
-		netdev_err(priv->dev, "no cmd response in card\n");
+		netdev_err(priv->dev, "yes cmd response in card\n");
 		*len = 0;
 		goto out;
 	}
@@ -527,7 +527,7 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 			&priv->resp_len[i]);
 
 		spin_lock_irqsave(&priv->driver_lock, flags);
-		lbs_notify_command_response(priv, i);
+		lbs_yestify_command_response(priv, i);
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 	}
 
@@ -670,7 +670,7 @@ static int if_cs_prog_real(struct if_cs_card *card, const struct firmware *fw)
 		}
 
 		if (retry > 20) {
-			pr_err("could not download firmware\n");
+			pr_err("could yest download firmware\n");
 			ret = -ENODEV;
 			goto done;
 		}
@@ -739,7 +739,7 @@ static void if_cs_prog_firmware(struct lbs_private *priv, int ret,
 	/* And finally bring the card up */
 	priv->fw_ready = 1;
 	if (lbs_start_card(priv) != 0) {
-		pr_err("could not activate card\n");
+		pr_err("could yest activate card\n");
 		free_irq(card->p_dev->irq, card);
 	}
 }
@@ -823,7 +823,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	}
 
 	/*
-	 * Allocate an interrupt line.  Note that this does not assign
+	 * Allocate an interrupt line.  Note that this does yest assign
 	 * a handler to the interrupt, unless the 'Handler' member of
 	 * the irq structure is initialized.
 	 */
@@ -850,7 +850,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 
 	/*
 	 * Most of the libertas cards can do unaligned register access, but some
-	 * weird ones cannot. That's especially true for the CF8305 card.
+	 * weird ones canyest. That's especially true for the CF8305 card.
 	 */
 	card->align_regs = false;
 
@@ -867,25 +867,25 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	if (card->model == MODEL_8305) {
 		card->align_regs = true;
 		if (prod_id < IF_CS_CF8305_B1_REV) {
-			pr_err("8305 rev B0 and older are not supported\n");
+			pr_err("8305 rev B0 and older are yest supported\n");
 			ret = -ENODEV;
 			goto out2;
 		}
 	}
 
 	if ((card->model == MODEL_8381) && prod_id < IF_CS_CF8381_B3_REV) {
-		pr_err("8381 rev B2 and older are not supported\n");
+		pr_err("8381 rev B2 and older are yest supported\n");
 		ret = -ENODEV;
 		goto out2;
 	}
 
 	if ((card->model == MODEL_8385) && prod_id < IF_CS_CF8385_B1_REV) {
-		pr_err("8385 rev B0 and older are not supported\n");
+		pr_err("8385 rev B0 and older are yest supported\n");
 		ret = -ENODEV;
 		goto out2;
 	}
 
-	/* Make this card known to the libertas driver */
+	/* Make this card kyeswn to the libertas driver */
 	priv = lbs_add_card(card, &p_dev->dev);
 	if (IS_ERR(priv)) {
 		ret = PTR_ERR(priv);

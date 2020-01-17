@@ -62,7 +62,7 @@ __nf_ct_helper_find(const struct nf_conntrack_tuple *tuple)
 		return NULL;
 
 	h = helper_hash(tuple);
-	hlist_for_each_entry_rcu(helper, &nf_ct_helper_hash[h], hnode) {
+	hlist_for_each_entry_rcu(helper, &nf_ct_helper_hash[h], hyesde) {
 		if (nf_ct_tuple_src_mask_cmp(tuple, &helper->tuple, &mask))
 			return helper;
 	}
@@ -76,7 +76,7 @@ __nf_conntrack_helper_find(const char *name, u16 l3num, u8 protonum)
 	unsigned int i;
 
 	for (i = 0; i < nf_ct_helper_hsize; i++) {
-		hlist_for_each_entry_rcu(h, &nf_ct_helper_hash[i], hnode) {
+		hlist_for_each_entry_rcu(h, &nf_ct_helper_hash[i], hyesde) {
 			if (strcmp(h->name, name))
 				continue;
 
@@ -113,7 +113,7 @@ nf_conntrack_helper_try_module_get(const char *name, u16 l3num, u8 protonum)
 #endif
 	if (h != NULL && !try_module_get(h->me))
 		h = NULL;
-	if (h != NULL && !refcount_inc_not_zero(&h->refcnt)) {
+	if (h != NULL && !refcount_inc_yest_zero(&h->refcnt)) {
 		module_put(h->me);
 		h = NULL;
 	}
@@ -219,7 +219,7 @@ nf_ct_lookup_helper(struct nf_conn *ct, struct net *net)
 			return NULL;
 		pr_info("nf_conntrack: default automatic helper assignment "
 			"has been turned off for security reasons and CT-based "
-			" firewall rule not found. Use the iptables CT target "
+			" firewall rule yest found. Use the iptables CT target "
 			"to attach helpers instead.\n");
 		net->ct.auto_assign_helper_warned = 1;
 		return NULL;
@@ -238,7 +238,7 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 
 	/* We already got a helper explicitly attached. The function
 	 * nf_conntrack_alter_reply - in case NAT is in use - asks for looking
-	 * the helper up again. Since now the user is in full control of
+	 * the helper up again. Since yesw the user is in full control of
 	 * making consistent helper configurations, skip this automatic
 	 * re-lookup, otherwise we'll lose the helper.
 	 */
@@ -270,7 +270,7 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 			return -ENOMEM;
 	} else {
 		/* We only allow helper re-assignment of the same sort since
-		 * we cannot reallocate the helper extension area.
+		 * we canyest reallocate the helper extension area.
 		 */
 		struct nf_conntrack_helper *tmp = rcu_dereference(help->helper);
 
@@ -296,7 +296,7 @@ static int unhelp(struct nf_conn *ct, void *me)
 		RCU_INIT_POINTER(help->helper, NULL);
 	}
 
-	/* We are not intended to delete this conntrack. */
+	/* We are yest intended to delete this conntrack. */
 	return 0;
 }
 
@@ -409,7 +409,7 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 
 	mutex_lock(&nf_ct_helper_mutex);
 	for (i = 0; i < nf_ct_helper_hsize; i++) {
-		hlist_for_each_entry(cur, &nf_ct_helper_hash[i], hnode) {
+		hlist_for_each_entry(cur, &nf_ct_helper_hash[i], hyesde) {
 			if (!strcmp(cur->name, me->name) &&
 			    (cur->tuple.src.l3num == NFPROTO_UNSPEC ||
 			     cur->tuple.src.l3num == me->tuple.src.l3num) &&
@@ -422,7 +422,7 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 
 	/* avoid unpredictable behaviour for auto_assign_helper */
 	if (!(me->flags & NF_CT_HELPER_F_USERSPACE)) {
-		hlist_for_each_entry(cur, &nf_ct_helper_hash[h], hnode) {
+		hlist_for_each_entry(cur, &nf_ct_helper_hash[h], hyesde) {
 			if (nf_ct_tuple_src_mask_cmp(&cur->tuple, &me->tuple,
 						     &mask)) {
 				ret = -EEXIST;
@@ -431,7 +431,7 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 		}
 	}
 	refcount_set(&me->refcnt, 1);
-	hlist_add_head_rcu(&me->hnode, &nf_ct_helper_hash[h]);
+	hlist_add_head_rcu(&me->hyesde, &nf_ct_helper_hash[h]);
 	nf_ct_helper_count++;
 out:
 	mutex_unlock(&nf_ct_helper_mutex);
@@ -456,11 +456,11 @@ static bool expect_iter_me(struct nf_conntrack_expect *exp, void *data)
 void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 {
 	mutex_lock(&nf_ct_helper_mutex);
-	hlist_del_rcu(&me->hnode);
+	hlist_del_rcu(&me->hyesde);
 	nf_ct_helper_count--;
 	mutex_unlock(&nf_ct_helper_mutex);
 
-	/* Make sure every nothing is still using the helper unless its a
+	/* Make sure every yesthing is still using the helper unless its a
 	 * connection in the hash.
 	 */
 	synchronize_rcu();
@@ -551,7 +551,7 @@ EXPORT_SYMBOL_GPL(nf_nat_helper_unregister);
 
 static const struct nf_ct_ext_type helper_extend = {
 	.len	= sizeof(struct nf_conn_help),
-	.align	= __alignof__(struct nf_conn_help),
+	.align	= __aligyesf__(struct nf_conn_help),
 	.id	= NF_CT_EXT_HELPER,
 };
 

@@ -22,7 +22,7 @@
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -318,7 +318,7 @@ static int bpp_probe(struct platform_device *op)
 
 	dev_set_drvdata(&op->dev, p);
 
-	parport_announce_port(p);
+	parport_anyesunce_port(p);
 
 	return 0;
 

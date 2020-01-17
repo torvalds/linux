@@ -109,7 +109,7 @@ static int acpi_smbus_transaction(struct acpi_smb_hc *hc, u8 protocol,
 	u8 temp, sz = 0;
 
 	if (!hc) {
-		printk(KERN_ERR PREFIX "host controller is not configured\n");
+		printk(KERN_ERR PREFIX "host controller is yest configured\n");
 		return ret;
 	}
 
@@ -213,7 +213,7 @@ static int smbus_alarm(void *context)
 	u8 address;
 	if (smb_hc_read(hc, ACPI_SMB_STATUS, &status.raw))
 		return 0;
-	/* Check if it is only a completion notify */
+	/* Check if it is only a completion yestify */
 	if (status.fields.done && status.fields.status == SMBUS_OK) {
 		hc->done = true;
 		wake_up(&hc->wait);
@@ -224,7 +224,7 @@ static int smbus_alarm(void *context)
 	smb_hc_read(hc, ACPI_SMB_ALARM_ADDRESS, &address);
 	status.fields.alarm = 0;
 	smb_hc_write(hc, ACPI_SMB_STATUS, status.raw);
-	/* We are only interested in events coming from known devices */
+	/* We are only interested in events coming from kyeswn devices */
 	switch (address >> 1) {
 		case ACPI_SBS_CHARGER:
 		case ACPI_SBS_MANAGER:

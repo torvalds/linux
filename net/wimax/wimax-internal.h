@@ -32,15 +32,15 @@
  * (wimax_dev->mutex). As well, most operations need to call this
  * function to check if the state is the right one.
  *
- * An error value will be returned if the state is not the right
- * one. In that case, the caller should not attempt to use the device
+ * An error value will be returned if the state is yest the right
+ * one. In that case, the caller should yest attempt to use the device
  * and just unlock it.
  */
 static inline __must_check
 int wimax_dev_is_ready(struct wimax_dev *wimax_dev)
 {
 	if (wimax_dev->state == __WIMAX_ST_NULL)
-		return -EINVAL;	/* Device is not even registered! */
+		return -EINVAL;	/* Device is yest even registered! */
 	if (wimax_dev->state == WIMAX_ST_DOWN)
 		return -ENOMEDIUM;
 	if (wimax_dev->state == __WIMAX_ST_QUIESCING)

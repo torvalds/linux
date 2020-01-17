@@ -15,8 +15,8 @@
  * after a reboot.
  *
  * Contiguous method:
- * This driver writes the incoming data in a monolithic image by allocating
- * contiguous physical pages large enough to accommodate the incoming BIOS
+ * This driver writes the incoming data in a moyeslithic image by allocating
+ * contiguous physical pages large eyesugh to accommodate the incoming BIOS
  * image size.
  *
  * Packetized method:
@@ -30,7 +30,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/blkdev.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -59,10 +59,10 @@ static struct _rbu_data {
 	int entry_created;
 } rbu_data;
 
-static char image_type[MAX_IMAGE_LENGTH + 1] = "mono";
+static char image_type[MAX_IMAGE_LENGTH + 1] = "moyes";
 module_param_string(image_type, image_type, sizeof (image_type), 0);
 MODULE_PARM_DESC(image_type,
-	"BIOS image type. choose- mono or packet or init");
+	"BIOS image type. choose- moyes or packet or init");
 
 static unsigned long allocation_floor = 0x100000;
 module_param(allocation_floor, ulong, 0644);
@@ -103,9 +103,9 @@ static int create_packet(void *data, size_t length)
 	pr_debug("create_packet: entry \n");
 
 	if (!rbu_data.packetsize) {
-		pr_debug("create_packet: packetsize not specified\n");
+		pr_debug("create_packet: packetsize yest specified\n");
 		retval = -EINVAL;
-		goto out_noalloc;
+		goto out_yesalloc;
 	}
 
 	spin_unlock(&rbu_data.lock);
@@ -118,13 +118,13 @@ static int create_packet(void *data, size_t length)
 			"packet\n", __func__);
 		retval = -ENOMEM;
 		spin_lock(&rbu_data.lock);
-		goto out_noalloc;
+		goto out_yesalloc;
 	}
 
 	ordernum = get_order(length);
 
 	/*
-	 * BIOS errata mean we cannot allocate packets below 1MB or they will
+	 * BIOS errata mean we canyest allocate packets below 1MB or they will
 	 * be overwritten by BIOS.
 	 *
 	 * array to temporarily hold packets
@@ -184,7 +184,7 @@ static int create_packet(void *data, size_t length)
 	pr_debug("create_packet: newpacket at physical addr %lx\n",
 		(unsigned long)virt_to_phys(newpacket->data));
 
-	/* packets may not have fixed size */
+	/* packets may yest have fixed size */
 	newpacket->length = length;
 	newpacket->ordernum = ordernum;
 	++rbu_data.num_packets;
@@ -213,7 +213,7 @@ out_alloc_packet:
 	if (retval)
 		kfree(newpacket);
 
-out_noalloc:
+out_yesalloc:
 	return retval;
 }
 
@@ -227,7 +227,7 @@ static int packetize_data(const u8 *data, size_t length)
 	pr_debug("packetize_data: data length %zd\n", length);
 	if (!rbu_data.packetsize) {
 		printk(KERN_WARNING
-			"dell_rbu: packetsize not specified\n");
+			"dell_rbu: packetsize yest specified\n");
 		return -EIO;
 	}
 
@@ -272,7 +272,7 @@ static int do_packet_read(char *data, struct list_head *ptemp_list,
 		/* point to the offset in the packet buffer */
 		ptemp_buf = (u8 *) newpacket->data + j;
 		/*
-		 * check if there is enough room in
+		 * check if there is eyesugh room in
 		 * * the incoming buffer
 		 */
 		if (length > (*list_read_count - bytes_read))
@@ -342,7 +342,7 @@ static void packet_empty_list(void)
 		ptemp_list = pnext_list;
 		/*
 		 * zero out the RBU packet memory before freeing
-		 * to make sure there are no stale RBU packets left in memory
+		 * to make sure there are yes stale RBU packets left in memory
 		 */
 		memset(newpacket->data, 0, rbu_data.packetsize);
 		set_memory_wb((unsigned long)newpacket->data,
@@ -430,7 +430,7 @@ static int img_update_realloc(unsigned long size)
 		(unsigned char *)__get_free_pages(GFP_DMA32, ordernum);
 	spin_lock(&rbu_data.lock);
 	if (!image_update_buffer) {
-		pr_debug("Not enough memory for image update:"
+		pr_debug("Not eyesugh memory for image update:"
 			"size = %ld\n", size);
 		return -ENOMEM;
 	}
@@ -455,7 +455,7 @@ static ssize_t read_packet_data(char *buffer, loff_t pos, size_t count)
 
 	/* check to see if we have something to return */
 	if (rbu_data.num_packets == 0) {
-		pr_debug("read_packet_data: no packets written\n");
+		pr_debug("read_packet_data: yes packets written\n");
 		retval = -ENOMEM;
 		goto read_rbu_data_exit;
 	}
@@ -484,12 +484,12 @@ static ssize_t read_packet_data(char *buffer, loff_t pos, size_t count)
 	return retval;
 }
 
-static ssize_t read_rbu_mono_data(char *buffer, loff_t pos, size_t count)
+static ssize_t read_rbu_moyes_data(char *buffer, loff_t pos, size_t count)
 {
 	/* check to see if we have something to return */
 	if ((rbu_data.image_update_buffer == NULL) ||
 		(rbu_data.bios_image_size == 0)) {
-		pr_debug("read_rbu_data_mono: image_update_buffer %p ,"
+		pr_debug("read_rbu_data_moyes: image_update_buffer %p ,"
 			"bios_image_size %lu\n",
 			rbu_data.image_update_buffer,
 			rbu_data.bios_image_size);
@@ -508,8 +508,8 @@ static ssize_t read_rbu_data(struct file *filp, struct kobject *kobj,
 
 	spin_lock(&rbu_data.lock);
 
-	if (!strcmp(image_type, "mono"))
-		ret_count = read_rbu_mono_data(buffer, pos, count);
+	if (!strcmp(image_type, "moyes"))
+		ret_count = read_rbu_moyes_data(buffer, pos, count);
 	else if (!strcmp(image_type, "packet"))
 		ret_count = read_packet_data(buffer, pos, count);
 	else
@@ -530,7 +530,7 @@ static void callbackfn_rbu(const struct firmware *fw, void *context)
 		goto out;
 
 	spin_lock(&rbu_data.lock);
-	if (!strcmp(image_type, "mono")) {
+	if (!strcmp(image_type, "moyes")) {
 		if (!img_update_realloc(fw->size))
 			memcpy(rbu_data.image_update_buffer,
 				fw->data, fw->size);
@@ -583,8 +583,8 @@ static ssize_t write_rbu_image_type(struct file *filp, struct kobject *kobj,
 	if (i == count)
 		buffer[count] = '\0';
 
-	if (strstr(buffer, "mono"))
-		strcpy(image_type, "mono");
+	if (strstr(buffer, "moyes"))
+		strcpy(image_type, "moyes");
 	else if (strstr(buffer, "packet"))
 		strcpy(image_type, "packet");
 	else if (strstr(buffer, "init")) {
@@ -597,13 +597,13 @@ static ssize_t write_rbu_image_type(struct file *filp, struct kobject *kobj,
 		 */
 		if (!rbu_data.entry_created) {
 			spin_unlock(&rbu_data.lock);
-			req_firm_rc = request_firmware_nowait(THIS_MODULE,
+			req_firm_rc = request_firmware_yeswait(THIS_MODULE,
 				FW_ACTION_NOHOTPLUG, "dell_rbu",
 				&rbu_device->dev, GFP_KERNEL, &context,
 				callbackfn_rbu);
 			if (req_firm_rc) {
 				printk(KERN_ERR
-					"dell_rbu:%s request_firmware_nowait"
+					"dell_rbu:%s request_firmware_yeswait"
 					" failed %d\n", __func__, rc);
 				rc = -EIO;
 			} else
@@ -719,5 +719,5 @@ static __exit void dcdrbu_exit(void)
 module_exit(dcdrbu_exit);
 module_init(dcdrbu_init);
 
-/* vim:noet:ts=8:sw=8
+/* vim:yeset:ts=8:sw=8
 */

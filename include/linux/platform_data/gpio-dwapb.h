@@ -7,7 +7,7 @@
 #define GPIO_DW_APB_H
 
 struct dwapb_port_property {
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	unsigned int	idx;
 	unsigned int	ngpio;
 	unsigned int	gpio_base;

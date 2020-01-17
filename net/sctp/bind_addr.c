@@ -59,7 +59,7 @@ int sctp_bind_addr_copy(struct net *net, struct sctp_bind_addr *dest,
 			goto out;
 	}
 
-	/* If there are no addresses matching the scope and
+	/* If there are yes addresses matching the scope and
 	 * this is global scope, try to get a link scope address, with
 	 * the assumption that we must be sitting behind a NAT.
 	 */
@@ -147,7 +147,7 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 
 	memcpy(&addr->a, new, min_t(size_t, sizeof(*new), new_size));
 
-	/* Fix up the port if it has not yet been set.
+	/* Fix up the port if it has yest yet been set.
 	 * Both v4 and v6 have the port at the same offset.
 	 */
 	if (!addr->a.v4.sin_port)
@@ -218,7 +218,7 @@ union sctp_params sctp_bind_addrs_to_raw(const struct sctp_bind_addr *bp,
 	addrparms_len = 0;
 	len = 0;
 
-	/* Allocate enough memory at once. */
+	/* Allocate eyesugh memory at once. */
 	list_for_each(pos, &bp->address_list) {
 		len += sizeof(union sctp_addr_param);
 	}
@@ -364,7 +364,7 @@ int sctp_bind_addr_conflict(struct sctp_bind_addr *bp,
 
 	/* Pick the IPv6 socket as the basis of comparison
 	 * since it's usually a superset of the IPv4.
-	 * If there is no IPv6 socket, then default to bind_addr.
+	 * If there is yes IPv6 socket, then default to bind_addr.
 	 */
 	if (sctp_opt2sk(bp_sp)->sk_family == AF_INET6)
 		sp = bp_sp;
@@ -408,7 +408,7 @@ int sctp_bind_addr_state(const struct sctp_bind_addr *bp,
 	return -1;
 }
 
-/* Find the first address in the bind address list that is not present in
+/* Find the first address in the bind address list that is yest present in
  * the addrs packed array.
  */
 union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
@@ -497,7 +497,7 @@ int sctp_in_scope(struct net *net, const union sctp_addr *addr,
 {
 	enum sctp_scope addr_scope = sctp_scope(addr);
 
-	/* The unusable SCTP addresses will not be considered with
+	/* The unusable SCTP addresses will yest be considered with
 	 * any defined scopes.
 	 */
 	if (SCTP_SCOPE_UNUSABLE == addr_scope)

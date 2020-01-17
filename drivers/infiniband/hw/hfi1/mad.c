@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -60,9 +60,9 @@
 #define OPA_LINK_WIDTH_RESET_OLD 0x0fff
 #define OPA_LINK_WIDTH_RESET 0xffff
 
-struct trap_node {
+struct trap_yesde {
 	struct list_head list;
-	struct opa_mad_notice_attr data;
+	struct opa_mad_yestice_attr data;
 	__be64 tid;
 	int len;
 	u32 retry;
@@ -122,9 +122,9 @@ void hfi1_event_pkey_change(struct hfi1_devdata *dd, u8 port)
  * If the port is down, clean up all pending traps.  We need to be careful
  * with the given trap, because it may be queued.
  */
-static void cleanup_traps(struct hfi1_ibport *ibp, struct trap_node *trap)
+static void cleanup_traps(struct hfi1_ibport *ibp, struct trap_yesde *trap)
 {
-	struct trap_node *node, *q;
+	struct trap_yesde *yesde, *q;
 	unsigned long flags;
 	struct list_head trap_list;
 	int i;
@@ -136,27 +136,27 @@ static void cleanup_traps(struct hfi1_ibport *ibp, struct trap_node *trap)
 		spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 
 		/*
-		 * Remove all items from the list, freeing all the non-given
+		 * Remove all items from the list, freeing all the yesn-given
 		 * traps.
 		 */
-		list_for_each_entry_safe(node, q, &trap_list, list) {
-			list_del(&node->list);
-			if (node != trap)
-				kfree(node);
+		list_for_each_entry_safe(yesde, q, &trap_list, list) {
+			list_del(&yesde->list);
+			if (yesde != trap)
+				kfree(yesde);
 		}
 	}
 
 	/*
-	 * If this wasn't on one of the lists it would not be freed.  If it
-	 * was on the list, it is now safe to free.
+	 * If this wasn't on one of the lists it would yest be freed.  If it
+	 * was on the list, it is yesw safe to free.
 	 */
 	kfree(trap);
 }
 
-static struct trap_node *check_and_add_trap(struct hfi1_ibport *ibp,
-					    struct trap_node *trap)
+static struct trap_yesde *check_and_add_trap(struct hfi1_ibport *ibp,
+					    struct trap_yesde *trap)
 {
-	struct trap_node *node;
+	struct trap_yesde *yesde;
 	struct trap_list *trap_list;
 	unsigned long flags;
 	unsigned long timeout;
@@ -174,21 +174,21 @@ static struct trap_node *check_and_add_trap(struct hfi1_ibport *ibp,
 	}
 
 	/*
-	 * Since the retry (handle timeout) does not remove a trap request
-	 * from the list, all we have to do is compare the node.
+	 * Since the retry (handle timeout) does yest remove a trap request
+	 * from the list, all we have to do is compare the yesde.
 	 */
 	spin_lock_irqsave(&ibp->rvp.lock, flags);
 	trap_list = &ibp->rvp.trap_lists[queue_id];
 
-	list_for_each_entry(node, &trap_list->list, list) {
-		if (node == trap) {
-			node->retry++;
+	list_for_each_entry(yesde, &trap_list->list, list) {
+		if (yesde == trap) {
+			yesde->retry++;
 			found = 1;
 			break;
 		}
 	}
 
-	/* If it is not on the list, add it, limited to RVT-MAX_TRAP_LEN. */
+	/* If it is yest on the list, add it, limited to RVT-MAX_TRAP_LEN. */
 	if (!found) {
 		if (trap_list->list_len < RVT_MAX_TRAP_LEN) {
 			trap_list->list_len++;
@@ -201,10 +201,10 @@ static struct trap_node *check_and_add_trap(struct hfi1_ibport *ibp,
 	}
 
 	/*
-	 * Next check to see if there is a timer pending.  If not, set it up
+	 * Next check to see if there is a timer pending.  If yest, set it up
 	 * and get the first trap from the list.
 	 */
-	node = NULL;
+	yesde = NULL;
 	if (!timer_pending(&ibp->rvp.trap_timer)) {
 		/*
 		 * o14-2
@@ -216,20 +216,20 @@ static struct trap_node *check_and_add_trap(struct hfi1_ibport *ibp,
 			   (1UL << ibp->rvp.subnet_timeout)) / 1000;
 		mod_timer(&ibp->rvp.trap_timer,
 			  jiffies + usecs_to_jiffies(timeout));
-		node = list_first_entry(&trap_list->list, struct trap_node,
+		yesde = list_first_entry(&trap_list->list, struct trap_yesde,
 					list);
-		node->in_use = 1;
+		yesde->in_use = 1;
 	}
 	spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 
-	return node;
+	return yesde;
 }
 
 static void subn_handle_opa_trap_repress(struct hfi1_ibport *ibp,
 					 struct opa_smp *smp)
 {
 	struct trap_list *trap_list;
-	struct trap_node *trap;
+	struct trap_yesde *trap;
 	unsigned long flags;
 	int i;
 
@@ -240,7 +240,7 @@ static void subn_handle_opa_trap_repress(struct hfi1_ibport *ibp,
 	for (i = 0; i < RVT_MAX_TRAP_LISTS; i++) {
 		trap_list = &ibp->rvp.trap_lists[i];
 		trap = list_first_entry_or_null(&trap_list->list,
-						struct trap_node, list);
+						struct trap_yesde, list);
 		if (trap && trap->tid == smp->tid) {
 			if (trap->in_use) {
 				trap->repress = 1;
@@ -310,7 +310,7 @@ static struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u32 dlid)
 	return ah;
 }
 
-static void send_trap(struct hfi1_ibport *ibp, struct trap_node *trap)
+static void send_trap(struct hfi1_ibport *ibp, struct trap_yesde *trap)
 {
 	struct ib_mad_send_buf *send_buf;
 	struct ib_mad_agent *agent;
@@ -412,7 +412,7 @@ static void send_trap(struct hfi1_ibport *ibp, struct trap_node *trap)
 void hfi1_handle_trap_timer(struct timer_list *t)
 {
 	struct hfi1_ibport *ibp = from_timer(ibp, t, rvp.trap_timer);
-	struct trap_node *trap = NULL;
+	struct trap_yesde *trap = NULL;
 	unsigned long flags;
 	int i;
 
@@ -420,7 +420,7 @@ void hfi1_handle_trap_timer(struct timer_list *t)
 	spin_lock_irqsave(&ibp->rvp.lock, flags);
 	for (i = 0; !trap && i < RVT_MAX_TRAP_LISTS; i++) {
 		trap = list_first_entry_or_null(&ibp->rvp.trap_lists[i].list,
-						struct trap_node, list);
+						struct trap_yesde, list);
 	}
 	spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 
@@ -428,9 +428,9 @@ void hfi1_handle_trap_timer(struct timer_list *t)
 		send_trap(ibp, trap);
 }
 
-static struct trap_node *create_trap_node(u8 type, __be16 trap_num, u32 lid)
+static struct trap_yesde *create_trap_yesde(u8 type, __be16 trap_num, u32 lid)
 {
-	struct trap_node *trap;
+	struct trap_yesde *trap;
 
 	trap = kzalloc(sizeof(*trap), GFP_ATOMIC);
 	if (!trap)
@@ -451,13 +451,13 @@ static struct trap_node *create_trap_node(u8 type, __be16 trap_num, u32 lid)
 void hfi1_bad_pkey(struct hfi1_ibport *ibp, u32 key, u32 sl,
 		   u32 qp1, u32 qp2, u32 lid1, u32 lid2)
 {
-	struct trap_node *trap;
+	struct trap_yesde *trap;
 	u32 lid = ppd_from_ibp(ibp)->lid;
 
 	ibp->rvp.n_pkt_drops++;
 	ibp->rvp.pkey_violations++;
 
-	trap = create_trap_node(IB_NOTICE_TYPE_SECURITY, OPA_TRAP_BAD_P_KEY,
+	trap = create_trap_yesde(IB_NOTICE_TYPE_SECURITY, OPA_TRAP_BAD_P_KEY,
 				lid);
 	if (!trap)
 		return;
@@ -480,10 +480,10 @@ void hfi1_bad_pkey(struct hfi1_ibport *ibp, u32 key, u32 sl,
 static void bad_mkey(struct hfi1_ibport *ibp, struct ib_mad_hdr *mad,
 		     __be64 mkey, __be32 dr_slid, u8 return_path[], u8 hop_cnt)
 {
-	struct trap_node *trap;
+	struct trap_yesde *trap;
 	u32 lid = ppd_from_ibp(ibp)->lid;
 
-	trap = create_trap_node(IB_NOTICE_TYPE_SECURITY, OPA_TRAP_BAD_M_KEY,
+	trap = create_trap_yesde(IB_NOTICE_TYPE_SECURITY, OPA_TRAP_BAD_M_KEY,
 				lid);
 	if (!trap)
 		return;
@@ -517,13 +517,13 @@ static void bad_mkey(struct hfi1_ibport *ibp, struct ib_mad_hdr *mad,
  */
 void hfi1_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num)
 {
-	struct trap_node *trap;
+	struct trap_yesde *trap;
 	struct hfi1_ibdev *verbs_dev = dev_from_rdi(rdi);
 	struct hfi1_devdata *dd = dd_from_dev(verbs_dev);
 	struct hfi1_ibport *ibp = &dd->pport[port_num - 1].ibport_data;
 	u32 lid = ppd_from_ibp(ibp)->lid;
 
-	trap = create_trap_node(IB_NOTICE_TYPE_INFO,
+	trap = create_trap_yesde(IB_NOTICE_TYPE_INFO,
 				OPA_TRAP_CHANGE_CAPABILITY,
 				lid);
 	if (!trap)
@@ -542,10 +542,10 @@ void hfi1_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num)
  */
 void hfi1_sys_guid_chg(struct hfi1_ibport *ibp)
 {
-	struct trap_node *trap;
+	struct trap_yesde *trap;
 	u32 lid = ppd_from_ibp(ibp)->lid;
 
-	trap = create_trap_node(IB_NOTICE_TYPE_INFO, OPA_TRAP_CHANGE_SYSGUID,
+	trap = create_trap_yesde(IB_NOTICE_TYPE_INFO, OPA_TRAP_CHANGE_SYSGUID,
 				lid);
 	if (!trap)
 		return;
@@ -560,12 +560,12 @@ void hfi1_sys_guid_chg(struct hfi1_ibport *ibp)
 /*
  * Send a Node Description Changed trap (ch. 14.3.13).
  */
-void hfi1_node_desc_chg(struct hfi1_ibport *ibp)
+void hfi1_yesde_desc_chg(struct hfi1_ibport *ibp)
 {
-	struct trap_node *trap;
+	struct trap_yesde *trap;
 	u32 lid = ppd_from_ibp(ibp)->lid;
 
-	trap = create_trap_node(IB_NOTICE_TYPE_INFO,
+	trap = create_trap_yesde(IB_NOTICE_TYPE_INFO,
 				OPA_TRAP_CHANGE_CAPABILITY,
 				lid);
 	if (!trap)
@@ -579,20 +579,20 @@ void hfi1_node_desc_chg(struct hfi1_ibport *ibp)
 	send_trap(ibp, trap);
 }
 
-static int __subn_get_opa_nodedesc(struct opa_smp *smp, u32 am,
+static int __subn_get_opa_yesdedesc(struct opa_smp *smp, u32 am,
 				   u8 *data, struct ib_device *ibdev,
 				   u8 port, u32 *resp_len, u32 max_len)
 {
-	struct opa_node_description *nd;
+	struct opa_yesde_description *nd;
 
 	if (am || smp_length_check(sizeof(*nd), max_len)) {
 		smp->status |= IB_SMP_INVALID_FIELD;
 		return reply((struct ib_mad_hdr *)smp);
 	}
 
-	nd = (struct opa_node_description *)data;
+	nd = (struct opa_yesde_description *)data;
 
-	memcpy(nd->data, ibdev->node_desc, sizeof(nd->data));
+	memcpy(nd->data, ibdev->yesde_desc, sizeof(nd->data));
 
 	if (resp_len)
 		*resp_len += sizeof(*nd);
@@ -600,18 +600,18 @@ static int __subn_get_opa_nodedesc(struct opa_smp *smp, u32 am,
 	return reply((struct ib_mad_hdr *)smp);
 }
 
-static int __subn_get_opa_nodeinfo(struct opa_smp *smp, u32 am, u8 *data,
+static int __subn_get_opa_yesdeinfo(struct opa_smp *smp, u32 am, u8 *data,
 				   struct ib_device *ibdev, u8 port,
 				   u32 *resp_len, u32 max_len)
 {
-	struct opa_node_info *ni;
+	struct opa_yesde_info *ni;
 	struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
 	unsigned pidx = port - 1; /* IB number port from 1, hw from 0 */
 
-	ni = (struct opa_node_info *)data;
+	ni = (struct opa_yesde_info *)data;
 
 	/* GUID 0 is illegal */
-	if (am || pidx >= dd->num_pports || ibdev->node_guid == 0 ||
+	if (am || pidx >= dd->num_pports || ibdev->yesde_guid == 0 ||
 	    smp_length_check(sizeof(*ni), max_len) ||
 	    get_sguid(to_iport(ibdev, port), HFI1_PORT_GUID_INDEX) == 0) {
 		smp->status |= IB_SMP_INVALID_FIELD;
@@ -621,11 +621,11 @@ static int __subn_get_opa_nodeinfo(struct opa_smp *smp, u32 am, u8 *data,
 	ni->port_guid = get_sguid(to_iport(ibdev, port), HFI1_PORT_GUID_INDEX);
 	ni->base_version = OPA_MGMT_BASE_VERSION;
 	ni->class_version = OPA_SM_CLASS_VERSION;
-	ni->node_type = 1;     /* channel adapter */
+	ni->yesde_type = 1;     /* channel adapter */
 	ni->num_ports = ibdev->phys_port_cnt;
 	/* This is already in network order */
 	ni->system_image_guid = ib_hfi1_sys_image_guid;
-	ni->node_guid = ibdev->node_guid;
+	ni->yesde_guid = ibdev->yesde_guid;
 	ni->partition_cap = cpu_to_be16(hfi1_get_npkeys(dd));
 	ni->device_id = cpu_to_be16(dd->pcidev->device);
 	ni->revision = cpu_to_be32(dd->minrev);
@@ -640,16 +640,16 @@ static int __subn_get_opa_nodeinfo(struct opa_smp *smp, u32 am, u8 *data,
 	return reply((struct ib_mad_hdr *)smp);
 }
 
-static int subn_get_nodeinfo(struct ib_smp *smp, struct ib_device *ibdev,
+static int subn_get_yesdeinfo(struct ib_smp *smp, struct ib_device *ibdev,
 			     u8 port)
 {
-	struct ib_node_info *nip = (struct ib_node_info *)&smp->data;
+	struct ib_yesde_info *nip = (struct ib_yesde_info *)&smp->data;
 	struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
 	unsigned pidx = port - 1; /* IB number port from 1, hw from 0 */
 
 	/* GUID 0 is illegal */
 	if (smp->attr_mod || pidx >= dd->num_pports ||
-	    ibdev->node_guid == 0 ||
+	    ibdev->yesde_guid == 0 ||
 	    get_sguid(to_iport(ibdev, port), HFI1_PORT_GUID_INDEX) == 0) {
 		smp->status |= IB_SMP_INVALID_FIELD;
 		return reply((struct ib_mad_hdr *)smp);
@@ -658,11 +658,11 @@ static int subn_get_nodeinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	nip->port_guid = get_sguid(to_iport(ibdev, port), HFI1_PORT_GUID_INDEX);
 	nip->base_version = OPA_MGMT_BASE_VERSION;
 	nip->class_version = OPA_SM_CLASS_VERSION;
-	nip->node_type = 1;     /* channel adapter */
+	nip->yesde_type = 1;     /* channel adapter */
 	nip->num_ports = ibdev->phys_port_cnt;
 	/* This is already in network order */
 	nip->sys_guid = ib_hfi1_sys_image_guid;
-	nip->node_guid = ibdev->node_guid;
+	nip->yesde_guid = ibdev->yesde_guid;
 	nip->partition_cap = cpu_to_be16(hfi1_get_npkeys(dd));
 	nip->device_id = cpu_to_be16(dd->pcidev->device);
 	nip->revision = cpu_to_be32(dd->minrev);
@@ -718,7 +718,7 @@ static int check_mkey(struct hfi1_ibport *ibp, struct ib_mad_hdr *mad,
 	if (!valid_mkey) {
 		switch (mad->method) {
 		case IB_MGMT_METHOD_GET:
-			/* Bad mkey not a violation below level 2 */
+			/* Bad mkey yest a violation below level 2 */
 			if (ibp->rvp.mkeyprot < 2)
 				break;
 			/* fall through */
@@ -730,7 +730,7 @@ static int check_mkey(struct hfi1_ibport *ibp, struct ib_mad_hdr *mad,
 			    ibp->rvp.mkey_lease_period)
 				ibp->rvp.mkey_lease_timeout = jiffies +
 					ibp->rvp.mkey_lease_period * HZ;
-			/* Generate a trap notice. */
+			/* Generate a trap yestice. */
 			bad_mkey(ibp, mad, mkey, dr_slid, return_path,
 				 hop_cnt);
 			ret = 1;
@@ -866,7 +866,7 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 
 	pi->port_phys_conf = (ppd->port_type & 0xf);
 
-	pi->port_states.ledenable_offlinereason = ppd->neighbor_normal << 4;
+	pi->port_states.ledenable_offlinereason = ppd->neighbor_yesrmal << 4;
 	pi->port_states.ledenable_offlinereason |=
 		ppd->is_sm_config_started << 5;
 	/*
@@ -961,7 +961,7 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	/* buffer info for FM */
 	pi->overall_buffer_space = cpu_to_be16(dd->link_credits);
 
-	pi->neigh_node_guid = cpu_to_be64(ppd->neighbor_guid);
+	pi->neigh_yesde_guid = cpu_to_be64(ppd->neighbor_guid);
 	pi->neigh_port_num = ppd->neighbor_port_number;
 	pi->port_neigh_mode =
 		(ppd->neighbor_type & OPA_PI_MASK_NEIGH_NODE_TYPE) |
@@ -1224,7 +1224,7 @@ static int port_states_transition_allowed(struct hfi1_pportdata *ppd,
 
 	/*
 	 * A change request of Physical Port State from
-	 * 'Offline' to 'Polling' should be ignored.
+	 * 'Offline' to 'Polling' should be igyesred.
 	 */
 	if ((physical_old == OPA_PORTPHYSSTATE_OFFLINE) &&
 	    (physical_new == IB_PORTPHYSSTATE_POLLING))
@@ -1295,7 +1295,7 @@ static int set_port_states(struct hfi1_pportdata *ppd, struct opa_smp *smp,
 			 * Going to poll.  No matter what the current state,
 			 * always move offline first, then tune and start the
 			 * link.  This correctly handles a FM link bounce and
-			 * a link enable.  Going offline is a no-op if already
+			 * a link enable.  Going offline is a yes-op if already
 			 * offline.
 			 */
 			set_link_state(ppd, HLS_DN_OFFLINE);
@@ -1323,12 +1323,12 @@ static int set_port_states(struct hfi1_pportdata *ppd, struct opa_smp *smp,
 			send_idle_sma(dd, SMA_IDLE_ARM);
 		break;
 	case IB_PORT_ACTIVE:
-		if (ppd->neighbor_normal) {
+		if (ppd->neighbor_yesrmal) {
 			ret = set_link_state(ppd, HLS_UP_ACTIVE);
 			if (ret == 0)
 				send_idle_sma(dd, SMA_IDLE_ACTIVE);
 		} else {
-			pr_warn("SubnSet(OPA_PortInfo) Cannot move to Active with NeighborNormal 0\n");
+			pr_warn("SubnSet(OPA_PortInfo) Canyest move to Active with NeighborNormal 0\n");
 			smp->status |= IB_SMP_INVALID_FIELD;
 		}
 		break;
@@ -1627,7 +1627,7 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	}
 
 	/*
-	 * Do the port state change now that the other link parameters
+	 * Do the port state change yesw that the other link parameters
 	 * have been set.
 	 * Changing the port physical state only makes sense if the link
 	 * is down or is being set to down.
@@ -1649,7 +1649,7 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	 * Apply the new link downgrade policy.  This may result in a link
 	 * bounce.  Do this after everything else so things are settled.
 	 * Possible problem: if setting the port state above fails, then
-	 * the policy change is not applied.
+	 * the policy change is yest applied.
 	 */
 	if (call_link_downgrade_policy)
 		apply_link_downgrade_policy(ppd, 0);
@@ -1676,13 +1676,13 @@ static int set_pkeys(struct hfi1_devdata *dd, u8 port, u16 *pkeys)
 
 	/*
 	 * IB port one/two always maps to context zero/one,
-	 * always a kernel context, no locking needed
-	 * If we get here with ppd setup, no need to check
+	 * always a kernel context, yes locking needed
+	 * If we get here with ppd setup, yes need to check
 	 * that rcd is valid.
 	 */
 	ppd = dd->pport + (port - 1);
 	/*
-	 * If the update does not include the management pkey, don't do it.
+	 * If the update does yest include the management pkey, don't do it.
 	 */
 	for (i = 0; i < ARRAY_SIZE(ppd->pkeys); i++) {
 		if (pkeys[i] == LIM_MGMT_P_KEY) {
@@ -1955,7 +1955,7 @@ static int __subn_set_opa_sc_to_vlt(struct opa_smp *smp, u32 am, u8 *data,
 	/*
 	 * set_sc2vlt_tables writes the information contained in *data
 	 * to four 64-bit registers SendSC2VLt[0-3]. We need to make
-	 * sure *max_len is not greater than the total size of the four
+	 * sure *max_len is yest greater than the total size of the four
 	 * SendSC2VLt[0-3] registers.
 	 */
 	size_t size = 4 * sizeof(u64);
@@ -1969,7 +1969,7 @@ static int __subn_set_opa_sc_to_vlt(struct opa_smp *smp, u32 am, u8 *data,
 	ppd = dd->pport + (port - 1);
 	lstate = driver_lstate(ppd);
 	/*
-	 * it's known that async_update is 0 by this point, but include
+	 * it's kyeswn that async_update is 0 by this point, but include
 	 * the explicit check for clarity
 	 */
 	if (!async_update &&
@@ -2065,7 +2065,7 @@ static int __subn_get_opa_psi(struct opa_smp *smp, u32 am, u8 *data,
 	if (start_of_sm_config && (lstate == IB_PORT_INIT))
 		ppd->is_sm_config_started = 1;
 
-	psi->port_states.ledenable_offlinereason = ppd->neighbor_normal << 4;
+	psi->port_states.ledenable_offlinereason = ppd->neighbor_yesrmal << 4;
 	psi->port_states.ledenable_offlinereason |=
 		ppd->is_sm_config_started << 5;
 	psi->port_states.ledenable_offlinereason |=
@@ -2835,7 +2835,7 @@ static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 
 	vlinfo = &rsp->vls[0];
 	vfi = 0;
-	/* The vl_select_mask has been checked above, and we know
+	/* The vl_select_mask has been checked above, and we kyesw
 	 * that it contains only entries which represent valid VLs.
 	 * So in the for_each_set_bit() loop below, we don't need
 	 * any additional checks for vl.
@@ -3062,7 +3062,7 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 
 	vlinfo = &rsp->vls[0];
 	vfi = 0;
-	/* The vl_select_mask has been checked above, and we know
+	/* The vl_select_mask has been checked above, and we kyesw
 	 * that it contains only entries which represent valid VLs.
 	 * So in the for_each_set_bit() loop below, we don't need
 	 * any additional checks for vl.
@@ -3515,7 +3515,7 @@ static int pma_set_opa_portstatus(struct opa_pma_mad *pmp,
 		ppd->port_vl_xmit_wait_last[C_VL_COUNT] = 0;
 		ppd->vl_xmit_flit_cnt[C_VL_COUNT] = 0;
 	}
-	/* ignore cs_sw_portCongestion for HFIs */
+	/* igyesre cs_sw_portCongestion for HFIs */
 
 	if (counter_select & CS_PORT_RCV_FECN)
 		write_dev_cntr(dd, C_DC_RCV_FCN, CNTR_INVALID_VL, 0);
@@ -3523,9 +3523,9 @@ static int pma_set_opa_portstatus(struct opa_pma_mad *pmp,
 	if (counter_select & CS_PORT_RCV_BECN)
 		write_dev_cntr(dd, C_DC_RCV_BCN, CNTR_INVALID_VL, 0);
 
-	/* ignore cs_port_xmit_time_cong for HFIs */
-	/* ignore cs_port_xmit_wasted_bw for now */
-	/* ignore cs_port_xmit_wait_data for now */
+	/* igyesre cs_port_xmit_time_cong for HFIs */
+	/* igyesre cs_port_xmit_wasted_bw for yesw */
+	/* igyesre cs_port_xmit_wait_data for yesw */
 	if (counter_select & CS_PORT_RCV_BUBBLE)
 		write_dev_cntr(dd, C_DC_RCV_BBL, CNTR_INVALID_VL, 0);
 
@@ -3537,7 +3537,7 @@ static int pma_set_opa_portstatus(struct opa_pma_mad *pmp,
 	if (counter_select & CS_PORT_RCV_CONSTRAINT_ERRORS)
 		write_port_cntr(ppd, C_SW_RCV_CSTR_ERR, CNTR_INVALID_VL, 0);
 
-	/* ignore cs_port_rcv_switch_relay_errors for HFIs */
+	/* igyesre cs_port_rcv_switch_relay_errors for HFIs */
 	if (counter_select & CS_PORT_XMIT_DISCARDS)
 		write_port_cntr(ppd, C_SW_XMIT_DSCD, CNTR_INVALID_VL, 0);
 
@@ -3852,7 +3852,7 @@ static int __subn_set_opa_cong_setting(struct opa_smp *smp, u32 am, u8 *data,
 	}
 	spin_unlock(&ppd->cc_state_lock);
 
-	/* now apply the information */
+	/* yesw apply the information */
 	apply_cc_state(ppd);
 
 	return __subn_get_opa_cong_setting(smp, am, data, ibdev, port,
@@ -3964,7 +3964,7 @@ static int __subn_get_opa_cc_table(struct opa_smp *smp, u32 am, u8 *data,
 
 	entries = cc_state->cct.entries;
 
-	/* return n_blocks, though the last block may not be full */
+	/* return n_blocks, though the last block may yest be full */
 	for (j = 0, i = sentry; i < eentry; j++, i++)
 		cc_table_attr->ccti_entries[j].entry =
 			cpu_to_be16(entries[i].entry);
@@ -4021,7 +4021,7 @@ static int __subn_set_opa_cc_table(struct opa_smp *smp, u32 am, u8 *data,
 		entries[i].entry = be16_to_cpu(p->ccti_entries[j].entry);
 	spin_unlock(&ppd->cc_state_lock);
 
-	/* now apply the information */
+	/* yesw apply the information */
 	apply_cc_state(ppd);
 
 	return __subn_get_opa_cc_table(smp, am, data, ibdev, port, resp_len,
@@ -4098,11 +4098,11 @@ static int subn_get_opa_sma(__be16 attr_id, struct opa_smp *smp, u32 am,
 
 	switch (attr_id) {
 	case IB_SMP_ATTR_NODE_DESC:
-		ret = __subn_get_opa_nodedesc(smp, am, data, ibdev, port,
+		ret = __subn_get_opa_yesdedesc(smp, am, data, ibdev, port,
 					      resp_len, max_len);
 		break;
 	case IB_SMP_ATTR_NODE_INFO:
-		ret = __subn_get_opa_nodeinfo(smp, am, data, ibdev, port,
+		ret = __subn_get_opa_yesdeinfo(smp, am, data, ibdev, port,
 					      resp_len, max_len);
 		break;
 	case IB_SMP_ATTR_PORT_INFO:
@@ -4391,7 +4391,7 @@ static int is_full_mgmt_pkey_in_table(struct hfi1_ibport *ibp)
 
 /*
  * is_local_mad() returns 1 if 'mad' is sent from, and destined to the
- * local node, 0 otherwise.
+ * local yesde, 0 otherwise.
  */
 static int is_local_mad(struct hfi1_ibport *ibp, const struct opa_mad *mad,
 			const struct ib_wc *in_wc)
@@ -4411,11 +4411,11 @@ static int is_local_mad(struct hfi1_ibport *ibp, const struct opa_mad *mad,
 /*
  * opa_local_smp_check() should only be called on MADs for which
  * is_local_mad() returns true. It applies the SMP checks that are
- * specific to SMPs which are sent from, and destined to this node.
+ * specific to SMPs which are sent from, and destined to this yesde.
  * opa_local_smp_check() returns 0 if the SMP passes its checks, 1
  * otherwise.
  *
- * SMPs which arrive from other nodes are instead checked by
+ * SMPs which arrive from other yesdes are instead checked by
  * opa_smp_check().
  */
 static int opa_local_smp_check(struct hfi1_ibport *ibp,
@@ -4429,7 +4429,7 @@ static int opa_local_smp_check(struct hfi1_ibport *ibp,
 
 	pkey = ppd->pkeys[in_wc->pkey_index];
 	/*
-	 * We need to do the "node-local" checks specified in OPAv1,
+	 * We need to do the "yesde-local" checks specified in OPAv1,
 	 * rev 0.90, section 9.10.26, which are:
 	 *   - pkey is 0x7fff, or 0xffff
 	 *   - Source QPN == 0 || Destination QPN == 0
@@ -4438,7 +4438,7 @@ static int opa_local_smp_check(struct hfi1_ibport *ibp,
 	 *     IB_MGMT_CLASS_SUBN_LID_ROUTED
 	 *   - SLID != 0
 	 *
-	 * However, we know (and so don't need to check again) that,
+	 * However, we kyesw (and so don't need to check again) that,
 	 * for local SMPs, the MAD stack passes MADs with:
 	 *   - Source QPN of 0
 	 *   - MAD mgmt_class is IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE
@@ -4460,30 +4460,30 @@ static int opa_local_smp_check(struct hfi1_ibport *ibp,
  *
  * These are all the possible logic rules for validating a pkey:
  *
- * a) If pkey neither FULL_MGMT_P_KEY nor LIM_MGMT_P_KEY,
+ * a) If pkey neither FULL_MGMT_P_KEY yesr LIM_MGMT_P_KEY,
  *    and NOT self-originated packet:
  *     Drop MAD packet as it should always be part of the
  *     management partition unless it's a self-originated packet.
  *
  * b) If pkey_index -> FULL_MGMT_P_KEY, and LIM_MGMT_P_KEY in pkey table:
- *     The packet is coming from a management node and the receiving node
- *     is also a management node, so it is safe for the packet to go through.
+ *     The packet is coming from a management yesde and the receiving yesde
+ *     is also a management yesde, so it is safe for the packet to go through.
  *
  * c) If pkey_index -> FULL_MGMT_P_KEY, and LIM_MGMT_P_KEY is NOT in pkey table:
  *     Drop the packet as LIM_MGMT_P_KEY should always be in the pkey table.
  *     It could be an FM misconfiguration.
  *
  * d) If pkey_index -> LIM_MGMT_P_KEY and FULL_MGMT_P_KEY is NOT in pkey table:
- *     It is safe for the packet to go through since a non-management node is
- *     talking to another non-management node.
+ *     It is safe for the packet to go through since a yesn-management yesde is
+ *     talking to ayesther yesn-management yesde.
  *
  * e) If pkey_index -> LIM_MGMT_P_KEY and FULL_MGMT_P_KEY in pkey table:
- *     Drop the packet because a non-management node is talking to a
- *     management node, and it could be an attack.
+ *     Drop the packet because a yesn-management yesde is talking to a
+ *     management yesde, and it could be an attack.
  *
  * For the implementation, these rules can be simplied to only checking
- * for (a) and (e). There's no need to check for rule (b) as
- * the packet doesn't need to be dropped. Rule (c) is not possible in
+ * for (a) and (e). There's yes need to check for rule (b) as
+ * the packet doesn't need to be dropped. Rule (c) is yest possible in
  * the driver as LIM_MGMT_P_KEY is always in the pkey table.
  *
  * Return:
@@ -4540,7 +4540,7 @@ static int process_subn_opa(struct ib_device *ibdev, int mad_flags,
 
 		/*
 		 * If this is a get/set portinfo, we already check the
-		 * M_Key if the MAD is for another port and the M_Key
+		 * M_Key if the MAD is for ayesther port and the M_Key
 		 * is OK on the receiving port. This check is needed
 		 * to increment the error counters when the M_Key
 		 * fails to match on *both* ports.
@@ -4596,7 +4596,7 @@ static int process_subn_opa(struct ib_device *ibdev, int mad_flags,
 		/*
 		 * The ib_mad module will call us to process responses
 		 * before checking for other consumers.
-		 * Just tell the caller to process it normally.
+		 * Just tell the caller to process it yesrmally.
 		 */
 		ret = IB_MAD_RESULT_SUCCESS;
 		break;
@@ -4637,7 +4637,7 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 
 		/*
 		 * If this is a get/set portinfo, we already check the
-		 * M_Key if the MAD is for another port and the M_Key
+		 * M_Key if the MAD is for ayesther port and the M_Key
 		 * is OK on the receiving port. This check is needed
 		 * to increment the error counters when the M_Key
 		 * fails to match on *both* ports.
@@ -4660,7 +4660,7 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 	case IB_MGMT_METHOD_GET:
 		switch (smp->attr_id) {
 		case IB_SMP_ATTR_NODE_INFO:
-			ret = subn_get_nodeinfo(smp, ibdev, port);
+			ret = subn_get_yesdeinfo(smp, ibdev, port);
 			break;
 		default:
 			smp->status |= IB_SMP_UNSUP_METH_ATTR;
@@ -4721,7 +4721,7 @@ static int process_perf(struct ib_device *ibdev, u8 port,
 		/*
 		 * The ib_mad module will call us to process responses
 		 * before checking for other consumers.
-		 * Just tell the caller to process it normally.
+		 * Just tell the caller to process it yesrmally.
 		 */
 		ret = IB_MAD_RESULT_SUCCESS;
 		break;
@@ -4802,7 +4802,7 @@ static int process_perf_opa(struct ib_device *ibdev, u8 port,
 		/*
 		 * The ib_mad module will call us to process responses
 		 * before checking for other consumers.
-		 * Just tell the caller to process it normally.
+		 * Just tell the caller to process it yesrmally.
 		 */
 		ret = IB_MAD_RESULT_SUCCESS;
 		break;
@@ -4904,7 +4904,7 @@ static int hfi1_process_ib_mad(struct ib_device *ibdev, int mad_flags, u8 port,
  * @in_mad: the incoming MAD
  * @out_mad: any outgoing MAD reply
  *
- * Returns IB_MAD_RESULT_SUCCESS if this is a MAD that we are not
+ * Returns IB_MAD_RESULT_SUCCESS if this is a MAD that we are yest
  * interested in processing.
  *
  * Note that the verbs framework has already done the MAD sanity checks,

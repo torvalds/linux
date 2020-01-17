@@ -8,7 +8,7 @@
 #ifndef __ASSEMBLY__
 
 /* Trap handling code needs to get at a few critical values upon
- * trap entry and to process TSB misses.  These cannot be in the
+ * trap entry and to process TSB misses.  These canyest be in the
  * per_cpu() area as we really need to lock them into the TLB and
  * thus make them part of the main kernel image.  As a result we
  * try to make this as small as possible.
@@ -31,8 +31,8 @@ struct trap_per_cpu {
 /* D-cache line 2: Error Mondo Queue and kernel buffer pointers */
 	unsigned long		resum_mondo_pa;
 	unsigned long		resum_kernel_buf_pa;
-	unsigned long		nonresum_mondo_pa;
-	unsigned long		nonresum_kernel_buf_pa;
+	unsigned long		yesnresum_mondo_pa;
+	unsigned long		yesnresum_kernel_buf_pa;
 
 /* Dcache lines 3, 4, 5, and 6: Hypervisor Fault Status */
 	struct hv_fault_status	fault_info;
@@ -48,7 +48,7 @@ struct trap_per_cpu {
 	unsigned int		cpu_mondo_qmask;
 	unsigned int		dev_mondo_qmask;
 	unsigned int		resum_qmask;
-	unsigned int		nonresum_qmask;
+	unsigned int		yesnresum_qmask;
 	unsigned long		__per_cpu_base;
 } __attribute__((aligned(64)));
 extern struct trap_per_cpu trap_block[NR_CPUS];
@@ -120,7 +120,7 @@ extern struct sun4v_2insn_patch_entry __sun_m7_2insn_patch,
 661:	ldxa		[%g0] ASI_UPA_CONFIG, REG;	\
 	srlx		REG, 17, REG;			\
 	 and		REG, 0x1f, REG;			\
-	nop;						\
+	yesp;						\
 	.section	.cpuid_patch, "ax";		\
 	/* Instruction location. */			\
 	.word		661b;				\
@@ -128,12 +128,12 @@ extern struct sun4v_2insn_patch_entry __sun_m7_2insn_patch,
 	ldxa		[%g0] ASI_SAFARI_CONFIG, REG;	\
 	srlx		REG, 17, REG;			\
 	and		REG, 0x3ff, REG;		\
-	nop;						\
+	yesp;						\
 	/* Cheetah JBUS implementation. */		\
 	ldxa		[%g0] ASI_JBUS_CONFIG, REG;	\
 	srlx		REG, 17, REG;			\
 	and		REG, 0x1f, REG;			\
-	nop;						\
+	yesp;						\
 	/* Starfire implementation. */			\
 	sethi		%hi(0x1fff40000d0 >> 9), REG;	\
 	sllx		REG, 9, REG;			\
@@ -142,8 +142,8 @@ extern struct sun4v_2insn_patch_entry __sun_m7_2insn_patch,
 	/* sun4v implementation. */			\
 	mov		SCRATCHPAD_CPUID, REG;		\
 	ldxa		[REG] ASI_SCRATCHPAD, REG;	\
-	nop;						\
-	nop;						\
+	yesp;						\
+	yesp;						\
 	.previous;
 
 #ifdef CONFIG_SMP
@@ -174,7 +174,7 @@ extern struct sun4v_2insn_patch_entry __sun_m7_2insn_patch,
  * area base of the current processor into DEST.  REG1, REG2, and REG3 are
  * clobbered.
  *
- * You absolutely cannot use DEST as a temporary in this code.  The
+ * You absolutely canyest use DEST as a temporary in this code.  The
  * reason is that traps can happen during execution, and return from
  * trap will load the fully resolved DEST per-cpu base.  This can corrupt
  * the calculations done by the macro mid-stream.
@@ -193,7 +193,7 @@ extern struct sun4v_2insn_patch_entry __sun_m7_2insn_patch,
 	sethi	%hi(trap_block), DEST;		\
 	or	DEST, %lo(trap_block), DEST;	\
 
-/* Uniprocessor versions, we know the cpuid is zero.  */
+/* Uniprocessor versions, we kyesw the cpuid is zero.  */
 #define TRAP_LOAD_PGD_PHYS(DEST, TMP)		\
 	TRAP_LOAD_TRAP_BLOCK(DEST, TMP)		\
 	ldx	[DEST + TRAP_PER_CPU_PGD_PADDR], DEST;
@@ -207,7 +207,7 @@ extern struct sun4v_2insn_patch_entry __sun_m7_2insn_patch,
 	TRAP_LOAD_TRAP_BLOCK(DEST, TMP)		\
 	ldx	[DEST + TRAP_PER_CPU_THREAD], DEST;
 
-/* No per-cpu areas on uniprocessor, so no need to load DEST.  */
+/* No per-cpu areas on uniprocessor, so yes need to load DEST.  */
 #define LOAD_PER_CPU_BASE(DEST, THR, REG1, REG2, REG3)
 
 #endif /* !(CONFIG_SMP) */

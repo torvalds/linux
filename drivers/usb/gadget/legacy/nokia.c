@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * nokia.c -- Nokia Composite Gadget Driver
+ * yeskia.c -- Nokia Composite Gadget Driver
  *
  * Copyright (C) 2008-2010 Nokia Corporation
- * Contact: Felipe Balbi <felipe.balbi@nokia.com>
+ * Contact: Felipe Balbi <felipe.balbi@yeskia.com>
  *
  * This gadget driver borrows from serial.c which is:
  *
@@ -46,13 +46,13 @@ static unsigned int fsg_num_buffers = CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS;
 
 /*
  * Number of buffers we will use.
- * 2 is usually enough for good buffering pipeline
+ * 2 is usually eyesugh for good buffering pipeline
  */
 #define fsg_num_buffers	CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS
 
 #endif /* CONFIG_USB_DEBUG */
 
-FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
+FSG_MODULE_PARAMETERS(/* yes prefix */, fsg_mod_data);
 
 #define NOKIA_VENDOR_ID			0x0421	/* Nokia */
 #define NOKIA_PRODUCT_ID		0x01c8	/* Nokia Gadget */
@@ -61,15 +61,15 @@ FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
 
 #define STRING_DESCRIPTION_IDX		USB_GADGET_FIRST_AVAIL_IDX
 
-static char manufacturer_nokia[] = "Nokia";
-static const char product_nokia[] = NOKIA_LONG_NAME;
-static const char description_nokia[] = "PC-Suite Configuration";
+static char manufacturer_yeskia[] = "Nokia";
+static const char product_yeskia[] = NOKIA_LONG_NAME;
+static const char description_yeskia[] = "PC-Suite Configuration";
 
 static struct usb_string strings_dev[] = {
-	[USB_GADGET_MANUFACTURER_IDX].s = manufacturer_nokia,
+	[USB_GADGET_MANUFACTURER_IDX].s = manufacturer_yeskia,
 	[USB_GADGET_PRODUCT_IDX].s = NOKIA_LONG_NAME,
 	[USB_GADGET_SERIAL_IDX].s = "",
-	[STRING_DESCRIPTION_IDX].s = description_nokia,
+	[STRING_DESCRIPTION_IDX].s = description_yeskia,
 	{  } /* end of list */
 };
 
@@ -118,7 +118,7 @@ static struct usb_function *f_msg_cfg1;
 static struct usb_function *f_msg_cfg2;
 
 
-static struct usb_configuration nokia_config_500ma_driver = {
+static struct usb_configuration yeskia_config_500ma_driver = {
 	.label		= "Bus Powered",
 	.bConfigurationValue = 1,
 	/* .iConfiguration = DYNAMIC */
@@ -126,7 +126,7 @@ static struct usb_configuration nokia_config_500ma_driver = {
 	.MaxPower	= 500,
 };
 
-static struct usb_configuration nokia_config_100ma_driver = {
+static struct usb_configuration yeskia_config_100ma_driver = {
 	.label		= "Self Powered",
 	.bConfigurationValue = 2,
 	/* .iConfiguration = DYNAMIC */
@@ -141,7 +141,7 @@ static struct usb_function_instance *fi_obex2;
 static struct usb_function_instance *fi_phonet;
 static struct usb_function_instance *fi_msg;
 
-static int nokia_bind_config(struct usb_configuration *c)
+static int yeskia_bind_config(struct usb_configuration *c)
 {
 	struct usb_function *f_acm;
 	struct usb_function *f_phonet = NULL;
@@ -157,19 +157,19 @@ static int nokia_bind_config(struct usb_configuration *c)
 	if (!IS_ERR(fi_phonet)) {
 		f_phonet = usb_get_function(fi_phonet);
 		if (IS_ERR(f_phonet))
-			pr_debug("could not get phonet function\n");
+			pr_debug("could yest get phonet function\n");
 	}
 
 	if (!IS_ERR(fi_obex1)) {
 		f_obex1 = usb_get_function(fi_obex1);
 		if (IS_ERR(f_obex1))
-			pr_debug("could not get obex function 0\n");
+			pr_debug("could yest get obex function 0\n");
 	}
 
 	if (!IS_ERR(fi_obex2)) {
 		f_obex2 = usb_get_function(fi_obex2);
 		if (IS_ERR(f_obex2))
-			pr_debug("could not get obex function 1\n");
+			pr_debug("could yest get obex function 1\n");
 	}
 
 	f_acm = usb_get_function(fi_acm);
@@ -193,19 +193,19 @@ static int nokia_bind_config(struct usb_configuration *c)
 	if (!IS_ERR_OR_NULL(f_phonet)) {
 		phonet_stat = usb_add_function(c, f_phonet);
 		if (phonet_stat)
-			pr_debug("could not add phonet function\n");
+			pr_debug("could yest add phonet function\n");
 	}
 
 	if (!IS_ERR_OR_NULL(f_obex1)) {
 		obex1_stat = usb_add_function(c, f_obex1);
 		if (obex1_stat)
-			pr_debug("could not add obex function 0\n");
+			pr_debug("could yest add obex function 0\n");
 	}
 
 	if (!IS_ERR_OR_NULL(f_obex2)) {
 		obex2_stat = usb_add_function(c, f_obex2);
 		if (obex2_stat)
-			pr_debug("could not add obex function 1\n");
+			pr_debug("could yest add obex function 1\n");
 	}
 
 	status = usb_add_function(c, f_acm);
@@ -214,7 +214,7 @@ static int nokia_bind_config(struct usb_configuration *c)
 
 	status = usb_add_function(c, f_ecm);
 	if (status) {
-		pr_debug("could not bind ecm config %d\n", status);
+		pr_debug("could yest bind ecm config %d\n", status);
 		goto err_ecm;
 	}
 
@@ -222,7 +222,7 @@ static int nokia_bind_config(struct usb_configuration *c)
 	if (status)
 		goto err_msg;
 
-	if (c == &nokia_config_500ma_driver) {
+	if (c == &yeskia_config_500ma_driver) {
 		f_acm_cfg1 = f_acm;
 		f_ecm_cfg1 = f_ecm;
 		f_phonet_cfg1 = f_phonet;
@@ -265,7 +265,7 @@ err_get_acm:
 	return status;
 }
 
-static int nokia_bind(struct usb_composite_dev *cdev)
+static int yeskia_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget	*gadget = cdev->gadget;
 	struct fsg_opts		*fsg_opts;
@@ -278,8 +278,8 @@ static int nokia_bind(struct usb_composite_dev *cdev)
 	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
 	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 	status = strings_dev[STRING_DESCRIPTION_IDX].id;
-	nokia_config_500ma_driver.iConfiguration = status;
-	nokia_config_100ma_driver.iConfiguration = status;
+	yeskia_config_500ma_driver.iConfiguration = status;
+	yeskia_config_100ma_driver.iConfiguration = status;
 
 	if (!gadget_is_altset_supported(gadget)) {
 		status = -ENODEV;
@@ -288,15 +288,15 @@ static int nokia_bind(struct usb_composite_dev *cdev)
 
 	fi_phonet = usb_get_function_instance("phonet");
 	if (IS_ERR(fi_phonet))
-		pr_debug("could not find phonet function\n");
+		pr_debug("could yest find phonet function\n");
 
 	fi_obex1 = usb_get_function_instance("obex");
 	if (IS_ERR(fi_obex1))
-		pr_debug("could not find obex function 1\n");
+		pr_debug("could yest find obex function 1\n");
 
 	fi_obex2 = usb_get_function_instance("obex");
 	if (IS_ERR(fi_obex2))
-		pr_debug("could not find obex function 2\n");
+		pr_debug("could yest find obex function 2\n");
 
 	fi_acm = usb_get_function_instance("acm");
 	if (IS_ERR(fi_acm)) {
@@ -322,7 +322,7 @@ static int nokia_bind(struct usb_composite_dev *cdev)
 	fsg_config.product_name = "N900";
 
 	fsg_opts = fsg_opts_from_func_inst(fi_msg);
-	fsg_opts->no_configfs = true;
+	fsg_opts->yes_configfs = true;
 
 	status = fsg_common_set_num_buffers(fsg_opts->common, fsg_num_buffers);
 	if (status)
@@ -342,13 +342,13 @@ static int nokia_bind(struct usb_composite_dev *cdev)
 				      fsg_config.product_name);
 
 	/* finally register the configuration */
-	status = usb_add_config(cdev, &nokia_config_500ma_driver,
-			nokia_bind_config);
+	status = usb_add_config(cdev, &yeskia_config_500ma_driver,
+			yeskia_bind_config);
 	if (status < 0)
 		goto err_msg_luns;
 
-	status = usb_add_config(cdev, &nokia_config_100ma_driver,
-			nokia_bind_config);
+	status = usb_add_config(cdev, &yeskia_config_100ma_driver,
+			yeskia_bind_config);
 	if (status < 0)
 		goto err_put_cfg1;
 
@@ -387,7 +387,7 @@ err_usb:
 	return status;
 }
 
-static int nokia_unbind(struct usb_composite_dev *cdev)
+static int yeskia_unbind(struct usb_composite_dev *cdev)
 {
 	if (!IS_ERR_OR_NULL(f_obex1_cfg2))
 		usb_put_function(f_obex1_cfg2);
@@ -421,13 +421,13 @@ static int nokia_unbind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-static struct usb_composite_driver nokia_driver = {
-	.name		= "g_nokia",
+static struct usb_composite_driver yeskia_driver = {
+	.name		= "g_yeskia",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
-	.bind		= nokia_bind,
-	.unbind		= nokia_unbind,
+	.bind		= yeskia_bind,
+	.unbind		= yeskia_unbind,
 };
 
-module_usb_composite_driver(nokia_driver);
+module_usb_composite_driver(yeskia_driver);

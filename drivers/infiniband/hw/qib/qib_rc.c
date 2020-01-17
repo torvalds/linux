@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -86,7 +86,7 @@ static int qib_make_rc_ack(struct qib_ibdev *dev, struct rvt_qp *qp,
 		/* FALLTHROUGH */
 	case OP(ATOMIC_ACKNOWLEDGE):
 		/*
-		 * We can increment the tail pointer now that the last
+		 * We can increment the tail pointer yesw that the last
 		 * response has been sent instead of only being
 		 * constructed.
 		 */
@@ -95,10 +95,10 @@ static int qib_make_rc_ack(struct qib_ibdev *dev, struct rvt_qp *qp,
 		/* FALLTHROUGH */
 	case OP(SEND_ONLY):
 	case OP(ACKNOWLEDGE):
-		/* Check for no next entry in the queue. */
+		/* Check for yes next entry in the queue. */
 		if (qp->r_head_ack_queue == qp->s_tail_ack_queue) {
 			if (qp->s_flags & RVT_S_ACK_PENDING)
-				goto normal;
+				goto yesrmal;
 			goto bail;
 		}
 
@@ -170,7 +170,7 @@ static int qib_make_rc_ack(struct qib_ibdev *dev, struct rvt_qp *qp,
 		break;
 
 	default:
-normal:
+yesrmal:
 		/*
 		 * Send a regular ACK.
 		 * Set the s_ack_state so we wait until after sending
@@ -302,7 +302,7 @@ int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags)
 			qp->s_psn = wqe->psn;
 		}
 		/*
-		 * Note that we have to be careful not to modify the
+		 * Note that we have to be careful yest to modify the
 		 * original work request since we may need to resend
 		 * it.
 		 */
@@ -312,7 +312,7 @@ int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags)
 		switch (wqe->wr.opcode) {
 		case IB_WR_SEND:
 		case IB_WR_SEND_WITH_IMM:
-			/* If no credit, return. */
+			/* If yes credit, return. */
 			if (!rvt_rc_credit_avail(qp, wqe))
 				goto bail;
 			if (len > pmtu) {
@@ -338,12 +338,12 @@ int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags)
 		case IB_WR_RDMA_WRITE:
 			if (newreq && !(qp->s_flags & RVT_S_UNLIMITED_CREDIT))
 				qp->s_lsn++;
-			goto no_flow_control;
+			goto yes_flow_control;
 		case IB_WR_RDMA_WRITE_WITH_IMM:
-			/* If no credit, return. */
+			/* If yes credit, return. */
 			if (!rvt_rc_credit_avail(qp, wqe))
 				goto bail;
-no_flow_control:
+yes_flow_control:
 			ohdr->u.rc.reth.vaddr =
 				cpu_to_be64(wqe->rdma_wr.remote_addr);
 			ohdr->u.rc.reth.rkey =
@@ -462,7 +462,7 @@ no_flow_control:
 
 	case OP(RDMA_READ_RESPONSE_FIRST):
 		/*
-		 * qp->s_state is normally set to the opcode of the
+		 * qp->s_state is yesrmally set to the opcode of the
 		 * last packet constructed for new requests and therefore
 		 * is never set to RDMA read response.
 		 * RDMA_READ_RESPONSE_FIRST is used by the ACK processing
@@ -501,7 +501,7 @@ no_flow_control:
 
 	case OP(RDMA_READ_RESPONSE_LAST):
 		/*
-		 * qp->s_state is normally set to the opcode of the
+		 * qp->s_state is yesrmally set to the opcode of the
 		 * last packet constructed for new requests and therefore
 		 * is never set to RDMA read response.
 		 * RDMA_READ_RESPONSE_LAST is used by the ACK processing
@@ -540,7 +540,7 @@ no_flow_control:
 
 	case OP(RDMA_READ_RESPONSE_MIDDLE):
 		/*
-		 * qp->s_state is normally set to the opcode of the
+		 * qp->s_state is yesrmally set to the opcode of the
 		 * last packet constructed for new requests and therefore
 		 * is never set to RDMA read response.
 		 * RDMA_READ_RESPONSE_MIDDLE is used by the ACK processing
@@ -742,7 +742,7 @@ static void reset_psn(struct rvt_qp *qp, u32 psn)
 
 	/*
 	 * If we are starting the request from the beginning,
-	 * let the normal send code handle initialization.
+	 * let the yesrmal send code handle initialization.
 	 */
 	if (qib_cmp24(psn, wqe->psn) <= 0) {
 		qp->s_state = OP(SEND_LAST);
@@ -765,7 +765,7 @@ static void reset_psn(struct rvt_qp *qp, u32 psn)
 		qp->s_cur = n;
 		/*
 		 * If we are starting the request from the beginning,
-		 * let the normal send code handle initialization.
+		 * let the yesrmal send code handle initialization.
 		 */
 		if (diff == 0) {
 			qp->s_state = OP(SEND_LAST);
@@ -805,7 +805,7 @@ done:
 	qp->s_psn = psn;
 	/*
 	 * Set RVT_S_WAIT_PSN as qib_rc_complete() may start the timer
-	 * asynchronously before the send tasklet can get scheduled.
+	 * asynchroyesusly before the send tasklet can get scheduled.
 	 * Doing it in qib_make_rc_req() is too late.
 	 */
 	if ((qib_cmp24(qp->s_psn, qp->s_sending_hpsn) <= 0) &&
@@ -926,7 +926,7 @@ void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 	}
 	/*
 	 * If we were waiting for sends to complete before resending,
-	 * and they are now complete, restart sending.
+	 * and they are yesw complete, restart sending.
 	 */
 	if (qp->s_flags & RVT_S_WAIT_PSN &&
 	    qib_cmp24(qp->s_sending_psn, qp->s_sending_hpsn) > 0) {
@@ -945,7 +945,7 @@ static inline void update_last_psn(struct rvt_qp *qp, u32 psn)
 /*
  * Generate a SWQE completion.
  * This is similar to qib_send_complete but has to check to be sure
- * that the SGEs are not being referenced if the SWQE is being resent.
+ * that the SGEs are yest being referenced if the SWQE is being resent.
  */
 static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 					 struct rvt_swqe *wqe,
@@ -970,7 +970,7 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 
 	/*
 	 * If we are completing a request which is in the process of
-	 * being resent, we can stop resending it since we know the
+	 * being resent, we can stop resending it since we kyesw the
 	 * responder has already seen it.
 	 */
 	if (qp->s_acked == qp->s_cur) {
@@ -1198,7 +1198,7 @@ class_b:
 			break;
 
 		default:
-			/* Ignore other reserved NAK error codes */
+			/* Igyesre other reserved NAK error codes */
 			goto reserved;
 		}
 		qp->s_retry = qp->s_retry_cnt;
@@ -1207,7 +1207,7 @@ class_b:
 
 	default:                /* 2: reserved */
 reserved:
-		/* Ignore reserved NAK codes. */
+		/* Igyesre reserved NAK codes. */
 		goto bail;
 	}
 
@@ -1290,7 +1290,7 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 		    (qib_cmp24(qp->s_sending_psn, qp->s_sending_hpsn) <= 0)) {
 
 			/*
-			 * If send tasklet not running attempt to progress
+			 * If send tasklet yest running attempt to progress
 			 * SDMA queue.
 			 */
 			if (!(qp->s_flags & RVT_S_BUSY)) {
@@ -1308,11 +1308,11 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK))
 		goto ack_done;
 
-	/* Ignore invalid responses. */
+	/* Igyesre invalid responses. */
 	if (qib_cmp24(psn, READ_ONCE(qp->s_next_psn)) >= 0)
 		goto ack_done;
 
-	/* Ignore duplicate responses. */
+	/* Igyesre duplicate responses. */
 	diff = qib_cmp24(psn, qp->s_last_psn);
 	if (unlikely(diff <= 0)) {
 		/* Update credits for "ghost" ACKs */
@@ -1365,7 +1365,7 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 		goto read_middle;
 
 	case OP(RDMA_READ_RESPONSE_MIDDLE):
-		/* no AETH, no ACK */
+		/* yes AETH, yes ACK */
 		if (unlikely(qib_cmp24(psn, qp->s_last_psn + 1)))
 			goto ack_seq_err;
 		if (unlikely(wqe->wr.opcode != IB_WR_RDMA_READ))
@@ -1484,7 +1484,7 @@ bail:
  * This is called from qib_rc_rcv() to process an unexpected
  * incoming RC packet for the given QP.
  * Called at interrupt level.
- * Return 1 if no more processing is needed; otherwise return 0 to
+ * Return 1 if yes more processing is needed; otherwise return 0 to
  * schedule a response to be sent.
  */
 static int qib_rc_rcv_error(struct ib_other_headers *ohdr,
@@ -1579,7 +1579,7 @@ static int qib_rc_rcv_error(struct ib_other_headers *ohdr,
 
 		/*
 		 * If we didn't find the RDMA read request in the ack queue,
-		 * we can ignore this request.
+		 * we can igyesre this request.
 		 */
 		if (!e || e->opcode != OP(RDMA_READ_REQUEST))
 			goto unlock_done;
@@ -1589,7 +1589,7 @@ static int qib_rc_rcv_error(struct ib_other_headers *ohdr,
 		 * Address range must be a subset of the original
 		 * request and start on pmtu boundaries.
 		 * We reuse the old ack_queue slot since the requester
-		 * should not back up and request an earlier PSN for the
+		 * should yest back up and request an earlier PSN for the
 		 * same request.
 		 */
 		offset = ((psn - e->psn) & QIB_PSN_MASK) *
@@ -1627,7 +1627,7 @@ static int qib_rc_rcv_error(struct ib_other_headers *ohdr,
 		/*
 		 * If we didn't find the atomic request in the ack queue
 		 * or the send tasklet is already backed up to send an
-		 * earlier entry, we can ignore this request.
+		 * earlier entry, we can igyesre this request.
 		 */
 		if (!e || e->opcode != (u8) opcode || old_req)
 			goto unlock_done;
@@ -1637,7 +1637,7 @@ static int qib_rc_rcv_error(struct ib_other_headers *ohdr,
 
 	default:
 		/*
-		 * Ignore this operation if it doesn't request an ACK
+		 * Igyesre this operation if it doesn't request an ACK
 		 * or an earlier RDMA read or atomic is going to be resent.
 		 */
 		if (!(psn & IB_BTH_REQ_ACK) || old_req)
@@ -1653,7 +1653,7 @@ static int qib_rc_rcv_error(struct ib_other_headers *ohdr,
 			goto send_ack;
 		}
 		/*
-		 * Try to send a simple ACK to work around a Mellanox bug
+		 * Try to send a simple ACK to work around a Mellayesx bug
 		 * which doesn't accept a RDMA read response or atomic
 		 * response as an ACK for earlier SENDs or RDMA writes.
 		 */
@@ -1788,7 +1788,7 @@ void qib_rc_rcv(struct qib_ctxtdata *rcd, struct ib_header *hdr,
 		    opcode == OP(RDMA_WRITE_LAST_WITH_IMMEDIATE))
 			goto nack_inv;
 		/*
-		 * Note that it is up to the requester to not send a new
+		 * Note that it is up to the requester to yest send a new
 		 * RDMA read or atomic operation before receiving an ACK
 		 * for the previous operation.
 		 */
@@ -1838,7 +1838,7 @@ send_middle:
 			goto rnr_nak;
 		qp->r_rcv_len = 0;
 		if (opcode == OP(SEND_ONLY))
-			goto no_immediate_data;
+			goto yes_immediate_data;
 		/* fall through -- for SEND_ONLY_WITH_IMMEDIATE */
 	case OP(SEND_LAST_WITH_IMMEDIATE):
 send_last_imm:
@@ -1848,7 +1848,7 @@ send_last_imm:
 		goto send_last;
 	case OP(SEND_LAST):
 	case OP(RDMA_WRITE_LAST):
-no_immediate_data:
+yes_immediate_data:
 		wc.wc_flags = 0;
 		wc.ex.imm_data = 0;
 send_last:
@@ -1920,7 +1920,7 @@ send_last:
 		if (opcode == OP(RDMA_WRITE_FIRST))
 			goto send_middle;
 		else if (opcode == OP(RDMA_WRITE_ONLY))
-			goto no_immediate_data;
+			goto yes_immediate_data;
 		ret = rvt_get_rwqe(qp, true);
 		if (ret < 0)
 			goto nack_op_err;
@@ -1941,7 +1941,7 @@ send_last:
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_READ)))
 			goto nack_inv;
 		next = qp->r_head_ack_queue + 1;
-		/* s_ack_queue is size QIB_MAX_RDMA_ATOMIC+1 so use > not >= */
+		/* s_ack_queue is size QIB_MAX_RDMA_ATOMIC+1 so use > yest >= */
 		if (next > QIB_MAX_RDMA_ATOMIC)
 			next = 0;
 		spin_lock_irqsave(&qp->s_lock, flags);
@@ -2064,7 +2064,7 @@ send_last:
 	}
 
 	default:
-		/* NAK unknown opcodes. */
+		/* NAK unkyeswn opcodes. */
 		goto nack_inv;
 	}
 	qp->r_psn++;

@@ -120,7 +120,7 @@ static void tlb_remove_table_smp_sync(void *arg)
 static void tlb_remove_table_one(void *table)
 {
 	/*
-	 * This isn't an RCU grace period and hence the page-tables cannot be
+	 * This isn't an RCU grace period and hence the page-tables canyest be
 	 * assumed to be actually RCU-freed.
 	 *
 	 * It is however sufficient for software page-table walkers that rely on
@@ -245,7 +245,7 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
 {
 	/*
 	 * If there are parallel threads are doing PTE changes on same range
-	 * under non-exclusive lock (e.g., mmap_sem read-side) but defer TLB
+	 * under yesn-exclusive lock (e.g., mmap_sem read-side) but defer TLB
 	 * flush by batching, one thread may end up seeing inconsistent PTEs
 	 * and result in having stale TLB entries.  So flush TLB forcefully
 	 * if we detect parallel PTE batching threads.
@@ -261,7 +261,7 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
 		 * avoiding multiple CPUs spamming TLBI messages at the
 		 * same time.
 		 *
-		 * On x86 non-fullmm doesn't yield significant difference
+		 * On x86 yesn-fullmm doesn't yield significant difference
 		 * against fullmm.
 		 */
 		tlb->fullmm = 1;

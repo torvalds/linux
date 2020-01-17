@@ -314,7 +314,7 @@ static unsigned long clk_main_recalc_rate(struct regmap *regmap,
 	if (parent_rate)
 		return parent_rate;
 
-	pr_warn("Main crystal frequency not set, using approximate value\n");
+	pr_warn("Main crystal frequency yest set, using approximate value\n");
 	regmap_read(regmap, AT91_CKGR_MCFR, &mcfr);
 	if (!(mcfr & AT91_PMC_MAINRDY))
 		return 0;

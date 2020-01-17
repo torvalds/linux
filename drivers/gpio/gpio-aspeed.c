@@ -70,7 +70,7 @@ struct aspeed_gpio_bank {
 	uint16_t	val_regs;	/* +0: Rd: read input value, Wr: set write latch
 					 * +4: Rd/Wr: Direction (0=in, 1=out)
 					 */
-	uint16_t	rdata_reg;	/*     Rd: read write latch, Wr: <none>  */
+	uint16_t	rdata_reg;	/*     Rd: read write latch, Wr: <yesne>  */
 	uint16_t	irq_regs;
 	uint16_t	debounce_regs;
 	uint16_t	tolerance_regs;
@@ -82,7 +82,7 @@ struct aspeed_gpio_bank {
  * Note: The "value" register returns the input value sampled on the
  *       line even when the GPIO is configured as an output. Since
  *       that input goes through synchronizers, writing, then reading
- *       back may not return the written value right away.
+ *       back may yest return the written value right away.
  *
  *       The "rdata" register returns the content of the write latch
  *       and thus can be used to read back what was last written
@@ -829,7 +829,7 @@ static void configure_timer(struct aspeed_gpio *gpio, unsigned int offset,
 	u32 val;
 
 	/* Note: Debounce timer isn't under control of the command
-	 * source registers, so no need to sync with the coprocessor
+	 * source registers, so yes need to sync with the coprocessor
 	 */
 	addr = bank_reg(gpio, bank, reg_debounce_sel1);
 	val = ioread32(addr);
@@ -880,7 +880,7 @@ static int enable_debounce(struct gpio_chip *chip, unsigned int offset,
 		int j;
 
 		/*
-		 * As there are no timers configured for the requested debounce
+		 * As there are yes timers configured for the requested debounce
 		 * period, find an unused timer instead
 		 */
 		for (j = 1; j < ARRAY_SIZE(gpio->timer_users); j++) {
@@ -890,7 +890,7 @@ static int enable_debounce(struct gpio_chip *chip, unsigned int offset,
 
 		if (j == ARRAY_SIZE(gpio->timer_users)) {
 			dev_warn(chip->parent,
-					"Debounce timers exhausted, cannot debounce for period %luus\n",
+					"Debounce timers exhausted, canyest debounce for period %luus\n",
 					usecs);
 
 			rc = -EPERM;
@@ -910,7 +910,7 @@ static int enable_debounce(struct gpio_chip *chip, unsigned int offset,
 		iowrite32(requested_cycles, gpio->base + debounce_timers[i]);
 	}
 
-	if (WARN(i == 0, "Cannot register index of disabled timer\n")) {
+	if (WARN(i == 0, "Canyest register index of disabled timer\n")) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -997,9 +997,9 @@ EXPORT_SYMBOL_GPL(aspeed_gpio_copro_set_ops);
  *                               bank gets marked and any access from the ARM will
  *                               result in handshaking via callbacks.
  * @desc: The GPIO to be marked
- * @vreg_offset: If non-NULL, returns the value register offset in the GPIO space
- * @dreg_offset: If non-NULL, returns the data latch register offset in the GPIO space
- * @bit: If non-NULL, returns the bit number of the GPIO in the registers
+ * @vreg_offset: If yesn-NULL, returns the value register offset in the GPIO space
+ * @dreg_offset: If yesn-NULL, returns the data latch register offset in the GPIO space
+ * @bit: If yesn-NULL, returns the bit number of the GPIO in the registers
  */
 int aspeed_gpio_copro_grab_gpio(struct gpio_desc *desc,
 				u16 *vreg_offset, u16 *dreg_offset, u8 *bit)
@@ -1083,7 +1083,7 @@ int aspeed_gpio_copro_release_gpio(struct gpio_desc *desc)
 EXPORT_SYMBOL_GPL(aspeed_gpio_copro_release_gpio);
 
 /*
- * Any banks not specified in a struct aspeed_bank_props array are assumed to
+ * Any banks yest specified in a struct aspeed_bank_props array are assumed to
  * have the properties:
  *
  *     { .input = 0xffffffff, .output = 0xffffffff }
@@ -1152,11 +1152,11 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 
 	spin_lock_init(&gpio->lock);
 
-	gpio_id = of_match_node(aspeed_gpio_of_table, pdev->dev.of_node);
+	gpio_id = of_match_yesde(aspeed_gpio_of_table, pdev->dev.of_yesde);
 	if (!gpio_id)
 		return -EINVAL;
 
-	gpio->clk = of_clk_get(pdev->dev.of_node, 0);
+	gpio->clk = of_clk_get(pdev->dev.of_yesde, 0);
 	if (IS_ERR(gpio->clk)) {
 		dev_warn(&pdev->dev,
 				"Failed to get clock from devicetree, debouncing disabled\n");
@@ -1166,7 +1166,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	gpio->config = gpio_id->data;
 
 	gpio->chip.parent = &pdev->dev;
-	err = of_property_read_u32(pdev->dev.of_node, "ngpios", &ngpio);
+	err = of_property_read_u32(pdev->dev.of_yesde, "ngpios", &ngpio);
 	gpio->chip.ngpio = (u16) ngpio;
 	if (err)
 		gpio->chip.ngpio = gpio->config->nr_gpios;

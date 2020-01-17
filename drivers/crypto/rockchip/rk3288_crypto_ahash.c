@@ -11,7 +11,7 @@
 #include "rk3288_crypto.h"
 
 /*
- * IC can not process zero message hash,
+ * IC can yest process zero message hash,
  * so we put the fixed hash out when met zero message.
  */
 
@@ -250,8 +250,8 @@ static int rk_ahash_crypto_rx(struct rk_crypto_info *dev)
 		 * transmission.
 		 *
 		 * waiting time is relative with the last date len,
-		 * so cannot set a fixed time here.
-		 * 10us makes system not call here frequently wasting
+		 * so canyest set a fixed time here.
+		 * 10us makes system yest call here frequently wasting
 		 * efficiency, and make it response quickly when dma
 		 * complete.
 		 */
@@ -293,7 +293,7 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 	tctx->fallback_tfm = crypto_alloc_ahash(alg_name, 0,
 					       CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(tctx->fallback_tfm)) {
-		dev_err(tctx->dev->dev, "Could not load fallback driver.\n");
+		dev_err(tctx->dev->dev, "Could yest load fallback driver.\n");
 		return PTR_ERR(tctx->fallback_tfm);
 	}
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),

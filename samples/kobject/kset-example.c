@@ -96,7 +96,7 @@ static const struct sysfs_ops foo_sysfs_ops = {
  * have.  We free the memory held in our object here.
  *
  * NEVER try to get away with just a "blank" release function to try to be
- * smarter than the kernel.  Turns out, no one ever is...
+ * smarter than the kernel.  Turns out, yes one ever is...
  */
 static void foo_release(struct kobject *kobj)
 {
@@ -127,7 +127,7 @@ static ssize_t foo_store(struct foo_obj *foo_obj, struct foo_attribute *attr,
 	return count;
 }
 
-/* Sysfs attributes cannot be world-writable. */
+/* Sysfs attributes canyest be world-writable. */
 static struct foo_attribute foo_attribute =
 	__ATTR(foo, 0664, foo_show, foo_store);
 

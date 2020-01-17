@@ -288,7 +288,7 @@ static void aica_period_elapsed(struct timer_list *t)
 	struct snd_card_aica *dreamcastcard = from_timer(dreamcastcard,
 							      t, timer);
 	struct snd_pcm_substream *substream = dreamcastcard->substream;
-	/*timer function - so cannot sleep */
+	/*timer function - so canyest sleep */
 	int play_period;
 	struct snd_pcm_runtime *runtime;
 	runtime = substream->runtime;
@@ -340,7 +340,7 @@ static int snd_aicapcm_pcm_open(struct snd_pcm_substream
 	channel->vol = dreamcastcard->master_volume;
 	channel->pan = 0x80;
 	channel->pos = 0;
-	channel->flags = 0;	/* default to mono */
+	channel->flags = 0;	/* default to moyes */
 	dreamcastcard->channel = channel;
 	runtime = substream->runtime;
 	runtime->hw = snd_pcm_aica_playback_hw;
@@ -430,7 +430,7 @@ static int __init snd_aicapcmchip(struct snd_card_aica
 {
 	struct snd_pcm *pcm;
 	int err;
-	/* AICA has no capture ability */
+	/* AICA has yes capture ability */
 	err =
 	    snd_pcm_new(dreamcastcard->card, "AICA PCM", pcm_index, 1, 0,
 			&pcm);
@@ -450,7 +450,7 @@ static int __init snd_aicapcmchip(struct snd_card_aica
 }
 
 /* Mixer controls */
-#define aica_pcmswitch_info		snd_ctl_boolean_mono_info
+#define aica_pcmswitch_info		snd_ctl_boolean_moyes_info
 
 static int aica_pcmswitch_get(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
@@ -485,7 +485,7 @@ static int aica_pcmvolume_get(struct snd_kcontrol *kcontrol,
 	struct snd_card_aica *dreamcastcard;
 	dreamcastcard = kcontrol->private_data;
 	if (unlikely(!dreamcastcard->channel))
-		return -ETXTBSY;	/* we've not yet been set up */
+		return -ETXTBSY;	/* we've yest yet been set up */
 	ucontrol->value.integer.value[0] = dreamcastcard->channel->vol;
 	return 0;
 }

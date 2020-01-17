@@ -7,7 +7,7 @@ my_abis=`echo "($3)" | tr ',' '|'`
 grep -E "^[0-9A-Fa-fXx]+[[:space:]]+${my_abis}" "$in" | sort -n | (
     while read nr abi name entry compat; do
         if [ "$abi" = "eabi" -a -n "$compat" ]; then
-            echo "$in: error: a compat entry for an EABI syscall ($name) makes no sense" >&2
+            echo "$in: error: a compat entry for an EABI syscall ($name) makes yes sense" >&2
             exit 1
         fi
 

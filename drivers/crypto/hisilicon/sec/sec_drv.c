@@ -474,7 +474,7 @@ static void sec_set_dbg_bd_cfg(struct sec_dev_info *info, u32 cfg)
 	u32 regval;
 
 	regval = readl_relaxed(addr);
-	/* Always disable write back of normal bd */
+	/* Always disable write back of yesrmal bd */
 	regval &= ~SEC_DEBUG_BD_CFG_WB_NORMAL;
 
 	if (cfg)
@@ -788,7 +788,7 @@ static struct sec_queue *sec_queue_alloc_start(struct sec_dev_info *info)
 /**
  * sec_queue_alloc_start_safe - get a hw queue from appropriate instance
  *
- * This function does extremely simplistic load balancing. It does not take into
+ * This function does extremely simplistic load balancing. It does yest take into
  * account NUMA locality of the accelerator, or which cpu has requested the
  * queue.  Future work may focus on optimizing this in order to improve full
  * machine throughput.
@@ -835,8 +835,8 @@ int sec_queue_stop_release(struct sec_queue *queue)
 /**
  * sec_queue_empty() - Is this hardware queue currently empty.
  *
- * We need to know if we have an empty queue for some of the chaining modes
- * as if it is not empty we may need to hold the message in a software queue
+ * We need to kyesw if we have an empty queue for some of the chaining modes
+ * as if it is yest empty we may need to hold the message in a software queue
  * until the hw queue is drained.
  */
 bool sec_queue_empty(struct sec_queue *queue)
@@ -950,7 +950,7 @@ static int sec_hw_init(struct sec_dev_info *info)
 	/* Enable clock gating */
 	sec_clk_gate_en(info, true);
 
-	/* Set CNT_CYC register not read clear */
+	/* Set CNT_CYC register yest read clear */
 	sec_comm_cnt_cfg(info, false);
 
 	/* Enable CNT_CYC */
@@ -966,7 +966,7 @@ static int sec_hw_init(struct sec_dev_info *info)
 
 	sec_ipv6_hashmask(info, sec_ipv6_mask);
 
-	/*  do not use debug bd */
+	/*  do yest use debug bd */
 	sec_set_dbg_bd_cfg(info, 0);
 
 	if (domain && (domain->type & __IOMMU_DOMAIN_PAGING)) {
@@ -1015,7 +1015,7 @@ static int sec_map_io(struct sec_dev_info *info, struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 
 		if (!res) {
-			dev_err(info->dev, "Memory resource %d not found\n", i);
+			dev_err(info->dev, "Memory resource %d yest found\n", i);
 			return -EINVAL;
 		}
 
@@ -1023,7 +1023,7 @@ static int sec_map_io(struct sec_dev_info *info, struct platform_device *pdev)
 					     resource_size(res));
 		if (!info->regs[i]) {
 			dev_err(info->dev,
-				"Memory resource %d could not be remapped\n",
+				"Memory resource %d could yest be remapped\n",
 				i);
 			return -EINVAL;
 		}

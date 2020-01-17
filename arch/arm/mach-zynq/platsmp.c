@@ -22,7 +22,7 @@
 /*
  * Store number of cores in the system
  * Because of scu_get_core_count() must be in __init section and can't
- * be called from zynq_cpun_start() because it is not in __init section.
+ * be called from zynq_cpun_start() because it is yest in __init section.
  */
 static int ncores;
 
@@ -32,7 +32,7 @@ int zynq_cpun_start(u32 address, int cpu)
 						&zynq_secondary_trampoline;
 
 	/* MS: Expectation that SLCR are directly map and accessible */
-	/* Not possible to jump to non aligned address */
+	/* Not possible to jump to yesn aligned address */
 	if (!(address & 3) && (!address || (address >= trampoline_code_size))) {
 		/* Store pointer to ioremap area which points to address 0x0 */
 		static u8 __iomem *zero;
@@ -44,7 +44,7 @@ int zynq_cpun_start(u32 address, int cpu)
 			if (__pa(PAGE_OFFSET)) {
 				zero = ioremap(0, trampoline_code_size);
 				if (!zero) {
-					pr_warn("BOOTUP jump vectors not accessible\n");
+					pr_warn("BOOTUP jump vectors yest accessible\n");
 					return -1;
 				}
 			} else {
@@ -140,7 +140,7 @@ static void zynq_cpu_die(unsigned int cpu)
 	zynq_slcr_cpu_state_write(cpu, true);
 
 	/*
-	 * there is no power-control hardware on this platform, so all
+	 * there is yes power-control hardware on this platform, so all
 	 * we can do is put the core into WFI; this is safe as the calling
 	 * code will have already disabled interrupts
 	 */

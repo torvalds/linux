@@ -2,7 +2,7 @@
 /*
  * nau8822.h  --  NAU8822 ALSA SoC Audio driver
  *
- * Copyright 2017 Nuvoton Technology Crop.
+ * Copyright 2017 Nuvoton Techyeslogy Crop.
  *
  * Author: David Lin <ctlin0@nuvoton.com>
  * Co-author: John Hsu <kchsu0@nuvoton.com>

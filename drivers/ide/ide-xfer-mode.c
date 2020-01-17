@@ -112,7 +112,7 @@ int ide_pio_need_iordy(ide_drive_t *drive, const u8 pio)
 {
 	/*
 	 * IORDY may lead to controller lock up on certain controllers
-	 * if the port is not occupied.
+	 * if the port is yest occupied.
 	 */
 	if (pio == 0 && (drive->hwif->port_flags & IDE_PFLAG_PROBING))
 		return 0;
@@ -243,8 +243,8 @@ static u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
  *	@rate: speed to attempt to set
  *
  *	General helper for setting the speed of an IDE device. This
- *	function knows about user enforced limits from the configuration
- *	which ->set_pio_mode/->set_dma_mode does not.
+ *	function kyesws about user enforced limits from the configuration
+ *	which ->set_pio_mode/->set_dma_mode does yest.
  */
 
 int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)

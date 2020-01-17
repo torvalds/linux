@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Copyright (c) 1999-2013 Petko Manolov (petkan@nucleusys.com)
+ *  Copyright (c) 1999-2013 Petko Mayeslov (petkan@nucleusys.com)
  *
  *	ChangeLog:
  *		....	Most of the time spent on reading sources & docs.
@@ -9,15 +9,15 @@
  *		v0.3.x	URBifying bulk requests and bugfixing. First relatively
  *			stable release. Still can touch device's registers only
  *			from top-halves.
- *		v0.4.0	Control messages remained unurbified are now URBs.
+ *		v0.4.0	Control messages remained unurbified are yesw URBs.
  *			Now we can touch the HW at any time.
  *		v0.4.9	Control urbs again use process context to wait. Argh...
  *			Some long standing bugs (enable_net_traffic) fixed.
  *			Also nasty trick about resubmiting control urb from
- *			interrupt context used. Please let me know how it
+ *			interrupt context used. Please let me kyesw how it
  *			behaves. Pegasus II support added since this version.
  *			TODO: suppressing HCD warnings spewage on disconnect.
- *		v0.4.13	Ethernet address is now set at probe(), not at open()
+ *		v0.4.13	Ethernet address is yesw set at probe(), yest at open()
  *			time as this seems to break dhcpd.
  *		v0.5.0	branch to 2.5.x kernels
  *		v0.5.1	ethtool support added
@@ -46,7 +46,7 @@
  * Version Information
  */
 #define DRIVER_VERSION "v0.9.3 (2013/04/25)"
-#define DRIVER_AUTHOR "Petko Manolov <petkan@nucleusys.com>"
+#define DRIVER_AUTHOR "Petko Mayeslov <petkan@nucleusys.com>"
 #define DRIVER_DESC "Pegasus/Pegasus II USB Ethernet driver"
 
 static const char driver_name[] = "pegasus";
@@ -77,7 +77,7 @@ static struct usb_device_id pegasus_ids[] = {
 /*
  * The Belkin F8T012xx1 bluetooth adaptor has the same vendor and product
  * IDs as the Belkin F5D5050, so we need to teach the pegasus driver to
- * ignore adaptors belonging to the "Wireless" class 0xE0. For this one
+ * igyesre adaptors belonging to the "Wireless" class 0xE0. For this one
  * case anyway, seeing as the pegasus is for "Wired" adaptors.
  */
 #define PEGASUS_DEV_CLASS(pn, vid, pid, dclass, flags) \
@@ -250,7 +250,7 @@ fail:
 	return ret;
 }
 
-/* Returns non-negative int on success, error on failure */
+/* Returns yesn-negative int on success, error on failure */
 static int read_mii_word(pegasus_t *pegasus, __u8 phy, __u8 indx, __u16 *regd)
 {
 	return __mii_op(pegasus, phy, indx, regd, PHY_READ);
@@ -359,7 +359,7 @@ fail:
 }
 #endif				/* PEGASUS_WRITE_EEPROM */
 
-static inline void get_node_id(pegasus_t *pegasus, __u8 *id)
+static inline void get_yesde_id(pegasus_t *pegasus, __u8 *id)
 {
 	int i;
 	__u16 w16;
@@ -372,15 +372,15 @@ static inline void get_node_id(pegasus_t *pegasus, __u8 *id)
 
 static void set_ethernet_addr(pegasus_t *pegasus)
 {
-	__u8 node_id[6];
+	__u8 yesde_id[6];
 
 	if (pegasus->features & PEGASUS_II) {
-		get_registers(pegasus, 0x10, sizeof(node_id), node_id);
+		get_registers(pegasus, 0x10, sizeof(yesde_id), yesde_id);
 	} else {
-		get_node_id(pegasus, node_id);
-		set_registers(pegasus, EthID, sizeof(node_id), node_id);
+		get_yesde_id(pegasus, yesde_id);
+		set_registers(pegasus, EthID, sizeof(yesde_id), yesde_id);
 	}
-	memcpy(pegasus->net->dev_addr, node_id, sizeof(node_id));
+	memcpy(pegasus->net->dev_addr, yesde_id, sizeof(yesde_id));
 }
 
 static inline int reset_mac(pegasus_t *pegasus)
@@ -429,7 +429,7 @@ static int enable_net_traffic(struct net_device *dev, struct usb_device *usb)
 	int ret;
 
 	read_mii_word(pegasus, pegasus->phy, MII_LPA, &linkpart);
-	data[0] = 0xc8; /* TX & RX enable, append status, no CRC */
+	data[0] = 0xc8; /* TX & RX enable, append status, yes CRC */
 	data[1] = 0;
 	if (linkpart & (ADVERTISE_100FULL | ADVERTISE_10FULL))
 		data[1] |= 0x20;	/* set full duplex */
@@ -479,7 +479,7 @@ static void read_bulk_callback(struct urb *urb)
 		break;
 	case -EPIPE:		/* stall, or disconnect from TT */
 		/* FIXME schedule work to clear the halt */
-		netif_warn(pegasus, rx_err, net, "no rx stall recovery\n");
+		netif_warn(pegasus, rx_err, net, "yes rx stall recovery\n");
 		return;
 	case -ENOENT:
 	case -ECONNRESET:
@@ -619,7 +619,7 @@ static void write_bulk_callback(struct urb *urb)
 	case -EPIPE:
 		/* FIXME schedule_work() to clear the tx halt */
 		netif_stop_queue(net);
-		netif_warn(pegasus, tx_err, net, "no tx stall recovery\n");
+		netif_warn(pegasus, tx_err, net, "yes tx stall recovery\n");
 		return;
 	case -ENOENT:
 	case -ECONNRESET:
@@ -1232,7 +1232,7 @@ static void pegasus_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	if (!pegasus) {
-		dev_dbg(&intf->dev, "unregistering non-bound device?\n");
+		dev_dbg(&intf->dev, "unregistering yesn-bound device?\n");
 		return;
 	}
 
@@ -1309,7 +1309,7 @@ static void __init parse_id(char *id)
 
 	if ((token = strsep(&id, ":")) != NULL)
 		name = token;
-	/* name now points to a null terminated string*/
+	/* name yesw points to a null terminated string*/
 	if ((token = strsep(&id, ":")) != NULL)
 		vendor_id = simple_strtoul(token, NULL, 16);
 	if ((token = strsep(&id, ":")) != NULL)

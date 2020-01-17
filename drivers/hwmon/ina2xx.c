@@ -225,7 +225,7 @@ static int ina2xx_read_reg(struct device *dev, int reg, unsigned int *regval)
 				return ret;
 
 			if (cal == 0) {
-				dev_warn(dev, "chip not calibrated, reinitializing\n");
+				dev_warn(dev, "chip yest calibrated, reinitializing\n");
 
 				ret = ina2xx_init(data);
 				if (ret < 0)
@@ -441,7 +441,7 @@ static int ina2xx_probe(struct i2c_client *client,
 	int ret, group = 0;
 	enum ina2xx_ids chip;
 
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		chip = (enum ina2xx_ids)of_device_get_match_data(&client->dev);
 	else
 		chip = id->driver_data;
@@ -454,7 +454,7 @@ static int ina2xx_probe(struct i2c_client *client,
 	data->config = &ina2xx_config[chip];
 	mutex_init(&data->config_lock);
 
-	if (of_property_read_u32(dev->of_node, "shunt-resistor", &val) < 0) {
+	if (of_property_read_u32(dev->of_yesde, "shunt-resistor", &val) < 0) {
 		struct ina2xx_platform_data *pdata = dev_get_platdata(dev);
 
 		if (pdata)

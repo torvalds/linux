@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * governor.h - internal header for devfreq governors.
+ * goveryesr.h - internal header for devfreq goveryesrs.
  *
  * Copyright (C) 2011 Samsung Electronics
  *	MyungJoo Ham <myungjoo.ham@samsung.com>
  *
- * This header is for devfreq governors in drivers/devfreq/
+ * This header is for devfreq goveryesrs in drivers/devfreq/
  */
 
 #ifndef _GOVERNOR_H
@@ -26,28 +26,28 @@
 #define DEVFREQ_MAX_FREQ			ULONG_MAX
 
 /**
- * struct devfreq_governor - Devfreq policy governor
- * @node:		list node - contains registered devfreq governors
- * @name:		Governor's name
- * @immutable:		Immutable flag for governor. If the value is 1,
- *			this govenror is never changeable to other governor.
+ * struct devfreq_goveryesr - Devfreq policy goveryesr
+ * @yesde:		list yesde - contains registered devfreq goveryesrs
+ * @name:		Goveryesr's name
+ * @immutable:		Immutable flag for goveryesr. If the value is 1,
+ *			this govenror is never changeable to other goveryesr.
  * @interrupt_driven:	Devfreq core won't schedule polling work for this
- *			governor if value is set to 1.
+ *			goveryesr if value is set to 1.
  * @get_target_freq:	Returns desired operating frequency for the device.
  *			Basically, get_target_freq will run
  *			devfreq_dev_profile.get_dev_status() to get the
  *			status of the device (load = busy_time / total_time).
- *			If no_central_polling is set, this callback is called
- *			only with update_devfreq() notified by OPP.
- * @event_handler:      Callback for devfreq core framework to notify events
- *                      to governors. Events include per device governor
+ *			If yes_central_polling is set, this callback is called
+ *			only with update_devfreq() yestified by OPP.
+ * @event_handler:      Callback for devfreq core framework to yestify events
+ *                      to goveryesrs. Events include per device goveryesr
  *                      init and exit, opp changes out of devfreq, suspend
  *                      and resume of per device devfreq during device idle.
  *
  * Note that the callbacks are called with devfreq->lock locked by devfreq.
  */
-struct devfreq_governor {
-	struct list_head node;
+struct devfreq_goveryesr {
+	struct list_head yesde;
 
 	const char name[DEVFREQ_NAME_LEN];
 	const unsigned int immutable;
@@ -64,8 +64,8 @@ extern void devfreq_monitor_resume(struct devfreq *devfreq);
 extern void devfreq_interval_update(struct devfreq *devfreq,
 					unsigned int *delay);
 
-extern int devfreq_add_governor(struct devfreq_governor *governor);
-extern int devfreq_remove_governor(struct devfreq_governor *governor);
+extern int devfreq_add_goveryesr(struct devfreq_goveryesr *goveryesr);
+extern int devfreq_remove_goveryesr(struct devfreq_goveryesr *goveryesr);
 
 extern int devfreq_update_status(struct devfreq *devfreq, unsigned long freq);
 

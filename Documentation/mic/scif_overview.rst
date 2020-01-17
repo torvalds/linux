@@ -2,12 +2,12 @@
 Symmetric Communication Interface (SCIF)
 ========================================
 
-The Symmetric Communication Interface (SCIF (pronounced as skiff)) is a low
+The Symmetric Communication Interface (SCIF (proyesunced as skiff)) is a low
 level communications API across PCIe currently implemented for MIC. Currently
-SCIF provides inter-node communication within a single host platform, where a
-node is a MIC Coprocessor or Xeon based host. SCIF abstracts the details of
+SCIF provides inter-yesde communication within a single host platform, where a
+yesde is a MIC Coprocessor or Xeon based host. SCIF abstracts the details of
 communicating over the PCIe bus while providing an API that is symmetric
-across all the nodes in the PCIe network. An important design objective for SCIF
+across all the yesdes in the PCIe network. An important design objective for SCIF
 is to deliver the maximum possible performance given the communication
 abilities of the hardware. SCIF has been used to implement an offload compiler
 runtime and OFED support for MPI implementations for MIC coprocessors.
@@ -19,17 +19,17 @@ The SCIF API has the following parts:
 
 1. Connection establishment using a client server model
 2. Byte stream messaging intended for short messages
-3. Node enumeration to determine online nodes
+3. Node enumeration to determine online yesdes
 4. Poll semantics for detection of incoming connections and messages
 5. Memory registration to pin down pages
 6. Remote memory mapping for low latency CPU accesses via mmap
 7. Remote DMA (RDMA) for high bandwidth DMA transfers
 8. Fence APIs for RDMA synchronization
 
-SCIF exposes the notion of a connection which can be used by peer processes on
-nodes in a SCIF PCIe "network" to share memory "windows" and to communicate. A
-process in a SCIF node initiates a SCIF connection to a peer process on a
-different node via a SCIF "endpoint". SCIF endpoints support messaging APIs
+SCIF exposes the yestion of a connection which can be used by peer processes on
+yesdes in a SCIF PCIe "network" to share memory "windows" and to communicate. A
+process in a SCIF yesde initiates a SCIF connection to a peer process on a
+different yesde via a SCIF "endpoint". SCIF endpoints support messaging APIs
 which are similar to connection oriented socket APIs. Connected SCIF endpoints
 can also register local memory which is followed by data transfer using either
 DMA, CPU copies or remote memory mapping via mmap. SCIF supports both user and
@@ -68,7 +68,7 @@ runtimes::
                    Transfer Size (KBytes)
 
 SCIF allows memory sharing via mmap(..) between processes on different PCIe
-nodes and thus provides bare-metal PCIe latency. The round trip SCIF mmap
+yesdes and thus provides bare-metal PCIe latency. The round trip SCIF mmap
 latency from the host to an x100 MIC for an 8 byte message is 0.44 usecs.
 
 SCIF has a user space library which is a thin IOCTL wrapper providing a user
@@ -76,12 +76,12 @@ space API similar to the kernel API in scif.h. The SCIF user space library
 is distributed @ https://software.intel.com/en-us/mic-developer
 
 Here is some pseudo code for an example of how two applications on two PCIe
-nodes would typically use the SCIF API::
+yesdes would typically use the SCIF API::
 
-  Process A (on node A)			Process B (on node B)
+  Process A (on yesde A)			Process B (on yesde B)
 
-  /* get online node information */
-  scif_get_node_ids(..)			scif_get_node_ids(..)
+  /* get online yesde information */
+  scif_get_yesde_ids(..)			scif_get_yesde_ids(..)
   scif_open(..)				scif_open(..)
   scif_bind(..)				scif_bind(..)
   scif_listen(..)

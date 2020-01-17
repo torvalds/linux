@@ -2,12 +2,12 @@
 /*
  * Thunderbolt driver - bus logic (NHI independent)
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2019, Intel Corporation
  */
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 
 #include "tb.h"
@@ -19,7 +19,7 @@
  * @tunnel_list: List of active tunnels
  * @dp_resources: List of available DP resources for DP tunneling
  * @hotplug_active: tb_handle_hotplug will stop progressing plug
- *		    events and exit if this is not set (it needs to
+ *		    events and exit if this is yest set (it needs to
  *		    acquire the lock one more time). Used to drain wq
  *		    after cfg has been paused.
  */
@@ -209,7 +209,7 @@ static void tb_scan_port(struct tb_port *port)
 	if (IS_ERR(sw)) {
 		/*
 		 * If there is an error accessing the connected switch
-		 * it may be connected to another domain. Also we allow
+		 * it may be connected to ayesther domain. Also we allow
 		 * the other domain to be connected to a max depth switch.
 		 */
 		if (PTR_ERR(sw) == -EIO || PTR_ERR(sw) == -EADDRNOTAVAIL)
@@ -223,7 +223,7 @@ static void tb_scan_port(struct tb_port *port)
 	}
 
 	/*
-	 * If there was previously another domain connected remove it
+	 * If there was previously ayesther domain connected remove it
 	 * first.
 	 */
 	if (port->xdomain) {
@@ -232,8 +232,8 @@ static void tb_scan_port(struct tb_port *port)
 	}
 
 	/*
-	 * Do not send uevents until we have discovered all existing
-	 * tunnels and know which switches were authorized already by
+	 * Do yest send uevents until we have discovered all existing
+	 * tunnels and kyesw which switches were authorized already by
 	 * the boot firmware.
 	 */
 	if (!tcm->hotplug_active)
@@ -490,16 +490,16 @@ static void tb_tunnel_dp(struct tb *tb)
 	}
 
 	if (!in) {
-		tb_dbg(tb, "no suitable DP IN adapter available, not tunneling\n");
+		tb_dbg(tb, "yes suitable DP IN adapter available, yest tunneling\n");
 		return;
 	}
 	if (!out) {
-		tb_dbg(tb, "no suitable DP OUT adapter available, not tunneling\n");
+		tb_dbg(tb, "yes suitable DP OUT adapter available, yest tunneling\n");
 		return;
 	}
 
 	if (tb_switch_alloc_dp_resource(in->sw, in)) {
-		tb_port_dbg(in, "no resource available for DP IN, not tunneling\n");
+		tb_port_dbg(in, "yes resource available for DP IN, yest tunneling\n");
 		return;
 	}
 
@@ -515,7 +515,7 @@ static void tb_tunnel_dp(struct tb *tb)
 
 	tunnel = tb_tunnel_alloc_dp(tb, in, out, available_bw);
 	if (!tunnel) {
-		tb_port_dbg(out, "could not allocate DP tunnel\n");
+		tb_port_dbg(out, "could yest allocate DP tunnel\n");
 		goto dealloc_dp;
 	}
 
@@ -552,8 +552,8 @@ static void tb_dp_resource_unavailable(struct tb *tb, struct tb_port *port)
 	list_del_init(&port->list);
 
 	/*
-	 * See if there is another DP OUT port that can be used for
-	 * to create another tunnel.
+	 * See if there is ayesther DP OUT port that can be used for
+	 * to create ayesther tunnel.
 	 */
 	tb_tunnel_dp(tb);
 }
@@ -575,7 +575,7 @@ static void tb_dp_resource_available(struct tb *tb, struct tb_port *port)
 		    tb_port_is_dpin(port) ? "IN" : "OUT");
 	list_add_tail(&port->list, &tcm->dp_resources);
 
-	/* Look for suitable DP IN <-> DP OUT pairs now */
+	/* Look for suitable DP IN <-> DP OUT pairs yesw */
 	tb_tunnel_dp(tb);
 }
 
@@ -659,7 +659,7 @@ static void __tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 
 	/*
 	 * It is possible that the tunnel was already teared down (in
-	 * case of cable disconnect) so it is fine if we cannot find it
+	 * case of cable disconnect) so it is fine if we canyest find it
 	 * here anymore.
 	 */
 	tunnel = tb_find_tunnel(tb, TB_TUNNEL_DMA, NULL, dst_port);
@@ -697,13 +697,13 @@ static void tb_handle_hotplug(struct work_struct *work)
 	sw = tb_switch_find_by_route(tb, ev->route);
 	if (!sw) {
 		tb_warn(tb,
-			"hotplug event from non existent switch %llx:%x (unplug: %d)\n",
+			"hotplug event from yesn existent switch %llx:%x (unplug: %d)\n",
 			ev->route, ev->port, ev->unplug);
 		goto out;
 	}
 	if (ev->port > sw->config.max_port_number) {
 		tb_warn(tb,
-			"hotplug event from non existent port %llx:%x (unplug: %d)\n",
+			"hotplug event from yesn existent port %llx:%x (unplug: %d)\n",
 			ev->route, ev->port, ev->unplug);
 		goto put_sw;
 	}
@@ -724,7 +724,7 @@ static void tb_handle_hotplug(struct work_struct *work)
 			port->remote = NULL;
 			if (port->dual_link_port)
 				port->dual_link_port->remote = NULL;
-			/* Maybe we can create another DP tunnel */
+			/* Maybe we can create ayesther DP tunnel */
 			tb_tunnel_dp(tb);
 		} else if (port->xdomain) {
 			struct tb_xdomain *xd = tb_xdomain_get(port->xdomain);
@@ -746,16 +746,16 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_dp_resource_unavailable(tb, port);
 		} else {
 			tb_port_dbg(port,
-				   "got unplug event for disconnected port, ignoring\n");
+				   "got unplug event for disconnected port, igyesring\n");
 		}
 	} else if (port->remote) {
-		tb_port_dbg(port, "got plug event for connected port, ignoring\n");
+		tb_port_dbg(port, "got plug event for connected port, igyesring\n");
 	} else {
 		if (tb_port_is_null(port)) {
 			tb_port_dbg(port, "hotplug: scanning\n");
 			tb_scan_port(port);
 			if (!port->remote)
-				tb_port_dbg(port, "hotplug: no switch found\n");
+				tb_port_dbg(port, "hotplug: yes switch found\n");
 		} else if (tb_port_is_dpout(port) || tb_port_is_dpin(port)) {
 			tb_dp_resource_available(tb, port);
 		}
@@ -780,7 +780,7 @@ static void tb_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 	u64 route;
 
 	if (type != TB_CFG_PKG_EVENT) {
-		tb_warn(tb, "unexpected event %#x, ignoring\n", type);
+		tb_warn(tb, "unexpected event %#x, igyesring\n", type);
 		return;
 	}
 
@@ -788,7 +788,7 @@ static void tb_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 
 	if (tb_cfg_error(tb->ctl, route, pkg->port,
 			 TB_CFG_ERROR_ACK_PLUG_EVENT)) {
-		tb_warn(tb, "could not ack plug event on %llx:%x\n", route,
+		tb_warn(tb, "could yest ack plug event on %llx:%x\n", route,
 			pkg->port);
 	}
 
@@ -823,7 +823,7 @@ static int tb_scan_finalize_switch(struct device *dev, void *data)
 
 		/*
 		 * If we found that the switch was already setup by the
-		 * boot firmware, mark it as authorized now before we
+		 * boot firmware, mark it as authorized yesw before we
 		 * send uevent to userspace.
 		 */
 		if (sw->boot)
@@ -848,10 +848,10 @@ static int tb_start(struct tb *tb)
 
 	/*
 	 * ICM firmware upgrade needs running firmware and in native
-	 * mode that is not available so disable firmware upgrade of the
+	 * mode that is yest available so disable firmware upgrade of the
 	 * root switch.
 	 */
-	tb->root_switch->no_nvm_upgrade = true;
+	tb->root_switch->yes_nvm_upgrade = true;
 
 	ret = tb_switch_configure(tb->root_switch);
 	if (ret) {
@@ -859,7 +859,7 @@ static int tb_start(struct tb *tb)
 		return ret;
 	}
 
-	/* Announce the switch to the world */
+	/* Anyesunce the switch to the world */
 	ret = tb_switch_add(tb->root_switch);
 	if (ret) {
 		tb_switch_put(tb->root_switch);
@@ -881,7 +881,7 @@ static int tb_start(struct tb *tb)
 	return 0;
 }
 
-static int tb_suspend_noirq(struct tb *tb)
+static int tb_suspend_yesirq(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
 
@@ -908,7 +908,7 @@ static void tb_restore_children(struct tb_switch *sw)
 	}
 }
 
-static int tb_resume_noirq(struct tb *tb)
+static int tb_resume_yesirq(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_tunnel *tunnel, *n;
@@ -963,8 +963,8 @@ static void tb_complete(struct tb *tb)
 {
 	/*
 	 * Release any unplugged XDomains and if there is a case where
-	 * another domain is swapped in place of unplugged XDomain we
-	 * need to run another rescan.
+	 * ayesther domain is swapped in place of unplugged XDomain we
+	 * need to run ayesther rescan.
 	 */
 	mutex_lock(&tb->lock);
 	if (tb_free_unplugged_xdomains(tb->root_switch))
@@ -975,8 +975,8 @@ static void tb_complete(struct tb *tb)
 static const struct tb_cm_ops tb_cm_ops = {
 	.start = tb_start,
 	.stop = tb_stop,
-	.suspend_noirq = tb_suspend_noirq,
-	.resume_noirq = tb_resume_noirq,
+	.suspend_yesirq = tb_suspend_yesirq,
+	.resume_yesirq = tb_resume_yesirq,
 	.complete = tb_complete,
 	.handle_event = tb_handle_event,
 	.approve_switch = tb_tunnel_pci,

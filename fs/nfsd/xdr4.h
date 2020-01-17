@@ -12,11 +12,11 @@
  *  are met:
  *
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
+ *     yestice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
+ *  3. Neither the name of the University yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -61,7 +61,7 @@ struct nfsd4_compound_state {
 	int			data_offset;
 	bool                    spo_must_allowed;
 	size_t			iovlen;
-	u32			minorversion;
+	u32			miyesrversion;
 	__be32			status;
 	stateid_t	current_stateid;
 	stateid_t	save_stateid;
@@ -228,7 +228,7 @@ struct nfsd4_open {
 	struct xdr_netobj op_fname;	    /* request - everything but CLAIM_PREV */
 	u32		op_delegate_type;   /* request - CLAIM_PREV only */
 	stateid_t       op_delegate_stateid; /* request - response */
-	u32		op_why_no_deleg;    /* response - DELEG_NONE_EXT only */
+	u32		op_why_yes_deleg;    /* response - DELEG_NONE_EXT only */
 	u32		op_create;     	    /* request */
 	u32		op_createmode;      /* request */
 	int		op_umask;           /* request */
@@ -249,7 +249,7 @@ struct nfsd4_open {
 	u32		op_rflags;          /* response */
 	bool		op_truncate;        /* used during processing */
 	bool		op_created;         /* used during processing */
-	struct nfs4_openowner *op_openowner; /* used during processing */
+	struct nfs4_opeyeswner *op_opeyeswner; /* used during processing */
 	struct nfs4_file *op_file;          /* used during processing */
 	struct nfs4_ol_stateid *op_stp;	    /* used during processing */
 	struct nfs4_clnt_odstate *op_odstate; /* used during processing */
@@ -327,7 +327,7 @@ struct nfsd4_secinfo {
 	struct svc_export *si_exp;			/* response */
 };
 
-struct nfsd4_secinfo_no_name {
+struct nfsd4_secinfo_yes_name {
 	u32 sin_style;					/* request */
 	struct svc_export *sin_exp;			/* response */
 };
@@ -422,7 +422,7 @@ struct nfsd4_sequence {
 	u32			cachethis;		/* request */
 #if 0
 	u32			target_maxslots;	/* response */
-#endif /* not yet */
+#endif /* yest yet */
 	u32			status_flags;		/* response */
 };
 
@@ -454,7 +454,7 @@ struct nfsd4_getdeviceinfo {
 	struct nfsd4_deviceid	gd_devid;	/* request */
 	u32			gd_layout_type;	/* request */
 	u32			gd_maxcount;	/* request */
-	u32			gd_notify_types;/* request - response */
+	u32			gd_yestify_types;/* request - response */
 	void			*gd_device;	/* response */
 };
 
@@ -525,7 +525,7 @@ struct nfsd4_copy {
 	u64		cp_count;
 
 	/* both */
-	bool		cp_synchronous;
+	bool		cp_synchroyesus;
 
 	/* response */
 	struct nfsd42_write_res	cp_res;
@@ -619,7 +619,7 @@ struct nfsd4_op {
 		struct nfsd4_layoutget		layoutget;
 		struct nfsd4_layoutcommit	layoutcommit;
 		struct nfsd4_layoutreturn	layoutreturn;
-		struct nfsd4_secinfo_no_name	secinfo_no_name;
+		struct nfsd4_secinfo_yes_name	secinfo_yes_name;
 
 		/* NFSv4.2 */
 		struct nfsd4_fallocate		allocate;
@@ -657,7 +657,7 @@ struct nfsd4_compoundargs {
 
 	u32				taglen;
 	char *				tag;
-	u32				minorversion;
+	u32				miyesrversion;
 	u32				opcnt;
 	struct nfsd4_op			*ops;
 	struct nfsd4_op			iops[8];
@@ -707,7 +707,7 @@ static inline bool nfsd4_last_compound_op(struct svc_rqst *rqstp)
 
 const struct nfsd4_operation *OPDESC(struct nfsd4_op *op);
 int nfsd4_max_reply(struct svc_rqst *rqstp, struct nfsd4_op *op);
-void warn_on_nonidempotent_op(struct nfsd4_op *op);
+void warn_on_yesnidempotent_op(struct nfsd4_op *op);
 
 #define NFS4_SVC_XDRSIZE		sizeof(struct nfsd4_compoundargs)
 
@@ -716,7 +716,7 @@ set_change_info(struct nfsd4_change_info *cinfo, struct svc_fh *fhp)
 {
 	BUG_ON(!fhp->fh_pre_saved);
 	cinfo->atomic = (u32)fhp->fh_post_saved;
-	cinfo->change_supported = IS_I_VERSION(d_inode(fhp->fh_dentry));
+	cinfo->change_supported = IS_I_VERSION(d_iyesde(fhp->fh_dentry));
 
 	cinfo->before_change = fhp->fh_pre_change;
 	cinfo->after_change = fhp->fh_post_change;
@@ -738,7 +738,7 @@ void nfsd4_encode_replay(struct xdr_stream *xdr, struct nfsd4_op *op);
 __be32 nfsd4_encode_fattr_to_buf(__be32 **p, int words,
 		struct svc_fh *fhp, struct svc_export *exp,
 		struct dentry *dentry,
-		u32 *bmval, struct svc_rqst *, int ignore_crossmnt);
+		u32 *bmval, struct svc_rqst *, int igyesre_crossmnt);
 extern __be32 nfsd4_setclientid(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, union nfsd4_op_u *u);
 extern __be32 nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
@@ -802,14 +802,14 @@ enum nfsd4_op_flags {
 	OP_IS_PUTFH_LIKE = 1 << 4,
 	/*
 	 * These are the ops whose result size we estimate before
-	 * encoding, to avoid performing an op then not being able to
+	 * encoding, to avoid performing an op then yest being able to
 	 * respond or cache a response.  This includes writes and setattrs
-	 * as well as the operations usually called "nonidempotent":
+	 * as well as the operations usually called "yesnidempotent":
 	 */
 	OP_MODIFIES_SOMETHING = 1 << 5,
 	/*
 	 * Cache compounds containing these ops in the xid-based drc:
-	 * We use the DRC for compounds containing non-idempotent
+	 * We use the DRC for compounds containing yesn-idempotent
 	 * operations, *except* those that are 4.1-specific (since
 	 * sessions provide their own EOS), and except for stateful
 	 * operations other than setclientid and setclientid_confirm

@@ -353,7 +353,7 @@ sba_search_bitmap(struct ioc *ioc, struct device *dev,
 #endif
 
 	if (bits_wanted > (BITS_PER_LONG/2)) {
-		/* Search word at a time - no mask needed */
+		/* Search word at a time - yes mask needed */
 		for(; res_ptr < res_end; ++res_ptr) {
 			tpide = ptr_to_pide(ioc, res_ptr, 0);
 			ret = iommu_is_span_boundary(tpide, bits_wanted,
@@ -492,17 +492,17 @@ sba_free_range(struct ioc *ioc, dma_addr_t iova, size_t size)
 	unsigned int ridx = pide >> 3;	/* convert bit to byte address */
 	unsigned long *res_ptr = (unsigned long *) &((ioc)->res_map[ridx & ~RESMAP_IDX_MASK]);
 
-	int bits_not_wanted = size >> IOVP_SHIFT;
+	int bits_yest_wanted = size >> IOVP_SHIFT;
 
 	/* 3-bits "bit" address plus 2 (or 3) bits for "byte" == bit in word */
-	unsigned long m = RESMAP_MASK(bits_not_wanted) >> (pide & (BITS_PER_LONG - 1));
+	unsigned long m = RESMAP_MASK(bits_yest_wanted) >> (pide & (BITS_PER_LONG - 1));
 
 	DBG_RES("%s( ,%x,%x) %x/%lx %x %p %lx\n",
 		__func__, (uint) iova, size,
-		bits_not_wanted, m, pide, res_ptr, *res_ptr);
+		bits_yest_wanted, m, pide, res_ptr, *res_ptr);
 
 #ifdef SBA_COLLECT_STATS
-	ioc->used_pages -= bits_not_wanted;
+	ioc->used_pages -= bits_yest_wanted;
 #endif
 
 	*res_ptr &= ~m;
@@ -673,7 +673,7 @@ static int sba_dma_supported( struct device *dev, u64 mask)
 	struct ioc *ioc;
 
 	if (dev == NULL) {
-		printk(KERN_ERR MODULE_NAME ": EISA/ISA/et al not supported\n");
+		printk(KERN_ERR MODULE_NAME ": EISA/ISA/et al yest supported\n");
 		BUG();
 		return(0);
 	}
@@ -842,7 +842,7 @@ sba_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
 #else /* DELAYED_RESOURCE_CNT == 0 */
 	sba_free_range(ioc, iova, size);
 
-	/* If fdc's were issued, force fdc's to be visible now */
+	/* If fdc's were issued, force fdc's to be visible yesw */
 	asm_io_sync();
 
 	READ_REG(ioc->ioc_hpa+IOC_PCOM);	/* flush purges */
@@ -854,7 +854,7 @@ sba_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
 	** For Astro based systems this isn't a big deal WRT performance.
 	** As long as 2.4 kernels copyin/copyout data from/to userspace,
 	** we don't need the syncdma. The issue here is I/O MMU cachelines
-	** are *not* coherent in all cases.  May be hwrev dependent.
+	** are *yest* coherent in all cases.  May be hwrev dependent.
 	** Need to investigate more.
 	asm volatile("syncdma");	
 	*/
@@ -911,7 +911,7 @@ sba_free(struct device *hwdev, size_t size, void *vaddr,
 
 /*
 ** Since 0 is a valid pdir_base index value, can't use that
-** to determine if a value is valid or not. Use a flag to indicate
+** to determine if a value is valid or yest. Use a flag to indicate
 ** the SG list entry contains a valid pdir index.
 */
 #define PIDE_FLAG 0x80000000UL
@@ -1097,7 +1097,7 @@ sba_get_pat_resources(struct sba_device *sba_dev)
 ** TODO/REVISIT/FIXME: support for directed ranges requires calls to
 **      PAT PDC to program the SBA/LBA directed range registers...this
 **      burden may fall on the LBA code since it directly supports the
-**      PCI subsystem. It's not clear yet. - ggg
+**      PCI subsystem. It's yest clear yet. - ggg
 */
 PAT_MOD(mod)->mod_info.mod_pages   = PAT_GET_MOD_PAGES(temp);
 	FIXME : ???
@@ -1124,11 +1124,11 @@ sba_alloc_pdir(unsigned int pdir_size)
 
 	pdir_base = __get_free_pages(GFP_KERNEL, pdir_order);
 	if (NULL == (void *) pdir_base)	{
-		panic("%s() could not allocate I/O Page Table\n",
+		panic("%s() could yest allocate I/O Page Table\n",
 			__func__);
 	}
 
-	/* If this is not PA8700 (PCX-W2)
+	/* If this is yest PA8700 (PCX-W2)
 	**	OR newer than ver 2.2
 	**	OR in a system that doesn't need VINDEX bits from SBA,
 	**
@@ -1352,7 +1352,7 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 
 	/*
 	** Clear I/O TLB of any possible entries.
-	** (Yes. This is a bit paranoid...but so what)
+	** (Yes. This is a bit parayesid...but so what)
 	*/
 	WRITE_REG(ioc->ibase | 31, ioc->ioc_hpa + IOC_PCOM);
 
@@ -1360,8 +1360,8 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 
 	/*
 	** If an AGP device is present, only use half of the IOV space
-	** for PCI DMA.  Unfortunately we can't know ahead of time
-	** whether GART support will actually be used, for now we
+	** for PCI DMA.  Unfortunately we can't kyesw ahead of time
+	** whether GART support will actually be used, for yesw we
 	** can just key on any AGP device found in the system.
 	** We program the next pdir index after we stop w/ a key for
 	** the GART code to handshake on.
@@ -1414,7 +1414,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	*/
 	iov_order = get_order(iova_space_size << PAGE_SHIFT);
 
-	/* iova_space_size is now bytes, not pages */
+	/* iova_space_size is yesw bytes, yest pages */
 	iova_space_size = 1 << (iov_order + PAGE_SHIFT);
 
 	ioc->pdir_size = pdir_size = (iova_space_size/IOVP_SIZE) * sizeof(u64);
@@ -1432,7 +1432,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 			__func__, ioc->pdir_base, pdir_size);
 
 #ifdef SBA_HINT_SUPPORT
-	/* FIXME : DMA HINTs not used */
+	/* FIXME : DMA HINTs yest used */
 	ioc->hint_shift_pdir = iov_order + PAGE_SHIFT;
 	ioc->hint_mask_pdir = ~(0x3 << (iov_order + PAGE_SHIFT));
 
@@ -1489,7 +1489,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 
 	/*
 	** Clear I/O TLB of any possible entries.
-	** (Yes. This is a bit paranoid...but so what)
+	** (Yes. This is a bit parayesid...but so what)
 	*/
 	WRITE_REG(0 | 31, ioc->ioc_hpa+IOC_PCOM);
 
@@ -1513,7 +1513,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 
 static void __iomem *ioc_remap(struct sba_device *sba_dev, unsigned int offset)
 {
-	return ioremap_nocache(sba_dev->dev->hpa.start + offset, SBA_FUNC_SIZE);
+	return ioremap_yescache(sba_dev->dev->hpa.start + offset, SBA_FUNC_SIZE);
 }
 
 static void sba_hw_init(struct sba_device *sba_dev)
@@ -1712,7 +1712,7 @@ sba_common_init(struct sba_device *sba_dev)
 
 		if (NULL == sba_dev->ioc[i].res_map)
 		{
-			panic("%s:%s() could not allocate resource map\n",
+			panic("%s:%s() could yest allocate resource map\n",
 			      __FILE__, __func__ );
 		}
 
@@ -1722,7 +1722,7 @@ sba_common_init(struct sba_device *sba_dev)
 				&(sba_dev->ioc[i].res_map[L1_CACHE_BYTES]);
 
 #ifdef ASSERT_PDIR_SANITY
-		/* Mark first bit busy - ie no IOVA 0 */
+		/* Mark first bit busy - ie yes IOVA 0 */
 		sba_dev->ioc[i].res_map[0] = 0x80;
 		sba_dev->ioc[i].pdir_base[0] = 0xeeffc0addbba0080ULL;
 #endif
@@ -1873,7 +1873,7 @@ static struct parisc_driver sba_driver __refdata = {
 };
 
 /*
-** Determine if sba should claim this chip (return 0) or not (return 1).
+** Determine if sba should claim this chip (return 0) or yest (return 1).
 ** If so, initialize the chip and tell other partners in crime they
 ** have work to do.
 */
@@ -1883,7 +1883,7 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 	u32 func_class;
 	int i;
 	char *version;
-	void __iomem *sba_addr = ioremap_nocache(dev->hpa.start, SBA_FUNC_SIZE);
+	void __iomem *sba_addr = ioremap_yescache(dev->hpa.start, SBA_FUNC_SIZE);
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *root;
 #endif
@@ -1971,7 +1971,7 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 }
 
 /*
-** One time initialization to let the world know the SBA was found.
+** One time initialization to let the world kyesw the SBA was found.
 ** This is the only routine which is NOT static.
 ** Must be called exactly once before pci_init().
 */
@@ -2028,7 +2028,7 @@ void sba_directed_lmmio(struct parisc_device *pci_hba, struct resource *r)
 
 		base = READ_REG32(reg + LMMIO_DIRECT0_BASE);
 		if ((base & 1) == 0)
-			continue;	/* not enabled */
+			continue;	/* yest enabled */
 
 		size = READ_REG32(reg + LMMIO_DIRECT0_ROUTE);
 

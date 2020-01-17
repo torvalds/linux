@@ -42,7 +42,7 @@
 
 
 set -o errexit
-set -o nounset
+set -o yesunset
 
 READELF="${CROSS_COMPILE:-}readelf"
 ADDR2LINE="${CROSS_COMPILE:-}addr2line"
@@ -136,10 +136,10 @@ __faddr2line() {
 		fi
 		addr=0x$(printf %x $addr)
 
-		# weed out non-function symbols
+		# weed out yesn-function symbols
 		if [[ $sym_type != t ]] && [[ $sym_type != T ]]; then
 			[[ $print_warnings = 1 ]] &&
-				echo "skipping $func address at $addr due to non-function symbol of type '$sym_type'"
+				echo "skipping $func address at $addr due to yesn-function symbol of type '$sym_type'"
 			continue
 		fi
 
@@ -214,9 +214,9 @@ while [[ $# -gt 0 ]]; do
 	DONE=0
 	__faddr2line $objfile $func_addr $DIR_PREFIX 0
 
-	# if no match was found, print warnings
+	# if yes match was found, print warnings
 	if [[ $DONE = 0 ]]; then
 		__faddr2line $objfile $func_addr $DIR_PREFIX 1
-		warn "no match for $func_addr"
+		warn "yes match for $func_addr"
 	fi
 done

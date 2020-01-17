@@ -233,7 +233,7 @@ mcast_v4()
 {
 	# Add two interfaces to an MC group, send a packet to the MC group and
 	# verify packets are received on both. Then delete the route and verify
-	# packets are no longer received.
+	# packets are yes longer received.
 
 	RET=0
 
@@ -249,9 +249,9 @@ mcast_v4()
 		-A 198.51.100.2 -B 225.1.2.3 -q
 
 	tc_check_packets "dev $h2 ingress" 122 5
-	check_err $? "Multicast not received on first host"
+	check_err $? "Multicast yest received on first host"
 	tc_check_packets "dev $h3 ingress" 133 5
-	check_err $? "Multicast not received on second host"
+	check_err $? "Multicast yest received on second host"
 
 	delete_mcast_sg $rp1 198.51.100.2 225.1.2.3 $rp2 $rp3
 
@@ -273,7 +273,7 @@ mcast_v6()
 {
 	# Add two interfaces to an MC group, send a packet to the MC group and
 	# verify packets are received on both. Then delete the route and verify
-	# packets are no longer received.
+	# packets are yes longer received.
 
 	RET=0
 
@@ -289,9 +289,9 @@ mcast_v6()
 		-b 33:33:00:00:00:03 -A 2001:db8:1::2 -B ff0e::3 -q
 
 	tc_check_packets "dev $h2 ingress" 122 5
-	check_err $? "Multicast not received on first host"
+	check_err $? "Multicast yest received on first host"
 	tc_check_packets "dev $h3 ingress" 133 5
-	check_err $? "Multicast not received on second host"
+	check_err $? "Multicast yest received on second host"
 
 	delete_mcast_sg $rp1 2001:db8:1::2 ff0e::3 $rp2 $rp3
 
@@ -313,7 +313,7 @@ rpf_v4()
 {
 	# Add a multicast route from first router port to the other two. Send
 	# matching packets and test that both hosts receive them. Then, send
-	# the same packets via the third router port and test that they do not
+	# the same packets via the third router port and test that they do yest
 	# reach any host due to RPF check. A filter with 'skip_hw' is added to
 	# test that devices capable of multicast routing offload trap those
 	# packets. The filter is essentialy a NOP in other scenarios.
@@ -336,20 +336,20 @@ rpf_v4()
 		-A 198.51.100.2 -B 225.1.2.3 -q
 
 	tc_check_packets "dev $h2 ingress" 1 5
-	check_err $? "Multicast not received on first host"
+	check_err $? "Multicast yest received on first host"
 	tc_check_packets "dev $h3 ingress" 1 5
-	check_err $? "Multicast not received on second host"
+	check_err $? "Multicast yest received on second host"
 
 	$MZ $h3 -c 5 -p 128 -t udp "ttl=10,sp=54321,dp=12345" \
 		-a 00:11:22:33:44:55 -b 01:00:5e:01:02:03 \
 		-A 198.51.100.2 -B 225.1.2.3 -q
 
 	tc_check_packets "dev $h1 ingress" 1 0
-	check_err $? "Multicast received on first host when should not"
+	check_err $? "Multicast received on first host when should yest"
 	tc_check_packets "dev $h2 ingress" 1 5
-	check_err $? "Multicast received on second host when should not"
+	check_err $? "Multicast received on second host when should yest"
 	tc_check_packets "dev $rp3 ingress" 1 5
-	check_err $? "Packets not trapped due to RPF check"
+	check_err $? "Packets yest trapped due to RPF check"
 
 	delete_mcast_sg $rp1 198.51.100.2 225.1.2.3 $rp2 $rp3
 
@@ -381,20 +381,20 @@ rpf_v6()
 		-A 2001:db8:1::2 -B ff0e::3 -q
 
 	tc_check_packets "dev $h2 ingress" 1 5
-	check_err $? "Multicast not received on first host"
+	check_err $? "Multicast yest received on first host"
 	tc_check_packets "dev $h3 ingress" 1 5
-	check_err $? "Multicast not received on second host"
+	check_err $? "Multicast yest received on second host"
 
 	$MZ $h3 -6 -c 5 -p 128 -t udp "ttl=10,sp=54321,dp=12345" \
 		-a 00:11:22:33:44:55 -b 33:33:00:00:00:03 \
 		-A 2001:db8:1::2 -B ff0e::3 -q
 
 	tc_check_packets "dev $h1 ingress" 1 0
-	check_err $? "Multicast received on first host when should not"
+	check_err $? "Multicast received on first host when should yest"
 	tc_check_packets "dev $h2 ingress" 1 5
-	check_err $? "Multicast received on second host when should not"
+	check_err $? "Multicast received on second host when should yest"
 	tc_check_packets "dev $rp3 ingress" 1 5
-	check_err $? "Packets not trapped due to RPF check"
+	check_err $? "Packets yest trapped due to RPF check"
 
 	delete_mcast_sg $rp1 2001:db8:1::2 ff0e::3 $rp2 $rp3
 

@@ -29,6 +29,6 @@ extern void ralink_rst_init(void);
 
 extern void prom_soc_init(struct ralink_soc_info *soc_info);
 
-__iomem void *plat_of_remap_node(const char *node);
+__iomem void *plat_of_remap_yesde(const char *yesde);
 
 #endif /* _RALINK_COMMON_H__ */

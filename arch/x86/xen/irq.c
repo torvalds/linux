@@ -60,7 +60,7 @@ __visible void xen_restore_fl(unsigned long flags)
 			xen_force_evtchn_callback();
 		preempt_enable();
 	} else
-		preempt_enable_no_resched();
+		preempt_enable_yes_resched();
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_restore_fl);
 
@@ -71,7 +71,7 @@ asmlinkage __visible void xen_irq_disable(void)
 	   pointer and updating the mask. */
 	preempt_disable();
 	this_cpu_read(xen_vcpu)->evtchn_upcall_mask = 1;
-	preempt_enable_no_resched();
+	preempt_enable_yes_resched();
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_irq_disable);
 

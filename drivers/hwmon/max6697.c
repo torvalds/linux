@@ -398,7 +398,7 @@ static umode_t max6697_is_visible(struct kobject *kobj, struct attribute *attr,
 
 /*
  * max6697_is_visible uses the index into the following array to determine
- * if attributes should be created or not. Any change in order or content
+ * if attributes should be created or yest. Any change in order or content
  * must be matched in max6697_is_visible.
  */
 static struct attribute *max6697_attributes[] = {
@@ -465,33 +465,33 @@ static const struct attribute_group max6697_group = {
 };
 __ATTRIBUTE_GROUPS(max6697);
 
-static void max6697_get_config_of(struct device_node *node,
+static void max6697_get_config_of(struct device_yesde *yesde,
 				  struct max6697_platform_data *pdata)
 {
 	int len;
 	const __be32 *prop;
 
 	pdata->smbus_timeout_disable =
-		of_property_read_bool(node, "smbus-timeout-disable");
+		of_property_read_bool(yesde, "smbus-timeout-disable");
 	pdata->extended_range_enable =
-		of_property_read_bool(node, "extended-range-enable");
+		of_property_read_bool(yesde, "extended-range-enable");
 	pdata->beta_compensation =
-		of_property_read_bool(node, "beta-compensation-enable");
+		of_property_read_bool(yesde, "beta-compensation-enable");
 
-	prop = of_get_property(node, "alert-mask", &len);
+	prop = of_get_property(yesde, "alert-mask", &len);
 	if (prop && len == sizeof(u32))
 		pdata->alert_mask = be32_to_cpu(prop[0]);
-	prop = of_get_property(node, "over-temperature-mask", &len);
+	prop = of_get_property(yesde, "over-temperature-mask", &len);
 	if (prop && len == sizeof(u32))
 		pdata->over_temperature_mask = be32_to_cpu(prop[0]);
-	prop = of_get_property(node, "resistance-cancellation", &len);
+	prop = of_get_property(yesde, "resistance-cancellation", &len);
 	if (prop) {
 		if (len == sizeof(u32))
 			pdata->resistance_cancellation = be32_to_cpu(prop[0]);
 		else
 			pdata->resistance_cancellation = 0xfe;
 	}
-	prop = of_get_property(node, "transistor-ideality", &len);
+	prop = of_get_property(yesde, "transistor-ideality", &len);
 	if (prop && len == 2 * sizeof(u32)) {
 			pdata->ideality_mask = be32_to_cpu(prop[0]);
 			pdata->ideality_value = be32_to_cpu(prop[1]);
@@ -508,11 +508,11 @@ static int max6697_init_chip(struct max6697_data *data,
 	int ret, reg;
 
 	/*
-	 * Don't touch configuration if neither platform data nor OF
+	 * Don't touch configuration if neither platform data yesr OF
 	 * configuration was specified. If that is the case, use the
 	 * current chip configuration.
 	 */
-	if (!pdata && !client->dev.of_node) {
+	if (!pdata && !client->dev.of_yesde) {
 		reg = i2c_smbus_read_byte_data(client, MAX6697_REG_CONFIG);
 		if (reg < 0)
 			return reg;
@@ -531,9 +531,9 @@ static int max6697_init_chip(struct max6697_data *data,
 		goto done;
 	}
 
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		memset(&p, 0, sizeof(p));
-		max6697_get_config_of(client->dev.of_node, &p);
+		max6697_get_config_of(client->dev.of_yesde, &p);
 		pdata = &p;
 	}
 
@@ -608,7 +608,7 @@ static int max6697_probe(struct i2c_client *client,
 	if (!data)
 		return -ENOMEM;
 
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		data->type = (enum chips)of_device_get_match_data(&client->dev);
 	else
 		data->type = id->driver_data;

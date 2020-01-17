@@ -54,7 +54,7 @@ out:
 static int tegra124_cpufreq_probe(struct platform_device *pdev)
 {
 	struct tegra124_cpufreq_priv *priv;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct device *cpu_dev;
 	struct platform_device_info cpufreq_dt_devinfo = {};
 	int ret;
@@ -67,7 +67,7 @@ static int tegra124_cpufreq_probe(struct platform_device *pdev)
 	if (!cpu_dev)
 		return -ENODEV;
 
-	np = of_cpu_device_node_get(0);
+	np = of_cpu_device_yesde_get(0);
 	if (!np)
 		return -ENODEV;
 
@@ -111,7 +111,7 @@ static int tegra124_cpufreq_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return 0;
 
@@ -124,7 +124,7 @@ out_put_dfll_clk:
 out_put_cpu_clk:
 	clk_put(priv->cpu_clk);
 out_put_np:
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return ret;
 }

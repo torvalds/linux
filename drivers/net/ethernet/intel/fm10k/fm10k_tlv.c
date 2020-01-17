@@ -12,7 +12,7 @@
  **/
 s32 fm10k_tlv_msg_init(u32 *msg, u16 msg_id)
 {
-	/* verify pointer is not NULL */
+	/* verify pointer is yest NULL */
 	if (!msg)
 		return FM10K_ERR_PARAM;
 
@@ -37,7 +37,7 @@ static s32 fm10k_tlv_attr_put_null_string(u32 *msg, u16 attr_id,
 	u32 attr_data = 0, len = 0;
 	u32 *attr;
 
-	/* verify pointers are not NULL */
+	/* verify pointers are yest NULL */
 	if (!string || !msg)
 		return FM10K_ERR_PARAM;
 
@@ -85,7 +85,7 @@ static s32 fm10k_tlv_attr_get_null_string(u32 *attr, unsigned char *string)
 {
 	u32 len;
 
-	/* verify pointers are not NULL */
+	/* verify pointers are yest NULL */
 	if (!string || !attr)
 		return FM10K_ERR_PARAM;
 
@@ -115,7 +115,7 @@ s32 fm10k_tlv_attr_put_mac_vlan(u32 *msg, u16 attr_id,
 	u32 len = ETH_ALEN << FM10K_TLV_LEN_SHIFT;
 	u32 *attr;
 
-	/* verify pointers are not NULL */
+	/* verify pointers are yest NULL */
 	if (!msg || !mac_addr)
 		return FM10K_ERR_PARAM;
 
@@ -148,7 +148,7 @@ s32 fm10k_tlv_attr_put_mac_vlan(u32 *msg, u16 attr_id,
  **/
 s32 fm10k_tlv_attr_get_mac_vlan(u32 *attr, u8 *mac_addr, u16 *vlan)
 {
-	/* verify pointers are not NULL */
+	/* verify pointers are yest NULL */
 	if (!mac_addr || !attr)
 		return FM10K_ERR_PARAM;
 
@@ -171,7 +171,7 @@ s32 fm10k_tlv_attr_get_mac_vlan(u32 *attr, u8 *mac_addr, u16 *vlan)
  **/
 s32 fm10k_tlv_attr_put_bool(u32 *msg, u16 attr_id)
 {
-	/* verify pointers are not NULL */
+	/* verify pointers are yest NULL */
 	if (!msg)
 		return FM10K_ERR_PARAM;
 
@@ -199,7 +199,7 @@ s32 fm10k_tlv_attr_put_value(u32 *msg, u16 attr_id, s64 value, u32 len)
 {
 	u32 *attr;
 
-	/* verify non-null msg and len is 1, 2, 4, or 8 */
+	/* verify yesn-null msg and len is 1, 2, 4, or 8 */
 	if (!msg || !len || len > 8 || (len & (len - 1)))
 		return FM10K_ERR_PARAM;
 
@@ -237,7 +237,7 @@ s32 fm10k_tlv_attr_put_value(u32 *msg, u16 attr_id, s64 value, u32 len)
  **/
 s32 fm10k_tlv_attr_get_value(u32 *attr, void *value, u32 len)
 {
-	/* verify pointers are not NULL */
+	/* verify pointers are yest NULL */
 	if (!attr || !value)
 		return FM10K_ERR_PARAM;
 
@@ -265,7 +265,7 @@ s32 fm10k_tlv_attr_get_value(u32 *attr, void *value, u32 len)
  *
  *  This function will place a little endian structure value in a message
  *  attribute.  The function will return success provided that all pointers
- *  are valid and length is a non-zero multiple of 4.
+ *  are valid and length is a yesn-zero multiple of 4.
  **/
 s32 fm10k_tlv_attr_put_le_struct(u32 *msg, u16 attr_id,
 				 const void *le_struct, u32 len)
@@ -274,7 +274,7 @@ s32 fm10k_tlv_attr_put_le_struct(u32 *msg, u16 attr_id,
 	u32 *attr;
 	u32 i;
 
-	/* verify non-null msg and len is in 32 bit words */
+	/* verify yesn-null msg and len is in 32 bit words */
 	if (!msg || !len || (len % 4))
 		return FM10K_ERR_PARAM;
 
@@ -311,7 +311,7 @@ s32 fm10k_tlv_attr_get_le_struct(u32 *attr, void *le_struct, u32 len)
 	__le32 *le32_ptr = (__le32 *)le_struct;
 	u32 i;
 
-	/* verify pointers are not NULL */
+	/* verify pointers are yest NULL */
 	if (!le_struct || !attr)
 		return FM10K_ERR_PARAM;
 
@@ -341,7 +341,7 @@ static u32 *fm10k_tlv_attr_nest_start(u32 *msg, u16 attr_id)
 {
 	u32 *attr;
 
-	/* verify pointer is not NULL */
+	/* verify pointer is yest NULL */
 	if (!msg)
 		return NULL;
 
@@ -367,7 +367,7 @@ static s32 fm10k_tlv_attr_nest_stop(u32 *msg)
 	u32 *attr;
 	u32 len;
 
-	/* verify pointer is not NULL */
+	/* verify pointer is yest NULL */
 	if (!msg)
 		return FM10K_ERR_PARAM;
 
@@ -401,7 +401,7 @@ static s32 fm10k_tlv_attr_validate(u32 *attr,
 	u32 attr_id = *attr & FM10K_TLV_ID_MASK;
 	u16 len = *attr >> FM10K_TLV_LEN_SHIFT;
 
-	/* verify this is an attribute and not a message */
+	/* verify this is an attribute and yest a message */
 	if (*attr & (FM10K_TLV_FLAGS_MSG << FM10K_TLV_FLAGS_SHIFT))
 		return FM10K_ERR_PARAM;
 
@@ -465,8 +465,8 @@ static s32 fm10k_tlv_attr_validate(u32 *attr,
  *  up into an array of pointers stored in results.  The function will
  *  return FM10K_ERR_PARAM on any input or message error,
  *  FM10K_NOT_IMPLEMENTED for any attribute that is outside of the array
- *  and 0 on success. Any attributes not found in tlv_attr will be silently
- *  ignored.
+ *  and 0 on success. Any attributes yest found in tlv_attr will be silently
+ *  igyesred.
  **/
 static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
 				const struct fm10k_tlv_attr *tlv_attr)
@@ -475,7 +475,7 @@ static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
 	s32 err;
 	u16 len;
 
-	/* verify pointers are not NULL */
+	/* verify pointers are yest NULL */
 	if (!attr || !results)
 		return FM10K_ERR_PARAM;
 
@@ -486,11 +486,11 @@ static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
 	/* pull length from the message header */
 	len = *attr >> FM10K_TLV_LEN_SHIFT;
 
-	/* no attributes to parse if there is no length */
+	/* yes attributes to parse if there is yes length */
 	if (!len)
 		return 0;
 
-	/* no attributes to parse, just raw data, message becomes attribute */
+	/* yes attributes to parse, just raw data, message becomes attribute */
 	if (!tlv_attr) {
 		results[0] = attr;
 		return 0;
@@ -508,7 +508,7 @@ static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
 
 		err = fm10k_tlv_attr_validate(attr, tlv_attr);
 		if (err == FM10K_NOT_IMPLEMENTED)
-			; /* silently ignore non-implemented attributes */
+			; /* silently igyesre yesn-implemented attributes */
 		else if (err)
 			return err;
 		else
@@ -549,11 +549,11 @@ s32 fm10k_tlv_msg_parse(struct fm10k_hw *hw, u32 *msg,
 	u32 msg_id;
 	s32 err;
 
-	/* verify pointer is not NULL */
+	/* verify pointer is yest NULL */
 	if (!msg || !data)
 		return FM10K_ERR_PARAM;
 
-	/* verify this is a message and not an attribute */
+	/* verify this is a message and yest an attribute */
 	if (!(*msg & (FM10K_TLV_FLAGS_MSG << FM10K_TLV_FLAGS_SHIFT)))
 		return FM10K_ERR_PARAM;
 

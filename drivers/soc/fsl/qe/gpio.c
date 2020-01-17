@@ -149,14 +149,14 @@ struct qe_pin {
 
 /**
  * qe_pin_request - Request a QE pin
- * @np:		device node to get a pin from
+ * @np:		device yesde to get a pin from
  * @index:	index of a pin in the device tree
- * Context:	non-atomic
+ * Context:	yesn-atomic
  *
  * This function return qe_pin so that you could use it with the rest of
  * the QE Pin Multiplexing API.
  */
-struct qe_pin *qe_pin_request(struct device_node *np, int index)
+struct qe_pin *qe_pin_request(struct device_yesde *np, int index)
 {
 	struct qe_pin *qe_pin;
 	struct gpio_chip *gc;
@@ -180,8 +180,8 @@ struct qe_pin *qe_pin_request(struct device_node *np, int index)
 		goto err0;
 	}
 
-	if (!of_device_is_compatible(gc->of_node, "fsl,mpc8323-qe-pario-bank")) {
-		pr_debug("%s: tried to get a non-qe pin\n", __func__);
+	if (!of_device_is_compatible(gc->of_yesde, "fsl,mpc8323-qe-pario-bank")) {
+		pr_debug("%s: tried to get a yesn-qe pin\n", __func__);
 		err = -EINVAL;
 		goto err0;
 	}
@@ -298,9 +298,9 @@ EXPORT_SYMBOL(qe_pin_set_gpio);
 
 static int __init qe_add_gpiochips(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	for_each_compatible_node(np, NULL, "fsl,mpc8323-qe-pario-bank") {
+	for_each_compatible_yesde(np, NULL, "fsl,mpc8323-qe-pario-bank") {
 		int ret;
 		struct qe_gpio_chip *qe_gc;
 		struct of_mm_gpio_chip *mm_gc;

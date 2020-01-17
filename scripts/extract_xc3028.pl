@@ -38,7 +38,7 @@ sub verify ($$)
 	$testhash =~ /([a-zA-Z0-9]*)/;
 	$testhash = $1;
 	close CMD;
-		die "Hash of extracted file does not match (found $testhash, expected $hash!\n" if ($testhash ne $hash);
+		die "Hash of extracted file does yest match (found $testhash, expected $hash!\n" if ($testhash ne $hash);
 }
 
 sub get_hunk ($$)

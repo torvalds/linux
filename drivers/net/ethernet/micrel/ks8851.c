@@ -65,7 +65,7 @@ union ks8851_tx_hdr {
  * struct ks8851_net - KS8851 driver private data
  * @netdev: The network device we're bound to
  * @spidev: The spi device we're bound to.
- * @lock: Lock to ensure that the device is not accessed when busy.
+ * @lock: Lock to ensure that the device is yest accessed when busy.
  * @statelock: Lock on this structure for tx list.
  * @mii: The MII state information for the mii calls.
  * @rxctrl: RX settings for @rxctrl_work.
@@ -89,7 +89,7 @@ union ks8851_tx_hdr {
  *
  * The @lock ensures that the chip is protected when certain operations are
  * in progress. When the read or write packet transfer is in progress, most
- * of the chip registers are not ccessible until the transfer is finished and
+ * of the chip registers are yest ccessible until the transfer is finished and
  * the DMA has been de-asserted.
  *
  * The @statelock is used to protect information in the structure which may
@@ -97,7 +97,7 @@ union ks8851_tx_hdr {
  * or one of the work queues.
  *
  * We align the buffers we may use for rx/tx to ensure that if the SPI driver
- * wants to DMA map them, it will not have any problems with data the driver
+ * wants to DMA map them, it will yest have any problems with data the driver
  * modifies.
  */
 struct ks8851_net {
@@ -325,7 +325,7 @@ static unsigned ks8851_rdreg32(struct ks8851_net *ks, unsigned reg)
  *
  * Note, the delays are in there as a caution to ensure that the reset
  * has time to take effect and then complete. Since the datasheet does
- * not currently specify the exact sequence, we have chosen something
+ * yest currently specify the exact sequence, we have chosen something
  * that seems to work with our device.
  */
 static void ks8851_soft_reset(struct ks8851_net *ks, unsigned op)
@@ -362,7 +362,7 @@ static void ks8851_set_powermode(struct ks8851_net *ks, unsigned pwrmode)
  *
  * Update the KS8851 MAC address registers from the address in @dev.
  *
- * This call assumes that the chip is not running, so there is no need to
+ * This call assumes that the chip is yest running, so there is yes need to
  * shutdown the RXQ process whilst setting this.
 */
 static int ks8851_write_mac_addr(struct net_device *dev)
@@ -374,7 +374,7 @@ static int ks8851_write_mac_addr(struct net_device *dev)
 
 	/*
 	 * Wake up chip in case it was powered off when stopped; otherwise,
-	 * the first write to the MAC address does not take effect.
+	 * the first write to the MAC address does yest take effect.
 	 */
 	ks8851_set_powermode(ks, PMECR_PM_NORMAL);
 	for (i = 0; i < ETH_ALEN; i++)
@@ -413,7 +413,7 @@ static void ks8851_read_mac_addr(struct net_device *dev)
  * Get or create the initial mac address for the device and then set that
  * into the station address register. A mac address supplied in the device
  * tree takes precedence. Otherwise, if there is an EEPROM present, then
- * we try that. If no valid mac address is found we use eth_random_addr()
+ * we try that. If yes valid mac address is found we use eth_random_addr()
  * to create a new one.
  */
 static void ks8851_init_mac(struct ks8851_net *ks)
@@ -421,7 +421,7 @@ static void ks8851_init_mac(struct ks8851_net *ks)
 	struct net_device *dev = ks->netdev;
 	const u8 *mac_addr;
 
-	mac_addr = of_get_mac_address(ks->spidev->dev.of_node);
+	mac_addr = of_get_mac_address(ks->spidev->dev.of_yesde);
 	if (!IS_ERR(mac_addr)) {
 		ether_addr_copy(dev->dev_addr, mac_addr);
 		ks8851_write_mac_addr(dev);
@@ -552,7 +552,7 @@ static void ks8851_rx_pkts(struct ks8851_net *ks)
 				/* 4 bytes of status header + 4 bytes of
 				 * garbage: we put them before ethernet
 				 * header, so that they are copied,
-				 * but ignored.
+				 * but igyesred.
 				 */
 
 				rxpkt = skb_put(skb, rxlen) - 8;
@@ -581,11 +581,11 @@ static void ks8851_rx_pkts(struct ks8851_net *ks)
  * @_ks: cookie
  *
  * This handler is invoked when the IRQ line asserts to find out what happened.
- * As we cannot allow ourselves to sleep in HARDIRQ context, this handler runs
+ * As we canyest allow ourselves to sleep in HARDIRQ context, this handler runs
  * in thread context.
  *
  * Read the interrupt status, work out what needs to be done and then clear
- * any of the interrupts that are not needed.
+ * any of the interrupts that are yest needed.
  */
 static irqreturn_t ks8851_irq(int irq, void *_ks)
 {
@@ -617,7 +617,7 @@ static irqreturn_t ks8851_irq(int irq, void *_ks)
 	if (status & IRQ_TXI) {
 		handled |= IRQ_TXI;
 
-		/* no lock here, tx queue should have been stopped */
+		/* yes lock here, tx queue should have been stopped */
 
 		/* update our idea of how much tx space is available to the
 		 * system */
@@ -640,7 +640,7 @@ static irqreturn_t ks8851_irq(int irq, void *_ks)
 	if (status & IRQ_RXI) {
 		/* the datasheet says to disable the rx interrupt during
 		 * packet read-out, however we're masking the interrupt
-		 * from the device so do not bother masking just the RX
+		 * from the device so do yest bother masking just the RX
 		 * from the device. */
 
 		ks8851_rx_pkts(ks);
@@ -798,7 +798,7 @@ static int ks8851_net_open(struct net_device *dev)
 		return ret;
 	}
 
-	/* lock the card, even if we may not actually be doing anything
+	/* lock the card, even if we may yest actually be doing anything
 	 * else at the moment */
 	mutex_lock(&ks->lock);
 
@@ -807,7 +807,7 @@ static int ks8851_net_open(struct net_device *dev)
 	/* bring chip out of any power saving mode it was in */
 	ks8851_set_powermode(ks, PMECR_PM_NORMAL);
 
-	/* issue a soft reset to the RX/TX QMU to put it into a known
+	/* issue a soft reset to the RX/TX QMU to put it into a kyeswn
 	 * state. */
 	ks8851_soft_reset(ks, GRR_QMU);
 
@@ -871,7 +871,7 @@ static int ks8851_net_open(struct net_device *dev)
  *
  * Called to close down a network device which has been active. Cancell any
  * work, shutdown the RX and TX process and then place the chip into a low
- * power state whilst it is not being used.
+ * power state whilst it is yest being used.
  */
 static int ks8851_net_stop(struct net_device *dev)
 {
@@ -1277,7 +1277,7 @@ static const struct ethtool_ops ks8851_ethtool_ops = {
  * @reg: MII register number.
  *
  * Return the KS8851 register number for the corresponding MII PHY register
- * if possible. Return zero if the MII register has no direct mapping to the
+ * if possible. Return zero if the MII register has yes direct mapping to the
  * KS8851 register set.
  */
 static int ks8851_phy_reg(int reg)
@@ -1303,14 +1303,14 @@ static int ks8851_phy_reg(int reg)
 /**
  * ks8851_phy_read - MII interface PHY register read.
  * @dev: The network device the PHY is on.
- * @phy_addr: Address of PHY (ignored as we only have one)
+ * @phy_addr: Address of PHY (igyesred as we only have one)
  * @reg: The register to read.
  *
  * This call reads data from the PHY register specified in @reg. Since the
- * device does not support all the MII registers, the non-existent values
+ * device does yest support all the MII registers, the yesn-existent values
  * are always returned as zero.
  *
- * We return zero for unsupported registers as the MII code does not check
+ * We return zero for unsupported registers as the MII code does yest check
  * the value returned for any error status, and simply returns it to the
  * caller. The mii-tool that the driver was tested with takes any -ve error
  * as real PHY capabilities, thus displaying incorrect data to the user.
@@ -1323,7 +1323,7 @@ static int ks8851_phy_read(struct net_device *dev, int phy_addr, int reg)
 
 	ksreg = ks8851_phy_reg(reg);
 	if (!ksreg)
-		return 0x0;	/* no error return allowed, so use zero */
+		return 0x0;	/* yes error return allowed, so use zero */
 
 	mutex_lock(&ks->lock);
 	result = ks8851_rdreg16(ks, ksreg);
@@ -1361,7 +1361,7 @@ static int ks8851_read_selftest(struct ks8851_net *ks)
 	rd = ks8851_rdreg16(ks, KS_MBIR);
 
 	if ((rd & both_done) != both_done) {
-		netdev_warn(ks->netdev, "Memory selftest not finished\n");
+		netdev_warn(ks->netdev, "Memory selftest yest finished\n");
 		return 0;
 	}
 
@@ -1431,7 +1431,7 @@ static int ks8851_probe(struct spi_device *spi)
 	ks->spidev = spi;
 	ks->tx_space = 6144;
 
-	gpio = of_get_named_gpio_flags(spi->dev.of_node, "reset-gpios",
+	gpio = of_get_named_gpio_flags(spi->dev.of_yesde, "reset-gpios",
 				       0, NULL);
 	if (gpio == -EPROBE_DEFER) {
 		ret = gpio;
@@ -1553,7 +1553,7 @@ static int ks8851_probe(struct spi_device *spi)
 
 	netdev_info(ndev, "revision %d, MAC %pM, IRQ %d, %s EEPROM\n",
 		    CIDER_REV_GET(cider), ndev->dev_addr, ndev->irq,
-		    ks->rc_ccr & CCR_EEPROM ? "has" : "no");
+		    ks->rc_ccr & CCR_EEPROM ? "has" : "yes");
 
 	return 0;
 
@@ -1609,5 +1609,5 @@ MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_LICENSE("GPL");
 
 module_param_named(message, msg_enable, int, 0);
-MODULE_PARM_DESC(message, "Message verbosity level (0=none, 31=all)");
+MODULE_PARM_DESC(message, "Message verbosity level (0=yesne, 31=all)");
 MODULE_ALIAS("spi:ks8851");

@@ -15,7 +15,7 @@ ccflags-vdso := \
 	$(filter -mmicromips,$(KBUILD_CFLAGS)) \
 	$(filter -march=%,$(KBUILD_CFLAGS)) \
 	$(filter -m%-float,$(KBUILD_CFLAGS)) \
-	$(filter -mno-loongson-%,$(KBUILD_CFLAGS)) \
+	$(filter -myes-loongson-%,$(KBUILD_CFLAGS)) \
 	-D__VDSO__
 
 ifdef CONFIG_CC_IS_CLANG
@@ -23,15 +23,15 @@ ccflags-vdso += $(filter --target=%,$(KBUILD_CFLAGS))
 endif
 
 #
-# The -fno-jump-tables flag only prevents the compiler from generating
-# jump tables but does not prevent the compiler from emitting absolute
+# The -fyes-jump-tables flag only prevents the compiler from generating
+# jump tables but does yest prevent the compiler from emitting absolute
 # offsets.
 cflags-vdso := $(ccflags-vdso) \
 	$(filter -W%,$(filter-out -Wa$(comma)%,$(KBUILD_CFLAGS))) \
-	-O3 -g -fPIC -fno-strict-aliasing -fno-common -fno-builtin -G 0 \
-	-fno-stack-protector -fno-jump-tables -DDISABLE_BRANCH_PROFILING \
-	$(call cc-option, -fno-asynchronous-unwind-tables) \
-	$(call cc-option, -fno-stack-protector)
+	-O3 -g -fPIC -fyes-strict-aliasing -fyes-common -fyes-builtin -G 0 \
+	-fyes-stack-protector -fyes-jump-tables -DDISABLE_BRANCH_PROFILING \
+	$(call cc-option, -fyes-asynchroyesus-unwind-tables) \
+	$(call cc-option, -fyes-stack-protector)
 aflags-vdso := $(ccflags-vdso) \
 	-D__ASSEMBLY__ -Wa,-gdwarf-2
 
@@ -51,7 +51,7 @@ CFLAGS_REMOVE_vgettimeofday.o = -pg
 # For the pre-R6 code in arch/mips/vdso/vdso.h for locating
 # the base address of VDSO, the linker will emit a R_MIPS_PC32
 # relocation in binutils > 2.25 but it will fail with older versions
-# because that relocation is not supported for that symbol. As a result
+# because that relocation is yest supported for that symbol. As a result
 # of which we are forced to disable the VDSO symbols when building
 # with < 2.25 binutils on pre-R6 kernels. For more references on why we
 # can't use other methods to get the base address of VDSO please refer to
@@ -67,9 +67,9 @@ endif
 
 # VDSO linker flags.
 VDSO_LDFLAGS := \
-	-Wl,-Bsymbolic -Wl,--no-undefined -Wl,-soname=linux-vdso.so.1 \
+	-Wl,-Bsymbolic -Wl,--yes-undefined -Wl,-soname=linux-vdso.so.1 \
 	$(addprefix -Wl$(comma),$(filter -E%,$(KBUILD_CFLAGS))) \
-	-nostdlib -shared -Wl,--hash-style=sysv -Wl,--build-id
+	-yesstdlib -shared -Wl,--hash-style=sysv -Wl,--build-id
 
 CFLAGS_REMOVE_vdso.o = -pg
 

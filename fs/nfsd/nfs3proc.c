@@ -249,7 +249,7 @@ nfsd3_proc_create(struct svc_rqst *rqstp)
 }
 
 /*
- * Make directory. This operation is not idempotent.
+ * Make directory. This operation is yest idempotent.
  */
 static __be32
 nfsd3_proc_mkdir(struct svc_rqst *rqstp)
@@ -288,7 +288,7 @@ nfsd3_proc_symlink(struct svc_rqst *rqstp)
 						page_address(rqstp->rq_arg.pages[0]),
 						argp->tlen);
 	if (IS_ERR(argp->tname))
-		RETURN_STATUS(nfserrno(PTR_ERR(argp->tname)));
+		RETURN_STATUS(nfserryes(PTR_ERR(argp->tname)));
 
 	dprintk("nfsd: SYMLINK(3)  %s %.*s -> %.*s\n",
 				SVCFH_fmt(&argp->ffh),
@@ -307,9 +307,9 @@ nfsd3_proc_symlink(struct svc_rqst *rqstp)
  * Make socket/fifo/device.
  */
 static __be32
-nfsd3_proc_mknod(struct svc_rqst *rqstp)
+nfsd3_proc_mkyesd(struct svc_rqst *rqstp)
 {
-	struct nfsd3_mknodargs *argp = rqstp->rq_argp;
+	struct nfsd3_mkyesdargs *argp = rqstp->rq_argp;
 	struct nfsd3_diropres  *resp = rqstp->rq_resp;
 	__be32	nfserr;
 	int type;
@@ -326,9 +326,9 @@ nfsd3_proc_mknod(struct svc_rqst *rqstp)
 	if (argp->ftype == 0 || argp->ftype >= NF3BAD)
 		RETURN_STATUS(nfserr_inval);
 	if (argp->ftype == NF3CHR || argp->ftype == NF3BLK) {
-		rdev = MKDEV(argp->major, argp->minor);
+		rdev = MKDEV(argp->major, argp->miyesr);
 		if (MAJOR(rdev) != argp->major ||
-		    MINOR(rdev) != argp->minor)
+		    MINOR(rdev) != argp->miyesr)
 			RETURN_STATUS(nfserr_inval);
 	} else
 		if (argp->ftype != NF3SOCK && argp->ftype != NF3FIFO)
@@ -356,7 +356,7 @@ nfsd3_proc_remove(struct svc_rqst *rqstp)
 				argp->len,
 				argp->name);
 
-	/* Unlink. -S_IFDIR means file must not be a directory */
+	/* Unlink. -S_IFDIR means file must yest be a directory */
 	fh_copy(&resp->fh, &argp->fh);
 	nfserr = nfsd_unlink(rqstp, &resp->fh, -S_IFDIR, argp->name, argp->len);
 	fh_unlock(&resp->fh);
@@ -490,7 +490,7 @@ nfsd3_proc_readdir(struct svc_rqst *rqstp)
 
 /*
  * Read a portion of a directory, including file handles and attrs.
- * For now, we choose to ignore the dircount parameter.
+ * For yesw, we choose to igyesre the dircount parameter.
  */
 static __be32
 nfsd3_proc_readdirplus(struct svc_rqst *rqstp)
@@ -525,7 +525,7 @@ nfsd3_proc_readdirplus(struct svc_rqst *rqstp)
 		RETURN_STATUS(nfserr);
 
 	if (resp->fh.fh_export->ex_flags & NFSEXP_NOREADDIRPLUS)
-		RETURN_STATUS(nfserr_notsupp);
+		RETURN_STATUS(nfserr_yestsupp);
 
 	nfserr = nfsd_readdir(rqstp, &resp->fh,
 				     &offset,
@@ -604,7 +604,7 @@ nfsd3_proc_fsinfo(struct svc_rqst *rqstp)
 			NFSD_MAY_NOP | NFSD_MAY_BYPASS_GSS_ON_ROOT);
 
 	/* Check special features of the file system. May request
-	 * different read/write sizes for file systems known to have
+	 * different read/write sizes for file systems kyeswn to have
 	 * problems with large blocks */
 	if (nfserr == 0) {
 		struct super_block *sb = argp->fh.fh_dentry->d_sb;
@@ -636,7 +636,7 @@ nfsd3_proc_pathconf(struct svc_rqst *rqstp)
 	/* Set default pathconf */
 	resp->p_link_max = 255;		/* at least */
 	resp->p_name_max = 255;		/* at least */
-	resp->p_no_trunc = 0;
+	resp->p_yes_trunc = 0;
 	resp->p_chown_restricted = 1;
 	resp->p_case_insensitive = 0;
 	resp->p_case_preserving = 1;
@@ -691,7 +691,7 @@ nfsd3_proc_commit(struct svc_rqst *rqstp)
 
 /*
  * NFSv3 Server procedures.
- * Only the results of non-idempotent operations are cached.
+ * Only the results of yesn-idempotent operations are cached.
  */
 #define nfs3svc_decode_fhandleargs	nfs3svc_decode_fhandle
 #define nfs3svc_encode_attrstatres	nfs3svc_encode_attrstat
@@ -822,11 +822,11 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 		.pc_xdrressize = ST+(1+FH+pAT)+WC,
 	},
 	[NFS3PROC_MKNOD] = {
-		.pc_func = nfsd3_proc_mknod,
-		.pc_decode = nfs3svc_decode_mknodargs,
+		.pc_func = nfsd3_proc_mkyesd,
+		.pc_decode = nfs3svc_decode_mkyesdargs,
 		.pc_encode = nfs3svc_encode_createres,
 		.pc_release = nfs3svc_release_fhandle2,
-		.pc_argsize = sizeof(struct nfsd3_mknodargs),
+		.pc_argsize = sizeof(struct nfsd3_mkyesdargs),
 		.pc_ressize = sizeof(struct nfsd3_createres),
 		.pc_cachetype = RC_REPLBUFF,
 		.pc_xdrressize = ST+(1+FH+pAT)+WC,

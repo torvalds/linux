@@ -77,7 +77,7 @@ enum sgp_cmd {
 
 struct sgp_version {
 	u8 major;
-	u8 minor;
+	u8 miyesr;
 };
 
 struct sgp_crc_word {
@@ -121,14 +121,14 @@ struct sgp_device {
 static const struct sgp_version supported_versions_sgp30[] = {
 	{
 		.major = 1,
-		.minor = 0,
+		.miyesr = 0,
 	},
 };
 
 static const struct sgp_version supported_versions_sgpc3[] = {
 	{
 		.major = 0,
-		.minor = 4,
+		.miyesr = 4,
 	},
 };
 
@@ -411,9 +411,9 @@ static int sgp_check_compat(struct sgp_data *data,
 {
 	const struct sgp_version *supported_versions;
 	u16 ix, num_fs;
-	u16 product, generation, major, minor;
+	u16 product, generation, major, miyesr;
 
-	/* driver does not match product */
+	/* driver does yest match product */
 	generation = SGP_VERS_GEN(data);
 	if (generation != 0) {
 		dev_err(&data->client->dev,
@@ -432,7 +432,7 @@ static int sgp_check_compat(struct sgp_data *data,
 	if (SGP_VERS_RESERVED(data))
 		dev_warn(&data->client->dev, "reserved bit is set\n");
 
-	/* engineering samples are not supported: no interface guarantees */
+	/* engineering samples are yest supported: yes interface guarantees */
 	if (SGP_VERS_ENG_BIT(data))
 		return -ENODEV;
 
@@ -450,14 +450,14 @@ static int sgp_check_compat(struct sgp_data *data,
 	}
 
 	major = SGP_VERS_MAJOR(data);
-	minor = SGP_VERS_MINOR(data);
+	miyesr = SGP_VERS_MINOR(data);
 	for (ix = 0; ix < num_fs; ix++) {
 		if (major == supported_versions[ix].major &&
-		    minor >= supported_versions[ix].minor)
+		    miyesr >= supported_versions[ix].miyesr)
 			return 0;
 	}
 	dev_err(&data->client->dev, "unsupported sgp version: %d.%d\n",
-		major, minor);
+		major, miyesr);
 
 	return -ENODEV;
 }

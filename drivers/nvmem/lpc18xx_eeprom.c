@@ -95,7 +95,7 @@ static int lpc18xx_eeprom_gather_write(void *context, unsigned int reg,
 	int ret;
 
 	/*
-	 * The last page contains the EEPROM initialization data and is not
+	 * The last page contains the EEPROM initialization data and is yest
 	 * writable.
 	 */
 	if ((reg > eeprom->size - LPC18XX_EEPROM_PAGE_SIZE) ||

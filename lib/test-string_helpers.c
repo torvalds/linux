@@ -297,7 +297,7 @@ static __init void test_string_escape(const char *name,
 			out_test[q_test++] = '0';
 		}
 
-		/* Don't try strings that have no output */
+		/* Don't try strings that have yes output */
 		out = test_string_find_match(s2, flags);
 		if (!out)
 			continue;
@@ -377,7 +377,7 @@ static __init void test_string_get_size(void)
 	test_string_get_size_one(1, 512, "512 B", "512 B");
 	test_string_get_size_one(1100, 1, "1.10 kB", "1.07 KiB");
 
-	/* normal values */
+	/* yesrmal values */
 	test_string_get_size_one(16384, 512, "8.39 MB", "8.00 MiB");
 	test_string_get_size_one(500118192, 512, "256 GB", "238 GiB");
 	test_string_get_size_one(8192, 4096, "33.6 MB", "32.0 MiB");

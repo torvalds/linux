@@ -39,7 +39,7 @@ xfs_rui_item_free(
 
 /*
  * Freeing the RUI requires that we remove it from the AIL if it has already
- * been placed there. However, the RUI may not yet have been placed in the AIL
+ * been placed there. However, the RUI may yest yet have been placed in the AIL
  * when called by xfs_rui_release() from RUD processing due to the ordering of
  * committed vs unpin operations in bulk insert operations. Hence the reference
  * count to ensure only the last caller frees the RUI.
@@ -98,7 +98,7 @@ xfs_rui_item_format(
  * either case, the RUI transaction has been successfully committed to make it
  * this far. Therefore, we expect whoever committed the RUI to either construct
  * and commit the RUD or drop the RUD's reference in the event of error. Simply
- * drop the log's RUI reference now that the log is done with it.
+ * drop the log's RUI reference yesw that the log is done with it.
  */
 STATIC void
 xfs_rui_item_unpin(
@@ -157,7 +157,7 @@ xfs_rui_init(
 
 /*
  * Copy an RUI format buffer from the given buf, and into the destination
- * RUI format structure.  The RUI/RUD items were designed not to need any
+ * RUI format structure.  The RUI/RUD items were designed yest to need any
  * special alignment handling.
  */
 int

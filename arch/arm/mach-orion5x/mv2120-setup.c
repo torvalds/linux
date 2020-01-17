@@ -53,25 +53,25 @@ static struct mtd_partition mv2120_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data mv2120_nor_flash_data = {
+static struct physmap_flash_data mv2120_yesr_flash_data = {
 	.width		= 1,
 	.parts		= mv2120_partitions,
 	.nr_parts	= ARRAY_SIZE(mv2120_partitions)
 };
 
-static struct resource mv2120_nor_flash_resource = {
+static struct resource mv2120_yesr_flash_resource = {
 	.flags		= IORESOURCE_MEM,
 	.start		= MV2120_NOR_BOOT_BASE,
 	.end		= MV2120_NOR_BOOT_BASE + MV2120_NOR_BOOT_SIZE - 1,
 };
 
-static struct platform_device mv2120_nor_flash = {
+static struct platform_device mv2120_yesr_flash = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &mv2120_nor_flash_data,
+		.platform_data	= &mv2120_yesr_flash_data,
 	},
-	.resource	= &mv2120_nor_flash_resource,
+	.resource	= &mv2120_yesr_flash_resource,
 	.num_resources	= 1,
 };
 
@@ -208,7 +208,7 @@ static void __init mv2120_init(void)
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
 				    MV2120_NOR_BOOT_BASE,
 				    MV2120_NOR_BOOT_SIZE);
-	platform_device_register(&mv2120_nor_flash);
+	platform_device_register(&mv2120_yesr_flash);
 
 	platform_device_register(&mv2120_button_device);
 

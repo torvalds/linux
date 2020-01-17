@@ -5,7 +5,7 @@
 #include "str_error.h"
 
 /*
- * Wrapper to allow for building in non-GNU systems such as Alpine Linux's musl
+ * Wrapper to allow for building in yesn-GNU systems such as Alpine Linux's musl
  * libc, while checking strerror_r() return to avoid having to check this in
  * all places calling it.
  */

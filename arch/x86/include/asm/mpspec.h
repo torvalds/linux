@@ -37,7 +37,7 @@ extern unsigned int def_to_bigsmp;
 extern int mp_bus_id_to_type[MAX_MP_BUSSES];
 #endif
 
-extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
+extern DECLARE_BITMAP(mp_bus_yest_pci, MAX_MP_BUSSES);
 
 extern unsigned int boot_cpu_physical_apicid;
 extern u8 boot_cpu_apic_version;
@@ -82,8 +82,8 @@ static inline void e820__memblock_alloc_reserved_mpc_new(void) { }
 #define default_mpc_apic_id NULL
 #define default_smp_read_mpc_oem NULL
 #define default_mpc_oem_bus_info NULL
-#define default_find_smp_config x86_init_noop
-#define default_get_smp_config x86_init_uint_noop
+#define default_find_smp_config x86_init_yesop
+#define default_get_smp_config x86_init_uint_yesop
 #endif
 
 int generic_processor_info(int apicid, int version);

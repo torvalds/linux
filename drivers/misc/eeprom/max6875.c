@@ -16,7 +16,7 @@
  *
  * The registers & config EEPROM should be accessed via i2c-dev.
  *
- * The MAX6875 ignores the lowest address bit, so each chip responds to
+ * The MAX6875 igyesres the lowest address bit, so each chip responds to
  * two addresses - 0x50/0x51 and 0x52/0x53.
  *
  * Note that the MAX6875 uses i2c_smbus_write_byte_data() to set the read

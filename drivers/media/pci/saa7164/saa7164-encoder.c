@@ -12,10 +12,10 @@
 #define ENCODER_DEF_BITRATE 5000000
 
 /*
- * This is a dummy non-zero value for the sizeimage field of v4l2_pix_format.
- * It is not actually used for anything since this driver does not support
+ * This is a dummy yesn-zero value for the sizeimage field of v4l2_pix_format.
+ * It is yest actually used for anything since this driver does yest support
  * stream I/O, only read(), and because this driver produces an MPEG stream
- * and not discrete frames. But the V4L2 spec doesn't allow for this value
+ * and yest discrete frames. But the V4L2 spec doesn't allow for this value
  * to be 0, so set it to 0x10000 instead.
  *
  * If we ever change this driver to support stream I/O, then this field
@@ -23,7 +23,7 @@
  */
 #define SAA7164_SIZEIMAGE (0x10000)
 
-static struct saa7164_tvnorm saa7164_tvnorms[] = {
+static struct saa7164_tvyesrm saa7164_tvyesrms[] = {
 	{
 		.name      = "NTSC-M",
 		.id        = V4L2_STD_NTSC_M,
@@ -44,13 +44,13 @@ static void saa7164_encoder_configure(struct saa7164_port *port)
 	port->encoder_params.width = port->width;
 	port->encoder_params.height = port->height;
 	port->encoder_params.is_50hz =
-		(port->encodernorm.id & V4L2_STD_625_50) != 0;
+		(port->encoderyesrm.id & V4L2_STD_625_50) != 0;
 
 	/* Set up the DIF (enable it) for analog mode by default */
 	saa7164_api_initialize_dif(port);
 
 	/* Configure the correct video standard */
-	saa7164_api_configure_dif(port, port->encodernorm.id);
+	saa7164_api_configure_dif(port, port->encoderyesrm.id);
 
 	/* Ensure the audio decoder is correct configured */
 	saa7164_api_set_audio_std(port);
@@ -143,7 +143,7 @@ static int saa7164_encoder_buffers_alloc(struct saa7164_port *port)
 			params->pitch);
 
 		if (!buf) {
-			printk(KERN_ERR "%s() failed (errno = %d), unable to allocate buffer\n",
+			printk(KERN_ERR "%s() failed (erryes = %d), unable to allocate buffer\n",
 				__func__, result);
 			result = -ENOMEM;
 			goto failed;
@@ -197,17 +197,17 @@ int saa7164_s_std(struct saa7164_port *port, v4l2_std_id id)
 
 	dprintk(DBGLVL_ENC, "%s(id=0x%x)\n", __func__, (u32)id);
 
-	for (i = 0; i < ARRAY_SIZE(saa7164_tvnorms); i++) {
-		if (id & saa7164_tvnorms[i].id)
+	for (i = 0; i < ARRAY_SIZE(saa7164_tvyesrms); i++) {
+		if (id & saa7164_tvyesrms[i].id)
 			break;
 	}
-	if (i == ARRAY_SIZE(saa7164_tvnorms))
+	if (i == ARRAY_SIZE(saa7164_tvyesrms))
 		return -EINVAL;
 
-	port->encodernorm = saa7164_tvnorms[i];
+	port->encoderyesrm = saa7164_tvyesrms[i];
 	port->std = id;
 
-	/* Update the audio decoder while is not running in
+	/* Update the audio decoder while is yest running in
 	 * auto detect mode.
 	 */
 	saa7164_api_set_audio_std(port);
@@ -255,8 +255,8 @@ int saa7164_enum_input(struct file *file, void *priv, struct v4l2_input *i)
 	else
 		i->type  = V4L2_INPUT_TYPE_CAMERA;
 
-	for (n = 0; n < ARRAY_SIZE(saa7164_tvnorms); n++)
-		i->std |= saa7164_tvnorms[n].id;
+	for (n = 0; n < ARRAY_SIZE(saa7164_tvyesrms); n++)
+		i->std |= saa7164_tvyesrms[n].id;
 
 	return 0;
 }
@@ -363,7 +363,7 @@ int saa7164_s_frequency(struct saa7164_port *port,
 	struct analog_parameters params = {
 		.mode      = V4L2_TUNER_ANALOG_TV,
 		.audmode   = V4L2_TUNER_MODE_STEREO,
-		.std       = port->encodernorm.id,
+		.std       = port->encoderyesrm.id,
 		.frequency = f->frequency
 	};
 
@@ -963,8 +963,8 @@ static struct video_device saa7164_mpeg_template = {
 	.name          = "saa7164",
 	.fops          = &mpeg_fops,
 	.ioctl_ops     = &mpeg_ioctl_ops,
-	.minor         = -1,
-	.tvnorms       = SAA7164_NORMS,
+	.miyesr         = -1,
+	.tvyesrms       = SAA7164_NORMS,
 	.device_caps   = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 			 V4L2_CAP_TUNER,
 };
@@ -1005,7 +1005,7 @@ int saa7164_encoder_register(struct saa7164_port *port)
 
 	/* Sanity check that the PCI configuration space is active */
 	if (port->hwcfg.BARLocation == 0) {
-		printk(KERN_ERR "%s() failed (errno = %d), NO PCI configuration\n",
+		printk(KERN_ERR "%s() failed (erryes = %d), NO PCI configuration\n",
 			__func__, result);
 		result = -ENOMEM;
 		goto failed;
@@ -1013,7 +1013,7 @@ int saa7164_encoder_register(struct saa7164_port *port)
 
 	/* Establish encoder defaults here */
 	/* Set default TV standard */
-	port->encodernorm = saa7164_tvnorms[0];
+	port->encoderyesrm = saa7164_tvyesrms[0];
 	port->width = 720;
 	port->mux_input = 1; /* Composite */
 	port->video_format = EU_VIDEO_FORMAT_MPEG_2;
@@ -1067,12 +1067,12 @@ int saa7164_encoder_register(struct saa7164_port *port)
 
 	port->std = V4L2_STD_NTSC_M;
 
-	if (port->encodernorm.id & V4L2_STD_525_60)
+	if (port->encoderyesrm.id & V4L2_STD_525_60)
 		port->height = 480;
 	else
 		port->height = 576;
 
-	/* Allocate and register the video device node */
+	/* Allocate and register the video device yesde */
 	port->v4l_device = saa7164_encoder_alloc(port,
 		dev->pci, &saa7164_mpeg_template, "mpeg");
 
@@ -1131,7 +1131,7 @@ void saa7164_encoder_unregister(struct saa7164_port *port)
 	BUG_ON(port->type != SAA7164_MPEG_ENCODER);
 
 	if (port->v4l_device) {
-		if (port->v4l_device->minor != -1)
+		if (port->v4l_device->miyesr != -1)
 			video_unregister_device(port->v4l_device);
 		else
 			video_device_release(port->v4l_device);

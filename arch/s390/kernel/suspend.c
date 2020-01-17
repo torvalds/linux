@@ -21,7 +21,7 @@
  * The restore of the saved pages in an hibernation image will set
  * the change and referenced bits in the storage key for each page.
  * Overindication of the referenced bits after an hibernation cycle
- * does not cause any harm but the overindication of the change bits
+ * does yest cause any harm but the overindication of the change bits
  * would cause trouble.
  * Use the ARCH_SAVE_PAGE_KEYS hooks to save the storage key of each
  * page to the most significant byte of the associated page frame
@@ -47,7 +47,7 @@ unsigned long suspend_zero_pages;
 /*
  * For each page in the hibernation image one additional byte is
  * stored in the most significant byte of the page frame number.
- * On suspend no additional memory is required but on resume the
+ * On suspend yes additional memory is required but on resume the
  * keys need to be memorized until the page data has been restored.
  * Only then can the storage keys be set to their old state.
  */
@@ -71,7 +71,7 @@ void page_key_free(void)
 }
 
 /*
- * Allocate page_key_data list of arrays with enough room to store
+ * Allocate page_key_data list of arrays with eyesugh room to store
  * one byte for each page in the hibernation image.
  */
 int page_key_alloc(unsigned long pages)
@@ -106,7 +106,7 @@ void page_key_read(unsigned long *pfn)
 	page = pfn_to_page(*pfn);
 	addr = (unsigned long) page_address(page);
 	key = (unsigned char) page_get_storage_key(addr) & 0x7f;
-	if (arch_test_page_nodat(page))
+	if (arch_test_page_yesdat(page))
 		key |= 0x80;
 	*(unsigned char *) pfn = key;
 }
@@ -140,7 +140,7 @@ void page_key_write(void *address)
 	page_set_storage_key((unsigned long) address, key & 0x7f, 0);
 	page = virt_to_page(address);
 	if (key & 0x80)
-		arch_set_page_nodat(page, 0);
+		arch_set_page_yesdat(page, 0);
 	else
 		arch_set_page_dat(page, 0);
 	if (++page_key_rx >= PAGE_KEY_DATA_SIZE)
@@ -149,17 +149,17 @@ void page_key_write(void *address)
 	page_key_rx = 0;
 }
 
-int pfn_is_nosave(unsigned long pfn)
+int pfn_is_yessave(unsigned long pfn)
 {
-	unsigned long nosave_begin_pfn = PFN_DOWN(__pa(&__nosave_begin));
-	unsigned long nosave_end_pfn = PFN_DOWN(__pa(&__nosave_end));
+	unsigned long yessave_begin_pfn = PFN_DOWN(__pa(&__yessave_begin));
+	unsigned long yessave_end_pfn = PFN_DOWN(__pa(&__yessave_end));
 	unsigned long end_rodata_pfn = PFN_DOWN(__pa(__end_rodata)) - 1;
 	unsigned long stext_pfn = PFN_DOWN(__pa(_stext));
 
 	/* Always save lowcore pages (LC protection might be enabled). */
 	if (pfn <= LC_PAGES)
 		return 0;
-	if (pfn >= nosave_begin_pfn && pfn < nosave_end_pfn)
+	if (pfn >= yessave_begin_pfn && pfn < yessave_end_pfn)
 		return 1;
 	/* Skip memory holes and read-only pages (DCSS, ...). */
 	if (pfn >= stext_pfn && pfn <= end_rodata_pfn)
@@ -170,9 +170,9 @@ int pfn_is_nosave(unsigned long pfn)
 }
 
 /*
- * PM notifier callback for suspend
+ * PM yestifier callback for suspend
  */
-static int suspend_pm_cb(struct notifier_block *nb, unsigned long action,
+static int suspend_pm_cb(struct yestifier_block *nb, unsigned long action,
 			 void *ptr)
 {
 	switch (action) {
@@ -194,7 +194,7 @@ static int suspend_pm_cb(struct notifier_block *nb, unsigned long action,
 
 static int __init suspend_pm_init(void)
 {
-	pm_notifier(suspend_pm_cb, 0);
+	pm_yestifier(suspend_pm_cb, 0);
 	return 0;
 }
 arch_initcall(suspend_pm_init);
@@ -209,7 +209,7 @@ void save_processor_state(void)
 	 * We must also disable machine checks in the new psw mask for
 	 * program checks, since swsusp_arch_suspend() may generate program
 	 * checks. Disabling machine checks for all other new psw masks is
-	 * just paranoia.
+	 * just parayesia.
 	 */
 	local_mcck_disable();
 	/* Disable lowcore protection */

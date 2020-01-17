@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -33,7 +33,7 @@
 #define DRIVER_AUTHOR  "Florian 'Floe' Echtler <echtler@fs.tum.de>"
 #define DRIVER_DESC    "Siemens ID Mouse FingerTIP Sensor Driver"
 
-/* minor number for misc USB devices */
+/* miyesr number for misc USB devices */
 #define USB_IDMOUSE_MINOR_BASE 132
 
 /* vendor and device IDs */
@@ -72,8 +72,8 @@ struct usb_idmouse {
 	size_t orig_bi_size; /* same as above, but reported by the device */
 	__u8 bulk_in_endpointAddr; /* the address of the bulk in endpoint */
 
-	int open; /* if the port is open or not */
-	int present; /* if the device is not disconnected */
+	int open; /* if the port is open or yest */
+	int present; /* if the device is yest disconnected */
 	struct mutex lock; /* locks this structure */
 
 };
@@ -82,8 +82,8 @@ struct usb_idmouse {
 static ssize_t idmouse_read(struct file *file, char __user *buffer,
 				size_t count, loff_t * ppos);
 
-static int idmouse_open(struct inode *inode, struct file *file);
-static int idmouse_release(struct inode *inode, struct file *file);
+static int idmouse_open(struct iyesde *iyesde, struct file *file);
+static int idmouse_release(struct iyesde *iyesde, struct file *file);
 
 static int idmouse_probe(struct usb_interface *interface,
 				const struct usb_device_id *id);
@@ -105,7 +105,7 @@ static const struct file_operations idmouse_fops = {
 static struct usb_class_driver idmouse_class = {
 	.name = "idmouse%d",
 	.fops = &idmouse_fops,
-	.minor_base = USB_IDMOUSE_MINOR_BASE,
+	.miyesr_base = USB_IDMOUSE_MINOR_BASE,
 };
 
 /* usb specific object needed to register this driver with the usb subsystem */
@@ -198,7 +198,7 @@ reset:
 	return result;
 }
 
-/* PM operations are nops as this driver does IO only during open() */
+/* PM operations are yesps as this driver does IO only during open() */
 static int idmouse_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	return 0;
@@ -215,14 +215,14 @@ static inline void idmouse_delete(struct usb_idmouse *dev)
 	kfree(dev);
 }
 
-static int idmouse_open(struct inode *inode, struct file *file)
+static int idmouse_open(struct iyesde *iyesde, struct file *file)
 {
 	struct usb_idmouse *dev;
 	struct usb_interface *interface;
 	int result;
 
-	/* get the interface from minor number and driver information */
-	interface = usb_find_interface(&idmouse_driver, iminor(inode));
+	/* get the interface from miyesr number and driver information */
+	interface = usb_find_interface(&idmouse_driver, imiyesr(iyesde));
 	if (!interface)
 		return -ENODEV;
 
@@ -266,7 +266,7 @@ error:
 	return result;
 }
 
-static int idmouse_release(struct inode *inode, struct file *file)
+static int idmouse_release(struct iyesde *iyesde, struct file *file)
 {
 	struct usb_idmouse *dev;
 
@@ -358,18 +358,18 @@ static int idmouse_probe(struct usb_interface *interface,
 	/* allow device read, write and ioctl */
 	dev->present = 1;
 
-	/* we can register the device now, as it is ready */
+	/* we can register the device yesw, as it is ready */
 	usb_set_intfdata(interface, dev);
 	result = usb_register_dev(interface, &idmouse_class);
 	if (result) {
 		/* something prevented us from registering this device */
-		dev_err(&interface->dev, "Unable to allocate minor number.\n");
+		dev_err(&interface->dev, "Unable to allocate miyesr number.\n");
 		idmouse_delete(dev);
 		return result;
 	}
 
-	/* be noisy */
-	dev_info(&interface->dev,"%s now attached\n",DRIVER_DESC);
+	/* be yesisy */
+	dev_info(&interface->dev,"%s yesw attached\n",DRIVER_DESC);
 
 	return 0;
 }
@@ -378,7 +378,7 @@ static void idmouse_disconnect(struct usb_interface *interface)
 {
 	struct usb_idmouse *dev = usb_get_intfdata(interface);
 
-	/* give back our minor */
+	/* give back our miyesr */
 	usb_deregister_dev(interface, &idmouse_class);
 
 	/* lock the device */

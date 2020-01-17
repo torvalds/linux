@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2019 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2019 Syyespsys, Inc. and/or its affiliates.
  * stmmac Selftests Support
  *
- * Author: Jose Abreu <joabreu@synopsys.com>
+ * Author: Jose Abreu <joabreu@syyespsys.com>
  */
 
 #include <linux/bitrev.h>
@@ -405,13 +405,13 @@ static int stmmac_test_mmc(struct stmmac_priv *priv)
 	if (ret)
 		return ret;
 
-	/* These will be loopback results so no need to save them */
+	/* These will be loopback results so yes need to save them */
 	stmmac_mmc_read(priv, priv->mmcaddr, &final);
 
 	/*
 	 * The number of MMC counters available depends on HW configuration
 	 * so we just use this one to validate the feature. I hope there is
-	 * not a version without this counter.
+	 * yest a version without this counter.
 	 */
 	if (final.mmc_tx_framecount_g <= initial.mmc_tx_framecount_g)
 		return -EINVAL;
@@ -444,7 +444,7 @@ static int stmmac_test_eee(struct stmmac_priv *priv)
 	if (ret)
 		goto out_free_final;
 
-	/* We have no traffic in the line so, sooner or later it will go LPI */
+	/* We have yes traffic in the line so, sooner or later it will go LPI */
 	while (--retries) {
 		memcpy(final, &priv->xstats, sizeof(*final));
 
@@ -1105,9 +1105,9 @@ static int stmmac_test_rxp(struct stmmac_priv *priv)
 	cls_u32.command = TC_CLSU32_NEW_KNODE;
 	cls_u32.common.chain_index = 0;
 	cls_u32.common.protocol = htons(ETH_P_ALL);
-	cls_u32.knode.exts = exts;
-	cls_u32.knode.sel = sel;
-	cls_u32.knode.handle = 0x123;
+	cls_u32.kyesde.exts = exts;
+	cls_u32.kyesde.sel = sel;
+	cls_u32.kyesde.handle = 0x123;
 
 	exts->nr_actions = nk;
 	exts->actions = actions;
@@ -1242,7 +1242,7 @@ static int stmmac_test_reg_sar(struct stmmac_priv *priv)
 	return ret;
 }
 
-static int stmmac_test_vlanoff_common(struct stmmac_priv *priv, bool svlan)
+static int stmmac_test_vlayesff_common(struct stmmac_priv *priv, bool svlan)
 {
 	struct stmmac_packet_attrs attr = { };
 	struct stmmac_test_priv *tpriv;
@@ -1302,16 +1302,16 @@ cleanup:
 	return ret;
 }
 
-static int stmmac_test_vlanoff(struct stmmac_priv *priv)
+static int stmmac_test_vlayesff(struct stmmac_priv *priv)
 {
-	return stmmac_test_vlanoff_common(priv, false);
+	return stmmac_test_vlayesff_common(priv, false);
 }
 
-static int stmmac_test_svlanoff(struct stmmac_priv *priv)
+static int stmmac_test_svlayesff(struct stmmac_priv *priv)
 {
 	if (!priv->dma_cap.dvlan)
 		return -EOPNOTSUPP;
-	return stmmac_test_vlanoff_common(priv, true);
+	return stmmac_test_vlayesff_common(priv, true);
 }
 
 #ifdef CONFIG_NET_CLS_ACT
@@ -1711,7 +1711,7 @@ static int stmmac_test_sph(struct stmmac_priv *priv)
 	if (cnt_end <= cnt_start)
 		return -EINVAL;
 
-	/* Check for TCP now */
+	/* Check for TCP yesw */
 	cnt_start = cnt_end;
 
 	attr.dst = priv->dev->dev_addr;
@@ -1816,11 +1816,11 @@ static const struct stmmac_test {
 	}, {
 		.name = "VLAN TX Insertion          ",
 		.lb = STMMAC_LOOPBACK_PHY,
-		.fn = stmmac_test_vlanoff,
+		.fn = stmmac_test_vlayesff,
 	}, {
 		.name = "SVLAN TX Insertion         ",
 		.lb = STMMAC_LOOPBACK_PHY,
-		.fn = stmmac_test_svlanoff,
+		.fn = stmmac_test_svlayesff,
 	}, {
 		.name = "L3 DA Filtering            ",
 		.lb = STMMAC_LOOPBACK_PHY,
@@ -1914,10 +1914,10 @@ void stmmac_selftest_run(struct net_device *dev,
 
 		/*
 		 * First tests will always be MAC / PHY loobpack. If any of
-		 * them is not supported we abort earlier.
+		 * them is yest supported we abort earlier.
 		 */
 		if (ret) {
-			netdev_err(priv->dev, "Loopback is not supported\n");
+			netdev_err(priv->dev, "Loopback is yest supported\n");
 			etest->flags |= ETH_TEST_FL_FAILED;
 			break;
 		}

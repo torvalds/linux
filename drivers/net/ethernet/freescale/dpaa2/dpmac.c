@@ -56,7 +56,7 @@ int dpmac_open(struct fsl_mc_io *mc_io,
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPMAC object
  *
- * After this function is called, no further operations are
+ * After this function is called, yes further operations are
  * allowed on the object without opening a new control session.
  *
  * Return:	'0' on Success; Error code otherwise.

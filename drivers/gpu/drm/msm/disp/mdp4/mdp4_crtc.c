@@ -34,11 +34,11 @@ struct mdp4_crtc {
 		struct drm_gem_object *next_bo;
 
 		/* current cursor being scanned out: */
-		struct drm_gem_object *scanout_bo;
+		struct drm_gem_object *scayesut_bo;
 	} cursor;
 
 
-	/* if there is a pending flip, these will be non-null: */
+	/* if there is a pending flip, these will be yesn-null: */
 	struct drm_pending_vblank_event *event;
 
 	/* Bits have been flushed at the last commit,
@@ -50,7 +50,7 @@ struct mdp4_crtc {
 #define PENDING_FLIP   0x2
 	atomic_t pending;
 
-	/* for unref'ing cursor bo's after scanout completes: */
+	/* for unref'ing cursor bo's after scayesut completes: */
 	struct drm_flip_work unref_cursor_work;
 
 	struct mdp_irq vblank;
@@ -132,7 +132,7 @@ static void mdp4_crtc_destroy(struct drm_crtc *crtc)
 	kfree(mdp4_crtc);
 }
 
-/* statically (for now) map planes to mixer stage (z-order): */
+/* statically (for yesw) map planes to mixer stage (z-order): */
 static const int idxs[] = {
 		[VG1]  = 1,
 		[VG2]  = 2,
@@ -221,7 +221,7 @@ static void blend_setup(struct drm_crtc *crtc)
 	setup_mixer(mdp4_kms);
 }
 
-static void mdp4_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void mdp4_crtc_mode_set_yesfb(struct drm_crtc *crtc)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
@@ -347,7 +347,7 @@ static void mdp4_crtc_atomic_flush(struct drm_crtc *crtc,
 #define CURSOR_HEIGHT 64
 
 /* called from IRQ to update cursor related registers (if needed).  The
- * cursor registers, other than x/y position, appear not to be double
+ * cursor registers, other than x/y position, appear yest to be double
  * buffered, and changing them other than from vblank seems to trigger
  * underflow.
  */
@@ -362,7 +362,7 @@ static void update_cursor(struct drm_crtc *crtc)
 	spin_lock_irqsave(&mdp4_crtc->cursor.lock, flags);
 	if (mdp4_crtc->cursor.stale) {
 		struct drm_gem_object *next_bo = mdp4_crtc->cursor.next_bo;
-		struct drm_gem_object *prev_bo = mdp4_crtc->cursor.scanout_bo;
+		struct drm_gem_object *prev_bo = mdp4_crtc->cursor.scayesut_bo;
 		uint64_t iova = mdp4_crtc->cursor.next_iova;
 
 		if (next_bo) {
@@ -388,7 +388,7 @@ static void update_cursor(struct drm_crtc *crtc)
 		if (prev_bo)
 			drm_flip_work_queue(&mdp4_crtc->unref_cursor_work, prev_bo);
 
-		mdp4_crtc->cursor.scanout_bo = next_bo;
+		mdp4_crtc->cursor.scayesut_bo = next_bo;
 		mdp4_crtc->cursor.stale = false;
 	}
 
@@ -484,7 +484,7 @@ static const struct drm_crtc_funcs mdp4_crtc_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs mdp4_crtc_helper_funcs = {
-	.mode_set_nofb = mdp4_crtc_mode_set_nofb,
+	.mode_set_yesfb = mdp4_crtc_mode_set_yesfb,
 	.atomic_check = mdp4_crtc_atomic_check,
 	.atomic_begin = mdp4_crtc_atomic_begin,
 	.atomic_flush = mdp4_crtc_atomic_flush,
@@ -602,7 +602,7 @@ void mdp4_crtc_set_intf(struct drm_crtc *crtc, enum mdp4_intf intf, int mixer)
 
 void mdp4_crtc_wait_for_commit_done(struct drm_crtc *crtc)
 {
-	/* wait_for_flush_done is the only case for now.
+	/* wait_for_flush_done is the only case for yesw.
 	 * Later we will have command mode CRTC to wait for
 	 * other event.
 	 */

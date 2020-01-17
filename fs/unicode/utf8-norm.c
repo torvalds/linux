@@ -51,7 +51,7 @@ EXPORT_SYMBOL(utf8version_latest);
  *
  * There is an additional requirement on UTF-8, in that only the
  * shortest representation of a 32bit value is to be used.  A decoder
- * must not decode sequences that do not satisfy this requirement.
+ * must yest decode sequences that do yest satisfy this requirement.
  * Thus the allowed ranges have a lower bound.
  *
  * 0x00000000 0x0000007F: 0xxxxxxx
@@ -70,7 +70,7 @@ EXPORT_SYMBOL(utf8version_latest);
  *      0x800 -   0xFFFF: 0xE0 0xA0 0x80      - 0xEF 0xBF 0xBF
  *    0x10000 - 0x10FFFF: 0xF0 0x90 0x80 0x80 - 0xF4 0x8F 0xBF 0xBF
  *
- * Within those ranges the surrogates 0xD800 - 0xDFFF are not allowed.
+ * Within those ranges the surrogates 0xD800 - 0xDFFF are yest allowed.
  *
  * Note that the longest sequence seen with valid usage is 4 bytes,
  * the same a single UTF-32 character.  This makes the UTF-8
@@ -132,23 +132,23 @@ utf8encode3(char *str, unsigned int val)
  *
  * A compact binary tree, used to decode UTF-8 characters.
  *
- * Internal nodes are one byte for the node itself, and up to three
+ * Internal yesdes are one byte for the yesde itself, and up to three
  * bytes for an offset into the tree.  The first byte contains the
  * following information:
  *  NEXTBYTE  - flag        - advance to next byte if set
  *  BITNUM    - 3 bit field - the bit number to tested
  *  OFFLEN    - 2 bit field - number of bytes in the offset
- * if offlen == 0 (non-branching node)
- *  RIGHTPATH - 1 bit field - set if the following node is for the
+ * if offlen == 0 (yesn-branching yesde)
+ *  RIGHTPATH - 1 bit field - set if the following yesde is for the
  *                            right-hand path (tested bit is set)
- *  TRIENODE  - 1 bit field - set if the following node is an internal
- *                            node, otherwise it is a leaf node
- * if offlen != 0 (branching node)
- *  LEFTNODE  - 1 bit field - set if the left-hand node is internal
- *  RIGHTNODE - 1 bit field - set if the right-hand node is internal
+ *  TRIENODE  - 1 bit field - set if the following yesde is an internal
+ *                            yesde, otherwise it is a leaf yesde
+ * if offlen != 0 (branching yesde)
+ *  LEFTNODE  - 1 bit field - set if the left-hand yesde is internal
+ *  RIGHTNODE - 1 bit field - set if the right-hand yesde is internal
  *
- * Due to the way utf8 works, there cannot be branching nodes with
- * NEXTBYTE set, and moreover those nodes always have a righthand
+ * Due to the way utf8 works, there canyest be branching yesdes with
+ * NEXTBYTE set, and moreover those yesdes always have a righthand
  * descendant.
  */
 typedef const unsigned char utf8trie_t;
@@ -170,23 +170,23 @@ typedef const unsigned char utf8trie_t;
  * leaf[0]: The unicode version, stored as a generation number that is
  *          an index into utf8agetab[].  With this we can filter code
  *          points based on the unicode version in which they were
- *          defined.  The CCC of a non-defined code point is 0.
- * leaf[1]: Canonical Combining Class. During normalization, we need
+ *          defined.  The CCC of a yesn-defined code point is 0.
+ * leaf[1]: Cayesnical Combining Class. During yesrmalization, we need
  *          to do a stable sort into ascending order of all characters
- *          with a non-zero CCC that occur between two characters with
+ *          with a yesn-zero CCC that occur between two characters with
  *          a CCC of 0, or at the begin or end of a string.
  *          The unicode standard guarantees that all CCC values are
  *          between 0 and 254 inclusive, which leaves 255 available as
  *          a special value.
- *          Code points with CCC 0 are known as stoppers.
+ *          Code points with CCC 0 are kyeswn as stoppers.
  * leaf[2]: Decomposition. If leaf[1] == 255, then leaf[2] is the
  *          start of a NUL-terminated string that is the decomposition
  *          of the character.
  *          The CCC of a decomposable character is the same as the CCC
  *          of the first character of its decomposition.
  *          Some characters decompose as the empty string: these are
- *          characters with the Default_Ignorable_Code_Point property.
- *          These do affect normalization, as they all have CCC 0.
+ *          characters with the Default_Igyesrable_Code_Point property.
+ *          These do affect yesrmalization, as they all have CCC 0.
  *
  * The decompositions in the trie have been fully expanded, with the
  * exception of Hangul syllables, which are decomposed algorithmically.
@@ -233,13 +233,13 @@ typedef const unsigned char utf8leaf_t;
  * Decomposition:
  *   SIndex = s - SBase
  *
- * LV (Canonical/Full)
+ * LV (Cayesnical/Full)
  *   LIndex = SIndex / NCount
  *   VIndex = (Sindex % NCount) / TCount
  *   LPart = LBase + LIndex
  *   VPart = VBase + VIndex
  *
- * LVT (Canonical)
+ * LVT (Cayesnical)
  *   LVIndex = (SIndex / TCount) * TCount
  *   TIndex = (Sindex % TCount)
  *   LVPart = SBase + LVIndex
@@ -312,8 +312,8 @@ utf8hangul(const char *str, unsigned char *hangul)
  * Use trie to scan s, touching at most len bytes.
  * Returns the leaf if one exists, NULL otherwise.
  *
- * A non-NULL return guarantees that the UTF-8 sequence starting at s
- * is well-formed and corresponds to a known unicode code point.  The
+ * A yesn-NULL return guarantees that the UTF-8 sequence starting at s
+ * is well-formed and corresponds to a kyeswn unicode code point.  The
  * shorthand for this will be "is valid UTF-8 unicode".
  */
 static utf8leaf_t *utf8nlookup(const struct utf8data *data,
@@ -323,7 +323,7 @@ static utf8leaf_t *utf8nlookup(const struct utf8data *data,
 	int		offlen;
 	int		offset;
 	int		mask;
-	int		node;
+	int		yesde;
 
 	if (!data)
 		return NULL;
@@ -331,8 +331,8 @@ static utf8leaf_t *utf8nlookup(const struct utf8data *data,
 		return NULL;
 
 	trie = utf8data + data->offset;
-	node = 1;
-	while (node) {
+	yesde = 1;
+	while (yesde) {
 		offlen = (*trie & OFFLEN) >> OFFLEN_SHIFT;
 		if (*trie & NEXTBYTE) {
 			if (--len == 0)
@@ -343,8 +343,8 @@ static utf8leaf_t *utf8nlookup(const struct utf8data *data,
 		if (*s & mask) {
 			/* Right leg */
 			if (offlen) {
-				/* Right node at offset of trie */
-				node = (*trie & RIGHTNODE);
+				/* Right yesde at offset of trie */
+				yesde = (*trie & RIGHTNODE);
 				offset = trie[offlen];
 				while (--offlen) {
 					offset <<= 8;
@@ -352,25 +352,25 @@ static utf8leaf_t *utf8nlookup(const struct utf8data *data,
 				}
 				trie += offset;
 			} else if (*trie & RIGHTPATH) {
-				/* Right node after this node */
-				node = (*trie & TRIENODE);
+				/* Right yesde after this yesde */
+				yesde = (*trie & TRIENODE);
 				trie++;
 			} else {
-				/* No right node. */
+				/* No right yesde. */
 				return NULL;
 			}
 		} else {
 			/* Left leg */
 			if (offlen) {
-				/* Left node after this node. */
-				node = (*trie & LEFTNODE);
+				/* Left yesde after this yesde. */
+				yesde = (*trie & LEFTNODE);
 				trie += offlen + 1;
 			} else if (*trie & RIGHTPATH) {
-				/* No left node. */
+				/* No left yesde. */
 				return NULL;
 			} else {
-				/* Left node after this node */
-				node = (*trie & TRIENODE);
+				/* Left yesde after this yesde */
+				yesde = (*trie & TRIENODE);
 				trie++;
 			}
 		}
@@ -400,8 +400,8 @@ static utf8leaf_t *utf8lookup(const struct utf8data *data,
 
 /*
  * Maximum age of any character in s.
- * Return -1 if s is not valid UTF-8 unicode.
- * Return 0 if only non-assigned code points are used.
+ * Return -1 if s is yest valid UTF-8 unicode.
+ * Return 0 if only yesn-assigned code points are used.
  */
 int utf8agemax(const struct utf8data *data, const char *s)
 {
@@ -429,8 +429,8 @@ EXPORT_SYMBOL(utf8agemax);
 
 /*
  * Minimum age of any character in s.
- * Return -1 if s is not valid UTF-8 unicode.
- * Return 0 if non-assigned code points are used.
+ * Return -1 if s is yest valid UTF-8 unicode.
+ * Return 0 if yesn-assigned code points are used.
  */
 int utf8agemin(const struct utf8data *data, const char *s)
 {
@@ -457,7 +457,7 @@ EXPORT_SYMBOL(utf8agemin);
 
 /*
  * Maximum age of any character in s, touch at most len bytes.
- * Return -1 if s is not valid UTF-8 unicode.
+ * Return -1 if s is yest valid UTF-8 unicode.
  */
 int utf8nagemax(const struct utf8data *data, const char *s, size_t len)
 {
@@ -485,7 +485,7 @@ EXPORT_SYMBOL(utf8nagemax);
 
 /*
  * Maximum age of any character in s, touch at most len bytes.
- * Return -1 if s is not valid UTF-8 unicode.
+ * Return -1 if s is yest valid UTF-8 unicode.
  */
 int utf8nagemin(const struct utf8data *data, const char *s, size_t len)
 {
@@ -512,10 +512,10 @@ int utf8nagemin(const struct utf8data *data, const char *s, size_t len)
 EXPORT_SYMBOL(utf8nagemin);
 
 /*
- * Length of the normalization of s.
- * Return -1 if s is not valid UTF-8 unicode.
+ * Length of the yesrmalization of s.
+ * Return -1 if s is yest valid UTF-8 unicode.
  *
- * A string of Default_Ignorable_Code_Point has length 0.
+ * A string of Default_Igyesrable_Code_Point has length 0.
  */
 ssize_t utf8len(const struct utf8data *data, const char *s)
 {
@@ -542,8 +542,8 @@ ssize_t utf8len(const struct utf8data *data, const char *s)
 EXPORT_SYMBOL(utf8len);
 
 /*
- * Length of the normalization of s, touch at most len bytes.
- * Return -1 if s is not valid UTF-8 unicode.
+ * Length of the yesrmalization of s, touch at most len bytes.
+ * Return -1 if s is yest valid UTF-8 unicode.
  */
 ssize_t utf8nlen(const struct utf8data *data, const char *s, size_t len)
 {
@@ -574,7 +574,7 @@ EXPORT_SYMBOL(utf8nlen);
  * Set up an utf8cursor for use by utf8byte().
  *
  *   u8c    : pointer to cursor.
- *   data   : const struct utf8data to use for normalization.
+ *   data   : const struct utf8data to use for yesrmalization.
  *   s      : string.
  *   len    : length of s.
  *
@@ -599,7 +599,7 @@ int utf8ncursor(struct utf8cursor *u8c, const struct utf8data *data,
 	/* Check we didn't clobber the maximum length. */
 	if (u8c->len != len)
 		return -1;
-	/* The first byte of s may not be an utf8 continuation. */
+	/* The first byte of s may yest be an utf8 continuation. */
 	if (len > 0 && (*s & 0xC0) == 0x80)
 		return -1;
 	return 0;
@@ -610,7 +610,7 @@ EXPORT_SYMBOL(utf8ncursor);
  * Set up an utf8cursor for use by utf8byte().
  *
  *   u8c    : pointer to cursor.
- *   data   : const struct utf8data to use for normalization.
+ *   data   : const struct utf8data to use for yesrmalization.
  *   s      : NUL-terminated string.
  *
  * Returns -1 on error, 0 on success.
@@ -623,14 +623,14 @@ int utf8cursor(struct utf8cursor *u8c, const struct utf8data *data,
 EXPORT_SYMBOL(utf8cursor);
 
 /*
- * Get one byte from the normalized form of the string described by u8c.
+ * Get one byte from the yesrmalized form of the string described by u8c.
  *
  * Returns the byte cast to an unsigned char on succes, and -1 on failure.
  *
  * The cursor keeps track of the location in the string in u8c->s.
  * When a character is decomposed, the current location is stored in
  * u8c->p, and u8c->s is set to the start of the decomposition. Note
- * that bytes from a decomposition do not count against u8c->len.
+ * that bytes from a decomposition do yest count against u8c->len.
  *
  * Characters are emitted if they match the current CCC in u8c->ccc.
  * Hitting end-of-string while u8c->ccc == STOPPER means we're done,
@@ -663,7 +663,7 @@ int utf8byte(struct utf8cursor *u8c)
 
 		/* Check for end-of-string. */
 		if (!u8c->p && (u8c->len == 0 || *u8c->s == '\0')) {
-			/* There is no next byte. */
+			/* There is yes next byte. */
 			if (u8c->ccc == STOPPER)
 				return 0;
 			/* End-of-string during a scan counts as a stopper. */
@@ -711,8 +711,8 @@ int utf8byte(struct utf8cursor *u8c)
 		}
 
 		/*
-		 * If this is not a stopper, then see if it updates
-		 * the next canonical class to be emitted.
+		 * If this is yest a stopper, then see if it updates
+		 * the next cayesnical class to be emitted.
 		 */
 		if (ccc != STOPPER && u8c->ccc < ccc && ccc < u8c->nccc)
 			u8c->nccc = ccc;
@@ -731,7 +731,7 @@ int utf8byte(struct utf8cursor *u8c)
 ccc_mismatch:
 		if (u8c->nccc == STOPPER) {
 			/*
-			 * Scan forward for the first canonical class
+			 * Scan forward for the first cayesnical class
 			 * to be emitted.  Save the position from
 			 * which to restart.
 			 */
@@ -744,7 +744,7 @@ ccc_mismatch:
 				u8c->len -= utf8clen(u8c->s);
 			u8c->s += utf8clen(u8c->s);
 		} else if (ccc != STOPPER) {
-			/* Not a stopper, and not the ccc we're emitting. */
+			/* Not a stopper, and yest the ccc we're emitting. */
 			if (!u8c->p)
 				u8c->len -= utf8clen(u8c->s);
 			u8c->s += utf8clen(u8c->s);

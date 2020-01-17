@@ -18,10 +18,10 @@ Real-Time group scheduling
 0. WARNING
 ==========
 
- Fiddling with these settings can result in an unstable system, the knobs are
- root only and assumes root knows what he is doing.
+ Fiddling with these settings can result in an unstable system, the kyesbs are
+ root only and assumes root kyesws what he is doing.
 
-Most notable:
+Most yestable:
 
  * very small values in sched_rt_period_us can result in an unstable
    system when the period is smaller than either the available hrtimer
@@ -43,7 +43,7 @@ Realtime scheduling is all about determinism, a group has to be able to rely on
 the amount of bandwidth (eg. CPU time) being constant. In order to schedule
 multiple groups of realtime tasks, each group must be assigned a fixed portion
 of the CPU time available.  Without a minimum guarantee a realtime group can
-obviously fall short. A fuzzy upper limit is of no use since it cannot be
+obviously fall short. A fuzzy upper limit is of yes use since it canyest be
 relied upon. Which leaves us with just the single fixed portion.
 
 1.2 The solution
@@ -51,10 +51,10 @@ relied upon. Which leaves us with just the single fixed portion.
 
 CPU time is divided by means of specifying how much time can be spent running
 in a given period. We allocate this "run time" for each realtime group which
-the other realtime groups will not be permitted to use.
+the other realtime groups will yest be permitted to use.
 
-Any time not allocated to a realtime group will be used to run normal priority
-tasks (SCHED_OTHER). Any allocated run time not used will also be picked up by
+Any time yest allocated to a realtime group will be used to run yesrmal priority
+tasks (SCHED_OTHER). Any allocated run time yest used will also be picked up by
 SCHED_OTHER.
 
 Let's consider an example: a frame fixed realtime renderer must deliver 25
@@ -73,8 +73,8 @@ The remaining CPU time will be used for user input and other tasks. Because
 realtime tasks have explicitly allocated the CPU time they need to perform
 their tasks, buffer underruns in the graphics or audio can be eliminated.
 
-NOTE: the above example is not fully implemented yet. We still
-lack an EDF scheduler to make non-uniform periods usable.
+NOTE: the above example is yest fully implemented yet. We still
+lack an EDF scheduler to make yesn-uniform periods usable.
 
 
 2. The Interface
@@ -99,7 +99,7 @@ The system wide settings are configured under the /proc virtual file system:
     operating range from 1us to about 35 minutes.
   * sched_rt_period_us takes values from 1 to INT_MAX.
   * sched_rt_runtime_us takes values from -1 to (INT_MAX - 1).
-  * A run time of -1 specifies runtime == period, ie. no limit.
+  * A run time of -1 specifies runtime == period, ie. yes limit.
 
 
 2.2 Default behaviour
@@ -107,18 +107,18 @@ The system wide settings are configured under the /proc virtual file system:
 
 The default values for sched_rt_period_us (1000000 or 1s) and
 sched_rt_runtime_us (950000 or 0.95s).  This gives 0.05s to be used by
-SCHED_OTHER (non-RT tasks). These defaults were chosen so that a run-away
-realtime tasks will not lock up the machine but leave a little time to recover
+SCHED_OTHER (yesn-RT tasks). These defaults were chosen so that a run-away
+realtime tasks will yest lock up the machine but leave a little time to recover
 it.  By setting runtime to -1 you'd get the old behaviour back.
 
 By default all bandwidth is assigned to the root group and new groups get the
 period from /proc/sys/kernel/sched_rt_period_us and a run time of 0. If you
-want to assign bandwidth to another group, reduce the root group's bandwidth
-and assign some or all of the difference to another group.
+want to assign bandwidth to ayesther group, reduce the root group's bandwidth
+and assign some or all of the difference to ayesther group.
 
 Realtime group scheduling means you have to assign a portion of total CPU
 bandwidth to the group before it will accept realtime tasks. Therefore you will
-not be able to run realtime tasks as any user other than root until you have
+yest be able to run realtime tasks as any user other than root until you have
 done that, even if the user has the rights to run processes with realtime
 priority!
 
@@ -140,7 +140,7 @@ configuration schedulable:
 
    \Sum_{i} runtime_{i} / global_period <= global_runtime / global_period
 
-For now, this can be simplified to just the following (but see Future plans):
+For yesw, this can be simplified to just the following (but see Future plans):
 
    \Sum_{i} runtime_{i} <= global_runtime
 
@@ -152,7 +152,7 @@ There is work in progress to make the scheduling period for each group
 ("<cgroup>/cpu.rt_period_us") configurable as well.
 
 The constraint on the period is that a subgroup must have a smaller or
-equal period to its parent. But realistically its not very useful _yet_
+equal period to its parent. But realistically its yest very useful _yet_
 as its prone to starvation without deadline scheduling.
 
 Consider two sibling groups A and B; both have 50% bandwidth, but A's
@@ -179,7 +179,7 @@ Implementing SCHED_EDF might take a while to complete. Priority Inheritance is
 the biggest challenge as the current linux PI infrastructure is geared towards
 the limited static priority levels 0-99. With deadline scheduling you need to
 do deadline inheritance (since priority is inversely proportional to the
-deadline delta (deadline - now)).
+deadline delta (deadline - yesw)).
 
 This means the whole PI machinery will have to be reworked - and that is one of
 the most complex pieces of code we have.

@@ -37,7 +37,7 @@
 
 #define mtctl(gr, cr) \
 	__asm__ __volatile__("mtctl %0,%1" \
-		: /* no outputs */ \
+		: /* yes outputs */ \
 		: "r" (gr), "i" (cr) : "memory")
 
 /* these are here to de-mystefy the calling code, and to provide hooks */
@@ -62,7 +62,7 @@ static inline void set_eiem(unsigned long val)
 	 __asm__ __volatile__("mtsp %%r0,%0" : : "i" (cr) : "memory"); \
 	else \
 	 __asm__ __volatile__("mtsp %0,%1" \
-		: /* no outputs */ \
+		: /* yes outputs */ \
 		: "r" (val), "i" (cr) : "memory"); }
 
 #endif /* __PARISC_SPECIAL_INSNS_H */

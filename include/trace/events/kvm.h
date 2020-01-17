@@ -20,24 +20,24 @@
 	ERSN(HYPERV)
 
 TRACE_EVENT(kvm_userspace_exit,
-	    TP_PROTO(__u32 reason, int errno),
-	    TP_ARGS(reason, errno),
+	    TP_PROTO(__u32 reason, int erryes),
+	    TP_ARGS(reason, erryes),
 
 	TP_STRUCT__entry(
 		__field(	__u32,		reason		)
-		__field(	int,		errno		)
+		__field(	int,		erryes		)
 	),
 
 	TP_fast_assign(
 		__entry->reason		= reason;
-		__entry->errno		= errno;
+		__entry->erryes		= erryes;
 	),
 
 	TP_printk("reason %s (%d)",
-		  __entry->errno < 0 ?
-		  (__entry->errno == -EINTR ? "restart" : "error") :
+		  __entry->erryes < 0 ?
+		  (__entry->erryes == -EINTR ? "restart" : "error") :
 		  __print_symbolic(__entry->reason, kvm_trace_exit_reason),
-		  __entry->errno < 0 ? -__entry->errno : __entry->reason)
+		  __entry->erryes < 0 ? -__entry->erryes : __entry->reason)
 );
 
 TRACE_EVENT(kvm_vcpu_wakeup,
@@ -313,7 +313,7 @@ DEFINE_EVENT(kvm_async_get_page_class, kvm_async_pf_doublefault,
 	TP_ARGS(gva, gfn)
 );
 
-DECLARE_EVENT_CLASS(kvm_async_pf_nopresent_ready,
+DECLARE_EVENT_CLASS(kvm_async_pf_yespresent_ready,
 
 	TP_PROTO(u64 token, u64 gva),
 
@@ -333,14 +333,14 @@ DECLARE_EVENT_CLASS(kvm_async_pf_nopresent_ready,
 
 );
 
-DEFINE_EVENT(kvm_async_pf_nopresent_ready, kvm_async_pf_not_present,
+DEFINE_EVENT(kvm_async_pf_yespresent_ready, kvm_async_pf_yest_present,
 
 	TP_PROTO(u64 token, u64 gva),
 
 	TP_ARGS(token, gva)
 );
 
-DEFINE_EVENT(kvm_async_pf_nopresent_ready, kvm_async_pf_ready,
+DEFINE_EVENT(kvm_async_pf_yespresent_ready, kvm_async_pf_ready,
 
 	TP_PROTO(u64 token, u64 gva),
 

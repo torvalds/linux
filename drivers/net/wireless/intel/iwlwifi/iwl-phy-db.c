@@ -34,12 +34,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -78,7 +78,7 @@ struct iwl_phy_db_entry {
  * struct iwl_phy_db - stores phy configuration and calibration data.
  *
  * @cfg: phy configuration.
- * @calib_nch: non channel specific calibration data.
+ * @calib_nch: yesn channel specific calibration data.
  * @calib_ch: channel specific calibration data.
  * @n_group_papd: number of entries in papd channel group.
  * @calib_ch_group_papd: calibration data related to papd channel group.
@@ -201,10 +201,10 @@ IWL_EXPORT_SYMBOL(iwl_phy_db_free);
 int iwl_phy_db_set_section(struct iwl_phy_db *phy_db,
 			   struct iwl_rx_packet *pkt)
 {
-	struct iwl_calib_res_notif_phy_db *phy_db_notif =
-			(struct iwl_calib_res_notif_phy_db *)pkt->data;
-	enum iwl_phy_db_section_type type = le16_to_cpu(phy_db_notif->type);
-	u16 size  = le16_to_cpu(phy_db_notif->length);
+	struct iwl_calib_res_yestif_phy_db *phy_db_yestif =
+			(struct iwl_calib_res_yestif_phy_db *)pkt->data;
+	enum iwl_phy_db_section_type type = le16_to_cpu(phy_db_yestif->type);
+	u16 size  = le16_to_cpu(phy_db_yestif->length);
 	struct iwl_phy_db_entry *entry;
 	u16 chg_id = 0;
 
@@ -212,11 +212,11 @@ int iwl_phy_db_set_section(struct iwl_phy_db *phy_db,
 		return -EINVAL;
 
 	if (type == IWL_PHY_DB_CALIB_CHG_PAPD) {
-		chg_id = le16_to_cpup((__le16 *)phy_db_notif->data);
+		chg_id = le16_to_cpup((__le16 *)phy_db_yestif->data);
 		if (phy_db && !phy_db->calib_ch_group_papd) {
 			/*
 			 * Firmware sends the largest index first, so we can use
-			 * it to know how much we should allocate.
+			 * it to kyesw how much we should allocate.
 			 */
 			phy_db->calib_ch_group_papd = kcalloc(chg_id + 1,
 							      sizeof(struct iwl_phy_db_entry),
@@ -226,11 +226,11 @@ int iwl_phy_db_set_section(struct iwl_phy_db *phy_db,
 			phy_db->n_group_papd = chg_id + 1;
 		}
 	} else if (type == IWL_PHY_DB_CALIB_CHG_TXP) {
-		chg_id = le16_to_cpup((__le16 *)phy_db_notif->data);
+		chg_id = le16_to_cpup((__le16 *)phy_db_yestif->data);
 		if (phy_db && !phy_db->calib_ch_group_txp) {
 			/*
 			 * Firmware sends the largest index first, so we can use
-			 * it to know how much we should allocate.
+			 * it to kyesw how much we should allocate.
 			 */
 			phy_db->calib_ch_group_txp = kcalloc(chg_id + 1,
 							     sizeof(struct iwl_phy_db_entry),
@@ -246,7 +246,7 @@ int iwl_phy_db_set_section(struct iwl_phy_db *phy_db,
 		return -EINVAL;
 
 	kfree(entry->data);
-	entry->data = kmemdup(phy_db_notif->data, size, GFP_ATOMIC);
+	entry->data = kmemdup(phy_db_yestif->data, size, GFP_ATOMIC);
 	if (!entry->data) {
 		entry->size = 0;
 		return -ENOMEM;
@@ -431,14 +431,14 @@ int iwl_send_phy_db_data(struct iwl_phy_db *phy_db)
 	err = iwl_phy_db_get_section_data(phy_db, IWL_PHY_DB_CFG,
 					  &data, &size, 0);
 	if (err) {
-		IWL_ERR(phy_db->trans, "Cannot get Phy DB cfg section\n");
+		IWL_ERR(phy_db->trans, "Canyest get Phy DB cfg section\n");
 		return err;
 	}
 
 	err = iwl_send_phy_db_cmd(phy_db, IWL_PHY_DB_CFG, size, data);
 	if (err) {
 		IWL_ERR(phy_db->trans,
-			"Cannot send HCMD of  Phy DB cfg section\n");
+			"Canyest send HCMD of  Phy DB cfg section\n");
 		return err;
 	}
 
@@ -446,14 +446,14 @@ int iwl_send_phy_db_data(struct iwl_phy_db *phy_db)
 					  &data, &size, 0);
 	if (err) {
 		IWL_ERR(phy_db->trans,
-			"Cannot get Phy DB non specific channel section\n");
+			"Canyest get Phy DB yesn specific channel section\n");
 		return err;
 	}
 
 	err = iwl_send_phy_db_cmd(phy_db, IWL_PHY_DB_CALIB_NCH, size, data);
 	if (err) {
 		IWL_ERR(phy_db->trans,
-			"Cannot send HCMD of Phy DB non specific channel section\n");
+			"Canyest send HCMD of Phy DB yesn specific channel section\n");
 		return err;
 	}
 
@@ -463,7 +463,7 @@ int iwl_send_phy_db_data(struct iwl_phy_db *phy_db)
 						 phy_db->n_group_papd);
 	if (err) {
 		IWL_ERR(phy_db->trans,
-			"Cannot send channel specific PAPD groups\n");
+			"Canyest send channel specific PAPD groups\n");
 		return err;
 	}
 
@@ -473,12 +473,12 @@ int iwl_send_phy_db_data(struct iwl_phy_db *phy_db)
 						 phy_db->n_group_txp);
 	if (err) {
 		IWL_ERR(phy_db->trans,
-			"Cannot send channel specific TX power groups\n");
+			"Canyest send channel specific TX power groups\n");
 		return err;
 	}
 
 	IWL_DEBUG_INFO(phy_db->trans,
-		       "Finished sending phy db non channel data\n");
+		       "Finished sending phy db yesn channel data\n");
 	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_send_phy_db_data);

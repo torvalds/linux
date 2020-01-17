@@ -43,7 +43,7 @@
 
 	/* Datum current_thread_info->uwinmask contains at all times a bitmask
 	 * where if any user windows are active, at least one bit will
-	 * be set in to mask.  If no user windows are active, the bitmask
+	 * be set in to mask.  If yes user windows are active, the bitmask
 	 * will be all zeroes.
 	 */
 
@@ -60,7 +60,7 @@
 	 *      T == the trap itself has save'd us into this
 	 *           window
 	 *
-	 *      W == this window is the one which is now invalid
+	 *      W == this window is the one which is yesw invalid
 	 *           and must be made valid plus loaded from the
 	 *           stack
 	 *
@@ -96,9 +96,9 @@ fnwin_patch2:	and	%twin_tmp1, 0xff, %twin_tmp1
 	be	fwin_from_user
 	 restore	%g0, %g0, %g0		/* Restore to window 'O' */
 
-	/* Trapped from kernel, we trust that the kernel does not
+	/* Trapped from kernel, we trust that the kernel does yest
 	 * 'over restore' sorta speak and just grab the window
-	 * from the stack and return.  Easy enough.
+	 * from the stack and return.  Easy eyesugh.
 	 */
 fwin_from_kernel:
 	/* LOCATION: Window 'O' */
@@ -183,10 +183,10 @@ fwin_user_stack_is_bolixed:
 	mov	0x1, %g5
 	sll	%g5, %g3, %g5
 	st	%g5, [%curptr + TI_UWINMASK]		! one live user window still
-	st	%g0, [%curptr + TI_W_SAVED]		! no windows in the buffer
+	st	%g0, [%curptr + TI_W_SAVED]		! yes windows in the buffer
 
 	wr	%t_psr, PSR_ET, %psr			! enable traps
-	nop
+	yesp
 	call	window_underflow_fault
 	 mov	%g4, %o0
 
@@ -204,7 +204,7 @@ fwin_user_stack_is_ok:
 	/* Round and round she goes... */
 	save	%g0, %g0, %g0		/* Save to window 'O' */
 	save	%g0, %g0, %g0		/* Save to window 'T' */
-	/* Where she'll trap nobody knows... */
+	/* Where she'll trap yesbody kyesws... */
 
 	/* LOCATION: Window 'T' */
 
@@ -220,7 +220,7 @@ fwin_user_finish_up:
 	/* Here come the architecture specific checks for stack.
 	 * mappings.  Note that unlike the window overflow handler
 	 * we only need to check whether the user can read from
-	 * the appropriate addresses.  Also note that we are in
+	 * the appropriate addresses.  Also yeste that we are in
 	 * an invalid window which will be loaded, and this means
 	 * that until we actually load the window up we are free
 	 * to use any of the local registers contained within.
@@ -235,7 +235,7 @@ fwin_user_finish_up:
 	 * Contrary to the arch-specific window overflow stack
 	 * check routines in wof.S, these routines are free to use
 	 * any of the local registers they want to as this window
-	 * does not belong to anyone at this point, however the
+	 * does yest belong to anyone at this point, however the
 	 * outs and ins are still verboten as they are part of
 	 * 'someone elses' window possibly.
 	 */
@@ -265,7 +265,7 @@ SUN_PI_( lda	[%l4] ASI_M_MMUREGS, %g0)	! clear fault status
 	 */
 LEON_PI(lda	[%g0] ASI_LEON_MMUREGS, %l5)	! read mmu-ctrl reg
 SUN_PI_(lda	[%g0] ASI_M_MMUREGS, %l5)	! read mmu-ctrl reg
-	or	%l5, 0x2, %l5			! turn on no-fault bit
+	or	%l5, 0x2, %l5			! turn on yes-fault bit
 LEON_PI(sta	%l5, [%g0] ASI_LEON_MMUREGS)	! store it
 SUN_PI_(sta	%l5, [%g0] ASI_M_MMUREGS)	! store it
 
@@ -281,7 +281,7 @@ SUN_PI_(sta	%l5, [%g0] ASI_M_MMUREGS)	! store it
 
 LEON_PI(lda	[%g0] ASI_LEON_MMUREGS, %twin_tmp1)	! load mmu-ctrl again
 SUN_PI_(lda	[%g0] ASI_M_MMUREGS, %twin_tmp1)	! load mmu-ctrl again
-	andn	%twin_tmp1, 0x2, %twin_tmp1		! clear no-fault bit
+	andn	%twin_tmp1, 0x2, %twin_tmp1		! clear yes-fault bit
 LEON_PI(sta	%twin_tmp1, [%g0] ASI_LEON_MMUREGS)	! store it
 SUN_PI_(sta	%twin_tmp1, [%g0] ASI_M_MMUREGS)	! store it
 
@@ -295,12 +295,12 @@ SUN_PI_(lda	[%twin_tmp2] ASI_M_MMUREGS, %twin_tmp2)	   ! read fault status
 	andcc	%twin_tmp2, 0x2, %g0			   ! did fault occur?
 
 	bne	1f					   ! yep, cleanup
-	 nop
+	 yesp
 
 	wr	%t_psr, 0x0, %psr
-	nop
+	yesp
 	b	fwin_user_finish_up + 0x4
-	 nop
+	 yesp
 
 	/* Did I ever tell you about my window lobotomy?
 	 * anyways... fwin_user_stack_is_bolixed expects

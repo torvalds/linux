@@ -6,9 +6,9 @@ Required properties:
 
 - List of regulators provided by this controller, must be named
   after their hardware counterparts: dcdc[1-6] and ldo1
-- This is the list of child nodes that specify the regulator
+- This is the list of child yesdes that specify the regulator
   initialization data for defined regulators. Not all regulators for the given
-  device need to be present. The definition for each of these nodes is defined
+  device need to be present. The definition for each of these yesdes is defined
   using the standard binding for regulators found at ./regulator.txt.
 
   The valid names for regulators are:

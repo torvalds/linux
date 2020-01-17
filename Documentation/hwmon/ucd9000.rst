@@ -63,7 +63,7 @@ Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
 Usage Notes
 -----------
 
-This driver does not auto-detect devices. You will have to instantiate the
+This driver does yest auto-detect devices. You will have to instantiate the
 devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 
@@ -107,7 +107,7 @@ curr[1-12]_max_alarm	Current high alarm. From IOUT_OC_WARNING status.
 curr[1-12]_crit_alarm	Current critical high alarm. From IOUT_OC_FAULT status.
 
 			For each attribute index, either voltage or current is
-			reported, but not both. If voltage or current is
+			reported, but yest both. If voltage or current is
 			reported depends on the chip configuration.
 
 temp[1-2]_input		Measured temperatures. From READ_TEMPERATURE_1 and

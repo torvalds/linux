@@ -49,7 +49,7 @@ struct vport_info {
 #define  VPORT_FAIL_FAB_LOGOUT	4
 #define  VPORT_FAIL_ADAP_NORESOURCES	5
 
-	uint8_t node_name[8];	/* WWNN */
+	uint8_t yesde_name[8];	/* WWNN */
 	uint8_t port_name[8];	/* WWPN */
 
 	struct Scsi_Host *shost;
@@ -69,7 +69,7 @@ struct vport_data {
 	uint32_t options;
 #define  VPORT_OPT_AUTORETRY	0x01
 
-	uint8_t node_name[8];	/* WWNN */
+	uint8_t yesde_name[8];	/* WWNN */
 	uint8_t port_name[8];	/* WWPN */
 
 /*
@@ -96,7 +96,7 @@ int lpfc_alloc_vpi(struct lpfc_hba *phba);
 
 /*
  *  queuecommand  VPORT-specific return codes. Specified in  the host byte code.
- *  Returned when the virtual link has failed or is not active.
+ *  Returned when the virtual link has failed or is yest active.
  */
 #define  DID_VPORT_ERROR	0x0f
 

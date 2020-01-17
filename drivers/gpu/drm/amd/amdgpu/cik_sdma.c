@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -81,7 +81,7 @@ static void cik_sdma_free_microcode(struct amdgpu_device *adev)
 
 /*
  * sDMA - System DMA
- * Starting with CIK, the GPU has new asynchronous
+ * Starting with CIK, the GPU has new asynchroyesus
  * DMA engines.  These engines are used for compute
  * and gfx.  There are two DMA engines (SDMA0, SDMA1)
  * and each one supports 1 ring buffer used for gfx
@@ -102,7 +102,7 @@ static void cik_sdma_free_microcode(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  *
  * Use the firmware interface to load the ucode images into
- * the driver (not loaded into hw).
+ * the driver (yest loaded into hw).
  * Returns 0 on success, error on failure.
  */
 static int cik_sdma_init_microcode(struct amdgpu_device *adev)
@@ -198,17 +198,17 @@ static void cik_sdma_ring_set_wptr(struct amdgpu_ring *ring)
 		       	(lower_32_bits(ring->wptr) << 2) & 0x3fffc);
 }
 
-static void cik_sdma_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+static void cik_sdma_ring_insert_yesp(struct amdgpu_ring *ring, uint32_t count)
 {
 	struct amdgpu_sdma_instance *sdma = amdgpu_sdma_get_instance_from_ring(ring);
 	int i;
 
 	for (i = 0; i < count; i++)
-		if (sdma && sdma->burst_nop && (i == 0))
-			amdgpu_ring_write(ring, ring->funcs->nop |
+		if (sdma && sdma->burst_yesp && (i == 0))
+			amdgpu_ring_write(ring, ring->funcs->yesp |
 					  SDMA_NOP_COUNT(count - 1));
 		else
-			amdgpu_ring_write(ring, ring->funcs->nop);
+			amdgpu_ring_write(ring, ring->funcs->yesp);
 }
 
 /**
@@ -228,7 +228,7 @@ static void cik_sdma_ring_emit_ib(struct amdgpu_ring *ring,
 	u32 extra_bits = vmid & 0xf;
 
 	/* IB packet must end on a 8 DW boundary */
-	cik_sdma_ring_insert_nop(ring, (12 - (lower_32_bits(ring->wptr) & 7)) % 8);
+	cik_sdma_ring_insert_yesp(ring, (12 - (lower_32_bits(ring->wptr) & 7)) % 8);
 
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_INDIRECT_BUFFER, 0, extra_bits));
 	amdgpu_ring_write(ring, ib->gpu_addr & 0xffffffe0); /* base must be 32 byte aligned */
@@ -473,7 +473,7 @@ static int cik_sdma_gfx_resume(struct amdgpu_device *adev)
 		WREG32(mmSDMA0_GFX_IB_RPTR + sdma_offsets[i], 0);
 		WREG32(mmSDMA0_GFX_IB_OFFSET + sdma_offsets[i], 0);
 
-		/* set the wb address whether it's enabled or not */
+		/* set the wb address whether it's enabled or yest */
 		WREG32(mmSDMA0_GFX_RB_RPTR_ADDR_HI + sdma_offsets[i],
 		       upper_32_bits(adev->wb.gpu_addr + wb_offset) & 0xFFFFFFFF);
 		WREG32(mmSDMA0_GFX_RB_RPTR_ADDR_LO + sdma_offsets[i],
@@ -536,7 +536,7 @@ static int cik_sdma_rlc_resume(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  *
  * Loads the sDMA0/1 ucode.
- * Returns 0 for success, -EINVAL if the ucode is not available.
+ * Returns 0 for success, -EINVAL if the ucode is yest available.
  */
 static int cik_sdma_load_microcode(struct amdgpu_device *adev)
 {
@@ -557,7 +557,7 @@ static int cik_sdma_load_microcode(struct amdgpu_device *adev)
 		adev->sdma.instance[i].fw_version = le32_to_cpu(hdr->header.ucode_version);
 		adev->sdma.instance[i].feature_version = le32_to_cpu(hdr->ucode_feature_version);
 		if (adev->sdma.instance[i].feature_version >= 20)
-			adev->sdma.instance[i].burst_nop = true;
+			adev->sdma.instance[i].burst_yesp = true;
 		fw_data = (const __le32 *)
 			(adev->sdma.instance[i].fw->data + le32_to_cpu(hdr->header.ucode_array_offset_bytes));
 		WREG32(mmSDMA0_UCODE_ADDR + sdma_offsets[i], 0);
@@ -813,7 +813,7 @@ static void cik_sdma_ring_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 
 	pad_count = (8 - (ib->length_dw & 0x7)) % 8;
 	for (i = 0; i < pad_count; i++)
-		if (sdma && sdma->burst_nop && (i == 0))
+		if (sdma && sdma->burst_yesp && (i == 0))
 			ib->ptr[ib->length_dw++] =
 					SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0) |
 					SDMA_NOP_COUNT(pad_count - 1);
@@ -1248,7 +1248,7 @@ static const struct amd_ip_funcs cik_sdma_ip_funcs = {
 static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_SDMA,
 	.align_mask = 0xf,
-	.nop = SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0),
+	.yesp = SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0),
 	.support_64bit_ptrs = false,
 	.get_rptr = cik_sdma_ring_get_rptr,
 	.get_wptr = cik_sdma_ring_get_wptr,
@@ -1267,7 +1267,7 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.emit_hdp_flush = cik_sdma_ring_emit_hdp_flush,
 	.test_ring = cik_sdma_ring_test_ring,
 	.test_ib = cik_sdma_ring_test_ib,
-	.insert_nop = cik_sdma_ring_insert_nop,
+	.insert_yesp = cik_sdma_ring_insert_yesp,
 	.pad_ib = cik_sdma_ring_pad_ib,
 	.emit_wreg = cik_sdma_ring_emit_wreg,
 };
@@ -1388,7 +1388,7 @@ const struct amdgpu_ip_block_version cik_sdma_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_SDMA,
 	.major = 2,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &cik_sdma_ip_funcs,
 };

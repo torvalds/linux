@@ -175,7 +175,7 @@ int usb6fire_comm_init(struct sfire_chip *chip)
 	if (ret < 0) {
 		kfree(rt->receiver_buffer);
 		kfree(rt);
-		dev_err(&chip->dev->dev, "cannot create comm data receiver.");
+		dev_err(&chip->dev->dev, "canyest create comm data receiver.");
 		return ret;
 	}
 	chip->comm = rt;

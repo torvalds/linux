@@ -94,8 +94,8 @@ config CBE_CPUFREQ_SPU_GOVERNOR
 	depends on SPU_FS && CPU_FREQ
 	default m
 	help
-	  This governor checks for spu usage to adjust the cpu frequency.
-	  If no spu is running on a given cpu, that cpu will be throttled to
+	  This goveryesr checks for spu usage to adjust the cpu frequency.
+	  If yes spu is running on a given cpu, that cpu will be throttled to
 	  the minimal possible frequency.
 
 endmenu

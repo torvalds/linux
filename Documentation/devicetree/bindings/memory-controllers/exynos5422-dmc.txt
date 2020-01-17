@@ -1,15 +1,15 @@
-* Exynos5422 frequency and voltage scaling for Dynamic Memory Controller device
+* Exyyess5422 frequency and voltage scaling for Dynamic Memory Controller device
 
-The Samsung Exynos5422 SoC has DMC (Dynamic Memory Controller) to which the DRAM
+The Samsung Exyyess5422 SoC has DMC (Dynamic Memory Controller) to which the DRAM
 memory chips are connected. The driver is to monitor the controller in runtime
 and switch frequency and voltage. To monitor the usage of the controller in
 runtime, the driver uses the PPMU (Platform Performance Monitoring Unit), which
 is able to measure the current load of the memory.
-When 'userspace' governor is used for the driver, an application is able to
+When 'userspace' goveryesr is used for the driver, an application is able to
 switch the DMC and memory frequency.
 
-Required properties for DMC device for Exynos5422:
-- compatible: Should be "samsung,exynos5422-dmc".
+Required properties for DMC device for Exyyess5422:
+- compatible: Should be "samsung,exyyess5422-dmc".
 - clocks : list of clock specifiers, must contain an entry for each
   required entry in clock-names for CLK_FOUT_SPLL, CLK_MOUT_SCLK_SPLL,
   CLK_FF_DOUT_SPLL2, CLK_FOUT_BPLL, CLK_MOUT_BPLL, CLK_SCLK_BPLL,
@@ -26,12 +26,12 @@ Required properties for DMC device for Exynos5422:
 	Documentation/devicetree/bindings/ddr/lpddr3.txt
 - devfreq-events : phandles of the PPMU events used by the controller.
 - samsung,syscon-clk : phandle of the clock register set used by the controller,
-	these registers are used for enabling a 'pause' feature and are not
+	these registers are used for enabling a 'pause' feature and are yest
 	exposed by clock framework but they must be used in a safe way.
 	The register offsets are in the driver code and specyfic for this SoC
 	type.
 
-Optional properties for DMC device for Exynos5422:
+Optional properties for DMC device for Exyyess5422:
 - interrupt-parent : The parent interrupt controller.
 - interrupts : Contains the IRQ line numbers for the DMC internal performance
   event counters in DREX0 and DREX1 channels. Align with specification of the
@@ -42,7 +42,7 @@ Optional properties for DMC device for Exynos5422:
 Example:
 
 	ppmu_dmc0_0: ppmu@10d00000 {
-		compatible = "samsung,exynos-ppmu";
+		compatible = "samsung,exyyess-ppmu";
 		reg = <0x10d00000 0x2000>;
 		clocks = <&clock CLK_PCLK_PPMU_DREX0_0>;
 		clock-names = "ppmu";
@@ -54,7 +54,7 @@ Example:
 	};
 
 	dmc: memory-controller@10c20000 {
-		compatible = "samsung,exynos5422-dmc";
+		compatible = "samsung,exyyess5422-dmc";
 		reg = <0x10c20000 0x10000>, <0x10c30000 0x10000>;
 		clocks = <&clock CLK_FOUT_SPLL>,
 			 <&clock CLK_MOUT_SCLK_SPLL>,

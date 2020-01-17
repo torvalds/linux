@@ -3,7 +3,7 @@
  *  Cobalt/SEAD3 LCD frame buffer driver.
  *
  *  Copyright (C) 2008  Yoichi Yuasa <yuasa@linux-mips.org>
- *  Copyright (C) 2012  MIPS Technologies, Inc.
+ *  Copyright (C) 2012  MIPS Techyeslogies, Inc.
  */
 #include <linux/delay.h>
 #include <linux/fb.h>

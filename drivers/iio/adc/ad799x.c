@@ -111,12 +111,12 @@ struct ad799x_chip_config {
 /**
  * struct ad799x_chip_info - chip specific information
  * @num_channels:	number of channels
- * @noirq_config:	device configuration w/o IRQ
+ * @yesirq_config:	device configuration w/o IRQ
  * @irq_config:		device configuration w/IRQ
  */
 struct ad799x_chip_info {
 	int				num_channels;
-	const struct ad799x_chip_config	noirq_config;
+	const struct ad799x_chip_config	yesirq_config;
 	const struct ad799x_chip_config	irq_config;
 };
 
@@ -170,7 +170,7 @@ static int ad799x_read_config(struct ad799x_state *st)
 /**
  * ad799x_trigger_handler() bh of trigger launched polling to ring buffer
  *
- * Currently there is no option in this driver to disable the saving of
+ * Currently there is yes option in this driver to disable the saving of
  * timestamps within the ring.
  **/
 static irqreturn_t ad799x_trigger_handler(int irq, void *p)
@@ -210,7 +210,7 @@ static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, st->rx_buf,
 			iio_get_time_ns(indio_dev));
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -525,7 +525,7 @@ static const struct iio_info ad7991_info = {
 	.update_scan_mode = ad799x_update_scan_mode,
 };
 
-static const struct iio_info ad7993_4_7_8_noirq_info = {
+static const struct iio_info ad7993_4_7_8_yesirq_info = {
 	.read_raw = &ad799x_read_raw,
 	.update_scan_mode = ad799x_update_scan_mode,
 };
@@ -586,7 +586,7 @@ static const struct iio_event_spec ad799x_events[] = {
 static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	[ad7991] = {
 		.num_channels = 5,
-		.noirq_config = {
+		.yesirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 12),
 				AD799X_CHANNEL(1, 12),
@@ -599,7 +599,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7995] = {
 		.num_channels = 5,
-		.noirq_config = {
+		.yesirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 10),
 				AD799X_CHANNEL(1, 10),
@@ -612,7 +612,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7999] = {
 		.num_channels = 5,
-		.noirq_config = {
+		.yesirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 8),
 				AD799X_CHANNEL(1, 8),
@@ -625,13 +625,13 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7992] = {
 		.num_channels = 3,
-		.noirq_config = {
+		.yesirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 12),
 				AD799X_CHANNEL(1, 12),
 				IIO_CHAN_SOFT_TIMESTAMP(3),
 			},
-			.info = &ad7993_4_7_8_noirq_info,
+			.info = &ad7993_4_7_8_yesirq_info,
 		},
 		.irq_config = {
 			.channel = {
@@ -645,7 +645,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7993] = {
 		.num_channels = 5,
-		.noirq_config = {
+		.yesirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 10),
 				AD799X_CHANNEL(1, 10),
@@ -653,7 +653,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 				AD799X_CHANNEL(3, 10),
 				IIO_CHAN_SOFT_TIMESTAMP(4),
 			},
-			.info = &ad7993_4_7_8_noirq_info,
+			.info = &ad7993_4_7_8_yesirq_info,
 		},
 		.irq_config = {
 			.channel = {
@@ -669,7 +669,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7994] = {
 		.num_channels = 5,
-		.noirq_config = {
+		.yesirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 12),
 				AD799X_CHANNEL(1, 12),
@@ -677,7 +677,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 				AD799X_CHANNEL(3, 12),
 				IIO_CHAN_SOFT_TIMESTAMP(4),
 			},
-			.info = &ad7993_4_7_8_noirq_info,
+			.info = &ad7993_4_7_8_yesirq_info,
 		},
 		.irq_config = {
 			.channel = {
@@ -693,7 +693,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7997] = {
 		.num_channels = 9,
-		.noirq_config = {
+		.yesirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 10),
 				AD799X_CHANNEL(1, 10),
@@ -705,7 +705,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 				AD799X_CHANNEL(7, 10),
 				IIO_CHAN_SOFT_TIMESTAMP(8),
 			},
-			.info = &ad7993_4_7_8_noirq_info,
+			.info = &ad7993_4_7_8_yesirq_info,
 		},
 		.irq_config = {
 			.channel = {
@@ -725,7 +725,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7998] = {
 		.num_channels = 9,
-		.noirq_config = {
+		.yesirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 12),
 				AD799X_CHANNEL(1, 12),
@@ -737,7 +737,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 				AD799X_CHANNEL(7, 12),
 				IIO_CHAN_SOFT_TIMESTAMP(8),
 			},
-			.info = &ad7993_4_7_8_noirq_info,
+			.info = &ad7993_4_7_8_yesirq_info,
 		},
 		.irq_config = {
 			.channel = {
@@ -778,7 +778,7 @@ static int ad799x_probe(struct i2c_client *client,
 	if (client->irq > 0 && chip_info->irq_config.info)
 		st->chip_config = &chip_info->irq_config;
 	else
-		st->chip_config = &chip_info->noirq_config;
+		st->chip_config = &chip_info->yesirq_config;
 
 	/* TODO: Add pdata options for filtering and bit delay */
 
@@ -800,7 +800,7 @@ static int ad799x_probe(struct i2c_client *client,
 	st->client = client;
 
 	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
+	indio_dev->dev.of_yesde = client->dev.of_yesde;
 	indio_dev->name = id->name;
 	indio_dev->info = st->chip_config->info;
 

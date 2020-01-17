@@ -32,7 +32,7 @@ struct mdio_mux_mmioreg_state {
  * s->mask).
  *
  * 'desired_child' is the value of the 'reg' property of the target child MDIO
- * node.
+ * yesde.
  *
  * The first time this function is called, current_child == -1.
  *
@@ -96,13 +96,13 @@ static int mdio_mux_mmioreg_switch_fn(int current_child, int desired_child,
 
 static int mdio_mux_mmioreg_probe(struct platform_device *pdev)
 {
-	struct device_node *np2, *np = pdev->dev.of_node;
+	struct device_yesde *np2, *np = pdev->dev.of_yesde;
 	struct mdio_mux_mmioreg_state *s;
 	struct resource res;
 	const __be32 *iprop;
 	int len, ret;
 
-	dev_dbg(&pdev->dev, "probing node %pOF\n", np);
+	dev_dbg(&pdev->dev, "probing yesde %pOF\n", np);
 
 	s = devm_kzalloc(&pdev->dev, sizeof(*s), GFP_KERNEL);
 	if (!s)
@@ -110,7 +110,7 @@ static int mdio_mux_mmioreg_probe(struct platform_device *pdev)
 
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret) {
-		dev_err(&pdev->dev, "could not obtain memory map for node %pOF\n",
+		dev_err(&pdev->dev, "could yest obtain memory map for yesde %pOF\n",
 			np);
 		return ret;
 	}
@@ -136,27 +136,27 @@ static int mdio_mux_mmioreg_probe(struct platform_device *pdev)
 	s->mask = be32_to_cpup(iprop);
 
 	/*
-	 * Verify that the 'reg' property of each child MDIO bus does not
+	 * Verify that the 'reg' property of each child MDIO bus does yest
 	 * set any bits outside of the 'mask'.
 	 */
-	for_each_available_child_of_node(np, np2) {
+	for_each_available_child_of_yesde(np, np2) {
 		iprop = of_get_property(np2, "reg", &len);
 		if (!iprop || len != sizeof(uint32_t)) {
-			dev_err(&pdev->dev, "mdio-mux child node %pOF is "
+			dev_err(&pdev->dev, "mdio-mux child yesde %pOF is "
 				"missing a 'reg' property\n", np2);
-			of_node_put(np2);
+			of_yesde_put(np2);
 			return -ENODEV;
 		}
 		if (be32_to_cpup(iprop) & ~s->mask) {
-			dev_err(&pdev->dev, "mdio-mux child node %pOF has "
+			dev_err(&pdev->dev, "mdio-mux child yesde %pOF has "
 				"a 'reg' value with unmasked bits\n",
 				np2);
-			of_node_put(np2);
+			of_yesde_put(np2);
 			return -ENODEV;
 		}
 	}
 
-	ret = mdio_mux_init(&pdev->dev, pdev->dev.of_node,
+	ret = mdio_mux_init(&pdev->dev, pdev->dev.of_yesde,
 			    mdio_mux_mmioreg_switch_fn,
 			    &s->mux_handle, s, NULL);
 	if (ret) {

@@ -56,7 +56,7 @@ struct ad_sigma_delta_info {
  * @spi: The spi device associated with the Sigma Delta device.
  * @trig: The IIO trigger associated with the Sigma Delta device.
  *
- * Most of the fields are private to the sigma delta library code and should not
+ * Most of the fields are private to the sigma delta library code and should yest
  * be accessed by individual drivers.
  */
 struct ad_sigma_delta {

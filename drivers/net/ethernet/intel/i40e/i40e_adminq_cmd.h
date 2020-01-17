@@ -82,7 +82,7 @@ struct i40e_aq_desc {
 /* error codes */
 enum i40e_admin_queue_err {
 	I40E_AQ_RC_OK		= 0,  /* success */
-	I40E_AQ_RC_EPERM	= 1,  /* Operation not permitted */
+	I40E_AQ_RC_EPERM	= 1,  /* Operation yest permitted */
 	I40E_AQ_RC_ENOENT	= 2,  /* No such element */
 	I40E_AQ_RC_ESRCH	= 3,  /* Bad opcode */
 	I40E_AQ_RC_EINTR	= 4,  /* operation interrupted */
@@ -98,11 +98,11 @@ enum i40e_admin_queue_err {
 	I40E_AQ_RC_EINVAL	= 14, /* Invalid argument */
 	I40E_AQ_RC_ENOTTY	= 15, /* Not a typewriter */
 	I40E_AQ_RC_ENOSPC	= 16, /* No space left or alloc failure */
-	I40E_AQ_RC_ENOSYS	= 17, /* Function not implemented */
+	I40E_AQ_RC_ENOSYS	= 17, /* Function yest implemented */
 	I40E_AQ_RC_ERANGE	= 18, /* Parameter out of range */
 	I40E_AQ_RC_EFLUSHED	= 19, /* Cmd flushed due to prev cmd error */
 	I40E_AQ_RC_BAD_ADDR	= 20, /* Descriptor contains a bad pointer */
-	I40E_AQ_RC_EMODE	= 21, /* Op not allowed in current dev mode */
+	I40E_AQ_RC_EMODE	= 21, /* Op yest allowed in current dev mode */
 	I40E_AQ_RC_EFBIG	= 22, /* File too large */
 };
 
@@ -184,7 +184,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_get_personalization_profile_list	= 0x0271,
 
 	/* DCB commands */
-	i40e_aqc_opc_dcb_ignore_pfc	= 0x0301,
+	i40e_aqc_opc_dcb_igyesre_pfc	= 0x0301,
 	i40e_aqc_opc_dcb_updated	= 0x0302,
 	i40e_aqc_opc_set_dcb_parameters = 0x0303,
 
@@ -292,19 +292,19 @@ enum i40e_admin_queue_opc {
 /* command structures and indirect data structures */
 
 /* Structure naming conventions:
- * - no suffix for direct command descriptor structures
+ * - yes suffix for direct command descriptor structures
  * - _data for indirect sent data
  * - _resp for indirect return data (data which is both will use _data)
  * - _completion for direct return data
  * - _element_ for repeated elements (may also be _data or _resp)
  *
  * Command structures are expected to overlay the params.raw member of the basic
- * descriptor, and as such cannot exceed 16 bytes in length.
+ * descriptor, and as such canyest exceed 16 bytes in length.
  */
 
 /* This macro is used to generate a compilation error if a structure
- * is not exactly the correct length. It gives a divide by zero error if the
- * structure is not of the correct size, otherwise it creates an enum that is
+ * is yest exactly the correct length. It gives a divide by zero error if the
+ * structure is yest of the correct size, otherwise it creates an enum that is
  * never used.
  */
 #define I40E_CHECK_STRUCT_LEN(n, X) enum i40e_static_assert_enum_##X \
@@ -322,9 +322,9 @@ struct i40e_aqc_get_version {
 	__le32 rom_ver;
 	__le32 fw_build;
 	__le16 fw_major;
-	__le16 fw_minor;
+	__le16 fw_miyesr;
 	__le16 api_major;
-	__le16 api_minor;
+	__le16 api_miyesr;
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_get_version);
@@ -332,7 +332,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_get_version);
 /* Send driver version (indirect 0x0002) */
 struct i40e_aqc_driver_version {
 	u8	driver_major_ver;
-	u8	driver_minor_ver;
+	u8	driver_miyesr_ver;
 	u8	driver_build_ver;
 	u8	driver_subbuild_ver;
 	u8	reserved[4];
@@ -397,7 +397,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_list_capabilites);
 struct i40e_aqc_list_capabilities_element_resp {
 	__le16	id;
 	u8	major_rev;
-	u8	minor_rev;
+	u8	miyesr_rev;
 	__le32	number;
 	__le32	logical_id;
 	__le32	phys_id;
@@ -767,7 +767,7 @@ struct i40e_aqc_set_switch_config {
 	/* The ethertypes in first_tag and second_tag are used to
 	 * match the outer and inner VLAN tags (respectively) when HW
 	 * double VLAN tagging is enabled via the set port parameters
-	 * AQ command. Otherwise these are both ignored. Set them to
+	 * AQ command. Otherwise these are both igyesred. Set them to
 	 * zero for their defaults of 0x8100 (802.1Q). Should be zero
 	 * for firmware API versions lower than 1.7.
 	 */
@@ -784,7 +784,7 @@ struct i40e_aqc_set_switch_config {
 	 * Bits 3:0 Mode
 	 * 0: default mode
 	 * 1: L4 port only mode
-	 * 2: non-tunneled mode
+	 * 2: yesn-tunneled mode
 	 * 3: tunneled mode
 	 */
 #define I40E_AQ_SET_SWITCH_BIT7_VALID		0x80
@@ -1263,7 +1263,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_remove_tag);
 
 /* Add multicast E-Tag (direct 0x0257)
  * del multicast E-Tag (direct 0x0258) only uses pv_seid and etag fields
- * and no external data
+ * and yes external data
  */
 struct i40e_aqc_add_remove_mcast_etag {
 	__le16	pv_seid;
@@ -1547,7 +1547,7 @@ I40E_CHECK_STRUCT_LEN(0x40, i40e_aqc_replace_cloud_filters_cmd_buf);
 
 /* Add Mirror Rule (indirect or direct 0x0260)
  * Delete Mirror Rule (indirect or direct 0x0261)
- * note: some rule types (4,5) do not use an external buffer.
+ * yeste: some rule types (4,5) do yest use an external buffer.
  *       take care to set the flags correctly.
  */
 struct i40e_aqc_add_delete_mirror_rule {
@@ -1612,10 +1612,10 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_get_applied_profiles);
 
 /* DCB 0x03xx*/
 
-/* PFC Ignore (direct 0x0301)
+/* PFC Igyesre (direct 0x0301)
  *    the command and response use the same descriptor structure
  */
-struct i40e_aqc_pfc_ignore {
+struct i40e_aqc_pfc_igyesre {
 	u8	tc_bitmap;
 	u8	command_flags; /* unused on response */
 #define I40E_AQC_PFC_IGNORE_SET		0x80
@@ -1623,10 +1623,10 @@ struct i40e_aqc_pfc_ignore {
 	u8	reserved[14];
 };
 
-I40E_CHECK_CMD_LENGTH(i40e_aqc_pfc_ignore);
+I40E_CHECK_CMD_LENGTH(i40e_aqc_pfc_igyesre);
 
 /* DCB Update (direct 0x0302) uses the i40e_aq_desc structure
- * with no parameters
+ * with yes parameters
  */
 
 /* TX scheduler 0x04xx */
@@ -2341,7 +2341,7 @@ struct i40e_aqc_nvm_config_data_immediate_field {
 I40E_CHECK_STRUCT_LEN(0xc, i40e_aqc_nvm_config_data_immediate_field);
 
 /* OEM Post Update (indirect 0x0720)
- * no command data struct used
+ * yes command data struct used
  */
 struct i40e_aqc_nvm_oem_post_update {
 #define I40E_AQ_NVM_OEM_POST_UPDATE_EXTERNAL_DATA	0x01
@@ -2362,7 +2362,7 @@ I40E_CHECK_STRUCT_LEN(0x28, i40e_aqc_nvm_oem_post_update_buffer);
 
 /* Thermal Sensor (indirect 0x0721)
  *     read or set thermal sensor configs and values
- *     takes a sensor and command specific data buffer, not detailed here
+ *     takes a sensor and command specific data buffer, yest detailed here
  */
 struct i40e_aqc_thermal_sensor {
 	u8 sensor_action;
@@ -2495,7 +2495,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_update_mib);
  * Delete LLDP TLV (indirect 0x0A04)
  */
 struct i40e_aqc_lldp_add_tlv {
-	u8	type; /* only nearest bridge and non-TPMR from 0x0A00 */
+	u8	type; /* only nearest bridge and yesn-TPMR from 0x0A00 */
 	u8	reserved1[1];
 	__le16	len;
 	u8	reserved2[4];
@@ -2507,7 +2507,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_add_tlv);
 
 /* Update LLDP TLV (indirect 0x0A03) */
 struct i40e_aqc_lldp_update_tlv {
-	u8	type; /* only nearest bridge and non-TPMR from 0x0A00 */
+	u8	type; /* only nearest bridge and yesn-TPMR from 0x0A00 */
 	u8	reserved;
 	__le16	old_len;
 	__le16	new_offset;
@@ -2580,7 +2580,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_set_dcb_parameters);
  * with by adding padding, making the actual struct larger than designed.
  * However, the FW compiler for the NIC is less lenient and complains
  * about the struct.  Hence, the struct defined here has an extra byte in
- * fields reserved3 and reserved4 to directly acknowledge that padding,
+ * fields reserved3 and reserved4 to directly ackyeswledge that padding,
  * and the new length is used in the length check macro.
  */
 struct i40e_aqc_get_cee_dcb_cfg_v1_resp {

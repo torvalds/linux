@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -191,7 +191,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		goto out_free_recv_cq;
 	}
 
-	if (ib_req_notify_cq(priv->recv_cq, IB_CQ_NEXT_COMP))
+	if (ib_req_yestify_cq(priv->recv_cq, IB_CQ_NEXT_COMP))
 		goto out_free_send_cq;
 
 	init_attr.send_cq = priv->send_cq;
@@ -212,7 +212,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		goto out_free_send_cq;
 	}
 
-	if (ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP))
+	if (ib_req_yestify_cq(priv->send_cq, IB_CQ_NEXT_COMP))
 		goto out_free_send_cq;
 
 	for (i = 0; i < MAX_SKB_FRAGS + 1; ++i)
@@ -281,7 +281,7 @@ void ipoib_event(struct ib_event_handler *handler,
 	} else if (record->event == IB_EVENT_PORT_ERR ||
 		   record->event == IB_EVENT_PORT_ACTIVE ||
 		   record->event == IB_EVENT_LID_CHANGE) {
-		queue_work(ipoib_workqueue, &priv->flush_normal);
+		queue_work(ipoib_workqueue, &priv->flush_yesrmal);
 	} else if (record->event == IB_EVENT_PKEY_CHANGE) {
 		queue_work(ipoib_workqueue, &priv->flush_heavy);
 	} else if (record->event == IB_EVENT_GID_CHANGE &&

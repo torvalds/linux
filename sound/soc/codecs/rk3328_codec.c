@@ -430,7 +430,7 @@ static const struct regmap_config rk3328_codec_regmap_config = {
 
 static int rk3328_platform_probe(struct platform_device *pdev)
 {
-	struct device_node *rk3328_np = pdev->dev.of_node;
+	struct device_yesde *rk3328_np = pdev->dev.of_yesde;
 	struct rk3328_codec_priv *rk3328;
 	struct regmap *grf;
 	void __iomem *base;

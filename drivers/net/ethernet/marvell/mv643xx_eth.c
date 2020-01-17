@@ -691,7 +691,7 @@ static int skb_tx_csum(struct mv643xx_eth_private *mp, struct sk_buff *skb,
 		    unlikely(tag_bytes & ~12)) {
 			ret = skb_checksum_help(skb);
 			if (!ret)
-				goto no_csum;
+				goto yes_csum;
 			return ret;
 		}
 
@@ -715,11 +715,11 @@ static int skb_tx_csum(struct mv643xx_eth_private *mp, struct sk_buff *skb,
 			*l4i_chk = 0;
 			break;
 		default:
-			WARN(1, "protocol not supported");
+			WARN(1, "protocol yest supported");
 		}
 	} else {
-no_csum:
-		/* Errata BTS #50, IHL must be 5 if no HW checksum */
+yes_csum:
+		/* Errata BTS #50, IHL must be 5 if yes HW checksum */
 		cmd |= 5 << TX_IHL_SHIFT;
 	}
 	*command = cmd;
@@ -795,7 +795,7 @@ txq_put_hdr_tso(struct sk_buff *skb, struct tx_queue *txq, int length,
 		WARN(1, "failed to prepare checksum!");
 
 	/* Should we set this? Can't use the value from skb_tx_csum()
-	 * as it's not the correct initial L4 checksum to use. */
+	 * as it's yest the correct initial L4 checksum to use. */
 	desc->l4i_chk = 0;
 
 	desc->byte_cnt = hdr_len;
@@ -830,7 +830,7 @@ static int txq_submit_tso(struct tx_queue *txq, struct sk_buff *skb,
 
 	/* Count needed descriptors */
 	if ((txq->tx_desc_count + tso_count_descs(skb)) >= txq->tx_ring_size) {
-		netdev_dbg(dev, "not enough descriptors for TSO!\n");
+		netdev_dbg(dev, "yest eyesugh descriptors for TSO!\n");
 		return -EBUSY;
 	}
 
@@ -885,7 +885,7 @@ static int txq_submit_tso(struct tx_queue *txq, struct sk_buff *skb,
 	txq->tx_desc_count += desc_count;
 	return 0;
 err_release:
-	/* TODO: Release all used data descriptors; header descriptors must not
+	/* TODO: Release all used data descriptors; header descriptors must yest
 	 * be DMA-unmapped.
 	 */
 	return ret;
@@ -1229,7 +1229,7 @@ static void mv643xx_eth_adjust_link(struct net_device *dev)
 	pscr |= autoneg_disable;
 
 	if (dev->phydev->speed == SPEED_1000) {
-		/* force gigabit, half duplex not supported */
+		/* force gigabit, half duplex yest supported */
 		pscr |= SET_GMII_SPEED_TO_1000;
 		pscr |= SET_FULL_DUPLEX_MODE;
 		goto out_write;
@@ -1288,7 +1288,7 @@ static void mib_counters_clear(struct mv643xx_eth_private *mp)
 	for (i = 0; i < 0x80; i += 4)
 		mib_read(mp, i);
 
-	/* Clear non MIB hw counters also */
+	/* Clear yesn MIB hw counters also */
 	rdlp(mp, RX_DISCARD_FRAME_CNT);
 	rdlp(mp, RX_OVERRUN_FRAME_CNT);
 }
@@ -1491,7 +1491,7 @@ mv643xx_eth_get_link_ksettings_phy(struct mv643xx_eth_private *mp,
 	phy_ethtool_ksettings_get(dev->phydev, cmd);
 
 	/*
-	 * The MAC does not support 1000baseT_Half.
+	 * The MAC does yest support 1000baseT_Half.
 	 */
 	linkmode_clear_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 			   cmd->link_modes.supported);
@@ -1562,7 +1562,7 @@ mv643xx_eth_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	 * this debugging hint is useful to have.
 	 */
 	if (err == -EOPNOTSUPP)
-		netdev_info(dev, "The PHY does not support set_wol, was CONFIG_MARVELL_PHY enabled?\n");
+		netdev_info(dev, "The PHY does yest support set_wol, was CONFIG_MARVELL_PHY enabled?\n");
 	return err;
 }
 
@@ -1590,7 +1590,7 @@ mv643xx_eth_set_link_ksettings(struct net_device *dev,
 		return -EINVAL;
 
 	/*
-	 * The MAC does not support 1000baseT_Half.
+	 * The MAC does yest support 1000baseT_Half.
 	 */
 	ethtool_convert_link_mode_to_legacy_u32(&advertising,
 						c.link_modes.advertising);
@@ -2361,7 +2361,7 @@ static void port_start(struct mv643xx_eth_private *mp)
 	mv643xx_eth_set_features(mp->dev, mp->dev->features);
 
 	/*
-	 * Treat BPDUs as normal multicasts, and disable partition mode.
+	 * Treat BPDUs as yesrmal multicasts, and disable partition mode.
 	 */
 	wrlp(mp, PORT_CONFIG_EXT, 0x00000000);
 
@@ -2400,7 +2400,7 @@ static void mv643xx_eth_recalc_skb_size(struct mv643xx_eth_private *mp)
 	/*
 	 * Make sure that the skb size is a multiple of 8 bytes, as
 	 * the lower three bits of the receive descriptor's buffer
-	 * size field are ignored by the hardware.
+	 * size field are igyesred by the hardware.
 	 */
 	mp->skb_size = (skb_size + 7) & ~7;
 
@@ -2565,7 +2565,7 @@ static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
 	/*
 	 * Stop and then re-open the interface. This will allocate RX
 	 * skbs of the new MTU.
-	 * There is a possible danger that the open will not succeed,
+	 * There is a possible danger that the open will yest succeed,
 	 * due to memory being full.
 	 */
 	mv643xx_eth_stop(dev);
@@ -2665,7 +2665,7 @@ static void infer_hw_params(struct mv643xx_eth_shared_private *msp)
 
 	/*
 	 * Check whether the MAC supports TX rate control, and if
-	 * yes, whether its associated registers are in the old or
+	 * no, whether its associated registers are in the old or
 	 * the new place.
 	 */
 	writel(1, msp->base + 0x0400 + TX_BW_MTU_MOVED);
@@ -2700,7 +2700,7 @@ MODULE_DEVICE_TABLE(of, mv643xx_eth_shared_ids);
 static struct platform_device *port_platdev[3];
 
 static int mv643xx_eth_shared_of_add_port(struct platform_device *pdev,
-					  struct device_node *pnp)
+					  struct device_yesde *pnp)
 {
 	struct platform_device *ppdev;
 	struct mv643xx_eth_platform_data ppd;
@@ -2747,8 +2747,8 @@ static int mv643xx_eth_shared_of_add_port(struct platform_device *pdev,
 	mv643xx_eth_property(pnp, "rx-sram-addr", ppd.rx_sram_addr);
 	mv643xx_eth_property(pnp, "rx-sram-size", ppd.rx_sram_size);
 
-	ppd.phy_node = of_parse_phandle(pnp, "phy-handle", 0);
-	if (!ppd.phy_node) {
+	ppd.phy_yesde = of_parse_phandle(pnp, "phy-handle", 0);
+	if (!ppd.phy_yesde) {
 		ppd.phy_addr = MV643XX_ETH_PHY_NONE;
 		of_property_read_u32(pnp, "speed", &ppd.speed);
 		of_property_read_u32(pnp, "duplex", &ppd.duplex);
@@ -2758,7 +2758,7 @@ static int mv643xx_eth_shared_of_add_port(struct platform_device *pdev,
 	if (!ppdev)
 		return -ENOMEM;
 	ppdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	ppdev->dev.of_node = pnp;
+	ppdev->dev.of_yesde = pnp;
 
 	ret = platform_device_add_resources(ppdev, &res, 1);
 	if (ret)
@@ -2784,10 +2784,10 @@ port_err:
 static int mv643xx_eth_shared_of_probe(struct platform_device *pdev)
 {
 	struct mv643xx_eth_shared_platform_data *pd;
-	struct device_node *pnp, *np = pdev->dev.of_node;
+	struct device_yesde *pnp, *np = pdev->dev.of_yesde;
 	int ret;
 
-	/* bail out if not registered from DT */
+	/* bail out if yest registered from DT */
 	if (!np)
 		return 0;
 
@@ -2798,10 +2798,10 @@ static int mv643xx_eth_shared_of_probe(struct platform_device *pdev)
 
 	mv643xx_eth_property(np, "tx-checksum-limit", pd->tx_csum_limit);
 
-	for_each_available_child_of_node(np, pnp) {
+	for_each_available_child_of_yesde(np, pnp) {
 		ret = mv643xx_eth_shared_of_add_port(pdev, pnp);
 		if (ret) {
-			of_node_put(pnp);
+			of_yesde_put(pnp);
 			return ret;
 		}
 	}
@@ -2838,7 +2838,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!mv643xx_eth_version_printed++)
-		pr_notice("MV-643xx 10/100/1000 ethernet driver version %s\n",
+		pr_yestice("MV-643xx 10/100/1000 ethernet driver version %s\n",
 			  mv643xx_eth_driver_version);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2962,13 +2962,13 @@ static int get_phy_mode(struct mv643xx_eth_private *mp)
 	phy_interface_t iface;
 	int err;
 
-	if (dev->of_node)
-		err = of_get_phy_mode(dev->of_node, &iface);
+	if (dev->of_yesde)
+		err = of_get_phy_mode(dev->of_yesde, &iface);
 
 	/* Historical default if unspecified. We could also read/write
 	 * the interface state in the PSC1
 	 */
-	if (!dev->of_node || err)
+	if (!dev->of_yesde || err)
 		iface = PHY_INTERFACE_MODE_GMII;
 	return iface;
 }
@@ -3087,12 +3087,12 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	pd = dev_get_platdata(&pdev->dev);
 	if (pd == NULL) {
-		dev_err(&pdev->dev, "no mv643xx_eth_platform_data\n");
+		dev_err(&pdev->dev, "yes mv643xx_eth_platform_data\n");
 		return -ENODEV;
 	}
 
 	if (pd->shared == NULL) {
-		dev_err(&pdev->dev, "no mv643xx_eth_platform_data->shared\n");
+		dev_err(&pdev->dev, "yes mv643xx_eth_platform_data->shared\n");
 		return -ENODEV;
 	}
 
@@ -3111,10 +3111,10 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	mp->dev = dev;
 
 	/* Kirkwood resets some registers on gated clocks. Especially
-	 * CLK125_BYPASS_EN must be cleared but is not available on
+	 * CLK125_BYPASS_EN must be cleared but is yest available on
 	 * all other SoCs/System Controllers using this driver.
 	 */
-	if (of_device_is_compatible(pdev->dev.of_node,
+	if (of_device_is_compatible(pdev->dev.of_yesde,
 				    "marvell,kirkwood-eth-port"))
 		wrlp(mp, PORT_SERIAL_CONTROL1,
 		     rdlp(mp, PORT_SERIAL_CONTROL1) & ~CLK125_BYPASS_EN);
@@ -3137,8 +3137,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	netif_set_real_num_rx_queues(dev, mp->rxq_count);
 
 	err = 0;
-	if (pd->phy_node) {
-		phydev = of_phy_connect(mp->dev, pd->phy_node,
+	if (pd->phy_yesde) {
+		phydev = of_phy_connect(mp->dev, pd->phy_yesde,
 					mv643xx_eth_adjust_link, 0,
 					get_phy_mode(mp));
 		if (!phydev)
@@ -3215,11 +3215,11 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	if (err)
 		goto out;
 
-	netdev_notice(dev, "port %d with MAC address %pM\n",
+	netdev_yestice(dev, "port %d with MAC address %pM\n",
 		      mp->port_num, dev->dev_addr);
 
 	if (mp->tx_desc_sram_size > 0)
-		netdev_notice(dev, "configured with sram\n");
+		netdev_yestice(dev, "configured with sram\n");
 
 	return 0;
 

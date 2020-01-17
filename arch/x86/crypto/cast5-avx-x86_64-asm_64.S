@@ -94,7 +94,7 @@
 	op2		s3(, RID1, 4), dst ## d; \
 	op3		s4(, RID2, 4), dst ## d;
 
-#define dummy(d) /* do nothing */
+#define dummy(d) /* do yesthing */
 
 #define shr_next(reg) \
 	shrq $16,	reg;
@@ -112,10 +112,10 @@
 	lookup_32bit(##gi1, RFS1, op1, op2, op3, shr_next, ##gi1); \
 	lookup_32bit(##gi2, RFS3, op1, op2, op3, shr_next, ##gi2); \
 	\
-	lookup_32bit(##gi1, RFS2, op1, op2, op3, dummy, none);     \
+	lookup_32bit(##gi1, RFS2, op1, op2, op3, dummy, yesne);     \
 	shlq $32,	RFS2;                                      \
 	orq		RFS1, RFS2;                                \
-	lookup_32bit(##gi2, RFS1, op1, op2, op3, dummy, none);     \
+	lookup_32bit(##gi2, RFS1, op1, op2, op3, dummy, yesne);     \
 	shlq $32,	RFS1;                                      \
 	orq		RFS1, RFS3;                                \
 	\

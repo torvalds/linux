@@ -49,7 +49,7 @@ struct drm_pending_vblank_event;
  * This mode of operation is run-time configured via guest domain configuration
  * through XenStore entries.
  *
- * For systems which do not provide IOMMU support, but having specific
+ * For systems which do yest provide IOMMU support, but having specific
  * requirements for display buffers it is possible to allocate such buffers
  * at backend side and share those with the frontend.
  * For example, if host domain is 1:1 mapped and has DRM/GPU hardware expecting
@@ -59,7 +59,7 @@ struct drm_pending_vblank_event;
  * Note, while using this scenario the following should be considered:
  *
  * #. If guest domain dies then pages/grants received from the backend
- *    cannot be claimed back
+ *    canyest be claimed back
  *
  * #. Misbehaving guest may send too many requests to the
  *    backend exhausting its grant references and memory

@@ -145,17 +145,17 @@ do_func(Elf_Ehdr *ehdr, char const *const fname, table_sort_t custom_sort)
 				(const char *)ehdr + _r(&shdr[i].sh_offset));
 	}
 	if (strtab_sec == NULL) {
-		fprintf(stderr,	"no .strtab in  file: %s\n", fname);
+		fprintf(stderr,	"yes .strtab in  file: %s\n", fname);
 		fail_file();
 	}
 	if (symtab_sec == NULL) {
-		fprintf(stderr,	"no .symtab in  file: %s\n", fname);
+		fprintf(stderr,	"yes .symtab in  file: %s\n", fname);
 		fail_file();
 	}
 	symtab = (const Elf_Sym *)((const char *)ehdr +
 				   _r(&symtab_sec->sh_offset));
 	if (extab_sec == NULL) {
-		fprintf(stderr,	"no __ex_table in  file: %s\n", fname);
+		fprintf(stderr,	"yes __ex_table in  file: %s\n", fname);
 		fail_file();
 	}
 	strtab = (const char *)ehdr + _r(&strtab_sec->sh_offset);
@@ -169,7 +169,7 @@ do_func(Elf_Ehdr *ehdr, char const *const fname, table_sort_t custom_sort)
 		qsort(extab_image, num_entries,
 		      extable_ent_size, compare_extable);
 	}
-	/* If there were relocations, we no longer need them. */
+	/* If there were relocations, we yes longer need them. */
 	if (relocs)
 		memset(relocs, 0, relocs_size);
 
@@ -188,7 +188,7 @@ do_func(Elf_Ehdr *ehdr, char const *const fname, table_sort_t custom_sort)
 	}
 	if (sort_needed_sym == NULL) {
 		fprintf(stderr,
-			"no main_extable_sort_needed symbol in  file: %s\n",
+			"yes main_extable_sort_needed symbol in  file: %s\n",
 			fname);
 		fail_file();
 	}

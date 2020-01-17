@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 Texas Instruments, Inc.
  * Thara Gopinath <thara@ti.com>
- * Benoît Cousson
+ * Beyesît Cousson
  *
  * Copyright (C) 2010 Nokia Corporation
  * Paul Walmsley

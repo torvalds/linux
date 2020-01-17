@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -36,7 +36,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -129,7 +129,7 @@ bool mod_freesync_get_vmin_vmax(struct mod_freesync *mod_freesync,
 
 bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
 		struct dc_stream_state *stream,
-		unsigned int *nom_v_pos,
+		unsigned int *yesm_v_pos,
 		unsigned int *v_pos);
 
 void mod_freesync_get_settings(struct mod_freesync *mod_freesync,
@@ -163,7 +163,7 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 		const struct dc_stream_state *stream,
 		struct mod_vrr_params *in_out_vrr);
 
-unsigned long long mod_freesync_calc_nominal_field_rate(
+unsigned long long mod_freesync_calc_yesminal_field_rate(
 			const struct dc_stream_state *stream);
 
 bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,

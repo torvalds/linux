@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -604,7 +604,7 @@ static int arcturus_freqs_in_same_level(int32_t frequency1,
 static int arcturus_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type type, char *buf)
 {
-	int i, now, size = 0;
+	int i, yesw, size = 0;
 	int ret = 0;
 	struct pp_clock_levels_with_latency clocks;
 	struct arcturus_single_dpm_table *single_dpm_table;
@@ -615,7 +615,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 
 	switch (type) {
 	case SMU_SCLK:
-		ret = smu_get_current_clk_freq(smu, SMU_GFXCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_GFXCLK, &yesw);
 		if (ret) {
 			pr_err("Attempt to get current gfx clk Failed!");
 			return ret;
@@ -638,11 +638,11 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 					(clocks.num_levels == 1) ? "*" :
 					(arcturus_freqs_in_same_level(
 					clocks.data[i].clocks_in_khz / 1000,
-					now / 100) ? "*" : ""));
+					yesw / 100) ? "*" : ""));
 		break;
 
 	case SMU_MCLK:
-		ret = smu_get_current_clk_freq(smu, SMU_UCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_UCLK, &yesw);
 		if (ret) {
 			pr_err("Attempt to get current mclk Failed!");
 			return ret;
@@ -661,11 +661,11 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now / 100) ? "*" : ""));
+				yesw / 100) ? "*" : ""));
 		break;
 
 	case SMU_SOCCLK:
-		ret = smu_get_current_clk_freq(smu, SMU_SOCCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_SOCCLK, &yesw);
 		if (ret) {
 			pr_err("Attempt to get current socclk Failed!");
 			return ret;
@@ -684,11 +684,11 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now / 100) ? "*" : ""));
+				yesw / 100) ? "*" : ""));
 		break;
 
 	case SMU_FCLK:
-		ret = smu_get_current_clk_freq(smu, SMU_FCLK, &now);
+		ret = smu_get_current_clk_freq(smu, SMU_FCLK, &yesw);
 		if (ret) {
 			pr_err("Attempt to get current fclk Failed!");
 			return ret;
@@ -707,7 +707,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now / 100) ? "*" : ""));
+				yesw / 100) ? "*" : ""));
 		break;
 
 	default:
@@ -819,7 +819,7 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 	case SMU_SOCCLK:
 	case SMU_FCLK:
 		/*
-		 * Should not arrive here since Arcturus does not
+		 * Should yest arrive here since Arcturus does yest
 		 * support mclk/socclk/fclk softmin/softmax settings
 		 */
 		ret = -EINVAL;
@@ -1115,7 +1115,7 @@ static uint32_t arcturus_find_highest_dpm_level(struct arcturus_single_dpm_table
 	int i = 0;
 
 	if (table->count <= 0) {
-		pr_err("[%s] DPM Table has no entry!", __func__);
+		pr_err("[%s] DPM Table has yes entry!", __func__);
 		return 0;
 	}
 	if (table->count > MAX_DPM_NUMBER) {
@@ -1287,7 +1287,7 @@ static int arcturus_get_power_limit(struct smu_context *smu,
 		} else {
 			/* the last hope to figure out the ppt limit */
 			if (!pptable) {
-				pr_err("Cannot get PPT limit due to pptable missing!");
+				pr_err("Canyest get PPT limit due to pptable missing!");
 				return -EINVAL;
 			}
 			asic_default_power_limit =
@@ -1951,7 +1951,7 @@ static int arcturus_i2c_eeprom_write_data(struct i2c_adapter *control,
 		/*
 		 * According to EEPROM spec there is a MAX of 10 ms required for
 		 * EEPROM to flush internal RX buffer after STOP was issued at the
-		 * end of write transaction. During this time the EEPROM will not be
+		 * end of write transaction. During this time the EEPROM will yest be
 		 * responsive to any more commands - so wait a bit more.
 		 */
 		msleep(10);
@@ -2136,14 +2136,14 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.write_pptable = smu_v11_0_write_pptable,
 	.set_min_dcef_deep_sleep = smu_v11_0_set_min_dcef_deep_sleep,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
-	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
+	.yestify_memory_pool_location = smu_v11_0_yestify_memory_pool_location,
 	.system_features_control = smu_v11_0_system_features_control,
 	.send_smc_msg_with_param = smu_v11_0_send_msg_with_param,
 	.read_smc_arg = smu_v11_0_read_arg,
 	.init_display_count = smu_v11_0_init_display_count,
 	.set_allowed_mask = smu_v11_0_set_allowed_mask,
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,
-	.notify_display_change = smu_v11_0_notify_display_change,
+	.yestify_display_change = smu_v11_0_yestify_display_change,
 	.set_power_limit = smu_v11_0_set_power_limit,
 	.get_current_clk_freq = smu_v11_0_get_current_clk_freq,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,

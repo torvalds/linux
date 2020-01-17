@@ -134,7 +134,7 @@ static int asm9260_wdt_settimeout(struct watchdog_device *wdd, unsigned int to)
 
 static void asm9260_wdt_sys_reset(struct asm9260_wdt_priv *priv)
 {
-	/* init WD if it was not started */
+	/* init WD if it was yest started */
 
 	iowrite32(BM_MOD_WDEN | BM_MOD_WDRESET, priv->iobase + HW_WDMOD);
 
@@ -160,7 +160,7 @@ static irqreturn_t asm9260_wdt_irq(int irq, void *devid)
 		return IRQ_NONE;
 
 	if (priv->mode == DEBUG) {
-		dev_info(priv->dev, "Watchdog Timeout. Do nothing.\n");
+		dev_info(priv->dev, "Watchdog Timeout. Do yesthing.\n");
 	} else {
 		dev_info(priv->dev, "Watchdog Timeout. Doing SW Reset.\n");
 		asm9260_wdt_sys_reset(priv);
@@ -266,7 +266,7 @@ static void asm9260_wdt_get_dt_mode(struct asm9260_wdt_priv *priv)
 	/* default mode */
 	priv->mode = HW_RESET;
 
-	ret = of_property_read_string(priv->dev->of_node,
+	ret = of_property_read_string(priv->dev->of_yesde,
 				      "alphascale,mode", &tmp);
 	if (ret < 0)
 		return;
@@ -278,7 +278,7 @@ static void asm9260_wdt_get_dt_mode(struct asm9260_wdt_priv *priv)
 	else if (!strcmp(tmp, "debug"))
 		priv->mode = DEBUG;
 	else
-		dev_warn(priv->dev, "unknown reset-type: %s. Using default \"hw\" mode.",
+		dev_warn(priv->dev, "unkyeswn reset-type: %s. Using default \"hw\" mode.",
 			 tmp);
 }
 

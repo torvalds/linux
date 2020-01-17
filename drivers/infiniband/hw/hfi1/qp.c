@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -336,9 +336,9 @@ int hfi1_setup_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe, bool *call_send)
 	case IB_QPT_SMI:
 		/*
 		 * SM packets should exclusively use VL15 and their SL is
-		 * ignored (IBTA v1.3, Section 3.5.8.2). Therefore, when ah
+		 * igyesred (IBTA v1.3, Section 3.5.8.2). Therefore, when ah
 		 * is created, SL is 0 in most cases and as a result some
-		 * fields (vl and pmtu) in ah may not be set correctly,
+		 * fields (vl and pmtu) in ah may yest be set correctly,
 		 * depending on the SL2SC and SC2VL tables at the time.
 		 */
 		ppd = ppd_from_ibp(ibp);
@@ -358,7 +358,7 @@ int hfi1_setup_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe, bool *call_send)
 	}
 
 	/*
-	 * System latency between send and schedule is large enough that
+	 * System latency between send and schedule is large eyesugh that
 	 * forcing call_send to true for piothreshold packets is necessary.
 	 */
 	if (wqe->length <= piothreshold)
@@ -386,7 +386,7 @@ bool _hfi1_schedule_send(struct rvt_qp *qp)
 	return iowait_schedule(&priv->s_iowait, ppd->hfi1_wq,
 			       priv->s_sde ?
 			       priv->s_sde->cpu :
-			       cpumask_first(cpumask_of_node(dd->node)));
+			       cpumask_first(cpumask_of_yesde(dd->yesde)));
 }
 
 static void qp_pio_drain(struct rvt_qp *qp)
@@ -413,7 +413,7 @@ static void qp_pio_drain(struct rvt_qp *qp)
  * This schedules qp progress and caller should hold
  * the s_lock.
  * @return true if the first leg is scheduled;
- * false if the first leg is not scheduled.
+ * false if the first leg is yest scheduled.
  */
 bool hfi1_schedule_send(struct rvt_qp *qp)
 {
@@ -556,8 +556,8 @@ static void iowait_sdma_drained(struct iowait *wait)
 	unsigned long flags;
 
 	/*
-	 * This happens when the send engine notes
-	 * a QP in the error state and cannot
+	 * This happens when the send engine yestes
+	 * a QP in the error state and canyest
 	 * do the flush work until that QP's
 	 * sdma work has finished.
 	 */
@@ -721,14 +721,14 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv;
 
-	priv = kzalloc_node(sizeof(*priv), GFP_KERNEL, rdi->dparms.node);
+	priv = kzalloc_yesde(sizeof(*priv), GFP_KERNEL, rdi->dparms.yesde);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 
 	priv->owner = qp;
 
-	priv->s_ahg = kzalloc_node(sizeof(*priv->s_ahg), GFP_KERNEL,
-				   rdi->dparms.node);
+	priv->s_ahg = kzalloc_yesde(sizeof(*priv->s_ahg), GFP_KERNEL,
+				   rdi->dparms.yesde);
 	if (!priv->s_ahg) {
 		kfree(priv);
 		return ERR_PTR(-ENOMEM);
@@ -808,7 +808,7 @@ void quiesce_qp(struct rvt_qp *qp)
 	flush_tx_list(qp);
 }
 
-void notify_qp_reset(struct rvt_qp *qp)
+void yestify_qp_reset(struct rvt_qp *qp)
 {
 	hfi1_qp_kern_exp_rcv_clear_all(qp);
 	qp->r_adefered = 0;
@@ -890,7 +890,7 @@ int get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		return attr->path_mtu;
 }
 
-void notify_error_qp(struct rvt_qp *qp)
+void yestify_error_qp(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	seqlock_t *lock = priv->s_iowait.lock;

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -47,7 +47,7 @@ gt215_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 	}
 
 	/* we currently only support a single process at a time waiting
-	 * on a synchronous reply, take the PMU mutex and tell the
+	 * on a synchroyesus reply, take the PMU mutex and tell the
 	 * receive handler what we're waiting for
 	 */
 	if (reply) {
@@ -90,7 +90,7 @@ gt215_pmu_recv(struct nvkm_pmu *pmu)
 	struct nvkm_device *device = subdev->device;
 	u32 process, message, data0, data1;
 
-	/* nothing to do if GET == PUT */
+	/* yesthing to do if GET == PUT */
 	u32 addr =  nvkm_rd32(device, 0x10a4cc);
 	if (addr == nvkm_rd32(device, 0x10a4c8))
 		return;
@@ -112,7 +112,7 @@ gt215_pmu_recv(struct nvkm_pmu *pmu)
 	/* release data segment access */
 	nvkm_wr32(device, 0x10a580, 0x00000000);
 
-	/* wake process if it's waiting on a synchronous reply */
+	/* wake process if it's waiting on a synchroyesus reply */
 	if (pmu->recv.process) {
 		if (process == pmu->recv.process &&
 		    message == pmu->recv.message) {
@@ -124,7 +124,7 @@ gt215_pmu_recv(struct nvkm_pmu *pmu)
 		}
 	}
 
-	/* right now there's no other expected responses from the engine,
+	/* right yesw there's yes other expected responses from the engine,
 	 * so assume that any unexpected message is an error.
 	 */
 	nvkm_warn(subdev, "%c%c%c%c %08x %08x %08x %08x\n",

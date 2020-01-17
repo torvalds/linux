@@ -13,7 +13,7 @@ static int
 mt76_get_of_eeprom(struct mt76_dev *dev, int len)
 {
 #if defined(CONFIG_OF) && defined(CONFIG_MTD)
-	struct device_node *np = dev->dev->of_node;
+	struct device_yesde *np = dev->dev->of_yesde;
 	struct mtd_info *mtd;
 	const __be32 *list;
 	const char *part;
@@ -34,7 +34,7 @@ mt76_get_of_eeprom(struct mt76_dev *dev, int len)
 	if (!phandle)
 		return -ENOENT;
 
-	np = of_find_node_by_phandle(phandle);
+	np = of_find_yesde_by_phandle(phandle);
 	if (!np)
 		return -EINVAL;
 
@@ -45,27 +45,27 @@ mt76_get_of_eeprom(struct mt76_dev *dev, int len)
 	mtd = get_mtd_device_nm(part);
 	if (IS_ERR(mtd)) {
 		ret =  PTR_ERR(mtd);
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	if (size <= sizeof(*list)) {
 		ret = -EINVAL;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	offset = be32_to_cpup(list);
 	ret = mtd_read(mtd, offset, len, &retlen, dev->eeprom.data);
 	put_mtd_device(mtd);
 	if (ret)
-		goto out_put_node;
+		goto out_put_yesde;
 
 	if (retlen < len) {
 		ret = -EINVAL;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
-out_put_node:
-	of_node_put(np);
+out_put_yesde:
+	of_yesde_put(np);
 	return ret;
 #else
 	return -ENOENT;
@@ -76,7 +76,7 @@ void
 mt76_eeprom_override(struct mt76_dev *dev)
 {
 #ifdef CONFIG_OF
-	struct device_node *np = dev->dev->of_node;
+	struct device_yesde *np = dev->dev->of_yesde;
 	const u8 *mac;
 
 	if (!np)

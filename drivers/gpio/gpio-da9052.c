@@ -33,7 +33,7 @@
 #define DA9052_ACTIVE_HIGH			1
 
 #define DA9052_GPIO_MAX_PORTS_PER_REGISTER	8
-#define DA9052_GPIO_SHIFT_COUNT(no)		(no%8)
+#define DA9052_GPIO_SHIFT_COUNT(yes)		(yes%8)
 #define DA9052_GPIO_MASK_UPPER_NIBBLE		0xF0
 #define DA9052_GPIO_MASK_LOWER_NIBBLE		0x0F
 #define DA9052_GPIO_NIBBLE_SHIFT		4
@@ -211,7 +211,7 @@ static int da9052_gpio_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &gpio->gp, gpio);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "Could yest register gpiochip, %d\n", ret);
 		return ret;
 	}
 

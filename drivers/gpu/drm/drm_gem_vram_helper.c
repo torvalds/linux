@@ -177,15 +177,15 @@ EXPORT_SYMBOL(drm_gem_vram_put);
  * drm_gem_vram_mmap_offset() - Returns a GEM VRAM object's mmap offset
  * @gbo:	the GEM VRAM object
  *
- * See drm_vma_node_offset_addr() for more information.
+ * See drm_vma_yesde_offset_addr() for more information.
  *
  * Returns:
  * The buffer object's offset for userspace mappings on success, or
- * 0 if no offset is allocated.
+ * 0 if yes offset is allocated.
  */
 u64 drm_gem_vram_mmap_offset(struct drm_gem_vram_object *gbo)
 {
-	return drm_vma_node_offset_addr(&gbo->bo.base.vma_node);
+	return drm_vma_yesde_offset_addr(&gbo->bo.base.vma_yesde);
 }
 EXPORT_SYMBOL(drm_gem_vram_mmap_offset);
 
@@ -199,7 +199,7 @@ EXPORT_SYMBOL(drm_gem_vram_mmap_offset);
  *
  * Returns:
  * The buffer object's offset in video memory on success, or
- * a negative errno code otherwise.
+ * a negative erryes code otherwise.
  */
 s64 drm_gem_vram_offset(struct drm_gem_vram_object *gbo)
 {
@@ -239,9 +239,9 @@ out:
  * @gbo:	the GEM VRAM object
  * @pl_flag:	a bitmask of possible memory regions
  *
- * Pinning a buffer object ensures that it is not evicted from
+ * Pinning a buffer object ensures that it is yest evicted from
  * a memory region. A pinned buffer object has to be unpinned before
- * it can be pinned to another region. If the pl_flag argument is 0,
+ * it can be pinned to ayesther region. If the pl_flag argument is 0,
  * the buffer is pinned at its current location (video RAM or system
  * memory).
  *
@@ -249,7 +249,7 @@ out:
  * fragmentation if they are pinned in the middle of video RAM. This
  * is especially a problem on devices with only a small amount of
  * video RAM. Fragmentation can prevent the primary framebuffer from
- * fitting in, even though there's enough memory overall. The modifier
+ * fitting in, even though there's eyesugh memory overall. The modifier
  * DRM_GEM_VRAM_PL_FLAG_TOPDOWN marks the buffer object to be pinned
  * at the high end of the memory region to avoid fragmentation.
  *
@@ -335,7 +335,7 @@ out:
 	if (!kmap->virtual) {
 		if (is_iomem)
 			*is_iomem = false;
-		return NULL; /* not mapped; don't increment ref */
+		return NULL; /* yest mapped; don't increment ref */
 	}
 	++gbo->kmap_use_count;
 	if (is_iomem)
@@ -352,12 +352,12 @@ out:
  *
  * This function maps the buffer object into the kernel's address space
  * or returns the current mapping. If the parameter map is false, the
- * function only queries the current mapping, but does not establish a
+ * function only queries the current mapping, but does yest establish a
  * new one.
  *
  * Returns:
  * The buffers virtual address if mapped, or
- * NULL if not mapped, or
+ * NULL if yest mapped, or
  * an ERR_PTR()-encoded error code otherwise.
  */
 void *drm_gem_vram_kmap(struct drm_gem_vram_object *gbo, bool map,
@@ -387,7 +387,7 @@ static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo)
 	 * Permanently mapping and unmapping buffers adds overhead from
 	 * updating the page tables and creates debugging output. Therefore,
 	 * we delay the actual unmap operation until the BO gets evicted
-	 * from memory. See drm_gem_vram_bo_driver_move_notify().
+	 * from memory. See drm_gem_vram_bo_driver_move_yestify().
 	 */
 }
 
@@ -414,7 +414,7 @@ EXPORT_SYMBOL(drm_gem_vram_kunmap);
  *
  * The vmap function pins a GEM VRAM object to its current location, either
  * system or video memory, and maps its buffer into kernel address space.
- * As pinned object cannot be relocated, you should avoid pinning objects
+ * As pinned object canyest be relocated, you should avoid pinning objects
  * permanently. Call drm_gem_vram_vunmap() with the returned address to
  * unmap and unpin the GEM VRAM object.
  *
@@ -555,7 +555,7 @@ static void drm_gem_vram_bo_driver_evict_flags(struct drm_gem_vram_object *gbo,
 	*pl = gbo->placement;
 }
 
-static void drm_gem_vram_bo_driver_move_notify(struct drm_gem_vram_object *gbo,
+static void drm_gem_vram_bo_driver_move_yestify(struct drm_gem_vram_object *gbo,
 					       bool evict,
 					       struct ttm_mem_reg *new_mem)
 {
@@ -609,7 +609,7 @@ int drm_gem_vram_driver_dumb_create(struct drm_file *file,
 				    struct drm_device *dev,
 				    struct drm_mode_create_dumb *args)
 {
-	if (WARN_ONCE(!dev->vram_mm, "VRAM MM not initialized"))
+	if (WARN_ONCE(!dev->vram_mm, "VRAM MM yest initialized"))
 		return -EINVAL;
 
 	return drm_gem_vram_fill_create_dumb(file, dev, &dev->vram_mm->bdev, 0,
@@ -627,7 +627,7 @@ EXPORT_SYMBOL(drm_gem_vram_driver_dumb_create);
  *
  * Returns:
  * 0 on success, or
- * a negative errno code otherwise.
+ * a negative erryes code otherwise.
  */
 int drm_gem_vram_driver_dumb_mmap_offset(struct drm_file *file,
 					 struct drm_device *dev,
@@ -665,7 +665,7 @@ EXPORT_SYMBOL(drm_gem_vram_driver_dumb_mmap_offset);
  *
  * Returns:
  *	0 on success, or
- *	a negative errno code otherwise.
+ *	a negative erryes code otherwise.
  */
 int
 drm_gem_vram_plane_helper_prepare_fb(struct drm_plane *plane,
@@ -744,7 +744,7 @@ EXPORT_SYMBOL(drm_gem_vram_plane_helper_cleanup_fb);
  *
  * Returns:
  *	0 on success, or
- *	a negative errno code otherwise.
+ *	a negative erryes code otherwise.
  */
 int drm_gem_vram_simple_display_pipe_prepare_fb(
 	struct drm_simple_display_pipe *pipe,
@@ -783,7 +783,7 @@ EXPORT_SYMBOL(drm_gem_vram_simple_display_pipe_cleanup_fb);
  *
  * Returns:
  * 0 on success, or
- * a negative errno code otherwise.
+ * a negative erryes code otherwise.
  */
 static int drm_gem_vram_object_pin(struct drm_gem_object *gem)
 {
@@ -933,7 +933,7 @@ static void bo_driver_evict_flags(struct ttm_buffer_object *bo,
 {
 	struct drm_gem_vram_object *gbo;
 
-	/* TTM may pass BOs that are not GEM VRAM BOs. */
+	/* TTM may pass BOs that are yest GEM VRAM BOs. */
 	if (!drm_is_gem_vram(bo))
 		return;
 
@@ -942,19 +942,19 @@ static void bo_driver_evict_flags(struct ttm_buffer_object *bo,
 	drm_gem_vram_bo_driver_evict_flags(gbo, placement);
 }
 
-static void bo_driver_move_notify(struct ttm_buffer_object *bo,
+static void bo_driver_move_yestify(struct ttm_buffer_object *bo,
 				  bool evict,
 				  struct ttm_mem_reg *new_mem)
 {
 	struct drm_gem_vram_object *gbo;
 
-	/* TTM may pass BOs that are not GEM VRAM BOs. */
+	/* TTM may pass BOs that are yest GEM VRAM BOs. */
 	if (!drm_is_gem_vram(bo))
 		return;
 
 	gbo = drm_gem_vram_of_bo(bo);
 
-	drm_gem_vram_bo_driver_move_notify(gbo, evict, new_mem);
+	drm_gem_vram_bo_driver_move_yestify(gbo, evict, new_mem);
 }
 
 static int bo_driver_io_mem_reserve(struct ttm_bo_device *bdev,
@@ -970,7 +970,7 @@ static int bo_driver_io_mem_reserve(struct ttm_bo_device *bdev,
 	mem->bus.size = mem->num_pages << PAGE_SHIFT;
 
 	switch (mem->mem_type) {
-	case TTM_PL_SYSTEM:	/* nothing to do */
+	case TTM_PL_SYSTEM:	/* yesthing to do */
 		mem->bus.offset = 0;
 		mem->bus.base = 0;
 		mem->bus.is_iomem = false;
@@ -998,7 +998,7 @@ static struct ttm_bo_driver bo_driver = {
 	.init_mem_type = bo_driver_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = bo_driver_evict_flags,
-	.move_notify = bo_driver_move_notify,
+	.move_yestify = bo_driver_move_yestify,
 	.io_mem_reserve = bo_driver_io_mem_reserve,
 	.io_mem_free = bo_driver_io_mem_free,
 };
@@ -1010,8 +1010,8 @@ static struct ttm_bo_driver bo_driver = {
 #if defined(CONFIG_DEBUG_FS)
 static int drm_vram_mm_debugfs(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_vram_mm *vmm = node->minor->dev->vram_mm;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_vram_mm *vmm = yesde->miyesr->dev->vram_mm;
 	struct drm_mm *mm = vmm->bdev.man[TTM_PL_VRAM].priv;
 	struct drm_printer p = drm_seq_file_printer(m);
 
@@ -1029,20 +1029,20 @@ static const struct drm_info_list drm_vram_mm_debugfs_list[] = {
 /**
  * drm_vram_mm_debugfs_init() - Register VRAM MM debugfs file.
  *
- * @minor: drm minor device.
+ * @miyesr: drm miyesr device.
  *
  * Returns:
  * 0 on success, or
  * a negative error code otherwise.
  */
-int drm_vram_mm_debugfs_init(struct drm_minor *minor)
+int drm_vram_mm_debugfs_init(struct drm_miyesr *miyesr)
 {
 	int ret = 0;
 
 #if defined(CONFIG_DEBUG_FS)
 	ret = drm_debugfs_create_files(drm_vram_mm_debugfs_list,
 				       ARRAY_SIZE(drm_vram_mm_debugfs_list),
-				       minor->debugfs_root, minor);
+				       miyesr->debugfs_root, miyesr);
 #endif
 	return ret;
 }
@@ -1057,7 +1057,7 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 	vmm->vram_size = vram_size;
 
 	ret = ttm_bo_device_init(&vmm->bdev, &bo_driver,
-				 dev->anon_inode->i_mapping,
+				 dev->ayesn_iyesde->i_mapping,
 				 dev->vma_offset_manager,
 				 true);
 	if (ret)
@@ -1088,7 +1088,7 @@ static void drm_vram_mm_cleanup(struct drm_vram_mm *vmm)
  *
  * Returns:
  * The new instance of &struct drm_vram_mm on success, or
- * an ERR_PTR()-encoded errno code otherwise.
+ * an ERR_PTR()-encoded erryes code otherwise.
  */
 struct drm_vram_mm *drm_vram_helper_alloc_mm(
 	struct drm_device *dev, uint64_t vram_base, size_t vram_size)

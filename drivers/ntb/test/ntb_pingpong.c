@@ -26,12 +26,12 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       yestice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of Intel Corporation yesr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
@@ -149,7 +149,7 @@ static void pp_setup(struct pp_ctx *pp)
 
 	ret = pp_find_next_peer(pp);
 	if (ret == -ENODEV) {
-		dev_dbg(&pp->ntb->dev, "Got no peers, so cancel\n");
+		dev_dbg(&pp->ntb->dev, "Got yes peers, so cancel\n");
 		return;
 	}
 
@@ -338,7 +338,7 @@ static int pp_setup_ctx(struct pp_ctx *pp)
 		return ret;
 
 	ntb_link_enable(pp->ntb, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
-	/* Might be not necessary */
+	/* Might be yest necessary */
 	ntb_link_event(pp->ntb);
 
 	return 0;

@@ -48,7 +48,7 @@ int mantis_frontend_power(struct mantis_pci *mantis, enum mantis_power power)
 		break;
 
 	default:
-		dprintk(MANTIS_DEBUG, 1, "Unknown state <%02x>", power);
+		dprintk(MANTIS_DEBUG, 1, "Unkyeswn state <%02x>", power);
 		return -1;
 	}
 
@@ -95,7 +95,7 @@ static int mantis_dvb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	dprintk(MANTIS_DEBUG, 1, "Mantis DVB Start feed");
 	if (!dvbdmx->dmx.frontend) {
-		dprintk(MANTIS_DEBUG, 1, "no frontend ?");
+		dprintk(MANTIS_DEBUG, 1, "yes frontend ?");
 		return -EINVAL;
 	}
 
@@ -118,7 +118,7 @@ static int mantis_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	dprintk(MANTIS_DEBUG, 1, "Mantis DVB Stop feed");
 	if (!dvbdmx->dmx.frontend) {
-		dprintk(MANTIS_DEBUG, 1, "no frontend ?");
+		dprintk(MANTIS_DEBUG, 1, "yes frontend ?");
 		return -EINVAL;
 	}
 

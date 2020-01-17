@@ -117,14 +117,14 @@ static int tomoyo_bprm_check_security(struct linux_binprm *bprm)
 }
 
 /**
- * tomoyo_inode_getattr - Target for security_inode_getattr().
+ * tomoyo_iyesde_getattr - Target for security_iyesde_getattr().
  *
  * @mnt:    Pointer to "struct vfsmount".
  * @dentry: Pointer to "struct dentry".
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_inode_getattr(const struct path *path)
+static int tomoyo_iyesde_getattr(const struct path *path)
 {
 	return tomoyo_path_perm(TOMOYO_TYPE_GETATTR, path, NULL);
 }
@@ -207,7 +207,7 @@ static int tomoyo_path_symlink(const struct path *parent, struct dentry *dentry,
 }
 
 /**
- * tomoyo_path_mknod - Target for security_path_mknod().
+ * tomoyo_path_mkyesd - Target for security_path_mkyesd().
  *
  * @parent: Pointer to "struct path".
  * @dentry: Pointer to "struct dentry".
@@ -216,7 +216,7 @@ static int tomoyo_path_symlink(const struct path *parent, struct dentry *dentry,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_mknod(const struct path *parent, struct dentry *dentry,
+static int tomoyo_path_mkyesd(const struct path *parent, struct dentry *dentry,
 			     umode_t mode, unsigned int dev)
 {
 	struct path path = { .mnt = parent->mnt, .dentry = dentry };
@@ -231,10 +231,10 @@ static int tomoyo_path_mknod(const struct path *parent, struct dentry *dentry,
 		type = TOMOYO_TYPE_MKBLOCK;
 		break;
 	default:
-		goto no_dev;
+		goto yes_dev;
 	}
 	return tomoyo_mkdev_perm(type, &path, perm, dev);
- no_dev:
+ yes_dev:
 	switch (mode & S_IFMT) {
 	case S_IFIFO:
 		type = TOMOYO_TYPE_MKFIFO;
@@ -549,10 +549,10 @@ static struct security_hook_list tomoyo_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(path_mkdir, tomoyo_path_mkdir),
 	LSM_HOOK_INIT(path_rmdir, tomoyo_path_rmdir),
 	LSM_HOOK_INIT(path_symlink, tomoyo_path_symlink),
-	LSM_HOOK_INIT(path_mknod, tomoyo_path_mknod),
+	LSM_HOOK_INIT(path_mkyesd, tomoyo_path_mkyesd),
 	LSM_HOOK_INIT(path_link, tomoyo_path_link),
 	LSM_HOOK_INIT(path_rename, tomoyo_path_rename),
-	LSM_HOOK_INIT(inode_getattr, tomoyo_inode_getattr),
+	LSM_HOOK_INIT(iyesde_getattr, tomoyo_iyesde_getattr),
 	LSM_HOOK_INIT(file_ioctl, tomoyo_file_ioctl),
 	LSM_HOOK_INIT(path_chmod, tomoyo_path_chmod),
 	LSM_HOOK_INIT(path_chown, tomoyo_path_chown),

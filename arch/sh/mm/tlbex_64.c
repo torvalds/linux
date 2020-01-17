@@ -5,17 +5,17 @@
  * Copyright (C) 2000, 2001  Paolo Alberelli
  *
  * Fast PTE->TLB refill path
- * Copyright (C) 2003 Richard.Curnow@superh.com
+ * Copyright (C) 2003 Richard.Curyesw@superh.com
  *
  * IMPORTANT NOTES :
  * The do_fast_page_fault function is called from a context in entry.S
  * where very few registers have been saved.  In particular, the code in
- * this file must be compiled not to use ANY caller-save registers that
- * are not part of the restricted save set.  Also, it means that code in
- * this file must not make calls to functions elsewhere in the kernel, or
+ * this file must be compiled yest to use ANY caller-save registers that
+ * are yest part of the restricted save set.  Also, it means that code in
+ * this file must yest make calls to functions elsewhere in the kernel, or
  * else the excepting context will see corruption in its caller-save
- * registers.  Plus, the entry.S save area is non-reentrant, so this code
- * has to run with SR.BL==1, i.e. no interrupts taken inside it and panic
+ * registers.  Plus, the entry.S save area is yesn-reentrant, so this code
+ * has to run with SR.BL==1, i.e. yes interrupts taken inside it and panic
  * on any exception.
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -25,7 +25,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -59,21 +59,21 @@ static int handle_tlbmiss(unsigned long long protection_flags,
 	}
 
 	pud = pud_offset(pgd, address);
-	if (pud_none(*pud) || !pud_present(*pud))
+	if (pud_yesne(*pud) || !pud_present(*pud))
 		return 1;
 
 	pmd = pmd_offset(pud, address);
-	if (pmd_none(*pmd) || !pmd_present(*pmd))
+	if (pmd_yesne(*pmd) || !pmd_present(*pmd))
 		return 1;
 
 	pte = pte_offset_kernel(pmd, address);
 	entry = *pte;
-	if (pte_none(entry) || !pte_present(entry))
+	if (pte_yesne(entry) || !pte_present(entry))
 		return 1;
 
 	/*
 	 * If the page doesn't have sufficient protection bits set to
-	 * service the kind of fault being handled, there's not much
+	 * service the kind of fault being handled, there's yest much
 	 * point doing the TLB refill.  Punt the fault to the general
 	 * handler.
 	 */
@@ -123,7 +123,7 @@ expevt_to_fault_code(unsigned long expevt)
    This routine handles page faults that can be serviced just by refilling a
    TLB entry from an existing page table entry.  (This case represents a very
    large majority of page faults.) Return 1 if the fault was successfully
-   handled.  Return 0 if the fault could not be handled.  (This leads into the
+   handled.  Return 0 if the fault could yest be handled.  (This leads into the
    general fault handling in fault.c which deals with mapping file-backed
    pages, stack growth, segmentation faults, swapping etc etc)
  */

@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -68,7 +68,7 @@
  */
 enum iwl_prot_offload_subcmd_ids {
 	/**
-	 * @STORED_BEACON_NTF: &struct iwl_stored_beacon_notif
+	 * @STORED_BEACON_NTF: &struct iwl_stored_beacon_yestif
 	 */
 	STORED_BEACON_NTF = 0xFF,
 };
@@ -76,7 +76,7 @@ enum iwl_prot_offload_subcmd_ids {
 #define MAX_STORED_BEACON_SIZE 600
 
 /**
- * struct iwl_stored_beacon_notif - Stored beacon notification
+ * struct iwl_stored_beacon_yestif - Stored beacon yestification
  *
  * @system_time: system time on air rise
  * @tsf: TSF on air rise
@@ -87,7 +87,7 @@ enum iwl_prot_offload_subcmd_ids {
  * @byte_count: frame's byte count
  * @data: beacon data, length in @byte_count
  */
-struct iwl_stored_beacon_notif {
+struct iwl_stored_beacon_yestif {
 	__le32 system_time;
 	__le64 tsf;
 	__le32 beacon_timestamp;

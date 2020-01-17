@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -193,21 +193,21 @@
 
 #define nlm_read_sys_reg(b, r)		nlm_read_reg(b, r)
 #define nlm_write_sys_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define nlm_get_sys_pcibase(node)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
-		XLP9XX_IO_SYS_OFFSET(node) : XLP_IO_SYS_OFFSET(node))
-#define nlm_get_sys_regbase(node) (nlm_get_sys_pcibase(node) + XLP_IO_PCI_HDRSZ)
+#define nlm_get_sys_pcibase(yesde)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
+		XLP9XX_IO_SYS_OFFSET(yesde) : XLP_IO_SYS_OFFSET(yesde))
+#define nlm_get_sys_regbase(yesde) (nlm_get_sys_pcibase(yesde) + XLP_IO_PCI_HDRSZ)
 
 /* XLP9XX fuse block */
-#define nlm_get_fuse_pcibase(node)	\
-			nlm_pcicfg_base(XLP9XX_IO_FUSE_OFFSET(node))
-#define nlm_get_fuse_regbase(node)	\
-			(nlm_get_fuse_pcibase(node) + XLP_IO_PCI_HDRSZ)
+#define nlm_get_fuse_pcibase(yesde)	\
+			nlm_pcicfg_base(XLP9XX_IO_FUSE_OFFSET(yesde))
+#define nlm_get_fuse_regbase(yesde)	\
+			(nlm_get_fuse_pcibase(yesde) + XLP_IO_PCI_HDRSZ)
 
-#define nlm_get_clock_pcibase(node)	\
-			nlm_pcicfg_base(XLP9XX_IO_CLOCK_OFFSET(node))
-#define nlm_get_clock_regbase(node)	\
-			(nlm_get_clock_pcibase(node) + XLP_IO_PCI_HDRSZ)
+#define nlm_get_clock_pcibase(yesde)	\
+			nlm_pcicfg_base(XLP9XX_IO_CLOCK_OFFSET(yesde))
+#define nlm_get_clock_regbase(yesde)	\
+			(nlm_get_clock_pcibase(yesde) + XLP_IO_PCI_HDRSZ)
 
-unsigned int nlm_get_pic_frequency(int node);
+unsigned int nlm_get_pic_frequency(int yesde);
 #endif
 #endif

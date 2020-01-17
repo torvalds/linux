@@ -2,7 +2,7 @@
 /*
  * video.c - V4L2 component for Mostcore
  *
- * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015, Microchip Techyeslogy Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -205,7 +205,7 @@ static __poll_t comp_vdev_poll(struct file *filp, poll_table *wait)
 	struct most_video_dev *mdev = fh->mdev;
 	__poll_t mask = 0;
 
-	/* only wait if no data is available */
+	/* only wait if yes data is available */
 	if (!data_ready(mdev))
 		poll_wait(filp, &mdev->wait_data, wait);
 	if (data_ready(mdev))
@@ -292,9 +292,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	return comp_set_format(mdev, VIDIOC_S_FMT, f);
 }
 
-static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *yesrm)
 {
-	*norm = V4L2_STD_UNKNOWN;
+	*yesrm = V4L2_STD_UNKNOWN;
 	return 0;
 }
 
@@ -311,7 +311,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	input->type |= V4L2_INPUT_TYPE_CAMERA;
 	input->audioset = 0;
 
-	input->std = mdev->vdev->tvnorms;
+	input->std = mdev->vdev->tvyesrms;
 
 	return 0;
 }
@@ -360,7 +360,7 @@ static const struct video_device comp_videodev_template = {
 	.fops = &comp_fops,
 	.release = video_device_release,
 	.ioctl_ops = &video_ioctl_ops,
-	.tvnorms = V4L2_STD_UNKNOWN,
+	.tvyesrms = V4L2_STD_UNKNOWN,
 	.device_caps = V4L2_CAP_READWRITE | V4L2_CAP_VIDEO_CAPTURE,
 };
 
@@ -513,7 +513,7 @@ static int comp_disconnect_channel(struct most_interface *iface,
 	struct most_video_dev *mdev = get_comp_dev(iface, channel_idx);
 
 	if (!mdev) {
-		pr_err("no such channel is linked\n");
+		pr_err("yes such channel is linked\n");
 		return -ENOENT;
 	}
 

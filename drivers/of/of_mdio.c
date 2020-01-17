@@ -2,7 +2,7 @@
 /*
  * OF helpers for the MDIO (Ethernet PHY) API
  *
- * Copyright (c) 2009 Secret Lab Technologies, Ltd.
+ * Copyright (c) 2009 Secret Lab Techyeslogies, Ltd.
  *
  * This file provides helper functions for extracting PHY device information
  * out of the OpenFirmware device tree and using it to populate an mii_bus.
@@ -27,7 +27,7 @@ MODULE_LICENSE("GPL");
 
 /* Extract the clause 22 phy ID from the compatible string of the form
  * ethernet-phy-idAAAA.BBBB */
-static int of_get_phy_id(struct device_node *device, u32 *phy_id)
+static int of_get_phy_id(struct device_yesde *device, u32 *phy_id)
 {
 	struct property *prop;
 	const char *cp;
@@ -43,7 +43,7 @@ static int of_get_phy_id(struct device_node *device, u32 *phy_id)
 }
 
 static int of_mdiobus_register_phy(struct mii_bus *mdio,
-				    struct device_node *child, u32 addr)
+				    struct device_yesde *child, u32 addr)
 {
 	struct phy_device *phy;
 	bool is_c45;
@@ -73,25 +73,25 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio,
 	}
 
 	if (of_property_read_bool(child, "broken-turn-around"))
-		mdio->phy_ignore_ta_mask |= 1 << addr;
+		mdio->phy_igyesre_ta_mask |= 1 << addr;
 
 	of_property_read_u32(child, "reset-assert-us",
 			     &phy->mdio.reset_assert_delay);
 	of_property_read_u32(child, "reset-deassert-us",
 			     &phy->mdio.reset_deassert_delay);
 
-	/* Associate the OF node with the device structure so it
+	/* Associate the OF yesde with the device structure so it
 	 * can be looked up later */
-	of_node_get(child);
-	phy->mdio.dev.of_node = child;
-	phy->mdio.dev.fwnode = of_fwnode_handle(child);
+	of_yesde_get(child);
+	phy->mdio.dev.of_yesde = child;
+	phy->mdio.dev.fwyesde = of_fwyesde_handle(child);
 
-	/* All data is now stored in the phy struct;
+	/* All data is yesw stored in the phy struct;
 	 * register it */
 	rc = phy_device_register(phy);
 	if (rc) {
 		phy_device_free(phy);
-		of_node_put(child);
+		of_yesde_put(child);
 		return rc;
 	}
 
@@ -101,7 +101,7 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio,
 }
 
 static int of_mdiobus_register_device(struct mii_bus *mdio,
-				      struct device_node *child, u32 addr)
+				      struct device_yesde *child, u32 addr)
 {
 	struct mdio_device *mdiodev;
 	int rc;
@@ -110,18 +110,18 @@ static int of_mdiobus_register_device(struct mii_bus *mdio,
 	if (IS_ERR(mdiodev))
 		return PTR_ERR(mdiodev);
 
-	/* Associate the OF node with the device structure so it
+	/* Associate the OF yesde with the device structure so it
 	 * can be looked up later.
 	 */
-	of_node_get(child);
-	mdiodev->dev.of_node = child;
-	mdiodev->dev.fwnode = of_fwnode_handle(child);
+	of_yesde_get(child);
+	mdiodev->dev.of_yesde = child;
+	mdiodev->dev.fwyesde = of_fwyesde_handle(child);
 
-	/* All data is now stored in the mdiodev struct; register it. */
+	/* All data is yesw stored in the mdiodev struct; register it. */
 	rc = mdio_device_register(mdiodev);
 	if (rc) {
 		mdio_device_free(mdiodev);
-		of_node_put(child);
+		of_yesde_put(child);
 		return rc;
 	}
 
@@ -132,7 +132,7 @@ static int of_mdiobus_register_device(struct mii_bus *mdio,
 
 /* The following is a list of PHY compatible strings which appear in
  * some DTBs. The compatible string is never matched against a PHY
- * driver, so is pointless. We only expect devices which are not PHYs
+ * driver, so is pointless. We only expect devices which are yest PHYs
  * to have a compatible string, so they can be matched to an MDIO
  * driver.  Encourage users to upgrade their DT blobs to remove these.
  */
@@ -152,17 +152,17 @@ static const struct of_device_id whitelist_phys[] = {
 };
 
 /*
- * Return true if the child node is for a phy. It must either:
+ * Return true if the child yesde is for a phy. It must either:
  * o Compatible string of "ethernet-phy-idX.X"
  * o Compatible string of "ethernet-phy-ieee802.3-c45"
  * o Compatible string of "ethernet-phy-ieee802.3-c22"
  * o In the white list above (and issue a warning)
  * o No compatibility string
  *
- * A device which is not a phy is expected to have a compatible string
+ * A device which is yest a phy is expected to have a compatible string
  * indicating what sort of device it is.
  */
-bool of_mdiobus_child_is_phy(struct device_node *child)
+bool of_mdiobus_child_is_phy(struct device_yesde *child)
 {
 	u32 phy_id;
 
@@ -175,7 +175,7 @@ bool of_mdiobus_child_is_phy(struct device_node *child)
 	if (of_device_is_compatible(child, "ethernet-phy-ieee802.3-c22"))
 		return true;
 
-	if (of_match_node(whitelist_phys, child)) {
+	if (of_match_yesde(whitelist_phys, child)) {
 		pr_warn(FW_WARN
 			"%pOF: Whitelisted compatible string. Please remove\n",
 			child);
@@ -192,21 +192,21 @@ EXPORT_SYMBOL(of_mdiobus_child_is_phy);
 /**
  * of_mdiobus_register - Register mii_bus and create PHYs from the device tree
  * @mdio: pointer to mii_bus structure
- * @np: pointer to device_node of MDIO bus.
+ * @np: pointer to device_yesde of MDIO bus.
  *
  * This function registers the mii_bus structure and registers a phy_device
- * for each child node of @np.
+ * for each child yesde of @np.
  */
-int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
+int of_mdiobus_register(struct mii_bus *mdio, struct device_yesde *np)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	bool scanphys = false;
 	int addr, rc;
 
 	if (!np)
 		return mdiobus_register(mdio);
 
-	/* Do not continue if the node is disabled */
+	/* Do yest continue if the yesde is disabled */
 	if (!of_device_is_available(np))
 		return -ENODEV;
 
@@ -214,8 +214,8 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	 * the device tree are populated after the bus has been registered */
 	mdio->phy_mask = ~0;
 
-	mdio->dev.of_node = np;
-	mdio->dev.fwnode = of_fwnode_handle(np);
+	mdio->dev.of_yesde = np;
+	mdio->dev.fwyesde = of_fwyesde_handle(np);
 
 	/* Get bus level PHY reset GPIO details */
 	mdio->reset_delay_us = DEFAULT_GPIO_RESET_DELAY;
@@ -226,8 +226,8 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	if (rc)
 		return rc;
 
-	/* Loop over the child nodes and register a phy_device for each phy */
-	for_each_available_child_of_node(np, child) {
+	/* Loop over the child yesdes and register a phy_device for each phy */
+	for_each_available_child_of_yesde(np, child) {
 		addr = of_mdio_parse_addr(&mdio->dev, child);
 		if (addr < 0) {
 			scanphys = true;
@@ -251,7 +251,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 		return 0;
 
 	/* auto scan for PHYs with empty reg property */
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		/* Skip PHYs with reg property set */
 		if (of_find_property(child, "reg", NULL))
 			continue;
@@ -261,7 +261,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 			if (mdiobus_is_registered_device(mdio, addr))
 				continue;
 
-			/* be noisy to encourage people to set reg property */
+			/* be yesisy to encourage people to set reg property */
 			dev_info(&mdio->dev, "scan phy %pOFn at address %i\n",
 				 child, addr);
 
@@ -282,13 +282,13 @@ unregister:
 EXPORT_SYMBOL(of_mdiobus_register);
 
 /**
- * of_phy_find_device - Give a PHY node, find the phy_device
- * @phy_np: Pointer to the phy's device tree node
+ * of_phy_find_device - Give a PHY yesde, find the phy_device
+ * @phy_np: Pointer to the phy's device tree yesde
  *
  * If successful, returns a pointer to the phy_device with the embedded
  * struct device refcount incremented by one, or NULL on failure.
  */
-struct phy_device *of_phy_find_device(struct device_node *phy_np)
+struct phy_device *of_phy_find_device(struct device_yesde *phy_np)
 {
 	struct device *d;
 	struct mdio_device *mdiodev;
@@ -296,7 +296,7 @@ struct phy_device *of_phy_find_device(struct device_node *phy_np)
 	if (!phy_np)
 		return NULL;
 
-	d = bus_find_device_by_of_node(&mdio_bus_type, phy_np);
+	d = bus_find_device_by_of_yesde(&mdio_bus_type, phy_np);
 	if (d) {
 		mdiodev = to_mdio_device(d);
 		if (mdiodev->flags & MDIO_DEVICE_FLAG_PHY)
@@ -311,7 +311,7 @@ EXPORT_SYMBOL(of_phy_find_device);
 /**
  * of_phy_connect - Connect to the phy described in the device tree
  * @dev: pointer to net_device claiming the phy
- * @phy_np: Pointer to device tree node for the PHY
+ * @phy_np: Pointer to device tree yesde for the PHY
  * @hndlr: Link state callback for the network device
  * @flags: flags to pass to the PHY
  * @iface: PHY data interface type
@@ -321,7 +321,7 @@ EXPORT_SYMBOL(of_phy_find_device);
  * refcount must be dropped by calling phy_disconnect() or phy_detach().
  */
 struct phy_device *of_phy_connect(struct net_device *dev,
-				  struct device_node *phy_np,
+				  struct device_yesde *phy_np,
 				  void (*hndlr)(struct net_device *), u32 flags,
 				  phy_interface_t iface)
 {
@@ -344,9 +344,9 @@ EXPORT_SYMBOL(of_phy_connect);
 
 /**
  * of_phy_get_and_connect
- * - Get phy node and connect to the phy described in the device tree
+ * - Get phy yesde and connect to the phy described in the device tree
  * @dev: pointer to net_device claiming the phy
- * @np: Pointer to device tree node for the net_device claiming the phy
+ * @np: Pointer to device tree yesde for the net_device claiming the phy
  * @hndlr: Link state callback for the network device
  *
  * If successful, returns a pointer to the phy_device with the embedded
@@ -354,11 +354,11 @@ EXPORT_SYMBOL(of_phy_connect);
  * refcount must be dropped by calling phy_disconnect() or phy_detach().
  */
 struct phy_device *of_phy_get_and_connect(struct net_device *dev,
-					  struct device_node *np,
+					  struct device_yesde *np,
 					  void (*hndlr)(struct net_device *))
 {
 	phy_interface_t iface;
-	struct device_node *phy_np;
+	struct device_yesde *phy_np;
 	struct phy_device *phy;
 	int ret;
 
@@ -371,7 +371,7 @@ struct phy_device *of_phy_get_and_connect(struct net_device *dev,
 			netdev_err(dev, "broken fixed-link specification\n");
 			return NULL;
 		}
-		phy_np = of_node_get(np);
+		phy_np = of_yesde_get(np);
 	} else {
 		phy_np = of_parse_phandle(np, "phy-handle", 0);
 		if (!phy_np)
@@ -380,7 +380,7 @@ struct phy_device *of_phy_get_and_connect(struct net_device *dev,
 
 	phy = of_phy_connect(dev, phy_np, hndlr, 0, iface);
 
-	of_node_put(phy_np);
+	of_yesde_put(phy_np);
 
 	return phy;
 }
@@ -398,7 +398,7 @@ EXPORT_SYMBOL(of_phy_get_and_connect);
  * refcount must be dropped by calling phy_disconnect() or phy_detach().
  */
 struct phy_device *of_phy_attach(struct net_device *dev,
-				 struct device_node *phy_np, u32 flags,
+				 struct device_yesde *phy_np, u32 flags,
 				 phy_interface_t iface)
 {
 	struct phy_device *phy = of_phy_find_device(phy_np);
@@ -421,19 +421,19 @@ EXPORT_SYMBOL(of_phy_attach);
  * support two DT bindings:
  * - the old DT binding, where 'fixed-link' was a property with 5
  *   cells encoding various informations about the fixed PHY
- * - the new DT binding, where 'fixed-link' is a sub-node of the
+ * - the new DT binding, where 'fixed-link' is a sub-yesde of the
  *   Ethernet device.
  */
-bool of_phy_is_fixed_link(struct device_node *np)
+bool of_phy_is_fixed_link(struct device_yesde *np)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int len, err;
 	const char *managed;
 
 	/* New binding */
 	dn = of_get_child_by_name(np, "fixed-link");
 	if (dn) {
-		of_node_put(dn);
+		of_yesde_put(dn);
 		return true;
 	}
 
@@ -450,10 +450,10 @@ bool of_phy_is_fixed_link(struct device_node *np)
 }
 EXPORT_SYMBOL(of_phy_is_fixed_link);
 
-int of_phy_register_fixed_link(struct device_node *np)
+int of_phy_register_fixed_link(struct device_yesde *np)
 {
 	struct fixed_phy_status status = {};
-	struct device_node *fixed_link_node;
+	struct device_yesde *fixed_link_yesde;
 	u32 fixed_link_prop[5];
 	const char *managed;
 
@@ -464,20 +464,20 @@ int of_phy_register_fixed_link(struct device_node *np)
 	}
 
 	/* New binding */
-	fixed_link_node = of_get_child_by_name(np, "fixed-link");
-	if (fixed_link_node) {
+	fixed_link_yesde = of_get_child_by_name(np, "fixed-link");
+	if (fixed_link_yesde) {
 		status.link = 1;
-		status.duplex = of_property_read_bool(fixed_link_node,
+		status.duplex = of_property_read_bool(fixed_link_yesde,
 						      "full-duplex");
-		if (of_property_read_u32(fixed_link_node, "speed",
+		if (of_property_read_u32(fixed_link_yesde, "speed",
 					 &status.speed)) {
-			of_node_put(fixed_link_node);
+			of_yesde_put(fixed_link_yesde);
 			return -EINVAL;
 		}
-		status.pause = of_property_read_bool(fixed_link_node, "pause");
-		status.asym_pause = of_property_read_bool(fixed_link_node,
+		status.pause = of_property_read_bool(fixed_link_yesde, "pause");
+		status.asym_pause = of_property_read_bool(fixed_link_yesde,
 							  "asym-pause");
-		of_node_put(fixed_link_node);
+		of_yesde_put(fixed_link_yesde);
 
 		goto register_phy;
 	}
@@ -500,7 +500,7 @@ register_phy:
 }
 EXPORT_SYMBOL(of_phy_register_fixed_link);
 
-void of_phy_deregister_fixed_link(struct device_node *np)
+void of_phy_deregister_fixed_link(struct device_yesde *np)
 {
 	struct phy_device *phydev;
 

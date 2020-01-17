@@ -41,7 +41,7 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct iproc_pcie *pcie;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct resource reg;
 	struct pci_host_bridge *bridge;
 	int ret;
@@ -84,7 +84,7 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * DT nodes are not used by all platforms that use the iProc PCIe
+	 * DT yesdes are yest used by all platforms that use the iProc PCIe
 	 * core driver. For platforms that require explicit inbound mapping
 	 * configuration, "dma-ranges" would have been present in DT
 	 */

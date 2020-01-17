@@ -82,7 +82,7 @@ static int i2c_versatile_probe(struct platform_device *dev)
 	strlcpy(i2c->adap.name, "Versatile I2C adapter", sizeof(i2c->adap.name));
 	i2c->adap.algo_data = &i2c->algo;
 	i2c->adap.dev.parent = &dev->dev;
-	i2c->adap.dev.of_node = dev->dev.of_node;
+	i2c->adap.dev.of_yesde = dev->dev.of_yesde;
 	i2c->algo = i2c_versatile_algo;
 	i2c->algo.data = i2c;
 

@@ -13,10 +13,10 @@
 #define access_ok(addr,size)	_access_ok((unsigned long)(addr),(size))
 
 /*
- * It is not enough to just have access_ok check for a real RAM address.
+ * It is yest eyesugh to just have access_ok check for a real RAM address.
  * This would disallow the case of code/ro-data running XIP in flash/rom.
  * Ideally we would check the possible flash ranges too, but that is
- * currently not so easy.
+ * currently yest so easy.
  */
 static inline int _access_ok(unsigned long addr, unsigned long size)
 {
@@ -57,7 +57,7 @@ extern int __put_user_bad(void);
 
 /*
  * Tell gcc we read from memory instead of writing: this is because
- * we do not write to any memory gcc knows about, so there are no
+ * we do yest write to any memory gcc kyesws about, so there are yes
  * aliasing issues.
  */
 
@@ -65,7 +65,7 @@ extern int __put_user_bad(void);
 
 #define __put_user_asm(err,x,ptr,bwl)				\
 	__asm__ ("move" #bwl " %0,%1"				\
-		: /* no outputs */						\
+		: /* yes outputs */						\
 		:"d" (x),"m" (*__ptr(ptr)) : "memory")
 
 #define get_user(x, ptr)					\

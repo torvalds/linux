@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -1092,7 +1092,7 @@ struct hns_roce_v1_priv {
 	struct hns_roce_free_mr free_mr;
 };
 
-int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset);
+int hns_dsaf_roce_reset(struct fwyesde_handle *dsaf_fwyesde, bool dereset);
 int hns_roce_v1_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 int hns_roce_v1_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 

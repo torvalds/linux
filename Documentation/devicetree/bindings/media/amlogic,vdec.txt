@@ -12,7 +12,7 @@ then feed from this VIFIFO.
 - VDEC_1 can decode MPEG-1, MPEG-2, MPEG-4 part 2, MJPEG, H.263, H.264, VC-1.
 - VDEC_HEVC can decode HEVC and VP9.
 
-Both VDEC_1 and VDEC_HEVC share the "vdec" IRQ and as such cannot run
+Both VDEC_1 and VDEC_HEVC share the "vdec" IRQ and as such canyest run
 concurrently.
 
 Device Tree Bindings:
@@ -35,8 +35,8 @@ Required properties:
 	- vdec
 	- esparser
 - interrupt-names: should contain the names of the previous interrupts
-- amlogic,ao-sysctrl: should point to the AOBUS sysctrl node
-- amlogic,canvas: should point to a canvas provider node
+- amlogic,ao-sysctrl: should point to the AOBUS sysctrl yesde
+- amlogic,canvas: should point to a canvas provider yesde
 - clocks: should contain the following clocks :
 	- dos_parser
 	- dos

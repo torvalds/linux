@@ -2,7 +2,7 @@
 /*
  *  linux/arch/h8300/boot/compressed/head.S
  *
- *  Copyright (C) 2006 Yoshinori Sato
+ *  Copyright (C) 2006 Yoshiyesri Sato
  */
 
 #include <linux/linkage.h>
@@ -41,7 +41,7 @@ fake_headers_as_bzImage:
 				; 0xTV: T=0 for LILO
 				;       V = version
 	.byte	1		; Load flags bzImage=1
-	.word	0x8000		; size to move, when setup is not
+	.word	0x8000		; size to move, when setup is yest
 	.long	0x100000	; 0x100000 = default for big kernel
 	.long	0		; address of loaded ramdisk image
 	.long	0		; its size in bytes

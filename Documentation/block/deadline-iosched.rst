@@ -62,7 +62,7 @@ with a request that is already on the queue. Either it fits in the back of that
 request, or it fits at the front. That is called either a back merge candidate
 or a front merge candidate. Due to the way files are typically laid out,
 back merges are much more common than front merges. For some work loads, you
-may even know that it is a waste of time to spend any time attempting to
+may even kyesw that it is a waste of time to spend any time attempting to
 front merge requests. Setting front_merges to 0 disables this functionality.
 Front merges may still occur due to the cached last_merge hint, but since
 that comes at basically 0 cost we leave that on. We simply disable the

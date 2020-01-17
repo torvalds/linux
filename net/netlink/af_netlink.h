@@ -35,7 +35,7 @@ struct netlink_sock {
 	wait_queue_head_t	wait;
 	bool			bound;
 	bool			cb_running;
-	int			dump_done_errno;
+	int			dump_done_erryes;
 	struct netlink_callback	cb;
 	struct mutex		*cb_mutex;
 	struct mutex		cb_def_mutex;
@@ -44,7 +44,7 @@ struct netlink_sock {
 	void			(*netlink_unbind)(struct net *net, int group);
 	struct module		*module;
 
-	struct rhash_head	node;
+	struct rhash_head	yesde;
 	struct rcu_head		rcu;
 	struct work_struct	work;
 };

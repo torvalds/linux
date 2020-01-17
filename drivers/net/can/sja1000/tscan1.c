@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * tscan1.c: driver for Technologic Systems TS-CAN1 PC104 boards
+ * tscan1.c: driver for Techyeslogic Systems TS-CAN1 PC104 boards
  *
  * Copyright 2010 Andre B. Oliveira
  */
 
 /*
  * References:
- * - Getting started with TS-CAN1, Technologic Systems, Jun 2009
+ * - Getting started with TS-CAN1, Techyeslogic Systems, Jun 2009
  *	http://www.embeddedarm.com/documentation/ts-can1-manual.pdf
  */
 
@@ -19,7 +19,7 @@
 #include <linux/netdevice.h>
 #include "sja1000.h"
 
-MODULE_DESCRIPTION("Driver for Technologic Systems TS-CAN1 PC104 boards");
+MODULE_DESCRIPTION("Driver for Techyeslogic Systems TS-CAN1 PC104 boards");
 MODULE_AUTHOR("Andre B. Oliveira <anbadeol@gmail.com>");
 MODULE_LICENSE("GPL");
 
@@ -104,7 +104,7 @@ static int tscan1_probe(struct device *dev, unsigned id)
 		irq = 5;
 		break;
 	default:
-		dev_err(dev, "invalid JP4:JP5 setting (no IRQ)\n");
+		dev_err(dev, "invalid JP4:JP5 setting (yes IRQ)\n");
 		release_region(pld_base, TSCAN1_PLD_SIZE);
 		return -EINVAL;
 	}

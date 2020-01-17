@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2008 Nokia Corporation.
  *
- * Authors: Sakari Ailus <sakari.ailus@nokia.com>
+ * Authors: Sakari Ailus <sakari.ailus@yeskia.com>
  *          Rémi Denis-Courmont
  */
 
@@ -112,7 +112,7 @@ static int pn_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 }
 
 static int pn_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-		      int noblock, int flags, int *addr_len)
+		      int yesblock, int flags, int *addr_len)
 {
 	struct sk_buff *skb = NULL;
 	struct sockaddr_pn sa;
@@ -121,11 +121,11 @@ static int pn_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 
 	if (flags & ~(MSG_PEEK|MSG_TRUNC|MSG_DONTWAIT|MSG_NOSIGNAL|
 			MSG_CMSG_COMPAT))
-		goto out_nofree;
+		goto out_yesfree;
 
-	skb = skb_recv_datagram(sk, flags, noblock, &rval);
+	skb = skb_recv_datagram(sk, flags, yesblock, &rval);
 	if (skb == NULL)
-		goto out_nofree;
+		goto out_yesfree;
 
 	pn_skb_get_src_sockaddr(skb, &sa);
 
@@ -152,7 +152,7 @@ static int pn_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 out:
 	skb_free_datagram(sk, skb);
 
-out_nofree:
+out_yesfree:
 	return rval;
 }
 

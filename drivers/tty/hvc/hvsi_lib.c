@@ -9,10 +9,10 @@
 
 static int hvsi_send_packet(struct hvsi_priv *pv, struct hvsi_header *packet)
 {
-	packet->seqno = cpu_to_be16(atomic_inc_return(&pv->seqno));
+	packet->seqyes = cpu_to_be16(atomic_inc_return(&pv->seqyes));
 
 	/* Assumes that always succeeds, works in practice */
-	return pv->put_chars(pv->termno, (char *)packet, packet->len);
+	return pv->put_chars(pv->termyes, (char *)packet, packet->len);
 }
 
 static void hvsi_start_handshake(struct hvsi_priv *pv)
@@ -21,9 +21,9 @@ static void hvsi_start_handshake(struct hvsi_priv *pv)
 
 	/* Reset state */
 	pv->established = 0;
-	atomic_set(&pv->seqno, 0);
+	atomic_set(&pv->seqyes, 0);
 
-	pr_devel("HVSI@%x: Handshaking started\n", pv->termno);
+	pr_devel("HVSI@%x: Handshaking started\n", pv->termyes);
 
 	/* Send version query */
 	q.hdr.type = VS_QUERY_PACKET_HEADER;
@@ -59,7 +59,7 @@ static void hvsi_cd_change(struct hvsi_priv *pv, int cd)
 		 */
 		if (!pv->is_console && pv->opened) {
 			pr_devel("HVSI@%x Carrier lost, hanging up !\n",
-				 pv->termno);
+				 pv->termyes);
 			hvsi_send_close(pv);
 		}
 	}
@@ -91,17 +91,17 @@ static void hvsi_got_query(struct hvsi_priv *pv)
 		return;
 
 	pr_devel("HVSI@%x: Got version query, sending response...\n",
-		 pv->termno);
+		 pv->termyes);
 
 	/* Send version response */
 	r.hdr.type = VS_QUERY_RESPONSE_PACKET_HEADER;
 	r.hdr.len = sizeof(struct hvsi_query_response);
 	r.verb = cpu_to_be16(VSV_SEND_VERSION_NUMBER);
 	r.u.version = HVSI_VERSION;
-	r.query_seqno = pkt->hdr.seqno;
+	r.query_seqyes = pkt->hdr.seqyes;
 	hvsi_send_packet(pv, &r.hdr);
 
-	/* Assume protocol is open now */
+	/* Assume protocol is open yesw */
 	pv->established = 1;
 }
 
@@ -137,7 +137,7 @@ static int hvsi_check_packet(struct hvsi_priv *pv)
 		return 0;
 
 	pr_devel("HVSI@%x: Got packet type %x len %d bytes:\n",
-		 pv->termno, type, len);
+		 pv->termyes, type, len);
 
 	/* We have a packet, yay ! Handle it */
 	switch(type) {
@@ -166,7 +166,7 @@ static int hvsi_get_packet(struct hvsi_priv *pv)
 {
 	/* If we have room in the buffer, ask HV for more */
 	if (pv->inbuf_len < HVSI_INBUF_SIZE)
-		pv->inbuf_len += pv->get_chars(pv->termno,
+		pv->inbuf_len += pv->get_chars(pv->termyes,
 					     &pv->inbuf[pv->inbuf_len],
 					     HVSI_INBUF_SIZE - pv->inbuf_len);
 	/*
@@ -187,7 +187,7 @@ int hvsilib_get_chars(struct hvsi_priv *pv, char *buf, int count)
 
 	/* If we aren't open, don't do anything in order to avoid races
 	 * with connection establishment. The hvc core will call this
-	 * before we have returned from notifier_add(), and we need to
+	 * before we have returned from yestifier_add(), and we need to
 	 * avoid multiple users playing with the receive buffer
 	 */
 	if (!pv->opened)
@@ -217,12 +217,12 @@ int hvsilib_get_chars(struct hvsi_priv *pv, char *buf, int count)
 			pv->inbuf_cur = 0;
 		}
 
-		/* Try to get another packet */
+		/* Try to get ayesther packet */
 		if (hvsi_get_packet(pv))
 			tries--;
 	}
 	if (!pv->established) {
-		pr_devel("HVSI@%x: returning -EPIPE\n", pv->termno);
+		pr_devel("HVSI@%x: returning -EPIPE\n", pv->termyes);
 		return -EPIPE;
 	}
 	return read;
@@ -260,7 +260,7 @@ int hvsilib_read_mctrl(struct hvsi_priv *pv)
 	int rc, timeout;
 
 	pr_devel("HVSI@%x: Querying modem control status...\n",
-		 pv->termno);
+		 pv->termyes);
 
 	pv->mctrl_update = 0;
 	q.hdr.type = VS_QUERY_PACKET_HEADER;
@@ -268,7 +268,7 @@ int hvsilib_read_mctrl(struct hvsi_priv *pv)
 	q.verb = cpu_to_be16(VSV_SEND_MODEM_CTL_STATUS);
 	rc = hvsi_send_packet(pv, &q.hdr);
 	if (rc <= 0) {
-		pr_devel("HVSI@%x: Error %d...\n", pv->termno, rc);
+		pr_devel("HVSI@%x: Error %d...\n", pv->termyes, rc);
 		return rc;
 	}
 
@@ -298,7 +298,7 @@ int hvsilib_write_mctrl(struct hvsi_priv *pv, int dtr)
 		return 0;
 	pv->mctrl = mctrl;
 
-	pr_devel("HVSI@%x: %s DTR...\n", pv->termno,
+	pr_devel("HVSI@%x: %s DTR...\n", pv->termyes,
 		 dtr ? "Setting" : "Clearing");
 
 	ctrl.hdr.type = VS_CONTROL_PACKET_HEADER,
@@ -313,7 +313,7 @@ void hvsilib_establish(struct hvsi_priv *pv)
 {
 	int timeout;
 
-	pr_devel("HVSI@%x: Establishing...\n", pv->termno);
+	pr_devel("HVSI@%x: Establishing...\n", pv->termyes);
 
 	/* Try for up to 200ms, there can be a packet to
 	 * start the process waiting for us...
@@ -328,17 +328,17 @@ void hvsilib_establish(struct hvsi_priv *pv)
 	/* Failed, send a close connection packet just
 	 * in case
 	 */
-	pr_devel("HVSI@%x:   ... sending close\n", pv->termno);
+	pr_devel("HVSI@%x:   ... sending close\n", pv->termyes);
 
 	hvsi_send_close(pv);
 
 	/* Then restart handshake */
 
-	pr_devel("HVSI@%x:   ... restarting handshake\n", pv->termno);
+	pr_devel("HVSI@%x:   ... restarting handshake\n", pv->termyes);
 
 	hvsi_start_handshake(pv);
 
-	pr_devel("HVSI@%x:   ... waiting handshake\n", pv->termno);
+	pr_devel("HVSI@%x:   ... waiting handshake\n", pv->termyes);
 
 	/* Try for up to 400ms */
 	for (timeout = 0; timeout < 40; timeout++) {
@@ -350,19 +350,19 @@ void hvsilib_establish(struct hvsi_priv *pv)
 
 	if (!pv->established) {
 		pr_devel("HVSI@%x: Timeout handshaking, giving up !\n",
-			 pv->termno);
+			 pv->termyes);
 		return;
 	}
  established:
 	/* Query modem control lines */
 
-	pr_devel("HVSI@%x:   ... established, reading mctrl\n", pv->termno);
+	pr_devel("HVSI@%x:   ... established, reading mctrl\n", pv->termyes);
 
 	hvsilib_read_mctrl(pv);
 
 	/* Set our own DTR */
 
-	pr_devel("HVSI@%x:   ... setting mctrl\n", pv->termno);
+	pr_devel("HVSI@%x:   ... setting mctrl\n", pv->termyes);
 
 	hvsilib_write_mctrl(pv, 1);
 
@@ -373,7 +373,7 @@ void hvsilib_establish(struct hvsi_priv *pv)
 
 int hvsilib_open(struct hvsi_priv *pv, struct hvc_struct *hp)
 {
-	pr_devel("HVSI@%x: open !\n", pv->termno);
+	pr_devel("HVSI@%x: open !\n", pv->termyes);
 
 	/* Keep track of the tty data structure */
 	pv->tty = tty_port_tty_get(&hp->port);
@@ -387,11 +387,11 @@ void hvsilib_close(struct hvsi_priv *pv, struct hvc_struct *hp)
 {
 	unsigned long flags;
 
-	pr_devel("HVSI@%x: close !\n", pv->termno);
+	pr_devel("HVSI@%x: close !\n", pv->termyes);
 
 	if (!pv->is_console) {
 		pr_devel("HVSI@%x: Not a console, tearing down\n",
-			 pv->termno);
+			 pv->termyes);
 
 		/* Clear opened, synchronize with khvcd */
 		spin_lock_irqsave(&hp->lock, flags);
@@ -411,14 +411,14 @@ void hvsilib_close(struct hvsi_priv *pv, struct hvc_struct *hp)
 }
 
 void hvsilib_init(struct hvsi_priv *pv,
-		  int (*get_chars)(uint32_t termno, char *buf, int count),
-		  int (*put_chars)(uint32_t termno, const char *buf,
+		  int (*get_chars)(uint32_t termyes, char *buf, int count),
+		  int (*put_chars)(uint32_t termyes, const char *buf,
 				   int count),
-		  int termno, int is_console)
+		  int termyes, int is_console)
 {
 	memset(pv, 0, sizeof(*pv));
 	pv->get_chars = get_chars;
 	pv->put_chars = put_chars;
-	pv->termno = termno;
+	pv->termyes = termyes;
 	pv->is_console = is_console;
 }

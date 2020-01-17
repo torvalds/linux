@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -278,7 +278,7 @@ static int smu8_init_dynamic_state_adjustment_rule_settings(
 				GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
-		pr_err("Can not allocate memory!\n");
+		pr_err("Can yest allocate memory!\n");
 		return -ENOMEM;
 	}
 
@@ -318,7 +318,7 @@ static int smu8_get_system_info_data(struct pp_hwmgr *hwmgr)
 			&size, &frev, &crev);
 
 	if (info == NULL) {
-		pr_err("Could not retrieve the Integrated System Info Table!\n");
+		pr_err("Could yest retrieve the Integrated System Info Table!\n");
 		return -EINVAL;
 	}
 
@@ -372,7 +372,7 @@ static int smu8_get_system_info_data(struct pp_hwmgr *hwmgr)
 					le32_to_cpu(info->sDispClkVoltageMapping[i].ulMaximumSupportedCLK);
 	}
 
-	/* Here use 4 levels, make sure not exceed */
+	/* Here use 4 levels, make sure yest exceed */
 	for (i = 0; i < SMU8_NUM_NBPSTATES; i++) {
 		data->sys_info.nbp_voltage_index[i] =
 			     le16_to_cpu(info->usNBPStateVoltage[i]);
@@ -699,7 +699,7 @@ static int smu8_update_sclk_limit(struct pp_hwmgr *hwmgr)
 
 	clock = hwmgr->display_config->min_core_set_clock;
 	if (clock == 0)
-		pr_debug("min_core_set_clock not set\n");
+		pr_debug("min_core_set_clock yest set\n");
 
 	if (data->sclk_dpm.hard_min_clk != clock) {
 		data->sclk_dpm.hard_min_clk = clock;
@@ -1515,11 +1515,11 @@ static int smu8_print_clock_levels(struct pp_hwmgr *hwmgr,
 	struct smu8_hwmgr *data = hwmgr->backend;
 	struct phm_clock_voltage_dependency_table *sclk_table =
 			hwmgr->dyn_state.vddc_dependency_on_sclk;
-	int i, now, size = 0;
+	int i, yesw, size = 0;
 
 	switch (type) {
 	case PP_SCLK:
-		now = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device,
+		yesw = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device,
 				CGS_IND_REG__SMC,
 				ixTARGET_AND_CURRENT_PROFILE_INDEX),
 				TARGET_AND_CURRENT_PROFILE_INDEX,
@@ -1528,10 +1528,10 @@ static int smu8_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < sclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i, sclk_table->entries[i].clk / 100,
-					(i == now) ? "*" : "");
+					(i == yesw) ? "*" : "");
 		break;
 	case PP_MCLK:
-		now = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device,
+		yesw = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device,
 				CGS_IND_REG__SMC,
 				ixTARGET_AND_CURRENT_PROFILE_INDEX),
 				TARGET_AND_CURRENT_PROFILE_INDEX,
@@ -1540,7 +1540,7 @@ static int smu8_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = SMU8_NUM_NBPMEMORYCLOCK; i > 0; i--)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					SMU8_NUM_NBPMEMORYCLOCK-i, data->sys_info.nbp_memory_clock[i-1] / 100,
-					(SMU8_NUM_NBPMEMORYCLOCK-i == now) ? "*" : "");
+					(SMU8_NUM_NBPMEMORYCLOCK-i == yesw) ? "*" : "");
 		break;
 	default:
 		break;
@@ -1581,8 +1581,8 @@ static int smu8_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw
 		level->memory_clock = data->sys_info.nbp_memory_clock[0];
 
 	level->vddc = (smu8_convert_8Bit_index_to_voltage(hwmgr, ps->levels[level_index].vddcIndex) + 2) / 4;
-	level->nonLocalMemoryFreq = 0;
-	level->nonLocalMemoryWidth = 0;
+	level->yesnLocalMemoryFreq = 0;
+	level->yesnLocalMemoryWidth = 0;
 
 	return 0;
 }
@@ -1776,7 +1776,7 @@ static int smu8_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	}
 }
 
-static int smu8_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
+static int smu8_yestify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 					uint32_t virtual_addr_low,
 					uint32_t virtual_addr_hi,
 					uint32_t mc_addr_low,
@@ -1989,7 +1989,7 @@ static const struct pp_hwmgr_func smu8_hwmgr_funcs = {
 	.dynamic_state_management_enable = smu8_enable_dpm_tasks,
 	.power_state_set = smu8_set_power_state_tasks,
 	.dynamic_state_management_disable = smu8_disable_dpm_tasks,
-	.notify_cac_buffer_info = smu8_notify_cac_buffer_info,
+	.yestify_cac_buffer_info = smu8_yestify_cac_buffer_info,
 	.update_nbdpm_pstate = smu8_nbdpm_pstate_enable_disable,
 	.get_thermal_temperature_range = smu8_get_thermal_temperature_range,
 };

@@ -10,9 +10,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -37,7 +37,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/sched/signal.h>
 #include <linux/kthread.h>
@@ -116,7 +116,7 @@ static int kpowerswd(void *param)
 	__set_current_state(TASK_RUNNING);
 
 	do {
-		int button_not_pressed;
+		int button_yest_pressed;
 		unsigned long soft_power_reg = (unsigned long) param;
 
 		schedule_timeout_interruptible(pwrsw_enabled ? HZ : HZ/POWERSWITCH_POLL_PER_SEC);
@@ -132,20 +132,20 @@ static int kpowerswd(void *param)
 			 * Bit 31 ("the lowest bit) is the status of the power switch.
 			 * This bit is "1" if the button is NOT pressed.
 			 */
-			button_not_pressed = (gsc_readl(soft_power_reg) & 0x1);
+			button_yest_pressed = (gsc_readl(soft_power_reg) & 0x1);
 		} else {
 			/*
 			 * On gecko style machines (e.g. 712/xx and 715/xx) 
 			 * the power switch status is stored in Bit 0 ("the highest bit")
-			 * of CPU diagnose register 25.
+			 * of CPU diagyesse register 25.
 			 * Warning: Some machines never reset the DIAG flag, even if
 			 * the button has been released again.
 			 */
-			button_not_pressed = (__getDIAG(25) & 0x80000000);
+			button_yest_pressed = (__getDIAG(25) & 0x80000000);
 		}
 
-		if (likely(button_not_pressed)) {
-			if (unlikely(shutdown_timer && /* avoid writing if not necessary */
+		if (likely(button_yest_pressed)) {
+			if (unlikely(shutdown_timer && /* avoid writing if yest necessary */
 				shutdown_timer < (POWERSWITCH_DOWN_SEC*POWERSWITCH_POLL_PER_SEC))) {
 				shutdown_timer = 0;
 				printk(KERN_INFO KTHREAD_NAME ": Shutdown request aborted.\n");
@@ -175,11 +175,11 @@ static void powerfail_interrupt(int code, void *x)
 
 
 /* parisc_panic_event() is called by the panic handler.
- * As soon as a panic occurs, our tasklets above will not be
+ * As soon as a panic occurs, our tasklets above will yest be
  * executed any longer. This function then re-enables the 
  * soft-power switch and allows the user to switch off the system
  */
-static int parisc_panic_event(struct notifier_block *this,
+static int parisc_panic_event(struct yestifier_block *this,
 		unsigned long event, void *ptr)
 {
 	/* re-enable the soft-power switch */
@@ -187,8 +187,8 @@ static int parisc_panic_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block parisc_panic_block = {
-	.notifier_call	= parisc_panic_event,
+static struct yestifier_block parisc_panic_block = {
+	.yestifier_call	= parisc_panic_event,
 	.priority	= INT_MAX,
 };
 
@@ -214,7 +214,7 @@ static int __init power_init(void)
 	case 0:		printk(KERN_INFO DRIVER_NAME ": Gecko-style soft power switch enabled.\n");
 			break;
 			
-	case -1UL:	printk(KERN_INFO DRIVER_NAME ": Soft power switch support not available.\n");
+	case -1UL:	printk(KERN_INFO DRIVER_NAME ": Soft power switch support yest available.\n");
 			return -ENODEV;
 	
 	default:	printk(KERN_INFO DRIVER_NAME ": Soft power switch at 0x%08lx enabled.\n",
@@ -223,13 +223,13 @@ static int __init power_init(void)
 
 	power_task = kthread_run(kpowerswd, (void*)soft_power_reg, KTHREAD_NAME);
 	if (IS_ERR(power_task)) {
-		printk(KERN_ERR DRIVER_NAME ": thread creation failed.  Driver not loaded.\n");
+		printk(KERN_ERR DRIVER_NAME ": thread creation failed.  Driver yest loaded.\n");
 		pdc_soft_power_button(0);
 		return -EIO;
 	}
 
 	/* Register a call for panic conditions. */
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_yestifier_chain_register(&panic_yestifier_list,
 			&parisc_panic_block);
 
 	return 0;
@@ -239,7 +239,7 @@ static void __exit power_exit(void)
 {
 	kthread_stop(power_task);
 
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_yestifier_chain_unregister(&panic_yestifier_list,
 			&parisc_panic_block);
 
 	pdc_soft_power_button(0);

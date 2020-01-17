@@ -19,8 +19,8 @@
 #include "pblk.h"
 
 /*
- * There is no guarantee that the value read from cache has not been updated and
- * resides at another location in the cache. We guarantee though that if the
+ * There is yes guarantee that the value read from cache has yest been updated and
+ * resides at ayesther location in the cache. We guarantee though that if the
  * value is read from the cache, it belongs to the mapped lba. In order to
  * guarantee and order between writes and reads are ordered, a flush must be
  * issued.
@@ -76,7 +76,7 @@ retry:
 				} else {
 					/*
 					 * We already call bio_advance()
-					 * so we cannot retry and we need
+					 * so we canyest retry and we need
 					 * to quit that function in order
 					 * to allow caller to handle the bio
 					 * splitting in the current sector

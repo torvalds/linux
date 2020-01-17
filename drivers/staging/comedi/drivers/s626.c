@@ -18,14 +18,14 @@
  * Updated: Fri, 15 Feb 2008 10:28:42 +0000
  * Status: experimental
 
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: yest applicable, uses PCI auto config
 
  * INSN_CONFIG instructions:
  *   analog input:
- *    none
+ *    yesne
  *
  *   analog output:
- *    none
+ *    yesne
  *
  *   digital channel:
  *    s626 has 3 dio subdevices (2,3 and 4) each with 16 i/o channels
@@ -67,7 +67,7 @@ struct s626_buffer_dma {
 
 /**
  * struct s626_private - Working data for s626 driver.
- * @ai_cmd_running: non-zero if ai_cmd is running.
+ * @ai_cmd_running: yesn-zero if ai_cmd is running.
  * @ai_sample_timer: time between samples in units of the timer.
  * @ai_convert_count: conversion counter.
  * @ai_convert_timer: time between conversion in units of the timer.
@@ -260,7 +260,7 @@ static int s626_i2c_handshake(struct comedi_device *dev, u32 val)
 		ctrl = readl(dev->mmio + S626_P_I2CCTRL);
 	} while ((ctrl & (S626_I2C_BUSY | S626_I2C_ERR)) == S626_I2C_BUSY);
 
-	/* Return non-zero if I2C error occurred */
+	/* Return yesn-zero if I2C error occurred */
 	return ctrl & S626_I2C_ERR;
 }
 
@@ -309,7 +309,7 @@ static const u8 s626_trimadrs[] = {
 };
 
 enum {
-	s626_send_dac_wait_not_mc1_a2out,
+	s626_send_dac_wait_yest_mc1_a2out,
 	s626_send_dac_wait_ssr_af2_out,
 	s626_send_dac_wait_fb_buffer2_msb_00,
 	s626_send_dac_wait_fb_buffer2_msb_ff
@@ -323,7 +323,7 @@ static int s626_send_dac_eoc(struct comedi_device *dev,
 	unsigned int status;
 
 	switch (context) {
-	case s626_send_dac_wait_not_mc1_a2out:
+	case s626_send_dac_wait_yest_mc1_a2out:
 		status = readl(dev->mmio + S626_P_MC1);
 		if (!(status & S626_MC1_A2OUT))
 			return 0;
@@ -364,7 +364,7 @@ static int s626_send_dac(struct comedi_device *dev, u32 val)
 	/*
 	 * Assert DAC polarity control and enable gating of DAC serial clock
 	 * and audio bit stream signals.  At this point in time we must be
-	 * assured of being in time slot 0.  If we are not in slot 0, the
+	 * assured of being in time slot 0.  If we are yest in slot 0, the
 	 * serial clock and audio stream signals will be disabled; this is
 	 * because the following s626_debi_write statement (which enables
 	 * signals to be passed through the gate array) would execute before
@@ -404,7 +404,7 @@ static int s626_send_dac(struct comedi_device *dev, u32 val)
 	 * cleared when the transfer has finished.
 	 */
 	ret = comedi_timeout(dev, NULL, NULL, s626_send_dac_eoc,
-			     s626_send_dac_wait_not_mc1_a2out);
+			     s626_send_dac_wait_yest_mc1_a2out);
 	if (ret) {
 		dev_err(dev->class_dev, "DMA transfer timeout\n");
 		return ret;
@@ -413,7 +413,7 @@ static int s626_send_dac(struct comedi_device *dev, u32 val)
 	/* START THE OUTPUT STREAM TO THE TARGET DAC -------------------- */
 
 	/*
-	 * FIFO data is now available, so we enable execution of time slots
+	 * FIFO data is yesw available, so we enable execution of time slots
 	 * 1 and higher by clearing the EOS flag in slot 0.  Note that SD3
 	 * will be shifted in and stored in FB_BUFFER2 for end-of-slot-list
 	 * detection.
@@ -455,8 +455,8 @@ static int s626_send_dac(struct comedi_device *dev, u32 val)
 	 *
 	 * 1. Before the TSL sequence cycles back to slot 0, which disables
 	 *    the clock/cs signal gating and traps slot // list execution.
-	 *    we have not yet finished slot 5 then the clock/cs signals are
-	 *    still gated and we have not finished transmitting the stream.
+	 *    we have yest yet finished slot 5 then the clock/cs signals are
+	 *    still gated and we have yest finished transmitting the stream.
 	 *
 	 * 2. While slots 2-5 are executing due to a late slot 0 trap.  In
 	 *    this case, the slot sequence is currently repeating, but with
@@ -464,12 +464,12 @@ static int s626_send_dac(struct comedi_device *dev, u32 val)
 	 *    execution before setting up the next DAC setpoint DMA transfer
 	 *    and enabling the clock/cs signals.  To detect the end of slot 5,
 	 *    we test for the FB_BUFFER2 MSB contents to be equal to 0xFF.  If
-	 *    the TSL has not yet finished executing slot 5 ...
+	 *    the TSL has yest yet finished executing slot 5 ...
 	 */
 	if (readl(dev->mmio + S626_P_FB_BUFFER2) & 0xff000000) {
 		/*
 		 * The trap was set on time and we are still executing somewhere
-		 * in slots 2-5, so we now wait for slot 0 to execute and trap
+		 * in slots 2-5, so we yesw wait for slot 0 to execute and trap
 		 * TSL execution.  This is detected when FB_BUFFER2 MSB changes
 		 * from 0xFF to 0x00, which slot 0 causes to happen by shifting
 		 * out/in on SD2 the 0x00 that is always referenced by slot 5.
@@ -485,8 +485,8 @@ static int s626_send_dac(struct comedi_device *dev, u32 val)
 	/*
 	 * Either (1) we were too late setting the slot 0 trap; the TSL
 	 * sequencer restarted slot 0 before we could set the EOS trap flag,
-	 * or (2) we were not late and execution is now trapped at slot 0.
-	 * In either case, we must now change slot 0 so that it will store
+	 * or (2) we were yest late and execution is yesw trapped at slot 0.
+	 * In either case, we must yesw change slot 0 so that it will store
 	 * value 0xFF (instead of 0x00) to FB_BUFFER2 next time it executes.
 	 * In order to do this, we reprogram slot 0 so that it will shift in
 	 * SD3, which is driven only by a pull-up resistor.
@@ -538,7 +538,7 @@ static int s626_set_dac(struct comedi_device *dev,
 	/*
 	 * Set up TSL2 records (aka "vectors") for DAC update.  Vectors V2
 	 * and V3 transmit the setpoint to the target DAC.  V4 and V5 send
-	 * data to a non-existent TrimDac channel just to keep the clock
+	 * data to a yesn-existent TrimDac channel just to keep the clock
 	 * running after sending data to the target DAC.  This is necessary
 	 * to eliminate the clock glitch that would otherwise occur at the
 	 * end of the target DAC's serial data stream.  When the sequence
@@ -554,7 +554,7 @@ static int s626_set_dac(struct comedi_device *dev,
 	/* Slot 3: Transmit low data byte to target DAC */
 	writel(S626_XSD2 | S626_XFIFO_0 | ws_image,
 	       dev->mmio + S626_VECTPORT(3));
-	/* Slot 4: Transmit to non-existent TrimDac channel to keep clock */
+	/* Slot 4: Transmit to yesn-existent TrimDac channel to keep clock */
 	writel(S626_XSD2 | S626_XFIFO_3 | S626_WS3,
 	       dev->mmio + S626_VECTPORT(4));
 	/* Slot 5: running after writing target DAC's low data byte */
@@ -565,11 +565,11 @@ static int s626_set_dac(struct comedi_device *dev,
 	 * Construct and transmit target DAC's serial packet:
 	 * (A10D DDDD), (DDDD DDDD), (0x0F), (0x00) where A is chan<0>,
 	 * and D<12:0> is the DAC setpoint.  Append a WORD value (that writes
-	 * to a  non-existent TrimDac channel) that serves to keep the clock
+	 * to a  yesn-existent TrimDac channel) that serves to keep the clock
 	 * running after the packet has been sent to the target DAC.
 	 */
 	val = 0x0F000000;	/* Continue clock after target DAC data
-				 * (write to non-existent trimdac).
+				 * (write to yesn-existent trimdac).
 				 */
 	val |= 0x00004000;	/* Address the two main dual-DAC devices
 				 * (TSL's chip select enables target device).
@@ -619,7 +619,7 @@ static int s626_write_trim_dac(struct comedi_device *dev,
 	 * Construct and transmit target DAC's serial packet:
 	 * (0000 AAAA), (DDDD DDDD), (0x00), (0x00) where A<3:0> is the
 	 * DAC channel's address, and D<7:0> is the DAC setpoint.  Append a
-	 * WORD value (that writes a channel 0 NOP command to a non-existent
+	 * WORD value (that writes a channel 0 NOP command to a yesn-existent
 	 * main DAC channel) that serves to keep the clock running after the
 	 * packet has been sent to the target DAC.
 	 */
@@ -700,7 +700,7 @@ static void s626_reset_cap_flags(struct comedi_device *dev,
 /*
  * Set the operating mode for the specified counter.  The setup
  * parameter is treated as a COUNTER_SETUP data type.  The following
- * parameters are programmable (all other parms are ignored): ClkMult,
+ * parameters are programmable (all other parms are igyesred): ClkMult,
  * ClkPol, ClkEnab, IndexSrc, IndexPol, LoadSrc.
  */
 static void s626_set_mode_a(struct comedi_device *dev,
@@ -747,7 +747,7 @@ static void s626_set_mode_a(struct comedi_device *dev,
 		/* Select ENC_C and ENC_D as clock/direction inputs. */
 		cntsrc = S626_CNTSRC_ENCODER;
 		/* Clock polarity is passed through. */
-		/* Force multiplier to x1 if not legal, else pass through. */
+		/* Force multiplier to x1 if yest legal, else pass through. */
 		clkmult = S626_GET_STD_CLKMULT(setup);
 		if (clkmult == S626_CLKMULT_SPECIAL)
 			clkmult = S626_CLKMULT_1X;
@@ -832,7 +832,7 @@ static void s626_set_mode_b(struct comedi_device *dev,
 		/* Select ENC_C and ENC_D as clock/direction inputs. */
 		cntsrc = S626_CNTSRC_ENCODER;
 		/* ClkPol is passed through. */
-		/* Force ClkMult to x1 if not legal, otherwise pass through. */
+		/* Force ClkMult to x1 if yest legal, otherwise pass through. */
 		clkmult = S626_GET_STD_CLKMULT(setup);
 		if (clkmult == S626_CLKMULT_SPECIAL)
 			clkmult = S626_CLKMULT_1X;
@@ -1302,9 +1302,9 @@ static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 
 	/*
 	 * SAA7146 BUG WORKAROUND Do a dummy DEBI Write.  This is necessary
-	 * because the first RPS DEBI Write following a non-RPS DEBI write
+	 * because the first RPS DEBI Write following a yesn-RPS DEBI write
 	 * seems to always fail.  If we don't do this dummy write, the ADC
-	 * gain might not be set to the value required for the first slot in
+	 * gain might yest be set to the value required for the first slot in
 	 * the poll list; the ADC gain would instead remain unchanged from
 	 * the previously programmed value.
 	 */
@@ -1397,7 +1397,7 @@ static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 		*rps++ = S626_RPS_LDREG | (S626_P_GPIO >> 2);
 		*rps++ = S626_GPIO_BASE | S626_GPIO1_HI;
 		/*
-		 * Wait for ADC to complete (GPIO2 is asserted high when ADC not
+		 * Wait for ADC to complete (GPIO2 is asserted high when ADC yest
 		 * busy) and for data from previous conversion to shift into FB
 		 * BUFFER 1 register.
 		 */
@@ -1412,7 +1412,7 @@ static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 
 		/*
 		 * If this slot's EndOfPollList flag is set, all channels have
-		 * now been processed.
+		 * yesw been processed.
 		 */
 		if (*ppl++ & S626_EOPL) {
 			devpriv->adc_items++; /* Adjust poll list item count. */
@@ -1526,7 +1526,7 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 
 		/*
 		 * Wait for ADC to complete (GPIO2 is asserted high when
-		 * ADC not busy) and for data from previous conversion to
+		 * ADC yest busy) and for data from previous conversion to
 		 * shift into FB BUFFER 1 register.
 		 */
 
@@ -1620,11 +1620,11 @@ static int s626_ai_inttrig(struct comedi_device *dev,
 /*
  * This function doesn't require a particular form, this is just what
  * happens to be used in some of the drivers.  It should convert ns
- * nanoseconds to a counter value suitable for programming the device.
+ * nayesseconds to a counter value suitable for programming the device.
  * Also, it should adjust ns so that it cooresponds to the actual time
  * that the device will use.
  */
-static int s626_ns_to_timer(unsigned int *nanosec, unsigned int flags)
+static int s626_ns_to_timer(unsigned int *nayessec, unsigned int flags)
 {
 	int divider, base;
 
@@ -1633,17 +1633,17 @@ static int s626_ns_to_timer(unsigned int *nanosec, unsigned int flags)
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		divider = DIV_ROUND_CLOSEST(*nanosec, base);
+		divider = DIV_ROUND_CLOSEST(*nayessec, base);
 		break;
 	case CMDF_ROUND_DOWN:
-		divider = (*nanosec) / base;
+		divider = (*nayessec) / base;
 		break;
 	case CMDF_ROUND_UP:
-		divider = DIV_ROUND_UP(*nanosec, base);
+		divider = DIV_ROUND_UP(*nayessec, base);
 		break;
 	}
 
-	*nanosec = base * divider;
+	*nayessec = base * divider;
 	return divider - 1;
 }
 
@@ -1698,7 +1698,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (devpriv->ai_cmd_running) {
 		dev_err(dev->class_dev,
-			"%s: Another ai_cmd is running\n", __func__);
+			"%s: Ayesther ai_cmd is running\n", __func__);
 		return -EBUSY;
 	}
 	/* disable interrupt */
@@ -1837,8 +1837,8 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->convert_src == TRIG_EXT)
 		err |= comedi_check_trigger_arg_max(&cmd->convert_arg, 39);
 
-#define S626_MAX_SPEED	200000	/* in nanoseconds */
-#define S626_MIN_SPEED	2000000000	/* in nanoseconds */
+#define S626_MAX_SPEED	200000	/* in nayesseconds */
+#define S626_MIN_SPEED	2000000000	/* in nayesseconds */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
@@ -2249,7 +2249,7 @@ static int s626_initialize(struct comedi_device *dev)
 	/* Physical start of RPS program */
 	writel((u32)devpriv->rps_buf.physical_base,
 	       dev->mmio + S626_P_RPSADDR1);
-	/* RPS program performs no explicit mem writes */
+	/* RPS program performs yes explicit mem writes */
 	writel(0, dev->mmio + S626_P_RPSPAGE1);
 	/* Disable RPS timeouts */
 	writel(0, dev->mmio + S626_P_RPS1_TOUT);
@@ -2258,10 +2258,10 @@ static int s626_initialize(struct comedi_device *dev)
 	/*
 	 * SAA7146 BUG WORKAROUND
 	 *
-	 * Initialize SAA7146 ADC interface to a known state by
+	 * Initialize SAA7146 ADC interface to a kyeswn state by
 	 * invoking ADCs until FB BUFFER 1 register shows that it
 	 * is correctly receiving ADC data. This is necessary
-	 * because the SAA7146 ADC interface does not start up in
+	 * because the SAA7146 ADC interface does yest start up in
 	 * a defined state after a PCI reset.
 	 */
 	{
@@ -2330,7 +2330,7 @@ static int s626_initialize(struct comedi_device *dev)
 			    S626_DAC_WDMABUF_OS;
 
 	/*
-	 * Audio2's output channels does not use paging.  The
+	 * Audio2's output channels does yest use paging.  The
 	 * protection violation handling bit is set so that the
 	 * DMAC will automatically halt and its PCI address pointer
 	 * will be reset when the protection address is reached.
@@ -2346,7 +2346,7 @@ static int s626_initialize(struct comedi_device *dev)
 	 * apparently impossible to do).  Also, SD3 (which is driven by a
 	 * pull-up resistor) is shifted in and stored to the MSB of
 	 * FB_BUFFER2 to be used as evidence that the slot sequence has
-	 * not yet finished executing.
+	 * yest yet finished executing.
 	 */
 
 	/* Slot 0: Trap TSL execution, shift 0xFF into FB_BUFFER2 */
@@ -2370,7 +2370,7 @@ static int s626_initialize(struct comedi_device *dev)
 
 	/*
 	 * Init Trim DACs to calibrated values.  Do it twice because the
-	 * SAA7146 audio channel does not always reset properly and
+	 * SAA7146 audio channel does yest always reset properly and
 	 * sometimes causes the first few TrimDAC writes to malfunction.
 	 */
 	s626_load_trim_dacs(dev);
@@ -2380,9 +2380,9 @@ static int s626_initialize(struct comedi_device *dev)
 
 	/*
 	 * Manually init all gate array hardware in case this is a soft
-	 * reset (we have no way of determining whether this is a warm
+	 * reset (we have yes way of determining whether this is a warm
 	 * or cold start).  This is necessary because the gate array will
-	 * reset only in response to a PCI hard reset; there is no soft
+	 * reset only in response to a PCI hard reset; there is yes soft
 	 * reset function.
 	 */
 
@@ -2530,7 +2530,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE | SDF_LSAMPL;
 	s->n_chan	= S626_ENCODER_CHANNELS;
 	s->maxdata	= 0xffffff;
-	s->range_table	= &range_unknown;
+	s->range_table	= &range_unkyeswn;
 	s->insn_config	= s626_enc_insn_config;
 	s->insn_read	= s626_enc_insn_read;
 	s->insn_write	= s626_enc_insn_write;

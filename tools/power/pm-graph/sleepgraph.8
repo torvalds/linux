@@ -15,7 +15,7 @@ This data is transformed into a device timeline and an optional
 callgraph to give a detailed view of which devices/subsystems are
 taking the most time in suspend/resume.
 .PP
-If no specific command is given, the default behavior is to initiate
+If yes specific command is given, the default behavior is to initiate
 a suspend/resume.
 .PP
 Generates output files in subdirectory: suspend-yymmdd-HHMMSS
@@ -53,7 +53,7 @@ disable rtcwake and require a user keypress to resume.
 Add the dmesg and ftrace logs to the html output. They will be viewable by
 clicking buttons in the timeline.
 .TP
-\fB-noturbostat\fR
+\fB-yesturbostat\fR
 By default, if turbostat is found and the requested mode is freeze, sleepgraph
 will execute the suspend via turbostat and collect data in the timeline log.
 This option disables the use of turbostat.
@@ -149,7 +149,7 @@ The value is a float: e.g. 0.001 represents 1 us.
 \fB-cgfilter \fI"func1,func2,..."\fR
 Reduce callgraph output in the timeline by limiting it certain devices. The
 argument can be a single device name or a comma delimited list.
-(default: none)
+(default: yesne)
 .TP
 \fB-cgskip \fIfile\fR
 Reduce callgraph timeline size by skipping over uninteresting functions
@@ -210,7 +210,7 @@ Print out the pm settings of all devices which support runtime suspend.
 .TP
 \fB-flist\fR
 Print the list of ftrace functions currently being captured. Functions
-that are not available as symbols in the current kernel are shown in red.
+that are yest available as symbols in the current kernel are shown in red.
 By default, the tool traces a list of important suspend/resume functions
 in order to better fill out the timeline. If the user has added their own
 with -fadd they will also be checked.
@@ -258,7 +258,7 @@ Execute a standby with a 15 second wakeup. Change the output folder name.
 .IP
 \f(CW$ sudo sleepgraph -m standby -rtcwake 15 -o "standby-{host}-{date}-{time}"\fR
 .PP
-Execute a freeze with no wakeup (require keypress). Change output folder name.
+Execute a freeze with yes wakeup (require keypress). Change output folder name.
 .IP
 \f(CW$ sudo sleepgraph -m freeze -rtcwake off -o "freeze-{hostname}-{date}-{time}"\fR
 .PP

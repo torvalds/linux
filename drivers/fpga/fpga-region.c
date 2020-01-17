@@ -40,7 +40,7 @@ EXPORT_SYMBOL_GPL(fpga_region_class_find);
  *
  * Return fpga_region struct if successful.
  * Return -EBUSY if someone already has a reference to the region.
- * Return -ENODEV if @np is not a FPGA Region.
+ * Return -ENODEV if @np is yest a FPGA Region.
  */
 static struct fpga_region *fpga_region_get(struct fpga_region *region)
 {
@@ -215,7 +215,7 @@ struct fpga_region
 	device_initialize(&region->dev);
 	region->dev.class = fpga_region_class;
 	region->dev.parent = dev;
-	region->dev.of_node = dev->of_node;
+	region->dev.of_yesde = dev->of_yesde;
 	region->dev.id = id;
 
 	ret = dev_set_name(&region->dev, "region%d", id);
@@ -294,7 +294,7 @@ EXPORT_SYMBOL_GPL(devm_fpga_region_create);
  * fpga_region_register - register a FPGA region
  * @region: FPGA region
  *
- * Return: 0 or -errno
+ * Return: 0 or -erryes
  */
 int fpga_region_register(struct fpga_region *region)
 {
@@ -320,7 +320,7 @@ static void fpga_region_dev_release(struct device *dev)
 
 /**
  * fpga_region_init - init function for fpga_region class
- * Creates the fpga_region class and registers a reconfig notifier.
+ * Creates the fpga_region class and registers a reconfig yestifier.
  */
 static int __init fpga_region_init(void)
 {

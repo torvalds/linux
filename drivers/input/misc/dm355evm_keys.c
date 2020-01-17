@@ -33,7 +33,7 @@ struct dm355evm_keys {
 /* These initial keycodes can be remapped */
 static const struct key_entry dm355evm_keys[] = {
 	/*
-	 * Pushbuttons on the EVM board ... note that the labels for these
+	 * Pushbuttons on the EVM board ... yeste that the labels for these
 	 * are SW10/SW11/etc on the PC board.  The left/right orientation
 	 * comes only from the firmware's documentation, and presumes the
 	 * power connector is immediately in front of you and the IR sensor
@@ -93,7 +93,7 @@ static const struct key_entry dm355evm_keys[] = {
  * Because we communicate with the MSP430 using I2C, and all I2C calls
  * in Linux sleep, we use a threaded IRQ handler.  The IRQ itself is
  * active low, but we go through the GPIO controller so we can trigger
- * on falling edges and not worry about enabling/disabling the IRQ in
+ * on falling edges and yest worry about enabling/disabling the IRQ in
  * the keypress handling path.
  */
 static irqreturn_t dm355evm_keys_irq(int irq, void *_keys)
@@ -105,7 +105,7 @@ static irqreturn_t dm355evm_keys_irq(int irq, void *_keys)
 	int status;
 	u16 event;
 
-	/* For simplicity we ignore INPUT_COUNT and just read
+	/* For simplicity we igyesre INPUT_COUNT and just read
 	 * events until we get the "queue empty" indicator.
 	 * Reading INPUT_LOW decrements the count.
 	 */
@@ -145,10 +145,10 @@ static irqreturn_t dm355evm_keys_irq(int irq, void *_keys)
 		}
 		last_event = event;
 
-		/* ignore the RC5 toggle bit */
+		/* igyesre the RC5 toggle bit */
 		event &= ~0x0800;
 
-		/* find the key, or report it as unknown */
+		/* find the key, or report it as unkyeswn */
 		ke = sparse_keymap_entry_from_scancode(keys->input, event);
 		keycode = ke ? ke->keycode : KEY_UNKNOWN;
 		dev_dbg(keys->dev,

@@ -33,7 +33,7 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	 * pages.
 	 *
 	 * If the pages are pinned for any other reason than being bound
-	 * to the GPU, simply unbinding from the GPU is not going to succeed
+	 * to the GPU, simply unbinding from the GPU is yest going to succeed
 	 * in releasing our pin count on the pages themselves.
 	 */
 	if (atomic_read(&obj->mm.pages_pin_count) > atomic_read(&obj->bind_count))
@@ -88,13 +88,13 @@ static void try_to_writeback(struct drm_i915_gem_object *obj,
  * Selection of the specific caches can be done with @flags. This is e.g. useful
  * when purgeable objects should be removed from caches preferentially.
  *
- * Note that it's not guaranteed that released amount is actually available as
+ * Note that it's yest guaranteed that released amount is actually available as
  * free system memory - the pages might still be in-used to due to other reasons
  * (like cpu mmaps) or the mm core has reused them before we could grab them.
  * Therefore code that needs to explicitly shrink buffer objects caches (e.g. to
  * avoid deadlocks in memory reclaim) must fall back to i915_gem_shrink_all().
  *
- * Also note that any kind of pinning (both per-vma address space pins and
+ * Also yeste that any kind of pinning (both per-vma address space pins and
  * backing storage pins at the buffer object level) result in the shrinker code
  * having to skip the object.
  *
@@ -125,18 +125,18 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	/*
 	 * When shrinking the active list, we should also consider active
 	 * contexts. Active contexts are pinned until they are retired, and
-	 * so can not be simply unbound to retire and unpin their pages. To
+	 * so can yest be simply unbound to retire and unpin their pages. To
 	 * shrink the contexts, we must wait until the gpu is idle and
 	 * completed its switch to the kernel context. In short, we do
-	 * not have a good mechanism for idling a specific context.
+	 * yest have a good mechanism for idling a specific context.
 	 */
 
 	trace_i915_gem_shrink(i915, target, shrink);
 
 	/*
-	 * Unbinding of objects will require HW access; Let us not wake the
+	 * Unbinding of objects will require HW access; Let us yest wake the
 	 * device just to recover a little memory. If absolutely necessary,
-	 * we will force the wake during oom-notifier.
+	 * we will force the wake during oom-yestifier.
 	 */
 	if (shrink & I915_SHRINK_BOUND) {
 		wakeref = intel_runtime_pm_get_if_in_use(&i915->runtime_pm);
@@ -157,7 +157,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	 * similar to the precautions the eviction code must take whilst
 	 * removing objects.
 	 *
-	 * Also note that although these lists do not hold a reference to
+	 * Also yeste that although these lists do yest hold a reference to
 	 * the object we can safely grab one here: The final object
 	 * unreferencing and the bound_list are both protected by the
 	 * dev->struct_mutex and so we won't ever be able to observe an
@@ -175,7 +175,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 
 		/*
 		 * We serialize our access to unreferenced objects through
-		 * the use of the struct_mutex. While the objects are not
+		 * the use of the struct_mutex. While the objects are yest
 		 * yet freed (due to RCU then a workqueue) we still want
 		 * to be able to shrink their pages, so they remain on
 		 * the unbound/bound list until actually freed.
@@ -208,7 +208,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
 			if (unsafe_drop_pages(obj, shrink)) {
-				/* May arrive from get_pages on another bo */
+				/* May arrive from get_pages on ayesther bo */
 				mutex_lock_nested(&obj->mm.lock,
 						  I915_MM_SHRINKER);
 				if (!i915_gem_object_has_pages(obj)) {
@@ -325,10 +325,10 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 }
 
 static int
-i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
+i915_gem_shrinker_oom(struct yestifier_block *nb, unsigned long event, void *ptr)
 {
 	struct drm_i915_private *i915 =
-		container_of(nb, struct drm_i915_private, mm.oom_notifier);
+		container_of(nb, struct drm_i915_private, mm.oom_yestifier);
 	struct drm_i915_gem_object *obj;
 	unsigned long unevictable, available, freed_pages;
 	intel_wakeref_t wakeref;
@@ -342,8 +342,8 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 					       I915_SHRINK_UNBOUND |
 					       I915_SHRINK_WRITEBACK);
 
-	/* Because we may be allocating inside our own driver, we cannot
-	 * assert that there are no objects with pinned pages that are not
+	/* Because we may be allocating inside our own driver, we canyest
+	 * assert that there are yes objects with pinned pages that are yest
 	 * being pointed to by hardware.
 	 */
 	available = unevictable = 0;
@@ -366,10 +366,10 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 }
 
 static int
-i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr)
+i915_gem_shrinker_vmap(struct yestifier_block *nb, unsigned long event, void *ptr)
 {
 	struct drm_i915_private *i915 =
-		container_of(nb, struct drm_i915_private, mm.vmap_notifier);
+		container_of(nb, struct drm_i915_private, mm.vmap_yestifier);
 	struct i915_vma *vma, *next;
 	unsigned long freed_pages = 0;
 	intel_wakeref_t wakeref;
@@ -384,7 +384,7 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 	mutex_lock(&i915->ggtt.vm.mutex);
 	list_for_each_entry_safe(vma, next,
 				 &i915->ggtt.vm.bound_list, vm_link) {
-		unsigned long count = vma->node.size >> PAGE_SHIFT;
+		unsigned long count = vma->yesde.size >> PAGE_SHIFT;
 
 		if (!vma->iomap || i915_vma_is_active(vma))
 			continue;
@@ -406,17 +406,17 @@ void i915_gem_driver_register__shrinker(struct drm_i915_private *i915)
 	i915->mm.shrinker.batch = 4096;
 	WARN_ON(register_shrinker(&i915->mm.shrinker));
 
-	i915->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;
-	WARN_ON(register_oom_notifier(&i915->mm.oom_notifier));
+	i915->mm.oom_yestifier.yestifier_call = i915_gem_shrinker_oom;
+	WARN_ON(register_oom_yestifier(&i915->mm.oom_yestifier));
 
-	i915->mm.vmap_notifier.notifier_call = i915_gem_shrinker_vmap;
-	WARN_ON(register_vmap_purge_notifier(&i915->mm.vmap_notifier));
+	i915->mm.vmap_yestifier.yestifier_call = i915_gem_shrinker_vmap;
+	WARN_ON(register_vmap_purge_yestifier(&i915->mm.vmap_yestifier));
 }
 
 void i915_gem_driver_unregister__shrinker(struct drm_i915_private *i915)
 {
-	WARN_ON(unregister_vmap_purge_notifier(&i915->mm.vmap_notifier));
-	WARN_ON(unregister_oom_notifier(&i915->mm.oom_notifier));
+	WARN_ON(unregister_vmap_purge_yestifier(&i915->mm.vmap_yestifier));
+	WARN_ON(unregister_oom_yestifier(&i915->mm.oom_yestifier));
 	unregister_shrinker(&i915->mm.shrinker);
 }
 

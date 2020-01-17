@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,9 +33,9 @@ static void radeon_ucode_print_common_hdr(const struct common_firmware_header *h
 	DRM_DEBUG("size_bytes: %u\n", le32_to_cpu(hdr->size_bytes));
 	DRM_DEBUG("header_size_bytes: %u\n", le32_to_cpu(hdr->header_size_bytes));
 	DRM_DEBUG("header_version_major: %u\n", le16_to_cpu(hdr->header_version_major));
-	DRM_DEBUG("header_version_minor: %u\n", le16_to_cpu(hdr->header_version_minor));
+	DRM_DEBUG("header_version_miyesr: %u\n", le16_to_cpu(hdr->header_version_miyesr));
 	DRM_DEBUG("ip_version_major: %u\n", le16_to_cpu(hdr->ip_version_major));
-	DRM_DEBUG("ip_version_minor: %u\n", le16_to_cpu(hdr->ip_version_minor));
+	DRM_DEBUG("ip_version_miyesr: %u\n", le16_to_cpu(hdr->ip_version_miyesr));
 	DRM_DEBUG("ucode_version: 0x%08x\n", le32_to_cpu(hdr->ucode_version));
 	DRM_DEBUG("ucode_size_bytes: %u\n", le32_to_cpu(hdr->ucode_size_bytes));
 	DRM_DEBUG("ucode_array_offset_bytes: %u\n",
@@ -46,7 +46,7 @@ static void radeon_ucode_print_common_hdr(const struct common_firmware_header *h
 void radeon_ucode_print_mc_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
-	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	uint16_t version_miyesr = le16_to_cpu(hdr->header_version_miyesr);
 
 	DRM_DEBUG("MC\n");
 	radeon_ucode_print_common_hdr(hdr);
@@ -60,14 +60,14 @@ void radeon_ucode_print_mc_hdr(const struct common_firmware_header *hdr)
 		DRM_DEBUG("io_debug_array_offset_bytes: %u\n",
 			  le32_to_cpu(mc_hdr->io_debug_array_offset_bytes));
 	} else {
-		DRM_ERROR("Unknown MC ucode version: %u.%u\n", version_major, version_minor);
+		DRM_ERROR("Unkyeswn MC ucode version: %u.%u\n", version_major, version_miyesr);
 	}
 }
 
 void radeon_ucode_print_smc_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
-	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	uint16_t version_miyesr = le16_to_cpu(hdr->header_version_miyesr);
 
 	DRM_DEBUG("SMC\n");
 	radeon_ucode_print_common_hdr(hdr);
@@ -78,14 +78,14 @@ void radeon_ucode_print_smc_hdr(const struct common_firmware_header *hdr)
 
 		DRM_DEBUG("ucode_start_addr: %u\n", le32_to_cpu(smc_hdr->ucode_start_addr));
 	} else {
-		DRM_ERROR("Unknown SMC ucode version: %u.%u\n", version_major, version_minor);
+		DRM_ERROR("Unkyeswn SMC ucode version: %u.%u\n", version_major, version_miyesr);
 	}
 }
 
 void radeon_ucode_print_gfx_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
-	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	uint16_t version_miyesr = le16_to_cpu(hdr->header_version_miyesr);
 
 	DRM_DEBUG("GFX\n");
 	radeon_ucode_print_common_hdr(hdr);
@@ -99,14 +99,14 @@ void radeon_ucode_print_gfx_hdr(const struct common_firmware_header *hdr)
 		DRM_DEBUG("jt_offset: %u\n", le32_to_cpu(gfx_hdr->jt_offset));
 		DRM_DEBUG("jt_size: %u\n", le32_to_cpu(gfx_hdr->jt_size));
 	} else {
-		DRM_ERROR("Unknown GFX ucode version: %u.%u\n", version_major, version_minor);
+		DRM_ERROR("Unkyeswn GFX ucode version: %u.%u\n", version_major, version_miyesr);
 	}
 }
 
 void radeon_ucode_print_rlc_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
-	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	uint16_t version_miyesr = le16_to_cpu(hdr->header_version_miyesr);
 
 	DRM_DEBUG("RLC\n");
 	radeon_ucode_print_common_hdr(hdr);
@@ -126,14 +126,14 @@ void radeon_ucode_print_rlc_hdr(const struct common_firmware_header *hdr)
 		DRM_DEBUG("master_pkt_description_offset: %u\n",
 			  le32_to_cpu(rlc_hdr->master_pkt_description_offset));
 	} else {
-		DRM_ERROR("Unknown RLC ucode version: %u.%u\n", version_major, version_minor);
+		DRM_ERROR("Unkyeswn RLC ucode version: %u.%u\n", version_major, version_miyesr);
 	}
 }
 
 void radeon_ucode_print_sdma_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
-	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	uint16_t version_miyesr = le16_to_cpu(hdr->header_version_miyesr);
 
 	DRM_DEBUG("SDMA\n");
 	radeon_ucode_print_common_hdr(hdr);
@@ -149,8 +149,8 @@ void radeon_ucode_print_sdma_hdr(const struct common_firmware_header *hdr)
 		DRM_DEBUG("jt_offset: %u\n", le32_to_cpu(sdma_hdr->jt_offset));
 		DRM_DEBUG("jt_size: %u\n", le32_to_cpu(sdma_hdr->jt_size));
 	} else {
-		DRM_ERROR("Unknown SDMA ucode version: %u.%u\n",
-			  version_major, version_minor);
+		DRM_ERROR("Unkyeswn SDMA ucode version: %u.%u\n",
+			  version_major, version_miyesr);
 	}
 }
 

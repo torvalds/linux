@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp_net_common.c
- * Netronome network device driver: Common functions between PF and VF
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
- *          Brad Petrus <brad.petrus@netronome.com>
- *          Chris Telfer <chris.telfer@netronome.com>
+ * Netroyesme network device driver: Common functions between PF and VF
+ * Authors: Jakub Kicinski <jakub.kicinski@netroyesme.com>
+ *          Jason McMullan <jason.mcmullan@netroyesme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroyesme.com>
+ *          Brad Petrus <brad.petrus@netroyesme.com>
+ *          Chris Telfer <chris.telfer@netroyesme.com>
  */
 
 #include <linux/bitfield.h>
@@ -94,7 +94,7 @@ static void nfp_net_dma_sync_cpu_rx(struct nfp_net_dp *dp, dma_addr_t dma_addr,
 /* Firmware reconfig
  *
  * Firmware reconfig may take a while so we have two versions of it -
- * synchronous and asynchronous (posted).  All synchronous callers are holding
+ * synchroyesus and asynchroyesus (posted).  All synchroyesus callers are holding
  * RTNL so we don't have to worry about serializing them.
  */
 static void nfp_net_reconfig_start(struct nfp_net *nn, u32 update)
@@ -269,10 +269,10 @@ static void nfp_net_reconfig_wait_posted(struct nfp_net *nn)
  * @update:  The value for the update field in the BAR config
  *
  * Write the update word to the BAR and ping the reconfig queue.  The
- * poll until the firmware has acknowledged the update by zeroing the
+ * poll until the firmware has ackyeswledged the update by zeroing the
  * update word.
  *
- * Return: Negative errno on error, 0 on success
+ * Return: Negative erryes on error, 0 on success
  */
 int __nfp_net_reconfig(struct nfp_net *nn, u32 update)
 {
@@ -325,7 +325,7 @@ int nfp_net_mbox_lock(struct nfp_net *nn, unsigned int data_size)
  *
  * Helper function for mailbox updates
  *
- * Return: Negative errno on error, 0 on success
+ * Return: Negative erryes on error, 0 on success
  */
 int nfp_net_mbox_reconfig(struct nfp_net *nn, u32 mbox_cmd)
 {
@@ -477,7 +477,7 @@ static irqreturn_t nfp_net_irq_rxtx(int irq, void *data)
 
 	/* The FW auto-masks any interrupt, either via the MASK bit in
 	 * the MSI-X table or via the per entry ICR field.  So there
-	 * is no need to disable interrupts here.
+	 * is yes need to disable interrupts here.
 	 */
 	return IRQ_HANDLED;
 }
@@ -719,7 +719,7 @@ static void nfp_net_tx_ring_stop(struct netdev_queue *nd_q,
  * @skb: Pointer to SKB
  * @md_bytes: Prepend length
  *
- * Set up Tx descriptor for LSO, do nothing for non-LSO skbs.
+ * Set up Tx descriptor for LSO, do yesthing for yesn-LSO skbs.
  * Return error on packet header greater than maximum supported LSO header size.
  */
 static void nfp_net_tx_tso(struct nfp_net_r_vector *r_vec,
@@ -853,7 +853,7 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 		nskb = tls_encrypt_skb(skb);
 		if (!nskb) {
 			u64_stats_update_begin(&r_vec->tx_sync);
-			r_vec->tls_tx_no_fallback++;
+			r_vec->tls_tx_yes_fallback++;
 			u64_stats_update_end(&r_vec->tx_sync);
 			return NULL;
 		}
@@ -861,7 +861,7 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 		if (nskb == skb)
 			return skb;
 		/* we don't re-check ring space */
-		if (unlikely(skb_is_nonlinear(nskb))) {
+		if (unlikely(skb_is_yesnlinear(nskb))) {
 			nn_dp_warn(dp, "tls_encrypt_skb() produced fragmented frame\n");
 			u64_stats_update_begin(&r_vec->tx_sync);
 			r_vec->tx_errors++;
@@ -1045,7 +1045,7 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 	txd->mss = 0;
 	txd->lso_hdrlen = 0;
 
-	/* Do not reorder - tso may adjust pkt cnt, vlan may override fields */
+	/* Do yest reorder - tso may adjust pkt cnt, vlan may override fields */
 	nfp_net_tx_tso(r_vec, txbuf, txd, skb, md_bytes);
 	nfp_net_tx_csum(dp, r_vec, txbuf, txd, skb);
 	if (skb_vlan_tag_present(skb) && dp->ctrl & NFP_NET_CFG_CTRL_TXVLAN) {
@@ -1510,7 +1510,7 @@ nfp_net_rx_ring_bufs_free(struct nfp_net_dp *dp,
 
 	for (i = 0; i < rx_ring->cnt - 1; i++) {
 		/* NULL skb can only happen when initial filling of the ring
-		 * fails to allocate enough buffers and calls here to free
+		 * fails to allocate eyesugh buffers and calls here to free
 		 * already allocated ones.
 		 */
 		if (!rx_ring->rxbufs[i].frag)
@@ -1591,7 +1591,7 @@ static void nfp_net_rx_csum(struct nfp_net_dp *dp,
 			    struct nfp_net_rx_desc *rxd,
 			    struct nfp_meta_parsed *meta, struct sk_buff *skb)
 {
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 
 	if (!(dp->netdev->features & NETIF_F_RXCSUM))
 		return;
@@ -1857,7 +1857,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		 * The rx_offset is fixed for all packets, the meta_len can vary
 		 * on a packet by packet basis. If rx_offset is set to zero
 		 * (_RX_OFFSET_DYNAMIC) metadata starts at the beginning of the
-		 * buffer and is immediately followed by the packet (no [XX]).
+		 * buffer and is immediately followed by the packet (yes [XX]).
 		 */
 		meta_len = rxd->rxd.meta_len_dd & PCIE_DESC_RX_META_LEN_MASK;
 		data_len = le16_to_cpu(rxd->rxd.data_len);
@@ -2080,7 +2080,7 @@ nfp_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 	tx_ring = r_vec->tx_ring;
 
 	if (WARN_ON_ONCE(skb_shinfo(skb)->nr_frags)) {
-		nn_dp_warn(dp, "Driver's CTRL TX does not implement gather\n");
+		nn_dp_warn(dp, "Driver's CTRL TX does yest implement gather\n");
 		goto err_free;
 	}
 
@@ -2368,7 +2368,7 @@ static void nfp_net_tx_ring_free(struct nfp_net_tx_ring *tx_ring)
  * @dp:        NFP Net data path struct
  * @tx_ring:   TX Ring structure to allocate
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erryes otherwise.
  */
 static int
 nfp_net_tx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
@@ -2520,7 +2520,7 @@ static void nfp_net_rx_ring_free(struct nfp_net_rx_ring *rx_ring)
  * @dp:	      NFP Net data path struct
  * @rx_ring:  RX ring to allocate
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erryes otherwise.
  */
 static int
 nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
@@ -2720,7 +2720,7 @@ void nfp_net_coalesce_write_cfg(struct nfp_net *nn)
  * @nn:      NFP Net device to reconfigure
  * @addr:    MAC address to write
  *
- * Writes the MAC address from the netdev to the device control BAR.  Does not
+ * Writes the MAC address from the netdev to the device control BAR.  Does yest
  * perform the required reconfig.  We do a bit of byte swapping dance because
  * firmware is LE.
  */
@@ -2768,7 +2768,7 @@ static void nfp_net_clear_config_and_disable(struct nfp_net *nn)
 	nn_writel(nn, NFP_NET_CFG_CTRL, new_ctrl);
 	err = nfp_net_reconfig(nn, update);
 	if (err)
-		nn_err(nn, "Could not disable device: %d\n", err);
+		nn_err(nn, "Could yest disable device: %d\n", err);
 
 	for (r = 0; r < nn->dp.num_rx_rings; r++)
 		nfp_net_rx_ring_reset(&nn->dp.rx_rings[r]);
@@ -2862,7 +2862,7 @@ static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 	for (r = 0; r < nn->dp.num_rx_rings; r++)
 		nfp_net_rx_ring_fill_freelist(&nn->dp, &nn->dp.rx_rings[r]);
 
-	/* Since reconfiguration requests while NFP is down are ignored we
+	/* Since reconfiguration requests while NFP is down are igyesred we
 	 * have to wipe the entire VXLAN configuration and reinitialize it.
 	 */
 	if (nn->dp.ctrl & NFP_NET_CFG_CTRL_VXLAN) {
@@ -3122,7 +3122,7 @@ static void nfp_net_set_rx_mode(struct net_device *netdev)
 		if (nn->cap & NFP_NET_CFG_CTRL_PROMISC)
 			new_ctrl |= NFP_NET_CFG_CTRL_PROMISC;
 		else
-			nn_warn(nn, "FW does not support promiscuous mode\n");
+			nn_warn(nn, "FW does yest support promiscuous mode\n");
 	} else {
 		new_ctrl &= ~NFP_NET_CFG_CTRL_PROMISC;
 	}
@@ -3415,7 +3415,7 @@ static int nfp_net_set_features(struct net_device *netdev,
 	u32 new_ctrl;
 	int err;
 
-	/* Assume this is not called with features we have not advertised */
+	/* Assume this is yest called with features we have yest advertised */
 
 	new_ctrl = nn->dp.ctrl;
 
@@ -3551,7 +3551,7 @@ nfp_net_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 	if (nn->port)
 		return -EOPNOTSUPP;
 
-	if (nn->dp.is_vf || nn->vnic_no_name)
+	if (nn->dp.is_vf || nn->vnic_yes_name)
 		return -EOPNOTSUPP;
 
 	n = snprintf(name, len, "n%d", nn->id);
@@ -3591,7 +3591,7 @@ static void nfp_net_set_vxlan_port(struct nfp_net *nn, int idx, __be16 port)
  * @port: UDP port to look for
  *
  * Return: if the port is already in the table -- it's position;
- *	   if the port is not in the table -- free position to use;
+ *	   if the port is yest in the table -- free position to use;
  *	   if the table is full -- -ENOSPC.
  */
 static int nfp_net_find_vxlan_idx(struct nfp_net *nn, __be16 port)
@@ -3764,13 +3764,13 @@ const struct net_device_ops nfp_net_netdev_ops = {
  */
 void nfp_net_info(struct nfp_net *nn)
 {
-	nn_info(nn, "Netronome NFP-6xxx %sNetdev: TxQs=%d/%d RxQs=%d/%d\n",
+	nn_info(nn, "Netroyesme NFP-6xxx %sNetdev: TxQs=%d/%d RxQs=%d/%d\n",
 		nn->dp.is_vf ? "VF " : "",
 		nn->dp.num_tx_rings, nn->max_tx_rings,
 		nn->dp.num_rx_rings, nn->max_rx_rings);
 	nn_info(nn, "VER: %d.%d.%d.%d, Maximum supported MTU: %d\n",
 		nn->fw_ver.resv, nn->fw_ver.class,
-		nn->fw_ver.major, nn->fw_ver.minor,
+		nn->fw_ver.major, nn->fw_ver.miyesr,
 		nn->max_mtu);
 	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		nn->cap,
@@ -3913,7 +3913,7 @@ unsigned int nfp_net_rss_key_sz(struct nfp_net *nn)
 		return 4;
 	}
 
-	nn_warn(nn, "Unknown hash function: %u\n", nn->rss_hfunc);
+	nn_warn(nn, "Unkyeswn hash function: %u\n", nn->rss_hfunc);
 	return 0;
 }
 
@@ -4065,14 +4065,14 @@ static int nfp_net_read_caps(struct nfp_net *nn)
 	nn->max_mtu = nn_readl(nn, NFP_NET_CFG_MAX_MTU);
 
 	/* ABI 4.x and ctrl vNIC always use chained metadata, in other cases
-	 * we allow use of non-chained metadata if RSS(v1) is the only
+	 * we allow use of yesn-chained metadata if RSS(v1) is the only
 	 * advertised capability requiring metadata.
 	 */
 	nn->dp.chained_metadata_format = nn->fw_ver.major == 4 ||
 					 !nn->dp.netdev ||
 					 !(nn->cap & NFP_NET_CFG_CTRL_RSS) ||
 					 nn->cap & NFP_NET_CFG_CTRL_CHAIN_META;
-	/* RSS(v1) uses non-chained metadata format, except in ABI 4.x where
+	/* RSS(v1) uses yesn-chained metadata format, except in ABI 4.x where
 	 * it has the same meaning as RSSv2.
 	 */
 	if (nn->dp.chained_metadata_format && nn->fw_ver.major != 4)
@@ -4103,7 +4103,7 @@ static int nfp_net_read_caps(struct nfp_net *nn)
  * nfp_net_init() - Initialise/finalise the nfp_net structure
  * @nn:		NFP Net device structure
  *
- * Return: 0 on success or negative errno on error.
+ * Return: 0 on success or negative erryes on error.
  */
 int nfp_net_init(struct nfp_net *nn)
 {
@@ -4147,7 +4147,7 @@ int nfp_net_init(struct nfp_net *nn)
 	/* Stash the re-configuration queue away.  First odd queue in TX Bar */
 	nn->qcp_cfg = nn->tx_bar + NFP_QCP_QUEUE_ADDR_SZ;
 
-	/* Make sure the FW knows the netdev is supposed to be disabled here */
+	/* Make sure the FW kyesws the netdev is supposed to be disabled here */
 	nn_writel(nn, NFP_NET_CFG_CTRL, 0);
 	nn_writeq(nn, NFP_NET_CFG_TXRS_ENABLE, 0);
 	nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE, 0);

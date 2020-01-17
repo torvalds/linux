@@ -15,13 +15,13 @@ void test_pkt_access(void)
 	err = bpf_prog_test_run(prog_fd, 100000, &pkt_v4, sizeof(pkt_v4),
 				NULL, NULL, &retval, &duration);
 	CHECK(err || retval, "ipv4",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
+	      "err %d erryes %d retval %d duration %d\n",
+	      err, erryes, retval, duration);
 
 	err = bpf_prog_test_run(prog_fd, 100000, &pkt_v6, sizeof(pkt_v6),
 				NULL, NULL, &retval, &duration);
 	CHECK(err || retval, "ipv6",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
+	      "err %d erryes %d retval %d duration %d\n",
+	      err, erryes, retval, duration);
 	bpf_object__close(obj);
 }

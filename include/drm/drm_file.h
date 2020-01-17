@@ -14,7 +14,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -44,31 +44,31 @@ struct drm_device;
 struct device;
 
 /*
- * FIXME: Not sure we want to have drm_minor here in the end, but to avoid
- * header include loops we need it here for now.
+ * FIXME: Not sure we want to have drm_miyesr here in the end, but to avoid
+ * header include loops we need it here for yesw.
  */
 
 /* Note that the order of this enum is ABI (it determines
  * /dev/dri/renderD* numbers).
  */
-enum drm_minor_type {
+enum drm_miyesr_type {
 	DRM_MINOR_PRIMARY,
 	DRM_MINOR_CONTROL,
 	DRM_MINOR_RENDER,
 };
 
 /**
- * struct drm_minor - DRM device minor structure
+ * struct drm_miyesr - DRM device miyesr structure
  *
- * This structure represents a DRM minor number for device nodes in /dev.
+ * This structure represents a DRM miyesr number for device yesdes in /dev.
  * Entirely opaque to drivers and should never be inspected directly by drivers.
  * Drivers instead should only interact with &struct drm_file and of course
  * &struct drm_device, which is also where driver-private data and resources can
  * be attached to.
  */
-struct drm_minor {
+struct drm_miyesr {
 	/* private: */
-	int index;			/* Minor device number */
+	int index;			/* Miyesr device number */
 	int type;                       /* Control or render */
 	struct device *kdev;		/* Linux device */
 	struct drm_device *dev;
@@ -92,7 +92,7 @@ struct drm_pending_event {
 	 *
 	 * Optional pointer to a kernel internal completion signalled when
 	 * drm_send_event() is called, useful to internally synchronize with
-	 * nonblocking operations.
+	 * yesnblocking operations.
 	 */
 	struct completion *completion;
 
@@ -109,7 +109,7 @@ struct drm_pending_event {
 	 * @event:
 	 *
 	 * Pointer to the actual event that should be sent to userspace to be
-	 * read using drm_read(). Can be optional, since nowadays events are
+	 * read using drm_read(). Can be optional, since yeswadays events are
 	 * also used to signal kernel internal threads with @completion or DMA
 	 * transactions using @fence.
 	 */
@@ -119,7 +119,7 @@ struct drm_pending_event {
 	 * @fence:
 	 *
 	 * Optional DMA fence to unblock other hardware transactions which
-	 * depend upon the nonblocking DRM operation this event represents.
+	 * depend upon the yesnblocking DRM operation this event represents.
 	 */
 	struct dma_fence *fence;
 
@@ -160,10 +160,10 @@ struct drm_file {
 	 * @authenticated:
 	 *
 	 * Whether the client is allowed to submit rendering, which for legacy
-	 * nodes means it must be authenticated.
+	 * yesdes means it must be authenticated.
 	 *
-	 * See also the :ref:`section on primary nodes and authentication
-	 * <drm_primary_node>`.
+	 * See also the :ref:`section on primary yesdes and authentication
+	 * <drm_primary_yesde>`.
 	 */
 	bool authenticated;
 
@@ -206,20 +206,20 @@ struct drm_file {
 	 * This client is the creator of @master. Protected by struct
 	 * &drm_device.master_mutex.
 	 *
-	 * See also the :ref:`section on primary nodes and authentication
-	 * <drm_primary_node>`.
+	 * See also the :ref:`section on primary yesdes and authentication
+	 * <drm_primary_yesde>`.
 	 */
 	bool is_master;
 
 	/**
 	 * @master:
 	 *
-	 * Master this node is currently associated with. Only relevant if
+	 * Master this yesde is currently associated with. Only relevant if
 	 * drm_is_primary_client() returns true. Note that this only
 	 * matches &drm_device.master if the master is the currently active one.
 	 *
 	 * See also @authentication and @is_master and the :ref:`section on
-	 * primary nodes and authentication <drm_primary_node>`.
+	 * primary yesdes and authentication <drm_primary_yesde>`.
 	 */
 	struct drm_master *master;
 
@@ -237,8 +237,8 @@ struct drm_file {
 	 */
 	struct list_head lhead;
 
-	/** @minor: &struct drm_minor for this file. */
-	struct drm_minor *minor;
+	/** @miyesr: &struct drm_miyesr for this file. */
+	struct drm_miyesr *miyesr;
 
 	/**
 	 * @object_idr:
@@ -341,38 +341,38 @@ struct drm_file {
 };
 
 /**
- * drm_is_primary_client - is this an open file of the primary node
+ * drm_is_primary_client - is this an open file of the primary yesde
  * @file_priv: DRM file
  *
- * Returns true if this is an open file of the primary node, i.e.
- * &drm_file.minor of @file_priv is a primary minor.
+ * Returns true if this is an open file of the primary yesde, i.e.
+ * &drm_file.miyesr of @file_priv is a primary miyesr.
  *
- * See also the :ref:`section on primary nodes and authentication
- * <drm_primary_node>`.
+ * See also the :ref:`section on primary yesdes and authentication
+ * <drm_primary_yesde>`.
  */
 static inline bool drm_is_primary_client(const struct drm_file *file_priv)
 {
-	return file_priv->minor->type == DRM_MINOR_PRIMARY;
+	return file_priv->miyesr->type == DRM_MINOR_PRIMARY;
 }
 
 /**
- * drm_is_render_client - is this an open file of the render node
+ * drm_is_render_client - is this an open file of the render yesde
  * @file_priv: DRM file
  *
- * Returns true if this is an open file of the render node, i.e.
- * &drm_file.minor of @file_priv is a render minor.
+ * Returns true if this is an open file of the render yesde, i.e.
+ * &drm_file.miyesr of @file_priv is a render miyesr.
  *
- * See also the :ref:`section on render nodes <drm_render_node>`.
+ * See also the :ref:`section on render yesdes <drm_render_yesde>`.
  */
 static inline bool drm_is_render_client(const struct drm_file *file_priv)
 {
-	return file_priv->minor->type == DRM_MINOR_RENDER;
+	return file_priv->miyesr->type == DRM_MINOR_RENDER;
 }
 
-int drm_open(struct inode *inode, struct file *filp);
+int drm_open(struct iyesde *iyesde, struct file *filp);
 ssize_t drm_read(struct file *filp, char __user *buffer,
 		 size_t count, loff_t *offset);
-int drm_release(struct inode *inode, struct file *filp);
+int drm_release(struct iyesde *iyesde, struct file *filp);
 __poll_t drm_poll(struct file *filp, struct poll_table_struct *wait);
 int drm_event_reserve_init_locked(struct drm_device *dev,
 				  struct drm_file *file_priv,

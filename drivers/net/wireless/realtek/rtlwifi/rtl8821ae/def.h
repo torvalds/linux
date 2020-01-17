@@ -201,8 +201,8 @@ enum vht_data_sc {
 					true : false) : false)
 enum board_type {
 	ODM_BOARD_DEFAULT = 0,	  /* The DEFAULT case. */
-	ODM_BOARD_MINICARD = BIT(0), /* 0 = non-mini card, 1 = mini card. */
-	ODM_BOARD_SLIM = BIT(1), /* 0 = non-slim card, 1 = slim card */
+	ODM_BOARD_MINICARD = BIT(0), /* 0 = yesn-mini card, 1 = mini card. */
+	ODM_BOARD_SLIM = BIT(1), /* 0 = yesn-slim card, 1 = slim card */
 	ODM_BOARD_BT = BIT(2), /* 0 = without BT card, 1 = with BT */
 	ODM_BOARD_EXT_PA = BIT(3), /* 1 = existing 2G ext-PA */
 	ODM_BOARD_EXT_LNA = BIT(4), /* 1 = existing 2G ext-LNA */

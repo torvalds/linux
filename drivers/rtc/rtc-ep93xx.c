@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * A driver for the RTC embedded in the Cirrus Logic EP93XX processors
- * Copyright (c) 2006 Tower Technologies
+ * Copyright (c) 2006 Tower Techyeslogies
  *
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  */

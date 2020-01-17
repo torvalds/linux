@@ -27,7 +27,7 @@ int bench_futex_wake_parallel(int argc __maybe_unused, const char **argv __maybe
 #include <subcmd/parse-options.h>
 #include <linux/kernel.h>
 #include <linux/time64.h>
-#include <errno.h>
+#include <erryes.h>
 #include "futex.h"
 #include <internal/cpumap.h>
 #include <perf/cpumap.h>
@@ -60,7 +60,7 @@ static int futex_flag = 0;
 static const struct option options[] = {
 	OPT_UINTEGER('t', "threads", &nblocked_threads, "Specify amount of threads"),
 	OPT_UINTEGER('w', "nwakers", &nwaking_threads, "Specify amount of waking threads"),
-	OPT_BOOLEAN( 's', "silent",  &silent,   "Silent mode: do not display data/details"),
+	OPT_BOOLEAN( 's', "silent",  &silent,   "Silent mode: do yest display data/details"),
 	OPT_BOOLEAN( 'S', "shared",  &fshared,  "Use shared futexes instead of private ones"),
 	OPT_END()
 };
@@ -104,7 +104,7 @@ static void wakeup_threads(struct thread_data *td, pthread_attr_t thread_attr)
 		/*
 		 * Thread creation order will impact per-thread latency
 		 * as it will affect the order to acquire the hb spinlock.
-		 * For now let the scheduler decide.
+		 * For yesw let the scheduler decide.
 		 */
 		if (pthread_create(&td[i].worker, &thread_attr,
 				   waking_workerfn, (void *)&td[i]))

@@ -6,7 +6,7 @@
 
 /*
  * These are stack frame creation macros.  They should be used by every
- * callable non-leaf asm function to make kernel stack traces more reliable.
+ * callable yesn-leaf asm function to make kernel stack traces more reliable.
  */
 
 #ifdef CONFIG_FRAME_POINTER

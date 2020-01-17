@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -30,7 +30,7 @@
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/export.h>
@@ -52,27 +52,27 @@ struct mlx5_db_pgdir {
  * register it in a memory region at HCA virtual address 0.
  */
 
-static void *mlx5_dma_zalloc_coherent_node(struct mlx5_core_dev *dev,
+static void *mlx5_dma_zalloc_coherent_yesde(struct mlx5_core_dev *dev,
 					   size_t size, dma_addr_t *dma_handle,
-					   int node)
+					   int yesde)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	struct device *device = dev->device;
-	int original_node;
+	int original_yesde;
 	void *cpu_handle;
 
 	mutex_lock(&priv->alloc_mutex);
-	original_node = dev_to_node(device);
-	set_dev_node(device, node);
+	original_yesde = dev_to_yesde(device);
+	set_dev_yesde(device, yesde);
 	cpu_handle = dma_alloc_coherent(device, size, dma_handle,
 					GFP_KERNEL);
-	set_dev_node(device, original_node);
+	set_dev_yesde(device, original_yesde);
 	mutex_unlock(&priv->alloc_mutex);
 	return cpu_handle;
 }
 
-int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
-			struct mlx5_frag_buf *buf, int node)
+int mlx5_buf_alloc_yesde(struct mlx5_core_dev *dev, int size,
+			struct mlx5_frag_buf *buf, int yesde)
 {
 	dma_addr_t t;
 
@@ -84,8 +84,8 @@ int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 	if (!buf->frags)
 		return -ENOMEM;
 
-	buf->frags->buf   = mlx5_dma_zalloc_coherent_node(dev, size,
-							  &t, node);
+	buf->frags->buf   = mlx5_dma_zalloc_coherent_yesde(dev, size,
+							  &t, yesde);
 	if (!buf->frags->buf)
 		goto err_out;
 
@@ -105,7 +105,7 @@ err_out:
 int mlx5_buf_alloc(struct mlx5_core_dev *dev,
 		   int size, struct mlx5_frag_buf *buf)
 {
-	return mlx5_buf_alloc_node(dev, size, buf, dev->priv.numa_node);
+	return mlx5_buf_alloc_yesde(dev, size, buf, dev->priv.numa_yesde);
 }
 EXPORT_SYMBOL(mlx5_buf_alloc);
 
@@ -118,8 +118,8 @@ void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf)
 }
 EXPORT_SYMBOL_GPL(mlx5_buf_free);
 
-int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
-			     struct mlx5_frag_buf *buf, int node)
+int mlx5_frag_buf_alloc_yesde(struct mlx5_core_dev *dev, int size,
+			     struct mlx5_frag_buf *buf, int yesde)
 {
 	int i;
 
@@ -135,8 +135,8 @@ int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 		struct mlx5_buf_list *frag = &buf->frags[i];
 		int frag_sz = min_t(int, size, PAGE_SIZE);
 
-		frag->buf = mlx5_dma_zalloc_coherent_node(dev, frag_sz,
-							  &frag->map, node);
+		frag->buf = mlx5_dma_zalloc_coherent_yesde(dev, frag_sz,
+							  &frag->map, yesde);
 		if (!frag->buf)
 			goto err_free_buf;
 		if (frag->map & ((1 << buf->page_shift) - 1)) {
@@ -159,7 +159,7 @@ err_free_buf:
 err_out:
 	return -ENOMEM;
 }
-EXPORT_SYMBOL_GPL(mlx5_frag_buf_alloc_node);
+EXPORT_SYMBOL_GPL(mlx5_frag_buf_alloc_yesde);
 
 void mlx5_frag_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf)
 {
@@ -178,7 +178,7 @@ void mlx5_frag_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf)
 EXPORT_SYMBOL_GPL(mlx5_frag_buf_free);
 
 static struct mlx5_db_pgdir *mlx5_alloc_db_pgdir(struct mlx5_core_dev *dev,
-						 int node)
+						 int yesde)
 {
 	u32 db_per_page = PAGE_SIZE / cache_line_size();
 	struct mlx5_db_pgdir *pgdir;
@@ -195,8 +195,8 @@ static struct mlx5_db_pgdir *mlx5_alloc_db_pgdir(struct mlx5_core_dev *dev,
 
 	bitmap_fill(pgdir->bitmap, db_per_page);
 
-	pgdir->db_page = mlx5_dma_zalloc_coherent_node(dev, PAGE_SIZE,
-						       &pgdir->db_dma, node);
+	pgdir->db_page = mlx5_dma_zalloc_coherent_yesde(dev, PAGE_SIZE,
+						       &pgdir->db_dma, yesde);
 	if (!pgdir->db_page) {
 		bitmap_free(pgdir->bitmap);
 		kfree(pgdir);
@@ -231,7 +231,7 @@ static int mlx5_alloc_db_from_pgdir(struct mlx5_db_pgdir *pgdir,
 	return 0;
 }
 
-int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db, int node)
+int mlx5_db_alloc_yesde(struct mlx5_core_dev *dev, struct mlx5_db *db, int yesde)
 {
 	struct mlx5_db_pgdir *pgdir;
 	int ret = 0;
@@ -242,7 +242,7 @@ int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db, int node)
 		if (!mlx5_alloc_db_from_pgdir(pgdir, db))
 			goto out;
 
-	pgdir = mlx5_alloc_db_pgdir(dev, node);
+	pgdir = mlx5_alloc_db_pgdir(dev, yesde);
 	if (!pgdir) {
 		ret = -ENOMEM;
 		goto out;
@@ -258,11 +258,11 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mlx5_db_alloc_node);
+EXPORT_SYMBOL_GPL(mlx5_db_alloc_yesde);
 
 int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db)
 {
-	return mlx5_db_alloc_node(dev, db, dev->priv.numa_node);
+	return mlx5_db_alloc_yesde(dev, db, dev->priv.numa_yesde);
 }
 EXPORT_SYMBOL_GPL(mlx5_db_alloc);
 

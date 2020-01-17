@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 Nokia Corporation. All rights reserved.
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@yeskia.com>
  */
 
 #ifndef __LINUX_HSI_CORE_H__

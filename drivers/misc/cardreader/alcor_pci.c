@@ -267,12 +267,12 @@ static int alcor_pci_probe(struct pci_dev *pdev,
 
 	ret = pci_request_regions(pdev, DRV_NAME_ALCOR_PCI);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot request region\n");
+		dev_err(&pdev->dev, "Canyest request region\n");
 		return -ENOMEM;
 	}
 
 	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM)) {
-		dev_err(&pdev->dev, "BAR %d is not iomem. Aborting.\n", bar);
+		dev_err(&pdev->dev, "BAR %d is yest iomem. Aborting.\n", bar);
 		ret = -ENODEV;
 		goto error_release_regions;
 	}

@@ -45,7 +45,7 @@
 	},
 	.fixup_map_hash_8b = { 3 },
 	.errstr = "R0 min value is negative, either use unsigned index or do a if (index >=0) check.",
-	.errstr_unpriv = "R1 has unknown scalar with mixed signed bounds",
+	.errstr_unpriv = "R1 has unkyeswn scalar with mixed signed bounds",
 	.result = REJECT,
 },
 {
@@ -88,7 +88,7 @@
 	BPF_MOV32_IMM(BPF_REG_2, 0xffffffff),
 	/* r2 = 0 */
 	BPF_ALU64_IMM(BPF_RSH, BPF_REG_2, 32),
-	/* no-op */
+	/* yes-op */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_2),
 	/* access at offset 0 */
 	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
@@ -198,7 +198,7 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {
-	"bounds check after truncation of non-boundary-crossing range",
+	"bounds check after truncation of yesn-boundary-crossing range",
 	.insns = {
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -219,7 +219,7 @@
 	BPF_ALU32_IMM(BPF_SUB, BPF_REG_1, 0x7fffffff),
 	/* r1 = 0 */
 	BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
-	/* no-op */
+	/* yes-op */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
 	/* access at offset 0 */
 	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
@@ -257,7 +257,7 @@
 	 *      [0x00ff'ffff'ff00'0000, 0x00ff'ffff'ffff'ffff]
 	 */
 	BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
-	/* no-op or OOB pointer computation */
+	/* yes-op or OOB pointer computation */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
 	/* potentially OOB access */
 	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
@@ -266,7 +266,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
-	/* not actually fully unbounded, but the bound is very high */
+	/* yest actually fully unbounded, but the bound is very high */
 	.errstr = "R0 unbounded memory access",
 	.result = REJECT
 },
@@ -299,7 +299,7 @@
 	 *      [0x00ff'ffff'ff00'0000, 0x00ff'ffff'ffff'ffff]
 	 */
 	BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
-	/* no-op or OOB pointer computation */
+	/* yes-op or OOB pointer computation */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
 	/* potentially OOB access */
 	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
@@ -308,7 +308,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
-	/* not actually fully unbounded, but the bound is very high */
+	/* yest actually fully unbounded, but the bound is very high */
 	.errstr = "R0 unbounded memory access",
 	.result = REJECT
 },
@@ -327,7 +327,7 @@
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0x7fffffff),
 	/* r1 = 0 */
 	BPF_ALU32_IMM(BPF_ADD, BPF_REG_1, 2),
-	/* no-op */
+	/* yes-op */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
 	/* access at offset 0 */
 	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
@@ -353,7 +353,7 @@
 	BPF_ALU32_REG(BPF_LSH, BPF_REG_1, BPF_REG_2),
 	/* r1 = [0x0000, 0xffff] */
 	BPF_ALU64_IMM(BPF_AND, BPF_REG_1, 0xffff),
-	/* computes unknown pointer, potentially OOB */
+	/* computes unkyeswn pointer, potentially OOB */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
 	/* potentially OOB access */
 	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
@@ -382,7 +382,7 @@
 	BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
 	/* r1 = 0 or 0xffff'ffff'ffff */
 	BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
-	/* computes unknown pointer, potentially OOB */
+	/* computes unkyeswn pointer, potentially OOB */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
 	/* potentially OOB access */
 	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),

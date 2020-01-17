@@ -127,7 +127,7 @@ static int qcom_usb_hsic_phy_probe(struct ulpi *ulpi)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	uphy->phy = devm_phy_create(&ulpi->dev, ulpi->dev.of_node,
+	uphy->phy = devm_phy_create(&ulpi->dev, ulpi->dev.of_yesde,
 				    &qcom_usb_hsic_phy_ops);
 	if (IS_ERR(uphy->phy))
 		return PTR_ERR(uphy->phy);

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -24,7 +24,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
-#include <nouveau_bo.h>
+#include <yesuveau_bo.h>
 
 #include <nvif/clc37e.h>
 
@@ -273,7 +273,7 @@ wndwc37e = {
 };
 
 int
-wndwc37e_new_(const struct nv50_wndw_func *func, struct nouveau_drm *drm,
+wndwc37e_new_(const struct nv50_wndw_func *func, struct yesuveau_drm *drm,
 	      enum drm_plane_type type, int index, s32 oclass, u32 heads,
 	      struct nv50_wndw **pwndw)
 {
@@ -306,7 +306,7 @@ wndwc37e_new_(const struct nv50_wndw_func *func, struct nouveau_drm *drm,
 }
 
 int
-wndwc37e_new(struct nouveau_drm *drm, enum drm_plane_type type, int index,
+wndwc37e_new(struct yesuveau_drm *drm, enum drm_plane_type type, int index,
 	     s32 oclass, struct nv50_wndw **pwndw)
 {
 	return wndwc37e_new_(&wndwc37e, drm, type, index, oclass,

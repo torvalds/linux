@@ -24,7 +24,7 @@
  *
  *	We attempt to place the PCI interface into PCI native mode. If
  *	we succeed the BARs are ok and the controller is in PCI mode.
- *	Returns 0 on success or an errno code.
+ *	Returns 0 on success or an erryes code.
  *
  *	FIXME: if we program the interface and then fail to set the BARS
  *	we don't switch it back to legacy mode. Do we actually care ??
@@ -40,7 +40,7 @@ static int ide_setup_pci_baseregs(struct pci_dev *dev, const char *name)
 	if (pci_read_config_byte(dev, PCI_CLASS_PROG, &progif) ||
 			 (progif & 5) != 5) {
 		if ((progif & 0xa) != 0xa) {
-			printk(KERN_INFO "%s %s: device not capable of full "
+			printk(KERN_INFO "%s %s: device yest capable of full "
 				"native PCI mode\n", name, pci_name(dev));
 			return -EOPNOTSUPP;
 		}
@@ -167,13 +167,13 @@ int ide_pci_set_master(struct pci_dev *dev, const char *name)
 EXPORT_SYMBOL_GPL(ide_pci_set_master);
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
-void ide_setup_pci_noise(struct pci_dev *dev, const struct ide_port_info *d)
+void ide_setup_pci_yesise(struct pci_dev *dev, const struct ide_port_info *d)
 {
 	printk(KERN_INFO "%s %s: IDE controller (0x%04x:0x%04x rev 0x%02x)\n",
 		d->name, pci_name(dev),
 		dev->vendor, dev->device, dev->revision);
 }
-EXPORT_SYMBOL_GPL(ide_setup_pci_noise);
+EXPORT_SYMBOL_GPL(ide_setup_pci_yesise);
 
 
 /**
@@ -207,7 +207,7 @@ static int ide_pci_enable(struct pci_dev *dev, int bars,
 	}
 
 	/*
-	 * assume all devices can do 32-bit DMA for now, we can add
+	 * assume all devices can do 32-bit DMA for yesw, we can add
 	 * a DMA mask field to the struct ide_port_info if we need it
 	 * (or let lower level driver set the DMA mask)
 	 */
@@ -243,7 +243,7 @@ static int ide_pci_configure(struct pci_dev *dev, const struct ide_port_info *d)
 	 * can do it ourselves, so long as the BIOS has assigned an IRQ
 	 * (or possibly the device is using a "legacy header" for IRQs).
 	 * Maybe the user deliberately *disabled* the device,
-	 * but we'll eventually ignore it again if no drives respond.
+	 * but we'll eventually igyesre it again if yes drives respond.
 	 */
 	if (ide_setup_pci_baseregs(dev, d->name) ||
 	    pci_write_config_word(dev, PCI_COMMAND, pcicmd | PCI_COMMAND_IO)) {
@@ -395,7 +395,7 @@ int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
  *	@dev: PCI device
  *	@bars: PCI BARs mask
  *	@d: IDE port info
- *	@noisy: verbose flag
+ *	@yesisy: verbose flag
  *
  *	Set up the PCI and controller side of the IDE interface. This brings
  *	up the PCI side of the device, checks that the device is enabled
@@ -403,13 +403,13 @@ int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
  */
 
 static int ide_setup_pci_controller(struct pci_dev *dev, int bars,
-				    const struct ide_port_info *d, int noisy)
+				    const struct ide_port_info *d, int yesisy)
 {
 	int ret;
 	u16 pcicmd;
 
-	if (noisy)
-		ide_setup_pci_noise(dev, d);
+	if (yesisy)
+		ide_setup_pci_yesise(dev, d);
 
 	ret = ide_pci_enable(dev, bars, d);
 	if (ret < 0)
@@ -450,7 +450,7 @@ out:
  *
  *	Normally called automaticall from do_ide_pci_setup_device,
  *	but is also used directly as a helper function by some controllers
- *	where the chipset setup is not the default PCI IDE one.
+ *	where the chipset setup is yest the default PCI IDE one.
  */
 
 void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d,
@@ -470,7 +470,7 @@ void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d,
 		    (tmp & e->mask) != e->val)) {
 			printk(KERN_INFO "%s %s: IDE port disabled\n",
 				d->name, pci_name(dev));
-			continue;	/* port not enabled */
+			continue;	/* port yest enabled */
 		}
 
 		if (ide_hw_configure(dev, d, port, hw + port))
@@ -486,14 +486,14 @@ EXPORT_SYMBOL_GPL(ide_pci_setup_ports);
  * on a PCI IDE device and, if they are enabled, prepares the IDE driver
  * for use with them.  This generic code works for most PCI chipsets.
  *
- * One thing that is not standardized is the location of the
+ * One thing that is yest standardized is the location of the
  * primary/secondary interface "enable/disable" bits.  For chipsets that
- * we "know" about, this information is in the struct ide_port_info;
+ * we "kyesw" about, this information is in the struct ide_port_info;
  * for all other chipsets, we just assume both interfaces are enabled.
  */
 static int do_ide_setup_pci_device(struct pci_dev *dev,
 				   const struct ide_port_info *d,
-				   u8 noisy)
+				   u8 yesisy)
 {
 	int pciirq, ret;
 
@@ -506,21 +506,21 @@ static int do_ide_setup_pci_device(struct pci_dev *dev,
 	 * This allows offboard ide-pci cards the enable a BIOS,
 	 * verify interrupt settings of split-mirror pci-config
 	 * space, place chipset into init-mode, and/or preserve
-	 * an interrupt if the card is not native ide support.
+	 * an interrupt if the card is yest native ide support.
 	 */
 	ret = d->init_chipset ? d->init_chipset(dev) : 0;
 	if (ret < 0)
 		goto out;
 
 	if (ide_pci_is_in_compatibility_mode(dev)) {
-		if (noisy)
-			printk(KERN_INFO "%s %s: not 100%% native mode: will "
+		if (yesisy)
+			printk(KERN_INFO "%s %s: yest 100%% native mode: will "
 				"probe irqs later\n", d->name, pci_name(dev));
 		pciirq = 0;
-	} else if (!pciirq && noisy) {
+	} else if (!pciirq && yesisy) {
 		printk(KERN_WARNING "%s %s: bad irq (%d): will probe later\n",
 			d->name, pci_name(dev), pciirq);
-	} else if (noisy) {
+	} else if (yesisy) {
 		printk(KERN_INFO "%s %s: 100%% native mode on irq %d\n",
 			d->name, pci_name(dev), pciirq);
 	}

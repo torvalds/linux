@@ -70,7 +70,7 @@ struct pnv_ioda_pe {
 	uint64_t		tce_bypass_base;
 
 	/* MSIs. MVE index is identical for for 32 and 64 bit MSI
-	 * and -1 if not supported. (It's actually identical to the
+	 * and -1 if yest supported. (It's actually identical to the
 	 * PE number)
 	 */
 	int			mve_number;
@@ -110,9 +110,9 @@ struct pnv_phb {
 			 unsigned int is_64, struct msi_msg *msg);
 	void (*dma_dev_setup)(struct pnv_phb *phb, struct pci_dev *pdev);
 	int (*init_m64)(struct pnv_phb *phb);
-	int (*get_pe_state)(struct pnv_phb *phb, int pe_no);
-	void (*freeze_pe)(struct pnv_phb *phb, int pe_no);
-	int (*unfreeze_pe)(struct pnv_phb *phb, int pe_no, int opt);
+	int (*get_pe_state)(struct pnv_phb *phb, int pe_yes);
+	void (*freeze_pe)(struct pnv_phb *phb, int pe_yes);
+	int (*unfreeze_pe)(struct pnv_phb *phb, int pe_yes, int opt);
 
 	struct {
 		/* Global bridge info */
@@ -166,7 +166,7 @@ struct pnv_phb {
 		unsigned int		pe_rmap[0x10000];
 	} ioda;
 
-	/* PHB and hub diagnostics */
+	/* PHB and hub diagyesstics */
 	unsigned int		diag_data_size;
 	u8			*diag_data;
 };
@@ -181,10 +181,10 @@ int pnv_pci_cfg_write(struct pci_dn *pdn,
 		      int where, int size, u32 val);
 extern struct iommu_table *pnv_pci_table_alloc(int nid);
 
-extern void pnv_pci_init_ioda_hub(struct device_node *np);
-extern void pnv_pci_init_ioda2_phb(struct device_node *np);
-extern void pnv_pci_init_npu_phb(struct device_node *np);
-extern void pnv_pci_init_npu2_opencapi_phb(struct device_node *np);
+extern void pnv_pci_init_ioda_hub(struct device_yesde *np);
+extern void pnv_pci_init_ioda2_phb(struct device_yesde *np);
+extern void pnv_pci_init_npu_phb(struct device_yesde *np);
+extern void pnv_pci_init_npu2_opencapi_phb(struct device_yesde *np);
 extern void pnv_npu2_map_lpar(struct pnv_ioda_pe *gpe, unsigned long msr);
 extern void pnv_pci_reset_secondary_bus(struct pci_dev *dev);
 extern int pnv_eeh_phb_reset(struct pci_controller *hose, int option);
@@ -238,7 +238,7 @@ extern long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
 		bool alloc_userspace_copy, struct iommu_table *tbl);
 extern void pnv_pci_ioda2_table_free_pages(struct iommu_table *tbl);
 
-extern long pnv_pci_link_table_and_group(int node, int num,
+extern long pnv_pci_link_table_and_group(int yesde, int num,
 		struct iommu_table *tbl,
 		struct iommu_table_group *table_group);
 extern void pnv_pci_unlink_table_and_group(struct iommu_table *tbl,

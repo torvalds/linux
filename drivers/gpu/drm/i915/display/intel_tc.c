@@ -181,7 +181,7 @@ static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
 				PORT_TX_DFLEXDPSP(dig_port->tc_phy_fia));
 
 	if (val == 0xffffffff) {
-		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, nothing connected\n",
+		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, yesthing connected\n",
 			      dig_port->tc_port_name);
 		return mask;
 	}
@@ -210,7 +210,7 @@ static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 	val = intel_uncore_read(uncore,
 				PORT_TX_DFLEXDPPMS(dig_port->tc_phy_fia));
 	if (val == 0xffffffff) {
-		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, assuming not complete\n",
+		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, assuming yest complete\n",
 			      dig_port->tc_port_name);
 		return false;
 	}
@@ -271,7 +271,7 @@ static bool icl_tc_phy_is_in_safe_mode(struct intel_digital_port *dig_port)
  * specification, Gen11 TypeC Programming chapter. The rest of the flow (reading
  * lanes, EDID, etc) is done as needed in the typical places.
  *
- * Unlike the other ports, type-C ports are not available to use as soon as we
+ * Unlike the other ports, type-C ports are yest available to use as soon as we
  * get a hotplug. The type-C PHYs can be shared between multiple controllers:
  * display, USB, etc. As a result, handshaking through FIA is required around
  * connect and disconnect to cleanly transfer ownership with the controller and
@@ -283,7 +283,7 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
 	int max_lanes;
 
 	if (!icl_tc_phy_status_complete(dig_port)) {
-		DRM_DEBUG_KMS("Port %s: PHY not ready\n",
+		DRM_DEBUG_KMS("Port %s: PHY yest ready\n",
 			      dig_port->tc_port_name);
 		goto out_set_tbt_alt_mode;
 	}
@@ -352,7 +352,7 @@ static void icl_tc_phy_disconnect(struct intel_digital_port *dig_port)
 static bool icl_tc_phy_is_connected(struct intel_digital_port *dig_port)
 {
 	if (!icl_tc_phy_status_complete(dig_port)) {
-		DRM_DEBUG_KMS("Port %s: PHY status not complete\n",
+		DRM_DEBUG_KMS("Port %s: PHY status yest complete\n",
 			      dig_port->tc_port_name);
 		return dig_port->tc_mode == TC_PORT_TBT_ALT;
 	}
@@ -469,10 +469,10 @@ static bool intel_tc_port_needs_reset(struct intel_digital_port *dig_port)
 
 /*
  * The type-C ports are different because even when they are connected, they may
- * not be available/usable by the graphics driver: see the comment on
+ * yest be available/usable by the graphics driver: see the comment on
  * icl_tc_phy_connect(). So in our driver instead of adding the additional
  * concept of "usable" and make everything check for "connected and usable" we
- * define a port as "connected" when it is not only connected, but also when it
+ * define a port as "connected" when it is yest only connected, but also when it
  * is usable by the rest of the driver. That maintains the old assumption that
  * connected ports are usable, and avoids exposing to the users objects they
  * can't really use.

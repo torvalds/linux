@@ -154,7 +154,7 @@ target_emulate_report_target_port_groups(struct se_cmd *cmd)
 	if (cmd->data_length < off) {
 		pr_warn("REPORT TARGET PORT GROUPS allocation length %u too"
 			" small for %s header\n", cmd->data_length,
-			(ext_hdr) ? "extended" : "normal");
+			(ext_hdr) ? "extended" : "yesrmal");
 		return TCM_INVALID_CDB_FIELD;
 	}
 	buf = transport_kmap_data_sg(cmd);
@@ -167,7 +167,7 @@ target_emulate_report_target_port_groups(struct se_cmd *cmd)
 		/*
 		 * Check if the Target port group and Target port descriptor list
 		 * based on tg_pt_gp_members count will fit into the response payload.
-		 * Otherwise, bump rd_len to let the initiator know we have exceeded
+		 * Otherwise, bump rd_len to let the initiator kyesw we have exceeded
 		 * the allocation length and the response is truncated.
 		 */
 		if ((off + 8 + (tg_pt_gp->tg_pt_gp_members * 4)) >
@@ -269,7 +269,7 @@ target_emulate_set_target_port_groups(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_lun *l_lun = cmd->se_lun;
-	struct se_node_acl *nacl = cmd->se_sess->se_node_acl;
+	struct se_yesde_acl *nacl = cmd->se_sess->se_yesde_acl;
 	struct t10_alua_tg_pt_gp *tg_pt_gp = NULL, *l_tg_pt_gp;
 	unsigned char *buf;
 	unsigned char *ptr;
@@ -435,7 +435,7 @@ static inline void set_ascq(struct se_cmd *cmd, u8 alua_ascq)
 	 * The ALUA additional sense code qualifier (ASCQ) is determined
 	 * by the ALUA primary or secondary access state..
 	 */
-	pr_debug("[%s]: ALUA TG Port not available, "
+	pr_debug("[%s]: ALUA TG Port yest available, "
 		"SenseKey: NOT_READY, ASC/ASCQ: "
 		"0x04/0x%02x\n",
 		cmd->se_tfo->fabric_name, alua_ascq);
@@ -444,10 +444,10 @@ static inline void set_ascq(struct se_cmd *cmd, u8 alua_ascq)
 	cmd->scsi_ascq = alua_ascq;
 }
 
-static inline void core_alua_state_nonoptimized(
+static inline void core_alua_state_yesyesptimized(
 	struct se_cmd *cmd,
 	unsigned char *cdb,
-	int nonop_delay_msecs)
+	int yesyesp_delay_msecs)
 {
 	/*
 	 * Set SCF_ALUA_NON_OPTIMIZED here, this value will be checked
@@ -455,7 +455,7 @@ static inline void core_alua_state_nonoptimized(
 	 * temporarily delayed for the Active/NonOptimized primary access state.
 	 */
 	cmd->se_cmd_flags |= SCF_ALUA_NON_OPTIMIZED;
-	cmd->alua_nonop_delay = nonop_delay_msecs;
+	cmd->alua_yesyesp_delay = yesyesp_delay_msecs;
 }
 
 static inline int core_alua_state_lba_dependent(
@@ -662,7 +662,7 @@ static inline int core_alua_state_transition(
 }
 
 /*
- * return 1: Is used to signal LUN not accessible, and check condition/not ready
+ * return 1: Is used to signal LUN yest accessible, and check condition/yest ready
  * return 0: Used to signal success
  * return -1: Used to signal failure, and invalid cdb field
  */
@@ -673,7 +673,7 @@ target_alua_state_check(struct se_cmd *cmd)
 	unsigned char *cdb = cmd->t_task_cdb;
 	struct se_lun *lun = cmd->se_lun;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
-	int out_alua_state, nonop_delay_msecs;
+	int out_alua_state, yesyesp_delay_msecs;
 
 	if (dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE)
 		return 0;
@@ -697,13 +697,13 @@ target_alua_state_check(struct se_cmd *cmd)
 	spin_lock(&lun->lun_tg_pt_gp_lock);
 	tg_pt_gp = lun->lun_tg_pt_gp;
 	out_alua_state = tg_pt_gp->tg_pt_gp_alua_access_state;
-	nonop_delay_msecs = tg_pt_gp->tg_pt_gp_nonop_delay_msecs;
+	yesyesp_delay_msecs = tg_pt_gp->tg_pt_gp_yesyesp_delay_msecs;
 
 	// XXX: keeps using tg_pt_gp witout reference after unlock
 	spin_unlock(&lun->lun_tg_pt_gp_lock);
 	/*
 	 * Process ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED in a separate conditional
-	 * statement so the compiler knows explicitly to check this case first.
+	 * statement so the compiler kyesws explicitly to check this case first.
 	 * For the Optimized ALUA access state case, we want to process the
 	 * incoming fabric cmd ASAP..
 	 */
@@ -712,7 +712,7 @@ target_alua_state_check(struct se_cmd *cmd)
 
 	switch (out_alua_state) {
 	case ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED:
-		core_alua_state_nonoptimized(cmd, cdb, nonop_delay_msecs);
+		core_alua_state_yesyesptimized(cmd, cdb, yesyesp_delay_msecs);
 		break;
 	case ALUA_ACCESS_STATE_STANDBY:
 		if (core_alua_state_standby(cmd, cdb))
@@ -736,7 +736,7 @@ target_alua_state_check(struct se_cmd *cmd)
 	 */
 	case ALUA_ACCESS_STATE_OFFLINE:
 	default:
-		pr_err("Unknown ALUA access state: 0x%02x\n",
+		pr_err("Unkyeswn ALUA access state: 0x%02x\n",
 				out_alua_state);
 		return TCM_INVALID_CDB_FIELD;
 	}
@@ -757,27 +757,27 @@ core_alua_check_transition(int state, int valid, int *primary, int explicit)
 	switch (state) {
 	case ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED:
 		if (!(valid & ALUA_AO_SUP))
-			goto not_supported;
+			goto yest_supported;
 		*primary = 1;
 		break;
 	case ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED:
 		if (!(valid & ALUA_AN_SUP))
-			goto not_supported;
+			goto yest_supported;
 		*primary = 1;
 		break;
 	case ALUA_ACCESS_STATE_STANDBY:
 		if (!(valid & ALUA_S_SUP))
-			goto not_supported;
+			goto yest_supported;
 		*primary = 1;
 		break;
 	case ALUA_ACCESS_STATE_UNAVAILABLE:
 		if (!(valid & ALUA_U_SUP))
-			goto not_supported;
+			goto yest_supported;
 		*primary = 1;
 		break;
 	case ALUA_ACCESS_STATE_LBA_DEPENDENT:
 		if (!(valid & ALUA_LBD_SUP))
-			goto not_supported;
+			goto yest_supported;
 		*primary = 1;
 		break;
 	case ALUA_ACCESS_STATE_OFFLINE:
@@ -786,27 +786,27 @@ core_alua_check_transition(int state, int valid, int *primary, int explicit)
 		 * asymmetric access state.
 		 */
 		if (!(valid & ALUA_O_SUP))
-			goto not_supported;
+			goto yest_supported;
 		*primary = 0;
 		break;
 	case ALUA_ACCESS_STATE_TRANSITION:
 		if (!(valid & ALUA_T_SUP) || explicit)
 			/*
 			 * Transitioning is set internally and by tcmu daemon,
-			 * and cannot be selected through a STPG.
+			 * and canyest be selected through a STPG.
 			 */
-			goto not_supported;
+			goto yest_supported;
 		*primary = 0;
 		break;
 	default:
-		pr_err("Unknown ALUA access state: 0x%02x\n", state);
+		pr_err("Unkyeswn ALUA access state: 0x%02x\n", state);
 		return TCM_INVALID_PARAMETER_LIST;
 	}
 
 	return 0;
 
-not_supported:
-	pr_err("ALUA access state %s not supported",
+yest_supported:
+	pr_err("ALUA access state %s yest supported",
 	       core_alua_dump_state(state));
 	return TCM_INVALID_PARAMETER_LIST;
 }
@@ -829,7 +829,7 @@ static char *core_alua_dump_state(int state)
 	case ALUA_ACCESS_STATE_TRANSITION:
 		return "Transitioning";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 
 	return NULL;
@@ -845,7 +845,7 @@ char *core_alua_dump_status(int status)
 	case ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA:
 		return "Altered by Implicit ALUA";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 
 	return NULL;
@@ -855,7 +855,7 @@ char *core_alua_dump_status(int status)
  * Used by fabric modules to determine when we need to delay processing
  * for the Active/NonOptimized paths..
  */
-int core_alua_check_nonop_delay(
+int core_alua_check_yesyesp_delay(
 	struct se_cmd *cmd)
 {
 	if (!(cmd->se_cmd_flags & SCF_ALUA_NON_OPTIMIZED))
@@ -866,16 +866,16 @@ int core_alua_check_nonop_delay(
 	 * The ALUA Active/NonOptimized access state delay can be disabled
 	 * in via configfs with a value of zero
 	 */
-	if (!cmd->alua_nonop_delay)
+	if (!cmd->alua_yesyesp_delay)
 		return 0;
 	/*
-	 * struct se_cmd->alua_nonop_delay gets set by a target port group
-	 * defined interval in core_alua_state_nonoptimized()
+	 * struct se_cmd->alua_yesyesp_delay gets set by a target port group
+	 * defined interval in core_alua_state_yesyesptimized()
 	 */
-	msleep_interruptible(cmd->alua_nonop_delay);
+	msleep_interruptible(cmd->alua_yesyesp_delay);
 	return 0;
 }
-EXPORT_SYMBOL(core_alua_check_nonop_delay);
+EXPORT_SYMBOL(core_alua_check_yesyesp_delay);
 
 static int core_alua_write_tpg_metadata(
 	const char *path,
@@ -1052,11 +1052,11 @@ static int core_alua_do_transition_tg_pt(
 	 * core_alua_do_port_transition(), this metadata will be written
 	 * to struct file.
 	 *
-	 * Note that there is the case where we do not want to update the
+	 * Note that there is the case where we do yest want to update the
 	 * metadata when the saved metadata is being parsed in userspace
 	 * when setting the existing port access state and access status.
 	 *
-	 * Also note that the failure to write out the ALUA metadata to
+	 * Also yeste that the failure to write out the ALUA metadata to
 	 * struct file does NOT affect the actual ALUA transition.
 	 */
 	if (tg_pt_gp->tg_pt_gp_write_metadata) {
@@ -1080,7 +1080,7 @@ int core_alua_do_port_transition(
 	struct t10_alua_tg_pt_gp *l_tg_pt_gp,
 	struct se_device *l_dev,
 	struct se_lun *l_lun,
-	struct se_node_acl *l_nacl,
+	struct se_yesde_acl *l_nacl,
 	int new_state,
 	int explicit)
 {
@@ -1105,7 +1105,7 @@ int core_alua_do_port_transition(
 	spin_unlock(&local_lu_gp_mem->lu_gp_mem_lock);
 	/*
 	 * For storage objects that are members of the 'default_lu_gp',
-	 * we only do transition on the passed *l_tp_pt_gp, and not
+	 * we only do transition on the passed *l_tp_pt_gp, and yest
 	 * on all of the matching target port groups IDs in default_lu_gp.
 	 */
 	if (!lu_gp->lu_gp_id) {
@@ -1402,7 +1402,7 @@ core_alua_allocate_lu_gp(const char *name, int def_group)
 		pr_err("Unable to allocate struct t10_alua_lu_gp\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	INIT_LIST_HEAD(&lu_gp->lu_gp_node);
+	INIT_LIST_HEAD(&lu_gp->lu_gp_yesde);
 	INIT_LIST_HEAD(&lu_gp->lu_gp_mem_list);
 	spin_lock_init(&lu_gp->lu_gp_lock);
 	atomic_set(&lu_gp->lu_gp_ref_cnt, 0);
@@ -1425,7 +1425,7 @@ int core_alua_set_lu_gp_id(struct t10_alua_lu_gp *lu_gp, u16 lu_gp_id)
 	 */
 	if (lu_gp->lu_gp_valid_id) {
 		pr_warn("ALUA LU Group already has a valid ID,"
-			" ignoring request\n");
+			" igyesring request\n");
 		return -EINVAL;
 	}
 
@@ -1441,13 +1441,13 @@ again:
 	lu_gp_id_tmp = (lu_gp_id != 0) ? lu_gp_id :
 				alua_lu_gps_counter++;
 
-	list_for_each_entry(lu_gp_tmp, &lu_gps_list, lu_gp_node) {
+	list_for_each_entry(lu_gp_tmp, &lu_gps_list, lu_gp_yesde) {
 		if (lu_gp_tmp->lu_gp_id == lu_gp_id_tmp) {
 			if (!lu_gp_id)
 				goto again;
 
 			pr_warn("ALUA Logical Unit Group ID: %hu"
-				" already exists, ignoring request\n",
+				" already exists, igyesring request\n",
 				lu_gp_id);
 			spin_unlock(&lu_gps_lock);
 			return -EINVAL;
@@ -1456,7 +1456,7 @@ again:
 
 	lu_gp->lu_gp_id = lu_gp_id_tmp;
 	lu_gp->lu_gp_valid_id = 1;
-	list_add_tail(&lu_gp->lu_gp_node, &lu_gps_list);
+	list_add_tail(&lu_gp->lu_gp_yesde, &lu_gps_list);
 	alua_lu_gps_count++;
 	spin_unlock(&lu_gps_lock);
 
@@ -1491,11 +1491,11 @@ void core_alua_free_lu_gp(struct t10_alua_lu_gp *lu_gp)
 	 * already been called from target_core_alua_drop_lu_gp().
 	 *
 	 * Here, we remove the *lu_gp from the global list so that
-	 * no associations can be made while we are releasing
+	 * yes associations can be made while we are releasing
 	 * struct t10_alua_lu_gp.
 	 */
 	spin_lock(&lu_gps_lock);
-	list_del(&lu_gp->lu_gp_node);
+	list_del(&lu_gp->lu_gp_yesde);
 	alua_lu_gps_count--;
 	spin_unlock(&lu_gps_lock);
 	/*
@@ -1577,7 +1577,7 @@ struct t10_alua_lu_gp *core_alua_get_lu_gp_by_name(const char *name)
 	struct config_item *ci;
 
 	spin_lock(&lu_gps_lock);
-	list_for_each_entry(lu_gp, &lu_gps_list, lu_gp_node) {
+	list_for_each_entry(lu_gp, &lu_gps_list, lu_gp_yesde) {
 		if (!lu_gp->lu_gp_valid_id)
 			continue;
 		ci = &lu_gp->lu_gp_group.cg_item;
@@ -1655,7 +1655,7 @@ struct t10_alua_tg_pt_gp *core_alua_allocate_tg_pt_gp(struct se_device *dev,
 	/*
 	 * Set the default Active/NonOptimized Delay in milliseconds
 	 */
-	tg_pt_gp->tg_pt_gp_nonop_delay_msecs = ALUA_DEFAULT_NONOP_DELAY_MSECS;
+	tg_pt_gp->tg_pt_gp_yesyesp_delay_msecs = ALUA_DEFAULT_NONOP_DELAY_MSECS;
 	tg_pt_gp->tg_pt_gp_trans_delay_msecs = ALUA_DEFAULT_TRANS_DELAY_MSECS;
 	tg_pt_gp->tg_pt_gp_implicit_trans_secs = ALUA_DEFAULT_IMPLICIT_TRANS_SECS;
 
@@ -1693,7 +1693,7 @@ int core_alua_set_tg_pt_gp_id(
 	 */
 	if (tg_pt_gp->tg_pt_gp_valid_id) {
 		pr_warn("ALUA TG PT Group already has a valid ID,"
-			" ignoring request\n");
+			" igyesring request\n");
 		return -EINVAL;
 	}
 
@@ -1716,7 +1716,7 @@ again:
 				goto again;
 
 			pr_err("ALUA Target Port Group ID: %hu already"
-				" exists, ignoring request\n", tg_pt_gp_id);
+				" exists, igyesring request\n", tg_pt_gp_id);
 			spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 			return -EINVAL;
 		}
@@ -1743,7 +1743,7 @@ void core_alua_free_tg_pt_gp(
 	 * been called from target_core_alua_drop_tg_pt_gp().
 	 *
 	 * Here we remove *tg_pt_gp from the global list so that
-	 * no associations *OR* explicit ALUA via SET_TARGET_PORT_GROUPS
+	 * yes associations *OR* explicit ALUA via SET_TARGET_PORT_GROUPS
 	 * can be made while we are releasing struct t10_alua_tg_pt_gp.
 	 */
 	spin_lock(&dev->t10_alua.tg_pt_gps_lock);
@@ -2036,14 +2036,14 @@ ssize_t core_alua_store_access_type(
 	return count;
 }
 
-ssize_t core_alua_show_nonop_delay_msecs(
+ssize_t core_alua_show_yesyesp_delay_msecs(
 	struct t10_alua_tg_pt_gp *tg_pt_gp,
 	char *page)
 {
-	return sprintf(page, "%d\n", tg_pt_gp->tg_pt_gp_nonop_delay_msecs);
+	return sprintf(page, "%d\n", tg_pt_gp->tg_pt_gp_yesyesp_delay_msecs);
 }
 
-ssize_t core_alua_store_nonop_delay_msecs(
+ssize_t core_alua_store_yesyesp_delay_msecs(
 	struct t10_alua_tg_pt_gp *tg_pt_gp,
 	const char *page,
 	size_t count)
@@ -2053,16 +2053,16 @@ ssize_t core_alua_store_nonop_delay_msecs(
 
 	ret = kstrtoul(page, 0, &tmp);
 	if (ret < 0) {
-		pr_err("Unable to extract nonop_delay_msecs\n");
+		pr_err("Unable to extract yesyesp_delay_msecs\n");
 		return ret;
 	}
 	if (tmp > ALUA_MAX_NONOP_DELAY_MSECS) {
-		pr_err("Passed nonop_delay_msecs: %lu, exceeds"
+		pr_err("Passed yesyesp_delay_msecs: %lu, exceeds"
 			" ALUA_MAX_NONOP_DELAY_MSECS: %d\n", tmp,
 			ALUA_MAX_NONOP_DELAY_MSECS);
 		return -EINVAL;
 	}
-	tg_pt_gp->tg_pt_gp_nonop_delay_msecs = (int)tmp;
+	tg_pt_gp->tg_pt_gp_yesyesp_delay_msecs = (int)tmp;
 
 	return count;
 }

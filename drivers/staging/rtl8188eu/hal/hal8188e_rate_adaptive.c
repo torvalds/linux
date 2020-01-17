@@ -566,7 +566,7 @@ int ODM_RAInfo_Init(struct odm_dm_struct *dm_odm, u8 macid)
 	pRaInfo->NscDown = (N_THRESHOLD_HIGH[0x13] + N_THRESHOLD_LOW[0x13]) / 2;
 	pRaInfo->NscUp = (N_THRESHOLD_HIGH[0x13] + N_THRESHOLD_LOW[0x13]) / 2;
 	pRaInfo->RateSGI = 0;
-	pRaInfo->Active = 1;	/* Active is not used at present. by page, 110819 */
+	pRaInfo->Active = 1;	/* Active is yest used at present. by page, 110819 */
 	pRaInfo->RptTime = 0x927c;
 	pRaInfo->DROP = 0;
 	pRaInfo->RTY[0] = 0;

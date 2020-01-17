@@ -8,8 +8,8 @@
  * Copyright IBM Corp. 1999,2001
  *
  * Device mapping and dasd= parameter parsing functions. All devmap
- * functions may not be called from interrupt context. In particular
- * dasd_get_device is a no-no from interrupt context.
+ * functions may yest be called from interrupt context. In particular
+ * dasd_get_device is a yes-yes from interrupt context.
  *
  */
 
@@ -40,7 +40,7 @@ EXPORT_SYMBOL_GPL(dasd_page_cache);
  * that corresponds to a device number of a device index each
  * dasd_devmap_t is added to two linked lists, one to search by
  * the device number and one to search by the device index. As
- * soon as big minor numbers are available the device index list
+ * soon as big miyesr numbers are available the device index list
  * can be removed since the device number will then be identical
  * to the device index.
  */
@@ -54,13 +54,13 @@ struct dasd_devmap {
 
 /*
  * Parameter parsing functions for dasd= parameter. The syntax is:
- *   <devno>		: (0x)?[0-9a-fA-F]+
+ *   <devyes>		: (0x)?[0-9a-fA-F]+
  *   <busid>		: [0-0a-f]\.[0-9a-f]\.(0x)?[0-9a-fA-F]+
  *   <feature>		: ro
  *   <feature_list>	: \(<feature>(:<feature>)*\)
- *   <devno-range>	: <devno>(-<devno>)?<feature_list>?
+ *   <devyes-range>	: <devyes>(-<devyes>)?<feature_list>?
  *   <busid-range>	: <busid>(-<busid>)?<feature_list>?
- *   <devices>		: <devno-range>|<busid-range>
+ *   <devices>		: <devyes-range>|<busid-range>
  *   <dasd_module>	: dasd_diag_mod|dasd_eckd_mod|dasd_fba_mod
  *
  *   <dasd>		: autodetect|probeonly|<devices>(,<devices>)*
@@ -68,10 +68,10 @@ struct dasd_devmap {
 
 int dasd_probeonly =  0;	/* is true, when probeonly mode is active */
 int dasd_autodetect = 0;	/* is true, when autodetection is active */
-int dasd_nopav = 0;		/* is true, when PAV is disabled */
-EXPORT_SYMBOL_GPL(dasd_nopav);
-int dasd_nofcx;			/* disable High Performance Ficon */
-EXPORT_SYMBOL_GPL(dasd_nofcx);
+int dasd_yespav = 0;		/* is true, when PAV is disabled */
+EXPORT_SYMBOL_GPL(dasd_yespav);
+int dasd_yesfcx;			/* disable High Performance Ficon */
+EXPORT_SYMBOL_GPL(dasd_yesfcx);
 
 /*
  * char *dasd[] is intended to hold the ranges supplied by the dasd= statement
@@ -128,9 +128,9 @@ __setup ("dasd=", dasd_call_setup);
 #define	DASD_IPLDEV	"ipldev"
 
 /*
- * Read a device busid/devno from a string.
+ * Read a device busid/devyes from a string.
  */
-static int __init dasd_busid(char *str, int *id0, int *id1, int *devno)
+static int __init dasd_busid(char *str, int *id0, int *id1, int *devyes)
 {
 	unsigned int val;
 	char *tok;
@@ -138,12 +138,12 @@ static int __init dasd_busid(char *str, int *id0, int *id1, int *devno)
 	/* Interpret ipldev busid */
 	if (strncmp(DASD_IPLDEV, str, strlen(DASD_IPLDEV)) == 0) {
 		if (ipl_info.type != IPL_TYPE_CCW) {
-			pr_err("The IPL device is not a CCW device\n");
+			pr_err("The IPL device is yest a CCW device\n");
 			return -EINVAL;
 		}
 		*id0 = 0;
 		*id1 = ipl_info.data.ccw.dev_id.ssid;
-		*devno = ipl_info.data.ccw.dev_id.devno;
+		*devyes = ipl_info.data.ccw.dev_id.devyes;
 
 		return 0;
 	}
@@ -153,7 +153,7 @@ static int __init dasd_busid(char *str, int *id0, int *id1, int *devno)
 		*id0 = *id1 = 0;
 		if (val > 0xffff)
 			return -EINVAL;
-		*devno = val;
+		*devyes = val;
 		return 0;
 	}
 
@@ -171,7 +171,7 @@ static int __init dasd_busid(char *str, int *id0, int *id1, int *devno)
 	tok = strsep(&str, ".");
 	if (kstrtouint(tok, 16, &val) || val > 0xffff)
 		return -EINVAL;
-	*devno = val;
+	*devyes = val;
 
 	return 0;
 }
@@ -203,7 +203,7 @@ static int __init dasd_feature_list(char *str)
 		else if (len == 8 && !strncmp(str, "failfast", 8))
 			features |= DASD_FEATURE_FAILFAST;
 		else {
-			pr_warn("%.*s is not a supported device option\n",
+			pr_warn("%.*s is yest a supported device option\n",
 				len, str);
 			rc = -EINVAL;
 		}
@@ -218,9 +218,9 @@ static int __init dasd_feature_list(char *str)
 
 /*
  * Try to match the first element on the comma separated parse string
- * with one of the known keywords. If a keyword is found, take the approprate
+ * with one of the kyeswn keywords. If a keyword is found, take the approprate
  * action and return a pointer to the residual string. If the first element
- * could not be matched to any keyword then return an error code.
+ * could yest be matched to any keyword then return an error code.
  */
 static int __init dasd_parse_keyword(char *keyword)
 {
@@ -236,17 +236,17 @@ static int __init dasd_parse_keyword(char *keyword)
 		pr_info("The probeonly mode has been activated\n");
 		return 0;
         }
-	if (strncmp("nopav", keyword, length) == 0) {
+	if (strncmp("yespav", keyword, length) == 0) {
 		if (MACHINE_IS_VM)
-			pr_info("'nopav' is not supported on z/VM\n");
+			pr_info("'yespav' is yest supported on z/VM\n");
 		else {
-			dasd_nopav = 1;
+			dasd_yespav = 1;
 			pr_info("PAV support has be deactivated\n");
 		}
 		return 0;
 	}
-	if (strncmp("nofcx", keyword, length) == 0) {
-		dasd_nofcx = 1;
+	if (strncmp("yesfcx", keyword, length) == 0) {
+		dasd_yesfcx = 1;
 		pr_info("High Performance FICON support has been "
 			"deactivated\n");
 		return 0;
@@ -342,7 +342,7 @@ static int __init dasd_parse_range(const char *range)
 			goto out;
 		}
 		if (from_id0 != to_id0 || from_id1 != to_id1 || from > to) {
-			pr_err("%s is not a valid device range\n", range);
+			pr_err("%s is yest a valid device range\n", range);
 			rc = -EINVAL;
 			goto out;
 		}
@@ -464,7 +464,7 @@ dasd_find_busid(const char *bus_id)
  * Check if busid has been added to the list of dasd ranges.
  */
 int
-dasd_busid_known(const char *bus_id)
+dasd_busid_kyeswn(const char *bus_id)
 {
 	return IS_ERR(dasd_find_busid(bus_id)) ? -ENOENT : 0;
 }
@@ -519,7 +519,7 @@ dasd_device_from_devindex(int devindex)
 }
 
 /*
- * Return devmap for cdev. If no devmap exists yet, create one and
+ * Return devmap for cdev. If yes devmap exists yet, create one and
  * connect it to the cdev.
  */
 static struct dasd_devmap *
@@ -710,7 +710,7 @@ struct dasd_device *dasd_device_from_gendisk(struct gendisk *gdp)
  */
 
 /*
- * failfast controls the behaviour, if no path is available
+ * failfast controls the behaviour, if yes path is available
  */
 static ssize_t dasd_ff_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
@@ -1031,7 +1031,7 @@ dasd_discipline_show(struct device *dev, struct device_attribute *attr,
 		return len;
 	}
 out:
-	len = snprintf(buf, PAGE_SIZE, "none\n");
+	len = snprintf(buf, PAGE_SIZE, "yesne\n");
 	return len;
 }
 
@@ -1066,12 +1066,12 @@ dasd_device_status_show(struct device *dev, struct device_attribute *attr,
 			len = snprintf(buf, PAGE_SIZE, "online\n");
 			break;
 		default:
-			len = snprintf(buf, PAGE_SIZE, "no stat\n");
+			len = snprintf(buf, PAGE_SIZE, "yes stat\n");
 			break;
 		}
 		dasd_put_device(device);
 	} else
-		len = snprintf(buf, PAGE_SIZE, "unknown\n");
+		len = snprintf(buf, PAGE_SIZE, "unkyeswn\n");
 	return len;
 }
 
@@ -1157,7 +1157,7 @@ dasd_uid_show(struct device *dev, struct device_attribute *attr, char *buf)
 			snprintf(ua_string, sizeof(ua_string), "xx");
 			break;
 		default:
-			/* should not happen, treat like base device */
+			/* should yest happen, treat like base device */
 			snprintf(ua_string, sizeof(ua_string), "%02x",
 				 uid.real_unit_addr);
 			break;
@@ -1390,7 +1390,7 @@ static ssize_t dasd_hpf_show(struct device *dev, struct device_attribute *attr,
 		return -ENODEV;
 	if (!device->discipline || !device->discipline->hpf_enabled) {
 		dasd_put_device(device);
-		return snprintf(buf, PAGE_SIZE, "%d\n", dasd_nofcx);
+		return snprintf(buf, PAGE_SIZE, "%d\n", dasd_yesfcx);
 	}
 	hpf = device->discipline->hpf_enabled(device);
 	dasd_put_device(device);
@@ -1408,13 +1408,13 @@ static ssize_t dasd_reservation_policy_show(struct device *dev,
 
 	devmap = dasd_find_busid(dev_name(dev));
 	if (IS_ERR(devmap)) {
-		rc = snprintf(buf, PAGE_SIZE, "ignore\n");
+		rc = snprintf(buf, PAGE_SIZE, "igyesre\n");
 	} else {
 		spin_lock(&dasd_devmap_lock);
 		if (devmap->features & DASD_FEATURE_FAILONSLCK)
 			rc = snprintf(buf, PAGE_SIZE, "fail\n");
 		else
-			rc = snprintf(buf, PAGE_SIZE, "ignore\n");
+			rc = snprintf(buf, PAGE_SIZE, "igyesre\n");
 		spin_unlock(&dasd_devmap_lock);
 	}
 	return rc;
@@ -1427,7 +1427,7 @@ static ssize_t dasd_reservation_policy_store(struct device *dev,
 	struct ccw_device *cdev = to_ccwdev(dev);
 	int rc;
 
-	if (sysfs_streq("ignore", buf))
+	if (sysfs_streq("igyesre", buf))
 		rc = dasd_set_feature(cdev, DASD_FEATURE_FAILONSLCK, 0);
 	else if (sysfs_streq("fail", buf))
 		rc = dasd_set_feature(cdev, DASD_FEATURE_FAILONSLCK, 1);
@@ -1449,14 +1449,14 @@ static ssize_t dasd_reservation_state_show(struct device *dev,
 
 	device = dasd_device_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(device))
-		return snprintf(buf, PAGE_SIZE, "none\n");
+		return snprintf(buf, PAGE_SIZE, "yesne\n");
 
 	if (test_bit(DASD_FLAG_IS_RESERVED, &device->flags))
 		rc = snprintf(buf, PAGE_SIZE, "reserved\n");
 	else if (test_bit(DASD_FLAG_LOCK_STOLEN, &device->flags))
 		rc = snprintf(buf, PAGE_SIZE, "lost\n");
 	else
-		rc = snprintf(buf, PAGE_SIZE, "none\n");
+		rc = snprintf(buf, PAGE_SIZE, "yesne\n");
 	dasd_put_device(device);
 	return rc;
 }
@@ -1483,7 +1483,7 @@ static ssize_t dasd_reservation_state_store(struct device *dev,
 		return count;
 }
 
-static DEVICE_ATTR(last_known_reservation_state, 0644,
+static DEVICE_ATTR(last_kyeswn_reservation_state, 0644,
 		   dasd_reservation_state_show, dasd_reservation_state_store);
 
 static ssize_t dasd_pm_show(struct device *dev,
@@ -1595,7 +1595,7 @@ static DEVICE_ATTR(path_autodisable, 0644,
 		   dasd_path_autodisable_store);
 /*
  * interval for IFCC/CCC checks
- * meaning time with no IFCC/CCC error before the error counter
+ * meaning time with yes IFCC/CCC error before the error counter
  * gets reset
  */
 static ssize_t
@@ -1687,7 +1687,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_retries.attr,
 	&dev_attr_timeout.attr,
 	&dev_attr_reservation_policy.attr,
-	&dev_attr_last_known_reservation_state.attr,
+	&dev_attr_last_kyeswn_reservation_state.attr,
 	&dev_attr_safe_offline.attr,
 	&dev_attr_host_access_count.attr,
 	&dev_attr_path_masks.attr,

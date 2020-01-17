@@ -19,7 +19,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -120,7 +120,7 @@ struct gnttab_ops {
 	/*
 	 * Stop granting a grant entry to domain for accessing. Ref parameter is
 	 * reference of a grant entry whose grant access will be stopped,
-	 * readonly is not in use in this function. If the grant entry is
+	 * readonly is yest in use in this function. If the grant entry is
 	 * currently mapped for reading or writing, just return failure(==0)
 	 * directly and don't tear down the grant access. Otherwise, stop grant
 	 * access for this entry and return success(==1).
@@ -129,7 +129,7 @@ struct gnttab_ops {
 	/*
 	 * Stop granting a grant entry to domain for transfer. Ref parameter is
 	 * reference of a grant entry whose grant transfer will be stopped. If
-	 * tranfer has not started, just reclaim the grant entry and return
+	 * tranfer has yest started, just reclaim the grant entry and return
 	 * failure(==0). Otherwise, wait for the transfer to complete and then
 	 * return the frame.
 	 */
@@ -237,7 +237,7 @@ static void put_free_entry(grant_ref_t ref)
  *  2. Write ent->frame:
  *      GTF_permit_access:   Frame to which access is permitted.
  *      GTF_accept_transfer: Pseudo-phys frame slot being filled by new
- *                           frame, or zero if none.
+ *                           frame, or zero if yesne.
  *  3. Write memory barrier (WMB).
  *  4. Write ent->flags, inc. valid type.
  */
@@ -478,7 +478,7 @@ static unsigned long gnttab_end_foreign_transfer_ref_v1(grant_ref_t ref)
 	pflags = &gnttab_shared.v1[ref].flags;
 
 	/*
-	 * If a transfer is not even yet started, try to reclaim the grant
+	 * If a transfer is yest even yet started, try to reclaim the grant
 	 * reference and return failure (== 0).
 	 */
 	while (!((flags = *pflags) & GTF_transfer_committed)) {
@@ -509,7 +509,7 @@ static unsigned long gnttab_end_foreign_transfer_ref_v2(grant_ref_t ref)
 	pflags = &gnttab_shared.v2[ref].hdr.flags;
 
 	/*
-	 * If a transfer is not even yet started, try to reclaim the grant
+	 * If a transfer is yest even yet started, try to reclaim the grant
 	 * reference and return failure (== 0).
 	 */
 	while (!((flags = *pflags) & GTF_transfer_committed)) {
@@ -674,7 +674,7 @@ static int grow_gnttab_list(unsigned int more_frames)
 	for (i = nr_glist_frames; i < new_nr_glist_frames; i++) {
 		gnttab_list[i] = (grant_ref_t *)__get_free_page(GFP_ATOMIC);
 		if (!gnttab_list[i])
-			goto grow_nomem;
+			goto grow_yesmem;
 	}
 
 
@@ -692,7 +692,7 @@ static int grow_gnttab_list(unsigned int more_frames)
 
 	return 0;
 
-grow_nomem:
+grow_yesmem:
 	while (i-- > nr_glist_frames)
 		free_page((unsigned long) gnttab_list[i]);
 	return -ENOMEM;
@@ -1051,7 +1051,7 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 			break;
 		}
 
-		case GNTST_no_device_space:
+		case GNTST_yes_device_space:
 			pr_warn_ratelimited("maptrack limit reached, can't map all guest pages\n");
 			break;
 
@@ -1318,7 +1318,7 @@ static bool gnttab_need_v2(void)
 	if (xen_pv_domain()) {
 		base = xen_cpuid_base();
 		if (cpuid_eax(base) < 5)
-			return false;	/* Information not available, use V1. */
+			return false;	/* Information yest available, use V1. */
 		width = cpuid_ebx(base + 5) &
 			XEN_CPUID_MACHINE_ADDRESS_WIDTH_MASK;
 		return width > 32 + PAGE_SHIFT;
@@ -1361,7 +1361,7 @@ static int gnttab_setup(void)
 	if (xen_feature(XENFEAT_auto_translated_physmap) && gnttab_shared.addr == NULL) {
 		gnttab_shared.addr = xen_auto_xlat_grant_frames.vaddr;
 		if (gnttab_shared.addr == NULL) {
-			pr_warn("gnttab share frames is not mapped!\n");
+			pr_warn("gnttab share frames is yest mapped!\n");
 			return -ENOMEM;
 		}
 	}
@@ -1434,18 +1434,18 @@ int gnttab_init(void)
 		gnttab_list[i] = (grant_ref_t *)__get_free_page(GFP_KERNEL);
 		if (gnttab_list[i] == NULL) {
 			ret = -ENOMEM;
-			goto ini_nomem;
+			goto ini_yesmem;
 		}
 	}
 
 	ret = arch_gnttab_init(max_nr_grant_frames,
 			       nr_status_frames(max_nr_grant_frames));
 	if (ret < 0)
-		goto ini_nomem;
+		goto ini_yesmem;
 
 	if (gnttab_setup() < 0) {
 		ret = -ENODEV;
-		goto ini_nomem;
+		goto ini_yesmem;
 	}
 
 	nr_init_grefs = nr_grant_frames *
@@ -1461,7 +1461,7 @@ int gnttab_init(void)
 	printk("Grant table initialized\n");
 	return 0;
 
- ini_nomem:
+ ini_yesmem:
 	for (i--; i >= 0; i--)
 		free_page((unsigned long)gnttab_list[i]);
 	kfree(gnttab_list);

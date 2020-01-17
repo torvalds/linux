@@ -4,11 +4,11 @@
  * for more details.
  *
  * Copyright (C) 1995-99, 2000- 02, 06 Ralf Baechle <ralf@linux-mips.org>
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techyeslogies, Inc.
  * Copyright (C) 2004 Thiemo Seufer
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2014 Imagination Techyeslogies Ltd.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/irqflags.h>
@@ -24,7 +24,7 @@
 
 	.align	5
 NESTED(handle_sys, PT_SIZE, sp)
-	.set	noat
+	.set	yesat
 	SAVE_SOME
 	TRACE_IRQS_ON_RELOAD
 	STI
@@ -58,8 +58,8 @@ NESTED(handle_sys, PT_SIZE, sp)
 	 */
 
 	.set    push
-	.set    noreorder
-	.set	nomacro
+	.set    yesreorder
+	.set	yesmacro
 
 load_a4: user_lw(t5, 16(t0))		# argument #5 from usp
 load_a5: user_lw(t6, 20(t0))		# argument #6 from usp
@@ -83,7 +83,7 @@ loads_done:
 	lw	t0, TI_FLAGS($28)	# syscall tracing enabled?
 	li	t1, _TIF_WORK_SYSCALL_ENTRY
 	and	t0, t1
-	bnez	t0, syscall_trace_entry # -> yes
+	bnez	t0, syscall_trace_entry # -> no
 syscall_common:
 	subu	v0, v0, __NR_O32_Linux	# check syscall number
 	sltiu	t0, v0, __NR_O32_Linux_syscalls
@@ -170,7 +170,7 @@ bad_stack_a7:
 	b	loads_done
 
 	/*
-	 * The system call does not exist in this kernel
+	 * The system call does yest exist in this kernel
 	 */
 illegal_syscall:
 	li	v0, ENOSYS			# error
@@ -183,7 +183,7 @@ illegal_syscall:
 	LEAF(sys_syscall)
 	subu	t0, a0, __NR_O32_Linux	# check syscall number
 	sltiu	v0, t0, __NR_O32_Linux_syscalls
-	beqz	t0, einval		# do not recurse
+	beqz	t0, einval		# do yest recurse
 	sll	t1, t0, 2
 	beqz	v0, einval
 	lw	t2, sys_call_table(t1)		# syscall routine
@@ -210,7 +210,7 @@ einval: li	v0, -ENOSYS
 	 * For FPU affinity scheduling on MIPS MT processors, we need to
 	 * intercept sys_sched_xxxaffinity() calls until we get a proper hook
 	 * in kernel/sched/core.c.  Considered only temporary we only support
-	 * these hooks for the 32-bit kernel - there is no MIPS64 MT processor
+	 * these hooks for the 32-bit kernel - there is yes MIPS64 MT processor
 	 * atm.
 	 */
 #define sys_sched_setaffinity	mipsmt_sys_sched_setaffinity

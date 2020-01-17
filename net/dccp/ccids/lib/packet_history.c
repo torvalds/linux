@@ -46,13 +46,13 @@ void tfrc_tx_packet_history_exit(void)
 	}
 }
 
-int tfrc_tx_hist_add(struct tfrc_tx_hist_entry **headp, u64 seqno)
+int tfrc_tx_hist_add(struct tfrc_tx_hist_entry **headp, u64 seqyes)
 {
 	struct tfrc_tx_hist_entry *entry = kmem_cache_alloc(tfrc_tx_hist_slab, gfp_any());
 
 	if (entry == NULL)
 		return -ENOBUFS;
-	entry->seqno = seqno;
+	entry->seqyes = seqyes;
 	entry->stamp = ktime_get_real();
 	entry->next  = *headp;
 	*headp	     = entry;
@@ -100,7 +100,7 @@ static inline void tfrc_rx_hist_entry_from_skb(struct tfrc_rx_hist_entry *entry,
 {
 	const struct dccp_hdr *dh = dccp_hdr(skb);
 
-	entry->tfrchrx_seqno = DCCP_SKB_CB(skb)->dccpd_seq;
+	entry->tfrchrx_seqyes = DCCP_SKB_CB(skb)->dccpd_seq;
 	entry->tfrchrx_ccval = dh->dccph_ccval;
 	entry->tfrchrx_type  = dh->dccph_type;
 	entry->tfrchrx_ndp   = ndp;
@@ -122,11 +122,11 @@ int tfrc_rx_hist_duplicate(struct tfrc_rx_hist *h, struct sk_buff *skb)
 	const u64 seq = DCCP_SKB_CB(skb)->dccpd_seq;
 	int i;
 
-	if (dccp_delta_seqno(tfrc_rx_hist_loss_prev(h)->tfrchrx_seqno, seq) <= 0)
+	if (dccp_delta_seqyes(tfrc_rx_hist_loss_prev(h)->tfrchrx_seqyes, seq) <= 0)
 		return 1;
 
 	for (i = 1; i <= h->loss_count; i++)
-		if (tfrc_rx_hist_entry(h, i)->tfrchrx_seqno == seq)
+		if (tfrc_rx_hist_entry(h, i)->tfrchrx_seqyes == seq)
 			return 1;
 
 	return 0;
@@ -146,12 +146,12 @@ static void tfrc_rx_hist_swap(struct tfrc_rx_hist *h, const u8 a, const u8 b)
  * In the descriptions, `Si' refers to the sequence number of entry number i,
  * whose NDP count is `Ni' (lower case is used for variables).
  * Note: All __xxx_loss functions expect that a test against duplicates has been
- *       performed already: the seqno of the skb must not be less than the seqno
- *       of loss_prev; and it must not equal that of any valid history entry.
+ *       performed already: the seqyes of the skb must yest be less than the seqyes
+ *       of loss_prev; and it must yest equal that of any valid history entry.
  */
 static void __do_track_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u64 n1)
 {
-	u64 s0 = tfrc_rx_hist_loss_prev(h)->tfrchrx_seqno,
+	u64 s0 = tfrc_rx_hist_loss_prev(h)->tfrchrx_seqyes,
 	    s1 = DCCP_SKB_CB(skb)->dccpd_seq;
 
 	if (!dccp_loss_free(s0, s1, n1)) {	/* gap between S0 and S1 */
@@ -162,11 +162,11 @@ static void __do_track_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u64 n1)
 
 static void __one_after_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u32 n2)
 {
-	u64 s0 = tfrc_rx_hist_loss_prev(h)->tfrchrx_seqno,
-	    s1 = tfrc_rx_hist_entry(h, 1)->tfrchrx_seqno,
+	u64 s0 = tfrc_rx_hist_loss_prev(h)->tfrchrx_seqyes,
+	    s1 = tfrc_rx_hist_entry(h, 1)->tfrchrx_seqyes,
 	    s2 = DCCP_SKB_CB(skb)->dccpd_seq;
 
-	if (likely(dccp_delta_seqno(s1, s2) > 0)) {	/* S1  <  S2 */
+	if (likely(dccp_delta_seqyes(s1, s2) > 0)) {	/* S1  <  S2 */
 		h->loss_count = 2;
 		tfrc_rx_hist_entry_from_skb(tfrc_rx_hist_entry(h, 2), skb, n2);
 		return;
@@ -199,12 +199,12 @@ static void __one_after_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u32 n2
 /* return 1 if a new loss event has been identified */
 static int __two_after_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u32 n3)
 {
-	u64 s0 = tfrc_rx_hist_loss_prev(h)->tfrchrx_seqno,
-	    s1 = tfrc_rx_hist_entry(h, 1)->tfrchrx_seqno,
-	    s2 = tfrc_rx_hist_entry(h, 2)->tfrchrx_seqno,
+	u64 s0 = tfrc_rx_hist_loss_prev(h)->tfrchrx_seqyes,
+	    s1 = tfrc_rx_hist_entry(h, 1)->tfrchrx_seqyes,
+	    s2 = tfrc_rx_hist_entry(h, 2)->tfrchrx_seqyes,
 	    s3 = DCCP_SKB_CB(skb)->dccpd_seq;
 
-	if (likely(dccp_delta_seqno(s2, s3) > 0)) {	/* S2  <  S3 */
+	if (likely(dccp_delta_seqyes(s2, s3) > 0)) {	/* S2  <  S3 */
 		h->loss_count = 3;
 		tfrc_rx_hist_entry_from_skb(tfrc_rx_hist_entry(h, 3), skb, n3);
 		return 1;
@@ -212,7 +212,7 @@ static int __two_after_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u32 n3)
 
 	/* S3  <  S2 */
 
-	if (dccp_delta_seqno(s1, s3) > 0) {		/* S1  <  S3  <  S2 */
+	if (dccp_delta_seqyes(s1, s3) > 0) {		/* S1  <  S3  <  S2 */
 		/*
 		 * Reorder history to insert S3 between S1 and S2
 		 */
@@ -263,21 +263,21 @@ static int __two_after_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u32 n3)
 static void __three_after_loss(struct tfrc_rx_hist *h)
 {
 	/*
-	 * At this stage we know already that there is a gap between S0 and S1
+	 * At this stage we kyesw already that there is a gap between S0 and S1
 	 * (since S0 was the highest sequence number received before detecting
 	 * the loss). To recycle the loss record, it is	thus only necessary to
 	 * check for other possible gaps between S1/S2 and between S2/S3.
 	 */
-	u64 s1 = tfrc_rx_hist_entry(h, 1)->tfrchrx_seqno,
-	    s2 = tfrc_rx_hist_entry(h, 2)->tfrchrx_seqno,
-	    s3 = tfrc_rx_hist_entry(h, 3)->tfrchrx_seqno;
+	u64 s1 = tfrc_rx_hist_entry(h, 1)->tfrchrx_seqyes,
+	    s2 = tfrc_rx_hist_entry(h, 2)->tfrchrx_seqyes,
+	    s3 = tfrc_rx_hist_entry(h, 3)->tfrchrx_seqyes;
 	u64 n2 = tfrc_rx_hist_entry(h, 2)->tfrchrx_ndp,
 	    n3 = tfrc_rx_hist_entry(h, 3)->tfrchrx_ndp;
 
 	if (dccp_loss_free(s1, s2, n2)) {
 
 		if (dccp_loss_free(s2, s3, n3)) {
-			/* no gap between S2 and S3: entire hole is filled */
+			/* yes gap between S2 and S3: entire hole is filled */
 			h->loss_start = tfrc_rx_hist_index(h, 3);
 			h->loss_count = 0;
 		} else {
@@ -294,7 +294,7 @@ static void __three_after_loss(struct tfrc_rx_hist *h)
 
 /**
  *  tfrc_rx_handle_loss  -  Loss detection and further processing
- *  @h:		    The non-empty RX history object
+ *  @h:		    The yesn-empty RX history object
  *  @lh:	    Loss Intervals database to update
  *  @skb:	    Currently received packet
  *  @ndp:	    The NDP count belonging to @skb
@@ -305,7 +305,7 @@ static void __three_after_loss(struct tfrc_rx_hist *h)
  *  loss was detected, and does required post-processing. Returns 1 when caller
  *  should send feedback, 0 otherwise.
  *  Since it also takes care of reordering during loss detection and updates the
- *  records accordingly, the caller should not perform any more RX history
+ *  records accordingly, the caller should yest perform any more RX history
  *  operations when loss_count is greater than 0 after calling this function.
  */
 int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
@@ -383,7 +383,7 @@ static inline struct tfrc_rx_hist_entry *
 
 /**
  * tfrc_rx_hist_sample_rtt  -  Sample RTT from timestamp / CCVal
- * Based on ideas presented in RFC 4342, 8.1. Returns 0 if it was not able
+ * Based on ideas presented in RFC 4342, 8.1. Returns 0 if it was yest able
  * to compute a sample with given data - calling function should check this.
  */
 u32 tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h, const struct sk_buff *skb)
@@ -401,10 +401,10 @@ u32 tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h, const struct sk_buff *skb)
 				         ktime_us_delta(tfrc_rx_hist_rtt_prev_s(h)->tfrchrx_tstamp,
 							tfrc_rx_hist_rtt_last_s(h)->tfrchrx_tstamp);
 			else    /*
-				 * FIXME: This condition is in principle not
+				 * FIXME: This condition is in principle yest
 				 * possible but occurs when CCID is used for
 				 * two-way data traffic. I have tried to trace
-				 * it, but the cause does not seem to be here.
+				 * it, but the cause does yest seem to be here.
 				 */
 				DCCP_BUG("please report to dccp@vger.kernel.org"
 					 " => prev = %u, last = %u",

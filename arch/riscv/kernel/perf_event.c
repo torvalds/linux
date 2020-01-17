@@ -8,11 +8,11 @@
  * Copyright (C) 2009 Intel Corporation, <markus.t.metzger@intel.com>
  * Copyright (C) 2009 Google, Inc., Stephane Eranian
  * Copyright 2014 Tilera Corporation. All Rights Reserved.
- * Copyright (C) 2018 Andes Technology Corporation
+ * Copyright (C) 2018 Andes Techyeslogy Corporation
  *
  * Perf_events support for RISC-V platforms.
  *
- * Since the spec. (as of now, Priv-Spec 1.10) does not provide enough
+ * Since the spec. (as of yesw, Priv-Spec 1.10) does yest provide eyesugh
  * functionality for perf event to fully work, this file provides
  * the very basic framework only.
  *
@@ -200,7 +200,7 @@ static inline u64 read_counter(int idx)
 
 static inline void write_counter(int idx, u64 value)
 {
-	/* currently not supported */
+	/* currently yest supported */
 	WARN_ON_ONCE(1);
 }
 
@@ -284,7 +284,7 @@ static void riscv_pmu_start(struct perf_event *event, int flags)
 	perf_event_update_userpage(event);
 
 	/*
-	 * Since we cannot write to counters, this serves as an initialization
+	 * Since we canyest write to counters, this serves as an initialization
 	 * to the delta-mechanism in pmu->read(); otherwise, the delta would be
 	 * wrong when pmu->read is called for the first time.
 	 */
@@ -303,10 +303,10 @@ static int riscv_pmu_add(struct perf_event *event, int flags)
 		return -ENOSPC;
 
 	/*
-	 * We don't have general conunters, so no binding-event-to-counter
+	 * We don't have general conunters, so yes binding-event-to-counter
 	 * process here.
 	 *
-	 * Indexing using hwc->config generally not works, since config may
+	 * Indexing using hwc->config generally yest works, since config may
 	 * contain extra information, but here the only info we have in
 	 * hwc->config is the event index.
 	 */
@@ -392,7 +392,7 @@ static int riscv_event_init(struct perf_event *event)
 		err = reserve_pmc_hardware();
 
 		if (err) {
-			pr_warn("PMC hardware not available\n");
+			pr_warn("PMC hardware yest available\n");
 			atomic_dec(&riscv_active_events);
 			return -EBUSY;
 		}
@@ -418,7 +418,7 @@ static int riscv_event_init(struct perf_event *event)
 	}
 
 	/*
-	 * idx is set to -1 because the index of a general event should not be
+	 * idx is set to -1 because the index of a general event should yest be
 	 * decided until binding to some counter in pmu->add().
 	 *
 	 * But since we don't have such support, later in pmu->add(), we just
@@ -455,7 +455,7 @@ static const struct riscv_pmu riscv_base_pmu = {
 	.num_counters = RISCV_BASE_COUNTERS + 0,
 	.handle_irq = &riscv_base_pmu_handle_irq,
 
-	/* This means this PMU has no IRQ. */
+	/* This means this PMU has yes IRQ. */
 	.irq = -1,
 };
 
@@ -466,17 +466,17 @@ static const struct of_device_id riscv_pmu_of_ids[] = {
 
 int __init init_hw_perf_events(void)
 {
-	struct device_node *node = of_find_node_by_type(NULL, "pmu");
+	struct device_yesde *yesde = of_find_yesde_by_type(NULL, "pmu");
 	const struct of_device_id *of_id;
 
 	riscv_pmu = &riscv_base_pmu;
 
-	if (node) {
-		of_id = of_match_node(riscv_pmu_of_ids, node);
+	if (yesde) {
+		of_id = of_match_yesde(riscv_pmu_of_ids, yesde);
 
 		if (of_id)
 			riscv_pmu = of_id->data;
-		of_node_put(node);
+		of_yesde_put(yesde);
 	}
 
 	perf_pmu_register(riscv_pmu->pmu, "cpu", PERF_TYPE_RAW);

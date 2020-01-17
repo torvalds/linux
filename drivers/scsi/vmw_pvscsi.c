@@ -5,7 +5,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License and no later version.
+ * Free Software Foundation; version 2 of the License and yes later version.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -14,7 +14,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Maintained by: Jim Gill <jgill@vmware.com>
@@ -191,7 +191,7 @@ static void pvscsi_release_context(struct pvscsi_adapter *adapter,
 
 /*
  * Map a pvscsi_ctx struct to a context ID field value; we map to a simple
- * non-zero integer. ctx always points to an entry in cmd_map array, hence
+ * yesn-zero integer. ctx always points to an entry in cmd_map array, hence
  * the return value is always >=1.
  */
 static u64 pvscsi_map_context(const struct pvscsi_adapter *adapter,
@@ -386,7 +386,7 @@ static int pvscsi_map_buffers(struct pvscsi_adapter *adapter,
 			e->dataAddr = sg_dma_address(sg);
 	} else {
 		/*
-		 * In case there is no S/G list, scsi_sglist points
+		 * In case there is yes S/G list, scsi_sglist points
 		 * directly to the buffer.
 		 */
 		ctx->dataPA = dma_map_single(&adapter->dev->dev, sg, bufflen,
@@ -586,7 +586,7 @@ static void pvscsi_complete_request(struct pvscsi_adapter *adapter,
 			break;
 
 		case BTSTAT_SELTIMEO:
-			/* Our emulation returns this for non-connected devs */
+			/* Our emulation returns this for yesn-connected devs */
 			cmd->result = (DID_BAD_TARGET << 16);
 			break;
 
@@ -624,7 +624,7 @@ static void pvscsi_complete_request(struct pvscsi_adapter *adapter,
 		default:
 			cmd->result = (DID_ERROR << 16);
 			scmd_printk(KERN_DEBUG, cmd,
-				    "Unknown completion status: 0x%x\n",
+				    "Unkyeswn completion status: 0x%x\n",
 				    btstat);
 	}
 
@@ -652,7 +652,7 @@ static void pvscsi_process_completion_ring(struct pvscsi_adapter *adapter)
 		struct PVSCSIRingCmpDesc *e = ring + (s->cmpConsIdx &
 						      MASK(cmp_entries));
 		/*
-		 * This barrier() ensures that *e is not dereferenced while
+		 * This barrier() ensures that *e is yest dereferenced while
 		 * the device emulation still writes data into the slot.
 		 * Since the device emulation advances s->cmpProdIdx only after
 		 * updating the slot we want to check it first.
@@ -687,8 +687,8 @@ static int pvscsi_queue_ring(struct pvscsi_adapter *adapter,
 
 	/*
 	 * If this condition holds, we might have room on the request ring, but
-	 * we might not have room on the completion ring for the response.
-	 * However, we have already ruled out this possibility - we would not
+	 * we might yest have room on the completion ring for the response.
+	 * However, we have already ruled out this possibility - we would yest
 	 * have successfully allocated a context if it were true, since we only
 	 * have one context per request entry.  Check for it anyway, since it
 	 * would be a serious bug.
@@ -800,7 +800,7 @@ static int pvscsi_abort(struct scsi_cmnd *cmd)
 	int done;
 
 	scmd_printk(KERN_DEBUG, cmd, "task abort on host %u, %p\n",
-		    adapter->host->host_no, cmd);
+		    adapter->host->host_yes, cmd);
 
 	spin_lock_irqsave(&adapter->hw_lock, flags);
 
@@ -811,7 +811,7 @@ static int pvscsi_abort(struct scsi_cmnd *cmd)
 	pvscsi_process_completion_ring(adapter);
 
 	/*
-	 * If there is no context for the command, it either already succeeded
+	 * If there is yes context for the command, it either already succeeded
 	 * or else was never properly issued.  Not our problem.
 	 */
 	ctx = pvscsi_find_context(adapter, cmd);
@@ -898,7 +898,7 @@ static int pvscsi_host_reset(struct scsi_cmnd *cmd)
 		spin_unlock_irqrestore(&adapter->hw_lock, flags);
 
 		/*
-		 * Now that we know that the ISR won't add more work on the
+		 * Now that we kyesw that the ISR won't add more work on the
 		 * workqueue we can safely flush any outstanding work.
 		 */
 		flush_workqueue(adapter->workqueue);
@@ -919,7 +919,7 @@ static int pvscsi_host_reset(struct scsi_cmnd *cmd)
 	 * Now process any completions.  Note we do this AFTER adapter reset,
 	 * which is strange, but stops races where completions get posted
 	 * between processing the ring and issuing the reset.  The backend will
-	 * not touch the ring memory after reset, so the immediately pre-reset
+	 * yest touch the ring memory after reset, so the immediately pre-reset
 	 * completion ring state is still valid.
 	 */
 	pvscsi_process_completion_ring(adapter);
@@ -946,7 +946,7 @@ static int pvscsi_bus_reset(struct scsi_cmnd *cmd)
 	 * We don't want to queue new requests for this bus after
 	 * flushing all pending requests to emulation, since new
 	 * requests could then sneak in during this bus reset phase,
-	 * so take the lock now.
+	 * so take the lock yesw.
 	 */
 	spin_lock_irqsave(&adapter->hw_lock, flags);
 
@@ -966,12 +966,12 @@ static int pvscsi_device_reset(struct scsi_cmnd *cmd)
 	unsigned long flags;
 
 	scmd_printk(KERN_INFO, cmd, "SCSI device reset on scsi%u:%u\n",
-		    host->host_no, cmd->device->id);
+		    host->host_yes, cmd->device->id);
 
 	/*
 	 * We don't want to queue new requests for this device after flushing
 	 * all pending requests to emulation, since new requests could then
-	 * sneak in during this device reset phase, so take the lock now.
+	 * sneak in during this device reset phase, so take the lock yesw.
 	 */
 	spin_lock_irqsave(&adapter->hw_lock, flags);
 
@@ -1121,7 +1121,7 @@ static int pvscsi_setup_msg_workqueue(struct pvscsi_adapter *adapter)
 		return 0;
 
 	snprintf(name, sizeof(name),
-		 "vmw_pvscsi_wq_%u", adapter->host->host_no);
+		 "vmw_pvscsi_wq_%u", adapter->host->host_yes);
 
 	adapter->workqueue = create_singlethread_workqueue(name);
 	if (!adapter->workqueue) {
@@ -1145,7 +1145,7 @@ static bool pvscsi_setup_req_threshold(struct pvscsi_adapter *adapter,
 			 PVSCSI_CMD_SETUP_REQCALLTHRESHOLD);
 	val = pvscsi_reg_read(adapter, PVSCSI_REG_OFFSET_COMMAND_STATUS);
 	if (val == -1) {
-		printk(KERN_INFO "vmw_pvscsi: device does not support req_threshold\n");
+		printk(KERN_INFO "vmw_pvscsi: device does yest support req_threshold\n");
 		return false;
 	} else {
 		struct PVSCSICmdDescSetupReqCall cmd_msg = { 0 };
@@ -1239,7 +1239,7 @@ static void pvscsi_release_resources(struct pvscsi_adapter *adapter)
 /*
  * Allocate scatter gather lists.
  *
- * These are statically allocated.  Trying to be clever was not worth it.
+ * These are statically allocated.  Trying to be clever was yest worth it.
  *
  * Dynamic allocation can fail, and we can't go deep into the memory
  * allocator, since we're a SCSI driver, and trying too hard to allocate
@@ -1382,7 +1382,7 @@ static int pvscsi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (i == DEVICE_COUNT_RESOURCE) {
 		printk(KERN_ERR
-		       "vmw_pvscsi: adapter has no suitable MMIO region\n");
+		       "vmw_pvscsi: adapter has yes suitable MMIO region\n");
 		goto out_release_resources_and_disable;
 	}
 
@@ -1522,7 +1522,7 @@ static int pvscsi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	dev_info(&pdev->dev, "VMware PVSCSI rev %d host #%u\n",
-		 adapter->rev, host->host_no);
+		 adapter->rev, host->host_yes);
 
 	pvscsi_unmask_intr(adapter);
 

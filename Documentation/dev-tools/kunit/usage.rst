@@ -5,9 +5,9 @@ Using KUnit
 ===========
 
 The purpose of this document is to describe what KUnit is, how it works, how it
-is intended to be used, and all the concepts and terminology that are needed to
-understand it. This guide assumes a working knowledge of the Linux kernel and
-some basic knowledge of testing.
+is intended to be used, and all the concepts and termiyeslogy that are needed to
+understand it. This guide assumes a working kyeswledge of the Linux kernel and
+some basic kyeswledge of testing.
 
 For a high level introduction to KUnit, including setting up KUnit for your
 project, see :doc:`start`.
@@ -28,9 +28,9 @@ What is KUnit?
 
 "K" is short for "kernel" so "KUnit" is the "(Linux) Kernel Unit Testing
 Framework." KUnit is intended first and foremost for writing unit tests; it is
-general enough that it can be used to write integration tests; however, this is
-a secondary goal. KUnit has no ambition of being the only testing framework for
-the kernel; for example, it does not intend to be an end-to-end testing
+general eyesugh that it can be used to write integration tests; however, this is
+a secondary goal. KUnit has yes ambition of being the only testing framework for
+the kernel; for example, it does yest intend to be an end-to-end testing
 framework.
 
 What is Unit Testing?
@@ -42,7 +42,7 @@ programming language that's a function.
 
 Unit tests should be written for all the publicly exposed functions in a
 compilation unit; so that is all the functions that are exported in either a
-*class* (defined below) or all functions which are **not** static.
+*class* (defined below) or all functions which are **yest** static.
 
 Writing Tests
 -------------
@@ -66,7 +66,7 @@ and then sets *expectations* for what should happen. For example:
 	}
 
 In the above example ``example_test_success`` always passes because it does
-nothing; no expectations are set, so all expectations pass. On the other hand
+yesthing; yes expectations are set, so all expectations pass. On the other hand
 ``example_test_failure`` always fails because it calls ``KUNIT_FAIL``, which is
 a special expectation that logs a message and causes the test case to fail.
 
@@ -101,7 +101,7 @@ opposed to *assertions* which are discussed later.
 
 To learn about more expectations supported by KUnit, see :doc:`api/test`.
 
-.. note::
+.. yeste::
    A single test case should be pretty short, pretty easy to understand,
    focused on a single behavior.
 
@@ -141,7 +141,7 @@ Assertions
 
 KUnit also has the concept of an *assertion*. An assertion is just like an
 expectation except the assertion immediately terminates the test case if it is
-not satisfied.
+yest satisfied.
 
 For example:
 
@@ -165,10 +165,10 @@ For example:
 	}
 
 In this example, the method under test should return a pointer to a value, so
-if the pointer returned by the method is null or an errno, we don't want to
+if the pointer returned by the method is null or an erryes, we don't want to
 bother continuing the test since the following expectation could crash the test
 case. `ASSERT_NOT_ERR_OR_NULL(...)` allows us to bail out of the test case if
-the appropriate conditions have not been satisfied to complete the test.
+the appropriate conditions have yest been satisfied to complete the test.
 
 Test Suites
 ~~~~~~~~~~~
@@ -208,7 +208,7 @@ have ``example_test_exit`` called immediately after it.
 ``kunit_test_suite(example_test_suite)`` registers the test suite with the
 KUnit test framework.
 
-.. note::
+.. yeste::
    A test case will only be run if it is associated with a test suite.
 
 For more information on these types of things see the :doc:`api/test`.
@@ -216,7 +216,7 @@ For more information on these types of things see the :doc:`api/test`.
 Isolating Behavior
 ==================
 
-The most important aspect of unit testing that other forms of testing do not
+The most important aspect of unit testing that other forms of testing do yest
 provide is the ability to limit the amount of code under test to a single unit.
 In practice, this is only possible by being able to control what code gets run
 when the unit under test calls a function and this is usually accomplished
@@ -230,25 +230,25 @@ at compile time.
 Classes
 -------
 
-Classes are not a construct that is built into the C programming language;
+Classes are yest a construct that is built into the C programming language;
 however, it is an easily derived concept. Accordingly, pretty much every project
-that does not use a standardized object oriented library (like GNOME's GObject)
+that does yest use a standardized object oriented library (like GNOME's GObject)
 has their own slightly different way of doing object oriented programming; the
-Linux kernel is no exception.
+Linux kernel is yes exception.
 
 The central concept in kernel object oriented programming is the class. In the
 kernel, a *class* is a struct that contains function pointers. This creates a
 contract between *implementers* and *users* since it forces them to use the
 same function signature without having to call the function directly. In order
 for it to truly be a class, the function pointers must specify that a pointer
-to the class, known as a *class handle*, be one of the parameters; this makes
-it possible for the member functions (also known as *methods*) to have access
-to member variables (more commonly known as *fields*) allowing the same
+to the class, kyeswn as a *class handle*, be one of the parameters; this makes
+it possible for the member functions (also kyeswn as *methods*) to have access
+to member variables (more commonly kyeswn as *fields*) allowing the same
 implementation to have multiple *instances*.
 
 Typically a class can be *overridden* by *child classes* by embedding the
 *parent class* in the child class. Then when a method provided by the child
-class is called, the child implementation knows that the pointer passed to it is
+class is called, the child implementation kyesws that the pointer passed to it is
 of a parent contained within the child; because of this, the child can compute
 the pointer to itself because the pointer to the parent is always a fixed offset
 from the pointer to the child; this offset is the offset of the parent contained
@@ -355,7 +355,7 @@ We can easily test this code by *faking out* the underlying EEPROM:
 		memset(this->contents, 0, FAKE_EEPROM_CONTENTS_SIZE);
 	}
 
-We can now use it to test ``struct eeprom_buffer``:
+We can yesw use it to test ``struct eeprom_buffer``:
 
 .. code-block:: c
 
@@ -364,7 +364,7 @@ We can now use it to test ``struct eeprom_buffer``:
 		struct eeprom_buffer *eeprom_buffer;
 	};
 
-	static void eeprom_buffer_test_does_not_write_until_flush(struct kunit *test)
+	static void eeprom_buffer_test_does_yest_write_until_flush(struct kunit *test)
 	{
 		struct eeprom_buffer_test *ctx = test->priv;
 		struct eeprom_buffer *eeprom_buffer = ctx->eeprom_buffer;
@@ -446,9 +446,9 @@ We can now use it to test ``struct eeprom_buffer``:
 		destroy_eeprom_buffer(ctx->eeprom_buffer);
 	}
 
-.. _kunit-on-non-uml:
+.. _kunit-on-yesn-uml:
 
-KUnit on non-UML architectures
+KUnit on yesn-UML architectures
 ==============================
 
 By default KUnit uses UML as a way to provide dependencies for code under test.
@@ -458,28 +458,28 @@ are instances where being able to run architecture specific code or test
 against real hardware is desirable. For these reasons KUnit supports running on
 other architectures.
 
-Running existing KUnit tests on non-UML architectures
+Running existing KUnit tests on yesn-UML architectures
 -----------------------------------------------------
 
 There are some special considerations when running existing KUnit tests on
-non-UML architectures:
+yesn-UML architectures:
 
-*   Hardware may not be deterministic, so a test that always passes or fails
-    when run under UML may not always do so on real hardware.
-*   Hardware and VM environments may not be hermetic. KUnit tries its best to
-    provide a hermetic environment to run tests; however, it cannot manage state
-    that it doesn't know about outside of the kernel. Consequently, tests that
-    may be hermetic on UML may not be hermetic on other architectures.
-*   Some features and tooling may not be supported outside of UML.
+*   Hardware may yest be deterministic, so a test that always passes or fails
+    when run under UML may yest always do so on real hardware.
+*   Hardware and VM environments may yest be hermetic. KUnit tries its best to
+    provide a hermetic environment to run tests; however, it canyest manage state
+    that it doesn't kyesw about outside of the kernel. Consequently, tests that
+    may be hermetic on UML may yest be hermetic on other architectures.
+*   Some features and tooling may yest be supported outside of UML.
 *   Hardware and VMs are slower than UML.
 
-None of these are reasons not to run your KUnit tests on real hardware; they are
+None of these are reasons yest to run your KUnit tests on real hardware; they are
 only things to be aware of when doing so.
 
 The biggest impediment will likely be that certain KUnit features and
-infrastructure may not support your target environment. For example, at this
-time the KUnit Wrapper (``tools/testing/kunit/kunit.py``) does not work outside
-of UML. Unfortunately, there is no way around this. Using UML (or even just a
+infrastructure may yest support your target environment. For example, at this
+time the KUnit Wrapper (``tools/testing/kunit/kunit.py``) does yest work outside
+of UML. Unfortunately, there is yes way around this. Using UML (or even just a
 particular architecture) allows us to make a lot of assumptions that make it
 possible to do things which might otherwise be impossible.
 
@@ -490,7 +490,7 @@ merge them into whatever config your are using for your platform. That's it!
 
 For example, let's say you have the following kunitconfig:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	CONFIG_KUNIT=y
 	CONFIG_KUNIT_EXAMPLE_TEST=y
@@ -498,7 +498,7 @@ For example, let's say you have the following kunitconfig:
 If you wanted to run this test on an x86 VM, you might add the following config
 options to your ``.config``:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	CONFIG_KUNIT=y
 	CONFIG_KUNIT_EXAMPLE_TEST=y
@@ -524,11 +524,11 @@ Once you have built a kernel, you could run it on QEMU as follows:
 			   -m 1024 \
 			   -kernel arch/x86_64/boot/bzImage \
 			   -append 'console=ttyS0' \
-			   --nographic
+			   --yesgraphic
 
 Interspersed in the kernel logs you might see the following:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	TAP version 14
 		# Subtest: example
@@ -545,31 +545,31 @@ Writing new tests for other architectures
 The first thing you must do is ask yourself whether it is necessary to write a
 KUnit test for a specific architecture, and then whether it is necessary to
 write that test for a particular piece of hardware. In general, writing a test
-that depends on having access to a particular piece of hardware or software (not
+that depends on having access to a particular piece of hardware or software (yest
 included in the Linux source repo) should be avoided at all costs.
 
 Even if you only ever plan on running your KUnit test on your hardware
-configuration, other people may want to run your tests and may not have access
+configuration, other people may want to run your tests and may yest have access
 to your hardware. If you write your test to run on UML, then anyone can run your
-tests without knowing anything about your particular setup, and you can still
+tests without kyeswing anything about your particular setup, and you can still
 run your tests on your hardware setup just by compiling for your architecture.
 
 .. important::
    Always prefer tests that run on UML to tests that only run under a particular
-   architecture, and always prefer tests that run under QEMU or another easy
+   architecture, and always prefer tests that run under QEMU or ayesther easy
    (and monetarily free) to obtain software environment to a specific piece of
    hardware.
 
 Nevertheless, there are still valid reasons to write an architecture or hardware
 specific test: for example, you might want to test some code that really belongs
 in ``arch/some-arch/*``. Even so, try your best to write the test so that it
-does not depend on physical hardware: if some of your test cases don't need the
+does yest depend on physical hardware: if some of your test cases don't need the
 hardware, only require the hardware for tests that actually need it.
 
 Now that you have narrowed down exactly what bits are hardware specific, the
 actual procedure for writing and running the tests is pretty much the same as
-writing normal KUnit tests. One special caveat is that you have to reset
-hardware state in between test cases; if this is not possible, you may only be
+writing yesrmal KUnit tests. One special caveat is that you have to reset
+hardware state in between test cases; if this is yest possible, you may only be
 able to run one test case per invocation.
 
 .. TODO(brendanhiggins@google.com): Add an actual example of an architecture

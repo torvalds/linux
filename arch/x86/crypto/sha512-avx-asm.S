@@ -20,11 +20,11 @@
 #     conditions are met:
 #
 #      - Redistributions of source code must retain the above
-#        copyright notice, this list of conditions and the following
+#        copyright yestice, this list of conditions and the following
 #        disclaimer.
 #
 #      - Redistributions in binary form must reproduce the above
-#        copyright notice, this list of conditions and the following
+#        copyright yestice, this list of conditions and the following
 #        disclaimer in the documentation and/or other materials
 #        provided with the distribution.
 #
@@ -279,7 +279,7 @@ frame_size = frame_GPRSAVE + GPRSAVE_SIZE
 ########################################################################
 SYM_FUNC_START(sha512_transform_avx)
 	cmp $0, msglen
-	je nowork
+	je yeswork
 
 	# Allocate Stack Space
 	mov	%rsp, %rax
@@ -363,7 +363,7 @@ updateblock:
 	# Restore Stack Pointer
 	mov	frame_RSPSAVE(%rsp), %rsp
 
-nowork:
+yeswork:
 	ret
 SYM_FUNC_END(sha512_transform_avx)
 
@@ -377,7 +377,7 @@ XMM_QWORD_BSWAP:
 	.octa 0x08090a0b0c0d0e0f0001020304050607
 
 # Mergeable 640-byte rodata section. This allows linker to merge the table
-# with other, exactly the same 640-byte fragment of another rodata section
+# with other, exactly the same 640-byte fragment of ayesther rodata section
 # (if such section exists).
 .section	.rodata.cst640.K512, "aM", @progbits, 640
 .align 64

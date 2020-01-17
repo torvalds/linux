@@ -53,7 +53,7 @@
 #define ADM1031_UPDATE_RATE_SHIFT	2
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 enum chips { adm1030, adm1031 };
 
@@ -280,7 +280,7 @@ static const auto_chan_table_t auto_channel_select_table_adm1030 = {
 
 /*
  * That function checks if a bitfield is valid and returns the other bitfield
- * nearest match if no exact match where found.
+ * nearest match if yes exact match where found.
  */
 static int
 get_fan_auto_nearest(struct adm1031_data *data, int chan, u8 val, u8 reg)
@@ -304,7 +304,7 @@ get_fan_auto_nearest(struct adm1031_data *data, int chan, u8 val, u8 reg)
 			   first_match == -1) {
 			/*
 			 * Save the first match in case of an exact match has
-			 * not been found
+			 * yest been found
 			 */
 			first_match = i;
 		}
@@ -508,9 +508,9 @@ static SENSOR_DEVICE_ATTR_RW(auto_fan2_min_pwm, pwm, 1);
 /* Fans */
 
 /*
- * That function checks the cases where the fan reading is not
+ * That function checks the cases where the fan reading is yest
  * relevant.  It is used to provide 0 as fan reading when the fan is
- * not supposed to run
+ * yest supposed to run
  */
 static int trust_fan_readings(struct adm1031_data *data, int chan)
 {
@@ -649,7 +649,7 @@ static ssize_t fan_div_store(struct device *dev,
 	adm1031_write_value(client, ADM1031_REG_FAN_MIN(nr),
 			    data->fan_min[nr]);
 
-	/* Invalidate the cache: fan speed is no longer valid */
+	/* Invalidate the cache: fan speed is yes longer valid */
 	data->valid = 0;
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -877,7 +877,7 @@ static ssize_t update_interval_store(struct device *dev,
 		if (val >= update_intervals[i])
 			break;
 	}
-	/* if not found, we point to the last entry (lowest update interval) */
+	/* if yest found, we point to the last entry (lowest update interval) */
 
 	/* set the new update rate while preserving other settings */
 	reg = adm1031_read_value(client, ADM1031_REG_FAN_FILTER);
@@ -1071,7 +1071,7 @@ static struct i2c_driver adm1031_driver = {
 	.probe		= adm1031_probe,
 	.id_table	= adm1031_id,
 	.detect		= adm1031_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(adm1031_driver);

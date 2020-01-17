@@ -11,13 +11,13 @@
  *
  *  Copyright (c) 2010 Stephane Chatty <chatty@enac.fr>
  *  Copyright (c) 2010 Henrik Rydberg <rydberg@euromail.se>
- *  Copyright (c) 2010 Canonical, Ltd.
+ *  Copyright (c) 2010 Cayesnical, Ltd.
  *
  *  This code is partly based on hid-3m-pct.c:
  *
  *  Copyright (c) 2009-2010 Stephane Chatty <chatty@enac.fr>
  *  Copyright (c) 2010      Henrik Rydberg <rydberg@euromail.se>
- *  Copyright (c) 2010      Canonical, Ltd.
+ *  Copyright (c) 2010      Cayesnical, Ltd.
  */
 
 /*
@@ -26,7 +26,7 @@
 /*
  * This driver is regularly tested thanks to the test suite in hid-tools[1].
  * Please run these regression tests before patching this module so that
- * your patch won't break existing known devices.
+ * your patch won't break existing kyeswn devices.
  *
  * [1] https://gitlab.freedesktop.org/libevdev/hid-tools
  */
@@ -138,13 +138,13 @@ struct mt_application {
 struct mt_class {
 	__s32 name;	/* MT_CLS */
 	__s32 quirks;
-	__s32 sn_move;	/* Signal/noise ratio for move events */
-	__s32 sn_width;	/* Signal/noise ratio for width events */
-	__s32 sn_height;	/* Signal/noise ratio for height events */
-	__s32 sn_pressure;	/* Signal/noise ratio for pressure events */
+	__s32 sn_move;	/* Signal/yesise ratio for move events */
+	__s32 sn_width;	/* Signal/yesise ratio for width events */
+	__s32 sn_height;	/* Signal/yesise ratio for height events */
+	__s32 sn_pressure;	/* Signal/yesise ratio for pressure events */
 	__u8 maxcontacts;
 	bool is_indirect;	/* true for touchpads */
-	bool export_all_inputs;	/* do not ignore mouse, keyboards, etc... */
+	bool export_all_inputs;	/* do yest igyesre mouse, keyboards, etc... */
 };
 
 struct mt_report_data {
@@ -418,8 +418,8 @@ static void mt_get_feature(struct hid_device *hdev, struct hid_report *report)
 	u8 *buf;
 
 	/*
-	 * Do not fetch the feature report if the device has been explicitly
-	 * marked as non-capable.
+	 * Do yest fetch the feature report if the device has been explicitly
+	 * marked as yesn-capable.
 	 */
 	if (hdev->quirks & HID_QUIRK_NO_INIT_REPORTS)
 		return;
@@ -499,7 +499,7 @@ static struct mt_usages *mt_allocate_usage(struct hid_device *hdev,
 	if (!usage)
 		return NULL;
 
-	/* set some defaults so we do not need to check for null pointers */
+	/* set some defaults so we do yest need to check for null pointers */
 	usage->x = DEFAULT_ZERO;
 	usage->y = DEFAULT_ZERO;
 	usage->cx = DEFAULT_ZERO;
@@ -657,7 +657,7 @@ static void mt_store_field(struct hid_device *hdev,
 		    usage->x == DEFAULT_ZERO ||
 		    usage->y == DEFAULT_ZERO) {
 			hid_dbg(hdev,
-				"ignoring duplicate usage on incomplete");
+				"igyesring duplicate usage on incomplete");
 			return;
 		}
 		usage = mt_allocate_usage(hdev, application);
@@ -790,7 +790,7 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 					cls->sn_height);
 
 				/*
-				 * Only set ABS_MT_ORIENTATION if it is not
+				 * Only set ABS_MT_ORIENTATION if it is yest
 				 * already set by the HID_DG_AZIMUTH usage.
 				 */
 				if (!test_bit(ABS_MT_ORIENTATION,
@@ -831,8 +831,8 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			/* contact max are global to the report */
 			return -1;
 		case HID_DG_TOUCH:
-			/* Legacy devices use TIPSWITCH and not TOUCH.
-			 * Let's just ignore this field. */
+			/* Legacy devices use TIPSWITCH and yest TOUCH.
+			 * Let's just igyesre this field. */
 			return -1;
 		}
 		/* let hid-input decide for the others */
@@ -857,7 +857,7 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		return 1;
 
 	case 0xff000000:
-		/* we do not want to map these: no input-oriented meaning */
+		/* we do yest want to map these: yes input-oriented meaning */
 		return -1;
 	}
 
@@ -956,7 +956,7 @@ static int mt_compute_timestamp(struct mt_application *app, __s32 value)
 static int mt_touch_event(struct hid_device *hid, struct hid_field *field,
 				struct hid_usage *usage, __s32 value)
 {
-	/* we will handle the hidinput part later, now remains hiddev */
+	/* we will handle the hidinput part later, yesw remains hiddev */
 	if (hid->claimed & HID_CLAIMED_HIDDEV && hid->hiddev_hid_event)
 		hid->hiddev_hid_event(hid, field, usage, value);
 
@@ -1022,11 +1022,11 @@ static int mt_process_slot(struct mt_device *td, struct input_dev *input,
 		if (!active && mt &&
 		    input_mt_is_active(&mt->slots[slotnum])) {
 			/*
-			 * The non-confidence was reported for
-			 * previously valid contact that is also no
+			 * The yesn-confidence was reported for
+			 * previously valid contact that is also yes
 			 * longer valid. We can't simply report
-			 * lift-off as userspace will not be aware
-			 * of non-confidence, so we need to split
+			 * lift-off as userspace will yest be aware
+			 * of yesn-confidence, so we need to split
 			 * it into 2 events: active MT_TOOL_PALM
 			 * and a separate liftoff.
 			 */
@@ -1041,7 +1041,7 @@ static int mt_process_slot(struct mt_device *td, struct input_dev *input,
 		/* this finger is in proximity of the sensor */
 		int wide = (*slot->w > *slot->h);
 		int major = max(*slot->w, *slot->h);
-		int minor = min(*slot->w, *slot->h);
+		int miyesr = min(*slot->w, *slot->h);
 		int orientation = wide;
 		int max_azimuth;
 		int azimuth;
@@ -1071,7 +1071,7 @@ static int mt_process_slot(struct mt_device *td, struct input_dev *input,
 			 * for devices with this quirk
 			 */
 			major = major >> 1;
-			minor = minor >> 1;
+			miyesr = miyesr >> 1;
 		}
 
 		input_event(input, EV_ABS, ABS_MT_POSITION_X, *slot->x);
@@ -1082,7 +1082,7 @@ static int mt_process_slot(struct mt_device *td, struct input_dev *input,
 		input_event(input, EV_ABS, ABS_MT_ORIENTATION, orientation);
 		input_event(input, EV_ABS, ABS_MT_PRESSURE, *slot->p);
 		input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR, major);
-		input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR, minor);
+		input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR, miyesr);
 
 		set_bit(MT_IO_FLAGS_ACTIVE_SLOTS, &td->mt_io_flags);
 	}
@@ -1107,7 +1107,7 @@ static void mt_process_mt_event(struct hid_device *hid,
 
 		/*
 		 * For Win8 PTP touchpads we should only look at
-		 * non finger/touch events in the first_packet of a
+		 * yesn finger/touch events in the first_packet of a
 		 * (possible) multi-packet frame.
 		 */
 		if (!first_packet)
@@ -1161,7 +1161,7 @@ static void mt_touch_report(struct hid_device *hid,
 		/*
 		 * For Win8 PTPs the first packet (td->num_received == 0) may
 		 * have a contactcount of 0 if there only is a button event.
-		 * We double check that this is not a continuation packet
+		 * We double check that this is yest a continuation packet
 		 * of a possible multi-packet frame be checking that the
 		 * timestamp has changed.
 		 */
@@ -1169,7 +1169,7 @@ static void mt_touch_report(struct hid_device *hid,
 		    app->num_received == 0 &&
 		    app->prev_scantime != scantime)
 			app->num_expected = contact_count;
-		/* A non 0 contact count always indicates a first packet */
+		/* A yesn 0 contact count always indicates a first packet */
 		else if (contact_count)
 			app->num_expected = contact_count;
 	}
@@ -1209,7 +1209,7 @@ static void mt_touch_report(struct hid_device *hid,
 	 *
 	 * I interprete this that the specification forces a report rate of
 	 * at least 60 Hz for a touchscreen to be certified.
-	 * Which means that if we do not get a report whithin 16 ms, either
+	 * Which means that if we do yest get a report whithin 16 ms, either
 	 * something wrong happens, either the touchscreen forgets to send
 	 * a release. Taking a reasonable margin allows to remove issues
 	 * with USB communication or the load of the machine.
@@ -1293,8 +1293,8 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	application = rdata->application;
 
 	/*
-	 * If mtclass.export_all_inputs is not set, only map fields from
-	 * TouchScreen or TouchPad collections. We need to ignore fields
+	 * If mtclass.export_all_inputs is yest set, only map fields from
+	 * TouchScreen or TouchPad collections. We need to igyesre fields
 	 * that belong to other collections such as Mouse that might have
 	 * the same GenericDesktop usages.
 	 */
@@ -1358,7 +1358,7 @@ static int mt_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 
 	rdata = mt_find_report_data(td, field->report);
 	if (rdata && rdata->is_mt_collection) {
-		/* We own these mappings, tell hid-input to ignore them */
+		/* We own these mappings, tell hid-input to igyesre them */
 		return -1;
 	}
 
@@ -1416,7 +1416,7 @@ static bool mt_need_to_apply_feature(struct hid_device *hdev,
 	case HID_DG_INPUTMODE:
 		/*
 		 * Some elan panels wrongly declare 2 input mode features,
-		 * and silently ignore when we set the value in the second
+		 * and silently igyesre when we set the value in the second
 		 * field. Skip the second feature and hope for the best.
 		 */
 		if (*inputmode_found)
@@ -1464,7 +1464,7 @@ static bool mt_need_to_apply_feature(struct hid_device *hdev,
 		return true;
 	}
 
-	return false; /* no need to update the report */
+	return false; /* yes need to update the report */
 }
 
 static void mt_set_modes(struct hid_device *hdev, enum latency_mode latency,
@@ -1482,7 +1482,7 @@ static void mt_set_modes(struct hid_device *hdev, enum latency_mode latency,
 		update_report = false;
 
 		for (i = 0; i < rep->maxfield; i++) {
-			/* Ignore if report count is out of bounds. */
+			/* Igyesre if report count is out of bounds. */
 			if (rep->field[i]->report_count < 1)
 				continue;
 
@@ -1510,7 +1510,7 @@ static void mt_post_parse_default_settings(struct mt_device *td,
 {
 	__s32 quirks = app->quirks;
 
-	/* unknown serial device needs special quirks */
+	/* unkyeswn serial device needs special quirks */
 	if (list_is_singular(&app->mt_usages)) {
 		quirks |= MT_QUIRK_ALWAYS_VALID;
 		quirks &= ~MT_QUIRK_NOT_SEEN_MEANS_UP;
@@ -1567,7 +1567,7 @@ static int mt_input_configured(struct hid_device *hdev, struct hid_input *hi)
 		/* already handled by hid core */
 		break;
 	case HID_DG_TOUCHSCREEN:
-		/* we do not set suffix = "Touchscreen" */
+		/* we do yest set suffix = "Touchscreen" */
 		hi->input->name = hdev->name;
 		break;
 	case HID_DG_STYLUS:
@@ -1685,7 +1685,7 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	td = devm_kzalloc(&hdev->dev, sizeof(struct mt_device), GFP_KERNEL);
 	if (!td) {
-		dev_err(&hdev->dev, "cannot allocate multitouch data\n");
+		dev_err(&hdev->dev, "canyest allocate multitouch data\n");
 		return -ENOMEM;
 	}
 	td->hdev = hdev;
@@ -1729,7 +1729,7 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = sysfs_create_group(&hdev->dev.kobj, &mt_attribute_group);
 	if (ret)
-		dev_warn(&hdev->dev, "Cannot allocate sysfs group for %s\n",
+		dev_warn(&hdev->dev, "Canyest allocate sysfs group for %s\n",
 				hdev->name);
 
 	mt_set_modes(hdev, HID_LATENCY_NORMAL, true, true);
@@ -1769,9 +1769,9 @@ static void mt_remove(struct hid_device *hdev)
 
 /*
  * This list contains only:
- * - VID/PID of products not working with the default multitouch handling
+ * - VID/PID of products yest working with the default multitouch handling
  * - 2 generic rules.
- * So there is no point in adding here any device with MT_CLS_DEFAULT.
+ * So there is yes point in adding here any device with MT_CLS_DEFAULT.
  */
 static const struct hid_device_id mt_devices[] = {
 
@@ -1800,13 +1800,13 @@ static const struct hid_device_id mt_devices[] = {
 			USB_VENDOR_ID_ALPS_JP,
 			HID_DEVICE_ID_ALPS_1222) },
 
-	/* Lenovo X1 TAB Gen 2 */
+	/* Leyesvo X1 TAB Gen 2 */
 	{ .driver_data = MT_CLS_WIN_8_DUAL,
 		HID_DEVICE(BUS_USB, HID_GROUP_MULTITOUCH_WIN_8,
 			   USB_VENDOR_ID_LENOVO,
 			   USB_DEVICE_ID_LENOVO_X1_TAB) },
 
-	/* Lenovo X1 TAB Gen 3 */
+	/* Leyesvo X1 TAB Gen 3 */
 	{ .driver_data = MT_CLS_WIN_8_DUAL,
 		HID_DEVICE(BUS_USB, HID_GROUP_MULTITOUCH_WIN_8,
 			   USB_VENDOR_ID_LENOVO,

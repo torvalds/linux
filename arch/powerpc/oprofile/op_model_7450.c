@@ -50,7 +50,7 @@ static u32 mmcr0_val, mmcr1_val, mmcr2_val, num_pmcs;
 
 /* Unfreezes the counters on this CPU, enables the interrupt,
  * enables the counters to trigger the interrupt, and sets the
- * counters to only count when the mark bit is not set.
+ * counters to only count when the mark bit is yest set.
  */
 static void pmc_start_ctrs(void)
 {

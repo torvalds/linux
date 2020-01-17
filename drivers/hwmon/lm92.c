@@ -41,7 +41,7 @@
  * The LM92 and MAX6635 have 2 two-state pins for address selection,
  * resulting in 4 possible addresses.
  */
-static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
+static const unsigned short yesrmal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 						I2C_CLIENT_END };
 enum chips { lm92, max6635 };
 
@@ -57,7 +57,7 @@ enum chips { lm92, max6635 };
 /*
  * The LM92 uses signed 13-bit values with LSB = 0.0625 degree Celsius,
  * left-justified in 16-bit registers. No rounding is done, with such
- * a resolution it's just not worth it. Note that the MAX6635 doesn't
+ * a resolution it's just yest worth it. Note that the MAX6635 doesn't
  * make use of the 4 lower bits for limits (i.e. effective resolution
  * for limits is 1 degree Celsius).
  */
@@ -334,7 +334,7 @@ static struct i2c_driver lm92_driver = {
 	.probe		= lm92_probe,
 	.id_table	= lm92_id,
 	.detect		= lm92_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(lm92_driver);

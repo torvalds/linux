@@ -6,36 +6,36 @@
 
 #if defined(CONFIG_DEBUG_FS)
 
-#include "nouveau_drv.h"
+#include "yesuveau_drv.h"
 
-struct nouveau_debugfs {
+struct yesuveau_debugfs {
 	struct nvif_object ctrl;
 };
 
-static inline struct nouveau_debugfs *
-nouveau_debugfs(struct drm_device *dev)
+static inline struct yesuveau_debugfs *
+yesuveau_debugfs(struct drm_device *dev)
 {
-	return nouveau_drm(dev)->debugfs;
+	return yesuveau_drm(dev)->debugfs;
 }
 
-extern int  nouveau_drm_debugfs_init(struct drm_minor *);
-extern int  nouveau_debugfs_init(struct nouveau_drm *);
-extern void nouveau_debugfs_fini(struct nouveau_drm *);
+extern int  yesuveau_drm_debugfs_init(struct drm_miyesr *);
+extern int  yesuveau_debugfs_init(struct yesuveau_drm *);
+extern void yesuveau_debugfs_fini(struct yesuveau_drm *);
 #else
 static inline int
-nouveau_drm_debugfs_init(struct drm_minor *minor)
+yesuveau_drm_debugfs_init(struct drm_miyesr *miyesr)
 {
        return 0;
 }
 
 static inline int
-nouveau_debugfs_init(struct nouveau_drm *drm)
+yesuveau_debugfs_init(struct yesuveau_drm *drm)
 {
 	return 0;
 }
 
 static inline void
-nouveau_debugfs_fini(struct nouveau_drm *drm)
+yesuveau_debugfs_fini(struct yesuveau_drm *drm)
 {
 }
 

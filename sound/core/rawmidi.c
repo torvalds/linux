@@ -15,11 +15,11 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <sound/rawmidi.h>
 #include <sound/info.h>
 #include <sound/control.h>
-#include <sound/minors.h>
+#include <sound/miyesrs.h>
 #include <sound/initval.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
@@ -353,9 +353,9 @@ int snd_rawmidi_kernel_open(struct snd_card *card, int device, int subdevice,
 }
 EXPORT_SYMBOL(snd_rawmidi_kernel_open);
 
-static int snd_rawmidi_open(struct inode *inode, struct file *file)
+static int snd_rawmidi_open(struct iyesde *iyesde, struct file *file)
 {
-	int maj = imajor(inode);
+	int maj = imajor(iyesde);
 	struct snd_card *card;
 	int subdevice;
 	unsigned short fflags;
@@ -367,16 +367,16 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	if ((file->f_flags & O_APPEND) && !(file->f_flags & O_NONBLOCK))
 		return -EINVAL;		/* invalid combination */
 
-	err = stream_open(inode, file);
+	err = stream_open(iyesde, file);
 	if (err < 0)
 		return err;
 
 	if (maj == snd_major) {
-		rmidi = snd_lookup_minor_data(iminor(inode),
+		rmidi = snd_lookup_miyesr_data(imiyesr(iyesde),
 					      SNDRV_DEVICE_TYPE_RAWMIDI);
 #ifdef CONFIG_SND_OSSEMUL
 	} else if (maj == SOUND_MAJOR) {
-		rmidi = snd_lookup_oss_minor_data(iminor(inode),
+		rmidi = snd_lookup_oss_miyesr_data(imiyesr(iyesde),
 						  SNDRV_OSS_DEVICE_TYPE_MIDI);
 #endif
 	} else
@@ -522,7 +522,7 @@ int snd_rawmidi_kernel_release(struct snd_rawmidi_file *rfile)
 }
 EXPORT_SYMBOL(snd_rawmidi_kernel_release);
 
-static int snd_rawmidi_release(struct inode *inode, struct file *file)
+static int snd_rawmidi_release(struct iyesde *iyesde, struct file *file)
 {
 	struct snd_rawmidi_file *rfile;
 	struct snd_rawmidi *rmidi;
@@ -587,7 +587,7 @@ static int __snd_rawmidi_info_select(struct snd_card *card,
 		return -ENXIO;
 	if (info->stream < 0 || info->stream > 1)
 		return -EINVAL;
-	info->stream = array_index_nospec(info->stream, 2);
+	info->stream = array_index_yesspec(info->stream, 2);
 	pstr = &rmidi->streams[info->stream];
 	if (pstr->substream_count == 0)
 		return -ENOENT;
@@ -663,7 +663,7 @@ int snd_rawmidi_output_params(struct snd_rawmidi_substream *substream,
 	if (substream->append && substream->use_count > 1)
 		return -EBUSY;
 	snd_rawmidi_drain_output(substream);
-	substream->active_sensing = !params->no_active_sensing;
+	substream->active_sensing = !params->yes_active_sensing;
 	return resize_runtime_buffer(substream->runtime, params, false);
 }
 EXPORT_SYMBOL(snd_rawmidi_output_params);
@@ -813,7 +813,7 @@ static long snd_rawmidi_ioctl(struct file *file, unsigned int cmd, unsigned long
 	}
 	default:
 		rmidi_dbg(rfile->rmidi,
-			  "rawmidi: unknown command = 0x%x\n", cmd);
+			  "rawmidi: unkyeswn command = 0x%x\n", cmd);
 	}
 	return -ENOTTY;
 }
@@ -884,7 +884,7 @@ int snd_rawmidi_receive(struct snd_rawmidi_substream *substream,
 		return -EBADFD;
 	if (runtime->buffer == NULL) {
 		rmidi_dbg(substream->rmidi,
-			  "snd_rawmidi_receive: input is not active!!!\n");
+			  "snd_rawmidi_receive: input is yest active!!!\n");
 		return -EINVAL;
 	}
 	spin_lock_irqsave(&runtime->lock, flags);
@@ -1042,7 +1042,7 @@ static ssize_t snd_rawmidi_read(struct file *file, char __user *buf, size_t coun
  * snd_rawmidi_transmit_empty - check whether the output buffer is empty
  * @substream: the rawmidi substream
  *
- * Return: 1 if the internal output buffer is empty, 0 if not.
+ * Return: 1 if the internal output buffer is empty, 0 if yest.
  */
 int snd_rawmidi_transmit_empty(struct snd_rawmidi_substream *substream)
 {
@@ -1052,7 +1052,7 @@ int snd_rawmidi_transmit_empty(struct snd_rawmidi_substream *substream)
 
 	if (runtime->buffer == NULL) {
 		rmidi_dbg(substream->rmidi,
-			  "snd_rawmidi_transmit_empty: output is not active!!!\n");
+			  "snd_rawmidi_transmit_empty: output is yest active!!!\n");
 		return 1;
 	}
 	spin_lock_irqsave(&runtime->lock, flags);
@@ -1078,7 +1078,7 @@ int __snd_rawmidi_transmit_peek(struct snd_rawmidi_substream *substream,
 
 	if (runtime->buffer == NULL) {
 		rmidi_dbg(substream->rmidi,
-			  "snd_rawmidi_transmit_peek: output is not active!!!\n");
+			  "snd_rawmidi_transmit_peek: output is yest active!!!\n");
 		return -EINVAL;
 	}
 	result = 0;
@@ -1139,7 +1139,7 @@ int snd_rawmidi_transmit_peek(struct snd_rawmidi_substream *substream,
 EXPORT_SYMBOL(snd_rawmidi_transmit_peek);
 
 /**
- * __snd_rawmidi_transmit_ack - acknowledge the transmission
+ * __snd_rawmidi_transmit_ack - ackyeswledge the transmission
  * @substream: the rawmidi substream
  * @count: the transferred count
  *
@@ -1151,7 +1151,7 @@ int __snd_rawmidi_transmit_ack(struct snd_rawmidi_substream *substream, int coun
 
 	if (runtime->buffer == NULL) {
 		rmidi_dbg(substream->rmidi,
-			  "snd_rawmidi_transmit_ack: output is not active!!!\n");
+			  "snd_rawmidi_transmit_ack: output is yest active!!!\n");
 		return -EINVAL;
 	}
 	snd_BUG_ON(runtime->avail + count > runtime->buffer_size);
@@ -1168,7 +1168,7 @@ int __snd_rawmidi_transmit_ack(struct snd_rawmidi_substream *substream, int coun
 EXPORT_SYMBOL(__snd_rawmidi_transmit_ack);
 
 /**
- * snd_rawmidi_transmit_ack - acknowledge the transmission
+ * snd_rawmidi_transmit_ack - ackyeswledge the transmission
  * @substream: the rawmidi substream
  * @count: the transferred count
  *
@@ -1324,7 +1324,7 @@ static ssize_t snd_rawmidi_write(struct file *file, const char __user *buf,
 	rfile = file->private_data;
 	substream = rfile->output;
 	runtime = substream->runtime;
-	/* we cannot put an atomic message to our buffer */
+	/* we canyest put an atomic message to our buffer */
 	if (substream->append && count > runtime->buffer_size)
 		return -EIO;
 	result = 0;
@@ -1494,7 +1494,7 @@ static const struct file_operations snd_rawmidi_f_ops = {
 	.write =	snd_rawmidi_write,
 	.open =		snd_rawmidi_open,
 	.release =	snd_rawmidi_release,
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 	.poll =		snd_rawmidi_poll,
 	.unlocked_ioctl =	snd_rawmidi_ioctl,
 	.compat_ioctl =	snd_rawmidi_ioctl_compat,

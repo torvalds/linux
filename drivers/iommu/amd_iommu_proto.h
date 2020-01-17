@@ -18,7 +18,7 @@ extern void amd_iommu_apply_erratum_63(u16 devid);
 extern void amd_iommu_reset_cmd_buffer(struct amd_iommu *iommu);
 extern int amd_iommu_init_devices(void);
 extern void amd_iommu_uninit_devices(void);
-extern void amd_iommu_init_notifier(void);
+extern void amd_iommu_init_yestifier(void);
 extern int amd_iommu_init_api(void);
 
 #ifdef CONFIG_AMD_IOMMU_DEBUGFS
@@ -39,8 +39,8 @@ extern int amd_iommu_guest_ir;
 struct iommu_domain;
 
 extern bool amd_iommu_v2_supported(void);
-extern int amd_iommu_register_ppr_notifier(struct notifier_block *nb);
-extern int amd_iommu_unregister_ppr_notifier(struct notifier_block *nb);
+extern int amd_iommu_register_ppr_yestifier(struct yestifier_block *nb);
+extern int amd_iommu_unregister_ppr_yestifier(struct yestifier_block *nb);
 extern void amd_iommu_domain_direct_map(struct iommu_domain *dom);
 extern int amd_iommu_domain_enable_v2(struct iommu_domain *dom, int pasids);
 extern int amd_iommu_flush_page(struct iommu_domain *dom, int pasid,

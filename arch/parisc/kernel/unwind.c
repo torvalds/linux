@@ -36,7 +36,7 @@ extern struct unwind_table_entry __stop___unwind[];
 
 static DEFINE_SPINLOCK(unwind_lock);
 /*
- * the kernel unwind block is not dynamically allocated so that
+ * the kernel unwind block is yest dynamically allocated so that
  * we can call unwind_init as early in the bootup process as 
  * possible (before the slab allocator is initialized)
  */
@@ -208,7 +208,7 @@ static int unwind_special(struct unwind_frame_info *info, unsigned long pc, int 
 	/*
 	 * We have to use void * instead of a function pointer, because
 	 * function pointers aren't a pointer to the function on 64-bit.
-	 * Make them const so the compiler knows they live in .text
+	 * Make them const so the compiler kyesws they live in .text
 	 * Note: We could use dereference_kernel_function_descriptor()
 	 * instead but we want to keep it simple here.
 	 */
@@ -275,15 +275,15 @@ static void unwind_frame_regs(struct unwind_frame_info *info)
 	if (e == NULL) {
 		unsigned long sp;
 
-		dbg("Cannot find unwind entry for %pS; forced unwinding\n",
+		dbg("Canyest find unwind entry for %pS; forced unwinding\n",
 			(void *) info->ip);
 
-		/* Since we are doing the unwinding blind, we don't know if
+		/* Since we are doing the unwinding blind, we don't kyesw if
 		   we are adjusting the stack correctly or extracting the rp
 		   correctly. The rp is checked to see if it belongs to the
-		   kernel text section, if not we assume we don't have a 
+		   kernel text section, if yest we assume we don't have a 
 		   correct stack frame and we continue to unwind the stack.
-		   This is not quite correct, and will fail for loadable
+		   This is yest quite correct, and will fail for loadable
 		   modules. */
 		sp = info->sp & ~63;
 		do {
@@ -310,7 +310,7 @@ static void unwind_frame_regs(struct unwind_frame_info *info)
 
 		info->rp = 0;
 
-		dbg("analyzing func @ %lx with no unwind info, setting "
+		dbg("analyzing func @ %lx with yes unwind info, setting "
 		    "prev_sp=%lx prev_ip=%lx\n", info->ip, 
 		    info->prev_sp, info->prev_ip);
 	} else {

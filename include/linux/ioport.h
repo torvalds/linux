@@ -58,7 +58,7 @@ struct resource {
 #define IORESOURCE_EXT_TYPE_BITS 0x01000000	/* Resource extended types */
 #define IORESOURCE_SYSRAM	0x01000000	/* System RAM (modifier) */
 
-#define IORESOURCE_EXCLUSIVE	0x08000000	/* Userland may not map this resource */
+#define IORESOURCE_EXCLUSIVE	0x08000000	/* Userland may yest map this resource */
 
 #define IORESOURCE_DISABLED	0x10000000
 #define IORESOURCE_UNSET	0x20000000	/* No address assigned yet */
@@ -111,10 +111,10 @@ struct resource {
 
 /* PCI ROM control bits (IORESOURCE_BITS) */
 #define IORESOURCE_ROM_ENABLE		(1<<0)	/* ROM is enabled, same as PCI_ROM_ADDRESS_ENABLE */
-#define IORESOURCE_ROM_SHADOW		(1<<1)	/* Use RAM image, not ROM BAR */
+#define IORESOURCE_ROM_SHADOW		(1<<1)	/* Use RAM image, yest ROM BAR */
 
 /* PCI control bits.  Shares IORESOURCE_BITS with above PCI ROM.  */
-#define IORESOURCE_PCI_FIXED		(1<<4)	/* Do not move resource */
+#define IORESOURCE_PCI_FIXED		(1<<4)	/* Do yest move resource */
 #define IORESOURCE_PCI_EA_BEI		(1<<5)	/* BAR Equivalent Indicator */
 
 /*
@@ -175,7 +175,7 @@ enum {
 #define DEFINE_RES_DMA(_dma)						\
 	DEFINE_RES_DMA_NAMED((_dma), NULL)
 
-/* PC/ISA/whatever - the normal PC address spaces: IO and memory */
+/* PC/ISA/whatever - the yesrmal PC address spaces: IO and memory */
 extern struct resource ioport_resource;
 extern struct resource iomem_resource;
 

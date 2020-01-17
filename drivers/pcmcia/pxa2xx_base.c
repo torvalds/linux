@@ -105,7 +105,7 @@ static inline u_int pxa2xx_mcxx_setup(u_int pcmcia_cycle_ns,
 }
 
 /* This function returns the (approximate) command assertion period, in
- * nanoseconds, for a given CPU clock frequency and MCXX_ASST value:
+ * nayesseconds, for a given CPU clock frequency and MCXX_ASST value:
  */
 static inline u_int pxa2xx_pcmcia_cmd_time(u_int mem_clk_10khz,
 					   u_int pcmcia_mcxx_asst)

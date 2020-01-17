@@ -4,10 +4,10 @@ Directory Entries
 -----------------
 
 In an ext4 filesystem, a directory is more or less a flat file that maps
-an arbitrary byte string (usually ASCII) to an inode number on the
+an arbitrary byte string (usually ASCII) to an iyesde number on the
 filesystem. There can be many directory entries across the filesystem
-that reference the same inode number--these are known as hard links, and
-that is why hard links cannot reference files on other filesystems. As
+that reference the same iyesde number--these are kyeswn as hard links, and
+that is why hard links canyest reference files on other filesystems. As
 such, directory entries are found by reading the data block(s)
 associated with a directory file for the particular directory entry that
 is desired.
@@ -16,22 +16,22 @@ Linear (Classic) Directories
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 By default, each directory lists its entries in an “almost-linear”
-array. I write “almost” because it's not a linear array in the memory
-sense because directory entries are not split across filesystem blocks.
+array. I write “almost” because it's yest a linear array in the memory
+sense because directory entries are yest split across filesystem blocks.
 Therefore, it is more accurate to say that a directory is a series of
 data blocks and that each block contains a linear array of directory
 entries. The end of each per-block array is signified by reaching the
 end of the block; the last entry in the block has a record length that
 takes it all the way to the end of the block. The end of the entire
 directory is of course signified by reaching the end of the file. Unused
-directory entries are signified by inode = 0. By default the filesystem
+directory entries are signified by iyesde = 0. By default the filesystem
 uses ``struct ext4_dir_entry_2`` for directory entries unless the
-“filetype” feature flag is not set, in which case it uses
+“filetype” feature flag is yest set, in which case it uses
 ``struct ext4_dir_entry``.
 
 The original directory entry format is ``struct ext4_dir_entry``, which
 is at most 263 bytes long, though on disk you'll need to reference
-``dirent.rec_len`` to know for sure.
+``dirent.rec_len`` to kyesw for sure.
 
 .. list-table::
    :widths: 8 8 24 40
@@ -43,8 +43,8 @@ is at most 263 bytes long, though on disk you'll need to reference
      - Description
    * - 0x0
      - \_\_le32
-     - inode
-     - Number of the inode that this directory entry points to.
+     - iyesde
+     - Number of the iyesde that this directory entry points to.
    * - 0x4
      - \_\_le16
      - rec\_len
@@ -58,12 +58,12 @@ is at most 263 bytes long, though on disk you'll need to reference
      - name[EXT4\_NAME\_LEN]
      - File name.
 
-Since file names cannot be longer than 255 bytes, the new directory
+Since file names canyest be longer than 255 bytes, the new directory
 entry format shortens the name\_len field and uses the space for a file
-type flag, probably to avoid having to load every inode during directory
+type flag, probably to avoid having to load every iyesde during directory
 tree traversal. This format is ``ext4_dir_entry_2``, which is at most
 263 bytes long, though on disk you'll need to reference
-``dirent.rec_len`` to know for sure.
+``dirent.rec_len`` to kyesw for sure.
 
 .. list-table::
    :widths: 8 8 24 40
@@ -75,8 +75,8 @@ tree traversal. This format is ``ext4_dir_entry_2``, which is at most
      - Description
    * - 0x0
      - \_\_le32
-     - inode
-     - Number of the inode that this directory entry points to.
+     - iyesde
+     - Number of the iyesde that this directory entry points to.
    * - 0x4
      - \_\_le16
      - rec\_len
@@ -105,7 +105,7 @@ The directory file type is one of the following values:
    * - Value
      - Description
    * - 0x0
-     - Unknown.
+     - Unkyeswn.
    * - 0x1
      - Regular file.
    * - 0x2
@@ -123,10 +123,10 @@ The directory file type is one of the following values:
 
 In order to add checksums to these classic directory blocks, a phony
 ``struct ext4_dir_entry`` is placed at the end of each leaf block to
-hold the checksum. The directory entry is 12 bytes long. The inode
+hold the checksum. The directory entry is 12 bytes long. The iyesde
 number and name\_len fields are set to zero to fool old software into
-ignoring an apparently empty directory entry, and the checksum is stored
-in the place where the name normally goes. The structure is
+igyesring an apparently empty directory entry, and the checksum is stored
+in the place where the name yesrmally goes. The structure is
 ``struct ext4_dir_entry_tail``:
 
 .. list-table::
@@ -140,7 +140,7 @@ in the place where the name normally goes. The structure is
    * - 0x0
      - \_\_le32
      - det\_reserved\_zero1
-     - Inode number, which must be zero.
+     - Iyesde number, which must be zero.
    * - 0x4
      - \_\_le16
      - det\_rec\_len
@@ -159,8 +159,8 @@ in the place where the name normally goes. The structure is
      - Directory leaf block checksum.
 
 The leaf directory block checksum is calculated against the FS UUID, the
-directory's inode number, the directory's inode generation number, and
-the entire directory entry block up to (but not including) the fake
+directory's iyesde number, the directory's iyesde generation number, and
+the entire directory entry block up to (but yest including) the fake
 directory entry.
 
 Hash Tree Directories
@@ -169,44 +169,44 @@ Hash Tree Directories
 A linear array of directory entries isn't great for performance, so a
 new feature was added to ext3 to provide a faster (but peculiar)
 balanced tree keyed off a hash of the directory entry name. If the
-EXT4\_INDEX\_FL (0x1000) flag is set in the inode, this directory uses a
+EXT4\_INDEX\_FL (0x1000) flag is set in the iyesde, this directory uses a
 hashed btree (htree) to organize and find directory entries. For
 backwards read-only compatibility with ext2, this tree is actually
 hidden inside the directory file, masquerading as “empty” directory data
 blocks! It was stated previously that the end of the linear directory
-entry table was signified with an entry pointing to inode 0; this is
+entry table was signified with an entry pointing to iyesde 0; this is
 (ab)used to fool the old linear-scan algorithm into thinking that the
 rest of the directory block is empty so that it moves on.
 
 The root of the tree always lives in the first data block of the
 directory. By ext2 custom, the '.' and '..' entries must appear at the
 beginning of this first block, so they are put here as two
-``struct ext4_dir_entry_2``\ s and not stored in the tree. The rest of
-the root node contains metadata about the tree and finally a hash->block
-map to find nodes that are lower in the htree. If
-``dx_root.info.indirect_levels`` is non-zero then the htree has two
-levels; the data block pointed to by the root node's map is an interior
-node, which is indexed by a minor hash. Interior nodes in this tree
+``struct ext4_dir_entry_2``\ s and yest stored in the tree. The rest of
+the root yesde contains metadata about the tree and finally a hash->block
+map to find yesdes that are lower in the htree. If
+``dx_root.info.indirect_levels`` is yesn-zero then the htree has two
+levels; the data block pointed to by the root yesde's map is an interior
+yesde, which is indexed by a miyesr hash. Interior yesdes in this tree
 contains a zeroed out ``struct ext4_dir_entry_2`` followed by a
-minor\_hash->block map to find leafe nodes. Leaf nodes contain a linear
+miyesr\_hash->block map to find leafe yesdes. Leaf yesdes contain a linear
 array of all ``struct ext4_dir_entry_2``; all of these entries
 (presumably) hash to the same value. If there is an overflow, the
-entries simply overflow into the next leaf node, and the
-least-significant bit of the hash (in the interior node map) that gets
-us to this next leaf node is set.
+entries simply overflow into the next leaf yesde, and the
+least-significant bit of the hash (in the interior yesde map) that gets
+us to this next leaf yesde is set.
 
 To traverse the directory as a htree, the code calculates the hash of
 the desired file name and uses it to find the corresponding block
 number. If the tree is flat, the block is a linear array of directory
-entries that can be searched; otherwise, the minor hash of the file name
+entries that can be searched; otherwise, the miyesr hash of the file name
 is computed and used against this second block to find the corresponding
 third block number. That third block number will be a linear array of
 directory entries.
 
 To traverse the directory as a linear array (such as the old code does),
 the code simply reads every data block in the directory. The blocks used
-for the htree will appear to have no entries (aside from '.' and '..')
-and so only the leaf nodes will appear to have any interesting content.
+for the htree will appear to have yes entries (aside from '.' and '..')
+and so only the leaf yesdes will appear to have any interesting content.
 
 The root of the htree is in ``struct dx_root``, which is the full length
 of a data block:
@@ -221,8 +221,8 @@ of a data block:
      - Description
    * - 0x0
      - \_\_le32
-     - dot.inode
-     - inode number of this directory.
+     - dot.iyesde
+     - iyesde number of this directory.
    * - 0x4
      - \_\_le16
      - dot.rec\_len
@@ -241,12 +241,12 @@ of a data block:
      - “.\\0\\0\\0”
    * - 0xC
      - \_\_le32
-     - dotdot.inode
-     - inode number of parent directory.
+     - dotdot.iyesde
+     - iyesde number of parent directory.
    * - 0x10
      - \_\_le16
      - dotdot.rec\_len
-     - block\_size - 12. The record length is long enough to cover all htree
+     - block\_size - 12. The record length is long eyesugh to cover all htree
        data.
    * - 0x12
      - u8
@@ -275,8 +275,8 @@ of a data block:
    * - 0x1E
      - u8
      - struct dx\_root\_info.indirect\_levels
-     - Depth of the htree. Cannot be larger than 3 if the INCOMPAT\_LARGEDIR
-       feature is set; cannot be larger than 2 otherwise.
+     - Depth of the htree. Canyest be larger than 3 if the INCOMPAT\_LARGEDIR
+       feature is set; canyest be larger than 2 otherwise.
    * - 0x1F
      - u8
      - struct dx\_root\_info.unused\_flags
@@ -323,7 +323,7 @@ The directory hash is one of the following values:
    * - 0x5
      - Tea, unsigned.
 
-Interior nodes of an htree are recorded as ``struct dx_node``, which is
+Interior yesdes of an htree are recorded as ``struct dx_yesde``, which is
 also the full length of a data block:
 
 .. list-table::
@@ -336,20 +336,20 @@ also the full length of a data block:
      - Description
    * - 0x0
      - \_\_le32
-     - fake.inode
-     - Zero, to make it look like this entry is not in use.
+     - fake.iyesde
+     - Zero, to make it look like this entry is yest in use.
    * - 0x4
      - \_\_le16
      - fake.rec\_len
-     - The size of the block, in order to hide all of the dx\_node data.
+     - The size of the block, in order to hide all of the dx\_yesde data.
    * - 0x6
      - u8
      - name\_len
-     - Zero. There is no name for this “unused” directory entry.
+     - Zero. There is yes name for this “unused” directory entry.
    * - 0x7
      - u8
      - file\_type
-     - Zero. There is no file type for this “unused” directory entry.
+     - Zero. There is yes file type for this “unused” directory entry.
    * - 0x8
      - \_\_le16
      - limit
@@ -371,7 +371,7 @@ also the full length of a data block:
      - As many 8-byte ``struct dx_entry`` as fits in the rest of the data block.
 
 The hash maps that exist in both ``struct dx_root`` and
-``struct dx_node`` are recorded as ``struct dx_entry``, which is 8 bytes
+``struct dx_yesde`` are recorded as ``struct dx_entry``, which is 8 bytes
 long:
 
 .. list-table::
@@ -389,8 +389,8 @@ long:
    * - 0x4
      - \_\_le32
      - block
-     - Block number (within the directory file, not filesystem blocks) of the
-       next node in the htree.
+     - Block number (within the directory file, yest filesystem blocks) of the
+       next yesde in the htree.
 
 (If you think this is all quite clever and peculiar, so does the
 author.)
@@ -398,9 +398,9 @@ author.)
 If metadata checksums are enabled, the last 8 bytes of the directory
 block (precisely the length of one dx\_entry) are used to store a
 ``struct dx_tail``, which contains the checksum. The ``limit`` and
-``count`` entries in the dx\_root/dx\_node structures are adjusted as
-necessary to fit the dx\_tail into the block. If there is no space for
-the dx\_tail, the user is notified to run e2fsck -D to rebuild the
+``count`` entries in the dx\_root/dx\_yesde structures are adjusted as
+necessary to fit the dx\_tail into the block. If there is yes space for
+the dx\_tail, the user is yestified to run e2fsck -D to rebuild the
 directory index (which will ensure that there's space for the checksum.
 The dx\_tail structure is 8 bytes long and looks like this:
 
@@ -422,5 +422,5 @@ The dx\_tail structure is 8 bytes long and looks like this:
      - Checksum of the htree directory block.
 
 The checksum is calculated against the FS UUID, the htree index header
-(dx\_root or dx\_node), all of the htree indices (dx\_entry) that are in
+(dx\_root or dx\_yesde), all of the htree indices (dx\_entry) that are in
 use, and the tail block (dx\_tail).

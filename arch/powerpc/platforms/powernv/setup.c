@@ -8,7 +8,7 @@
 #undef DEBUG
 
 #include <linux/cpu.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/tty.h>
@@ -41,21 +41,21 @@
 
 
 static bool fw_feature_is(const char *state, const char *name,
-			  struct device_node *fw_features)
+			  struct device_yesde *fw_features)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	bool rc = false;
 
 	np = of_get_child_by_name(fw_features, name);
 	if (np) {
 		rc = of_property_read_bool(np, state);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 
 	return rc;
 }
 
-static void init_fw_feat_flags(struct device_node *np)
+static void init_fw_feat_flags(struct device_yesde *np)
 {
 	if (fw_feature_is("enabled", "inst-spec-barrier-ori31,31,0", np))
 		security_ftr_set(SEC_FTR_SPEC_BAR_ORI31);
@@ -100,20 +100,20 @@ static void init_fw_feat_flags(struct device_node *np)
 
 static void pnv_setup_rfi_flush(void)
 {
-	struct device_node *np, *fw_features;
+	struct device_yesde *np, *fw_features;
 	enum l1d_flush_type type;
 	bool enable;
 
-	/* Default to fallback in case fw-features are not available */
+	/* Default to fallback in case fw-features are yest available */
 	type = L1D_FLUSH_FALLBACK;
 
-	np = of_find_node_by_name(NULL, "ibm,opal");
+	np = of_find_yesde_by_name(NULL, "ibm,opal");
 	fw_features = of_get_child_by_name(np, "fw-features");
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (fw_features) {
 		init_fw_feat_flags(fw_features);
-		of_node_put(fw_features);
+		of_yesde_put(fw_features);
 
 		if (security_ftr_enabled(SEC_FTR_L1D_FLUSH_TRIG2))
 			type = L1D_FLUSH_MTTRIG;
@@ -156,7 +156,7 @@ static void __init pnv_setup_arch(void)
 static void __init pnv_init(void)
 {
 	/*
-	 * Initialize the LPC bus now so that legacy serial
+	 * Initialize the LPC bus yesw so that legacy serial
 	 * ports can be found on it
 	 */
 	opal_lpc_init();
@@ -173,7 +173,7 @@ static void __init pnv_init(void)
 
 		/* Allocate per cpu area to save old slb contents during MCE */
 		for_each_possible_cpu(i)
-			paca_ptrs[i]->mce_faulty_slbs = memblock_alloc_node(mmu_slb_size, __alignof__(*paca_ptrs[i]->mce_faulty_slbs), cpu_to_node(i));
+			paca_ptrs[i]->mce_faulty_slbs = memblock_alloc_yesde(mmu_slb_size, __aligyesf__(*paca_ptrs[i]->mce_faulty_slbs), cpu_to_yesde(i));
 	}
 }
 
@@ -188,10 +188,10 @@ static void __init pnv_init_IRQ(void)
 
 static void pnv_show_cpuinfo(struct seq_file *m)
 {
-	struct device_node *root;
+	struct device_yesde *root;
 	const char *model = "";
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (root)
 		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "machine\t\t: PowerNV %s\n", model);
@@ -199,7 +199,7 @@ static void pnv_show_cpuinfo(struct seq_file *m)
 		seq_printf(m, "firmware\t: OPAL\n");
 	else
 		seq_printf(m, "firmware\t: BML\n");
-	of_node_put(root);
+	of_yesde_put(root);
 	if (radix_enabled())
 		seq_printf(m, "MMU\t\t: Radix\n");
 	else
@@ -209,7 +209,7 @@ static void pnv_show_cpuinfo(struct seq_file *m)
 static void pnv_prepare_going_down(void)
 {
 	/*
-	 * Disable all notifiers from OPAL, we can't
+	 * Disable all yestifiers from OPAL, we can't
 	 * service interrupts anymore anyway
 	 */
 	opal_event_shutdown();
@@ -222,7 +222,7 @@ static void pnv_prepare_going_down(void)
 	hard_irq_disable();
 }
 
-static void  __noreturn pnv_restart(char *cmd)
+static void  __yesreturn pnv_restart(char *cmd)
 {
 	long rc;
 
@@ -242,7 +242,7 @@ static void  __noreturn pnv_restart(char *cmd)
 			mdelay(10);
 
 		} else	if (cmd && rc) {
-			/* Unknown error while issuing reboot */
+			/* Unkyeswn error while issuing reboot */
 			if (rc == OPAL_UNSUPPORTED)
 				pr_err("Unsupported '%s' reboot.\n", cmd);
 			else
@@ -253,7 +253,7 @@ static void  __noreturn pnv_restart(char *cmd)
 			rc = OPAL_BUSY;
 
 		} else if (rc != OPAL_SUCCESS) {
-			/* Unknown error while issuing cec-reboot */
+			/* Unkyeswn error while issuing cec-reboot */
 			pr_err("Unable to reboot. Err=%ld\n", rc);
 		}
 
@@ -263,7 +263,7 @@ static void  __noreturn pnv_restart(char *cmd)
 		opal_poll_events(NULL);
 }
 
-static void __noreturn pnv_power_off(void)
+static void __yesreturn pnv_power_off(void)
 {
 	long rc = OPAL_BUSY;
 
@@ -280,7 +280,7 @@ static void __noreturn pnv_power_off(void)
 		opal_poll_events(NULL);
 }
 
-static void __noreturn pnv_halt(void)
+static void __yesreturn pnv_halt(void)
 {
 	pnv_power_off();
 }
@@ -305,7 +305,7 @@ static void pnv_shutdown(void)
 #ifdef CONFIG_KEXEC_CORE
 static void pnv_kexec_wait_secondaries_down(void)
 {
-	int my_cpu, i, notified = -1;
+	int my_cpu, i, yestified = -1;
 
 	my_cpu = get_cpu();
 
@@ -322,11 +322,11 @@ static void pnv_kexec_wait_secondaries_down(void)
 			if (rc != OPAL_SUCCESS || status != OPAL_THREAD_STARTED)
 				break;
 			barrier();
-			if (i != notified) {
+			if (i != yestified) {
 				printk(KERN_INFO "kexec: waiting for cpu %d "
 				       "(physical %d) to enter OPAL\n",
 				       i, paca_ptrs[i]->hw_cpu_id);
-				notified = i;
+				yestified = i;
 			}
 
 			/*
@@ -374,7 +374,7 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 			xive_shutdown();
 
 		/*
-		 * We might be running as little-endian - now that interrupts
+		 * We might be running as little-endian - yesw that interrupts
 		 * are disabled, reset the HILE bit to big-endian so we don't
 		 * take interrupts in the wrong endian later
 		 *
@@ -441,9 +441,9 @@ void __init pnv_tm_init(void)
 
 	pr_info("Enabling TM (Transactional Memory) with Suspend Disabled\n");
 	cur_cpu_spec->cpu_features |= CPU_FTR_TM;
-	/* Make sure "normal" HTM is off (it should be) */
+	/* Make sure "yesrmal" HTM is off (it should be) */
 	cur_cpu_spec->cpu_user_features2 &= ~PPC_FEATURE2_HTM;
-	/* Turn on no suspend mode, and HTM no SC */
+	/* Turn on yes suspend mode, and HTM yes SC */
 	cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_HTM_NO_SUSPEND | \
 					    PPC_FEATURE2_HTM_NOSC;
 	tm_suspend_disabled = true;
@@ -461,7 +461,7 @@ static unsigned long pnv_get_proc_freq(unsigned int cpu)
 	ret_freq = cpufreq_get(cpu) * 1000ul;
 
 	/*
-	 * If the backend cpufreq driver does not exist,
+	 * If the backend cpufreq driver does yest exist,
          * then fallback to old way of reporting the clockrate.
 	 */
 	if (!ret_freq)

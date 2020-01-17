@@ -8,7 +8,7 @@
 #define DRA7_CLKCTRL_OFFSET	0x20
 #define DRA7_CLKCTRL_INDEX(offset)	((offset) - DRA7_CLKCTRL_OFFSET)
 
-/* XXX: Compatibility part begin, remove this once compatibility support is no longer needed */
+/* XXX: Compatibility part begin, remove this once compatibility support is yes longer needed */
 
 /* mpu clocks */
 #define DRA7_MPU_CLKCTRL	DRA7_CLKCTRL_INDEX(0x20)

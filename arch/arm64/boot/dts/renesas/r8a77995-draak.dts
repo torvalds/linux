@@ -31,7 +31,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "igyesre_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -166,7 +166,7 @@
 &avb {
 	pinctrl-0 = <&avb0_pins>;
 	pinctrl-names = "default";
-	renesas,no-ether-link;
+	renesas,yes-ether-link;
 	phy-handle = <&phy0>;
 	status = "okay";
 
@@ -333,7 +333,7 @@
 				 * switches.
 				 *
 				 * CVBS is the default selection, leave HDMI
-				 * not connected here.
+				 * yest connected here.
 				 */
 				adv7612_out: endpoint {
 					pclk-sample = <0>;
@@ -376,7 +376,7 @@
 
 &lvds1 {
 	/*
-	 * Even though the LVDS1 output is not connected, the encoder must be
+	 * Even though the LVDS1 output is yest connected, the encoder must be
 	 * enabled to supply a pixel clock to the DU for the DPAD output when
 	 * LVDS0 is in use.
 	 */
@@ -500,7 +500,7 @@
 	vqmmc-supply = <&reg_1p8v>;
 	bus-width = <8>;
 	mmc-hs200-1_8v;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 
@@ -508,7 +508,7 @@
 	pinctrl-0 = <&usb0_pins>;
 	pinctrl-names = "default";
 
-	renesas,no-otg-pins;
+	renesas,yes-otg-pins;
 	status = "okay";
 };
 

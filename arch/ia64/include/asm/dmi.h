@@ -5,7 +5,7 @@
 #include <linux/slab.h>
 #include <asm/io.h>
 
-/* Use normal IO mappings for DMI */
+/* Use yesrmal IO mappings for DMI */
 #define dmi_early_remap		ioremap
 #define dmi_early_unmap(x, l)	iounmap(x)
 #define dmi_remap		ioremap

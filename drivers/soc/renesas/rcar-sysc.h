@@ -31,7 +31,7 @@ struct rcar_sysc_area {
 	u16 chan_offs;		/* Offset of PWRSR register for this area */
 	u8 chan_bit;		/* Bit in PWR* (except for PWRUP in PWRSR) */
 	u8 isr_bit;		/* Bit in SYSCI*R */
-	int parent;		/* -1 if none */
+	int parent;		/* -1 if yesne */
 	unsigned int flags;	/* See PD_* */
 };
 

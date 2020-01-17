@@ -57,8 +57,8 @@
 		sub	\tmp, \rp, \rv		@ actual brcmstb_uart_config
 		ldr	\rp, [\tmp]		@ Load brcmstb_uart_config
 		cmp	\rp, #1			@ needs initialization?
-		bne	100f			@ no; go load the addresses
-		mov	\rv, #0			@ yes; record init is done
+		bne	100f			@ yes; go load the addresses
+		mov	\rv, #0			@ no; record init is done
 		str	\rv, [\tmp]
 
 		/* Check for V7 memory map if B53 */
@@ -150,7 +150,7 @@ ARM_BE8(	rev	\rd, \rd )
  * That's because this header is included from multiple files, and we only
  * want a single copy of the data. In particular, the UART probing code above
  * assumes it's running using physical addresses. This is true when this file
- * is included from head.o, but not when included from debug.o. So we need
+ * is included from head.o, but yest when included from debug.o. So we need
  * to share the probe results between the two copies, rather than having
  * to re-run the probing again later.
  *

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * Vineetg: August 2010: From Android kernel work
  */
@@ -11,7 +11,7 @@
 #include <linux/futex.h>
 #include <linux/preempt.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 #ifdef CONFIG_ARC_HAS_LLSC
 

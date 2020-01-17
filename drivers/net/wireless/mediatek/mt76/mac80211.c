@@ -81,7 +81,7 @@ static const struct ieee80211_tpt_blink mt76_tpt_blink[] = {
 
 static int mt76_led_init(struct mt76_dev *dev)
 {
-	struct device_node *np = dev->dev->of_node;
+	struct device_yesde *np = dev->dev->of_yesde;
 	struct ieee80211_hw *hw = dev->hw;
 	int led_pin;
 

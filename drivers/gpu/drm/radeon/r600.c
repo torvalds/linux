@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -314,7 +314,7 @@ void dce3_program_fmt(struct drm_encoder *encoder)
 	if (radeon_encoder->devices & ATOM_DEVICE_LCD_SUPPORT)
 		return;
 
-	/* not needed for analog */
+	/* yest needed for analog */
 	if ((radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1) ||
 	    (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2))
 		return;
@@ -339,7 +339,7 @@ void dce3_program_fmt(struct drm_encoder *encoder)
 		break;
 	case 10:
 	default:
-		/* not needed */
+		/* yest needed */
 		break;
 	}
 
@@ -407,7 +407,7 @@ void r600_pm_get_dynpm_state(struct radeon_device *rdev)
 				}
 			}
 			rdev->pm.requested_clock_mode_index = 0;
-			/* don't use the power state if crtcs are active and no display flag is set */
+			/* don't use the power state if crtcs are active and yes display flag is set */
 			if ((rdev->pm.active_crtc_count > 0) &&
 			    (rdev->pm.power_state[rdev->pm.requested_power_state_index].
 			     clock_info[rdev->pm.requested_clock_mode_index].flags &
@@ -446,12 +446,12 @@ void r600_pm_get_dynpm_state(struct radeon_device *rdev)
 			break;
 		case DYNPM_ACTION_NONE:
 		default:
-			DRM_ERROR("Requested mode for not defined action\n");
+			DRM_ERROR("Requested mode for yest defined action\n");
 			return;
 		}
 	} else {
 		/* XXX select a power state based on AC/DC, single/dualhead, etc. */
-		/* for now just select the first power state and switch between clock modes */
+		/* for yesw just select the first power state and switch between clock modes */
 		/* power state array is low to high, default is first (0) */
 		if (rdev->pm.active_crtc_count > 1) {
 			rdev->pm.requested_power_state_index = -1;
@@ -465,7 +465,7 @@ void r600_pm_get_dynpm_state(struct radeon_device *rdev)
 					break;
 				}
 			}
-			/* if nothing selected, grab the default state. */
+			/* if yesthing selected, grab the default state. */
 			if (rdev->pm.requested_power_state_index == -1)
 				rdev->pm.requested_power_state_index = 0;
 		} else
@@ -488,7 +488,7 @@ void r600_pm_get_dynpm_state(struct radeon_device *rdev)
 				rdev->pm.requested_clock_mode_index = 0;
 				rdev->pm.dynpm_can_downclock = false;
 			}
-			/* don't use the power state if crtcs are active and no display flag is set */
+			/* don't use the power state if crtcs are active and yes display flag is set */
 			if ((rdev->pm.active_crtc_count > 0) &&
 			    (rdev->pm.power_state[rdev->pm.requested_power_state_index].
 			     clock_info[rdev->pm.requested_clock_mode_index].flags &
@@ -518,7 +518,7 @@ void r600_pm_get_dynpm_state(struct radeon_device *rdev)
 			break;
 		case DYNPM_ACTION_NONE:
 		default:
-			DRM_ERROR("Requested mode for not defined action\n");
+			DRM_ERROR("Requested mode for yest defined action\n");
 			return;
 		}
 	}
@@ -960,7 +960,7 @@ void r600_hpd_init(struct radeon_device *rdev)
 		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
 		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
 			/* don't try to enable hpd on eDP or LVDS avoid breaking the
-			 * aux dp channel on imac and help (but not completely fix)
+			 * aux dp channel on imac and help (but yest completely fix)
 			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
 			 */
 			continue;
@@ -1375,7 +1375,7 @@ static void r600_mc_program(struct radeon_device *rdev)
  * address space as some GPU seems to have issue when we reprogram at
  * different address space.
  *
- * If there is not enough space to fit the unvisible VRAM after the
+ * If there is yest eyesugh space to fit the unvisible VRAM after the
  * aperture then we limit the VRAM size to the aperture.
  *
  * If we are using AGP then place VRAM adjacent to AGP aperture are we need
@@ -1673,7 +1673,7 @@ u32 r600_gpu_check_soft_reset(struct radeon_device *rdev)
 	if (r600_is_display_hung(rdev))
 		reset_mask |= RADEON_RESET_DISPLAY;
 
-	/* Skip MC reset as it's mostly likely not hung, just busy */
+	/* Skip MC reset as it's mostly likely yest hung, just busy */
 	if (reset_mask & RADEON_RESET_MC) {
 		DRM_DEBUG("MC busy: 0x%08X, clearing.\n", reset_mask);
 		reset_mask &= ~RADEON_RESET_MC;
@@ -1917,7 +1917,7 @@ int r600_asic_reset(struct radeon_device *rdev, bool hard)
  * @ring: radeon_ring structure holding ring information
  *
  * Check if the GFX engine is locked up.
- * Returns true if the engine appears to be locked up, false if not.
+ * Returns true if the engine appears to be locked up, false if yest.
  */
 bool r600_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
@@ -2231,7 +2231,7 @@ static void r600_gpu_init(struct radeon_device *rdev)
 		   ((rdev->family) == CHIP_RV620) ||
 		   ((rdev->family) == CHIP_RS780) ||
 		   ((rdev->family) == CHIP_RS880)) {
-		/* no vertex cache */
+		/* yes vertex cache */
 		sq_config &= ~VC_ENABLE;
 
 		sq_gpr_resource_mgmt_1 = (NUM_PS_GPRS(44) |
@@ -2743,7 +2743,7 @@ int r600_cp_resume(struct radeon_device *rdev)
 	ring->wptr = 0;
 	WREG32(CP_RB_WPTR, ring->wptr);
 
-	/* set the wb address whether it's enabled or not */
+	/* set the wb address whether it's enabled or yest */
 	WREG32(CP_RB_RPTR_ADDR,
 	       ((rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC));
 	WREG32(CP_RB_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFF);
@@ -2905,7 +2905,7 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 		radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
 		radeon_ring_write(ring, ((rdev->fence_drv[fence->ring].scratch_reg - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
 		radeon_ring_write(ring, fence->seq);
-		/* CP_INTERRUPT packet 3 no longer exists, use packet 0 */
+		/* CP_INTERRUPT packet 3 yes longer exists, use packet 0 */
 		radeon_ring_write(ring, PACKET0(CP_INT_STATUS, 0));
 		radeon_ring_write(ring, RB_INT_STAT);
 	}
@@ -3049,7 +3049,7 @@ static void r600_uvd_init(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed UVD (%d) init.\n", r);
 		/*
 		 * At this point rdev->uvd.vcpu_bo is NULL which trickles down
-		 * to early fails uvd_v1_0_resume() and thus nothing happens
+		 * to early fails uvd_v1_0_resume() and thus yesthing happens
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable uvd here.
 		 */
@@ -3204,7 +3204,7 @@ int r600_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Do not reset GPU before posting, on r600 hw unlike on r500 hw,
+	/* Do yest reset GPU before posting, on r600 hw unlike on r500 hw,
 	 * posting will perform necessary task to bring back GPU into good
 	 * shape.
 	 */
@@ -3243,7 +3243,7 @@ int r600_suspend(struct radeon_device *rdev)
 
 /* Plan is to move initialization in that function and use
  * helper function so that radeon_device_init pretty much
- * do nothing more than calling asic specific function. This
+ * do yesthing more than calling asic specific function. This
  * should also allow to remove a bunch of callback function
  * like vram_info.
  */
@@ -3270,10 +3270,10 @@ int r600_init(struct radeon_device *rdev)
 	/* Post card if necessary */
 	if (!radeon_card_posted(rdev)) {
 		if (!rdev->bios) {
-			dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+			dev_err(rdev->dev, "Card yest posted and yes BIOS - igyesring\n");
 			return -EINVAL;
 		}
-		DRM_INFO("GPU not posted. posting now...\n");
+		DRM_INFO("GPU yest posted. posting yesw...\n");
 		atom_asic_init(rdev->mode_info.atom_context);
 	}
 	/* Initialize scratch registers */
@@ -3703,7 +3703,7 @@ int r600_irq_init(struct radeon_device *rdev)
 	 * IH_DUMMY_RD_OVERRIDE=1 - dummy read controlled by IH_DUMMY_RD_EN
 	 */
 	interrupt_cntl &= ~IH_DUMMY_RD_OVERRIDE;
-	/* IH_REQ_NONSNOOP_EN=1 if ring is in non-cacheable memory, e.g., vram */
+	/* IH_REQ_NONSNOOP_EN=1 if ring is in yesn-cacheable memory, e.g., vram */
 	interrupt_cntl &= ~IH_REQ_NONSNOOP_EN;
 	WREG32(INTERRUPT_CNTL, interrupt_cntl);
 
@@ -3717,7 +3717,7 @@ int r600_irq_init(struct radeon_device *rdev)
 	if (rdev->wb.enabled)
 		ih_rb_cntl |= IH_WPTR_WRITEBACK_ENABLE;
 
-	/* set the writeback address whether it's enabled or not */
+	/* set the writeback address whether it's enabled or yest */
 	WREG32(IH_RB_WPTR_ADDR_LO, (rdev->wb.gpu_addr + R600_WB_IH_WPTR_OFFSET) & 0xFFFFFFFC);
 	WREG32(IH_RB_WPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + R600_WB_IH_WPTR_OFFSET) & 0xFF);
 
@@ -3772,7 +3772,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 thermal_int = 0;
 
 	if (!rdev->irq.installed) {
-		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
+		WARN(1, "Can't enable IRQ/MSI because yes handler is installed\n");
 		return -EINVAL;
 	}
 	/* don't enable anything if the ih is disabled */
@@ -4031,7 +4031,7 @@ static void r600_irq_ack(struct radeon_device *rdev)
 void r600_irq_disable(struct radeon_device *rdev)
 {
 	r600_disable_interrupts(rdev);
-	/* Wait and acknowledge irq */
+	/* Wait and ackyeswledge irq */
 	mdelay(1);
 	r600_irq_ack(rdev);
 	r600_disable_interrupt_state(rdev);
@@ -4049,7 +4049,7 @@ static u32 r600_get_ih_wptr(struct radeon_device *rdev)
 	if (wptr & RB_OVERFLOW) {
 		wptr &= ~RB_OVERFLOW;
 		/* When a ring buffer overflow happen start parsing interrupt
-		 * from the last not overwritten vector (wptr + 16). Hopefully
+		 * from the last yest overwritten vector (wptr + 16). Hopefully
 		 * this should allow us to catchup.
 		 */
 		dev_warn(rdev->dev, "IH ring buffer overflow (0x%08X, 0x%08X, 0x%08X)\n",
@@ -4348,8 +4348,8 @@ restart_ih:
 
 static int r600_debugfs_mc_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
 	DREG32_SYS(m, rdev, R_000E50_SRBM_STATUS);
@@ -4431,7 +4431,7 @@ void r600_set_pcie_lanes(struct radeon_device *rdev, int lanes)
 		mask = RADEON_PCIE_LC_LINK_WIDTH_X8;
 		break;
 	case 12:
-		/* not actually supported */
+		/* yest actually supported */
 		mask = RADEON_PCIE_LC_LINK_WIDTH_X12;
 		break;
 	case 16:
@@ -4479,7 +4479,7 @@ int r600_get_pcie_lanes(struct radeon_device *rdev)
 	case RADEON_PCIE_LC_LINK_WIDTH_X8:
 		return 8;
 	case RADEON_PCIE_LC_LINK_WIDTH_X12:
-		/* not actually supported */
+		/* yest actually supported */
 		return 12;
 	case RADEON_PCIE_LC_LINK_WIDTH_X0:
 	case RADEON_PCIE_LC_LINK_WIDTH_X16:
@@ -4554,7 +4554,7 @@ static void r600_pcie_gen2_enable(struct radeon_device *rdev)
 			WREG32(MM_CFGREGS_CNTL, 0x8);
 			link_cntl2 = RREG32(0x4088);
 			WREG32(MM_CFGREGS_CNTL, 0);
-			/* not supported yet */
+			/* yest supported yet */
 			if (link_cntl2 & SELECTABLE_DEEMPHASIS)
 				return;
 		}

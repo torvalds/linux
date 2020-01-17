@@ -20,7 +20,7 @@ extern int __read_mostly pt_mode;
 struct nested_vmx_msrs {
 	/*
 	 * We only store the "true" versions of the VMX capability MSRs. We
-	 * generate the "non-true" versions by setting the must-be-1 bits
+	 * generate the "yesn-true" versions by setting the must-be-1 bits
 	 * according to the SDM.
 	 */
 	u32 procbased_ctls_low;
@@ -66,7 +66,7 @@ struct vmx_capability {
 };
 extern struct vmx_capability vmx_capability;
 
-static inline bool cpu_has_vmx_basic_inout(void)
+static inline bool cpu_has_vmx_basic_iyesut(void)
 {
 	return	(((u64)vmcs_config.basic_cap << 32) & VMX_BASIC_INOUT);
 }

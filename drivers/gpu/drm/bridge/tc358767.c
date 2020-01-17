@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2016 Pengutronix, Philipp Zabel <p.zabel@pengutronix.de>
  *
- * Copyright (C) 2016 Zodiac Inflight Innovations
+ * Copyright (C) 2016 Zodiac Inflight Inyesvations
  *
  * Initially based on: drivers/gpu/drm/i2c/tda998x_drv.c
  *
@@ -199,7 +199,7 @@
 
 /* PLL */
 #define DP0_PLLCTRL		0x0900
-#define DP1_PLLCTRL		0x0904	/* not defined in DS */
+#define DP1_PLLCTRL		0x0904	/* yest defined in DS */
 #define PXL_PLLCTRL		0x0908
 #define PLLUPDATE			BIT(2)
 #define PLLBYP				BIT(1)
@@ -392,7 +392,7 @@ static ssize_t tc_aux_transfer(struct drm_dp_aux *aux,
 	/*
 	 * For some reason address-only DP_AUX_I2C_WRITE (MOT), still
 	 * reports 1 byte transferred in its status. To deal we that
-	 * we ignore aux_bytes field if we know that this was an
+	 * we igyesre aux_bytes field if we kyesw that this was an
 	 * address-only transfer
 	 */
 	if (size)
@@ -571,11 +571,11 @@ static int tc_stream_clock_calc(struct tc_data *tc)
 {
 	/*
 	 * If the Stream clock and Link Symbol clock are
-	 * asynchronous with each other, the value of M changes over
+	 * asynchroyesus with each other, the value of M changes over
 	 * time. This way of generating link clock and stream
-	 * clock is called Asynchronous Clock mode. The value M
+	 * clock is called Asynchroyesus Clock mode. The value M
 	 * must change while the value N stays constant. The
-	 * value of N in this Asynchronous Clock mode must be set
+	 * value of N in this Asynchroyesus Clock mode must be set
 	 * to 2^15 or 32,768.
 	 *
 	 * LSCLK = 1/10 of high speed link clock
@@ -768,8 +768,8 @@ static int tc_set_video_mode(struct tc_data *tc,
 
 	/*
 	 * LCD Ctl Frame Size
-	 * datasheet is not clear of vsdelay in case of DPI
-	 * assume we do not need any delay when DPI is a source of
+	 * datasheet is yest clear of vsdelay in case of DPI
+	 * assume we do yest need any delay when DPI is a source of
 	 * sync signals
 	 */
 	ret = regmap_write(tc->regmap, VPCTRL0,
@@ -963,7 +963,7 @@ static int tc_main_link_enable(struct tc_data *tc)
 	/*
 	 * ASSR mode
 	 * on TC358767 side ASSR configured through strap pin
-	 * seems there is no way to change this setting from SW
+	 * seems there is yes way to change this setting from SW
 	 *
 	 * check is tc configured for same mode
 	 */
@@ -1379,12 +1379,12 @@ static enum drm_connector_status tc_connector_detect(struct drm_connector *conne
 		if (tc->panel)
 			return connector_status_connected;
 		else
-			return connector_status_unknown;
+			return connector_status_unkyeswn;
 	}
 
 	ret = regmap_read(tc->regmap, GPIOI, &val);
 	if (ret)
-		return connector_status_unknown;
+		return connector_status_unkyeswn;
 
 	conn = val & BIT(tc->hpd_pin);
 
@@ -1468,8 +1468,8 @@ static const struct regmap_range tc_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table tc_volatile_table = {
-	.yes_ranges = tc_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(tc_volatile_ranges),
+	.no_ranges = tc_volatile_ranges,
+	.n_no_ranges = ARRAY_SIZE(tc_volatile_ranges),
 };
 
 static bool tc_writeable_reg(struct device *dev, unsigned int reg)
@@ -1549,7 +1549,7 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	tc->dev = dev;
 
 	/* port@2 is the output port */
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 2, 0, &tc->panel, NULL);
+	ret = drm_of_find_panel_or_bridge(dev->of_yesde, 2, 0, &tc->panel, NULL);
 	if (ret && ret != -ENODEV)
 		return ret;
 
@@ -1587,7 +1587,7 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return ret;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "toshiba,hpd-pin",
+	ret = of_property_read_u32(dev->of_yesde, "toshiba,hpd-pin",
 				   &tc->hpd_pin);
 	if (ret) {
 		tc->hpd_pin = -ENODEV;
@@ -1616,7 +1616,7 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	ret = regmap_read(tc->regmap, TC_IDREG, &tc->rev);
 	if (ret) {
-		dev_err(tc->dev, "can not read device ID: %d\n", ret);
+		dev_err(tc->dev, "can yest read device ID: %d\n", ret);
 		return ret;
 	}
 
@@ -1672,7 +1672,7 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return ret;
 
 	tc->bridge.funcs = &tc_bridge_funcs;
-	tc->bridge.of_node = dev->of_node;
+	tc->bridge.of_yesde = dev->of_yesde;
 	drm_bridge_add(&tc->bridge);
 
 	i2c_set_clientdata(client, tc);

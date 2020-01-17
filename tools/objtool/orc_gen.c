@@ -52,7 +52,7 @@ int create_orc(struct objtool_file *file)
 			orc->sp_reg = ORC_REG_DX;
 			break;
 		default:
-			WARN_FUNC("unknown CFA base reg %d",
+			WARN_FUNC("unkyeswn CFA base reg %d",
 				  insn->sec, insn->offset, cfa->base);
 			return -1;
 		}
@@ -68,7 +68,7 @@ int create_orc(struct objtool_file *file)
 			orc->bp_reg = ORC_REG_BP;
 			break;
 		default:
-			WARN_FUNC("unknown BP base reg %d",
+			WARN_FUNC("unkyeswn BP base reg %d",
 				  insn->sec, insn->offset, bp->base);
 			return -1;
 		}

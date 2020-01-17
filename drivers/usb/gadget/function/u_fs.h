@@ -75,9 +75,9 @@ enum ffs_state {
 	/*
 	 * Waiting for descriptors and strings.
 	 *
-	 * In this state no open(2), read(2) or write(2) on epfiles
-	 * may succeed (which should not be the problem as there
-	 * should be no such files opened in the first place).
+	 * In this state yes open(2), read(2) or write(2) on epfiles
+	 * may succeed (which should yest be the problem as there
+	 * should be yes such files opened in the first place).
 	 */
 	FFS_READ_DESCRIPTORS,
 	FFS_READ_STRINGS,
@@ -85,7 +85,7 @@ enum ffs_state {
 	/*
 	 * We've got descriptors and strings.  We are or have called
 	 * functionfs_ready_callback().  functionfs_bind() may have
-	 * been called but we don't know.
+	 * been called but we don't kyesw.
 	 *
 	 * This is the only state in which operations on epfiles may
 	 * succeed.
@@ -93,20 +93,20 @@ enum ffs_state {
 	FFS_ACTIVE,
 
 	/*
-	 * Function is visible to host, but it's not functional. All
-	 * setup requests are stalled and transfers on another endpoints
+	 * Function is visible to host, but it's yest functional. All
+	 * setup requests are stalled and transfers on ayesther endpoints
 	 * are refused. All epfiles, except ep0, are deleted so there
-	 * is no way to perform any operations on them.
+	 * is yes way to perform any operations on them.
 	 *
 	 * This state is set after closing all functionfs files, when
-	 * mount parameter "no_disconnect=1" has been set. Function will
+	 * mount parameter "yes_disconnect=1" has been set. Function will
 	 * remain in deactivated state until filesystem is umounted or
 	 * ep0 is opened again. In the second case functionfs state will
 	 * be reset, and it will be ready for descriptors and strings
 	 * writing.
 	 *
 	 * This is useful only when functionfs is composed to gadget
-	 * with another function which can perform some critical
+	 * with ayesther function which can perform some critical
 	 * operations, and it's strongly desired to have this operations
 	 * completed, even after functionfs files closure.
 	 */
@@ -119,9 +119,9 @@ enum ffs_state {
 	 * from user space we fail to initialise epfiles or
 	 * functionfs_ready_callback() returns with error (<0).
 	 *
-	 * In this state no open(2), read(2) or write(2) (both on ep0
+	 * In this state yes open(2), read(2) or write(2) (both on ep0
 	 * as well as epfile) may succeed (at this point epfiles are
-	 * unlinked and all closed so this is not a problem; ep0 is
+	 * unlinked and all closed so this is yest a problem; ep0 is
 	 * also closed but ep0 file exists and so open(2) on ep0 must
 	 * fail).
 	 */
@@ -129,7 +129,7 @@ enum ffs_state {
 };
 
 enum ffs_setup_state {
-	/* There is no setup request pending. */
+	/* There is yes setup request pending. */
 	FFS_NO_SETUP,
 	/*
 	 * User has read events and there was a setup request event
@@ -165,10 +165,10 @@ struct ffs_data {
 	spinlock_t			eps_lock;
 
 	/*
-	 * XXX REVISIT do we need our own request? Since we are not
+	 * XXX REVISIT do we need our own request? Since we are yest
 	 * handling setup requests immediately user space may be so
-	 * slow that another setup will be sent to the gadget but this
-	 * time not to us but another function and then there could be
+	 * slow that ayesther setup will be sent to the gadget but this
+	 * time yest to us but ayesther function and then there could be
 	 * a race.  Is that the case? Or maybe we can use cdev->req
 	 * after all, maybe we just need some spinlock for that?
 	 */
@@ -277,7 +277,7 @@ struct ffs_data {
 
 	struct eventfd_ctx *ffs_eventfd;
 	struct workqueue_struct *io_completion_wq;
-	bool no_disconnect;
+	bool yes_disconnect;
 	struct work_struct reset_work;
 
 	/*
@@ -292,7 +292,7 @@ struct f_fs_opts {
 	struct usb_function_instance	func_inst;
 	struct ffs_dev			*dev;
 	unsigned			refcnt;
-	bool				no_configfs;
+	bool				yes_configfs;
 };
 
 static inline struct f_fs_opts *to_f_fs_opts(struct usb_function_instance *fi)

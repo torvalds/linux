@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Mellanox BlueField SoC TmFifo driver
+ * Mellayesx BlueField SoC TmFifo driver
  *
- * Copyright (C) 2019 Mellanox Technologies
+ * Copyright (C) 2019 Mellayesx Techyeslogies
  */
 
 #include <linux/acpi.h>
@@ -39,7 +39,7 @@
 #define MLXBF_TMFIFO_VDEV_MAX		(VIRTIO_ID_CONSOLE + 1)
 
 /*
- * Reserve 1/16 of TmFifo space, so console messages are not starved by
+ * Reserve 1/16 of TmFifo space, so console messages are yest starved by
  * the networking traffic.
  */
 #define MLXBF_TMFIFO_RESERVE_RATIO		16
@@ -319,7 +319,7 @@ static void mlxbf_tmfifo_release_desc(struct mlxbf_tmfifo_vring *vring,
 
 	/*
 	 * Virtio could poll and check the 'idx' to decide whether the desc is
-	 * done or not. Add a memory barrier here to make sure the update above
+	 * done or yest. Add a memory barrier here to make sure the update above
 	 * completes before updating the idx.
 	 */
 	mb();
@@ -449,7 +449,7 @@ static void mlxbf_tmfifo_console_output(struct mlxbf_tmfifo_vdev *cons,
 
 	desc = mlxbf_tmfifo_get_next_desc(vring);
 	while (desc) {
-		/* Release the packet if not enough space. */
+		/* Release the packet if yest eyesugh space. */
 		len = mlxbf_tmfifo_get_pkt_len(vring, desc);
 		avail = CIRC_SPACE(cons->tx_buf.head, cons->tx_buf.tail,
 				   MLXBF_TMFIFO_CON_TX_BUF_SIZE);
@@ -501,7 +501,7 @@ static void mlxbf_tmfifo_console_tx(struct mlxbf_tmfifo *fifo, int avail)
 	void *addr;
 	u64 data;
 
-	/* Return if not enough space available. */
+	/* Return if yest eyesugh space available. */
 	if (avail < MLXBF_TMFIFO_DATA_MIN_WORDS)
 		return;
 
@@ -509,7 +509,7 @@ static void mlxbf_tmfifo_console_tx(struct mlxbf_tmfifo *fifo, int avail)
 	if (!cons || !cons->tx_buf.buf)
 		return;
 
-	/* Return if no data to send. */
+	/* Return if yes data to send. */
 	size = CIRC_CNT(cons->tx_buf.head, cons->tx_buf.tail,
 			MLXBF_TMFIFO_CON_TX_BUF_SIZE);
 	if (size == 0)
@@ -635,7 +635,7 @@ static void mlxbf_tmfifo_rxtx_header(struct mlxbf_tmfifo_vring *vring,
 
 		/*
 		 * Check whether the new packet still belongs to this vring.
-		 * If not, update the pkt_len of the new vring.
+		 * If yest, update the pkt_len of the new vring.
 		 */
 		if (vdev_id != vring->vdev_id) {
 			struct mlxbf_tmfifo_vdev *tm_dev2 = fifo->vdev[vdev_id];
@@ -695,7 +695,7 @@ static bool mlxbf_tmfifo_rxtx_one_desc(struct mlxbf_tmfifo_vring *vring,
 		mlxbf_tmfifo_rxtx_header(vring, desc, is_rx, &vring_change);
 		(*avail)--;
 
-		/* Return if new packet is for another ring. */
+		/* Return if new packet is for ayesther ring. */
 		if (vring_change)
 			return false;
 		goto mlxbf_tmfifo_desc_done;
@@ -706,7 +706,7 @@ static bool mlxbf_tmfifo_rxtx_one_desc(struct mlxbf_tmfifo_vring *vring,
 	if (len > vring->rem_len)
 		len = vring->rem_len;
 
-	/* Rx/Tx one word (8 bytes) if not done. */
+	/* Rx/Tx one word (8 bytes) if yest done. */
 	if (vring->cur_len < len) {
 		mlxbf_tmfifo_rxtx_word(vring, desc, is_rx, len);
 		(*avail)--;
@@ -752,15 +752,15 @@ static void mlxbf_tmfifo_rxtx(struct mlxbf_tmfifo_vring *vring, bool is_rx)
 
 	fifo = vring->fifo;
 
-	/* Return if vdev is not ready. */
+	/* Return if vdev is yest ready. */
 	if (!fifo->vdev[devid])
 		return;
 
-	/* Return if another vring is running. */
+	/* Return if ayesther vring is running. */
 	if (fifo->vring[is_rx] && fifo->vring[is_rx] != vring)
 		return;
 
-	/* Only handle console and network for now. */
+	/* Only handle console and network for yesw. */
 	if (WARN_ON(devid != VIRTIO_ID_NET && devid != VIRTIO_ID_CONSOLE))
 		return;
 
@@ -830,8 +830,8 @@ static void mlxbf_tmfifo_work_handler(struct work_struct *work)
 	mutex_unlock(&fifo->lock);
 }
 
-/* The notify function is called when new buffers are posted. */
-static bool mlxbf_tmfifo_virtio_notify(struct virtqueue *vq)
+/* The yestify function is called when new buffers are posted. */
+static bool mlxbf_tmfifo_virtio_yestify(struct virtqueue *vq)
 {
 	struct mlxbf_tmfifo_vring *vring = vq->priv;
 	struct mlxbf_tmfifo_vdev *tm_vdev;
@@ -939,7 +939,7 @@ static int mlxbf_tmfifo_virtio_find_vqs(struct virtio_device *vdev,
 		memset(vring->va, 0, size);
 		vq = vring_new_virtqueue(i, vring->num, vring->align, vdev,
 					 false, false, vring->va,
-					 mlxbf_tmfifo_virtio_notify,
+					 mlxbf_tmfifo_virtio_yestify,
 					 callbacks[i], names[i]);
 		if (!vq) {
 			dev_err(&vdev->dev, "vring_new_virtqueue failed\n");
@@ -976,7 +976,7 @@ static void mlxbf_tmfifo_virtio_set_status(struct virtio_device *vdev,
 	tm_vdev->status = status;
 }
 
-/* Reset the device. Not much here for now. */
+/* Reset the device. Not much here for yesw. */
 static void mlxbf_tmfifo_virtio_reset(struct virtio_device *vdev)
 {
 	struct mlxbf_tmfifo_vdev *tm_vdev = mlxbf_vdev_to_tmfifo(vdev);
@@ -1277,6 +1277,6 @@ static struct platform_driver mlxbf_tmfifo_driver = {
 
 module_platform_driver(mlxbf_tmfifo_driver);
 
-MODULE_DESCRIPTION("Mellanox BlueField SoC TmFifo Driver");
+MODULE_DESCRIPTION("Mellayesx BlueField SoC TmFifo Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Mellanox Technologies");
+MODULE_AUTHOR("Mellayesx Techyeslogies");

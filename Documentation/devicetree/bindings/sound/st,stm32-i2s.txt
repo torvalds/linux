@@ -23,8 +23,8 @@ Required properties:
 Optional properties:
   - resets: Reference to a reset controller asserting the reset controller
 
-The device node should contain one 'port' child node with one child 'endpoint'
-node, according to the bindings defined in Documentation/devicetree/bindings/
+The device yesde should contain one 'port' child yesde with one child 'endpoint'
+yesde, according to the bindings defined in Documentation/devicetree/bindings/
 graph.txt.
 
 Example:

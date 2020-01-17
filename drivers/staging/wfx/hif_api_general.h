@@ -150,11 +150,11 @@ struct hif_ind_startup {
 	u8    num_links_ap;
 	u8    num_interfaces;
 	u8    mac_addr[2][ETH_ALEN];
-	u8    api_version_minor;
+	u8    api_version_miyesr;
 	u8    api_version_major;
 	struct hif_capabilities capabilities;
 	u8    firmware_build;
-	u8    firmware_minor;
+	u8    firmware_miyesr;
 	u8    firmware_major;
 	u8    firmware_type;
 	u8    disabled_channel_list[API_DISABLED_CHANNEL_LIST_SIZE];

@@ -17,21 +17,21 @@ struct vc4_debugfs_info_entry {
 };
 
 /**
- * Called at drm_dev_register() time on each of the minors registered
+ * Called at drm_dev_register() time on each of the miyesrs registered
  * by the DRM device, to attach the debugfs files.
  */
 int
-vc4_debugfs_init(struct drm_minor *minor)
+vc4_debugfs_init(struct drm_miyesr *miyesr)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(minor->dev);
+	struct vc4_dev *vc4 = to_vc4_dev(miyesr->dev);
 	struct vc4_debugfs_info_entry *entry;
 
 	debugfs_create_bool("hvs_load_tracker", S_IRUGO | S_IWUSR,
-			    minor->debugfs_root, &vc4->load_tracker_enabled);
+			    miyesr->debugfs_root, &vc4->load_tracker_enabled);
 
 	list_for_each_entry(entry, &vc4->debugfs_list, link) {
 		int ret = drm_debugfs_create_files(&entry->info, 1,
-						   minor->debugfs_root, minor);
+						   miyesr->debugfs_root, miyesr);
 
 		if (ret)
 			return ret;
@@ -42,8 +42,8 @@ vc4_debugfs_init(struct drm_minor *minor)
 
 static int vc4_debugfs_regset32(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct debugfs_regset32 *regset = node->info_ent->data;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct debugfs_regset32 *regset = yesde->info_ent->data;
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	drm_print_regset32(&p, regset);
@@ -55,9 +55,9 @@ static int vc4_debugfs_regset32(struct seq_file *m, void *unused)
  * Registers a debugfs file with a callback function for a vc4 component.
  *
  * This is like drm_debugfs_create_files(), but that can only be
- * called a given DRM minor, while the various VC4 components want to
+ * called a given DRM miyesr, while the various VC4 components want to
  * register their debugfs files during the component bind process.  We
- * track the request and delay it to be called on each minor during
+ * track the request and delay it to be called on each miyesr during
  * vc4_debugfs_init().
  */
 void vc4_debugfs_add_file(struct drm_device *dev,

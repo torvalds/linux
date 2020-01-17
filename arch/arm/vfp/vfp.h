@@ -159,7 +159,7 @@ asmlinkage void vfp_put_float(s32 val, unsigned int reg);
  * VFP_SINGLE_MANTISSA_BITS - number of bits in the mantissa
  * VFP_SINGLE_EXPONENT_BITS - number of bits in the exponent
  * VFP_SINGLE_LOW_BITS - number of low bits in the unpacked significand
- *  which are not propagated to the float upon packing.
+ *  which are yest propagated to the float upon packing.
  */
 #define VFP_SINGLE_MANTISSA_BITS	(23)
 #define VFP_SINGLE_EXPONENT_BITS	(8)
@@ -201,7 +201,7 @@ static inline void vfp_single_unpack(struct vfp_single *s, s32 val)
 
 /*
  * Re-pack a single-precision float.  This assumes that the float is
- * already normalised such that the MSB is bit 30, _not_ bit 31.
+ * already yesrmalised such that the MSB is bit 30, _yest_ bit 31.
  */
 static inline s32 vfp_single_pack(struct vfp_single *s)
 {
@@ -242,10 +242,10 @@ static inline int vfp_single_type(struct vfp_single *s)
 }
 
 #ifndef DEBUG
-#define vfp_single_normaliseround(sd,vsd,fpscr,except,func) __vfp_single_normaliseround(sd,vsd,fpscr,except)
-u32 __vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exceptions);
+#define vfp_single_yesrmaliseround(sd,vsd,fpscr,except,func) __vfp_single_yesrmaliseround(sd,vsd,fpscr,except)
+u32 __vfp_single_yesrmaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exceptions);
 #else
-u32 vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exceptions, const char *func);
+u32 vfp_single_yesrmaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exceptions, const char *func);
 #endif
 
 /*
@@ -310,7 +310,7 @@ static inline void vfp_double_unpack(struct vfp_double *s, s64 val)
 
 /*
  * Re-pack a double-precision float.  This assumes that the float is
- * already normalised such that the MSB is bit 30, _not_ bit 31.
+ * already yesrmalised such that the MSB is bit 30, _yest_ bit 31.
  */
 static inline s64 vfp_double_pack(struct vfp_double *s)
 {
@@ -340,18 +340,18 @@ static inline int vfp_double_type(struct vfp_double *s)
 	return type;
 }
 
-u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exceptions, const char *func);
+u32 vfp_double_yesrmaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exceptions, const char *func);
 
 u32 vfp_estimate_sqrt_significand(u32 exponent, u32 significand);
 
 /*
- * A special flag to tell the normalisation code not to normalise.
+ * A special flag to tell the yesrmalisation code yest to yesrmalise.
  */
 #define VFP_NAN_FLAG	0x100
 
 /*
  * A bit pattern used to indicate the initial (unset) value of the
- * exception mask, in case nothing handles an instruction.  This
+ * exception mask, in case yesthing handles an instruction.  This
  * doesn't include the NAN flag, which get masked out before
  * we check for an error.
  */

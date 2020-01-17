@@ -13,14 +13,14 @@
 
 #define HASHTAB_MAX_NODES	0xffffffff
 
-struct hashtab_node {
+struct hashtab_yesde {
 	void *key;
 	void *datum;
-	struct hashtab_node *next;
+	struct hashtab_yesde *next;
 };
 
 struct hashtab {
-	struct hashtab_node **htable;	/* hash table */
+	struct hashtab_yesde **htable;	/* hash table */
 	u32 size;			/* number of slots in hash table */
 	u32 nel;			/* number of elements in hash table */
 	u32 (*hash_value)(struct hashtab *h, const void *key);
@@ -57,7 +57,7 @@ int hashtab_insert(struct hashtab *h, void *k, void *d);
 /*
  * Searches for the entry with the specified key in the hash table.
  *
- * Returns NULL if no entry has the specified key or
+ * Returns NULL if yes entry has the specified key or
  * the datum of the entry otherwise.
  */
 void *hashtab_search(struct hashtab *h, const void *k);
@@ -74,7 +74,7 @@ void hashtab_destroy(struct hashtab *h);
  * The order in which the function is applied to the entries
  * is dependent upon the internal structure of the hash table.
  *
- * If apply returns a non-zero status, then hashtab_map will cease
+ * If apply returns a yesn-zero status, then hashtab_map will cease
  * iterating through the hash table and will propagate the error
  * return to its caller.
  */

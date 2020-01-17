@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -403,7 +403,7 @@ static bool psp_v10_0_compare_sram_data(struct psp_context *psp,
 
 static int psp_v10_0_mode1_reset(struct psp_context *psp)
 {
-	DRM_INFO("psp mode 1 reset not supported now! \n");
+	DRM_INFO("psp mode 1 reset yest supported yesw! \n");
 	return -EINVAL;
 }
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synopsys DesignWare I2C adapter driver (master only).
+ * Syyespsys DesignWare I2C adapter driver (master only).
  *
  * Based on the TI DAVINCI I2C adapter driver.
  *
@@ -10,7 +10,7 @@
  */
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -51,7 +51,7 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	sda_falling_time = t->sda_fall_ns ?: 300; /* ns */
 	scl_falling_time = t->scl_fall_ns ?: 300; /* ns */
 
-	/* Calculate SCL timing parameters for standard mode if not set */
+	/* Calculate SCL timing parameters for standard mode if yest set */
 	if (!dev->ss_hcnt || !dev->ss_lcnt) {
 		ic_clk = i2c_dw_clk_rate(dev);
 		dev->ss_hcnt =
@@ -77,7 +77,7 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	if (t->bus_freq_hz == 1000000) {
 		/*
 		 * Check are fast mode plus parameters available and use
-		 * fast mode if not.
+		 * fast mode if yest.
 		 */
 		if (dev->fp_hcnt && dev->fp_lcnt) {
 			dev->fs_hcnt = dev->fp_hcnt;
@@ -86,7 +86,7 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 		}
 	}
 	/*
-	 * Calculate SCL timing parameters for fast mode if not set. They are
+	 * Calculate SCL timing parameters for fast mode if yest set. They are
 	 * needed also in high speed mode.
 	 */
 	if (!dev->fs_hcnt || !dev->fs_lcnt) {
@@ -106,12 +106,12 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	dev_dbg(dev->dev, "Fast Mode%s HCNT:LCNT = %d:%d\n",
 		fp_str, dev->fs_hcnt, dev->fs_lcnt);
 
-	/* Check is high speed possible and fall back to fast mode if not */
+	/* Check is high speed possible and fall back to fast mode if yest */
 	if ((dev->master_cfg & DW_IC_CON_SPEED_MASK) ==
 		DW_IC_CON_SPEED_HIGH) {
 		if ((comp_param1 & DW_IC_COMP_PARAM_1_SPEED_MODE_MASK)
 			!= DW_IC_COMP_PARAM_1_SPEED_MODE_HIGH) {
-			dev_err(dev->dev, "High Speed not supported!\n");
+			dev_err(dev->dev, "High Speed yest supported!\n");
 			dev->master_cfg &= ~DW_IC_CON_SPEED_MASK;
 			dev->master_cfg |= DW_IC_CON_SPEED_FAST;
 			dev->hs_hcnt = 0;
@@ -286,7 +286,7 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 
 			/*
 			 * If IC_EMPTYFIFO_HOLD_MASTER_EN is set we must
-			 * manually set the stop bit. However, it cannot be
+			 * manually set the stop bit. However, it canyest be
 			 * detected from the registers so we set it always
 			 * when writing/reading the last byte.
 			 */
@@ -324,7 +324,7 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 		dev->tx_buf_len = buf_len;
 
 		/*
-		 * Because we don't know the buffer length in the
+		 * Because we don't kyesw the buffer length in the
 		 * I2C_FUNC_SMBUS_BLOCK_DATA case, we can't stop
 		 * the transaction here.
 		 */
@@ -428,7 +428,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	if (dev_WARN_ONCE(dev->dev, dev->suspended, "Transfer while suspended\n")) {
 		ret = -ESHUTDOWN;
-		goto done_nolock;
+		goto done_yeslock;
 	}
 
 	reinit_completion(&dev->cmd_complete);
@@ -444,9 +444,9 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	ret = i2c_dw_acquire_lock(dev);
 	if (ret)
-		goto done_nolock;
+		goto done_yeslock;
 
-	ret = i2c_dw_wait_bus_not_busy(dev);
+	ret = i2c_dw_wait_bus_yest_busy(dev);
 	if (ret < 0)
 		goto done;
 
@@ -471,7 +471,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	 * additional interrupts are a hardware bug or this driver doesn't
 	 * handle them correctly yet.
 	 */
-	__i2c_dw_disable_nowait(dev);
+	__i2c_dw_disable_yeswait(dev);
 
 	if (dev->msg_err) {
 		ret = dev->msg_err;
@@ -499,7 +499,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 done:
 	i2c_dw_release_lock(dev);
 
-done_nolock:
+done_yeslock:
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 
@@ -534,7 +534,7 @@ static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
 	stat = dw_readl(dev, DW_IC_INTR_STAT);
 
 	/*
-	 * Do not use the IC_CLR_INTR register to clear interrupts, or
+	 * Do yest use the IC_CLR_INTR register to clear interrupts, or
 	 * you'll miss some interrupts, triggered during the period from
 	 * dw_readl(IC_INTR_STAT) to dw_readl(IC_CLR_INTR).
 	 *
@@ -703,7 +703,7 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 		return ret;
 
 	snprintf(adap->name, sizeof(adap->name),
-		 "Synopsys DesignWare I2C adapter");
+		 "Syyespsys DesignWare I2C adapter");
 	adap->retries = 3;
 	adap->algo = &i2c_dw_algo;
 	adap->quirks = &i2c_dw_quirks;
@@ -735,15 +735,15 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	 * registered to the device core and immediate resume in case bus has
 	 * registered I2C slaves that do I2C transfers in their probe.
 	 */
-	pm_runtime_get_noresume(dev->dev);
+	pm_runtime_get_yesresume(dev->dev);
 	ret = i2c_add_numbered_adapter(adap);
 	if (ret)
 		dev_err(dev->dev, "failure adding adapter: %d\n", ret);
-	pm_runtime_put_noidle(dev->dev);
+	pm_runtime_put_yesidle(dev->dev);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(i2c_dw_probe);
 
-MODULE_DESCRIPTION("Synopsys DesignWare I2C bus master adapter");
+MODULE_DESCRIPTION("Syyespsys DesignWare I2C bus master adapter");
 MODULE_LICENSE("GPL");

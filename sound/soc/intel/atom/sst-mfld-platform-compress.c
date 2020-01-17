@@ -3,7 +3,7 @@
  *  sst_mfld_platform.c - Intel MID Platform driver
  *
  *  Copyright (C) 2010-2014 Intel Corp
- *  Author: Vinod Koul <vinod.koul@intel.com>
+ *  Author: Viyesd Koul <viyesd.koul@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -30,13 +30,13 @@ static void sst_compr_fragment_elapsed(void *arg)
 		snd_compr_fragment_elapsed(cstream);
 }
 
-static void sst_drain_notify(void *arg)
+static void sst_drain_yestify(void *arg)
 {
 	struct snd_compr_stream *cstream = (struct snd_compr_stream *)arg;
 
-	pr_debug("drain notify by driver\n");
+	pr_debug("drain yestify by driver\n");
 	if (cstream)
-		snd_compr_drain_notify(cstream);
+		snd_compr_drain_yestify(cstream);
 }
 
 static int sst_platform_compr_open(struct snd_compr_stream *cstream)
@@ -54,7 +54,7 @@ static int sst_platform_compr_open(struct snd_compr_stream *cstream)
 
 	/* get the sst ops */
 	if (!sst || !try_module_get(sst->dev->driver->owner)) {
-		pr_err("no device available to run\n");
+		pr_err("yes device available to run\n");
 		ret_val = -ENODEV;
 		goto out_ops;
 	}
@@ -140,7 +140,7 @@ static int sst_platform_compr_set_params(struct snd_compr_stream *cstream,
 	}
 
 	default:
-		pr_err("codec not supported, id =%d\n", params->codec.id);
+		pr_err("codec yest supported, id =%d\n", params->codec.id);
 		return -EINVAL;
 	}
 
@@ -154,7 +154,7 @@ static int sst_platform_compr_set_params(struct snd_compr_stream *cstream,
 	cb.param = cstream;
 	cb.compr_cb = sst_compr_fragment_elapsed;
 	cb.drain_cb_param = cstream;
-	cb.drain_notify = sst_drain_notify;
+	cb.drain_yestify = sst_drain_yestify;
 
 	retval = stream->compr_ops->open(sst->dev, &str_params, &cb);
 	if (retval < 0) {

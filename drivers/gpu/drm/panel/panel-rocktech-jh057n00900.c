@@ -307,7 +307,7 @@ static int jh057n_probe(struct mipi_dsi_device *dsi)
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
-		DRM_DEV_ERROR(dev, "cannot get reset gpio\n");
+		DRM_DEV_ERROR(dev, "canyest get reset gpio\n");
 		return PTR_ERR(ctx->reset_gpio);
 	}
 

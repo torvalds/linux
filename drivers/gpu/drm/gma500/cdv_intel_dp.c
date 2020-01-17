@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -523,7 +523,7 @@ cdv_intel_dp_mode_valid(struct drm_connector *connector,
 			return MODE_PANEL;
 	}
 
-	/* only refuse the mode on non eDP since we have seen some weird eDP panels
+	/* only refuse the mode on yesn eDP since we have seen some weird eDP panels
 	   which are outside spec tolerances but somehow work by magic */
 	if (!is_edp(encoder) &&
 	    (cdv_intel_dp_link_required(mode->clock, dev_priv->edp.bpp)
@@ -594,7 +594,7 @@ cdv_intel_dp_aux_ch(struct gma_encoder *encoder,
 		precharge = 10;
 
 	if (REG_READ(ch_ctl) & DP_AUX_CH_CTL_SEND_BUSY) {
-		DRM_ERROR("dp_aux_ch not started status 0x%08x\n",
+		DRM_ERROR("dp_aux_ch yest started status 0x%08x\n",
 			  REG_READ(ch_ctl));
 		return -EBUSY;
 	}
@@ -634,12 +634,12 @@ cdv_intel_dp_aux_ch(struct gma_encoder *encoder,
 	}
 
 	if ((status & DP_AUX_CH_CTL_DONE) == 0) {
-		DRM_ERROR("dp_aux_ch not done status 0x%08x\n", status);
+		DRM_ERROR("dp_aux_ch yest done status 0x%08x\n", status);
 		return -EBUSY;
 	}
 
 	/* Check for timeout or receive error.
-	 * Timeouts occur when the sink is not connected
+	 * Timeouts occur when the sink is yest connected
 	 */
 	if (status & DP_AUX_CH_CTL_RECEIVE_ERROR) {
 		DRM_ERROR("dp_aux_ch receive error status 0x%08x\n", status);
@@ -647,7 +647,7 @@ cdv_intel_dp_aux_ch(struct gma_encoder *encoder,
 	}
 
 	/* Timeouts occur when the device isn't connected, so they're
-	 * "normal" -- don't fill the kernel log with these */
+	 * "yesrmal" -- don't fill the kernel log with these */
 	if (status & DP_AUX_CH_CTL_TIME_OUT_ERROR) {
 		DRM_DEBUG_KMS("dp_aux_ch timeout status 0x%08x\n", status);
 		return -ETIMEDOUT;
@@ -1972,7 +1972,7 @@ static bool cdv_intel_dpc_is_edp(struct drm_device *dev)
 /* Cedarview display clock gating
 
    We need this disable dot get correct behaviour while enabling
-   DP/eDP. TODO - investigate if we can turn it back to normality
+   DP/eDP. TODO - investigate if we can turn it back to yesrmality
    after enabling */
 static void cdv_disable_intel_clock_gating(struct drm_device *dev)
 {

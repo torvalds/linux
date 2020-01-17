@@ -131,18 +131,18 @@ static int stm32_rproc_of_memory_translations(struct rproc *rproc)
 {
 	struct device *parent, *dev = rproc->dev.parent;
 	struct stm32_rproc *ddata = rproc->priv;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct stm32_rproc_mem *p_mems;
 	struct stm32_rproc_mem_ranges *mem_range;
 	int cnt, array_size, i, ret = 0;
 
 	parent = dev->parent;
-	np = parent->of_node;
+	np = parent->of_yesde;
 
 	cnt = of_property_count_elems_of_size(np, "dma-ranges",
 					      sizeof(*mem_range));
 	if (cnt <= 0) {
-		dev_err(dev, "%s: dma-ranges property not defined\n", __func__);
+		dev_err(dev, "%s: dma-ranges property yest defined\n", __func__);
 		return -EINVAL;
 	}
 
@@ -189,7 +189,7 @@ static int stm32_rproc_mbox_idx(struct rproc *rproc, const unsigned char *name)
 		if (!strncmp(ddata->mb[i].name, name, strlen(name)))
 			return i;
 	}
-	dev_err(&rproc->dev, "mailbox %s not found\n", name);
+	dev_err(&rproc->dev, "mailbox %s yest found\n", name);
 
 	return -EINVAL;
 }
@@ -198,7 +198,7 @@ static int stm32_rproc_elf_load_rsc_table(struct rproc *rproc,
 					  const struct firmware *fw)
 {
 	if (rproc_elf_load_rsc_table(rproc, fw))
-		dev_warn(&rproc->dev, "no resource table found for this firmware\n");
+		dev_warn(&rproc->dev, "yes resource table found for this firmware\n");
 
 	return 0;
 }
@@ -206,7 +206,7 @@ static int stm32_rproc_elf_load_rsc_table(struct rproc *rproc,
 static int stm32_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 {
 	struct device *dev = rproc->dev.parent;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct of_phandle_iterator it;
 	struct rproc_mem_entry *mem;
 	struct reserved_mem *rmem;
@@ -216,27 +216,27 @@ static int stm32_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 	/* Register associated reserved memory regions */
 	of_phandle_iterator_init(&it, np, "memory-region", NULL, 0);
 	while (of_phandle_iterator_next(&it) == 0) {
-		rmem = of_reserved_mem_lookup(it.node);
+		rmem = of_reserved_mem_lookup(it.yesde);
 		if (!rmem) {
 			dev_err(dev, "unable to acquire memory-region\n");
 			return -EINVAL;
 		}
 
 		if (stm32_rproc_pa_to_da(rproc, rmem->base, &da) < 0) {
-			dev_err(dev, "memory region not valid %pa\n",
+			dev_err(dev, "memory region yest valid %pa\n",
 				&rmem->base);
 			return -EINVAL;
 		}
 
 		/*  No need to map vdev buffer */
-		if (strcmp(it.node->name, "vdev0buffer")) {
+		if (strcmp(it.yesde->name, "vdev0buffer")) {
 			/* Register memory region */
 			mem = rproc_mem_entry_init(dev, NULL,
 						   (dma_addr_t)rmem->base,
 						   rmem->size, da,
 						   stm32_rproc_mem_alloc,
 						   stm32_rproc_mem_release,
-						   it.node->name);
+						   it.yesde->name);
 
 			if (mem)
 				rproc_coredump_add_segment(rproc, da,
@@ -246,7 +246,7 @@ static int stm32_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 			mem = rproc_of_resm_mem_entry_init(dev, index,
 							   rmem->size,
 							   rmem->base,
-							   it.node->name);
+							   it.yesde->name);
 		}
 
 		if (!mem)
@@ -274,7 +274,7 @@ static void stm32_rproc_mb_vq_work(struct work_struct *work)
 	struct rproc *rproc = dev_get_drvdata(mb->client.dev);
 
 	if (rproc_vq_interrupt(rproc, mb->vq_id) == IRQ_NONE)
-		dev_dbg(&rproc->dev, "no message found in vq%d\n", mb->vq_id);
+		dev_dbg(&rproc->dev, "yes message found in vq%d\n", mb->vq_id);
 }
 
 static void stm32_rproc_mb_callback(struct mbox_client *cl, void *data)
@@ -348,7 +348,7 @@ static int stm32_rproc_request_mbox(struct rproc *rproc)
 		if (IS_ERR(ddata->mb[i].chan)) {
 			if (PTR_ERR(ddata->mb[i].chan) == -EPROBE_DEFER)
 				goto err_probe;
-			dev_warn(dev, "cannot get %s mbox\n", name);
+			dev_warn(dev, "canyest get %s mbox\n", name);
 			ddata->mb[i].chan = NULL;
 		}
 		if (ddata->mb[i].vq_id >= 0) {
@@ -396,10 +396,10 @@ static void stm32_rproc_add_coredump_trace(struct rproc *rproc)
 	struct rproc_dump_segment *segment;
 	bool already_added;
 
-	list_for_each_entry(trace, &rproc->traces, node) {
+	list_for_each_entry(trace, &rproc->traces, yesde) {
 		already_added = false;
 
-		list_for_each_entry(segment, &rproc->dump_segments, node) {
+		list_for_each_entry(segment, &rproc->dump_segments, yesde) {
 			if (segment->da == trace->trace_mem.da) {
 				already_added = true;
 				break;
@@ -515,7 +515,7 @@ static const struct of_device_id stm32_rproc_match[] = {
 };
 MODULE_DEVICE_TABLE(of, stm32_rproc_match);
 
-static int stm32_rproc_get_syscon(struct device_node *np, const char *prop,
+static int stm32_rproc_get_syscon(struct device_yesde *np, const char *prop,
 				  struct stm32_syscon *syscon)
 {
 	int err = 0;
@@ -540,7 +540,7 @@ out:
 static int stm32_rproc_parse_dt(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct stm32_rproc *ddata = rproc->priv;
 	struct stm32_syscon tz;
@@ -577,8 +577,8 @@ static int stm32_rproc_parse_dt(struct platform_device *pdev)
 
 	/*
 	 * if platform is secured the hold boot bit must be written by
-	 * smc call and read normally.
-	 * if not secure the hold boot bit could be read/write normally
+	 * smc call and read yesrmally.
+	 * if yest secure the hold boot bit could be read/write yesrmally
 	 */
 	err = stm32_rproc_get_syscon(np, "st,syscfg-tz", &tz);
 	if (err) {
@@ -613,7 +613,7 @@ static int stm32_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct stm32_rproc *ddata;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct rproc *rproc;
 	int ret;
 
@@ -629,7 +629,7 @@ static int stm32_rproc_probe(struct platform_device *pdev)
 	ddata = rproc->priv;
 	ddata->workqueue = create_workqueue(dev_name(dev));
 	if (!ddata->workqueue) {
-		dev_err(dev, "cannot create workqueue\n");
+		dev_err(dev, "canyest create workqueue\n");
 		ret = -ENOMEM;
 		goto free_rproc;
 	}

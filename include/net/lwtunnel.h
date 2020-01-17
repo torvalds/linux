@@ -197,13 +197,13 @@ static inline int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *op,
 static inline int lwtunnel_valid_encap_type(u16 encap_type,
 					    struct netlink_ext_ack *extack)
 {
-	NL_SET_ERR_MSG(extack, "CONFIG_LWTUNNEL is not enabled in this kernel");
+	NL_SET_ERR_MSG(extack, "CONFIG_LWTUNNEL is yest enabled in this kernel");
 	return -EOPNOTSUPP;
 }
 static inline int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int len,
 						 struct netlink_ext_ack *extack)
 {
-	/* return 0 since we are not walking attr looking for
+	/* return 0 since we are yest walking attr looking for
 	 * RTA_ENCAP_TYPE attribute on nexthops.
 	 */
 	return 0;

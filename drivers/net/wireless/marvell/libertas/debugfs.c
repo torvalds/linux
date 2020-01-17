@@ -141,7 +141,7 @@ static ssize_t lbs_host_sleep_write(struct file *file,
 	else if (host_sleep == 1) {
 		if (priv->wol_criteria == EHS_REMOVE_WAKEUP) {
 			netdev_info(priv->dev,
-				    "wake parameters not configured\n");
+				    "wake parameters yest configured\n");
 			ret = -EINVAL;
 			goto out_unlock;
 		}

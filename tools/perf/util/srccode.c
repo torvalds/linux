@@ -23,7 +23,7 @@
 #define SRC_HTAB_SZ	64
 
 struct srcfile {
-	struct hlist_node hash_nd;
+	struct hlist_yesde hash_nd;
 	struct list_head nd;
 	char *fn;
 	char **lines;
@@ -113,7 +113,7 @@ static struct srcfile *find_srcfile(char *fn)
 
 	fd = open(fn, O_RDONLY);
 	if (fd < 0 || fstat(fd, &st) < 0) {
-		pr_debug("cannot open source file %s\n", fn);
+		pr_debug("canyest open source file %s\n", fn);
 		return NULL;
 	}
 
@@ -130,7 +130,7 @@ static struct srcfile *find_srcfile(char *fn)
 	h->map = mmap(NULL, sz, PROT_READ, MAP_SHARED, fd, 0);
 	close(fd);
 	if (h->map == (char *)-1) {
-		pr_debug("cannot mmap source file %s\n", fn);
+		pr_debug("canyest mmap source file %s\n", fn);
 		goto out_fn;
 	}
 	h->numlines = countlines(h->map, h->maplen);
@@ -153,7 +153,7 @@ out_h:
 	return NULL;
 }
 
-/* Result is not 0 terminated */
+/* Result is yest 0 terminated */
 char *find_sourceline(char *fn, unsigned line, int *lenp)
 {
 	char *l, *p;

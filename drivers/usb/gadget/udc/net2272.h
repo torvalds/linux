@@ -2,7 +2,7 @@
 /*
  * PLX NET2272 high/full speed USB device controller
  *
- * Copyright (C) 2005-2006 PLX Technology, Inc.
+ * Copyright (C) 2005-2006 PLX Techyeslogy, Inc.
  * Copyright (C) 2006-2011 Analog Devices, Inc.
  */
 
@@ -431,7 +431,7 @@ struct net2272_ep {
 	         is_in:1,
 	         is_iso:1,
 	         dma:1,
-	         not_empty:1;
+	         yest_empty:1;
 };
 
 struct net2272 {
@@ -486,7 +486,7 @@ net2272_write(struct net2272 *dev, unsigned int reg, u8 value)
 		 * Indexed register; use REGADDRPTR/REGDATA
 		 *  - Save and restore REGADDRPTR. This prevents REGADDRPTR from
 		 *    changes between other code sections, but it is time consuming.
-		 *  - Performance tips: either do not save and restore REGADDRPTR (if it
+		 *  - Performance tips: either do yest save and restore REGADDRPTR (if it
 		 *    is safe) or do save/restore operations only in critical sections.
 		u8 tmp = readb(dev->base_addr + REGADDRPTR);
 		 */
@@ -507,7 +507,7 @@ net2272_read(struct net2272 *dev, unsigned int reg)
 		 * Indexed register; use REGADDRPTR/REGDATA
 		 *  - Save and restore REGADDRPTR. This prevents REGADDRPTR from
 		 *    changes between other code sections, but it is time consuming.
-		 *  - Performance tips: either do not save and restore REGADDRPTR (if it
+		 *  - Performance tips: either do yest save and restore REGADDRPTR (if it
 		 *    is safe) or do save/restore operations only in critical sections.
 		u8 tmp = readb(dev->base_addr + REGADDRPTR);
 		 */

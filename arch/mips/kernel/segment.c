@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2013 Imagination Techyeslogies Ltd.
  */
 
 #include <linux/kernel.h>
@@ -26,7 +26,7 @@ static void build_segment_config(char *str, unsigned int cfg)
 
 	/*
 	 * Access modes MK, MSK and MUSK are mapped segments. Therefore
-	 * there is no direct physical address mapping unless it becomes
+	 * there is yes direct physical address mapping unless it becomes
 	 * unmapped uncached at error level due to EU.
 	 */
 	if ((am == 0) || (am > 3) || (cfg & MIPS_SEGCFG_EU))
@@ -81,7 +81,7 @@ static int show_segments(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int segments_open(struct inode *inode, struct file *file)
+static int segments_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, show_segments, NULL);
 }

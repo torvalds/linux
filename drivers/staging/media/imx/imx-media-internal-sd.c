@@ -214,7 +214,7 @@ int imx_media_register_ipu_internal_subdevs(struct imx_media_dev *imxmd,
 	if (!imxmd->ipu[ipu_id])
 		imxmd->ipu[ipu_id] = ipu;
 
-	/* register the synchronous subdevs */
+	/* register the synchroyesus subdevs */
 	for (i = 0; i < NUM_IPU_SUBDEVS; i++) {
 		intsd = &int_subdev[i];
 
@@ -222,7 +222,7 @@ int imx_media_register_ipu_internal_subdevs(struct imx_media_dev *imxmd,
 
 		/*
 		 * skip if this sync subdev already registered or its
-		 * not a sync subdev (one of the CSIs)
+		 * yest a sync subdev (one of the CSIs)
 		 */
 		if (sd || !intsd->sync_register)
 			continue;

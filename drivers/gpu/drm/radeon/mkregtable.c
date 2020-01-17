@@ -34,7 +34,7 @@
  *
  * Some of the internal functions ("__xxx") are useful when
  * manipulating whole lists rather than single entries, as
- * sometimes we already know the next/prev entries and we can
+ * sometimes we already kyesw the next/prev entries and we can
  * generate better code by using them directly rather than
  * using the generic single-entry routines.
  */
@@ -51,9 +51,9 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
 }
 
 /*
- * Insert a new entry between two known consecutive entries.
+ * Insert a new entry between two kyeswn consecutive entries.
  *
- * This is only for internal list manipulation where we know
+ * This is only for internal list manipulation where we kyesw
  * the prev/next entries already!
  */
 #ifndef CONFIG_DEBUG_LIST

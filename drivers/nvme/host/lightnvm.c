@@ -294,13 +294,13 @@ static int nvme_nvm_setup_12(struct nvme_nvm_id12 *id,
 	src = &id->grp;
 
 	if (src->mtype != 0) {
-		pr_err("nvm: memory type not supported\n");
+		pr_err("nvm: memory type yest supported\n");
 		return -EINVAL;
 	}
 
 	/* 1.2 spec. only reports a single version id - unfold */
 	geo->major_ver_id = id->ver_id;
-	geo->minor_ver_id = 2;
+	geo->miyesr_ver_id = 2;
 
 	/* Set compacted version for upper layers */
 	geo->version = NVM_OCSSD_SPEC_12;
@@ -326,7 +326,7 @@ static int nvme_nvm_setup_12(struct nvme_nvm_id12 *id,
 	geo->ws_opt = sec_per_pg;
 	geo->mw_cunits = geo->ws_opt << 3;	/* default to MLC safe values */
 
-	/* Do not impose values for maximum number of open blocks as it is
+	/* Do yest impose values for maximum number of open blocks as it is
 	 * unspecified in 1.2. Users of 1.2 must be aware of this and eventually
 	 * specify these values through a quirk if restrictions apply.
 	 */
@@ -395,7 +395,7 @@ static int nvme_nvm_setup_20(struct nvme_nvm_id20 *id,
 			     struct nvm_geo *geo)
 {
 	geo->major_ver_id = id->mjr;
-	geo->minor_ver_id = id->mnr;
+	geo->miyesr_ver_id = id->mnr;
 
 	/* Set compacted version for upper layers */
 	geo->version = NVM_OCSSD_SPEC_20;
@@ -451,7 +451,7 @@ static int nvme_nvm_identity(struct nvm_dev *nvmdev)
 
 	/*
 	 * The 1.2 and 2.0 specifications share the first byte in their geometry
-	 * command to make it possible to know what version a device implements.
+	 * command to make it possible to kyesw what version a device implements.
 	 */
 	switch (id->ver_id) {
 	case 1:
@@ -462,7 +462,7 @@ static int nvme_nvm_identity(struct nvm_dev *nvmdev)
 							&nvmdev->geo);
 		break;
 	default:
-		dev_err(ns->ctrl->device, "OCSSD revision not supported (%d)\n",
+		dev_err(ns->ctrl->device, "OCSSD revision yest supported (%d)\n",
 							id->ver_id);
 		ret = -EINVAL;
 	}
@@ -510,7 +510,7 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 
 	if (le16_to_cpu(bb_tbl->verid) != 1) {
 		ret = -EINVAL;
-		dev_err(ctrl->device, "bbt version not supported\n");
+		dev_err(ctrl->device, "bbt version yest supported\n");
 		goto out;
 	}
 
@@ -568,7 +568,7 @@ static int nvme_nvm_get_chk_meta(struct nvm_dev *ndev,
 
 	/*
 	 * limit requests to maximum 256K to avoid issuing arbitrary large
-	 * requests when the device does not specific a maximum transfer size.
+	 * requests when the device does yest specific a maximum transfer size.
 	 */
 	max_len = min_t(unsigned int, ctrl->max_hw_sectors << 9, 256 * 1024);
 
@@ -695,7 +695,7 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd,
 
 	rq->end_io_data = rqd;
 
-	blk_execute_rq_nowait(q, NULL, rq, 0, nvme_nvm_end_io);
+	blk_execute_rq_yeswait(q, NULL, rq, 0, nvme_nvm_end_io);
 
 	return 0;
 
@@ -945,7 +945,7 @@ int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, unsigned long arg)
 	}
 }
 
-int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node)
+int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int yesde)
 {
 	struct request_queue *q = ns->queue;
 	struct nvm_dev *dev;
@@ -953,7 +953,7 @@ int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node)
 
 	_nvme_nvm_check_size();
 
-	dev = nvm_alloc_dev(node);
+	dev = nvm_alloc_dev(yesde);
 	if (!dev)
 		return -ENOMEM;
 
@@ -998,7 +998,7 @@ static ssize_t nvm_dev_attr_show(struct device *dev,
 		else
 			return scnprintf(page, PAGE_SIZE, "%u.%u\n",
 						geo->major_ver_id,
-						geo->minor_ver_id);
+						geo->miyesr_ver_id);
 	} else if (strcmp(attr->name, "capabilities") == 0) {
 		return scnprintf(page, PAGE_SIZE, "%u\n", geo->cap);
 	} else if (strcmp(attr->name, "read_typ") == 0) {
@@ -1187,7 +1187,7 @@ static NVM_DEV_ATTR_20_RO(reset_typ);
 static NVM_DEV_ATTR_20_RO(reset_max);
 
 static struct attribute *nvm_dev_attrs[] = {
-	/* version agnostic attrs */
+	/* version agyesstic attrs */
 	&dev_attr_version.attr,
 	&dev_attr_capabilities.attr,
 	&dev_attr_read_typ.attr,

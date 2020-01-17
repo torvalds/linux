@@ -15,7 +15,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/mman.h>
@@ -105,7 +105,7 @@ int main(void)
 	OFFSET(KSP, thread_struct, ksp);
 	OFFSET(PT_REGS, thread_struct, regs);
 #ifdef CONFIG_BOOKE
-	OFFSET(THREAD_NORMSAVES, thread_struct, normsave[0]);
+	OFFSET(THREAD_NORMSAVES, thread_struct, yesrmsave[0]);
 #endif
 	OFFSET(THREAD_FPEXC_MODE, thread_struct, fpexc_mode);
 	OFFSET(THREAD_FPSTATE, thread_struct, fp_state.fpr);
@@ -321,7 +321,7 @@ int main(void)
 #ifndef CONFIG_PPC64
 	/*
 	 * The PowerPC 400-class & Book-E processors have neither the DAR
-	 * nor the DSISR SPRs. Hence, we overload them to hold the similar
+	 * yesr the DSISR SPRs. Hence, we overload them to hold the similar
 	 * DEAR and ESR SPRs for such processors.  For critical interrupts
 	 * we use them to hold SRR0 and SRR1.
 	 */

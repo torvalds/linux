@@ -84,7 +84,7 @@ static int mxs_ocotp_read(void *context, unsigned int offset,
 
 	while (bytes) {
 		if ((offset < OCOTP_DATA_OFFSET) || (offset % 16)) {
-			/* fill up non-data register */
+			/* fill up yesn-data register */
 			*buf++ = 0;
 		} else {
 			*buf++ = readl(otp->base + offset);

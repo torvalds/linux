@@ -32,19 +32,19 @@ static inline const char *CONFIG_prefix(void)
 
 enum conf_def_mode {
 	def_default,
-	def_yes,
-	def_mod,
 	def_no,
+	def_mod,
+	def_yes,
 	def_random
 };
 
-extern int yylineno;
+extern int yylineyes;
 void zconfdump(FILE *out);
 void zconf_starthelp(void);
 FILE *zconf_fopen(const char *name);
 void zconf_initscan(const char *name);
 void zconf_nextfile(const char *name);
-int zconf_lineno(void);
+int zconf_lineyes(void);
 const char *zconf_curname(void);
 
 /* confdata.c */
@@ -76,7 +76,7 @@ void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep);
 void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep);
 void menu_add_option_modules(void);
 void menu_add_option_defconfig_list(void);
-void menu_add_option_allnoconfig_y(void);
+void menu_add_option_allyesconfig_y(void);
 void menu_finalize(struct menu *parent);
 void menu_set_type(int type);
 
@@ -95,8 +95,8 @@ struct gstr {
 	size_t len;
 	char  *s;
 	/*
-	* when max_width is not zero long lines in string s (if any) get
-	* wrapped not to exceed the max_width value
+	* when max_width is yest zero long lines in string s (if any) get
+	* wrapped yest to exceed the max_width value
 	*/
 	int max_width;
 };
@@ -128,7 +128,7 @@ static inline struct symbol *sym_get_choice_value(struct symbol *sym)
 
 static inline bool sym_set_choice_value(struct symbol *ch, struct symbol *chval)
 {
-	return sym_set_tristate_value(chval, yes);
+	return sym_set_tristate_value(chval, no);
 }
 
 static inline bool sym_is_choice(struct symbol *sym)

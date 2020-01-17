@@ -12,10 +12,10 @@ calls. Only the functions's names and the the call time are provided.
 
 Usage:
 	Be sure that you have CONFIG_FUNCTION_TRACER
-	# mount -t debugfs nodev /sys/kernel/debug
+	# mount -t debugfs yesdev /sys/kernel/debug
 	# echo function > /sys/kernel/debug/tracing/current_tracer
 	$ cat /sys/kernel/debug/tracing/trace_pipe > ~/raw_trace_func
-	Wait some times but not too much, the script is a bit slow.
+	Wait some times but yest too much, the script is a bit slow.
 	Break the pipe (Ctrl + Z)
 	$ scripts/draw_functrace.py < raw_trace_func > draw_functrace
 	Then you have your drawn trace in draw_functrace
@@ -26,7 +26,7 @@ import sys, re
 
 class CallTree:
 	""" This class provides a tree representation of the functions
-		call stack. If a function has no parent in the kernel (interrupt,
+		call stack. If a function has yes parent in the kernel (interrupt,
 		syscall, kernel thread...) then it is attached to a virtual parent
 		called ROOT.
 	"""
@@ -42,17 +42,17 @@ class CallTree:
 		self._children = []
 
 	def calls(self, func, calltime):
-		""" If a function calls another one, call this method to insert it
+		""" If a function calls ayesther one, call this method to insert it
 			into the tree at the appropriate place.
-			@return: A reference to the newly created child node.
+			@return: A reference to the newly created child yesde.
 		"""
 		child = CallTree(func, calltime, self)
 		self._children.append(child)
 		return child
 
 	def getParent(self, func):
-		""" Retrieve the last parent of the current node that
-			has the name given by func. If this function is not
+		""" Retrieve the last parent of the current yesde that
+			has the name given by func. If this function is yest
 			on a parent, then create it as new child of root
 			@return: A reference to the parent.
 		"""
@@ -68,7 +68,7 @@ class CallTree:
 		return self.__toString("", True)
 
 	def __toString(self, branch, lastChild):
-		if self._time is not None:
+		if self._time is yest None:
 			s = "%s----%s (%s)\n" % (branch, self._func, self._time)
 		else:
 			s = "%s----%s\n" % (branch, self._func)
@@ -87,14 +87,14 @@ class CallTree:
 		return s
 
 class BrokenLineException(Exception):
-	"""If the last line is not complete because of the pipe breakage,
-	   we want to stop the processing and ignore this line.
+	"""If the last line is yest complete because of the pipe breakage,
+	   we want to stop the processing and igyesre this line.
 	"""
 	pass
 
 class CommentLineException(Exception):
 	""" If the line is a comment (as in the beginning of the trace file),
-	    just ignore it.
+	    just igyesre it.
 	"""
 	pass
 

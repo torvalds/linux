@@ -102,12 +102,12 @@ struct dmc_opp_table {
 };
 
 /**
- * struct exynos5_dmc - main structure describing DMC device
+ * struct exyyess5_dmc - main structure describing DMC device
  *
  * The main structure for the Dynamic Memory Controller which covers clocks,
  * memory regions, HW information, parameters and current operating mode.
  */
-struct exynos5_dmc {
+struct exyyess5_dmc {
 	struct device *dev;
 	struct devfreq *df;
 	struct devfreq_simple_ondemand_data gov_data;
@@ -195,7 +195,7 @@ static const struct timing_reg timing_power[] = {
 #define TIMING_COUNT (ARRAY_SIZE(timing_row) + ARRAY_SIZE(timing_data) + \
 		      ARRAY_SIZE(timing_power))
 
-static int exynos5_counters_set_event(struct exynos5_dmc *dmc)
+static int exyyess5_counters_set_event(struct exyyess5_dmc *dmc)
 {
 	int i, ret;
 
@@ -209,7 +209,7 @@ static int exynos5_counters_set_event(struct exynos5_dmc *dmc)
 	return 0;
 }
 
-static int exynos5_counters_enable_edev(struct exynos5_dmc *dmc)
+static int exyyess5_counters_enable_edev(struct exyyess5_dmc *dmc)
 {
 	int i, ret;
 
@@ -223,7 +223,7 @@ static int exynos5_counters_enable_edev(struct exynos5_dmc *dmc)
 	return 0;
 }
 
-static int exynos5_counters_disable_edev(struct exynos5_dmc *dmc)
+static int exyyess5_counters_disable_edev(struct exyyess5_dmc *dmc)
 {
 	int i, ret;
 
@@ -245,7 +245,7 @@ static int exynos5_counters_disable_edev(struct exynos5_dmc *dmc)
  * Seeks in the local DMC driver structure for the requested frequency value
  * and returns index or error value.
  */
-static int find_target_freq_idx(struct exynos5_dmc *dmc,
+static int find_target_freq_idx(struct exyyess5_dmc *dmc,
 				unsigned long target_rate)
 {
 	int i;
@@ -258,19 +258,19 @@ static int find_target_freq_idx(struct exynos5_dmc *dmc,
 }
 
 /**
- * exynos5_switch_timing_regs() - Changes bank register set for DRAM timings
+ * exyyess5_switch_timing_regs() - Changes bank register set for DRAM timings
  * @dmc:	device for which the new settings is going to be applied
  * @set:	boolean variable passing set value
  *
  * Changes the register set, which holds timing parameters.
  * There is two register sets: 0 and 1. The register set 0
- * is used in normal operation when the clock is provided from main PLL.
+ * is used in yesrmal operation when the clock is provided from main PLL.
  * The bank register set 1 is used when the main PLL frequency is going to be
  * changed and the clock is taken from alternative, stable source.
  * This function switches between these banks according to the
  * currently used clock source.
  */
-static void exynos5_switch_timing_regs(struct exynos5_dmc *dmc, bool set)
+static void exyyess5_switch_timing_regs(struct exyyess5_dmc *dmc, bool set)
 {
 	unsigned int reg;
 	int ret;
@@ -286,13 +286,13 @@ static void exynos5_switch_timing_regs(struct exynos5_dmc *dmc, bool set)
 }
 
 /**
- * exynos5_init_freq_table() - Initialized PM OPP framework
+ * exyyess5_init_freq_table() - Initialized PM OPP framework
  * @dmc:	DMC device for which the frequencies are used for OPP init
  * @profile:	devfreq device's profile
  *
  * Populate the devfreq device's OPP table based on current frequency, voltage.
  */
-static int exynos5_init_freq_table(struct exynos5_dmc *dmc,
+static int exyyess5_init_freq_table(struct exyyess5_dmc *dmc,
 				   struct devfreq_dev_profile *profile)
 {
 	int i, ret;
@@ -335,7 +335,7 @@ err_opp:
 }
 
 /**
- * exynos5_set_bypass_dram_timings() - Low-level changes of the DRAM timings
+ * exyyess5_set_bypass_dram_timings() - Low-level changes of the DRAM timings
  * @dmc:	device for which the new settings is going to be applied
  * @param:	DRAM parameters which passes timing data
  *
@@ -343,7 +343,7 @@ err_opp:
  * 'bypass' clock source (fixed frequency @400MHz).
  * It uses timing bank registers set 1.
  */
-static void exynos5_set_bypass_dram_timings(struct exynos5_dmc *dmc)
+static void exyyess5_set_bypass_dram_timings(struct exyyess5_dmc *dmc)
 {
 	writel(EXYNOS5_AREF_NORMAL,
 	       dmc->base_drexi0 + EXYNOS5_DREXI_TIMINGAREF);
@@ -363,7 +363,7 @@ static void exynos5_set_bypass_dram_timings(struct exynos5_dmc *dmc)
 }
 
 /**
- * exynos5_dram_change_timings() - Low-level changes of the DRAM final timings
+ * exyyess5_dram_change_timings() - Low-level changes of the DRAM final timings
  * @dmc:	device for which the new settings is going to be applied
  * @target_rate:	target frequency of the DMC
  *
@@ -373,7 +373,7 @@ static void exynos5_set_bypass_dram_timings(struct exynos5_dmc *dmc)
  * the needed delays.
  * It uses timing bank registers set 0.
  */
-static int exynos5_dram_change_timings(struct exynos5_dmc *dmc,
+static int exyyess5_dram_change_timings(struct exyyess5_dmc *dmc,
 				       unsigned long target_rate)
 {
 	int idx;
@@ -405,16 +405,16 @@ static int exynos5_dram_change_timings(struct exynos5_dmc *dmc,
 }
 
 /**
- * exynos5_dmc_align_target_voltage() - Sets the final voltage for the DMC
+ * exyyess5_dmc_align_target_voltage() - Sets the final voltage for the DMC
  * @dmc:	device for which it is going to be set
  * @target_volt:	new voltage which is chosen to be final
  *
- * Function tries to align voltage to the safe level for 'normal' mode.
+ * Function tries to align voltage to the safe level for 'yesrmal' mode.
  * It checks the need of higher voltage and changes the value. The target
  * voltage might be lower that currently set and still the system will be
  * stable.
  */
-static int exynos5_dmc_align_target_voltage(struct exynos5_dmc *dmc,
+static int exyyess5_dmc_align_target_voltage(struct exyyess5_dmc *dmc,
 					    unsigned long target_volt)
 {
 	int ret = 0;
@@ -431,16 +431,16 @@ static int exynos5_dmc_align_target_voltage(struct exynos5_dmc *dmc,
 }
 
 /**
- * exynos5_dmc_align_bypass_voltage() - Sets the voltage for the DMC
+ * exyyess5_dmc_align_bypass_voltage() - Sets the voltage for the DMC
  * @dmc:	device for which it is going to be set
  * @target_volt:	new voltage which is chosen to be final
  *
  * Function tries to align voltage to the safe level for the 'bypass' mode.
  * It checks the need of higher voltage and changes the value.
- * The target voltage must not be less than currently needed, because
+ * The target voltage must yest be less than currently needed, because
  * for current frequency the device might become unstable.
  */
-static int exynos5_dmc_align_bypass_voltage(struct exynos5_dmc *dmc,
+static int exyyess5_dmc_align_bypass_voltage(struct exyyess5_dmc *dmc,
 					    unsigned long target_volt)
 {
 	int ret = 0;
@@ -460,13 +460,13 @@ static int exynos5_dmc_align_bypass_voltage(struct exynos5_dmc *dmc,
 }
 
 /**
- * exynos5_dmc_align_bypass_dram_timings() - Chooses and sets DRAM timings
+ * exyyess5_dmc_align_bypass_dram_timings() - Chooses and sets DRAM timings
  * @dmc:	device for which it is going to be set
  * @target_rate:	new frequency which is chosen to be final
  *
  * Function changes the DRAM timings for the temporary 'bypass' mode.
  */
-static int exynos5_dmc_align_bypass_dram_timings(struct exynos5_dmc *dmc,
+static int exyyess5_dmc_align_bypass_dram_timings(struct exyyess5_dmc *dmc,
 						 unsigned long target_rate)
 {
 	int idx = find_target_freq_idx(dmc, target_rate);
@@ -474,13 +474,13 @@ static int exynos5_dmc_align_bypass_dram_timings(struct exynos5_dmc *dmc,
 	if (idx < 0)
 		return -EINVAL;
 
-	exynos5_set_bypass_dram_timings(dmc);
+	exyyess5_set_bypass_dram_timings(dmc);
 
 	return 0;
 }
 
 /**
- * exynos5_dmc_switch_to_bypass_configuration() - Switching to temporary clock
+ * exyyess5_dmc_switch_to_bypass_configuration() - Switching to temporary clock
  * @dmc:	DMC device for which the switching is going to happen
  * @target_rate:	new frequency which is going to be set as a final
  * @target_volt:	new voltage which is going to be set as a final
@@ -491,38 +491,38 @@ static int exynos5_dmc_align_bypass_dram_timings(struct exynos5_dmc *dmc,
  * period of the main PLL reconfiguration.
  */
 static int
-exynos5_dmc_switch_to_bypass_configuration(struct exynos5_dmc *dmc,
+exyyess5_dmc_switch_to_bypass_configuration(struct exyyess5_dmc *dmc,
 					   unsigned long target_rate,
 					   unsigned long target_volt)
 {
 	int ret;
 
 	/*
-	 * Having higher voltage for a particular frequency does not harm
+	 * Having higher voltage for a particular frequency does yest harm
 	 * the chip. Use it for the temporary frequency change when one
 	 * voltage manipulation might be avoided.
 	 */
-	ret = exynos5_dmc_align_bypass_voltage(dmc, target_volt);
+	ret = exyyess5_dmc_align_bypass_voltage(dmc, target_volt);
 	if (ret)
 		return ret;
 
 	/*
-	 * Longer delays for DRAM does not cause crash, the opposite does.
+	 * Longer delays for DRAM does yest cause crash, the opposite does.
 	 */
-	ret = exynos5_dmc_align_bypass_dram_timings(dmc, target_rate);
+	ret = exyyess5_dmc_align_bypass_dram_timings(dmc, target_rate);
 	if (ret)
 		return ret;
 
 	/*
-	 * Delays are long enough, so use them for the new coming clock.
+	 * Delays are long eyesugh, so use them for the new coming clock.
 	 */
-	exynos5_switch_timing_regs(dmc, USE_MX_MSPLL_TIMINGS);
+	exyyess5_switch_timing_regs(dmc, USE_MX_MSPLL_TIMINGS);
 
 	return ret;
 }
 
 /**
- * exynos5_dmc_change_freq_and_volt() - Changes voltage and frequency of the DMC
+ * exyyess5_dmc_change_freq_and_volt() - Changes voltage and frequency of the DMC
  * using safe procedure
  * @dmc:	device for which the frequency is going to be changed
  * @target_rate:	requested new frequency
@@ -545,20 +545,20 @@ exynos5_dmc_switch_to_bypass_configuration(struct exynos5_dmc *dmc,
  * In this function there is last alignment of the voltage level at the end.
  */
 static int
-exynos5_dmc_change_freq_and_volt(struct exynos5_dmc *dmc,
+exyyess5_dmc_change_freq_and_volt(struct exyyess5_dmc *dmc,
 				 unsigned long target_rate,
 				 unsigned long target_volt)
 {
 	int ret;
 
-	ret = exynos5_dmc_switch_to_bypass_configuration(dmc, target_rate,
+	ret = exyyess5_dmc_switch_to_bypass_configuration(dmc, target_rate,
 							 target_volt);
 	if (ret)
 		return ret;
 
 	/*
 	 * Voltage is set at least to a level needed for this frequency,
-	 * so switching clock source is safe now.
+	 * so switching clock source is safe yesw.
 	 */
 	clk_prepare_enable(dmc->fout_spll);
 	clk_prepare_enable(dmc->mout_spll);
@@ -573,21 +573,21 @@ exynos5_dmc_change_freq_and_volt(struct exynos5_dmc *dmc,
 	 * Thanks to this the settings will be ready for the upcoming clock
 	 * source change.
 	 */
-	exynos5_dram_change_timings(dmc, target_rate);
+	exyyess5_dram_change_timings(dmc, target_rate);
 
 	clk_set_rate(dmc->fout_bpll, target_rate);
 
-	exynos5_switch_timing_regs(dmc, USE_BPLL_TIMINGS);
+	exyyess5_switch_timing_regs(dmc, USE_BPLL_TIMINGS);
 
 	ret = clk_set_parent(dmc->mout_mclk_cdrex, dmc->mout_bpll);
 	if (ret)
 		goto disable_clocks;
 
 	/*
-	 * Make sure if the voltage is not from 'bypass' settings and align to
+	 * Make sure if the voltage is yest from 'bypass' settings and align to
 	 * the right level for power efficiency.
 	 */
-	ret = exynos5_dmc_align_target_voltage(dmc, target_volt);
+	ret = exyyess5_dmc_align_target_voltage(dmc, target_volt);
 
 disable_clocks:
 	clk_disable_unprepare(dmc->mout_mx_mspll_ccore);
@@ -598,7 +598,7 @@ disable_clocks:
 }
 
 /**
- * exynos5_dmc_get_volt_freq() - Gets the frequency and voltage from the OPP
+ * exyyess5_dmc_get_volt_freq() - Gets the frequency and voltage from the OPP
  * table.
  * @dmc:	device for which the frequency is going to be changed
  * @freq:       requested frequency in KHz
@@ -611,7 +611,7 @@ disable_clocks:
  * frequency and voltage. It populates the values 'target_rate' and
  * 'target_volt' or returns error value when OPP framework fails.
  */
-static int exynos5_dmc_get_volt_freq(struct exynos5_dmc *dmc,
+static int exyyess5_dmc_get_volt_freq(struct exyyess5_dmc *dmc,
 				     unsigned long *freq,
 				     unsigned long *target_rate,
 				     unsigned long *target_volt, u32 flags)
@@ -630,7 +630,7 @@ static int exynos5_dmc_get_volt_freq(struct exynos5_dmc *dmc,
 }
 
 /**
- * exynos5_dmc_target() - Function responsible for changing frequency of DMC
+ * exyyess5_dmc_target() - Function responsible for changing frequency of DMC
  * @dev:	device for which the frequency is going to be changed
  * @freq:	requested frequency in KHz
  * @flags:	flags provided for this frequency change request
@@ -638,18 +638,18 @@ static int exynos5_dmc_get_volt_freq(struct exynos5_dmc *dmc,
  * An entry function provided to the devfreq framework which provides frequency
  * change of the DMC. The function gets the possible rate from OPP table based
  * on requested frequency. It calls the next function responsible for the
- * frequency and voltage change. In case of failure, does not set 'curr_rate'
+ * frequency and voltage change. In case of failure, does yest set 'curr_rate'
  * and returns error value to the framework.
  */
-static int exynos5_dmc_target(struct device *dev, unsigned long *freq,
+static int exyyess5_dmc_target(struct device *dev, unsigned long *freq,
 			      u32 flags)
 {
-	struct exynos5_dmc *dmc = dev_get_drvdata(dev);
+	struct exyyess5_dmc *dmc = dev_get_drvdata(dev);
 	unsigned long target_rate = 0;
 	unsigned long target_volt = 0;
 	int ret;
 
-	ret = exynos5_dmc_get_volt_freq(dmc, freq, &target_rate, &target_volt,
+	ret = exyyess5_dmc_get_volt_freq(dmc, freq, &target_rate, &target_volt,
 					flags);
 
 	if (ret)
@@ -660,7 +660,7 @@ static int exynos5_dmc_target(struct device *dev, unsigned long *freq,
 
 	mutex_lock(&dmc->lock);
 
-	ret = exynos5_dmc_change_freq_and_volt(dmc, target_rate, target_volt);
+	ret = exyyess5_dmc_change_freq_and_volt(dmc, target_rate, target_volt);
 
 	if (ret) {
 		mutex_unlock(&dmc->lock);
@@ -674,7 +674,7 @@ static int exynos5_dmc_target(struct device *dev, unsigned long *freq,
 }
 
 /**
- * exynos5_counters_get() - Gets the performance counters values.
+ * exyyess5_counters_get() - Gets the performance counters values.
  * @dmc:	device for which the counters are going to be checked
  * @load_count:	variable which is populated with counter value
  * @total_count:	variable which is used as 'wall clock' reference
@@ -683,7 +683,7 @@ static int exynos5_dmc_target(struct device *dev, unsigned long *freq,
  * two DMC channels. The 'total_count' is used as a reference and max value.
  * The ratio 'load_count/total_count' shows the busy percentage [0%, 100%].
  */
-static int exynos5_counters_get(struct exynos5_dmc *dmc,
+static int exyyess5_counters_get(struct exyyess5_dmc *dmc,
 				unsigned long *load_count,
 				unsigned long *total_count)
 {
@@ -714,14 +714,14 @@ static int exynos5_counters_get(struct exynos5_dmc *dmc,
 }
 
 /**
- * exynos5_dmc_start_perf_events() - Setup and start performance event counters
+ * exyyess5_dmc_start_perf_events() - Setup and start performance event counters
  * @dmc:	device for which the counters are going to be checked
  * @beg_value:	initial value for the counter
  *
  * Function which enables needed counters, interrupts and sets initial values
  * then starts the counters.
  */
-static void exynos5_dmc_start_perf_events(struct exynos5_dmc *dmc,
+static void exyyess5_dmc_start_perf_events(struct exyyess5_dmc *dmc,
 					  u32 beg_value)
 {
 	/* Enable interrupts for counter 2 */
@@ -753,37 +753,37 @@ static void exynos5_dmc_start_perf_events(struct exynos5_dmc *dmc,
 }
 
 /**
- * exynos5_dmc_perf_events_calc() - Calculate utilization
+ * exyyess5_dmc_perf_events_calc() - Calculate utilization
  * @dmc:	device for which the counters are going to be checked
  * @diff_ts:	time between last interrupt and current one
  *
- * Function which calculates needed utilization for the devfreq governor.
+ * Function which calculates needed utilization for the devfreq goveryesr.
  * It prepares values for 'busy_time' and 'total_time' based on elapsed time
  * between interrupts, which approximates utilization.
  */
-static void exynos5_dmc_perf_events_calc(struct exynos5_dmc *dmc, u64 diff_ts)
+static void exyyess5_dmc_perf_events_calc(struct exyyess5_dmc *dmc, u64 diff_ts)
 {
 	/*
 	 * This is a simple algorithm for managing traffic on DMC.
-	 * When there is almost no load the counters overflow every 4s,
-	 * no mater the DMC frequency.
+	 * When there is almost yes load the counters overflow every 4s,
+	 * yes mater the DMC frequency.
 	 * The high load might be approximated using linear function.
-	 * Knowing that, simple calculation can provide 'busy_time' and
-	 * 'total_time' to the devfreq governor which picks up target
+	 * Kyeswing that, simple calculation can provide 'busy_time' and
+	 * 'total_time' to the devfreq goveryesr which picks up target
 	 * frequency.
 	 * We want a fast ramp up and slow decay in frequency change function.
 	 */
 	if (diff_ts < PERF_EVENT_UP_DOWN_THRESHOLD) {
 		/*
-		 * Set higher utilization for the simple_ondemand governor.
-		 * The governor should increase the frequency of the DMC.
+		 * Set higher utilization for the simple_ondemand goveryesr.
+		 * The goveryesr should increase the frequency of the DMC.
 		 */
 		dmc->load = 70;
 		dmc->total = 100;
 	} else {
 		/*
-		 * Set low utilization for the simple_ondemand governor.
-		 * The governor should decrease the frequency of the DMC.
+		 * Set low utilization for the simple_ondemand goveryesr.
+		 * The goveryesr should decrease the frequency of the DMC.
 		 */
 		dmc->load = 35;
 		dmc->total = 100;
@@ -793,13 +793,13 @@ static void exynos5_dmc_perf_events_calc(struct exynos5_dmc *dmc, u64 diff_ts)
 }
 
 /**
- * exynos5_dmc_perf_events_check() - Checks the status of the counters
+ * exyyess5_dmc_perf_events_check() - Checks the status of the counters
  * @dmc:	device for which the counters are going to be checked
  *
  * Function which is called from threaded IRQ to check the counters state
  * and to call approximation for the needed utilization.
  */
-static void exynos5_dmc_perf_events_check(struct exynos5_dmc *dmc)
+static void exyyess5_dmc_perf_events_check(struct exyyess5_dmc *dmc)
 {
 	u32 val;
 	u64 diff_ts, ts;
@@ -823,18 +823,18 @@ static void exynos5_dmc_perf_events_check(struct exynos5_dmc *dmc)
 		dev_dbg(dmc->dev, "drex1 0xE050 val= 0x%08x\n",  val);
 	}
 
-	exynos5_dmc_perf_events_calc(dmc, diff_ts);
+	exyyess5_dmc_perf_events_calc(dmc, diff_ts);
 
-	exynos5_dmc_start_perf_events(dmc, PERF_COUNTER_START_VALUE);
+	exyyess5_dmc_start_perf_events(dmc, PERF_COUNTER_START_VALUE);
 }
 
 /**
- * exynos5_dmc_enable_perf_events() - Enable performance events
+ * exyyess5_dmc_enable_perf_events() - Enable performance events
  * @dmc:	device for which the counters are going to be checked
  *
  * Function which is setup needed environment and enables counters.
  */
-static void exynos5_dmc_enable_perf_events(struct exynos5_dmc *dmc)
+static void exyyess5_dmc_enable_perf_events(struct exyyess5_dmc *dmc)
 {
 	u64 ts;
 
@@ -856,12 +856,12 @@ static void exynos5_dmc_enable_perf_events(struct exynos5_dmc *dmc)
 }
 
 /**
- * exynos5_dmc_disable_perf_events() - Disable performance events
+ * exyyess5_dmc_disable_perf_events() - Disable performance events
  * @dmc:	device for which the counters are going to be checked
  *
  * Function which stops, disables performance event counters and interrupts.
  */
-static void exynos5_dmc_disable_perf_events(struct exynos5_dmc *dmc)
+static void exyyess5_dmc_disable_perf_events(struct exyyess5_dmc *dmc)
 {
 	/* Stop all counters */
 	writel(0, dmc->base_drexi0 + DREX_PMNC_PPC);
@@ -881,7 +881,7 @@ static void exynos5_dmc_disable_perf_events(struct exynos5_dmc *dmc)
 }
 
 /**
- * exynos5_dmc_get_status() - Read current DMC performance statistics.
+ * exyyess5_dmc_get_status() - Read current DMC performance statistics.
  * @dev:	device for which the statistics are requested
  * @stat:	structure which has statistic fields
  *
@@ -889,10 +889,10 @@ static void exynos5_dmc_disable_perf_events(struct exynos5_dmc *dmc)
  * and 'total_time'. To protect from overflow, the values are shifted right
  * by 10. After read out the counters are setup to count again.
  */
-static int exynos5_dmc_get_status(struct device *dev,
+static int exyyess5_dmc_get_status(struct device *dev,
 				  struct devfreq_dev_status *stat)
 {
-	struct exynos5_dmc *dmc = dev_get_drvdata(dev);
+	struct exyyess5_dmc *dmc = dev_get_drvdata(dev);
 	unsigned long load, total;
 	int ret;
 
@@ -901,7 +901,7 @@ static int exynos5_dmc_get_status(struct device *dev,
 		stat->busy_time = dmc->load;
 		stat->total_time = dmc->total;
 	} else {
-		ret = exynos5_counters_get(dmc, &load, &total);
+		ret = exyyess5_counters_get(dmc, &load, &total);
 		if (ret < 0)
 			return -EINVAL;
 
@@ -909,9 +909,9 @@ static int exynos5_dmc_get_status(struct device *dev,
 		stat->busy_time = load >> 10;
 		stat->total_time = total >> 10;
 
-		ret = exynos5_counters_set_event(dmc);
+		ret = exyyess5_counters_set_event(dmc);
 		if (ret < 0) {
-			dev_err(dev, "could not set event counter\n");
+			dev_err(dev, "could yest set event counter\n");
 			return ret;
 		}
 	}
@@ -920,17 +920,17 @@ static int exynos5_dmc_get_status(struct device *dev,
 }
 
 /**
- * exynos5_dmc_get_cur_freq() - Function returns current DMC frequency
+ * exyyess5_dmc_get_cur_freq() - Function returns current DMC frequency
  * @dev:	device for which the framework checks operating frequency
  * @freq:	returned frequency value
  *
  * It returns the currently used frequency of the DMC. The real operating
- * frequency might be lower when the clock source value could not be divided
+ * frequency might be lower when the clock source value could yest be divided
  * to the requested value.
  */
-static int exynos5_dmc_get_cur_freq(struct device *dev, unsigned long *freq)
+static int exyyess5_dmc_get_cur_freq(struct device *dev, unsigned long *freq)
 {
-	struct exynos5_dmc *dmc = dev_get_drvdata(dev);
+	struct exyyess5_dmc *dmc = dev_get_drvdata(dev);
 
 	mutex_lock(&dmc->lock);
 	*freq = dmc->curr_rate;
@@ -940,18 +940,18 @@ static int exynos5_dmc_get_cur_freq(struct device *dev, unsigned long *freq)
 }
 
 /**
- * exynos5_dmc_df_profile - Devfreq governor's profile structure
+ * exyyess5_dmc_df_profile - Devfreq goveryesr's profile structure
  *
  * It provides to the devfreq framework needed functions and polling period.
  */
-static struct devfreq_dev_profile exynos5_dmc_df_profile = {
-	.target = exynos5_dmc_target,
-	.get_dev_status = exynos5_dmc_get_status,
-	.get_cur_freq = exynos5_dmc_get_cur_freq,
+static struct devfreq_dev_profile exyyess5_dmc_df_profile = {
+	.target = exyyess5_dmc_target,
+	.get_dev_status = exyyess5_dmc_get_status,
+	.get_cur_freq = exyyess5_dmc_get_cur_freq,
 };
 
 /**
- * exynos5_dmc_align_initial_frequency() - Align initial frequency value
+ * exyyess5_dmc_align_initial_frequency() - Align initial frequency value
  * @dmc:	device for which the frequency is going to be set
  * @bootloader_init_freq:	initial frequency set by the bootloader in KHz
  *
@@ -963,7 +963,7 @@ static struct devfreq_dev_profile exynos5_dmc_df_profile = {
  * must be made.
  */
 static unsigned long
-exynos5_dmc_align_init_freq(struct exynos5_dmc *dmc,
+exyyess5_dmc_align_init_freq(struct exyyess5_dmc *dmc,
 			    unsigned long bootloader_init_freq)
 {
 	unsigned long aligned_freq;
@@ -982,14 +982,14 @@ exynos5_dmc_align_init_freq(struct exynos5_dmc *dmc,
  * create_timings_aligned() - Create register values and align with standard
  * @dmc:	device for which the frequency is going to be set
  * @idx:	speed bin in the OPP table
- * @clk_period_ps:	the period of the clock, known as tCK
+ * @clk_period_ps:	the period of the clock, kyeswn as tCK
  *
  * The function calculates timings and creates a register value ready for
  * a frequency transition. The register contains a few timings. They are
- * shifted by a known offset. The timing value is calculated based on memory
+ * shifted by a kyeswn offset. The timing value is calculated based on memory
  * specyfication: minimal time required and minimal cycles required.
  */
-static int create_timings_aligned(struct exynos5_dmc *dmc, u32 *reg_timing_row,
+static int create_timings_aligned(struct exyyess5_dmc *dmc, u32 *reg_timing_row,
 				  u32 *reg_timing_data, u32 *reg_timing_power,
 				  u32 clk_period_ps)
 {
@@ -1128,16 +1128,16 @@ static int create_timings_aligned(struct exynos5_dmc *dmc, u32 *reg_timing_row,
  *
  * The function parses DT entries with DRAM information.
  */
-static int of_get_dram_timings(struct exynos5_dmc *dmc)
+static int of_get_dram_timings(struct exyyess5_dmc *dmc)
 {
 	int ret = 0;
 	int idx;
-	struct device_node *np_ddr;
+	struct device_yesde *np_ddr;
 	u32 freq_mhz, clk_period_ps;
 
-	np_ddr = of_parse_phandle(dmc->dev->of_node, "device-handle", 0);
+	np_ddr = of_parse_phandle(dmc->dev->of_yesde, "device-handle", 0);
 	if (!np_ddr) {
-		dev_warn(dmc->dev, "could not find 'device-handle' in DT\n");
+		dev_warn(dmc->dev, "could yest find 'device-handle' in DT\n");
 		return -EINVAL;
 	}
 
@@ -1160,15 +1160,15 @@ static int of_get_dram_timings(struct exynos5_dmc *dmc)
 						 DDR_TYPE_LPDDR3,
 						 &dmc->timings_arr_size);
 	if (!dmc->timings) {
-		of_node_put(np_ddr);
-		dev_warn(dmc->dev, "could not get timings from DT\n");
+		of_yesde_put(np_ddr);
+		dev_warn(dmc->dev, "could yest get timings from DT\n");
 		return -EINVAL;
 	}
 
 	dmc->min_tck = of_lpddr3_get_min_tck(np_ddr, dmc->dev);
 	if (!dmc->min_tck) {
-		of_node_put(np_ddr);
-		dev_warn(dmc->dev, "could not get tck from DT\n");
+		of_yesde_put(np_ddr);
+		dev_warn(dmc->dev, "could yest get tck from DT\n");
 		return -EINVAL;
 	}
 
@@ -1183,7 +1183,7 @@ static int of_get_dram_timings(struct exynos5_dmc *dmc)
 					     clk_period_ps);
 	}
 
-	of_node_put(np_ddr);
+	of_yesde_put(np_ddr);
 
 	/* Take the highest frequency's timings as 'bypass' */
 	dmc->bypass_timing_row = dmc->timing_row[idx - 1];
@@ -1194,13 +1194,13 @@ static int of_get_dram_timings(struct exynos5_dmc *dmc)
 }
 
 /**
- * exynos5_dmc_init_clks() - Initialize clocks needed for DMC operation.
+ * exyyess5_dmc_init_clks() - Initialize clocks needed for DMC operation.
  * @dmc:	DMC structure containing needed fields
  *
  * Get the needed clocks defined in DT device, enable and set the right parents.
- * Read current frequency and initialize the initial rate for governor.
+ * Read current frequency and initialize the initial rate for goveryesr.
  */
-static int exynos5_dmc_init_clks(struct exynos5_dmc *dmc)
+static int exyyess5_dmc_init_clks(struct exyyess5_dmc *dmc)
 {
 	int ret;
 	unsigned long target_volt = 0;
@@ -1236,13 +1236,13 @@ static int exynos5_dmc_init_clks(struct exynos5_dmc *dmc)
 	}
 
 	/*
-	 * Convert frequency to KHz values and set it for the governor.
+	 * Convert frequency to KHz values and set it for the goveryesr.
 	 */
 	dmc->curr_rate = clk_get_rate(dmc->mout_mclk_cdrex);
-	dmc->curr_rate = exynos5_dmc_align_init_freq(dmc, dmc->curr_rate);
-	exynos5_dmc_df_profile.initial_freq = dmc->curr_rate;
+	dmc->curr_rate = exyyess5_dmc_align_init_freq(dmc, dmc->curr_rate);
+	exyyess5_dmc_df_profile.initial_freq = dmc->curr_rate;
 
-	ret = exynos5_dmc_get_volt_freq(dmc, &dmc->curr_rate, &target_rate,
+	ret = exyyess5_dmc_get_volt_freq(dmc, &dmc->curr_rate, &target_rate,
 					&target_volt, 0);
 	if (ret)
 		return ret;
@@ -1257,7 +1257,7 @@ static int exynos5_dmc_init_clks(struct exynos5_dmc *dmc)
 	clk_prepare_enable(dmc->mout_bpll);
 
 	/*
-	 * Some bootloaders do not set clock routes correctly.
+	 * Some bootloaders do yest set clock routes correctly.
 	 * Stop one path in clocks to PHY.
 	 */
 	regmap_read(dmc->clk_regmap, CDREX_LPDDR3PHY_CLKM_SRC, &tmp);
@@ -1268,22 +1268,22 @@ static int exynos5_dmc_init_clks(struct exynos5_dmc *dmc)
 }
 
 /**
- * exynos5_performance_counters_init() - Initializes performance DMC's counters
+ * exyyess5_performance_counters_init() - Initializes performance DMC's counters
  * @dmc:	DMC for which it does the setup
  *
  * Initialization of performance counters in DMC for estimating usage.
  * The counter's values are used for calculation of a memory bandwidth and based
- * on that the governor changes the frequency.
- * The counters are not used when the governor is GOVERNOR_USERSPACE.
+ * on that the goveryesr changes the frequency.
+ * The counters are yest used when the goveryesr is GOVERNOR_USERSPACE.
  */
-static int exynos5_performance_counters_init(struct exynos5_dmc *dmc)
+static int exyyess5_performance_counters_init(struct exyyess5_dmc *dmc)
 {
 	int counters_size;
 	int ret, i;
 
 	dmc->num_counters = devfreq_event_get_edev_count(dmc->dev);
 	if (dmc->num_counters < 0) {
-		dev_err(dmc->dev, "could not get devfreq-event counters\n");
+		dev_err(dmc->dev, "could yest get devfreq-event counters\n");
 		return dmc->num_counters;
 	}
 
@@ -1299,16 +1299,16 @@ static int exynos5_performance_counters_init(struct exynos5_dmc *dmc)
 			return -EPROBE_DEFER;
 	}
 
-	ret = exynos5_counters_enable_edev(dmc);
+	ret = exyyess5_counters_enable_edev(dmc);
 	if (ret < 0) {
-		dev_err(dmc->dev, "could not enable event counter\n");
+		dev_err(dmc->dev, "could yest enable event counter\n");
 		return ret;
 	}
 
-	ret = exynos5_counters_set_event(dmc);
+	ret = exyyess5_counters_set_event(dmc);
 	if (ret < 0) {
-		exynos5_counters_disable_edev(dmc);
-		dev_err(dmc->dev, "could not set event counter\n");
+		exyyess5_counters_disable_edev(dmc);
+		dev_err(dmc->dev, "could yest set event counter\n");
 		return ret;
 	}
 
@@ -1316,7 +1316,7 @@ static int exynos5_performance_counters_init(struct exynos5_dmc *dmc)
 }
 
 /**
- * exynos5_dmc_set_pause_on_switching() - Controls a pause feature in DMC
+ * exyyess5_dmc_set_pause_on_switching() - Controls a pause feature in DMC
  * @dmc:	device which is used for changing this feature
  * @set:	a boolean state passing enable/disable request
  *
@@ -1325,7 +1325,7 @@ static int exynos5_performance_counters_init(struct exynos5_dmc *dmc)
  * in DMC automatically. This feature is used when clock frequency change
  * request appears and touches clock tree.
  */
-static inline int exynos5_dmc_set_pause_on_switching(struct exynos5_dmc *dmc)
+static inline int exyyess5_dmc_set_pause_on_switching(struct exyyess5_dmc *dmc)
 {
 	unsigned int val;
 	int ret;
@@ -1343,11 +1343,11 @@ static inline int exynos5_dmc_set_pause_on_switching(struct exynos5_dmc *dmc)
 static irqreturn_t dmc_irq_thread(int irq, void *priv)
 {
 	int res;
-	struct exynos5_dmc *dmc = priv;
+	struct exyyess5_dmc *dmc = priv;
 
 	mutex_lock(&dmc->df->lock);
 
-	exynos5_dmc_perf_events_check(dmc);
+	exyyess5_dmc_perf_events_check(dmc);
 
 	res = update_devfreq(dmc->df);
 	if (res)
@@ -1359,7 +1359,7 @@ static irqreturn_t dmc_irq_thread(int irq, void *priv)
 }
 
 /**
- * exynos5_dmc_probe() - Probe function for the DMC driver
+ * exyyess5_dmc_probe() - Probe function for the DMC driver
  * @pdev:	platform device for which the driver is going to be initialized
  *
  * Initialize basic components: clocks, regulators, performance counters, etc.
@@ -1368,12 +1368,12 @@ static irqreturn_t dmc_irq_thread(int irq, void *priv)
  * memory parameters: timings for each operating frequency.
  * Register new devfreq device for controlling DVFS of the DMC.
  */
-static int exynos5_dmc_probe(struct platform_device *pdev)
+static int exyyess5_dmc_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct exynos5_dmc *dmc;
+	struct device_yesde *np = dev->of_yesde;
+	struct exyyess5_dmc *dmc;
 	struct resource *res;
 	int irq[2];
 
@@ -1401,7 +1401,7 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 	if (IS_ERR(dmc->clk_regmap))
 		return PTR_ERR(dmc->clk_regmap);
 
-	ret = exynos5_init_freq_table(dmc, &exynos5_dmc_df_profile);
+	ret = exyyess5_init_freq_table(dmc, &exyyess5_dmc_df_profile);
 	if (ret) {
 		dev_warn(dev, "couldn't initialize frequency settings\n");
 		return ret;
@@ -1413,7 +1413,7 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = exynos5_dmc_init_clks(dmc);
+	ret = exyyess5_dmc_init_clks(dmc);
 	if (ret)
 		return ret;
 
@@ -1423,7 +1423,7 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 		goto remove_clocks;
 	}
 
-	ret = exynos5_dmc_set_pause_on_switching(dmc);
+	ret = exyyess5_dmc_set_pause_on_switching(dmc);
 	if (ret) {
 		dev_warn(dev, "couldn't get access to PAUSE register\n");
 		goto remove_clocks;
@@ -1450,34 +1450,34 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 		}
 
 		/*
-		 * Setup default thresholds for the devfreq governor.
+		 * Setup default thresholds for the devfreq goveryesr.
 		 * The values are chosen based on experiments.
 		 */
 		dmc->gov_data.upthreshold = 55;
 		dmc->gov_data.downdifferential = 5;
 
-		exynos5_dmc_enable_perf_events(dmc);
+		exyyess5_dmc_enable_perf_events(dmc);
 
 		dmc->in_irq_mode = 1;
 	} else {
-		ret = exynos5_performance_counters_init(dmc);
+		ret = exyyess5_performance_counters_init(dmc);
 		if (ret) {
 			dev_warn(dev, "couldn't probe performance counters\n");
 			goto remove_clocks;
 		}
 
 		/*
-		 * Setup default thresholds for the devfreq governor.
+		 * Setup default thresholds for the devfreq goveryesr.
 		 * The values are chosen based on experiments.
 		 */
 		dmc->gov_data.upthreshold = 30;
 		dmc->gov_data.downdifferential = 5;
 
-		exynos5_dmc_df_profile.polling_ms = 500;
+		exyyess5_dmc_df_profile.polling_ms = 500;
 	}
 
 
-	dmc->df = devm_devfreq_add_device(dev, &exynos5_dmc_df_profile,
+	dmc->df = devm_devfreq_add_device(dev, &exyyess5_dmc_df_profile,
 					  DEVFREQ_GOV_SIMPLE_ONDEMAND,
 					  &dmc->gov_data);
 
@@ -1487,7 +1487,7 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 	}
 
 	if (dmc->in_irq_mode)
-		exynos5_dmc_start_perf_events(dmc, PERF_COUNTER_START_VALUE);
+		exyyess5_dmc_start_perf_events(dmc, PERF_COUNTER_START_VALUE);
 
 	dev_info(dev, "DMC initialized\n");
 
@@ -1495,9 +1495,9 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 
 err_devfreq_add:
 	if (dmc->in_irq_mode)
-		exynos5_dmc_disable_perf_events(dmc);
+		exyyess5_dmc_disable_perf_events(dmc);
 	else
-		exynos5_counters_disable_edev(dmc);
+		exyyess5_counters_disable_edev(dmc);
 remove_clocks:
 	clk_disable_unprepare(dmc->mout_bpll);
 	clk_disable_unprepare(dmc->fout_bpll);
@@ -1506,21 +1506,21 @@ remove_clocks:
 }
 
 /**
- * exynos5_dmc_remove() - Remove function for the platform device
+ * exyyess5_dmc_remove() - Remove function for the platform device
  * @pdev:	platform device which is going to be removed
  *
  * The function relies on 'devm' framework function which automatically
  * clean the device's resources. It just calls explicitly disable function for
  * the performance counters.
  */
-static int exynos5_dmc_remove(struct platform_device *pdev)
+static int exyyess5_dmc_remove(struct platform_device *pdev)
 {
-	struct exynos5_dmc *dmc = dev_get_drvdata(&pdev->dev);
+	struct exyyess5_dmc *dmc = dev_get_drvdata(&pdev->dev);
 
 	if (dmc->in_irq_mode)
-		exynos5_dmc_disable_perf_events(dmc);
+		exyyess5_dmc_disable_perf_events(dmc);
 	else
-		exynos5_counters_disable_edev(dmc);
+		exyyess5_counters_disable_edev(dmc);
 
 	clk_disable_unprepare(dmc->mout_bpll);
 	clk_disable_unprepare(dmc->fout_bpll);
@@ -1530,21 +1530,21 @@ static int exynos5_dmc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id exynos5_dmc_of_match[] = {
-	{ .compatible = "samsung,exynos5422-dmc", },
+static const struct of_device_id exyyess5_dmc_of_match[] = {
+	{ .compatible = "samsung,exyyess5422-dmc", },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, exynos5_dmc_of_match);
+MODULE_DEVICE_TABLE(of, exyyess5_dmc_of_match);
 
-static struct platform_driver exynos5_dmc_platdrv = {
-	.probe	= exynos5_dmc_probe,
-	.remove = exynos5_dmc_remove,
+static struct platform_driver exyyess5_dmc_platdrv = {
+	.probe	= exyyess5_dmc_probe,
+	.remove = exyyess5_dmc_remove,
 	.driver = {
-		.name	= "exynos5-dmc",
-		.of_match_table = exynos5_dmc_of_match,
+		.name	= "exyyess5-dmc",
+		.of_match_table = exyyess5_dmc_of_match,
 	},
 };
-module_platform_driver(exynos5_dmc_platdrv);
-MODULE_DESCRIPTION("Driver for Exynos5422 Dynamic Memory Controller dynamic frequency and voltage change");
+module_platform_driver(exyyess5_dmc_platdrv);
+MODULE_DESCRIPTION("Driver for Exyyess5422 Dynamic Memory Controller dynamic frequency and voltage change");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Lukasz Luba");

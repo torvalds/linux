@@ -20,12 +20,12 @@ __NR_unlink,
 #ifdef __NR_symlink
 __NR_symlink,
 #endif
-#ifdef __NR_mknod
-__NR_mknod,
+#ifdef __NR_mkyesd
+__NR_mkyesd,
 #endif
 #ifdef __NR_mkdirat
 __NR_mkdirat,
-__NR_mknodat,
+__NR_mkyesdat,
 __NR_unlinkat,
 #ifdef __NR_renameat
 __NR_renameat,

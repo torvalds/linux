@@ -3,7 +3,7 @@
  * Copyright 2007-2008 Paul Mackerras, IBM Corp.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/gfp.h>
 #include <linux/types.h>
@@ -60,13 +60,13 @@ static void hpte_flush_range(struct mm_struct *mm, unsigned long addr,
 	spinlock_t *ptl;
 
 	pgd = pgd_offset(mm, addr);
-	if (pgd_none(*pgd))
+	if (pgd_yesne(*pgd))
 		return;
 	pud = pud_offset(pgd, addr);
-	if (pud_none(*pud))
+	if (pud_yesne(*pud))
 		return;
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd))
+	if (pmd_yesne(*pmd))
 		return;
 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
 	arch_enter_lazy_mmu_mode();
@@ -122,7 +122,7 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
 
 		memset(spp, 0, nw * sizeof(u32));
 
-		/* now flush any existing HPTEs for the range */
+		/* yesw flush any existing HPTEs for the range */
 		hpte_flush_range(mm, addr, nw);
 	}
 
@@ -143,7 +143,7 @@ static const struct mm_walk_ops subpage_walk_ops = {
 	.pmd_entry	= subpage_walk_pmd_entry,
 };
 
-static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
+static void subpage_mark_vma_yeshuge(struct mm_struct *mm, unsigned long addr,
 				    unsigned long len)
 {
 	struct vm_area_struct *vma;
@@ -168,7 +168,7 @@ static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
 	}
 }
 #else
-static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
+static void subpage_mark_vma_yeshuge(struct mm_struct *mm, unsigned long addr,
 				    unsigned long len)
 {
 	return;
@@ -180,7 +180,7 @@ static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
  * The map has 2 bits per 4k subpage, so 32 bits per 64k page.
  * Each 2-bit field is 0 to allow any access, 1 to prevent writes,
  * 2 or 3 to prevent all accesses.
- * Note that the normal page protections also apply; the subpage
+ * Note that the yesrmal page protections also apply; the subpage
  * protection mechanism is an additional constraint, so putting 0
  * in a 2-bit field won't allow writes to a page that is otherwise
  * write-protected.
@@ -222,7 +222,7 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 	spt = mm_ctx_subpage_prot(&mm->context);
 	if (!spt) {
 		/*
-		 * Allocate subpage prot table if not already done.
+		 * Allocate subpage prot table if yest already done.
 		 * Do this with mmap_sem held
 		 */
 		spt = kzalloc(sizeof(struct subpage_prot_table), GFP_KERNEL);
@@ -233,7 +233,7 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 		mm->context.hash_context->spt = spt;
 	}
 
-	subpage_mark_vma_nohuge(mm, addr, len);
+	subpage_mark_vma_yeshuge(mm, addr, len);
 	for (limit = addr + len; addr < limit; addr = next) {
 		next = pmd_addr_end(addr, limit);
 		err = -ENOMEM;
@@ -273,7 +273,7 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 		map += nw;
 		down_write(&mm->mmap_sem);
 
-		/* now flush any existing HPTEs for the range */
+		/* yesw flush any existing HPTEs for the range */
 		hpte_flush_range(mm, addr, nw);
 	}
 	if (limit > spt->maxaddr)

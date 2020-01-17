@@ -43,7 +43,7 @@
 	.endm
 
 	.macro ldr1b ptr reg cond=al abort
-	notcond	\cond, .+8
+	yestcond	\cond, .+8
 	ldb.w \reg, [\ptr]+, #1
 	.endm
 

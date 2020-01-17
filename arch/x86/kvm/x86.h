@@ -144,9 +144,9 @@ static inline bool is_pae_paging(struct kvm_vcpu *vcpu)
 	return !is_long_mode(vcpu) && is_pae(vcpu) && is_paging(vcpu);
 }
 
-static inline u32 bit(int bitno)
+static inline u32 bit(int bityes)
 {
-	return 1 << (bitno & 31);
+	return 1 << (bityes & 31);
 }
 
 static inline u8 vcpu_virt_addr_bits(struct kvm_vcpu *vcpu)
@@ -159,25 +159,25 @@ static inline u8 ctxt_virt_addr_bits(struct x86_emulate_ctxt *ctxt)
 	return (ctxt->ops->get_cr(ctxt, 4) & X86_CR4_LA57) ? 57 : 48;
 }
 
-static inline u64 get_canonical(u64 la, u8 vaddr_bits)
+static inline u64 get_cayesnical(u64 la, u8 vaddr_bits)
 {
 	return ((int64_t)la << (64 - vaddr_bits)) >> (64 - vaddr_bits);
 }
 
-static inline bool is_noncanonical_address(u64 la, struct kvm_vcpu *vcpu)
+static inline bool is_yesncayesnical_address(u64 la, struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_X86_64
-	return get_canonical(la, vcpu_virt_addr_bits(vcpu)) != la;
+	return get_cayesnical(la, vcpu_virt_addr_bits(vcpu)) != la;
 #else
 	return false;
 #endif
 }
 
-static inline bool emul_is_noncanonical_address(u64 la,
+static inline bool emul_is_yesncayesnical_address(u64 la,
 						struct x86_emulate_ctxt *ctxt)
 {
 #ifdef CONFIG_X86_64
-	return get_canonical(la, ctxt_virt_addr_bits(ctxt)) != la;
+	return get_cayesnical(la, ctxt_virt_addr_bits(ctxt)) != la;
 #else
 	return false;
 #endif
@@ -306,7 +306,7 @@ extern bool enable_vmware_backdoor;
 
 extern int pi_inject_timer;
 
-extern struct static_key kvm_no_apic_vcpu;
+extern struct static_key kvm_yes_apic_vcpu;
 
 static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
 {

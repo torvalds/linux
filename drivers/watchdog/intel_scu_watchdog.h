@@ -40,7 +40,7 @@ struct intel_scu_watchdog_dev {
 	u32 __iomem *timer_clear_interrupt_addr;
 	u32 __iomem *timer_interrupt_status_addr;
 	struct sfi_timer_table_entry *timer_tbl_ptr;
-	struct notifier_block intel_scu_notifier;
+	struct yestifier_block intel_scu_yestifier;
 	struct miscdevice miscdev;
 };
 

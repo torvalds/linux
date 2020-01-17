@@ -60,7 +60,7 @@ static u8 jmicron_cable_detect(ide_hwif_t *hwif)
 		port = port ^ 1;
 
 	/*
-	 *	Now we know which physical port we are talking about we can
+	 *	Now we kyesw which physical port we are talking about we can
 	 *	actually do our cable checking etc. Thankfully we don't need
 	 *	to do the plumbing for other cases.
 	 */
@@ -76,7 +76,7 @@ static u8 jmicron_cable_detect(ide_hwif_t *hwif)
 	case PORT_SATA:
 		break;
 	}
-	/* Avoid bogus "control reaches end of non-void function" */
+	/* Avoid bogus "control reaches end of yesn-void function" */
 	return ATA_CBL_PATA80;
 }
 
@@ -89,7 +89,7 @@ static void jmicron_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
  *	@hwif: port
  *	@drive: drive
  *
- *	As the JMicron snoops for timings we don't need to do anything here.
+ *	As the JMicron syesops for timings we don't need to do anything here.
  */
 
 static void jmicron_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
@@ -126,12 +126,12 @@ static int jmicron_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 /* All JMB PATA controllers have and will continue to have the same
- * interface.  Matching vendor and device class is enough for all
+ * interface.  Matching vendor and device class is eyesugh for all
  * current and future controllers if the controller is programmed
  * properly.
  *
  * If libata is configured, jmicron PCI quirk programs the controller
- * into the correct mode.  If libata isn't configured, match known
+ * into the correct mode.  If libata isn't configured, match kyeswn
  * device IDs too to maintain backward compatibility.
  */
 static struct pci_device_id jmicron_pci_tbl[] = {

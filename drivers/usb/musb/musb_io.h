@@ -32,7 +32,7 @@ struct musb_io {
 	u32	(*busctl_offset)(u8 epnum, u16 offset);
 };
 
-/* Do not add new entries here, add them the struct musb_io instead */
+/* Do yest add new entries here, add them the struct musb_io instead */
 extern u8 (*musb_readb)(const void __iomem *addr, unsigned offset);
 extern void (*musb_writeb)(void __iomem *addr, unsigned offset, u8 data);
 extern u16 (*musb_readw)(const void __iomem *addr, unsigned offset);

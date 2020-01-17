@@ -20,8 +20,8 @@ Optional properties:
 		    Default is 25000000 Hz.
 
 Aliases:
-- All the SPI controller nodes should be represented in the aliases node using
-  the following format 'spi{n}' withe the correct numbered in "aliases" node.
+- All the SPI controller yesdes should be represented in the aliases yesde using
+  the following format 'spi{n}' withe the correct numbered in "aliases" yesde.
 
 Example:
 

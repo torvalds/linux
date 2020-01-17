@@ -28,7 +28,7 @@ extern int dvb_usb_disable_rc_polling;
 /* commonly used  methods */
 extern int dvb_usb_download_firmware(struct usb_device *, struct dvb_usb_device_properties *);
 
-extern int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff);
+extern int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int oyesff);
 
 extern int usb_urb_init(struct usb_data_stream *stream, struct usb_data_stream_properties *props);
 extern int usb_urb_exit(struct usb_data_stream *stream);

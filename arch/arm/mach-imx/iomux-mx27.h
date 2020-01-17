@@ -163,7 +163,7 @@
 #define PD16_CIN_SLCDC1_DAT14	(GPIO_PORTD | GPIO_CIN | GPIO_OUT | 16)
 #define PD23_CIN_SLCDC1_DAT15	(GPIO_PORTD | GPIO_CIN | GPIO_OUT | 23)
 #define PF27_CIN_EXT_DMA_GRANT	(GPIO_PORTF | GPIO_CIN | GPIO_OUT | 27)
-/* LCDC_TESTx on PBxx omitted, because it's not clear what they do */
+/* LCDC_TESTx on PBxx omitted, because it's yest clear what they do */
 
 /* AOUT GPIO pin functions */
 

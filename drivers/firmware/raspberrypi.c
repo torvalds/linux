@@ -39,7 +39,7 @@ static void response_callback(struct mbox_client *cl, void *msg)
 
 /*
  * Sends a request to the firmware through the BCM2835 mailbox driver,
- * and synchronously waits for the reply.
+ * and synchroyesusly waits for the reply.
  */
 static int
 rpi_firmware_transaction(struct rpi_firmware *fw, u32 chan, u32 data)
@@ -113,7 +113,7 @@ int rpi_firmware_property_list(struct rpi_firmware *fw,
 	memcpy(data, &buf[2], tag_size);
 	if (ret == 0 && buf[1] != RPI_FIRMWARE_STATUS_SUCCESS) {
 		/*
-		 * The tag name here might not be the one causing the
+		 * The tag name here might yest be the one causing the
 		 * error, if there were multiple tags in the request.
 		 * But single-tag is the most common, so go with it.
 		 */
@@ -150,7 +150,7 @@ int rpi_firmware_property(struct rpi_firmware *fw,
 
 	/* Some mailboxes can use over 1k bytes. Rather than checking
 	 * size and using stack or kmalloc depending on requirements,
-	 * just use kmalloc. Mailboxes don't get called enough to worry
+	 * just use kmalloc. Mailboxes don't get called eyesugh to worry
 	 * too much about the time taken in the allocation.
 	 */
 	void *data = kmalloc(sizeof(*header) + buf_size, GFP_KERNEL);
@@ -271,13 +271,13 @@ static int rpi_firmware_remove(struct platform_device *pdev)
 
 /**
  * rpi_firmware_get - Get pointer to rpi_firmware structure.
- * @firmware_node:    Pointer to the firmware Device Tree node.
+ * @firmware_yesde:    Pointer to the firmware Device Tree yesde.
  *
- * Returns NULL is the firmware device is not ready.
+ * Returns NULL is the firmware device is yest ready.
  */
-struct rpi_firmware *rpi_firmware_get(struct device_node *firmware_node)
+struct rpi_firmware *rpi_firmware_get(struct device_yesde *firmware_yesde)
 {
-	struct platform_device *pdev = of_find_device_by_node(firmware_node);
+	struct platform_device *pdev = of_find_device_by_yesde(firmware_yesde);
 
 	if (!pdev)
 		return NULL;

@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -176,8 +176,8 @@ struct rk3x_i2c_soc_data {
  * @regs: virtual memory area
  * @clk: function clk for rk3399 or function & Bus clks for others
  * @pclk: Bus clk for rk3399
- * @clk_rate_nb: i2c clk rate change notify
- * @t: I2C known timing information
+ * @clk_rate_nb: i2c clk rate change yestify
+ * @t: I2C kyeswn timing information
  * @lock: spinlock for the i2c bus
  * @wait: the waitqueue to wait for i2c transfer
  * @busy: the condition for the event to wait for
@@ -198,12 +198,12 @@ struct rk3x_i2c {
 	void __iomem *regs;
 	struct clk *clk;
 	struct clk *pclk;
-	struct notifier_block clk_rate_nb;
+	struct yestifier_block clk_rate_nb;
 
 	/* Settings */
 	struct i2c_timings t;
 
-	/* Synchronization & notification */
+	/* Synchronization & yestification */
 	spinlock_t lock;
 	wait_queue_head_t wait;
 	bool busy;
@@ -284,7 +284,7 @@ static void rk3x_i2c_stop(struct rk3x_i2c *i2c, int error)
 		i2c->state = STATE_IDLE;
 
 		/*
-		 * The HW is actually not capable of REPEATED START. But we can
+		 * The HW is actually yest capable of REPEATED START. But we can
 		 * get the intended effect by resetting its internal state
 		 * and issuing an ordinary START.
 		 */
@@ -471,7 +471,7 @@ static void rk3x_i2c_handle_stop(struct rk3x_i2c *i2c, unsigned int ipd)
 	wake_up(&i2c->wait);
 }
 
-static irqreturn_t rk3x_i2c_irq(int irqno, void *dev_id)
+static irqreturn_t rk3x_i2c_irq(int irqyes, void *dev_id)
 {
 	struct rk3x_i2c *i2c = dev_id;
 	unsigned int ipd;
@@ -551,7 +551,7 @@ static const struct i2c_spec_values *rk3x_i2c_get_spec(unsigned int speed)
  * Calculate divider values for desired SCL frequency
  *
  * @clk_rate: I2C input clock rate
- * @t: Known I2C timing information
+ * @t: Kyeswn I2C timing information
  * @t_calc: Caculated rk3x private timings that would be written into regs
  *
  * Returns: 0 on success, -EINVAL if the goal SCL rate is too slow. In that case
@@ -692,7 +692,7 @@ static int rk3x_i2c_v0_calc_timings(unsigned long clk_rate,
 	t_calc->div_low--;
 	t_calc->div_high--;
 
-	/* Give the tuning value 0, that would not update con register */
+	/* Give the tuning value 0, that would yest update con register */
 	t_calc->tuning = 0;
 	/* Maximum divider supported by hw is 0xffff */
 	if (t_calc->div_low > 0xffff) {
@@ -712,7 +712,7 @@ static int rk3x_i2c_v0_calc_timings(unsigned long clk_rate,
  * Calculate timing values for desired SCL frequency
  *
  * @clk_rate: I2C input clock rate
- * @t: Known I2C timing information
+ * @t: Kyeswn I2C timing information
  * @t_calc: Caculated rk3x private timings that would be written into regs
  *
  * Returns: 0 on success, -EINVAL if the goal SCL rate is too slow. In that case
@@ -786,7 +786,7 @@ static int rk3x_i2c_v1_calc_timings(unsigned long clk_rate,
 
 	/*
 	 * Final divh and divl must be greater than 0, otherwise the
-	 * hardware would not output the i2c clk.
+	 * hardware would yest output the i2c clk.
 	 */
 	min_high_div = (min_high_div < 1) ? 2 : min_high_div;
 	min_low_div = (min_low_div < 1) ? 2 : min_low_div;
@@ -878,7 +878,7 @@ static void rk3x_i2c_adapt_div(struct rk3x_i2c *i2c, unsigned long clk_rate)
 	int ret;
 
 	ret = i2c->soc_data->calc_timings(clk_rate, t, &calc);
-	WARN_ONCE(ret != 0, "Could not reach SCL freq %u", t->bus_freq_hz);
+	WARN_ONCE(ret != 0, "Could yest reach SCL freq %u", t->bus_freq_hz);
 
 	clk_enable(i2c->pclk);
 
@@ -904,26 +904,26 @@ static void rk3x_i2c_adapt_div(struct rk3x_i2c *i2c, unsigned long clk_rate)
 }
 
 /**
- * rk3x_i2c_clk_notifier_cb - Clock rate change callback
- * @nb:		Pointer to notifier block
+ * rk3x_i2c_clk_yestifier_cb - Clock rate change callback
+ * @nb:		Pointer to yestifier block
  * @event:	Notification reason
- * @data:	Pointer to notification data object
+ * @data:	Pointer to yestification data object
  *
  * The callback checks whether a valid bus frequency can be generated after the
- * change. If so, the change is acknowledged, otherwise the change is aborted.
- * New dividers are written to the HW in the pre- or post change notification
+ * change. If so, the change is ackyeswledged, otherwise the change is aborted.
+ * New dividers are written to the HW in the pre- or post change yestification
  * depending on the scaling direction.
  *
  * Code adapted from i2c-cadence.c.
  *
  * Return:	NOTIFY_STOP if the rate change should be aborted, NOTIFY_OK
- *		to acknowledge the change, NOTIFY_DONE if the notification is
+ *		to ackyeswledge the change, NOTIFY_DONE if the yestification is
  *		considered irrelevant.
  */
-static int rk3x_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
+static int rk3x_i2c_clk_yestifier_cb(struct yestifier_block *nb, unsigned long
 				    event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_yestifier_data *ndata = data;
 	struct rk3x_i2c *i2c = container_of(nb, struct rk3x_i2c, clk_rate_nb);
 	struct rk3x_i2c_calced_timings calc;
 
@@ -1190,7 +1190,7 @@ MODULE_DEVICE_TABLE(of, rk3x_i2c_match);
 
 static int rk3x_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *match;
 	struct rk3x_i2c *i2c;
 	struct resource *mem;
@@ -1204,7 +1204,7 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	if (!i2c)
 		return -ENOMEM;
 
-	match = of_match_node(rk3x_i2c_match, np);
+	match = of_match_yesde(rk3x_i2c_match, np);
 	i2c->soc_data = match->data;
 
 	/* use common interface to get I2C timing properties */
@@ -1214,7 +1214,7 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	i2c->adap.owner = THIS_MODULE;
 	i2c->adap.algo = &rk3x_i2c_algorithm;
 	i2c->adap.retries = 3;
-	i2c->adap.dev.of_node = np;
+	i2c->adap.dev.of_yesde = np;
 	i2c->adap.algo_data = i2c;
 	i2c->adap.dev.parent = &pdev->dev;
 
@@ -1255,7 +1255,7 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 
 		ret = regmap_write(grf, i2c->soc_data->grf_offset, value);
 		if (ret != 0) {
-			dev_err(i2c->dev, "Could not write to GRF: %d\n", ret);
+			dev_err(i2c->dev, "Could yest write to GRF: %d\n", ret);
 			return ret;
 		}
 	}
@@ -1263,14 +1263,14 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	/* IRQ setup */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "cannot find rk3x IRQ\n");
+		dev_err(&pdev->dev, "canyest find rk3x IRQ\n");
 		return irq;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, rk3x_i2c_irq,
 			       0, dev_name(&pdev->dev), i2c);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot request IRQ\n");
+		dev_err(&pdev->dev, "canyest request IRQ\n");
 		return ret;
 	}
 
@@ -1309,10 +1309,10 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	i2c->clk_rate_nb.notifier_call = rk3x_i2c_clk_notifier_cb;
-	ret = clk_notifier_register(i2c->clk, &i2c->clk_rate_nb);
+	i2c->clk_rate_nb.yestifier_call = rk3x_i2c_clk_yestifier_cb;
+	ret = clk_yestifier_register(i2c->clk, &i2c->clk_rate_nb);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "Unable to register clock notifier\n");
+		dev_err(&pdev->dev, "Unable to register clock yestifier\n");
 		goto err_pclk;
 	}
 
@@ -1321,12 +1321,12 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0)
-		goto err_clk_notifier;
+		goto err_clk_yestifier;
 
 	return 0;
 
-err_clk_notifier:
-	clk_notifier_unregister(i2c->clk, &i2c->clk_rate_nb);
+err_clk_yestifier:
+	clk_yestifier_unregister(i2c->clk, &i2c->clk_rate_nb);
 err_pclk:
 	clk_unprepare(i2c->pclk);
 err_clk:
@@ -1340,7 +1340,7 @@ static int rk3x_i2c_remove(struct platform_device *pdev)
 
 	i2c_del_adapter(&i2c->adap);
 
-	clk_notifier_unregister(i2c->clk, &i2c->clk_rate_nb);
+	clk_yestifier_unregister(i2c->clk, &i2c->clk_rate_nb);
 	clk_unprepare(i2c->pclk);
 	clk_unprepare(i2c->clk);
 

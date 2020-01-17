@@ -148,7 +148,7 @@ static int __sh_tmu_enable(struct sh_tmu_channel *ch)
 	/* enable clock */
 	ret = clk_enable(ch->tmu->clk);
 	if (ret) {
-		dev_err(&ch->tmu->pdev->dev, "ch%u: cannot enable clock\n",
+		dev_err(&ch->tmu->pdev->dev, "ch%u: canyest enable clock\n",
 			ch->index);
 		return ret;
 	}
@@ -212,7 +212,7 @@ static void sh_tmu_set_next(struct sh_tmu_channel *ch, unsigned long delta,
 	/* stop timer */
 	sh_tmu_start_stop_ch(ch, 0);
 
-	/* acknowledge interrupt */
+	/* ackyeswledge interrupt */
 	sh_tmu_read(ch, TCR);
 
 	/* enable interrupt */
@@ -234,13 +234,13 @@ static irqreturn_t sh_tmu_interrupt(int irq, void *dev_id)
 {
 	struct sh_tmu_channel *ch = dev_id;
 
-	/* disable or acknowledge interrupt */
+	/* disable or ackyeswledge interrupt */
 	if (clockevent_state_oneshot(&ch->ced))
 		sh_tmu_write(ch, TCR, TCR_TPSC_CLK4);
 	else
 		sh_tmu_write(ch, TCR, TCR_UNIE | TCR_TPSC_CLK4);
 
-	/* notify clockevent layer */
+	/* yestify clockevent layer */
 	ch->ced.event_handler(&ch->ced);
 	return IRQ_HANDLED;
 }
@@ -486,7 +486,7 @@ static int sh_tmu_map_memory(struct sh_tmu_device *tmu)
 		return -ENXIO;
 	}
 
-	tmu->mapbase = ioremap_nocache(res->start, resource_size(res));
+	tmu->mapbase = ioremap_yescache(res->start, resource_size(res));
 	if (tmu->mapbase == NULL)
 		return -ENXIO;
 
@@ -495,7 +495,7 @@ static int sh_tmu_map_memory(struct sh_tmu_device *tmu)
 
 static int sh_tmu_parse_dt(struct sh_tmu_device *tmu)
 {
-	struct device_node *np = tmu->pdev->dev.of_node;
+	struct device_yesde *np = tmu->pdev->dev.of_yesde;
 
 	tmu->model = SH_TMU;
 	tmu->num_channels = 3;
@@ -520,7 +520,7 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 
 	raw_spin_lock_init(&tmu->lock);
 
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_yesde) {
 		ret = sh_tmu_parse_dt(tmu);
 		if (ret < 0)
 			return ret;
@@ -538,7 +538,7 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 	/* Get hold of clock. */
 	tmu->clk = clk_get(&tmu->pdev->dev, "fck");
 	if (IS_ERR(tmu->clk)) {
-		dev_err(&tmu->pdev->dev, "cannot get clock\n");
+		dev_err(&tmu->pdev->dev, "canyest get clock\n");
 		return PTR_ERR(tmu->clk);
 	}
 
@@ -634,7 +634,7 @@ static int sh_tmu_probe(struct platform_device *pdev)
 
 static int sh_tmu_remove(struct platform_device *pdev)
 {
-	return -EBUSY; /* cannot unregister clockevent and clocksource */
+	return -EBUSY; /* canyest unregister clockevent and clocksource */
 }
 
 static const struct platform_device_id sh_tmu_id_table[] = {

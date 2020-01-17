@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) ASPEED Technology Inc.
+// Copyright (C) ASPEED Techyeslogy Inc.
 // Copyright IBM Corp.
 
 #include <linux/of_address.h>
@@ -10,15 +10,15 @@
 #define BOOT_ADDR	0x00
 #define BOOT_SIG	0x04
 
-static struct device_node *secboot_node;
+static struct device_yesde *secboot_yesde;
 
 static int aspeed_g6_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	void __iomem *base;
 
-	base = of_iomap(secboot_node, 0);
+	base = of_iomap(secboot_yesde, 0);
 	if (!base) {
-		pr_err("could not map the secondary boot base!");
+		pr_err("could yest map the secondary boot base!");
 		return -ENODEV;
 	}
 
@@ -37,15 +37,15 @@ static void __init aspeed_g6_smp_prepare_cpus(unsigned int max_cpus)
 {
 	void __iomem *base;
 
-	secboot_node = of_find_compatible_node(NULL, NULL, "aspeed,ast2600-smpmem");
-	if (!secboot_node) {
-		pr_err("secboot device node found!!\n");
+	secboot_yesde = of_find_compatible_yesde(NULL, NULL, "aspeed,ast2600-smpmem");
+	if (!secboot_yesde) {
+		pr_err("secboot device yesde found!!\n");
 		return;
 	}
 
-	base = of_iomap(secboot_node, 0);
+	base = of_iomap(secboot_yesde, 0);
 	if (!base) {
-		pr_err("could not map the secondary boot base!");
+		pr_err("could yest map the secondary boot base!");
 		return;
 	}
 	__raw_writel(0xBADABABA, base + BOOT_SIG);

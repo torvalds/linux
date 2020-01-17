@@ -125,7 +125,7 @@ static int hdlcd_set_pxl_fmt(struct drm_crtc *crtc)
 	return 0;
 }
 
-static void hdlcd_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void hdlcd_crtc_mode_set_yesfb(struct drm_crtc *crtc)
 {
 	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
 	struct drm_display_mode *m = &crtc->state->adjusted_mode;
@@ -173,7 +173,7 @@ static void hdlcd_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
 
 	clk_prepare_enable(hdlcd->clk);
-	hdlcd_crtc_mode_set_nofb(crtc);
+	hdlcd_crtc_mode_set_yesfb(crtc);
 	hdlcd_write(hdlcd, HDLCD_REG_COMMAND, 1);
 	drm_crtc_vblank_on(crtc);
 }
@@ -195,9 +195,9 @@ static enum drm_mode_status hdlcd_crtc_mode_valid(struct drm_crtc *crtc,
 	long rate, clk_rate = mode->clock * 1000;
 
 	rate = clk_round_rate(hdlcd->clk, clk_rate);
-	/* 0.1% seems a close enough tolerance for the TDA19988 on Juno */
+	/* 0.1% seems a close eyesugh tolerance for the TDA19988 on Juyes */
 	if (abs(rate - clk_rate) * 1000 > clk_rate) {
-		/* clock required by mode not supported by hardware */
+		/* clock required by mode yest supported by hardware */
 		return MODE_NOCLOCK;
 	}
 
@@ -243,7 +243,7 @@ static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	for_each_new_crtc_in_state(state->state, crtc, crtc_state, i) {
-		/* we cannot disable the plane while the CRTC is active */
+		/* we canyest disable the plane while the CRTC is active */
 		if (!state->fb && crtc_state->active)
 			return -EINVAL;
 		return drm_atomic_helper_check_plane_state(state, crtc_state,
@@ -261,19 +261,19 @@ static void hdlcd_plane_atomic_update(struct drm_plane *plane,
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct hdlcd_drm_private *hdlcd;
 	u32 dest_h;
-	dma_addr_t scanout_start;
+	dma_addr_t scayesut_start;
 
 	if (!fb)
 		return;
 
 	dest_h = drm_rect_height(&plane->state->dst);
-	scanout_start = drm_fb_cma_get_gem_addr(fb, plane->state, 0);
+	scayesut_start = drm_fb_cma_get_gem_addr(fb, plane->state, 0);
 
 	hdlcd = plane->dev->dev_private;
 	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_LENGTH, fb->pitches[0]);
 	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_PITCH, fb->pitches[0]);
 	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_COUNT, dest_h - 1);
-	hdlcd_write(hdlcd, HDLCD_REG_FB_BASE, scanout_start);
+	hdlcd_write(hdlcd, HDLCD_REG_FB_BASE, scayesut_start);
 }
 
 static const struct drm_plane_helper_funcs hdlcd_plane_helper_funcs = {

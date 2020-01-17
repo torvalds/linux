@@ -5,14 +5,14 @@
  *
  * Copyright (C) 1995, 1996, 1997, 1999, 2001 by Ralf Baechle
  * Copyright (C) 1999 by Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techyeslogies, Inc.
  * Copyright (C) 2002  Maciej W. Rozycki
  *
  * Some useful macros for MIPS assembler code
  *
- * Some of the routines below contain useless nops that will be optimized
- * away by gas in -O mode. These nops are however required to fill delay
- * slots in noreorder mode.
+ * Some of the routines below contain useless yesps that will be optimized
+ * away by gas in -O mode. These yesps are however required to fill delay
+ * slots in yesreorder mode.
  */
 #ifndef __ASM_ASM_H
 #define __ASM_ASM_H

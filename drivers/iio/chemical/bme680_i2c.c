@@ -8,7 +8,7 @@
  *	- 0x76 if SDO is pulled to GND
  *	- 0x77 if SDO is pulled to VDDIO
  *
- * Note: SDO pin cannot be left floating otherwise I2C address
+ * Note: SDO pin canyest be left floating otherwise I2C address
  *	 will be undefined.
  */
 #include <linux/acpi.h>

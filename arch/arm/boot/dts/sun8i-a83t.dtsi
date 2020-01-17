@@ -5,7 +5,7 @@
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -29,7 +29,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -691,7 +691,7 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
-			/omit-if-no-ref/
+			/omit-if-yes-ref/
 			csi_8bit_parallel_pins: csi-8bit-parallel-pins {
 				pins = "PE0", "PE2", "PE3", "PE6", "PE7",
 				       "PE8", "PE9", "PE10", "PE11",
@@ -699,7 +699,7 @@
 				function = "csi";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-yes-ref/
 			csi_mclk_pin: csi-mclk-pin {
 				pins = "PE1";
 				function = "csi";
@@ -732,7 +732,7 @@
 				function = "i2c1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-yes-ref/
 			i2c2_pe_pins: i2c2-pe-pins {
 				pins = "PE14", "PE15";
 				function = "i2c2";
@@ -744,7 +744,7 @@
 			};
 
 			i2s1_pins: i2s1-pins {
-				/* I2S1 does not have external MCLK pin */
+				/* I2S1 does yest have external MCLK pin */
 				pins = "PG10", "PG11", "PG12", "PG13";
 				function = "i2s1";
 			};
@@ -810,7 +810,7 @@
 				function = "uart1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-yes-ref/
 			uart2_pb_pins: uart2-pb-pins {
 				pins = "PB0", "PB1";
 				function = "uart2";

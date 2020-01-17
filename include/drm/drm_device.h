@@ -10,7 +10,7 @@
 #include <drm/drm_mode_config.h>
 
 struct drm_driver;
-struct drm_minor;
+struct drm_miyesr;
 struct drm_master;
 struct drm_device_dma;
 struct drm_vblank_crtc;
@@ -20,7 +20,7 @@ struct drm_vma_offset_manager;
 struct drm_vram_mm;
 struct drm_fb_helper;
 
-struct inode;
+struct iyesde;
 
 struct pci_dev;
 struct pci_controller;
@@ -79,11 +79,11 @@ struct drm_device {
 	 */
 	void *dev_private;
 
-	/** @primary: Primary node */
-	struct drm_minor *primary;
+	/** @primary: Primary yesde */
+	struct drm_miyesr *primary;
 
-	/** @render: Render node */
-	struct drm_minor *render;
+	/** @render: Render yesde */
+	struct drm_miyesr *render;
 
 	/**
 	 * @registered:
@@ -118,8 +118,8 @@ struct drm_device {
 	 */
 	bool unplugged;
 
-	/** @anon_inode: inode for private address-space */
-	struct inode *anon_inode;
+	/** @ayesn_iyesde: iyesde for private address-space */
+	struct iyesde *ayesn_iyesde;
 
 	/** @unique: Unique name of the device */
 	char *unique;
@@ -127,14 +127,14 @@ struct drm_device {
 	/**
 	 * @struct_mutex:
 	 *
-	 * Lock for others (not &drm_minor.master and &drm_file.is_master)
+	 * Lock for others (yest &drm_miyesr.master and &drm_file.is_master)
 	 */
 	struct mutex struct_mutex;
 
 	/**
 	 * @master_mutex:
 	 *
-	 * Lock for &drm_minor.master and &drm_file.is_master
+	 * Lock for &drm_miyesr.master and &drm_file.is_master
 	 */
 	struct mutex master_mutex;
 
@@ -211,7 +211,7 @@ struct drm_device {
 	 *
 	 * Array of vblank tracking structures, one per &struct drm_crtc. For
 	 * historical reasons (vblank support predates kernel modesetting) this
-	 * is free-standing and not part of &struct drm_crtc itself. It must be
+	 * is free-standing and yest part of &struct drm_crtc itself. It must be
 	 * initialized explicitly by calling drm_vblank_init().
 	 */
 	struct drm_vblank_crtc *vblank;
@@ -247,7 +247,7 @@ struct drm_device {
 	 * must be left at zero. See drm_crtc_set_max_vblank_count() on how
 	 * to use the per-crtc value.
 	 *
-	 * If non-zero, &drm_crtc_funcs.get_vblank_counter must be set.
+	 * If yesn-zero, &drm_crtc_funcs.get_vblank_counter must be set.
 	 */
 	u32 max_vblank_count;
 
@@ -341,7 +341,7 @@ struct drm_device {
 	/* Lock for &buf_use and a few other things. */
 	spinlock_t buf_lock;
 
-	/* Usage counter for buffers in use -- cannot alloc */
+	/* Usage counter for buffers in use -- canyest alloc */
 	int buf_use;
 
 	/* Buffer allocation in progress */

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2005-2008 Michael Buesch <m@bues.ch>
  * Copyright (C) 2005 Martin Langer <martin-langer@gmx.de>
- * Copyright (C) 2005 Stefano Brivio <st3@riseup.net>
+ * Copyright (C) 2005 Stefayes Brivio <st3@riseup.net>
  * Copyright (C) 2005 Danny van Dyk <kugelfang@gentoo.org>
  * Copyright (C) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
  *
@@ -127,13 +127,13 @@ ssize_t ssb_attr_sprom_store(struct ssb_bus *bus,
 		goto out_kfree;
 	err = ssb_devices_freeze(bus, &freeze);
 	if (err) {
-		pr_err("SPROM write: Could not freeze all devices\n");
+		pr_err("SPROM write: Could yest freeze all devices\n");
 		goto out_unlock;
 	}
 	res = sprom_write(bus, sprom);
 	err = ssb_devices_thaw(&freeze);
 	if (err)
-		pr_err("SPROM write: Could not thaw all devices\n");
+		pr_err("SPROM write: Could yest thaw all devices\n");
 out_unlock:
 	mutex_unlock(&bus->sprom_mutex);
 out_kfree:
@@ -146,13 +146,13 @@ out:
 
 /**
  * ssb_arch_register_fallback_sprom - Registers a method providing a
- * fallback SPROM if no SPROM is found.
+ * fallback SPROM if yes SPROM is found.
  *
  * @sprom_callback: The callback function.
  *
  * With this function the architecture implementation may register a
  * callback handler which fills the SPROM data structure. The fallback is
- * only used for PCI based SSB devices, where no valid SPROM can be found
+ * only used for PCI based SSB devices, where yes valid SPROM can be found
  * in the shadow registers.
  *
  * This function is useful for weird architectures that have a half-assed
@@ -163,7 +163,7 @@ out:
  * Architectures must provide the SPROM for native SSB devices anyway, so
  * the fallback also isn't used for native devices.
  *
- * This function is available for architecture code, only. So it is not
+ * This function is available for architecture code, only. So it is yest
  * exported.
  */
 int ssb_arch_register_fallback_sprom(int (*sprom_callback)(struct ssb_bus *bus,
@@ -189,7 +189,7 @@ bool ssb_is_sprom_available(struct ssb_bus *bus)
 {
 	/* status register only exists on chipcomon rev >= 11 and we need check
 	   for >= 31 only */
-	/* this routine differs from specs as we do not access SPROM directly
+	/* this routine differs from specs as we do yest access SPROM directly
 	   on PCMCIA */
 	if (bus->bustype == SSB_BUSTYPE_PCI &&
 	    bus->chipco.dev &&	/* can be unavailable! */

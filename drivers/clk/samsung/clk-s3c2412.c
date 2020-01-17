@@ -68,7 +68,7 @@ static struct samsung_fixed_factor_clock s3c2412_ffactor[] __initdata = {
 };
 
 /*
- * The first two use the OM[4] setting, which is not readable from
+ * The first two use the OM[4] setting, which is yest readable from
  * software, so assume it is set to xti.
  */
 PNAME(erefclk_p) = { "xti", "xti", "xti", "ext" };
@@ -155,7 +155,7 @@ static struct samsung_clock_alias s3c2412_aliases[] __initdata = {
 	ALIAS(MSYSCLK, NULL, "fclk"),
 };
 
-static int s3c2412_restart(struct notifier_block *this,
+static int s3c2412_restart(struct yestifier_block *this,
 			   unsigned long mode, void *cmd)
 {
 	/* errata "Watch-dog/Software Reset Problem" specifies that
@@ -172,8 +172,8 @@ static int s3c2412_restart(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block s3c2412_restart_handler = {
-	.notifier_call = s3c2412_restart,
+static struct yestifier_block s3c2412_restart_handler = {
+	.yestifier_call = s3c2412_restart,
 	.priority = 129,
 };
 
@@ -202,7 +202,7 @@ static void __init s3c2412_common_clk_register_fixed_ext(
 	samsung_clk_register_alias(ctx, &xti_alias, 1);
 }
 
-void __init s3c2412_common_clk_init(struct device_node *np, unsigned long xti_f,
+void __init s3c2412_common_clk_init(struct device_yesde *np, unsigned long xti_f,
 				    unsigned long ext_f, void __iomem *base)
 {
 	struct samsung_clk_provider *ctx;
@@ -217,7 +217,7 @@ void __init s3c2412_common_clk_init(struct device_node *np, unsigned long xti_f,
 
 	ctx = samsung_clk_init(np, reg_base, NR_CLKS);
 
-	/* Register external clocks only in non-dt cases */
+	/* Register external clocks only in yesn-dt cases */
 	if (!np)
 		s3c2412_common_clk_register_fixed_ext(ctx, xti_f, ext_f);
 
@@ -243,10 +243,10 @@ void __init s3c2412_common_clk_init(struct device_node *np, unsigned long xti_f,
 
 	ret = register_restart_handler(&s3c2412_restart_handler);
 	if (ret)
-		pr_warn("cannot register restart handler, %d\n", ret);
+		pr_warn("canyest register restart handler, %d\n", ret);
 }
 
-static void __init s3c2412_clk_init(struct device_node *np)
+static void __init s3c2412_clk_init(struct device_yesde *np)
 {
 	s3c2412_common_clk_init(np, 0, 0, NULL);
 }

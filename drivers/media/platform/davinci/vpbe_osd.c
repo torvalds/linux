@@ -516,7 +516,7 @@ static int osd_enable_layer(struct osd_state *sd, enum osd_layer layer,
 	spin_lock_irqsave(&osd->lock, flags);
 
 	/*
-	 * use otherwin flag to know this is the other vid window
+	 * use otherwin flag to kyesw this is the other vid window
 	 * in YUV420 mode, if is, skip this check
 	 */
 	if (!otherwin && (!win->is_allocated ||
@@ -777,7 +777,7 @@ static void osd_get_layer_config(struct osd_state *sd, enum osd_layer layer,
  *
  * If the requested lconfig is completely rejected and the value of lconfig on
  * exit is the current lconfig, then try_layer_config() returns 1.  Otherwise,
- * try_layer_config() returns 0.  A return value of 0 does not necessarily mean
+ * try_layer_config() returns 0.  A return value of 0 does yest necessarily mean
  * that the value of lconfig on exit is identical to the value of lconfig on
  * entry, but merely that it represents a change from the current lconfig.
  */
@@ -872,7 +872,7 @@ static int try_layer_config(struct osd_state *sd, enum osd_layer layer,
 		}
 	}
 
-	/* window dimensions must be non-zero */
+	/* window dimensions must be yesn-zero */
 	if (!lconfig->line_length || !lconfig->xsize || !lconfig->ysize) {
 		*lconfig = win->lconfig;
 		return 1;
@@ -914,7 +914,7 @@ static void _osd_enable_vid_rgb888(struct osd_state *sd,
 	/*
 	 * The DM6446 supports RGB888 pixel format in a single video window.
 	 * This routine enables RGB888 pixel format for the specified video
-	 * window.  The caller must ensure that the other video window is not
+	 * window.  The caller must ensure that the other video window is yest
 	 * currently configured for RGB888 pixel format, as this routine will
 	 * disable RGB888 pixel format for the other window.
 	 */
@@ -1041,7 +1041,7 @@ static void _osd_set_layer_config(struct osd_state *sd, enum osd_layer layer,
 			osd_write(sd, lconfig->xpos, OSD_VIDWIN1XP);
 			osd_write(sd, lconfig->xsize, OSD_VIDWIN1XL);
 			/*
-			  * if NV21 pixfmt and line length not 32B
+			  * if NV21 pixfmt and line length yest 32B
 			  * aligned (e.g. NTSC), Need to set window
 			  * X pixel size to be 32B aligned as well
 			  */
@@ -1082,8 +1082,8 @@ static void _osd_set_layer_config(struct osd_state *sd, enum osd_layer layer,
 	case WIN_OSD1:
 		/*
 		 * The caller must ensure that OSD1 is disabled prior to
-		 * switching from a normal mode to attribute mode or from
-		 * attribute mode to a normal mode.
+		 * switching from a yesrmal mode to attribute mode or from
+		 * attribute mode to a yesrmal mode.
 		 */
 		if (lconfig->pixfmt == PIXFMT_OSD_ATTR) {
 			if (sd->vpbe_type == VPBE_VERSION_1) {
@@ -1239,8 +1239,8 @@ static int osd_set_layer_config(struct osd_state *sd, enum osd_layer layer,
 		osd->yc_pixfmt = lconfig->pixfmt;
 
 	/*
-	 * If we are switching OSD1 from normal mode to attribute mode or from
-	 * attribute mode to normal mode, then we must disable the window.
+	 * If we are switching OSD1 from yesrmal mode to attribute mode or from
+	 * attribute mode to yesrmal mode, then we must disable the window.
 	 */
 	if (layer == WIN_OSD1) {
 		if (((lconfig->pixfmt == PIXFMT_OSD_ATTR) &&
@@ -1261,7 +1261,7 @@ static int osd_set_layer_config(struct osd_state *sd, enum osd_layer layer,
 		if ((lconfig->pixfmt != PIXFMT_OSD_ATTR) &&
 		  (cfg->pixfmt == PIXFMT_OSD_ATTR)) {
 			/*
-			 * We just switched OSD1 from attribute mode to normal
+			 * We just switched OSD1 from attribute mode to yesrmal
 			 * mode, so we must initialize the CLUT select, the
 			 * blend factor, transparency colorkey enable, and
 			 * attenuation enable (DM6446 only) bits in the
@@ -1284,7 +1284,7 @@ static int osd_set_layer_config(struct osd_state *sd, enum osd_layer layer,
 		} else if ((lconfig->pixfmt == PIXFMT_OSD_ATTR) &&
 		  (cfg->pixfmt != PIXFMT_OSD_ATTR)) {
 			/*
-			 * We just switched OSD1 from normal mode to attribute
+			 * We just switched OSD1 from yesrmal mode to attribute
 			 * mode, so we must initialize the blink enable and
 			 * blink interval bits in the OSDATRMD register.
 			 */
@@ -1556,7 +1556,7 @@ static int osd_probe(struct platform_device *pdev)
 	spin_lock_init(&osd->lock);
 	osd->ops = osd_ops;
 	platform_set_drvdata(pdev, osd);
-	dev_notice(osd->dev, "OSD sub device probe success\n");
+	dev_yestice(osd->dev, "OSD sub device probe success\n");
 
 	return 0;
 }

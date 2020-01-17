@@ -4,7 +4,7 @@
 
 #include <linux/ktime.h>
 #include <linux/list.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include <asm/kvm.h>
 #include <asm/vmx.h>
@@ -26,12 +26,12 @@ DECLARE_PER_CPU(struct vmcs *, current_vmcs);
 
 /*
  * vmcs_host_state tracks registers that are loaded from the VMCS on VMEXIT
- * and whose values change infrequently, but are not constant.  I.e. this is
+ * and whose values change infrequently, but are yest constant.  I.e. this is
  * used as a write-through cache of the corresponding VMCS fields.
  */
 struct vmcs_host_state {
-	unsigned long cr3;	/* May not match real cr3 */
-	unsigned long cr4;	/* May not match real cr4 */
+	unsigned long cr3;	/* May yest match real cr3 */
+	unsigned long cr4;	/* May yest match real cr4 */
 	unsigned long gs_base;
 	unsigned long fs_base;
 	unsigned long rsp;
@@ -60,7 +60,7 @@ struct loaded_vmcs {
 	struct vmcs *shadow_vmcs;
 	int cpu;
 	bool launched;
-	bool nmi_known_unmasked;
+	bool nmi_kyeswn_unmasked;
 	bool hv_timer_soft_disabled;
 	/* Support for vnmi-less CPUs */
 	int soft_vnmi_blocked;

@@ -11,7 +11,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_bmap.h"
 #include "xfs_alloc.h"
 #include "xfs_mru_cache.h"
@@ -42,9 +42,9 @@ enum xfs_fstrm_alloc {
  * Since xfs_mru_cache_flush() guarantees that all the free functions for all
  * the cache elements have finished executing before it returns, it's safe for
  * the free functions to use the atomic counters without m_peraglock protection.
- * This allows the implementation of xfs_fstrm_free_func() to be agnostic about
+ * This allows the implementation of xfs_fstrm_free_func() to be agyesstic about
  * whether it was called with the m_peraglock held in read mode, write mode or
- * not held at all.  The race condition this addresses is the following:
+ * yest held at all.  The race condition this addresses is the following:
  *
  *  - The work queue scheduler fires and pulls a filestream directory cache
  *    element off the LRU end of the cache for deletion, then gets pre-empted.
@@ -53,7 +53,7 @@ enum xfs_fstrm_alloc {
  *    array, resetting all the counters to zero.
  *  - The work queue thread resumes and calls the free function for the element
  *    it started cleaning up earlier.  In the process it decrements the
- *    filestreams counter for an AG that now has no references.
+ *    filestreams counter for an AG that yesw has yes references.
  *
  * With a shrinkfs feature, the above scenario could panic the system.
  *
@@ -63,19 +63,19 @@ enum xfs_fstrm_alloc {
  * xfs_mru_cache_done().  In addition, the m_peraglock must be held in read mode
  * when new elements are added to the cache.
  *
- * Combined, these locking rules ensure that no associations will ever exist in
+ * Combined, these locking rules ensure that yes associations will ever exist in
  * the cache that reference per-ag array elements that have since been
  * reallocated.
  */
 int
 xfs_filestream_peek_ag(
 	xfs_mount_t	*mp,
-	xfs_agnumber_t	agno)
+	xfs_agnumber_t	agyes)
 {
 	struct xfs_perag *pag;
 	int		ret;
 
-	pag = xfs_perag_get(mp, agno);
+	pag = xfs_perag_get(mp, agyes);
 	ret = atomic_read(&pag->pagf_fstrms);
 	xfs_perag_put(pag);
 	return ret;
@@ -84,12 +84,12 @@ xfs_filestream_peek_ag(
 static int
 xfs_filestream_get_ag(
 	xfs_mount_t	*mp,
-	xfs_agnumber_t	agno)
+	xfs_agnumber_t	agyes)
 {
 	struct xfs_perag *pag;
 	int		ret;
 
-	pag = xfs_perag_get(mp, agno);
+	pag = xfs_perag_get(mp, agyes);
 	ret = atomic_inc_return(&pag->pagf_fstrms);
 	xfs_perag_put(pag);
 	return ret;
@@ -98,11 +98,11 @@ xfs_filestream_get_ag(
 static void
 xfs_filestream_put_ag(
 	xfs_mount_t	*mp,
-	xfs_agnumber_t	agno)
+	xfs_agnumber_t	agyes)
 {
 	struct xfs_perag *pag;
 
-	pag = xfs_perag_get(mp, agno);
+	pag = xfs_perag_get(mp, agyes);
 	atomic_dec(&pag->pagf_fstrms);
 	xfs_perag_put(pag);
 }
@@ -128,7 +128,7 @@ xfs_fstrm_free_func(
  */
 static int
 xfs_filestream_pick_ag(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	xfs_agnumber_t		startag,
 	xfs_agnumber_t		*agp,
 	int			flags,
@@ -153,7 +153,7 @@ xfs_filestream_pick_ag(
 	trylock = XFS_ALLOC_FLAG_TRYLOCK;
 
 	for (nscan = 0; 1; nscan++) {
-		trace_xfs_filestream_scan(mp, ip->i_ino, ag);
+		trace_xfs_filestream_scan(mp, ip->i_iyes, ag);
 
 		pag = xfs_perag_get(mp, ag);
 
@@ -201,7 +201,7 @@ xfs_filestream_pick_ag(
 			break;
 		}
 
-		/* Drop the reference on this AG, it's not usable. */
+		/* Drop the reference on this AG, it's yest usable. */
 		xfs_filestream_put_ag(mp, ag);
 next_ag:
 		xfs_perag_put(pag);
@@ -227,7 +227,7 @@ next_ag:
 
 		/*
 		 * Take the AG with the most free space, regardless of whether
-		 * it's already in use by another filestream.
+		 * it's already in use by ayesther filestream.
 		 */
 		if (max_ag != NULLAGNUMBER) {
 			xfs_filestream_get_ag(mp, max_ag);
@@ -236,7 +236,7 @@ next_ag:
 			break;
 		}
 
-		/* take AG 0 if none matched */
+		/* take AG 0 if yesne matched */
 		trace_xfs_filestream_pick(ip, *agp, free, nscan);
 		*agp = 0;
 		return 0;
@@ -254,7 +254,7 @@ next_ag:
 
 	item->ag = *agp;
 
-	err = xfs_mru_cache_insert(mp->m_filestream, ip->i_ino, &item->mru);
+	err = xfs_mru_cache_insert(mp->m_filestream, ip->i_iyes, &item->mru);
 	if (err) {
 		if (err == -EEXIST)
 			err = 0;
@@ -270,14 +270,14 @@ out_put_ag:
 	return err;
 }
 
-static struct xfs_inode *
+static struct xfs_iyesde *
 xfs_filestream_get_parent(
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
-	struct inode		*inode = VFS_I(ip), *dir = NULL;
+	struct iyesde		*iyesde = VFS_I(ip), *dir = NULL;
 	struct dentry		*dentry, *parent;
 
-	dentry = d_find_alias(inode);
+	dentry = d_find_alias(iyesde);
 	if (!dentry)
 		goto out;
 
@@ -285,7 +285,7 @@ xfs_filestream_get_parent(
 	if (!parent)
 		goto out_dput;
 
-	dir = igrab(d_inode(parent));
+	dir = igrab(d_iyesde(parent));
 	dput(parent);
 
 out_dput:
@@ -302,10 +302,10 @@ out:
  */
 xfs_agnumber_t
 xfs_filestream_lookup_ag(
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_inode	*pip = NULL;
+	struct xfs_iyesde	*pip = NULL;
 	xfs_agnumber_t		startag, ag = NULLAGNUMBER;
 	struct xfs_mru_cache_elem *mru;
 
@@ -315,18 +315,18 @@ xfs_filestream_lookup_ag(
 	if (!pip)
 		return NULLAGNUMBER;
 
-	mru = xfs_mru_cache_lookup(mp->m_filestream, pip->i_ino);
+	mru = xfs_mru_cache_lookup(mp->m_filestream, pip->i_iyes);
 	if (mru) {
 		ag = container_of(mru, struct xfs_fstrm_item, mru)->ag;
 		xfs_mru_cache_done(mp->m_filestream);
 
-		trace_xfs_filestream_lookup(mp, ip->i_ino, ag);
+		trace_xfs_filestream_lookup(mp, ip->i_iyes, ag);
 		goto out;
 	}
 
 	/*
-	 * Set the starting AG using the rotor for inode32, otherwise
-	 * use the directory inode's AG.
+	 * Set the starting AG using the rotor for iyesde32, otherwise
+	 * use the directory iyesde's AG.
 	 */
 	if (mp->m_flags & XFS_MOUNT_32BITINODES) {
 		xfs_agnumber_t	 rotorstep = xfs_rotorstep;
@@ -334,7 +334,7 @@ xfs_filestream_lookup_ag(
 		mp->m_agfrotor = (mp->m_agfrotor + 1) %
 		                 (mp->m_sb.sb_agcount * rotorstep);
 	} else
-		startag = XFS_INO_TO_AGNO(mp, pip->i_ino);
+		startag = XFS_INO_TO_AGNO(mp, pip->i_iyes);
 
 	if (xfs_filestream_pick_ag(pip, startag, &ag, 0, 0))
 		ag = NULLAGNUMBER;
@@ -354,7 +354,7 @@ xfs_filestream_new_ag(
 	struct xfs_bmalloca	*ap,
 	xfs_agnumber_t		*agp)
 {
-	struct xfs_inode	*ip = ap->ip, *pip;
+	struct xfs_iyesde	*ip = ap->ip, *pip;
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_extlen_t		minlen = ap->length;
 	xfs_agnumber_t		startag = 0;
@@ -368,7 +368,7 @@ xfs_filestream_new_ag(
 	if (!pip)
 		goto exit;
 
-	mru = xfs_mru_cache_remove(mp->m_filestream, pip->i_ino);
+	mru = xfs_mru_cache_remove(mp->m_filestream, pip->i_iyes);
 	if (mru) {
 		struct xfs_fstrm_item *item =
 			container_of(mru, struct xfs_fstrm_item, mru);
@@ -397,9 +397,9 @@ exit:
 
 void
 xfs_filestream_deassociate(
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
-	xfs_mru_cache_delete(ip->i_mount->m_filestream, ip->i_ino);
+	xfs_mru_cache_delete(ip->i_mount->m_filestream, ip->i_iyes);
 }
 
 int

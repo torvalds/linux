@@ -14,8 +14,8 @@
 
 
 /* if mode == 0, then the sta is allowed once the addr is hit. */
-/* if mode == 1, then the sta is rejected once the addr is non-hit. */
-struct rtw_wlan_acl_node {
+/* if mode == 1, then the sta is rejected once the addr is yesn-hit. */
+struct rtw_wlan_acl_yesde {
         struct list_head		        list;
         u8       addr[ETH_ALEN];
         u8       valid;
@@ -27,8 +27,8 @@ struct rtw_wlan_acl_node {
 struct wlan_acl_pool {
 	int mode;
 	int num;
-	struct rtw_wlan_acl_node aclnode[NUM_ACL];
-	struct __queue	acl_node_q;
+	struct rtw_wlan_acl_yesde aclyesde[NUM_ACL];
+	struct __queue	acl_yesde_q;
 };
 
 typedef struct _RSSI_STA{
@@ -164,11 +164,11 @@ struct sta_info {
 
 	u8 wpa_ie[32];
 
-	u8 nonerp_set;
-	u8 no_short_slot_time_set;
-	u8 no_short_preamble_set;
-	u8 no_ht_gf_set;
-	u8 no_ht_set;
+	u8 yesnerp_set;
+	u8 yes_short_slot_time_set;
+	u8 yes_short_preamble_set;
+	u8 yes_ht_gf_set;
+	u8 yes_ht_set;
 	u8 ht_20mhz_set;
 
 	unsigned int tx_ra_bitmap;
@@ -206,7 +206,7 @@ struct sta_info {
 	/*  2011/10/20 MH Add for ODM STA info. */
 	/*  */
 	/*  Driver Write */
-	u8 bValid;				/*  record the sta status link or not? */
+	u8 bValid;				/*  record the sta status link or yest? */
 	u8 IOTPeer;			/*  Enum value.	HT_IOT_PEER_E */
 	/*  ODM Write */
 	/* 1 PHY_STATUS_INFO */

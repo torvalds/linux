@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2007 OpenVZ http://openvz.org, SWsoft Inc
  *
- * Author: Pavel Emelianov <xemul@openvz.org>
+ * Author: Pavel Emeliayesv <xemul@openvz.org>
  * Ethtool interface from: Eric W. Biederman <ebiederm@xmission.com>
  *
  */
@@ -53,7 +53,7 @@ struct veth_rq {
 	struct bpf_prog __rcu	*xdp_prog;
 	struct xdp_mem_info	xdp_mem;
 	struct veth_rq_stats	stats;
-	bool			rx_notify_masked;
+	bool			rx_yestify_masked;
 	struct ptr_ring		xdp_ring;
 	struct xdp_rxq_info	xdp_rxq;
 };
@@ -207,10 +207,10 @@ static void veth_ptr_free(void *ptr)
 
 static void __veth_xdp_flush(struct veth_rq *rq)
 {
-	/* Write ptr_ring before reading rx_notify_masked */
+	/* Write ptr_ring before reading rx_yestify_masked */
 	smp_mb();
-	if (!rq->rx_notify_masked) {
-		rq->rx_notify_masked = true;
+	if (!rq->rx_yestify_masked) {
+		rq->rx_yestify_masked = true;
 		napi_schedule(&rq->xdp_napi);
 	}
 }
@@ -593,7 +593,7 @@ static struct sk_buff *veth_xdp_rcv_skb(struct veth_rq *rq, struct sk_buff *skb,
 	headroom = skb_headroom(skb) - mac_len;
 
 	if (skb_shared(skb) || skb_head_is_locked(skb) ||
-	    skb_is_nonlinear(skb) || headroom < XDP_PACKET_HEADROOM) {
+	    skb_is_yesnlinear(skb) || headroom < XDP_PACKET_HEADROOM) {
 		struct sk_buff *nskb;
 		int size, head_off;
 		void *head, *start;
@@ -754,14 +754,14 @@ static int veth_poll(struct napi_struct *napi, int budget)
 
 	bq.count = 0;
 
-	xdp_set_return_frame_no_direct();
+	xdp_set_return_frame_yes_direct();
 	done = veth_xdp_rcv(rq, budget, &xdp_xmit, &bq);
 
 	if (done < budget && napi_complete_done(napi, done)) {
-		/* Write rx_notify_masked before reading ptr_ring */
-		smp_store_mb(rq->rx_notify_masked, false);
+		/* Write rx_yestify_masked before reading ptr_ring */
+		smp_store_mb(rq->rx_yestify_masked, false);
 		if (unlikely(!__ptr_ring_empty(&rq->xdp_ring))) {
-			rq->rx_notify_masked = true;
+			rq->rx_yestify_masked = true;
 			napi_schedule(&rq->xdp_napi);
 		}
 	}
@@ -770,7 +770,7 @@ static int veth_poll(struct napi_struct *napi, int budget)
 		veth_xdp_flush(rq->dev, &bq);
 	if (xdp_xmit & VETH_XDP_REDIR)
 		xdp_do_flush_map();
-	xdp_clear_return_frame_no_direct();
+	xdp_clear_return_frame_yes_direct();
 
 	return done;
 }
@@ -820,7 +820,7 @@ static void veth_napi_del(struct net_device *dev)
 		struct veth_rq *rq = &priv->rq[i];
 
 		netif_napi_del(&rq->xdp_napi);
-		rq->rx_notify_masked = false;
+		rq->rx_yestify_masked = false;
 		ptr_ring_cleanup(&rq->xdp_ring, veth_ptr_free);
 	}
 }
@@ -976,9 +976,9 @@ static void veth_dev_free(struct net_device *dev)
 static void veth_poll_controller(struct net_device *dev)
 {
 	/* veth only receives frames when its peer sends one
-	 * Since it has nothing to do with disabling irqs, we are guaranteed
+	 * Since it has yesthing to do with disabling irqs, we are guaranteed
 	 * never to have pending data when we poll for it so
-	 * there is nothing to do here.
+	 * there is yesthing to do here.
 	 *
 	 * We need this though so netpoll recognizes us as an interface that
 	 * supports polling, which enables bridge devices in virt setups to
@@ -1056,7 +1056,7 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 
 	if (prog) {
 		if (!peer) {
-			NL_SET_ERR_MSG_MOD(extack, "Cannot set XDP when peer is detached");
+			NL_SET_ERR_MSG_MOD(extack, "Canyest set XDP when peer is detached");
 			err = -ENOTCONN;
 			goto err;
 		}
@@ -1071,7 +1071,7 @@ static int veth_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 		}
 
 		if (dev->real_num_rx_queues < peer->real_num_tx_queues) {
-			NL_SET_ERR_MSG_MOD(extack, "XDP expects number of rx queues not less than peer tx queues");
+			NL_SET_ERR_MSG_MOD(extack, "XDP expects number of rx queues yest less than peer tx queues");
 			err = -ENOSPC;
 			goto err;
 		}
@@ -1293,7 +1293,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	/*
 	 * register dev last
 	 *
-	 * note, that since we've registered new device the dev's name
+	 * yeste, that since we've registered new device the dev's name
 	 * should be re-allocated
 	 */
 
@@ -1324,7 +1324,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	return 0;
 
 err_register_dev:
-	/* nothing to do */
+	/* yesthing to do */
 err_configure_peer:
 	unregister_netdevice(peer);
 	return err;
@@ -1344,7 +1344,7 @@ static void veth_dellink(struct net_device *dev, struct list_head *head)
 
 	/* Note : dellink() is called from default_device_exit_batch(),
 	 * before a rcu_synchronize() point. The devices are guaranteed
-	 * not being freed before one RCU grace period.
+	 * yest being freed before one RCU grace period.
 	 */
 	RCU_INIT_POINTER(priv->peer, NULL);
 	unregister_netdevice_queue(dev, head);

@@ -16,10 +16,10 @@
 #include "max9867.h"
 
 static const char *const max9867_spmode[] = {
-	"Stereo Diff", "Mono Diff",
-	"Stereo Cap", "Mono Cap",
-	"Stereo Single", "Mono Single",
-	"Stereo Single Fast", "Mono Single Fast"
+	"Stereo Diff", "Moyes Diff",
+	"Stereo Cap", "Moyes Cap",
+	"Stereo Single", "Moyes Single",
+	"Stereo Single Fast", "Moyes Single Fast"
 };
 static const char *const max9867_filter_text[] = {"IIR", "FIR"};
 
@@ -287,7 +287,7 @@ static int max9867_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 			 freq);
 	max9867->sysclk = freq;
 	value = value << MAX9867_PSCLK_SHIFT;
-	/* exact integer mode is not supported */
+	/* exact integer mode is yest supported */
 	value &= ~MAX9867_FREQ_MASK;
 	regmap_update_bits(max9867->regmap, MAX9867_SYSCLK,
 			MAX9867_PSCLK_MASK, value);
@@ -447,7 +447,7 @@ static const struct snd_soc_component_driver max9867_component = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static bool max9867_volatile_register(struct device *dev, unsigned int reg)

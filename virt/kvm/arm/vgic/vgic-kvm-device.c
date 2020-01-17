@@ -47,10 +47,10 @@ static int vgic_check_type(struct kvm *kvm, int type_needed)
  *
  * Set or get the vgic base addresses for the distributor and the virtual CPU
  * interface in the VM physical address space.  These addresses are properties
- * of the emulated core/SoC and therefore user space initially knows this
+ * of the emulated core/SoC and therefore user space initially kyesws this
  * information.
  * Check them for sanity (alignment, double assignment). We can't check for
- * overlapping regions in case of a virtual GICv3 here, since we don't know
+ * overlapping regions in case of a virtual GICv3 here, since we don't kyesw
  * the number of VCPUs yet, so we defer this check to map_resources().
  */
 int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
@@ -320,7 +320,7 @@ bool lock_all_vcpus(struct kvm *kvm)
 	/*
 	 * Any time a vcpu is run, vcpu_load is called which tries to grab the
 	 * vcpu->mutex.  By grabbing the vcpu->mutex of all VCPUs we ensure
-	 * that no other VCPUs are run and fiddle with the vgic state while we
+	 * that yes other VCPUs are run and fiddle with the vgic state while we
 	 * access it.
 	 */
 	kvm_for_each_vcpu(c, tmp_vcpu, kvm) {
@@ -477,7 +477,7 @@ int vgic_v3_parse_attr(struct kvm_device *dev, struct kvm_device_attr *attr,
 
 	/*
 	 * For KVM_DEV_ARM_VGIC_GRP_DIST_REGS group,
-	 * attr might not hold MPIDR. Hence assume vcpu0.
+	 * attr might yest hold MPIDR. Hence assume vcpu0.
 	 */
 	if (attr->group != KVM_DEV_ARM_VGIC_GRP_DIST_REGS) {
 		vgic_mpidr = (attr->attr & KVM_DEV_ARM_VGIC_V3_MPIDR_MASK) >>

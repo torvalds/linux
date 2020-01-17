@@ -107,7 +107,7 @@ static void __iomem *map_capability(struct pci_dev *dev, int off,
 
 	if (offset & (align - 1)) {
 		dev_err(&dev->dev,
-			"virtio_pci: offset %u not aligned to %u\n",
+			"virtio_pci: offset %u yest aligned to %u\n",
 			offset, align);
 		return NULL;
 	}
@@ -174,7 +174,7 @@ static int vp_finalize_features(struct virtio_device *vdev)
 
 	if (!__virtio_test_bit(vdev, VIRTIO_F_VERSION_1)) {
 		dev_err(&vdev->dev, "virtio: device uses modern interface "
-			"but does not have VIRTIO_F_VERSION_1\n");
+			"but does yest have VIRTIO_F_VERSION_1\n");
 		return -EINVAL;
 	}
 
@@ -298,7 +298,7 @@ static u16 vp_config_vector(struct virtio_pci_device *vp_dev, u16 vector)
 {
 	/* Setup the vector used for configuration events */
 	vp_iowrite16(vector, &vp_dev->common->msix_config);
-	/* Verify we had enough resources to assign the vector */
+	/* Verify we had eyesugh resources to assign the vector */
 	/* Will also flush the write out to device */
 	return vp_ioread16(&vp_dev->common->msix_config);
 }
@@ -322,7 +322,7 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	/* Select the queue we're interested in */
 	vp_iowrite16(index, &cfg->queue_select);
 
-	/* Check if queue is either not available or already active. */
+	/* Check if queue is either yest available or already active. */
 	num = vp_ioread16(&cfg->queue_size);
 	if (!num || vp_ioread16(&cfg->queue_enable))
 		return ERR_PTR(-ENOENT);
@@ -332,8 +332,8 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	/* get offset of notification word for this vq */
-	off = vp_ioread16(&cfg->queue_notify_off);
+	/* get offset of yestification word for this vq */
+	off = vp_ioread16(&cfg->queue_yestify_off);
 
 	info->msix_vector = msix_vec;
 
@@ -341,7 +341,7 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	vq = vring_create_virtqueue(index, num,
 				    SMP_CACHE_BYTES, &vp_dev->vdev,
 				    true, true, ctx,
-				    vp_notify, callback, name);
+				    vp_yestify, callback, name);
 	if (!vq)
 		return ERR_PTR(-ENOMEM);
 
@@ -354,30 +354,30 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	vp_iowrite64_twopart(virtqueue_get_used_addr(vq),
 			     &cfg->queue_used_lo, &cfg->queue_used_hi);
 
-	if (vp_dev->notify_base) {
-		/* offset should not wrap */
-		if ((u64)off * vp_dev->notify_offset_multiplier + 2
-		    > vp_dev->notify_len) {
+	if (vp_dev->yestify_base) {
+		/* offset should yest wrap */
+		if ((u64)off * vp_dev->yestify_offset_multiplier + 2
+		    > vp_dev->yestify_len) {
 			dev_warn(&vp_dev->pci_dev->dev,
-				 "bad notification offset %u (x %u) "
+				 "bad yestification offset %u (x %u) "
 				 "for queue %u > %zd",
-				 off, vp_dev->notify_offset_multiplier,
-				 index, vp_dev->notify_len);
+				 off, vp_dev->yestify_offset_multiplier,
+				 index, vp_dev->yestify_len);
 			err = -EINVAL;
-			goto err_map_notify;
+			goto err_map_yestify;
 		}
-		vq->priv = (void __force *)vp_dev->notify_base +
-			off * vp_dev->notify_offset_multiplier;
+		vq->priv = (void __force *)vp_dev->yestify_base +
+			off * vp_dev->yestify_offset_multiplier;
 	} else {
 		vq->priv = (void __force *)map_capability(vp_dev->pci_dev,
-					  vp_dev->notify_map_cap, 2, 2,
-					  off * vp_dev->notify_offset_multiplier, 2,
+					  vp_dev->yestify_map_cap, 2, 2,
+					  off * vp_dev->yestify_offset_multiplier, 2,
 					  NULL);
 	}
 
 	if (!vq->priv) {
 		err = -ENOMEM;
-		goto err_map_notify;
+		goto err_map_yestify;
 	}
 
 	if (msix_vec != VIRTIO_MSI_NO_VECTOR) {
@@ -392,9 +392,9 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	return vq;
 
 err_assign_vector:
-	if (!vp_dev->notify_base)
+	if (!vp_dev->yestify_base)
 		pci_iounmap(vp_dev->pci_dev, (void __iomem __force *)vq->priv);
-err_map_notify:
+err_map_yestify:
 	vring_del_virtqueue(vq);
 	return ERR_PTR(err);
 }
@@ -413,7 +413,7 @@ static int vp_modern_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 		return rc;
 
 	/* Select and activate all queues. Has to be done last: once we do
-	 * this, there's no way to go back except reset.
+	 * this, there's yes way to go back except reset.
 	 */
 	list_for_each_entry(vq, &vdev->vqs, list) {
 		vp_iowrite16(vq->index, &vp_dev->common->queue_select);
@@ -437,13 +437,13 @@ static void del_vq(struct virtio_pci_vq_info *info)
 		vp_ioread16(&vp_dev->common->queue_msix_vector);
 	}
 
-	if (!vp_dev->notify_base)
+	if (!vp_dev->yestify_base)
 		pci_iounmap(vp_dev->pci_dev, (void __force __iomem *)vq->priv);
 
 	vring_del_virtqueue(vq);
 }
 
-static const struct virtio_config_ops virtio_pci_config_nodev_ops = {
+static const struct virtio_config_ops virtio_pci_config_yesdev_ops = {
 	.get		= NULL,
 	.set		= NULL,
 	.generation	= vp_generation,
@@ -499,7 +499,7 @@ static inline int virtio_pci_find_capability(struct pci_dev *dev, u8 cfg_type,
 							 bar),
 				     &bar);
 
-		/* Ignore structures with reserved BAR values */
+		/* Igyesre structures with reserved BAR values */
 		if (bar > 0x5)
 			continue;
 
@@ -533,8 +533,8 @@ static inline void check_offsets(void)
 	BUILD_BUG_ON(VIRTIO_PCI_CAP_LENGTH !=
 		     offsetof(struct virtio_pci_cap, length));
 	BUILD_BUG_ON(VIRTIO_PCI_NOTIFY_CAP_MULT !=
-		     offsetof(struct virtio_pci_notify_cap,
-			      notify_off_multiplier));
+		     offsetof(struct virtio_pci_yestify_cap,
+			      yestify_off_multiplier));
 	BUILD_BUG_ON(VIRTIO_PCI_COMMON_DFSELECT !=
 		     offsetof(struct virtio_pci_common_cfg,
 			      device_feature_select));
@@ -562,7 +562,7 @@ static inline void check_offsets(void)
 	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_ENABLE !=
 		     offsetof(struct virtio_pci_common_cfg, queue_enable));
 	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_NOFF !=
-		     offsetof(struct virtio_pci_common_cfg, queue_notify_off));
+		     offsetof(struct virtio_pci_common_cfg, queue_yestify_off));
 	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_DESCLO !=
 		     offsetof(struct virtio_pci_common_cfg, queue_desc_lo));
 	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_DESCHI !=
@@ -581,9 +581,9 @@ static inline void check_offsets(void)
 int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 {
 	struct pci_dev *pci_dev = vp_dev->pci_dev;
-	int err, common, isr, notify, device;
-	u32 notify_length;
-	u32 notify_offset;
+	int err, common, isr, yestify, device;
+	u32 yestify_length;
+	u32 yestify_offset;
 
 	check_offsets();
 
@@ -602,7 +602,7 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 	}
 	vp_dev->vdev.id.vendor = pci_dev->subsystem_vendor;
 
-	/* check for a common config: if not, use legacy mode (bar 0). */
+	/* check for a common config: if yest, use legacy mode (bar 0). */
 	common = virtio_pci_find_capability(pci_dev, VIRTIO_PCI_CAP_COMMON_CFG,
 					    IORESOURCE_IO | IORESOURCE_MEM,
 					    &vp_dev->modern_bars);
@@ -616,13 +616,13 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 	isr = virtio_pci_find_capability(pci_dev, VIRTIO_PCI_CAP_ISR_CFG,
 					 IORESOURCE_IO | IORESOURCE_MEM,
 					 &vp_dev->modern_bars);
-	notify = virtio_pci_find_capability(pci_dev, VIRTIO_PCI_CAP_NOTIFY_CFG,
+	yestify = virtio_pci_find_capability(pci_dev, VIRTIO_PCI_CAP_NOTIFY_CFG,
 					    IORESOURCE_IO | IORESOURCE_MEM,
 					    &vp_dev->modern_bars);
-	if (!isr || !notify) {
+	if (!isr || !yestify) {
 		dev_err(&pci_dev->dev,
 			"virtio_pci: missing capabilities %i/%i/%i\n",
-			common, isr, notify);
+			common, isr, yestify);
 		return -EINVAL;
 	}
 
@@ -631,7 +631,7 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 		err = dma_set_mask_and_coherent(&pci_dev->dev,
 						DMA_BIT_MASK(32));
 	if (err)
-		dev_warn(&pci_dev->dev, "Failed to enable 64-bit or 32-bit DMA.  Trying to continue, but this might not work.\n");
+		dev_warn(&pci_dev->dev, "Failed to enable 64-bit or 32-bit DMA.  Trying to continue, but this might yest work.\n");
 
 	/* Device capability is only mandatory for devices that have
 	 * device-specific configuration.
@@ -658,38 +658,38 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 	if (!vp_dev->isr)
 		goto err_map_isr;
 
-	/* Read notify_off_multiplier from config space. */
+	/* Read yestify_off_multiplier from config space. */
 	pci_read_config_dword(pci_dev,
-			      notify + offsetof(struct virtio_pci_notify_cap,
-						notify_off_multiplier),
-			      &vp_dev->notify_offset_multiplier);
-	/* Read notify length and offset from config space. */
+			      yestify + offsetof(struct virtio_pci_yestify_cap,
+						yestify_off_multiplier),
+			      &vp_dev->yestify_offset_multiplier);
+	/* Read yestify length and offset from config space. */
 	pci_read_config_dword(pci_dev,
-			      notify + offsetof(struct virtio_pci_notify_cap,
+			      yestify + offsetof(struct virtio_pci_yestify_cap,
 						cap.length),
-			      &notify_length);
+			      &yestify_length);
 
 	pci_read_config_dword(pci_dev,
-			      notify + offsetof(struct virtio_pci_notify_cap,
+			      yestify + offsetof(struct virtio_pci_yestify_cap,
 						cap.offset),
-			      &notify_offset);
+			      &yestify_offset);
 
-	/* We don't know how many VQs we'll map, ahead of the time.
-	 * If notify length is small, map it all now.
+	/* We don't kyesw how many VQs we'll map, ahead of the time.
+	 * If yestify length is small, map it all yesw.
 	 * Otherwise, map each VQ individually later.
 	 */
-	if ((u64)notify_length + (notify_offset % PAGE_SIZE) <= PAGE_SIZE) {
-		vp_dev->notify_base = map_capability(pci_dev, notify, 2, 2,
-						     0, notify_length,
-						     &vp_dev->notify_len);
-		if (!vp_dev->notify_base)
-			goto err_map_notify;
+	if ((u64)yestify_length + (yestify_offset % PAGE_SIZE) <= PAGE_SIZE) {
+		vp_dev->yestify_base = map_capability(pci_dev, yestify, 2, 2,
+						     0, yestify_length,
+						     &vp_dev->yestify_len);
+		if (!vp_dev->yestify_base)
+			goto err_map_yestify;
 	} else {
-		vp_dev->notify_map_cap = notify;
+		vp_dev->yestify_map_cap = yestify;
 	}
 
-	/* Again, we don't know how much we should map, but PAGE_SIZE
-	 * is more than enough for all existing devices.
+	/* Again, we don't kyesw how much we should map, but PAGE_SIZE
+	 * is more than eyesugh for all existing devices.
 	 */
 	if (device) {
 		vp_dev->device = map_capability(pci_dev, device, 0, 4,
@@ -700,7 +700,7 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 
 		vp_dev->vdev.config = &virtio_pci_config_ops;
 	} else {
-		vp_dev->vdev.config = &virtio_pci_config_nodev_ops;
+		vp_dev->vdev.config = &virtio_pci_config_yesdev_ops;
 	}
 
 	vp_dev->config_vector = vp_config_vector;
@@ -710,9 +710,9 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 	return 0;
 
 err_map_device:
-	if (vp_dev->notify_base)
-		pci_iounmap(pci_dev, vp_dev->notify_base);
-err_map_notify:
+	if (vp_dev->yestify_base)
+		pci_iounmap(pci_dev, vp_dev->yestify_base);
+err_map_yestify:
 	pci_iounmap(pci_dev, vp_dev->isr);
 err_map_isr:
 	pci_iounmap(pci_dev, vp_dev->common);
@@ -726,8 +726,8 @@ void virtio_pci_modern_remove(struct virtio_pci_device *vp_dev)
 
 	if (vp_dev->device)
 		pci_iounmap(pci_dev, vp_dev->device);
-	if (vp_dev->notify_base)
-		pci_iounmap(pci_dev, vp_dev->notify_base);
+	if (vp_dev->yestify_base)
+		pci_iounmap(pci_dev, vp_dev->yestify_base);
 	pci_iounmap(pci_dev, vp_dev->isr);
 	pci_iounmap(pci_dev, vp_dev->common);
 	pci_release_selected_regions(pci_dev, vp_dev->modern_bars);

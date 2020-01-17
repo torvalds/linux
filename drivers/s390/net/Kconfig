@@ -10,7 +10,7 @@ config LCS
 	  Select this option if you want to use LCS networking on IBM System z.
 	  This device driver supports FDDI (IEEE 802.7) and Ethernet.
 	  To compile as a module, choose M. The module name is lcs.
-	  If you do not know what it is, it's safe to choose Y.
+	  If you do yest kyesw what it is, it's safe to choose Y.
 
 config CTCM
 	def_tristate m
@@ -25,7 +25,7 @@ config CTCM
 	  MPC is an SNA protocol device used by Communication Server for Linux.
 	  To compile as a module, choose M. The module name is ctcm.
 	  To compile into the kernel, choose Y.
-	  If you do not need any channel-to-channel connection, choose N.
+	  If you do yest need any channel-to-channel connection, choose N.
 
 config NETIUCV
 	def_tristate m

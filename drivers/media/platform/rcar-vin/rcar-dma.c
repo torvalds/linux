@@ -726,7 +726,7 @@ static int rvin_setup(struct rvin_dev *vin)
 		dmr = 0;
 		break;
 	case V4L2_PIX_FMT_XBGR32:
-		/* Note: not supported on M1 */
+		/* Note: yest supported on M1 */
 		dmr = VNDMR_EXRGB;
 		break;
 	case V4L2_PIX_FMT_ARGB555:
@@ -814,7 +814,7 @@ static void rvin_set_slot_addr(struct rvin_dev *vin, int slot, dma_addr_t addr)
 	fmt = rvin_format_from_pixel(vin, vin->format.pixelformat);
 
 	/*
-	 * There is no HW support for composition do the beast we can
+	 * There is yes HW support for composition do the beast we can
 	 * by modifying the buffer offset
 	 */
 	offsetx = vin->compose.left * fmt->bpp;
@@ -823,7 +823,7 @@ static void rvin_set_slot_addr(struct rvin_dev *vin, int slot, dma_addr_t addr)
 
 	/*
 	 * The address needs to be 128 bytes aligned. Driver should never accept
-	 * settings that do not satisfy this in the first place...
+	 * settings that do yest satisfy this in the first place...
 	 */
 	if (WARN_ON((offsetx | offsety | offset) & HW_BUFFER_MASK))
 		return;
@@ -832,7 +832,7 @@ static void rvin_set_slot_addr(struct rvin_dev *vin, int slot, dma_addr_t addr)
 }
 
 /*
- * Moves a buffer from the queue to the HW slot. If no buffer is
+ * Moves a buffer from the queue to the HW slot. If yes buffer is
  * available use the scratch buffer. The scratch buffer is never
  * returned to userspace, its only function is to enable the capture
  * loop to keep running.
@@ -939,7 +939,7 @@ static irqreturn_t rvin_irq(int irq, void *data)
 	slot = (vnms & VNMS_FBS_MASK) >> VNMS_FBS_SHIFT;
 
 	/*
-	 * To hand buffers back in a known order to userspace start
+	 * To hand buffers back in a kyeswn order to userspace start
 	 * to capture first from slot 0.
 	 */
 	if (vin->state == STARTING) {
@@ -979,7 +979,7 @@ done:
 static void return_all_buffers(struct rvin_dev *vin,
 			       enum vb2_buffer_state state)
 {
-	struct rvin_buffer *buf, *node;
+	struct rvin_buffer *buf, *yesde;
 	int i;
 
 	for (i = 0; i < HW_BUFFER_NUM; i++) {
@@ -990,7 +990,7 @@ static void return_all_buffers(struct rvin_dev *vin,
 		}
 	}
 
-	list_for_each_entry_safe(buf, node, &vin->buf_list, list) {
+	list_for_each_entry_safe(buf, yesde, &vin->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -1003,7 +1003,7 @@ static int rvin_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 {
 	struct rvin_dev *vin = vb2_get_drv_priv(vq);
 
-	/* Make sure the image size is large enough. */
+	/* Make sure the image size is large eyesugh. */
 	if (*nplanes)
 		return sizes[0] < vin->format.sizeimage ? -EINVAL : 0;
 
@@ -1331,9 +1331,9 @@ error:
  */
 
 /*
- * There is no need to have locking around changing the routing
- * as it's only possible to do so when no VIN in the group is
- * streaming so nothing can race with the VNMC register.
+ * There is yes need to have locking around changing the routing
+ * as it's only possible to do so when yes VIN in the group is
+ * streaming so yesthing can race with the VNMC register.
  */
 int rvin_set_channel_routing(struct rvin_dev *vin, u8 chsel)
 {

@@ -1,7 +1,7 @@
 QCOM WCD9335 Codec
 
 Qualcomm WCD9335 Codec is a standalone Hi-Fi audio codec IC, supports
-Qualcomm Technologies, Inc. (QTI) multimedia solutions, including
+Qualcomm Techyeslogies, Inc. (QTI) multimedia solutions, including
 the MSM8996, MSM8976, and MSM8956 chipsets. It has in-built
 Soundwire controller, interrupt mux. It supports both I2S/I2C and
 SLIMbus audio interfaces.

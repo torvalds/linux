@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -82,25 +82,25 @@ struct sk_buff *tipc_buf_acquire(u32 size, gfp_t gfp)
 	return skb;
 }
 
-void tipc_msg_init(u32 own_node, struct tipc_msg *m, u32 user, u32 type,
-		   u32 hsize, u32 dnode)
+void tipc_msg_init(u32 own_yesde, struct tipc_msg *m, u32 user, u32 type,
+		   u32 hsize, u32 dyesde)
 {
 	memset(m, 0, hsize);
 	msg_set_version(m);
 	msg_set_user(m, user);
 	msg_set_hdr_sz(m, hsize);
 	msg_set_size(m, hsize);
-	msg_set_prevnode(m, own_node);
+	msg_set_prevyesde(m, own_yesde);
 	msg_set_type(m, type);
 	if (hsize > SHORT_H_SIZE) {
-		msg_set_orignode(m, own_node);
-		msg_set_destnode(m, dnode);
+		msg_set_origyesde(m, own_yesde);
+		msg_set_destyesde(m, dyesde);
 	}
 }
 
 struct sk_buff *tipc_msg_create(uint user, uint type,
-				uint hdr_sz, uint data_sz, u32 dnode,
-				u32 onode, u32 dport, u32 oport, int errcode)
+				uint hdr_sz, uint data_sz, u32 dyesde,
+				u32 oyesde, u32 dport, u32 oport, int errcode)
 {
 	struct tipc_msg *msg;
 	struct sk_buff *buf;
@@ -110,21 +110,21 @@ struct sk_buff *tipc_msg_create(uint user, uint type,
 		return NULL;
 
 	msg = buf_msg(buf);
-	tipc_msg_init(onode, msg, user, type, hdr_sz, dnode);
+	tipc_msg_init(oyesde, msg, user, type, hdr_sz, dyesde);
 	msg_set_size(msg, hdr_sz + data_sz);
 	msg_set_origport(msg, oport);
 	msg_set_destport(msg, dport);
 	msg_set_errcode(msg, errcode);
 	if (hdr_sz > SHORT_H_SIZE) {
-		msg_set_orignode(msg, onode);
-		msg_set_destnode(msg, dnode);
+		msg_set_origyesde(msg, oyesde);
+		msg_set_destyesde(msg, dyesde);
 	}
 	return buf;
 }
 
-/* tipc_buf_append(): Append a buffer to the fragment list of another buffer
+/* tipc_buf_append(): Append a buffer to the fragment list of ayesther buffer
  * @*headbuf: in:  NULL for first frag, otherwise value returned from prev call
- *            out: set when successful non-complete reassembly, otherwise NULL
+ *            out: set when successful yesn-complete reassembly, otherwise NULL
  * @*buf:     in:  the buffer to append. Always defined
  *            out: head buf after successful complete reassembly, otherwise NULL
  * Returns 1 when reassembly complete, otherwise 0
@@ -155,7 +155,7 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 		head = *headbuf = frag;
 		*buf = NULL;
 		TIPC_SKB_CB(head)->tail = NULL;
-		if (skb_is_nonlinear(head)) {
+		if (skb_is_yesnlinear(head)) {
 			skb_walk_frags(head, tail) {
 				TIPC_SKB_CB(head)->tail = tail;
 			}
@@ -207,7 +207,7 @@ err:
  * @mss: max allowable size of buffer
  * @dlen: size of data to be appended
  * @txq: queue to appand to
- * Returns the number og 1k blocks appended or errno value
+ * Returns the number og 1k blocks appended or erryes value
  */
 int tipc_msg_append(struct tipc_msg *_hdr, struct msghdr *m, int dlen,
 		    int mss, struct sk_buff_head *txq)
@@ -261,7 +261,7 @@ int tipc_msg_append(struct tipc_msg *_hdr, struct msghdr *m, int dlen,
  * buffer, to simplify future access to message header fields.
  *
  * Note: Having extra info present in the message header or data areas is OK.
- * TIPC will ignore the excess, under the assumption that it is optional info
+ * TIPC will igyesre the excess, under the assumption that it is optional info
  * introduced by a later release of the protocol.
  */
 bool tipc_msg_validate(struct sk_buff **_skb)
@@ -321,7 +321,7 @@ bool tipc_msg_validate(struct sk_buff **_skb)
 int tipc_msg_fragment(struct sk_buff *skb, const struct tipc_msg *hdr,
 		      int pktmax, struct sk_buff_head *frags)
 {
-	int pktno, nof_fragms, dsz, dmax, eat;
+	int pktyes, yesf_fragms, dsz, dmax, eat;
 	struct tipc_msg *_hdr;
 	struct sk_buff *_skb;
 	u8 *data;
@@ -336,9 +336,9 @@ int tipc_msg_fragment(struct sk_buff *skb, const struct tipc_msg *hdr,
 	if (dsz <= dmax || !dmax)
 		return -EINVAL;
 
-	nof_fragms = dsz / dmax + 1;
-	for (pktno = 1; pktno <= nof_fragms; pktno++) {
-		if (pktno < nof_fragms)
+	yesf_fragms = dsz / dmax + 1;
+	for (pktyes = 1; pktyes <= yesf_fragms; pktyes++) {
+		if (pktyes < yesf_fragms)
 			eat = dmax;
 		else
 			eat = dsz % dmax;
@@ -354,8 +354,8 @@ int tipc_msg_fragment(struct sk_buff *skb, const struct tipc_msg *hdr,
 		data += eat;
 		/* Update the fragment's header */
 		_hdr = buf_msg(_skb);
-		msg_set_fragm_no(_hdr, pktno);
-		msg_set_nof_fragms(_hdr, nof_fragms);
+		msg_set_fragm_yes(_hdr, pktyes);
+		msg_set_yesf_fragms(_hdr, yesf_fragms);
 		msg_set_size(_hdr, INT_H_SIZE + eat);
 	}
 	return 0;
@@ -377,7 +377,7 @@ error:
  * Note that the recursive call we are making here is safe, since it can
  * logically go only one further level down.
  *
- * Returns message data size or errno: -ENOMEM, -EFAULT
+ * Returns message data size or erryes: -ENOMEM, -EFAULT
  */
 int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
 		   int dsz, int pktmax, struct sk_buff_head *list)
@@ -388,7 +388,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
 	int pktrem = pktmax;
 	struct sk_buff *skb;
 	int drem = dsz;
-	int pktno = 1;
+	int pktyes = 1;
 	char *pktpos;
 	int pktsz;
 	int rc;
@@ -399,7 +399,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
 	if (likely(msz <= pktmax)) {
 		skb = tipc_buf_acquire(msz, GFP_KERNEL);
 
-		/* Fall back to smaller MTU if node local message */
+		/* Fall back to smaller MTU if yesde local message */
 		if (unlikely(!skb)) {
 			if (pktmax != MAX_MSG_SIZE)
 				return -ENOMEM;
@@ -421,10 +421,10 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
 	}
 
 	/* Prepare reusable fragment header */
-	tipc_msg_init(msg_prevnode(mhdr), &pkthdr, MSG_FRAGMENTER,
-		      FIRST_FRAGMENT, INT_H_SIZE, msg_destnode(mhdr));
+	tipc_msg_init(msg_prevyesde(mhdr), &pkthdr, MSG_FRAGMENTER,
+		      FIRST_FRAGMENT, INT_H_SIZE, msg_destyesde(mhdr));
 	msg_set_size(&pkthdr, pktmax);
-	msg_set_fragm_no(&pkthdr, pktno);
+	msg_set_fragm_yes(&pkthdr, pktyes);
 	msg_set_importance(&pkthdr, msg_importance(mhdr));
 
 	/* Prepare first fragment */
@@ -468,7 +468,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
 		__skb_queue_tail(list, skb);
 		msg_set_type(&pkthdr, FRAGMENT);
 		msg_set_size(&pkthdr, pktsz);
-		msg_set_fragm_no(&pkthdr, ++pktno);
+		msg_set_fragm_yes(&pkthdr, ++pktyes);
 		skb_copy_to_linear_data(skb, &pkthdr, INT_H_SIZE);
 		pktpos = skb->data + INT_H_SIZE;
 		pktrem = pktsz - INT_H_SIZE;
@@ -518,16 +518,16 @@ static bool tipc_msg_bundle(struct sk_buff *bskb, struct tipc_msg *msg,
  * @tskb: the last/target message to which the new one will be appended
  * @skb: the new message skb pointer
  * @mss: max message size (header inclusive)
- * @dnode: destination node for the message
- * @new_bundle: if this call made a new bundle or not
+ * @dyesde: destination yesde for the message
+ * @new_bundle: if this call made a new bundle or yest
  *
  * Return: "true" if the new message skb is potential for bundling this time or
  * later, in the case a bundling has been done this time, the skb is consumed
  * (the skb pointer = NULL).
- * Otherwise, "false" if the skb cannot be bundled at all.
+ * Otherwise, "false" if the skb canyest be bundled at all.
  */
 bool tipc_msg_try_bundle(struct sk_buff *tskb, struct sk_buff **skb, u32 mss,
-			 u32 dnode, bool *new_bundle)
+			 u32 dyesde, bool *new_bundle)
 {
 	struct tipc_msg *msg, *inner, *outer;
 	u32 tsz;
@@ -563,8 +563,8 @@ bool tipc_msg_try_bundle(struct sk_buff *tskb, struct sk_buff **skb, u32 mss,
 	inner = buf_msg(tskb);
 	skb_push(tskb, INT_H_SIZE);
 	outer = buf_msg(tskb);
-	tipc_msg_init(msg_prevnode(inner), outer, MSG_BUNDLER, 0, INT_H_SIZE,
-		      dnode);
+	tipc_msg_init(msg_prevyesde(inner), outer, MSG_BUNDLER, 0, INT_H_SIZE,
+		      dyesde);
 	msg_set_importance(outer, msg_importance(inner));
 	msg_set_size(outer, INT_H_SIZE + tsz);
 	msg_set_msgcnt(outer, 1);
@@ -594,29 +594,29 @@ bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos)
 
 	*iskb = NULL;
 	if (unlikely(skb_linearize(skb)))
-		goto none;
+		goto yesne;
 
 	hdr = buf_msg(skb);
 	if (unlikely(*pos > (msg_data_sz(hdr) - MIN_H_SIZE)))
-		goto none;
+		goto yesne;
 
 	ihdr = (struct tipc_msg *)(msg_data(hdr) + *pos);
 	imsz = msg_size(ihdr);
 
 	if ((*pos + imsz) > msg_data_sz(hdr))
-		goto none;
+		goto yesne;
 
 	*iskb = tipc_buf_acquire(imsz, GFP_ATOMIC);
 	if (!*iskb)
-		goto none;
+		goto yesne;
 
 	skb_copy_to_linear_data(*iskb, ihdr, imsz);
 	if (unlikely(!tipc_msg_validate(iskb)))
-		goto none;
+		goto yesne;
 
 	*pos += align(imsz);
 	return true;
-none:
+yesne:
 	kfree_skb(skb);
 	kfree_skb(*iskb);
 	*iskb = NULL;
@@ -625,13 +625,13 @@ none:
 
 /**
  * tipc_msg_reverse(): swap source and destination addresses and add error code
- * @own_node: originating node id for reversed message
+ * @own_yesde: originating yesde id for reversed message
  * @skb:  buffer containing message to be reversed; will be consumed
  * @err:  error code to be set in message, if any
  * Replaces consumed buffer with new one when successful
  * Returns true if success, otherwise false
  */
-bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
+bool tipc_msg_reverse(u32 own_yesde,  struct sk_buff **skb, int err)
 {
 	struct sk_buff *_skb = *skb;
 	struct tipc_msg *_hdr, *hdr;
@@ -667,12 +667,12 @@ bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 	hdr = buf_msg(*skb);
 	msg_set_hdr_sz(hdr, hlen);
 	msg_set_errcode(hdr, err);
-	msg_set_non_seq(hdr, 0);
+	msg_set_yesn_seq(hdr, 0);
 	msg_set_origport(hdr, msg_destport(_hdr));
 	msg_set_destport(hdr, msg_origport(_hdr));
-	msg_set_destnode(hdr, msg_prevnode(_hdr));
-	msg_set_prevnode(hdr, own_node);
-	msg_set_orignode(hdr, own_node);
+	msg_set_destyesde(hdr, msg_prevyesde(_hdr));
+	msg_set_prevyesde(hdr, own_yesde);
+	msg_set_origyesde(hdr, own_yesde);
 	msg_set_size(hdr, hlen + dlen);
 	skb_orphan(_skb);
 	kfree_skb(_skb);
@@ -703,14 +703,14 @@ bool tipc_msg_skb_clone(struct sk_buff_head *msg, struct sk_buff_head *cpy)
  * tipc_msg_lookup_dest(): try to find new destination for named message
  * @skb: the buffer containing the message.
  * @err: error code to be used by caller if lookup fails
- * Does not consume buffer
+ * Does yest consume buffer
  * Returns true if a destination is found, false otherwise
  */
 bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 {
 	struct tipc_msg *msg = buf_msg(skb);
-	u32 dport, dnode;
-	u32 onode = tipc_own_addr(net);
+	u32 dport, dyesde;
+	u32 oyesde = tipc_own_addr(net);
 
 	if (!msg_isdata(msg))
 		return false;
@@ -724,15 +724,15 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 	msg = buf_msg(skb);
 	if (msg_reroute_cnt(msg))
 		return false;
-	dnode = tipc_scope2node(net, msg_lookup_scope(msg));
+	dyesde = tipc_scope2yesde(net, msg_lookup_scope(msg));
 	dport = tipc_nametbl_translate(net, msg_nametype(msg),
-				       msg_nameinst(msg), &dnode);
+				       msg_nameinst(msg), &dyesde);
 	if (!dport)
 		return false;
 	msg_incr_reroute_cnt(msg);
-	if (dnode != onode)
-		msg_set_prevnode(msg, onode);
-	msg_set_destnode(msg, dnode);
+	if (dyesde != oyesde)
+		msg_set_prevyesde(msg, oyesde);
+	msg_set_destyesde(msg, dyesde);
 	msg_set_destport(msg, dport);
 	*err = TIPC_OK;
 
@@ -817,7 +817,7 @@ bool tipc_msg_pskb_copy(u32 dst, struct sk_buff_head *msg,
 			__skb_queue_purge(cpy);
 			return false;
 		}
-		msg_set_destnode(buf_msg(_skb), dst);
+		msg_set_destyesde(buf_msg(_skb), dst);
 		__skb_queue_tail(cpy, _skb);
 	}
 	return true;
@@ -825,28 +825,28 @@ bool tipc_msg_pskb_copy(u32 dst, struct sk_buff_head *msg,
 
 /* tipc_skb_queue_sorted(); sort pkt into list according to sequence number
  * @list: list to be appended to
- * @seqno: sequence number of buffer to add
+ * @seqyes: sequence number of buffer to add
  * @skb: buffer to add
  */
-void __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqno,
+void __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqyes,
 			     struct sk_buff *skb)
 {
 	struct sk_buff *_skb, *tmp;
 
-	if (skb_queue_empty(list) || less(seqno, buf_seqno(skb_peek(list)))) {
+	if (skb_queue_empty(list) || less(seqyes, buf_seqyes(skb_peek(list)))) {
 		__skb_queue_head(list, skb);
 		return;
 	}
 
-	if (more(seqno, buf_seqno(skb_peek_tail(list)))) {
+	if (more(seqyes, buf_seqyes(skb_peek_tail(list)))) {
 		__skb_queue_tail(list, skb);
 		return;
 	}
 
 	skb_queue_walk_safe(list, _skb, tmp) {
-		if (more(seqno, buf_seqno(_skb)))
+		if (more(seqyes, buf_seqyes(_skb)))
 			continue;
-		if (seqno == buf_seqno(_skb))
+		if (seqyes == buf_seqyes(_skb))
 			break;
 		__skb_queue_before(list, _skb, skb);
 		return;

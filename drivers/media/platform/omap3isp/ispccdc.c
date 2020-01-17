@@ -1005,7 +1005,7 @@ static void ccdc_config_sync_if(struct isp_ccdc_device *ccdc,
 		syn_mode |= ISPCCDC_SYN_MODE_HDPOL;
 
 	/* The polarity of the vertical sync signal output by the BT.656
-	 * decoder is not documented and seems to be active low.
+	 * decoder is yest documented and seems to be active low.
 	 */
 	if ((parcfg && parcfg->vs_pol) || ccdc->bt656)
 		syn_mode |= ISPCCDC_SYN_MODE_VDPOL;
@@ -1016,7 +1016,7 @@ static void ccdc_config_sync_if(struct isp_ccdc_device *ccdc,
 	isp_reg_writel(isp, syn_mode, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_SYN_MODE);
 
 	/* The CCDC_CFG.Y8POS bit is used in YCbCr8 input mode only. The
-	 * hardware seems to ignore it in all other input modes.
+	 * hardware seems to igyesre it in all other input modes.
 	 */
 	if (format->code == MEDIA_BUS_FMT_UYVY8_2X8)
 		isp_reg_set(isp, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_CFG,
@@ -1147,7 +1147,7 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 	format = &ccdc->formats[CCDC_PAD_SINK];
 
 	/* Compute the lane shifter shift value and enable the bridge when the
-	 * input format is a non-BT.656 YUV variant.
+	 * input format is a yesn-BT.656 YUV variant.
 	 */
 	fmt_src.pad = pad->index;
 	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
@@ -1289,7 +1289,7 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 
 	WARN_ON(ccdc->lsc.active);
 
-	/* Get last good LSC configuration. If it is not supported for
+	/* Get last good LSC configuration. If it is yest supported for
 	 * the current active resolution discard it.
 	 */
 	if (ccdc->lsc.active == NULL &&
@@ -1456,7 +1456,7 @@ static int ccdc_handle_stopping(struct isp_ccdc_device *ccdc, u32 event)
 static void ccdc_hs_vs_isr(struct isp_ccdc_device *ccdc)
 {
 	struct isp_pipeline *pipe = to_isp_pipeline(&ccdc->subdev.entity);
-	struct video_device *vdev = ccdc->subdev.devnode;
+	struct video_device *vdev = ccdc->subdev.devyesde;
 	struct v4l2_event event;
 
 	/* Frame number propagation */
@@ -1582,16 +1582,16 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 	struct isp_buffer *buffer;
 
 	/* The CCDC generates VD0 interrupts even when disabled (the datasheet
-	 * doesn't explicitly state if that's supposed to happen or not, so it
+	 * doesn't explicitly state if that's supposed to happen or yest, so it
 	 * can be considered as a hardware bug or as a feature, but we have to
-	 * deal with it anyway). Disabling the CCDC when no buffer is available
-	 * would thus not be enough, we need to handle the situation explicitly.
+	 * deal with it anyway). Disabling the CCDC when yes buffer is available
+	 * would thus yest be eyesugh, we need to handle the situation explicitly.
 	 */
 	if (list_empty(&ccdc->video_out.dmaqueue))
 		return 0;
 
 	/* We're in continuous mode, and memory writes were disabled due to a
-	 * buffer underrun. Re-enable them now that we have a buffer. The buffer
+	 * buffer underrun. Re-enable them yesw that we have a buffer. The buffer
 	 * address has been set in ccdc_video_queue.
 	 */
 	if (ccdc->state == ISP_PIPELINE_STREAM_CONTINUOUS && ccdc->underrun) {
@@ -1691,9 +1691,9 @@ static void ccdc_vd1_isr(struct isp_ccdc_device *ccdc)
 	 * from the embedded sync codes. The VD0 and VD1 interrupts are thus
 	 * only triggered when the CCDC is enabled, unlike external sync mode
 	 * where the line counter runs even when the CCDC is stopped. We can't
-	 * disable the CCDC at VD1 time, as no VD0 interrupt would be generated
+	 * disable the CCDC at VD1 time, as yes VD0 interrupt would be generated
 	 * for a short frame, which would result in the CCDC being stopped and
-	 * no VD interrupt generated anymore. The CCDC is stopped from the VD0
+	 * yes VD interrupt generated anymore. The CCDC is stopped from the VD0
 	 * interrupt handler instead for BT.656.
 	 */
 	if (ccdc->bt656)
@@ -1791,10 +1791,10 @@ static int ccdc_video_queue(struct isp_video *video, struct isp_buffer *buffer)
 
 	ccdc_set_outaddr(ccdc, buffer->dma);
 
-	/* We now have a buffer queued on the output, restart the pipeline
+	/* We yesw have a buffer queued on the output, restart the pipeline
 	 * on the next CCDC interrupt if running in continuous mode (or when
 	 * starting the stream) in external sync mode, or immediately in BT.656
-	 * sync mode as no CCDC interrupt is generated when the CCDC is stopped
+	 * sync mode as yes CCDC interrupt is generated when the CCDC is stopped
 	 * in that case.
 	 */
 	spin_lock_irqsave(&ccdc->lock, flags);
@@ -1875,7 +1875,7 @@ static int ccdc_unsubscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
  * STREAMON call without any buffer queued yet, just update the enabled field
  * and return immediately. The CCDC will be enabled in ccdc_isr_buffer().
  *
- * When not writing to memory enable the CCDC immediately.
+ * When yest writing to memory enable the CCDC immediately.
  */
 static int ccdc_set_stream(struct v4l2_subdev *sd, int enable)
 {
@@ -1975,7 +1975,7 @@ ccdc_try_format(struct isp_ccdc_device *ccdc, struct v4l2_subdev_pad_config *cfg
 				break;
 		}
 
-		/* If not found, use SGRBG10 as default */
+		/* If yest found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(ccdc_fmts))
 			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
@@ -1995,7 +1995,7 @@ ccdc_try_format(struct isp_ccdc_device *ccdc, struct v4l2_subdev_pad_config *cfg
 		*fmt = *__ccdc_get_format(ccdc, cfg, CCDC_PAD_SINK, which);
 
 		/* In SYNC mode the bridge converts YUV formats from 2X8 to
-		 * 1X16. In BT.656 no such conversion occurs. As we don't know
+		 * 1X16. In BT.656 yes such conversion occurs. As we don't kyesw
 		 * at this point whether the source will use SYNC or BT.656 mode
 		 * let's pretend the conversion always occurs. The CCDC will be
 		 * configured to pack bytes in BT.656, hiding the inaccuracy.
@@ -2040,7 +2040,7 @@ ccdc_try_format(struct isp_ccdc_device *ccdc, struct v4l2_subdev_pad_config *cfg
 		info = omap3isp_video_format_info(fmt->code);
 		fmt->code = info->truncated;
 
-		/* YUV formats are not supported by the video port. */
+		/* YUV formats are yest supported by the video port. */
 		if (fmt->code == MEDIA_BUS_FMT_YUYV8_2X8 ||
 		    fmt->code == MEDIA_BUS_FMT_UYVY8_2X8)
 			fmt->code = 0;
@@ -2139,7 +2139,7 @@ static int ccdc_enum_mbus_code(struct v4l2_subdev *sd,
 			else
 				return -EINVAL;
 		} else {
-			/* In raw mode, no configurable format confversion is
+			/* In raw mode, yes configurable format confversion is
 			 * available.
 			 */
 			if (code->index == 0)
@@ -2150,7 +2150,7 @@ static int ccdc_enum_mbus_code(struct v4l2_subdev *sd,
 		break;
 
 	case CCDC_PAD_SOURCE_VP:
-		/* The CCDC supports no configurable format conversion
+		/* The CCDC supports yes configurable format conversion
 		 * compatible with the video port. Enumerate a single output
 		 * format code.
 		 */
@@ -2433,7 +2433,7 @@ static int ccdc_link_validate(struct v4l2_subdev *sd,
  * @sd: ISP CCDC V4L2 subdevice
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
+ * Initialize all pad formats with default values. If fh is yest NULL, try
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
@@ -2539,11 +2539,11 @@ static int ccdc_link_setup(struct media_entity *entity,
 
 	/*
 	 * The ISP core doesn't support pipelines with multiple video outputs.
-	 * Revisit this when it will be implemented, and return -EBUSY for now.
+	 * Revisit this when it will be implemented, and return -EBUSY for yesw.
 	 */
 
 	case CCDC_PAD_SOURCE_VP | 2 << 16:
-		/* Write to preview engine, histogram and H3A. When none of
+		/* Write to preview engine, histogram and H3A. When yesne of
 		 * those links are active, the video port can be disabled.
 		 */
 		if (flags & MEDIA_LNK_FL_ENABLED) {
@@ -2601,7 +2601,7 @@ int omap3isp_ccdc_register_entities(struct isp_ccdc_device *ccdc,
 {
 	int ret;
 
-	/* Register the subdev and video node. */
+	/* Register the subdev and video yesde. */
 	ccdc->subdev.dev = vdev->mdev->dev;
 	ret = v4l2_device_register_subdev(vdev, &ccdc->subdev);
 	if (ret < 0)
@@ -2723,7 +2723,7 @@ void omap3isp_ccdc_cleanup(struct isp_device *isp)
 	omap3isp_video_cleanup(&ccdc->video_out);
 	media_entity_cleanup(&ccdc->subdev.entity);
 
-	/* Free LSC requests. As the CCDC is stopped there's no active request,
+	/* Free LSC requests. As the CCDC is stopped there's yes active request,
 	 * so only the pending request and the free queue need to be handled.
 	 */
 	ccdc_lsc_free_request(ccdc, ccdc->lsc.request);

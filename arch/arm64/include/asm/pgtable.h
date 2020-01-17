@@ -66,7 +66,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define pfn_pte(pfn,prot)	\
 	__pte(__phys_to_pte_val((phys_addr_t)(pfn) << PAGE_SHIFT) | pgprot_val(prot))
 
-#define pte_none(pte)		(!pte_val(pte))
+#define pte_yesne(pte)		(!pte_val(pte))
 #define pte_clear(mm,addr,ptep)	set_pte(ptep, __pte(0))
 #define pte_page(pte)		(pfn_to_page(pte_pfn(pte)))
 
@@ -96,7 +96,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define pte_dirty(pte)		(pte_sw_dirty(pte) || pte_hw_dirty(pte))
 
 #define pte_valid(pte)		(!!(pte_val(pte) & PTE_VALID))
-#define pte_valid_not_user(pte) \
+#define pte_valid_yest_user(pte) \
 	((pte_val(pte) & (PTE_VALID | PTE_USER)) == PTE_VALID)
 #define pte_valid_young(pte) \
 	((pte_val(pte) & (PTE_VALID | PTE_AF)) == (PTE_VALID | PTE_AF))
@@ -113,7 +113,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
 /*
  * p??_access_permitted() is true for valid user mappings (subject to the
- * write permission check). PROT_NONE mappings do not have the PTE_VALID bit
+ * write permission check). PROT_NONE mappings do yest have the PTE_VALID bit
  * set.
  */
 #define pte_access_permitted(pte, write) \
@@ -188,7 +188,7 @@ static inline pte_t pte_mkcont(pte_t pte)
 	return set_pte_bit(pte, __pgprot(PTE_TYPE_PAGE));
 }
 
-static inline pte_t pte_mknoncont(pte_t pte)
+static inline pte_t pte_mkyesncont(pte_t pte)
 {
 	return clear_pte_bit(pte, __pgprot(PTE_CONT));
 }
@@ -216,7 +216,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 	 * Only if the new pte is valid and kernel, otherwise TLB maintenance
 	 * or update_mmu_cache() have the necessary barriers.
 	 */
-	if (pte_valid_not_user(pte)) {
+	if (pte_valid_yest_user(pte)) {
 		dsb(ishst);
 		isb();
 	}
@@ -234,7 +234,7 @@ extern void __sync_icache_dcache(pte_t pteval);
  *   1      0      |   1           0          1
  *   1      1      |   0           1          x
  *
- * When hardware DBM is not present, the sofware PTE_DIRTY bit is updated via
+ * When hardware DBM is yest present, the sofware PTE_DIRTY bit is updated via
  * the page fault mechanism. Checking the dirty status of a pte becomes:
  *
  *   PTE_DIRTY || (PTE_WRITE && !PTE_RDONLY)
@@ -337,14 +337,14 @@ static inline pgprot_t mk_pmd_sect_prot(pgprot_t prot)
 /*
  * See the comment in include/asm-generic/pgtable.h
  */
-static inline int pte_protnone(pte_t pte)
+static inline int pte_protyesne(pte_t pte)
 {
 	return (pte_val(pte) & (PTE_VALID | PTE_PROT_NONE)) == PTE_PROT_NONE;
 }
 
-static inline int pmd_protnone(pmd_t pmd)
+static inline int pmd_protyesne(pmd_t pmd)
 {
-	return pte_protnone(pmd_pte(pmd));
+	return pte_protyesne(pmd_pte(pmd));
 }
 #endif
 
@@ -366,7 +366,7 @@ static inline int pmd_protnone(pmd_t pmd)
 #define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
 #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
 #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
-#define pmd_mknotpresent(pmd)	(__pmd(pmd_val(pmd) & ~PMD_SECT_VALID))
+#define pmd_mkyestpresent(pmd)	(__pmd(pmd_val(pmd) & ~PMD_SECT_VALID))
 
 #define pmd_thp_or_huge(pmd)	(pmd_huge(pmd) || pmd_trans_huge(pmd))
 
@@ -410,15 +410,15 @@ static inline pmd_t pmd_mkdevmap(pmd_t pmd)
 /*
  * Mark the prot value as uncacheable and unbufferable.
  */
-#define pgprot_noncached(prot) \
+#define pgprot_yesncached(prot) \
 	__pgprot_modify(prot, PTE_ATTRINDX_MASK, PTE_ATTRINDX(MT_DEVICE_nGnRnE) | PTE_PXN | PTE_UXN)
 #define pgprot_writecombine(prot) \
 	__pgprot_modify(prot, PTE_ATTRINDX_MASK, PTE_ATTRINDX(MT_NORMAL_NC) | PTE_PXN | PTE_UXN)
 #define pgprot_device(prot) \
 	__pgprot_modify(prot, PTE_ATTRINDX_MASK, PTE_ATTRINDX(MT_DEVICE_nGnRE) | PTE_PXN | PTE_UXN)
 /*
- * DMA allocations for non-coherent devices use what the Arm architecture calls
- * "Normal non-cacheable" memory, which permits speculation, unaligned accesses
+ * DMA allocations for yesn-coherent devices use what the Arm architecture calls
+ * "Normal yesn-cacheable" memory, which permits speculation, unaligned accesses
  * and merging of writes.  This is different from "Device-nGnR[nE]" memory which
  * is intended for MMIO and thus forbids speculation, preserves access size,
  * requires strict alignment and can also force write responses to come from the
@@ -433,7 +433,7 @@ struct file;
 extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				     unsigned long size, pgprot_t vma_prot);
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_yesne(pmd)		(!pmd_val(pmd))
 
 #define pmd_bad(pmd)		(!(pmd_val(pmd) & PMD_TABLE_BIT))
 
@@ -522,7 +522,7 @@ static inline void pte_unmap(pte_t *pte) { }
 
 #define pmd_ERROR(pmd)		__pmd_error(__FILE__, __LINE__, pmd_val(pmd))
 
-#define pud_none(pud)		(!pud_val(pud))
+#define pud_yesne(pud)		(!pud_val(pud))
 #define pud_bad(pud)		(!(pud_val(pud) & PUD_TABLE_BIT))
 #define pud_present(pud)	pte_present(pud_pte(pud))
 #define pud_valid(pud)		pte_valid(pud_pte(pud))
@@ -573,7 +573,7 @@ static inline phys_addr_t pud_page_paddr(pud_t pud)
 
 #define pud_page_paddr(pud)	({ BUILD_BUG(); 0; })
 
-/* Match pmd_offset folding in <asm/generic/pgtable-nopmd.h> */
+/* Match pmd_offset folding in <asm/generic/pgtable-yespmd.h> */
 #define pmd_set_fixmap(addr)		NULL
 #define pmd_set_fixmap_offset(pudp, addr)	((pmd_t *)pudp)
 #define pmd_clear_fixmap()
@@ -586,7 +586,7 @@ static inline phys_addr_t pud_page_paddr(pud_t pud)
 
 #define pud_ERROR(pud)		__pud_error(__FILE__, __LINE__, pud_val(pud))
 
-#define pgd_none(pgd)		(!pgd_val(pgd))
+#define pgd_yesne(pgd)		(!pgd_val(pgd))
 #define pgd_bad(pgd)		(!(pgd_val(pgd) & 2))
 #define pgd_present(pgd)	(pgd_val(pgd))
 
@@ -631,7 +631,7 @@ static inline phys_addr_t pgd_page_paddr(pgd_t pgd)
 
 #define pgd_page_paddr(pgd)	({ BUILD_BUG(); 0;})
 
-/* Match pud_offset folding in <asm/generic/pgtable-nopud.h> */
+/* Match pud_offset folding in <asm/generic/pgtable-yespud.h> */
 #define pud_set_fixmap(addr)		NULL
 #define pud_set_fixmap_offset(pgdp, addr)	((pud_t *)pgdp)
 #define pud_clear_fixmap()
@@ -737,7 +737,7 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 		 * context-switch, which provides a DSB to complete the TLB
 		 * invalidation.
 		 */
-		flush_tlb_page_nosync(vma, address);
+		flush_tlb_page_yessync(vma, address);
 	}
 
 	return young;
@@ -831,7 +831,7 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 #define __swp_entry_to_pte(swp)	((pte_t) { (swp).val })
 
 /*
- * Ensure that there are not more swap files than can be encoded in the kernel
+ * Ensure that there are yest more swap files than can be encoded in the kernel
  * PTEs.
  */
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
@@ -863,7 +863,7 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 
 /*
  * On arm64 without hardware Access Flag, copying from user will fail because
- * the pte is old and cannot be marked young. So we always end up with zeroed
+ * the pte is old and canyest be marked young. So we always end up with zeroed
  * page after fork() + CoW for pfn mappings. We don't always have a
  * hardware-managed access flag on arm64.
  */

@@ -22,7 +22,7 @@
  *
  * VCO and PLL rate are derived from following equations:
  *
- * In normal mode
+ * In yesrmal mode
  * vco = (2 * M[15:8] * Fin)/N
  *
  * In Dithered mode
@@ -208,7 +208,7 @@ static unsigned long clk_vco_recalc_rate(struct clk_hw *hw,
 
 	den = (val >> PLL_DIV_N_SHIFT) & PLL_DIV_N_MASK;
 
-	/* calculate numerator & denominator */
+	/* calculate numerator & deyesminator */
 	if (!mode) {
 		/* Normal mode */
 		num *= (val >> PLL_NORM_FDBK_M_SHIFT) & PLL_NORM_FDBK_M_MASK;
@@ -219,7 +219,7 @@ static unsigned long clk_vco_recalc_rate(struct clk_hw *hw,
 	}
 
 	if (!den) {
-		WARN(1, "%s: denominator can't be zero\n", __func__);
+		WARN(1, "%s: deyesminator can't be zero\n", __func__);
 		return 0;
 	}
 

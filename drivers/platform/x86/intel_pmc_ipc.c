@@ -16,12 +16,12 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
@@ -86,7 +86,7 @@
 #define PLAT_RESOURCE_ACPI_IO_INDEX	0
 
 /*
- * BIOS does not create an ACPI device for each PMC function,
+ * BIOS does yest create an ACPI device for each PMC function,
  * but exports multiple resources from one ACPI device(IPC) for
  * multiple functions. This driver is responsible to create a
  * platform device and to export resources for those functions.
@@ -144,11 +144,11 @@ static struct intel_pmc_ipc_dev {
 
 static char *ipc_err_sources[] = {
 	[IPC_ERR_NONE] =
-		"no error",
+		"yes error",
 	[IPC_ERR_CMD_NOT_SUPPORTED] =
-		"command not supported",
+		"command yest supported",
 	[IPC_ERR_CMD_NOT_SERVICED] =
-		"command not serviced",
+		"command yest serviced",
 	[IPC_ERR_UNABLE_TO_SERVICE] =
 		"unable to service",
 	[IPC_ERR_CMD_INVALID] =
@@ -341,7 +341,7 @@ gcr_ipc_unlock:
 }
 EXPORT_SYMBOL_GPL(intel_pmc_gcr_update);
 
-static int update_no_reboot_bit(void *priv, bool set)
+static int update_yes_reboot_bit(void *priv, bool set)
 {
 	u32 value = set ? PMC_CFG_NO_REBOOT_EN : PMC_CFG_NO_REBOOT_DIS;
 
@@ -386,7 +386,7 @@ static int intel_pmc_ipc_check_status(void)
 				ipc_err_sources[i], status, ipcdev.cmd);
 		else
 			dev_err(ipcdev.dev,
-				"IPC failed: unknown, STS=0x%x, CMD=0x%x\n",
+				"IPC failed: unkyeswn, STS=0x%x, CMD=0x%x\n",
 				status, ipcdev.cmd);
 		if ((i == IPC_ERR_UNSIGNEDKERNEL) || (i == IPC_ERR_EMSECURITY))
 			ret = -EACCES;
@@ -580,7 +580,7 @@ static ssize_t intel_pmc_ipc_simple_cmd_store(struct device *dev,
 	return (ssize_t)count;
 }
 
-static ssize_t intel_pmc_ipc_northpeak_store(struct device *dev,
+static ssize_t intel_pmc_ipc_yesrthpeak_store(struct device *dev,
 					     struct device_attribute *attr,
 					     const char *buf, size_t count)
 {
@@ -597,7 +597,7 @@ static ssize_t intel_pmc_ipc_northpeak_store(struct device *dev,
 		subcmd = 0;
 	ret = intel_pmc_ipc_simple_command(PMC_IPC_NORTHPEAK_CTRL, subcmd);
 	if (ret) {
-		dev_err(dev, "command north %d error with %d\n", subcmd, ret);
+		dev_err(dev, "command yesrth %d error with %d\n", subcmd, ret);
 		return ret;
 	}
 	return (ssize_t)count;
@@ -605,11 +605,11 @@ static ssize_t intel_pmc_ipc_northpeak_store(struct device *dev,
 
 static DEVICE_ATTR(simplecmd, S_IWUSR,
 		   NULL, intel_pmc_ipc_simple_cmd_store);
-static DEVICE_ATTR(northpeak, S_IWUSR,
-		   NULL, intel_pmc_ipc_northpeak_store);
+static DEVICE_ATTR(yesrthpeak, S_IWUSR,
+		   NULL, intel_pmc_ipc_yesrthpeak_store);
 
 static struct attribute *intel_ipc_attrs[] = {
-	&dev_attr_northpeak.attr,
+	&dev_attr_yesrthpeak.attr,
 	&dev_attr_simplecmd.attr,
 	NULL
 };
@@ -659,8 +659,8 @@ static struct resource tco_res[] = {
 static struct itco_wdt_platform_data tco_info = {
 	.name = "Apollo Lake SoC",
 	.version = 5,
-	.no_reboot_priv = &ipcdev,
-	.update_no_reboot_bit = update_no_reboot_bit,
+	.yes_reboot_priv = &ipcdev,
+	.update_yes_reboot_bit = update_yes_reboot_bit,
 };
 
 #define TELEMETRY_RESOURCE_PUNIT_SSRAM	0

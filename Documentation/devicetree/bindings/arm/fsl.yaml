@@ -11,7 +11,7 @@ maintainers:
   - Li Yang <leoyang.li@nxp.com>
 
 properties:
-  $nodename:
+  $yesdename:
     const: '/'
   compatible:
     oneOf:
@@ -26,7 +26,7 @@ properties:
         items:
           - enum:
               - fsl,imx23-evk
-              - olimex,imx23-olinuxino
+              - olimex,imx23-olinuxiyes
           - const: fsl,imx23
 
       - description: i.MX25 Product Development Kit
@@ -51,13 +51,13 @@ properties:
               - fsl,imx28-evk
               - i2se,duckbill
               - i2se,duckbill-2
-              - technologic,imx28-ts4600
+              - techyeslogic,imx28-ts4600
           - const: fsl,imx28
       - description: i.MX28 Duckbill 2 based Boards
         items:
           - enum:
               - i2se,duckbill-2-485
-              - i2se,duckbill-2-enocean
+              - i2se,duckbill-2-eyescean
               - i2se,duckbill-2-spi
           - const: i2se,duckbill-2
           - const: fsl,imx28
@@ -94,7 +94,7 @@ properties:
               - armadeus,imx51-apf51    # APF51 SoM
               - armadeus,imx51-apf51dev # APF51 SoM on APF51Dev board
               - fsl,imx51-babbage
-              - technologic,imx51-ts4800
+              - techyeslogic,imx51-ts4800
           - const: fsl,imx51
 
       - description: i.MX53 based Boards
@@ -119,8 +119,8 @@ properties:
               - fsl,imx6q-sabreauto
               - fsl,imx6q-sabrelite
               - fsl,imx6q-sabresd
-              - technologic,imx6q-ts4900
-              - technologic,imx6q-ts7970
+              - techyeslogic,imx6q-ts4900
+              - techyeslogic,imx6q-ts7970
               - toradex,apalis_imx6q            # Apalis iMX6 Module
               - toradex,apalis_imx6q-eval       # Apalis iMX6 Module on Apalis Evaluation Board
               - toradex,apalis_imx6q-ixora      # Apalis iMX6 Module on Ixora
@@ -145,8 +145,8 @@ properties:
               - emtrion,emcon-mx6-avari   # emCON-MX6S or emCON-MX6DL SoM on Avari Base
               - fsl,imx6dl-sabreauto      # i.MX6 DualLite/Solo SABRE Automotive Board
               - fsl,imx6dl-sabresd        # i.MX6 DualLite SABRE Smart Device Board
-              - technologic,imx6dl-ts4900
-              - technologic,imx6dl-ts7970
+              - techyeslogic,imx6dl-ts4900
+              - techyeslogic,imx6dl-ts7970
               - toradex,colibri_imx6dl          # Colibri iMX6 Module
               - toradex,colibri_imx6dl-eval-v3  # Colibri iMX6 Module on Colibri Evaluation Board V3
               - ysoft,imx6dl-yapp4-draco  # i.MX6 DualLite Y Soft IOTA Draco board
@@ -239,7 +239,7 @@ properties:
         items:
           - enum:
               - fsl,imx7d-sdb             # i.MX7 SabreSD Board
-              - novtech,imx7d-meerkat96   # i.MX7 Meerkat96 Board
+              - yesvtech,imx7d-meerkat96   # i.MX7 Meerkat96 Board
               - toradex,colibri-imx7d                   # Colibri iMX7 Dual Module
               - toradex,colibri-imx7d-emmc              # Colibri iMX7 Dual 1GB (eMMC) Module
               - toradex,colibri-imx7d-emmc-eval-v3      # Colibri iMX7 Dual 1GB (eMMC) Module on Colibri Evaluation Board V3

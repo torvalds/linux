@@ -11,7 +11,7 @@ Required properties :
   operation for I2C transfer.
 
 Optional properties :
-- clock-frequency : Desired I2C bus clock frequency in Hz. If not specified,
+- clock-frequency : Desired I2C bus clock frequency in Hz. If yest specified,
   the default 100 kHz frequency will be used. As only Normal and Fast modes
   are supported, possible values are 100000 and 400000.
 - st,i2c-min-scl-pulse-width-us : The minimum valid SCL pulse width that is
@@ -19,7 +19,7 @@ Optional properties :
 - st,i2c-min-sda-pulse-width-us : The minimum valid SDA pulse width that is
   allowed through the deglitch circuit. In units of us.
 - A pinctrl state named "idle" could be defined to set pins in idle state
-  when I2C instance is not performing a transfer.
+  when I2C instance is yest performing a transfer.
 - A pinctrl state named "sleep" could be defined to set pins in sleep state
   when driver enters in suspend.
 

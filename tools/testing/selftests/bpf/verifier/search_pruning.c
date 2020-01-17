@@ -42,9 +42,9 @@
 {
 	"liveness pruning and write screening",
 	.insns = {
-	/* Get an unknown value */
+	/* Get an unkyeswn value */
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 0),
-	/* branch conditions teach us nothing about R2 */
+	/* branch conditions teach us yesthing about R2 */
 	BPF_JMP_IMM(BPF_JGE, BPF_REG_2, 0, 1),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_JMP_IMM(BPF_JGE, BPF_REG_2, 0, 1),
@@ -82,7 +82,7 @@
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
-	"search pruning: all branches should be verified (nop operation)",
+	"search pruning: all branches should be verified (yesp operation)",
 	.insns = {
 		BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
 		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),

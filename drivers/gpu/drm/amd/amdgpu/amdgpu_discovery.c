@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -293,7 +293,7 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				  hw_id_names[le16_to_cpu(ip->hw_id)],
 				  le16_to_cpu(ip->hw_id),
 				  ip->number_instance,
-				  ip->major, ip->minor,
+				  ip->major, ip->miyesr,
 				  ip->revision);
 
 			for (k = 0; k < num_base_address; k++) {
@@ -323,7 +323,7 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 }
 
 int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id,
-				    int *major, int *minor, int *revision)
+				    int *major, int *miyesr, int *revision)
 {
 	struct binary_header *bhdr;
 	struct ip_discovery_header *ihdr;
@@ -357,8 +357,8 @@ int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id,
 			if (le16_to_cpu(ip->hw_id) == hw_id) {
 				if (major)
 					*major = ip->major;
-				if (minor)
-					*minor = ip->minor;
+				if (miyesr)
+					*miyesr = ip->miyesr;
 				if (revision)
 					*revision = ip->revision;
 				return 0;

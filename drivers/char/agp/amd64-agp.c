@@ -3,10 +3,10 @@
  * Copyright 2001-2003 SuSE Labs.
  * Distributed under the GNU public license, v2.
  *
- * This is a GART driver for the AMD Opteron/Athlon64 on-CPU northbridge.
+ * This is a GART driver for the AMD Opteron/Athlon64 on-CPU yesrthbridge.
  * It also includes support for the AMD 8151 AGP bridge,
  * although it doesn't actually do much, as all the real
- * work is done in the northbridge(s).
+ * work is done in the yesrthbridge(s).
  */
 
 #include <linux/module.h>
@@ -125,7 +125,7 @@ static int amd64_fetch_size(void)
 	u32 temp;
 	struct aper_size_info_32 *values;
 
-	dev = node_to_amd_nb(0)->misc;
+	dev = yesde_to_amd_nb(0)->misc;
 	if (dev==NULL)
 		return 0;
 
@@ -188,7 +188,7 @@ static int amd_8151_configure(void)
 	/* Configure AGP regs in each x86-64 host bridge. */
 	for (i = 0; i < amd_nb_num(); i++) {
 		agp_bridge->gart_bus_addr =
-			amd64_configure(node_to_amd_nb(i)->misc, gatt_bus);
+			amd64_configure(yesde_to_amd_nb(i)->misc, gatt_bus);
 	}
 	amd_flush_garts();
 	return 0;
@@ -204,7 +204,7 @@ static void amd64_cleanup(void)
 		return;
 
 	for (i = 0; i < amd_nb_num(); i++) {
-		struct pci_dev *dev = node_to_amd_nb(i)->misc;
+		struct pci_dev *dev = yesde_to_amd_nb(i)->misc;
 		/* disable gart translation */
 		pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &tmp);
 		tmp &= ~GARTEN;
@@ -261,14 +261,14 @@ static int agp_aperture_valid(u64 aper, u32 size)
 
 /*
  * W*s centric BIOS sometimes only set up the aperture in the AGP
- * bridge, not the northbridge. On AMD64 this is handled early
- * in aperture.c, but when IOMMU is not enabled or we run
+ * bridge, yest the yesrthbridge. On AMD64 this is handled early
+ * in aperture.c, but when IOMMU is yest enabled or we run
  * on a 32bit kernel this needs to be redone.
  * Unfortunately it is impossible to fix the aperture here because it's too late
  * to allocate that much memory. But at least error out cleanly instead of
  * crashing.
  */
-static int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp, u16 cap)
+static int fix_yesrthbridge(struct pci_dev *nb, struct pci_dev *agp, u16 cap)
 {
 	u64 aper, nb_aper;
 	int order = 0;
@@ -290,7 +290,7 @@ static int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp, u16 cap)
 	}
 
 	apsize &= 0xfff;
-	/* Some BIOS use weird encodings not in the AGPv3 table. */
+	/* Some BIOS use weird encodings yest in the AGPv3 table. */
 	if (apsize & 0xff)
 		apsize |= 0xf00;
 	order = 7 - hweight16(apsize);
@@ -302,7 +302,7 @@ static int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp, u16 cap)
 	 * so let double check that order, and lets trust the AMD NB settings
 	 */
 	if (order >=0 && aper + (32ULL<<(20 + order)) > 0x100000000ULL) {
-		dev_info(&agp->dev, "aperture size %u MB is not right, using settings from NB\n",
+		dev_info(&agp->dev, "aperture size %u MB is yest right, using settings from NB\n",
 			 32 << order);
 		order = nb_order;
 	}
@@ -327,7 +327,7 @@ static int cache_nbs(struct pci_dev *pdev, u32 cap_ptr)
 {
 	int i;
 
-	if (amd_cache_northbridges() < 0)
+	if (amd_cache_yesrthbridges() < 0)
 		return -ENODEV;
 
 	if (!amd_nb_has_feature(AMD_NB_GART))
@@ -335,9 +335,9 @@ static int cache_nbs(struct pci_dev *pdev, u32 cap_ptr)
 
 	i = 0;
 	for (i = 0; i < amd_nb_num(); i++) {
-		struct pci_dev *dev = node_to_amd_nb(i)->misc;
-		if (fix_northbridge(dev, pdev, cap_ptr) < 0) {
-			dev_err(&dev->dev, "no usable aperture found\n");
+		struct pci_dev *dev = yesde_to_amd_nb(i)->misc;
+		if (fix_yesrthbridge(dev, pdev, cap_ptr) < 0) {
+			dev_err(&dev->dev, "yes usable aperture found\n");
 #ifdef __x86_64__
 			/* should port this to i386 */
 			dev_err(&dev->dev, "consider rebooting with iommu=memaper=2 to get a good aperture\n");
@@ -372,7 +372,7 @@ static void amd8151_init(struct pci_dev *pdev, struct agp_bridge_data *bridge)
 	if (pdev->revision < 0x13) {
 		dev_info(&pdev->dev, "correcting AGP revision (reports 3.5, is really 3.0)\n");
 		bridge->major_version = 3;
-		bridge->minor_version = 0;
+		bridge->miyesr_version = 0;
 	}
 }
 
@@ -406,13 +406,13 @@ static int uli_agp_init(struct pci_dev *pdev)
 			break;
 
 	if (i == ARRAY_SIZE(uli_sizes)) {
-		dev_info(&pdev->dev, "no ULi size found for %d\n", size);
+		dev_info(&pdev->dev, "yes ULi size found for %d\n", size);
 		ret = -ENODEV;
 		goto put;
 	}
 
 	/* shadow x86-64 registers into ULi registers */
-	pci_read_config_dword (node_to_amd_nb(0)->misc, AMD64_GARTAPERTUREBASE,
+	pci_read_config_dword (yesde_to_amd_nb(0)->misc, AMD64_GARTAPERTUREBASE,
 			       &httfea);
 
 	/* if x86-64 aperture base is beyond 4G, exit here */
@@ -469,7 +469,7 @@ static int nforce3_agp_init(struct pci_dev *pdev)
 			break;
 
 	if (i == ARRAY_SIZE(nforce3_sizes)) {
-		dev_info(&pdev->dev, "no NForce3 size found for %d\n", size);
+		dev_info(&pdev->dev, "yes NForce3 size found for %d\n", size);
 		ret = -ENODEV;
 		goto put;
 	}
@@ -480,7 +480,7 @@ static int nforce3_agp_init(struct pci_dev *pdev)
 	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APSIZE, tmp);
 
 	/* shadow x86-64 registers into NVIDIA registers */
-	pci_read_config_dword (node_to_amd_nb(0)->misc, AMD64_GARTAPERTUREBASE,
+	pci_read_config_dword (yesde_to_amd_nb(0)->misc, AMD64_GARTAPERTUREBASE,
 			       &apbase);
 
 	/* if x86-64 aperture base is beyond 4G, exit here */

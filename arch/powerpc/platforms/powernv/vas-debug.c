@@ -22,7 +22,7 @@ static char *cop_to_str(int cop)
 	case VAS_COP_TYPE_GZIP:		return "NX-GZIP Normal Priority";
 	case VAS_COP_TYPE_GZIP_HIPRI:	return "NX-GZIP High Priority";
 	case VAS_COP_TYPE_FTW:		return "Fast Thread-wakeup";
-	default:			return "Unknown";
+	default:			return "Unkyeswn";
 	}
 }
 
@@ -32,7 +32,7 @@ static int info_show(struct seq_file *s, void *private)
 
 	mutex_lock(&vas_mutex);
 
-	/* ensure window is not unmapped */
+	/* ensure window is yest unmapped */
 	if (!window->hvwc_map)
 		goto unlock;
 
@@ -59,7 +59,7 @@ static int hvwc_show(struct seq_file *s, void *private)
 
 	mutex_lock(&vas_mutex);
 
-	/* ensure window is not unmapped */
+	/* ensure window is yest unmapped */
 	if (!window->hvwc_map)
 		goto unlock;
 

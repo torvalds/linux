@@ -46,7 +46,7 @@ static inline unsigned long kvm_s390_real_to_abs(struct kvm_vcpu *vcpu,
  * and 32 (extendended/basic addressing mode).
  *
  * Depending on the vcpu's addressing mode the upper 40 bits (24 bit addressing
- * mode), 33 bits (31 bit addressing mode) or no bits (64 bit addressing mode)
+ * mode), 33 bits (31 bit addressing mode) or yes bits (64 bit addressing mode)
  * of @ga will be zeroed and the remaining bits will be returned.
  */
 static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
@@ -64,7 +64,7 @@ static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
 /*
  * put_guest_lc, read_guest_lc and write_guest_lc are guest access functions
  * which shall only be used to access the lowcore of a vcpu.
- * These functions should be used for e.g. interrupt handlers where no
+ * These functions should be used for e.g. interrupt handlers where yes
  * guest memory access protection facilities, like key or low address
  * protection, are applicable.
  * At a later point guest vcpu lowcore access should happen via pinned
@@ -187,13 +187,13 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  * around is taken into account for 24-, 31- and 64-bit addressing mode,
  * if the to be copied data crosses page boundaries in guest address space.
  * In addition also low address and DAT protection are inspected before
- * copying any data (key protection is currently not implemented).
+ * copying any data (key protection is currently yest implemented).
  *
  * This function modifies the 'struct kvm_s390_pgm_info pgm' member of @vcpu.
  * In case of an access exception (e.g. protection exception) pgm will contain
  * all data necessary so that a subsequent call to 'kvm_s390_inject_prog_vcpu()'
  * will inject a correct exception into the guest.
- * If no access exception happened, the contents of pgm are undefined when
+ * If yes access exception happened, the contents of pgm are undefined when
  * this function returns.
  *
  * Returns:  - zero on success
@@ -206,7 +206,7 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  *	       contents of pgm may be used to inject an exception into the
  *	       guest. No data has been copied to guest space.
  *
- * Note: in case an access exception is recognized no data has been copied to
+ * Note: in case an access exception is recognized yes data has been copied to
  *	 guest space (this is also true, if the to be copied data would cross
  *	 one or more page boundaries in guest space).
  *	 Therefore this function may be used for nullifying and suppressing
@@ -272,7 +272,7 @@ int read_guest_instr(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
  * Copy @len bytes from @data (kernel space) to @gpa (guest absolute address).
  * It is up to the caller to ensure that the entire guest memory range is
  * valid memory before calling this function.
- * Guest low address and key protection are not checked.
+ * Guest low address and key protection are yest checked.
  *
  * Returns zero on success or -EFAULT on error.
  *
@@ -295,7 +295,7 @@ int write_guest_abs(struct kvm_vcpu *vcpu, unsigned long gpa, void *data,
  * Copy @len bytes from @gpa (guest absolute address) to @data (kernel space).
  * It is up to the caller to ensure that the entire guest memory range is
  * valid memory before calling this function.
- * Guest key protection is not checked.
+ * Guest key protection is yest checked.
  *
  * Returns zero on success or -EFAULT on error.
  *
@@ -318,7 +318,7 @@ int read_guest_abs(struct kvm_vcpu *vcpu, unsigned long gpa, void *data,
  * Copy @len bytes from @data (kernel space) to @gra (guest real address).
  * It is up to the caller to ensure that the entire guest memory range is
  * valid memory before calling this function.
- * Guest low address and key protection are not checked.
+ * Guest low address and key protection are yest checked.
  *
  * Returns zero on success or -EFAULT on error.
  *
@@ -341,7 +341,7 @@ int write_guest_real(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
  * Copy @len bytes from @gra (guest real address) to @data (kernel space).
  * It is up to the caller to ensure that the entire guest memory range is
  * valid memory before calling this function.
- * Guest key protection is not checked.
+ * Guest key protection is yest checked.
  *
  * Returns zero on success or -EFAULT on error.
  *

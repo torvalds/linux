@@ -17,9 +17,9 @@ Optional properties:
 			  (see GPIO binding[1] for more details).
  - touchscreen-size-x	: horizontal resolution of touchscreen (in pixels)
  - touchscreen-size-y	: vertical resolution of touchscreen (in pixels)
- - touchscreen-fuzz-x	: horizontal noise value of the absolute input device
+ - touchscreen-fuzz-x	: horizontal yesise value of the absolute input device
 			  (in pixels)
- - touchscreen-fuzz-y	: vertical noise value of the absolute input device
+ - touchscreen-fuzz-y	: vertical yesise value of the absolute input device
 			  (in pixels)
  - active-distance	: the distance in pixels beyond which a touch must move
 			  before movement is detected and reported by the device.
@@ -30,7 +30,7 @@ Optional properties:
  - lowpower-interval-ms	: the minimum period in ms between consecutive
 			  scanning/processing cycles when the chip is in low-power mode.
 			  Valid values: 0-2550
- - touch-timeout-ms	: minimum time in ms spent in the active power state while no
+ - touch-timeout-ms	: minimum time in ms spent in the active power state while yes
 			  touches are detected before entering low-power mode.
 			  Valid values: 0-2550
  - use-handshake	: enable register-based handshake (boolean). This should

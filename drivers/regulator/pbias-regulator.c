@@ -147,7 +147,7 @@ MODULE_DEVICE_TABLE(of, pbias_of_match);
 
 static int pbias_regulator_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct resource *res;
 	struct regulator_config cfg = { };
 	struct regulator_desc *desc;
@@ -189,7 +189,7 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 
 	for (idx = 0; idx < PBIAS_NUM_REGS && count; idx++) {
 		if (!pbias_matches[idx].init_data ||
-			!pbias_matches[idx].of_node)
+			!pbias_matches[idx].of_yesde)
 			continue;
 
 		info = pbias_matches[idx].driver_data;
@@ -211,7 +211,7 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 		desc->disable_val = info->disable_val;
 
 		cfg.init_data = pbias_matches[idx].init_data;
-		cfg.of_node = pbias_matches[idx].of_node;
+		cfg.of_yesde = pbias_matches[idx].of_yesde;
 
 		rdev = devm_regulator_register(&pdev->dev, desc, &cfg);
 		if (IS_ERR(rdev)) {

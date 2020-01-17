@@ -11,7 +11,7 @@
  * This file handles the architecture-dependent parts of hardware exceptions
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/kernel.h>
@@ -104,7 +104,7 @@ static const char *signame(int signr)
 	case SIGTRAP:	return "unhandled trap";
 	}
 
-	return "unknown signal";
+	return "unkyeswn signal";
 }
 
 /*
@@ -132,8 +132,8 @@ static inline void pmac_backlight_unblank(void) { }
 /*
  * If oops/die is expected to crash the machine, return true here.
  *
- * This should not be expected to be 100% accurate, there may be
- * notifiers registered or other unexpected conditions that may bring
+ * This should yest be expected to be 100% accurate, there may be
+ * yestifiers registered or other unexpected conditions that may bring
  * down the kernel. Or if the current process in the kernel is holding
  * locks or has other critical state, the kernel may become effectively
  * unusable anyway.
@@ -162,7 +162,7 @@ extern void panic_flush_kmsg_start(void)
 	 * These are mostly taken from kernel/panic.c, but tries to do
 	 * relatively minimal work. Don't use delay functions (TB may
 	 * be broken), don't crash dump (need to set a firmware log),
-	 * don't run notifiers. We do want to get some information to
+	 * don't run yestifiers. We do want to get some information to
 	 * Linux console.
 	 */
 	console_verbose();
@@ -236,7 +236,7 @@ static void oops_end(unsigned long flags, struct pt_regs *regs,
 	/*
 	 * While our oops output is serialised by a spinlock, output
 	 * from panic() called below can race and corrupt it. If we
-	 * know we are going to panic, delay for 1 second so we have a
+	 * kyesw we are going to panic, delay for 1 second so we have a
 	 * chance to get clean backtraces from all CPUs that are oopsing.
 	 */
 	if (in_interrupt() || panic_on_oops || !current->pid ||
@@ -273,7 +273,7 @@ static int __die(const char *str, struct pt_regs *regs, long err)
 	       IS_ENABLED(CONFIG_NUMA) ? " NUMA" : "",
 	       ppc_md.name ? ppc_md.name : "");
 
-	if (notify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV) == NOTIFY_STOP)
+	if (yestify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV) == NOTIFY_STOP)
 		return 1;
 
 	print_modules();
@@ -375,14 +375,14 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 
 /*
  * The interrupt architecture has a quirk in that the HV interrupts excluding
- * the NMIs (0x100 and 0x200) do not clear MSR[RI] at entry. The first thing
+ * the NMIs (0x100 and 0x200) do yest clear MSR[RI] at entry. The first thing
  * that an interrupt handler must do is save off a GPR into a scratch register,
  * and all interrupts on POWERNV (HV=1) use the HSPRG1 register as scratch.
- * Therefore an NMI can clobber an HV interrupt's live HSPRG1 without noticing
- * that it is non-reentrant, which leads to random data corruption.
+ * Therefore an NMI can clobber an HV interrupt's live HSPRG1 without yesticing
+ * that it is yesn-reentrant, which leads to random data corruption.
  *
  * The solution is for NMI interrupts in HV mode to check if they originated
- * from these critical HV interrupt regions. If so, then mark them not
+ * from these critical HV interrupt regions. If so, then mark them yest
  * recoverable.
  *
  * An alternative would be for HV NMIs to use SPRG for scratch to avoid the
@@ -391,10 +391,10 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
  * that would work. However any other guest OS that may have the SPRG live
  * and MSR[RI]=1 could encounter silent corruption.
  *
- * Builds that do not support KVM could take this second option to increase
+ * Builds that do yest support KVM could take this second option to increase
  * the recoverability of NMIs.
  */
-void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
+void hv_nmi_check_yesnrecoverable(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC_POWERNV
 	unsigned long kbase = (unsigned long)_stext;
@@ -416,24 +416,24 @@ void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
 	 */
 	nip &= ~0xc000000000000000ULL;
 	if ((nip >= 0x500 && nip < 0x600) || (nip >= 0x4500 && nip < 0x4600))
-		goto nonrecoverable;
+		goto yesnrecoverable;
 	if ((nip >= 0x980 && nip < 0xa00) || (nip >= 0x4980 && nip < 0x4a00))
-		goto nonrecoverable;
+		goto yesnrecoverable;
 	if ((nip >= 0xe00 && nip < 0xec0) || (nip >= 0x4e00 && nip < 0x4ec0))
-		goto nonrecoverable;
+		goto yesnrecoverable;
 	if ((nip >= 0xf80 && nip < 0xfa0) || (nip >= 0x4f80 && nip < 0x4fa0))
-		goto nonrecoverable;
+		goto yesnrecoverable;
 
 	/* Trampoline code runs un-relocated so subtract kbase. */
 	if (nip >= (unsigned long)(start_real_trampolines - kbase) &&
 			nip < (unsigned long)(end_real_trampolines - kbase))
-		goto nonrecoverable;
+		goto yesnrecoverable;
 	if (nip >= (unsigned long)(start_virt_trampolines - kbase) &&
 			nip < (unsigned long)(end_virt_trampolines - kbase))
-		goto nonrecoverable;
+		goto yesnrecoverable;
 	return;
 
-nonrecoverable:
+yesnrecoverable:
 	regs->msr &= ~MSR_RI;
 #endif
 }
@@ -457,7 +457,7 @@ void system_reset_exception(struct pt_regs *regs)
 	 * OPAL), so save them here and restore them before returning.
 	 *
 	 * Machine checks don't need to save HSRRs, as the real mode handler
-	 * is careful to avoid them, and the regular handler is not delivered
+	 * is careful to avoid them, and the regular handler is yest delivered
 	 * as an NMI.
 	 */
 	if (cpu_has_feature(CPU_FTR_HVMODE)) {
@@ -466,7 +466,7 @@ void system_reset_exception(struct pt_regs *regs)
 		saved_hsrrs = true;
 	}
 
-	hv_nmi_check_nonrecoverable(regs);
+	hv_nmi_check_yesnrecoverable(regs);
 
 	__this_cpu_inc(irq_stat.sreset_irqs);
 
@@ -512,7 +512,7 @@ out:
 	if (get_paca()->in_nmi > 1)
 		nmi_panic(regs, "Unrecoverable nested System Reset");
 #endif
-	/* Must die if the interrupt is not recoverable */
+	/* Must die if the interrupt is yest recoverable */
 	if (!(regs->msr & MSR_RI))
 		nmi_panic(regs, "Unrecoverable System Reset");
 
@@ -533,7 +533,7 @@ out:
  * instruction for which there is an entry in the exception
  * table.
  * Note that the 601 only takes a machine check on TEA
- * (transfer error ack) signal assertion, and does not
+ * (transfer error ack) signal assertion, and does yest
  * set any of the top 16 bits of SRR1.
  *  -- paulus.
  */
@@ -548,7 +548,7 @@ static inline int check_io_access(struct pt_regs *regs)
 	    && (entry = search_exception_tables(regs->nip)) != NULL) {
 		/*
 		 * Check that it's a sync instruction, or somewhere
-		 * in the twi; isync; nop sequence that inb/inw/inl uses.
+		 * in the twi; isync; yesp sequence that inb/inw/inl uses.
 		 * As the address is in the exception table
 		 * we should be able to read the instr there.
 		 * For the debug message, we look at the preceding
@@ -589,7 +589,7 @@ static inline int check_io_access(struct pt_regs *regs)
 #define clear_single_step(regs)	(current->thread.debug.dbcr0 &= ~DBCR0_IC)
 #define clear_br_trace(regs)	do {} while(0)
 #else
-/* On non-4xx, the reason for the machine check or program
+/* On yesn-4xx, the reason for the machine check or program
    exception is in the MSR. */
 #define get_reason(regs)	((regs)->msr)
 #define REASON_TM		SRR1_PROGTM
@@ -647,10 +647,10 @@ int machine_check_e500mc(struct pt_regs *regs)
 		/*
 		 * In write shadow mode we auto-recover from the error, but it
 		 * may still get logged and cause a machine check.  We should
-		 * only treat the non-write shadow case as non-recoverable.
+		 * only treat the yesn-write shadow case as yesn-recoverable.
 		 */
 		/* On e6500 core, L1 DCWS (Data cache write shadow mode) bit
-		 * is not implemented but L1 data cache always runs in write
+		 * is yest implemented but L1 data cache always runs in write
 		 * shadow mode. Hence on data cache parity errors HW will
 		 * automatically invalidate the L1 Data Cache.
 		 */
@@ -814,7 +814,7 @@ int machine_check_generic(struct pt_regs *regs)
 		pr_cont("L2 data cache parity error\n");
 		break;
 	default:
-		pr_cont("Unknown values in msr\n");
+		pr_cont("Unkyeswn values in msr\n");
 	}
 	return 0;
 }
@@ -835,7 +835,7 @@ void machine_check_exception(struct pt_regs *regs)
 	 * to call the CPU first, and call the ppc_md. one if the CPU
 	 * one returns a positive number. However there is existing code
 	 * that assumes the board gets a first chance, so let's keep it
-	 * that way for now and fix things later. --BenH.
+	 * that way for yesw and fix things later. --BenH.
 	 */
 	if (ppc_md.machine_check_exception)
 		recover = ppc_md.machine_check_exception(regs);
@@ -856,7 +856,7 @@ void machine_check_exception(struct pt_regs *regs)
 
 	die("Machine check", regs, SIGBUS);
 
-	/* Must die if the interrupt is not recoverable */
+	/* Must die if the interrupt is yest recoverable */
 	if (!(regs->msr & MSR_RI))
 		nmi_panic(regs, "Unrecoverable Machine check");
 
@@ -891,7 +891,7 @@ static void p9_hmi_special_emu(struct pt_regs *regs)
 	 * lxvw4x	opcode: 0x7c000618
 	 */
 	if ((instr & 0xfc00073e) != 0x7c000618) {
-		pr_devel("HMI vec emu: not vector CI %i:%s[%d] nip=%016lx"
+		pr_devel("HMI vec emu: yest vector CI %i:%s[%d] nip=%016lx"
 			 " instr=%08x\n",
 			 smp_processor_id(), current->comm, current->pid,
 			 regs->nip, instr);
@@ -905,7 +905,7 @@ static void p9_hmi_special_emu(struct pt_regs *regs)
 
 	/*
 	 * Is userspace running with a different endian (this is rare but
-	 * not impossible)
+	 * yest impossible)
 	 */
 	swap = (msr & MSR_LE) != (MSR_KERNEL & MSR_LE);
 
@@ -1082,7 +1082,7 @@ void handle_hmi_exception(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-void unknown_exception(struct pt_regs *regs)
+void unkyeswn_exception(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
 
@@ -1098,7 +1098,7 @@ void instruction_breakpoint_exception(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
 
-	if (notify_die(DIE_IABR_MATCH, "iabr_match", regs, 5,
+	if (yestify_die(DIE_IABR_MATCH, "iabr_match", regs, 5,
 					5, SIGTRAP) == NOTIFY_STOP)
 		goto bail;
 	if (debugger_iabr_match(regs))
@@ -1124,7 +1124,7 @@ void single_step_exception(struct pt_regs *regs)
 	if (kprobe_post_handler(regs))
 		return;
 
-	if (notify_die(DIE_SSTEP, "single_step", regs, 5,
+	if (yestify_die(DIE_SSTEP, "single_step", regs, 5,
 					5, SIGTRAP) == NOTIFY_STOP)
 		goto bail;
 	if (debugger_sstep(regs))
@@ -1190,7 +1190,7 @@ static void parse_fpe(struct pt_regs *regs)
 /*
  * Illegal instruction emulation support.  Originally written to
  * provide the PVR to user applications using the mfspr rd, PVR.
- * Return non-zero if we can't emulate, or -EFAULT if the associated
+ * Return yesn-zero if we can't emulate, or -EFAULT if the associated
  * memory access caused an access fault.  Return zero on success.
  *
  * There are a couple of ways to do this, either "decode" the instruction
@@ -1307,7 +1307,7 @@ static int emulate_isel(struct pt_regs *regs, u32 instword)
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 static inline bool tm_abort_check(struct pt_regs *regs, int cause)
 {
-        /* If we're emulating a load/store in an active transaction, we cannot
+        /* If we're emulating a load/store in an active transaction, we canyest
          * emulate it as the kernel operates in transaction suspended context.
          * We need to abort the transaction.  This creates a persistent TM
          * abort so tell the user what caused it with a new code.
@@ -1346,7 +1346,7 @@ static int emulate_instruction(struct pt_regs *regs)
 		return 0;
 	}
 
-	/* Emulating the dcba insn is just a no-op.  */
+	/* Emulating the dcba insn is just a yes-op.  */
 	if ((instword & PPC_INST_DCBA_MASK) == PPC_INST_DCBA) {
 		PPC_WARN_EMULATED(dcba, regs);
 		return 0;
@@ -1462,8 +1462,8 @@ void program_check_exception(struct pt_regs *regs)
 	enum ctx_state prev_state = exception_enter();
 	unsigned int reason = get_reason(regs);
 
-	/* We can now get here via a FP Unavailable exception if the core
-	 * has no FPU, in that case the reason flags will be 0 */
+	/* We can yesw get here via a FP Unavailable exception if the core
+	 * has yes FPU, in that case the reason flags will be 0 */
 
 	if (reason & REASON_FP) {
 		/* IEEE FP exception */
@@ -1473,7 +1473,7 @@ void program_check_exception(struct pt_regs *regs)
 	if (reason & REASON_TRAP) {
 		unsigned long bugaddr;
 		/* Debugger is first in line to stop recursive faults in
-		 * rcu_lock, notify_die, or atomic_notifier_call_chain */
+		 * rcu_lock, yestify_die, or atomic_yestifier_call_chain */
 		if (debugger_bpt(regs))
 			goto bail;
 
@@ -1481,7 +1481,7 @@ void program_check_exception(struct pt_regs *regs)
 			goto bail;
 
 		/* trap exception */
-		if (notify_die(DIE_BPT, "breakpoint", regs, 5, 5, SIGTRAP)
+		if (yestify_die(DIE_BPT, "breakpoint", regs, 5, 5, SIGTRAP)
 				== NOTIFY_STOP)
 			goto bail;
 
@@ -1492,7 +1492,7 @@ void program_check_exception(struct pt_regs *regs)
 		if (!is_kernel_addr(bugaddr) && !(regs->msr & MSR_IR))
 			bugaddr += PAGE_OFFSET;
 
-		if (!(regs->msr & MSR_PR) &&  /* not user-mode */
+		if (!(regs->msr & MSR_PR) &&  /* yest user-mode */
 		    report_bug(bugaddr, regs) == BUG_TRAP_TYPE_WARN) {
 			regs->nip += 4;
 			goto bail;
@@ -1507,7 +1507,7 @@ void program_check_exception(struct pt_regs *regs)
 		 * -  An rfid/hrfid/mtmsrd attempts to cause an illegal
 		 *    transition in TM states.
 		 * -  A trechkpt is attempted when transactional.
-		 * -  A treclaim is attempted when non transactional.
+		 * -  A treclaim is attempted when yesn transactional.
 		 * -  A tend is illegally attempted.
 		 * -  writing a TM SPR when transactional.
 		 *
@@ -1532,14 +1532,14 @@ void program_check_exception(struct pt_regs *regs)
 	/*
 	 * If we took the program check in the kernel skip down to sending a
 	 * SIGILL. The subsequent cases all relate to emulating instructions
-	 * which we should only do for userspace. We also do not want to enable
+	 * which we should only do for userspace. We also do yest want to enable
 	 * interrupts for kernel faults because that might lead to further
 	 * faults, and loose the context of the original exception.
 	 */
 	if (!user_mode(regs))
 		goto sigill;
 
-	/* We restore the interrupt state now */
+	/* We restore the interrupt state yesw */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
@@ -1547,7 +1547,7 @@ void program_check_exception(struct pt_regs *regs)
 	 * but there seems to be a hardware bug on the 405GP (RevD)
 	 * that means ESR is sometimes set incorrectly - either to
 	 * ESR_DST (!?) or 0.  In the process of chasing this with the
-	 * hardware people - not sure if it can happen on any illegal
+	 * hardware people - yest sure if it can happen on any illegal
 	 * instruction or only on FP instructions, whether there is a
 	 * pattern to occurrences etc. -dgibson 31/Mar/2003
 	 */
@@ -1594,7 +1594,7 @@ void alignment_exception(struct pt_regs *regs)
 	enum ctx_state prev_state = exception_enter();
 	int sig, code, fixed = 0;
 
-	/* We restore the interrupt state now */
+	/* We restore the interrupt state yesw */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
@@ -1712,7 +1712,7 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		[FSCR_MSGP_LG] = "MSGP",
 		[FSCR_SCV_LG] = "SCV",
 	};
-	char *facility = "unknown";
+	char *facility = "unkyeswn";
 	u64 value;
 	u32 instword, rd;
 	u8 status;
@@ -1730,14 +1730,14 @@ void facility_unavailable_exception(struct pt_regs *regs)
 	    facility_strings[status])
 		facility = facility_strings[status];
 
-	/* We should not have taken this interrupt in kernel */
+	/* We should yest have taken this interrupt in kernel */
 	if (!user_mode(regs)) {
 		pr_emerg("Facility '%s' unavailable (%d) exception in kernel mode at %lx\n",
 			 facility, status, regs->nip);
 		die("Unexpected facility unavailable exception", regs, SIGABRT);
 	}
 
-	/* We restore the interrupt state now */
+	/* We restore the interrupt state yesw */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
@@ -1792,7 +1792,7 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		 * generated an exception with FSRM_TM set.
 		 *
 		 * If cpu_has_feature(CPU_FTR_TM) is false, then either firmware
-		 * told us not to do TM, or the kernel is not built with TM
+		 * told us yest to do TM, or the kernel is yest built with TM
 		 * support.
 		 *
 		 * If both of those things are true, then userspace can spam the
@@ -1819,7 +1819,7 @@ out:
 
 void fp_unavailable_tm(struct pt_regs *regs)
 {
-	/* Note:  This does not handle any kind of FP laziness. */
+	/* Note:  This does yest handle any kind of FP laziness. */
 
 	TM_DEBUG("FP Unavailable trap whilst transactional at 0x%lx, MSR=%lx\n",
 		 regs->nip, regs->msr);
@@ -1828,7 +1828,7 @@ void fp_unavailable_tm(struct pt_regs *regs)
          * beginning the transaction.  So, the transactional regs are just a
          * copy of the checkpointed ones.  But, we still need to recheckpoint
          * as we're enabling FP for the process; it will return, abort the
-         * transaction, and probably retry but now with FP enabled.  So the
+         * transaction, and probably retry but yesw with FP enabled.  So the
          * checkpointed FP registers need to be loaded.
 	 */
 	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
@@ -1944,7 +1944,7 @@ static void handle_debug(struct pt_regs *regs, unsigned long debug_status)
 	/*
 	 * At the point this routine was called, the MSR(DE) was turned off.
 	 * Check all other debug flags and see if that bit needs to be turned
-	 * back on or not.
+	 * back on or yest.
 	 */
 	if (DBCR_ACTIVE_EVENTS(current->thread.debug.dbcr0,
 			       current->thread.debug.dbcr1))
@@ -1985,7 +1985,7 @@ void DebugException(struct pt_regs *regs, unsigned long debug_status)
 		if (kprobe_post_handler(regs))
 			return;
 
-		if (notify_die(DIE_SSTEP, "block_step", regs, 5,
+		if (yestify_die(DIE_SSTEP, "block_step", regs, 5,
 			       5, SIGTRAP) == NOTIFY_STOP) {
 			return;
 		}
@@ -2002,7 +2002,7 @@ void DebugException(struct pt_regs *regs, unsigned long debug_status)
 		if (kprobe_post_handler(regs))
 			return;
 
-		if (notify_die(DIE_SSTEP, "single_step", regs, 5,
+		if (yestify_die(DIE_SSTEP, "single_step", regs, 5,
 			       5, SIGTRAP) == NOTIFY_STOP) {
 			return;
 		}
@@ -2061,7 +2061,7 @@ void altivec_assist_exception(struct pt_regs *regs)
 		_exception(SIGSEGV, regs, SEGV_ACCERR, regs->nip);
 	} else {
 		/* didn't recognize the instruction */
-		/* XXX quick hack for now: set the non-Java bit in the VSCR */
+		/* XXX quick hack for yesw: set the yesn-Java bit in the VSCR */
 		printk_ratelimited(KERN_ERR "Unrecognized altivec instruction "
 				   "in %s at %lx\n", current->comm, regs->nip);
 		current->thread.vr_state.vscr.u[3] |= 0x10000;
@@ -2092,7 +2092,7 @@ void SPEFloatingPointException(struct pt_regs *regs)
 	int code = FPE_FLTUNK;
 	int err;
 
-	/* We restore the interrupt state now */
+	/* We restore the interrupt state yesw */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
@@ -2141,7 +2141,7 @@ void SPEFloatingPointRoundException(struct pt_regs *regs)
 	extern int speround_handler(struct pt_regs *regs);
 	int err;
 
-	/* We restore the interrupt state now */
+	/* We restore the interrupt state yesw */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 

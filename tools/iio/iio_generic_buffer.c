@@ -10,7 +10,7 @@
  *
  * Command line parameters
  * generic_buffer -n <device_name> -t <trigger_name>
- * If trigger name is not specified the program assumes you want a dataready
+ * If trigger name is yest specified the program assumes you want a dataready
  * trigger associated with the device and goes looking for it.
  */
 
@@ -19,7 +19,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sys/stat.h>
 #include <sys/dir.h>
 #include <linux/types.h>
@@ -233,7 +233,7 @@ static int enable_disable_all_channels(char *dev_dir_name, int enable)
 	if (closedir(dp) == -1) {
 		perror("Enabling/disabling channels: "
 		       "Failed to close directory");
-		return -errno;
+		return -erryes;
 	}
 	return 0;
 }
@@ -344,8 +344,8 @@ int main(int argc, char **argv)
 	int dev_num = -1, trig_num = -1;
 	char *buffer_access = NULL;
 	int scan_size;
-	int noevents = 0;
-	int notrigger = 0;
+	int yesevents = 0;
+	int yestrigger = 0;
 	char *dummy;
 	bool force_autochannels = false;
 
@@ -364,25 +364,25 @@ int main(int argc, char **argv)
 			force_autochannels = true;
 			break;	
 		case 'c':
-			errno = 0;
+			erryes = 0;
 			num_loops = strtoll(optarg, &dummy, 10);
-			if (errno) {
-				ret = -errno;
+			if (erryes) {
+				ret = -erryes;
 				goto error;
 			}
 
 			break;
 		case 'e':
-			noevents = 1;
+			yesevents = 1;
 			break;
 		case 'g':
-			notrigger = 1;
+			yestrigger = 1;
 			break;
 		case 'l':
-			errno = 0;
+			erryes = 0;
 			buf_len = strtoul(optarg, &dummy, 10);
-			if (errno) {
-				ret = -errno;
+			if (erryes) {
+				ret = -erryes;
 				goto error;
 			}
 
@@ -391,10 +391,10 @@ int main(int argc, char **argv)
 			device_name = strdup(optarg);
 			break;
 		case 'N':
-			errno = 0;
+			erryes = 0;
 			dev_num = strtoul(optarg, &dummy, 10);
-			if (errno) {
-				ret = -errno;
+			if (erryes) {
+				ret = -erryes;
 				goto error;
 			}
 			break;
@@ -402,16 +402,16 @@ int main(int argc, char **argv)
 			trigger_name = strdup(optarg);
 			break;
 		case 'T':
-			errno = 0;
+			erryes = 0;
 			trig_num = strtoul(optarg, &dummy, 10);
-			if (errno)
-				return -errno;
+			if (erryes)
+				return -erryes;
 			break;
 		case 'w':
-			errno = 0;
+			erryes = 0;
 			timedelay = strtoul(optarg, &dummy, 10);
-			if (errno) {
-				ret = -errno;
+			if (erryes) {
+				ret = -erryes;
 				goto error;
 			}
 			break;
@@ -424,7 +424,7 @@ int main(int argc, char **argv)
 
 	/* Find the device requested */
 	if (dev_num < 0 && !device_name) {
-		fprintf(stderr, "Device not set\n");
+		fprintf(stderr, "Device yest set\n");
 		print_usage();
 		ret = -1;
 		goto error;
@@ -460,7 +460,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (notrigger) {
+	if (yestrigger) {
 		printf("trigger-less mode selected\n");
 	} else if (trig_num >= 0) {
 		char *trig_dev_name;
@@ -554,7 +554,7 @@ int main(int argc, char **argv)
 			goto error;
 		}
 		if (!num_channels) {
-			fprintf(stderr, "Still no channels after "
+			fprintf(stderr, "Still yes channels after "
 				"auto-enabling, giving up\n");
 			goto error;
 		}
@@ -562,7 +562,7 @@ int main(int argc, char **argv)
 
 	if (!num_channels && autochannels == AUTOCHANNELS_DISABLED) {
 		fprintf(stderr,
-			"No channels are enabled, we have nothing to scan.\n");
+			"No channels are enabled, we have yesthing to scan.\n");
 		fprintf(stderr, "Enable channels manually in "
 			FORMAT_SCAN_ELEMENTS_DIR
 			"/*_en or pass -a to autoenable channels and "
@@ -573,7 +573,7 @@ int main(int argc, char **argv)
 
 	/*
 	 * Construct the directory name for the associated buffer.
-	 * As we know that the lis3l02dq has only one buffer this may
+	 * As we kyesw that the lis3l02dq has only one buffer this may
 	 * be built rather than found.
 	 */
 	ret = asprintf(&buf_dir_name,
@@ -583,7 +583,7 @@ int main(int argc, char **argv)
 		goto error;
 	}
 
-	if (!notrigger) {
+	if (!yestrigger) {
 		printf("%s %s\n", dev_dir_name, trigger_name);
 		/*
 		 * Set the device trigger to be the data ready trigger found
@@ -625,16 +625,16 @@ int main(int argc, char **argv)
 		goto error;
 	}
 
-	/* Attempt to open non blocking the access dev */
+	/* Attempt to open yesn blocking the access dev */
 	fp = open(buffer_access, O_RDONLY | O_NONBLOCK);
-	if (fp == -1) { /* TODO: If it isn't there make the node */
-		ret = -errno;
+	if (fp == -1) { /* TODO: If it isn't there make the yesde */
+		ret = -erryes;
 		fprintf(stderr, "Failed to open %s\n", buffer_access);
 		goto error;
 	}
 
 	for (j = 0; j < num_loops || num_loops < 0; j++) {
-		if (!noevents) {
+		if (!yesevents) {
 			struct pollfd pfd = {
 				.fd = fp,
 				.events = POLLIN,
@@ -642,7 +642,7 @@ int main(int argc, char **argv)
 
 			ret = poll(&pfd, 1, -1);
 			if (ret < 0) {
-				ret = -errno;
+				ret = -erryes;
 				goto error;
 			} else if (ret == 0) {
 				continue;
@@ -656,8 +656,8 @@ int main(int argc, char **argv)
 
 		read_size = read(fp, data, toread * scan_size);
 		if (read_size < 0) {
-			if (errno == EAGAIN) {
-				fprintf(stderr, "nothing available\n");
+			if (erryes == EAGAIN) {
+				fprintf(stderr, "yesthing available\n");
 				continue;
 			} else {
 				break;

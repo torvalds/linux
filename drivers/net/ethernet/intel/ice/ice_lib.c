@@ -20,7 +20,7 @@ const char *ice_vsi_type_str(enum ice_vsi_type type)
 	case ICE_VSI_LB:
 		return "ICE_VSI_LB";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -79,7 +79,7 @@ static int ice_vsi_alloc_arrays(struct ice_vsi *vsi)
 	if (!vsi->rxq_map)
 		goto err_rxq_map;
 
-	/* There is no need to allocate q_vectors for a loopback VSI. */
+	/* There is yes need to allocate q_vectors for a loopback VSI. */
 	if (vsi->type == ICE_VSI_LB)
 		return 0;
 
@@ -181,7 +181,7 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi, u16 vf_id)
 		vsi->alloc_rxq = 1;
 		break;
 	default:
-		dev_warn(ice_pf_to_dev(pf), "Unknown VSI type %d\n", vsi->type);
+		dev_warn(ice_pf_to_dev(pf), "Unkyeswn VSI type %d\n", vsi->type);
 		break;
 	}
 
@@ -189,10 +189,10 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi, u16 vf_id)
 }
 
 /**
- * ice_get_free_slot - get the next non-NULL location index in array
+ * ice_get_free_slot - get the next yesn-NULL location index in array
  * @array: array to search
  * @size: size of the array
- * @curr: last known occupied index to be used as a search hint
+ * @curr: last kyeswn occupied index to be used as a search hint
  *
  * void * is being used to keep the functionality generic. This lets us use this
  * function on any array of pointers.
@@ -303,7 +303,7 @@ int ice_vsi_clear(struct ice_vsi *vsi)
 	dev = ice_pf_to_dev(pf);
 
 	if (!pf->vsi[vsi->idx] || pf->vsi[vsi->idx] != vsi) {
-		dev_dbg(dev, "vsi does not exist at pf->vsi[%d]\n", vsi->idx);
+		dev_dbg(dev, "vsi does yest exist at pf->vsi[%d]\n", vsi->idx);
 		return -EINVAL;
 	}
 
@@ -356,7 +356,7 @@ ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type, u16 vf_id)
 	mutex_lock(&pf->sw_mutex);
 
 	/* If we have already allocated our maximum number of VSIs,
-	 * pf->next_vsi will be ICE_NO_VSI. If not, pf->next_vsi index
+	 * pf->next_vsi will be ICE_NO_VSI. If yest, pf->next_vsi index
 	 * is available to be populated
 	 */
 	if (pf->next_vsi == ICE_NO_VSI) {
@@ -396,7 +396,7 @@ ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type, u16 vf_id)
 			goto err_rings;
 		break;
 	default:
-		dev_warn(dev, "Unknown VSI type %d\n", vsi->type);
+		dev_warn(dev, "Unkyeswn VSI type %d\n", vsi->type);
 		goto unlock_pf;
 	}
 
@@ -544,7 +544,7 @@ static void ice_vsi_set_rss_params(struct ice_vsi *vsi)
 	case ICE_VSI_LB:
 		break;
 	default:
-		dev_warn(ice_pf_to_dev(pf), "Unknown VSI type %d\n",
+		dev_warn(ice_pf_to_dev(pf), "Unkyeswn VSI type %d\n",
 			 vsi->type);
 		break;
 	}
@@ -628,10 +628,10 @@ static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 
 	/* TC mapping is a function of the number of Rx queues assigned to the
 	 * VSI for each traffic class and the offset of these queues.
-	 * The first 10 bits are for queue offset for TC0, next 4 bits for no:of
+	 * The first 10 bits are for queue offset for TC0, next 4 bits for yes:of
 	 * queues allocated to TC0. No:of queues is a power-of-2.
 	 *
-	 * If TC is not enabled, the queue offset is set to 0, and allocate one
+	 * If TC is yest enabled, the queue offset is set to 0, and allocate one
 	 * queue, this way, traffic for the given TC will be sent to the default
 	 * queue.
 	 *
@@ -659,7 +659,7 @@ static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 
 	ice_for_each_traffic_class(i) {
 		if (!(vsi->tc_cfg.ena_tc & BIT(i))) {
-			/* TC is not enabled */
+			/* TC is yest enabled */
 			vsi->tc_cfg.tc_info[i].qoffset = 0;
 			vsi->tc_cfg.tc_info[i].qcount_rx = 1;
 			vsi->tc_cfg.tc_info[i].qcount_tx = 1;
@@ -683,9 +683,9 @@ static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 		ctxt->info.tc_mapping[i] = cpu_to_le16(qmap);
 	}
 
-	/* if offset is non-zero, means it is calculated correctly based on
+	/* if offset is yesn-zero, means it is calculated correctly based on
 	 * enabled TCs for a given VSI otherwise qcount_rx will always
-	 * be correct and non-zero because it is based off - VSI's
+	 * be correct and yesn-zero because it is based off - VSI's
 	 * allocated Rx queues which is at least 1 (hence qcount_tx will be
 	 * at least 1)
 	 */
@@ -744,7 +744,7 @@ static void ice_set_rss_vsi_ctx(struct ice_vsi_ctx *ctxt, struct ice_vsi *vsi)
 			ice_vsi_type_str(vsi->type));
 		return;
 	default:
-		dev_warn(dev, "Unknown VSI type %d\n", vsi->type);
+		dev_warn(dev, "Unkyeswn VSI type %d\n", vsi->type);
 		return;
 	}
 
@@ -881,7 +881,7 @@ static int ice_vsi_setup_vector_base(struct ice_vsi *vsi)
 		return 0;
 
 	if (vsi->base_vector) {
-		dev_dbg(dev, "VSI %d has non-zero base vector %d\n",
+		dev_dbg(dev, "VSI %d has yesn-zero base vector %d\n",
 			vsi->vsi_num, vsi->base_vector);
 		return -EEXIST;
 	}
@@ -1246,7 +1246,7 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
 	status = ice_remove_vlan(&pf->hw, &tmp_add_list);
 	if (status == ICE_ERR_DOES_NOT_EXIST) {
 		dev_dbg(dev,
-			"Failed to remove VLAN %d on VSI %i, it does not exist, status: %d\n",
+			"Failed to remove VLAN %d on VSI %i, it does yest exist, status: %d\n",
 			vid, vsi->vsi_num, status);
 	} else if (status) {
 		dev_err(dev,
@@ -1403,7 +1403,7 @@ u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
  * ice_vsi_cfg_msix - MSIX mode Interrupt Config in the HW
  * @vsi: the VSI being configured
  *
- * This configures MSIX mode interrupts for the PF VSI, and should not be used
+ * This configures MSIX mode interrupts for the PF VSI, and should yest be used
  * for the VF VSI.
  */
 void ice_vsi_cfg_msix(struct ice_vsi *vsi)
@@ -1425,7 +1425,7 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 		/* Both Transmit Queue Interrupt Cause Control register
 		 * and Receive Queue Interrupt Cause control register
 		 * expects MSIX_INDX field to be the vector index
-		 * within the function space and not the absolute
+		 * within the function space and yest the absolute
 		 * vector index across PF or across device.
 		 * For SR-IOV VF VSIs queue vector index always starts
 		 * with 1 since first vector index(0) is used for OICR
@@ -1616,7 +1616,7 @@ int ice_vsi_stop_xdp_tx_rings(struct ice_vsi *vsi)
  * ice_cfg_vlan_pruning - enable or disable VLAN pruning on the VSI
  * @vsi: VSI to enable or disable VLAN pruning on
  * @ena: set to true to enable VLAN pruning and false to disable it
- * @vlan_promisc: enable valid security flags if not in VLAN promiscuous mode
+ * @vlan_promisc: enable valid security flags if yest in VLAN promiscuous mode
  *
  * returns 0 if VSI is updated, negative otherwise
  */
@@ -1846,7 +1846,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		vsi = ice_vsi_alloc(pf, type, ICE_INVAL_VFID);
 
 	if (!vsi) {
-		dev_err(dev, "could not allocate VSI\n");
+		dev_err(dev, "could yest allocate VSI\n");
 		return NULL;
 	}
 
@@ -1895,8 +1895,8 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 
 		ice_vsi_map_rings_to_vectors(vsi);
 
-		/* Do not exit if configuring RSS had an issue, at least
-		 * receive traffic on first queue. Hence no need to capture
+		/* Do yest exit if configuring RSS had an issue, at least
+		 * receive traffic on first queue. Hence yes need to capture
 		 * return value
 		 */
 		if (test_bit(ICE_FLAG_RSS_ENA, pf->flags))
@@ -1920,8 +1920,8 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		if (ret)
 			goto unroll_vector_base;
 
-		/* Do not exit if configuring RSS had an issue, at least
-		 * receive traffic on first queue. Hence no need to capture
+		/* Do yest exit if configuring RSS had an issue, at least
+		 * receive traffic on first queue. Hence yes need to capture
 		 * return value
 		 */
 		if (test_bit(ICE_FLAG_RSS_ENA, pf->flags))
@@ -1937,7 +1937,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		goto unroll_vsi_init;
 	}
 
-	/* configure VSI nodes based on number of queues and TC's */
+	/* configure VSI yesdes based on number of queues and TC's */
 	for (i = 0; i < vsi->tc_cfg.numtc; i++)
 		max_txqs[i] = vsi->alloc_txq;
 
@@ -1953,9 +1953,9 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	 * type ETHERTYPE from VSIs, and restrict malicious VF from sending
 	 * out PAUSE or PFC frames. If enabled, FW can still send FC frames.
 	 * The rule is added once for PF VSI in order to create appropriate
-	 * recipe, since VSI/VSI list is ignored with drop action...
+	 * recipe, since VSI/VSI list is igyesred with drop action...
 	 * Also add rules to handle LLDP Tx packets.  Tx LLDP packets need to
-	 * be dropped so that VFs cannot send LLDP packets to reconfig DCB
+	 * be dropped so that VFs canyest send LLDP packets to reconfig DCB
 	 * settings in the HW.
 	 */
 	if (!ice_is_safe_mode(pf))
@@ -2050,8 +2050,8 @@ void ice_vsi_free_irq(struct ice_vsi *vsi)
 		      vsi->q_vectors[i]->num_ring_rx))
 			continue;
 
-		/* clear the affinity notifier in the IRQ descriptor */
-		irq_set_affinity_notifier(irq_num, NULL);
+		/* clear the affinity yestifier in the IRQ descriptor */
+		irq_set_affinity_yestifier(irq_num, NULL);
 
 		/* clear the affinity_mask in the IRQ descriptor */
 		irq_set_affinity_hint(irq_num, NULL);
@@ -2215,7 +2215,7 @@ static int ice_search_res(struct ice_res_tracker *res, u16 needed, u16 id)
 		if (end == (start + needed)) {
 			int i = start;
 
-			/* there was enough, so assign it to the requestor */
+			/* there was eyesugh, so assign it to the requestor */
 			while (i != end)
 				res->list[i++] = id;
 
@@ -2336,9 +2336,9 @@ int ice_vsi_release(struct ice_vsi *vsi)
 		return -ENODEV;
 	pf = vsi->back;
 
-	/* do not unregister while driver is in the reset recovery pending
+	/* do yest unregister while driver is in the reset recovery pending
 	 * state. Since reset/rebuild happens through PF service task workqueue,
-	 * it's not a good idea to unregister netdev that is associated to the
+	 * it's yest a good idea to unregister netdev that is associated to the
 	 * PF that is running the work queue items currently. This is done to
 	 * avoid check_flush_dependency() warning on this wq
 	 */
@@ -2354,7 +2354,7 @@ int ice_vsi_release(struct ice_vsi *vsi)
 	ice_vsi_close(vsi);
 
 	/* SR-IOV determines needed MSIX resources all at once instead of per
-	 * VSI since when VFs are spawned we know how many VFs there are and how
+	 * VSI since when VFs are spawned we kyesw how many VFs there are and how
 	 * many interrupts each VF needs. SR-IOV MSIX resources are also
 	 * cleared in the same manner.
 	 */
@@ -2392,7 +2392,7 @@ int ice_vsi_release(struct ice_vsi *vsi)
 	ice_vsi_put_qs(vsi);
 
 	/* retain SW VSI data structure since it is needed to unregister and
-	 * free VSI netdev when PF is not in reset recovery pending state,\
+	 * free VSI netdev when PF is yest in reset recovery pending state,\
 	 * for ex: during rmmod.
 	 */
 	if (!ice_is_reset_in_progress(pf->state))
@@ -2427,7 +2427,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 	ice_vsi_free_q_vectors(vsi);
 
 	/* SR-IOV determines needed MSIX resources all at once instead of per
-	 * VSI since when VFs are spawned we know how many VFs there are and how
+	 * VSI since when VFs are spawned we kyesw how many VFs there are and how
 	 * many interrupts each VF needs. SR-IOV MSIX resources are also
 	 * cleared in the same manner.
 	 */
@@ -2489,8 +2489,8 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 			if (ret)
 				goto err_vectors;
 		}
-		/* Do not exit if configuring RSS had an issue, at least
-		 * receive traffic on first queue. Hence no need to capture
+		/* Do yest exit if configuring RSS had an issue, at least
+		 * receive traffic on first queue. Hence yes need to capture
 		 * return value
 		 */
 		if (test_bit(ICE_FLAG_RSS_ENA, pf->flags))
@@ -2514,7 +2514,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 		break;
 	}
 
-	/* configure VSI nodes based on number of queues and TC's */
+	/* configure VSI yesdes based on number of queues and TC's */
 	for (i = 0; i < vsi->tc_cfg.numtc; i++) {
 		max_txqs[i] = vsi->alloc_txq;
 

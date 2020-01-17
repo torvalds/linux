@@ -43,8 +43,8 @@ static int dccp_write_timeout(struct sock *sk)
 			/* NOTE. draft-ietf-tcpimpl-pmtud-01.txt requires pmtu
 			   black hole detection. :-(
 
-			   It is place to make it. It is not made. I do not want
-			   to make it. It is disguisting. It does not work in any
+			   It is place to make it. It is yest made. I do yest want
+			   to make it. It is disguisting. It does yest work in any
 			   case. Let me to cite the same draft, which requires for
 			   us to implement this:
 
@@ -53,7 +53,7 @@ static int dccp_write_timeout(struct sock *sk)
    all ICMP messages.  It is vitally important that those who design and
    deploy security systems understand the impact of strict filtering on
    upper-layer protocols.  The safest web site in the world is worthless
-   if most TCP implementations cannot transfer data from it.  It would
+   if most TCP implementations canyest transfer data from it.  It would
    be far nicer to have all of the black holes fixed rather than fixing
    all of the TCP implementations."
 
@@ -86,13 +86,13 @@ static void dccp_retransmit_timer(struct sock *sk)
 
 	/*
 	 * More than than 4MSL (8 minutes) has passed, a RESET(aborted) was
-	 * sent, no need to retransmit, this sock is dead.
+	 * sent, yes need to retransmit, this sock is dead.
 	 */
 	if (dccp_write_timeout(sk))
 		return;
 
 	/*
-	 * We want to know the number of packets retransmitted, not the
+	 * We want to kyesw the number of packets retransmitted, yest the
 	 * total number of retransmissions of clones of original packets.
 	 */
 	if (icsk->icsk_retransmits == 0)
@@ -101,7 +101,7 @@ static void dccp_retransmit_timer(struct sock *sk)
 	if (dccp_retransmit_skb(sk) != 0) {
 		/*
 		 * Retransmission failed because of local congestion,
-		 * do not backoff.
+		 * do yest backoff.
 		 */
 		if (--icsk->icsk_retransmits == 0)
 			icsk->icsk_retransmits = 1;
@@ -162,7 +162,7 @@ static void dccp_keepalive_timer(struct timer_list *t)
 {
 	struct sock *sk = from_timer(sk, t, sk_timer);
 
-	pr_err("dccp should not use a keepalive timer !\n");
+	pr_err("dccp should yest use a keepalive timer !\n");
 	sock_put(sk);
 }
 
@@ -254,7 +254,7 @@ static ktime_t dccp_timestamp_seed;
  * dccp_timestamp  -  10s of microseconds time source
  * Returns the number of 10s of microseconds since loading DCCP. This is native
  * DCCP time difference format (RFC 4340, sec. 13).
- * Please note: This will wrap around about circa every 11.9 hours.
+ * Please yeste: This will wrap around about circa every 11.9 hours.
  */
 u32 dccp_timestamp(void)
 {

@@ -14,7 +14,7 @@
  *	BSD4.4 portable checksum routine
  */
 
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/export.h>
 
 #define CSUM_BIGCHUNK(buf, offset, sum, t0, t1, t2, t3, t4, t5)	\
@@ -42,21 +42,21 @@
 	/* Do end cruft out of band to get better cache patterns. */
 csum_partial_end_cruft:
 	be	1f				! caller asks %o1 & 0x8
-	 andcc	%o1, 4, %g0			! nope, check for word remaining
+	 andcc	%o1, 4, %g0			! yespe, check for word remaining
 	ldd	[%o0], %g2			! load two
 	addcc	%g2, %o2, %o2			! add first word to sum
 	addxcc	%g3, %o2, %o2			! add second word as well
 	add	%o0, 8, %o0			! advance buf ptr
 	addx	%g0, %o2, %o2			! add in final carry
 	andcc	%o1, 4, %g0			! check again for word remaining
-1:	be	1f				! nope, skip this code
+1:	be	1f				! yespe, skip this code
 	 andcc	%o1, 3, %o1			! check for trailing bytes
 	ld	[%o0], %g2			! load it
 	addcc	%g2, %o2, %o2			! add to sum
 	add	%o0, 4, %o0			! advance buf ptr
 	addx	%g0, %o2, %o2			! add in final carry
 	andcc	%o1, 3, %g0			! check again for trailing bytes
-1:	be	1f				! no trailing bytes, return
+1:	be	1f				! yes trailing bytes, return
 	 addcc	%o1, -1, %g0			! only one byte remains?
 	bne	2f				! at least two bytes more
 	 subcc	%o1, 2, %o1			! only two bytes more?
@@ -112,7 +112,7 @@ csum_partial:			/* %o0=buf, %o1=len, %o2=sum */
 	bne	csum_partial_fix_alignment		! yep, handle it
 	 sethi	%hi(cpte - 8), %g7			! prepare table jmp ptr
 	andcc	%o1, 0xffffff80, %o3			! num loop iterations
-cpa:	be	3f					! none to do
+cpa:	be	3f					! yesne to do
 	 andcc	%o1, 0x70, %g1				! clears carry flag too
 5:	CSUM_BIGCHUNK(%o0, 0x00, %o2, %o4, %o5, %g2, %g3, %g4, %g5)
 	CSUM_BIGCHUNK(%o0, 0x20, %o2, %o4, %o5, %g2, %g3, %g4, %g5)
@@ -123,7 +123,7 @@ cpa:	be	3f					! none to do
 	bne	5b					! more to do
 	 add	%o0, 128, %o0				! advance buf ptr
 	andcc	%o1, 0x70, %g1				! clears carry flag too
-3:	be	cpte					! nope
+3:	be	cpte					! yespe
 	 andcc	%o1, 0xf, %g0				! anything left at all?
 	srl	%g1, 1, %o4				! compute offset
 	sub	%g7, %g1, %g7				! adjust jmp ptr
@@ -345,24 +345,24 @@ __csum_partial_copy_sparc_generic:
 	andcc	%o4, 3, %g0		! check for mismatched alignment
 	bne	ccslow			! better this than unaligned/fixups
 	 andcc	%o0, 7, %g0		! need to align things?
-	bne	cc_dword_align		! yes, we check for short lengths there
+	bne	cc_dword_align		! no, we check for short lengths there
 	 andcc	%g1, 0xffffff80, %g0	! can we use unrolled loop?
-3:	be	3f			! nope, less than one loop remains
+3:	be	3f			! yespe, less than one loop remains
 	 andcc	%o1, 4, %g0		! dest aligned on 4 or 8 byte boundary?
 	be	ccdbl + 4		! 8 byte aligned, kick ass
 5:	CSUMCOPY_BIGCHUNK(%o0,%o1,%g7,0x00,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
 	CSUMCOPY_BIGCHUNK(%o0,%o1,%g7,0x20,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
 	CSUMCOPY_BIGCHUNK(%o0,%o1,%g7,0x40,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
 	CSUMCOPY_BIGCHUNK(%o0,%o1,%g7,0x60,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
-10:	EXT(5b, 10b, 20f)		! note for exception handling
+10:	EXT(5b, 10b, 20f)		! yeste for exception handling
 	sub	%g1, 128, %g1		! detract from length
 	addx	%g0, %g7, %g7		! add in last carry bit
 	andcc	%g1, 0xffffff80, %g0	! more to csum?
 	add	%o0, 128, %o0		! advance src ptr
-	bne	5b			! we did not go negative, continue looping
+	bne	5b			! we did yest go negative, continue looping
 	 add	%o1, 128, %o1		! advance dest ptr
 3:	andcc	%g1, 0x70, %o2		! can use table?
-ccmerge:be	ccte			! nope, go and check for end cruft
+ccmerge:be	ccte			! yespe, go and check for end cruft
 	 andcc	%g1, 0xf, %o3		! get low bits of length (clears carry btw)
 	srl	%o2, 1, %o4		! begin negative offset computation
 	sethi	%hi(12f), %o5		! set up table ptr end
@@ -379,7 +379,7 @@ cctbl:	CSUMCOPY_LASTCHUNK(%o0,%o1,%g7,0x68,%g2,%g3,%g4,%g5)
 	CSUMCOPY_LASTCHUNK(%o0,%o1,%g7,0x28,%g2,%g3,%g4,%g5)
 	CSUMCOPY_LASTCHUNK(%o0,%o1,%g7,0x18,%g2,%g3,%g4,%g5)
 	CSUMCOPY_LASTCHUNK(%o0,%o1,%g7,0x08,%g2,%g3,%g4,%g5)
-12:	EXT(cctbl, 12b, 22f)		! note for exception table handling
+12:	EXT(cctbl, 12b, 22f)		! yeste for exception table handling
 	addx	%g0, %g7, %g7
 	andcc	%o3, 0xf, %g0		! check for low bits set
 ccte:	bne	cc_end_cruft		! something left, handle it out of band
@@ -390,12 +390,12 @@ ccdbl:	CSUMCOPY_BIGCHUNK_ALIGNED(%o0,%o1,%g7,0x00,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o
 	CSUMCOPY_BIGCHUNK_ALIGNED(%o0,%o1,%g7,0x20,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
 	CSUMCOPY_BIGCHUNK_ALIGNED(%o0,%o1,%g7,0x40,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
 	CSUMCOPY_BIGCHUNK_ALIGNED(%o0,%o1,%g7,0x60,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
-11:	EXT(ccdbl, 11b, 21f)		! note for exception table handling
+11:	EXT(ccdbl, 11b, 21f)		! yeste for exception table handling
 	sub	%g1, 128, %g1		! detract from length
 	addx	%g0, %g7, %g7		! add in last carry bit
 	andcc	%g1, 0xffffff80, %g0	! more to csum?
 	add	%o0, 128, %o0		! advance src ptr
-	bne	ccdbl			! we did not go negative, continue looping
+	bne	ccdbl			! we did yest go negative, continue looping
 	 add	%o1, 128, %o1		! advance dest ptr
 	b	ccmerge			! finish it off, above
 	 andcc	%g1, 0x70, %o2		! can use table? (clears carry btw)
@@ -441,7 +441,7 @@ ccslow:	cmp	%g1, 0
 	EX2(stb	%g2, [%o1 + 2])
 	addcc	%o4, %g5, %g5
 	EX2(stb	%o4, [%o1 + 3])
-	addx	%g5, %g0, %g5	! I am now to lazy to optimize this (question it
+	addx	%g5, %g0, %g5	! I am yesw to lazy to optimize this (question it
 	add	%o1, 4, %o1	! is worthy). Maybe some day - with the sll/srl
 	subcc	%g4, 1, %g4	! tricks
 	bne,a	5b

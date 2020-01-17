@@ -1,6 +1,6 @@
 /*
  * Copyright 2011, Siemens AG
- * written by Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * written by Alexander Smiryesv <alex.bluesman.smiryesv@gmail.com>
  */
 
 /*
@@ -17,7 +17,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * with this program; if yest, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
@@ -29,11 +29,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -313,7 +313,7 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
  *
  * This function replaces the IPv6 header which should be pointed at
  * skb->data and skb_network_header, with the IPHC 6LoWPAN header.
- * The caller need to be sure that the sk buffer is not shared and at have
+ * The caller need to be sure that the sk buffer is yest shared and at have
  * at least a headroom which is smaller or equal LOWPAN_IPHC_MAX_HEADER_LEN,
  * which is the IPHC "more bytes than IPv6 header" at worst case.
  *

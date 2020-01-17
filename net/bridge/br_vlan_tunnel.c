@@ -26,7 +26,7 @@ static inline int br_vlan_tunid_cmp(struct rhashtable_compare_arg *arg,
 }
 
 static const struct rhashtable_params br_vlan_tunnel_rht_params = {
-	.head_offset = offsetof(struct net_bridge_vlan, tnode),
+	.head_offset = offsetof(struct net_bridge_vlan, tyesde),
 	.key_offset = offsetof(struct net_bridge_vlan, tinfo.tunnel_id),
 	.key_len = sizeof(__be64),
 	.nelem_hint = 3,
@@ -46,7 +46,7 @@ void vlan_tunnel_info_del(struct net_bridge_vlan_group *vg,
 {
 	if (!vlan->tinfo.tunnel_dst)
 		return;
-	rhashtable_remove_fast(&vg->tunnel_hash, &vlan->tnode,
+	rhashtable_remove_fast(&vg->tunnel_hash, &vlan->tyesde,
 			       br_vlan_tunnel_rht_params);
 	vlan->tinfo.tunnel_id = 0;
 	dst_release(&vlan->tinfo.tunnel_dst->dst);
@@ -72,7 +72,7 @@ static int __vlan_tunnel_info_add(struct net_bridge_vlan_group *vg,
 	vlan->tinfo.tunnel_dst = metadata;
 	vlan->tinfo.tunnel_id = key;
 
-	err = rhashtable_lookup_insert_fast(&vg->tunnel_hash, &vlan->tnode,
+	err = rhashtable_lookup_insert_fast(&vg->tunnel_hash, &vlan->tyesde,
 					    br_vlan_tunnel_rht_params);
 	if (err)
 		goto out;
@@ -162,7 +162,7 @@ int br_handle_ingress_vlan_tunnel(struct sk_buff *skb,
 	if (!vg || !tinfo)
 		return 0;
 
-	/* if already tagged, ignore */
+	/* if already tagged, igyesre */
 	if (skb_vlan_tagged(skb))
 		return 0;
 

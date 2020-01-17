@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -152,9 +152,9 @@ static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, int pasid)
 		return;
 
 	/*
-	 * Look for the process that matches the pasid. If there is no such
-	 * process, we either released it in amdkfd's own notifier, or there
-	 * is a bug. Unfortunately, there is no way to tell...
+	 * Look for the process that matches the pasid. If there is yes such
+	 * process, we either released it in amdkfd's own yestifier, or there
+	 * is a bug. Unfortunately, there is yes way to tell...
 	 */
 	p = kfd_lookup_process_by_pasid(pasid);
 	if (!p)
@@ -342,7 +342,7 @@ int kfd_iommu_add_perf_counters(struct kfd_topology_device *kdev)
 {
 	struct kfd_perf_properties *props;
 
-	if (!(kdev->node_props.capability & HSA_CAP_ATS_PRESENT))
+	if (!(kdev->yesde_props.capability & HSA_CAP_ATS_PRESENT))
 		return 0;
 
 	if (!amd_iommu_pc_supported())

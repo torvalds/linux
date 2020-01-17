@@ -45,7 +45,7 @@ probe_write_common(void __user *dst, const void *src, size_t size)
  * already holds mmap_sem, or other locks which nest inside mmap_sem.
  *
  * probe_kernel_read_strict() is the same as probe_kernel_read() except for
- * the case where architectures have non-overlapping user and kernel address
+ * the case where architectures have yesn-overlapping user and kernel address
  * ranges: probe_kernel_read_strict() will additionally return -EFAULT for
  * probing memory on a user address range where probe_user_read() is supposed
  * to be used instead.
@@ -168,7 +168,7 @@ EXPORT_SYMBOL_GPL(probe_user_write);
  * sets the last byte of @dst buffer to NUL and returns @count.
  *
  * strncpy_from_unsafe_strict() is the same as strncpy_from_unsafe() except
- * for the case where architectures have non-overlapping user and kernel address
+ * for the case where architectures have yesn-overlapping user and kernel address
  * ranges: strncpy_from_unsafe_strict() will additionally return -EFAULT for
  * probing memory on a user address range where strncpy_from_unsafe_user() is
  * supposed to be used instead.

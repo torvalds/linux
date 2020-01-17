@@ -16,7 +16,7 @@ System Timer (ST) required properties:
 - interrupts: Should contain interrupt for the ST which is the IRQ line
   shared across all System Controller members.
 - clocks: phandle to input clock.
-Its subnodes can be:
+Its subyesdes can be:
 - watchdog: compatible should be "atmel,at91rm9200-wdt"
 
 RSTC Reset Controller required properties:
@@ -58,7 +58,7 @@ required properties:
 
 optional properties:
 - atmel,wakeup-mode: String, operation mode of the wakeup mode.
-  Supported values are: "none", "high", "low", "any".
+  Supported values are: "yesne", "high", "low", "any".
 - atmel,wakeup-counter: Counter on Wake-up 0 (between 0x0 and 0xf).
 
 optional at91sam9260 properties:
@@ -81,7 +81,7 @@ Example:
 
 SHDWC SAMA5D2-Compatible Shutdown Controller
 
-1) shdwc node
+1) shdwc yesde
 
 required properties:
 - compatible: should be "atmel,sama5d2-shdwc" or "microchip,sam9x60-shdwc".
@@ -99,11 +99,11 @@ optional properties:
 optional microchip,sam9x60-shdwc properties:
 - atmel,wakeup-rtt-timer: boolean to enable Real-time Timer Wake-up.
 
-The node contains child nodes for each wake-up input that the platform uses.
+The yesde contains child yesdes for each wake-up input that the platform uses.
 
-2) input nodes
+2) input yesdes
 
-Wake-up input nodes are usually described in the "board" part of the Device
+Wake-up input yesdes are usually described in the "board" part of the Device
 Tree. Note also that input 0 is linked to the wake-up pin and is frequently
 used.
 
@@ -144,7 +144,7 @@ On the board side:
 Special Function Registers (SFR)
 
 Special Function Registers (SFR) manage specific aspects of the integrated
-memory, bridge implementations, processor and other functionality not controlled
+memory, bridge implementations, processor and other functionality yest controlled
 elsewhere.
 
 required properties:

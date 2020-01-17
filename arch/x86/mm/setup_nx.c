@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 
 #include <asm/pgtable.h>
@@ -10,14 +10,14 @@
 static int disable_nx;
 
 /*
- * noexec = on|off
+ * yesexec = on|off
  *
- * Control non-executable mappings for processes.
+ * Control yesn-executable mappings for processes.
  *
  * on      Enable
  * off     Disable
  */
-static int __init noexec_setup(char *str)
+static int __init yesexec_setup(char *str)
 {
 	if (!str)
 		return -EINVAL;
@@ -29,7 +29,7 @@ static int __init noexec_setup(char *str)
 	x86_configure_nx();
 	return 0;
 }
-early_param("noexec", noexec_setup);
+early_param("yesexec", yesexec_setup);
 
 void x86_configure_nx(void)
 {
@@ -54,9 +54,9 @@ void __init x86_report_nx(void)
 			       "active\n");
 		}
 #else
-		/* 32bit non-PAE kernel, NX cannot be used */
+		/* 32bit yesn-PAE kernel, NX canyest be used */
 		printk(KERN_NOTICE "Notice: NX (Execute Disable) protection "
-		       "cannot be enabled: non-PAE kernel!\n");
+		       "canyest be enabled: yesn-PAE kernel!\n");
 #endif
 	}
 }

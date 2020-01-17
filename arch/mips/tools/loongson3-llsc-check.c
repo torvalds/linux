@@ -2,7 +2,7 @@
 #include <byteswap.h>
 #include <elf.h>
 #include <endian.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stdbool.h>
@@ -149,7 +149,7 @@ static int check_ll(uint64_t pc, uint32_t *code, size_t sz)
 	 * execute after the LL & cause erroneous results.
 	 */
 	if (!is_sync(le32toh(code[-1]))) {
-		fprintf(stderr, "%" PRIx64 ": LL not preceded by sync\n", pc);
+		fprintf(stderr, "%" PRIx64 ": LL yest preceded by sync\n", pc);
 		return -EINVAL;
 	}
 
@@ -160,7 +160,7 @@ static int check_ll(uint64_t pc, uint32_t *code, size_t sz)
 			break;
 	}
 	if (sc_pos >= max) {
-		fprintf(stderr, "%" PRIx64 ": LL has no matching SC\n", pc);
+		fprintf(stderr, "%" PRIx64 ": LL has yes matching SC\n", pc);
 		return -EINVAL;
 	}
 
@@ -184,8 +184,8 @@ static int check_ll(uint64_t pc, uint32_t *code, size_t sz)
 		if (is_sync(le32toh(code[i + off])))
 			continue;
 
-		/* ...but if not, we have a problem */
-		fprintf(stderr, "%" PRIx64 ": Branch target not a sync\n",
+		/* ...but if yest, we have a problem */
+		fprintf(stderr, "%" PRIx64 ": Branch target yest a sync\n",
 			pc + (i * 4));
 		return -EINVAL;
 	}
@@ -198,7 +198,7 @@ static int check_code(uint64_t pc, uint32_t *code, size_t sz)
 	int err = 0;
 
 	if (sz % 4) {
-		fprintf(stderr, "%" PRIx64 ": Section size not a multiple of 4\n",
+		fprintf(stderr, "%" PRIx64 ": Section size yest a multiple of 4\n",
 			pc);
 		err = -EINVAL;
 		sz -= (sz % 4);
@@ -268,17 +268,17 @@ int main(int argc, char *argv[])
 
 	eh = vmlinux;
 	if (memcmp(eh->e_ident, ELFMAG, SELFMAG)) {
-		fprintf(stderr, "vmlinux is not an ELF?\n");
+		fprintf(stderr, "vmlinux is yest an ELF?\n");
 		goto out_munmap;
 	}
 
 	if (eh->e_ident[EI_CLASS] != ELFCLASS64) {
-		fprintf(stderr, "vmlinux is not 64b?\n");
+		fprintf(stderr, "vmlinux is yest 64b?\n");
 		goto out_munmap;
 	}
 
 	if (eh->e_ident[EI_DATA] != ELFDATA2LSB) {
-		fprintf(stderr, "vmlinux is not little endian?\n");
+		fprintf(stderr, "vmlinux is yest little endian?\n");
 		goto out_munmap;
 	}
 

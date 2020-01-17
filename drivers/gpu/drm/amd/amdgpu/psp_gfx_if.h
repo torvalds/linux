@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -122,7 +122,7 @@ struct psp_gfx_cmd_load_ta
     uint32_t        cmd_buf_phy_addr_hi;    /* bits [63:32] of the GPU Virtual address of CMD buffer */
     uint32_t        cmd_buf_len;            /* length of the CMD buffer in bytes; must be multiple of 4 KB */
 
-    /* Note: CmdBufLen can be set to 0. In this case no persistent CMD buffer is provided
+    /* Note: CmdBufLen can be set to 0. In this case yes persistent CMD buffer is provided
     *       for the TA. Each InvokeCommand can have dinamically mapped CMD buffer instead
     *       of using global persistent buffer.
     */
@@ -143,7 +143,7 @@ struct psp_gfx_buf_desc
 {
     uint32_t        buf_phy_addr_lo;       /* bits [31:0] of GPU Virtual address of the buffer (must be 4 KB aligned) */
     uint32_t        buf_phy_addr_hi;       /* bits [63:32] of GPU Virtual address of the buffer */
-    uint32_t        buf_size;              /* buffer size in bytes (must be multiple of 4 KB and no bigger than 64 MB) */
+    uint32_t        buf_size;              /* buffer size in bytes (must be multiple of 4 KB and yes bigger than 64 MB) */
 
 };
 

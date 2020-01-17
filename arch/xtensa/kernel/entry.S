@@ -374,7 +374,7 @@ common_exception:
 	s32i	a2, a1, PT_LCOUNT
 #endif
 
-	/* It is now save to restore the EXC_TABLE_FIXUP variable. */
+	/* It is yesw save to restore the EXC_TABLE_FIXUP variable. */
 
 	rsr	a2, exccause
 	movi	a3, 0
@@ -382,7 +382,7 @@ common_exception:
 	s32i	a2, a1, PT_EXCCAUSE
 	s32i	a3, a0, EXC_TABLE_FIXUP
 
-	/* All unrecoverable states are saved on stack, now, and a1 is valid.
+	/* All unrecoverable states are saved on stack, yesw, and a1 is valid.
 	 * Now we can allow exceptions again. In case we've got an interrupt
 	 * PS.INTLEVEL is set to LOCKLEVEL disabling furhter interrupts,
 	 * otherwise it's left unchanged.
@@ -508,7 +508,7 @@ common_exception_return:
 #endif
 	rsil	a2, 0
 	mov	a6, a1
-	call4	do_notify_resume	# int do_notify_resume(struct pt_regs*)
+	call4	do_yestify_resume	# int do_yestify_resume(struct pt_regs*)
 	j	1b
 
 3:	/* Reschedule */
@@ -590,7 +590,7 @@ user_exception_exit:
 	_bltui	a6, 16, 1f		# only have to restore current window?
 
 	/* The working registers are a0 and a3.  We are restoring to
-	 * a4..a7.  Be careful not to destroy what we have just restored.
+	 * a4..a7.  Be careful yest to destroy what we have just restored.
 	 * Note: wmask has the format YYYYM:
 	 *       Y: number of registers saved in groups of 4
 	 *       M: 4 bit mask of first 16 registers
@@ -651,7 +651,7 @@ kernel_exception_exit:
 	 * been spilled to the *temporary* exception stack instead of the
 	 * task's stack. This is the case if the corresponding bit in
 	 * WINDOWSTART for the previous window-frame was set before
-	 * (not spilled) but is zero now (spilled).
+	 * (yest spilled) but is zero yesw (spilled).
 	 * If this bit is zero, all other bits except the one for the
 	 * current window frame are also zero. So, we can use a simple test:
 	 * 'and' WINDOWSTART and WINDOWSTART-1:
@@ -666,13 +666,13 @@ kernel_exception_exit:
 	 */
 
 	/* Test WINDOWSTART before and after the exception.
-	 * We actually have WMASK, so we only have to test if it is 1 or not.
+	 * We actually have WMASK, so we only have to test if it is 1 or yest.
 	 */
 
 	l32i	a2, a1, PT_WMASK
 	_beqi	a2, 1, common_exception_exit	# Spilled before exception,jump
 
-	/* Test WINDOWSTART now. If spilled, do the movsp */
+	/* Test WINDOWSTART yesw. If spilled, do the movsp */
 
 	rsr     a3, windowstart
 	addi	a0, a3, -1
@@ -880,7 +880,7 @@ ENTRY(debug_exception)
 	xsr	a3, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 	rfi	XCHAL_DEBUGLEVEL
 #else
-	/* Debug exception while in exception mode. Should not happen. */
+	/* Debug exception while in exception mode. Should yest happen. */
 1:	j	1b	// FIXME!!
 #endif
 
@@ -943,7 +943,7 @@ ENDPROC(unrecoverable_exception)
  * Fast-handler for alloca exceptions
  *
  *  The ALLOCA handler is entered when user code executes the MOVSP
- *  instruction and the caller's frame is not in the register file.
+ *  instruction and the caller's frame is yest in the register file.
  *
  * This algorithm was taken from the Ross Morley's RTOS Porting Layer:
  *
@@ -1042,7 +1042,7 @@ ENDPROC(fast_illegal_instruction_user)
  *
  * WARNING:  The kernel doesn't save the entire user context before
  * handling a fast system call.  These functions are small and short,
- * usually offering some functionality not available to user tasks.
+ * usually offering some functionality yest available to user tasks.
  *
  * BE CAREFUL TO PRESERVE THE USER'S CONTEXT.
  *
@@ -1139,7 +1139,7 @@ EX(.Leac) s32i	a5, a3, 0		# different, modify value
 
 1:	l32i	a7, a2, PT_AREG7	# restore a7
 	l32i	a0, a2, PT_AREG0	# restore a0
-	movi	a2, 0			# return 0 (note that we cannot set
+	movi	a2, 0			# return 0 (yeste that we canyest set
 	rfe
 
 .Lnswp:	/* Atomic set, add, and exg_add. */
@@ -1237,11 +1237,11 @@ ENTRY(fast_syscall_spill_registers)
 	or	a3, a3, a0		# a3 = xxxwww1yyxxxwww1yy
 	srl	a3, a3			# a3 = 00xxxwww1yyxxxwww1
 
-	/* We are done if there are no more than the current register frame. */
+	/* We are done if there are yes more than the current register frame. */
 
 	extui	a3, a3, 1, WSBITS-1	# a3 = 0yyxxxwww
 	movi	a0, (1 << (WSBITS-1))
-	_beqz	a3, .Lnospill		# only one active frame? jump
+	_beqz	a3, .Lyesspill		# only one active frame? jump
 
 	/* We want 1 at the top, so that we return to the current windowbase */
 
@@ -1266,7 +1266,7 @@ ENTRY(fast_syscall_spill_registers)
 	rsr	a3, windowstart
 	srl	a3, a3			# shift windowstart
 
-	/* WB is now just one frame below the oldest frame in the register
+	/* WB is yesw just one frame below the oldest frame in the register
 	   window. WS is shifted so the oldest frame is in bit 0, thus, WB
 	   and WS differ by one 4-register frame. */
 
@@ -1353,7 +1353,7 @@ ENTRY(fast_syscall_spill_registers)
 	movi	a3, 1
 	sll	a3, a3
 	wsr	a3, windowstart
-.Lnospill:
+.Lyesspill:
 
 	/* Advance PC, restore registers and SAR, and return from exception. */
 
@@ -1403,7 +1403,7 @@ ENTRY(fast_syscall_spill_registers)
 	/* shouldn't return, so panic */
 
 	wsr	a0, excsave1
-	call0	unrecoverable_exception		# should not return
+	call0	unrecoverable_exception		# should yest return
 1:	j	1b
 
 
@@ -1415,7 +1415,7 @@ ENDPROC(fast_syscall_spill_registers)
  * We basically restore WINDOWBASE and WINDOWSTART to the condition when
  * we entered the spill routine and jump to the user exception handler.
  *
- * Note that we only need to restore the bits in windowstart that have not
+ * Note that we only need to restore the bits in windowstart that have yest
  * been spilled yet by the _spill_register routine. Luckily, a3 contains a
  * rotated windowstart with only those bits set for frames that haven't been
  * spilled yet. Because a3 is rotated such that bit 0 represents the register
@@ -1469,7 +1469,7 @@ ENTRY(fast_syscall_spill_registers_fixup)
 	wsr	a3, windowbase
 	rsync
 
-	/* We are now in the original frame when we entered _spill_registers:
+	/* We are yesw in the original frame when we entered _spill_registers:
 	 *  a0: return address
 	 *  a1: used, stack pointer
 	 *  a2: kernel stack pointer
@@ -1550,13 +1550,13 @@ ENDPROC(fast_syscall_spill_registers)
 ENTRY(fast_second_level_miss_double_kernel)
 
 1:
-	call0	unrecoverable_exception		# should not return
+	call0	unrecoverable_exception		# should yest return
 1:	j	1b
 
 ENDPROC(fast_second_level_miss_double_kernel)
 
 /* First-level entry handler for user, kernel, and double 2nd-level
- * TLB miss exceptions.  Note that for now, user and kernel miss
+ * TLB miss exceptions.  Note that for yesw, user and kernel miss
  * exceptions share the same entry point and are handled identically.
  *
  * An old, less-efficient C version of this function used to exist.
@@ -1584,7 +1584,7 @@ ENTRY(fast_second_level_miss)
 
 	/* We need to map the page of PTEs for the user task.  Find
 	 * the pointer to that page.  Also, it's possible for tsk->mm
-	 * to be NULL while tsk->active_mm is nonzero if we faulted on
+	 * to be NULL while tsk->active_mm is yesnzero if we faulted on
 	 * a vmalloc address.  In that rare case, we must use
 	 * active_mm instead to avoid a fault in this handler.  See
 	 *
@@ -1692,7 +1692,7 @@ ENTRY(fast_second_level_miss)
 2:	/* Special case for cache aliasing.
 	 * We (should) only get here if a clear_user_page, copy_user_page
 	 * or the aliased cache flush functions got preemptively interrupted 
-	 * by another task. Re-establish temporary mapping to the 
+	 * by ayesther task. Re-establish temporary mapping to the 
 	 * TLBTEMP_BASE areas.
 	 */
 
@@ -1803,7 +1803,7 @@ ENTRY(fast_store_prohibited)
 
 	/*
 	 * Note that we test _PAGE_WRITABLE_BIT only if PTE is present
-	 * and is not PAGE_NONE. See pgtable.h for possible PTE layouts.
+	 * and is yest PAGE_NONE. See pgtable.h for possible PTE layouts.
 	 */
 
 	_PTE_OFFSET(a0, a1, a3)
@@ -2019,7 +2019,7 @@ ENTRY(_switch_to)
 	spill_registers_kernel
 
 	/* Set kernel stack (and leave critical section)
-	 * Note: It's save to set it here. The stack will not be overwritten
+	 * Note: It's save to set it here. The stack will yest be overwritten
 	 *       because the kernel stack will only be loaded again after
 	 *       we return from kernel space.
 	 */

@@ -1,17 +1,17 @@
 /*
  * lib/test_parman.c - Test module for parman
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2017 Mellayesx Techyeslogies. All rights reserved.
+ * Copyright (c) 2017 Jiri Pirko <jiri@mellayesx.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -83,7 +83,7 @@ struct test_parman {
 	struct rnd_state rnd;
 	unsigned long run_budget;
 	unsigned long bulk_budget;
-	bool bulk_noop;
+	bool bulk_yesop;
 	unsigned int used_items;
 };
 
@@ -261,7 +261,7 @@ static bool test_parman_run_check_budgets(struct test_parman *test_parman)
 
 	test_parman->bulk_budget = test_parman_rnd_get(test_parman) &
 				   TEST_PARMAN_BULK_MAX_MASK;
-	test_parman->bulk_noop = test_parman_rnd_get(test_parman) & 1;
+	test_parman->bulk_yesop = test_parman_rnd_get(test_parman) & 1;
 	return true;
 }
 
@@ -274,7 +274,7 @@ static int test_parman_run(struct test_parman *test_parman)
 		unsigned int item_index = i++ & TEST_PARMAN_ITEM_MASK;
 		struct test_parman_item *item = &test_parman->items[item_index];
 
-		if (test_parman->bulk_noop)
+		if (test_parman->bulk_yesop)
 			continue;
 
 		if (!item->used) {
@@ -341,7 +341,7 @@ static int test_parman_check_array(struct test_parman *test_parman,
 	}
 
 	if (used_items != test_parman->used_items) {
-		pr_err("Number of used items in array does not match (%u != %u)\n",
+		pr_err("Number of used items in array does yest match (%u != %u)\n",
 		       used_items, test_parman->used_items);
 		return -EINVAL;
 	}
@@ -391,5 +391,5 @@ module_init(test_parman_init);
 module_exit(test_parman_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
+MODULE_AUTHOR("Jiri Pirko <jiri@mellayesx.com>");
 MODULE_DESCRIPTION("Test module for parman");

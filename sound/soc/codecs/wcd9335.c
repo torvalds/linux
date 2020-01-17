@@ -1309,7 +1309,7 @@ static int slim_rx_mux_put(struct snd_kcontrol *kc,
 			      &wcd->dai[AIF4_PB].slim_ch_list);
 		break;
 	default:
-		dev_err(wcd->dev, "Unknown AIF %d\n", wcd->rx_port_value);
+		dev_err(wcd->dev, "Unkyeswn AIF %d\n", wcd->rx_port_value);
 		goto err;
 	}
 
@@ -1350,7 +1350,7 @@ static int slim_tx_mixer_put(struct snd_kcontrol *kc,
 	case AIF1_CAP:
 	case AIF2_CAP:
 	case AIF3_CAP:
-		/* only add to the list if value not set */
+		/* only add to the list if value yest set */
 		if (enable && !(wcd->tx_port_value & BIT(port_id))) {
 			wcd->tx_port_value |= BIT(port_id);
 			list_add_tail(&wcd->tx_chs[port_id].list,
@@ -1361,7 +1361,7 @@ static int slim_tx_mixer_put(struct snd_kcontrol *kc,
 		}
 		break;
 	default:
-		dev_err(wcd->dev, "Unknown AIF %d\n", dai_id);
+		dev_err(wcd->dev, "Unkyeswn AIF %d\n", dai_id);
 		return -EINVAL;
 	}
 
@@ -1667,7 +1667,7 @@ static int wcd9335_set_prim_interpolator_rate(struct snd_soc_dai *dai,
 				/* rate is in Hz */
 				if ((j == 0) && (rate == 44100))
 					dev_info(wcd->dev,
-						"Cannot set 44.1KHz on INT0\n");
+						"Canyest set 44.1KHz on INT0\n");
 				else
 					snd_soc_component_update_bits(comp,
 						WCD9335_CDC_RX_PATH_CTL(j),
@@ -1876,7 +1876,7 @@ static int wcd9335_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_STREAM_PLAYBACK:
 		ret = wcd9335_set_interpolator_rate(dai, params_rate(params));
 		if (ret) {
-			dev_err(wcd->dev, "cannot set sample rate: %u\n",
+			dev_err(wcd->dev, "canyest set sample rate: %u\n",
 				params_rate(params));
 			return ret;
 		}
@@ -1924,7 +1924,7 @@ static int wcd9335_hw_params(struct snd_pcm_substream *substream,
 		ret = wcd9335_set_decimator_rate(dai, tx_fs_rate,
 						params_rate(params));
 		if (ret < 0) {
-			dev_err(wcd->dev, "Cannot set TX Decimator rate\n");
+			dev_err(wcd->dev, "Canyest set TX Decimator rate\n");
 			return ret;
 		}
 		switch (params_width(params)) {
@@ -2749,7 +2749,7 @@ static int wcd9335_codec_enable_dec(struct snd_soc_dapm_widget *w,
 
 	dec = strpbrk(dec_adc_mux_name, "012345678");
 	if (!dec) {
-		dev_err(comp->dev, "%s: decimator index not found\n",
+		dev_err(comp->dev, "%s: decimator index yest found\n",
 			__func__);
 		ret =  -EINVAL;
 		goto out;
@@ -2870,7 +2870,7 @@ static u8 wcd9335_get_dmic_clk_val(struct snd_soc_component *component,
 
 	if (dmic_clk_rate == 0) {
 		dev_err(component->dev,
-			"%s: dmic_sample_rate cannot be 0\n",
+			"%s: dmic_sample_rate canyest be 0\n",
 			__func__);
 		goto done;
 	}
@@ -2921,7 +2921,7 @@ static int wcd9335_codec_enable_dmic(struct snd_soc_dapm_widget *w,
 
 	wname = strpbrk(w->name, "012345");
 	if (!wname) {
-		dev_err(comp->dev, "%s: widget not found\n", __func__);
+		dev_err(comp->dev, "%s: widget yest found\n", __func__);
 		return -EINVAL;
 	}
 
@@ -3241,7 +3241,7 @@ static int wcd9335_config_compander(struct snd_soc_component *component,
 	int comp;
 	u16 comp_ctl0_reg, rx_path_cfg0_reg;
 
-	/* EAR does not have compander */
+	/* EAR does yest have compander */
 	if (!interp_n)
 		return 0;
 
@@ -3332,7 +3332,7 @@ static int wcd9335_codec_enable_interpolator(struct snd_soc_dapm_widget *w,
 		reg = WCD9335_CDC_RX8_RX_PATH_CTL;
 		gain_reg = WCD9335_CDC_RX8_RX_VOL_CTL;
 	} else {
-		dev_err(comp->dev, "%s: Interpolator reg not found\n",
+		dev_err(comp->dev, "%s: Interpolator reg yest found\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -3379,7 +3379,7 @@ static void wcd9335_codec_hph_mode_gain_opt(struct snd_soc_component *component,
 	/*
 	 * Set HPH_L & HPH_R gain source selection to REGISTER
 	 * for better click and pop only if corresponding PAs are
-	 * not enabled. Also cache the values of the HPHL/R
+	 * yest enabled. Also cache the values of the HPHL/R
 	 * PA gains to be applied after PAs are enabled
 	 */
 	if ((l_val != hph_l_en) && !is_hphl_pa) {
@@ -3699,7 +3699,7 @@ static int wcd9335_codec_hphr_dac_event(struct snd_soc_dapm_widget *w,
 				WCD9335_CDC_RX_PATH_DEM_INP_SEL_MASK;
 		if (((hph_mode == CLS_H_HIFI) || (hph_mode == CLS_H_LOHIFI) ||
 		     (hph_mode == CLS_H_LP)) && (dem_inp != 0x01)) {
-			dev_err(comp->dev, "DEM Input not set correctly, hph_mode: %d\n",
+			dev_err(comp->dev, "DEM Input yest set correctly, hph_mode: %d\n",
 				hph_mode);
 			return -EINVAL;
 		}
@@ -3993,8 +3993,8 @@ static irqreturn_t wcd9335_slimbus_irq(int irq, void *data)
 			regmap_read(
 				wcd->if_regmap, reg, &int_val);
 			/*
-			 * Ignore interrupts for ports for which the
-			 * interrupts are not specifically enabled.
+			 * Igyesre interrupts for ports for which the
+			 * interrupts are yest specifically enabled.
 			 */
 			if (!(int_val & (1 << (port_id % 8))))
 				continue;
@@ -4811,7 +4811,7 @@ static int wcd9335_enable_efuse_sensing(struct snd_soc_component *comp)
 	if (!(snd_soc_component_read32(comp,
 					WCD9335_CHIP_TIER_CTRL_EFUSE_STATUS) &
 					WCD9335_CHIP_TIER_CTRL_EFUSE_EN_MASK))
-		WARN(1, "%s: Efuse sense is not complete\n", __func__);
+		WARN(1, "%s: Efuse sense is yest complete\n", __func__);
 
 	wcd9335_enable_sido_buck(comp);
 	_wcd9335_codec_enable_mclk(comp, false);
@@ -5014,7 +5014,7 @@ static const struct regmap_irq_chip wcd9335_regmap_irq1_chip = {
 static int wcd9335_parse_dt(struct wcd9335_codec *wcd)
 {
 	struct device *dev = wcd->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int ret;
 
 	wcd->reset_gpio = of_get_named_gpio(np,	"reset-gpios", 0);
@@ -5025,13 +5025,13 @@ static int wcd9335_parse_dt(struct wcd9335_codec *wcd)
 
 	wcd->mclk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(wcd->mclk)) {
-		dev_err(dev, "mclk not found\n");
+		dev_err(dev, "mclk yest found\n");
 		return PTR_ERR(wcd->mclk);
 	}
 
 	wcd->native_clk = devm_clk_get(dev, "slimbus");
 	if (IS_ERR(wcd->native_clk)) {
-		dev_err(dev, "slimbus clock not found\n");
+		dev_err(dev, "slimbus clock yest found\n");
 		return PTR_ERR(wcd->native_clk);
 	}
 
@@ -5103,7 +5103,7 @@ static int wcd9335_bring_up(struct wcd9335_codec *wcd)
 		regmap_write(rm, WCD9335_CODEC_RPM_PWR_CDC_DIG_HM_CTL, 0x3);
 		regmap_write(rm, WCD9335_CODEC_RPM_RST_CTL, 0x3);
 	} else {
-		dev_err(wcd->dev, "WCD9335 CODEC version not supported\n");
+		dev_err(wcd->dev, "WCD9335 CODEC version yest supported\n");
 		return -EINVAL;
 	}
 
@@ -5119,7 +5119,7 @@ static int wcd9335_irq_init(struct wcd9335_codec *wcd)
 	 * HPH OCP, MBHC, MAD, VBAT, and SVA
 	 * INTR2 is a subset of first interrupt sources MAD, VBAT, and SVA
 	 */
-	wcd->intr1 = of_irq_get_byname(wcd->dev->of_node, "intr1");
+	wcd->intr1 = of_irq_get_byname(wcd->dev->of_yesde, "intr1");
 	if (wcd->intr1 < 0) {
 		if (wcd->intr1 != -EPROBE_DEFER)
 			dev_err(wcd->dev, "Unable to configure IRQ\n");
@@ -5166,13 +5166,13 @@ static int wcd9335_slim_status(struct slim_device *sdev,
 			       enum slim_device_status status)
 {
 	struct device *dev = &sdev->dev;
-	struct device_node *ifc_dev_np;
+	struct device_yesde *ifc_dev_np;
 	struct wcd9335_codec *wcd;
 	int ret;
 
 	wcd = dev_get_drvdata(dev);
 
-	ifc_dev_np = of_parse_phandle(dev->of_node, "slim-ifc-dev", 0);
+	ifc_dev_np = of_parse_phandle(dev->of_yesde, "slim-ifc-dev", 0);
 	if (!ifc_dev_np) {
 		dev_err(dev, "No Interface device found\n");
 		return -EINVAL;
@@ -5180,7 +5180,7 @@ static int wcd9335_slim_status(struct slim_device *sdev,
 
 	wcd->slim = sdev;
 	wcd->slim_ifc_dev = of_slim_get_device(sdev->ctrl, ifc_dev_np);
-	of_node_put(ifc_dev_np);
+	of_yesde_put(ifc_dev_np);
 	if (!wcd->slim_ifc_dev) {
 		dev_err(dev, "Unable to get SLIM Interface device\n");
 		return -EINVAL;

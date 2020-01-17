@@ -203,7 +203,7 @@ static inline void mtk_irq_enable(struct mtk_ir *ir, u32 mask)
 	mtk_w32(ir, val | mask, ir->data->regs[MTK_IRINT_EN_REG]);
 }
 
-static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
+static irqreturn_t mtk_ir_irq(int irqyes, void *dev_id)
 {
 	struct mtk_ir *ir = dev_id;
 	u8  wid = 0;
@@ -213,9 +213,9 @@ static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
 	/*
 	 * Reset decoder state machine explicitly is required
 	 * because 1) the longest duration for space MTK IR hardware
-	 * could record is not safely long. e.g  12ms if rx resolution
+	 * could record is yest safely long. e.g  12ms if rx resolution
 	 * is 46us by default. There is still the risk to satisfying
-	 * every decoder to reset themselves through long enough
+	 * every decoder to reset themselves through long eyesugh
 	 * trailing spaces and 2) the IRQ handler guarantees that
 	 * start of IR message is always contained in and starting
 	 * from register mtk_chkdata_reg(ir, i).
@@ -244,7 +244,7 @@ static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
 	 * is over the limit, the last incomplete IR message would
 	 * be appended trailing space and still would be sent into
 	 * ir-rc-raw to decode. That helps it is possible that it
-	 * has enough information to decode a scancode even if the
+	 * has eyesugh information to decode a scancode even if the
 	 * trailing end of the message is missing.
 	 */
 	if (!MTK_IR_END(wid, rawir.pulse)) {
@@ -294,7 +294,7 @@ MODULE_DEVICE_TABLE(of, mtk_ir_match);
 static int mtk_ir_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node;
+	struct device_yesde *dn = dev->of_yesde;
 	struct resource *res;
 	struct mtk_ir *ir;
 	u32 val;

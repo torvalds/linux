@@ -25,7 +25,7 @@ Required properties:
 - clock-names: Must be "pcie0", "pcie1", "pcieN"... based on the number of
   root ports.
 
-In addition, the device tree node must have sub-nodes describing each PCIe port
+In addition, the device tree yesde must have sub-yesdes describing each PCIe port
 interface, having the following mandatory properties:
 
 Required properties:
@@ -33,7 +33,7 @@ Required properties:
       and device number.
 - #address-cells: Must be 3
 - #size-cells: Must be 2
-- ranges: Sub-ranges distributed from the PCIe controller node. An empty
+- ranges: Sub-ranges distributed from the PCIe controller yesde. An empty
   property is sufficient.
 - bus-range: Range of bus numbers associated with this port.
 

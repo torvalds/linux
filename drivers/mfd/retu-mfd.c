@@ -172,7 +172,7 @@ static void retu_power_off(void)
 
 	mutex_lock(&retu_pm_power_off->mutex);
 
-	/* Ignore power button state */
+	/* Igyesre power button state */
 	regmap_read(rdev->regmap, RETU_REG_CC1, &reg);
 	regmap_write(rdev->regmap, RETU_REG_CC1, reg | 2);
 
@@ -251,7 +251,7 @@ static int retu_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 
 	ret = retu_read(rdev, RETU_REG_ASICR);
 	if (ret < 0) {
-		dev_err(rdev->dev, "could not read %s revision: %d\n",
+		dev_err(rdev->dev, "could yest read %s revision: %d\n",
 			rdat->chip_name, ret);
 		return ret;
 	}
@@ -309,8 +309,8 @@ static const struct i2c_device_id retu_id[] = {
 MODULE_DEVICE_TABLE(i2c, retu_id);
 
 static const struct of_device_id retu_of_match[] = {
-	{ .compatible = "nokia,retu" },
-	{ .compatible = "nokia,tahvo" },
+	{ .compatible = "yeskia,retu" },
+	{ .compatible = "yeskia,tahvo" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, retu_of_match);

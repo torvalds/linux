@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __LINUX_BRIDGE_EBT_LOG_H
 #define __LINUX_BRIDGE_EBT_LOG_H
 

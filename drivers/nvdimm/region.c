@@ -43,7 +43,7 @@ static int nd_region_probe(struct device *dev)
 						       "badblocks");
 		if (!nd_region->bb_state)
 			dev_warn(&nd_region->dev,
-					"'badblocks' notification disabled\n");
+					"'badblocks' yestification disabled\n");
 		ndr_res.start = nd_region->ndr_start;
 		ndr_res.end = nd_region->ndr_start + nd_region->ndr_size - 1;
 		nvdimm_badblocks_populate(nd_region, &nd_region->bb, &ndr_res);
@@ -67,7 +67,7 @@ static int nd_region_probe(struct device *dev)
 		return 0;
 
 	/*
-	 * Given multiple namespaces per region, we do not want to
+	 * Given multiple namespaces per region, we do yest want to
 	 * disable all the successfully registered peer namespaces upon
 	 * a single registration failure.  If userspace is missing a
 	 * namespace that it expects it can disable/re-enable the region
@@ -102,8 +102,8 @@ static int nd_region_remove(struct device *dev)
 	nvdimm_bus_unlock(dev);
 
 	/*
-	 * Note, this assumes nd_device_lock() context to not race
-	 * nd_region_notify()
+	 * Note, this assumes nd_device_lock() context to yest race
+	 * nd_region_yestify()
 	 */
 	sysfs_put(nd_region->bb_state);
 	nd_region->bb_state = NULL;
@@ -111,13 +111,13 @@ static int nd_region_remove(struct device *dev)
 	return 0;
 }
 
-static int child_notify(struct device *dev, void *data)
+static int child_yestify(struct device *dev, void *data)
 {
-	nd_device_notify(dev, *(enum nvdimm_event *) data);
+	nd_device_yestify(dev, *(enum nvdimm_event *) data);
 	return 0;
 }
 
-static void nd_region_notify(struct device *dev, enum nvdimm_event event)
+static void nd_region_yestify(struct device *dev, enum nvdimm_event event)
 {
 	if (event == NVDIMM_REVALIDATE_POISON) {
 		struct nd_region *nd_region = to_nd_region(dev);
@@ -130,16 +130,16 @@ static void nd_region_notify(struct device *dev, enum nvdimm_event event)
 			nvdimm_badblocks_populate(nd_region,
 					&nd_region->bb, &res);
 			if (nd_region->bb_state)
-				sysfs_notify_dirent(nd_region->bb_state);
+				sysfs_yestify_dirent(nd_region->bb_state);
 		}
 	}
-	device_for_each_child(dev, &event, child_notify);
+	device_for_each_child(dev, &event, child_yestify);
 }
 
 static struct nd_device_driver nd_region_driver = {
 	.probe = nd_region_probe,
 	.remove = nd_region_remove,
-	.notify = nd_region_notify,
+	.yestify = nd_region_yestify,
 	.drv = {
 		.name = "nd_region",
 	},

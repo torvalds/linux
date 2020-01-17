@@ -29,13 +29,13 @@
 #define SIRFSOC_WDT_DEFAULT_TIMEOUT	30		/* 30 secs */
 
 static unsigned int timeout;
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 
 module_param(timeout, uint, 0);
-module_param(nowayout, bool, 0);
+module_param(yeswayout, bool, 0);
 
 MODULE_PARM_DESC(timeout, "Default watchdog timeout (in seconds)");
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static void __iomem *sirfsoc_wdt_base(struct watchdog_device *wdd)
@@ -87,7 +87,7 @@ static int sirfsoc_wdt_enable(struct watchdog_device *wdd)
 	sirfsoc_wdt_updatetimeout(wdd);
 
 	/*
-	 * NOTE: If interrupt is not enabled
+	 * NOTE: If interrupt is yest enabled
 	 * then WD-Reset doesn't get generated at all.
 	 */
 	writel(readl(wdt_base + SIRFSOC_TIMER_INT_EN)
@@ -156,7 +156,7 @@ static int sirfsoc_wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(&sirfsoc_wdd, (__force void *)base);
 
 	watchdog_init_timeout(&sirfsoc_wdd, timeout, dev);
-	watchdog_set_nowayout(&sirfsoc_wdd, nowayout);
+	watchdog_set_yeswayout(&sirfsoc_wdd, yeswayout);
 	sirfsoc_wdd.parent = dev;
 
 	watchdog_stop_on_reboot(&sirfsoc_wdd);
@@ -182,7 +182,7 @@ static int sirfsoc_wdt_resume(struct device *dev)
 
 	/*
 	 * NOTE: Since timer controller registers settings are saved
-	 * and restored back by the timer-prima2.c, so we need not
+	 * and restored back by the timer-prima2.c, so we need yest
 	 * update WD settings except refreshing timeout.
 	 */
 	sirfsoc_wdt_updatetimeout(wdd);

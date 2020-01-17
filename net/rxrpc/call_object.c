@@ -63,15 +63,15 @@ struct rxrpc_call *rxrpc_find_call_by_user_ID(struct rxrpc_sock *rx,
 					      unsigned long user_call_ID)
 {
 	struct rxrpc_call *call;
-	struct rb_node *p;
+	struct rb_yesde *p;
 
 	_enter("%p,%lx", rx, user_call_ID);
 
 	read_lock(&rx->call_lock);
 
-	p = rx->calls.rb_node;
+	p = rx->calls.rb_yesde;
 	while (p) {
-		call = rb_entry(p, struct rxrpc_call, sock_node);
+		call = rb_entry(p, struct rxrpc_call, sock_yesde);
 
 		if (user_call_ID < call->user_call_ID)
 			p = p->rb_left;
@@ -109,11 +109,11 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 				    sizeof(struct sk_buff *),
 				    gfp);
 	if (!call->rxtx_buffer)
-		goto nomem;
+		goto yesmem;
 
-	call->rxtx_annotations = kcalloc(RXRPC_RXTX_BUFF_SIZE, sizeof(u8), gfp);
-	if (!call->rxtx_annotations)
-		goto nomem_2;
+	call->rxtx_anyestations = kcalloc(RXRPC_RXTX_BUFF_SIZE, sizeof(u8), gfp);
+	if (!call->rxtx_anyestations)
+		goto yesmem_2;
 
 	mutex_init(&call->user_mutex);
 
@@ -133,7 +133,7 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	INIT_LIST_HEAD(&call->sock_link);
 	init_waitqueue_head(&call->waitq);
 	spin_lock_init(&call->lock);
-	spin_lock_init(&call->notify_lock);
+	spin_lock_init(&call->yestify_lock);
 	spin_lock_init(&call->input_lock);
 	rwlock_init(&call->state_lock);
 	atomic_set(&call->usage, 1);
@@ -142,7 +142,7 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	call->next_rx_timo = 20 * HZ;
 	call->next_req_timo = 1 * HZ;
 
-	memset(&call->sock_node, 0xed, sizeof(call->sock_node));
+	memset(&call->sock_yesde, 0xed, sizeof(call->sock_yesde));
 
 	/* Leave space in the ring to handle a maxed-out jumbo packet */
 	call->rx_winsize = rxrpc_rx_window_size;
@@ -156,9 +156,9 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	atomic_inc(&rxnet->nr_calls);
 	return call;
 
-nomem_2:
+yesmem_2:
 	kfree(call->rxtx_buffer);
-nomem:
+yesmem:
 	kmem_cache_free(rxrpc_call_jar, call);
 	return NULL;
 }
@@ -172,7 +172,7 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
 						  unsigned int debug_id)
 {
 	struct rxrpc_call *call;
-	ktime_t now;
+	ktime_t yesw;
 
 	_enter("");
 
@@ -182,9 +182,9 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
 	call->state = RXRPC_CALL_CLIENT_AWAIT_CONN;
 	call->service_id = srx->srx_service;
 	call->tx_phase = true;
-	now = ktime_get_real();
-	call->acks_latest_ts = now;
-	call->cong_tstamp = now;
+	yesw = ktime_get_real();
+	call->acks_latest_ts = yesw;
+	call->cong_tstamp = yesw;
 
 	_leave(" = %p", call);
 	return call;
@@ -195,8 +195,8 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
  */
 static void rxrpc_start_call_timer(struct rxrpc_call *call)
 {
-	unsigned long now = jiffies;
-	unsigned long j = now + MAX_JIFFY_OFFSET;
+	unsigned long yesw = jiffies;
+	unsigned long j = yesw + MAX_JIFFY_OFFSET;
 
 	call->ack_at = j;
 	call->ack_lost_at = j;
@@ -205,7 +205,7 @@ static void rxrpc_start_call_timer(struct rxrpc_call *call)
 	call->expect_rx_by = j;
 	call->expect_req_by = j;
 	call->expect_term_by = j;
-	call->timer.expires = now;
+	call->timer.expires = yesw;
 }
 
 /*
@@ -224,7 +224,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 {
 	struct rxrpc_call *call, *xcall;
 	struct rxrpc_net *rxnet;
-	struct rb_node *parent, **pp;
+	struct rb_yesde *parent, **pp;
 	const void *here = __builtin_return_address(0);
 	int ret;
 
@@ -252,11 +252,11 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	/* Publish the call, even though it is incompletely set up as yet */
 	write_lock(&rx->call_lock);
 
-	pp = &rx->calls.rb_node;
+	pp = &rx->calls.rb_yesde;
 	parent = NULL;
 	while (*pp) {
 		parent = *pp;
-		xcall = rb_entry(parent, struct rxrpc_call, sock_node);
+		xcall = rb_entry(parent, struct rxrpc_call, sock_yesde);
 
 		if (p->user_call_ID < xcall->user_call_ID)
 			pp = &(*pp)->rb_left;
@@ -270,8 +270,8 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	call->user_call_ID = p->user_call_ID;
 	__set_bit(RXRPC_CALL_HAS_USERID, &call->flags);
 	rxrpc_get_call(call, rxrpc_call_got_userid);
-	rb_link_node(&call->sock_node, parent, pp);
-	rb_insert_color(&call->sock_node, &rx->calls);
+	rb_link_yesde(&call->sock_yesde, parent, pp);
+	rb_insert_color(&call->sock_yesde, &rx->calls);
 	list_add(&call->sock_link, &rx->sock_calls);
 
 	write_unlock(&rx->call_lock);
@@ -380,7 +380,7 @@ bool rxrpc_queue_call(struct rxrpc_call *call)
 		trace_rxrpc_call(call->debug_id, rxrpc_call_queued, n + 1,
 				 here, NULL);
 	else
-		rxrpc_put_call(call, rxrpc_call_put_noqueue);
+		rxrpc_put_call(call, rxrpc_call_put_yesqueue);
 	return true;
 }
 
@@ -396,7 +396,7 @@ bool __rxrpc_queue_call(struct rxrpc_call *call)
 		trace_rxrpc_call(call->debug_id, rxrpc_call_queued_ref, n,
 				 here, NULL);
 	else
-		rxrpc_put_call(call, rxrpc_call_put_noqueue);
+		rxrpc_put_call(call, rxrpc_call_put_yesqueue);
 	return true;
 }
 
@@ -462,7 +462,7 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 
 	del_timer_sync(&call->timer);
 
-	/* Make sure we don't get any more notifications */
+	/* Make sure we don't get any more yestifications */
 	write_lock_bh(&rx->recvmsg_lock);
 
 	if (!list_empty(&call->recvmsg_link)) {
@@ -472,7 +472,7 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 		put = true;
 	}
 
-	/* list_empty() must return false in rxrpc_notify_socket() */
+	/* list_empty() must return false in rxrpc_yestify_socket() */
 	call->recvmsg_link.next = NULL;
 	call->recvmsg_link.prev = NULL;
 
@@ -483,8 +483,8 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 	write_lock(&rx->call_lock);
 
 	if (test_and_clear_bit(RXRPC_CALL_HAS_USERID, &call->flags)) {
-		rb_erase(&call->sock_node, &rx->calls);
-		memset(&call->sock_node, 0xdd, sizeof(call->sock_node));
+		rb_erase(&call->sock_yesde, &rx->calls);
+		memset(&call->sock_yesde, 0xdd, sizeof(call->sock_yesde));
 		rxrpc_put_call(call, rxrpc_call_put_userid);
 	}
 
@@ -571,7 +571,7 @@ static void rxrpc_rcu_destroy_call(struct rcu_head *rcu)
 
 	rxrpc_put_peer(call->peer);
 	kfree(call->rxtx_buffer);
-	kfree(call->rxtx_annotations);
+	kfree(call->rxtx_anyestations);
 	kmem_cache_free(rxrpc_call_jar, call);
 	if (atomic_dec_and_test(&rxnet->nr_calls))
 		wake_up_var(&rxnet->nr_calls);
@@ -584,7 +584,7 @@ void rxrpc_cleanup_call(struct rxrpc_call *call)
 {
 	_net("DESTROY CALL %d", call->debug_id);
 
-	memset(&call->sock_node, 0xcd, sizeof(call->sock_node));
+	memset(&call->sock_yesde, 0xcd, sizeof(call->sock_yesde));
 
 	del_timer_sync(&call->timer);
 
@@ -601,7 +601,7 @@ void rxrpc_cleanup_call(struct rxrpc_call *call)
 /*
  * Make sure that all calls are gone from a network namespace.  To reach this
  * point, any open UDP sockets in that namespace must have been closed, so any
- * outstanding calls cannot be doing I/O.
+ * outstanding calls canyest be doing I/O.
  */
 void rxrpc_destroy_all_calls(struct rxrpc_net *rxnet)
 {

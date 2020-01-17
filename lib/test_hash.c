@@ -23,7 +23,7 @@
 #include <linux/stringhash.h>
 #include <linux/printk.h>
 
-/* 32-bit XORSHIFT generator.  Seed must not be zero. */
+/* 32-bit XORSHIFT generator.  Seed must yest be zero. */
 static u32 __init __attribute_const__
 xorshift(u32 seed)
 {
@@ -33,7 +33,7 @@ xorshift(u32 seed)
 	return seed;
 }
 
-/* Given a non-zero x, returns a non-zero byte. */
+/* Given a yesn-zero x, returns a yesn-zero byte. */
 static u8 __init __attribute_const__
 mod255(u32 x)
 {
@@ -44,7 +44,7 @@ mod255(u32 x)
 	return x;
 }
 
-/* Fill the buffer with non-zero bytes. */
+/* Fill the buffer with yesn-zero bytes. */
 static void __init
 fill_buf(char *buf, size_t len, u32 seed)
 {
@@ -151,7 +151,7 @@ test_hash_init(void)
 
 	fill_buf(buf, SIZE, 1);
 
-	/* Test every possible non-empty substring in the buffer. */
+	/* Test every possible yesn-empty substring in the buffer. */
 	for (j = SIZE; j > 0; --j) {
 		buf[j] = '\0';
 
@@ -219,30 +219,30 @@ test_hash_init(void)
 		}
 	}
 
-	/* Issue notices about skipped tests. */
+	/* Issue yestices about skipped tests. */
 #ifdef HAVE_ARCH__HASH_32
 #if HAVE_ARCH__HASH_32 != 1
-	pr_info("__hash_32() is arch-specific; not compared to generic.");
+	pr_info("__hash_32() is arch-specific; yest compared to generic.");
 #endif
 #else
-	pr_info("__hash_32() has no arch implementation to test.");
+	pr_info("__hash_32() has yes arch implementation to test.");
 #endif
 #ifdef HAVE_ARCH_HASH_32
 #if HAVE_ARCH_HASH_32 != 1
-	pr_info("hash_32() is arch-specific; not compared to generic.");
+	pr_info("hash_32() is arch-specific; yest compared to generic.");
 #endif
 #else
-	pr_info("hash_32() has no arch implementation to test.");
+	pr_info("hash_32() has yes arch implementation to test.");
 #endif
 #ifdef HAVE_ARCH_HASH_64
 #if HAVE_ARCH_HASH_64 != 1
-	pr_info("hash_64() is arch-specific; not compared to generic.");
+	pr_info("hash_64() is arch-specific; yest compared to generic.");
 #endif
 #else
-	pr_info("hash_64() has no arch implementation to test.");
+	pr_info("hash_64() has yes arch implementation to test.");
 #endif
 
-	pr_notice("%u tests passed.", tests);
+	pr_yestice("%u tests passed.", tests);
 
 	return 0;
 }
@@ -252,6 +252,6 @@ static void __exit test_hash_exit(void)
 }
 
 module_init(test_hash_init);	/* Does everything */
-module_exit(test_hash_exit);	/* Does nothing */
+module_exit(test_hash_exit);	/* Does yesthing */
 
 MODULE_LICENSE("GPL");

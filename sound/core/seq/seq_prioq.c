@@ -11,7 +11,7 @@
 #include "seq_prioq.h"
 
 
-/* Implementation is a simple linked list for now...
+/* Implementation is a simple linked list for yesw...
 
    This priority queue orders the events on timestamp. For events with an
    equeal timestamp the queue behaves as a FIFO. 
@@ -164,7 +164,7 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 	prev = NULL;		/* previous cell */
 	cur = f->head;		/* cursor */
 
-	count = 10000; /* FIXME: enough big, isn't it? */
+	count = 10000; /* FIXME: eyesugh big, isn't it? */
 	while (cur != NULL) {
 		/* compare timestamps */
 		int rel = compare_timestamp_rel(&cell->event, &cur->event);
@@ -180,7 +180,7 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 		cur = cur->next;
 		if (! --count) {
 			spin_unlock_irqrestore(&f->lock, flags);
-			pr_err("ALSA: seq: cannot find a pointer.. infinite loop?\n");
+			pr_err("ALSA: seq: canyest find a pointer.. infinite loop?\n");
 			return -EINVAL;
 		}
 	}
@@ -338,8 +338,8 @@ static int prioq_remove_match(struct snd_seq_remove_events *info,
 	if (info->remove_mode & SNDRV_SEQ_REMOVE_DEST_CHANNEL) {
 		if (! snd_seq_ev_is_channel_type(ev))
 			return 0;
-		/* data.note.channel and data.control.channel are identical */
-		if (ev->data.note.channel != info->channel)
+		/* data.yeste.channel and data.control.channel are identical */
+		if (ev->data.yeste.channel != info->channel)
 			return 0;
 	}
 	if (info->remove_mode & SNDRV_SEQ_REMOVE_TIME_AFTER) {
@@ -363,7 +363,7 @@ static int prioq_remove_match(struct snd_seq_remove_events *info,
 			return 0;
 	}
 	if (info->remove_mode & SNDRV_SEQ_REMOVE_IGNORE_OFF) {
-		/* Do not remove off events */
+		/* Do yest remove off events */
 		switch (ev->type) {
 		case SNDRV_SEQ_EVENT_NOTEOFF:
 		/* case SNDRV_SEQ_EVENT_SAMPLE_STOP: */

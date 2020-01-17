@@ -68,7 +68,7 @@ v3d_overflow_mem_work(struct work_struct *work)
 	list_add_tail(&bo->unref_head, &v3d->bin_job->render->unref_list);
 	spin_unlock_irqrestore(&v3d->job_lock, irqflags);
 
-	V3D_CORE_WRITE(0, V3D_PTB_BPOA, bo->node.start << PAGE_SHIFT);
+	V3D_CORE_WRITE(0, V3D_PTB_BPOA, bo->yesde.start << PAGE_SHIFT);
 	V3D_CORE_WRITE(0, V3D_PTB_BPOS, obj->size);
 
 out:
@@ -84,7 +84,7 @@ v3d_irq(int irq, void *arg)
 
 	intsts = V3D_CORE_READ(0, V3D_CTL_INT_STS);
 
-	/* Acknowledge the interrupts we're handling here. */
+	/* Ackyeswledge the interrupts we're handling here. */
 	V3D_CORE_WRITE(0, V3D_CTL_INT_CLR, intsts);
 
 	if (intsts & V3D_INT_OUTOMEM) {
@@ -101,7 +101,7 @@ v3d_irq(int irq, void *arg)
 		struct v3d_fence *fence =
 			to_v3d_fence(v3d->bin_job->base.irq_fence);
 
-		trace_v3d_bcl_irq(&v3d->drm, fence->seqno);
+		trace_v3d_bcl_irq(&v3d->drm, fence->seqyes);
 		dma_fence_signal(&fence->base);
 		status = IRQ_HANDLED;
 	}
@@ -110,7 +110,7 @@ v3d_irq(int irq, void *arg)
 		struct v3d_fence *fence =
 			to_v3d_fence(v3d->render_job->base.irq_fence);
 
-		trace_v3d_rcl_irq(&v3d->drm, fence->seqno);
+		trace_v3d_rcl_irq(&v3d->drm, fence->seqyes);
 		dma_fence_signal(&fence->base);
 		status = IRQ_HANDLED;
 	}
@@ -119,7 +119,7 @@ v3d_irq(int irq, void *arg)
 		struct v3d_fence *fence =
 			to_v3d_fence(v3d->csd_job->base.irq_fence);
 
-		trace_v3d_csd_irq(&v3d->drm, fence->seqno);
+		trace_v3d_csd_irq(&v3d->drm, fence->seqyes);
 		dma_fence_signal(&fence->base);
 		status = IRQ_HANDLED;
 	}
@@ -148,14 +148,14 @@ v3d_hub_irq(int irq, void *arg)
 
 	intsts = V3D_READ(V3D_HUB_INT_STS);
 
-	/* Acknowledge the interrupts we're handling here. */
+	/* Ackyeswledge the interrupts we're handling here. */
 	V3D_WRITE(V3D_HUB_INT_CLR, intsts);
 
 	if (intsts & V3D_HUB_INT_TFUC) {
 		struct v3d_fence *fence =
 			to_v3d_fence(v3d->tfu_job->base.irq_fence);
 
-		trace_v3d_tfu_irq(&v3d->drm, fence->seqno);
+		trace_v3d_tfu_irq(&v3d->drm, fence->seqyes);
 		dma_fence_signal(&fence->base);
 		status = IRQ_HANDLED;
 	}

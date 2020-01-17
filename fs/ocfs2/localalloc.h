@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * localalloc.h
  *
@@ -20,11 +20,11 @@ void ocfs2_la_set_sizes(struct ocfs2_super *osb, int requested_mb);
 unsigned int ocfs2_la_default_mb(struct ocfs2_super *osb);
 
 int ocfs2_begin_local_alloc_recovery(struct ocfs2_super *osb,
-				     int node_num,
-				     struct ocfs2_dinode **alloc_copy);
+				     int yesde_num,
+				     struct ocfs2_diyesde **alloc_copy);
 
 int ocfs2_complete_local_alloc_recovery(struct ocfs2_super *osb,
-					struct ocfs2_dinode *alloc);
+					struct ocfs2_diyesde *alloc);
 
 int ocfs2_alloc_should_use_local(struct ocfs2_super *osb,
 				 u64 bits);

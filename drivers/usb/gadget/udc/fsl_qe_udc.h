@@ -178,7 +178,7 @@ struct qe_frame{
 	u32 info;
 
 	void *privdata;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 /* Frame structure, info field. */
@@ -246,7 +246,7 @@ static inline void qe_frame_clean(struct qe_frame *frm)
 static inline void qe_frame_init(struct qe_frame *frm)
 {
 	qe_frame_clean(frm);
-	INIT_LIST_HEAD(&(frm->node));
+	INIT_LIST_HEAD(&(frm->yesde));
 }
 
 struct qe_req {

@@ -43,7 +43,7 @@ SYM_FUNC_END(xen_irq_enable_direct)
 
 /*
  * Disabling events is simply a matter of making the event mask
- * non-zero.
+ * yesn-zero.
  */
 SYM_FUNC_START(xen_irq_disable_direct)
 	movb $1, PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_mask

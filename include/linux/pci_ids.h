@@ -4,7 +4,7 @@
  *
  *	Please keep sorted.
  *
- *	Do not add new entries to this file unless the definitions
+ *	Do yest add new entries to this file unless the definitions
  *	are shared between multiple drivers.
  */
 #ifndef _LINUX_PCI_IDS_H

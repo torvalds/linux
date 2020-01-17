@@ -62,7 +62,7 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 		    "BS_%d : In beiscsi_session_create\n");
 	if (cmds_max > beiscsi_ep->phba->params.wrbs_per_cxn) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Cannot handle %d cmds."
+			    "BS_%d : Canyest handle %d cmds."
 			    "Max cmds per session supported is %d. Using %d."
 			    "\n", cmds_max,
 			    beiscsi_ep->phba->params.wrbs_per_cxn,
@@ -192,7 +192,7 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 
 	if (beiscsi_ep->phba != phba) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : beiscsi_ep->hba=%p not equal to phba=%p\n",
+			    "BS_%d : beiscsi_ep->hba=%p yest equal to phba=%p\n",
 			    beiscsi_ep->phba, phba);
 
 		return -EEXIST;
@@ -202,7 +202,7 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 		if (beiscsi_conn != phba->conn_table[cri_index] ||
 		    beiscsi_ep != phba->conn_table[cri_index]->ep) {
 			__beiscsi_log(phba, KERN_ERR,
-				      "BS_%d : conn_table not empty at %u: cid %u conn %p:%p\n",
+				      "BS_%d : conn_table yest empty at %u: cid %u conn %p:%p\n",
 				      cri_index,
 				      beiscsi_ep->ep_cid,
 				      beiscsi_conn,
@@ -238,7 +238,7 @@ static int beiscsi_iface_create_ipv4(struct beiscsi_hba *phba)
 					      0, 0);
 	if (!phba->ipv4_iface) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Could not "
+			    "BS_%d : Could yest "
 			    "create default IPv4 address.\n");
 		return -ENODEV;
 	}
@@ -257,7 +257,7 @@ static int beiscsi_iface_create_ipv6(struct beiscsi_hba *phba)
 					      0, 0);
 	if (!phba->ipv6_iface) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Could not "
+			    "BS_%d : Could yest "
 			    "create default IPv6 address.\n");
 		return -ENODEV;
 	}
@@ -486,7 +486,7 @@ int beiscsi_iface_set_param(struct Scsi_Host *shost,
 
 		if (ret == -EPERM) {
 			__beiscsi_log(phba, KERN_ERR,
-				      "BS_%d : %s.0 set param %d not permitted",
+				      "BS_%d : %s.0 set param %d yest permitted",
 				      (iface_param->iface_type ==
 				       ISCSI_IFACE_TYPE_IPV4) ? "ipv4" : "ipv6",
 				      iface_param->param);
@@ -867,11 +867,11 @@ static void  beiscsi_set_params_for_offld(struct beiscsi_conn *beiscsi_conn,
 	AMAP_SET_BITS(struct amap_beiscsi_offload_params, imd, params,
 		      session->imm_data_en);
 	AMAP_SET_BITS(struct amap_beiscsi_offload_params,
-		      data_seq_inorder, params,
-		      session->dataseq_inorder_en);
+		      data_seq_iyesrder, params,
+		      session->dataseq_iyesrder_en);
 	AMAP_SET_BITS(struct amap_beiscsi_offload_params,
-		      pdu_seq_inorder, params,
-		      session->pdu_inorder_en);
+		      pdu_seq_iyesrder, params,
+		      session->pdu_iyesrder_en);
 	AMAP_SET_BITS(struct amap_beiscsi_offload_params, max_r2t, params,
 		      session->max_r2t);
 	AMAP_SET_BITS(struct amap_beiscsi_offload_params, exp_statsn, params,
@@ -909,7 +909,7 @@ int beiscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 	if (!beiscsi_ep)
 		beiscsi_log(beiscsi_conn->phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG,
-			    "BS_%d : In beiscsi_conn_start , no beiscsi_ep\n");
+			    "BS_%d : In beiscsi_conn_start , yes beiscsi_ep\n");
 
 	beiscsi_conn->login_in_progress = 0;
 	beiscsi_set_params_for_offld(beiscsi_conn, &params);
@@ -1015,7 +1015,7 @@ static void beiscsi_free_ep(struct beiscsi_endpoint *beiscsi_ep)
 	beiscsi_conn = beiscsi_ep->conn;
 	/**
 	 * Break ep->conn link here so that completions after
-	 * this are ignored.
+	 * this are igyesred.
 	 */
 	beiscsi_ep->conn = NULL;
 	if (beiscsi_conn->login_in_progress) {
@@ -1035,12 +1035,12 @@ static void beiscsi_free_ep(struct beiscsi_endpoint *beiscsi_ep)
  */
 static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 			     struct sockaddr *src_addr,
-			     struct sockaddr *dst_addr, int non_blocking)
+			     struct sockaddr *dst_addr, int yesn_blocking)
 {
 	struct beiscsi_endpoint *beiscsi_ep = ep->dd_data;
 	struct beiscsi_hba *phba = beiscsi_ep->phba;
 	struct tcp_connect_and_offload_out *ptcpcnct_out;
-	struct be_dma_mem nonemb_cmd;
+	struct be_dma_mem yesnemb_cmd;
 	unsigned int tag, req_memsize;
 	int ret = -ENOMEM;
 
@@ -1068,10 +1068,10 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 	else
 		req_memsize = sizeof(struct tcp_connect_and_offload_in_v1);
 
-	nonemb_cmd.va = dma_alloc_coherent(&phba->ctrl.pdev->dev,
+	yesnemb_cmd.va = dma_alloc_coherent(&phba->ctrl.pdev->dev,
 				req_memsize,
-				&nonemb_cmd.dma, GFP_KERNEL);
-	if (nonemb_cmd.va == NULL) {
+				&yesnemb_cmd.dma, GFP_KERNEL);
+	if (yesnemb_cmd.va == NULL) {
 
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : Failed to allocate memory for"
@@ -1080,21 +1080,21 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		beiscsi_free_ep(beiscsi_ep);
 		return -ENOMEM;
 	}
-	nonemb_cmd.size = req_memsize;
-	memset(nonemb_cmd.va, 0, nonemb_cmd.size);
-	tag = mgmt_open_connection(phba, dst_addr, beiscsi_ep, &nonemb_cmd);
+	yesnemb_cmd.size = req_memsize;
+	memset(yesnemb_cmd.va, 0, yesnemb_cmd.size);
+	tag = mgmt_open_connection(phba, dst_addr, beiscsi_ep, &yesnemb_cmd);
 	if (!tag) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : mgmt_open_connection Failed for cid=%d\n",
 			    beiscsi_ep->ep_cid);
 
-		dma_free_coherent(&phba->ctrl.pdev->dev, nonemb_cmd.size,
-				    nonemb_cmd.va, nonemb_cmd.dma);
+		dma_free_coherent(&phba->ctrl.pdev->dev, yesnemb_cmd.size,
+				    yesnemb_cmd.va, yesnemb_cmd.dma);
 		beiscsi_free_ep(beiscsi_ep);
 		return -EAGAIN;
 	}
 
-	ret = beiscsi_mccq_compl_wait(phba, tag, NULL, &nonemb_cmd);
+	ret = beiscsi_mccq_compl_wait(phba, tag, NULL, &yesnemb_cmd);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
@@ -1102,22 +1102,22 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 
 		if (ret != -EBUSY)
 			dma_free_coherent(&phba->ctrl.pdev->dev,
-					nonemb_cmd.size, nonemb_cmd.va,
-					nonemb_cmd.dma);
+					yesnemb_cmd.size, yesnemb_cmd.va,
+					yesnemb_cmd.dma);
 
 		beiscsi_free_ep(beiscsi_ep);
 		return ret;
 	}
 
-	ptcpcnct_out = (struct tcp_connect_and_offload_out *)nonemb_cmd.va;
+	ptcpcnct_out = (struct tcp_connect_and_offload_out *)yesnemb_cmd.va;
 	beiscsi_ep = ep->dd_data;
 	beiscsi_ep->fw_handle = ptcpcnct_out->connection_handle;
 	beiscsi_ep->cid_vld = 1;
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 		    "BS_%d : mgmt_open_connection Success\n");
 
-	dma_free_coherent(&phba->ctrl.pdev->dev, nonemb_cmd.size,
-			    nonemb_cmd.va, nonemb_cmd.dma);
+	dma_free_coherent(&phba->ctrl.pdev->dev, yesnemb_cmd.size,
+			    yesnemb_cmd.va, yesnemb_cmd.dma);
 	return 0;
 }
 
@@ -1125,13 +1125,13 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
  * beiscsi_ep_connect - Ask chip to create TCP Conn
  * @scsi_host: Pointer to scsi_host structure
  * @dst_addr: The IP address of Target
- * @non_blocking: blocking or non-blocking call
+ * @yesn_blocking: blocking or yesn-blocking call
  *
  * This routines first asks chip to create a connection and then allocates an EP
  */
 struct iscsi_endpoint *
 beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
-		   int non_blocking)
+		   int yesn_blocking)
 {
 	struct beiscsi_hba *phba;
 	struct beiscsi_endpoint *beiscsi_ep;
@@ -1167,7 +1167,7 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	beiscsi_ep = ep->dd_data;
 	beiscsi_ep->phba = phba;
 	beiscsi_ep->openiscsi_ep = ep;
-	ret = beiscsi_open_conn(ep, NULL, dst_addr, non_blocking);
+	ret = beiscsi_open_conn(ep, NULL, dst_addr, yesn_blocking);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : Failed in beiscsi_open_conn\n");
@@ -1320,7 +1320,7 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 	} else {
 		/**
 		 * Make CID available even if close fails.
-		 * If not freed, FW might fail open using the CID.
+		 * If yest freed, FW might fail open using the CID.
 		 */
 		if (beiscsi_conn_close(beiscsi_ep) < 0)
 			__beiscsi_log(phba, KERN_ERR,

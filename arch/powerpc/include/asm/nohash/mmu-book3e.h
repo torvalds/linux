@@ -289,7 +289,7 @@ extern int mmu_vmemmap_psize;
 
 struct tlb_core_data {
 	/*
-	 * Per-core spinlock for e6500 TLB handlers (no tlbsrx.)
+	 * Per-core spinlock for e6500 TLB handlers (yes tlbsrx.)
 	 * Must be the first struct element.
 	 */
 	u8 lock;

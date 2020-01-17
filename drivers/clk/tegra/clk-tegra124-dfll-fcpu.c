@@ -523,12 +523,12 @@ static const struct of_device_id tegra124_dfll_fcpu_of_match[] = {
 static void get_alignment_from_dt(struct device *dev,
 				  struct rail_alignment *align)
 {
-	if (of_property_read_u32(dev->of_node,
+	if (of_property_read_u32(dev->of_yesde,
 				 "nvidia,pwm-voltage-step-microvolts",
 				 &align->step_uv))
 		align->step_uv = 0;
 
-	if (of_property_read_u32(dev->of_node,
+	if (of_property_read_u32(dev->of_yesde,
 				 "nvidia,pwm-min-microvolts",
 				 &align->offset_uv))
 		align->offset_uv = 0;
@@ -566,7 +566,7 @@ static int tegra124_dfll_fcpu_probe(struct platform_device *pdev)
 	speedo_value = tegra_sku_info.cpu_speedo_value;
 
 	if (speedo_id >= fcpu_data->cpu_max_freq_table_size) {
-		dev_err(&pdev->dev, "unknown max CPU freq for speedo_id=%d\n",
+		dev_err(&pdev->dev, "unkyeswn max CPU freq for speedo_id=%d\n",
 			speedo_id);
 		return -ENODEV;
 	}
@@ -577,11 +577,11 @@ static int tegra124_dfll_fcpu_probe(struct platform_device *pdev)
 
 	soc->dev = get_cpu_device(0);
 	if (!soc->dev) {
-		dev_err(&pdev->dev, "no CPU0 device\n");
+		dev_err(&pdev->dev, "yes CPU0 device\n");
 		return -ENODEV;
 	}
 
-	if (of_property_read_bool(pdev->dev.of_node, "nvidia,pwm-to-pmic")) {
+	if (of_property_read_bool(pdev->dev.of_yesde, "nvidia,pwm-to-pmic")) {
 		get_alignment_from_dt(&pdev->dev, &align);
 	} else {
 		err = get_alignment_from_regulator(&pdev->dev, &align);

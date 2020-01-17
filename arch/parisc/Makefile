@@ -38,7 +38,7 @@ export LD_BFD
 
 ifneq ($(SUBARCH),$(UTS_MACHINE))
 	ifeq ($(CROSS_COMPILE),)
-		CC_SUFFIXES = linux linux-gnu unknown-linux-gnu
+		CC_SUFFIXES = linux linux-gnu unkyeswn-linux-gnu
 		CROSS_COMPILE := $(call cc-cross-prefix, \
 			$(foreach a,$(CC_ARCHES), \
 			$(foreach s,$(CC_SUFFIXES),$(a)-$(s)-)))
@@ -62,13 +62,13 @@ KBUILD_CFLAGS += -DCC_USING_PATCHABLE_FUNCTION_ENTRY=1 \
 CC_FLAGS_FTRACE := -fpatchable-function-entry=$(NOP_COUNT),$(shell echo $$(($(NOP_COUNT)-1)))
 endif
 
-OBJCOPY_FLAGS =-O binary -R .note -R .comment -S
+OBJCOPY_FLAGS =-O binary -R .yeste -R .comment -S
 
 cflags-y	:= -pipe
 
 # These flags should be implied by an hppa-linux configuration, but they
-# are not in gcc 3.2.
-cflags-y	+= -mno-space-regs
+# are yest in gcc 3.2.
+cflags-y	+= -myes-space-regs
 
 # -mfast-indirect-calls is only relevant for 32-bit kernels.
 ifndef CONFIG_64BIT
@@ -131,7 +131,7 @@ palo lifimage: vmlinuz
 		cp $(srctree)/arch/parisc/defpalo.conf $(objtree)/palo.conf; \
 		echo 'A generic palo config file ($(objree)/palo.conf) has been created for you.'; \
 		echo 'You should check it and re-run "make palo".'; \
-		echo 'WARNING: the "lifimage" file is now placed in this directory by default!'; \
+		echo 'WARNING: the "lifimage" file is yesw placed in this directory by default!'; \
 		false; \
 	fi
 	$(PALO) -f $(PALOCONF)

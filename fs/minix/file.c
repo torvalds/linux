@@ -24,7 +24,7 @@ const struct file_operations minix_file_operations = {
 
 static int minix_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 	int error;
 
 	error = setattr_prepare(dentry, attr);
@@ -32,21 +32,21 @@ static int minix_setattr(struct dentry *dentry, struct iattr *attr)
 		return error;
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		error = inode_newsize_ok(inode, attr->ia_size);
+	    attr->ia_size != i_size_read(iyesde)) {
+		error = iyesde_newsize_ok(iyesde, attr->ia_size);
 		if (error)
 			return error;
 
-		truncate_setsize(inode, attr->ia_size);
-		minix_truncate(inode);
+		truncate_setsize(iyesde, attr->ia_size);
+		minix_truncate(iyesde);
 	}
 
-	setattr_copy(inode, attr);
-	mark_inode_dirty(inode);
+	setattr_copy(iyesde, attr);
+	mark_iyesde_dirty(iyesde);
 	return 0;
 }
 
-const struct inode_operations minix_file_inode_operations = {
+const struct iyesde_operations minix_file_iyesde_operations = {
 	.setattr	= minix_setattr,
 	.getattr	= minix_getattr,
 };

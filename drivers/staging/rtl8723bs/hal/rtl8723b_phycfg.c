@@ -27,7 +27,7 @@
 * Input:
 *		u32 	BitMask,
 *
-* Output:	none
+* Output:	yesne
 * Return:		u32 	Return the shift bit bit position of the mask
 */
 static	u32 phy_CalculateBitShift(u32 BitMask)
@@ -108,7 +108,7 @@ void PHY_SetBBReg_8723B(
 
 	/* RT_TRACE(COMP_RF, DBG_TRACE, ("--->PHY_SetBBReg(): RegAddr(%#lx), BitMask(%#lx), Data(%#lx)\n", RegAddr, BitMask, Data)); */
 
-	if (BitMask != bMaskDWord) { /* if not "double word" write */
+	if (BitMask != bMaskDWord) { /* if yest "double word" write */
 		OriginalValue = rtw_read32(Adapter, RegAddr);
 		BitShift = phy_CalculateBitShift(BitMask);
 		Data = ((OriginalValue & (~BitMask)) | ((Data << BitShift) & BitMask));
@@ -693,7 +693,7 @@ static void phy_SetRegBW_8723B(
 		break;
 
 	default:
-		DBG_871X("phy_PostSetBWMode8723B():	unknown Bandwidth: %#X\n", CurrentBW);
+		DBG_871X("phy_PostSetBWMode8723B():	unkyeswn Bandwidth: %#X\n", CurrentBW);
 		break;
 	}
 }
@@ -812,7 +812,7 @@ static void phy_PostSetBwMode8723B(struct adapter *Adapter)
 		break;
 
 	default:
-		/*RT_TRACE(COMP_DBG, DBG_LOUD, ("phy_SetBWMode8723B(): unknown Bandwidth: %#X\n"\
+		/*RT_TRACE(COMP_DBG, DBG_LOUD, ("phy_SetBWMode8723B(): unkyeswn Bandwidth: %#X\n"\
 					, pHalData->CurrentChannelBW));*/
 		break;
 	}
@@ -890,7 +890,7 @@ static void PHY_HandleSwChnlAndSetBW8723B(
 
 	/* check is swchnl or setbw */
 	if (!bSwitchChannel && !bSetBandWidth) {
-		DBG_871X("PHY_HandleSwChnlAndSetBW8812:  not switch channel and not set bandwidth\n");
+		DBG_871X("PHY_HandleSwChnlAndSetBW8812:  yest switch channel and yest set bandwidth\n");
 		return;
 	}
 

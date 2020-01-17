@@ -272,7 +272,7 @@ static u8 mts64_map_midi_input(u8 c)
  *  Do we have a Miditerminal 4140 on parport? 
  *  Returns:
  *  0       device found
- *  -ENODEV no device
+ *  -ENODEV yes device
  */
 static int mts64_probe(struct parport *p)
 {
@@ -425,7 +425,7 @@ static void mts64_write_midi(struct mts64 *mts, u8 c,
  *********************************************************************/
 
 /* SMPTE Switch */
-#define snd_mts64_ctl_smpte_switch_info		snd_ctl_boolean_mono_info
+#define snd_mts64_ctl_smpte_switch_info		snd_ctl_boolean_moyes_info
 
 static int snd_mts64_ctl_smpte_switch_get(struct snd_kcontrol* kctl,
 					  struct snd_ctl_elem_value *uctl)
@@ -439,7 +439,7 @@ static int snd_mts64_ctl_smpte_switch_get(struct snd_kcontrol* kctl,
 	return 0;
 }
 
-/* smpte_switch is not accessed from IRQ handler, so we just need
+/* smpte_switch is yest accessed from IRQ handler, so we just need
    to protect the HW access */
 static int snd_mts64_ctl_smpte_switch_put(struct snd_kcontrol* kctl,
 					  struct snd_ctl_elem_value *uctl)
@@ -653,7 +653,7 @@ static int snd_mts64_ctl_create(struct snd_card *card,
 	for (i = 0; control[i]; ++i) {
 		err = snd_ctl_add(card, snd_ctl_new1(control[i], mts));
 		if (err < 0) {
-			snd_printd("Cannot create control: %s\n", 
+			snd_printd("Canyest create control: %s\n", 
 				   control[i]->name);
 			return err;
 		}
@@ -673,7 +673,7 @@ static int snd_mts64_rawmidi_open(struct snd_rawmidi_substream *substream)
 
 	if (mts->open_count == 0) {
 		/* We don't need a spinlock here, because this is just called 
-		   if the device has not been opened before. 
+		   if the device has yest been opened before. 
 		   So there aren't any IRQs from the device */
 		mts64_device_open(mts);
 
@@ -851,7 +851,7 @@ static void snd_mts64_attach(struct parport *p)
 	}
 
 	/* Since we dont get the return value of probe
-	 * We need to check if device probing succeeded or not */
+	 * We need to check if device probing succeeded or yest */
 	if (!platform_get_drvdata(device)) {
 		platform_device_unregister(device);
 		return;
@@ -864,7 +864,7 @@ static void snd_mts64_attach(struct parport *p)
 
 static void snd_mts64_detach(struct parport *p)
 {
-	/* nothing to do here */
+	/* yesthing to do here */
 }
 
 static int snd_mts64_dev_probe(struct pardevice *pardev)
@@ -925,7 +925,7 @@ static int snd_mts64_probe(struct platform_device *pdev)
 	err = snd_card_new(&pdev->dev, index[dev], id[dev], THIS_MODULE,
 			   0, &card);
 	if (err < 0) {
-		snd_printd("Cannot create card\n");
+		snd_printd("Canyest create card\n");
 		return err;
 	}
 	strcpy(card->driver, DRIVER_NAME);
@@ -939,20 +939,20 @@ static int snd_mts64_probe(struct platform_device *pdev)
 					    &mts64_cb,	 /* callbacks */
 					    pdev->id);	 /* device number */
 	if (!pardev) {
-		snd_printd("Cannot register pardevice\n");
+		snd_printd("Canyest register pardevice\n");
 		err = -EIO;
 		goto __err;
 	}
 
 	/* claim parport */
 	if (parport_claim(pardev)) {
-		snd_printd("Cannot claim parport 0x%lx\n", pardev->port->base);
+		snd_printd("Canyest claim parport 0x%lx\n", pardev->port->base);
 		err = -EIO;
 		goto free_pardev;
 	}
 
 	if ((err = snd_mts64_create(card, pardev, &mts)) < 0) {
-		snd_printd("Cannot create main component\n");
+		snd_printd("Canyest create main component\n");
 		goto release_pardev;
 	}
 	card->private_data = mts;
@@ -977,7 +977,7 @@ static int snd_mts64_probe(struct platform_device *pdev)
 
 	/* At this point card will be usable */
 	if ((err = snd_card_register(card)) < 0) {
-		snd_printd("Cannot register card\n");
+		snd_printd("Canyest register card\n");
 		goto __err;
 	}
 

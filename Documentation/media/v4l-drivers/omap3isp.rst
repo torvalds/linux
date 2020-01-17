@@ -66,7 +66,7 @@ partial frames.
 
 Autoidle does have issues with some ISP blocks on the 3430, at least.
 Autoidle is only enabled on 3630 when the omap3isp module parameter autoidle
-is non-zero.
+is yesn-zero.
 
 
 Events
@@ -96,8 +96,8 @@ are:
 
 The type of the event data is struct omap3isp_stat_event_status for these
 ioctls. If there is an error calculating the statistics, there will be an
-event as usual, but no related statistics buffer. In this case
-omap3isp_stat_event_status.buf_err is set to non-zero.
+event as usual, but yes related statistics buffer. In this case
+omap3isp_stat_event_status.buf_err is set to yesn-zero.
 
 
 Private IOCTLs
@@ -105,7 +105,7 @@ Private IOCTLs
 
 The OMAP 3 ISP driver supports standard V4L2 IOCTLs and controls where
 possible and practical. Much of the functions provided by the ISP, however,
-does not fall under the standard IOCTLs --- gamma tables and configuration of
+does yest fall under the standard IOCTLs --- gamma tables and configuration of
 statistics collection are examples of such.
 
 In general, there is a private ioctl for configuring each of the blocks
@@ -127,8 +127,8 @@ a given ISP block is described in the Technical Reference Manuals (TRMs) ---
 see the end of the document for those.
 
 While it is possible to use the ISP driver without any use of these private
-IOCTLs it is not possible to obtain optimal image quality this way. The AEWB,
-AF and histogram modules cannot be used without configuring them using the
+IOCTLs it is yest possible to obtain optimal image quality this way. The AEWB,
+AF and histogram modules canyest be used without configuring them using the
 appropriate private IOCTLs.
 
 
@@ -185,9 +185,9 @@ The corresponding values for the VIDIOC_OMAP3ISP_PRV_CFG are here:
 - OMAP3ISP_PREV_NF
 - OMAP3ISP_PREV_GAMMA
 
-The associated configuration pointer for the function may not be NULL when
+The associated configuration pointer for the function may yest be NULL when
 enabling the function. When disabling a function the configuration pointer is
-ignored.
+igyesred.
 
 
 Statistic blocks IOCTLs
@@ -199,7 +199,7 @@ is in streaming state.
 
 The statistics blocks always get the input image data from the CCDC (as the
 histogram memory read isn't implemented). The statistics are dequeueable by
-the user from the statistics subdev nodes using private IOCTLs.
+the user from the statistics subdev yesdes using private IOCTLs.
 
 The private IOCTLs offered by the AEWB, AF and histogram subdevs are heavily
 reflected by the register level interface offered by the ISP hardware. There
@@ -218,16 +218,16 @@ VIDIOC_OMAP3ISP_AEWB_CFG, VIDIOC_OMAP3ISP_HIST_CFG and VIDIOC_OMAP3ISP_AF_CFG
 -----------------------------------------------------------------------------
 
 Those IOCTLs are used to configure the modules. They require user applications
-to have an in-depth knowledge of the hardware. Most of the fields explanation
+to have an in-depth kyeswledge of the hardware. Most of the fields explanation
 can be found on OMAP's TRMs. The two following fields common to all the above
 configure private IOCTLs require explanation for better understanding as they
-are not part of the TRM.
+are yest part of the TRM.
 
 omap3isp_[h3a_af/h3a_aewb/hist]\_config.buf_size:
 
 The modules handle their buffers internally. The necessary buffer size for the
 module's data output depends on the requested configuration. Although the
-driver supports reconfiguration while streaming, it does not support a
+driver supports reconfiguration while streaming, it does yest support a
 reconfiguration which requires bigger buffer size than what is already
 internally allocated if the module is enabled. It will return -EBUSY on this
 case. In order to avoid such condition, either disable/reconfigure/enable the
@@ -242,7 +242,7 @@ written back to user application.
 
 omap3isp_[h3a_af/h3a_aewb/hist]\_config.config_counter:
 
-As the configuration doesn't take effect synchronously to the request, the
+As the configuration doesn't take effect synchroyesusly to the request, the
 driver must provide a way to track this information to provide more accurate
 data. After a configuration is requested, the config_counter returned to user
 space application will be an unique value associated to that request. When

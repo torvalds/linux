@@ -198,17 +198,17 @@ struct msm8974_icc_provider {
 #define MSM8974_ICC_MAX_LINKS	3
 
 /**
- * struct msm8974_icc_node - Qualcomm specific interconnect nodes
- * @name: the node name used in debugfs
- * @id: a unique node identifier
- * @links: an array of nodes where we can go next while traversing
+ * struct msm8974_icc_yesde - Qualcomm specific interconnect yesdes
+ * @name: the yesde name used in debugfs
+ * @id: a unique yesde identifier
+ * @links: an array of yesdes where we can go next while traversing
  * @num_links: the total number of @links
- * @buswidth: width of the interconnect between a node and the bus (bytes)
+ * @buswidth: width of the interconnect between a yesde and the bus (bytes)
  * @mas_rpm_id:	RPM ID for devices that are bus masters
  * @slv_rpm_id:	RPM ID for devices that are bus slaves
  * @rate: current bus clock rate in Hz
  */
-struct msm8974_icc_node {
+struct msm8974_icc_yesde {
 	unsigned char *name;
 	u16 id;
 	u16 links[MSM8974_ICC_MAX_LINKS];
@@ -220,13 +220,13 @@ struct msm8974_icc_node {
 };
 
 struct msm8974_icc_desc {
-	struct msm8974_icc_node **nodes;
-	size_t num_nodes;
+	struct msm8974_icc_yesde **yesdes;
+	size_t num_yesdes;
 };
 
 #define DEFINE_QNODE(_name, _id, _buswidth, _mas_rpm_id, _slv_rpm_id,	\
 		     ...)						\
-		static struct msm8974_icc_node _name = {		\
+		static struct msm8974_icc_yesde _name = {		\
 		.name = #_name,						\
 		.id = _id,						\
 		.buswidth = _buswidth,					\
@@ -239,24 +239,24 @@ struct msm8974_icc_desc {
 DEFINE_QNODE(mas_ampss_m0, MSM8974_BIMC_MAS_AMPSS_M0, 8, 0, -1);
 DEFINE_QNODE(mas_ampss_m1, MSM8974_BIMC_MAS_AMPSS_M1, 8, 0, -1);
 DEFINE_QNODE(mas_mss_proc, MSM8974_BIMC_MAS_MSS_PROC, 8, 1, -1);
-DEFINE_QNODE(bimc_to_mnoc, MSM8974_BIMC_TO_MNOC, 8, 2, -1, MSM8974_BIMC_SLV_EBI_CH0);
-DEFINE_QNODE(bimc_to_snoc, MSM8974_BIMC_TO_SNOC, 8, 3, 2, MSM8974_SNOC_TO_BIMC, MSM8974_BIMC_SLV_EBI_CH0, MSM8974_BIMC_MAS_AMPSS_M0);
+DEFINE_QNODE(bimc_to_myesc, MSM8974_BIMC_TO_MNOC, 8, 2, -1, MSM8974_BIMC_SLV_EBI_CH0);
+DEFINE_QNODE(bimc_to_syesc, MSM8974_BIMC_TO_SNOC, 8, 3, 2, MSM8974_SNOC_TO_BIMC, MSM8974_BIMC_SLV_EBI_CH0, MSM8974_BIMC_MAS_AMPSS_M0);
 DEFINE_QNODE(slv_ebi_ch0, MSM8974_BIMC_SLV_EBI_CH0, 8, -1, 0);
 DEFINE_QNODE(slv_ampss_l2, MSM8974_BIMC_SLV_AMPSS_L2, 8, -1, 1);
 
-static struct msm8974_icc_node *msm8974_bimc_nodes[] = {
+static struct msm8974_icc_yesde *msm8974_bimc_yesdes[] = {
 	[BIMC_MAS_AMPSS_M0] = &mas_ampss_m0,
 	[BIMC_MAS_AMPSS_M1] = &mas_ampss_m1,
 	[BIMC_MAS_MSS_PROC] = &mas_mss_proc,
-	[BIMC_TO_MNOC] = &bimc_to_mnoc,
-	[BIMC_TO_SNOC] = &bimc_to_snoc,
+	[BIMC_TO_MNOC] = &bimc_to_myesc,
+	[BIMC_TO_SNOC] = &bimc_to_syesc,
 	[BIMC_SLV_EBI_CH0] = &slv_ebi_ch0,
 	[BIMC_SLV_AMPSS_L2] = &slv_ampss_l2,
 };
 
 static struct msm8974_icc_desc msm8974_bimc = {
-	.nodes = msm8974_bimc_nodes,
-	.num_nodes = ARRAY_SIZE(msm8974_bimc_nodes),
+	.yesdes = msm8974_bimc_yesdes,
+	.num_yesdes = ARRAY_SIZE(msm8974_bimc_yesdes),
 };
 
 DEFINE_QNODE(mas_rpm_inst, MSM8974_CNOC_MAS_RPM_INST, 8, 45, -1);
@@ -267,7 +267,7 @@ DEFINE_QNODE(mas_qdss_dap, MSM8974_CNOC_MAS_QDSS_DAP, 8, 49, -1);
 DEFINE_QNODE(mas_spdm, MSM8974_CNOC_MAS_SPDM, 8, 50, -1);
 DEFINE_QNODE(mas_tic, MSM8974_CNOC_MAS_TIC, 8, 51, -1);
 DEFINE_QNODE(slv_clk_ctl, MSM8974_CNOC_SLV_CLK_CTL, 8, -1, 47);
-DEFINE_QNODE(slv_cnoc_mss, MSM8974_CNOC_SLV_CNOC_MSS, 8, -1, 48);
+DEFINE_QNODE(slv_cyesc_mss, MSM8974_CNOC_SLV_CNOC_MSS, 8, -1, 48);
 DEFINE_QNODE(slv_security, MSM8974_CNOC_SLV_SECURITY, 8, -1, 49);
 DEFINE_QNODE(slv_tcsr, MSM8974_CNOC_SLV_TCSR, 8, -1, 50);
 DEFINE_QNODE(slv_tlmm, MSM8974_CNOC_SLV_TLMM, 8, -1, 51);
@@ -284,20 +284,20 @@ DEFINE_QNODE(slv_mpm, MSM8974_CNOC_SLV_MPM, 8, -1, 62);
 DEFINE_QNODE(slv_qdss_cfg, MSM8974_CNOC_SLV_QDSS_CFG, 8, -1, 63);
 DEFINE_QNODE(slv_rbcpr_cfg, MSM8974_CNOC_SLV_RBCPR_CFG, 8, -1, 64);
 DEFINE_QNODE(slv_rbcpr_qdss_apu_cfg, MSM8974_CNOC_SLV_RBCPR_QDSS_APU_CFG, 8, -1, 65);
-DEFINE_QNODE(cnoc_to_snoc, MSM8974_CNOC_TO_SNOC, 8, 52, 75);
-DEFINE_QNODE(slv_cnoc_onoc_cfg, MSM8974_CNOC_SLV_CNOC_ONOC_CFG, 8, -1, 68);
-DEFINE_QNODE(slv_cnoc_mnoc_mmss_cfg, MSM8974_CNOC_SLV_CNOC_MNOC_MMSS_CFG, 8, -1, 58);
-DEFINE_QNODE(slv_cnoc_mnoc_cfg, MSM8974_CNOC_SLV_CNOC_MNOC_CFG, 8, -1, 66);
-DEFINE_QNODE(slv_pnoc_cfg, MSM8974_CNOC_SLV_PNOC_CFG, 8, -1, 69);
-DEFINE_QNODE(slv_snoc_mpu_cfg, MSM8974_CNOC_SLV_SNOC_MPU_CFG, 8, -1, 67);
-DEFINE_QNODE(slv_snoc_cfg, MSM8974_CNOC_SLV_SNOC_CFG, 8, -1, 70);
+DEFINE_QNODE(cyesc_to_syesc, MSM8974_CNOC_TO_SNOC, 8, 52, 75);
+DEFINE_QNODE(slv_cyesc_oyesc_cfg, MSM8974_CNOC_SLV_CNOC_ONOC_CFG, 8, -1, 68);
+DEFINE_QNODE(slv_cyesc_myesc_mmss_cfg, MSM8974_CNOC_SLV_CNOC_MNOC_MMSS_CFG, 8, -1, 58);
+DEFINE_QNODE(slv_cyesc_myesc_cfg, MSM8974_CNOC_SLV_CNOC_MNOC_CFG, 8, -1, 66);
+DEFINE_QNODE(slv_pyesc_cfg, MSM8974_CNOC_SLV_PNOC_CFG, 8, -1, 69);
+DEFINE_QNODE(slv_syesc_mpu_cfg, MSM8974_CNOC_SLV_SNOC_MPU_CFG, 8, -1, 67);
+DEFINE_QNODE(slv_syesc_cfg, MSM8974_CNOC_SLV_SNOC_CFG, 8, -1, 70);
 DEFINE_QNODE(slv_ebi1_dll_cfg, MSM8974_CNOC_SLV_EBI1_DLL_CFG, 8, -1, 71);
 DEFINE_QNODE(slv_phy_apu_cfg, MSM8974_CNOC_SLV_PHY_APU_CFG, 8, -1, 72);
 DEFINE_QNODE(slv_ebi1_phy_cfg, MSM8974_CNOC_SLV_EBI1_PHY_CFG, 8, -1, 73);
 DEFINE_QNODE(slv_rpm, MSM8974_CNOC_SLV_RPM, 8, -1, 74);
-DEFINE_QNODE(slv_service_cnoc, MSM8974_CNOC_SLV_SERVICE_CNOC, 8, -1, 76);
+DEFINE_QNODE(slv_service_cyesc, MSM8974_CNOC_SLV_SERVICE_CNOC, 8, -1, 76);
 
-static struct msm8974_icc_node *msm8974_cnoc_nodes[] = {
+static struct msm8974_icc_yesde *msm8974_cyesc_yesdes[] = {
 	[CNOC_MAS_RPM_INST] = &mas_rpm_inst,
 	[CNOC_MAS_RPM_DATA] = &mas_rpm_data,
 	[CNOC_MAS_RPM_SYS] = &mas_rpm_sys,
@@ -306,7 +306,7 @@ static struct msm8974_icc_node *msm8974_cnoc_nodes[] = {
 	[CNOC_MAS_SPDM] = &mas_spdm,
 	[CNOC_MAS_TIC] = &mas_tic,
 	[CNOC_SLV_CLK_CTL] = &slv_clk_ctl,
-	[CNOC_SLV_CNOC_MSS] = &slv_cnoc_mss,
+	[CNOC_SLV_CNOC_MSS] = &slv_cyesc_mss,
 	[CNOC_SLV_SECURITY] = &slv_security,
 	[CNOC_SLV_TCSR] = &slv_tcsr,
 	[CNOC_SLV_TLMM] = &slv_tlmm,
@@ -323,23 +323,23 @@ static struct msm8974_icc_node *msm8974_cnoc_nodes[] = {
 	[CNOC_SLV_QDSS_CFG] = &slv_qdss_cfg,
 	[CNOC_SLV_RBCPR_CFG] = &slv_rbcpr_cfg,
 	[CNOC_SLV_RBCPR_QDSS_APU_CFG] = &slv_rbcpr_qdss_apu_cfg,
-	[CNOC_TO_SNOC] = &cnoc_to_snoc,
-	[CNOC_SLV_CNOC_ONOC_CFG] = &slv_cnoc_onoc_cfg,
-	[CNOC_SLV_CNOC_MNOC_MMSS_CFG] = &slv_cnoc_mnoc_mmss_cfg,
-	[CNOC_SLV_CNOC_MNOC_CFG] = &slv_cnoc_mnoc_cfg,
-	[CNOC_SLV_PNOC_CFG] = &slv_pnoc_cfg,
-	[CNOC_SLV_SNOC_MPU_CFG] = &slv_snoc_mpu_cfg,
-	[CNOC_SLV_SNOC_CFG] = &slv_snoc_cfg,
+	[CNOC_TO_SNOC] = &cyesc_to_syesc,
+	[CNOC_SLV_CNOC_ONOC_CFG] = &slv_cyesc_oyesc_cfg,
+	[CNOC_SLV_CNOC_MNOC_MMSS_CFG] = &slv_cyesc_myesc_mmss_cfg,
+	[CNOC_SLV_CNOC_MNOC_CFG] = &slv_cyesc_myesc_cfg,
+	[CNOC_SLV_PNOC_CFG] = &slv_pyesc_cfg,
+	[CNOC_SLV_SNOC_MPU_CFG] = &slv_syesc_mpu_cfg,
+	[CNOC_SLV_SNOC_CFG] = &slv_syesc_cfg,
 	[CNOC_SLV_EBI1_DLL_CFG] = &slv_ebi1_dll_cfg,
 	[CNOC_SLV_PHY_APU_CFG] = &slv_phy_apu_cfg,
 	[CNOC_SLV_EBI1_PHY_CFG] = &slv_ebi1_phy_cfg,
 	[CNOC_SLV_RPM] = &slv_rpm,
-	[CNOC_SLV_SERVICE_CNOC] = &slv_service_cnoc,
+	[CNOC_SLV_SERVICE_CNOC] = &slv_service_cyesc,
 };
 
-static struct msm8974_icc_desc msm8974_cnoc = {
-	.nodes = msm8974_cnoc_nodes,
-	.num_nodes = ARRAY_SIZE(msm8974_cnoc_nodes),
+static struct msm8974_icc_desc msm8974_cyesc = {
+	.yesdes = msm8974_cyesc_yesdes,
+	.num_yesdes = ARRAY_SIZE(msm8974_cyesc_yesdes),
 };
 
 DEFINE_QNODE(mas_graphics_3d, MSM8974_MNOC_MAS_GRAPHICS_3D, 16, 6, -1, MSM8974_MNOC_TO_BIMC);
@@ -348,8 +348,8 @@ DEFINE_QNODE(mas_mdp_port0, MSM8974_MNOC_MAS_MDP_PORT0, 16, 8, -1, MSM8974_MNOC_
 DEFINE_QNODE(mas_video_p0, MSM8974_MNOC_MAS_VIDEO_P0, 16, 9, -1);
 DEFINE_QNODE(mas_video_p1, MSM8974_MNOC_MAS_VIDEO_P1, 16, 10, -1);
 DEFINE_QNODE(mas_vfe, MSM8974_MNOC_MAS_VFE, 16, 11, -1, MSM8974_MNOC_TO_BIMC);
-DEFINE_QNODE(mnoc_to_cnoc, MSM8974_MNOC_TO_CNOC, 16, 4, -1);
-DEFINE_QNODE(mnoc_to_bimc, MSM8974_MNOC_TO_BIMC, 16, -1, 16, MSM8974_BIMC_TO_MNOC);
+DEFINE_QNODE(myesc_to_cyesc, MSM8974_MNOC_TO_CNOC, 16, 4, -1);
+DEFINE_QNODE(myesc_to_bimc, MSM8974_MNOC_TO_BIMC, 16, -1, 16, MSM8974_BIMC_TO_MNOC);
 DEFINE_QNODE(slv_camera_cfg, MSM8974_MNOC_SLV_CAMERA_CFG, 16, -1, 3);
 DEFINE_QNODE(slv_display_cfg, MSM8974_MNOC_SLV_DISPLAY_CFG, 16, -1, 4);
 DEFINE_QNODE(slv_ocmem_cfg, MSM8974_MNOC_SLV_OCMEM_CFG, 16, -1, 5);
@@ -361,19 +361,19 @@ DEFINE_QNODE(slv_venus_cfg, MSM8974_MNOC_SLV_VENUS_CFG, 16, -1, 10);
 DEFINE_QNODE(slv_graphics_3d_cfg, MSM8974_MNOC_SLV_GRAPHICS_3D_CFG, 16, -1, 11);
 DEFINE_QNODE(slv_mmss_clk_cfg, MSM8974_MNOC_SLV_MMSS_CLK_CFG, 16, -1, 12);
 DEFINE_QNODE(slv_mmss_clk_xpu_cfg, MSM8974_MNOC_SLV_MMSS_CLK_XPU_CFG, 16, -1, 13);
-DEFINE_QNODE(slv_mnoc_mpu_cfg, MSM8974_MNOC_SLV_MNOC_MPU_CFG, 16, -1, 14);
-DEFINE_QNODE(slv_onoc_mpu_cfg, MSM8974_MNOC_SLV_ONOC_MPU_CFG, 16, -1, 15);
-DEFINE_QNODE(slv_service_mnoc, MSM8974_MNOC_SLV_SERVICE_MNOC, 16, -1, 17);
+DEFINE_QNODE(slv_myesc_mpu_cfg, MSM8974_MNOC_SLV_MNOC_MPU_CFG, 16, -1, 14);
+DEFINE_QNODE(slv_oyesc_mpu_cfg, MSM8974_MNOC_SLV_ONOC_MPU_CFG, 16, -1, 15);
+DEFINE_QNODE(slv_service_myesc, MSM8974_MNOC_SLV_SERVICE_MNOC, 16, -1, 17);
 
-static struct msm8974_icc_node *msm8974_mnoc_nodes[] = {
+static struct msm8974_icc_yesde *msm8974_myesc_yesdes[] = {
 	[MNOC_MAS_GRAPHICS_3D] = &mas_graphics_3d,
 	[MNOC_MAS_JPEG] = &mas_jpeg,
 	[MNOC_MAS_MDP_PORT0] = &mas_mdp_port0,
 	[MNOC_MAS_VIDEO_P0] = &mas_video_p0,
 	[MNOC_MAS_VIDEO_P1] = &mas_video_p1,
 	[MNOC_MAS_VFE] = &mas_vfe,
-	[MNOC_TO_CNOC] = &mnoc_to_cnoc,
-	[MNOC_TO_BIMC] = &mnoc_to_bimc,
+	[MNOC_TO_CNOC] = &myesc_to_cyesc,
+	[MNOC_TO_BIMC] = &myesc_to_bimc,
 	[MNOC_SLV_CAMERA_CFG] = &slv_camera_cfg,
 	[MNOC_SLV_DISPLAY_CFG] = &slv_display_cfg,
 	[MNOC_SLV_OCMEM_CFG] = &slv_ocmem_cfg,
@@ -385,52 +385,52 @@ static struct msm8974_icc_node *msm8974_mnoc_nodes[] = {
 	[MNOC_SLV_GRAPHICS_3D_CFG] = &slv_graphics_3d_cfg,
 	[MNOC_SLV_MMSS_CLK_CFG] = &slv_mmss_clk_cfg,
 	[MNOC_SLV_MMSS_CLK_XPU_CFG] = &slv_mmss_clk_xpu_cfg,
-	[MNOC_SLV_MNOC_MPU_CFG] = &slv_mnoc_mpu_cfg,
-	[MNOC_SLV_ONOC_MPU_CFG] = &slv_onoc_mpu_cfg,
-	[MNOC_SLV_SERVICE_MNOC] = &slv_service_mnoc,
+	[MNOC_SLV_MNOC_MPU_CFG] = &slv_myesc_mpu_cfg,
+	[MNOC_SLV_ONOC_MPU_CFG] = &slv_oyesc_mpu_cfg,
+	[MNOC_SLV_SERVICE_MNOC] = &slv_service_myesc,
 };
 
-static struct msm8974_icc_desc msm8974_mnoc = {
-	.nodes = msm8974_mnoc_nodes,
-	.num_nodes = ARRAY_SIZE(msm8974_mnoc_nodes),
+static struct msm8974_icc_desc msm8974_myesc = {
+	.yesdes = msm8974_myesc_yesdes,
+	.num_yesdes = ARRAY_SIZE(msm8974_myesc_yesdes),
 };
 
-DEFINE_QNODE(ocmem_noc_to_ocmem_vnoc, MSM8974_OCMEM_NOC_TO_OCMEM_VNOC, 16, 54, 78, MSM8974_OCMEM_SLV_OCMEM);
+DEFINE_QNODE(ocmem_yesc_to_ocmem_vyesc, MSM8974_OCMEM_NOC_TO_OCMEM_VNOC, 16, 54, 78, MSM8974_OCMEM_SLV_OCMEM);
 DEFINE_QNODE(mas_jpeg_ocmem, MSM8974_OCMEM_MAS_JPEG_OCMEM, 16, 13, -1);
 DEFINE_QNODE(mas_mdp_ocmem, MSM8974_OCMEM_MAS_MDP_OCMEM, 16, 14, -1);
 DEFINE_QNODE(mas_video_p0_ocmem, MSM8974_OCMEM_MAS_VIDEO_P0_OCMEM, 16, 15, -1);
 DEFINE_QNODE(mas_video_p1_ocmem, MSM8974_OCMEM_MAS_VIDEO_P1_OCMEM, 16, 16, -1);
 DEFINE_QNODE(mas_vfe_ocmem, MSM8974_OCMEM_MAS_VFE_OCMEM, 16, 17, -1);
-DEFINE_QNODE(mas_cnoc_onoc_cfg, MSM8974_OCMEM_MAS_CNOC_ONOC_CFG, 16, 12, -1);
-DEFINE_QNODE(slv_service_onoc, MSM8974_OCMEM_SLV_SERVICE_ONOC, 16, -1, 19);
+DEFINE_QNODE(mas_cyesc_oyesc_cfg, MSM8974_OCMEM_MAS_CNOC_ONOC_CFG, 16, 12, -1);
+DEFINE_QNODE(slv_service_oyesc, MSM8974_OCMEM_SLV_SERVICE_ONOC, 16, -1, 19);
 DEFINE_QNODE(slv_ocmem, MSM8974_OCMEM_SLV_OCMEM, 16, -1, 18);
 
 /* Virtual NoC is needed for connection to OCMEM */
-DEFINE_QNODE(ocmem_vnoc_to_onoc, MSM8974_OCMEM_VNOC_TO_OCMEM_NOC, 16, 56, 79, MSM8974_OCMEM_NOC_TO_OCMEM_VNOC);
-DEFINE_QNODE(ocmem_vnoc_to_snoc, MSM8974_OCMEM_VNOC_TO_SNOC, 8, 57, 80);
+DEFINE_QNODE(ocmem_vyesc_to_oyesc, MSM8974_OCMEM_VNOC_TO_OCMEM_NOC, 16, 56, 79, MSM8974_OCMEM_NOC_TO_OCMEM_VNOC);
+DEFINE_QNODE(ocmem_vyesc_to_syesc, MSM8974_OCMEM_VNOC_TO_SNOC, 8, 57, 80);
 DEFINE_QNODE(mas_v_ocmem_gfx3d, MSM8974_OCMEM_VNOC_MAS_GFX3D, 8, 55, -1, MSM8974_OCMEM_VNOC_TO_OCMEM_NOC);
 
-static struct msm8974_icc_node *msm8974_onoc_nodes[] = {
-	[OCMEM_NOC_TO_OCMEM_VNOC] = &ocmem_noc_to_ocmem_vnoc,
+static struct msm8974_icc_yesde *msm8974_oyesc_yesdes[] = {
+	[OCMEM_NOC_TO_OCMEM_VNOC] = &ocmem_yesc_to_ocmem_vyesc,
 	[OCMEM_MAS_JPEG_OCMEM] = &mas_jpeg_ocmem,
 	[OCMEM_MAS_MDP_OCMEM] = &mas_mdp_ocmem,
 	[OCMEM_MAS_VIDEO_P0_OCMEM] = &mas_video_p0_ocmem,
 	[OCMEM_MAS_VIDEO_P1_OCMEM] = &mas_video_p1_ocmem,
 	[OCMEM_MAS_VFE_OCMEM] = &mas_vfe_ocmem,
-	[OCMEM_MAS_CNOC_ONOC_CFG] = &mas_cnoc_onoc_cfg,
-	[OCMEM_SLV_SERVICE_ONOC] = &slv_service_onoc,
-	[OCMEM_VNOC_TO_SNOC] = &ocmem_vnoc_to_snoc,
-	[OCMEM_VNOC_TO_OCMEM_NOC] = &ocmem_vnoc_to_onoc,
+	[OCMEM_MAS_CNOC_ONOC_CFG] = &mas_cyesc_oyesc_cfg,
+	[OCMEM_SLV_SERVICE_ONOC] = &slv_service_oyesc,
+	[OCMEM_VNOC_TO_SNOC] = &ocmem_vyesc_to_syesc,
+	[OCMEM_VNOC_TO_OCMEM_NOC] = &ocmem_vyesc_to_oyesc,
 	[OCMEM_VNOC_MAS_GFX3D] = &mas_v_ocmem_gfx3d,
 	[OCMEM_SLV_OCMEM] = &slv_ocmem,
 };
 
-static struct msm8974_icc_desc msm8974_onoc = {
-	.nodes = msm8974_onoc_nodes,
-	.num_nodes = ARRAY_SIZE(msm8974_onoc_nodes),
+static struct msm8974_icc_desc msm8974_oyesc = {
+	.yesdes = msm8974_oyesc_yesdes,
+	.num_yesdes = ARRAY_SIZE(msm8974_oyesc_yesdes),
 };
 
-DEFINE_QNODE(mas_pnoc_cfg, MSM8974_PNOC_MAS_PNOC_CFG, 8, 43, -1);
+DEFINE_QNODE(mas_pyesc_cfg, MSM8974_PNOC_MAS_PNOC_CFG, 8, 43, -1);
 DEFINE_QNODE(mas_sdcc_1, MSM8974_PNOC_MAS_SDCC_1, 8, 33, -1, MSM8974_PNOC_TO_SNOC);
 DEFINE_QNODE(mas_sdcc_3, MSM8974_PNOC_MAS_SDCC_3, 8, 34, -1, MSM8974_PNOC_TO_SNOC);
 DEFINE_QNODE(mas_sdcc_4, MSM8974_PNOC_MAS_SDCC_4, 8, 36, -1, MSM8974_PNOC_TO_SNOC);
@@ -441,7 +441,7 @@ DEFINE_QNODE(mas_blsp_2, MSM8974_PNOC_MAS_BLSP_2, 8, 39, -1, MSM8974_PNOC_TO_SNO
 DEFINE_QNODE(mas_usb_hsic, MSM8974_PNOC_MAS_USB_HSIC, 8, 40, -1, MSM8974_PNOC_TO_SNOC);
 DEFINE_QNODE(mas_blsp_1, MSM8974_PNOC_MAS_BLSP_1, 8, 41, -1, MSM8974_PNOC_TO_SNOC);
 DEFINE_QNODE(mas_usb_hs, MSM8974_PNOC_MAS_USB_HS, 8, 42, -1, MSM8974_PNOC_TO_SNOC);
-DEFINE_QNODE(pnoc_to_snoc, MSM8974_PNOC_TO_SNOC, 8, 44, 45, MSM8974_SNOC_TO_PNOC, MSM8974_PNOC_SLV_PRNG);
+DEFINE_QNODE(pyesc_to_syesc, MSM8974_PNOC_TO_SNOC, 8, 44, 45, MSM8974_SNOC_TO_PNOC, MSM8974_PNOC_SLV_PRNG);
 DEFINE_QNODE(slv_sdcc_1, MSM8974_PNOC_SLV_SDCC_1, 8, -1, 31);
 DEFINE_QNODE(slv_sdcc_3, MSM8974_PNOC_SLV_SDCC_3, 8, -1, 32);
 DEFINE_QNODE(slv_sdcc_2, MSM8974_PNOC_SLV_SDCC_2, 8, -1, 33);
@@ -454,12 +454,12 @@ DEFINE_QNODE(slv_blsp_1, MSM8974_PNOC_SLV_BLSP_1, 8, -1, 39);
 DEFINE_QNODE(slv_usb_hs, MSM8974_PNOC_SLV_USB_HS, 8, -1, 40);
 DEFINE_QNODE(slv_pdm, MSM8974_PNOC_SLV_PDM, 8, -1, 41);
 DEFINE_QNODE(slv_periph_apu_cfg, MSM8974_PNOC_SLV_PERIPH_APU_CFG, 8, -1, 42);
-DEFINE_QNODE(slv_pnoc_mpu_cfg, MSM8974_PNOC_SLV_PNOC_MPU_CFG, 8, -1, 43);
+DEFINE_QNODE(slv_pyesc_mpu_cfg, MSM8974_PNOC_SLV_PNOC_MPU_CFG, 8, -1, 43);
 DEFINE_QNODE(slv_prng, MSM8974_PNOC_SLV_PRNG, 8, -1, 44, MSM8974_PNOC_TO_SNOC);
-DEFINE_QNODE(slv_service_pnoc, MSM8974_PNOC_SLV_SERVICE_PNOC, 8, -1, 46);
+DEFINE_QNODE(slv_service_pyesc, MSM8974_PNOC_SLV_SERVICE_PNOC, 8, -1, 46);
 
-static struct msm8974_icc_node *msm8974_pnoc_nodes[] = {
-	[PNOC_MAS_PNOC_CFG] = &mas_pnoc_cfg,
+static struct msm8974_icc_yesde *msm8974_pyesc_yesdes[] = {
+	[PNOC_MAS_PNOC_CFG] = &mas_pyesc_cfg,
 	[PNOC_MAS_SDCC_1] = &mas_sdcc_1,
 	[PNOC_MAS_SDCC_3] = &mas_sdcc_3,
 	[PNOC_MAS_SDCC_4] = &mas_sdcc_4,
@@ -470,7 +470,7 @@ static struct msm8974_icc_node *msm8974_pnoc_nodes[] = {
 	[PNOC_MAS_USB_HSIC] = &mas_usb_hsic,
 	[PNOC_MAS_BLSP_1] = &mas_blsp_1,
 	[PNOC_MAS_USB_HS] = &mas_usb_hs,
-	[PNOC_TO_SNOC] = &pnoc_to_snoc,
+	[PNOC_TO_SNOC] = &pyesc_to_syesc,
 	[PNOC_SLV_SDCC_1] = &slv_sdcc_1,
 	[PNOC_SLV_SDCC_3] = &slv_sdcc_3,
 	[PNOC_SLV_SDCC_2] = &slv_sdcc_2,
@@ -483,23 +483,23 @@ static struct msm8974_icc_node *msm8974_pnoc_nodes[] = {
 	[PNOC_SLV_USB_HS] = &slv_usb_hs,
 	[PNOC_SLV_PDM] = &slv_pdm,
 	[PNOC_SLV_PERIPH_APU_CFG] = &slv_periph_apu_cfg,
-	[PNOC_SLV_PNOC_MPU_CFG] = &slv_pnoc_mpu_cfg,
+	[PNOC_SLV_PNOC_MPU_CFG] = &slv_pyesc_mpu_cfg,
 	[PNOC_SLV_PRNG] = &slv_prng,
-	[PNOC_SLV_SERVICE_PNOC] = &slv_service_pnoc,
+	[PNOC_SLV_SERVICE_PNOC] = &slv_service_pyesc,
 };
 
-static struct msm8974_icc_desc msm8974_pnoc = {
-	.nodes = msm8974_pnoc_nodes,
-	.num_nodes = ARRAY_SIZE(msm8974_pnoc_nodes),
+static struct msm8974_icc_desc msm8974_pyesc = {
+	.yesdes = msm8974_pyesc_yesdes,
+	.num_yesdes = ARRAY_SIZE(msm8974_pyesc_yesdes),
 };
 
 DEFINE_QNODE(mas_lpass_ahb, MSM8974_SNOC_MAS_LPASS_AHB, 8, 18, -1);
 DEFINE_QNODE(mas_qdss_bam, MSM8974_SNOC_MAS_QDSS_BAM, 8, 19, -1);
-DEFINE_QNODE(mas_snoc_cfg, MSM8974_SNOC_MAS_SNOC_CFG, 8, 20, -1);
-DEFINE_QNODE(snoc_to_bimc, MSM8974_SNOC_TO_BIMC, 8, 21, 24, MSM8974_BIMC_TO_SNOC);
-DEFINE_QNODE(snoc_to_cnoc, MSM8974_SNOC_TO_CNOC, 8, 22, 25);
-DEFINE_QNODE(snoc_to_pnoc, MSM8974_SNOC_TO_PNOC, 8, 29, 28, MSM8974_PNOC_TO_SNOC);
-DEFINE_QNODE(snoc_to_ocmem_vnoc, MSM8974_SNOC_TO_OCMEM_VNOC, 8, 53, 77, MSM8974_OCMEM_VNOC_TO_OCMEM_NOC);
+DEFINE_QNODE(mas_syesc_cfg, MSM8974_SNOC_MAS_SNOC_CFG, 8, 20, -1);
+DEFINE_QNODE(syesc_to_bimc, MSM8974_SNOC_TO_BIMC, 8, 21, 24, MSM8974_BIMC_TO_SNOC);
+DEFINE_QNODE(syesc_to_cyesc, MSM8974_SNOC_TO_CNOC, 8, 22, 25);
+DEFINE_QNODE(syesc_to_pyesc, MSM8974_SNOC_TO_PNOC, 8, 29, 28, MSM8974_PNOC_TO_SNOC);
+DEFINE_QNODE(syesc_to_ocmem_vyesc, MSM8974_SNOC_TO_OCMEM_VNOC, 8, 53, 77, MSM8974_OCMEM_VNOC_TO_OCMEM_NOC);
 DEFINE_QNODE(mas_crypto_core0, MSM8974_SNOC_MAS_CRYPTO_CORE0, 8, 23, -1, MSM8974_SNOC_TO_BIMC);
 DEFINE_QNODE(mas_crypto_core1, MSM8974_SNOC_MAS_CRYPTO_CORE1, 8, 24, -1);
 DEFINE_QNODE(mas_lpass_proc, MSM8974_SNOC_MAS_LPASS_PROC, 8, 25, -1, MSM8974_SNOC_TO_OCMEM_VNOC);
@@ -514,18 +514,18 @@ DEFINE_QNODE(slv_lpass, MSM8974_SNOC_SLV_LPASS, 8, -1, 21);
 DEFINE_QNODE(slv_usb3, MSM8974_SNOC_SLV_USB3, 8, -1, 22);
 DEFINE_QNODE(slv_wcss, MSM8974_SNOC_SLV_WCSS, 8, -1, 23);
 DEFINE_QNODE(slv_ocimem, MSM8974_SNOC_SLV_OCIMEM, 8, -1, 26);
-DEFINE_QNODE(slv_snoc_ocmem, MSM8974_SNOC_SLV_SNOC_OCMEM, 8, -1, 27);
-DEFINE_QNODE(slv_service_snoc, MSM8974_SNOC_SLV_SERVICE_SNOC, 8, -1, 29);
+DEFINE_QNODE(slv_syesc_ocmem, MSM8974_SNOC_SLV_SNOC_OCMEM, 8, -1, 27);
+DEFINE_QNODE(slv_service_syesc, MSM8974_SNOC_SLV_SERVICE_SNOC, 8, -1, 29);
 DEFINE_QNODE(slv_qdss_stm, MSM8974_SNOC_SLV_QDSS_STM, 8, -1, 30);
 
-static struct msm8974_icc_node *msm8974_snoc_nodes[] = {
+static struct msm8974_icc_yesde *msm8974_syesc_yesdes[] = {
 	[SNOC_MAS_LPASS_AHB] = &mas_lpass_ahb,
 	[SNOC_MAS_QDSS_BAM] = &mas_qdss_bam,
-	[SNOC_MAS_SNOC_CFG] = &mas_snoc_cfg,
-	[SNOC_TO_BIMC] = &snoc_to_bimc,
-	[SNOC_TO_CNOC] = &snoc_to_cnoc,
-	[SNOC_TO_PNOC] = &snoc_to_pnoc,
-	[SNOC_TO_OCMEM_VNOC] = &snoc_to_ocmem_vnoc,
+	[SNOC_MAS_SNOC_CFG] = &mas_syesc_cfg,
+	[SNOC_TO_BIMC] = &syesc_to_bimc,
+	[SNOC_TO_CNOC] = &syesc_to_cyesc,
+	[SNOC_TO_PNOC] = &syesc_to_pyesc,
+	[SNOC_TO_OCMEM_VNOC] = &syesc_to_ocmem_vyesc,
 	[SNOC_MAS_CRYPTO_CORE0] = &mas_crypto_core0,
 	[SNOC_MAS_CRYPTO_CORE1] = &mas_crypto_core1,
 	[SNOC_MAS_LPASS_PROC] = &mas_lpass_proc,
@@ -540,17 +540,17 @@ static struct msm8974_icc_node *msm8974_snoc_nodes[] = {
 	[SNOC_SLV_USB3] = &slv_usb3,
 	[SNOC_SLV_WCSS] = &slv_wcss,
 	[SNOC_SLV_OCIMEM] = &slv_ocimem,
-	[SNOC_SLV_SNOC_OCMEM] = &slv_snoc_ocmem,
-	[SNOC_SLV_SERVICE_SNOC] = &slv_service_snoc,
+	[SNOC_SLV_SNOC_OCMEM] = &slv_syesc_ocmem,
+	[SNOC_SLV_SERVICE_SNOC] = &slv_service_syesc,
 	[SNOC_SLV_QDSS_STM] = &slv_qdss_stm,
 };
 
-static struct msm8974_icc_desc msm8974_snoc = {
-	.nodes = msm8974_snoc_nodes,
-	.num_nodes = ARRAY_SIZE(msm8974_snoc_nodes),
+static struct msm8974_icc_desc msm8974_syesc = {
+	.yesdes = msm8974_syesc_yesdes,
+	.num_yesdes = ARRAY_SIZE(msm8974_syesc_yesdes),
 };
 
-static int msm8974_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
+static int msm8974_icc_aggregate(struct icc_yesde *yesde, u32 tag, u32 avg_bw,
 				 u32 peak_bw, u32 *agg_avg, u32 *agg_peak)
 {
 	*agg_avg += avg_bw;
@@ -568,7 +568,7 @@ static void msm8974_icc_rpm_smd_send(struct device *dev, int rsc_type,
 		return;
 
 	/*
-	 * Setting the bandwidth requests for some nodes fails and this same
+	 * Setting the bandwidth requests for some yesdes fails and this same
 	 * behavior occurs on the downstream MSM 3.4 kernel sources based on
 	 * errors like this in that kernel:
 	 *
@@ -576,25 +576,25 @@ static void msm8974_icc_rpm_smd_send(struct device *dev, int rsc_type,
 	 *   AXI: msm_bus_rpm_req(): RPM: Ack failed
 	 *   AXI: msm_bus_rpm_commit_arb(): RPM: Req fail: mas:32, bw:240000000
 	 *
-	 * Since there's no publicly available documentation for this hardware,
-	 * and the bandwidth for some nodes in the path can be set properly,
-	 * let's not return an error.
+	 * Since there's yes publicly available documentation for this hardware,
+	 * and the bandwidth for some yesdes in the path can be set properly,
+	 * let's yest return an error.
 	 */
 	ret = qcom_icc_rpm_smd_send(QCOM_SMD_RPM_ACTIVE_STATE, rsc_type, id,
 				    val);
 	if (ret)
-		dev_dbg(dev, "Cannot set bandwidth for node %s (%d): %d\n",
+		dev_dbg(dev, "Canyest set bandwidth for yesde %s (%d): %d\n",
 			name, id, ret);
 }
 
-static int msm8974_icc_set(struct icc_node *src, struct icc_node *dst)
+static int msm8974_icc_set(struct icc_yesde *src, struct icc_yesde *dst)
 {
-	struct msm8974_icc_node *src_qn, *dst_qn;
+	struct msm8974_icc_yesde *src_qn, *dst_qn;
 	struct msm8974_icc_provider *qp;
 	u64 sum_bw, max_peak_bw, rate;
 	u32 agg_avg = 0, agg_peak = 0;
 	struct icc_provider *provider;
-	struct icc_node *n;
+	struct icc_yesde *n;
 	int ret, i;
 
 	src_qn = src->data;
@@ -602,21 +602,21 @@ static int msm8974_icc_set(struct icc_node *src, struct icc_node *dst)
 	provider = src->provider;
 	qp = to_msm8974_icc_provider(provider);
 
-	list_for_each_entry(n, &provider->nodes, node_list)
+	list_for_each_entry(n, &provider->yesdes, yesde_list)
 		msm8974_icc_aggregate(n, 0, n->avg_bw, n->peak_bw,
 				      &agg_avg, &agg_peak);
 
 	sum_bw = icc_units_to_bps(agg_avg);
 	max_peak_bw = icc_units_to_bps(agg_peak);
 
-	/* Set bandwidth on source node */
+	/* Set bandwidth on source yesde */
 	msm8974_icc_rpm_smd_send(provider->dev, RPM_BUS_MASTER_REQ,
 				 src_qn->name, src_qn->mas_rpm_id, sum_bw);
 
 	msm8974_icc_rpm_smd_send(provider->dev, RPM_BUS_SLAVE_REQ,
 				 src_qn->name, src_qn->slv_rpm_id, sum_bw);
 
-	/* Set bandwidth on destination node */
+	/* Set bandwidth on destination yesde */
 	msm8974_icc_rpm_smd_send(provider->dev, RPM_BUS_MASTER_REQ,
 				 dst_qn->name, dst_qn->mas_rpm_id, sum_bw);
 
@@ -647,13 +647,13 @@ static int msm8974_icc_set(struct icc_node *src, struct icc_node *dst)
 static int msm8974_icc_probe(struct platform_device *pdev)
 {
 	const struct msm8974_icc_desc *desc;
-	struct msm8974_icc_node **qnodes;
+	struct msm8974_icc_yesde **qyesdes;
 	struct msm8974_icc_provider *qp;
 	struct device *dev = &pdev->dev;
 	struct icc_onecell_data *data;
 	struct icc_provider *provider;
-	struct icc_node *node, *tmp;
-	size_t num_nodes, i;
+	struct icc_yesde *yesde, *tmp;
+	size_t num_yesdes, i;
 	int ret;
 
 	/* wait for the RPM proxy */
@@ -664,14 +664,14 @@ static int msm8974_icc_probe(struct platform_device *pdev)
 	if (!desc)
 		return -EINVAL;
 
-	qnodes = desc->nodes;
-	num_nodes = desc->num_nodes;
+	qyesdes = desc->yesdes;
+	num_yesdes = desc->num_yesdes;
 
 	qp = devm_kzalloc(dev, sizeof(*qp), GFP_KERNEL);
 	if (!qp)
 		return -ENOMEM;
 
-	data = devm_kzalloc(dev, struct_size(data, nodes, num_nodes),
+	data = devm_kzalloc(dev, struct_size(data, yesdes, num_yesdes),
 			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -691,7 +691,7 @@ static int msm8974_icc_probe(struct platform_device *pdev)
 		return ret;
 
 	provider = &qp->provider;
-	INIT_LIST_HEAD(&provider->nodes);
+	INIT_LIST_HEAD(&provider->yesdes);
 	provider->dev = dev;
 	provider->set = msm8974_icc_set;
 	provider->aggregate = msm8974_icc_aggregate;
@@ -704,37 +704,37 @@ static int msm8974_icc_probe(struct platform_device *pdev)
 		goto err_disable_clks;
 	}
 
-	for (i = 0; i < num_nodes; i++) {
+	for (i = 0; i < num_yesdes; i++) {
 		size_t j;
 
-		node = icc_node_create(qnodes[i]->id);
-		if (IS_ERR(node)) {
-			ret = PTR_ERR(node);
+		yesde = icc_yesde_create(qyesdes[i]->id);
+		if (IS_ERR(yesde)) {
+			ret = PTR_ERR(yesde);
 			goto err_del_icc;
 		}
 
-		node->name = qnodes[i]->name;
-		node->data = qnodes[i];
-		icc_node_add(node, provider);
+		yesde->name = qyesdes[i]->name;
+		yesde->data = qyesdes[i];
+		icc_yesde_add(yesde, provider);
 
-		dev_dbg(dev, "registered node %s\n", node->name);
+		dev_dbg(dev, "registered yesde %s\n", yesde->name);
 
 		/* populate links */
-		for (j = 0; j < qnodes[i]->num_links; j++)
-			icc_link_create(node, qnodes[i]->links[j]);
+		for (j = 0; j < qyesdes[i]->num_links; j++)
+			icc_link_create(yesde, qyesdes[i]->links[j]);
 
-		data->nodes[i] = node;
+		data->yesdes[i] = yesde;
 	}
-	data->num_nodes = num_nodes;
+	data->num_yesdes = num_yesdes;
 
 	platform_set_drvdata(pdev, qp);
 
 	return 0;
 
 err_del_icc:
-	list_for_each_entry_safe(node, tmp, &provider->nodes, node_list) {
-		icc_node_del(node);
-		icc_node_destroy(node->id);
+	list_for_each_entry_safe(yesde, tmp, &provider->yesdes, yesde_list) {
+		icc_yesde_del(yesde);
+		icc_yesde_destroy(yesde->id);
 	}
 	icc_provider_del(provider);
 
@@ -748,37 +748,37 @@ static int msm8974_icc_remove(struct platform_device *pdev)
 {
 	struct msm8974_icc_provider *qp = platform_get_drvdata(pdev);
 	struct icc_provider *provider = &qp->provider;
-	struct icc_node *n, *tmp;
+	struct icc_yesde *n, *tmp;
 
-	list_for_each_entry_safe(n, tmp, &provider->nodes, node_list) {
-		icc_node_del(n);
-		icc_node_destroy(n->id);
+	list_for_each_entry_safe(n, tmp, &provider->yesdes, yesde_list) {
+		icc_yesde_del(n);
+		icc_yesde_destroy(n->id);
 	}
 	clk_bulk_disable_unprepare(qp->num_clks, qp->bus_clks);
 
 	return icc_provider_del(provider);
 }
 
-static const struct of_device_id msm8974_noc_of_match[] = {
+static const struct of_device_id msm8974_yesc_of_match[] = {
 	{ .compatible = "qcom,msm8974-bimc", .data = &msm8974_bimc},
-	{ .compatible = "qcom,msm8974-cnoc", .data = &msm8974_cnoc},
-	{ .compatible = "qcom,msm8974-mmssnoc", .data = &msm8974_mnoc},
-	{ .compatible = "qcom,msm8974-ocmemnoc", .data = &msm8974_onoc},
-	{ .compatible = "qcom,msm8974-pnoc", .data = &msm8974_pnoc},
-	{ .compatible = "qcom,msm8974-snoc", .data = &msm8974_snoc},
+	{ .compatible = "qcom,msm8974-cyesc", .data = &msm8974_cyesc},
+	{ .compatible = "qcom,msm8974-mmssyesc", .data = &msm8974_myesc},
+	{ .compatible = "qcom,msm8974-ocmemyesc", .data = &msm8974_oyesc},
+	{ .compatible = "qcom,msm8974-pyesc", .data = &msm8974_pyesc},
+	{ .compatible = "qcom,msm8974-syesc", .data = &msm8974_syesc},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, msm8974_noc_of_match);
+MODULE_DEVICE_TABLE(of, msm8974_yesc_of_match);
 
-static struct platform_driver msm8974_noc_driver = {
+static struct platform_driver msm8974_yesc_driver = {
 	.probe = msm8974_icc_probe,
 	.remove = msm8974_icc_remove,
 	.driver = {
-		.name = "qnoc-msm8974",
-		.of_match_table = msm8974_noc_of_match,
+		.name = "qyesc-msm8974",
+		.of_match_table = msm8974_yesc_of_match,
 	},
 };
-module_platform_driver(msm8974_noc_driver);
+module_platform_driver(msm8974_yesc_driver);
 MODULE_DESCRIPTION("Qualcomm MSM8974 NoC driver");
 MODULE_AUTHOR("Brian Masney <masneyb@onstation.org>");
 MODULE_LICENSE("GPL v2");

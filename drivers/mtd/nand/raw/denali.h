@@ -320,13 +320,13 @@ struct denali_chip_sel {
  * struct denali_chip - per-chip data of Denali NAND
  *
  * @chip:  base NAND chip structure
- * @node:  node to be used to associate this chip with the controller
+ * @yesde:  yesde to be used to associate this chip with the controller
  * @nsels: the number of CS lines of this chip
  * @sels:  the array of per-cs data
  */
 struct denali_chip {
 	struct nand_chip chip;
-	struct list_head node;
+	struct list_head yesde;
 	unsigned int nsels;
 	struct denali_chip_sel sels[0];
 };
@@ -352,7 +352,7 @@ struct denali_chip {
  * @active_bank:    active bank id
  * @nbanks:         the number of banks supported by this controller
  * @revision:       IP revision
- * @caps:           controller capabilities that cannot be detected run-time
+ * @caps:           controller capabilities that canyest be detected run-time
  * @ecc_caps:       ECC engine capabilities
  * @host_read:      callback for read access of Host Data/Command Interface
  * @host_write:     callback for write access of Host Data/Command Interface

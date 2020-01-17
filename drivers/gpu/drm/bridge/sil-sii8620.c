@@ -86,7 +86,7 @@ struct sii8620 {
 	unsigned int gen2_write_burst:1;
 	enum sii8620_mt_state mt_state;
 	struct extcon_dev *extcon;
-	struct notifier_block extcon_nb;
+	struct yestifier_block extcon_nb;
 	struct work_struct extcon_wq;
 	int cable_state;
 	struct list_head mt_queue;
@@ -109,7 +109,7 @@ typedef void (*sii8620_mt_msg_cb)(struct sii8620 *ctx,
 typedef void (*sii8620_cb)(struct sii8620 *ctx, int ret);
 
 struct sii8620_mt_msg {
-	struct list_head node;
+	struct list_head yesde;
 	u8 reg[4];
 	u8 ret;
 	sii8620_mt_msg_cb send;
@@ -268,8 +268,8 @@ static void sii8620_mt_cleanup(struct sii8620 *ctx)
 {
 	struct sii8620_mt_msg *msg, *n;
 
-	list_for_each_entry_safe(msg, n, &ctx->mt_queue, node) {
-		list_del(&msg->node);
+	list_for_each_entry_safe(msg, n, &ctx->mt_queue, yesde) {
+		list_del(&msg->yesde);
 		kfree(msg);
 	}
 	ctx->mt_state = MT_STATE_READY;
@@ -287,8 +287,8 @@ static void sii8620_mt_work(struct sii8620 *ctx)
 	if (ctx->mt_state == MT_STATE_DONE) {
 		ctx->mt_state = MT_STATE_READY;
 		msg = list_first_entry(&ctx->mt_queue, struct sii8620_mt_msg,
-				       node);
-		list_del(&msg->node);
+				       yesde);
+		list_del(&msg->yesde);
 		if (msg->recv)
 			msg->recv(ctx, msg);
 		if (msg->continuation)
@@ -300,7 +300,7 @@ static void sii8620_mt_work(struct sii8620 *ctx)
 		return;
 
 	ctx->mt_state = MT_STATE_BUSY;
-	msg = list_first_entry(&ctx->mt_queue, struct sii8620_mt_msg, node);
+	msg = list_first_entry(&ctx->mt_queue, struct sii8620_mt_msg, yesde);
 	if (msg->send)
 		msg->send(ctx, msg);
 }
@@ -377,7 +377,7 @@ static void sii8620_mt_msc_cmd_send(struct sii8620 *ctx,
 			      BIT_MSC_COMMAND_START_READ_DEVCAP);
 		break;
 	default:
-		dev_err(ctx->dev, "%s: command %#x not supported\n", __func__,
+		dev_err(ctx->dev, "%s: command %#x yest supported\n", __func__,
 			msg->reg[0]);
 	}
 }
@@ -389,7 +389,7 @@ static struct sii8620_mt_msg *sii8620_mt_msg_new(struct sii8620 *ctx)
 	if (!msg)
 		ctx->error = -ENOMEM;
 	else
-		list_add_tail(&msg->node, &ctx->mt_queue);
+		list_add_tail(&msg->yesde, &ctx->mt_queue);
 
 	return msg;
 }
@@ -405,7 +405,7 @@ static void sii8620_mt_set_cont(struct sii8620 *ctx, sii8620_cb cont)
 		ctx->error = -EINVAL;
 		return;
 	}
-	msg = list_last_entry(&ctx->mt_queue, struct sii8620_mt_msg, node);
+	msg = list_last_entry(&ctx->mt_queue, struct sii8620_mt_msg, yesde);
 	msg->continuation = cont;
 }
 
@@ -494,7 +494,7 @@ static void sii8620_identify_sink(struct sii8620 *ctx)
 
 	sii8620_fetch_edid(ctx);
 	if (!ctx->edid) {
-		dev_err(ctx->dev, "Cannot fetch EDID\n");
+		dev_err(ctx->dev, "Canyest fetch EDID\n");
 		sii8620_mhl_disconnected(ctx);
 		return;
 	}
@@ -924,7 +924,7 @@ static void sii8620_xtal_set_rate(struct sii8620 *ctx)
 			break;
 
 	if (rate != rates[i].rate)
-		dev_err(ctx->dev, "xtal clock rate(%lukHz) not supported, setting MHL for %ukHz.\n",
+		dev_err(ctx->dev, "xtal clock rate(%lukHz) yest supported, setting MHL for %ukHz.\n",
 			rate, rates[i].rate);
 
 	sii8620_write(ctx, REG_DIV_CTL_MAIN, rates[i].div);
@@ -1487,7 +1487,7 @@ static void sii8620_set_mode(struct sii8620 *ctx, enum sii8620_mode mode)
 		ctx->mode = mode;
 		break;
 	default:
-		dev_err(ctx->dev, "%s mode %d not supported\n", __func__, mode);
+		dev_err(ctx->dev, "%s mode %d yest supported\n", __func__, mode);
 		break;
 	}
 
@@ -1809,7 +1809,7 @@ static struct sii8620_mt_msg *sii8620_msc_msg_first(struct sii8620 *ctx)
 		return NULL;
 	}
 
-	return list_first_entry(&ctx->mt_queue, struct sii8620_mt_msg, node);
+	return list_first_entry(&ctx->mt_queue, struct sii8620_mt_msg, yesde);
 }
 
 static void sii8620_msc_mt_done(struct sii8620 *ctx)
@@ -1845,7 +1845,7 @@ static void sii8620_msc_mr_msc_msg(struct sii8620 *ctx)
 		sii8620_mt_rcpk(ctx, buf[1]);
 		break;
 	default:
-		dev_err(ctx->dev, "%s message type %d,%d not supported",
+		dev_err(ctx->dev, "%s message type %d,%d yest supported",
 			__func__, buf[0], buf[1]);
 	}
 }
@@ -2001,7 +2001,7 @@ static void sii8620_irq_ddc(struct sii8620 *ctx)
 	sii8620_write(ctx, REG_INTR3, stat);
 }
 
-/* endian agnostic, non-volatile version of test_bit */
+/* endian agyesstic, yesn-volatile version of test_bit */
 static bool sii8620_test_bit(unsigned int nr, const u8 *addr)
 {
 	return 1 & (addr[nr / BITS_PER_BYTE] >> (nr % BITS_PER_BYTE));
@@ -2149,7 +2149,7 @@ static void sii8620_extcon_work(struct work_struct *work)
 		sii8620_cable_out(ctx);
 }
 
-static int sii8620_extcon_notifier(struct notifier_block *self,
+static int sii8620_extcon_yestifier(struct yestifier_block *self,
 			unsigned long event, void *ptr)
 {
 	struct sii8620 *ctx =
@@ -2163,21 +2163,21 @@ static int sii8620_extcon_notifier(struct notifier_block *self,
 static int sii8620_extcon_init(struct sii8620 *ctx)
 {
 	struct extcon_dev *edev;
-	struct device_node *musb, *muic;
+	struct device_yesde *musb, *muic;
 	int ret;
 
-	/* get micro-USB connector node */
-	musb = of_graph_get_remote_node(ctx->dev->of_node, 1, -1);
-	/* next get micro-USB Interface Controller node */
+	/* get micro-USB connector yesde */
+	musb = of_graph_get_remote_yesde(ctx->dev->of_yesde, 1, -1);
+	/* next get micro-USB Interface Controller yesde */
 	muic = of_get_next_parent(musb);
 
 	if (!muic) {
-		dev_info(ctx->dev, "no extcon found, switching to 'always on' mode\n");
+		dev_info(ctx->dev, "yes extcon found, switching to 'always on' mode\n");
 		return 0;
 	}
 
-	edev = extcon_find_edev_by_node(muic);
-	of_node_put(muic);
+	edev = extcon_find_edev_by_yesde(muic);
+	of_yesde_put(muic);
 	if (IS_ERR(edev)) {
 		if (PTR_ERR(edev) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
@@ -2186,11 +2186,11 @@ static int sii8620_extcon_init(struct sii8620 *ctx)
 	}
 
 	ctx->extcon = edev;
-	ctx->extcon_nb.notifier_call = sii8620_extcon_notifier;
+	ctx->extcon_nb.yestifier_call = sii8620_extcon_yestifier;
 	INIT_WORK(&ctx->extcon_wq, sii8620_extcon_work);
-	ret = extcon_register_notifier(edev, EXTCON_DISP_MHL, &ctx->extcon_nb);
+	ret = extcon_register_yestifier(edev, EXTCON_DISP_MHL, &ctx->extcon_nb);
 	if (ret) {
-		dev_err(ctx->dev, "failed to register notifier for MHL\n");
+		dev_err(ctx->dev, "failed to register yestifier for MHL\n");
 		return ret;
 	}
 
@@ -2304,7 +2304,7 @@ static int sii8620_probe(struct i2c_client *client,
 	}
 
 	if (!client->irq) {
-		dev_err(dev, "no irq provided\n");
+		dev_err(dev, "yes irq provided\n");
 		return -EINVAL;
 	}
 	irq_set_status_flags(client->irq, IRQ_NOAUTOEN);
@@ -2338,7 +2338,7 @@ static int sii8620_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, ctx);
 
 	ctx->bridge.funcs = &sii8620_bridge_funcs;
-	ctx->bridge.of_node = dev->of_node;
+	ctx->bridge.of_yesde = dev->of_yesde;
 	drm_bridge_add(&ctx->bridge);
 
 	if (!ctx->extcon)
@@ -2352,7 +2352,7 @@ static int sii8620_remove(struct i2c_client *client)
 	struct sii8620 *ctx = i2c_get_clientdata(client);
 
 	if (ctx->extcon) {
-		extcon_unregister_notifier(ctx->extcon, EXTCON_DISP_MHL,
+		extcon_unregister_yestifier(ctx->extcon, EXTCON_DISP_MHL,
 					   &ctx->extcon_nb);
 		flush_work(&ctx->extcon_wq);
 		if (ctx->cable_state > 0)

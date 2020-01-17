@@ -64,7 +64,7 @@ void ice_clean_tx_ring(struct ice_ring *tx_ring)
 		goto tx_skip_free;
 	}
 
-	/* ring already cleared, nothing to do */
+	/* ring already cleared, yesthing to do */
 	if (!tx_ring->tx_buf)
 		return;
 
@@ -132,13 +132,13 @@ static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
 	do {
 		struct ice_tx_desc *eop_desc = tx_buf->next_to_watch;
 
-		/* if next_to_watch is not set then there is no work pending */
+		/* if next_to_watch is yest set then there is yes work pending */
 		if (!eop_desc)
 			break;
 
 		smp_rmb();	/* prevent any other reads prior to eop_desc */
 
-		/* if the descriptor isn't done, no work yet to do */
+		/* if the descriptor isn't done, yes work yet to do */
 		if (!(eop_desc->cmd_type_offset_bsz &
 		      cpu_to_le64(ICE_TX_DESC_DTYPE_DESC_DONE)))
 			break;
@@ -285,7 +285,7 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 	struct device *dev = rx_ring->dev;
 	u16 i;
 
-	/* ring already cleared, nothing to do */
+	/* ring already cleared, yesthing to do */
 	if (!rx_ring->rx_buf)
 		return;
 
@@ -453,7 +453,7 @@ ice_run_xdp(struct ice_ring *rx_ring, struct xdp_buff *xdp,
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* fallthrough -- not supported action */
+		/* fallthrough -- yest supported action */
 	case XDP_ABORTED:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
 		/* fallthrough -- handle aborts by dropping frame */
@@ -474,7 +474,7 @@ ice_run_xdp(struct ice_ring *rx_ring, struct xdp_buff *xdp,
  *
  * Returns number of frames successfully sent. Frames that fail are
  * free'ed via XDP return API.
- * For error cases, a negative errno code is returned and no-frames
+ * For error cases, a negative erryes code is returned and yes-frames
  * are transmitted (caller must handle freeing frames).
  */
 int
@@ -582,7 +582,7 @@ bool ice_alloc_rx_bufs(struct ice_ring *rx_ring, u16 cleaned_count)
 	u16 ntu = rx_ring->next_to_use;
 	struct ice_rx_buf *bi;
 
-	/* do nothing if no valid netdev defined */
+	/* do yesthing if yes valid netdev defined */
 	if (!rx_ring->netdev || !cleaned_count)
 		return false;
 
@@ -659,7 +659,7 @@ ice_rx_buf_adjust_pg_offset(struct ice_rx_buf *rx_buf, unsigned int size)
 }
 
 /**
- * ice_can_reuse_rx_page - Determine if page can be reused for another Rx
+ * ice_can_reuse_rx_page - Determine if page can be reused for ayesther Rx
  * @rx_buf: buffer containing the page
  *
  * If page is reusable, we have a green light for calling ice_reuse_rx_page,
@@ -732,7 +732,7 @@ ice_add_rx_frag(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
 /**
  * ice_reuse_rx_page - page flip buffer and store it back on the ring
  * @rx_ring: Rx descriptor ring to store buffers on
- * @old_buf: donor buffer to have page reused
+ * @old_buf: doyesr buffer to have page reused
  *
  * Synchronizes page for reuse by the adapter
  */
@@ -898,7 +898,7 @@ ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
 		ice_rx_buf_adjust_pg_offset(rx_buf, truesize);
 	} else {
 		/* buffer is unused, reset bias back to rx_buf; data was copied
-		 * onto skb's linear part so there's no need for adjusting
+		 * onto skb's linear part so there's yes need for adjusting
 		 * page offset and we can reuse this buffer as-is
 		 */
 		rx_buf->pagecnt_bias++;
@@ -932,7 +932,7 @@ static void ice_put_rx_buf(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
 		ice_reuse_rx_page(rx_ring, rx_buf);
 		rx_ring->rx_stats.page_reuse_count++;
 	} else {
-		/* we are not reusing the buffer so unmap it */
+		/* we are yest reusing the buffer so unmap it */
 		dma_unmap_page_attrs(rx_ring->dev, rx_buf->dma,
 				     ice_rx_pg_size(rx_ring), DMA_FROM_DEVICE,
 				     ICE_RX_DMA_ATTR);
@@ -945,26 +945,26 @@ static void ice_put_rx_buf(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
 }
 
 /**
- * ice_is_non_eop - process handling of non-EOP buffers
+ * ice_is_yesn_eop - process handling of yesn-EOP buffers
  * @rx_ring: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
  * @skb: Current socket buffer containing buffer in progress
  *
  * If the buffer is an EOP buffer, this function exits returning false,
- * otherwise return true indicating that this is in fact a non-EOP buffer.
+ * otherwise return true indicating that this is in fact a yesn-EOP buffer.
  */
 static bool
-ice_is_non_eop(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc,
+ice_is_yesn_eop(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc,
 	       struct sk_buff *skb)
 {
-	/* if we are the last buffer then there is nothing else to do */
+	/* if we are the last buffer then there is yesthing else to do */
 #define ICE_RXD_EOF BIT(ICE_RX_FLEX_DESC_STATUS0_EOF_S)
 	if (likely(ice_test_staterr(rx_desc, ICE_RXD_EOF)))
 		return false;
 
 	/* place skb in next buffer to be received */
 	rx_ring->rx_buf[rx_ring->next_to_clean].skb = skb;
-	rx_ring->rx_stats.non_eop_descs++;
+	rx_ring->rx_stats.yesn_eop_descs++;
 
 	return true;
 }
@@ -1008,14 +1008,14 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		/* status_error_len will always be zero for unused descriptors
 		 * because it's cleared in cleanup, and overlaps with hdr_addr
 		 * which is always zero because packet split isn't used, if the
-		 * hardware wrote DD then it will be non-zero
+		 * hardware wrote DD then it will be yesn-zero
 		 */
 		stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_DD_S);
 		if (!ice_test_staterr(rx_desc, stat_err_bits))
 			break;
 
 		/* This memory barrier is needed to keep us from reading
-		 * any other fields out of the rx_desc until we know the
+		 * any other fields out of the rx_desc until we kyesw the
 		 * DD bit is set.
 		 */
 		dma_rmb();
@@ -1090,7 +1090,7 @@ construct_skb:
 		cleaned_count++;
 
 		/* skip if it is NOP desc */
-		if (ice_is_non_eop(rx_ring, rx_desc, skb))
+		if (ice_is_yesn_eop(rx_ring, rx_desc, skb))
 			continue;
 
 		stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_RXE_S);
@@ -1285,7 +1285,7 @@ ice_update_itr(struct ice_q_vector *q_vector, struct ice_ring_container *rc)
 		rc->target_itr &= ~ICE_ITR_ADAPTIVE_LATENCY;
 	}
 
-	/* We have no packets to actually measure against. This means
+	/* We have yes packets to actually measure against. This means
 	 * either one of the other queues on this vector is active or
 	 * we are a Tx queue doing TSO with too high of an interrupt rate.
 	 *
@@ -1336,7 +1336,7 @@ ice_update_itr(struct ice_q_vector *q_vector, struct ice_ring_container *rc)
 
 adjust_by_size_and_speed:
 
-	/* based on checks above packets cannot be 0 so division is safe */
+	/* based on checks above packets canyest be 0 so division is safe */
 	itr = ice_adjust_itr_by_size_and_speed(q_vector->vsi->port_info,
 					       bytes / packets, itr);
 
@@ -1404,12 +1404,12 @@ static void ice_update_ena_itr(struct ice_q_vector *q_vector)
 		/* set current to what we just wrote and dynamic if needed */
 		rx->current_itr = ICE_WB_ON_ITR_USECS |
 			(rx->itr_setting & ICE_ITR_DYNAMIC);
-		/* allow normal interrupt flow to start */
+		/* allow yesrmal interrupt flow to start */
 		q_vector->itr_countdown = 0;
 		return;
 	}
 
-	/* This will do nothing if dynamic updates are not enabled */
+	/* This will do yesthing if dynamic updates are yest enabled */
 	ice_update_itr(q_vector, tx);
 	ice_update_itr(q_vector, rx);
 
@@ -1460,18 +1460,18 @@ static void ice_update_ena_itr(struct ice_q_vector *q_vector)
  * We need to tell hardware to write-back completed descriptors even when
  * interrupts are disabled. Descriptors will be written back on cache line
  * boundaries without WB_ON_ITR enabled, but if we don't enable WB_ON_ITR
- * descriptors may not be written back if they don't fill a cache line until the
+ * descriptors may yest be written back if they don't fill a cache line until the
  * next interrupt.
  *
  * This sets the write-back frequency to 2 microseconds as that is the minimum
- * value that's not 0 due to ITR granularity. Also, set the INTENA_MSK bit to
- * make sure hardware knows we aren't meddling with the INTENA_M bit.
+ * value that's yest 0 due to ITR granularity. Also, set the INTENA_MSK bit to
+ * make sure hardware kyesws we aren't meddling with the INTENA_M bit.
  */
 static void ice_set_wb_on_itr(struct ice_q_vector *q_vector)
 {
 	struct ice_vsi *vsi = q_vector->vsi;
 
-	/* already in WB_ON_ITR mode no need to change it */
+	/* already in WB_ON_ITR mode yes need to change it */
 	if (q_vector->itr_countdown == ICE_IN_WB_ON_ITR_MODE)
 		return;
 
@@ -1522,7 +1522,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	if (unlikely(budget <= 0))
 		return budget;
 
-	/* normally we have 1 Rx ring per q_vector */
+	/* yesrmally we have 1 Rx ring per q_vector */
 	if (unlikely(q_vector->num_ring_rx > 1))
 		/* We attempt to distribute budget to each Rx queue fairly, but
 		 * don't allow the budget to go below 1 because that would exit
@@ -1544,12 +1544,12 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 			  ice_clean_rx_irq_zc(ring, budget_per_ring) :
 			  ice_clean_rx_irq(ring, budget_per_ring);
 		work_done += cleaned;
-		/* if we clean as many as budgeted, we must not be done */
+		/* if we clean as many as budgeted, we must yest be done */
 		if (cleaned >= budget_per_ring)
 			clean_complete = false;
 	}
 
-	/* If work not completed, return budget and polling will return */
+	/* If work yest completed, return budget and polling will return */
 	if (!clean_complete)
 		return budget;
 
@@ -1577,7 +1577,7 @@ static int __ice_maybe_stop_tx(struct ice_ring *tx_ring, unsigned int size)
 	/* Memory barrier before checking head and tail */
 	smp_mb();
 
-	/* Check again in a case another CPU has just made room available. */
+	/* Check again in a case ayesther CPU has just made room available. */
 	if (likely(ICE_DESC_UNUSED(tx_ring) < size))
 		return -EBUSY;
 
@@ -1592,7 +1592,7 @@ static int __ice_maybe_stop_tx(struct ice_ring *tx_ring, unsigned int size)
  * @tx_ring: the ring to be checked
  * @size:    the size buffer we want to assure is available
  *
- * Returns 0 if stop is not needed
+ * Returns 0 if stop is yest needed
  */
 static int ice_maybe_stop_tx(struct ice_ring *tx_ring, unsigned int size)
 {
@@ -1707,7 +1707,7 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 	/* record bytecount for BQL */
 	netdev_tx_sent_queue(txring_txq(tx_ring), first->bytecount);
 
-	/* record SW timestamp if HW timestamp is not available */
+	/* record SW timestamp if HW timestamp is yest available */
 	skb_tx_timestamp(first->skb);
 
 	i++;
@@ -1719,7 +1719,7 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 	tx_desc->cmd_type_offset_bsz = build_ctob(td_cmd, td_offset, size,
 						  td_tag);
 
-	/* Force memory writes to complete before letting h/w know there
+	/* Force memory writes to complete before letting h/w kyesw there
 	 * are new descriptors to fetch.
 	 *
 	 * We also use this memory barrier to make certain all of the
@@ -1734,7 +1734,7 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 
 	ice_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
-	/* notify HW of packet */
+	/* yestify HW of packet */
 	if (netif_xmit_stopped(txring_txq(tx_ring)) || !netdev_xmit_more()) {
 		writel(i, tx_ring->tail);
 	}
@@ -1984,7 +1984,7 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
  * @size: transmit request size in bytes
  *
  * Due to hardware alignment restrictions (4K alignment), we need to
- * assume that we can have no more than 12K of data per descriptor, even
+ * assume that we can have yes more than 12K of data per descriptor, even
  * though each descriptor can take up to 16K - 1 bytes of aligned memory.
  * Thus, we need to divide by 12K. But division is slow! Instead,
  * we decompose the operation into shifts and one relatively cheap
@@ -2046,7 +2046,7 @@ static unsigned int ice_xmit_desc_count(struct sk_buff *skb)
  * For TSO we need to count the TSO header and segment payload separately.
  * As such we need to check cases where we have 7 fragments or more as we
  * can potentially require 9 DMA transactions, 1 for the TSO header, 1 for
- * the segment payload in the first descriptor, and another 7 for the
+ * the segment payload in the first descriptor, and ayesther 7 for the
  * fragments.
  */
 static bool __ice_chk_linearize(struct sk_buff *skb)
@@ -2054,7 +2054,7 @@ static bool __ice_chk_linearize(struct sk_buff *skb)
 	const skb_frag_t *frag, *stale;
 	int nr_frags, sum;
 
-	/* no need to check if number of frags is less than 7 */
+	/* yes need to check if number of frags is less than 7 */
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	if (nr_frags < (ICE_MAX_BUF_TXD - 1))
 		return false;

@@ -53,12 +53,12 @@ static void tc86c001_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
  *
  * This is a workaround for the limitation 5 of the TC86C001 IDE controller:
  * if a DMA transfer terminates prematurely, the controller leaves the device's
- * interrupt request (INTRQ) pending and does not generate a PCI interrupt (or
- * set the interrupt bit in the DMA status register), thus no PCI interrupt
+ * interrupt request (INTRQ) pending and does yest generate a PCI interrupt (or
+ * set the interrupt bit in the DMA status register), thus yes PCI interrupt
  * will occur until a DMA transfer has been successfully completed.
  *
  * We work around this by initiating dummy, zero-length DMA transfer on
- * a DMA timeout expiration. I found no better way to do this with the current
+ * a DMA timeout expiration. I found yes better way to do this with the current
  * IDE core than to temporarily replace a higher level driver's timer expiry
  * handler with our own backing up to that handler in case our recovery fails.
  */
@@ -71,7 +71,7 @@ static int tc86c001_timer_expiry(ide_drive_t *drive)
 	/* Restore a higher level driver's expiry handler first. */
 	hwif->expiry = expiry;
 
-	if ((dma_stat & 5) == 1) {	/* DMA active and no interrupt */
+	if ((dma_stat & 5) == 1) {	/* DMA active and yes interrupt */
 		unsigned long sc_base	= hwif->config_data;
 		unsigned long twcr_port	= sc_base + (drive->dn ? 0x06 : 0x04);
 		u8 dma_cmd		= inb(hwif->dma_base + ATA_DMA_CMD);
@@ -95,7 +95,7 @@ static int tc86c001_timer_expiry(ide_drive_t *drive)
 
 		/*
 		 * If an interrupt was pending, it should come thru shortly.
-		 * If not, a higher level driver's expiry handler should
+		 * If yest, a higher level driver's expiry handler should
 		 * eventually cause some kind of recovery from the DMA stall.
 		 */
 		return WAIT_MIN_SLEEP;
@@ -105,7 +105,7 @@ static int tc86c001_timer_expiry(ide_drive_t *drive)
 	if (likely(expiry != NULL))
 		return expiry(drive);
 
-	/* If there was no handler, "emulate" that for ide_timer_expiry()... */
+	/* If there was yes handler, "emulate" that for ide_timer_expiry()... */
 	return -1;
 }
 

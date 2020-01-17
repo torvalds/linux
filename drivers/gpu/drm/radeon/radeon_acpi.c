@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -50,7 +50,7 @@ extern void radeon_pm_acpi_event_handler(struct radeon_device *rdev);
 struct atif_verify_interface {
 	u16 size;		/* structure size in bytes (includes size field) */
 	u16 version;		/* version */
-	u32 notification_mask;	/* supported notifications mask */
+	u32 yestification_mask;	/* supported yestifications mask */
 	u32 function_bits;	/* supported functions bit vector */
 } __packed;
 
@@ -58,7 +58,7 @@ struct atif_system_params {
 	u16 size;		/* structure size in bytes (includes size field) */
 	u32 valid_mask;		/* valid flags mask */
 	u32 flags;		/* flags */
-	u8 command_code;	/* notify command code */
+	u8 command_code;	/* yestify command code */
 } __packed;
 
 struct atif_sbios_requests {
@@ -66,7 +66,7 @@ struct atif_sbios_requests {
 	u32 pending;		/* pending sbios requests */
 	u8 panel_exp_mode;	/* panel expansion mode */
 	u8 thermal_gfx;		/* thermal state: target gfx controller */
-	u8 thermal_state;	/* thermal state: state id (0: exit state, non-0: state) */
+	u8 thermal_state;	/* thermal state: state id (0: exit state, yesn-0: state) */
 	u8 forced_power_gfx;	/* forced power state: target gfx controller */
 	u8 forced_power_state;	/* forced power state: state id */
 	u8 system_power_src;	/* system power source */
@@ -150,16 +150,16 @@ static union acpi_object *radeon_atif_call(acpi_handle handle, int function,
 }
 
 /**
- * radeon_atif_parse_notification - parse supported notifications
+ * radeon_atif_parse_yestification - parse supported yestifications
  *
- * @n: supported notifications struct
- * @mask: supported notifications mask from ATIF
+ * @n: supported yestifications struct
+ * @mask: supported yestifications mask from ATIF
  *
- * Use the supported notifications mask from ATIF function
- * ATIF_FUNCTION_VERIFY_INTERFACE to determine what notifications
+ * Use the supported yestifications mask from ATIF function
+ * ATIF_FUNCTION_VERIFY_INTERFACE to determine what yestifications
  * are supported (all asics).
  */
-static void radeon_atif_parse_notification(struct radeon_atif_notifications *n, u32 mask)
+static void radeon_atif_parse_yestification(struct radeon_atif_yestifications *n, u32 mask)
 {
 	n->display_switch = mask & ATIF_DISPLAY_SWITCH_REQUEST_SUPPORTED;
 	n->expansion_mode_change = mask & ATIF_EXPANSION_MODE_CHANGE_REQUEST_SUPPORTED;
@@ -234,7 +234,7 @@ static int radeon_atif_verify_interface(acpi_handle handle,
 	/* TODO: check version? */
 	DRM_DEBUG_DRIVER("ATIF version %u\n", output.version);
 
-	radeon_atif_parse_notification(&atif->notifications, output.notification_mask);
+	radeon_atif_parse_yestification(&atif->yestifications, output.yestification_mask);
 	radeon_atif_parse_functions(&atif->functions, output.function_bits);
 
 out:
@@ -243,19 +243,19 @@ out:
 }
 
 /**
- * radeon_atif_get_notification_params - determine notify configuration
+ * radeon_atif_get_yestification_params - determine yestify configuration
  *
  * @handle: acpi handle
- * @n: atif notification configuration struct
+ * @n: atif yestification configuration struct
  *
  * Execute the ATIF_FUNCTION_GET_SYSTEM_PARAMETERS ATIF function
- * to determine if a notifier is used and if so which one
+ * to determine if a yestifier is used and if so which one
  * (all asics).  This is either Notify(VGA, 0x81) or Notify(VGA, n)
- * where n is specified in the result if a notifier is used.
+ * where n is specified in the result if a yestifier is used.
  * Returns 0 on success, error on failure.
  */
-static int radeon_atif_get_notification_params(acpi_handle handle,
-		struct radeon_atif_notification_cfg *n)
+static int radeon_atif_get_yestification_params(acpi_handle handle,
+		struct radeon_atif_yestification_cfg *n)
 {
 	union acpi_object *info;
 	struct atif_system_params params;
@@ -346,7 +346,7 @@ out:
 }
 
 /**
- * radeon_atif_handler - handle ATIF notify requests
+ * radeon_atif_handler - handle ATIF yestify requests
  *
  * @rdev: radeon_device pointer
  * @event: atif sbios request struct
@@ -369,8 +369,8 @@ static int radeon_atif_handler(struct radeon_device *rdev,
 	if (strcmp(event->device_class, ACPI_VIDEO_CLASS) != 0)
 		return NOTIFY_DONE;
 
-	if (!atif->notification_cfg.enabled ||
-			event->type != atif->notification_cfg.command_code)
+	if (!atif->yestification_cfg.enabled ||
+			event->type != atif->yestification_cfg.command_code)
 		/* Not our event */
 		return NOTIFY_DONE;
 
@@ -417,7 +417,7 @@ static int radeon_atif_handler(struct radeon_device *rdev,
 	}
 	/* TODO: check other events */
 
-	/* We've handled the event, stop the notifier chain. The ACPI interface
+	/* We've handled the event, stop the yestifier chain. The ACPI interface
 	 * overloads ACPI_VIDEO_NOTIFY_PROBE, we don't want to send that to
 	 * userspace if the event was generated only to signal a SBIOS
 	 * request.
@@ -544,7 +544,7 @@ out:
  *
  * Check if the ATCS pcie_perf_req and pcie_dev_rdy methods
  * are supported (all asics).
- * returns true if supported, false if not.
+ * returns true if supported, false if yest.
  */
 bool radeon_acpi_is_pcie_performance_request_supported(struct radeon_device *rdev)
 {
@@ -557,7 +557,7 @@ bool radeon_acpi_is_pcie_performance_request_supported(struct radeon_device *rde
 }
 
 /**
- * radeon_acpi_pcie_notify_device_ready
+ * radeon_acpi_pcie_yestify_device_ready
  *
  * @rdev: radeon_device pointer
  *
@@ -565,7 +565,7 @@ bool radeon_acpi_is_pcie_performance_request_supported(struct radeon_device *rde
  * (all asics).
  * returns 0 on success, error on failure.
  */
-int radeon_acpi_pcie_notify_device_ready(struct radeon_device *rdev)
+int radeon_acpi_pcie_yestify_device_ready(struct radeon_device *rdev)
 {
 	acpi_handle handle;
 	union acpi_object *info;
@@ -667,9 +667,9 @@ int radeon_acpi_pcie_performance_request(struct radeon_device *rdev,
 }
 
 /**
- * radeon_acpi_event - handle notify events
+ * radeon_acpi_event - handle yestify events
  *
- * @nb: notifier block
+ * @nb: yestifier block
  * @val: val
  * @data: acpi event
  *
@@ -677,7 +677,7 @@ int radeon_acpi_pcie_performance_request(struct radeon_device *rdev,
  * acpi events.
  * Returns NOTIFY code
  */
-static int radeon_acpi_event(struct notifier_block *nb,
+static int radeon_acpi_event(struct yestifier_block *nb,
 			     unsigned long val,
 			     void *data)
 {
@@ -704,7 +704,7 @@ static int radeon_acpi_event(struct notifier_block *nb,
  * @rdev: radeon_device pointer
  *
  * Verifies the AMD ACPI interfaces and registers with the acpi
- * notifier chain (all asics).
+ * yestifier chain (all asics).
  * Returns 0 on success, error on failure.
  */
 int radeon_acpi_init(struct radeon_device *rdev)
@@ -717,7 +717,7 @@ int radeon_acpi_init(struct radeon_device *rdev)
 	/* Get the device handle */
 	handle = ACPI_HANDLE(&rdev->pdev->dev);
 
-	/* No need to proceed if we're sure that ATIF is not supported */
+	/* No need to proceed if we're sure that ATIF is yest supported */
 	if (!ASIC_IS_AVIVO(rdev) || !rdev->bios || !handle)
 		return 0;
 
@@ -734,7 +734,7 @@ int radeon_acpi_init(struct radeon_device *rdev)
 		goto out;
 	}
 
-	if (atif->notifications.brightness_change) {
+	if (atif->yestifications.brightness_change) {
 		struct drm_encoder *tmp;
 		struct radeon_encoder *target = NULL;
 
@@ -773,19 +773,19 @@ int radeon_acpi_init(struct radeon_device *rdev)
 	}
 
 	if (atif->functions.system_params) {
-		ret = radeon_atif_get_notification_params(handle,
-				&atif->notification_cfg);
+		ret = radeon_atif_get_yestification_params(handle,
+				&atif->yestification_cfg);
 		if (ret) {
 			DRM_DEBUG_DRIVER("Call to GET_SYSTEM_PARAMS failed: %d\n",
 					ret);
-			/* Disable notification */
-			atif->notification_cfg.enabled = false;
+			/* Disable yestification */
+			atif->yestification_cfg.enabled = false;
 		}
 	}
 
 out:
-	rdev->acpi_nb.notifier_call = radeon_acpi_event;
-	register_acpi_notifier(&rdev->acpi_nb);
+	rdev->acpi_nb.yestifier_call = radeon_acpi_event;
+	register_acpi_yestifier(&rdev->acpi_nb);
 
 	return ret;
 }
@@ -795,9 +795,9 @@ out:
  *
  * @rdev: radeon_device pointer
  *
- * Unregisters with the acpi notifier chain (all asics).
+ * Unregisters with the acpi yestifier chain (all asics).
  */
 void radeon_acpi_fini(struct radeon_device *rdev)
 {
-	unregister_acpi_notifier(&rdev->acpi_nb);
+	unregister_acpi_yestifier(&rdev->acpi_nb);
 }

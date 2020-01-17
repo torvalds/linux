@@ -15,20 +15,20 @@
 
 #include "dss.h"
 
-struct device_node *
-omapdss_of_get_next_port(const struct device_node *parent,
-			 struct device_node *prev)
+struct device_yesde *
+omapdss_of_get_next_port(const struct device_yesde *parent,
+			 struct device_yesde *prev)
 {
-	struct device_node *port = NULL;
+	struct device_yesde *port = NULL;
 
 	if (!parent)
 		return NULL;
 
 	if (!prev) {
-		struct device_node *ports;
+		struct device_yesde *ports;
 		/*
-		 * It's the first call, we have to find a port subnode
-		 * within this node or within an optional 'ports' node.
+		 * It's the first call, we have to find a port subyesde
+		 * within this yesde or within an optional 'ports' yesde.
 		 */
 		ports = of_get_child_by_name(parent, "ports");
 		if (ports)
@@ -36,10 +36,10 @@ omapdss_of_get_next_port(const struct device_node *parent,
 
 		port = of_get_child_by_name(parent, "port");
 
-		/* release the 'ports' node */
-		of_node_put(ports);
+		/* release the 'ports' yesde */
+		of_yesde_put(ports);
 	} else {
-		struct device_node *ports;
+		struct device_yesde *ports;
 
 		ports = of_get_parent(prev);
 		if (!ports)
@@ -48,24 +48,24 @@ omapdss_of_get_next_port(const struct device_node *parent,
 		do {
 			port = of_get_next_child(ports, prev);
 			if (!port) {
-				of_node_put(ports);
+				of_yesde_put(ports);
 				return NULL;
 			}
 			prev = port;
-		} while (!of_node_name_eq(port, "port"));
+		} while (!of_yesde_name_eq(port, "port"));
 
-		of_node_put(ports);
+		of_yesde_put(ports);
 	}
 
 	return port;
 }
 EXPORT_SYMBOL_GPL(omapdss_of_get_next_port);
 
-struct device_node *
-omapdss_of_get_next_endpoint(const struct device_node *parent,
-			     struct device_node *prev)
+struct device_yesde *
+omapdss_of_get_next_endpoint(const struct device_yesde *parent,
+			     struct device_yesde *prev)
 {
-	struct device_node *ep = NULL;
+	struct device_yesde *ep = NULL;
 
 	if (!parent)
 		return NULL;
@@ -75,15 +75,15 @@ omapdss_of_get_next_endpoint(const struct device_node *parent,
 		if (!ep)
 			return NULL;
 		prev = ep;
-	} while (!of_node_name_eq(ep, "endpoint"));
+	} while (!of_yesde_name_eq(ep, "endpoint"));
 
 	return ep;
 }
 EXPORT_SYMBOL_GPL(omapdss_of_get_next_endpoint);
 
-struct device_node *dss_of_port_get_parent_device(struct device_node *port)
+struct device_yesde *dss_of_port_get_parent_device(struct device_yesde *port)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int i;
 
 	if (!port)
@@ -105,7 +105,7 @@ struct device_node *dss_of_port_get_parent_device(struct device_node *port)
 	return NULL;
 }
 
-u32 dss_of_port_get_port_number(struct device_node *port)
+u32 dss_of_port_get_port_number(struct device_yesde *port)
 {
 	int r;
 	u32 reg;
@@ -117,11 +117,11 @@ u32 dss_of_port_get_port_number(struct device_node *port)
 	return reg;
 }
 
-static struct device_node *omapdss_of_get_remote_port(const struct device_node *node)
+static struct device_yesde *omapdss_of_get_remote_port(const struct device_yesde *yesde)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_graph_get_remote_endpoint(node);
+	np = of_graph_get_remote_endpoint(yesde);
 	if (!np)
 		return NULL;
 
@@ -130,10 +130,10 @@ static struct device_node *omapdss_of_get_remote_port(const struct device_node *
 	return np;
 }
 
-struct device_node *
-omapdss_of_get_first_endpoint(const struct device_node *parent)
+struct device_yesde *
+omapdss_of_get_first_endpoint(const struct device_yesde *parent)
 {
-	struct device_node *port, *ep;
+	struct device_yesde *port, *ep;
 
 	port = omapdss_of_get_next_port(parent, NULL);
 
@@ -142,34 +142,34 @@ omapdss_of_get_first_endpoint(const struct device_node *parent)
 
 	ep = omapdss_of_get_next_endpoint(port, NULL);
 
-	of_node_put(port);
+	of_yesde_put(port);
 
 	return ep;
 }
 EXPORT_SYMBOL_GPL(omapdss_of_get_first_endpoint);
 
 struct omap_dss_device *
-omapdss_of_find_source_for_first_ep(struct device_node *node)
+omapdss_of_find_source_for_first_ep(struct device_yesde *yesde)
 {
-	struct device_node *ep;
-	struct device_node *src_port;
+	struct device_yesde *ep;
+	struct device_yesde *src_port;
 	struct omap_dss_device *src;
 
-	ep = omapdss_of_get_first_endpoint(node);
+	ep = omapdss_of_get_first_endpoint(yesde);
 	if (!ep)
 		return ERR_PTR(-EINVAL);
 
 	src_port = omapdss_of_get_remote_port(ep);
 	if (!src_port) {
-		of_node_put(ep);
+		of_yesde_put(ep);
 		return ERR_PTR(-EINVAL);
 	}
 
-	of_node_put(ep);
+	of_yesde_put(ep);
 
-	src = omap_dss_find_output_by_port_node(src_port);
+	src = omap_dss_find_output_by_port_yesde(src_port);
 
-	of_node_put(src_port);
+	of_yesde_put(src_port);
 
 	return src ? src : ERR_PTR(-EPROBE_DEFER);
 }

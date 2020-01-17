@@ -77,7 +77,7 @@
 	};
 
 	panel {
-		compatible = "innolux,ee101ia-01d", "panel-lvds";
+		compatible = "inyeslux,ee101ia-01d", "panel-lvds";
 		backlight = <&backlight>;
 
 		/* pin LCD_CS, Nshtdn input of lvds-encoder */
@@ -227,7 +227,7 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	non-removable;
+	yesn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd>;
 	vmmc-supply = <&vcc_io>;
@@ -417,7 +417,7 @@
 		pinctrl-0 = <&tp_int &tp_rst>;
 		reset-gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
 		touchscreen-inverted-y;
-		/* hw ts resolution does not match display */
+		/* hw ts resolution does yest match display */
 		touchscreen-size-y = <1024>;
 		touchscreen-size-x = <768>;
 		touchscreen-swapped-x-y;
@@ -462,7 +462,7 @@
 	cap-sd-highspeed;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	yesn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd1_clk>, <&sd1_cmd>, <&sd1_bus4>;
 	vmmcq-supply = <&vccio_wl>;
@@ -514,7 +514,7 @@
 
 		/* low: charging, high: complete, fault: blinking */
 		chg_det: chg-det {
-			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		/* charging enabled when pin low and register set */
@@ -524,7 +524,7 @@
 
 		/* bq29196 powergood (when low) signal */
 		dc_det: dc-det {
-			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		/* wire bq24196 otg pin to high, to enable 500mA charging */
@@ -535,25 +535,25 @@
 
 	camera {
 		cif0_pdn: cif0-pdn {
-			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		cif1_pdn: cif1-pdn {
-			rockchip,pins = <3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		cif_avdd_en: cif-avdd-en {
-			rockchip,pins = <1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	display {
 		lcd_cs: lcd-cs {
-			rockchip,pins = <3 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PD6 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		lcd_en: lcd-en {
-			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -563,7 +563,7 @@
 		};
 
 		tp_rst: tp-rst {
-			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -573,7 +573,7 @@
 		};
 
 		hdmi_rst: hdmi-rst {
-			rockchip,pins = <3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -595,29 +595,29 @@
 
 	lis3de {
 		gsensor_int: gsensor-int {
-			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	mmc {
 		sdmmc_pwr: sdmmc-pwr {
-			rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	tmp108 {
 		tmp_alrt: tmp-alrt {
-			rockchip,pins = <1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	usb {
 		v5_drv: v5-drv {
-			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		otg_drv: otg-drv {
-			rockchip,pins = <3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		usb_int: usb-int {
@@ -631,7 +631,7 @@
 		};
 
 		bt_reg_on: bt-reg-on {
-			rockchip,pins = <3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		/* pin hog to pull the reset high */
@@ -640,7 +640,7 @@
 		};
 
 		bt_wake: bt-wake {
-			rockchip,pins = <3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		wifi_host_wake: wifi-host-wake {
@@ -648,7 +648,7 @@
 		};
 
 		wifi_reg_on: wifi-reg-on {
-			rockchip,pins = <3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };

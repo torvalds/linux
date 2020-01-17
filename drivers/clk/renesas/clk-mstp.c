@@ -34,7 +34,7 @@
  * @smstpcr: module stop control register
  * @mstpsr: module stop status register (optional)
  * @lock: protects writes to SMSTPCR
- * @width_8bit: registers are 8-bit, not 32-bit
+ * @width_8bit: registers are 8-bit, yest 32-bit
  * @clks: clocks in this group
  */
 struct mstp_clock_group {
@@ -161,7 +161,7 @@ static struct clk * __init cpg_mstp_clock_register(const char *name,
 	init.name = name;
 	init.ops = &cpg_mstp_clock_ops;
 	init.flags = CLK_SET_RATE_PARENT;
-	/* INTC-SYS is the module clock of the GIC, and must not be disabled */
+	/* INTC-SYS is the module clock of the GIC, and must yest be disabled */
 	if (!strcmp(name, "intc-sys")) {
 		pr_debug("MSTP %s setting CLK_IS_CRITICAL\n", name);
 		init.flags |= CLK_IS_CRITICAL;
@@ -181,7 +181,7 @@ static struct clk * __init cpg_mstp_clock_register(const char *name,
 	return clk;
 }
 
-static void __init cpg_mstp_clocks_init(struct device_node *np)
+static void __init cpg_mstp_clocks_init(struct device_yesde *np)
 {
 	struct mstp_clock_group *group;
 	const char *idxname;
@@ -222,7 +222,7 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 		u32 clkidx;
 		int ret;
 
-		/* Skip clocks with no name. */
+		/* Skip clocks with yes name. */
 		ret = of_property_read_string_index(np, "clock-output-names",
 						    i, &name);
 		if (ret < 0 || strlen(name) == 0)
@@ -246,7 +246,7 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 						  clkidx + 1);
 			/*
 			 * Register a clkdev to let board code retrieve the
-			 * clock by name and register aliases for non-DT
+			 * clock by name and register aliases for yesn-DT
 			 * devices.
 			 *
 			 * FIXME: Remove this when all devices that require a
@@ -265,7 +265,7 @@ CLK_OF_DECLARE(cpg_mstp_clks, "renesas,cpg-mstp-clocks", cpg_mstp_clocks_init);
 
 int cpg_mstp_attach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct of_phandle_args clkspec;
 	struct clk *clk;
 	int i = 0;
@@ -278,10 +278,10 @@ int cpg_mstp_attach_dev(struct generic_pm_domain *unused, struct device *dev)
 			goto found;
 
 		/* BSC on r8a73a4/sh73a0 uses zb_clk instead of an mstp clock */
-		if (of_node_name_eq(clkspec.np, "zb_clk"))
+		if (of_yesde_name_eq(clkspec.np, "zb_clk"))
 			goto found;
 
-		of_node_put(clkspec.np);
+		of_yesde_put(clkspec.np);
 		i++;
 	}
 
@@ -289,7 +289,7 @@ int cpg_mstp_attach_dev(struct generic_pm_domain *unused, struct device *dev)
 
 found:
 	clk = of_clk_get_from_provider(&clkspec);
-	of_node_put(clkspec.np);
+	of_yesde_put(clkspec.np);
 
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
@@ -313,11 +313,11 @@ fail_put:
 
 void cpg_mstp_detach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
-	if (!pm_clk_no_clocks(dev))
+	if (!pm_clk_yes_clocks(dev))
 		pm_clk_destroy(dev);
 }
 
-void __init cpg_mstp_add_clk_domain(struct device_node *np)
+void __init cpg_mstp_add_clk_domain(struct device_yesde *np)
 {
 	struct generic_pm_domain *pd;
 	u32 ncells;

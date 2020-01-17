@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for sunxi SD/MMC host controllers
- * (C) Copyright 2007-2011 Reuuimlla Technology Co., Ltd.
+ * (C) Copyright 2007-2011 Reuuimlla Techyeslogy Co., Ltd.
  * (C) Copyright 2007-2011 Aaron Maoye <leafy.myeh@reuuimllatech.com>
  * (C) Copyright 2013-2014 O2S GmbH <www.o2s.ch>
  * (C) Copyright 2013-2014 David Lanzendörfer <david.lanzendoerfer@o2s.ch>
@@ -202,7 +202,7 @@
 * If the idma-des-size-bits of property is ie 13, bufsize bits are:
 *  Bits  0-12: buf1 size
 *  Bits 13-25: buf2 size
-*  Bits 26-31: not used
+*  Bits 26-31: yest used
 * Since we only ever set buf1 size, we can simply store it directly.
 */
 #define SDXC_IDMAC_DES0_DIC	BIT(1)  /* disable interrupt on completion */
@@ -228,7 +228,7 @@
 #define SDXC_CAL_DL_SW_SHIFT	0
 #define SDXC_CAL_DL_MASK	0x3f
 
-#define SDXC_CAL_TIMEOUT	3	/* in seconds, 3s is enough*/
+#define SDXC_CAL_TIMEOUT	3	/* in seconds, 3s is eyesugh*/
 
 struct sunxi_mmc_clk_delay {
 	u32 output;
@@ -480,7 +480,7 @@ static void sunxi_mmc_dump_errinfo(struct sunxi_mmc_host *host)
 	struct mmc_command *cmd = host->mrq->cmd;
 	struct mmc_data *data = host->mrq->data;
 
-	/* For some cmds timeout is normal with sd/mmc cards */
+	/* For some cmds timeout is yesrmal with sd/mmc cards */
 	if ((host->int_sum & SDXC_INTERRUPT_ERROR_BIT) ==
 		SDXC_RESP_TIMEOUT && (cmd->opcode == SD_IO_SEND_OP_COND ||
 				      cmd->opcode == SD_IO_RW_DIRECT))
@@ -628,7 +628,7 @@ static irqreturn_t sunxi_mmc_handle_manual_stop(int irq, void *dev_id)
 	spin_unlock_irqrestore(&host->lock, iflags);
 
 	if (!mrq) {
-		dev_err(mmc_dev(host->mmc), "no request for manual stop\n");
+		dev_err(mmc_dev(host->mmc), "yes request for manual stop\n");
 		return IRQ_HANDLED;
 	}
 
@@ -636,8 +636,8 @@ static irqreturn_t sunxi_mmc_handle_manual_stop(int irq, void *dev_id)
 
 	/*
 	 * We will never have more than one outstanding request,
-	 * and we do not complete the request until after
-	 * we've cleared host->manual_stop_mrq so we do not need to
+	 * and we do yest complete the request until after
+	 * we've cleared host->manual_stop_mrq so we do yest need to
 	 * spin lock this function.
 	 * Additionally we have wait states within this function
 	 * so having it in a lock is a very bad idea.
@@ -653,7 +653,7 @@ static irqreturn_t sunxi_mmc_handle_manual_stop(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int sunxi_mmc_oclk_onoff(struct sunxi_mmc_host *host, u32 oclk_en)
+static int sunxi_mmc_oclk_oyesff(struct sunxi_mmc_host *host, u32 oclk_en)
 {
 	unsigned long expire = jiffies + msecs_to_jiffies(750);
 	u32 rval;
@@ -702,7 +702,7 @@ static int sunxi_mmc_calibrate(struct sunxi_mmc_host *host, int reg_off)
 
 	/*
 	 * FIXME:
-	 * This is not clear how the calibration is supposed to work
+	 * This is yest clear how the calibration is supposed to work
 	 * yet. The best rate have been obtained by simply setting the
 	 * delay to 0, as Allwinner does in its BSP.
 	 *
@@ -719,7 +719,7 @@ static int sunxi_mmc_clk_set_phase(struct sunxi_mmc_host *host,
 {
 	int index;
 
-	/* clk controller delays not used under new timings mode */
+	/* clk controller delays yest used under new timings mode */
 	if (host->use_new_timings)
 		return 0;
 
@@ -760,11 +760,11 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	u32 rval, clock = ios->clock, div = 1;
 	int ret;
 
-	ret = sunxi_mmc_oclk_onoff(host, 0);
+	ret = sunxi_mmc_oclk_oyesff(host, 0);
 	if (ret)
 		return ret;
 
-	/* Our clock is gated now */
+	/* Our clock is gated yesw */
 	mmc->actual_clock = 0;
 
 	if (!ios->clock)
@@ -824,8 +824,8 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	/*
 	 * Configure the controller to use the new timing mode if needed.
 	 * On controllers that only support the new timing mode, such as
-	 * the eMMC controller on the A64, this register does not exist,
-	 * and any writes to it are ignored.
+	 * the eMMC controller on the A64, this register does yest exist,
+	 * and any writes to it are igyesred.
 	 */
 	if (host->use_new_timings) {
 		/* Don't touch the delay bits */
@@ -851,7 +851,7 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	 * least on the A64).
 	 */
 
-	ret = sunxi_mmc_oclk_onoff(host, 1);
+	ret = sunxi_mmc_oclk_oyesff(host, 1);
 	if (ret)
 		return ret;
 
@@ -935,7 +935,7 @@ static void sunxi_mmc_card_power(struct sunxi_mmc_host *host,
 		break;
 
 	default:
-		dev_dbg(mmc_dev(mmc), "Ignoring unknown card power state\n");
+		dev_dbg(mmc_dev(mmc), "Igyesring unkyeswn card power state\n");
 		break;
 	}
 }
@@ -955,7 +955,7 @@ static int sunxi_mmc_volt_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (!IS_ERR(mmc->supply.vqmmc))
 		return mmc_regulator_set_vqmmc(mmc, ios);
 
-	/* no vqmmc regulator, assume fixed regulator at 3/3.3V */
+	/* yes vqmmc regulator, assume fixed regulator at 3/3.3V */
 	if (mmc->ios.signal_voltage == MMC_SIGNAL_VOLTAGE_330)
 		return 0;
 
@@ -969,7 +969,7 @@ static void sunxi_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	u32 imask;
 
 	if (enable)
-		pm_runtime_get_noresume(host->dev);
+		pm_runtime_get_yesresume(host->dev);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -985,7 +985,7 @@ static void sunxi_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	if (!enable)
-		pm_runtime_put_noidle(host->mmc->parent);
+		pm_runtime_put_yesidle(host->mmc->parent);
 }
 
 static void sunxi_mmc_hw_reset(struct mmc_host *mmc)
@@ -1116,7 +1116,7 @@ static const struct sunxi_mmc_clk_delay sunxi_mmc_clk_delays[] = {
 	[SDXC_CLK_25M]		= { .output = 180, .sample =  75 },
 	[SDXC_CLK_50M]		= { .output =  90, .sample = 120 },
 	[SDXC_CLK_50M_DDR]	= { .output =  60, .sample = 120 },
-	/* Value from A83T "new timing mode". Works but might not be right. */
+	/* Value from A83T "new timing mode". Works but might yest be right. */
 	[SDXC_CLK_50M_DDR_8BIT]	= { .output =  90, .sample = 180 },
 };
 
@@ -1280,26 +1280,26 @@ static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
 
 	host->clk_ahb = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(host->clk_ahb)) {
-		dev_err(&pdev->dev, "Could not get ahb clock\n");
+		dev_err(&pdev->dev, "Could yest get ahb clock\n");
 		return PTR_ERR(host->clk_ahb);
 	}
 
 	host->clk_mmc = devm_clk_get(&pdev->dev, "mmc");
 	if (IS_ERR(host->clk_mmc)) {
-		dev_err(&pdev->dev, "Could not get mmc clock\n");
+		dev_err(&pdev->dev, "Could yest get mmc clock\n");
 		return PTR_ERR(host->clk_mmc);
 	}
 
 	if (host->cfg->clk_delays) {
 		host->clk_output = devm_clk_get(&pdev->dev, "output");
 		if (IS_ERR(host->clk_output)) {
-			dev_err(&pdev->dev, "Could not get output clock\n");
+			dev_err(&pdev->dev, "Could yest get output clock\n");
 			return PTR_ERR(host->clk_output);
 		}
 
 		host->clk_sample = devm_clk_get(&pdev->dev, "sample");
 		if (IS_ERR(host->clk_sample)) {
-			dev_err(&pdev->dev, "Could not get sample clock\n");
+			dev_err(&pdev->dev, "Could yest get sample clock\n");
 			return PTR_ERR(host->clk_sample);
 		}
 	}
@@ -1368,10 +1368,10 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 		ret = sunxi_ccu_get_mmc_timing_mode(host->clk_mmc);
 		if (ret < 0) {
 			/*
-			 * For whatever reason we were not able to get
+			 * For whatever reason we were yest able to get
 			 * the current active mode. Default to old mode.
 			 */
-			dev_warn(&pdev->dev, "MMC clk timing mode unknown\n");
+			dev_warn(&pdev->dev, "MMC clk timing mode unkyeswn\n");
 			host->use_new_timings = false;
 		} else {
 			host->use_new_timings = !!ret;
@@ -1394,14 +1394,14 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 				  MMC_CAP_ERASE | MMC_CAP_SDIO_IRQ;
 
 	/*
-	 * Some H5 devices do not have signal traces precise enough to
+	 * Some H5 devices do yest have signal traces precise eyesugh to
 	 * use HS DDR mode for their eMMC chips.
 	 *
 	 * We still enable HS DDR modes for all the other controller
 	 * variants that support them.
 	 */
 	if ((host->cfg->clk_delays || host->use_new_timings) &&
-	    !of_device_is_compatible(pdev->dev.of_node,
+	    !of_device_is_compatible(pdev->dev.of_yesde,
 				     "allwinner,sun50i-h5-emmc"))
 		mmc->caps      |= MMC_CAP_1_8V_DDR | MMC_CAP_3_3V_DDR;
 

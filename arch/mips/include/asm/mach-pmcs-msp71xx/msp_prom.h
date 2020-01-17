@@ -2,7 +2,7 @@
 /*
  * MIPS boards bootprom interface for the Linux kernel.
  *
- * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2000 MIPS Techyeslogies, Inc.  All rights reserved.
  * Author: Carsten Langgaard, carstenl@mips.com
  *
  * ########################################################################

@@ -64,7 +64,7 @@ static inline int x25_t20timer_pending(struct x25_neigh *nb)
 }
 
 /*
- *	This handles all restart and diagnostic frames.
+ *	This handles all restart and diagyesstic frames.
  */
 void x25_link_control(struct sk_buff *skb, struct x25_neigh *nb,
 		      unsigned short frametype)
@@ -90,13 +90,13 @@ void x25_link_control(struct sk_buff *skb, struct x25_neigh *nb,
 		if (!pskb_may_pull(skb, X25_STD_MIN_LEN + 4))
 			break;
 
-		pr_warn("diagnostic #%d - %02X %02X %02X\n",
+		pr_warn("diagyesstic #%d - %02X %02X %02X\n",
 		       skb->data[3], skb->data[4],
 		       skb->data[5], skb->data[6]);
 		break;
 
 	default:
-		pr_warn("received unknown %02X with LCI 000\n",
+		pr_warn("received unkyeswn %02X with LCI 000\n",
 		       frametype);
 		break;
 	}
@@ -264,7 +264,7 @@ void x25_link_device_up(struct net_device *dev)
 	refcount_set(&nb->refcnt, 1);
 
 	write_lock_bh(&x25_neigh_list_lock);
-	list_add(&nb->node, &x25_neigh_list);
+	list_add(&nb->yesde, &x25_neigh_list);
 	write_unlock_bh(&x25_neigh_list_lock);
 }
 
@@ -280,8 +280,8 @@ static void __x25_remove_neigh(struct x25_neigh *nb)
 	skb_queue_purge(&nb->queue);
 	x25_stop_t20timer(nb);
 
-	if (nb->node.next) {
-		list_del(&nb->node);
+	if (nb->yesde.next) {
+		list_del(&nb->yesde);
 		x25_neigh_put(nb);
 	}
 }
@@ -297,7 +297,7 @@ void x25_link_device_down(struct net_device *dev)
 	write_lock_bh(&x25_neigh_list_lock);
 
 	list_for_each_safe(entry, tmp, &x25_neigh_list) {
-		nb = list_entry(entry, struct x25_neigh, node);
+		nb = list_entry(entry, struct x25_neigh, yesde);
 
 		if (nb->dev == dev) {
 			__x25_remove_neigh(nb);
@@ -318,7 +318,7 @@ struct x25_neigh *x25_get_neigh(struct net_device *dev)
 
 	read_lock_bh(&x25_neigh_list_lock);
 	list_for_each(entry, &x25_neigh_list) {
-		nb = list_entry(entry, struct x25_neigh, node);
+		nb = list_entry(entry, struct x25_neigh, yesde);
 
 		if (nb->dev == dev) {
 			use = nb;
@@ -397,7 +397,7 @@ void __exit x25_link_free(void)
 	list_for_each_safe(entry, tmp, &x25_neigh_list) {
 		struct net_device *dev;
 
-		nb = list_entry(entry, struct x25_neigh, node);
+		nb = list_entry(entry, struct x25_neigh, yesde);
 		dev = nb->dev;
 		__x25_remove_neigh(nb);
 		dev_put(dev);

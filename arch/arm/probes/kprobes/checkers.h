@@ -11,8 +11,8 @@
 #include <linux/types.h>
 #include "../decode.h"
 
-extern probes_check_t checker_stack_use_none;
-extern probes_check_t checker_stack_use_unknown;
+extern probes_check_t checker_stack_use_yesne;
+extern probes_check_t checker_stack_use_unkyeswn;
 #ifdef CONFIG_THUMB2_KERNEL
 extern probes_check_t checker_stack_use_imm_0xx;
 #else

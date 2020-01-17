@@ -28,7 +28,7 @@
 #include <scsi/scsi.h>
 
 /*
- * Some defs, in case these are not defined elsewhere.
+ * Some defs, in case these are yest defined elsewhere.
  */
 #ifndef TRUE
 #define TRUE 1

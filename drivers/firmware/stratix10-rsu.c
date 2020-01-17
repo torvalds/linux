@@ -109,7 +109,7 @@ static void rsu_command_callback(struct stratix10_svc_client *client,
 	struct stratix10_rsu_priv *priv = client->priv;
 
 	if (data->status == BIT(SVC_STATUS_RSU_NO_SUPPORT))
-		dev_warn(client->dev, "Secure FW doesn't support notify\n");
+		dev_warn(client->dev, "Secure FW doesn't support yestify\n");
 	else if (data->status == BIT(SVC_STATUS_RSU_ERROR))
 		dev_err(client->dev, "Failure, returned status is %lu\n",
 			BIT(data->status));
@@ -124,7 +124,7 @@ static void rsu_command_callback(struct stratix10_svc_client *client,
  * @data: pointer to callback data structure
  *
  * Callback from Intel service layer for retry counter, which is used by
- * user to know how many times the images is still allowed to reload
+ * user to kyesw how many times the images is still allowed to reload
  * itself before giving up and starting RSU fail-over flow.
  */
 static void rsu_retry_callback(struct stratix10_svc_client *client,
@@ -148,7 +148,7 @@ static void rsu_retry_callback(struct stratix10_svc_client *client,
  * rsu_send_msg() - send a message to Intel service layer
  * @priv: pointer to rsu private data
  * @command: RSU status or update command
- * @arg: the request argument, the bitstream address or notify status
+ * @arg: the request argument, the bitstream address or yestify status
  * @callback: function pointer for the callback (status or update)
  *
  * Start an Intel service layer transaction to perform the SMC call that
@@ -307,7 +307,7 @@ static ssize_t reboot_image_store(struct device *dev,
 	return count;
 }
 
-static ssize_t notify_store(struct device *dev,
+static ssize_t yestify_store(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
@@ -325,7 +325,7 @@ static ssize_t notify_store(struct device *dev,
 	ret = rsu_send_msg(priv, COMMAND_RSU_NOTIFY,
 			   status, rsu_command_callback);
 	if (ret) {
-		dev_err(dev, "Error, RSU notify returned %i\n", ret);
+		dev_err(dev, "Error, RSU yestify returned %i\n", ret);
 		return ret;
 	}
 
@@ -354,7 +354,7 @@ static DEVICE_ATTR_RO(error_location);
 static DEVICE_ATTR_RO(error_details);
 static DEVICE_ATTR_RO(retry_counter);
 static DEVICE_ATTR_WO(reboot_image);
-static DEVICE_ATTR_WO(notify);
+static DEVICE_ATTR_WO(yestify);
 
 static struct attribute *rsu_attrs[] = {
 	&dev_attr_current_image.attr,
@@ -365,7 +365,7 @@ static struct attribute *rsu_attrs[] = {
 	&dev_attr_error_details.attr,
 	&dev_attr_retry_counter.attr,
 	&dev_attr_reboot_image.attr,
-	&dev_attr_notify.attr,
+	&dev_attr_yestify.attr,
 	NULL
 };
 

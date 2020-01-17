@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-yeste) OR BSD-3-Clause) */
 /*
  *  Video for Linux Two header file
  *
@@ -21,12 +21,12 @@
  *  modification, are permitted provided that the following conditions
  *  are met:
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *  3. The names of its contributors may not be used to endorse or promote
+ *  3. The names of its contributors may yest be used to endorse or promote
  *     products derived from this software without specific prior written
  *     permission.
  *
@@ -45,7 +45,7 @@
  *	Header file for v4l or V4L2 drivers and applications
  * with public API.
  * All kernel-specific stuff were moved to media/v4l2-dev.h, so
- * no #if __KERNEL tests are allowed here
+ * yes #if __KERNEL tests are allowed here
  *
  *	See https://linuxtv.org for more info
  *
@@ -86,11 +86,11 @@
  *	E N U M S
  */
 enum v4l2_field {
-	V4L2_FIELD_ANY           = 0, /* driver can choose from none,
+	V4L2_FIELD_ANY           = 0, /* driver can choose from yesne,
 					 top, bottom, interlaced
 					 depending on whatever it thinks
 					 is approximate ... */
-	V4L2_FIELD_NONE          = 1, /* this device has no fields ... */
+	V4L2_FIELD_NONE          = 1, /* this device has yes fields ... */
 	V4L2_FIELD_TOP           = 2, /* top field only */
 	V4L2_FIELD_BOTTOM        = 3, /* bottom field only */
 	V4L2_FIELD_INTERLACED    = 4, /* both fields interlaced */
@@ -153,7 +153,7 @@ enum v4l2_buf_type {
 	V4L2_BUF_TYPE_SDR_OUTPUT           = 12,
 	V4L2_BUF_TYPE_META_CAPTURE         = 13,
 	V4L2_BUF_TYPE_META_OUTPUT	   = 14,
-	/* Deprecated, do not use */
+	/* Deprecated, do yest use */
 	V4L2_BUF_TYPE_PRIVATE              = 0x80,
 };
 
@@ -179,7 +179,7 @@ enum v4l2_tuner_type {
 	V4L2_TUNER_RF                = 5,
 };
 
-/* Deprecated, do not use */
+/* Deprecated, do yest use */
 #define V4L2_TUNER_ADC  V4L2_TUNER_SDR
 
 enum v4l2_memory {
@@ -207,7 +207,7 @@ enum v4l2_colorspace {
 	V4L2_COLORSPACE_REC709        = 3,
 
 	/*
-	 * Deprecated, do not use. No driver will ever return this. This was
+	 * Deprecated, do yest use. No driver will ever return this. This was
 	 * based on a misunderstanding of the bt878 datasheet.
 	 */
 	V4L2_COLORSPACE_BT878         = 4,
@@ -330,7 +330,7 @@ enum v4l2_ycbcr_encoding {
 	/*
 	 * sYCC (Y'CbCr encoding of sRGB), identical to ENC_601. It was added
 	 * originally due to a misunderstanding of the sYCC standard. It should
-	 * not be used, instead use V4L2_YCBCR_ENC_601.
+	 * yest be used, instead use V4L2_YCBCR_ENC_601.
 	 */
 	V4L2_YCBCR_ENC_SYCC           = 5,
 #endif
@@ -346,7 +346,7 @@ enum v4l2_ycbcr_encoding {
 };
 
 /*
- * enum v4l2_hsv_encoding values should not collide with the ones from
+ * enum v4l2_hsv_encoding values should yest collide with the ones from
  * enum v4l2_ycbcr_encoding.
  */
 enum v4l2_hsv_encoding {
@@ -382,7 +382,7 @@ enum v4l2_quantization {
 
 /*
  * Determine how QUANTIZATION_DEFAULT should map to a proper quantization.
- * This depends on whether the image is RGB or not, the colorspace and the
+ * This depends on whether the image is RGB or yest, the colorspace and the
  * Y'CbCr encoding.
  */
 #define V4L2_MAP_QUANTIZATION_DEFAULT(is_rgb_or_hsv, colsp, ycbcr_enc) \
@@ -403,7 +403,7 @@ enum v4l2_quantization {
 #endif
 
 enum v4l2_priority {
-	V4L2_PRIORITY_UNSET       = 0,  /* not initialized */
+	V4L2_PRIORITY_UNSET       = 0,  /* yest initialized */
 	V4L2_PRIORITY_BACKGROUND  = 1,
 	V4L2_PRIORITY_INTERACTIVE = 2,
 	V4L2_PRIORITY_RECORD      = 3,
@@ -419,7 +419,7 @@ struct v4l2_rect {
 
 struct v4l2_fract {
 	__u32   numerator;
-	__u32   denominator;
+	__u32   deyesminator;
 };
 
 struct v4l2_area {
@@ -435,7 +435,7 @@ struct v4l2_area {
   * @bus_info:	   name of the bus (e.g. "PCI:" + pci_name(pci_dev) )
   * @version:	   KERNEL_VERSION
   * @capabilities: capabilities of the physical device as a whole
-  * @device_caps:  capabilities accessed via this particular device (node)
+  * @device_caps:  capabilities accessed via this particular device (yesde)
   * @reserved:	   reserved fields for future extensions
   */
 struct v4l2_capability {
@@ -605,7 +605,7 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_NV24    v4l2_fourcc('N', 'V', '2', '4') /* 24  Y/CbCr 4:4:4  */
 #define V4L2_PIX_FMT_NV42    v4l2_fourcc('N', 'V', '4', '2') /* 24  Y/CrCb 4:4:4  */
 
-/* two non contiguous planes - one Y, one Cr + Cb interleaved  */
+/* two yesn contiguous planes - one Y, one Cr + Cb interleaved  */
 #define V4L2_PIX_FMT_NV12M   v4l2_fourcc('N', 'M', '1', '2') /* 12  Y/CbCr 4:2:0  */
 #define V4L2_PIX_FMT_NV21M   v4l2_fourcc('N', 'M', '2', '1') /* 21  Y/CrCb 4:2:0  */
 #define V4L2_PIX_FMT_NV16M   v4l2_fourcc('N', 'M', '1', '6') /* 16  Y/CbCr 4:2:2  */
@@ -621,7 +621,7 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_YVU420  v4l2_fourcc('Y', 'V', '1', '2') /* 12  YVU 4:2:0     */
 #define V4L2_PIX_FMT_YUV422P v4l2_fourcc('4', '2', '2', 'P') /* 16  YVU422 planar */
 
-/* three non contiguous planes - Y, Cb, Cr */
+/* three yesn contiguous planes - Y, Cb, Cr */
 #define V4L2_PIX_FMT_YUV420M v4l2_fourcc('Y', 'M', '1', '2') /* 12  YUV420 planar */
 #define V4L2_PIX_FMT_YVU420M v4l2_fourcc('Y', 'M', '2', '1') /* 12  YVU420 planar */
 #define V4L2_PIX_FMT_YUV422M v4l2_fourcc('Y', 'M', '1', '6') /* 16  YUV422 planar */
@@ -700,7 +700,7 @@ struct v4l2_pix_format {
 
 /*  Vendor-specific formats   */
 #define V4L2_PIX_FMT_CPIA1    v4l2_fourcc('C', 'P', 'I', 'A') /* cpia1 YUV */
-#define V4L2_PIX_FMT_WNVA     v4l2_fourcc('W', 'N', 'V', 'A') /* Winnov hw compress */
+#define V4L2_PIX_FMT_WNVA     v4l2_fourcc('W', 'N', 'V', 'A') /* Winyesv hw compress */
 #define V4L2_PIX_FMT_SN9C10X  v4l2_fourcc('S', '9', '1', '0') /* SN9C10x compression */
 #define V4L2_PIX_FMT_SN9C20X_I420 v4l2_fourcc('S', '9', '2', '0') /* SN9C20x YUV 4:2:0 */
 #define V4L2_PIX_FMT_PWC1     v4l2_fourcc('P', 'W', 'C', '1') /* pwc older webcam */
@@ -892,14 +892,14 @@ struct v4l2_jpegcompression {
 	char COM_data[60];      /* Data in JPEG COM segment */
 
 	__u32 jpeg_markers;     /* Which markers should go into the JPEG
-				 * output. Unless you exactly know what
+				 * output. Unless you exactly kyesw what
 				 * you do, leave them untouched.
 				 * Including less markers will make the
 				 * resulting code smaller, but there will
 				 * be fewer applications which can read it.
 				 * The presence of the APP and COM marker
 				 * is influenced by APP_len and COM_len
-				 * ONLY, not by this property! */
+				 * ONLY, yest by this property! */
 
 #define V4L2_JPEG_MARKER_DHT (1<<3)    /* Define Huffman Tables */
 #define V4L2_JPEG_MARKER_DQT (1<<4)    /* Define Quantization Tables */
@@ -935,7 +935,7 @@ struct v4l2_requestbuffers {
  * @mem_offset:		when memory in the associated struct v4l2_buffer is
  *			V4L2_MEMORY_MMAP, equals the offset from the start of
  *			the device memory for this plane (or is a "cookie" that
- *			should be passed to mmap() called on the video node)
+ *			should be passed to mmap() called on the video yesde)
  * @userptr:		when memory is V4L2_MEMORY_USERPTR, a userspace pointer
  *			pointing to this plane
  * @fd:			when memory is V4L2_MEMORY_DMABUF, a userspace file
@@ -944,9 +944,9 @@ struct v4l2_requestbuffers {
  *			unless there is a header in front of the data
  *
  * Multi-planar buffers consist of one or more planes, e.g. an YCbCr buffer
- * with two planes can have one plane for Y, and another for interleaved CbCr
+ * with two planes can have one plane for Y, and ayesther for interleaved CbCr
  * components. Each plane can reside in a separate memory buffer, or even in
- * a completely separate memory node (e.g. in embedded devices).
+ * a completely separate memory yesde (e.g. in embedded devices).
  */
 struct v4l2_plane {
 	__u32			bytesused;
@@ -974,12 +974,12 @@ struct v4l2_plane {
  * @sequence:	sequence count of this frame
  * @memory:	enum v4l2_memory; the method, in which the actual video data is
  *		passed
- * @offset:	for non-multiplanar buffers with memory == V4L2_MEMORY_MMAP;
+ * @offset:	for yesn-multiplanar buffers with memory == V4L2_MEMORY_MMAP;
  *		offset from the start of the device memory for this plane,
  *		(or a "cookie" that should be passed to mmap() as offset)
- * @userptr:	for non-multiplanar buffers with memory == V4L2_MEMORY_USERPTR;
+ * @userptr:	for yesn-multiplanar buffers with memory == V4L2_MEMORY_USERPTR;
  *		a userspace pointer pointing to this buffer
- * @fd:		for non-multiplanar buffers with memory == V4L2_MEMORY_DMABUF;
+ * @fd:		for yesn-multiplanar buffers with memory == V4L2_MEMORY_DMABUF;
  *		a userspace file descriptor associated with this buffer
  * @planes:	for multiplanar buffers; userspace pointer to the array of plane
  *		info structs for this buffer
@@ -1018,10 +1018,10 @@ struct v4l2_buffer {
 };
 
 /**
- * v4l2_timeval_to_ns - Convert timeval to nanoseconds
+ * v4l2_timeval_to_ns - Convert timeval to nayesseconds
  * @ts:		pointer to the timeval variable to be converted
  *
- * Returns the scalar nanosecond representation of the timeval
+ * Returns the scalar nayessecond representation of the timeval
  * parameter.
  */
 static inline __u64 v4l2_timeval_to_ns(const struct timeval *tv)
@@ -1085,7 +1085,7 @@ static inline __u64 v4l2_timeval_to_ns(const struct timeval *tv)
  * (identical to the cookie used to mmap() the buffer to userspace). All
  * reserved fields must be set to zero. The field reserved0 is expected to
  * become a structure 'type' allowing an alternative layout of the structure
- * content. Therefore this field should not be used for any other extensions.
+ * content. Therefore this field should yest be used for any other extensions.
  */
 struct v4l2_exportbuffer {
 	__u32		type; /* enum v4l2_buf_type */
@@ -1191,7 +1191,7 @@ struct v4l2_crop {
 
 /**
  * struct v4l2_selection - selection info
- * @type:	buffer type (do not use *_MPLANE types)
+ * @type:	buffer type (do yest use *_MPLANE types)
  * @target:	Selection target, used to choose one of possible rectangles;
  *		defined in v4l2-common.h; V4L2_SEL_TGT_* .
  * @flags:	constraints flags, defined in v4l2-common.h; V4L2_SEL_FLAG_*.
@@ -1265,7 +1265,7 @@ typedef __u64 v4l2_std_id;
  */
 
 /*
- * "Common" NTSC/M - It should be noticed that V4L2_STD_NTSC_443 is
+ * "Common" NTSC/M - It should be yesticed that V4L2_STD_NTSC_443 is
  * Missing here.
  */
 #define V4L2_STD_NTSC           (V4L2_STD_NTSC_M	|\
@@ -1298,7 +1298,7 @@ typedef __u64 v4l2_std_id;
 				 V4L2_STD_PAL_DK	|\
 				 V4L2_STD_PAL_H		|\
 				 V4L2_STD_PAL_I)
-/* Chroma "agnostic" standards */
+/* Chroma "agyesstic" standards */
 #define V4L2_STD_B		(V4L2_STD_PAL_B		|\
 				 V4L2_STD_PAL_B1	|\
 				 V4L2_STD_SECAM_B)
@@ -1338,7 +1338,7 @@ typedef __u64 v4l2_std_id;
 
 #define V4L2_STD_ATSC           (V4L2_STD_ATSC_8_VSB    |\
 				 V4L2_STD_ATSC_16_VSB)
-/* Macros with none and all analog standards */
+/* Macros with yesne and all analog standards */
 #define V4L2_STD_UNKNOWN        0
 #define V4L2_STD_ALL            (V4L2_STD_525_60	|\
 				 V4L2_STD_625_50)
@@ -1347,7 +1347,7 @@ struct v4l2_standard {
 	__u32		     index;
 	v4l2_std_id          id;
 	__u8		     name[24];
-	struct v4l2_fract    frameperiod; /* Frames, not fields */
+	struct v4l2_fract    frameperiod; /* Frames, yest fields */
 	__u32		     framelines;
 	__u32		     reserved[4];
 };
@@ -1381,7 +1381,7 @@ struct v4l2_standard {
  * @hdmi_vic:	VIC code as per the HDMI standard.
  * @reserved:	Reserved fields, must be zeroed.
  *
- * A note regarding vertical interlaced timings: height refers to the total
+ * A yeste regarding vertical interlaced timings: height refers to the total
  * height of the active video frame (= two fields). The blanking timings refer
  * to the blanking of each field. So the height of the total frame is
  * calculated as follows:
@@ -1418,7 +1418,7 @@ struct v4l2_bt_timings {
 #define	V4L2_DV_PROGRESSIVE	0
 #define	V4L2_DV_INTERLACED	1
 
-/* Polarities. If bit is not set, it is assumed to be negative polarity */
+/* Polarities. If bit is yest set, it is assumed to be negative polarity */
 #define V4L2_DV_VSYNC_POS_POL	0x00000001
 #define V4L2_DV_HSYNC_POS_POL	0x00000002
 
@@ -1471,7 +1471,7 @@ struct v4l2_bt_timings {
 #define V4L2_DV_FL_IS_CE_VIDEO			(1 << 4)
 /* Some formats like SMPTE-125M have an interlaced signal with a odd
  * total height. For these formats, if this flag is set, the first
- * field has the extra line. If not, it is the second field.
+ * field has the extra line. If yest, it is the second field.
  */
 #define V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE	(1 << 5)
 /*
@@ -1529,7 +1529,7 @@ struct v4l2_dv_timings {
 /** struct v4l2_enum_dv_timings - DV timings enumeration
  * @index:	enumeration index
  * @pad:	the pad number for which to enumerate timings (used with
- *		v4l-subdev nodes only)
+ *		v4l-subdev yesdes only)
  * @reserved:	must be zeroed
  * @timings:	the timings for the given index
  */
@@ -1575,7 +1575,7 @@ struct v4l2_bt_timings_cap {
 /** struct v4l2_dv_timings_cap - DV timings capabilities
  * @type:	the type of the timings (same as in struct v4l2_dv_timings)
  * @pad:	the pad number for which to query capabilities (used with
- *		v4l-subdev nodes only)
+ *		v4l-subdev yesdes only)
  * @bt:		the BT656/1120 timings capabilities
  */
 struct v4l2_dv_timings_cap {
@@ -2000,7 +2000,7 @@ struct v4l2_encoder_cmd {
 
 /* Play format requirements (returned by the driver): */
 
-/* The decoder has no special format requirements */
+/* The decoder has yes special format requirements */
 #define V4L2_DEC_START_FMT_NONE		(0)
 /* The decoder requires full GOPs */
 #define V4L2_DEC_START_FMT_GOP		(1)
@@ -2016,11 +2016,11 @@ struct v4l2_decoder_cmd {
 		} stop;
 
 		struct {
-			/* 0 or 1000 specifies normal speed,
+			/* 0 or 1000 specifies yesrmal speed,
 			   1 specifies forward single stepping,
 			   -1 specifies backward single stepping,
-			   >1: playback at speed/1000 of the normal speed,
-			   <-1: reverse playback at (-speed/1000) of the normal speed. */
+			   >1: playback at speed/1000 of the yesrmal speed,
+			   <-1: reverse playback at (-speed/1000) of the yesrmal speed. */
 			__s32 speed;
 			__u32 format;
 		} start;
@@ -2065,7 +2065,7 @@ struct v4l2_vbi_format {
  *
  *    This implements is a proposal V4L2 API to allow SLICED VBI
  * required for some hardware encoders. It should change without
- * notice in the definitive implementation.
+ * yestice in the definitive implementation.
  */
 
 struct v4l2_sliced_vbi_format {
@@ -2123,7 +2123,7 @@ struct v4l2_sliced_vbi_data {
  * data
  *
  * Note, the MPEG-2 Program Pack and Private Stream 1 PES packet header
- * definitions are not included here.  See the MPEG-2 specifications for details
+ * definitions are yest included here.  See the MPEG-2 specifications for details
  * on these headers.
  */
 
@@ -2366,7 +2366,7 @@ struct v4l2_event_subscription {
 #define V4L2_CHIP_MATCH_BRIDGE      0  /* Match against chip ID on the bridge (0 for the bridge) */
 #define V4L2_CHIP_MATCH_SUBDEV      4  /* Match against subdev index */
 
-/* The following four defines are no longer in use */
+/* The following four defines are yes longer in use */
 #define V4L2_CHIP_MATCH_HOST V4L2_CHIP_MATCH_BRIDGE
 #define V4L2_CHIP_MATCH_I2C_DRIVER  1  /* Match against I2C driver name */
 #define V4L2_CHIP_MATCH_I2C_ADDR    2  /* Match against I2C 7-bit address */

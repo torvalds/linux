@@ -102,19 +102,19 @@ struct enic_port_profile {
 	u8 mac_addr[ETH_ALEN];
 };
 
-/* enic_rfs_fltr_node - rfs filter node in hash table
+/* enic_rfs_fltr_yesde - rfs filter yesde in hash table
  *	@@keys: IPv4 5 tuple
  *	@flow_id: flow_id of clsf filter provided by kernel
  *	@fltr_id: filter id of clsf filter returned by adaptor
  *	@rq_id: desired rq index
- *	@node: hlist_node
+ *	@yesde: hlist_yesde
  */
-struct enic_rfs_fltr_node {
+struct enic_rfs_fltr_yesde {
 	struct flow_keys keys;
 	u32 flow_id;
 	u16 fltr_id;
 	u16 rq_id;
-	struct hlist_node node;
+	struct hlist_yesde yesde;
 };
 
 /* enic_rfs_flw_tbl - rfs flow table
@@ -150,7 +150,7 @@ struct enic {
 	struct vnic_enet_config config;
 	struct vnic_dev_bar bar[ENIC_BARS_MAX];
 	struct vnic_dev *vdev;
-	struct timer_list notify_timer;
+	struct timer_list yestify_timer;
 	struct work_struct reset;
 	struct work_struct tx_hang_reset;
 	struct work_struct change_mtu_work;
@@ -250,7 +250,7 @@ static inline unsigned int enic_legacy_err_intr(void)
 	return 1;
 }
 
-static inline unsigned int enic_legacy_notify_intr(void)
+static inline unsigned int enic_legacy_yestify_intr(void)
 {
 	return 2;
 }
@@ -272,7 +272,7 @@ static inline unsigned int enic_msix_err_intr(struct enic *enic)
 	return enic->rq_count + enic->wq_count;
 }
 
-static inline unsigned int enic_msix_notify_intr(struct enic *enic)
+static inline unsigned int enic_msix_yestify_intr(struct enic *enic)
 {
 	return enic->rq_count + enic->wq_count + 1;
 }
@@ -290,13 +290,13 @@ static inline bool enic_is_err_intr(struct enic *enic, int intr)
 	}
 }
 
-static inline bool enic_is_notify_intr(struct enic *enic, int intr)
+static inline bool enic_is_yestify_intr(struct enic *enic, int intr)
 {
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	case VNIC_DEV_INTR_MODE_INTX:
-		return intr == enic_legacy_notify_intr();
+		return intr == enic_legacy_yestify_intr();
 	case VNIC_DEV_INTR_MODE_MSIX:
-		return intr == enic_msix_notify_intr(enic);
+		return intr == enic_msix_yestify_intr(enic);
 	case VNIC_DEV_INTR_MODE_MSI:
 	default:
 		return false;

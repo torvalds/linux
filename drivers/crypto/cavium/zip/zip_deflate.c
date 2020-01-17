@@ -14,14 +14,14 @@
  * conditions are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *
  *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
+ *    copyright yestice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials provided
  *    with the distribution.
  *
- *  * Neither the name of Cavium Inc. nor the names of its contributors may be
+ *  * Neither the name of Cavium Inc. yesr the names of its contributors may be
  *    used to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -138,7 +138,7 @@ int zip_deflate(struct zip_operation *zip_ops, struct zip_state *s,
 	zip_ops->compcode = result_ptr->s.compcode;
 	switch (zip_ops->compcode) {
 	case ZIP_CMD_NOTDONE:
-		zip_dbg("Zip instruction not yet completed");
+		zip_dbg("Zip instruction yest yet completed");
 		return ZIP_ERROR;
 
 	case ZIP_CMD_SUCCESS:
@@ -179,7 +179,7 @@ int zip_deflate(struct zip_operation *zip_ops, struct zip_state *s,
 		break;
 
 	default:
-		zip_err("Unknown Format:%d\n", zip_ops->format);
+		zip_err("Unkyeswn Format:%d\n", zip_ops->format);
 	}
 
 	atomic64_add(result_ptr->s.totalbyteswritten,

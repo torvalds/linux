@@ -96,24 +96,24 @@ static struct platform_device db88f5281_boot_flash = {
  * 32M NOR Flash on Device bus CS1
  ****************************************************************************/
 
-static struct physmap_flash_data db88f5281_nor_flash_data = {
+static struct physmap_flash_data db88f5281_yesr_flash_data = {
 	.width		= 4,	/* 32 bit bus width */
 };
 
-static struct resource db88f5281_nor_flash_resource = {
+static struct resource db88f5281_yesr_flash_resource = {
 	.flags		= IORESOURCE_MEM,
 	.start		= DB88F5281_NOR_BASE,
 	.end		= DB88F5281_NOR_BASE + DB88F5281_NOR_SIZE - 1,
 };
 
-static struct platform_device db88f5281_nor_flash = {
+static struct platform_device db88f5281_yesr_flash = {
 	.name		= "physmap-flash",
 	.id		= 1,
 	.dev		= {
-		.platform_data	= &db88f5281_nor_flash_data,
+		.platform_data	= &db88f5281_yesr_flash_data,
 	},
 	.num_resources	= 1,
-	.resource	= &db88f5281_nor_flash_resource,
+	.resource	= &db88f5281_yesr_flash_resource,
 };
 
 /*****************************************************************************
@@ -355,7 +355,7 @@ static void __init db88f5281_init(void)
 				    ORION_MBUS_DEVBUS_ATTR(1),
 				    DB88F5281_NOR_BASE,
 				    DB88F5281_NOR_SIZE);
-	platform_device_register(&db88f5281_nor_flash);
+	platform_device_register(&db88f5281_yesr_flash);
 
 	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_TARGET(2),
 				    ORION_MBUS_DEVBUS_ATTR(2),

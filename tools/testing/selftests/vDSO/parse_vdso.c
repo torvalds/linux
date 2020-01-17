@@ -33,10 +33,10 @@
  *     <some pointer> = vdso_sym("LINUX_2.6", "__vdso_gettimeofday");
  *
  * vdso_sym will return 0 if the symbol doesn't exist or if the init function
- * failed or was not called.  vdso_sym is a little slow, so its return value
+ * failed or was yest called.  vdso_sym is a little slow, so its return value
  * should be cached.
  *
- * vdso_sym is threadsafe; the init functions are not.
+ * vdso_sym is threadsafe; the init functions are yest.
  *
  * These are the prototypes:
  */
@@ -188,9 +188,9 @@ static bool vdso_match_version(ELF(Versym) ver,
 	 * This is a helper function to check if the version indexed by
 	 * ver matches name (which hashes to hash).
 	 *
-	 * The version definition table is a mess, and I don't know how
+	 * The version definition table is a mess, and I don't kyesw how
 	 * to do this in better than linear time without allocating memory
-	 * to build an index.  I also don't know why the table has
+	 * to build an index.  I also don't kyesw why the table has
 	 * variable size entries in the first place.
 	 *
 	 * For added fun, I can't find a comprehensible specification of how

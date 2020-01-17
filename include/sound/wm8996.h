@@ -17,7 +17,7 @@ enum wm8996_inmode {
 
 /**
  * ReTune Mobile configurations are specified with a label, sample
- * rate and set of values to write (the enable bits will be ignored).
+ * rate and set of values to write (the enable bits will be igyesred).
  *
  * Configurations are expected to be generated using the ReTune Mobile
  * control panel in WISCE - see http://www.wolfsonmicro.com/wisce/
@@ -33,7 +33,7 @@ struct wm8996_retune_mobile_config {
 struct wm8996_pdata {
 	int irq_flags;  /** Set IRQ trigger flags; default active low */
 
-	int ldo_ena;  /** GPIO for LDO1; -1 for none */
+	int ldo_ena;  /** GPIO for LDO1; -1 for yesne */
 
 	int micdet_def;  /** Default MICDET_SRC/HP1FB_SRC/MICD_BIAS */
 

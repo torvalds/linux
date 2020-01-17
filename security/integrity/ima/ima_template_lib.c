@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2013 Politecnico di Torino, Italy
+ * Copyright (C) 2013 Politecnico di Toriyes, Italy
  *                    TORSEC group -- http://security.polito.it
  *
  * Author: Roberto Sassu <roberto.sassu@polito.it>
@@ -103,7 +103,7 @@ static void ima_show_template_data_binary(struct seq_file *m,
 	    strlen(field_data->data) : field_data->len;
 
 	if (show != IMA_SHOW_BINARY_NO_FIELD_LEN) {
-		u32 field_len = !ima_canonical_fmt ? len : cpu_to_le32(len);
+		u32 field_len = !ima_cayesnical_fmt ? len : cpu_to_le32(len);
 
 		ima_putc(m, &field_len, sizeof(field_len));
 	}
@@ -168,11 +168,11 @@ void ima_show_template_buf(struct seq_file *m, enum ima_show_type show,
  * ima_parse_buf() - Parses lengths and data from an input buffer
  * @bufstartp:       Buffer start address.
  * @bufendp:         Buffer end address.
- * @bufcurp:         Pointer to remaining (non-parsed) data.
+ * @bufcurp:         Pointer to remaining (yesn-parsed) data.
  * @maxfields:       Length of fields array.
  * @fields:          Array containing lengths and pointers of parsed data.
  * @curfields:       Number of array items containing parsed data.
- * @len_mask:        Bitmap (if bit is set, data length should not be parsed).
+ * @len_mask:        Bitmap (if bit is set, data length should yest be parsed).
  * @enforce_mask:    Check if curfields == maxfields and/or bufcurp == bufendp.
  * @bufname:         String identifier of the input buffer.
  *
@@ -191,7 +191,7 @@ int ima_parse_buf(void *bufstartp, void *bufendp, void **bufcurp,
 				break;
 
 			fields[i].len = *(u32 *)bufp;
-			if (ima_canonical_fmt)
+			if (ima_cayesnical_fmt)
 				fields[i].len = le32_to_cpu(fields[i].len);
 
 			bufp += sizeof(u32);
@@ -233,7 +233,7 @@ static int ima_eventdigest_init_common(const u8 *digest, u32 digestsize,
 	 * digest formats:
 	 *  - DATA_FMT_DIGEST: digest
 	 *  - DATA_FMT_DIGEST_WITH_ALGO: [<hash algo>] + ':' + '\0' + digest,
-	 *    where <hash algo> is provided if the hash algoritm is not
+	 *    where <hash algo> is provided if the hash algoritm is yest
 	 *    SHA1 or MD5
 	 */
 	u8 buffer[CRYPTO_MAX_ALG_NAME + 2 + IMA_MAX_DIGEST_SIZE] = { 0 };
@@ -274,7 +274,7 @@ int ima_eventdigest_init(struct ima_event_data *event_data,
 	} hash;
 	u8 *cur_digest = NULL;
 	u32 cur_digestsize = 0;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int result;
 
 	memset(&hash, 0, sizeof(hash));
@@ -291,12 +291,12 @@ int ima_eventdigest_init(struct ima_event_data *event_data,
 	if (!event_data->file)	/* missing info to re-calculate the digest */
 		return -EINVAL;
 
-	inode = file_inode(event_data->file);
+	iyesde = file_iyesde(event_data->file);
 	hash.hdr.algo = ima_template_hash_algo_allowed(ima_hash_algo) ?
 	    ima_hash_algo : HASH_ALGO_SHA1;
 	result = ima_calc_file_hash(event_data->file, &hash.hdr);
 	if (result) {
-		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode,
+		integrity_audit_msg(AUDIT_INTEGRITY_DATA, iyesde,
 				    event_data->filename, "collect_data",
 				    "failed", result, 0);
 		return result;
@@ -387,7 +387,7 @@ static int ima_eventname_init_common(struct ima_event_data *event_data,
 	} else
 		/*
 		 * Truncate filename if the latter is too long and
-		 * the file descriptor is not available.
+		 * the file descriptor is yest available.
 		 */
 		cur_filename_len = IMA_EVENT_NAME_LEN_MAX;
 out:

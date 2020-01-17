@@ -29,13 +29,13 @@ static struct nx842_constraints nx842_pseries_constraints = {
 static int check_constraints(unsigned long buf, unsigned int *len, bool in)
 {
 	if (!IS_ALIGNED(buf, nx842_pseries_constraints.alignment)) {
-		pr_debug("%s buffer 0x%lx not aligned to 0x%x\n",
+		pr_debug("%s buffer 0x%lx yest aligned to 0x%x\n",
 			 in ? "input" : "output", buf,
 			 nx842_pseries_constraints.alignment);
 		return -EINVAL;
 	}
 	if (*len % nx842_pseries_constraints.multiple) {
-		pr_debug("%s buffer len 0x%x not multiple of 0x%x\n",
+		pr_debug("%s buffer len 0x%x yest multiple of 0x%x\n",
 			 in ? "input" : "output", *len,
 			 nx842_pseries_constraints.multiple);
 		if (in)
@@ -159,7 +159,7 @@ struct nx842_scatterlist {
 	struct nx842_slentry *entries; /* ptr to array of slentries */
 };
 
-/* Does not include sizeof(entry_nr) in the size */
+/* Does yest include sizeof(entry_nr) in the size */
 static inline unsigned long nx842_get_scatterlist_size(
 				struct nx842_scatterlist *sl)
 {
@@ -196,7 +196,7 @@ static int nx842_validate_result(struct device *dev,
 {
 	/* The csb must be valid after returning from vio_h_cop_sync */
 	if (!NX842_CSBCBP_VALID_CHK(csb->valid)) {
-		dev_err(dev, "%s: cspcbp not valid upon completion.\n",
+		dev_err(dev, "%s: cspcbp yest valid upon completion.\n",
 				__func__);
 		dev_dbg(dev, "valid:0x%02x cs:0x%02x cc:0x%02x ce:0x%02x\n",
 				csb->valid,
@@ -241,7 +241,7 @@ static int nx842_validate_result(struct device *dev,
 		dev_err(dev, "%s: No error returned by hardware, but "
 				"data returned is unusable, contact support.\n"
 				"(Additional info: csbcbp->processed bytes "
-				"does not specify processed bytes for the "
+				"does yest specify processed bytes for the "
 				"target buffer.)\n", __func__);
 		return -EIO;
 	}
@@ -542,7 +542,7 @@ static int nx842_OF_set_defaults(struct nx842_devdata *devdata)
  *
  * Returns:
  *  0 - Device is available
- *  -ENODEV - Device is not available
+ *  -ENODEV - Device is yest available
  */
 static int nx842_OF_upd_status(struct property *prop)
 {
@@ -552,7 +552,7 @@ static int nx842_OF_upd_status(struct property *prop)
 		return 0;
 	if (!strncmp(status, "disabled", (size_t)prop->length))
 		return -ENODEV;
-	dev_info(devdata->dev, "%s: unknown status '%s'\n", __func__, status);
+	dev_info(devdata->dev, "%s: unkyeswn status '%s'\n", __func__, status);
 
 	return -EINVAL;
 }
@@ -601,8 +601,8 @@ static int nx842_OF_upd_maxsglen(struct nx842_devdata *devdata,
  *
  * Definition of the 'ibm,max-sync-cop' OF property:
  *  Two series of cells.  The first series of cells represents the maximums
- *  that can be synchronously compressed. The second series of cells
- *  represents the maximums that can be synchronously decompressed.
+ *  that can be synchroyesusly compressed. The second series of cells
+ *  represents the maximums that can be synchroyesusly decompressed.
  *  1. The first cell in each series contains the count of the number of
  *     data length, scatter list elements pairs that follow – each being
  *     of the form
@@ -655,7 +655,7 @@ static int nx842_OF_upd_maxsyncop(struct nx842_devdata *devdata,
 	decomp_sg_limit = be32_to_cpu(maxsynccop->decomp_sg_limit);
 
 	/* Use one limit rather than separate limits for compression and
-	 * decompression. Set a maximum for this so as not to exceed the
+	 * decompression. Set a maximum for this so as yest to exceed the
 	 * size that the header can support and round the value down to
 	 * the hardware page size (4K) */
 	devdata->max_sync_size = min(comp_data_limit, decomp_data_limit);
@@ -697,21 +697,21 @@ out:
  * The device will remain disabled until all values are valid, this function
  * will return an error for updates unless all values are valid.
  *
- * @new_prop: If not NULL, this property is being updated.  If NULL, update
+ * @new_prop: If yest NULL, this property is being updated.  If NULL, update
  *  all properties from the current values in the OF tree.
  *
  * Returns:
  *  0 - Success
- *  -ENOMEM - Could not allocate memory for new devdata structure
- *  -EINVAL - property value not found, new_prop is not a recognized
- *	property for the device or property value is not valid.
- *  -ENODEV - Device is not available
+ *  -ENOMEM - Could yest allocate memory for new devdata structure
+ *  -EINVAL - property value yest found, new_prop is yest a recognized
+ *	property for the device or property value is yest valid.
+ *  -ENODEV - Device is yest available
  */
 static int nx842_OF_upd(struct property *new_prop)
 {
 	struct nx842_devdata *old_devdata = NULL;
 	struct nx842_devdata *new_devdata = NULL;
-	struct device_node *of_node = NULL;
+	struct device_yesde *of_yesde = NULL;
 	struct property *status = NULL;
 	struct property *maxsglen = NULL;
 	struct property *maxsyncop = NULL;
@@ -726,10 +726,10 @@ static int nx842_OF_upd(struct property *new_prop)
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
 	if (old_devdata)
-		of_node = old_devdata->dev->of_node;
+		of_yesde = old_devdata->dev->of_yesde;
 
-	if (!old_devdata || !of_node) {
-		pr_err("%s: device is not available\n", __func__);
+	if (!old_devdata || !of_yesde) {
+		pr_err("%s: device is yest available\n", __func__);
 		spin_unlock_irqrestore(&devdata_mutex, flags);
 		kfree(new_devdata);
 		return -ENODEV;
@@ -739,11 +739,11 @@ static int nx842_OF_upd(struct property *new_prop)
 	new_devdata->counters = old_devdata->counters;
 
 	/* Set ptrs for existing properties */
-	status = of_find_property(of_node, "status", NULL);
-	maxsglen = of_find_property(of_node, "ibm,max-sg-len", NULL);
-	maxsyncop = of_find_property(of_node, "ibm,max-sync-cop", NULL);
+	status = of_find_property(of_yesde, "status", NULL);
+	maxsglen = of_find_property(of_yesde, "ibm,max-sg-len", NULL);
+	maxsyncop = of_find_property(of_yesde, "ibm,max-sync-cop", NULL);
 	if (!status || !maxsglen || !maxsyncop) {
-		dev_err(old_devdata->dev, "%s: Could not locate device properties\n", __func__);
+		dev_err(old_devdata->dev, "%s: Could yest locate device properties\n", __func__);
 		ret = -EINVAL;
 		goto error_out;
 	}
@@ -798,7 +798,7 @@ error_out:
 		dev_set_drvdata(new_devdata->dev, new_devdata);
 		kfree(old_devdata);
 	} else {
-		dev_err(old_devdata->dev, "%s: could not update driver from hardware\n", __func__);
+		dev_err(old_devdata->dev, "%s: could yest update driver from hardware\n", __func__);
 		spin_unlock_irqrestore(&devdata_mutex, flags);
 	}
 
@@ -808,33 +808,33 @@ error_out:
 }
 
 /**
- * nx842_OF_notifier - Process updates to OF properties for the device
+ * nx842_OF_yestifier - Process updates to OF properties for the device
  *
- * @np: notifier block
- * @action: notifier action
+ * @np: yestifier block
+ * @action: yestifier action
  * @update: struct pSeries_reconfig_prop_update pointer if action is
  *	PSERIES_UPDATE_PROPERTY
  *
  * Returns:
  *	NOTIFY_OK on success
  *	NOTIFY_BAD encoded with error number on failure, use
- *		notifier_to_errno() to decode this value
+ *		yestifier_to_erryes() to decode this value
  */
-static int nx842_OF_notifier(struct notifier_block *np, unsigned long action,
+static int nx842_OF_yestifier(struct yestifier_block *np, unsigned long action,
 			     void *data)
 {
 	struct of_reconfig_data *upd = data;
 	struct nx842_devdata *local_devdata;
-	struct device_node *node = NULL;
+	struct device_yesde *yesde = NULL;
 
 	rcu_read_lock();
 	local_devdata = rcu_dereference(devdata);
 	if (local_devdata)
-		node = local_devdata->dev->of_node;
+		yesde = local_devdata->dev->of_yesde;
 
 	if (local_devdata &&
 			action == OF_RECONFIG_UPDATE_PROPERTY &&
-			!strcmp(upd->dn->name, node->name)) {
+			!strcmp(upd->dn->name, yesde->name)) {
 		rcu_read_unlock();
 		nx842_OF_upd(upd->prop);
 	} else
@@ -843,8 +843,8 @@ static int nx842_OF_notifier(struct notifier_block *np, unsigned long action,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block nx842_of_nb = {
-	.notifier_call = nx842_OF_notifier,
+static struct yestifier_block nx842_of_nb = {
+	.yestifier_call = nx842_OF_yestifier,
 };
 
 #define nx842_counter_read(_name)					\
@@ -1009,7 +1009,7 @@ static int nx842_probe(struct vio_dev *viodev,
 	synchronize_rcu();
 	kfree(old_devdata);
 
-	of_reconfig_notifier_register(&nx842_of_nb);
+	of_reconfig_yestifier_register(&nx842_of_nb);
 
 	ret = nx842_OF_upd(NULL);
 	if (ret)
@@ -1017,7 +1017,7 @@ static int nx842_probe(struct vio_dev *viodev,
 
 	ret = crypto_register_alg(&nx842_pseries_alg);
 	if (ret) {
-		dev_err(&viodev->dev, "could not register comp alg: %d\n", ret);
+		dev_err(&viodev->dev, "could yest register comp alg: %d\n", ret);
 		goto error;
 	}
 
@@ -1026,7 +1026,7 @@ static int nx842_probe(struct vio_dev *viodev,
 	rcu_read_unlock();
 
 	if (sysfs_create_group(&viodev->dev.kobj, &nx842_attribute_group)) {
-		dev_err(&viodev->dev, "could not create sysfs device attributes\n");
+		dev_err(&viodev->dev, "could yest create sysfs device attributes\n");
 		ret = -1;
 		goto error;
 	}
@@ -1055,7 +1055,7 @@ static int nx842_remove(struct vio_dev *viodev)
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
-	of_reconfig_notifier_unregister(&nx842_of_nb);
+	of_reconfig_yestifier_unregister(&nx842_of_nb);
 	RCU_INIT_POINTER(devdata, NULL);
 	spin_unlock_irqrestore(&devdata_mutex, flags);
 	synchronize_rcu();
@@ -1085,7 +1085,7 @@ static int __init nx842_pseries_init(void)
 	struct nx842_devdata *new_devdata;
 	int ret;
 
-	if (!of_find_compatible_node(NULL, NULL, "ibm,compression"))
+	if (!of_find_compatible_yesde(NULL, NULL, "ibm,compression"))
 		return -ENODEV;
 
 	RCU_INIT_POINTER(devdata, NULL);
@@ -1097,7 +1097,7 @@ static int __init nx842_pseries_init(void)
 
 	ret = vio_register_driver(&nx842_vio_driver);
 	if (ret) {
-		pr_err("Could not register VIO driver %d\n", ret);
+		pr_err("Could yest register VIO driver %d\n", ret);
 
 		kfree(new_devdata);
 		return ret;

@@ -19,9 +19,9 @@ Description:
 		/sys/bus/rapidio/devices/00:e:0002
 		/sys/bus/rapidio/devices/00:s:0001
 
-		NOTE: An enumerating or discovering endpoint does not create a
+		NOTE: An enumerating or discovering endpoint does yest create a
 		sysfs entry for itself, this is why an endpoint with destID=1 is
-		not shown in the list.
+		yest shown in the list.
 
 Attributes Common for All RapidIO Devices
 -----------------------------------------
@@ -161,7 +161,7 @@ Description:
 		(RO) returns names of devices linked to the switch except one of
 		a device linked to the ingress port (reported as "lprev"). This
 		is an array names with number of lines equal to number of ports
-		in switch. If a switch port has no attached device, returns
+		in switch. If a switch port has yes attached device, returns
 		"null" instead of a device name.
 
 Device-specific Switch Attributes
@@ -188,7 +188,7 @@ Contact:	Matt Porter <mporter@kernel.crashing.org>,
 Description:
 		(WO) Allows to trigger enumeration discovery process from user
 		space. To initiate an enumeration or discovery process on
-		specific mport device, a user needs to write mport_ID (not
+		specific mport device, a user needs to write mport_ID (yest
 		RapidIO destination ID) into this file. The mport_ID is a
 		sequential number (0 ...  RIO_MAX_MPORTS) assigned to the mport
 		device. For example, for a machine with a single RapidIO

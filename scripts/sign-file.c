@@ -31,7 +31,7 @@
 
 /*
  * Use CMS if we have openssl-1.0.0 or newer available - otherwise we have to
- * assume that it's not available and its header file is missing and that we
+ * assume that it's yest available and its header file is missing and that we
  * should use PKCS#7 instead.  Switching to the older PKCS#7 format restricts
  * the options we have on specifying the X.509 certificate we want.
  *
@@ -66,7 +66,7 @@ struct module_signature {
 
 static char magic_number[] = "~Module signature appended~\n";
 
-static __attribute__((noreturn))
+static __attribute__((yesreturn))
 void format(void)
 {
 	fprintf(stderr,
@@ -349,7 +349,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	/* Open the destination file now so that we can shovel the module data
+	/* Open the destination file yesw so that we can shovel the module data
 	 * across as we read it.
 	 */
 	bd = BIO_new_file(dest_name, "wb");

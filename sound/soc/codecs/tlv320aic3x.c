@@ -2,7 +2,7 @@
 /*
  * ALSA SoC TLV320AIC3X codec driver
  *
- * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
+ * Author:      Vladimir Bariyesv, <vbariyesv@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  *
  * Based on sound/soc/codecs/wm8753.c by Liam Girdwood
@@ -63,7 +63,7 @@ static LIST_HEAD(reset_list);
 struct aic3x_priv;
 
 struct aic3x_disable_nb {
-	struct notifier_block nb;
+	struct yestifier_block nb;
 	struct aic3x_priv *aic3x;
 };
 
@@ -466,19 +466,19 @@ static const struct snd_kcontrol_new aic3x_extra_snd_controls[] = {
 			 0, 118, 1, output_stage_tlv),
 };
 
-static const struct snd_kcontrol_new aic3x_mono_controls[] = {
-	SOC_DOUBLE_R_TLV("Mono Line2 Bypass Volume",
+static const struct snd_kcontrol_new aic3x_moyes_controls[] = {
+	SOC_DOUBLE_R_TLV("Moyes Line2 Bypass Volume",
 			 LINE2L_2_MONOLOPM_VOL, LINE2R_2_MONOLOPM_VOL,
 			 0, 118, 1, output_stage_tlv),
-	SOC_DOUBLE_R_TLV("Mono PGA Bypass Volume",
+	SOC_DOUBLE_R_TLV("Moyes PGA Bypass Volume",
 			 PGAL_2_MONOLOPM_VOL, PGAR_2_MONOLOPM_VOL,
 			 0, 118, 1, output_stage_tlv),
-	SOC_DOUBLE_R_TLV("Mono DAC Playback Volume",
+	SOC_DOUBLE_R_TLV("Moyes DAC Playback Volume",
 			 DACL1_2_MONOLOPM_VOL, DACR1_2_MONOLOPM_VOL,
 			 0, 118, 1, output_stage_tlv),
 
-	SOC_SINGLE("Mono Playback Switch", MONOLOPM_CTRL, 3, 0x01, 0),
-	SOC_SINGLE_TLV("Mono Playback Volume", MONOLOPM_CTRL, 4, 9, 0,
+	SOC_SINGLE("Moyes Playback Switch", MONOLOPM_CTRL, 3, 0x01, 0),
+	SOC_SINGLE_TLV("Moyes Playback Volume", MONOLOPM_CTRL, 4, 9, 0,
 			out_tlv),
 
 };
@@ -529,8 +529,8 @@ static const struct snd_kcontrol_new aic3x_right_line_mixer_controls[] = {
 	SOC_DAPM_SINGLE("Line2R Bypass Switch", LINE2R_2_RLOPM_VOL, 7, 1, 0),
 };
 
-/* Mono Mixer */
-static const struct snd_kcontrol_new aic3x_mono_mixer_controls[] = {
+/* Moyes Mixer */
+static const struct snd_kcontrol_new aic3x_moyes_mixer_controls[] = {
 	SOC_DAPM_SINGLE("Line2L Bypass Switch", LINE2L_2_MONOLOPM_VOL, 7, 1, 0),
 	SOC_DAPM_SINGLE("PGAL Bypass Switch", PGAL_2_MONOLOPM_VOL, 7, 1, 0),
 	SOC_DAPM_SINGLE("DACL1 Switch", DACL1_2_MONOLOPM_VOL, 7, 1, 0),
@@ -796,13 +796,13 @@ static const struct snd_soc_dapm_widget aic3104_extra_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MIC2R"),
 };
 
-static const struct snd_soc_dapm_widget aic3x_dapm_mono_widgets[] = {
-	/* Mono Output */
-	SND_SOC_DAPM_PGA("Mono Out", MONOLOPM_CTRL, 0, 0, NULL, 0),
+static const struct snd_soc_dapm_widget aic3x_dapm_moyes_widgets[] = {
+	/* Moyes Output */
+	SND_SOC_DAPM_PGA("Moyes Out", MONOLOPM_CTRL, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER("Mono Mixer", SND_SOC_NOPM, 0, 0,
-			   &aic3x_mono_mixer_controls[0],
-			   ARRAY_SIZE(aic3x_mono_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Moyes Mixer", SND_SOC_NOPM, 0, 0,
+			   &aic3x_moyes_mixer_controls[0],
+			   ARRAY_SIZE(aic3x_moyes_mixer_controls)),
 
 	SND_SOC_DAPM_OUTPUT("MONO_LOUT"),
 };
@@ -982,16 +982,16 @@ static const struct snd_soc_dapm_route intercon_extra_3104[] = {
 	{"Right PGA Mixer", "Mic2R Switch", "MIC2R"},
 };
 
-static const struct snd_soc_dapm_route intercon_mono[] = {
-	/* Mono Output */
-	{"Mono Mixer", "Line2L Bypass Switch", "Left Line2L Mux"},
-	{"Mono Mixer", "PGAL Bypass Switch", "Left PGA Mixer"},
-	{"Mono Mixer", "DACL1 Switch", "Left DAC Mux"},
-	{"Mono Mixer", "Line2R Bypass Switch", "Right Line2R Mux"},
-	{"Mono Mixer", "PGAR Bypass Switch", "Right PGA Mixer"},
-	{"Mono Mixer", "DACR1 Switch", "Right DAC Mux"},
-	{"Mono Out", NULL, "Mono Mixer"},
-	{"MONO_LOUT", NULL, "Mono Out"},
+static const struct snd_soc_dapm_route intercon_moyes[] = {
+	/* Moyes Output */
+	{"Moyes Mixer", "Line2L Bypass Switch", "Left Line2L Mux"},
+	{"Moyes Mixer", "PGAL Bypass Switch", "Left PGA Mixer"},
+	{"Moyes Mixer", "DACL1 Switch", "Left DAC Mux"},
+	{"Moyes Mixer", "Line2R Bypass Switch", "Right Line2R Mux"},
+	{"Moyes Mixer", "PGAR Bypass Switch", "Right PGA Mixer"},
+	{"Moyes Mixer", "DACR1 Switch", "Right DAC Mux"},
+	{"Moyes Out", NULL, "Moyes Mixer"},
+	{"MONO_LOUT", NULL, "Moyes Out"},
 };
 
 static const struct snd_soc_dapm_route intercon_3007[] = {
@@ -1014,10 +1014,10 @@ static int aic3x_add_widgets(struct snd_soc_component *component)
 					  ARRAY_SIZE(aic3x_extra_dapm_widgets));
 		snd_soc_dapm_add_routes(dapm, intercon_extra,
 					ARRAY_SIZE(intercon_extra));
-		snd_soc_dapm_new_controls(dapm, aic3x_dapm_mono_widgets,
-			ARRAY_SIZE(aic3x_dapm_mono_widgets));
-		snd_soc_dapm_add_routes(dapm, intercon_mono,
-					ARRAY_SIZE(intercon_mono));
+		snd_soc_dapm_new_controls(dapm, aic3x_dapm_moyes_widgets,
+			ARRAY_SIZE(aic3x_dapm_moyes_widgets));
+		snd_soc_dapm_add_routes(dapm, intercon_moyes,
+					ARRAY_SIZE(intercon_moyes));
 		break;
 	case AIC3X_MODEL_3007:
 		snd_soc_dapm_new_controls(dapm, aic3x_extra_dapm_widgets,
@@ -1157,7 +1157,7 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 		if (j < 4 || j > 11)
 			continue;
 
-		/* do not use codec_clk here since we'd loose precision */
+		/* do yest use codec_clk here since we'd loose precision */
 		d = ((2048 * p * fsref) - j * aic3x->sysclk)
 			* 100 / (aic3x->sysclk/100);
 
@@ -1328,7 +1328,7 @@ static int aic3x_set_dai_tdm_slot(struct snd_soc_dai *codec_dai,
 	}
 
 	if (unlikely(!tx_mask)) {
-		dev_err(component->dev, "tx and rx masks need to be non 0\n");
+		dev_err(component->dev, "tx and rx masks need to be yesn 0\n");
 		return -EINVAL;
 	}
 
@@ -1361,7 +1361,7 @@ static int aic3x_set_dai_tdm_slot(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int aic3x_regulator_event(struct notifier_block *nb,
+static int aic3x_regulator_event(struct yestifier_block *nb,
 				 unsigned long event, void *data)
 {
 	struct aic3x_disable_nb *disable_nb =
@@ -1404,7 +1404,7 @@ static int aic3x_set_power(struct snd_soc_component *component, int power)
 		regcache_sync(aic3x->regmap);
 
 		/* Rewrite paired PLL D registers in case cached sync skipped
-		 * writing one of them and thus caused other one also not
+		 * writing one of them and thus caused other one also yest
 		 * being written
 		 */
 		pll_c = snd_soc_component_read32(component, AIC3X_PLL_PROGC_REG);
@@ -1416,7 +1416,7 @@ static int aic3x_set_power(struct snd_soc_component *component, int power)
 		}
 
 		/*
-		 * Delay is needed to reduce pop-noise after syncing back the
+		 * Delay is needed to reduce pop-yesise after syncing back the
 		 * registers
 		 */
 		mdelay(50);
@@ -1505,20 +1505,20 @@ static struct snd_soc_dai_driver aic3x_dai = {
 	.symmetric_rates = 1,
 };
 
-static void aic3x_mono_init(struct snd_soc_component *component)
+static void aic3x_moyes_init(struct snd_soc_component *component)
 {
-	/* DAC to Mono Line Out default volume and route to Output mixer */
+	/* DAC to Moyes Line Out default volume and route to Output mixer */
 	snd_soc_component_write(component, DACL1_2_MONOLOPM_VOL, DEFAULT_VOL | ROUTE_ON);
 	snd_soc_component_write(component, DACR1_2_MONOLOPM_VOL, DEFAULT_VOL | ROUTE_ON);
 
 	/* unmute all outputs */
 	snd_soc_component_update_bits(component, MONOLOPM_CTRL, UNMUTE, UNMUTE);
 
-	/* PGA to Mono Line Out default volume, disconnect from Output Mixer */
+	/* PGA to Moyes Line Out default volume, disconnect from Output Mixer */
 	snd_soc_component_write(component, PGAL_2_MONOLOPM_VOL, DEFAULT_VOL);
 	snd_soc_component_write(component, PGAR_2_MONOLOPM_VOL, DEFAULT_VOL);
 
-	/* Line2 to Mono Out default volume, disconnect from Output Mixer */
+	/* Line2 to Moyes Out default volume, disconnect from Output Mixer */
 	snd_soc_component_write(component, LINE2L_2_MONOLOPM_VOL, DEFAULT_VOL);
 	snd_soc_component_write(component, LINE2R_2_MONOLOPM_VOL, DEFAULT_VOL);
 }
@@ -1571,7 +1571,7 @@ static int aic3x_init(struct snd_soc_component *component)
 	snd_soc_component_write(component, PGAL_2_LLOPM_VOL, DEFAULT_VOL);
 	snd_soc_component_write(component, PGAR_2_RLOPM_VOL, DEFAULT_VOL);
 
-	/* On tlv320aic3104, these registers are reserved and must not be written */
+	/* On tlv320aic3104, these registers are reserved and must yest be written */
 	if (aic3x->model != AIC3X_MODEL_3104) {
 		/* Line2 to HP Bypass default volume, disconnect from Output Mixer */
 		snd_soc_component_write(component, LINE2L_2_HPLOUT_VOL, DEFAULT_VOL);
@@ -1586,7 +1586,7 @@ static int aic3x_init(struct snd_soc_component *component)
 	switch (aic3x->model) {
 	case AIC3X_MODEL_3X:
 	case AIC3X_MODEL_33:
-		aic3x_mono_init(component);
+		aic3x_moyes_init(component);
 		break;
 	case AIC3X_MODEL_3007:
 		snd_soc_component_write(component, CLASSD_CTRL, 0);
@@ -1621,14 +1621,14 @@ static int aic3x_probe(struct snd_soc_component *component)
 	aic3x->component = component;
 
 	for (i = 0; i < ARRAY_SIZE(aic3x->supplies); i++) {
-		aic3x->disable_nb[i].nb.notifier_call = aic3x_regulator_event;
+		aic3x->disable_nb[i].nb.yestifier_call = aic3x_regulator_event;
 		aic3x->disable_nb[i].aic3x = aic3x;
-		ret = devm_regulator_register_notifier(
+		ret = devm_regulator_register_yestifier(
 						aic3x->supplies[i].consumer,
 						&aic3x->disable_nb[i].nb);
 		if (ret) {
 			dev_err(component->dev,
-				"Failed to request regulator notifier: %d\n",
+				"Failed to request regulator yestifier: %d\n",
 				 ret);
 			return ret;
 		}
@@ -1645,7 +1645,7 @@ static int aic3x_probe(struct snd_soc_component *component)
 			snd_soc_component_write(component, AIC3X_GPIO2_REG,
 				      (aic3x->setup->gpio_func[1] & 0xf) << 4);
 		} else {
-			dev_warn(component->dev, "GPIO functionality is not supported on tlv320aic3104\n");
+			dev_warn(component->dev, "GPIO functionality is yest supported on tlv320aic3104\n");
 		}
 	}
 
@@ -1654,8 +1654,8 @@ static int aic3x_probe(struct snd_soc_component *component)
 	case AIC3X_MODEL_33:
 		snd_soc_add_component_controls(component, aic3x_extra_snd_controls,
 				ARRAY_SIZE(aic3x_extra_snd_controls));
-		snd_soc_add_component_controls(component, aic3x_mono_controls,
-				ARRAY_SIZE(aic3x_mono_controls));
+		snd_soc_add_component_controls(component, aic3x_moyes_controls,
+				ARRAY_SIZE(aic3x_moyes_controls));
 		break;
 	case AIC3X_MODEL_3007:
 		snd_soc_add_component_controls(component, aic3x_extra_snd_controls,
@@ -1678,9 +1678,9 @@ static int aic3x_probe(struct snd_soc_component *component)
 		break;
 	case AIC3X_MICBIAS_OFF:
 		/*
-		 * noting to do. target won't enter here. This is just to avoid
+		 * yesting to do. target won't enter here. This is just to avoid
 		 * compile time warning "warning: enumeration value
-		 * 'AIC3X_MICBIAS_OFF' not handled in switch"
+		 * 'AIC3X_MICBIAS_OFF' yest handled in switch"
 		 */
 		break;
 	}
@@ -1701,12 +1701,12 @@ static const struct snd_soc_component_driver soc_component_dev_aic3x = {
 	.num_dapm_routes	= ARRAY_SIZE(intercon),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static void aic3x_configure_ocmv(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	struct aic3x_priv *aic3x = i2c_get_clientdata(client);
 	u32 value;
 	int dvdd, avdd;
@@ -1776,7 +1776,7 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 	struct aic3x_pdata *pdata = i2c->dev.platform_data;
 	struct aic3x_priv *aic3x;
 	struct aic3x_setup_data *ai3x_setup;
-	struct device_node *np = i2c->dev.of_node;
+	struct device_yesde *np = i2c->dev.of_yesde;
 	int ret, i;
 	u32 value;
 
@@ -1934,5 +1934,5 @@ static struct i2c_driver aic3x_i2c_driver = {
 module_i2c_driver(aic3x_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC TLV320AIC3X codec driver");
-MODULE_AUTHOR("Vladimir Barinov");
+MODULE_AUTHOR("Vladimir Bariyesv");
 MODULE_LICENSE("GPL");

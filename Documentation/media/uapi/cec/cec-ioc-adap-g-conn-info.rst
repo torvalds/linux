@@ -13,7 +13,7 @@ Name
 
 CEC_ADAP_G_CONNECTOR_INFO - Query HDMI connector information
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, CEC_ADAP_G_CONNECTOR_INFO, struct cec_connector_info *argp )
@@ -50,7 +50,7 @@ is only available if the ``CEC_CAP_CONNECTOR_INFO`` capability is set.
       - ``type``
       - The type of connector this adapter is associated with.
     * - union
-      - ``(anonymous)``
+      - ``(ayesnymous)``
       -
     * -
       - ``struct cec_drm_connector_info``
@@ -71,7 +71,7 @@ is only available if the ``CEC_CAP_CONNECTOR_INFO`` capability is set.
 
       - ``CEC_CONNECTOR_TYPE_NO_CONNECTOR``
       - 0
-      - No connector is associated with the adapter/the information is not
+      - No connector is associated with the adapter/the information is yest
         provided by the driver.
     * .. _`CEC-CONNECTOR-TYPE-DRM`:
 
@@ -95,7 +95,7 @@ is only available if the ``CEC_CAP_CONNECTOR_INFO`` capability is set.
     * .. _`CEC-DRM-CONNECTOR-TYPE-CARD-NO`:
 
       - __u32
-      - ``card_no``
+      - ``card_yes``
       - DRM card number: the number from a card's path, e.g. 0 in case of
         /dev/card0.
     * .. _`CEC-DRM-CONNECTOR-TYPE-CONNECTOR_ID`:

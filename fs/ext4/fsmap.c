@@ -45,7 +45,7 @@ struct ext4_getfsmap_info {
 	void			*gfi_format_arg;/* format buffer */
 	ext4_fsblk_t		gfi_next_fsblk;	/* next fsblock we expect */
 	u32			gfi_dev;	/* device id */
-	ext4_group_t		gfi_agno;	/* bg number, if applicable */
+	ext4_group_t		gfi_agyes;	/* bg number, if applicable */
 	struct ext4_fsmap	gfi_low;	/* low rmap key */
 	struct ext4_fsmap	gfi_high;	/* high rmap key */
 	struct ext4_fsmap	gfi_lastfree;	/* free ext at end of last bg */
@@ -88,8 +88,8 @@ static int ext4_getfsmap_helper(struct super_block *sb,
 	struct ext4_fsmap fmr;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	ext4_fsblk_t rec_fsblk = rec->fmr_physical;
-	ext4_group_t agno;
-	ext4_grpblk_t cno;
+	ext4_group_t agyes;
+	ext4_grpblk_t cyes;
 	int error;
 
 	if (fatal_signal_pending(current))
@@ -131,10 +131,10 @@ static int ext4_getfsmap_helper(struct super_block *sb,
 		if (info->gfi_head->fmh_entries >= info->gfi_head->fmh_count)
 			return EXT4_QUERY_RANGE_ABORT;
 
-		ext4_get_group_no_and_offset(sb, info->gfi_next_fsblk,
-				&agno, &cno);
-		trace_ext4_fsmap_mapping(sb, info->gfi_dev, agno,
-				EXT4_C2B(sbi, cno),
+		ext4_get_group_yes_and_offset(sb, info->gfi_next_fsblk,
+				&agyes, &cyes);
+		trace_ext4_fsmap_mapping(sb, info->gfi_dev, agyes,
+				EXT4_C2B(sbi, cyes),
 				rec_fsblk - info->gfi_next_fsblk,
 				EXT4_FMR_OWN_UNKNOWN);
 
@@ -156,8 +156,8 @@ static int ext4_getfsmap_helper(struct super_block *sb,
 	if (info->gfi_head->fmh_entries >= info->gfi_head->fmh_count)
 		return EXT4_QUERY_RANGE_ABORT;
 
-	ext4_get_group_no_and_offset(sb, rec_fsblk, &agno, &cno);
-	trace_ext4_fsmap_mapping(sb, info->gfi_dev, agno, EXT4_C2B(sbi, cno),
+	ext4_get_group_yes_and_offset(sb, rec_fsblk, &agyes, &cyes);
+	trace_ext4_fsmap_mapping(sb, info->gfi_dev, agyes, EXT4_C2B(sbi, cyes),
 			rec->fmr_length, rec->fmr_owner);
 
 	fmr.fmr_device = info->gfi_dev;
@@ -184,7 +184,7 @@ static inline ext4_fsblk_t ext4_fsmap_next_pblk(struct ext4_fsmap *fmr)
 
 /* Transform a blockgroup's free record into a fsmap */
 static int ext4_getfsmap_datadev_helper(struct super_block *sb,
-					ext4_group_t agno, ext4_grpblk_t start,
+					ext4_group_t agyes, ext4_grpblk_t start,
 					ext4_grpblk_t len, void *priv)
 {
 	struct ext4_fsmap irec;
@@ -196,7 +196,7 @@ static int ext4_getfsmap_datadev_helper(struct super_block *sb,
 	ext4_fsblk_t fslen;
 	int error;
 
-	fsb = (EXT4_C2B(sbi, start) + ext4_group_first_block_no(sb, agno));
+	fsb = (EXT4_C2B(sbi, start) + ext4_group_first_block_yes(sb, agyes));
 	fslen = EXT4_C2B(sbi, len);
 
 	/* If the retained free extent record is set... */
@@ -240,7 +240,7 @@ static int ext4_getfsmap_datadev_helper(struct super_block *sb,
 
 	/* If this is a free extent at the end of a bg, buffer it. */
 	if (ext4_fsmap_next_pblk(&irec) ==
-			ext4_group_first_block_no(sb, agno + 1)) {
+			ext4_group_first_block_yes(sb, agyes + 1)) {
 		info->gfi_lastfree = irec;
 		return 0;
 	}
@@ -309,18 +309,18 @@ static inline int ext4_getfsmap_fill(struct list_head *meta_list,
  * the beginning of a block group, including the reserved gdt blocks.
  */
 static unsigned int ext4_getfsmap_find_sb(struct super_block *sb,
-					  ext4_group_t agno,
+					  ext4_group_t agyes,
 					  struct list_head *meta_list)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	ext4_fsblk_t fsb = ext4_group_first_block_no(sb, agno);
+	ext4_fsblk_t fsb = ext4_group_first_block_yes(sb, agyes);
 	ext4_fsblk_t len;
 	unsigned long first_meta_bg = le32_to_cpu(sbi->s_es->s_first_meta_bg);
-	unsigned long metagroup = agno / EXT4_DESC_PER_BLOCK(sb);
+	unsigned long metagroup = agyes / EXT4_DESC_PER_BLOCK(sb);
 	int error;
 
 	/* Record the superblock. */
-	if (ext4_bg_has_super(sb, agno)) {
+	if (ext4_bg_has_super(sb, agyes)) {
 		error = ext4_getfsmap_fill(meta_list, fsb, 1, EXT4_FMR_OWN_FS);
 		if (error)
 			return error;
@@ -328,7 +328,7 @@ static unsigned int ext4_getfsmap_find_sb(struct super_block *sb,
 	}
 
 	/* Record the group descriptors. */
-	len = ext4_bg_num_gdb(sb, agno);
+	len = ext4_bg_num_gdb(sb, agyes);
 	if (!len)
 		return 0;
 	error = ext4_getfsmap_fill(meta_list, fsb, len,
@@ -406,21 +406,21 @@ static int ext4_getfsmap_find_fixed_metadata(struct super_block *sb,
 					     struct list_head *meta_list)
 {
 	struct ext4_group_desc *gdp;
-	ext4_group_t agno;
+	ext4_group_t agyes;
 	int error;
 
 	INIT_LIST_HEAD(meta_list);
 
 	/* Collect everything. */
-	for (agno = 0; agno < EXT4_SB(sb)->s_groups_count; agno++) {
-		gdp = ext4_get_group_desc(sb, agno, NULL);
+	for (agyes = 0; agyes < EXT4_SB(sb)->s_groups_count; agyes++) {
+		gdp = ext4_get_group_desc(sb, agyes, NULL);
 		if (!gdp) {
 			error = -EFSCORRUPTED;
 			goto err;
 		}
 
 		/* Superblock & GDT */
-		error = ext4_getfsmap_find_sb(sb, agno, meta_list);
+		error = ext4_getfsmap_find_sb(sb, agyes, meta_list);
 		if (error)
 			goto err;
 
@@ -431,16 +431,16 @@ static int ext4_getfsmap_find_fixed_metadata(struct super_block *sb,
 		if (error)
 			goto err;
 
-		/* Inode bitmap */
+		/* Iyesde bitmap */
 		error = ext4_getfsmap_fill(meta_list,
-					   ext4_inode_bitmap(sb, gdp), 1,
+					   ext4_iyesde_bitmap(sb, gdp), 1,
 					   EXT4_FMR_OWN_INOBM);
 		if (error)
 			goto err;
 
-		/* Inodes */
+		/* Iyesdes */
 		error = ext4_getfsmap_fill(meta_list,
-					   ext4_inode_table(sb, gdp),
+					   ext4_iyesde_table(sb, gdp),
 					   EXT4_SB(sb)->s_itb_per_group,
 					   EXT4_FMR_OWN_INODES);
 		if (error)
@@ -487,8 +487,8 @@ static int ext4_getfsmap_datadev(struct super_block *sb,
 	end_fsb = keys[1].fmr_physical;
 
 	/* Determine first and last group to examine based on start and end */
-	ext4_get_group_no_and_offset(sb, start_fsb, &start_ag, &first_cluster);
-	ext4_get_group_no_and_offset(sb, end_fsb, &end_ag, &last_cluster);
+	ext4_get_group_yes_and_offset(sb, start_fsb, &start_ag, &first_cluster);
+	ext4_get_group_yes_and_offset(sb, end_fsb, &end_ag, &last_cluster);
 
 	/*
 	 * Convert the fsmap low/high keys to bg based keys.  Initialize
@@ -507,31 +507,31 @@ static int ext4_getfsmap_datadev(struct super_block *sb,
 		goto err;
 
 	/* Query each bg */
-	for (info->gfi_agno = start_ag;
-	     info->gfi_agno <= end_ag;
-	     info->gfi_agno++) {
+	for (info->gfi_agyes = start_ag;
+	     info->gfi_agyes <= end_ag;
+	     info->gfi_agyes++) {
 		/*
 		 * Set the bg high key from the fsmap high key if this
 		 * is the last bg that we're querying.
 		 */
-		if (info->gfi_agno == end_ag) {
+		if (info->gfi_agyes == end_ag) {
 			info->gfi_high = keys[1];
 			info->gfi_high.fmr_physical = EXT4_C2B(sbi,
 					last_cluster);
 			info->gfi_high.fmr_length = 0;
 		}
 
-		trace_ext4_fsmap_low_key(sb, info->gfi_dev, info->gfi_agno,
+		trace_ext4_fsmap_low_key(sb, info->gfi_dev, info->gfi_agyes,
 				info->gfi_low.fmr_physical,
 				info->gfi_low.fmr_length,
 				info->gfi_low.fmr_owner);
 
-		trace_ext4_fsmap_high_key(sb, info->gfi_dev, info->gfi_agno,
+		trace_ext4_fsmap_high_key(sb, info->gfi_dev, info->gfi_agyes,
 				info->gfi_high.fmr_physical,
 				info->gfi_high.fmr_length,
 				info->gfi_high.fmr_owner);
 
-		error = ext4_mballoc_query_range(sb, info->gfi_agno,
+		error = ext4_mballoc_query_range(sb, info->gfi_agyes,
 				EXT4_B2C(sbi, info->gfi_low.fmr_physical),
 				EXT4_B2C(sbi, info->gfi_high.fmr_physical),
 				ext4_getfsmap_datadev_helper, info);
@@ -542,7 +542,7 @@ static int ext4_getfsmap_datadev(struct super_block *sb,
 		 * Set the bg low key to the start of the bg prior to
 		 * moving on to the next bg.
 		 */
-		if (info->gfi_agno == start_ag)
+		if (info->gfi_agyes == start_ag)
 			memset(&info->gfi_low, 0, sizeof(info->gfi_low));
 	}
 
@@ -654,12 +654,12 @@ int ext4_getfsmap(struct super_block *sb, struct ext4_fsmap_head *head,
 	/*
 	 * To continue where we left off, we allow userspace to use the
 	 * last mapping from a previous call as the low key of the next.
-	 * This is identified by a non-zero length in the low key. We
+	 * This is identified by a yesn-zero length in the low key. We
 	 * have to increment the low key in this scenario to ensure we
 	 * don't return the same mapping again, and instead return the
 	 * very next mapping.
 	 *
-	 * Bump the physical offset as there can be no other mapping for
+	 * Bump the physical offset as there can be yes other mapping for
 	 * the same physical block range.
 	 */
 	dkeys[0] = head->fmh_keys[0];
@@ -701,7 +701,7 @@ int ext4_getfsmap(struct super_block *sb, struct ext4_fsmap_head *head,
 
 		info.gfi_dev = handlers[i].gfd_dev;
 		info.gfi_last = false;
-		info.gfi_agno = -1;
+		info.gfi_agyes = -1;
 		error = handlers[i].gfd_fn(sb, dkeys, &info);
 		if (error)
 			break;

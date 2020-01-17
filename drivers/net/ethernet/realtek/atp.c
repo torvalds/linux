@@ -8,7 +8,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license yestice.  This file is yest
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -37,7 +37,7 @@ static const char version[] =
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
 
-static int debug = 1; 			/* 1 normal messages, 0 quiet .. 7 verbose. */
+static int debug = 1; 			/* 1 yesrmal messages, 0 quiet .. 7 verbose. */
 #define net_debug debug
 
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
@@ -61,7 +61,7 @@ static int xcvr[NUM_UNITS]; 			/* The data transfer mode. */
 
   Sources:
 	This driver was written from the packet driver assembly code provided by
-	Vincent Bono of AT-Lan-Tec.	 Ever try to figure out how a complicated
+	Vincent Boyes of AT-Lan-Tec.	 Ever try to figure out how a complicated
 	device works just from the assembly code?  It ain't pretty.  The following
 	description is written based on guesses and writing lots of special-purpose
 	code to test my theorized operation.
@@ -96,12 +96,12 @@ static int xcvr[NUM_UNITS]; 			/* The data transfer mode. */
 	to the data port.
 
 	Correction: the controller has two banks of 16 registers.  The second
-	bank contains only the multicast filter table (now used) and the EEPROM
+	bank contains only the multicast filter table (yesw used) and the EEPROM
 	access registers.
 
 	Since the bulk data transfer of the actual packets through the slow
 	parallel port dominates the driver's running time, four distinct data
-	(non-register) transfer modes are provided by the adapter, two in each
+	(yesn-register) transfer modes are provided by the adapter, two in each
 	direction.  In the first mode timing for the nibble transfers is
 	provided through the data port.  In the second mode the same timing is
 	provided through the control port.  In either case the data is read from
@@ -130,7 +130,7 @@ static int xcvr[NUM_UNITS]; 			/* The data transfer mode. */
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/crc32.h>
 #include <linux/netdevice.h>
@@ -180,7 +180,7 @@ struct net_local {
 };
 
 /* This code, written by wwc@super.org, resets the adapter every
-   TIMED_CHECKER ticks.  This recovers from an unknown error which
+   TIMED_CHECKER ticks.  This recovers from an unkyeswn error which
    hangs the device. */
 #define TIMED_CHECKER (HZ/4)
 #ifdef TIMED_CHECKER
@@ -191,7 +191,7 @@ static void atp_timed_checker(struct timer_list *t);
 /* Index to functions, as function prototypes. */
 
 static int atp_probe1(long ioaddr);
-static void get_node_ID(struct net_device *dev);
+static void get_yesde_ID(struct net_device *dev);
 static unsigned short eeprom_op(long ioaddr, unsigned int cmd);
 static int net_open(struct net_device *dev);
 static void hardware_init(struct net_device *dev);
@@ -310,7 +310,7 @@ static int __init atp_probe1(long ioaddr)
 	write_reg_byte(ioaddr, CMR2, 0x01);			/* No accept mode, IRQ out. */
 	write_reg_high(ioaddr, CMR1, CMR1h_RxENABLE | CMR1h_TxENABLE);	/* Enable Tx and Rx. */
 
-	/* Omit autoIRQ routine for now. Use "table lookup" instead.  Uhgggh. */
+	/* Omit autoIRQ routine for yesw. Use "table lookup" instead.  Uhgggh. */
 	if (irq[0])
 		dev->irq = irq[0];
 	else if (ioaddr == 0x378)
@@ -323,7 +323,7 @@ static int __init atp_probe1(long ioaddr)
 	dev->base_addr = ioaddr;
 
 	/* Read the station address PROM.  */
-	get_node_ID(dev);
+	get_yesde_ID(dev);
 
 #ifndef MODULE
 	if (net_debug)
@@ -365,7 +365,7 @@ static int __init atp_probe1(long ioaddr)
 }
 
 /* Read the station address PROM, usually a word-wide EEPROM. */
-static void __init get_node_ID(struct net_device *dev)
+static void __init get_yesde_ID(struct net_device *dev)
 {
 	long ioaddr = dev->base_addr;
 	int sa_offset = 0;
@@ -420,9 +420,9 @@ static unsigned short __init eeprom_op(long ioaddr, u32 cmd)
 
    This routine sets everything up anew at each open, even
    registers that "should" only need to be set once at boot, so that
-   there is non-reboot way to recover if something goes wrong.
+   there is yesn-reboot way to recover if something goes wrong.
 
-   This is an attachable device: if there is no private entry then it wasn't
+   This is an attachable device: if there is yes private entry then it wasn't
    probed for at boot-time, and we need to probe for it again.
    */
 static int net_open(struct net_device *dev)
@@ -561,7 +561,7 @@ static netdev_tx_t atp_send_packet(struct sk_buff *skb,
 	netif_stop_queue(dev);
 
 	/* Disable interrupts by writing 0x00 to the Interrupt Mask Register.
-	   This sequence must not be interrupted by an incoming packet. */
+	   This sequence must yest be interrupted by an incoming packet. */
 
 	spin_lock_irqsave(&lp->lock, flags);
 	write_reg(ioaddr, IMR, 0);
@@ -624,14 +624,14 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 				int read_status = read_nibble(ioaddr, CMR1);
 				if (net_debug > 6)
 					printk("handling Rx packet %02x..", read_status);
-				/* We acknowledged the normal Rx interrupt, so if the interrupt
+				/* We ackyeswledged the yesrmal Rx interrupt, so if the interrupt
 				   is still outstanding we must have a Rx error. */
 				if (read_status & (CMR1_IRQ << 3)) { /* Overrun. */
 					dev->stats.rx_over_errors++;
-					/* Set to no-accept mode long enough to remove a packet. */
+					/* Set to yes-accept mode long eyesugh to remove a packet. */
 					write_reg_high(ioaddr, CMR2, CMR2h_OFF);
 					net_rx(dev);
-					/* Clear the interrupt and return to normal Rx mode. */
+					/* Clear the interrupt and return to yesrmal Rx mode. */
 					write_reg_high(ioaddr, ISR, ISRh_RxErr);
 					write_reg_high(ioaddr, CMR2, lp->addr_mode);
 				} else if ((read_status & (CMR1_BufEnb << 3)) == 0) {
@@ -768,7 +768,7 @@ static void net_rx(struct net_device *dev)
 		if (rx_head.rx_status & 0x0004) dev->stats.rx_frame_errors++;
 		else if (rx_head.rx_status & 0x0002) dev->stats.rx_crc_errors++;
 		if (net_debug > 3)
-			printk(KERN_DEBUG "%s: Unknown ATP Rx error %04x.\n",
+			printk(KERN_DEBUG "%s: Unkyeswn ATP Rx error %04x.\n",
 				   dev->name, rx_head.rx_status);
 		if  (rx_head.rx_status & 0x0020) {
 			dev->stats.rx_fifo_errors++;
@@ -862,7 +862,7 @@ static void set_rx_mode(struct net_device *dev)
 }
 
 static int __init atp_init_module(void) {
-	if (debug)					/* Emit version even if no cards detected. */
+	if (debug)					/* Emit version even if yes cards detected. */
 		printk(KERN_INFO "%s", version);
 	return atp_init();
 }

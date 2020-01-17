@@ -9,7 +9,7 @@ generic PM domain binding[1].
 == Zynq MPSoC Generic PM Domain Node ==
 
 Required property:
- - Below property should be in zynqmp-firmware node.
+ - Below property should be in zynqmp-firmware yesde.
  - #power-domain-cells:	Number of cells in a PM domain specifier. Must be 1.
 
 Power domain ID indexes are mentioned in

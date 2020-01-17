@@ -17,7 +17,7 @@
 
 int mtk_vcodec_init_enc_pm(struct mtk_vcodec_dev *mtkdev)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct platform_device *pdev;
 	struct mtk_vcodec_pm *pm;
 	struct mtk_vcodec_clk *enc_clk;
@@ -33,29 +33,29 @@ int mtk_vcodec_init_enc_pm(struct mtk_vcodec_dev *mtkdev)
 	dev = &pdev->dev;
 	enc_clk = &pm->venc_clk;
 
-	node = of_parse_phandle(dev->of_node, "mediatek,larb", 0);
-	if (!node) {
-		mtk_v4l2_err("no mediatek,larb found");
+	yesde = of_parse_phandle(dev->of_yesde, "mediatek,larb", 0);
+	if (!yesde) {
+		mtk_v4l2_err("yes mediatek,larb found");
 		return -ENODEV;
 	}
-	pdev = of_find_device_by_node(node);
-	of_node_put(node);
+	pdev = of_find_device_by_yesde(yesde);
+	of_yesde_put(yesde);
 	if (!pdev) {
-		mtk_v4l2_err("no mediatek,larb device found");
+		mtk_v4l2_err("yes mediatek,larb device found");
 		return -ENODEV;
 	}
 	pm->larbvenc = &pdev->dev;
 
-	node = of_parse_phandle(dev->of_node, "mediatek,larb", 1);
-	if (!node) {
-		mtk_v4l2_err("no mediatek,larb found");
+	yesde = of_parse_phandle(dev->of_yesde, "mediatek,larb", 1);
+	if (!yesde) {
+		mtk_v4l2_err("yes mediatek,larb found");
 		return -ENODEV;
 	}
 
-	pdev = of_find_device_by_node(node);
-	of_node_put(node);
+	pdev = of_find_device_by_yesde(yesde);
+	of_yesde_put(yesde);
 	if (!pdev) {
-		mtk_v4l2_err("no mediatek,larb device found");
+		mtk_v4l2_err("yes mediatek,larb device found");
 		return -ENODEV;
 	}
 
@@ -63,7 +63,7 @@ int mtk_vcodec_init_enc_pm(struct mtk_vcodec_dev *mtkdev)
 	pdev = mtkdev->plat_dev;
 	pm->dev = &pdev->dev;
 
-	enc_clk->clk_num = of_property_count_strings(pdev->dev.of_node,
+	enc_clk->clk_num = of_property_count_strings(pdev->dev.of_yesde,
 		"clock-names");
 	if (enc_clk->clk_num > 0) {
 		enc_clk->clk_info = devm_kcalloc(&pdev->dev,
@@ -78,7 +78,7 @@ int mtk_vcodec_init_enc_pm(struct mtk_vcodec_dev *mtkdev)
 
 	for (i = 0; i < enc_clk->clk_num; i++) {
 		clk_info = &enc_clk->clk_info[i];
-		ret = of_property_read_string_index(pdev->dev.of_node,
+		ret = of_property_read_string_index(pdev->dev.of_yesde,
 			"clock-names", i, &clk_info->clk_name);
 		if (ret) {
 			mtk_v4l2_err("venc failed to get clk name %d", i);

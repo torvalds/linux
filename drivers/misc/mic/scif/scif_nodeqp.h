@@ -26,12 +26,12 @@
  * are met:
  *
  * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ *   yestice, this list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the
  *   distribution.
- * * Neither the name of Intel Corporation nor the names of its
+ * * Neither the name of Intel Corporation yesr the names of its
  *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
  *
@@ -56,13 +56,13 @@
 #include "scif_rb.h"
 #include "scif_peer_bus.h"
 
-#define SCIF_INIT 1  /* First message sent to the peer node for discovery */
+#define SCIF_INIT 1  /* First message sent to the peer yesde for discovery */
 #define SCIF_EXIT 2  /* Last message from the peer informing intent to exit */
 #define SCIF_EXIT_ACK 3 /* Response to SCIF_EXIT message */
-#define SCIF_NODE_ADD 4  /* Tell Online nodes a new node exits */
-#define SCIF_NODE_ADD_ACK 5  /* Confirm to mgmt node sequence is finished */
+#define SCIF_NODE_ADD 4  /* Tell Online yesdes a new yesde exits */
+#define SCIF_NODE_ADD_ACK 5  /* Confirm to mgmt yesde sequence is finished */
 #define SCIF_NODE_ADD_NACK 6 /* SCIF_NODE_ADD failed */
-#define SCIF_NODE_REMOVE 7 /* Request to deactivate a SCIF node */
+#define SCIF_NODE_REMOVE 7 /* Request to deactivate a SCIF yesde */
 #define SCIF_NODE_REMOVE_ACK 8 /* Response to a SCIF_NODE_REMOVE message */
 #define SCIF_CNCT_REQ 9  /* Phys addr of Request connection to a port */
 #define SCIF_CNCT_GNT 10  /* Phys addr of new Grant connection request */
@@ -73,7 +73,7 @@
 #define SCIF_DISCNT_ACK 15 /* Notify peer that connection is being terminated */
 #define SCIF_CLIENT_SENT 16 /* Notify the peer that data has been written */
 #define SCIF_CLIENT_RCVD 17 /* Notify the peer that data has been read */
-#define SCIF_GET_NODE_INFO 18 /* Get current node mask from the mgmt node*/
+#define SCIF_GET_NODE_INFO 18 /* Get current yesde mask from the mgmt yesde*/
 #define SCIF_REGISTER 19 /* Tell peer about a new registered window */
 #define SCIF_REGISTER_ACK 20 /* Notify peer about unregistration success */
 #define SCIF_REGISTER_NACK 21 /* Notify peer about registration success */
@@ -84,7 +84,7 @@
 #define SCIF_ALLOC_GNT 26 /* Notify peer about allocation success */
 #define SCIF_ALLOC_REJ 27 /* Notify peer about allocation failure */
 #define SCIF_FREE_VIRT 28 /* Free previously allocated virtual memory */
-#define SCIF_MUNMAP 29 /* Acknowledgment for a SCIF_MMAP request */
+#define SCIF_MUNMAP 29 /* Ackyeswledgment for a SCIF_MMAP request */
 #define SCIF_MARK 30 /* SCIF Remote Fence Mark Request */
 #define SCIF_MARK_ACK 31 /* SCIF Remote Fence Mark Success */
 #define SCIF_MARK_NACK 32 /* SCIF Remote Fence Mark Failure */
@@ -114,7 +114,7 @@ struct scifmsg {
 
 /*
  * struct scif_allocmsg - Used with SCIF_ALLOC_REQ to request
- * the remote note to allocate memory
+ * the remote yeste to allocate memory
  *
  * phys_addr: Physical address of the buffer
  * vaddr: Virtual address of the buffer
@@ -173,7 +173,7 @@ struct scif_qp {
 /*
  * struct scif_loopb_msg - An element in the loopback Node QP message list.
  *
- * @msg - The SCIF node QP message
+ * @msg - The SCIF yesde QP message
  * @list - link in the list of messages
  */
 struct scif_loopb_msg {
@@ -181,9 +181,9 @@ struct scif_loopb_msg {
 	struct list_head list;
 };
 
-int scif_nodeqp_send(struct scif_dev *scifdev, struct scifmsg *msg);
-int _scif_nodeqp_send(struct scif_dev *scifdev, struct scifmsg *msg);
-void scif_nodeqp_intrhandler(struct scif_dev *scifdev, struct scif_qp *qp);
+int scif_yesdeqp_send(struct scif_dev *scifdev, struct scifmsg *msg);
+int _scif_yesdeqp_send(struct scif_dev *scifdev, struct scifmsg *msg);
+void scif_yesdeqp_intrhandler(struct scif_dev *scifdev, struct scif_qp *qp);
 int scif_loopb_msg_handler(struct scif_dev *scifdev, struct scif_qp *qp);
 int scif_setup_qp(struct scif_dev *scifdev);
 int scif_qp_response(phys_addr_t phys, struct scif_dev *dev);

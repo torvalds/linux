@@ -11,7 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/timer.h>
 #include <linux/irq.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/log2.h>
 #include "pci-sh4.h"
@@ -154,7 +154,7 @@ static irqreturn_t sh7780_pci_serr_irq(int irq, void *dev_id)
 	__raw_writel(SH4_PCIINTM_SDIM, hose->reg_base + SH4_PCIINTM);
 
 	/* Back off the IRQ for awhile */
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	hose->serr_timer.expires = jiffies + HZ;
 	add_timer(&hose->serr_timer);
 
@@ -264,13 +264,13 @@ static int __init sh7780_pci_init(void)
 	/*
 	 * Wait for it to come back up. The spec says to allow for up to
 	 * 1 second after toggling the reset pin, but in practice 100ms
-	 * is more than enough.
+	 * is more than eyesugh.
 	 */
 	mdelay(100);
 
 	id = __raw_readw(chan->reg_base + PCI_VENDOR_ID);
 	if (id != PCI_VENDOR_ID_RENESAS) {
-		printk(KERN_ERR "PCI: Unknown vendor ID 0x%04x.\n", id);
+		printk(KERN_ERR "PCI: Unkyeswn vendor ID 0x%04x.\n", id);
 		return -ENODEV;
 	}
 
@@ -318,7 +318,7 @@ static int __init sh7780_pci_init(void)
 	}
 
 	/*
-	 * LAR0/LSR0 covers up to the first 512MB, which is enough to
+	 * LAR0/LSR0 covers up to the first 512MB, which is eyesugh to
 	 * cover all of lowmem on most platforms.
 	 */
 	__raw_writel(memphys, chan->reg_base + SH4_PCILAR0);
@@ -333,7 +333,7 @@ static int __init sh7780_pci_init(void)
 		return ret;
 
 	/*
-	 * Disable the cache snoop controller for non-coherent DMA.
+	 * Disable the cache syesop controller for yesn-coherent DMA.
 	 */
 	__raw_writel(0, chan->reg_base + SH7780_PCICSCR0);
 	__raw_writel(0, chan->reg_base + SH7780_PCICSAR0);

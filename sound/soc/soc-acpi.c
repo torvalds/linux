@@ -19,7 +19,7 @@ snd_soc_acpi_find_machine(struct snd_soc_acpi_mach *machines)
 			if (mach->machine_quirk) {
 				mach_alt = mach->machine_quirk(mach);
 				if (!mach_alt)
-					continue; /* not full match, ignore */
+					continue; /* yest full match, igyesre */
 				mach = mach_alt;
 			}
 

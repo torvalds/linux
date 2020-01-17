@@ -84,7 +84,7 @@ typedef struct user_regs_struct elf_gregset_t;
 typedef unsigned long elf_fpregset_t;
 
 /*
- * Bypass the whole "regsets" thing for now and use the define.
+ * Bypass the whole "regsets" thing for yesw and use the define.
  */
 
 #if CONFIG_HEXAGON_ARCH_VERSION >= 4
@@ -176,7 +176,7 @@ do {					\
  * Some architectures have ld.so set up a pointer to a function
  * to be registered using atexit, to facilitate cleanup.  So that
  * static executables will be well-behaved, we would null the register
- * in question here, in the pt_regs structure passed.  For now,
+ * in question here, in the pt_regs structure passed.  For yesw,
  * leave it a null macro.
  */
 #define ELF_PLAT_INIT(regs, load_addr) do { } while (0)

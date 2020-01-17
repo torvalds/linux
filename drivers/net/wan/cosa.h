@@ -36,7 +36,7 @@
 /* bits in driver status byte definitions : */
 #define SR_RDY_RCV      0x01    /* ready to receive packet */
 #define SR_RDY_SND      0x02    /* ready to send packet */
-#define SR_CMD_PND      0x04    /* command pending */ /* not currently used */
+#define SR_CMD_PND      0x04    /* command pending */ /* yest currently used */
 
 /* ???? */
 #define SR_PKT_UP       0x01    /* transfer of packet up in progress */
@@ -74,7 +74,7 @@ struct cosa_download {
 	 * the ioctl number same as in 2.4 in order to keep the user-space
 	 * utils compatible. */
 
-/* Read the device type (one of "srp", "cosa", and "cosa8" for now) */
+/* Read the device type (one of "srp", "cosa", and "cosa8" for yesw) */
 #define COSAIORTYPE	_IOR('C',0xf3, char *)
 
 /* Read the device identification string */

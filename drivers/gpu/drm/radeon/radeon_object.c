@@ -18,7 +18,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -219,7 +219,7 @@ int radeon_bo_create(struct radeon_device *rdev,
 				       RADEON_GEM_DOMAIN_CPU);
 
 	bo->flags = flags;
-	/* PCI GART is always snooped */
+	/* PCI GART is always syesoped */
 	if (!(rdev->flags & RADEON_IS_PCIE))
 		bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
 
@@ -353,7 +353,7 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 		return 0;
 	}
 	if (bo->prime_shared_count && domain == RADEON_GEM_DOMAIN_VRAM) {
-		/* A BO shared as a dma-buf cannot be sensibly migrated to VRAM */
+		/* A BO shared as a dma-buf canyest be sensibly migrated to VRAM */
 		return -EINVAL;
 	}
 
@@ -397,7 +397,7 @@ int radeon_bo_unpin(struct radeon_bo *bo)
 	int r, i;
 
 	if (!bo->pin_count) {
-		dev_warn(bo->rdev->dev, "%p unpin not necessary\n", bo);
+		dev_warn(bo->rdev->dev, "%p unpin yest necessary\n", bo);
 		return 0;
 	}
 	bo->pin_count--;
@@ -508,7 +508,7 @@ static u64 radeon_bo_get_threshold_for_moves(struct radeon_device *rdev)
 	 *    VRAM 0 %             100 %
 	 *         used            used
 	 *
-	 * Note: It's a threshold, not a limit. The threshold must be crossed
+	 * Note: It's a threshold, yest a limit. The threshold must be crossed
 	 * for buffer relocations to stop, so any buffer of an arbitrary size
 	 * can be moved as long as the threshold isn't crossed before
 	 * the relocation takes place. We don't want to disable buffer
@@ -773,7 +773,7 @@ int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 	return radeon_bo_get_surface_reg(bo);
 }
 
-void radeon_bo_move_notify(struct ttm_buffer_object *bo,
+void radeon_bo_move_yestify(struct ttm_buffer_object *bo,
 			   bool evict,
 			   struct ttm_mem_reg *new_mem)
 {
@@ -794,7 +794,7 @@ void radeon_bo_move_notify(struct ttm_buffer_object *bo,
 	radeon_update_memory_usage(rbo, new_mem->mem_type, 1);
 }
 
-int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
+int radeon_bo_fault_reserve_yestify(struct ttm_buffer_object *bo)
 {
 	struct ttm_operation_ctx ctx = { false, false };
 	struct radeon_device *rdev;
@@ -819,7 +819,7 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	if (rbo->pin_count > 0)
 		return -EINVAL;
 
-	/* hurrah the memory is not visible ! */
+	/* hurrah the memory is yest visible ! */
 	radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_VRAM);
 	lpfn =	rdev->mc.visible_vram_size >> PAGE_SHIFT;
 	for (i = 0; i < rbo->placement.num_placement; i++) {
@@ -844,17 +844,17 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	return 0;
 }
 
-int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
+int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool yes_wait)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, NULL);
+	r = ttm_bo_reserve(&bo->tbo, true, yes_wait, NULL);
 	if (unlikely(r != 0))
 		return r;
 	if (mem_type)
 		*mem_type = bo->tbo.mem.mem_type;
 
-	r = ttm_bo_wait(&bo->tbo, true, no_wait);
+	r = ttm_bo_wait(&bo->tbo, true, yes_wait);
 	ttm_bo_unreserve(&bo->tbo);
 	return r;
 }

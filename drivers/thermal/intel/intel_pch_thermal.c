@@ -72,7 +72,7 @@ struct pch_thermal_device {
 
 /*
  * On some platforms, there is a companion ACPI device, which adds
- * passive trip temperature using _PSV method. There is no specific
+ * passive trip temperature using _PSV method. There is yes specific
  * passive temperature setting in MMIO interface of this PCI device.
  */
 static void pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd,
@@ -126,7 +126,7 @@ static int pch_wpt_init(struct pch_thermal_device *ptd, int *nr_trips)
 	tsel = readb(ptd->hw_base + WPT_TSEL);
 	/*
 	 * When TSEL's Policy Lock-Down bit is 1, TSEL become RO.
-	 * If so, thermal sensor cannot enable. Bail out.
+	 * If so, thermal sensor canyest enable. Bail out.
 	 */
 	if (tsel & WPT_TSEL_PLDB) {
 		dev_err(&ptd->pdev->dev, "Sensor can't be enabled\n");
@@ -291,7 +291,7 @@ static const struct board_info {
 		.ops = &pch_dev_ops_wpt,
 	},
 	[board_cnl] = {
-		.name = "pch_cannonlake",
+		.name = "pch_canyesnlake",
 		.ops = &pch_dev_ops_wpt,
 	},
 };

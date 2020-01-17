@@ -200,7 +200,7 @@ static void __probe_tcache(void)
 	pow2 = (256 * 1024);
 	for (addr = begin; addr <= end; addr = (begin + pow2)) {
 		unsigned long *p = (unsigned long *) addr;
-		__asm__ __volatile__("nop" : : "r" (*p));
+		__asm__ __volatile__("yesp" : : "r" (*p));
 		pow2 <<= 1;
 	}
 

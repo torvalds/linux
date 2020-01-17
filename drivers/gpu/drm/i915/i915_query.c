@@ -4,7 +4,7 @@
  * Copyright © 2018 Intel Corporation
  */
 
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include "i915_drv.h"
 #include "i915_perf.h"
@@ -474,7 +474,7 @@ int i915_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 		ret = -EINVAL;
 		if (func_idx < ARRAY_SIZE(i915_query_funcs)) {
-			func_idx = array_index_nospec(func_idx,
+			func_idx = array_index_yesspec(func_idx,
 						      ARRAY_SIZE(i915_query_funcs));
 			ret = i915_query_funcs[func_idx](dev_priv, &item);
 		}

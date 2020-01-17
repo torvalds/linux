@@ -18,7 +18,7 @@ config SECURITY_SELINUX_BOOTPARAM
 	  to be disabled at boot.  If this option is selected, SELinux
 	  functionality can be disabled with selinux=0 on the kernel
 	  command line.  The purpose of this option is to allow a single
-	  kernel image to be distributed with SELinux built in, but not
+	  kernel image to be distributed with SELinux built in, but yest
 	  necessarily enabled.
 
 	  If you are unsure how to answer this question, answer N.
@@ -29,7 +29,7 @@ config SECURITY_SELINUX_DISABLE
 	select SECURITY_WRITABLE_HOOKS
 	default n
 	help
-	  This option enables writing to a selinuxfs node 'disable', which
+	  This option enables writing to a selinuxfs yesde 'disable', which
 	  allows SELinux to be disabled at runtime prior to the policy load.
 	  SELinux will then remain disabled until the next boot.
 	  This option is similar to the selinux=0 boot parameter, but is to
@@ -52,7 +52,7 @@ config SECURITY_SELINUX_DEVELOP
 	  This enables the development support option of NSA SELinux,
 	  which is useful for experimenting with SELinux and developing
 	  policies.  If unsure, say Y.  With this option enabled, the
-	  kernel will start in permissive mode (log everything, deny nothing)
+	  kernel will start in permissive mode (log everything, deny yesthing)
 	  unless you specify enforcing=1 on the kernel command line.  You
 	  can interactively toggle the kernel between enforcing mode and
 	  permissive mode (if permitted by the policy) via /selinux/enforce.

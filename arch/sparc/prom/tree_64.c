@@ -17,14 +17,14 @@
 #include <asm/oplib.h>
 #include <asm/ldc.h>
 
-static phandle prom_node_to_node(const char *type, phandle node)
+static phandle prom_yesde_to_yesde(const char *type, phandle yesde)
 {
 	unsigned long args[5];
 
 	args[0] = (unsigned long) type;
 	args[1] = 1;
 	args[2] = 1;
-	args[3] = (unsigned int) node;
+	args[3] = (unsigned int) yesde;
 	args[4] = (unsigned long) -1;
 
 	p1275_cmd_direct(args);
@@ -32,75 +32,75 @@ static phandle prom_node_to_node(const char *type, phandle node)
 	return (phandle) args[4];
 }
 
-/* Return the child of node 'node' or zero if no this node has no
+/* Return the child of yesde 'yesde' or zero if yes this yesde has yes
  * direct descendent.
  */
-inline phandle __prom_getchild(phandle node)
+inline phandle __prom_getchild(phandle yesde)
 {
-	return prom_node_to_node("child", node);
+	return prom_yesde_to_yesde("child", yesde);
 }
 
-phandle prom_getchild(phandle node)
+phandle prom_getchild(phandle yesde)
 {
-	phandle cnode;
+	phandle cyesde;
 
-	if ((s32)node == -1)
+	if ((s32)yesde == -1)
 		return 0;
-	cnode = __prom_getchild(node);
-	if ((s32)cnode == -1)
+	cyesde = __prom_getchild(yesde);
+	if ((s32)cyesde == -1)
 		return 0;
-	return cnode;
+	return cyesde;
 }
 EXPORT_SYMBOL(prom_getchild);
 
-inline phandle prom_getparent(phandle node)
+inline phandle prom_getparent(phandle yesde)
 {
-	phandle cnode;
+	phandle cyesde;
 
-	if ((s32)node == -1)
+	if ((s32)yesde == -1)
 		return 0;
-	cnode = prom_node_to_node("parent", node);
-	if ((s32)cnode == -1)
+	cyesde = prom_yesde_to_yesde("parent", yesde);
+	if ((s32)cyesde == -1)
 		return 0;
-	return cnode;
+	return cyesde;
 }
 
-/* Return the next sibling of node 'node' or zero if no more siblings
+/* Return the next sibling of yesde 'yesde' or zero if yes more siblings
  * at this level of depth in the tree.
  */
-inline phandle __prom_getsibling(phandle node)
+inline phandle __prom_getsibling(phandle yesde)
 {
-	return prom_node_to_node(prom_peer_name, node);
+	return prom_yesde_to_yesde(prom_peer_name, yesde);
 }
 
-phandle prom_getsibling(phandle node)
+phandle prom_getsibling(phandle yesde)
 {
-	phandle sibnode;
+	phandle sibyesde;
 
-	if ((s32)node == -1)
+	if ((s32)yesde == -1)
 		return 0;
-	sibnode = __prom_getsibling(node);
-	if ((s32)sibnode == -1)
+	sibyesde = __prom_getsibling(yesde);
+	if ((s32)sibyesde == -1)
 		return 0;
 
-	return sibnode;
+	return sibyesde;
 }
 EXPORT_SYMBOL(prom_getsibling);
 
-/* Return the length in bytes of property 'prop' at node 'node'.
+/* Return the length in bytes of property 'prop' at yesde 'yesde'.
  * Return -1 on error.
  */
-int prom_getproplen(phandle node, const char *prop)
+int prom_getproplen(phandle yesde, const char *prop)
 {
 	unsigned long args[6];
 
-	if (!node || !prop)
+	if (!yesde || !prop)
 		return -1;
 
 	args[0] = (unsigned long) "getproplen";
 	args[1] = 2;
 	args[2] = 1;
-	args[3] = (unsigned int) node;
+	args[3] = (unsigned int) yesde;
 	args[4] = (unsigned long) prop;
 	args[5] = (unsigned long) -1;
 
@@ -110,24 +110,24 @@ int prom_getproplen(phandle node, const char *prop)
 }
 EXPORT_SYMBOL(prom_getproplen);
 
-/* Acquire a property 'prop' at node 'node' and place it in
+/* Acquire a property 'prop' at yesde 'yesde' and place it in
  * 'buffer' which has a size of 'bufsize'.  If the acquisition
  * was successful the length will be returned, else -1 is returned.
  */
-int prom_getproperty(phandle node, const char *prop,
+int prom_getproperty(phandle yesde, const char *prop,
 		     char *buffer, int bufsize)
 {
 	unsigned long args[8];
 	int plen;
 
-	plen = prom_getproplen(node, prop);
+	plen = prom_getproplen(yesde, prop);
 	if ((plen > bufsize) || (plen == 0) || (plen == -1))
 		return -1;
 
 	args[0] = (unsigned long) prom_getprop_name;
 	args[1] = 4;
 	args[2] = 1;
-	args[3] = (unsigned int) node;
+	args[3] = (unsigned int) yesde;
 	args[4] = (unsigned long) prop;
 	args[5] = (unsigned long) buffer;
 	args[6] = bufsize;
@@ -142,11 +142,11 @@ EXPORT_SYMBOL(prom_getproperty);
 /* Acquire an integer property and return its value.  Returns -1
  * on failure.
  */
-int prom_getint(phandle node, const char *prop)
+int prom_getint(phandle yesde, const char *prop)
 {
 	int intprop;
 
-	if (prom_getproperty(node, prop, (char *) &intprop, sizeof(int)) != -1)
+	if (prom_getproperty(yesde, prop, (char *) &intprop, sizeof(int)) != -1)
 		return intprop;
 
 	return -1;
@@ -157,11 +157,11 @@ EXPORT_SYMBOL(prom_getint);
  * integer.
  */
 
-int prom_getintdefault(phandle node, const char *property, int deflt)
+int prom_getintdefault(phandle yesde, const char *property, int deflt)
 {
 	int retval;
 
-	retval = prom_getint(node, property);
+	retval = prom_getint(yesde, property);
 	if (retval == -1)
 		return deflt;
 
@@ -170,11 +170,11 @@ int prom_getintdefault(phandle node, const char *property, int deflt)
 EXPORT_SYMBOL(prom_getintdefault);
 
 /* Acquire a boolean property, 1=TRUE 0=FALSE. */
-int prom_getbool(phandle node, const char *prop)
+int prom_getbool(phandle yesde, const char *prop)
 {
 	int retval;
 
-	retval = prom_getproplen(node, prop);
+	retval = prom_getproplen(yesde, prop);
 	if (retval == -1)
 		return 0;
 	return 1;
@@ -185,46 +185,46 @@ EXPORT_SYMBOL(prom_getbool);
  * string on error.  The char pointer is the user supplied string
  * buffer.
  */
-void prom_getstring(phandle node, const char *prop, char *user_buf,
+void prom_getstring(phandle yesde, const char *prop, char *user_buf,
 		int ubuf_size)
 {
 	int len;
 
-	len = prom_getproperty(node, prop, user_buf, ubuf_size);
+	len = prom_getproperty(yesde, prop, user_buf, ubuf_size);
 	if (len != -1)
 		return;
 	user_buf[0] = 0;
 }
 EXPORT_SYMBOL(prom_getstring);
 
-/* Does the device at node 'node' have name 'name'?
+/* Does the device at yesde 'yesde' have name 'name'?
  * YES = 1   NO = 0
  */
-int prom_nodematch(phandle node, const char *name)
+int prom_yesdematch(phandle yesde, const char *name)
 {
 	char namebuf[128];
-	prom_getproperty(node, "name", namebuf, sizeof(namebuf));
+	prom_getproperty(yesde, "name", namebuf, sizeof(namebuf));
 	if (strcmp(namebuf, name) == 0)
 		return 1;
 	return 0;
 }
 
-/* Search siblings at 'node_start' for a node with name
- * 'nodename'.  Return node if successful, zero if not.
+/* Search siblings at 'yesde_start' for a yesde with name
+ * 'yesdename'.  Return yesde if successful, zero if yest.
  */
-phandle prom_searchsiblings(phandle node_start, const char *nodename)
+phandle prom_searchsiblings(phandle yesde_start, const char *yesdename)
 {
-	phandle thisnode;
+	phandle thisyesde;
 	int error;
 	char promlib_buf[128];
 
-	for(thisnode = node_start; thisnode;
-	    thisnode=prom_getsibling(thisnode)) {
-		error = prom_getproperty(thisnode, "name", promlib_buf,
+	for(thisyesde = yesde_start; thisyesde;
+	    thisyesde=prom_getsibling(thisyesde)) {
+		error = prom_getproperty(thisyesde, "name", promlib_buf,
 					 sizeof(promlib_buf));
 		/* Should this ever happen? */
 		if(error == -1) continue;
-		if(strcmp(nodename, promlib_buf)==0) return thisnode;
+		if(strcmp(yesdename, promlib_buf)==0) return thisyesde;
 	}
 
 	return 0;
@@ -233,21 +233,21 @@ EXPORT_SYMBOL(prom_searchsiblings);
 
 static const char *prom_nextprop_name = "nextprop";
 
-/* Return the first property type for node 'node'.
+/* Return the first property type for yesde 'yesde'.
  * buffer should be at least 32B in length
  */
-char *prom_firstprop(phandle node, char *buffer)
+char *prom_firstprop(phandle yesde, char *buffer)
 {
 	unsigned long args[7];
 
 	*buffer = 0;
-	if ((s32)node == -1)
+	if ((s32)yesde == -1)
 		return buffer;
 
 	args[0] = (unsigned long) prom_nextprop_name;
 	args[1] = 3;
 	args[2] = 1;
-	args[3] = (unsigned int) node;
+	args[3] = (unsigned int) yesde;
 	args[4] = 0;
 	args[5] = (unsigned long) buffer;
 	args[6] = (unsigned long) -1;
@@ -259,15 +259,15 @@ char *prom_firstprop(phandle node, char *buffer)
 EXPORT_SYMBOL(prom_firstprop);
 
 /* Return the property type string after property type 'oprop'
- * at node 'node' .  Returns NULL string if no more
- * property types for this node.
+ * at yesde 'yesde' .  Returns NULL string if yes more
+ * property types for this yesde.
  */
-char *prom_nextprop(phandle node, const char *oprop, char *buffer)
+char *prom_nextprop(phandle yesde, const char *oprop, char *buffer)
 {
 	unsigned long args[7];
 	char buf[32];
 
-	if ((s32)node == -1) {
+	if ((s32)yesde == -1) {
 		*buffer = 0;
 		return buffer;
 	}
@@ -279,7 +279,7 @@ char *prom_nextprop(phandle node, const char *oprop, char *buffer)
 	args[0] = (unsigned long) prom_nextprop_name;
 	args[1] = 3;
 	args[2] = 1;
-	args[3] = (unsigned int) node;
+	args[3] = (unsigned int) yesde;
 	args[4] = (unsigned long) oprop;
 	args[5] = (unsigned long) buffer;
 	args[6] = (unsigned long) -1;
@@ -308,25 +308,25 @@ phandle prom_finddevice(const char *name)
 }
 EXPORT_SYMBOL(prom_finddevice);
 
-int prom_node_has_property(phandle node, const char *prop)
+int prom_yesde_has_property(phandle yesde, const char *prop)
 {
 	char buf [32];
         
 	*buf = 0;
 	do {
-		prom_nextprop(node, buf, buf);
+		prom_nextprop(yesde, buf, buf);
 		if (!strcmp(buf, prop))
 			return 1;
 	} while (*buf);
 	return 0;
 }
-EXPORT_SYMBOL(prom_node_has_property);
+EXPORT_SYMBOL(prom_yesde_has_property);
 
-/* Set property 'pname' at node 'node' to value 'value' which has a length
+/* Set property 'pname' at yesde 'yesde' to value 'value' which has a length
  * of 'size' bytes.  Return the number of bytes the prom accepted.
  */
 int
-prom_setprop(phandle node, const char *pname, char *value, int size)
+prom_setprop(phandle yesde, const char *pname, char *value, int size)
 {
 	unsigned long args[8];
 
@@ -344,7 +344,7 @@ prom_setprop(phandle node, const char *pname, char *value, int size)
 	args[0] = (unsigned long) "setprop";
 	args[1] = 4;
 	args[2] = 1;
-	args[3] = (unsigned int) node;
+	args[3] = (unsigned int) yesde;
 	args[4] = (unsigned long) pname;
 	args[5] = (unsigned long) value;
 	args[6] = size;
@@ -359,7 +359,7 @@ EXPORT_SYMBOL(prom_setprop);
 inline phandle prom_inst2pkg(int inst)
 {
 	unsigned long args[5];
-	phandle node;
+	phandle yesde;
 	
 	args[0] = (unsigned long) "instance-to-package";
 	args[1] = 1;
@@ -369,10 +369,10 @@ inline phandle prom_inst2pkg(int inst)
 
 	p1275_cmd_direct(args);
 
-	node = (int) args[4];
-	if ((s32)node == -1)
+	yesde = (int) args[4];
+	if ((s32)yesde == -1)
 		return 0;
-	return node;
+	return yesde;
 }
 
 int prom_ihandle2path(int handle, char *buffer, int bufsize)

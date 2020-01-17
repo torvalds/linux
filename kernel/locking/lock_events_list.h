@@ -28,25 +28,25 @@ LOCK_EVENT(pv_kick_wake)	/* # of vCPU kicks for pv_latency_wake	   */
 LOCK_EVENT(pv_latency_kick)	/* Average latency (ns) of vCPU kick	   */
 LOCK_EVENT(pv_latency_wake)	/* Average latency (ns) of kick-to-wakeup  */
 LOCK_EVENT(pv_lock_stealing)	/* # of lock stealing operations	   */
-LOCK_EVENT(pv_spurious_wakeup)	/* # of spurious wakeups in non-head vCPUs */
+LOCK_EVENT(pv_spurious_wakeup)	/* # of spurious wakeups in yesn-head vCPUs */
 LOCK_EVENT(pv_wait_again)	/* # of wait's after queue head vCPU kick  */
 LOCK_EVENT(pv_wait_early)	/* # of early vCPU wait's		   */
 LOCK_EVENT(pv_wait_head)	/* # of vCPU wait's at the queue head	   */
-LOCK_EVENT(pv_wait_node)	/* # of vCPU wait's at non-head queue node */
+LOCK_EVENT(pv_wait_yesde)	/* # of vCPU wait's at yesn-head queue yesde */
 #endif /* CONFIG_PARAVIRT_SPINLOCKS */
 
 /*
  * Locking events for qspinlock
  *
- * Subtracting lock_use_node[234] from lock_slowpath will give you
- * lock_use_node1.
+ * Subtracting lock_use_yesde[234] from lock_slowpath will give you
+ * lock_use_yesde1.
  */
 LOCK_EVENT(lock_pending)	/* # of locking ops via pending code	     */
 LOCK_EVENT(lock_slowpath)	/* # of locking ops via MCS lock queue	     */
-LOCK_EVENT(lock_use_node2)	/* # of locking ops that use 2nd percpu node */
-LOCK_EVENT(lock_use_node3)	/* # of locking ops that use 3rd percpu node */
-LOCK_EVENT(lock_use_node4)	/* # of locking ops that use 4th percpu node */
-LOCK_EVENT(lock_no_node)	/* # of locking ops w/o using percpu node    */
+LOCK_EVENT(lock_use_yesde2)	/* # of locking ops that use 2nd percpu yesde */
+LOCK_EVENT(lock_use_yesde3)	/* # of locking ops that use 3rd percpu yesde */
+LOCK_EVENT(lock_use_yesde4)	/* # of locking ops that use 4th percpu yesde */
+LOCK_EVENT(lock_yes_yesde)	/* # of locking ops w/o using percpu yesde    */
 #endif /* CONFIG_QUEUED_SPINLOCKS */
 
 /*
@@ -59,8 +59,8 @@ LOCK_EVENT(rwsem_wake_writer)	/* # of writer wakeups			*/
 LOCK_EVENT(rwsem_opt_rlock)	/* # of opt-acquired read locks		*/
 LOCK_EVENT(rwsem_opt_wlock)	/* # of opt-acquired write locks	*/
 LOCK_EVENT(rwsem_opt_fail)	/* # of failed optspins			*/
-LOCK_EVENT(rwsem_opt_nospin)	/* # of disabled optspins		*/
-LOCK_EVENT(rwsem_opt_norspin)	/* # of disabled reader-only optspins	*/
+LOCK_EVENT(rwsem_opt_yesspin)	/* # of disabled optspins		*/
+LOCK_EVENT(rwsem_opt_yesrspin)	/* # of disabled reader-only optspins	*/
 LOCK_EVENT(rwsem_opt_rlock2)	/* # of opt-acquired 2ndary read locks	*/
 LOCK_EVENT(rwsem_rlock)		/* # of read locks acquired		*/
 LOCK_EVENT(rwsem_rlock_fast)	/* # of fast read locks acquired	*/

@@ -56,7 +56,7 @@ static s32 FillH2CCmd_88E(struct adapter *adapt, u8 ElementID, u32 CmdLen, u8 *p
 	s32 ret = _FAIL;
 
 	if (!adapt->bFWReady) {
-		DBG_88E("%s(): return H2C cmd because fw is not ready\n",
+		DBG_88E("%s(): return H2C cmd because fw is yest ready\n",
 			__func__);
 		return ret;
 	}
@@ -547,7 +547,7 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 		/*  We should set AID, correct TSF, HW seq enable before set JoinBssReport to Fw in 88/92C. */
 		/*  Suggested by filen. Added by tynli. */
 		usb_write16(adapt, REG_BCN_PSR_RPT, (0xC000|pmlmeinfo->aid));
-		/*  Do not set TSF again here or vWiFi beacon DMA INT will not work. */
+		/*  Do yest set TSF again here or vWiFi beacon DMA INT will yest work. */
 
 		/* Set REG_CR bit 8. DMA beacon by SW. */
 		haldata->RegCR_1 |= BIT(0);
@@ -564,7 +564,7 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 			bSendBeacon = true;
 		}
 
-		/*  Set FWHW_TXQ_CTRL 0x422[6]=0 to tell Hw the packet is not a real beacon frame. */
+		/*  Set FWHW_TXQ_CTRL 0x422[6]=0 to tell Hw the packet is yest a real beacon frame. */
 		usb_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl&(~BIT(6))));
 		haldata->RegFwHwTxQCtrl &= (~BIT(6));
 
@@ -594,7 +594,7 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 		/*  */
 		/*  We just can send the reserved page twice during the time that Tx thread is stopped (e.g. pnpsetpower) */
 		/*  because we need to free the Tx BCN Desc which is used by the first reserved page packet. */
-		/*  At run time, we cannot get the Tx Desc until it is released in TxHandleInterrupt() so we will return */
+		/*  At run time, we canyest get the Tx Desc until it is released in TxHandleInterrupt() so we will return */
 		/*  the beacon TCB in the following code. 2011.11.23. by tynli. */
 		/*  */
 
@@ -605,7 +605,7 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 		/*  To make sure that if there exists an adapter which would like to send beacon. */
 		/*  If exists, the origianl value of 0x422[6] will be 1, we should check this to */
 		/*  prevent from setting 0x422[6] to 0 after download reserved page, or it will cause */
-		/*  the beacon cannot be sent by HW. */
+		/*  the beacon canyest be sent by HW. */
 		/*  2010.06.23. Added by tynli. */
 		if (bSendBeacon) {
 			usb_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl | BIT(6)));
@@ -618,8 +618,8 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 			DBG_88E("Set RSVD page location to Fw.\n");
 		}
 
-		/*  Do not enable HW DMA BCN or it will cause Pcie interface hang by timing issue. 2011.11.24. by tynli. */
-		/*  Clear CR[8] or beacon packet will not be send to TxBuf anymore. */
+		/*  Do yest enable HW DMA BCN or it will cause Pcie interface hang by timing issue. 2011.11.24. by tynli. */
+		/*  Clear CR[8] or beacon packet will yest be send to TxBuf anymore. */
 		haldata->RegCR_1 &= (~BIT(0));
 		usb_write8(adapt,  REG_CR+1, haldata->RegCR_1);
 	}

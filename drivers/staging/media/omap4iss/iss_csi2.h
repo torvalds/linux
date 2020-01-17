@@ -17,7 +17,7 @@
 
 struct iss_csiphy;
 
-/* This is not an exhaustive list */
+/* This is yest an exhaustive list */
 enum iss_csi2_pix_formats {
 	CSI2_PIX_FMT_OTHERS = 0,
 	CSI2_PIX_FMT_YUV422_8BIT = 0x1e,

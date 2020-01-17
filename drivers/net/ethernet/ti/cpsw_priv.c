@@ -88,7 +88,7 @@ irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id)
 	cpdma_ctlr_eoi(cpsw->dma, CPDMA_EOI_TX);
 
 	if (cpsw->quirk_irq) {
-		disable_irq_nosync(cpsw->irqs_table[1]);
+		disable_irq_yessync(cpsw->irqs_table[1]);
 		cpsw->tx_irq_disabled = true;
 	}
 
@@ -104,7 +104,7 @@ irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
 	cpdma_ctlr_eoi(cpsw->dma, CPDMA_EOI_RX);
 
 	if (cpsw->quirk_irq) {
-		disable_irq_nosync(cpsw->irqs_table[0]);
+		disable_irq_yessync(cpsw->irqs_table[0]);
 		cpsw->rx_irq_disabled = true;
 	}
 
@@ -225,7 +225,7 @@ void cpsw_rx_vlan_encap(struct sk_buff *skb)
 	pkt_type = (rx_vlan_encap_hdr >>
 		    CPSW_RX_VLAN_ENCAP_HDR_PKT_TYPE_SHIFT) &
 		    CPSW_RX_VLAN_ENCAP_HDR_PKT_TYPE_MSK;
-	/* Ignore unknown & Priority-tagged packets*/
+	/* Igyesre unkyeswn & Priority-tagged packets*/
 	if (pkt_type == CPSW_RX_VLAN_ENCAP_HDR_PKT_RESERV ||
 	    pkt_type == CPSW_RX_VLAN_ENCAP_HDR_PKT_PRIO_TAG)
 		return;
@@ -233,7 +233,7 @@ void cpsw_rx_vlan_encap(struct sk_buff *skb)
 	vid = (rx_vlan_encap_hdr >>
 	       CPSW_RX_VLAN_ENCAP_HDR_VID_SHIFT) &
 	       VLAN_VID_MASK;
-	/* Ignore vid 0 and pass packet as is */
+	/* Igyesre vid 0 and pass packet as is */
 	if (!vid)
 		return;
 
@@ -322,7 +322,7 @@ int cpsw_need_resplit(struct cpsw_common *cpsw)
 		rlim_ch_num++;
 	}
 
-	/* cases not dependent on speed */
+	/* cases yest dependent on speed */
 	if (!rlim_ch_num || rlim_ch_num == cpsw->tx_ch_num)
 		return 0;
 
@@ -423,7 +423,7 @@ int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 	struct cpsw_platform_data *data;
 	struct cpdma_params dma_params;
 	struct device *dev = cpsw->dev;
-	struct device_node *cpts_node;
+	struct device_yesde *cpts_yesde;
 	void __iomem *cpts_regs;
 	int ret = 0, i;
 
@@ -464,7 +464,7 @@ int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 		dma_params.desc_mem_phys = desc_mem_phys;
 		break;
 	default:
-		dev_err(dev, "unknown version 0x%08x\n", cpsw->version);
+		dev_err(dev, "unkyeswn version 0x%08x\n", cpsw->version);
 		return -ENODEV;
 	}
 
@@ -518,16 +518,16 @@ int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 		return -ENOMEM;
 	}
 
-	cpts_node = of_get_child_by_name(cpsw->dev->of_node, "cpts");
-	if (!cpts_node)
-		cpts_node = cpsw->dev->of_node;
+	cpts_yesde = of_get_child_by_name(cpsw->dev->of_yesde, "cpts");
+	if (!cpts_yesde)
+		cpts_yesde = cpsw->dev->of_yesde;
 
-	cpsw->cpts = cpts_create(cpsw->dev, cpts_regs, cpts_node);
+	cpsw->cpts = cpts_create(cpsw->dev, cpts_regs, cpts_yesde);
 	if (IS_ERR(cpsw->cpts)) {
 		ret = PTR_ERR(cpsw->cpts);
 		cpdma_ctlr_destroy(cpsw->dma);
 	}
-	of_node_put(cpts_node);
+	of_yesde_put(cpts_yesde);
 
 	return ret;
 }
@@ -697,7 +697,7 @@ int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
 	struct cpsw_priv *priv = netdev_priv(dev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	int slave_no = cpsw_slave_index(cpsw, priv);
+	int slave_yes = cpsw_slave_index(cpsw, priv);
 
 	if (!netif_running(dev))
 		return -EINVAL;
@@ -709,9 +709,9 @@ int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 		return cpsw_hwtstamp_get(dev, req);
 	}
 
-	if (!cpsw->slaves[slave_no].phy)
+	if (!cpsw->slaves[slave_yes].phy)
 		return -EOPNOTSUPP;
-	return phy_mii_ioctl(cpsw->slaves[slave_no].phy, req, cmd);
+	return phy_mii_ioctl(cpsw->slaves[slave_yes].phy, req, cmd);
 }
 
 int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
@@ -730,19 +730,19 @@ int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
 	ch_rate = rate * 1000;
 	min_rate = cpdma_chan_get_min_rate(cpsw->dma);
 	if ((ch_rate < min_rate && ch_rate)) {
-		dev_err(priv->dev, "The channel rate cannot be less than %dMbps",
+		dev_err(priv->dev, "The channel rate canyest be less than %dMbps",
 			min_rate);
 		return -EINVAL;
 	}
 
 	if (rate > cpsw->speed) {
-		dev_err(priv->dev, "The channel rate cannot be more than 2Gbps");
+		dev_err(priv->dev, "The channel rate canyest be more than 2Gbps");
 		return -EINVAL;
 	}
 
 	ret = pm_runtime_get_sync(cpsw->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+		pm_runtime_put_yesidle(cpsw->dev);
 		return ret;
 	}
 
@@ -816,7 +816,7 @@ static int cpsw_set_fifo_bw(struct cpsw_priv *priv, int fifo, int bw)
 		goto err;
 
 	/* shaping has to stay enabled for highest fifos linearly
-	 * and fifo bw no more then interface can allow
+	 * and fifo bw yes more then interface can allow
 	 */
 	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
 	send_pct = slave_read(slave, SEND_PERCENT);
@@ -830,7 +830,7 @@ static int cpsw_set_fifo_bw(struct cpsw_priv *priv, int fifo, int bw)
 		}
 
 		if (!priv->fifo_bw[i] && i > fifo) {
-			dev_err(priv->dev, "Upper FIFO%d is not shaped", i);
+			dev_err(priv->dev, "Upper FIFO%d is yest shaped", i);
 			return -EINVAL;
 		}
 
@@ -888,7 +888,7 @@ static int cpsw_set_fifo_rlimit(struct cpsw_priv *priv, int fifo, int bw)
 		/* disable FIFOs rate limited queues */
 		val &= ~(0xf << CPSW_FIFO_RATE_EN_SHIFT);
 
-		/* set type of FIFO queues to normal priority mode */
+		/* set type of FIFO queues to yesrmal priority mode */
 		val &= ~(3 << CPSW_FIFO_QUEUE_TYPE_SHIFT);
 
 		/* set type of FIFO queues to be rate limited */
@@ -929,7 +929,7 @@ static int cpsw_set_cbs(struct net_device *ndev,
 
 	/* enable channels in backward order, as highest FIFOs must be rate
 	 * limited first and for compliance with CPDMA rate limited channels
-	 * that also used in bacward order. FIFO0 cannot be rate limited.
+	 * that also used in bacward order. FIFO0 canyest be rate limited.
 	 */
 	fifo = cpsw_tc_to_fifo(tc, ndev->num_tc);
 	if (!fifo) {
@@ -937,11 +937,11 @@ static int cpsw_set_cbs(struct net_device *ndev,
 		return -EINVAL;
 	}
 
-	/* do nothing, it's disabled anyway */
+	/* do yesthing, it's disabled anyway */
 	if (!qopt->enable && !priv->fifo_bw[fifo])
 		return 0;
 
-	/* shapers can be set if link speed is known */
+	/* shapers can be set if link speed is kyeswn */
 	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
 	if (slave->phy && slave->phy->link) {
 		if (priv->shp_cfg_speed &&
@@ -952,13 +952,13 @@ static int cpsw_set_cbs(struct net_device *ndev,
 	}
 
 	if (!priv->shp_cfg_speed) {
-		dev_err(priv->dev, "Link speed is not known");
+		dev_err(priv->dev, "Link speed is yest kyeswn");
 		return -1;
 	}
 
 	ret = pm_runtime_get_sync(cpsw->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+		pm_runtime_put_yesidle(cpsw->dev);
 		return ret;
 	}
 
@@ -996,7 +996,7 @@ static int cpsw_set_mqprio(struct net_device *ndev, void *type_data)
 
 	ret = pm_runtime_get_sync(cpsw->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+		pm_runtime_put_yesidle(cpsw->dev);
 		return ret;
 	}
 
@@ -1115,7 +1115,7 @@ int cpsw_fill_rx_channels(struct cpsw_priv *priv)
 							    0);
 			if (ret < 0) {
 				cpsw_err(priv, ifup,
-					 "cannot submit page to channel %d rx, error %d\n",
+					 "canyest submit page to channel %d rx, error %d\n",
 					 ch, ret);
 				page_pool_recycle_direct(pool, page);
 				return ret;
@@ -1144,7 +1144,7 @@ static struct page_pool *cpsw_create_page_pool(struct cpsw_common *cpsw,
 
 	pool = page_pool_create(&pp_params);
 	if (IS_ERR(pool))
-		dev_err(cpsw->dev, "cannot create rx page pool\n");
+		dev_err(cpsw->dev, "canyest create rx page pool\n");
 
 	return pool;
 }
@@ -1224,7 +1224,7 @@ int cpsw_create_xdp_rxqs(struct cpsw_common *cpsw)
 		if (ret)
 			goto err_cleanup;
 
-		/* using same page pool is allowed as no running rx handlers
+		/* using same page pool is allowed as yes running rx handlers
 		 * simultaneously for both ndevs
 		 */
 		for (i = 0; i < cpsw->data.slaves; i++) {

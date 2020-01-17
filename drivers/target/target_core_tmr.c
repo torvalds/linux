@@ -88,9 +88,9 @@ static bool __target_check_io_state(struct se_cmd *se_cmd,
 	 * If command already reached CMD_T_COMPLETE state within
 	 * target_complete_cmd() or CMD_T_FABRIC_STOP due to shutdown,
 	 * this se_cmd has been passed to fabric driver and will
-	 * not be aborted.
+	 * yest be aborted.
 	 *
-	 * Otherwise, obtain a local se_cmd->cmd_kref now for TMR
+	 * Otherwise, obtain a local se_cmd->cmd_kref yesw for TMR
 	 * ABORT_TASK + LUN_RESET for CMD_T_ABORTED processing as
 	 * long as se_cmd->cmd_kref is still active unless zero.
 	 */
@@ -164,7 +164,7 @@ void core_tmr_abort_task(
 	printk("ABORT_TASK: Sending TMR_TASK_DOES_NOT_EXIST for ref_tag: %lld\n",
 			tmr->ref_task_tag);
 	tmr->response = TMR_TASK_DOES_NOT_EXIST;
-	atomic_long_inc(&dev->aborts_no_task);
+	atomic_long_inc(&dev->aborts_yes_task);
 }
 
 static void core_tmr_drain_tmr_list(
@@ -194,7 +194,7 @@ static void core_tmr_drain_tmr_list(
 		/*
 		 * If this function was called with a valid pr_res_key
 		 * parameter (eg: for PROUT PREEMPT_AND_ABORT service action
-		 * skip non registration key matching TMRs.
+		 * skip yesn registration key matching TMRs.
 		 */
 		if (target_check_cdb_and_preempt(preempt_and_abort_list, cmd))
 			continue;
@@ -208,7 +208,7 @@ static void core_tmr_drain_tmr_list(
 		spin_unlock(&sess->sess_cmd_lock);
 
 		if (!rc) {
-			printk("LUN_RESET TMR: non-zero kref_get_unless_zero\n");
+			printk("LUN_RESET TMR: yesn-zero kref_get_unless_zero\n");
 			continue;
 		}
 
@@ -269,15 +269,15 @@ static void core_tmr_drain_state_list(
 	 * a) "Yes" indicates that each command that is aborted on an I_T nexus
 	 * other than the one that caused the SCSI device condition is
 	 * completed with TASK ABORTED status, if the TAS bit is set to one in
-	 * the Control mode page (see SPC-4). "No" indicates that no status is
+	 * the Control mode page (see SPC-4). "No" indicates that yes status is
 	 * returned for aborted commands.
 	 *
 	 * d) If the logical unit reset is caused by a particular I_T nexus
-	 * (e.g., by a LOGICAL UNIT RESET task management function), then "yes"
+	 * (e.g., by a LOGICAL UNIT RESET task management function), then "no"
 	 * (TASK_ABORTED status) applies.
 	 *
-	 * Otherwise (e.g., if triggered by a hard reset), "no"
-	 * (no TASK_ABORTED SAM status) applies.
+	 * Otherwise (e.g., if triggered by a hard reset), "yes"
+	 * (yes TASK_ABORTED SAM status) applies.
 	 *
 	 * Note that this seems to be independent of TAS (Task Aborted Status)
 	 * in the Control Mode Page.
@@ -331,7 +331,7 @@ int core_tmr_lun_reset(
         struct list_head *preempt_and_abort_list,
         struct se_cmd *prout_cmd)
 {
-	struct se_node_acl *tmr_nacl = NULL;
+	struct se_yesde_acl *tmr_nacl = NULL;
 	struct se_portal_group *tmr_tpg = NULL;
 	struct se_session *tmr_sess = NULL;
 	int tas;
@@ -353,7 +353,7 @@ int core_tmr_lun_reset(
 	 */
 	if (tmr && tmr->task_cmd && tmr->task_cmd->se_sess) {
 		tmr_sess = tmr->task_cmd->se_sess;
-		tmr_nacl = tmr_sess->se_node_acl;
+		tmr_nacl = tmr_sess->se_yesde_acl;
 		tmr_tpg = tmr_sess->se_tpg;
 		if (tmr_nacl && tmr_tpg) {
 			pr_debug("LUN_RESET: TMR caller fabric: %s"

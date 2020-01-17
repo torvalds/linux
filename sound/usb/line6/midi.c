@@ -97,7 +97,7 @@ static void midi_sent(struct urb *urb)
 }
 
 /*
-	Send an asynchronous MIDI message.
+	Send an asynchroyesus MIDI message.
 	Assumes that line6->line6midi->lock is held
 	(i.e., this function is serialized).
 */

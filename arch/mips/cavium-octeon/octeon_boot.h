@@ -33,7 +33,7 @@ struct linux_app_boot_info {
 	uint64_t InitTLBStart_addr;
 	uint32_t start_app_addr;
 	uint32_t cur_exception_base;
-	uint32_t no_mark_private_data;
+	uint32_t yes_mark_private_data;
 	uint32_t compact_flash_common_base_addr;
 	uint32_t compact_flash_attribute_base_addr;
 	uint32_t led_display_base_addr;
@@ -53,14 +53,14 @@ struct linux_app_boot_info {
 	uint32_t start_app_addr;
 
 	uint32_t compact_flash_common_base_addr;
-	uint32_t no_mark_private_data;
+	uint32_t yes_mark_private_data;
 
 	uint32_t led_display_base_addr;
 	uint32_t compact_flash_attribute_base_addr;
 #endif
 };
 
-/* If not to copy a lot of bootloader's structures
+/* If yest to copy a lot of bootloader's structures
    here is only offset of requested member */
 #define AVAIL_COREMASK_OFFSET_IN_LINUX_APP_BOOT_BLOCK	 0x765c
 

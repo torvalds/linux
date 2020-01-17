@@ -12,7 +12,7 @@
 
 struct bl_dev_msg {
 	int32_t status;
-	uint32_t major, minor;
+	uint32_t major, miyesr;
 };
 
 struct nfs_netns_client;

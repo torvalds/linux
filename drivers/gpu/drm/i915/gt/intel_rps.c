@@ -123,7 +123,7 @@ static void rps_disable_interrupts(struct intel_rps *rps)
 	intel_synchronize_irq(gt->i915);
 
 	/*
-	 * Now that we will not be generating any more work, flush any
+	 * Now that we will yest be generating any more work, flush any
 	 * outstanding tasks. As we are called on the RPS idle path,
 	 * we will reset the GPU to minimum frequencies, so the current
 	 * state of the worker can be discarded.
@@ -192,7 +192,7 @@ __ips_chipset_val(struct intel_ips *ips)
 {
 	struct intel_uncore *uncore =
 		rps_to_uncore(container_of(ips, struct intel_rps, ips));
-	unsigned long now = jiffies_to_msecs(jiffies), dt;
+	unsigned long yesw = jiffies_to_msecs(jiffies), dt;
 	unsigned long result;
 	u64 total, delta;
 
@@ -204,7 +204,7 @@ __ips_chipset_val(struct intel_ips *ips)
 	 * faster than once in 10ms, so just return the saved value
 	 * in such cases.
 	 */
-	dt = now - ips->last_time1;
+	dt = yesw - ips->last_time1;
 	if (dt <= 10)
 		return ips->chipset_power;
 
@@ -218,7 +218,7 @@ __ips_chipset_val(struct intel_ips *ips)
 	result = div_u64(div_u64(ips->m * delta, dt) + ips->c, 10);
 
 	ips->last_count1 = total;
-	ips->last_time1 = now;
+	ips->last_time1 = yesw;
 
 	ips->chipset_power = result;
 
@@ -264,13 +264,13 @@ static void __gen5_ips_update(struct intel_ips *ips)
 {
 	struct intel_uncore *uncore =
 		rps_to_uncore(container_of(ips, struct intel_rps, ips));
-	u64 now, delta, dt;
+	u64 yesw, delta, dt;
 	u32 count;
 
 	lockdep_assert_held(&mchdev_lock);
 
-	now = ktime_get_raw_ns();
-	dt = now - ips->last_time2;
+	yesw = ktime_get_raw_ns();
+	dt = yesw - ips->last_time2;
 	do_div(dt, NSEC_PER_MSEC);
 
 	/* Don't divide by 0 */
@@ -281,7 +281,7 @@ static void __gen5_ips_update(struct intel_ips *ips)
 	delta = count - ips->last_count2;
 
 	ips->last_count2 = count;
-	ips->last_time2 = now;
+	ips->last_time2 = yesw;
 
 	/* More magic constants... */
 	ips->gfx_power = div_u64(delta * 1181, dt * 10);
@@ -304,7 +304,7 @@ static bool gen5_rps_set(struct intel_rps *rps, u8 val)
 	rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
 	if (rgvswctl & MEMCTL_CMD_STS) {
 		DRM_DEBUG("gpu busy, RCS change rejected\n");
-		return false; /* still busy with another command */
+		return false; /* still busy with ayesther command */
 	}
 
 	/* Invert the frequency bin into an ips delay */
@@ -506,7 +506,7 @@ static u32 rps_limits(struct intel_rps *rps, u8 val)
 	 * getting more interrupts, otherwise leave this clear. This prevents a
 	 * race in the hw when coming out of rc6: There's a tiny window where
 	 * the hw runs at the minimal clock before selecting the desired
-	 * frequency, if the down threshold expires in that window we will not
+	 * frequency, if the down threshold expires in that window we will yest
 	 * receive a down interrupt.
 	 */
 	if (INTEL_GEN(rps_to_i915(rps)) >= 9) {
@@ -534,7 +534,7 @@ static void rps_set_power(struct intel_rps *rps, int new_power)
 	if (new_power == rps->power.mode)
 		return;
 
-	/* Note the units here are not exactly 1us, but 1280ns. */
+	/* Note the units here are yest exactly 1us, but 1280ns. */
 	switch (new_power) {
 	case LOW_POWER:
 		/* Upclock if more than 95% busy over 16ms */
@@ -749,11 +749,11 @@ void intel_rps_park(struct intel_rps *rps)
 
 	/*
 	 * The punit delays the write of the frequency and voltage until it
-	 * determines the GPU is awake. During normal usage we don't want to
+	 * determines the GPU is awake. During yesrmal usage we don't want to
 	 * waste power changing the frequency if the GPU is sleeping (rc6).
-	 * However, the GPU and driver is now idle and we do not want to delay
+	 * However, the GPU and driver is yesw idle and we do yest want to delay
 	 * switching to minimum voltage (reducing power whilst idle) as we do
-	 * not expect to be woken in the near future and so must flush the
+	 * yest expect to be woken in the near future and so must flush the
 	 * change by waking the device.
 	 *
 	 * We choose to take the media powerwell (either would do to trick the
@@ -1027,9 +1027,9 @@ static bool chv_rps_enable(struct intel_rps *rps)
 	vlv_punit_put(i915);
 
 	/* RPS code assumes GPLL is used */
-	WARN_ONCE((val & GPLLENABLE) == 0, "GPLL not enabled\n");
+	WARN_ONCE((val & GPLLENABLE) == 0, "GPLL yest enabled\n");
 
-	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", yesno(val & GPLLENABLE));
+	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", noyes(val & GPLLENABLE));
 	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
 
 	return rps_reset(rps);
@@ -1085,7 +1085,7 @@ static int vlv_rps_min_freq(struct intel_rps *rps)
 	 * According to the BYT Punit GPU turbo HAS 1.1.6.3 the minimum value
 	 * for the minimum frequency in GPLL mode is 0xc1. Contrary to this on
 	 * a BYT-M B0 the above register contains 0xbf. Moreover when setting
-	 * a frequency Punit will not allow values below 0xc0. Clamp it 0xc0
+	 * a frequency Punit will yest allow values below 0xc0. Clamp it 0xc0
 	 * to make sure it matches what Punit accepts.
 	 */
 	return max_t(u32, val, 0xc0);
@@ -1124,9 +1124,9 @@ static bool vlv_rps_enable(struct intel_rps *rps)
 	vlv_punit_put(i915);
 
 	/* RPS code assumes GPLL is used */
-	WARN_ONCE((val & GPLLENABLE) == 0, "GPLL not enabled\n");
+	WARN_ONCE((val & GPLLENABLE) == 0, "GPLL yest enabled\n");
 
-	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", yesno(val & GPLLENABLE));
+	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", noyes(val & GPLLENABLE));
 	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
 
 	return rps_reset(rps);
@@ -1407,19 +1407,19 @@ static u32 vlv_wa_c0_ei(struct intel_rps *rps, u32 pm_iir)
 {
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 	const struct intel_rps_ei *prev = &rps->ei;
-	struct intel_rps_ei now;
+	struct intel_rps_ei yesw;
 	u32 events = 0;
 
 	if ((pm_iir & GEN6_PM_RP_UP_EI_EXPIRED) == 0)
 		return 0;
 
-	vlv_c0_read(uncore, &now);
+	vlv_c0_read(uncore, &yesw);
 
 	if (prev->ktime) {
 		u64 time, c0;
 		u32 render, media;
 
-		time = ktime_us_delta(now.ktime, prev->ktime);
+		time = ktime_us_delta(yesw.ktime, prev->ktime);
 
 		time *= rps_to_i915(rps)->czclk_freq;
 
@@ -1428,8 +1428,8 @@ static u32 vlv_wa_c0_ei(struct intel_rps *rps, u32 pm_iir)
 		 * mesa. To account for this we need to combine both engines
 		 * into our activity counter.
 		 */
-		render = now.render_c0 - prev->render_c0;
-		media = now.media_c0 - prev->media_c0;
+		render = yesw.render_c0 - prev->render_c0;
+		media = yesw.media_c0 - prev->media_c0;
 		c0 = max(render, media);
 		c0 *= 1000 * 100 << 8; /* to usecs and scale to threshold% */
 
@@ -1439,7 +1439,7 @@ static u32 vlv_wa_c0_ei(struct intel_rps *rps, u32 pm_iir)
 			events = GEN6_PM_RP_DOWN_THRESHOLD;
 	}
 
-	rps->ei = now;
+	rps->ei = yesw;
 	return events;
 }
 
@@ -1456,7 +1456,7 @@ static void rps_work(struct work_struct *work)
 	client_boost = atomic_read(&rps->num_waiters);
 	spin_unlock_irq(&gt->irq_lock);
 
-	/* Make sure we didn't queue anything we're not going to process. */
+	/* Make sure we didn't queue anything we're yest going to process. */
 	if ((pm_iir & rps->pm_events) == 0 && !client_boost)
 		goto out;
 
@@ -1497,7 +1497,7 @@ static void rps_work(struct work_struct *work)
 
 		if (new_freq <= rps->min_freq_softlimit)
 			adj = 0;
-	} else { /* unknown event */
+	} else { /* unkyeswn event */
 		adj = 0;
 	}
 
@@ -1687,7 +1687,7 @@ u32 intel_get_cagf(struct intel_rps *rps, u32 rpstat)
 static struct drm_i915_private __rcu *ips_mchdev;
 
 /**
- * Tells the intel_ips driver that the i915 driver is now loaded, if
+ * Tells the intel_ips driver that the i915 driver is yesw loaded, if
  * IPS got loaded first.
  *
  * This awkward dance is so that neither module has to depend on the
@@ -1825,7 +1825,7 @@ EXPORT_SYMBOL_GPL(i915_gpu_lower);
 /**
  * i915_gpu_busy - indicate GPU business to IPS
  *
- * Tell the IPS driver whether or not the GPU is busy.
+ * Tell the IPS driver whether or yest the GPU is busy.
  */
 bool i915_gpu_busy(void)
 {

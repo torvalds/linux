@@ -48,7 +48,7 @@ extern void viking_mxcc_flush_page(unsigned long page);
 /*
  * Values precomputed according to CPU type.
  */
-static unsigned int ioperm_noc;		/* Consistent mapping iopte flags */
+static unsigned int ioperm_yesc;		/* Consistent mapping iopte flags */
 static pgprot_t dvma_prot;		/* Consistent mapping pte flags */
 
 #define IOPERM        (IOPTE_CACHE | IOPTE_WRITE | IOPTE_VALID)
@@ -72,7 +72,7 @@ static void __init sbus_iommu_init(struct platform_device *op)
 	iommu->regs = of_ioremap(&op->resource[0], 0, PAGE_SIZE * 3,
 				 "iommu_regs");
 	if (!iommu->regs) {
-		prom_printf("Cannot map IOMMU registers\n");
+		prom_printf("Canyest map IOMMU registers\n");
 		prom_halt();
 	}
 
@@ -133,10 +133,10 @@ static void __init sbus_iommu_init(struct platform_device *op)
 
 static int __init iommu_init(void)
 {
-	struct device_node *dp;
+	struct device_yesde *dp;
 
-	for_each_node_by_name(dp, "iommu") {
-		struct platform_device *op = of_find_device_by_node(dp);
+	for_each_yesde_by_name(dp, "iommu") {
+		struct platform_device *op = of_find_device_by_yesde(dp);
 
 		sbus_iommu_init(op);
 		of_propagate_archdata(op);
@@ -187,12 +187,12 @@ static dma_addr_t __sbus_iommu_map_page(struct device *dev, struct page *page,
 	iopte_t *iopte, *iopte0;
 	int ioptex, i;
 
-	/* XXX So what is maxphys for us and how do drivers know it? */
+	/* XXX So what is maxphys for us and how do drivers kyesw it? */
 	if (!len || len > 256 * 1024)
 		return DMA_MAPPING_ERROR;
 
 	/*
-	 * We expect unmapped highmem pages to be not in the cache.
+	 * We expect unmapped highmem pages to be yest in the cache.
 	 * XXX Is this a good assumption?
 	 * XXX What if someone else unmaps it here and races us?
 	 */
@@ -313,7 +313,7 @@ static void *sbus_iommu_alloc(struct device *dev, size_t len,
 	iopte_t *first;
 	int ioptex;
 
-	/* XXX So what is maxphys for us and how do drivers know it? */
+	/* XXX So what is maxphys for us and how do drivers kyesw it? */
 	if (!len || len > 256 * 1024)
 		return NULL;
 
@@ -364,18 +364,18 @@ static void *sbus_iommu_alloc(struct device *dev, size_t len,
 			set_pte(ptep, mk_pte(virt_to_page(page), dvma_prot));
 		}
 		iopte_val(*iopte++) =
-		    MKIOPTE(page_to_pfn(virt_to_page(page)), ioperm_noc);
+		    MKIOPTE(page_to_pfn(virt_to_page(page)), ioperm_yesc);
 		addr += PAGE_SIZE;
 		va += PAGE_SIZE;
 	}
 	/* P3: why do we need this?
 	 *
-	 * DAVEM: Because there are several aspects, none of which
+	 * DAVEM: Because there are several aspects, yesne of which
 	 *        are handled by a single interface.  Some cpus are
-	 *        completely not I/O DMA coherent, and some have
+	 *        completely yest I/O DMA coherent, and some have
 	 *        virtually indexed caches.  The driver DMA flushing
 	 *        methods handle the former case, but here during
-	 *        IOMMU page table modifications, and usage of non-cacheable
+	 *        IOMMU page table modifications, and usage of yesn-cacheable
 	 *        cpu mappings of pages potentially in the cpu caches, we have
 	 *        to handle the latter case as well.
 	 */
@@ -446,7 +446,7 @@ static const struct dma_map_ops sbus_iommu_dma_pflush_ops = {
 void __init ld_mmu_iommu(void)
 {
 	if (flush_page_for_dma_global) {
-		/* flush_page_for_dma flushes everything, no matter of what page is it */
+		/* flush_page_for_dma flushes everything, yes matter of what page is it */
 		dma_ops = &sbus_iommu_dma_gflush_ops;
 	} else {
 		dma_ops = &sbus_iommu_dma_pflush_ops;
@@ -454,9 +454,9 @@ void __init ld_mmu_iommu(void)
 
 	if (viking_mxcc_present || srmmu_modtype == HyperSparc) {
 		dvma_prot = __pgprot(SRMMU_CACHE | SRMMU_ET_PTE | SRMMU_PRIV);
-		ioperm_noc = IOPTE_CACHE | IOPTE_WRITE | IOPTE_VALID;
+		ioperm_yesc = IOPTE_CACHE | IOPTE_WRITE | IOPTE_VALID;
 	} else {
 		dvma_prot = __pgprot(SRMMU_ET_PTE | SRMMU_PRIV);
-		ioperm_noc = IOPTE_WRITE | IOPTE_VALID;
+		ioperm_yesc = IOPTE_WRITE | IOPTE_VALID;
 	}
 }

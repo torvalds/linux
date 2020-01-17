@@ -9,13 +9,13 @@
 #define _LINUX_PM_RUNTIME_H
 
 #include <linux/device.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/pm.h>
 
 #include <linux/jiffies.h>
 
 /* Runtime PM flag argument bits */
-#define RPM_ASYNC		0x01	/* Request is asynchronous */
+#define RPM_ASYNC		0x01	/* Request is asynchroyesus */
 #define RPM_NOWAIT		0x02	/* Don't wait for concurrent
 					    state change */
 #define RPM_GET_PUT		0x04	/* Increment/decrement the
@@ -46,31 +46,31 @@ extern void pm_runtime_enable(struct device *dev);
 extern void __pm_runtime_disable(struct device *dev, bool check_resume);
 extern void pm_runtime_allow(struct device *dev);
 extern void pm_runtime_forbid(struct device *dev);
-extern void pm_runtime_no_callbacks(struct device *dev);
+extern void pm_runtime_yes_callbacks(struct device *dev);
 extern void pm_runtime_irq_safe(struct device *dev);
 extern void __pm_runtime_use_autosuspend(struct device *dev, bool use);
 extern void pm_runtime_set_autosuspend_delay(struct device *dev, int delay);
 extern u64 pm_runtime_autosuspend_expiration(struct device *dev);
 extern void pm_runtime_update_max_time_suspended(struct device *dev,
 						 s64 delta_ns);
-extern void pm_runtime_set_memalloc_noio(struct device *dev, bool enable);
+extern void pm_runtime_set_memalloc_yesio(struct device *dev, bool enable);
 extern void pm_runtime_clean_up_links(struct device *dev);
 extern void pm_runtime_get_suppliers(struct device *dev);
 extern void pm_runtime_put_suppliers(struct device *dev);
 extern void pm_runtime_new_link(struct device *dev);
 extern void pm_runtime_drop_link(struct device *dev);
 
-static inline void pm_suspend_ignore_children(struct device *dev, bool enable)
+static inline void pm_suspend_igyesre_children(struct device *dev, bool enable)
 {
-	dev->power.ignore_children = enable;
+	dev->power.igyesre_children = enable;
 }
 
-static inline void pm_runtime_get_noresume(struct device *dev)
+static inline void pm_runtime_get_yesresume(struct device *dev)
 {
 	atomic_inc(&dev->power.usage_count);
 }
 
-static inline void pm_runtime_put_noidle(struct device *dev)
+static inline void pm_runtime_put_yesidle(struct device *dev)
 {
 	atomic_add_unless(&dev->power.usage_count, -1, 0);
 }
@@ -99,12 +99,12 @@ static inline bool pm_runtime_enabled(struct device *dev)
 
 static inline bool pm_runtime_callbacks_present(struct device *dev)
 {
-	return !dev->power.no_callbacks;
+	return !dev->power.yes_callbacks;
 }
 
 static inline void pm_runtime_mark_last_busy(struct device *dev)
 {
-	WRITE_ONCE(dev->power.last_busy, ktime_get_mono_fast_ns());
+	WRITE_ONCE(dev->power.last_busy, ktime_get_moyes_fast_ns());
 }
 
 static inline bool pm_runtime_is_irq_safe(struct device *dev)
@@ -151,15 +151,15 @@ static inline void __pm_runtime_disable(struct device *dev, bool c) {}
 static inline void pm_runtime_allow(struct device *dev) {}
 static inline void pm_runtime_forbid(struct device *dev) {}
 
-static inline void pm_suspend_ignore_children(struct device *dev, bool enable) {}
-static inline void pm_runtime_get_noresume(struct device *dev) {}
-static inline void pm_runtime_put_noidle(struct device *dev) {}
+static inline void pm_suspend_igyesre_children(struct device *dev, bool enable) {}
+static inline void pm_runtime_get_yesresume(struct device *dev) {}
+static inline void pm_runtime_put_yesidle(struct device *dev) {}
 static inline bool pm_runtime_suspended(struct device *dev) { return false; }
 static inline bool pm_runtime_active(struct device *dev) { return true; }
 static inline bool pm_runtime_status_suspended(struct device *dev) { return false; }
 static inline bool pm_runtime_enabled(struct device *dev) { return false; }
 
-static inline void pm_runtime_no_callbacks(struct device *dev) {}
+static inline void pm_runtime_yes_callbacks(struct device *dev) {}
 static inline void pm_runtime_irq_safe(struct device *dev) {}
 static inline bool pm_runtime_is_irq_safe(struct device *dev) { return false; }
 
@@ -171,7 +171,7 @@ static inline void pm_runtime_set_autosuspend_delay(struct device *dev,
 						int delay) {}
 static inline u64 pm_runtime_autosuspend_expiration(
 				struct device *dev) { return 0; }
-static inline void pm_runtime_set_memalloc_noio(struct device *dev,
+static inline void pm_runtime_set_memalloc_yesio(struct device *dev,
 						bool enable){}
 static inline void pm_runtime_clean_up_links(struct device *dev) {}
 static inline void pm_runtime_get_suppliers(struct device *dev) {}

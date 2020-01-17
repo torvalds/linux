@@ -34,7 +34,7 @@ TRACE_EVENT(rpmh_tx_done,
 		       __entry->err = e;
 	),
 
-	TP_printk("%s: ack: tcs-m: %d addr: %#x data: %#x errno: %d",
+	TP_printk("%s: ack: tcs-m: %d addr: %#x data: %#x erryes: %d",
 		  __get_str(name), __entry->m, __entry->addr, __entry->data,
 		  __entry->err)
 );

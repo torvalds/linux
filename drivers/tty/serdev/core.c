@@ -7,7 +7,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/idr.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -157,7 +157,7 @@ int serdev_device_open(struct serdev_device *serdev)
 
 	ret = pm_runtime_get_sync(&ctrl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&ctrl->dev);
+		pm_runtime_put_yesidle(&ctrl->dev);
 		goto err_close;
 	}
 
@@ -218,19 +218,19 @@ void serdev_device_write_wakeup(struct serdev_device *serdev)
 EXPORT_SYMBOL_GPL(serdev_device_write_wakeup);
 
 /**
- * serdev_device_write_buf() - write data asynchronously
+ * serdev_device_write_buf() - write data asynchroyesusly
  * @serdev:	serdev device
  * @buf:	data to be written
  * @count:	number of bytes to write
  *
- * Write data to the device asynchronously.
+ * Write data to the device asynchroyesusly.
  *
  * Note that any accepted data has only been buffered by the controller; use
  * serdev_device_wait_until_sent() to make sure the controller write buffer
  * has actually been emptied.
  *
- * Return: The number of bytes written (less than count if not enough room in
- * the write buffer), or a negative errno on errors.
+ * Return: The number of bytes written (less than count if yest eyesugh room in
+ * the write buffer), or a negative erryes on errors.
  */
 int serdev_device_write_buf(struct serdev_device *serdev,
 			    const unsigned char *buf, size_t count)
@@ -245,13 +245,13 @@ int serdev_device_write_buf(struct serdev_device *serdev,
 EXPORT_SYMBOL_GPL(serdev_device_write_buf);
 
 /**
- * serdev_device_write() - write data synchronously
+ * serdev_device_write() - write data synchroyesusly
  * @serdev:	serdev device
  * @buf:	data to be written
  * @count:	number of bytes to write
  * @timeout:	timeout in jiffies, or 0 to wait indefinitely
  *
- * Write data to the device synchronously by repeatedly calling
+ * Write data to the device synchroyesusly by repeatedly calling
  * serdev_device_write() until the controller has accepted all data (unless
  * interrupted by a timeout or a signal).
  *
@@ -264,7 +264,7 @@ EXPORT_SYMBOL_GPL(serdev_device_write_buf);
  *
  * Return: The number of bytes written (less than count if interrupted),
  * -ETIMEDOUT or -ERESTARTSYS if interrupted before any bytes were written, or
- * a negative errno on errors.
+ * a negative erryes on errors.
  */
 int serdev_device_write(struct serdev_device *serdev,
 			const unsigned char *buf, size_t count,
@@ -500,13 +500,13 @@ struct serdev_controller *serdev_controller_alloc(struct device *parent,
 	ctrl->dev.type = &serdev_ctrl_type;
 	ctrl->dev.bus = &serdev_bus_type;
 	ctrl->dev.parent = parent;
-	ctrl->dev.of_node = parent->of_node;
+	ctrl->dev.of_yesde = parent->of_yesde;
 	serdev_controller_set_drvdata(ctrl, &ctrl[1]);
 
 	dev_set_name(&ctrl->dev, "serial%d", id);
 
-	pm_runtime_no_callbacks(&ctrl->dev);
-	pm_suspend_ignore_children(&ctrl->dev, true);
+	pm_runtime_yes_callbacks(&ctrl->dev);
+	pm_suspend_igyesre_children(&ctrl->dev, true);
 
 	dev_dbg(&ctrl->dev, "allocated controller 0x%p id %d\n", ctrl, id);
 	return ctrl;
@@ -520,22 +520,22 @@ EXPORT_SYMBOL_GPL(serdev_controller_alloc);
 
 static int of_serdev_register_devices(struct serdev_controller *ctrl)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct serdev_device *serdev = NULL;
 	int err;
 	bool found = false;
 
-	for_each_available_child_of_node(ctrl->dev.of_node, node) {
-		if (!of_get_property(node, "compatible", NULL))
+	for_each_available_child_of_yesde(ctrl->dev.of_yesde, yesde) {
+		if (!of_get_property(yesde, "compatible", NULL))
 			continue;
 
-		dev_dbg(&ctrl->dev, "adding child %pOF\n", node);
+		dev_dbg(&ctrl->dev, "adding child %pOF\n", yesde);
 
 		serdev = serdev_device_alloc(ctrl);
 		if (!serdev)
 			continue;
 
-		serdev->dev.of_node = node;
+		serdev->dev.of_yesde = yesde;
 
 		err = serdev_device_add(serdev);
 		if (err) {
@@ -741,7 +741,7 @@ int serdev_controller_add(struct serdev_controller *ctrl)
 	ret_of = of_serdev_register_devices(ctrl);
 	ret_acpi = acpi_serdev_register_devices(ctrl);
 	if (ret_of && ret_acpi) {
-		dev_dbg(&ctrl->dev, "no devices registered: of:%d acpi:%d\n",
+		dev_dbg(&ctrl->dev, "yes devices registered: of:%d acpi:%d\n",
 			ret_of, ret_acpi);
 		ret = -ENODEV;
 		goto err_rpm_disable;

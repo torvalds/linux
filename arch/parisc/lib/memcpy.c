@@ -16,7 +16,7 @@
 #define get_user_space() (uaccess_kernel() ? 0 : mfsp(3))
 #define get_kernel_space() (0)
 
-/* Returns 0 for success, otherwise, returns number of bytes not transferred. */
+/* Returns 0 for success, otherwise, returns number of bytes yest transferred. */
 extern unsigned long pa_memcpy(void *dst, const void *src,
 				unsigned long len);
 

@@ -125,13 +125,13 @@ static void sg_split_mapped(struct sg_splitter *splitters, const int nb_splits)
 /**
  * sg_split - split a scatterlist into several scatterlists
  * @in: the input sg list
- * @in_mapped_nents: the result of a dma_map_sg(in, ...), or 0 if not mapped.
+ * @in_mapped_nents: the result of a dma_map_sg(in, ...), or 0 if yest mapped.
  * @skip: the number of bytes to skip in the input sg list
  * @nb_splits: the number of desired sg outputs
  * @split_sizes: the respective size of each output sg list in bytes
  * @out: an array where to store the allocated output sg lists
  * @out_mapped_nents: the resulting sg lists mapped number of sg entries. Might
- *                    be NULL if sglist not already mapped (in_mapped_nents = 0)
+ *                    be NULL if sglist yest already mapped (in_mapped_nents = 0)
  * @gfp_mask: the allocation flag
  *
  * This function splits the input sg list into nb_splits sg lists, which are

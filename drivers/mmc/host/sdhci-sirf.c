@@ -25,7 +25,7 @@ static void sdhci_sirf_set_bus_width(struct sdhci_host *host, int width)
 	ctrl &= ~(SDHCI_CTRL_4BITBUS | SDHCI_SIRF_8BITBUS);
 
 	/*
-	 * CSR atlas7 and prima2 SD host version is not 3.0
+	 * CSR atlas7 and prima2 SD host version is yest 3.0
 	 * 8bit-width enable bit of CSR SD hosts is 3,
 	 * while stardard hosts use bit 5
 	 */

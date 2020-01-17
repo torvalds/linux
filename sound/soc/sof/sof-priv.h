@@ -313,9 +313,9 @@ struct snd_sof_pcm_stream {
 	bool d0i3_compatible; /* DSP can be in D0I3 when this pcm is opened */
 	/*
 	 * flag to indicate that the DSP pipelines should be kept
-	 * active or not while suspending the stream
+	 * active or yest while suspending the stream
 	 */
-	bool suspend_ignored;
+	bool suspend_igyesred;
 };
 
 /* ALSA SOF PCM device */
@@ -363,7 +363,7 @@ struct snd_sof_widget {
 	struct snd_soc_dapm_widget *widget;
 	struct list_head list;	/* list in sdev widget list */
 
-	void *private;		/* core does not touch this */
+	void *private;		/* core does yest touch this */
 };
 
 /* ASoC SOF DAPM route */
@@ -424,7 +424,7 @@ struct snd_sof_dev {
 	struct snd_sof_mailbox stream_box;	/* Stream position update */
 	struct snd_sof_ipc_msg *msg;
 	int ipc_irq;
-	u32 next_comp_id; /* monotonic - reset during S3 */
+	u32 next_comp_id; /* moyestonic - reset during S3 */
 
 	/* memory bases for mmaped DSPs - set by dsp_init() */
 	void __iomem *bar[SND_SOF_BARS];	/* DSP base address */
@@ -477,7 +477,7 @@ struct snd_sof_dev {
 
 	bool msi_enabled;
 
-	void *private;			/* core does not touch this */
+	void *private;			/* core does yest touch this */
 };
 
 /*
@@ -582,7 +582,7 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_ipc *ipc,
 
 /*
  * Topology.
- * There is no snd_sof_free_topology since topology components will
+ * There is yes snd_sof_free_topology since topology components will
  * be freed by snd_soc_unregister_component,
  */
 int snd_sof_init_topology(struct snd_sof_dev *sdev,
@@ -612,7 +612,7 @@ int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
 			     const char *name, mode_t mode);
 int snd_sof_trace_update_pos(struct snd_sof_dev *sdev,
 			     struct sof_ipc_dma_trace_posn *posn);
-void snd_sof_trace_notify_for_error(struct snd_sof_dev *sdev);
+void snd_sof_trace_yestify_for_error(struct snd_sof_dev *sdev);
 void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 			u32 tracep_code, void *oops,
 			struct sof_ipc_panic_info *panic_info,

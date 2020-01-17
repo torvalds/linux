@@ -7,7 +7,7 @@
 
 #include "internal.h"
 
-static inline bool not_found(struct page_vma_mapped_walk *pvmw)
+static inline bool yest_found(struct page_vma_mapped_walk *pvmw)
 {
 	page_vma_mapped_walk_done(pvmw);
 	return false;
@@ -24,12 +24,12 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw)
 			/*
 			 * We get here when we are trying to unmap a private
 			 * device page from the process address space. Such
-			 * page is not CPU accessible and thus is mapped as
-			 * a special swap entry, nonetheless it still does
+			 * page is yest CPU accessible and thus is mapped as
+			 * a special swap entry, yesnetheless it still does
 			 * count as a valid regular mapping for the page (and
 			 * is accounted as such in page maps count).
 			 *
-			 * So handle this special case as if it was a normal
+			 * So handle this special case as if it was a yesrmal
 			 * page mapping ie lock CPU page table and returns
 			 * true.
 			 *
@@ -72,7 +72,7 @@ static inline bool pfn_in_hpage(struct page *hpage, unsigned long pfn)
  * If PVMW_MIGRATION flag is set, returns true if @pvmw->pte contains migration
  * entry that points to @pvmw->page or any subpage in case of THP.
  *
- * If PVMW_MIGRATION flag is not set, returns true if @pvmw->pte points to
+ * If PVMW_MIGRATION flag is yest set, returns true if @pvmw->pte points to
  * @pvmw->page or any subpage in case of THP.
  *
  * Otherwise, return false.
@@ -121,7 +121,7 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
  * to relevant page table entries. @pvmw->ptl is locked. @pvmw->address is
  * adjusted if needed (for PTE-mapped THPs).
  *
- * If @pvmw->pmd is set but @pvmw->pte is not, you have found PMD-mapped page
+ * If @pvmw->pmd is set but @pvmw->pte is yest, you have found PMD-mapped page
  * (usually THP). For PTE-mapped THP, you should run page_vma_mapped_walk() in
  * a loop to find all PTEs that map the THP.
  *
@@ -129,7 +129,7 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
  * regardless of which page table level the page is mapped at. @pvmw->pmd is
  * NULL.
  *
- * Retruns false if there are no more page table entries for the page in
+ * Retruns false if there are yes more page table entries for the page in
  * the vma. @pvmw->ptl is unlocked and @pvmw->pte is unmapped.
  *
  * If you need to stop the walk before page_vma_mapped_walk() returned false,
@@ -146,13 +146,13 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 
 	/* The only possible pmd mapping has been handled on last iteration */
 	if (pvmw->pmd && !pvmw->pte)
-		return not_found(pvmw);
+		return yest_found(pvmw);
 
 	if (pvmw->pte)
 		goto next_pte;
 
 	if (unlikely(PageHuge(pvmw->page))) {
-		/* when pud is not present, pte will be NULL */
+		/* when pud is yest present, pte will be NULL */
 		pvmw->pte = huge_pte_offset(mm, pvmw->address, page_size(page));
 		if (!pvmw->pte)
 			return false;
@@ -160,7 +160,7 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 		pvmw->ptl = huge_pte_lockptr(page_hstate(page), mm, pvmw->pte);
 		spin_lock(pvmw->ptl);
 		if (!check_pte(pvmw))
-			return not_found(pvmw);
+			return yest_found(pvmw);
 		return true;
 	}
 restart:
@@ -184,23 +184,23 @@ restart:
 		pvmw->ptl = pmd_lock(mm, pvmw->pmd);
 		if (likely(pmd_trans_huge(*pvmw->pmd))) {
 			if (pvmw->flags & PVMW_MIGRATION)
-				return not_found(pvmw);
+				return yest_found(pvmw);
 			if (pmd_page(*pvmw->pmd) != page)
-				return not_found(pvmw);
+				return yest_found(pvmw);
 			return true;
 		} else if (!pmd_present(*pvmw->pmd)) {
 			if (thp_migration_supported()) {
 				if (!(pvmw->flags & PVMW_MIGRATION))
-					return not_found(pvmw);
+					return yest_found(pvmw);
 				if (is_migration_entry(pmd_to_swp_entry(*pvmw->pmd))) {
 					swp_entry_t entry = pmd_to_swp_entry(*pvmw->pmd);
 
 					if (migration_entry_to_page(entry) != page)
-						return not_found(pvmw);
+						return yest_found(pvmw);
 					return true;
 				}
 			}
-			return not_found(pvmw);
+			return yest_found(pvmw);
 		} else {
 			/* THP pmd was split under us: handle on pte level */
 			spin_unlock(pvmw->ptl);
@@ -217,14 +217,14 @@ restart:
 next_pte:
 		/* Seek to next pte only makes sense for THP */
 		if (!PageTransHuge(pvmw->page) || PageHuge(pvmw->page))
-			return not_found(pvmw);
+			return yest_found(pvmw);
 		do {
 			pvmw->address += PAGE_SIZE;
 			if (pvmw->address >= pvmw->vma->vm_end ||
 			    pvmw->address >=
 					__vma_address(pvmw->page, pvmw->vma) +
 					hpage_nr_pages(pvmw->page) * PAGE_SIZE)
-				return not_found(pvmw);
+				return yest_found(pvmw);
 			/* Did we cross page table boundary? */
 			if (pvmw->address % PMD_SIZE == 0) {
 				pte_unmap(pvmw->pte);
@@ -236,7 +236,7 @@ next_pte:
 			} else {
 				pvmw->pte++;
 			}
-		} while (pte_none(*pvmw->pte));
+		} while (pte_yesne(*pvmw->pte));
 
 		if (!pvmw->ptl) {
 			pvmw->ptl = pte_lockptr(mm, pvmw->pmd);
@@ -251,8 +251,8 @@ next_pte:
  * @vma: the VMA to test
  *
  * Returns 1 if the page is mapped into the page tables of the VMA, 0
- * if the page is not mapped into the page tables of this VMA.  Only
- * valid for normal file or anonymous VMAs.
+ * if the page is yest mapped into the page tables of this VMA.  Only
+ * valid for yesrmal file or ayesnymous VMAs.
  */
 int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
 {

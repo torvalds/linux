@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <signal.h>
@@ -46,7 +46,7 @@ static void ptrace_child(void)
 	sc_result = os_getpid();
 
 	if (sc_result == pid)
-		/* Nothing modified by the parent, we are running normally. */
+		/* Nothing modified by the parent, we are running yesrmally. */
 		ret = 1;
 	else if (sc_result == ppid)
 		/*
@@ -81,7 +81,7 @@ static void fatal(char *fmt, ...)
 	exit(1);
 }
 
-static void non_fatal(char *fmt, ...)
+static void yesn_fatal(char *fmt, ...)
 {
 	va_list list;
 
@@ -113,9 +113,9 @@ static int start_ptraced_child(void)
 }
 
 /* When testing for SYSEMU support, if it is one of the broken versions, we
- * must just avoid using sysemu, not panic, but only if SYSEMU features are
+ * must just avoid using sysemu, yest panic, but only if SYSEMU features are
  * broken.
- * So only for SYSEMU features we test mustpanic, while normal host features
+ * So only for SYSEMU features we test mustpanic, while yesrmal host features
  * must work anyway!
  */
 static int stop_ptraced_child(int pid, int exitcode, int mustexit)
@@ -130,9 +130,9 @@ static int stop_ptraced_child(int pid, int exitcode, int mustexit)
 	if (!WIFEXITED(status) || (WEXITSTATUS(status) != exitcode)) {
 		int exit_with = WEXITSTATUS(status);
 		if (exit_with == 2)
-			non_fatal("check_ptrace : child exited with status 2. "
+			yesn_fatal("check_ptrace : child exited with status 2. "
 				  "\nDisabling SYSEMU support.\n");
-		non_fatal("check_ptrace : child exited with exitcode %d, while "
+		yesn_fatal("check_ptrace : child exited with exitcode %d, while "
 			  "expecting %d; status 0x%x\n", exit_with,
 			  exitcode, status);
 		if (mustexit)
@@ -146,14 +146,14 @@ static int stop_ptraced_child(int pid, int exitcode, int mustexit)
 /* Changed only during early boot */
 static int force_sysemu_disabled = 0;
 
-static int __init nosysemu_cmd_param(char *str, int* add)
+static int __init yessysemu_cmd_param(char *str, int* add)
 {
 	force_sysemu_disabled = 1;
 	return 0;
 }
 
-__uml_setup("nosysemu", nosysemu_cmd_param,
-"nosysemu\n"
+__uml_setup("yessysemu", yessysemu_cmd_param,
+"yessysemu\n"
 "    Turns off syscall emulation patch for ptrace (SYSEMU).\n"
 "    SYSEMU is a performance-patch introduced by Laurent Vivier. It changes\n"
 "    behaviour of ptrace() and helps reduce host context switch rates.\n"
@@ -183,14 +183,14 @@ static void __init check_sysemu(void)
 	if (ptrace(PTRACE_GETREGS, pid, 0, regs) < 0)
 		fatal_perror("check_sysemu : PTRACE_GETREGS failed");
 	if (PT_SYSCALL_NR(regs) != __NR_getpid) {
-		non_fatal("check_sysemu got system call number %d, "
+		yesn_fatal("check_sysemu got system call number %d, "
 			  "expected %d...", PT_SYSCALL_NR(regs), __NR_getpid);
 		goto fail;
 	}
 
 	n = ptrace(PTRACE_POKEUSER, pid, PT_SYSCALL_RET_OFFSET, os_getpid());
 	if (n < 0) {
-		non_fatal("check_sysemu : failed to modify system call "
+		yesn_fatal("check_sysemu : failed to modify system call "
 			  "return");
 		goto fail;
 	}
@@ -220,7 +220,7 @@ static void __init check_sysemu(void)
 		if (WIFSTOPPED(status) &&
 		    (WSTOPSIG(status) == (SIGTRAP|0x80))) {
 			if (!count) {
-				non_fatal("check_sysemu: SYSEMU_SINGLESTEP "
+				yesn_fatal("check_sysemu: SYSEMU_SINGLESTEP "
 					  "doesn't singlestep");
 				goto fail;
 			}
@@ -234,7 +234,7 @@ static void __init check_sysemu(void)
 		else if (WIFSTOPPED(status) && (WSTOPSIG(status) == SIGTRAP))
 			count++;
 		else {
-			non_fatal("check_sysemu: expected SIGTRAP or "
+			yesn_fatal("check_sysemu: expected SIGTRAP or "
 				  "(SIGTRAP | 0x80), got status = %d\n",
 				  status);
 			goto fail;
@@ -253,7 +253,7 @@ static void __init check_sysemu(void)
 fail:
 	stop_ptraced_child(pid, 1, 0);
 fail_stopped:
-	non_fatal("missing\n");
+	yesn_fatal("missing\n");
 }
 
 static void __init check_ptrace(void)
@@ -363,7 +363,7 @@ int __init parse_iomem(char *str, int *add)
 	}
 
 	if (fstat64(fd, &buf) < 0) {
-		perror("parse_iomem - cannot stat_fd file");
+		perror("parse_iomem - canyest stat_fd file");
 		goto out_close;
 	}
 

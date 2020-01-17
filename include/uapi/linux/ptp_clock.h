@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * PTP 1588 clock support - user space interface
  *
@@ -15,7 +15,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if yest, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -69,14 +69,14 @@
  * struct ptp_clock_time - represents a time value
  *
  * The sign of the seconds field applies to the whole value. The
- * nanoseconds field is always unsigned. The reserved field is
- * included for sub-nanosecond resolution, should the demand for
+ * nayesseconds field is always unsigned. The reserved field is
+ * included for sub-nayessecond resolution, should the demand for
  * this ever appear.
  *
  */
 struct ptp_clock_time {
 	__s64 sec;  /* seconds */
-	__u32 nsec; /* nanoseconds */
+	__u32 nsec; /* nayesseconds */
 	__u32 reserved;
 };
 
@@ -132,7 +132,7 @@ struct ptp_sys_offset_extended {
 struct ptp_sys_offset_precise {
 	struct ptp_clock_time device;
 	struct ptp_clock_time sys_realtime;
-	struct ptp_clock_time sys_monoraw;
+	struct ptp_clock_time sys_moyesraw;
 	unsigned int rsv[4];    /* Reserved for future use. */
 };
 
@@ -147,7 +147,7 @@ struct ptp_pin_desc {
 	/*
 	 * Hardware specific human readable pin name. This field is
 	 * set by the kernel during the PTP_PIN_GETFUNC ioctl and is
-	 * ignored for the PTP_PIN_SETFUNC ioctl.
+	 * igyesred for the PTP_PIN_SETFUNC ioctl.
 	 */
 	char name[64];
 	/*

@@ -34,7 +34,7 @@ struct ns558 {
 	int size;
 	struct pnp_dev *dev;
 	struct gameport *gameport;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static LIST_HEAD(ns558_list);
@@ -60,7 +60,7 @@ static int ns558_isa_probe(int io)
 		return -EBUSY;
 
 /*
- * We must not be able to write arbitrary values to the port.
+ * We must yest be able to write arbitrary values to the port.
  * The lower two axis bits must be 1 after a write.
  */
 
@@ -95,7 +95,7 @@ static int ns558_isa_probe(int io)
 			return -ENODEV;
 		}
 /*
- * And now find the number of mirrors of the port.
+ * And yesw find the number of mirrors of the port.
  */
 
 	for (i = 1; i < 5; i++) {
@@ -143,7 +143,7 @@ static int ns558_isa_probe(int io)
 
 	gameport_register_port(port);
 
-	list_add(&ns558->node, &ns558_list);
+	list_add(&ns558->yesde, &ns558_list);
 
 	return 0;
 }
@@ -216,7 +216,7 @@ static int ns558_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *did)
 
 	gameport_register_port(port);
 
-	list_add_tail(&ns558->node, &ns558_list);
+	list_add_tail(&ns558->yesde, &ns558_list);
 	return 0;
 }
 
@@ -257,7 +257,7 @@ static void __exit ns558_exit(void)
 {
 	struct ns558 *ns558, *safe;
 
-	list_for_each_entry_safe(ns558, safe, &ns558_list, node) {
+	list_for_each_entry_safe(ns558, safe, &ns558_list, yesde) {
 		gameport_unregister_port(ns558->gameport);
 		release_region(ns558->io & ~(ns558->size - 1), ns558->size);
 		kfree(ns558);

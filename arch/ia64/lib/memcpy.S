@@ -8,7 +8,7 @@
  *	in1:	source address
  *	in2:	number of bytes to copy
  * Output:
- * 	no return value
+ * 	yes return value
  *
  * Copyright (C) 2000-2001 Hewlett-Packard Co
  *	Stephane Eranian <eranian@hpl.hp.com>
@@ -41,7 +41,7 @@ GLOBAL_ENTRY(memcpy)
 
 	/*
 	 * First, check if everything (src, dst, len) is a multiple of eight.  If
-	 * so, we handle everything with no taken branches (other than the loop
+	 * so, we handle everything with yes taken branches (other than the loop
 	 * itself) and a small icache footprint.  Otherwise, we jump off to
 	 * the more general copy routine handling arbitrary
 	 * sizes/alignment etc.
@@ -84,24 +84,24 @@ GLOBAL_ENTRY(memcpy)
 (p7)	br.cond.spnt.few .memcpy_short
 (p6)	br.cond.spnt.few .memcpy_long
 	;;
-	nop.m	0
+	yesp.m	0
 	;;
-	nop.m	0
-	nop.i	0
+	yesp.m	0
+	yesp.i	0
 	;;
-	nop.m	0
+	yesp.m	0
 	;;
 	.rotr val[N]
 	.rotp p[N]
 	.align 32
 1: { .mib
 (p[0])	ld8 val[0]=[src],8
-	nop.i 0
+	yesp.i 0
 	brp.loop.imp 1b, 2f
 }
 2: { .mfb
 (p[N-1])st8 [dst]=val[N-1],8
-	nop.f 0
+	yesp.f 0
 	br.ctop.dptk.few 1b
 }
 	;;
@@ -124,14 +124,14 @@ GLOBAL_ENTRY(memcpy)
 	;;
 	mov ar.lc=cnt
 	;;
-	nop.m	0
+	yesp.m	0
 	;;
-	nop.m	0
-	nop.i	0
+	yesp.m	0
+	yesp.i	0
 	;;
-	nop.m	0
+	yesp.m	0
 	;;
-	nop.m	0
+	yesp.m	0
 	;;
 	/*
 	 * It is faster to put a stop bit in the loop here because it makes
@@ -140,12 +140,12 @@ GLOBAL_ENTRY(memcpy)
 	.align 32
 1: { .mib
 (p[0])	ld1 val[0]=[src],1
-	nop.i 0
+	yesp.i 0
 	brp.loop.imp 1b, 2f
 } ;;
 2: { .mfb
 (p[MEM_LAT-1])st1 [dst]=val[MEM_LAT-1],1
-	nop.f 0
+	yesp.f 0
 	br.ctop.dptk.few 1b
 } ;;
 	mov ar.lc=saved_lc
@@ -160,7 +160,7 @@ GLOBAL_ENTRY(memcpy)
 	 * if the source is also aligned.  If so, we do a simple load/store-loop
 	 * until there are less than 8 bytes left over and then we do the tail,
 	 * by storing the last few bytes using sub-word copying.  If the source
-	 * is not aligned, we branch off to the non-congruent loop.
+	 * is yest aligned, we branch off to the yesn-congruent loop.
 	 *
 	 *   stage:   op:
 	 *         0  ld
@@ -171,7 +171,7 @@ GLOBAL_ENTRY(memcpy)
 	 * On Itanium, the pipeline itself runs without stalls.  However,  br.ctop
 	 * seems to introduce an unavoidable bubble in the pipeline so the overall
 	 * latency is 2 cycles/iteration.  This gives us a _copy_ throughput
-	 * of 4 byte/cycle.  Still not bad.
+	 * of 4 byte/cycle.  Still yest bad.
 	 */
 #	undef N
 #	undef Nrot
@@ -244,12 +244,12 @@ GLOBAL_ENTRY(memcpy)
 	mov pr=cnt,0x38			// set (p5,p4,p3) to # of bytes last-word bytes to copy
 	mov ar.lc=t2
 	;;
-	nop.m	0
+	yesp.m	0
 	;;
-	nop.m	0
-	nop.i	0
+	yesp.m	0
+	yesp.i	0
 	;;
-	nop.m	0
+	yesp.m	0
 	;;
 (p6)	ld8 val[1]=[src2],8		// prime the pump...
 	mov b6=t4
@@ -282,7 +282,7 @@ GLOBAL_ENTRY(memcpy)
     };												\
  2: { .mfb											\
 	(p[MEM_LAT+4])	st8 [dst]=w[1],8;							\
-			nop.f 0;								\
+			yesp.f 0;								\
 			br.ctop.dptk.few 1b;							\
     };												\
 			;;									\
@@ -291,7 +291,7 @@ GLOBAL_ENTRY(memcpy)
 			shrp t0=val[N-1],val[N-index],shift;					\
 			br .memcpy_tail
 .memcpy_loops:
-	COPY(0, 1) /* no point special casing this---it doesn't go any faster without shrp */
+	COPY(0, 1) /* yes point special casing this---it doesn't go any faster without shrp */
 	COPY(8, 0)
 	COPY(16, 0)
 	COPY(24, 0)

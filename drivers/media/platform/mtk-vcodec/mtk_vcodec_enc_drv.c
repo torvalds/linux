@@ -160,7 +160,7 @@ static int fops_vcodec_open(struct file *file)
 	if (v4l2_fh_is_singular(&ctx->fh)) {
 		/*
 		 * vpu_load_firmware checks if it was loaded already and
-		 * does nothing in that case
+		 * does yesthing in that case
 		 */
 		ret = vpu_load_firmware(dev->vpu_plat_dev);
 		if (ret < 0) {
@@ -246,7 +246,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 
 	dev->vpu_plat_dev = vpu_get_plat_device(dev->plat_dev);
 	if (dev->vpu_plat_dev == NULL) {
-		mtk_v4l2_err("[VPU] vpu device in not ready");
+		mtk_v4l2_err("[VPU] vpu device in yest ready");
 		return -EPROBE_DEFER;
 	}
 

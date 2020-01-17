@@ -39,7 +39,7 @@ struct hw_pci {
  * Per-controller structure
  */
 struct pci_sys_data {
-	struct list_head node;
+	struct list_head yesde;
 	int		busnr;		/* primary bus number			*/
 	u64		mem_offset;	/* bus->cpu memory mapping offset	*/
 	unsigned long	io_offset;	/* bus->cpu IO mapping offset		*/
@@ -60,7 +60,7 @@ struct pci_sys_data {
 void pci_common_init_dev(struct device *, struct hw_pci *);
 
 /*
- * Compatibility wrapper for older platforms that do not care about
+ * Compatibility wrapper for older platforms that do yest care about
  * passing the parent device.
  */
 static inline void pci_common_init(struct hw_pci *hw)

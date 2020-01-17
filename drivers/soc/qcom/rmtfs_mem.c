@@ -67,9 +67,9 @@ static struct attribute *qcom_rmtfs_mem_attrs[] = {
 };
 ATTRIBUTE_GROUPS(qcom_rmtfs_mem);
 
-static int qcom_rmtfs_mem_open(struct inode *inode, struct file *filp)
+static int qcom_rmtfs_mem_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct qcom_rmtfs_mem *rmtfs_mem = container_of(inode->i_cdev,
+	struct qcom_rmtfs_mem *rmtfs_mem = container_of(iyesde->i_cdev,
 							struct qcom_rmtfs_mem,
 							cdev);
 
@@ -115,7 +115,7 @@ static ssize_t qcom_rmtfs_mem_write(struct file *filp,
 	return count;
 }
 
-static int qcom_rmtfs_mem_release(struct inode *inode, struct file *filp)
+static int qcom_rmtfs_mem_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct qcom_rmtfs_mem *rmtfs_mem = filp->private_data;
 
@@ -170,7 +170,7 @@ static void qcom_rmtfs_mem_release_device(struct device *dev)
 
 static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct qcom_scm_vmperm perms[2];
 	struct reserved_mem *rmem;
 	struct qcom_rmtfs_mem *rmtfs_mem;
@@ -178,13 +178,13 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 	u32 vmid;
 	int ret;
 
-	rmem = of_reserved_mem_lookup(node);
+	rmem = of_reserved_mem_lookup(yesde);
 	if (!rmem) {
 		dev_err(&pdev->dev, "failed to acquire memory region\n");
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(node, "qcom,client-id", &client_id);
+	ret = of_property_read_u32(yesde, "qcom,client-id", &client_id);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to parse \"qcom,client-id\"\n");
 		return ret;
@@ -226,7 +226,7 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 		goto put_device;
 	}
 
-	ret = of_property_read_u32(node, "qcom,vmid", &vmid);
+	ret = of_property_read_u32(yesde, "qcom,vmid", &vmid);
 	if (ret < 0 && ret != -EINVAL) {
 		dev_err(&pdev->dev, "failed to parse qcom,vmid\n");
 		goto remove_cdev;

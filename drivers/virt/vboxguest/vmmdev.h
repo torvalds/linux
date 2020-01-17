@@ -39,7 +39,7 @@ struct vmmdev_memory {
 		} V1_03;
 	} V;
 
-	/* struct vbva_memory, not used */
+	/* struct vbva_memory, yest used */
 };
 VMMDEV_ASSERT_SIZE(vmmdev_memory, 8 + 8);
 
@@ -73,7 +73,7 @@ VMMDEV_ASSERT_SIZE(vmmdev_memory, 8 + 8);
 
 /*
  * Additions are allowed to work only if additions_major == vmmdev_current &&
- * additions_minor <= vmmdev_current. Additions version is reported to host
+ * additions_miyesr <= vmmdev_current. Additions version is reported to host
  * (VMMDev) by VMMDEVREQ_REPORT_GUEST_INFO.
  */
 #define VMMDEV_VERSION                      0x00010004
@@ -96,7 +96,7 @@ struct vmmdev_request_header {
 	enum vmmdev_request_type request_type;
 	/** OUT: Return code. */
 	s32 rc;
-	/** Reserved field no.1. MBZ. */
+	/** Reserved field yes.1. MBZ. */
 	u32 reserved1;
 	/** IN: Requestor information (VMMDEV_REQUESTOR_*) */
 	u32 requestor;
@@ -124,7 +124,7 @@ VMMDEV_ASSERT_SIZE(vmmdev_mouse_status, 24 + 12);
 #define VMMDEV_MOUSE_GUEST_CAN_ABSOLUTE                     BIT(0)
 /*
  * The host can (== wants to) send absolute coordinates.
- * (Input not captured.)
+ * (Input yest captured.)
  */
 #define VMMDEV_MOUSE_HOST_WANTS_ABSOLUTE                    BIT(1)
 /*
@@ -142,7 +142,7 @@ VMMDEV_ASSERT_SIZE(vmmdev_mouse_status, 24 + 12);
 #define VMMDEV_MOUSE_NEW_PROTOCOL                           BIT(4)
 /*
  * If the guest changes the status of the VMMDEV_MOUSE_GUEST_NEEDS_HOST_CURSOR
- * bit, the host will honour this.
+ * bit, the host will hoyesur this.
  */
 #define VMMDEV_MOUSE_HOST_RECHECKS_NEEDS_HOST_CURSOR        BIT(5)
 /*
@@ -166,8 +166,8 @@ struct vmmdev_host_version {
 	struct vmmdev_request_header header;
 	/** Major version. */
 	u16 major;
-	/** Minor version. */
-	u16 minor;
+	/** Miyesr version. */
+	u16 miyesr;
 	/** Build number. */
 	u32 build;
 	/** SVN revision. */
@@ -190,7 +190,7 @@ struct vmmdev_mask {
 	/** Mask of bits to be set. */
 	u32 or_mask;
 	/** Mask of bits to be cleared. */
-	u32 not_mask;
+	u32 yest_mask;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_mask, 24 + 8);
 
@@ -203,7 +203,7 @@ VMMDEV_ASSERT_SIZE(vmmdev_mask, 24 + 8);
  * Used for fast activation and deactivation of certain graphical operations
  * (e.g. resizing & seamless). The legacy VMMDEVREQ_REPORT_GUEST_CAPABILITIES
  * request sets this automatically, but VMMDEVREQ_SET_GUEST_CAPABILITIES does
- * not.
+ * yest.
  */
 #define VMMDEV_GUEST_SUPPORTS_GRAPHICS                      BIT(2)
 
@@ -239,7 +239,7 @@ struct vmmdev_guest_info {
 	struct vmmdev_request_header header;
 	/**
 	 * The VMMDev interface version expected by additions.
-	 * *Deprecated*, do not use anymore! Will be removed.
+	 * *Deprecated*, do yest use anymore! Will be removed.
 	 */
 	u32 interface_version;
 	/** Guest OS type. */
@@ -255,8 +255,8 @@ struct vmmdev_guest_info2 {
 	struct vmmdev_request_header header;
 	/** Major version. */
 	u16 additions_major;
-	/** Minor version. */
-	u16 additions_minor;
+	/** Miyesr version. */
+	u16 additions_miyesr;
 	/** Build number. */
 	u32 additions_build;
 	/** SVN revision. */
@@ -273,7 +273,7 @@ struct vmmdev_guest_info2 {
 	 * This means the first three members are duplicated in this field (if
 	 * the guest build config is sane). So, the user must check this and
 	 * chop it off before usage. There is, because of the Main code's blind
-	 * trust in the field's content, no way back.
+	 * trust in the field's content, yes way back.
 	 */
 	char name[128];
 };
@@ -316,7 +316,7 @@ struct vmmdev_guest_status {
 	enum vmmdev_guest_facility_type facility;
 	/** Current guest status. */
 	enum vmmdev_guest_facility_status status;
-	/** Flags, not used at the moment. */
+	/** Flags, yest used at the moment. */
 	u32 flags;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_guest_status, 24 + 12);
@@ -366,7 +366,7 @@ VMMDEV_ASSERT_SIZE(vmmdev_write_core_dump, 24 + 4);
 struct vmmdev_heartbeat {
 	/** Header. */
 	struct vmmdev_request_header header;
-	/** OUT: Guest heartbeat interval in nanosec. */
+	/** OUT: Guest heartbeat interval in nayessec. */
 	u64 interval_ns;
 	/** Heartbeat check flag. */
 	u8 enabled;
@@ -437,7 +437,7 @@ VMMDEV_ASSERT_SIZE(vmmdev_hgcm_call, 32 + 12);
  * After the request header.rc will be:
  *
  * VINF_SUCCESS when cancelled.
- * VERR_NOT_FOUND if the specified request cannot be found.
+ * VERR_NOT_FOUND if the specified request canyest be found.
  * VERR_INVALID_PARAMETER if the address is invalid valid.
  */
 struct vmmdev_hgcm_cancel2 {

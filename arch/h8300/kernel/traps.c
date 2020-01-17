@@ -1,6 +1,6 @@
 /*
  * linux/arch/h8300/boot/traps.c -- general exception handling code
- * H8/300 support Yoshinori Sato <ysato@users.sourceforge.jp>
+ * H8/300 support Yoshiyesri Sato <ysato@users.sourceforge.jp>
  *
  * Cloned from Linux/m68k.
  *
@@ -19,7 +19,7 @@
 #include <linux/sched/debug.h>
 #include <linux/mm_types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/bug.h>

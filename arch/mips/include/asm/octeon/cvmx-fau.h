@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -93,7 +93,7 @@ typedef struct {
 } cvmx_fau_tagwait8_t;
 
 /**
- * Asynchronous tagwait return definition. If a timeout occurs,
+ * Asynchroyesus tagwait return definition. If a timeout occurs,
  * the error bit will be set. Otherwise the value of the
  * register before the update will be returned.
  */
@@ -118,7 +118,7 @@ typedef union {
 /**
  * Builds a store I/O address for writing to the FAU
  *
- * @noadd:  0 = Store value is atomically added to the current value
+ * @yesadd:  0 = Store value is atomically added to the current value
  *		 1 = Store value is atomically written over the current value
  * @reg:    FAU atomic register to access. 0 <= reg < 2048.
  *		 - Step by 2 for 16 bit access.
@@ -126,10 +126,10 @@ typedef union {
  *		 - Step by 8 for 64 bit access.
  * Returns Address to store for atomic update
  */
-static inline uint64_t __cvmx_fau_store_address(uint64_t noadd, uint64_t reg)
+static inline uint64_t __cvmx_fau_store_address(uint64_t yesadd, uint64_t reg)
 {
 	return CVMX_ADD_IO_SEG(CVMX_FAU_LOAD_IO_ADDRESS) |
-	       cvmx_build_bits(CVMX_FAU_BITS_NOADD, noadd) |
+	       cvmx_build_bits(CVMX_FAU_BITS_NOADD, yesadd) |
 	       cvmx_build_bits(CVMX_FAU_BITS_REGISTER, reg);
 }
 

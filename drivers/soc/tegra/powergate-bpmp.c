@@ -327,7 +327,7 @@ tegra_powergate_xlate(struct of_phandle_args *spec, void *data)
 
 int tegra_bpmp_init_powergates(struct tegra_bpmp *bpmp)
 {
-	struct device_node *np = bpmp->dev->of_node;
+	struct device_yesde *np = bpmp->dev->of_yesde;
 	struct tegra_powergate_info *powergates;
 	struct device *dev = bpmp->dev;
 	unsigned int count, i;

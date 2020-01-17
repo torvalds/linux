@@ -149,7 +149,7 @@ static void print_debug_sf(void)
 			" bsdes=%i tear=%016lx dear=%016lx\n", cpu,
 			si.as, si.es, si.cs, si.bsdes, si.tear, si.dear);
 	if (si.ad)
-		pr_info("CPU[%i] CPUM_SF: Diagnostic-sampling: a=%i e=%i c=%i"
+		pr_info("CPU[%i] CPUM_SF: Diagyesstic-sampling: a=%i e=%i c=%i"
 			" dsdes=%i tear=%016lx dear=%016lx\n", cpu,
 			si.ad, si.ed, si.cd, si.dsdes, si.tear, si.dear);
 }
@@ -197,7 +197,7 @@ static void sl_print_sampling(struct seq_file *m)
 		seq_printf(m, "CPU-MF: Sampling facility: mode=basic"
 			   " sample_size=%u\n", si.bsdes);
 	if (si.ad)
-		seq_printf(m, "CPU-MF: Sampling facility: mode=diagnostic"
+		seq_printf(m, "CPU-MF: Sampling facility: mode=diagyesstic"
 			   " sample_size=%u\n", si.dsdes);
 }
 

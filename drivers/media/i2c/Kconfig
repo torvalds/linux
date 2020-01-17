@@ -856,7 +856,7 @@ config VIDEO_MT9M001
 	tristate "mt9m001 support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	help
-	  This driver supports MT9M001 cameras from Micron, monochrome
+	  This driver supports MT9M001 cameras from Micron, moyeschrome
 	  and colour models.
 
 config VIDEO_MT9M032
@@ -864,7 +864,7 @@ config VIDEO_MT9M032
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	select VIDEO_APTINA_PLL
 	help
-	  This driver supports MT9M032 camera sensors from Aptina, monochrome
+	  This driver supports MT9M032 camera sensors from Aptina, moyeschrome
 	  models only.
 
 config VIDEO_MT9M111

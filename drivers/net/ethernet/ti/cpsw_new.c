@@ -56,7 +56,7 @@ enum cpsw_devlink_param_id {
 	CPSW_DL_PARAM_ALE_BYPASS,
 };
 
-/* struct cpsw_common is not needed, kept here for compatibility
+/* struct cpsw_common is yest needed, kept here for compatibility
  * reasons witrh the old driver
  */
 static int cpsw_slave_index_priv(struct cpsw_common *cpsw,
@@ -93,17 +93,17 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 
 	if (!enable && enable_uni) {
 		enable = enable_uni;
-		dev_dbg(cpsw->dev, "promiscuity not disabled as the other interface is still in promiscuity mode\n");
+		dev_dbg(cpsw->dev, "promiscuity yest disabled as the other interface is still in promiscuity mode\n");
 	}
 
 	if (enable) {
-		/* Enable unknown unicast, reg/unreg mcast */
+		/* Enable unkyeswn unicast, reg/unreg mcast */
 		cpsw_ale_control_set(cpsw->ale, HOST_PORT_NUM,
 				     ALE_P0_UNI_FLOOD, 1);
 
 		dev_dbg(cpsw->dev, "promiscuity enabled\n");
 	} else {
-		/* Disable unknown unicast */
+		/* Disable unkyeswn unicast */
 		cpsw_ale_control_set(cpsw->ale, HOST_PORT_NUM,
 				     ALE_P0_UNI_FLOOD, 0);
 		dev_dbg(cpsw->dev, "promiscuity disabled\n");
@@ -111,8 +111,8 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 }
 
 /**
- * cpsw_set_mc - adds multicast entry to the table if it's not added or deletes
- * if it's not deleted
+ * cpsw_set_mc - adds multicast entry to the table if it's yest added or deletes
+ * if it's yest deleted
  * @ndev: device to sync
  * @addr: address to be added or deleted
  * @vid: vlan id, if vid < 0 set/unset address for real device
@@ -123,11 +123,11 @@ static int cpsw_set_mc(struct net_device *ndev, const u8 *addr,
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	int mask, flags, ret, slave_no;
+	int mask, flags, ret, slave_yes;
 
-	slave_no = cpsw_slave_index(cpsw, priv);
+	slave_yes = cpsw_slave_index(cpsw, priv);
 	if (vid < 0)
-		vid = cpsw->slaves[slave_no].port_vlan;
+		vid = cpsw->slaves[slave_yes].port_vlan;
 
 	mask =  ALE_PORT_HOST;
 	flags = vid ? ALE_VLAN : 0;
@@ -361,7 +361,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 		status &= ~CPDMA_RX_VLAN_ENCAP;
 	}
 
-	/* pass skb to netstack if no XDP prog or returned XDP_PASS */
+	/* pass skb to netstack if yes XDP prog or returned XDP_PASS */
 	skb = build_skb(pa, cpsw_rxbuf_total_len(pkt_size));
 	if (!skb) {
 		ndev->stats.rx_dropped++;
@@ -379,7 +379,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 		cpts_rx_timestamp(cpsw->cpts, skb);
 	skb->protocol = eth_type_trans(skb, ndev);
 
-	/* unmap page as no netstack skb page recycling */
+	/* unmap page as yes netstack skb page recycling */
 	page_pool_release_page(pool, page);
 	netif_receive_skb(skb);
 
@@ -456,11 +456,11 @@ static int cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
 
 	ret = pm_runtime_get_sync(cpsw->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+		pm_runtime_put_yesidle(cpsw->dev);
 		return ret;
 	}
 
-	/* In dual EMAC, reserved VLAN id should not be used for
+	/* In dual EMAC, reserved VLAN id should yest be used for
 	 * creating VLAN interfaces as this can break the dual
 	 * EMAC port separation
 	 */
@@ -545,7 +545,7 @@ static void cpsw_init_host_port_dual_mac(struct cpsw_common *cpsw)
 	writel(vlan, &cpsw->host_port_regs->port_vlan);
 
 	cpsw_ale_add_vlan(cpsw->ale, vlan, ALE_ALL_PORTS, ALE_ALL_PORTS, 0, 0);
-	/* learning make no sense in dual_mac mode */
+	/* learning make yes sense in dual_mac mode */
 	cpsw_ale_control_set(cpsw->ale, HOST_PORT_NUM, ALE_PORT_NOLEARN, 1);
 }
 
@@ -609,7 +609,7 @@ static void cpsw_port_add_dual_emac_def_ale_entries(struct cpsw_priv *priv,
 			   ALE_SECURE, slave->port_vlan);
 	cpsw_ale_control_set(cpsw->ale, priv->emac_port,
 			     ALE_PORT_DROP_UNKNOWN_VLAN, 1);
-	/* learning make no sense in dual_mac mode */
+	/* learning make yes sense in dual_mac mode */
 	cpsw_ale_control_set(cpsw->ale, priv->emac_port,
 			     ALE_PORT_NOLEARN, 1);
 }
@@ -759,21 +759,21 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 			  cpsw->rx_packet_max);
 	cpsw_set_slave_mac(slave, priv);
 
-	slave->mac_control = 0;	/* no link yet */
+	slave->mac_control = 0;	/* yes link yet */
 
 	if (cpsw_is_switch_en(cpsw))
 		cpsw_port_add_switch_def_ale_entries(priv, slave);
 	else
 		cpsw_port_add_dual_emac_def_ale_entries(priv, slave);
 
-	if (!slave->data->phy_node)
-		dev_err(priv->dev, "no phy found on slave %d\n",
+	if (!slave->data->phy_yesde)
+		dev_err(priv->dev, "yes phy found on slave %d\n",
 			slave->slave_num);
-	phy = of_phy_connect(priv->ndev, slave->data->phy_node,
+	phy = of_phy_connect(priv->ndev, slave->data->phy_yesde,
 			     &cpsw_adjust_link, 0, slave->data->phy_if);
 	if (!phy) {
-		dev_err(priv->dev, "phy \"%pOF\" not found on slave %d\n",
-			slave->data->phy_node,
+		dev_err(priv->dev, "phy \"%pOF\" yest found on slave %d\n",
+			slave->data->phy_yesde,
 			slave->slave_num);
 		return;
 	}
@@ -836,20 +836,20 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		 cpsw_is_switch_en(cpsw) ? "switch" : "dual_mac");
 	ret = pm_runtime_get_sync(cpsw->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+		pm_runtime_put_yesidle(cpsw->dev);
 		return ret;
 	}
 
 	/* Notify the stack of the actual queue counts. */
 	ret = netif_set_real_num_tx_queues(ndev, cpsw->tx_ch_num);
 	if (ret) {
-		dev_err(priv->dev, "cannot set real number of tx queues\n");
+		dev_err(priv->dev, "canyest set real number of tx queues\n");
 		goto pm_cleanup;
 	}
 
 	ret = netif_set_real_num_rx_queues(ndev, cpsw->rx_ch_num);
 	if (ret) {
-		dev_err(priv->dev, "cannot set real number of rx queues\n");
+		dev_err(priv->dev, "canyest set real number of rx queues\n");
 		goto pm_cleanup;
 	}
 
@@ -861,7 +861,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	/* initialize shared resources for every ndev */
 	if (!cpsw->usage_count) {
 		/* create rxqs for both infs in dual mac as they use same pool
-		 * and must be destroyed together when no users.
+		 * and must be destroyed together when yes users.
 		 */
 		ret = cpsw_create_xdp_rxqs(cpsw);
 		if (ret < 0)
@@ -946,7 +946,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 		goto fail;
 	}
 
-	/* If there is no more tx desc left free then we need to
+	/* If there is yes more tx desc left free then we need to
 	 * tell the kernel to stop sending us tx frames.
 	 */
 	if (unlikely(!cpdma_check_free_tx_desc(txch))) {
@@ -978,21 +978,21 @@ static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
 	struct sockaddr *addr = (struct sockaddr *)p;
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	int ret, slave_no;
+	int ret, slave_yes;
 	int flags = 0;
 	u16 vid = 0;
 
-	slave_no = cpsw_slave_index(cpsw, priv);
+	slave_yes = cpsw_slave_index(cpsw, priv);
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
 	ret = pm_runtime_get_sync(cpsw->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+		pm_runtime_put_yesidle(cpsw->dev);
 		return ret;
 	}
 
-	vid = cpsw->slaves[slave_no].port_vlan;
+	vid = cpsw->slaves[slave_yes].port_vlan;
 	flags = ALE_VLAN | ALE_SECURE;
 
 	cpsw_ale_del_ucast(cpsw->ale, priv->mac_addr, HOST_PORT_NUM,
@@ -1002,7 +1002,7 @@ static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
 
 	ether_addr_copy(priv->mac_addr, addr->sa_data);
 	ether_addr_copy(ndev->dev_addr, priv->mac_addr);
-	cpsw_set_slave_mac(&cpsw->slaves[slave_no], priv);
+	cpsw_set_slave_mac(&cpsw->slaves[slave_yes], priv);
 
 	pm_runtime_put(cpsw->dev);
 
@@ -1027,7 +1027,7 @@ static int cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
 
 	ret = pm_runtime_get_sync(cpsw->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+		pm_runtime_put_yesidle(cpsw->dev);
 		return ret;
 	}
 
@@ -1150,19 +1150,19 @@ static int cpsw_set_pauseparam(struct net_device *ndev,
 {
 	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
 	struct cpsw_priv *priv = netdev_priv(ndev);
-	int slave_no;
+	int slave_yes;
 
-	slave_no = cpsw_slave_index(cpsw, priv);
-	if (!cpsw->slaves[slave_no].phy)
+	slave_yes = cpsw_slave_index(cpsw, priv);
+	if (!cpsw->slaves[slave_yes].phy)
 		return -EINVAL;
 
-	if (!phy_validate_pause(cpsw->slaves[slave_no].phy, pause))
+	if (!phy_validate_pause(cpsw->slaves[slave_yes].phy, pause))
 		return -EINVAL;
 
 	priv->rx_pause = pause->rx_pause ? true : false;
 	priv->tx_pause = pause->tx_pause ? true : false;
 
-	phy_set_asym_pause(cpsw->slaves[slave_no].phy,
+	phy_set_asym_pause(cpsw->slaves[slave_yes].phy,
 			   priv->rx_pause, priv->tx_pause);
 
 	return 0;
@@ -1206,21 +1206,21 @@ static const struct ethtool_ops cpsw_ethtool_ops = {
 
 static int cpsw_probe_dt(struct cpsw_common *cpsw)
 {
-	struct device_node *node = cpsw->dev->of_node, *tmp_node, *port_np;
+	struct device_yesde *yesde = cpsw->dev->of_yesde, *tmp_yesde, *port_np;
 	struct cpsw_platform_data *data = &cpsw->data;
 	struct device *dev = cpsw->dev;
 	int ret;
 	u32 prop;
 
-	if (!node)
+	if (!yesde)
 		return -EINVAL;
 
-	tmp_node = of_get_child_by_name(node, "ethernet-ports");
-	if (!tmp_node)
+	tmp_yesde = of_get_child_by_name(yesde, "ethernet-ports");
+	if (!tmp_yesde)
 		return -ENOENT;
-	data->slaves = of_get_child_count(tmp_node);
+	data->slaves = of_get_child_count(tmp_yesde);
 	if (data->slaves != CPSW_SLAVE_PORTS_NUM) {
-		of_node_put(tmp_node);
+		of_yesde_put(tmp_yesde);
 		return -ENOENT;
 	}
 
@@ -1237,14 +1237,14 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 	if (!data->slave_data)
 		return -ENOMEM;
 
-	/* Populate all the child nodes here...
+	/* Populate all the child yesdes here...
 	 */
 	ret = devm_of_platform_populate(dev);
-	/* We do not want to force this, as in some cases may not have child */
+	/* We do yest want to force this, as in some cases may yest have child */
 	if (ret)
-		dev_warn(dev, "Doesn't have any child node\n");
+		dev_warn(dev, "Doesn't have any child yesde\n");
 
-	for_each_child_of_node(tmp_node, port_np) {
+	for_each_child_of_yesde(tmp_yesde, port_np) {
 		struct cpsw_slave_data *slave_data;
 		const void *mac_addr;
 		u32 port_id;
@@ -1253,14 +1253,14 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 		if (ret < 0) {
 			dev_err(dev, "%pOF error reading port_id %d\n",
 				port_np, ret);
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 
 		if (!port_id || port_id > CPSW_SLAVE_PORTS_NUM) {
 			dev_err(dev, "%pOF has invalid port_id %u\n",
 				port_np, port_id);
 			ret = -EINVAL;
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 
 		slave_data = &data->slave_data[port_id - 1];
@@ -1269,13 +1269,13 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 		if (slave_data->disabled)
 			continue;
 
-		slave_data->slave_node = port_np;
+		slave_data->slave_yesde = port_np;
 		slave_data->ifphy = devm_of_phy_get(dev, port_np, NULL);
 		if (IS_ERR(slave_data->ifphy)) {
 			ret = PTR_ERR(slave_data->ifphy);
 			dev_err(dev, "%pOF: Error retrieving port phy: %d\n",
 				port_np, ret);
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 
 		if (of_phy_is_fixed_link(port_np)) {
@@ -1284,25 +1284,25 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 				if (ret != -EPROBE_DEFER)
 					dev_err(dev, "%pOF failed to register fixed-link phy: %d\n",
 						port_np, ret);
-				goto err_node_put;
+				goto err_yesde_put;
 			}
-			slave_data->phy_node = of_node_get(port_np);
+			slave_data->phy_yesde = of_yesde_get(port_np);
 		} else {
-			slave_data->phy_node =
+			slave_data->phy_yesde =
 				of_parse_phandle(port_np, "phy-handle", 0);
 		}
 
-		if (!slave_data->phy_node) {
-			dev_err(dev, "%pOF no phy found\n", port_np);
+		if (!slave_data->phy_yesde) {
+			dev_err(dev, "%pOF yes phy found\n", port_np);
 			ret = -ENODEV;
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 
 		ret = of_get_phy_mode(port_np, &slave_data->phy_if);
 		if (ret) {
 			dev_err(dev, "%pOF read phy-mode err %d\n",
 				port_np, ret);
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 
 		mac_addr = of_get_mac_address(port_np);
@@ -1312,7 +1312,7 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 			ret = ti_cm_get_macid(dev, port_id - 1,
 					      slave_data->mac_addr);
 			if (ret)
-				goto err_node_put;
+				goto err_yesde_put;
 		}
 
 		if (of_property_read_u32(port_np, "ti,dual-emac-pvid",
@@ -1327,11 +1327,11 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 		}
 	}
 
-	of_node_put(tmp_node);
+	of_yesde_put(tmp_yesde);
 	return 0;
 
-err_node_put:
-	of_node_put(port_np);
+err_yesde_put:
+	of_yesde_put(port_np);
 	return ret;
 }
 
@@ -1342,13 +1342,13 @@ static void cpsw_remove_dt(struct cpsw_common *cpsw)
 
 	for (i = 0; i < cpsw->data.slaves; i++) {
 		struct cpsw_slave_data *slave_data = &data->slave_data[i];
-		struct device_node *port_np = slave_data->phy_node;
+		struct device_yesde *port_np = slave_data->phy_yesde;
 
 		if (port_np) {
 			if (of_phy_is_fixed_link(port_np))
 				of_phy_deregister_fixed_link(port_np);
 
-			of_node_put(port_np);
+			of_yesde_put(port_np);
 		}
 	}
 }
@@ -1526,12 +1526,12 @@ static void cpsw_netdevice_port_unlink(struct net_device *ndev)
 		cpsw->hw_bridge_dev = NULL;
 }
 
-/* netdev notifier */
-static int cpsw_netdevice_event(struct notifier_block *unused,
+/* netdev yestifier */
+static int cpsw_netdevice_event(struct yestifier_block *unused,
 				unsigned long event, void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
-	struct netdev_notifier_changeupper_info *info;
+	struct net_device *ndev = netdev_yestifier_info_to_dev(ptr);
+	struct netdev_yestifier_changeupper_info *info;
 	int ret = NOTIFY_DONE;
 
 	if (!cpsw_port_dev_check(ndev))
@@ -1553,34 +1553,34 @@ static int cpsw_netdevice_event(struct notifier_block *unused,
 		return NOTIFY_DONE;
 	}
 
-	return notifier_from_errno(ret);
+	return yestifier_from_erryes(ret);
 }
 
-static struct notifier_block cpsw_netdevice_nb __read_mostly = {
-	.notifier_call = cpsw_netdevice_event,
+static struct yestifier_block cpsw_netdevice_nb __read_mostly = {
+	.yestifier_call = cpsw_netdevice_event,
 };
 
-static int cpsw_register_notifiers(struct cpsw_common *cpsw)
+static int cpsw_register_yestifiers(struct cpsw_common *cpsw)
 {
 	int ret = 0;
 
-	ret = register_netdevice_notifier(&cpsw_netdevice_nb);
+	ret = register_netdevice_yestifier(&cpsw_netdevice_nb);
 	if (ret) {
-		dev_err(cpsw->dev, "can't register netdevice notifier\n");
+		dev_err(cpsw->dev, "can't register netdevice yestifier\n");
 		return ret;
 	}
 
-	ret = cpsw_switchdev_register_notifiers(cpsw);
+	ret = cpsw_switchdev_register_yestifiers(cpsw);
 	if (ret)
-		unregister_netdevice_notifier(&cpsw_netdevice_nb);
+		unregister_netdevice_yestifier(&cpsw_netdevice_nb);
 
 	return ret;
 }
 
-static void cpsw_unregister_notifiers(struct cpsw_common *cpsw)
+static void cpsw_unregister_yestifiers(struct cpsw_common *cpsw)
 {
-	cpsw_switchdev_unregister_notifiers(cpsw);
-	unregister_netdevice_notifier(&cpsw_netdevice_nb);
+	cpsw_switchdev_unregister_yestifiers(cpsw);
+	unregister_netdevice_yestifier(&cpsw_netdevice_nb);
 }
 
 static const struct devlink_ops cpsw_devlink_ops = {
@@ -1661,7 +1661,7 @@ static int cpsw_dl_switch_mode_set(struct devlink *dl, u32 id,
 	if (switch_en) {
 		dev_info(cpsw->dev, "Enable switch mode\n");
 
-		/* enable bypass - no forwarding; all traffic goes to Host */
+		/* enable bypass - yes forwarding; all traffic goes to Host */
 		cpsw_ale_control_set(cpsw->ale, 0, ALE_BYPASS, 1);
 
 		/* clean up ALE table */
@@ -1690,7 +1690,7 @@ static int cpsw_dl_switch_mode_set(struct devlink *dl, u32 id,
 	} else {
 		dev_info(cpsw->dev, "Disable switch mode\n");
 
-		/* enable bypass - no forwarding; all traffic goes to Host */
+		/* enable bypass - yes forwarding; all traffic goes to Host */
 		cpsw_ale_control_set(cpsw->ale, 0, ALE_BYPASS, 1);
 
 		cpsw_ale_control_set(cpsw->ale, 0, ALE_CLEAR, 1);
@@ -1872,7 +1872,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	clk = devm_clk_get(dev, "fck");
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		dev_err(dev, "fck is not found %d\n", ret);
+		dev_err(dev, "fck is yest found %d\n", ret);
 		return ret;
 	}
 	cpsw->bus_freq_mhz = clk_get_rate(clk) / 1000000;
@@ -1904,7 +1904,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	 */
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		pm_runtime_disable(dev);
 		return ret;
 	}
@@ -1954,7 +1954,7 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	/* Grab RX and TX IRQs. Note that we also have RX_THRESHOLD and
 	 * MISC IRQs which are always kept disabled with this driver so
-	 * we will not request them.
+	 * we will yest request them.
 	 *
 	 * If anyone wants to implement support for those, make sure to
 	 * first request and append them to irqs_table array.
@@ -1974,19 +1974,19 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_unregister_netdev;
 	}
 
-	ret = cpsw_register_notifiers(cpsw);
+	ret = cpsw_register_yestifiers(cpsw);
 	if (ret)
 		goto clean_unregister_netdev;
 
 	ret = cpsw_register_devlink(cpsw);
 	if (ret)
-		goto clean_unregister_notifiers;
+		goto clean_unregister_yestifiers;
 
 	ret = cpsw_register_ports(cpsw);
 	if (ret)
-		goto clean_unregister_notifiers;
+		goto clean_unregister_yestifiers;
 
-	dev_notice(dev, "initialized (regs %pa, pool size %d) hw_ver:%08X %d.%d (%d)\n",
+	dev_yestice(dev, "initialized (regs %pa, pool size %d) hw_ver:%08X %d.%d (%d)\n",
 		   &ss_res->start, descs_pool_size,
 		   cpsw->version, CPSW_MAJOR_VERSION(cpsw->version),
 		   CPSW_MINOR_VERSION(cpsw->version),
@@ -1996,8 +1996,8 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	return 0;
 
-clean_unregister_notifiers:
-	cpsw_unregister_notifiers(cpsw);
+clean_unregister_yestifiers:
+	cpsw_unregister_yestifiers(cpsw);
 clean_unregister_netdev:
 	cpsw_unregister_ports(cpsw);
 clean_cpts:
@@ -2017,11 +2017,11 @@ static int cpsw_remove(struct platform_device *pdev)
 
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_yesidle(&pdev->dev);
 		return ret;
 	}
 
-	cpsw_unregister_notifiers(cpsw);
+	cpsw_unregister_yestifiers(cpsw);
 	cpsw_unregister_devlink(cpsw);
 	cpsw_unregister_ports(cpsw);
 

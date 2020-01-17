@@ -9,7 +9,7 @@
  * linux-wlan
  *
  *   The contents of this file are subject to the Mozilla Public
- *   License Version 1.1 (the "License"); you may not use this file
+ *   License Version 1.1 (the "License"); you may yest use this file
  *   except in compliance with the License. You may obtain a copy of
  *   the License at http://www.mozilla.org/MPL/
  *
@@ -22,10 +22,10 @@
  *   terms of the GNU Public License version 2 (the "GPL"), in which
  *   case the provisions of the GPL are applicable instead of the
  *   above.  If you wish to allow the use of your version of this file
- *   only under the terms of the GPL and not to allow others to use
+ *   only under the terms of the GPL and yest to allow others to use
  *   your version of this file under the MPL, indicate your decision
- *   by deleting the provisions above and replace them with the notice
- *   and other provisions required by the GPL.  If you do not delete
+ *   by deleting the provisions above and replace them with the yestice
+ *   and other provisions required by the GPL.  If you do yest delete
  *   the provisions above, a recipient may use your version of this
  *   file under either the MPL or the GPL.
  *
@@ -140,7 +140,7 @@ int wep_decrypt(struct wlandevice *wlandev, u8 *buf, u32 len, int key_override,
 	}
 	crc = ~crc32_le(~0, buf, len);
 
-	/* now let's check the crc */
+	/* yesw let's check the crc */
 	c_crc[0] = crc;
 	c_crc[1] = crc >> 8;
 	c_crc[2] = crc >> 16;
@@ -164,7 +164,7 @@ int wep_encrypt(struct wlandevice *wlandev, u8 *buf,
 	u32 i, j, k, crc, keylen;
 	u8 s[256], key[64];
 
-	/* no point in WEPping an empty frame */
+	/* yes point in WEPping an empty frame */
 	if (len <= 0)
 		return -1;
 
@@ -175,7 +175,7 @@ int wep_encrypt(struct wlandevice *wlandev, u8 *buf,
 	if (keylen <= 0)
 		return -3;
 
-	/* use a random IV.  And skip known weak ones. */
+	/* use a random IV.  And skip kyeswn weak ones. */
 	get_random_bytes(iv, 3);
 	while ((iv[1] == 0xff) && (iv[0] >= 3) && (iv[0] < keylen))
 		get_random_bytes(iv, 3);
@@ -211,7 +211,7 @@ int wep_encrypt(struct wlandevice *wlandev, u8 *buf,
 	}
 	crc = ~crc32_le(~0, buf, len);
 
-	/* now let's encrypt the crc */
+	/* yesw let's encrypt the crc */
 	icv[0] = crc;
 	icv[1] = crc >> 8;
 	icv[2] = crc >> 16;

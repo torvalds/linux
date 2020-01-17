@@ -11,7 +11,7 @@
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -26,7 +26,7 @@
 #include <linux/spinlock.h>
 
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-subdev.h>
 
 #include "imx-media.h"
@@ -194,7 +194,7 @@ static const struct mipi_csis_event mipi_csis_events[] = {
 	{ MIPI_CSIS_INTSRC_ERR_WRONG_CFG, "Wrong Configuration Error" },
 	{ MIPI_CSIS_INTSRC_ERR_ECC,	"ECC Error" },
 	{ MIPI_CSIS_INTSRC_ERR_CRC,	"CRC Error" },
-	{ MIPI_CSIS_INTSRC_ERR_UNKNOWN,	"Unknown Error" },
+	{ MIPI_CSIS_INTSRC_ERR_UNKNOWN,	"Unkyeswn Error" },
 	/* Non-image data receive events */
 	{ MIPI_CSIS_INTSRC_EVEN_BEFORE,	"Non-image data before even frame" },
 	{ MIPI_CSIS_INTSRC_EVEN_AFTER,	"Non-image data after even frame" },
@@ -247,11 +247,11 @@ struct csi_state {
 	const struct csis_pix_format *csis_fmt;
 	struct v4l2_mbus_framefmt format_mbus;
 
-	struct v4l2_fwnode_bus_mipi_csi2 bus;
+	struct v4l2_fwyesde_bus_mipi_csi2 bus;
 
 	struct mipi_csis_event events[MIPI_CSIS_NUM_EVENTS];
 
-	struct v4l2_async_notifier subdev_notifier;
+	struct v4l2_async_yestifier subdev_yestifier;
 
 	struct csis_hw_reset hw_reset;
 	struct regulator *mipi_phy_regulator;
@@ -526,9 +526,9 @@ static void mipi_csis_clear_counters(struct csi_state *state)
 	spin_unlock_irqrestore(&state->slock, flags);
 }
 
-static void mipi_csis_log_counters(struct csi_state *state, bool non_errors)
+static void mipi_csis_log_counters(struct csi_state *state, bool yesn_errors)
 {
-	int i = non_errors ? MIPI_CSIS_NUM_EVENTS : MIPI_CSIS_NUM_EVENTS - 4;
+	int i = yesn_errors ? MIPI_CSIS_NUM_EVENTS : MIPI_CSIS_NUM_EVENTS - 4;
 	struct device *dev = &state->pdev->dev;
 	unsigned long flags;
 
@@ -554,7 +554,7 @@ static int mipi_csis_s_stream(struct v4l2_subdev *mipi_sd, int enable)
 		mipi_csis_clear_counters(state);
 		ret = pm_runtime_get_sync(&state->pdev->dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(&state->pdev->dev);
+			pm_runtime_put_yesidle(&state->pdev->dev);
 			return ret;
 		}
 		ret = v4l2_subdev_call(state->src_sd, core, s_power, 1);
@@ -810,9 +810,9 @@ static const struct v4l2_subdev_ops mipi_csis_subdev_ops = {
 static int mipi_csis_parse_dt(struct platform_device *pdev,
 			      struct csi_state *state)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
-	if (of_property_read_u32(node, "clock-frequency",
+	if (of_property_read_u32(yesde, "clock-frequency",
 				 &state->clk_frequency))
 		state->clk_frequency = DEFAULT_SCLK_CSIS_FREQ;
 
@@ -821,8 +821,8 @@ static int mipi_csis_parse_dt(struct platform_device *pdev,
 	if (IS_ERR(state->mrst))
 		return PTR_ERR(state->mrst);
 
-	/* Get MIPI CSI-2 bus configuration from the endpoint node. */
-	of_property_read_u32(node, "fsl,csis-hs-settle", &state->hs_settle);
+	/* Get MIPI CSI-2 bus configuration from the endpoint yesde. */
+	of_property_read_u32(yesde, "fsl,csis-hs-settle", &state->hs_settle);
 
 	return 0;
 }
@@ -830,7 +830,7 @@ static int mipi_csis_parse_dt(struct platform_device *pdev,
 static int mipi_csis_pm_resume(struct device *dev, bool runtime);
 
 static int mipi_csis_parse_endpoint(struct device *dev,
-				    struct v4l2_fwnode_endpoint *ep,
+				    struct v4l2_fwyesde_endpoint *ep,
 				    struct v4l2_async_subdev *asd)
 {
 	struct v4l2_subdev *mipi_sd = dev_get_drvdata(dev);
@@ -885,12 +885,12 @@ static int mipi_csis_subdev_init(struct v4l2_subdev *mipi_sd,
 	if (ret)
 		return ret;
 
-	ret = v4l2_async_register_fwnode_subdev(mipi_sd,
+	ret = v4l2_async_register_fwyesde_subdev(mipi_sd,
 						sizeof(struct v4l2_async_subdev),
 						&sink_port, 1,
 						mipi_csis_parse_endpoint);
 	if (ret < 0)
-		dev_err(&pdev->dev, "async fwnode register failed: %d\n", ret);
+		dev_err(&pdev->dev, "async fwyesde register failed: %d\n", ret);
 
 	return ret;
 }
@@ -1104,7 +1104,7 @@ static int mipi_csis_remove(struct platform_device *pdev)
 
 	mipi_csis_debugfs_exit(state);
 	v4l2_async_unregister_subdev(&state->mipi_sd);
-	v4l2_async_notifier_unregister(&state->subdev_notifier);
+	v4l2_async_yestifier_unregister(&state->subdev_yestifier);
 
 	pm_runtime_disable(&pdev->dev);
 	mipi_csis_pm_suspend(&pdev->dev, true);

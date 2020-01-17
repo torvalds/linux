@@ -184,7 +184,7 @@
 /* lower 9 bits are the same as sun4i */
 
 #define SUN6I_HDMI_DDC_CLK_REG		0x520
-/* DDC CLK bit fields are the same, but the formula is not */
+/* DDC CLK bit fields are the same, but the formula is yest */
 
 #define SUN6I_HDMI_DDC_FIFO_DATA_REG	0x580
 
@@ -232,7 +232,7 @@ struct sun4i_hdmi_variant {
 	 * This is used to cope with the threshold boundary condition
 	 * being slightly different on sun5i and sun6i.
 	 *
-	 * On sun5i the threshold is exclusive, i.e. does not include,
+	 * On sun5i the threshold is exclusive, i.e. does yest include,
 	 * the value of the threshold. ( > for RX; < for TX )
 	 * On sun6i the threshold is inclusive, i.e. includes, the
 	 * value of the threshold. ( >= for RX; <= for TX )

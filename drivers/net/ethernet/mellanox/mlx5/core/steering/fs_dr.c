@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies */
+/* Copyright (c) 2019 Mellayesx Techyeslogies */
 
 #include "mlx5_core.h"
 #include "fs_core.h"
@@ -326,7 +326,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 		actions[num_actions++] =
 			fte->action.pkt_reformat->action.dr_action;
 
-	/* The order of the actions below is not important */
+	/* The order of the actions below is yest important */
 
 	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_DROP) {
 		tmp_action = mlx5dr_action_create_drop();
@@ -350,7 +350,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	}
 
 	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
-		list_for_each_entry(dst, &fte->node.children, node.list) {
+		list_for_each_entry(dst, &fte->yesde.children, yesde.list) {
 			enum mlx5_flow_destination_type type = dst->dest_attr.type;
 			u32 id;
 
@@ -454,7 +454,7 @@ static int mlx5_cmd_dr_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns
 		dr_reformat = DR_ACTION_REFORMAT_TYP_L2_TO_TNL_L3;
 		break;
 	default:
-		mlx5_core_err(ns->dev, "Packet-reformat not supported(%d)\n",
+		mlx5_core_err(ns->dev, "Packet-reformat yest supported(%d)\n",
 			      reformat_type);
 		return -EOPNOTSUPP;
 	}

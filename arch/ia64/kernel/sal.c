@@ -53,12 +53,12 @@ ia64_sal_strerror (long status)
 	      case -1: str = "Not implemented"; break;
 	      case -2: str = "Invalid argument"; break;
 	      case -3: str = "Call completed with error"; break;
-	      case -4: str = "Virtual address not registered"; break;
+	      case -4: str = "Virtual address yest registered"; break;
 	      case -5: str = "No information available"; break;
 	      case -6: str = "Insufficient space to add the entry"; break;
 	      case -7: str = "Invalid entry_addr value"; break;
 	      case -8: str = "Invalid interrupt vector"; break;
-	      case -9: str = "Requested memory not available"; break;
+	      case -9: str = "Requested memory yest available"; break;
 	      case -10: str = "Unable to write to the NVM device"; break;
 	      case -11: str = "Invalid partition type specified"; break;
 	      case -12: str = "Invalid NVM_Object id specified"; break;
@@ -74,12 +74,12 @@ ia64_sal_strerror (long status)
 				"requested create sub-function"; break;
 	      case -18: str = "Invalid value specified in the partition_rec "
 				"argument"; break;
-	      case -19: str = "Record oriented I/O not supported for this "
+	      case -19: str = "Record oriented I/O yest supported for this "
 				"partition"; break;
 	      case -20: str = "Bad format of record to be written or "
-				"required keyword variable not "
+				"required keyword variable yest "
 				"specified"; break;
-	      default: str = "Unknown SAL status code"; break;
+	      default: str = "Unkyeswn SAL status code"; break;
 	}
 	return str;
 }
@@ -96,8 +96,8 @@ ia64_sal_handler_init (void *entry_point, void *gpval)
 static void __init
 check_versions (struct ia64_sal_systab *systab)
 {
-	sal_revision = (systab->sal_rev_major << 8) | systab->sal_rev_minor;
-	sal_version = (systab->sal_b_rev_major << 8) | systab->sal_b_rev_minor;
+	sal_revision = (systab->sal_rev_major << 8) | systab->sal_rev_miyesr;
+	sal_version = (systab->sal_b_rev_major << 8) | systab->sal_b_rev_miyesr;
 
 	/* Check for broken firmware */
 	if ((sal_revision == SAL_VERSION_CODE(49, 29))
@@ -125,7 +125,7 @@ static void __init
 set_smp_redirect (int flag)
 {
 #ifndef CONFIG_HOTPLUG_CPU
-	if (no_int_routing)
+	if (yes_int_routing)
 		smp_int_redirect &= ~flag;
 	else
 		smp_int_redirect |= flag;
@@ -138,7 +138,7 @@ set_smp_redirect (int flag)
 	 * on again in the vector. This is cumbersome for something that the
 	 * user mode irq balancer will solve anyways.
 	 */
-	no_int_routing=1;
+	yes_int_routing=1;
 	smp_int_redirect &= ~flag;
 #endif
 }
@@ -192,14 +192,14 @@ sal_desc_ap_wakeup (void *p)
 }
 
 static void __init
-chk_nointroute_opt(void)
+chk_yesintroute_opt(void)
 {
 	char *cp;
 
 	for (cp = boot_command_line; *cp; ) {
-		if (memcmp(cp, "nointroute", 10) == 0) {
-			no_int_routing = 1;
-			printk ("no_int_routing on\n");
+		if (memcmp(cp, "yesintroute", 10) == 0) {
+			yes_int_routing = 1;
+			printk ("yes_int_routing on\n");
 			break;
 		} else {
 			while (*cp != ' ' && *cp)
@@ -304,7 +304,7 @@ ia64_sal_init (struct ia64_sal_systab *systab)
 	int i;
 
 	if (!systab) {
-		printk(KERN_WARNING "Hmm, no SAL System Table.\n");
+		printk(KERN_WARNING "Hmm, yes SAL System Table.\n");
 		return;
 	}
 
@@ -313,7 +313,7 @@ ia64_sal_init (struct ia64_sal_systab *systab)
 
 	check_versions(systab);
 #ifdef CONFIG_SMP
-	chk_nointroute_opt();
+	chk_yesintroute_opt();
 #endif
 
 	/* revisions are coded in BCD, so %x does the job for us */
@@ -360,7 +360,7 @@ ia64_sal_oemcall(struct ia64_sal_retval *isrvp, u64 oemfunc, u64 arg1,
 EXPORT_SYMBOL(ia64_sal_oemcall);
 
 int
-ia64_sal_oemcall_nolock(struct ia64_sal_retval *isrvp, u64 oemfunc, u64 arg1,
+ia64_sal_oemcall_yeslock(struct ia64_sal_retval *isrvp, u64 oemfunc, u64 arg1,
 			u64 arg2, u64 arg3, u64 arg4, u64 arg5, u64 arg6,
 			u64 arg7)
 {
@@ -370,7 +370,7 @@ ia64_sal_oemcall_nolock(struct ia64_sal_retval *isrvp, u64 oemfunc, u64 arg1,
 			arg7);
 	return 0;
 }
-EXPORT_SYMBOL(ia64_sal_oemcall_nolock);
+EXPORT_SYMBOL(ia64_sal_oemcall_yeslock);
 
 int
 ia64_sal_oemcall_reentrant(struct ia64_sal_retval *isrvp, u64 oemfunc,

@@ -16,14 +16,14 @@
  *		Fixed source address for MLD message based on
  *		<draft-ietf-magma-mld-source-05.txt>.
  *	YOSHIFUJI Hideaki @USAGI:
- *		- Ignore Queries for invalid addresses.
+ *		- Igyesre Queries for invalid addresses.
  *		- MLD for link-local addresses.
  *	David L Stevens <dlstevens@us.ibm.com>:
  *		- MLDv2 support
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/socket.h>
@@ -183,7 +183,7 @@ static int __ipv6_sock_mc_join(struct sock *sk, int ifindex,
 	mc_lst->sflist = NULL;
 
 	/*
-	 *	now add/increase the group membership on the device
+	 *	yesw add/increase the group membership on the device
 	 */
 
 	err = __ipv6_dev_mc_inc(dev, addr, mode);
@@ -390,7 +390,7 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 			if (rv == 0)
 				break;
 		}
-		if (rv)		/* source not found */
+		if (rv)		/* source yest found */
 			goto done;	/* err = -EADDRNOTAVAIL */
 
 		/* special case - (INCLUDE, empty) == LEAVE_GROUP */
@@ -683,7 +683,7 @@ static void igmp6_group_added(struct ifmcaddr6 *mc)
 	/* else v2 */
 
 	/* Based on RFC3810 6.1, for newly added INCLUDE SSM, we
-	 * should not send filter-mode change record as the mode
+	 * should yest send filter-mode change record as the mode
 	 * should be from IN() to IN(A).
 	 */
 	if (mc->mca_sfmode == MCAST_EXCLUDE)
@@ -729,10 +729,10 @@ static void mld_add_delrec(struct inet6_dev *idev, struct ifmcaddr6 *im)
 	struct ifmcaddr6 *pmc;
 
 	/* this is an "ifmcaddr6" for convenience; only the fields below
-	 * are actually used. In particular, the refcnt and users are not
+	 * are actually used. In particular, the refcnt and users are yest
 	 * used for management of the delete list. Using the same structure
 	 * for deleted items allows change reports to use common code with
-	 * non-deleted or query-response MCA's.
+	 * yesn-deleted or query-response MCA's.
 	 */
 	pmc = kzalloc(sizeof(*pmc), GFP_ATOMIC);
 	if (!pmc)
@@ -870,7 +870,7 @@ static struct ifmcaddr6 *mca_alloc(struct inet6_dev *idev,
 	mc->mca_sfmode = mode;
 	mc->mca_sfcount[mode] = 1;
 
-	if (ipv6_addr_is_ll_all_nodes(&mc->mca_addr) ||
+	if (ipv6_addr_is_ll_all_yesdes(&mc->mca_addr) ||
 	    IPV6_ADDR_MC_SCOPE(&mc->mca_addr) < IPV6_ADDR_SCOPE_LINKLOCAL)
 		mc->mca_flags |= MAF_NOREPORT;
 
@@ -878,7 +878,7 @@ static struct ifmcaddr6 *mca_alloc(struct inet6_dev *idev,
 }
 
 /*
- *	device multicast group inc (add if not found)
+ *	device multicast group inc (add if yest found)
  */
 static int __ipv6_dev_mc_inc(struct net_device *dev,
 			     const struct in6_addr *addr, unsigned int mode)
@@ -1083,8 +1083,8 @@ static void igmp6_group_queried(struct ifmcaddr6 *ma, unsigned long resptime)
 {
 	unsigned long delay = resptime;
 
-	/* Do not start timer for these addresses */
-	if (ipv6_addr_is_ll_all_nodes(&ma->mca_addr) ||
+	/* Do yest start timer for these addresses */
+	if (ipv6_addr_is_ll_all_yesdes(&ma->mca_addr) ||
 	    IPV6_ADDR_MC_SCOPE(&ma->mca_addr) < IPV6_ADDR_SCOPE_LINKLOCAL)
 		return;
 
@@ -1277,7 +1277,7 @@ static int mld_process_v1(struct inet6_dev *idev, struct mld_msg *mld,
 {
 	unsigned long mldv1_md;
 
-	/* Ignore v1 queries */
+	/* Igyesre v1 queries */
 	if (mld_in_v2_mode_only(idev))
 		return -EINVAL;
 
@@ -1285,7 +1285,7 @@ static int mld_process_v1(struct inet6_dev *idev, struct mld_msg *mld,
 
 	/* When in MLDv1 fallback and a MLDv2 router start-up being
 	 * unaware of current MLDv1 operation, the MRC == MRD mapping
-	 * only works when the exponential algorithm is not being
+	 * only works when the exponential algorithm is yest being
 	 * used (as MLDv1 is unaware of such things).
 	 *
 	 * According to the RFC author, the MLDv2 implementations
@@ -1302,7 +1302,7 @@ static int mld_process_v1(struct inet6_dev *idev, struct mld_msg *mld,
 
 	/* MLDv1 router present: we need to go into v1 mode *only*
 	 * when an MLDv1 query is received as per section 9.12. of
-	 * RFC3810! And we know from RFC2710 section 3.7 that MLDv1
+	 * RFC3810! And we kyesw from RFC2710 section 3.7 that MLDv1
 	 * queries MUST be of exactly 24 octets.
 	 */
 	if (v1_query)
@@ -1353,7 +1353,7 @@ int igmp6_event_query(struct sk_buff *skb)
 	len -= skb_network_header_len(skb);
 
 	/* RFC3810 6.2
-	 * Upon reception of an MLD message that contains a Query, the node
+	 * Upon reception of an MLD message that contains a Query, the yesde
 	 * checks if the source address of the message is a valid link-local
 	 * address, if the Hop Limit is set to 1, and if the Router Alert
 	 * option is present in the Hop-By-Hop Options header of the IPv6
@@ -1399,7 +1399,7 @@ int igmp6_event_query(struct sk_buff *skb)
 
 		if (group_type == IPV6_ADDR_ANY) { /* general query */
 			if (mlh2->mld2q_nsrcs)
-				return -EINVAL; /* no sources allowed */
+				return -EINVAL; /* yes sources allowed */
 
 			mld_gq_start_timer(idev);
 			return 0;
@@ -1460,11 +1460,11 @@ int igmp6_event_report(struct sk_buff *skb)
 	struct mld_msg *mld;
 	int addr_type;
 
-	/* Our own report looped back. Ignore it. */
+	/* Our own report looped back. Igyesre it. */
 	if (skb->pkt_type == PACKET_LOOPBACK)
 		return 0;
 
-	/* send our report if the MC router may not have heard this report */
+	/* send our report if the MC router may yest have heard this report */
 	if (skb->pkt_type != PACKET_MULTICAST &&
 	    skb->pkt_type != PACKET_BROADCAST)
 		return 0;
@@ -1474,7 +1474,7 @@ int igmp6_event_report(struct sk_buff *skb)
 
 	mld = (struct mld_msg *)icmp6_hdr(skb);
 
-	/* Drop reports with not link local source */
+	/* Drop reports with yest link local source */
 	addr_type = ipv6_addr_type(&ipv6_hdr(skb)->saddr);
 	if (addr_type != IPV6_ADDR_ANY &&
 	    !(addr_type&IPV6_ADDR_LINKLOCAL))
@@ -1618,7 +1618,7 @@ static struct sk_buff *mld_newpack(struct inet6_dev *idev, unsigned int mtu)
 	if (__ipv6_get_lladdr(idev, &addr_buf, IFA_F_TENTATIVE)) {
 		/* <draft-ietf-magma-mld-source-05.txt>:
 		 * use unspecified address as the source address
-		 * when a valid link-local address is not available.
+		 * when a valid link-local address is yest available.
 		 */
 		saddr = &in6addr_any;
 	} else
@@ -1780,7 +1780,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 			continue;
 		}
 
-		/* Based on RFC3810 6.1. Should not send source-list change
+		/* Based on RFC3810 6.1. Should yest send source-list change
 		 * records when there is a filter mode change.
 		 */
 		if (((gdeleted && pmc->mca_sfmode == MCAST_EXCLUDE) ||
@@ -2025,7 +2025,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	if (ipv6_get_lladdr(dev, &addr_buf, IFA_F_TENTATIVE)) {
 		/* <draft-ietf-magma-mld-source-05.txt>:
 		 * use unspecified address as the source address
-		 * when a valid link-local address is not available.
+		 * when a valid link-local address is yest available.
 		 */
 		saddr = &in6addr_any;
 	} else
@@ -2138,14 +2138,14 @@ static int ip6_mc_del1_src(struct ifmcaddr6 *pmc, int sfmode,
 		psf_prev = psf;
 	}
 	if (!psf || psf->sf_count[sfmode] == 0) {
-		/* source filter not found, or count wrong =>  bug */
+		/* source filter yest found, or count wrong =>  bug */
 		return -ESRCH;
 	}
 	psf->sf_count[sfmode]--;
 	if (!psf->sf_count[MCAST_INCLUDE] && !psf->sf_count[MCAST_EXCLUDE]) {
 		struct inet6_dev *idev = pmc->idev;
 
-		/* no more filters for this source */
+		/* yes more filters for this source */
 		if (psf_prev)
 			psf_prev->sf_next = psf->sf_next;
 		else
@@ -2178,7 +2178,7 @@ static int ip6_mc_del_src(struct inet6_dev *idev, const struct in6_addr *pmca,
 			break;
 	}
 	if (!pmc) {
-		/* MCA not found?? bug */
+		/* MCA yest found?? bug */
 		read_unlock_bh(&idev->lock);
 		return -ESRCH;
 	}
@@ -2301,7 +2301,7 @@ static int sf_setstate(struct ifmcaddr6 *pmc)
 			psf->sf_crcount = 0;
 			/*
 			 * add or update "delete" records if an active filter
-			 * is now inactive
+			 * is yesw inactive
 			 */
 			for (dpsf = pmc->mca_tomb; dpsf; dpsf = dpsf->sf_next)
 				if (ipv6_addr_equal(&dpsf->sf_addr,
@@ -2342,7 +2342,7 @@ static int ip6_mc_add_src(struct inet6_dev *idev, const struct in6_addr *pmca,
 			break;
 	}
 	if (!pmc) {
-		/* MCA not found?? bug */
+		/* MCA yest found?? bug */
 		read_unlock_bh(&idev->lock);
 		return -ESRCH;
 	}
@@ -2373,7 +2373,7 @@ static int ip6_mc_add_src(struct inet6_dev *idev, const struct in6_addr *pmca,
 			pmc->mca_sfmode = MCAST_EXCLUDE;
 		else if (pmc->mca_sfcount[MCAST_INCLUDE])
 			pmc->mca_sfmode = MCAST_INCLUDE;
-		/* else no filters; keep old mode for reports */
+		/* else yes filters; keep old mode for reports */
 
 		pmc->mca_crcount = idev->mc_qrv;
 		idev->mc_ifc_count = pmc->mca_crcount;
@@ -2514,7 +2514,7 @@ void ipv6_mc_unmap(struct inet6_dev *idev)
 {
 	struct ifmcaddr6 *i;
 
-	/* Install multicast list, except for all-nodes (already installed) */
+	/* Install multicast list, except for all-yesdes (already installed) */
 
 	read_lock_bh(&idev->lock);
 	for (i = idev->mc_list; i; i = i->next)
@@ -2564,7 +2564,7 @@ void ipv6_mc_up(struct inet6_dev *idev)
 {
 	struct ifmcaddr6 *i;
 
-	/* Install multicast list, except for all-nodes (already installed) */
+	/* Install multicast list, except for all-yesdes (already installed) */
 
 	read_lock_bh(&idev->lock);
 	ipv6_mc_reset(idev);
@@ -2603,12 +2603,12 @@ void ipv6_mc_destroy_dev(struct inet6_dev *idev)
 	ipv6_mc_down(idev);
 	mld_clear_delrec(idev);
 
-	/* Delete all-nodes address. */
-	/* We cannot call ipv6_dev_mc_dec() directly, our caller in
+	/* Delete all-yesdes address. */
+	/* We canyest call ipv6_dev_mc_dec() directly, our caller in
 	 * addrconf.c has NULL'd out dev->ip6_ptr so in6_dev_get() will
 	 * fail.
 	 */
-	__ipv6_dev_mc_dec(idev, &in6addr_linklocal_allnodes);
+	__ipv6_dev_mc_dec(idev, &in6addr_linklocal_allyesdes);
 
 	if (idev->cnf.forwarding)
 		__ipv6_dev_mc_dec(idev, &in6addr_linklocal_allrouters);
@@ -2639,11 +2639,11 @@ static void ipv6_mc_rejoin_groups(struct inet6_dev *idev)
 		mld_send_report(idev, NULL);
 }
 
-static int ipv6_mc_netdev_event(struct notifier_block *this,
+static int ipv6_mc_netdev_event(struct yestifier_block *this,
 				unsigned long event,
 				void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct inet6_dev *idev = __in6_dev_get(dev);
 
 	switch (event) {
@@ -2658,8 +2658,8 @@ static int ipv6_mc_netdev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block igmp6_netdev_notifier = {
-	.notifier_call = ipv6_mc_netdev_event,
+static struct yestifier_block igmp6_netdev_yestifier = {
+	.yestifier_call = ipv6_mc_netdev_event,
 };
 
 #ifdef CONFIG_PROC_FS
@@ -3009,7 +3009,7 @@ int __init igmp6_init(void)
 
 int __init igmp6_late_init(void)
 {
-	return register_netdevice_notifier(&igmp6_netdev_notifier);
+	return register_netdevice_yestifier(&igmp6_netdev_yestifier);
 }
 
 void igmp6_cleanup(void)
@@ -3019,5 +3019,5 @@ void igmp6_cleanup(void)
 
 void igmp6_late_cleanup(void)
 {
-	unregister_netdevice_notifier(&igmp6_netdev_notifier);
+	unregister_netdevice_yestifier(&igmp6_netdev_yestifier);
 }

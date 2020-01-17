@@ -47,7 +47,7 @@ struct intel_xhci_usb_data {
 	bool enable_sw_switch;
 };
 
-static const struct software_node intel_xhci_usb_node = {
+static const struct software_yesde intel_xhci_usb_yesde = {
 	"intel-xhci-usb-sw",
 };
 
@@ -66,7 +66,7 @@ static int intel_xhci_usb_set_role(struct device *dev, enum usb_role role)
 	 */
 	status = acpi_acquire_global_lock(ACPI_WAIT_FOREVER, &glk);
 	if (ACPI_FAILURE(status) && status != AE_NOT_CONFIGURED) {
-		dev_err(dev, "Error could not acquire lock\n");
+		dev_err(dev, "Error could yest acquire lock\n");
 		return -EIO;
 	}
 
@@ -76,7 +76,7 @@ static int intel_xhci_usb_set_role(struct device *dev, enum usb_role role)
 	 * Set idpin value as requested.
 	 * Since some devices rely on firmware setting DRD_CONFIG and
 	 * SW_SWITCH_EN bits to be zero for role switch,
-	 * do not set these bits for those devices.
+	 * do yest set these bits for those devices.
 	 */
 	val = readl(data->base + DUAL_ROLE_CFG0);
 	switch (role) {
@@ -161,27 +161,27 @@ static int intel_xhci_usb_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -EINVAL;
-	data->base = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	data->base = devm_ioremap_yescache(dev, res->start, resource_size(res));
 	if (!data->base)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, data);
 
-	ret = software_node_register(&intel_xhci_usb_node);
+	ret = software_yesde_register(&intel_xhci_usb_yesde);
 	if (ret)
 		return ret;
 
 	sw_desc.set = intel_xhci_usb_set_role,
 	sw_desc.get = intel_xhci_usb_get_role,
 	sw_desc.allow_userspace_control = true,
-	sw_desc.fwnode = software_node_fwnode(&intel_xhci_usb_node);
+	sw_desc.fwyesde = software_yesde_fwyesde(&intel_xhci_usb_yesde);
 
 	data->enable_sw_switch = !device_property_read_bool(dev,
 						"sw_switch_disable");
 
 	data->role_sw = usb_role_switch_register(dev, &sw_desc);
 	if (IS_ERR(data->role_sw)) {
-		fwnode_handle_put(sw_desc.fwnode);
+		fwyesde_handle_put(sw_desc.fwyesde);
 		return PTR_ERR(data->role_sw);
 	}
 
@@ -198,7 +198,7 @@ static int intel_xhci_usb_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	usb_role_switch_unregister(data->role_sw);
-	fwnode_handle_put(software_node_fwnode(&intel_xhci_usb_node));
+	fwyesde_handle_put(software_yesde_fwyesde(&intel_xhci_usb_yesde));
 
 	return 0;
 }

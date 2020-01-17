@@ -38,7 +38,7 @@ class SubPlugin(TdcPlugin):
             'netns',
             'options for nsPlugin(run commands in net namespace)')
         self.argparser_group.add_argument(
-            '-N', '--no-namespace', action='store_false', default=True,
+            '-N', '--yes-namespace', action='store_false', default=True,
             dest='namespace', help='Don\'t run commands in namespace')
         return self.argparser
 
@@ -47,13 +47,13 @@ class SubPlugin(TdcPlugin):
         cmdform = 'list'
         cmdlist = list()
 
-        if not self.args.namespace:
+        if yest self.args.namespace:
             return command
 
         if self.args.verbose:
             print('{}.adjust_command'.format(self.sub_class))
 
-        if not isinstance(command, list):
+        if yest isinstance(command, list):
             cmdform = 'str'
             cmdlist = command.split()
         else:
@@ -82,7 +82,7 @@ class SubPlugin(TdcPlugin):
         self._exec_cmd('pre', cmd)
         cmd = '$IP link set $DEV0 up'
         self._exec_cmd('pre', cmd)
-        if not self.args.namespace:
+        if yest self.args.namespace:
             cmd = '$IP link set $DEV1 up'
             self._exec_cmd('pre', cmd)
 
@@ -147,7 +147,7 @@ class SubPlugin(TdcPlugin):
 
     def _replace_keywords(self, cmd):
         """
-        For a given executable command, substitute any known
+        For a given executable command, substitute any kyeswn
         variables contained within NAMES with the correct values
         """
         tcmd = Template(cmd)

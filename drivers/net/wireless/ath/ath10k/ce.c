@@ -26,7 +26,7 @@
  * controls one ring and the other side controls the other ring.
  * The source side chooses when to initiate a transfer and it
  * chooses what to send (buffer address, length). The destination
- * side keeps a supply of "anonymous receive buffers" available and
+ * side keeps a supply of "ayesnymous receive buffers" available and
  * it handles incoming data as it arrives (when the destination
  * receives an interrupt).
  *
@@ -485,7 +485,7 @@ static inline void ath10k_ce_engine_int_status_clear(struct ath10k *ar,
  * Guts of ath10k_ce_send.
  * The caller takes responsibility for any needed locking.
  */
-static int _ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
+static int _ath10k_ce_send_yeslock(struct ath10k_ce_pipe *ce_state,
 				  void *per_transfer_context,
 				  dma_addr_t buffer,
 				  unsigned int nbytes,
@@ -542,7 +542,7 @@ exit:
 	return ret;
 }
 
-static int _ath10k_ce_send_nolock_64(struct ath10k_ce_pipe *ce_state,
+static int _ath10k_ce_send_yeslock_64(struct ath10k_ce_pipe *ce_state,
 				     void *per_transfer_context,
 				     dma_addr_t buffer,
 				     unsigned int nbytes,
@@ -623,17 +623,17 @@ exit:
 	return ret;
 }
 
-int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
+int ath10k_ce_send_yeslock(struct ath10k_ce_pipe *ce_state,
 			  void *per_transfer_context,
 			  dma_addr_t buffer,
 			  unsigned int nbytes,
 			  unsigned int transfer_id,
 			  unsigned int flags)
 {
-	return ce_state->ops->ce_send_nolock(ce_state, per_transfer_context,
+	return ce_state->ops->ce_send_yeslock(ce_state, per_transfer_context,
 				    buffer, nbytes, transfer_id, flags);
 }
-EXPORT_SYMBOL(ath10k_ce_send_nolock);
+EXPORT_SYMBOL(ath10k_ce_send_yeslock);
 
 void __ath10k_ce_send_revert(struct ath10k_ce_pipe *pipe)
 {
@@ -675,7 +675,7 @@ int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 	int ret;
 
 	spin_lock_bh(&ce->ce_lock);
-	ret = ath10k_ce_send_nolock(ce_state, per_transfer_context,
+	ret = ath10k_ce_send_yeslock(ce_state, per_transfer_context,
 				    buffer, nbytes, transfer_id, flags);
 	spin_unlock_bh(&ce->ce_lock);
 
@@ -818,7 +818,7 @@ EXPORT_SYMBOL(ath10k_ce_rx_post_buf);
  * The caller takes responsibility for any necessary locking.
  */
 static int
-	 _ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
+	 _ath10k_ce_completed_recv_next_yeslock(struct ath10k_ce_pipe *ce_state,
 					       void **per_transfer_contextp,
 					       unsigned int *nbytesp)
 {
@@ -840,7 +840,7 @@ static int
 		 * This closes a relatively unusual race where the Host
 		 * sees the updated DRRI before the update to the
 		 * corresponding descriptor has completed. We treat this
-		 * as a descriptor that is not yet done.
+		 * as a descriptor that is yest yet done.
 		 */
 		return -EIO;
 	}
@@ -868,7 +868,7 @@ static int
 }
 
 static int
-_ath10k_ce_completed_recv_next_nolock_64(struct ath10k_ce_pipe *ce_state,
+_ath10k_ce_completed_recv_next_yeslock_64(struct ath10k_ce_pipe *ce_state,
 					 void **per_transfer_contextp,
 					 unsigned int *nbytesp)
 {
@@ -889,7 +889,7 @@ _ath10k_ce_completed_recv_next_nolock_64(struct ath10k_ce_pipe *ce_state,
 		/* This closes a relatively unusual race where the Host
 		 * sees the updated DRRI before the update to the
 		 * corresponding descriptor has completed. We treat this
-		 * as a descriptor that is not yet done.
+		 * as a descriptor that is yest yet done.
 		 */
 		return -EIO;
 	}
@@ -916,15 +916,15 @@ _ath10k_ce_completed_recv_next_nolock_64(struct ath10k_ce_pipe *ce_state,
 	return 0;
 }
 
-int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
+int ath10k_ce_completed_recv_next_yeslock(struct ath10k_ce_pipe *ce_state,
 					 void **per_transfer_ctx,
 					 unsigned int *nbytesp)
 {
-	return ce_state->ops->ce_completed_recv_next_nolock(ce_state,
+	return ce_state->ops->ce_completed_recv_next_yeslock(ce_state,
 							    per_transfer_ctx,
 							    nbytesp);
 }
-EXPORT_SYMBOL(ath10k_ce_completed_recv_next_nolock);
+EXPORT_SYMBOL(ath10k_ce_completed_recv_next_yeslock);
 
 int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp,
@@ -935,7 +935,7 @@ int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 	int ret;
 
 	spin_lock_bh(&ce->ce_lock);
-	ret = ce_state->ops->ce_completed_recv_next_nolock(ce_state,
+	ret = ce_state->ops->ce_completed_recv_next_yeslock(ce_state,
 						   per_transfer_contextp,
 						   nbytesp);
 
@@ -1066,7 +1066,7 @@ EXPORT_SYMBOL(ath10k_ce_revoke_recv_next);
  * Guts of ath10k_ce_completed_send_next.
  * The caller takes responsibility for any necessary locking.
  */
-static int _ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
+static int _ath10k_ce_completed_send_next_yeslock(struct ath10k_ce_pipe *ce_state,
 						 void **per_transfer_contextp)
 {
 	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
@@ -1119,7 +1119,7 @@ static int _ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state
 	return 0;
 }
 
-static int _ath10k_ce_completed_send_next_nolock_64(struct ath10k_ce_pipe *ce_state,
+static int _ath10k_ce_completed_send_next_yeslock_64(struct ath10k_ce_pipe *ce_state,
 						    void **per_transfer_contextp)
 {
 	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
@@ -1172,13 +1172,13 @@ static int _ath10k_ce_completed_send_next_nolock_64(struct ath10k_ce_pipe *ce_st
 	return 0;
 }
 
-int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
+int ath10k_ce_completed_send_next_yeslock(struct ath10k_ce_pipe *ce_state,
 					 void **per_transfer_contextp)
 {
-	return ce_state->ops->ce_completed_send_next_nolock(ce_state,
+	return ce_state->ops->ce_completed_send_next_yeslock(ce_state,
 							    per_transfer_contextp);
 }
-EXPORT_SYMBOL(ath10k_ce_completed_send_next_nolock);
+EXPORT_SYMBOL(ath10k_ce_completed_send_next_yeslock);
 
 static void ath10k_ce_extract_desc_data(struct ath10k *ar,
 					struct ath10k_ce_ring *src_ring,
@@ -1278,7 +1278,7 @@ int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
 	int ret;
 
 	spin_lock_bh(&ce->ce_lock);
-	ret = ath10k_ce_completed_send_next_nolock(ce_state,
+	ret = ath10k_ce_completed_send_next_yeslock(ce_state,
 						   per_transfer_contextp);
 	spin_unlock_bh(&ce->ce_lock);
 
@@ -1316,7 +1316,7 @@ void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 	spin_lock_bh(&ce->ce_lock);
 
 	/*
-	 * Misc CE interrupts are not being handled, but still need
+	 * Misc CE interrupts are yest being handled, but still need
 	 * to be cleared.
 	 */
 	ath10k_ce_engine_int_status_clear(ar, ctrl_addr, wm_regs->wm_mask);
@@ -1342,7 +1342,7 @@ void ath10k_ce_per_engine_service_any(struct ath10k *ar)
 		if (intr_summary & (1 << ce_id))
 			intr_summary &= ~(1 << ce_id);
 		else
-			/* no intr pending on this CE */
+			/* yes intr pending on this CE */
 			continue;
 
 		ath10k_ce_per_engine_service(ar, ce_id);
@@ -1402,7 +1402,7 @@ void ath10k_ce_enable_interrupts(struct ath10k *ar)
 	struct ath10k_ce_pipe *ce_state;
 
 	/* Enable interrupts for copy engine that
-	 * are not using polling mode.
+	 * are yest using polling mode.
 	 */
 	for (ce_id = 0; ce_id < CE_COUNT; ce_id++) {
 		ce_state  = &ce->ce_states[ce_id];
@@ -1529,7 +1529,7 @@ ath10k_ce_alloc_src_ring(struct ath10k *ar, unsigned int ce_id,
 	src_ring->nentries_mask = nentries - 1;
 
 	/*
-	 * Legacy platforms that do not support cache
+	 * Legacy platforms that do yest support cache
 	 * coherent DMA are unsupported
 	 */
 	src_ring->base_addr_owner_space_unaligned =
@@ -1586,7 +1586,7 @@ ath10k_ce_alloc_src_ring_64(struct ath10k *ar, unsigned int ce_id,
 	src_ring->nentries = nentries;
 	src_ring->nentries_mask = nentries - 1;
 
-	/* Legacy platforms that do not support cache
+	/* Legacy platforms that do yest support cache
 	 * coherent DMA are unsupported
 	 */
 	src_ring->base_addr_owner_space_unaligned =
@@ -1643,7 +1643,7 @@ ath10k_ce_alloc_dest_ring(struct ath10k *ar, unsigned int ce_id,
 	dest_ring->nentries_mask = nentries - 1;
 
 	/*
-	 * Legacy platforms that do not support cache
+	 * Legacy platforms that do yest support cache
 	 * coherent DMA are unsupported
 	 */
 	dest_ring->base_addr_owner_space_unaligned =
@@ -1686,7 +1686,7 @@ ath10k_ce_alloc_dest_ring_64(struct ath10k *ar, unsigned int ce_id,
 	dest_ring->nentries = nentries;
 	dest_ring->nentries_mask = nentries - 1;
 
-	/* Legacy platforms that do not support cache
+	/* Legacy platforms that do yest support cache
 	 * coherent DMA are unsupported
 	 */
 	dest_ring->base_addr_owner_space_unaligned =
@@ -1889,29 +1889,29 @@ static const struct ath10k_ce_ops ce_ops = {
 	.ce_alloc_src_ring = ath10k_ce_alloc_src_ring,
 	.ce_alloc_dst_ring = ath10k_ce_alloc_dest_ring,
 	.ce_rx_post_buf = __ath10k_ce_rx_post_buf,
-	.ce_completed_recv_next_nolock = _ath10k_ce_completed_recv_next_nolock,
+	.ce_completed_recv_next_yeslock = _ath10k_ce_completed_recv_next_yeslock,
 	.ce_revoke_recv_next = _ath10k_ce_revoke_recv_next,
 	.ce_extract_desc_data = ath10k_ce_extract_desc_data,
 	.ce_free_pipe = _ath10k_ce_free_pipe,
-	.ce_send_nolock = _ath10k_ce_send_nolock,
+	.ce_send_yeslock = _ath10k_ce_send_yeslock,
 	.ce_set_src_ring_base_addr_hi = NULL,
 	.ce_set_dest_ring_base_addr_hi = NULL,
-	.ce_completed_send_next_nolock = _ath10k_ce_completed_send_next_nolock,
+	.ce_completed_send_next_yeslock = _ath10k_ce_completed_send_next_yeslock,
 };
 
 static const struct ath10k_ce_ops ce_64_ops = {
 	.ce_alloc_src_ring = ath10k_ce_alloc_src_ring_64,
 	.ce_alloc_dst_ring = ath10k_ce_alloc_dest_ring_64,
 	.ce_rx_post_buf = __ath10k_ce_rx_post_buf_64,
-	.ce_completed_recv_next_nolock =
-				_ath10k_ce_completed_recv_next_nolock_64,
+	.ce_completed_recv_next_yeslock =
+				_ath10k_ce_completed_recv_next_yeslock_64,
 	.ce_revoke_recv_next = _ath10k_ce_revoke_recv_next_64,
 	.ce_extract_desc_data = ath10k_ce_extract_desc_data_64,
 	.ce_free_pipe = _ath10k_ce_free_pipe_64,
-	.ce_send_nolock = _ath10k_ce_send_nolock_64,
+	.ce_send_yeslock = _ath10k_ce_send_yeslock_64,
 	.ce_set_src_ring_base_addr_hi = ath10k_ce_set_src_ring_base_addr_hi,
 	.ce_set_dest_ring_base_addr_hi = ath10k_ce_set_dest_ring_base_addr_hi,
-	.ce_completed_send_next_nolock = _ath10k_ce_completed_send_next_nolock_64,
+	.ce_completed_send_next_yeslock = _ath10k_ce_completed_send_next_yeslock_64,
 };
 
 static void ath10k_ce_set_ops(struct ath10k *ar,
@@ -1935,7 +1935,7 @@ int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 	int ret;
 
 	ath10k_ce_set_ops(ar, ce_state);
-	/* Make sure there's enough CE ringbuffer entries for HTT TX to avoid
+	/* Make sure there's eyesugh CE ringbuffer entries for HTT TX to avoid
 	 * additional TX locking checks.
 	 *
 	 * For the lack of a better place do the check here.

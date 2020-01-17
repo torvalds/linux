@@ -20,7 +20,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -143,7 +143,7 @@ void drm_legacy_free_buffer(struct drm_device *dev, struct drm_buf * buf)
  *
  * \param file_priv DRM file private.
  *
- * Frees each buffer associated with \p file_priv not already on the hardware.
+ * Frees each buffer associated with \p file_priv yest already on the hardware.
  */
 void drm_legacy_reclaim_buffers(struct drm_device *dev,
 				struct drm_file *file_priv)

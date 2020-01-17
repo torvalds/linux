@@ -29,7 +29,7 @@ static ssize_t tpm_dev_transmit(struct tpm_chip *chip, struct tpm_space *space,
 	ssize_t ret, len;
 
 	ret = tpm2_prepare_space(chip, space, buf, bufsiz);
-	/* If the command is not implemented by the TPM, synthesize a
+	/* If the command is yest implemented by the TPM, synthesize a
 	 * response with a TPM2_RC_COMMAND_CODE return for user-space.
 	 */
 	if (ret == -EOPNOTSUPP) {
@@ -168,7 +168,7 @@ ssize_t tpm_common_write(struct file *file, const char __user *buf,
 
 	mutex_lock(&priv->buffer_mutex);
 
-	/* Cannot perform a write until the read has cleared either via
+	/* Canyest perform a write until the read has cleared either via
 	 * tpm_read or a user_read_timer timeout. This also prevents split
 	 * buffered writes from blocking here.
 	 */
@@ -203,7 +203,7 @@ ssize_t tpm_common_write(struct file *file, const char __user *buf,
 	*off = 0;
 
 	/*
-	 * If in nonblocking mode schedule an async job to send
+	 * If in yesnblocking mode schedule an async job to send
 	 * the command return the size.
 	 * In case of error the err code will be returned in
 	 * the subsequent read call.

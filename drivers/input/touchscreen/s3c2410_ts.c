@@ -10,7 +10,7 @@
  * Harald Welte <laforge@openmoko.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/input.h>
@@ -79,7 +79,7 @@ static struct s3c2410ts ts;
  * @data0: The data read from ADCDAT0 register.
  * @data1: The data read from ADCDAT1 register.
  *
- * Return non-zero if both readings show that the pen is down.
+ * Return yesn-zero if both readings show that the pen is down.
  */
 static inline bool get_down(unsigned long data0, unsigned long data1)
 {
@@ -190,10 +190,10 @@ static void s3c24xx_ts_conversion(struct s3c_adc_client *client,
 
 	/* From tests, it seems that it is unlikely to get a pen-up
 	 * event during the conversion process which means we can
-	 * ignore any pen-up events with less than the requisite
+	 * igyesre any pen-up events with less than the requisite
 	 * count done.
 	 *
-	 * In several thousand conversions, no pen-ups where detected
+	 * In several thousand conversions, yes pen-ups where detected
 	 * before count completed.
 	 */
 }
@@ -238,7 +238,7 @@ static int s3c2410ts_probe(struct platform_device *pdev)
 
 	info = dev_get_platdata(dev);
 	if (!info) {
-		dev_err(dev, "no platform data, cannot attach\n");
+		dev_err(dev, "yes platform data, canyest attach\n");
 		return -EINVAL;
 	}
 
@@ -246,7 +246,7 @@ static int s3c2410ts_probe(struct platform_device *pdev)
 
 	ts.clock = clk_get(dev, "adc");
 	if (IS_ERR(ts.clock)) {
-		dev_err(dev, "cannot get adc clock source\n");
+		dev_err(dev, "canyest get adc clock source\n");
 		return -ENOENT;
 	}
 
@@ -259,20 +259,20 @@ static int s3c2410ts_probe(struct platform_device *pdev)
 
 	ts.irq_tc = ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
-		dev_err(dev, "no resource for interrupt\n");
+		dev_err(dev, "yes resource for interrupt\n");
 		goto err_clk;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(dev, "no resource for registers\n");
+		dev_err(dev, "yes resource for registers\n");
 		ret = -ENOENT;
 		goto err_clk;
 	}
 
 	ts.io = ioremap(res->start, resource_size(res));
 	if (ts.io == NULL) {
-		dev_err(dev, "cannot map registers\n");
+		dev_err(dev, "canyest map registers\n");
 		ret = -ENOMEM;
 		goto err_clk;
 	}
@@ -320,7 +320,7 @@ static int s3c2410ts_probe(struct platform_device *pdev)
 	ret = request_irq(ts.irq_tc, stylus_irq, 0,
 			  "s3c2410_ts_pen", ts.input);
 	if (ret) {
-		dev_err(dev, "cannot get TC interrupt\n");
+		dev_err(dev, "canyest get TC interrupt\n");
 		goto err_inputdev;
 	}
 

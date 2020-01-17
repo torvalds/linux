@@ -128,13 +128,13 @@ static int regulator_led_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	if (pdata == NULL) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "yes platform data\n");
 		return -ENODEV;
 	}
 
 	vcc = devm_regulator_get_exclusive(&pdev->dev, "vled");
 	if (IS_ERR(vcc)) {
-		dev_err(&pdev->dev, "Cannot get vcc for %s\n", pdata->name);
+		dev_err(&pdev->dev, "Canyest get vcc for %s\n", pdata->name);
 		return PTR_ERR(vcc);
 	}
 

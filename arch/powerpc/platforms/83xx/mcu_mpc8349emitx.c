@@ -116,10 +116,10 @@ static int mcu_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 
 static int mcu_gpiochip_add(struct mcu *mcu)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct gpio_chip *gc = &mcu->gc;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,mcu-mpc8349emitx");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,mcu-mpc8349emitx");
 	if (!np)
 		return -ENODEV;
 
@@ -130,7 +130,7 @@ static int mcu_gpiochip_add(struct mcu *mcu)
 	gc->base = -1;
 	gc->set = mcu_gpio_set;
 	gc->direction_output = mcu_gpio_dir_out;
-	gc->of_node = np;
+	gc->of_yesde = np;
 
 	return gpiochip_add_data(gc, mcu);
 }
@@ -164,7 +164,7 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (ret)
 		goto err;
 
-	/* XXX: this is potentially racy, but there is no lock for pm_power_off */
+	/* XXX: this is potentially racy, but there is yes lock for pm_power_off */
 	if (!pm_power_off) {
 		glob_mcu = mcu;
 		pm_power_off = mcu_power_off;

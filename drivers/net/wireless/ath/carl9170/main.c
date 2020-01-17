@@ -17,16 +17,16 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If yest, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission yestice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright yestice and this permission yestice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -47,13 +47,13 @@
 #include "carl9170.h"
 #include "cmd.h"
 
-static bool modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware crypto offload.");
+static bool modparam_yeshwcrypt;
+module_param_named(yeshwcrypt, modparam_yeshwcrypt, bool, 0444);
+MODULE_PARM_DESC(yeshwcrypt, "Disable hardware crypto offload.");
 
-int modparam_noht;
-module_param_named(noht, modparam_noht, int, 0444);
-MODULE_PARM_DESC(noht, "Disable MPDU aggregation.");
+int modparam_yesht;
+module_param_named(yesht, modparam_yesht, int, 0444);
+MODULE_PARM_DESC(yesht, "Disable MPDU aggregation.");
 
 #define RATE(_bitrate, _hw_rate, _txpidx, _flags) {	\
 	.bitrate	= (_bitrate),			\
@@ -222,7 +222,7 @@ static void carl9170_flush(struct ar9170 *ar, bool drop_queued)
 		int i;
 
 		/*
-		 * We can only drop frames which have not been uploaded
+		 * We can only drop frames which have yest been uploaded
 		 * to the device yet.
 		 */
 
@@ -359,9 +359,9 @@ static int carl9170_op_start(struct ieee80211_hw *hw)
 	ar->erp_mode = CARL9170_ERP_AUTO;
 
 	/* Set "disable hw crypto offload" whenever the module parameter
-	 * nohwcrypt is true or if the firmware does not support it.
+	 * yeshwcrypt is true or if the firmware does yest support it.
 	 */
-	ar->disable_offload = modparam_nohwcrypt |
+	ar->disable_offload = modparam_yeshwcrypt |
 		ar->fw.disable_offload_fw;
 	ar->rx_software_decryption = ar->disable_offload;
 
@@ -510,11 +510,11 @@ void carl9170_restart(struct ar9170 *ar, const enum carl9170_restart_reasons r)
 
 	/*
 	 * Sometimes, an error can trigger several different reset events.
-	 * By ignoring these *surplus* reset events, the device won't be
+	 * By igyesring these *surplus* reset events, the device won't be
 	 * killed again, right after it has recovered.
 	 */
 	if (atomic_inc_return(&ar->pending_restarts) > 1) {
-		dev_dbg(&ar->udev->dev, "ignoring restart (%d)\n", r);
+		dev_dbg(&ar->udev->dev, "igyesring restart (%d)\n", r);
 		return;
 	}
 
@@ -571,13 +571,13 @@ static int carl9170_init_interface(struct ar9170 *ar,
 
 	/* We have to fall back to software crypto, whenever
 	 * the user choose to participates in an IBSS. HW
-	 * offload for IBSS RSN is not supported by this driver.
+	 * offload for IBSS RSN is yest supported by this driver.
 	 *
 	 * NOTE: If the previous main interface has already
 	 * disabled hw crypto offload, we have to keep this
 	 * previous disable_offload setting as it was.
-	 * Altough ideally, we should notify mac80211 and tell
-	 * it to forget about any HW crypto offload for now.
+	 * Altough ideally, we should yestify mac80211 and tell
+	 * it to forget about any HW crypto offload for yesw.
 	 */
 	ar->disable_offload |= ((vif->type != NL80211_IFTYPE_STATION) &&
 	    (vif->type != NL80211_IFTYPE_AP));
@@ -714,7 +714,7 @@ init:
 			struct carl9170_vif_info *old_main_priv =
 				(void *) old_main->drv_priv;
 			/* downgrade old main intf to slave intf.
-			 * NOTE: We are no longer under rcu_read_lock.
+			 * NOTE: We are yes longer under rcu_read_lock.
 			 * But we are still holding ar->mutex, so the
 			 * vif data [id, addr] is safe.
 			 */
@@ -867,12 +867,12 @@ static void carl9170_ps_work(struct work_struct *work)
 	mutex_unlock(&ar->mutex);
 }
 
-static int carl9170_update_survey(struct ar9170 *ar, bool flush, bool noise)
+static int carl9170_update_survey(struct ar9170 *ar, bool flush, bool yesise)
 {
 	int err;
 
-	if (noise) {
-		err = carl9170_get_noisefloor(ar);
+	if (yesise) {
+		err = carl9170_get_yesisefloor(ar);
 		if (err)
 			return err;
 	}
@@ -1185,7 +1185,7 @@ static int carl9170_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	/* Fall back to software encryption whenever the driver is connected
 	 * to more than one network.
 	 *
-	 * This is very unfortunate, because some machines cannot handle
+	 * This is very unfortunate, because some machines canyest handle
 	 * the high througput speed in 802.11n networks.
 	 */
 
@@ -1257,7 +1257,7 @@ static int carl9170_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 				goto out;
 
 			/*
-			 * hardware is not capable generating MMIC
+			 * hardware is yest capable generating MMIC
 			 * of fragmented frames!
 			 */
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
@@ -1418,7 +1418,7 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 	struct carl9170_sta_info *sta_info = (void *) sta->drv_priv;
 	struct carl9170_sta_tid *tid_info;
 
-	if (modparam_noht)
+	if (modparam_yesht)
 		return -EOPNOTSUPP;
 
 	switch (action) {
@@ -1719,9 +1719,9 @@ static int carl9170_op_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static void carl9170_op_sta_notify(struct ieee80211_hw *hw,
+static void carl9170_op_sta_yestify(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
-				   enum sta_notify_cmd cmd,
+				   enum sta_yestify_cmd cmd,
 				   struct ieee80211_sta *sta)
 {
 	struct carl9170_sta_info *sta_info = (void *) sta->drv_priv;
@@ -1762,7 +1762,7 @@ static const struct ieee80211_ops carl9170_ops = {
 	.set_key		= carl9170_op_set_key,
 	.sta_add		= carl9170_op_sta_add,
 	.sta_remove		= carl9170_op_sta_remove,
-	.sta_notify		= carl9170_op_sta_notify,
+	.sta_yestify		= carl9170_op_sta_yestify,
 	.get_survey		= carl9170_op_get_survey,
 	.get_stats		= carl9170_op_get_stats,
 	.ampdu_action		= carl9170_op_ampdu_action,
@@ -1784,11 +1784,11 @@ void *carl9170_alloc(size_t priv_size)
 
 	skb = __dev_alloc_skb(AR9170_RX_STREAM_MAX_SIZE, GFP_KERNEL);
 	if (!skb)
-		goto err_nomem;
+		goto err_yesmem;
 
 	hw = ieee80211_alloc_hw(priv_size, &carl9170_ops);
 	if (!hw)
-		goto err_nomem;
+		goto err_yesmem;
 
 	ar = hw->priv;
 	ar->hw = hw;
@@ -1850,7 +1850,7 @@ void *carl9170_alloc(size_t priv_size)
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, SUPPORTS_HT_CCK_RATES);
 
-	if (!modparam_noht) {
+	if (!modparam_yesht) {
 		/*
 		 * see the comment above, why we allow the user
 		 * to disable HT by a module parameter.
@@ -1865,14 +1865,14 @@ void *carl9170_alloc(size_t priv_size)
 	hw->max_rates = CARL9170_TX_MAX_RATES;
 	hw->max_rate_tries = CARL9170_TX_USER_RATE_TRIES;
 
-	for (i = 0; i < ARRAY_SIZE(ar->noise); i++)
-		ar->noise[i] = -95; /* ATH_DEFAULT_NOISE_FLOOR */
+	for (i = 0; i < ARRAY_SIZE(ar->yesise); i++)
+		ar->yesise[i] = -95; /* ATH_DEFAULT_NOISE_FLOOR */
 
 	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	return ar;
 
-err_nomem:
+err_yesmem:
 	kfree_skb(skb);
 	return ERR_PTR(-ENOMEM);
 }
@@ -1965,13 +1965,13 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	return 0;
 }
 
-static void carl9170_reg_notifier(struct wiphy *wiphy,
+static void carl9170_reg_yestifier(struct wiphy *wiphy,
 				  struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ar9170 *ar = hw->priv;
 
-	ath_reg_notifier_apply(wiphy, request, &ar->common.regulatory);
+	ath_reg_yestifier_apply(wiphy, request, &ar->common.regulatory);
 }
 
 int carl9170_register(struct ar9170 *ar)
@@ -1999,11 +1999,11 @@ int carl9170_register(struct ar9170 *ar)
 		return err;
 
 	err = ath_regd_init(regulatory, ar->hw->wiphy,
-			    carl9170_reg_notifier);
+			    carl9170_reg_yestifier);
 	if (err)
 		return err;
 
-	if (modparam_noht) {
+	if (modparam_yesht) {
 		carl9170_band_2GHz.ht_cap.ht_supported = false;
 		carl9170_band_5GHz.ht_cap.ht_supported = false;
 	}
@@ -2017,7 +2017,7 @@ int carl9170_register(struct ar9170 *ar)
 	if (err)
 		return err;
 
-	/* mac80211 interface is now registered */
+	/* mac80211 interface is yesw registered */
 	ar->registered = true;
 
 	if (!ath_is_world_regd(regulatory))

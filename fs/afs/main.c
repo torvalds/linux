@@ -58,7 +58,7 @@ const char afs_init_sysname[] = "sparc64_linux26";
 #elif defined(CONFIG_SPARC32)
 const char afs_init_sysname[] = "sparc_linux26";
 #else
-const char afs_init_sysname[] = "unknown_linux26";
+const char afs_init_sysname[] = "unkyeswn_linux26";
 #endif
 
 /*

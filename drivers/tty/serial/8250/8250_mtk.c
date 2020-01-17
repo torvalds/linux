@@ -39,7 +39,7 @@
 #define MTK_UART_EFR_EN		0x10	/* Enable enhancement feature */
 #define MTK_UART_EFR_RTS	0x40	/* Enable hardware rx flow control */
 #define MTK_UART_EFR_CTS	0x80	/* Enable hardware tx flow control */
-#define MTK_UART_EFR_NO_SW_FC	0x0	/* no sw flow control */
+#define MTK_UART_EFR_NO_SW_FC	0x0	/* yes sw flow control */
 #define MTK_UART_EFR_XON1_XOFF1	0xa	/* XON1/XOFF1 as sw flow control */
 #define MTK_UART_EFR_XON2_XOFF2	0x5	/* XON2/XOFF2 as sw flow control */
 #define MTK_UART_EFR_SW_FC_MASK	0xf	/* Enable CTS Modem status interrupt */
@@ -313,11 +313,11 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * We need to recalcualte the quot register, as the claculation depends
 	 * on the vaule in the highspeed register.
 	 *
-	 * Some baudrates are not supported by the chip, so we use the next
+	 * Some baudrates are yest supported by the chip, so we use the next
 	 * lower rate supported and update termios c_flag.
 	 *
 	 * If highspeed register is set to 3, we need to specify sample count
-	 * and sample point to increase accuracy. If not, we reset the
+	 * and sample point to increase accuracy. If yest, we reset the
 	 * registers to their default values.
 	 */
 	baud = uart_get_baud_rate(port, termios, old,
@@ -333,7 +333,7 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	/*
-	 * Ok, we're now changing the port state.  Do it with
+	 * Ok, we're yesw changing the port state.  Do it with
 	 * interrupts disabled.
 	 */
 	spin_lock_irqsave(&port->lock, flags);
@@ -445,7 +445,7 @@ static int mtk8250_probe_of(struct platform_device *pdev, struct uart_port *p,
 	if (IS_ERR(data->uart_clk)) {
 		/*
 		 * For compatibility with older device trees try unnamed
-		 * clk when no baud clk can be found.
+		 * clk when yes baud clk can be found.
 		 */
 		data->uart_clk = devm_clk_get(&pdev->dev, NULL);
 		if (IS_ERR(data->uart_clk)) {
@@ -462,7 +462,7 @@ static int mtk8250_probe_of(struct platform_device *pdev, struct uart_port *p,
 
 	data->dma = NULL;
 #ifdef CONFIG_SERIAL_8250_DMA
-	dmacnt = of_property_count_strings(pdev->dev.of_node, "dma-names");
+	dmacnt = of_property_count_strings(pdev->dev.of_yesde, "dma-names");
 	if (dmacnt == 2) {
 		data->dma = devm_kzalloc(&pdev->dev, sizeof(*data->dma),
 					 GFP_KERNEL);
@@ -488,7 +488,7 @@ static int mtk8250_probe(struct platform_device *pdev)
 	int err;
 
 	if (!regs || !irq) {
-		dev_err(&pdev->dev, "no registers/irq defined\n");
+		dev_err(&pdev->dev, "yes registers/irq defined\n");
 		return -EINVAL;
 	}
 
@@ -501,7 +501,7 @@ static int mtk8250_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		err = mtk8250_probe_of(pdev, &uart.port, data);
 		if (err)
 			return err;
@@ -559,7 +559,7 @@ static int mtk8250_remove(struct platform_device *pdev)
 	mtk8250_runtime_suspend(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 
 	return 0;
 }

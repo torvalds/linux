@@ -10,9 +10,9 @@
  * met:
  *
  *   * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
+ * yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above
- * copyright notice, this list of conditions and the following disclaimer
+ * copyright yestice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
  *
@@ -77,19 +77,19 @@ FSE_PUBLIC_API unsigned FSE_isError(size_t code); /* tells if a return value is 
 /*!
 FSE_compress() does the following:
 1. count symbol occurrence from source[] into table count[]
-2. normalize counters so that sum(count[]) == Power_of_2 (2^tableLog)
-3. save normalized counters to memory buffer using writeNCount()
-4. build encoding table 'CTable' from normalized counters
+2. yesrmalize counters so that sum(count[]) == Power_of_2 (2^tableLog)
+3. save yesrmalized counters to memory buffer using writeNCount()
+4. build encoding table 'CTable' from yesrmalized counters
 5. encode the data stream using encoding table 'CTable'
 
 FSE_decompress() does the following:
-1. read normalized counters with readNCount()
-2. build decoding table 'DTable' from normalized counters
+1. read yesrmalized counters with readNCount()
+2. build decoding table 'DTable' from yesrmalized counters
 3. decode the data stream using decoding table 'DTable'
 
 The following API allows targeting specific sub-functions for advanced tasks.
 For example, it's possible to compress several blocks using the same 'CTable',
-or to save and provide normalized distribution using external method.
+or to save and provide yesrmalized distribution using external method.
 */
 
 /* *** COMPRESSION *** */
@@ -99,23 +99,23 @@ or to save and provide normalized distribution using external method.
 	@return : recommended tableLog (necessarily <= 'maxTableLog') */
 FSE_PUBLIC_API unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue);
 
-/*! FSE_normalizeCount():
-	normalize counts so that sum(count[]) == Power_of_2 (2^tableLog)
-	'normalizedCounter' is a table of short, of minimum size (maxSymbolValue+1).
+/*! FSE_yesrmalizeCount():
+	yesrmalize counts so that sum(count[]) == Power_of_2 (2^tableLog)
+	'yesrmalizedCounter' is a table of short, of minimum size (maxSymbolValue+1).
 	@return : tableLog,
 			  or an errorCode, which can be tested using FSE_isError() */
-FSE_PUBLIC_API size_t FSE_normalizeCount(short *normalizedCounter, unsigned tableLog, const unsigned *count, size_t srcSize, unsigned maxSymbolValue);
+FSE_PUBLIC_API size_t FSE_yesrmalizeCount(short *yesrmalizedCounter, unsigned tableLog, const unsigned *count, size_t srcSize, unsigned maxSymbolValue);
 
 /*! FSE_NCountWriteBound():
-	Provides the maximum possible size of an FSE normalized table, given 'maxSymbolValue' and 'tableLog'.
+	Provides the maximum possible size of an FSE yesrmalized table, given 'maxSymbolValue' and 'tableLog'.
 	Typically useful for allocation purpose. */
 FSE_PUBLIC_API size_t FSE_NCountWriteBound(unsigned maxSymbolValue, unsigned tableLog);
 
 /*! FSE_writeNCount():
-	Compactly save 'normalizedCounter' into 'buffer'.
+	Compactly save 'yesrmalizedCounter' into 'buffer'.
 	@return : size of the compressed table,
 			  or an errorCode, which can be tested using FSE_isError(). */
-FSE_PUBLIC_API size_t FSE_writeNCount(void *buffer, size_t bufferSize, const short *normalizedCounter, unsigned maxSymbolValue, unsigned tableLog);
+FSE_PUBLIC_API size_t FSE_writeNCount(void *buffer, size_t bufferSize, const short *yesrmalizedCounter, unsigned maxSymbolValue, unsigned tableLog);
 
 /*! Constructor and Destructor of FSE_CTable.
 	Note that FSE_CTable size depends on 'tableLog' and 'maxSymbolValue' */
@@ -124,7 +124,7 @@ typedef unsigned FSE_CTable; /* don't allocate that. It's only meant to be more 
 /*! FSE_compress_usingCTable():
 	Compress `src` using `ct` into `dst` which must be already allocated.
 	@return : size of compressed data (<= `dstCapacity`),
-			  or 0 if compressed data could not fit into `dst`,
+			  or 0 if compressed data could yest fit into `dst`,
 			  or an errorCode, which can be tested using FSE_isError() */
 FSE_PUBLIC_API size_t FSE_compress_usingCTable(void *dst, size_t dstCapacity, const void *src, size_t srcSize, const FSE_CTable *ct);
 
@@ -136,30 +136,30 @@ Result will be saved into 'count', a table of unsigned int, which must be alread
 'src' is a table of bytes of size 'srcSize'. All values within 'src' MUST be <= maxSymbolValuePtr[0]
 maxSymbolValuePtr[0] will be updated, with its real value (necessarily <= original value)
 FSE_count() will return the number of occurrence of the most frequent symbol.
-This can be used to know if there is a single symbol within 'src', and to quickly evaluate its compressibility.
+This can be used to kyesw if there is a single symbol within 'src', and to quickly evaluate its compressibility.
 If there is an error, the function will return an ErrorCode (which can be tested using FSE_isError()).
 
-The next step is to normalize the frequencies.
-FSE_normalizeCount() will ensure that sum of frequencies is == 2 ^'tableLog'.
+The next step is to yesrmalize the frequencies.
+FSE_yesrmalizeCount() will ensure that sum of frequencies is == 2 ^'tableLog'.
 It also guarantees a minimum of 1 to any Symbol with frequency >= 1.
 You can use 'tableLog'==0 to mean "use default tableLog value".
 If you are unsure of which tableLog value to use, you can ask FSE_optimalTableLog(),
 which will provide the optimal valid tableLog given sourceSize, maxSymbolValue, and a user-defined maximum (0 means "default").
 
-The result of FSE_normalizeCount() will be saved into a table,
-called 'normalizedCounter', which is a table of signed short.
-'normalizedCounter' must be already allocated, and have at least 'maxSymbolValue+1' cells.
+The result of FSE_yesrmalizeCount() will be saved into a table,
+called 'yesrmalizedCounter', which is a table of signed short.
+'yesrmalizedCounter' must be already allocated, and have at least 'maxSymbolValue+1' cells.
 The return value is tableLog if everything proceeded as expected.
 It is 0 if there is a single symbol within distribution.
 If there is an error (ex: invalid tableLog value), the function will return an ErrorCode (which can be tested using FSE_isError()).
 
-'normalizedCounter' can be saved in a compact manner to a memory area using FSE_writeNCount().
+'yesrmalizedCounter' can be saved in a compact manner to a memory area using FSE_writeNCount().
 'buffer' must be already allocated.
 For guaranteed success, buffer size must be at least FSE_headerBound().
 The result of the function is the number of bytes written into 'buffer'.
 If there is an error, the function will return an ErrorCode (which can be tested using FSE_isError(); ex : buffer size too small).
 
-'normalizedCounter' can then be used to create the compression table 'CTable'.
+'yesrmalizedCounter' can then be used to create the compression table 'CTable'.
 The space required by 'CTable' must be already allocated, using FSE_createCTable().
 You can then use FSE_buildCTable() to fill 'CTable'.
 If there is an error, both functions will return an ErrorCode (which can be tested using FSE_isError()).
@@ -167,18 +167,18 @@ If there is an error, both functions will return an ErrorCode (which can be test
 'CTable' can then be used to compress 'src', with FSE_compress_usingCTable().
 Similar to FSE_count(), the convention is that 'src' is assumed to be a table of char of size 'srcSize'
 The function returns the size of compressed data (without header), necessarily <= `dstCapacity`.
-If it returns '0', compressed data could not fit into 'dst'.
+If it returns '0', compressed data could yest fit into 'dst'.
 If there is an error, the function will return an ErrorCode (which can be tested using FSE_isError()).
 */
 
 /* *** DECOMPRESSION *** */
 
 /*! FSE_readNCount():
-	Read compactly saved 'normalizedCounter' from 'rBuffer'.
+	Read compactly saved 'yesrmalizedCounter' from 'rBuffer'.
 	@return : size read from 'rBuffer',
 			  or an errorCode, which can be tested using FSE_isError().
 			  maxSymbolValuePtr[0] and tableLogPtr[0] will also be updated with their respective values */
-FSE_PUBLIC_API size_t FSE_readNCount(short *normalizedCounter, unsigned *maxSymbolValuePtr, unsigned *tableLogPtr, const void *rBuffer, size_t rBuffSize);
+FSE_PUBLIC_API size_t FSE_readNCount(short *yesrmalizedCounter, unsigned *maxSymbolValuePtr, unsigned *tableLogPtr, const void *rBuffer, size_t rBuffSize);
 
 /*! Constructor and Destructor of FSE_DTable.
 	Note that its size depends on 'tableLog' */
@@ -187,7 +187,7 @@ typedef unsigned FSE_DTable; /* don't allocate that. It's just a way to be more 
 /*! FSE_buildDTable():
 	Builds 'dt', which must be already allocated, using FSE_createDTable().
 	return : 0, or an errorCode, which can be tested using FSE_isError() */
-FSE_PUBLIC_API size_t FSE_buildDTable_wksp(FSE_DTable *dt, const short *normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void *workspace, size_t workspaceSize);
+FSE_PUBLIC_API size_t FSE_buildDTable_wksp(FSE_DTable *dt, const short *yesrmalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void *workspace, size_t workspaceSize);
 
 /*! FSE_decompress_usingDTable():
 	Decompress compressed source `cSrc` of size `cSrcSize` using `dt`
@@ -203,17 +203,17 @@ Tutorial :
  If block is uncompressed, use memcpy() instead
  If block is a single repeated byte, use memset() instead )
 
-The first step is to obtain the normalized frequencies of symbols.
+The first step is to obtain the yesrmalized frequencies of symbols.
 This can be performed by FSE_readNCount() if it was saved using FSE_writeNCount().
-'normalizedCounter' must be already allocated, and have at least 'maxSymbolValuePtr[0]+1' cells of signed short.
-In practice, that means it's necessary to know 'maxSymbolValue' beforehand,
+'yesrmalizedCounter' must be already allocated, and have at least 'maxSymbolValuePtr[0]+1' cells of signed short.
+In practice, that means it's necessary to kyesw 'maxSymbolValue' beforehand,
 or size the table to handle worst case situations (typically 256).
 FSE_readNCount() will provide 'tableLog' and 'maxSymbolValue'.
 The result of FSE_readNCount() is the number of bytes read from 'rBuffer'.
 Note that 'rBufferSize' must be at least 4 bytes, even if useful information is less than that.
 If there is an error, the function will return an error code, which can be tested using FSE_isError().
 
-The next step is to build the decompression tables 'FSE_DTable' from 'normalizedCounter'.
+The next step is to build the decompression tables 'FSE_DTable' from 'yesrmalizedCounter'.
 This is performed by the function FSE_buildDTable().
 The space required by 'FSE_DTable' must be already allocated using FSE_createDTable().
 If there is an error, the function will return an error code, which can be tested using FSE_isError().
@@ -255,7 +255,7 @@ size_t FSE_count_wksp(unsigned *count, unsigned *maxSymbolValuePtr, const void *
 size_t FSE_countFast_wksp(unsigned *count, unsigned *maxSymbolValuePtr, const void *src, size_t srcSize, unsigned *workSpace);
 
 /*! FSE_count_simple
- * Same as FSE_countFast(), but does not use any additional memory (not even on stack).
+ * Same as FSE_countFast(), but does yest use any additional memory (yest even on stack).
  * This function is unsafe, and will segfault if any value within `src` is `> *maxSymbolValuePtr` (presuming it's also the size of `count`).
 */
 size_t FSE_count_simple(unsigned *count, unsigned *maxSymbolValuePtr, const void *src, size_t srcSize);
@@ -273,7 +273,7 @@ size_t FSE_buildCTable_rle(FSE_CTable *ct, unsigned char symbolValue);
  * Same as FSE_buildCTable(), but using an externally allocated scratch buffer (`workSpace`).
  * `wkspSize` must be >= `(1<<tableLog)`.
  */
-size_t FSE_buildCTable_wksp(FSE_CTable *ct, const short *normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void *workSpace, size_t wkspSize);
+size_t FSE_buildCTable_wksp(FSE_CTable *ct, const short *yesrmalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void *workSpace, size_t wkspSize);
 
 size_t FSE_buildDTable_raw(FSE_DTable *dt, unsigned nbBits);
 /**< build a fake FSE_DTable, designed to read a flat distribution where each symbol uses nbBits */
@@ -342,7 +342,7 @@ Your last FSE encoding operation shall be to flush your last state value(s).
 
 Finally, you must close the bitStream.
 The function returns the size of CStream in bytes.
-If data couldn't fit into dstBuffer, it will return a 0 ( == not compressible)
+If data couldn't fit into dstBuffer, it will return a 0 ( == yest compressible)
 If there is an error, it returns an errorCode (which can be tested using FSE_isError()).
 	size_t size = BIT_closeCStream(&bitStream);
 */
@@ -362,7 +362,7 @@ static unsigned char FSE_decodeSymbol(FSE_DState_t *DStatePtr, BIT_DStream_t *bi
 static unsigned FSE_endOfDState(const FSE_DState_t *DStatePtr);
 
 /**<
-Let's now decompose FSE_decompress_usingDTable() into its unitary components.
+Let's yesw decompose FSE_decompress_usingDTable() into its unitary components.
 You will decode FSE-encoded symbols from the bitStream,
 and also any other bitFields you put in, **in reverse order**.
 
@@ -394,11 +394,11 @@ Refueling the register from memory is manually performed by the reload method.
 
 BIT_reloadDStream() result tells if there is still some more data to read from DStream.
 BIT_DStream_unfinished : there is still some data left into the DStream.
-BIT_DStream_endOfBuffer : Dstream reached end of buffer. Its container may no longer be completely filled.
+BIT_DStream_endOfBuffer : Dstream reached end of buffer. Its container may yes longer be completely filled.
 BIT_DStream_completed : Dstream reached its exact end, corresponding in general to decompression completed.
 BIT_DStream_tooFar : Dstream went too far. Decompression result is corrupted.
 
-When reaching end of buffer (BIT_DStream_endOfBuffer), progress slowly, notably if you decode multiple symbols per loop,
+When reaching end of buffer (BIT_DStream_endOfBuffer), progress slowly, yestably if you decode multiple symbols per loop,
 to properly detect the exact end of stream.
 After each decoded symbol, check if DStream is fully consumed using this simple test :
 	BIT_reloadDStream(&DStream) >= BIT_DStream_completed
@@ -513,7 +513,7 @@ ZSTD_STATIC BYTE FSE_decodeSymbol(FSE_DState_t *DStatePtr, BIT_DStream_t *bitD)
 }
 
 /*! FSE_decodeSymbolFast() :
-	unsafe, only works if no symbol has a probability > 50% */
+	unsafe, only works if yes symbol has a probability > 50% */
 ZSTD_STATIC BYTE FSE_decodeSymbolFast(FSE_DState_t *DStatePtr, BIT_DStream_t *bitD)
 {
 	FSE_decode_t const DInfo = ((const FSE_decode_t *)(DStatePtr->table))[DStatePtr->state];
@@ -567,7 +567,7 @@ ZSTD_STATIC unsigned FSE_endOfDState(const FSE_DState_t *DStatePtr) { return DSt
 
 #define FSE_TABLELOG_ABSOLUTE_MAX 15
 #if FSE_MAX_TABLELOG > FSE_TABLELOG_ABSOLUTE_MAX
-#error "FSE_MAX_TABLELOG > FSE_TABLELOG_ABSOLUTE_MAX is not supported"
+#error "FSE_MAX_TABLELOG > FSE_TABLELOG_ABSOLUTE_MAX is yest supported"
 #endif
 
 #define FSE_TABLESTEP(tableSize) ((tableSize >> 1) + (tableSize >> 3) + 3)

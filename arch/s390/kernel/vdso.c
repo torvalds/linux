@@ -7,7 +7,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -142,7 +142,7 @@ int vdso_alloc_per_cpu(struct lowcore *lowcore)
 	/* Initialize per-cpu vdso data page */
 	vd = (struct vdso_per_cpu_data *) page_frame;
 	vd->cpu_nr = lowcore->cpu_nr;
-	vd->node_id = cpu_to_node(vd->cpu_nr);
+	vd->yesde_id = cpu_to_yesde(vd->cpu_nr);
 
 	/* Set up page table for the vdso address space */
 	memset64((u64 *)segment_table, _SEGMENT_ENTRY_EMPTY, _CRST_ENTRIES);

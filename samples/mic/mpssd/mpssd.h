@@ -19,7 +19,7 @@
 #include <pthread.h>
 #include <stdarg.h>
 #include <time.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sys/dir.h>
 #include <sys/ioctl.h>
 #include <sys/poll.h>

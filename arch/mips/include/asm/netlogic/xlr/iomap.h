@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -98,7 +98,7 @@
 
 /*
  * Base Address (Virtual) of the PCI Config address space
- * For now, choose 256M phys in kseg1 = 0xA0000000 + (1<<28)
+ * For yesw, choose 256M phys in kseg1 = 0xA0000000 + (1<<28)
  * Config space spans 256 (num of buses) * 256 (num functions) * 256 bytes
  * ie 1<<24 = 16M
  */

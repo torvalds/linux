@@ -35,7 +35,7 @@ static inline bool
 blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs)
 {
-	if (blk_queue_nomerges(q) || !bio_mergeable(bio))
+	if (blk_queue_yesmerges(q) || !bio_mergeable(bio))
 		return false;
 
 	return __blk_mq_sched_bio_merge(q, bio, nr_segs);
@@ -53,12 +53,12 @@ blk_mq_sched_allow_merge(struct request_queue *q, struct request *rq,
 	return true;
 }
 
-static inline void blk_mq_sched_completed_request(struct request *rq, u64 now)
+static inline void blk_mq_sched_completed_request(struct request *rq, u64 yesw)
 {
 	struct elevator_queue *e = rq->q->elevator;
 
 	if (e && e->type->ops.completed_request)
-		e->type->ops.completed_request(rq, now);
+		e->type->ops.completed_request(rq, yesw);
 }
 
 static inline void blk_mq_sched_requeue_request(struct request *rq)

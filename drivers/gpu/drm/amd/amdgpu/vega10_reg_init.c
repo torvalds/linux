@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -85,8 +85,8 @@ void vega10_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.vcn.vcn_ring4_5 = AMDGPU_DOORBELL64_VCN4_5;
 	adev->doorbell_index.vcn.vcn_ring6_7 = AMDGPU_DOORBELL64_VCN6_7;
 
-	adev->doorbell_index.first_non_cp = AMDGPU_DOORBELL64_FIRST_NON_CP;
-	adev->doorbell_index.last_non_cp = AMDGPU_DOORBELL64_LAST_NON_CP;
+	adev->doorbell_index.first_yesn_cp = AMDGPU_DOORBELL64_FIRST_NON_CP;
+	adev->doorbell_index.last_yesn_cp = AMDGPU_DOORBELL64_LAST_NON_CP;
 
 	/* In unit of dword doorbell */
 	adev->doorbell_index.max_assignment = AMDGPU_DOORBELL64_MAX_ASSIGNMENT << 1;

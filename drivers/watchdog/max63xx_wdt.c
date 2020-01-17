@@ -11,7 +11,7 @@
  *
  * This driver assumes the watchdog pins are memory mapped (as it is
  * the case for the Arcom Zeus). Should it be connected over GPIOs or
- * another interface, some abstraction will have to be introduced.
+ * ayesther interface, some abstraction will have to be introduced.
  */
 
 #include <linux/err.h>
@@ -31,7 +31,7 @@
 #define MAX_HEARTBEAT     60
 
 static unsigned int heartbeat = DEFAULT_HEARTBEAT;
-static bool nowayout  = WATCHDOG_NOWAYOUT;
+static bool yeswayout  = WATCHDOG_NOWAYOUT;
 
 /*
  * Memory mapping: a single byte, 3 first lower bits to select bit 3
@@ -42,7 +42,7 @@ static bool nowayout  = WATCHDOG_NOWAYOUT;
 
 #define MAX6369_WDSET_DISABLED	3
 
-static int nodelay;
+static int yesdelay;
 
 struct max63xx_wdt {
 	struct watchdog_device wdd;
@@ -61,10 +61,10 @@ struct max63xx_wdt {
  * The timeout values used are actually the absolute minimum the chip
  * offers. Typical values on my board are slightly over twice as long
  * (10s setting ends up with a 25s timeout), and can be up to 3 times
- * the nominal setting (according to the datasheet). So please take
+ * the yesminal setting (according to the datasheet). So please take
  * these values with a grain of salt. Same goes for the initial delay
  * "feature". Only max6373/74 have a few settings without this initial
- * delay (selected with the "nodelay" parameter).
+ * delay (selected with the "yesdelay" parameter).
  *
  * I also decided to remove from the tables any timeout smaller than a
  * second, as it looked completly overkill...
@@ -104,10 +104,10 @@ max63xx_select_timeout(struct max63xx_timeout *table, int value)
 {
 	while (table->twd) {
 		if (value <= table->twd) {
-			if (nodelay && table->tdelay == 0)
+			if (yesdelay && table->tdelay == 0)
 				return table;
 
-			if (!nodelay)
+			if (!yesdelay)
 				return table;
 		}
 
@@ -233,7 +233,7 @@ static int max63xx_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.info = &max63xx_wdt_info;
 	wdt->wdd.ops = &max63xx_wdt_ops;
 
-	watchdog_set_nowayout(&wdt->wdd, nowayout);
+	watchdog_set_yeswayout(&wdt->wdd, yeswayout);
 
 	err = devm_watchdog_register_device(dev, &wdt->wdd);
 	if (err)
@@ -274,12 +274,12 @@ MODULE_PARM_DESC(heartbeat,
 		 __MODULE_STRING(MAX_HEARTBEAT) ", default "
 		 __MODULE_STRING(DEFAULT_HEARTBEAT));
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
-module_param(nodelay, int, 0);
-MODULE_PARM_DESC(nodelay,
+module_param(yesdelay, int, 0);
+MODULE_PARM_DESC(yesdelay,
 		 "Force selection of a timeout setting without initial delay "
 		 "(max6373/74 only, default=0)");
 

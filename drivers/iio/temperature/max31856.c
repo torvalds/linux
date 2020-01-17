@@ -285,23 +285,23 @@ static int max31856_probe(struct spi_device *spi)
 
 	indio_dev->info = &max31856_info;
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->name = id->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = max31856_channels;
 	indio_dev->num_channels = ARRAY_SIZE(max31856_channels);
 
-	ret = of_property_read_u32(spi->dev.of_node, "thermocouple-type",
+	ret = of_property_read_u32(spi->dev.of_yesde, "thermocouple-type",
 				   &data->thermocouple_type);
 
 	if (ret) {
 		dev_info(&spi->dev,
-			 "Could not read thermocouple type DT property, configuring as a K-Type\n");
+			 "Could yest read thermocouple type DT property, configuring as a K-Type\n");
 		data->thermocouple_type = THERMOCOUPLE_TYPE_K;
 	}
 
 	/*
-	 * no need to translate values as the supported types
+	 * yes need to translate values as the supported types
 	 * have the same value as the #defines
 	 */
 	switch (data->thermocouple_type) {
@@ -316,7 +316,7 @@ static int max31856_probe(struct spi_device *spi)
 		break;
 	default:
 		dev_err(&spi->dev,
-			"error: thermocouple-type %u not supported by max31856\n"
+			"error: thermocouple-type %u yest supported by max31856\n"
 			, data->thermocouple_type);
 		return -EINVAL;
 	}

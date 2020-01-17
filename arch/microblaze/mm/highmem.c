@@ -5,7 +5,7 @@
  * PowerPC version, stolen from the i386 version.
  *
  * Used in CONFIG_HIGHMEM systems for memory pages which
- * are not addressable by direct kernel virtual addresses.
+ * are yest addressable by direct kernel virtual addresses.
  *
  * Copyright (C) 1999 Gerhard Wichert, Siemens AG
  *		      Gerhard.Wichert@pdb.siemens.de
@@ -13,7 +13,7 @@
  *
  * Redesigned the x86 32-bit VM architecture to deal with
  * up to 16 Terrabyte physical memory. With current x86 CPUs
- * we now support up to 64 Gigabytes physical RAM.
+ * we yesw support up to 64 Gigabytes physical RAM.
  *
  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>
  *
@@ -48,7 +48,7 @@ void *kmap_atomic_prot(struct page *page, pgprot_t prot)
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 #ifdef CONFIG_DEBUG_HIGHMEM
-	BUG_ON(!pte_none(*(kmap_pte-idx)));
+	BUG_ON(!pte_yesne(*(kmap_pte-idx)));
 #endif
 	set_pte_at(&init_mm, vaddr, kmap_pte-idx, mk_pte(page, prot));
 	local_flush_tlb_page(NULL, vaddr);

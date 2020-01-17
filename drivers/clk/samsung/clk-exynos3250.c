@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *
- * Common Clock Framework support for Exynos3250 SoC.
+ * Common Clock Framework support for Exyyess3250 SoC.
  */
 
 #include <linux/clk-provider.h>
@@ -11,7 +11,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 
-#include <dt-bindings/clock/exynos3250.h>
+#include <dt-bindings/clock/exyyess3250.h>
 
 #include "clk.h"
 #include "clk-cpu.h"
@@ -100,7 +100,7 @@
 #define PWR_CTRL1_USE_CORE1_WFI			(1 << 1)
 #define PWR_CTRL1_USE_CORE0_WFI			(1 << 0)
 
-static const unsigned long exynos3250_cmu_clk_regs[] __initconst = {
+static const unsigned long exyyess3250_cmu_clk_regs[] __initconst = {
 	SRC_LEFTBUS,
 	DIV_LEFTBUS,
 	GATE_IP_LEFTBUS,
@@ -199,25 +199,25 @@ PNAME(mout_aclk_266_sub_p)	= { "fin_pll", "div_aclk_266", };
 PNAME(group_div_mpll_pre_p)	= { "div_mpll_pre", };
 PNAME(group_epll_vpll_p)	= { "mout_epll_user", "mout_vpll" };
 PNAME(group_sclk_p)		= { "xxti", "xusbxti",
-				    "none", "none",
-				    "none", "none", "div_mpll_pre",
+				    "yesne", "yesne",
+				    "yesne", "yesne", "div_mpll_pre",
 				    "mout_epll_user", "mout_vpll", };
-PNAME(group_sclk_audio_p)	= { "audiocdclk", "none",
-				    "none", "none",
+PNAME(group_sclk_audio_p)	= { "audiocdclk", "yesne",
+				    "yesne", "yesne",
 				    "xxti", "xusbxti",
 				    "div_mpll_pre", "mout_epll_user",
 				    "mout_vpll", };
 PNAME(group_sclk_cam_blk_p)	= { "xxti", "xusbxti",
-				    "none", "none", "none",
-				    "none", "div_mpll_pre",
+				    "yesne", "yesne", "yesne",
+				    "yesne", "div_mpll_pre",
 				    "mout_epll_user", "mout_vpll",
-				    "none", "none", "none",
+				    "yesne", "yesne", "yesne",
 				    "div_cam_blk_320", };
 PNAME(group_sclk_fimd0_p)	= { "xxti", "xusbxti",
-				    "m_bitclkhsdiv4_2l", "none",
-				    "none", "none", "div_mpll_pre",
+				    "m_bitclkhsdiv4_2l", "yesne",
+				    "yesne", "yesne", "div_mpll_pre",
 				    "mout_epll_user", "mout_vpll",
-				    "none", "none", "none",
+				    "yesne", "yesne", "yesne",
 				    "div_lcd_blk_145", };
 
 PNAME(mout_mfc_p)		= { "mout_mfc_0", "mout_mfc_1" };
@@ -460,7 +460,7 @@ static const struct samsung_gate_clock gate_clks[] __initconst = {
 		CLK_IGNORE_UNUSED, 0),
 
 	/* GATE_IP_PERIR */
-	GATE(CLK_MONOCNT, "monocnt", "div_aclk_100", GATE_IP_PERIR, 22,
+	GATE(CLK_MONOCNT, "moyescnt", "div_aclk_100", GATE_IP_PERIR, 22,
 		CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_TZPC6, "tzpc6", "div_aclk_100", GATE_IP_PERIR, 21,
 		CLK_IGNORE_UNUSED, 0),
@@ -666,7 +666,7 @@ static const struct samsung_gate_clock gate_clks[] __initconst = {
 };
 
 /* APLL & MPLL & BPLL & UPLL */
-static const struct samsung_pll_rate_table exynos3250_pll_rates[] __initconst = {
+static const struct samsung_pll_rate_table exyyess3250_pll_rates[] __initconst = {
 	PLL_35XX_RATE(24 * MHZ, 1200000000, 400, 4, 1),
 	PLL_35XX_RATE(24 * MHZ, 1100000000, 275, 3, 1),
 	PLL_35XX_RATE(24 * MHZ, 1066000000, 533, 6, 1),
@@ -688,7 +688,7 @@ static const struct samsung_pll_rate_table exynos3250_pll_rates[] __initconst = 
 };
 
 /* EPLL */
-static const struct samsung_pll_rate_table exynos3250_epll_rates[] __initconst = {
+static const struct samsung_pll_rate_table exyyess3250_epll_rates[] __initconst = {
 	PLL_36XX_RATE(24 * MHZ, 800000000, 200, 3, 1,     0),
 	PLL_36XX_RATE(24 * MHZ, 288000000,  96, 2, 2,     0),
 	PLL_36XX_RATE(24 * MHZ, 192000000, 128, 2, 3,     0),
@@ -707,7 +707,7 @@ static const struct samsung_pll_rate_table exynos3250_epll_rates[] __initconst =
 };
 
 /* VPLL */
-static const struct samsung_pll_rate_table exynos3250_vpll_rates[] __initconst = {
+static const struct samsung_pll_rate_table exyyess3250_vpll_rates[] __initconst = {
 	PLL_36XX_RATE(24 * MHZ, 600000000, 100, 2, 1,     0),
 	PLL_36XX_RATE(24 * MHZ, 533000000, 266, 3, 2, 32768),
 	PLL_36XX_RATE(24 * MHZ, 519230987, 173, 2, 2,  5046),
@@ -737,18 +737,18 @@ static const struct samsung_pll_rate_table exynos3250_vpll_rates[] __initconst =
 	{ /* sentinel */ }
 };
 
-static const struct samsung_pll_clock exynos3250_plls[] __initconst = {
+static const struct samsung_pll_clock exyyess3250_plls[] __initconst = {
 	PLL(pll_35xx, CLK_FOUT_APLL, "fout_apll", "fin_pll",
-		APLL_LOCK, APLL_CON0, exynos3250_pll_rates),
+		APLL_LOCK, APLL_CON0, exyyess3250_pll_rates),
 	PLL(pll_35xx, CLK_FOUT_MPLL, "fout_mpll", "fin_pll",
-			MPLL_LOCK, MPLL_CON0, exynos3250_pll_rates),
+			MPLL_LOCK, MPLL_CON0, exyyess3250_pll_rates),
 	PLL(pll_36xx, CLK_FOUT_VPLL, "fout_vpll", "fin_pll",
-			VPLL_LOCK, VPLL_CON0, exynos3250_vpll_rates),
+			VPLL_LOCK, VPLL_CON0, exyyess3250_vpll_rates),
 	PLL(pll_35xx, CLK_FOUT_UPLL, "fout_upll", "fin_pll",
-			UPLL_LOCK, UPLL_CON0, exynos3250_pll_rates),
+			UPLL_LOCK, UPLL_CON0, exyyess3250_pll_rates),
 };
 
-static void __init exynos3_core_down_clock(void __iomem *reg_base)
+static void __init exyyess3_core_down_clock(void __iomem *reg_base)
 {
 	unsigned int tmp;
 
@@ -763,15 +763,15 @@ static void __init exynos3_core_down_clock(void __iomem *reg_base)
 	__raw_writel(tmp, reg_base + PWR_CTRL1);
 
 	/*
-	 * Disable the clock up feature on Exynos4x12, in case it was
+	 * Disable the clock up feature on Exyyess4x12, in case it was
 	 * enabled by bootloader.
 	 */
 	__raw_writel(0x0, reg_base + PWR_CTRL2);
 }
 
 static const struct samsung_cmu_info cmu_info __initconst = {
-	.pll_clks		= exynos3250_plls,
-	.nr_pll_clks		= ARRAY_SIZE(exynos3250_plls),
+	.pll_clks		= exyyess3250_plls,
+	.nr_pll_clks		= ARRAY_SIZE(exyyess3250_plls),
 	.mux_clks		= mux_clks,
 	.nr_mux_clks		= ARRAY_SIZE(mux_clks),
 	.div_clks		= div_clks,
@@ -781,8 +781,8 @@ static const struct samsung_cmu_info cmu_info __initconst = {
 	.fixed_factor_clks	= fixed_factor_clks,
 	.nr_fixed_factor_clks	= ARRAY_SIZE(fixed_factor_clks),
 	.nr_clk_ids		= CLK_NR_CLKS,
-	.clk_regs		= exynos3250_cmu_clk_regs,
-	.nr_clk_regs		= ARRAY_SIZE(exynos3250_cmu_clk_regs),
+	.clk_regs		= exyyess3250_cmu_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(exyyess3250_cmu_clk_regs),
 };
 
 #define E3250_CPU_DIV0(apll, pclk_dbg, atb, corem)			\
@@ -791,7 +791,7 @@ static const struct samsung_cmu_info cmu_info __initconst = {
 #define E3250_CPU_DIV1(hpm, copy)					\
 		(((hpm) << 4) | ((copy) << 0))
 
-static const struct exynos_cpuclk_cfg_data e3250_armclk_d[] __initconst = {
+static const struct exyyess_cpuclk_cfg_data e3250_armclk_d[] __initconst = {
 	{ 1000000, E3250_CPU_DIV0(1, 7, 4, 1), E3250_CPU_DIV1(7, 7), },
 	{  900000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
 	{  800000, E3250_CPU_DIV0(1, 7, 3, 1), E3250_CPU_DIV1(7, 7), },
@@ -805,7 +805,7 @@ static const struct exynos_cpuclk_cfg_data e3250_armclk_d[] __initconst = {
 	{  0 },
 };
 
-static void __init exynos3250_cmu_init(struct device_node *np)
+static void __init exyyess3250_cmu_init(struct device_yesde *np)
 {
 	struct samsung_clk_provider *ctx;
 
@@ -813,14 +813,14 @@ static void __init exynos3250_cmu_init(struct device_node *np)
 	if (!ctx)
 		return;
 
-	exynos_register_cpu_clock(ctx, CLK_ARM_CLK, "armclk",
+	exyyess_register_cpu_clock(ctx, CLK_ARM_CLK, "armclk",
 			mout_core_p[0], mout_core_p[1], 0x14200,
 			e3250_armclk_d, ARRAY_SIZE(e3250_armclk_d),
 			CLK_CPU_HAS_DIV1);
 
-	exynos3_core_down_clock(ctx->reg_base);
+	exyyess3_core_down_clock(ctx->reg_base);
 }
-CLK_OF_DECLARE(exynos3250_cmu, "samsung,exynos3250-cmu", exynos3250_cmu_init);
+CLK_OF_DECLARE(exyyess3250_cmu, "samsung,exyyess3250-cmu", exyyess3250_cmu_init);
 
 /*
  * CMU DMC
@@ -845,7 +845,7 @@ CLK_OF_DECLARE(exynos3250_cmu, "samsung,exynos3250-cmu", exynos3250_cmu_init);
 #define EPLL_CON2		0x111c
 #define SRC_EPLL		0x1120
 
-static const unsigned long exynos3250_cmu_dmc_clk_regs[] __initconst = {
+static const unsigned long exyyess3250_cmu_dmc_clk_regs[] __initconst = {
 	BPLL_LOCK,
 	BPLL_CON0,
 	BPLL_CON1,
@@ -907,31 +907,31 @@ static const struct samsung_div_clock dmc_div_clks[] __initconst = {
 	DIV(CLK_DIV_DMCD, "div_dmcd", "div_dmc", DIV_DMC1, 11, 3),
 };
 
-static const struct samsung_pll_clock exynos3250_dmc_plls[] __initconst = {
+static const struct samsung_pll_clock exyyess3250_dmc_plls[] __initconst = {
 	PLL(pll_35xx, CLK_FOUT_BPLL, "fout_bpll", "fin_pll",
-		BPLL_LOCK, BPLL_CON0, exynos3250_pll_rates),
+		BPLL_LOCK, BPLL_CON0, exyyess3250_pll_rates),
 	PLL(pll_36xx, CLK_FOUT_EPLL, "fout_epll", "fin_pll",
-		EPLL_LOCK, EPLL_CON0, exynos3250_epll_rates),
+		EPLL_LOCK, EPLL_CON0, exyyess3250_epll_rates),
 };
 
 static const struct samsung_cmu_info dmc_cmu_info __initconst = {
-	.pll_clks		= exynos3250_dmc_plls,
-	.nr_pll_clks		= ARRAY_SIZE(exynos3250_dmc_plls),
+	.pll_clks		= exyyess3250_dmc_plls,
+	.nr_pll_clks		= ARRAY_SIZE(exyyess3250_dmc_plls),
 	.mux_clks		= dmc_mux_clks,
 	.nr_mux_clks		= ARRAY_SIZE(dmc_mux_clks),
 	.div_clks		= dmc_div_clks,
 	.nr_div_clks		= ARRAY_SIZE(dmc_div_clks),
 	.nr_clk_ids		= NR_CLKS_DMC,
-	.clk_regs		= exynos3250_cmu_dmc_clk_regs,
-	.nr_clk_regs		= ARRAY_SIZE(exynos3250_cmu_dmc_clk_regs),
+	.clk_regs		= exyyess3250_cmu_dmc_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(exyyess3250_cmu_dmc_clk_regs),
 };
 
-static void __init exynos3250_cmu_dmc_init(struct device_node *np)
+static void __init exyyess3250_cmu_dmc_init(struct device_yesde *np)
 {
 	samsung_cmu_register_one(np, &dmc_cmu_info);
 }
-CLK_OF_DECLARE(exynos3250_cmu_dmc, "samsung,exynos3250-cmu-dmc",
-		exynos3250_cmu_dmc_init);
+CLK_OF_DECLARE(exyyess3250_cmu_dmc, "samsung,exyyess3250-cmu-dmc",
+		exyyess3250_cmu_dmc_init);
 
 
 /*
@@ -1068,31 +1068,31 @@ static const struct samsung_cmu_info isp_cmu_info __initconst = {
 	.nr_clk_ids	= NR_CLKS_ISP,
 };
 
-static int __init exynos3250_cmu_isp_probe(struct platform_device *pdev)
+static int __init exyyess3250_cmu_isp_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	samsung_cmu_register_one(np, &isp_cmu_info);
 	return 0;
 }
 
-static const struct of_device_id exynos3250_cmu_isp_of_match[] __initconst = {
-	{ .compatible = "samsung,exynos3250-cmu-isp", },
+static const struct of_device_id exyyess3250_cmu_isp_of_match[] __initconst = {
+	{ .compatible = "samsung,exyyess3250-cmu-isp", },
 	{ /* sentinel */ }
 };
 
-static struct platform_driver exynos3250_cmu_isp_driver __initdata = {
+static struct platform_driver exyyess3250_cmu_isp_driver __initdata = {
 	.driver = {
-		.name = "exynos3250-cmu-isp",
+		.name = "exyyess3250-cmu-isp",
 		.suppress_bind_attrs = true,
-		.of_match_table = exynos3250_cmu_isp_of_match,
+		.of_match_table = exyyess3250_cmu_isp_of_match,
 	},
 };
 
-static int __init exynos3250_cmu_platform_init(void)
+static int __init exyyess3250_cmu_platform_init(void)
 {
-	return platform_driver_probe(&exynos3250_cmu_isp_driver,
-					exynos3250_cmu_isp_probe);
+	return platform_driver_probe(&exyyess3250_cmu_isp_driver,
+					exyyess3250_cmu_isp_probe);
 }
-subsys_initcall(exynos3250_cmu_platform_init);
+subsys_initcall(exyyess3250_cmu_platform_init);
 

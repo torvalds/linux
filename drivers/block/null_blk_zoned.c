@@ -5,7 +5,7 @@
 /* zone_size in MBs to sectors. */
 #define ZONE_SIZE_SHIFT		11
 
-static inline unsigned int null_zone_no(struct nullb_device *dev, sector_t sect)
+static inline unsigned int null_zone_yes(struct nullb_device *dev, sector_t sect)
 {
 	return sect >> ilog2(dev->zone_size_sects);
 }
@@ -75,7 +75,7 @@ int null_report_zones(struct gendisk *disk, sector_t sector,
 	struct blk_zone zone;
 	int error;
 
-	first_zone = null_zone_no(dev, sector);
+	first_zone = null_zone_yes(dev, sector);
 	if (first_zone >= dev->nr_zones)
 		return 0;
 
@@ -101,7 +101,7 @@ size_t null_zone_valid_read_len(struct nullb *nullb,
 				sector_t sector, unsigned int len)
 {
 	struct nullb_device *dev = nullb->dev;
-	struct blk_zone *zone = &dev->zones[null_zone_no(dev, sector)];
+	struct blk_zone *zone = &dev->zones[null_zone_yes(dev, sector)];
 	unsigned int nr_sectors = len >> SECTOR_SHIFT;
 
 	/* Read must be below the write pointer position */
@@ -119,12 +119,12 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 		     unsigned int nr_sectors)
 {
 	struct nullb_device *dev = cmd->nq->dev;
-	unsigned int zno = null_zone_no(dev, sector);
-	struct blk_zone *zone = &dev->zones[zno];
+	unsigned int zyes = null_zone_yes(dev, sector);
+	struct blk_zone *zone = &dev->zones[zyes];
 
 	switch (zone->cond) {
 	case BLK_ZONE_COND_FULL:
-		/* Cannot write to a full zone */
+		/* Canyest write to a full zone */
 		cmd->error = BLK_STS_IOERR;
 		return BLK_STS_IOERR;
 	case BLK_ZONE_COND_EMPTY:
@@ -153,7 +153,7 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
 				   sector_t sector)
 {
 	struct nullb_device *dev = cmd->nq->dev;
-	struct blk_zone *zone = &dev->zones[null_zone_no(dev, sector)];
+	struct blk_zone *zone = &dev->zones[null_zone_yes(dev, sector)];
 	size_t i;
 
 	switch (op) {

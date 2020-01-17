@@ -245,8 +245,8 @@ static int power_cpu_init(unsigned int cpu)
 
 	/*
 	 * 1) If any CPU is set at cpu_mask in the same compute unit, do
-	 * nothing.
-	 * 2) If no CPU is set at cpu_mask in the same compute unit,
+	 * yesthing.
+	 * 2) If yes CPU is set at cpu_mask in the same compute unit,
 	 * set current ONLINE CPU.
 	 *
 	 * Note: if there is a CPU aside of the new one already in the
@@ -298,7 +298,7 @@ module_init(amd_power_pmu_init);
 
 static void __exit amd_power_pmu_exit(void)
 {
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_AMD_POWER_ONLINE);
+	cpuhp_remove_state_yescalls(CPUHP_AP_PERF_X86_AMD_POWER_ONLINE);
 	perf_pmu_unregister(&pmu_class);
 }
 module_exit(amd_power_pmu_exit);

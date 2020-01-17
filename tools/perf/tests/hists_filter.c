@@ -63,12 +63,12 @@ static int add_hist_entries(struct evlist *evlist,
 			struct hist_entry_iter iter = {
 				.evsel = evsel,
 				.sample = &sample,
-				.ops = &hist_iter_normal,
+				.ops = &hist_iter_yesrmal,
 				.hide_unresolved = false,
 			};
 			struct hists *hists = evsel__hists(evsel);
 
-			/* make sure it has no filter at first */
+			/* make sure it has yes filter at first */
 			hists->thread_filter = NULL;
 			hists->dso_filter = NULL;
 			hists->symbol_filter_str = NULL;
@@ -97,7 +97,7 @@ static int add_hist_entries(struct evlist *evlist,
 	return 0;
 
 out:
-	pr_debug("Not enough memory for adding a hist entry\n");
+	pr_debug("Not eyesugh memory for adding a hist entry\n");
 	return TEST_FAIL;
 }
 
@@ -157,14 +157,14 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 				hists->stats.total_period == 1000);
 		TEST_ASSERT_VAL("Unmatched nr samples",
 				hists->stats.nr_events[PERF_RECORD_SAMPLE] ==
-				hists->stats.nr_non_filtered_samples);
+				hists->stats.nr_yesn_filtered_samples);
 		TEST_ASSERT_VAL("Unmatched nr hist entries",
-				hists->nr_entries == hists->nr_non_filtered_entries);
+				hists->nr_entries == hists->nr_yesn_filtered_entries);
 		TEST_ASSERT_VAL("Unmatched total period",
 				hists->stats.total_period ==
-				hists->stats.total_non_filtered_period);
+				hists->stats.total_yesn_filtered_period);
 
-		/* now applying thread filter for 'bash' */
+		/* yesw applying thread filter for 'bash' */
 		hists->thread_filter = fake_samples[9].thread;
 		hists__filter_by_thread(hists);
 
@@ -173,7 +173,7 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 			print_hists_out(hists);
 		}
 
-		/* normal stats should be invariant */
+		/* yesrmal stats should be invariant */
 		TEST_ASSERT_VAL("Invalid nr samples",
 				hists->stats.nr_events[PERF_RECORD_SAMPLE] == 10);
 		TEST_ASSERT_VAL("Invalid nr hist entries",
@@ -183,17 +183,17 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 
 		/* but filter stats are changed */
 		TEST_ASSERT_VAL("Unmatched nr samples for thread filter",
-				hists->stats.nr_non_filtered_samples == 4);
+				hists->stats.nr_yesn_filtered_samples == 4);
 		TEST_ASSERT_VAL("Unmatched nr hist entries for thread filter",
-				hists->nr_non_filtered_entries == 4);
+				hists->nr_yesn_filtered_entries == 4);
 		TEST_ASSERT_VAL("Unmatched total period for thread filter",
-				hists->stats.total_non_filtered_period == 400);
+				hists->stats.total_yesn_filtered_period == 400);
 
 		/* remove thread filter first */
 		hists->thread_filter = NULL;
 		hists__filter_by_thread(hists);
 
-		/* now applying dso filter for 'kernel' */
+		/* yesw applying dso filter for 'kernel' */
 		hists->dso_filter = fake_samples[0].map->dso;
 		hists__filter_by_dso(hists);
 
@@ -202,7 +202,7 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 			print_hists_out(hists);
 		}
 
-		/* normal stats should be invariant */
+		/* yesrmal stats should be invariant */
 		TEST_ASSERT_VAL("Invalid nr samples",
 				hists->stats.nr_events[PERF_RECORD_SAMPLE] == 10);
 		TEST_ASSERT_VAL("Invalid nr hist entries",
@@ -212,18 +212,18 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 
 		/* but filter stats are changed */
 		TEST_ASSERT_VAL("Unmatched nr samples for dso filter",
-				hists->stats.nr_non_filtered_samples == 3);
+				hists->stats.nr_yesn_filtered_samples == 3);
 		TEST_ASSERT_VAL("Unmatched nr hist entries for dso filter",
-				hists->nr_non_filtered_entries == 3);
+				hists->nr_yesn_filtered_entries == 3);
 		TEST_ASSERT_VAL("Unmatched total period for dso filter",
-				hists->stats.total_non_filtered_period == 300);
+				hists->stats.total_yesn_filtered_period == 300);
 
 		/* remove dso filter first */
 		hists->dso_filter = NULL;
 		hists__filter_by_dso(hists);
 
 		/*
-		 * now applying symbol filter for 'main'.  Also note that
+		 * yesw applying symbol filter for 'main'.  Also yeste that
 		 * there's 3 samples that have 'main' symbol but the 4th
 		 * entry of fake_samples was collapsed already so it won't
 		 * be counted as a separate entry but the sample count and
@@ -237,7 +237,7 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 			print_hists_out(hists);
 		}
 
-		/* normal stats should be invariant */
+		/* yesrmal stats should be invariant */
 		TEST_ASSERT_VAL("Invalid nr samples",
 				hists->stats.nr_events[PERF_RECORD_SAMPLE] == 10);
 		TEST_ASSERT_VAL("Invalid nr hist entries",
@@ -247,17 +247,17 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 
 		/* but filter stats are changed */
 		TEST_ASSERT_VAL("Unmatched nr samples for symbol filter",
-				hists->stats.nr_non_filtered_samples == 3);
+				hists->stats.nr_yesn_filtered_samples == 3);
 		TEST_ASSERT_VAL("Unmatched nr hist entries for symbol filter",
-				hists->nr_non_filtered_entries == 2);
+				hists->nr_yesn_filtered_entries == 2);
 		TEST_ASSERT_VAL("Unmatched total period for symbol filter",
-				hists->stats.total_non_filtered_period == 300);
+				hists->stats.total_yesn_filtered_period == 300);
 
 		/* remove symbol filter first */
 		hists->symbol_filter_str = NULL;
 		hists__filter_by_symbol(hists);
 
-		/* now applying socket filters */
+		/* yesw applying socket filters */
 		hists->socket_filter = 2;
 		hists__filter_by_socket(hists);
 
@@ -266,7 +266,7 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 			print_hists_out(hists);
 		}
 
-		/* normal stats should be invariant */
+		/* yesrmal stats should be invariant */
 		TEST_ASSERT_VAL("Invalid nr samples",
 				hists->stats.nr_events[PERF_RECORD_SAMPLE] == 10);
 		TEST_ASSERT_VAL("Invalid nr hist entries",
@@ -276,17 +276,17 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 
 		/* but filter stats are changed */
 		TEST_ASSERT_VAL("Unmatched nr samples for socket filter",
-				hists->stats.nr_non_filtered_samples == 2);
+				hists->stats.nr_yesn_filtered_samples == 2);
 		TEST_ASSERT_VAL("Unmatched nr hist entries for socket filter",
-				hists->nr_non_filtered_entries == 2);
+				hists->nr_yesn_filtered_entries == 2);
 		TEST_ASSERT_VAL("Unmatched total period for socket filter",
-				hists->stats.total_non_filtered_period == 200);
+				hists->stats.total_yesn_filtered_period == 200);
 
 		/* remove socket filter first */
 		hists->socket_filter = -1;
 		hists__filter_by_socket(hists);
 
-		/* now applying all filters at once. */
+		/* yesw applying all filters at once. */
 		hists->thread_filter = fake_samples[1].thread;
 		hists->dso_filter = fake_samples[1].map->dso;
 		hists__filter_by_thread(hists);
@@ -297,7 +297,7 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 			print_hists_out(hists);
 		}
 
-		/* normal stats should be invariant */
+		/* yesrmal stats should be invariant */
 		TEST_ASSERT_VAL("Invalid nr samples",
 				hists->stats.nr_events[PERF_RECORD_SAMPLE] == 10);
 		TEST_ASSERT_VAL("Invalid nr hist entries",
@@ -307,11 +307,11 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 
 		/* but filter stats are changed */
 		TEST_ASSERT_VAL("Unmatched nr samples for all filter",
-				hists->stats.nr_non_filtered_samples == 2);
+				hists->stats.nr_yesn_filtered_samples == 2);
 		TEST_ASSERT_VAL("Unmatched nr hist entries for all filter",
-				hists->nr_non_filtered_entries == 1);
+				hists->nr_yesn_filtered_entries == 1);
 		TEST_ASSERT_VAL("Unmatched total period for all filter",
-				hists->stats.total_non_filtered_period == 200);
+				hists->stats.total_yesn_filtered_period == 200);
 	}
 
 

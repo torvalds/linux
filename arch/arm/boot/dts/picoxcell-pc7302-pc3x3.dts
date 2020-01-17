@@ -27,7 +27,7 @@
 
 		clkgate: clkgate@800a0048 {
 			clock@4 {
-				picochip,clk-no-disable;
+				picochip,clk-yes-disable;
 			};
 		};
 	};

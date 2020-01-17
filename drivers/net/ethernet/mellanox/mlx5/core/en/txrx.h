@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #ifndef __MLX5_EN_TXRX_H___
 #define __MLX5_EN_TXRX_H___
@@ -47,7 +47,7 @@ mlx5e_sq_fetch_wqe(struct mlx5e_txqsq *sq, size_t size, u16 *pi)
 }
 
 static inline struct mlx5e_tx_wqe *
-mlx5e_post_nop(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
+mlx5e_post_yesp(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
 {
 	u16                         pi   = mlx5_wq_cyc_ctr2ix(wq, *pc);
 	struct mlx5e_tx_wqe        *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
@@ -64,7 +64,7 @@ mlx5e_post_nop(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
 }
 
 static inline struct mlx5e_tx_wqe *
-mlx5e_post_nop_fence(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
+mlx5e_post_yesp_fence(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
 {
 	u16                         pi   = mlx5_wq_cyc_ctr2ix(wq, *pc);
 	struct mlx5e_tx_wqe        *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
@@ -83,23 +83,23 @@ mlx5e_post_nop_fence(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
 
 static inline void
 mlx5e_fill_sq_frag_edge(struct mlx5e_txqsq *sq, struct mlx5_wq_cyc *wq,
-			u16 pi, u16 nnops)
+			u16 pi, u16 nyesps)
 {
 	struct mlx5e_tx_wqe_info *edge_wi, *wi = &sq->db.wqe_info[pi];
 
-	edge_wi = wi + nnops;
+	edge_wi = wi + nyesps;
 
-	/* fill sq frag edge with nops to avoid wqe wrapping two pages */
+	/* fill sq frag edge with yesps to avoid wqe wrapping two pages */
 	for (; wi < edge_wi; wi++) {
 		memset(wi, 0, sizeof(*wi));
 		wi->num_wqebbs = 1;
-		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+		mlx5e_post_yesp(wq, sq->sqn, &sq->pc);
 	}
-	sq->stats->nop += nnops;
+	sq->stats->yesp += nyesps;
 }
 
 static inline void
-mlx5e_notify_hw(struct mlx5_wq_cyc *wq, u16 pc, void __iomem *uar_map,
+mlx5e_yestify_hw(struct mlx5_wq_cyc *wq, u16 pc, void __iomem *uar_map,
 		struct mlx5_wqe_ctrl_seg *ctrl)
 {
 	ctrl->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
@@ -175,7 +175,7 @@ mlx5e_tx_dma_unmap(struct device *pdev, struct mlx5e_sq_dma *dma)
 		dma_unmap_page(pdev, dma->addr, dma->size, DMA_TO_DEVICE);
 		break;
 	default:
-		WARN_ONCE(true, "mlx5e_tx_dma_unmap unknown DMA type!\n");
+		WARN_ONCE(true, "mlx5e_tx_dma_unmap unkyeswn DMA type!\n");
 	}
 }
 

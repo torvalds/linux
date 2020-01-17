@@ -102,7 +102,7 @@ static int __init mvme147_init(void)
 	regs.SCMD = (volatile unsigned char *)0xfffe4001;
 
 	hdata = shost_priv(mvme147_shost);
-	hdata->no_sync = 0xff;
+	hdata->yes_sync = 0xff;
 	hdata->fast = 0;
 	hdata->dma_mode = CTRL_DMA;
 

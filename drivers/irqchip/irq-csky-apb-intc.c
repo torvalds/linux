@@ -57,7 +57,7 @@ static void irq_ck_mask_set_bit(struct irq_data *d)
 	irq_gc_unlock(gc);
 }
 
-static void __init ck_set_gc(struct device_node *node, void __iomem *reg_base,
+static void __init ck_set_gc(struct device_yesde *yesde, void __iomem *reg_base,
 			     u32 mask_reg, u32 irq_base)
 {
 	struct irq_chip_generic *gc;
@@ -68,7 +68,7 @@ static void __init ck_set_gc(struct device_node *node, void __iomem *reg_base,
 	gc->chip_types[0].chip.irq_mask = irq_gc_mask_clr_bit;
 	gc->chip_types[0].chip.irq_unmask = irq_gc_mask_set_bit;
 
-	if (of_find_property(node, "csky,support-pulse-signal", NULL))
+	if (of_find_property(yesde, "csky,support-pulse-signal", NULL))
 		gc->chip_types[0].chip.irq_unmask = irq_ck_mask_set_bit;
 }
 
@@ -99,22 +99,22 @@ static inline void setup_irq_channel(u32 magic, void __iomem *reg_addr)
 }
 
 static int __init
-ck_intc_init_comm(struct device_node *node, struct device_node *parent)
+ck_intc_init_comm(struct device_yesde *yesde, struct device_yesde *parent)
 {
 	int ret;
 
 	if (parent) {
-		pr_err("C-SKY Intc not a root irq controller\n");
+		pr_err("C-SKY Intc yest a root irq controller\n");
 		return -EINVAL;
 	}
 
-	reg_base = of_iomap(node, 0);
+	reg_base = of_iomap(yesde, 0);
 	if (!reg_base) {
-		pr_err("C-SKY Intc unable to map: %p.\n", node);
+		pr_err("C-SKY Intc unable to map: %p.\n", yesde);
 		return -EINVAL;
 	}
 
-	root_domain = irq_domain_add_linear(node, nr_irq,
+	root_domain = irq_domain_add_linear(yesde, nr_irq,
 					    &irq_generic_chip_ops, NULL);
 	if (!root_domain) {
 		pr_err("C-SKY Intc irq_domain_add failed.\n");
@@ -161,11 +161,11 @@ retry:
 }
 
 static int __init
-gx_intc_init(struct device_node *node, struct device_node *parent)
+gx_intc_init(struct device_yesde *yesde, struct device_yesde *parent)
 {
 	int ret;
 
-	ret = ck_intc_init_comm(node, parent);
+	ret = ck_intc_init_comm(yesde, parent);
 	if (ret)
 		return ret;
 
@@ -183,8 +183,8 @@ gx_intc_init(struct device_node *node, struct device_node *parent)
 
 	setup_irq_channel(0x03020100, reg_base + GX_INTC_SOURCE);
 
-	ck_set_gc(node, reg_base, GX_INTC_NEN31_00, 0);
-	ck_set_gc(node, reg_base, GX_INTC_NEN63_32, 32);
+	ck_set_gc(yesde, reg_base, GX_INTC_NEN31_00, 0);
+	ck_set_gc(yesde, reg_base, GX_INTC_NEN63_32, 32);
 
 	set_handle_irq(gx_irq_handler);
 
@@ -228,11 +228,11 @@ retry:
 }
 
 static int __init
-ck_intc_init(struct device_node *node, struct device_node *parent)
+ck_intc_init(struct device_yesde *yesde, struct device_yesde *parent)
 {
 	int ret;
 
-	ret = ck_intc_init_comm(node, parent);
+	ret = ck_intc_init_comm(yesde, parent);
 	if (ret)
 		return ret;
 
@@ -243,8 +243,8 @@ ck_intc_init(struct device_node *node, struct device_node *parent)
 	/* Enable irq intc */
 	writel(BIT(31), reg_base + CK_INTC_ICR);
 
-	ck_set_gc(node, reg_base, CK_INTC_NEN31_00, 0);
-	ck_set_gc(node, reg_base, CK_INTC_NEN63_32, 32);
+	ck_set_gc(yesde, reg_base, CK_INTC_NEN31_00, 0);
+	ck_set_gc(yesde, reg_base, CK_INTC_NEN63_32, 32);
 
 	setup_irq_channel(0x00010203, reg_base + CK_INTC_SOURCE);
 
@@ -255,14 +255,14 @@ ck_intc_init(struct device_node *node, struct device_node *parent)
 IRQCHIP_DECLARE(ck_intc, "csky,apb-intc", ck_intc_init);
 
 static int __init
-ck_dual_intc_init(struct device_node *node, struct device_node *parent)
+ck_dual_intc_init(struct device_yesde *yesde, struct device_yesde *parent)
 {
 	int ret;
 
 	/* dual-apb-intc up to 128 irq sources*/
 	nr_irq = INTC_IRQS * 2;
 
-	ret = ck_intc_init(node, parent);
+	ret = ck_intc_init(yesde, parent);
 	if (ret)
 		return ret;
 
@@ -270,8 +270,8 @@ ck_dual_intc_init(struct device_node *node, struct device_node *parent)
 	writel(0, reg_base + CK_INTC_NEN31_00 + CK_INTC_DUAL_BASE);
 	writel(0, reg_base + CK_INTC_NEN63_32 + CK_INTC_DUAL_BASE);
 
-	ck_set_gc(node, reg_base + CK_INTC_DUAL_BASE, CK_INTC_NEN31_00, 64);
-	ck_set_gc(node, reg_base + CK_INTC_DUAL_BASE, CK_INTC_NEN63_32, 96);
+	ck_set_gc(yesde, reg_base + CK_INTC_DUAL_BASE, CK_INTC_NEN31_00, 64);
+	ck_set_gc(yesde, reg_base + CK_INTC_DUAL_BASE, CK_INTC_NEN63_32, 96);
 
 	setup_irq_channel(0x00010203,
 			  reg_base + CK_INTC_SOURCE + CK_INTC_DUAL_BASE);

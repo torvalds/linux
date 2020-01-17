@@ -16,7 +16,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/usb/otg.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/power_supply.h>
 #include <linux/property.h>
 #include <linux/mfd/axp20x.h>
@@ -122,14 +122,14 @@ struct axp288_chrg_info {
 	struct {
 		struct work_struct work;
 		struct extcon_dev *cable;
-		struct notifier_block id_nb;
+		struct yestifier_block id_nb;
 		bool id_short;
 	} otg;
 
-	/* SDP/CDP/DCP USB charging cable notifications */
+	/* SDP/CDP/DCP USB charging cable yestifications */
 	struct {
 		struct extcon_dev *edev;
-		struct notifier_block nb;
+		struct yestifier_block nb;
 		struct work_struct work;
 	} cable;
 
@@ -593,7 +593,7 @@ static void axp288_charger_extcon_evt_worker(struct work_struct *work)
 	power_supply_changed(info->psy_usb);
 }
 
-static int axp288_charger_handle_cable_evt(struct notifier_block *nb,
+static int axp288_charger_handle_cable_evt(struct yestifier_block *nb,
 					   unsigned long event, void *param)
 {
 	struct axp288_chrg_info *info =
@@ -624,7 +624,7 @@ static void axp288_charger_otg_evt_worker(struct work_struct *work)
 		dev_warn(&info->pdev->dev, "vbus path disable failed\n");
 }
 
-static int axp288_charger_handle_otg_evt(struct notifier_block *nb,
+static int axp288_charger_handle_otg_evt(struct yestifier_block *nb,
 				   unsigned long event, void *param)
 {
 	struct axp288_chrg_info *info =
@@ -655,7 +655,7 @@ static int charger_init_hw_regs(struct axp288_chrg_info *info)
 		return ret;
 	}
 
-	/* Do not turn-off charger o/p after charge cycle ends */
+	/* Do yest turn-off charger o/p after charge cycle ends */
 	ret = regmap_update_bits(info->regmap,
 				AXP20X_CHRG_CTRL2,
 				CNTL2_CHG_OUT_TURNON, CNTL2_CHG_OUT_TURNON);
@@ -716,7 +716,7 @@ static int charger_init_hw_regs(struct axp288_chrg_info *info)
 	info->cc = cc;
 
 	/*
-	 * Do not allow the user to configure higher settings then those
+	 * Do yest allow the user to configure higher settings then those
 	 * set by the firmware
 	 */
 	info->max_cv = info->cv;
@@ -744,7 +744,7 @@ static int axp288_charger_probe(struct platform_device *pdev)
 
 	/*
 	 * On some devices the fuelgauge and charger parts of the axp288 are
-	 * not used, check that the fuelgauge is enabled (CC_CTRL != 0).
+	 * yest used, check that the fuelgauge is enabled (CC_CTRL != 0).
 	 */
 	ret = regmap_read(axp20x->regmap, AXP20X_CC_CTRL, &val);
 	if (ret < 0)
@@ -762,7 +762,7 @@ static int axp288_charger_probe(struct platform_device *pdev)
 
 	info->cable.edev = extcon_get_extcon_dev(AXP288_EXTCON_DEV_NAME);
 	if (info->cable.edev == NULL) {
-		dev_dbg(&pdev->dev, "%s is not ready, probe deferred\n",
+		dev_dbg(&pdev->dev, "%s is yest ready, probe deferred\n",
 			AXP288_EXTCON_DEV_NAME);
 		return -EPROBE_DEFER;
 	}
@@ -770,7 +770,7 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	if (acpi_dev_present(USB_HOST_EXTCON_HID, NULL, -1)) {
 		info->otg.cable = extcon_get_extcon_dev(USB_HOST_EXTCON_NAME);
 		if (info->otg.cable == NULL) {
-			dev_dbg(dev, "EXTCON_USB_HOST is not ready, probe deferred\n");
+			dev_dbg(dev, "EXTCON_USB_HOST is yest ready, probe deferred\n");
 			return -EPROBE_DEFER;
 		}
 		dev_info(&pdev->dev,
@@ -793,30 +793,30 @@ static int axp288_charger_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Cancel our work on cleanup, register this before the notifiers */
+	/* Cancel our work on cleanup, register this before the yestifiers */
 	ret = devm_add_action(dev, axp288_charger_cancel_work, info);
 	if (ret)
 		return ret;
 
-	/* Register for extcon notification */
+	/* Register for extcon yestification */
 	INIT_WORK(&info->cable.work, axp288_charger_extcon_evt_worker);
-	info->cable.nb.notifier_call = axp288_charger_handle_cable_evt;
-	ret = devm_extcon_register_notifier_all(dev, info->cable.edev,
+	info->cable.nb.yestifier_call = axp288_charger_handle_cable_evt;
+	ret = devm_extcon_register_yestifier_all(dev, info->cable.edev,
 						&info->cable.nb);
 	if (ret) {
-		dev_err(dev, "failed to register cable extcon notifier\n");
+		dev_err(dev, "failed to register cable extcon yestifier\n");
 		return ret;
 	}
 	schedule_work(&info->cable.work);
 
-	/* Register for OTG notification */
+	/* Register for OTG yestification */
 	INIT_WORK(&info->otg.work, axp288_charger_otg_evt_worker);
-	info->otg.id_nb.notifier_call = axp288_charger_handle_otg_evt;
+	info->otg.id_nb.yestifier_call = axp288_charger_handle_otg_evt;
 	if (info->otg.cable) {
-		ret = devm_extcon_register_notifier(&pdev->dev, info->otg.cable,
+		ret = devm_extcon_register_yestifier(&pdev->dev, info->otg.cable,
 					EXTCON_USB_HOST, &info->otg.id_nb);
 		if (ret) {
-			dev_err(dev, "failed to register EXTCON_USB_HOST notifier\n");
+			dev_err(dev, "failed to register EXTCON_USB_HOST yestifier\n");
 			return ret;
 		}
 		schedule_work(&info->otg.work);

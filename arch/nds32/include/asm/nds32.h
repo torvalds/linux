@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef _ASM_NDS32_NDS32_H_
 #define _ASM_NDS32_NDS32_H_
@@ -73,7 +73,7 @@ static inline unsigned long CACHE_LINE_SIZE(unsigned char cache)
 /* dispatched sub-entry exception handler numbering */
 #define RD_PROT			0	/* read protrection */
 #define WRT_PROT		1	/* write protection */
-#define NOEXEC			2	/* non executable */
+#define NOEXEC			2	/* yesn executable */
 #define PAGE_MODIFY		3	/* page modified */
 #define ACC_BIT			4	/* access bit */
 #define RESVED_PTE		5	/* reserved PTE attribute */

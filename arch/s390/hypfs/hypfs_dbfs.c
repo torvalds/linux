@@ -38,7 +38,7 @@ static ssize_t dbfs_read(struct file *file, char __user *buf,
 	if (*ppos != 0)
 		return 0;
 
-	df = file_inode(file)->i_private;
+	df = file_iyesde(file)->i_private;
 	mutex_lock(&df->lock);
 	data = hypfs_dbfs_data_alloc(df);
 	if (!data) {
@@ -60,7 +60,7 @@ static ssize_t dbfs_read(struct file *file, char __user *buf,
 
 static long dbfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct hypfs_dbfs_file *df = file_inode(file)->i_private;
+	struct hypfs_dbfs_file *df = file_iyesde(file)->i_private;
 	long rc;
 
 	mutex_lock(&df->lock);
@@ -74,7 +74,7 @@ static long dbfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static const struct file_operations dbfs_ops = {
 	.read		= dbfs_read,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.unlocked_ioctl = dbfs_ioctl,
 };
 

@@ -72,7 +72,7 @@
  * RMT states
  */
 #define RM0_ISOLATED	0
-#define RM1_NON_OP	1		/* not operational */
+#define RM1_NON_OP	1		/* yest operational */
 #define RM2_RING_OP	2		/* ring operational */
 #define RM3_DETECT	3		/* detect dupl addresses */
 #define RM4_NON_OP_DUP	4		/* dupl. addr detected */

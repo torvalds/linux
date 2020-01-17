@@ -1,7 +1,7 @@
 * Cortina Systems Gemini SATA Bridge
 
 The Gemini SATA bridge in a SoC-internal PATA to SATA bridge that
-takes two Faraday Technology FTIDE010 PATA controllers and bridges
+takes two Faraday Techyeslogy FTIDE010 PATA controllers and bridges
 them in different configurations to two SATA ports.
 
 Required properties:

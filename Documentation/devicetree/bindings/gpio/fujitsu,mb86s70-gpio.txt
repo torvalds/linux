@@ -5,10 +5,10 @@ Required properties:
 - compatible: Should be "fujitsu,mb86s70-gpio"
 - reg: Base address and length of register space
 - clocks: Specify the clock
-- gpio-controller: Marks the device node as a gpio controller.
+- gpio-controller: Marks the device yesde as a gpio controller.
 - #gpio-cells: Should be <2>. The first cell is the pin number and the
   second cell is used to specify optional parameters:
-   - bit 0 specifies polarity (0 for normal, 1 for inverted).
+   - bit 0 specifies polarity (0 for yesrmal, 1 for inverted).
 
 Examples:
 	gpio0: gpio@31000000 {

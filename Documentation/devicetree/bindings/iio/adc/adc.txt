@@ -1,6 +1,6 @@
 Common ADCs properties
 
-Optional properties for child nodes:
+Optional properties for child yesdes:
 - bipolar : Boolean, if set the channel is used in bipolar mode.
 - diff-channels : Differential channels muxed for this ADC. The first value
 		specifies the positive input pin, the second value the negative

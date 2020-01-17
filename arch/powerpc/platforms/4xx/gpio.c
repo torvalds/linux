@@ -156,9 +156,9 @@ ppc4xx_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 
 static int __init ppc4xx_add_gpiochips(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	for_each_compatible_node(np, NULL, "ibm,ppc4xx-gpio") {
+	for_each_compatible_yesde(np, NULL, "ibm,ppc4xx-gpio") {
 		int ret;
 		struct ppc4xx_gpio_chip *ppc4xx_gc;
 		struct of_mm_gpio_chip *mm_gc;

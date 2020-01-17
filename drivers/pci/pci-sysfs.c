@@ -81,8 +81,8 @@ static ssize_t pci_dev_show_local_cpu(struct device *dev, bool list,
 	const struct cpumask *mask;
 
 #ifdef CONFIG_NUMA
-	mask = (dev_to_node(dev) == -1) ? cpu_online_mask :
-					  cpumask_of_node(dev_to_node(dev));
+	mask = (dev_to_yesde(dev) == -1) ? cpu_online_mask :
+					  cpumask_of_yesde(dev_to_yesde(dev));
 #else
 	mask = cpumask_of_pcibus(to_pci_dev(dev)->bus);
 #endif
@@ -198,7 +198,7 @@ static ssize_t current_link_speed_show(struct device *dev,
 		speed = "2.5 GT/s";
 		break;
 	default:
-		speed = "Unknown speed";
+		speed = "Unkyeswn speed";
 	}
 
 	return sprintf(buf, "%s\n", speed);
@@ -315,40 +315,40 @@ static ssize_t enable_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RW(enable);
 
 #ifdef CONFIG_NUMA
-static ssize_t numa_node_store(struct device *dev,
+static ssize_t numa_yesde_store(struct device *dev,
 			       struct device_attribute *attr, const char *buf,
 			       size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	int node, ret;
+	int yesde, ret;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	ret = kstrtoint(buf, 0, &node);
+	ret = kstrtoint(buf, 0, &yesde);
 	if (ret)
 		return ret;
 
-	if ((node < 0 && node != NUMA_NO_NODE) || node >= MAX_NUMNODES)
+	if ((yesde < 0 && yesde != NUMA_NO_NODE) || yesde >= MAX_NUMNODES)
 		return -EINVAL;
 
-	if (node != NUMA_NO_NODE && !node_online(node))
+	if (yesde != NUMA_NO_NODE && !yesde_online(yesde))
 		return -EINVAL;
 
 	add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
-	pci_alert(pdev, FW_BUG "Overriding NUMA node to %d.  Contact your vendor for updates.",
-		  node);
+	pci_alert(pdev, FW_BUG "Overriding NUMA yesde to %d.  Contact your vendor for updates.",
+		  yesde);
 
-	dev->numa_node = node;
+	dev->numa_yesde = yesde;
 	return count;
 }
 
-static ssize_t numa_node_show(struct device *dev, struct device_attribute *attr,
+static ssize_t numa_yesde_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
-	return sprintf(buf, "%d\n", dev->numa_node);
+	return sprintf(buf, "%d\n", dev->numa_yesde);
 }
-static DEVICE_ATTR_RW(numa_node);
+static DEVICE_ATTR_RW(numa_yesde);
 #endif
 
 static ssize_t dma_mask_bits_show(struct device *dev,
@@ -376,7 +376,7 @@ static ssize_t msi_bus_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "%u\n", subordinate ?
 		       !(subordinate->bus_flags & PCI_BUS_FLAGS_NO_MSI)
-			   : !pdev->no_msi);
+			   : !pdev->yes_msi);
 }
 
 static ssize_t msi_bus_store(struct device *dev, struct device_attribute *attr,
@@ -393,12 +393,12 @@ static ssize_t msi_bus_store(struct device *dev, struct device_attribute *attr,
 		return -EPERM;
 
 	/*
-	 * "no_msi" and "bus_flags" only affect what happens when a driver
+	 * "yes_msi" and "bus_flags" only affect what happens when a driver
 	 * requests MSI or MSI-X.  They don't affect any drivers that have
 	 * already requested MSI or MSI-X.
 	 */
 	if (!subordinate) {
-		pdev->no_msi = !val;
+		pdev->yes_msi = !val;
 		pci_info(pdev, "MSI/MSI-X %s for future drivers\n",
 			 val ? "allowed" : "disallowed");
 		return count;
@@ -539,7 +539,7 @@ static ssize_t devspec_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct device_node *np = pci_device_to_OF_node(pdev);
+	struct device_yesde *np = pci_device_to_OF_yesde(pdev);
 
 	if (np == NULL)
 		return 0;
@@ -608,7 +608,7 @@ static struct attribute *pci_dev_attrs[] = {
 	&dev_attr_local_cpulist.attr,
 	&dev_attr_modalias.attr,
 #ifdef CONFIG_NUMA
-	&dev_attr_numa_node.attr,
+	&dev_attr_numa_yesde.attr,
 #endif
 	&dev_attr_dma_mask_bits.attr,
 	&dev_attr_consistent_dma_mask_bits.attr,
@@ -968,7 +968,7 @@ legacy_io_err:
 	kfree(b->legacy_io);
 	b->legacy_io = NULL;
 kzalloc_err:
-	dev_warn(&b->dev, "could not create legacy I/O port and ISA memory resources in sysfs\n");
+	dev_warn(&b->dev, "could yest create legacy I/O port and ISA memory resources in sysfs\n");
 }
 
 void pci_remove_legacy_files(struct pci_bus *b)
@@ -983,19 +983,19 @@ void pci_remove_legacy_files(struct pci_bus *b)
 
 #if defined(HAVE_PCI_MMAP) || defined(ARCH_GENERIC_PCI_MMAP_RESOURCE)
 
-int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vma,
+int pci_mmap_fits(struct pci_dev *pdev, int resyes, struct vm_area_struct *vma,
 		  enum pci_mmap_api mmap_api)
 {
 	unsigned long nr, start, size;
 	resource_size_t pci_start = 0, pci_end;
 
-	if (pci_resource_len(pdev, resno) == 0)
+	if (pci_resource_len(pdev, resyes) == 0)
 		return 0;
 	nr = vma_pages(vma);
 	start = vma->vm_pgoff;
-	size = ((pci_resource_len(pdev, resno) - 1) >> PAGE_SHIFT) + 1;
+	size = ((pci_resource_len(pdev, resyes) - 1) >> PAGE_SHIFT) + 1;
 	if (mmap_api == PCI_MMAP_PROCFS) {
-		pci_resource_to_user(pdev, resno, &pdev->resource[resno],
+		pci_resource_to_user(pdev, resyes, &pdev->resource[resyes],
 				     &pci_start, &pci_end);
 		pci_start >>= PAGE_SHIFT;
 	}

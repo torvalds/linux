@@ -32,7 +32,7 @@
  *	to be deciphered for the format file. Although these macros
  *	may become out of sync with the internal structure, they
  *	will create a compile error if it happens. Since the
- *	internel structures are just tracing helpers, this is not
+ *	internel structures are just tracing helpers, this is yest
  *	an issue.
  *
  *	When an internal structure is used, it should use:
@@ -143,8 +143,8 @@ FTRACE_ENTRY(context_switch, ctx_switch_entry,
 );
 
 /*
- * FTRACE_ENTRY_DUP only creates the format file, it will not
- *  create another structure.
+ * FTRACE_ENTRY_DUP only creates the format file, it will yest
+ *  create ayesther structure.
  */
 FTRACE_ENTRY_DUP(wakeup, ctx_switch_entry,
 

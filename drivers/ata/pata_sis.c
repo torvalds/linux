@@ -85,7 +85,7 @@ static int sis_short_ata40(struct pci_dev *dev)
 
 static int sis_old_port_base(struct ata_device *adev)
 {
-	return 0x40 + (4 * adev->link->ap->port_no) + (2 * adev->devno);
+	return 0x40 + (4 * adev->link->ap->port_yes) + (2 * adev->devyes);
 }
 
 /**
@@ -103,12 +103,12 @@ static int sis_port_base(struct ata_device *adev)
 	int port = 0x40;
 	u32 reg54;
 
-	/* If bit 30 is set then the registers are mapped at 0x70 not 0x40 */
+	/* If bit 30 is set then the registers are mapped at 0x70 yest 0x40 */
 	pci_read_config_dword(pdev, 0x54, &reg54);
 	if (reg54 & 0x40000000)
 		port = 0x70;
 
-	return port + (8 * ap->port_no) + (4 * adev->devno);
+	return port + (8 * ap->port_yes) + (4 * adev->devyes);
 }
 
 /**
@@ -126,7 +126,7 @@ static int sis_133_cable_detect(struct ata_port *ap)
 	u16 tmp;
 
 	/* The top bit of this register is the cable detect bit */
-	pci_read_config_word(pdev, 0x50 + 2 * ap->port_no, &tmp);
+	pci_read_config_word(pdev, 0x50 + 2 * ap->port_yes, &tmp);
 	if ((tmp & 0x8000) && !sis_short_ata40(pdev))
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
@@ -147,7 +147,7 @@ static int sis_66_cable_detect(struct ata_port *ap)
 
 	/* Older chips keep cable detect in bits 4/5 of reg 0x48 */
 	pci_read_config_byte(pdev, 0x48, &tmp);
-	tmp >>= ap->port_no;
+	tmp >>= ap->port_yes;
 	if ((tmp & 0x10) && !sis_short_ata40(pdev))
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
@@ -172,11 +172,11 @@ static int sis_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (!pci_test_config_bits(pdev, &sis_enable_bits[ap->port_no]))
+	if (!pci_test_config_bits(pdev, &sis_enable_bits[ap->port_yes]))
 		return -ENOENT;
 
 	/* Clear the FIFO settings. We can't enable the FIFO until
-	   we know we are poking at a disk */
+	   we kyesw we are poking at a disk */
 	pci_write_config_byte(pdev, 0x4B, 0);
 	return ata_sff_prereset(link, deadline);
 }
@@ -188,7 +188,7 @@ static int sis_pre_reset(struct ata_link *link, unsigned long deadline)
  *	@adev: Device
  *
  *	SIS chipsets implement prefetch/postwrite bits for each device
- *	on both channels. This functionality is not ATAPI compatible and
+ *	on both channels. This functionality is yest ATAPI compatible and
  *	must be configured according to the class of device present
  */
 
@@ -198,8 +198,8 @@ static void sis_set_fifo(struct ata_port *ap, struct ata_device *adev)
 	u8 fifoctrl;
 	u8 mask = 0x11;
 
-	mask <<= (2 * ap->port_no);
-	mask <<= adev->devno;
+	mask <<= (2 * ap->port_yes);
+	mask <<= adev->devyes;
 
 	/* This holds various bits including the FIFO control */
 	pci_read_config_byte(pdev, 0x4B, &fifoctrl);
@@ -522,7 +522,7 @@ static void sis_133_set_dmamode (struct ata_port *ap, struct ata_device *adev)
  *	sis_133_mode_filter - mode selection filter
  *	@adev: ATA device
  *
- *	Block UDMA6 on devices that do not support it.
+ *	Block UDMA6 on devices that do yest support it.
  */
 
 static unsigned long sis_133_mode_filter(struct ata_device *adev, unsigned long mask)
@@ -648,7 +648,7 @@ static const struct ata_port_info sis_info133_early = {
 	.port_ops	= &sis_133_early_ops,
 };
 
-/* Privately shared with the SiS180 SATA driver, not for use elsewhere */
+/* Privately shared with the SiS180 SATA driver, yest for use elsewhere */
 EXPORT_SYMBOL_GPL(sis_info133_for_sata);
 
 static void sis_fixup(struct pci_dev *pdev, struct sis_chipset *sis)
@@ -859,7 +859,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	pci_dev_put(host);
 
-	/* No chipset info, no support */
+	/* No chipset info, yes support */
 	if (chipset == NULL)
 		return -ENODEV;
 

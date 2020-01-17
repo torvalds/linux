@@ -119,7 +119,7 @@ static inline void mei_hcsr_write(struct mei_device *dev, u32 reg)
 
 /**
  * mei_hcsr_set - writes H_CSR register to the mei device,
- * and ignores the H_IS bit for it is write-one-to-zero.
+ * and igyesres the H_IS bit for it is write-one-to-zero.
  *
  * @dev: the device structure
  * @reg: new register value
@@ -232,7 +232,7 @@ static int mei_me_fw_status(struct mei_device *dev,
  * @dev: mei device
  *
  * Return:
- *  * -EINVAL when read_fws is not set
+ *  * -EINVAL when read_fws is yest set
  *  * 0 on success
  *
  */
@@ -679,7 +679,7 @@ static void mei_me_pg_unset(struct mei_device *dev)
 	reg = mei_me_reg_read(hw, H_HPG_CSR);
 	trace_mei_reg_read(dev->dev, "H_HPG_CSR", H_HPG_CSR, reg);
 
-	WARN(!(reg & H_HPG_CSR_PGI), "PGI is not set\n");
+	WARN(!(reg & H_HPG_CSR_PGI), "PGI is yest set\n");
 
 	reg |= H_HPG_CSR_PGIHEXR;
 
@@ -778,7 +778,7 @@ out:
 }
 
 /**
- * mei_me_pg_in_transition - is device now in pg transition
+ * mei_me_pg_in_transition - is device yesw in pg transition
  *
  * @dev: the device structure
  *
@@ -806,19 +806,19 @@ static bool mei_me_pg_is_enabled(struct mei_device *dev)
 		return true;
 
 	if ((reg & ME_PGIC_HRA) == 0)
-		goto notsupported;
+		goto yestsupported;
 
 	if (!dev->hbm_f_pg_supported)
-		goto notsupported;
+		goto yestsupported;
 
 	return true;
 
-notsupported:
-	dev_dbg(dev->dev, "pg: not supported: d0i3 = %d HGP = %d hbm version %d.%d ?= %d.%d\n",
+yestsupported:
+	dev_dbg(dev->dev, "pg: yest supported: d0i3 = %d HGP = %d hbm version %d.%d ?= %d.%d\n",
 		hw->d0i3_supported,
 		!!(reg & ME_PGIC_HRA),
 		dev->version.major_version,
-		dev->version.minor_version,
+		dev->version.miyesr_version,
 		HBM_MAJOR_VERSION_PGI,
 		HBM_MINOR_VERSION_PGI);
 
@@ -884,8 +884,8 @@ static int mei_me_d0i3_enter_sync(struct mei_device *dev)
 
 	reg = mei_me_d0i3c_read(dev);
 	if (reg & H_D0I3C_I3) {
-		/* we are in d0i3, nothing to do */
-		dev_dbg(dev->dev, "d0i3 set not needed\n");
+		/* we are in d0i3, yesthing to do */
+		dev_dbg(dev->dev, "d0i3 set yest needed\n");
 		ret = 0;
 		goto on;
 	}
@@ -913,7 +913,7 @@ static int mei_me_d0i3_enter_sync(struct mei_device *dev)
 
 	reg = mei_me_d0i3_set(dev, true);
 	if (!(reg & H_D0I3C_CIP)) {
-		dev_dbg(dev->dev, "d0i3 enter wait not needed\n");
+		dev_dbg(dev->dev, "d0i3 enter wait yest needed\n");
 		ret = 0;
 		goto on;
 	}
@@ -942,8 +942,8 @@ out:
 
 /**
  * mei_me_d0i3_enter - perform d0i3 entry procedure
- *   no hbm PG handshake
- *   no waiting for confirmation; runs with interrupts
+ *   yes hbm PG handshake
+ *   yes waiting for confirmation; runs with interrupts
  *   disabled
  *
  * @dev: the device structure
@@ -957,8 +957,8 @@ static int mei_me_d0i3_enter(struct mei_device *dev)
 
 	reg = mei_me_d0i3c_read(dev);
 	if (reg & H_D0I3C_I3) {
-		/* we are in d0i3, nothing to do */
-		dev_dbg(dev->dev, "already d0i3 : set not needed\n");
+		/* we are in d0i3, yesthing to do */
+		dev_dbg(dev->dev, "already d0i3 : set yest needed\n");
 		goto on;
 	}
 
@@ -988,15 +988,15 @@ static int mei_me_d0i3_exit_sync(struct mei_device *dev)
 
 	reg = mei_me_d0i3c_read(dev);
 	if (!(reg & H_D0I3C_I3)) {
-		/* we are not in d0i3, nothing to do */
-		dev_dbg(dev->dev, "d0i3 exit not needed\n");
+		/* we are yest in d0i3, yesthing to do */
+		dev_dbg(dev->dev, "d0i3 exit yest needed\n");
 		ret = 0;
 		goto off;
 	}
 
 	reg = mei_me_d0i3_unset(dev);
 	if (!(reg & H_D0I3C_CIP)) {
-		dev_dbg(dev->dev, "d0i3 exit wait not needed\n");
+		dev_dbg(dev->dev, "d0i3 exit wait yest needed\n");
 		ret = 0;
 		goto off;
 	}
@@ -1162,7 +1162,7 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 	hcsr = mei_hcsr_read(dev);
 	/* H_RST may be found lit before reset is started,
 	 * for example if preceding reset flow hasn't completed.
-	 * In that case asserting H_RST will be ignored, therefore
+	 * In that case asserting H_RST will be igyesred, therefore
 	 * we need to clean H_RST bit to start a successful reset sequence.
 	 */
 	if ((hcsr & H_RST) == H_RST) {
@@ -1187,10 +1187,10 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 	hcsr = mei_hcsr_read(dev);
 
 	if ((hcsr & H_RST) == 0)
-		dev_warn(dev->dev, "H_RST is not set = 0x%08X", hcsr);
+		dev_warn(dev->dev, "H_RST is yest set = 0x%08X", hcsr);
 
 	if ((hcsr & H_RDY) == H_RDY)
-		dev_warn(dev->dev, "H_RDY is not cleared 0x%08X", hcsr);
+		dev_warn(dev->dev, "H_RDY is yest cleared 0x%08X", hcsr);
 
 	if (!intr_enable) {
 		mei_me_hw_reset_release(dev);
@@ -1256,7 +1256,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 
 	/* check if ME wants a reset */
 	if (!mei_hw_is_ready(dev) && dev->dev_state != MEI_DEV_RESETTING) {
-		dev_warn(dev->dev, "FW not ready: resetting.\n");
+		dev_warn(dev->dev, "FW yest ready: resetting.\n");
 		schedule_work(&dev->reset_work);
 		goto end;
 	}
@@ -1458,7 +1458,7 @@ static const struct mei_cfg mei_me_pch8_sps_cfg = {
 	MEI_CFG_FW_SPS,
 };
 
-/* Cannon Lake and newer devices */
+/* Canyesn Lake and newer devices */
 static const struct mei_cfg mei_me_pch12_cfg = {
 	MEI_CFG_PCH8_HFS,
 	MEI_CFG_FW_VER_SUPP,

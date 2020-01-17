@@ -29,7 +29,7 @@ static int cxgb4_matchall_egress_validate(struct net_device *dev,
 		return -EINVAL;
 	} else if (pi->tc_block_shared) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Egress MATCHALL offload not supported with shared blocks");
+				   "Egress MATCHALL offload yest supported with shared blocks");
 		return -EINVAL;
 	}
 
@@ -134,7 +134,7 @@ static int cxgb4_matchall_alloc_filter(struct net_device *dev,
 	/* Note that TC uses prio 0 to indicate stack to generate
 	 * automatic prio and hence doesn't pass prio 0 to driver.
 	 * However, the hardware TCAM index starts from 0. Hence, the
-	 * -1 here. 1 slot is enough to create a wildcard matchall
+	 * -1 here. 1 slot is eyesugh to create a wildcard matchall
 	 * VIID rule.
 	 */
 	if (cls->common.prio <= adap->tids.nftids)

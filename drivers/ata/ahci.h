@@ -12,8 +12,8 @@
  * as Documentation/driver-api/libata.rst
  *
  * AHCI hardware documentation:
- * http://www.intel.com/technology/serialata/pdf/rev1_0.pdf
- * http://www.intel.com/technology/serialata/pdf/rev1_1.pdf
+ * http://www.intel.com/techyeslogy/serialata/pdf/rev1_0.pdf
+ * http://www.intel.com/techyeslogy/serialata/pdf/rev1_1.pdf
  */
 
 #ifndef _AHCI_H
@@ -64,7 +64,7 @@ enum {
 	RX_FIS_PIO_SETUP	= 0x20,	/* offset of PIO Setup FIS data */
 	RX_FIS_D2H_REG		= 0x40,	/* offset of D2H Register FIS data */
 	RX_FIS_SDB		= 0x58, /* offset of SDB FIS data */
-	RX_FIS_UNK		= 0x60, /* offset of Unknown FIS data */
+	RX_FIS_UNK		= 0x60, /* offset of Unkyeswn FIS data */
 
 	/* global controller registers */
 	HOST_CAP		= 0x00, /* host capabilities */
@@ -134,7 +134,7 @@ enum {
 	PORT_IRQ_HBUS_ERR	= (1 << 29), /* host bus fatal error */
 	PORT_IRQ_HBUS_DATA_ERR	= (1 << 28), /* host bus data error */
 	PORT_IRQ_IF_ERR		= (1 << 27), /* interface fatal error */
-	PORT_IRQ_IF_NONFATAL	= (1 << 26), /* interface non-fatal error */
+	PORT_IRQ_IF_NONFATAL	= (1 << 26), /* interface yesn-fatal error */
 	PORT_IRQ_OVERFLOW	= (1 << 24), /* xfer exhausted available S/G */
 	PORT_IRQ_BAD_PMP	= (1 << 23), /* incorrect port multiplier */
 
@@ -142,7 +142,7 @@ enum {
 	PORT_IRQ_DEV_ILCK	= (1 << 7), /* device interlock */
 	PORT_IRQ_CONNECT	= (1 << 6), /* port connect change status */
 	PORT_IRQ_SG_DONE	= (1 << 5), /* descriptor processed */
-	PORT_IRQ_UNK_FIS	= (1 << 4), /* unknown FIS rx'd */
+	PORT_IRQ_UNK_FIS	= (1 << 4), /* unkyeswn FIS rx'd */
 	PORT_IRQ_SDB_FIS	= (1 << 3), /* Set Device Bits FIS rx'd */
 	PORT_IRQ_DMAS_FIS	= (1 << 2), /* DMA Setup FIS rx'd */
 	PORT_IRQ_PIOS_FIS	= (1 << 1), /* PIO Setup FIS rx'd */
@@ -205,25 +205,25 @@ enum {
 #define AHCI_HFLAGS(flags)		.private_data	= (void *)(flags)
 
 	AHCI_HFLAG_NO_NCQ		= (1 << 0),
-	AHCI_HFLAG_IGN_IRQ_IF_ERR	= (1 << 1), /* ignore IRQ_IF_ERR */
-	AHCI_HFLAG_IGN_SERR_INTERNAL	= (1 << 2), /* ignore SERR_INTERNAL */
+	AHCI_HFLAG_IGN_IRQ_IF_ERR	= (1 << 1), /* igyesre IRQ_IF_ERR */
+	AHCI_HFLAG_IGN_SERR_INTERNAL	= (1 << 2), /* igyesre SERR_INTERNAL */
 	AHCI_HFLAG_32BIT_ONLY		= (1 << 3), /* force 32bit */
 	AHCI_HFLAG_MV_PATA		= (1 << 4), /* PATA port */
-	AHCI_HFLAG_NO_MSI		= (1 << 5), /* no PCI MSI */
-	AHCI_HFLAG_NO_PMP		= (1 << 6), /* no PMP */
+	AHCI_HFLAG_NO_MSI		= (1 << 5), /* yes PCI MSI */
+	AHCI_HFLAG_NO_PMP		= (1 << 6), /* yes PMP */
 	AHCI_HFLAG_SECT255		= (1 << 8), /* max 255 sectors */
 	AHCI_HFLAG_YES_NCQ		= (1 << 9), /* force NCQ cap on */
 	AHCI_HFLAG_NO_SUSPEND		= (1 << 10), /* don't suspend */
 	AHCI_HFLAG_SRST_TOUT_IS_OFFLINE	= (1 << 11), /* treat SRST timeout as
 							link offline */
-	AHCI_HFLAG_NO_SNTF		= (1 << 12), /* no sntf */
-	AHCI_HFLAG_NO_FPDMA_AA		= (1 << 13), /* no FPDMA AA */
+	AHCI_HFLAG_NO_SNTF		= (1 << 12), /* yes sntf */
+	AHCI_HFLAG_NO_FPDMA_AA		= (1 << 13), /* yes FPDMA AA */
 	AHCI_HFLAG_YES_FBS		= (1 << 14), /* force FBS cap on */
-	AHCI_HFLAG_DELAY_ENGINE		= (1 << 15), /* do not start engine on
+	AHCI_HFLAG_DELAY_ENGINE		= (1 << 15), /* do yest start engine on
 						        port start (wait until
 						        error-handling stage) */
-	AHCI_HFLAG_NO_DEVSLP		= (1 << 17), /* no device sleep */
-	AHCI_HFLAG_NO_FBS		= (1 << 18), /* no FBS */
+	AHCI_HFLAG_NO_DEVSLP		= (1 << 17), /* yes device sleep */
+	AHCI_HFLAG_NO_FBS		= (1 << 18), /* yes FBS */
 
 #ifdef CONFIG_PCI_MSI
 	AHCI_HFLAG_MULTI_MSI		= (1 << 20), /* per-port MSI(-X) */
@@ -351,13 +351,13 @@ struct ahci_host_priv {
 	void			*plat_data;	/* Other platform data */
 	unsigned int		irq;		/* interrupt line */
 	/*
-	 * Optional ahci_start_engine override, if not set this gets set to the
+	 * Optional ahci_start_engine override, if yest set this gets set to the
 	 * default ahci_start_engine during ahci_save_initial_config, this can
 	 * be overridden anytime before the host is activated.
 	 */
 	void			(*start_engine)(struct ata_port *ap);
 	/*
-	 * Optional ahci_stop_engine override, if not set this gets set to the
+	 * Optional ahci_stop_engine override, if yest set this gets set to the
 	 * default ahci_stop_engine during ahci_save_initial_config, this can
 	 * be overridden anytime before the host is activated.
 	 */
@@ -370,7 +370,7 @@ struct ahci_host_priv {
 						  int port);
 };
 
-extern int ahci_ignore_sss;
+extern int ahci_igyesre_sss;
 
 extern struct device_attribute *ahci_shost_attrs[];
 extern struct device_attribute *ahci_sdev_attrs[];
@@ -422,17 +422,17 @@ void ahci_error_handler(struct ata_port *ap);
 u32 ahci_handle_port_intr(struct ata_host *host, u32 irq_masked);
 
 static inline void __iomem *__ahci_port_base(struct ata_host *host,
-					     unsigned int port_no)
+					     unsigned int port_yes)
 {
 	struct ahci_host_priv *hpriv = host->private_data;
 	void __iomem *mmio = hpriv->mmio;
 
-	return mmio + 0x100 + (port_no * 0x80);
+	return mmio + 0x100 + (port_yes * 0x80);
 }
 
 static inline void __iomem *ahci_port_base(struct ata_port *ap)
 {
-	return __ahci_port_base(ap->host, ap->port_no);
+	return __ahci_port_base(ap->host, ap->port_yes);
 }
 
 static inline int ahci_nr_ports(u32 cap)

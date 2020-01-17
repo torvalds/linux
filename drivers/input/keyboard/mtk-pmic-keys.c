@@ -101,7 +101,7 @@ static void mtk_pmic_keys_lp_reset_setup(struct mtk_pmic_keys *keys,
 	int ret;
 	u32 long_press_mode, long_press_debounce;
 
-	ret = of_property_read_u32(keys->dev->of_node,
+	ret = of_property_read_u32(keys->dev->of_yesde,
 		"power-off-time-sec", &long_press_debounce);
 	if (ret)
 		long_press_debounce = 0;
@@ -110,7 +110,7 @@ static void mtk_pmic_keys_lp_reset_setup(struct mtk_pmic_keys *keys,
 			   MTK_PMIC_RST_DU_MASK << MTK_PMIC_RST_DU_SHIFT,
 			   long_press_debounce << MTK_PMIC_RST_DU_SHIFT);
 
-	ret = of_property_read_u32(keys->dev->of_node,
+	ret = of_property_read_u32(keys->dev->of_yesde,
 		"mediatek,long-press-mode", &long_press_mode);
 	if (ret)
 		long_press_mode = LP_DISABLE;
@@ -240,7 +240,7 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 	int error, index = 0;
 	unsigned int keycount;
 	struct mt6397_chip *pmic_chip = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *node = pdev->dev.of_node, *child;
+	struct device_yesde *yesde = pdev->dev.of_yesde, *child;
 	struct mtk_pmic_keys *keys;
 	const struct mtk_pmic_regs *mtk_pmic_regs;
 	struct input_dev *input_dev;
@@ -267,18 +267,18 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0001;
 
-	keycount = of_get_available_child_count(node);
+	keycount = of_get_available_child_count(yesde);
 	if (keycount > MTK_PMIC_MAX_KEY_COUNT) {
 		dev_err(keys->dev, "too many keys defined (%d)\n", keycount);
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(node, child) {
+	for_each_child_of_yesde(yesde, child) {
 		keys->keys[index].regs = &mtk_pmic_regs->keys_regs[index];
 
 		keys->keys[index].irq = platform_get_irq(pdev, index);
 		if (keys->keys[index].irq < 0) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return keys->keys[index].irq;
 		}
 
@@ -288,7 +288,7 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 			dev_err(keys->dev,
 				"failed to read key:%d linux,keycode property: %d\n",
 				index, error);
-			of_node_put(child);
+			of_yesde_put(child);
 			return error;
 		}
 
@@ -297,7 +297,7 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 
 		error = mtk_pmic_key_setup(keys, &keys->keys[index]);
 		if (error) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return error;
 		}
 

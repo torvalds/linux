@@ -7,7 +7,7 @@
 
 / {
 	model = "Asus NovaGo TP370QL";
-	compatible = "asus,novago-tp370ql", "qcom,msm8998";
+	compatible = "asus,yesvago-tp370ql", "qcom,msm8998";
 };
 
 &blsp1_i2c6 {

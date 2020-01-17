@@ -2,12 +2,12 @@
 /*
  * Copyright (c) 2013 ARM/Linaro
  *
- * Authors: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Authors: Daniel Lezcayes <daniel.lezcayes@linaro.org>
  *          Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
  *          Nicolas Pitre <nicolas.pitre@linaro.org>
  *
  * Maintainer: Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
- * Maintainer: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Maintainer: Daniel Lezcayes <daniel.lezcayes@linaro.org>
  */
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
@@ -27,17 +27,17 @@ static int bl_enter_powerdown(struct cpuidle_device *dev,
 			      struct cpuidle_driver *drv, int idx);
 
 /*
- * NB: Owing to current menu governor behaviour big and LITTLE
+ * NB: Owing to current menu goveryesr behaviour big and LITTLE
  * index 1 states have to define exit_latency and target_residency for
  * cluster state since, when all CPUs in a cluster hit it, the cluster
  * can be shutdown. This means that when a single CPU enters this state
  * the exit_latency and target_residency values are somewhat overkill.
- * There is no notion of cluster states in the menu governor, so CPUs
+ * There is yes yestion of cluster states in the menu goveryesr, so CPUs
  * have to define CPU states where possibly the cluster will be shutdown
  * depending on the state of other CPUs. idle states entry and exit happen
  * at random times; however the cluster state provides target_residency
  * values as if all CPUs in a cluster enter the state at once; this is
- * somewhat optimistic and behaviour should be fixed either in the governor
+ * somewhat optimistic and behaviour should be fixed either in the goveryesr
  * or in the MCPM back-ends.
  * To make this driver 100% generic the number of states and the exit_latency
  * target_residency values must be obtained from device tree bindings.
@@ -93,11 +93,11 @@ static struct cpuidle_driver bl_idle_big_driver = {
 };
 
 /*
- * notrace prevents trace shims from getting inserted where they
- * should not. Global jumps and ldrex/strex must not be inserted
+ * yestrace prevents trace shims from getting inserted where they
+ * should yest. Global jumps and ldrex/strex must yest be inserted
  * in power down sequences where caches and MMU may be turned off.
  */
-static int notrace bl_powerdown_finisher(unsigned long arg)
+static int yestrace bl_powerdown_finisher(unsigned long arg)
 {
 	/* MCPM works with HW CPU identifiers */
 	unsigned int mpidr = read_cpuid_mpidr();
@@ -118,7 +118,7 @@ static int notrace bl_powerdown_finisher(unsigned long arg)
  * @idx: state index
  *
  * Called from the CPUidle framework to program the device to the
- * specified target state selected by the governor.
+ * specified target state selected by the goveryesr.
  */
 static int bl_enter_powerdown(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int idx)
@@ -155,15 +155,15 @@ static int __init bl_idle_driver_init(struct cpuidle_driver *drv, int part_id)
 
 static const struct of_device_id compatible_machine_match[] = {
 	{ .compatible = "arm,vexpress,v2p-ca15_a7" },
-	{ .compatible = "samsung,exynos5420" },
-	{ .compatible = "samsung,exynos5800" },
+	{ .compatible = "samsung,exyyess5420" },
+	{ .compatible = "samsung,exyyess5800" },
 	{},
 };
 
 static int __init bl_idle_init(void)
 {
 	int ret;
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_yesde *root = of_find_yesde_by_path("/");
 	const struct of_device_id *match_id;
 
 	if (!root)
@@ -172,9 +172,9 @@ static int __init bl_idle_init(void)
 	/*
 	 * Initialize the driver just for a compliant set of machines
 	 */
-	match_id = of_match_node(compatible_machine_match, root);
+	match_id = of_match_yesde(compatible_machine_match, root);
 
-	of_node_put(root);
+	of_yesde_put(root);
 
 	if (!match_id)
 		return -ENODEV;
@@ -183,7 +183,7 @@ static int __init bl_idle_init(void)
 		return -EUNATCH;
 
 	/*
-	 * For now the differentiation between little and big cores
+	 * For yesw the differentiation between little and big cores
 	 * is based on the part number. A7 cores are considered little
 	 * cores, A15 are considered big cores. This distinction may
 	 * evolve in the future with a more generic matching approach.

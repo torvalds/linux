@@ -126,7 +126,7 @@ struct r3964_block_header
 };
 
 /*
- * If rx_buf hasn't enough space to store R3964_MTU chars,
+ * If rx_buf hasn't eyesugh space to store R3964_MTU chars,
  * we will reject all incoming STX-requests by sending NAK.
  */
 

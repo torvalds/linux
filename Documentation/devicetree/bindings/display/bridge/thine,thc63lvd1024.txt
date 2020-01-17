@@ -6,7 +6,7 @@ to parallel data outputs. The chip supports single/dual input/output modes,
 handling up to two LVDS input streams and up to two digital CMOS/TTL outputs.
 
 Single or dual operation mode, output data mapping and DDR output modes are
-configured through input signals and the chip does not expose any control bus.
+configured through input signals and the chip does yest expose any control bus.
 
 Required properties:
 - compatible: Shall be "thine,thc63lvd1024"
@@ -20,16 +20,16 @@ Optional properties:
 The THC63LVD1024 video port connections are modeled according
 to OF graph bindings specified by Documentation/devicetree/bindings/graph.txt
 
-Required video port nodes:
+Required video port yesdes:
 - port@0: First LVDS input port
 - port@2: First digital CMOS/TTL parallel output
 
-Optional video port nodes:
+Optional video port yesdes:
 - port@1: Second LVDS input port
 - port@3: Second digital CMOS/TTL parallel output
 
 The device can operate in single-link mode or dual-link mode. In single-link
-mode, all pixels are received on port@0, and port@1 shall not contain any
+mode, all pixels are received on port@0, and port@1 shall yest contain any
 endpoint. In dual-link mode, even-numbered pixels are received on port@0 and
 odd-numbered pixels on port@1, and both port@0 and port@1 shall contain
 endpoints.

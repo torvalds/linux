@@ -10,7 +10,7 @@
  * 'find_last_bit' is written by Rusty Russell <rusty@rustcorp.com.au>
  * (Inspired by David Howell's find_next_bit implementation)
  *
- * Rewritten by Yury Norov <yury.norov@gmail.com> to decrease
+ * Rewritten by Yury Norov <yury.yesrov@gmail.com> to decrease
  * size and improve performance, 2015.
  */
 

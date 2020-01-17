@@ -17,7 +17,7 @@ static bool available_dbs(struct intel_guc *guc, u32 priority)
 	unsigned long end;
 	u16 id;
 
-	/* first half is used for normal priority, second half for high */
+	/* first half is used for yesrmal priority, second half for high */
 	offset = 0;
 	end = GUC_NUM_DOORBELLS / 2;
 	if (priority <= GUC_CLIENT_PRIORITY_HIGH) {
@@ -39,7 +39,7 @@ static int check_all_doorbells(struct intel_guc *guc)
 	pr_info_once("Max number of doorbells: %d", GUC_NUM_DOORBELLS);
 	for (db_id = 0; db_id < GUC_NUM_DOORBELLS; ++db_id) {
 		if (!doorbell_ok(guc, db_id)) {
-			pr_err("doorbell %d, not ok\n", db_id);
+			pr_err("doorbell %d, yest ok\n", db_id);
 			return -EIO;
 		}
 	}
@@ -47,12 +47,12 @@ static int check_all_doorbells(struct intel_guc *guc)
 	return 0;
 }
 
-static int ring_doorbell_nop(struct intel_guc_client *client)
+static int ring_doorbell_yesp(struct intel_guc_client *client)
 {
 	struct guc_process_desc *desc = __get_process_desc(client);
 	int err;
 
-	client->use_nop_wqi = true;
+	client->use_yesp_wqi = true;
 
 	spin_lock_irq(&client->wq_lock);
 
@@ -61,9 +61,9 @@ static int ring_doorbell_nop(struct intel_guc_client *client)
 
 	spin_unlock_irq(&client->wq_lock);
 
-	client->use_nop_wqi = false;
+	client->use_yesp_wqi = false;
 
-	/* if there are no issues GuC will update the WQ head and keep the
+	/* if there are yes issues GuC will update the WQ head and keep the
 	 * WQ in active status
 	 */
 	err = wait_for(READ_ONCE(desc->head) == READ_ONCE(desc->tail), 10);
@@ -148,7 +148,7 @@ static int igt_guc_clients(void *arg)
 		goto out;
 	}
 
-	/* the client should now have reserved a doorbell */
+	/* the client should yesw have reserved a doorbell */
 	if (!has_doorbell(guc->execbuf_client)) {
 		pr_err("guc_clients_create didn't reserve doorbells\n");
 		err = -EINVAL;
@@ -158,7 +158,7 @@ static int igt_guc_clients(void *arg)
 	/* Now enable the clients */
 	guc_clients_enable(guc);
 
-	/* each client should now have received a doorbell */
+	/* each client should yesw have received a doorbell */
 	if (!client_doorbell_in_sync(guc->execbuf_client)) {
 		pr_err("failed to initialize the doorbells\n");
 		err = -EINVAL;
@@ -167,7 +167,7 @@ static int igt_guc_clients(void *arg)
 
 	/*
 	 * Basic test - an attempt to reallocate a valid doorbell to the
-	 * client it is currently assigned should not cause a failure.
+	 * client it is currently assigned should yest cause a failure.
 	 */
 	err = create_doorbell(guc->execbuf_client);
 
@@ -188,7 +188,7 @@ unlock:
 /*
  * Create as many clients as number of doorbells. Note that there's already
  * client(s)/doorbell(s) created during driver load, but this test creates
- * its own and do not interact with the existing ones.
+ * its own and do yest interact with the existing ones.
  */
 static int igt_guc_doorbells(void *arg)
 {
@@ -222,7 +222,7 @@ static int igt_guc_doorbells(void *arg)
 			}
 
 			if (available_dbs(guc, i % GUC_CLIENT_PRIORITY_NUM)) {
-				pr_err("[%d] non-db related alloc fail\n", i);
+				pr_err("[%d] yesn-db related alloc fail\n", i);
 				err = -EINVAL;
 				goto out;
 			}
@@ -269,7 +269,7 @@ static int igt_guc_doorbells(void *arg)
 		if (err)
 			goto out;
 
-		err = ring_doorbell_nop(clients[i]);
+		err = ring_doorbell_yesp(clients[i]);
 		if (err)
 			goto out;
 	}

@@ -312,104 +312,104 @@ static void bdisp_dbg_dump_ivmx(struct seq_file *s,
 		seq_puts(s, "YUV to RGB\n");
 		return;
 	}
-	seq_puts(s, "Unknown conversion\n");
+	seq_puts(s, "Unkyeswn conversion\n");
 }
 
-static int last_nodes_show(struct seq_file *s, void *data)
+static int last_yesdes_show(struct seq_file *s, void *data)
 {
 	/* Not dumping all fields, focusing on significant ones */
 	struct bdisp_dev *bdisp = s->private;
-	struct bdisp_node *node;
+	struct bdisp_yesde *yesde;
 	int i = 0;
 
-	if (!bdisp->dbg.copy_node[0]) {
-		seq_puts(s, "No node built yet\n");
+	if (!bdisp->dbg.copy_yesde[0]) {
+		seq_puts(s, "No yesde built yet\n");
 		return 0;
 	}
 
 	do {
-		node = bdisp->dbg.copy_node[i];
-		if (!node)
+		yesde = bdisp->dbg.copy_yesde[i];
+		if (!yesde)
 			break;
 		seq_printf(s, "--------\nNode %d:\n", i);
 		seq_puts(s, "-- General --\n");
-		seq_printf(s, "NIP\t0x%08X\n", node->nip);
-		seq_printf(s, "CIC\t0x%08X\n", node->cic);
-		bdisp_dbg_dump_ins(s, node->ins);
-		seq_printf(s, "ACK\t0x%08X\n", node->ack);
+		seq_printf(s, "NIP\t0x%08X\n", yesde->nip);
+		seq_printf(s, "CIC\t0x%08X\n", yesde->cic);
+		bdisp_dbg_dump_ins(s, yesde->ins);
+		seq_printf(s, "ACK\t0x%08X\n", yesde->ack);
 		seq_puts(s, "-- Target --\n");
-		seq_printf(s, "TBA\t0x%08X\n", node->tba);
-		bdisp_dbg_dump_tty(s, node->tty);
-		bdisp_dbg_dump_xy(s, node->txy, "TXY");
-		bdisp_dbg_dump_sz(s, node->tsz, "TSZ");
-		/* Color Fill not dumped */
+		seq_printf(s, "TBA\t0x%08X\n", yesde->tba);
+		bdisp_dbg_dump_tty(s, yesde->tty);
+		bdisp_dbg_dump_xy(s, yesde->txy, "TXY");
+		bdisp_dbg_dump_sz(s, yesde->tsz, "TSZ");
+		/* Color Fill yest dumped */
 		seq_puts(s, "-- Source 1 --\n");
-		seq_printf(s, "S1BA\t0x%08X\n", node->s1ba);
-		bdisp_dbg_dump_sty(s, node->s1ty, node->s1ba, "S1TY");
-		bdisp_dbg_dump_xy(s, node->s1xy, "S1XY");
+		seq_printf(s, "S1BA\t0x%08X\n", yesde->s1ba);
+		bdisp_dbg_dump_sty(s, yesde->s1ty, yesde->s1ba, "S1TY");
+		bdisp_dbg_dump_xy(s, yesde->s1xy, "S1XY");
 		seq_puts(s, "-- Source 2 --\n");
-		seq_printf(s, "S2BA\t0x%08X\n", node->s2ba);
-		bdisp_dbg_dump_sty(s, node->s2ty, node->s2ba, "S2TY");
-		bdisp_dbg_dump_xy(s, node->s2xy, "S2XY");
-		bdisp_dbg_dump_sz(s, node->s2sz, "S2SZ");
+		seq_printf(s, "S2BA\t0x%08X\n", yesde->s2ba);
+		bdisp_dbg_dump_sty(s, yesde->s2ty, yesde->s2ba, "S2TY");
+		bdisp_dbg_dump_xy(s, yesde->s2xy, "S2XY");
+		bdisp_dbg_dump_sz(s, yesde->s2sz, "S2SZ");
 		seq_puts(s, "-- Source 3 --\n");
-		seq_printf(s, "S3BA\t0x%08X\n", node->s3ba);
-		bdisp_dbg_dump_sty(s, node->s3ty, node->s3ba, "S3TY");
-		bdisp_dbg_dump_xy(s, node->s3xy, "S3XY");
-		bdisp_dbg_dump_sz(s, node->s3sz, "S3SZ");
-		/* Clipping not dumped */
-		/* CLUT not dumped */
+		seq_printf(s, "S3BA\t0x%08X\n", yesde->s3ba);
+		bdisp_dbg_dump_sty(s, yesde->s3ty, yesde->s3ba, "S3TY");
+		bdisp_dbg_dump_xy(s, yesde->s3xy, "S3XY");
+		bdisp_dbg_dump_sz(s, yesde->s3sz, "S3SZ");
+		/* Clipping yest dumped */
+		/* CLUT yest dumped */
 		seq_puts(s, "-- Filter & Mask --\n");
-		bdisp_dbg_dump_fctl(s, node->fctl);
-		/* PMK not dumped */
+		bdisp_dbg_dump_fctl(s, yesde->fctl);
+		/* PMK yest dumped */
 		seq_puts(s, "-- Chroma Filter --\n");
-		bdisp_dbg_dump_rsf(s, node->rsf, "RSF");
-		bdisp_dbg_dump_rzi(s, node->rzi, "RZI");
-		seq_printf(s, "HFP\t0x%08X\n", node->hfp);
-		seq_printf(s, "VFP\t0x%08X\n", node->vfp);
+		bdisp_dbg_dump_rsf(s, yesde->rsf, "RSF");
+		bdisp_dbg_dump_rzi(s, yesde->rzi, "RZI");
+		seq_printf(s, "HFP\t0x%08X\n", yesde->hfp);
+		seq_printf(s, "VFP\t0x%08X\n", yesde->vfp);
 		seq_puts(s, "-- Luma Filter --\n");
-		bdisp_dbg_dump_rsf(s, node->y_rsf, "Y_RSF");
-		bdisp_dbg_dump_rzi(s, node->y_rzi, "Y_RZI");
-		seq_printf(s, "Y_HFP\t0x%08X\n", node->y_hfp);
-		seq_printf(s, "Y_VFP\t0x%08X\n", node->y_vfp);
-		/* Flicker not dumped */
-		/* Color key not dumped */
-		/* Reserved not dumped */
-		/* Static Address & User not dumped */
+		bdisp_dbg_dump_rsf(s, yesde->y_rsf, "Y_RSF");
+		bdisp_dbg_dump_rzi(s, yesde->y_rzi, "Y_RZI");
+		seq_printf(s, "Y_HFP\t0x%08X\n", yesde->y_hfp);
+		seq_printf(s, "Y_VFP\t0x%08X\n", yesde->y_vfp);
+		/* Flicker yest dumped */
+		/* Color key yest dumped */
+		/* Reserved yest dumped */
+		/* Static Address & User yest dumped */
 		seq_puts(s, "-- Input Versatile Matrix --\n");
-		bdisp_dbg_dump_ivmx(s, node->ivmx0, node->ivmx1,
-				    node->ivmx2, node->ivmx3);
-		/* Output Versatile Matrix not dumped */
-		/* Pace not dumped */
-		/* VC1R & DEI not dumped */
-		/* Gradient Fill not dumped */
-	} while ((++i < MAX_NB_NODE) && node->nip);
+		bdisp_dbg_dump_ivmx(s, yesde->ivmx0, yesde->ivmx1,
+				    yesde->ivmx2, yesde->ivmx3);
+		/* Output Versatile Matrix yest dumped */
+		/* Pace yest dumped */
+		/* VC1R & DEI yest dumped */
+		/* Gradient Fill yest dumped */
+	} while ((++i < MAX_NB_NODE) && yesde->nip);
 
 	return 0;
 }
 
-static int last_nodes_raw_show(struct seq_file *s, void *data)
+static int last_yesdes_raw_show(struct seq_file *s, void *data)
 {
 	struct bdisp_dev *bdisp = s->private;
-	struct bdisp_node *node;
+	struct bdisp_yesde *yesde;
 	u32 *val;
 	int j, i = 0;
 
-	if (!bdisp->dbg.copy_node[0]) {
-		seq_puts(s, "No node built yet\n");
+	if (!bdisp->dbg.copy_yesde[0]) {
+		seq_puts(s, "No yesde built yet\n");
 		return 0;
 	}
 
 	do {
-		node = bdisp->dbg.copy_node[i];
-		if (!node)
+		yesde = bdisp->dbg.copy_yesde[i];
+		if (!yesde)
 			break;
 
 		seq_printf(s, "--------\nNode %d:\n", i);
-		val = (u32 *)node;
-		for (j = 0; j < sizeof(struct bdisp_node) / sizeof(u32); j++)
+		val = (u32 *)yesde;
+		for (j = 0; j < sizeof(struct bdisp_yesde) / sizeof(u32); j++)
 			seq_printf(s, "0x%08X\n", *val++);
-	} while ((++i < MAX_NB_NODE) && node->nip);
+	} while ((++i < MAX_NB_NODE) && yesde->nip);
 
 	return 0;
 }
@@ -482,7 +482,7 @@ static int regs_show(struct seq_file *s, void *data)
 
 	ret = pm_runtime_get_sync(bdisp->dev);
 	if (ret < 0) {
-		seq_puts(s, "Cannot wake up IP\n");
+		seq_puts(s, "Canyest wake up IP\n");
 		return 0;
 	}
 
@@ -632,8 +632,8 @@ static int perf_show(struct seq_file *s, void *data)
 			    &name##_fops)
 
 DEFINE_SHOW_ATTRIBUTE(regs);
-DEFINE_SHOW_ATTRIBUTE(last_nodes);
-DEFINE_SHOW_ATTRIBUTE(last_nodes_raw);
+DEFINE_SHOW_ATTRIBUTE(last_yesdes);
+DEFINE_SHOW_ATTRIBUTE(last_yesdes_raw);
 DEFINE_SHOW_ATTRIBUTE(last_request);
 DEFINE_SHOW_ATTRIBUTE(perf);
 
@@ -649,10 +649,10 @@ int bdisp_debugfs_create(struct bdisp_dev *bdisp)
 	if (!bdisp_dbg_create_entry(regs))
 		goto err;
 
-	if (!bdisp_dbg_create_entry(last_nodes))
+	if (!bdisp_dbg_create_entry(last_yesdes))
 		goto err;
 
-	if (!bdisp_dbg_create_entry(last_nodes_raw))
+	if (!bdisp_dbg_create_entry(last_yesdes_raw))
 		goto err;
 
 	if (!bdisp_dbg_create_entry(last_request))

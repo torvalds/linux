@@ -11,20 +11,20 @@
 #include "i915_active.h"
 #include "i915_request.h"
 
-struct intel_engine_pool_node *
+struct intel_engine_pool_yesde *
 intel_engine_get_pool(struct intel_engine_cs *engine, size_t size);
 
 static inline int
-intel_engine_pool_mark_active(struct intel_engine_pool_node *node,
+intel_engine_pool_mark_active(struct intel_engine_pool_yesde *yesde,
 			      struct i915_request *rq)
 {
-	return i915_active_add_request(&node->active, rq);
+	return i915_active_add_request(&yesde->active, rq);
 }
 
 static inline void
-intel_engine_pool_put(struct intel_engine_pool_node *node)
+intel_engine_pool_put(struct intel_engine_pool_yesde *yesde)
 {
-	i915_active_release(&node->active);
+	i915_active_release(&yesde->active);
 }
 
 void intel_engine_pool_init(struct intel_engine_pool *pool);

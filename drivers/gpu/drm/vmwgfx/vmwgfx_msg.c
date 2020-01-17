@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -165,7 +165,7 @@ static unsigned long vmw_port_hb_out(struct rpc_channel *channel,
 		return ebx;
 	}
 
-	/* HB port not available. Send the message 4 bytes at a time. */
+	/* HB port yest available. Send the message 4 bytes at a time. */
 	ecx = MESSAGE_STATUS_SUCCESS << 16;
 	while (msg_len && (HIGH_WORD(ecx) & MESSAGE_STATUS_SUCCESS)) {
 		unsigned int bytes = min_t(size_t, msg_len, 4);
@@ -218,7 +218,7 @@ static unsigned long vmw_port_hb_in(struct rpc_channel *channel, char *reply,
 		return ebx;
 	}
 
-	/* HB port not available. Retrieve the message 4 bytes at a time. */
+	/* HB port yest available. Retrieve the message 4 bytes at a time. */
 	ecx = MESSAGE_STATUS_SUCCESS << 16;
 	while (reply_len) {
 		unsigned int bytes = min_t(unsigned long, reply_len, 4);
@@ -341,7 +341,7 @@ static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 		reply_len = ebx;
 		reply     = kzalloc(reply_len + 1, GFP_KERNEL);
 		if (!reply) {
-			DRM_ERROR("Cannot allocate memory for host message reply.\n");
+			DRM_ERROR("Canyest allocate memory for host message reply.\n");
 			return -ENOMEM;
 		}
 
@@ -425,7 +425,7 @@ int vmw_host_get_guestinfo(const char *guest_info_param,
 
 	msg = kasprintf(GFP_KERNEL, "info-get %s", guest_info_param);
 	if (!msg) {
-		DRM_ERROR("Cannot allocate memory to get guest info \"%s\".",
+		DRM_ERROR("Canyest allocate memory to get guest info \"%s\".",
 			  guest_info_param);
 		return -ENOMEM;
 	}
@@ -491,7 +491,7 @@ int vmw_host_log(const char *log)
 
 	msg = kasprintf(GFP_KERNEL, "log %s", log);
 	if (!msg) {
-		DRM_ERROR("Cannot allocate memory for host log message.\n");
+		DRM_ERROR("Canyest allocate memory for host log message.\n");
 		return -ENOMEM;
 	}
 

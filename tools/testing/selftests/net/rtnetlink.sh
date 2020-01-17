@@ -10,7 +10,7 @@ ret=0
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
-# set global exit status, but never reset nonzero one.
+# set global exit status, but never reset yesnzero one.
 check_err()
 {
 	if [ $ret -eq 0 ]; then
@@ -338,7 +338,7 @@ kci_test_ifalias()
 	check_err $?
 
 	if [ $ret -ne 0 ]; then
-		echo "FAIL: cannot set interface alias of $devdummy to $namewant"
+		echo "FAIL: canyest set interface alias of $devdummy to $namewant"
 		return 1
 	fi
 
@@ -403,7 +403,7 @@ kci_test_vrf()
 	ip -br link show type vrf | grep -q "$vrfname"
 	check_err $?
 	if [ $ret -ne 0 ];then
-		echo "FAIL: created vrf device not found"
+		echo "FAIL: created vrf device yest found"
 		return 1
 	fi
 
@@ -460,13 +460,13 @@ kci_test_encap_vxlan()
 	ip -netns "$testns" link set dev "$vxlan" type vxlan ttl 64
 	check_err $?
 
-	ip -netns "$testns" link set dev "$vxlan" type vxlan nolearning
+	ip -netns "$testns" link set dev "$vxlan" type vxlan yeslearning
 	check_err $?
 
 	ip -netns "$testns" link set dev "$vxlan" type vxlan proxy 2>/dev/null
 	check_fail $?
 
-	ip -netns "$testns" link set dev "$vxlan" type vxlan norsc 2>/dev/null
+	ip -netns "$testns" link set dev "$vxlan" type vxlan yesrsc 2>/dev/null
 	check_fail $?
 
 	ip -netns "$testns" link set dev "$vxlan" type vxlan l2miss 2>/dev/null
@@ -552,7 +552,7 @@ kci_test_encap()
 
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
-		echo "SKIP encap tests: cannot add net namespace $testns"
+		echo "SKIP encap tests: canyest add net namespace $testns"
 		return $ksft_skip
 	fi
 
@@ -621,7 +621,7 @@ kci_test_macsec()
 #            tmpl proto esp src 14.0.0.52 dst 14.0.0.70 \
 #            spi 0x07 mode transport reqid 0x07
 #
-# Subcommands not tested
+# Subcommands yest tested
 #    ip x s update
 #    ip x s allocspi
 #    ip x s deleteall
@@ -639,7 +639,7 @@ kci_test_ipsec()
 
 	ip addr add $srcip dev $devdummy
 
-	# flush to be sure there's nothing configured
+	# flush to be sure there's yesthing configured
 	ip x s flush ; ip x p flush
 	check_err $?
 
@@ -767,7 +767,7 @@ kci_test_ipsec_offload()
 		return 1
 	fi
 
-	# flush to be sure there's nothing configured
+	# flush to be sure there's yesthing configured
 	ip x s flush ; ip x p flush
 
 	# create offloaded SAs, both in and out
@@ -823,7 +823,7 @@ EOF
 	ip x p flush
 	lines=`grep -c "SA count=0" $sysfsf`
 	if [ $lines -ne 1 ] ; then
-		echo "FAIL: ipsec_offload SA not removed from driver"
+		echo "FAIL: ipsec_offload SA yest removed from driver"
 		check_err 1
 	fi
 
@@ -845,7 +845,7 @@ kci_test_gretap()
 
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
-		echo "SKIP gretap tests: cannot add net namespace $testns"
+		echo "SKIP gretap tests: canyest add net namespace $testns"
 		return $ksft_skip
 	fi
 
@@ -895,7 +895,7 @@ kci_test_ip6gretap()
 
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
-		echo "SKIP ip6gretap tests: cannot add net namespace $testns"
+		echo "SKIP ip6gretap tests: canyest add net namespace $testns"
 		return $ksft_skip
 	fi
 
@@ -951,7 +951,7 @@ kci_test_erspan()
 
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
-		echo "SKIP erspan tests: cannot add net namespace $testns"
+		echo "SKIP erspan tests: canyest add net namespace $testns"
 		return $ksft_skip
 	fi
 
@@ -1016,7 +1016,7 @@ kci_test_ip6erspan()
 
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
-		echo "SKIP ip6erspan tests: cannot add net namespace $testns"
+		echo "SKIP ip6erspan tests: canyest add net namespace $testns"
 		return $ksft_skip
 	fi
 
@@ -1087,7 +1087,7 @@ kci_test_fdb_get()
 
 	ip netns add testns
 	if [ $? -ne 0 ]; then
-		echo "SKIP fdb get tests: cannot add net namespace $testns"
+		echo "SKIP fdb get tests: canyest add net namespace $testns"
 		return $ksft_skip
 	fi
 
@@ -1177,7 +1177,7 @@ kci_test_rtnl()
 {
 	kci_add_dummy
 	if [ $ret -ne 0 ];then
-		echo "FAIL: cannot add dummy interface"
+		echo "FAIL: canyest add dummy interface"
 		return 1
 	fi
 
@@ -1214,7 +1214,7 @@ fi
 for x in ip tc;do
 	$x -Version 2>/dev/null >/dev/null
 	if [ $? -ne 0 ];then
-		echo "SKIP: Could not run test without the $x tool"
+		echo "SKIP: Could yest run test without the $x tool"
 		exit $ksft_skip
 	fi
 done

@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -47,7 +47,7 @@ static struct cvmx_bootmem_desc *cvmx_bootmem_desc;
 /**
  * This macro returns a member of the
  * cvmx_bootmem_named_block_desc_t structure. These members can't
- * be directly addressed as they might be in memory not directly
+ * be directly addressed as they might be in memory yest directly
  * reachable. In the case where bootmem is compiled with
  * LINUX_HOST, the structure itself might be located on a remote
  * Octeon. The argument "field" is the member name of the
@@ -63,7 +63,7 @@ static struct cvmx_bootmem_desc *cvmx_bootmem_desc;
 /**
  * This function is the implementation of the get macros defined
  * for individual structure members. The argument are generated
- * by the macros inorder to read only the needed memory.
+ * by the macros iyesrder to read only the needed memory.
  *
  * @param base   64bit physical address of the complete structure
  * @param offset Offset from the beginning of the structure to the member being
@@ -88,7 +88,7 @@ static inline uint64_t __cvmx_bootmem_desc_get(uint64_t base, int offset,
 
 /*
  * Wrapper functions are provided for reading/writing the size and
- * next block values as these may not be directly addressible (in 32
+ * next block values as these may yest be directly addressible (in 32
  * bit applications, for instance.)  Offsets of data elements in
  * bootmem list, must match cvmx_bootmem_block_header_t.
  */
@@ -119,8 +119,8 @@ static uint64_t cvmx_bootmem_phy_get_next(uint64_t addr)
  * Allocate a block of memory from the free list that was
  * passed to the application by the bootloader within a specified
  * address range. This is an allocate-only algorithm, so
- * freeing memory is not possible. Allocation will fail if
- * memory cannot be allocated in the requested range.
+ * freeing memory is yest possible. Allocation will fail if
+ * memory canyest be allocated in the requested range.
  *
  * @size:      Size in bytes of block to allocate
  * @min_addr:  defines the minimum address of the range
@@ -211,7 +211,7 @@ int cvmx_bootmem_init(void *mem_desc_ptr)
  * addresses, and expose more features that the cvmx_bootmem_functions
  * above.  These are required for full memory space access in 32 bit
  * applications, as well as for using some advance features.  Most
- * applications should not need to use these.
+ * applications should yest need to use these.
  */
 
 int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min,
@@ -239,7 +239,7 @@ int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min,
 		cvmx_dprintf("ERROR: Incompatible bootmem descriptor "
 			     "version: %d.%d at addr: %p\n",
 			     (int)cvmx_bootmem_desc->major_version,
-			     (int)cvmx_bootmem_desc->minor_version,
+			     (int)cvmx_bootmem_desc->miyesr_version,
 			     cvmx_bootmem_desc);
 		goto error_out;
 	}
@@ -248,11 +248,11 @@ int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min,
 	 * Do a variety of checks to validate the arguments.  The
 	 * allocator code will later assume that these checks have
 	 * been made.  We validate that the requested constraints are
-	 * not self-contradictory before we look through the list of
+	 * yest self-contradictory before we look through the list of
 	 * available memory.
 	 */
 
-	/* 0 is not a valid req_size for this allocator */
+	/* 0 is yest a valid req_size for this allocator */
 	if (!req_size)
 		goto error_out;
 
@@ -269,7 +269,7 @@ int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min,
 	if (address_min && !address_max)
 		address_max = address_min + req_size;
 	else if (!address_min && !address_max)
-		address_max = ~0ull;  /* If no limits given, use max limits */
+		address_max = ~0ull;  /* If yes limits given, use max limits */
 
 
 	/*
@@ -319,7 +319,7 @@ int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min,
 
 		/*
 		 * Determine if this is an entry that can satisify the
-		 * request Check to make sure entry is large enough to
+		 * request Check to make sure entry is large eyesugh to
 		 * satisfy request.
 		 */
 		usable_base =
@@ -358,7 +358,7 @@ int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min,
 		if (desired_min_addr == ent_addr) {
 			if (req_size < ent_size) {
 				/*
-				 * big enough to create a new block
+				 * big eyesugh to create a new block
 				 * from top portion of block.
 				 */
 				new_ent_addr = ent_addr + req_size;
@@ -397,7 +397,7 @@ int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min,
 		}
 		/*
 		 * block returned doesn't start at beginning of entry,
-		 * so we know that we will be splitting a block off
+		 * so we kyesw that we will be splitting a block off
 		 * the front of this one.  Create a new block from the
 		 * beginning, add to list, and go to top of loop
 		 * again.
@@ -441,12 +441,12 @@ int __cvmx_bootmem_phy_free(uint64_t phy_addr, uint64_t size, uint32_t flags)
 		cvmx_dprintf("ERROR: Incompatible bootmem descriptor "
 			     "version: %d.%d at addr: %p\n",
 			     (int)cvmx_bootmem_desc->major_version,
-			     (int)cvmx_bootmem_desc->minor_version,
+			     (int)cvmx_bootmem_desc->miyesr_version,
 			     cvmx_bootmem_desc);
 		return 0;
 	}
 
-	/* 0 is not a valid size for this allocator */
+	/* 0 is yest a valid size for this allocator */
 	if (!size)
 		return 0;
 
@@ -503,7 +503,7 @@ int __cvmx_bootmem_phy_free(uint64_t phy_addr, uint64_t size, uint32_t flags)
 		goto bootmem_free_done;
 	} else {
 		/*
-		 * insert between prev and cur nodes, checking for
+		 * insert between prev and cur yesdes, checking for
 		 * merge with either/both.
 		 */
 		if (prev_addr + cvmx_bootmem_phy_get_size(prev_addr) ==
@@ -559,8 +559,8 @@ bootmem_free_done:
  *
  * @flags: Flags to control options for the allocation.
  *
- * Returns Pointer to memory block descriptor, NULL if not found.
- *	   If NULL returned when name parameter is NULL, then no memory
+ * Returns Pointer to memory block descriptor, NULL if yest found.
+ *	   If NULL returned when name parameter is NULL, then yes memory
  *	   block descriptors are available.
  */
 static struct cvmx_bootmem_named_block_desc *
@@ -573,7 +573,7 @@ static struct cvmx_bootmem_named_block_desc *
 	cvmx_dprintf("cvmx_bootmem_phy_named_block_find: %s\n", name);
 #endif
 	/*
-	 * Lock the structure to make sure that it is not being
+	 * Lock the structure to make sure that it is yest being
 	 * changed while we are examining it.
 	 */
 	if (!(flags & CVMX_BOOTMEM_FLAG_NO_LOCKING))
@@ -606,7 +606,7 @@ static struct cvmx_bootmem_named_block_desc *
 		cvmx_dprintf("ERROR: Incompatible bootmem descriptor "
 			     "version: %d.%d at addr: %p\n",
 			     (int)cvmx_bootmem_desc->major_version,
-			     (int)cvmx_bootmem_desc->minor_version,
+			     (int)cvmx_bootmem_desc->miyesr_version,
 			     cvmx_bootmem_desc);
 	}
 	if (!(flags & CVMX_BOOTMEM_FLAG_NO_LOCKING))
@@ -674,7 +674,7 @@ static int cvmx_bootmem_phy_named_block_free(char *name, uint32_t flags)
 		cvmx_dprintf("ERROR: Incompatible bootmem descriptor version: "
 			     "%d.%d at addr: %p\n",
 			     (int)cvmx_bootmem_desc->major_version,
-			     (int)cvmx_bootmem_desc->minor_version,
+			     (int)cvmx_bootmem_desc->miyesr_version,
 			     cvmx_bootmem_desc);
 		return 0;
 	}
@@ -703,7 +703,7 @@ static int cvmx_bootmem_phy_named_block_free(char *name, uint32_t flags)
 					named_block_ptr->size,
 					CVMX_BOOTMEM_FLAG_NO_LOCKING);
 		named_block_ptr->size = 0;
-		/* Set size to zero to indicate block not used. */
+		/* Set size to zero to indicate block yest used. */
 	}
 
 	cvmx_bootmem_unlock();
@@ -737,7 +737,7 @@ int64_t cvmx_bootmem_phy_named_block_alloc(uint64_t size, uint64_t min_addr,
 		cvmx_dprintf("ERROR: Incompatible bootmem descriptor version: "
 			     "%d.%d at addr: %p\n",
 			     (int)cvmx_bootmem_desc->major_version,
-			     (int)cvmx_bootmem_desc->minor_version,
+			     (int)cvmx_bootmem_desc->miyesr_version,
 			     cvmx_bootmem_desc);
 		return -1;
 	}
@@ -756,7 +756,7 @@ int64_t cvmx_bootmem_phy_named_block_alloc(uint64_t size, uint64_t min_addr,
 
 	/*
 	 * Check to see if name already in use, return error if name
-	 * not available or no more room for blocks.
+	 * yest available or yes more room for blocks.
 	 */
 	if (cvmx_bootmem_phy_named_block_find(name,
 					      flags | CVMX_BOOTMEM_FLAG_NO_LOCKING) || !named_block_desc_ptr) {

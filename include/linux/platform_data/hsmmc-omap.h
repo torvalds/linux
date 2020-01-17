@@ -52,11 +52,11 @@ struct omap_hsmmc_platform_data {
 	u32 caps;	/* Used for the MMC driver on 2430 and later */
 	u32 pm_caps;	/* PM capabilities of the mmc */
 
-	/* nonremovable e.g. eMMC */
-	unsigned nonremovable:1;
+	/* yesnremovable e.g. eMMC */
+	unsigned yesnremovable:1;
 
-	/* eMMC does not handle power off when not in sleep state */
-	unsigned no_regulator_off_init:1;
+	/* eMMC does yest handle power off when yest in sleep state */
+	unsigned yes_regulator_off_init:1;
 
 	/* we can put the features above into this variable */
 #define HSMMC_HAS_PBIAS		(1 << 0)

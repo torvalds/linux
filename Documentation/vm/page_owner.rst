@@ -11,7 +11,7 @@ page owner is for the tracking about who allocated each page.
 It can be used to debug memory leak or to find a memory hogger.
 When allocation happens, information about allocation such as call stack
 and order of pages is stored into certain storage for each page.
-When we need to know about status of all pages, we can get and analyze
+When we need to kyesw about status of all pages, we can get and analyze
 this information.
 
 Although we already have tracepoint for tracing page allocation/free,
@@ -28,13 +28,13 @@ enabled. Other usages are more than welcome.
 
 page owner is disabled in default. So, if you'd like to use it, you need
 to add "page_owner=on" into your boot cmdline. If the kernel is built
-with page owner and page owner is disabled in runtime due to no enabling
+with page owner and page owner is disabled in runtime due to yes enabling
 boot option, runtime overhead is marginal. If disabled in runtime, it
-doesn't require memory to store owner information, so there is no runtime
+doesn't require memory to store owner information, so there is yes runtime
 memory overhead. And, page owner inserts just two unlikely branches into
-the page allocator hotpath and if not enabled, then allocation is done
+the page allocator hotpath and if yest enabled, then allocation is done
 like as the kernel without page owner. These two unlikely branches should
-not affect to allocation performance, especially if the static keys jump
+yest affect to allocation performance, especially if the static keys jump
 label patching functionality is available. Following is the kernel's code
 size change due to this facility.
 
@@ -55,17 +55,17 @@ Although, roughly, 4 KB code is added in total, page_alloc.o increase by
 page owner and turning it on if needed would be great option to debug
 kernel memory problem.
 
-There is one notice that is caused by implementation detail. page owner
+There is one yestice that is caused by implementation detail. page owner
 stores information into the memory from struct page extension. This memory
 is initialized some time later than that page allocator starts in sparse
 memory system, so, until initialization, many pages can be allocated and
-they would have no owner information. To fix it up, these early allocated
+they would have yes owner information. To fix it up, these early allocated
 pages are investigated and marked as allocated in initialization phase.
 Although it doesn't mean that they have the right owner information,
-at least, we can tell whether the page is allocated or not,
+at least, we can tell whether the page is allocated or yest,
 more accurately. On 2GB memory x86-64 VM box, 13343 early allocated pages
 are catched and marked, although they are mostly allocated from struct
-page extension feature. Anyway, after that, no page is left in
+page extension feature. Anyway, after that, yes page is left in
 un-tracking state.
 
 Usage

@@ -8,36 +8,36 @@
 #ifndef _ASM_C6X_PGTABLE_H
 #define _ASM_C6X_PGTABLE_H
 
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-yespud.h>
 
 #include <asm/setup.h>
 #include <asm/page.h>
 
 /*
  * All 32bit addresses are effectively valid for vmalloc...
- * Sort of meaningless for non-VM targets.
+ * Sort of meaningless for yesn-VM targets.
  */
 #define	VMALLOC_START	0
 #define	VMALLOC_END	0xffffffff
 
 #define pgd_present(pgd)	(1)
-#define pgd_none(pgd)		(0)
+#define pgd_yesne(pgd)		(0)
 #define pgd_bad(pgd)		(0)
 #define pgd_clear(pgdp)
 #define kern_addr_valid(addr) (1)
 
 #define pmd_offset(a, b)	((void *)0)
-#define pmd_none(x)		(!pmd_val(x))
+#define pmd_yesne(x)		(!pmd_val(x))
 #define pmd_present(x)		(pmd_val(x))
 #define pmd_clear(xp)		do { set_pmd(xp, __pmd(0)); } while (0)
 #define pmd_bad(x)		(pmd_val(x) & ~PAGE_MASK)
 
-#define PAGE_NONE		__pgprot(0)    /* these mean nothing to NO_MM */
-#define PAGE_SHARED		__pgprot(0)    /* these mean nothing to NO_MM */
-#define PAGE_COPY		__pgprot(0)    /* these mean nothing to NO_MM */
-#define PAGE_READONLY	        __pgprot(0)    /* these mean nothing to NO_MM */
-#define PAGE_KERNEL		__pgprot(0)    /* these mean nothing to NO_MM */
-#define pgprot_noncached(prot)	(prot)
+#define PAGE_NONE		__pgprot(0)    /* these mean yesthing to NO_MM */
+#define PAGE_SHARED		__pgprot(0)    /* these mean yesthing to NO_MM */
+#define PAGE_COPY		__pgprot(0)    /* these mean yesthing to NO_MM */
+#define PAGE_READONLY	        __pgprot(0)    /* these mean yesthing to NO_MM */
+#define PAGE_KERNEL		__pgprot(0)    /* these mean yesthing to NO_MM */
+#define pgprot_yesncached(prot)	(prot)
 
 extern void paging_init(void);
 
@@ -62,7 +62,7 @@ extern unsigned long empty_zero_page;
 /*
  * c6x is !MMU, so define the simpliest implementation
  */
-#define pgprot_writecombine pgprot_noncached
+#define pgprot_writecombine pgprot_yesncached
 
 #include <asm-generic/pgtable.h>
 

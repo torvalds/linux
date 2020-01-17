@@ -23,7 +23,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -47,7 +47,7 @@ static void it8172_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	/*
 	 * The highest value of DIOR/DIOW pulse width and recovery time
 	 * that can be set in the IT8172 is 8 PCI clock cycles.  As a result,
-	 * it cannot be configured for PIO mode 0.  This table sets these
+	 * it canyest be configured for PIO mode 0.  This table sets these
 	 * parameters to the maximum supported by the IT8172.
 	 */
 	static const u8 timings[] = { 0x3f, 0x3c, 0x1b, 0x12, 0x0a };

@@ -29,7 +29,7 @@ def get_current_cpu():
         else:
             return tasks.get_thread_info(tasks.get_task_by_pid(tid))['cpu']
     else:
-        raise gdb.GdbError("Sorry, obtaining the current CPU is not yet "
+        raise gdb.GdbError("Sorry, obtaining the current CPU is yest yet "
                            "supported with this gdb server.")
 
 
@@ -123,7 +123,7 @@ def each_active_cpu():
 class LxCpus(gdb.Command):
     """List CPU status arrays
 
-Displays the known state of each CPU based on the kernel masks
+Displays the kyeswn state of each CPU based on the kernel masks
 and can help identify the state of hotplugged CPUs"""
 
     def __init__(self):

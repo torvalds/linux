@@ -22,7 +22,7 @@
  *	19970608	Alan Cox	Allowed dual card type support
  *					Can set board type in insmod
  *					Hooks for cops_setup routine
- *					(not yet implemented).
+ *					(yest yet implemented).
  *	19971101	Jay Schulist	Fixes for multiple lt* devices.
  *	19980607	Steven Hirsch	Fixed the badly broken support
  *					for Tangent type cards. Only
@@ -44,7 +44,7 @@ static const char *version =
 /*
  * insmod/modprobe configurable stuff.
  *	- IO Port, choose one your card supports or 0 if you dare.
- *	- IRQ, also choose one your card supports or nothing and let
+ *	- IRQ, also choose one your card supports or yesthing and let
  *	  the driver figure it out.
  */
 
@@ -57,7 +57,7 @@ static const char *version =
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -95,17 +95,17 @@ static int irq = 5;		/* Default IRQ */
 
 /*
  *	COPS Autoprobe information.
- *	Right now if port address is right but IRQ is not 5 this will
- *      return a 5 no matter what since we will still get a status response.
+ *	Right yesw if port address is right but IRQ is yest 5 this will
+ *      return a 5 yes matter what since we will still get a status response.
  *      Need one more additional check to narrow down after we have gotten
- *      the ioaddr. But since only other possible IRQs is 3 and 4 so no real
+ *      the ioaddr. But since only other possible IRQs is 3 and 4 so yes real
  *	hurry on this. I *STRONGLY* recommend using IRQ 5 for your card with
  *	this driver.
  * 
  *	This driver has 2 modes and they are: Dayna mode and Tangent mode.
  *	Each mode corresponds with the type of card. It has been found
  *	that there are 2 main types of cards and all other cards are
- *	the same and just have different names or only have minor differences
+ *	the same and just have different names or only have miyesr differences
  *	such as more IO ports. As this driver is tested it will
  *	become more clear on exactly what cards are supported. The driver
  *	defaults to using Dayna mode. To change the drivers mode, simply
@@ -118,7 +118,7 @@ static int irq = 5;		/* Default IRQ */
  *      DAYNA driver mode:
  *              Dayna DL2000/DaynaTalk PC (Half Length), COPS LT-95, 
  *		Farallon PhoneNET PC III, Farallon PhoneNET PC II
- *	Other cards possibly supported mode unknown though:
+ *	Other cards possibly supported mode unkyeswn though:
  *		Dayna DL2000 (Full length), COPS LT/M (Micro-Channel)
  *
  *	Cards NOT supported by this driver but supported by the ltpc.c
@@ -128,7 +128,7 @@ static int irq = 5;		/* Default IRQ */
  * 
  *      N.B.
  *
- *      The Daystar Digital LT200 boards do not support interrupt-driven
+ *      The Daystar Digital LT200 boards do yest support interrupt-driven
  *      IO.  You must specify 'irq=0xff' as a module parameter to invoke
  *      polled mode.  I also believe that the port probing logic is quite
  *      dangerous at best and certainly hopeless for a polled card.  Best to 
@@ -171,9 +171,9 @@ static unsigned int cops_debug = COPS_DEBUG;
 struct cops_local
 {
         int board;			/* Holds what board type is. */
-	int nodeid;			/* Set to 1 once have nodeid. */
-        unsigned char node_acquire;	/* Node ID when acquired. */
-        struct atalk_addr node_addr;	/* Full node address */
+	int yesdeid;			/* Set to 1 once have yesdeid. */
+        unsigned char yesde_acquire;	/* Node ID when acquired. */
+        struct atalk_addr yesde_addr;	/* Full yesde address */
 	spinlock_t lock;		/* RX/TX lock */
 };
 
@@ -185,7 +185,7 @@ static int  cops_open (struct net_device *dev);
 static int  cops_jumpstart (struct net_device *dev);
 static void cops_reset (struct net_device *dev, int sleep);
 static void cops_load (struct net_device *dev);
-static int  cops_nodeid (struct net_device *dev, int nodeid);
+static int  cops_yesdeid (struct net_device *dev, int yesdeid);
 
 static irqreturn_t cops_interrupt (int irq, void *dev_id);
 static void cops_poll(struct timer_list *t);
@@ -282,15 +282,15 @@ static int __init cops_probe1(struct net_device *dev, int ioaddr)
         if(cops_debug && version_printed++ == 0)
 		printk("%s", version);
 
-	/* Grab the region so no one else tries to probe our ioports. */
+	/* Grab the region so yes one else tries to probe our ioports. */
 	if (!request_region(ioaddr, COPS_IO_EXTENT, dev->name))
 		return -EBUSY;
 
         /*
          * Since this board has jumpered interrupts, allocate the interrupt
-         * vector now. There is no point in waiting since no other device
+         * vector yesw. There is yes point in waiting since yes other device
          * can use the interrupt, and this marks the irq as busy. Jumpered
-         * interrupts are typically not reported by the boards, and we must
+         * interrupts are typically yest reported by the boards, and we must
          * used AutoIRQ to find them.
 	 */
 	dev->irq = irq;
@@ -301,13 +301,13 @@ static int __init cops_probe1(struct net_device *dev, int ioaddr)
 			dev->irq = cops_irq(ioaddr, board);
 			if (dev->irq)
 				break;
-			/* fall through - Once no IRQ found on this port. */
+			/* fall through - Once yes IRQ found on this port. */
 		case 1:
 			retval = -EINVAL;
 			goto err_out;
 
-		/* Fixup for users that don't know that IRQ 2 is really
-		 * IRQ 9, or don't know which one to set.
+		/* Fixup for users that don't kyesw that IRQ 2 is really
+		 * IRQ 9, or don't kyesw which one to set.
 		 */
 		case 2:
 			dev->irq = 9;
@@ -315,7 +315,7 @@ static int __init cops_probe1(struct net_device *dev, int ioaddr)
 
 		/* Polled operation requested. Although irq of zero passed as
 		 * a parameter tells the init routines to probe, we'll
-		 * overload it to denote polled operation at runtime.
+		 * overload it to deyeste polled operation at runtime.
 		 */
 		case 0xff:
 			dev->irq = 0;
@@ -366,11 +366,11 @@ err_out:
 
 static int __init cops_irq (int ioaddr, int board)
 {       /*
-         * This does not use the IRQ to determine where the IRQ is. We just
+         * This does yest use the IRQ to determine where the IRQ is. We just
          * assume that when we get a correct status response that it's the IRQ.
          * This really just verifies the IO port but since we only have access
-         * to such a small number of IRQs (5, 4, 3) this is not bad.
-         * This will probably not work for more than one card.
+         * to such a small number of IRQs (5, 4, 3) this is yest bad.
+         * This will probably yest work for more than one card.
          */
         int irqaddr=0;
         int i, x, status;
@@ -406,7 +406,7 @@ static int __init cops_irq (int ioaddr, int board)
                         }
                 }
         }
-        return 0;       /* no IRQ found */
+        return 0;       /* yes IRQ found */
 }
 
 /*
@@ -420,8 +420,8 @@ static int cops_open(struct net_device *dev)
 	if(dev->irq==0)
 	{
 		/*
-		 * I don't know if the Dayna-style boards support polled 
-		 * operation.  For now, only allow it for Tangent.
+		 * I don't kyesw if the Dayna-style boards support polled 
+		 * operation.  For yesw, only allow it for Tangent.
 		 */
 		if(lp->board==TANGENT)	/* Poll 20 times per second */
 		{
@@ -452,19 +452,19 @@ static int cops_jumpstart(struct net_device *dev)
 
 	/*
          *      Once the card has the firmware loaded and has acquired
-         *      the nodeid, if it is reset it will lose it all.
+         *      the yesdeid, if it is reset it will lose it all.
          */
         cops_reset(dev,1);	/* Need to reset card before load firmware. */
         cops_load(dev);		/* Load the firmware. */
 
 	/*
-	 *	If atalkd already gave us a nodeid we will use that
-	 *	one again, else we wait for atalkd to give us a nodeid
+	 *	If atalkd already gave us a yesdeid we will use that
+	 *	one again, else we wait for atalkd to give us a yesdeid
 	 *	in cops_ioctl. This may cause a problem if someone steals
-	 *	our nodeid while we are resetting.
+	 *	our yesdeid while we are resetting.
 	 */	
-	if(lp->nodeid == 1)
-		cops_nodeid(dev,lp->node_acquire);
+	if(lp->yesdeid == 1)
+		cops_yesdeid(dev,lp->yesde_acquire);
 
 	return 0;
 }
@@ -542,12 +542,12 @@ static void cops_load (struct net_device *dev)
         /* Check to make sure firmware is correct length. */
         if(lp->board==DAYNA && ltf->length!=5983)
         {
-                printk(KERN_WARNING "%s: Firmware is not length of FFDRV.BIN.\n", dev->name);
+                printk(KERN_WARNING "%s: Firmware is yest length of FFDRV.BIN.\n", dev->name);
                 return;
         }
         if(lp->board==TANGENT && ltf->length!=2501)
         {
-                printk(KERN_WARNING "%s: Firmware is not length of DRVCODE.BIN.\n", dev->name);
+                printk(KERN_WARNING "%s: Firmware is yest length of DRVCODE.BIN.\n", dev->name);
                 return;
         }
 
@@ -596,11 +596,11 @@ static void cops_load (struct net_device *dev)
 
 /*
  * 	Get the LocalTalk Nodeid from the card. We can suggest
- *	any nodeid 1-254. The card will try and get that exact
- *	address else we can specify 0 as the nodeid and the card
- *	will autoprobe for a nodeid.
+ *	any yesdeid 1-254. The card will try and get that exact
+ *	address else we can specify 0 as the yesdeid and the card
+ *	will autoprobe for a yesdeid.
  */
-static int cops_nodeid (struct net_device *dev, int nodeid)
+static int cops_yesdeid (struct net_device *dev, int yesdeid)
 {
 	struct cops_local *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
@@ -619,7 +619,7 @@ static int cops_nodeid (struct net_device *dev, int nodeid)
                 outb(2, ioaddr);       	/* Output command packet length as 2. */
                 outb(0, ioaddr);
                 outb(LAP_INIT, ioaddr);	/* Send LAP_INIT command byte. */
-                outb(nodeid, ioaddr);  	/* Suggest node address. */
+                outb(yesdeid, ioaddr);  	/* Suggest yesde address. */
         }
 
 	if(lp->board == TANGENT)
@@ -632,39 +632,39 @@ static int cops_nodeid (struct net_device *dev, int nodeid)
 			schedule();
                 }
 
-		/* Not sure what Tangent does if nodeid picked is used. */
-                if(nodeid == 0)	         		/* Seed. */
-                	nodeid = jiffies&0xFF;		/* Get a random try */
+		/* Not sure what Tangent does if yesdeid picked is used. */
+                if(yesdeid == 0)	         		/* Seed. */
+                	yesdeid = jiffies&0xFF;		/* Get a random try */
                 outb(2, ioaddr);        		/* Command length LSB */
                 outb(0, ioaddr);       			/* Command length MSB */
                 outb(LAP_INIT, ioaddr); 		/* Send LAP_INIT byte */
-                outb(nodeid, ioaddr); 		  	/* LAP address hint. */
+                outb(yesdeid, ioaddr); 		  	/* LAP address hint. */
                 outb(0xFF, ioaddr);     		/* Int. level to use */
         }
 
-	lp->node_acquire=0;		/* Set nodeid holder to 0. */
-        while(lp->node_acquire==0)	/* Get *True* nodeid finally. */
+	lp->yesde_acquire=0;		/* Set yesdeid holder to 0. */
+        while(lp->yesde_acquire==0)	/* Get *True* yesdeid finally. */
 	{
 		outb(0, ioaddr+COPS_CLEAR_INT);	/* Clear any interrupt. */
 
 		if(lp->board == DAYNA)
 		{
                 	if((inb(ioaddr+DAYNA_CARD_STATUS)&0x03)==DAYNA_RX_REQUEST)
-                		cops_rx(dev);	/* Grab the nodeid put in lp->node_acquire. */
+                		cops_rx(dev);	/* Grab the yesdeid put in lp->yesde_acquire. */
 		}
 		if(lp->board == TANGENT)
 		{	
 			if(inb(ioaddr+TANG_CARD_STATUS)&TANG_RX_READY)
-                                cops_rx(dev);   /* Grab the nodeid put in lp->node_acquire. */
+                                cops_rx(dev);   /* Grab the yesdeid put in lp->yesde_acquire. */
 		}
 		schedule();
 	}
 
 	if(cops_debug > 1)
 		printk(KERN_DEBUG "%s: Node ID %d has been acquired.\n", 
-			dev->name, lp->node_acquire);
+			dev->name, lp->yesde_acquire);
 
-	lp->nodeid=1;	/* Set got nodeid to 1. */
+	lp->yesdeid=1;	/* Set got yesdeid to 1. */
 
         return 0;
 }
@@ -815,10 +815,10 @@ static void cops_rx(struct net_device *dev)
                 return;
         }
 
-        /* Set nodeid and then get out. */
+        /* Set yesdeid and then get out. */
         if(rsp_type == LAP_INIT_RSP)
         {	/* Nodeid taken from received packet. */
-                lp->node_acquire = skb->data[0];
+                lp->yesde_acquire = skb->data[0];
                 dev_kfree_skb_any(skb);
                 return;
         }
@@ -929,27 +929,27 @@ static int cops_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
         struct cops_local *lp = netdev_priv(dev);
         struct sockaddr_at *sa = (struct sockaddr_at *)&ifr->ifr_addr;
-        struct atalk_addr *aa = &lp->node_addr;
+        struct atalk_addr *aa = &lp->yesde_addr;
 
         switch(cmd)
         {
                 case SIOCSIFADDR:
-			/* Get and set the nodeid and network # atalkd wants. */
-			cops_nodeid(dev, sa->sat_addr.s_node);
+			/* Get and set the yesdeid and network # atalkd wants. */
+			cops_yesdeid(dev, sa->sat_addr.s_yesde);
 			aa->s_net               = sa->sat_addr.s_net;
-                        aa->s_node              = lp->node_acquire;
+                        aa->s_yesde              = lp->yesde_acquire;
 
 			/* Set broardcast address. */
                         dev->broadcast[0]       = 0xFF;
 			
 			/* Set hardware address. */
-                        dev->dev_addr[0]        = aa->s_node;
+                        dev->dev_addr[0]        = aa->s_yesde;
                         dev->addr_len           = 1;
                         return 0;
 
                 case SIOCGIFADDR:
                         sa->sat_addr.s_net      = aa->s_net;
-                        sa->sat_addr.s_node     = aa->s_node;
+                        sa->sat_addr.s_yesde     = aa->s_yesde;
                         return 0;
 
                 default:

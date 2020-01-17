@@ -16,18 +16,18 @@
  * Speeded up do_gettimeofday by getting rid of references to
  * xtime (which required locks for consistency). (mikejc@us.ibm.com)
  *
- * TODO (not necessarily in this file):
+ * TODO (yest necessarily in this file):
  * - improve precision and reproducibility of timebase frequency
  * measurement at boot time.
- * - for astronomical applications: add a new function to get
- * non ambiguous timestamps even around leap seconds. This needs
+ * - for astroyesmical applications: add a new function to get
+ * yesn ambiguous timestamps even around leap seconds. This needs
  * a new timestamp format and a good name.
  *
  * 1997-09-10  Updated NTP code according to technical memorandum Jan '96
  *             "A Kernel Model for Precision Timekeeping" by Dave Mills
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
@@ -232,7 +232,7 @@ static u64 scan_dispatch_log(u64 stop_tb)
  * Accumulate stolen time by scanning the dispatch trace log.
  * Called on entry from user mode.
  */
-void notrace accumulate_stolen_time(void)
+void yestrace accumulate_stolen_time(void)
 {
 	u64 sst, ust;
 	unsigned long save_irq_soft_mask = irq_soft_mask_return();
@@ -279,16 +279,16 @@ static inline u64 calculate_stolen_time(u64 stop_tb)
  * or soft irq state.
  */
 static unsigned long vtime_delta_scaled(struct cpu_accounting_data *acct,
-					unsigned long now, unsigned long stime)
+					unsigned long yesw, unsigned long stime)
 {
 	unsigned long stime_scaled = 0;
 #ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
-	unsigned long nowscaled, deltascaled;
+	unsigned long yeswscaled, deltascaled;
 	unsigned long utime, utime_scaled;
 
-	nowscaled = read_spurr(now);
-	deltascaled = nowscaled - acct->startspurr;
-	acct->startspurr = nowscaled;
+	yeswscaled = read_spurr(yesw);
+	deltascaled = yeswscaled - acct->startspurr;
+	acct->startspurr = yeswscaled;
 	utime = acct->utime - acct->utime_sspurr;
 	acct->utime_sspurr = acct->utime;
 
@@ -322,18 +322,18 @@ static unsigned long vtime_delta(struct task_struct *tsk,
 				 unsigned long *stime_scaled,
 				 unsigned long *steal_time)
 {
-	unsigned long now, stime;
+	unsigned long yesw, stime;
 	struct cpu_accounting_data *acct = get_accounting(tsk);
 
 	WARN_ON_ONCE(!irqs_disabled());
 
-	now = mftb();
-	stime = now - acct->starttime;
-	acct->starttime = now;
+	yesw = mftb();
+	stime = yesw - acct->starttime;
+	acct->starttime = yesw;
 
-	*stime_scaled = vtime_delta_scaled(acct, now, stime);
+	*stime_scaled = vtime_delta_scaled(acct, yesw, stime);
 
-	*steal_time = calculate_stolen_time(now);
+	*steal_time = calculate_stolen_time(yesw);
 
 	return stime;
 }
@@ -534,11 +534,11 @@ void arch_irq_work_raise(void)
 	 * and have the net effect of setting the decrementer in
 	 * irq_happened.
 	 *
-	 * NMI interrupts can not check this when they return, so the
+	 * NMI interrupts can yest check this when they return, so the
 	 * decrementer hardware exception is raised, which will fire
 	 * when interrupts are next enabled.
 	 *
-	 * BookE does not support this yet, it must audit all NMI
+	 * BookE does yest support this yet, it must audit all NMI
 	 * interrupt handlers to ensure they call nmi_enter() so this
 	 * check would be correct.
 	 */
@@ -585,10 +585,10 @@ void timer_interrupt(struct pt_regs *regs)
 	struct clock_event_device *evt = this_cpu_ptr(&decrementers);
 	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
 	struct pt_regs *old_regs;
-	u64 now;
+	u64 yesw;
 
 	/* Some implementations of hotplug will get timer interrupts while
-	 * offline, just ignore these and we also need to set
+	 * offline, just igyesre these and we also need to set
 	 * decrementers_next_tb as MAX to make sure __check_irq_replay
 	 * don't replay timer interrupt when return, otherwise we'll trap
 	 * here infinitely :(
@@ -610,7 +610,7 @@ void timer_interrupt(struct pt_regs *regs)
 	else
 		set_dec(decrementer_max);
 
-	/* Conditionally hard-enable interrupts now that the DEC has been
+	/* Conditionally hard-enable interrupts yesw that the DEC has been
 	 * bumped to its maximum value
 	 */
 	may_hard_irq_enable();
@@ -630,16 +630,16 @@ void timer_interrupt(struct pt_regs *regs)
 		irq_work_run();
 	}
 
-	now = get_tb_or_rtc();
-	if (now >= *next_tb) {
+	yesw = get_tb_or_rtc();
+	if (yesw >= *next_tb) {
 		*next_tb = ~(u64)0;
 		if (evt->event_handler)
 			evt->event_handler(evt);
 		__this_cpu_inc(irq_stat.timer_irqs_event);
 	} else {
-		now = *next_tb - now;
-		if (now <= decrementer_max)
-			set_dec(now);
+		yesw = *next_tb - yesw;
+		if (yesw <= decrementer_max)
+			set_dec(yesw);
 		/* We may have raced with new irq work */
 		if (test_irq_work_pending())
 			set_dec(1);
@@ -713,13 +713,13 @@ unsigned long long tb_to_ns(unsigned long long ticks)
 EXPORT_SYMBOL_GPL(tb_to_ns);
 
 /*
- * Scheduler clock - returns current time in nanosec units.
+ * Scheduler clock - returns current time in nayessec units.
  *
  * Note: mulhdu(a, b) (multiply high double unsigned) returns
  * the high 64 bits of a * b, i.e. (a * b) >> 64, where a and b
  * are 64-bit unsigned numbers.
  */
-notrace unsigned long long sched_clock(void)
+yestrace unsigned long long sched_clock(void)
 {
 	if (__USE_RTC())
 		return get_rtc();
@@ -737,7 +737,7 @@ notrace unsigned long long sched_clock(void)
 unsigned long long running_clock(void)
 {
 	/*
-	 * Don't read the VTB as a host since KVM does not switch in host
+	 * Don't read the VTB as a host since KVM does yest switch in host
 	 * timebase into the VTB when it takes a guest off the CPU, reading the
 	 * VTB would result in reading 'last switched out' guest VTB.
 	 *
@@ -752,7 +752,7 @@ unsigned long long running_clock(void)
 	 * This is a next best approximation without a VTB.
 	 * On a host which is running bare metal there should never be any stolen
 	 * time and on a host which doesn't do any virtualisation TB *should* equal
-	 * VTB so it makes no difference anyway.
+	 * VTB so it makes yes difference anyway.
 	 */
 	return local_clock() - kcpustat_this_cpu->cpustat[CPUTIME_STEAL];
 }
@@ -760,12 +760,12 @@ unsigned long long running_clock(void)
 
 static int __init get_freq(char *name, int cells, unsigned long *val)
 {
-	struct device_node *cpu;
+	struct device_yesde *cpu;
 	const __be32 *fp;
 	int found = 0;
 
-	/* The cpu node should have timebase and clock frequency properties */
-	cpu = of_find_node_by_type(NULL, "cpu");
+	/* The cpu yesde should have timebase and clock frequency properties */
+	cpu = of_find_yesde_by_type(NULL, "cpu");
 
 	if (cpu) {
 		fp = of_get_property(cpu, name, NULL);
@@ -774,7 +774,7 @@ static int __init get_freq(char *name, int cells, unsigned long *val)
 			*val = of_read_ulong(fp, cells);
 		}
 
-		of_node_put(cpu);
+		of_yesde_put(cpu);
 	}
 
 	return found;
@@ -807,7 +807,7 @@ void __init generic_calibrate_decr(void)
 	    !get_freq("timebase-frequency", 1, &ppc_tb_freq)) {
 
 		printk(KERN_ERR "WARNING: Estimating decrementer frequency "
-				"(not found)\n");
+				"(yest found)\n");
 	}
 
 	ppc_proc_freq = DEFAULT_PROC_FREQ;	/* hardcoded default */
@@ -816,18 +816,18 @@ void __init generic_calibrate_decr(void)
 	    !get_freq("clock-frequency", 1, &ppc_proc_freq)) {
 
 		printk(KERN_ERR "WARNING: Estimating processor frequency "
-				"(not found)\n");
+				"(yest found)\n");
 	}
 }
 
-int update_persistent_clock64(struct timespec64 now)
+int update_persistent_clock64(struct timespec64 yesw)
 {
 	struct rtc_time tm;
 
 	if (!ppc_md.set_rtc_time)
 		return -ENODEV;
 
-	rtc_time64_to_tm(now.tv_sec + 1 + timezone_offset, &tm);
+	rtc_time64_to_tm(yesw.tv_sec + 1 + timezone_offset, &tm);
 
 	return ppc_md.set_rtc_time(&tm);
 }
@@ -872,12 +872,12 @@ void read_persistent_clock64(struct timespec64 *ts)
 }
 
 /* clocksource code */
-static notrace u64 rtc_read(struct clocksource *cs)
+static yestrace u64 rtc_read(struct clocksource *cs)
 {
 	return (u64)get_rtc();
 }
 
-static notrace u64 timebase_read(struct clocksource *cs)
+static yestrace u64 timebase_read(struct clocksource *cs)
 {
 	return (u64)get_tb();
 }
@@ -886,10 +886,10 @@ static notrace u64 timebase_read(struct clocksource *cs)
 void update_vsyscall(struct timekeeper *tk)
 {
 	struct timespec64 xt;
-	struct clocksource *clock = tk->tkr_mono.clock;
-	u32 mult = tk->tkr_mono.mult;
-	u32 shift = tk->tkr_mono.shift;
-	u64 cycle_last = tk->tkr_mono.cycle_last;
+	struct clocksource *clock = tk->tkr_moyes.clock;
+	u32 mult = tk->tkr_moyes.mult;
+	u32 shift = tk->tkr_moyes.shift;
+	u64 cycle_last = tk->tkr_moyes.cycle_last;
 	u64 new_tb_to_xs, new_stamp_xsec;
 	u64 frac_sec;
 
@@ -897,7 +897,7 @@ void update_vsyscall(struct timekeeper *tk)
 		return;
 
 	xt.tv_sec = tk->xtime_sec;
-	xt.tv_nsec = (long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
+	xt.tv_nsec = (long)(tk->tkr_moyes.xtime_nsec >> tk->tkr_moyes.shift);
 
 	/* Make userspace gettimeofday spin until we're done. */
 	++vdso_data->tb_update_count;
@@ -927,13 +927,13 @@ void update_vsyscall(struct timekeeper *tk)
 
 	/*
 	 * Compute the fractional second in units of 2^-32 seconds.
-	 * The fractional second is tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift
-	 * in nanoseconds, so multiplying that by 2^32 / 1e9 gives
+	 * The fractional second is tk->tkr_moyes.xtime_nsec >> tk->tkr_moyes.shift
+	 * in nayesseconds, so multiplying that by 2^32 / 1e9 gives
 	 * it in units of 2^-32 seconds.
 	 * We assume shift <= 32 because clocks_calc_mult_shift()
 	 * generates shift values in the range 0 - 32.
 	 */
-	frac_sec = tk->tkr_mono.xtime_nsec << (32 - shift);
+	frac_sec = tk->tkr_moyes.xtime_nsec << (32 - shift);
 	do_div(frac_sec, NSEC_PER_SEC);
 
 	/*
@@ -949,14 +949,14 @@ void update_vsyscall(struct timekeeper *tk)
 	 * stamp_xsec variables.  It reads the tb_update_count, then reads
 	 * tb_to_xs and stamp_xsec and then reads tb_update_count again.  If
 	 * the two values of tb_update_count match and are even then the
-	 * tb_to_xs and stamp_xsec values are consistent.  If not, then it
+	 * tb_to_xs and stamp_xsec values are consistent.  If yest, then it
 	 * loops back and reads them again until this criteria is met.
 	 */
 	vdso_data->tb_orig_stamp = cycle_last;
 	vdso_data->stamp_xsec = new_stamp_xsec;
 	vdso_data->tb_to_xs = new_tb_to_xs;
-	vdso_data->wtom_clock_sec = tk->wall_to_monotonic.tv_sec;
-	vdso_data->wtom_clock_nsec = tk->wall_to_monotonic.tv_nsec;
+	vdso_data->wtom_clock_sec = tk->wall_to_moyestonic.tv_sec;
+	vdso_data->wtom_clock_nsec = tk->wall_to_moyestonic.tv_nsec;
 	vdso_data->stamp_xtime_sec = xt.tv_sec;
 	vdso_data->stamp_xtime_nsec = xt.tv_nsec;
 	vdso_data->stamp_sec_fraction = frac_sec;
@@ -1044,14 +1044,14 @@ static void enable_large_decrementer(void)
 
 static void __init set_decrementer_max(void)
 {
-	struct device_node *cpu;
+	struct device_yesde *cpu;
 	u32 bits = 32;
 
 	/* Prior to ISAv3 the decrementer is always 32 bit */
 	if (!cpu_has_feature(CPU_FTR_ARCH_300))
 		return;
 
-	cpu = of_find_node_by_type(NULL, "cpu");
+	cpu = of_find_yesde_by_type(NULL, "cpu");
 
 	if (of_property_read_u32(cpu, "ibm,dec-bits", &bits) == 0) {
 		if (bits > 64 || bits < 32) {
@@ -1063,7 +1063,7 @@ static void __init set_decrementer_max(void)
 		decrementer_max = (1ul << (bits - 1)) - 1;
 	}
 
-	of_node_put(cpu);
+	of_yesde_put(cpu);
 
 	pr_info("time_init: %u bit decrementer (max: %llx)\n",
 		bits, decrementer_max);

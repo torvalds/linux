@@ -55,13 +55,13 @@ extern int pciehp_poll_time;
  * @cmd_busy: flag set on Slot Control register write, cleared by IRQ handler
  *	on reception of a Command Completed event
  * @queue: wait queue to wake up on reception of a Command Completed event,
- *	used for synchronous writes to the Slot Control register
+ *	used for synchroyesus writes to the Slot Control register
  * @pending_events: used by the IRQ handler to save events retrieved from the
  *	Slot Status register for later consumption by the IRQ thread
- * @notification_enabled: whether the IRQ was requested successfully
+ * @yestification_enabled: whether the IRQ was requested successfully
  * @power_fault_detected: whether a power fault was detected by the hardware
- *	that has not yet been cleared by the user
- * @poll_thread: thread to poll for slot events if no IRQ is available,
+ *	that has yest yet been cleared by the user
+ * @poll_thread: thread to poll for slot events if yes IRQ is available,
  *	enabled with pciehp_poll_mode module parameter
  * @state: current state machine position
  * @state_lock: protects reads and writes of @state;
@@ -75,7 +75,7 @@ extern int pciehp_poll_time;
  * @ist_running: flag to keep user request waiting while IRQ thread is running
  * @request_result: result of last user request submitted to the IRQ thread
  * @requester: wait queue to wake up on completion of user request,
- *	used for synchronous slot enable/disable request via sysfs
+ *	used for synchroyesus slot enable/disable request via sysfs
  *
  * PCIe hotplug has a 1:1 relationship between controller and slot, hence
  * unlike other drivers, the two aren't represented by separate structures.
@@ -92,7 +92,7 @@ struct controller {
 	wait_queue_head_t queue;
 
 	atomic_t pending_events;		/* event handling */
-	unsigned int notification_enabled:1;
+	unsigned int yestification_enabled:1;
 	unsigned int power_fault_detected;
 	struct task_struct *poll_thread;
 
@@ -110,7 +110,7 @@ struct controller {
 /**
  * DOC: Slot state
  *
- * @OFF_STATE: slot is powered off, no subordinate devices are enumerated
+ * @OFF_STATE: slot is powered off, yes subordinate devices are enumerated
  * @BLINKINGON_STATE: slot will be powered on after the 5 second delay,
  *	Power Indicator is blinking
  * @BLINKINGOFF_STATE: slot will be powered off after the 5 second delay,
@@ -160,8 +160,8 @@ int pciehp_configure_device(struct controller *ctrl);
 void pciehp_unconfigure_device(struct controller *ctrl, bool presence);
 void pciehp_queue_pushbutton_work(struct work_struct *work);
 struct controller *pcie_init(struct pcie_device *dev);
-int pcie_init_notification(struct controller *ctrl);
-void pcie_shutdown_notification(struct controller *ctrl);
+int pcie_init_yestification(struct controller *ctrl);
+void pcie_shutdown_yestification(struct controller *ctrl);
 void pcie_clear_hotplug_events(struct controller *ctrl);
 void pcie_enable_interrupt(struct controller *ctrl);
 void pcie_disable_interrupt(struct controller *ctrl);

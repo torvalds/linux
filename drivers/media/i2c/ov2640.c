@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 Alberto Panizzo <maramaopercheseimorto@gmail.com>
  *
- * Based on ov772x, ov9640 drivers and previous non merged implementations.
+ * Based on ov772x, ov9640 drivers and previous yesn merged implementations.
  *
  * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright (C) 2006, OmniVision
@@ -104,7 +104,7 @@
 #define   CTRL1_AWB_GAIN     0x04
 #define   CTRL1_LENC         0x02
 #define   CTRL1_PRE          0x01
-/*      REG 0xC7 (unknown name): affects Auto White Balance (AWB)
+/*      REG 0xC7 (unkyeswn name): affects Auto White Balance (AWB)
  *	  AWB_OFF            0x40
  *	  AWB_SIMPLE         0x10
  *	  AWB_ON             0x00	(Advanced AWB ?) */
@@ -194,7 +194,7 @@
 #define COM7        0x12 /* Common control 7 */
 #define   COM7_SRST            0x80 /* Initiates system reset. All registers are
 				     * set to factory default values after which
-				     * the chip resumes normal operation */
+				     * the chip resumes yesrmal operation */
 #define   COM7_RES_UXGA        0x00 /* Resolution selectors for UXGA */
 #define   COM7_RES_SVGA        0x40 /* SVGA */
 #define   COM7_RES_CIF         0x20 /* CIF */
@@ -723,7 +723,7 @@ static int ov2640_s_ctrl(struct v4l2_ctrl *ctrl)
 	/* v4l2_ctrl_lock() locks our own mutex */
 
 	/*
-	 * If the device is not powered up by the host driver, do not apply any
+	 * If the device is yest powered up by the host driver, do yest apply any
 	 * controls to H/W at this time. Instead the controls will be restored
 	 * when the streaming is started.
 	 */
@@ -1161,7 +1161,7 @@ static int ov2640_probe_dt(struct i2c_client *client,
 			GPIOD_OUT_LOW);
 
 	if (!priv->resetb_gpio)
-		dev_dbg(&client->dev, "resetb gpio is not assigned!\n");
+		dev_dbg(&client->dev, "resetb gpio is yest assigned!\n");
 
 	ret = PTR_ERR_OR_ZERO(priv->resetb_gpio);
 	if (ret && ret != -ENOSYS) {
@@ -1175,7 +1175,7 @@ static int ov2640_probe_dt(struct i2c_client *client,
 			GPIOD_OUT_HIGH);
 
 	if (!priv->pwdn_gpio)
-		dev_dbg(&client->dev, "pwdn gpio is not assigned!\n");
+		dev_dbg(&client->dev, "pwdn gpio is yest assigned!\n");
 
 	ret = PTR_ERR_OR_ZERO(priv->pwdn_gpio);
 	if (ret && ret != -ENOSYS) {
@@ -1206,7 +1206,7 @@ static int ov2640_probe(struct i2c_client *client)
 	if (!priv)
 		return -ENOMEM;
 
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		priv->clk = devm_clk_get(&client->dev, "xvclk");
 		if (IS_ERR(priv->clk))
 			return PTR_ERR(priv->clk);

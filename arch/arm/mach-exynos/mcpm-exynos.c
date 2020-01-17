@@ -9,7 +9,7 @@
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/syscore_ops.h>
-#include <linux/soc/samsung/exynos-regs-pmu.h>
+#include <linux/soc/samsung/exyyess-regs-pmu.h>
 
 #include <asm/cputype.h>
 #include <asm/cp15.h>
@@ -28,11 +28,11 @@
 static void __iomem *ns_sram_base_addr __ro_after_init;
 
 /*
- * The common v7_exit_coherency_flush API could not be used because of the
+ * The common v7_exit_coherency_flush API could yest be used because of the
  * Erratum 799270 workaround. This macro is the same as the common one (in
  * arch/arm/include/asm/cacheflush.h) except for the erratum handling.
  */
-#define exynos_v7_exit_coherency_flush(level) \
+#define exyyess_v7_exit_coherency_flush(level) \
 	asm volatile( \
 	"stmfd	sp!, {fp, ip}\n\t"\
 	"mrc	p15, 0, r0, c1, c0, 0	@ get SCTLR\n\t" \
@@ -55,7 +55,7 @@ static void __iomem *ns_sram_base_addr __ro_after_init;
 	: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", \
 	  "r9", "r10", "lr", "memory")
 
-static int exynos_cpu_powerup(unsigned int cpu, unsigned int cluster)
+static int exyyess_cpu_powerup(unsigned int cpu, unsigned int cluster)
 {
 	unsigned int cpunr = cpu + (cluster * EXYNOS5420_CPUS_PER_CLUSTER);
 
@@ -64,8 +64,8 @@ static int exynos_cpu_powerup(unsigned int cpu, unsigned int cluster)
 		cluster >= EXYNOS5420_NR_CLUSTERS)
 		return -EINVAL;
 
-	if (!exynos_cpu_power_state(cpunr)) {
-		exynos_cpu_power_up(cpunr);
+	if (!exyyess_cpu_power_state(cpunr)) {
+		exyyess_cpu_power_up(cpunr);
 
 		/*
 		 * This assumes the cluster number of the big cores(Cortex A15)
@@ -91,7 +91,7 @@ static int exynos_cpu_powerup(unsigned int cpu, unsigned int cluster)
 			if (timeout == 0) {
 				pr_err("cpu %u cluster %u powerup failed\n",
 				       cpu, cluster);
-				exynos_cpu_power_down(cpunr);
+				exyyess_cpu_power_down(cpunr);
 				return -ETIMEDOUT;
 			}
 
@@ -103,40 +103,40 @@ static int exynos_cpu_powerup(unsigned int cpu, unsigned int cluster)
 	return 0;
 }
 
-static int exynos_cluster_powerup(unsigned int cluster)
+static int exyyess_cluster_powerup(unsigned int cluster)
 {
 	pr_debug("%s: cluster %u\n", __func__, cluster);
 	if (cluster >= EXYNOS5420_NR_CLUSTERS)
 		return -EINVAL;
 
-	exynos_cluster_power_up(cluster);
+	exyyess_cluster_power_up(cluster);
 	return 0;
 }
 
-static void exynos_cpu_powerdown_prepare(unsigned int cpu, unsigned int cluster)
+static void exyyess_cpu_powerdown_prepare(unsigned int cpu, unsigned int cluster)
 {
 	unsigned int cpunr = cpu + (cluster * EXYNOS5420_CPUS_PER_CLUSTER);
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	BUG_ON(cpu >= EXYNOS5420_CPUS_PER_CLUSTER ||
 			cluster >= EXYNOS5420_NR_CLUSTERS);
-	exynos_cpu_power_down(cpunr);
+	exyyess_cpu_power_down(cpunr);
 }
 
-static void exynos_cluster_powerdown_prepare(unsigned int cluster)
+static void exyyess_cluster_powerdown_prepare(unsigned int cluster)
 {
 	pr_debug("%s: cluster %u\n", __func__, cluster);
 	BUG_ON(cluster >= EXYNOS5420_NR_CLUSTERS);
-	exynos_cluster_power_down(cluster);
+	exyyess_cluster_power_down(cluster);
 }
 
-static void exynos_cpu_cache_disable(void)
+static void exyyess_cpu_cache_disable(void)
 {
 	/* Disable and flush the local CPU cache. */
-	exynos_v7_exit_coherency_flush(louis);
+	exyyess_v7_exit_coherency_flush(louis);
 }
 
-static void exynos_cluster_cache_disable(void)
+static void exyyess_cluster_cache_disable(void)
 {
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A15) {
 		/*
@@ -151,16 +151,16 @@ static void exynos_cluster_cache_disable(void)
 	}
 
 	/* Flush all cache levels for this cluster. */
-	exynos_v7_exit_coherency_flush(all);
+	exyyess_v7_exit_coherency_flush(all);
 
 	/*
 	 * Disable cluster-level coherency by masking
-	 * incoming snoops and DVM messages:
+	 * incoming syesops and DVM messages:
 	 */
 	cci_disable_port_by_cpu(read_cpuid_mpidr());
 }
 
-static int exynos_wait_for_powerdown(unsigned int cpu, unsigned int cluster)
+static int exyyess_wait_for_powerdown(unsigned int cpu, unsigned int cluster)
 {
 	unsigned int tries = 100;
 	unsigned int cpunr = cpu + (cluster * EXYNOS5420_CPUS_PER_CLUSTER);
@@ -171,7 +171,7 @@ static int exynos_wait_for_powerdown(unsigned int cpu, unsigned int cluster)
 
 	/* Wait for the core state to be OFF */
 	while (tries--) {
-		if ((exynos_cpu_power_state(cpunr) == 0))
+		if ((exyyess_cpu_power_state(cpunr) == 0))
 			return 0; /* success: the CPU is halted */
 
 		/* Otherwise, wait and retry: */
@@ -181,27 +181,27 @@ static int exynos_wait_for_powerdown(unsigned int cpu, unsigned int cluster)
 	return -ETIMEDOUT; /* timeout */
 }
 
-static void exynos_cpu_is_up(unsigned int cpu, unsigned int cluster)
+static void exyyess_cpu_is_up(unsigned int cpu, unsigned int cluster)
 {
 	/* especially when resuming: make sure power control is set */
-	exynos_cpu_powerup(cpu, cluster);
+	exyyess_cpu_powerup(cpu, cluster);
 }
 
-static const struct mcpm_platform_ops exynos_power_ops = {
-	.cpu_powerup		= exynos_cpu_powerup,
-	.cluster_powerup	= exynos_cluster_powerup,
-	.cpu_powerdown_prepare	= exynos_cpu_powerdown_prepare,
-	.cluster_powerdown_prepare = exynos_cluster_powerdown_prepare,
-	.cpu_cache_disable	= exynos_cpu_cache_disable,
-	.cluster_cache_disable	= exynos_cluster_cache_disable,
-	.wait_for_powerdown	= exynos_wait_for_powerdown,
-	.cpu_is_up		= exynos_cpu_is_up,
+static const struct mcpm_platform_ops exyyess_power_ops = {
+	.cpu_powerup		= exyyess_cpu_powerup,
+	.cluster_powerup	= exyyess_cluster_powerup,
+	.cpu_powerdown_prepare	= exyyess_cpu_powerdown_prepare,
+	.cluster_powerdown_prepare = exyyess_cluster_powerdown_prepare,
+	.cpu_cache_disable	= exyyess_cpu_cache_disable,
+	.cluster_cache_disable	= exyyess_cluster_cache_disable,
+	.wait_for_powerdown	= exyyess_wait_for_powerdown,
+	.cpu_is_up		= exyyess_cpu_is_up,
 };
 
 /*
  * Enable cluster-level coherency, in preparation for turning on the MMU.
  */
-static void __naked exynos_pm_power_up_setup(unsigned int affinity_level)
+static void __naked exyyess_pm_power_up_setup(unsigned int affinity_level)
 {
 	asm volatile ("\n"
 	"cmp	r0, #1\n"
@@ -209,13 +209,13 @@ static void __naked exynos_pm_power_up_setup(unsigned int affinity_level)
 	"b	cci_enable_port_for_self");
 }
 
-static const struct of_device_id exynos_dt_mcpm_match[] = {
-	{ .compatible = "samsung,exynos5420" },
-	{ .compatible = "samsung,exynos5800" },
+static const struct of_device_id exyyess_dt_mcpm_match[] = {
+	{ .compatible = "samsung,exyyess5420" },
+	{ .compatible = "samsung,exyyess5800" },
 	{},
 };
 
-static void exynos_mcpm_setup_entry_point(void)
+static void exyyess_mcpm_setup_entry_point(void)
 {
 	/*
 	 * U-Boot SPL is hardcoded to jump to the start of ns_sram_base_addr
@@ -228,33 +228,33 @@ static void exynos_mcpm_setup_entry_point(void)
 	__raw_writel(__pa_symbol(mcpm_entry_point), ns_sram_base_addr + 8);
 }
 
-static struct syscore_ops exynos_mcpm_syscore_ops = {
-	.resume	= exynos_mcpm_setup_entry_point,
+static struct syscore_ops exyyess_mcpm_syscore_ops = {
+	.resume	= exyyess_mcpm_setup_entry_point,
 };
 
-static int __init exynos_mcpm_init(void)
+static int __init exyyess_mcpm_init(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	unsigned int value, i;
 	int ret;
 
-	node = of_find_matching_node(NULL, exynos_dt_mcpm_match);
-	if (!node)
+	yesde = of_find_matching_yesde(NULL, exyyess_dt_mcpm_match);
+	if (!yesde)
 		return -ENODEV;
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	if (!cci_probed())
 		return -ENODEV;
 
-	node = of_find_compatible_node(NULL, NULL,
-			"samsung,exynos4210-sysram-ns");
-	if (!node)
+	yesde = of_find_compatible_yesde(NULL, NULL,
+			"samsung,exyyess4210-sysram-ns");
+	if (!yesde)
 		return -ENODEV;
 
-	ns_sram_base_addr = of_iomap(node, 0);
-	of_node_put(node);
+	ns_sram_base_addr = of_iomap(yesde, 0);
+	of_yesde_put(yesde);
 	if (!ns_sram_base_addr) {
-		pr_err("failed to map non-secure iRAM base address\n");
+		pr_err("failed to map yesn-secure iRAM base address\n");
 		return -ENOMEM;
 	}
 
@@ -264,11 +264,11 @@ static int __init exynos_mcpm_init(void)
 	 */
 	pmu_raw_writel(EXYNOS5420_SWRESET_KFC_SEL, S5P_PMU_SPARE3);
 
-	ret = mcpm_platform_register(&exynos_power_ops);
+	ret = mcpm_platform_register(&exyyess_power_ops);
 	if (!ret)
-		ret = mcpm_sync_init(exynos_pm_power_up_setup);
+		ret = mcpm_sync_init(exyyess_pm_power_up_setup);
 	if (!ret)
-		ret = mcpm_loopback(exynos_cluster_cache_disable); /* turn on the CCI */
+		ret = mcpm_loopback(exyyess_cluster_cache_disable); /* turn on the CCI */
 	if (ret) {
 		iounmap(ns_sram_base_addr);
 		return ret;
@@ -276,10 +276,10 @@ static int __init exynos_mcpm_init(void)
 
 	mcpm_smp_set_ops();
 
-	pr_info("Exynos MCPM support installed\n");
+	pr_info("Exyyess MCPM support installed\n");
 
 	/*
-	 * On Exynos5420/5800 for the A15 and A7 clusters:
+	 * On Exyyess5420/5800 for the A15 and A7 clusters:
 	 *
 	 * EXYNOS5420_ENABLE_AUTOMATIC_CORE_DOWN ensures that all the cores
 	 * in a cluster are turned off before turning off the cluster L2.
@@ -298,11 +298,11 @@ static int __init exynos_mcpm_init(void)
 		pmu_raw_writel(value, EXYNOS_COMMON_OPTION(i));
 	}
 
-	exynos_mcpm_setup_entry_point();
+	exyyess_mcpm_setup_entry_point();
 
-	register_syscore_ops(&exynos_mcpm_syscore_ops);
+	register_syscore_ops(&exyyess_mcpm_syscore_ops);
 
 	return ret;
 }
 
-early_initcall(exynos_mcpm_init);
+early_initcall(exyyess_mcpm_init);

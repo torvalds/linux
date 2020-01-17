@@ -29,7 +29,7 @@ static int snd_emu10k1_synth_probe(struct device *_dev)
 		return -EINVAL;
 
 	if (arg->seq_ports <= 0)
-		return 0; /* nothing */
+		return 0; /* yesthing */
 	if (arg->max_voices < 1)
 		arg->max_voices = 1;
 	else if (arg->max_voices > 64)
@@ -75,7 +75,7 @@ static int snd_emu10k1_synth_remove(struct device *_dev)
 	unsigned long flags;
 
 	if (dev->driver_data == NULL)
-		return 0; /* not registered actually */
+		return 0; /* yest registered actually */
 
 	emux = dev->driver_data;
 

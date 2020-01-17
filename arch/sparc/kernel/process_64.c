@@ -12,7 +12,7 @@
 
 #include <stdarg.h>
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -100,7 +100,7 @@ void arch_cpu_idle(void)
 #ifdef CONFIG_HOTPLUG_CPU
 void arch_cpu_idle_dead(void)
 {
-	sched_preempt_enable_no_resched();
+	sched_preempt_enable_yes_resched();
 	cpu_play_dead();
 }
 #endif
@@ -234,10 +234,10 @@ static void __global_reg_self(struct thread_info *tp, struct pt_regs *regs,
 	rp->thread = tp;
 }
 
-/* In order to avoid hangs we do not try to synchronize with the
+/* In order to avoid hangs we do yest try to synchronize with the
  * global register dump client cpus.  The last store they make is to
  * the thread pointer, so do a short poll waiting for that to become
- * non-NULL.
+ * yesn-NULL.
  */
 static void __global_reg_poll(struct global_reg_snapshot *gp)
 {
@@ -608,7 +608,7 @@ asmlinkage long sparc_do_fork(unsigned long clone_flags,
 }
 
 /* Copy a Sparc thread.  The fork() return value conventions
- * under SunOS are nothing short of bletcherous:
+ * under SunOS are yesthing short of bletcherous:
  * Parent -->  %o0 == childs  pid, %o1 == 0
  * Child  -->  %o0 == parents pid, %o1 == 1
  */

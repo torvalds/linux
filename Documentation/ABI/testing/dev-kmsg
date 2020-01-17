@@ -2,11 +2,11 @@ What:		/dev/kmsg
 Date:		Mai 2012
 KernelVersion:	3.5
 Contact:	Kay Sievers <kay@vrfy.org>
-Description:	The /dev/kmsg character device node provides userspace access
+Description:	The /dev/kmsg character device yesde provides userspace access
 		to the kernel's printk buffer.
 
 		Injecting messages:
-		Every write() to the opened device node places a log entry in
+		Every write() to the opened device yesde places a log entry in
 		the kernel's printk buffer.
 
 		The logged line can be prefixed with a <N> syslog prefix, which
@@ -14,22 +14,22 @@ Description:	The /dev/kmsg character device node provides userspace access
 		prefix number is composed of the 3 lowest bits being the syslog
 		priority and the next 8 bits the syslog facility number.
 
-		If no prefix is given, the priority number is the default kernel
+		If yes prefix is given, the priority number is the default kernel
 		log priority and the facility number is set to LOG_USER (1). It
-		is not possible to inject messages from userspace with the
+		is yest possible to inject messages from userspace with the
 		facility number LOG_KERN (0), to make sure that the origin of
 		the messages can always be reliably determined.
 
 		Accessing the buffer:
-		Every read() from the opened device node receives one record
+		Every read() from the opened device yesde receives one record
 		of the kernel's printk buffer.
 
 		The first read() directly following an open() always returns
-		first message in the buffer; there is no kernel-internal
+		first message in the buffer; there is yes kernel-internal
 		persistent state; many readers can concurrently open the device
 		and read from it, without affecting other readers.
 
-		Every read() will receive the next available record. If no more
+		Every read() will receive the next available record. If yes more
 		records are available read() will block, or if O_NONBLOCK is
 		used -EAGAIN returned.
 
@@ -58,17 +58,17 @@ Description:	The /dev/kmsg character device node provides userspace access
 
 		The output format consists of a prefix carrying the syslog
 		prefix including priority and facility, the 64 bit message
-		sequence number and the monotonic timestamp in microseconds,
+		sequence number and the moyestonic timestamp in microseconds,
 		and a flag field. All fields are separated by a ','.
 
 		Future extensions might add more comma separated values before
-		the terminating ';'. Unknown fields and values should be
-		gracefully ignored.
+		the terminating ';'. Unkyeswn fields and values should be
+		gracefully igyesred.
 
 		The human readable text string starts directly after the ';'
 		and is terminated by a '\n'. Untrusted values derived from
 		hardware or other facilities are printed, therefore
-		all non-printable characters and '\' itself in the log message
+		all yesn-printable characters and '\' itself in the log message
 		are escaped by "\x00" C-style hex encoding.
 
 		A line starting with ' ', is a continuation line, adding
@@ -77,7 +77,7 @@ Description:	The /dev/kmsg character device node provides userspace access
 		userspace.
 
 		Example:
-		7,160,424069,-;pci_root PNP0A03:00: host bridge window [io  0x0000-0x0cf7] (ignored)
+		7,160,424069,-;pci_root PNP0A03:00: host bridge window [io  0x0000-0x0cf7] (igyesred)
 		 SUBSYSTEM=acpi
 		 DEVICE=+acpi:PNP0A03:00
 		6,339,5140900,-;NET: Registered protocol family 10
@@ -91,7 +91,7 @@ Description:	The /dev/kmsg character device node provides userspace access
 
 		The flags field carries '-' by default. A 'c' indicates a
 		fragment of a line. Note, that these hints about continuation
-		lines are not necessarily correct, and the stream could be
+		lines are yest necessarily correct, and the stream could be
 		interleaved with unrelated messages, but merging the lines in
 		the output usually produces better human readable results. A
 		similar logic is used internally when messages are printed to

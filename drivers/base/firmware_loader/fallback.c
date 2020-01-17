@@ -34,8 +34,8 @@ static void __fw_fallback_set_timeout(int timeout)
 /*
  * use small loading timeout for caching devices' firmware because all these
  * firmware images have been loaded successfully at lease once, also system is
- * ready for completing firmware loading now. The maximum size of firmware in
- * current distributions is about 2M bytes, so 10 secs should be enough.
+ * ready for completing firmware loading yesw. The maximum size of firmware in
+ * current distributions is about 2M bytes, so 10 secs should be eyesugh.
  */
 void fw_fallback_set_cache_timeout(void)
 {
@@ -43,7 +43,7 @@ void fw_fallback_set_cache_timeout(void)
 	__fw_fallback_set_timeout(10);
 }
 
-/* Restores the timeout to the value last configured during normal operation */
+/* Restores the timeout to the value last configured during yesrmal operation */
 void fw_fallback_set_default_timeout(void)
 {
 	__fw_fallback_set_timeout(fw_fallback_config.old_timeout);
@@ -71,7 +71,7 @@ static inline int fw_sysfs_wait_timeout(struct fw_priv *fw_priv,  long timeout)
 }
 
 struct fw_sysfs {
-	bool nowait;
+	bool yeswait;
 	struct device dev;
 	struct fw_priv *fw_priv;
 	struct firmware *fw;
@@ -132,7 +132,7 @@ static ssize_t timeout_show(struct class *class, struct class_attribute *attr,
  * @count: number of bytes in @buf
  *
  *	Sets the number of seconds to wait for the firmware.  Once
- *	this expires an error will be returned to the driver and no
+ *	this expires an error will be returned to the driver and yes
  *	firmware will be provided.
  *
  *	Note: zero means 'wait forever'.
@@ -170,7 +170,7 @@ static int do_firmware_uevent(struct fw_sysfs *fw_sysfs, struct kobj_uevent_env 
 		return -ENOMEM;
 	if (add_uevent_var(env, "TIMEOUT=%i", __firmware_loading_timeout()))
 		return -ENOMEM;
-	if (add_uevent_var(env, "ASYNC=%d", fw_sysfs->nowait))
+	if (add_uevent_var(env, "ASYNC=%d", fw_sysfs->yeswait))
 		return -ENOMEM;
 
 	return 0;
@@ -275,7 +275,7 @@ static ssize_t firmware_loading_store(struct device *dev,
 
 			/*
 			 * Same logic as fw_load_abort, only the DONE bit
-			 * is ignored and we set ABORT only on failure.
+			 * is igyesred and we set ABORT only on failure.
 			 */
 			list_del_init(&fw_priv->pending_list);
 			if (rc) {
@@ -471,7 +471,7 @@ fw_create_instance(struct firmware *firmware, const char *fw_name,
 		goto exit;
 	}
 
-	fw_sysfs->nowait = !!(opt_flags & FW_OPT_NOWAIT);
+	fw_sysfs->yeswait = !!(opt_flags & FW_OPT_NOWAIT);
 	fw_sysfs->fw = firmware;
 	f_dev = &fw_sysfs->dev;
 
@@ -564,7 +564,7 @@ static int fw_load_from_user_helper(struct firmware *firmware,
 	} else {
 		ret = usermodehelper_read_trylock();
 		if (WARN_ON(ret)) {
-			dev_err(device, "firmware: %s will not be loaded\n",
+			dev_err(device, "firmware: %s will yest be loaded\n",
 				name);
 			return ret;
 		}
@@ -601,8 +601,8 @@ static bool fw_run_sysfs_fallback(enum fw_opt opt_flags)
 {
 	int ret;
 
-	if (fw_fallback_config.ignore_sysfs_fallback) {
-		pr_info_once("Ignoring firmware sysfs fallback due to sysctl knob\n");
+	if (fw_fallback_config.igyesre_sysfs_fallback) {
+		pr_info_once("Igyesring firmware sysfs fallback due to sysctl kyesb\n");
 		return false;
 	}
 
@@ -629,11 +629,11 @@ static bool fw_run_sysfs_fallback(enum fw_opt opt_flags)
  * a fallback mechanism through userspace by exposing a sysfs loading
  * interface. Userspace is in charge of loading the firmware through the sysfs
  * loading interface. This sysfs fallback mechanism may be disabled completely
- * on a system by setting the proc sysctl value ignore_sysfs_fallback to true.
+ * on a system by setting the proc sysctl value igyesre_sysfs_fallback to true.
  * If this false we check if the internal API caller set the @FW_OPT_NOFALLBACK
  * flag, if so it would also disable the fallback mechanism. A system may want
  * to enfoce the sysfs fallback mechanism at all times, it can do this by
- * setting ignore_sysfs_fallback to false and force_sysfs_fallback to true.
+ * setting igyesre_sysfs_fallback to false and force_sysfs_fallback to true.
  * Enabling force_sysfs_fallback is functionally equivalent to build a kernel
  * with CONFIG_FW_LOADER_USER_HELPER_FALLBACK.
  **/

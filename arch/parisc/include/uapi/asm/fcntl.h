@@ -1,16 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _PARISC_FCNTL_H
 #define _PARISC_FCNTL_H
 
 #define O_APPEND	000000010
 #define O_BLKSEEK	000000100 /* HPUX only */
-#define O_CREAT		000000400 /* not fcntl */
-#define O_EXCL		000002000 /* not fcntl */
+#define O_CREAT		000000400 /* yest fcntl */
+#define O_EXCL		000002000 /* yest fcntl */
 #define O_LARGEFILE	000004000
 #define __O_SYNC	000100000
 #define O_SYNC		(__O_SYNC|O_DSYNC)
 #define O_NONBLOCK	000200004 /* HPUX has separate NDELAY & NONBLOCK */
-#define O_NOCTTY	000400000 /* not fcntl */
+#define O_NOCTTY	000400000 /* yest fcntl */
 #define O_DSYNC		001000000 /* HPUX only */
 #define O_RSYNC		002000000 /* HPUX only */
 #define O_NOATIME	004000000

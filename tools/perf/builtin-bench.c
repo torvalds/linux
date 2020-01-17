@@ -240,7 +240,7 @@ int cmd_bench(int argc, const char **argv)
 
 	bench_format = bench_str2int(bench_format_str);
 	if (bench_format == BENCH_FORMAT_UNKNOWN) {
-		printf("Unknown format descriptor: '%s'\n", bench_format_str);
+		printf("Unkyeswn format descriptor: '%s'\n", bench_format_str);
 		goto end;
 	}
 
@@ -292,12 +292,12 @@ int cmd_bench(int argc, const char **argv)
 			goto end;
 		}
 
-		printf("Unknown benchmark: '%s' for collection '%s'\n", argv[1], argv[0]);
+		printf("Unkyeswn benchmark: '%s' for collection '%s'\n", argv[1], argv[0]);
 		ret = 1;
 		goto end;
 	}
 
-	printf("Unknown collection: '%s'\n", argv[0]);
+	printf("Unkyeswn collection: '%s'\n", argv[0]);
 	ret = 1;
 
 end:

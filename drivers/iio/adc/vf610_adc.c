@@ -481,7 +481,7 @@ static int vf610_get_conversion_mode(struct iio_dev *indio_dev,
 	return info->adc_feature.conv_mode;
 }
 
-static const char * const vf610_conv_modes[] = { "normal", "high-speed",
+static const char * const vf610_conv_modes[] = { "yesrmal", "high-speed",
 						 "low-power" };
 
 static const struct iio_enum vf610_conversion_mode = {
@@ -583,7 +583,7 @@ static irqreturn_t vf610_adc_isr(int irq, void *dev_id)
 			iio_push_to_buffers_with_timestamp(indio_dev,
 					info->buffer,
 					iio_get_time_ns(indio_dev));
-			iio_trigger_notify_done(indio_dev->trig);
+			iio_trigger_yestify_done(indio_dev->trig);
 		} else
 			complete(&info->completion);
 	}
@@ -847,10 +847,10 @@ static int vf610_adc_probe(struct platform_device *pdev)
 
 	info->vref_uv = regulator_get_voltage(info->vref);
 
-	of_property_read_u32_array(pdev->dev.of_node, "fsl,adck-max-frequency",
+	of_property_read_u32_array(pdev->dev.of_yesde, "fsl,adck-max-frequency",
 			info->max_adck_rate, 3);
 
-	ret = of_property_read_u32(pdev->dev.of_node, "min-sample-time",
+	ret = of_property_read_u32(pdev->dev.of_yesde, "min-sample-time",
 			&info->adc_feature.default_sample_time);
 	if (ret)
 		info->adc_feature.default_sample_time = DEFAULT_SAMPLE_TIME;
@@ -861,7 +861,7 @@ static int vf610_adc_probe(struct platform_device *pdev)
 
 	indio_dev->name = dev_name(&pdev->dev);
 	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
+	indio_dev->dev.of_yesde = pdev->dev.of_yesde;
 	indio_dev->info = &vf610_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = vf610_adc_iio_channels;
@@ -870,7 +870,7 @@ static int vf610_adc_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(info->clk);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"Could not prepare or enable the clock.\n");
+			"Could yest prepare or enable the clock.\n");
 		goto error_adc_clk_enable;
 	}
 

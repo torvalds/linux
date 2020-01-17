@@ -25,8 +25,8 @@
 
 /*
  * NOTE: Herein lie back-to-back mb instructions.  They are magic. 
- * One plausible explanation is that the i/o controller does not properly
- * handle the system transaction.  Another involves timing.  Ho hum.
+ * One plausible explanation is that the i/o controller does yest properly
+ * handle the system transaction.  Ayesther involves timing.  Ho hum.
  */
 
 /*
@@ -44,7 +44,7 @@
 /*
  * Given a bus, device, and function number, compute resulting
  * configuration space address and setup the MCPCIA_HAXR2 register
- * accordingly.  It is therefore not safe to have concurrent
+ * accordingly.  It is therefore yest safe to have concurrent
  * invocations to configuration space access routines, but there
  * really shouldn't be any need for this.
  *
@@ -414,8 +414,8 @@ mcpcia_init_arch(void)
 	mcpcia_new_hose(0);
 }
 
-/* This is called from init_IRQ, since we cannot take interrupts
-   before then.  Which means we cannot do this in init_arch.  */
+/* This is called from init_IRQ, since we canyest take interrupts
+   before then.  Which means we canyest do this in init_arch.  */
 
 void __init
 mcpcia_init_hoses(void)
@@ -601,7 +601,7 @@ mcpcia_machine_check(unsigned long vector, unsigned long la_ptr)
 		break;
 	default:
 		/* Otherwise, we're being called from mcpcia_probe_hose
-		   and there's no hose clear an error from.  */
+		   and there's yes hose clear an error from.  */
 		break;
 	}
 

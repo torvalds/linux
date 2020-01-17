@@ -2,7 +2,7 @@
 /*******************************************************************************
  * SCSI RDMA Protocol lib functions
  *
- * Copyright (C) 2006 FUJITA Tomonori <tomof@acm.org>
+ * Copyright (C) 2006 FUJITA Tomoyesri <tomof@acm.org>
  * Copyright (C) 2016 Bryant G. Ly <bryantly@linux.vnet.ibm.com> IBM Corp.
  *
  ***********************************************************************/
@@ -328,7 +328,7 @@ int srp_transfer_data(struct ibmvscsis_cmd *cmd, struct srp_cmd *srp_cmd,
 					ext_desc);
 		break;
 	default:
-		pr_err("Unknown format %d %x\n", dir, format);
+		pr_err("Unkyeswn format %d %x\n", dir, format);
 		err = -EINVAL;
 	}
 
@@ -414,5 +414,5 @@ int srp_get_desc_table(struct srp_cmd *srp_cmd, enum dma_data_direction *dir,
 }
 
 MODULE_DESCRIPTION("SCSI RDMA Protocol lib functions");
-MODULE_AUTHOR("FUJITA Tomonori");
+MODULE_AUTHOR("FUJITA Tomoyesri");
 MODULE_LICENSE("GPL");

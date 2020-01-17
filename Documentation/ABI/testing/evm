@@ -42,10 +42,10 @@ Description:
 		modification of EVM-protected metadata and
 		disable all further modification of policy
 
-		Note that once a key has been loaded, it will no longer be
+		Note that once a key has been loaded, it will yes longer be
 		possible to enable metadata modification.
 
-		Until key loading has been signaled EVM can not create
+		Until key loading has been signaled EVM can yest create
 		or validate the 'security.evm' xattr, but returns
 		INTEGRITY_UNKNOWN.  Loading keys and signaling EVM
 		should be done as early as possible.  Normally this is

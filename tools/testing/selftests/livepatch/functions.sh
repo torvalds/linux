@@ -141,18 +141,18 @@ function load_mod() {
 	__load_mod "$mod" "$@"
 }
 
-# load_lp_nowait(modname, params) - load a kernel module with a livepatch
-#			but do not wait on until the transition finishes
+# load_lp_yeswait(modname, params) - load a kernel module with a livepatch
+#			but do yest wait on until the transition finishes
 #	modname - module name to load
 #	params  - module parameters to pass to modprobe
-function load_lp_nowait() {
+function load_lp_yeswait() {
 	local mod="$1"; shift
 
 	assert_mod "$mod" ||
 		skip "unable to load module ${mod}, verify CONFIG_TEST_LIVEPATCH=m and run self-tests as root"
 
 	is_livepatch_mod "$mod" ||
-		die "module $mod is not a livepatch"
+		die "module $mod is yest a livepatch"
 
 	__load_mod "$mod" "$@"
 
@@ -167,7 +167,7 @@ function load_lp_nowait() {
 function load_lp() {
 	local mod="$1"; shift
 
-	load_lp_nowait "$mod" "$@"
+	load_lp_yeswait "$mod" "$@"
 
 	# Wait until the transition finishes ...
 	loop_until 'grep -q '^0$' /sys/kernel/livepatch/$mod/transition' ||
@@ -255,7 +255,7 @@ function check_result {
 	if [[ "$expect" == "$result" ]] ; then
 		echo "ok"
 	else
-		echo -e "not ok\n\n$(diff -upr --label expected --label result <(echo "$expect") <(echo "$result"))\n"
+		echo -e "yest ok\n\n$(diff -upr --label expected --label result <(echo "$expect") <(echo "$result"))\n"
 		die "livepatch kselftest(s) failed"
 	fi
 }

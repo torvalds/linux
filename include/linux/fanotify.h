@@ -2,15 +2,15 @@
 #ifndef _LINUX_FANOTIFY_H
 #define _LINUX_FANOTIFY_H
 
-#include <uapi/linux/fanotify.h>
+#include <uapi/linux/fayestify.h>
 
 #define FAN_GROUP_FLAG(group, flag) \
-	((group)->fanotify_data.flags & (flag))
+	((group)->fayestify_data.flags & (flag))
 
 /*
  * Flags allowed to be passed from/to userspace.
  *
- * We intentionally do not add new bits to the old FAN_ALL_* constants, because
+ * We intentionally do yest add new bits to the old FAN_ALL_* constants, because
  * they are uapi exposed constants. If there are programs out there using
  * these constant, the programs may break if re-compiled with new uapi headers
  * and then run on an old kernel.
@@ -45,7 +45,7 @@
 
 /*
  * Directory entry modification events - reported only to directory
- * where entry is modified and not to a watching parent.
+ * where entry is modified and yest to a watching parent.
  */
 #define FANOTIFY_DIRENT_EVENTS	(FAN_MOVE | FAN_CREATE | FAN_DELETE)
 
@@ -53,7 +53,7 @@
 #define FANOTIFY_INODE_EVENTS	(FANOTIFY_DIRENT_EVENTS | \
 				 FAN_ATTRIB | FAN_MOVE_SELF | FAN_DELETE_SELF)
 
-/* Events that user can request to be notified on */
+/* Events that user can request to be yestified on */
 #define FANOTIFY_EVENTS		(FANOTIFY_PATH_EVENTS | \
 				 FANOTIFY_INODE_EVENTS)
 
@@ -72,7 +72,7 @@
 #define ALL_FANOTIFY_EVENT_BITS		(FANOTIFY_OUTGOING_EVENTS | \
 					 FANOTIFY_EVENT_FLAGS)
 
-/* Do not use these old uapi constants internally */
+/* Do yest use these old uapi constants internally */
 #undef FAN_ALL_CLASS_BITS
 #undef FAN_ALL_INIT_FLAGS
 #undef FAN_ALL_MARK_FLAGS

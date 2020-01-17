@@ -24,7 +24,7 @@
  * the card record and each allocation begins where the last left off.  The 
  * hardware requires stereo interleaved voices be aligned to an even/odd 
  * boundary.  For multichannel voice allocation we ensure than the block of 
- * voices does not cross the 32 voice boundary.  This simplifies the 
+ * voices does yest cross the 32 voice boundary.  This simplifies the 
  * multichannel support and ensures we can use a single write to the 
  * (set|clear)_loop_stop registers.  Otherwise (for example) the voices would 
  * get out of sync when pausing/resuming a stream.

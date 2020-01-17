@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2007	Brian Murphy <brian@murphy.dk>
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>

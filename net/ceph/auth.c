@@ -9,7 +9,7 @@
 #include <linux/ceph/decode.h>
 #include <linux/ceph/libceph.h>
 #include <linux/ceph/messenger.h>
-#include "auth_none.h"
+#include "auth_yesne.h"
 #include "auth_x.h"
 
 
@@ -25,7 +25,7 @@ static int ceph_auth_init_protocol(struct ceph_auth_client *ac, int protocol)
 {
 	switch (protocol) {
 	case CEPH_AUTH_NONE:
-		return ceph_auth_none_init(ac);
+		return ceph_auth_yesne_init(ac);
 	case CEPH_AUTH_CEPHX:
 		return ceph_x_init(ac);
 	default:
@@ -84,7 +84,7 @@ void ceph_auth_reset(struct ceph_auth_client *ac)
 }
 
 /*
- * EntityName, not to be confused with entity_name_t
+ * EntityName, yest to be confused with entity_name_t
  */
 int ceph_auth_entity_name_encode(const char *name, void **p, void *end)
 {
@@ -115,7 +115,7 @@ int ceph_auth_build_hello(struct ceph_auth_client *ac, void *buf, size_t len)
 	monhdr->session_mon = cpu_to_le16(-1);
 	monhdr->session_mon_tid = 0;
 
-	ceph_encode_32(&p, CEPH_AUTH_UNKNOWN);  /* no protocol, yet */
+	ceph_encode_32(&p, CEPH_AUTH_UNKNOWN);  /* yes protocol, yet */
 
 	lenp = p;
 	p += sizeof(u32);
@@ -217,7 +217,7 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 	}
 
 	if (ac->negotiating) {
-		/* server does not support our protocols? */
+		/* server does yest support our protocols? */
 		if (!protocol && result < 0) {
 			ret = result;
 			goto out;

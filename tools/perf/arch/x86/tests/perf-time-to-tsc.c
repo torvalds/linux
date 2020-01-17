@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <stdbool.h>
@@ -42,8 +42,8 @@
  *
  * This function implements a test that checks that the conversion of perf time
  * to and from TSC is consistent with the order of events.  If the test passes
- * %0 is returned, otherwise %-1 is returned.  If TSC conversion is not
- * supported then then the test passes but " (not supported)" is printed.
+ * %0 is returned, otherwise %-1 is returned.  If TSC conversion is yest
+ * supported then then the test passes but " (yest supported)" is printed.
  */
 int test__perf_time_to_tsc(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
@@ -98,7 +98,7 @@ int test__perf_time_to_tsc(struct test *test __maybe_unused, int subtest __maybe
 	ret = perf_read_tsc_conversion(pc, &tc);
 	if (ret) {
 		if (ret == -EOPNOTSUPP) {
-			fprintf(stderr, " (not supported)");
+			fprintf(stderr, " (yest supported)");
 			return 0;
 		}
 		goto out_err;

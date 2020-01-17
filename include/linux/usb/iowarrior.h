@@ -19,7 +19,7 @@ struct iowarrior_info {
 	__u32 vendor;
 	/* product id : depends on type of chip (USB_DEVICE_ID_CODEMERCS_X) */
 	__u32 product;
-	/* the serial number of our chip (if a serial-number is not available
+	/* the serial number of our chip (if a serial-number is yest available
 	 * this is empty string) */
 	__u8 serial[9];
 	/* revision number of the chip */

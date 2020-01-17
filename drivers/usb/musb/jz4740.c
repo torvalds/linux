@@ -7,7 +7,7 @@
 
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -57,7 +57,7 @@ static struct musb_fifo_cfg jz4740_musb_fifo_cfg[] = {
 };
 
 static const struct musb_hdrc_config jz4740_musb_config = {
-	/* Silicon does not implement USB OTG. */
+	/* Silicon does yest implement USB OTG. */
 	.multipoint = 0,
 	/* Max EPs scanned, driver will decide which EP can be used. */
 	.num_eps    = 4,
@@ -77,7 +77,7 @@ static int jz4740_musb_init(struct musb *musb)
 	struct device *dev = musb->controller->parent;
 	int err;
 
-	if (dev->of_node)
+	if (dev->of_yesde)
 		musb->xceiv = devm_usb_get_phy_by_phandle(dev, "phys", 0);
 	else
 		musb->xceiv = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
@@ -88,7 +88,7 @@ static int jz4740_musb_init(struct musb *musb)
 		return err;
 	}
 
-	/* Silicon does not implement ConfigData register.
+	/* Silicon does yest implement ConfigData register.
 	 * Set dyn_fifo to avoid reading EP config from hardware.
 	 */
 	musb->dyn_fifo = true;
@@ -99,8 +99,8 @@ static int jz4740_musb_init(struct musb *musb)
 }
 
 /*
- * DMA has not been confirmed to work with CONFIG_USB_INVENTRA_DMA,
- * so let's not set up the dma function pointers yet.
+ * DMA has yest been confirmed to work with CONFIG_USB_INVENTRA_DMA,
+ * so let's yest set up the dma function pointers yet.
  */
 static const struct musb_platform_ops jz4740_musb_ops = {
 	.quirks		= MUSB_DMA_INVENTRA | MUSB_INDEXED_EP,

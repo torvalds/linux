@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -144,7 +144,7 @@ acr_r367_ls_ucode_img_load(const struct acr_r352 *acr,
 	/* Copy signature to the right place */
 	memcpy(&img->lsb_header.signature, img->base.sig, img->base.sig_size);
 
-	/* not needed? the signature should already have the right value */
+	/* yest needed? the signature should already have the right value */
 	img->lsb_header.signature.falcon_id = falcon_id;
 
 	return &img->base;
@@ -257,7 +257,7 @@ acr_r367_ls_fill_headers(struct acr_r352 *acr, struct list_head *imgs)
 	 * Walk the managed falcons, accounting for the LSB structs
 	 * as well as the ucode images.
 	 */
-	list_for_each_entry(img, imgs, base.node) {
+	list_for_each_entry(img, imgs, base.yesde) {
 		offset = acr_r367_ls_img_fill_headers(acr, img, offset);
 	}
 
@@ -273,7 +273,7 @@ acr_r367_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 	u32 max_desc_size = 0;
 	u8 *gdesc;
 
-	list_for_each_entry(_img, imgs, node) {
+	list_for_each_entry(_img, imgs, yesde) {
 		struct ls_ucode_img_r367 *img = ls_ucode_img_r367(_img);
 		const struct acr_r352_lsf_func *ls_func = img->func;
 
@@ -286,7 +286,7 @@ acr_r367_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 
 	nvkm_kmap(wpr_blob);
 
-	list_for_each_entry(_img, imgs, node) {
+	list_for_each_entry(_img, imgs, yesde) {
 		struct ls_ucode_img_r367 *img = ls_ucode_img_r367(_img);
 		const struct acr_r352_lsf_func *ls_func = img->func;
 
@@ -327,7 +327,7 @@ struct acr_r367_hsflcn_desc {
 	u32 mmu_memory_range;
 #define FLCN_ACR_MAX_REGIONS 2
 	struct {
-		u32 no_regions;
+		u32 yes_regions;
 		struct {
 			u32 start_addr;
 			u32 end_addr;
@@ -355,7 +355,7 @@ acr_r367_fixup_hs_desc(struct acr_r352 *acr, struct nvkm_secboot *sb,
 	struct acr_r367_hsflcn_desc *desc = _desc;
 	struct nvkm_gpuobj *ls_blob = acr->ls_blob;
 
-	/* WPR region information if WPR is not fixed */
+	/* WPR region information if WPR is yest fixed */
 	if (sb->wpr_size == 0) {
 		u64 wpr_start = ls_blob->addr;
 		u64 wpr_end = ls_blob->addr + ls_blob->size;
@@ -364,7 +364,7 @@ acr_r367_fixup_hs_desc(struct acr_r352 *acr, struct nvkm_secboot *sb,
 			wpr_start += ls_blob->size / 2;
 
 		desc->wpr_region_id = 1;
-		desc->regions.no_regions = 2;
+		desc->regions.yes_regions = 2;
 		desc->regions.region_props[0].start_addr = wpr_start >> 8;
 		desc->regions.region_props[0].end_addr = wpr_end >> 8;
 		desc->regions.region_props[0].region_id = 1;

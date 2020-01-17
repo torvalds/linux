@@ -35,7 +35,7 @@
 /*
  * MMU defines: Fixed TLBs.
  */
-/* Deal safely with the case where the base of RAM is not 512Mb aligned */
+/* Deal safely with the case where the base of RAM is yest 512Mb aligned */
 
 #define ALIGN_512M_MASK (0xffffffffe0000000)
 #define ALIGNED_EFFECTIVE ((CONFIG_PAGE_OFFSET + CONFIG_MEMORY_START) & ALIGN_512M_MASK)
@@ -68,7 +68,7 @@
 #define	OCCR0_INIT_VAL	OCCR0_ON | OCCR0_OCI | OCCR0_WB	   /* D-cache: on,   */
 							   /* WB, invalidate */
 #else
-#error preprocessor flag CONFIG_CACHE_... not recognized!
+#error preprocessor flag CONFIG_CACHE_... yest recognized!
 #endif
 
 #define	OCCR1_INIT_VAL	OCCR1_NOLOCK			   /* No locking     */
@@ -119,14 +119,14 @@ fpu_in_use:	.quad	0
  * . reflect as much as possible SH5 ABI (r15, r26, r27, r18)
  * . first, save CPU state and set it to something harmless
  * . any CPU detection and/or endianness settings (?)
- * . initialize EMI/LMI (but not TMU/RTC/INTC/SCIF): TBD
+ * . initialize EMI/LMI (but yest TMU/RTC/INTC/SCIF): TBD
  * . set initial TLB entries for cached and uncached regions
- *   (no fine granularity paging)
+ *   (yes fine granularity paging)
  * . set initial cache state
  * . enable MMU and caches
  * . set CPU to a consistent state
  *   . registers (including stack pointer and current/KCR0)
- *   . NOT expecting to set Exception handling nor VBR/RESVEC/DCR
+ *   . NOT expecting to set Exception handling yesr VBR/RESVEC/DCR
  *     at this stage. This is all to later Linux initialization steps.
  *   . initialize FPU
  * . clear BSS
@@ -239,7 +239,7 @@ clear_DTLB:
 
 
 	/*
-	 * Enable Caches and MMU. Do the first non-PIC jump.
+	 * Enable Caches and MMU. Do the first yesn-PIC jump.
          * Now head.S global variables, constants and externs
 	 * can be used.
 	 */
@@ -248,10 +248,10 @@ clear_DTLB:
 	or	r21, r22, r21
 	putcon	r21, SSR
 	movi	hyperspace, r22
-	ori	r22, 1, r22	    /* Make it SHmedia, not required but..*/
+	ori	r22, 1, r22	    /* Make it SHmedia, yest required but..*/
 	putcon	r22, SPC
 	synco
-	rte			    /* And now go into the hyperspace ... */
+	rte			    /* And yesw go into the hyperspace ... */
 hyperspace:			    /* ... that's the next instruction !  */
 
 	/*
@@ -326,7 +326,7 @@ clear_quad:
 hopeless:
 	/*
 	 * Something's badly wrong here. Loop endlessly,
-         * there's nothing more we can do about it.
+         * there's yesthing more we can do about it.
 	 *
 	 * Note on hopeless: it can be jumped into invariably
 	 * before or after jumping into hyperspace. The only

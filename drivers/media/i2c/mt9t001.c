@@ -330,7 +330,7 @@ static int mt9t001_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (ret < 0)
 		return ret;
 
-	/* Switch to master "normal" mode */
+	/* Switch to master "yesrmal" mode */
 	return mt9t001_set_output_control(mt9t001, 0, mode);
 }
 
@@ -498,7 +498,7 @@ static u16 mt9t001_gain_value(s32 *gain)
 	 * Second analog stage	x1	x4	0.125
 	 * Digital stage	x1	x16	0.125
 	 *
-	 * To minimize noise, the gain stages should be used in the second
+	 * To minimize yesise, the gain stages should be used in the second
 	 * analog stage, first analog stage, digital stage order. Gain from a
 	 * previous stage should be pushed to its maximum value before the next
 	 * stage is used.
@@ -783,7 +783,7 @@ static int mt9t001_registered(struct v4l2_subdev *subdev)
 
 	if (data != MT9T001_CHIP_ID) {
 		dev_err(&client->dev,
-			"MT9T001 not detected, wrong version 0x%04x\n", data);
+			"MT9T001 yest detected, wrong version 0x%04x\n", data);
 		return -ENODEV;
 	}
 

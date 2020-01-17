@@ -15,7 +15,7 @@ enum aq_rx_filter_type {
 };
 
 struct aq_rx_filter {
-	struct hlist_node aq_node;
+	struct hlist_yesde aq_yesde;
 	enum aq_rx_filter_type type;
 	struct ethtool_rx_flow_spec aq_fsp;
 };

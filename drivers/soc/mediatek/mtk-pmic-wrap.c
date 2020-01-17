@@ -1023,7 +1023,7 @@ static bool pwrap_is_fsm_vldclr(struct pmic_wrapper *wrp)
 
 /*
  * Timeout issue sometimes caused by the last read command
- * failed because pmic wrap could not got the FSM_VLDCLR
+ * failed because pmic wrap could yest got the FSM_VLDCLR
  * in time after finishing WACS2_CMD. It made state machine
  * still on FSM_VLDCLR and timeout next time.
  * Check the status of FSM and clear the vldclr to recovery the
@@ -1238,7 +1238,7 @@ static int pwrap_init_sidly(struct pmic_wrapper *wrp)
 	}
 
 	if (dly[pass] < 0) {
-		dev_err(wrp->dev, "sidly pass range 0x%x not continuous\n",
+		dev_err(wrp->dev, "sidly pass range 0x%x yest continuous\n",
 				pass);
 		return -EIO;
 	}
@@ -1638,7 +1638,7 @@ static int pwrap_init(struct pmic_wrapper *wrp)
 	return 0;
 }
 
-static irqreturn_t pwrap_interrupt(int irqno, void *dev_id)
+static irqreturn_t pwrap_interrupt(int irqyes, void *dev_id)
 {
 	u32 rdata;
 	struct pmic_wrapper *wrp = dev_id;
@@ -1895,12 +1895,12 @@ static int pwrap_probe(struct platform_device *pdev)
 {
 	int ret, irq;
 	struct pmic_wrapper *wrp;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *of_slave_id = NULL;
 	struct resource *res;
 
 	if (np->child)
-		of_slave_id = of_match_node(of_slave_match_tbl, np->child);
+		of_slave_id = of_match_yesde(of_slave_match_tbl, np->child);
 
 	if (!of_slave_id) {
 		dev_dbg(&pdev->dev, "slave pmic should be defined in dts\n");
@@ -1926,7 +1926,7 @@ static int pwrap_probe(struct platform_device *pdev)
 		wrp->rstc = devm_reset_control_get(wrp->dev, "pwrap");
 		if (IS_ERR(wrp->rstc)) {
 			ret = PTR_ERR(wrp->rstc);
-			dev_dbg(wrp->dev, "cannot get pwrap reset: %d\n", ret);
+			dev_dbg(wrp->dev, "canyest get pwrap reset: %d\n", ret);
 			return ret;
 		}
 	}
@@ -1943,7 +1943,7 @@ static int pwrap_probe(struct platform_device *pdev)
 		if (IS_ERR(wrp->rstc_bridge)) {
 			ret = PTR_ERR(wrp->rstc_bridge);
 			dev_dbg(wrp->dev,
-				"cannot get pwrap-bridge reset: %d\n", ret);
+				"canyest get pwrap-bridge reset: %d\n", ret);
 			return ret;
 		}
 	}
@@ -1994,10 +1994,10 @@ static int pwrap_probe(struct platform_device *pdev)
 		goto err_out2;
 	}
 
-	/* Initialize watchdog, may not be done by the bootloader */
+	/* Initialize watchdog, may yest be done by the bootloader */
 	pwrap_writel(wrp, 0xf, PWRAP_WDT_UNIT);
 	/*
-	 * Since STAUPD was not used on mt8173 platform,
+	 * Since STAUPD was yest used on mt8173 platform,
 	 * so STAUPD of WDT_SRC which should be turned off
 	 */
 	pwrap_writel(wrp, wrp->master->wdt_src, PWRAP_WDT_SRC_EN);

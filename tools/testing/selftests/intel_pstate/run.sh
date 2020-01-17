@@ -15,7 +15,7 @@
 #
 # Notes: In some cases several frequency values may be placed in the
 # /tmp/result.X files.  This is done on purpose in order to catch cases
-# where the pstate driver may not be working at all.  There is the case
+# where the pstate driver may yest be working at all.  There is the case
 # where, for example, several "similar" frequencies are in the file:
 #
 #

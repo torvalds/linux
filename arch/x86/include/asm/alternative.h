@@ -46,12 +46,12 @@
 #endif
 
 /*
- * objtool annotation to ignore the alternatives and only consider the original
+ * objtool anyestation to igyesre the alternatives and only consider the original
  * instruction(s).
  */
 #define ANNOTATE_IGNORE_ALTERNATIVE				\
 	"999:\n\t"						\
-	".pushsection .discard.ignore_alts\n\t"			\
+	".pushsection .discard.igyesre_alts\n\t"			\
 	".long 999b - .\n\t"					\
 	".popsection\n\t"
 
@@ -195,9 +195,9 @@ static inline int alternatives_text_reserved(void *start, void *end)
  * kernels.
  *
  * length of oldinstr must be longer or equal the length of newinstr
- * It can be padded with nops as needed.
+ * It can be padded with yesps as needed.
  *
- * For non barrier like inlines please define new variants
+ * For yesn barrier like inlines please define new variants
  * without volatile and memory clobber.
  */
 #define alternative(oldinstr, newinstr, feature)			\
@@ -240,7 +240,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	asm_inline volatile (ALTERNATIVE(oldinstr, newinstr, feature)	\
 		: output : "i" (0), ## input)
 
-/* Like alternative_io, but for replacing a direct call with another one. */
+/* Like alternative_io, but for replacing a direct call with ayesther one. */
 #define alternative_call(oldfunc, newfunc, feature, output, input...)	\
 	asm_inline volatile (ALTERNATIVE("call %P[old]", "call %P[new]", feature) \
 		: output : [old] "i" (oldfunc), [new] "i" (newfunc), ## input)
@@ -266,7 +266,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 #define ASM_OUTPUT2(a...) a
 
 /*
- * use this macro if you need clobbers but no inputs in
+ * use this macro if you need clobbers but yes inputs in
  * alternative_{input,io,call}()
  */
 #define ASM_NO_INPUT_CLOBBER(clbr...) "i" (0) : clbr

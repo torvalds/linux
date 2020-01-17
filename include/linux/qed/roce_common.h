@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -45,7 +45,7 @@
 #define ROCE_DCQCN_RP_MAX_QPS		(64)
 #define ROCE_LKEY_MW_DIF_EN_BIT		(28)
 
-/* Affiliated asynchronous events / errors enumeration */
+/* Affiliated asynchroyesus events / errors enumeration */
 enum roce_async_events_type {
 	ROCE_ASYNC_EVENT_NONE = 0,
 	ROCE_ASYNC_EVENT_COMM_EST = 1,

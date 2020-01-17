@@ -25,7 +25,7 @@ static DEFINE_MUTEX(dfl_id_mutex);
  *
  * if the new feature dev needs chardev support, then it's required to add
  * a new item in dfl_chardevs table and configure dfl_devs[i].devt_type as
- * index to dfl_chardevs table. If no chardev support just set devt_type
+ * index to dfl_chardevs table. If yes chardev support just set devt_type
  * as one invalid index (DFL_FPGA_DEVT_MAX).
  */
 enum dfl_id_type {
@@ -161,7 +161,7 @@ static LIST_HEAD(dfl_port_ops_list);
  * @pdev: platform device to match with associated port ops.
  * Return: matched port ops on success, NULL otherwise.
  *
- * Please note that must dfl_fpga_port_ops_put after use the port_ops.
+ * Please yeste that must dfl_fpga_port_ops_put after use the port_ops.
  */
 struct dfl_fpga_port_ops *dfl_fpga_port_ops_get(struct platform_device *pdev)
 {
@@ -171,7 +171,7 @@ struct dfl_fpga_port_ops *dfl_fpga_port_ops_get(struct platform_device *pdev)
 	if (list_empty(&dfl_port_ops_list))
 		goto done;
 
-	list_for_each_entry(ops, &dfl_port_ops_list, node) {
+	list_for_each_entry(ops, &dfl_port_ops_list, yesde) {
 		/* match port_ops using the name of platform device */
 		if (!strcmp(pdev->name, ops->name)) {
 			if (!try_module_get(ops->owner))
@@ -205,7 +205,7 @@ EXPORT_SYMBOL_GPL(dfl_fpga_port_ops_put);
 void dfl_fpga_port_ops_add(struct dfl_fpga_port_ops *ops)
 {
 	mutex_lock(&dfl_port_ops_mutex);
-	list_add_tail(&ops->node, &dfl_port_ops_list);
+	list_add_tail(&ops->yesde, &dfl_port_ops_list);
 	mutex_unlock(&dfl_port_ops_mutex);
 }
 EXPORT_SYMBOL_GPL(dfl_fpga_port_ops_add);
@@ -217,7 +217,7 @@ EXPORT_SYMBOL_GPL(dfl_fpga_port_ops_add);
 void dfl_fpga_port_ops_del(struct dfl_fpga_port_ops *ops)
 {
 	mutex_lock(&dfl_port_ops_mutex);
-	list_del(&ops->node);
+	list_del(&ops->yesde);
 	mutex_unlock(&dfl_port_ops_mutex);
 }
 EXPORT_SYMBOL_GPL(dfl_fpga_port_ops_del);
@@ -441,13 +441,13 @@ struct build_feature_devs_info {
  * @fid: id of this sub feature.
  * @mmio_res: mmio resource of this sub feature.
  * @ioaddr: mapped base address of mmio resource.
- * @node: node in sub_features linked list.
+ * @yesde: yesde in sub_features linked list.
  */
 struct dfl_feature_info {
 	u64 fid;
 	struct resource mmio_res;
 	void __iomem *ioaddr;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static void dfl_fpga_cdev_add_port_dev(struct dfl_fpga_cdev *cdev,
@@ -456,14 +456,14 @@ static void dfl_fpga_cdev_add_port_dev(struct dfl_fpga_cdev *cdev,
 	struct dfl_feature_platform_data *pdata = dev_get_platdata(&port->dev);
 
 	mutex_lock(&cdev->lock);
-	list_add(&pdata->node, &cdev->port_dev_list);
+	list_add(&pdata->yesde, &cdev->port_dev_list);
 	get_device(&pdata->dev->dev);
 	mutex_unlock(&cdev->lock);
 }
 
 /*
  * register current feature device, it is called when we need to switch to
- * another feature parsing or we have parsed all features on given device
+ * ayesther feature parsing or we have parsed all features on given device
  * feature list.
  */
 static int build_info_commit_dev(struct build_feature_devs_info *binfo)
@@ -482,7 +482,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 		return -EINVAL;
 
 	/*
-	 * we do not need to care for the memory which is associated with
+	 * we do yest need to care for the memory which is associated with
 	 * the platform device. After calling platform_device_unregister(),
 	 * it will be automatically freed by device's release() callback,
 	 * platform_device_release().
@@ -518,7 +518,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 		return -ENOMEM;
 
 	/* fill features and resource information for feature dev */
-	list_for_each_entry_safe(finfo, p, &binfo->sub_features, node) {
+	list_for_each_entry_safe(finfo, p, &binfo->sub_features, yesde) {
 		struct dfl_feature *feature = &pdata->features[index];
 
 		/* save resource information for each feature */
@@ -527,7 +527,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 		feature->ioaddr = finfo->ioaddr;
 		fdev->resource[index++] = finfo->mmio_res;
 
-		list_del(&finfo->node);
+		list_del(&finfo->yesde);
 		kfree(finfo);
 	}
 
@@ -602,8 +602,8 @@ static void build_info_free(struct build_feature_devs_info *binfo)
 		dfl_id_free(feature_dev_id_type(binfo->feature_dev),
 			    binfo->feature_dev->id);
 
-		list_for_each_entry_safe(finfo, p, &binfo->sub_features, node) {
-			list_del(&finfo->node);
+		list_for_each_entry_safe(finfo, p, &binfo->sub_features, yesde) {
+			list_del(&finfo->yesde);
 			kfree(finfo);
 		}
 	}
@@ -669,7 +669,7 @@ create_feature_instance(struct build_feature_devs_info *binfo,
 	finfo->mmio_res.flags = IORESOURCE_MEM;
 	finfo->ioaddr = dfl->ioaddr + ofst;
 
-	list_add_tail(&finfo->node, &binfo->sub_features);
+	list_add_tail(&finfo->yesde, &binfo->sub_features);
 	binfo->feature_num++;
 
 	return 0;
@@ -692,7 +692,7 @@ static int parse_feature_afu(struct build_feature_devs_info *binfo,
 			     resource_size_t ofst)
 {
 	if (!binfo->feature_dev) {
-		dev_err(binfo->dev, "this AFU does not belong to any FIU.\n");
+		dev_err(binfo->dev, "this AFU does yest belong to any FIU.\n");
 		return -EINVAL;
 	}
 
@@ -700,7 +700,7 @@ static int parse_feature_afu(struct build_feature_devs_info *binfo,
 	case PORT_ID:
 		return parse_feature_port_afu(binfo, dfl, ofst);
 	default:
-		dev_info(binfo->dev, "AFU belonging to FIU %s is not supported yet.\n",
+		dev_info(binfo->dev, "AFU belonging to FIU %s is yest supported yet.\n",
 			 binfo->feature_dev->name);
 	}
 
@@ -729,7 +729,7 @@ static int parse_feature_fiu(struct build_feature_devs_info *binfo,
 		return ret;
 	/*
 	 * find and parse FIU's child AFU via its NEXT_AFU register.
-	 * please note that only Port has valid NEXT_AFU pointer per spec.
+	 * please yeste that only Port has valid NEXT_AFU pointer per spec.
 	 */
 	v = readq(dfl->ioaddr + ofst + NEXT_AFU);
 
@@ -747,7 +747,7 @@ static int parse_feature_private(struct build_feature_devs_info *binfo,
 				 resource_size_t ofst)
 {
 	if (!binfo->feature_dev) {
-		dev_err(binfo->dev, "the private feature %llx does not belong to any AFU.\n",
+		dev_err(binfo->dev, "the private feature %llx does yest belong to any AFU.\n",
 			(unsigned long long)feature_id(dfl->ioaddr + ofst));
 		return -EINVAL;
 	}
@@ -780,7 +780,7 @@ static int parse_feature(struct build_feature_devs_info *binfo,
 		return parse_feature_fiu(binfo, dfl, ofst);
 	default:
 		dev_info(binfo->dev,
-			 "Feature Type %x is not supported.\n", type);
+			 "Feature Type %x is yest supported.\n", type);
 	}
 
 	return 0;
@@ -848,8 +848,8 @@ void dfl_fpga_enum_info_free(struct dfl_fpga_enum_info *info)
 	dev = info->dev;
 
 	/* remove all device feature lists in the list. */
-	list_for_each_entry_safe(dfl, tmp, &info->dfls, node) {
-		list_del(&dfl->node);
+	list_for_each_entry_safe(dfl, tmp, &info->dfls, yesde) {
+		list_del(&dfl->yesde);
 		devm_kfree(dev, dfl);
 	}
 
@@ -886,7 +886,7 @@ int dfl_fpga_enum_info_add_dfl(struct dfl_fpga_enum_info *info,
 	dfl->len = len;
 	dfl->ioaddr = ioaddr;
 
-	list_add_tail(&dfl->node, &info->dfls);
+	list_add_tail(&dfl->yesde, &info->dfls);
 
 	return 0;
 }
@@ -918,7 +918,7 @@ static void remove_feature_devs(struct dfl_fpga_cdev *cdev)
  * feature devices based on the enumeration info and creates platform devices
  * under the container device.
  *
- * Return: dfl_fpga_cdev struct on success, -errno on failure
+ * Return: dfl_fpga_cdev struct on success, -erryes on failure
  */
 struct dfl_fpga_cdev *
 dfl_fpga_feature_devs_enumerate(struct dfl_fpga_enum_info *info)
@@ -963,7 +963,7 @@ dfl_fpga_feature_devs_enumerate(struct dfl_fpga_enum_info *info)
 	 * start enumeration for all feature devices based on Device Feature
 	 * Lists.
 	 */
-	list_for_each_entry(dfl, &info->dfls, node) {
+	list_for_each_entry(dfl, &info->dfls, yesde) {
 		ret = parse_feature_list(binfo, dfl);
 		if (ret) {
 			remove_feature_devs(cdev);
@@ -999,7 +999,7 @@ void dfl_fpga_feature_devs_remove(struct dfl_fpga_cdev *cdev)
 	if (cdev->fme_dev)
 		put_device(cdev->fme_dev);
 
-	list_for_each_entry_safe(pdata, ptmp, &cdev->port_dev_list, node) {
+	list_for_each_entry_safe(pdata, ptmp, &cdev->port_dev_list, yesde) {
 		struct platform_device *port_dev = pdata->dev;
 
 		/* remove released ports */
@@ -1009,7 +1009,7 @@ void dfl_fpga_feature_devs_remove(struct dfl_fpga_cdev *cdev)
 			platform_device_put(port_dev);
 		}
 
-		list_del(&pdata->node);
+		list_del(&pdata->yesde);
 		put_device(&port_dev->dev);
 	}
 	mutex_unlock(&cdev->lock);
@@ -1042,7 +1042,7 @@ __dfl_fpga_cdev_find_port(struct dfl_fpga_cdev *cdev, void *data,
 	struct dfl_feature_platform_data *pdata;
 	struct platform_device *port_dev;
 
-	list_for_each_entry(pdata, &cdev->port_dev_list, node) {
+	list_for_each_entry(pdata, &cdev->port_dev_list, yesde) {
 		port_dev = pdata->dev;
 
 		if (match(port_dev, data) && get_device(&port_dev->dev))
@@ -1181,7 +1181,7 @@ void dfl_fpga_cdev_config_ports_pf(struct dfl_fpga_cdev *cdev)
 	struct dfl_feature_platform_data *pdata;
 
 	mutex_lock(&cdev->lock);
-	list_for_each_entry(pdata, &cdev->port_dev_list, node) {
+	list_for_each_entry(pdata, &cdev->port_dev_list, yesde) {
 		if (device_is_registered(&pdata->dev->dev))
 			continue;
 
@@ -1218,7 +1218,7 @@ int dfl_fpga_cdev_config_ports_vf(struct dfl_fpga_cdev *cdev, int num_vfs)
 		goto done;
 	}
 
-	list_for_each_entry(pdata, &cdev->port_dev_list, node) {
+	list_for_each_entry(pdata, &cdev->port_dev_list, yesde) {
 		if (device_is_registered(&pdata->dev->dev))
 			continue;
 

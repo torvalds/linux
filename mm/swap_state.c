@@ -137,11 +137,11 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp)
 			xas_next(&xas);
 		}
 		address_space->nrpages += nr;
-		__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, nr);
+		__mod_yesde_page_state(page_pgdat(page), NR_FILE_PAGES, nr);
 		ADD_CACHE_INFO(add_total, nr);
 unlock:
 		xas_unlock_irq(&xas);
-	} while (xas_nomem(&xas, gfp));
+	} while (xas_yesmem(&xas, gfp));
 
 	if (!xas_error(&xas))
 		return 0;
@@ -174,7 +174,7 @@ void __delete_from_swap_cache(struct page *page, swp_entry_t entry)
 	}
 	ClearPageSwapCache(page);
 	address_space->nrpages -= nr;
-	__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
+	__mod_yesde_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
 	ADD_CACHE_INFO(del_total, nr);
 }
 
@@ -198,7 +198,7 @@ int add_to_swap(struct page *page)
 		return 0;
 
 	/*
-	 * XArray node allocations from PF_MEMALLOC contexts could
+	 * XArray yesde allocations from PF_MEMALLOC contexts could
 	 * completely exhaust the page allocator. __GFP_NOMEMALLOC
 	 * stops emergency reserves from being allocated.
 	 *
@@ -220,9 +220,9 @@ int add_to_swap(struct page *page)
 	 * Normally the page will be dirtied in unmap because its pte should be
 	 * dirty. A special case is MADV_FREE page. The page'e pte could have
 	 * dirty bit cleared but the page's SwapBacked bit is still set because
-	 * clearing the dirty bit and SwapBacked bit has no lock protected. For
-	 * such page, unmap will not set dirty bit for it, so page reclaim will
-	 * not write the page out. This can cause data corruption when the page
+	 * clearing the dirty bit and SwapBacked bit has yes lock protected. For
+	 * such page, unmap will yest set dirty bit for it, so page reclaim will
+	 * yest write the page out. This can cause data corruption when the page
 	 * is swap in later. Always setting the dirty bit for the page solves
 	 * the problem.
 	 */
@@ -326,7 +326,7 @@ struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
 
 		INC_CACHE_INFO(find_success);
 		/*
-		 * At the moment, we don't support PG_readahead for anon THP
+		 * At the moment, we don't support PG_readahead for ayesn THP
 		 * so let's bail out rather than confusing the readahead stat.
 		 */
 		if (unlikely(PageTransCompound(page)))
@@ -367,7 +367,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 
 	do {
 		/*
-		 * First check the swap cache.  Since this is normally
+		 * First check the swap cache.  Since this is yesrmally
 		 * called after lookup_swap_cache() failed, re-calling
 		 * that would confuse statistics.
 		 */
@@ -408,21 +408,21 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 			/*
 			 * We might race against get_swap_page() and stumble
 			 * across a SWAP_HAS_CACHE swap_map entry whose page
-			 * has not been brought into the swapcache yet.
+			 * has yest been brought into the swapcache yet.
 			 */
 			cond_resched();
 			continue;
 		} else if (err)		/* swp entry is obsolete ? */
 			break;
 
-		/* May fail (-ENOMEM) if XArray node allocation failed. */
+		/* May fail (-ENOMEM) if XArray yesde allocation failed. */
 		__SetPageLocked(new_page);
 		__SetPageSwapBacked(new_page);
 		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
 		if (likely(!err)) {
 			/* Initiate read into locked page */
 			SetPageWorkingset(new_page);
-			lru_cache_add_anon(new_page);
+			lru_cache_add_ayesn(new_page);
 			*new_page_allocated = true;
 			return new_page;
 		}
@@ -441,9 +441,9 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 
 /*
  * Locate a page of swap in physical memory, reserving swap cache space
- * and reading the disk if it is not already cached.
+ * and reading the disk if it is yest already cached.
  * A failure return means that either the page allocation failed or that
- * the swap entry is no longer in use.
+ * the swap entry is yes longer in use.
  */
 struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		struct vm_area_struct *vma, unsigned long addr, bool do_poll)
@@ -474,7 +474,7 @@ static unsigned int __swapin_nr_pages(unsigned long prev_offset,
 	pages = hits + 2;
 	if (pages == 2) {
 		/*
-		 * We can have no readahead hits to judge by: but must not get
+		 * We can have yes readahead hits to judge by: but must yest get
 		 * stuck here forever, so check for an adjacent offset instead
 		 * (and don't even bother to check whether swap type is same).
 		 */
@@ -534,7 +534,7 @@ static unsigned long swapin_nr_pages(unsigned long offset)
  * This has been extended to use the NUMA policies from the mm triggering
  * the readahead.
  *
- * Caller must hold read mmap_sem if vmf->vma is not NULL.
+ * Caller must hold read mmap_sem if vmf->vma is yest NULL.
  */
 struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 				struct vm_fault *vmf)
@@ -556,8 +556,8 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 
 	/* Test swap type to make sure the dereference is safe */
 	if (likely(si->flags & (SWP_BLKDEV | SWP_FS))) {
-		struct inode *inode = si->swap_file->f_mapping->host;
-		if (inode_read_congested(inode))
+		struct iyesde *iyesde = si->swap_file->f_mapping->host;
+		if (iyesde_read_congested(iyesde))
 			goto skip;
 	}
 
@@ -572,7 +572,7 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 
 	blk_start_plug(&plug);
 	for (offset = start_offset; offset <= end_offset ; offset++) {
-		/* Ok, do the async read-ahead now */
+		/* Ok, do the async read-ahead yesw */
 		page = __read_swap_cache_async(
 			swp_entry(swp_type(entry), offset),
 			gfp_mask, vma, addr, &page_allocated);
@@ -589,7 +589,7 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 	}
 	blk_finish_plug(&plug);
 
-	lru_add_drain();	/* Push any new pages onto the LRU now */
+	lru_add_drain();	/* Push any new pages onto the LRU yesw */
 skip:
 	return read_swap_cache_async(entry, gfp_mask, vma, addr, do_poll);
 }
@@ -609,7 +609,7 @@ int init_swap_address_space(unsigned int type, unsigned long nr_pages)
 		atomic_set(&space->i_mmap_writable, 0);
 		space->a_ops = &swap_aops;
 		/* swap cache doesn't use writeback related tags */
-		mapping_set_no_writeback_tags(space);
+		mapping_set_yes_writeback_tags(space);
 	}
 	nr_swapper_spaces[type] = nr;
 	swapper_spaces[type] = spaces;
@@ -661,7 +661,7 @@ static void swap_ra_info(struct vm_fault *vmf,
 	faddr = vmf->address;
 	orig_pte = pte = pte_offset_map(vmf->pmd, faddr);
 	entry = pte_to_swp_entry(*pte);
-	if ((unlikely(non_swap_entry(entry)))) {
+	if ((unlikely(yesn_swap_entry(entry)))) {
 		pte_unmap(orig_pte);
 		return;
 	}
@@ -716,7 +716,7 @@ static void swap_ra_info(struct vm_fault *vmf,
  * Primitive swap readahead code. We simply read in a few pages whoes
  * virtual addresses are around the fault address in the same vma.
  *
- * Caller must hold read mmap_sem if vmf->vma is not NULL.
+ * Caller must hold read mmap_sem if vmf->vma is yest NULL.
  *
  */
 static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
@@ -739,12 +739,12 @@ static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
 	for (i = 0, pte = ra_info.ptes; i < ra_info.nr_pte;
 	     i++, pte++) {
 		pentry = *pte;
-		if (pte_none(pentry))
+		if (pte_yesne(pentry))
 			continue;
 		if (pte_present(pentry))
 			continue;
 		entry = pte_to_swp_entry(pentry);
-		if (unlikely(non_swap_entry(entry)))
+		if (unlikely(yesn_swap_entry(entry)))
 			continue;
 		page = __read_swap_cache_async(entry, gfp_mask, vma,
 					       vmf->address, &page_allocated);

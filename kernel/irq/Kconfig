@@ -27,7 +27,7 @@ config GENERIC_IRQ_EFFECTIVE_AFF_MASK
        bool
 
 # Facility to allocate a hardware interrupt. This is legacy support
-# and should not be used in new code. Use irq domains instead.
+# and should yest be used in new code. Use irq domains instead.
 config GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
        bool
 
@@ -122,7 +122,7 @@ config SPARSE_IRQ
 	  ( Sparse irqs can also be beneficial on NUMA boxes, as they spread
 	    out the interrupt descriptors in a more NUMA-friendly way. )
 
-	  If you don't know what to do here, say N.
+	  If you don't kyesw what to do here, say N.
 
 config GENERIC_IRQ_DEBUGFS
 	bool "Expose irq internals in debugfs"
@@ -131,9 +131,9 @@ config GENERIC_IRQ_DEBUGFS
 	---help---
 
 	  Exposes internal state information through debugfs. Mostly for
-	  developers and debugging of hard to diagnose interrupt problems.
+	  developers and debugging of hard to diagyesse interrupt problems.
 
-	  If you don't know what to do here, say N.
+	  If you don't kyesw what to do here, say N.
 
 endmenu
 

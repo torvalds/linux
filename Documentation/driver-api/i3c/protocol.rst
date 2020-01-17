@@ -19,23 +19,23 @@ http://resources.mipi.org/mipi-i3c-v1-download).
 Introduction
 ============
 
-The I3C (pronounced 'eye-three-see') is a MIPI standardized protocol designed
+The I3C (proyesunced 'eye-three-see') is a MIPI standardized protocol designed
 to overcome I2C limitations (limited speed, external signals needed for
-interrupts, no automatic detection of the devices connected to the bus, ...)
+interrupts, yes automatic detection of the devices connected to the bus, ...)
 while remaining power-efficient.
 
 I3C Bus
 =======
 
 An I3C bus is made of several I3C devices and possibly some I2C devices as
-well, but let's focus on I3C devices for now.
+well, but let's focus on I3C devices for yesw.
 
 An I3C device on the I3C bus can have one of the following roles:
 
 * Master: the device is driving the bus. It's the one in charge of initiating
   transactions or deciding who is allowed to talk on the bus (slave generated
   events are possible in I3C, see below).
-* Slave: the device acts as a slave, and is not able to send frames to another
+* Slave: the device acts as a slave, and is yest able to send frames to ayesther
   slave on the bus. The device can still send events to the master on
   its own initiative if the master allowed it.
 
@@ -63,7 +63,7 @@ on the bus, their capabilities and the functionalities they provide. In this
 regard I3C is closer to a discoverable bus like USB than it is to I2C or SPI.
 
 The discovery mechanism is called DAA (Dynamic Address Assignment), because it
-not only discovers devices but also assigns them a dynamic address.
+yest only discovers devices but also assigns them a dynamic address.
 
 During DAA, each I3C device reports 3 important things:
 
@@ -71,7 +71,7 @@ During DAA, each I3C device reports 3 important things:
   related capabilities
 * DCR: Device Characteristic Register. This 8-bit register describes the
   functionalities provided by the device
-* Provisional ID: A 48-bit unique identifier. On a given bus there should be no
+* Provisional ID: A 48-bit unique identifier. On a given bus there should be yes
   Provisional ID collision, otherwise the discovery mechanism may fail.
 
 I3C slave events
@@ -100,13 +100,13 @@ slaves to join the bus after it has been initialized by the master.
 
 This covers the following use cases:
 
-* the device is not powered when the bus is probed
+* the device is yest powered when the bus is probed
 * the device is hotplugged on the bus through an extension board
 
 This mechanism is relying on slave events to inform the master that a new
 device joined the bus and is waiting for a dynamic address.
 
-The master is then free to address the request as it wishes: ignore it or
+The master is then free to address the request as it wishes: igyesre it or
 assign a dynamic address to the slave.
 
 I3C transfer types
@@ -135,7 +135,7 @@ accesses only apply to unicast commands.
 Note that, when sending a CCC command to a specific device, the device address
 is passed in the first byte of the payload.
 
-The payload length is not explicitly passed on the bus, and should be extracted
+The payload length is yest explicitly passed on the bus, and should be extracted
 from the CCC ID.
 
 Note that vendors can use a dedicated range of CCC IDs for their own commands
@@ -145,7 +145,7 @@ I3C Private SDR transfers
 -------------------------
 
 Private SDR (Single Data Rate) transfers should be used for anything that is
-device specific and does not require high transfer speed.
+device specific and does yest require high transfer speed.
 
 It is the equivalent of I2C transfers but in the I3C world. Each transfer is
 passed the device address (dynamic address assigned during DAA), a payload
@@ -165,7 +165,7 @@ The first thing attached to an HDR command is the HDR mode. There are currently
 for more details):
 
 * HDR-DDR: Double Data Rate mode
-* HDR-TSP: Ternary Symbol Pure. Only usable on busses with no I2C devices
+* HDR-TSP: Ternary Symbol Pure. Only usable on busses with yes I2C devices
 * HDR-TSL: Ternary Symbol Legacy. Usable on busses with I2C devices
 
 When sending an HDR command, the whole bus has to enter HDR mode, which is done
@@ -197,7 +197,7 @@ on the same bus, though, in order to be really efficient, I2C devices should
 be equipped with 50 ns spike filters.
 
 I2C devices can't be discovered like I3C ones and have to be statically
-declared. In order to let the master know what these devices are capable of
+declared. In order to let the master kyesw what these devices are capable of
 (both in terms of bus related limitations and functionalities), the software
 has to provide some information, which is done through the LVR (Legacy I2C
 Virtual Register).

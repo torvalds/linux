@@ -509,7 +509,7 @@ static int __maybe_unused mxic_spi_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(mxic->ps_clk);
 	if (ret) {
-		dev_err(dev, "Cannot enable ps_clock.\n");
+		dev_err(dev, "Canyest enable ps_clock.\n");
 		return ret;
 	}
 
@@ -536,7 +536,7 @@ static int mxic_spi_probe(struct platform_device *pdev)
 
 	mxic = spi_master_get_devdata(master);
 
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 
 	mxic->ps_clk = devm_clk_get(&pdev->dev, "ps_clk");
 	if (IS_ERR(mxic->ps_clk))

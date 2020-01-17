@@ -165,7 +165,7 @@ static void devm_irq_desc_release(struct device *dev, void *res)
  * @irq:	Allocate for specific irq number if irq >= 0
  * @from:	Start the search from this irq number
  * @cnt:	Number of consecutive irqs to allocate
- * @node:	Preferred node on which the irq descriptor should be allocated
+ * @yesde:	Preferred yesde on which the irq descriptor should be allocated
  * @owner:	Owning module (can be NULL)
  * @affinity:	Optional pointer to an irq_affinity_desc array of size @cnt
  *		which hints where the irq descriptors should be allocated
@@ -176,7 +176,7 @@ static void devm_irq_desc_release(struct device *dev, void *res)
  * Note: Use the provided wrappers (devm_irq_alloc_desc*) for simplicity.
  */
 int __devm_irq_alloc_descs(struct device *dev, int irq, unsigned int from,
-			   unsigned int cnt, int node, struct module *owner,
+			   unsigned int cnt, int yesde, struct module *owner,
 			   const struct irq_affinity_desc *affinity)
 {
 	struct irq_desc_devres *dr;
@@ -186,7 +186,7 @@ int __devm_irq_alloc_descs(struct device *dev, int irq, unsigned int from,
 	if (!dr)
 		return -ENOMEM;
 
-	base = __irq_alloc_descs(irq, from, cnt, node, owner, affinity);
+	base = __irq_alloc_descs(irq, from, cnt, yesde, owner, affinity);
 	if (base < 0) {
 		devres_free(dr);
 		return base;

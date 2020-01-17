@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
 #include <linux/ip.h>
@@ -68,9 +68,9 @@ static void qeth_issue_next_read_cb(struct qeth_card *card,
 static void qeth_free_buffer_pool(struct qeth_card *);
 static int qeth_qdio_establish(struct qeth_card *);
 static void qeth_free_qdio_queues(struct qeth_card *card);
-static void qeth_notify_skbs(struct qeth_qdio_out_q *queue,
+static void qeth_yestify_skbs(struct qeth_qdio_out_q *queue,
 		struct qeth_qdio_out_buffer *buf,
-		enum iucv_tx_notify notification);
+		enum iucv_tx_yestify yestification);
 static void qeth_tx_complete_buf(struct qeth_qdio_out_buffer *buf, bool error,
 				 int budget);
 static int qeth_init_qdio_out_buf(struct qeth_qdio_out_q *, int);
@@ -97,7 +97,7 @@ static const char *qeth_get_cardname(struct qeth_card *card)
 		case QETH_CARD_TYPE_OSX:
 			return " Virtual NIC QDIO - OSX";
 		default:
-			return " unknown";
+			return " unkyeswn";
 		}
 	} else {
 		switch (card->info.type) {
@@ -112,7 +112,7 @@ static const char *qeth_get_cardname(struct qeth_card *card)
 		case QETH_CARD_TYPE_OSX:
 			return " OSX QDIO";
 		default:
-			return " unknown";
+			return " unkyeswn";
 		}
 	}
 	return " n/a";
@@ -132,7 +132,7 @@ const char *qeth_get_cardname_short(struct qeth_card *card)
 		case QETH_CARD_TYPE_OSX:
 			return "Virt.NIC OSX";
 		default:
-			return "unknown";
+			return "unkyeswn";
 		}
 	} else {
 		switch (card->info.type) {
@@ -168,7 +168,7 @@ const char *qeth_get_cardname_short(struct qeth_card *card)
 		case QETH_CARD_TYPE_OSX:
 			return "OSX_10GIG";
 		default:
-			return "unknown";
+			return "unkyeswn";
 		}
 	}
 	return "n/a";
@@ -298,7 +298,7 @@ static int qeth_cq_init(struct qeth_card *card)
 				   QDIO_MAX_BUFFERS_PER_Q);
 		card->qdio.c_q->next_buf_to_init = 127;
 		rc = do_QDIO(CARD_DDEV(card), QDIO_FLAG_SYNC_INPUT,
-			     card->qdio.no_in_queues - 1, 0,
+			     card->qdio.yes_in_queues - 1, 0,
 			     127);
 		if (rc) {
 			QETH_CARD_TEXT_(card, 2, "1err%d", rc);
@@ -324,9 +324,9 @@ static int qeth_alloc_cq(struct qeth_card *card)
 			rc = -1;
 			goto kmsg_out;
 		}
-		card->qdio.no_in_queues = 2;
+		card->qdio.yes_in_queues = 2;
 		card->qdio.out_bufstates =
-			kcalloc(card->qdio.no_out_queues *
+			kcalloc(card->qdio.yes_out_queues *
 					QDIO_MAX_BUFFERS_PER_Q,
 				sizeof(struct qdio_outbuf_state),
 				GFP_KERNEL);
@@ -335,16 +335,16 @@ static int qeth_alloc_cq(struct qeth_card *card)
 			rc = -1;
 			goto free_cq_out;
 		}
-		for (i = 0; i < card->qdio.no_out_queues; ++i) {
+		for (i = 0; i < card->qdio.yes_out_queues; ++i) {
 			card->qdio.out_qs[i]->bufstates = outbuf_states;
 			outbuf_states += QDIO_MAX_BUFFERS_PER_Q;
 		}
 	} else {
-		QETH_CARD_TEXT(card, 2, "nocq");
+		QETH_CARD_TEXT(card, 2, "yescq");
 		card->qdio.c_q = NULL;
-		card->qdio.no_in_queues = 1;
+		card->qdio.yes_in_queues = 1;
 	}
-	QETH_CARD_TEXT_(card, 2, "iqc%d", card->qdio.no_in_queues);
+	QETH_CARD_TEXT_(card, 2, "iqc%d", card->qdio.yes_in_queues);
 	rc = 0;
 out:
 	return rc;
@@ -359,7 +359,7 @@ kmsg_out:
 static void qeth_free_cq(struct qeth_card *card)
 {
 	if (card->qdio.c_q) {
-		--card->qdio.no_in_queues;
+		--card->qdio.yes_in_queues;
 		qeth_free_qdio_queue(card->qdio.c_q);
 		card->qdio.c_q = NULL;
 	}
@@ -367,10 +367,10 @@ static void qeth_free_cq(struct qeth_card *card)
 	card->qdio.out_bufstates = NULL;
 }
 
-static enum iucv_tx_notify qeth_compute_cq_notification(int sbalf15,
+static enum iucv_tx_yestify qeth_compute_cq_yestification(int sbalf15,
 							int delayed)
 {
-	enum iucv_tx_notify n;
+	enum iucv_tx_yestify n;
 
 	switch (sbalf15) {
 	case 0:
@@ -411,7 +411,7 @@ static void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q, int bidx,
 				QETH_CARD_TEXT_(f->q->card, 5, "%lx", (long) f);
 				/* release here to avoid interleaving between
 				   outbound tasklet and inbound tasklet
-				   regarding notifications and lifecycle */
+				   regarding yestifications and lifecycle */
 				qeth_tx_complete_buf(c, forced_cleanup, 0);
 
 				c = f->next_pending;
@@ -439,7 +439,7 @@ static void qeth_qdio_handle_aob(struct qeth_card *card,
 {
 	struct qaob *aob;
 	struct qeth_qdio_out_buffer *buffer;
-	enum iucv_tx_notify notification;
+	enum iucv_tx_yestify yestification;
 	unsigned int i;
 
 	aob = (struct qaob *) phys_to_virt(phys_aob_addr);
@@ -450,19 +450,19 @@ static void qeth_qdio_handle_aob(struct qeth_card *card,
 
 	if (atomic_cmpxchg(&buffer->state, QETH_QDIO_BUF_PRIMED,
 			   QETH_QDIO_BUF_IN_CQ) == QETH_QDIO_BUF_PRIMED) {
-		notification = TX_NOTIFY_OK;
+		yestification = TX_NOTIFY_OK;
 	} else {
 		WARN_ON_ONCE(atomic_read(&buffer->state) !=
 							QETH_QDIO_BUF_PENDING);
 		atomic_set(&buffer->state, QETH_QDIO_BUF_IN_CQ);
-		notification = TX_NOTIFY_DELAYED_OK;
+		yestification = TX_NOTIFY_DELAYED_OK;
 	}
 
 	if (aob->aorc != 0)  {
 		QETH_CARD_TEXT_(card, 2, "aorc%02X", aob->aorc);
-		notification = qeth_compute_cq_notification(aob->aorc, 1);
+		yestification = qeth_compute_cq_yestification(aob->aorc, 1);
 	}
-	qeth_notify_skbs(buffer->q, buffer, notification);
+	qeth_yestify_skbs(buffer->q, buffer, yestification);
 
 	/* Free dangling allocations. The attached skbs are handled by
 	 * qeth_cleanup_handled_pending().
@@ -484,7 +484,7 @@ static inline int qeth_is_cq(struct qeth_card *card, unsigned int queue)
 	return card->options.cq == QETH_CQ_ENABLED &&
 	    card->qdio.c_q != NULL &&
 	    queue != 0 &&
-	    queue == card->qdio.no_in_queues - 1;
+	    queue == card->qdio.yes_in_queues - 1;
 }
 
 static void qeth_setup_ccw(struct ccw1 *ccw, u8 cmd_code, u8 flags, u32 len,
@@ -513,7 +513,7 @@ static int __qeth_issue_next_read(struct qeth_card *card)
 	/* keep the cmd alive after completion: */
 	qeth_get_cmd(iob);
 
-	QETH_CARD_TEXT(card, 6, "noirqpnd");
+	QETH_CARD_TEXT(card, 6, "yesirqpnd");
 	rc = ccw_device_start(channel->ccwdev, ccw, (addr_t) iob, 0, 0);
 	if (!rc) {
 		channel->active_cmd = iob;
@@ -556,12 +556,12 @@ static void qeth_dequeue_cmd(struct qeth_card *card,
 	spin_unlock_irq(&card->lock);
 }
 
-void qeth_notify_cmd(struct qeth_cmd_buffer *iob, int reason)
+void qeth_yestify_cmd(struct qeth_cmd_buffer *iob, int reason)
 {
 	iob->rc = reason;
 	complete(&iob->done);
 }
-EXPORT_SYMBOL_GPL(qeth_notify_cmd);
+EXPORT_SYMBOL_GPL(qeth_yestify_cmd);
 
 static void qeth_issue_ipa_msg(struct qeth_ipa_cmd *cmd, int rc,
 		struct qeth_card *card)
@@ -598,7 +598,7 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 	case IPA_CMD_STOPLAN:
 		if (cmd->hdr.return_code == IPA_RC_VEPA_TO_VEB_TRANSITION) {
 			dev_err(&card->gdev->dev,
-				"Interface %s is down because the adjacent port is no longer in reflective relay mode\n",
+				"Interface %s is down because the adjacent port is yes longer in reflective relay mode\n",
 				QETH_CARD_IFNAME(card));
 			schedule_work(&card->close_dev_work);
 		} else {
@@ -632,7 +632,7 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 		QETH_CARD_TEXT(card, 3, "urla");
 		return NULL;
 	default:
-		QETH_DBF_MESSAGE(2, "Received data is IPA but not a reply!\n");
+		QETH_DBF_MESSAGE(2, "Received data is IPA but yest a reply!\n");
 		return cmd;
 	}
 }
@@ -646,7 +646,7 @@ void qeth_clear_ipacmd_list(struct qeth_card *card)
 
 	spin_lock_irqsave(&card->lock, flags);
 	list_for_each_entry(iob, &card->cmd_waiter_list, list)
-		qeth_notify_cmd(iob, -EIO);
+		qeth_yestify_cmd(iob, -EIO);
 	spin_unlock_irqrestore(&card->lock, flags);
 }
 EXPORT_SYMBOL_GPL(qeth_clear_ipacmd_list);
@@ -664,7 +664,7 @@ static int qeth_check_idx_response(struct qeth_card *card,
 		if (buffer[4] == QETH_IDX_TERM_BAD_TRANSPORT ||
 		    buffer[4] == QETH_IDX_TERM_BAD_TRANSPORT_VM) {
 			dev_err(&card->gdev->dev,
-				"The device does not support the configured transport mode\n");
+				"The device does yest support the configured transport mode\n");
 			return -EPROTONOSUPPORT;
 		}
 		return -EIO;
@@ -690,7 +690,7 @@ static void qeth_release_buffer_cb(struct qeth_card *card,
 
 static void qeth_cancel_cmd(struct qeth_cmd_buffer *iob, int rc)
 {
-	qeth_notify_cmd(iob, rc);
+	qeth_yestify_cmd(iob, rc);
 	qeth_put_cmd(iob);
 }
 
@@ -760,7 +760,7 @@ static void qeth_issue_next_read_cb(struct qeth_card *card,
 			goto out;
 		}
 	} else {
-		/* non-IPA commands should only flow during initialization */
+		/* yesn-IPA commands should only flow during initialization */
 		if (card->state != CARD_STATE_DOWN)
 			goto out;
 	}
@@ -769,7 +769,7 @@ static void qeth_issue_next_read_cb(struct qeth_card *card,
 	spin_lock_irqsave(&card->lock, flags);
 	list_for_each_entry(tmp, &card->cmd_waiter_list, list) {
 		if (!IS_IPA(tmp->data) ||
-		    __ipa_cmd(tmp)->hdr.seqno == cmd->hdr.seqno) {
+		    __ipa_cmd(tmp)->hdr.seqyes == cmd->hdr.seqyes) {
 			request = tmp;
 			/* take the object outside the lock */
 			qeth_get_cmd(request);
@@ -784,7 +784,7 @@ static void qeth_issue_next_read_cb(struct qeth_card *card,
 	reply = &request->reply;
 	if (!reply->callback) {
 		rc = 0;
-		goto no_callback;
+		goto yes_callback;
 	}
 
 	spin_lock_irqsave(&request->lock, flags);
@@ -796,12 +796,12 @@ static void qeth_issue_next_read_cb(struct qeth_card *card,
 							(unsigned long)iob);
 	spin_unlock_irqrestore(&request->lock, flags);
 
-no_callback:
+yes_callback:
 	if (rc <= 0)
-		qeth_notify_cmd(request, rc);
+		qeth_yestify_cmd(request, rc);
 	qeth_put_cmd(request);
 out:
-	memcpy(&card->seqno.pdu_hdr_ack,
+	memcpy(&card->seqyes.pdu_hdr_ack,
 		QETH_PDU_HEADER_SEQ_NO(iob->data),
 		QETH_SEQ_NO_LENGTH);
 	qeth_put_cmd(iob);
@@ -951,7 +951,7 @@ static int qeth_check_irb_error(struct qeth_card *card, struct ccw_device *cdev,
 		QETH_CARD_TEXT_(card, 2, "  rc%d", -ETIMEDOUT);
 		return -ETIMEDOUT;
 	default:
-		QETH_DBF_MESSAGE(2, "unknown error %ld on channel %x\n",
+		QETH_DBF_MESSAGE(2, "unkyeswn error %ld on channel %x\n",
 				 PTR_ERR(irb), CCW_DEVID(cdev));
 		QETH_CARD_TEXT(card, 2, "ckirberr");
 		QETH_CARD_TEXT(card, 2, "  rc???");
@@ -1074,17 +1074,17 @@ out:
 	return;
 }
 
-static void qeth_notify_skbs(struct qeth_qdio_out_q *q,
+static void qeth_yestify_skbs(struct qeth_qdio_out_q *q,
 		struct qeth_qdio_out_buffer *buf,
-		enum iucv_tx_notify notification)
+		enum iucv_tx_yestify yestification)
 {
 	struct sk_buff *skb;
 
 	skb_queue_walk(&buf->skb_list, skb) {
-		QETH_CARD_TEXT_(q->card, 5, "skbn%d", notification);
+		QETH_CARD_TEXT_(q->card, 5, "skbn%d", yestification);
 		QETH_CARD_TEXT_(q->card, 5, "%lx", (long) skb);
 		if (skb->protocol == htons(ETH_P_AF_IUCV) && skb->sk)
-			iucv_sk(skb->sk)->sk_txnotify(skb, notification);
+			iucv_sk(skb->sk)->sk_txyestify(skb, yestification);
 	}
 }
 
@@ -1098,7 +1098,7 @@ static void qeth_tx_complete_buf(struct qeth_qdio_out_buffer *buf, bool error,
 	WARN_ON_ONCE(atomic_read(&buf->state) == QETH_QDIO_BUF_IN_CQ);
 
 	if (atomic_read(&buf->state) == QETH_QDIO_BUF_PENDING)
-		qeth_notify_skbs(queue, buf, TX_NOTIFY_GENERALERROR);
+		qeth_yestify_skbs(queue, buf, TX_NOTIFY_GENERALERROR);
 
 	/* Empty buffer? */
 	if (buf->next_element_to_fill == 0)
@@ -1119,7 +1119,7 @@ static void qeth_tx_complete_buf(struct qeth_qdio_out_buffer *buf, bool error,
 			QETH_TXQ_STAT_ADD(queue, tx_bytes, bytes);
 			if (skb->ip_summed == CHECKSUM_PARTIAL)
 				QETH_TXQ_STAT_ADD(queue, skbs_csum, packets);
-			if (skb_is_nonlinear(skb))
+			if (skb_is_yesnlinear(skb))
 				QETH_TXQ_STAT_INC(queue, skbs_sg);
 			if (is_tso) {
 				QETH_TXQ_STAT_INC(queue, skbs_tso);
@@ -1178,7 +1178,7 @@ void qeth_drain_output_queues(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 2, "clearqdbf");
 	/* clear outbound buffers to free skbs */
-	for (i = 0; i < card->qdio.no_out_queues; ++i) {
+	for (i = 0; i < card->qdio.yes_out_queues; ++i) {
 		if (card->qdio.out_qs[i])
 			qeth_drain_output_queue(card->qdio.out_qs[i], false);
 	}
@@ -1235,17 +1235,17 @@ static int qeth_osa_set_output_queues(struct qeth_card *card, bool single)
 	if (rc)
 		return rc;
 
-	if (card->qdio.no_out_queues == count)
+	if (card->qdio.yes_out_queues == count)
 		return 0;
 
 	if (atomic_read(&card->qdio.state) != QETH_QDIO_UNINITIALIZED)
 		qeth_free_qdio_queues(card);
 
 	if (count == 1)
-		dev_info(&card->gdev->dev, "Priority Queueing not supported\n");
+		dev_info(&card->gdev->dev, "Priority Queueing yest supported\n");
 
 	card->qdio.default_out_queue = single ? 0 : QETH_DEFAULT_QUEUE;
-	card->qdio.no_out_queues = count;
+	card->qdio.yes_out_queues = count;
 	return 0;
 }
 
@@ -1269,7 +1269,7 @@ static int qeth_update_from_chp_desc(struct qeth_card *card)
 		rc = qeth_osa_set_output_queues(card, chp_dsc->chpp & 0x02);
 
 	kfree(chp_dsc);
-	QETH_CARD_TEXT_(card, 2, "nr:%x", card->qdio.no_out_queues);
+	QETH_CARD_TEXT_(card, 2, "nr:%x", card->qdio.yes_out_queues);
 	QETH_CARD_TEXT_(card, 2, "lvl:%02x", card->info.func_level);
 	return rc;
 }
@@ -1282,7 +1282,7 @@ static void qeth_init_qdio_info(struct qeth_card *card)
 	card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
 
 	/* inbound */
-	card->qdio.no_in_queues = 1;
+	card->qdio.yes_in_queues = 1;
 	card->qdio.in_buf_size = QETH_IN_BUF_SIZE_DEFAULT;
 	if (IS_IQD(card))
 		card->qdio.init_pool.buf_count = QETH_IN_BUF_COUNT_HSDEFAULT;
@@ -1574,7 +1574,7 @@ static enum qeth_discipline_id qeth_vm_detect_layer(struct qeth_card *card)
 	request->req_format = DIAG26C_VNIC_INFO;
 	ASCEBC(userid, 8);
 	memcpy(&request->sys_name, userid, 8);
-	request->devno = id.devno;
+	request->devyes = id.devyes;
 
 	QETH_DBF_HEX(CTRL, 2, request, sizeof(*request));
 	rc = diag26c(request, response, DIAG26C_PORT_VNIC);
@@ -1621,7 +1621,7 @@ static enum qeth_discipline_id qeth_enforce_discipline(struct qeth_card *card)
 		QETH_CARD_TEXT(card, 3, "force l3");
 		break;
 	default:
-		QETH_CARD_TEXT(card, 3, "force no");
+		QETH_CARD_TEXT(card, 3, "force yes");
 	}
 
 	return disc;
@@ -1669,10 +1669,10 @@ static void qeth_init_func_level(struct qeth_card *card)
 static void qeth_idx_finalize_cmd(struct qeth_card *card,
 				  struct qeth_cmd_buffer *iob)
 {
-	memcpy(QETH_TRANSPORT_HEADER_SEQ_NO(iob->data), &card->seqno.trans_hdr,
+	memcpy(QETH_TRANSPORT_HEADER_SEQ_NO(iob->data), &card->seqyes.trans_hdr,
 	       QETH_SEQ_NO_LENGTH);
 	if (iob->channel == &card->write)
-		card->seqno.trans_hdr++;
+		card->seqyes.trans_hdr++;
 }
 
 static int qeth_peer_func_level(int level)
@@ -1690,10 +1690,10 @@ static void qeth_mpc_finalize_cmd(struct qeth_card *card,
 	qeth_idx_finalize_cmd(card, iob);
 
 	memcpy(QETH_PDU_HEADER_SEQ_NO(iob->data),
-	       &card->seqno.pdu_hdr, QETH_SEQ_NO_LENGTH);
-	card->seqno.pdu_hdr++;
+	       &card->seqyes.pdu_hdr, QETH_SEQ_NO_LENGTH);
+	card->seqyes.pdu_hdr++;
 	memcpy(QETH_PDU_HEADER_ACK_SEQ_NO(iob->data),
-	       &card->seqno.pdu_hdr_ack, QETH_SEQ_NO_LENGTH);
+	       &card->seqyes.pdu_hdr_ack, QETH_SEQ_NO_LENGTH);
 
 	iob->callback = qeth_release_buffer_cb;
 }
@@ -1722,7 +1722,7 @@ static struct qeth_cmd_buffer *qeth_mpc_alloc_cmd(struct qeth_card *card,
  * @reply_cb:			callback function pointer
  * @cb_card:			pointer to the qeth_card structure
  * @cb_reply:			pointer to the qeth_reply structure
- * @cb_cmd:			pointer to the original iob for non-IPA
+ * @cb_cmd:			pointer to the original iob for yesn-IPA
  *				commands, or to the qeth_ipa_cmd structure
  *				for the IPA commands.
  * @reply_param:		private pointer passed to the callback
@@ -1771,7 +1771,7 @@ static int qeth_send_control_data(struct qeth_card *card,
 	/* This pairs with iob->callback, and keeps the iob alive after IO: */
 	qeth_get_cmd(iob);
 
-	QETH_CARD_TEXT(card, 6, "noirqpnd");
+	QETH_CARD_TEXT(card, 6, "yesirqpnd");
 	spin_lock_irq(get_ccwdev_lock(channel->ccwdev));
 	rc = ccw_device_start_timeout(channel->ccwdev, __ccw_from_cmd(iob),
 				      (addr_t) iob, 0, 0, timeout);
@@ -1813,17 +1813,17 @@ out:
 	return rc;
 }
 
-struct qeth_node_desc {
-	struct node_descriptor nd1;
-	struct node_descriptor nd2;
-	struct node_descriptor nd3;
+struct qeth_yesde_desc {
+	struct yesde_descriptor nd1;
+	struct yesde_descriptor nd2;
+	struct yesde_descriptor nd3;
 };
 
 static void qeth_read_conf_data_cb(struct qeth_card *card,
 				   struct qeth_cmd_buffer *iob,
 				   unsigned int data_length)
 {
-	struct qeth_node_desc *nd = (struct qeth_node_desc *) iob->data;
+	struct qeth_yesde_desc *nd = (struct qeth_yesde_desc *) iob->data;
 	int rc = 0;
 	u8 *tag;
 
@@ -1849,7 +1849,7 @@ static void qeth_read_conf_data_cb(struct qeth_card *card,
 				 nd->nd3.model[2] <= 0xF4;
 
 out:
-	qeth_notify_cmd(iob, rc);
+	qeth_yestify_cmd(iob, rc);
 	qeth_put_cmd(iob);
 }
 
@@ -1863,7 +1863,7 @@ static int qeth_read_conf_data(struct qeth_card *card)
 	ciw = ccw_device_get_ciw(channel->ccwdev, CIW_TYPE_RCD);
 	if (!ciw || ciw->cmd == 0)
 		return -EOPNOTSUPP;
-	if (ciw->count < sizeof(struct qeth_node_desc))
+	if (ciw->count < sizeof(struct qeth_yesde_desc))
 		return -EINVAL;
 
 	iob = qeth_alloc_cmd(channel, ciw->count, 1, QETH_RCD_TIMEOUT);
@@ -1897,7 +1897,7 @@ static int qeth_idx_check_activate_response(struct qeth_card *card,
 	switch (QETH_IDX_ACT_CAUSE_CODE(iob->data)) {
 	case QETH_IDX_ACT_ERR_EXCL:
 		dev_err(&channel->ccwdev->dev,
-			"The adapter is used exclusively by another host\n");
+			"The adapter is used exclusively by ayesther host\n");
 		return -EBUSY;
 	case QETH_IDX_ACT_ERR_AUTH:
 	case QETH_IDX_ACT_ERR_AUTH_USER:
@@ -1941,7 +1941,7 @@ static void qeth_idx_activate_read_channel_cb(struct qeth_card *card,
 	       QETH_IDX_REPLY_LEVEL(iob->data), QETH_MCL_LENGTH);
 
 out:
-	qeth_notify_cmd(iob, rc);
+	qeth_yestify_cmd(iob, rc);
 	qeth_put_cmd(iob);
 }
 
@@ -1969,7 +1969,7 @@ static void qeth_idx_activate_write_channel_cb(struct qeth_card *card,
 	}
 
 out:
-	qeth_notify_cmd(iob, rc);
+	qeth_yestify_cmd(iob, rc);
 	qeth_put_cmd(iob);
 }
 
@@ -1993,7 +1993,7 @@ static void qeth_idx_setup_activate_cmd(struct qeth_card *card,
 	       &card->token.issuer_rm_w, QETH_MPC_TOKEN_LENGTH);
 	memcpy(QETH_IDX_ACT_FUNC_LEVEL(iob->data),
 	       &card->info.func_level, 2);
-	memcpy(QETH_IDX_ACT_QDIO_DEV_CUA(iob->data), &dev_id.devno, 2);
+	memcpy(QETH_IDX_ACT_QDIO_DEV_CUA(iob->data), &dev_id.devyes, 2);
 	memcpy(QETH_IDX_ACT_QDIO_DEV_REALADDR(iob->data), &addr, 2);
 }
 
@@ -2243,7 +2243,7 @@ static int qeth_ulp_setup_cb(struct qeth_card *card, struct qeth_reply *reply,
 	if (!strncmp("00S", QETH_ULP_SETUP_RESP_CONNECTION_TOKEN(iob->data),
 		     3)) {
 		QETH_CARD_TEXT(card, 2, "olmlimit");
-		dev_err(&card->gdev->dev, "A connection could not be "
+		dev_err(&card->gdev->dev, "A connection could yest be "
 			"established because of an OLM limit\n");
 		return -EMLINK;
 	}
@@ -2270,7 +2270,7 @@ static int qeth_ulp_setup(struct qeth_card *card)
 	       &card->token.ulp_filter_r, QETH_MPC_TOKEN_LENGTH);
 
 	ccw_device_get_id(CARD_DDEV(card), &dev_id);
-	memcpy(QETH_ULP_SETUP_CUA(iob->data), &dev_id.devno, 2);
+	memcpy(QETH_ULP_SETUP_CUA(iob->data), &dev_id.devyes, 2);
 	temp = (card->info.cula << 8) + card->info.unit_addr2;
 	memcpy(QETH_ULP_SETUP_REAL_DEVADDR(iob->data), &temp, 2);
 	return qeth_send_control_data(card, iob, qeth_ulp_setup_cb, NULL);
@@ -2339,14 +2339,14 @@ static int qeth_alloc_qdio_queues(struct qeth_card *card)
 	QETH_CARD_TEXT(card, 2, "inq");
 	card->qdio.in_q = qeth_alloc_qdio_queue();
 	if (!card->qdio.in_q)
-		goto out_nomem;
+		goto out_yesmem;
 
 	/* inbound buffer pool */
 	if (qeth_alloc_buffer_pool(card))
 		goto out_freeinq;
 
 	/* outbound */
-	for (i = 0; i < card->qdio.no_out_queues; ++i) {
+	for (i = 0; i < card->qdio.yes_out_queues; ++i) {
 		struct qeth_qdio_out_q *queue;
 
 		queue = qeth_alloc_output_queue();
@@ -2356,7 +2356,7 @@ static int qeth_alloc_qdio_queues(struct qeth_card *card)
 		QETH_CARD_HEX(card, 2, &queue, sizeof(void *));
 		card->qdio.out_qs[i] = queue;
 		queue->card = card;
-		queue->queue_no = i;
+		queue->queue_yes = i;
 		timer_setup(&queue->timer, qeth_tx_completion_timer, 0);
 
 		/* give outbound qeth_qdio_buffers their qdio_buffers */
@@ -2389,7 +2389,7 @@ out_freeoutq:
 out_freeinq:
 	qeth_free_qdio_queue(card->qdio.in_q);
 	card->qdio.in_q = NULL;
-out_nomem:
+out_yesmem:
 	atomic_set(&card->qdio.state, QETH_QDIO_UNINITIALIZED);
 	return -ENOMEM;
 }
@@ -2413,7 +2413,7 @@ static void qeth_free_qdio_queues(struct qeth_card *card)
 	/* inbound buffer pool */
 	qeth_free_buffer_pool(card);
 	/* free outbound qdio_qs */
-	for (i = 0; i < card->qdio.no_out_queues; i++) {
+	for (i = 0; i < card->qdio.yes_out_queues; i++) {
 		qeth_free_output_queue(card->qdio.out_qs[i]);
 		card->qdio.out_qs[i] = NULL;
 	}
@@ -2530,7 +2530,7 @@ void qeth_print_status_message(struct qeth_card *card)
 	case QETH_CARD_TYPE_OSD:
 	case QETH_CARD_TYPE_OSM:
 	case QETH_CARD_TYPE_OSX:
-		/* VM will use a non-zero first character
+		/* VM will use a yesn-zero first character
 		 * to indicate a HiperSockets like reporting
 		 * of the level OSA sets the first character to zero
 		 * */
@@ -2605,7 +2605,7 @@ static struct qeth_buffer_pool_entry *qeth_find_free_buffer_pool_entry(
 		}
 	}
 
-	/* no free buffer in pool so take first one and swap pages */
+	/* yes free buffer in pool so take first one and swap pages */
 	entry = list_entry(card->qdio.in_buf_pool.entry_list.next,
 			struct qeth_buffer_pool_entry, list);
 	for (i = 0; i < QETH_MAX_BUFFER_ELEMENTS(card); ++i) {
@@ -2703,7 +2703,7 @@ int qeth_init_qdio_queues(struct qeth_card *card)
 	}
 
 	/* outbound queue */
-	for (i = 0; i < card->qdio.no_out_queues; ++i) {
+	for (i = 0; i < card->qdio.yes_out_queues; ++i) {
 		struct qeth_qdio_out_q *queue = card->qdio.out_qs[i];
 
 		qdio_reset_buffers(queue->qdio_bufs, QDIO_MAX_BUFFERS_PER_Q);
@@ -2729,7 +2729,7 @@ static void qeth_ipa_finalize_cmd(struct qeth_card *card,
 	qeth_mpc_finalize_cmd(card, iob);
 
 	/* override with IPA-specific values: */
-	__ipa_cmd(iob)->hdr.seqno = card->seqno.ipa++;
+	__ipa_cmd(iob)->hdr.seqyes = card->seqyes.ipa++;
 }
 
 void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
@@ -2773,10 +2773,10 @@ struct qeth_cmd_buffer *qeth_ipa_alloc_cmd(struct qeth_card *card,
 	hdr = &__ipa_cmd(iob)->hdr;
 	hdr->command = cmd_code;
 	hdr->initiator = IPA_CMD_INITIATOR_HOST;
-	/* hdr->seqno is set by qeth_send_control_data() */
+	/* hdr->seqyes is set by qeth_send_control_data() */
 	hdr->adapter_type = (link_type == QETH_LINK_TYPE_HSTR) ? 2 : 1;
-	hdr->rel_adapter_no = (u8) card->dev->dev_port;
-	hdr->prim_version_no = IS_LAYER2(card) ? 2 : 1;
+	hdr->rel_adapter_yes = (u8) card->dev->dev_port;
+	hdr->prim_version_yes = IS_LAYER2(card) ? 2 : 1;
 	hdr->param_count = 1;
 	hdr->prot_version = prot;
 	return iob;
@@ -2890,7 +2890,7 @@ static struct qeth_cmd_buffer *qeth_get_adapter_cmd(struct qeth_card *card,
 	hdr->cmdlength = sizeof(*hdr) + data_length;
 	hdr->command_code = adp_cmd;
 	hdr->used_total = 1;
-	hdr->seq_no = 1;
+	hdr->seq_yes = 1;
 	return iob;
 }
 
@@ -3051,7 +3051,7 @@ static void qeth_get_trap_id(struct qeth_card *card, struct qeth_trap_id *tid)
 	tid->chpid = card->info.chpid;
 	ccw_device_get_id(CARD_RDEV(card), &ccwid);
 	tid->ssid = ccwid.ssid;
-	tid->devno = ccwid.devno;
+	tid->devyes = ccwid.devyes;
 	if (!info)
 		return;
 	level = stsi(NULL, 0, 0, 0);
@@ -3254,7 +3254,7 @@ static void qeth_switch_to_packing_if_needed(struct qeth_qdio_out_q *queue)
 	if (!queue->do_pack) {
 		if (atomic_read(&queue->used_buffers)
 		    >= QETH_HIGH_WATERMARK_PACK){
-			/* switch non-PACKING -> PACKING */
+			/* switch yesn-PACKING -> PACKING */
 			QETH_CARD_TEXT(queue->card, 6, "np->pack");
 			QETH_TXQ_STAT_INC(queue, packing_mode_switch);
 			queue->do_pack = 1;
@@ -3263,17 +3263,17 @@ static void qeth_switch_to_packing_if_needed(struct qeth_qdio_out_q *queue)
 }
 
 /*
- * Switches from packing to non-packing mode. If there is a packing
+ * Switches from packing to yesn-packing mode. If there is a packing
  * buffer on the queue this buffer will be prepared to be flushed.
- * In that case 1 is returned to inform the caller. If no buffer
+ * In that case 1 is returned to inform the caller. If yes buffer
  * has to be flushed, zero is returned.
  */
-static int qeth_switch_to_nonpacking_if_needed(struct qeth_qdio_out_q *queue)
+static int qeth_switch_to_yesnpacking_if_needed(struct qeth_qdio_out_q *queue)
 {
 	if (queue->do_pack) {
 		if (atomic_read(&queue->used_buffers)
 		    <= QETH_LOW_WATERMARK_PACK) {
-			/* switch PACKING -> non-PACKING */
+			/* switch PACKING -> yesn-PACKING */
 			QETH_CARD_TEXT(queue->card, 6, "pack->np");
 			QETH_TXQ_STAT_INC(queue, packing_mode_switch);
 			queue->do_pack = 0;
@@ -3318,11 +3318,11 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		} else {
 			if (!atomic_read(&queue->set_pci_flags_count)) {
 				/*
-				 * there's no outstanding PCI any more, so we
+				 * there's yes outstanding PCI any more, so we
 				 * have to request a PCI to be sure the the PCI
 				 * will wake at some time in the future then we
 				 * can flush packed buffers that might still be
-				 * hanging around, which can happen if no
+				 * hanging around, which can happen if yes
 				 * further send was requested by the stack
 				 */
 				atomic_inc(&queue->set_pci_flags_count);
@@ -3335,23 +3335,23 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 	if (atomic_read(&queue->set_pci_flags_count))
 		qdio_flags |= QDIO_FLAG_PCI_OUT;
 	rc = do_QDIO(CARD_DDEV(queue->card), qdio_flags,
-		     queue->queue_no, index, count);
+		     queue->queue_yes, index, count);
 
 	/* Fake the TX completion interrupt: */
 	if (IS_IQD(card))
 		napi_schedule(&queue->napi);
 
 	if (rc) {
-		/* ignore temporary SIGA errors without busy condition */
+		/* igyesre temporary SIGA errors without busy condition */
 		if (rc == -ENOBUFS)
 			return;
 		QETH_CARD_TEXT(queue->card, 2, "flushbuf");
-		QETH_CARD_TEXT_(queue->card, 2, " q%d", queue->queue_no);
+		QETH_CARD_TEXT_(queue->card, 2, " q%d", queue->queue_yes);
 		QETH_CARD_TEXT_(queue->card, 2, " idx%d", index);
 		QETH_CARD_TEXT_(queue->card, 2, " c%d", count);
 		QETH_CARD_TEXT_(queue->card, 2, " err%d", rc);
 
-		/* this must not happen under normal circumstances. if it
+		/* this must yest happen under yesrmal circumstances. if it
 		 * happens something is really wrong -> recover */
 		qeth_schedule_recovery(queue->card);
 		return;
@@ -3374,7 +3374,7 @@ static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 	int q_was_packing = 0;
 
 	/*
-	 * check if weed have to switch to non-packing mode or if
+	 * check if weed have to switch to yesn-packing mode or if
 	 * we have to get a pci flag out on the queue
 	 */
 	if ((atomic_read(&queue->used_buffers) <= QETH_LOW_WATERMARK_PACK) ||
@@ -3382,7 +3382,7 @@ static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 		if (atomic_xchg(&queue->state, QETH_OUT_Q_LOCKED_FLUSH) ==
 				QETH_OUT_Q_UNLOCKED) {
 			/*
-			 * If we get in here, there was no action in
+			 * If we get in here, there was yes action in
 			 * do_send_packet. So, we check if there is a
 			 * packing buffer to be flushed here.
 			 */
@@ -3390,7 +3390,7 @@ static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 			q_was_packing = queue->do_pack;
 			/* queue->do_pack may change */
 			barrier();
-			flush_cnt += qeth_switch_to_nonpacking_if_needed(queue);
+			flush_cnt += qeth_switch_to_yesnpacking_if_needed(queue);
 			if (!flush_cnt &&
 			    !atomic_read(&queue->set_pci_flags_count))
 				flush_cnt += qeth_prep_flush_pack_buffer(queue);
@@ -3528,7 +3528,7 @@ static void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 	qeth_check_outbound_queue(queue);
 
 	txq = netdev_get_tx_queue(dev, __queue);
-	/* xmit may have observed the full-condition, but not yet stopped the
+	/* xmit may have observed the full-condition, but yest yet stopped the
 	 * txq. In which case the code below won't trigger. So before returning,
 	 * xmit will re-check the txq's fill level and wake it up if needed.
 	 */
@@ -3680,8 +3680,8 @@ check_layout:
 
 	/* Compress skb to fit into one IO buffer: */
 	if (__elements > max_elements) {
-		if (!skb_is_nonlinear(skb)) {
-			/* Drop it, no easy way of shrinking it further. */
+		if (!skb_is_yesnlinear(skb)) {
+			/* Drop it, yes easy way of shrinking it further. */
 			QETH_DBF_MESSAGE(2, "Dropped an oversized skb (Max Elements=%u / Actual=%u / Length=%u).\n",
 					 max_elements, __elements, skb->len);
 			return -E2BIG;
@@ -3758,7 +3758,7 @@ static unsigned int __qeth_fill_buffer(struct sk_buff *skb,
 		length -= elem_length;
 		if (is_first_elem) {
 			is_first_elem = false;
-			if (length || skb_is_nonlinear(skb))
+			if (length || skb_is_yesnlinear(skb))
 				/* skb needs additional elements */
 				buffer->element[element].eflags =
 					SBAL_EFLAGS_FIRST_FRAG;
@@ -3949,7 +3949,7 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 		/* does packet fit in current buffer? */
 		if (buffer->next_element_to_fill + elements_needed >
 		    queue->max_elements) {
-			/* ... no -> set state PRIMED */
+			/* ... yes -> set state PRIMED */
 			atomic_set(&buffer->state, QETH_QDIO_BUF_PRIMED);
 			flush_count++;
 			queue->next_buf_to_fill =
@@ -3996,14 +3996,14 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 		atomic_xchg(&queue->state, QETH_OUT_Q_LOCKED_FLUSH);
 	/*
 	 * queue->state will go from LOCKED -> UNLOCKED or from
-	 * LOCKED_FLUSH -> LOCKED if output_handler wanted to 'notify' us
-	 * (switch packing state or flush buffer to get another pci flag out).
+	 * LOCKED_FLUSH -> LOCKED if output_handler wanted to 'yestify' us
+	 * (switch packing state or flush buffer to get ayesther pci flag out).
 	 * In that case we will enter this loop
 	 */
 	while (atomic_dec_return(&queue->state)) {
 		start_index = queue->next_buf_to_fill;
-		/* check if we can go back to non-packing state */
-		tmp = qeth_switch_to_nonpacking_if_needed(queue);
+		/* check if we can go back to yesn-packing state */
+		tmp = qeth_switch_to_yesnpacking_if_needed(queue);
 		/*
 		 * check if we need to flush a packing buffer to get a pci
 		 * flag out on the queue
@@ -4033,7 +4033,7 @@ static void qeth_fill_tso_ext(struct qeth_hdr_tso *hdr,
 	struct qeth_hdr_ext_tso *ext = &hdr->ext;
 
 	ext->hdr_tot_len = sizeof(*ext);
-	ext->imb_hdr_no = 1;
+	ext->imb_hdr_yes = 1;
 	ext->hdr_type = 1;
 	ext->hdr_version = 1;
 	ext->hdr_len = 28;
@@ -4088,7 +4088,7 @@ int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 		rc = __qeth_xmit(card, queue, skb, elements, hdr, data_offset,
 				 hd_len);
 	} else {
-		/* TODO: drop skb_orphan() once TX completion is fast enough */
+		/* TODO: drop skb_orphan() once TX completion is fast eyesugh */
 		skb_orphan(skb);
 		rc = qeth_do_send_packet(card, queue, skb, hdr, data_offset,
 					 hd_len, elements);
@@ -4226,30 +4226,30 @@ static int qeth_setadpparms_set_access_ctrl_cb(struct qeth_card *card,
 			card->options.isolation = card->options.prev_isolation;
 		break;
 	case SET_ACCESS_CTRL_RC_NOT_SUPPORTED:
-		dev_err(&card->gdev->dev, "Adapter does not "
+		dev_err(&card->gdev->dev, "Adapter does yest "
 			"support QDIO data connection isolation\n");
 		break;
 	case SET_ACCESS_CTRL_RC_NONE_SHARED_ADAPTER:
 		dev_err(&card->gdev->dev,
 			"Adapter is dedicated. "
-			"QDIO data connection isolation not supported\n");
+			"QDIO data connection isolation yest supported\n");
 		if (fallback)
 			card->options.isolation = card->options.prev_isolation;
 		break;
 	case SET_ACCESS_CTRL_RC_ACTIVE_CHECKSUM_OFF:
 		dev_err(&card->gdev->dev,
-			"TSO does not permit QDIO data connection isolation\n");
+			"TSO does yest permit QDIO data connection isolation\n");
 		if (fallback)
 			card->options.isolation = card->options.prev_isolation;
 		break;
 	case SET_ACCESS_CTRL_RC_REFLREL_UNSUPPORTED:
-		dev_err(&card->gdev->dev, "The adjacent switch port does not "
+		dev_err(&card->gdev->dev, "The adjacent switch port does yest "
 			"support reflective relay mode\n");
 		if (fallback)
 			card->options.isolation = card->options.prev_isolation;
 		break;
 	case SET_ACCESS_CTRL_RC_REFLREL_FAILED:
-		dev_err(&card->gdev->dev, "The reflective relay mode cannot be "
+		dev_err(&card->gdev->dev, "The reflective relay mode canyest be "
 					"enabled at the adjacent switch port");
 		if (fallback)
 			card->options.isolation = card->options.prev_isolation;
@@ -4309,7 +4309,7 @@ int qeth_set_access_ctrl_online(struct qeth_card *card, int fallback)
 	} else if (card->options.isolation != ISOLATION_MODE_NONE) {
 		card->options.isolation = ISOLATION_MODE_NONE;
 
-		dev_err(&card->gdev->dev, "Adapter does not "
+		dev_err(&card->gdev->dev, "Adapter does yest "
 			"support QDIO data connection isolation\n");
 		rc = -EOPNOTSUPP;
 	}
@@ -4417,27 +4417,27 @@ static int qeth_snmp_command_cb(struct qeth_card *card,
 
 	adp_cmd = &cmd->data.setadapterparms;
 	data_len = adp_cmd->hdr.cmdlength - sizeof(adp_cmd->hdr);
-	if (adp_cmd->hdr.seq_no == 1) {
+	if (adp_cmd->hdr.seq_yes == 1) {
 		snmp_data = &adp_cmd->data.snmp;
 	} else {
 		snmp_data = &adp_cmd->data.snmp.request;
 		data_len -= offsetof(struct qeth_snmp_cmd, request);
 	}
 
-	/* check if there is enough room in userspace */
+	/* check if there is eyesugh room in userspace */
 	if ((qinfo->udata_len - qinfo->udata_offset) < data_len) {
 		QETH_CARD_TEXT_(card, 4, "scer3%i", -ENOSPC);
 		return -ENOSPC;
 	}
-	QETH_CARD_TEXT_(card, 4, "snore%i",
+	QETH_CARD_TEXT_(card, 4, "syesre%i",
 			cmd->data.setadapterparms.hdr.used_total);
 	QETH_CARD_TEXT_(card, 4, "sseqn%i",
-			cmd->data.setadapterparms.hdr.seq_no);
+			cmd->data.setadapterparms.hdr.seq_yes);
 	/*copy entries to user buffer*/
 	memcpy(qinfo->udata + qinfo->udata_offset, snmp_data, data_len);
 	qinfo->udata_offset += data_len;
 
-	if (cmd->data.setadapterparms.hdr.seq_no <
+	if (cmd->data.setadapterparms.hdr.seq_yes <
 	    cmd->data.setadapterparms.hdr.used_total)
 		return 1;
 	return 0;
@@ -4522,7 +4522,7 @@ static int qeth_setadpparms_query_oat_cb(struct qeth_card *card,
 		resdatalen);
 	priv->response_len += resdatalen;
 
-	if (cmd->data.setadapterparms.hdr.seq_no <
+	if (cmd->data.setadapterparms.hdr.seq_yes <
 	    cmd->data.setadapterparms.hdr.used_total)
 		return 1;
 	return 0;
@@ -4657,7 +4657,7 @@ int qeth_vm_request_mac(struct qeth_card *card)
 	request->resp_buf_len = sizeof(*response);
 	request->resp_version = DIAG26C_VERSION2;
 	request->op_code = DIAG26C_GET_MAC;
-	request->devno = id.devno;
+	request->devyes = id.devyes;
 
 	QETH_DBF_HEX(CTRL, 2, request, sizeof(*request));
 	rc = diag26c(request, response, DIAG26C_MAC_SERVICES);
@@ -4748,13 +4748,13 @@ static void qeth_qdio_establish_cq(struct qeth_card *card,
 
 	if (card->options.cq == QETH_CQ_ENABLED) {
 		int offset = QDIO_MAX_BUFFERS_PER_Q *
-			     (card->qdio.no_in_queues - 1);
+			     (card->qdio.yes_in_queues - 1);
 		for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; ++i) {
 			in_sbal_ptrs[offset + i] = (struct qdio_buffer *)
 				virt_to_phys(card->qdio.c_q->bufs[i].buffer);
 		}
 
-		queue_start_poll[card->qdio.no_in_queues - 1] = NULL;
+		queue_start_poll[card->qdio.yes_in_queues - 1] = NULL;
 	}
 }
 
@@ -4773,13 +4773,13 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	qib_param_field = kzalloc(sizeof_field(struct qib, parm), GFP_KERNEL);
 	if (!qib_param_field) {
 		rc =  -ENOMEM;
-		goto out_free_nothing;
+		goto out_free_yesthing;
 	}
 
 	qeth_create_qib_param_field(card, qib_param_field);
 	qeth_create_qib_param_field_blkt(card, qib_param_field);
 
-	in_sbal_ptrs = kcalloc(card->qdio.no_in_queues * QDIO_MAX_BUFFERS_PER_Q,
+	in_sbal_ptrs = kcalloc(card->qdio.yes_in_queues * QDIO_MAX_BUFFERS_PER_Q,
 			       sizeof(void *),
 			       GFP_KERNEL);
 	if (!in_sbal_ptrs) {
@@ -4791,26 +4791,26 @@ static int qeth_qdio_establish(struct qeth_card *card)
 			virt_to_phys(card->qdio.in_q->bufs[i].buffer);
 	}
 
-	queue_start_poll = kcalloc(card->qdio.no_in_queues, sizeof(void *),
+	queue_start_poll = kcalloc(card->qdio.yes_in_queues, sizeof(void *),
 				   GFP_KERNEL);
 	if (!queue_start_poll) {
 		rc = -ENOMEM;
 		goto out_free_in_sbals;
 	}
-	for (i = 0; i < card->qdio.no_in_queues; ++i)
+	for (i = 0; i < card->qdio.yes_in_queues; ++i)
 		queue_start_poll[i] = qeth_qdio_start_poll;
 
 	qeth_qdio_establish_cq(card, in_sbal_ptrs, queue_start_poll);
 
 	out_sbal_ptrs =
-		kcalloc(card->qdio.no_out_queues * QDIO_MAX_BUFFERS_PER_Q,
+		kcalloc(card->qdio.yes_out_queues * QDIO_MAX_BUFFERS_PER_Q,
 			sizeof(void *),
 			GFP_KERNEL);
 	if (!out_sbal_ptrs) {
 		rc = -ENOMEM;
 		goto out_free_queue_start_poll;
 	}
-	for (i = 0, k = 0; i < card->qdio.no_out_queues; ++i)
+	for (i = 0, k = 0; i < card->qdio.yes_out_queues; ++i)
 		for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j, ++k) {
 			out_sbal_ptrs[k] = (struct qdio_buffer *)virt_to_phys(
 				card->qdio.out_qs[i]->bufs[j]->buffer);
@@ -4822,8 +4822,8 @@ static int qeth_qdio_establish(struct qeth_card *card)
 							  QDIO_QETH_QFMT;
 	init_data.qib_param_field_format = 0;
 	init_data.qib_param_field        = qib_param_field;
-	init_data.no_input_qs            = card->qdio.no_in_queues;
-	init_data.no_output_qs           = card->qdio.no_out_queues;
+	init_data.yes_input_qs            = card->qdio.yes_in_queues;
+	init_data.yes_output_qs           = card->qdio.yes_out_queues;
 	init_data.input_handler		 = qeth_qdio_input_handler;
 	init_data.output_handler	 = qeth_qdio_output_handler;
 	init_data.queue_start_poll_array = queue_start_poll;
@@ -4865,7 +4865,7 @@ out_free_in_sbals:
 	kfree(in_sbal_ptrs);
 out_free_qib_param:
 	kfree(qib_param_field);
-out_free_nothing:
+out_free_yesthing:
 	return rc;
 }
 
@@ -5079,7 +5079,7 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 	int skb_len = 0;
 
 next_packet:
-	/* qeth_hdr must not cross element boundaries */
+	/* qeth_hdr must yest cross element boundaries */
 	while (element->length < offset + sizeof(struct qeth_hdr)) {
 		if (qeth_is_last_sbale(element))
 			return NULL;
@@ -5100,7 +5100,7 @@ next_packet:
 	case QETH_HEADER_TYPE_LAYER3:
 		skb_len = (*hdr)->hdr.l3.length;
 		if (!IS_LAYER3(card)) {
-			QETH_CARD_STAT_INC(card, rx_dropped_notsupp);
+			QETH_CARD_STAT_INC(card, rx_dropped_yestsupp);
 			goto walk_packet;
 		}
 
@@ -5119,7 +5119,7 @@ next_packet:
 	case QETH_HEADER_TYPE_OSN:
 		skb_len = (*hdr)->hdr.osn.pdu_length;
 		if (!IS_OSN(card)) {
-			QETH_CARD_STAT_INC(card, rx_dropped_notsupp);
+			QETH_CARD_STAT_INC(card, rx_dropped_yestsupp);
 			goto walk_packet;
 		}
 
@@ -5130,7 +5130,7 @@ next_packet:
 		if ((*hdr)->hdr.l2.id & QETH_HEADER_MASK_INVAL)
 			QETH_CARD_STAT_INC(card, rx_frame_errors);
 		else
-			QETH_CARD_STAT_INC(card, rx_dropped_notsupp);
+			QETH_CARD_STAT_INC(card, rx_dropped_yestsupp);
 
 		/* Can't determine packet length, drop the whole buffer. */
 		return NULL;
@@ -5157,7 +5157,7 @@ next_packet:
 	}
 
 	if (!skb)
-		QETH_CARD_STAT_INC(card, rx_dropped_nomem);
+		QETH_CARD_STAT_INC(card, rx_dropped_yesmem);
 	else if (headroom)
 		skb_reserve(skb, headroom);
 
@@ -5204,7 +5204,7 @@ walk_packet:
 		}
 	}
 
-	/* This packet was skipped, go get another one: */
+	/* This packet was skipped, go get ayesther one: */
 	if (!skb)
 		goto next_packet;
 
@@ -5300,7 +5300,7 @@ static void qeth_iqd_tx_complete(struct qeth_qdio_out_q *queue,
 		if (atomic_cmpxchg(&buffer->state, QETH_QDIO_BUF_PRIMED,
 						   QETH_QDIO_BUF_PENDING) ==
 		    QETH_QDIO_BUF_PRIMED)
-			qeth_notify_skbs(queue, buffer, TX_NOTIFY_PENDING);
+			qeth_yestify_skbs(queue, buffer, TX_NOTIFY_PENDING);
 
 		QETH_CARD_TEXT_(card, 5, "pel%u", bidx);
 
@@ -5315,21 +5315,21 @@ static void qeth_iqd_tx_complete(struct qeth_qdio_out_q *queue,
 	}
 
 	if (card->options.cq == QETH_CQ_ENABLED)
-		qeth_notify_skbs(queue, buffer,
-				 qeth_compute_cq_notification(sflags, 0));
+		qeth_yestify_skbs(queue, buffer,
+				 qeth_compute_cq_yestification(sflags, 0));
 	qeth_clear_output_buffer(queue, buffer, error, budget);
 }
 
 static int qeth_tx_poll(struct napi_struct *napi, int budget)
 {
 	struct qeth_qdio_out_q *queue = qeth_napi_to_out_queue(napi);
-	unsigned int queue_no = queue->queue_no;
+	unsigned int queue_yes = queue->queue_yes;
 	struct qeth_card *card = queue->card;
 	struct net_device *dev = card->dev;
 	unsigned int work_done = 0;
 	struct netdev_queue *txq;
 
-	txq = netdev_get_tx_queue(dev, qeth_iqd_translate_txq(dev, queue_no));
+	txq = netdev_get_tx_queue(dev, qeth_iqd_translate_txq(dev, queue_yes));
 
 	while (1) {
 		unsigned int start, error, i;
@@ -5350,7 +5350,7 @@ static int qeth_tx_poll(struct napi_struct *napi, int budget)
 			return 0;
 		}
 
-		completed = qdio_inspect_queue(CARD_DDEV(card), queue_no, false,
+		completed = qdio_inspect_queue(CARD_DDEV(card), queue_yes, false,
 					       &start, &error);
 		if (completed <= 0) {
 			/* Ensure we see TX completion for pending work: */
@@ -5376,7 +5376,7 @@ static int qeth_tx_poll(struct napi_struct *napi, int budget)
 		atomic_sub(completed, &queue->used_buffers);
 		work_done += completed;
 
-		/* xmit may have observed the full-condition, but not yet
+		/* xmit may have observed the full-condition, but yest yet
 		 * stopped the txq. In which case the code below won't trigger.
 		 * So before returning, xmit will re-check the txq's fill level
 		 * and wake it up if needed.
@@ -5447,7 +5447,7 @@ struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *card,
 		return NULL;
 
 	setassparms = &__ipa_cmd(iob)->data.setassparms;
-	setassparms->assist_no = ipa_func;
+	setassparms->assist_yes = ipa_func;
 
 	hdr = &setassparms->hdr;
 	hdr->length = sizeof(*hdr) + data_length;
@@ -5549,7 +5549,7 @@ int qeth_core_load_discipline(struct qeth_card *card,
 	mutex_unlock(&qeth_mod_mutex);
 
 	if (!card->discipline) {
-		dev_err(&card->gdev->dev, "There is no kernel module to "
+		dev_err(&card->gdev->dev, "There is yes kernel module to "
 			"support discipline %d\n", discipline);
 		return -EINVAL;
 	}
@@ -5748,7 +5748,7 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 		goto err_card;
 	}
 
-	card->qdio.no_out_queues = card->dev->num_tx_queues;
+	card->qdio.yes_out_queues = card->dev->num_tx_queues;
 	rc = qeth_update_from_chp_desc(card);
 	if (rc)
 		goto err_chp_desc;
@@ -6149,7 +6149,7 @@ static int qeth_set_ipa_rx_csum(struct qeth_card *card, bool on)
 		rc_ipv4 = qeth_set_ipa_csum(card, on, IPA_INBOUND_CHECKSUM,
 					    QETH_PROT_IPV4);
 	if (!qeth_is_supported6(card, IPA_INBOUND_CHECKSUM_V6))
-		/* no/one Offload Assist available, so the rc is trivial */
+		/* yes/one Offload Assist available, so the rc is trivial */
 		return rc_ipv4;
 
 	rc_ipv6 = qeth_set_ipa_csum(card, on, IPA_INBOUND_CHECKSUM,
@@ -6299,15 +6299,15 @@ void qeth_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->rx_errors = card->stats.rx_length_errors +
 			   card->stats.rx_frame_errors +
 			   card->stats.rx_fifo_errors;
-	stats->rx_dropped = card->stats.rx_dropped_nomem +
-			    card->stats.rx_dropped_notsupp +
+	stats->rx_dropped = card->stats.rx_dropped_yesmem +
+			    card->stats.rx_dropped_yestsupp +
 			    card->stats.rx_dropped_runt;
 	stats->multicast = card->stats.rx_multicast;
 	stats->rx_length_errors = card->stats.rx_length_errors;
 	stats->rx_frame_errors = card->stats.rx_frame_errors;
 	stats->rx_fifo_errors = card->stats.rx_fifo_errors;
 
-	for (i = 0; i < card->qdio.no_out_queues; i++) {
+	for (i = 0; i < card->qdio.yes_out_queues; i++) {
 		queue = card->qdio.out_qs[i];
 
 		stats->tx_packets += queue->stats.tx_packets;

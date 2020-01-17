@@ -27,7 +27,7 @@
  * the hwmon driver.
  *
  * Priority will be given to the touchscreen driver, but as this itself is
- * rate limited it should not starve other requests which are processed in
+ * rate limited it should yest starve other requests which are processed in
  * order that they are received.
  *
  * Each user registers to get a client block which uniquely identifies it
@@ -253,7 +253,7 @@ void s3c_adc_release(struct s3c_adc_client *client)
 
 	spin_lock_irqsave(&adc_dev->lock, flags);
 
-	/* We should really check that nothing is in progress. */
+	/* We should really check that yesthing is in progress. */
 	if (adc_dev->cur == client)
 		adc_dev->cur = NULL;
 	if (adc_dev->ts_pend == client)
@@ -285,7 +285,7 @@ static irqreturn_t s3c_adc_irq(int irq, void *pw)
 	unsigned data0, data1;
 
 	if (!client) {
-		dev_warn(&adc->pdev->dev, "%s: no adc pending\n", __func__);
+		dev_warn(&adc->pdev->dev, "%s: yes adc pending\n", __func__);
 		goto exit;
 	}
 
@@ -308,7 +308,7 @@ static irqreturn_t s3c_adc_irq(int irq, void *pw)
 		(client->convert_cb)(client, data0, data1, &client->nr_samples);
 
 	if (client->nr_samples > 0) {
-		/* fire another conversion for this */
+		/* fire ayesther conversion for this */
 
 		client->select_cb(client, 1);
 		s3c_adc_convert(adc);

@@ -2,7 +2,7 @@
 /*******************************************************************************
 
   EZNPS CPU startup Code
-  Copyright(c) 2012 EZchip Technologies.
+  Copyright(c) 2012 EZchip Techyeslogies.
 
 
 *******************************************************************************/
@@ -18,14 +18,14 @@
 
 ENTRY(res_service)
 #if defined(CONFIG_EZNPS_MTM_EXT) && defined(CONFIG_EZNPS_SHARED_AUX_REGS)
-	; There is no work for HW thread id != 0
+	; There is yes work for HW thread id != 0
 	lr	r3, [CTOP_AUX_THREAD_ID]
 	cmp	r3, 0
 	jne	stext
 #endif
 
 #ifdef CONFIG_ARC_HAS_DCACHE
-	; With no cache coherency mechanism D$ need to be used very carefully.
+	; With yes cache coherency mechanism D$ need to be used very carefully.
 	; Address space:
 	; 0G-2G: We disable CONFIG_ARC_CACHE_PAGES.
 	; 2G-3G: We disable D$ by setting this bit.
@@ -34,7 +34,7 @@ ENTRY(res_service)
 	; Only FMT left as one who can use D$ where each such page got
 	; disable/enable bit for cachability.
 	; Programmer will use FMT pages for private data so cache coherency
-	; would not be a problem.
+	; would yest be a problem.
 	; First thing we invalidate D$
 	sr	1, [ARC_REG_DC_IVDC]
 	sr	HW_COMPLY_KRN_NOT_D_CACHED, [CTOP_AUX_HW_COMPLY]
@@ -42,7 +42,7 @@ ENTRY(res_service)
 
 #ifdef CONFIG_SMP
 	; We set logical cpuid to be used by GET_CPUID
-	; We do not use physical cpuid since we want ids to be continious when
+	; We do yest use physical cpuid since we want ids to be continious when
 	; it comes to cpus on the same quad cluster.
 	; This is useful for applications that used shared resources of a quad
 	; cluster such SRAMS.

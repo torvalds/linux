@@ -20,7 +20,7 @@ struct scpi_pm_domain {
 };
 
 /*
- * These device power state values are not well-defined in the specification.
+ * These device power state values are yest well-defined in the specification.
  * In case, different implementations use different values, we can make these
  * specific to compatibles rather than getting these values from device tree.
  */
@@ -65,7 +65,7 @@ static int scpi_pd_power_off(struct generic_pm_domain *domain)
 static int scpi_pm_domain_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct scpi_pm_domain *scpi_pd;
 	struct genpd_onecell_data *scpi_pd_data;
 	struct generic_pm_domain **domains;
@@ -77,19 +77,19 @@ static int scpi_pm_domain_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 
 	if (!np) {
-		dev_err(dev, "device tree node not found\n");
+		dev_err(dev, "device tree yesde yest found\n");
 		return -ENODEV;
 	}
 
 	if (!scpi_ops->device_set_power_state ||
 	    !scpi_ops->device_get_power_state) {
-		dev_err(dev, "power domains not supported in the firmware\n");
+		dev_err(dev, "power domains yest supported in the firmware\n");
 		return -ENODEV;
 	}
 
 	ret = of_property_read_u32(np, "num-domains", &num_domains);
 	if (ret) {
-		dev_err(dev, "number of domains not found\n");
+		dev_err(dev, "number of domains yest found\n");
 		return -EINVAL;
 	}
 

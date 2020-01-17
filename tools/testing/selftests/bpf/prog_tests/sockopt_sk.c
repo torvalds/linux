@@ -47,7 +47,7 @@ static int getsetsockopt(void)
 
 	buf.u8[0] = 1;
 	err = setsockopt(fd, SOL_IP, IP_TTL, &buf, 1);
-	if (!err || errno != EPERM) {
+	if (!err || erryes != EPERM) {
 		log_err("Unexpected success from setsockopt(IP_TTL)");
 		goto err;
 	}
@@ -166,10 +166,10 @@ static void run_test(int cgroup_fd)
 		.file = "./sockopt_sk.o",
 	};
 	struct bpf_object *obj;
-	int ignored;
+	int igyesred;
 	int err;
 
-	err = bpf_prog_load_xattr(&attr, &obj, &ignored);
+	err = bpf_prog_load_xattr(&attr, &obj, &igyesred);
 	if (CHECK_FAIL(err))
 		return;
 

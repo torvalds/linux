@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: DMA Engine Generic Binding
 
 maintainers:
-  - Vinod Koul <vkoul@kernel.org>
+  - Viyesd Koul <vkoul@kernel.org>
 
 description:
   Generic binding to provide a way for a driver using DMA Engine to
@@ -19,7 +19,7 @@ select: false
 properties:
   "#dma-cells":
     minimum: 1
-    # Should be enough
+    # Should be eyesugh
     maximum: 255
     description:
       Used to provide DMA controller specific information.
@@ -27,7 +27,7 @@ properties:
   dma-channel-mask:
     description:
       Bitmask of available DMA channels in ascending order that are
-      not reserved by firmware and are available to the
+      yest reserved by firmware and are available to the
       kernel. i.e. first channel corresponds to LSB.
       The first item in the array is for channels 0-31, the second is for
       channels 32-63, etc.
@@ -35,7 +35,7 @@ properties:
       - $ref: /schemas/types.yaml#/definitions/uint32-array
     items:
       minItems: 1
-      # Should be enough
+      # Should be eyesugh
       maxItems: 255
 
   dma-channels:

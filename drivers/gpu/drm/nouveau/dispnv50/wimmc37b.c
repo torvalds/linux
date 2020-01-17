@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -57,7 +57,7 @@ wimmc37b = {
 };
 
 static int
-wimmc37b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
+wimmc37b_init_(const struct nv50_wimm_func *func, struct yesuveau_drm *drm,
 	       s32 oclass, struct nv50_wndw *wndw)
 {
 	struct nvc37b_window_imm_channel_dma_v0 args = {
@@ -81,7 +81,7 @@ wimmc37b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 }
 
 int
-wimmc37b_init(struct nouveau_drm *drm, s32 oclass, struct nv50_wndw *wndw)
+wimmc37b_init(struct yesuveau_drm *drm, s32 oclass, struct nv50_wndw *wndw)
 {
 	return wimmc37b_init_(&wimmc37b, drm, oclass, wndw);
 }

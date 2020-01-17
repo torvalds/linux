@@ -6,7 +6,7 @@
     serial_cs.c 1.134 2002/05/04 05:48:53
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.1 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may yest use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -23,10 +23,10 @@
     terms of the GNU General Public License version 2 (the "GPL"), in which
     case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
-    only under the terms of the GPL and not to allow others to use
+    only under the terms of the GPL and yest to allow others to use
     your version of this file under the MPL, indicate your decision
-    by deleting the provisions above and replace them with the notice
-    and other provisions required by the GPL.  If you do not delete
+    by deleting the provisions above and replace them with the yestice
+    and other provisions required by the GPL.  If you do yest delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
 
@@ -129,10 +129,10 @@ static int quirk_post_ibm(struct pcmcia_device *link)
 }
 
 /*
- * Nokia cards are not really multiport cards.  Shouldn't this
+ * Nokia cards are yest really multiport cards.  Shouldn't this
  * be handled by setting the quirk entry .multi = 0 | 1 ?
  */
-static void quirk_config_nokia(struct pcmcia_device *link)
+static void quirk_config_yeskia(struct pcmcia_device *link)
 {
 	struct serial_info *info = link->priv;
 
@@ -148,7 +148,7 @@ static void quirk_wakeup_oxsemi(struct pcmcia_device *link)
 		outb(12, info->c950ctrl + 1);
 }
 
-/* request_region? oxsemi branch does no request_region too... */
+/* request_region? oxsemi branch does yes request_region too... */
 /*
  * This sequence is needed to properly initialize MC45 attached to OXCF950.
  * I tried decreasing these msleep()s, but it worked properly (survived
@@ -213,7 +213,7 @@ static const struct serial_quirk quirks[] = {
 		.manfid	= MANFID_NOKIA,
 		.prodid	= ~0,
 		.multi	= -1,
-		.config	= quirk_config_nokia,
+		.config	= quirk_config_yeskia,
 	}, {
 		.manfid	= MANFID_OMEGA,
 		.prodid	= PRODID_OMEGA_QSP_100,
@@ -390,7 +390,7 @@ static int pfc_config(struct pcmcia_device *p_dev)
 	if (info->slave)
 		return setup_serial(p_dev, info, port, p_dev->irq);
 
-	dev_warn(&p_dev->dev, "no usable port range found, giving up\n");
+	dev_warn(&p_dev->dev, "yes usable port range found, giving up\n");
 	return -ENODEV;
 }
 
@@ -415,7 +415,7 @@ static int simple_config_check(struct pcmcia_device *p_dev, void *priv_data)
 	return pcmcia_request_io(p_dev);
 }
 
-static int simple_config_check_notpicky(struct pcmcia_device *p_dev,
+static int simple_config_check_yestpicky(struct pcmcia_device *p_dev,
 					void *priv_data)
 {
 	static const unsigned int base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
@@ -443,7 +443,7 @@ static int simple_config(struct pcmcia_device *link)
 	int i = -ENODEV, try;
 
 	/*
-	 * First pass: look for a config entry that looks normal.
+	 * First pass: look for a config entry that looks yesrmal.
 	 * Two tries: without IO aliases, then with aliases.
 	 */
 	link->config_flags |= CONF_AUTO_SET_VPP;
@@ -456,10 +456,10 @@ static int simple_config(struct pcmcia_device *link)
 	 * its base address, then try to grab any standard serial port
 	 * address, and finally try to get any free port.
 	 */
-	if (!pcmcia_loop_config(link, simple_config_check_notpicky, NULL))
+	if (!pcmcia_loop_config(link, simple_config_check_yestpicky, NULL))
 		goto found_port;
 
-	dev_warn(&link->dev, "no usable port range found, giving up\n");
+	dev_warn(&link->dev, "yes usable port range found, giving up\n");
 	return -1;
 
 found_port:
@@ -501,7 +501,7 @@ static int multi_config_check(struct pcmcia_device *p_dev, void *priv_data)
 	return 0;
 }
 
-static int multi_config_check_notpicky(struct pcmcia_device *p_dev,
+static int multi_config_check_yestpicky(struct pcmcia_device *p_dev,
 				       void *priv_data)
 {
 	int *base2 = priv_data;
@@ -532,16 +532,16 @@ static int multi_config(struct pcmcia_device *link)
 	else {
 		/* If that didn't work, look for two windows */
 		info->multi = 2;
-		if (pcmcia_loop_config(link, multi_config_check_notpicky,
+		if (pcmcia_loop_config(link, multi_config_check_yestpicky,
 				       &base2)) {
 			dev_warn(&link->dev,
-				 "no usable port range found, giving up\n");
+				 "yes usable port range found, giving up\n");
 			return -ENODEV;
 		}
 	}
 
 	if (!link->irq)
-		dev_warn(&link->dev, "no usable IRQ found, continuing...\n");
+		dev_warn(&link->dev, "yes usable IRQ found, continuing...\n");
 
 	/*
 	 * Apply any configuration quirks.
@@ -631,7 +631,7 @@ static int serial_config(struct pcmcia_device *link)
 		}
 
 	/*
-	 * Another check for dual-serial cards: look for either serial or
+	 * Ayesther check for dual-serial cards: look for either serial or
 	 * multifunction cards that ask for appropriate IO port ranges.
 	 */
 	if ((info->multi == 0) &&

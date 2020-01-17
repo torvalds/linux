@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/delay.h>
 #include <linux/rtc/ds1685.h>
 #include <linux/interrupt.h>
@@ -41,7 +41,7 @@ static struct timer_list power_timer, blink_timer;
 static unsigned long blink_timer_timeout;
 static int has_panicked, shutting_down;
 
-static __noreturn void ip32_poweroff(void *data)
+static __yesreturn void ip32_poweroff(void *data)
 {
 	void (*poweroff_func)(struct platform_device *) =
 		symbol_get(ds1685_rtc_poweroff);
@@ -55,7 +55,7 @@ static __noreturn void ip32_poweroff(void *data)
 #endif
 
 	if (!poweroff_func)
-		pr_emerg("RTC not available for power-off.  Spinning forever ...\n");
+		pr_emerg("RTC yest available for power-off.  Spinning forever ...\n");
 	else {
 		(*poweroff_func)((struct platform_device *)data);
 		symbol_put(ds1685_rtc_poweroff);
@@ -64,7 +64,7 @@ static __noreturn void ip32_poweroff(void *data)
 	unreachable();
 }
 
-static void ip32_machine_restart(char *cmd) __noreturn;
+static void ip32_machine_restart(char *cmd) __yesreturn;
 static void ip32_machine_restart(char *cmd)
 {
 	msleep(20);
@@ -108,7 +108,7 @@ void ip32_prepare_poweroff(void)
 	add_timer(&power_timer);
 }
 
-static int panic_event(struct notifier_block *this, unsigned long event,
+static int panic_event(struct yestifier_block *this, unsigned long event,
 		       void *ptr)
 {
 	unsigned long led;
@@ -127,8 +127,8 @@ static int panic_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block panic_block = {
-	.notifier_call = panic_event,
+static struct yestifier_block panic_block = {
+	.yestifier_call = panic_event,
 };
 
 static __init int ip32_reboot_setup(void)
@@ -144,7 +144,7 @@ static __init int ip32_reboot_setup(void)
 	pm_power_off = ip32_machine_halt;
 
 	timer_setup(&blink_timer, blink_timeout, 0);
-	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
+	atomic_yestifier_chain_register(&panic_yestifier_list, &panic_block);
 
 	return 0;
 }

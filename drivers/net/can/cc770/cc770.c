@@ -16,7 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
@@ -46,7 +46,7 @@ MODULE_DESCRIPTION(KBUILD_MODNAME "CAN netdevice driver");
  * Details are available from Bosch's "CC770_Product_Info_2007-01.pdf",
  * which explains in detail the compatibility between the CC770 and the
  * 82527. This driver use the additional functionality 3. on real CC770
- * devices. Unfortunately, the CC770 does still not store the message
+ * devices. Unfortunately, the CC770 does still yest store the message
  * identifier of received remote transmission request frames and
  * therefore it's set to 0.
  *
@@ -55,7 +55,7 @@ MODULE_DESCRIPTION(KBUILD_MODNAME "CAN netdevice driver");
  * data reception under heavy bus load. Therefore it makes sense to use
  * this message object for the needed use case. The frame type (EFF/SFF)
  * for the message object 15 can be defined via kernel module parameter
- * "msgobj15_eff". If not equal 0, it will receive 29-bit EFF frames,
+ * "msgobj15_eff". If yest equal 0, it will receive 29-bit EFF frames,
  * otherwise 11 bit SFF messages.
  */
 static int msgobj15_eff;
@@ -118,7 +118,7 @@ static void enable_all_objs(const struct net_device *dev)
 			 * We don't need extra objects for RTR and EFF if
 			 * the additional CC770 functions are enabled.
 			 */
-			if (priv->control_normal_mode & CTRL_EAF) {
+			if (priv->control_yesrmal_mode & CTRL_EAF) {
 				if (o > 0)
 					continue;
 				netdev_dbg(dev, "Message object %d for "
@@ -174,7 +174,7 @@ static void disable_all_objs(const struct cc770_priv *priv)
 		mo = obj2msgobj(o);
 
 		if (priv->obj_flags[o] & CC770_OBJ_FLAG_RX) {
-			if (o > 0 && priv->control_normal_mode & CTRL_EAF)
+			if (o > 0 && priv->control_yesrmal_mode & CTRL_EAF)
 				continue;
 
 			cc770_write_reg(priv, msgobj[mo].ctrl1,
@@ -214,7 +214,7 @@ static void set_reset_mode(struct net_device *dev)
 	disable_all_objs(priv);
 }
 
-static void set_normal_mode(struct net_device *dev)
+static void set_yesrmal_mode(struct net_device *dev)
 {
 	struct cc770_priv *priv = netdev_priv(dev);
 
@@ -229,9 +229,9 @@ static void set_normal_mode(struct net_device *dev)
 
 	/*
 	 * Clear bus-off, interrupts only for errors,
-	 * not for status change
+	 * yest for status change
 	 */
-	cc770_write_reg(priv, control, priv->control_normal_mode);
+	cc770_write_reg(priv, control, priv->control_yesrmal_mode);
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 }
@@ -297,7 +297,7 @@ static int cc770_probe_chip(struct net_device *dev)
 
 	/*
 	 * Check if hardware reset is still inactive or maybe there
-	 * is no chip in this address space
+	 * is yes chip in this address space
 	 */
 	if (cc770_read_reg(priv, cpu_interface) & CPUIF_RST) {
 		netdev_info(dev, "probing @0x%p failed (reset)\n",
@@ -319,7 +319,7 @@ static int cc770_probe_chip(struct net_device *dev)
 
 	/* Check if this chip is a CC770 supporting additional functions */
 	if (cc770_read_reg(priv, control) & CTRL_EAF)
-		priv->control_normal_mode |= CTRL_EAF;
+		priv->control_yesrmal_mode |= CTRL_EAF;
 
 	return 0;
 }
@@ -333,7 +333,7 @@ static void cc770_start(struct net_device *dev)
 		set_reset_mode(dev);
 
 	/* leave reset mode */
-	set_normal_mode(dev);
+	set_yesrmal_mode(dev);
 }
 
 static int cc770_set_mode(struct net_device *dev, enum can_mode mode)
@@ -463,7 +463,7 @@ static void cc770_rx(struct net_device *dev, unsigned int mo, u8 ctrl1)
 
 	if (ctrl1 & RMTPND_SET) {
 		/*
-		 * Unfortunately, the chip does not store the real message
+		 * Unfortunately, the chip does yest store the real message
 		 * identifier of the received remote transmission request
 		 * frame. Therefore we set it to 0.
 		 */
@@ -511,7 +511,7 @@ static int cc770_err(struct net_device *dev, u8 status)
 		return -ENOMEM;
 
 	/* Use extended functions of the CC770 */
-	if (priv->control_normal_mode & CTRL_EAF) {
+	if (priv->control_yesrmal_mode & CTRL_EAF) {
 		cf->data[6] = cc770_read_reg(priv, tx_error_counter);
 		cf->data[7] = cc770_read_reg(priv, rx_error_counter);
 	}
@@ -609,7 +609,7 @@ static void cc770_rx_interrupt(struct net_device *dev, unsigned int o)
 
 		if (!(ctrl1 & NEWDAT_SET))  {
 			/* Check for RTR if additional functions are enabled */
-			if (priv->control_normal_mode & CTRL_EAF) {
+			if (priv->control_yesrmal_mode & CTRL_EAF) {
 				if (!(cc770_read_reg(priv, msgobj[mo].ctrl0) &
 				      INTPND_SET))
 					break;
@@ -855,12 +855,12 @@ int register_cc770dev(struct net_device *dev)
 	dev->flags |= IFF_ECHO;	/* we support local echo */
 
 	/* Should we use additional functions? */
-	if (!i82527_compat && priv->control_normal_mode & CTRL_EAF) {
+	if (!i82527_compat && priv->control_yesrmal_mode & CTRL_EAF) {
 		priv->can.do_get_berr_counter = cc770_get_berr_counter;
-		priv->control_normal_mode = CTRL_IE | CTRL_EAF | CTRL_EIE;
+		priv->control_yesrmal_mode = CTRL_IE | CTRL_EAF | CTRL_EIE;
 		netdev_dbg(dev, "i82527 mode with additional functions\n");
 	} else {
-		priv->control_normal_mode = CTRL_IE | CTRL_EIE;
+		priv->control_yesrmal_mode = CTRL_IE | CTRL_EIE;
 		netdev_dbg(dev, "strict i82527 compatibility mode\n");
 	}
 

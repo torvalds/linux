@@ -79,15 +79,15 @@ static int vio_device_probe(struct device *dev)
 	if (!id)
 		return -ENODEV;
 
-	/* alloc irqs (unless the driver specified not to) */
-	if (!drv->no_irq) {
-		if (vdev->tx_irq == 0 && vdev->tx_ino != ~0UL)
+	/* alloc irqs (unless the driver specified yest to) */
+	if (!drv->yes_irq) {
+		if (vdev->tx_irq == 0 && vdev->tx_iyes != ~0UL)
 			vdev->tx_irq = sun4v_build_virq(vdev->cdev_handle,
-							vdev->tx_ino);
+							vdev->tx_iyes);
 
-		if (vdev->rx_irq == 0 && vdev->rx_ino != ~0UL)
+		if (vdev->rx_irq == 0 && vdev->rx_iyes != ~0UL)
 			vdev->rx_irq = sun4v_build_virq(vdev->cdev_handle,
-							vdev->rx_ino);
+							vdev->rx_iyes);
 	}
 
 	return drv->probe(vdev, id);
@@ -101,7 +101,7 @@ static int vio_device_remove(struct device *dev)
 	if (drv->remove) {
 		/*
 		 * Ideally, we would remove/deallocate tx/rx virqs
-		 * here - however, there are currently no support
+		 * here - however, there are currently yes support
 		 * routines to do so at the moment. TBD
 		 */
 
@@ -115,7 +115,7 @@ static ssize_t devspec_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct vio_dev *vdev = to_vio_dev(dev);
-	const char *str = "none";
+	const char *str = "yesne";
 
 	if (!strcmp(vdev->type, "vnet-port"))
 		str = "vnet";
@@ -188,7 +188,7 @@ show_pciobppath_attr(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
 	struct vio_dev *vdev;
-	struct device_node *dp;
+	struct device_yesde *dp;
 
 	vdev = to_vio_dev(dev);
 	dp = vdev->dp;
@@ -199,17 +199,17 @@ show_pciobppath_attr(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(obppath, S_IRUSR | S_IRGRP | S_IROTH,
 		   show_pciobppath_attr, NULL);
 
-static struct device_node *cdev_node;
+static struct device_yesde *cdev_yesde;
 
 static struct vio_dev *root_vdev;
 static u64 cdev_cfg_handle;
 
-static const u64 *vio_cfg_handle(struct mdesc_handle *hp, u64 node)
+static const u64 *vio_cfg_handle(struct mdesc_handle *hp, u64 yesde)
 {
 	const u64 *cfg_handle = NULL;
 	u64 a;
 
-	mdesc_for_each_arc(a, hp, node, MDESC_ARC_TYPE_BACK) {
+	mdesc_for_each_arc(a, hp, yesde, MDESC_ARC_TYPE_BACK) {
 		u64 target;
 
 		target = mdesc_arc_target(hp, a);
@@ -223,39 +223,39 @@ static const u64 *vio_cfg_handle(struct mdesc_handle *hp, u64 node)
 }
 
 /**
- * vio_vdev_node() - Find VDEV node in MD
+ * vio_vdev_yesde() - Find VDEV yesde in MD
  * @hp:  Handle to the MD
  * @vdev:  Pointer to VDEV
  *
- * Find the node in the current MD which matches the given vio_dev. This
- * must be done dynamically since the node value can change if the MD
+ * Find the yesde in the current MD which matches the given vio_dev. This
+ * must be done dynamically since the yesde value can change if the MD
  * is updated.
  *
  * NOTE: the MD must be locked, using mdesc_grab(), when calling this routine
  *
- * Return: The VDEV node in MDESC
+ * Return: The VDEV yesde in MDESC
  */
-u64 vio_vdev_node(struct mdesc_handle *hp, struct vio_dev *vdev)
+u64 vio_vdev_yesde(struct mdesc_handle *hp, struct vio_dev *vdev)
 {
-	u64 node;
+	u64 yesde;
 
 	if (vdev == NULL)
 		return MDESC_NODE_NULL;
 
-	node = mdesc_get_node(hp, (const char *)vdev->node_name,
-			      &vdev->md_node_info);
+	yesde = mdesc_get_yesde(hp, (const char *)vdev->yesde_name,
+			      &vdev->md_yesde_info);
 
-	return node;
+	return yesde;
 }
-EXPORT_SYMBOL(vio_vdev_node);
+EXPORT_SYMBOL(vio_vdev_yesde);
 
 static void vio_fill_channel_info(struct mdesc_handle *hp, u64 mp,
 				  struct vio_dev *vdev)
 {
 	u64 a;
 
-	vdev->tx_ino = ~0UL;
-	vdev->rx_ino = ~0UL;
+	vdev->tx_iyes = ~0UL;
+	vdev->rx_iyes = ~0UL;
 	vdev->channel_id = ~0UL;
 	mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_FWD) {
 		const u64 *chan_id;
@@ -264,13 +264,13 @@ static void vio_fill_channel_info(struct mdesc_handle *hp, u64 mp,
 
 		target = mdesc_arc_target(hp, a);
 
-		irq = mdesc_get_property(hp, target, "tx-ino", NULL);
+		irq = mdesc_get_property(hp, target, "tx-iyes", NULL);
 		if (irq)
-			vdev->tx_ino = *irq;
+			vdev->tx_iyes = *irq;
 
-		irq = mdesc_get_property(hp, target, "rx-ino", NULL);
+		irq = mdesc_get_property(hp, target, "rx-iyes", NULL);
 		if (irq)
-			vdev->rx_ino = *irq;
+			vdev->rx_iyes = *irq;
 
 		chan_id = mdesc_get_property(hp, target, "id", NULL);
 		if (chan_id)
@@ -280,21 +280,21 @@ static void vio_fill_channel_info(struct mdesc_handle *hp, u64 mp,
 	vdev->cdev_handle = cdev_cfg_handle;
 }
 
-int vio_set_intr(unsigned long dev_ino, int state)
+int vio_set_intr(unsigned long dev_iyes, int state)
 {
 	int err;
 
-	err = sun4v_vintr_set_valid(cdev_cfg_handle, dev_ino, state);
+	err = sun4v_vintr_set_valid(cdev_cfg_handle, dev_iyes, state);
 	return err;
 }
 EXPORT_SYMBOL(vio_set_intr);
 
 static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
-				      const char *node_name,
+				      const char *yesde_name,
 				      struct device *parent)
 {
 	const char *type, *compat;
-	struct device_node *dp;
+	struct device_yesde *dp;
 	struct vio_dev *vdev;
 	int err, tlen, clen;
 	const u64 *id, *cfg_handle;
@@ -303,7 +303,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	if (!type) {
 		type = mdesc_get_property(hp, mp, "name", &tlen);
 		if (!type) {
-			type = mdesc_node_name(hp, mp);
+			type = mdesc_yesde_name(hp, mp);
 			tlen = strlen(type) + 1;
 		}
 	}
@@ -328,7 +328,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 
 	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
 	if (!vdev) {
-		printk(KERN_ERR "VIO: Could not allocate vio_dev\n");
+		printk(KERN_ERR "VIO: Could yest allocate vio_dev\n");
 		return NULL;
 	}
 
@@ -348,14 +348,14 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 
 	if (!id) {
 		dev_set_name(&vdev->dev, "%s", type);
-		vdev->dev_no = ~(u64)0;
+		vdev->dev_yes = ~(u64)0;
 	} else if (!cfg_handle) {
 		dev_set_name(&vdev->dev, "%s-%llu", type, *id);
-		vdev->dev_no = *id;
+		vdev->dev_yes = *id;
 	} else {
 		dev_set_name(&vdev->dev, "%s-%llu-%llu", type,
 			     *cfg_handle, *id);
-		vdev->dev_no = *cfg_handle;
+		vdev->dev_yes = *cfg_handle;
 		vdev->port_id = *id;
 	}
 
@@ -364,10 +364,10 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	vdev->dev.release = vio_dev_release;
 
 	if (parent == NULL) {
-		dp = cdev_node;
+		dp = cdev_yesde;
 	} else if (to_vio_dev(parent) == root_vdev) {
-		for_each_child_of_node(cdev_node, dp) {
-			if (of_node_is_type(dp, type))
+		for_each_child_of_yesde(cdev_yesde, dp) {
+			if (of_yesde_is_type(dp, type))
 				break;
 		}
 	} else {
@@ -376,29 +376,29 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	vdev->dp = dp;
 
 	/*
-	 * node_name is NULL for the parent/channel-devices node and
-	 * the parent doesn't require the MD node info.
+	 * yesde_name is NULL for the parent/channel-devices yesde and
+	 * the parent doesn't require the MD yesde info.
 	 */
-	if (node_name != NULL) {
-		(void) snprintf(vdev->node_name, VIO_MAX_NAME_LEN, "%s",
-				node_name);
+	if (yesde_name != NULL) {
+		(void) snprintf(vdev->yesde_name, VIO_MAX_NAME_LEN, "%s",
+				yesde_name);
 
-		err = mdesc_get_node_info(hp, mp, node_name,
-					  &vdev->md_node_info);
+		err = mdesc_get_yesde_info(hp, mp, yesde_name,
+					  &vdev->md_yesde_info);
 		if (err) {
-			pr_err("VIO: Could not get MD node info %s, err=%d\n",
+			pr_err("VIO: Could yest get MD yesde info %s, err=%d\n",
 			       dev_name(&vdev->dev), err);
 			kfree(vdev);
 			return NULL;
 		}
 	}
 
-	pr_info("VIO: Adding device %s (tx_ino = %llx, rx_ino = %llx)\n",
-		dev_name(&vdev->dev), vdev->tx_ino, vdev->rx_ino);
+	pr_info("VIO: Adding device %s (tx_iyes = %llx, rx_iyes = %llx)\n",
+		dev_name(&vdev->dev), vdev->tx_iyes, vdev->rx_iyes);
 
 	err = device_register(&vdev->dev);
 	if (err) {
-		printk(KERN_ERR "VIO: Could not register device %s, err=%d\n",
+		printk(KERN_ERR "VIO: Could yest register device %s, err=%d\n",
 		       dev_name(&vdev->dev), err);
 		put_device(&vdev->dev);
 		return NULL;
@@ -410,74 +410,74 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	return vdev;
 }
 
-static void vio_add(struct mdesc_handle *hp, u64 node,
-		    const char *node_name)
+static void vio_add(struct mdesc_handle *hp, u64 yesde,
+		    const char *yesde_name)
 {
-	(void) vio_create_one(hp, node, node_name, &root_vdev->dev);
+	(void) vio_create_one(hp, yesde, yesde_name, &root_vdev->dev);
 }
 
-struct vio_remove_node_data {
+struct vio_remove_yesde_data {
 	struct mdesc_handle *hp;
-	u64 node;
+	u64 yesde;
 };
 
-static int vio_md_node_match(struct device *dev, void *arg)
+static int vio_md_yesde_match(struct device *dev, void *arg)
 {
 	struct vio_dev *vdev = to_vio_dev(dev);
-	struct vio_remove_node_data *node_data;
-	u64 node;
+	struct vio_remove_yesde_data *yesde_data;
+	u64 yesde;
 
-	node_data = (struct vio_remove_node_data *)arg;
+	yesde_data = (struct vio_remove_yesde_data *)arg;
 
-	node = vio_vdev_node(node_data->hp, vdev);
+	yesde = vio_vdev_yesde(yesde_data->hp, vdev);
 
-	if (node == node_data->node)
+	if (yesde == yesde_data->yesde)
 		return 1;
 	else
 		return 0;
 }
 
-static void vio_remove(struct mdesc_handle *hp, u64 node, const char *node_name)
+static void vio_remove(struct mdesc_handle *hp, u64 yesde, const char *yesde_name)
 {
-	struct vio_remove_node_data node_data;
+	struct vio_remove_yesde_data yesde_data;
 	struct device *dev;
 
-	node_data.hp = hp;
-	node_data.node = node;
+	yesde_data.hp = hp;
+	yesde_data.yesde = yesde;
 
-	dev = device_find_child(&root_vdev->dev, (void *)&node_data,
-				vio_md_node_match);
+	dev = device_find_child(&root_vdev->dev, (void *)&yesde_data,
+				vio_md_yesde_match);
 	if (dev) {
 		printk(KERN_INFO "VIO: Removing device %s\n", dev_name(dev));
 
 		device_unregister(dev);
 		put_device(dev);
 	} else {
-		pr_err("VIO: %s node not found in MDESC\n", node_name);
+		pr_err("VIO: %s yesde yest found in MDESC\n", yesde_name);
 	}
 }
 
-static struct mdesc_notifier_client vio_device_notifier = {
+static struct mdesc_yestifier_client vio_device_yestifier = {
 	.add		= vio_add,
 	.remove		= vio_remove,
-	.node_name	= "virtual-device-port",
+	.yesde_name	= "virtual-device-port",
 };
 
 /* We are only interested in domain service ports under the
- * "domain-services" node.  On control nodes there is another port
- * under "openboot" that we should not mess with as aparently that is
+ * "domain-services" yesde.  On control yesdes there is ayesther port
+ * under "openboot" that we should yest mess with as aparently that is
  * reserved exclusively for OBP use.
  */
-static void vio_add_ds(struct mdesc_handle *hp, u64 node,
-		       const char *node_name)
+static void vio_add_ds(struct mdesc_handle *hp, u64 yesde,
+		       const char *yesde_name)
 {
 	int found;
 	u64 a;
 
 	found = 0;
-	mdesc_for_each_arc(a, hp, node, MDESC_ARC_TYPE_BACK) {
+	mdesc_for_each_arc(a, hp, yesde, MDESC_ARC_TYPE_BACK) {
 		u64 target = mdesc_arc_target(hp, a);
-		const char *name = mdesc_node_name(hp, target);
+		const char *name = mdesc_yesde_name(hp, target);
 
 		if (!strcmp(name, "domain-services")) {
 			found = 1;
@@ -486,16 +486,16 @@ static void vio_add_ds(struct mdesc_handle *hp, u64 node,
 	}
 
 	if (found)
-		(void) vio_create_one(hp, node, node_name, &root_vdev->dev);
+		(void) vio_create_one(hp, yesde, yesde_name, &root_vdev->dev);
 }
 
-static struct mdesc_notifier_client vio_ds_notifier = {
+static struct mdesc_yestifier_client vio_ds_yestifier = {
 	.add		= vio_add_ds,
 	.remove		= vio_remove,
-	.node_name	= "domain-services-port",
+	.yesde_name	= "domain-services-port",
 };
 
-static const char *channel_devices_node = "channel-devices";
+static const char *channel_devices_yesde = "channel-devices";
 static const char *channel_devices_compat = "SUNW,sun4v-channel-devices";
 static const char *cfg_handle_prop = "cfg-handle";
 
@@ -509,7 +509,7 @@ static int __init vio_init(void)
 
 	err = bus_register(&vio_bus_type);
 	if (err) {
-		printk(KERN_ERR "VIO: Could not register bus type err=%d\n",
+		printk(KERN_ERR "VIO: Could yest register bus type err=%d\n",
 		       err);
 		return err;
 	}
@@ -518,17 +518,17 @@ static int __init vio_init(void)
 	if (!hp)
 		return 0;
 
-	root = mdesc_node_by_name(hp, MDESC_NODE_NULL, channel_devices_node);
+	root = mdesc_yesde_by_name(hp, MDESC_NODE_NULL, channel_devices_yesde);
 	if (root == MDESC_NODE_NULL) {
-		printk(KERN_INFO "VIO: No channel-devices MDESC node.\n");
+		printk(KERN_INFO "VIO: No channel-devices MDESC yesde.\n");
 		mdesc_release(hp);
 		return 0;
 	}
 
-	cdev_node = of_find_node_by_name(NULL, "channel-devices");
+	cdev_yesde = of_find_yesde_by_name(NULL, "channel-devices");
 	err = -ENODEV;
-	if (!cdev_node) {
-		printk(KERN_INFO "VIO: No channel-devices OBP node.\n");
+	if (!cdev_yesde) {
+		printk(KERN_INFO "VIO: No channel-devices OBP yesde.\n");
 		goto out_release;
 	}
 
@@ -539,7 +539,7 @@ static int __init vio_init(void)
 		goto out_release;
 	}
 	if (!of_find_in_proplist(compat, channel_devices_compat, len)) {
-		printk(KERN_ERR "VIO: Channel devices node lacks (%s) "
+		printk(KERN_ERR "VIO: Channel devices yesde lacks (%s) "
 		       "compat entry.\n", channel_devices_compat);
 		goto out_release;
 	}
@@ -556,12 +556,12 @@ static int __init vio_init(void)
 	root_vdev = vio_create_one(hp, root, NULL, NULL);
 	err = -ENODEV;
 	if (!root_vdev) {
-		printk(KERN_ERR "VIO: Could not create root device.\n");
+		printk(KERN_ERR "VIO: Could yest create root device.\n");
 		goto out_release;
 	}
 
-	mdesc_register_notifier(&vio_device_notifier);
-	mdesc_register_notifier(&vio_ds_notifier);
+	mdesc_register_yestifier(&vio_device_yestifier);
+	mdesc_register_yestifier(&vio_ds_yestifier);
 
 	mdesc_release(hp);
 

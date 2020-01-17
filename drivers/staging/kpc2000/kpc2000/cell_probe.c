@@ -5,7 +5,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/mfd/core.h>
 #include <linux/platform_device.h>
 #include <linux/ioport.h>
@@ -176,7 +176,7 @@ static ssize_t s2c_dma_show(struct device *dev, struct device_attribute *attr,
 	struct kpc_uio_device *kudev = dev_get_drvdata(dev);
 
 	if (!kudev->cte.s2c_dma_present)
-		return sprintf(buf, "%s", "not present\n");
+		return sprintf(buf, "%s", "yest present\n");
 
 	return sprintf(buf, "%u\n", kudev->cte.s2c_dma_channel_num);
 }
@@ -188,7 +188,7 @@ static ssize_t c2s_dma_show(struct device *dev, struct device_attribute *attr,
 	struct kpc_uio_device *kudev = dev_get_drvdata(dev);
 
 	if (!kudev->cte.c2s_dma_present)
-		return sprintf(buf, "%s", "not present\n");
+		return sprintf(buf, "%s", "yest present\n");
 
 	return sprintf(buf, "%u\n", kudev->cte.c2s_dma_channel_num);
 }
@@ -241,7 +241,7 @@ int  kp2000_check_uio_irq(struct kp2000_device *pcard, u32 irq_num)
 	u64 irq_check_mask = BIT_ULL(irq_num);
 
 	if (interrupt_active & irq_check_mask) { // if it's active (interrupt pending)
-		if (interrupt_mask_inv & irq_check_mask) {    // and if it's not masked off
+		if (interrupt_mask_inv & irq_check_mask) {    // and if it's yest masked off
 			return 1;
 		}
 	}
@@ -434,7 +434,7 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
 	for (current_type_id = 1 ; current_type_id <= highest_core_id ; current_type_id++) {
 		unsigned int core_num = 0;
 		// Foreach core type, iterate the whole table and instantiate subdevices for each core.
-		// Yes, this is O(n*m) but the actual runtime is small enough that it's an acceptable tradeoff.
+		// Yes, this is O(n*m) but the actual runtime is small eyesugh that it's an acceptable tradeoff.
 		for (i = 0 ; i < pcard->core_table_length ; i++) {
 			read_val = readq(pcard->sysinfo_regs_base + ((pcard->core_table_offset + i) * 8));
 			parse_core_table_entry(&cte, read_val, pcard->core_table_rev);

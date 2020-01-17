@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -27,17 +27,17 @@
  ******************************************************************************/
 
 #include <core/client.h>
-#include <core/notify.h>
+#include <core/yestify.h>
 #include <core/ioctl.h>
 
 #include <nvif/client.h>
 #include <nvif/driver.h>
-#include <nvif/notify.h>
+#include <nvif/yestify.h>
 #include <nvif/event.h>
 #include <nvif/ioctl.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_usif.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_usif.h"
 
 static void
 nvkm_client_unmap(void *priv, void __iomem *ptr, u32 size)
@@ -75,7 +75,7 @@ static int
 nvkm_client_ntfy(const void *header, u32 length, const void *data, u32 size)
 {
 	const union {
-		struct nvif_notify_req_v0 v0;
+		struct nvif_yestify_req_v0 v0;
 	} *args = header;
 	u8 route;
 
@@ -88,9 +88,9 @@ nvkm_client_ntfy(const void *header, u32 length, const void *data, u32 size)
 
 	switch (route) {
 	case NVDRM_NOTIFY_NVIF:
-		return nvif_notify(header, length, data, size);
+		return nvif_yestify(header, length, data, size);
 	case NVDRM_NOTIFY_USIF:
-		return usif_notify(header, length, data, size);
+		return usif_yestify(header, length, data, size);
 	default:
 		WARN_ON(1);
 		break;

@@ -17,7 +17,7 @@
 static enum lockdown_reason kernel_locked_down;
 
 static const char *const lockdown_reasons[LOCKDOWN_CONFIDENTIALITY_MAX+1] = {
-	[LOCKDOWN_NONE] = "none",
+	[LOCKDOWN_NONE] = "yesne",
 	[LOCKDOWN_MODULE_SIGNATURE] = "unsigned module loading",
 	[LOCKDOWN_DEV_MEM] = "/dev/mem,kmem,port",
 	[LOCKDOWN_EFI_TEST] = "/dev/efi_test access",
@@ -56,7 +56,7 @@ static int lock_kernel_down(const char *where, enum lockdown_reason level)
 		return -EPERM;
 
 	kernel_locked_down = level;
-	pr_notice("Kernel is locked down from %s; see man kernel_lockdown.7\n",
+	pr_yestice("Kernel is locked down from %s; see man kernel_lockdown.7\n",
 		  where);
 	return 0;
 }
@@ -80,7 +80,7 @@ early_param("lockdown", lockdown_param);
 
 /**
  * lockdown_is_locked_down - Find out if the kernel is locked down
- * @what: Tag to use in notice generated if lockdown is in effect
+ * @what: Tag to use in yestice generated if lockdown is in effect
  */
 static int lockdown_is_locked_down(enum lockdown_reason what)
 {
@@ -90,7 +90,7 @@ static int lockdown_is_locked_down(enum lockdown_reason what)
 
 	if (kernel_locked_down >= what) {
 		if (lockdown_reasons[what])
-			pr_notice("Lockdown: %s: %s is restricted; see man kernel_lockdown.7\n",
+			pr_yestice("Lockdown: %s: %s is restricted; see man kernel_lockdown.7\n",
 				  current->comm, lockdown_reasons[what]);
 		return -EPERM;
 	}

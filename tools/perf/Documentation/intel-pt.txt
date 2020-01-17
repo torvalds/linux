@@ -18,8 +18,8 @@ See below for options to 'perf record'.
 
 Trace data must be 'decoded' which involves walking the object code and matching
 the trace data packets. For example a TNT packet only tells whether a
-conditional branch was taken or not taken, so to make use of that packet the
-decoder must know precisely which instruction was being executed.
+conditional branch was taken or yest taken, so to make use of that packet the
+decoder must kyesw precisely which instruction was being executed.
 
 Decoding is done on-the-fly.  The decoder outputs samples in the same format as
 samples output by perf hardware events, for example as though the "instructions"
@@ -30,7 +30,7 @@ on using those tools.
 The main distinguishing feature of Intel PT is that the decoder can determine
 the exact flow of software execution.  Intel PT can be used to understand why
 and how did software get to a certain point, or behave a certain way.  The
-software does not have to be recompiled, so Intel PT works with debug or release
+software does yest have to be recompiled, so Intel PT works with debug or release
 builds, however the executed images are needed - which makes use in JIT-compiled
 environments, or with self-modified code, a challenge.  Also symbols need to be
 provided to make sense of addresses.
@@ -38,7 +38,7 @@ provided to make sense of addresses.
 A limitation of Intel PT is that it produces huge amounts of trace data
 (hundreds of megabytes per second per core) which takes a long time to decode,
 for example two or three orders of magnitude longer than it took to collect.
-Another limitation is the performance impact of tracing, something that will
+Ayesther limitation is the performance impact of tracing, something that will
 vary depending on the use-case and architecture.
 
 
@@ -82,7 +82,7 @@ See the sections below for more information about the --itrace option.
 Beware the smaller the period, the more samples that are produced, and the
 longer it takes to process them.
 
-Also note that the coarseness of Intel PT timing information will start to
+Also yeste that the coarseness of Intel PT timing information will start to
 distort the statistical value of the sampling as the sampling period becomes
 smaller.
 
@@ -94,16 +94,16 @@ options, which will list all the samples.
 	perf record -e intel_pt//u ls
 	perf script --itrace=ibxwpe
 
-An interesting field that is not printed by default is 'flags' which can be
+An interesting field that is yest printed by default is 'flags' which can be
 displayed as follows:
 
 	perf script --itrace=ibxwpe -F+flags
 
 The flags are "bcrosyiABEx" which stand for branch, call, return, conditional,
-system, asynchronous, interrupt, transaction abort, trace begin, trace end, and
+system, asynchroyesus, interrupt, transaction abort, trace begin, trace end, and
 in transaction, respectively.
 
-Another interesting field that is not printed by default is 'ipc' which can be
+Ayesther interesting field that is yest printed by default is 'ipc' which can be
 displayed as follows:
 
 	perf script --itrace=be -F+ipc
@@ -116,21 +116,21 @@ calculated using the cycle count from CYC packets, otherwise MTC packets are
 used - refer to the 'mtc' config term.  When MTC is used, however, the values
 are less accurate because the timing is less accurate.
 
-Because Intel PT does not update the cycle count on every branch or instruction,
+Because Intel PT does yest update the cycle count on every branch or instruction,
 the values will often be zero.  When there are values, they will be the number
 of instructions and number of cycles since the last update, and thus represent
 the average IPC since the last IPC for that event type.  Note IPC for "branches"
 events is calculated separately from IPC for "instructions" events.
 
-Also note that the IPC instruction count may or may not include the current
-instruction.  If the cycle count is associated with an asynchronous branch
-(e.g. page fault or interrupt), then the instruction count does not include the
-current instruction, otherwise it does.  That is consistent with whether or not
+Also yeste that the IPC instruction count may or may yest include the current
+instruction.  If the cycle count is associated with an asynchroyesus branch
+(e.g. page fault or interrupt), then the instruction count does yest include the
+current instruction, otherwise it does.  That is consistent with whether or yest
 that instruction has retired when the cycle count is updated.
 
-Another note, in the case of "branches" events, non-taken branches are not
-presently sampled, so IPC values for them do not appear e.g. a CYC packet with a
-TNT packet that starts with a non-taken branch.  To see every possible IPC
+Ayesther yeste, in the case of "branches" events, yesn-taken branches are yest
+presently sampled, so IPC values for them do yest appear e.g. a CYC packet with a
+TNT packet that starts with a yesn-taken branch.  To see every possible IPC
 value, "instructions" events can be used e.g. --itrace=i0ns
 
 While it is possible to create scripts to analyze the data, an alternative
@@ -145,12 +145,12 @@ As mentioned above, it is easy to capture too much data.  One way to limit the
 data captured is to use 'snapshot' mode which is explained further below.
 Refer to 'new snapshot option' and 'Intel PT modes of operation' further below.
 
-Another problem that will be experienced is decoder errors.  They can be caused
+Ayesther problem that will be experienced is decoder errors.  They can be caused
 by inability to access the executed image, self-modified or JIT-ed code, or the
 inability to match side-band information (such as context switches and mmaps)
-which results in the decoder not knowing what code was executed.
+which results in the decoder yest kyeswing what code was executed.
 
-There is also the problem of perf not being able to copy the data fast enough,
+There is also the problem of perf yest being able to copy the data fast eyesugh,
 resulting in data lost because the buffer was full.  See 'Buffer handling' below
 for more details.
 
@@ -169,13 +169,13 @@ An enhancement has been made to allow default "config" e.g. the option
 
 will use a default config value.  Currently that is the same as
 
-	-e intel_pt/tsc,noretcomp=0/
+	-e intel_pt/tsc,yesretcomp=0/
 
 which is the same as
 
-	-e intel_pt/tsc=1,noretcomp=0/
+	-e intel_pt/tsc=1,yesretcomp=0/
 
-Note there are now new config terms - see section 'config terms' further below.
+Note there are yesw new config terms - see section 'config terms' further below.
 
 The config terms are listed in /sys/devices/intel_pt/format.  They are bit
 fields within the config member of the struct perf_event_attr which is
@@ -187,17 +187,17 @@ fields in the IA32_RTIT_CTL MSR.  Here is a list of them and their definitions:
 	/sys/bus/event_source/devices/intel_pt/format/cyc_thresh:config:19-22
 	/sys/bus/event_source/devices/intel_pt/format/mtc:config:9
 	/sys/bus/event_source/devices/intel_pt/format/mtc_period:config:14-17
-	/sys/bus/event_source/devices/intel_pt/format/noretcomp:config:11
+	/sys/bus/event_source/devices/intel_pt/format/yesretcomp:config:11
 	/sys/bus/event_source/devices/intel_pt/format/psb_period:config:24-27
 	/sys/bus/event_source/devices/intel_pt/format/tsc:config:10
 
 Note that the default config must be overridden for each term i.e.
 
-	-e intel_pt/noretcomp=0/
+	-e intel_pt/yesretcomp=0/
 
 is the same as:
 
-	-e intel_pt/tsc=1,noretcomp=0/
+	-e intel_pt/tsc=1,yesretcomp=0/
 
 So, to disable TSC packets use:
 
@@ -216,8 +216,8 @@ Note that, as with all events, the event is suffixed with event modifiers:
 	H	host
 	p	precise ip
 
-'h', 'G' and 'H' are for virtualization which is not supported by Intel PT.
-'p' is also not relevant to Intel PT.  So only options 'u' and 'k' are
+'h', 'G' and 'H' are for virtualization which is yest supported by Intel PT.
+'p' is also yest relevant to Intel PT.  So only options 'u' and 'k' are
 meaningful for Intel PT.
 
 perf_event_attr is displayed if the -vv option is used e.g.
@@ -255,15 +255,15 @@ described below.
 tsc		Always supported.  Produces TSC timestamp packets to provide
 		timing information.  In some cases it is possible to decode
 		without timing information, for example a per-thread context
-		that does not overlap executable memory maps.
+		that does yest overlap executable memory maps.
 
 		The default config selects tsc (i.e. tsc=1).
 
-noretcomp	Always supported.  Disables "return compression" so a TIP packet
+yesretcomp	Always supported.  Disables "return compression" so a TIP packet
 		is produced when a function returns.  Causes more packets to be
 		produced but might make decoding more reliable.
 
-		The default config does not select noretcomp (i.e. noretcomp=0).
+		The default config does yest select yesretcomp (i.e. yesretcomp=0).
 
 psb_period	Allows the frequency of PSB packets to be specified.
 
@@ -357,7 +357,7 @@ cyc		Produces CYC timing packets.
 		CYC packets provide even finer grain timestamp information than
 		MTC and TSC packets.  A CYC packet contains the number of CPU
 		cycles since the last CYC packet. Unlike MTC and TSC packets,
-		CYC packets are only sent when another packet is also sent.
+		CYC packets are only sent when ayesther packet is also sent.
 
 		Support for this feature is indicated by:
 
@@ -386,8 +386,8 @@ cyc_thresh	Specifies how frequently CYC packets are produced - see cyc
 			2 ^ (value - 1)
 
 		e.g. value 4 means 8 CPU cycles must pass before a CYC packet
-		can be sent.  Note a CYC packet is still only sent when another
-		packet is sent, not at, e.g. every 8 CPU cycles.
+		can be sent.  Note a CYC packet is still only sent when ayesther
+		packet is sent, yest at, e.g. every 8 CPU cycles.
 
 		If an invalid value is entered, the error message
 		will give a list of valid values e.g.
@@ -395,7 +395,7 @@ cyc_thresh	Specifies how frequently CYC packets are produced - see cyc
 			$ perf record -e intel_pt/cyc,cyc_thresh=15/u uname
 			Invalid cyc_thresh for intel_pt. Valid values are: 0-12
 
-		CYC packets are not requested by default.
+		CYC packets are yest requested by default.
 
 pt		Specifies pass-through which enables the 'branch' config term.
 
@@ -450,7 +450,7 @@ In addition, the Intel PT event to sample must be defined e.g.
 	-e intel_pt//u
 
 Samples on other events will be created containing Intel PT data e.g. the
-following will create Intel PT samples on the branch-misses event, note the
+following will create Intel PT samples on the branch-misses event, yeste the
 events must be grouped using {}:
 
 	perf record --aux-sample -e '{intel_pt//u,branch-misses:u}'
@@ -468,8 +468,8 @@ but allows for also using an address filter e.g.:
 
 	perf record -e intel_pt//u --filter 'filter * @/bin/ls' -e branch-misses/aux-sample-size=8192/u -- ls
 
-It is important to select a sample size that is big enough to contain at least
-one PSB packet.  If not a warning will be displayed:
+It is important to select a sample size that is big eyesugh to contain at least
+one PSB packet.  If yest a warning will be displayed:
 
 	Intel PT sample size (%zu) may be too small for PSB period (%zu)
 
@@ -480,8 +480,8 @@ The default sample size is 4KiB.
 
 The sample size is passed in aux_sample_size in struct perf_event_attr.  The
 sample size is limited by the maximum event size which is 64KiB.  It is
-difficult to know how big the event might be without the trace sample attached,
-but the tool validates that the sample size is not greater than 60KiB.
+difficult to kyesw how big the event might be without the trace sample attached,
+but the tool validates that the sample size is yest greater than 60KiB.
 
 
 new snapshot option
@@ -503,9 +503,9 @@ Optionally it can be followed by the snapshot size e.g.
 	-S0x100000
 
 The default snapshot size is the auxtrace mmap size.  If neither auxtrace mmap size
-nor snapshot size is specified, then the default is 4MiB for privileged users
-(or if /proc/sys/kernel/perf_event_paranoid < 0), 128KiB for unprivileged users.
-If an unprivileged user does not specify mmap pages, the mmap pages will be
+yesr snapshot size is specified, then the default is 4MiB for privileged users
+(or if /proc/sys/kernel/perf_event_parayesid < 0), 128KiB for unprivileged users.
+If an unprivileged user does yest specify mmap pages, the mmap pages will be
 reduced as described in the 'new auxtrace mmap size option' section below.
 
 The snapshot size is displayed if the option -vv is used e.g.
@@ -526,14 +526,14 @@ Note that the existing functionality of -m is unchanged.  The auxtrace mmap size
 is specified by the optional addition of a comma and the value.
 
 The default auxtrace mmap size for Intel PT is 4MiB/page_size for privileged users
-(or if /proc/sys/kernel/perf_event_paranoid < 0), 128KiB for unprivileged users.
-If an unprivileged user does not specify mmap pages, the mmap pages will be
+(or if /proc/sys/kernel/perf_event_parayesid < 0), 128KiB for unprivileged users.
+If an unprivileged user does yest specify mmap pages, the mmap pages will be
 reduced from the default 512KiB/page_size to 256KiB/page_size, otherwise the
 user is likely to get an error as they exceed their mlock limit (Max locked
-memory as shown in /proc/self/limits).  Note that perf does not count the first
+memory as shown in /proc/self/limits).  Note that perf does yest count the first
 512KiB (actually /proc/sys/kernel/perf_event_mlock_kb minus 1 page) per cpu
 against the mlock limit so an unprivileged user is allowed 512KiB per cpu plus
-their mlock limit (which defaults to 64KiB but is not multiplied by the number
+their mlock limit (which defaults to 64KiB but is yest multiplied by the number
 of cpus).
 
 In full-trace mode, powers of two are allowed for buffer size, with a minimum
@@ -573,7 +573,7 @@ Note that the signal sent is SIGUSR2.
 Note that "Recording AUX area tracing snapshot" is displayed because the -v
 option is used.
 
-The 2 modes cannot be used together.
+The 2 modes canyest be used together.
 
 
 Buffer handling
@@ -584,7 +584,7 @@ buffer sizes are limited to powers of 2 up to 4MiB (MAX_ORDER).  In order to
 provide other sizes, and in particular an arbitrarily large size, multiple
 buffers are logically concatenated.  However an interrupt must be used to switch
 between buffers.  That has two potential problems:
-	a) the interrupt may not be handled in time so that the current buffer
+	a) the interrupt may yest be handled in time so that the current buffer
 	becomes full and some trace data is lost.
 	b) the interrupts may slow the system and affect the performance
 	results.
@@ -593,9 +593,9 @@ If trace data is lost, the driver sets 'truncated' in the PERF_RECORD_AUX event
 which the tools report as an error.
 
 In full-trace mode, the driver waits for data to be copied out before allowing
-the (logical) buffer to wrap-around.  If data is not copied out quickly enough,
+the (logical) buffer to wrap-around.  If data is yest copied out quickly eyesugh,
 again 'truncated' is set in the PERF_RECORD_AUX event.  If the driver has to
-wait, the intel_pt event gets disabled.  Because it is difficult to know when
+wait, the intel_pt event gets disabled.  Because it is difficult to kyesw when
 that happens, perf tools always re-enable the intel_pt event after copying out
 data.
 
@@ -604,7 +604,7 @@ Intel PT and build ids
 ----------------------
 
 By default "perf record" post-processes the event stream to find all build ids
-for executables for all addresses sampled.  Deliberately, Intel PT is not
+for executables for all addresses sampled.  Deliberately, Intel PT is yest
 decoded for that purpose (it would take too long).  Instead the build ids for
 all executables encountered (due to mmap, comm or task events) are included
 in the perf.data file.
@@ -641,7 +641,7 @@ To run the test:
 	23: Test using a dummy software event to keep tracking     : Ok
 
 
-perf record modes (nothing new here)
+perf record modes (yesthing new here)
 ------------------------------------
 
 perf record essentially operates in one of three modes:
@@ -652,10 +652,10 @@ perf record essentially operates in one of three modes:
 "per thread" mode is selected by -t or by --per-thread (with -p or -u or just a
 workload).
 "per cpu" is selected by -C or -a.
-"workload only" mode is selected by not using the other options but providing a
+"workload only" mode is selected by yest using the other options but providing a
 command to run (i.e. the workload).
 
-In per-thread mode an exact list of threads is traced.  There is no inheritance.
+In per-thread mode an exact list of threads is traced.  There is yes inheritance.
 Each thread has its own event buffer.
 
 In per-cpu mode all processes (or processes from the selected cgroup i.e. -G
@@ -663,20 +663,20 @@ option, or processes selected with -p or -u) are traced.  Each cpu has its own
 buffer. Inheritance is allowed.
 
 In workload-only mode, the workload is traced but with per-cpu buffers.
-Inheritance is allowed.  Note that you can now trace a workload in per-thread
+Inheritance is allowed.  Note that you can yesw trace a workload in per-thread
 mode by using the --per-thread option.
 
 
-Privileged vs non-privileged users
+Privileged vs yesn-privileged users
 ----------------------------------
 
-Unless /proc/sys/kernel/perf_event_paranoid is set to -1, unprivileged users
+Unless /proc/sys/kernel/perf_event_parayesid is set to -1, unprivileged users
 have memory limits imposed upon them.  That affects what buffer sizes they can
 have as outlined above.
 
 The v4.2 kernel introduced support for a context switch metadata event,
 PERF_RECORD_SWITCH, which allows unprivileged users to see when their processes
-are scheduled out and in, just not by whom, which is left for the
+are scheduled out and in, just yest by whom, which is left for the
 PERF_RECORD_SWITCH_CPU_WIDE, that is only accessible in system wide context,
 which in turn requires CAP_SYS_ADMIN.
 
@@ -686,13 +686,13 @@ switches") commit, that introduces these metadata events for further info.
 When working with kernels < v4.2, the following considerations must be taken,
 as the sched:sched_switch tracepoints will be used to receive such information:
 
-Unless /proc/sys/kernel/perf_event_paranoid is set to -1, unprivileged users are
-not permitted to use tracepoints which means there is insufficient side-band
+Unless /proc/sys/kernel/perf_event_parayesid is set to -1, unprivileged users are
+yest permitted to use tracepoints which means there is insufficient side-band
 information to decode Intel PT in per-cpu mode, and potentially workload-only
 mode too if the workload creates new processes.
 
 Note also, that to use tracepoints, read-access to debugfs is required.  So if
-debugfs is not mounted or the user does not have read-access, it will again not
+debugfs is yest mounted or the user does yest have read-access, it will again yest
 be possible to decode Intel PT in per-cpu mode.
 
 
@@ -779,7 +779,7 @@ and only in per-cpu mode.
 
 Note also, the sched_switch event is only added if TSC packets are requested.
 That is because, in the absence of timing information, the sched_switch events
-cannot be matched against the Intel PT trace.
+canyest be matched against the Intel PT trace.
 
 
 perf script
@@ -792,7 +792,7 @@ This can be further controlled by new option --itrace.
 New --itrace option
 -------------------
 
-Having no option is the same as
+Having yes option is the same as
 
 	--itrace
 
@@ -848,7 +848,7 @@ C-state changes, whereas CBR is indicative of CPU frequency.  perf script
 	exstop:  ip: 1
 	pwrx:  deepest cstate: 2 last cstate: 2 wake reason: 0x4
 Where:
-	"cbr" includes the frequency and the percentage of maximum non-turbo
+	"cbr" includes the frequency and the percentage of maximum yesn-turbo
 	"mwait" shows mwait hints and extensions
 	"pwre" shows C-state transitions (to a C-state deeper than C0) and
 	whether	initiated by hardware
@@ -859,8 +859,8 @@ For more details refer to the Intel 64 and IA-32 Architectures Software
 Developer Manuals.
 
 Error events show where the decoder lost the trace.  Error events
-are quite important.  Users must know if what they are seeing is a complete
-picture or not.
+are quite important.  Users must kyesw if what they are seeing is a complete
+picture or yest.
 
 The "d" option will cause the creation of a file "intel_pt.log" containing all
 decoded packets and instructions.  Note that this option slows down the decoder
@@ -872,14 +872,14 @@ In addition, the period of the "instructions" event can be specified. e.g.
 
 sets the period to 10us i.e. one  instruction sample is synthesized for each 10
 microseconds of trace.  Alternatives to "us" are "ms" (milliseconds),
-"ns" (nanoseconds), "t" (TSC ticks) or "i" (instructions).
+"ns" (nayesseconds), "t" (TSC ticks) or "i" (instructions).
 
 "ms", "us" and "ns" are converted to TSC ticks.
 
-The timing information included with Intel PT does not give the time of every
+The timing information included with Intel PT does yest give the time of every
 instruction.  Consequently, for the purpose of sampling, the decoder estimates
 the time since the last timing packet based on 1 tick per instruction.  The time
-on the sample is *not* adjusted and reflects the last known value of TSC.
+on the sample is *yest* adjusted and reflects the last kyeswn value of TSC.
 
 For Intel PT, the default period is 100us.
 
@@ -900,13 +900,13 @@ transactions events can be specified. e.g.
        --itrace=il10
        --itrace=xl10
 
-Note that last branch entries are cleared for each sample, so there is no overlap
+Note that last branch entries are cleared for each sample, so there is yes overlap
 from one sample to the next.
 
-To disable trace decoding entirely, use the option --no-itrace.
+To disable trace decoding entirely, use the option --yes-itrace.
 
 It is also possible to skip events generated (instructions, branches, transactions)
-at the beginning. This is useful to ignore initialization code.
+at the beginning. This is useful to igyesre initialization code.
 
 	--itrace=i0nss1000000
 
@@ -918,16 +918,16 @@ dump option
 perf script has an option (-D) to "dump" the events i.e. display the binary
 data.
 
-When -D is used, Intel PT packets are displayed.  The packet decoder does not
+When -D is used, Intel PT packets are displayed.  The packet decoder does yest
 pay attention to PSB packets, but just decodes the bytes - so the packets seen
-by the actual decoder may not be identical in places where the data is corrupt.
+by the actual decoder may yest be identical in places where the data is corrupt.
 One example of that would be when the buffer-switching interrupt has been too
 slow, and the buffer has been filled completely.  In that case, the last packet
 in the buffer might be truncated and immediately followed by a PSB as the trace
 continues in the next buffer.
 
 To disable the display of Intel PT packets, combine the -D option with
---no-itrace.
+--yes-itrace.
 
 
 perf report
@@ -972,7 +972,7 @@ amended to take the number of elements as a parameter.
 	Bubble sorting array of 30000 elements
 	2155 ms
 
-Note there is currently no advantage to using Intel PT instead of LBR, but
+Note there is currently yes advantage to using Intel PT instead of LBR, but
 that may change in the future if greater use is made of the data.
 
 

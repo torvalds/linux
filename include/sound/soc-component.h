@@ -2,7 +2,7 @@
  *
  * soc-component.h
  *
- * Copyright (c) 2019 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (c) 2019 Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  */
 #ifndef __SOC_COMPONENT_H
 #define __SOC_COMPONENT_H
@@ -65,8 +65,8 @@ struct snd_soc_component_driver {
 				 struct of_phandle_args *args,
 				 const char **dai_name);
 	int (*of_xlate_dai_id)(struct snd_soc_component *comment,
-			       struct device_node *endpoint);
-	void (*seq_notifier)(struct snd_soc_component *component,
+			       struct device_yesde *endpoint);
+	void (*seq_yestifier)(struct snd_soc_component *component,
 			     enum snd_soc_dapm_type type, int subseq);
 	int (*stream_event)(struct snd_soc_component *component, int event);
 	int (*set_bias_level)(struct snd_soc_component *component,
@@ -115,7 +115,7 @@ struct snd_soc_component_driver {
 	int remove_order;
 
 	/*
-	 * signal if the module handling the component should not be removed
+	 * signal if the module handling the component should yest be removed
 	 * if a pcm is open. Setting this would prevent the module
 	 * refcount being incremented in probe() but allow it be incremented
 	 * when a pcm is opened and decremented when it is closed.
@@ -127,10 +127,10 @@ struct snd_soc_component_driver {
 	unsigned int suspend_bias_off:1;
 	unsigned int use_pmdown_time:1; /* care pmdown_time at stop */
 	unsigned int endianness:1;
-	unsigned int non_legacy_dai_naming:1;
+	unsigned int yesn_legacy_dai_naming:1;
 
-	/* this component uses topology and ignore machine driver FEs */
-	const char *ignore_machine;
+	/* this component uses topology and igyesre machine driver FEs */
+	const char *igyesre_machine;
 	const char *topology_name_prefix;
 	int (*be_hw_params_fixup)(struct snd_soc_pcm_runtime *rtd,
 				  struct snd_pcm_hw_params *params);
@@ -194,7 +194,7 @@ struct snd_soc_component {
  *  embedded in
  * @dapm: The DAPM context to cast to the component
  *
- * This function must only be used on DAPM contexts that are known to be part of
+ * This function must only be used on DAPM contexts that are kyeswn to be part of
  * a component (e.g. in a component driver). Otherwise the behavior is
  * undefined.
  */
@@ -265,7 +265,7 @@ snd_soc_component_force_bias_level(struct snd_soc_component *component,
  * kcontrol
  * @kcontrol: The kcontrol
  *
- * This function must only be used on DAPM contexts that are known to be part of
+ * This function must only be used on DAPM contexts that are kyeswn to be part of
  * a COMPONENT (e.g. in a COMPONENT driver). Otherwise the behavior is undefined
  */
 static inline struct snd_soc_component *snd_soc_dapm_kcontrol_component(
@@ -314,7 +314,7 @@ int snd_soc_component_set_pll(struct snd_soc_component *component, int pll_id,
 int snd_soc_component_set_jack(struct snd_soc_component *component,
 			       struct snd_soc_jack *jack, void *data);
 
-void snd_soc_component_seq_notifier(struct snd_soc_component *component,
+void snd_soc_component_seq_yestifier(struct snd_soc_component *component,
 				    enum snd_soc_dapm_type type, int subseq);
 int snd_soc_component_stream_event(struct snd_soc_component *component,
 				   int event);
@@ -399,7 +399,7 @@ int snd_soc_component_is_suspended(struct snd_soc_component *component);
 int snd_soc_component_probe(struct snd_soc_component *component);
 void snd_soc_component_remove(struct snd_soc_component *component);
 int snd_soc_component_of_xlate_dai_id(struct snd_soc_component *component,
-				      struct device_node *ep);
+				      struct device_yesde *ep);
 int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
 					struct of_phandle_args *args,
 					const char **dai_name);

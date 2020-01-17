@@ -6,7 +6,7 @@
  * ports. Every port contains up to four config regions (HOPS, PORT, SWITCH,
  * COUNTERS) which are used to configure the device.
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
@@ -20,7 +20,7 @@
 
 
 /*
- * TODO: should be 63? But we do not know how to receive frames larger than 256
+ * TODO: should be 63? But we do yest kyesw how to receive frames larger than 256
  * bytes at the frame level. (header + checksum = 16, 60*4 = 240)
  */
 #define TB_MAX_CONFIG_RW_LENGTH 60
@@ -96,23 +96,23 @@ struct tb_cap_extended_long {
 struct tb_cap_link_controller {
 	struct tb_cap_extended_long cap_header;
 	u32 count:4; /* number of link controllers */
-	u32 unknown1:4;
+	u32 unkyeswn1:4;
 	u32 base_offset:8; /*
 			    * offset (into this capability) of the configuration
 			    * area of the first link controller
 			    */
 	u32 length:12; /* link controller configuration area length */
-	u32 unknown2:4; /* TODO check that length is correct */
+	u32 unkyeswn2:4; /* TODO check that length is correct */
 } __packed;
 
 struct tb_cap_phy {
 	struct tb_cap_basic cap_header;
-	u32 unknown1:16;
-	u32 unknown2:14;
+	u32 unkyeswn1:16;
+	u32 unkyeswn2:14;
 	bool disable:1;
-	u32 unknown3:11;
+	u32 unkyeswn3:11;
 	enum tb_port_state state:4;
-	u32 unknown4:2;
+	u32 unkyeswn4:2;
 } __packed;
 
 struct tb_eeprom_ctl {
@@ -121,21 +121,21 @@ struct tb_eeprom_ctl {
 	bool data_out:1; /* to eeprom */
 	bool data_in:1; /* from eeprom */
 	bool access_high:1; /* set to 1 before access */
-	bool not_present:1; /* should be 0 */
-	bool unknown1:1;
+	bool yest_present:1; /* should be 0 */
+	bool unkyeswn1:1;
 	bool present:1; /* should be 1 */
-	u32 unknown2:24;
+	u32 unkyeswn2:24;
 } __packed;
 
 struct tb_cap_plug_events {
 	struct tb_cap_extended_short cap_header;
-	u32 __unknown1:2;
+	u32 __unkyeswn1:2;
 	u32 plug_events:5;
-	u32 __unknown2:25;
-	u32 __unknown3;
-	u32 __unknown4;
+	u32 __unkyeswn2:25;
+	u32 __unkyeswn3;
+	u32 __unkyeswn4;
 	struct tb_eeprom_ctl eeprom_ctl;
-	u32 __unknown5[7];
+	u32 __unkyeswn5[7];
 	u32 drom_offset; /* 32 bit register, but eeprom addresses are 16 bit */
 } __packed;
 
@@ -151,7 +151,7 @@ struct tb_regs_switch_header {
 	u32 upstream_port_number:6;
 	u32 max_port_number:6;
 	u32 depth:3;
-	u32 __unknown1:1;
+	u32 __unkyeswn1:1;
 	u32 revision:8;
 	/* DWORD 2 */
 	u32 route_lo;
@@ -164,7 +164,7 @@ struct tb_regs_switch_header {
 				  * milliseconds. Writing 0x00 is interpreted
 				  * as 255ms.
 				  */
-	u32 __unknown4:16;
+	u32 __unkyeswn4:16;
 	u32 thunderbolt_version:8;
 } __packed;
 
@@ -172,13 +172,13 @@ enum tb_port_type {
 	TB_TYPE_INACTIVE	= 0x000000,
 	TB_TYPE_PORT		= 0x000001,
 	TB_TYPE_NHI		= 0x000002,
-	/* TB_TYPE_ETHERNET	= 0x020000, lower order bits are not known */
-	/* TB_TYPE_SATA		= 0x080000, lower order bits are not known */
+	/* TB_TYPE_ETHERNET	= 0x020000, lower order bits are yest kyeswn */
+	/* TB_TYPE_SATA		= 0x080000, lower order bits are yest kyeswn */
 	TB_TYPE_DP_HDMI_IN	= 0x0e0101,
 	TB_TYPE_DP_HDMI_OUT	= 0x0e0102,
 	TB_TYPE_PCIE_DOWN	= 0x100101,
 	TB_TYPE_PCIE_UP		= 0x100102,
-	/* TB_TYPE_USB		= 0x200000, lower order bits are not known */
+	/* TB_TYPE_USB		= 0x200000, lower order bits are yest kyeswn */
 };
 
 /* Present on every port in TB_CF_PORT at address zero. */
@@ -189,25 +189,25 @@ struct tb_regs_port_header {
 	/* DWORD 1 */
 	u32 first_cap_offset:8;
 	u32 max_counters:11;
-	u32 __unknown1:5;
+	u32 __unkyeswn1:5;
 	u32 revision:8;
 	/* DWORD 2 */
 	enum tb_port_type type:24;
 	u32 thunderbolt_version:8;
 	/* DWORD 3 */
-	u32 __unknown2:20;
+	u32 __unkyeswn2:20;
 	u32 port_number:6;
-	u32 __unknown3:6;
+	u32 __unkyeswn3:6;
 	/* DWORD 4 */
 	u32 nfc_credits;
 	/* DWORD 5 */
 	u32 max_in_hop_id:11;
 	u32 max_out_hop_id:11;
-	u32 __unknown4:10;
+	u32 __unkyeswn4:10;
 	/* DWORD 6 */
-	u32 __unknown5;
+	u32 __unkyeswn5;
 	/* DWORD 7 */
-	u32 __unknown6;
+	u32 __unkyeswn6;
 
 } __packed;
 
@@ -286,12 +286,12 @@ struct tb_regs_hop {
 			  */
 	u32 out_port:6; /* next port of the path (on the same switch) */
 	u32 initial_credits:8;
-	u32 unknown1:6; /* set to zero */
+	u32 unkyeswn1:6; /* set to zero */
 	bool enable:1;
 
 	/* DWORD 1 */
 	u32 weight:4;
-	u32 unknown2:4; /* set to zero */
+	u32 unkyeswn2:4; /* set to zero */
 	u32 priority:3;
 	bool drop_packages:1;
 	u32 counter:11; /* index into TB_CFG_COUNTERS on this port */
@@ -301,7 +301,7 @@ struct tb_regs_hop {
 	bool ingress_shared_buffer:1;
 	bool egress_shared_buffer:1;
 	bool pending:1;
-	u32 unknown3:3; /* set to zero */
+	u32 unkyeswn3:3; /* set to zero */
 } __packed;
 
 /* Common link controller registers */

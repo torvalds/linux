@@ -4,7 +4,7 @@
 #ifndef __A5XX_GPU_H__
 #define __A5XX_GPU_H__
 
-#include "adreno_gpu.h"
+#include "adreyes_gpu.h"
 
 /* Bringing over the hack from the previous targets */
 #undef ROP_COPY
@@ -13,7 +13,7 @@
 #include "a5xx.xml.h"
 
 struct a5xx_gpu {
-	struct adreno_gpu base;
+	struct adreyes_gpu base;
 
 	struct drm_gem_object *pm4_bo;
 	uint64_t pm4_iova;
@@ -41,14 +41,14 @@ struct a5xx_gpu {
 #define to_a5xx_gpu(x) container_of(x, struct a5xx_gpu, base)
 
 #ifdef CONFIG_DEBUG_FS
-int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor);
+int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_miyesr *miyesr);
 #endif
 
 /*
  * In order to do lockless preemption we use a simple state machine to progress
  * through the process.
  *
- * PREEMPT_NONE - no preemption in progress.  Next state START.
+ * PREEMPT_NONE - yes preemption in progress.  Next state START.
  * PREEMPT_START - The trigger is evaulating if preemption is possible. Next
  * states: TRIGGERED, NONE
  * PREEMPT_ABORT - An intermediate state before moving back to NONE. Next

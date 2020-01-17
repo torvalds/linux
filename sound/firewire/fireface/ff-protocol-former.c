@@ -218,7 +218,7 @@ static void dump_sync_status(struct snd_ff *ff, struct snd_info_buffer *buffer)
 			else
 				state = "lock";
 		} else {
-			state = "none";
+			state = "yesne";
 		}
 
 		snd_iprintf(buffer, "%s: %s\n", clk_entry->label, state);
@@ -240,7 +240,7 @@ static void dump_sync_status(struct snd_ff *ff, struct snd_info_buffer *buffer)
 			}
 		}
 		if (i == ARRAY_SIZE(referred_entries))
-			label = "none";
+			label = "yesne";
 
 		for (i = 0; i < ARRAY_SIZE(rate_entries); ++i) {
 			rate_entry = rate_entries + i;
@@ -328,7 +328,7 @@ static int allocate_tx_resources(struct snd_ff *ff)
 
 	// NOTE: this is a makeshift to start OHCI 1394 IR context in the
 	// channel. On the other hand, 'struct fw_iso_resources.allocated' is
-	// not true and it's not deallocated at stop.
+	// yest true and it's yest deallocated at stop.
 	ff->tx_resources.channel = tx_isoc_channel;
 
 	return 0;
@@ -346,21 +346,21 @@ static int ff800_allocate_resources(struct snd_ff *ff, unsigned int rate)
 	if (err < 0)
 		return err;
 
-	// If starting isochronous communication immediately, change of STF has
-	// no effect. In this case, the communication runs based on former STF.
+	// If starting isochroyesus communication immediately, change of STF has
+	// yes effect. In this case, the communication runs based on former STF.
 	// Let's sleep for a bit.
 	msleep(100);
 
-	// Controllers should allocate isochronous resources for rx stream.
+	// Controllers should allocate isochroyesus resources for rx stream.
 	err = fw_iso_resources_allocate(&ff->rx_resources,
 				amdtp_stream_get_max_payload(&ff->rx_stream),
 				fw_parent_device(ff->unit)->max_speed);
 	if (err < 0)
 		return err;
 
-	// Set isochronous channel and the number of quadlets of rx packets.
+	// Set isochroyesus channel and the number of quadlets of rx packets.
 	// This should be done before the allocation of tx resources to avoid
-	// periodical noise.
+	// periodical yesise.
 	data = ff->rx_stream.data_block_quadlets << 3;
 	data = (data << 8) | ff->rx_resources.channel;
 	reg = cpu_to_le32(data);
@@ -403,7 +403,7 @@ static void ff800_finish_session(struct snd_ff *ff)
 // Fireface 800 doesn't allow drivers to register lower 4 bytes of destination
 // address.
 // A write transaction to clear registered higher 4 bytes of destination address
-// has an effect to suppress asynchronous transaction from device.
+// has an effect to suppress asynchroyesus transaction from device.
 static void ff800_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
 				  __le32 *buf, size_t length)
 {
@@ -436,7 +436,7 @@ const struct snd_ff_protocol snd_ff_protocol_ff800 = {
 #define FF400_TX_PACKET_FORMAT	0x00008010050cull
 #define FF400_ISOC_COMM_STOP	0x000080100510ull
 
-// Fireface 400 manages isochronous channel number in 3 bit field. Therefore,
+// Fireface 400 manages isochroyesus channel number in 3 bit field. Therefore,
 // we can allocate between 0 and 7 channel.
 static int ff400_allocate_resources(struct snd_ff *ff, unsigned int rate)
 {
@@ -445,7 +445,7 @@ static int ff400_allocate_resources(struct snd_ff *ff, unsigned int rate)
 	int i;
 	int err;
 
-	// Check whether the given value is supported or not.
+	// Check whether the given value is supported or yest.
 	for (i = 0; i < CIP_SFC_COUNT; i++) {
 		if (amdtp_rate_table[i] == rate)
 			break;
@@ -501,7 +501,7 @@ static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
 			return err;
 	}
 
-	// Set isochronous channel and the number of quadlets of received
+	// Set isochroyesus channel and the number of quadlets of received
 	// packets.
 	reg = cpu_to_le32(((ff->rx_stream.data_block_quadlets << 3) << 8) |
 			  ff->rx_resources.channel);
@@ -510,7 +510,7 @@ static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
 	if (err < 0)
 		return err;
 
-	// Set isochronous channel and the number of quadlets of transmitted
+	// Set isochroyesus channel and the number of quadlets of transmitted
 	// packet.
 	// TODO: investigate the purpose of this 0x80.
 	reg = cpu_to_le32((0x80 << 24) |
@@ -546,7 +546,7 @@ static void ff400_finish_session(struct snd_ff *ff)
 //  - 0x10000000: 0x'....'....'0000'0100
 //  - 0x20000000: 0x'....'....'0000'0180
 //
-// Drivers can suppress the device to transfer asynchronous transactions by
+// Drivers can suppress the device to transfer asynchroyesus transactions by
 // using below 2 bits.
 //  - 0x01000000: suppress transmission
 //  - 0x02000000: suppress transmission

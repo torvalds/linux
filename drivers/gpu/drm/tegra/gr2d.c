@@ -204,13 +204,13 @@ static int gr2d_probe(struct platform_device *pdev)
 
 	gr2d->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(gr2d->clk)) {
-		dev_err(dev, "cannot get clock\n");
+		dev_err(dev, "canyest get clock\n");
 		return PTR_ERR(gr2d->clk);
 	}
 
 	err = clk_prepare_enable(gr2d->clk);
 	if (err) {
-		dev_err(dev, "cannot turn on clock\n");
+		dev_err(dev, "canyest turn on clock\n");
 		return err;
 	}
 

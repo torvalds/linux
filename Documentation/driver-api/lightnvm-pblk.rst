@@ -7,7 +7,7 @@ block I/O interface. Its primary responsibilities are:
   - Map logical addresses onto physical addresses (4KB granularity) in a
     logical-to-physical (L2P) table.
   - Maintain the integrity and consistency of the L2P table as well as its
-    recovery from normal tear down and power outage.
+    recovery from yesrmal tear down and power outage.
   - Deal with controller- and media-specific constrains.
   - Handle I/O errors.
   - Implement garbage collection.

@@ -6,7 +6,7 @@
  * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
  *
  * Some code borrowed from https://github.com/xairy/kasan-prototype by
- *        Andrey Konovalov <andreyknvl@gmail.com>
+ *        Andrey Koyesvalov <andreyknvl@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -107,7 +107,7 @@ static void print_track(struct kasan_track *track, const char *prefix)
 		nr_entries = stack_depot_fetch(track->stack, &entries);
 		stack_trace_print(entries, nr_entries, 0);
 	} else {
-		pr_err("(stack is not available)\n");
+		pr_err("(stack is yest available)\n");
 	}
 }
 
@@ -231,7 +231,7 @@ static bool __must_check tokenize_frame_descr(const char **frame_descr,
 	*frame_descr = sep + 1;
 
 	if (value != NULL && kstrtoul(token, 10, value)) {
-		pr_err("KASAN internal error: not a valid number: %s\n", token);
+		pr_err("KASAN internal error: yest a valid number: %s\n", token);
 		return false;
 	}
 
@@ -279,7 +279,7 @@ static void print_decoded_frame_descr(const char *frame_descr)
 					  NULL))
 			return;
 
-		/* Strip line number; without filename it's not very helpful. */
+		/* Strip line number; without filename it's yest very helpful. */
 		strreplace(token, ':', '\0');
 
 		/* Finally, print object information. */
@@ -428,7 +428,7 @@ static void print_shadow_for_address(const void *addr)
 		snprintf(buffer, sizeof(buffer),
 			(i == 0) ? ">%px: " : " %px: ", kaddr);
 		/*
-		 * We should not pass a shadow pointer to generic
+		 * We should yest pass a shadow pointer to generic
 		 * function, because generic functions may try to
 		 * access kasan mapping for the passed address.
 		 */

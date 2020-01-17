@@ -40,7 +40,7 @@ struct be_mcc_wrb {
 	union {
 #define EMBED_MBX_MAX_PAYLOAD_SIZE  220
 		u8 embedded_payload[236];	/* used by embedded cmds */
-		struct be_sge sgl[19];	/* used by non-embedded cmds */
+		struct be_sge sgl[19];	/* used by yesn-embedded cmds */
 	} payload;
 };
 
@@ -87,7 +87,7 @@ struct be_mcc_compl {
  * The software must write this register twice to post any command. First,
  * it writes the register with hi=1 and the upper bits of the physical address
  * for the MAILBOX structure. Software must poll the ready bit until this
- * is acknowledged. Then, sotware writes the register with hi=0 with the lower
+ * is ackyeswledged. Then, sotware writes the register with hi=0 with the lower
  * bits in the address. It must poll the ready bit until the command is
  * complete. Upon completion, the MAILBOX will contain a valid completion
  * queue entry.
@@ -169,7 +169,7 @@ struct be_async_event_link_state {
 #define BE_ASYNC_LINK_UP_MASK		0x01
 	u8 port_duplex;
 	u8 port_speed;
-/* BE2ISCSI_LINK_SPEED_ZERO	0x00 - no link */
+/* BE2ISCSI_LINK_SPEED_ZERO	0x00 - yes link */
 #define BE2ISCSI_LINK_SPEED_10MBPS	0x01
 #define BE2ISCSI_LINK_SPEED_100MBPS	0x02
 #define BE2ISCSI_LINK_SPEED_1GBPS	0x03
@@ -305,7 +305,7 @@ struct amap_eq_context {
 	u8 delaymult[10];	/* dword 2 */
 	u8 rsvd5[2];		/* dword 2 */
 	u8 phase[2];		/* dword 2 */
-	u8 nodelay;		/* dword 2 */
+	u8 yesdelay;		/* dword 2 */
 	u8 rsvd6[4];		/* dword 2 */
 	u8 rsvd7[32];		/* dword 3 */
 } __packed;
@@ -573,7 +573,7 @@ struct amap_cq_context {
 	u8 cidx[11];		/* dword 0 */
 	u8 rsvd0;		/* dword 0 */
 	u8 coalescwm[2];	/* dword 0 */
-	u8 nodelay;		/* dword 0 */
+	u8 yesdelay;		/* dword 0 */
 	u8 epidx[11];		/* dword 0 */
 	u8 rsvd1;		/* dword 0 */
 	u8 count[2];		/* dword 0 */
@@ -595,7 +595,7 @@ struct amap_cq_context {
 struct amap_cq_context_v2 {
 	u8 rsvd0[12];   /* dword 0 */
 	u8 coalescwm[2];    /* dword 0 */
-	u8 nodelay;     /* dword 0 */
+	u8 yesdelay;     /* dword 0 */
 	u8 rsvd1[12];   /* dword 0 */
 	u8 count[2];    /* dword 0 */
 	u8 valid;       /* dword 0 */
@@ -693,7 +693,7 @@ static inline void *embedded_payload(struct be_mcc_wrb *wrb)
 	return wrb->payload.embedded_payload;
 }
 
-static inline struct be_sge *nonembedded_sgl(struct be_mcc_wrb *wrb)
+static inline struct be_sge *yesnembedded_sgl(struct be_mcc_wrb *wrb)
 {
 	return &wrb->payload.sgl[0];
 }
@@ -804,7 +804,7 @@ int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 
 int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 			  struct be_queue_info *cq, struct be_queue_info *eq,
-			  bool sol_evts, bool no_delay,
+			  bool sol_evts, bool yes_delay,
 			  int num_cqe_dma_coalesce);
 
 int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
@@ -826,7 +826,7 @@ int __beiscsi_mcc_compl_status(struct beiscsi_hba *phba,
 			       struct be_mcc_wrb **wrb,
 			       struct be_dma_mem *mbx_cmd_mem);
 struct be_mcc_wrb *wrb_from_mbox(struct be_dma_mem *mbox_mem);
-void be_mcc_notify(struct beiscsi_hba *phba, unsigned int tag);
+void be_mcc_yestify(struct beiscsi_hba *phba, unsigned int tag);
 struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
 				 unsigned int *ref_tag);
 void beiscsi_process_async_event(struct beiscsi_hba *phba,
@@ -884,7 +884,7 @@ struct amap_be_default_pdu_context {
 	u8 rx_pdid_valid;	/* dword 1 */
 	u8 default_buffer_size[16];	/* dword 2 */
 	u8 cq_id_recv[10];	/* dword 2 */
-	u8 rx_pdid_not_valid;	/* dword 2 */
+	u8 rx_pdid_yest_valid;	/* dword 2 */
 	u8 rsvd3[5];		/* dword 2 */
 	u8 rsvd4[32];		/* dword 3 */
 } __packed;
@@ -1040,7 +1040,7 @@ struct common_sol_cqe {
 	u8 res_flag; /* the s feild of structure */
 	u8 i_resp; /* for skh if cmd_complete is set then i_sts is response */
 	u8 i_flags; /* for skh or the u and o feilds */
-	u8 i_sts; /* for skh if cmd_complete is not-set then i_sts is status */
+	u8 i_sts; /* for skh if cmd_complete is yest-set then i_sts is status */
 };
 
 /*** iSCSI ack/driver message completions ***/
@@ -1070,7 +1070,7 @@ struct amap_it_dmsg_cqe_v2 {
 
 /**
  * Post WRB Queue Doorbell Register used by the host Storage
- * stack to notify the
+ * stack to yestify the
  * controller of a posted Work Request Block
  */
 #define DB_WRB_POST_CID_MASK		0xFFFF	/* bits 0 - 16 */
@@ -1294,7 +1294,7 @@ struct be_cmd_get_port_name {
 						 */
 #define TGT_CTX_UPDT_CMD		7	/* Target context update */
 #define TGT_DM_CMD			11	/* Indicates that the bhs
-						 * prepared by driver should not
+						 * prepared by driver should yest
 						 * be touched.
 						 */
 
@@ -1308,7 +1308,7 @@ struct be_cmd_get_port_name {
  * of operation.
  */
 #define SOL_CMD_COMPLETE		1	/* Solicited command completed
-						 * normally
+						 * yesrmally
 						 */
 #define SOL_CMD_KILLED_DATA_DIGEST_ERR  2	/* Solicited command got
 						 * invalidated internally due
@@ -1339,7 +1339,7 @@ struct be_cmd_get_port_name {
 						 */
 #define CXN_KILLED_STALE_ITT_TTT_RCVD	8	/* Connection got invalidated
 						 * internally due to a received
-						 * ITT/TTT that does not belong
+						 * ITT/TTT that does yest belong
 						 * to this Connection
 						 */
 #define CXN_KILLED_INVALID_ITT_TTT_RCVD 9	/* Connection got invalidated
@@ -1399,7 +1399,7 @@ struct be_cmd_get_port_name {
 						 */
 #define CMD_CXN_KILLED_ICD_INVALID	21	/* Command got invalidated
 						 * internally due to the
-						 * corresponding ICD not in a
+						 * corresponding ICD yest in a
 						 * valid state
 						 */
 #define CMD_CXN_KILLED_ITT_INVALID	22	/* Command got invalidated due
@@ -1416,26 +1416,26 @@ struct be_cmd_get_port_name {
 						 * DataSN
 						 */
 #define CXN_INVALIDATE_NOTIFY		25	/* Connection invalidation
-						 * completion notify.
+						 * completion yestify.
 						 */
 #define CXN_INVALIDATE_INDEX_NOTIFY	26	/* Connection invalidation
 						 * completion
 						 * with data PDU index.
 						 */
 #define CMD_INVALIDATED_NOTIFY		27	/* Command invalidation
-						 * completionnotifify.
+						 * completionyestifify.
 						 */
-#define UNSOL_HDR_NOTIFY		28	/* Unsolicited header notify.*/
-#define UNSOL_DATA_NOTIFY		29	/* Unsolicited data notify.*/
+#define UNSOL_HDR_NOTIFY		28	/* Unsolicited header yestify.*/
+#define UNSOL_DATA_NOTIFY		29	/* Unsolicited data yestify.*/
 #define UNSOL_DATA_DIGEST_ERROR_NOTIFY	30	/* Unsolicited data digest
-						 * error notify.
+						 * error yestify.
 						 */
-#define DRIVERMSG_NOTIFY		31	/* TCP acknowledge based
-						 * notification.
+#define DRIVERMSG_NOTIFY		31	/* TCP ackyeswledge based
+						 * yestification.
 						 */
 #define CXN_KILLED_CMND_DATA_NOT_ON_SAME_CONN 32 /* Connection got invalidated
 						  * internally due to command
-						  * and data are not on same
+						  * and data are yest on same
 						  * connection.
 						  */
 #define SOL_CMD_KILLED_DIF_ERR		33	/* Solicited command got

@@ -16,7 +16,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -73,7 +73,7 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 	temp->server = server;
 
 	/*
-	 * The default is for the mid to be synchronous, so the
+	 * The default is for the mid to be synchroyesus, so the
 	 * default callback just wakes up the current task.
 	 */
 	temp->callback = cifs_wake_up_task;
@@ -91,7 +91,7 @@ static void _cifs_mid_q_entry_release(struct kref *refcount)
 #ifdef CONFIG_CIFS_STATS2
 	__le16 command = midEntry->server->vals->lock_cmd;
 	__u16 smb_cmd = le16_to_cpu(midEntry->command);
-	unsigned long now;
+	unsigned long yesw;
 	unsigned long roundtrip_time;
 #endif
 	struct TCP_Server_Info *server = midEntry->server;
@@ -108,10 +108,10 @@ static void _cifs_mid_q_entry_release(struct kref *refcount)
 	else
 		cifs_small_buf_release(midEntry->resp_buf);
 #ifdef CONFIG_CIFS_STATS2
-	now = jiffies;
-	if (now < midEntry->when_alloc)
+	yesw = jiffies;
+	if (yesw < midEntry->when_alloc)
 		cifs_server_dbg(VFS, "invalid mid allocation time\n");
-	roundtrip_time = now - midEntry->when_alloc;
+	roundtrip_time = yesw - midEntry->when_alloc;
 
 	if (smb_cmd < NUMBER_OF_SMB2_COMMANDS) {
 		if (atomic_read(&server->num_cmds[smb_cmd]) == 0) {
@@ -130,18 +130,18 @@ static void _cifs_mid_q_entry_release(struct kref *refcount)
 	 * commands taking longer than one second (default) can be indications
 	 * that something is wrong, unless it is quite a slow link or a very
 	 * busy server. Note that this calc is unlikely or impossible to wrap
-	 * as long as slow_rsp_threshold is not set way above recommended max
+	 * as long as slow_rsp_threshold is yest set way above recommended max
 	 * value (32767 ie 9 hours) and is generally harmless even if wrong
 	 * since only affects debug counters - so leaving the calc as simple
 	 * comparison rather than doing multiple conversions and overflow
 	 * checks
 	 */
 	if ((slow_rsp_threshold != 0) &&
-	    time_after(now, midEntry->when_alloc + (slow_rsp_threshold * HZ)) &&
+	    time_after(yesw, midEntry->when_alloc + (slow_rsp_threshold * HZ)) &&
 	    (midEntry->command != command)) {
 		/*
 		 * smb2slowcmd[NUMBER_OF_SMB2_COMMANDS] counts by command
-		 * NB: le16_to_cpu returns unsigned so can not be negative below
+		 * NB: le16_to_cpu returns unsigned so can yest be negative below
 		 */
 		if (smb_cmd < NUMBER_OF_SMB2_COMMANDS)
 			cifs_stats_inc(&server->smb2slowcmd[smb_cmd]);
@@ -152,9 +152,9 @@ static void _cifs_mid_q_entry_release(struct kref *refcount)
 			pr_debug(" CIFS slow rsp: cmd %d mid %llu",
 			       midEntry->command, midEntry->mid);
 			cifs_info(" A: 0x%lx S: 0x%lx R: 0x%lx\n",
-			       now - midEntry->when_alloc,
-			       now - midEntry->when_sent,
-			       now - midEntry->when_received);
+			       yesw - midEntry->when_alloc,
+			       yesw - midEntry->when_sent,
+			       yesw - midEntry->when_received);
 		}
 	}
 #endif
@@ -210,7 +210,7 @@ smb_send_kvec(struct TCP_Server_Info *server, struct msghdr *smb_msg,
 	smb_msg->msg_namelen = sizeof(struct sockaddr);
 	smb_msg->msg_control = NULL;
 	smb_msg->msg_controllen = 0;
-	if (server->noblocksnd)
+	if (server->yesblocksnd)
 		smb_msg->msg_flags = MSG_DONTWAIT + MSG_NOSIGNAL;
 	else
 		smb_msg->msg_flags = MSG_NOSIGNAL;
@@ -218,7 +218,7 @@ smb_send_kvec(struct TCP_Server_Info *server, struct msghdr *smb_msg,
 	while (msg_data_left(smb_msg)) {
 		/*
 		 * If blocking send, we try 3 times, since each can block
-		 * for 5 seconds. For nonblocking  we have to try more
+		 * for 5 seconds. For yesnblocking  we have to try more
 		 * but wait increasing amounts of time allowing time for
 		 * socket to clear.  The overall time we wait in either
 		 * case to send on the socket is about 15 seconds.
@@ -228,8 +228,8 @@ smb_send_kvec(struct TCP_Server_Info *server, struct msghdr *smb_msg,
 		 * SMB Write past end of file which can be slow, and
 		 * blocking lock operations). NFS waits slightly longer
 		 * than CIFS, but this can make it take longer for
-		 * nonresponsive servers to be detected and 15 seconds
-		 * is more than enough time for modern networks to
+		 * yesnresponsive servers to be detected and 15 seconds
+		 * is more than eyesugh time for modern networks to
 		 * send a packet.  In most cases if we fail to send
 		 * after the retries we will kill the socket and
 		 * reconnect which may clear the network problem.
@@ -238,7 +238,7 @@ smb_send_kvec(struct TCP_Server_Info *server, struct msghdr *smb_msg,
 		if (rc == -EAGAIN) {
 			retries++;
 			if (retries >= 14 ||
-			    (!server->noblocksnd && (retries > 2))) {
+			    (!server->yesblocksnd && (retries > 2))) {
 				cifs_server_dbg(VFS, "sends on sock %p stuck for 15 seconds\n",
 					 ssocket);
 				return -EAGAIN;
@@ -253,7 +253,7 @@ smb_send_kvec(struct TCP_Server_Info *server, struct msghdr *smb_msg,
 		if (rc == 0) {
 			/* should never happen, letting socket clear before
 			   retrying is our only obvious option here */
-			cifs_server_dbg(VFS, "tcp sent no data\n");
+			cifs_server_dbg(VFS, "tcp sent yes data\n");
 			msleep(500);
 			continue;
 		}
@@ -350,7 +350,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 	rfc1002_marker = cpu_to_be32(send_length);
 
 	/*
-	 * We should not allow signals to interrupt the network send because
+	 * We should yest allow signals to interrupt the network send because
 	 * any partial send will cause session reconnects thus increasing
 	 * latency of system calls and overload a server with unnecessary
 	 * requests.
@@ -394,7 +394,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 
 		total_len += sent;
 
-		/* now walk the page array and send each page in it */
+		/* yesw walk the page array and send each page in it */
 		for (i = 0; i < rqst[j].rq_npages; i++) {
 			struct bio_vec bvec;
 
@@ -421,7 +421,7 @@ unmask:
 	 * mid entry to be kept in the pending requests queue thus allowing
 	 * to handle responses from the server by the client.
 	 *
-	 * If only part of the packet has been sent there is no need to hide
+	 * If only part of the packet has been sent there is yes need to hide
 	 * interrupt because the session will be reconnected anyway, so there
 	 * won't be any response from the server to handle.
 	 */
@@ -534,13 +534,13 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 	*instance = 0;
 
 	credits = server->ops->get_credits_field(server, optype);
-	/* Since an echo is already inflight, no need to wait to send another */
+	/* Since an echo is already inflight, yes need to wait to send ayesther */
 	if (*credits <= 0 && optype == CIFS_ECHO_OP)
 		return -EAGAIN;
 
 	spin_lock(&server->req_lock);
 	if ((flags & CIFS_TIMEOUT_MASK) == CIFS_NON_BLOCKING) {
-		/* oplock breaks must not be held up */
+		/* oplock breaks must yest be held up */
 		server->in_flight++;
 		if (server->in_flight > server->max_in_flight)
 			server->max_in_flight = server->in_flight;
@@ -574,7 +574,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 			}
 
 			/*
-			 * For normal commands, reserve the last MAX_COMPOUND
+			 * For yesrmal commands, reserve the last MAX_COMPOUND
 			 * credits to compound requests.
 			 * Otherwise these compounds could be permanently
 			 * starved for credits by single-credit requests.
@@ -612,7 +612,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 			}
 
 			/*
-			 * Can not count locking commands against total
+			 * Can yest count locking commands against total
 			 * as they are allowed to block on server.
 			 */
 
@@ -650,7 +650,7 @@ wait_for_compound_request(struct TCP_Server_Info *server, int num,
 	spin_lock(&server->req_lock);
 	if (*credits < num) {
 		/*
-		 * Return immediately if not too many requests in flight since
+		 * Return immediately if yest too many requests in flight since
 		 * we will likely be stuck on waiting for credits.
 		 */
 		if (server->in_flight < num - *credits) {
@@ -810,7 +810,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 
 	/*
 	 * Need to store the time in mid before calling I/O. For call_async,
-	 * I/O response may come back and free the mid entry on another thread.
+	 * I/O response may come back and free the mid entry on ayesther thread.
 	 */
 	cifs_save_when_sent(mid);
 	cifs_in_send_inc(server);
@@ -936,7 +936,7 @@ cifs_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 }
 
 struct mid_q_entry *
-cifs_setup_request(struct cifs_ses *ses, struct TCP_Server_Info *ignored,
+cifs_setup_request(struct cifs_ses *ses, struct TCP_Server_Info *igyesred,
 		   struct smb_rqst *rqst)
 {
 	int rc;
@@ -1002,7 +1002,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	optype = flags & CIFS_OP_MASK;
 
 	for (i = 0; i < num_rqst; i++)
-		resp_buf_type[i] = CIFS_NO_BUFFER;  /* no response buf yet */
+		resp_buf_type[i] = CIFS_NO_BUFFER;  /* yes response buf yet */
 
 	if ((ses == NULL) || (ses->server == NULL)) {
 		cifs_dbg(VFS, "Null session\n");
@@ -1028,7 +1028,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	 * Wait for all the requests to become available.
 	 * This approach still leaves the possibility to be stuck waiting for
 	 * credits if the server doesn't grant credits to the outstanding
-	 * requests and if the client is completely idle, not generating any
+	 * requests and if the client is completely idle, yest generating any
 	 * other requests.
 	 * This can be handled by the eventual session reconnect.
 	 */
@@ -1052,7 +1052,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 	/*
 	 * All the parts of the compound chain belong obtained credits from the
-	 * same session. We can not use credits obtained from the previous
+	 * same session. We can yest use credits obtained from the previous
 	 * session to send this request. Check if there were reconnects after
 	 * we obtained credits and return -EAGAIN in such cases to let callers
 	 * handle it.
@@ -1106,7 +1106,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 	/*
 	 * If sending failed for some reason or it is an oplock break that we
-	 * will not receive a response to - return credits back
+	 * will yest receive a response to - return credits back
 	 */
 	if (rc < 0 || (flags & CIFS_NO_SRV_RSP)) {
 		for (i = 0; i < num_rqst; i++)
@@ -1156,7 +1156,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 		rc = cifs_sync_mid_result(midQ[i], server);
 		if (rc != 0) {
-			/* mark this mid as cancelled to not free it below */
+			/* mark this mid as cancelled to yest free it below */
 			cancelled_mid[i] = true;
 			goto out;
 		}
@@ -1181,7 +1181,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		rc = server->ops->check_receive(midQ[i], server,
 						     flags & CIFS_LOG_ERROR);
 
-		/* mark it so buf will not be freed by cifs_delete_mid */
+		/* mark it so buf will yest be freed by cifs_delete_mid */
 		if ((flags & CIFS_NO_RSP_BUF) == 0)
 			midQ[i]->resp_buf = NULL;
 
@@ -1201,8 +1201,8 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 out:
 	/*
 	 * This will dequeue all mids. After this it is important that the
-	 * demultiplex_thread will not process any of these mids any futher.
-	 * This is prevented above by using a noop callback that will not
+	 * demultiplex_thread will yest process any of these mids any futher.
+	 * This is prevented above by using a yesop callback that will yest
 	 * wake this thread except for the very last PDU.
 	 */
 	for (i = 0; i < num_rqst; i++) {
@@ -1286,7 +1286,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	if (server->tcpStatus == CifsExiting)
 		return -ENOENT;
 
-	/* Ensure that we do not send more than 50 overlapping requests
+	/* Ensure that we do yest send more than 50 overlapping requests
 	   to the same server. We may make this configurable later or
 	   use ses->maxReq */
 
@@ -1340,7 +1340,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 		send_cancel(server, &rqst, midQ);
 		spin_lock(&GlobalMid_Lock);
 		if (midQ->mid_state == MID_REQUEST_SUBMITTED) {
-			/* no longer considered to be "in-flight" */
+			/* yes longer considered to be "in-flight" */
 			midQ->callback = DeleteMidQEntry;
 			spin_unlock(&GlobalMid_Lock);
 			add_credits(server, &credits, 0);
@@ -1427,7 +1427,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 	if (server->tcpStatus == CifsExiting)
 		return -ENOENT;
 
-	/* Ensure that we do not send more than 50 overlapping requests
+	/* Ensure that we do yest send more than 50 overlapping requests
 	   to the same server. We may make this configurable later or
 	   use ses->maxReq */
 
@@ -1515,7 +1515,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 			send_cancel(server, &rqst, midQ);
 			spin_lock(&GlobalMid_Lock);
 			if (midQ->mid_state == MID_REQUEST_SUBMITTED) {
-				/* no longer considered to be "in-flight" */
+				/* yes longer considered to be "in-flight" */
 				midQ->callback = DeleteMidQEntry;
 				spin_unlock(&GlobalMid_Lock);
 				return rc;

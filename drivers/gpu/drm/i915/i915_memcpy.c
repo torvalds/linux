@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -68,7 +68,7 @@ static void __memcpy_ntdqa(void *dst, const void *src, unsigned long len)
  * @len: how many bytes to copy
  *
  * i915_memcpy_from_wc copies @len bytes from @src to @dst using
- * non-temporal instructions where available. Note that all arguments
+ * yesn-temporal instructions where available. Note that all arguments
  * (@src, @dst) must be aligned to 16 bytes and @len must be a multiple
  * of 16.
  *
@@ -76,7 +76,7 @@ static void __memcpy_ntdqa(void *dst, const void *src, unsigned long len)
  * i915_memcpy_from_wc(NULL, NULL, 0);
  *
  * Returns true if the copy was successful, false if the preconditions
- * are not met.
+ * are yest met.
  */
 bool i915_memcpy_from_wc(void *dst, const void *src, unsigned long len)
 {

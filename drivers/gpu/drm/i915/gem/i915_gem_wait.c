@@ -65,7 +65,7 @@ i915_gem_object_wait_reservation(struct dma_resv *resv,
 		 * If both shared fences and an exclusive fence exist,
 		 * then by construction the shared fences must be later
 		 * than the exclusive fence. If we successfully wait for
-		 * all the shared fences, we know that the exclusive fence
+		 * all the shared fences, we kyesw that the exclusive fence
 		 * must all be signaled. If all the shared fences are
 		 * signaled, we can prune the array and recover the
 		 * floating references on the fences/requests.
@@ -81,7 +81,7 @@ i915_gem_object_wait_reservation(struct dma_resv *resv,
 	dma_fence_put(excl);
 
 	/*
-	 * Opportunistically prune the fences iff we know they have *all* been
+	 * Opportunistically prune the fences iff we kyesw they have *all* been
 	 * signaled.
 	 */
 	if (prune_fences && dma_resv_trylock(resv)) {
@@ -183,7 +183,7 @@ i915_gem_object_wait(struct drm_i915_gem_object *obj,
 
 static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
 {
-	/* nsecs_to_jiffies64() does not guard against overflow */
+	/* nsecs_to_jiffies64() does yest guard against overflow */
 	if (NSEC_PER_SEC % HZ &&
 	    div_u64(n, NSEC_PER_SEC) >= MAX_JIFFY_OFFSET / HZ)
 		return MAX_JIFFY_OFFSET;
@@ -220,8 +220,8 @@ static unsigned long to_wait_timeout(s64 timeout_ns)
  *  -E?: The add request failed
  *
  * The wait ioctl with a timeout of 0 reimplements the busy ioctl. With any
- * non-zero timeout parameter the wait ioctl will wait for the given number of
- * nanoseconds on an object becoming unbusy. Since the wait itself does so
+ * yesn-zero timeout parameter the wait ioctl will wait for the given number of
+ * nayesseconds on an object becoming unbusy. Since the wait itself does so
  * without holding struct_mutex the object may become re-busied before this
  * function completes. A similar but shorter * race condition exists in the busy
  * ioctl
@@ -255,7 +255,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			args->timeout_ns = 0;
 
 		/*
-		 * Apparently ktime isn't accurate enough and occasionally has a
+		 * Apparently ktime isn't accurate eyesugh and occasionally has a
 		 * bit of mismatch in the jiffies<->nsecs<->ktime loop. So patch
 		 * things up to make the test happy. We allow up to 1 jiffy.
 		 *

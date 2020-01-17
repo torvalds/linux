@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "reiserfs.h"
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/xattr.h>
@@ -10,31 +10,31 @@
 
 static int
 trusted_get(const struct xattr_handler *handler, struct dentry *unused,
-	    struct inode *inode, const char *name, void *buffer, size_t size)
+	    struct iyesde *iyesde, const char *name, void *buffer, size_t size)
 {
-	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(inode))
+	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(iyesde))
 		return -EPERM;
 
-	return reiserfs_xattr_get(inode, xattr_full_name(handler, name),
+	return reiserfs_xattr_get(iyesde, xattr_full_name(handler, name),
 				  buffer, size);
 }
 
 static int
 trusted_set(const struct xattr_handler *handler, struct dentry *unused,
-	    struct inode *inode, const char *name, const void *buffer,
+	    struct iyesde *iyesde, const char *name, const void *buffer,
 	    size_t size, int flags)
 {
-	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(inode))
+	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(iyesde))
 		return -EPERM;
 
-	return reiserfs_xattr_set(inode,
+	return reiserfs_xattr_set(iyesde,
 				  xattr_full_name(handler, name),
 				  buffer, size, flags);
 }
 
 static bool trusted_list(struct dentry *dentry)
 {
-	return capable(CAP_SYS_ADMIN) && !IS_PRIVATE(d_inode(dentry));
+	return capable(CAP_SYS_ADMIN) && !IS_PRIVATE(d_iyesde(dentry));
 }
 
 const struct xattr_handler reiserfs_xattr_trusted_handler = {

@@ -116,7 +116,7 @@ static void handle_relocs(unsigned long offset)
 		r_type = ELF64_R_TYPE(rela->r_info);
 		rc = arch_kexec_do_relocs(r_type, (void *) loc, val, 0);
 		if (rc)
-			error("Unknown relocation type");
+			error("Unkyeswn relocation type");
 	}
 }
 
@@ -175,7 +175,7 @@ void startup_kernel(void)
 		 * Mark as uneven to distinguish from real vmcore_info pointer.
 		 */
 		S390_lowcore.vmcore_info = __kaslr_offset | 0x1UL;
-		/* Clear non-relocated kernel */
+		/* Clear yesn-relocated kernel */
 		if (IS_ENABLED(CONFIG_KERNEL_UNCOMPRESSED))
 			memset(img, 0, vmlinux.image_size);
 	}

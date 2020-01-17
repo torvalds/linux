@@ -121,13 +121,13 @@ void ntfs_debug_dump_runlist(const runlist_element *rl)
 {
 	int i;
 	const char *lcn_str[5] = { "LCN_HOLE         ", "LCN_RL_NOT_MAPPED",
-				   "LCN_ENOENT       ", "LCN_unknown      " };
+				   "LCN_ENOENT       ", "LCN_unkyeswn      " };
 
 	if (!debug_msgs)
 		return;
 	pr_debug("Dumping runlist (values in hex):\n");
 	if (!rl) {
-		pr_debug("Run list not present.\n");
+		pr_debug("Run list yest present.\n");
 		return;
 	}
 	pr_debug("VCN              LCN               Run length\n");

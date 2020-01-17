@@ -37,10 +37,10 @@
  * __copy_user assumes that src and dst don't overlap, and that the call is
  * implementing one of the following:
  *   copy_to_user
- *     - src is readable  (no exceptions when reading src)
+ *     - src is readable  (yes exceptions when reading src)
  *   copy_from_user
- *     - dst is writable  (no exceptions when writing dst)
- * __copy_user uses a non-standard calling convention; see
+ *     - dst is writable  (yes exceptions when writing dst)
+ * __copy_user uses a yesn-standard calling convention; see
  * arch/mips/include/asm/uaccess.h
  *
  * When an exception happens on a load, the handler must
@@ -58,17 +58,17 @@
  *     of the copy,
  *  2- src_entry <= src < AT, and
  *  3- (dst - src) == (dst_entry - src_entry),
- * The _entry suffix denotes values when __copy_user was called.
+ * The _entry suffix deyestes values when __copy_user was called.
  *
- * (1) is set up up by uaccess.h and maintained by not writing AT in copy_user
+ * (1) is set up up by uaccess.h and maintained by yest writing AT in copy_user
  * (2) is met by incrementing src by the number of bytes copied
- * (3) is met by not doing loads between a pair of increments of dst and src
+ * (3) is met by yest doing loads between a pair of increments of dst and src
  *
  * The exception handlers for stores adjust len (if necessary) and return.
- * These handlers do not need to overwrite any data.
+ * These handlers do yest need to overwrite any data.
  *
  * For __rmemcpy and memmove an exception is always a kernel bug, therefore
- * they're not protected.
+ * they're yest protected.
  */
 
 #define EXC(inst_reg,addr,handler)		\
@@ -136,8 +136,8 @@
 #define ADDRMASK (NBYTES-1)
 
 	.text
-	.set	noreorder
-	.set	noat
+	.set	yesreorder
+	.set	yesat
 
 /*
  * A combined memcpy/__copy_user
@@ -175,10 +175,10 @@ EXPORT_SYMBOL(__copy_user)
 	bnez	t0, 1f			# Skip prefetch if len is too short
 	 sltu	t0, len, 256+1		# Check if len < 257
 	bnez	t0, 1f			# Skip prefetch if len is too short
-	 pref	0, 128(src)		# We must not prefetch invalid addresses
+	 pref	0, 128(src)		# We must yest prefetch invalid addresses
 	#
 	# This is where we loop if there is more than 128 bytes left
-2:	pref	0, 256(src)		# We must not prefetch invalid addresses
+2:	pref	0, 256(src)		# We must yest prefetch invalid addresses
 	#
 	# This is where we loop if we can't prefetch anymore
 1:
@@ -221,7 +221,7 @@ EXC(	STORE	t3, UNIT(-1)(dst),	s_exc_p1u)
 	beqz	t0, 2b
 	 sltu	t0, len, 128		# See if we can loop more time
 	beqz	t0, 1b
-	 nop
+	 yesp
 	#
 	# Jump here if there are less than 16*NBYTES left.
 	#
@@ -229,7 +229,7 @@ cleanup_both_aligned:
 	beqz	len, done
 	 sltu	t0, len, 8*NBYTES
 	bnez	t0, less_than_8units
-	 nop
+	 yesp
 EXC(	LOAD	t0, UNIT(0)(src),	l_exc)
 EXC(	LOAD	t1, UNIT(1)(src),	l_exc_copy)
 EXC(	LOAD	t2, UNIT(2)(src),	l_exc_copy)
@@ -256,7 +256,7 @@ EXC(	STORE	t3, UNIT(7)(dst),	s_exc_p1u)
 less_than_8units:
 	sltu	t0, len, 4*NBYTES
 	bnez	t0, less_than_4units
-	 nop
+	 yesp
 EXC(	LOAD	t0, UNIT(0)(src),	l_exc)
 EXC(	LOAD	t1, UNIT(1)(src),	l_exc_copy)
 EXC(	LOAD	t2, UNIT(2)(src),	l_exc_copy)
@@ -276,7 +276,7 @@ EXC(	STORE	t3, UNIT(3)(dst),	s_exc_p1u)
 less_than_4units:
 	sltu	t0, len, 1*NBYTES
 	bnez	t0, copy_bytes_checklen
-	 nop
+	 yesp
 	#
 	# 1) Copy NBYTES, then check length again
 	#
@@ -317,7 +317,7 @@ src_unaligned:
  * Avoid consecutive LD*'s to the same register since some mips
  * implementations can't issue them in the same cycle.
  * It's OK to load FIRST(N+1) before REST(N) because the two addresses
- * are to the same unit (unless src is aligned, but it's not).
+ * are to the same unit (unless src is aligned, but it's yest).
  */
 EXC(	LDFIRST t0, FIRST(0)(src),	l_exc)
 EXC(	LDFIRST t1, FIRST(1)(src),	l_exc_copy)
@@ -340,7 +340,7 @@ cleanup_src_unaligned:
 	beqz	len, done
 	 and	rem, len, NBYTES-1  # rem = len % NBYTES
 	beq	rem, len, copy_bytes
-	 nop
+	 yesp
 1:
 EXC(	LDFIRST t0, FIRST(0)(src),	l_exc)
 EXC(	LDREST	t0, REST(0)(src),	l_exc_copy)
@@ -352,7 +352,7 @@ EXC(	STORE	t0, 0(dst),		s_exc_p1u)
 
 copy_bytes_checklen:
 	beqz	len, done
-	 nop
+	 yesp
 copy_bytes:
 	/* 0 < len < NBYTES  */
 #define COPY_BYTE(N)			\
@@ -373,7 +373,7 @@ EXC(	lb	t0, NBYTES-2(src), l_exc)
 EXC(	 sb	t0, NBYTES-2(dst), s_exc_p1)
 done:
 	jr	ra
-	 nop
+	 yesp
 	END(memcpy)
 
 l_exc_copy_rewind16:
@@ -404,7 +404,7 @@ l_exc:
 	LOAD	t0, THREAD_BUADDR(t0)	# t0 is just past last good address
 	SUB	len, AT, t0		# len number of uncopied bytes
 	jr	ra
-	 nop
+	 yesp
 
 
 #define SEXC(n)				\
@@ -434,7 +434,7 @@ s_exc_p1:
 	 ADD	len, len, 1
 s_exc:
 	jr	ra
-	 nop
+	 yesp
 
 	.align	5
 LEAF(memmove)
@@ -453,7 +453,7 @@ EXPORT_SYMBOL(memmove)
 LEAF(__rmemcpy)					/* a0=dst a1=src a2=len */
 	 sltu	t0, a1, a0
 	beqz	t0, r_end_bytes_up		# src >= dst
-	 nop
+	 yesp
 	ADD	a0, a2				# dst = dst + len
 	ADD	a1, a2				# src = src + len
 

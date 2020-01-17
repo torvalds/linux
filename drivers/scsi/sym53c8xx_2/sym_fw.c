@@ -101,7 +101,7 @@ sym_fw1_patch(struct Scsi_Host *shost)
 	scriptb0 = (struct sym_fw1b_scr *) np->scriptb0;
 
 	/*
-	 *  Remove LED support if not needed.
+	 *  Remove LED support if yest needed.
 	 */
 	if (!(np->features & FE_LED0)) {
 		scripta0->idle[0]	= cpu_to_scr(SCR_NO_OP);
@@ -111,7 +111,7 @@ sym_fw1_patch(struct Scsi_Host *shost)
 
 #ifdef SYM_CONF_IARB_SUPPORT
 	/*
-	 *    If user does not want to use IMMEDIATE ARBITRATION
+	 *    If user does yest want to use IMMEDIATE ARBITRATION
 	 *    when we are reselected while attempting to arbitrate,
 	 *    patch the SCRIPTS accordingly with a SCRIPT NO_OP.
 	 */
@@ -145,7 +145,7 @@ sym_fw2_patch(struct Scsi_Host *shost)
 	scriptb0 = (struct sym_fw2b_scr *) np->scriptb0;
 
 	/*
-	 *  Remove LED support if not needed.
+	 *  Remove LED support if yest needed.
 	 */
 	if (!(np->features & FE_LED0)) {
 		scripta0->idle[0]	= cpu_to_scr(SCR_NO_OP);
@@ -156,7 +156,7 @@ sym_fw2_patch(struct Scsi_Host *shost)
 #if   SYM_CONF_DMA_ADDRESSING_MODE == 2
 	/*
 	 *  Remove useless 64 bit DMA specific SCRIPTS, 
-	 *  when this feature is not available.
+	 *  when this feature is yest available.
 	 */
 	if (!use_dac(np)) {
 		scripta0->is_dmap_dirty[0] = cpu_to_scr(SCR_NO_OP);
@@ -168,7 +168,7 @@ sym_fw2_patch(struct Scsi_Host *shost)
 
 #ifdef SYM_CONF_IARB_SUPPORT
 	/*
-	 *    If user does not want to use IMMEDIATE ARBITRATION
+	 *    If user does yest want to use IMMEDIATE ARBITRATION
 	 *    when we are reselected while attempting to arbitrate,
 	 *    patch the SCRIPTS accordingly with a SCRIPT NO_OP.
 	 */
@@ -185,7 +185,7 @@ sym_fw2_patch(struct Scsi_Host *shost)
 	scriptb0->targtbl[0]	= cpu_to_scr(np->targtbl_ba);
 
 	/*
-	 *  Remove the load of SCNTL4 on reselection if not a C10.
+	 *  Remove the load of SCNTL4 on reselection if yest a C10.
 	 */
 	if (!(np->features & FE_C10)) {
 		scripta0->resel_scntl4[0] = cpu_to_scr(SCR_NO_OP);
@@ -194,7 +194,7 @@ sym_fw2_patch(struct Scsi_Host *shost)
 
 	/*
 	 *  Remove a couple of work-arounds specific to C1010 if 
-	 *  they are not desirable. See `sym_fw2.h' for more details.
+	 *  they are yest desirable. See `sym_fw2.h' for more details.
 	 */
 	if (!(pdev->device == PCI_DEVICE_ID_LSI_53C1010_66 &&
 	      pdev->revision < 0x1 &&
@@ -412,7 +412,7 @@ void sym_fw_bind_script(struct sym_hcb *np, u32 *start, int len)
 					sym_name(np), (int) (cur-start));
 			}
 			/*
-			 *  If PREFETCH feature not enabled, remove 
+			 *  If PREFETCH feature yest enabled, remove 
 			 *  the NO FLUSH bit if present.
 			 */
 			if ((opcode & SCR_NO_FLUSH) &&
@@ -485,7 +485,7 @@ void sym_fw_bind_script(struct sym_hcb *np, u32 *start, int len)
 		*cur++ = cpu_to_scr(opcode);
 
 		/*
-		 *  If no relocation, assume 1 argument 
+		 *  If yes relocation, assume 1 argument 
 		 *  and just scriptize:) it.
 		 */
 		if (!relocs) {

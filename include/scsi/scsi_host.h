@@ -35,7 +35,7 @@ struct scsi_host_template {
 
 	/*
 	 * The info function will return whatever useful information the
-	 * developer sees fit.  If not provided, then the name field will
+	 * developer sees fit.  If yest provided, then the name field will
 	 * be used instead.
 	 *
 	 * Status: OPTIONAL
@@ -54,7 +54,7 @@ struct scsi_host_template {
 #ifdef CONFIG_COMPAT
 	/* 
 	 * Compat handler. Handle 32bit ABI.
-	 * When unknown ioctl is passed return -ENOIOCTLCMD.
+	 * When unkyeswn ioctl is passed return -ENOIOCTLCMD.
 	 *
 	 * Status: OPTIONAL
 	 */
@@ -69,14 +69,14 @@ struct scsi_host_template {
 	 *
 	 * If queuecommand returns 0, then the driver has accepted the
 	 * command.  It must also push it to the HBA if the scsi_cmnd
-	 * flag SCMD_LAST is set, or if the driver does not implement
+	 * flag SCMD_LAST is set, or if the driver does yest implement
 	 * commit_rqs.  The done() function must be called on the command
 	 * when the driver has finished with it. (you may call done on the
 	 * command before queuecommand returns, but in this case you
 	 * *must* return 0 from queuecommand).
 	 *
 	 * Queuecommand may also reject the command, in which case it may
-	 * not touch the command and must not call done() for it.
+	 * yest touch the command and must yest call done() for it.
 	 *
 	 * There are two possible rejection returns:
 	 *
@@ -86,12 +86,12 @@ struct scsi_host_template {
 	 *   SCSI_MLQUEUE_HOST_BUSY: Block all devices served by this
 	 *   host temporarily.
 	 *
-         * For compatibility, any other non-zero return is treated the
+         * For compatibility, any other yesn-zero return is treated the
          * same as SCSI_MLQUEUE_HOST_BUSY.
 	 *
 	 * NOTE: "temporarily" means either until the next command for#
 	 * this device/host completes, or a period of time determined by
-	 * I/O pressure in the system if there are no other outstanding
+	 * I/O pressure in the system if there are yes other outstanding
 	 * commands.
 	 *
 	 * STATUS: REQUIRED
@@ -119,10 +119,10 @@ struct scsi_host_template {
 	 * handler when you execute this, and you are also guaranteed to
 	 * *NOT* have any other commands being queued while you are in the
 	 * strategy routine. When you return from this function, operations
-	 * return to normal.
+	 * return to yesrmal.
 	 *
 	 * See scsi_error.c scsi_unjam_host for additional comments about
-	 * what this function should and should not be attempting to do.
+	 * what this function should and should yest be attempting to do.
 	 *
 	 * Status: REQUIRED	(at least one of them)
 	 */
@@ -133,7 +133,7 @@ struct scsi_host_template {
 	int (* eh_host_reset_handler)(struct scsi_cmnd *);
 
 	/*
-	 * Before the mid layer attempts to scan for a new device where none
+	 * Before the mid layer attempts to scan for a new device where yesne
 	 * currently exists, it will call this entry in your driver.  Should
 	 * your driver need to allocate any structs or perform any other init
 	 * items in order to send commands to a currently unused target/lun
@@ -142,7 +142,7 @@ struct scsi_host_template {
 	 * "is this a new device" checks in their queuecommand routine,
 	 * thereby making the hot path a bit quicker.
 	 *
-	 * Return values: 0 on success, non-0 on failure
+	 * Return values: 0 on success, yesn-0 on failure
 	 *
 	 * Deallocation:  If we didn't find any devices at this ID, you will
 	 * get an immediate call to slave_destroy().  If we find something
@@ -161,7 +161,7 @@ struct scsi_host_template {
 	int (* slave_alloc)(struct scsi_device *);
 
 	/*
-	 * Once the device has responded to an INQUIRY and we know the
+	 * Once the device has responded to an INQUIRY and we kyesw the
 	 * device is online, we call into the low level driver with the
 	 * struct scsi_device *.  If the low level device driver implements
 	 * this function, it *must* perform the task of setting the queue
@@ -172,7 +172,7 @@ struct scsi_host_template {
 	 *
 	 * 1.  Setting the device queue depth.  Proper setting of this is
 	 *     described in the comments for scsi_change_queue_depth.
-	 * 2.  Determining if the device supports the various synchronous
+	 * 2.  Determining if the device supports the various synchroyesus
 	 *     negotiation protocols.  The device struct will already have
 	 *     responded to INQUIRY and the results of the standard items
 	 *     will have been shoved into the various device flag bits, eg.
@@ -181,11 +181,11 @@ struct scsi_host_template {
 	 * 4.  Setting the default timeout on this device (if needed).
 	 * 5.  Anything else the low level driver might want to do on a device
 	 *     specific setup basis...
-	 * 6.  Return 0 on success, non-0 on error.  The device will be marked
-	 *     as offline on error so that no access will occur.  If you return
-	 *     non-0, your slave_destroy routine will never get called for this
+	 * 6.  Return 0 on success, yesn-0 on error.  The device will be marked
+	 *     as offline on error so that yes access will occur.  If you return
+	 *     yesn-0, your slave_destroy routine will never get called for this
 	 *     device, so don't leave any loose memory hanging around, clean
-	 *     up after yourself before returning non-0
+	 *     up after yourself before returning yesn-0
 	 *
 	 * Status: OPTIONAL
 	 */
@@ -204,13 +204,13 @@ struct scsi_host_template {
 
 	/*
 	 * Before the mid layer attempts to scan for a new device attached
-	 * to a target where no target currently exists, it will call this
+	 * to a target where yes target currently exists, it will call this
 	 * entry in your driver.  Should your driver need to allocate any
 	 * structs or perform any other init items in order to send commands
 	 * to a currently unused target, then this is where you can perform
 	 * those allocations.
 	 *
-	 * Return values: 0 on success, non-0 on failure
+	 * Return values: 0 on success, yesn-0 on failure
 	 *
 	 * Status: OPTIONAL
 	 */
@@ -330,7 +330,7 @@ struct scsi_host_template {
 	struct proc_dir_entry *proc_dir;
 
 	/*
-	 * This determines if we will use a non-interrupt driven
+	 * This determines if we will use a yesn-interrupt driven
 	 * or an interrupt driven scheme.  It is set to the maximum number
 	 * of simultaneous commands a single hw queue in HBA will accept.
 	 */
@@ -383,7 +383,7 @@ struct scsi_host_template {
 	 * This will allow more than one command to be queued to a given
 	 * unit on a given host.  Set this to the maximum number of command
 	 * blocks to be provided for each device.  Set this to 1 for one
-	 * command block per lun, 2 for two, etc.  Do not set this to 0.
+	 * command block per lun, 2 for two, etc.  Do yest set this to 0.
 	 * You should make sure that the host adapter will do the right thing
 	 * before you try setting this above 1.
 	 */
@@ -423,14 +423,14 @@ struct scsi_host_template {
 	 */
 	unsigned skip_settle_delay:1;
 
-	/* True if the controller does not support WRITE SAME */
-	unsigned no_write_same:1;
+	/* True if the controller does yest support WRITE SAME */
+	unsigned yes_write_same:1;
 
 	/* True if the low-level driver supports blk-mq only */
 	unsigned force_blk_mq:1;
 
 	/*
-	 * Countdown for host blocking with no commands outstanding.
+	 * Countdown for host blocking with yes commands outstanding.
 	 */
 	unsigned int max_host_blocked;
 
@@ -547,7 +547,7 @@ struct Scsi_Host {
 					      protected by host_lock */
 	unsigned int host_eh_scheduled;    /* EH scheduled without command */
     
-	unsigned int host_no;  /* Used for IOCTL_GET_IDLUN, /proc/scsi et al. */
+	unsigned int host_yes;  /* Used for IOCTL_GET_IDLUN, /proc/scsi et al. */
 
 	/* next two fields are used to bound the time spent in error handling */
 	int eh_deadline;
@@ -567,8 +567,8 @@ struct Scsi_Host {
 	/*
 	 * This is a unique identifier that must be assigned so that we
 	 * have some way of identifying each detected host adapter properly
-	 * and uniquely.  For hosts that do not support more than one card
-	 * in the system at one time, this does not need to be set.  It is
+	 * and uniquely.  For hosts that do yest support more than one card
+	 * in the system at one time, this does yest need to be set.  It is
 	 * initialized to 0 in scsi_register.
 	 */
 	unsigned int unique_id;
@@ -603,14 +603,14 @@ struct Scsi_Host {
 	unsigned unchecked_isa_dma:1;
 
 	/*
-	 * Host has requested that no further requests come through for the
+	 * Host has requested that yes further requests come through for the
 	 * time being.
 	 */
 	unsigned host_self_blocked:1;
     
 	/*
-	 * Host uses correct SCSI ordering not PC ordering. The bit is
-	 * set for the minority of drivers whose authors actually read
+	 * Host uses correct SCSI ordering yest PC ordering. The bit is
+	 * set for the miyesrity of drivers whose authors actually read
 	 * the spec ;).
 	 */
 	unsigned reverse_ordering:1;
@@ -618,14 +618,14 @@ struct Scsi_Host {
 	/* Task mgmt function in progress */
 	unsigned tmf_in_progress:1;
 
-	/* Asynchronous scan in progress */
+	/* Asynchroyesus scan in progress */
 	unsigned async_scan:1;
 
 	/* Don't resume host in EH */
-	unsigned eh_noresume:1;
+	unsigned eh_yesresume:1;
 
-	/* The controller does not support WRITE SAME */
-	unsigned no_write_same:1;
+	/* The controller does yest support WRITE SAME */
+	unsigned yes_write_same:1;
 
 	unsigned use_cmd_list:1;
 
@@ -633,7 +633,7 @@ struct Scsi_Host {
 	unsigned short_inquiry:1;
 
 	/* The transport requires the LUN bits NOT to be stored in CDB[1] */
-	unsigned no_scsi2_lun_in_cdb:1;
+	unsigned yes_scsi2_lun_in_cdb:1;
 
 	/*
 	 * Optional work queue to be utilized by the transport

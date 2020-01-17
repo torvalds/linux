@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial busions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -91,7 +91,7 @@ g94_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 
 	stat = nvkm_rd32(device, 0x00e4e8 + base);
 	if (!(stat & 0x10000000)) {
-		AUX_TRACE(&aux->base, "sink not detected");
+		AUX_TRACE(&aux->base, "sink yest detected");
 		ret = -ENXIO;
 		goto out;
 	}

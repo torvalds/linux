@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Hisilicon Limited.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -291,7 +291,7 @@ static int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev,
 		cap->max_recv_sge = 0;
 	} else {
 		if (is_user && (!cap->max_recv_wr || !cap->max_recv_sge)) {
-			dev_err(dev, "user space no need config max_recv_wr max_recv_sge\n");
+			dev_err(dev, "user space yes need config max_recv_wr max_recv_sge\n");
 			return -EINVAL;
 		}
 
@@ -1042,9 +1042,9 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 		break;
 	}
 	case IB_QPT_GSI: {
-		/* Userspace is not allowed to create special QPs: */
+		/* Userspace is yest allowed to create special QPs: */
 		if (udata) {
-			ibdev_err(ibdev, "not support usr space GSI\n");
+			ibdev_err(ibdev, "yest support usr space GSI\n");
 			return ERR_PTR(-EINVAL);
 		}
 
@@ -1073,7 +1073,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 		break;
 	}
 	default:{
-		ibdev_err(ibdev, "not support QP type %d\n",
+		ibdev_err(ibdev, "yest support QP type %d\n",
 			  init_attr->qp_type);
 		return ERR_PTR(-EINVAL);
 	}
@@ -1192,7 +1192,7 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				hr_qp->rq.head = *(int *)(hr_qp->rdb.virt_addr);
 		} else {
 			ibdev_warn(&hr_dev->ib_dev,
-				  "flush cqe is not supported in userspace!\n");
+				  "flush cqe is yest supported in userspace!\n");
 			goto out;
 		}
 	}

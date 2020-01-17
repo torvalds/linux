@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0+
 #
-# Invoke a text editor on all console.log files for all runs with diagnostics,
+# Invoke a text editor on all console.log files for all runs with diagyesstics,
 # that is, on all such files having a console.log.diags counterpart.
 # Note that both console.log.diags and console.log are passed to the
 # editor (currently defaulting to "vi"), allowing the user to get an
@@ -11,7 +11,7 @@
 #
 # The "directory" above should end with the date/time directory, for example,
 # "tools/testing/selftests/rcutorture/res/2018.02.25-14:27:27".
-# Returns error status reflecting the success (or not) of the specified run.
+# Returns error status reflecting the success (or yest) of the specified run.
 #
 # Copyright (C) IBM Corporation, 2018
 #
@@ -42,7 +42,7 @@ else
 fi
 if grep -q -e "--buildonly" < ${rundir}/log
 then
-	echo Build-only run, no console logs to check.
+	echo Build-only run, yes console logs to check.
 fi
 
 # Find console logs with errors

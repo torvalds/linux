@@ -2,7 +2,7 @@
 /*
  * Driver for BCM6358 memory-mapped LEDs, based on leds-syscon.c
  *
- * Copyright 2015 Álvaro Fernández Rojas <noltari@gmail.com>
+ * Copyright 2015 Álvaro Fernández Rojas <yesltari@gmail.com>
  */
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -91,7 +91,7 @@ static void bcm6358_led_set(struct led_classdev *led_cdev,
 	spin_unlock_irqrestore(led->lock, flags);
 }
 
-static int bcm6358_led(struct device *dev, struct device_node *nc, u32 reg,
+static int bcm6358_led(struct device *dev, struct device_yesde *nc, u32 reg,
 		       void __iomem *mem, spinlock_t *lock)
 {
 	struct bcm6358_led *led;
@@ -149,8 +149,8 @@ static int bcm6358_led(struct device *dev, struct device_node *nc, u32 reg,
 static int bcm6358_leds_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *child;
 	void __iomem *mem;
 	spinlock_t *lock; /* memory lock */
 	unsigned long val;
@@ -187,7 +187,7 @@ static int bcm6358_leds_probe(struct platform_device *pdev)
 	}
 	bcm6358_led_write(mem + BCM6358_REG_CTRL, val);
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		int rc;
 		u32 reg;
 
@@ -202,7 +202,7 @@ static int bcm6358_leds_probe(struct platform_device *pdev)
 
 		rc = bcm6358_led(dev, child, reg, mem, lock);
 		if (rc < 0) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return rc;
 		}
 	}
@@ -226,7 +226,7 @@ static struct platform_driver bcm6358_leds_driver = {
 
 module_platform_driver(bcm6358_leds_driver);
 
-MODULE_AUTHOR("Álvaro Fernández Rojas <noltari@gmail.com>");
+MODULE_AUTHOR("Álvaro Fernández Rojas <yesltari@gmail.com>");
 MODULE_DESCRIPTION("LED driver for BCM6358 controllers");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:leds-bcm6358");

@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * vineetg: June 2011
  *  -"/proc/meminfo | grep PageTables" kept on increasing
- *   Recently added pgtable dtor was not getting called.
+ *   Recently added pgtable dtor was yest getting called.
  *
  * vineetg: May 2011
  *  -Variable pg-sz means that Page Tables could be variable sized themselves
@@ -17,13 +17,13 @@
  *
  * vineetg: April 2010
  *  -Switched pgtable_t from being struct page * to unsigned long
- *      =Needed so that Page Table allocator (pte_alloc_one) is not forced to
+ *      =Needed so that Page Table allocator (pte_alloc_one) is yest forced to
  *       to deal with struct page. Thay way in future we can make it allocate
  *       multiple PG Tbls in one Page Frame
  *      =sweet side effect is avoiding calls to ugly page_address( ) from the
  *       pg-tlb allocator sub-sys (pte_alloc_one, ptr_free, pmd_populate
  *
- *  Amit Bhor, Sameer Dhavale: Codito Technologies 2004
+ *  Amit Bhor, Sameer Dhavale: Codito Techyeslogies 2004
  */
 
 #ifndef _ASM_ARC_PGALLOC_H

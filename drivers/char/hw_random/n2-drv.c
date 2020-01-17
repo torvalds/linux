@@ -36,11 +36,11 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 /* The Niagara2 RNG provides a 64-bit read-only random number
  * register, plus a control register.  Access to the RNG is
  * virtualized through the hypervisor so that both guests and control
- * nodes can access the device.
+ * yesdes can access the device.
  *
  * The entropy source consists of raw entropy sources, each
  * constructed from a voltage controlled oscillator whose phase is
- * jittered by thermal noise sources.
+ * jittered by thermal yesise sources.
  *
  * The oscillator in each of the three raw entropy sources run at
  * different frequencies.  Normally, all three generator outputs are
@@ -49,12 +49,12 @@ MODULE_VERSION(DRV_MODULE_VERSION);
  *
  * Some time is necessary for all the necessary entropy to build up
  * such that a full 64-bits of entropy are available in the register.
- * In normal operating mode (RNG_CTL_LFSR is set), the chip implements
+ * In yesrmal operating mode (RNG_CTL_LFSR is set), the chip implements
  * an interlock which blocks register reads until sufficient entropy
  * is available.
  *
  * A control register is provided for adjusting various aspects of RNG
- * operation, and to enable diagnostic modes.  Each of the three raw
+ * operation, and to enable diagyesstic modes.  Each of the three raw
  * entropy sources has an enable bit (RNG_CTL_ES{1,2,3}).  Also
  * provided are fields for controlling the minimum time in cycles
  * between read accesses to the register (RNG_CTL_WAIT, this controls
@@ -64,13 +64,13 @@ MODULE_VERSION(DRV_MODULE_VERSION);
  * all three entropy sources enabled, and the interlock time set
  * appropriately.
  *
- * The CRC polynomial used by the chip is:
+ * The CRC polyyesmial used by the chip is:
  *
  * P(X) = x64 + x61 + x57 + x56 + x52 + x51 + x50 + x48 + x47 + x46 +
  *        x43 + x42 + x41 + x39 + x38 + x37 + x35 + x32 + x28 + x25 +
  *        x22 + x21 + x17 + x15 + x13 + x12 + x11 + x7 + x5 + x + 1
  *
- * The RNG_CTL_VCO value of each noise cell must be programmed
+ * The RNG_CTL_VCO value of each yesise cell must be programmed
  * separately.  This is why 4 control register values must be provided
  * to the hypervisor.  During a write, the hypervisor writes them all,
  * one at a time, to the actual RNG_CTL register.  The first three
@@ -447,8 +447,8 @@ static int n2rng_data_read(struct hwrng *rng, u32 *data)
 	return len;
 }
 
-/* On a guest node, just make sure we can read random data properly.
- * If a control node reboots or reloads it's n2rng driver, this won't
+/* On a guest yesde, just make sure we can read random data properly.
+ * If a control yesde reboots or reloads it's n2rng driver, this won't
  * work during that time.  So we have to keep probing until the device
  * becomes usable.
  */
@@ -482,7 +482,7 @@ static int n2rng_entropy_diag_read(struct n2rng *np, unsigned long unit,
 	return err;
 }
 
-static u64 advance_polynomial(u64 poly, u64 val, int count)
+static u64 advance_polyyesmial(u64 poly, u64 val, int count)
 {
 	int i;
 
@@ -527,7 +527,7 @@ static int n2rng_check_selftest_buffer(struct n2rng *np, unsigned long unit)
 	case N2_n2_rng:
 	case N2_vf_rng:
 	case N2_kt_rng:
-	case N2_m4_rng:  /* yes, m4 uses the old value */
+	case N2_m4_rng:  /* no, m4 uses the old value */
 		val = RNG_v1_SELFTEST_VAL;
 		break;
 	default:
@@ -540,7 +540,7 @@ static int n2rng_check_selftest_buffer(struct n2rng *np, unsigned long unit)
 		matches += n2rng_test_buffer_find(np, val);
 		if (matches >= SELFTEST_MATCH_GOAL)
 			break;
-		val = advance_polynomial(SELFTEST_POLY, val, 1);
+		val = advance_polyyesmial(SELFTEST_POLY, val, 1);
 	}
 
 	err = 0;
@@ -679,7 +679,7 @@ static void n2rng_work(struct work_struct *work)
 	}
 
 	if (--retries == 0)
-		dev_err(&np->op->dev, "Self-test retries failed, RNG not ready\n");
+		dev_err(&np->op->dev, "Self-test retries failed, RNG yest ready\n");
 	else if (err && !(np->flags & N2RNG_FLAG_SHUTDOWN))
 		schedule_delayed_work(&np->work, HZ * 2);
 }
@@ -719,12 +719,12 @@ static int n2rng_probe(struct platform_device *op)
 	np->hvapi_major = 2;
 	if (sun4v_hvapi_register(HV_GRP_RNG,
 				 np->hvapi_major,
-				 &np->hvapi_minor)) {
+				 &np->hvapi_miyesr)) {
 		np->hvapi_major = 1;
 		if (sun4v_hvapi_register(HV_GRP_RNG,
 					 np->hvapi_major,
-					 &np->hvapi_minor)) {
-			dev_err(&op->dev, "Cannot register suitable "
+					 &np->hvapi_miyesr)) {
+			dev_err(&op->dev, "Canyest register suitable "
 				"HVAPI version.\n");
 			goto out;
 		}
@@ -737,7 +737,7 @@ static int n2rng_probe(struct platform_device *op)
 				np->hvapi_major);
 			goto out_hvapi_unregister;
 		}
-		np->num_units = of_getintprop_default(op->dev.of_node,
+		np->num_units = of_getintprop_default(op->dev.of_yesde,
 						      "rng-#units", 0);
 		if (!np->num_units) {
 			dev_err(&op->dev, "VF RNG lacks rng-#units property\n");
@@ -747,8 +747,8 @@ static int n2rng_probe(struct platform_device *op)
 		np->num_units = 1;
 	}
 
-	dev_info(&op->dev, "Registered RNG HVAPI major %lu minor %lu\n",
-		 np->hvapi_major, np->hvapi_minor);
+	dev_info(&op->dev, "Registered RNG HVAPI major %lu miyesr %lu\n",
+		 np->hvapi_major, np->hvapi_miyesr);
 	np->units = devm_kcalloc(&op->dev, np->num_units, sizeof(*np->units),
 				 GFP_KERNEL);
 	err = -ENOMEM;

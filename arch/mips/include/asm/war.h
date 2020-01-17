@@ -73,8 +73,8 @@
 #endif
 
 /*
- * Another R4600 erratum.  Due to the lack of errata information the exact
- * technical details aren't known.  I've experimentally found that disabling
+ * Ayesther R4600 erratum.  Due to the lack of errata information the exact
+ * technical details aren't kyeswn.  I've experimentally found that disabling
  * interrupts during indexed I-cache flushes seems to be sufficient to deal
  * with the issue.
  */
@@ -87,25 +87,25 @@
  *
  *  18. The CACHE instructions Hit_Writeback_Invalidate_D, Hit_Writeback_D,
  *	Hit_Invalidate_D and Create_Dirty_Excl_D should only be
- *	executed if there is no other dcache activity. If the dcache is
- *	accessed for another instruction immeidately preceding when these
+ *	executed if there is yes other dcache activity. If the dcache is
+ *	accessed for ayesther instruction immeidately preceding when these
  *	cache instructions are executing, it is possible that the dcache
  *	tag match outputs used by these cache instructions will be
  *	incorrect. These cache instructions should be preceded by at least
- *	four instructions that are not any kind of load or store
+ *	four instructions that are yest any kind of load or store
  *	instruction.
  *
- *	This is not allowed:	lw
- *				nop
- *				nop
- *				nop
+ *	This is yest allowed:	lw
+ *				yesp
+ *				yesp
+ *				yesp
  *				cache	    Hit_Writeback_Invalidate_D
  *
  *	This is allowed:	lw
- *				nop
- *				nop
- *				nop
- *				nop
+ *				yesp
+ *				yesp
+ *				yesp
+ *				yesp
  *				cache	    Hit_Writeback_Invalidate_D
  */
 #ifndef R4600_V1_HIT_CACHEOP_WAR
@@ -150,7 +150,7 @@
 #endif
 
 /*
- * Fill buffers not flushed on CACHE instructions
+ * Fill buffers yest flushed on CACHE instructions
  *
  * Hit_Invalidate_I cacheops invalidate an icache line but the refill
  * for that line can get stale data from the fill buffer instead of
@@ -169,9 +169,9 @@
  * Missing implicit forced flush of evictions caused by CACHE
  * instruction
  *
- * Evictions caused by a CACHE instructions are not forced on to the
+ * Evictions caused by a CACHE instructions are yest forced on to the
  * bus. The BIU gives higher priority to fetches than to the data from
- * the eviction buffer and no collision detection is performed between
+ * the eviction buffer and yes collision detection is performed between
  * fetches and pending data from the eviction buffer.
  *
  * Workaround: Execute a SYNC instruction after the cache instruction
@@ -187,7 +187,7 @@
 /*
  * From TX49/H2 manual: "If the instruction (i.e. CACHE) is issued for
  * the line which this instruction itself exists, the following
- * operation is not guaranteed."
+ * operation is yest guaranteed."
  *
  * Workaround: do two phase flushing for Index_Invalidate_I
  */
@@ -206,8 +206,8 @@
 #endif
 
 /*
- * On the R10000 up to version 2.6 (not sure about 2.7) there is a bug that
- * may cause ll / sc and lld / scd sequences to execute non-atomically.
+ * On the R10000 up to version 2.6 (yest sure about 2.7) there is a bug that
+ * may cause ll / sc and lld / scd sequences to execute yesn-atomically.
  */
 #ifndef R10000_LLSC_WAR
 #error Check setting of R10000_LLSC_WAR for your platform

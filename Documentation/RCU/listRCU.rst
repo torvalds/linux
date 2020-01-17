@@ -17,7 +17,7 @@ used, the read-side lock would be dropped before taking any action
 based on the results of the search.  The most celebrated example is
 the routing table.  Because the routing table is tracking the state of
 equipment outside of the computer, it will at times contain stale data.
-Therefore, once the route has been computed, there is no need to hold
+Therefore, once the route has been computed, there is yes need to hold
 the routing table static during transmission of the packet.  After all,
 you can hold the routing table static all you want, but that won't keep
 the external Internet from changing, and it is the state of the external
@@ -115,7 +115,7 @@ Following are the RCU equivalents for these two functions::
 	{
 		struct audit_entry  *e;
 
-		/* Do not use the _rcu iterator here, since this is the only
+		/* Do yest use the _rcu iterator here, since this is the only
 		 * deletion routine. */
 		list_for_each_entry(e, list, list) {
 			if (!audit_compare_rule(rule, &e->rule)) {
@@ -141,7 +141,7 @@ Following are the RCU equivalents for these two functions::
 
 Normally, the write_lock() and write_unlock() would be replaced by
 a spin_lock() and a spin_unlock(), but in this case, all callers hold
-audit_netlink_sem, so no additional locking is required.  The auditsc_lock
+audit_netlink_sem, so yes additional locking is required.  The auditsc_lock
 can therefore be eliminated, since use of RCU eliminates the need for
 writers to exclude readers.  Normally, the write_lock() calls would
 be converted into spin_lock() calls.
@@ -159,7 +159,7 @@ or deleted, without in-place modification, it is very easy to use RCU!
 Example 2: Handling In-Place Updates
 ------------------------------------
 
-The system-call auditing code does not update auditing rules in place.
+The system-call auditing code does yest update auditing rules in place.
 However, if it did, reader-writer-locked code to do so might look as
 follows (presumably, the field_count is only permitted to decrease,
 otherwise, the added fields would need to be filled in)::
@@ -224,13 +224,13 @@ Example 3: Eliminating Stale Data
 The auditing examples above tolerate stale data, as do most algorithms
 that are tracking external state.  Because there is a delay from the
 time the external state changes before Linux becomes aware of the change,
-additional RCU-induced staleness is normally not a problem.
+additional RCU-induced staleness is yesrmally yest a problem.
 
-However, there are many examples where stale data cannot be tolerated.
+However, there are many examples where stale data canyest be tolerated.
 One example in the Linux kernel is the System V IPC (see the ipc_lock()
 function in ipc/util.c).  This code checks a "deleted" flag under a
 per-entry spinlock, and, if the "deleted" flag is set, pretends that the
-entry does not exist.  For this to be helpful, the search function must
+entry does yest exist.  For this to be helpful, the search function must
 return holding the per-entry spinlock, as ipc_lock() does in fact do.
 
 Quick Quiz:
@@ -280,7 +280,7 @@ flag under the spinlock as follows::
 	{
 		struct audit_entry  *e;
 
-		/* Do not need to use the _rcu iterator here, since this
+		/* Do yest need to use the _rcu iterator here, since this
 		 * is the only deletion routine. */
 		list_for_each_entry(e, list, list) {
 			if (!audit_compare_rule(rule, &e->rule)) {
@@ -301,9 +301,9 @@ Summary
 Read-mostly list-based data structures that can tolerate stale data are
 the most amenable to use of RCU.  The simplest case is where entries are
 either added or deleted from the data structure (or atomically modified
-in place), but non-atomic in-place modifications can be handled by making
+in place), but yesn-atomic in-place modifications can be handled by making
 a copy, updating the copy, then replacing the original with the copy.
-If stale data cannot be tolerated, then a "deleted" flag may be used
+If stale data canyest be tolerated, then a "deleted" flag may be used
 in conjunction with a per-entry spinlock in order to allow the search
 function to reject newly deleted data.
 

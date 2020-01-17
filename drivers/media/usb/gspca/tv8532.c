@@ -234,7 +234,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, R31_UPD, 0x00);	/* end update */
 
 	gspca_dev->empty_packet = 0;		/* check the empty packets */
-	sd->packet = 0;				/* ignore the first packets */
+	sd->packet = 0;				/* igyesre the first packets */
 
 	return 0;
 }
@@ -313,7 +313,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_GAIN, 0, 0x7ff, 1, 0x100);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

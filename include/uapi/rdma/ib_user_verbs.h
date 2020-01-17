@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 PathScale, Inc.  All rights reserved.
- * Copyright (c) 2006 Mellanox Technologies.  All rights reserved.
+ * Copyright (c) 2006 Mellayesx Techyeslogies.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -16,11 +16,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -110,7 +110,7 @@ enum {
  * that they pack the same way on 32-bit and 64-bit architectures (to
  * avoid incompatibility between 32-bit userspace and 64-bit kernels).
  * Specifically:
- *  - Do not use pointer types -- pass pointers in __u64 instead.
+ *  - Do yest use pointer types -- pass pointers in __u64 instead.
  *  - Make sure that any structure larger than 4 bytes is padded to a
  *    multiple of 8 bytes.  Otherwise the structure size will be
  *    different between 32-bit and 64-bit architectures.
@@ -174,7 +174,7 @@ struct ib_uverbs_query_device {
 
 struct ib_uverbs_query_device_resp {
 	__aligned_u64 fw_ver;
-	__be64 node_guid;
+	__be64 yesde_guid;
 	__be64 sys_image_guid;
 	__aligned_u64 max_mr_size;
 	__aligned_u64 page_size_cap;
@@ -484,7 +484,7 @@ struct ib_uverbs_poll_cq_resp {
 	struct ib_uverbs_wc wc[0];
 };
 
-struct ib_uverbs_req_notify_cq {
+struct ib_uverbs_req_yestify_cq {
 	__u32 cq_handle;
 	__u32 solicited_only;
 };
@@ -544,7 +544,7 @@ struct ib_uverbs_qp_attr {
 
 	__u16	pkey_index;
 	__u16	alt_pkey_index;
-	__u8	en_sqd_async_notify;
+	__u8	en_sqd_async_yestify;
 	__u8	sq_draining;
 	__u8	max_rd_atomic;
 	__u8	max_dest_rd_atomic;
@@ -725,7 +725,7 @@ struct ib_uverbs_modify_qp {
 	__u8  cur_qp_state;
 	__u8  path_mtu;
 	__u8  path_mig_state;
-	__u8  en_sqd_async_notify;
+	__u8  en_sqd_async_yestify;
 	__u8  max_rd_atomic;
 	__u8  max_dest_rd_atomic;
 	__u8  min_rnr_timer;

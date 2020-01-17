@@ -184,7 +184,7 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	}
 
 	/* Find the closest image size. The distance between image sizes is
-	 * the size in pixels of the non-overlapping regions between the
+	 * the size in pixels of the yesn-overlapping regions between the
 	 * requested size and the frame-specified size.
 	 */
 	rw = fmt->fmt.pix.width;
@@ -329,7 +329,7 @@ done:
 static int uvc_v4l2_get_streamparm(struct uvc_streaming *stream,
 		struct v4l2_streamparm *parm)
 {
-	u32 numerator, denominator;
+	u32 numerator, deyesminator;
 
 	if (parm->type != stream->type)
 		return -EINVAL;
@@ -338,8 +338,8 @@ static int uvc_v4l2_get_streamparm(struct uvc_streaming *stream,
 	numerator = stream->ctrl.dwFrameInterval;
 	mutex_unlock(&stream->mutex);
 
-	denominator = 10000000;
-	uvc_simplify_fraction(&numerator, &denominator, 8, 333);
+	deyesminator = 10000000;
+	uvc_simplify_fraction(&numerator, &deyesminator, 8, 333);
 
 	memset(parm, 0, sizeof(*parm));
 	parm->type = stream->type;
@@ -348,14 +348,14 @@ static int uvc_v4l2_get_streamparm(struct uvc_streaming *stream,
 		parm->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
 		parm->parm.capture.capturemode = 0;
 		parm->parm.capture.timeperframe.numerator = numerator;
-		parm->parm.capture.timeperframe.denominator = denominator;
+		parm->parm.capture.timeperframe.deyesminator = deyesminator;
 		parm->parm.capture.extendedmode = 0;
 		parm->parm.capture.readbuffers = 0;
 	} else {
 		parm->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 		parm->parm.output.outputmode = 0;
 		parm->parm.output.timeperframe.numerator = numerator;
-		parm->parm.output.timeperframe.denominator = denominator;
+		parm->parm.output.timeperframe.deyesminator = deyesminator;
 	}
 
 	return 0;
@@ -381,9 +381,9 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 		timeperframe = parm->parm.output.timeperframe;
 
 	interval = uvc_fraction_to_interval(timeperframe.numerator,
-		timeperframe.denominator);
+		timeperframe.deyesminator);
 	uvc_trace(UVC_TRACE_FORMAT, "Setting frame interval to %u/%u (%u).\n",
-		timeperframe.numerator, timeperframe.denominator, interval);
+		timeperframe.numerator, timeperframe.deyesminator, interval);
 
 	mutex_lock(&stream->mutex);
 
@@ -433,9 +433,9 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 
 	/* Return the actual frame period. */
 	timeperframe.numerator = probe.dwFrameInterval;
-	timeperframe.denominator = 10000000;
+	timeperframe.deyesminator = 10000000;
 	uvc_simplify_fraction(&timeperframe.numerator,
-		&timeperframe.denominator, 8, 333);
+		&timeperframe.deyesminator, 8, 333);
 
 	if (parm->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		parm->parm.capture.timeperframe = timeperframe;
@@ -454,7 +454,7 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
  * implementation is completely transparent for the end-user and doesn't
  * require explicit use of the VIDIOC_G_PRIORITY and VIDIOC_S_PRIORITY ioctls.
  * Those ioctls enable finer control on the device (by making possible for a
- * user to request exclusive access to a device), but are not mature yet.
+ * user to request exclusive access to a device), but are yest mature yet.
  * Switching to the V4L2 priority mechanism might be considered in the future
  * if this situation changes.
  *
@@ -1054,7 +1054,7 @@ static int uvc_ioctl_s_try_ext_ctrls(struct uvc_fh *handle,
 	unsigned int i;
 	int ret;
 
-	/* Default value cannot be changed */
+	/* Default value canyest be changed */
 	if (ctrls->which == V4L2_CTRL_WHICH_DEF_VAL)
 		return -EINVAL;
 
@@ -1240,23 +1240,23 @@ static int uvc_ioctl_enum_frameintervals(struct file *file, void *fh,
 		fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 		fival->discrete.numerator =
 			frame->dwFrameInterval[index];
-		fival->discrete.denominator = 10000000;
+		fival->discrete.deyesminator = 10000000;
 		uvc_simplify_fraction(&fival->discrete.numerator,
-			&fival->discrete.denominator, 8, 333);
+			&fival->discrete.deyesminator, 8, 333);
 	} else {
 		fival->type = V4L2_FRMIVAL_TYPE_STEPWISE;
 		fival->stepwise.min.numerator = frame->dwFrameInterval[0];
-		fival->stepwise.min.denominator = 10000000;
+		fival->stepwise.min.deyesminator = 10000000;
 		fival->stepwise.max.numerator = frame->dwFrameInterval[1];
-		fival->stepwise.max.denominator = 10000000;
+		fival->stepwise.max.deyesminator = 10000000;
 		fival->stepwise.step.numerator = frame->dwFrameInterval[2];
-		fival->stepwise.step.denominator = 10000000;
+		fival->stepwise.step.deyesminator = 10000000;
 		uvc_simplify_fraction(&fival->stepwise.min.numerator,
-			&fival->stepwise.min.denominator, 8, 333);
+			&fival->stepwise.min.deyesminator, 8, 333);
 		uvc_simplify_fraction(&fival->stepwise.max.numerator,
-			&fival->stepwise.max.denominator, 8, 333);
+			&fival->stepwise.max.deyesminator, 8, 333);
 		uvc_simplify_fraction(&fival->stepwise.step.numerator,
-			&fival->stepwise.step.denominator, 8, 333);
+			&fival->stepwise.step.deyesminator, 8, 333);
 	}
 
 	return 0;
@@ -1427,7 +1427,7 @@ static long uvc_v4l2_compat_ioctl32(struct file *file,
 static ssize_t uvc_v4l2_read(struct file *file, char __user *data,
 		    size_t count, loff_t *ppos)
 {
-	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_read: not implemented.\n");
+	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_read: yest implemented.\n");
 	return -EINVAL;
 }
 

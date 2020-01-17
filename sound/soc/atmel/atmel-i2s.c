@@ -187,7 +187,7 @@ static const struct atmel_i2s_gck_param gck_params[] = {
 struct atmel_i2s_dev;
 
 struct atmel_i2s_caps {
-	int	(*mck_init)(struct atmel_i2s_dev *, struct device_node *np);
+	int	(*mck_init)(struct atmel_i2s_dev *, struct device_yesde *np);
 };
 
 struct atmel_i2s_dev {
@@ -275,7 +275,7 @@ static int atmel_i2s_prepare(struct snd_pcm_substream *substream,
 		regmap_read(dev->regmap, ATMEL_I2SC_SR, &sr);
 		if (sr & ATMEL_I2SC_SR_RXRDY) {
 			/*
-			 * The RX Ready flag should not be set. However if here,
+			 * The RX Ready flag should yest be set. However if here,
 			 * we flush (read) the Receive Holding Register to start
 			 * from a clean state.
 			 */
@@ -292,7 +292,7 @@ static int atmel_i2s_get_gck_param(struct atmel_i2s_dev *dev, int fs)
 	int i, best;
 
 	if (!dev->gclk) {
-		dev_err(dev->dev, "cannot generate the I2S Master Clock\n");
+		dev_err(dev->dev, "canyest generate the I2S Master Clock\n");
 		return -EINVAL;
 	}
 
@@ -549,7 +549,7 @@ static const struct snd_soc_component_driver atmel_i2s_component = {
 };
 
 static int atmel_i2s_sama5d2_mck_init(struct atmel_i2s_dev *dev,
-				      struct device_node *np)
+				      struct device_yesde *np)
 {
 	struct clk *muxclk;
 	int err;
@@ -588,7 +588,7 @@ MODULE_DEVICE_TABLE(of, atmel_i2s_dt_ids);
 
 static int atmel_i2s_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *match;
 	struct atmel_i2s_dev *dev;
 	struct resource *mem;
@@ -605,7 +605,7 @@ static int atmel_i2s_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* Get hardware capabilities. */
-	match = of_match_node(atmel_i2s_dt_ids, np);
+	match = of_match_yesde(atmel_i2s_dt_ids, np);
 	if (match)
 		dev->caps = match->data;
 
@@ -644,7 +644,7 @@ static int atmel_i2s_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->gclk)) {
 		if (PTR_ERR(dev->gclk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		/* Master Mode not supported */
+		/* Master Mode yest supported */
 		dev->gclk = NULL;
 	}
 	dev->dev = &pdev->dev;

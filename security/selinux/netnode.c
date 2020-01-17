@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Network node table
+ * Network yesde table
  *
- * SELinux must keep a mapping of network nodes to labels/SIDs.  This
- * mapping is maintained as part of the normal policy but a fast cache is
+ * SELinux must keep a mapping of network yesdes to labels/SIDs.  This
+ * mapping is maintained as part of the yesrmal policy but a fast cache is
  * needed to reduce the lookup overhead since most of these queries happen on
  * a per-packet basis.
  *
@@ -30,44 +30,44 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 
-#include "netnode.h"
+#include "netyesde.h"
 #include "objsec.h"
 
 #define SEL_NETNODE_HASH_SIZE       256
 #define SEL_NETNODE_HASH_BKT_LIMIT   16
 
-struct sel_netnode_bkt {
+struct sel_netyesde_bkt {
 	unsigned int size;
 	struct list_head list;
 };
 
-struct sel_netnode {
-	struct netnode_security_struct nsec;
+struct sel_netyesde {
+	struct netyesde_security_struct nsec;
 
 	struct list_head list;
 	struct rcu_head rcu;
 };
 
 /* NOTE: we are using a combined hash table for both IPv4 and IPv6, the reason
- * for this is that I suspect most users will not make heavy use of both
+ * for this is that I suspect most users will yest make heavy use of both
  * address families at the same time so one table will usually end up wasted,
  * if this becomes a problem we can always add a hash table for each address
  * family later */
 
-static LIST_HEAD(sel_netnode_list);
-static DEFINE_SPINLOCK(sel_netnode_lock);
-static struct sel_netnode_bkt sel_netnode_hash[SEL_NETNODE_HASH_SIZE];
+static LIST_HEAD(sel_netyesde_list);
+static DEFINE_SPINLOCK(sel_netyesde_lock);
+static struct sel_netyesde_bkt sel_netyesde_hash[SEL_NETNODE_HASH_SIZE];
 
 /**
- * sel_netnode_hashfn_ipv4 - IPv4 hashing function for the node table
+ * sel_netyesde_hashfn_ipv4 - IPv4 hashing function for the yesde table
  * @addr: IPv4 address
  *
  * Description:
- * This is the IPv4 hashing function for the node interface table, it returns
+ * This is the IPv4 hashing function for the yesde interface table, it returns
  * the bucket number for the given IP address.
  *
  */
-static unsigned int sel_netnode_hashfn_ipv4(__be32 addr)
+static unsigned int sel_netyesde_hashfn_ipv4(__be32 addr)
 {
 	/* at some point we should determine if the mismatch in byte order
 	 * affects the hash function dramatically */
@@ -75,15 +75,15 @@ static unsigned int sel_netnode_hashfn_ipv4(__be32 addr)
 }
 
 /**
- * sel_netnode_hashfn_ipv6 - IPv6 hashing function for the node table
+ * sel_netyesde_hashfn_ipv6 - IPv6 hashing function for the yesde table
  * @addr: IPv6 address
  *
  * Description:
- * This is the IPv6 hashing function for the node interface table, it returns
+ * This is the IPv6 hashing function for the yesde interface table, it returns
  * the bucket number for the given IP address.
  *
  */
-static unsigned int sel_netnode_hashfn_ipv6(const struct in6_addr *addr)
+static unsigned int sel_netyesde_hashfn_ipv6(const struct in6_addr *addr)
 {
 	/* just hash the least significant 32 bits to keep things fast (they
 	 * are the most likely to be different anyway), we can revisit this
@@ -92,43 +92,43 @@ static unsigned int sel_netnode_hashfn_ipv6(const struct in6_addr *addr)
 }
 
 /**
- * sel_netnode_find - Search for a node record
+ * sel_netyesde_find - Search for a yesde record
  * @addr: IP address
  * @family: address family
  *
  * Description:
- * Search the network node table and return the record matching @addr.  If an
- * entry can not be found in the table return NULL.
+ * Search the network yesde table and return the record matching @addr.  If an
+ * entry can yest be found in the table return NULL.
  *
  */
-static struct sel_netnode *sel_netnode_find(const void *addr, u16 family)
+static struct sel_netyesde *sel_netyesde_find(const void *addr, u16 family)
 {
 	unsigned int idx;
-	struct sel_netnode *node;
+	struct sel_netyesde *yesde;
 
 	switch (family) {
 	case PF_INET:
-		idx = sel_netnode_hashfn_ipv4(*(__be32 *)addr);
+		idx = sel_netyesde_hashfn_ipv4(*(__be32 *)addr);
 		break;
 	case PF_INET6:
-		idx = sel_netnode_hashfn_ipv6(addr);
+		idx = sel_netyesde_hashfn_ipv6(addr);
 		break;
 	default:
 		BUG();
 		return NULL;
 	}
 
-	list_for_each_entry_rcu(node, &sel_netnode_hash[idx].list, list)
-		if (node->nsec.family == family)
+	list_for_each_entry_rcu(yesde, &sel_netyesde_hash[idx].list, list)
+		if (yesde->nsec.family == family)
 			switch (family) {
 			case PF_INET:
-				if (node->nsec.addr.ipv4 == *(__be32 *)addr)
-					return node;
+				if (yesde->nsec.addr.ipv4 == *(__be32 *)addr)
+					return yesde;
 				break;
 			case PF_INET6:
-				if (ipv6_addr_equal(&node->nsec.addr.ipv6,
+				if (ipv6_addr_equal(&yesde->nsec.addr.ipv6,
 						    addr))
-					return node;
+					return yesde;
 				break;
 			}
 
@@ -136,23 +136,23 @@ static struct sel_netnode *sel_netnode_find(const void *addr, u16 family)
 }
 
 /**
- * sel_netnode_insert - Insert a new node into the table
- * @node: the new node record
+ * sel_netyesde_insert - Insert a new yesde into the table
+ * @yesde: the new yesde record
  *
  * Description:
- * Add a new node record to the network address hash table.
+ * Add a new yesde record to the network address hash table.
  *
  */
-static void sel_netnode_insert(struct sel_netnode *node)
+static void sel_netyesde_insert(struct sel_netyesde *yesde)
 {
 	unsigned int idx;
 
-	switch (node->nsec.family) {
+	switch (yesde->nsec.family) {
 	case PF_INET:
-		idx = sel_netnode_hashfn_ipv4(node->nsec.addr.ipv4);
+		idx = sel_netyesde_hashfn_ipv4(yesde->nsec.addr.ipv4);
 		break;
 	case PF_INET6:
-		idx = sel_netnode_hashfn_ipv6(&node->nsec.addr.ipv6);
+		idx = sel_netyesde_hashfn_ipv6(&yesde->nsec.addr.ipv6);
 		break;
 	default:
 		BUG();
@@ -161,24 +161,24 @@ static void sel_netnode_insert(struct sel_netnode *node)
 
 	/* we need to impose a limit on the growth of the hash table so check
 	 * this bucket to make sure it is within the specified bounds */
-	list_add_rcu(&node->list, &sel_netnode_hash[idx].list);
-	if (sel_netnode_hash[idx].size == SEL_NETNODE_HASH_BKT_LIMIT) {
-		struct sel_netnode *tail;
+	list_add_rcu(&yesde->list, &sel_netyesde_hash[idx].list);
+	if (sel_netyesde_hash[idx].size == SEL_NETNODE_HASH_BKT_LIMIT) {
+		struct sel_netyesde *tail;
 		tail = list_entry(
-			rcu_dereference_protected(sel_netnode_hash[idx].list.prev,
-						  lockdep_is_held(&sel_netnode_lock)),
-			struct sel_netnode, list);
+			rcu_dereference_protected(sel_netyesde_hash[idx].list.prev,
+						  lockdep_is_held(&sel_netyesde_lock)),
+			struct sel_netyesde, list);
 		list_del_rcu(&tail->list);
 		kfree_rcu(tail, rcu);
 	} else
-		sel_netnode_hash[idx].size++;
+		sel_netyesde_hash[idx].size++;
 }
 
 /**
- * sel_netnode_sid_slow - Lookup the SID of a network address using the policy
+ * sel_netyesde_sid_slow - Lookup the SID of a network address using the policy
  * @addr: the IP address
  * @family: the address family
- * @sid: node SID
+ * @sid: yesde SID
  *
  * Description:
  * This function determines the SID of a network address by quering the
@@ -187,30 +187,30 @@ static void sel_netnode_insert(struct sel_netnode *node)
  * failure.
  *
  */
-static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
+static int sel_netyesde_sid_slow(void *addr, u16 family, u32 *sid)
 {
 	int ret;
-	struct sel_netnode *node;
-	struct sel_netnode *new;
+	struct sel_netyesde *yesde;
+	struct sel_netyesde *new;
 
-	spin_lock_bh(&sel_netnode_lock);
-	node = sel_netnode_find(addr, family);
-	if (node != NULL) {
-		*sid = node->nsec.sid;
-		spin_unlock_bh(&sel_netnode_lock);
+	spin_lock_bh(&sel_netyesde_lock);
+	yesde = sel_netyesde_find(addr, family);
+	if (yesde != NULL) {
+		*sid = yesde->nsec.sid;
+		spin_unlock_bh(&sel_netyesde_lock);
 		return 0;
 	}
 
 	new = kzalloc(sizeof(*new), GFP_ATOMIC);
 	switch (family) {
 	case PF_INET:
-		ret = security_node_sid(&selinux_state, PF_INET,
+		ret = security_yesde_sid(&selinux_state, PF_INET,
 					addr, sizeof(struct in_addr), sid);
 		if (new)
 			new->nsec.addr.ipv4 = *(__be32 *)addr;
 		break;
 	case PF_INET6:
-		ret = security_node_sid(&selinux_state, PF_INET6,
+		ret = security_yesde_sid(&selinux_state, PF_INET6,
 					addr, sizeof(struct in6_addr), sid);
 		if (new)
 			new->nsec.addr.ipv6 = *(struct in6_addr *)addr;
@@ -222,22 +222,22 @@ static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
 	if (ret == 0 && new) {
 		new->nsec.family = family;
 		new->nsec.sid = *sid;
-		sel_netnode_insert(new);
+		sel_netyesde_insert(new);
 	} else
 		kfree(new);
 
-	spin_unlock_bh(&sel_netnode_lock);
+	spin_unlock_bh(&sel_netyesde_lock);
 	if (unlikely(ret))
-		pr_warn("SELinux: failure in %s(), unable to determine network node label\n",
+		pr_warn("SELinux: failure in %s(), unable to determine network yesde label\n",
 			__func__);
 	return ret;
 }
 
 /**
- * sel_netnode_sid - Lookup the SID of a network address
+ * sel_netyesde_sid - Lookup the SID of a network address
  * @addr: the IP address
  * @family: the address family
- * @sid: node SID
+ * @sid: yesde SID
  *
  * Description:
  * This function determines the SID of a network address using the fastest
@@ -247,47 +247,47 @@ static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
  * on failure.
  *
  */
-int sel_netnode_sid(void *addr, u16 family, u32 *sid)
+int sel_netyesde_sid(void *addr, u16 family, u32 *sid)
 {
-	struct sel_netnode *node;
+	struct sel_netyesde *yesde;
 
 	rcu_read_lock();
-	node = sel_netnode_find(addr, family);
-	if (node != NULL) {
-		*sid = node->nsec.sid;
+	yesde = sel_netyesde_find(addr, family);
+	if (yesde != NULL) {
+		*sid = yesde->nsec.sid;
 		rcu_read_unlock();
 		return 0;
 	}
 	rcu_read_unlock();
 
-	return sel_netnode_sid_slow(addr, family, sid);
+	return sel_netyesde_sid_slow(addr, family, sid);
 }
 
 /**
- * sel_netnode_flush - Flush the entire network address table
+ * sel_netyesde_flush - Flush the entire network address table
  *
  * Description:
  * Remove all entries from the network address table.
  *
  */
-void sel_netnode_flush(void)
+void sel_netyesde_flush(void)
 {
 	unsigned int idx;
-	struct sel_netnode *node, *node_tmp;
+	struct sel_netyesde *yesde, *yesde_tmp;
 
-	spin_lock_bh(&sel_netnode_lock);
+	spin_lock_bh(&sel_netyesde_lock);
 	for (idx = 0; idx < SEL_NETNODE_HASH_SIZE; idx++) {
-		list_for_each_entry_safe(node, node_tmp,
-					 &sel_netnode_hash[idx].list, list) {
-				list_del_rcu(&node->list);
-				kfree_rcu(node, rcu);
+		list_for_each_entry_safe(yesde, yesde_tmp,
+					 &sel_netyesde_hash[idx].list, list) {
+				list_del_rcu(&yesde->list);
+				kfree_rcu(yesde, rcu);
 		}
-		sel_netnode_hash[idx].size = 0;
+		sel_netyesde_hash[idx].size = 0;
 	}
-	spin_unlock_bh(&sel_netnode_lock);
+	spin_unlock_bh(&sel_netyesde_lock);
 }
 
-static __init int sel_netnode_init(void)
+static __init int sel_netyesde_init(void)
 {
 	int iter;
 
@@ -295,11 +295,11 @@ static __init int sel_netnode_init(void)
 		return 0;
 
 	for (iter = 0; iter < SEL_NETNODE_HASH_SIZE; iter++) {
-		INIT_LIST_HEAD(&sel_netnode_hash[iter].list);
-		sel_netnode_hash[iter].size = 0;
+		INIT_LIST_HEAD(&sel_netyesde_hash[iter].list);
+		sel_netyesde_hash[iter].size = 0;
 	}
 
 	return 0;
 }
 
-__initcall(sel_netnode_init);
+__initcall(sel_netyesde_init);

@@ -51,7 +51,7 @@ static int __kprobes insn_has_delayslot(union mips_instruction insn)
  * insn_has_ll_or_sc function checks whether instruction is ll or sc
  * one; putting breakpoint on top of atomic ll/sc pair is bad idea;
  * so we need to prevent it and refuse kprobes insertion for such
- * instructions; cannot do much about breakpoint in the middle of
+ * instructions; canyest do much about breakpoint in the middle of
  * ll/sc pair; it is upto user to avoid those places
  */
 static int __kprobes insn_has_ll_or_sc(union mips_instruction insn)
@@ -80,7 +80,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	insn = p->addr[0];
 
 	if (insn_has_ll_or_sc(insn)) {
-		pr_notice("Kprobes for ll and sc instructions are not"
+		pr_yestice("Kprobes for ll and sc instructions are yest"
 			  "supported\n");
 		ret = -EINVAL;
 		goto out;
@@ -89,13 +89,13 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	if ((probe_kernel_read(&prev_insn, p->addr - 1,
 				sizeof(mips_instruction)) == 0) &&
 				insn_has_delayslot(prev_insn)) {
-		pr_notice("Kprobes for branch delayslot are not supported\n");
+		pr_yestice("Kprobes for branch delayslot are yest supported\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (__insn_is_compact_branch(insn)) {
-		pr_notice("Kprobes for compact branches are not supported\n");
+		pr_yestice("Kprobes for compact branches are yest supported\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -116,8 +116,8 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	 * branch instruction, we need to execute the instruction at
 	 * Branch Delayslot (BD) at the time of probe hit. As MIPS also
 	 * doesn't have single stepping support, the BD instruction can
-	 * not be executed in-line and it would be executed on SSOL slot
-	 * using a normal breakpoint instruction in the next slot.
+	 * yest be executed in-line and it would be executed on SSOL slot
+	 * using a yesrmal breakpoint instruction in the next slot.
 	 * So, read the instruction and save it for later execution.
 	 */
 	if (insn_has_delayslot(insn))
@@ -183,7 +183,7 @@ static void set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
  *
  * Evaluate the branch instruction at probed address during probe hit. The
  * result of evaluation would be the updated epc. The insturction in delayslot
- * would actually be single stepped using a normal breakpoint) on SSOL slot.
+ * would actually be single stepped using a yesrmal breakpoint) on SSOL slot.
  *
  * The result is also saved in the kprobe control block for later use,
  * in case we need to execute the delayslot instruction. The latter will be
@@ -219,7 +219,7 @@ static int evaluate_branch_instruction(struct kprobe *p, struct pt_regs *regs,
 	return 0;
 
 unaligned:
-	pr_notice("%s: unaligned epc - sending SIGBUS.\n", current->comm);
+	pr_yestice("%s: unaligned epc - sending SIGBUS.\n", current->comm);
 	force_sig(SIGBUS);
 	return -EFAULT;
 
@@ -239,7 +239,7 @@ static void prepare_singlestep(struct kprobe *p, struct pt_regs *regs,
 	else if (insn_has_delayslot(p->opcode)) {
 		ret = evaluate_branch_instruction(p, regs, kcb);
 		if (ret < 0) {
-			pr_notice("Kprobes: Error in evaluating branch\n");
+			pr_yestice("Kprobes: Error in evaluating branch\n");
 			return;
 		}
 	}
@@ -286,7 +286,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	preempt_disable();
 	kcb = get_kprobe_ctlblk();
 
-	/* Check we're not actually recursing */
+	/* Check we're yest actually recursing */
 	if (kprobe_running()) {
 		p = get_kprobe(addr);
 		if (p) {
@@ -294,11 +294,11 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			    p->ainsn.insn->word == breakpoint_insn.word) {
 				regs->cp0_status &= ~ST0_IE;
 				regs->cp0_status |= kcb->kprobe_saved_SR;
-				goto no_kprobe;
+				goto yes_kprobe;
 			}
 			/*
 			 * We have reentered the kprobe_handler(), since
-			 * another probe was hit while within the handler.
+			 * ayesther probe was hit while within the handler.
 			 * We here save the original kprobes variables and
 			 * just single step on the instruction of the new probe
 			 * without calling any user handlers.
@@ -311,18 +311,18 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			if (kcb->flags & SKIP_DELAYSLOT) {
 				resume_execution(p, regs, kcb);
 				restore_previous_kprobe(kcb);
-				preempt_enable_no_resched();
+				preempt_enable_yes_resched();
 			}
 			return 1;
 		} else if (addr->word != breakpoint_insn.word) {
 			/*
 			 * The breakpoint instruction was removed by
-			 * another cpu right after we hit, no further
+			 * ayesther cpu right after we hit, yes further
 			 * handling of this interrupt is appropriate
 			 */
 			ret = 1;
 		}
-		goto no_kprobe;
+		goto yes_kprobe;
 	}
 
 	p = get_kprobe(addr);
@@ -330,15 +330,15 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		if (addr->word != breakpoint_insn.word) {
 			/*
 			 * The breakpoint instruction was removed right
-			 * after we hit it.  Another cpu has removed
+			 * after we hit it.  Ayesther cpu has removed
 			 * either a probepoint or a debugger breakpoint
-			 * at this address.  In either case, no further
+			 * at this address.  In either case, yes further
 			 * handling of this interrupt is appropriate.
 			 */
 			ret = 1;
 		}
 		/* Not one of ours: let kernel handle it */
-		goto no_kprobe;
+		goto yes_kprobe;
 	}
 
 	set_current_kprobe(p, regs, kcb);
@@ -347,7 +347,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	if (p->pre_handler && p->pre_handler(p, regs)) {
 		/* handler has already set things up, so skip ss setup */
 		reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_yes_resched();
 		return 1;
 	}
 
@@ -357,14 +357,14 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		if (p->post_handler)
 			p->post_handler(p, regs, 0);
 		resume_execution(p, regs, kcb);
-		preempt_enable_no_resched();
+		preempt_enable_yes_resched();
 	} else
 		kcb->kprobe_status = KPROBE_HIT_SS;
 
 	return 1;
 
-no_kprobe:
-	preempt_enable_no_resched();
+yes_kprobe:
+	preempt_enable_yes_resched();
 	return ret;
 
 }
@@ -393,7 +393,7 @@ static inline int post_kprobe_handler(struct pt_regs *regs)
 	}
 	reset_current_kprobe();
 out:
-	preempt_enable_no_resched();
+	preempt_enable_yes_resched();
 
 	return 1;
 }
@@ -411,7 +411,7 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		regs->cp0_status |= kcb->kprobe_old_SR;
 
 		reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_yes_resched();
 	}
 	return 0;
 }
@@ -419,7 +419,7 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 /*
  * Wrapper routine for handling exceptions.
  */
-int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
+int __kprobes kprobe_exceptions_yestify(struct yestifier_block *self,
 				       unsigned long val, void *data)
 {
 
@@ -462,11 +462,11 @@ static void __used kretprobe_trampoline_holder(void)
 	asm volatile(
 		".set push\n\t"
 		/* Keep the assembler from reordering and placing JR here. */
-		".set noreorder\n\t"
-		"nop\n\t"
+		".set yesreorder\n\t"
+		"yesp\n\t"
 		".global kretprobe_trampoline\n"
 		"kretprobe_trampoline:\n\t"
-		"nop\n\t"
+		"yesp\n\t"
 		".set pop"
 		: : : "memory");
 }
@@ -490,7 +490,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 {
 	struct kretprobe_instance *ri = NULL;
 	struct hlist_head *head, empty_rp;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address = (unsigned long)kretprobe_trampoline;
 
@@ -512,7 +512,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	 */
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
-			/* another task is sharing our hash bucket */
+			/* ayesther task is sharing our hash bucket */
 			continue;
 
 		if (ri->rp && ri->rp->handler)
@@ -540,7 +540,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 		kfree(ri);
 	}
 	/*
-	 * By returning a non-zero value, we are telling
+	 * By returning a yesn-zero value, we are telling
 	 * kprobe_handler() that we don't want the post_handler
 	 * to run (and have re-enabled preemption)
 	 */

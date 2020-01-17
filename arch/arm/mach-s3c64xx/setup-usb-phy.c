@@ -50,7 +50,7 @@ static int s3c_usb_otgphy_init(struct platform_device *pdev)
 	/* TODO: select external clock/oscillator */
 	writel(phyclk | S3C_PHYCLK_CLK_FORCE, S3C_PHYCLK);
 
-	/* set to normal OTG PHY */
+	/* set to yesrmal OTG PHY */
 	writel((readl(S3C_PHYPWR) & ~S3C_PHYPWR_NORMAL_MASK), S3C_PHYPWR);
 	mdelay(1);
 

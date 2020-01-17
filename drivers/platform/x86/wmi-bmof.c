@@ -64,7 +64,7 @@ static int wmi_bmof_probe(struct wmi_device *wdev, const void *context)
 	}
 
 	if (priv->bmofdata->type != ACPI_TYPE_BUFFER) {
-		dev_err(&wdev->dev, "Binary MOF is not a buffer\n");
+		dev_err(&wdev->dev, "Binary MOF is yest a buffer\n");
 		ret = -EIO;
 		goto err_free;
 	}

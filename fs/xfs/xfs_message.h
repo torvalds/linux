@@ -17,7 +17,7 @@ void xfs_err(const struct xfs_mount *mp, const char *fmt, ...);
 extern __printf(2, 3)
 void xfs_warn(const struct xfs_mount *mp, const char *fmt, ...);
 extern __printf(2, 3)
-void xfs_notice(const struct xfs_mount *mp, const char *fmt, ...);
+void xfs_yestice(const struct xfs_mount *mp, const char *fmt, ...);
 extern __printf(2, 3)
 void xfs_info(const struct xfs_mount *mp, const char *fmt, ...);
 
@@ -50,8 +50,8 @@ do {									\
 	xfs_printk_ratelimited(xfs_err, dev, fmt, ##__VA_ARGS__)
 #define xfs_warn_ratelimited(dev, fmt, ...)				\
 	xfs_printk_ratelimited(xfs_warn, dev, fmt, ##__VA_ARGS__)
-#define xfs_notice_ratelimited(dev, fmt, ...)				\
-	xfs_printk_ratelimited(xfs_notice, dev, fmt, ##__VA_ARGS__)
+#define xfs_yestice_ratelimited(dev, fmt, ...)				\
+	xfs_printk_ratelimited(xfs_yestice, dev, fmt, ##__VA_ARGS__)
 #define xfs_info_ratelimited(dev, fmt, ...)				\
 	xfs_printk_ratelimited(xfs_info, dev, fmt, ##__VA_ARGS__)
 #define xfs_debug_ratelimited(dev, fmt, ...)				\

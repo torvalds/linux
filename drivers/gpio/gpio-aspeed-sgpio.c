@@ -448,9 +448,9 @@ static int __init aspeed_sgpio_probe(struct platform_device *pdev)
 	if (IS_ERR(gpio->base))
 		return PTR_ERR(gpio->base);
 
-	rc = of_property_read_u32(pdev->dev.of_node, "ngpios", &nr_gpios);
+	rc = of_property_read_u32(pdev->dev.of_yesde, "ngpios", &nr_gpios);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "Could not read ngpios property\n");
+		dev_err(&pdev->dev, "Could yest read ngpios property\n");
 		return -EINVAL;
 	} else if (nr_gpios > MAX_NR_SGPIO) {
 		dev_err(&pdev->dev, "Number of GPIOs exceeds the maximum of %d: %d\n",
@@ -458,9 +458,9 @@ static int __init aspeed_sgpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	rc = of_property_read_u32(pdev->dev.of_node, "bus-frequency", &sgpio_freq);
+	rc = of_property_read_u32(pdev->dev.of_yesde, "bus-frequency", &sgpio_freq);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "Could not read bus-frequency property\n");
+		dev_err(&pdev->dev, "Could yest read bus-frequency property\n");
 		return -EINVAL;
 	}
 

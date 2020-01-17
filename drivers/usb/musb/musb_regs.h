@@ -10,7 +10,7 @@
 #ifndef __MUSB_REGS_H__
 #define __MUSB_REGS_H__
 
-#define MUSB_EP0_FIFOSIZE	64	/* This is non-configurable */
+#define MUSB_EP0_FIFOSIZE	64	/* This is yesn-configurable */
 
 /*
  * MUSB Register bits
@@ -100,7 +100,7 @@
 #define MUSB_CSR0_H_SETUPPKT		0x0008
 #define MUSB_CSR0_H_RXSTALL		0x0004
 
-/* CSR0 bits to avoid zeroing (write zero clears, write 1 ignored) */
+/* CSR0 bits to avoid zeroing (write zero clears, write 1 igyesred) */
 #define MUSB_CSR0_P_WZC_BITS	\
 	(MUSB_CSR0_P_SENTSTALL)
 #define MUSB_CSR0_H_WZC_BITS	\
@@ -148,7 +148,7 @@
 #define MUSB_TXCSR_H_RXSTALL		0x0020
 #define MUSB_TXCSR_H_ERROR		0x0004
 
-/* TXCSR bits to avoid zeroing (write zero clears, write 1 ignored) */
+/* TXCSR bits to avoid zeroing (write zero clears, write 1 igyesred) */
 #define MUSB_TXCSR_P_WZC_BITS	\
 	(MUSB_TXCSR_P_INCOMPTX | MUSB_TXCSR_P_SENTSTALL \
 	| MUSB_TXCSR_P_UNDERRUN | MUSB_TXCSR_FIFONOTEMPTY)
@@ -183,7 +183,7 @@
 #define MUSB_RXCSR_H_REQPKT		0x0020
 #define MUSB_RXCSR_H_ERROR		0x0004
 
-/* RXCSR bits to avoid zeroing (write zero clears, write 1 ignored) */
+/* RXCSR bits to avoid zeroing (write zero clears, write 1 igyesred) */
 #define MUSB_RXCSR_P_WZC_BITS	\
 	(MUSB_RXCSR_P_SENTSTALL | MUSB_RXCSR_P_OVERRUN \
 	| MUSB_RXCSR_RXPKTRDY)

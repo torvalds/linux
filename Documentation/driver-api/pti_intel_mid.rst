@@ -22,9 +22,9 @@ be collected and routed to the pti driver, such as trace
 debugging data from a modem.  Although n_tracerouter
 and n_tracesink are a part of the complete PTI solution,
 these two line disciplines can work separately from
-pti.c and route any data stream from one /dev/tty node
-to another /dev/tty node via kernel-space.  This provides
-a stable, reliable connection that will not break unless
+pti.c and route any data stream from one /dev/tty yesde
+to ayesther /dev/tty yesde via kernel-space.  This provides
+a stable, reliable connection that will yest break unless
 the user-space application shuts down (plus avoids
 kernel->user->kernel context switch overheads of routing
 data).
@@ -43,10 +43,10 @@ An example debugging usage for this driver system:
 
 Below is example pseudo-code on how a 'privileged' application
 can hook up n_tracerouter and n_tracesink to any tty on
-a system.  'Privileged' means the application has enough
+a system.  'Privileged' means the application has eyesugh
 privileges to successfully manipulate the ldisc drivers
-but is not just blindly executing as 'root'. Keep in mind
-the use of ioctl(,TIOCSETD,) is not specific to the n_tracerouter
+but is yest just blindly executing as 'root'. Keep in mind
+the use of ioctl(,TIOCSETD,) is yest specific to the n_tracerouter
 and n_tracesink line discpline drivers but is a generic
 operation for a program to use a line discpline driver
 on a tty port other than the default n_tty:
@@ -56,7 +56,7 @@ on a tty port other than the default n_tty:
   /////////// To hook up n_tracerouter and n_tracesink /////////
 
   // Note that n_tracerouter depends on n_tracesink.
-  #include <errno.h>
+  #include <erryes.h>
   #define ONE_TTY "/dev/ttyOne"
   #define TWO_TTY "/dev/ttyTwo"
 
@@ -75,20 +75,20 @@ on a tty port other than the default n_tty:
 
   if (g_fd_source <= 0) || (g_fd_sink <= 0) {
      // doubt you'll want to use these exact error lines of code
-     printf("Error on open(). errno: %d\n",errno);
-     return errno;
+     printf("Error on open(). erryes: %d\n",erryes);
+     return erryes;
   }
 
   retval = ioctl(g_fd_sink, TIOCSETD, &sink_ldisc_num);
   if (retval < 0) {
-     printf("Error on ioctl().  errno: %d\n", errno);
-     return errno;
+     printf("Error on ioctl().  erryes: %d\n", erryes);
+     return erryes;
   }
 
   retval = ioctl(g_fd_source, TIOCSETD, &source_ldisc_num);
   if (retval < 0) {
-     printf("Error on ioctl().  errno: %d\n", errno);
-     return errno;
+     printf("Error on ioctl().  erryes: %d\n", erryes);
+     return erryes;
   }
 
   /////////// To disconnect n_tracerouter and n_tracesink ////////

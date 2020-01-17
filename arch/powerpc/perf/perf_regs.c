@@ -3,7 +3,7 @@
  * Copyright 2016 Anju T, IBM Corporation.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>

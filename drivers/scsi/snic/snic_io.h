@@ -77,7 +77,7 @@ struct snic_req_info {
 	struct list_head list;
 	struct snic_host_req *req;
 	u64	start_time;		/* start time in jiffies */
-	u16	rq_pool_type;		/* noticion of request pool type */
+	u16	rq_pool_type;		/* yesticion of request pool type */
 	u16	req_len;		/* buf len passing to fw (req + sgl)*/
 	u32	tgt_id;
 

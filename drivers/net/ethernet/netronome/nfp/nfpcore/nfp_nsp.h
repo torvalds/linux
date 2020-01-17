@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 #ifndef NSP_NSP_H
 #define NSP_NSP_H 1
@@ -14,7 +14,7 @@ struct nfp_nsp;
 struct nfp_nsp *nfp_nsp_open(struct nfp_cpp *cpp);
 void nfp_nsp_close(struct nfp_nsp *state);
 u16 nfp_nsp_get_abi_ver_major(struct nfp_nsp *state);
-u16 nfp_nsp_get_abi_ver_minor(struct nfp_nsp *state);
+u16 nfp_nsp_get_abi_ver_miyesr(struct nfp_nsp *state);
 int nfp_nsp_wait(struct nfp_nsp *state);
 int nfp_nsp_device_soft_reset(struct nfp_nsp *state);
 int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw);
@@ -32,37 +32,37 @@ int nfp_nsp_read_module_eeprom(struct nfp_nsp *state, int eth_index,
 
 static inline bool nfp_nsp_has_mac_reinit(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 20;
+	return nfp_nsp_get_abi_ver_miyesr(state) > 20;
 }
 
 static inline bool nfp_nsp_has_stored_fw_load(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 23;
+	return nfp_nsp_get_abi_ver_miyesr(state) > 23;
 }
 
 static inline bool nfp_nsp_has_hwinfo_lookup(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 24;
+	return nfp_nsp_get_abi_ver_miyesr(state) > 24;
 }
 
 static inline bool nfp_nsp_has_hwinfo_set(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 25;
+	return nfp_nsp_get_abi_ver_miyesr(state) > 25;
 }
 
 static inline bool nfp_nsp_has_fw_loaded(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 25;
+	return nfp_nsp_get_abi_ver_miyesr(state) > 25;
 }
 
 static inline bool nfp_nsp_has_versions(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 27;
+	return nfp_nsp_get_abi_ver_miyesr(state) > 27;
 }
 
 static inline bool nfp_nsp_has_read_module_eeprom(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 28;
+	return nfp_nsp_get_abi_ver_miyesr(state) > 28;
 }
 
 enum nfp_eth_interface {
@@ -251,7 +251,7 @@ enum nfp_nsp_sensor_id {
 int nfp_hwmon_read_sensor(struct nfp_cpp *cpp, enum nfp_nsp_sensor_id id,
 			  long *val);
 
-#define NFP_NSP_VERSION_BUFSZ	1024 /* reasonable size, not in the ABI */
+#define NFP_NSP_VERSION_BUFSZ	1024 /* reasonable size, yest in the ABI */
 
 enum nfp_nsp_versions {
 	NFP_VERSIONS_BSP,

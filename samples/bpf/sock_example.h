@@ -4,7 +4,7 @@
 #include <linux/unistd.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/if_ether.h>
 #include <net/if.h>
 #include <linux/if_packet.h>
@@ -17,7 +17,7 @@ static inline int open_raw_sock(const char *name)
 
 	sock = socket(PF_PACKET, SOCK_RAW | SOCK_NONBLOCK | SOCK_CLOEXEC, htons(ETH_P_ALL));
 	if (sock < 0) {
-		printf("cannot create raw socket\n");
+		printf("canyest create raw socket\n");
 		return -1;
 	}
 
@@ -26,7 +26,7 @@ static inline int open_raw_sock(const char *name)
 	sll.sll_ifindex = if_nametoindex(name);
 	sll.sll_protocol = htons(ETH_P_ALL);
 	if (bind(sock, (struct sockaddr *)&sll, sizeof(sll)) < 0) {
-		printf("bind to %s: %s\n", name, strerror(errno));
+		printf("bind to %s: %s\n", name, strerror(erryes));
 		close(sock);
 		return -1;
 	}

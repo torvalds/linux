@@ -7,7 +7,7 @@
 #include "fncache.h"
 
 struct fncache {
-	struct hlist_node nd;
+	struct hlist_yesde nd;
 	bool res;
 	char name[];
 };

@@ -9,7 +9,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -76,12 +76,12 @@ int jornada_ssp_byte(u8 byte)
 EXPORT_SYMBOL(jornada_ssp_byte);
 
 /**
- * jornada_ssp_inout - decide if input is command or trading byte
+ * jornada_ssp_iyesut - decide if input is command or trading byte
  *
  * returns : (jornada_ssp_byte(byte)) on success
  *         : %-ETIMEDOUT on timeout failure
  */
-int jornada_ssp_inout(u8 byte)
+int jornada_ssp_iyesut(u8 byte)
 {
 	int ret, i;
 
@@ -100,7 +100,7 @@ int jornada_ssp_inout(u8 byte)
 
 	return ret;
 };
-EXPORT_SYMBOL(jornada_ssp_inout);
+EXPORT_SYMBOL(jornada_ssp_iyesut);
 
 /**
  * jornada_ssp_start - enable mcu
@@ -135,13 +135,13 @@ static int jornada_ssp_probe(struct platform_device *dev)
 
 	ret = ssp_init();
 
-	/* worked fine, lets not bother with anything else */
+	/* worked fine, lets yest bother with anything else */
 	if (!ret) {
 		printk(KERN_INFO "SSP: device initialized with irq\n");
 		return ret;
 	}
 
-	printk(KERN_WARNING "SSP: initialization failed, trying non-irq solution \n");
+	printk(KERN_WARNING "SSP: initialization failed, trying yesn-irq solution \n");
 
 	/* init of Serial 4 port */
 	Ser4MCCR0 = 0;
@@ -155,11 +155,11 @@ static int jornada_ssp_probe(struct platform_device *dev)
 	jornada_ssp_start();
 
 	/* see if return value makes sense */
-	ret = jornada_ssp_inout(GETBRIGHTNESS);
+	ret = jornada_ssp_iyesut(GETBRIGHTNESS);
 
 	/* seems like it worked, just feed it with TxDummy to get rid of data */
 	if (ret == TXDUMMY)
-		jornada_ssp_inout(TXDUMMY);
+		jornada_ssp_iyesut(TXDUMMY);
 
 	jornada_ssp_end();
 
@@ -177,7 +177,7 @@ static int jornada_ssp_probe(struct platform_device *dev)
 
 static int jornada_ssp_remove(struct platform_device *dev)
 {
-	/* Note that this doesn't actually remove the driver, since theres nothing to remove
+	/* Note that this doesn't actually remove the driver, since theres yesthing to remove
 	 * It just makes sure everything is turned off */
 	GPSR = GPIO_GPIO25;
 	ssp_exit();

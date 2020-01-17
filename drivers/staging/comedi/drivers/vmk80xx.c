@@ -30,7 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
@@ -70,18 +70,18 @@ enum {
 #define VMK8055_CMD_WRT_AD	0x05
 
 #define VMK8061_CMD_RD_AI	0x00
-#define VMK8061_CMR_RD_ALL_AI	0x01	/* !non-active! */
+#define VMK8061_CMR_RD_ALL_AI	0x01	/* !yesn-active! */
 #define VMK8061_CMD_SET_AO	0x02
-#define VMK8061_CMD_SET_ALL_AO	0x03	/* !non-active! */
+#define VMK8061_CMD_SET_ALL_AO	0x03	/* !yesn-active! */
 #define VMK8061_CMD_OUT_PWM	0x04
 #define VMK8061_CMD_RD_DI	0x05
-#define VMK8061_CMD_DO		0x06	/* !non-active! */
+#define VMK8061_CMD_DO		0x06	/* !yesn-active! */
 #define VMK8061_CMD_CLR_DO	0x07
 #define VMK8061_CMD_SET_DO	0x08
 #define VMK8061_CMD_RD_CNT	0x09	/* TODO: completely pointless? */
 #define VMK8061_CMD_RST_CNT	0x0a	/* TODO: completely pointless? */
 #define VMK8061_CMD_RD_VERSION	0x0b	/* internal usage */
-#define VMK8061_CMD_RD_JMP_STAT	0x0c	/* TODO: not implemented yet */
+#define VMK8061_CMD_RD_JMP_STAT	0x0c	/* TODO: yest implemented yet */
 #define VMK8061_CMD_RD_PWR_STAT	0x0d	/* internal usage */
 #define VMK8061_CMD_RD_DO	0x0e
 #define VMK8061_CMD_RD_AO	0x0f
@@ -134,7 +134,7 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 		.ai_maxdata	= 0x03ff,
 		.ao_nchans	= 8,
 		.di_nchans	= 8,
-		.cnt_maxdata	= 0,	/* unknown, device is not writeable */
+		.cnt_maxdata	= 0,	/* unkyeswn, device is yest writeable */
 		.pwm_nchans	= 1,
 		.pwm_maxdata	= 0x03ff,
 	},
@@ -226,7 +226,7 @@ static int vmk80xx_reset_device(struct comedi_device *dev)
 	retval = vmk80xx_write_packet(dev, VMK8055_CMD_RST);
 	if (retval)
 		return retval;
-	/* set outputs to known state as we cannot read them */
+	/* set outputs to kyeswn state as we canyest read them */
 	return vmk80xx_write_packet(dev, VMK8055_CMD_WRT_AD);
 }
 

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2019, Red Hat, Inc.
  *
- * Verify that nothing bad happens if a KVM user exits with open
+ * Verify that yesthing bad happens if a KVM user exits with open
  * file descriptors while executing a nested guest.
  */
 
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 			TEST_ASSERT(false, "%s", (const char *)uc.args[0]);
 			/* NOT REACHED */
 		default:
-			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
+			TEST_ASSERT(false, "Unkyeswn ucall 0x%x.", uc.cmd);
 		}
 	}
 }

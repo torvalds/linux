@@ -484,7 +484,7 @@ static int nicvf_set_ringparam(struct net_device *netdev,
 	struct queue_set *qs = nic->qs;
 	u32 rx_count, tx_count;
 
-	/* Due to HW errata this is not supported on T88 pass 1.x silicon */
+	/* Due to HW errata this is yest supported on T88 pass 1.x silicon */
 	if (pass1_silicon(nic->pdev))
 		return -EINVAL;
 
@@ -563,7 +563,7 @@ static int nicvf_set_rss_hash_opts(struct nicvf *nic,
 
 	if (!rss->enable)
 		netdev_err(nic->netdev,
-			   "RSS is disabled, hash cannot be set\n");
+			   "RSS is disabled, hash canyest be set\n");
 
 	netdev_info(nic->netdev, "Set RSS flow type = %d, data = %lld\n",
 		    info->flow_type, info->data);
@@ -681,7 +681,7 @@ static int nicvf_set_rxfh(struct net_device *dev, const u32 *indir,
 
 	if (!rss->enable) {
 		netdev_err(nic->netdev,
-			   "RSS is disabled, cannot change settings\n");
+			   "RSS is disabled, canyest change settings\n");
 		return -EIO;
 	}
 
@@ -699,7 +699,7 @@ static int nicvf_set_rxfh(struct net_device *dev, const u32 *indir,
 	return 0;
 }
 
-/* Get no of queues device supports and current queue count */
+/* Get yes of queues device supports and current queue count */
 static void nicvf_get_channels(struct net_device *dev,
 			       struct ethtool_channels *channel)
 {
@@ -714,7 +714,7 @@ static void nicvf_get_channels(struct net_device *dev,
 	channel->tx_count = nic->tx_queues;
 }
 
-/* Set no of Tx, Rx queues to be used */
+/* Set yes of Tx, Rx queues to be used */
 static int nicvf_set_channels(struct net_device *dev,
 			      struct ethtool_channels *channel)
 {

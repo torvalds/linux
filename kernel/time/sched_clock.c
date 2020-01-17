@@ -24,7 +24,7 @@
  *
  * @epoch_ns:		sched_clock() value at last update
  * @epoch_cyc:		Clock cycle value at last update.
- * @sched_clock_mask:   Bitmask for two's complement subtraction of non 64bit
+ * @sched_clock_mask:   Bitmask for two's complement subtraction of yesn 64bit
  *			clocks.
  * @read_sched_clock:	Current clock source (or dummy source when suspended).
  * @mult:		Multipler for scaled math conversion.
@@ -73,7 +73,7 @@ static int irqtime = -1;
 
 core_param(irqtime, irqtime, int, 0400);
 
-static u64 notrace jiffy_sched_clock_read(void)
+static u64 yestrace jiffy_sched_clock_read(void)
 {
 	/*
 	 * We don't need to use get_jiffies_64 on 32-bit arches here
@@ -88,12 +88,12 @@ static struct clock_data cd ____cacheline_aligned = {
 	.actual_read_sched_clock = jiffy_sched_clock_read,
 };
 
-static inline u64 notrace cyc_to_ns(u64 cyc, u32 mult, u32 shift)
+static inline u64 yestrace cyc_to_ns(u64 cyc, u32 mult, u32 shift)
 {
 	return (cyc * mult) >> shift;
 }
 
-unsigned long long notrace sched_clock(void)
+unsigned long long yestrace sched_clock(void)
 {
 	u64 cyc, res;
 	unsigned int seq;
@@ -129,7 +129,7 @@ static void update_clock_read_data(struct clock_read_data *rd)
 	/* steer readers towards the odd copy */
 	raw_write_seqcount_latch(&cd.seq);
 
-	/* now its safe for us to update the normal (even) copy */
+	/* yesw its safe for us to update the yesrmal (even) copy */
 	cd.read_data[0] = *rd;
 
 	/* switch readers back to the even copy */
@@ -159,7 +159,7 @@ static void update_sched_clock(void)
 static enum hrtimer_restart sched_clock_poll(struct hrtimer *hrt)
 {
 	update_sched_clock();
-	hrtimer_forward_now(hrt, cd.wrap_kt);
+	hrtimer_forward_yesw(hrt, cd.wrap_kt);
 
 	return HRTIMER_RESTART;
 }
@@ -184,7 +184,7 @@ sched_clock_register(u64 (*read)(void), int bits, unsigned long rate)
 	new_mask = CLOCKSOURCE_MASK(bits);
 	cd.rate = rate;
 
-	/* Calculate how many nanosecs until we risk wrapping */
+	/* Calculate how many nayessecs until we risk wrapping */
 	wrap = clocks_calc_max_nsecs(new_mult, new_shift, 0, new_mask, NULL);
 	cd.wrap_kt = ns_to_ktime(wrap);
 
@@ -229,7 +229,7 @@ sched_clock_register(u64 (*read)(void), int bits, unsigned long rate)
 	pr_info("sched_clock: %u bits at %lu%cHz, resolution %lluns, wraps every %lluns\n",
 		bits, r, r_unit, res, wrap);
 
-	/* Enable IRQ time accounting if we have a fast enough sched_clock() */
+	/* Enable IRQ time accounting if we have a fast eyesugh sched_clock() */
 	if (irqtime > 0 || (irqtime == -1 && rate >= 1000000))
 		enable_sched_clock_irqtime();
 
@@ -239,7 +239,7 @@ sched_clock_register(u64 (*read)(void), int bits, unsigned long rate)
 void __init generic_sched_clock_init(void)
 {
 	/*
-	 * If no sched_clock() function has been provided at that point,
+	 * If yes sched_clock() function has been provided at that point,
 	 * make it the final one one.
 	 */
 	if (cd.actual_read_sched_clock == jiffy_sched_clock_read)
@@ -267,7 +267,7 @@ void __init generic_sched_clock_init(void)
  * at the end of the critical section to be sure we observe the
  * correct copy of 'epoch_cyc'.
  */
-static u64 notrace suspended_sched_clock_read(void)
+static u64 yestrace suspended_sched_clock_read(void)
 {
 	unsigned int seq = raw_read_seqcount(&cd.seq);
 

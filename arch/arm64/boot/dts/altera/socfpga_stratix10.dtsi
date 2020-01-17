@@ -22,7 +22,7 @@
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x0 0x0 0x1000000>;
 			alignment = <0x1000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -469,7 +469,7 @@
 
 		usbphy0: usbphy@0 {
 			#phy-cells = <0>;
-			compatible = "usb-nop-xceiv";
+			compatible = "usb-yesp-xceiv";
 			status = "okay";
 		};
 
@@ -592,7 +592,7 @@
 		};
 
 		qspi: spi@ff8d2000 {
-			compatible = "cdns,qspi-nor";
+			compatible = "cdns,qspi-yesr";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xff8d2000 0x100>,

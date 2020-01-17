@@ -19,7 +19,7 @@ extern struct tracepoint __tracepoint_page_ref_unfreeze;
 
 /*
  * Ideally we would want to use the trace_<tracepoint>_enabled() helper
- * functions. But due to include header file issues, that is not
+ * functions. But due to include header file issues, that is yest
  * feasible. Instead we have to open code the static key functions.
  *
  * See trace_##name##_enabled(void) in include/linux/tracepoint.h

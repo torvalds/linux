@@ -66,7 +66,7 @@ struct mtu3_request;
  * IP TRUNK version
  * from 0x1003 version, USB3 Gen2 is supported, two changes affect driver:
  * 1. MAXPKT and MULTI bits layout of TXCSR1 and RXCSR1 are adjusted,
- *    but not backward compatible
+ *    but yest backward compatible
  * 2. QMU extend buffer length supported
  */
 #define MTU3_TRUNK_VERS_1003	0x1003
@@ -74,7 +74,7 @@ struct mtu3_request;
 /**
  * Normally the device works on HS or SS, to simplify fifo management,
  * devide fifo into some 512B parts, use bitmap to manage it; And
- * 128 bits size of bitmap is large enough, that means it can manage
+ * 128 bits size of bitmap is large eyesugh, that means it can manage
  * up to 64KB fifo size.
  * NOTE: MTU3_EP_FIFO_UNIT should be power of two
  */
@@ -146,7 +146,7 @@ struct mtu3_fifo_info {
  *
  * @dw0_info:
  *	bit0: Hardware Own (HWO)
- *	bit1: Buffer Descriptor Present (BDP), always 0, BD is not supported
+ *	bit1: Buffer Descriptor Present (BDP), always 0, BD is yest supported
  *	bit2: Bypass (BPS), 1: HW skips this GPD if HWO = 1
  *	bit6: [EL] Zero Length Packet (ZLP), moved from @dw3_info[29]
  *	bit7: Interrupt On Completion (IOC)
@@ -192,27 +192,27 @@ struct mtu3_gpd_ring {
 /**
 * @vbus: vbus 5V used by host mode
 * @edev: external connector used to detect vbus and iddig changes
-* @vbus_nb: notifier for vbus detection
-* @vbus_work : work of vbus detection notifier, used to avoid sleep in
-*		notifier callback which is atomic context
-* @vbus_event : event of vbus detecion notifier
-* @id_nb : notifier for iddig(idpin) detection
-* @id_work : work of iddig detection notifier
-* @id_event : event of iddig detecion notifier
+* @vbus_nb: yestifier for vbus detection
+* @vbus_work : work of vbus detection yestifier, used to avoid sleep in
+*		yestifier callback which is atomic context
+* @vbus_event : event of vbus detecion yestifier
+* @id_nb : yestifier for iddig(idpin) detection
+* @id_work : work of iddig detection yestifier
+* @id_event : event of iddig detecion yestifier
 * @role_sw : use USB Role Switch to support dual-role switch, can't use
 *		extcon at the same time, and extcon is deprecated.
 * @role_sw_used : true when the USB Role Switch is used.
-* @is_u3_drd: whether port0 supports usb3.0 dual-role device or not
+* @is_u3_drd: whether port0 supports usb3.0 dual-role device or yest
 * @manual_drd_enabled: it's true when supports dual-role device by debugfs
 *		to switch host/device modes depending on user input.
 */
 struct otg_switch_mtk {
 	struct regulator *vbus;
 	struct extcon_dev *edev;
-	struct notifier_block vbus_nb;
+	struct yestifier_block vbus_nb;
 	struct work_struct vbus_work;
 	unsigned long vbus_event;
-	struct notifier_block id_nb;
+	struct yestifier_block id_nb;
 	struct work_struct id_work;
 	unsigned long id_event;
 	struct usb_role_switch *role_sw;

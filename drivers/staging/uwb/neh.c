@@ -7,14 +7,14 @@
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
  *
  * The RC interface of the Host Wire Adapter (USB dongle) or WHCI PCI
- * card delivers a stream of notifications and events to the
- * notification end event endpoint or area. This code takes care of
+ * card delivers a stream of yestifications and events to the
+ * yestification end event endpoint or area. This code takes care of
  * getting a buffer with that data, breaking it up in separate
- * notifications and events and then deliver those.
+ * yestifications and events and then deliver those.
  *
  * Events are answers to commands and they carry a context ID that
  * associates them to the command. Notifications are that,
- * notifications, they come out of the blue and have a context ID of
+ * yestifications, they come out of the blue and have a context ID of
  * zero. Think of the context ID kind of like a handler. The
  * uwb_rc_neh_* code deals with managing context IDs.
  *
@@ -35,7 +35,7 @@
  *
  * Handles are for using in *serialized* code, single thread.
  *
- * When the notification/event comes, the IRQ handler/endpoint
+ * When the yestification/event comes, the IRQ handler/endpoint
  * callback passes the data read to uwb_rc_neh_grok() which will break
  * it up in a discrete series of events, look up who is listening for
  * them and execute the pertinent callbacks.
@@ -45,26 +45,26 @@
  *
  * CONSTRAINTS/ASSUMPTIONS:
  *
- * - Most notifications/events are small (less thank .5k), copying
+ * - Most yestifications/events are small (less thank .5k), copying
  *   around is ok.
  *
  * - Notifications/events are ALWAYS smaller than PAGE_SIZE
  *
  * - Notifications/events always come in a single piece (ie: a buffer
- *   will always contain entire notifications/events).
+ *   will always contain entire yestifications/events).
  *
- * - we cannot know in advance how long each event is (because they
+ * - we canyest kyesw in advance how long each event is (because they
  *   lack a length field in their header--smart move by the standards
  *   body, btw). So we need a facility to get the event size given the
- *   header. This is what the EST code does (notif/Event Size
+ *   header. This is what the EST code does (yestif/Event Size
  *   Tables), check nest.c--as well, you can associate the size to
  *   the handle [w/ neh->extra_size()].
  *
- * - Most notifications/events are fixed size; only a few are variable
+ * - Most yestifications/events are fixed size; only a few are variable
  *   size (NEST takes care of that).
  *
  * - Listeners of events expect them, so they usually provide a
- *   buffer, as they know the size. Listeners to notifications don't,
+ *   buffer, as they kyesw the size. Listeners to yestifications don't,
  *   so we allocate their buffers dynamically.
  */
 #include <linux/kernel.h>
@@ -80,7 +80,7 @@
  *
  * Represents an entity waiting for an event coming from the UWB Radio
  * Controller with a given context id (context) and type (evt_type and
- * evt). On reception of the notification/event, the callback (cb) is
+ * evt). On reception of the yestification/event, the callback (cb) is
  * called with the event.
  *
  * If the timer expires before the event is received, the callback is
@@ -98,7 +98,7 @@ struct uwb_rc_neh {
 	void *arg;
 
 	struct timer_list timer;
-	struct list_head list_node;
+	struct list_head list_yesde;
 };
 
 static void uwb_rc_neh_timer(struct timer_list *t);
@@ -130,19 +130,19 @@ void uwb_rc_neh_put(struct uwb_rc_neh *neh)
  *
  * @rc:	    UWB Radio Controller descriptor; @rc->neh_lock taken
  * @neh:    Notification/Event Handle
- * @returns 0 if context id was assigned ok; < 0 errno on error (if
+ * @returns 0 if context id was assigned ok; < 0 erryes on error (if
  *	    all the context IDs are taken).
  *
  * (assumes @wa is locked).
  *
- * NOTE: WUSB spec reserves context ids 0x00 for notifications and
- *	 0xff is invalid, so they must not be used. Initialization
- *	 fills up those two in the bitmap so they are not allocated.
+ * NOTE: WUSB spec reserves context ids 0x00 for yestifications and
+ *	 0xff is invalid, so they must yest be used. Initialization
+ *	 fills up those two in the bitmap so they are yest allocated.
  *
  * We spread the allocation around to reduce the possibility of two
  * consecutive opened @neh's getting the same context ID assigned (to
  * avoid surprises with late events that timed out long time ago). So
- * first we search from where @rc->ctx_roll is, if not found, we
+ * first we search from where @rc->ctx_roll is, if yest found, we
  * search from zero.
  */
 static
@@ -172,7 +172,7 @@ void __uwb_rc_ctx_put(struct uwb_rc *rc, struct uwb_rc_neh *neh)
 	if (neh->context == 0)
 		return;
 	if (test_bit(neh->context, rc->ctx_bm) == 0) {
-		dev_err(dev, "context %u not set in bitmap\n",
+		dev_err(dev, "context %u yest set in bitmap\n",
 			neh->context);
 		WARN_ON(1);
 	}
@@ -208,7 +208,7 @@ struct uwb_rc_neh *uwb_rc_neh_add(struct uwb_rc *rc, struct uwb_rccb *cmd,
 	}
 
 	kref_init(&neh->kref);
-	INIT_LIST_HEAD(&neh->list_node);
+	INIT_LIST_HEAD(&neh->list_yesde);
 	timer_setup(&neh->timer, uwb_rc_neh_timer, 0);
 
 	neh->rc = rc;
@@ -221,7 +221,7 @@ struct uwb_rc_neh *uwb_rc_neh_add(struct uwb_rc *rc, struct uwb_rccb *cmd,
 	result = __uwb_rc_ctx_get(rc, neh);
 	if (result >= 0) {
 		cmd->bCommandContext = neh->context;
-		list_add_tail(&neh->list_node, &rc->neh_list);
+		list_add_tail(&neh->list_yesde, &rc->neh_list);
 		uwb_rc_neh_get(neh);
 	}
 	spin_unlock_irqrestore(&rc->neh_lock, flags);
@@ -233,14 +233,14 @@ struct uwb_rc_neh *uwb_rc_neh_add(struct uwb_rc *rc, struct uwb_rccb *cmd,
 error_ctx_get:
 	kfree(neh);
 error_kzalloc:
-	dev_err(dev, "cannot open handle to radio controller: %d\n", result);
+	dev_err(dev, "canyest open handle to radio controller: %d\n", result);
 	return ERR_PTR(result);
 }
 
 static void __uwb_rc_neh_rm(struct uwb_rc *rc, struct uwb_rc_neh *neh)
 {
 	__uwb_rc_ctx_put(rc, neh);
-	list_del(&neh->list_node);
+	list_del(&neh->list_yesde);
 }
 
 /**
@@ -304,7 +304,7 @@ static bool uwb_rc_neh_match(struct uwb_rc_neh *neh, const struct uwb_rceb *rceb
  *              adjusted to take into account the @neh->extra_size
  *              settings.
  *
- * If the listener has no buffer (NULL buffer), one is allocated for
+ * If the listener has yes buffer (NULL buffer), one is allocated for
  * the right size (the amount of data received). @neh->ptr will point
  * to the event payload, which always starts with a 'struct
  * uwb_rceb'. kfree() it when done.
@@ -318,7 +318,7 @@ struct uwb_rc_neh *uwb_rc_neh_lookup(struct uwb_rc *rc,
 
 	spin_lock_irqsave(&rc->neh_lock, flags);
 
-	list_for_each_entry(h, &rc->neh_list, list_node) {
+	list_for_each_entry(h, &rc->neh_list, list_yesde) {
 		if (uwb_rc_neh_match(h, rceb)) {
 			neh = h;
 			break;
@@ -335,24 +335,24 @@ struct uwb_rc_neh *uwb_rc_neh_lookup(struct uwb_rc *rc,
 
 
 /*
- * Process notifications coming from the radio control interface
+ * Process yestifications coming from the radio control interface
  *
  * @rc:    UWB Radio Control Interface descriptor
  * @neh:   Notification/Event Handler @neh->ptr points to
  *         @uwb_evt->buffer.
  *
- * This function is called by the event/notif handling subsystem when
- * notifications arrive (hwarc_probe() arms a notification/event handle
- * that calls back this function for every received notification; this
+ * This function is called by the event/yestif handling subsystem when
+ * yestifications arrive (hwarc_probe() arms a yestification/event handle
+ * that calls back this function for every received yestification; this
  * function then will rearm itself).
  *
  * Notification data buffers are dynamically allocated by the NEH
  * handling code in neh.c [uwb_rc_neh_lookup()]. What is actually
- * allocated is space to contain the notification data.
+ * allocated is space to contain the yestification data.
  *
  * Buffers are prefixed with a Radio Control Event Block (RCEB) as
  * defined by the WUSB Wired-Adapter Radio Control interface. We
- * just use it for the notification code.
+ * just use it for the yestification code.
  *
  * On each case statement we just transcode endianess of the different
  * fields. We declare a pointer to a RCI definition of an event, and
@@ -360,7 +360,7 @@ struct uwb_rc_neh *uwb_rc_neh_lookup(struct uwb_rc *rc,
  * remember). Event if we use different pointers
  */
 static
-void uwb_rc_notif(struct uwb_rc *rc, struct uwb_rceb *rceb, ssize_t size)
+void uwb_rc_yestif(struct uwb_rc *rc, struct uwb_rceb *rceb, ssize_t size)
 {
 	struct device *dev = &rc->uwb_dev.dev;
 	struct uwb_event *uwb_evt;
@@ -368,14 +368,14 @@ void uwb_rc_notif(struct uwb_rc *rc, struct uwb_rceb *rceb, ssize_t size)
 	if (size == -ESHUTDOWN)
 		return;
 	if (size < 0) {
-		dev_err(dev, "ignoring event with error code %zu\n",
+		dev_err(dev, "igyesring event with error code %zu\n",
 			size);
 		return;
 	}
 
 	uwb_evt = kzalloc(sizeof(*uwb_evt), GFP_ATOMIC);
 	if (unlikely(uwb_evt == NULL)) {
-		dev_err(dev, "no memory to queue event 0x%02x/%04x/%02x\n",
+		dev_err(dev, "yes memory to queue event 0x%02x/%04x/%02x\n",
 			rceb->bEventType, le16_to_cpu(rceb->wEvent),
 			rceb->bEventContext);
 		return;
@@ -383,8 +383,8 @@ void uwb_rc_notif(struct uwb_rc *rc, struct uwb_rceb *rceb, ssize_t size)
 	uwb_evt->rc = __uwb_rc_get(rc);	/* will be put by uwbd's uwbd_event_handle() */
 	uwb_evt->ts_jiffies = jiffies;
 	uwb_evt->type = UWB_EVT_TYPE_NOTIF;
-	uwb_evt->notif.size = size;
-	uwb_evt->notif.rceb = rceb;
+	uwb_evt->yestif.size = size;
+	uwb_evt->yestif.rceb = rceb;
 
 	uwbd_event_queue(uwb_evt);
 }
@@ -393,16 +393,16 @@ static void uwb_rc_neh_grok_event(struct uwb_rc *rc, struct uwb_rceb *rceb, size
 {
 	struct device *dev = &rc->uwb_dev.dev;
 	struct uwb_rc_neh *neh;
-	struct uwb_rceb *notif;
+	struct uwb_rceb *yestif;
 	unsigned long flags;
 
 	if (rceb->bEventContext == 0) {
-		notif = kmalloc(size, GFP_ATOMIC);
-		if (notif) {
-			memcpy(notif, rceb, size);
-			uwb_rc_notif(rc, notif, size);
+		yestif = kmalloc(size, GFP_ATOMIC);
+		if (yestif) {
+			memcpy(yestif, rceb, size);
+			uwb_rc_yestif(rc, yestif, size);
 		} else
-			dev_err(dev, "event 0x%02x/%04x/%02x (%zu bytes): no memory\n",
+			dev_err(dev, "event 0x%02x/%04x/%02x (%zu bytes): yes memory\n",
 				rceb->bEventType, le16_to_cpu(rceb->wEvent),
 				rceb->bEventContext, size);
 	} else {
@@ -415,21 +415,21 @@ static void uwb_rc_neh_grok_event(struct uwb_rc *rc, struct uwb_rceb *rceb, size
 			spin_unlock_irqrestore(&rc->neh_lock, flags);
 			uwb_rc_neh_cb(neh, rceb, size);
 		} else
-			dev_warn(dev, "event 0x%02x/%04x/%02x (%zu bytes): nobody cared\n",
+			dev_warn(dev, "event 0x%02x/%04x/%02x (%zu bytes): yesbody cared\n",
 				 rceb->bEventType, le16_to_cpu(rceb->wEvent),
 				 rceb->bEventContext, size);
 	}
 }
 
 /**
- * Given a buffer with one or more UWB RC events/notifications, break
+ * Given a buffer with one or more UWB RC events/yestifications, break
  * them up and dispatch them.
  *
  * @rc:	      UWB Radio Controller
- * @buf:      Buffer with the stream of notifications/events
+ * @buf:      Buffer with the stream of yestifications/events
  * @buf_size: Amount of data in the buffer
  *
- * Note each notification/event starts always with a 'struct
+ * Note each yestification/event starts always with a 'struct
  * uwb_rceb', so the minimum size if 4 bytes.
  *
  * The device may pass us events formatted differently than expected.
@@ -437,10 +437,10 @@ static void uwb_rc_neh_grok_event(struct uwb_rc *rc, struct uwb_rceb *rceb, size
  * memory location. If a new event is created by the filter it is also
  * freed here.
  *
- * For each notif/event, tries to guess the size looking at the EST
+ * For each yestif/event, tries to guess the size looking at the EST
  * tables, then looks for a neh that is waiting for that event and if
  * found, copies the payload to the neh's buffer and calls it back. If
- * not, the data is ignored.
+ * yest, the data is igyesred.
  *
  * Note that if we can't find a size description in the EST tables, we
  * still might find a size in the 'neh' handle in uwb_rc_neh_lookup().
@@ -451,7 +451,7 @@ static void uwb_rc_neh_grok_event(struct uwb_rc *rc, struct uwb_rceb *rceb, size
  *
  * We keep track of various sizes here:
  * size:      contains the size of the buffer that is processed for the
- *            incoming event. this buffer may contain events that are not
+ *            incoming event. this buffer may contain events that are yest
  *            formatted as WHCI.
  * real_size: the actual space taken by this event in the buffer.
  *            We need to keep track of the real size of an event to be able to
@@ -473,7 +473,7 @@ void uwb_rc_neh_grok(struct uwb_rc *rc, void *buf, size_t buf_size)
 	size = buf_size;
 	while (size > 0) {
 		if (size < sizeof(*rceb)) {
-			dev_err(dev, "not enough data in event buffer to "
+			dev_err(dev, "yest eyesugh data in event buffer to "
 				"process incoming events (%zu left, minimum is "
 				"%zu)\n", size, sizeof(*rceb));
 			break;
@@ -493,7 +493,7 @@ void uwb_rc_neh_grok(struct uwb_rc *rc, void *buf, size_t buf_size)
 			}
 		} else
 			needtofree = -ENOANO;
-		/* do real processing if there was no filtering or the
+		/* do real processing if there was yes filtering or the
 		 * filtering didn't act */
 		if (needtofree == -ENOANO) {
 			ssize_t ret = uwb_est_find_size(rc, rceb, size);
@@ -522,11 +522,11 @@ EXPORT_SYMBOL_GPL(uwb_rc_neh_grok);
 
 
 /**
- * The entity that reads from the device notification/event channel has
+ * The entity that reads from the device yestification/event channel has
  * detected an error.
  *
  * @rc:    UWB Radio Controller
- * @error: Errno error code
+ * @error: Erryes error code
  *
  */
 void uwb_rc_neh_error(struct uwb_rc *rc, int error)
@@ -540,7 +540,7 @@ void uwb_rc_neh_error(struct uwb_rc *rc, int error)
 			spin_unlock_irqrestore(&rc->neh_lock, flags);
 			break;
 		}
-		neh = list_first_entry(&rc->neh_list, struct uwb_rc_neh, list_node);
+		neh = list_first_entry(&rc->neh_list, struct uwb_rc_neh, list_yesde);
 		__uwb_rc_neh_rm(rc, neh);
 		spin_unlock_irqrestore(&rc->neh_lock, flags);
 
@@ -596,7 +596,7 @@ void uwb_rc_neh_destroy(struct uwb_rc *rc)
 			spin_unlock_irqrestore(&rc->neh_lock, flags);
 			break;
 		}
-		neh = list_first_entry(&rc->neh_list, struct uwb_rc_neh, list_node);
+		neh = list_first_entry(&rc->neh_list, struct uwb_rc_neh, list_yesde);
 		__uwb_rc_neh_rm(rc, neh);
 		spin_unlock_irqrestore(&rc->neh_lock, flags);
 

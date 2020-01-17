@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * General MIPS MT support routines, usable in AP/SP and SMVP.
- * Copyright (C) 2005 Mips Technologies, Inc
+ * Copyright (C) 2005 Mips Techyeslogies, Inc
  */
 
 #include <linux/device.h>
@@ -43,7 +43,7 @@ static int __init maxtcs(char *str)
 __setup("maxtcs=", maxtcs);
 
 /*
- * Dump new MIPS MT state for the core. Does not leave TCs halted.
+ * Dump new MIPS MT state for the core. Does yest leave TCs halted.
  * Takes an argument which taken to be a pre-call MVPControl value.
  */
 
@@ -96,7 +96,7 @@ void mips_mt_regdump(unsigned long mvpctl)
 		settc(tc);
 		if (read_tc_c0_tcbind() == read_c0_tcbind()) {
 			/* Are we dumping ourself?  */
-			haltval = 0; /* Then we're not halted, and mustn't be */
+			haltval = 0; /* Then we're yest halted, and mustn't be */
 			tcstatval = flags; /* And pre-dump TCStatus is flags */
 			printk("  TC %d (current TC with VPE EPC above)\n", tc);
 		} else {
@@ -198,7 +198,7 @@ void mips_mt_set_cpuoptions(void)
 		unsigned long ectlval;
 		unsigned long itcblkgrn;
 
-		/* ErrCtl register is known as "ecc" to Linux */
+		/* ErrCtl register is kyeswn as "ecc" to Linux */
 		ectlval = read_c0_ecc();
 		write_c0_ecc(ectlval | (0x1 << 26));
 		ehb();

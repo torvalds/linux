@@ -3,7 +3,7 @@
  * Copyright (C) Neil Brown 2002
  * Copyright (C) Christoph Hellwig 2007
  *
- * This file contains the code mapping from inodes to NFS file handles,
+ * This file contains the code mapping from iyesdes to NFS file handles,
  * and for mapping back from file handles to dentries.
  *
  * For details on why we do all the strange and hairy things in here
@@ -27,11 +27,11 @@ static int get_name(const struct path *path, char *name, struct dentry *child);
 static int exportfs_get_name(struct vfsmount *mnt, struct dentry *dir,
 		char *name, struct dentry *child)
 {
-	const struct export_operations *nop = dir->d_sb->s_export_op;
+	const struct export_operations *yesp = dir->d_sb->s_export_op;
 	struct path path = {.mnt = mnt, .dentry = dir};
 
-	if (nop->get_name)
-		return nop->get_name(dir, name, child);
+	if (yesp->get_name)
+		return yesp->get_name(dir, name, child);
 	else
 		return get_name(&path, name, child);
 }
@@ -45,26 +45,26 @@ find_acceptable_alias(struct dentry *result,
 		void *context)
 {
 	struct dentry *dentry, *toput = NULL;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	if (acceptable(context, result))
 		return result;
 
-	inode = result->d_inode;
-	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
+	iyesde = result->d_iyesde;
+	spin_lock(&iyesde->i_lock);
+	hlist_for_each_entry(dentry, &iyesde->i_dentry, d_u.d_alias) {
 		dget(dentry);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 		if (toput)
 			dput(toput);
 		if (dentry != result && acceptable(context, dentry)) {
 			dput(result);
 			return dentry;
 		}
-		spin_lock(&inode->i_lock);
+		spin_lock(&iyesde->i_lock);
 		toput = dentry;
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&iyesde->i_lock);
 
 	if (toput)
 		dput(toput);
@@ -116,7 +116,7 @@ static void clear_disconnected(struct dentry *dentry)
  *
  * In the NULL case, a concurrent VFS operation has either renamed or
  * removed this directory.  The concurrent operation has reconnected our
- * dentry, so we no longer need to.
+ * dentry, so we yes longer need to.
  */
 static struct dentry *reconnect_one(struct vfsmount *mnt,
 		struct dentry *dentry, char *nbuf)
@@ -126,19 +126,19 @@ static struct dentry *reconnect_one(struct vfsmount *mnt,
 	int err;
 
 	parent = ERR_PTR(-EACCES);
-	inode_lock(dentry->d_inode);
+	iyesde_lock(dentry->d_iyesde);
 	if (mnt->mnt_sb->s_export_op->get_parent)
 		parent = mnt->mnt_sb->s_export_op->get_parent(dentry);
-	inode_unlock(dentry->d_inode);
+	iyesde_unlock(dentry->d_iyesde);
 
 	if (IS_ERR(parent)) {
 		dprintk("%s: get_parent of %ld failed, err %d\n",
-			__func__, dentry->d_inode->i_ino, PTR_ERR(parent));
+			__func__, dentry->d_iyesde->i_iyes, PTR_ERR(parent));
 		return parent;
 	}
 
 	dprintk("%s: find name of %lu in %lu\n", __func__,
-		dentry->d_inode->i_ino, parent->d_inode->i_ino);
+		dentry->d_iyesde->i_iyes, parent->d_iyesde->i_iyes);
 	err = exportfs_get_name(mnt, parent, nbuf, dentry);
 	if (err == -ENOENT)
 		goto out_reconnected;
@@ -174,17 +174,17 @@ out_err:
 out_reconnected:
 	dput(parent);
 	/*
-	 * Someone must have renamed our entry into another parent, in
+	 * Someone must have renamed our entry into ayesther parent, in
 	 * which case it has been reconnected by the rename.
 	 *
 	 * Or someone removed it entirely, in which case filehandle
-	 * lookup will succeed but the directory is now IS_DEAD and
+	 * lookup will succeed but the directory is yesw IS_DEAD and
 	 * subsequent operations on it will fail.
 	 *
-	 * Alternatively, maybe there was no race at all, and the
+	 * Alternatively, maybe there was yes race at all, and the
 	 * filesystem is just corrupt and gave us a parent that doesn't
-	 * actually contain any entry pointing to this inode.  So,
-	 * double check that this worked and return -ESTALE if not:
+	 * actually contain any entry pointing to this iyesde.  So,
+	 * double check that this worked and return -ESTALE if yest:
 	 */
 	if (!dentry_connected(dentry))
 		return ERR_PTR(-ESTALE);
@@ -199,7 +199,7 @@ out_reconnected:
  * root of the filesystem.
  *
  * Whenever DCACHE_DISCONNECTED is unset, target_dir is fully connected.
- * But the converse is not true: target_dir may have DCACHE_DISCONNECTED
+ * But the converse is yest true: target_dir may have DCACHE_DISCONNECTED
  * set but already be connected.  In that case we'll verify the
  * connection to root and then clear the flag.
  *
@@ -239,24 +239,24 @@ struct getdents_callback {
 	struct dir_context ctx;
 	char *name;		/* name that was found. It already points to a
 				   buffer NAME_MAX+1 is size */
-	u64 ino;		/* the inum we are looking for */
-	int found;		/* inode matched? */
+	u64 iyes;		/* the inum we are looking for */
+	int found;		/* iyesde matched? */
 	int sequence;		/* sequence counter */
 };
 
 /*
  * A rather strange filldir function to capture
- * the name matching the specified inode number.
+ * the name matching the specified iyesde number.
  */
 static int filldir_one(struct dir_context *ctx, const char *name, int len,
-			loff_t pos, u64 ino, unsigned int d_type)
+			loff_t pos, u64 iyes, unsigned int d_type)
 {
 	struct getdents_callback *buf =
 		container_of(ctx, struct getdents_callback, ctx);
 	int result = 0;
 
 	buf->sequence++;
-	if (buf->ino == ino && len <= NAME_MAX) {
+	if (buf->iyes == iyes && len <= NAME_MAX) {
 		memcpy(buf->name, name, len);
 		buf->name[len] = '\0';
 		buf->found = 1;
@@ -272,12 +272,12 @@ static int filldir_one(struct dir_context *ctx, const char *name, int len,
  * @child:  the dentry for the child directory.
  *
  * calls readdir on the parent until it finds an entry with
- * the same inode number as the child, and returns that.
+ * the same iyesde number as the child, and returns that.
  */
 static int get_name(const struct path *path, char *name, struct dentry *child)
 {
 	const struct cred *cred = current_cred();
-	struct inode *dir = path->dentry->d_inode;
+	struct iyesde *dir = path->dentry->d_iyesde;
 	int error;
 	struct file *file;
 	struct kstat stat;
@@ -297,16 +297,16 @@ static int get_name(const struct path *path, char *name, struct dentry *child)
 	if (!dir->i_fop)
 		goto out;
 	/*
-	 * inode->i_ino is unsigned long, kstat->ino is u64, so the
+	 * iyesde->i_iyes is unsigned long, kstat->iyes is u64, so the
 	 * former would be insufficient on 32-bit hosts when the
-	 * filesystem supports 64-bit inode numbers.  So we need to
-	 * actually call ->getattr, not just read i_ino:
+	 * filesystem supports 64-bit iyesde numbers.  So we need to
+	 * actually call ->getattr, yest just read i_iyes:
 	 */
-	error = vfs_getattr_nosec(&child_path, &stat,
+	error = vfs_getattr_yessec(&child_path, &stat,
 				  STATX_INO, AT_STATX_SYNC_AS_STAT);
 	if (error)
 		return error;
-	buffer.ino = stat.ino;
+	buffer.iyes = stat.iyes;
 	/*
 	 * Open the directory ...
 	 */
@@ -345,18 +345,18 @@ out:
 
 /**
  * export_encode_fh - default export_operations->encode_fh function
- * @inode:   the object to encode
+ * @iyesde:   the object to encode
  * @fid:     where to store the file handle fragment
  * @max_len: maximum length to store there
- * @parent:  parent directory inode, if wanted
+ * @parent:  parent directory iyesde, if wanted
  *
- * This default encode_fh function assumes that the 32 inode number
- * is suitable for locating an inode, and that the generation number
+ * This default encode_fh function assumes that the 32 iyesde number
+ * is suitable for locating an iyesde, and that the generation number
  * can be used to check that it is still valid.  It places them in the
  * filehandle fragment where export_decode_fh expects to find them.
  */
-static int export_encode_fh(struct inode *inode, struct fid *fid,
-		int *max_len, struct inode *parent)
+static int export_encode_fh(struct iyesde *iyesde, struct fid *fid,
+		int *max_len, struct iyesde *parent)
 {
 	int len = *max_len;
 	int type = FILEID_INO32_GEN;
@@ -370,10 +370,10 @@ static int export_encode_fh(struct inode *inode, struct fid *fid,
 	}
 
 	len = 2;
-	fid->i32.ino = inode->i_ino;
-	fid->i32.gen = inode->i_generation;
+	fid->i32.iyes = iyesde->i_iyes;
+	fid->i32.gen = iyesde->i_generation;
 	if (parent) {
-		fid->i32.parent_ino = parent->i_ino;
+		fid->i32.parent_iyes = parent->i_iyes;
 		fid->i32.parent_gen = parent->i_generation;
 		len = 4;
 		type = FILEID_INO32_GEN_PARENT;
@@ -382,35 +382,35 @@ static int export_encode_fh(struct inode *inode, struct fid *fid,
 	return type;
 }
 
-int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
-			     int *max_len, struct inode *parent)
+int exportfs_encode_iyesde_fh(struct iyesde *iyesde, struct fid *fid,
+			     int *max_len, struct iyesde *parent)
 {
-	const struct export_operations *nop = inode->i_sb->s_export_op;
+	const struct export_operations *yesp = iyesde->i_sb->s_export_op;
 
-	if (nop && nop->encode_fh)
-		return nop->encode_fh(inode, fid->raw, max_len, parent);
+	if (yesp && yesp->encode_fh)
+		return yesp->encode_fh(iyesde, fid->raw, max_len, parent);
 
-	return export_encode_fh(inode, fid, max_len, parent);
+	return export_encode_fh(iyesde, fid, max_len, parent);
 }
-EXPORT_SYMBOL_GPL(exportfs_encode_inode_fh);
+EXPORT_SYMBOL_GPL(exportfs_encode_iyesde_fh);
 
 int exportfs_encode_fh(struct dentry *dentry, struct fid *fid, int *max_len,
 		int connectable)
 {
 	int error;
 	struct dentry *p = NULL;
-	struct inode *inode = dentry->d_inode, *parent = NULL;
+	struct iyesde *iyesde = dentry->d_iyesde, *parent = NULL;
 
-	if (connectable && !S_ISDIR(inode->i_mode)) {
+	if (connectable && !S_ISDIR(iyesde->i_mode)) {
 		p = dget_parent(dentry);
 		/*
-		 * note that while p might've ceased to be our parent already,
+		 * yeste that while p might've ceased to be our parent already,
 		 * it's still pinned by and still positive.
 		 */
-		parent = p->d_inode;
+		parent = p->d_iyesde;
 	}
 
-	error = exportfs_encode_inode_fh(inode, fid, max_len, parent);
+	error = exportfs_encode_iyesde_fh(iyesde, fid, max_len, parent);
 	dput(p);
 
 	return error;
@@ -421,7 +421,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 		int fh_len, int fileid_type,
 		int (*acceptable)(void *, struct dentry *), void *context)
 {
-	const struct export_operations *nop = mnt->mnt_sb->s_export_op;
+	const struct export_operations *yesp = mnt->mnt_sb->s_export_op;
 	struct dentry *result, *alias;
 	char nbuf[NAME_MAX+1];
 	int err;
@@ -429,18 +429,18 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 	/*
 	 * Try to get any dentry for the given file handle from the filesystem.
 	 */
-	if (!nop || !nop->fh_to_dentry)
+	if (!yesp || !yesp->fh_to_dentry)
 		return ERR_PTR(-ESTALE);
-	result = nop->fh_to_dentry(mnt->mnt_sb, fid, fh_len, fileid_type);
+	result = yesp->fh_to_dentry(mnt->mnt_sb, fid, fh_len, fileid_type);
 	if (PTR_ERR(result) == -ENOMEM)
 		return ERR_CAST(result);
 	if (IS_ERR_OR_NULL(result))
 		return ERR_PTR(-ESTALE);
 
 	/*
-	 * If no acceptance criteria was specified by caller, a disconnected
+	 * If yes acceptance criteria was specified by caller, a disconnected
 	 * dentry is also accepatable. Callers may use this mode to query if
-	 * file handle is stale or to get a reference to an inode without
+	 * file handle is stale or to get a reference to an iyesde without
 	 * risking the high overhead caused by directory reconnect.
 	 */
 	if (!acceptable)
@@ -451,7 +451,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 		 * This request is for a directory.
 		 *
 		 * On the positive side there is only one dentry for each
-		 * directory inode.  On the negative side this implies that we
+		 * directory iyesde.  On the negative side this implies that we
 		 * to ensure our dentry is connected all the way up to the
 		 * filesystem root.
 		 */
@@ -469,7 +469,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 		return result;
 	} else {
 		/*
-		 * It's not a directory.  Life is a little more complicated.
+		 * It's yest a directory.  Life is a little more complicated.
 		 */
 		struct dentry *target_dir, *nresult;
 
@@ -491,10 +491,10 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 		 * file handle.  If this fails we'll have to give up.
 		 */
 		err = -ESTALE;
-		if (!nop->fh_to_parent)
+		if (!yesp->fh_to_parent)
 			goto err_result;
 
-		target_dir = nop->fh_to_parent(mnt->mnt_sb, fid,
+		target_dir = yesp->fh_to_parent(mnt->mnt_sb, fid,
 				fh_len, fileid_type);
 		if (!target_dir)
 			goto err_result;
@@ -515,8 +515,8 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 
 		/*
 		 * Now that we've got both a well-connected parent and a
-		 * dentry for the inode we're after, make sure that our
-		 * inode is actually connected to the parent.
+		 * dentry for the iyesde we're after, make sure that our
+		 * iyesde is actually connected to the parent.
 		 */
 		err = exportfs_get_name(mnt, target_dir, nbuf, result);
 		if (err) {
@@ -524,15 +524,15 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 			goto err_result;
 		}
 
-		inode_lock(target_dir->d_inode);
+		iyesde_lock(target_dir->d_iyesde);
 		nresult = lookup_one_len(nbuf, target_dir, strlen(nbuf));
 		if (!IS_ERR(nresult)) {
-			if (unlikely(nresult->d_inode != result->d_inode)) {
+			if (unlikely(nresult->d_iyesde != result->d_iyesde)) {
 				dput(nresult);
 				nresult = ERR_PTR(-ESTALE);
 			}
 		}
-		inode_unlock(target_dir->d_inode);
+		iyesde_unlock(target_dir->d_iyesde);
 		/*
 		 * At this point we are done with the parent, but it's pinned
 		 * by the child dentry anyway.

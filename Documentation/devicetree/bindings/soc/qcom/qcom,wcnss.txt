@@ -18,18 +18,18 @@ block and a BT, WiFi and FM radio block, all using SMD as command channels.
 - qcom,mmio:
 	Usage: required
 	Value type: <prop-encoded-array>
-	Definition: reference to a node specifying the wcnss "ccu" and "dxe"
-		    register blocks. The node must be compatible with one of
+	Definition: reference to a yesde specifying the wcnss "ccu" and "dxe"
+		    register blocks. The yesde must be compatible with one of
 		    the following:
 		    "qcom,riva",
 		    "qcom,pronto"
 
 = SUBNODES
-The subnodes of the wcnss node are optional and describe the individual blocks in
+The subyesdes of the wcnss yesde are optional and describe the individual blocks in
 the WCNSS.
 
 == Bluetooth
-The following properties are defined to the bluetooth node:
+The following properties are defined to the bluetooth yesde:
 
 - compatible:
 	Usage: required
@@ -43,7 +43,7 @@ The following properties are defined to the bluetooth node:
 	Definition: see Documentation/devicetree/bindings/net/bluetooth.txt
 
 == WiFi
-The following properties are defined to the WiFi node:
+The following properties are defined to the WiFi yesde:
 
 - compatible:
 	Usage: required
@@ -72,7 +72,7 @@ The following properties are defined to the WiFi node:
 	Definition: must contain "tx-enable" and "tx-rings-empty"
 
 = EXAMPLE
-The following example represents a SMD node, with one edge representing the
+The following example represents a SMD yesde, with one edge representing the
 "pronto" subsystem, with the wcnss device and its wcn3680 BT and WiFi blocks
 described; as found on the 8974 platform.
 

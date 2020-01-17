@@ -179,9 +179,9 @@ static const struct device_attribute kb_led_color_dev_attr = {
 };
 
 // Notify that the keyboard LED was changed by hardware
-static void kb_led_notify(struct system76_data *data)
+static void kb_led_yestify(struct system76_data *data)
 {
-	led_classdev_notify_brightness_hw_changed(
+	led_classdev_yestify_brightness_hw_changed(
 		&data->kb_led,
 		data->kb_brightness
 	);
@@ -196,7 +196,7 @@ static void kb_led_hotkey_hardware(struct system76_data *data)
 	if (value < 0)
 		return;
 	data->kb_brightness = value;
-	kb_led_notify(data);
+	kb_led_yestify(data);
 }
 
 // Toggle the keyboard LED
@@ -208,7 +208,7 @@ static void kb_led_hotkey_toggle(struct system76_data *data)
 	} else {
 		kb_led_set(&data->kb_led, data->kb_toggle_brightness);
 	}
-	kb_led_notify(data);
+	kb_led_yestify(data);
 }
 
 // Decrease the keyboard LED brightness
@@ -226,7 +226,7 @@ static void kb_led_hotkey_down(struct system76_data *data)
 	} else {
 		kb_led_set(&data->kb_led, data->kb_toggle_brightness);
 	}
-	kb_led_notify(data);
+	kb_led_yestify(data);
 }
 
 // Increase the keyboard LED brightness
@@ -244,7 +244,7 @@ static void kb_led_hotkey_up(struct system76_data *data)
 	} else {
 		kb_led_set(&data->kb_led, data->kb_toggle_brightness);
 	}
-	kb_led_notify(data);
+	kb_led_yestify(data);
 }
 
 // Cycle the keyboard LED color
@@ -267,11 +267,11 @@ static void kb_led_hotkey_color(struct system76_data *data)
 	} else {
 		kb_led_set(&data->kb_led, data->kb_toggle_brightness);
 	}
-	kb_led_notify(data);
+	kb_led_yestify(data);
 }
 
-// Handle ACPI notification
-static void system76_notify(struct acpi_device *acpi_dev, u32 event)
+// Handle ACPI yestification
+static void system76_yestify(struct acpi_device *acpi_dev, u32 event)
 {
 	struct system76_data *data;
 
@@ -315,7 +315,7 @@ static int system76_add(struct acpi_device *acpi_dev)
 	data->ap_led.brightness_get = ap_led_get;
 	data->ap_led.brightness_set = ap_led_set;
 	data->ap_led.max_brightness = 1;
-	data->ap_led.default_trigger = "rfkill-none";
+	data->ap_led.default_trigger = "rfkill-yesne";
 	err = devm_led_classdev_register(&acpi_dev->dev, &data->ap_led);
 	if (err)
 		return err;
@@ -374,7 +374,7 @@ static struct acpi_driver system76_driver = {
 	.ops = {
 		.add = system76_add,
 		.remove = system76_remove,
-		.notify = system76_notify,
+		.yestify = system76_yestify,
 	},
 };
 module_acpi_driver(system76_driver);

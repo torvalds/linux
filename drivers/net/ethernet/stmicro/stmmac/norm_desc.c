@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*******************************************************************************
-  This contains the functions to handle the normal descriptors.
+  This contains the functions to handle the yesrmal descriptors.
 
   Copyright (C) 2007-2009  STMicroelectronics Ltd
 
@@ -26,7 +26,7 @@ static int ndesc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 
 	/* Verify tx error by looking at the last segment. */
 	if (likely(!(tdes1 & TDES1_LAST_SEGMENT)))
-		return tx_not_ls;
+		return tx_yest_ls;
 
 	if (unlikely(tdes0 & TDES0_ERROR_SUMMARY)) {
 		if (unlikely(tdes0 & TDES0_UNDERFLOW_ERROR)) {
@@ -203,9 +203,9 @@ static void ndesc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 	p->des1 = cpu_to_le32(tdes1);
 
 	if (mode == STMMAC_CHAIN_MODE)
-		norm_set_tx_desc_len_on_chain(p, len);
+		yesrm_set_tx_desc_len_on_chain(p, len);
 	else
-		norm_set_tx_desc_len_on_ring(p, len);
+		yesrm_set_tx_desc_len_on_ring(p, len);
 
 	if (tx_own)
 		p->des0 |= cpu_to_le32(TDES0_OWN);
@@ -251,7 +251,7 @@ static void ndesc_get_timestamp(void *desc, u32 ats, u64 *ts)
 	u64 ns;
 
 	ns = le32_to_cpu(p->des2);
-	/* convert high/sec time stamp value to nanosecond */
+	/* convert high/sec time stamp value to nayessecond */
 	ns += le32_to_cpu(p->des3) * 1000000000ULL;
 
 	*ts = ns;

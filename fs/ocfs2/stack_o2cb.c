@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * stack_o2cb.c
  *
@@ -14,11 +14,11 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
-/* Needed for AOP_TRUNCATED_PAGE in mlog_errno() */
+/* Needed for AOP_TRUNCATED_PAGE in mlog_erryes() */
 #include <linux/fs.h>
 
 #include "cluster/masklog.h"
-#include "cluster/nodemanager.h"
+#include "cluster/yesdemanager.h"
 #include "cluster/heartbeat.h"
 #include "cluster/tcp.h"
 
@@ -32,25 +32,25 @@ static struct ocfs2_stack_plugin o2cb_stack;
 
 /* These should be identical */
 #if (DLM_LOCK_IV != LKM_IVMODE)
-# error Lock modes do not match
+# error Lock modes do yest match
 #endif
 #if (DLM_LOCK_NL != LKM_NLMODE)
-# error Lock modes do not match
+# error Lock modes do yest match
 #endif
 #if (DLM_LOCK_CR != LKM_CRMODE)
-# error Lock modes do not match
+# error Lock modes do yest match
 #endif
 #if (DLM_LOCK_CW != LKM_CWMODE)
-# error Lock modes do not match
+# error Lock modes do yest match
 #endif
 #if (DLM_LOCK_PR != LKM_PRMODE)
-# error Lock modes do not match
+# error Lock modes do yest match
 #endif
 #if (DLM_LOCK_PW != LKM_PWMODE)
-# error Lock modes do not match
+# error Lock modes do yest match
 #endif
 #if (DLM_LOCK_EX != LKM_EXMODE)
-# error Lock modes do not match
+# error Lock modes do yest match
 #endif
 static inline int mode_to_o2dlm(int mode)
 {
@@ -86,7 +86,7 @@ static int flags_to_o2dlm(u32 flags)
 #undef map_flag
 
 /*
- * Map an o2dlm status to standard errno values.
+ * Map an o2dlm status to standard erryes values.
  *
  * o2dlm only uses a handful of these, and returns even fewer to the
  * caller. Still, we try to assign sane values to each error.
@@ -146,7 +146,7 @@ static int status_map[] = {
 	[DLM_MAXSTATS]			= -EINVAL,
 };
 
-static int dlm_status_to_errno(enum dlm_status status)
+static int dlm_status_to_erryes(enum dlm_status status)
 {
 	BUG_ON(status < 0 || status >= ARRAY_SIZE(status_map));
 
@@ -170,7 +170,7 @@ static void o2dlm_blocking_ast_wrapper(void *astarg, int level)
 static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 {
 	struct ocfs2_dlm_lksb *lksb = astarg;
-	int error = dlm_status_to_errno(status);
+	int error = dlm_status_to_erryes(status);
 
 	/*
 	 * In o2dlm, you can get both the lock_ast() for the lock being
@@ -179,8 +179,8 @@ static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 	 * lock grant happened before the cancel arrived, you get
 	 * DLM_CANCELGRANT.
 	 *
-	 * There's no need for the double-ast.  If we see DLM_CANCELGRANT,
-	 * we just ignore it.  We expect the lock_ast() to handle the
+	 * There's yes need for the double-ast.  If we see DLM_CANCELGRANT,
+	 * we just igyesre it.  We expect the lock_ast() to handle the
 	 * granted lock.
 	 */
 	if (status == DLM_CANCELGRANT)
@@ -205,7 +205,7 @@ static int o2cb_dlm_lock(struct ocfs2_cluster_connection *conn,
 			 o2dlm_flags, name, namelen,
 			 o2dlm_lock_ast_wrapper, lksb,
 			 o2dlm_blocking_ast_wrapper);
-	ret = dlm_status_to_errno(status);
+	ret = dlm_status_to_erryes(status);
 	return ret;
 }
 
@@ -219,13 +219,13 @@ static int o2cb_dlm_unlock(struct ocfs2_cluster_connection *conn,
 
 	status = dlmunlock(conn->cc_lockspace, &lksb->lksb_o2dlm,
 			   o2dlm_flags, o2dlm_unlock_ast_wrapper, lksb);
-	ret = dlm_status_to_errno(status);
+	ret = dlm_status_to_erryes(status);
 	return ret;
 }
 
 static int o2cb_dlm_lock_status(struct ocfs2_dlm_lksb *lksb)
 {
-	return dlm_status_to_errno(lksb->lksb_o2dlm.status);
+	return dlm_status_to_erryes(lksb->lksb_o2dlm.status);
 }
 
 /*
@@ -249,49 +249,49 @@ static void o2cb_dump_lksb(struct ocfs2_dlm_lksb *lksb)
 }
 
 /*
- * Check if this node is heartbeating and is connected to all other
- * heartbeating nodes.
+ * Check if this yesde is heartbeating and is connected to all other
+ * heartbeating yesdes.
  */
 static int o2cb_cluster_check(void)
 {
-	u8 node_num;
+	u8 yesde_num;
 	int i;
 	unsigned long hbmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	unsigned long netmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
 
-	node_num = o2nm_this_node();
-	if (node_num == O2NM_MAX_NODES) {
-		printk(KERN_ERR "o2cb: This node has not been configured.\n");
+	yesde_num = o2nm_this_yesde();
+	if (yesde_num == O2NM_MAX_NODES) {
+		printk(KERN_ERR "o2cb: This yesde has yest been configured.\n");
 		return -EINVAL;
 	}
 
 	/*
-	 * o2dlm expects o2net sockets to be created. If not, then
+	 * o2dlm expects o2net sockets to be created. If yest, then
 	 * dlm_join_domain() fails with a stack of errors which are both cryptic
 	 * and incomplete. The idea here is to detect upfront whether we have
-	 * managed to connect to all nodes or not. If not, then list the nodes
+	 * managed to connect to all yesdes or yest. If yest, then list the yesdes
 	 * to allow the user to check the configuration (incorrect IP, firewall,
-	 * etc.) Yes, this is racy. But its not the end of the world.
+	 * etc.) Yes, this is racy. But its yest the end of the world.
 	 */
 #define	O2CB_MAP_STABILIZE_COUNT	60
 	for (i = 0; i < O2CB_MAP_STABILIZE_COUNT; ++i) {
-		o2hb_fill_node_map(hbmap, sizeof(hbmap));
-		if (!test_bit(node_num, hbmap)) {
-			printk(KERN_ERR "o2cb: %s heartbeat has not been "
+		o2hb_fill_yesde_map(hbmap, sizeof(hbmap));
+		if (!test_bit(yesde_num, hbmap)) {
+			printk(KERN_ERR "o2cb: %s heartbeat has yest been "
 			       "started.\n", (o2hb_global_heartbeat_active() ?
 					      "Global" : "Local"));
 			return -EINVAL;
 		}
-		o2net_fill_node_map(netmap, sizeof(netmap));
-		/* Force set the current node to allow easy compare */
-		set_bit(node_num, netmap);
+		o2net_fill_yesde_map(netmap, sizeof(netmap));
+		/* Force set the current yesde to allow easy compare */
+		set_bit(yesde_num, netmap);
 		if (!memcmp(hbmap, netmap, sizeof(hbmap)))
 			return 0;
 		if (i < O2CB_MAP_STABILIZE_COUNT - 1)
 			msleep(1000);
 	}
 
-	printk(KERN_ERR "o2cb: This node could not connect to nodes:");
+	printk(KERN_ERR "o2cb: This yesde could yest connect to yesdes:");
 	i = -1;
 	while ((i = find_next_bit(hbmap, O2NM_MAX_NODES,
 				  i + 1)) < O2NM_MAX_NODES) {
@@ -304,17 +304,17 @@ static int o2cb_cluster_check(void)
 }
 
 /*
- * Called from the dlm when it's about to evict a node. This is how the
- * classic stack signals node death.
+ * Called from the dlm when it's about to evict a yesde. This is how the
+ * classic stack signals yesde death.
  */
-static void o2dlm_eviction_cb(int node_num, void *data)
+static void o2dlm_eviction_cb(int yesde_num, void *data)
 {
 	struct ocfs2_cluster_connection *conn = data;
 
-	printk(KERN_NOTICE "o2cb: o2dlm has evicted node %d from domain %.*s\n",
-	       node_num, conn->cc_namelen, conn->cc_name);
+	printk(KERN_NOTICE "o2cb: o2dlm has evicted yesde %d from domain %.*s\n",
+	       yesde_num, conn->cc_namelen, conn->cc_name);
 
-	conn->cc_recovery_handler(node_num, conn->cc_recovery_data);
+	conn->cc_recovery_handler(yesde_num, conn->cc_recovery_data);
 }
 
 static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
@@ -328,7 +328,7 @@ static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
 	BUG_ON(conn == NULL);
 	BUG_ON(conn->cc_proto == NULL);
 
-	/* Ensure cluster stack is up and all nodes are connected */
+	/* Ensure cluster stack is up and all yesdes are connected */
 	rc = o2cb_cluster_check();
 	if (rc) {
 		printk(KERN_ERR "o2cb: Cluster check failed. Fix errors "
@@ -349,20 +349,20 @@ static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
 	conn->cc_private = priv;
 
 	/* used by the dlm code to make message headers unique, each
-	 * node in this domain must agree on this. */
+	 * yesde in this domain must agree on this. */
 	dlm_key = crc32_le(0, conn->cc_name, conn->cc_namelen);
 	fs_version.pv_major = conn->cc_version.pv_major;
-	fs_version.pv_minor = conn->cc_version.pv_minor;
+	fs_version.pv_miyesr = conn->cc_version.pv_miyesr;
 
 	dlm = dlm_register_domain(conn->cc_name, dlm_key, &fs_version);
 	if (IS_ERR(dlm)) {
 		rc = PTR_ERR(dlm);
-		mlog_errno(rc);
+		mlog_erryes(rc);
 		goto out_free;
 	}
 
 	conn->cc_version.pv_major = fs_version.pv_major;
-	conn->cc_version.pv_minor = fs_version.pv_minor;
+	conn->cc_version.pv_miyesr = fs_version.pv_miyesr;
 	conn->cc_lockspace = dlm;
 
 	dlm_register_eviction_cb(dlm, &priv->op_eviction_cb);
@@ -390,26 +390,26 @@ static int o2cb_cluster_disconnect(struct ocfs2_cluster_connection *conn)
 	return 0;
 }
 
-static int o2cb_cluster_this_node(struct ocfs2_cluster_connection *conn,
-				  unsigned int *node)
+static int o2cb_cluster_this_yesde(struct ocfs2_cluster_connection *conn,
+				  unsigned int *yesde)
 {
-	int node_num;
+	int yesde_num;
 
-	node_num = o2nm_this_node();
-	if (node_num == O2NM_INVALID_NODE_NUM)
+	yesde_num = o2nm_this_yesde();
+	if (yesde_num == O2NM_INVALID_NODE_NUM)
 		return -ENOENT;
 
-	if (node_num >= O2NM_MAX_NODES)
+	if (yesde_num >= O2NM_MAX_NODES)
 		return -EOVERFLOW;
 
-	*node = node_num;
+	*yesde = yesde_num;
 	return 0;
 }
 
 static struct ocfs2_stack_operations o2cb_stack_ops = {
 	.connect	= o2cb_cluster_connect,
 	.disconnect	= o2cb_cluster_disconnect,
-	.this_node	= o2cb_cluster_this_node,
+	.this_yesde	= o2cb_cluster_this_yesde,
 	.dlm_lock	= o2cb_dlm_lock,
 	.dlm_unlock	= o2cb_dlm_unlock,
 	.lock_status	= o2cb_dlm_lock_status,

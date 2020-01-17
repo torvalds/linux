@@ -54,7 +54,7 @@ struct m5mols_resolution {
  * @iso_speed: ISO register value
  * @flash: status register value of the flash
  * @sdr: status register value of the Subject Distance Range
- * @qval: not written exact meaning in document
+ * @qval: yest written exact meaning in document
  */
 struct m5mols_exif {
 	u32 exposure_time;
@@ -90,9 +90,9 @@ struct m5mols_capture {
  * @ev_bias: EV bias register value
  * @wb_mode: mode which means the WhiteBalance is Auto or Manual
  * @wb_preset: whitebalance preset register value in the Manual mode
- * @chroma_en: register value whether the Chroma capability is enabled or not
+ * @chroma_en: register value whether the Chroma capability is enabled or yest
  * @chroma_lvl: chroma's level register value
- * @edge_en: register value Whether the Edge capability is enabled or not
+ * @edge_en: register value Whether the Edge capability is enabled or yest
  * @edge_lvl: edge's level register value
  * @af_range: Auto Focus's range
  * @fd_mode: Face Detection mode

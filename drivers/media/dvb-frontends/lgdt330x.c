@@ -245,7 +245,7 @@ static int lgdt330x_init(struct dvb_frontend *fe)
 
 	/*
 	 * Hardware reset is done using gpio[0] of cx23880x chip.
-	 * I'd like to do it here, but don't know how to find chip address.
+	 * I'd like to do it here, but don't kyesw how to find chip address.
 	 * cx88-cards.c arranges for the reset bit to be inactive (high).
 	 * Maybe there needs to be a callable function in cx88-core or
 	 * the caller of this function needs to do it.
@@ -493,7 +493,7 @@ static int lgdt3302_read_snr(struct dvb_frontend *fe)
 {
 	struct lgdt330x_state *state = fe->demodulator_priv;
 	u8 buf[5];	/* read data buffer */
-	u32 noise;	/* noise value */
+	u32 yesise;	/* yesise value */
 	u32 c;		/* per-modulation SNR calculation constant */
 
 	switch (state->current_modulation) {
@@ -502,19 +502,19 @@ static int lgdt3302_read_snr(struct dvb_frontend *fe)
 #ifdef USE_EQMSE
 		/* Use Equalizer Mean-Square Error Register */
 		/* SNR for ranges from -15.61 to +41.58 */
-		noise = ((buf[0] & 7) << 16) | (buf[1] << 8) | buf[2];
+		yesise = ((buf[0] & 7) << 16) | (buf[1] << 8) | buf[2];
 		c = 69765745; /* log10(25*24^2)*2^24 */
 #else
 		/* Use Phase Tracker Mean-Square Error Register */
 		/* SNR for ranges from -13.11 to +44.08 */
-		noise = ((buf[0] & 7 << 3) << 13) | (buf[3] << 8) | buf[4];
+		yesise = ((buf[0] & 7 << 3) << 13) | (buf[3] << 8) | buf[4];
 		c = 73957994; /* log10(25*32^2)*2^24 */
 #endif
 		break;
 	case QAM_64:
 	case QAM_256:
 		i2c_read_demod_bytes(state, CARRIER_MSEQAM1, buf, 2);
-		noise = ((buf[0] & 3) << 8) | buf[1];
+		yesise = ((buf[0] & 3) << 8) | buf[1];
 		c = state->current_modulation == QAM_64 ? 97939837 : 98026066;
 		/* log10(688128)*2^24 and log10(696320)*2^24 */
 		break;
@@ -528,9 +528,9 @@ static int lgdt3302_read_snr(struct dvb_frontend *fe)
 		return -EREMOTEIO; /* return -EDRIVER_IS_GIBBERED; */
 	}
 
-	state->snr = calculate_snr(noise, c);
+	state->snr = calculate_snr(yesise, c);
 
-	dprintk(state, "noise = 0x%08x, snr = %d.%02d dB\n", noise,
+	dprintk(state, "yesise = 0x%08x, snr = %d.%02d dB\n", yesise,
 		state->snr >> 24, (((state->snr >> 8) & 0xffff) * 100) >> 16);
 
 	return 0;
@@ -540,7 +540,7 @@ static int lgdt3303_read_snr(struct dvb_frontend *fe)
 {
 	struct lgdt330x_state *state = fe->demodulator_priv;
 	u8 buf[5];	/* read data buffer */
-	u32 noise;	/* noise value */
+	u32 yesise;	/* yesise value */
 	u32 c;		/* per-modulation SNR calculation constant */
 
 	switch (state->current_modulation) {
@@ -549,19 +549,19 @@ static int lgdt3303_read_snr(struct dvb_frontend *fe)
 #ifdef USE_EQMSE
 		/* Use Equalizer Mean-Square Error Register */
 		/* SNR for ranges from -16.12 to +44.08 */
-		noise = ((buf[0] & 0x78) << 13) | (buf[1] << 8) | buf[2];
+		yesise = ((buf[0] & 0x78) << 13) | (buf[1] << 8) | buf[2];
 		c = 73957994; /* log10(25*32^2)*2^24 */
 #else
 		/* Use Phase Tracker Mean-Square Error Register */
 		/* SNR for ranges from -13.11 to +44.08 */
-		noise = ((buf[0] & 7) << 16) | (buf[3] << 8) | buf[4];
+		yesise = ((buf[0] & 7) << 16) | (buf[3] << 8) | buf[4];
 		c = 73957994; /* log10(25*32^2)*2^24 */
 #endif
 		break;
 	case QAM_64:
 	case QAM_256:
 		i2c_read_demod_bytes(state, CARRIER_MSEQAM1, buf, 2);
-		noise = (buf[0] << 8) | buf[1];
+		yesise = (buf[0] << 8) | buf[1];
 		c = state->current_modulation == QAM_64 ? 97939837 : 98026066;
 		/* log10(688128)*2^24 and log10(696320)*2^24 */
 		break;
@@ -573,9 +573,9 @@ static int lgdt3303_read_snr(struct dvb_frontend *fe)
 		return -EREMOTEIO; /* return -EDRIVER_IS_GIBBERED; */
 	}
 
-	state->snr = calculate_snr(noise, c);
+	state->snr = calculate_snr(yesise, c);
 
-	dprintk(state, "noise = 0x%08x, snr = %d.%02d dB\n", noise,
+	dprintk(state, "yesise = 0x%08x, snr = %d.%02d dB\n", yesise,
 		state->snr >> 24, (((state->snr >> 8) & 0xffff) * 100) >> 16);
 
 	return 0;
@@ -630,7 +630,7 @@ static int lgdt3302_read_status(struct dvb_frontend *fe,
 	dprintk(state, "AGC_STATUS = 0x%02x\n", buf[0]);
 	if ((buf[0] & 0x0c) == 0x8) {
 		/*
-		 * Test signal does not exist flag
+		 * Test signal does yest exist flag
 		 * as well as the AGC lock flag.
 		 */
 		*status |= FE_HAS_SIGNAL;
@@ -736,7 +736,7 @@ static int lgdt3303_read_status(struct dvb_frontend *fe,
 	dprintk(state, "AGC_STATUS = 0x%02x\n", buf[0]);
 	if ((buf[0] & 0x21) == 0x01) {
 		/*
-		 * Test input signal does not exist flag
+		 * Test input signal does yest exist flag
 		 * as well as the AGC lock flag.
 		 */
 		*status |= FE_HAS_SIGNAL;
@@ -828,7 +828,7 @@ static int
 lgdt330x_get_tune_settings(struct dvb_frontend *fe,
 			   struct dvb_frontend_tune_settings *fe_tune_settings)
 {
-	/* I have no idea about this - it may not be needed */
+	/* I have yes idea about this - it may yest be needed */
 	fe_tune_settings->min_delay_ms = 500;
 	fe_tune_settings->step_size = 0;
 	fe_tune_settings->max_drift = 0;

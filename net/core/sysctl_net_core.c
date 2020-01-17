@@ -142,10 +142,10 @@ static int flow_limit_cpu_sysctl(struct ctl_table *table, int write,
 				synchronize_rcu();
 				kfree(cur);
 			} else if (!cur && cpumask_test_cpu(i, mask)) {
-				cur = kzalloc_node(len, GFP_KERNEL,
-						   cpu_to_node(i));
+				cur = kzalloc_yesde(len, GFP_KERNEL,
+						   cpu_to_yesde(i));
 				if (!cur) {
-					/* not unwinding previous changes */
+					/* yest unwinding previous changes */
 					ret = -ENOMEM;
 					goto write_unlock;
 				}
@@ -570,8 +570,8 @@ static struct ctl_table net_core_table[] = {
 		.proc_handler	= proc_do_static_key,
 	},
 	{
-		.procname	= "gro_normal_batch",
-		.data		= &gro_normal_batch,
+		.procname	= "gro_yesrmal_batch",
+		.data		= &gro_yesrmal_batch,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,

@@ -14,7 +14,7 @@
 
 /*
  * Note: accesses outside of the kernel image and the identity map area
- * are not supported on any CPU using the idmap tables as its current
+ * are yest supported on any CPU using the idmap tables as its current
  * page tables.
  */
 pgd_t *idmap_pgd __ro_after_init;
@@ -27,7 +27,7 @@ static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 	pmd_t *pmd;
 	unsigned long next;
 
-	if (pud_none_or_clear_bad(pud) || (pud_val(*pud) & L_PGD_SWAPPER)) {
+	if (pud_yesne_or_clear_bad(pud) || (pud_val(*pud) & L_PGD_SWAPPER)) {
 		pmd = pmd_alloc_one(&init_mm, addr);
 		if (!pmd) {
 			pr_warn("Failed to allocate identity pmd.\n");
@@ -37,7 +37,7 @@ static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 		 * Copy the original PMD to ensure that the PMD entries for
 		 * the kernel image are preserved.
 		 */
-		if (!pud_none(*pud))
+		if (!pud_yesne(*pud))
 			memcpy(pmd, pmd_offset(pud, 0),
 			       PTRS_PER_PMD * sizeof(pmd_t));
 		pud_populate(&init_mm, pud, pmd);

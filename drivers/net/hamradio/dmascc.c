@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/if_arp.h>
 #include <linux/in.h>
 #include <linux/init.h>
@@ -409,8 +409,8 @@ static int __init dmascc_init(void)
 	if (n)
 		return 0;
 
-	/* If no adapter found, return error */
-	printk(KERN_INFO "dmascc: no adapters found\n");
+	/* If yes adapter found, return error */
+	printk(KERN_INFO "dmascc: yes adapters found\n");
 	return -EIO;
 }
 
@@ -458,7 +458,7 @@ static int __init setup_adapter(int card_base, int type, int n)
 	info->dev[0] = alloc_netdev(0, "", NET_NAME_UNKNOWN, dev_setup);
 	if (!info->dev[0]) {
 		printk(KERN_ERR "dmascc: "
-		       "could not allocate memory for %s at %#3x\n",
+		       "could yest allocate memory for %s at %#3x\n",
 		       hw[type].name, card_base);
 		err = -ENOMEM;
 		goto out1;
@@ -467,7 +467,7 @@ static int __init setup_adapter(int card_base, int type, int n)
 	info->dev[1] = alloc_netdev(0, "", NET_NAME_UNKNOWN, dev_setup);
 	if (!info->dev[1]) {
 		printk(KERN_ERR "dmascc: "
-		       "could not allocate memory for %s at %#3x\n",
+		       "could yest allocate memory for %s at %#3x\n",
 		       hw[type].name, card_base);
 		err = -ENOMEM;
 		goto out2;
@@ -487,13 +487,13 @@ static int __init setup_adapter(int card_base, int type, int n)
 	/* Determine type of chip by enabling SDLC/HDLC enhancements */
 	write_scc(priv, R15, SHDLCE);
 	if (!read_scc(priv, R15)) {
-		/* WR7' not present. This is an ordinary Z8530 SCC. */
+		/* WR7' yest present. This is an ordinary Z8530 SCC. */
 		chip = Z8530;
 	} else {
 		/* Put one character in TX FIFO */
 		write_scc_data(priv, 0, 0);
 		if (read_scc(priv, R0) & Tx_BUF_EMP) {
-			/* TX FIFO not full. This is a Z85230 ESCC with a 4-byte FIFO. */
+			/* TX FIFO yest full. This is a Z85230 ESCC with a 4-byte FIFO. */
 			chip = Z85230;
 		} else {
 			/* TX FIFO full. This is a Z85C30 SCC with a 1-byte FIFO. */
@@ -538,7 +538,7 @@ static int __init setup_adapter(int card_base, int type, int n)
 
 	if (irq <= 0) {
 		printk(KERN_ERR
-		       "dmascc: could not find irq of %s at %#3x (irq=%d)\n",
+		       "dmascc: could yest find irq of %s at %#3x (irq=%d)\n",
 		       hw[type].name, card_base, irq);
 		err = -ENODEV;
 		goto out3;
@@ -575,13 +575,13 @@ static int __init setup_adapter(int card_base, int type, int n)
 		dev->header_ops = &ax25_header_ops;
 	}
 	if (register_netdev(info->dev[0])) {
-		printk(KERN_ERR "dmascc: could not register %s\n",
+		printk(KERN_ERR "dmascc: could yest register %s\n",
 		       info->dev[0]->name);
 		err = -ENODEV;
 		goto out3;
 	}
 	if (register_netdev(info->dev[1])) {
-		printk(KERN_ERR "dmascc: could not register %s\n",
+		printk(KERN_ERR "dmascc: could yest register %s\n",
 		       info->dev[1]->name);
 		err = -ENODEV;
 		goto out4;
@@ -716,7 +716,7 @@ static int scc_open(struct net_device *dev)
 	struct scc_info *info = priv->info;
 	int card_base = priv->card_base;
 
-	/* Request IRQ if not already used by other channel */
+	/* Request IRQ if yest already used by other channel */
 	if (!info->irq_used) {
 		if (request_irq(dev->irq, scc_isr, 0, "dmascc", info)) {
 			return -EAGAIN;
@@ -773,11 +773,11 @@ static int scc_open(struct net_device *dev)
 		/* The following bits are set (see 2.5.2.1):
 		   - Automatic EOM reset
 		   - Interrupt request if RX FIFO is half full
-		   This bit should be ignored in DMA mode (according to the
+		   This bit should be igyesred in DMA mode (according to the
 		   documentation), but actually isn't. The receiver doesn't work if
 		   it is set. Thus, we have to clear it in DMA mode.
 		   - Interrupt/DMA request if TX FIFO is completely empty
-		   a) If set, the ESCC behaves as if it had no TX FIFO (Z85C30
+		   a) If set, the ESCC behaves as if it had yes TX FIFO (Z85C30
 		   compatibility).
 		   b) If cleared, DMA requests may follow each other very quickly,
 		   filling up the TX FIFO.
@@ -786,7 +786,7 @@ static int scc_open(struct net_device *dev)
 		   a request. No more data is delivered, resulting
 		   in a TX FIFO underrun.
 		   Both PI2 and S5SCC/DMA seem to work fine with TXFIFOE cleared.
-		   The PackeTwin doesn't. I don't know about the PI, but let's
+		   The PackeTwin doesn't. I don't kyesw about the PI, but let's
 		   assume it behaves like the PI2.
 		 */
 		if (priv->param.dma >= 0) {
@@ -809,7 +809,7 @@ static int scc_open(struct net_device *dev)
 		write_scc(priv, R12, priv->param.brg_tc & 0xFF);
 		write_scc(priv, R13, (priv->param.brg_tc >> 8) & 0xFF);
 		/* BRG source = SYS CLK; enable BRG; DTR REQ function (required by
-		   PackeTwin, not connected on the PI2); set DPLL source to BRG */
+		   PackeTwin, yest connected on the PI2); set DPLL source to BRG */
 		write_scc(priv, R14, SSBR | DTRREQ | BRSRC | BRENABL);
 		/* Enable DPLL */
 		write_scc(priv, R14, SEARCH | DTRREQ | BRSRC | BRENABL);
@@ -1003,7 +1003,7 @@ static inline void tx_on(struct scc_priv *priv)
 			  EXT_INT_ENAB | WT_FN_RDYFN | TxINT_ENAB);
 		tx_isr(priv);
 	}
-	/* Reset EOM latch if we do not have the AUTOEOM feature */
+	/* Reset EOM latch if we do yest have the AUTOEOM feature */
 	if (priv->chip == Z8530)
 		write_scc(priv, R0, RES_EOM_L);
 }
@@ -1110,8 +1110,8 @@ static inline void z8530_isr(struct scc_info *info)
 		printk(KERN_ERR "dmascc: stuck in ISR with RR3=0x%02x.\n",
 		       is);
 	}
-	/* Ok, no interrupts pending from this 8530. The INT line should
-	   be inactive now. */
+	/* Ok, yes interrupts pending from this 8530. The INT line should
+	   be inactive yesw. */
 }
 
 
@@ -1121,11 +1121,11 @@ static irqreturn_t scc_isr(int irq, void *dev_id)
 
 	spin_lock(info->priv[0].register_lock);
 	/* At this point interrupts are enabled, and the interrupt under service
-	   is already acknowledged, but masked off.
+	   is already ackyeswledged, but masked off.
 
-	   Interrupt processing: We loop until we know that the IRQ line is
-	   low. If another positive edge occurs afterwards during the ISR,
-	   another interrupt will be triggered by the interrupt controller
+	   Interrupt processing: We loop until we kyesw that the IRQ line is
+	   low. If ayesther positive edge occurs afterwards during the ISR,
+	   ayesther interrupt will be triggered by the interrupt controller
 	   as soon as the IRQ level is enabled again (see asm/irq.h).
 
 	   Bottom-half handlers will be processed after scc_isr(). This is
@@ -1160,7 +1160,7 @@ static void rx_isr(struct scc_priv *priv)
 		special_condition(priv, read_scc(priv, R1));
 		write_scc(priv, R0, ERR_RES);
 	} else {
-		/* Check special condition for each character. Error reset not necessary.
+		/* Check special condition for each character. Error reset yest necessary.
 		   Same algorithm for SCC and ESCC. See 2.4.7.1 and 2.4.7.4. */
 		int rc;
 		while (read_scc(priv, R0) & Rx_CH_AV) {

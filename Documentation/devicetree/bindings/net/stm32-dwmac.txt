@@ -3,7 +3,7 @@ STMicroelectronics STM32 / MCU DWMAC glue layer controller
 This file documents platform glue layer for stmmac.
 Please see stmmac.txt for the other unchanged properties.
 
-The device node has following properties.
+The device yesde has following properties.
 
 Required properties:
 - compatible:  For MCU family should be "st,stm32-dwmac" to select glue, and
@@ -19,7 +19,7 @@ Required properties:
            the interrupts in the interrupts property, if available.
 		   Should be "macirq" for the main MAC IRQ
 		   Should be "eth_wake_irq" for the IT which wake up system
-- st,syscon : Should be phandle/offset pair. The phandle to the syscon node which
+- st,syscon : Should be phandle/offset pair. The phandle to the syscon yesde which
 	       encompases the glue register, and the offset of the control register.
 
 Optional properties:

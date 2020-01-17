@@ -15,7 +15,7 @@ int nfc_llc_init(void)
 {
 	int r;
 
-	r = nfc_llc_nop_register();
+	r = nfc_llc_yesp_register();
 	if (r)
 		goto exit;
 

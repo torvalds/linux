@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Karol Herbst <nouveau@karolherbst.de>
+ * Copyright 2015 Karol Herbst <yesuveau@karolherbst.de>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -40,7 +40,7 @@ nvkm_pcie_speed(enum pci_bus_speed speed)
 	case PCIE_SPEED_8_0GT:
 		return NVKM_PCIE_SPEED_8_0;
 	default:
-		/* XXX 0x16 is 8_0, assume 0x17 will be 16_0 for now */
+		/* XXX 0x16 is 8_0, assume 0x17 will be 16_0 for yesw */
 		if (speed == 0x17)
 			return NVKM_PCIE_SPEED_8_0;
 		return -1;
@@ -140,7 +140,7 @@ nvkm_pcie_set_link(struct nvkm_pci *pci, enum nvkm_pcie_speed speed, u8 width)
 	nvkm_trace(subdev, "current speed: %s\n", nvkm_pcie_speeds[cur_speed]);
 
 	if (speed > max_speed) {
-		nvkm_debug(subdev, "%s not supported by bus or card, dropping"
+		nvkm_debug(subdev, "%s yest supported by bus or card, dropping"
 			   "requested speed to %s", nvkm_pcie_speeds[speed],
 			   nvkm_pcie_speeds[max_speed]);
 		speed = max_speed;

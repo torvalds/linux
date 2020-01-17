@@ -10,7 +10,7 @@
 #include <linux/atomic.h>
 #include <linux/compiler.h>
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/etherdevice.h>
 #include <linux/eventpoll.h>
 #include <linux/export.h>
@@ -55,7 +55,7 @@ void batadv_socket_init(void)
 	memset(batadv_socket_client_hash, 0, sizeof(batadv_socket_client_hash));
 }
 
-static int batadv_socket_open(struct inode *inode, struct file *file)
+static int batadv_socket_open(struct iyesde *iyesde, struct file *file)
 {
 	unsigned int i;
 	struct batadv_socket_client *socket_client;
@@ -65,7 +65,7 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 
 	batadv_debugfs_deprecated(file, "");
 
-	stream_open(inode, file);
+	stream_open(iyesde, file);
 
 	socket_client = kmalloc(sizeof(*socket_client), GFP_KERNEL);
 	if (!socket_client) {
@@ -81,7 +81,7 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 	}
 
 	if (i == ARRAY_SIZE(batadv_socket_client_hash)) {
-		pr_err("Error - can't add another packet client: maximum number of clients reached\n");
+		pr_err("Error - can't add ayesther packet client: maximum number of clients reached\n");
 		kfree(socket_client);
 		module_put(THIS_MODULE);
 		return -EXFULL;
@@ -90,7 +90,7 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&socket_client->queue_list);
 	socket_client->queue_len = 0;
 	socket_client->index = i;
-	socket_client->bat_priv = inode->i_private;
+	socket_client->bat_priv = iyesde->i_private;
 	spin_lock_init(&socket_client->lock);
 	init_waitqueue_head(&socket_client->queue_wait);
 
@@ -99,7 +99,7 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int batadv_socket_release(struct inode *inode, struct file *file)
+static int batadv_socket_release(struct iyesde *iyesde, struct file *file)
 {
 	struct batadv_socket_client *client = file->private_data;
 	struct batadv_socket_packet *packet, *tmp;
@@ -173,8 +173,8 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	struct sk_buff *skb;
 	struct batadv_icmp_packet_rr *icmp_packet_rr;
 	struct batadv_icmp_header *icmp_header;
-	struct batadv_orig_node *orig_node = NULL;
-	struct batadv_neigh_node *neigh_node = NULL;
+	struct batadv_orig_yesde *orig_yesde = NULL;
+	struct batadv_neigh_yesde *neigh_yesde = NULL;
 	size_t packet_len = sizeof(struct batadv_icmp_packet);
 	u8 *addr;
 
@@ -230,31 +230,31 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 		if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
 			goto dst_unreach;
 
-		orig_node = batadv_orig_hash_find(bat_priv, icmp_header->dst);
-		if (!orig_node)
+		orig_yesde = batadv_orig_hash_find(bat_priv, icmp_header->dst);
+		if (!orig_yesde)
 			goto dst_unreach;
 
-		neigh_node = batadv_orig_router_get(orig_node,
+		neigh_yesde = batadv_orig_router_get(orig_yesde,
 						    BATADV_IF_DEFAULT);
-		if (!neigh_node)
+		if (!neigh_yesde)
 			goto dst_unreach;
 
-		if (!neigh_node->if_incoming)
+		if (!neigh_yesde->if_incoming)
 			goto dst_unreach;
 
-		if (neigh_node->if_incoming->if_status != BATADV_IF_ACTIVE)
+		if (neigh_yesde->if_incoming->if_status != BATADV_IF_ACTIVE)
 			goto dst_unreach;
 
 		icmp_packet_rr = (struct batadv_icmp_packet_rr *)icmp_header;
 		if (packet_len == sizeof(*icmp_packet_rr)) {
-			addr = neigh_node->if_incoming->net_dev->dev_addr;
+			addr = neigh_yesde->if_incoming->net_dev->dev_addr;
 			ether_addr_copy(icmp_packet_rr->rr[0], addr);
 		}
 
 		break;
 	default:
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "Error - can't send packet from char device: got unknown message type\n");
+			   "Error - can't send packet from char device: got unkyeswn message type\n");
 		len = -EINVAL;
 		goto free_skb;
 	}
@@ -271,7 +271,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 
 	ether_addr_copy(icmp_header->orig, primary_if->net_dev->dev_addr);
 
-	batadv_send_unicast_skb(skb, neigh_node);
+	batadv_send_unicast_skb(skb, neigh_yesde);
 	goto out;
 
 dst_unreach:
@@ -282,10 +282,10 @@ free_skb:
 out:
 	if (primary_if)
 		batadv_hardif_put(primary_if);
-	if (neigh_node)
-		batadv_neigh_node_put(neigh_node);
-	if (orig_node)
-		batadv_orig_node_put(orig_node);
+	if (neigh_yesde)
+		batadv_neigh_yesde_put(neigh_yesde);
+	if (orig_yesde)
+		batadv_orig_yesde_put(orig_yesde);
 	return len;
 }
 
@@ -308,7 +308,7 @@ static const struct file_operations batadv_fops = {
 	.read = batadv_socket_read,
 	.write = batadv_socket_write,
 	.poll = batadv_socket_poll,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 /**

@@ -2,7 +2,7 @@
 /*
  * Microchip switch driver main logic
  *
- * Copyright (C) 2017-2019 Microchip Technology Inc.
+ * Copyright (C) 2017-2019 Microchip Techyeslogy Inc.
  */
 
 #include <linux/delay.h>
@@ -45,7 +45,7 @@ static void port_r_cnt(struct ksz_device *dev, int port)
 	struct ksz_port_mib *mib = &dev->ports[port].mib;
 	u64 *dropped;
 
-	/* Some ports may not have MIB counters before SWITCH_COUNTER_NUM. */
+	/* Some ports may yest have MIB counters before SWITCH_COUNTER_NUM. */
 	while (mib->cnt_ptr < dev->reg_mib_cnt) {
 		dev->dev_ops->r_mib_cnt(dev, port, mib->cnt_ptr,
 					&mib->counters[mib->cnt_ptr]);
@@ -55,7 +55,7 @@ static void port_r_cnt(struct ksz_device *dev, int port)
 	/* last one in storage */
 	dropped = &mib->counters[dev->mib_cnt];
 
-	/* Some ports may not have MIB counters after SWITCH_COUNTER_NUM. */
+	/* Some ports may yest have MIB counters after SWITCH_COUNTER_NUM. */
 	while (mib->cnt_ptr < dev->mib_cnt) {
 		dev->dev_ops->r_mib_pkt(dev, port, mib->cnt_ptr,
 					dropped, &mib->counters[mib->cnt_ptr]);
@@ -81,7 +81,7 @@ static void ksz_mib_read_work(struct work_struct *work)
 		mutex_lock(&mib->cnt_mutex);
 
 		/* Only read MIB counters when the port is told to do.
-		 * If not, read only dropped counters when link is not up.
+		 * If yest, read only dropped counters when link is yest up.
 		 */
 		if (!p->read) {
 			const struct dsa_port *dp = dsa_to_port(dev->ds, i);
@@ -184,7 +184,7 @@ void ksz_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *buf)
 	mib = &dev->ports[port].mib;
 	mutex_lock(&mib->cnt_mutex);
 
-	/* Only read dropped counters if no link. */
+	/* Only read dropped counters if yes link. */
 	if (!netif_carrier_ok(dp->slave))
 		mib->cnt_ptr = dev->reg_mib_cnt;
 	port_r_cnt(dev, port);
@@ -203,7 +203,7 @@ int ksz_port_bridge_join(struct dsa_switch *ds, int port,
 	mutex_unlock(&dev->dev_mutex);
 
 	/* port_stp_state_set() will be called after to put the port in
-	 * appropriate state so there is no need to do anything.
+	 * appropriate state so there is yes need to do anything.
 	 */
 
 	return 0;
@@ -221,7 +221,7 @@ void ksz_port_bridge_leave(struct dsa_switch *ds, int port,
 	mutex_unlock(&dev->dev_mutex);
 
 	/* port_stp_state_set() will be called after to put the port in
-	 * forwarding state so there is no need to do anything.
+	 * forwarding state so there is yes need to do anything.
 	 */
 }
 EXPORT_SYMBOL_GPL(ksz_port_bridge_leave);
@@ -237,7 +237,7 @@ EXPORT_SYMBOL_GPL(ksz_port_fast_age);
 int ksz_port_vlan_prepare(struct dsa_switch *ds, int port,
 			  const struct switchdev_obj_port_vlan *vlan)
 {
-	/* nothing needed */
+	/* yesthing needed */
 
 	return 0;
 }
@@ -277,7 +277,7 @@ EXPORT_SYMBOL_GPL(ksz_port_fdb_dump);
 int ksz_port_mdb_prepare(struct dsa_switch *ds, int port,
 			 const struct switchdev_obj_port_mdb *mdb)
 {
-	/* nothing to do */
+	/* yesthing to do */
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ksz_port_mdb_prepare);
@@ -303,7 +303,7 @@ void ksz_port_mdb_add(struct dsa_switch *ds, int port,
 		}
 	}
 
-	/* no available entry */
+	/* yes available entry */
 	if (index == dev->num_statics && !empty)
 		return;
 
@@ -342,7 +342,7 @@ int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 		}
 	}
 
-	/* no available entry */
+	/* yes available entry */
 	if (index == dev->num_statics)
 		goto exit;
 
@@ -370,7 +370,7 @@ int ksz_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 		dev->dev_ops->phy_setup(dev, port, phy);
 
 	/* port_stp_state_set() will be called after to enable the port so
-	 * there is no need to do anything.
+	 * there is yes need to do anything.
 	 */
 
 	return 0;
@@ -388,7 +388,7 @@ void ksz_disable_port(struct dsa_switch *ds, int port)
 	dev->live_ports &= ~(1 << port);
 
 	/* port_stp_state_set() will be called after to disable the port so
-	 * there is no need to do anything.
+	 * there is yes need to do anything.
 	 */
 }
 EXPORT_SYMBOL_GPL(ksz_disable_port);
@@ -456,11 +456,11 @@ int ksz_switch_register(struct ksz_device *dev,
 	/* Host port interface will be self detected, or specifically set in
 	 * device tree.
 	 */
-	if (dev->dev->of_node) {
-		ret = of_get_phy_mode(dev->dev->of_node, &interface);
+	if (dev->dev->of_yesde) {
+		ret = of_get_phy_mode(dev->dev->of_yesde, &interface);
 		if (ret == 0)
 			dev->interface = interface;
-		dev->synclko_125 = of_property_read_bool(dev->dev->of_node,
+		dev->synclko_125 = of_property_read_bool(dev->dev->of_yesde,
 							 "microchip,synclko-125");
 	}
 

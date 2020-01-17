@@ -762,7 +762,7 @@ static int rt298_hw_params(struct snd_pcm_substream *substream,
 	case 12288000:
 	case 24576000:
 		if (params_rate(params) != 48000) {
-			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is yest matched (%d %d)\n",
 					params_rate(params), rt298->sys_clk);
 			return -EINVAL;
 		}
@@ -770,7 +770,7 @@ static int rt298_hw_params(struct snd_pcm_substream *substream,
 	case 11289600:
 	case 22579200:
 		if (params_rate(params) != 44100) {
-			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is yest matched (%d %d)\n",
 					params_rate(params), rt298->sys_clk);
 			return -EINVAL;
 		}
@@ -889,7 +889,7 @@ static int rt298_set_dai_sysclk(struct snd_soc_dai *dai,
 	switch (freq) {
 	case 19200000:
 		if (RT298_SCLK_S_MCLK == clk_id) {
-			dev_err(component->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should yest use MCLK\n");
 			return -EINVAL;
 		}
 		snd_soc_component_update_bits(component,
@@ -897,7 +897,7 @@ static int rt298_set_dai_sysclk(struct snd_soc_dai *dai,
 		break;
 	case 24000000:
 		if (RT298_SCLK_S_MCLK == clk_id) {
-			dev_err(component->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should yest use MCLK\n");
 			return -EINVAL;
 		}
 		snd_soc_component_update_bits(component,
@@ -1123,7 +1123,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt298 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt298_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt298_regmap = {
@@ -1195,7 +1195,7 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 		RT298_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID), &ret);
 	if (ret != RT298_VENDOR_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %#x is not rt298\n", ret);
+			"Device with ID register %#x is yest rt298\n", ret);
 		return -ENODEV;
 	}
 

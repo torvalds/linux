@@ -9,7 +9,7 @@
  *	Syed Mohammed Khasim <x0khasim@ti.com>
  *
  * Initial Code:
- *	Andy Lowe / Nishanth Menon
+ *	Andy Lowe / Nishanth Meyesn
  */
 
 #include <linux/module.h>
@@ -35,7 +35,7 @@
  * There are also two LED pins used sometimes as output-only GPIOs.
  */
 
-/* genirq interfaces are not available to modules */
+/* genirq interfaces are yest available to modules */
 #ifdef MODULE
 #define is_module()	true
 #else
@@ -232,7 +232,7 @@ static int twl_request(struct gpio_chip *chip, unsigned offset)
 		if (status < 0)
 			goto done;
 
-		/* init LED to not-driven (high) */
+		/* init LED to yest-driven (high) */
 		status = twl_i2c_read_u8(TWL4030_MODULE_LED, &cached_leden,
 					 TWL4030_LED_LEDEN_REG);
 		if (status < 0)
@@ -479,16 +479,16 @@ static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev,
 	if (pdata)
 		*omap_twl_info = *pdata;
 
-	omap_twl_info->use_leds = of_property_read_bool(dev->of_node,
+	omap_twl_info->use_leds = of_property_read_bool(dev->of_yesde,
 			"ti,use-leds");
 
-	of_property_read_u32(dev->of_node, "ti,debounce",
+	of_property_read_u32(dev->of_yesde, "ti,debounce",
 			     &omap_twl_info->debounce);
-	of_property_read_u32(dev->of_node, "ti,mmc-cd",
+	of_property_read_u32(dev->of_yesde, "ti,mmc-cd",
 			     (u32 *)&omap_twl_info->mmc_cd);
-	of_property_read_u32(dev->of_node, "ti,pullups",
+	of_property_read_u32(dev->of_yesde, "ti,pullups",
 			     &omap_twl_info->pullups);
-	of_property_read_u32(dev->of_node, "ti,pulldowns",
+	of_property_read_u32(dev->of_yesde, "ti,pulldowns",
 			     &omap_twl_info->pulldowns);
 
 	return omap_twl_info;
@@ -497,7 +497,7 @@ static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev,
 static int gpio_twl4030_probe(struct platform_device *pdev)
 {
 	struct twl4030_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct gpio_twl4030_priv *priv;
 	int ret, irq_base;
 
@@ -509,7 +509,7 @@ static int gpio_twl4030_probe(struct platform_device *pdev)
 	/* maybe setup IRQs */
 	if (is_module()) {
 		dev_err(&pdev->dev, "can't dispatch IRQs from modules\n");
-		goto no_irqs;
+		goto yes_irqs;
 	}
 
 	irq_base = devm_irq_alloc_descs(&pdev->dev, -1,
@@ -519,7 +519,7 @@ static int gpio_twl4030_probe(struct platform_device *pdev)
 		return irq_base;
 	}
 
-	irq_domain_add_legacy(node, TWL4030_GPIO_MAX, irq_base, 0,
+	irq_domain_add_legacy(yesde, TWL4030_GPIO_MAX, irq_base, 0,
 			      &irq_domain_simple_ops, NULL);
 
 	ret = twl4030_sih_setup(&pdev->dev, TWL4030_MODULE_GPIO, irq_base);
@@ -528,7 +528,7 @@ static int gpio_twl4030_probe(struct platform_device *pdev)
 
 	priv->irq_base = irq_base;
 
-no_irqs:
+yes_irqs:
 	priv->gpio_chip = template_chip;
 	priv->gpio_chip.base = -1;
 	priv->gpio_chip.ngpio = TWL4030_GPIO_MAX;
@@ -536,7 +536,7 @@ no_irqs:
 
 	mutex_init(&priv->mutex);
 
-	if (node)
+	if (yesde)
 		pdata = of_gpio_twl4030(&pdev->dev, pdata);
 
 	if (pdata == NULL) {
@@ -546,7 +546,7 @@ no_irqs:
 
 	/*
 	 * NOTE:  boards may waste power if they don't set pullups
-	 * and pulldowns correctly ... default for non-ULPI pins is
+	 * and pulldowns correctly ... default for yesn-ULPI pins is
 	 * pulldown, and some other pins may have external pullups
 	 * or pulldowns.  Careful!
 	 */
@@ -569,7 +569,7 @@ no_irqs:
 
 	ret = gpiochip_add_data(&priv->gpio_chip, priv);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "could yest register gpiochip, %d\n", ret);
 		priv->gpio_chip.ngpio = 0;
 		gpio_twl4030_remove(pdev);
 		goto out;
@@ -590,7 +590,7 @@ out:
 	return ret;
 }
 
-/* Cannot use as gpio_twl4030_probe() calls us */
+/* Canyest use as gpio_twl4030_probe() calls us */
 static int gpio_twl4030_remove(struct platform_device *pdev)
 {
 	struct twl4030_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
@@ -611,7 +611,7 @@ static int gpio_twl4030_remove(struct platform_device *pdev)
 	if (is_module())
 		return 0;
 
-	/* REVISIT no support yet for deregistering all the IRQs */
+	/* REVISIT yes support yet for deregistering all the IRQs */
 	WARN_ON(1);
 	return -EIO;
 }

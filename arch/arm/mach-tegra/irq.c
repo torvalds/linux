@@ -42,7 +42,7 @@ bool tegra_pending_sgi(void)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int tegra_gic_notifier(struct notifier_block *self,
+static int tegra_gic_yestifier(struct yestifier_block *self,
 			      unsigned long cmd, void *v)
 {
 	switch (cmd) {
@@ -54,8 +54,8 @@ static int tegra_gic_notifier(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block tegra_gic_notifier_block = {
-	.notifier_call = tegra_gic_notifier,
+static struct yestifier_block tegra_gic_yestifier_block = {
+	.yestifier_call = tegra_gic_yestifier,
 };
 
 static const struct of_device_id tegra114_dt_gic_match[] __initconst = {
@@ -65,15 +65,15 @@ static const struct of_device_id tegra114_dt_gic_match[] __initconst = {
 
 static void __init tegra114_gic_cpu_pm_registration(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 
-	dn = of_find_matching_node(NULL, tegra114_dt_gic_match);
+	dn = of_find_matching_yesde(NULL, tegra114_dt_gic_match);
 	if (!dn)
 		return;
 
 	tegra_gic_cpu_base = of_iomap(dn, 1);
 
-	cpu_pm_register_notifier(&tegra_gic_notifier_block);
+	cpu_pm_register_yestifier(&tegra_gic_yestifier_block);
 }
 #else
 static void __init tegra114_gic_cpu_pm_registration(void) { }
@@ -87,7 +87,7 @@ static const struct of_device_id tegra_ictlr_match[] __initconst = {
 
 void __init tegra_init_irq(void)
 {
-	if (WARN_ON(!of_find_matching_node(NULL, tegra_ictlr_match)))
+	if (WARN_ON(!of_find_matching_yesde(NULL, tegra_ictlr_match)))
 		pr_warn("Outdated DT detected, suspend/resume will NOT work\n");
 
 	tegra114_gic_cpu_pm_registration();

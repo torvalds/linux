@@ -187,7 +187,7 @@ static int clk_bcm63xx_probe(struct platform_device *pdev)
 		hw->data.hws[entry->bit] = clk;
 	}
 
-	ret = of_clk_add_hw_provider(pdev->dev.of_node, of_clk_hw_onecell_get,
+	ret = of_clk_add_hw_provider(pdev->dev.of_yesde, of_clk_hw_onecell_get,
 				     &hw->data);
 	if (!ret)
 		return 0;
@@ -205,7 +205,7 @@ static int clk_bcm63xx_remove(struct platform_device *pdev)
 	struct clk_bcm63xx_hw *hw = platform_get_drvdata(pdev);
 	int i;
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 
 	for (i = 0; i < hw->data.num; i++) {
 		if (!IS_ERR(hw->data.hws[i]))

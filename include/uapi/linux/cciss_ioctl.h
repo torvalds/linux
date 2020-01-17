@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPICCISS_IOCTLH
 #define _UAPICCISS_IOCTLH
 
@@ -78,7 +78,7 @@ typedef struct _LogvolInfo_struct{
 #define CCISS_PASSTHRU	   _IOWR(CCISS_IOC_MAGIC, 11, IOCTL_Command_struct)
 #define CCISS_DEREGDISK	   _IO(CCISS_IOC_MAGIC, 12)
 
-/* no longer used... use REGNEWD instead */ 
+/* yes longer used... use REGNEWD instead */ 
 #define CCISS_REGNEWDISK  _IOW(CCISS_IOC_MAGIC, 13, int)
 
 #define CCISS_REGNEWD	   _IO(CCISS_IOC_MAGIC, 14)

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/timer/samsung,exynos4210-mct.yaml#
+$id: http://devicetree.org/schemas/timer/samsung,exyyess4210-mct.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos SoC Multi Core Timer (MCT)
+title: Samsung Exyyess SoC Multi Core Timer (MCT)
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -20,8 +20,8 @@ description: |+
 properties:
   compatible:
     enum:
-      - samsung,exynos4210-mct
-      - samsung,exynos4412-mct
+      - samsung,exyyess4210-mct
+      - samsung,exyyess4412-mct
 
   reg:
     maxItems: 1
@@ -41,7 +41,7 @@ properties:
       7: ..
       i: Local Timer Interrupt n
       For MCT block that uses a per-processor interrupt for local timers, such
-      as ones compatible with "samsung,exynos4412-mct", only one local timer
+      as ones compatible with "samsung,exyyess4412-mct", only one local timer
       interrupt might be specified, meaning that all local timers use the same
       per processor interrupt.
     minItems: 5               # 4 Global + 1 local
@@ -60,7 +60,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     timer@10050000 {
-        compatible = "samsung,exynos4210-mct";
+        compatible = "samsung,exyyess4210-mct";
         reg = <0x10050000 0x800>;
         interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
@@ -76,7 +76,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     timer@101c0000 {
-        compatible = "samsung,exynos4210-mct";
+        compatible = "samsung,exyyess4210-mct";
         reg = <0x101C0000 0x800>;
         interrupts-extended = <&gic GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
                               <&gic GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
@@ -93,7 +93,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     timer@10050000 {
-        compatible = "samsung,exynos4412-mct";
+        compatible = "samsung,exyyess4412-mct";
         reg = <0x10050000 0x800>;
 
         interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
@@ -110,7 +110,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     timer@10050000 {
-        compatible = "samsung,exynos4412-mct";
+        compatible = "samsung,exyyess4412-mct";
         reg = <0x10050000 0x800>;
 
         interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,

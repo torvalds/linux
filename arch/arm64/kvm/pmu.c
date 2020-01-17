@@ -15,7 +15,7 @@ static bool kvm_pmu_switch_needed(struct perf_event_attr *attr)
 {
 	/**
 	 * With VHE the guest kernel runs at EL1 and the host at EL2,
-	 * where user (EL0) is excluded then we have no reason to switch
+	 * where user (EL0) is excluded then we have yes reason to switch
 	 * counters.
 	 */
 	if (has_vhe() && attr->exclude_user)

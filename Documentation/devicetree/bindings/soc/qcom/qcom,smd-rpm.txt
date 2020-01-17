@@ -7,12 +7,12 @@ frequencies.
 
 The SMD information for the RPM edge should be filled out.  See qcom,smd.txt for
 the required edge properties.  All SMD related properties will reside within the
-RPM node itself.
+RPM yesde itself.
 
 = SUBDEVICES
 
-The RPM exposes resources to its subnodes.  The rpm_requests node must be
-present and this subnode may contain children that designate regulator
+The RPM exposes resources to its subyesdes.  The rpm_requests yesde must be
+present and this subyesde may contain children that designate regulator
 resources.
 
 - compatible:
@@ -33,7 +33,7 @@ resources.
 	Definition: must be "rpm_requests"
 
 Refer to Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.txt
-for information on the regulator subnodes that can exist under the rpm_requests.
+for information on the regulator subyesdes that can exist under the rpm_requests.
 
 Example:
 

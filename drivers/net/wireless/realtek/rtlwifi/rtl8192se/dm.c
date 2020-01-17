@@ -62,7 +62,7 @@ static void _rtl92s_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		goto dm_checkedcaturbo_exit;
 	}
 
-	if ((!rtlpriv->dm.is_any_nonbepkts) &&
+	if ((!rtlpriv->dm.is_any_yesnbepkts) &&
 	    (!rtlpriv->dm.disable_framebursting)) {
 		cur_txok_cnt = rtlpriv->stats.txbytesunicast - last_txok_cnt;
 		cur_rxok_cnt = rtlpriv->stats.rxbytesunicast - last_rxok_cnt;
@@ -127,7 +127,7 @@ static void _rtl92s_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	}
 
 dm_checkedcaturbo_exit:
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_yesnbepkts = false;
 	last_txok_cnt = rtlpriv->stats.txbytesunicast;
 	last_rxok_cnt = rtlpriv->stats.rxbytesunicast;
 }
@@ -347,7 +347,7 @@ void rtl92s_dm_init_edca_turbo(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->dm.current_turbo_edca = false;
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_yesnbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
 }
 
@@ -468,7 +468,7 @@ static void _rtl92s_dm_initial_gain_sta_beforeconnect(struct ieee80211_hw *hw)
 						 digtable->rx_gain_max;
 		/* connected -> connected or disconnected -> disconnected  */
 		} else {
-			/* Firmware control DIG, do nothing in driver dm */
+			/* Firmware control DIG, do yesthing in driver dm */
 			return;
 		}
 		/* disconnected -> connected or connected ->
@@ -513,7 +513,7 @@ static void _rtl92s_dm_ctrl_initgain_bytwoport(struct ieee80211_hw *hw)
 	if (rtlpriv->mac80211.act_scanning)
 		return;
 
-	/* Decide the current status and if modify initial gain or not */
+	/* Decide the current status and if modify initial gain or yest */
 	if (rtlpriv->mac80211.link_state >= MAC80211_LINKED ||
 	    rtlpriv->mac80211.opmode == NL80211_IFTYPE_ADHOC)
 		dig->cur_sta_cstate = DIG_STA_CONNECT;
@@ -629,7 +629,7 @@ static void _rtl92s_dm_init_dig(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct dig_t *digtable = &rtlpriv->dm_digtable;
 
-	/* Disable DIG scheme now.*/
+	/* Disable DIG scheme yesw.*/
 	digtable->dig_enable_flag = true;
 	digtable->backoff_enable_flag = true;
 

@@ -53,18 +53,18 @@ static const struct regmap_range da9063_ad_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table da9063_ad_readable_table = {
-	.yes_ranges = da9063_ad_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_ad_readable_ranges),
+	.no_ranges = da9063_ad_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9063_ad_readable_ranges),
 };
 
 static const struct regmap_access_table da9063_ad_writeable_table = {
-	.yes_ranges = da9063_ad_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_ad_writeable_ranges),
+	.no_ranges = da9063_ad_writeable_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9063_ad_writeable_ranges),
 };
 
 static const struct regmap_access_table da9063_ad_volatile_table = {
-	.yes_ranges = da9063_ad_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_ad_volatile_ranges),
+	.no_ranges = da9063_ad_volatile_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9063_ad_volatile_ranges),
 };
 
 static const struct regmap_range da9063_bb_readable_ranges[] = {
@@ -98,18 +98,18 @@ static const struct regmap_range da9063_bb_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table da9063_bb_readable_table = {
-	.yes_ranges = da9063_bb_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_bb_readable_ranges),
+	.no_ranges = da9063_bb_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9063_bb_readable_ranges),
 };
 
 static const struct regmap_access_table da9063_bb_writeable_table = {
-	.yes_ranges = da9063_bb_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_bb_writeable_ranges),
+	.no_ranges = da9063_bb_writeable_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9063_bb_writeable_ranges),
 };
 
 static const struct regmap_access_table da9063_bb_volatile_table = {
-	.yes_ranges = da9063_bb_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_bb_volatile_ranges),
+	.no_ranges = da9063_bb_volatile_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9063_bb_volatile_ranges),
 };
 
 static const struct regmap_range da9063l_bb_readable_ranges[] = {
@@ -142,18 +142,18 @@ static const struct regmap_range da9063l_bb_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table da9063l_bb_readable_table = {
-	.yes_ranges = da9063l_bb_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063l_bb_readable_ranges),
+	.no_ranges = da9063l_bb_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9063l_bb_readable_ranges),
 };
 
 static const struct regmap_access_table da9063l_bb_writeable_table = {
-	.yes_ranges = da9063l_bb_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063l_bb_writeable_ranges),
+	.no_ranges = da9063l_bb_writeable_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9063l_bb_writeable_ranges),
 };
 
 static const struct regmap_access_table da9063l_bb_volatile_table = {
-	.yes_ranges = da9063l_bb_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063l_bb_volatile_ranges),
+	.no_ranges = da9063l_bb_volatile_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9063l_bb_volatile_ranges),
 };
 
 static const struct regmap_range_cfg da9063_range_cfg[] = {

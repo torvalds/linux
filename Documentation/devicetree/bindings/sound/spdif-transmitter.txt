@@ -3,7 +3,7 @@ Device-Tree bindings for dummy spdif transmitter
 Required properties:
 	- compatible: should be "linux,spdif-dit".
 
-Example node:
+Example yesde:
 
 	codec: spdif-transmitter {
 		compatible = "linux,spdif-dit";

@@ -6,9 +6,9 @@
  * Mimi Zohar <zohar@us.ibm.com>
  *
  * File: integrity_iint.c
- *	- implements the integrity hooks: integrity_inode_alloc,
- *	  integrity_inode_free
- *	- cache integrity information associated with an inode
+ *	- implements the integrity hooks: integrity_iyesde_alloc,
+ *	  integrity_iyesde_free
+ *	- cache integrity information associated with an iyesde
  *	  using a rbtree tree.
  */
 #include <linux/slab.h>
@@ -28,19 +28,19 @@ static struct kmem_cache *iint_cache __read_mostly;
 struct dentry *integrity_dir;
 
 /*
- * __integrity_iint_find - return the iint associated with an inode
+ * __integrity_iint_find - return the iint associated with an iyesde
  */
-static struct integrity_iint_cache *__integrity_iint_find(struct inode *inode)
+static struct integrity_iint_cache *__integrity_iint_find(struct iyesde *iyesde)
 {
 	struct integrity_iint_cache *iint;
-	struct rb_node *n = integrity_iint_tree.rb_node;
+	struct rb_yesde *n = integrity_iint_tree.rb_yesde;
 
 	while (n) {
-		iint = rb_entry(n, struct integrity_iint_cache, rb_node);
+		iint = rb_entry(n, struct integrity_iint_cache, rb_yesde);
 
-		if (inode < iint->inode)
+		if (iyesde < iint->iyesde)
 			n = n->rb_left;
-		else if (inode > iint->inode)
+		else if (iyesde > iint->iyesde)
 			n = n->rb_right;
 		else
 			break;
@@ -52,17 +52,17 @@ static struct integrity_iint_cache *__integrity_iint_find(struct inode *inode)
 }
 
 /*
- * integrity_iint_find - return the iint associated with an inode
+ * integrity_iint_find - return the iint associated with an iyesde
  */
-struct integrity_iint_cache *integrity_iint_find(struct inode *inode)
+struct integrity_iint_cache *integrity_iint_find(struct iyesde *iyesde)
 {
 	struct integrity_iint_cache *iint;
 
-	if (!IS_IMA(inode))
+	if (!IS_IMA(iyesde))
 		return NULL;
 
 	read_lock(&integrity_iint_lock);
-	iint = __integrity_iint_find(inode);
+	iint = __integrity_iint_find(iyesde);
 	read_unlock(&integrity_iint_lock);
 
 	return iint;
@@ -86,19 +86,19 @@ static void iint_free(struct integrity_iint_cache *iint)
 }
 
 /**
- * integrity_inode_get - find or allocate an iint associated with an inode
- * @inode: pointer to the inode
+ * integrity_iyesde_get - find or allocate an iint associated with an iyesde
+ * @iyesde: pointer to the iyesde
  * @return: allocated iint
  *
  * Caller must lock i_mutex
  */
-struct integrity_iint_cache *integrity_inode_get(struct inode *inode)
+struct integrity_iint_cache *integrity_iyesde_get(struct iyesde *iyesde)
 {
-	struct rb_node **p;
-	struct rb_node *node, *parent = NULL;
+	struct rb_yesde **p;
+	struct rb_yesde *yesde, *parent = NULL;
 	struct integrity_iint_cache *iint, *test_iint;
 
-	iint = integrity_iint_find(inode);
+	iint = integrity_iint_find(iyesde);
 	if (iint)
 		return iint;
 
@@ -108,43 +108,43 @@ struct integrity_iint_cache *integrity_inode_get(struct inode *inode)
 
 	write_lock(&integrity_iint_lock);
 
-	p = &integrity_iint_tree.rb_node;
+	p = &integrity_iint_tree.rb_yesde;
 	while (*p) {
 		parent = *p;
 		test_iint = rb_entry(parent, struct integrity_iint_cache,
-				     rb_node);
-		if (inode < test_iint->inode)
+				     rb_yesde);
+		if (iyesde < test_iint->iyesde)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
 	}
 
-	iint->inode = inode;
-	node = &iint->rb_node;
-	inode->i_flags |= S_IMA;
-	rb_link_node(node, parent, p);
-	rb_insert_color(node, &integrity_iint_tree);
+	iint->iyesde = iyesde;
+	yesde = &iint->rb_yesde;
+	iyesde->i_flags |= S_IMA;
+	rb_link_yesde(yesde, parent, p);
+	rb_insert_color(yesde, &integrity_iint_tree);
 
 	write_unlock(&integrity_iint_lock);
 	return iint;
 }
 
 /**
- * integrity_inode_free - called on security_inode_free
- * @inode: pointer to the inode
+ * integrity_iyesde_free - called on security_iyesde_free
+ * @iyesde: pointer to the iyesde
  *
- * Free the integrity information(iint) associated with an inode.
+ * Free the integrity information(iint) associated with an iyesde.
  */
-void integrity_inode_free(struct inode *inode)
+void integrity_iyesde_free(struct iyesde *iyesde)
 {
 	struct integrity_iint_cache *iint;
 
-	if (!IS_IMA(inode))
+	if (!IS_IMA(iyesde))
 		return;
 
 	write_lock(&integrity_iint_lock);
-	iint = __integrity_iint_find(inode);
-	rb_erase(&iint->rb_node, &integrity_iint_tree);
+	iint = __integrity_iint_find(iyesde);
+	rb_erase(&iint->rb_yesde, &integrity_iint_tree);
 	write_unlock(&integrity_iint_lock);
 
 	iint_free(iint);
@@ -181,8 +181,8 @@ DEFINE_LSM(integrity) = {
  * integrity_kernel_read - read data from the file
  *
  * This is a function for reading file content instead of kernel_read().
- * It does not perform locking checks to ensure it cannot be blocked.
- * It does not perform security checks because it is irrelevant for IMA.
+ * It does yest perform locking checks to ensure it canyest be blocked.
+ * It does yest perform security checks because it is irrelevant for IMA.
  *
  */
 int integrity_kernel_read(struct file *file, loff_t offset,

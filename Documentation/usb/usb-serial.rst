@@ -20,20 +20,20 @@ Configuration
   one time.
 
     The major number that the driver uses is 188 so to use the driver,
-    create the following nodes::
+    create the following yesdes::
 
-	mknod /dev/ttyUSB0 c 188 0
-	mknod /dev/ttyUSB1 c 188 1
-	mknod /dev/ttyUSB2 c 188 2
-	mknod /dev/ttyUSB3 c 188 3
+	mkyesd /dev/ttyUSB0 c 188 0
+	mkyesd /dev/ttyUSB1 c 188 1
+	mkyesd /dev/ttyUSB2 c 188 2
+	mkyesd /dev/ttyUSB3 c 188 3
 		.
 		.
 		.
-	mknod /dev/ttyUSB254 c 188 254
-	mknod /dev/ttyUSB255 c 188 255
+	mkyesd /dev/ttyUSB254 c 188 254
+	mkyesd /dev/ttyUSB255 c 188 255
 
   When the device is connected and recognized by the driver, the driver
-  will print to the system log, which node(s) the device has been bound
+  will print to the system log, which yesde(s) the device has been bound
   to.
 
 
@@ -74,7 +74,7 @@ HandSpring Visor, Palm USB, and Clié USB driver
     in the device.
 
   When the device is connected, try talking to it on the second port
-  (this is usually /dev/ttyUSB1 if you do not have any other usb-serial
+  (this is usually /dev/ttyUSB1 if you do yest have any other usb-serial
   devices in the system.) The system log should tell you which port is
   the port to use for the HotSync transfer. The "Generic" port can be used
   for other device communication, such as a PPP link.
@@ -84,12 +84,12 @@ HandSpring Visor, Palm USB, and Clié USB driver
   that have had a flash upgrade to a newer version of the OS.  See the
   kernel system log for information on which is the correct port to use.
 
-  If after pressing the sync button, nothing shows up in the system log,
+  If after pressing the sync button, yesthing shows up in the system log,
   try resetting the device, first a hot reset, and then a cold reset if
   necessary.  Some devices need this before they can talk to the USB port
   properly.
 
-  Devices that are not compiled into the kernel can be specified with module
+  Devices that are yest compiled into the kernel can be specified with module
   parameters.  e.g. modprobe visor vendor=0x54c product=0x66
 
   There is a webpage and mailing lists for this portion of the driver at:
@@ -125,7 +125,7 @@ PocketPC PDA Driver
   To use Pocket IE, follow the instructions given at
   http://www.tekguru.co.uk/EM500/usbtonet.htm to achieve the same thing
   on Win98. Omit the proxy server part; Linux is quite capable of forwarding
-  packets unlike Win98. Another modification is required at least for the
+  packets unlike Win98. Ayesther modification is required at least for the
   iPAQ - disable autosync by going to the Start/Settings/Connections menu
   and unchecking the "Automatically synchronize ..." box. Go to
   Start/Programs/Connections, connect the cable and select "usbdial" (or
@@ -176,7 +176,7 @@ Keyspan PDA Serial Adapter
    Big Things on the todo list:
      - parity, 7 vs 8 bits per char, 1 or 2 stop bits
      - HW flow control
-     - not all of the standard USB descriptors are handled:
+     - yest all of the standard USB descriptors are handled:
        Get_Status, Set_Feature, O_NONBLOCK, select()
 
   For any questions or problems with this driver, please contact Brian
@@ -246,14 +246,14 @@ Cypress M8 CY4601 Family Serial Driver
 		- Cypress HID->COM RS232 adapter
 
 		Note:
-			Cypress Semiconductor claims no affiliation with the
+			Cypress Semiconductor claims yes affiliation with the
 			hid->com device.
 
      Most devices using chipsets under the CY4601 family should
      work with the driver.  As long as they stay true to the CY4601
      usbserial specification.
 
-    Technical notes:
+    Technical yestes:
 
         The Earthmate starts out at 4800 8N1 by default... the driver will
 	upon start init to this setting.  usbserial core provides the rest
@@ -269,12 +269,12 @@ Cypress M8 CY4601 Family Serial Driver
 		to begin communicating.
 
 	As far as I can tell it supports pretty much every sirf command as
-	documented online available with firmware 2.31, with some unknown
+	documented online available with firmware 2.31, with some unkyeswn
 	message ids.
 
-	The hid->com adapter can run at a maximum baud of 115200bps.  Please note
+	The hid->com adapter can run at a maximum baud of 115200bps.  Please yeste
 	that the device has trouble or is incapable of raising line voltage properly.
-	It will be fine with null modem links, as long as you do not try to link two
+	It will be fine with null modem links, as long as you do yest try to link two
 	together without hacking the adapter to set the line high.
 
 	The driver is smp safe.  Performance with the driver is rather low when using
@@ -284,7 +284,7 @@ Cypress M8 CY4601 Family Serial Driver
 	If you have any questions, problems, patches, feature requests, etc. you can
 	contact me here via email:
 
-					dignome@gmail.com
+					digyesme@gmail.com
 
 		(your problems/patches can alternately be submitted to usb-devel)
 
@@ -296,15 +296,15 @@ Digi AccelePort Driver
   (plus a parallel port) and 4 port USB serial converters.  The driver
   does NOT yet support the Digi AccelePort USB 8.
 
-  This driver works under SMP with the usb-uhci driver.  It does not
+  This driver works under SMP with the usb-uhci driver.  It does yest
   work under SMP with the uhci driver.
 
   The driver is generally working, though we still have a few more ioctls
   to implement and final testing and debugging to do.  The parallel port
   on the USB 2 is supported as a serial to parallel converter; in other
-  words, it appears as another USB serial port on Linux, even though
+  words, it appears as ayesther USB serial port on Linux, even though
   physically it is really a parallel port.  The Digi Acceleport USB 8
-  is not yet supported.
+  is yest yet supported.
 
   Please contact Peter Berger (pberger@brimson.com) or Al Borchers
   (alborchers@steinerpoint.com) for questions or problems with this
@@ -339,7 +339,7 @@ Belkin USB Serial Adapter F5U103
   .. [2]
          Queries of inputs (CTS,DSR,CD,RI) show the last
          reported state.  Queries of outputs (DTR,RTS) show the last
-         requested state and may not reflect current state as set by
+         requested state and may yest reflect current state as set by
          automatic hardware flow control.
 
   TO DO List:
@@ -360,9 +360,9 @@ Empeg empeg-car Mark I/II Driver
   client synchronization tools for an Empeg empeg-car mp3 player.
 
   Tips:
-    * Don't forget to create the device nodes for ttyUSB{0,1,2,...}
+    * Don't forget to create the device yesdes for ttyUSB{0,1,2,...}
     * modprobe empeg (modprobe is your friend)
-    * emptool --usb /dev/ttyUSB0 (or whatever you named your device node)
+    * emptool --usb /dev/ttyUSB0 (or whatever you named your device yesde)
 
   For any questions or problems with this driver, please contact Gary
   Brubaker at xavyer@ix.netcom.com
@@ -372,7 +372,7 @@ MCT USB Single Port Serial Adapter U232
 ---------------------------------------
 
   This driver is for the MCT USB-RS232 Converter (25 pin, Model No.
-  U232-P25) from Magic Control Technology Corp. (there is also a 9 pin
+  U232-P25) from Magic Control Techyeslogy Corp. (there is also a 9 pin
   Model No. U232-P9). More information about this device can be found at
   the manufacturer's web-site: http://www.mct.com.tw.
 
@@ -425,7 +425,7 @@ REINER SCT cyberJack pinpad/e-com USB chipcard reader
 
     This is the kernel part of the driver for this USB card reader.
     There is also a user part for a CT-API driver available. A site
-    for downloading is TBA. For now, you can request it from the
+    for downloading is TBA. For yesw, you can request it from the
     maintainer (linux-usb@sii.li).
 
   For any questions or problems with this driver, please contact
@@ -452,11 +452,11 @@ Current status:
 
   The driver was put together by looking at the usb bus transactions
   done by Palm's driver under Windows, so a lot of functionality is
-  still missing.  Notably, serial ioctls are sometimes faked or not yet
+  still missing.  Notably, serial ioctls are sometimes faked or yest yet
   implemented.  Support for finding out about DSR and CTS line status is
-  however implemented (though not nicely), so your favorite autopilot(1)
+  however implemented (though yest nicely), so your favorite autopilot(1)
   and pilot-manager -daemon calls will work.  Baud rates up to 115200
-  are supported, but handshaking (software or hardware) is not, which is
+  are supported, but handshaking (software or hardware) is yest, which is
   why it is wise to cut down on the rate used is wise for large
   transfers until this is settled.
 
@@ -467,9 +467,9 @@ Winchiphead CH341 Driver
 ------------------------
 
   This driver is for the Winchiphead CH341 USB-RS232 Converter. This chip
-  also implements an IEEE 1284 parallel port, I2C and SPI, but that is not
+  also implements an IEEE 1284 parallel port, I2C and SPI, but that is yest
   supported by the driver. The protocol was analyzed from the behaviour
-  of the Windows driver, no datasheet is available at present.
+  of the Windows driver, yes datasheet is available at present.
 
   The manufacturer's website: http://www.winchiphead.com/.
 
@@ -483,9 +483,9 @@ Moschip MCS7720, MCS7715 driver
   and Cables Unlimited.  There may be others.  The 7720 provides two serial
   ports, and the 7715 provides one serial and one standard PC parallel port.
   Support for the 7715's parallel port is enabled by a separate option, which
-  will not appear unless parallel port support is first enabled at the top-level
+  will yest appear unless parallel port support is first enabled at the top-level
   of the Device Drivers config menu.  Currently only compatibility mode is
-  supported on the parallel port (no ECP/EPP).
+  supported on the parallel port (yes ECP/EPP).
 
   TODO:
     - Implement ECP/EPP modes for the parallel port.
@@ -497,10 +497,10 @@ Moschip MCS7720, MCS7715 driver
 Generic Serial driver
 ---------------------
 
-  If your device is not one of the above listed devices, compatible with
+  If your device is yest one of the above listed devices, compatible with
   the above models, you can try out the "generic" interface. This
-  interface does not provide any type of control messages sent to the
-  device, and does not support any kind of device flow control. All that
+  interface does yest provide any type of control messages sent to the
+  device, and does yest support any kind of device flow control. All that
   is required of your device is that it has at least one bulk in endpoint,
   or one bulk out endpoint.
 

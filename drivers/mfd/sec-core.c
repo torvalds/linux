@@ -276,7 +276,7 @@ static void sec_pmic_configure(struct sec_pmic_dev *sec_pmic)
 					 S2MPS13_REG_WRSTBI_MASK, 0x0);
 		if (err)
 			dev_warn(sec_pmic->dev,
-				 "Cannot initialize WRSTBI config: %d\n",
+				 "Canyest initialize WRSTBI config: %d\n",
 				 err);
 	}
 }
@@ -288,7 +288,7 @@ static void sec_pmic_configure(struct sec_pmic_dev *sec_pmic)
  * others have to parse their own platform data elements from device tree.
  *
  * The s5m8767 platform data structure is instantiated here and the drivers for
- * the sub-modules need not instantiate another instance while parsing their
+ * the sub-modules need yest instantiate ayesther instance while parsing their
  * platform data.
  */
 static struct sec_platform_data *
@@ -302,13 +302,13 @@ sec_pmic_i2c_parse_dt_pdata(struct device *dev)
 
 	/*
 	 * ToDo: the 'wakeup' member in the platform data is more of a linux
-	 * specfic information. Hence, there is no binding for that yet and
-	 * not parsed here.
+	 * specfic information. Hence, there is yes binding for that yet and
+	 * yest parsed here.
 	 */
 
-	pd->manual_poweroff = of_property_read_bool(dev->of_node,
+	pd->manual_poweroff = of_property_read_bool(dev->of_yesde,
 						"samsung,s2mps11-acokb-ground");
-	pd->disable_wrstbi = of_property_read_bool(dev->of_node,
+	pd->disable_wrstbi = of_property_read_bool(dev->of_yesde,
 						"samsung,s2mps11-wrstbi-ground");
 	return pd;
 }
@@ -324,10 +324,10 @@ static inline unsigned long sec_i2c_get_driver_data(struct i2c_client *i2c,
 						const struct i2c_device_id *id)
 {
 #ifdef CONFIG_OF
-	if (i2c->dev.of_node) {
+	if (i2c->dev.of_yesde) {
 		const struct of_device_id *match;
 
-		match = of_match_node(sec_dt_match, i2c->dev.of_node);
+		match = of_match_yesde(sec_dt_match, i2c->dev.of_yesde);
 		return (unsigned long)match->data;
 	}
 #endif
@@ -355,7 +355,7 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	sec_pmic->irq = i2c->irq;
 	device_type = sec_i2c_get_driver_data(i2c, id);
 
-	if (sec_pmic->dev->of_node) {
+	if (sec_pmic->dev->of_yesde) {
 		pdata = sec_pmic_i2c_parse_dt_pdata(sec_pmic->dev);
 		if (IS_ERR(pdata)) {
 			ret = PTR_ERR(pdata);
@@ -485,7 +485,7 @@ static void sec_pmic_shutdown(struct i2c_client *i2c)
 	default:
 		/*
 		 * Currently only one board with S2MPS11 needs this, so just
-		 * ignore the rest.
+		 * igyesre the rest.
 		 */
 		dev_warn(sec_pmic->dev,
 			"Unsupported device %lu for manual power off\n",

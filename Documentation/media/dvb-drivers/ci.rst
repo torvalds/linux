@@ -4,15 +4,15 @@ Digital TV Conditional Access Interface (CI API)
 ================================================
 
 
-.. note::
+.. yeste::
 
    This documentation is outdated.
 
 This document describes the usage of the high level CI API as
-in accordance to the Linux DVB API. This is a not a documentation for the,
+in accordance to the Linux DVB API. This is a yest a documentation for the,
 existing low level CI API.
 
-.. note::
+.. yeste::
 
    For the Twinhan/Twinhan clones, the dst_ca module handles the CI
    hardware handling.This module is loaded automatically if a CI
@@ -28,7 +28,7 @@ MPEG-TS streams.
 The ``ca_zap`` userland application is in charge of sending the
 descrambling related information to the Conditional Access Module (CAM).
 
-This application requires the following to function properly as of now.
+This application requires the following to function properly as of yesw.
 
 a) Tune to a valid channel, with szap.
 
@@ -49,7 +49,7 @@ c) after running a szap, you have to run ca_zap, for the
 d) Hopefully enjoy your favourite subscribed channel as you do with
    a FTA card.
 
-.. note::
+.. yeste::
 
   Currently ca_zap, and dst_test, both are meant for demonstration
   purposes only, they can become full fledged applications if necessary.
@@ -67,7 +67,7 @@ CI modules that are supported
 
 The CI module support is largely dependent upon the firmware on the cards
 Some cards do support almost all of the available CI modules. There is
-nothing much that can be done in order to make additional CI modules
+yesthing much that can be done in order to make additional CI modules
 working with these cards.
 
 Modules that have been tested by this driver at present are
@@ -93,11 +93,11 @@ array to/from the CI ioctls as defined in the Linux DVB API. No changes
 have been made in the API to accommodate this feature.
 
 
-Why the need for another CI interface?
+Why the need for ayesther CI interface?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This is one of the most commonly asked question. Well a nice question.
-Strictly speaking this is not a new interface.
+Strictly speaking this is yest a new interface.
 
 The CI interface is defined in the DVB API in ca.h as:
 
@@ -118,18 +118,18 @@ The CI interface is defined in the DVB API in ca.h as:
 	#define CA_CI_MODULE_READY   2
 	} ca_slot_info_t;
 
-This CI interface follows the CI high level interface, which is not
+This CI interface follows the CI high level interface, which is yest
 implemented by most applications. Hence this area is revisited.
 
 This CI interface is quite different in the case that it tries to
 accommodate all other CI based devices, that fall into the other categories.
 
 This means that this CI interface handles the EN50221 style tags in the
-Application layer only and no session management is taken care of by the
+Application layer only and yes session management is taken care of by the
 application. The driver/hardware will take care of all that.
 
 This interface is purely an EN50221 interface exchanging APDU's. This
-means that no session management, link layer or a transport layer do
+means that yes session management, link layer or a transport layer do
 exist in this case in the application to driver communication. It is
 as simple as that. The driver/hardware has to take care of that.
 
@@ -149,7 +149,7 @@ All these ioctls are also valid for the High level CI interface
 
 On querying the device, the device yields information thus:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	CA_GET_SLOT_INFO
 	----------------------------
@@ -180,7 +180,7 @@ On querying the device, the device yields information thus:
 
 
 Not all ioctl's are implemented in the driver from the API, the other
-features of the hardware that cannot be implemented by the API are achieved
+features of the hardware that canyest be implemented by the API are achieved
 using the CA_GET_MSG and CA_SEND_MSG ioctls. An EN50221 style wrapper is
 used to exchange the data to maintain compatibility with other hardware.
 
@@ -197,7 +197,7 @@ used to exchange the data to maintain compatibility with other hardware.
 
 The flow of data can be described thus,
 
-.. code-block:: none
+.. code-block:: yesne
 
 	App (User)
 	-----

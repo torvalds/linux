@@ -6,9 +6,9 @@
 #include <linux/ceph/types.h>
 
 #define CEPH_DEFINE_SHOW_FUNC(name)					\
-static int name##_open(struct inode *inode, struct file *file)		\
+static int name##_open(struct iyesde *iyesde, struct file *file)		\
 {									\
-	return single_open(file, name, inode->i_private);		\
+	return single_open(file, name, iyesde->i_private);		\
 }									\
 									\
 static const struct file_operations name##_fops = {			\

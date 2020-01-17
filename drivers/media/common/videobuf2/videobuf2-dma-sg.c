@@ -275,7 +275,7 @@ userptr_fail_pfnvec:
 }
 
 /*
- * @put_userptr: inform the allocator that a USERPTR buffer will no longer
+ * @put_userptr: inform the allocator that a USERPTR buffer will yes longer
  *		 be used
  */
 static void vb2_dma_sg_put_userptr(void *buf_priv)
@@ -313,7 +313,7 @@ static void *vb2_dma_sg_vaddr(void *buf_priv)
 					buf->num_pages, -1, PAGE_KERNEL);
 	}
 
-	/* add offset in case userptr is not page-aligned */
+	/* add offset in case userptr is yest page-aligned */
 	return buf->vaddr ? buf->vaddr + buf->offset : NULL;
 }
 
@@ -461,7 +461,7 @@ static struct sg_table *vb2_dma_sg_dmabuf_ops_map(
 static void vb2_dma_sg_dmabuf_ops_unmap(struct dma_buf_attachment *db_attach,
 	struct sg_table *sgt, enum dma_data_direction dma_dir)
 {
-	/* nothing to be done here */
+	/* yesthing to be done here */
 }
 
 static void vb2_dma_sg_dmabuf_ops_release(struct dma_buf *dbuf)
@@ -535,7 +535,7 @@ static int vb2_dma_sg_map_dmabuf(void *mem_priv)
 	struct sg_table *sgt;
 
 	if (WARN_ON(!buf->db_attach)) {
-		pr_err("trying to pin a non attached buffer\n");
+		pr_err("trying to pin a yesn attached buffer\n");
 		return -EINVAL;
 	}
 
@@ -563,7 +563,7 @@ static void vb2_dma_sg_unmap_dmabuf(void *mem_priv)
 	struct sg_table *sgt = buf->dma_sgt;
 
 	if (WARN_ON(!buf->db_attach)) {
-		pr_err("trying to unpin a not attached buffer\n");
+		pr_err("trying to unpin a yest attached buffer\n");
 		return;
 	}
 

@@ -155,7 +155,7 @@ static int sram_reserve_cmp(void *priv, struct list_head *a,
 
 static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 {
-	struct device_node *np = sram->dev->of_node, *child;
+	struct device_yesde *np = sram->dev->of_yesde, *child;
 	unsigned long size, cur_start, cur_size;
 	struct sram_reserve *rblocks, *block;
 	struct list_head reserve_list;
@@ -177,13 +177,13 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 		return -ENOMEM;
 
 	block = &rblocks[0];
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		struct resource child_res;
 
 		ret = of_address_to_resource(child, 0, &child_res);
 		if (ret < 0) {
 			dev_err(sram->dev,
-				"could not get address for node %pOF\n",
+				"could yest get address for yesde %pOF\n",
 				child);
 			goto err_chunks;
 		}
@@ -311,7 +311,7 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 	}
 
 err_chunks:
-	of_node_put(child);
+	of_yesde_put(child);
 	kfree(rblocks);
 
 	return ret;
@@ -349,12 +349,12 @@ static int sram_probe(struct platform_device *pdev)
 
 	sram->dev = &pdev->dev;
 
-	if (of_property_read_bool(pdev->dev.of_node, "no-memory-wc"))
+	if (of_property_read_bool(pdev->dev.of_yesde, "yes-memory-wc"))
 		sram->virt_base = devm_platform_ioremap_resource(pdev, 0);
 	else
 		sram->virt_base = devm_platform_ioremap_resource_wc(pdev, 0);
 	if (IS_ERR(sram->virt_base)) {
-		dev_err(&pdev->dev, "could not map SRAM registers\n");
+		dev_err(&pdev->dev, "could yest map SRAM registers\n");
 		return PTR_ERR(sram->virt_base);
 	}
 

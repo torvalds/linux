@@ -5,14 +5,14 @@
  *  Copyright (C) 1995-2005 Russell King
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/swap.h>
 #include <linux/init.h>
 #include <linux/mman.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
 #include <linux/export.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/initrd.h>
 #include <linux/of_fdt.h>
 #include <linux/highmem.h>
@@ -86,7 +86,7 @@ EXPORT_SYMBOL(arm_dma_zone_size);
 
 /*
  * The DMA mask corresponding to the maximum bus address allocatable
- * using GFP_DMA.  The default here places no restriction on DMA
+ * using GFP_DMA.  The default here places yes restriction on DMA
  * allocations.  This must be the smallest DMA mask in the system,
  * so a successful GFP_DMA allocation will always satisfy this.
  */
@@ -132,7 +132,7 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max_low,
 	/*
 	 * The memory size has already been determined.  If we need
 	 * to do anything fancy with the allocation of this memory
-	 * to the zones, now is the time to do it.
+	 * to the zones, yesw is the time to do it.
 	 */
 	zone_size[0] = max_low - min;
 #ifdef CONFIG_HIGHMEM
@@ -141,7 +141,7 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max_low,
 
 	/*
 	 * Calculate the size of the holes.
-	 *  holes = node_size - sum(bank_sizes)
+	 *  holes = yesde_size - sum(bank_sizes)
 	 */
 	memcpy(zhole_size, zone_size, sizeof(zhole_size));
 	for_each_memblock(memory, reg) {
@@ -170,7 +170,7 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max_low,
 			arm_dma_zone_size >> PAGE_SHIFT);
 #endif
 
-	free_area_init_node(0, zone_size, min, zhole_size);
+	free_area_init_yesde(0, zone_size, min, zhole_size);
 }
 
 #ifdef CONFIG_HAVE_ARCH_PFN_VALID
@@ -227,7 +227,7 @@ static void __init arm_initrd_init(void)
 	size = round_up(size, PAGE_SIZE);
 
 	if (!memblock_is_region_memory(start, size)) {
-		pr_err("INITRD: 0x%08llx+0x%08lx is not a memory region - disabling initrd\n",
+		pr_err("INITRD: 0x%08llx+0x%08lx is yest a memory region - disabling initrd\n",
 		       (u64)start, size);
 		return;
 	}
@@ -306,7 +306,7 @@ void __init bootmem_init(void)
 	sparse_init();
 
 	/*
-	 * Now free the memory - free_area_init_node needs
+	 * Now free the memory - free_area_init_yesde needs
 	 * the sparse mem_map arrays initialized by sparse_init()
 	 * for memmap_init_zone(), otherwise all PFNs are invalid.
 	 */
@@ -368,7 +368,7 @@ static void __init free_unused_memmap(void)
 
 #ifdef CONFIG_SPARSEMEM
 		/*
-		 * Take care not to free memmap entries that don't exist
+		 * Take care yest to free memmap entries that don't exist
 		 * due to SPARSEMEM sections which aren't present.
 		 */
 		start = min(start,
@@ -423,11 +423,11 @@ static void __init free_highpages(void)
 		unsigned long start = memblock_region_memory_base_pfn(mem);
 		unsigned long end = memblock_region_memory_end_pfn(mem);
 
-		/* Ignore complete lowmem entries */
+		/* Igyesre complete lowmem entries */
 		if (end <= max_low)
 			continue;
 
-		if (memblock_is_nomap(mem))
+		if (memblock_is_yesmap(mem))
 			continue;
 
 		/* Truncate partial highmem entries */
@@ -456,7 +456,7 @@ static void __init free_highpages(void)
 				break;
 		}
 
-		/* And now free anything which remains */
+		/* And yesw free anything which remains */
 		if (start < end)
 			free_area_high(start, end);
 	}
@@ -481,7 +481,7 @@ void __init mem_init(void)
 	memblock_free_all();
 
 #ifdef CONFIG_SA1111
-	/* now that our DMA memory is actually so designated, we can free it */
+	/* yesw that our DMA memory is actually so designated, we can free it */
 	free_reserved_area(__va(PHYS_OFFSET), swapper_pg_dir, -1, NULL);
 #endif
 
@@ -606,7 +606,7 @@ static void set_section_perms(struct section_perm *perms, int n, bool set,
 	for (i = 0; i < n; i++) {
 		if (!IS_ALIGNED(perms[i].start, SECTION_SIZE) ||
 		    !IS_ALIGNED(perms[i].end, SECTION_SIZE)) {
-			pr_err("BUG: %s section %lx-%lx not aligned to %lx\n",
+			pr_err("BUG: %s section %lx-%lx yest aligned to %lx\n",
 				perms[i].name, perms[i].start, perms[i].end,
 				SECTION_SIZE);
 			continue;
@@ -624,7 +624,7 @@ static void set_section_perms(struct section_perm *perms, int n, bool set,
 /**
  * update_sections_early intended to be called only through stop_machine
  * framework and executed by only one CPU while all other CPUs will spin and
- * wait, so no locking is required in this function.
+ * wait, so yes locking is required in this function.
  */
 static void update_sections_early(struct section_perm perms[], int n)
 {

@@ -43,7 +43,7 @@ void vfio_pci_intx_mask(struct vfio_pci_device *vdev)
 	/*
 	 * Masking can come from interrupt, ioctl, or config space
 	 * via INTx disable.  The latter means this can get called
-	 * even when not using intx delivery.  In this case, just
+	 * even when yest using intx delivery.  In this case, just
 	 * try to have the physical bit follow the virtual bit.
 	 */
 	if (unlikely(!is_intx(vdev))) {
@@ -52,12 +52,12 @@ void vfio_pci_intx_mask(struct vfio_pci_device *vdev)
 	} else if (!vdev->ctx[0].masked) {
 		/*
 		 * Can't use check_and_mask here because we always want to
-		 * mask, not just when something is pending.
+		 * mask, yest just when something is pending.
 		 */
 		if (vdev->pci_2_3)
 			pci_intx(pdev, 0);
 		else
-			disable_irq_nosync(pdev->irq);
+			disable_irq_yessync(pdev->irq);
 
 		vdev->ctx[0].masked = true;
 	}
@@ -82,7 +82,7 @@ static int vfio_pci_intx_unmask_handler(void *opaque, void *unused)
 
 	/*
 	 * Unmasking comes from ioctl or config, so again, have the
-	 * physical bit follow the virtual even when not using INTx.
+	 * physical bit follow the virtual even when yest using INTx.
 	 */
 	if (unlikely(!is_intx(vdev))) {
 		if (vdev->pci_2_3)
@@ -122,7 +122,7 @@ static irqreturn_t vfio_intx_handler(int irq, void *dev_id)
 	spin_lock_irqsave(&vdev->irqlock, flags);
 
 	if (!vdev->pci_2_3) {
-		disable_irq_nosync(vdev->pdev->irq);
+		disable_irq_yessync(vdev->pdev->irq);
 		vdev->ctx[0].masked = true;
 		ret = IRQ_HANDLED;
 	} else if (!vdev->ctx[0].masked &&  /* may be shared */
@@ -141,7 +141,7 @@ static irqreturn_t vfio_intx_handler(int irq, void *dev_id)
 
 static int vfio_intx_enable(struct vfio_pci_device *vdev)
 {
-	if (!is_irq_none(vdev))
+	if (!is_irq_yesne(vdev))
 		return -EINVAL;
 
 	if (!vdev->pdev->irq)
@@ -156,7 +156,7 @@ static int vfio_intx_enable(struct vfio_pci_device *vdev)
 	/*
 	 * If the virtual interrupt is masked, restore it.  Devices
 	 * supporting DisINTx can be masked at the hardware level
-	 * here, non-PCI-2.3 devices will have to wait until the
+	 * here, yesn-PCI-2.3 devices will have to wait until the
 	 * interrupt is enabled.
 	 */
 	vdev->ctx[0].masked = vdev->virq_disabled;
@@ -217,7 +217,7 @@ static int vfio_intx_set_signal(struct vfio_pci_device *vdev, int fd)
 	 */
 	spin_lock_irqsave(&vdev->irqlock, flags);
 	if (!vdev->pci_2_3 && vdev->ctx[0].masked)
-		disable_irq_nosync(pdev->irq);
+		disable_irq_yessync(pdev->irq);
 	spin_unlock_irqrestore(&vdev->irqlock, flags);
 
 	return 0;
@@ -250,7 +250,7 @@ static int vfio_msi_enable(struct vfio_pci_device *vdev, int nvec, bool msix)
 	unsigned int flag = msix ? PCI_IRQ_MSIX : PCI_IRQ_MSI;
 	int ret;
 
-	if (!is_irq_none(vdev))
+	if (!is_irq_yesne(vdev))
 		return -EINVAL;
 
 	vdev->ctx = kcalloc(nvec, sizeof(struct vfio_pci_irq_ctx), GFP_KERNEL);
@@ -390,7 +390,7 @@ static void vfio_msi_disable(struct vfio_pci_device *vdev, bool msix)
 	 * Both disable paths above use pci_intx_for_msi() to clear DisINTx
 	 * via their shutdown paths.  Restore for NoINTx devices.
 	 */
-	if (vdev->nointx)
+	if (vdev->yesintx)
 		pci_intx(pdev, 0);
 
 	vdev->irq_type = VFIO_PCI_NUM_IRQS;
@@ -457,7 +457,7 @@ static int vfio_pci_set_intx_trigger(struct vfio_pci_device *vdev,
 		return 0;
 	}
 
-	if (!(is_intx(vdev) || is_irq_none(vdev)) || start != 0 || count != 1)
+	if (!(is_intx(vdev) || is_irq_yesne(vdev)) || start != 0 || count != 1)
 		return -EINVAL;
 
 	if (flags & VFIO_IRQ_SET_DATA_EVENTFD) {
@@ -503,7 +503,7 @@ static int vfio_pci_set_msi_trigger(struct vfio_pci_device *vdev,
 		return 0;
 	}
 
-	if (!(irq_is(vdev, index) || is_irq_none(vdev)))
+	if (!(irq_is(vdev, index) || is_irq_yesne(vdev)))
 		return -EINVAL;
 
 	if (flags & VFIO_IRQ_SET_DATA_EVENTFD) {

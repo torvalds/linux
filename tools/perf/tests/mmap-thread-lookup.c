@@ -63,7 +63,7 @@ static void *thread_fn(void *arg)
 	/* Signal thread_create thread is initialized. */
 	ret = write(td->ready[1], &go, sizeof(int));
 	if (ret != sizeof(int)) {
-		pr_err("failed to notify\n");
+		pr_err("failed to yestify\n");
 		return NULL;
 	}
 
@@ -159,7 +159,7 @@ static int mmap_events(synth_cb synth)
 	int err, i;
 
 	/*
-	 * The threads_create will not return before all threads
+	 * The threads_create will yest return before all threads
 	 * are spawned and all created memory map.
 	 *
 	 * They will loop until threads_destroy is called, so we

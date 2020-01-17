@@ -118,17 +118,17 @@ struct qcom_icc_provider {
 #define QCS404_MAX_LINKS	12
 
 /**
- * struct qcom_icc_node - Qualcomm specific interconnect nodes
- * @name: the node name used in debugfs
- * @id: a unique node identifier
- * @links: an array of nodes where we can go next while traversing
+ * struct qcom_icc_yesde - Qualcomm specific interconnect yesdes
+ * @name: the yesde name used in debugfs
+ * @id: a unique yesde identifier
+ * @links: an array of yesdes where we can go next while traversing
  * @num_links: the total number of @links
- * @buswidth: width of the interconnect between a node and the bus (bytes)
+ * @buswidth: width of the interconnect between a yesde and the bus (bytes)
  * @mas_rpm_id:	RPM id for devices that are bus masters
  * @slv_rpm_id:	RPM id for devices that are bus slaves
  * @rate: current bus clock rate in Hz
  */
-struct qcom_icc_node {
+struct qcom_icc_yesde {
 	unsigned char *name;
 	u16 id;
 	u16 links[QCS404_MAX_LINKS];
@@ -140,13 +140,13 @@ struct qcom_icc_node {
 };
 
 struct qcom_icc_desc {
-	struct qcom_icc_node **nodes;
-	size_t num_nodes;
+	struct qcom_icc_yesde **yesdes;
+	size_t num_yesdes;
 };
 
 #define DEFINE_QNODE(_name, _id, _buswidth, _mas_rpm_id, _slv_rpm_id,	\
 		     ...)						\
-		static struct qcom_icc_node _name = {			\
+		static struct qcom_icc_yesde _name = {			\
 		.name = #_name,						\
 		.id = _id,						\
 		.buswidth = _buswidth,					\
@@ -159,7 +159,7 @@ struct qcom_icc_desc {
 DEFINE_QNODE(mas_apps_proc, QCS404_MASTER_AMPSS_M0, 8, 0, -1, QCS404_SLAVE_EBI_CH0, QCS404_BIMC_SNOC_SLV);
 DEFINE_QNODE(mas_oxili, QCS404_MASTER_GRAPHICS_3D, 8, 6, -1, QCS404_SLAVE_EBI_CH0, QCS404_BIMC_SNOC_SLV);
 DEFINE_QNODE(mas_mdp, QCS404_MASTER_MDP_PORT0, 8, 8, -1, QCS404_SLAVE_EBI_CH0, QCS404_BIMC_SNOC_SLV);
-DEFINE_QNODE(mas_snoc_bimc_1, QCS404_SNOC_BIMC_1_MAS, 8, 76, -1, QCS404_SLAVE_EBI_CH0);
+DEFINE_QNODE(mas_syesc_bimc_1, QCS404_SNOC_BIMC_1_MAS, 8, 76, -1, QCS404_SLAVE_EBI_CH0);
 DEFINE_QNODE(mas_tcu_0, QCS404_MASTER_TCU_0, 8, -1, -1, QCS404_SLAVE_EBI_CH0, QCS404_BIMC_SNOC_SLV);
 DEFINE_QNODE(mas_spdm, QCS404_MASTER_SPDM, 4, -1, -1, QCS404_PNOC_INT_3);
 DEFINE_QNODE(mas_blsp_1, QCS404_MASTER_BLSP_1, 4, 41, -1, QCS404_PNOC_INT_3);
@@ -168,45 +168,45 @@ DEFINE_QNODE(mas_xi_usb_hs1, QCS404_MASTER_XM_USB_HS1, 8, 138, -1, QCS404_PNOC_I
 DEFINE_QNODE(mas_crypto, QCS404_MASTER_CRYPTO_CORE0, 8, 23, -1, QCS404_PNOC_SNOC_SLV, QCS404_PNOC_INT_2);
 DEFINE_QNODE(mas_sdcc_1, QCS404_MASTER_SDCC_1, 8, 33, -1, QCS404_PNOC_INT_0);
 DEFINE_QNODE(mas_sdcc_2, QCS404_MASTER_SDCC_2, 8, 35, -1, QCS404_PNOC_INT_0);
-DEFINE_QNODE(mas_snoc_pcnoc, QCS404_SNOC_PNOC_MAS, 8, 77, -1, QCS404_PNOC_INT_2);
+DEFINE_QNODE(mas_syesc_pcyesc, QCS404_SNOC_PNOC_MAS, 8, 77, -1, QCS404_PNOC_INT_2);
 DEFINE_QNODE(mas_qpic, QCS404_MASTER_QPIC, 4, -1, -1, QCS404_PNOC_INT_0);
 DEFINE_QNODE(mas_qdss_bam, QCS404_MASTER_QDSS_BAM, 4, -1, -1, QCS404_SNOC_QDSS_INT);
-DEFINE_QNODE(mas_bimc_snoc, QCS404_BIMC_SNOC_MAS, 8, 21, -1, QCS404_SLAVE_OCMEM_64, QCS404_SLAVE_CATS_128, QCS404_SNOC_INT_0, QCS404_SNOC_INT_1);
-DEFINE_QNODE(mas_pcnoc_snoc, QCS404_PNOC_SNOC_MAS, 8, 29, -1, QCS404_SNOC_BIMC_1_SLV, QCS404_SNOC_INT_2, QCS404_SNOC_INT_0);
+DEFINE_QNODE(mas_bimc_syesc, QCS404_BIMC_SNOC_MAS, 8, 21, -1, QCS404_SLAVE_OCMEM_64, QCS404_SLAVE_CATS_128, QCS404_SNOC_INT_0, QCS404_SNOC_INT_1);
+DEFINE_QNODE(mas_pcyesc_syesc, QCS404_PNOC_SNOC_MAS, 8, 29, -1, QCS404_SNOC_BIMC_1_SLV, QCS404_SNOC_INT_2, QCS404_SNOC_INT_0);
 DEFINE_QNODE(mas_qdss_etr, QCS404_MASTER_QDSS_ETR, 8, -1, -1, QCS404_SNOC_QDSS_INT);
 DEFINE_QNODE(mas_emac, QCS404_MASTER_EMAC, 8, -1, -1, QCS404_SNOC_BIMC_1_SLV, QCS404_SNOC_INT_1);
 DEFINE_QNODE(mas_pcie, QCS404_MASTER_PCIE, 8, -1, -1, QCS404_SNOC_BIMC_1_SLV, QCS404_SNOC_INT_1);
 DEFINE_QNODE(mas_usb3, QCS404_MASTER_USB3, 8, -1, -1, QCS404_SNOC_BIMC_1_SLV, QCS404_SNOC_INT_1);
-DEFINE_QNODE(pcnoc_int_0, QCS404_PNOC_INT_0, 8, 85, 114, QCS404_PNOC_SNOC_SLV, QCS404_PNOC_INT_2);
-DEFINE_QNODE(pcnoc_int_2, QCS404_PNOC_INT_2, 8, 124, 184, QCS404_PNOC_SLV_10, QCS404_SLAVE_TCU, QCS404_PNOC_SLV_11, QCS404_PNOC_SLV_2, QCS404_PNOC_SLV_3, QCS404_PNOC_SLV_0, QCS404_PNOC_SLV_1, QCS404_PNOC_SLV_6, QCS404_PNOC_SLV_7, QCS404_PNOC_SLV_4, QCS404_PNOC_SLV_8, QCS404_PNOC_SLV_9);
-DEFINE_QNODE(pcnoc_int_3, QCS404_PNOC_INT_3, 8, 125, 185, QCS404_PNOC_SNOC_SLV);
-DEFINE_QNODE(pcnoc_s_0, QCS404_PNOC_SLV_0, 4, 89, 118, QCS404_SLAVE_PRNG, QCS404_SLAVE_SPDM_WRAPPER, QCS404_SLAVE_PDM);
-DEFINE_QNODE(pcnoc_s_1, QCS404_PNOC_SLV_1, 4, 90, 119, QCS404_SLAVE_TCSR);
-DEFINE_QNODE(pcnoc_s_2, QCS404_PNOC_SLV_2, 4, -1, -1, QCS404_SLAVE_GRAPHICS_3D_CFG);
-DEFINE_QNODE(pcnoc_s_3, QCS404_PNOC_SLV_3, 4, 92, 121, QCS404_SLAVE_MESSAGE_RAM);
-DEFINE_QNODE(pcnoc_s_4, QCS404_PNOC_SLV_4, 4, 93, 122, QCS404_SLAVE_SNOC_CFG);
-DEFINE_QNODE(pcnoc_s_6, QCS404_PNOC_SLV_6, 4, 94, 123, QCS404_SLAVE_BLSP_1, QCS404_SLAVE_TLMM_NORTH, QCS404_SLAVE_EMAC_CFG);
-DEFINE_QNODE(pcnoc_s_7, QCS404_PNOC_SLV_7, 4, 95, 124, QCS404_SLAVE_TLMM_SOUTH, QCS404_SLAVE_DISPLAY_CFG, QCS404_SLAVE_SDCC_1, QCS404_SLAVE_PCIE_1, QCS404_SLAVE_SDCC_2);
-DEFINE_QNODE(pcnoc_s_8, QCS404_PNOC_SLV_8, 4, 96, 125, QCS404_SLAVE_CRYPTO_0_CFG);
-DEFINE_QNODE(pcnoc_s_9, QCS404_PNOC_SLV_9, 4, 97, 126, QCS404_SLAVE_BLSP_2, QCS404_SLAVE_TLMM_EAST, QCS404_SLAVE_PMIC_ARB);
-DEFINE_QNODE(pcnoc_s_10, QCS404_PNOC_SLV_10, 4, 157, -1, QCS404_SLAVE_USB_HS);
-DEFINE_QNODE(pcnoc_s_11, QCS404_PNOC_SLV_11, 4, 158, 246, QCS404_SLAVE_USB3);
+DEFINE_QNODE(pcyesc_int_0, QCS404_PNOC_INT_0, 8, 85, 114, QCS404_PNOC_SNOC_SLV, QCS404_PNOC_INT_2);
+DEFINE_QNODE(pcyesc_int_2, QCS404_PNOC_INT_2, 8, 124, 184, QCS404_PNOC_SLV_10, QCS404_SLAVE_TCU, QCS404_PNOC_SLV_11, QCS404_PNOC_SLV_2, QCS404_PNOC_SLV_3, QCS404_PNOC_SLV_0, QCS404_PNOC_SLV_1, QCS404_PNOC_SLV_6, QCS404_PNOC_SLV_7, QCS404_PNOC_SLV_4, QCS404_PNOC_SLV_8, QCS404_PNOC_SLV_9);
+DEFINE_QNODE(pcyesc_int_3, QCS404_PNOC_INT_3, 8, 125, 185, QCS404_PNOC_SNOC_SLV);
+DEFINE_QNODE(pcyesc_s_0, QCS404_PNOC_SLV_0, 4, 89, 118, QCS404_SLAVE_PRNG, QCS404_SLAVE_SPDM_WRAPPER, QCS404_SLAVE_PDM);
+DEFINE_QNODE(pcyesc_s_1, QCS404_PNOC_SLV_1, 4, 90, 119, QCS404_SLAVE_TCSR);
+DEFINE_QNODE(pcyesc_s_2, QCS404_PNOC_SLV_2, 4, -1, -1, QCS404_SLAVE_GRAPHICS_3D_CFG);
+DEFINE_QNODE(pcyesc_s_3, QCS404_PNOC_SLV_3, 4, 92, 121, QCS404_SLAVE_MESSAGE_RAM);
+DEFINE_QNODE(pcyesc_s_4, QCS404_PNOC_SLV_4, 4, 93, 122, QCS404_SLAVE_SNOC_CFG);
+DEFINE_QNODE(pcyesc_s_6, QCS404_PNOC_SLV_6, 4, 94, 123, QCS404_SLAVE_BLSP_1, QCS404_SLAVE_TLMM_NORTH, QCS404_SLAVE_EMAC_CFG);
+DEFINE_QNODE(pcyesc_s_7, QCS404_PNOC_SLV_7, 4, 95, 124, QCS404_SLAVE_TLMM_SOUTH, QCS404_SLAVE_DISPLAY_CFG, QCS404_SLAVE_SDCC_1, QCS404_SLAVE_PCIE_1, QCS404_SLAVE_SDCC_2);
+DEFINE_QNODE(pcyesc_s_8, QCS404_PNOC_SLV_8, 4, 96, 125, QCS404_SLAVE_CRYPTO_0_CFG);
+DEFINE_QNODE(pcyesc_s_9, QCS404_PNOC_SLV_9, 4, 97, 126, QCS404_SLAVE_BLSP_2, QCS404_SLAVE_TLMM_EAST, QCS404_SLAVE_PMIC_ARB);
+DEFINE_QNODE(pcyesc_s_10, QCS404_PNOC_SLV_10, 4, 157, -1, QCS404_SLAVE_USB_HS);
+DEFINE_QNODE(pcyesc_s_11, QCS404_PNOC_SLV_11, 4, 158, 246, QCS404_SLAVE_USB3);
 DEFINE_QNODE(qdss_int, QCS404_SNOC_QDSS_INT, 8, -1, -1, QCS404_SNOC_BIMC_1_SLV, QCS404_SNOC_INT_1);
-DEFINE_QNODE(snoc_int_0, QCS404_SNOC_INT_0, 8, 99, 130, QCS404_SLAVE_LPASS, QCS404_SLAVE_APPSS, QCS404_SLAVE_WCSS);
-DEFINE_QNODE(snoc_int_1, QCS404_SNOC_INT_1, 8, 100, 131, QCS404_SNOC_PNOC_SLV, QCS404_SNOC_INT_2);
-DEFINE_QNODE(snoc_int_2, QCS404_SNOC_INT_2, 8, 134, 197, QCS404_SLAVE_QDSS_STM, QCS404_SLAVE_OCIMEM);
+DEFINE_QNODE(syesc_int_0, QCS404_SNOC_INT_0, 8, 99, 130, QCS404_SLAVE_LPASS, QCS404_SLAVE_APPSS, QCS404_SLAVE_WCSS);
+DEFINE_QNODE(syesc_int_1, QCS404_SNOC_INT_1, 8, 100, 131, QCS404_SNOC_PNOC_SLV, QCS404_SNOC_INT_2);
+DEFINE_QNODE(syesc_int_2, QCS404_SNOC_INT_2, 8, 134, 197, QCS404_SLAVE_QDSS_STM, QCS404_SLAVE_OCIMEM);
 DEFINE_QNODE(slv_ebi, QCS404_SLAVE_EBI_CH0, 8, -1, 0, 0);
-DEFINE_QNODE(slv_bimc_snoc, QCS404_BIMC_SNOC_SLV, 8, -1, 2, QCS404_BIMC_SNOC_MAS);
+DEFINE_QNODE(slv_bimc_syesc, QCS404_BIMC_SNOC_SLV, 8, -1, 2, QCS404_BIMC_SNOC_MAS);
 DEFINE_QNODE(slv_spdm, QCS404_SLAVE_SPDM_WRAPPER, 4, -1, -1, 0);
 DEFINE_QNODE(slv_pdm, QCS404_SLAVE_PDM, 4, -1, 41, 0);
 DEFINE_QNODE(slv_prng, QCS404_SLAVE_PRNG, 4, -1, 44, 0);
 DEFINE_QNODE(slv_tcsr, QCS404_SLAVE_TCSR, 4, -1, 50, 0);
-DEFINE_QNODE(slv_snoc_cfg, QCS404_SLAVE_SNOC_CFG, 4, -1, 70, 0);
+DEFINE_QNODE(slv_syesc_cfg, QCS404_SLAVE_SNOC_CFG, 4, -1, 70, 0);
 DEFINE_QNODE(slv_message_ram, QCS404_SLAVE_MESSAGE_RAM, 4, -1, 55, 0);
 DEFINE_QNODE(slv_disp_ss_cfg, QCS404_SLAVE_DISPLAY_CFG, 4, -1, -1, 0);
 DEFINE_QNODE(slv_gpu_cfg, QCS404_SLAVE_GRAPHICS_3D_CFG, 4, -1, -1, 0);
 DEFINE_QNODE(slv_blsp_1, QCS404_SLAVE_BLSP_1, 4, -1, 39, 0);
-DEFINE_QNODE(slv_tlmm_north, QCS404_SLAVE_TLMM_NORTH, 4, -1, 214, 0);
+DEFINE_QNODE(slv_tlmm_yesrth, QCS404_SLAVE_TLMM_NORTH, 4, -1, 214, 0);
 DEFINE_QNODE(slv_pcie, QCS404_SLAVE_PCIE_1, 4, -1, -1, 0);
 DEFINE_QNODE(slv_ethernet, QCS404_SLAVE_EMAC_CFG, 4, -1, -1, 0);
 DEFINE_QNODE(slv_blsp_2, QCS404_SLAVE_BLSP_2, 4, -1, 37, 0);
@@ -219,33 +219,33 @@ DEFINE_QNODE(slv_tlmm_south, QCS404_SLAVE_TLMM_SOUTH, 4, -1, -1, 0);
 DEFINE_QNODE(slv_usb_hs, QCS404_SLAVE_USB_HS, 4, -1, 40, 0);
 DEFINE_QNODE(slv_usb3, QCS404_SLAVE_USB3, 4, -1, 22, 0);
 DEFINE_QNODE(slv_crypto_0_cfg, QCS404_SLAVE_CRYPTO_0_CFG, 4, -1, 52, 0);
-DEFINE_QNODE(slv_pcnoc_snoc, QCS404_PNOC_SNOC_SLV, 8, -1, 45, QCS404_PNOC_SNOC_MAS);
+DEFINE_QNODE(slv_pcyesc_syesc, QCS404_PNOC_SNOC_SLV, 8, -1, 45, QCS404_PNOC_SNOC_MAS);
 DEFINE_QNODE(slv_kpss_ahb, QCS404_SLAVE_APPSS, 4, -1, -1, 0);
 DEFINE_QNODE(slv_wcss, QCS404_SLAVE_WCSS, 4, -1, 23, 0);
-DEFINE_QNODE(slv_snoc_bimc_1, QCS404_SNOC_BIMC_1_SLV, 8, -1, 104, QCS404_SNOC_BIMC_1_MAS);
+DEFINE_QNODE(slv_syesc_bimc_1, QCS404_SNOC_BIMC_1_SLV, 8, -1, 104, QCS404_SNOC_BIMC_1_MAS);
 DEFINE_QNODE(slv_imem, QCS404_SLAVE_OCIMEM, 8, -1, 26, 0);
-DEFINE_QNODE(slv_snoc_pcnoc, QCS404_SNOC_PNOC_SLV, 8, -1, 28, QCS404_SNOC_PNOC_MAS);
+DEFINE_QNODE(slv_syesc_pcyesc, QCS404_SNOC_PNOC_SLV, 8, -1, 28, QCS404_SNOC_PNOC_MAS);
 DEFINE_QNODE(slv_qdss_stm, QCS404_SLAVE_QDSS_STM, 4, -1, 30, 0);
 DEFINE_QNODE(slv_cats_0, QCS404_SLAVE_CATS_128, 16, -1, -1, 0);
 DEFINE_QNODE(slv_cats_1, QCS404_SLAVE_OCMEM_64, 8, -1, -1, 0);
 DEFINE_QNODE(slv_lpass, QCS404_SLAVE_LPASS, 4, -1, -1, 0);
 
-static struct qcom_icc_node *qcs404_bimc_nodes[] = {
+static struct qcom_icc_yesde *qcs404_bimc_yesdes[] = {
 	[MASTER_AMPSS_M0] = &mas_apps_proc,
 	[MASTER_OXILI] = &mas_oxili,
 	[MASTER_MDP_PORT0] = &mas_mdp,
-	[MASTER_SNOC_BIMC_1] = &mas_snoc_bimc_1,
+	[MASTER_SNOC_BIMC_1] = &mas_syesc_bimc_1,
 	[MASTER_TCU_0] = &mas_tcu_0,
 	[SLAVE_EBI_CH0] = &slv_ebi,
-	[SLAVE_BIMC_SNOC] = &slv_bimc_snoc,
+	[SLAVE_BIMC_SNOC] = &slv_bimc_syesc,
 };
 
 static struct qcom_icc_desc qcs404_bimc = {
-	.nodes = qcs404_bimc_nodes,
-	.num_nodes = ARRAY_SIZE(qcs404_bimc_nodes),
+	.yesdes = qcs404_bimc_yesdes,
+	.num_yesdes = ARRAY_SIZE(qcs404_bimc_yesdes),
 };
 
-static struct qcom_icc_node *qcs404_pcnoc_nodes[] = {
+static struct qcom_icc_yesde *qcs404_pcyesc_yesdes[] = {
 	[MASTER_SPDM] = &mas_spdm,
 	[MASTER_BLSP_1] = &mas_blsp_1,
 	[MASTER_BLSP_2] = &mas_blsp_2,
@@ -253,33 +253,33 @@ static struct qcom_icc_node *qcs404_pcnoc_nodes[] = {
 	[MASTER_CRYPT0] = &mas_crypto,
 	[MASTER_SDCC_1] = &mas_sdcc_1,
 	[MASTER_SDCC_2] = &mas_sdcc_2,
-	[MASTER_SNOC_PCNOC] = &mas_snoc_pcnoc,
+	[MASTER_SNOC_PCNOC] = &mas_syesc_pcyesc,
 	[MASTER_QPIC] = &mas_qpic,
-	[PCNOC_INT_0] = &pcnoc_int_0,
-	[PCNOC_INT_2] = &pcnoc_int_2,
-	[PCNOC_INT_3] = &pcnoc_int_3,
-	[PCNOC_S_0] = &pcnoc_s_0,
-	[PCNOC_S_1] = &pcnoc_s_1,
-	[PCNOC_S_2] = &pcnoc_s_2,
-	[PCNOC_S_3] = &pcnoc_s_3,
-	[PCNOC_S_4] = &pcnoc_s_4,
-	[PCNOC_S_6] = &pcnoc_s_6,
-	[PCNOC_S_7] = &pcnoc_s_7,
-	[PCNOC_S_8] = &pcnoc_s_8,
-	[PCNOC_S_9] = &pcnoc_s_9,
-	[PCNOC_S_10] = &pcnoc_s_10,
-	[PCNOC_S_11] = &pcnoc_s_11,
+	[PCNOC_INT_0] = &pcyesc_int_0,
+	[PCNOC_INT_2] = &pcyesc_int_2,
+	[PCNOC_INT_3] = &pcyesc_int_3,
+	[PCNOC_S_0] = &pcyesc_s_0,
+	[PCNOC_S_1] = &pcyesc_s_1,
+	[PCNOC_S_2] = &pcyesc_s_2,
+	[PCNOC_S_3] = &pcyesc_s_3,
+	[PCNOC_S_4] = &pcyesc_s_4,
+	[PCNOC_S_6] = &pcyesc_s_6,
+	[PCNOC_S_7] = &pcyesc_s_7,
+	[PCNOC_S_8] = &pcyesc_s_8,
+	[PCNOC_S_9] = &pcyesc_s_9,
+	[PCNOC_S_10] = &pcyesc_s_10,
+	[PCNOC_S_11] = &pcyesc_s_11,
 	[SLAVE_SPDM] = &slv_spdm,
 	[SLAVE_PDM] = &slv_pdm,
 	[SLAVE_PRNG] = &slv_prng,
 	[SLAVE_TCSR] = &slv_tcsr,
-	[SLAVE_SNOC_CFG] = &slv_snoc_cfg,
+	[SLAVE_SNOC_CFG] = &slv_syesc_cfg,
 	[SLAVE_MESSAGE_RAM] = &slv_message_ram,
 	[SLAVE_DISP_SS_CFG] = &slv_disp_ss_cfg,
 	[SLAVE_GPU_CFG] = &slv_gpu_cfg,
 	[SLAVE_BLSP_1] = &slv_blsp_1,
 	[SLAVE_BLSP_2] = &slv_blsp_2,
-	[SLAVE_TLMM_NORTH] = &slv_tlmm_north,
+	[SLAVE_TLMM_NORTH] = &slv_tlmm_yesrth,
 	[SLAVE_PCIE] = &slv_pcie,
 	[SLAVE_ETHERNET] = &slv_ethernet,
 	[SLAVE_TLMM_EAST] = &slv_tlmm_east,
@@ -291,43 +291,43 @@ static struct qcom_icc_node *qcs404_pcnoc_nodes[] = {
 	[SLAVE_USB_HS] = &slv_usb_hs,
 	[SLAVE_USB3] = &slv_usb3,
 	[SLAVE_CRYPTO_0_CFG] = &slv_crypto_0_cfg,
-	[SLAVE_PCNOC_SNOC] = &slv_pcnoc_snoc,
+	[SLAVE_PCNOC_SNOC] = &slv_pcyesc_syesc,
 };
 
-static struct qcom_icc_desc qcs404_pcnoc = {
-	.nodes = qcs404_pcnoc_nodes,
-	.num_nodes = ARRAY_SIZE(qcs404_pcnoc_nodes),
+static struct qcom_icc_desc qcs404_pcyesc = {
+	.yesdes = qcs404_pcyesc_yesdes,
+	.num_yesdes = ARRAY_SIZE(qcs404_pcyesc_yesdes),
 };
 
-static struct qcom_icc_node *qcs404_snoc_nodes[] = {
+static struct qcom_icc_yesde *qcs404_syesc_yesdes[] = {
 	[MASTER_QDSS_BAM] = &mas_qdss_bam,
-	[MASTER_BIMC_SNOC] = &mas_bimc_snoc,
-	[MASTER_PCNOC_SNOC] = &mas_pcnoc_snoc,
+	[MASTER_BIMC_SNOC] = &mas_bimc_syesc,
+	[MASTER_PCNOC_SNOC] = &mas_pcyesc_syesc,
 	[MASTER_QDSS_ETR] = &mas_qdss_etr,
 	[MASTER_EMAC] = &mas_emac,
 	[MASTER_PCIE] = &mas_pcie,
 	[MASTER_USB3] = &mas_usb3,
 	[QDSS_INT] = &qdss_int,
-	[SNOC_INT_0] = &snoc_int_0,
-	[SNOC_INT_1] = &snoc_int_1,
-	[SNOC_INT_2] = &snoc_int_2,
+	[SNOC_INT_0] = &syesc_int_0,
+	[SNOC_INT_1] = &syesc_int_1,
+	[SNOC_INT_2] = &syesc_int_2,
 	[SLAVE_KPSS_AHB] = &slv_kpss_ahb,
 	[SLAVE_WCSS] = &slv_wcss,
-	[SLAVE_SNOC_BIMC_1] = &slv_snoc_bimc_1,
+	[SLAVE_SNOC_BIMC_1] = &slv_syesc_bimc_1,
 	[SLAVE_IMEM] = &slv_imem,
-	[SLAVE_SNOC_PCNOC] = &slv_snoc_pcnoc,
+	[SLAVE_SNOC_PCNOC] = &slv_syesc_pcyesc,
 	[SLAVE_QDSS_STM] = &slv_qdss_stm,
 	[SLAVE_CATS_0] = &slv_cats_0,
 	[SLAVE_CATS_1] = &slv_cats_1,
 	[SLAVE_LPASS] = &slv_lpass,
 };
 
-static struct qcom_icc_desc qcs404_snoc = {
-	.nodes = qcs404_snoc_nodes,
-	.num_nodes = ARRAY_SIZE(qcs404_snoc_nodes),
+static struct qcom_icc_desc qcs404_syesc = {
+	.yesdes = qcs404_syesc_yesdes,
+	.num_yesdes = ARRAY_SIZE(qcs404_syesc_yesdes),
 };
 
-static int qcom_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
+static int qcom_icc_aggregate(struct icc_yesde *yesde, u32 tag, u32 avg_bw,
 			      u32 peak_bw, u32 *agg_avg, u32 *agg_peak)
 {
 	*agg_avg += avg_bw;
@@ -336,12 +336,12 @@ static int qcom_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
 	return 0;
 }
 
-static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
+static int qcom_icc_set(struct icc_yesde *src, struct icc_yesde *dst)
 {
 	struct qcom_icc_provider *qp;
-	struct qcom_icc_node *qn;
+	struct qcom_icc_yesde *qn;
 	struct icc_provider *provider;
-	struct icc_node *n;
+	struct icc_yesde *n;
 	u64 sum_bw;
 	u64 max_peak_bw;
 	u64 rate;
@@ -353,7 +353,7 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 	provider = src->provider;
 	qp = to_qcom_provider(provider);
 
-	list_for_each_entry(n, &provider->nodes, node_list)
+	list_for_each_entry(n, &provider->yesdes, yesde_list)
 		qcom_icc_aggregate(n, 0, n->avg_bw, n->peak_bw,
 				   &agg_avg, &agg_peak);
 
@@ -406,16 +406,16 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 	return 0;
 }
 
-static int qnoc_probe(struct platform_device *pdev)
+static int qyesc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct qcom_icc_desc *desc;
 	struct icc_onecell_data *data;
 	struct icc_provider *provider;
-	struct qcom_icc_node **qnodes;
+	struct qcom_icc_yesde **qyesdes;
 	struct qcom_icc_provider *qp;
-	struct icc_node *node, *tmp;
-	size_t num_nodes, i;
+	struct icc_yesde *yesde, *tmp;
+	size_t num_yesdes, i;
 	int ret;
 
 	/* wait for the RPM proxy */
@@ -426,14 +426,14 @@ static int qnoc_probe(struct platform_device *pdev)
 	if (!desc)
 		return -EINVAL;
 
-	qnodes = desc->nodes;
-	num_nodes = desc->num_nodes;
+	qyesdes = desc->yesdes;
+	num_yesdes = desc->num_yesdes;
 
 	qp = devm_kzalloc(dev, sizeof(*qp), GFP_KERNEL);
 	if (!qp)
 		return -ENOMEM;
 
-	data = devm_kzalloc(dev, struct_size(data, nodes, num_nodes),
+	data = devm_kzalloc(dev, struct_size(data, yesdes, num_yesdes),
 			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -453,7 +453,7 @@ static int qnoc_probe(struct platform_device *pdev)
 		return ret;
 
 	provider = &qp->provider;
-	INIT_LIST_HEAD(&provider->nodes);
+	INIT_LIST_HEAD(&provider->yesdes);
 	provider->dev = dev;
 	provider->set = qcom_icc_set;
 	provider->aggregate = qcom_icc_aggregate;
@@ -467,36 +467,36 @@ static int qnoc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	for (i = 0; i < num_nodes; i++) {
+	for (i = 0; i < num_yesdes; i++) {
 		size_t j;
 
-		node = icc_node_create(qnodes[i]->id);
-		if (IS_ERR(node)) {
-			ret = PTR_ERR(node);
+		yesde = icc_yesde_create(qyesdes[i]->id);
+		if (IS_ERR(yesde)) {
+			ret = PTR_ERR(yesde);
 			goto err;
 		}
 
-		node->name = qnodes[i]->name;
-		node->data = qnodes[i];
-		icc_node_add(node, provider);
+		yesde->name = qyesdes[i]->name;
+		yesde->data = qyesdes[i];
+		icc_yesde_add(yesde, provider);
 
-		dev_dbg(dev, "registered node %s\n", node->name);
+		dev_dbg(dev, "registered yesde %s\n", yesde->name);
 
 		/* populate links */
-		for (j = 0; j < qnodes[i]->num_links; j++)
-			icc_link_create(node, qnodes[i]->links[j]);
+		for (j = 0; j < qyesdes[i]->num_links; j++)
+			icc_link_create(yesde, qyesdes[i]->links[j]);
 
-		data->nodes[i] = node;
+		data->yesdes[i] = yesde;
 	}
-	data->num_nodes = num_nodes;
+	data->num_yesdes = num_yesdes;
 
 	platform_set_drvdata(pdev, qp);
 
 	return 0;
 err:
-	list_for_each_entry_safe(node, tmp, &provider->nodes, node_list) {
-		icc_node_del(node);
-		icc_node_destroy(node->id);
+	list_for_each_entry_safe(yesde, tmp, &provider->yesdes, yesde_list) {
+		icc_yesde_del(yesde);
+		icc_yesde_destroy(yesde->id);
 	}
 	clk_bulk_disable_unprepare(qp->num_clks, qp->bus_clks);
 	icc_provider_del(provider);
@@ -504,37 +504,37 @@ err:
 	return ret;
 }
 
-static int qnoc_remove(struct platform_device *pdev)
+static int qyesc_remove(struct platform_device *pdev)
 {
 	struct qcom_icc_provider *qp = platform_get_drvdata(pdev);
 	struct icc_provider *provider = &qp->provider;
-	struct icc_node *n, *tmp;
+	struct icc_yesde *n, *tmp;
 
-	list_for_each_entry_safe(n, tmp, &provider->nodes, node_list) {
-		icc_node_del(n);
-		icc_node_destroy(n->id);
+	list_for_each_entry_safe(n, tmp, &provider->yesdes, yesde_list) {
+		icc_yesde_del(n);
+		icc_yesde_destroy(n->id);
 	}
 	clk_bulk_disable_unprepare(qp->num_clks, qp->bus_clks);
 
 	return icc_provider_del(provider);
 }
 
-static const struct of_device_id qcs404_noc_of_match[] = {
+static const struct of_device_id qcs404_yesc_of_match[] = {
 	{ .compatible = "qcom,qcs404-bimc", .data = &qcs404_bimc },
-	{ .compatible = "qcom,qcs404-pcnoc", .data = &qcs404_pcnoc },
-	{ .compatible = "qcom,qcs404-snoc", .data = &qcs404_snoc },
+	{ .compatible = "qcom,qcs404-pcyesc", .data = &qcs404_pcyesc },
+	{ .compatible = "qcom,qcs404-syesc", .data = &qcs404_syesc },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, qcs404_noc_of_match);
+MODULE_DEVICE_TABLE(of, qcs404_yesc_of_match);
 
-static struct platform_driver qcs404_noc_driver = {
-	.probe = qnoc_probe,
-	.remove = qnoc_remove,
+static struct platform_driver qcs404_yesc_driver = {
+	.probe = qyesc_probe,
+	.remove = qyesc_remove,
 	.driver = {
-		.name = "qnoc-qcs404",
-		.of_match_table = qcs404_noc_of_match,
+		.name = "qyesc-qcs404",
+		.of_match_table = qcs404_yesc_of_match,
 	},
 };
-module_platform_driver(qcs404_noc_driver);
+module_platform_driver(qcs404_yesc_driver);
 MODULE_DESCRIPTION("Qualcomm QCS404 NoC driver");
 MODULE_LICENSE("GPL v2");

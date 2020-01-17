@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -24,7 +24,7 @@ int va_kernel_present(unsigned long addr)
 	p4d = p4d_offset(pgd_offset_k(addr), addr);
 	pud = pud_offset(p4d, addr);
 	pmd = pmd_offset(pud, addr);
-	if (!pmd_none(*pmd)) {
+	if (!pmd_yesne(*pmd)) {
 		ptep = pte_offset_map(pmd, addr);
 		pte = *ptep;
 		if (pte_present(pte))
@@ -42,13 +42,13 @@ pte_t va_present(struct mm_struct * mm, unsigned long addr)
 	pte_t *ptep, pte;
 
 	pgd = pgd_offset(mm, addr);
-	if (!pgd_none(*pgd)) {
+	if (!pgd_yesne(*pgd)) {
 		p4d = p4d_offset(pgd, addr);
-		if (!p4d_none(*p4d)) {
+		if (!p4d_yesne(*p4d)) {
 			pud = pud_offset(p4d, addr);
-			if (!pud_none(*pud)) {
+			if (!pud_yesne(*pud)) {
 				pmd = pmd_offset(pud, addr);
-				if (!pmd_none(*pmd)) {
+				if (!pmd_yesne(*pmd)) {
 					ptep = pte_offset_map(pmd, addr);
 					pte = *ptep;
 					if (pte_present(pte))
@@ -74,7 +74,7 @@ int va_readable(struct pt_regs *regs, unsigned long addr)
 			ret = 1;
 	} else {
 		/* superuser mode is always readable, so we can only
-		 * check it is present or not*/
+		 * check it is present or yest*/
 		return (! !va_kernel_present(addr));
 	}
 	return ret;
@@ -515,7 +515,7 @@ void cpu_proc_fin(void)
 
 void cpu_do_idle(void)
 {
-	__nds32__standby_no_wake_grant();
+	__nds32__standby_yes_wake_grant();
 }
 
 void cpu_reset(unsigned long reset)

@@ -34,7 +34,7 @@ struct restart_block {
 			u64 time;
 			u32 __user *uaddr2;
 		} futex;
-		/* For nanosleep */
+		/* For nayessleep */
 		struct {
 			clockid_t clockid;
 			enum timespec_type type;
@@ -43,7 +43,7 @@ struct restart_block {
 				struct old_timespec32 __user *compat_rmtp;
 			};
 			u64 expires;
-		} nanosleep;
+		} nayessleep;
 		/* For poll */
 		struct {
 			struct pollfd __user *ufds;
@@ -55,6 +55,6 @@ struct restart_block {
 	};
 };
 
-extern long do_no_restart_syscall(struct restart_block *parm);
+extern long do_yes_restart_syscall(struct restart_block *parm);
 
 #endif /* __LINUX_RESTART_BLOCK_H */

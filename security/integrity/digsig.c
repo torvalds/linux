@@ -49,7 +49,7 @@ static struct key *integrity_keyring_from_id(const unsigned int id)
 			request_key(&key_type_keyring, keyring_name[id], NULL);
 		if (IS_ERR(keyring[id])) {
 			int err = PTR_ERR(keyring[id]);
-			pr_err("no %s keyring: %d\n", keyring_name[id], err);
+			pr_err("yes %s keyring: %d\n", keyring_name[id], err);
 			keyring[id] = NULL;
 			return ERR_PTR(err);
 		}
@@ -160,7 +160,7 @@ int __init integrity_add_key(const unsigned int id, const void *data,
 		rc = PTR_ERR(key);
 		pr_err("Problem loading X.509 certificate %d\n", rc);
 	} else {
-		pr_notice("Loaded X.509 cert '%s'\n",
+		pr_yestice("Loaded X.509 cert '%s'\n",
 			  key_ref_to_ptr(key)->description);
 		key_ref_put(key);
 	}

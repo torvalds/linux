@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018 Cumulus Networks. All rights reserved.
  * Copyright (c) 2018 David Ahern <dsa@cumulusnetworks.com>
- * Copyright (c) 2019 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2019 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -529,15 +529,15 @@ static int nsim_dev_flash_update(struct devlink *devlink, const char *file_name,
 	int i;
 
 	if (nsim_dev->fw_update_status) {
-		devlink_flash_update_begin_notify(devlink);
-		devlink_flash_update_status_notify(devlink,
+		devlink_flash_update_begin_yestify(devlink);
+		devlink_flash_update_status_yestify(devlink,
 						   "Preparing to flash",
 						   component, 0, 0);
 	}
 
 	for (i = 0; i < NSIM_DEV_FLASH_SIZE / NSIM_DEV_FLASH_CHUNK_SIZE; i++) {
 		if (nsim_dev->fw_update_status)
-			devlink_flash_update_status_notify(devlink, "Flashing",
+			devlink_flash_update_status_yestify(devlink, "Flashing",
 							   component,
 							   i * NSIM_DEV_FLASH_CHUNK_SIZE,
 							   NSIM_DEV_FLASH_SIZE);
@@ -545,13 +545,13 @@ static int nsim_dev_flash_update(struct devlink *devlink, const char *file_name,
 	}
 
 	if (nsim_dev->fw_update_status) {
-		devlink_flash_update_status_notify(devlink, "Flashing",
+		devlink_flash_update_status_yestify(devlink, "Flashing",
 						   component,
 						   NSIM_DEV_FLASH_SIZE,
 						   NSIM_DEV_FLASH_SIZE);
-		devlink_flash_update_status_notify(devlink, "Flashing done",
+		devlink_flash_update_status_yestify(devlink, "Flashing done",
 						   component, 0, 0);
-		devlink_flash_update_end_notify(devlink);
+		devlink_flash_update_end_yestify(devlink);
 	}
 
 	return 0;

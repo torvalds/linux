@@ -62,12 +62,12 @@ struct workspace {
  *
  * Getting a workspace is done by using the bitmap to identify the levels that
  * have available workspaces and scans up.  This lets us recycle higher level
- * workspaces because of the monotonic memory guarantee.  A workspace's
+ * workspaces because of the moyestonic memory guarantee.  A workspace's
  * last_used is only updated if it is being used by the corresponding memory
  * level.  Putting a workspace involves adding it back to the appropriate places
  * and adding it back to the lru if necessary.
  *
- * A timer is used to reclaim workspaces if they have not been used for
+ * A timer is used to reclaim workspaces if they have yest been used for
  * ZSTD_BTRFS_RECLAIM_JIFFIES.  This helps keep only active workspaces around.
  * The upper bound is provided by the workqueue limit which is 2 (percpu limit).
  */
@@ -141,12 +141,12 @@ static void zstd_reclaim_timer_fn(struct timer_list *timer)
 }
 
 /*
- * zstd_calc_ws_mem_sizes - calculate monotonic memory bounds
+ * zstd_calc_ws_mem_sizes - calculate moyestonic memory bounds
  *
  * It is possible based on the level configurations that a higher level
  * workspace uses less memory than a lower level workspace.  In order to reuse
- * workspaces, this must be made a monotonic relationship.  This precomputes
- * the required memory for each level and enforces the monotonicity between
+ * workspaces, this must be made a moyestonic relationship.  This precomputes
+ * the required memory for each level and enforces the moyestonicity between
  * level and memory required.
  */
 static void zstd_calc_ws_mem_sizes(void)
@@ -186,7 +186,7 @@ void zstd_init_workspace_manager(void)
 	ws = zstd_alloc_workspace(ZSTD_BTRFS_MAX_LEVEL);
 	if (IS_ERR(ws)) {
 		pr_warn(
-		"BTRFS: cannot preallocate zstd compression workspace\n");
+		"BTRFS: canyest preallocate zstd compression workspace\n");
 	} else {
 		set_bit(ZSTD_BTRFS_MAX_LEVEL - 1, &wsm.active_map);
 		list_add(ws, &wsm.idle_ws[ZSTD_BTRFS_MAX_LEVEL - 1]);
@@ -220,7 +220,7 @@ void zstd_cleanup_workspace_manager(void)
  * This iterates over the set bits in the active_map beginning at the requested
  * compression level.  This lets us utilize already allocated workspaces before
  * allocating a new one.  If the workspace is of a larger size, it is used, but
- * the place in the lru_list and last_used times are not updated.  This is to
+ * the place in the lru_list and last_used times are yest updated.  This is to
  * offer the opportunity to reclaim the workspace in favor of allocating an
  * appropriately sized one in the future.
  */
@@ -263,7 +263,7 @@ static struct list_head *zstd_find_workspace(unsigned int level)
 struct list_head *zstd_get_workspace(unsigned int level)
 {
 	struct list_head *ws;
-	unsigned int nofs_flag;
+	unsigned int yesfs_flag;
 
 	/* level == 0 means we can use any workspace */
 	if (!level)
@@ -274,9 +274,9 @@ again:
 	if (ws)
 		return ws;
 
-	nofs_flag = memalloc_nofs_save();
+	yesfs_flag = memalloc_yesfs_save();
 	ws = zstd_alloc_workspace(level);
-	memalloc_nofs_restore(nofs_flag);
+	memalloc_yesfs_restore(yesfs_flag);
 
 	if (IS_ERR(ws)) {
 		DEFINE_WAIT(wait);
@@ -307,7 +307,7 @@ void zstd_put_workspace(struct list_head *ws)
 
 	spin_lock_bh(&wsm.lock);
 
-	/* A node is only taken off the lru if we are the corresponding level */
+	/* A yesde is only taken off the lru if we are the corresponding level */
 	if (workspace->req_level == workspace->level) {
 		/* Hide a max level workspace from reclaim */
 		if (list_empty(&wsm.idle_ws[ZSTD_BTRFS_MAX_LEVEL - 1])) {

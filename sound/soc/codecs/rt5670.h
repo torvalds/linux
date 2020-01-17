@@ -305,7 +305,7 @@
 #define RT5670_ADC_R_VOL_MASK			(0x7f)
 #define RT5670_ADC_R_VOL_SFT			0
 
-/* Mono ADC Digital Volume Control (0x1d) */
+/* Moyes ADC Digital Volume Control (0x1d) */
 #define RT5670_MONO_ADC_L_VOL_MASK		(0x7f << 8)
 #define RT5670_MONO_ADC_L_VOL_SFT		8
 #define RT5670_MONO_ADC_R_VOL_MASK		(0x7f)
@@ -351,7 +351,7 @@
 #define RT5670_DMIC3_SRC_MASK			(0x1 << 1)
 #define RT5670_DMIC3_SRC_SFT			0
 
-/* Mono ADC Mixer Control (0x28) */
+/* Moyes ADC Mixer Control (0x28) */
 #define RT5670_M_MONO_ADC_L1			(0x1 << 14)
 #define RT5670_M_MONO_ADC_L1_SFT		14
 #define RT5670_M_MONO_ADC_L2			(0x1 << 13)
@@ -427,7 +427,7 @@
 #define RT5670_DAC_L1_STO_R_VOL_MASK		(0x1)
 #define RT5670_DAC_L1_STO_R_VOL_SFT		0
 
-/* Mono DAC Mixer Control (0x2b) */
+/* Moyes DAC Mixer Control (0x2b) */
 #define RT5670_M_DAC_L1_MONO_L			(0x1 << 14)
 #define RT5670_M_DAC_L1_MONO_L_SFT		14
 #define RT5670_DAC_L1_MONO_L_VOL_MASK		(0x1 << 13)
@@ -604,7 +604,7 @@
 #define RT5670_M_DACL1_HML			(0x1)
 #define RT5670_M_DACL1_HML_SFT			0
 
-/* Mono Output Mixer Control (0x4c) */
+/* Moyes Output Mixer Control (0x4c) */
 #define RT5670_M_DAC_R2_MA			(0x1 << 15)
 #define RT5670_M_DAC_R2_MA_SFT			15
 #define RT5670_M_DAC_L2_MA			(0x1 << 14)

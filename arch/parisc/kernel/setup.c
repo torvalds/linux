@@ -122,7 +122,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/*
 	 * Check if initial kernel page mappings are sufficient.
-	 * panic early if not, else we may access kernel functions
+	 * panic early if yest, else we may access kernel functions
 	 * and variables which can't be reached.
 	 */
 	if (__pa((unsigned long) &_end) >= KERNEL_INITIAL_SIZE)
@@ -231,7 +231,7 @@ static void __init parisc_proc_mkdir(void)
 	default:
 		/* FIXME: this was added to prevent the compiler 
 		 * complaining about missing pcx, pcxs and pcxt
-		 * I'm assuming they have neither gsc nor runway */
+		 * I'm assuming they have neither gsc yesr runway */
 		break;
 	}
 }
@@ -292,7 +292,7 @@ extern void gsc_init(void);
 extern void processor_init(void);
 extern void ccio_init(void);
 extern void hppb_init(void);
-extern void dino_init(void);
+extern void diyes_init(void);
 extern void iosapic_init(void);
 extern void lba_init(void);
 extern void sba_init(void);
@@ -314,7 +314,7 @@ static int __init parisc_init(void)
 	/* tell PDC we're Linux. Nevermind failure. */
 	pdc_stable_write(0x40, &osid, sizeof(osid));
 	
-	/* start with known state */
+	/* start with kyeswn state */
 	flush_cache_all_local();
 	flush_tlb_all_local(NULL);
 
@@ -338,7 +338,7 @@ static int __init parisc_init(void)
 	apply_alternatives_all();
 	parisc_setup_cache_timing();
 
-	/* These are in a non-obvious order, will fix when we have an iotree */
+	/* These are in a yesn-obvious order, will fix when we have an iotree */
 #if defined(CONFIG_IOSAPIC)
 	iosapic_init();
 #endif
@@ -371,7 +371,7 @@ static int __init parisc_init(void)
 #endif
 
 #if defined(CONFIG_GSC_DINO)
-	dino_init();
+	diyes_init();
 #endif
 
 #ifdef CONFIG_CHASSIS_LCD_LED
@@ -413,5 +413,5 @@ void __init start_parisc(void)
 	early_trap_init(); /* initialize checksum of fault_vector */
 
 	start_kernel();
-	// not reached
+	// yest reached
 }

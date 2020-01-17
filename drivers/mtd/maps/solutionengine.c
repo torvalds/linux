@@ -14,7 +14,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 static struct mtd_info *flash_mtd;
 static struct mtd_info *eprom_mtd;
@@ -55,7 +55,7 @@ static int __init init_soleng_maps(void)
 		flash_mtd = do_map_probe("cfi_probe", &soleng_flash_map);
 		if (!flash_mtd) {
 			/* Eep. */
-			printk(KERN_NOTICE "Flash chips not detected at either possible location.\n");
+			printk(KERN_NOTICE "Flash chips yest detected at either possible location.\n");
 			return -ENXIO;
 		}
 	}

@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -78,7 +78,7 @@
 #define AHD_DEBUG_OPTS CONFIG_AIC79XX_DEBUG_MASK
 #else
 /*
- * Compile in debugging code, but do not enable any printfs.
+ * Compile in debugging code, but do yest enable any printfs.
  */
 #define AHD_DEBUG 1
 #define AHD_DEBUG_OPTS 0
@@ -150,7 +150,7 @@ typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
 #define BUS_DMA_NOWAIT		0x1
 #define BUS_DMA_ALLOCNOW	0x2
 #define BUS_DMA_LOAD_SEGS	0x4	/*
-					 * Argument is an S/G list not
+					 * Argument is an S/G list yest
 					 * a single buffer.
 					 */
 
@@ -196,9 +196,9 @@ int	ahd_dmamap_unload(struct ahd_softc *, bus_dma_tag_t, bus_dmamap_t);
 /*
  * XXX
  * ahd_dmamap_sync is only used on buffers allocated with
- * the pci_alloc_consistent() API.  Although I'm not sure how
+ * the pci_alloc_consistent() API.  Although I'm yest sure how
  * this works on architectures with a write buffer, Linux does
- * not have an API to sync "coherent" memory.  Perhaps we need
+ * yest have an API to sync "coherent" memory.  Perhaps we need
  * to do an mb()?
  */
 #define ahd_dmamap_sync(ahd, dma_tag, dmamap, offset, len, op)
@@ -219,7 +219,7 @@ int	ahd_dmamap_unload(struct ahd_softc *, bus_dma_tag_t, bus_dmamap_t);
 /*************************** Device Data Structures ***************************/
 /*
  * A per probed device structure used to deal with some error recovery
- * scenarios that the Linux mid-layer code just doesn't know how to
+ * scenarios that the Linux mid-layer code just doesn't kyesw how to
  * handle.  The structure allocated for a device only becomes persistent
  * after a successfully completed inquiry command to the target when
  * that inquiry data indicates a lun is present.
@@ -332,7 +332,7 @@ struct scb_platform_data {
 
 /*
  * Define a structure used for each host adapter.  All members are
- * aligned on a boundary >= the size of the member to honor the
+ * aligned on a boundary >= the size of the member to hoyesr the
  * alignment restrictions of the various platforms supported by
  * this driver.
  */
@@ -515,7 +515,7 @@ static inline u_long ahd_get_sense_residual(struct scb *);
 static inline int ahd_perform_autosense(struct scb *);
 static inline uint32_t ahd_get_sense_bufsize(struct ahd_softc *,
 					       struct scb *);
-static inline void ahd_notify_xfer_settings_change(struct ahd_softc *,
+static inline void ahd_yestify_xfer_settings_change(struct ahd_softc *,
 						     struct ahd_devinfo *);
 static inline void ahd_platform_scb_free(struct ahd_softc *ahd,
 					   struct scb *scb);
@@ -576,7 +576,7 @@ void ahd_set_transaction_tag(struct scb *scb, int enabled, u_int type)
 {
 	/*
 	 * Nothing to do for linux as the incoming transaction
-	 * has no concept of tag/non tagged, etc.
+	 * has yes concept of tag/yesn tagged, etc.
 	 */
 }
 
@@ -634,7 +634,7 @@ ahd_get_sense_bufsize(struct ahd_softc *ahd, struct scb *scb)
 }
 
 static inline void
-ahd_notify_xfer_settings_change(struct ahd_softc *ahd,
+ahd_yestify_xfer_settings_change(struct ahd_softc *ahd,
 				struct ahd_devinfo *devinfo)
 {
 	/* Nothing to do here for linux */

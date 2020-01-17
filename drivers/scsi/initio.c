@@ -66,7 +66,7 @@
  **************************************************************************/
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/init.h>
@@ -212,7 +212,7 @@ static u8 i91udftNvRam[64] =
 
 static u8 initio_rate_tbl[8] =	/* fast 20      */
 {
-				/* nanosecond divide by 4 */
+				/* nayessecond divide by 4 */
 	12,			/* 50ns,  20M   */
 	18,			/* 75ns,  13.3M */
 	25,			/* 100ns, 10M   */
@@ -355,7 +355,7 @@ static u16 initio_se2_rd(unsigned long base, u8 addr)
 		udelay(30);	/* 6/20/95 */
 	}
 
-	outb(0, base + TUL_NVRAM);		/* no chip select */
+	outb(0, base + TUL_NVRAM);		/* yes chip select */
 	udelay(30);
 	return val;
 }
@@ -536,7 +536,7 @@ static int initio_reset_scsi(struct initio_host * host, int seconds)
 
 	/* Stall for a while, wait for target's firmware ready,make it 2 sec ! */
 	/* SONY 5200 tape drive won't work if only stall for 1 sec */
-	/* FIXME: this is a very long busy wait right now */
+	/* FIXME: this is a very long busy wait right yesw */
 	initio_do_pause(seconds * HZ);
 
 	inb(host->addr + TUL_SInt);
@@ -552,8 +552,8 @@ static int initio_reset_scsi(struct initio_host * host, int seconds)
  *	Set up the host adapter and devices according to the configuration
  *	retrieved from the E2PROM.
  *
- *	Locking: Calls E2PROM layer code which is not re-enterable so must
- *	run single threaded for now.
+ *	Locking: Calls E2PROM layer code which is yest re-enterable so must
+ *	run single threaded for yesw.
  */
 
 static void initio_init(struct initio_host * host, u8 *bios_addr)
@@ -1084,7 +1084,7 @@ static int tulip_main(struct initio_host * host)
 				initio_append_pend_scb(host, scb);
 				continue;
 			}
-			if (!(scb->mode & SCM_RSENS)) {		/* not in auto req. sense mode */
+			if (!(scb->mode & SCM_RSENS)) {		/* yest in auto req. sense mode */
 				if (scb->tastat == 2) {
 
 					/* clr sync. nego flag */
@@ -1409,7 +1409,7 @@ static int initio_state_3(struct initio_host * host)
 
 		case MSG_OUT:	/* Message out phase            */
 			if (active_tc->flags & (TCF_SYNC_DONE | TCF_NO_SYNC_NEGO)) {
-				outb(MSG_NOP, host->addr + TUL_SFifo);		/* msg nop */
+				outb(MSG_NOP, host->addr + TUL_SFifo);		/* msg yesp */
 				outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 				if (wait_tulip(host) == -1)
 					return -1;
@@ -1479,7 +1479,7 @@ static int initio_state_4(struct initio_host * host)
 					return -1;
 				return 6;
 			} else {
-				outb(MSG_NOP, host->addr + TUL_SFifo);		/* msg nop */
+				outb(MSG_NOP, host->addr + TUL_SFifo);		/* msg yesp */
 				outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 				if (wait_tulip(host) == -1)
 					return -1;
@@ -1509,7 +1509,7 @@ static int initio_state_4(struct initio_host * host)
 static int initio_state_5(struct initio_host * host)
 {
 	struct scsi_ctrl_blk *scb = host->active;
-	long cnt, xcnt;		/* cannot use unsigned !! code: if (xcnt < 0) */
+	long cnt, xcnt;		/* canyest use unsigned !! code: if (xcnt < 0) */
 
 #if DEBUG_STATE
 	printk("-s5-");
@@ -1525,7 +1525,7 @@ static int initio_state_5(struct initio_host * host)
 		if (inb(host->addr + TUL_XStatus) & XPEND) {	/* DMA xfer pending, Send STOP  */
 			/* tell Hardware  scsi xfer has been terminated */
 			outb(inb(host->addr + TUL_XCtrl) | 0x80, host->addr + TUL_XCtrl);
-			/* wait until DMA xfer not pending */
+			/* wait until DMA xfer yest pending */
 			while (inb(host->addr + TUL_XStatus) & XPEND)
 				cpu_relax();
 		}
@@ -1616,7 +1616,7 @@ static int initio_state_6(struct initio_host * host)
 			break;
 
 		case MSG_OUT:	/* Message out phase            */
-			outb(MSG_NOP, host->addr + TUL_SFifo);		/* msg nop */
+			outb(MSG_NOP, host->addr + TUL_SFifo);		/* msg yesp */
 			outb(TSC_XF_FIFO_OUT, host->addr + TUL_SCmd);
 			if (wait_tulip(host) == -1)
 				return -1;
@@ -1891,7 +1891,7 @@ static int int_initio_scsi_rst(struct initio_host * host)
  *	@host: InitIO host adapter
  *
  *	A SCSI reselection event has been signalled and the interrupt
- *	is now being processed. Work out which command block needs attention
+ *	is yesw being processed. Work out which command block needs attention
  *	and continue processing that command.
  */
 
@@ -1903,7 +1903,7 @@ int int_initio_resel(struct initio_host * host)
 	u8 tar, lun;
 
 	if ((scb = host->active) != NULL) {
-		/* FIXME: Why check and not just clear ? */
+		/* FIXME: Why check and yest just clear ? */
 		if (scb->status & SCB_SELECT)		/* if waiting for selection complete */
 			scb->status &= ~SCB_SELECT;
 		host->active = NULL;
@@ -1923,7 +1923,7 @@ int int_initio_resel(struct initio_host * host)
 		if ((initio_msgin_accept(host)) == -1)
 			return -1;
 		if (host->phase != MSG_IN)
-			goto no_tag;
+			goto yes_tag;
 		outl(1, host->addr + TUL_SCnt0);
 		outb(TSC_XF_FIFO_IN, host->addr + TUL_SCmd);
 		if (wait_tulip(host) == -1)
@@ -1931,13 +1931,13 @@ int int_initio_resel(struct initio_host * host)
 		msg = inb(host->addr + TUL_SFifo);	/* Read Tag Message    */
 
 		if (msg < MSG_STAG || msg > MSG_OTAG)		/* Is simple Tag      */
-			goto no_tag;
+			goto yes_tag;
 
 		if (initio_msgin_accept(host) == -1)
 			return -1;
 
 		if (host->phase != MSG_IN)
-			goto no_tag;
+			goto yes_tag;
 
 		outl(1, host->addr + TUL_SCnt0);
 		outb(TSC_XF_FIFO_IN, host->addr + TUL_SCmd);
@@ -1955,7 +1955,7 @@ int int_initio_resel(struct initio_host * host)
 		if ((initio_msgin_accept(host)) == -1)
 			return -1;
 	} else {		/* No tag               */
-	      no_tag:
+	      yes_tag:
 		if ((scb = initio_find_busy_scb(host, tar | (lun << 8))) == NULL) {
 			return initio_msgout_abort_targ(host);
 		}
@@ -1997,7 +1997,7 @@ static int int_initio_bad_seq(struct initio_host * host)
  *	initio_msgout_abort_targ		-	abort a tag
  *	@host: InitIO host
  *
- *	Abort when the target/lun does not match or when our SCB is not
+ *	Abort when the target/lun does yest match or when our SCB is yest
  *	busy. Used by untagged commands.
  */
 
@@ -2020,7 +2020,7 @@ static int initio_msgout_abort_targ(struct initio_host * host)
  *	initio_msgout_abort_tag		-	abort a tag
  *	@host: InitIO host
  *
- *	Abort when the target/lun does not match or when our SCB is not
+ *	Abort when the target/lun does yest match or when our SCB is yest
  *	busy. Used for tagged commands.
  */
 
@@ -2143,9 +2143,9 @@ static int initio_msgin_extend(struct initio_host * host)
 			return -1;
 		host->msg[idx++] = inb(host->addr + TUL_SFifo);
 	}
-	if (host->msg[1] == 1) {		/* if it's synchronous data transfer request */
+	if (host->msg[1] == 1) {		/* if it's synchroyesus data transfer request */
 		u8 r;
-		if (host->msg[0] != 3)	/* if length is not right */
+		if (host->msg[0] != 3)	/* if length is yest right */
 			return initio_msgout_reject(host);
 		if (host->active_tc->flags & TCF_NO_SYNC_NEGO) {	/* Set OFFSET=0 to do async, nego back */
 			host->msg[3] = 0;
@@ -2222,7 +2222,7 @@ static int initio_msgin_sync(struct initio_host * host)
 			host->msg[3] = 0;
 		return 1;
 	}
-	/* offset requests asynchronous transfers ? */
+	/* offset requests asynchroyesus transfers ? */
 	if (host->msg[3] == 0) {
 		return 0;
 	}
@@ -2495,14 +2495,14 @@ static int initio_wait_done_disc(struct initio_host * host)
 
 /**
  *	i91u_intr		-	IRQ handler
- *	@irqno: IRQ number
+ *	@irqyes: IRQ number
  *	@dev_id: IRQ identifier
  *
  *	Take the relevant locks and then invoke the actual isr processing
  *	code under the lock.
  */
 
-static irqreturn_t i91u_intr(int irqno, void *dev_id)
+static irqreturn_t i91u_intr(int irqyes, void *dev_id)
 {
 	struct Scsi_Host *dev = dev_id;
 	unsigned long flags;
@@ -2605,7 +2605,7 @@ static void initio_build_scb(struct initio_host * host, struct scsi_ctrl_blk * c
  *	@done: Completion handler
  *
  *	Attempts to queue a new command with the host adapter. Will return
- *	zero if successful or indicate a host busy condition if not (which
+ *	zero if successful or indicate a host busy condition if yest (which
  *	will cause the mid layer to call us again later with the command)
  */
 
@@ -2755,19 +2755,19 @@ static void i91uSCBPost(u8 * host_mem, u8 * cblk_mem)
 	 */
 	switch (cblk->hastat) {
 	case 0x0:
-	case 0xa:		/* Linked command complete without error and linked normally */
+	case 0xa:		/* Linked command complete without error and linked yesrmally */
 	case 0xb:		/* Linked command complete without error interrupt generated */
 		cblk->hastat = 0;
 		break;
 
 	case 0x11:		/* Selection time out-The initiator selection or target
-				   reselection was not complete within the SCSI Time out period */
+				   reselection was yest complete within the SCSI Time out period */
 		cblk->hastat = DID_TIME_OUT;
 		break;
 
 	case 0x14:		/* Target bus phase sequence failure-An invalid bus phase or bus
 				   phase sequence was requested by the target. The host adapter
-				   will generate a SCSI Reset Condition, notifying the host with
+				   will generate a SCSI Reset Condition, yestifying the host with
 				   a SCRD interrupt */
 		cblk->hastat = DID_RESET;
 		break;
@@ -2826,13 +2826,13 @@ static int initio_probe_one(struct pci_dev *pdev,
 	bios_seg = (bios_seg << 8) + ((u16) ((reg & 0xFF00) >> 8));
 
 	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		printk(KERN_WARNING  "i91u: Could not set 32 bit DMA mask\n");
+		printk(KERN_WARNING  "i91u: Could yest set 32 bit DMA mask\n");
 		error = -ENODEV;
 		goto out_disable_device;
 	}
 	shost = scsi_host_alloc(&initio_template, sizeof(struct initio_host));
 	if (!shost) {
-		printk(KERN_WARNING "initio: Could not allocate host structure.\n");
+		printk(KERN_WARNING "initio: Could yest allocate host structure.\n");
 		error = -ENOMEM;
 		goto out_disable_device;
 	}
@@ -2859,7 +2859,7 @@ static int initio_probe_one(struct pci_dev *pdev,
 	}
 
 	if (!scb) {
-		printk(KERN_WARNING "initio: Cannot allocate SCB array.\n");
+		printk(KERN_WARNING "initio: Canyest allocate SCB array.\n");
 		error = -ENOMEM;
 		goto out_release_region;
 	}

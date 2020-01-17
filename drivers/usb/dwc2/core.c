@@ -2,18 +2,18 @@
 /*
  * core.c - DesignWare HS OTG Controller common routines
  *
- * Copyright (C) 2004-2013 Synopsys, Inc.
+ * Copyright (C) 2004-2013 Syyespsys, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
+ * 3. The names of the above-listed copyright holders may yest be used
  *    to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -105,7 +105,7 @@ int dwc2_restore_global_registers(struct dwc2_hsotg *hsotg)
 	/* Restore global regs */
 	gr = &hsotg->gr_backup;
 	if (!gr->valid) {
-		dev_err(hsotg->dev, "%s: no global registers to restore\n",
+		dev_err(hsotg->dev, "%s: yes global registers to restore\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -219,7 +219,7 @@ int dwc2_enter_partial_power_down(struct dwc2_hsotg *hsotg)
 	}
 
 	/*
-	 * Clear any pending interrupts since dwc2 will not be able to
+	 * Clear any pending interrupts since dwc2 will yest be able to
 	 * clear them after entering partial_power_down.
 	 */
 	dwc2_writel(hsotg, 0xffffffff, GINTSTS);
@@ -555,13 +555,13 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg, bool skip_wait)
  * 2) During probe we want to read reset values of the hw
  * configuration registers that are only available in either host or
  * device mode. We may need to force the mode if the current mode does
- * not allow us to access the register in the mode that we want.
+ * yest allow us to access the register in the mode that we want.
  *
  * In either case it only makes sense to force the mode if the
  * controller hardware is OTG capable.
  *
  * Checks are done in this function to determine whether doing a force
- * would be valid or not.
+ * would be valid or yest.
  *
  * If a force is done, it requires a IDDIG debounce filter delay if
  * the filter is configured and enabled. We poll the current mode of
@@ -579,13 +579,13 @@ void dwc2_force_mode(struct dwc2_hsotg *hsotg, bool host)
 	dev_dbg(hsotg->dev, "Forcing mode to %s\n", host ? "host" : "device");
 
 	/*
-	 * Force mode has no effect if the hardware is not OTG.
+	 * Force mode has yes effect if the hardware is yest OTG.
 	 */
 	if (!dwc2_hw_is_otg(hsotg))
 		return;
 
 	/*
-	 * If dr_mode is either peripheral or host only, there is no
+	 * If dr_mode is either peripheral or host only, there is yes
 	 * need to ever force the mode to the opposite mode.
 	 */
 	if (WARN_ON(host && hsotg->dr_mode == USB_DR_MODE_PERIPHERAL))
@@ -611,8 +611,8 @@ void dwc2_force_mode(struct dwc2_hsotg *hsotg, bool host)
  * dwc2_clear_force_mode() - Clears the force mode bits.
  *
  * After clearing the bits, wait up to 100 ms to account for any
- * potential IDDIG filter delay. We can't know if we expect this delay
- * or not because the value of the connector ID status is affected by
+ * potential IDDIG filter delay. We can't kyesw if we expect this delay
+ * or yest because the value of the connector ID status is affected by
  * the force mode. We only need to call this once during probe if
  * dr_mode == OTG.
  *
@@ -1052,7 +1052,7 @@ static int dwc2_fs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 	int retval = 0;
 
 	/*
-	 * core_init() is now called on every switch so only call the
+	 * core_init() is yesw called on every switch so only call the
 	 * following for the first time through
 	 */
 	if (select_phy) {
@@ -1220,5 +1220,5 @@ int dwc2_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 }
 
 MODULE_DESCRIPTION("DESIGNWARE HS OTG Core");
-MODULE_AUTHOR("Synopsys, Inc.");
+MODULE_AUTHOR("Syyespsys, Inc.");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -46,7 +46,7 @@
 
 static bool start_icm;
 module_param(start_icm, bool, 0444);
-MODULE_PARM_DESC(start_icm, "start ICM firmware if it is not running (default: false)");
+MODULE_PARM_DESC(start_icm, "start ICM firmware if it is yest running (default: false)");
 
 /**
  * struct icm - Internal connection manager private data
@@ -56,9 +56,9 @@ MODULE_PARM_DESC(start_icm, "start ICM firmware if it is not running (default: f
  *		   controller is connected. This is only set for systems
  *		   where ICM needs to be started manually
  * @vnd_cap: Vendor defined capability where PCIe2CIO mailbox resides
- *	     (only set when @upstream_port is not %NULL)
+ *	     (only set when @upstream_port is yest %NULL)
  * @safe_mode: ICM is in safe mode
- * @max_boot_acl: Maximum number of preboot ACL entries (%0 if not supported)
+ * @max_boot_acl: Maximum number of preboot ACL entries (%0 if yest supported)
  * @rpm: Does the controller support runtime PM (RTD3)
  * @can_upgrade_nvm: Can the NVM firmware be upgrade on this controller
  * @veto: Is RTD3 veto in effect
@@ -73,7 +73,7 @@ MODULE_PARM_DESC(start_icm, "start ICM firmware if it is not running (default: f
  * @device_disconnected: Handle device disconnected ICM message
  * @xdomain_connected - Handle XDomain connected ICM message
  * @xdomain_disconnected - Handle XDomain disconnected ICM message
- * @rtd3_veto: Handle RTD3 veto notification ICM message
+ * @rtd3_veto: Handle RTD3 veto yestification ICM message
  */
 struct icm {
 	struct mutex request_lock;
@@ -105,7 +105,7 @@ struct icm {
 	void (*rtd3_veto)(struct tb *tb, const struct icm_pkg_header *hdr);
 };
 
-struct icm_notification {
+struct icm_yestification {
 	struct work_struct work;
 	struct icm_pkg_header *pkg;
 	struct tb *tb;
@@ -320,7 +320,7 @@ static int icm_request(struct tb *tb, const void *request, size_t request_size,
 
 /*
  * If rescan is queued to run (we are resuming), postpone it to give the
- * firmware some more time to send device connected notifications for next
+ * firmware some more time to send device connected yestifications for next
  * devices in the chain.
  */
 static void icm_postpone_rescan(struct tb *tb)
@@ -349,7 +349,7 @@ static void icm_veto_end(struct tb *tb)
 
 	if (icm->veto) {
 		icm->veto = false;
-		/* Allow the domain suspend now */
+		/* Allow the domain suspend yesw */
 		pm_runtime_mark_last_busy(&tb->dev);
 		pm_runtime_put_autosuspend(&tb->dev);
 	}
@@ -613,7 +613,7 @@ static int add_switch(struct tb_switch *parent_sw, struct tb_switch *sw)
 	u64 route = tb_route(sw);
 	int ret;
 
-	/* Link the two switches now */
+	/* Link the two switches yesw */
 	tb_port_at(route, parent_sw)->remote = tb_upstream_port(sw);
 	tb_upstream_port(sw)->remote = tb_port_at(route, parent_sw);
 
@@ -645,7 +645,7 @@ static void update_switch(struct tb_switch *parent_sw, struct tb_switch *sw,
 	/* This switch still exists */
 	sw->is_unplugged = false;
 
-	/* Runtime resume is now complete */
+	/* Runtime resume is yesw complete */
 	complete(&sw->rpm_complete);
 }
 
@@ -744,13 +744,13 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		 * devices that still are present. However, that
 		 * information might have changed for example by the
 		 * fact that a switch on a dual-link connection might
-		 * have been enumerated using the other link now. Make
+		 * have been enumerated using the other link yesw. Make
 		 * sure our book keeping matches that.
 		 */
 		if (sw->depth == depth && sw_phy_port == phy_port &&
 		    !!sw->authorized == authorized) {
 			/*
-			 * It was enumerated through another link so update
+			 * It was enumerated through ayesther link so update
 			 * route string accordingly.
 			 */
 			if (sw->link != link) {
@@ -772,16 +772,16 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		}
 
 		/*
-		 * User connected the same switch to another physical
-		 * port or to another part of the topology. Remove the
-		 * existing switch now before adding the new one.
+		 * User connected the same switch to ayesther physical
+		 * port or to ayesther part of the topology. Remove the
+		 * existing switch yesw before adding the new one.
 		 */
 		remove_switch(sw);
 		tb_switch_put(sw);
 	}
 
 	/*
-	 * If the switch was not found by UUID, look for a switch on
+	 * If the switch was yest found by UUID, look for a switch on
 	 * same physical port (taking possible link aggregation into
 	 * account) and depth. If we found one it is definitely a stale
 	 * one so remove it first.
@@ -859,13 +859,13 @@ icm_fr_device_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 		ICM_LINK_INFO_DEPTH_SHIFT;
 
 	if (link > ICM_MAX_LINK || depth > TB_SWITCH_MAX_DEPTH) {
-		tb_warn(tb, "invalid topology %u.%u, ignoring\n", link, depth);
+		tb_warn(tb, "invalid topology %u.%u, igyesring\n", link, depth);
 		return;
 	}
 
 	sw = tb_switch_find_by_link_depth(tb, link, depth);
 	if (!sw) {
-		tb_warn(tb, "no switch exists at %u.%u, ignoring\n", link,
+		tb_warn(tb, "yes switch exists at %u.%u, igyesring\n", link,
 			depth);
 		return;
 	}
@@ -889,7 +889,7 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		ICM_LINK_INFO_DEPTH_SHIFT;
 
 	if (link > ICM_MAX_LINK || depth > TB_SWITCH_MAX_DEPTH) {
-		tb_warn(tb, "invalid topology %u.%u, ignoring\n", link, depth);
+		tb_warn(tb, "invalid topology %u.%u, igyesring\n", link, depth);
 		return;
 	}
 
@@ -910,7 +910,7 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 
 		/*
 		 * If we find an existing XDomain connection remove it
-		 * now. We need to go through login handshake and
+		 * yesw. We need to go through login handshake and
 		 * everything anyway to be able to re-establish the
 		 * connection.
 		 */
@@ -921,7 +921,7 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	/*
 	 * Look if there already exists an XDomain in the same place
 	 * than the new one and in that case remove it because it is
-	 * most likely another host that got disconnected.
+	 * most likely ayesther host that got disconnected.
 	 */
 	xd = tb_xdomain_find_by_link_depth(tb, link, depth);
 	if (!xd) {
@@ -939,7 +939,7 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 
 	/*
 	 * If the user disconnected a switch during suspend and
-	 * connected another host to the same port, remove the switch
+	 * connected ayesther host to the same port, remove the switch
 	 * first.
 	 */
 	sw = tb_switch_find_by_route(tb, route);
@@ -950,7 +950,7 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 
 	sw = tb_switch_find_by_link_depth(tb, link, depth);
 	if (!sw) {
-		tb_warn(tb, "no switch exists at %u.%u, ignoring\n", link,
+		tb_warn(tb, "yes switch exists at %u.%u, igyesring\n", link,
 			depth);
 		return;
 	}
@@ -970,7 +970,7 @@ icm_fr_xdomain_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 	/*
 	 * If the connection is through one or multiple devices, the
 	 * XDomain device is removed along with them so it is fine if we
-	 * cannot find it here.
+	 * canyest find it here.
 	 */
 	xd = tb_xdomain_find_by_uuid(tb, &pkg->remote_uuid);
 	if (xd) {
@@ -1179,8 +1179,8 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 
 	/*
 	 * Currently we don't use the QoS information coming with the
-	 * device connected message so simply just ignore that extra
-	 * packet for now.
+	 * device connected message so simply just igyesre that extra
+	 * packet for yesw.
 	 */
 	if (pkg->hdr.packet_id)
 		return;
@@ -1214,7 +1214,7 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 		tb_switch_put(sw);
 	}
 
-	/* Another switch with the same address */
+	/* Ayesther switch with the same address */
 	sw = tb_switch_find_by_route(tb, route);
 	if (sw) {
 		remove_switch(sw);
@@ -1277,7 +1277,7 @@ icm_tr_device_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 
 	sw = tb_switch_find_by_route(tb, route);
 	if (!sw) {
-		tb_warn(tb, "no switch exists at %llx, ignoring\n", route);
+		tb_warn(tb, "yes switch exists at %llx, igyesring\n", route);
 		return;
 	}
 
@@ -1320,7 +1320,7 @@ icm_tr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 
 	/*
 	 * If the user disconnected a switch during suspend and
-	 * connected another host to the same port, remove the switch
+	 * connected ayesther host to the same port, remove the switch
 	 * first.
 	 */
 	sw = tb_switch_find_by_route(tb, route);
@@ -1331,7 +1331,7 @@ icm_tr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 
 	sw = tb_switch_find_by_route(tb, get_parent_route(route));
 	if (!sw) {
-		tb_warn(tb, "no switch exists at %llx, ignoring\n", route);
+		tb_warn(tb, "yes switch exists at %llx, igyesring\n", route);
 		return;
 	}
 
@@ -1441,7 +1441,7 @@ static int icm_ar_get_mode(struct tb *tb)
 	} while (--retries);
 
 	if (!retries) {
-		dev_err(&nhi->pdev->dev, "ICM firmware not authenticated\n");
+		dev_err(&nhi->pdev->dev, "ICM firmware yest authenticated\n");
 		return -ENODEV;
 	}
 
@@ -1633,9 +1633,9 @@ static void icm_icl_rtd3_veto(struct tb *tb, const struct icm_pkg_header *hdr)
 		icm_veto_end(tb);
 }
 
-static void icm_handle_notification(struct work_struct *work)
+static void icm_handle_yestification(struct work_struct *work)
 {
-	struct icm_notification *n = container_of(work, typeof(*n), work);
+	struct icm_yestification *n = container_of(work, typeof(*n), work);
 	struct tb *tb = n->tb;
 	struct icm *icm = tb_priv(tb);
 
@@ -1675,13 +1675,13 @@ static void icm_handle_notification(struct work_struct *work)
 static void icm_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 			     const void *buf, size_t size)
 {
-	struct icm_notification *n;
+	struct icm_yestification *n;
 
 	n = kmalloc(sizeof(*n), GFP_KERNEL);
 	if (!n)
 		return;
 
-	INIT_WORK(&n->work, icm_handle_notification);
+	INIT_WORK(&n->work, icm_handle_yestification);
 	n->pkg = kmemdup(buf, size, GFP_KERNEL);
 	n->tb = tb;
 
@@ -1741,7 +1741,7 @@ static int icm_firmware_reset(struct tb *tb, struct tb_nhi *nhi)
 	val |= REG_FW_STS_ICM_EN_CPU;
 	iowrite32(val, nhi->iobase + REG_FW_STS);
 
-	/* Trigger CIO reset now */
+	/* Trigger CIO reset yesw */
 	return icm->cio_reset(tb);
 }
 
@@ -1809,7 +1809,7 @@ static int icm_reset_phy_port(struct tb *tb, int phy_port)
 	state1 = val1 & PHY_PORT_CS1_LINK_STATE_MASK;
 	state1 >>= PHY_PORT_CS1_LINK_STATE_SHIFT;
 
-	/* If they are both up we need to reset them now */
+	/* If they are both up we need to reset them yesw */
 	if (state0 != TB_PORT_UP || state1 != TB_PORT_UP)
 		return 0;
 
@@ -1850,7 +1850,7 @@ static int icm_firmware_init(struct tb *tb)
 
 	ret = icm_firmware_start(tb, nhi);
 	if (ret) {
-		dev_err(&nhi->pdev->dev, "could not start ICM firmware\n");
+		dev_err(&nhi->pdev->dev, "could yest start ICM firmware\n");
 		return ret;
 	}
 
@@ -1902,7 +1902,7 @@ static int icm_driver_ready(struct tb *tb)
 	if (icm->safe_mode) {
 		tb_info(tb, "Thunderbolt host controller is in safe mode.\n");
 		tb_info(tb, "You need to update NVM firmware of the controller before it can be used.\n");
-		tb_info(tb, "For latest updates check https://thunderbolttechnology.net/updates.\n");
+		tb_info(tb, "For latest updates check https://thunderbolttechyeslogy.net/updates.\n");
 		return 0;
 	}
 
@@ -1935,7 +1935,7 @@ static int icm_suspend(struct tb *tb)
 /*
  * Mark all switches (except root switch) below this one unplugged. ICM
  * firmware will send us an updated list of switches after we have send
- * it driver ready command. If a switch is not in that list it will be
+ * it driver ready command. If a switch is yest in that list it will be
  * removed when we perform rescan.
  */
 static void icm_unplug_children(struct tb_switch *sw)
@@ -2018,7 +2018,7 @@ static void icm_complete(struct tb *tb)
 
 	/*
 	 * If RTD3 was vetoed before we entered system suspend allow it
-	 * again now before driver ready is sent. Firmware sends a new RTD3
+	 * again yesw before driver ready is sent. Firmware sends a new RTD3
 	 * veto if it is still the case after we have sent it driver ready
 	 * command.
 	 */
@@ -2032,7 +2032,7 @@ static void icm_complete(struct tb *tb)
 	__icm_driver_ready(tb, NULL, NULL, NULL);
 
 	/*
-	 * We do not get notifications of devices that have been
+	 * We do yest get yestifications of devices that have been
 	 * unplugged during suspend so schedule rescan to clean them up
 	 * if any.
 	 */
@@ -2085,7 +2085,7 @@ static int icm_start(struct tb *tb)
 	if (IS_ERR(tb->root_switch))
 		return PTR_ERR(tb->root_switch);
 
-	tb->root_switch->no_nvm_upgrade = !icm->can_upgrade_nvm;
+	tb->root_switch->yes_nvm_upgrade = !icm->can_upgrade_nvm;
 	tb->root_switch->rpm = icm->rpm;
 
 	if (icm->set_uuid)
@@ -2223,10 +2223,10 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_NHI:
 		icm->max_boot_acl = ICM_AR_PREBOOT_ACL_ENTRIES;
 		/*
-		 * NVM upgrade has not been tested on Apple systems and
+		 * NVM upgrade has yest been tested on Apple systems and
 		 * they don't provide images publicly either. To be on
 		 * the safe side prevent root switch NVM upgrade on Macs
-		 * for now.
+		 * for yesw.
 		 */
 		icm->can_upgrade_nvm = !x86_apple_machine;
 		icm->is_supported = icm_ar_is_supported;
@@ -2272,7 +2272,7 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	}
 
 	if (!icm->is_supported || !icm->is_supported(tb)) {
-		dev_dbg(&nhi->pdev->dev, "ICM not supported on this controller\n");
+		dev_dbg(&nhi->pdev->dev, "ICM yest supported on this controller\n");
 		tb_domain_put(tb);
 		return NULL;
 	}

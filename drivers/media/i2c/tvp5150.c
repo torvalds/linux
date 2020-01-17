@@ -17,7 +17,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-mc.h>
 
 #include "tvp5150_reg.h"
@@ -61,8 +61,8 @@ struct tvp5150 {
 	struct regmap *regmap;
 	int irq;
 
-	v4l2_std_id norm;	/* Current set standard */
-	v4l2_std_id detected_norm;
+	v4l2_std_id yesrm;	/* Current set standard */
+	v4l2_std_id detected_yesrm;
 	u32 input;
 	u32 output;
 	u32 oe;
@@ -494,7 +494,7 @@ struct i2c_vbi_ram_value {
 static struct i2c_vbi_ram_value vbi_ram_default[] = {
 
 	/*
-	 * FIXME: Current api doesn't handle all VBI types, those not
+	 * FIXME: Current api doesn't handle all VBI types, those yest
 	 * yet supported are placed under #if 0
 	 */
 #if 0
@@ -657,12 +657,12 @@ static int tvp5150_set_vbi(struct v4l2_subdev *sd,
 			const int fields)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	v4l2_std_id std = decoder->norm;
+	v4l2_std_id std = decoder->yesrm;
 	u8 reg;
 	int i, pos = 0;
 
 	if (std == V4L2_STD_ALL) {
-		dev_err(sd->dev, "VBI can't be configured without knowing number of lines\n");
+		dev_err(sd->dev, "VBI can't be configured without kyeswing number of lines\n");
 		return 0;
 	} else if (std & V4L2_STD_625_50) {
 		/* Don't follow NTSC Line number convension */
@@ -700,13 +700,13 @@ static int tvp5150_set_vbi(struct v4l2_subdev *sd,
 static int tvp5150_get_vbi(struct v4l2_subdev *sd, int line)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	v4l2_std_id std = decoder->norm;
+	v4l2_std_id std = decoder->yesrm;
 	u8 reg;
 	int pos, type = 0;
 	int i, ret = 0;
 
 	if (std == V4L2_STD_ALL) {
-		dev_err(sd->dev, "VBI can't be configured without knowing number of lines\n");
+		dev_err(sd->dev, "VBI can't be configured without kyeswing number of lines\n");
 		return 0;
 	} else if (std & V4L2_STD_625_50) {
 		/* Don't follow NTSC Line number convension */
@@ -765,7 +765,7 @@ static int tvp5150_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
-	*std = decoder->norm;
+	*std = decoder->yesrm;
 
 	return 0;
 }
@@ -774,7 +774,7 @@ static int tvp5150_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
-	if (decoder->norm == std)
+	if (decoder->yesrm == std)
 		return 0;
 
 	/* Change cropping height limits */
@@ -783,7 +783,7 @@ static int tvp5150_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	else
 		decoder->rect.height = TVP5150_V_MAX_OTHERS;
 
-	decoder->norm = std;
+	decoder->yesrm = std;
 
 	return tvp5150_set_std(sd, std);
 }
@@ -854,7 +854,7 @@ static irqreturn_t tvp5150_isr(int irq, void *dev_id)
 			dev_dbg_lvl(decoder->sd.dev, 1, debug,
 				    "sync lo%s signal\n",
 				    decoder->lock ? "ck" : "ss");
-			v4l2_subdev_notify_event(&decoder->sd, &tvp5150_ev_fmt);
+			v4l2_subdev_yestify_event(&decoder->sd, &tvp5150_ev_fmt);
 			regmap_update_bits(map, TVP5150_MISC_CTL, mask,
 					   decoder->lock ? decoder->oe : 0);
 		}
@@ -915,17 +915,17 @@ static int tvp5150_enable(struct v4l2_subdev *sd)
 	/* Initializes TVP5150 to stream enabled values */
 	tvp5150_write_inittab(sd, tvp5150_init_enable);
 
-	if (decoder->norm == V4L2_STD_ALL)
+	if (decoder->yesrm == V4L2_STD_ALL)
 		std = tvp5150_read_std(sd);
 	else
-		std = decoder->norm;
+		std = decoder->yesrm;
 
 	/* Disable autoswitch mode */
 	tvp5150_set_std(sd, std);
 
 	/*
 	 * Enable the YCbCr and clock outputs. In discrete sync mode
-	 * (non-BT.656) additionally enable the the sync outputs.
+	 * (yesn-BT.656) additionally enable the the sync outputs.
 	 */
 	switch (decoder->mbus_type) {
 	case V4L2_MBUS_PARALLEL:
@@ -976,7 +976,7 @@ static int tvp5150_s_ctrl(struct v4l2_ctrl *ctrl)
 
 static void tvp5150_set_default(v4l2_std_id std, struct v4l2_rect *crop)
 {
-	/* Default is no cropping */
+	/* Default is yes cropping */
 	crop->top = 0;
 	crop->left = 0;
 	crop->width = TVP5150_H_MAX;
@@ -1031,10 +1031,10 @@ static int tvp5150_set_selection(struct v4l2_subdev *sd,
 	rect.top = clamp(rect.top, 0, TVP5150_MAX_CROP_TOP);
 
 	/* Calculate height based on current standard */
-	if (decoder->norm == V4L2_STD_ALL)
+	if (decoder->yesrm == V4L2_STD_ALL)
 		std = tvp5150_read_std(sd);
 	else
-		std = decoder->norm;
+		std = decoder->yesrm;
 
 	if (std & V4L2_STD_525_60)
 		hmax = TVP5150_V_MAX_525_60;
@@ -1044,7 +1044,7 @@ static int tvp5150_set_selection(struct v4l2_subdev *sd,
 	/*
 	 * alignments:
 	 *  - width = 2 due to UYVY colorspace
-	 *  - height, image = no special alignment
+	 *  - height, image = yes special alignment
 	 */
 	v4l_bound_align_image(&rect.width,
 			      TVP5150_H_MAX - TVP5150_MAX_CROP_LEFT - rect.left,
@@ -1087,10 +1087,10 @@ static int tvp5150_get_selection(struct v4l2_subdev *sd,
 		sel->r.width = TVP5150_H_MAX;
 
 		/* Calculate height based on current standard */
-		if (decoder->norm == V4L2_STD_ALL)
+		if (decoder->yesrm == V4L2_STD_ALL)
 			std = tvp5150_read_std(sd);
 		else
-			std = decoder->norm;
+			std = decoder->yesrm;
 		if (std & V4L2_STD_525_60)
 			sel->r.height = TVP5150_V_MAX_525_60;
 		else
@@ -1129,10 +1129,10 @@ static int tvp5150_init_cfg(struct v4l2_subdev *sd,
 	 * Reset selection to maximum on subdev_open() if autodetection is on
 	 * and a standard change is detected.
 	 */
-	if (decoder->norm == V4L2_STD_ALL) {
+	if (decoder->yesrm == V4L2_STD_ALL) {
 		std = tvp5150_read_std(sd);
-		if (std != decoder->detected_norm) {
-			decoder->detected_norm = std;
+		if (std != decoder->detected_yesrm) {
+			decoder->detected_yesrm = std;
 			tvp5150_set_default(std, &decoder->rect);
 		}
 	}
@@ -1187,7 +1187,7 @@ static int tvp5150_link_setup(struct media_entity *entity,
 			break;
 	}
 
-	/* Do nothing for entities that are not input connectors */
+	/* Do yesthing for entities that are yest input connectors */
 	if (i == TVP5150_INPUT_NUM)
 		return 0;
 
@@ -1224,7 +1224,7 @@ static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 		else
 			val = decoder->oe;
 		int_val = TVP5150_INT_A_LOCK;
-		v4l2_subdev_notify_event(&decoder->sd, &tvp5150_ev_fmt);
+		v4l2_subdev_yestify_event(&decoder->sd, &tvp5150_ev_fmt);
 	}
 
 	regmap_update_bits(decoder->regmap, TVP5150_MISC_CTL, mask, val);
@@ -1505,8 +1505,8 @@ static bool tvp5150_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_access_table tvp5150_readable_table = {
-	.yes_ranges = tvp5150_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(tvp5150_readable_ranges),
+	.no_ranges = tvp5150_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(tvp5150_readable_ranges),
 };
 
 static struct regmap_config tvp5150_config = {
@@ -1554,7 +1554,7 @@ static int tvp5150_detect_version(struct tvp5150 *core)
 	} else if (core->dev_id == 0x5151 && core->rom_ver == 0x0100) {
 		dev_info(sd->dev, "tvp5151 detected.\n");
 	} else {
-		dev_info(sd->dev, "*** unknown tvp%04x chip detected.\n",
+		dev_info(sd->dev, "*** unkyeswn tvp%04x chip detected.\n",
 			  core->dev_id);
 	}
 
@@ -1591,12 +1591,12 @@ static int tvp5150_init(struct i2c_client *c)
 	return 0;
 }
 
-static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
+static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_yesde *np)
 {
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
-	struct device_node *ep;
+	struct v4l2_fwyesde_endpoint bus_cfg = { .bus_type = 0 };
+	struct device_yesde *ep;
 #ifdef CONFIG_MEDIA_CONTROLLER
-	struct device_node *connectors, *child;
+	struct device_yesde *connectors, *child;
 	struct media_entity *input;
 	const char *name;
 	u32 input_type;
@@ -1608,7 +1608,7 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &bus_cfg);
+	ret = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(ep), &bus_cfg);
 	if (ret)
 		goto err;
 
@@ -1630,19 +1630,19 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 	if (!connectors)
 		goto err;
 
-	for_each_available_child_of_node(connectors, child) {
+	for_each_available_child_of_yesde(connectors, child) {
 		ret = of_property_read_u32(child, "input", &input_type);
 		if (ret) {
 			dev_err(decoder->sd.dev,
-				 "missing type property in node %pOFn\n",
+				 "missing type property in yesde %pOFn\n",
 				 child);
-			of_node_put(child);
+			of_yesde_put(child);
 			goto err_connector;
 		}
 
 		if (input_type >= TVP5150_INPUT_NUM) {
 			ret = -EINVAL;
-			of_node_put(child);
+			of_yesde_put(child);
 			goto err_connector;
 		}
 
@@ -1653,7 +1653,7 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 			dev_err(decoder->sd.dev,
 				 "input %s with same type already exists\n",
 				 input->name);
-			of_node_put(child);
+			of_yesde_put(child);
 			ret = -EINVAL;
 			goto err_connector;
 		}
@@ -1673,9 +1673,9 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 		ret = of_property_read_string(child, "label", &name);
 		if (ret < 0) {
 			dev_err(decoder->sd.dev,
-				 "missing label property in node %pOFn\n",
+				 "missing label property in yesde %pOFn\n",
 				 child);
-			of_node_put(child);
+			of_yesde_put(child);
 			goto err_connector;
 		}
 
@@ -1683,10 +1683,10 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 	}
 
 err_connector:
-	of_node_put(connectors);
+	of_yesde_put(connectors);
 #endif
 err:
-	of_node_put(ep);
+	of_yesde_put(ep);
 	return ret;
 }
 
@@ -1699,7 +1699,7 @@ static int tvp5150_probe(struct i2c_client *c)
 {
 	struct tvp5150 *core;
 	struct v4l2_subdev *sd;
-	struct device_node *np = c->dev.of_node;
+	struct device_yesde *np = c->dev.of_yesde;
 	struct regmap *map;
 	int res;
 
@@ -1757,8 +1757,8 @@ static int tvp5150_probe(struct i2c_client *c)
 	if (res < 0)
 		return res;
 
-	core->norm = V4L2_STD_ALL;	/* Default is autodetect */
-	core->detected_norm = V4L2_STD_UNKNOWN;
+	core->yesrm = V4L2_STD_ALL;	/* Default is autodetect */
+	core->detected_yesrm = V4L2_STD_UNKNOWN;
 	core->input = TVP5150_COMPOSITE1;
 	core->enable = true;
 

@@ -144,7 +144,7 @@ static void pci_esp_dma_drain(struct esp *esp)
 
 	if ((esp->sreg & ESP_STAT_PMASK) == ESP_DOP ||
 	    (esp->sreg & ESP_STAT_PMASK) == ESP_DIP)
-		/* Data-In or Data-Out, nothing to be done */
+		/* Data-In or Data-Out, yesthing to be done */
 		return;
 
 	while (--lim > 0) {
@@ -157,8 +157,8 @@ static void pci_esp_dma_drain(struct esp *esp)
 	/*
 	 * When there is a residual BCMPLT will never be set
 	 * (obviously). But we still have to issue the BLAST
-	 * command, otherwise the data will not being transferred.
-	 * But we'll never know when the BLAST operation is
+	 * command, otherwise the data will yest being transferred.
+	 * But we'll never kyesw when the BLAST operation is
 	 * finished. So check for some time and give up eventually.
 	 */
 	lim = 1000;
@@ -356,7 +356,7 @@ static void dc390_check_eeprom(struct esp *esp)
 	for (i = 0; i < DC390_EEPROM_LEN; i++, ptr++)
 		wval += *ptr;
 
-	/* no Tekram EEprom found */
+	/* yes Tekram EEprom found */
 	if (wval != 0x1234) {
 		dev_printk(KERN_INFO, &pdev->dev,
 			   "No valid Tekram EEprom found\n");
@@ -378,7 +378,7 @@ static int pci_esp_probe_one(struct pci_dev *pdev,
 	struct pci_esp_priv *pep;
 
 	if (pci_enable_device(pdev)) {
-		dev_printk(KERN_INFO, &pdev->dev, "cannot enable device\n");
+		dev_printk(KERN_INFO, &pdev->dev, "canyest enable device\n");
 		return -ENODEV;
 	}
 

@@ -63,11 +63,11 @@ struct dp_altmode {
 	const struct typec_altmode *port;
 };
 
-static int dp_altmode_notify(struct dp_altmode *dp)
+static int dp_altmode_yestify(struct dp_altmode *dp)
 {
 	u8 state = get_count_order(DP_CONF_GET_PIN_ASSIGN(dp->data.conf));
 
-	return typec_altmode_notify(dp->alt, TYPEC_MODAL_STATE(state),
+	return typec_altmode_yestify(dp->alt, TYPEC_MODAL_STATE(state),
 				   &dp->data);
 }
 
@@ -138,17 +138,17 @@ static int dp_altmode_configured(struct dp_altmode *dp)
 {
 	int ret;
 
-	sysfs_notify(&dp->alt->dev.kobj, "displayport", "configuration");
+	sysfs_yestify(&dp->alt->dev.kobj, "displayport", "configuration");
 
 	if (!dp->data.conf)
-		return typec_altmode_notify(dp->alt, TYPEC_STATE_USB,
+		return typec_altmode_yestify(dp->alt, TYPEC_STATE_USB,
 					    &dp->data);
 
-	ret = dp_altmode_notify(dp);
+	ret = dp_altmode_yestify(dp);
 	if (ret)
 		return ret;
 
-	sysfs_notify(&dp->alt->dev.kobj, "displayport", "pin_assignment");
+	sysfs_yestify(&dp->alt->dev.kobj, "displayport", "pin_assignment");
 
 	return 0;
 }
@@ -158,7 +158,7 @@ static int dp_altmode_configure_vdm(struct dp_altmode *dp, u32 conf)
 	u32 header = DP_HEADER(dp, DP_CMD_CONFIGURE);
 	int ret;
 
-	ret = typec_altmode_notify(dp->alt, TYPEC_STATE_SAFE, &dp->data);
+	ret = typec_altmode_yestify(dp->alt, TYPEC_STATE_SAFE, &dp->data);
 	if (ret) {
 		dev_err(&dp->alt->dev,
 			"unable to put to connector to safe mode\n");
@@ -168,9 +168,9 @@ static int dp_altmode_configure_vdm(struct dp_altmode *dp, u32 conf)
 	ret = typec_altmode_vdm(dp->alt, header, &conf, 2);
 	if (ret) {
 		if (DP_CONF_GET_PIN_ASSIGN(dp->data.conf))
-			dp_altmode_notify(dp);
+			dp_altmode_yestify(dp);
 		else
-			typec_altmode_notify(dp->alt, TYPEC_STATE_USB,
+			typec_altmode_yestify(dp->alt, TYPEC_STATE_USB,
 					     &dp->data);
 	}
 
@@ -237,8 +237,8 @@ static void dp_altmode_attention(struct typec_altmode *alt, const u32 vdo)
 	if (dp_altmode_status_update(dp))
 		dev_warn(&alt->dev, "%s: status update failed\n", __func__);
 
-	if (dp_altmode_notify(dp))
-		dev_err(&alt->dev, "%s: notification failed\n", __func__);
+	if (dp_altmode_yestify(dp))
+		dev_err(&alt->dev, "%s: yestification failed\n", __func__);
 
 	if (old_state == DP_STATE_IDLE && dp->state != DP_STATE_IDLE)
 		schedule_work(&dp->work);

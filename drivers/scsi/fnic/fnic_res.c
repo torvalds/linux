@@ -15,7 +15,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include "wq_enet_desc.h"
@@ -49,7 +49,7 @@ int fnic_get_vnic_config(struct fnic *fnic)
 		} \
 	} while (0);
 
-	GET_CONFIG(node_wwn);
+	GET_CONFIG(yesde_wwn);
 	GET_CONFIG(port_wwn);
 	GET_CONFIG(wq_enet_desc_count);
 	GET_CONFIG(wq_copy_desc_count);
@@ -150,8 +150,8 @@ int fnic_get_vnic_config(struct fnic *fnic)
 		     c->wq_enet_desc_count, c->wq_copy_desc_count,
 		     c->rq_desc_count);
 	shost_printk(KERN_INFO, fnic->lport->host,
-		     "vNIC node wwn %llx port wwn %llx\n",
-		     c->node_wwn, c->port_wwn);
+		     "vNIC yesde wwn %llx port wwn %llx\n",
+		     c->yesde_wwn, c->port_wwn);
 	shost_printk(KERN_INFO, fnic->lport->host,
 		     "vNIC ed_tov %d ra_tov %d\n",
 		     c->ed_tov, c->ra_tov);
@@ -244,7 +244,7 @@ int fnic_alloc_vnic_resources(struct fnic *fnic)
 		     intr_mode == VNIC_DEV_INTR_MODE_INTX ? "legacy PCI INTx" :
 		     intr_mode == VNIC_DEV_INTR_MODE_MSI ? "MSI" :
 		     intr_mode == VNIC_DEV_INTR_MODE_MSIX ?
-		     "MSI-X" : "unknown");
+		     "MSI-X" : "unkyeswn");
 
 	shost_printk(KERN_INFO, fnic->lport->host, "vNIC resources avail: "
 		     "wq %d cp_wq %d raw_wq %d rq %d cq %d intr %d\n",
@@ -337,7 +337,7 @@ int fnic_alloc_vnic_resources(struct fnic *fnic)
 	 *
 	 * Note for copy wq we always initialize with cq_index = 0
 	 *
-	 * Error interrupt is not enabled for MSI.
+	 * Error interrupt is yest enabled for MSI.
 	 */
 
 	switch (intr_mode) {
@@ -402,7 +402,7 @@ int fnic_alloc_vnic_resources(struct fnic *fnic)
 	/*
 	 * Init INTR resources
 	 *
-	 * mask_on_assertion is not used for INTx due to the level-
+	 * mask_on_assertion is yest used for INTx due to the level-
 	 * triggered nature of INTx
 	 */
 

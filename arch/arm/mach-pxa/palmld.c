@@ -157,12 +157,12 @@ static struct platform_device palmld_flash = {
 	},
 };
 
-static void __init palmld_nor_init(void)
+static void __init palmld_yesr_init(void)
 {
 	platform_device_register(&palmld_flash);
 }
 #else
-static inline void palmld_nor_init(void) {}
+static inline void palmld_yesr_init(void) {}
 #endif
 
 /******************************************************************************
@@ -245,11 +245,11 @@ static inline void palmld_keys_init(void) {}
 struct gpio_led gpio_leds[] = {
 {
 	.name			= "palmld:green:led",
-	.default_trigger	= "none",
+	.default_trigger	= "yesne",
 	.gpio			= GPIO_NR_PALMLD_LED_GREEN,
 }, {
 	.name			= "palmld:amber:led",
-	.default_trigger	= "none",
+	.default_trigger	= "yesne",
 	.gpio			= GPIO_NR_PALMLD_LED_AMBER,
 },
 };
@@ -360,7 +360,7 @@ static void __init palmld_init(void)
 	palm27x_pmic_init();
 	palmld_kpc_init();
 	palmld_keys_init();
-	palmld_nor_init();
+	palmld_yesr_init();
 	palmld_leds_init();
 	palmld_ide_init();
 }

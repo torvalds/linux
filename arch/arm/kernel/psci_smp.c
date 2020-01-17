@@ -27,7 +27,7 @@
  *
  * cpu_off       Power down a CPU
  * @state        we don't currently describe affinity levels, so just pass 0.
- * no return on successful call
+ * yes return on successful call
  *
  * cpu_on        Power up a CPU
  * @cpuid        cpuid of target CPU, as from MPIDR
@@ -99,7 +99,7 @@ static int psci_cpu_kill(unsigned int cpu)
 		pr_info("Retrying again to check for CPU kill\n");
 	}
 
-	pr_warn("CPU%d may not have shut down cleanly (AFFINITY_INFO reports %d)\n",
+	pr_warn("CPU%d may yest have shut down cleanly (AFFINITY_INFO reports %d)\n",
 			cpu, err);
 	/* Make platform_cpu_kill() fail. */
 	return 0;

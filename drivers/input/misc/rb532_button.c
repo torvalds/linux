@@ -26,10 +26,10 @@
  *    gpio_direction_input()
  * 3) read the GPIO's current value
  * 4) undo step 2 by enabling alternate function (in this
- *    mode the GPIO direction is fixed, so no change needed)
+ *    mode the GPIO direction is fixed, so yes change needed)
  * 5) turn on uart again
  * The GPIO value occurs to be inverted, so pin high means
- * button is not pressed.
+ * button is yest pressed.
  */
 static bool rb532_button_pressed(void)
 {

@@ -58,7 +58,7 @@ static ssize_t wl1271_sysfs_store_bt_coex_state(struct device *dev,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -115,7 +115,7 @@ static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
 		return 0;
 	}
 
-	/* Seeking is not supported - old logs are not kept. Disregard pos. */
+	/* Seeking is yest supported - old logs are yest kept. Disregard pos. */
 	len = min_t(size_t, count, wl->fwlog_size);
 	wl->fwlog_size -= len;
 	memcpy(buffer, wl->fwlog, len);

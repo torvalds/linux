@@ -68,7 +68,7 @@ struct h264_ring_fb_list {
  * struct vdec_h264_dec_info - decode information
  * @dpb_sz		: decoding picture buffer size
  * @resolution_changed  : resolution change happen
- * @realloc_mv_buf	: flag to notify driver to re-allocate mv buffer
+ * @realloc_mv_buf	: flag to yestify driver to re-allocate mv buffer
  * @reserved		: for 8 bytes alignment
  * @bs_dma		: Input bit-stream buffer dma address
  * @y_fb_dma		: Y frame buffer dma address
@@ -441,7 +441,7 @@ static void vdec_h264_get_fb(struct vdec_h264_inst *inst,
 		return;
 
 	if (list->count == 0) {
-		mtk_vcodec_debug(inst, "[FB] there is no %s fb",
+		mtk_vcodec_debug(inst, "[FB] there is yes %s fb",
 				 disp_list ? "disp" : "free");
 		*out_fb = NULL;
 		return;

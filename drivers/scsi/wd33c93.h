@@ -162,7 +162,7 @@
    /* Timeout Period register */
 #define TIMEOUT_PERIOD_VALUE  20    /* 20 = 200 ms */
 
-   /* Synchronous Transfer Register */
+   /* Synchroyesus Transfer Register */
 #define STR_FSS      0x80
 
    /* Destination ID register */
@@ -244,8 +244,8 @@ struct WD33C93_hostdata {
     unsigned int     default_sx_per;   /* default transfer period for SCSI bus */
     uchar            sync_xfer[8];     /* sync_xfer reg settings per target */
     uchar            sync_stat[8];     /* status of sync negotiation per target */
-    uchar            no_sync;          /* bitmask: don't do sync on these targets */
-    uchar            no_dma;           /* set this flag to disable DMA */
+    uchar            yes_sync;          /* bitmask: don't do sync on these targets */
+    uchar            yes_dma;           /* set this flag to disable DMA */
     uchar            dma_mode;         /* DMA Burst Mode or Single Byte DMA */
     uchar            fast;             /* set this flag to enable Fast SCSI */
     struct sx_period sx_table[9];      /* transfer periods for actual DTC-setting */
@@ -287,7 +287,7 @@ struct WD33C93_hostdata {
 /* defines for hostdata->level2 */
 /* NOTE: only the first 3 are implemented so far */
 
-#define L2_NONE      1  /* no combination commands - we get lots of ints */
+#define L2_NONE      1  /* yes combination commands - we get lots of ints */
 #define L2_SELECT    2  /* start with SEL_ATN_XFER, but never resume it */
 #define L2_BASIC     3  /* resume after STATUS ints & RDP messages */
 #define L2_DATA      4  /* resume after DATA_IN/OUT ints */

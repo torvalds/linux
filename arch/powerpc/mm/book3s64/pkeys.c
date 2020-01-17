@@ -18,9 +18,9 @@ u32  initial_allocation_mask;   /* Bits set for the initially allocated keys */
 u32  reserved_allocation_mask;  /* Bits set for reserved keys */
 static bool pkey_execute_disable_supported;
 static bool pkeys_devtree_defined;	/* property exported by device tree */
-static u64 pkey_amr_mask;		/* Bits in AMR not to be touched */
-static u64 pkey_iamr_mask;		/* Bits in AMR not to be touched */
-static u64 pkey_uamor_mask;		/* Bits in UMOR not to be touched */
+static u64 pkey_amr_mask;		/* Bits in AMR yest to be touched */
+static u64 pkey_iamr_mask;		/* Bits in AMR yest to be touched */
+static u64 pkey_uamor_mask;		/* Bits in UMOR yest to be touched */
 static int execute_only_key = 2;
 
 #define AMR_BITS_PER_PKEY 2
@@ -33,9 +33,9 @@ static int execute_only_key = 2;
 static void scan_pkey_feature(void)
 {
 	u32 vals[2];
-	struct device_node *cpu;
+	struct device_yesde *cpu;
 
-	cpu = of_find_node_by_type(NULL, "cpu");
+	cpu = of_find_yesde_by_type(NULL, "cpu");
 	if (!cpu)
 		return;
 
@@ -83,7 +83,7 @@ static int pkey_initialize(void)
 	scan_pkey_feature();
 
 	/*
-	 * Let's assume 32 pkeys on P8 bare metal, if its not defined by device
+	 * Let's assume 32 pkeys on P8 bare metal, if its yest defined by device
 	 * tree. We make this exception since skiboot forgot to expose this
 	 * property on power8.
 	 */
@@ -107,7 +107,7 @@ static int pkey_initialize(void)
 		return 0;
 
 	/*
-	 * The device tree cannot be relied to indicate support for
+	 * The device tree canyest be relied to indicate support for
 	 * execute_disable support. Instead we use a PVR check.
 	 */
 	if (pvr_version_is(PVR_POWER7) || pvr_version_is(PVR_POWER7p))
@@ -329,7 +329,7 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot,
 {
 	/*
 	 * If the currently associated pkey is execute-only, but the requested
-	 * protection is not execute-only, move it back to the default pkey.
+	 * protection is yest execute-only, move it back to the default pkey.
 	 */
 	if (vma_is_pkey_exec_only(vma) && (prot != PROT_EXEC))
 		return 0;
@@ -375,10 +375,10 @@ bool arch_pte_access_permitted(u64 pte, bool write, bool execute)
 
 /*
  * We only want to enforce protection keys on the current thread because we
- * effectively have no access to AMR/IAMR for other threads or any way to tell
+ * effectively have yes access to AMR/IAMR for other threads or any way to tell
  * which AMR/IAMR in a threaded process we could use.
  *
- * So do not enforce things if the VMA is not from the current mm, or if we are
+ * So do yest enforce things if the VMA is yest from the current mm, or if we are
  * in a kernel thread.
  */
 static inline bool vma_is_foreign(struct vm_area_struct *vma)
@@ -386,7 +386,7 @@ static inline bool vma_is_foreign(struct vm_area_struct *vma)
 	if (!current->mm)
 		return true;
 
-	/* if it is not our ->mm, it has to be foreign */
+	/* if it is yest our ->mm, it has to be foreign */
 	if (current->mm != vma->vm_mm)
 		return true;
 
@@ -399,7 +399,7 @@ bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write,
 	if (static_branch_likely(&pkey_disabled))
 		return true;
 	/*
-	 * Do not enforce our key-permissions on a foreign vma.
+	 * Do yest enforce our key-permissions on a foreign vma.
 	 */
 	if (foreign || vma_is_foreign(vma))
 		return true;

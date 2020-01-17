@@ -96,10 +96,10 @@ EXPORT_SYMBOL_GPL(devfreq_event_disable_edev);
 
 /**
  * devfreq_event_is_enabled() - Check whether devfreq-event dev is enabled or
- *				not.
+ *				yest.
  * @edev	: the devfreq-event device
  *
- * Note that this function check whether devfreq-event dev is enabled or not.
+ * Note that this function check whether devfreq-event dev is enabled or yest.
  * If return true, the devfreq-event dev is enabeld. If return false, the
  * devfreq-event dev is disabled.
  */
@@ -220,24 +220,24 @@ EXPORT_SYMBOL_GPL(devfreq_event_reset_event);
 struct devfreq_event_dev *devfreq_event_get_edev_by_phandle(struct device *dev,
 						      int index)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct devfreq_event_dev *edev;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return ERR_PTR(-EINVAL);
 
-	node = of_parse_phandle(dev->of_node, "devfreq-events", index);
-	if (!node)
+	yesde = of_parse_phandle(dev->of_yesde, "devfreq-events", index);
+	if (!yesde)
 		return ERR_PTR(-ENODEV);
 
 	mutex_lock(&devfreq_event_list_lock);
-	list_for_each_entry(edev, &devfreq_event_list, node) {
-		if (edev->dev.parent && edev->dev.parent->of_node == node)
+	list_for_each_entry(edev, &devfreq_event_list, yesde) {
+		if (edev->dev.parent && edev->dev.parent->of_yesde == yesde)
 			goto out;
 	}
 
-	list_for_each_entry(edev, &devfreq_event_list, node) {
-		if (of_node_name_eq(node, edev->desc->name))
+	list_for_each_entry(edev, &devfreq_event_list, yesde) {
+		if (of_yesde_name_eq(yesde, edev->desc->name))
 			goto out;
 	}
 	edev = NULL;
@@ -245,11 +245,11 @@ out:
 	mutex_unlock(&devfreq_event_list_lock);
 
 	if (!edev) {
-		of_node_put(node);
+		of_yesde_put(yesde);
 		return ERR_PTR(-ENODEV);
 	}
 
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	return edev;
 }
@@ -265,17 +265,17 @@ int devfreq_event_get_edev_count(struct device *dev)
 {
 	int count;
 
-	if (!dev->of_node) {
-		dev_err(dev, "device does not have a device node entry\n");
+	if (!dev->of_yesde) {
+		dev_err(dev, "device does yest have a device yesde entry\n");
 		return -EINVAL;
 	}
 
-	count = of_property_count_elems_of_size(dev->of_node, "devfreq-events",
+	count = of_property_count_elems_of_size(dev->of_yesde, "devfreq-events",
 						sizeof(u32));
 	if (count < 0) {
 		dev_err(dev,
-			"failed to get the count of devfreq-event in %pOF node\n",
-			dev->of_node);
+			"failed to get the count of devfreq-event in %pOF yesde\n",
+			dev->of_yesde);
 		return count;
 	}
 
@@ -303,7 +303,7 @@ struct devfreq_event_dev *devfreq_event_add_edev(struct device *dev,
 						struct devfreq_event_desc *desc)
 {
 	struct devfreq_event_dev *edev;
-	static atomic_t event_no = ATOMIC_INIT(-1);
+	static atomic_t event_yes = ATOMIC_INIT(-1);
 	int ret;
 
 	if (!dev || !desc)
@@ -326,7 +326,7 @@ struct devfreq_event_dev *devfreq_event_add_edev(struct device *dev,
 	edev->dev.class = devfreq_event_class;
 	edev->dev.release = devfreq_event_release_edev;
 
-	dev_set_name(&edev->dev, "event%d", atomic_inc_return(&event_no));
+	dev_set_name(&edev->dev, "event%d", atomic_inc_return(&event_yes));
 	ret = device_register(&edev->dev);
 	if (ret < 0) {
 		put_device(&edev->dev);
@@ -334,10 +334,10 @@ struct devfreq_event_dev *devfreq_event_add_edev(struct device *dev,
 	}
 	dev_set_drvdata(&edev->dev, edev);
 
-	INIT_LIST_HEAD(&edev->node);
+	INIT_LIST_HEAD(&edev->yesde);
 
 	mutex_lock(&devfreq_event_list_lock);
-	list_add(&edev->node, &devfreq_event_list);
+	list_add(&edev->yesde, &devfreq_event_list);
 	mutex_unlock(&devfreq_event_list_lock);
 
 	return edev;
@@ -358,7 +358,7 @@ int devfreq_event_remove_edev(struct devfreq_event_dev *edev)
 	WARN_ON(edev->enable_count);
 
 	mutex_lock(&devfreq_event_list_lock);
-	list_del(&edev->node);
+	list_del(&edev->yesde);
 	mutex_unlock(&devfreq_event_list_lock);
 
 	device_unregister(&edev->dev);

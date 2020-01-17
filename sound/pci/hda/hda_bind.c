@@ -43,7 +43,7 @@ static void hda_codec_unsol_event(struct hdac_device *dev, unsigned int ev)
 {
 	struct hda_codec *codec = container_of(dev, struct hda_codec, core);
 
-	/* ignore unsol events during shutdown */
+	/* igyesre unsol events during shutdown */
 	if (codec->bus->shutdown)
 		return;
 
@@ -163,8 +163,8 @@ static void hda_codec_driver_shutdown(struct device *dev)
 {
 	struct hda_codec *codec = dev_to_hda_codec(dev);
 
-	if (!pm_runtime_suspended(dev) && codec->patch_ops.reboot_notify)
-		codec->patch_ops.reboot_notify(codec);
+	if (!pm_runtime_suspended(dev) && codec->patch_ops.reboot_yestify)
+		codec->patch_ops.reboot_yestify(codec);
 }
 
 int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,
@@ -240,7 +240,7 @@ static bool is_likely_hdmi_codec(struct hda_codec *codec)
 {
 	hda_nid_t nid;
 
-	for_each_hda_codec_node(nid, codec) {
+	for_each_hda_codec_yesde(nid, codec) {
 		unsigned int wcaps = get_wcaps(codec, nid);
 		switch (get_wcaps_type(wcaps)) {
 		case AC_WID_AUD_IN:
@@ -254,7 +254,7 @@ static bool is_likely_hdmi_codec(struct hda_codec *codec)
 	return true;
 }
 #else
-/* no HDMI codec parser support */
+/* yes HDMI codec parser support */
 #define is_likely_hdmi_codec(codec)	false
 #endif /* CONFIG_SND_HDA_CODEC_HDMI */
 

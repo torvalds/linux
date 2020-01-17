@@ -25,7 +25,7 @@
 /*
  * AUTHUNIX and AUTHNULL credentials are both handled here.
  * AUTHNULL is treated just like AUTHUNIX except that the uid/gid
- * are always nobody (-2).  i.e. we do the same IP address checks for
+ * are always yesbody (-2).  i.e. we do the same IP address checks for
  * AUTHNULL as for AUTHUNIX, and that is done here.
  */
 
@@ -234,7 +234,7 @@ static int ip_map_parse(struct cache_detail *cd,
 	} else
 		dom = NULL;
 
-	/* IPv6 scope IDs are ignored for now */
+	/* IPv6 scope IDs are igyesred for yesw */
 	ipmp = __ip_map_lookup(cd, class, &sin6.sin6_addr);
 	if (ipmp) {
 		err = __ip_map_update(cd, ipmp,
@@ -256,7 +256,7 @@ static int ip_map_show(struct seq_file *m,
 {
 	struct ip_map *im;
 	struct in6_addr addr;
-	char *dom = "-no-domain-";
+	char *dom = "-yes-domain-";
 
 	if (h == NULL) {
 		seq_puts(m, "#class IP domain\n");
@@ -752,7 +752,7 @@ svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 		return SVC_DENIED;
 	}
 
-	/* Signal that mapping to nobody uid/gid is required */
+	/* Signal that mapping to yesbody uid/gid is required */
 	cred->cr_uid = INVALID_UID;
 	cred->cr_gid = INVALID_GID;
 	cred->cr_group_info = groups_alloc(0);
@@ -815,7 +815,7 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	 * Note: we skip uid_valid()/gid_valid() checks here for
 	 * backwards compatibility with clients that use -1 id's.
 	 * Instead, -1 uid or gid is later mapped to the
-	 * (export-specific) anonymous id by nfsd_setuser.
+	 * (export-specific) ayesnymous id by nfsd_setuser.
 	 * Supplementary gid's will be left alone.
 	 */
 	userns = (rqstp->rq_xprt && rqstp->rq_xprt->xpt_cred) ?

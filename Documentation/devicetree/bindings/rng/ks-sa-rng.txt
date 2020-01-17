@@ -3,7 +3,7 @@ Keystone SoC Hardware Random Number Generator(HWRNG) Module
 On Keystone SoCs HWRNG module is a submodule of the Security Accelerator.
 
 - compatible: should be "ti,keystone-rng"
-- ti,syscon-sa-cfg: phandle to syscon node of the SA configuration registers.
+- ti,syscon-sa-cfg: phandle to syscon yesde of the SA configuration registers.
 		    This registers are shared between hwrng and crypto drivers.
 - clocks: phandle to the reference clocks for the subsystem
 - clock-names: functional clock name. Should be set to "fck"

@@ -144,7 +144,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	if (!sock_net(sk)->ipv4.sysctl_tcp_syncookies || !th->ack || th->rst)
 		goto out;
 
-	if (tcp_synq_no_recent_overflow(sk))
+	if (tcp_synq_yes_recent_overflow(sk))
 		goto out;
 
 	mss = __cookie_v6_check(ipv6_hdr(skb), th, cookie);

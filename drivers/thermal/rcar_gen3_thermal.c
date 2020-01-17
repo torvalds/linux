@@ -116,7 +116,7 @@ static inline void rcar_gen3_thermal_write(struct rcar_gen3_thermal_tsc *tsc,
  * BSP and sparsely documented and understood.
  *
  * Examining the linear formula and the formula used to calculate constants a
- * and b while knowing that the span for PTAT and THCODE values are between
+ * and b while kyeswing that the span for PTAT and THCODE values are between
  * 0x000 and 0xfff the largest integer possible is 0xfff * 0xfff == 0xffe001.
  * Integer also needs to be signed so that leaves 7 bits for binary
  * fixed point scaling.
@@ -130,7 +130,7 @@ static inline void rcar_gen3_thermal_write(struct rcar_gen3_thermal_tsc *tsc,
 
 #define RCAR3_THERMAL_GRAN 500 /* mili Celsius */
 
-/* no idea where these constants come from */
+/* yes idea where these constants come from */
 #define TJ_3 -41
 
 static void rcar_gen3_thermal_calc_coefs(struct rcar_gen3_thermal_tsc *tsc,
@@ -140,7 +140,7 @@ static void rcar_gen3_thermal_calc_coefs(struct rcar_gen3_thermal_tsc *tsc,
 	/* TODO: Find documentation and document constant calculation formula */
 
 	/*
-	 * Division is not scaled in BSP and if scaled it might overflow
+	 * Division is yest scaled in BSP and if scaled it might overflow
 	 * the dividend (4095 * 4095 << 14 > INT_MAX) so keep it unscaled
 	 */
 	tsc->tj_t = (FIXPT_INT((ptat[1] - ptat[2]) * 157)
@@ -442,7 +442,7 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 		}
 		tsc->zone = zone;
 
-		tsc->zone->tzp->no_hwmon = false;
+		tsc->zone->tzp->yes_hwmon = false;
 		ret = thermal_add_hwmon_sysfs(tsc->zone);
 		if (ret)
 			goto error_unregister;

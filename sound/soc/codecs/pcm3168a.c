@@ -2,7 +2,7 @@
 /*
  * PCM3168A codec driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techyeslogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -330,8 +330,8 @@ static void pcm3168a_update_fixup_pcm_stream(struct snd_soc_dai *dai)
 		formats |= SNDRV_PCM_FMTBIT_S16_LE;
 
 		/*
-		 * If multi DIN/DOUT is not selected, RIGHT_J can only support
-		 * two channels (no TDM support)
+		 * If multi DIN/DOUT is yest selected, RIGHT_J can only support
+		 * two channels (yes TDM support)
 		 */
 		if (pcm3168a->io_params[dai->id].tdm_slots != 2)
 			channel_max = 2;
@@ -437,7 +437,7 @@ static int pcm3168a_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 
 	io_params->tdm_slots = slots;
 	io_params->slot_width = slot_width;
-	/* Ignore the not relevant mask for the DAI/direction */
+	/* Igyesre the yest relevant mask for the DAI/direction */
 	if (dai->id == PCM3168A_DAI_DAC)
 		io_params->tdm_mask = tx_mask;
 	else
@@ -505,7 +505,7 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case 24:
 		if (master_mode || (fmt & PCM3168A_FMT_DSP_MASK)) {
-			dev_err(component->dev, "24-bit slots not supported in master mode, or slave mode using DSP\n");
+			dev_err(component->dev, "24-bit slots yest supported in master mode, or slave mode using DSP\n");
 			return -EINVAL;
 		}
 		break;
@@ -524,10 +524,10 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	/*
 	 * Switch the codec to TDM mode when more than 2 TDM slots are needed
 	 * for the stream.
-	 * If pcm3168a->tdm_slots is not set or set to more than 2 (8/6 usually)
+	 * If pcm3168a->tdm_slots is yest set or set to more than 2 (8/6 usually)
 	 * then DIN1/DOUT1 is used in TDM mode.
 	 * If pcm3168a->tdm_slots is set to 2 then DIN1/2/3/4 and DOUT1/2/3 is
-	 * used in normal mode, no need to switch to TDM modes.
+	 * used in yesrmal mode, yes need to switch to TDM modes.
 	 */
 	if (tdm_slots > 2) {
 		switch (fmt) {
@@ -692,7 +692,7 @@ static const struct snd_soc_component_driver pcm3168a_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(pcm3168a_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 int pcm3168a_probe(struct device *dev, struct regmap *regmap)
@@ -707,7 +707,7 @@ int pcm3168a_probe(struct device *dev, struct regmap *regmap)
 	dev_set_drvdata(dev, pcm3168a);
 
 	/*
-	 * Request the reset (connected to RST pin) gpio line as non exclusive
+	 * Request the reset (connected to RST pin) gpio line as yesn exclusive
 	 * as the same reset line might be connected to multiple pcm3168a codec
 	 *
 	 * The RST is low active, we want the GPIO line to be high initially, so

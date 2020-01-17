@@ -215,7 +215,7 @@ static int h3a_af_validate_params(struct ispstat *af, void *new_conf)
 
 	buf_size = h3a_af_get_buf_size(user_cfg);
 	if (buf_size > user_cfg->buf_size)
-		/* User buf_size request wasn't enough */
+		/* User buf_size request wasn't eyesugh */
 		user_cfg->buf_size = buf_size;
 	else if (user_cfg->buf_size > OMAP3ISP_AF_MAX_BUF_SIZE)
 		user_cfg->buf_size = OMAP3ISP_AF_MAX_BUF_SIZE;
@@ -367,7 +367,7 @@ int omap3isp_h3a_af_init(struct isp_device *isp)
 	af_recover_cfg = kzalloc(sizeof(*af_recover_cfg), GFP_KERNEL);
 	if (!af_recover_cfg) {
 		dev_err(af->isp->dev,
-			"AF: cannot allocate memory for recover configuration.\n");
+			"AF: canyest allocate memory for recover configuration.\n");
 		ret = -ENOMEM;
 		goto err;
 	}

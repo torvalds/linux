@@ -177,8 +177,8 @@
 #define FIFO_CFG5_VT		BIT(13)	/* VLAN tag detected */
 #define FIFO_CFG5_LE		BIT(14)	/* Long Event */
 #define FIFO_CFG5_FT		BIT(15)	/* Frame Truncated */
-#define FIFO_CFG5_16		BIT(16)	/* unknown */
-#define FIFO_CFG5_17		BIT(17)	/* unknown */
+#define FIFO_CFG5_16		BIT(16)	/* unkyeswn */
+#define FIFO_CFG5_17		BIT(17)	/* unkyeswn */
 #define FIFO_CFG5_SF		BIT(18)	/* Short Frame */
 #define FIFO_CFG5_BM		BIT(19)	/* Byte Mode */
 #define FIFO_CFG5_INIT	(FIFO_CFG5_DE | FIFO_CFG5_DV | FIFO_CFG5_FC | \
@@ -265,7 +265,7 @@ struct ag71xx_ring {
 	unsigned int curr;
 	unsigned int dirty;
 
-	/* "Cold" fields - not used in the data path. */
+	/* "Cold" fields - yest used in the data path. */
 	struct ag71xx_buf *buf;
 	u16 order;
 	u16 desc_split;
@@ -307,7 +307,7 @@ struct ag71xx {
 	u32 msg_enable;
 	const struct ag71xx_dcfg *dcfg;
 
-	/* From this point onwards we're not looking at per-packet fields. */
+	/* From this point onwards we're yest looking at per-packet fields. */
 	void __iomem *mac_base;
 
 	struct ag71xx_desc *stop_desc;
@@ -526,10 +526,10 @@ static int ag71xx_mdio_probe(struct ag71xx *ag)
 	struct device *dev = &ag->pdev->dev;
 	struct net_device *ndev = ag->ndev;
 	static struct mii_bus *mii_bus;
-	struct device_node *np, *mnp;
+	struct device_yesde *np, *mnp;
 	int err;
 
-	np = dev->of_node;
+	np = dev->of_yesde;
 	ag->mii_bus = NULL;
 
 	ag->clk_mdio = devm_clk_get(dev, "mdio");
@@ -573,7 +573,7 @@ static int ag71xx_mdio_probe(struct ag71xx *ag)
 
 	mnp = of_get_child_by_name(np, "mdio");
 	err = of_mdiobus_register(mii_bus, mnp);
-	of_node_put(mnp);
+	of_yesde_put(mnp);
 	if (err)
 		goto mdio_err_put_clk;
 
@@ -883,7 +883,7 @@ static void ag71xx_link_adjust(struct ag71xx *ag, bool update)
 		cfg2 |= MAC_CFG2_IF_10_100;
 		break;
 	default:
-		WARN(1, "not supported speed %i\n", phydev->speed);
+		WARN(1, "yest supported speed %i\n", phydev->speed);
 		return;
 	}
 
@@ -913,9 +913,9 @@ static void ag71xx_phy_link_adjust(struct net_device *ndev)
 
 static int ag71xx_phy_connect(struct ag71xx *ag)
 {
-	struct device_node *np = ag->pdev->dev.of_node;
+	struct device_yesde *np = ag->pdev->dev.of_yesde;
 	struct net_device *ndev = ag->ndev;
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 	struct phy_device *phydev;
 	int ret;
 
@@ -927,23 +927,23 @@ static int ag71xx_phy_connect(struct ag71xx *ag)
 			return ret;
 		}
 
-		phy_node = of_node_get(np);
+		phy_yesde = of_yesde_get(np);
 	} else {
-		phy_node = of_parse_phandle(np, "phy-handle", 0);
+		phy_yesde = of_parse_phandle(np, "phy-handle", 0);
 	}
 
-	if (!phy_node) {
-		netif_err(ag, probe, ndev, "Could not find valid phy node\n");
+	if (!phy_yesde) {
+		netif_err(ag, probe, ndev, "Could yest find valid phy yesde\n");
 		return -ENODEV;
 	}
 
-	phydev = of_phy_connect(ag->ndev, phy_node, ag71xx_phy_link_adjust,
+	phydev = of_phy_connect(ag->ndev, phy_yesde, ag71xx_phy_link_adjust,
 				0, ag->phy_if_mode);
 
-	of_node_put(phy_node);
+	of_yesde_put(phy_yesde);
 
 	if (!phydev) {
-		netif_err(ag, probe, ndev, "Could not connect to PHY device\n");
+		netif_err(ag, probe, ndev, "Could yest connect to PHY device\n");
 		return -ENODEV;
 	}
 
@@ -1631,7 +1631,7 @@ static const u32 ar71xx_addr_ar7100[] = {
 
 static int ag71xx_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct ag71xx_dcfg *dcfg;
 	struct net_device *ndev;
 	struct resource *res;
@@ -1662,7 +1662,7 @@ static int ag71xx_probe(struct platform_device *pdev)
 	}
 
 	if (ag->mac_idx < 0) {
-		netif_err(ag, probe, ndev, "unknown mac idx\n");
+		netif_err(ag, probe, ndev, "unkyeswn mac idx\n");
 		return -EINVAL;
 	}
 
@@ -1687,7 +1687,7 @@ static int ag71xx_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	ag->mac_base = devm_ioremap_nocache(&pdev->dev, res->start,
+	ag->mac_base = devm_ioremap_yescache(&pdev->dev, res->start,
 					    resource_size(res));
 	if (!ag->mac_base) {
 		err = -ENOMEM;

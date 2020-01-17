@@ -29,7 +29,7 @@
  *	reboot, init_module, mount, kexec_load
  * 4. They are optional and we can't rely on them being
  *    linked into the kernel. Unfortunately, the cond_syscall
- *    helper does not work here as it does not add the necessary
+ *    helper does yest work here as it does yest add the necessary
  *    opd symbols:
  *	mbind, mq_open, ipc, ...
  */

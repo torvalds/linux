@@ -8,7 +8,7 @@
  * @hw: pointer to the HW structure
  *
  * Read the PHY management control register and check whether a PHY reset
- * is blocked.  If a reset is not blocked return 0, otherwise
+ * is blocked.  If a reset is yest blocked return 0, otherwise
  * return IGC_ERR_BLK_PHY_RESET (12).
  */
 s32 igc_check_reset_block(struct igc_hw *hw)
@@ -56,7 +56,7 @@ out:
  * @hw: pointer to the HW structure
  * @iterations: number of times to poll for link
  * @usec_interval: delay between polling attempts
- * @success: pointer to whether polling was successful or not
+ * @success: pointer to whether polling was successful or yest
  *
  * Polls the PHY status register for link, 'iterations' number of times.
  */
@@ -73,7 +73,7 @@ s32 igc_phy_has_link(struct igc_hw *hw, u32 iterations,
 		 */
 		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS, &phy_status);
 		if (ret_val && usec_interval > 0) {
-			/* If the first read fails, another entity may have
+			/* If the first read fails, ayesther entity may have
 			 * ownership of the resources, wait and try again to
 			 * see if they have relinquished the resources yet.
 			 */
@@ -120,7 +120,7 @@ void igc_power_up_phy_copper(struct igc_hw *hw)
  * @hw: pointer to the HW structure
  *
  * Power down PHY to save power when interface is down and wake on lan
- * is not enabled.
+ * is yest enabled.
  */
 void igc_power_down_phy_copper(struct igc_hw *hw)
 {
@@ -153,7 +153,7 @@ s32 igc_check_downshift(struct igc_hw *hw)
 	switch (phy->type) {
 	case igc_phy_i225:
 	default:
-		/* speed downshift not supported */
+		/* speed downshift yest supported */
 		phy->speed_downgraded = false;
 		ret_val = 0;
 	}
@@ -165,7 +165,7 @@ s32 igc_check_downshift(struct igc_hw *hw)
  * igc_phy_hw_reset - PHY hardware reset
  * @hw: pointer to the HW structure
  *
- * Verify the reset block is not blocking us from resetting.  Acquire
+ * Verify the reset block is yest blocking us from resetting.  Acquire
  * semaphore (if necessary) and read/set/write the device control reset
  * bit in the PHY.  Wait the appropriate delay time for the device to
  * reset and release the semaphore (if necessary).
@@ -290,7 +290,7 @@ static s32 igc_phy_setup_autoneg(struct igc_hw *hw)
 		mii_autoneg_adv_reg |= NWAY_AR_100TX_FD_CAPS;
 	}
 
-	/* We do not allow the Phy to advertise 1000 Mb Half Duplex */
+	/* We do yest allow the Phy to advertise 1000 Mb Half Duplex */
 	if (phy->autoneg_advertised & ADVERTISE_1000_HALF)
 		hw_dbg("Advertise 1000mb Half duplex request denied!\n");
 
@@ -300,7 +300,7 @@ static s32 igc_phy_setup_autoneg(struct igc_hw *hw)
 		mii_1000t_ctrl_reg |= CR_1000T_FD_CAPS;
 	}
 
-	/* We do not allow the Phy to advertise 2500 Mb Half Duplex */
+	/* We do yest allow the Phy to advertise 2500 Mb Half Duplex */
 	if (phy->autoneg_advertised & ADVERTISE_2500_HALF)
 		hw_dbg("Advertise 2500mb Half duplex request denied!\n");
 
@@ -322,15 +322,15 @@ static s32 igc_phy_setup_autoneg(struct igc_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause frames
-	 *          but not send pause frames).
+	 *          but yest send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames
-	 *          but we do not support receiving pause frames).
+	 *          but we do yest support receiving pause frames).
 	 *      3:  Both Rx and Tx flow control (symmetric) are enabled.
 	 *  other:  No software override.  The flow control configuration
 	 *          in the EEPROM is used.
 	 */
 	switch (hw->fc.current_mode) {
-	case igc_fc_none:
+	case igc_fc_yesne:
 		/* Flow control (Rx & Tx) is completely disabled by a
 		 * software over-ride.
 		 */
@@ -438,7 +438,7 @@ static s32 igc_copper_link_autoneg(struct igc_hw *hw)
 	 */
 	phy->autoneg_advertised &= phy->autoneg_mask;
 
-	/* If autoneg_advertised is zero, we assume it was not defaulted
+	/* If autoneg_advertised is zero, we assume it was yest defaulted
 	 * by the calling code so we set to advertise full capability.
 	 */
 	if (phy->autoneg_advertised == 0)
@@ -488,7 +488,7 @@ out:
  * Calls the appropriate function to configure the link for auto-neg or forced
  * speed and duplex.  Then we check for link, once link is established calls
  * to configure collision distance and flow control are called.  If link is
- * not established, we return -IGC_ERR_PHY (-2).
+ * yest established, we return -IGC_ERR_PHY (-2).
  */
 s32 igc_setup_copper_link(struct igc_hw *hw)
 {
@@ -575,7 +575,7 @@ static s32 igc_read_phy_reg_mdic(struct igc_hw *hw, u32 offset, u16 *data)
 			break;
 	}
 	if (!(mdic & IGC_MDIC_READY)) {
-		hw_dbg("MDI Read did not complete\n");
+		hw_dbg("MDI Read did yest complete\n");
 		ret_val = -IGC_ERR_PHY;
 		goto out;
 	}
@@ -632,7 +632,7 @@ static s32 igc_write_phy_reg_mdic(struct igc_hw *hw, u32 offset, u16 data)
 			break;
 	}
 	if (!(mdic & IGC_MDIC_READY)) {
-		hw_dbg("MDI Write did not complete\n");
+		hw_dbg("MDI Write did yest complete\n");
 		ret_val = -IGC_ERR_PHY;
 		goto out;
 	}

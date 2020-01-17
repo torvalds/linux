@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Generic Exynos Bus frequency driver with DEVFREQ Framework
+ * Generic Exyyess Bus frequency driver with DEVFREQ Framework
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  * Author : Chanwoo Choi <cw00.choi@samsung.com>
  *
- * This driver support Exynos Bus frequency feature by using
- * DEVFREQ framework and is based on drivers/devfreq/exynos/exynos4_bus.c.
+ * This driver support Exyyess Bus frequency feature by using
+ * DEVFREQ framework and is based on drivers/devfreq/exyyess/exyyess4_bus.c.
  */
 
 #include <linux/clk.h>
@@ -23,7 +23,7 @@
 
 #define DEFAULT_SATURATION_RATIO	40
 
-struct exynos_bus {
+struct exyyess_bus {
 	struct device *dev;
 
 	struct devfreq *devfreq;
@@ -41,8 +41,8 @@ struct exynos_bus {
 /*
  * Control the devfreq-event device to get the current state of bus
  */
-#define exynos_bus_ops_edev(ops)				\
-static int exynos_bus_##ops(struct exynos_bus *bus)		\
+#define exyyess_bus_ops_edev(ops)				\
+static int exyyess_bus_##ops(struct exyyess_bus *bus)		\
 {								\
 	int i, ret;						\
 								\
@@ -56,11 +56,11 @@ static int exynos_bus_##ops(struct exynos_bus *bus)		\
 								\
 	return 0;						\
 }
-exynos_bus_ops_edev(enable_edev);
-exynos_bus_ops_edev(disable_edev);
-exynos_bus_ops_edev(set_event);
+exyyess_bus_ops_edev(enable_edev);
+exyyess_bus_ops_edev(disable_edev);
+exyyess_bus_ops_edev(set_event);
 
-static int exynos_bus_get_event(struct exynos_bus *bus,
+static int exyyess_bus_get_event(struct exyyess_bus *bus,
 				struct devfreq_event_data *edata)
 {
 	struct devfreq_event_data event_data;
@@ -88,11 +88,11 @@ static int exynos_bus_get_event(struct exynos_bus *bus,
 }
 
 /*
- * devfreq function for both simple-ondemand and passive governor
+ * devfreq function for both simple-ondemand and passive goveryesr
  */
-static int exynos_bus_target(struct device *dev, unsigned long *freq, u32 flags)
+static int exyyess_bus_target(struct device *dev, unsigned long *freq, u32 flags)
 {
-	struct exynos_bus *bus = dev_get_drvdata(dev);
+	struct exyyess_bus *bus = dev_get_drvdata(dev);
 	struct dev_pm_opp *new_opp;
 	int ret = 0;
 
@@ -116,16 +116,16 @@ static int exynos_bus_target(struct device *dev, unsigned long *freq, u32 flags)
 	return ret;
 }
 
-static int exynos_bus_get_dev_status(struct device *dev,
+static int exyyess_bus_get_dev_status(struct device *dev,
 				     struct devfreq_dev_status *stat)
 {
-	struct exynos_bus *bus = dev_get_drvdata(dev);
+	struct exyyess_bus *bus = dev_get_drvdata(dev);
 	struct devfreq_event_data edata;
 	int ret;
 
 	stat->current_frequency = bus->curr_freq;
 
-	ret = exynos_bus_get_event(bus, &edata);
+	ret = exyyess_bus_get_event(bus, &edata);
 	if (ret < 0) {
 		stat->total_time = stat->busy_time = 0;
 		goto err;
@@ -138,7 +138,7 @@ static int exynos_bus_get_dev_status(struct device *dev,
 							stat->total_time);
 
 err:
-	ret = exynos_bus_set_event(bus);
+	ret = exyyess_bus_set_event(bus);
 	if (ret < 0) {
 		dev_err(dev, "failed to set event to devfreq-event devices\n");
 		return ret;
@@ -147,12 +147,12 @@ err:
 	return ret;
 }
 
-static void exynos_bus_exit(struct device *dev)
+static void exyyess_bus_exit(struct device *dev)
 {
-	struct exynos_bus *bus = dev_get_drvdata(dev);
+	struct exyyess_bus *bus = dev_get_drvdata(dev);
 	int ret;
 
-	ret = exynos_bus_disable_edev(bus);
+	ret = exyyess_bus_disable_edev(bus);
 	if (ret < 0)
 		dev_warn(dev, "failed to disable the devfreq-event devices\n");
 
@@ -164,16 +164,16 @@ static void exynos_bus_exit(struct device *dev)
 	}
 }
 
-static void exynos_bus_passive_exit(struct device *dev)
+static void exyyess_bus_passive_exit(struct device *dev)
 {
-	struct exynos_bus *bus = dev_get_drvdata(dev);
+	struct exyyess_bus *bus = dev_get_drvdata(dev);
 
 	dev_pm_opp_of_remove_table(dev);
 	clk_disable_unprepare(bus->clk);
 }
 
-static int exynos_bus_parent_parse_of(struct device_node *np,
-					struct exynos_bus *bus)
+static int exyyess_bus_parent_parse_of(struct device_yesde *np,
+					struct exyyess_bus *bus)
 {
 	struct device *dev = bus->dev;
 	struct opp_table *opp_table;
@@ -191,7 +191,7 @@ static int exynos_bus_parent_parse_of(struct device_node *np,
 
 	/*
 	 * Get the devfreq-event devices to get the current utilization of
-	 * buses. This raw data will be used in devfreq ondemand governor.
+	 * buses. This raw data will be used in devfreq ondemand goveryesr.
 	 */
 	count = devfreq_event_get_edev_count(dev);
 	if (count < 0) {
@@ -217,16 +217,16 @@ static int exynos_bus_parent_parse_of(struct device_node *np,
 	}
 
 	/*
-	 * Optionally, Get the saturation ratio according to Exynos SoC
+	 * Optionally, Get the saturation ratio according to Exyyess SoC
 	 * When measuring the utilization of each AXI bus with devfreq-event
 	 * devices, the measured real cycle might be much lower than the
 	 * total cycle of bus during sampling rate. In result, the devfreq
-	 * simple-ondemand governor might not decide to change the current
+	 * simple-ondemand goveryesr might yest decide to change the current
 	 * frequency due to too utilization (= real cycle/total cycle).
 	 * So, this property is used to adjust the utilization when calculating
-	 * the busy_time in exynos_bus_get_dev_status().
+	 * the busy_time in exyyess_bus_get_dev_status().
 	 */
-	if (of_property_read_u32(np, "exynos,saturation-ratio", &bus->ratio))
+	if (of_property_read_u32(np, "exyyess,saturation-ratio", &bus->ratio))
 		bus->ratio = DEFAULT_SATURATION_RATIO;
 
 	return 0;
@@ -238,8 +238,8 @@ err_regulator:
 	return ret;
 }
 
-static int exynos_bus_parse_of(struct device_node *np,
-			      struct exynos_bus *bus)
+static int exyyess_bus_parse_of(struct device_yesde *np,
+			      struct exyyess_bus *bus)
 {
 	struct device *dev = bus->dev;
 	struct dev_pm_opp *opp;
@@ -287,21 +287,21 @@ err_clk:
 	return ret;
 }
 
-static int exynos_bus_probe(struct platform_device *pdev)
+static int exyyess_bus_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node, *node;
+	struct device_yesde *np = dev->of_yesde, *yesde;
 	struct devfreq_dev_profile *profile;
 	struct devfreq_simple_ondemand_data *ondemand_data;
 	struct devfreq_passive_data *passive_data;
 	struct devfreq *parent_devfreq;
-	struct exynos_bus *bus;
+	struct exyyess_bus *bus;
 	int ret, max_state;
 	unsigned long min_freq, max_freq;
 	bool passive = false;
 
 	if (!np) {
-		dev_err(dev, "failed to find devicetree node\n");
+		dev_err(dev, "failed to find devicetree yesde\n");
 		return -EINVAL;
 	}
 
@@ -316,29 +316,29 @@ static int exynos_bus_probe(struct platform_device *pdev)
 	if (!profile)
 		return -ENOMEM;
 
-	node = of_parse_phandle(dev->of_node, "devfreq", 0);
-	if (node) {
-		of_node_put(node);
+	yesde = of_parse_phandle(dev->of_yesde, "devfreq", 0);
+	if (yesde) {
+		of_yesde_put(yesde);
 		passive = true;
 	} else {
-		ret = exynos_bus_parent_parse_of(np, bus);
+		ret = exyyess_bus_parent_parse_of(np, bus);
 		if (ret < 0)
 			return ret;
 	}
 
 	/* Parse the device-tree to get the resource information */
-	ret = exynos_bus_parse_of(np, bus);
+	ret = exyyess_bus_parse_of(np, bus);
 	if (ret < 0)
 		goto err_reg;
 
 	if (passive)
 		goto passive;
 
-	/* Initialize the struct profile and governor data for parent device */
+	/* Initialize the struct profile and goveryesr data for parent device */
 	profile->polling_ms = 50;
-	profile->target = exynos_bus_target;
-	profile->get_dev_status = exynos_bus_get_dev_status;
-	profile->exit = exynos_bus_exit;
+	profile->target = exyyess_bus_target;
+	profile->get_dev_status = exyyess_bus_get_dev_status;
+	profile->exit = exyyess_bus_exit;
 
 	ondemand_data = devm_kzalloc(dev, sizeof(*ondemand_data), GFP_KERNEL);
 	if (!ondemand_data) {
@@ -348,7 +348,7 @@ static int exynos_bus_probe(struct platform_device *pdev)
 	ondemand_data->upthreshold = 40;
 	ondemand_data->downdifferential = 5;
 
-	/* Add devfreq device to monitor and handle the exynos bus */
+	/* Add devfreq device to monitor and handle the exyyess bus */
 	bus->devfreq = devm_devfreq_add_device(dev, profile,
 						DEVFREQ_GOV_SIMPLE_ONDEMAND,
 						ondemand_data);
@@ -358,10 +358,10 @@ static int exynos_bus_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	/* Register opp_notifier to catch the change of OPP  */
-	ret = devm_devfreq_register_opp_notifier(dev, bus->devfreq);
+	/* Register opp_yestifier to catch the change of OPP  */
+	ret = devm_devfreq_register_opp_yestifier(dev, bus->devfreq);
 	if (ret < 0) {
-		dev_err(dev, "failed to register opp notifier\n");
+		dev_err(dev, "failed to register opp yestifier\n");
 		goto err;
 	}
 
@@ -369,13 +369,13 @@ static int exynos_bus_probe(struct platform_device *pdev)
 	 * Enable devfreq-event to get raw data which is used to determine
 	 * current bus load.
 	 */
-	ret = exynos_bus_enable_edev(bus);
+	ret = exyyess_bus_enable_edev(bus);
 	if (ret < 0) {
 		dev_err(dev, "failed to enable devfreq-event devices\n");
 		goto err;
 	}
 
-	ret = exynos_bus_set_event(bus);
+	ret = exyyess_bus_set_event(bus);
 	if (ret < 0) {
 		dev_err(dev, "failed to set event to devfreq-event devices\n");
 		goto err;
@@ -383,9 +383,9 @@ static int exynos_bus_probe(struct platform_device *pdev)
 
 	goto out;
 passive:
-	/* Initialize the struct profile and governor data for passive device */
-	profile->target = exynos_bus_target;
-	profile->exit = exynos_bus_passive_exit;
+	/* Initialize the struct profile and goveryesr data for passive device */
+	profile->target = exyyess_bus_target;
+	profile->exit = exyyess_bus_passive_exit;
 
 	/* Get the instance of parent devfreq device */
 	parent_devfreq = devfreq_get_devfreq_by_phandle(dev, 0);
@@ -401,12 +401,12 @@ passive:
 	}
 	passive_data->parent = parent_devfreq;
 
-	/* Add devfreq device for exynos bus with passive governor */
+	/* Add devfreq device for exyyess bus with passive goveryesr */
 	bus->devfreq = devm_devfreq_add_device(dev, profile, DEVFREQ_GOV_PASSIVE,
 						passive_data);
 	if (IS_ERR(bus->devfreq)) {
 		dev_err(dev,
-			"failed to add devfreq dev with passive governor\n");
+			"failed to add devfreq dev with passive goveryesr\n");
 		ret = PTR_ERR(bus->devfreq);
 		goto err;
 	}
@@ -415,7 +415,7 @@ out:
 	max_state = bus->devfreq->profile->max_state;
 	min_freq = (bus->devfreq->profile->freq_table[0] / 1000);
 	max_freq = (bus->devfreq->profile->freq_table[max_state - 1] / 1000);
-	pr_info("exynos-bus: new bus device registered: %s (%6ld KHz ~ %6ld KHz)\n",
+	pr_info("exyyess-bus: new bus device registered: %s (%6ld KHz ~ %6ld KHz)\n",
 			dev_name(dev), min_freq, max_freq);
 
 	return 0;
@@ -432,20 +432,20 @@ err_reg:
 	return ret;
 }
 
-static void exynos_bus_shutdown(struct platform_device *pdev)
+static void exyyess_bus_shutdown(struct platform_device *pdev)
 {
-	struct exynos_bus *bus = dev_get_drvdata(&pdev->dev);
+	struct exyyess_bus *bus = dev_get_drvdata(&pdev->dev);
 
 	devfreq_suspend_device(bus->devfreq);
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int exynos_bus_resume(struct device *dev)
+static int exyyess_bus_resume(struct device *dev)
 {
-	struct exynos_bus *bus = dev_get_drvdata(dev);
+	struct exyyess_bus *bus = dev_get_drvdata(dev);
 	int ret;
 
-	ret = exynos_bus_enable_edev(bus);
+	ret = exyyess_bus_enable_edev(bus);
 	if (ret < 0) {
 		dev_err(dev, "failed to enable the devfreq-event devices\n");
 		return ret;
@@ -454,12 +454,12 @@ static int exynos_bus_resume(struct device *dev)
 	return 0;
 }
 
-static int exynos_bus_suspend(struct device *dev)
+static int exyyess_bus_suspend(struct device *dev)
 {
-	struct exynos_bus *bus = dev_get_drvdata(dev);
+	struct exyyess_bus *bus = dev_get_drvdata(dev);
 	int ret;
 
-	ret = exynos_bus_disable_edev(bus);
+	ret = exyyess_bus_disable_edev(bus);
 	if (ret < 0) {
 		dev_err(dev, "failed to disable the devfreq-event devices\n");
 		return ret;
@@ -469,27 +469,27 @@ static int exynos_bus_suspend(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops exynos_bus_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(exynos_bus_suspend, exynos_bus_resume)
+static const struct dev_pm_ops exyyess_bus_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(exyyess_bus_suspend, exyyess_bus_resume)
 };
 
-static const struct of_device_id exynos_bus_of_match[] = {
-	{ .compatible = "samsung,exynos-bus", },
+static const struct of_device_id exyyess_bus_of_match[] = {
+	{ .compatible = "samsung,exyyess-bus", },
 	{ /* sentinel */ },
 };
-MODULE_DEVICE_TABLE(of, exynos_bus_of_match);
+MODULE_DEVICE_TABLE(of, exyyess_bus_of_match);
 
-static struct platform_driver exynos_bus_platdrv = {
-	.probe		= exynos_bus_probe,
-	.shutdown	= exynos_bus_shutdown,
+static struct platform_driver exyyess_bus_platdrv = {
+	.probe		= exyyess_bus_probe,
+	.shutdown	= exyyess_bus_shutdown,
 	.driver = {
-		.name	= "exynos-bus",
-		.pm	= &exynos_bus_pm,
-		.of_match_table = of_match_ptr(exynos_bus_of_match),
+		.name	= "exyyess-bus",
+		.pm	= &exyyess_bus_pm,
+		.of_match_table = of_match_ptr(exyyess_bus_of_match),
 	},
 };
-module_platform_driver(exynos_bus_platdrv);
+module_platform_driver(exyyess_bus_platdrv);
 
-MODULE_DESCRIPTION("Generic Exynos Bus frequency driver");
+MODULE_DESCRIPTION("Generic Exyyess Bus frequency driver");
 MODULE_AUTHOR("Chanwoo Choi <cw00.choi@samsung.com>");
 MODULE_LICENSE("GPL v2");

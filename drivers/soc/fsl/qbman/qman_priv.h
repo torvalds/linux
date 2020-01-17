@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 yestice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -41,7 +41,7 @@
 struct qm_mcr_querywq {
 	u8 verb;
 	u8 result;
-	u16 channel_wq; /* ignores wq (3 lsbits): _res[0-2] */
+	u16 channel_wq; /* igyesres wq (3 lsbits): _res[0-2] */
 	u8 __reserved[28];
 	u32 wq_len[8];
 } __packed;
@@ -92,7 +92,7 @@ static inline u64 qm_mcr_querycgr_a_get64(const struct qm_mcr_querycgr *q)
 
 /*
  * This wrapper represents a bit-array for the state of the 256 QMan congestion
- * groups. Is also used as a *mask* for congestion groups, eg. so we ignore
+ * groups. Is also used as a *mask* for congestion groups, eg. so we igyesre
  * those that don't concern us. We harness the structure and accessor details
  * already used in the management command to query congestion groups.
  */

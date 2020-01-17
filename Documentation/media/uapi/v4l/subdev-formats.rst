@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _v4l2-mbus-format:
 
@@ -76,13 +76,13 @@ Media Bus Pixel Codes
 
 The media bus pixel codes describe image formats as flowing over
 physical buses (both between separate physical components and inside
-SoC devices). This should not be confused with the V4L2 pixel formats
+SoC devices). This should yest be confused with the V4L2 pixel formats
 that describe, using four character codes, image formats as stored in
 memory.
 
 While there is a relationship between image formats on buses and image
 formats in memory (a raw Bayer image won't be magically converted to
-JPEG just by storing it to memory), there is no one-to-one
+JPEG just by storing it to memory), there is yes one-to-one
 correspondence between them.
 
 The media bus pixel codes document parallel formats. Should the pixel data be
@@ -133,7 +133,7 @@ The following tables list existing packed RGB formats.
 
 .. HACK: ideally, we would be using adjustbox here. However, Sphinx
 .. is a very bad behaviored guy: if the table has more than 30 cols,
-.. it switches to long table, and there's no way to override it.
+.. it switches to long table, and there's yes way to override it.
 
 
 .. tabularcolumns:: |p{4.0cm}|p{0.7cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|
@@ -2020,7 +2020,7 @@ JEIDA defined bit mapping will be named
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 Bayer Formats
@@ -2075,7 +2075,7 @@ organization is given as an example for the first pixel only.
 
 .. HACK: ideally, we would be using adjustbox here. However, Sphinx
 .. is a very bad behaviored guy: if the table has more than 30 cols,
-.. it switches to long table, and there's no way to override it.
+.. it switches to long table, and there's yes way to override it.
 
 
 .. raw:: latex
@@ -2877,13 +2877,13 @@ Packed YUV Formats
 Those data formats transfer pixel data as (possibly downsampled) Y, U
 and V components. Some formats include dummy bits in some of their
 samples and are collectively referred to as "YDYC" (Y-Dummy-Y-Chroma)
-formats. One cannot rely on the values of these dummy bits as those are
+formats. One canyest rely on the values of these dummy bits as those are
 undefined.
 
 The format code is made of the following information.
 
 -  The Y, U and V components order code, as transferred on the bus.
-   Possible values are YUYV, UYVY, YVYU and VYUY for formats with no
+   Possible values are YUYV, UYVY, YVYU and VYUY for formats with yes
    dummy bit, and YDYUYDYV, YDYVYDYU, YUYDYVYD and YVYDYUYD for YDYC
    formats.
 
@@ -2922,7 +2922,7 @@ the following codes.
 
 -  a\ :sub:`x` for alpha component bit number x
 
-- for non-available bits (for positions higher than the bus width)
+- for yesn-available bits (for positions higher than the bus width)
 
 -  d for dummy bits
 
@@ -7724,7 +7724,7 @@ The following table lists existing HSV/HSL formats.
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 JPEG Compressed Formats

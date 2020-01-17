@@ -15,11 +15,11 @@
 /* general configuration options */
 
 #define S3C2410_GPIO_LEAVE   (0xFFFFFFFF)
-#define S3C2410_GPIO_INPUT   (0xFFFFFFF0)	/* not available on A */
+#define S3C2410_GPIO_INPUT   (0xFFFFFFF0)	/* yest available on A */
 #define S3C2410_GPIO_OUTPUT  (0xFFFFFFF1)
-#define S3C2410_GPIO_IRQ     (0xFFFFFFF2)	/* not available for all */
+#define S3C2410_GPIO_IRQ     (0xFFFFFFF2)	/* yest available for all */
 #define S3C2410_GPIO_SFN2    (0xFFFFFFF2)	/* bank A => addr/cs/nand */
-#define S3C2410_GPIO_SFN3    (0xFFFFFFF3)	/* not available on A */
+#define S3C2410_GPIO_SFN3    (0xFFFFFFF3)	/* yest available on A */
 
 /* register address for the GPIO registers.
  * S3C24XX_GPIOREG2 is for the second set of registers in the
@@ -76,7 +76,7 @@
 #define S3C2410_GPBDAT	   S3C2410_GPIOREG(0x14)
 #define S3C2410_GPBUP	   S3C2410_GPIOREG(0x18)
 
-/* no i/o pin in port b can have value 3 (unless it is a s3c2443) ! */
+/* yes i/o pin in port b can have value 3 (unless it is a s3c2443) ! */
 
 #define S3C2410_GPB0_TOUT0   (0x02 << 0)
 
@@ -321,7 +321,7 @@
 #define S3C2443_GPG4_LCDPWRDN (0x03 << 8)
 
 #define S3C2410_GPG5_EINT13   (0x02 << 10)
-#define S3C2410_GPG5_SPIMISO1 (0x03 << 10)	/* not s3c2443 */
+#define S3C2410_GPG5_SPIMISO1 (0x03 << 10)	/* yest s3c2443 */
 
 #define S3C2410_GPG6_EINT14   (0x02 << 12)
 #define S3C2410_GPG6_SPIMOSI1 (0x03 << 12)
@@ -417,7 +417,7 @@
 #define S3C2416_GPH14_CLKOUT1 (0x02 << 28)
 
 /* The S3C2412 and S3C2413 move the GPJ register set to after
- * GPH, which means all registers after 0x80 are now offset by 0x10
+ * GPH, which means all registers after 0x80 are yesw offset by 0x10
  * for the 2412/2413 from the 2410/2440/2442
 */
 
@@ -493,7 +493,7 @@
 
 #define S3C2410_MISCCR_nEN_SCLK0    (1<<17)
 #define S3C2410_MISCCR_nEN_SCLK1    (1<<18)
-#define S3C2410_MISCCR_nEN_SCLKE    (1<<19)	/* not 2412 */
+#define S3C2410_MISCCR_nEN_SCLKE    (1<<19)	/* yest 2412 */
 #define S3C2410_MISCCR_SDSLEEP	    (7<<17)
 
 #define S3C2416_MISCCR_FLT_I2C      (1<<24)
@@ -504,7 +504,7 @@
  * S3C2410_EXTINT1 -> irq sense control for EINT8..EINT15
  * S3C2410_EXTINT2 -> irq sense control for EINT16..EINT23
  *
- * note S3C2410_EXTINT2 has filtering options for EINT16..EINT23
+ * yeste S3C2410_EXTINT2 has filtering options for EINT16..EINT23
  *
  * Samsung datasheet p9-25
 */
@@ -532,7 +532,7 @@
 #define S3C2410_EINTFLT_EXTCLK		(1<<7)
 #define S3C2410_EINTFLT_WIDTHMSK(x)	((x) & 0x3f)
 
-/* removed EINTxxxx defs from here, not meant for this */
+/* removed EINTxxxx defs from here, yest meant for this */
 
 /* GSTATUS have miscellaneous information in them
  *

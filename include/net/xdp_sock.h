@@ -48,7 +48,7 @@ struct xdp_umem {
 	u64 chunk_mask;
 	u64 size;
 	u32 headroom;
-	u32 chunk_size_nohr;
+	u32 chunk_size_yeshr;
 	struct user_struct *user;
 	unsigned long address;
 	refcount_t users;
@@ -77,8 +77,8 @@ struct xsk_map {
 	struct xdp_sock *xsk_map[];
 };
 
-struct xsk_map_node {
-	struct list_head node;
+struct xsk_map_yesde {
+	struct list_head yesde;
 	struct xsk_map *map;
 	struct xdp_sock **map_entry;
 };
@@ -89,7 +89,7 @@ struct xdp_sock {
 	struct xsk_queue *rx;
 	struct net_device *dev;
 	struct xdp_umem *umem;
-	struct list_head flush_node;
+	struct list_head flush_yesde;
 	u16 queue_id;
 	bool zc;
 	enum {

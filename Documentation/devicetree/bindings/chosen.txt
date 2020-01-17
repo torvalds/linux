@@ -1,9 +1,9 @@
-The chosen node
+The chosen yesde
 ---------------
 
-The chosen node does not represent a real device, but serves as a place
+The chosen yesde does yest represent a real device, but serves as a place
 for passing data between firmware and the operating system, like boot
-arguments. Data in the chosen node does not represent the hardware.
+arguments. Data in the chosen yesde does yest represent the hardware.
 
 The following properties are recognized:
 
@@ -14,7 +14,7 @@ kaslr-seed
 This property is used when booting with CONFIG_RANDOMIZE_BASE as the
 entropy used to randomize the kernel image base address location. Since
 it is used directly, this value is intended only for KASLR, and should
-not be used for other purposes (as it may leak information about KASLR
+yest be used for other purposes (as it may leak information about KASLR
 offsets). It is parsed as a u64 value, e.g.
 
 / {
@@ -57,14 +57,14 @@ For UART devices, the preferred binding is a string in the form:
 where
 
 	baud	- baud rate in decimal
-	parity	- 'n' (none), 'o', (odd) or 'e' (even)
+	parity	- 'n' (yesne), 'o', (odd) or 'e' (even)
 	bits	- number of data bits
 	flow	- 'r' (rts)
 
 For example: 115200n8r
 
-Implementation note: Linux will look for the property "linux,stdout-path" or
-on PowerPC "stdout" if "stdout-path" is not found.  However, the
+Implementation yeste: Linux will look for the property "linux,stdout-path" or
+on PowerPC "stdout" if "stdout-path" is yest found.  However, the
 "linux,stdout-path" and "stdout" properties are deprecated. New platforms
 should only use the "stdout-path" property.
 
@@ -81,11 +81,11 @@ linux,usable-memory-range
 
 This property (arm64 only) holds a base address and size, describing a
 limited region in which memory may be considered available for use by
-the kernel. Memory outside of this range is not available for use.
+the kernel. Memory outside of this range is yest available for use.
 
 This property describes a limitation: memory within this range is only
-valid when also described through another mechanism that the kernel
-would otherwise use to determine available memory (e.g. memory nodes
+valid when also described through ayesther mechanism that the kernel
+would otherwise use to determine available memory (e.g. memory yesdes
 or the EFI memory map). Valid memory may be sparse within the range.
 e.g.
 
@@ -99,9 +99,9 @@ The main usage is for crash dump kernel to identify its own usable
 memory and exclude, at its boot time, any other memory areas that are
 part of the panicked kernel's memory.
 
-While this property does not represent a real hardware, the address
+While this property does yest represent a real hardware, the address
 and the size are expressed in #address-cells and #size-cells,
-respectively, of the root node.
+respectively, of the root yesde.
 
 linux,elfcorehdr
 ----------------
@@ -117,9 +117,9 @@ e.g.
 	};
 };
 
-While this property does not represent a real hardware, the address
+While this property does yest represent a real hardware, the address
 and the size are expressed in #address-cells and #size-cells,
-respectively, of the root node.
+respectively, of the root yesde.
 
 linux,initrd-start and linux,initrd-end
 ---------------------------------------

@@ -29,7 +29,7 @@ static DEFINE_SPINLOCK(rtciobrg_lock);
 
 /*
  * symbols without lock are only used by suspend asm codes
- * and these symbols are not exported too
+ * and these symbols are yest exported too
  */
 void sirfsoc_rtc_iobrg_wait_sync(void)
 {
@@ -150,7 +150,7 @@ static const struct of_device_id rtciobrg_ids[] = {
 
 static int sirfsoc_rtciobrg_probe(struct platform_device *op)
 {
-	struct device_node *np = op->dev.of_node;
+	struct device_yesde *np = op->dev.of_yesde;
 
 	sirfsoc_rtciobrg_base = of_iomap(np, 0);
 	if (!sirfsoc_rtciobrg_base)

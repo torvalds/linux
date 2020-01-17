@@ -2,7 +2,7 @@
  /*
     tea6420 - i2c-driver for the tea6420 by SGS Thomson
 
-    Copyright (C) 1998-2003 Michael Hunold <michael@mihu.de>
+    Copyright (C) 1998-2003 Michael Huyesld <michael@mihu.de>
     Copyright (C) 2008 Hans Verkuil <hverkuil@xs4all.nl>
 
     The tea6420 is a bus controlled audio-matrix with 5 stereo inputs,
@@ -23,7 +23,7 @@
 #include <media/v4l2-device.h>
 #include "tea6420.h"
 
-MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
+MODULE_AUTHOR("Michael Huyesld <michael@mihu.de>");
 MODULE_DESCRIPTION("tea6420 driver");
 MODULE_LICENSE("GPL");
 
@@ -34,7 +34,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 
 /* make a connection between the input 'i' and the output 'o'
-   with gain 'g' (note: i = 6 means 'mute') */
+   with gain 'g' (yeste: i = 6 means 'mute') */
 static int tea6420_s_routing(struct v4l2_subdev *sd,
 			     u32 i, u32 o, u32 config)
 {
@@ -110,7 +110,7 @@ static int tea6420_probe(struct i2c_client *client,
 	for (i = 1; i < 5; i++)
 		err += tea6420_s_routing(sd, 6, i, 0);
 	if (err) {
-		v4l_dbg(1, debug, client, "could not initialize tea6420\n");
+		v4l_dbg(1, debug, client, "could yest initialize tea6420\n");
 		return -ENODEV;
 	}
 	return 0;

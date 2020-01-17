@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -109,7 +109,7 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 	 * Skip tentative address when ns offload is enabled to avoid
 	 * violating RFC4862.
 	 * Keep tentative address when ns offload is disabled so the NS packets
-	 * will not be filtered out and will wake up the host.
+	 * will yest be filtered out and will wake up the host.
 	 */
 	bool skip_tentative = offload_ns;
 
@@ -136,7 +136,7 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 		/*
 		 * For each address we have (and that will fit) fill a target
 		 * address struct and combine for NS offload structs with the
-		 * solicited node addresses.
+		 * solicited yesde addresses.
 		 */
 		for (i = 0, c = 0;
 		     i < mvmvif->num_target_ipv6_addrs &&

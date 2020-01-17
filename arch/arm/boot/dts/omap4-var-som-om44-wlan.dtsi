@@ -58,7 +58,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc4_pins>;
 	vmmc-supply = <&wl12xx_vmmc>;
-	non-removable;
+	yesn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 	status = "okay";

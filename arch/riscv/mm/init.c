@@ -38,7 +38,7 @@ static void __init zone_sizes_init(void)
 #endif
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 
-	free_area_init_nodes(max_zone_pfns);
+	free_area_init_yesdes(max_zone_pfns);
 }
 
 static void setup_zero_page(void)
@@ -49,19 +49,19 @@ static void setup_zero_page(void)
 #ifdef CONFIG_DEBUG_VM
 static inline void print_mlk(char *name, unsigned long b, unsigned long t)
 {
-	pr_notice("%12s : 0x%08lx - 0x%08lx   (%4ld kB)\n", name, b, t,
+	pr_yestice("%12s : 0x%08lx - 0x%08lx   (%4ld kB)\n", name, b, t,
 		  (((t) - (b)) >> 10));
 }
 
 static inline void print_mlm(char *name, unsigned long b, unsigned long t)
 {
-	pr_notice("%12s : 0x%08lx - 0x%08lx   (%4ld MB)\n", name, b, t,
+	pr_yestice("%12s : 0x%08lx - 0x%08lx   (%4ld MB)\n", name, b, t,
 		  (((t) - (b)) >> 20));
 }
 
 static void print_vm_layout(void)
 {
-	pr_notice("Virtual kernel memory layout:\n");
+	pr_yestice("Virtual kernel memory layout:\n");
 	print_mlk("fixmap", (unsigned long)FIXADDR_START,
 		  (unsigned long)FIXADDR_TOP);
 	print_mlm("pci io", (unsigned long)PCI_IO_START,
@@ -96,7 +96,7 @@ static void __init setup_initrd(void)
 	unsigned long size;
 
 	if (initrd_start >= initrd_end) {
-		pr_info("initrd not found or empty");
+		pr_info("initrd yest found or empty");
 		goto disable;
 	}
 	if (__pa_symbol(initrd_end) > PFN_PHYS(max_low_pfn)) {
@@ -157,7 +157,7 @@ void __init setup_bootmem(void)
 
 	/*
 	 * Avoid using early_init_fdt_reserve_self() since __pa() does
-	 * not work for DTB pointers that are fixmap addresses
+	 * yest work for DTB pointers that are fixmap addresses
 	 */
 	memblock_reserve(dtb_early_pa, fdt_totalsize(dtb_early_va));
 
@@ -169,7 +169,7 @@ void __init setup_bootmem(void)
 		unsigned long start_pfn = memblock_region_memory_base_pfn(reg);
 		unsigned long end_pfn = memblock_region_memory_end_pfn(reg);
 
-		memblock_set_node(PFN_PHYS(start_pfn),
+		memblock_set_yesde(PFN_PHYS(start_pfn),
 				  PFN_PHYS(end_pfn - start_pfn),
 				  &memblock.memory, 0);
 	}
@@ -236,7 +236,7 @@ static void __init create_pte_mapping(pte_t *ptep,
 
 	BUG_ON(sz != PAGE_SIZE);
 
-	if (pte_none(ptep[pte_index]))
+	if (pte_yesne(ptep[pte_index]))
 		ptep[pte_index] = pfn_pte(PFN_DOWN(pa), prot);
 }
 
@@ -283,12 +283,12 @@ static void __init create_pmd_mapping(pmd_t *pmdp,
 	uintptr_t pmd_index = pmd_index(va);
 
 	if (sz == PMD_SIZE) {
-		if (pmd_none(pmdp[pmd_index]))
+		if (pmd_yesne(pmdp[pmd_index]))
 			pmdp[pmd_index] = pfn_pmd(PFN_DOWN(pa), prot);
 		return;
 	}
 
-	if (pmd_none(pmdp[pmd_index])) {
+	if (pmd_yesne(pmdp[pmd_index])) {
 		pte_phys = alloc_pte(va);
 		pmdp[pmd_index] = pfn_pmd(PFN_DOWN(pte_phys), PAGE_TABLE);
 		ptep = get_pte_virt(pte_phys);
@@ -355,19 +355,19 @@ static uintptr_t __init best_map_size(phys_addr_t base, phys_addr_t size)
 /*
  * setup_vm() is called from head.S with MMU-off.
  *
- * Following requirements should be honoured for setup_vm() to work
+ * Following requirements should be hoyesured for setup_vm() to work
  * correctly:
  * 1) It should use PC-relative addressing for accessing kernel symbols.
  *    To achieve this we always use GCC cmodel=medany.
- * 2) The compiler instrumentation for FTRACE will not work for setup_vm()
+ * 2) The compiler instrumentation for FTRACE will yest work for setup_vm()
  *    so disable compiler instrumentation when FTRACE is enabled.
  *
- * Currently, the above requirements are honoured by using custom CFLAGS
+ * Currently, the above requirements are hoyesured by using custom CFLAGS
  * for init.o in mm/Makefile.
  */
 
 #ifndef __riscv_cmodel_medany
-#error "setup_vm() is called from head.S before relocate so it should not use absolute addressing."
+#error "setup_vm() is called from head.S before relocate so it should yest use absolute addressing."
 #endif
 
 asmlinkage void __init setup_vm(uintptr_t dtb_pa)
@@ -455,7 +455,7 @@ static void __init setup_vm_final(void)
 
 		if (start >= end)
 			break;
-		if (memblock_is_nomap(reg))
+		if (memblock_is_yesmap(reg))
 			continue;
 		if (start <= __pa(PAGE_OFFSET) &&
 		    __pa(PAGE_OFFSET) < end)
@@ -498,9 +498,9 @@ void __init paging_init(void)
 }
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int yesde,
 			       struct vmem_altmap *altmap)
 {
-	return vmemmap_populate_basepages(start, end, node);
+	return vmemmap_populate_basepages(start, end, yesde);
 }
 #endif

@@ -21,7 +21,7 @@
 #include <linux/pci-acpi.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pm.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -57,7 +57,7 @@ struct aer_stats {
 	 * "as seen by this device". Note that this may mean that if an
 	 * end point is causing problems, the AER counters may increment
 	 * at its link partner (e.g. root port) because the errors will be
-	 * "seen" by the link partner and not the the problematic end point
+	 * "seen" by the link partner and yest the the problematic end point
 	 * itself (which may report all counters as 0 as it never saw any
 	 * problems).
 	 */
@@ -65,14 +65,14 @@ struct aer_stats {
 	u64 dev_cor_errs[AER_MAX_TYPEOF_COR_ERRS];
 	/* Counters for different type of fatal uncorrectable errors */
 	u64 dev_fatal_errs[AER_MAX_TYPEOF_UNCOR_ERRS];
-	/* Counters for different type of nonfatal uncorrectable errors */
-	u64 dev_nonfatal_errs[AER_MAX_TYPEOF_UNCOR_ERRS];
+	/* Counters for different type of yesnfatal uncorrectable errors */
+	u64 dev_yesnfatal_errs[AER_MAX_TYPEOF_UNCOR_ERRS];
 	/* Total number of ERR_COR sent by this device */
 	u64 dev_total_cor_errs;
 	/* Total number of ERR_FATAL sent by this device */
 	u64 dev_total_fatal_errs;
 	/* Total number of ERR_NONFATAL sent by this device */
-	u64 dev_total_nonfatal_errs;
+	u64 dev_total_yesnfatal_errs;
 
 	/*
 	 * Fields for Root ports & root complex event collectors only, these
@@ -82,7 +82,7 @@ struct aer_stats {
 	 */
 	u64 rootport_total_cor_errs;
 	u64 rootport_total_fatal_errs;
-	u64 rootport_total_nonfatal_errs;
+	u64 rootport_total_yesnfatal_errs;
 };
 
 #define AER_LOG_TLP_MASKS		(PCI_ERR_UNC_POISON_TLP|	\
@@ -103,7 +103,7 @@ struct aer_stats {
 
 static int pcie_aer_disable;
 
-void pci_no_aer(void)
+void pci_yes_aer(void)
 {
 	pcie_aer_disable = 1;
 }
@@ -269,7 +269,7 @@ static int aer_hest_parse(struct acpi_hest_header *hest_hdr, void *data)
 	ff = !!(p->flags & ACPI_HEST_FIRMWARE_FIRST);
 
 	/*
-	 * If no specific device is supplied, determine whether
+	 * If yes specific device is supplied, determine whether
 	 * FIRMWARE_FIRST is set for *any* PCIe device.
 	 */
 	if (!info->pci_dev) {
@@ -661,9 +661,9 @@ aer_stats_dev_attr(aer_dev_correctable, dev_cor_errs,
 aer_stats_dev_attr(aer_dev_fatal, dev_fatal_errs,
 		   aer_uncorrectable_error_string, "ERR_FATAL",
 		   dev_total_fatal_errs);
-aer_stats_dev_attr(aer_dev_nonfatal, dev_nonfatal_errs,
+aer_stats_dev_attr(aer_dev_yesnfatal, dev_yesnfatal_errs,
 		   aer_uncorrectable_error_string, "ERR_NONFATAL",
-		   dev_total_nonfatal_errs);
+		   dev_total_yesnfatal_errs);
 
 #define aer_stats_rootport_attr(name, field)				\
 	static ssize_t							\
@@ -679,16 +679,16 @@ aer_stats_rootport_attr(aer_rootport_total_err_cor,
 			 rootport_total_cor_errs);
 aer_stats_rootport_attr(aer_rootport_total_err_fatal,
 			 rootport_total_fatal_errs);
-aer_stats_rootport_attr(aer_rootport_total_err_nonfatal,
-			 rootport_total_nonfatal_errs);
+aer_stats_rootport_attr(aer_rootport_total_err_yesnfatal,
+			 rootport_total_yesnfatal_errs);
 
 static struct attribute *aer_stats_attrs[] __ro_after_init = {
 	&dev_attr_aer_dev_correctable.attr,
 	&dev_attr_aer_dev_fatal.attr,
-	&dev_attr_aer_dev_nonfatal.attr,
+	&dev_attr_aer_dev_yesnfatal.attr,
 	&dev_attr_aer_rootport_total_err_cor.attr,
 	&dev_attr_aer_rootport_total_err_fatal.attr,
-	&dev_attr_aer_rootport_total_err_nonfatal.attr,
+	&dev_attr_aer_rootport_total_err_yesnfatal.attr,
 	NULL
 };
 
@@ -703,7 +703,7 @@ static umode_t aer_stats_attrs_are_visible(struct kobject *kobj,
 
 	if ((a == &dev_attr_aer_rootport_total_err_cor.attr ||
 	     a == &dev_attr_aer_rootport_total_err_fatal.attr ||
-	     a == &dev_attr_aer_rootport_total_err_nonfatal.attr) &&
+	     a == &dev_attr_aer_rootport_total_err_yesnfatal.attr) &&
 	    pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT)
 		return 0;
 
@@ -733,8 +733,8 @@ static void pci_dev_aer_stats_incr(struct pci_dev *pdev,
 		max = AER_MAX_TYPEOF_COR_ERRS;
 		break;
 	case AER_NONFATAL:
-		aer_stats->dev_total_nonfatal_errs++;
-		counter = &aer_stats->dev_nonfatal_errs[0];
+		aer_stats->dev_total_yesnfatal_errs++;
+		counter = &aer_stats->dev_yesnfatal_errs[0];
 		max = AER_MAX_TYPEOF_UNCOR_ERRS;
 		break;
 	case AER_FATAL:
@@ -763,7 +763,7 @@ static void pci_rootport_aer_stats_incr(struct pci_dev *pdev,
 		if (e_src->status & PCI_ERR_ROOT_FATAL_RCV)
 			aer_stats->rootport_total_fatal_errs++;
 		else
-			aer_stats->rootport_total_nonfatal_errs++;
+			aer_stats->rootport_total_yesnfatal_errs++;
 	}
 }
 
@@ -793,7 +793,7 @@ static void __aer_print_error(struct pci_dev *dev,
 			pci_err(dev, "   [%2d] %-22s%s\n", i, errmsg,
 				info->first_error == i ? " (First)" : "");
 		else
-			pci_err(dev, "   [%2d] Unknown Error Bit%s\n",
+			pci_err(dev, "   [%2d] Unkyeswn Error Bit%s\n",
 				i, info->first_error == i ? " (First)" : "");
 	}
 	pci_dev_aer_stats_incr(dev, info);
@@ -938,7 +938,7 @@ static bool is_error_source(struct pci_dev *dev, struct aer_err_info *e_info)
 		if (e_info->id == ((dev->bus->number << 8) | dev->devfn))
 			return true;
 
-		/* Continue id comparing if there is no multiple error */
+		/* Continue id comparing if there is yes multiple error */
 		if (!e_info->multi_error_valid)
 			return false;
 	}
@@ -984,7 +984,7 @@ static int find_device_iter(struct pci_dev *dev, void *data)
 	if (is_error_source(dev, e_info)) {
 		/* List this device */
 		if (add_error_device(e_info, dev)) {
-			/* We cannot handle more... Stop iteration */
+			/* We canyest handle more... Stop iteration */
 			/* TODO: Should print error message here? */
 			return 1;
 		}
@@ -1044,7 +1044,7 @@ static void handle_error_source(struct pci_dev *dev, struct aer_err_info *info)
 
 	if (info->severity == AER_CORRECTABLE) {
 		/*
-		 * Correctable error does not need software intervention.
+		 * Correctable error does yest need software intervention.
 		 * No need to go through error recovery process.
 		 */
 		pos = dev->aer_cap;
@@ -1053,7 +1053,7 @@ static void handle_error_source(struct pci_dev *dev, struct aer_err_info *info)
 					info->status);
 		pci_aer_clear_device_status(dev);
 	} else if (info->severity == AER_NONFATAL)
-		pcie_do_recovery(dev, pci_channel_io_normal,
+		pcie_do_recovery(dev, pci_channel_io_yesrmal,
 				 PCIE_PORT_SERVICE_AER);
 	else if (info->severity == AER_FATAL)
 		pcie_do_recovery(dev, pci_channel_io_frozen,
@@ -1086,14 +1086,14 @@ static void aer_recover_work_func(struct work_struct *work)
 		pdev = pci_get_domain_bus_and_slot(entry.domain, entry.bus,
 						   entry.devfn);
 		if (!pdev) {
-			pr_err("AER recover: Can not find pci_dev for %04x:%02x:%02x:%x\n",
+			pr_err("AER recover: Can yest find pci_dev for %04x:%02x:%02x:%x\n",
 			       entry.domain, entry.bus,
 			       PCI_SLOT(entry.devfn), PCI_FUNC(entry.devfn));
 			continue;
 		}
 		cper_print_aer(pdev, entry.severity, entry.regs);
 		if (entry.severity == AER_NONFATAL)
-			pcie_do_recovery(pdev, pci_channel_io_normal,
+			pcie_do_recovery(pdev, pci_channel_io_yesrmal,
 					 PCIE_PORT_SERVICE_AER);
 		else if (entry.severity == AER_FATAL)
 			pcie_do_recovery(pdev, pci_channel_io_frozen,
@@ -1104,7 +1104,7 @@ static void aer_recover_work_func(struct work_struct *work)
 
 /*
  * Mutual exclusion for writers of aer_recover_ring, reader side don't
- * need lock, because there is only one reader and lock is not needed
+ * need lock, because there is only one reader and lock is yest needed
  * between reader and writer.
  */
 static DEFINE_SPINLOCK(aer_recover_ring_lock);
@@ -1150,7 +1150,7 @@ int aer_get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 
 	pos = dev->aer_cap;
 
-	/* The device might not support AER */
+	/* The device might yest support AER */
 	if (!pos)
 		return 0;
 
@@ -1197,7 +1197,7 @@ static inline void aer_process_err_devices(struct aer_err_info *e_info)
 {
 	int i;
 
-	/* Report all before handle them, not to lost records by reset etc. */
+	/* Report all before handle them, yest to lost records by reset etc. */
 	for (i = 0; i < e_info->error_dev_num && e_info->dev[i]; i++) {
 		if (aer_get_device_error_info(e_info->dev[i], e_info))
 			aer_print_error(e_info->dev[i], e_info);

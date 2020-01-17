@@ -258,7 +258,7 @@ static int adnp_gpio_setup(struct adnp *adnp, unsigned int num_gpios)
 	chip->ngpio = num_gpios;
 	chip->label = adnp->client->name;
 	chip->parent = &adnp->client->dev;
-	chip->of_node = chip->parent->of_node;
+	chip->of_yesde = chip->parent->of_yesde;
 	chip->owner = THIS_MODULE;
 
 	err = devm_gpiochip_add_data(&adnp->client->dev, chip, adnp);
@@ -314,7 +314,7 @@ static irqreturn_t adnp_irq(int irq, void *data)
 		pending |= (adnp->irq_high[i] & level) |
 			   (adnp->irq_low[i] & ~level);
 
-		/* mask out non-pending and disabled interrupts */
+		/* mask out yesn-pending and disabled interrupts */
 		pending &= isr & ier;
 
 		for_each_set_bit(bit, &pending, 8) {
@@ -471,7 +471,7 @@ static int adnp_irq_setup(struct adnp *adnp)
 					  IRQ_TYPE_NONE);
 	if (err) {
 		dev_err(chip->parent,
-			"could not connect irqchip to gpiochip\n");
+			"could yest connect irqchip to gpiochip\n");
 		return err;
 	}
 
@@ -483,7 +483,7 @@ static int adnp_irq_setup(struct adnp *adnp)
 static int adnp_i2c_probe(struct i2c_client *client,
 				    const struct i2c_device_id *id)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	struct adnp *adnp;
 	u32 num_gpios;
 	int err;

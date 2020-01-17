@@ -10,7 +10,7 @@
 /// containing the allocation function.  It is thus necessary to make the
 /// connection between the allocation function and the freeing function.
 /// Here this is done using the specific argument text, which is prone to
-/// false positives.  There is no rule for the request_region and
+/// false positives.  There is yes rule for the request_region and
 /// request_mem_region variants because this heuristic seems to be a bit
 /// less reliable in these cases.
 ///
@@ -19,7 +19,7 @@
 // Copyright: (C) 2011 Gilles Muller, INRIA/LiP6.
 // URL: http://coccinelle.lip6.fr/
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --yes-includes --include-headers
 
 virtual org
 virtual report
@@ -52,7 +52,7 @@ expression x;
 |
  x = devm_ioremap(...)
 |
- x = devm_ioremap_nocache(...)
+ x = devm_ioremap_yescache(...)
 |
  x = devm_ioport_map(...)
 )
@@ -85,7 +85,7 @@ position p;
 |
  x = ioremap(...)
 |
- x = ioremap_nocache(...)
+ x = ioremap_yescache(...)
 |
  x = ioport_map(...)
 )

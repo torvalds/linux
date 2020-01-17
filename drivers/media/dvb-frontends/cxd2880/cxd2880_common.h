@@ -10,7 +10,7 @@
 #define CXD2880_COMMON_H
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/string.h>
 

@@ -1,7 +1,7 @@
 /*
  * Table of the DAVINCI register configurations for the PINMUX combinations
  *
- * Author: Vladimir Barinov, MontaVista Software, Inc. <source@mvista.com>
+ * Author: Vladimir Bariyesv, MontaVista Software, Inc. <source@mvista.com>
  *
  * Based on linux/include/asm-arm/arch-omap/mux.h:
  * Copyright (C) 2003 - 2005 Nokia Corporation
@@ -979,7 +979,7 @@ enum davinci_da850_index {
 extern int davinci_cfg_reg(unsigned long reg_cfg);
 extern int davinci_cfg_reg_list(const short pins[]);
 #else
-/* boot loader does it all (no warnings from CONFIG_DAVINCI_MUX_WARNINGS) */
+/* boot loader does it all (yes warnings from CONFIG_DAVINCI_MUX_WARNINGS) */
 static inline int davinci_cfg_reg(unsigned long reg_cfg) { return 0; }
 static inline int davinci_cfg_reg_list(const short pins[])
 {

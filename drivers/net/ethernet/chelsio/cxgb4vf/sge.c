@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -136,7 +136,7 @@ enum {
 
 	/*
 	 * For incoming packets less than RX_COPY_THRES, we copy the data into
-	 * an skb rather than referencing the data.  We allocate enough
+	 * an skb rather than referencing the data.  We allocate eyesugh
 	 * in-line room in skb's to accommodate pulling in RX_PULL_LEN bytes
 	 * of the data (header).
 	 */
@@ -182,7 +182,7 @@ struct rx_sw_desc {
  */
 enum {
 	RX_LARGE_BUF    = 1 << 0,	/* buffer is SGE_FL_BUFFER_SIZE[1] */
-	RX_UNMAPPED_BUF = 1 << 1,	/* buffer is not mapped */
+	RX_UNMAPPED_BUF = 1 << 1,	/* buffer is yest mapped */
 };
 
 /**
@@ -202,7 +202,7 @@ static inline dma_addr_t get_buf_addr(const struct rx_sw_desc *sdesc)
  *	@sdesc: pointer to the software buffer descriptor
  *
  *	Determine whether the buffer associated with a software descriptor in
- *	mapped for DMA or not.
+ *	mapped for DMA or yest.
  */
 static inline bool is_buf_mapped(const struct rx_sw_desc *sdesc)
 {
@@ -495,10 +495,10 @@ static void free_rx_bufs(struct adapter *adapter, struct sge_fl *fl, int n)
  *	Unmap the current buffer on an SGE Free List RX queue.   The
  *	buffer must be made inaccessible to HW before calling this function.
  *
- *	This is similar to @free_rx_bufs above but does not free the buffer.
- *	Do note that the FL still loses any further access to the buffer.
+ *	This is similar to @free_rx_bufs above but does yest free the buffer.
+ *	Do yeste that the FL still loses any further access to the buffer.
  *	This is used predominantly to "transfer ownership" of an FL buffer
- *	to another entity (typically an skb's fragment list).
+ *	to ayesther entity (typically an skb's fragment list).
  */
 static void unmap_rx_buf(struct adapter *adapter, struct sge_fl *fl)
 {
@@ -596,7 +596,7 @@ static inline void poison_buf(struct page *page, size_t sz)
  *
  *	(Re)populate an SGE free-buffer queue with up to @n new packet buffers,
  *	allocated with the supplied gfp flags.  The caller must assure that
- *	@n does not exceed the queue's capacity -- i.e. (cidx == pidx) _IN
+ *	@n does yest exceed the queue's capacity -- i.e. (cidx == pidx) _IN
  *	EGRESS QUEUE UNITS_ indicates an empty Free List!  Returns the number
  *	of buffers allocated.  If afterwards the queue is found critically low,
  *	mark it as starving in the bitmap of starving FLs.
@@ -633,7 +633,7 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
 		page = __dev_alloc_pages(gfp, s->fl_pg_order);
 		if (unlikely(!page)) {
 			/*
-			 * We've failed inour attempt to allocate a "large
+			 * We've failed iyesur attempt to allocate a "large
 			 * page".  Fail over to the "small page" allocation
 			 * below.
 			 */
@@ -826,14 +826,14 @@ static inline unsigned int flits_to_desc(unsigned int flits)
  *	is_eth_imm - can an Ethernet packet be sent as immediate data?
  *	@skb: the packet
  *
- *	Returns whether an Ethernet packet is small enough to fit completely as
+ *	Returns whether an Ethernet packet is small eyesugh to fit completely as
  *	immediate data.
  */
 static inline int is_eth_imm(const struct sk_buff *skb)
 {
 	/*
 	 * The VF Driver uses the FW_ETH_TX_PKT_VM_WR firmware Work Request
-	 * which does not accommodate immediate data.  We could dike out all
+	 * which does yest accommodate immediate data.  We could dike out all
 	 * of the support code for immediate data but that would tie our hands
 	 * too much if we ever want to enhace the firmware.  It would also
 	 * create more differences between the PF and VF Drivers.
@@ -853,7 +853,7 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb)
 	unsigned int flits;
 
 	/*
-	 * If the skb is small enough, we can pump it out as a work request
+	 * If the skb is small eyesugh, we can pump it out as a work request
 	 * with only immediate data.  In that case we just have to have the
 	 * TX Packet header plus the skb data in the Work Request.
 	 */
@@ -895,7 +895,7 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb)
  *	The SGL includes all of the packet's page fragments and the data in its
  *	main body except for the first @start bytes.  @pos must be 16-byte
  *	aligned and within a TX descriptor with available space.  @end points
- *	write after the end of the SGL but does not account for any potential
+ *	write after the end of the SGL but does yest account for any potential
  *	wrap around, i.e., @end > @tq->stat.
  */
 static void write_sgl(const struct sk_buff *skb, struct sge_txq *tq,
@@ -1088,9 +1088,9 @@ static u64 hwcsum(enum chip_type chip, const struct sk_buff *skb)
 		else if (iph->protocol == IPPROTO_UDP)
 			csum_type = TX_CSUM_UDPIP;
 		else {
-nocsum:
+yescsum:
 			/*
-			 * unknown protocol, disable HW csum
+			 * unkyeswn protocol, disable HW csum
 			 * and hope a bad packet is detected
 			 */
 			return TXPKT_L4CSUM_DIS_F;
@@ -1106,7 +1106,7 @@ nocsum:
 		else if (ip6h->nexthdr == IPPROTO_UDP)
 			csum_type = TX_CSUM_UDPIP6;
 		else
-			goto nocsum;
+			goto yescsum;
 	}
 
 	if (likely(csum_type >= TX_CSUM_TCPIP)) {
@@ -1218,7 +1218,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(credits < 0)) {
 		/*
-		 * Not enough room for this packet's Work Request.  Stop the
+		 * Not eyesugh room for this packet's Work Request.  Stop the
 		 * TX Queue and return a "busy" condition.  The queue will get
 		 * started later on when the firmware informs us that space
 		 * has opened up.
@@ -1246,7 +1246,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		/*
 		 * After we're done injecting the Work Request for this
 		 * packet, we'll be below our "stop threshold" so stop the TX
-		 * Queue now and schedule a request for an SGE Egress Queue
+		 * Queue yesw and schedule a request for an SGE Egress Queue
 		 * Update message.  The queue will get started later on when
 		 * the firmware processes this Work Request and sends us an
 		 * Egress Queue Status Update message indicating that space
@@ -1257,7 +1257,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/*
-	 * Start filling in our Work Request.  Note that we do _not_ handle
+	 * Start filling in our Work Request.  Note that we do _yest_ handle
 	 * the WR Header wrapping around the TX Descriptor Ring.  If our
 	 * maximum header size ever exceeds one TX Descriptor, we'll need to
 	 * do something else here.
@@ -1299,7 +1299,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 				    LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
 		lso->ipid_ofst = cpu_to_be16(0);
 		lso->mss = cpu_to_be16(ssi->gso_size);
-		lso->seqno_offset = cpu_to_be32(0);
+		lso->seqyes_offset = cpu_to_be32(0);
 		if (is_t4(adapter->params.chip))
 			lso->len = cpu_to_be32(skb->len);
 		else
@@ -1390,17 +1390,17 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * Descriptors are reclaimed after their DMAs complete.
 		 * However, this could take quite a while since, in general,
 		 * the hardware is set up to be lazy about sending DMA
-		 * completion notifications to us and we mostly perform TX
+		 * completion yestifications to us and we mostly perform TX
 		 * reclaims in the transmit routine.
 		 *
 		 * This is good for performamce but means that we rely on new
 		 * TX packets arriving to run the destructors of completed
 		 * packets, which open up space in their sockets' send queues.
-		 * Sometimes we do not get such new packets causing TX to
+		 * Sometimes we do yest get such new packets causing TX to
 		 * stall.  A single UDP transmitter is a good example of this
 		 * situation.  We have a clean up timer that periodically
-		 * reclaims completed packets but it doesn't run often enough
-		 * (nor do we want it to) to prevent lengthy stalls.  A
+		 * reclaims completed packets but it doesn't run often eyesugh
+		 * (yesr do we want it to) to prevent lengthy stalls.  A
 		 * solution to this problem is to run the destructor early,
 		 * after the packet is queued but before it's DMAd.  A con is
 		 * that we lie to socket memory accounting, but the amount of
@@ -1505,9 +1505,9 @@ static struct sk_buff *t4vf_pktgl_to_skb(const struct pkt_gl *gl,
 	struct sk_buff *skb;
 
 	/*
-	 * If the ingress packet is small enough, allocate an skb large enough
+	 * If the ingress packet is small eyesugh, allocate an skb large eyesugh
 	 * for all of the data and copy it inline.  Otherwise, allocate an skb
-	 * with enough room to pull in the header and reference the rest of
+	 * with eyesugh room to pull in the header and reference the rest of
 	 * the data via the skb fragment list.
 	 *
 	 * Below we rely on RX_COPY_THRES being less than the smallest Rx
@@ -1543,8 +1543,8 @@ out:
  *	t4vf_pktgl_free - free a packet gather list
  *	@gl: the gather list
  *
- *	Releases the pages of a packet gather list.  We do not own the last
- *	page on the list and do not free it.
+ *	Releases the pages of a packet gather list.  We do yest own the last
+ *	page on the list and do yest free it.
  */
 static void t4vf_pktgl_free(const struct pkt_gl *gl)
 {
@@ -1661,7 +1661,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 			rxq->stats.rx_cso++;
 		}
 	} else
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 
 	if (pkt->vlan_ex && !pi->vlan_id) {
 		rxq->stats.vlan_ex++;
@@ -1696,7 +1696,7 @@ static inline bool is_new_response(const struct rsp_ctrl *rc,
  *
  *	Called when we find out that the current packet, @si, can't be
  *	processed right away for some reason.  This is a very rare event and
- *	there's no effort to make this suspension/resumption process
+ *	there's yes effort to make this suspension/resumption process
  *	particularly efficient.
  *
  *	We implement the suspension by putting all of the RX buffers associated
@@ -1789,7 +1789,7 @@ static int process_responses(struct sge_rspq *rspq, int budget)
 			if (len & RSPD_NEWBUF_F) {
 				/*
 				 * We get one "new buffer" message when we
-				 * first start up a queue so we need to ignore
+				 * first start up a queue so we need to igyesre
 				 * it when our offset into the buffer is 0.
 				 */
 				if (likely(rspq->offset > 0)) {
@@ -1879,10 +1879,10 @@ static int process_responses(struct sge_rspq *rspq, int budget)
  *	@napi: the napi instance
  *	@budget: how many packets we can process in this round
  *
- *	Handler for new data events when using NAPI.  This does not need any
+ *	Handler for new data events when using NAPI.  This does yest need any
  *	locking or protection from interrupts as data interrupts are off at
- *	this point and other adapter interrupts do not interfere (the latter
- *	in not a concern at all with MSI-X as non-data interrupts then have
+ *	this point and other adapter interrupts do yest interfere (the latter
+ *	in yest a concern at all with MSI-X as yesn-data interrupts then have
  *	a separate handler).
  */
 static int napi_rx_handler(struct napi_struct *napi, int budget)
@@ -1949,7 +1949,7 @@ static unsigned int process_intrq(struct adapter *adapter)
 
 		/*
 		 * Grab the next response from the interrupt queue and bail
-		 * out if it's not a new response.
+		 * out if it's yest a new response.
 		 */
 		rc = (void *)intrq->cur_desc + (intrq->iqe_len - sizeof(*rc));
 		if (!is_new_response(rc, intrq))
@@ -2071,9 +2071,9 @@ static void sge_rx_timer_cb(struct timer_list *t)
 
 	/*
 	 * Scan the "Starving Free Lists" flag array looking for any Free
-	 * Lists in need of more free buffers.  If we find one and it's not
+	 * Lists in need of more free buffers.  If we find one and it's yest
 	 * being actively polled, then bump its "starving" counter and attempt
-	 * to refill it.  If we're successful in adding enough buffers to push
+	 * to refill it.  If we're successful in adding eyesugh buffers to push
 	 * the Free List over the starving threshold, then we can clear its
 	 * "starving" status.
 	 */
@@ -2090,7 +2090,7 @@ static void sge_rx_timer_cb(struct timer_list *t)
 			/*
 			 * Since we are accessing fl without a lock there's a
 			 * small probability of a false positive where we
-			 * schedule napi but the FL is no longer starving.
+			 * schedule napi but the FL is yes longer starving.
 			 * No biggie.
 			 */
 			if (fl_starving(adapter, fl)) {
@@ -2119,7 +2119,7 @@ static void sge_rx_timer_cb(struct timer_list *t)
  *
  *	b) Reclaims completed Tx packets for the Ethernet queues.  Normally
  *	packets are cleaned up by new Tx packets, this timer cleans up packets
- *	when no new packets are being submitted.  This is essential for pktgen,
+ *	when yes new packets are being submitted.  This is essential for pktgen,
  *	at least.
  */
 static void sge_tx_timer_cb(struct timer_list *t)
@@ -2157,7 +2157,7 @@ static void sge_tx_timer_cb(struct timer_list *t)
 	/*
 	 * If we found too many reclaimable packets schedule a timer in the
 	 * near future to continue where we left off.  Otherwise the next timer
-	 * will be at its normal interval.
+	 * will be at its yesrmal interval.
 	 */
 	mod_timer(&s->tx_timer, jiffies + (budget ? TX_QCHECK_PERIOD : 2));
 }
@@ -2195,7 +2195,7 @@ static void __iomem *bar2_address(struct adapter *adapter,
  *	t4vf_sge_alloc_rxq - allocate an SGE RX Queue
  *	@adapter: the adapter
  *	@rspq: pointer to to the new rxq's Response Queue to be filled in
- *	@iqasynch: if 0, a normal rspq; if 1, an asynchronous event queue
+ *	@iqasynch: if 0, a yesrmal rspq; if 1, an asynchroyesus event queue
  *	@dev: the network device associated with the new rspq
  *	@intr_dest: MSI-X vector index (overriden in MSI mode)
  *	@fl: pointer to the new rxq's Free List to be filled in
@@ -2213,7 +2213,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 	int relaxed = !(adapter->flags & CXGB4VF_ROOT_NO_RELAXED_ORDERING);
 
 	/*
-	 * If we're using MSI interrupts and we're not initializing the
+	 * If we're using MSI interrupts and we're yest initializing the
 	 * Forwarded Interrupt Queue itself, then set up this queue for
 	 * indirect interrupts to the Forwarded Interrupt Queue.  Obviously
 	 * the Forwarded Interrupt Queue must be set up before any other
@@ -2230,7 +2230,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 	 * Allocate the hardware ring for the Response Queue.  The size needs
 	 * to be a multiple of 16 which includes the mandatory status entry
 	 * (regardless of whether the Status Page capabilities are enabled or
-	 * not).
+	 * yest).
 	 */
 	rspq->size = roundup(rspq->size, 16);
 	rspq->desc = alloc_ring(adapter->pdev_dev, rspq->size, rspq->iqe_len,
@@ -2621,8 +2621,8 @@ void t4vf_sge_stop(struct adapter *adapter)
  *	@adapter: the adapter
  *
  *	Performs SGE initialization needed every time after a chip reset.
- *	We do not initialize any of the queue sets here, instead the driver
- *	top-level must request those individually.  We also do not enable DMA
+ *	We do yest initialize any of the queue sets here, instead the driver
+ *	top-level must request those individually.  We also do yest enable DMA
  *	here, that should be done after the queues have been set up.
  */
 int t4vf_sge_init(struct adapter *adapter)

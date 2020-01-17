@@ -10,7 +10,7 @@
  * Copyright (C) 2002-2004 by Luca Risolia <luca.risolia@studio.unibo.it>
  */
 
-/* Note this is not a stand alone driver, it gets included in ov519.c, this
+/* Note this is yest a stand alone driver, it gets included in ov519.c, this
    is a bit of a hack, but it needs the driver code for a lot of different
    ov sensors which is already present in ov519.c (the old v4l1 driver used
    the ovchipcam framework). When we have the time we really should move
@@ -240,7 +240,7 @@ static void w9968cf_smbus_read_ack(struct sd *sd)
 	sda = w9968cf_read_sb(sd);
 	w9968cf_write_sb(sd, 0x0012); /* SDE=1, SDA=1, SCL=0 */
 	if (sda >= 0 && (sda & 0x08)) {
-		gspca_dbg(gspca_dev, D_USBI, "Did not receive i2c ACK\n");
+		gspca_dbg(gspca_dev, D_USBI, "Did yest receive i2c ACK\n");
 		sd->gspca_dev.usb_err = -EIO;
 	}
 }
@@ -342,7 +342,7 @@ static void w9968cf_configure(struct sd *sd)
 {
 	reg_w(sd, 0x00, 0xff00); /* power-down */
 	reg_w(sd, 0x00, 0xbf17); /* reset everything */
-	reg_w(sd, 0x00, 0xbf10); /* normal operation */
+	reg_w(sd, 0x00, 0xbf10); /* yesrmal operation */
 	reg_w(sd, 0x01, 0x0010); /* serial bus, SDS high */
 	reg_w(sd, 0x01, 0x0000); /* serial bus, SDS low */
 	reg_w(sd, 0x01, 0x0010); /* ..high 'beep-beep' */
@@ -411,7 +411,7 @@ static void w9968cf_set_crop_window(struct sd *sd)
 		 * Sigh, this is dependend on the clock / framerate changes
 		 * made by the frequency control, sick.
 		 *
-		 * Note we cannot use v4l2_ctrl_g_ctrl here, as we get called
+		 * Note we canyest use v4l2_ctrl_g_ctrl here, as we get called
 		 * from ov519.c:setfreq() with the ctrl lock held!
 		 */
 		if (sd->freq->val == 1) {
@@ -470,7 +470,7 @@ static void w9968cf_mode_init_regs(struct sd *sd)
 		reg_w(sd, 0x2c, sd->gspca_dev.pixfmt.width);
 
 	reg_w(sd, 0x00, 0xbf17); /* reset everything */
-	reg_w(sd, 0x00, 0xbf10); /* normal operation */
+	reg_w(sd, 0x00, 0xbf10); /* yesrmal operation */
 
 	/* Transfer size in WORDS (for UYVY format only) */
 	val = sd->gspca_dev.pixfmt.width * sd->gspca_dev.pixfmt.height;
@@ -499,7 +499,7 @@ static void w9968cf_mode_init_regs(struct sd *sd)
 
 	val = (vs_polarity << 12) | (hs_polarity << 11);
 
-	/* NOTE: We may not have enough memory to do double buffering while
+	/* NOTE: We may yest have eyesugh memory to do double buffering while
 	   doing compression (amount of memory differs per model cam).
 	   So we use the second image buffer also as jpeg stream buffer
 	   (see w9968cf_init), and disable double buffering. */
@@ -529,7 +529,7 @@ static void w9968cf_stop0(struct sd *sd)
 }
 
 /* The w9968cf docs say that a 0 sized packet means EOF (and also SOF
-   for the next frame). This seems to simply not be true when operating
+   for the next frame). This seems to simply yest be true when operating
    in JPEG mode, in this case there may be empty packets within the
    frame. So in JPEG mode use the JPEG SOI marker to detect SOF.
 

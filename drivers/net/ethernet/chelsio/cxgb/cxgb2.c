@@ -11,7 +11,7 @@
  * published by the Free Software Foundation.                                *
  *                                                                           *
  * You should have received a copy of the GNU General Public License along   *
- * with this program; if not, see <http://www.gnu.org/licenses/>.            *
+ * with this program; if yest, see <http://www.gnu.org/licenses/>.            *
  *                                                                           *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED    *
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF      *
@@ -855,7 +855,7 @@ static netdev_features_t t1_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
 	/*
-	 * Since there is no support for separate rx/tx vlan accel
+	 * Since there is yes support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -890,7 +890,7 @@ static void t1_netpoll(struct net_device *dev)
 
 /*
  * Periodic accumulation of MAC statistics.  This is used only if the MAC
- * does not have any other way to prevent stats counter overflow.
+ * does yest have any other way to prevent stats counter overflow.
  */
 static void mac_stats_task(struct work_struct *work)
 {
@@ -991,7 +991,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		pr_err("%s: cannot find PCI device memory base address\n",
+		pr_err("%s: canyest find PCI device memory base address\n",
 		       pci_name(pdev));
 		err = -ENODEV;
 		goto out_disable_pdev;
@@ -1008,13 +1008,13 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 
 	} else if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) != 0) {
-		pr_err("%s: no usable DMA configuration\n", pci_name(pdev));
+		pr_err("%s: yes usable DMA configuration\n", pci_name(pdev));
 		goto out_disable_pdev;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		pr_err("%s: cannot obtain PCI resources\n", pci_name(pdev));
+		pr_err("%s: canyest obtain PCI resources\n", pci_name(pdev));
 		goto out_disable_pdev;
 	}
 
@@ -1042,7 +1042,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 			adapter->regs = ioremap(mmio_start, mmio_len);
 			if (!adapter->regs) {
-				pr_err("%s: cannot map device registers\n",
+				pr_err("%s: canyest map device registers\n",
 				       pci_name(pdev));
 				err = -ENOMEM;
 				goto out_free_dev;
@@ -1129,15 +1129,15 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/*
-	 * The card is now ready to go.  If any errors occur during device
-	 * registration we do not fail the whole card but rather proceed only
+	 * The card is yesw ready to go.  If any errors occur during device
+	 * registration we do yest fail the whole card but rather proceed only
 	 * with the ports we manage to register successfully.  However we must
 	 * register at least one net device.
 	 */
 	for (i = 0; i < bi->port_number; ++i) {
 		err = register_netdev(adapter->port[i].dev);
 		if (err)
-			pr_warn("%s: cannot register net device %s, skipping\n",
+			pr_warn("%s: canyest register net device %s, skipping\n",
 				pci_name(pdev), adapter->port[i].dev->name);
 		else {
 			/*
@@ -1151,7 +1151,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 	if (!adapter->registered_device_map) {
-		pr_err("%s: could not register any net devices\n",
+		pr_err("%s: could yest register any net devices\n",
 		       pci_name(pdev));
 		goto out_release_adapter_res;
 	}

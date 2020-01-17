@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -46,7 +46,7 @@ static const u8 txcore_default[5] = {
 
 static void brcms_c_stf_stbc_rx_ht_update(struct brcms_c_info *wlc, int val)
 {
-	/* MIMOPHYs rev3-6 cannot receive STBC with only one rx core active */
+	/* MIMOPHYs rev3-6 canyest receive STBC with only one rx core active */
 	if (BRCMS_STF_SS_STBC_RX(wlc)) {
 		if ((wlc->stf->rxstreams == 1) && (val != HT_CAP_RX_STBC_NO))
 			return;
@@ -121,7 +121,7 @@ brcms_c_stf_ss_algo_channel_get(struct brcms_c_info *wlc, u16 *ss_algo_channel,
 
 	/*
 	 * STBC is ORed into to algo channel as STBC requires per-packet SCB
-	 * capability check so cannot be default mode of operation. One of
+	 * capability check so canyest be default mode of operation. One of
 	 * SISO, CDD have to be set
 	 */
 	if (power.target[siso_mcs_id] <= (power.target[stbc_mcs_id] + 12))
@@ -275,7 +275,7 @@ int brcms_c_stf_txchain_set(struct brcms_c_info *wlc, s32 int_val, bool force)
 		return -EINVAL;
 
 	/*
-	 * if nrate override is configured to be non-SISO STF mode, reject
+	 * if nrate override is configured to be yesn-SISO STF mode, reject
 	 * reducing txchain to 1
 	 */
 	txstreams = (u8) hweight8(txchain);
@@ -430,7 +430,7 @@ u16 brcms_c_stf_d11hdrs_phyctl_txant(struct brcms_c_info *wlc, u32 rspec)
 	u16 phytxant = wlc->stf->phytxant;
 	u16 mask = PHY_TXC_ANT_MASK;
 
-	/* for non-siso rates or default setting, use the available chains */
+	/* for yesn-siso rates or default setting, use the available chains */
 	if (BRCMS_ISNPHY(wlc->band)) {
 		phytxant = _brcms_c_stf_phytxchain_sel(wlc, rspec);
 		mask = PHY_TXC_HTANT_MASK;

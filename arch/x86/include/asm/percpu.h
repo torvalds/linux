@@ -296,7 +296,7 @@ do {									\
 
 /*
  * xchg is implemented using cmpxchg without a lock prefix. xchg is
- * expensive due to the implied lock prefix.  The processor cannot prefetch
+ * expensive due to the implied lock prefix.  The processor canyest prefetch
  * cachelines if xchg is used.
  */
 #define percpu_xchg_op(qual, var, nval)					\
@@ -342,7 +342,7 @@ do {									\
 })
 
 /*
- * cmpxchg has no such implied lock semantics as a result it is much
+ * cmpxchg has yes such implied lock semantics as a result it is much
  * more efficient for cpu local operations.
  */
 #define percpu_cmpxchg_op(qual, var, oval, nval)			\
@@ -409,7 +409,7 @@ do {									\
 #define raw_cpu_or_4(pcp, val)		percpu_to_op(, "or", (pcp), val)
 
 /*
- * raw_cpu_xchg() can use a load-store since it is not required to be
+ * raw_cpu_xchg() can use a load-store since it is yest required to be
  * IRQ-safe.
  */
 #define raw_percpu_xchg_op(var, nval)					\
@@ -498,7 +498,7 @@ do {									\
 
 /*
  * Pretty complex macro to generate cmpxchg16 instruction.  The instruction
- * is not supported on early AMD64 processors so we must be able to emulate
+ * is yest supported on early AMD64 processors so we must be able to emulate
  * it in software.  The address used in the cmpxchg16 instruction must be
  * aligned to a 16 byte boundary.
  */
@@ -618,7 +618,7 @@ DECLARE_PER_CPU_READ_MOSTLY(unsigned long, this_cpu_off);
 
 #define	early_per_cpu(_name, _cpu) per_cpu(_name, _cpu)
 #define	early_per_cpu_ptr(_name) NULL
-/* no early_per_cpu_map() */
+/* yes early_per_cpu_map() */
 
 #endif	/* !CONFIG_SMP */
 

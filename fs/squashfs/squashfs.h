@@ -45,7 +45,7 @@ extern int squashfs_decompress(struct squashfs_sb_info *, struct buffer_head **,
 extern int squashfs_max_decompressors(void);
 
 /* export.c */
-extern __le64 *squashfs_read_inode_lookup_table(struct super_block *, u64, u64,
+extern __le64 *squashfs_read_iyesde_lookup_table(struct super_block *, u64, u64,
 				unsigned int);
 
 /* fragment.c */
@@ -66,16 +66,16 @@ extern int squashfs_get_id(struct super_block *, unsigned int, unsigned int *);
 extern __le64 *squashfs_read_id_index_table(struct super_block *, u64, u64,
 				unsigned short);
 
-/* inode.c */
-extern struct inode *squashfs_iget(struct super_block *, long long,
+/* iyesde.c */
+extern struct iyesde *squashfs_iget(struct super_block *, long long,
 				unsigned int);
-extern int squashfs_read_inode(struct inode *, long long);
+extern int squashfs_read_iyesde(struct iyesde *, long long);
 
 /* xattr.c */
 extern ssize_t squashfs_listxattr(struct dentry *, char *, size_t);
 
 /*
- * Inodes, files,  decompressor and xattr operations
+ * Iyesdes, files,  decompressor and xattr operations
  */
 
 /* dir.c */
@@ -87,15 +87,15 @@ extern const struct export_operations squashfs_export_ops;
 /* file.c */
 extern const struct address_space_operations squashfs_aops;
 
-/* inode.c */
-extern const struct inode_operations squashfs_inode_ops;
+/* iyesde.c */
+extern const struct iyesde_operations squashfs_iyesde_ops;
 
 /* namei.c */
-extern const struct inode_operations squashfs_dir_inode_ops;
+extern const struct iyesde_operations squashfs_dir_iyesde_ops;
 
 /* symlink.c */
 extern const struct address_space_operations squashfs_symlink_aops;
-extern const struct inode_operations squashfs_symlink_inode_ops;
+extern const struct iyesde_operations squashfs_symlink_iyesde_ops;
 
 /* xattr.c */
 extern const struct xattr_handler *squashfs_xattr_handlers[];

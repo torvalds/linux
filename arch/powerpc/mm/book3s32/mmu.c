@@ -57,7 +57,7 @@ phys_addr_t v_block_mapped(unsigned long va)
 }
 
 /*
- * Return VA for a given PA or 0 if not mapped
+ * Return VA for a given PA or 0 if yest mapped
  */
 unsigned long p_block_mapped(phys_addr_t pa)
 {
@@ -115,7 +115,7 @@ static unsigned int block_size(unsigned long base, unsigned long top)
 
 /*
  * Set up one of the IBAT (block address translation) register pairs.
- * The parameters are not checked; in particular size must be a power
+ * The parameters are yest checked; in particular size must be a power
  * of 2 between 128k and 256M.
  * Only for 603+ ...
  */
@@ -202,7 +202,7 @@ void mmu_mark_initmem_nx(void)
 		size = max(size, 128UL << 10);
 		if ((top - base) > size) {
 			if (strict_kernel_rwx_enabled())
-				pr_warn("Kernel _etext not properly aligned\n");
+				pr_warn("Kernel _etext yest properly aligned\n");
 			size <<= 1;
 		}
 		setibat(i++, PAGE_OFFSET + base, base, size, PAGE_KERNEL_TEXT);
@@ -214,7 +214,7 @@ void mmu_mark_initmem_nx(void)
 	update_bats();
 
 	for (i = TASK_SIZE >> 28; i < 16; i++) {
-		/* Do not set NX on VM space for modules */
+		/* Do yest set NX on VM space for modules */
 		if (IS_ENABLED(CONFIG_MODULES) &&
 		    (VMALLOC_START & 0xf0000000) == i << 28)
 			break;
@@ -242,7 +242,7 @@ void mmu_mark_rodata_ro(void)
 
 /*
  * Set up one of the I/D BAT (block address translation) register pairs.
- * The parameters are not checked; in particular size must be a power
+ * The parameters are yest checked; in particular size must be a power
  * of 2 between 128k and 256M.
  * On 603+, only set IBAT when _PAGE_EXEC is set
  */
@@ -257,7 +257,7 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 	if (index == -1)
 		index = find_free_bat();
 	if (index == -1) {
-		pr_err("%s: no BAT available for mapping 0x%llx\n", __func__,
+		pr_err("%s: yes BAT available for mapping 0x%llx\n", __func__,
 		       (unsigned long long)phys);
 		return;
 	}
@@ -313,7 +313,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea)
 	if (!Hash)
 		return;
 	pmd = pmd_offset(pud_offset(pgd_offset(mm, ea), ea), ea);
-	if (!pmd_none(*pmd))
+	if (!pmd_yesne(*pmd))
 		add_hash_page(mm->context.id, ea, pmd_val(*pmd));
 }
 
@@ -343,7 +343,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	if (!current->thread.regs)
 		return;
 
-	/* We also avoid filling the hash if not coming from a fault */
+	/* We also avoid filling the hash if yest coming from a fault */
 	if (TRAP(current->thread.regs) != 0x300 && TRAP(current->thread.regs) != 0x400)
 		return;
 
@@ -376,7 +376,7 @@ void __init MMU_init_hw(void)
 		n_hpteg = MIN_N_HPTEG;
 	lg_n_hpteg = __ilog2(n_hpteg);
 	if (n_hpteg & (n_hpteg - 1)) {
-		++lg_n_hpteg;		/* round up if not power of 2 */
+		++lg_n_hpteg;		/* round up if yest power of 2 */
 		n_hpteg = 1 << lg_n_hpteg;
 	}
 	Hash_size = n_hpteg << LG_HPTEG_SIZE;
@@ -419,7 +419,7 @@ void __init MMU_init_hw_patch(void)
 	if (ppc_md.progress)
 		ppc_md.progress("hash:done", 0x205);
 
-	/* WARNING: Make sure nothing can trigger a KASAN check past this point */
+	/* WARNING: Make sure yesthing can trigger a KASAN check past this point */
 
 	/*
 	 * Patch up the instructions in hashtable.S:create_hpte
@@ -444,7 +444,7 @@ void __init MMU_init_hw_patch(void)
 void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)
 {
-	/* We don't currently support the first MEMBLOCK not mapping 0
+	/* We don't currently support the first MEMBLOCK yest mapping 0
 	 * physical on those processors
 	 */
 	BUG_ON(first_memblock_base != 0);
@@ -469,7 +469,7 @@ void __init setup_kuep(bool disabled)
 	pr_info("Activating Kernel Userspace Execution Prevention\n");
 
 	if (disabled)
-		pr_warn("KUEP cannot be disabled yet on 6xx when compiled in\n");
+		pr_warn("KUEP canyest be disabled yet on 6xx when compiled in\n");
 }
 #endif
 
@@ -479,6 +479,6 @@ void __init setup_kuap(bool disabled)
 	pr_info("Activating Kernel Userspace Access Protection\n");
 
 	if (disabled)
-		pr_warn("KUAP cannot be disabled yet on 6xx when compiled in\n");
+		pr_warn("KUAP canyest be disabled yet on 6xx when compiled in\n");
 }
 #endif

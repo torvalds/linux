@@ -118,7 +118,7 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 	int prv_bit, bit, width;
 	bool first = true;
 
-	/* do nothing if device is disconnected */
+	/* do yesthing if device is disconnected */
 	if (test_bit(DEV_DISCONNECTED, &ir->dev->dev_state))
 		return 0;
 
@@ -158,7 +158,7 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 			/*
 			 * Fix an au8522 bug: the first pulse event
 			 * is lost. So, we need to fake it, based on the
-			 * protocol. That means that not all raw decoders
+			 * protocol. That means that yest all raw decoders
 			 * will work, as we need to add a hack for each
 			 * protocol, based on the first space.
 			 * So, we only support RC5 and NEC.
@@ -245,7 +245,7 @@ static void au0828_rc_stop(struct rc_dev *rc)
 
 	cancel_delayed_work_sync(&ir->work);
 
-	/* do nothing if device is disconnected */
+	/* do yesthing if device is disconnected */
 	if (!test_bit(DEV_DISCONNECTED, &ir->dev->dev_state)) {
 		/* Disable IR */
 		au8522_rc_clear(ir, 0xe0, 1 << 4);
@@ -352,7 +352,7 @@ void au0828_rc_unregister(struct au0828_dev *dev)
 {
 	struct au0828_rc *ir = dev->ir;
 
-	/* skip detach on non attached boards */
+	/* skip detach on yesn attached boards */
 	if (!ir)
 		return;
 

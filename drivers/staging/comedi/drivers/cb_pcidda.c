@@ -21,7 +21,7 @@
  *	   Frank Mori Hess <fmhess@users.sourceforge.net>
  * Status: works
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: yest applicable, uses PCI auto config
  *
  * Only simple analog output writing is supported.
  */
@@ -70,7 +70,7 @@
 #define DESELECT_REF_DAC_BIT    0x2
 /* don't send serial data to caldac n */
 #define DESELECT_CALDAC_BIT(n)  (0x4 << (n))
-/* manual says to set this bit with no explanation */
+/* manual says to set this bit with yes explanation */
 #define DUMMY_BIT       0x40
 
 #define CB_DDA_DA_DATA_REG(x)		(0x08 + ((x) * 2))

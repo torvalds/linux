@@ -64,7 +64,7 @@
 #define VEU_CBR   0x228 /* color conversion clip */
 
 /*
- * 4092x4092 max size is the normal case. In some cases it can be reduced to
+ * 4092x4092 max size is the yesrmal case. In some cases it can be reduced to
  * 2048x2048, in other cases it can be 4092x8188 or even 8188x8188.
  */
 #define MAX_W 4092
@@ -297,8 +297,8 @@ static int sh_veu_queue_init(void *priv, struct vb2_queue *src_vq,
 			     struct vb2_queue *dst_vq);
 
 /*
- * It is not unusual to have video nodes open()ed multiple times. While some
- * V4L2 operations are non-intrusive, like querying formats and various
+ * It is yest unusual to have video yesdes open()ed multiple times. While some
+ * V4L2 operations are yesn-intrusive, like querying formats and various
  * parameters, others, like setting formats, starting and stopping streaming,
  * queuing and dequeuing buffers, directly affect hardware configuration and /
  * or execution. This function verifies availability of the requested interface
@@ -757,7 +757,7 @@ static void sh_veu_configure(struct sh_veu_dev *veu)
 
 	dst_width = real_w = veu->vfmt_out.frame.width;
 	dst_height = real_h = veu->vfmt_out.frame.height;
-	/* Datasheet is unclear - whether it's always number of bytes or not */
+	/* Datasheet is unclear - whether it's always number of bytes or yest */
 	dst_stride = veu->vfmt_out.bytesperline;
 
 	/*
@@ -770,7 +770,7 @@ static void sh_veu_configure(struct sh_veu_dev *veu)
 
 	sh_veu_reg_write(veu, VEU_SWR, src_stride);
 	sh_veu_reg_write(veu, VEU_SSR, src_width | (src_height << 16));
-	sh_veu_reg_write(veu, VEU_BSSR, 0); /* not using bundle mode */
+	sh_veu_reg_write(veu, VEU_BSSR, 0); /* yest using bundle mode */
 
 	sh_veu_reg_write(veu, VEU_EDWR, dst_stride);
 	sh_veu_reg_write(veu, VEU_DACR, 0); /* unused for RGB */
@@ -890,7 +890,7 @@ static int sh_veu_buf_prepare(struct vb2_buffer *vb)
 		vfmt->fmt->depth / vfmt->fmt->ydepth;
 
 	if (vb2_plane_size(vb, 0) < sizeimage) {
-		dev_dbg(veu->dev, "%s data will not fit into plane (%lu < %u)\n",
+		dev_dbg(veu->dev, "%s data will yest fit into plane (%lu < %u)\n",
 			__func__, vb2_plane_size(vb, 0), sizeimage);
 		return -EINVAL;
 	}
@@ -1035,7 +1035,7 @@ static const struct video_device sh_veu_videodev = {
 	.name		= "sh-veu",
 	.fops		= &sh_veu_fops,
 	.ioctl_ops	= &sh_veu_ioctl_ops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.release	= video_device_release_empty,
 	.vfl_dir	= VFL_DIR_M2M,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
@@ -1067,7 +1067,7 @@ static irqreturn_t sh_veu_isr(int irq, void *dev_id)
 	struct vb2_v4l2_buffer *src;
 	u32 status = sh_veu_reg_read(veu, VEU_EVTR);
 
-	/* bundle read mode not used */
+	/* bundle read mode yest used */
 	if (!(status & 1))
 		return IRQ_NONE;
 

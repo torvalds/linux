@@ -27,7 +27,7 @@ int bcma_nflash_init(struct bcma_drv_cc *cc)
 	}
 
 	if (!(cc->capabilities & BCMA_CC_CAP_NFLASH)) {
-		bcma_err(bus, "NAND flash not present according to ChipCommon\n");
+		bcma_err(bus, "NAND flash yest present according to ChipCommon\n");
 		return -ENODEV;
 	}
 
@@ -37,7 +37,7 @@ int bcma_nflash_init(struct bcma_drv_cc *cc)
 		cc->nflash.boot = true;
 
 	/* Prepare platform device, but don't register it yet. It's too early,
-	 * malloc (required by device_private_init) is not available yet. */
+	 * malloc (required by device_private_init) is yest available yet. */
 	bcma_nflash_dev.dev.platform_data = &cc->nflash;
 
 	return 0;

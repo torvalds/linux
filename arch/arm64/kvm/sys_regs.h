@@ -34,7 +34,7 @@ struct sys_reg_desc {
 	u8	CRm;
 	u8	Op2;
 
-	/* Trapped access from guest, if non-NULL. */
+	/* Trapped access from guest, if yesn-NULL. */
 	bool (*access)(struct kvm_vcpu *,
 		       struct sys_reg_params *,
 		       const struct sys_reg_desc *);
@@ -82,7 +82,7 @@ static inline void print_sys_reg_instr(const struct sys_reg_params *p)
 	print_sys_reg_msg(p, "%s", "");
 }
 
-static inline bool ignore_write(struct kvm_vcpu *vcpu,
+static inline bool igyesre_write(struct kvm_vcpu *vcpu,
 				const struct sys_reg_params *p)
 {
 	return true;
@@ -96,7 +96,7 @@ static inline bool read_zero(struct kvm_vcpu *vcpu,
 }
 
 /* Reset functions */
-static inline void reset_unknown(struct kvm_vcpu *vcpu,
+static inline void reset_unkyeswn(struct kvm_vcpu *vcpu,
 				 const struct sys_reg_desc *r)
 {
 	BUG_ON(!r->reg);

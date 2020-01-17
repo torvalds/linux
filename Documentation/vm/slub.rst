@@ -24,21 +24,21 @@ running the command. ``slabinfo`` can be compiled with
 	gcc -o slabinfo tools/vm/slabinfo.c
 
 Some of the modes of operation of ``slabinfo`` require that slub debugging
-be enabled on the command line. F.e. no tracking information will be
+be enabled on the command line. F.e. yes tracking information will be
 available without debugging on and validation can only partially
-be performed if debugging was not switched on.
+be performed if debugging was yest switched on.
 
 Some more sophisticated uses of slub_debug:
 -------------------------------------------
 
-Parameters may be given to ``slub_debug``. If none is specified then full
+Parameters may be given to ``slub_debug``. If yesne is specified then full
 debugging is enabled. Format:
 
 slub_debug=<Debug-Options>
 	Enable options for all slabs
 
 slub_debug=<Debug-Options>,<slab name1>,<slab name2>,...
-	Enable options only for select slabs (no spaces
+	Enable options only for select slabs (yes spaces
 	after a comma)
 
 Possible debug options are::
@@ -91,7 +91,7 @@ contents of::
 
 Look at the writable files. Writing 1 to them will enable the
 corresponding debug option. All options can be set on a slab that does
-not contain objects. If the slab already contains objects then sanity checks
+yest contain objects. If the slab already contains objects then sanity checks
 and tracing may only be enabled. The other options may cause the realignment
 of objects.
 
@@ -101,7 +101,7 @@ used on the wrong slab.
 Slab merging
 ============
 
-If no debug options are specified then SLUB may merge similar slabs together
+If yes debug options are specified then SLUB may merge similar slabs together
 in order to reduce overhead and increase cache hotness of objects.
 ``slabinfo -a`` displays which slabs were merged together.
 
@@ -118,8 +118,8 @@ which will test all objects. Output will be generated to the syslog.
 
 This also works in a more limited way if boot was without slab debug.
 In that case ``slabinfo -v`` simply tests all reachable objects. Usually
-these are in the cpu slabs and the partial slabs. Full slabs are not
-tracked by SLUB in a non debug situation.
+these are in the cpu slabs and the partial slabs. Full slabs are yest
+tracked by SLUB in a yesn debug situation.
 
 Getting more performance
 ========================
@@ -145,12 +145,12 @@ can be influenced by kernel parameters:
 	``slub_min_objects``.
 
 ``slub_max_order``
-	specified the order at which ``slub_min_objects`` should no
+	specified the order at which ``slub_min_objects`` should yes
 	longer be checked. This is useful to avoid SLUB trying to
 	generate super large order pages to fit ``slub_min_objects``
 	of a slab cache with large object sizes into one high order
 	page. Setting command line parameter
-	``debug_guardpage_minorder=N`` (N > 0), forces setting
+	``debug_guardpage_miyesrder=N`` (N > 0), forces setting
 	``slub_max_order`` to 0, what cause minimum possible order of
 	slabs allocation.
 
@@ -226,12 +226,12 @@ into the syslog:
 
    Bytes b4 <address> : <bytes>
 	Shows a few bytes before the object where the problem was detected.
-	Can be useful if the corruption does not stop with the start of the
+	Can be useful if the corruption does yest stop with the start of the
 	object.
 
    Object <address> : <bytes>
 	The bytes of the object. If the object is inactive then the bytes
-	typically contain poison values. Any non-poison value shows a
+	typically contain poison values. Any yesn-poison value shows a
 	corruption by a write after free.
 
    Redzone <address> : <bytes>
@@ -277,11 +277,11 @@ Minimal debugging (sanity checks alone) can be enabled by booting with::
 
 	slub_debug=F
 
-This will be generally be enough to enable the resiliency features of slub
+This will be generally be eyesugh to enable the resiliency features of slub
 which will keep the system running even if a bad kernel component will
 keep corrupting objects. This may be important for production systems.
 Performance will be impacted by the sanity checks and there will be a
-continual stream of error messages to the syslog but no additional memory
+continual stream of error messages to the syslog but yes additional memory
 will be used (unlike full debugging).
 
 No guarantees. The kernel component still needs to be fixed. Performance
@@ -306,7 +306,7 @@ The ``slabinfo`` tool has a special 'extended' ('-X') mode that includes:
  - Slabs sorted by size (up to -N <num> slabs, default 1)
  - Slabs sorted by loss (up to -N <num> slabs, default 1)
 
-Additionally, in this mode ``slabinfo`` does not dynamically scale
+Additionally, in this mode ``slabinfo`` does yest dynamically scale
 sizes (G/M/K) and reports everything in bytes (this functionality is
 also available to other slabinfo modes via '-B' option) which makes
 reporting more precise and accurate. Moreover, in some sense the `-X'
@@ -332,7 +332,7 @@ b) pass stats file(-s) to ``slabinfo-gnuplot.sh`` script::
    - Slabs sorted by size: FOO_STATS-slabs-by-size.png
    - Slabs sorted by loss: FOO_STATS-slabs-by-loss.png
 
-Another use case, when ``slabinfo-gnuplot.sh`` can be useful, is when you
+Ayesther use case, when ``slabinfo-gnuplot.sh`` can be useful, is when you
 need to compare slabs' behaviour "prior to" and "after" some code
 modification.  To help you out there, ``slabinfo-gnuplot.sh`` script
 can 'merge' the `Slabcache Totals` sections from different
@@ -354,7 +354,7 @@ c) Execute ``slabinfo-gnuplot.sh`` in '-t' mode, passing all of the
    This will produce a single plot (png file).
 
    Plots, expectedly, can be large so some fluctuations or small spikes
-   can go unnoticed. To deal with that, ``slabinfo-gnuplot.sh`` has two
+   can go unyesticed. To deal with that, ``slabinfo-gnuplot.sh`` has two
    options to 'zoom-in'/'zoom-out':
 
    a) ``-s %d,%d`` -- overwrites the default image width and heigh
@@ -364,4 +364,4 @@ c) Execute ``slabinfo-gnuplot.sh`` in '-t' mode, passing all of the
       60th seconds).
 
 Christoph Lameter, May 30, 2007
-Sergey Senozhatsky, October 23, 2015
+Sergey Seyeszhatsky, October 23, 2015

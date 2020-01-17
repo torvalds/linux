@@ -40,7 +40,7 @@
 
 #include "common.h"
 
-static struct resource tct_hammer_nor_resource =
+static struct resource tct_hammer_yesr_resource =
 			DEFINE_RES_MEM(0x00000000, SZ_16M);
 
 static struct mtd_partition tct_hammer_mtd_partitions[] = {
@@ -62,14 +62,14 @@ static struct physmap_flash_data tct_hammer_flash_data = {
 	.nr_parts	= ARRAY_SIZE(tct_hammer_mtd_partitions),
 };
 
-static struct platform_device tct_hammer_device_nor = {
+static struct platform_device tct_hammer_device_yesr = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev = {
 			.platform_data = &tct_hammer_flash_data,
 		},
 	.num_resources	= 1,
-	.resource	= &tct_hammer_nor_resource,
+	.resource	= &tct_hammer_yesr_resource,
 };
 
 static struct map_desc tct_hammer_iodesc[] __initdata = {
@@ -112,7 +112,7 @@ static struct platform_device *tct_hammer_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_usbgadget,
 	&s3c_device_sdi,
-	&tct_hammer_device_nor,
+	&tct_hammer_device_yesr,
 };
 
 static void __init tct_hammer_map_io(void)

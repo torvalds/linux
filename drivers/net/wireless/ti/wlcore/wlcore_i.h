@@ -5,7 +5,7 @@
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
  * Copyright (C) 2008-2009 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #ifndef __WLCORE_I_H__
@@ -61,14 +61,14 @@ struct wilink_family_data {
 #define WL12XX_MAX_RATE_POLICIES 16
 #define WLCORE_MAX_KLV_TEMPLATES 4
 
-/* Defined by FW as 0. Will not be freed or allocated. */
+/* Defined by FW as 0. Will yest be freed or allocated. */
 #define WL12XX_SYSTEM_HLID         0
 
 /*
  * When in AP-mode, we allow (at least) this number of packets
  * to be transmitted to FW for a STA in PS-mode. Only when packets are
  * present in the FW buffers it will wake the sleeping STA. We want to put
- * enough packets for the driver to transmit all of its buffered data before
+ * eyesugh packets for the driver to transmit all of its buffered data before
  * the STA goes to sleep again. But we don't want to take too much memory
  * as it might hurt the throughput of active STAs.
  */
@@ -195,7 +195,7 @@ struct wlcore_platdev_data {
 	struct wl1271_if_operations *if_ops;
 	const struct wilink_family_data *family;
 
-	bool ref_clock_xtal;	/* specify whether the clock is XTAL or not */
+	bool ref_clock_xtal;	/* specify whether the clock is XTAL or yest */
 	u32 ref_clock_freq;	/* in Hertz */
 	u32 tcxo_clock_freq;	/* in Hertz, tcxo is always XTAL */
 	bool pwr_in_suspend;

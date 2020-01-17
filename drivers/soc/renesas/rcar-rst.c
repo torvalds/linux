@@ -75,17 +75,17 @@ static int __init rcar_rst_init(void)
 {
 	const struct of_device_id *match;
 	const struct rst_config *cfg;
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *base;
 	int error = 0;
 
-	np = of_find_matching_node_and_match(NULL, rcar_rst_matches, &match);
+	np = of_find_matching_yesde_and_match(NULL, rcar_rst_matches, &match);
 	if (!np)
 		return -ENODEV;
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		pr_warn("%pOF: Cannot map regs\n", np);
+		pr_warn("%pOF: Canyest map regs\n", np);
 		error = -ENOMEM;
 		goto out_put;
 	}
@@ -96,7 +96,7 @@ static int __init rcar_rst_init(void)
 	if (cfg->configure) {
 		error = cfg->configure(base);
 		if (error) {
-			pr_warn("%pOF: Cannot run SoC specific configuration\n",
+			pr_warn("%pOF: Canyest run SoC specific configuration\n",
 				np);
 			goto out_put;
 		}
@@ -105,7 +105,7 @@ static int __init rcar_rst_init(void)
 	pr_debug("%pOF: MODE = 0x%08x\n", np, saved_mode);
 
 out_put:
-	of_node_put(np);
+	of_yesde_put(np);
 	return error;
 }
 

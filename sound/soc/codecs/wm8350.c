@@ -202,7 +202,7 @@ static inline int wm8350_out2_ramp_step(struct wm8350_data *wm8350_data)
  * This work ramps both output PGAs at stream start/stop time to
  * minimise pop associated with DAPM power switching.
  * It's best to enable Zero Cross when ramping occurs to minimise any
- * zipper noises.
+ * zipper yesises.
  */
 static void wm8350_pga_work(struct work_struct *work)
 {
@@ -330,7 +330,7 @@ static int wm8350_put_volsw_2r_vu(struct snd_kcontrol *kcontrol,
 	if (ret < 0)
 		return ret;
 
-	/* now hit the volume update bits (always bit 8) */
+	/* yesw hit the volume update bits (always bit 8) */
 	val = snd_soc_component_read32(component, reg);
 	snd_soc_component_write(component, reg, val | WM8350_OUT1_VU);
 	return 1;
@@ -1008,7 +1008,7 @@ static inline int fll_factors(struct _fll_div *fll_div, unsigned int input,
 		if ((K % 10) >= 5)
 			K += 5;
 
-		/* Move down to proper range now rounding is done */
+		/* Move down to proper range yesw rounding is done */
 		K /= 10;
 		fll_div->k = K;
 	} else
@@ -1312,7 +1312,7 @@ static irqreturn_t wm8350_hpr_jack_handler(int irq, void *data)
  * @jack:   jack to report detection events on
  * @report: value to report
  *
- * Enables the headphone jack detection of the WM8350.  If no report
+ * Enables the headphone jack detection of the WM8350.  If yes report
  * is specified then detection is disabled.
  */
 int wm8350_hp_jack_detect(struct snd_soc_component *component, enum wm8350_jack which,
@@ -1570,7 +1570,7 @@ static void wm8350_component_remove(struct snd_soc_component *component)
 	cancel_delayed_work_sync(&priv->hpl.work);
 	cancel_delayed_work_sync(&priv->hpr.work);
 
-	/* if there was any work waiting then we run it now and
+	/* if there was any work waiting then we run it yesw and
 	 * wait for its completion */
 	flush_delayed_work(&priv->pga_work);
 
@@ -1591,7 +1591,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8350 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int wm8350_probe(struct platform_device *pdev)

@@ -6,7 +6,7 @@
 
 #include <asm/e820/api.h>
 
-extern int force_iommu, no_iommu;
+extern int force_iommu, yes_iommu;
 extern int iommu_detected;
 
 /* 10 seconds */

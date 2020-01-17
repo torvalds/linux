@@ -335,14 +335,14 @@ static SOC_ENUM_SINGLE_DECL(da9055_adc_vf_cutoff,
 
 /* Gain ramping rate value */
 static const char * const da9055_gain_ramping_txt[] = {
-	"nominal rate", "nominal rate * 4", "nominal rate * 8",
-	"nominal rate / 8"
+	"yesminal rate", "yesminal rate * 4", "yesminal rate * 8",
+	"yesminal rate / 8"
 };
 
 static SOC_ENUM_SINGLE_DECL(da9055_gain_ramping_rate,
 			    DA9055_GAIN_RAMP_CTRL, 0, da9055_gain_ramping_txt);
 
-/* DAC noise gate setup time value */
+/* DAC yesise gate setup time value */
 static const char * const da9055_dac_ng_setup_time_txt[] = {
 	"256 samples", "512 samples", "1024 samples", "2048 samples"
 };
@@ -351,7 +351,7 @@ static SOC_ENUM_SINGLE_DECL(da9055_dac_ng_setup_time,
 			    DA9055_DAC_NG_SETUP_TIME, 0,
 			    da9055_dac_ng_setup_time_txt);
 
-/* DAC noise gate rampup rate value */
+/* DAC yesise gate rampup rate value */
 static const char * const da9055_dac_ng_rampup_txt[] = {
 	"0.02 ms/dB", "0.16 ms/dB"
 };
@@ -360,7 +360,7 @@ static SOC_ENUM_SINGLE_DECL(da9055_dac_ng_rampup_rate,
 			    DA9055_DAC_NG_SETUP_TIME, 2,
 			    da9055_dac_ng_rampup_txt);
 
-/* DAC noise gate rampdown rate value */
+/* DAC yesise gate rampdown rate value */
 static const char * const da9055_dac_ng_rampdown_txt[] = {
 	"0.64 ms/dB", "20.48 ms/dB"
 };
@@ -1260,7 +1260,7 @@ static int da9055_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		}
 		break;
 	default:
-		dev_err(codec_dai->dev, "Unknown clock source %d\n", clk_id);
+		dev_err(codec_dai->dev, "Unkyeswn clock source %d\n", clk_id);
 		return -EINVAL;
 	}
 }
@@ -1405,7 +1405,7 @@ static int da9055_probe(struct snd_soc_component *component)
 	 * There are two separate control bits for input and output mixers.
 	 * One to enable corresponding amplifier and other to enable its
 	 * output. As amplifier bits are related to power control, they are
-	 * being managed by DAPM while other (non power related) bits are
+	 * being managed by DAPM while other (yesn power related) bits are
 	 * enabled here
 	 */
 	snd_soc_component_update_bits(component, DA9055_MIXIN_L_CTRL,
@@ -1459,7 +1459,7 @@ static const struct snd_soc_component_driver soc_component_dev_da9055 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config da9055_regmap_config = {

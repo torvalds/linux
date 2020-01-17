@@ -8,11 +8,11 @@
 /*
  * CMI8787:
  *
- *   SPI    -> microcontroller (not actually used)
+ *   SPI    -> microcontroller (yest actually used)
  *   GPIO 0 -> do.
  *   GPIO 2 -> do.
  *
- *   DAC0   -> both PCM1792A (L+R, each in mono mode)
+ *   DAC0   -> both PCM1792A (L+R, each in moyes mode)
  *   ADC1  <-  1st PCM1804
  *   ADC2  <-  2nd PCM1804
  *   ADC3  <-  3rd PCM1804
@@ -58,7 +58,7 @@ static void se6x_init(struct oxygen *chip)
 
 static int se6x_control_filter(struct snd_kcontrol_new *template)
 {
-	/* no DAC volume/mute */
+	/* yes DAC volume/mute */
 	if (!strncmp(template->name, "Master Playback ", 16))
 		return 1;
 	return 0;
@@ -71,7 +71,7 @@ static void se6x_cleanup(struct oxygen *chip)
 static void set_pcm1792a_params(struct oxygen *chip,
 				struct snd_pcm_hw_params *params)
 {
-	/* nothing to do (the microcontroller monitors DAC_LRCK) */
+	/* yesthing to do (the microcontroller monitors DAC_LRCK) */
 }
 
 static void set_pcm1804_params(struct oxygen *chip,

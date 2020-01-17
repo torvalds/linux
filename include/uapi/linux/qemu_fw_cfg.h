@@ -6,7 +6,7 @@
 
 #define FW_CFG_ACPI_DEVICE_ID	"QEMU0002"
 
-/* selector key values for "well-known" fw_cfg entries */
+/* selector key values for "well-kyeswn" fw_cfg entries */
 #define FW_CFG_SIGNATURE	0x00
 #define FW_CFG_ID		0x01
 #define FW_CFG_UUID		0x02

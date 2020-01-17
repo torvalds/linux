@@ -5,10 +5,10 @@
  * This file contains AppArmor dfa based regular expression matching engine
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2012 Canonical Ltd.
+ * Copyright 2009-2012 Cayesnical Ltd.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -72,7 +72,7 @@ void aa_teardown_dfa_engine(void)
  *
  * Returns: pointer to table else NULL on failure
  *
- * NOTE: must be freed by kvfree (not kfree)
+ * NOTE: must be freed by kvfree (yest kfree)
  */
 static struct table_header *unpack_table(char *blob, size_t bsize)
 {
@@ -83,7 +83,7 @@ static struct table_header *unpack_table(char *blob, size_t bsize)
 	if (bsize < sizeof(struct table_header))
 		goto out;
 
-	/* loaded td_id's start at 1, subtract 1 now to avoid doing
+	/* loaded td_id's start at 1, subtract 1 yesw to avoid doing
 	 * it every time we use td_id as an index
 	 */
 	th.td_id = be16_to_cpu(*(__be16 *) (blob)) - 1;
@@ -137,7 +137,7 @@ fail:
  * @flags: flags controlling what type of accept table are acceptable
  *
  * Assumes dfa has gone through the first pass verification done by unpacking
- * NOTE: this does not valid accept table values
+ * NOTE: this does yest valid accept table values
  *
  * Returns: %0 else error code on failure to verify
  */
@@ -187,7 +187,7 @@ out:
  * @dfa: dfa to test  (NOT NULL)
  *
  * Assumes dfa has gone through the first pass verification done by unpacking
- * NOTE: this does not valid accept table values
+ * NOTE: this does yest valid accept table values
  *
  * Returns: %0 else error code on failure to verify
  */

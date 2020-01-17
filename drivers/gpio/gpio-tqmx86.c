@@ -7,7 +7,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -79,7 +79,7 @@ static void tqmx86_gpio_set(struct gpio_chip *chip, unsigned int offset,
 static int tqmx86_gpio_direction_input(struct gpio_chip *chip,
 				       unsigned int offset)
 {
-	/* Direction cannot be changed. Validate is an input. */
+	/* Direction canyest be changed. Validate is an input. */
 	if (BIT(offset) & TQMX86_DIR_INPUT_MASK)
 		return 0;
 	else
@@ -90,7 +90,7 @@ static int tqmx86_gpio_direction_output(struct gpio_chip *chip,
 					unsigned int offset,
 					int value)
 {
-	/* Direction cannot be changed, validate is an output */
+	/* Direction canyest be changed, validate is an output */
 	if (BIT(offset) & TQMX86_DIR_INPUT_MASK)
 		return -EINVAL;
 
@@ -162,7 +162,7 @@ static int tqmx86_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 		new_type = TQMX86_GPII_FALLING | TQMX86_GPII_RISING;
 		break;
 	default:
-		return -EINVAL; /* not supported */
+		return -EINVAL; /* yest supported */
 	}
 
 	gpio->irq_type[offset] = new_type;
@@ -244,7 +244,7 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "Cannot get I/O\n");
+		dev_err(&pdev->dev, "Canyest get I/O\n");
 		return -ENODEV;
 	}
 
@@ -314,7 +314,7 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(dev, chip, gpio);
 	if (ret) {
-		dev_err(dev, "Could not register GPIO chip\n");
+		dev_err(dev, "Could yest register GPIO chip\n");
 		goto out_pm_dis;
 	}
 

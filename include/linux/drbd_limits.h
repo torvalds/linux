@@ -8,7 +8,7 @@
  * Our current limitations.
  * Some of them are hard limits,
  * some of them are arbitrary range limits, that make it easier to provide
- * feedback about nonsense settings for certain configurable values.
+ * feedback about yesnsense settings for certain configurable values.
  */
 
 #ifndef DRBD_LIMITS_H
@@ -52,7 +52,7 @@
 
 /* net { */
   /* timeout, unit centi seconds
-   * more than one minute timeout is not useful */
+   * more than one minute timeout is yest useful */
 #define DRBD_TIMEOUT_MIN 1
 #define DRBD_TIMEOUT_MAX 600
 #define DRBD_TIMEOUT_DEF 60       /* 6 seconds */
@@ -112,7 +112,7 @@
 #define DRBD_UNPLUG_WATERMARK_SCALE '1'
 
   /* 0 is disabled.
-   * 200 should be more than enough even for very short timeouts */
+   * 200 should be more than eyesugh even for very short timeouts */
 #define DRBD_KO_COUNT_MIN  0
 #define DRBD_KO_COUNT_MAX  200
 #define DRBD_KO_COUNT_DEF  7
@@ -143,13 +143,13 @@
 /* } */
 
 /* drbdsetup XY resize -d Z
- * you are free to reduce the device size to nothing, if you want to.
- * the upper limit with 64bit kernel, enough ram and flexible meta data
+ * you are free to reduce the device size to yesthing, if you want to.
+ * the upper limit with 64bit kernel, eyesugh ram and flexible meta data
  * is 1 PiB, currently. */
 /* DRBD_MAX_SECTORS */
 #define DRBD_DISK_SIZE_MIN  0
 #define DRBD_DISK_SIZE_MAX  (1 * (2LLU << 40))
-#define DRBD_DISK_SIZE_DEF  0 /* = disabled = no user size... */
+#define DRBD_DISK_SIZE_DEF  0 /* = disabled = yes user size... */
 #define DRBD_DISK_SIZE_SCALE 's'  /* sectors */
 
 #define DRBD_ON_IO_ERROR_DEF EP_DETACH
@@ -211,8 +211,8 @@
 #define DRBD_TCP_CORK_DEF	1
 #define DRBD_AL_UPDATES_DEF     1
 
-/* We used to ignore the discard_zeroes_data setting.
- * To not change established (and expected) behaviour,
+/* We used to igyesre the discard_zeroes_data setting.
+ * To yest change established (and expected) behaviour,
  * by default assume that, for discard_zeroes_data=0,
  * we can make that an effective discard_zeroes_data=1,
  * if we only explicitly zero-out unaligned partial chunks. */
@@ -220,7 +220,7 @@
 
 /* Some backends pretend to support WRITE SAME,
  * but fail such requests when they are actually submitted.
- * This is to tell DRBD to not even try. */
+ * This is to tell DRBD to yest even try. */
 #define DRBD_DISABLE_WRITE_SAME_DEF 0
 
 #define DRBD_ALLOW_TWO_PRIMARIES_DEF	0

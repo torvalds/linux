@@ -2,14 +2,14 @@
 /*
  * linux/arch/arm/mach-omap1/fpga.c
  *
- * Interrupt handler for OMAP-1510 Innovator FPGA
+ * Interrupt handler for OMAP-1510 Inyesvator FPGA
  *
  * Copyright (C) 2001 RidgeRun, Inc.
- * Author: Greg Lonnon <glonnon@ridgerun.com>
+ * Author: Greg Lonyesn <glonyesn@ridgerun.com>
  *
  * Copyright (C) 2002 MontaVista Software, Inc.
  *
- * Separated FPGA interrupts from innovator1510.c and cleaned up for 2.6
+ * Separated FPGA interrupts from inyesvator1510.c and cleaned up for 2.6
  * Copyright (C) 2004 Nokia Corporation by Tony Lindrgen <tony@atomide.com>
  */
 
@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 
 #include <asm/irq.h>
@@ -84,7 +84,7 @@ static void fpga_mask_ack_irq(struct irq_data *d)
 	fpga_ack_irq(d);
 }
 
-static void innovator_fpga_IRQ_demux(struct irq_desc *desc)
+static void inyesvator_fpga_IRQ_demux(struct irq_desc *desc)
 {
 	u32 stat;
 	int fpga_irq;
@@ -121,7 +121,7 @@ static struct irq_chip omap_fpga_irq = {
 /*
  * All of the FPGA interrupt request inputs except for the touchscreen are
  * edge-sensitive; the touchscreen is level-sensitive.  The edge-sensitive
- * interrupts are acknowledged as a side-effect of reading the interrupt
+ * interrupts are ackyeswledged as a side-effect of reading the interrupt
  * status register from the FPGA.  The edge-sensitive interrupt inputs
  * cause a problem with level interrupt requests, such as Ethernet.  The
  * problem occurs when a level interrupt request is asserted while its
@@ -135,7 +135,7 @@ static struct irq_chip omap_fpga_irq = {
  * interrupt is run with all interrupts masked.
  *
  * Limited testing indicates that this workaround appears to be effective
- * for the smc9194 Ethernet driver used on the Innovator.  It should work
+ * for the smc9194 Ethernet driver used on the Inyesvator.  It should work
  * on other FPGA interrupts as well, but any drivers that explicitly mask
  * interrupts at the interrupt controller via disable_irq/enable_irq
  * could pose a problem.
@@ -183,5 +183,5 @@ void omap1510_fpga_init_irq(void)
 	}
 	gpio_direction_input(13);
 	irq_set_irq_type(gpio_to_irq(13), IRQ_TYPE_EDGE_RISING);
-	irq_set_chained_handler(OMAP1510_INT_FPGA, innovator_fpga_IRQ_demux);
+	irq_set_chained_handler(OMAP1510_INT_FPGA, inyesvator_fpga_IRQ_demux);
 }

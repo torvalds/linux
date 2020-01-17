@@ -124,7 +124,7 @@ static int nspire_keypad_chip_init(struct nspire_keypad *keypad)
 	/* Disable GPIO interrupts to prevent hanging on touchpad */
 	/* Possibly used to detect touchpad events */
 	writel(0, keypad->reg_base + KEYPAD_UNKNOWN_INT);
-	/* Acknowledge existing interrupts */
+	/* Ackyeswledge existing interrupts */
 	writel(~0, keypad->reg_base + KEYPAD_UNKNOWN_INT_STS);
 
 	return 0;
@@ -157,7 +157,7 @@ static void nspire_keypad_close(struct input_dev *input)
 
 static int nspire_keypad_probe(struct platform_device *pdev)
 {
-	const struct device_node *of_node = pdev->dev.of_node;
+	const struct device_yesde *of_yesde = pdev->dev.of_yesde;
 	struct nspire_keypad *keypad;
 	struct input_dev *input;
 	struct resource *res;
@@ -177,21 +177,21 @@ static int nspire_keypad_probe(struct platform_device *pdev)
 
 	keypad->row_shift = get_count_order(KEYPAD_BITMASK_COLS);
 
-	error = of_property_read_u32(of_node, "scan-interval",
+	error = of_property_read_u32(of_yesde, "scan-interval",
 				     &keypad->scan_interval);
 	if (error) {
 		dev_err(&pdev->dev, "failed to get scan-interval\n");
 		return error;
 	}
 
-	error = of_property_read_u32(of_node, "row-delay",
+	error = of_property_read_u32(of_yesde, "row-delay",
 				     &keypad->row_delay);
 	if (error) {
 		dev_err(&pdev->dev, "failed to get row-delay\n");
 		return error;
 	}
 
-	keypad->active_low = of_property_read_bool(of_node, "active-low");
+	keypad->active_low = of_property_read_bool(of_yesde, "active-low");
 
 	keypad->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(keypad->clk)) {

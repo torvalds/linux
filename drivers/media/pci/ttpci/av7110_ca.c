@@ -134,7 +134,7 @@ static ssize_t ci_ll_write(struct dvb_ringbuffer *cibuf, struct file *file,
 			   const char __user *buf, size_t count, loff_t *ppos)
 {
 	int free;
-	int non_blocking = file->f_flags & O_NONBLOCK;
+	int yesn_blocking = file->f_flags & O_NONBLOCK;
 	u8 *page = (u8 *)__get_free_page(GFP_USER);
 	int res;
 
@@ -152,7 +152,7 @@ static ssize_t ci_ll_write(struct dvb_ringbuffer *cibuf, struct file *file,
 	free = dvb_ringbuffer_free(cibuf);
 	if (count + 2 > free) {
 		res = -EWOULDBLOCK;
-		if (non_blocking)
+		if (yesn_blocking)
 			goto out;
 		res = -ERESTARTSYS;
 		if (wait_event_interruptible(cibuf->queue,
@@ -173,12 +173,12 @@ static ssize_t ci_ll_read(struct dvb_ringbuffer *cibuf, struct file *file,
 			  char __user *buf, size_t count, loff_t *ppos)
 {
 	int avail;
-	int non_blocking = file->f_flags & O_NONBLOCK;
+	int yesn_blocking = file->f_flags & O_NONBLOCK;
 	ssize_t len;
 
 	if (!cibuf->data || !count)
 		return 0;
-	if (non_blocking && (dvb_ringbuffer_empty(cibuf)))
+	if (yesn_blocking && (dvb_ringbuffer_empty(cibuf)))
 		return -EWOULDBLOCK;
 	if (wait_event_interruptible(cibuf->queue,
 				     !dvb_ringbuffer_empty(cibuf)))
@@ -195,11 +195,11 @@ static ssize_t ci_ll_read(struct dvb_ringbuffer *cibuf, struct file *file,
 	return dvb_ringbuffer_read_user(cibuf, buf, len);
 }
 
-static int dvb_ca_open(struct inode *inode, struct file *file)
+static int dvb_ca_open(struct iyesde *iyesde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct av7110 *av7110 = dvbdev->priv;
-	int err = dvb_generic_open(inode, file);
+	int err = dvb_generic_open(iyesde, file);
 
 	dprintk(8, "av7110:%p\n",av7110);
 

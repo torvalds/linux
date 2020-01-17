@@ -1,5 +1,5 @@
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  *  linux/cluster/ssi/cfs/symlink.c
  *
@@ -15,7 +15,7 @@
  *	details.
  *
  * 	You should have received a copy of the GNU General Public License
- * 	along with this program; if not, write to the Free Software
+ * 	along with this program; if yest, write to the Free Software
  * 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *	Questions/Comments/Bugfixes to ssic-linux-devel@lists.sourceforge.net
@@ -46,7 +46,7 @@
 
 #include "alloc.h"
 #include "file.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "journal.h"
 #include "symlink.h"
 #include "xattr.h"
@@ -56,23 +56,23 @@
 
 static int ocfs2_fast_symlink_readpage(struct file *unused, struct page *page)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	struct buffer_head *bh = NULL;
-	int status = ocfs2_read_inode_block(inode, &bh);
-	struct ocfs2_dinode *fe;
+	int status = ocfs2_read_iyesde_block(iyesde, &bh);
+	struct ocfs2_diyesde *fe;
 	const char *link;
 	void *kaddr;
 	size_t len;
 
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		return status;
 	}
 
-	fe = (struct ocfs2_dinode *) bh->b_data;
+	fe = (struct ocfs2_diyesde *) bh->b_data;
 	link = (char *) fe->id2.i_symlink;
 	/* will be less than a page size */
-	len = strnlen(link, ocfs2_fast_symlink_chars(inode->i_sb));
+	len = strnlen(link, ocfs2_fast_symlink_chars(iyesde->i_sb));
 	kaddr = kmap_atomic(page);
 	memcpy(kaddr, link, len + 1);
 	kunmap_atomic(kaddr);
@@ -86,7 +86,7 @@ const struct address_space_operations ocfs2_fast_symlink_aops = {
 	.readpage		= ocfs2_fast_symlink_readpage,
 };
 
-const struct inode_operations ocfs2_symlink_inode_operations = {
+const struct iyesde_operations ocfs2_symlink_iyesde_operations = {
 	.get_link	= page_get_link,
 	.getattr	= ocfs2_getattr,
 	.setattr	= ocfs2_setattr,

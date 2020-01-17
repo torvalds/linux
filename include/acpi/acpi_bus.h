@@ -107,7 +107,7 @@ struct acpi_device;
 struct acpi_hotplug_profile {
 	struct kobject kobj;
 	int (*scan_dependent)(struct acpi_device *adev);
-	void (*notify_online)(struct acpi_device *adev);
+	void (*yestify_online)(struct acpi_device *adev);
 	bool enabled:1;
 	bool demand_offline:1;
 };
@@ -120,7 +120,7 @@ static inline struct acpi_hotplug_profile *to_acpi_hotplug_profile(
 
 struct acpi_scan_handler {
 	const struct acpi_device_id *ids;
-	struct list_head list_node;
+	struct list_head list_yesde;
 	bool (*match)(const char *idstr, const struct acpi_device_id **matchid);
 	int (*attach)(struct acpi_device *dev, const struct acpi_device_id *id);
 	void (*detach)(struct acpi_device *dev);
@@ -136,7 +136,7 @@ struct acpi_scan_handler {
 
 struct acpi_hotplug_context {
 	struct acpi_device *self;
-	int (*notify)(struct acpi_device *, u32);
+	int (*yestify)(struct acpi_device *, u32);
 	void (*uevent)(struct acpi_device *, u32);
 	void (*fixup)(struct acpi_device *);
 };
@@ -148,12 +148,12 @@ struct acpi_hotplug_context {
 
 typedef int (*acpi_op_add) (struct acpi_device * device);
 typedef int (*acpi_op_remove) (struct acpi_device * device);
-typedef void (*acpi_op_notify) (struct acpi_device * device, u32 event);
+typedef void (*acpi_op_yestify) (struct acpi_device * device, u32 event);
 
 struct acpi_device_ops {
 	acpi_op_add add;
 	acpi_op_remove remove;
-	acpi_op_notify notify;
+	acpi_op_yestify yestify;
 };
 
 #define ACPI_DRIVER_ALL_NOTIFY_EVENTS	0x1	/* system AND device events */
@@ -194,7 +194,7 @@ struct acpi_device_flags {
 	u32 match_driver:1;
 	u32 initialized:1;
 	u32 visited:1;
-	u32 hotplug_notify:1;
+	u32 hotplug_yestify:1;
 	u32 is_dock_station:1;
 	u32 of_compatible_ok:1;
 	u32 coherent_dma:1;
@@ -255,7 +255,7 @@ struct acpi_device_power_flags {
 	u32 power_resources:1;	/* Power resources */
 	u32 inrush_current:1;	/* Serialize Dx->D0 */
 	u32 power_removed:1;	/* Optimize Dx->D0 */
-	u32 ignore_parent:1;	/* Power is independent of parent power state */
+	u32 igyesre_parent:1;	/* Power is independent of parent power state */
 	u32 dsw_present:1;	/* _DSW present? */
 	u32 reserved:26;
 };
@@ -303,7 +303,7 @@ struct acpi_device_perf {
 /* Wakeup Management */
 struct acpi_device_wakeup_flags {
 	u8 valid:1;		/* Can successfully enable wakeup? */
-	u8 notifier_present:1;  /* Wake-up notify handler has been installed */
+	u8 yestifier_present:1;  /* Wake-up yestify handler has been installed */
 };
 
 struct acpi_device_wakeup_context {
@@ -323,9 +323,9 @@ struct acpi_device_wakeup {
 	int enable_count;
 };
 
-struct acpi_device_physical_node {
-	unsigned int node_id;
-	struct list_head node;
+struct acpi_device_physical_yesde {
+	unsigned int yesde_id;
+	struct list_head yesde;
 	struct device *dev;
 	bool put_online:1;
 };
@@ -341,7 +341,7 @@ struct acpi_device_data {
 	const union acpi_object *pointer;
 	struct list_head properties;
 	const union acpi_object *of_compatible;
-	struct list_head subnodes;
+	struct list_head subyesdes;
 };
 
 struct acpi_gpio_mapping;
@@ -349,11 +349,11 @@ struct acpi_gpio_mapping;
 /* Device */
 struct acpi_device {
 	int device_type;
-	acpi_handle handle;		/* no handle for fixed hardware */
-	struct fwnode_handle fwnode;
+	acpi_handle handle;		/* yes handle for fixed hardware */
+	struct fwyesde_handle fwyesde;
 	struct acpi_device *parent;
 	struct list_head children;
-	struct list_head node;
+	struct list_head yesde;
 	struct list_head wakeup_list;
 	struct list_head del_list;
 	struct acpi_device_status status;
@@ -370,73 +370,73 @@ struct acpi_device {
 	const struct acpi_gpio_mapping *driver_gpios;
 	void *driver_data;
 	struct device dev;
-	unsigned int physical_node_count;
+	unsigned int physical_yesde_count;
 	unsigned int dep_unmet;
-	struct list_head physical_node_list;
-	struct mutex physical_node_lock;
+	struct list_head physical_yesde_list;
+	struct mutex physical_yesde_lock;
 	void (*remove)(struct acpi_device *);
 };
 
-/* Non-device subnode */
-struct acpi_data_node {
+/* Non-device subyesde */
+struct acpi_data_yesde {
 	const char *name;
 	acpi_handle handle;
-	struct fwnode_handle fwnode;
-	struct fwnode_handle *parent;
+	struct fwyesde_handle fwyesde;
+	struct fwyesde_handle *parent;
 	struct acpi_device_data data;
 	struct list_head sibling;
 	struct kobject kobj;
 	struct completion kobj_done;
 };
 
-extern const struct fwnode_operations acpi_device_fwnode_ops;
-extern const struct fwnode_operations acpi_data_fwnode_ops;
-extern const struct fwnode_operations acpi_static_fwnode_ops;
+extern const struct fwyesde_operations acpi_device_fwyesde_ops;
+extern const struct fwyesde_operations acpi_data_fwyesde_ops;
+extern const struct fwyesde_operations acpi_static_fwyesde_ops;
 
-bool is_acpi_device_node(const struct fwnode_handle *fwnode);
-bool is_acpi_data_node(const struct fwnode_handle *fwnode);
+bool is_acpi_device_yesde(const struct fwyesde_handle *fwyesde);
+bool is_acpi_data_yesde(const struct fwyesde_handle *fwyesde);
 
-static inline bool is_acpi_node(const struct fwnode_handle *fwnode)
+static inline bool is_acpi_yesde(const struct fwyesde_handle *fwyesde)
 {
-	return (is_acpi_device_node(fwnode) || is_acpi_data_node(fwnode));
+	return (is_acpi_device_yesde(fwyesde) || is_acpi_data_yesde(fwyesde));
 }
 
-#define to_acpi_device_node(__fwnode)					\
+#define to_acpi_device_yesde(__fwyesde)					\
 	({								\
-		typeof(__fwnode) __to_acpi_device_node_fwnode = __fwnode; \
+		typeof(__fwyesde) __to_acpi_device_yesde_fwyesde = __fwyesde; \
 									\
-		is_acpi_device_node(__to_acpi_device_node_fwnode) ?	\
-			container_of(__to_acpi_device_node_fwnode,	\
-				     struct acpi_device, fwnode) :	\
+		is_acpi_device_yesde(__to_acpi_device_yesde_fwyesde) ?	\
+			container_of(__to_acpi_device_yesde_fwyesde,	\
+				     struct acpi_device, fwyesde) :	\
 			NULL;						\
 	})
 
-#define to_acpi_data_node(__fwnode)					\
+#define to_acpi_data_yesde(__fwyesde)					\
 	({								\
-		typeof(__fwnode) __to_acpi_data_node_fwnode = __fwnode;	\
+		typeof(__fwyesde) __to_acpi_data_yesde_fwyesde = __fwyesde;	\
 									\
-		is_acpi_data_node(__to_acpi_data_node_fwnode) ?		\
-			container_of(__to_acpi_data_node_fwnode,	\
-				     struct acpi_data_node, fwnode) :	\
+		is_acpi_data_yesde(__to_acpi_data_yesde_fwyesde) ?		\
+			container_of(__to_acpi_data_yesde_fwyesde,	\
+				     struct acpi_data_yesde, fwyesde) :	\
 			NULL;						\
 	})
 
-static inline bool is_acpi_static_node(const struct fwnode_handle *fwnode)
+static inline bool is_acpi_static_yesde(const struct fwyesde_handle *fwyesde)
 {
-	return !IS_ERR_OR_NULL(fwnode) &&
-		fwnode->ops == &acpi_static_fwnode_ops;
+	return !IS_ERR_OR_NULL(fwyesde) &&
+		fwyesde->ops == &acpi_static_fwyesde_ops;
 }
 
-static inline bool acpi_data_node_match(const struct fwnode_handle *fwnode,
+static inline bool acpi_data_yesde_match(const struct fwyesde_handle *fwyesde,
 					const char *name)
 {
-	return is_acpi_data_node(fwnode) ?
-		(!strcmp(to_acpi_data_node(fwnode)->name, name)) : false;
+	return is_acpi_data_yesde(fwyesde) ?
+		(!strcmp(to_acpi_data_yesde(fwyesde)->name, name)) : false;
 }
 
-static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)
+static inline struct fwyesde_handle *acpi_fwyesde_handle(struct acpi_device *adev)
 {
-	return &adev->fwnode;
+	return &adev->fwyesde;
 }
 
 static inline void *acpi_driver_data(struct acpi_device *d)
@@ -461,7 +461,7 @@ static inline void acpi_set_hp_context(struct acpi_device *adev,
 
 void acpi_initialize_hp_context(struct acpi_device *adev,
 				struct acpi_hotplug_context *hp,
-				int (*notify)(struct acpi_device *, u32),
+				int (*yestify)(struct acpi_device *, u32),
 				void (*uevent)(struct acpi_device *, u32));
 
 /* acpi_device.dev.bus == &acpi_bus_type */
@@ -473,7 +473,7 @@ extern struct bus_type acpi_bus_type;
  */
 
 struct acpi_bus_event {
-	struct list_head node;
+	struct list_head yesde;
 	acpi_device_class device_class;
 	acpi_bus_id bus_id;
 	u32 type;
@@ -486,9 +486,9 @@ void acpi_bus_private_data_handler(acpi_handle, void *);
 int acpi_bus_get_private_data(acpi_handle, void **);
 int acpi_bus_attach_private_data(acpi_handle, void *);
 void acpi_bus_detach_private_data(acpi_handle);
-extern int acpi_notifier_call_chain(struct acpi_device *, u32, u32);
-extern int register_acpi_notifier(struct notifier_block *);
-extern int unregister_acpi_notifier(struct notifier_block *);
+extern int acpi_yestifier_call_chain(struct acpi_device *, u32, u32);
+extern int register_acpi_yestifier(struct yestifier_block *);
+extern int unregister_acpi_yestifier(struct yestifier_block *);
 
 /*
  * External Functions
@@ -546,7 +546,7 @@ static inline bool acpi_device_enumerated(struct acpi_device *adev)
  * module_acpi_driver(acpi_driver) - Helper macro for registering an ACPI driver
  * @__acpi_driver: acpi_driver struct
  *
- * Helper macro for ACPI drivers which do not do anything special in module
+ * Helper macro for ACPI drivers which do yest do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */
@@ -608,9 +608,9 @@ static inline bool acpi_device_always_present(struct acpi_device *adev)
 
 #ifdef CONFIG_PM
 void acpi_pm_wakeup_event(struct device *dev);
-acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
+acpi_status acpi_add_pm_yestifier(struct acpi_device *adev, struct device *dev,
 			void (*func)(struct acpi_device_wakeup_context *context));
-acpi_status acpi_remove_pm_notifier(struct acpi_device *adev);
+acpi_status acpi_remove_pm_yestifier(struct acpi_device *adev);
 bool acpi_pm_device_can_wakeup(struct device *dev);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
 int acpi_pm_set_device_wakeup(struct device *dev, bool enable);
@@ -619,13 +619,13 @@ int acpi_pm_set_bridge_wakeup(struct device *dev, bool enable);
 static inline void acpi_pm_wakeup_event(struct device *dev)
 {
 }
-static inline acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
+static inline acpi_status acpi_add_pm_yestifier(struct acpi_device *adev,
 					       struct device *dev,
 					       void (*func)(struct acpi_device_wakeup_context *context))
 {
 	return AE_SUPPORT;
 }
-static inline acpi_status acpi_remove_pm_notifier(struct acpi_device *adev)
+static inline acpi_status acpi_remove_pm_yestifier(struct acpi_device *adev)
 {
 	return AE_SUPPORT;
 }

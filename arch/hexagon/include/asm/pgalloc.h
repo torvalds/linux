@@ -60,7 +60,7 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 /*
  * Other architectures seem to have ways of making all processes
  * share the same pmd's for their kernel mappings, but the v0.3
- * Hexagon VM spec has a "monolithic" L1 table for user and kernel
+ * Hexagon VM spec has a "moyeslithic" L1 table for user and kernel
  * segments.  We track "generations" of the kernel map to minimize
  * overhead, and update the "slave" copies of the kernel mappings
  * as part of switch_mm.  However, we still need to update the
@@ -83,7 +83,7 @@ static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd,
 
 	/*
 	 * Now the "slave" copy of the current thread.
-	 * This is pointer arithmetic, not byte addresses!
+	 * This is pointer arithmetic, yest byte addresses!
 	 */
 	pmdindex = (pgd_t *)pmd - mm->pgd;
 	ppmd = (pmd_t *)current->active_mm->pgd + pmdindex;

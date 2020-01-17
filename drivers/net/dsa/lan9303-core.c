@@ -212,10 +212,10 @@ static const struct regmap_range lan9303_reserved_ranges[] = {
 };
 
 const struct regmap_access_table lan9303_register_set = {
-	.yes_ranges = lan9303_valid_regs,
-	.n_yes_ranges = ARRAY_SIZE(lan9303_valid_regs),
-	.no_ranges = lan9303_reserved_ranges,
-	.n_no_ranges = ARRAY_SIZE(lan9303_reserved_ranges),
+	.no_ranges = lan9303_valid_regs,
+	.n_no_ranges = ARRAY_SIZE(lan9303_valid_regs),
+	.yes_ranges = lan9303_reserved_ranges,
+	.n_yes_ranges = ARRAY_SIZE(lan9303_reserved_ranges),
 };
 EXPORT_SYMBOL(lan9303_register_set);
 
@@ -472,13 +472,13 @@ static int lan9303_detect_phy_setup(struct lan9303 *chip)
 
 	/* Calculate chip->phy_addr_base:
 	 * Depending on the 'phy_addr_sel_strap' setting, the three phys are
-	 * using IDs 0-1-2 or IDs 1-2-3. We cannot read back the
+	 * using IDs 0-1-2 or IDs 1-2-3. We canyest read back the
 	 * 'phy_addr_sel_strap' setting directly, so we need a test, which
 	 * configuration is active:
 	 * Special reg 18 of phy 3 reads as 0x0000, if 'phy_addr_sel_strap' is 0
 	 * and the IDs are 0-1-2, else it contains something different from
 	 * 0x0000, which means 'phy_addr_sel_strap' is 1 and the IDs are 1-2-3.
-	 * 0xffff is returned on MDIO read with no response.
+	 * 0xffff is returned on MDIO read with yes response.
 	 */
 	reg = chip->ops->phy_read(chip, 3, MII_LAN911X_SPECIAL_MODES);
 	if (reg < 0) {
@@ -498,7 +498,7 @@ static int lan9303_detect_phy_setup(struct lan9303 *chip)
 static const int alrport_2_portmap[] = {1, 2, 4, 0, 3, 5, 6, 7 };
 static const int portmap_2_alrport[] = {3, 0, 1, 4, 2, 5, 6, 7 };
 
-/* Return pointer to first free ALR cache entry, return NULL if none */
+/* Return pointer to first free ALR cache entry, return NULL if yesne */
 static struct lan9303_alr_cache_entry *
 lan9303_alr_cache_find_free(struct lan9303 *chip)
 {
@@ -529,14 +529,14 @@ lan9303_alr_cache_find_mac(struct lan9303 *chip, const u8 *mac_addr)
 	return NULL;
 }
 
-static int lan9303_csr_reg_wait(struct lan9303 *chip, int regno, u32 mask)
+static int lan9303_csr_reg_wait(struct lan9303 *chip, int regyes, u32 mask)
 {
 	int i;
 
 	for (i = 0; i < 25; i++) {
 		u32 reg;
 
-		lan9303_read_switch_reg(chip, regno, &reg);
+		lan9303_read_switch_reg(chip, regyes, &reg);
 		if (!(reg & mask))
 			return 0;
 		usleep_range(1000, 2000);
@@ -605,7 +605,7 @@ struct del_port_learned_ctx {
 	int port;
 };
 
-/* Clear learned (non-static) entry on given port */
+/* Clear learned (yesn-static) entry on given port */
 static void alr_loop_cb_del_port_learned(struct lan9303 *chip, u32 dat0,
 					 u32 dat1, int portmap, void *ctx)
 {
@@ -651,7 +651,7 @@ static void lan9303_alr_set_entry(struct lan9303 *chip, const u8 *mac,
 	dat1 = LAN9303_ALR_DAT1_STATIC;
 	if (port_map)
 		dat1 |= LAN9303_ALR_DAT1_VALID;
-	/* otherwise no ports: delete entry */
+	/* otherwise yes ports: delete entry */
 	if (stp_override)
 		dat1 |= LAN9303_ALR_DAT1_AGE_OVERRID;
 
@@ -703,7 +703,7 @@ static int lan9303_alr_del_port(struct lan9303 *chip, const u8 *mac, int port)
 	mutex_lock(&chip->alr_mutex);
 	entr = lan9303_alr_cache_find_mac(chip, mac);
 	if (!entr)
-		goto out;  /* no static entry found */
+		goto out;  /* yes static entry found */
 
 	entr->port_map &= ~BIT(port);
 	if (entr->port_map == 0) /* zero means its free again */
@@ -772,7 +772,7 @@ static int lan9303_setup_tagging(struct lan9303 *chip)
 }
 
 /* We want a special working switch:
- * - do not forward packets between port 1 and 2
+ * - do yest forward packets between port 1 and 2
  * - forward everything from port 1 to port 0
  * - forward everything from port 2 to port 0
  */
@@ -858,11 +858,11 @@ static int lan9303_check_device(struct lan9303 *chip)
 	}
 
 	/* The default state of the LAN9303 device is to forward packets between
-	 * all ports (if not configured differently by an external EEPROM).
+	 * all ports (if yest configured differently by an external EEPROM).
 	 * The initial state of a DSA device must be forwarding packets only
-	 * between the external and the internal ports and no forwarding
+	 * between the external and the internal ports and yes forwarding
 	 * between the external ports. In preparation we stop packet handling
-	 * at all for now until the LAN9303 device is re-programmed accordingly.
+	 * at all for yesw until the LAN9303 device is re-programmed accordingly.
 	 */
 	ret = lan9303_disable_processing(chip);
 	if (ret)
@@ -895,7 +895,7 @@ static int lan9303_setup(struct dsa_switch *ds)
 
 	/* Make sure that port 0 is the cpu port */
 	if (!dsa_is_cpu_port(ds, 0)) {
-		dev_err(chip->dev, "port 0 is not the CPU port\n");
+		dev_err(chip->dev, "port 0 is yest the CPU port\n");
 		return -EINVAL;
 	}
 
@@ -1147,7 +1147,7 @@ static void lan9303_port_stp_state_set(struct dsa_switch *ds, int port,
 		break;
 	default:
 		portstate = LAN9303_SWE_PORT_STATE_DISABLED_PORT0;
-		dev_err(chip->dev, "unknown stp state: port %d, state %d\n",
+		dev_err(chip->dev, "unkyeswn stp state: port %d, state %d\n",
 			port, state);
 	}
 
@@ -1298,7 +1298,7 @@ static int lan9303_register_switch(struct lan9303 *chip)
 }
 
 static int lan9303_probe_reset_gpio(struct lan9303 *chip,
-				     struct device_node *np)
+				     struct device_yesde *np)
 {
 	chip->reset_gpio = devm_gpiod_get_optional(chip->dev, "reset",
 						   GPIOD_OUT_LOW);
@@ -1319,14 +1319,14 @@ static int lan9303_probe_reset_gpio(struct lan9303 *chip,
 		dev_dbg(chip->dev, "reset duration defaults to 200 ms\n");
 	}
 
-	/* A sane reset duration should not be longer than 1s */
+	/* A sane reset duration should yest be longer than 1s */
 	if (chip->reset_duration > 1000)
 		chip->reset_duration = 1000;
 
 	return 0;
 }
 
-int lan9303_probe(struct lan9303 *chip, struct device_node *np)
+int lan9303_probe(struct lan9303 *chip, struct device_yesde *np)
 {
 	int ret;
 

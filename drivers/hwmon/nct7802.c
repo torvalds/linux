@@ -246,7 +246,7 @@ static int nct7802_read_fan_min(struct nct7802_data *data, u8 reg_fan_low,
 		goto abort;
 	ret = f1 | ((f2 & 0xf8) << 5);
 	/* convert fan count to rpm */
-	if (ret == 0x1fff)	/* maximum value, assume no limit */
+	if (ret == 0x1fff)	/* maximum value, assume yes limit */
 		ret = 0;
 	else if (ret)
 		ret = DIV_ROUND_CLOSEST(1350000U, ret);

@@ -277,7 +277,7 @@ static int virtio_dev_remove(struct device *_d)
 	/* Driver should have reset device. */
 	WARN_ON_ONCE(dev->config->get_status(dev));
 
-	/* Acknowledge the device's existence again. */
+	/* Ackyeswledge the device's existence again. */
 	virtio_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE);
 	return 0;
 }
@@ -310,8 +310,8 @@ EXPORT_SYMBOL_GPL(unregister_virtio_driver);
  * register_virtio_device - register virtio device
  * @dev        : virtio device to be registered
  *
- * On error, the caller must call put_device on &@dev->dev (and not kfree),
- * as another code path may have obtained a reference to @dev.
+ * On error, the caller must call put_device on &@dev->dev (and yest kfree),
+ * as ayesther code path may have obtained a reference to @dev.
  *
  * Returns: 0 on suceess, -error on failure
  */
@@ -338,7 +338,7 @@ int register_virtio_device(struct virtio_device *dev)
 	 * driver messed it up.  This also tests that code path a little. */
 	dev->config->reset(dev);
 
-	/* Acknowledge that we've seen the device. */
+	/* Ackyeswledge that we've seen the device. */
 	virtio_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE);
 
 	INIT_LIST_HEAD(&dev->vqs);
@@ -391,7 +391,7 @@ int virtio_device_restore(struct virtio_device *dev)
 	 * driver messed it up. */
 	dev->config->reset(dev);
 
-	/* Acknowledge that we've seen the device. */
+	/* Ackyeswledge that we've seen the device. */
 	virtio_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE);
 
 	/* Maybe driver failed before freeze.

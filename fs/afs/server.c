@@ -80,7 +80,7 @@ struct afs_server *afs_find_server(struct afs_net *net,
 
 		server = NULL;
 	found:
-		if (server && !atomic_inc_not_zero(&server->usage))
+		if (server && !atomic_inc_yest_zero(&server->usage))
 			server = NULL;
 
 	} while (need_seqretry(&net->fs_addr_lock, seq));
@@ -97,7 +97,7 @@ struct afs_server *afs_find_server(struct afs_net *net,
 struct afs_server *afs_find_server_by_uuid(struct afs_net *net, const uuid_t *uuid)
 {
 	struct afs_server *server = NULL;
-	struct rb_node *p;
+	struct rb_yesde *p;
 	int diff, seq = 0;
 
 	_enter("%pU", uuid);
@@ -113,7 +113,7 @@ struct afs_server *afs_find_server_by_uuid(struct afs_net *net, const uuid_t *uu
 
 		read_seqbegin_or_lock(&net->fs_lock, &seq);
 
-		p = net->fs_servers.rb_node;
+		p = net->fs_servers.rb_yesde;
 		while (p) {
 			server = rb_entry(p, struct afs_server, uuid_rb);
 
@@ -145,7 +145,7 @@ static struct afs_server *afs_install_server(struct afs_net *net,
 {
 	const struct afs_addr_list *alist;
 	struct afs_server *server;
-	struct rb_node **pp, *p;
+	struct rb_yesde **pp, *p;
 	int diff;
 
 	_enter("%p", candidate);
@@ -153,7 +153,7 @@ static struct afs_server *afs_install_server(struct afs_net *net,
 	write_seqlock(&net->fs_lock);
 
 	/* Firstly install the server in the UUID lookup tree */
-	pp = &net->fs_servers.rb_node;
+	pp = &net->fs_servers.rb_yesde;
 	p = NULL;
 	while (*pp) {
 		p = *pp;
@@ -169,7 +169,7 @@ static struct afs_server *afs_install_server(struct afs_net *net,
 	}
 
 	server = candidate;
-	rb_link_node(&server->uuid_rb, p, pp);
+	rb_link_yesde(&server->uuid_rb, p, pp);
 	rb_insert_color(&server->uuid_rb, &net->fs_servers);
 	hlist_add_head_rcu(&server->proc_link, &net->fs_proc);
 
@@ -211,7 +211,7 @@ static struct afs_server *afs_alloc_server(struct afs_net *net,
 
 	server = kzalloc(sizeof(struct afs_server), GFP_KERNEL);
 	if (!server)
-		goto enomem;
+		goto eyesmem;
 
 	atomic_set(&server->usage, 1);
 	server->debug_id = atomic_inc_return(&afs_server_debug_id);
@@ -230,8 +230,8 @@ static struct afs_server *afs_alloc_server(struct afs_net *net,
 	_leave(" = %p", server);
 	return server;
 
-enomem:
-	_leave(" = NULL [nomem]");
+eyesmem:
+	_leave(" = NULL [yesmem]");
 	return NULL;
 }
 
@@ -296,7 +296,7 @@ struct afs_server *afs_lookup_server(struct afs_cell *cell, struct key *key,
 }
 
 /*
- * Set the server timer to fire after a given delay, assuming it's not already
+ * Set the server timer to fire after a given delay, assuming it's yest already
  * set for an earlier time.
  */
 static void afs_set_server_timer(struct afs_net *net, time64_t delay)
@@ -428,7 +428,7 @@ static void afs_gc_servers(struct afs_net *net, struct afs_server *gc_list)
 }
 
 /*
- * Manage the records of servers known to be within a network namespace.  This
+ * Manage the records of servers kyeswn to be within a network namespace.  This
  * includes garbage collecting unused servers.
  *
  * Note also that we were given an increment on net->servers_outstanding by
@@ -438,8 +438,8 @@ void afs_manage_servers(struct work_struct *work)
 {
 	struct afs_net *net = container_of(work, struct afs_net, fs_manager);
 	struct afs_server *gc_list = NULL;
-	struct rb_node *cursor;
-	time64_t now = ktime_get_real_seconds(), next_manage = TIME64_MAX;
+	struct rb_yesde *cursor;
+	time64_t yesw = ktime_get_real_seconds(), next_manage = TIME64_MAX;
 	bool purging = !net->live;
 
 	_enter("");
@@ -465,7 +465,7 @@ void afs_manage_servers(struct work_struct *work)
 			if (!test_bit(AFS_SERVER_FL_VL_FAIL, &server->flags) &&
 			    !test_bit(AFS_SERVER_FL_NOT_FOUND, &server->flags))
 				expire_at += afs_server_gc_delay;
-			if (purging || expire_at <= now) {
+			if (purging || expire_at <= yesw) {
 				server->gc_next = gc_list;
 				gc_list = server;
 			} else if (expire_at < next_manage) {
@@ -481,13 +481,13 @@ void afs_manage_servers(struct work_struct *work)
 	 * the work scheduler.
 	 */
 	if (!purging && next_manage < TIME64_MAX) {
-		now = ktime_get_real_seconds();
+		yesw = ktime_get_real_seconds();
 
-		if (next_manage - now <= 0) {
+		if (next_manage - yesw <= 0) {
 			if (queue_work(afs_wq, &net->fs_manager))
 				afs_inc_servers_outstanding(net);
 		} else {
-			afs_set_server_timer(net, next_manage - now);
+			afs_set_server_timer(net, next_manage - yesw);
 		}
 	}
 
@@ -525,7 +525,7 @@ void afs_purge_servers(struct afs_net *net)
 /*
  * Get an update for a server's address list.
  */
-static noinline bool afs_update_server_record(struct afs_fs_cursor *fc, struct afs_server *server)
+static yesinline bool afs_update_server_record(struct afs_fs_cursor *fc, struct afs_server *server)
 {
 	struct afs_addr_list *alist, *discard;
 
@@ -533,7 +533,7 @@ static noinline bool afs_update_server_record(struct afs_fs_cursor *fc, struct a
 
 	trace_afs_server(server, atomic_read(&server->usage), afs_server_trace_update);
 
-	alist = afs_vl_lookup_addrs(fc->vnode->volume->cell, fc->key,
+	alist = afs_vl_lookup_addrs(fc->vyesde->volume->cell, fc->key,
 				    &server->uuid);
 	if (IS_ERR(alist)) {
 		if ((PTR_ERR(alist) == -ERESTARTSYS ||
@@ -569,7 +569,7 @@ static noinline bool afs_update_server_record(struct afs_fs_cursor *fc, struct a
  */
 bool afs_check_server_record(struct afs_fs_cursor *fc, struct afs_server *server)
 {
-	time64_t now = ktime_get_real_seconds();
+	time64_t yesw = ktime_get_real_seconds();
 	long diff;
 	bool success;
 	int ret, retries = 0;
@@ -579,9 +579,9 @@ bool afs_check_server_record(struct afs_fs_cursor *fc, struct afs_server *server
 	ASSERT(server);
 
 retry:
-	diff = READ_ONCE(server->update_at) - now;
+	diff = READ_ONCE(server->update_at) - yesw;
 	if (diff > 0) {
-		_leave(" = t [not now %ld]", diff);
+		_leave(" = t [yest yesw %ld]", diff);
 		return true;
 	}
 

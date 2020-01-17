@@ -19,7 +19,7 @@ o        `                     ~~~~\___/~~~~    ` controller in FPGA is ,.`
  *                                                    ```````
  *  .```````~~~~`..`.``.``.
  * .  The driver supports  `...       ,..```.`~~~```````````````....````.``,,
- * .   big-endian notation, just`.  .. A bit more sophisticated controllers ,
+ * .   big-endian yestation, just`.  .. A bit more sophisticated controllers ,
  *  . register the device with -be`. .with a pair of set/clear-bit registers ,
  *   `.. suffix.  ```~~`````....`.`   . affecting the data register and the .`
  *     ``.`.``...```                  ```.. output pins are also supported.`
@@ -48,7 +48,7 @@ o        `                     ~~~~\___/~~~~    ` controller in FPGA is ,.`
 #include <linux/spinlock.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/log2.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
@@ -213,7 +213,7 @@ static int bgpio_get_multiple_be(struct gpio_chip *gc, unsigned long *mask,
 	return 0;
 }
 
-static void bgpio_set_none(struct gpio_chip *gc, unsigned int gpio, int val)
+static void bgpio_set_yesne(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 }
 
@@ -473,7 +473,7 @@ static int bgpio_setup_accessors(struct device *dev,
  *
  * For setting the GPIO direction, there are three supported configurations:
  *
- *	- simple bidirection GPIO that requires no configuration.
+ *	- simple bidirection GPIO that requires yes configuration.
  *	- an output direction register (named "dirout") where a 1 bit
  *	indicates the GPIO is an output.
  *	- an input direction register (named "dirin") where a 1 bit indicates
@@ -500,7 +500,7 @@ static int bgpio_setup_io(struct gpio_chip *gc,
 		gc->set = bgpio_set_set;
 		gc->set_multiple = bgpio_set_multiple_set;
 	} else if (flags & BGPIOF_NO_OUTPUT) {
-		gc->set = bgpio_set_none;
+		gc->set = bgpio_set_yesne;
 		gc->set_multiple = NULL;
 	} else {
 		gc->set = bgpio_set;
@@ -641,7 +641,7 @@ int bgpio_init(struct gpio_chip *gc, struct device *dev,
 		/*
 		 * If we have two direction registers, synchronise
 		 * input setting to output setting, the library
-		 * can not handle a line being input and output at
+		 * can yest handle a line being input and output at
 		 * the same time.
 		 */
 		if (gc->reg_dir_out && gc->reg_dir_in)
@@ -696,10 +696,10 @@ static struct bgpio_pdata *bgpio_parse_dt(struct platform_device *pdev,
 
 	pdata->base = -1;
 
-	if (of_device_is_big_endian(pdev->dev.of_node))
+	if (of_device_is_big_endian(pdev->dev.of_yesde))
 		*flags |= BGPIOF_BIG_ENDIAN_BYTE_ORDER;
 
-	if (of_property_read_bool(pdev->dev.of_node, "no-output"))
+	if (of_property_read_bool(pdev->dev.of_yesde, "yes-output"))
 		*flags |= BGPIOF_NO_OUTPUT;
 
 	return pdata;

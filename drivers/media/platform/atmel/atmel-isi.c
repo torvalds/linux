@@ -28,7 +28,7 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-image-sizes.h>
 
@@ -68,7 +68,7 @@ struct frame_buffer {
 };
 
 struct isi_graph_entity {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	struct v4l2_async_subdev asd;
 	struct v4l2_subdev *subdev;
@@ -119,7 +119,7 @@ struct atmel_isi {
 
 	struct v4l2_device		v4l2_dev;
 	struct video_device		*vdev;
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_yestifier	yestifier;
 	struct isi_graph_entity		entity;
 	struct v4l2_format		fmt;
 
@@ -131,7 +131,7 @@ struct atmel_isi {
 	struct vb2_queue		queue;
 };
 
-#define notifier_to_isi(n) container_of(n, struct atmel_isi, notifier)
+#define yestifier_to_isi(n) container_of(n, struct atmel_isi, yestifier)
 
 static void isi_writel(struct atmel_isi *isi, u32 reg, u32 val)
 {
@@ -277,7 +277,7 @@ static int queue_setup(struct vb2_queue *vq,
 
 	size = isi->fmt.fmt.pix.sizeimage;
 
-	/* Make sure the image size is large enough. */
+	/* Make sure the image size is large eyesugh. */
 	if (*nplanes)
 		return sizes[0] < size ? -EINVAL : 0;
 
@@ -314,7 +314,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	size = isi->fmt.fmt.pix.sizeimage;
 
 	if (vb2_plane_size(vb, 0) < size) {
-		dev_err(isi->dev, "%s data will not fit into plane (%lu < %lu)\n",
+		dev_err(isi->dev, "%s data will yest fit into plane (%lu < %lu)\n",
 				__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -323,13 +323,13 @@ static int buffer_prepare(struct vb2_buffer *vb)
 
 	if (!buf->p_dma_desc) {
 		if (list_empty(&isi->dma_desc_head)) {
-			dev_err(isi->dev, "Not enough dma descriptors.\n");
+			dev_err(isi->dev, "Not eyesugh dma descriptors.\n");
 			return -EINVAL;
 		} else {
 			/* Get an available descriptor */
 			desc = list_entry(isi->dma_desc_head.next,
 						struct isi_dma_desc, list);
-			/* Delete the descriptor since now it is used */
+			/* Delete the descriptor since yesw it is used */
 			list_del_init(&desc->list);
 
 			/* Initialize the dma descriptor */
@@ -350,7 +350,7 @@ static void buffer_cleanup(struct vb2_buffer *vb)
 	struct atmel_isi *isi = vb2_get_drv_priv(vb->vb2_queue);
 	struct frame_buffer *buf = container_of(vbuf, struct frame_buffer, vb);
 
-	/* This descriptor is available now and we add to head list */
+	/* This descriptor is available yesw and we add to head list */
 	if (buf->p_dma_desc)
 		list_add(&buf->p_dma_desc->list, &isi->dma_desc_head);
 }
@@ -419,7 +419,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 static int start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct atmel_isi *isi = vb2_get_drv_priv(vq);
-	struct frame_buffer *buf, *node;
+	struct frame_buffer *buf, *yesde;
 	int ret;
 
 	pm_runtime_get_sync(isi->dev);
@@ -461,7 +461,7 @@ err_start_stream:
 	spin_lock_irq(&isi->irqlock);
 	isi->active = NULL;
 	/* Release all active buffers */
-	list_for_each_entry_safe(buf, node, &isi->video_buffer_list, list) {
+	list_for_each_entry_safe(buf, yesde, &isi->video_buffer_list, list) {
 		list_del_init(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
 	}
@@ -474,7 +474,7 @@ err_start_stream:
 static void stop_streaming(struct vb2_queue *vq)
 {
 	struct atmel_isi *isi = vb2_get_drv_priv(vq);
-	struct frame_buffer *buf, *node;
+	struct frame_buffer *buf, *yesde;
 	int ret = 0;
 	unsigned long timeout;
 
@@ -486,7 +486,7 @@ static void stop_streaming(struct vb2_queue *vq)
 	spin_lock_irq(&isi->irqlock);
 	isi->active = NULL;
 	/* Release all active buffers */
-	list_for_each_entry_safe(buf, node, &isi->video_buffer_list, list) {
+	list_for_each_entry_safe(buf, yesde, &isi->video_buffer_list, list) {
 		list_del_init(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
@@ -786,8 +786,8 @@ static void isi_camera_set_bus_param(struct atmel_isi *isi)
 static int atmel_isi_parse_dt(struct atmel_isi *isi,
 			struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct v4l2_fwyesde_endpoint ep = { .bus_type = 0 };
 	int err;
 
 	/* Default settings for ISI */
@@ -796,14 +796,14 @@ static int atmel_isi_parse_dt(struct atmel_isi *isi,
 
 	np = of_graph_get_next_endpoint(np, NULL);
 	if (!np) {
-		dev_err(&pdev->dev, "Could not find the endpoint\n");
+		dev_err(&pdev->dev, "Could yest find the endpoint\n");
 		return -EINVAL;
 	}
 
-	err = v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &ep);
-	of_node_put(np);
+	err = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(np), &ep);
+	of_yesde_put(np);
 	if (err) {
-		dev_err(&pdev->dev, "Could not parse the endpoint\n");
+		dev_err(&pdev->dev, "Could yest parse the endpoint\n");
 		return err;
 	}
 
@@ -1037,9 +1037,9 @@ static int isi_formats_init(struct atmel_isi *isi)
 	return 0;
 }
 
-static int isi_graph_notify_complete(struct v4l2_async_notifier *notifier)
+static int isi_graph_yestify_complete(struct v4l2_async_yestifier *yestifier)
 {
-	struct atmel_isi *isi = notifier_to_isi(notifier);
+	struct atmel_isi *isi = yestifier_to_isi(yestifier);
 	int ret;
 
 	isi->vdev->ctrl_handler = isi->entity.subdev->ctrl_handler;
@@ -1052,7 +1052,7 @@ static int isi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 
 	ret = isi_set_default_fmt(isi);
 	if (ret) {
-		dev_err(isi->dev, "Could not set default format\n");
+		dev_err(isi->dev, "Could yest set default format\n");
 		return ret;
 	}
 
@@ -1063,27 +1063,27 @@ static int isi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 	}
 
 	dev_dbg(isi->dev, "Device registered as %s\n",
-		video_device_node_name(isi->vdev));
+		video_device_yesde_name(isi->vdev));
 	return 0;
 }
 
-static void isi_graph_notify_unbind(struct v4l2_async_notifier *notifier,
+static void isi_graph_yestify_unbind(struct v4l2_async_yestifier *yestifier,
 				     struct v4l2_subdev *sd,
 				     struct v4l2_async_subdev *asd)
 {
-	struct atmel_isi *isi = notifier_to_isi(notifier);
+	struct atmel_isi *isi = yestifier_to_isi(yestifier);
 
-	dev_dbg(isi->dev, "Removing %s\n", video_device_node_name(isi->vdev));
+	dev_dbg(isi->dev, "Removing %s\n", video_device_yesde_name(isi->vdev));
 
-	/* Checks internally if vdev have been init or not */
+	/* Checks internally if vdev have been init or yest */
 	video_unregister_device(isi->vdev);
 }
 
-static int isi_graph_notify_bound(struct v4l2_async_notifier *notifier,
+static int isi_graph_yestify_bound(struct v4l2_async_yestifier *yestifier,
 				   struct v4l2_subdev *subdev,
 				   struct v4l2_async_subdev *asd)
 {
-	struct atmel_isi *isi = notifier_to_isi(notifier);
+	struct atmel_isi *isi = yestifier_to_isi(yestifier);
 
 	dev_dbg(isi->dev, "subdev %s bound\n", subdev->name);
 
@@ -1092,30 +1092,30 @@ static int isi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations isi_graph_notify_ops = {
-	.bound = isi_graph_notify_bound,
-	.unbind = isi_graph_notify_unbind,
-	.complete = isi_graph_notify_complete,
+static const struct v4l2_async_yestifier_operations isi_graph_yestify_ops = {
+	.bound = isi_graph_yestify_bound,
+	.unbind = isi_graph_yestify_unbind,
+	.complete = isi_graph_yestify_complete,
 };
 
-static int isi_graph_parse(struct atmel_isi *isi, struct device_node *node)
+static int isi_graph_parse(struct atmel_isi *isi, struct device_yesde *yesde)
 {
-	struct device_node *ep = NULL;
-	struct device_node *remote;
+	struct device_yesde *ep = NULL;
+	struct device_yesde *remote;
 
-	ep = of_graph_get_next_endpoint(node, ep);
+	ep = of_graph_get_next_endpoint(yesde, ep);
 	if (!ep)
 		return -EINVAL;
 
 	remote = of_graph_get_remote_port_parent(ep);
-	of_node_put(ep);
+	of_yesde_put(ep);
 	if (!remote)
 		return -EINVAL;
 
-	/* Remote node to connect */
-	isi->entity.node = remote;
+	/* Remote yesde to connect */
+	isi->entity.yesde = remote;
 	isi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-	isi->entity.asd.match.fwnode = of_fwnode_handle(remote);
+	isi->entity.asd.match.fwyesde = of_fwyesde_handle(remote);
 	return 0;
 }
 
@@ -1123,27 +1123,27 @@ static int isi_graph_init(struct atmel_isi *isi)
 {
 	int ret;
 
-	/* Parse the graph to extract a list of subdevice DT nodes. */
-	ret = isi_graph_parse(isi, isi->dev->of_node);
+	/* Parse the graph to extract a list of subdevice DT yesdes. */
+	ret = isi_graph_parse(isi, isi->dev->of_yesde);
 	if (ret < 0) {
 		dev_err(isi->dev, "Graph parsing failed\n");
 		return ret;
 	}
 
-	v4l2_async_notifier_init(&isi->notifier);
+	v4l2_async_yestifier_init(&isi->yestifier);
 
-	ret = v4l2_async_notifier_add_subdev(&isi->notifier, &isi->entity.asd);
+	ret = v4l2_async_yestifier_add_subdev(&isi->yestifier, &isi->entity.asd);
 	if (ret) {
-		of_node_put(isi->entity.node);
+		of_yesde_put(isi->entity.yesde);
 		return ret;
 	}
 
-	isi->notifier.ops = &isi_graph_notify_ops;
+	isi->yestifier.ops = &isi_graph_yestify_ops;
 
-	ret = v4l2_async_notifier_register(&isi->v4l2_dev, &isi->notifier);
+	ret = v4l2_async_yestifier_register(&isi->v4l2_dev, &isi->yestifier);
 	if (ret < 0) {
 		dev_err(isi->dev, "Notifier registration failed\n");
-		v4l2_async_notifier_cleanup(&isi->notifier);
+		v4l2_async_yestifier_cleanup(&isi->yestifier);
 		return ret;
 	}
 
@@ -1191,7 +1191,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 		goto err_vdev_alloc;
 	}
 
-	/* video node */
+	/* video yesde */
 	isi->vdev->fops = &isi_fops;
 	isi->vdev->v4l2_dev = &isi->v4l2_dev;
 	isi->vdev->queue = &isi->queue;
@@ -1266,7 +1266,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_req_irq;
 
-	pm_suspend_ignore_children(&pdev->dev, true);
+	pm_suspend_igyesre_children(&pdev->dev, true);
 	pm_runtime_enable(&pdev->dev);
 	platform_set_drvdata(pdev, isi);
 	return 0;
@@ -1295,8 +1295,8 @@ static int atmel_isi_remove(struct platform_device *pdev)
 			isi->p_fb_descriptors,
 			isi->fb_descriptors_phys);
 	pm_runtime_disable(&pdev->dev);
-	v4l2_async_notifier_unregister(&isi->notifier);
-	v4l2_async_notifier_cleanup(&isi->notifier);
+	v4l2_async_yestifier_unregister(&isi->yestifier);
+	v4l2_async_yestifier_cleanup(&isi->yestifier);
 	v4l2_device_unregister(&isi->v4l2_dev);
 
 	return 0;

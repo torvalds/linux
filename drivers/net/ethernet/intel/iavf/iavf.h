@@ -104,11 +104,11 @@ struct iavf_q_vector {
 	char name[IFNAMSIZ + 15];
 	bool arm_wb_state;
 	cpumask_t affinity_mask;
-	struct irq_affinity_notify affinity_notify;
+	struct irq_affinity_yestify affinity_yestify;
 };
 
 /* Helper macros to switch between ints/sec and what the register uses.
- * And yes, it's the same math going both ways.  The lowest value
+ * And no, it's the same math going both ways.  The lowest value
  * supported by all of the iavf hardware is 8.
  */
 #define EITR_INTS_PER_SEC_TO_REG(_eitr) \
@@ -144,7 +144,7 @@ struct iavf_vlan_filter {
 #define IAVF_MAX_TRAFFIC_CLASS	4
 /* State of traffic class creation */
 enum iavf_tc_state_t {
-	__IAVF_TC_INVALID, /* no traffic class, default state */
+	__IAVF_TC_INVALID, /* yes traffic class, default state */
 	__IAVF_TC_RUNNING, /* traffic classes have been created */
 };
 
@@ -157,7 +157,7 @@ struct iavf_channel_config {
 
 /* State of cloud filter */
 enum iavf_cloud_filter_state_t {
-	__IAVF_CF_INVALID,	 /* cloud filter not added */
+	__IAVF_CF_INVALID,	 /* cloud filter yest added */
 	__IAVF_CF_ADD_PENDING, /* cloud filter pending add by the PF */
 	__IAVF_CF_DEL_PENDING, /* cloud filter pending del by the PF */
 	__IAVF_CF_ACTIVE,	 /* cloud filter is active */
@@ -180,7 +180,7 @@ enum iavf_state_t {
 };
 
 enum iavf_critical_section_t {
-	__IAVF_IN_CRITICAL_TASK,	/* cannot be interrupted */
+	__IAVF_IN_CRITICAL_TASK,	/* canyest be interrupted */
 	__IAVF_IN_CLIENT_TASK,
 	__IAVF_IN_REMOVE_TASK,	/* device being removed */
 };
@@ -277,7 +277,7 @@ struct iavf_adapter {
 #define IAVF_FLAG_AQ_HANDLE_RESET		BIT(8)
 #define IAVF_FLAG_AQ_CONFIGURE_RSS		BIT(9) /* direct AQ config */
 #define IAVF_FLAG_AQ_GET_CONFIG		BIT(10)
-/* Newer style, RSS done by the PF so we can ignore hardware vagaries. */
+/* Newer style, RSS done by the PF so we can igyesre hardware vagaries. */
 #define IAVF_FLAG_AQ_GET_HENA			BIT(11)
 #define IAVF_FLAG_AQ_SET_HENA			BIT(12)
 #define IAVF_FLAG_AQ_SET_RSS_KEY		BIT(13)
@@ -326,7 +326,7 @@ struct iavf_adapter {
 	struct virtchnl_vsi_resource *vsi_res; /* our LAN VSI */
 	struct virtchnl_version_info pf_version;
 #define PF_IS_V11(_a) (((_a)->pf_version.major == 1) && \
-		       ((_a)->pf_version.minor == 1))
+		       ((_a)->pf_version.miyesr == 1))
 	u16 msg_enable;
 	struct iavf_eth_stats current_stats;
 	struct iavf_vsi vsi;
@@ -407,10 +407,10 @@ int iavf_config_rss(struct iavf_adapter *adapter);
 int iavf_lan_add_device(struct iavf_adapter *adapter);
 int iavf_lan_del_device(struct iavf_adapter *adapter);
 void iavf_client_subtask(struct iavf_adapter *adapter);
-void iavf_notify_client_message(struct iavf_vsi *vsi, u8 *msg, u16 len);
-void iavf_notify_client_l2_params(struct iavf_vsi *vsi);
-void iavf_notify_client_open(struct iavf_vsi *vsi);
-void iavf_notify_client_close(struct iavf_vsi *vsi, bool reset);
+void iavf_yestify_client_message(struct iavf_vsi *vsi, u8 *msg, u16 len);
+void iavf_yestify_client_l2_params(struct iavf_vsi *vsi);
+void iavf_yestify_client_open(struct iavf_vsi *vsi);
+void iavf_yestify_client_close(struct iavf_vsi *vsi, bool reset);
 void iavf_enable_channels(struct iavf_adapter *adapter);
 void iavf_disable_channels(struct iavf_adapter *adapter);
 void iavf_add_cloud_filter(struct iavf_adapter *adapter);

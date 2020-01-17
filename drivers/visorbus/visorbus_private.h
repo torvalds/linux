@@ -14,7 +14,7 @@
 #include "controlvmchannel.h"
 #include "vbuschannel.h"
 
-struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
+struct visor_device *visorbus_get_device_by_id(u32 bus_yes, u32 dev_yes,
 					       struct visor_device *from);
 int visorbus_create_instance(struct visor_device *dev);
 void visorbus_remove_instance(struct visor_device *bus_info);

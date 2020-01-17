@@ -114,7 +114,7 @@ acpi_ns_dump_pathname(acpi_handle handle,
 
 	/* Convert handle to a full pathname and print it (with supplied message) */
 
-	acpi_ns_print_node_pathname(handle, msg);
+	acpi_ns_print_yesde_pathname(handle, msg);
 	acpi_os_printf("\n");
 	return_VOID;
 }
@@ -141,7 +141,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 			u32 level, void *context, void **return_value)
 {
 	struct acpi_walk_info *info = (struct acpi_walk_info *)context;
-	struct acpi_namespace_node *this_node;
+	struct acpi_namespace_yesde *this_yesde;
 	union acpi_operand_object *obj_desc = NULL;
 	acpi_object_type obj_type;
 	acpi_object_type type;
@@ -162,20 +162,20 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	this_node = acpi_ns_validate_handle(obj_handle);
-	if (!this_node) {
+	this_yesde = acpi_ns_validate_handle(obj_handle);
+	if (!this_yesde) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Invalid object handle %p\n",
 				  obj_handle));
 		return (AE_OK);
 	}
 
-	type = this_node->type;
+	type = this_yesde->type;
 	info->count++;
 
 	/* Check if the owner matches */
 
 	if ((info->owner_id != ACPI_OWNER_ID_MAX) &&
-	    (info->owner_id != this_node->owner_id)) {
+	    (info->owner_id != this_yesde->owner_id)) {
 		return (AE_OK);
 	}
 
@@ -185,30 +185,30 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 		acpi_os_printf("%2d%*s", (u32) level - 1, (int)level * 2, " ");
 
-		/* Check the node type and name */
+		/* Check the yesde type and name */
 
 		if (type > ACPI_TYPE_LOCAL_MAX) {
 			ACPI_WARNING((AE_INFO,
 				      "Invalid ACPI Object Type 0x%08X", type));
 		}
 
-		acpi_os_printf("%4.4s", acpi_ut_get_node_name(this_node));
+		acpi_os_printf("%4.4s", acpi_ut_get_yesde_name(this_yesde));
 	}
 
 	/* Now we can print out the pertinent information */
 
 	acpi_os_printf(" %-12s %p %3.3X ",
-		       acpi_ut_get_type_name(type), this_node,
-		       this_node->owner_id);
+		       acpi_ut_get_type_name(type), this_yesde,
+		       this_yesde->owner_id);
 
 	dbg_level = acpi_dbg_level;
 	acpi_dbg_level = 0;
-	obj_desc = acpi_ns_get_attached_object(this_node);
+	obj_desc = acpi_ns_get_attached_object(this_yesde);
 	acpi_dbg_level = dbg_level;
 
-	/* Temp nodes are those nodes created by a control method */
+	/* Temp yesdes are those yesdes created by a control method */
 
-	if (this_node->flags & ANOBJ_TEMPORARY) {
+	if (this_yesde->flags & ANOBJ_TEMPORARY) {
 		acpi_os_printf("(T) ");
 	}
 
@@ -274,7 +274,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 				acpi_os_printf("Elements %.2X\n",
 					       obj_desc->package.count);
 			} else {
-				acpi_os_printf("[Length not yet evaluated]\n");
+				acpi_os_printf("[Length yest yet evaluated]\n");
 			}
 			break;
 
@@ -298,7 +298,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 				}
 				acpi_os_printf("\n");
 			} else {
-				acpi_os_printf("[Length not yet evaluated]\n");
+				acpi_os_printf("[Length yest yet evaluated]\n");
 			}
 			break;
 
@@ -322,7 +322,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 					       obj_desc->region.length);
 			} else {
 				acpi_os_printf
-				    (" [Address/Length not yet evaluated]\n");
+				    (" [Address/Length yest yet evaluated]\n");
 			}
 			break;
 
@@ -335,58 +335,58 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		case ACPI_TYPE_BUFFER_FIELD:
 
 			if (obj_desc->buffer_field.buffer_obj &&
-			    obj_desc->buffer_field.buffer_obj->buffer.node) {
+			    obj_desc->buffer_field.buffer_obj->buffer.yesde) {
 				acpi_os_printf("Buf [%4.4s]",
-					       acpi_ut_get_node_name(obj_desc->
+					       acpi_ut_get_yesde_name(obj_desc->
 								     buffer_field.
 								     buffer_obj->
 								     buffer.
-								     node));
+								     yesde));
 			}
 			break;
 
 		case ACPI_TYPE_LOCAL_REGION_FIELD:
 
 			acpi_os_printf("Rgn [%4.4s]",
-				       acpi_ut_get_node_name(obj_desc->
+				       acpi_ut_get_yesde_name(obj_desc->
 							     common_field.
 							     region_obj->region.
-							     node));
+							     yesde));
 			break;
 
 		case ACPI_TYPE_LOCAL_BANK_FIELD:
 
 			acpi_os_printf("Rgn [%4.4s] Bnk [%4.4s]",
-				       acpi_ut_get_node_name(obj_desc->
+				       acpi_ut_get_yesde_name(obj_desc->
 							     common_field.
 							     region_obj->region.
-							     node),
-				       acpi_ut_get_node_name(obj_desc->
+							     yesde),
+				       acpi_ut_get_yesde_name(obj_desc->
 							     bank_field.
 							     bank_obj->
 							     common_field.
-							     node));
+							     yesde));
 			break;
 
 		case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
 			acpi_os_printf("Idx [%4.4s] Dat [%4.4s]",
-				       acpi_ut_get_node_name(obj_desc->
+				       acpi_ut_get_yesde_name(obj_desc->
 							     index_field.
 							     index_obj->
-							     common_field.node),
-				       acpi_ut_get_node_name(obj_desc->
+							     common_field.yesde),
+				       acpi_ut_get_yesde_name(obj_desc->
 							     index_field.
 							     data_obj->
 							     common_field.
-							     node));
+							     yesde));
 			break;
 
 		case ACPI_TYPE_LOCAL_ALIAS:
 		case ACPI_TYPE_LOCAL_METHOD_ALIAS:
 
 			acpi_os_printf("Target %4.4s (%p)\n",
-				       acpi_ut_get_node_name(obj_desc),
+				       acpi_ut_get_yesde_name(obj_desc),
 				       obj_desc);
 			break;
 
@@ -484,7 +484,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 	dbg_level = acpi_dbg_level;
 	acpi_dbg_level = 0;
-	obj_desc = acpi_ns_get_attached_object(this_node);
+	obj_desc = acpi_ns_get_attached_object(this_yesde);
 	acpi_dbg_level = dbg_level;
 
 	/* Dump attached objects */
@@ -499,7 +499,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		case ACPI_DESC_TYPE_NAMED:
 
 			acpi_os_printf("(Ptr to Node)\n");
-			bytes_to_dump = sizeof(struct acpi_namespace_node);
+			bytes_to_dump = sizeof(struct acpi_namespace_yesde);
 			ACPI_DUMP_BUFFER(obj_desc, bytes_to_dump);
 			break;
 
@@ -629,12 +629,12 @@ acpi_ns_dump_objects(acpi_object_type type,
 	/*
 	 * Just lock the entire namespace for the duration of the dump.
 	 * We don't want any changes to the namespace during this time,
-	 * especially the temporary nodes since we are going to display
+	 * especially the temporary yesdes since we are going to display
 	 * them also.
 	 */
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not acquire namespace mutex\n");
+		acpi_os_printf("Could yest acquire namespace mutex\n");
 		return;
 	}
 
@@ -649,7 +649,7 @@ acpi_ns_dump_objects(acpi_object_type type,
 				     acpi_ns_dump_one_object, NULL,
 				     (void *)&info, NULL);
 
-	acpi_os_printf("\nNamespace node count: %u\n\n", info.count);
+	acpi_os_printf("\nNamespace yesde count: %u\n\n", info.count);
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 }
 
@@ -677,22 +677,22 @@ acpi_ns_dump_one_object_path(acpi_handle obj_handle,
 {
 	u32 max_level = *((u32 *)context);
 	char *pathname;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	int path_indent;
 
 	if (!obj_handle) {
 		return (AE_OK);
 	}
 
-	node = acpi_ns_validate_handle(obj_handle);
-	if (!node) {
+	yesde = acpi_ns_validate_handle(obj_handle);
+	if (!yesde) {
 
-		/* Ignore bad node during namespace walk */
+		/* Igyesre bad yesde during namespace walk */
 
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_normalized_pathname(node, TRUE);
+	pathname = acpi_ns_get_yesrmalized_pathname(yesde, TRUE);
 
 	path_indent = 1;
 	if (level <= max_level) {
@@ -700,7 +700,7 @@ acpi_ns_dump_one_object_path(acpi_handle obj_handle,
 	}
 
 	acpi_os_printf("%2d%*s%-12s%*s",
-		       level, level, " ", acpi_ut_get_type_name(node->type),
+		       level, level, " ", acpi_ut_get_type_name(yesde->type),
 		       path_indent, " ");
 
 	acpi_os_printf("%s\n", &pathname[1]);
@@ -753,12 +753,12 @@ acpi_ns_dump_object_paths(acpi_object_type type,
 	/*
 	 * Just lock the entire namespace for the duration of the dump.
 	 * We don't want any changes to the namespace during this time,
-	 * especially the temporary nodes since we are going to display
+	 * especially the temporary yesdes since we are going to display
 	 * them also.
 	 */
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not acquire namespace mutex\n");
+		acpi_os_printf("Could yest acquire namespace mutex\n");
 		return;
 	}
 
@@ -829,13 +829,13 @@ void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth)
 
 	ACPI_FUNCTION_TRACE(ns_dump_tables);
 
-	if (!acpi_gbl_root_node) {
+	if (!acpi_gbl_root_yesde) {
 		/*
-		 * If the name space has not been initialized,
-		 * there is nothing to dump.
+		 * If the name space has yest been initialized,
+		 * there is yesthing to dump.
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
-				  "namespace not initialized!\n"));
+				  "namespace yest initialized!\n"));
 		return_VOID;
 	}
 
@@ -843,7 +843,7 @@ void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth)
 
 		/* Entire namespace */
 
-		search_handle = acpi_gbl_root_node;
+		search_handle = acpi_gbl_root_yesde;
 		ACPI_DEBUG_PRINT((ACPI_DB_TABLES, "\\\n"));
 	}
 

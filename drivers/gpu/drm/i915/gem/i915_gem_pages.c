@@ -98,7 +98,7 @@ int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 /* Ensure that the associated pages are gathered from the backing storage
  * and pinned into our object. i915_gem_object_pin_pages() may be called
  * multiple times before they are released by a single call to
- * i915_gem_object_unpin_pages() - once the pages are no longer referenced
+ * i915_gem_object_unpin_pages() - once the pages are yes longer referenced
  * either as a result of memory pressure (reaping pages under the shrinker)
  * or as the object is itself released.
  */
@@ -201,7 +201,7 @@ int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 
 	GEM_BUG_ON(atomic_read(&obj->bind_count));
 
-	/* May be called by shrinker from within get_pages() (on another bo) */
+	/* May be called by shrinker from within get_pages() (on ayesther bo) */
 	mutex_lock_nested(&obj->mm.lock, subclass);
 	if (unlikely(atomic_read(&obj->mm.pages_pin_count))) {
 		err = -EBUSY;
@@ -217,7 +217,7 @@ int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 
 	/*
 	 * XXX Temporary hijinx to avoid updating all backends to handle
-	 * NULL pages. In the future, when we have more asynchronous
+	 * NULL pages. In the future, when we have more asynchroyesus
 	 * get_pages backends we should be better able to handle the
 	 * cancellation of the async task in a more uniform manner.
 	 */
@@ -315,7 +315,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	pinned = !(type & I915_MAP_OVERRIDE);
 	type &= ~I915_MAP_OVERRIDE;
 
-	if (!atomic_inc_not_zero(&obj->mm.pages_pin_count)) {
+	if (!atomic_inc_yest_zero(&obj->mm.pages_pin_count)) {
 		if (unlikely(!i915_gem_object_has_pages(obj))) {
 			GEM_BUG_ON(i915_gem_object_has_pinned_pages(obj));
 
@@ -431,7 +431,7 @@ i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
 		unsigned long i;
 		int ret;
 
-		/* If we cannot allocate and insert this entry, or the
+		/* If we canyest allocate and insert this entry, or the
 		 * individual pages from this range, cancel updating the
 		 * sg_idx so that on this lookup we are forced to linearly
 		 * scan onwards, but on future lookups we will try the
@@ -461,7 +461,7 @@ scan:
 
 	mutex_unlock(&iter->lock);
 
-	if (unlikely(n < idx)) /* insertion completed by another thread */
+	if (unlikely(n < idx)) /* insertion completed by ayesther thread */
 		goto lookup;
 
 	/* In case we failed to insert the entry into the radixtree, we need

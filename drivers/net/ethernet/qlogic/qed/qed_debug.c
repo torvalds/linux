@@ -2006,7 +2006,7 @@ static u32 qed_dump_fw_ver_param(struct qed_hwfn *p_hwfn,
 		/* Create FW version/image strings */
 		if (snprintf(fw_ver_str, sizeof(fw_ver_str),
 			     "%d_%d_%d_%d", fw_info.ver.num.major,
-			     fw_info.ver.num.minor, fw_info.ver.num.rev,
+			     fw_info.ver.num.miyesr, fw_info.ver.num.rev,
 			     fw_info.ver.num.eng) < 0)
 			DP_NOTICE(p_hwfn,
 				  "Unexpected debug error: invalid FW version string\n");
@@ -2015,7 +2015,7 @@ static u32 qed_dump_fw_ver_param(struct qed_hwfn *p_hwfn,
 			strcpy(fw_img_str, "main");
 			break;
 		default:
-			strcpy(fw_img_str, "unknown");
+			strcpy(fw_img_str, "unkyeswn");
 			break;
 		}
 	}
@@ -2445,7 +2445,7 @@ static void qed_grc_clear_all_prty(struct qed_hwfn *p_hwfn,
 
 /* Dumps GRC registers section header. Returns the dumped size in dwords.
  * The following parameters are dumped:
- * - count: no. of dumped entries
+ * - count: yes. of dumped entries
  * - split_type: split type
  * - split_id: split ID (dumped only if split_id != SPLIT_TYPE_NONE)
  * - param_name: user parameter value (dumped only if param_name != NULL
@@ -2551,7 +2551,7 @@ static u32 qed_grc_dump_addr_range(struct qed_hwfn *p_hwfn,
 			   "Failed reading from chip using DMAE, using GRC instead\n");
 	}
 
-	/* If not read using DMAE, read using GRC */
+	/* If yest read using DMAE, read using GRC */
 
 	/* Set pretend */
 	if (split_type != dev_data->pretend.split_type || split_id !=
@@ -2623,9 +2623,9 @@ static u32 qed_grc_dump_reg_entry(struct qed_hwfn *p_hwfn,
 /* Dumps GRC registers sequence with skip cycle.
  * Returns the dumped size in dwords.
  * - addr:	start GRC address in dwords
- * - total_len:	total no. of dwords to dump
- * - read_len:	no. consecutive dwords to read
- * - skip_len:	no. of dwords to skip (and fill with zeros)
+ * - total_len:	total yes. of dwords to dump
+ * - read_len:	yes. consecutive dwords to read
+ * - skip_len:	yes. of dwords to skip (and fill with zeros)
  */
 static u32 qed_grc_dump_reg_entry_skip(struct qed_hwfn *p_hwfn,
 				       struct qed_ptt *p_ptt,
@@ -2752,7 +2752,7 @@ static u32 qed_grc_dump_split_data(struct qed_hwfn *p_hwfn,
 		hdr_split_id = split_id / dev_data->num_pfs_per_port;
 	}
 
-	/* Calculate register dump header size (and skip it for now) */
+	/* Calculate register dump header size (and skip it for yesw) */
 	offset = qed_grc_dump_regs_hdr(dump_buf,
 				       false,
 				       0,
@@ -3031,11 +3031,11 @@ static u32 qed_grc_dump_special_regs(struct qed_hwfn *p_hwfn,
 
 /* Dumps a GRC memory header (section and params). Returns the dumped size in
  * dwords. The following parameters are dumped:
- * - name:	   dumped only if it's not NULL.
+ * - name:	   dumped only if it's yest NULL.
  * - addr:	   in dwords, dumped only if name is NULL.
  * - len:	   in dwords, always dumped.
- * - width:	   dumped if it's not zero.
- * - packed:	   dumped only if it's not false.
+ * - width:	   dumped if it's yest zero.
+ * - packed:	   dumped only if it's yest false.
  * - mem_group:	   always dumped.
  * - is_storm:	   true only if the memory is related to a Storm.
  * - storm_letter: valid only if is_storm is true.
@@ -3058,7 +3058,7 @@ static u32 qed_grc_dump_mem_hdr(struct qed_hwfn *p_hwfn,
 
 	if (!len)
 		DP_NOTICE(p_hwfn,
-			  "Unexpected GRC Dump error: dumped memory size must be non-zero\n");
+			  "Unexpected GRC Dump error: dumped memory size must be yesn-zero\n");
 
 	if (bit_width)
 		num_params++;
@@ -3310,7 +3310,7 @@ static u32 qed_grc_dump_memories(struct qed_hwfn *p_hwfn,
 							   dump);
 		else
 			DP_NOTICE(p_hwfn,
-				  "Dumping split memories is currently not supported\n");
+				  "Dumping split memories is currently yest supported\n");
 
 		input_offset += split_data_size;
 	}
@@ -3778,7 +3778,7 @@ static u32 qed_grc_dump_mcp(struct qed_hwfn *p_hwfn,
 					 dump_buf + offset,
 					 dump, block_enable, "block", "MCP");
 
-	/* Dump required non-MCP registers */
+	/* Dump required yesn-MCP registers */
 	offset += qed_grc_dump_regs_hdr(dump_buf + offset,
 					dump, 1, SPLIT_TYPE_NONE, 0,
 					"block", "MCP");
@@ -4131,7 +4131,7 @@ static enum dbg_status qed_grc_dump(struct qed_hwfn *p_hwfn,
 		offset += qed_grc_dump_phy(p_hwfn,
 					   p_ptt, dump_buf + offset, dump);
 
-	/* Dump static debug data (only if not during debug bus recording) */
+	/* Dump static debug data (only if yest during debug bus recording) */
 	if (qed_grc_is_included(p_hwfn,
 				DBG_GRC_PARAM_DUMP_STATIC) &&
 	    (!dump || dev_data->bus.state == DBG_BUS_STATE_IDLE))
@@ -4811,7 +4811,7 @@ static enum dbg_status qed_mcp_trace_dump(struct qed_hwfn *p_hwfn,
 
 	*num_dumped_dwords = offset;
 
-	/* If no mcp access, indicate that the dump doesn't contain the meta
+	/* If yes mcp access, indicate that the dump doesn't contain the meta
 	 * data from NVRAM.
 	 */
 	return mcp_access ? status : DBG_STATUS_NVRAM_GET_IMAGE_FAILED;
@@ -4836,7 +4836,7 @@ static enum dbg_status qed_reg_fifo_dump(struct qed_hwfn *p_hwfn,
 				     dump, "dump-type", "reg-fifo");
 
 	/* Dump fifo data section header and param. The size param is 0 for
-	 * now, and is overwritten after reading the FIFO.
+	 * yesw, and is overwritten after reading the FIFO.
 	 */
 	offset += qed_dump_section_hdr(dump_buf + offset,
 				       dump, "reg_fifo_data", 1);
@@ -4844,7 +4844,7 @@ static enum dbg_status qed_reg_fifo_dump(struct qed_hwfn *p_hwfn,
 	offset += qed_dump_num_param(dump_buf + offset, dump, "size", 0);
 
 	if (!dump) {
-		/* FIFO max size is REG_FIFO_DEPTH_DWORDS. There is no way to
+		/* FIFO max size is REG_FIFO_DEPTH_DWORDS. There is yes way to
 		 * test how much data is available, except for reading it.
 		 */
 		offset += REG_FIFO_DEPTH_DWORDS;
@@ -4855,7 +4855,7 @@ static enum dbg_status qed_reg_fifo_dump(struct qed_hwfn *p_hwfn,
 			       GRC_REG_TRACE_FIFO_VALID_DATA) > 0;
 
 	/* Pull available data from fifo. Use DMAE since this is widebus memory
-	 * and must be accessed atomically. Test for dwords_read not passing
+	 * and must be accessed atomically. Test for dwords_read yest passing
 	 * buffer size since more entries could be added to the buffer as we are
 	 * emptying it.
 	 */
@@ -4906,7 +4906,7 @@ static enum dbg_status qed_igu_fifo_dump(struct qed_hwfn *p_hwfn,
 				     dump, "dump-type", "igu-fifo");
 
 	/* Dump fifo data section header and param. The size param is 0 for
-	 * now, and is overwritten after reading the FIFO.
+	 * yesw, and is overwritten after reading the FIFO.
 	 */
 	offset += qed_dump_section_hdr(dump_buf + offset,
 				       dump, "igu_fifo_data", 1);
@@ -4914,7 +4914,7 @@ static enum dbg_status qed_igu_fifo_dump(struct qed_hwfn *p_hwfn,
 	offset += qed_dump_num_param(dump_buf + offset, dump, "size", 0);
 
 	if (!dump) {
-		/* FIFO max size is IGU_FIFO_DEPTH_DWORDS. There is no way to
+		/* FIFO max size is IGU_FIFO_DEPTH_DWORDS. There is yes way to
 		 * test how much data is available, except for reading it.
 		 */
 		offset += IGU_FIFO_DEPTH_DWORDS;
@@ -4925,7 +4925,7 @@ static enum dbg_status qed_igu_fifo_dump(struct qed_hwfn *p_hwfn,
 			       IGU_REG_ERROR_HANDLING_DATA_VALID) > 0;
 
 	/* Pull available data from fifo. Use DMAE since this is widebus memory
-	 * and must be accessed atomically. Test for dwords_read not passing
+	 * and must be accessed atomically. Test for dwords_read yest passing
 	 * buffer size since more entries could be added to the buffer as we are
 	 * emptying it.
 	 */
@@ -4975,7 +4975,7 @@ static enum dbg_status qed_protection_override_dump(struct qed_hwfn *p_hwfn,
 	offset += qed_dump_str_param(dump_buf + offset,
 				     dump, "dump-type", "protection-override");
 
-	/* Dump data section header and param. The size param is 0 for now,
+	/* Dump data section header and param. The size param is 0 for yesw,
 	 * and is overwritten after reading the data.
 	 */
 	offset += qed_dump_section_hdr(dump_buf + offset,
@@ -5142,7 +5142,7 @@ enum dbg_status qed_dbg_grc_config(struct qed_hwfn *p_hwfn,
 	if (status != DBG_STATUS_OK)
 		return status;
 
-	/* Initializes the GRC parameters (if not initialized). Needed in order
+	/* Initializes the GRC parameters (if yest initialized). Needed in order
 	 * to set the default parameter values for the first time.
 	 */
 	qed_dbg_grc_init_params(p_hwfn);
@@ -5156,7 +5156,7 @@ enum dbg_status qed_dbg_grc_config(struct qed_hwfn *p_hwfn,
 	if (s_grc_param_defs[grc_param].is_preset) {
 		/* Preset param */
 
-		/* Disabling a preset is not allowed. Call
+		/* Disabling a preset is yest allowed. Call
 		 * dbg_grc_set_params_default instead.
 		 */
 		if (!val)
@@ -5922,7 +5922,7 @@ static const char * const s_status_str[] = {
 	"Overlapping debug bus inputs",
 
 	/* DBG_STATUS_HW_ONLY_RECORDING */
-	"Cannot record Storm data since the entire recording cycle is used by HW",
+	"Canyest record Storm data since the entire recording cycle is used by HW",
 
 	/* DBG_STATUS_STORM_ALREADY_ENABLED */
 	"The Storm was already enabled",
@@ -5940,7 +5940,7 @@ static const char * const s_status_str[] = {
 	"No input was enabled for recording",
 
 	/* DBG_STATUS_NO_FILTER_TRIGGER_64B */
-	"Filters and triggers are not allowed when recording in 64b units",
+	"Filters and triggers are yest allowed when recording in 64b units",
 
 	/* DBG_STATUS_FILTER_ALREADY_ENABLED */
 	"The filter was already enabled",
@@ -5955,10 +5955,10 @@ static const char * const s_status_str[] = {
 	"A constraint can be added only after a filter was enabled or a trigger state was added",
 
 	/* DBG_STATUS_TOO_MANY_TRIGGER_STATES */
-	"Cannot add more than 3 trigger states",
+	"Canyest add more than 3 trigger states",
 
 	/* DBG_STATUS_TOO_MANY_CONSTRAINTS */
-	"Cannot add more than 4 constraints per filter or trigger state",
+	"Canyest add more than 4 constraints per filter or trigger state",
 
 	/* DBG_STATUS_RECORDING_NOT_STARTED */
 	"The recording wasn't started",
@@ -5973,10 +5973,10 @@ static const char * const s_status_str[] = {
 	"Dump buffer is too small",
 
 	/* DBG_STATUS_DUMP_NOT_CHUNK_ALIGNED */
-	"Dumped data is not aligned to chunks",
+	"Dumped data is yest aligned to chunks",
 
 	/* DBG_STATUS_UNKNOWN_CHIP */
-	"Unknown chip",
+	"Unkyeswn chip",
 
 	/* DBG_STATUS_VIRT_MEM_ALLOC_FAILED */
 	"Failed allocating virtual memory",
@@ -5994,7 +5994,7 @@ static const char * const s_status_str[] = {
 	"Failed getting NVRAM image",
 
 	/* DBG_STATUS_NON_ALIGNED_NVRAM_IMAGE */
-	"NVRAM image is not dword-aligned",
+	"NVRAM image is yest dword-aligned",
 
 	/* DBG_STATUS_NVRAM_READ_FAILED */
 	"Failed reading from NVRAM",
@@ -6036,7 +6036,7 @@ static const char * const s_status_str[] = {
 	"Protection Override data is corrupt",
 
 	/* DBG_STATUS_DBG_ARRAY_NOT_SET */
-	"Debug arrays were not set (when using binary files, dbg_set_bin_ptr must be called)",
+	"Debug arrays were yest set (when using binary files, dbg_set_bin_ptr must be called)",
 
 	/* DBG_STATUS_FILTER_BUG */
 	"Debug Bus filtering requires the -unifyInputs option (due to a HW bug)",
@@ -6054,7 +6054,7 @@ static const char * const s_status_str[] = {
 /* Idle check severity names array */
 static const char * const s_idle_chk_severity_str[] = {
 	"Error",
-	"Error if no traffic",
+	"Error if yes traffic",
 	"Warning"
 };
 
@@ -6137,7 +6137,7 @@ static const char * const s_igu_fifo_source_strs[] = {
 
 /* IGU FIFO error messages */
 static const char * const s_igu_fifo_error_strs[] = {
-	"no error",
+	"yes error",
 	"length error",
 	"function disabled",
 	"VF sent command to attention address",
@@ -6145,10 +6145,10 @@ static const char * const s_igu_fifo_error_strs[] = {
 	"read of during interrupt register while in MIMD mode",
 	"access to PXP BAR reserved address",
 	"producer update command to attention index",
-	"unknown error",
-	"SB index not valid",
-	"SB relative index and FID not found",
-	"FID not match",
+	"unkyeswn error",
+	"SB index yest valid",
+	"SB relative index and FID yest found",
+	"FID yest match",
 	"command with error flag asserted (PCI error or CAU discard)",
 	"VF sent cleanup and RF cleanup is disabled",
 	"cleanup command on type bigger than 4"
@@ -6168,7 +6168,7 @@ static const struct igu_fifo_addr_data s_igu_fifo_addr_data[] = {
 	 IGU_ADDR_TYPE_WRITE_PBA},
 	{0x203, 0x3ff, "reserved", NULL,
 	 IGU_ADDR_TYPE_RESERVED},
-	{0x400, 0x5ef, "Write interrupt acknowledgment", NULL,
+	{0x400, 0x5ef, "Write interrupt ackyeswledgment", NULL,
 	 IGU_ADDR_TYPE_WRITE_INT_ACK},
 	{0x5f0, 0x5f0, "Attention bits update", NULL,
 	 IGU_ADDR_TYPE_WRITE_ATTN_BITS},
@@ -6505,7 +6505,7 @@ static u32 qed_parse_idle_chk_dump_rules(u32 *dump_buf,
 }
 
 /* Parses an idle check dump buffer.
- * If result_buf is not NULL, the idle check results are printed to it.
+ * If result_buf is yest NULL, the idle check results are printed to it.
  * In any case, the required results buffer size is assigned to
  * parsed_results_bytes.
  * The parsing status is returned.
@@ -6650,7 +6650,7 @@ qed_mcp_trace_alloc_meta_data(struct qed_hwfn *p_hwfn,
 	if (signature != NVM_MAGIC_VALUE)
 		return DBG_STATUS_INVALID_TRACE_SIGNATURE;
 
-	/* Read no. of modules and allocate memory for their pointers */
+	/* Read yes. of modules and allocate memory for their pointers */
 	meta->modules_num = qed_read_byte_from_buf(meta_buf_bytes, &offset);
 	meta->modules = kcalloc(meta->modules_num, sizeof(char *),
 				GFP_KERNEL);
@@ -6713,7 +6713,7 @@ qed_mcp_trace_alloc_meta_data(struct qed_hwfn *p_hwfn,
 	return DBG_STATUS_OK;
 }
 
-/* Parses an MCP trace buffer. If result_buf is not NULL, the MCP Trace results
+/* Parses an MCP trace buffer. If result_buf is yest NULL, the MCP Trace results
  * are printed to it. The parsing status is returned.
  * Arguments:
  * trace_buf - MCP trace cyclic buffer
@@ -6791,7 +6791,7 @@ static enum dbg_status qed_parse_mcp_trace_buf(struct qed_hwfn *p_hwfn,
 			u8 param_size = (u8)((format_ptr->data & param_mask) >>
 					     param_shift);
 
-			/* If the param size is zero, there are no other
+			/* If the param size is zero, there are yes other
 			 * parameters.
 			 */
 			if (!param_size)
@@ -6842,7 +6842,7 @@ static enum dbg_status qed_parse_mcp_trace_buf(struct qed_hwfn *p_hwfn,
 }
 
 /* Parses an MCP Trace dump buffer.
- * If result_buf is not NULL, the MCP Trace results are printed to it.
+ * If result_buf is yest NULL, the MCP Trace results are printed to it.
  * In any case, the required results buffer size is assigned to
  * parsed_results_bytes.
  * The parsing status is returned.
@@ -6948,7 +6948,7 @@ static enum dbg_status qed_parse_mcp_trace_dump(struct qed_hwfn *p_hwfn,
 }
 
 /* Parses a Reg FIFO dump buffer.
- * If result_buf is not NULL, the Reg FIFO results are printed to it.
+ * If result_buf is yest NULL, the Reg FIFO results are printed to it.
  * In any case, the required results buffer size is assigned to
  * parsed_results_bytes.
  * The parsing status is returned.
@@ -7157,9 +7157,9 @@ static enum dbg_status qed_parse_igu_fifo_element(struct igu_fifo_element
 			sprintf(parsed_wr_data,
 				"cmd_type: prod/cons update, prod/cons: 0x%x, update_flag: %s, en_dis_int_for_sb : %s, segment : %s, timer_mask = %d, ",
 				prod_cons,
-				update_flag ? "update" : "nop",
+				update_flag ? "update" : "yesp",
 				en_dis_int_for_sb ?
-				(en_dis_int_for_sb == 1 ? "disable" : "nop") :
+				(en_dis_int_for_sb == 1 ? "disable" : "yesp") :
 				"enable",
 				segment ? "attn" : "regular",
 				timer_mask);
@@ -7189,7 +7189,7 @@ out:
 }
 
 /* Parses an IGU FIFO dump buffer.
- * If result_buf is not NULL, the IGU FIFO results are printed to it.
+ * If result_buf is yest NULL, the IGU FIFO results are printed to it.
  * In any case, the required results buffer size is assigned to
  * parsed_results_bytes.
  * The parsing status is returned.
@@ -7320,7 +7320,7 @@ qed_parse_protection_override_dump(u32 *dump_buf,
 }
 
 /* Parses a FW Asserts dump buffer.
- * If result_buf is not NULL, the FW Asserts results are printed to it.
+ * If result_buf is yest NULL, the FW Asserts results are printed to it.
  * In any case, the required results buffer size is assigned to
  * parsed_results_bytes.
  * The parsing status is returned.
@@ -7644,7 +7644,7 @@ enum dbg_status qed_dbg_parse_attn(struct qed_hwfn *p_hwfn,
 	block_attn = &s_user_dbg_arrays[BIN_BUF_DBG_ATTN_NAME_OFFSETS];
 	block_attn_name_offsets = &block_attn->ptr[results->names_offset];
 
-	/* Go over registers with a non-zero attention status */
+	/* Go over registers with a yesn-zero attention status */
 	for (i = 0; i < num_regs; i++) {
 		struct dbg_attn_bit_mapping *bit_mapping;
 		struct dbg_attn_reg_result *reg_result;
@@ -7772,7 +7772,7 @@ static void qed_dbg_print_feature(u8 *p_text_buf, u32 text_size)
 	if (!p_text_buf)
 		return;
 
-	pr_notice("\n%.*s", precision, p_text_buf);
+	pr_yestice("\n%.*s", precision, p_text_buf);
 	for (i = precision; i < text_size; i += precision)
 		pr_cont("%.*s", precision, p_text_buf + i);
 	pr_cont("\n");
@@ -7985,7 +7985,7 @@ static int qed_dbg_nvm_image(struct qed_dev *cdev, void *buffer,
 	if (rc)
 		return rc;
 
-	/* QED_NVM_IMAGE_NVM_META image is not swapped like other images */
+	/* QED_NVM_IMAGE_NVM_META image is yest swapped like other images */
 	if (image_id != QED_NVM_IMAGE_NVM_META)
 		for (i = 0; i < len_rounded; i += 4) {
 			val = cpu_to_be32(*(u32 *)(buffer + i));

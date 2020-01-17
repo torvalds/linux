@@ -39,24 +39,24 @@ static const struct super_operations squashfs_super_ops;
 
 static const struct squashfs_decompressor *supported_squashfs_filesystem(
 	struct fs_context *fc,
-	short major, short minor, short id)
+	short major, short miyesr, short id)
 {
 	const struct squashfs_decompressor *decompressor;
 
 	if (major < SQUASHFS_MAJOR) {
-		errorf(fc, "Major/Minor mismatch, older Squashfs %d.%d "
-		       "filesystems are unsupported", major, minor);
+		errorf(fc, "Major/Miyesr mismatch, older Squashfs %d.%d "
+		       "filesystems are unsupported", major, miyesr);
 		return NULL;
-	} else if (major > SQUASHFS_MAJOR || minor > SQUASHFS_MINOR) {
-		errorf(fc, "Major/Minor mismatch, trying to mount newer "
-		       "%d.%d filesystem", major, minor);
+	} else if (major > SQUASHFS_MAJOR || miyesr > SQUASHFS_MINOR) {
+		errorf(fc, "Major/Miyesr mismatch, trying to mount newer "
+		       "%d.%d filesystem", major, miyesr);
 		errorf(fc, "Please update your kernel");
 		return NULL;
 	}
 
 	decompressor = squashfs_lookup_decompressor(id);
 	if (!decompressor->supported) {
-		errorf(fc, "Filesystem uses \"%s\" compression. This is not supported",
+		errorf(fc, "Filesystem uses \"%s\" compression. This is yest supported",
 		       decompressor->name);
 		return NULL;
 	}
@@ -69,8 +69,8 @@ static int squashfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct squashfs_sb_info *msblk;
 	struct squashfs_super_block *sblk = NULL;
-	struct inode *root;
-	long long root_inode;
+	struct iyesde *root;
+	long long root_iyesde;
 	unsigned short flags;
 	unsigned int fragments;
 	u64 lookup_table_start, xattr_id_table_start, next_table;
@@ -92,7 +92,7 @@ static int squashfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	/*
 	 * msblk->bytes_used is checked in squashfs_read_table to ensure reads
-	 * are not beyond filesystem end.  But as we're using
+	 * are yest beyond filesystem end.  But as we're using
 	 * squashfs_read_table here to read the superblock (including the value
 	 * of bytes_used) we need to set it to an initial sensible dummy value
 	 */
@@ -121,16 +121,16 @@ static int squashfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	msblk->decompressor = supported_squashfs_filesystem(
 			fc,
 			le16_to_cpu(sblk->s_major),
-			le16_to_cpu(sblk->s_minor),
+			le16_to_cpu(sblk->s_miyesr),
 			le16_to_cpu(sblk->compression));
 	if (msblk->decompressor == NULL)
 		goto failed_mount;
 
-	/* Check the filesystem does not extend beyond the end of the
+	/* Check the filesystem does yest extend beyond the end of the
 	   block device */
 	msblk->bytes_used = le64_to_cpu(sblk->bytes_used);
 	if (msblk->bytes_used < 0 || msblk->bytes_used >
-			i_size_read(sb->s_bdev->bd_inode))
+			i_size_read(sb->s_bdev->bd_iyesde))
 		goto failed_mount;
 
 	/* Check block size for sanity */
@@ -139,12 +139,12 @@ static int squashfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto insanity;
 
 	/*
-	 * Check the system page size is not larger than the filesystem
-	 * block size (by default 128K).  This is currently not supported.
+	 * Check the system page size is yest larger than the filesystem
+	 * block size (by default 128K).  This is currently yest supported.
 	 */
 	if (PAGE_SIZE > msblk->block_size) {
 		errorf(fc, "Page size > filesystem block size (%d).  This is "
-		       "currently not supported!", msblk->block_size);
+		       "currently yest supported!", msblk->block_size);
 		goto failed_mount;
 	}
 
@@ -157,28 +157,28 @@ static int squashfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (msblk->block_size != (1 << msblk->block_log))
 		goto insanity;
 
-	/* Check the root inode for sanity */
-	root_inode = le64_to_cpu(sblk->root_inode);
-	if (SQUASHFS_INODE_OFFSET(root_inode) > SQUASHFS_METADATA_SIZE)
+	/* Check the root iyesde for sanity */
+	root_iyesde = le64_to_cpu(sblk->root_iyesde);
+	if (SQUASHFS_INODE_OFFSET(root_iyesde) > SQUASHFS_METADATA_SIZE)
 		goto insanity;
 
-	msblk->inode_table = le64_to_cpu(sblk->inode_table_start);
+	msblk->iyesde_table = le64_to_cpu(sblk->iyesde_table_start);
 	msblk->directory_table = le64_to_cpu(sblk->directory_table_start);
-	msblk->inodes = le32_to_cpu(sblk->inodes);
+	msblk->iyesdes = le32_to_cpu(sblk->iyesdes);
 	msblk->fragments = le32_to_cpu(sblk->fragments);
 	flags = le16_to_cpu(sblk->flags);
 
 	TRACE("Found valid superblock on %pg\n", sb->s_bdev);
-	TRACE("Inodes are %scompressed\n", SQUASHFS_UNCOMPRESSED_INODES(flags)
+	TRACE("Iyesdes are %scompressed\n", SQUASHFS_UNCOMPRESSED_INODES(flags)
 				? "un" : "");
 	TRACE("Data is %scompressed\n", SQUASHFS_UNCOMPRESSED_DATA(flags)
 				? "un" : "");
 	TRACE("Filesystem size %lld bytes\n", msblk->bytes_used);
 	TRACE("Block size %d\n", msblk->block_size);
-	TRACE("Number of inodes %d\n", msblk->inodes);
+	TRACE("Number of iyesdes %d\n", msblk->iyesdes);
 	TRACE("Number of fragments %d\n", msblk->fragments);
-	TRACE("Number of ids %d\n", le16_to_cpu(sblk->no_ids));
-	TRACE("sblk->inode_table_start %llx\n", msblk->inode_table);
+	TRACE("Number of ids %d\n", le16_to_cpu(sblk->yes_ids));
+	TRACE("sblk->iyesde_table_start %llx\n", msblk->iyesde_table);
 	TRACE("sblk->directory_table_start %llx\n", msblk->directory_table);
 	TRACE("sblk->fragment_table_start %llx\n",
 		(u64) le64_to_cpu(sblk->fragment_table_start));
@@ -237,7 +237,7 @@ allocate_id_index_table:
 	/* Allocate and read id index table */
 	msblk->id_table = squashfs_read_id_index_table(sb,
 		le64_to_cpu(sblk->id_table_start), next_table,
-		le16_to_cpu(sblk->no_ids));
+		le16_to_cpu(sblk->yes_ids));
 	if (IS_ERR(msblk->id_table)) {
 		errorf(fc, "unable to read id index table");
 		err = PTR_ERR(msblk->id_table);
@@ -246,21 +246,21 @@ allocate_id_index_table:
 	}
 	next_table = le64_to_cpu(msblk->id_table[0]);
 
-	/* Handle inode lookup table */
+	/* Handle iyesde lookup table */
 	lookup_table_start = le64_to_cpu(sblk->lookup_table_start);
 	if (lookup_table_start == SQUASHFS_INVALID_BLK)
 		goto handle_fragments;
 
-	/* Allocate and read inode lookup table */
-	msblk->inode_lookup_table = squashfs_read_inode_lookup_table(sb,
-		lookup_table_start, next_table, msblk->inodes);
-	if (IS_ERR(msblk->inode_lookup_table)) {
-		errorf(fc, "unable to read inode lookup table");
-		err = PTR_ERR(msblk->inode_lookup_table);
-		msblk->inode_lookup_table = NULL;
+	/* Allocate and read iyesde lookup table */
+	msblk->iyesde_lookup_table = squashfs_read_iyesde_lookup_table(sb,
+		lookup_table_start, next_table, msblk->iyesdes);
+	if (IS_ERR(msblk->iyesde_lookup_table)) {
+		errorf(fc, "unable to read iyesde lookup table");
+		err = PTR_ERR(msblk->iyesde_lookup_table);
+		msblk->iyesde_lookup_table = NULL;
 		goto failed_mount;
 	}
-	next_table = le64_to_cpu(msblk->inode_lookup_table[0]);
+	next_table = le64_to_cpu(msblk->iyesde_lookup_table[0]);
 
 	sb->s_export_op = &squashfs_export_ops;
 
@@ -294,30 +294,30 @@ check_directory_table:
 		goto insanity;
 	}
 
-	/* Sanity check inode_table */
-	if (msblk->inode_table >= msblk->directory_table) {
+	/* Sanity check iyesde_table */
+	if (msblk->iyesde_table >= msblk->directory_table) {
 		err = -EINVAL;
 		goto insanity;
 	}
 
 	/* allocate root */
-	root = new_inode(sb);
+	root = new_iyesde(sb);
 	if (!root) {
 		err = -ENOMEM;
 		goto failed_mount;
 	}
 
-	err = squashfs_read_inode(root, root_inode);
+	err = squashfs_read_iyesde(root, root_iyesde);
 	if (err) {
-		make_bad_inode(root);
+		make_bad_iyesde(root);
 		iput(root);
 		goto failed_mount;
 	}
-	insert_inode_hash(root);
+	insert_iyesde_hash(root);
 
 	sb->s_root = d_make_root(root);
 	if (sb->s_root == NULL) {
-		ERROR("Root inode create failed\n");
+		ERROR("Root iyesde create failed\n");
 		err = -ENOMEM;
 		goto failed_mount;
 	}
@@ -333,7 +333,7 @@ failed_mount:
 	squashfs_cache_delete(msblk->fragment_cache);
 	squashfs_cache_delete(msblk->read_page);
 	squashfs_decompressor_destroy(msblk);
-	kfree(msblk->inode_lookup_table);
+	kfree(msblk->iyesde_lookup_table);
 	kfree(msblk->fragment_index);
 	kfree(msblk->id_table);
 	kfree(msblk->xattr_id_table);
@@ -377,7 +377,7 @@ static int squashfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bsize = msblk->block_size;
 	buf->f_blocks = ((msblk->bytes_used - 1) >> msblk->block_log) + 1;
 	buf->f_bfree = buf->f_bavail = 0;
-	buf->f_files = msblk->inodes;
+	buf->f_files = msblk->iyesdes;
 	buf->f_ffree = 0;
 	buf->f_namelen = SQUASHFS_NAME_LEN;
 	buf->f_fsid.val[0] = (u32)id;
@@ -398,56 +398,56 @@ static void squashfs_put_super(struct super_block *sb)
 		kfree(sbi->id_table);
 		kfree(sbi->fragment_index);
 		kfree(sbi->meta_index);
-		kfree(sbi->inode_lookup_table);
+		kfree(sbi->iyesde_lookup_table);
 		kfree(sbi->xattr_id_table);
 		kfree(sb->s_fs_info);
 		sb->s_fs_info = NULL;
 	}
 }
 
-static struct kmem_cache *squashfs_inode_cachep;
+static struct kmem_cache *squashfs_iyesde_cachep;
 
 
 static void init_once(void *foo)
 {
-	struct squashfs_inode_info *ei = foo;
+	struct squashfs_iyesde_info *ei = foo;
 
-	inode_init_once(&ei->vfs_inode);
+	iyesde_init_once(&ei->vfs_iyesde);
 }
 
 
-static int __init init_inodecache(void)
+static int __init init_iyesdecache(void)
 {
-	squashfs_inode_cachep = kmem_cache_create("squashfs_inode_cache",
-		sizeof(struct squashfs_inode_info), 0,
+	squashfs_iyesde_cachep = kmem_cache_create("squashfs_iyesde_cache",
+		sizeof(struct squashfs_iyesde_info), 0,
 		SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_ACCOUNT,
 		init_once);
 
-	return squashfs_inode_cachep ? 0 : -ENOMEM;
+	return squashfs_iyesde_cachep ? 0 : -ENOMEM;
 }
 
 
-static void destroy_inodecache(void)
+static void destroy_iyesdecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(squashfs_inode_cachep);
+	kmem_cache_destroy(squashfs_iyesde_cachep);
 }
 
 
 static int __init init_squashfs_fs(void)
 {
-	int err = init_inodecache();
+	int err = init_iyesdecache();
 
 	if (err)
 		return err;
 
 	err = register_filesystem(&squashfs_fs_type);
 	if (err) {
-		destroy_inodecache();
+		destroy_iyesdecache();
 		return err;
 	}
 
@@ -460,22 +460,22 @@ static int __init init_squashfs_fs(void)
 static void __exit exit_squashfs_fs(void)
 {
 	unregister_filesystem(&squashfs_fs_type);
-	destroy_inodecache();
+	destroy_iyesdecache();
 }
 
 
-static struct inode *squashfs_alloc_inode(struct super_block *sb)
+static struct iyesde *squashfs_alloc_iyesde(struct super_block *sb)
 {
-	struct squashfs_inode_info *ei =
-		kmem_cache_alloc(squashfs_inode_cachep, GFP_KERNEL);
+	struct squashfs_iyesde_info *ei =
+		kmem_cache_alloc(squashfs_iyesde_cachep, GFP_KERNEL);
 
-	return ei ? &ei->vfs_inode : NULL;
+	return ei ? &ei->vfs_iyesde : NULL;
 }
 
 
-static void squashfs_free_inode(struct inode *inode)
+static void squashfs_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(squashfs_inode_cachep, squashfs_i(inode));
+	kmem_cache_free(squashfs_iyesde_cachep, squashfs_i(iyesde));
 }
 
 static struct file_system_type squashfs_fs_type = {
@@ -488,8 +488,8 @@ static struct file_system_type squashfs_fs_type = {
 MODULE_ALIAS_FS("squashfs");
 
 static const struct super_operations squashfs_super_ops = {
-	.alloc_inode = squashfs_alloc_inode,
-	.free_inode = squashfs_free_inode,
+	.alloc_iyesde = squashfs_alloc_iyesde,
+	.free_iyesde = squashfs_free_iyesde,
 	.statfs = squashfs_statfs,
 	.put_super = squashfs_put_super,
 };

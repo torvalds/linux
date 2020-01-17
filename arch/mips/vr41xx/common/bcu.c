@@ -108,7 +108,7 @@ static inline unsigned long calculate_pclock(uint16_t clkspeed)
 			pclock = 265900000;
 			break;
 		default:
-			printk(KERN_INFO "Unknown PClock speed for NEC VR4133\n");
+			printk(KERN_INFO "Unkyeswn PClock speed for NEC VR4133\n");
 			break;
 		}
 		break;

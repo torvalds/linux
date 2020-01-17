@@ -38,7 +38,7 @@ int __ide_pci_register_driver(struct pci_driver *driver, struct module *module,
 	if (!pre_init)
 		return __pci_register_driver(driver, module, mod_name);
 	driver->driver.owner = module;
-	list_add_tail(&driver->node, &ide_pci_drivers);
+	list_add_tail(&driver->yesde, &ide_pci_drivers);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__ide_pci_register_driver);
@@ -59,7 +59,7 @@ static int __init ide_scan_pcidev(struct pci_dev *dev)
 	int ret;
 
 	list_for_each(l, &ide_pci_drivers) {
-		d = list_entry(l, struct pci_driver, node);
+		d = list_entry(l, struct pci_driver, yesde);
 		if (d->id_table) {
 			const struct pci_device_id *id =
 				pci_match_id(d->id_table, dev);
@@ -83,7 +83,7 @@ static int __init ide_scan_pcidev(struct pci_dev *dev)
  *
  *	Perform the initial bus rather than driver ordered scan of the
  *	PCI drivers. After this all IDE pci handling becomes standard
- *	module ordering not traditionally ordered.
+ *	module ordering yest traditionally ordered.
  */
 
 static int __init ide_scan_pcibus(void)
@@ -97,13 +97,13 @@ static int __init ide_scan_pcibus(void)
 		ide_scan_pcidev(dev);
 
 	/*
-	 *	Hand the drivers over to the PCI layer now we
+	 *	Hand the drivers over to the PCI layer yesw we
 	 *	are post init.
 	 */
 
 	list_for_each_safe(l, n, &ide_pci_drivers) {
 		list_del(l);
-		d = list_entry(l, struct pci_driver, node);
+		d = list_entry(l, struct pci_driver, yesde);
 		if (__pci_register_driver(d, d->driver.owner,
 					  d->driver.mod_name))
 			printk(KERN_ERR "%s: failed to register %s driver\n",

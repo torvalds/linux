@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -610,7 +610,7 @@ typedef enum PerfCounter_Vals {
 	DB_PERF_SEL_DB_SC_tile_culled                    = 0xf,
 	DB_PERF_SEL_DB_SC_tile_hier_kill                 = 0x10,
 	DB_PERF_SEL_DB_SC_tile_fast_ops                  = 0x11,
-	DB_PERF_SEL_DB_SC_tile_no_ops                    = 0x12,
+	DB_PERF_SEL_DB_SC_tile_yes_ops                    = 0x12,
 	DB_PERF_SEL_DB_SC_tile_tile_rate                 = 0x13,
 	DB_PERF_SEL_DB_SC_tile_ssaa_kill                 = 0x14,
 	DB_PERF_SEL_DB_SC_tile_fast_z_ops                = 0x15,
@@ -681,8 +681,8 @@ typedef enum PerfCounter_Vals {
 	DB_PERF_SEL_Depth_Tile_Cache_misses              = 0x56,
 	DB_PERF_SEL_Depth_Tile_Cache_hits                = 0x57,
 	DB_PERF_SEL_Depth_Tile_Cache_flushes             = 0x58,
-	DB_PERF_SEL_Depth_Tile_Cache_noop_tile           = 0x59,
-	DB_PERF_SEL_Depth_Tile_Cache_detailed_noop       = 0x5a,
+	DB_PERF_SEL_Depth_Tile_Cache_yesop_tile           = 0x59,
+	DB_PERF_SEL_Depth_Tile_Cache_detailed_yesop       = 0x5a,
 	DB_PERF_SEL_Depth_Tile_Cache_event               = 0x5b,
 	DB_PERF_SEL_Depth_Tile_Cache_tile_frees          = 0x5c,
 	DB_PERF_SEL_Depth_Tile_Cache_data_frees          = 0x5d,
@@ -757,8 +757,8 @@ typedef enum PerfCounter_Vals {
 	DB_PERF_SEL_tl_expand_squads                     = 0xa2,
 	DB_PERF_SEL_tl_preZ_squads                       = 0xa3,
 	DB_PERF_SEL_tl_postZ_squads                      = 0xa4,
-	DB_PERF_SEL_tl_preZ_noop_squads                  = 0xa5,
-	DB_PERF_SEL_tl_postZ_noop_squads                 = 0xa6,
+	DB_PERF_SEL_tl_preZ_yesop_squads                  = 0xa5,
+	DB_PERF_SEL_tl_postZ_yesop_squads                 = 0xa6,
 	DB_PERF_SEL_tl_tile_ops                          = 0xa7,
 	DB_PERF_SEL_tl_in_xfc                            = 0xa8,
 	DB_PERF_SEL_tl_in_single_stencil_expand_stall    = 0xa9,
@@ -811,7 +811,7 @@ typedef enum PerfCounter_Vals {
 	DB_PERF_SEL_mi_rdreq_stall                       = 0xd8,
 	DB_PERF_SEL_mi_wrreq_busy                        = 0xd9,
 	DB_PERF_SEL_mi_wrreq_stall                       = 0xda,
-	DB_PERF_SEL_recomp_tile_to_1zplane_no_fastop     = 0xdb,
+	DB_PERF_SEL_recomp_tile_to_1zplane_yes_fastop     = 0xdb,
 	DB_PERF_SEL_dkg_tile_rate_tile                   = 0xdc,
 	DB_PERF_SEL_prezl_src_in_sends                   = 0xdd,
 	DB_PERF_SEL_prezl_src_in_stall                   = 0xde,
@@ -3714,7 +3714,7 @@ typedef enum TEX_CLAMP {
 	TEX_Clamp_MirrorOnceToBorder                     = 0x7,
 } TEX_CLAMP;
 typedef enum TEX_COORD_TYPE {
-	TEX_CoordType_Unnormalized                       = 0x0,
+	TEX_CoordType_Unyesrmalized                       = 0x0,
 	TEX_CoordType_Normalized                         = 0x1,
 } TEX_COORD_TYPE;
 typedef enum TEX_DEPTH_COMPARE_FUNCTION {
@@ -5023,7 +5023,7 @@ typedef enum VGT_PERFCOUNT_SELECT {
 	vgt_perf_hs_tfm_stall                            = 0x36,
 	vgt_perf_te11_starved                            = 0x37,
 	vgt_perf_gs_event_stall                          = 0x38,
-	vgt_perf_vgt_pa_clipp_send_not_event             = 0x39,
+	vgt_perf_vgt_pa_clipp_send_yest_event             = 0x39,
 	vgt_perf_vgt_pa_clipp_valid_prim                 = 0x3a,
 	vgt_perf_reused_es_indices                       = 0x3b,
 	vgt_perf_vs_cache_hits                           = 0x3c,

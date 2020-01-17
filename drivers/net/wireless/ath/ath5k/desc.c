@@ -5,7 +5,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -39,7 +39,7 @@
  * that contain information about how the packet was sent or received (errors
  * included).
  *
- * Descriptor format is not exactly the same for each MAC chip version so we
+ * Descriptor format is yest exactly the same for each MAC chip version so we
  * have function pointers on &struct ath5k_hw we initialize at runtime based on
  * the chip used.
  */
@@ -94,7 +94,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah,
 	 * Validate input
 	 * - Zero retries don't make sense.
 	 * - A zero rate will put the HW into a mode where it continuously sends
-	 *   noise on the channel, so it is important to avoid this.
+	 *   yesise on the channel, so it is important to avoid this.
 	 */
 	if (unlikely(tx_tries0 == 0)) {
 		ATH5K_ERR(ah, "zero retries\n");
@@ -265,7 +265,7 @@ ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	 * Validate input
 	 * - Zero retries don't make sense.
 	 * - A zero rate will put the HW into a mode where it continuously sends
-	 *   noise on the channel, so it is important to avoid this.
+	 *   yesise on the channel, so it is important to avoid this.
 	 */
 	if (unlikely(tx_tries0 == 0)) {
 		ATH5K_ERR(ah, "zero retries\n");
@@ -370,7 +370,7 @@ ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
  * @tx_tries3: Max number of retransmissions for transmission series 3
  *
  * Multi rate retry (MRR) tx control descriptors are available only on AR5212
- * MACs, they are part of the normal 4-word tx control descriptor (see above)
+ * MACs, they are part of the yesrmal 4-word tx control descriptor (see above)
  * but we handle them through a separate function for better abstraction.
  *
  * Returns 0 on success or -EINVAL on invalid input
@@ -384,14 +384,14 @@ ath5k_hw_setup_mrr_tx_desc(struct ath5k_hw *ah,
 {
 	struct ath5k_hw_4w_tx_ctl *tx_ctl;
 
-	/* no mrr support for cards older than 5212 */
+	/* yes mrr support for cards older than 5212 */
 	if (ah->ah_version < AR5K_AR5212)
 		return 0;
 
 	/*
 	 * Rates can be 0 as long as the retry count is 0 too.
-	 * A zero rate and nonzero retry count will put the HW into a mode where
-	 * it continuously sends noise on the channel, so it is important to
+	 * A zero rate and yesnzero retry count will put the HW into a mode where
+	 * it continuously sends yesise on the channel, so it is important to
 	 * avoid this.
 	 */
 	if (unlikely((tx_rate1 == 0 && tx_tries1 != 0) ||
@@ -606,7 +606,7 @@ ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
 
 	rx_status = &desc->ud.ds_rx.rx_stat;
 
-	/* No frame received / not ready */
+	/* No frame received / yest ready */
 	if (unlikely(!(rx_status->rx_status_1 &
 			AR5K_5210_RX_DESC_STATUS1_DONE)))
 		return -EINPROGRESS;
@@ -702,7 +702,7 @@ ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 	rx_status = &desc->ud.ds_rx.rx_stat;
 	rxstat1 = READ_ONCE(rx_status->rx_status_1);
 
-	/* No frame received / not ready */
+	/* No frame received / yest ready */
 	if (unlikely(!(rxstat1 & AR5K_5212_RX_DESC_STATUS1_DONE)))
 		return -EINPROGRESS;
 

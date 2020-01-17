@@ -11,7 +11,7 @@
  *   Copied elo.c and edited for MicroTouch protocol
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -95,7 +95,7 @@ static irqreturn_t mtouch_interrupt(struct serio *serio,
 	else if (MTOUCH_RESPONSE_BEGIN_BYTE == mtouch->data[0])
 		mtouch_process_response(mtouch);
 	else
-		printk(KERN_DEBUG "mtouch.c: unknown/unsynchronized data from device, byte %x\n",mtouch->data[0]);
+		printk(KERN_DEBUG "mtouch.c: unkyeswn/unsynchronized data from device, byte %x\n",mtouch->data[0]);
 
 	return IRQ_HANDLED;
 }

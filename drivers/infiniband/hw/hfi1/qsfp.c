@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -117,7 +117,7 @@ static int hfi1_getsda(void *data)
 	u64 reg;
 	u32 target_in;
 
-	hfi1_setsda(data, 1);	/* clear OE so we do not pull line down */
+	hfi1_setsda(data, 1);	/* clear OE so we do yest pull line down */
 	udelay(2);		/* 1us pull up + 250ns hold */
 
 	target_in = i2c_in_csr(bus->num);
@@ -131,7 +131,7 @@ static int hfi1_getscl(void *data)
 	u64 reg;
 	u32 target_in;
 
-	hfi1_setscl(data, 1);	/* clear OE so we do not pull line down */
+	hfi1_setscl(data, 1);	/* clear OE so we do yest pull line down */
 	udelay(2);		/* 1us pull up + 250ns hold */
 
 	target_in = i2c_in_csr(bus->num);
@@ -183,7 +183,7 @@ static struct hfi1_i2c_bus *init_i2c_bus(struct hfi1_devdata *dd,
 
 /*
  * Initialize i2c buses.
- * Return 0 on success, -errno on error.
+ * Return 0 on success, -erryes on error.
  */
 int set_up_i2c(struct hfi1_devdata *dd, struct hfi1_asic_data *ad)
 {
@@ -311,7 +311,7 @@ static int i2c_bus_read(struct hfi1_devdata *dd, struct hfi1_i2c_bus *bus,
 /*
  * Raw i2c write.  No set-up or lock checking.
  *
- * Return 0 on success, -errno on error.
+ * Return 0 on success, -erryes on error.
  */
 static int __i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 		       int offset, void *bp, int len)
@@ -330,7 +330,7 @@ static int __i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 /*
  * Caller must hold the i2c chain resource.
  *
- * Return number of bytes written, or -errno.
+ * Return number of bytes written, or -erryes.
  */
 int i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	      void *bp, int len)
@@ -350,7 +350,7 @@ int i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 /*
  * Raw i2c read.  No set-up or lock checking.
  *
- * Return 0 on success, -errno on error.
+ * Return 0 on success, -erryes on error.
  */
 static int __i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 		      int offset, void *bp, int len)
@@ -369,7 +369,7 @@ static int __i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 /*
  * Caller must hold the i2c chain resource.
  *
- * Return number of bytes read, or -errno.
+ * Return number of bytes read, or -erryes.
  */
 int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	     void *bp, int len)
@@ -392,7 +392,7 @@ int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
  *
  * Caller must hold the i2c chain resource.
  *
- * Return number of bytes written or -errno.
+ * Return number of bytes written or -erryes.
  */
 int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	       int len)
@@ -472,7 +472,7 @@ int one_qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
  *
  * Caller must hold the i2c chain resource.
  *
- * Return the number of bytes read or -errno.
+ * Return the number of bytes read or -erryes.
  */
 int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	      int len)
@@ -701,7 +701,7 @@ int qsfp_mod_present(struct hfi1_pportdata *ppd)
  *
  * For addresses beyond this range, it returns the invalid range of data buffer
  * set to 0.
- * For upper pages that are optional, if they are not valid, returns the
+ * For upper pages that are optional, if they are yest valid, returns the
  * particular range of bytes in the data buffer set to 0.
  */
 int get_cable_info(struct hfi1_devdata *dd, u32 port_num, u32 addr, u32 len,

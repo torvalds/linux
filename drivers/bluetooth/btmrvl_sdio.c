@@ -67,7 +67,7 @@ static irqreturn_t btmrvl_wake_irq_bt(int irq, void *priv)
 
 	dev_info(dev, "wake by bt\n");
 	cfg->wake_by_bt = true;
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 
 	pm_wakeup_event(dev, 0);
 	pm_system_wakeup();
@@ -75,9 +75,9 @@ static irqreturn_t btmrvl_wake_irq_bt(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-/* This function parses device tree node using mmc subnode devicetree API.
- * The device node is saved in card->plt_of_node.
- * If the device tree node exists and includes interrupts attributes, this
+/* This function parses device tree yesde using mmc subyesde devicetree API.
+ * The device yesde is saved in card->plt_of_yesde.
+ * If the device tree yesde exists and includes interrupts attributes, this
  * function will request platform specific wakeup interrupt.
  */
 static int btmrvl_sdio_probe_of(struct device *dev,
@@ -86,19 +86,19 @@ static int btmrvl_sdio_probe_of(struct device *dev,
 	struct btmrvl_plt_wake_cfg *cfg;
 	int ret;
 
-	if (!dev->of_node ||
-	    !of_match_node(btmrvl_sdio_of_match_table, dev->of_node)) {
-		dev_info(dev, "sdio device tree data not available\n");
+	if (!dev->of_yesde ||
+	    !of_match_yesde(btmrvl_sdio_of_match_table, dev->of_yesde)) {
+		dev_info(dev, "sdio device tree data yest available\n");
 		return -1;
 	}
 
-	card->plt_of_node = dev->of_node;
+	card->plt_of_yesde = dev->of_yesde;
 
 	card->plt_wake_cfg = devm_kzalloc(dev, sizeof(*card->plt_wake_cfg),
 					  GFP_KERNEL);
 	cfg = card->plt_wake_cfg;
-	if (cfg && card->plt_of_node) {
-		cfg->irq_bt = irq_of_parse_and_map(card->plt_of_node, 0);
+	if (cfg && card->plt_of_yesde) {
+		cfg->irq_bt = irq_of_parse_and_map(card->plt_of_yesde, 0);
 		if (!cfg->irq_bt) {
 			dev_err(dev, "fail to parse irq_bt from device tree\n");
 			cfg->irq_bt = -1;
@@ -124,7 +124,7 @@ static int btmrvl_sdio_probe_of(struct device *dev,
  * differently.
  * If the user is removing the module, a MODULE_SHUTDOWN_REQ
  * command is sent to firmware and interrupt will be disabled.
- * If the card is removed, there is no need to send command
+ * If the card is removed, there is yes need to send command
  * or disable interrupt.
  *
  * The variable 'user_rmmod' is used to distinguish these two
@@ -519,7 +519,7 @@ static int btmrvl_sdio_download_helper(struct btmrvl_sdio_card *card)
 	const u8 *helper = NULL;
 	int ret;
 	void *tmphlprbuf = NULL;
-	int tmphlprbufsz, hlprblknow, helperlen;
+	int tmphlprbufsz, hlprblkyesw, helperlen;
 	u8 *helperbuf;
 	u32 tx_len;
 
@@ -553,23 +553,23 @@ static int btmrvl_sdio_download_helper(struct btmrvl_sdio_card *card)
 	/* Perform helper data transfer */
 	tx_len = (FIRMWARE_TRANSFER_NBLOCK * SDIO_BLOCK_SIZE)
 			- SDIO_HEADER_LEN;
-	hlprblknow = 0;
+	hlprblkyesw = 0;
 
 	do {
 		ret = btmrvl_sdio_poll_card_status(card,
 					    CARD_IO_READY | DN_LD_CARD_RDY);
 		if (ret < 0) {
 			BT_ERR("Helper download poll status timeout @ %d",
-				hlprblknow);
+				hlprblkyesw);
 			goto done;
 		}
 
 		/* Check if there is more data? */
-		if (hlprblknow >= helperlen)
+		if (hlprblkyesw >= helperlen)
 			break;
 
-		if (helperlen - hlprblknow < tx_len)
-			tx_len = helperlen - hlprblknow;
+		if (helperlen - hlprblkyesw < tx_len)
+			tx_len = helperlen - hlprblkyesw;
 
 		/* Little-endian */
 		helperbuf[0] = ((tx_len & 0x000000ff) >> 0);
@@ -577,7 +577,7 @@ static int btmrvl_sdio_download_helper(struct btmrvl_sdio_card *card)
 		helperbuf[2] = ((tx_len & 0x00ff0000) >> 16);
 		helperbuf[3] = ((tx_len & 0xff000000) >> 24);
 
-		memcpy(&helperbuf[SDIO_HEADER_LEN], &helper[hlprblknow],
+		memcpy(&helperbuf[SDIO_HEADER_LEN], &helper[hlprblkyesw],
 				tx_len);
 
 		/* Now send the data */
@@ -585,11 +585,11 @@ static int btmrvl_sdio_download_helper(struct btmrvl_sdio_card *card)
 				FIRMWARE_TRANSFER_NBLOCK * SDIO_BLOCK_SIZE);
 		if (ret < 0) {
 			BT_ERR("IO error during helper download @ %d",
-				hlprblknow);
+				hlprblkyesw);
 			goto done;
 		}
 
-		hlprblknow += tx_len;
+		hlprblkyesw += tx_len;
 	} while (true);
 
 	BT_DBG("Transferring helper image EOF block");
@@ -860,7 +860,7 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 		break;
 
 	default:
-		BT_ERR("Unknown packet type:%d", type);
+		BT_ERR("Unkyeswn packet type:%d", type);
 		BT_ERR("hex: %*ph", blksz * num_blocks, payload);
 
 		kfree_skb(skb);
@@ -1019,7 +1019,7 @@ static int btmrvl_sdio_register_dev(struct btmrvl_sdio_card *card)
 
 	ret = sdio_set_block_size(card->func, SDIO_BLOCK_SIZE);
 	if (ret) {
-		BT_ERR("cannot set SDIO block size");
+		BT_ERR("canyest set SDIO block size");
 		ret = -EIO;
 		goto release_irq;
 	}
@@ -1221,7 +1221,7 @@ static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 		goto done;
 	}
 	if (fws0) {
-		BT_DBG("BT not the winner (%#x). Skip FW downloading", fws0);
+		BT_DBG("BT yest the winner (%#x). Skip FW downloading", fws0);
 
 		/* Give other function more time to download the firmware */
 		pollnum *= 10;
@@ -1243,7 +1243,7 @@ static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 	}
 
 	/*
-	 * winner or not, with this test the FW synchronizes when the
+	 * winner or yest, with this test the FW synchronizes when the
 	 * module can continue its initialization
 	 */
 	if (btmrvl_sdio_verify_fw_download(card, pollnum)) {
@@ -1401,7 +1401,7 @@ static void btmrvl_sdio_coredump(struct device *dev)
 	btmrvl_sdio_dump_regs(priv);
 
 	if (!card->supports_fw_dump) {
-		BT_ERR("Firmware dump not supported for this card!");
+		BT_ERR("Firmware dump yest supported for this card!");
 		return;
 	}
 
@@ -1501,7 +1501,7 @@ static void btmrvl_sdio_coredump(struct device *dev)
 				if (dbg_ptr < end_ptr)
 					dbg_ptr++;
 				else
-					BT_ERR("Allocated buffer not enough");
+					BT_ERR("Allocated buffer yest eyesugh");
 			}
 
 			if (stat != RDWR_STATUS_DONE) {
@@ -1607,7 +1607,7 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 
 	btmrvl_sdio_enable_host_int(card);
 
-	/* Device tree node parsing and platform specific configuration*/
+	/* Device tree yesde parsing and platform specific configuration*/
 	btmrvl_sdio_probe_of(&func->dev, card);
 
 	priv = btmrvl_add_card(card);
@@ -1675,17 +1675,17 @@ static int btmrvl_sdio_suspend(struct device *dev)
 		BT_DBG("%s: suspend: PM flags = 0x%x", sdio_func_id(func),
 		       pm_flags);
 		if (!(pm_flags & MMC_PM_KEEP_POWER)) {
-			BT_ERR("%s: cannot remain alive while suspended",
+			BT_ERR("%s: canyest remain alive while suspended",
 			       sdio_func_id(func));
 			return -ENOSYS;
 		}
 		card = sdio_get_drvdata(func);
 		if (!card || !card->priv) {
-			BT_ERR("card or priv structure is not valid");
+			BT_ERR("card or priv structure is yest valid");
 			return 0;
 		}
 	} else {
-		BT_ERR("sdio_func is not specified");
+		BT_ERR("sdio_func is yest specified");
 		return 0;
 	}
 
@@ -1704,7 +1704,7 @@ static int btmrvl_sdio_suspend(struct device *dev)
 
 	if (priv->adapter->hs_state != HS_ACTIVATED) {
 		if (btmrvl_enable_hs(priv)) {
-			BT_ERR("HS not activated, suspend failed!");
+			BT_ERR("HS yest activated, suspend failed!");
 			/* Disable platform specific wakeup interrupt */
 			if (card->plt_wake_cfg &&
 			    card->plt_wake_cfg->irq_bt >= 0) {
@@ -1744,11 +1744,11 @@ static int btmrvl_sdio_resume(struct device *dev)
 		       pm_flags);
 		card = sdio_get_drvdata(func);
 		if (!card || !card->priv) {
-			BT_ERR("card or priv structure is not valid");
+			BT_ERR("card or priv structure is yest valid");
 			return 0;
 		}
 	} else {
-		BT_ERR("sdio_func is not specified");
+		BT_ERR("sdio_func is yest specified");
 		return 0;
 	}
 	priv = card->priv;

@@ -8,13 +8,13 @@
  * Paul Walmsley, Jouni Högander
  *
  * This file contains clockdomains and clockdomain wakeup/sleep
- * dependencies for the OMAP3xxx chips.  Some notes:
+ * dependencies for the OMAP3xxx chips.  Some yestes:
  *
  * A useful validation rule for struct clockdomain: Any clockdomain
  * referenced by a wkdep_srcs or sleepdep_srcs array must have a
  * dep_bit assigned.  So wkdep_srcs/sleepdep_srcs are really just
  * software-controllable dependencies.  Non-software-controllable
- * dependencies do exist, but they are not encoded below (yet).
+ * dependencies do exist, but they are yest encoded below (yet).
  *
  * The overly-specific dep_bit names are due to a bit name collision
  * with CM_FCLKEN_{DSP,IVA2}.  The DSP/IVA2 PM_WKDEP and CM_SLEEPDEP shift
@@ -44,8 +44,8 @@
 /*
  * Clockdomain dependencies for wkdeps/sleepdeps
  *
- * XXX Hardware dependencies (e.g., dependencies that cannot be
- * changed in software) are not included here yet, but should be.
+ * XXX Hardware dependencies (e.g., dependencies that canyest be
+ * changed in software) are yest included here yet, but should be.
  */
 
 /* OMAP3-specific possible dependencies */
@@ -321,7 +321,7 @@ static struct clockdomain core_l4_3xxx_clkdm = {
 	.clktrctrl_mask = OMAP3430_CLKTRCTRL_L4_MASK,
 };
 
-/* Another case of bit name collisions between several registers: EN_DSS */
+/* Ayesther case of bit name collisions between several registers: EN_DSS */
 static struct clockdomain dss_3xxx_clkdm = {
 	.name		= "dss_clkdm",
 	.pwrdm		= { .name = "dss_pwrdm" },

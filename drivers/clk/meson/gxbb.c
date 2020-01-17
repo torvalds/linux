@@ -141,7 +141,7 @@ static struct clk_regmap gxbb_fixed_pll = {
 		.num_parents = 1,
 		/*
 		 * This clock won't ever change at runtime so
-		 * CLK_SET_RATE_PARENT is not required
+		 * CLK_SET_RATE_PARENT is yest required
 		 */
 	},
 };
@@ -226,7 +226,7 @@ static struct clk_regmap gxl_hdmi_pll_dco = {
 		},
 		/*
 		 * On gxl, there is a register shift due to
-		 * HHI_HDMI_PLL_CNTL1 which does not exist on gxbb,
+		 * HHI_HDMI_PLL_CNTL1 which does yest exist on gxbb,
 		 * so we use the HHI_HDMI_PLL_CNTL2 define from GXBB
 		 * instead which is defined at the same offset.
 		 */
@@ -1231,7 +1231,7 @@ static const struct clk_parent_data gxbb_32k_clk_parent_data[] = {
 	{ .fw_name = "xtal", },
 	/*
 	 * FIXME: This clock is provided by the ao clock controller but the
-	 * clock is not yet part of the binding of this controller, so string
+	 * clock is yest yet part of the binding of this controller, so string
 	 * name must be use to set this parent.
 	 */
 	{ .name = "cts_slow_oscin", .index = -1 },

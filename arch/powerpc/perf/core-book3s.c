@@ -66,11 +66,11 @@ static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
 static struct power_pmu *ppmu;
 
 /*
- * Normally, to ignore kernel events we set the FCS (freeze counters
+ * Normally, to igyesre kernel events we set the FCS (freeze counters
  * in supervisor mode) bit in MMCR0, but if the kernel runs with the
  * hypervisor bit set in the MSR, or if we are running on a processor
  * where the hypervisor bit is forced to 1 (as on Apple G5 processors),
- * then we need to use the FCHV bit to ignore kernel events.
+ * then we need to use the FCHV bit to igyesre kernel events.
  */
 static unsigned int freeze_events_kernel = MMCR0_FCS;
 
@@ -146,8 +146,8 @@ static bool regs_use_siar(struct pt_regs *regs)
 	 * using perf_read_regs() which overloads some fields, in particular
 	 * regs->result to tell us whether to use SIAR.
 	 *
-	 * However if the regs are from another exception, eg. a syscall, then
-	 * they have not been setup using perf_read_regs() and so regs->result
+	 * However if the regs are from ayesther exception, eg. a syscall, then
+	 * they have yest been setup using perf_read_regs() and so regs->result
 	 * is something random.
 	 */
 	return ((TRAP(regs) == 0xf00) && regs->result);
@@ -173,7 +173,7 @@ static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
 
 /*
  * The user wants a data address recorded.
- * If we're not doing instruction sampling, give them the SDAR
+ * If we're yest doing instruction sampling, give them the SDAR
  * (sampled data address).  If we are doing instruction sampling, then
  * only give them the SDAR if it corresponds to the instruction
  * pointed to by SIAR; this is indicated by the [POWER6_]MMCRA_SDSYNC, the
@@ -278,7 +278,7 @@ static inline u32 perf_get_misc_flags(struct pt_regs *regs)
  * on each interrupt.
  * Overload regs->dar to store SIER if we have it.
  * Overload regs->result to specify whether we should use the MSR (result
- * is zero) or the SIAR (result is non zero).
+ * is zero) or the SIAR (result is yesn zero).
  */
 static inline void perf_read_regs(struct pt_regs *regs)
 {
@@ -293,17 +293,17 @@ static inline void perf_read_regs(struct pt_regs *regs)
 
 	/*
 	 * If this isn't a PMU exception (eg a software event) the SIAR is
-	 * not valid. Use pt_regs.
+	 * yest valid. Use pt_regs.
 	 *
 	 * If it is a marked event use the SIAR.
 	 *
-	 * If the PMU doesn't update the SIAR for non marked events use
+	 * If the PMU doesn't update the SIAR for yesn marked events use
 	 * pt_regs.
 	 *
 	 * If the PMU has HV/PR flags then check to see if they
 	 * place the exception in userspace. If so, use pt_regs. In
 	 * continuous sampling mode the SIAR and the PMU exception are
-	 * not synchronised, so they may be many instructions apart.
+	 * yest synchronised, so they may be many instructions apart.
 	 * This can result in confusing backtraces. We still want
 	 * hypervisor samples as well as samples in the kernel with
 	 * interrupts off hence the userspace check.
@@ -391,7 +391,7 @@ static void power_pmu_bhrb_disable(struct perf_event *event)
 	perf_sched_cb_dec(event->ctx->pmu);
 
 	if (!cpuhw->disabled && !cpuhw->bhrb_users) {
-		/* BHRB cannot be turned off when other
+		/* BHRB canyest be turned off when other
 		 * events are active on the PMU.
 		 */
 
@@ -484,7 +484,7 @@ static void power_pmu_bhrb_read(struct perf_event *event, struct cpu_hw_events *
 			 *    blr/bctr/btar instruction).
 			 * 2) a from address which is an actual branch.  If a
 			 *    target entry proceeds this, then this is the
-			 *    matching branch for that target.  If this is not
+			 *    matching branch for that target.  If this is yest
 			 *    following a target entry, then this is a branch
 			 *    where the target is given as an immediate field
 			 *    in the instruction (ie. an i or b form branch).
@@ -609,7 +609,7 @@ static unsigned long ebb_switch_in(bool ebb, struct cpu_hw_events *cpuhw)
 	mmcr0 |= current->thread.mmcr0;
 
 	/*
-	 * Be careful not to set PMXE if userspace had it cleared. This is also
+	 * Be careful yest to set PMXE if userspace had it cleared. This is also
 	 * compatible with pmao_restore_workaround() because it has already
 	 * cleared PMXE and we leave PMAO alone.
 	 */
@@ -623,8 +623,8 @@ static unsigned long ebb_switch_in(bool ebb, struct cpu_hw_events *cpuhw)
 	/*
 	 * Merge the kernel & user values of MMCR2. The semantics we implement
 	 * are that the user MMCR2 can set bits, ie. cause counters to freeze,
-	 * but not clear bits. If a task wants to be able to clear bits, ie.
-	 * unfreeze counters, it should not set exclude_xxx in its events and
+	 * but yest clear bits. If a task wants to be able to clear bits, ie.
+	 * unfreeze counters, it should yest set exclude_xxx in its events and
 	 * instead manage the MMCR2 entirely by itself.
 	 */
 	mtspr(SPRN_MMCR2, cpuhw->mmcr[3] | current->thread.mmcr2);
@@ -652,11 +652,11 @@ static void pmao_restore_workaround(bool ebb)
 	 *
 	 * When we reenable the PMU, we will write the saved MMCR0 with PMAO
 	 * set, and this _should_ generate an exception. However because of the
-	 * defect no exception is generated when we write PMAO, and we get
-	 * stuck with no counters counting but no exception delivered.
+	 * defect yes exception is generated when we write PMAO, and we get
+	 * stuck with yes counters counting but yes exception delivered.
 	 *
 	 * The workaround is to detect this case and tweak the hardware to
-	 * create another pending PMU exception.
+	 * create ayesther pending PMU exception.
 	 *
 	 * We do that by setting up PMC6 (cycles) for an imminent overflow and
 	 * enabling the PMU. That causes a new exception to be generated in the
@@ -667,7 +667,7 @@ static void pmao_restore_workaround(bool ebb)
 	 *
 	 * The logic is the same for EBB, except that the exception is gated by
 	 * us having interrupts hard disabled as well as the fact that we are
-	 * not in userspace. The exception is finally delivered when we return
+	 * yest in userspace. The exception is finally delivered when we return
 	 * to userspace.
 	 */
 
@@ -686,7 +686,7 @@ static void pmao_restore_workaround(bool ebb)
 	hard_irq_disable();
 
 	/*
-	 * This is a bit gross, but we know we're on POWER8E and have 6 PMCs.
+	 * This is a bit gross, but we kyesw we're on POWER8E and have 6 PMCs.
 	 * Using read/write_pmc() in a for loop adds 12 function calls and
 	 * almost doubles our code size.
 	 */
@@ -807,7 +807,7 @@ void perf_event_print_debug(void)
 	int i;
 
 	if (!ppmu) {
-		pr_info("Performance monitor hardware not registered.\n");
+		pr_info("Performance monitor hardware yest registered.\n");
 		return;
 	}
 
@@ -992,7 +992,7 @@ static int check_excludes(struct perf_event **ctrs, unsigned int cflags[],
 
 	/*
 	 * If the PMU we're on supports per event exclude settings then we
-	 * don't need to do any of this logic. NB. This assumes no PMU has both
+	 * don't need to do any of this logic. NB. This assumes yes PMU has both
 	 * per event exclude and limited PMCs.
 	 */
 	if (ppmu->flags & PPMU_ARCH_207S)
@@ -1250,9 +1250,9 @@ static void power_pmu_disable(struct pmu *pmu)
 #ifdef CONFIG_PPC64
 		/*
 		 * These are readable by userspace, may contain kernel
-		 * addresses and are not switched by context switch, so clear
-		 * them now to avoid leaking anything to userspace in general
-		 * including to another process.
+		 * addresses and are yest switched by context switch, so clear
+		 * them yesw to avoid leaking anything to userspace in general
+		 * including to ayesther process.
 		 */
 		if (ppmu->flags & PPMU_ARCH_207S) {
 			mtspr(SPRN_SDAR, 0);
@@ -1299,14 +1299,14 @@ static void power_pmu_enable(struct pmu *pmu)
 
 	/*
 	 * EBB requires an exclusive group and all events must have the EBB
-	 * flag set, or not set, so we can just check a single event. Also we
-	 * know we have at least one event.
+	 * flag set, or yest set, so we can just check a single event. Also we
+	 * kyesw we have at least one event.
 	 */
 	ebb = is_ebb_event(cpuhw->event[0]);
 
 	/*
 	 * If we didn't change anything, or only removed events,
-	 * no need to recalculate MMCR* settings and reset the PMCs.
+	 * yes need to recalculate MMCR* settings and reset the PMCs.
 	 * Just reenable the PMU with the current MMCR* settings
 	 * (possibly updated for removal of events).
 	 */
@@ -1358,7 +1358,7 @@ static void power_pmu_enable(struct pmu *pmu)
 
 	/*
 	 * Read off any pre-existing events that need to move
-	 * to another PMC.
+	 * to ayesther PMC.
 	 */
 	for (i = 0; i < cpuhw->n_events; ++i) {
 		event = cpuhw->event[i];
@@ -1460,7 +1460,7 @@ static int collect_events(struct perf_event *group, int max_count,
 
 /*
  * Add an event to the PMU.
- * If all events are not already frozen, then we disable and
+ * If all events are yest already frozen, then we disable and
  * re-enable the PMU in order to get hw_perf_enable to do the
  * actual work of reconfiguring the PMU.
  */
@@ -1490,7 +1490,7 @@ static int power_pmu_add(struct perf_event *event, int ef_flags)
 	 * This event may have been disabled/stopped in record_and_restart()
 	 * because we exceeded the ->event_limit. If re-starting the event,
 	 * clear the ->hw.state (STOPPED and UPTODATE flags), so the user
-	 * notification is re-enabled.
+	 * yestification is re-enabled.
 	 */
 	if (!(ef_flags & PERF_EF_START))
 		event->hw.state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
@@ -1503,7 +1503,7 @@ static int power_pmu_add(struct perf_event *event, int ef_flags)
 	 * at commit time(->commit_txn) as a whole
 	 */
 	if (cpuhw->txn_flags & PERF_PMU_TXN_ADD)
-		goto nocheck;
+		goto yescheck;
 
 	if (check_excludes(cpuhw->event, cpuhw->flags, n0, 1))
 		goto out;
@@ -1511,7 +1511,7 @@ static int power_pmu_add(struct perf_event *event, int ef_flags)
 		goto out;
 	event->hw.config = cpuhw->events[n0];
 
-nocheck:
+yescheck:
 	ebb_event_add(event);
 
 	++cpuhw->n_events;
@@ -1573,7 +1573,7 @@ static void power_pmu_del(struct perf_event *event, int ef_flags)
 		--cpuhw->n_limited;
 	}
 	if (cpuhw->n_events == 0) {
-		/* disable exceptions if no events are running */
+		/* disable exceptions if yes events are running */
 		cpuhw->mmcr[0] &= ~(MMCR0_PMXE | MMCR0_FCECE);
 	}
 
@@ -1585,8 +1585,8 @@ static void power_pmu_del(struct perf_event *event, int ef_flags)
 }
 
 /*
- * POWER-PMU does not support disabling individual counters, hence
- * program their cycle counter to their max value and ignore the interrupts.
+ * POWER-PMU does yest support disabling individual counters, hence
+ * program their cycle counter to their max value and igyesre the interrupts.
  */
 
 static void power_pmu_start(struct perf_event *event, int ef_flags)
@@ -1645,11 +1645,11 @@ static void power_pmu_stop(struct perf_event *event, int ef_flags)
 
 /*
  * Start group events scheduling transaction
- * Set the flag to make pmu::enable() not perform the
+ * Set the flag to make pmu::enable() yest perform the
  * schedulability test, it will be performed at commit time
  *
  * We only support PERF_PMU_TXN_ADD transactions. Save the
- * transaction flags but otherwise ignore non-PERF_PMU_TXN_ADD
+ * transaction flags but otherwise igyesre yesn-PERF_PMU_TXN_ADD
  * transactions.
  */
 static void power_pmu_start_txn(struct pmu *pmu, unsigned int txn_flags)
@@ -1676,7 +1676,7 @@ static void power_pmu_cancel_txn(struct pmu *pmu)
 	struct cpu_hw_events *cpuhw = this_cpu_ptr(&cpu_hw_events);
 	unsigned int txn_flags;
 
-	WARN_ON_ONCE(!cpuhw->txn_flags);	/* no txn in flight */
+	WARN_ON_ONCE(!cpuhw->txn_flags);	/* yes txn in flight */
 
 	txn_flags = cpuhw->txn_flags;
 	cpuhw->txn_flags = 0;
@@ -1700,7 +1700,7 @@ static int power_pmu_commit_txn(struct pmu *pmu)
 		return -EAGAIN;
 
 	cpuhw = this_cpu_ptr(&cpu_hw_events);
-	WARN_ON_ONCE(!cpuhw->txn_flags);	/* no txn in flight */
+	WARN_ON_ONCE(!cpuhw->txn_flags);	/* yes txn in flight */
 
 	if (cpuhw->txn_flags & ~PERF_PMU_TXN_ADD) {
 		cpuhw->txn_flags = 0;
@@ -1724,7 +1724,7 @@ static int power_pmu_commit_txn(struct pmu *pmu)
 
 /*
  * Return 1 if we might be able to put event on a limited PMC,
- * or 0 if not.
+ * or 0 if yest.
  * An event can only go on a limited PMC if it counts something
  * that a limited PMC can count, doesn't require interrupts, and
  * doesn't exclude any processor mode.
@@ -1758,11 +1758,11 @@ static int can_go_on_limited_pmc(struct perf_event *event, u64 ev,
 }
 
 /*
- * Find an alternative event_id that goes on a normal PMC, if possible,
- * and return the event_id code, or 0 if there is no such alternative.
+ * Find an alternative event_id that goes on a yesrmal PMC, if possible,
+ * and return the event_id code, or 0 if there is yes such alternative.
  * (Note: event_id code 0 is "don't count" on all machines.)
  */
-static u64 normal_pmc_alternative(u64 ev, unsigned long flags)
+static u64 yesrmal_pmc_alternative(u64 ev, unsigned long flags)
 {
 	u64 alt[MAX_EVENT_ALTERNATIVES];
 	int n;
@@ -1887,7 +1887,7 @@ static int power_pmu_event_init(struct perf_event *event)
 	event->hw.idx = 0;
 
 	/*
-	 * If we are not running on a hypervisor, force the
+	 * If we are yest running on a hypervisor, force the
 	 * exclude_hv bit to 0 so that we don't care what
 	 * the user set it to.
 	 */
@@ -1896,7 +1896,7 @@ static int power_pmu_event_init(struct perf_event *event)
 
 	/*
 	 * If this is a per-task event, then we can use
-	 * PM_RUN_* events interchangeably with their non RUN_*
+	 * PM_RUN_* events interchangeably with their yesn RUN_*
 	 * equivalents, e.g. PM_RUN_CYC instead of PM_CYC.
 	 * XXX we should check if the task is an idle task.
 	 */
@@ -1915,9 +1915,9 @@ static int power_pmu_event_init(struct perf_event *event)
 			/*
 			 * The requested event_id is on a limited PMC,
 			 * but we can't use a limited PMC; see if any
-			 * alternative goes on a normal PMC.
+			 * alternative goes on a yesrmal PMC.
 			 */
-			ev = normal_pmc_alternative(ev, flags);
+			ev = yesrmal_pmc_alternative(ev, flags);
 			if (!ev)
 				return -EINVAL;
 		}
@@ -1978,12 +1978,12 @@ static int power_pmu_event_init(struct perf_event *event)
 
 	/*
 	 * See if we need to reserve the PMU.
-	 * If no events are currently in use, then we have to take a
-	 * mutex to ensure that we don't race with another task doing
+	 * If yes events are currently in use, then we have to take a
+	 * mutex to ensure that we don't race with ayesther task doing
 	 * reserve_pmc_hardware or release_pmc_hardware.
 	 */
 	err = 0;
-	if (!atomic_inc_not_zero(&num_events)) {
+	if (!atomic_inc_yest_zero(&num_events)) {
 		mutex_lock(&pmc_reserve_mutex);
 		if (atomic_read(&num_events) == 0 &&
 		    reserve_pmc_hardware(perf_event_interrupt))
@@ -2031,7 +2031,7 @@ static struct pmu power_pmu = {
 /*
  * A counter has overflowed; update its count and record
  * things if requested.  Note that interrupts are hard-disabled
- * here so there is no possibility of being interrupted.
+ * here so there is yes possibility of being interrupted.
  */
 static void record_and_restart(struct perf_event *event, unsigned long val,
 			       struct pt_regs *regs)
@@ -2132,7 +2132,7 @@ unsigned long perf_instruction_pointer(struct pt_regs *regs)
 	if (use_siar && siar_valid(regs))
 		return mfspr(SPRN_SIAR) + perf_ip_adjust(regs);
 	else if (use_siar)
-		return 0;		// no valid instruction pointer
+		return 0;		// yes valid instruction pointer
 	else
 		return regs->nip;
 }
@@ -2215,7 +2215,7 @@ static void __perf_event_interrupt(struct pt_regs *regs)
 			}
 		}
 		if (!active)
-			/* reset non active counters that have overflowed */
+			/* reset yesn active counters that have overflowed */
 			write_pmc(i + 1, 0);
 	}
 	if (!found && pvr_version_is(PVR_POWER7)) {
@@ -2237,7 +2237,7 @@ static void __perf_event_interrupt(struct pt_regs *regs)
 		printk(KERN_WARNING "Can't find PMC that caused IRQ\n");
 
 	/*
-	 * Reset MMCR0 to its normal value.  This will set PMXE and
+	 * Reset MMCR0 to its yesrmal value.  This will set PMXE and
 	 * clear FC (freeze counters) and PMAO (perf mon alert occurred)
 	 * and thus allow interrupts to occur again.
 	 * XXX might want to use MSR.PM to keep the events frozen until
@@ -2283,7 +2283,7 @@ int register_power_pmu(struct power_pmu *pmu)
 
 #ifdef MSR_HV
 	/*
-	 * Use FCHV to ignore kernel events if MSR.HV is set.
+	 * Use FCHV to igyesre kernel events if MSR.HV is set.
 	 */
 	if (mfmsr() & MSR_HV)
 		freeze_events_kernel = MMCR0_FCHV;

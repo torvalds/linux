@@ -62,7 +62,7 @@
     {
         "BriefDescription": "Average Branch Address Clear Cost (fraction of cycles)",
 	"MetricExpr": "2* ( RS_EVENTS.EMPTY_CYCLES - ICACHE.IFDATA_STALL  - ( 14 * ITLB_MISSES.STLB_HIT + cpu@ITLB_MISSES.WALK_DURATION\\,cmask\\=1@ + 7* ITLB_MISSES.WALK_COMPLETED ) ) / RS_EVENTS.EMPTY_END",
-        "MetricGroup": "Unknown_Branches",
+        "MetricGroup": "Unkyeswn_Branches",
         "MetricName": "BAClear_Cost"
     },
     {
@@ -102,7 +102,7 @@
         "MetricName": "GFLOPs"
     },
     {
-        "BriefDescription": "Average Frequency Utilization relative nominal frequency",
+        "BriefDescription": "Average Frequency Utilization relative yesminal frequency",
         "MetricExpr": "CPU_CLK_UNHALTED.THREAD / CPU_CLK_UNHALTED.REF_TSC",
         "MetricGroup": "Power",
         "MetricName": "Turbo_Utilization"

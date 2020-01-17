@@ -372,7 +372,7 @@ void ieee80211_ba_session_work(struct work_struct *work)
 		tid_tx = sta->ampdu_mlme.tid_start_tx[tid];
 		if (!blocked && tid_tx) {
 			/*
-			 * Assign it over to the normal tid_tx array
+			 * Assign it over to the yesrmal tid_tx array
 			 * where it "goes live".
 			 */
 
@@ -583,5 +583,5 @@ void ieee80211_request_smps(struct ieee80211_vif *vif,
 				     &sdata->u.ap.request_smps_work);
 	}
 }
-/* this might change ... don't want non-open drivers using it */
+/* this might change ... don't want yesn-open drivers using it */
 EXPORT_SYMBOL_GPL(ieee80211_request_smps);

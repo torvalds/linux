@@ -307,7 +307,7 @@ static const struct artpec6_pin_group artpec6_pin_groups[] = {
 		.config = ARTPEC6_CONFIG_2,
 	},
 	{
-		.name = "uart2grp0",	/* Full pinout */
+		.name = "uart2grp0",	/* Full piyesut */
 		.pins = uart2_pins0,
 		.num_pins = ARRAY_SIZE(uart2_pins0),
 		.config = ARTPEC6_CONFIG_1,
@@ -355,7 +355,7 @@ static const struct artpec6_pin_group artpec6_pin_groups[] = {
 		.config = ARTPEC6_CONFIG_2,
 	},
 	{
-		.name = "uart5nocts",	/* TX/RX/RTS */
+		.name = "uart5yescts",	/* TX/RX/RTS */
 		.pins = uart5_pins0,
 		.num_pins = ARRAY_SIZE(uart5_pins0) - 1,
 		.config = ARTPEC6_CONFIG_2,
@@ -394,7 +394,7 @@ struct pin_register {
 
 /*
  * The register map has two holes where the pin number
- * no longer fits directly with the register offset.
+ * yes longer fits directly with the register offset.
  * This table allows us to map this easily.
  */
 static const struct pin_register pin_register[] = {
@@ -479,7 +479,7 @@ static const struct pinctrl_ops artpec6_pctrl_ops = {
 	.get_group_pins		= artpec6_get_group_pins,
 	.get_groups_count	= artpec6_get_groups_count,
 	.get_group_name		= artpec6_get_group_name,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -489,7 +489,7 @@ static const char * const gpiogrps[] = {
 	"spi0grp0", "spi1grp0", "pciedebuggrp0", "uart0grp0",
 	"uart0grp1", "uart0grp2", "uart1grp0", "uart1grp1",
 	"uart2grp0", "uart2grp1", "uart2grp2", "uart4grp0", "uart5grp0",
-	"uart5grp1", "uart5nocts",
+	"uart5grp1", "uart5yescts",
 };
 static const char * const cpuclkoutgrps[] = { "cpuclkoutgrp0" };
 static const char * const udlclkoutgrps[] = { "udlclkoutgrp0" };
@@ -510,7 +510,7 @@ static const char * const uart2grps[]	  = { "uart2grp0", "uart2grp1",
 static const char * const uart3grps[]	  = { "uart3grp0" };
 static const char * const uart4grps[]	  = { "uart4grp0", "uart4grp1" };
 static const char * const uart5grps[]	  = { "uart5grp0", "uart5grp1",
-					      "uart5nocts" };
+					      "uart5yescts" };
 static const char * const nandgrps[]	  = { "nandgrp0" };
 static const char * const sdio0grps[]	  = { "sdio0grp0" };
 static const char * const sdio1grps[]	  = { "sdio1grp0" };
@@ -662,7 +662,7 @@ static void artpec6_pmx_select_func(struct pinctrl_dev *pctldev,
 	for (i = 0; i < artpec6_pin_groups[group].num_pins; i++) {
 		/*
 		 * Registers for pins above a ARTPEC6_MAX_MUXABLE
-		 * do not have a SEL field and are always selected.
+		 * do yest have a SEL field and are always selected.
 		 */
 		if (artpec6_pin_groups[group].pins[i] > ARTPEC6_MAX_MUXABLE)
 			continue;
@@ -739,7 +739,7 @@ static int artpec6_pconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 
 	/* Check for valid pin */
 	if (pin >= pmx->num_pins) {
-		dev_dbg(pmx->dev, "pinconf is not supported for pin %s\n",
+		dev_dbg(pmx->dev, "pinconf is yest supported for pin %s\n",
 			pmx->pins[pin].name);
 		return -ENOTSUPP;
 	}
@@ -789,7 +789,7 @@ static int artpec6_pconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
  * PIN_CONFIG_BIAS_PULL_DOWN: 1 (pull down bias + enable)
  * PIN_CONFIG_DRIVE_STRENGTH: x (4mA, 6mA, 8mA, 9mA)
  *
- * All other args are invalid. All other params are not supported.
+ * All other args are invalid. All other params are yest supported.
  */
 static int artpec6_pconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			     unsigned long *configs, unsigned int num_configs)
@@ -803,7 +803,7 @@ static int artpec6_pconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 	/* Check for valid pin */
 	if (pin >= pmx->num_pins) {
-		dev_dbg(pmx->dev, "pinconf is not supported for pin %s\n",
+		dev_dbg(pmx->dev, "pinconf is yest supported for pin %s\n",
 			pmx->pins[pin].name);
 		return -ENOTSUPP;
 	}
@@ -868,7 +868,7 @@ static int artpec6_pconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 
 		default:
-			dev_dbg(pmx->dev, "parameter not supported\n");
+			dev_dbg(pmx->dev, "parameter yest supported\n");
 			return -ENOTSUPP;
 		}
 	}
@@ -959,7 +959,7 @@ static int artpec6_pmx_probe(struct platform_device *pdev)
 	pmx->pctl	    = pinctrl_register(&artpec6_desc, &pdev->dev, pmx);
 
 	if (IS_ERR(pmx->pctl)) {
-		dev_err(&pdev->dev, "could not register pinctrl driver\n");
+		dev_err(&pdev->dev, "could yest register pinctrl driver\n");
 		return PTR_ERR(pmx->pctl);
 	}
 

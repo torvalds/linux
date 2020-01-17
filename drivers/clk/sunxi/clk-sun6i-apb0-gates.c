@@ -35,7 +35,7 @@ static const struct of_device_id sun6i_a31_apb0_gates_clk_dt_ids[] = {
 
 static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct clk_onecell_data *clk_data;
 	const struct of_device_id *device;
 	const struct gates_data *data;

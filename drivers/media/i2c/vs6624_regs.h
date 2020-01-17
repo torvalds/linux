@@ -15,9 +15,9 @@
 #define VS6624_DEV_ID_MSB             0x0001 /* device id MSB */
 #define VS6624_DEV_ID_LSB             0x0002 /* device id LSB */
 #define VS6624_FW_VSN_MAJOR           0x0004 /* firmware version major */
-#define VS6624_FW_VSN_MINOR           0x0006 /* firmware version minor */
+#define VS6624_FW_VSN_MINOR           0x0006 /* firmware version miyesr */
 #define VS6624_PATCH_VSN_MAJOR        0x0008 /* patch version major */
-#define VS6624_PATCH_VSN_MINOR        0x000A /* patch version minor */
+#define VS6624_PATCH_VSN_MINOR        0x000A /* patch version miyesr */
 /* host interface manager control */
 #define VS6624_USER_CMD               0x0180 /* user level control of operating states */
 /* host interface manager status */
@@ -25,7 +25,7 @@
 /* run mode control */
 #define VS6624_METER_ON               0x0280 /* if false AE and AWB are disabled */
 /* mode setup */
-#define VS6624_ACTIVE_PIPE_SETUP      0x0302 /* select the active bank for non view live mode */
+#define VS6624_ACTIVE_PIPE_SETUP      0x0302 /* select the active bank for yesn view live mode */
 #define VS6624_SENSOR_MODE            0x0308 /* select the different sensor mode */
 /* pipe setup bank0 */
 #define VS6624_IMAGE_SIZE0            0x0380 /* required output dimension */
@@ -103,7 +103,7 @@
 /* video timing parameter host inputs */
 #define VS6624_EXT_CLK_FREQ_NUM_MSB   0x0605 /* external clock frequency numerator MSB */
 #define VS6624_EXT_CLK_FREQ_NUM_LSB   0x0606 /* external clock frequency numerator LSB */
-#define VS6624_EXT_CLK_FREQ_DEN       0x0608 /* external clock frequency denominator */
+#define VS6624_EXT_CLK_FREQ_DEN       0x0608 /* external clock frequency deyesminator */
 /* video timing control */
 #define VS6624_SYS_CLK_MODE           0x0880 /* decides system clock frequency */
 /* frame dimension parameter host inputs */
@@ -112,7 +112,7 @@
 /* static frame rate control */
 #define VS6624_FR_NUM_MSB             0x0D81 /* desired frame rate numerator MSB */
 #define VS6624_FR_NUM_LSB             0x0D82 /* desired frame rate numerator LSB */
-#define VS6624_FR_DEN                 0x0D84 /* desired frame rate denominator */
+#define VS6624_FR_DEN                 0x0D84 /* desired frame rate deyesminator */
 /* automatic frame rate control */
 #define VS6624_DISABLE_FR_DAMPER      0x0E80 /* defines frame rate mode */
 #define VS6624_MIN_DAMPER_OUT_MSB     0x0E8C /* minimum frame rate MSB */
@@ -121,7 +121,7 @@
 #define VS6624_EXPO_MODE              0x1180 /* exposure mode */
 #define VS6624_EXPO_METER             0x1182 /* weights to be associated with the zones */
 #define VS6624_EXPO_TIME_NUM          0x1184 /* exposure time numerator */
-#define VS6624_EXPO_TIME_DEN          0x1186 /* exposure time denominator */
+#define VS6624_EXPO_TIME_DEN          0x1186 /* exposure time deyesminator */
 #define VS6624_EXPO_TIME_MSB          0x1189 /* exposure time for the Manual Mode MSB */
 #define VS6624_EXPO_TIME_LSB          0x118A /* exposure time for the Manual Mode LSB */
 #define VS6624_EXPO_COMPENSATION      0x1190 /* exposure compensation */
@@ -314,7 +314,7 @@
 #define VS6624_NORA_SPLIT_KN          0x2604 /* split kn */
 #define VS6624_NORA_SPLIT_NI          0x2606 /* split ni */
 #define VS6624_NORA_TIGHT_G           0x2608 /* tight green */
-#define VS6624_NORA_DISABLE_NP        0x260A /* disable noro promoting */
+#define VS6624_NORA_DISABLE_NP        0x260A /* disable yesro promoting */
 #define VS6624_NORA_LOW_THR_MSB       0x260D /* low threshold for exposure MSB */
 #define VS6624_NORA_LOW_THR_LSB       0x260E /* low threshold for exposure LSB */
 #define VS6624_NORA_HIGH_THR_MSB      0x2611 /* high threshold for exposure MSB */

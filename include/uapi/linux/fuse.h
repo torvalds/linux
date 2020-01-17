@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-2-Clause) */
 /*
     This file defines the kernel interface of FUSE
     Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
@@ -15,9 +15,9 @@
     modification, are permitted provided that the following conditions
     are met:
     1. Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
+       yestice, this list of conditions and the following disclaimer.
     2. Redistributions in binary form must reproduce the above copyright
-       notice, this list of conditions and the following disclaimer in the
+       yestice, this list of conditions and the following disclaimer in the
        documentation and/or other materials provided with the distribution.
 
     THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -84,16 +84,16 @@
  *  - Add ATIME_NOW and MTIME_NOW flags to fuse_setattr_in
  *
  * 7.10
- *  - add nonseekable open flag
+ *  - add yesnseekable open flag
  *
  * 7.11
  *  - add IOCTL message
- *  - add unsolicited notification support
- *  - add POLL message and NOTIFY_POLL notification
+ *  - add unsolicited yestification support
+ *  - add POLL message and NOTIFY_POLL yestification
  *
  * 7.12
- *  - add umask flag to input argument of create, mknod and mkdir
- *  - add notification messages for invalidation of inodes and
+ *  - add umask flag to input argument of create, mkyesd and mkdir
+ *  - add yestification messages for invalidation of iyesdes and
  *    directory entries
  *
  * 7.13
@@ -104,12 +104,12 @@
  *  - add splice support to fuse device
  *
  * 7.15
- *  - add store notify
- *  - add retrieve notify
+ *  - add store yestify
+ *  - add retrieve yestify
  *
  * 7.16
  *  - add BATCH_FORGET request
- *  - FUSE_IOCTL_UNRESTRICTED shall now return with array of 'struct
+ *  - FUSE_IOCTL_UNRESTRICTED shall yesw return with array of 'struct
  *    fuse_ioctl_iovec' instead of ambiguous 'struct iovec'
  *  - add FUSE_IOCTL_32BIT flag
  *
@@ -190,33 +190,33 @@
  * INIT request and reply respectively.
  *
  * If the major versions match then both shall use the smallest
- * of the two minor versions for communication.
+ * of the two miyesr versions for communication.
  *
  * If the kernel supports a larger major version, then userspace shall
- * reply with the major version it supports, ignore the rest of the
+ * reply with the major version it supports, igyesre the rest of the
  * INIT message and expect a new INIT message from the kernel with a
  * matching major version.
  *
  * If the library supports a larger major version, then it shall fall
  * back to the major protocol version sent by the kernel for
  * communication and reply with that major version (and an arbitrary
- * supported minor version).
+ * supported miyesr version).
  */
 
 /** Version number of this interface */
 #define FUSE_KERNEL_VERSION 7
 
-/** Minor version number of this interface */
+/** Miyesr version number of this interface */
 #define FUSE_KERNEL_MINOR_VERSION 31
 
-/** The node ID of the root inode */
+/** The yesde ID of the root iyesde */
 #define FUSE_ROOT_ID 1
 
 /* Make sure all structures are padded to 64bit boundary, so 32bit
    userspace works under 64bit kernels */
 
 struct fuse_attr {
-	uint64_t	ino;
+	uint64_t	iyes;
 	uint64_t	size;
 	uint64_t	blocks;
 	uint64_t	atime;
@@ -274,9 +274,9 @@ struct fuse_file_lock {
  *
  * FOPEN_DIRECT_IO: bypass page cache for this open file
  * FOPEN_KEEP_CACHE: don't invalidate the data cache on open
- * FOPEN_NONSEEKABLE: the file is not seekable
+ * FOPEN_NONSEEKABLE: the file is yest seekable
  * FOPEN_CACHE_DIR: allow caching this directory
- * FOPEN_STREAM: the file is stream-like (no file position at all)
+ * FOPEN_STREAM: the file is stream-like (yes file position at all)
  */
 #define FOPEN_DIRECT_IO		(1 << 0)
 #define FOPEN_KEEP_CACHE	(1 << 1)
@@ -287,9 +287,9 @@ struct fuse_file_lock {
 /**
  * INIT request/reply flags
  *
- * FUSE_ASYNC_READ: asynchronous read requests
+ * FUSE_ASYNC_READ: asynchroyesus read requests
  * FUSE_POSIX_LOCKS: remote locking for POSIX file locks
- * FUSE_FILE_OPS: kernel sends file handle for fstat, etc... (not yet supported)
+ * FUSE_FILE_OPS: kernel sends file handle for fstat, etc... (yest yet supported)
  * FUSE_ATOMIC_O_TRUNC: handles the O_TRUNC open flag in the filesystem
  * FUSE_EXPORT_SUPPORT: filesystem handles lookups of "." and ".."
  * FUSE_BIG_WRITES: filesystem can handle write size larger than 4kB
@@ -302,7 +302,7 @@ struct fuse_file_lock {
  * FUSE_AUTO_INVAL_DATA: automatically invalidate cached pages
  * FUSE_DO_READDIRPLUS: do READDIRPLUS (READDIR+LOOKUP in one)
  * FUSE_READDIRPLUS_AUTO: adaptive readdirplus
- * FUSE_ASYNC_DIO: asynchronous direct I/O submission
+ * FUSE_ASYNC_DIO: asynchroyesus direct I/O submission
  * FUSE_WRITEBACK_CACHE: use writeback cache for buffered writes
  * FUSE_NO_OPEN_SUPPORT: kernel supports zero-message opens
  * FUSE_PARALLEL_DIROPS: allow parallel lookups and readdir
@@ -386,7 +386,7 @@ struct fuse_file_lock {
  * Ioctl flags
  *
  * FUSE_IOCTL_COMPAT: 32bit compat ioctl on 64bit machine
- * FUSE_IOCTL_UNRESTRICTED: not restricted to well-formed ioctls, retry allowed
+ * FUSE_IOCTL_UNRESTRICTED: yest restricted to well-formed ioctls, retry allowed
  * FUSE_IOCTL_RETRY: retry with new iovecs
  * FUSE_IOCTL_32BIT: 32bit ioctl
  * FUSE_IOCTL_DIR: is a directory
@@ -406,20 +406,20 @@ struct fuse_file_lock {
 /**
  * Poll flags
  *
- * FUSE_POLL_SCHEDULE_NOTIFY: request poll notify
+ * FUSE_POLL_SCHEDULE_NOTIFY: request poll yestify
  */
 #define FUSE_POLL_SCHEDULE_NOTIFY (1 << 0)
 
 /**
  * Fsync flags
  *
- * FUSE_FSYNC_FDATASYNC: Sync data only, not metadata
+ * FUSE_FSYNC_FDATASYNC: Sync data only, yest metadata
  */
 #define FUSE_FSYNC_FDATASYNC	(1 << 0)
 
 enum fuse_opcode {
 	FUSE_LOOKUP		= 1,
-	FUSE_FORGET		= 2,  /* no reply */
+	FUSE_FORGET		= 2,  /* yes reply */
 	FUSE_GETATTR		= 3,
 	FUSE_SETATTR		= 4,
 	FUSE_READLINK		= 5,
@@ -474,7 +474,7 @@ enum fuse_opcode {
 	FUSE_INIT_BSWAP_RESERVED	= 436207616,	/* FUSE_INIT << 24 */
 };
 
-enum fuse_notify_code {
+enum fuse_yestify_code {
 	FUSE_NOTIFY_POLL   = 1,
 	FUSE_NOTIFY_INVAL_INODE = 2,
 	FUSE_NOTIFY_INVAL_ENTRY = 3,
@@ -490,8 +490,8 @@ enum fuse_notify_code {
 #define FUSE_COMPAT_ENTRY_OUT_SIZE 120
 
 struct fuse_entry_out {
-	uint64_t	nodeid;		/* Inode ID */
-	uint64_t	generation;	/* Inode generation: nodeid:gen must
+	uint64_t	yesdeid;		/* Iyesde ID */
+	uint64_t	generation;	/* Iyesde generation: yesdeid:gen must
 					   be unique for the fs's lifetime */
 	uint64_t	entry_valid;	/* Cache timeout for the name */
 	uint64_t	attr_valid;	/* Cache timeout for the attributes */
@@ -505,7 +505,7 @@ struct fuse_forget_in {
 };
 
 struct fuse_forget_one {
-	uint64_t	nodeid;
+	uint64_t	yesdeid;
 	uint64_t	nlookup;
 };
 
@@ -531,7 +531,7 @@ struct fuse_attr_out {
 
 #define FUSE_COMPAT_MKNOD_IN_SIZE 8
 
-struct fuse_mknod_in {
+struct fuse_mkyesd_in {
 	uint32_t	mode;
 	uint32_t	rdev;
 	uint32_t	umask;
@@ -554,7 +554,7 @@ struct fuse_rename2_in {
 };
 
 struct fuse_link_in {
-	uint64_t	oldnodeid;
+	uint64_t	oldyesdeid;
 };
 
 struct fuse_setattr_in {
@@ -681,7 +681,7 @@ struct fuse_access_in {
 
 struct fuse_init_in {
 	uint32_t	major;
-	uint32_t	minor;
+	uint32_t	miyesr;
 	uint32_t	max_readahead;
 	uint32_t	flags;
 };
@@ -691,7 +691,7 @@ struct fuse_init_in {
 
 struct fuse_init_out {
 	uint32_t	major;
-	uint32_t	minor;
+	uint32_t	miyesr;
 	uint32_t	max_readahead;
 	uint32_t	flags;
 	uint16_t	max_background;
@@ -707,20 +707,20 @@ struct fuse_init_out {
 
 struct cuse_init_in {
 	uint32_t	major;
-	uint32_t	minor;
+	uint32_t	miyesr;
 	uint32_t	unused;
 	uint32_t	flags;
 };
 
 struct cuse_init_out {
 	uint32_t	major;
-	uint32_t	minor;
+	uint32_t	miyesr;
 	uint32_t	unused;
 	uint32_t	flags;
 	uint32_t	max_read;
 	uint32_t	max_write;
 	uint32_t	dev_major;		/* chardev major */
-	uint32_t	dev_minor;		/* chardev minor */
+	uint32_t	dev_miyesr;		/* chardev miyesr */
 	uint32_t	spare[10];
 };
 
@@ -771,7 +771,7 @@ struct fuse_poll_out {
 	uint32_t	padding;
 };
 
-struct fuse_notify_poll_wakeup_out {
+struct fuse_yestify_poll_wakeup_out {
 	uint64_t	kh;
 };
 
@@ -787,7 +787,7 @@ struct fuse_in_header {
 	uint32_t	len;
 	uint32_t	opcode;
 	uint64_t	unique;
-	uint64_t	nodeid;
+	uint64_t	yesdeid;
 	uint32_t	uid;
 	uint32_t	gid;
 	uint32_t	pid;
@@ -801,7 +801,7 @@ struct fuse_out_header {
 };
 
 struct fuse_dirent {
-	uint64_t	ino;
+	uint64_t	iyes;
 	uint64_t	off;
 	uint32_t	namelen;
 	uint32_t	type;
@@ -824,42 +824,42 @@ struct fuse_direntplus {
 #define FUSE_DIRENTPLUS_SIZE(d) \
 	FUSE_DIRENT_ALIGN(FUSE_NAME_OFFSET_DIRENTPLUS + (d)->dirent.namelen)
 
-struct fuse_notify_inval_inode_out {
-	uint64_t	ino;
+struct fuse_yestify_inval_iyesde_out {
+	uint64_t	iyes;
 	int64_t		off;
 	int64_t		len;
 };
 
-struct fuse_notify_inval_entry_out {
+struct fuse_yestify_inval_entry_out {
 	uint64_t	parent;
 	uint32_t	namelen;
 	uint32_t	padding;
 };
 
-struct fuse_notify_delete_out {
+struct fuse_yestify_delete_out {
 	uint64_t	parent;
 	uint64_t	child;
 	uint32_t	namelen;
 	uint32_t	padding;
 };
 
-struct fuse_notify_store_out {
-	uint64_t	nodeid;
+struct fuse_yestify_store_out {
+	uint64_t	yesdeid;
 	uint64_t	offset;
 	uint32_t	size;
 	uint32_t	padding;
 };
 
-struct fuse_notify_retrieve_out {
-	uint64_t	notify_unique;
-	uint64_t	nodeid;
+struct fuse_yestify_retrieve_out {
+	uint64_t	yestify_unique;
+	uint64_t	yesdeid;
 	uint64_t	offset;
 	uint32_t	size;
 	uint32_t	padding;
 };
 
 /* Matches the size of fuse_write_in */
-struct fuse_notify_retrieve_in {
+struct fuse_yestify_retrieve_in {
 	uint64_t	dummy1;
 	uint64_t	offset;
 	uint32_t	size;
@@ -885,7 +885,7 @@ struct fuse_lseek_out {
 struct fuse_copy_file_range_in {
 	uint64_t	fh_in;
 	uint64_t	off_in;
-	uint64_t	nodeid_out;
+	uint64_t	yesdeid_out;
 	uint64_t	fh_out;
 	uint64_t	off_out;
 	uint64_t	len;

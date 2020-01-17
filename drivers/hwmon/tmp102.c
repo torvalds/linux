@@ -22,7 +22,7 @@
 
 #define	TMP102_TEMP_REG			0x00
 #define	TMP102_CONF_REG			0x01
-/* note: these bit definitions are byte swapped */
+/* yeste: these bit definitions are byte swapped */
 #define		TMP102_CONF_SD		0x0100
 #define		TMP102_CONF_TM		0x0200
 #define		TMP102_CONF_POL		0x0400
@@ -80,7 +80,7 @@ static int tmp102_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp_input:
 		/* Is it too early to return a conversion ? */
 		if (time_before(jiffies, tmp102->ready_time)) {
-			dev_dbg(dev, "%s: Conversion not ready yet..\n", __func__);
+			dev_dbg(dev, "%s: Conversion yest ready yet..\n", __func__);
 			return -EAGAIN;
 		}
 		reg = TMP102_TEMP_REG;
@@ -243,7 +243,7 @@ static int tmp102_probe(struct i2c_client *client,
 	}
 
 	/*
-	 * Mark that we are not ready with data until the first
+	 * Mark that we are yest ready with data until the first
 	 * conversion is complete
 	 */
 	tmp102->ready_time = jiffies + msecs_to_jiffies(CONVERSION_TIME_MS);

@@ -7,7 +7,7 @@
  * This driver support CS4271 codec being master or slave, working
  * in control port mode, connected either via SPI or I2C.
  * The data format accepted is I2S or left-justified.
- * DAPM support not implemented.
+ * DAPM support yest implemented.
  */
 
 #include <linux/module.h>
@@ -130,8 +130,8 @@
 
 /*
  * Default CS4271 power-up configuration
- * Array contains non-existing in hw register at address 0
- * Array do not include Chip ID, as codec driver does not use
+ * Array contains yesn-existing in hw register at address 0
+ * Array do yest include Chip ID, as codec driver does yest use
  * registers read operations at all
  */
 static const struct reg_default cs4271_reg_defaults[] = {
@@ -347,9 +347,9 @@ static int cs4271_hw_params(struct snd_pcm_substream *substream,
 
 	if (cs4271->enable_soft_reset) {
 		/*
-		 * Put the codec in soft reset and back again in case it's not
+		 * Put the codec in soft reset and back again in case it's yest
 		 * currently streaming data. This way of bringing the codec in
-		 * sync to the current clocks is not explicitly documented in
+		 * sync to the current clocks is yest explicitly documented in
 		 * the data sheet, but it seems to work fine, and in contrast
 		 * to a read hardware reset, we don't have to sync back all
 		 * registers every time.
@@ -567,11 +567,11 @@ static int cs4271_component_probe(struct snd_soc_component *component)
 
 #ifdef CONFIG_OF
 	if (of_match_device(cs4271_dt_ids, component->dev)) {
-		if (of_get_property(component->dev->of_node,
+		if (of_get_property(component->dev->of_yesde,
 				     "cirrus,amutec-eq-bmutec", NULL))
 			amutec_eq_bmutec = true;
 
-		if (of_get_property(component->dev->of_node,
+		if (of_get_property(component->dev->of_yesde,
 				     "cirrus,enable-soft-reset", NULL))
 			cs4271->enable_soft_reset = true;
 	}
@@ -642,7 +642,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs4271 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int cs4271_common_probe(struct device *dev,
@@ -658,7 +658,7 @@ static int cs4271_common_probe(struct device *dev,
 
 	if (of_match_device(cs4271_dt_ids, dev))
 		cs4271->gpio_nreset =
-			of_get_named_gpio(dev->of_node, "reset-gpio", 0);
+			of_get_named_gpio(dev->of_yesde, "reset-gpio", 0);
 
 	if (cs4271plat)
 		cs4271->gpio_nreset = cs4271plat->gpio_nreset;

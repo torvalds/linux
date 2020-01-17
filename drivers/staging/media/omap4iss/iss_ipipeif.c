@@ -208,7 +208,7 @@ cont_raw:
 		      ISIF_HSIZE_HSIZE_MASK);
 
 	/* IPIPEIF_PAD_SOURCE_VP */
-	/* Do nothing? */
+	/* Do yesthing? */
 }
 
 /* -----------------------------------------------------------------------------
@@ -220,8 +220,8 @@ static void ipipeif_isr_buffer(struct iss_ipipeif_device *ipipeif)
 	struct iss_buffer *buffer;
 
 	/* The ISIF generates VD0 interrupts even when writes are disabled.
-	 * deal with it anyway). Disabling the ISIF when no buffer is available
-	 * is thus not be enough, we need to handle the situation explicitly.
+	 * deal with it anyway). Disabling the ISIF when yes buffer is available
+	 * is thus yest be eyesugh, we need to handle the situation explicitly.
 	 */
 	if (list_empty(&ipipeif->video_out.dmaqueue))
 		return;
@@ -270,9 +270,9 @@ static int ipipeif_video_queue(struct iss_video *video,
 
 	/*
 	 * If streaming was enabled before there was a buffer queued
-	 * or underrun happened in the ISR, the hardware was not enabled
+	 * or underrun happened in the ISR, the hardware was yest enabled
 	 * and DMA queue flag ISS_VIDEO_DMAQUEUE_UNDERRUN is still set.
-	 * Enable it now.
+	 * Enable it yesw.
 	 */
 	if (video->dmaqueue_flags & ISS_VIDEO_DMAQUEUE_UNDERRUN) {
 		if (ipipeif->output & IPIPEIF_OUTPUT_MEMORY)
@@ -320,7 +320,7 @@ static int ipipeif_set_stream(struct v4l2_subdev *sd, int enable)
 		ipipeif_print_status(ipipeif);
 
 		/*
-		 * When outputting to memory with no buffer available, let the
+		 * When outputting to memory with yes buffer available, let the
 		 * buffer queue handler start the hardware. A DMA queue flag
 		 * ISS_VIDEO_DMAQUEUE_QUEUED will be set as soon as there is
 		 * a buffer available.
@@ -393,7 +393,7 @@ ipipeif_try_format(struct iss_ipipeif_device *ipipeif,
 				break;
 		}
 
-		/* If not found, use SGRBG10 as default */
+		/* If yest found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(ipipeif_fmts))
 			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
@@ -593,7 +593,7 @@ static int ipipeif_link_validate(struct v4l2_subdev *sd,
  * @sd: ISP IPIPEIF V4L2 subdevice
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
+ * Initialize all pad formats with default values. If fh is yest NULL, try
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
@@ -772,7 +772,7 @@ int omap4iss_ipipeif_register_entities(struct iss_ipipeif_device *ipipeif,
 {
 	int ret;
 
-	/* Register the subdev and video node. */
+	/* Register the subdev and video yesde. */
 	ret = v4l2_device_register_subdev(vdev, &ipipeif->subdev);
 	if (ret < 0)
 		goto error;
@@ -820,7 +820,7 @@ int omap4iss_ipipeif_create_links(struct iss_device *iss)
 {
 	struct iss_ipipeif_device *ipipeif = &iss->ipipeif;
 
-	/* Connect the IPIPEIF subdev to the video node. */
+	/* Connect the IPIPEIF subdev to the video yesde. */
 	return media_create_pad_link(&ipipeif->subdev.entity,
 				     IPIPEIF_PAD_SOURCE_ISIF_SF,
 				     &ipipeif->video_out.video.entity, 0, 0);

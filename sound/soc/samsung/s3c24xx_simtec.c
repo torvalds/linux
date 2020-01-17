@@ -51,7 +51,7 @@ static void speaker_gain_set(int value)
  * Set the value of the speaker gain from the specified
  * @ucontrol setting.
  *
- * Note, if the speaker amp is muted, then we do not set a gain value
+ * Note, if the speaker amp is muted, then we do yest set a gain value
  * as at-least one of the ICs that is fitted will try and power up even
  * if the main control is set to off.
  */
@@ -75,7 +75,7 @@ static const struct snd_kcontrol_new amp_gain_controls[] = {
 
 /**
  * spk_unmute_state - set the unmute state of the speaker
- * @to: zero to unmute, non-zero to ununmute.
+ * @to: zero to unmute, yesn-zero to ununmute.
  */
 static void spk_unmute_state(int to)
 {
@@ -119,7 +119,7 @@ static int speaker_unmute_put(struct snd_kcontrol *kcontrol,
 }
 
 /* This is added as a manual control as the speaker amps create clicks
- * when their power state is changed, which are far more noticeable than
+ * when their power state is changed, which are far more yesticeable than
  * anything produced by the CODEC itself.
  */
 static const struct snd_kcontrol_new amp_unmute_controls[] = {
@@ -227,13 +227,13 @@ static int attach_gpio_amp(struct device *dev,
 	if (pdata->amp_gain[0] > 0) {
 		ret = gpio_request(pd->amp_gain[0], "gpio-amp-gain0");
 		if (ret) {
-			dev_err(dev, "cannot get amp gpio gain0\n");
+			dev_err(dev, "canyest get amp gpio gain0\n");
 			return ret;
 		}
 
 		ret = gpio_request(pd->amp_gain[1], "gpio-amp-gain1");
 		if (ret) {
-			dev_err(dev, "cannot get amp gpio gain1\n");
+			dev_err(dev, "canyest get amp gpio gain1\n");
 			gpio_free(pdata->amp_gain[0]);
 			return ret;
 		}
@@ -242,11 +242,11 @@ static int attach_gpio_amp(struct device *dev,
 		gpio_direction_output(pd->amp_gain[1], 0);
 	}
 
-	/* note, currently we assume GPA0 isn't valid amp */
+	/* yeste, currently we assume GPA0 isn't valid amp */
 	if (pdata->amp_gpio > 0) {
 		ret = gpio_request(pd->amp_gpio, "gpio-amp");
 		if (ret) {
-			dev_err(dev, "cannot get amp gpio %d (%d)\n",
+			dev_err(dev, "canyest get amp gpio %d (%d)\n",
 				pd->amp_gpio, ret);
 			goto err_amp;
 		}
@@ -302,7 +302,7 @@ int simtec_audio_core_probe(struct platform_device *pdev,
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
+		dev_err(&pdev->dev, "yes platform data supplied\n");
 		return -EINVAL;
 	}
 
@@ -310,7 +310,7 @@ int simtec_audio_core_probe(struct platform_device *pdev,
 
 	xtal_clk = clk_get(&pdev->dev, "xtal");
 	if (IS_ERR(xtal_clk)) {
-		dev_err(&pdev->dev, "could not get clkout0\n");
+		dev_err(&pdev->dev, "could yest get clkout0\n");
 		return -EINVAL;
 	}
 

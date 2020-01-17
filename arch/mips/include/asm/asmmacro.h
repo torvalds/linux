@@ -371,7 +371,7 @@
 	 */
 	.macro	_cfcmsa	rd, cs
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	insn_if_mips 0x787e0059 | (\cs << 11)
 	insn32_if_mm 0x587e0056 | (\cs << 11)
@@ -381,7 +381,7 @@
 
 	.macro	_ctcmsa	cd, rs
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	move	$1, \rs
 	insn_if_mips 0x783e0819 | (\cd << 6)
@@ -391,7 +391,7 @@
 
 	.macro	ld_b	wd, off, base
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
 	insn_if_mips 0x78000820 | (\wd << 6)
@@ -401,7 +401,7 @@
 
 	.macro	ld_h	wd, off, base
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
 	insn_if_mips 0x78000821 | (\wd << 6)
@@ -411,7 +411,7 @@
 
 	.macro	ld_w	wd, off, base
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
 	insn_if_mips 0x78000822 | (\wd << 6)
@@ -421,7 +421,7 @@
 
 	.macro	ld_d	wd, off, base
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
 	insn_if_mips 0x78000823 | (\wd << 6)
@@ -431,7 +431,7 @@
 
 	.macro	st_b	wd, off, base
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
 	insn_if_mips 0x78000824 | (\wd << 6)
@@ -441,7 +441,7 @@
 
 	.macro	st_h	wd, off, base
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
 	insn_if_mips 0x78000825 | (\wd << 6)
@@ -451,7 +451,7 @@
 
 	.macro	st_w	wd, off, base
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
 	insn_if_mips 0x78000826 | (\wd << 6)
@@ -461,7 +461,7 @@
 
 	.macro	st_d	wd, off, base
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	PTR_ADDU $1, \base, \off
 	insn_if_mips 0x78000827 | (\wd << 6)
@@ -471,7 +471,7 @@
 
 	.macro	copy_s_w	ws, n
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	insn_if_mips 0x78b00059 | (\n << 16) | (\ws << 11)
 	insn32_if_mm 0x58b00056 | (\n << 16) | (\ws << 11)
@@ -480,7 +480,7 @@
 
 	.macro	copy_s_d	ws, n
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	insn_if_mips 0x78b80059 | (\n << 16) | (\ws << 11)
 	insn32_if_mm 0x58b80056 | (\n << 16) | (\ws << 11)
@@ -489,7 +489,7 @@
 
 	.macro	insert_w	wd, n
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	insn_if_mips 0x79300819 | (\n << 16) | (\wd << 6)
 	insn32_if_mm 0x59300816 | (\n << 16) | (\wd << 6)
@@ -498,7 +498,7 @@
 
 	.macro	insert_d	wd, n
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	insn_if_mips 0x79380819 | (\n << 16) | (\wd << 6)
 	insn32_if_mm 0x59380816 | (\n << 16) | (\wd << 6)
@@ -516,7 +516,7 @@
 
 	.macro	msa_save_all	thread
 	.set	push
-	.set	noat
+	.set	yesat
 #ifdef TOOLCHAIN_SUPPORTS_MSA
 	PTR_ADDU FPR_BASE, \thread, FPR_BASE_OFFS
 #endif
@@ -560,7 +560,7 @@
 
 	.macro	msa_restore_all	thread
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
 	lw	$1, THREAD_MSA_CSR(\thread)
 	_ctcmsa	MSA_CSR, $1
@@ -616,9 +616,9 @@
 
 	.macro	msa_init_all_upper
 	.set	push
-	.set	noat
+	.set	yesat
 	SET_HARDFLOAT
-	not	$1, zero
+	yest	$1, zero
 	msa_init_upper	0
 	msa_init_upper	1
 	msa_init_upper	2

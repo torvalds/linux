@@ -15,7 +15,7 @@
  *
  * Additional credits:
  *   Pete Wyckoff <wyckoff@ca.sandia.gov>: Initial Linux/Alpha and trace
- *       dump support. The trace dump support has not been
+ *       dump support. The trace dump support has yest been
  *       integrated yet however.
  *   Troy Benjegerdes: Big Endian (PPC) patches.
  *   Nate Stahl: Better out of memory handling and stats support.
@@ -49,7 +49,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -111,7 +111,7 @@
 
 
 /*
- * Farallon used the DEC vendor ID by mistake and they seem not
+ * Farallon used the DEC vendor ID by mistake and they seem yest
  * to care - stinky!
  */
 #ifndef PCI_DEVICE_ID_FARALLON_PN9000SX
@@ -179,7 +179,7 @@ MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
  * This driver currently supports Tigon I and Tigon II based cards
  * including the Alteon AceNIC, the 3Com 3C985[B] and NetGear
  * GA620. The driver should also work on the SGI, DEC and Farallon
- * versions of the card, however I have not been able to test that
+ * versions of the card, however I have yest been able to test that
  * myself.
  *
  * This card is really neat, it supports receive hardware checksumming
@@ -209,11 +209,11 @@ MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
  *                override these in case your switch doesn't negotiate
  *                the link properly. Valid values are:
  *         0x0001 - Force half duplex link.
- *         0x0002 - Do not negotiate line speed with the other end.
+ *         0x0002 - Do yest negotiate line speed with the other end.
  *         0x0010 - 10Mbit/sec link.
  *         0x0020 - 100Mbit/sec link.
  *         0x0040 - 1000Mbit/sec link.
- *         0x0100 - Do not negotiate flow control.
+ *         0x0100 - Do yest negotiate flow control.
  *         0x0200 - Enable RX flow control Y
  *         0x0400 - Enable TX flow control Y (Tigon II NICs only).
  *                Default value is 0x0270, ie. enable link+flow
@@ -247,14 +247,14 @@ MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
  *                directions. The default value is a 50/50 split.
  *  dis_pci_mem_inval=<val> - disable PCI memory write and invalidate
  *                operations, default (1) is to always disable this as
- *                that is what Alteon does on NT. I have not been able
+ *                that is what Alteon does on NT. I have yest been able
  *                to measure any real performance differences with
  *                this on my systems. Set <val>=0 if you want to
  *                enable these operations.
  *
  * If you use more than one NIC, specify the parameters for the
  * individual NICs with a comma, ie. trace=0,0x00001fff,0 you want to
- * run tracing on NIC #2 but not on NIC #1 and #3.
+ * run tracing on NIC #2 but yest on NIC #1 and #3.
  *
  * TODO:
  *
@@ -262,14 +262,14 @@ MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
  * - NIC dump support.
  * - More tuning parameters.
  *
- * The mini ring is not used under Linux and I am not sure it makes sense
+ * The mini ring is yest used under Linux and I am yest sure it makes sense
  * to actually use it.
  *
  * New interrupt handler strategy:
  *
  * The old interrupt handler worked using the traditional method of
  * replacing an skbuff with a new one when a packet arrives. However
- * the rx rings do not need to contain a static number of buffer
+ * the rx rings do yest need to contain a static number of buffer
  * descriptors, thus it makes sense to move the memory allocation out
  * of the main interrupt handler and do it in a bottom half handler
  * and only allocate new buffers when the number of buffers in the
@@ -293,9 +293,9 @@ MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
  * and the memory allocation on SMP systems.
  *
  * Note that running the skb reallocation in a bottom half opens up
- * another can of races which needs to be handled properly. In
+ * ayesther can of races which needs to be handled properly. In
  * particular it can happen that the interrupt handler tries to run
- * the reallocation while the bottom half is either running on another
+ * the reallocation while the bottom half is either running on ayesther
  * CPU or was interrupted on the same CPU. To get around this the
  * driver uses bitops to prevent the reallocation routines from being
  * reentered.
@@ -304,14 +304,14 @@ MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
  * this is fun! since tx_ret_csm is only written to by the interrupt
  * handler. The case to be aware of is when shutting down the device
  * and cleaning up where it is necessary to make sure that
- * start_xmit() is not running while this is happening. Well DaveM
+ * start_xmit() is yest running while this is happening. Well DaveM
  * informs me that this case is already protected against ... bye bye
- * Mr. Spin Lock, it was nice to know you.
+ * Mr. Spin Lock, it was nice to kyesw you.
  *
- * TX interrupts are now partly disabled so the NIC will only generate
- * TX interrupts for the number of coal ticks, not for the number of
+ * TX interrupts are yesw partly disabled so the NIC will only generate
+ * TX interrupts for the number of coal ticks, yest for the number of
  * TX packets in the queue. This should reduce the number of TX only,
- * ie. when no RX processing is done, interrupts seen.
+ * ie. when yes RX processing is done, interrupts seen.
  */
 
 /*
@@ -319,7 +319,7 @@ MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
  * when to start refilling the rings are set to 75% of the ring
  * sizes. It seems to make sense to refill the rings entirely from the
  * intrrupt handler once it gets below the panic threshold, that way
- * we don't risk that the refilling is moved to another CPU when the
+ * we don't risk that the refilling is moved to ayesther CPU when the
  * one running the interrupt handler just got the slab code hot in its
  * cache.
  */
@@ -340,7 +340,7 @@ MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
 
 /*
  * Size of the mini ring entries, basically these just should be big
- * enough to take TCP ACKs
+ * eyesugh to take TCP ACKs
  */
 #define ACE_MINI_SIZE		100
 
@@ -350,10 +350,10 @@ MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
 
 /*
  * There seems to be a magic difference in the effect between 995 and 996
- * but little difference between 900 and 995 ... no idea why.
+ * but little difference between 900 and 995 ... yes idea why.
  *
- * There is now a default set of tuning parameters which is set, depending
- * on whether or not the user enables Jumbo frames. It's assumed that if
+ * There is yesw a default set of tuning parameters which is set, depending
+ * on whether or yest the user enables Jumbo frames. It's assumed that if
  * Jumbo frames are enabled, the user wants optimal tuning for that case.
  */
 #define DEF_TX_COAL		400 /* 996 */
@@ -374,12 +374,12 @@ MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
  * IRQ load without this flag (coal timer is never reset).
  * Note that with this flag tx_coal should be less than
  * time to xmit full tx ring.
- * 400usec is not so bad for tx ring size of 128.
+ * 400usec is yest so bad for tx ring size of 128.
  */
 #define TX_COAL_INTS_ONLY	1	/* worth it */
 #else
 /*
- * With modified firmware, this is not necessary, but still useful.
+ * With modified firmware, this is yest necessary, but still useful.
  */
 #define TX_COAL_INTS_ONLY	1
 #endif
@@ -494,10 +494,10 @@ static int acenic_probe_one(struct pci_dev *pdev,
 
 	pci_read_config_word(pdev, PCI_COMMAND, &ap->pci_command);
 
-	/* OpenFirmware on Mac's does not set this - DOH.. */
+	/* OpenFirmware on Mac's does yest set this - DOH.. */
 	if (!(ap->pci_command & PCI_COMMAND_MEMORY)) {
 		printk(KERN_INFO "%s: Enabling PCI Memory Mapped "
-		       "access - was not enabled by BIOS/Firmware\n",
+		       "access - was yest enabled by BIOS/Firmware\n",
 		       ap->name);
 		ap->pci_command = ap->pci_command | PCI_COMMAND_MEMORY;
 		pci_write_config_word(ap->pdev, PCI_COMMAND,
@@ -552,7 +552,7 @@ static int acenic_probe_one(struct pci_dev *pdev,
 		printk(KERN_INFO "%s: SGI AceNIC ", ap->name);
 		break;
 	default:
-		printk(KERN_INFO "%s: Unknown AceNIC ", ap->name);
+		printk(KERN_INFO "%s: Unkyeswn AceNIC ", ap->name);
 		break;
 	}
 
@@ -623,7 +623,7 @@ static void acenic_remove_one(struct pci_dev *pdev)
 	readl(&regs->CpuCtrl);	/* flush */
 
 	/*
-	 * Make sure no other CPUs are processing interrupts
+	 * Make sure yes other CPUs are processing interrupts
 	 * on the card before the buffers are being released.
 	 * Otherwise one might experience some `interesting'
 	 * effects.
@@ -878,7 +878,7 @@ static int ace_init(struct net_device *dev)
 
 	/*
 	 * aman@sgi.com - its useful to do a NIC reset here to
-	 * address the `Firmware not running' problem subsequent
+	 * address the `Firmware yest running' problem subsequent
 	 * to any crashes involving the NIC
 	 */
 	writel(HW_RESET | (HW_RESET << 24), &regs->HostCtrl);
@@ -915,7 +915,7 @@ static int ace_init(struct net_device *dev)
 	case 4:
 	case 5:
 		printk(KERN_INFO "  Tigon I  (Rev. %i), Firmware: %i.%i.%i, ",
-		       tig_ver, ap->firmware_major, ap->firmware_minor,
+		       tig_ver, ap->firmware_major, ap->firmware_miyesr,
 		       ap->firmware_fix);
 		writel(0, &regs->LocalCtrl);
 		ap->version = 1;
@@ -924,12 +924,12 @@ static int ace_init(struct net_device *dev)
 #endif
 	case 6:
 		printk(KERN_INFO "  Tigon II (Rev. %i), Firmware: %i.%i.%i, ",
-		       tig_ver, ap->firmware_major, ap->firmware_minor,
+		       tig_ver, ap->firmware_major, ap->firmware_miyesr,
 		       ap->firmware_fix);
 		writel(readl(&regs->CpuBCtrl) | CPU_HALT, &regs->CpuBCtrl);
 		readl(&regs->CpuBCtrl);		/* PCI write posting */
 		/*
-		 * The SRAM bank size does _not_ indicate the amount
+		 * The SRAM bank size does _yest_ indicate the amount
 		 * of memory on the card, it controls the _bank_ size!
 		 * Ie. a 1MB AceNIC will have two banks of 512KB.
 		 */
@@ -950,7 +950,7 @@ static int ace_init(struct net_device *dev)
 	 * seems to corrupt the ModeStat and possible other registers.
 	 * The SRAM settings survive resets and setting it to the same
 	 * value a second time works as well. This is what caused the
-	 * `Firmware not running' problem on the Tigon II.
+	 * `Firmware yest running' problem on the Tigon II.
 	 */
 #ifdef __BIG_ENDIAN
 	writel(ACE_BYTE_SWAP_DMA | ACE_WARN | ACE_FATAL | ACE_BYTE_SWAP_BD |
@@ -1002,7 +1002,7 @@ static int ace_init(struct net_device *dev)
 	 * Looks like this is necessary to deal with on all architectures,
 	 * even this %$#%$# N440BX Intel based thing doesn't get it right.
 	 * Ie. having two NICs in the machine, one will have the cache
-	 * line set at boot time, the other will not.
+	 * line set at boot time, the other will yest.
 	 */
 	pdev = ap->pdev;
 	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &cache_size);
@@ -1028,12 +1028,12 @@ static int ace_init(struct net_device *dev)
 
 	/*
 	 * Set the max DMA transfer size. Seems that for most systems
-	 * the performance is better when no MAX parameter is
+	 * the performance is better when yes MAX parameter is
 	 * set. However for systems enabling PCI write and invalidate,
 	 * DMA writes must be set to the L1 cache line size to get
 	 * optimal performance.
 	 *
-	 * The default is now to turn the PCI write and invalidate off
+	 * The default is yesw to turn the PCI write and invalidate off
 	 * - that is what Alteon does for NT.
 	 */
 	tmp = READ_CMD_MEM | WRITE_CMD_MEM;
@@ -1069,7 +1069,7 @@ static int ace_init(struct net_device *dev)
 				tmp |= DMA_WRITE_MAX_128;
 				break;
 			default:
-				printk(KERN_INFO "  Cache line size %i not "
+				printk(KERN_INFO "  Cache line size %i yest "
 				       "supported, PCI write and invalidate "
 				       "disabled\n", SMP_CACHE_BYTES);
 				ap->pci_command &= ~PCI_COMMAND_INVALIDATE;
@@ -1081,7 +1081,7 @@ static int ace_init(struct net_device *dev)
 
 #ifdef __sparc__
 	/*
-	 * On this platform, we know what the best dma settings
+	 * On this platform, we kyesw what the best dma settings
 	 * are.  We use 64-byte maximum bursts, because if we
 	 * burst larger than the cache line size (or even cross
 	 * a 64byte boundary in a single burst) the UltraSparc
@@ -1301,7 +1301,7 @@ static int ace_init(struct net_device *dev)
 	tmp = RCB_FLG_TCP_UDP_SUM | RCB_FLG_NO_PSEUDO_HDR | RCB_FLG_VLAN_ASSIST;
 
 	/*
-	 * The Tigon I does not like having the TX ring in host memory ;-(
+	 * The Tigon I does yest like having the TX ring in host memory ;-(
 	 */
 	if (!ACE_IS_TIGON_I(ap))
 		tmp |= RCB_FLG_TX_HOST_RING;
@@ -1327,7 +1327,7 @@ static int ace_init(struct net_device *dev)
 	writel(1, &regs->IfIdx);
 #if 0
 	/*
-	 * McKinley boxes do not like us fiddling with AssistState
+	 * McKinley boxes do yest like us fiddling with AssistState
 	 * this early
 	 */
 	writel(1, &regs->AssistState);
@@ -1340,7 +1340,7 @@ static int ace_init(struct net_device *dev)
 
 	if (board_idx == BOARD_IDX_OVERFLOW) {
 		printk(KERN_WARNING "%s: more than %i NICs detected, "
-		       "ignoring module parameters!\n",
+		       "igyesring module parameters!\n",
 		       ap->name, ACE_MAX_MOD_PARMS);
 	} else if (board_idx >= 0) {
 		if (tx_coal_tick[board_idx])
@@ -1434,7 +1434,7 @@ static int ace_init(struct net_device *dev)
 	writel(0, &regs->RxRetCsm);
 
 	/*
-	 * Enable DMA engine now.
+	 * Enable DMA engine yesw.
 	 * If we do this sooner, Mckinley box pukes.
 	 * I assume it's because Tigon II DMA engine wants to check
 	 * *something* even before the CPU is started.
@@ -1481,7 +1481,7 @@ static int ace_init(struct net_device *dev)
 	}
 
 	/*
-	 * We load the ring here as there seem to be no way to tell the
+	 * We load the ring here as there seem to be yes way to tell the
 	 * firmware to wipe the ring without re-initializing it.
 	 */
 	if (!test_and_set_bit(0, &ap->std_refill_busy))
@@ -1623,7 +1623,7 @@ static void ace_dump_trace(struct ace_private *ap)
  * Load the standard rx ring.
  *
  * Loading rings is safe without holding the spin lock since this is
- * done only before the device is enabled, thus no interrupts are
+ * done only before the device is enabled, thus yes interrupts are
  * generated and by the interrupt handler/tasklet handler.
  */
 static void ace_load_std_rx_ring(struct net_device *dev, int nr_bufs)
@@ -1807,7 +1807,7 @@ static void ace_load_jumbo_rx_ring(struct net_device *dev, int nr_bufs)
 
 
 /*
- * All events are considered to be slow (RX/TX ints do not generate
+ * All events are considered to be slow (RX/TX ints do yest generate
  * events) and are handled here, outside the main interrupt handler,
  * to reduce the size of the handler.
  */
@@ -1851,7 +1851,7 @@ static u32 ace_handle_event(struct net_device *dev, u32 evtcsm, u32 evtprd)
 				       "UP\n", ap->name);
 				break;
 			default:
-				printk(KERN_ERR "%s: Unknown optical link "
+				printk(KERN_ERR "%s: Unkyeswn optical link "
 				       "state %02x\n", ap->name, code);
 			}
 			break;
@@ -1871,7 +1871,7 @@ static u32 ace_handle_event(struct net_device *dev, u32 evtcsm, u32 evtprd)
 				       ap->name);
 				break;
 			default:
-				printk(KERN_ERR "%s: unknown error %02x\n",
+				printk(KERN_ERR "%s: unkyeswn error %02x\n",
 				       ap->name, ap->evt_ring[evtcsm].code);
 			}
 			break;
@@ -1947,9 +1947,9 @@ static void ace_rx_int(struct net_device *dev, u32 rxretprd, u32 rxretcsm)
 
 		switch(desc_type) {
 			/*
-			 * Normal frames do not have any flags set
+			 * Normal frames do yest have any flags set
 			 *
-			 * Mini and normal frames arrive frequently,
+			 * Mini and yesrmal frames arrive frequently,
 			 * so use a local counter to avoid doing
 			 * atomic operations for each packet arriving.
 			 */
@@ -1969,7 +1969,7 @@ static void ace_rx_int(struct net_device *dev, u32 rxretprd, u32 rxretcsm)
 			mini_count++;
 			break;
 		default:
-			printk(KERN_INFO "%s: unknown frame type (0x%02x) "
+			printk(KERN_INFO "%s: unkyeswn frame type (0x%02x) "
 			       "returned by NIC\n", dev->name,
 			       retdesc->flags);
 			goto error;
@@ -1998,7 +1998,7 @@ static void ace_rx_int(struct net_device *dev, u32 rxretprd, u32 rxretcsm)
 			skb->csum = htons(csum);
 			skb->ip_summed = CHECKSUM_COMPLETE;
 		} else {
-			skb_checksum_none_assert(skb);
+			skb_checksum_yesne_assert(skb);
 		}
 
 		/* send it up */
@@ -2074,17 +2074,17 @@ static inline void ace_tx_int(struct net_device *dev,
 	 * the following race condition: hard_start_xmit on other cpu
 	 * enters after we advanced tx_ret_csm and fills space,
 	 * which we have just freed, so that we make illegal device wakeup.
-	 * There is no good way to workaround this (at entry
+	 * There is yes good way to workaround this (at entry
 	 * to ace_start_xmit detects this condition and prevents
-	 * ring corruption, but it is not a good workaround.)
+	 * ring corruption, but it is yest a good workaround.)
 	 *
 	 * When tx_ret_csm is advanced after, we wake up device _only_
 	 * if we really have some space in ring (though the core doing
 	 * hard_start_xmit can see full ring for some period and has to
 	 * synchronize.) Superb.
-	 * BUT! We get another subtle race condition. hard_start_xmit
+	 * BUT! We get ayesther subtle race condition. hard_start_xmit
 	 * may think that ring is full between wakeup and advancing
-	 * tx_ret_csm and will stop device instantly! It is not so bad.
+	 * tx_ret_csm and will stop device instantly! It is yest so bad.
 	 * We are guaranteed that there is something in ring, so that
 	 * the next irq will resume transmission. To speedup this we could
 	 * mark descriptor, which closes ring with BD_FLG_COAL_NOW
@@ -2116,7 +2116,7 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	/*
-	 * ACK intr now. Otherwise we will lose updates to rx_ret_prd,
+	 * ACK intr yesw. Otherwise we will lose updates to rx_ret_prd,
 	 * which happened _after_ rxretprd = *ap->rx_ret_prd; but before
 	 * writel(0, &regs->Mb0Lo).
 	 *
@@ -2127,8 +2127,8 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 	readl(&regs->Mb0Lo);
 
 	/*
-	 * There is no conflict between transmit handling in
-	 * start_xmit and receive processing, thus there is no reason
+	 * There is yes conflict between transmit handling in
+	 * start_xmit and receive processing, thus there is yes reason
 	 * to take a spin lock for RX handling. Wait until we start
 	 * working on the other stuff - hey we don't need a spin lock
 	 * anymore.
@@ -2147,7 +2147,7 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 		 * If each skb takes only one descriptor this check degenerates
 		 * to identity, because new space has just been opened.
 		 * But if skbs are fragmented we must check that this index
-		 * update releases enough of space, otherwise we just
+		 * update releases eyesugh of space, otherwise we just
 		 * wait for device to make more work.
 		 */
 		if (!tx_ring_full(ap, txcsm, ap->tx_prd))
@@ -2232,7 +2232,7 @@ static int ace_open(struct net_device *dev)
 	struct cmd cmd;
 
 	if (!(ap->fw_running)) {
-		printk(KERN_WARNING "%s: Firmware not running!\n", dev->name);
+		printk(KERN_WARNING "%s: Firmware yest running!\n", dev->name);
 		return -EBUSY;
 	}
 
@@ -2290,7 +2290,7 @@ static int ace_close(struct net_device *dev)
 
 	/*
 	 * Without (or before) releasing irq and stopping hardware, this
-	 * is an absolute non-sense, by the way. It will be reset instantly
+	 * is an absolute yesn-sense, by the way. It will be reset instantly
 	 * by the first irq.
 	 */
 	netif_stop_queue(dev);
@@ -2312,8 +2312,8 @@ static int ace_close(struct net_device *dev)
 	tasklet_kill(&ap->ace_tasklet);
 
 	/*
-	 * Make sure one CPU is not processing packets while
-	 * buffers are being released by another.
+	 * Make sure one CPU is yest processing packets while
+	 * buffers are being released by ayesther.
 	 */
 
 	local_irq_save(flags);
@@ -2522,12 +2522,12 @@ overflow:
 	 * wmb() in ace_tx_intr as well.
 	 *
 	 * Note that this race is relieved by reserving one more entry
-	 * in tx ring than it is necessary (see original non-SG driver).
+	 * in tx ring than it is necessary (see original yesn-SG driver).
 	 * However, with SG we need to reserve 2*MAX_SKB_FRAGS+1, which
 	 * is already overkill.
 	 *
-	 * Alternative is to return with 1 not throttling queue. In this
-	 * case loop becomes longer, no more useful effects.
+	 * Alternative is to return with 1 yest throttling queue. In this
+	 * case loop becomes longer, yes more useful effects.
 	 */
 	if (time_before(jiffies, maxjiff)) {
 		barrier();
@@ -2700,7 +2700,7 @@ static void ace_get_drvinfo(struct net_device *dev,
 
 	strlcpy(info->driver, "acenic", sizeof(info->driver));
 	snprintf(info->version, sizeof(info->version), "%i.%i.%i",
-		 ap->firmware_major, ap->firmware_minor,
+		 ap->firmware_major, ap->firmware_miyesr,
 		 ap->firmware_fix);
 
 	if (ap->pdev)
@@ -2776,7 +2776,7 @@ static void ace_set_multicast_list(struct net_device *dev)
 
 	/*
 	 * For the time being multicast relies on the upper layers
-	 * filtering it properly. The Firmware does not allow one to
+	 * filtering it properly. The Firmware does yest allow one to
 	 * set the entire multicast list at a time and keeping track of
 	 * it here is going to be messy.
 	 */
@@ -2900,7 +2900,7 @@ static int ace_load_firmware(struct net_device *dev)
 	   the BSS/SBSS sections any more, since we were clearing the
 	   whole thing anyway. */
 	ap->firmware_major = fw->data[0];
-	ap->firmware_minor = fw->data[1];
+	ap->firmware_miyesr = fw->data[1];
 	ap->firmware_fix = fw->data[2];
 
 	ap->firmware_start = be32_to_cpu(fw_data[1]);
@@ -2920,7 +2920,7 @@ static int ace_load_firmware(struct net_device *dev)
 	}
 
 	/*
-	 * Do not try to clear more than 512KiB or we end up seeing
+	 * Do yest try to clear more than 512KiB or we end up seeing
 	 * funny things on NICs with only 512KiB SRAM
 	 */
 	ace_clear(regs, 0x2000, 0x80000-0x2000);
@@ -2941,9 +2941,9 @@ static int ace_load_firmware(struct net_device *dev)
  * wonder in what hospital they have put the guy who designed the i2c
  * specs.
  *
- * Oh yes, this is only the beginning!
+ * Oh no, this is only the beginning!
  *
- * Thanks to Stevarino Webinski for helping tracking down the bugs in the
+ * Thanks to Stevariyes Webinski for helping tracking down the bugs in the
  * code i2c readout code by beta testing all my hacks.
  */
 static void eeprom_start(struct ace_regs __iomem *regs)

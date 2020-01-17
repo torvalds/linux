@@ -9,7 +9,7 @@ FT5506EEG  7"   .. 8.9"
 FT5726NEI  5.7” .. 11.6"
 
 The software interface is identical for all those chips, so that
-currently there is no need for the driver to distinguish between the
+currently there is yes need for the driver to distinguish between the
 different chips. Nevertheless distinct compatible strings are used so
 that a distinction can be added if necessary without changing the DT
 bindings.

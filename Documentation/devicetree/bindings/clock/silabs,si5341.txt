@@ -12,17 +12,17 @@ in turn can be directed to any of the 10 (or 4) outputs through a divider.
 The internal structure of the clock generators can be found in [2].
 
 The driver can be used in "as is" mode, reading the current settings from the
-chip at boot, in case you have a (pre-)programmed device. If the PLL is not
+chip at boot, in case you have a (pre-)programmed device. If the PLL is yest
 configured when the driver probes, it assumes the driver must fully initialize
 it.
 
 The device type, speed grade and revision are determined runtime by probing.
 
-The driver currently only supports XTAL input mode, and does not support any
+The driver currently only supports XTAL input mode, and does yest support any
 fancy input configurations. They can still be programmed into the chip and
 the driver will leave them "as is".
 
-==I2C device node==
+==I2C device yesde==
 
 Required properties:
 - compatible: shall be one of the following:
@@ -36,16 +36,16 @@ Required properties:
 	corresponding to inputs. Use a fixed clock for the "xtal" input.
 	At least one must be present.
 - clock-names: One of: "xtal", "in0", "in1", "in2"
-- vdd-supply: Regulator node for VDD
+- vdd-supply: Regulator yesde for VDD
 
 Optional properties:
-- vdda-supply: Regulator node for VDDA
-- vdds-supply: Regulator node for VDDS
-- silabs,pll-m-num, silabs,pll-m-den: Numerator and denominator for PLL
+- vdda-supply: Regulator yesde for VDDA
+- vdds-supply: Regulator yesde for VDDS
+- silabs,pll-m-num, silabs,pll-m-den: Numerator and deyesminator for PLL
   feedback divider. Must be such that the PLL output is in the valid range. For
   example, to create 14GHz from a 48MHz xtal, use m-num=14000 and m-den=48. Only
   the fraction matters, using 3500 and 12 will deliver the exact same result.
-  If these are not specified, and the PLL is not yet programmed when the driver
+  If these are yest specified, and the PLL is yest yet programmed when the driver
   probes, the PLL will be set to 14GHz.
 - silabs,reprogram: When present, the driver will always assume the device must
   be initialized, and always performs the soft-reset routine. Since this will
@@ -56,19 +56,19 @@ Optional properties:
 - #size-cells: shall be set to 0.
 
 
-== Child nodes: Outputs ==
+== Child yesdes: Outputs ==
 
-The child nodes list the output clocks.
+The child yesdes list the output clocks.
 
-Each of the clock outputs can be overwritten individually by using a child node.
-If a child node for a clock output is not set, the configuration remains
+Each of the clock outputs can be overwritten individually by using a child yesde.
+If a child yesde for a clock output is yest set, the configuration remains
 unchanged.
 
-Required child node properties:
+Required child yesde properties:
 - reg: number of clock output.
 
-Optional child node properties:
-- vdd-supply: Regulator node for VDD for this output. The driver selects default
+Optional child yesde properties:
+- vdd-supply: Regulator yesde for VDD for this output. The driver selects default
 	values for common-mode and amplitude based on the voltage.
 - silabs,format: Output format, one of:
 	1 = differential (defaults to LVDS levels)
@@ -90,7 +90,7 @@ ref48: ref48M {
 	clock-frequency = <48000000>;
 };
 
-i2c-master-node {
+i2c-master-yesde {
 	/* Programmable clock (for logic) */
 	si5341: clock-generator@74 {
 		reg = <0x74>;
@@ -103,7 +103,7 @@ i2c-master-node {
 
 		silabs,pll-m-num = <14000>; /* PLL at 14.0 GHz */
 		silabs,pll-m-den = <48>;
-		silabs,reprogram; /* Chips are not programmed, always reset */
+		silabs,reprogram; /* Chips are yest programmed, always reset */
 
 		out@0 {
 			reg = <0>;
@@ -137,7 +137,7 @@ i2c-master-node {
 	};
 };
 
-some-video-node {
+some-video-yesde {
 	/* Standard clock bindings */
 	clock-names = "pixel";
 	clocks = <&si5341 0 7>; /* Output 7 */
@@ -149,12 +149,12 @@ some-video-node {
 	assigned-clock-rates = <148500000>, <594000000>;
 };
 
-some-audio-node {
+some-audio-yesde {
 	clock-names = "i2s-clk";
 	clocks = <&si5341 0 0>;
 	/*
 	 * since output 0 is a synth-master, the synth will be automatically set
-	 * to an appropriate frequency when the audio driver requests another
+	 * to an appropriate frequency when the audio driver requests ayesther
 	 * frequency. We give control over synth 2 to this output here.
 	 */
 	assigned-clocks = <&si5341 0 0>;

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -1261,7 +1261,7 @@ int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 
 	mdelay(15);
 
-	/* switch from bypass mode to normal mode */
+	/* switch from bypass mode to yesrmal mode */
 	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_BYPASS_EN_MASK);
 
 	r = radeon_uvd_send_upll_ctlreq(rdev, CG_UPLL_FUNC_CNTL);
@@ -1313,7 +1313,7 @@ void dce4_program_fmt(struct drm_encoder *encoder)
 	if (radeon_encoder->devices & ATOM_DEVICE_LCD_SUPPORT)
 		return;
 
-	/* not needed for analog */
+	/* yest needed for analog */
 	if ((radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1) ||
 	    (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2))
 		return;
@@ -1341,7 +1341,7 @@ void dce4_program_fmt(struct drm_encoder *encoder)
 		break;
 	case 10:
 	default:
-		/* not needed */
+		/* yest needed */
 		break;
 	}
 
@@ -1388,7 +1388,7 @@ void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc)
 		return;
 
 	/* depending on when we hit vblank, we may be close to active; if so,
-	 * wait for another frame.
+	 * wait for ayesther frame.
 	 */
 	while (dce4_is_in_vblank(rdev, crtc)) {
 		if (i++ % 100 == 0) {
@@ -1420,7 +1420,7 @@ void evergreen_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base,
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
 
-	/* update the scanout addresses */
+	/* update the scayesut addresses */
 	WREG32(EVERGREEN_GRPH_FLIP_CONTROL + radeon_crtc->crtc_offset,
 	       async ? EVERGREEN_GRPH_SURFACE_UPDATE_H_RETRACE_EN : 0);
 	WREG32(EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH + radeon_crtc->crtc_offset,
@@ -1618,7 +1618,7 @@ void btc_pm_init_profile(struct radeon_device *rdev)
  *
  * @rdev: radeon_device pointer
  *
- * Set non-clock parameters associated with a power state
+ * Set yesn-clock parameters associated with a power state
  * (voltage, etc.) (evergreen+).
  */
 void evergreen_pm_misc(struct radeon_device *rdev)
@@ -1718,7 +1718,7 @@ void evergreen_pm_finish(struct radeon_device *rdev)
  * @hpd: hpd (hotplug detect) pin
  *
  * Checks if a digital monitor is connected (evergreen+).
- * Returns true if connected, false if not connected.
+ * Returns true if connected, false if yest connected.
  */
 bool evergreen_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 {
@@ -1773,7 +1773,7 @@ void evergreen_hpd_init(struct radeon_device *rdev)
 		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
 		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
 			/* don't try to enable hpd on eDP or LVDS avoid breaking the
-			 * aux dp channel on imac and help (but not completely fix)
+			 * aux dp channel on imac and help (but yest completely fix)
 			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
 			 * also avoid interrupt storms during dpms.
 			 */
@@ -1846,7 +1846,7 @@ static u32 evergreen_line_buffer_adjust(struct radeon_device *rdev,
 	 */
 	/* this can get tricky if we have two large displays on a paired group
 	 * of crtcs.  Ideally for multiple large displays we'd assign them to
-	 * non-linked crtcs for maximum line buffer allocation.
+	 * yesn-linked crtcs for maximum line buffer allocation.
 	 */
 	if (radeon_crtc->base.enabled && mode) {
 		if (other_mode) {
@@ -1907,7 +1907,7 @@ static u32 evergreen_line_buffer_adjust(struct radeon_device *rdev,
 		}
 	}
 
-	/* controller not enabled, so no lb used */
+	/* controller yest enabled, so yes lb used */
 	return 0;
 }
 
@@ -2026,7 +2026,7 @@ static u32 evergreen_dmif_request_bandwidth(struct evergreen_wm_params *wm)
 
 static u32 evergreen_available_bandwidth(struct evergreen_wm_params *wm)
 {
-	/* Calculate the Available bandwidth. Display can use this temporarily but not in average. */
+	/* Calculate the Available bandwidth. Display can use this temporarily but yest in average. */
 	u32 dram_bandwidth = evergreen_dram_bandwidth(wm);
 	u32 data_return_bandwidth = evergreen_data_return_bandwidth(wm);
 	u32 dmif_req_bandwidth = evergreen_dmif_request_bandwidth(wm);
@@ -2276,7 +2276,7 @@ static void evergreen_program_watermarks(struct radeon_device *rdev,
 		priority_b_mark = dfixed_trunc(c);
 		priority_b_cnt |= priority_b_mark & PRIORITY_MARK_MASK;
 
-		/* Save number of lines the linebuffer leads before the scanout */
+		/* Save number of lines the linebuffer leads before the scayesut */
 		radeon_crtc->lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode->crtc_hdisplay);
 	}
 
@@ -2351,7 +2351,7 @@ void evergreen_bandwidth_update(struct radeon_device *rdev)
  *
  * Wait for the MC (memory controller) to be idle.
  * (evergreen+).
- * Returns 0 if the MC is idle, -1 if not.
+ * Returns 0 if the MC is idle, -1 if yest.
  */
 int evergreen_mc_wait_for_idle(struct radeon_device *rdev)
 {
@@ -2553,7 +2553,7 @@ static const unsigned evergreen_disp_int_status[] =
 
 /*
  * Assumption is that EVERGREEN_CRTC_MASTER_EN enable for requested crtc
- * We go from crtc to connector and it is not relible  since it
+ * We go from crtc to connector and it is yest relible  since it
  * should be an opposite direction .If crtc is enable then
  * find the dig_fe which selects this crtc and insure that it enable.
  * if such dig_fe is found then find dig_be which selects found dig_be and
@@ -2619,7 +2619,7 @@ static bool evergreen_is_dp_sst_stream_enabled(struct radeon_device *rdev,
 
 /*
  * Blank dig when in dp sst mode
- * Dig ignores crtc timing
+ * Dig igyesres crtc timing
  */
 static void evergreen_blank_dp_output(struct radeon_device *rdev,
 				      unsigned dig_fe)
@@ -2706,11 +2706,11 @@ void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *sav
 				udelay(1);
 			}
 			/*we should disable dig if it drives dp sst*/
-			/*but we are in radeon_device_init and the topology is unknown*/
+			/*but we are in radeon_device_init and the topology is unkyeswn*/
 			/*and it is available after radeon_modeset_init*/
 			/*the following method radeon_atom_encoder_dpms_dig*/
 			/*does the job if we initialize it properly*/
-			/*for now we do it this manually*/
+			/*for yesw we do it this manually*/
 			/**/
 			if (ASIC_IS_DCE5(rdev) &&
 			    evergreen_is_dp_sst_stream_enabled(rdev, i ,&dig_fe))
@@ -2891,7 +2891,7 @@ void evergreen_mc_program(struct radeon_device *rdev)
 			rdev->mc.vram_end >> 12);
 	}
 	WREG32(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR, rdev->vram_scratch.gpu_addr >> 12);
-	/* llano/ontario only */
+	/* llayes/ontario only */
 	if ((rdev->family == CHIP_PALM) ||
 	    (rdev->family == CHIP_SUMO) ||
 	    (rdev->family == CHIP_SUMO2)) {
@@ -3098,7 +3098,7 @@ static int evergreen_cp_resume(struct radeon_device *rdev)
 	ring->wptr = 0;
 	WREG32(CP_RB_WPTR, ring->wptr);
 
-	/* set the wb address whether it's enabled or not */
+	/* set the wb address whether it's enabled or yest */
 	WREG32(CP_RB_RPTR_ADDR,
 	       ((rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC));
 	WREG32(CP_RB_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFF);
@@ -3405,8 +3405,8 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	else
 		mc_arb_ramcfg = RREG32(MC_ARB_RAMCFG);
 
-	/* setup tiling info dword.  gb_addr_config is not adequate since it does
-	 * not have bank info, so create a custom tiling dword.
+	/* setup tiling info dword.  gb_addr_config is yest adequate since it does
+	 * yest have bank info, so create a custom tiling dword.
 	 * bits 3:0   num_pipes
 	 * bits 7:4   num_banks
 	 * bits 11:8  group_size
@@ -3469,7 +3469,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 			tmp |= rb_disable_bitmap;
 		}
 	}
-	/* enabled rb are just the one not disabled :) */
+	/* enabled rb are just the one yest disabled :) */
 	disabled_rb_mask = tmp;
 	tmp = 0;
 	for (i = 0; i < rdev->config.evergreen.max_backends; i++)
@@ -3585,7 +3585,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	case CHIP_SUMO:
 	case CHIP_SUMO2:
 	case CHIP_CAICOS:
-		/* no vertex cache */
+		/* yes vertex cache */
 		sq_config &= ~VC_ENABLE;
 		break;
 	default:
@@ -3883,7 +3883,7 @@ u32 evergreen_gpu_check_soft_reset(struct radeon_device *rdev)
 	if (tmp & L2_BUSY)
 		reset_mask |= RADEON_RESET_VMC;
 
-	/* Skip MC reset as it's mostly likely not hung, just busy */
+	/* Skip MC reset as it's mostly likely yest hung, just busy */
 	if (reset_mask & RADEON_RESET_MC) {
 		DRM_DEBUG("MC busy: 0x%08X, clearing.\n", reset_mask);
 		reset_mask &= ~RADEON_RESET_MC;
@@ -4086,7 +4086,7 @@ int evergreen_asic_reset(struct radeon_device *rdev, bool hard)
  * @ring: radeon_ring structure holding ring information
  *
  * Check if the GFX engine is locked up.
- * Returns true if the engine appears to be locked up, false if not.
+ * Returns true if the engine appears to be locked up, false if yest.
  */
 bool evergreen_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
@@ -4498,7 +4498,7 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	u32 thermal_int = 0;
 
 	if (!rdev->irq.installed) {
-		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
+		WARN(1, "Can't enable IRQ/MSI because yes handler is installed\n");
 		return -EINVAL;
 	}
 	/* don't enable anything if the ih is disabled */
@@ -4661,7 +4661,7 @@ static void evergreen_irq_ack(struct radeon_device *rdev)
 static void evergreen_irq_disable(struct radeon_device *rdev)
 {
 	r600_disable_interrupts(rdev);
-	/* Wait and acknowledge irq */
+	/* Wait and ackyeswledge irq */
 	mdelay(1);
 	evergreen_irq_ack(rdev);
 	evergreen_disable_interrupt_state(rdev);
@@ -4685,7 +4685,7 @@ static u32 evergreen_get_ih_wptr(struct radeon_device *rdev)
 	if (wptr & RB_OVERFLOW) {
 		wptr &= ~RB_OVERFLOW;
 		/* When a ring buffer overflow happen start parsing interrupt
-		 * from the last not overwritten vector (wptr + 16). Hopefully
+		 * from the last yest overwritten vector (wptr + 16). Hopefully
 		 * this should allow us to catchup.
 		 */
 		dev_warn(rdev->dev, "IH ring buffer overflow (0x%08X, 0x%08X, 0x%08X)\n",
@@ -4941,7 +4941,7 @@ static void evergreen_uvd_init(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed UVD (%d) init.\n", r);
 		/*
 		 * At this point rdev->uvd.vcpu_bo is NULL which trickles down
-		 * to early fails uvd_v2_2_resume() and thus nothing happens
+		 * to early fails uvd_v2_2_resume() and thus yesthing happens
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable uvd here.
 		 */
@@ -5125,7 +5125,7 @@ int evergreen_resume(struct radeon_device *rdev)
 	 */
 	if (radeon_asic_reset(rdev))
 		dev_warn(rdev->dev, "GPU reset failed !\n");
-	/* Do not reset GPU before posting, on rv770 hw unlike on r500 hw,
+	/* Do yest reset GPU before posting, on rv770 hw unlike on r500 hw,
 	 * posting will perform necessary task to bring back GPU into good
 	 * shape.
 	 */
@@ -5169,7 +5169,7 @@ int evergreen_suspend(struct radeon_device *rdev)
 
 /* Plan is to move initialization in that function and use
  * helper function so that radeon_device_init pretty much
- * do nothing more than calling asic specific function. This
+ * do yesthing more than calling asic specific function. This
  * should also allow to remove a bunch of callback function
  * like vram_info.
  */
@@ -5198,10 +5198,10 @@ int evergreen_init(struct radeon_device *rdev)
 	/* Post card if necessary */
 	if (!radeon_card_posted(rdev)) {
 		if (!rdev->bios) {
-			dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+			dev_err(rdev->dev, "Card yest posted and yes BIOS - igyesring\n");
 			return -EINVAL;
 		}
-		DRM_INFO("GPU not posted. posting now...\n");
+		DRM_INFO("GPU yest posted. posting yesw...\n");
 		atom_asic_init(rdev->mode_info.atom_context);
 	}
 	/* init golden registers */
@@ -5285,7 +5285,7 @@ int evergreen_init(struct radeon_device *rdev)
 
 	/* Don't start up if the MC ucode is missing on BTC parts.
 	 * The default clocks and voltages before the MC ucode
-	 * is loaded are not suffient for advanced operations.
+	 * is loaded are yest suffient for advanced operations.
 	 */
 	if (ASIC_IS_DCE5(rdev)) {
 		if (!rdev->mc_fw && !(rdev->flags & RADEON_IS_IGP)) {

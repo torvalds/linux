@@ -106,8 +106,8 @@ static inline void __cpu_set_tcr_t0sz(unsigned long t0sz)
  * speculative TLB fetches, we must temporarily install the reserved page
  * tables while we invalidate the TLBs and set up the correct TCR_EL1.T0SZ.
  *
- * If current is a not a user task, the mm covers the TTBR1_EL1 page tables,
- * which should not be installed in TTBR0_EL1. In this case we can leave the
+ * If current is a yest a user task, the mm covers the TTBR1_EL1 page tables,
+ * which should yest be installed in TTBR0_EL1. In this case we can leave the
  * reserved page tables in place.
  */
 static inline void cpu_uninstall_idmap(void)
@@ -147,7 +147,7 @@ static inline void cpu_replace_ttbr1(pgd_t *pgdp)
 	if (system_supports_cnp() && !WARN_ON(pgdp != lm_alias(swapper_pg_dir))) {
 		/*
 		 * cpu_replace_ttbr1() is used when there's a boot CPU
-		 * up (i.e. cpufeature framework is not up yet) and
+		 * up (i.e. cpufeature framework is yest up yet) and
 		 * latter only when we enable CNP via cpufeature's
 		 * enable() callback.
 		 * Also we rely on the cpu_hwcap bit being set before
@@ -215,7 +215,7 @@ static inline void __switch_mm(struct mm_struct *next)
 	unsigned int cpu = smp_processor_id();
 
 	/*
-	 * init_mm.pgd does not contain any user mappings and it is always
+	 * init_mm.pgd does yest contain any user mappings and it is always
 	 * active for kernel addresses in TTBR1. Just set the reserved TTBR0.
 	 */
 	if (next == &init_mm) {
@@ -235,9 +235,9 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 
 	/*
 	 * Update the saved TTBR0_EL1 of the scheduled-in task as the previous
-	 * value may have not been initialised yet (activate_mm caller) or the
+	 * value may have yest been initialised yet (activate_mm caller) or the
 	 * ASID has changed since the last run (following the context switch
-	 * of another thread of the same process).
+	 * of ayesther thread of the same process).
 	 */
 	update_saved_ttbr0(tsk, next);
 }

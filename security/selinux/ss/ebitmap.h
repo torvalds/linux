@@ -6,7 +6,7 @@
  * roles, categories, and classes.
  *
  * Each extensible bitmap is implemented as a linked
- * list of bitmap nodes, where each bitmap node has
+ * list of bitmap yesdes, where each bitmap yesde has
  * an explicitly specified starting bit position within
  * the total bitmap.
  *
@@ -31,25 +31,25 @@
 #define EBITMAP_SHIFT_UNIT_SIZE(x)					\
 	(((x) >> EBITMAP_UNIT_SIZE / 2) >> EBITMAP_UNIT_SIZE / 2)
 
-struct ebitmap_node {
-	struct ebitmap_node *next;
+struct ebitmap_yesde {
+	struct ebitmap_yesde *next;
 	unsigned long maps[EBITMAP_UNIT_NUMS];
 	u32 startbit;
 };
 
 struct ebitmap {
-	struct ebitmap_node *node;	/* first node in the bitmap */
+	struct ebitmap_yesde *yesde;	/* first yesde in the bitmap */
 	u32 highbit;	/* highest position in the total bitmap */
 };
 
 #define ebitmap_length(e) ((e)->highbit)
 
 static inline unsigned int ebitmap_start_positive(struct ebitmap *e,
-						  struct ebitmap_node **n)
+						  struct ebitmap_yesde **n)
 {
 	unsigned int ofs;
 
-	for (*n = e->node; *n; *n = (*n)->next) {
+	for (*n = e->yesde; *n; *n = (*n)->next) {
 		ofs = find_first_bit((*n)->maps, EBITMAP_SIZE);
 		if (ofs < EBITMAP_SIZE)
 			return (*n)->startbit + ofs;
@@ -63,7 +63,7 @@ static inline void ebitmap_init(struct ebitmap *e)
 }
 
 static inline unsigned int ebitmap_next_positive(struct ebitmap *e,
-						 struct ebitmap_node **n,
+						 struct ebitmap_yesde **n,
 						 unsigned int bit)
 {
 	unsigned int ofs;
@@ -80,12 +80,12 @@ static inline unsigned int ebitmap_next_positive(struct ebitmap *e,
 	return ebitmap_length(e);
 }
 
-#define EBITMAP_NODE_INDEX(node, bit)	\
-	(((bit) - (node)->startbit) / EBITMAP_UNIT_SIZE)
-#define EBITMAP_NODE_OFFSET(node, bit)	\
-	(((bit) - (node)->startbit) % EBITMAP_UNIT_SIZE)
+#define EBITMAP_NODE_INDEX(yesde, bit)	\
+	(((bit) - (yesde)->startbit) / EBITMAP_UNIT_SIZE)
+#define EBITMAP_NODE_OFFSET(yesde, bit)	\
+	(((bit) - (yesde)->startbit) % EBITMAP_UNIT_SIZE)
 
-static inline int ebitmap_node_get_bit(struct ebitmap_node *n,
+static inline int ebitmap_yesde_get_bit(struct ebitmap_yesde *n,
 				       unsigned int bit)
 {
 	unsigned int index = EBITMAP_NODE_INDEX(n, bit);
@@ -97,7 +97,7 @@ static inline int ebitmap_node_get_bit(struct ebitmap_node *n,
 	return 0;
 }
 
-static inline void ebitmap_node_set_bit(struct ebitmap_node *n,
+static inline void ebitmap_yesde_set_bit(struct ebitmap_yesde *n,
 					unsigned int bit)
 {
 	unsigned int index = EBITMAP_NODE_INDEX(n, bit);
@@ -107,7 +107,7 @@ static inline void ebitmap_node_set_bit(struct ebitmap_node *n,
 	n->maps[index] |= (EBITMAP_BIT << ofs);
 }
 
-static inline void ebitmap_node_clr_bit(struct ebitmap_node *n,
+static inline void ebitmap_yesde_clr_bit(struct ebitmap_yesde *n,
 					unsigned int bit)
 {
 	unsigned int index = EBITMAP_NODE_INDEX(n, bit);

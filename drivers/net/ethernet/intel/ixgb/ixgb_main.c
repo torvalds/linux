@@ -26,7 +26,7 @@ MODULE_PARM_DESC(copybreak,
  * Last entry must be all 0s
  *
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
- *   Class, Class Mask, private data (not used) }
+ *   Class, Class Mask, private data (yest used) }
  */
 static const struct pci_device_id ixgb_pci_tbl[] = {
 	{PCI_VENDOR_ID_INTEL, IXGB_DEVICE_ID_82597EX,
@@ -108,7 +108,7 @@ MODULE_VERSION(DRV_VERSION);
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
 static int debug = -1;
 module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=yesne,...,16=all)");
 
 /**
  * ixgb_init_module - Driver Registration Routine
@@ -192,7 +192,7 @@ ixgb_up(struct ixgb_adapter *adapter)
 	ixgb_configure_rx(adapter);
 	ixgb_alloc_rx_buffers(adapter, IXGB_DESC_UNUSED(&adapter->rx_ring));
 
-	/* disable interrupts and get the hardware into a known state */
+	/* disable interrupts and get the hardware into a kyeswn state */
 	IXGB_WRITE_REG(&adapter->hw, IMC, 0xffffffff);
 
 	/* only enable MSI if bus is in PCI-X mode */
@@ -301,7 +301,7 @@ static netdev_features_t
 ixgb_fix_features(struct net_device *netdev, netdev_features_t features)
 {
 	/*
-	 * Tx VLAN insertion does not work per HW design when Rx stripping is
+	 * Tx VLAN insertion does yest work per HW design when Rx stripping is
 	 * disabled.
 	 */
 	if (!(features & NETIF_F_HW_VLAN_CTAG_RX))
@@ -591,7 +591,7 @@ ixgb_sw_init(struct ixgb_adapter *adapter)
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the watchdog timer is started,
- * and the stack is notified that the interface is ready.
+ * and the stack is yestified that the interface is ready.
  **/
 
 static int
@@ -635,7 +635,7 @@ err_setup_tx:
  * ixgb_close - Disables a network interface
  * @netdev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is yest allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the drivers control, but
@@ -1427,7 +1427,7 @@ ixgb_tx_queue(struct ixgb_adapter *adapter, int count, int vlan_id,int tx_flags)
 		cpu_to_le32(IXGB_TX_DESC_CMD_EOP | IXGB_TX_DESC_CMD_RS);
 
 	/* Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch.  (Only
+	 * kyesw there are new descriptors to fetch.  (Only
 	 * applicable for weak-ordered memory model archs,
 	 * such as IA-64). */
 	wmb();
@@ -1447,7 +1447,7 @@ static int __ixgb_maybe_stop_tx(struct net_device *netdev, int size)
 	 * but since that doesn't exist yet, just open code it. */
 	smp_mb();
 
-	/* We need to check again in a case another CPU has just
+	/* We need to check again in a case ayesther CPU has just
 	 * made room available. */
 	if (likely(IXGB_DESC_UNUSED(tx_ring) < size))
 		return -EBUSY;
@@ -1687,7 +1687,7 @@ ixgb_update_stats(struct ixgb_adapter *adapter)
 	netdev->stats.multicast = adapter->stats.mprcl;
 	netdev->stats.collisions = 0;
 
-	/* ignore RLEC as it reports errors for padded (<64bytes) frames
+	/* igyesre RLEC as it reports errors for padded (<64bytes) frames
 	 * with a length in the type/len field */
 	netdev->stats.rx_errors =
 	    /* adapter->stats.rnbc + */ adapter->stats.crcerrs +
@@ -1762,7 +1762,7 @@ ixgb_clean(struct napi_struct *napi, int budget)
 	ixgb_clean_tx_irq(adapter);
 	ixgb_clean_rx_irq(adapter, &work_done, budget);
 
-	/* If budget not fully consumed, exit the polling mode */
+	/* If budget yest fully consumed, exit the polling mode */
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
 		if (!test_bit(__IXGB_DOWN, &adapter->flags))
@@ -1877,20 +1877,20 @@ ixgb_rx_checksum(struct ixgb_adapter *adapter,
                  struct ixgb_rx_desc *rx_desc,
                  struct sk_buff *skb)
 {
-	/* Ignore Checksum bit is set OR
-	 * TCP Checksum has not been calculated
+	/* Igyesre Checksum bit is set OR
+	 * TCP Checksum has yest been calculated
 	 */
 	if ((rx_desc->status & IXGB_RX_DESC_STATUS_IXSM) ||
 	   (!(rx_desc->status & IXGB_RX_DESC_STATUS_TCPCS))) {
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 		return;
 	}
 
-	/* At this point we know the hardware did the TCP checksum */
-	/* now look at the TCP checksum error bit */
+	/* At this point we kyesw the hardware did the TCP checksum */
+	/* yesw look at the TCP checksum error bit */
 	if (rx_desc->errors & IXGB_RX_DESC_ERRORS_TCPE) {
 		/* let the stack verify checksum errors */
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 		adapter->hw_csum_rx_error++;
 	} else {
 		/* TCP checksum is good */
@@ -2095,7 +2095,7 @@ map_skb:
 
 		rx_desc = IXGB_RX_DESC(*rx_ring, i);
 		rx_desc->buff_addr = cpu_to_le64(buffer_info->dma);
-		/* guarantee DD bit not set now before h/w gets descriptor
+		/* guarantee DD bit yest set yesw before h/w gets descriptor
 		 * this is the rest of the workaround for h/w double
 		 * writeback. */
 		rx_desc->status = 0;
@@ -2112,7 +2112,7 @@ map_skb:
 			i = (rx_ring->count - 1);
 
 		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch.  (Only
+		 * kyesw there are new descriptors to fetch.  (Only
 		 * applicable for weak-ordered memory model archs, such
 		 * as IA-64). */
 		wmb();
@@ -2229,7 +2229,7 @@ static pci_ers_result_t ixgb_io_slot_reset(struct pci_dev *pdev)
 
 	if (pci_enable_device(pdev)) {
 		netif_err(adapter, probe, adapter->netdev,
-			  "Cannot re-enable PCI device after reset\n");
+			  "Canyest re-enable PCI device after reset\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
@@ -2246,7 +2246,7 @@ static pci_ers_result_t ixgb_io_slot_reset(struct pci_dev *pdev)
 	/* Make sure the EEPROM is good */
 	if (!ixgb_validate_eeprom_checksum(&adapter->hw)) {
 		netif_err(adapter, probe, adapter->netdev,
-			  "After reset, the EEPROM checksum is not valid\n");
+			  "After reset, the EEPROM checksum is yest valid\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 	ixgb_get_ee_mac_addr(&adapter->hw, netdev->dev_addr);
@@ -2262,11 +2262,11 @@ static pci_ers_result_t ixgb_io_slot_reset(struct pci_dev *pdev)
 }
 
 /**
- * ixgb_io_resume - called when its OK to resume normal operations
+ * ixgb_io_resume - called when its OK to resume yesrmal operations
  * @pdev    pointer to pci device with error
  *
  * The error recovery driver tells us that its OK to resume
- * normal operation. Implementation resembles the second-half
+ * yesrmal operation. Implementation resembles the second-half
  * of the ixgb_probe() routine.
  */
 static void ixgb_io_resume(struct pci_dev *pdev)

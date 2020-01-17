@@ -9,7 +9,7 @@
  * under the terms of the GNU General Public License version 2, available
  * at http://www.gnu.org/licenses/old-licenses/gpl-2.0.html (the "GPL").
  *
- * Notwithstanding the above, under no circumstances may you combine this
+ * Notwithstanding the above, under yes circumstances may you combine this
  * software in any way with any other QLogic software provided under a
  * license other than the GPL, without QLogic's express prior written
  * consent.
@@ -84,7 +84,7 @@ static void *bnx2x_search_tlv_list(struct bnx2x *bp, void *tlvs_list,
 		tlv = (struct channel_tlv *)tlvs_list;
 	} while (tlv->type != CHANNEL_TLV_LIST_END);
 
-	DP(BNX2X_MSG_IOV, "TLV list does not contain %d TLV\n", req_tlv);
+	DP(BNX2X_MSG_IOV, "TLV list does yest contain %d TLV\n", req_tlv);
 
 	return NULL;
 }
@@ -145,7 +145,7 @@ static int bnx2x_send_msg2pf(struct bnx2x *bp, u8 *done, dma_addr_t msg_mapping)
 	int tout = 100, interval = 100; /* wait for 10 seconds */
 
 	if (*done) {
-		BNX2X_ERR("done was non zero before message to pf was sent\n");
+		BNX2X_ERR("done was yesn zero before message to pf was sent\n");
 		WARN_ON(true);
 		return -EINVAL;
 	}
@@ -162,9 +162,9 @@ static int bnx2x_send_msg2pf(struct bnx2x *bp, u8 *done, dma_addr_t msg_mapping)
 
 	/* Write message address */
 	writel(U64_LO(msg_mapping),
-	       &zone_data->non_trigger.vf_pf_channel.msg_addr_lo);
+	       &zone_data->yesn_trigger.vf_pf_channel.msg_addr_lo);
 	writel(U64_HI(msg_mapping),
-	       &zone_data->non_trigger.vf_pf_channel.msg_addr_hi);
+	       &zone_data->yesn_trigger.vf_pf_channel.msg_addr_hi);
 
 	/* make sure the address is written before FW accesses it */
 	wmb();
@@ -287,7 +287,7 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 
 		attempts++;
 
-		/* test whether the PF accepted our request. If not, humble
+		/* test whether the PF accepted our request. If yest, humble
 		 * the request and try again.
 		 */
 		if (bp->acquire_resp.hdr.status == PFVF_STATUS_SUCCESS) {
@@ -345,7 +345,7 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 		bp->flags |= HAS_PHYS_PORT_ID;
 	}
 
-	/* Old Hypevisors might not even support the FP_HSI_SUPPORT TLV.
+	/* Old Hypevisors might yest even support the FP_HSI_SUPPORT TLV.
 	 * If that's the case, we need to make certain required FW was
 	 * supported by such a hypervisor [i.e., v0-v2].
 	 */
@@ -454,7 +454,7 @@ int bnx2x_vfpf_init(struct bnx2x *bp)
 		req->sb_addr[i] = (dma_addr_t)bnx2x_fp(bp, i,
 						       status_blk_mapping);
 
-	/* statistics - requests only supports single queue for now */
+	/* statistics - requests only supports single queue for yesw */
 	req->stats_addr = bp->fw_stats_data_mapping +
 			  offsetof(struct bnx2x_fw_stats_data, queue_stats);
 
@@ -493,7 +493,7 @@ void bnx2x_vfpf_close_vf(struct bnx2x *bp)
 	int i, rc;
 	u32 vf_id;
 
-	/* If we haven't got a valid VF id, there is no sense to
+	/* If we haven't got a valid VF id, there is yes sense to
 	 * continue with sending messages
 	 */
 	if (bnx2x_get_vf_id(bp, &vf_id))
@@ -779,7 +779,7 @@ int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr, u8 vf_qid, bool set)
 			rc = bnx2x_send_msg2pf(bp, &resp->hdr.status,
 					       bp->vf2pf_mbox_mapping);
 		} else {
-			/* no new info in bulletin */
+			/* yes new info in bulletin */
 			break;
 		}
 	}
@@ -850,7 +850,7 @@ int bnx2x_vfpf_config_rss(struct bnx2x *bp,
 
 	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
 		/* Since older drivers don't support this feature (and VF has
-		 * no way of knowing other than failing this), don't propagate
+		 * yes way of kyeswing other than failing this), don't propagate
 		 * an error in this case.
 		 */
 		DP(BNX2X_MSG_IOV,
@@ -886,7 +886,7 @@ int bnx2x_vfpf_set_mcast(struct net_device *dev)
 	/* We support PFVF_MAX_MULTICAST_PER_VF mcast addresses tops */
 	if (netdev_mc_count(dev) > PFVF_MAX_MULTICAST_PER_VF) {
 		DP(NETIF_MSG_IFUP,
-		   "VF supports not more than %d multicast MAC addresses\n",
+		   "VF supports yest more than %d multicast MAC addresses\n",
 		   PFVF_MAX_MULTICAST_PER_VF);
 		rc = -EINVAL;
 		goto out;
@@ -934,7 +934,7 @@ int bnx2x_vfpf_update_vlan(struct bnx2x *bp, u16 vid, u8 vf_qid, bool add)
 	int rc = 0;
 
 	if (!(bp->acquire_resp.pfdev_info.pf_cap & PFVF_CAP_VLAN_FILTER)) {
-		DP(BNX2X_MSG_IOV, "HV does not support vlan filtering\n");
+		DP(BNX2X_MSG_IOV, "HV does yest support vlan filtering\n");
 		return 0;
 	}
 
@@ -1000,11 +1000,11 @@ int bnx2x_vfpf_storm_rx_mode(struct bnx2x *bp)
 
 	DP(NETIF_MSG_IFUP, "Rx mode is %d\n", mode);
 
-	/* Ignore everything accept MODE_NONE */
+	/* Igyesre everything accept MODE_NONE */
 	if (mode  == BNX2X_RX_MODE_NONE) {
 		req->rx_mask = VFPF_RX_MASK_ACCEPT_NONE;
 	} else {
-		/* Current PF driver will not look at the specific flags,
+		/* Current PF driver will yest look at the specific flags,
 		 * but they are required when working with older drivers on hv.
 		 */
 		req->rx_mask = VFPF_RX_MASK_ACCEPT_MATCHED_MULTICAST;
@@ -1079,12 +1079,12 @@ static int bnx2x_copy32_vf_dmae(struct bnx2x *bp, u8 from_vf,
 	struct dmae_command dmae;
 
 	if (CHIP_IS_E1x(bp)) {
-		BNX2X_ERR("Chip revision does not support VFs\n");
+		BNX2X_ERR("Chip revision does yest support VFs\n");
 		return DMAE_NOT_RDY;
 	}
 
 	if (!bp->dmae_ready) {
-		BNX2X_ERR("DMAE is not ready, can not copy\n");
+		BNX2X_ERR("DMAE is yest ready, can yest copy\n");
 		return DMAE_NOT_RDY;
 	}
 
@@ -1346,8 +1346,8 @@ static void bnx2x_vf_mbx_acquire_resp(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				  CHANNEL_TLV_PHYS_PORT_ID))
 		bnx2x_vf_mbx_resp_phys_port(bp, vf, &mbx->msg->resp, &length);
 
-	/* `New' vfs will want to know if fastpath HSI is supported, since
-	 * if that's not the case they could print into system log the fact
+	/* `New' vfs will want to kyesw if fastpath HSI is supported, since
+	 * if that's yest the case they could print into system log the fact
 	 * the driver version must be updated.
 	 */
 	bnx2x_vf_mbx_resp_fp_hsi_ver(bp, vf, &mbx->msg->resp, &length);
@@ -1387,7 +1387,7 @@ static int bnx2x_vf_mbx_acquire_chk_dorq(struct bnx2x *bp,
 				  CHANNEL_TLV_PHYS_PORT_ID))
 		return 0;
 
-	/* Issue does not exist in windows VMs */
+	/* Issue does yest exist in windows VMs */
 	if (bnx2x_vf_mbx_is_windows_vm(bp, &mbx->msg->req.acquire))
 		return 0;
 
@@ -1531,7 +1531,7 @@ static void bnx2x_vf_mbx_setup_q(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	}
 
 	/* tx queues must be setup alongside rx queues thus if the rx queue
-	 * is not marked as valid there's nothing to do.
+	 * is yest marked as valid there's yesthing to do.
 	 */
 	if (setup_q->param_valid & (VFPF_RXQ_VALID|VFPF_TXQ_VALID)) {
 		struct bnx2x_vf_queue *q = vfq_get(vf, setup_q->vf_qid);
@@ -1572,7 +1572,7 @@ static void bnx2x_vf_mbx_setup_q(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			bnx2x_vf_mbx_set_q_flags(bp, setup_q->txq.flags,
 						 &setup_p->flags);
 
-			/* tx setup - general, nothing */
+			/* tx setup - general, yesthing */
 
 			/* tx setup - tx */
 			txq_params->dscr_map = setup_q->txq.txq_addr;
@@ -1589,7 +1589,7 @@ static void bnx2x_vf_mbx_setup_q(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 			__set_bit(BNX2X_Q_TYPE_HAS_RX, &q_type);
 
-			/* Note: there is no support for different SBs
+			/* Note: there is yes support for different SBs
 			 * for TX and RX
 			 */
 			q->sb_idx = setup_q->rxq.vf_sb;
@@ -1796,16 +1796,16 @@ static int bnx2x_vf_mbx_qfilters(struct bnx2x *bp, struct bnx2x_virtf *vf)
 		struct pf_vf_bulletin_content *bulletin =
 					BP_VF_BULLETIN(bp, vf->index);
 
-		/* Ignore VF requested mode; instead set a regular mode */
+		/* Igyesre VF requested mode; instead set a regular mode */
 		if (msg->rx_mask !=  VFPF_RX_MASK_ACCEPT_NONE) {
 			__set_bit(BNX2X_ACCEPT_UNICAST, &accept);
 			__set_bit(BNX2X_ACCEPT_MULTICAST, &accept);
 			__set_bit(BNX2X_ACCEPT_BROADCAST, &accept);
 		}
 
-		/* any_vlan is not configured if HV is forcing VLAN
+		/* any_vlan is yest configured if HV is forcing VLAN
 		 * any_vlan is configured if
-		 *   1. VF does not support vlan filtering
+		 *   1. VF does yest support vlan filtering
 		 *   OR
 		 *   2. VF supports vlan filtering and explicitly requested it
 		 */
@@ -1844,7 +1844,7 @@ static int bnx2x_filters_validate_mac(struct bnx2x *bp,
 	/* if a mac was already set for this VF via the set vf mac ndo, we only
 	 * accept mac configurations of that mac. Why accept them at all?
 	 * because PF may have been unable to configure the mac at the time
-	 * since queue was not set up.
+	 * since queue was yest set up.
 	 */
 	if (bulletin->valid_bitmap & 1 << MAC_ADDR_VALID) {
 		struct vfpf_q_mac_vlan_filter *filter = NULL;
@@ -1872,7 +1872,7 @@ static int bnx2x_filters_validate_mac(struct bnx2x *bp,
 		/* ...and only the mac set by the ndo */
 		if (filter &&
 		    !ether_addr_equal(filter->mac, bulletin->mac)) {
-			BNX2X_ERR("VF[%d] requested the addition of a mac address not matching the one configured by set_vf_mac ndo\n",
+			BNX2X_ERR("VF[%d] requested the addition of a mac address yest matching the one configured by set_vf_mac ndo\n",
 				  vf->abs_vfid);
 
 			rc = -EPERM;
@@ -2113,15 +2113,15 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		 * on waiting for PF response.
 		 */
 		DP(BNX2X_MSG_IOV,
-		   "VF 0x%x lost, not handling the request\n", vf->abs_vfid);
+		   "VF 0x%x lost, yest handling the request\n", vf->abs_vfid);
 
 		storm_memset_vf_mbx_ack(bp, vf->abs_vfid);
 		return;
 	}
 
-	/* check if tlv type is known */
+	/* check if tlv type is kyeswn */
 	if (bnx2x_tlv_supported(mbx->first_tlv.tl.type)) {
-		/* Lock the per vf op mutex and note the locker's identity.
+		/* Lock the per vf op mutex and yeste the locker's identity.
 		 * The unlock will take place in mbx response.
 		 */
 		bnx2x_lock_vf_pf_channel(bp, vf, mbx->first_tlv.tl.type);
@@ -2158,13 +2158,13 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		}
 
 	} else {
-		/* unknown TLV - this may belong to a VF driver from the future
+		/* unkyeswn TLV - this may belong to a VF driver from the future
 		 * - a version written after this PF driver was written, which
-		 * supports features unknown as of yet. Too bad since we don't
+		 * supports features unkyeswn as of yet. Too bad since we don't
 		 * support them. Or this may be because someone wrote a crappy
 		 * VF driver and is sending garbage over the channel.
 		 */
-		BNX2X_ERR("unknown TLV. type %d length %d vf->state was %d. first 20 bytes of mailbox buffer:\n",
+		BNX2X_ERR("unkyeswn TLV. type %d length %d vf->state was %d. first 20 bytes of mailbox buffer:\n",
 			  mbx->first_tlv.tl.type, mbx->first_tlv.tl.length,
 			  vf->state);
 		for (i = 0; i < 20; i++)
@@ -2174,10 +2174,10 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 	/* can we respond to VF (do we have an address for it?) */
 	if (vf->state == VF_ACQUIRED || vf->state == VF_ENABLED) {
-		/* notify the VF that we do not support this request */
+		/* yestify the VF that we do yest support this request */
 		bnx2x_vf_mbx_resp(bp, vf, PFVF_STATUS_NOT_SUPPORTED);
 	} else {
-		/* can't send a response since this VF is unknown to us
+		/* can't send a response since this VF is unkyeswn to us
 		 * just ack the FW to release the mailbox and unlock
 		 * the channel.
 		 */

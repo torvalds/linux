@@ -19,14 +19,14 @@ rcutorture_param_n_barrier_cbs () {
 	fi
 }
 
-# rcutorture_param_onoff bootparam-string config-file
+# rcutorture_param_oyesff bootparam-string config-file
 #
-# Adds onoff rcutorture module parameters to kernels having it.
-rcutorture_param_onoff () {
+# Adds oyesff rcutorture module parameters to kernels having it.
+rcutorture_param_oyesff () {
 	if ! bootparam_hotplug_cpu "$1" && configfrag_hotplug_cpu "$2"
 	then
-		echo CPU-hotplug kernel, adding rcutorture onoff. 1>&2
-		echo rcutorture.onoff_interval=1000 rcutorture.onoff_holdoff=30
+		echo CPU-hotplug kernel, adding rcutorture oyesff. 1>&2
+		echo rcutorture.oyesff_interval=1000 rcutorture.oyesff_holdoff=30
 	fi
 }
 
@@ -34,10 +34,10 @@ rcutorture_param_onoff () {
 #
 # Adds per-version torture-module parameters to kernels supporting them.
 per_version_boot_params () {
-	echo $1 `rcutorture_param_onoff "$1" "$2"` \
+	echo $1 `rcutorture_param_oyesff "$1" "$2"` \
 		`rcutorture_param_n_barrier_cbs "$1"` \
 		rcutorture.stat_interval=15 \
 		rcutorture.shutdown_secs=$3 \
-		rcutorture.test_no_idle_hz=1 \
+		rcutorture.test_yes_idle_hz=1 \
 		rcutorture.verbose=1
 }

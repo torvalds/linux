@@ -138,10 +138,10 @@ fail:
 }
 
 /*
- * inode->i_mutex: don't care
+ * iyesde->i_mutex: don't care
  */
 struct posix_acl *
-ext2_get_acl(struct inode *inode, int type)
+ext2_get_acl(struct iyesde *iyesde, int type)
 {
 	int name_index;
 	char *value = NULL;
@@ -158,12 +158,12 @@ ext2_get_acl(struct inode *inode, int type)
 	default:
 		BUG();
 	}
-	retval = ext2_xattr_get(inode, name_index, "", NULL, 0);
+	retval = ext2_xattr_get(iyesde, name_index, "", NULL, 0);
 	if (retval > 0) {
 		value = kmalloc(retval, GFP_KERNEL);
 		if (!value)
 			return ERR_PTR(-ENOMEM);
-		retval = ext2_xattr_get(inode, name_index, "", value, retval);
+		retval = ext2_xattr_get(iyesde, name_index, "", value, retval);
 	}
 	if (retval > 0)
 		acl = ext2_acl_from_disk(value, retval);
@@ -177,7 +177,7 @@ ext2_get_acl(struct inode *inode, int type)
 }
 
 static int
-__ext2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+__ext2_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type)
 {
 	int name_index;
 	void *value = NULL;
@@ -191,7 +191,7 @@ __ext2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 
 		case ACL_TYPE_DEFAULT:
 			name_index = EXT2_XATTR_INDEX_POSIX_ACL_DEFAULT;
-			if (!S_ISDIR(inode->i_mode))
+			if (!S_ISDIR(iyesde->i_mode))
 				return acl ? -EACCES : 0;
 			break;
 
@@ -204,67 +204,67 @@ __ext2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			return (int)PTR_ERR(value);
 	}
 
-	error = ext2_xattr_set(inode, name_index, "", value, size, 0);
+	error = ext2_xattr_set(iyesde, name_index, "", value, size, 0);
 
 	kfree(value);
 	if (!error)
-		set_cached_acl(inode, type, acl);
+		set_cached_acl(iyesde, type, acl);
 	return error;
 }
 
 /*
- * inode->i_mutex: down
+ * iyesde->i_mutex: down
  */
 int
-ext2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+ext2_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type)
 {
 	int error;
 	int update_mode = 0;
-	umode_t mode = inode->i_mode;
+	umode_t mode = iyesde->i_mode;
 
 	if (type == ACL_TYPE_ACCESS && acl) {
-		error = posix_acl_update_mode(inode, &mode, &acl);
+		error = posix_acl_update_mode(iyesde, &mode, &acl);
 		if (error)
 			return error;
 		update_mode = 1;
 	}
-	error = __ext2_set_acl(inode, acl, type);
+	error = __ext2_set_acl(iyesde, acl, type);
 	if (!error && update_mode) {
-		inode->i_mode = mode;
-		inode->i_ctime = current_time(inode);
-		mark_inode_dirty(inode);
+		iyesde->i_mode = mode;
+		iyesde->i_ctime = current_time(iyesde);
+		mark_iyesde_dirty(iyesde);
 	}
 	return error;
 }
 
 /*
- * Initialize the ACLs of a new inode. Called from ext2_new_inode.
+ * Initialize the ACLs of a new iyesde. Called from ext2_new_iyesde.
  *
  * dir->i_mutex: down
- * inode->i_mutex: up (access to inode is still exclusive)
+ * iyesde->i_mutex: up (access to iyesde is still exclusive)
  */
 int
-ext2_init_acl(struct inode *inode, struct inode *dir)
+ext2_init_acl(struct iyesde *iyesde, struct iyesde *dir)
 {
 	struct posix_acl *default_acl, *acl;
 	int error;
 
-	error = posix_acl_create(dir, &inode->i_mode, &default_acl, &acl);
+	error = posix_acl_create(dir, &iyesde->i_mode, &default_acl, &acl);
 	if (error)
 		return error;
 
 	if (default_acl) {
-		error = __ext2_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+		error = __ext2_set_acl(iyesde, default_acl, ACL_TYPE_DEFAULT);
 		posix_acl_release(default_acl);
 	} else {
-		inode->i_default_acl = NULL;
+		iyesde->i_default_acl = NULL;
 	}
 	if (acl) {
 		if (!error)
-			error = __ext2_set_acl(inode, acl, ACL_TYPE_ACCESS);
+			error = __ext2_set_acl(iyesde, acl, ACL_TYPE_ACCESS);
 		posix_acl_release(acl);
 	} else {
-		inode->i_acl = NULL;
+		iyesde->i_acl = NULL;
 	}
 	return error;
 }

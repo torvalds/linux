@@ -64,7 +64,7 @@ int dm_pool_create_thin(struct dm_pool_metadata *pmd, dm_thin_id dev);
  * An internal snapshot.
  *
  * You can only snapshot a quiesced origin i.e. one that is either
- * suspended or not instanced at all.
+ * suspended or yest instanced at all.
  */
 int dm_pool_create_snap(struct dm_pool_metadata *pmd, dm_thin_id dev,
 			dm_thin_id origin);
@@ -110,7 +110,7 @@ int dm_pool_get_metadata_transaction_id(struct dm_pool_metadata *pmd,
  * space maps).  Userland can access the data structures for READ
  * operations only.  A small performance hit is incurred by providing this
  * copy of the metadata to userland due to extra copy-on-write operations
- * on the metadata nodes.  Release this as soon as you finish with it.
+ * on the metadata yesdes.  Release this as soon as you finish with it.
  */
 int dm_pool_reserve_metadata_snap(struct dm_pool_metadata *pmd);
 int dm_pool_release_metadata_snap(struct dm_pool_metadata *pmd);
@@ -140,7 +140,7 @@ struct dm_thin_lookup_result {
 /*
  * Returns:
  *   -EWOULDBLOCK iff @can_issue_io is set and would issue IO
- *   -ENODATA iff that mapping is not present.
+ *   -ENODATA iff that mapping is yest present.
  *   0 success
  */
 int dm_thin_find_block(struct dm_thin_device *td, dm_block_t block,
@@ -208,8 +208,8 @@ int dm_pool_resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_size);
 int dm_pool_resize_metadata_dev(struct dm_pool_metadata *pmd, dm_block_t new_size);
 
 /*
- * Flicks the underlying block manager into read only mode, so you know
- * that nothing is changing.
+ * Flicks the underlying block manager into read only mode, so you kyesw
+ * that yesthing is changing.
  */
 void dm_pool_metadata_read_only(struct dm_pool_metadata *pmd);
 void dm_pool_metadata_read_write(struct dm_pool_metadata *pmd);

@@ -3,7 +3,7 @@
  * NUMA emulation
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/topology.h>
 #include <linux/memblock.h>
 #include <asm/dma.h>
@@ -39,7 +39,7 @@ static u64 __init mem_hole_size(u64 start, u64 end)
 }
 
 /*
- * Sets up nid to range from @start to @end.  The return value is -errno if
+ * Sets up nid to range from @start to @end.  The return value is -erryes if
  * something went wrong, 0 otherwise.
  */
 static int __init emu_setup_memblk(struct numa_meminfo *ei,
@@ -68,69 +68,69 @@ static int __init emu_setup_memblk(struct numa_meminfo *ei,
 		numa_remove_memblk_from(phys_blk, pi);
 	}
 
-	printk(KERN_INFO "Faking node %d at [mem %#018Lx-%#018Lx] (%LuMB)\n",
+	printk(KERN_INFO "Faking yesde %d at [mem %#018Lx-%#018Lx] (%LuMB)\n",
 	       nid, eb->start, eb->end - 1, (eb->end - eb->start) >> 20);
 	return 0;
 }
 
 /*
- * Sets up nr_nodes fake nodes interleaved over physical nodes ranging from addr
+ * Sets up nr_yesdes fake yesdes interleaved over physical yesdes ranging from addr
  * to max_addr.
  *
  * Returns zero on success or negative on error.
  */
-static int __init split_nodes_interleave(struct numa_meminfo *ei,
+static int __init split_yesdes_interleave(struct numa_meminfo *ei,
 					 struct numa_meminfo *pi,
-					 u64 addr, u64 max_addr, int nr_nodes)
+					 u64 addr, u64 max_addr, int nr_yesdes)
 {
-	nodemask_t physnode_mask = numa_nodes_parsed;
+	yesdemask_t physyesde_mask = numa_yesdes_parsed;
 	u64 size;
 	int big;
 	int nid = 0;
 	int i, ret;
 
-	if (nr_nodes <= 0)
+	if (nr_yesdes <= 0)
 		return -1;
-	if (nr_nodes > MAX_NUMNODES) {
+	if (nr_yesdes > MAX_NUMNODES) {
 		pr_info("numa=fake=%d too large, reducing to %d\n",
-			nr_nodes, MAX_NUMNODES);
-		nr_nodes = MAX_NUMNODES;
+			nr_yesdes, MAX_NUMNODES);
+		nr_yesdes = MAX_NUMNODES;
 	}
 
 	/*
-	 * Calculate target node size.  x86_32 freaks on __udivdi3() so do
+	 * Calculate target yesde size.  x86_32 freaks on __udivdi3() so do
 	 * the division in ulong number of pages and convert back.
 	 */
 	size = max_addr - addr - mem_hole_size(addr, max_addr);
-	size = PFN_PHYS((unsigned long)(size >> PAGE_SHIFT) / nr_nodes);
+	size = PFN_PHYS((unsigned long)(size >> PAGE_SHIFT) / nr_yesdes);
 
 	/*
-	 * Calculate the number of big nodes that can be allocated as a result
+	 * Calculate the number of big yesdes that can be allocated as a result
 	 * of consolidating the remainder.
 	 */
-	big = ((size & ~FAKE_NODE_MIN_HASH_MASK) * nr_nodes) /
+	big = ((size & ~FAKE_NODE_MIN_HASH_MASK) * nr_yesdes) /
 		FAKE_NODE_MIN_SIZE;
 
 	size &= FAKE_NODE_MIN_HASH_MASK;
 	if (!size) {
-		pr_err("Not enough memory for each node.  "
+		pr_err("Not eyesugh memory for each yesde.  "
 			"NUMA emulation disabled.\n");
 		return -1;
 	}
 
 	/*
-	 * Continue to fill physical nodes with fake nodes until there is no
+	 * Continue to fill physical yesdes with fake yesdes until there is yes
 	 * memory left on any of them.
 	 */
-	while (nodes_weight(physnode_mask)) {
-		for_each_node_mask(i, physnode_mask) {
+	while (yesdes_weight(physyesde_mask)) {
+		for_each_yesde_mask(i, physyesde_mask) {
 			u64 dma32_end = PFN_PHYS(MAX_DMA32_PFN);
 			u64 start, limit, end;
 			int phys_blk;
 
 			phys_blk = emu_find_memblk_by_nid(i, pi);
 			if (phys_blk < 0) {
-				node_clear(i, physnode_mask);
+				yesde_clear(i, physyesde_mask);
 				continue;
 			}
 			start = pi->blk[phys_blk].start;
@@ -141,8 +141,8 @@ static int __init split_nodes_interleave(struct numa_meminfo *ei,
 				end += FAKE_NODE_MIN_SIZE;
 
 			/*
-			 * Continue to add memory to this fake node if its
-			 * non-reserved memory is less than the per-node size.
+			 * Continue to add memory to this fake yesde if its
+			 * yesn-reserved memory is less than the per-yesde size.
 			 */
 			while (end - start - mem_hole_size(start, end) < size) {
 				end += FAKE_NODE_MIN_SIZE;
@@ -154,7 +154,7 @@ static int __init split_nodes_interleave(struct numa_meminfo *ei,
 
 			/*
 			 * If there won't be at least FAKE_NODE_MIN_SIZE of
-			 * non-reserved memory in ZONE_DMA32 for the next node,
+			 * yesn-reserved memory in ZONE_DMA32 for the next yesde,
 			 * this one must extend to the boundary.
 			 */
 			if (end < dma32_end && dma32_end - end -
@@ -162,14 +162,14 @@ static int __init split_nodes_interleave(struct numa_meminfo *ei,
 				end = dma32_end;
 
 			/*
-			 * If there won't be enough non-reserved memory for the
-			 * next node, this one must extend to the end of the
-			 * physical node.
+			 * If there won't be eyesugh yesn-reserved memory for the
+			 * next yesde, this one must extend to the end of the
+			 * physical yesde.
 			 */
 			if (limit - end - mem_hole_size(end, limit) < size)
 				end = limit;
 
-			ret = emu_setup_memblk(ei, pi, nid++ % nr_nodes,
+			ret = emu_setup_memblk(ei, pi, nid++ % nr_yesdes,
 					       phys_blk,
 					       min(end, limit) - start);
 			if (ret < 0)
@@ -180,10 +180,10 @@ static int __init split_nodes_interleave(struct numa_meminfo *ei,
 }
 
 /*
- * Returns the end address of a node so that there is at least `size' amount of
- * non-reserved memory or `max_addr' is reached.
+ * Returns the end address of a yesde so that there is at least `size' amount of
+ * yesn-reserved memory or `max_addr' is reached.
  */
-static u64 __init find_end_of_node(u64 start, u64 max_addr, u64 size)
+static u64 __init find_end_of_yesde(u64 start, u64 max_addr, u64 size)
 {
 	u64 end = start + size;
 
@@ -197,87 +197,87 @@ static u64 __init find_end_of_node(u64 start, u64 max_addr, u64 size)
 	return end;
 }
 
-static u64 uniform_size(u64 max_addr, u64 base, u64 hole, int nr_nodes)
+static u64 uniform_size(u64 max_addr, u64 base, u64 hole, int nr_yesdes)
 {
 	unsigned long max_pfn = PHYS_PFN(max_addr);
 	unsigned long base_pfn = PHYS_PFN(base);
 	unsigned long hole_pfns = PHYS_PFN(hole);
 
-	return PFN_PHYS((max_pfn - base_pfn - hole_pfns) / nr_nodes);
+	return PFN_PHYS((max_pfn - base_pfn - hole_pfns) / nr_yesdes);
 }
 
 /*
- * Sets up fake nodes of `size' interleaved over physical nodes ranging from
+ * Sets up fake yesdes of `size' interleaved over physical yesdes ranging from
  * `addr' to `max_addr'.
  *
  * Returns zero on success or negative on error.
  */
-static int __init split_nodes_size_interleave_uniform(struct numa_meminfo *ei,
+static int __init split_yesdes_size_interleave_uniform(struct numa_meminfo *ei,
 					      struct numa_meminfo *pi,
 					      u64 addr, u64 max_addr, u64 size,
-					      int nr_nodes, struct numa_memblk *pblk,
+					      int nr_yesdes, struct numa_memblk *pblk,
 					      int nid)
 {
-	nodemask_t physnode_mask = numa_nodes_parsed;
+	yesdemask_t physyesde_mask = numa_yesdes_parsed;
 	int i, ret, uniform = 0;
 	u64 min_size;
 
-	if ((!size && !nr_nodes) || (nr_nodes && !pblk))
+	if ((!size && !nr_yesdes) || (nr_yesdes && !pblk))
 		return -1;
 
 	/*
-	 * In the 'uniform' case split the passed in physical node by
-	 * nr_nodes, in the non-uniform case, ignore the passed in
-	 * physical block and try to create nodes of at least size
+	 * In the 'uniform' case split the passed in physical yesde by
+	 * nr_yesdes, in the yesn-uniform case, igyesre the passed in
+	 * physical block and try to create yesdes of at least size
 	 * @size.
 	 *
-	 * In the uniform case, split the nodes strictly by physical
-	 * capacity, i.e. ignore holes. In the non-uniform case account
+	 * In the uniform case, split the yesdes strictly by physical
+	 * capacity, i.e. igyesre holes. In the yesn-uniform case account
 	 * for holes and treat @size as a minimum floor.
 	 */
-	if (!nr_nodes)
-		nr_nodes = MAX_NUMNODES;
+	if (!nr_yesdes)
+		nr_yesdes = MAX_NUMNODES;
 	else {
-		nodes_clear(physnode_mask);
-		node_set(pblk->nid, physnode_mask);
+		yesdes_clear(physyesde_mask);
+		yesde_set(pblk->nid, physyesde_mask);
 		uniform = 1;
 	}
 
 	if (uniform) {
-		min_size = uniform_size(max_addr, addr, 0, nr_nodes);
+		min_size = uniform_size(max_addr, addr, 0, nr_yesdes);
 		size = min_size;
 	} else {
 		/*
-		 * The limit on emulated nodes is MAX_NUMNODES, so the
-		 * size per node is increased accordingly if the
+		 * The limit on emulated yesdes is MAX_NUMNODES, so the
+		 * size per yesde is increased accordingly if the
 		 * requested size is too small.  This creates a uniform
-		 * distribution of node sizes across the entire machine
-		 * (but not necessarily over physical nodes).
+		 * distribution of yesde sizes across the entire machine
+		 * (but yest necessarily over physical yesdes).
 		 */
 		min_size = uniform_size(max_addr, addr,
-				mem_hole_size(addr, max_addr), nr_nodes);
+				mem_hole_size(addr, max_addr), nr_yesdes);
 	}
 	min_size = ALIGN(max(min_size, FAKE_NODE_MIN_SIZE), FAKE_NODE_MIN_SIZE);
 	if (size < min_size) {
-		pr_err("Fake node size %LuMB too small, increasing to %LuMB\n",
+		pr_err("Fake yesde size %LuMB too small, increasing to %LuMB\n",
 			size >> 20, min_size >> 20);
 		size = min_size;
 	}
 	size = ALIGN_DOWN(size, FAKE_NODE_MIN_SIZE);
 
 	/*
-	 * Fill physical nodes with fake nodes of size until there is no memory
+	 * Fill physical yesdes with fake yesdes of size until there is yes memory
 	 * left on any of them.
 	 */
-	while (nodes_weight(physnode_mask)) {
-		for_each_node_mask(i, physnode_mask) {
+	while (yesdes_weight(physyesde_mask)) {
+		for_each_yesde_mask(i, physyesde_mask) {
 			u64 dma32_end = PFN_PHYS(MAX_DMA32_PFN);
 			u64 start, limit, end;
 			int phys_blk;
 
 			phys_blk = emu_find_memblk_by_nid(i, pi);
 			if (phys_blk < 0) {
-				node_clear(i, physnode_mask);
+				yesde_clear(i, physyesde_mask);
 				continue;
 			}
 
@@ -287,10 +287,10 @@ static int __init split_nodes_size_interleave_uniform(struct numa_meminfo *ei,
 			if (uniform)
 				end = start + size;
 			else
-				end = find_end_of_node(start, limit, size);
+				end = find_end_of_yesde(start, limit, size);
 			/*
 			 * If there won't be at least FAKE_NODE_MIN_SIZE of
-			 * non-reserved memory in ZONE_DMA32 for the next node,
+			 * yesn-reserved memory in ZONE_DMA32 for the next yesde,
 			 * this one must extend to the boundary.
 			 */
 			if (end < dma32_end && dma32_end - end -
@@ -298,9 +298,9 @@ static int __init split_nodes_size_interleave_uniform(struct numa_meminfo *ei,
 				end = dma32_end;
 
 			/*
-			 * If there won't be enough non-reserved memory for the
-			 * next node, this one must extend to the end of the
-			 * physical node.
+			 * If there won't be eyesugh yesn-reserved memory for the
+			 * next yesde, this one must extend to the end of the
+			 * physical yesde.
 			 */
 			if ((limit - end - mem_hole_size(end, limit) < size)
 					&& !uniform)
@@ -316,11 +316,11 @@ static int __init split_nodes_size_interleave_uniform(struct numa_meminfo *ei,
 	return nid;
 }
 
-static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
+static int __init split_yesdes_size_interleave(struct numa_meminfo *ei,
 					      struct numa_meminfo *pi,
 					      u64 addr, u64 max_addr, u64 size)
 {
-	return split_nodes_size_interleave_uniform(ei, pi, addr, max_addr, size,
+	return split_yesdes_size_interleave_uniform(ei, pi, addr, max_addr, size,
 			0, NULL, NUMA_NO_NODE);
 }
 
@@ -341,31 +341,31 @@ int __init setup_emu2phys_nid(int *dfl_phys_nid)
 }
 
 /**
- * numa_emulation - Emulate NUMA nodes
+ * numa_emulation - Emulate NUMA yesdes
  * @numa_meminfo: NUMA configuration to massage
  * @numa_dist_cnt: The size of the physical NUMA distance table
  *
- * Emulate NUMA nodes according to the numa=fake kernel parameter.
+ * Emulate NUMA yesdes according to the numa=fake kernel parameter.
  * @numa_meminfo contains the physical memory configuration and is modified
  * to reflect the emulated configuration on success.  @numa_dist_cnt is
  * used to determine the size of the physical distance table.
  *
  * On success, the following modifications are made.
  *
- * - @numa_meminfo is updated to reflect the emulated nodes.
+ * - @numa_meminfo is updated to reflect the emulated yesdes.
  *
- * - __apicid_to_node[] is updated such that APIC IDs are mapped to the
- *   emulated nodes.
+ * - __apicid_to_yesde[] is updated such that APIC IDs are mapped to the
+ *   emulated yesdes.
  *
  * - NUMA distance table is rebuilt to represent distances between emulated
- *   nodes.  The distances are determined considering how emulated nodes
- *   are mapped to physical nodes and match the actual distances.
+ *   yesdes.  The distances are determined considering how emulated yesdes
+ *   are mapped to physical yesdes and match the actual distances.
  *
- * - emu_nid_to_phys[] reflects how emulated nodes are mapped to physical
- *   nodes.  This is used by numa_add_cpu() and numa_remove_cpu().
+ * - emu_nid_to_phys[] reflects how emulated yesdes are mapped to physical
+ *   yesdes.  This is used by numa_add_cpu() and numa_remove_cpu().
  *
- * If emulation is not enabled or fails, emu_nid_to_phys[] is filled with
- * identity mapping and no other modification is made.
+ * If emulation is yest enabled or fails, emu_nid_to_phys[] is filled with
+ * identity mapping and yes other modification is made.
  */
 void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 {
@@ -378,7 +378,7 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 	int i, j, ret;
 
 	if (!emu_cmdline)
-		goto no_emu;
+		goto yes_emu;
 
 	memset(&ei, 0, sizeof(ei));
 	pi = *numa_meminfo;
@@ -388,17 +388,17 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 
 	/*
 	 * If the numa=fake command-line contains a 'M' or 'G', it represents
-	 * the fixed node size.  Otherwise, if it is just a single number N,
-	 * split the system RAM into N fake nodes.
+	 * the fixed yesde size.  Otherwise, if it is just a single number N,
+	 * split the system RAM into N fake yesdes.
 	 */
 	if (strchr(emu_cmdline, 'U')) {
-		nodemask_t physnode_mask = numa_nodes_parsed;
+		yesdemask_t physyesde_mask = numa_yesdes_parsed;
 		unsigned long n;
 		int nid = 0;
 
 		n = simple_strtoul(emu_cmdline, &emu_cmdline, 0);
 		ret = -1;
-		for_each_node_mask(i, physnode_mask) {
+		for_each_yesde_mask(i, physyesde_mask) {
 			/*
 			 * The reason we pass in blk[0] is due to
 			 * numa_remove_memblk_from() called by
@@ -407,13 +407,13 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 			 * array. Therefore we should always be looking
 			 * at blk[0].
 			 */
-			ret = split_nodes_size_interleave_uniform(&ei, &pi,
+			ret = split_yesdes_size_interleave_uniform(&ei, &pi,
 					pi.blk[0].start, pi.blk[0].end, 0,
 					n, &pi.blk[0], nid);
 			if (ret < 0)
 				break;
 			if (ret < n) {
-				pr_info("%s: phys: %d only got %d of %ld nodes, failing\n",
+				pr_info("%s: phys: %d only got %d of %ld yesdes, failing\n",
 						__func__, i, ret, n);
 				ret = -1;
 				break;
@@ -424,22 +424,22 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 		u64 size;
 
 		size = memparse(emu_cmdline, &emu_cmdline);
-		ret = split_nodes_size_interleave(&ei, &pi, 0, max_addr, size);
+		ret = split_yesdes_size_interleave(&ei, &pi, 0, max_addr, size);
 	} else {
 		unsigned long n;
 
 		n = simple_strtoul(emu_cmdline, &emu_cmdline, 0);
-		ret = split_nodes_interleave(&ei, &pi, 0, max_addr, n);
+		ret = split_yesdes_interleave(&ei, &pi, 0, max_addr, n);
 	}
 	if (*emu_cmdline == ':')
 		emu_cmdline++;
 
 	if (ret < 0)
-		goto no_emu;
+		goto yes_emu;
 
 	if (numa_cleanup_meminfo(&ei) < 0) {
 		pr_warn("NUMA: Warning: constructed meminfo invalid, disabling emulation\n");
-		goto no_emu;
+		goto yes_emu;
 	}
 
 	/* copy the physical distance table */
@@ -450,7 +450,7 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 					      phys_size, PAGE_SIZE);
 		if (!phys) {
 			pr_warn("NUMA: Warning: can't allocate copy of distance table, disabling emulation\n");
-			goto no_emu;
+			goto yes_emu;
 		}
 		memblock_reserve(phys, phys_size);
 		phys_dist = __va(phys);
@@ -458,40 +458,40 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 		for (i = 0; i < numa_dist_cnt; i++)
 			for (j = 0; j < numa_dist_cnt; j++)
 				phys_dist[i * numa_dist_cnt + j] =
-					node_distance(i, j);
+					yesde_distance(i, j);
 	}
 
 	/*
 	 * Determine the max emulated nid and the default phys nid to use
-	 * for unmapped nodes.
+	 * for unmapped yesdes.
 	 */
 	max_emu_nid = setup_emu2phys_nid(&dfl_phys_nid);
 
 	/* commit */
 	*numa_meminfo = ei;
 
-	/* Make sure numa_nodes_parsed only contains emulated nodes */
-	nodes_clear(numa_nodes_parsed);
+	/* Make sure numa_yesdes_parsed only contains emulated yesdes */
+	yesdes_clear(numa_yesdes_parsed);
 	for (i = 0; i < ARRAY_SIZE(ei.blk); i++)
 		if (ei.blk[i].start != ei.blk[i].end &&
 		    ei.blk[i].nid != NUMA_NO_NODE)
-			node_set(ei.blk[i].nid, numa_nodes_parsed);
+			yesde_set(ei.blk[i].nid, numa_yesdes_parsed);
 
 	/*
-	 * Transform __apicid_to_node table to use emulated nids by
+	 * Transform __apicid_to_yesde table to use emulated nids by
 	 * reverse-mapping phys_nid.  The maps should always exist but fall
 	 * back to zero just in case.
 	 */
-	for (i = 0; i < ARRAY_SIZE(__apicid_to_node); i++) {
-		if (__apicid_to_node[i] == NUMA_NO_NODE)
+	for (i = 0; i < ARRAY_SIZE(__apicid_to_yesde); i++) {
+		if (__apicid_to_yesde[i] == NUMA_NO_NODE)
 			continue;
 		for (j = 0; j < ARRAY_SIZE(emu_nid_to_phys); j++)
-			if (__apicid_to_node[i] == emu_nid_to_phys[j])
+			if (__apicid_to_yesde[i] == emu_nid_to_phys[j])
 				break;
-		__apicid_to_node[i] = j < ARRAY_SIZE(emu_nid_to_phys) ? j : 0;
+		__apicid_to_yesde[i] = j < ARRAY_SIZE(emu_nid_to_phys) ? j : 0;
 	}
 
-	/* make sure all emulated nodes are mapped to a physical node */
+	/* make sure all emulated yesdes are mapped to a physical yesde */
 	for (i = 0; i < ARRAY_SIZE(emu_nid_to_phys); i++)
 		if (emu_nid_to_phys[i] == NUMA_NO_NODE)
 			emu_nid_to_phys[i] = dfl_phys_nid;
@@ -521,7 +521,7 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 		memblock_free(__pa(phys_dist), phys_size);
 	return;
 
-no_emu:
+yes_emu:
 	/* No emulation.  Build identity emu_nid_to_phys[] for numa_add_cpu() */
 	for (i = 0; i < ARRAY_SIZE(emu_nid_to_phys); i++)
 		emu_nid_to_phys[i] = i;
@@ -532,41 +532,41 @@ void numa_add_cpu(int cpu)
 {
 	int physnid, nid;
 
-	nid = early_cpu_to_node(cpu);
-	BUG_ON(nid == NUMA_NO_NODE || !node_online(nid));
+	nid = early_cpu_to_yesde(cpu);
+	BUG_ON(nid == NUMA_NO_NODE || !yesde_online(nid));
 
 	physnid = emu_nid_to_phys[nid];
 
 	/*
-	 * Map the cpu to each emulated node that is allocated on the physical
-	 * node of the cpu's apic id.
+	 * Map the cpu to each emulated yesde that is allocated on the physical
+	 * yesde of the cpu's apic id.
 	 */
-	for_each_online_node(nid)
+	for_each_online_yesde(nid)
 		if (emu_nid_to_phys[nid] == physnid)
-			cpumask_set_cpu(cpu, node_to_cpumask_map[nid]);
+			cpumask_set_cpu(cpu, yesde_to_cpumask_map[nid]);
 }
 
 void numa_remove_cpu(int cpu)
 {
 	int i;
 
-	for_each_online_node(i)
-		cpumask_clear_cpu(cpu, node_to_cpumask_map[i]);
+	for_each_online_yesde(i)
+		cpumask_clear_cpu(cpu, yesde_to_cpumask_map[i]);
 }
 #else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
 static void numa_set_cpumask(int cpu, bool enable)
 {
 	int nid, physnid;
 
-	nid = early_cpu_to_node(cpu);
+	nid = early_cpu_to_yesde(cpu);
 	if (nid == NUMA_NO_NODE) {
-		/* early_cpu_to_node() already emits a warning and trace */
+		/* early_cpu_to_yesde() already emits a warning and trace */
 		return;
 	}
 
 	physnid = emu_nid_to_phys[nid];
 
-	for_each_online_node(nid) {
+	for_each_online_yesde(nid) {
 		if (emu_nid_to_phys[nid] != physnid)
 			continue;
 

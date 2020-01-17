@@ -11,7 +11,7 @@
 	#size-cells = <1>;
 	/*
 	 * The decompressor and also some bootloaders rely on a
-	 * pre-existing /chosen node to be available to insert the
+	 * pre-existing /chosen yesde to be available to insert the
 	 * command line and merge other ATAGS info.
 	 */
 	chosen {};
@@ -106,8 +106,8 @@
 		interrupts = <0 94 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	usbphynop1: usbphynop1 {
-		compatible = "usb-nop-xceiv";
+	usbphyyesp1: usbphyyesp1 {
+		compatible = "usb-yesp-xceiv";
 		#phy-cells = <0>;
 	};
 
@@ -824,7 +824,7 @@
 				reg = <0x02184400 0x200>;
 				interrupts = <0 40 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SL_CLK_USBOH3>;
-				fsl,usbphy = <&usbphynop1>;
+				fsl,usbphy = <&usbphyyesp1>;
 				phy_type = "hsic";
 				fsl,usbmisc = <&usbmisc 2>;
 				dr_mode = "host";

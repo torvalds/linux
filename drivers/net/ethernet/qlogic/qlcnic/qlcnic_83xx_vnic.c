@@ -159,7 +159,7 @@ static int qlcnic_83xx_init_privileged_vnic(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-static int qlcnic_83xx_init_non_privileged_vnic(struct qlcnic_adapter *adapter)
+static int qlcnic_83xx_init_yesn_privileged_vnic(struct qlcnic_adapter *adapter)
 {
 	int err = -EIO;
 
@@ -195,7 +195,7 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *adapter)
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_nic_template *nic_ops = adapter->nic_ops;
 
-	qlcnic_get_func_no(adapter);
+	qlcnic_get_func_yes(adapter);
 	op_mode = QLCRDX(adapter->ahw, QLC_83XX_DRV_OP_MODE);
 
 	if (op_mode == QLC_83XX_DEFAULT_OPMODE)
@@ -207,7 +207,7 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *adapter)
 	case QLCNIC_NON_PRIV_FUNC:
 		ahw->op_mode = QLCNIC_NON_PRIV_FUNC;
 		ahw->idc.state_entry = qlcnic_83xx_idc_ready_state_entry;
-		nic_ops->init_driver = qlcnic_83xx_init_non_privileged_vnic;
+		nic_ops->init_driver = qlcnic_83xx_init_yesn_privileged_vnic;
 		break;
 	case QLCNIC_PRIV_FUNC:
 		ahw->op_mode = QLCNIC_PRIV_FUNC;
@@ -254,7 +254,7 @@ int qlcnic_83xx_check_vnic_state(struct qlcnic_adapter *adapter)
 
 	if (state != QLCNIC_DEV_NPAR_OPER) {
 		dev_err(&adapter->pdev->dev,
-			"vNIC mode not operational, state check timed out.\n");
+			"vNIC mode yest operational, state check timed out.\n");
 		return -EIO;
 	}
 

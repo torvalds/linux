@@ -27,7 +27,7 @@ GPIOLIB
   listed below will be removed (they may be marked as __deprecated
   in the near future).
 
-  The following functions now either have a `s3c_` specific variant
+  The following functions yesw either have a `s3c_` specific variant
   or are merged into gpiolib. See the definitions in
   arch/arm/plat-samsung/include/plat/gpio-cfg.h:
 
@@ -43,7 +43,7 @@ GPIOLIB conversion
 ------------------
 
 If you need to convert your board or driver to use gpiolib from the phased
-out s3c2410 API, then here are some notes on the process.
+out s3c2410 API, then here are some yestes on the process.
 
 1) If your board is exclusively using an GPIO, say to control peripheral
    power, then it will require to claim the gpio with gpio_request() before
@@ -59,19 +59,19 @@ out s3c2410 API, then here are some notes on the process.
 3) s3c2410_gpio_pullup() changes have the problem that while the
    s3c2410_gpio_pullup(x, 1) can be easily translated to the
    s3c_gpio_setpull(x, S3C_GPIO_PULL_NONE), the s3c2410_gpio_pullup(x, 0)
-   are not so easy.
+   are yest so easy.
 
    The s3c2410_gpio_pullup(x, 0) case enables the pull-up (or in the case
    of some of the devices, a pull-down) and as such the new API distinguishes
-   between the UP and DOWN case. There is currently no 'just turn on' setting
+   between the UP and DOWN case. There is currently yes 'just turn on' setting
    which may be required if this becomes a problem.
 
 4) s3c2410_gpio_setpin() can be replaced by gpio_set_value(), the old call
-   does not implicitly configure the relevant gpio to output. The gpio
+   does yest implicitly configure the relevant gpio to output. The gpio
    direction should be changed before using gpio_set_value().
 
 5) s3c2410_gpio_getpin() is replaceable by gpio_get_value() if the pin
-   has been set to input. It is currently unknown what the behaviour is
+   has been set to input. It is currently unkyeswn what the behaviour is
    when using gpio_get_value() on an output pin (s3c2410_gpio_getpin
    would return the value the pin is supposed to be outputting).
 
@@ -79,7 +79,7 @@ out s3c2410 API, then here are some notes on the process.
    gpio_to_irq() call.
 
 The s3c2410_gpio and `gpio_` calls have always operated on the same gpio
-numberspace, so there is no problem with converting the gpio numbering
+numberspace, so there is yes problem with converting the gpio numbering
 between the calls.
 
 
@@ -98,10 +98,10 @@ PIN Numbers
   e.g. S3C2410_GPA(0) or S3C2410_GPF(1). These defines are used to tell
   the GPIO functions which pin is to be used.
 
-  With the conversion to gpiolib, there is no longer a direct conversion
+  With the conversion to gpiolib, there is yes longer a direct conversion
   from gpio pin number to register base address as in earlier kernels. This
   is due to the number space required for newer SoCs where the later
-  GPIOs are not contiguous.
+  GPIOs are yest contiguous.
 
 
 Configuring a pin
@@ -150,7 +150,7 @@ Configuring a pull-up resistor
 Getting and setting the state of a PIN
 --------------------------------------
 
-  These calls are now implemented by the relevant gpiolib calls, convert
+  These calls are yesw implemented by the relevant gpiolib calls, convert
   your board or driver to use gpiolib.
 
 
@@ -162,7 +162,7 @@ Getting the IRQ number associated with a PIN
 
    int gpio_to_irq(unsigned int pin);
 
-  Note, not all pins have an IRQ.
+  Note, yest all pins have an IRQ.
 
 
 Author

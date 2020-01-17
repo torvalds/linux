@@ -113,7 +113,7 @@ void udbg_uart_setup(unsigned int speed, unsigned int clock)
 	udbg_uart_out(UART_LCR, LCR_DLAB);
 	udbg_uart_out(UART_DLL, dll & 0xff);
 	udbg_uart_out(UART_DLM, dll >> 8);
-	/* 8 data, 1 stop, no parity */
+	/* 8 data, 1 stop, yes parity */
 	udbg_uart_out(UART_LCR, 0x3);
 	/* RTS/DTR */
 	udbg_uart_out(UART_MCR, 0x3);
@@ -131,7 +131,7 @@ unsigned int udbg_probe_uart_speed(unsigned int clock)
 	/* select divisor latch registers.  */
 	udbg_uart_out(UART_LCR, old_lcr | LCR_DLAB);
 
-	/* now, read the divisor */
+	/* yesw, read the divisor */
 	dll = udbg_uart_in(UART_DLL);
 	dlm = udbg_uart_in(UART_DLM);
 	divisor = dlm << 8 | dll;

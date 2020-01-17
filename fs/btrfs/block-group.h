@@ -44,7 +44,7 @@ struct btrfs_caching_control {
 
 struct btrfs_block_group {
 	struct btrfs_fs_info *fs_info;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	spinlock_t lock;
 	u64 start;
 	u64 length;
@@ -96,7 +96,7 @@ struct btrfs_block_group {
 	struct btrfs_free_space_ctl *free_space_ctl;
 
 	/* Block group cache stuff */
-	struct rb_node cache_node;
+	struct rb_yesde cache_yesde;
 
 	/* For block groups in the same raid type */
 	struct list_head list;
@@ -128,7 +128,7 @@ struct btrfs_block_group {
 	 * Incremented when doing extent allocations and holding a read lock
 	 * on the space_info's groups_sem semaphore.
 	 * Decremented when an ordered extent that represents an IO against this
-	 * block group's range is created (after it's added to its inode's
+	 * block group's range is created (after it's added to its iyesde's
 	 * root's list of ordered extents) or immediately after the allocation
 	 * if it's a metadata extent or fallocate extent (for these cases we
 	 * don't create ordered extents).
@@ -137,13 +137,13 @@ struct btrfs_block_group {
 
 	/*
 	 * Incremented while holding the spinlock *lock* by a task checking if
-	 * it can perform a nocow write (incremented if the value for the *ro*
+	 * it can perform a yescow write (incremented if the value for the *ro*
 	 * field is 0). Decremented by such tasks once they create an ordered
 	 * extent or before that if some error happens before reaching that step.
-	 * This is to prevent races between block group relocation and nocow
+	 * This is to prevent races between block group relocation and yescow
 	 * writes through direct IO.
 	 */
-	atomic_t nocow_writers;
+	atomic_t yescow_writers;
 
 	/* Lock for free space tree operations. */
 	struct mutex free_space_lock;
@@ -182,9 +182,9 @@ void btrfs_put_block_group(struct btrfs_block_group *cache);
 void btrfs_dec_block_group_reservations(struct btrfs_fs_info *fs_info,
 					const u64 start);
 void btrfs_wait_block_group_reservations(struct btrfs_block_group *bg);
-bool btrfs_inc_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr);
-void btrfs_dec_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr);
-void btrfs_wait_nocow_writers(struct btrfs_block_group *bg);
+bool btrfs_inc_yescow_writers(struct btrfs_fs_info *fs_info, u64 bytenr);
+void btrfs_dec_yescow_writers(struct btrfs_fs_info *fs_info, u64 bytenr);
+void btrfs_wait_yescow_writers(struct btrfs_block_group *bg);
 void btrfs_wait_block_group_cache_progress(struct btrfs_block_group *cache,
 				           u64 num_bytes);
 int btrfs_wait_block_group_cache_done(struct btrfs_block_group *cache);

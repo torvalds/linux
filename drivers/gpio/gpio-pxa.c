@@ -193,8 +193,8 @@ static inline int __gpio_is_inverted(int gpio)
 
 /*
  * On PXA25x and PXA27x, GAFRx and GPDRx together decide the alternate
- * function of a GPIO, and GPDRx cannot be altered once configured. It
- * is attributed as "occupied" here (I know this terminology isn't
+ * function of a GPIO, and GPDRx canyest be altered once configured. It
+ * is attributed as "occupied" here (I kyesw this termiyeslogy isn't
  * accurate, you are welcome to propose a better one :-)
  */
 static inline int __gpio_is_occupied(struct pxa_gpio_chip *pchip, unsigned gpio)
@@ -344,7 +344,7 @@ static int pxa_gpio_of_xlate(struct gpio_chip *gc,
 #endif
 
 static int pxa_init_gpio_chip(struct pxa_gpio_chip *pchip, int ngpio,
-			      struct device_node *np, void __iomem *regbase)
+			      struct device_yesde *np, void __iomem *regbase)
 {
 	int i, gpio, nbanks = DIV_ROUND_UP(ngpio, 32);
 	struct pxa_gpio_bank *bank;
@@ -368,7 +368,7 @@ static int pxa_init_gpio_chip(struct pxa_gpio_chip *pchip, int ngpio,
 	}
 
 #ifdef CONFIG_OF_GPIO
-	pchip->chip.of_node = np;
+	pchip->chip.of_yesde = np;
 	pchip->chip.of_xlate = pxa_gpio_of_xlate;
 	pchip->chip.of_gpio_n_cells = 2;
 #endif
@@ -478,7 +478,7 @@ static irqreturn_t pxa_gpio_direct_handler(int in_irq, void *d)
 	} else if (in_irq == pchip->irq1) {
 		generic_handle_irq(irq_find_mapping(pchip->irqdomain, 1));
 	} else {
-		pr_err("%s() unknown irq %d\n", __func__, in_irq);
+		pr_err("%s() unkyeswn irq %d\n", __func__, in_irq);
 		return IRQ_NONE;
 	}
 	return IRQ_HANDLED;
@@ -570,7 +570,7 @@ static int pxa_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
 				 handle_edge_irq);
 	irq_set_chip_data(irq, d->host_data);
-	irq_set_noprobe(irq);
+	irq_set_yesprobe(irq);
 	return 0;
 }
 
@@ -646,7 +646,7 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	if (!pxa_last_gpio)
 		return -EINVAL;
 
-	pchip->irqdomain = irq_domain_add_legacy(pdev->dev.of_node,
+	pchip->irqdomain = irq_domain_add_legacy(pdev->dev.of_yesde,
 						 pxa_last_gpio + 1, irq_base,
 						 0, &pxa_irq_domain_ops, pchip);
 	if (!pchip->irqdomain)
@@ -679,7 +679,7 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize GPIO chips */
-	ret = pxa_init_gpio_chip(pchip, pxa_last_gpio + 1, pdev->dev.of_node,
+	ret = pxa_init_gpio_chip(pchip, pxa_last_gpio + 1, pdev->dev.of_yesde,
 				 gpio_reg_base);
 	if (ret) {
 		clk_put(clk);

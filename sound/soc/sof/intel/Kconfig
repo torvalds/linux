@@ -14,7 +14,7 @@ config SND_SOC_SOF_INTEL_ACPI
 	select SND_SOC_SOF_BAYTRAIL  if SND_SOC_SOF_BAYTRAIL_SUPPORT
 	select SND_SOC_SOF_BROADWELL if SND_SOC_SOF_BROADWELL_SUPPORT
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_INTEL_PCI
@@ -31,13 +31,13 @@ config SND_SOC_SOF_INTEL_PCI
 	select SND_SOC_SOF_ELKHARTLAKE if SND_SOC_SOF_ELKHARTLAKE_SUPPORT
 	select SND_SOC_SOF_JASPERLAKE  if SND_SOC_SOF_JASPERLAKE_SUPPORT
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_INTEL_HIFI_EP_IPC
 	tristate
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_INTEL_ATOM_HIFI_EP
@@ -45,7 +45,7 @@ config SND_SOC_SOF_INTEL_ATOM_HIFI_EP
 	select SND_SOC_SOF_INTEL_COMMON
 	select SND_SOC_SOF_INTEL_HIFI_EP_IPC
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_INTEL_COMMON
@@ -55,7 +55,7 @@ config SND_SOC_SOF_INTEL_COMMON
 	select SND_SOC_INTEL_MACH
 	select SND_SOC_ACPI if ACPI
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 if SND_SOC_SOF_INTEL_ACPI
@@ -69,9 +69,9 @@ config SND_SOC_SOF_BAYTRAIL_SUPPORT
 	  This option is mutually exclusive with the Atom/SST and Baytrail
 	  legacy drivers. If you want to enable SOF on Baytrail/Cherrytrail,
 	  you need to deselect those options first.
-	  SOF does not support Baytrail-CR for now, so this option is not
+	  SOF does yest support Baytrail-CR for yesw, so this option is yest
 	  recommended for distros. At some point all legacy drivers will be
-	  deprecated but not before all userspace firmware/topology/UCM files
+	  deprecated but yest before all userspace firmware/topology/UCM files
 	  are made available to downstream distros.
 	  Say Y if you want to enable SOF on Baytrail/Cherrytrail
 	  If unsure select "N".
@@ -80,7 +80,7 @@ config SND_SOC_SOF_BAYTRAIL
 	tristate
 	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_BROADWELL_SUPPORT
@@ -92,9 +92,9 @@ config SND_SOC_SOF_BROADWELL_SUPPORT
 	  This option is mutually exclusive with the Haswell/Broadwell legacy
 	  driver. If you want to enable SOF on Broadwell you need to deselect
 	  the legacy driver first.
-	  SOF does fully support Broadwell yet, so this option is not
+	  SOF does fully support Broadwell yet, so this option is yest
 	  recommended for distros. At some point all legacy drivers will be
-	  deprecated but not before all userspace firmware/topology/UCM files
+	  deprecated but yest before all userspace firmware/topology/UCM files
 	  are made available to downstream distros.
 	  Say Y if you want to enable SOF on Broadwell
 	  If unsure select "N".
@@ -104,7 +104,7 @@ config SND_SOC_SOF_BROADWELL
 	select SND_SOC_SOF_INTEL_COMMON
 	select SND_SOC_SOF_INTEL_HIFI_EP_IPC
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 endif ## SND_SOC_SOF_INTEL_ACPI
@@ -123,7 +123,7 @@ config SND_SOC_SOF_MERRIFIELD
 	tristate
 	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_APOLLOLAKE_SUPPORT
@@ -138,7 +138,7 @@ config SND_SOC_SOF_APOLLOLAKE
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_GEMINILAKE_SUPPORT
@@ -153,14 +153,14 @@ config SND_SOC_SOF_GEMINILAKE
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_CANNONLAKE_SUPPORT
-	bool "SOF support for Cannonlake"
+	bool "SOF support for Canyesnlake"
 	help
 	  This adds support for Sound Open Firmware for Intel(R) platforms
-	  using the Cannonlake processors.
+	  using the Canyesnlake processors.
 	  Say Y if you have such a device.
 	  If unsure select "N".
 
@@ -168,7 +168,7 @@ config SND_SOC_SOF_CANNONLAKE
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_COFFEELAKE_SUPPORT
@@ -183,7 +183,7 @@ config SND_SOC_SOF_COFFEELAKE
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_ICELAKE_SUPPORT
@@ -198,14 +198,14 @@ config SND_SOC_SOF_ICELAKE
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_COMETLAKE_LP
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_COMETLAKE_LP_SUPPORT
@@ -220,7 +220,7 @@ config SND_SOC_SOF_COMETLAKE_H
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_COMETLAKE_H_SUPPORT
@@ -243,7 +243,7 @@ config SND_SOC_SOF_TIGERLAKE
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_ELKHARTLAKE_SUPPORT
@@ -258,7 +258,7 @@ config SND_SOC_SOF_ELKHARTLAKE
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_JASPERLAKE_SUPPORT
@@ -273,7 +273,7 @@ config SND_SOC_SOF_JASPERLAKE
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_HDA_COMMON
@@ -281,7 +281,7 @@ config SND_SOC_SOF_HDA_COMMON
 	select SND_SOC_SOF_INTEL_COMMON
 	select SND_SOC_SOF_HDA_LINK_BASELINE
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 if SND_SOC_SOF_HDA_COMMON
@@ -309,9 +309,9 @@ config SND_SOC_SOF_HDA_ALWAYS_ENABLE_DMI_L1
 	bool "SOF enable DMI Link L1"
 	help
 	  This option enables DMI L1 for both playback and capture
-	  and disables known workarounds for specific HDaudio platforms.
-	  Only use to look into power optimizations on platforms not
-	  affected by DMI L1 issues. This option is not recommended.
+	  and disables kyeswn workarounds for specific HDaudio platforms.
+	  Only use to look into power optimizations on platforms yest
+	  affected by DMI L1 issues. This option is yest recommended.
 	  Say Y if you want to enable DMI Link L1
 	  If unsure, select "N".
 
@@ -331,7 +331,7 @@ config SND_SOC_SOF_HDA_LINK_BASELINE
 	tristate
 	select SND_SOC_SOF_HDA if SND_SOC_SOF_HDA_LINK
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_HDA
@@ -340,7 +340,7 @@ config SND_SOC_SOF_HDA
 	select SND_SOC_HDAC_HDA if SND_SOC_SOF_HDA_AUDIO_CODEC
 	select SND_INTEL_DSP_CONFIG
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is yest user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 endif ## SND_SOC_SOF_INTEL_PCI

@@ -227,7 +227,7 @@ static void ad9389b_set_IT_content_AVI_InfoFrame(struct v4l2_subdev *sd)
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 
 	if (state->dv_timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO) {
-		/* CE format, not IT  */
+		/* CE format, yest IT  */
 		ad9389b_wr_and_or(sd, 0xcd, 0xbf, 0x00);
 	} else {
 		/* IT format */
@@ -246,7 +246,7 @@ static int ad9389b_set_rgb_quantization_mode(struct v4l2_subdev *sd, struct v4l2
 			/* CE format, RGB limited range (16-235) */
 			ad9389b_csc_rgb_full2limit(sd, true);
 		} else {
-			/* not CE format, RGB full range (0-255) */
+			/* yest CE format, RGB full range (0-255) */
 			ad9389b_csc_rgb_full2limit(sd, false);
 		}
 		break;
@@ -273,7 +273,7 @@ static void ad9389b_set_manual_pll_gear(struct v4l2_subdev *sd, u32 pixelclock)
 	 * certain temperature. The output is disabled when the PLL change gear
 	 * so the monitor has to lock on the signal again. A workaround for
 	 * this is to use the manual PLL gears. This is a solution from Analog
-	 * Devices that is not documented in the datasheets.
+	 * Devices that is yest documented in the datasheets.
 	 * 0x98 [7] = enable manual gearing. 0x98 [6:4] = gear
 	 *
 	 * The pixel frequency ranges are based on readout of the gear the
@@ -352,7 +352,7 @@ static int ad9389b_log_status(struct v4l2_subdev *sd)
 		"6", "7", "8", "9", "A", "B", "C", "D", "E", "F"
 	};
 	static const char * const errors[] = {
-		"no error",
+		"yes error",
 		"bad receiver BKSV",
 		"Ri mismatch",
 		"Pj mismatch",
@@ -370,17 +370,17 @@ static int ad9389b_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "power %s\n", state->power_on ? "on" : "off");
 	v4l2_info(sd, "%s hotplug, %s Rx Sense, %s EDID (%d block(s))\n",
 		  (ad9389b_rd(sd, 0x42) & MASK_AD9389B_HPD_DETECT) ?
-		  "detected" : "no",
+		  "detected" : "yes",
 		  (ad9389b_rd(sd, 0x42) & MASK_AD9389B_MSEN_DETECT) ?
-		  "detected" : "no",
-		  edid->segments ? "found" : "no", edid->blocks);
+		  "detected" : "yes",
+		  edid->segments ? "found" : "yes", edid->blocks);
 	v4l2_info(sd, "%s output %s\n",
 		  (ad9389b_rd(sd, 0xaf) & 0x02) ?
 		  "HDMI" : "DVI-D",
 		  (ad9389b_rd(sd, 0xa1) & 0x3c) ?
 		  "disabled" : "enabled");
 	v4l2_info(sd, "ad9389b: %s\n", (ad9389b_rd(sd, 0xb8) & 0x40) ?
-		  "encrypted" : "no encryption");
+		  "encrypted" : "yes encryption");
 	v4l2_info(sd, "state: %s, error: %s, detect count: %u, msk/irq: %02x/%02x\n",
 		  states[ad9389b_rd(sd, 0xc8) & 0xf],
 		  errors[ad9389b_rd(sd, 0xc8) >> 4],
@@ -425,7 +425,7 @@ static int ad9389b_log_status(struct v4l2_subdev *sd)
 		v4l2_print_dv_timings(sd->name, "timings: ",
 				&state->dv_timings, false);
 	else
-		v4l2_info(sd, "no timings set\n");
+		v4l2_info(sd, "yes timings set\n");
 	return 0;
 }
 
@@ -448,7 +448,7 @@ static int ad9389b_s_power(struct v4l2_subdev *sd, int on)
 	}
 
 	/* Power up */
-	/* The ad9389b does not always come up immediately.
+	/* The ad9389b does yest always come up immediately.
 	   Retry multiple times. */
 	for (i = 0; i < retries; i++) {
 		ad9389b_wr_and_or(sd, 0x41, 0xbf, 0x0);
@@ -501,7 +501,7 @@ static void ad9389b_set_isr(struct v4l2_subdev *sd, bool enable)
 	int retries = 100;
 
 	/* The datasheet says that the EDID ready interrupt should be
-	   disabled if there is no hotplug. */
+	   disabled if there is yes hotplug. */
 	if (!enable)
 		irqs = 0;
 	else if (ad9389b_have_hotplug(sd))
@@ -512,7 +512,7 @@ static void ad9389b_set_isr(struct v4l2_subdev *sd, bool enable)
 	 * is essential that this register is correct, so retry it
 	 * multiple times.
 	 *
-	 * Note that the i2c write does not report an error, but the readback
+	 * Note that the i2c write does yest report an error, but the readback
 	 * clearly shows the wrong value.
 	 */
 	do {
@@ -521,7 +521,7 @@ static void ad9389b_set_isr(struct v4l2_subdev *sd, bool enable)
 	} while (retries-- && irqs_rd != irqs);
 
 	if (irqs_rd != irqs)
-		v4l2_err(sd, "Could not set interrupts: hw failure?\n");
+		v4l2_err(sd, "Could yest set interrupts: hw failure?\n");
 }
 
 /* Interrupt handler */
@@ -670,7 +670,7 @@ static int ad9389b_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	if (edid->blocks == 0 || edid->blocks > 256)
 		return -EINVAL;
 	if (!state->edid.segments) {
-		v4l2_dbg(1, debug, sd, "EDID segment 0 not found\n");
+		v4l2_dbg(1, debug, sd, "EDID segment 0 yest found\n");
 		return -ENODATA;
 	}
 	if (edid->start_block >= state->edid.segments * 2)
@@ -838,8 +838,8 @@ static void ad9389b_edid_handler(struct work_struct *work)
 	/* We failed to read the EDID, so send an event for this. */
 	ed.present = false;
 	ed.segment = ad9389b_rd(sd, 0xc4);
-	v4l2_subdev_notify(sd, AD9389B_EDID_DETECT, (void *)&ed);
-	v4l2_dbg(1, debug, sd, "%s: no edid found\n", __func__);
+	v4l2_subdev_yestify(sd, AD9389B_EDID_DETECT, (void *)&ed);
+	v4l2_dbg(1, debug, sd, "%s: yes edid found\n", __func__);
 }
 
 static void ad9389b_audio_setup(struct v4l2_subdev *sd)
@@ -887,13 +887,13 @@ static void ad9389b_setup(struct v4l2_subdev *sd)
 	ad9389b_set_IT_content_AVI_InfoFrame(sd);
 }
 
-static void ad9389b_notify_monitor_detect(struct v4l2_subdev *sd)
+static void ad9389b_yestify_monitor_detect(struct v4l2_subdev *sd)
 {
 	struct ad9389b_monitor_detect mdt;
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 
 	mdt.present = state->have_monitor;
-	v4l2_subdev_notify(sd, AD9389B_MONITOR_DETECT, (void *)&mdt);
+	v4l2_subdev_yestify(sd, AD9389B_MONITOR_DETECT, (void *)&mdt);
 }
 
 static void ad9389b_update_monitor_present_status(struct v4l2_subdev *sd)
@@ -917,13 +917,13 @@ static void ad9389b_update_monitor_present_status(struct v4l2_subdev *sd)
 			return;
 		}
 		ad9389b_setup(sd);
-		ad9389b_notify_monitor_detect(sd);
+		ad9389b_yestify_monitor_detect(sd);
 		state->edid.read_retries = EDID_MAX_RETRIES;
 		schedule_delayed_work(&state->edid_handler, EDID_DELAY);
 	} else if (!(status & MASK_AD9389B_HPD_DETECT)) {
-		v4l2_dbg(1, debug, sd, "%s: hotplug not detected\n", __func__);
+		v4l2_dbg(1, debug, sd, "%s: hotplug yest detected\n", __func__);
 		state->have_monitor = false;
-		ad9389b_notify_monitor_detect(sd);
+		ad9389b_yestify_monitor_detect(sd);
 		ad9389b_s_power(sd, false);
 		memset(&state->edid, 0, sizeof(struct ad9389b_state_edid));
 	}
@@ -955,7 +955,7 @@ static void ad9389b_check_monitor_present_status(struct v4l2_subdev *sd)
 			return;
 		}
 		v4l2_dbg(1, debug, sd, "%s: reset and re-check status (%d)\n", __func__, retry);
-		ad9389b_notify_monitor_detect(sd);
+		ad9389b_yestify_monitor_detect(sd);
 		cancel_delayed_work_sync(&state->edid_handler);
 		memset(&state->edid, 0, sizeof(struct ad9389b_state_edid));
 		ad9389b_s_power(sd, false);
@@ -1057,7 +1057,7 @@ static bool ad9389b_check_edid_status(struct v4l2_subdev *sd)
 	/* report when we have all segments but report only for segment 0 */
 	ed.present = true;
 	ed.segment = 0;
-	v4l2_subdev_notify(sd, AD9389B_EDID_DETECT, (void *)&ed);
+	v4l2_subdev_yestify(sd, AD9389B_EDID_DETECT, (void *)&ed);
 	state->edid_detect_counter++;
 	v4l2_ctrl_s_ctrl(state->have_edid0_ctrl, state->edid.segments ? 0x1 : 0x0);
 	return ed.present;

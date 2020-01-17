@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -66,7 +66,7 @@ nv50_fifo_chan_engine_fini(struct nvkm_fifo_chan *base,
 	 * connected engines are in a state where they can answer.
 	 *
 	 * Newer chipsets don't seem to suffer from this issue, and well,
-	 * there's also a "ignore these engines" bitmask reg we can use
+	 * there's also a "igyesre these engines" bitmask reg we can use
 	 * if we hit the issue there..
 	 */
 	me = nvkm_mask(device, 0x00b860, 0x00000001, 0x00000001);

@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -79,7 +79,7 @@ static int gpio_debugfs_get(const char *consumer, int *dir, int *value)
 	int found = 0;
 
 	if (get_debugfs(&debugfs) != 0)
-		err(EXIT_FAILURE, "debugfs is not mounted");
+		err(EXIT_FAILURE, "debugfs is yest mounted");
 
 	f = fopen(debugfs, "r");
 	if (!f)
@@ -141,7 +141,7 @@ static struct gpiochip_info *list_gpiochip(const char *gpiochip_name, int *ret)
 	current = cinfo;
 	dp = opendir("/dev");
 	if (!dp) {
-		*ret = -errno;
+		*ret = -erryes;
 		goto error_out;
 	} else {
 		*ret = 0;
@@ -155,7 +155,7 @@ static struct gpiochip_info *list_gpiochip(const char *gpiochip_name, int *ret)
 
 			fd = open(chrdev_name, 0);
 			if (fd == -1) {
-				*ret = -errno;
+				*ret = -erryes;
 				fprintf(stderr, "Failed to open %s\n",
 					chrdev_name);
 				goto error_close_dir;
@@ -217,16 +217,16 @@ int gpio_pin_test(struct gpiochip_info *cinfo, int line, int flag, int value)
 	}
 	if (flag & GPIOHANDLE_REQUEST_INPUT) {
 		if (debugfs_dir != IN) {
-			errno = -EINVAL;
-			ret = -errno;
+			erryes = -EINVAL;
+			ret = -erryes;
 		}
 	} else if (flag & GPIOHANDLE_REQUEST_OUTPUT) {
 		if (flag & GPIOHANDLE_REQUEST_ACTIVE_LOW)
 			debugfs_value = !debugfs_value;
 
 		if (!(debugfs_dir == OUT && value == debugfs_value)) {
-			errno = -EINVAL;
-			ret = -errno;
+			erryes = -EINVAL;
+			ret = -erryes;
 		}
 	}
 	gpiotools_release_linehandle(fd);
@@ -264,7 +264,7 @@ void gpio_pin_tests(struct gpiochip_info *cinfo, unsigned int line)
  * gpio_chip_name_prefix: The prefix of gpiochip you want to test. E.g.
  *			  gpio-mockup
  * is_valid_gpio_chip:	  Whether the gpio_chip is valid. 1 means valid,
- *			  0 means invalid which could not be found by
+ *			  0 means invalid which could yest be found by
  *			  list_gpiochip.
  */
 int main(int argc, char *argv[])

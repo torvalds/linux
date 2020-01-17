@@ -73,7 +73,7 @@ static int lpc18xx_rs485_config(struct uart_port *port,
 						/ baud_clk;
 	}
 
-	/* Delay RTS before send not supported */
+	/* Delay RTS before send yest supported */
 	rs485->delay_rts_before_send = 0;
 
 	serial_out(up, LPC18XX_UART_RS485CTRL, rs485_ctrl_reg);
@@ -88,7 +88,7 @@ static void lpc18xx_uart_serial_out(struct uart_port *p, int offset, int value)
 {
 	/*
 	 * For DMA mode one must ensure that the UART_FCR_DMA_SELECT
-	 * bit is set when FIFO is enabled. Even if DMA is not used
+	 * bit is set when FIFO is enabled. Even if DMA is yest used
 	 * setting this bit doesn't seem to affect anything.
 	 */
 	if (offset == UART_FCR && (value & UART_FCR_ENABLE_FIFO))
@@ -111,7 +111,7 @@ static int lpc18xx_serial_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "memory resource not found");
+		dev_err(&pdev->dev, "memory resource yest found");
 		return -EINVAL;
 	}
 
@@ -128,13 +128,13 @@ static int lpc18xx_serial_probe(struct platform_device *pdev)
 
 	data->clk_uart = devm_clk_get(&pdev->dev, "uartclk");
 	if (IS_ERR(data->clk_uart)) {
-		dev_err(&pdev->dev, "uart clock not found\n");
+		dev_err(&pdev->dev, "uart clock yest found\n");
 		return PTR_ERR(data->clk_uart);
 	}
 
 	data->clk_reg = devm_clk_get(&pdev->dev, "reg");
 	if (IS_ERR(data->clk_reg)) {
-		dev_err(&pdev->dev, "reg clock not found\n");
+		dev_err(&pdev->dev, "reg clock yest found\n");
 		return PTR_ERR(data->clk_reg);
 	}
 
@@ -150,7 +150,7 @@ static int lpc18xx_serial_probe(struct platform_device *pdev)
 		goto dis_clk_reg;
 	}
 
-	ret = of_alias_get_id(pdev->dev.of_node, "serial");
+	ret = of_alias_get_id(pdev->dev.of_yesde, "serial");
 	if (ret >= 0)
 		uart.port.line = ret;
 

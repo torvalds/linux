@@ -43,12 +43,12 @@ snd_pcm_uframes_t snd_usb_pcm_delay(struct snd_usb_substream *subs,
 	/*
 	 * HCD implementations use different widths, use lower 8 bits.
 	 * The delay will be managed up to 256ms, which is more than
-	 * enough
+	 * eyesugh
 	 */
 	frame_diff = (current_frame_number - subs->last_frame_number) & 0xff;
 
 	/* Approximation based on number of samples per USB frame (ms),
-	   some truncation for 44.1 but the estimate is good enough */
+	   some truncation for 44.1 but the estimate is good eyesugh */
 	est_delay =  frame_diff * rate / 1000;
 	if (subs->direction == SNDRV_PCM_STREAM_PLAYBACK)
 		est_delay = subs->last_delay - est_delay;
@@ -157,7 +157,7 @@ static int init_pitch_v1(struct snd_usb_audio *chip, int iface,
 			      UAC_EP_CS_ATTR_PITCH_CONTROL << 8, ep,
 			      data, sizeof(data));
 	if (err < 0) {
-		usb_audio_err(chip, "%d:%d: cannot set enable PITCH\n",
+		usb_audio_err(chip, "%d:%d: canyest set enable PITCH\n",
 			      iface, ep);
 		return err;
 	}
@@ -179,7 +179,7 @@ static int init_pitch_v2(struct snd_usb_audio *chip, int iface,
 			      UAC2_EP_CS_PITCH << 8, 0,
 			      data, sizeof(data));
 	if (err < 0) {
-		usb_audio_err(chip, "%d:%d: cannot set enable PITCH (v2)\n",
+		usb_audio_err(chip, "%d:%d: canyest set enable PITCH (v2)\n",
 			      iface, fmt->altsetting);
 		return err;
 	}
@@ -240,7 +240,7 @@ static int start_endpoints(struct snd_usb_substream *subs)
 			if (err < 0) {
 				clear_bit(SUBSTREAM_FLAG_SYNC_EP_STARTED, &subs->flags);
 				dev_err(&subs->dev->dev,
-					   "%d:%d: cannot set interface (%d)\n",
+					   "%d:%d: canyest set interface (%d)\n",
 					   subs->sync_endpoint->iface,
 					   subs->sync_endpoint->altsetting, err);
 				return -EIO;
@@ -303,7 +303,7 @@ static int search_roland_implicit_fb(struct usb_device *dev, int ifnum,
 	return 0;
 }
 
-/* Setup an implicit feedback endpoint from a quirk. Returns 0 if no quirk
+/* Setup an implicit feedback endpoint from a quirk. Returns 0 if yes quirk
  * applies. Returns 1 if a quirk was found.
  */
 static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
@@ -349,7 +349,7 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 		ifnum = 0;
 		goto add_sync_ep_from_ifnum;
 	case USB_ID(0x0582, 0x01d8): /* BOSS Katana */
-		/* BOSS Katana amplifiers do not need quirks */
+		/* BOSS Katana amplifiers do yest need quirks */
 		return 0;
 	}
 
@@ -409,7 +409,7 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 		(!is_playback && (attr != USB_ENDPOINT_SYNC_ADAPTIVE))) {
 
 		/*
-		 * In these modes the notion of sync_endpoint is irrelevant.
+		 * In these modes the yestion of sync_endpoint is irrelevant.
 		 * Reset pointers to avoid using stale data from previously
 		 * used settings, e.g. when configuration and endpoints were
 		 * changed
@@ -576,9 +576,9 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 /*
  * Return the score of matching two audioformats.
  * Veto the audioformat if:
- * - It has no channels for some reason.
- * - Requested PCM format is not supported.
- * - Requested sample rate is not supported.
+ * - It has yes channels for some reason.
+ * - Requested PCM format is yest supported.
+ * - Requested sample rate is yest supported.
  */
 static int match_endpoint_audioformats(struct snd_usb_substream *subs,
 				       struct audioformat *fp,
@@ -590,13 +590,13 @@ static int match_endpoint_audioformats(struct snd_usb_substream *subs,
 
 	if (fp->channels < 1) {
 		dev_dbg(&subs->dev->dev,
-			"%s: (fmt @%p) no channels\n", __func__, fp);
+			"%s: (fmt @%p) yes channels\n", __func__, fp);
 		return 0;
 	}
 
 	if (!(fp->formats & pcm_format_to_bits(pcm_format))) {
 		dev_dbg(&subs->dev->dev,
-			"%s: (fmt @%p) no match for format %d\n", __func__,
+			"%s: (fmt @%p) yes match for format %d\n", __func__,
 			fp, pcm_format);
 		return 0;
 	}
@@ -609,7 +609,7 @@ static int match_endpoint_audioformats(struct snd_usb_substream *subs,
 	}
 	if (!score) {
 		dev_dbg(&subs->dev->dev,
-			"%s: (fmt @%p) no match for rate %d\n", __func__,
+			"%s: (fmt @%p) yes match for rate %d\n", __func__,
 			fp, rate);
 		return 0;
 	}
@@ -661,7 +661,7 @@ static int configure_sync_endpoint(struct snd_usb_substream *subs)
 
 	if (unlikely(sync_fp == NULL)) {
 		dev_err(&subs->dev->dev,
-			"%s: no valid audioformat for sync ep %x found\n",
+			"%s: yes valid audioformat for sync ep %x found\n",
 			__func__, sync_subs->ep_num);
 		return -EINVAL;
 	}
@@ -729,7 +729,7 @@ static int snd_usb_pcm_change_state(struct snd_usb_substream *subs, int state)
 	ret = snd_usb_power_domain_set(subs->stream->chip, subs->str_pd, state);
 	if (ret < 0) {
 		dev_err(&subs->dev->dev,
-			"Cannot change Power Domain ID: %d to state: %d. Err: %d\n",
+			"Canyest change Power Domain ID: %d to state: %d. Err: %d\n",
 			subs->str_pd->pd_id, state, ret);
 		return ret;
 	}
@@ -803,7 +803,7 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	fmt = find_format(subs);
 	if (!fmt) {
 		dev_dbg(&subs->dev->dev,
-			"cannot set format: format = %#x, rate = %d, channels = %d\n",
+			"canyest set format: format = %#x, rate = %d, channels = %d\n",
 			   subs->pcm_format, subs->cur_rate, subs->channels);
 		ret = -EINVAL;
 		goto stop_pipeline;
@@ -873,7 +873,7 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	int ret;
 
 	if (! subs->cur_audiofmt) {
-		dev_err(&subs->dev->dev, "no format is specified!\n");
+		dev_err(&subs->dev->dev, "yes format is specified!\n");
 		return -ENXIO;
 	}
 
@@ -927,7 +927,7 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	subs->last_frame_number = 0;
 	runtime->delay = 0;
 
-	/* for playback, submit the URBs now; otherwise, the first hwptr_done
+	/* for playback, submit the URBs yesw; otherwise, the first hwptr_done
 	 * updates for all URBs would happen at the same time when starting */
 	if (subs->direction == SNDRV_PCM_STREAM_PLAYBACK)
 		ret = start_endpoints(subs);
@@ -964,17 +964,17 @@ static int hw_check_valid_format(struct snd_usb_substream *subs,
 	unsigned int ptime;
 
 	/* check the format */
-	snd_mask_none(&check_fmts);
+	snd_mask_yesne(&check_fmts);
 	check_fmts.bits[0] = (u32)fp->formats;
 	check_fmts.bits[1] = (u32)(fp->formats >> 32);
 	snd_mask_intersect(&check_fmts, fmts);
 	if (snd_mask_empty(&check_fmts)) {
-		hwc_debug("   > check: no supported format %d\n", fp->format);
+		hwc_debug("   > check: yes supported format %d\n", fp->format);
 		return 0;
 	}
 	/* check the channels */
 	if (fp->channels < ct->min || fp->channels > ct->max) {
-		hwc_debug("   > check: no valid channels %d (%d/%d)\n", fp->channels, ct->min, ct->max);
+		hwc_debug("   > check: yes valid channels %d (%d/%d)\n", fp->channels, ct->min, ct->max);
 		return 0;
 	}
 	/* check the rate is within the range */
@@ -1172,12 +1172,12 @@ static int hw_rule_period_time(struct snd_pcm_hw_params *params,
 /*
  *  If the device supports unusual bit rates, does the request meet these?
  */
-static int snd_usb_pcm_check_knot(struct snd_pcm_runtime *runtime,
+static int snd_usb_pcm_check_kyest(struct snd_pcm_runtime *runtime,
 				  struct snd_usb_substream *subs)
 {
 	struct audioformat *fp;
 	int *rate_list;
-	int count = 0, needs_knot = 0;
+	int count = 0, needs_kyest = 0;
 	int err;
 
 	kfree(subs->rate_list.list);
@@ -1188,9 +1188,9 @@ static int snd_usb_pcm_check_knot(struct snd_pcm_runtime *runtime,
 			return 0;
 		count += fp->nr_rates;
 		if (fp->rates & SNDRV_PCM_RATE_KNOT)
-			needs_knot = 1;
+			needs_kyest = 1;
 	}
-	if (!needs_knot)
+	if (!needs_kyest)
 		return 0;
 
 	subs->rate_list.list = rate_list =
@@ -1258,7 +1258,7 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 		/* full speed devices have fixed data packet interval */
 		ptmin = 1000;
 	if (ptmin == 1000)
-		/* if period time doesn't go below 1 ms, no rules needed */
+		/* if period time doesn't go below 1 ms, yes rules needed */
 		param_period_time_if_needed = -1;
 
 	err = snd_pcm_hw_constraint_minmax(runtime,
@@ -1302,7 +1302,7 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 		if (err < 0)
 			return err;
 	}
-	err = snd_usb_pcm_check_knot(runtime, subs);
+	err = snd_usb_pcm_check_kyest(runtime, subs);
 	if (err < 0)
 		return err;
 
@@ -1454,7 +1454,7 @@ static inline void fill_playback_urb_dsd_dop(struct snd_usb_substream *subs,
 
 	/*
 	 * The DSP DOP format defines a way to transport DSD samples over
-	 * normal PCM data endpoints. It requires stuffing of marker bytes
+	 * yesrmal PCM data endpoints. It requires stuffing of marker bytes
 	 * (0x05 and 0xfa, alternating per sample frame), and then expects
 	 * 2 additional bytes of actual payload. The whole frame is stored
 	 * LSB.
@@ -1579,7 +1579,7 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 			period_elapsed = 1;
 			if (subs->fmt_type == UAC_FORMAT_TYPE_II) {
 				if (subs->transfer_done > 0) {
-					/* FIXME: fill-max mode is not
+					/* FIXME: fill-max mode is yest
 					 * supported yet */
 					frames -= subs->transfer_done;
 					counts -= subs->transfer_done;
@@ -1598,7 +1598,7 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 				break;
 			}
 		}
-		/* finish at the period boundary or after enough frames */
+		/* finish at the period boundary or after eyesugh frames */
 		if ((period_elapsed ||
 				subs->transfer_done >= subs->frame_limit) &&
 		    !snd_usb_endpoint_implicit_feedback_sink(ep))
@@ -1628,7 +1628,7 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 			copy_to_urb(subs, urb, 0, stride, bytes);
 		else
 			bytes = copy_to_urb_quirk(subs, urb, stride, bytes);
-			/* bytes is now amount of outgoing data */
+			/* bytes is yesw amount of outgoing data */
 	}
 
 	/* update delay with exact number of samples queued */
@@ -1667,7 +1667,7 @@ static void retire_playback_urb(struct snd_usb_substream *subs,
 	int processed = urb->transfer_buffer_length / ep->stride;
 	int est_delay;
 
-	/* ignore the delay accounting when procssed=0 is given, i.e.
+	/* igyesre the delay accounting when procssed=0 is given, i.e.
 	 * silent payloads are procssed before handling the actual data
 	 */
 	if (!processed)

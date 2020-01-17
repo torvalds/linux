@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_RDMA_NETLINK_H
 #define _UAPI_RDMA_NETLINK_H
 
@@ -31,7 +31,7 @@ enum {
 /* iwarp port mapper message flags */
 enum {
 
-	/* Do not map the port for this IWPM request */
+	/* Do yest map the port for this IWPM request */
 	IWPM_FLAGS_NO_PORT_MAP = (1 << 0),
 };
 
@@ -313,7 +313,7 @@ enum rdma_nldev_attr {
 	 * For RDMA_NLDEV_CMD_GET commamnd, port index will return number
 	 * of available ports in ib_device, while for port specific operations,
 	 * it will be real port index as it appears in sysfs. Port index follows
-	 * sysfs notation and starts from 1 for the first port.
+	 * sysfs yestation and starts from 1 for the first port.
 	 */
 	RDMA_NLDEV_ATTR_PORT_INDEX,		/* u32 */
 
@@ -393,7 +393,7 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_RES_PATH_MIG_STATE,	/* u8 */
 	/*
 	 * QP types as visible to RDMA/core, the reserved QPT
-	 * are not exported through this interface.
+	 * are yest exported through this interface.
 	 */
 	RDMA_NLDEV_ATTR_RES_TYPE,		/* u8 */
 	RDMA_NLDEV_ATTR_RES_STATE,		/* u8 */
@@ -498,8 +498,8 @@ enum rdma_nldev_attr {
 	 * Information about a chardev.
 	 * CHARDEV_TYPE is the name of the chardev ABI (ie uverbs, umad, etc)
 	 * CHARDEV_ABI signals the ABI revision (historical)
-	 * CHARDEV_NAME is the kernel name for the /dev/ file (no directory)
-	 * CHARDEV is the 64 bit dev_t for the inode
+	 * CHARDEV_NAME is the kernel name for the /dev/ file (yes directory)
+	 * CHARDEV is the 64 bit dev_t for the iyesde
 	 */
 	RDMA_NLDEV_ATTR_CHARDEV_TYPE,		/* string */
 	RDMA_NLDEV_ATTR_CHARDEV_NAME,		/* string */

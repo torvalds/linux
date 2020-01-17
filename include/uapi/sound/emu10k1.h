@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *		     Creative Labs, Inc.
@@ -16,7 +16,7 @@
  *   GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
+ *   along with this program; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
@@ -37,7 +37,7 @@
 
 /*
  * Following definition is copied from linux/types.h to support compiling
- * this header file in userspace since they are not generally available for
+ * this header file in userspace since they are yest generally available for
  * uapi headers.
  */
 #define __EMU10K1_DECLARE_BITMAP(name,bits) \
@@ -92,8 +92,8 @@
 #define C_00100000	0x55		/* ?? */
 #define GPR_ACCU	0x56		/* ACCUM, accumulator */
 #define GPR_COND	0x57		/* CCR, condition register */
-#define GPR_NOISE0	0x58		/* noise source */
-#define GPR_NOISE1	0x59		/* noise source */
+#define GPR_NOISE0	0x58		/* yesise source */
+#define GPR_NOISE1	0x59		/* yesise source */
 #define GPR_IRQ		0x5a		/* IRQ register */
 #define GPR_DBAC	0x5b		/* TRAM Delay Base Address Counter */
 #define GPR(x)		(FXGPREGBASE + (x)) /* free GPRs: x = 0x00 - 0xff */
@@ -112,7 +112,7 @@
 #define A_FXBUS(x)	(0x00 + (x))	/* x = 0x00 - 0x3f FX buses */
 #define A_EXTIN(x)	(0x40 + (x))	/* x = 0x00 - 0x0f physical ins */
 #define A_P16VIN(x)	(0x50 + (x))	/* x = 0x00 - 0x0f p16v ins (A2 only) "EMU32 inputs" */
-#define A_EXTOUT(x)	(0x60 + (x))	/* x = 0x00 - 0x1f physical outs -> A_FXWC1 0x79-7f unknown   */
+#define A_EXTOUT(x)	(0x60 + (x))	/* x = 0x00 - 0x1f physical outs -> A_FXWC1 0x79-7f unkyeswn   */
 #define A_FXBUS2(x)	(0x80 + (x))	/* x = 0x00 - 0x1f extra outs used for EFX capture -> A_FXWC2 */
 #define A_EMU32OUTH(x)	(0xa0 + (x))	/* x = 0x00 - 0x0f "EMU32_OUT_10 - _1F" - ??? */
 #define A_EMU32OUTL(x)	(0xb0 + (x))	/* x = 0x00 - 0x0f "EMU32_OUT_1 - _F" - ??? */
@@ -243,8 +243,8 @@
 #define A_C_00100000	0xd5
 #define A_GPR_ACCU	0xd6		/* ACCUM, accumulator */
 #define A_GPR_COND	0xd7		/* CCR, condition register */
-#define A_GPR_NOISE0	0xd8		/* noise source */
-#define A_GPR_NOISE1	0xd9		/* noise source */
+#define A_GPR_NOISE0	0xd8		/* yesise source */
+#define A_GPR_NOISE1	0xd9		/* yesise source */
 #define A_GPR_IRQ	0xda		/* IRQ register */
 #define A_GPR_DBAC	0xdb		/* TRAM Delay Base Address Counter - internal */
 #define A_GPR_DBACE	0xde		/* TRAM Delay Base Address Counter - external */

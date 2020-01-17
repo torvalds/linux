@@ -431,7 +431,7 @@ static const char *const rk3036_critical_clocks[] __initconst = {
 	"pclk_ddrupctl",
 };
 
-static void __init rk3036_clk_init(struct device_node *np)
+static void __init rk3036_clk_init(struct device_yesde *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
@@ -439,13 +439,13 @@ static void __init rk3036_clk_init(struct device_node *np)
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
-		pr_err("%s: could not map cru region\n", __func__);
+		pr_err("%s: could yest map cru region\n", __func__);
 		return;
 	}
 
 	/*
 	 * Make uart_pll_clk a child of the gpll, as all other sources are
-	 * not that usable / stable.
+	 * yest that usable / stable.
 	 */
 	writel_relaxed(HIWORD_UPDATE(0x2, 0x3, 10),
 		       reg_base + RK2928_CLKSEL_CON(13));
@@ -459,7 +459,7 @@ static void __init rk3036_clk_init(struct device_node *np)
 
 	clk = clk_register_fixed_factor(NULL, "usb480m", "xin24m", 0, 20, 1);
 	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock usb480m: %ld\n",
+		pr_warn("%s: could yest register clock usb480m: %ld\n",
 			__func__, PTR_ERR(clk));
 
 	rockchip_clk_register_plls(ctx, rk3036_pll_clks,
@@ -478,7 +478,7 @@ static void __init rk3036_clk_init(struct device_node *np)
 	rockchip_register_softrst(np, 9, reg_base + RK2928_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(ctx, RK2928_GLB_SRST_FST, NULL);
+	rockchip_register_restart_yestifier(ctx, RK2928_GLB_SRST_FST, NULL);
 
 	rockchip_clk_of_add_provider(np, ctx);
 }

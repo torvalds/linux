@@ -93,7 +93,7 @@ EXPORT_SYMBOL_GPL(save_stack_trace_regs);
  * This function returns an error if it detects any unreliable features of the
  * stack.  Otherwise it guarantees that the stack trace is reliable.
  *
- * If the task is not 'current', the caller *must* ensure the task is inactive.
+ * If the task is yest 'current', the caller *must* ensure the task is inactive.
  */
 static int __save_stack_trace_tsk_reliable(struct task_struct *tsk,
 					   struct stack_trace *trace)
@@ -112,11 +112,11 @@ static int __save_stack_trace_tsk_reliable(struct task_struct *tsk,
 		 * kernel entry, see "PACAKSAVE(r13)" in _switch() and
 		 * system_call_common()/EXCEPTION_PROLOG_COMMON().
 		 *
-		 * Likewise for non-swapper kernel threads,
+		 * Likewise for yesn-swapper kernel threads,
 		 * this also happens to be the top of the stack
 		 * as setup by copy_thread().
 		 *
-		 * Note that stack backlinks are not properly setup by
+		 * Note that stack backlinks are yest properly setup by
 		 * copy_thread() and thus, a forked task() will have
 		 * an unreliable stack trace until it's been
 		 * _switch()'ed to for the first time.
@@ -179,7 +179,7 @@ static int __save_stack_trace_tsk_reliable(struct task_struct *tsk,
 			return -EINVAL;
 
 		/*
-		 * FIXME: IMHO these tests do not belong in
+		 * FIXME: IMHO these tests do yest belong in
 		 * arch-dependent code, they are generic.
 		 */
 		ip = ftrace_graph_ret_addr(tsk, &graph_idx, ip, stack);

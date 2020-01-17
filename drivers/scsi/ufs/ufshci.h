@@ -24,10 +24,10 @@
  * without warranty of any kind. You are solely responsible for
  * determining the appropriateness of using and distributing
  * the program and assume all risks associated with your exercise
- * of rights with respect to the program, including but not limited
+ * of rights with respect to the program, including but yest limited
  * to infringement of third party rights, the risks and costs of
  * program errors, damage to or loss of data, programs or equipment,
- * and unavailability or interruption of operations. Under no
+ * and unavailability or interruption of operations. Under yes
  * circumstances will the contributor of this Program be liable for
  * any damages of any kind arising from your use or distribution of
  * this program.

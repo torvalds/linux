@@ -3,9 +3,9 @@
  *
  * This helper:
  *  - is capable of writing to the volatile area of the hermes device
- *  - is currently not capable of writing to non-volatile areas
+ *  - is currently yest capable of writing to yesn-volatile areas
  *  - provide helpers to identify and update plugin data
- *  - is not capable of interpreting a fw image directly. That is up to
+ *  - is yest capable of interpreting a fw image directly. That is up to
  *    the main card driver.
  *  - deals with Hermes I devices. It can probably be modified to deal
  *    with Hermes II devices
@@ -18,7 +18,7 @@
  *    COPYRIGHT (C) 2001-2004 by Agere Systems Inc. All Rights Reserved
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may yest use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -31,10 +31,10 @@
  * terms of the GNU General Public License version 2 (the "GPL"), in
  * which case the provisions of the GPL are applicable instead of the
  * above.  If you wish to allow the use of your version of this file
- * only under the terms of the GPL and not to allow others to use your
+ * only under the terms of the GPL and yest to allow others to use your
  * version of this file under the MPL, indicate your decision by
- * deleting the provisions above and replace them with the notice and
- * other provisions required by the GPL.  If you do not delete the
+ * deleting the provisions above and replace them with the yestice and
+ * other provisions required by the GPL.  If you do yest delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
  */
@@ -52,7 +52,7 @@
 #define TEXT_END	0x1A		/* End of text header */
 
 /*
- * The following structures have little-endian fields denoted by
+ * The following structures have little-endian fields deyested by
  * the leading underscore.  Don't access them directly - use inline
  * functions defined below.
  */
@@ -143,7 +143,7 @@ pdi_len(const struct pdi *pdi)
 
 /*
  * Scan PDR for the record with the specified RECORD_ID.
- * If it's not found, return NULL.
+ * If it's yest found, return NULL.
  */
 static const struct pdr *
 hermes_find_pdr(const struct pdr *first_pdr, u32 record_id, const void *end)
@@ -155,7 +155,7 @@ hermes_find_pdr(const struct pdr *first_pdr, u32 record_id, const void *end)
 	while (((void *) pdr <= end) &&
 	       (pdr_id(pdr) != PDI_END)) {
 		/*
-		 * PDR area is currently not terminated by PDI_END.
+		 * PDR area is currently yest terminated by PDI_END.
 		 * It's followed by CRC records, which have the type
 		 * field where PDR has length.  The type can be 0 or 1.
 		 */
@@ -201,7 +201,7 @@ hermes_plug_pdi(struct hermes *hw, const struct pdr *first_pdr,
 	/* Find the PDR corresponding to this PDI */
 	pdr = hermes_find_pdr(first_pdr, pdi_id(pdi), pdr_end);
 
-	/* No match is found, safe to ignore */
+	/* No match is found, safe to igyesre */
 	if (!pdr)
 		return 0;
 
@@ -385,7 +385,7 @@ DEFINE_DEFAULT_PDR(0x0161, 256,
  * For every production data record, look for a previous setting in
  * the pda, and use that.
  *
- * For certain records, use defaults if they are not found in pda.
+ * For certain records, use defaults if they are yest found in pda.
  */
 int hermes_apply_pda_with_defaults(struct hermes *hw,
 				   const char *first_pdr,
@@ -406,7 +406,7 @@ int hermes_apply_pda_with_defaults(struct hermes *hw,
 	       (pdr_id(pdr) != PDI_END)) {
 		/*
 		 * For spectrum_cs firmwares,
-		 * PDR area is currently not terminated by PDI_END.
+		 * PDR area is currently yest terminated by PDI_END.
 		 * It's followed by CRC records, which have the type
 		 * field where PDR has length.  The type can be 0 or 1.
 		 */

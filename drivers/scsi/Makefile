@@ -26,7 +26,7 @@ obj-$(CONFIG_BLK_SCSI_REQUEST)	+= scsi_common.o
 obj-$(CONFIG_RAID_ATTRS)	+= raid_class.o
 
 # --- NOTE ORDERING HERE ---
-# For kernel non-modular link, transport attributes need to
+# For kernel yesn-modular link, transport attributes need to
 # be initialised before drivers
 # --------------------------
 obj-$(CONFIG_SCSI_SPI_ATTRS)	+= scsi_transport_spi.o

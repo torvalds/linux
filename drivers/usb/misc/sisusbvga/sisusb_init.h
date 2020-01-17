@@ -20,7 +20,7 @@
  * * GNU General Public License for more details.
  * *
  * * You should have received a copy of the GNU General Public License
- * * along with this program; if not, write to the Free Software
+ * * along with this program; if yest, write to the Free Software
  * * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Otherwise, the following license terms apply:
@@ -29,11 +29,11 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    yestice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    yestice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may yest be used to endorse or promote products
  * *    derived from this software without specific prior written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -77,7 +77,7 @@
 #define CRT2Mode		0x0800
 #define HalfDCLK		0x1000
 #define NoSupportSimuTV		0x2000
-#define NoSupportLCDScale	0x4000	/* SiS bridge: No scaling possible (no matter what panel) */
+#define NoSupportLCDScale	0x4000	/* SiS bridge: No scaling possible (yes matter what panel) */
 #define DoubleScanMode		0x8000
 
 /* Infoflag */
@@ -803,9 +803,9 @@ static const struct SiS_VCLKData SiSUSB_VCLKData[] = {
 	{0xe3, 0x56, 41},	/* 0x6b 960x600@60 */
 	{0x45, 0x25, 83},	/* 0x6c 1280x800 */
 	{0x70, 0x28, 90},	/* 0x6d 1152x864@60 */
-	{0x15, 0xe1, 20},	/* 0x6e 640x400@60 (fake, not actually used) */
+	{0x15, 0xe1, 20},	/* 0x6e 640x400@60 (fake, yest actually used) */
 	{0x5f, 0xc6, 33},	/* 0x6f 720x576@60 */
-	{0x37, 0x5a, 10},	/* 0x70 320x200@60 (fake, not actually used) */
+	{0x37, 0x5a, 10},	/* 0x70 320x200@60 (fake, yest actually used) */
 	{0x2b, 0xc2, 35}	/* 0x71 768@576@60 */
 };
 

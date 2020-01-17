@@ -146,7 +146,7 @@ intel_th_output_assigned(struct intel_th_device *thdev)
  * @irq:	interrupt callback
  * @activate:	enable tracing on the output's side
  * @deactivate:	disable tracing on the output's side
- * @fops:	file operations for device nodes
+ * @fops:	file operations for device yesdes
  * @attr_group:	attributes provided by the driver
  *
  * Callbacks @probe and @remove are required for all device types.
@@ -173,7 +173,7 @@ struct intel_th_driver {
 	void			(*wait_empty)(struct intel_th_device *thdev);
 	int			(*activate)(struct intel_th_device *thdev);
 	void			(*deactivate)(struct intel_th_device *thdev);
-	/* file_operations for those who want a device node */
+	/* file_operations for those who want a device yesde */
 	const struct file_operations *fops;
 	/* optional attributes */
 	struct attribute_group	*attr_group;
@@ -263,7 +263,7 @@ enum th_mmio_idx {
  * @irq:	irq number
  * @num_irqs:	number of IRQs is use
  * @id:		this Intel TH controller's device ID in the system
- * @major:	device node major for output devices
+ * @major:	device yesde major for output devices
  */
 struct intel_th {
 	struct device		*dev;

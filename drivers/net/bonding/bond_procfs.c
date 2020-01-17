@@ -10,7 +10,7 @@
 static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(RCU)
 {
-	struct bonding *bond = PDE_DATA(file_inode(seq->file));
+	struct bonding *bond = PDE_DATA(file_iyesde(seq->file));
 	struct list_head *iter;
 	struct slave *slave;
 	loff_t off = 0;
@@ -29,7 +29,7 @@ static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void *bond_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct bonding *bond = PDE_DATA(file_inode(seq->file));
+	struct bonding *bond = PDE_DATA(file_iyesde(seq->file));
 	struct list_head *iter;
 	struct slave *slave;
 	bool found = false;
@@ -56,7 +56,7 @@ static void bond_info_seq_stop(struct seq_file *seq, void *v)
 
 static void bond_info_show_master(struct seq_file *seq)
 {
-	struct bonding *bond = PDE_DATA(file_inode(seq->file));
+	struct bonding *bond = PDE_DATA(file_iyesde(seq->file));
 	const struct bond_opt_value *optval;
 	struct slave *curr, *primary;
 	int i;
@@ -105,7 +105,7 @@ static void bond_info_show_master(struct seq_file *seq)
 	seq_printf(seq, "Down Delay (ms): %d\n",
 		   bond->params.downdelay * bond->params.miimon);
 	seq_printf(seq, "Peer Notification Delay (ms): %d\n",
-		   bond->params.peer_notif_delay * bond->params.miimon);
+		   bond->params.peer_yestif_delay * bond->params.miimon);
 
 
 	/* ARP information */
@@ -146,7 +146,7 @@ static void bond_info_show_master(struct seq_file *seq)
 
 			if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
 				seq_printf(seq,
-					   "bond %s has no active aggregator\n",
+					   "bond %s has yes active aggregator\n",
 					   bond->dev->name);
 			} else {
 				seq_printf(seq, "Active Aggregator Info:\n");
@@ -169,17 +169,17 @@ static void bond_info_show_master(struct seq_file *seq)
 static void bond_info_show_slave(struct seq_file *seq,
 				 const struct slave *slave)
 {
-	struct bonding *bond = PDE_DATA(file_inode(seq->file));
+	struct bonding *bond = PDE_DATA(file_iyesde(seq->file));
 
 	seq_printf(seq, "\nSlave Interface: %s\n", slave->dev->name);
 	seq_printf(seq, "MII Status: %s\n", bond_slave_link_status(slave->link));
 	if (slave->speed == SPEED_UNKNOWN)
-		seq_printf(seq, "Speed: %s\n", "Unknown");
+		seq_printf(seq, "Speed: %s\n", "Unkyeswn");
 	else
 		seq_printf(seq, "Speed: %d Mbps\n", slave->speed);
 
 	if (slave->duplex == DUPLEX_UNKNOWN)
-		seq_printf(seq, "Duplex: %s\n", "Unknown");
+		seq_printf(seq, "Duplex: %s\n", "Unkyeswn");
 	else
 		seq_printf(seq, "Duplex: %s\n", slave->duplex ? "full" : "half");
 
@@ -268,7 +268,7 @@ void bond_create_proc_entry(struct bonding *bond)
 		bond->proc_entry = proc_create_seq_data(bond_dev->name, 0444,
 				bn->proc_dir, &bond_info_seq_ops, bond);
 		if (bond->proc_entry == NULL)
-			netdev_warn(bond_dev, "Cannot create /proc/net/%s/%s\n",
+			netdev_warn(bond_dev, "Canyest create /proc/net/%s/%s\n",
 				    DRV_NAME, bond_dev->name);
 		else
 			memcpy(bond->proc_file_name, bond_dev->name, IFNAMSIZ);
@@ -295,7 +295,7 @@ void __net_init bond_create_proc_dir(struct bond_net *bn)
 	if (!bn->proc_dir) {
 		bn->proc_dir = proc_mkdir(DRV_NAME, bn->net->proc_net);
 		if (!bn->proc_dir)
-			pr_warn("Warning: Cannot create /proc/net/%s\n",
+			pr_warn("Warning: Canyest create /proc/net/%s\n",
 				DRV_NAME);
 	}
 }

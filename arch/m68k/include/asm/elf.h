@@ -56,7 +56,7 @@ typedef struct user_m68kfp_struct elf_fpregset_t;
 #define ELF_ARCH	EM_68K
 
 /* For SVR4/m68k the function pointer to be registered with `atexit' is
-   passed in %a1.  Although my copy of the ABI has no such statement, it
+   passed in %a1.  Although my copy of the ABI has yes such statement, it
    is actually used on ASV.  */
 #define ELF_PLAT_INIT(_r, load_addr)	_r->a1 = 0
 

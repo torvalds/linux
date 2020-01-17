@@ -253,8 +253,8 @@ struct brcmf_msgbuf {
 	u32 ioctl_resp_ret_len;
 	u32 ioctl_resp_pktid;
 
-	u16 data_seq_no;
-	u16 ioctl_seq_no;
+	u16 data_seq_yes;
+	u16 ioctl_seq_yes;
 	u32 reqid;
 	wait_queue_head_t ioctl_resp_wait;
 	bool ctl_completed;
@@ -379,7 +379,7 @@ brcmf_msgbuf_get_pktid(struct device *dev, struct brcmf_msgbuf_pktids *pktids,
 		pktid->allocated.counter = 0;
 		return skb;
 	} else {
-		brcmf_err("Invalid packet id %d (not in use)\n", idx);
+		brcmf_err("Invalid packet id %d (yest in use)\n", idx);
 	}
 
 	return NULL;
@@ -1398,7 +1398,7 @@ void brcmf_msgbuf_delete_flowring(struct brcmf_pub *drvr, u16 flowid)
 	u8 ifidx;
 	int err;
 
-	/* no need to submit if firmware can not be reached */
+	/* yes need to submit if firmware can yest be reached */
 	if (drvr->bus_if->state != BRCMF_BUS_UP) {
 		brcmf_dbg(MSGBUF, "bus down, flowring will be removed\n");
 		brcmf_msgbuf_remove_flowring(msgbuf, flowid);
@@ -1507,7 +1507,7 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	if_msgbuf = drvr->bus_if->msgbuf;
 
 	if (if_msgbuf->max_flowrings >= BRCMF_FLOWRING_HASHSIZE) {
-		bphy_err(drvr, "driver not configured for this many flowrings %d\n",
+		bphy_err(drvr, "driver yest configured for this many flowrings %d\n",
 			 if_msgbuf->max_flowrings);
 		if_msgbuf->max_flowrings = BRCMF_FLOWRING_HASHSIZE - 1;
 	}

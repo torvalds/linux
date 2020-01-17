@@ -9,7 +9,7 @@
 # and/or sell copies of the Software, and to permit persons to whom the
 # Software is furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice (including the next
+# The above copyright yestice and this permission yestice (including the next
 # paragraph) shall be included in all copies or substantial portions of the
 # Software.
 #
@@ -34,7 +34,7 @@ import sys
 import re
 import glob
 
-from docutils import nodes, statemachine
+from docutils import yesdes, statemachine
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives, Directive
 
@@ -68,13 +68,13 @@ class KernelDocDirective(Directive):
 
     def run(self):
         env = self.state.document.settings.env
-        cmd = [env.config.kerneldoc_bin, '-rst', '-enable-lineno']
+        cmd = [env.config.kerneldoc_bin, '-rst', '-enable-lineyes']
 
         filename = env.config.kerneldoc_srctree + '/' + self.arguments[0]
         export_file_patterns = []
 
         # Tell sphinx of the dependency
-        env.note_dependency(os.path.abspath(filename))
+        env.yeste_dependency(os.path.abspath(filename))
 
         tab_width = self.options.get('tab-width', self.state.document.settings.tab_width)
 
@@ -97,11 +97,11 @@ class KernelDocDirective(Directive):
                 for i in identifiers:
                     cmd += ['-function', i]
             else:
-                cmd += ['-no-doc-sections']
+                cmd += ['-yes-doc-sections']
 
         for pattern in export_file_patterns:
             for f in glob.glob(env.config.kerneldoc_srctree + '/' + pattern):
-                env.note_dependency(os.path.abspath(f))
+                env.yeste_dependency(os.path.abspath(f))
                 cmd += ['-export-file', f]
 
         cmd += [filename]
@@ -120,7 +120,7 @@ class KernelDocDirective(Directive):
 
                 kernellog.warn(env.app,
                                'kernel-doc \'%s\' failed with return code %d' % (" ".join(cmd), p.returncode))
-                return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]
+                return [yesdes.error(None, yesdes.paragraph(text = "kernel-doc missing"))]
             elif env.config.kerneldoc_verbosity > 0:
                 sys.stderr.write(err)
 
@@ -139,26 +139,26 @@ class KernelDocDirective(Directive):
                     result.append(line, filename, lineoffset)
                     lineoffset += 1
 
-            node = nodes.section()
-            self.do_parse(result, node)
+            yesde = yesdes.section()
+            self.do_parse(result, yesde)
 
-            return node.children
+            return yesde.children
 
         except Exception as e:  # pylint: disable=W0703
             kernellog.warn(env.app, 'kernel-doc \'%s\' processing failed with: %s' %
                            (" ".join(cmd), str(e)))
-            return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]
+            return [yesdes.error(None, yesdes.paragraph(text = "kernel-doc missing"))]
 
-    def do_parse(self, result, node):
+    def do_parse(self, result, yesde):
         if Use_SSI:
             with switch_source_input(self.state, result):
-                self.state.nested_parse(result, 0, node, match_titles=1)
+                self.state.nested_parse(result, 0, yesde, match_titles=1)
         else:
             save = self.state.memo.title_styles, self.state.memo.section_level, self.state.memo.reporter
             self.state.memo.reporter = AutodocReporter(result, self.state.memo.reporter)
             self.state.memo.title_styles, self.state.memo.section_level = [], 0
             try:
-                self.state.nested_parse(result, 0, node, match_titles=1)
+                self.state.nested_parse(result, 0, yesde, match_titles=1)
             finally:
                 self.state.memo.title_styles, self.state.memo.section_level, self.state.memo.reporter = save
 

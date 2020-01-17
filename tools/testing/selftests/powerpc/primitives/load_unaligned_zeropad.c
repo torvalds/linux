@@ -5,7 +5,7 @@
  * a SEGV handler that walks the exception tables and runs the fixup
  * routine.
  *
- * The results are compared against a normal load that is that is
+ * The results are compared against a yesrmal load that is that is
  * performed while access to the second page is enabled via mprotect.
  *
  * Copyright (C) 2014 Anton Blanchard <anton@au.ibm.com>, IBM

@@ -10,7 +10,7 @@
 #define __UNICORE_PGTABLE_H__
 
 #define __ARCH_USE_5LEVEL_HACK
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 #include <asm/cpu-single.h>
 
 #include <asm/memory.h>
@@ -26,7 +26,7 @@
  *
  * Note that platforms may override VMALLOC_START, but they must provide
  * VMALLOC_END.  VMALLOC_END defines the (exclusive) limit of this space,
- * which may not overlap IO space.
+ * which may yest overlap IO space.
  */
 #ifndef VMALLOC_START
 #define VMALLOC_OFFSET		SZ_8M
@@ -57,7 +57,7 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 /*
  * This is the lowest virtual address we can permit any user space
  * mapping to be mapped at.  This is particularly important for
- * non-high vector CPUs.
+ * yesn-high vector CPUs.
  */
 #define FIRST_USER_ADDRESS	PAGE_SIZE
 
@@ -117,7 +117,7 @@ extern pgprot_t pgprot_kernel;
  * The table below defines the page protection levels that we insert into our
  * Linux page table version.  These get translated into the best that the
  * architecture can perform.  Note that on UniCore hardware:
- *  1) We cannot do execute protection
+ *  1) We canyest do execute protection
  *  2) If we could do execute protection, then read is implied
  *  3) write implies read permissions
  */
@@ -151,7 +151,7 @@ extern struct page *empty_zero_page;
 #define pfn_pte(pfn, prot)		(__pte(((pfn) << PAGE_SHIFT) \
 						| pgprot_val(prot)))
 
-#define pte_none(pte)			(!pte_val(pte))
+#define pte_yesne(pte)			(!pte_val(pte))
 #define pte_clear(mm, addr, ptep)	set_pte(ptep, __pte(0))
 #define pte_page(pte)			(pfn_to_page(pte_pfn(pte)))
 #define pte_offset_kernel(dir, addr)	(pmd_page_vaddr(*(dir)) \
@@ -170,7 +170,7 @@ extern struct page *empty_zero_page;
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 #define pte_present(pte)	(pte_val(pte) & PTE_PRESENT)
 #define pte_write(pte)		(pte_val(pte) & PTE_WRITE)
@@ -194,12 +194,12 @@ static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
 /*
  * Mark the prot value as uncacheable.
  */
-#define pgprot_noncached(prot)		\
+#define pgprot_yesncached(prot)		\
 	__pgprot(pgprot_val(prot) & ~PTE_CACHEABLE)
 #define pgprot_writecombine(prot)	\
 	__pgprot(pgprot_val(prot) & ~PTE_CACHEABLE)
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_yesne(pmd)		(!pmd_val(pmd))
 #define pmd_present(pmd)	(pmd_val(pmd) & PMD_PRESENT)
 #define pmd_bad(pmd)		(((pmd_val(pmd) &		\
 				(PMD_PRESENT | PMD_TYPE_MASK))	\
@@ -254,7 +254,7 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
  *   <--------------- offset --------------> <--- type --> 0 0 0 0 0
  *
  * This gives us up to 127 swap files and 32GB per swap file.  Note that
- * the offset field is always non-zero.
+ * the offset field is always yesn-zero.
  */
 #define __SWP_TYPE_SHIFT	5
 #define __SWP_TYPE_BITS		7
@@ -273,14 +273,14 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 /*
  * It is an error for the kernel to have more swap files than we can
- * encode in the PTEs.  This ensures that we know when MAX_SWAPFILES
+ * encode in the PTEs.  This ensures that we kyesw when MAX_SWAPFILES
  * is increased beyond what we presently support.
  */
 #define MAX_SWAPFILES_CHECK()	\
 	BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
 
-/* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
-/* FIXME: this is not correct */
+/* Needs to be defined here and yest in linux/mm.h, as it is arch dependent */
+/* FIXME: this is yest correct */
 #define kern_addr_valid(addr)	(1)
 
 #include <asm-generic/pgtable.h>

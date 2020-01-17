@@ -22,7 +22,7 @@ tasks_show(struct seq_file *f, void *v)
 	u32 xid = 0;
 	struct rpc_task *task = v;
 	struct rpc_clnt *clnt = task->tk_client;
-	const char *rpc_waitq = "none";
+	const char *rpc_waitq = "yesne";
 
 	if (RPC_IS_QUEUED(task))
 		rpc_waitq = rpc_qname(task->tk_waitqueue);
@@ -62,7 +62,7 @@ tasks_next(struct seq_file *f, void *v, loff_t *pos)
 
 	++*pos;
 
-	/* If there's another task on list, return it */
+	/* If there's ayesther task on list, return it */
 	if (next == &clnt->cl_tasks)
 		return NULL;
 	return list_entry(next, struct rpc_task, tk_task);
@@ -83,15 +83,15 @@ static const struct seq_operations tasks_seq_operations = {
 	.show	= tasks_show,
 };
 
-static int tasks_open(struct inode *inode, struct file *filp)
+static int tasks_open(struct iyesde *iyesde, struct file *filp)
 {
 	int ret = seq_open(filp, &tasks_seq_operations);
 	if (!ret) {
 		struct seq_file *seq = filp->private_data;
-		struct rpc_clnt *clnt = seq->private = inode->i_private;
+		struct rpc_clnt *clnt = seq->private = iyesde->i_private;
 
-		if (!atomic_inc_not_zero(&clnt->cl_count)) {
-			seq_release(inode, filp);
+		if (!atomic_inc_yest_zero(&clnt->cl_count)) {
+			seq_release(iyesde, filp);
 			ret = -EINVAL;
 		}
 	}
@@ -100,13 +100,13 @@ static int tasks_open(struct inode *inode, struct file *filp)
 }
 
 static int
-tasks_release(struct inode *inode, struct file *filp)
+tasks_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct seq_file *seq = filp->private_data;
 	struct rpc_clnt *clnt = seq->private;
 
 	rpc_release_client(clnt);
-	return seq_release(inode, filp);
+	return seq_release(iyesde, filp);
 }
 
 static const struct file_operations tasks_fops = {
@@ -120,8 +120,8 @@ static const struct file_operations tasks_fops = {
 static int do_xprt_debugfs(struct rpc_clnt *clnt, struct rpc_xprt *xprt, void *numv)
 {
 	int len;
-	char name[24]; /* enough for "../../rpc_xprt/ + 8 hex digits + NULL */
-	char link[9]; /* enough for 8 hex digits + NULL */
+	char name[24]; /* eyesugh for "../../rpc_xprt/ + 8 hex digits + NULL */
+	char link[9]; /* eyesugh for 8 hex digits + NULL */
 	int *nump = numv;
 
 	if (IS_ERR_OR_NULL(xprt->debugfs))
@@ -146,7 +146,7 @@ void
 rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
 {
 	int len;
-	char name[9]; /* enough for 8 hex digits + NULL */
+	char name[9]; /* eyesugh for 8 hex digits + NULL */
 	int xprtnum = 0;
 
 	len = snprintf(name, sizeof(name), "%x", clnt->cl_clid);
@@ -183,16 +183,16 @@ xprt_info_show(struct seq_file *f, void *v)
 }
 
 static int
-xprt_info_open(struct inode *inode, struct file *filp)
+xprt_info_open(struct iyesde *iyesde, struct file *filp)
 {
 	int ret;
-	struct rpc_xprt *xprt = inode->i_private;
+	struct rpc_xprt *xprt = iyesde->i_private;
 
 	ret = single_open(filp, xprt_info_show, xprt);
 
 	if (!ret) {
 		if (!xprt_get(xprt)) {
-			single_release(inode, filp);
+			single_release(iyesde, filp);
 			ret = -EINVAL;
 		}
 	}
@@ -200,12 +200,12 @@ xprt_info_open(struct inode *inode, struct file *filp)
 }
 
 static int
-xprt_info_release(struct inode *inode, struct file *filp)
+xprt_info_release(struct iyesde *iyesde, struct file *filp)
 {
-	struct rpc_xprt *xprt = inode->i_private;
+	struct rpc_xprt *xprt = iyesde->i_private;
 
 	xprt_put(xprt);
-	return single_release(inode, filp);
+	return single_release(iyesde, filp);
 }
 
 static const struct file_operations xprt_info_fops = {
@@ -247,7 +247,7 @@ rpc_xprt_debugfs_unregister(struct rpc_xprt *xprt)
 }
 
 static int
-fault_open(struct inode *inode, struct file *filp)
+fault_open(struct iyesde *iyesde, struct file *filp)
 {
 	filp->private_data = kmalloc(128, GFP_KERNEL);
 	if (!filp->private_data)
@@ -256,7 +256,7 @@ fault_open(struct inode *inode, struct file *filp)
 }
 
 static int
-fault_release(struct inode *inode, struct file *filp)
+fault_release(struct iyesde *iyesde, struct file *filp)
 {
 	kfree(filp->private_data);
 	return 0;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Goramo PCI200SYN synchronous serial card driver for Linux
+ * Goramo PCI200SYN synchroyesus serial card driver for Linux
  *
  * Copyright (C) 2002-2008 Krzysztof Halasa <khc@pm.waw.pl>
  *
@@ -8,7 +8,7 @@
  *
  * Sources of information:
  *    Hitachi HD64572 SCA-II User's Manual
- *    PLX Technology Inc. PCI9052 Data Book
+ *    PLX Techyeslogy Inc. PCI9052 Data Book
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -21,7 +21,7 @@
 #include <linux/fcntl.h>
 #include <linux/in.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/netdevice.h>
@@ -334,11 +334,11 @@ static int pci200_pci_init_one(struct pci_dev *pdev,
 	/* Reset PLX */
 	p = &card->plxbase->init_ctrl;
 	writel(readl(p) | 0x40000000, p);
-	readl(p);		/* Flush the write - do not use sca_flush */
+	readl(p);		/* Flush the write - do yest use sca_flush */
 	udelay(1);
 
 	writel(readl(p) & ~0x40000000, p);
-	readl(p);		/* Flush the write - do not use sca_flush */
+	readl(p);		/* Flush the write - do yest use sca_flush */
 	udelay(1);
 
 	ramsize = sca_detect_ram(card, card->rambase,
@@ -368,7 +368,7 @@ static int pci200_pci_init_one(struct pci_dev *pdev,
 
 	/* Allocate IRQ */
 	if (request_irq(pdev->irq, sca_intr, IRQF_SHARED, "pci200syn", card)) {
-		pr_warn("could not allocate IRQ%d\n", pdev->irq);
+		pr_warn("could yest allocate IRQ%d\n", pdev->irq);
 		pci200_pci_remove_one(pdev);
 		return -EBUSY;
 	}

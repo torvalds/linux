@@ -28,7 +28,7 @@ enum {
 
 struct rockchip_pm_data {
 	const struct platform_suspend_ops *ops;
-	int (*init)(struct device_node *np);
+	int (*init)(struct device_yesde *np);
 };
 
 static void __iomem *rk3288_bootram_base;
@@ -72,8 +72,8 @@ static bool rk3288_slp_disable_osc(void)
 
 	/*
 	 * if any usb phy is still on(GRF_SIDDQ==0), that means we need the
-	 * function of usb wakeup, so do not switch to 32khz, since the usb phy
-	 * clk does not connect to 32khz osc
+	 * function of usb wakeup, so do yest switch to 32khz, since the usb phy
+	 * clk does yest connect to 32khz osc
 	 */
 	for (i = 0; i < ARRAY_SIZE(reg_offset); i++) {
 		regmap_read(grf_regmap, reg_offset[i], &reg);
@@ -104,7 +104,7 @@ static void rk3288_slp_mode_set(int level)
 		     | SGRF_PCLK_WDT_GATE_WRITE | SGRF_FAST_BOOT_EN_WRITE);
 
 	/*
-	 * The dapswjdp can not auto reset before resume, that cause it may
+	 * The dapswjdp can yest auto reset before resume, that cause it may
 	 * access some illegal address during resume. Let's disable it before
 	 * suspend, and the MASKROM will enable it back.
 	 */
@@ -151,8 +151,8 @@ static void rk3288_slp_mode_set(int level)
 					 osc_disable ? 32 * 30 : 0);
 	} else {
 		/*
-		 * arm off, logic normal
-		 * if pmu_clk_core_src_gate_en is not set,
+		 * arm off, logic yesrmal
+		 * if pmu_clk_core_src_gate_en is yest set,
 		 * wakeup will be error
 		 */
 		mode_set |= BIT(PMU_CLK_CORE_SRC_GATE_EN);
@@ -163,7 +163,7 @@ static void rk3288_slp_mode_set(int level)
 		/* 30ms on a 24MHz clock for pmic stabilization */
 		regmap_write(pmu_regmap, RK3288_PMU_STABL_CNT, 24000 * 30);
 
-		/* oscillator is still running, so no need to wait */
+		/* oscillator is still running, so yes need to wait */
 		regmap_write(pmu_regmap, RK3288_PMU_OSC_CNT, 0);
 	}
 
@@ -221,55 +221,55 @@ static void rk3288_suspend_finish(void)
 		pr_err("%s: Suspend finish failed\n", __func__);
 }
 
-static int __init rk3288_suspend_init(struct device_node *np)
+static int __init rk3288_suspend_init(struct device_yesde *np)
 {
-	struct device_node *sram_np;
+	struct device_yesde *sram_np;
 	struct resource res;
 	int ret;
 
-	pmu_regmap = syscon_node_to_regmap(np);
+	pmu_regmap = syscon_yesde_to_regmap(np);
 	if (IS_ERR(pmu_regmap)) {
-		pr_err("%s: could not find pmu regmap\n", __func__);
+		pr_err("%s: could yest find pmu regmap\n", __func__);
 		return PTR_ERR(pmu_regmap);
 	}
 
 	sgrf_regmap = syscon_regmap_lookup_by_compatible(
 				"rockchip,rk3288-sgrf");
 	if (IS_ERR(sgrf_regmap)) {
-		pr_err("%s: could not find sgrf regmap\n", __func__);
+		pr_err("%s: could yest find sgrf regmap\n", __func__);
 		return PTR_ERR(sgrf_regmap);
 	}
 
 	grf_regmap = syscon_regmap_lookup_by_compatible(
 				"rockchip,rk3288-grf");
 	if (IS_ERR(grf_regmap)) {
-		pr_err("%s: could not find grf regmap\n", __func__);
+		pr_err("%s: could yest find grf regmap\n", __func__);
 		return PTR_ERR(grf_regmap);
 	}
 
-	sram_np = of_find_compatible_node(NULL, NULL,
+	sram_np = of_find_compatible_yesde(NULL, NULL,
 					  "rockchip,rk3288-pmu-sram");
 	if (!sram_np) {
-		pr_err("%s: could not find bootram dt node\n", __func__);
+		pr_err("%s: could yest find bootram dt yesde\n", __func__);
 		return -ENODEV;
 	}
 
 	rk3288_bootram_base = of_iomap(sram_np, 0);
 	if (!rk3288_bootram_base) {
-		pr_err("%s: could not map bootram base\n", __func__);
-		of_node_put(sram_np);
+		pr_err("%s: could yest map bootram base\n", __func__);
+		of_yesde_put(sram_np);
 		return -ENOMEM;
 	}
 
 	ret = of_address_to_resource(sram_np, 0, &res);
 	if (ret) {
-		pr_err("%s: could not get bootram phy addr\n", __func__);
-		of_node_put(sram_np);
+		pr_err("%s: could yest get bootram phy addr\n", __func__);
+		of_yesde_put(sram_np);
 		return ret;
 	}
 	rk3288_bootram_phy = res.start;
 
-	of_node_put(sram_np);
+	of_yesde_put(sram_np);
 
 	rk3288_config_bootdata();
 
@@ -304,13 +304,13 @@ void __init rockchip_suspend_init(void)
 {
 	const struct rockchip_pm_data *pm_data;
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
-	np = of_find_matching_node_and_match(NULL, rockchip_pmu_of_device_ids,
+	np = of_find_matching_yesde_and_match(NULL, rockchip_pmu_of_device_ids,
 					     &match);
 	if (!match) {
-		pr_err("Failed to find PMU node\n");
+		pr_err("Failed to find PMU yesde\n");
 		return;
 	}
 	pm_data = (struct rockchip_pm_data *) match->data;

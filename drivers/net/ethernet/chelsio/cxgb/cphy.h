@@ -11,7 +11,7 @@
  * published by the Free Software Foundation.                                *
  *                                                                           *
  * You should have received a copy of the GNU General Public License along   *
- * with this program; if not, see <http://www.gnu.org/licenses/>.            *
+ * with this program; if yest, see <http://www.gnu.org/licenses/>.            *
  *                                                                           *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED    *
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF      *
@@ -160,7 +160,7 @@ struct gphy {
 			       const struct mdio_ops *mdio_ops);
 
 	/*
-	 * Reset the PHY chip.  This resets the whole PHY chip, not individual
+	 * Reset the PHY chip.  This resets the whole PHY chip, yest individual
 	 * ports.
 	 */
 	int (*reset)(adapter_t *adapter);

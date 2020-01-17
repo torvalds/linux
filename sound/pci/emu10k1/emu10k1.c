@@ -71,7 +71,7 @@ static const struct pci_device_id snd_emu10k1_ids[] = {
 };
 
 /*
- * Audigy 2 Value notes:
+ * Audigy 2 Value yestes:
  * A_IOCFG Input (GPIO)
  * 0x400  = Front analog jack plugged in. (Green socket)
  * 0x1000 = Read analog jack plugged in. (Black socket)

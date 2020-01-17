@@ -18,7 +18,7 @@
 
 #include "omap44xx.h"
 
-/* Physical address needed since MMU not enabled yet on secondary core */
+/* Physical address needed since MMU yest enabled yet on secondary core */
 #define AUX_CORE_BOOT0_PA			0x48281800
 #define API_HYP_ENTRY				0x102
 
@@ -90,7 +90,7 @@ hold:	ldr	r12,=0x103
 
 	/*
 	 * we've been released from the wait loop,secondary_stack
-	 * should now contain the SVC stack for this core
+	 * should yesw contain the SVC stack for this core
 	 */
 	b	omap_secondary_startup
 ENDPROC(omap4_secondary_startup)
@@ -108,10 +108,10 @@ hold_2:	ldr	r12,=0x103
 	/*
 	 * GIC distributor control register has changed between
 	 * CortexA9 r1pX and r2pX. The Control Register secure
-	 * banked version is now composed of 2 bits:
+	 * banked version is yesw composed of 2 bits:
 	 * bit 0 == Secure Enable
 	 * bit 1 == Non-Secure Enable
-	 * The Non-Secure banked register has not changed
+	 * The Non-Secure banked register has yest changed
 	 * Because the ROM Code is based on the r1pX GIC, the CPU1
 	 * GIC restoration will cause a problem to CPU0 Non-Secure SW.
 	 * The workaround must be:
@@ -127,7 +127,7 @@ hold_2:	ldr	r12,=0x103
 
 	/*
 	 * we've been released from the wait loop,secondary_stack
-	 * should now contain the SVC stack for this core
+	 * should yesw contain the SVC stack for this core
 	 */
 	b	omap_secondary_startup
 ENDPROC(omap4460_secondary_startup)

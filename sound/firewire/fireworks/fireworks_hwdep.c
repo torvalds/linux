@@ -8,8 +8,8 @@
 /*
  * This codes have five functionalities.
  *
- * 1.get information about firewire node
- * 2.get notification about starting/stopping stream
+ * 1.get information about firewire yesde
+ * 2.get yestification about starting/stopping stream
  * 3.lock/unlock streaming
  * 4.transmit command of EFW transaction
  * 5.receive response of EFW transaction
@@ -41,7 +41,7 @@ hwdep_read_resp_buf(struct snd_efw *efw, char __user *buf, long remained,
 	spin_lock_irq(&efw->lock);
 
 	/*
-	 * When another task reaches here during this task's access to user
+	 * When ayesther task reaches here during this task's access to user
 	 * space, it picks up current position in buffer and can read the same
 	 * series of responses.
 	 */
@@ -51,7 +51,7 @@ hwdep_read_resp_buf(struct snd_efw *efw, char __user *buf, long remained,
 		t = (struct snd_efw_transaction *)(pull_ptr);
 		length = be32_to_cpu(t->length) * sizeof(__be32);
 
-		/* confirm enough space for this response */
+		/* confirm eyesugh space for this response */
 		if (remained < length)
 			break;
 
@@ -169,7 +169,7 @@ hwdep_write(struct snd_hwdep *hwdep, const char __user *data, long count,
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
 
-	/* check seqnum is not for kernel-land */
+	/* check seqnum is yest for kernel-land */
 	seqnum = be32_to_cpu(((struct snd_efw_transaction *)buf)->seqnum);
 	if (seqnum > SND_EFW_TRANSACTION_USER_SEQNUM_MAX) {
 		count = -EINVAL;

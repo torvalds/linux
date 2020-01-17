@@ -55,7 +55,7 @@ static int handle_smc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	/*
 	 * "If an SMC instruction executed at Non-secure EL1 is
 	 * trapped to EL2 because HCR_EL2.TSC is 1, the exception is a
-	 * Trap exception, not a Secure Monitor Call exception [...]"
+	 * Trap exception, yest a Secure Monitor Call exception [...]"
 	 *
 	 * We need to advance the PC after the trap, as it would
 	 * otherwise return to the same address...
@@ -69,7 +69,7 @@ static int handle_smc(struct kvm_vcpu *vcpu, struct kvm_run *run)
  * Guest access to FP/ASIMD registers are routed to this handler only
  * when the system doesn't support FP/ASIMD.
  */
-static int handle_no_fpsimd(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static int handle_yes_fpsimd(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	kvm_inject_undefined(vcpu);
 	return 1;
@@ -144,11 +144,11 @@ static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return ret;
 }
 
-static int kvm_handle_unknown_ec(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static int kvm_handle_unkyeswn_ec(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	u32 hsr = kvm_vcpu_get_hsr(vcpu);
 
-	kvm_pr_unimpl("Unknown exception class: hsr: %#08x -- %s\n",
+	kvm_pr_unimpl("Unkyeswn exception class: hsr: %#08x -- %s\n",
 		      hsr, esr_get_class_string(hsr));
 
 	kvm_inject_undefined(vcpu);
@@ -190,7 +190,7 @@ void kvm_arm_vcpu_ptrauth_trap(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Guest usage of a ptrauth instruction (which the guest EL1 did not turn into
+ * Guest usage of a ptrauth instruction (which the guest EL1 did yest turn into
  * a NOP).
  */
 static int kvm_handle_ptrauth(struct kvm_vcpu *vcpu, struct kvm_run *run)
@@ -200,7 +200,7 @@ static int kvm_handle_ptrauth(struct kvm_vcpu *vcpu, struct kvm_run *run)
 }
 
 static exit_handle_fn arm_exit_handlers[] = {
-	[0 ... ESR_ELx_EC_MAX]	= kvm_handle_unknown_ec,
+	[0 ... ESR_ELx_EC_MAX]	= kvm_handle_unkyeswn_ec,
 	[ESR_ELx_EC_WFx]	= kvm_handle_wfx,
 	[ESR_ELx_EC_CP15_32]	= kvm_handle_cp15_32,
 	[ESR_ELx_EC_CP15_64]	= kvm_handle_cp15_64,
@@ -220,7 +220,7 @@ static exit_handle_fn arm_exit_handlers[] = {
 	[ESR_ELx_EC_BREAKPT_LOW]= kvm_handle_guest_debug,
 	[ESR_ELx_EC_BKPT32]	= kvm_handle_guest_debug,
 	[ESR_ELx_EC_BRK64]	= kvm_handle_guest_debug,
-	[ESR_ELx_EC_FP_ASIMD]	= handle_no_fpsimd,
+	[ESR_ELx_EC_FP_ASIMD]	= handle_yes_fpsimd,
 	[ESR_ELx_EC_PAC]	= kvm_handle_ptrauth,
 };
 

@@ -114,13 +114,13 @@ void __init qnap_tsx09_find_mac_addr(u32 mem_base, u32 size)
 	unsigned long addr;
 
 	for (addr = mem_base; addr < (mem_base + size); addr += 1024) {
-		char *nor_page;
+		char *yesr_page;
 		int ret = 0;
 
-		nor_page = ioremap(addr, 1024);
-		if (nor_page != NULL) {
-			ret = qnap_tsx09_check_mac_addr(nor_page);
-			iounmap(nor_page);
+		yesr_page = ioremap(addr, 1024);
+		if (yesr_page != NULL) {
+			ret = qnap_tsx09_check_mac_addr(yesr_page);
+			iounmap(yesr_page);
 		}
 
 		if (ret == 0)

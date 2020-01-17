@@ -32,8 +32,8 @@ static gifconf_func_t *gifconf_list[NPROTO];
  *	@gifconf: Function handler
  *
  *	Register protocol dependent address dumping routines. The handler
- *	that is passed must not be freed or reused until it has been replaced
- *	by another handler.
+ *	that is passed must yest be freed or reused until it has been replaced
+ *	by ayesther handler.
  */
 int register_gifconf(unsigned int family, gifconf_func_t *gifconf)
 {
@@ -46,7 +46,7 @@ EXPORT_SYMBOL(register_gifconf);
 
 /*
  *	Perform a SIOCGIFCONF call. This structure will change
- *	size eventually, and there is nothing I can do about it.
+ *	size eventually, and there is yesthing I can do about it.
  *	Thus we will need a 'compatibility mode'.
  */
 
@@ -254,7 +254,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 		memcpy(dev->broadcast, ifr->ifr_hwaddr.sa_data,
 		       min(sizeof(ifr->ifr_hwaddr.sa_data),
 			   (size_t)dev->addr_len));
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+		call_netdevice_yestifiers(NETDEV_CHANGEADDR, dev);
 		return 0;
 
 	case SIOCSIFMAP:
@@ -297,7 +297,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 		/* fall through */
 
 	/*
-	 *	Unknown or private ioctl
+	 *	Unkyeswn or private ioctl
 	 */
 	default:
 		if ((cmd >= SIOCDEVPRIVATE &&
@@ -335,24 +335,24 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
  *	@net: the applicable net namespace
  *	@name: name of interface
  *
- *	If a network interface is not present and the process has suitable
- *	privileges this function loads the module. If module loading is not
- *	available in this kernel then it becomes a nop.
+ *	If a network interface is yest present and the process has suitable
+ *	privileges this function loads the module. If module loading is yest
+ *	available in this kernel then it becomes a yesp.
  */
 
 void dev_load(struct net *net, const char *name)
 {
 	struct net_device *dev;
-	int no_module;
+	int yes_module;
 
 	rcu_read_lock();
 	dev = dev_get_by_name_rcu(net, name);
 	rcu_read_unlock();
 
-	no_module = !dev;
-	if (no_module && capable(CAP_NET_ADMIN))
-		no_module = request_module("netdev-%s", name);
-	if (no_module && capable(CAP_SYS_MODULE))
+	yes_module = !dev;
+	if (yes_module && capable(CAP_NET_ADMIN))
+		yes_module = request_module("netdev-%s", name);
+	if (yes_module && capable(CAP_SYS_MODULE))
 		request_module("%s", name);
 }
 EXPORT_SYMBOL(dev_load);
@@ -367,12 +367,12 @@ EXPORT_SYMBOL(dev_load);
  *	@net: the applicable net namespace
  *	@cmd: command to issue
  *	@ifr: pointer to a struct ifreq in user space
- *	@need_copyout: whether or not copy_to_user() should be called
+ *	@need_copyout: whether or yest copy_to_user() should be called
  *
- *	Issue ioctl functions to devices. This is normally called by the
+ *	Issue ioctl functions to devices. This is yesrmally called by the
  *	user space syscall interfaces but can sometimes be useful for
  *	other purposes. The return value is the return from the syscall if
- *	positive or a negative errno code on error.
+ *	positive or a negative erryes code on error.
  */
 
 int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_copyout)
@@ -399,7 +399,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_c
 	/*
 	 *	These ioctl calls:
 	 *	- can be done by all.
-	 *	- atomic and do not require locking.
+	 *	- atomic and do yest require locking.
 	 *	- return a value
 	 */
 	case SIOCGIFFLAGS:
@@ -450,7 +450,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_c
 	 *	These ioctl calls:
 	 *	- require superuser power.
 	 *	- require strict serialization.
-	 *	- do not return a value
+	 *	- do yest return a value
 	 */
 	case SIOCSIFMAP:
 	case SIOCSIFTXQLEN:
@@ -461,7 +461,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_c
 	 *	These ioctl calls:
 	 *	- require local superuser power.
 	 *	- require strict serialization.
-	 *	- do not return a value
+	 *	- do yest return a value
 	 */
 	case SIOCSIFFLAGS:
 	case SIOCSIFMETRIC:
@@ -494,7 +494,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_c
 
 	case SIOCGIFMEM:
 		/* Get the per device memory space. We can add this but
-		 * currently do not support it */
+		 * currently do yest support it */
 	case SIOCSIFMEM:
 		/* Set the per device memory buffer space.
 		 * Not applicable in our case */
@@ -502,7 +502,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_c
 		return -ENOTTY;
 
 	/*
-	 *	Unknown or private ioctl.
+	 *	Unkyeswn or private ioctl.
 	 */
 	default:
 		if (cmd == SIOCWANDEV ||

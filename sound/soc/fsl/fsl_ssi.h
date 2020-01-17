@@ -41,14 +41,14 @@
 /*
  * SSI Test Register (Intended for debugging purposes only)
  *
- * Note: STR is not documented in recent IMX datasheet, but
+ * Note: STR is yest documented in recent IMX datasheet, but
  * is described in IMX51 reference manual at section 56.3.3.14
  */
 #define REG_SSI_STR			0x30
 /*
  * SSI Option Register (Intended for internal use only)
  *
- * Note: SOR is not documented in recent IMX datasheet, but
+ * Note: SOR is yest documented in recent IMX datasheet, but
  * is described in IMX51 reference manual at section 56.3.3.15
  */
 #define REG_SSI_SOR			0x34

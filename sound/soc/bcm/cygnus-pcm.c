@@ -460,7 +460,7 @@ static void handle_playback_irq(struct cygnus_audio *cygaud)
 		/*
 		 * Ringbuffer or FIFO underflow
 		 * If we get this interrupt then, it is also true that we have
-		 * not yet responded to the freemark interrupt.
+		 * yest yet responded to the freemark interrupt.
 		 * Log a debug message.  The freemark handler below will
 		 * handle getting everything going again.
 		 */
@@ -471,7 +471,7 @@ static void handle_playback_irq(struct cygnus_audio *cygaud)
 		}
 
 		/*
-		 * Freemark is hit. This is the normal interrupt.
+		 * Freemark is hit. This is the yesrmal interrupt.
 		 * In typical operation the read and write regs will be equal
 		 */
 		if (esrmask & esr_status3) {
@@ -521,7 +521,7 @@ static void handle_capture_irq(struct cygnus_audio *cygaud)
 		/*
 		 * Ringbuffer or FIFO overflow
 		 * If we get this interrupt then, it is also true that we have
-		 * not yet responded to the fullmark interrupt.
+		 * yest yet responded to the fullmark interrupt.
 		 * Log a debug message.  The fullmark handler below will
 		 * handle getting everything going again.
 		 */
@@ -723,7 +723,7 @@ static snd_pcm_uframes_t cygnus_pcm_pointer(struct snd_soc_component *component,
 
 	/*
 	 * Mask off the MSB of the rdaddr,wraddr and baseaddr
-	 * since MSB is not part of the address
+	 * since MSB is yest part of the address
 	 */
 	res = (cur & 0x7fffffff) - (base & 0x7fffffff);
 

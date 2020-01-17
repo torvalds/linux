@@ -146,7 +146,7 @@
 /**
  * enum brcmf_sdiod_state - the state of the bus.
  *
- * @BRCMF_SDIOD_DOWN: Device can be accessed, no DPC.
+ * @BRCMF_SDIOD_DOWN: Device can be accessed, yes DPC.
  * @BRCMF_SDIOD_DATA: Ready for data transfers, DPC enabled.
  * @BRCMF_SDIOD_NOMEDIUM: No medium access to dongle possible.
  */
@@ -313,7 +313,7 @@ void brcmf_sdiod_writel(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
  *   complete: callback function for command completion (async only)
  *   handle:   handle for completion callback (first arg in callback)
  * Returns 0 or error code.
- * NOTE: Async operation is not currently supported.
+ * NOTE: Async operation is yest currently supported.
  */
 int brcmf_sdiod_send_pkt(struct brcmf_sdio_dev *sdiodev,
 			 struct sk_buff_head *pktq);
@@ -331,7 +331,7 @@ int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev,
 /* Fixed address (FIFO) (vs. incrementing address) */
 #define SDIO_REQ_FIXED	0x2
 
-/* Read/write to memory block (F1, no FIFO) via CMD53 (sync only).
+/* Read/write to memory block (F1, yes FIFO) via CMD53 (sync only).
  *   rw:       read or write (0/1)
  *   addr:     direct SDIO address
  *   buf:      pointer to memory data buffer

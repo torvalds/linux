@@ -117,21 +117,21 @@ static inline void *__va(unsigned long x)
 
 /*
  * NOTE: virtual isn't really correct, actually it should be the offset into the
- * memory node, but we have no highmem, so that works for now.
+ * memory yesde, but we have yes highmem, so that works for yesw.
  * TODO: implement (fast) pfn<->pgdat_idx conversion functions, this makes lots
  * of the shifts unnecessary.
  */
 #define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
 #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
 
-extern int m68k_virt_to_node_shift;
+extern int m68k_virt_to_yesde_shift;
 
 #ifdef CONFIG_SINGLE_MEMORY_CHUNK
-#define __virt_to_node(addr)	(&pg_data_map[0])
+#define __virt_to_yesde(addr)	(&pg_data_map[0])
 #else
 extern struct pglist_data *pg_data_table[];
 
-static inline __attribute_const__ int __virt_to_node_shift(void)
+static inline __attribute_const__ int __virt_to_yesde_shift(void)
 {
 	int shift;
 
@@ -139,11 +139,11 @@ static inline __attribute_const__ int __virt_to_node_shift(void)
 		"1:	moveq	#0,%0\n"
 		m68k_fixup(%c1, 1b)
 		: "=d" (shift)
-		: "i" (m68k_fixup_vnode_shift));
+		: "i" (m68k_fixup_vyesde_shift));
 	return shift;
 }
 
-#define __virt_to_node(addr)	(pg_data_table[(unsigned long)(addr) >> __virt_to_node_shift()])
+#define __virt_to_yesde(addr)	(pg_data_table[(unsigned long)(addr) >> __virt_to_yesde_shift()])
 #endif
 
 #define virt_to_page(addr) ({						\
@@ -156,14 +156,14 @@ static inline __attribute_const__ int __virt_to_node_shift(void)
 #define pfn_to_page(pfn) ({						\
 	unsigned long __pfn = (pfn);					\
 	struct pglist_data *pgdat;					\
-	pgdat = __virt_to_node((unsigned long)pfn_to_virt(__pfn));	\
-	pgdat->node_mem_map + (__pfn - pgdat->node_start_pfn);		\
+	pgdat = __virt_to_yesde((unsigned long)pfn_to_virt(__pfn));	\
+	pgdat->yesde_mem_map + (__pfn - pgdat->yesde_start_pfn);		\
 })
 #define page_to_pfn(_page) ({						\
 	const struct page *__p = (_page);				\
 	struct pglist_data *pgdat;					\
 	pgdat = &pg_data_map[page_to_nid(__p)];				\
-	((__p) - pgdat->node_mem_map) + pgdat->node_start_pfn;		\
+	((__p) - pgdat->yesde_mem_map) + pgdat->yesde_start_pfn;		\
 })
 
 #define virt_addr_valid(kaddr)	((void *)(kaddr) >= (void *)PAGE_OFFSET && (void *)(kaddr) < high_memory)

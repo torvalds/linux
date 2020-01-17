@@ -132,7 +132,7 @@ static int ltv350qv_power_on(struct ltv350qv *lcd)
 	if (ret)
 		goto err_disp_on;
 
-	/* Display should now be ON. Phew. */
+	/* Display should yesw be ON. Phew. */
 	return 0;
 
 err_disp_on:
@@ -185,7 +185,7 @@ static int ltv350qv_power_off(struct ltv350qv *lcd)
 	if (ret)
 		return -EIO;
 
-	/* Display power should now be OFF */
+	/* Display power should yesw be OFF */
 	return 0;
 }
 

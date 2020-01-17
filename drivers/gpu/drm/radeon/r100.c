@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -130,7 +130,7 @@ void r100_wait_for_vblank(struct radeon_device *rdev, int crtc)
 	}
 
 	/* depending on when we hit vblank, we may be close to active; if so,
-	 * wait for another frame.
+	 * wait for ayesther frame.
 	 */
 	while (r100_is_in_vblank(rdev, crtc)) {
 		if (i++ % 100 == 0) {
@@ -166,7 +166,7 @@ void r100_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base, bool
 	int i;
 
 	/* Lock the graphics update lock */
-	/* update the scanout addresses */
+	/* update the scayesut addresses */
 	WREG32(RADEON_CRTC_OFFSET + radeon_crtc->crtc_offset, tmp);
 
 	/* Wait for update_pending to go high. */
@@ -175,7 +175,7 @@ void r100_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base, bool
 			break;
 		udelay(1);
 	}
-	DRM_DEBUG("Update pending now high. Unlocking vupdate_lock.\n");
+	DRM_DEBUG("Update pending yesw high. Unlocking vupdate_lock.\n");
 
 	/* Unlock the lock, so double-buffering can take place inside vblank */
 	tmp &= ~RADEON_CRTC_OFFSET__OFFSET_LOCK;
@@ -242,7 +242,7 @@ void r100_pm_get_dynpm_state(struct radeon_device *rdev)
 				rdev->pm.requested_power_state_index =
 					rdev->pm.current_power_state_index - 1;
 		}
-		/* don't use the power state if crtcs are active and no display flag is set */
+		/* don't use the power state if crtcs are active and yes display flag is set */
 		if ((rdev->pm.active_crtc_count > 0) &&
 		    (rdev->pm.power_state[rdev->pm.requested_power_state_index].clock_info[0].flags &
 		     RADEON_PM_MODE_NO_DISPLAY)) {
@@ -277,7 +277,7 @@ void r100_pm_get_dynpm_state(struct radeon_device *rdev)
 		break;
 	case DYNPM_ACTION_NONE:
 	default:
-		DRM_ERROR("Requested mode for not defined action\n");
+		DRM_ERROR("Requested mode for yest defined action\n");
 		return;
 	}
 	/* only one clock mode per power state */
@@ -345,7 +345,7 @@ void r100_pm_init_profile(struct radeon_device *rdev)
  *
  * @rdev: radeon_device pointer
  *
- * Set non-clock parameters associated with a power state
+ * Set yesn-clock parameters associated with a power state
  * (voltage, pcie lanes, etc.) (r1xx-r4xx).
  */
 void r100_pm_misc(struct radeon_device *rdev)
@@ -507,7 +507,7 @@ void r100_pm_finish(struct radeon_device *rdev)
  * @rdev: radeon_device pointer
  *
  * Check of the GUI (2D/3D engines) are idle (r1xx-r5xx).
- * Returns true if idle, false if not.
+ * Returns true if idle, false if yest.
  */
 bool r100_gui_idle(struct radeon_device *rdev)
 {
@@ -525,7 +525,7 @@ bool r100_gui_idle(struct radeon_device *rdev)
  * @hpd: hpd (hotplug detect) pin
  *
  * Checks if a digital monitor is connected (r1xx-r4xx).
- * Returns true if connected, false if not connected.
+ * Returns true if connected, false if yest connected.
  */
 bool r100_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 {
@@ -714,7 +714,7 @@ int r100_irq_set(struct radeon_device *rdev)
 	uint32_t tmp = 0;
 
 	if (!rdev->irq.installed) {
-		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
+		WARN(1, "Can't enable IRQ/MSI because yes handler is installed\n");
 		WREG32(R_000040_GEN_INT_CNTL, 0);
 		return -EINVAL;
 	}
@@ -748,7 +748,7 @@ void r100_irq_disable(struct radeon_device *rdev)
 	u32 tmp;
 
 	WREG32(R_000040_GEN_INT_CNTL, 0);
-	/* Wait and acknowledge irq */
+	/* Wait and ackyeswledge irq */
 	mdelay(1);
 	tmp = RREG32(R_000044_GEN_INT_STATUS);
 	WREG32(R_000044_GEN_INT_STATUS, tmp);
@@ -854,7 +854,7 @@ static void r100_ring_hdp_flush(struct radeon_device *rdev, struct radeon_ring *
 }
 
 /* Who ever call radeon_fence_emit should call ring_lock and ask
- * for enough space (today caller are ib schedule and buffer move) */
+ * for eyesugh space (today caller are ib schedule and buffer move) */
 void r100_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence)
 {
@@ -910,7 +910,7 @@ struct radeon_fence *r100_copy_blit(struct radeon_device *rdev,
 	stride_pixels = stride_bytes / 4;
 	num_loops = DIV_ROUND_UP(num_gpu_pages, 8191);
 
-	/* Ask for enough room for blit + flush + fence */
+	/* Ask for eyesugh room for blit + flush + fence */
 	ndw = 64 + (10 * num_loops);
 	r = radeon_ring_lock(rdev, ring, ndw);
 	if (r) {
@@ -1183,7 +1183,7 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	ring->wptr = 0;
 	WREG32(RADEON_CP_RB_WPTR, ring->wptr);
 
-	/* set the wb address whether it's enabled or not */
+	/* set the wb address whether it's enabled or yest */
 	WREG32(R_00070C_CP_RB_RPTR_ADDR,
 		S_00070C_RB_RPTR_ADDR((rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) >> 2));
 	WREG32(R_000774_SCRATCH_ADDR, rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET);
@@ -1217,7 +1217,7 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	ring->ready = true;
 	radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
 
-	if (!ring->rptr_save_reg /* not resuming from suspend */
+	if (!ring->rptr_save_reg /* yest resuming from suspend */
 	    && radeon_ring_supports_scratch_reg(rdev, ring)) {
 		r = radeon_scratch_get(rdev, &ring->rptr_save_reg);
 		if (r) {
@@ -1284,7 +1284,7 @@ int r100_reloc_pitch_offset(struct radeon_cs_parser *p,
 			tile_flags |= RADEON_DST_TILE_MACRO;
 		if (reloc->tiling_flags & RADEON_TILING_MICRO) {
 			if (reg == RADEON_SRC_PITCH_OFFSET) {
-				DRM_ERROR("Cannot src blit from microtiled surface\n");
+				DRM_ERROR("Canyest src blit from microtiled surface\n");
 				radeon_cs_dump_packet(p, pkt);
 				return -EINVAL;
 			}
@@ -1464,14 +1464,14 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	reg = R100_CP_PACKET0_GET_REG(header);
 	crtc = drm_crtc_find(p->rdev->ddev, p->filp, crtc_id);
 	if (!crtc) {
-		DRM_ERROR("cannot find crtc %d\n", crtc_id);
+		DRM_ERROR("canyest find crtc %d\n", crtc_id);
 		return -ENOENT;
 	}
 	radeon_crtc = to_radeon_crtc(crtc);
 	crtc_id = radeon_crtc->crtc_id;
 
 	if (!crtc->enabled) {
-		/* if the CRTC isn't enabled - we need to nop out the wait until */
+		/* if the CRTC isn't enabled - we need to yesp out the wait until */
 		ib[h_idx + 2] = PACKET2(0);
 		ib[h_idx + 3] = PACKET2(0);
 	} else if (crtc_id == 1) {
@@ -1485,7 +1485,7 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 			header |= RADEON_CRTC2_GUI_TRIG_VLINE >> 2;
 			break;
 		default:
-			DRM_ERROR("unknown crtc reloc\n");
+			DRM_ERROR("unkyeswn crtc reloc\n");
 			return -EINVAL;
 		}
 		ib[h_idx] = header;
@@ -2022,7 +2022,7 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 	case PACKET3_NOP:
 		break;
 	default:
-		DRM_ERROR("Packet3 opcode %x not supported\n", pkt->opcode);
+		DRM_ERROR("Packet3 opcode %x yest supported\n", pkt->opcode);
 		return -EINVAL;
 	}
 	return 0;
@@ -2064,7 +2064,7 @@ int r100_cs_parse(struct radeon_cs_parser *p)
 			r = r100_packet3_check(p, &pkt);
 			break;
 		default:
-			DRM_ERROR("Unknown packet type %d !\n",
+			DRM_ERROR("Unkyeswn packet type %d !\n",
 				  pkt.type);
 			return -EINVAL;
 		}
@@ -2315,7 +2315,7 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 		for (i = 0; i < track->num_arrays; i++) {
 			size = track->arrays[i].esize * track->max_indx * 4;
 			if (track->arrays[i].robj == NULL) {
-				DRM_ERROR("(PW %u) Vertex array %u no buffer "
+				DRM_ERROR("(PW %u) Vertex array %u yes buffer "
 					  "bound\n", prim_walk, i);
 				return -EINVAL;
 			}
@@ -2334,7 +2334,7 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 		for (i = 0; i < track->num_arrays; i++) {
 			size = track->arrays[i].esize * (nverts - 1) * 4;
 			if (track->arrays[i].robj == NULL) {
-				DRM_ERROR("(PW %u) Vertex array %u no buffer "
+				DRM_ERROR("(PW %u) Vertex array %u yes buffer "
 					  "bound\n", prim_walk, i);
 				return -EINVAL;
 			}
@@ -2738,7 +2738,7 @@ static u32 r100_get_accessible_vram(struct radeon_device *rdev)
 
 	aper_size = RREG32(RADEON_CONFIG_APER_SIZE);
 
-	/* Set HDP_APER_CNTL only on cards that are known not to be broken,
+	/* Set HDP_APER_CNTL only on cards that are kyeswn yest to be broken,
 	 * that is has the 2nd generation multifunction PCI interface
 	 */
 	if (rdev->family == CHIP_RV280 ||
@@ -2863,8 +2863,8 @@ static void r100_pll_errata_after_data(struct radeon_device *rdev)
 
 	/* This function is required to workaround a hardware bug in some (all?)
 	 * revisions of the R300.  This workaround should be called after every
-	 * CLOCK_CNTL_INDEX register access.  If not, register reads afterward
-	 * may not be correct.
+	 * CLOCK_CNTL_INDEX register access.  If yest, register reads afterward
+	 * may yest be correct.
 	 */
 	if (rdev->pll_errata & CHIP_ERRATA_R300_CG) {
 		uint32_t save, tmp;
@@ -2922,8 +2922,8 @@ static void r100_set_safe_registers(struct radeon_device *rdev)
 #if defined(CONFIG_DEBUG_FS)
 static int r100_debugfs_rbbm_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t reg, value;
 	unsigned i;
@@ -2943,8 +2943,8 @@ static int r100_debugfs_rbbm_info(struct seq_file *m, void *data)
 
 static int r100_debugfs_cp_ring_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	uint32_t rdp, wdp;
@@ -2971,8 +2971,8 @@ static int r100_debugfs_cp_ring_info(struct seq_file *m, void *data)
 
 static int r100_debugfs_cp_csq_fifo(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t csq_stat, csq2_stat, tmp;
 	unsigned r_rptr, r_wptr, ib1_rptr, ib1_wptr, ib2_rptr, ib2_wptr;
@@ -3021,8 +3021,8 @@ static int r100_debugfs_cp_csq_fifo(struct seq_file *m, void *data)
 
 static int r100_debugfs_mc_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t tmp;
 
@@ -3256,7 +3256,7 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 	}
 
 	/*
-	 * determine is there is enough bw for current mode
+	 * determine is there is eyesugh bw for current mode
 	 */
 	sclk_ff = rdev->pm.sclk;
 	mclk_ff = rdev->pm.mclk;
@@ -3285,7 +3285,7 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 
 	mem_bw.full = dfixed_mul(mem_bw, min_mem_eff);
 	if (peak_disp_bw.full >= mem_bw.full) {
-		DRM_ERROR("You may not have enough display bandwidth for current mode\n"
+		DRM_ERROR("You may yest have eyesugh display bandwidth for current mode\n"
 			  "If you have flickering problem, try to lower resolution, refresh rate, or color depth\n");
 	}
 
@@ -3640,7 +3640,7 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 			  (unsigned int)RREG32(RADEON_GRPH2_BUFFER_CNTL));
 	}
 
-	/* Save number of lines the linebuffer leads before the scanout */
+	/* Save number of lines the linebuffer leads before the scayesut */
 	if (mode1)
 	    rdev->mode_info.crtcs[0]->lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode1->crtc_hdisplay);
 
@@ -3946,7 +3946,7 @@ int r100_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Make sur GART are not working */
+	/* Make sur GART are yest working */
 	if (rdev->flags & RADEON_IS_PCI)
 		r100_pci_gart_disable(rdev);
 	/* Resume clock before doing reset */
@@ -4061,7 +4061,7 @@ int r100_init(struct radeon_device *rdev)
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
 	}
-	/* check if cards are posted or not */
+	/* check if cards are posted or yest */
 	if (radeon_boot_test_post_card(rdev) == false)
 		return -EINVAL;
 	/* Set asic errata */

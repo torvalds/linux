@@ -6,7 +6,7 @@
  * Author: Alex A. Mihaylov <minimumlaw@rambler.ru>
  *
  * Use consistent with the GNU GPL is permitted,
- * provided that this copyright notice is
+ * provided that this copyright yestice is
  * preserved in its entirety in all copies and derived works.
  *
  */
@@ -28,7 +28,7 @@
 /* Number of valid register addresses in W1 mode */
 #define MAX1721X_MAX_REG_NR	0x1EF
 
-/* Factory settings (nonvilatile registers) (W1 specific) */
+/* Factory settings (yesnvilatile registers) (W1 specific) */
 #define MAX1721X_REG_NRSENSE	0x1CF	/* RSense in 10^-5 Ohm */
 /* Strings */
 #define MAX1721X_REG_MFG_STR	0x1CC
@@ -136,7 +136,7 @@ static int max1721x_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		/*
 		 * POWER_SUPPLY_PROP_PRESENT will always readable via
-		 * sysfs interface. Value return 0 if battery not
+		 * sysfs interface. Value return 0 if battery yest
 		 * present or unaccesable via W1.
 		 */
 		val->intval =
@@ -265,8 +265,8 @@ static int get_sn_string(struct max17211_device_info *info, char *str)
  */
 static const struct regmap_range max1721x_allow_range[] = {
 	regmap_reg_range(0, 0xDF),	/* volatile data */
-	regmap_reg_range(0x180, 0x1DF),	/* non-volatile memory */
-	regmap_reg_range(0x1E0, 0x1EF),	/* non-volatile history (unused) */
+	regmap_reg_range(0x180, 0x1DF),	/* yesn-volatile memory */
+	regmap_reg_range(0x1E0, 0x1EF),	/* yesn-volatile history (unused) */
 };
 
 static const struct regmap_range max1721x_deny_range[] = {
@@ -285,28 +285,28 @@ static const struct regmap_range max1721x_deny_range[] = {
 	regmap_reg_range(0xB5, 0xB7),
 	regmap_reg_range(0xBF, 0xD0),
 	regmap_reg_range(0xDB, 0xDB),
-	/* hole between volatile and non-volatile registers */
+	/* hole between volatile and yesn-volatile registers */
 	regmap_reg_range(0xE0, 0x17F),
 };
 
 static const struct regmap_access_table max1721x_regs = {
-	.yes_ranges	= max1721x_allow_range,
-	.n_yes_ranges	= ARRAY_SIZE(max1721x_allow_range),
-	.no_ranges	= max1721x_deny_range,
-	.n_no_ranges	= ARRAY_SIZE(max1721x_deny_range),
+	.no_ranges	= max1721x_allow_range,
+	.n_no_ranges	= ARRAY_SIZE(max1721x_allow_range),
+	.yes_ranges	= max1721x_deny_range,
+	.n_yes_ranges	= ARRAY_SIZE(max1721x_deny_range),
 };
 
 /*
  * Model Gauge M5 Algorithm output register
- * Volatile data (must not be cached)
+ * Volatile data (must yest be cached)
  */
 static const struct regmap_range max1721x_volatile_allow[] = {
 	regmap_reg_range(0, 0xDF),
 };
 
 static const struct regmap_access_table max1721x_volatile_regs = {
-	.yes_ranges	= max1721x_volatile_allow,
-	.n_yes_ranges	= ARRAY_SIZE(max1721x_volatile_allow),
+	.no_ranges	= max1721x_volatile_allow,
+	.n_no_ranges	= ARRAY_SIZE(max1721x_volatile_allow),
 };
 
 /*
@@ -346,7 +346,7 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 	 * FixMe: battery device name exceed max len for thermal_zone device
 	 * name and translation to thermal_zone must be disabled.
 	 */
-	info->bat_desc.no_thermal = true;
+	info->bat_desc.yes_thermal = true;
 	info->bat_desc.type = POWER_SUPPLY_TYPE_BATTERY;
 	info->bat_desc.properties = max1721x_battery_props;
 	info->bat_desc.num_properties = ARRAY_SIZE(max1721x_battery_props);
@@ -372,7 +372,7 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 	}
 
 	if (!info->rsense) {
-		dev_warn(info->w1_dev, "RSense not calibrated, set 10 mOhms!\n");
+		dev_warn(info->w1_dev, "RSense yest calibrated, set 10 mOhms!\n");
 		info->rsense = 1000; /* in regs in 10^-5 */
 	}
 	dev_info(info->w1_dev, "RSense: %d mOhms.\n", info->rsense / 100);

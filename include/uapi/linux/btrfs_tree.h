@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _BTRFS_CTREE_H_
 #define _BTRFS_CTREE_H_
 
@@ -9,7 +9,7 @@
  * This header contains the structure definitions and constants used
  * by file system objects that can be retrieved using
  * the BTRFS_IOC_SEARCH_TREE ioctl.  That means basically anything that
- * is needed to describe a leaf node's key or item contents.
+ * is needed to describe a leaf yesde's key or item contents.
  */
 
 /* holds pointers to all of the tree roots */
@@ -76,8 +76,8 @@
 #define BTRFS_FREE_SPACE_OBJECTID -11ULL
 
 /*
- * The inode number assigned to the special inode for storing
- * free ino cache
+ * The iyesde number assigned to the special iyesde for storing
+ * free iyes cache
  */
 #define BTRFS_FREE_INO_OBJECTID -12ULL
 
@@ -105,7 +105,7 @@
 #define BTRFS_DEV_REPLACE_DEVID 0ULL
 
 /*
- * inode items have the data typically returned from stat and store other
+ * iyesde items have the data typically returned from stat and store other
  * info about object characteristics.  There is one for every file and dir in
  * the FS
  */
@@ -114,10 +114,10 @@
 #define BTRFS_INODE_EXTREF_KEY		13
 #define BTRFS_XATTR_ITEM_KEY		24
 #define BTRFS_ORPHAN_ITEM_KEY		48
-/* reserve 2-15 close to the inode for later flexibility */
+/* reserve 2-15 close to the iyesde for later flexibility */
 
 /*
- * dir items are the name -> inode pointers in a directory.  There is one
+ * dir items are the name -> iyesde pointers in a directory.  There is one
  * for every name in a directory.
  */
 #define BTRFS_DIR_LOG_ITEM_KEY  60
@@ -161,7 +161,7 @@
 #define BTRFS_EXTENT_ITEM_KEY	168
 
 /*
- * The same as the BTRFS_EXTENT_ITEM_KEY, except it's metadata we already know
+ * The same as the BTRFS_EXTENT_ITEM_KEY, except it's metadata we already kyesw
  * the length, so we save the level in key->offset instead of the length.
  */
 #define BTRFS_METADATA_ITEM_KEY	169
@@ -237,7 +237,7 @@
 #define BTRFS_BALANCE_ITEM_KEY	248
 
 /*
- * The key type for tree items that are stored persistently, but do not need to
+ * The key type for tree items that are stored persistently, but do yest need to
  * exist for extended period of time. The items can exist in any tree.
  *
  * [subtype, BTRFS_TEMPORARY_ITEM_KEY, data]
@@ -330,10 +330,10 @@ enum btrfs_csum_type {
  * The key defines the order in the tree, and so it also defines (optimal)
  * block layout.
  *
- * objectid corresponds to the inode number.
+ * objectid corresponds to the iyesde number.
  *
  * type tells us things about the object, and is a kind of stream selector.
- * so for a given inode, keys with type of 1 might refer to the inode data,
+ * so for a given iyesde, keys with type of 1 might refer to the iyesde data,
  * type of 2 may point to file data in the btree and type == 3 may point to
  * extents.
  *
@@ -540,13 +540,13 @@ struct btrfs_dev_extent {
 	__u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
 } __attribute__ ((__packed__));
 
-struct btrfs_inode_ref {
+struct btrfs_iyesde_ref {
 	__le64 index;
 	__le16 name_len;
 	/* name goes here */
 } __attribute__ ((__packed__));
 
-struct btrfs_inode_extref {
+struct btrfs_iyesde_extref {
 	__le64 parent_objectid;
 	__le64 index;
 	__le16 name_len;
@@ -559,10 +559,10 @@ struct btrfs_timespec {
 	__le32 nsec;
 } __attribute__ ((__packed__));
 
-struct btrfs_inode_item {
+struct btrfs_iyesde_item {
 	/* nfs style generation number */
 	__le64 generation;
-	/* transid that last touched this inode */
+	/* transid that last touched this iyesde */
 	__le64 transid;
 	__le64 size;
 	__le64 nbytes;
@@ -579,7 +579,7 @@ struct btrfs_inode_item {
 
 	/*
 	 * a little future expansion, for more than this we can
-	 * just grow the inode item and version it
+	 * just grow the iyesde item and version it
 	 */
 	__le64 reserved[4];
 	struct btrfs_timespec atime;
@@ -609,7 +609,7 @@ struct btrfs_dir_item {
 #define BTRFS_ROOT_SUBVOL_DEAD		(1ULL << 48)
 
 struct btrfs_root_item {
-	struct btrfs_inode_item inode;
+	struct btrfs_iyesde_item iyesde;
 	__le64 generation;
 	__le64 root_dirid;
 	__le64 bytenr;
@@ -642,10 +642,10 @@ struct btrfs_root_item {
 	__u8 uuid[BTRFS_UUID_SIZE];
 	__u8 parent_uuid[BTRFS_UUID_SIZE];
 	__u8 received_uuid[BTRFS_UUID_SIZE];
-	__le64 ctransid; /* updated when an inode changes */
+	__le64 ctransid; /* updated when an iyesde changes */
 	__le64 otransid; /* trans when created */
-	__le64 stransid; /* trans when sent. non-zero for received subvol */
-	__le64 rtransid; /* trans when received. non-zero for received subvol */
+	__le64 stransid; /* trans when sent. yesn-zero for received subvol */
+	__le64 rtransid; /* trans when received. yesn-zero for received subvol */
 	struct btrfs_timespec ctime;
 	struct btrfs_timespec otime;
 	struct btrfs_timespec stime;
@@ -664,7 +664,7 @@ struct btrfs_root_ref {
 
 struct btrfs_disk_balance_args {
 	/*
-	 * profiles to operate on, single is denoted by
+	 * profiles to operate on, single is deyested by
 	 * BTRFS_AVAIL_ALLOC_BIT_SINGLE
 	 */
 	__le64 profiles;
@@ -694,7 +694,7 @@ struct btrfs_disk_balance_args {
 	__le64 vend;
 
 	/*
-	 * profile to convert to, single is denoted by
+	 * profile to convert to, single is deyested by
 	 * BTRFS_AVAIL_ALLOC_BIT_SINGLE
 	 */
 	__le64 target;
@@ -754,7 +754,7 @@ struct btrfs_file_extent_item {
 	__le64 generation;
 	/*
 	 * max number of bytes to hold this extent in ram
-	 * when we split a compressed extent we can't know how big
+	 * when we split a compressed extent we can't kyesw how big
 	 * each of the resulting pieces will be.  So, this is
 	 * an upper limit on the size of the extent in ram instead of
 	 * an exact limit.
@@ -766,7 +766,7 @@ struct btrfs_file_extent_item {
 	 * including compression and encryption.  If any of these
 	 * are set to something a given disk format doesn't understand
 	 * it is treated like an incompat flag for reading and writing,
-	 * but not for stat.
+	 * but yest for stat.
 	 */
 	__u8 compression;
 	__u8 encryption;
@@ -784,7 +784,7 @@ struct btrfs_file_extent_item {
 	__le64 disk_bytenr;
 	__le64 disk_num_bytes;
 	/*
-	 * the logical offset in file blocks (no csums)
+	 * the logical offset in file blocks (yes csums)
 	 * this extent record is for.  This allows a file extent to point
 	 * into the middle of an existing extent on disk, sharing it
 	 * between two snapshots (useful if some bytes in the middle of the
@@ -792,7 +792,7 @@ struct btrfs_file_extent_item {
 	 */
 	__le64 offset;
 	/*
-	 * the logical number of file blocks (no csums included).  This
+	 * the logical number of file blocks (yes csums included).  This
 	 * always reflects the size uncompressed and without encoding.
 	 */
 	__le64 num_bytes;
@@ -936,10 +936,10 @@ static inline __u64 btrfs_qgroup_level(__u64 qgroupid)
  */
 #define BTRFS_QGROUP_STATUS_FLAG_RESCAN		(1ULL << 1)
 /*
- * Some qgroup entries are known to be out of date,
+ * Some qgroup entries are kyeswn to be out of date,
  * either because the configuration has changed in a way that
  * makes a rescan necessary, or because the fs has been mounted
- * with a non-qgroup-aware version.
+ * with a yesn-qgroup-aware version.
  * Turning qouta off and on again makes it inconsistent, too.
  */
 #define BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT	(1ULL << 2)
@@ -950,7 +950,7 @@ struct btrfs_qgroup_status_item {
 	__le64 version;
 	/*
 	 * the generation is updated during every commit. As older
-	 * versions of btrfs are not aware of qgroups, it will be
+	 * versions of btrfs are yest aware of qgroups, it will be
 	 * possible to detect inconsistencies by checking the
 	 * generation on mount time
 	 */

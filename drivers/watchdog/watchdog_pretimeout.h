@@ -6,26 +6,26 @@
 
 struct watchdog_device;
 
-struct watchdog_governor {
+struct watchdog_goveryesr {
 	const char	name[WATCHDOG_GOV_NAME_MAXLEN];
 	void		(*pretimeout)(struct watchdog_device *wdd);
 };
 
 #if IS_ENABLED(CONFIG_WATCHDOG_PRETIMEOUT_GOV)
-/* Interfaces to watchdog pretimeout governors */
-int watchdog_register_governor(struct watchdog_governor *gov);
-void watchdog_unregister_governor(struct watchdog_governor *gov);
+/* Interfaces to watchdog pretimeout goveryesrs */
+int watchdog_register_goveryesr(struct watchdog_goveryesr *gov);
+void watchdog_unregister_goveryesr(struct watchdog_goveryesr *gov);
 
 /* Interfaces to watchdog_dev.c */
 int watchdog_register_pretimeout(struct watchdog_device *wdd);
 void watchdog_unregister_pretimeout(struct watchdog_device *wdd);
-int watchdog_pretimeout_available_governors_get(char *buf);
-int watchdog_pretimeout_governor_get(struct watchdog_device *wdd, char *buf);
-int watchdog_pretimeout_governor_set(struct watchdog_device *wdd,
+int watchdog_pretimeout_available_goveryesrs_get(char *buf);
+int watchdog_pretimeout_goveryesr_get(struct watchdog_device *wdd, char *buf);
+int watchdog_pretimeout_goveryesr_set(struct watchdog_device *wdd,
 				     const char *buf);
 
 #if IS_ENABLED(CONFIG_WATCHDOG_PRETIMEOUT_DEFAULT_GOV_NOOP)
-#define WATCHDOG_PRETIMEOUT_DEFAULT_GOV		"noop"
+#define WATCHDOG_PRETIMEOUT_DEFAULT_GOV		"yesop"
 #elif IS_ENABLED(CONFIG_WATCHDOG_PRETIMEOUT_DEFAULT_GOV_PANIC)
 #define WATCHDOG_PRETIMEOUT_DEFAULT_GOV		"panic"
 #endif
@@ -40,18 +40,18 @@ static inline void watchdog_unregister_pretimeout(struct watchdog_device *wdd)
 {
 }
 
-static inline int watchdog_pretimeout_available_governors_get(char *buf)
+static inline int watchdog_pretimeout_available_goveryesrs_get(char *buf)
 {
 	return -EINVAL;
 }
 
-static inline int watchdog_pretimeout_governor_get(struct watchdog_device *wdd,
+static inline int watchdog_pretimeout_goveryesr_get(struct watchdog_device *wdd,
 						   char *buf)
 {
 	return -EINVAL;
 }
 
-static inline int watchdog_pretimeout_governor_set(struct watchdog_device *wdd,
+static inline int watchdog_pretimeout_goveryesr_set(struct watchdog_device *wdd,
 						   const char *buf)
 {
 	return -EINVAL;

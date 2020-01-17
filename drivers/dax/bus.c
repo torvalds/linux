@@ -90,7 +90,7 @@ static ssize_t do_id_store(struct device_driver *drv, const char *buf,
 			} else
 				rc = -ENOMEM;
 		} else
-			/* nothing to remove */;
+			/* yesthing to remove */;
 	} else if (action == ID_REMOVE) {
 		list_del(&dax_id->list);
 		kfree(dax_id);
@@ -226,7 +226,7 @@ static void dax_region_unregister(void *region)
 }
 
 struct dax_region *alloc_dax_region(struct device *parent, int region_id,
-		struct resource *res, int target_node, unsigned int align,
+		struct resource *res, int target_yesde, unsigned int align,
 		unsigned long long pfn_flags)
 {
 	struct dax_region *dax_region;
@@ -256,7 +256,7 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 	dax_region->id = region_id;
 	dax_region->align = align;
 	dax_region->dev = parent;
-	dax_region->target_node = target_node;
+	dax_region->target_yesde = target_yesde;
 	if (sysfs_create_groups(&parent->kobj, dax_region_attribute_groups)) {
 		kfree(dax_region);
 		return NULL;
@@ -279,21 +279,21 @@ static ssize_t size_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(size);
 
-static int dev_dax_target_node(struct dev_dax *dev_dax)
+static int dev_dax_target_yesde(struct dev_dax *dev_dax)
 {
 	struct dax_region *dax_region = dev_dax->region;
 
-	return dax_region->target_node;
+	return dax_region->target_yesde;
 }
 
-static ssize_t target_node_show(struct device *dev,
+static ssize_t target_yesde_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 
-	return sprintf(buf, "%d\n", dev_dax_target_node(dev_dax));
+	return sprintf(buf, "%d\n", dev_dax_target_yesde(dev_dax));
 }
-static DEVICE_ATTR_RO(target_node);
+static DEVICE_ATTR_RO(target_yesde);
 
 static unsigned long long dev_dax_resource(struct dev_dax *dev_dax)
 {
@@ -322,21 +322,21 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(modalias);
 
-static ssize_t numa_node_show(struct device *dev,
+static ssize_t numa_yesde_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dev_to_node(dev));
+	return sprintf(buf, "%d\n", dev_to_yesde(dev));
 }
-static DEVICE_ATTR_RO(numa_node);
+static DEVICE_ATTR_RO(numa_yesde);
 
 static umode_t dev_dax_visible(struct kobject *kobj, struct attribute *a, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 
-	if (a == &dev_attr_target_node.attr && dev_dax_target_node(dev_dax) < 0)
+	if (a == &dev_attr_target_yesde.attr && dev_dax_target_yesde(dev_dax) < 0)
 		return 0;
-	if (a == &dev_attr_numa_node.attr && !IS_ENABLED(CONFIG_NUMA))
+	if (a == &dev_attr_numa_yesde.attr && !IS_ENABLED(CONFIG_NUMA))
 		return 0;
 	return a->mode;
 }
@@ -344,9 +344,9 @@ static umode_t dev_dax_visible(struct kobject *kobj, struct attribute *a, int n)
 static struct attribute *dev_dax_attributes[] = {
 	&dev_attr_modalias.attr,
 	&dev_attr_size.attr,
-	&dev_attr_target_node.attr,
+	&dev_attr_target_yesde.attr,
 	&dev_attr_resource.attr,
-	&dev_attr_numa_node.attr,
+	&dev_attr_numa_yesde.attr,
 	NULL,
 };
 
@@ -363,10 +363,10 @@ static const struct attribute_group *dax_attribute_groups[] = {
 void kill_dev_dax(struct dev_dax *dev_dax)
 {
 	struct dax_device *dax_dev = dev_dax->dax_dev;
-	struct inode *inode = dax_inode(dax_dev);
+	struct iyesde *iyesde = dax_iyesde(dax_dev);
 
 	kill_dax(dax_dev);
-	unmap_mapping_range(inode->i_mapping, 0, 0, 1);
+	unmap_mapping_range(iyesde->i_mapping, 0, 0, 1);
 }
 EXPORT_SYMBOL_GPL(kill_dev_dax);
 
@@ -403,7 +403,7 @@ struct dev_dax *__devm_create_dev_dax(struct dax_region *dax_region, int id,
 	struct device *parent = dax_region->dev;
 	struct dax_device *dax_dev;
 	struct dev_dax *dev_dax;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct device *dev;
 	int rc = -ENOMEM;
 
@@ -417,14 +417,14 @@ struct dev_dax *__devm_create_dev_dax(struct dax_region *dax_region, int id,
 	memcpy(&dev_dax->pgmap, pgmap, sizeof(*pgmap));
 
 	/*
-	 * No 'host' or dax_operations since there is no access to this
+	 * No 'host' or dax_operations since there is yes access to this
 	 * device outside of mmap of the resulting character device.
 	 */
 	dax_dev = alloc_dax(dev_dax, NULL, NULL, DAXDEV_F_SYNC);
 	if (!dax_dev)
 		goto err;
 
-	/* a device_dax instance is dead while the driver is not attached */
+	/* a device_dax instance is dead while the driver is yest attached */
 	kill_dax(dax_dev);
 
 	/* from here on we're committed to teardown via dax_dev_release() */
@@ -433,11 +433,11 @@ struct dev_dax *__devm_create_dev_dax(struct dax_region *dax_region, int id,
 
 	dev_dax->dax_dev = dax_dev;
 	dev_dax->region = dax_region;
-	dev_dax->target_node = dax_region->target_node;
+	dev_dax->target_yesde = dax_region->target_yesde;
 	kref_get(&dax_region->kref);
 
-	inode = dax_inode(dax_dev);
-	dev->devt = inode->i_rdev;
+	iyesde = dax_iyesde(dax_dev);
+	dev->devt = iyesde->i_rdev;
 	if (subsys == DEV_DAX_BUS)
 		dev->bus = &dax_bus_type;
 	else

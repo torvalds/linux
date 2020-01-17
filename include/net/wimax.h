@@ -10,7 +10,7 @@
  * system's WiMAX devices. This API affects the control plane; the
  * data plane is accessed via the network stack (netdev).
  *
- * Parts of the WiMAX stack API and notifications are exported to
+ * Parts of the WiMAX stack API and yestifications are exported to
  * user space via Generic Netlink. In user space, libwimax (part of
  * the wimax-tools package) provides a shim layer for accessing those
  * calls.
@@ -18,10 +18,10 @@
  * The API is standarized for all WiMAX devices and different drivers
  * implement the backend support for it. However, device-specific
  * messaging pipes are provided that can be used to issue commands and
- * receive notifications in free form.
+ * receive yestifications in free form.
  *
  * Currently the messaging pipes are the only means of control as it
- * is not known (due to the lack of more devices in the market) what
+ * is yest kyeswn (due to the lack of more devices in the market) what
  * will be a good abstraction layer. Expect this to change as more
  * devices show in the market. This API is designed to be growable in
  * order to address this problem.
@@ -34,7 +34,7 @@
  *
  * Once this is done, wimax-tools's libwimaxll can be used to
  * communicate with the driver from user space. You user space
- * application does not have to forcibily use libwimaxll and can talk
+ * application does yest have to forcibily use libwimaxll and can talk
  * the generic netlink protocol directly if desired.
  *
  * Remember this is a very low level API that will to provide all of
@@ -45,7 +45,7 @@
  *
  * DESIGN
  *
- * Although not set on final stone, this very basic interface is
+ * Although yest set on final stone, this very basic interface is
  * mostly completed. Remember this is meant to grow as new common
  * operations are decided upon. New operations will be added to the
  * interface, intent being on keeping backwards compatibility as much
@@ -84,7 +84,7 @@
  * sent from user space to kernel space means executing the WiMAX API
  * call wimax_X(A, B, C), sending the results back as a message.
  *
- * Kernel-to-user (notifications or signals) communication is sent
+ * Kernel-to-user (yestifications or signals) communication is sent
  * over multicast groups. This allows to have multiple applications
  * monitoring them.
  *
@@ -111,7 +111,7 @@
  * "wimax" directory in it's network sysfs directory
  * (/sys/class/net/DEVICE/wimax) [used by HAL].
  *
- * The inexistence of any of these means the device does not support
+ * The inexistence of any of these means the device does yest support
  * this WiMAX API.
  *
  * By querying the generic netlink controller, versioning information
@@ -122,11 +122,11 @@
  *
  * NOTE: this versioning is a last resort to avoid hard
  *    incompatibilities. It is the intention of the design of this
- *    stack not to introduce backward incompatible changes.
+ *    stack yest to introduce backward incompatible changes.
  *
  * The version code has to fit in one byte (restrictions imposed by
  * generic netlink); we use `version / 10` for the major version and
- * `version % 10` for the minor. This gives 9 minors for each major
+ * `version % 10` for the miyesr. This gives 9 miyesrs for each major
  * and 25 majors.
  *
  * The version change protocol is as follow:
@@ -135,18 +135,18 @@
  *   call is changed or removed. Doesn't need to be changed if a new
  *   message is added.
  *
- * - Minor version: needs to be increased if new messages/API calls are
+ * - Miyesr version: needs to be increased if new messages/API calls are
  *   being added or some other consideration that doesn't impact the
  *   user-kernel interface too much (like some kind of bug fix) and
  *   that is kind of left up in the air to common sense.
  *
- * User space code should not try to work if the major version it was
+ * User space code should yest try to work if the major version it was
  * compiled for differs from what the kernel offers. As well, if the
- * minor version of the kernel interface is lower than the one user
+ * miyesr version of the kernel interface is lower than the one user
  * space is expecting (the one it was compiled for), the kernel
  * might be missing API calls; user space shall be ready to handle
  * said condition. Use the generic netlink controller operations to
- * find which ones are supported and which not.
+ * find which ones are supported and which yest.
  *
  * libwimaxll:wimaxll_open() takes care of checking versions.
  *
@@ -156,11 +156,11 @@
  * for clarity. The parts needed for an operation are:
  *
  *  - a function pointer in `struct wimax_dev`: optional, as the
- *    operation might be implemented by the stack and not by the
+ *    operation might be implemented by the stack and yest by the
  *    driver.
  *
  *    All function pointers are named wimax_dev->op_*(), and drivers
- *    must implement them except where noted otherwise.
+ *    must implement them except where yested otherwise.
  *
  *  - When exported to user space, a `struct nla_policy` to define the
  *    attributes of the generic netlink command and a `struct genl_ops`
@@ -180,7 +180,7 @@
  *    defining the `struct nla_policy` for each message, it has to have
  *    an array size of WIMAX_GNL_ATTR_MAX+1.
  *
- * The op_*() function pointers will not be called if the wimax_dev is
+ * The op_*() function pointers will yest be called if the wimax_dev is
  * in a state <= %WIMAX_ST_UNINITIALIZED. The exception is:
  *
  * - op_reset: can be called at any time after wimax_dev_add() has
@@ -207,7 +207,7 @@
  * User space can set the software RF Kill switch by calling
  * wimax_rfkill().
  *
- * The code for now only supports devices that don't require polling;
+ * The code for yesw only supports devices that don't require polling;
  * If the device needs to be polled, create a self-rearming delayed
  * work struct for polling or look into adding polled support to the
  * WiMAX stack.
@@ -218,7 +218,7 @@
  * wimax_report_rfkill_{hw,sw}(). If any switch is missing, always
  * report it as ON.
  *
- * NOTE: the wimax stack uses an inverted terminology to that of the
+ * NOTE: the wimax stack uses an inverted termiyeslogy to that of the
  * RFKILL subsystem:
  *
  *  - ON: radio is ON, RFKILL is DISABLED or OFF.
@@ -228,7 +228,7 @@
  *
  * wimax_reset() can be used to reset the device to power on state; by
  * default it issues a warm reset that maintains the same device
- * node. If that is not possible, it falls back to a cold reset
+ * yesde. If that is yest possible, it falls back to a cold reset
  * (device reconnect). The driver implements the backend to this
  * through wimax_dev->op_reset().
  */
@@ -259,20 +259,20 @@ struct wimax_dev;
  *     userspace (or any other agent) requesting the WiMAX device to
  *     change the RF Kill software switch (WIMAX_RF_ON or
  *     WIMAX_RF_OFF).
- *     If such hardware support is not present, it is assumed the
- *     radio cannot be switched off and it is always on (and the stack
+ *     If such hardware support is yest present, it is assumed the
+ *     radio canyest be switched off and it is always on (and the stack
  *     will error out when trying to switch it off). In such case,
  *     this function pointer can be left as NULL.
  *
  * @op_reset: [fill] Driver specific operation to reset the
  *     device.
  *     This operation should always attempt first a warm reset that
- *     does not disconnect the device from the bus and return 0.
+ *     does yest disconnect the device from the bus and return 0.
  *     If that fails, it should resort to some sort of cold or bus
  *     reset (even if it implies a bus disconnection and device
  *     disappearance). In that case, -ENODEV should be returned to
  *     indicate the device is gone.
- *     This operation has to be synchronous, and return only when the
+ *     This operation has to be synchroyesus, and return only when the
  *     reset is complete. In case of having had to resort to bus/cold
  *     reset implying a device disconnection, the call is allowed to
  *     return immediately.
@@ -284,13 +284,13 @@ struct wimax_dev;
  * @name: [fill] A way to identify this device. We need to register a
  *     name with many subsystems (rfkill, workqueue creation, etc).
  *     We can't use the network device name as that
- *     might change and in some instances we don't know it yet (until
+ *     might change and in some instances we don't kyesw it yet (until
  *     we don't call register_netdev()). So we generate an unique one
  *     using the driver name and device bus id, place it here and use
  *     it across the board. Recommended naming:
  *     DRIVERNAME-BUSNAME:BUSID (dev->bus->name, dev->bus_id).
  *
- * @id_table_node: [private] link to the list of wimax devices kept by
+ * @id_table_yesde: [private] link to the list of wimax devices kept by
  *     id-table.c. Protected by it's own spinlock.
  *
  * @mutex: [private] Serializes all concurrent access and execution of
@@ -394,7 +394,7 @@ struct wimax_dev;
  */
 struct wimax_dev {
 	struct net_device *net_dev;
-	struct list_head id_table_node;
+	struct list_head id_table_yesde;
 	struct mutex mutex;		/* Protects all members and API calls */
 	struct mutex mutex_reset;
 	enum wimax_st state;
@@ -421,7 +421,7 @@ struct wimax_dev {
  * WiMAX stack public API for device drivers
  * -----------------------------------------
  *
- * These functions are not exported to user space.
+ * These functions are yest exported to user space.
  */
 void wimax_dev_init(struct wimax_dev *);
 int wimax_dev_add(struct wimax_dev *, struct net_device *);
@@ -465,14 +465,14 @@ void wimax_report_rfkill_sw(struct wimax_dev *, enum wimax_rf_state);
  *   ...fill up skb...
  *   wimax_msg_send(wimax_dev, pipe_name, skb);
  *
- * Be sure not to modify skb->data in the middle (ie: don't use
+ * Be sure yest to modify skb->data in the middle (ie: don't use
  * skb_push()/skb_pull()/skb_reserve() on the skb).
  *
  * "pipe_name" is any string, that can be interpreted as the name of
  * the pipe or recipient; the interpretation of it is driver
  * specific, so the recipient can multiplex it as wished. It can be
- * NULL, it won't be used - an example is using a "diagnostics" tag to
- * send diagnostics information that a device-specific diagnostics
+ * NULL, it won't be used - an example is using a "diagyesstics" tag to
+ * send diagyesstics information that a device-specific diagyesstics
  * tool would be interested in.
  */
 struct sk_buff *wimax_msg_alloc(struct wimax_dev *, const char *, const void *,

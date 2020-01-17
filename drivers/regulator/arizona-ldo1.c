@@ -193,32 +193,32 @@ static int arizona_ldo1_of_get_pdata(struct arizona_ldo1_pdata *pdata,
 				     bool *external_dcvdd)
 {
 	struct arizona_ldo1 *ldo1 = config->driver_data;
-	struct device_node *np = config->dev->of_node;
-	struct device_node *init_node, *dcvdd_node;
+	struct device_yesde *np = config->dev->of_yesde;
+	struct device_yesde *init_yesde, *dcvdd_yesde;
 	struct regulator_init_data *init_data;
 
-	init_node = of_get_child_by_name(np, "ldo1");
-	dcvdd_node = of_parse_phandle(np, "DCVDD-supply", 0);
+	init_yesde = of_get_child_by_name(np, "ldo1");
+	dcvdd_yesde = of_parse_phandle(np, "DCVDD-supply", 0);
 
-	if (init_node) {
-		config->of_node = init_node;
+	if (init_yesde) {
+		config->of_yesde = init_yesde;
 
-		init_data = of_get_regulator_init_data(config->dev, init_node,
+		init_data = of_get_regulator_init_data(config->dev, init_yesde,
 						       desc);
 		if (init_data) {
 			init_data->consumer_supplies = &ldo1->supply;
 			init_data->num_consumer_supplies = 1;
 
-			if (dcvdd_node && dcvdd_node != init_node)
+			if (dcvdd_yesde && dcvdd_yesde != init_yesde)
 				*external_dcvdd = true;
 
 			pdata->init_data = init_data;
 		}
-	} else if (dcvdd_node) {
+	} else if (dcvdd_yesde) {
 		*external_dcvdd = true;
 	}
 
-	of_node_put(dcvdd_node);
+	of_yesde_put(dcvdd_yesde);
 
 	return 0;
 }
@@ -270,7 +270,7 @@ static int arizona_ldo1_common_init(struct platform_device *pdev,
 		config.init_data = &ldo1->init_data;
 
 	/*
-	 * LDO1 can only be used to supply DCVDD so if it has no
+	 * LDO1 can only be used to supply DCVDD so if it has yes
 	 * consumers then DCVDD is supplied externally.
 	 */
 	if (config.init_data->num_consumer_supplies == 0)
@@ -278,7 +278,7 @@ static int arizona_ldo1_common_init(struct platform_device *pdev,
 
 	ldo1->regulator = devm_regulator_register(&pdev->dev, desc, &config);
 
-	of_node_put(config.of_node);
+	of_yesde_put(config.of_yesde);
 
 	if (IS_ERR(ldo1->regulator)) {
 		ret = PTR_ERR(ldo1->regulator);

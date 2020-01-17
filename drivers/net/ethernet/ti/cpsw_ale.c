@@ -122,7 +122,7 @@ DEFINE_ALE_FIELD(mcast,			40,	1)
 DEFINE_ALE_FIELD(vlan_unreg_mcast_idx,	20,	3)
 DEFINE_ALE_FIELD(vlan_reg_mcast_idx,	44,	3)
 
-/* The MAC address field in the ALE entry cannot be macroized as above */
+/* The MAC address field in the ALE entry canyest be macroized as above */
 static inline void cpsw_ale_get_addr(u32 *ale_entry, u8 *addr)
 {
 	int i;
@@ -249,7 +249,7 @@ static void cpsw_ale_flush_mcast(struct cpsw_ale *ale, u32 *ale_entry,
 	mask = cpsw_ale_get_port_mask(ale_entry,
 				      ale->port_mask_bits);
 	if ((mask & port_mask) == 0)
-		return; /* ports dont intersect, not interested */
+		return; /* ports dont intersect, yest interested */
 	mask &= ~port_mask;
 
 	/* free if only remaining port is host port */
@@ -672,7 +672,7 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.bits		= 1,
 	},
 	[ALE_VLAN_NOLEARN]	= {
-		.name		= "vlan_nolearn",
+		.name		= "vlan_yeslearn",
 		.offset		= ALE_CONTROL,
 		.port_offset	= 0,
 		.shift		= 7,
@@ -680,7 +680,7 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.bits		= 1,
 	},
 	[ALE_NO_PORT_VLAN]	= {
-		.name		= "no_port_vlan",
+		.name		= "yes_port_vlan",
 		.offset		= ALE_CONTROL,
 		.port_offset	= 0,
 		.shift		= 6,
@@ -752,7 +752,7 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.bits		= 1,
 	},
 	[ALE_PORT_DROP_UNKNOWN_VLAN] = {
-		.name		= "drop_unknown",
+		.name		= "drop_unkyeswn",
 		.offset		= ALE_PORTCTL,
 		.port_offset	= 4,
 		.shift		= 3,
@@ -760,7 +760,7 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.bits		= 1,
 	},
 	[ALE_PORT_NOLEARN]	= {
-		.name		= "nolearn",
+		.name		= "yeslearn",
 		.offset		= ALE_PORTCTL,
 		.port_offset	= 4,
 		.shift		= 4,
@@ -768,7 +768,7 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.bits		= 1,
 	},
 	[ALE_PORT_NO_SA_UPDATE]	= {
-		.name		= "no_source_update",
+		.name		= "yes_source_update",
 		.offset		= ALE_PORTCTL,
 		.port_offset	= 4,
 		.shift		= 5,
@@ -792,7 +792,7 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.bits		= 8,
 	},
 	[ALE_PORT_UNKNOWN_VLAN_MEMBER] = {
-		.name		= "unknown_vlan_member",
+		.name		= "unkyeswn_vlan_member",
 		.offset		= ALE_UNKNOWNVLAN,
 		.port_offset	= 0,
 		.shift		= 0,
@@ -800,7 +800,7 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.bits		= 6,
 	},
 	[ALE_PORT_UNKNOWN_MCAST_FLOOD] = {
-		.name		= "unknown_mcast_flood",
+		.name		= "unkyeswn_mcast_flood",
 		.offset		= ALE_UNKNOWNVLAN,
 		.port_offset	= 0,
 		.shift		= 8,
@@ -808,7 +808,7 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.bits		= 6,
 	},
 	[ALE_PORT_UNKNOWN_REG_MCAST_FLOOD] = {
-		.name		= "unknown_reg_flood",
+		.name		= "unkyeswn_reg_flood",
 		.offset		= ALE_UNKNOWNVLAN,
 		.port_offset	= 0,
 		.shift		= 16,
@@ -972,7 +972,7 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 	 * 1R3
 	 */
 	if (ale->params.nu_switch_ale) {
-		/* Separate registers for unknown vlan configuration.
+		/* Separate registers for unkyeswn vlan configuration.
 		 * Also there are N bits, where N is number of ale
 		 * ports and shift value should be 0
 		 */

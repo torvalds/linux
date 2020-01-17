@@ -22,7 +22,7 @@
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/rtas.h>
 #include <asm/xics.h>
 #include <asm/firmware.h>
@@ -43,13 +43,13 @@ static LIST_HEAD(ics_list);
 void xics_update_irq_servers(void)
 {
 	int i, j;
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 ilen;
 	const __be32 *ireg;
 	u32 hcpuid;
 
 	/* Find the server numbers for the boot cpu. */
-	np = of_get_cpu_node(boot_cpuid, NULL);
+	np = of_get_cpu_yesde(boot_cpuid, NULL);
 	BUG_ON(!np);
 
 	hcpuid = get_hard_smp_processor_id(boot_cpuid);
@@ -59,7 +59,7 @@ void xics_update_irq_servers(void)
 
 	ireg = of_get_property(np, "ibm,ppc-interrupt-gserver#s", &ilen);
 	if (!ireg) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return;
 	}
 
@@ -78,7 +78,7 @@ void xics_update_irq_servers(void)
 	}
 	pr_devel("xics: xics_default_distrib_server = 0x%x\n",
 		 xics_default_distrib_server);
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 /* GIQ stuff, currently only supported on RTAS setups, will have
@@ -109,14 +109,14 @@ void xics_setup_cpu(void)
 	xics_set_cpu_giq(xics_default_distrib_server, 1);
 }
 
-void xics_mask_unknown_vec(unsigned int vec)
+void xics_mask_unkyeswn_vec(unsigned int vec)
 {
 	struct ics *ics;
 
 	pr_err("Interrupt 0x%x (real) is invalid, disabling it.\n", vec);
 
 	list_for_each_entry(ics, &ics_list, link)
-		ics->mask_unknown(ics, vec);
+		ics->mask_unkyeswn(ics, vec);
 }
 
 
@@ -153,7 +153,7 @@ void xics_teardown_cpu(void)
 
 	/*
 	 * we have to reset the cppr index to 0 because we're
-	 * not going to return from the IPI
+	 * yest going to return from the IPI
 	 */
 	os_cppr->index = 0;
 	icp_ops->set_priority(0);
@@ -269,7 +269,7 @@ unlock:
  * For the moment we only implement delivery to all cpus or one cpu.
  *
  * If the requested affinity is cpu_all_mask, we set global affinity.
- * If not we set it to the first cpu in the mask, even if multiple cpus
+ * If yest we set it to the first cpu in the mask, even if multiple cpus
  * are set. This is so things like irqbalance (which set core and package
  * wide affinities) do the right thing.
  *
@@ -304,13 +304,13 @@ int xics_get_irq_server(unsigned int virq, const struct cpumask *cpumask,
 }
 #endif /* CONFIG_SMP */
 
-static int xics_host_match(struct irq_domain *h, struct device_node *node,
+static int xics_host_match(struct irq_domain *h, struct device_yesde *yesde,
 			   enum irq_domain_bus_token bus_token)
 {
 	struct ics *ics;
 
 	list_for_each_entry(ics, &ics_list, link)
-		if (ics->host_match(ics, node))
+		if (ics->host_match(ics, yesde))
 			return 1;
 
 	return 0;
@@ -356,7 +356,7 @@ static int xics_host_map(struct irq_domain *h, unsigned int virq,
 	return -EINVAL;
 }
 
-static int xics_host_xlate(struct irq_domain *h, struct device_node *ct,
+static int xics_host_xlate(struct irq_domain *h, struct device_yesde *ct,
 			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
@@ -381,7 +381,7 @@ static int xics_host_xlate(struct irq_domain *h, struct device_node *ct,
 int xics_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
 	/*
-	 * We only support these. This has really no effect other than setting
+	 * We only support these. This has really yes effect other than setting
 	 * the corresponding descriptor bits mind you but those will in turn
 	 * affect the resend function when re-enabling an edge interrupt.
 	 *
@@ -432,13 +432,13 @@ void __init xics_register_ics(struct ics *ics)
 
 static void __init xics_get_server_size(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const __be32 *isize;
 
-	/* We fetch the interrupt server size from the first ICS node
+	/* We fetch the interrupt server size from the first ICS yesde
 	 * we find if any
 	 */
-	np = of_find_compatible_node(NULL, NULL, "ibm,ppc-xics");
+	np = of_find_compatible_yesde(NULL, NULL, "ibm,ppc-xics");
 	if (!np)
 		return;
 
@@ -446,7 +446,7 @@ static void __init xics_get_server_size(void)
 	if (isize)
 		xics_interrupt_server_size = be32_to_cpu(*isize);
 
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 void __init xics_init(void)
@@ -462,7 +462,7 @@ void __init xics_init(void)
 		    rc = icp_opal_init();
 	}
 	if (rc < 0) {
-		pr_warn("XICS: Cannot find a Presentation Controller !\n");
+		pr_warn("XICS: Canyest find a Presentation Controller !\n");
 		return;
 	}
 
@@ -477,7 +477,7 @@ void __init xics_init(void)
 	if (rc < 0)
 		rc = ics_opal_init();
 	if (rc < 0)
-		pr_warn("XICS: Cannot find a Source Controller !\n");
+		pr_warn("XICS: Canyest find a Source Controller !\n");
 
 	/* Initialize common bits */
 	xics_get_server_size();

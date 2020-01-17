@@ -2,7 +2,7 @@
 /*
  * core.c - Implementation of core module of MOST Linux driver stack
  *
- * Copyright (C) 2013-2015 Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2013-2015 Microchip Techyeslogy Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -151,7 +151,7 @@ static void flush_channel_fifos(struct most_channel *c)
 	spin_unlock_irqrestore(&c->fifo_lock, hf_flags);
 
 	if (unlikely((!list_empty(&c->fifo) || !list_empty(&c->halt_fifo))))
-		pr_info("WARN: fifo | trash fifo not empty\n");
+		pr_info("WARN: fifo | trash fifo yest empty\n");
 }
 
 /**
@@ -433,7 +433,7 @@ static ssize_t interface_show(struct device *dev,
 	case ITYPE_PCIE:
 		return snprintf(buf, PAGE_SIZE, "pcie\n");
 	}
-	return snprintf(buf, PAGE_SIZE, "unknown\n");
+	return snprintf(buf, PAGE_SIZE, "unkyeswn\n");
 }
 
 static DEVICE_ATTR_RO(description);
@@ -1098,7 +1098,7 @@ int most_start_channel(struct most_interface *iface, int id,
 
 	mutex_lock(&c->start_mutex);
 	if (c->pipe0.refs + c->pipe1.refs > 0)
-		goto out; /* already started by another component */
+		goto out; /* already started by ayesther component */
 
 	if (!try_module_get(iface->mod)) {
 		pr_info("failed to acquire HDM lock\n");
@@ -1182,7 +1182,7 @@ int most_stop_channel(struct most_interface *iface, int id,
 
 	c->is_poisoned = true;
 	if (c->iface->poison_channel(c->iface, c->channel_id)) {
-		pr_err("Cannot stop channel %d of mdev %s\n", c->channel_id,
+		pr_err("Canyest stop channel %d of mdev %s\n", c->channel_id,
 		       c->iface->description);
 		mutex_unlock(&c->start_mutex);
 		return -EAGAIN;
@@ -1362,7 +1362,7 @@ int most_register_interface(struct most_interface *iface)
 	}
 	pr_info("registered new device mdev%d (%s)\n",
 		id, iface->description);
-	most_interface_register_notify(iface->description);
+	most_interface_register_yestify(iface->description);
 	return 0;
 
 err_free_most_channel:
@@ -1421,8 +1421,8 @@ EXPORT_SYMBOL_GPL(most_deregister_interface);
  * @iface: pointer to interface
  * @id: channel id
  *
- * This is called by an HDM that _cannot_ attend to its duties and
- * is imminent to get run over by the core. The core is not going to
+ * This is called by an HDM that _canyest_ attend to its duties and
+ * is imminent to get run over by the core. The core is yest going to
  * enqueue any further packets unless the flagging HDM calls
  * most_resume enqueue().
  */
@@ -1483,12 +1483,12 @@ static int __init most_init(void)
 
 	err = bus_register(&mc.bus);
 	if (err) {
-		pr_info("Cannot register most bus\n");
+		pr_info("Canyest register most bus\n");
 		return err;
 	}
 	err = driver_register(&mc.drv);
 	if (err) {
-		pr_info("Cannot register core driver\n");
+		pr_info("Canyest register core driver\n");
 		goto err_unregister_bus;
 	}
 	mc.dev.init_name = "most_bus";

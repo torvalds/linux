@@ -5,8 +5,8 @@
  * Companion module to the iio simple dummy example driver.
  * The purpose of this is to generate 'fake' event interrupts thus
  * allowing that driver's code to be as close as possible to that of
- * a normal driver talking to hardware.  The approach used here
- * is not intended to be general and just happens to work for this
+ * a yesrmal driver talking to hardware.  The approach used here
+ * is yest intended to be general and just happens to work for this
  * particular use case.
  */
 

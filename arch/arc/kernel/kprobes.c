@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <linux/types.h>
@@ -26,7 +26,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	if ((unsigned long)p->addr & 0x01)
 		return -EINVAL;
 
-	/* Address should not be in exception handling code */
+	/* Address should yest be in exception handling code */
 
 	p->ainsn.is_short = is_short_instr((unsigned long)p->addr);
 	p->opcode = *p->addr;
@@ -130,7 +130,7 @@ static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs)
 	unsigned long bta;
 
 	/* Copy the opcode back to the kprobe location and execute the
-	 * instruction. Because of this we will not be able to get into the
+	 * instruction. Because of this we will yest be able to get into the
 	 * same kprobe until this kprobe is done
 	 */
 	*(p->addr) = p->opcode;
@@ -154,7 +154,7 @@ static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs)
 			if (bta & 0x01)
 				regs->blink += 2;
 			else {
-				/* Branch not taken */
+				/* Branch yest taken */
 				next_pc += 2;
 
 				/* next pc is taken from bta after executing the
@@ -202,7 +202,7 @@ int __kprobes arc_kprobe_handler(unsigned long addr, struct pt_regs *regs)
 
 	if (p) {
 		/*
-		 * We have reentered the kprobe_handler, since another kprobe
+		 * We have reentered the kprobe_handler, since ayesther kprobe
 		 * was hit while within the handler, we save the original
 		 * kprobes and single step on the instruction of the new probe
 		 * without calling any user handlers to avoid recursive
@@ -220,24 +220,24 @@ int __kprobes arc_kprobe_handler(unsigned long addr, struct pt_regs *regs)
 		set_current_kprobe(p);
 		kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
-		/* If we have no pre-handler or it returned 0, we continue with
-		 * normal processing. If we have a pre-handler and it returned
-		 * non-zero - which means user handler setup registers to exit
-		 * to another instruction, we must skip the single stepping.
+		/* If we have yes pre-handler or it returned 0, we continue with
+		 * yesrmal processing. If we have a pre-handler and it returned
+		 * yesn-zero - which means user handler setup registers to exit
+		 * to ayesther instruction, we must skip the single stepping.
 		 */
 		if (!p->pre_handler || !p->pre_handler(p, regs)) {
 			setup_singlestep(p, regs);
 			kcb->kprobe_status = KPROBE_HIT_SS;
 		} else {
 			reset_current_kprobe();
-			preempt_enable_no_resched();
+			preempt_enable_yes_resched();
 		}
 
 		return 1;
 	}
 
-	/* no_kprobe: */
-	preempt_enable_no_resched();
+	/* yes_kprobe: */
+	preempt_enable_yes_resched();
 	return 0;
 }
 
@@ -275,7 +275,7 @@ static int __kprobes arc_post_kprobe_handler(unsigned long addr,
 	reset_current_kprobe();
 
 out:
-	preempt_enable_no_resched();
+	preempt_enable_yes_resched();
 	return 1;
 }
 
@@ -307,7 +307,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned long trapnr)
 		else
 			reset_current_kprobe();
 
-		preempt_enable_no_resched();
+		preempt_enable_yes_resched();
 		break;
 
 	case KPROBE_HIT_ACTIVE:
@@ -341,7 +341,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned long trapnr)
 			return 1;
 
 		/*
-		 * fixup_exception() could not handle it,
+		 * fixup_exception() could yest handle it,
 		 * Let do_page_fault() fix it.
 		 */
 		break;
@@ -352,7 +352,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned long trapnr)
 	return 0;
 }
 
-int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
+int __kprobes kprobe_exceptions_yestify(struct yestifier_block *self,
 				       unsigned long val, void *data)
 {
 	struct die_args *args = data;
@@ -380,7 +380,7 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 static void __used kretprobe_trampoline_holder(void)
 {
 	__asm__ __volatile__(".global kretprobe_trampoline\n"
-			     "kretprobe_trampoline:\n" "nop\n");
+			     "kretprobe_trampoline:\n" "yesp\n");
 }
 
 void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
@@ -398,7 +398,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 {
 	struct kretprobe_instance *ri = NULL;
 	struct hlist_head *head, empty_rp;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address = (unsigned long)&kretprobe_trampoline;
 
@@ -420,7 +420,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	 */
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
-			/* another task is sharing our hash bucket */
+			/* ayesther task is sharing our hash bucket */
 			continue;
 
 		if (ri->rp && ri->rp->handler)
@@ -449,7 +449,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 		kfree(ri);
 	}
 
-	/* By returning a non zero value, we are telling the kprobe handler
+	/* By returning a yesn zero value, we are telling the kprobe handler
 	 * that we don't want the post_handler to run
 	 */
 	return 1;
@@ -476,5 +476,5 @@ int __kprobes arch_trampoline_kprobe(struct kprobe *p)
 
 void trap_is_kprobe(unsigned long address, struct pt_regs *regs)
 {
-	notify_die(DIE_TRAP, "kprobe_trap", regs, address, 0, SIGTRAP);
+	yestify_die(DIE_TRAP, "kprobe_trap", regs, address, 0, SIGTRAP);
 }

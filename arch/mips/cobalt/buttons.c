@@ -6,7 +6,7 @@
  */
 
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 
 static struct resource cobalt_buttons_resource __initdata = {

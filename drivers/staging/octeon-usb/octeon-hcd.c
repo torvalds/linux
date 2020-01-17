@@ -16,14 +16,14 @@
  * met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *
  *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following
+ *     copyright yestice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
  *
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Networks yesr the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -75,7 +75,7 @@ enum cvmx_usb_speed {
  *
  * @CVMX_USB_TRANSFER_CONTROL:	   USB transfer type control for hub and status
  *				   transfers
- * @CVMX_USB_TRANSFER_ISOCHRONOUS: USB transfer type isochronous for low
+ * @CVMX_USB_TRANSFER_ISOCHRONOUS: USB transfer type isochroyesus for low
  *				   priority periodic transfers
  * @CVMX_USB_TRANSFER_BULK:	   USB transfer type bulk for large low priority
  *				   transfers
@@ -105,7 +105,7 @@ enum cvmx_usb_direction {
  *
  * @CVMX_USB_STATUS_OK:		  The transaction / operation finished without
  *				  any errors
- * @CVMX_USB_STATUS_SHORT:	  FIXME: This is currently not implemented
+ * @CVMX_USB_STATUS_SHORT:	  FIXME: This is currently yest implemented
  * @CVMX_USB_STATUS_CANCEL:	  The transaction was canceled while in flight
  *				  by a user call to cvmx_usb_cancel
  * @CVMX_USB_STATUS_ERROR:	  The transaction aborted with an unexpected
@@ -136,7 +136,7 @@ enum cvmx_usb_status {
  * struct cvmx_usb_port_status - the USB port status information
  *
  * @port_enabled:	1 = Usb port is enabled, 0 = disabled
- * @port_over_current:	1 = Over current detected, 0 = Over current not
+ * @port_over_current:	1 = Over current detected, 0 = Over current yest
  *			detected. Octeon doesn't support over current detection.
  * @port_powered:	1 = Port power is being supplied to the device, 0 =
  *			power is off. Octeon doesn't support turning port power
@@ -158,7 +158,7 @@ struct cvmx_usb_port_status {
 };
 
 /**
- * struct cvmx_usb_iso_packet - descriptor for Isochronous packets
+ * struct cvmx_usb_iso_packet - descriptor for Isochroyesus packets
  *
  * @offset:	This is the offset in bytes into the main buffer where this data
  *		is stored.
@@ -254,7 +254,7 @@ enum cvmx_usb_stage {
  *				 regardless of type. These are linked together
  *				 to form a list of pending requests for a pipe.
  *
- * @node:		List node for transactions in the pipe.
+ * @yesde:		List yesde for transactions in the pipe.
  * @type:		Type of transaction, duplicated of the pipe.
  * @flags:		State flags for this transaction.
  * @buffer:		User's physical buffer address to read/write.
@@ -270,7 +270,7 @@ enum cvmx_usb_stage {
  * @urb:		URB.
  */
 struct cvmx_usb_transaction {
-	struct list_head node;
+	struct list_head yesde;
 	enum cvmx_usb_transfer type;
 	u64 buffer;
 	int buffer_length;
@@ -291,7 +291,7 @@ struct cvmx_usb_transaction {
  *			  and some USB device. It contains a list of pending
  *			  request to the device.
  *
- * @node:		List node for pipe list
+ * @yesde:		List yesde for pipe list
  * @next:		Pipe after this one in the list
  * @transactions:	List of pending transactions
  * @interval:		For periodic pipes, the interval between packets in
@@ -300,7 +300,7 @@ struct cvmx_usb_transaction {
  * @flags:		State flags for this pipe
  * @device_speed:	Speed of device connected to this pipe
  * @transfer_type:	Type of transaction supported by this pipe
- * @transfer_dir:	IN or OUT. Ignored for Control
+ * @transfer_dir:	IN or OUT. Igyesred for Control
  * @multi_count:	Max packet in a row for the device
  * @max_packet:		The device's maximum packet size in bytes
  * @device_addr:	USB device address at other end of pipe
@@ -314,7 +314,7 @@ struct cvmx_usb_transaction {
  *			complete should be sent on
  */
 struct cvmx_usb_pipe {
-	struct list_head node;
+	struct list_head yesde;
 	struct list_head transactions;
 	u64 interval;
 	u64 next_tx_frame;
@@ -355,8 +355,8 @@ struct cvmx_usb_tx_fifo {
  * pipe_for_channel:	   Map channels to pipes.
  * pipe:		   Storage for pipes.
  * indent:		   Used by debug output to indent functions.
- * port_status:		   Last port status used for change notification.
- * idle_pipes:		   List of open pipes that have no transactions.
+ * port_status:		   Last port status used for change yestification.
+ * idle_pipes:		   List of open pipes that have yes transactions.
  * active_pipes:	   Active pipes indexed by transfer type.
  * frame_number:	   Increments every SOF interrupt for time keeping.
  * active_split:	   Points to the current active split, or NULL.
@@ -375,7 +375,7 @@ struct octeon_hcd {
 	u64 frame_number;
 	struct cvmx_usb_transaction *active_split;
 	struct cvmx_usb_tx_fifo periodic;
-	struct cvmx_usb_tx_fifo nonperiodic;
+	struct cvmx_usb_tx_fifo yesnperiodic;
 };
 
 /*
@@ -541,7 +541,7 @@ static inline void cvmx_usb_write_csr32(struct octeon_hcd *usb,
 }
 
 /**
- * Return non zero if this pipe connects to a non HIGH speed
+ * Return yesn zero if this pipe connects to a yesn HIGH speed
  * device through a high speed hub.
  *
  * @usb:    USB block this access is for
@@ -615,7 +615,7 @@ static void cvmx_fifo_setup(struct octeon_hcd *usb)
 
 	/*
 	 * Program the USBC_GNPTXFSIZ register to select the size and the start
-	 * address of the non-periodic transmit FIFO for nonperiodic
+	 * address of the yesn-periodic transmit FIFO for yesnperiodic
 	 * transactions (50%).
 	 */
 	npsiz.u32 = cvmx_usb_read_csr32(usb, CVMX_USBCX_GNPTXFSIZ(usb->index));
@@ -704,7 +704,7 @@ retry:
 	/*
 	 * Power On Reset and PHY Initialization
 	 *
-	 * 1. Wait for DCOK to assert (nothing to do)
+	 * 1. Wait for DCOK to assert (yesthing to do)
 	 *
 	 * 2a. Write USBN0/1_CLK_CTL[POR] = 1 and
 	 *     USBN0/1_CLK_CTL[HRST,PRST,HCLK_RST] = 0
@@ -981,8 +981,8 @@ static void cvmx_usb_reset_port(struct octeon_hcd *usb)
 }
 
 /**
- * Disable a USB port. After this call the USB port will not
- * generate data transfers and will not generate events.
+ * Disable a USB port. After this call the USB port will yest
+ * generate data transfers and will yest generate events.
  * Transactions in process will fail and call their
  * associated callbacks.
  *
@@ -1052,7 +1052,7 @@ static struct cvmx_usb_port_status cvmx_usb_get_status(struct octeon_hcd *usb)
  * @transfer_type:
  *		     The type of transfer this pipe is for.
  * @transfer_dir:
- *		     The direction the pipe is in. This is not
+ *		     The direction the pipe is in. This is yest
  *		     used for control pipes.
  * @interval:	     For ISOCHRONOUS and INTERRUPT transfers,
  *		     this is how often the transfer is scheduled
@@ -1062,7 +1062,7 @@ static struct cvmx_usb_port_status cvmx_usb_get_status(struct octeon_hcd *usb)
  * @multi_count:
  *		     For high speed devices, this is the maximum
  *		     allowed number of packet per microframe.
- *		     Specify zero for non high speed devices. This
+ *		     Specify zero for yesn high speed devices. This
  *		     value comes from the standard endpoint descriptor
  *		     field wMaxPacketSize bits <12:11>.
  * @hub_device_addr:
@@ -1071,14 +1071,14 @@ static struct cvmx_usb_port_status cvmx_usb_get_status(struct octeon_hcd *usb)
  *		     use zero. This is only used when the device
  *		     is full/low speed behind a high speed hub.
  *		     The address will be of the high speed hub,
- *		     not and full speed hubs after it.
+ *		     yest and full speed hubs after it.
  * @hub_port:	     Which port on the hub the device is
  *		     connected. Use zero for devices connected
  *		     directly to Octeon. Like hub_device_addr,
  *		     this is only used for full/low speed
  *		     devices behind a high speed hub.
  *
- * Returns: A non-NULL value is a pipe. NULL means an error.
+ * Returns: A yesn-NULL value is a pipe. NULL means an error.
  */
 static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct octeon_hcd *usb,
 						int device_addr,
@@ -1131,7 +1131,7 @@ static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct octeon_hcd *usb,
 	pipe->hub_port = hub_port;
 	pipe->pid_toggle = 0;
 	pipe->split_sc_frame = -1;
-	list_add_tail(&pipe->node, &usb->idle_pipes);
+	list_add_tail(&pipe->yesde, &usb->idle_pipes);
 
 	/*
 	 * We don't need to tell the hardware about this pipe yet since
@@ -1143,8 +1143,8 @@ static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct octeon_hcd *usb,
 
 /**
  * Poll the RX FIFOs and remove data as needed. This function is only used
- * in non DMA mode. It is very important that this function be called quickly
- * enough to prevent FIFO overflow.
+ * in yesn DMA mode. It is very important that this function be called quickly
+ * eyesugh to prevent FIFO overflow.
  *
  * @usb:	USB device state populated by cvmx_usb_initialize().
  */
@@ -1161,7 +1161,7 @@ static void cvmx_usb_poll_rx_fifo(struct octeon_hcd *usb)
 	/* Only read data if IN data is there */
 	if (rx_status.s.pktsts != 2)
 		return;
-	/* Check if no data is available */
+	/* Check if yes data is available */
 	if (!rx_status.s.bcnt)
 		return;
 
@@ -1269,12 +1269,12 @@ static void cvmx_usb_poll_tx_fifo(struct octeon_hcd *usb)
 					cvmx_usbcx_gintmsk, ptxfempmsk, 0);
 	}
 
-	if (usb->nonperiodic.head != usb->nonperiodic.tail) {
+	if (usb->yesnperiodic.head != usb->yesnperiodic.tail) {
 		union cvmx_usbcx_gnptxsts tx_status;
 
 		tx_status.u32 = cvmx_usb_read_csr32(usb,
 					CVMX_USBCX_GNPTXSTS(usb->index));
-		if (cvmx_usb_fill_tx_hw(usb, &usb->nonperiodic,
+		if (cvmx_usb_fill_tx_hw(usb, &usb->yesnperiodic,
 					tx_status.s.nptxfspcavail))
 			USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
 					cvmx_usbcx_gintmsk, nptxfempmsk, 1);
@@ -1303,7 +1303,7 @@ static void cvmx_usb_fill_tx_fifo(struct octeon_hcd *usb, int channel)
 	if (hcchar.s.epdir != CVMX_USB_DIRECTION_OUT)
 		return;
 
-	/* OUT Splits only have data on the start and not the complete */
+	/* OUT Splits only have data on the start and yest the complete */
 	usbc_hcsplt.u32 = cvmx_usb_read_csr32(usb,
 				CVMX_USBCX_HCSPLTX(channel, usb->index));
 	if (usbc_hcsplt.s.spltena && usbc_hcsplt.s.compsplt)
@@ -1322,7 +1322,7 @@ static void cvmx_usb_fill_tx_fifo(struct octeon_hcd *usb, int channel)
 	    (hcchar.s.eptype == CVMX_USB_TRANSFER_ISOCHRONOUS))
 		fifo = &usb->periodic;
 	else
-		fifo = &usb->nonperiodic;
+		fifo = &usb->yesnperiodic;
 
 	fifo->entry[fifo->head].channel = channel;
 	fifo->entry[fifo->head].address =
@@ -1352,7 +1352,7 @@ static void cvmx_usb_start_channel_control(struct octeon_hcd *usb,
 	struct device *dev = hcd->self.controller;
 	struct cvmx_usb_transaction *transaction =
 		list_first_entry(&pipe->transactions, typeof(*transaction),
-				 node);
+				 yesde);
 	struct usb_ctrlrequest *header =
 		cvmx_phys_to_ptr(transaction->control_header);
 	int bytes_to_transfer = transaction->buffer_length -
@@ -1463,9 +1463,9 @@ static void cvmx_usb_start_channel_control(struct octeon_hcd *usb,
 	} else if ((packets_to_transfer > 1) &&
 			(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)) {
 		/*
-		 * Limit to one packet when not using DMA. Channels must be
+		 * Limit to one packet when yest using DMA. Channels must be
 		 * restarted between every packet for IN transactions, so there
-		 * is no reason to do multiple packets in a row
+		 * is yes reason to do multiple packets in a row
 		 */
 		packets_to_transfer = 1;
 		bytes_to_transfer = packets_to_transfer * pipe->max_packet;
@@ -1497,7 +1497,7 @@ static void cvmx_usb_start_channel(struct octeon_hcd *usb, int channel,
 {
 	struct cvmx_usb_transaction *transaction =
 		list_first_entry(&pipe->transactions, typeof(*transaction),
-				 node);
+				 yesde);
 
 	/* Make sure all writes to the DMA region get flushed */
 	CVMX_SYNCW;
@@ -1587,7 +1587,7 @@ static void cvmx_usb_start_channel(struct octeon_hcd *usb, int channel,
 
 		/*
 		 * ISOCHRONOUS transactions store each individual transfer size
-		 * in the packet structure, not the global buffer_length
+		 * in the packet structure, yest the global buffer_length
 		 */
 		if (transaction->type == CVMX_USB_TRANSFER_ISOCHRONOUS)
 			bytes_to_transfer =
@@ -1595,7 +1595,7 @@ static void cvmx_usb_start_channel(struct octeon_hcd *usb, int channel,
 				transaction->actual_bytes;
 
 		/*
-		 * We need to do split transactions when we are talking to non
+		 * We need to do split transactions when we are talking to yesn
 		 * high speed devices that are behind a high speed hub
 		 */
 		if (cvmx_usb_pipe_needs_split(usb, pipe)) {
@@ -1707,9 +1707,9 @@ static void cvmx_usb_start_channel(struct octeon_hcd *usb, int channel,
 			   (usb->init_flags &
 			    CVMX_USB_INITIALIZE_FLAGS_NO_DMA)) {
 			/*
-			 * Limit to one packet when not using DMA. Channels must
+			 * Limit to one packet when yest using DMA. Channels must
 			 * be restarted between every packet for IN
-			 * transactions, so there is no reason to do multiple
+			 * transactions, so there is yes reason to do multiple
 			 * packets in a row
 			 */
 			packets_to_transfer = 1;
@@ -1834,7 +1834,7 @@ static void cvmx_usb_start_channel(struct octeon_hcd *usb, int channel,
  * @usb:	 USB device state populated by cvmx_usb_initialize().
  * @xfer_type:	 Transfer type
  *
- * Returns: Pipe or NULL if none are ready
+ * Returns: Pipe or NULL if yesne are ready
  */
 static struct cvmx_usb_pipe *cvmx_usb_find_ready_pipe(struct octeon_hcd *usb,
 		enum cvmx_usb_transfer xfer_type)
@@ -1843,10 +1843,10 @@ static struct cvmx_usb_pipe *cvmx_usb_find_ready_pipe(struct octeon_hcd *usb,
 	u64 current_frame = usb->frame_number;
 	struct cvmx_usb_pipe *pipe;
 
-	list_for_each_entry(pipe, list, node) {
+	list_for_each_entry(pipe, list, yesde) {
 		struct cvmx_usb_transaction *t =
 			list_first_entry(&pipe->transactions, typeof(*t),
-					 node);
+					 yesde);
 		if (!(pipe->flags & CVMX_USB_PIPE_FLAGS_SCHEDULED) && t &&
 		    (pipe->next_tx_frame <= current_frame) &&
 		    ((pipe->split_sc_frame == -1) ||
@@ -1903,7 +1903,7 @@ static void cvmx_usb_schedule(struct octeon_hcd *usb, int is_sof)
 
 	if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA) {
 		/*
-		 * Without DMA we need to be careful to not schedule something
+		 * Without DMA we need to be careful to yest schedule something
 		 * at the end of a frame and cause an overrun.
 		 */
 		union cvmx_usbcx_hfnum hfnum = {
@@ -1941,7 +1941,7 @@ done:
 	need_sof = 0;
 	for (ttype = CVMX_USB_TRANSFER_CONTROL;
 	     ttype <= CVMX_USB_TRANSFER_INTERRUPT; ttype++) {
-		list_for_each_entry(pipe, &usb->active_pipes[ttype], node) {
+		list_for_each_entry(pipe, &usb->active_pipes[ttype], yesde) {
 			if (pipe->next_tx_frame > usb->frame_number) {
 				need_sof = 1;
 				break;
@@ -1970,7 +1970,7 @@ static void octeon_usb_urb_complete_callback(struct octeon_hcd *usb,
 
 	urb->hcpriv = NULL;
 
-	/* For Isochronous transactions we need to update the URB packet status
+	/* For Isochroyesus transactions we need to update the URB packet status
 	 * list from data in our private copy
 	 */
 	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
@@ -1998,7 +1998,7 @@ static void octeon_usb_urb_complete_callback(struct octeon_hcd *usb,
 				urb->iso_frame_desc[i].status = -EREMOTEIO;
 			}
 		}
-		/* Free the private list now that we don't need it anymore */
+		/* Free the private list yesw that we don't need it anymore */
 		kfree(iso_packet);
 		urb->setup_packet = NULL;
 	}
@@ -2062,7 +2062,7 @@ static void cvmx_usb_complete(struct octeon_hcd *usb,
 		usb->active_split = NULL;
 
 	/*
-	 * Isochronous transactions need extra processing as they might not be
+	 * Isochroyesus transactions need extra processing as they might yest be
 	 * done after a single data transfer
 	 */
 	if (unlikely(transaction->type == CVMX_USB_TRANSFER_ISOCHRONOUS)) {
@@ -2088,9 +2088,9 @@ static void cvmx_usb_complete(struct octeon_hcd *usb,
 	}
 
 	/* Remove the transaction from the pipe list */
-	list_del(&transaction->node);
+	list_del(&transaction->yesde);
 	if (list_empty(&pipe->transactions))
-		list_move_tail(&pipe->node, &usb->idle_pipes);
+		list_move_tail(&pipe->yesde, &usb->idle_pipes);
 	octeon_usb_urb_complete_callback(usb, complete_code, pipe,
 					 transaction,
 					 transaction->actual_bytes,
@@ -2145,7 +2145,7 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_transaction(
 	transaction->buffer = buffer;
 	transaction->buffer_length = buffer_length;
 	transaction->control_header = control_header;
-	/* FIXME: This is not used, implement it. */
+	/* FIXME: This is yest used, implement it. */
 	transaction->iso_start_frame = iso_start_frame;
 	transaction->iso_number_packets = iso_number_packets;
 	transaction->iso_packets = iso_packets;
@@ -2156,10 +2156,10 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_transaction(
 		transaction->stage = CVMX_USB_STAGE_NON_CONTROL;
 
 	if (!list_empty(&pipe->transactions)) {
-		list_add_tail(&transaction->node, &pipe->transactions);
+		list_add_tail(&transaction->yesde, &pipe->transactions);
 	} else {
-		list_add_tail(&transaction->node, &pipe->transactions);
-		list_move_tail(&pipe->node,
+		list_add_tail(&transaction->yesde, &pipe->transactions);
+		list_move_tail(&pipe->yesde,
 			       &usb->active_pipes[pipe->transfer_type]);
 
 		/*
@@ -2253,7 +2253,7 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_control(
 }
 
 /**
- * Call to submit a USB Isochronous transfer to a pipe.
+ * Call to submit a USB Isochroyesus transfer to a pipe.
  *
  * @usb:	    USB device state populated by cvmx_usb_initialize().
  * @pipe:	    Handle to the pipe for the transfer.
@@ -2261,7 +2261,7 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_control(
  *
  * Returns: A submitted transaction or NULL on failure.
  */
-static struct cvmx_usb_transaction *cvmx_usb_submit_isochronous(
+static struct cvmx_usb_transaction *cvmx_usb_submit_isochroyesus(
 						struct octeon_hcd *usb,
 						struct cvmx_usb_pipe *pipe,
 						struct urb *urb)
@@ -2300,7 +2300,7 @@ static int cvmx_usb_cancel(struct octeon_hcd *usb,
 	 * If the transaction is the HEAD of the queue and scheduled. We need to
 	 * treat it special
 	 */
-	if (list_first_entry(&pipe->transactions, typeof(*transaction), node) ==
+	if (list_first_entry(&pipe->transactions, typeof(*transaction), yesde) ==
 	    transaction && (pipe->flags & CVMX_USB_PIPE_FLAGS_SCHEDULED)) {
 		union cvmx_usbcx_hccharx usbc_hcchar;
 
@@ -2342,7 +2342,7 @@ static int cvmx_usb_cancel_all(struct octeon_hcd *usb,
 	struct cvmx_usb_transaction *transaction, *next;
 
 	/* Simply loop through and attempt to cancel each transaction */
-	list_for_each_entry_safe(transaction, next, &pipe->transactions, node) {
+	list_for_each_entry_safe(transaction, next, &pipe->transactions, yesde) {
 		int result = cvmx_usb_cancel(usb, pipe, transaction);
 
 		if (unlikely(result != 0))
@@ -2367,7 +2367,7 @@ static int cvmx_usb_close_pipe(struct octeon_hcd *usb,
 	if (!list_empty(&pipe->transactions))
 		return -EBUSY;
 
-	list_del(&pipe->node);
+	list_del(&pipe->yesde);
 	kfree(pipe);
 
 	return 0;
@@ -2549,7 +2549,7 @@ static void cvmx_usb_transfer_isoc(struct octeon_hcd *usb,
 		 */
 		if (pipe->transfer_dir == CVMX_USB_DIRECTION_OUT) {
 			/*
-			 * If no space left or this wasn't a max size packet
+			 * If yes space left or this wasn't a max size packet
 			 * then this transfer is complete. Otherwise start it
 			 * again to send the next 188 bytes
 			 */
@@ -2626,7 +2626,7 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 		}
 
 		/*
-		 * In non DMA mode the channels don't halt themselves. We need
+		 * In yesn DMA mode the channels don't halt themselves. We need
 		 * to manually disable channels that are left running
 		 */
 		if (!usbc_hcint.s.chhltd) {
@@ -2656,14 +2656,14 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 		}
 	} else {
 		/*
-		 * There is are no interrupts that we need to process when the
+		 * There is are yes interrupts that we need to process when the
 		 * channel is still running
 		 */
 		if (!usbc_hcint.s.chhltd)
 			return 0;
 	}
 
-	/* Disable the channel interrupts now that it is done */
+	/* Disable the channel interrupts yesw that it is done */
 	cvmx_usb_write_csr32(usb, CVMX_USBCX_HCINTMSKX(channel, usb->index), 0);
 	usb->idle_hardware_channels |= (1 << channel);
 
@@ -2674,7 +2674,7 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 		return 0;
 	transaction = list_first_entry(&pipe->transactions,
 				       typeof(*transaction),
-				       node);
+				       yesde);
 	prefetch(transaction);
 
 	/*
@@ -2703,7 +2703,7 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 		 * IN transactions are easy. For every byte received the
 		 * hardware decrements xfersize. All we need to do is subtract
 		 * the current value of xfersize from its starting value and we
-		 * know how many bytes were written to the buffer
+		 * kyesw how many bytes were written to the buffer
 		 */
 		bytes_this_transfer = transaction->xfersize -
 			usbc_hctsiz.s.xfersize;
@@ -2716,8 +2716,8 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 		 */
 		bytes_this_transfer = packets_processed * usbc_hcchar.s.mps;
 		/*
-		 * The last packet may not be a full transfer if we didn't have
-		 * enough data
+		 * The last packet may yest be a full transfer if we didn't have
+		 * eyesugh data
 		 */
 		if (bytes_this_transfer > transaction->xfersize)
 			bytes_this_transfer = transaction->xfersize;
@@ -2730,7 +2730,7 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 		bytes_in_last_packet = bytes_this_transfer;
 
 	/*
-	 * As a special case, setup transactions output the setup header, not
+	 * As a special case, setup transactions output the setup header, yest
 	 * the user's data. For this reason we don't count setup data as bytes
 	 * transferred
 	 */
@@ -2780,7 +2780,7 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 
 	if (usbc_hcint.s.stall) {
 		/*
-		 * STALL as a response means this transaction cannot be
+		 * STALL as a response means this transaction canyest be
 		 * completed because the device can't process transactions. Tell
 		 * the user. Any data that was transferred will be counted on
 		 * the actual bytes transferred
@@ -2845,10 +2845,10 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 		 * This is because a multi packet transfer may succeed in a
 		 * number of packets and then get a different response on the
 		 * last packet. In this case both ACK and the last response bit
-		 * will be set. If none of the other response bits is set, then
+		 * will be set. If yesne of the other response bits is set, then
 		 * the last packet must have been an ACK
 		 *
-		 * Since we got an ACK, we know we don't need to do a ping on
+		 * Since we got an ACK, we kyesw we don't need to do a ping on
 		 * this pipe
 		 */
 		pipe->flags &= ~CVMX_USB_PIPE_FLAGS_NEED_PING;
@@ -2906,7 +2906,7 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 			transaction->retries++;
 		} else {
 			/*
-			 * We get channel halted interrupts with no result bits
+			 * We get channel halted interrupts with yes result bits
 			 * sets when the cable is unplugged
 			 */
 			cvmx_usb_complete(usb, pipe, transaction,
@@ -2927,7 +2927,7 @@ static void octeon_usb_port_callback(struct octeon_hcd *usb)
  * Poll the USB block for status and call all needed callback
  * handlers. This function is meant to be called in the interrupt
  * handler for the USB controller. It can also be called
- * periodically in a loop for non-interrupt based operation.
+ * periodically in a loop for yesn-interrupt based operation.
  *
  * @usb: USB device state populated by cvmx_usb_initialize().
  *
@@ -2951,7 +2951,7 @@ static int cvmx_usb_poll(struct octeon_hcd *usb)
 	usbc_gintsts.u32 = cvmx_usb_read_csr32(usb,
 					       CVMX_USBCX_GINTSTS(usb->index));
 
-	/* Clear the interrupts now that we know about them */
+	/* Clear the interrupts yesw that we kyesw about them */
 	cvmx_usb_write_csr32(usb, CVMX_USBCX_GINTSTS(usb->index),
 			     usbc_gintsts.u32);
 
@@ -2967,7 +2967,7 @@ static int cvmx_usb_poll(struct octeon_hcd *usb)
 			cvmx_usb_poll_rx_fifo(usb);
 	}
 	if (usbc_gintsts.s.ptxfemp || usbc_gintsts.s.nptxfemp) {
-		/* Fill the Tx FIFOs when not in DMA mode */
+		/* Fill the Tx FIFOs when yest in DMA mode */
 		if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)
 			cvmx_usb_poll_tx_fifo(usb);
 	}
@@ -3116,7 +3116,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 		}
 		/*
 		 * For slow devices on high speed ports we need to find the hub
-		 * that does the speed translation so we know where to send the
+		 * that does the speed translation so we kyesw where to send the
 		 * split transactions.
 		 */
 		if (speed != CVMX_USB_SPEED_HIGH) {
@@ -3138,7 +3138,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 				}
 				/*
 				 * Move up the tree one level. If we make it all
-				 * the way up the tree, then the port must not
+				 * the way up the tree, then the port must yest
 				 * be in high speed mode and we don't need a
 				 * split.
 				 */
@@ -3170,12 +3170,12 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 
 	switch (usb_pipetype(urb->pipe)) {
 	case PIPE_ISOCHRONOUS:
-		dev_dbg(dev, "Submit isochronous to %d.%d\n",
+		dev_dbg(dev, "Submit isochroyesus to %d.%d\n",
 			usb_pipedevice(urb->pipe),
 			usb_pipeendpoint(urb->pipe));
 		/*
 		 * Allocate a structure to use for our private list of
-		 * isochronous packets.
+		 * isochroyesus packets.
 		 */
 		iso_packet = kmalloc_array(urb->number_of_packets,
 					   sizeof(struct cvmx_usb_iso_packet),
@@ -3192,11 +3192,11 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 			}
 			/*
 			 * Store a pointer to the list in the URB setup_packet
-			 * field. We know this currently isn't being used and
+			 * field. We kyesw this currently isn't being used and
 			 * this saves us a bunch of logic.
 			 */
 			urb->setup_packet = (char *)iso_packet;
-			transaction = cvmx_usb_submit_isochronous(usb,
+			transaction = cvmx_usb_submit_isochroyesus(usb,
 								  pipe, urb);
 			/*
 			 * If submit failed we need to free our private packet
@@ -3343,7 +3343,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			break;
 		case USB_PORT_FEAT_INDICATOR:
 			dev_dbg(dev, " INDICATOR\n");
-			/* Port inidicator not supported */
+			/* Port inidicator yest supported */
 			break;
 		case USB_PORT_FEAT_C_CONNECTION:
 			dev_dbg(dev, " C_CONNECTION\n");
@@ -3500,7 +3500,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		}
 		break;
 	default:
-		dev_dbg(dev, "Unknown root hub request\n");
+		dev_dbg(dev, "Unkyeswn root hub request\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -3530,7 +3530,7 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	int initialize_flags;
 	int usb_num;
 	struct resource *res_mem;
-	struct device_node *usbn_node;
+	struct device_yesde *usbn_yesde;
 	int irq = platform_get_irq(pdev, 0);
 	struct device *dev = &pdev->dev;
 	struct octeon_hcd *usb;
@@ -3540,16 +3540,16 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	const char *clock_type;
 	int i;
 
-	if (!dev->of_node) {
-		dev_err(dev, "Error: empty of_node\n");
+	if (!dev->of_yesde) {
+		dev_err(dev, "Error: empty of_yesde\n");
 		return -ENXIO;
 	}
-	usbn_node = dev->of_node->parent;
+	usbn_yesde = dev->of_yesde->parent;
 
-	i = of_property_read_u32(usbn_node,
+	i = of_property_read_u32(usbn_yesde,
 				 "clock-frequency", &clock_rate);
 	if (i)
-		i = of_property_read_u32(usbn_node,
+		i = of_property_read_u32(usbn_yesde,
 					 "refclk-frequency", &clock_rate);
 	if (i) {
 		dev_err(dev, "No USBN \"clock-frequency\"\n");
@@ -3571,10 +3571,10 @@ static int octeon_usb_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	i = of_property_read_string(usbn_node,
+	i = of_property_read_string(usbn_yesde,
 				    "cavium,refclk-type", &clock_type);
 	if (i)
-		i = of_property_read_string(usbn_node,
+		i = of_property_read_string(usbn_yesde,
 					    "refclk-type", &clock_type);
 
 	if (!i && strcmp("crystal", clock_type) == 0)
@@ -3587,13 +3587,13 @@ static int octeon_usb_probe(struct platform_device *pdev)
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_mem) {
-		dev_err(dev, "found no memory resource\n");
+		dev_err(dev, "found yes memory resource\n");
 		return -ENXIO;
 	}
 	usb_num = (res_mem->start >> 44) & 1;
 
 	if (irq < 0) {
-		/* Defective device tree, but we know how to fix it. */
+		/* Defective device tree, but we kyesw how to fix it. */
 		irq_hw_number_t hwirq = usb_num ? (1 << 6) + 17 : 56;
 
 		irq = irq_create_mapping(NULL, hwirq);
@@ -3614,8 +3614,8 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	 * it a priority boost if it has been waiting more than 400
 	 * cycles to avoid this situation.
 	 *
-	 * Testing indicates that a cnt_val of 8192 is not sufficient,
-	 * but no failures are seen with 4096.  We choose a value of
+	 * Testing indicates that a cnt_val of 8192 is yest sufficient,
+	 * but yes failures are seen with 4096.  We choose a value of
 	 * 400 to give a safety factor of 10.
 	 */
 	if (OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX)) {
@@ -3648,7 +3648,7 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	/* Due to an errata, CN31XX doesn't support DMA */
 	if (OCTEON_IS_MODEL(OCTEON_CN31XX)) {
 		usb->init_flags |= CVMX_USB_INITIALIZE_FLAGS_NO_DMA;
-		/* Only use one channel with non DMA */
+		/* Only use one channel with yesn DMA */
 		usb->idle_hardware_channels = 0x1;
 	} else if (OCTEON_IS_MODEL(OCTEON_CN5XXX)) {
 		/* CN5XXX have an errata with channel 3 */

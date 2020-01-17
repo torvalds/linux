@@ -143,7 +143,7 @@ static unsigned int nf_ct_sack_adjust(struct sk_buff *skb,
 			optoff++;
 			continue;
 		default:
-			/* no partial options */
+			/* yes partial options */
 			if (optoff + 1 == optend ||
 			    optoff + op[1] > optend ||
 			    op[1] < 2)
@@ -235,7 +235,7 @@ EXPORT_SYMBOL_GPL(nf_ct_seq_offset);
 
 static const struct nf_ct_ext_type nf_ct_seqadj_extend = {
 	.len	= sizeof(struct nf_conn_seqadj),
-	.align	= __alignof__(struct nf_conn_seqadj),
+	.align	= __aligyesf__(struct nf_conn_seqadj),
 	.id	= NF_CT_EXT_SEQADJ,
 };
 

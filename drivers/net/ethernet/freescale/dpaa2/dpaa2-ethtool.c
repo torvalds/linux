@@ -4,7 +4,7 @@
  */
 
 #include <linux/net_tstamp.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include "dpni.h"	/* DPNI_LINK_OPT_* */
 #include "dpaa2-eth.h"
@@ -25,7 +25,7 @@ static char dpaa2_ethtool_stats[][ETH_GSTRING_LEN] = {
 	"[hw] tx bcast bytes",
 	"[hw] rx filtered frames",
 	"[hw] rx discarded frames",
-	"[hw] rx nobuffer discards",
+	"[hw] rx yesbuffer discards",
 	"[hw] tx discarded frames",
 	"[hw] tx confirmed frames",
 	"[hw] tx dequeued bytes",
@@ -73,7 +73,7 @@ static void dpaa2_eth_get_drvinfo(struct net_device *net_dev,
 	strlcpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
 
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		 "%u.%u", priv->dpni_ver_major, priv->dpni_ver_minor);
+		 "%u.%u", priv->dpni_ver_major, priv->dpni_ver_miyesr);
 
 	strlcpy(drvinfo->bus_info, dev_name(net_dev->dev.parent->parent),
 		sizeof(drvinfo->bus_info));
@@ -240,7 +240,7 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 
 	/* Print standard counters, from DPNI statistics */
 	for (j = 0; j <= 6; j++) {
-		/* We're not interested in pages 4 & 5 for now */
+		/* We're yest interested in pages 4 & 5 for yesw */
 		if (j == 4 || j == 5)
 			continue;
 		err = dpni_get_statistics(priv->mc_io, 0, priv->mc_token,
@@ -651,7 +651,7 @@ static int update_cls_rule(struct net_device *net_dev,
 			priv->rx_cls_fields = 0;
 	}
 
-	/* If no new entry to add, return here */
+	/* If yes new entry to add, return here */
 	if (!new_fs)
 		return err;
 
@@ -674,7 +674,7 @@ static int dpaa2_eth_get_rxnfc(struct net_device *net_dev,
 
 	switch (rxnfc->cmd) {
 	case ETHTOOL_GRXFH:
-		/* we purposely ignore cmd->flow_type for now, because the
+		/* we purposely igyesre cmd->flow_type for yesw, because the
 		 * classifier only supports a single set of fields for all
 		 * protocols
 		 */
@@ -691,7 +691,7 @@ static int dpaa2_eth_get_rxnfc(struct net_device *net_dev,
 	case ETHTOOL_GRXCLSRULE:
 		if (rxnfc->fs.location >= max_rules)
 			return -EINVAL;
-		rxnfc->fs.location = array_index_nospec(rxnfc->fs.location,
+		rxnfc->fs.location = array_index_yesspec(rxnfc->fs.location,
 							max_rules);
 		if (!priv->cls_rules[rxnfc->fs.location].in_use)
 			return -EINVAL;

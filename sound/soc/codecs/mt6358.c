@@ -159,7 +159,7 @@ static void capture_gpio_reset(struct mt6358_priv *priv)
 			   0xf << 12, 0x0);
 }
 
-/* use only when not govern by DAPM */
+/* use only when yest govern by DAPM */
 static int mt6358_set_dcxo(struct mt6358_priv *priv, bool enable)
 {
 	regmap_update_bits(priv->regmap, MT6358_DCXO_CW14,
@@ -168,7 +168,7 @@ static int mt6358_set_dcxo(struct mt6358_priv *priv, bool enable)
 	return 0;
 }
 
-/* use only when not govern by DAPM */
+/* use only when yest govern by DAPM */
 static int mt6358_set_clksq(struct mt6358_priv *priv, bool enable)
 {
 	/* audio clk source from internal dcxo */
@@ -183,7 +183,7 @@ static int mt6358_set_clksq(struct mt6358_priv *priv, bool enable)
 	return 0;
 }
 
-/* use only when not govern by DAPM */
+/* use only when yest govern by DAPM */
 static int mt6358_set_aud_global_bias(struct mt6358_priv *priv, bool enable)
 {
 	regmap_update_bits(priv->regmap, MT6358_AUDDEC_ANA_CON13,
@@ -192,7 +192,7 @@ static int mt6358_set_aud_global_bias(struct mt6358_priv *priv, bool enable)
 	return 0;
 }
 
-/* use only when not govern by DAPM */
+/* use only when yest govern by DAPM */
 static int mt6358_set_topck(struct mt6358_priv *priv, bool enable)
 {
 	regmap_update_bits(priv->regmap, MT6358_AUD_TOP_CKPDN_CON0,
@@ -386,7 +386,7 @@ static void headset_volume_ramp(struct mt6358_priv *priv, int from, int to)
 	int offset = 0, count = 0, reg_idx;
 
 	if (!is_valid_hp_pga_idx(from) || !is_valid_hp_pga_idx(to))
-		dev_warn(priv->dev, "%s(), volume index is not valid, from %d, to %d\n",
+		dev_warn(priv->dev, "%s(), volume index is yest valid, from %d, to %d\n",
 			 __func__, from, to);
 
 	dev_info(priv->dev, "%s(), from %d, to %d\n",
@@ -1047,7 +1047,7 @@ static int mtk_hp_enable(struct mt6358_priv *priv)
 	regmap_update_bits(priv->regmap, MT6358_AUDDEC_ANA_CON13, 0x1, 0x1);
 	/* Enable Audio DAC  */
 	regmap_write(priv->regmap, MT6358_AUDDEC_ANA_CON0, 0x30ff);
-	/* Enable low-noise mode of DAC */
+	/* Enable low-yesise mode of DAC */
 	regmap_write(priv->regmap, MT6358_AUDDEC_ANA_CON9, 0xf201);
 	usleep_range(100, 120);
 
@@ -1071,7 +1071,7 @@ static int mtk_hp_disable(struct mt6358_priv *priv)
 	regmap_update_bits(priv->regmap, MT6358_AUDDEC_ANA_CON0,
 			   0x0f00, 0x0000);
 
-	/* Disable low-noise mode of DAC */
+	/* Disable low-yesise mode of DAC */
 	regmap_update_bits(priv->regmap, MT6358_AUDDEC_ANA_CON9,
 			   0x0001, 0x0000);
 
@@ -1087,7 +1087,7 @@ static int mtk_hp_disable(struct mt6358_priv *priv)
 	/* Enable HP aux output stage */
 	regmap_write(priv->regmap, MT6358_AUDDEC_ANA_CON1, 0x3fcf);
 
-	/* decrease HPL/R gain to normal gain step by step */
+	/* decrease HPL/R gain to yesrmal gain step by step */
 	headset_volume_ramp(priv,
 			    priv->ana_gain[AUDIO_ANALOG_VOLUME_HPOUTL],
 			    DL_GAIN_N_40DB);
@@ -1242,7 +1242,7 @@ static int mtk_hp_spk_enable(struct mt6358_priv *priv)
 	/* Enable LO driver core circuits */
 	regmap_write(priv->regmap, MT6358_AUDDEC_ANA_CON7, 0x0113);
 
-	/* Set LOL gain to normal gain step by step */
+	/* Set LOL gain to yesrmal gain step by step */
 	regmap_update_bits(priv->regmap, MT6358_ZCD_CON1,
 			   RG_AUDLOLGAIN_MASK_SFT,
 			   priv->ana_gain[AUDIO_ANALOG_VOLUME_LINEOUTL] <<
@@ -1256,7 +1256,7 @@ static int mtk_hp_spk_enable(struct mt6358_priv *priv)
 	regmap_update_bits(priv->regmap, MT6358_AUDDEC_ANA_CON13, 0x1, 0x1);
 	/* Enable Audio DAC  */
 	regmap_write(priv->regmap, MT6358_AUDDEC_ANA_CON0, 0x30f9);
-	/* Enable low-noise mode of DAC */
+	/* Enable low-yesise mode of DAC */
 	regmap_write(priv->regmap, MT6358_AUDDEC_ANA_CON9, 0x0201);
 	/* Switch LOL MUX to audio DAC */
 	regmap_write(priv->regmap, MT6358_AUDDEC_ANA_CON7, 0x011b);
@@ -1282,7 +1282,7 @@ static int mtk_hp_spk_disable(struct mt6358_priv *priv)
 	/* Disable AUD_CLK */
 	regmap_update_bits(priv->regmap, MT6358_AUDDEC_ANA_CON13, 0x1, 0x0);
 
-	/* decrease HPL/R gain to normal gain step by step */
+	/* decrease HPL/R gain to yesrmal gain step by step */
 	headset_volume_ramp(priv,
 			    priv->ana_gain[AUDIO_ANALOG_VOLUME_HPOUTL],
 			    DL_GAIN_N_40DB);
@@ -1364,7 +1364,7 @@ static int mt_hp_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		priv->dev_counter[device]++;
 		if (priv->dev_counter[device] > 1)
-			break;	/* already enabled, do nothing */
+			break;	/* already enabled, do yesthing */
 		else if (priv->dev_counter[device] <= 0)
 			dev_warn(priv->dev, "%s(), dev_counter[DEV_HP] %d <= 0\n",
 				 __func__,
@@ -1472,7 +1472,7 @@ static int mt_rcv_event(struct snd_soc_dapm_widget *w,
 
 		/* Enable Audio DAC  */
 		regmap_write(priv->regmap, MT6358_AUDDEC_ANA_CON0, 0x0009);
-		/* Enable low-noise mode of DAC */
+		/* Enable low-yesise mode of DAC */
 		regmap_write(priv->regmap, MT6358_AUDDEC_ANA_CON9, 0x0001);
 		/* Switch HS MUX to audio DAC */
 		regmap_write(priv->regmap, MT6358_AUDDEC_ANA_CON6, 0x009b);
@@ -1836,7 +1836,7 @@ static int mt6358_dmic_enable(struct mt6358_priv *priv)
 	/* UL turn on */
 	regmap_write(priv->regmap, MT6358_AFE_UL_SRC_CON0_L, 0x0003);
 
-	/* Prevent pop noise form dmic hw */
+	/* Prevent pop yesise form dmic hw */
 	msleep(100);
 
 	return 0;
@@ -2405,7 +2405,7 @@ static int mt6358_codec_probe(struct snd_soc_component *cmpnt)
 
 	priv->avdd_reg = devm_regulator_get(priv->dev, "Avdd");
 	if (IS_ERR(priv->avdd_reg)) {
-		dev_err(priv->dev, "%s() have no Avdd supply", __func__);
+		dev_err(priv->dev, "%s() have yes Avdd supply", __func__);
 		return PTR_ERR(priv->avdd_reg);
 	}
 

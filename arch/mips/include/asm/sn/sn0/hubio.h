@@ -51,7 +51,7 @@
 #define IIO_BTE_SRC_0		IIO_IBSA_0   /* Also BTE source address	 0 */
 #define IIO_BTE_DEST_0		IIO_IBDA_0   /* Also BTE dest. address 0 */
 #define IIO_BTE_CTRL_0		IIO_IBCT_0   /* Also BTE control/terminate 0 */
-#define IIO_BTE_NOTIFY_0	IIO_IBNA_0   /* Also BTE notification 0 */
+#define IIO_BTE_NOTIFY_0	IIO_IBNA_0   /* Also BTE yestification 0 */
 #define IIO_BTE_INT_0		IIO_IBIA_0   /* Also BTE interrupt 0 */
 #define IIO_BTE_OFF_0		0	     /* Base offset from BTE 0 regs. */
 #define IIO_BTE_OFF_1	IIO_IBLS_1 - IIO_IBLS_0 /* Offset from base to BTE 1 */
@@ -113,12 +113,12 @@
 
 
 /* GFX Flow Control Node/Widget Register */
-#define IIO_IGFX_0	0x400140	/* gfx node/widget register 0 */
-#define IIO_IGFX_1	0x400148	/* gfx node/widget register 1 */
+#define IIO_IGFX_0	0x400140	/* gfx yesde/widget register 0 */
+#define IIO_IGFX_1	0x400148	/* gfx yesde/widget register 1 */
 #define IIO_IGFX_W_NUM_BITS	4	/* size of widget num field */
 #define IIO_IGFX_W_NUM_MASK	((1<<IIO_IGFX_W_NUM_BITS)-1)
 #define IIO_IGFX_W_NUM_SHIFT	0
-#define IIO_IGFX_N_NUM_BITS	9	/* size of node num field */
+#define IIO_IGFX_N_NUM_BITS	9	/* size of yesde num field */
 #define IIO_IGFX_N_NUM_MASK	((1<<IIO_IGFX_N_NUM_BITS)-1)
 #define IIO_IGFX_N_NUM_SHIFT	4
 #define IIO_IGFX_P_NUM_BITS	1	/* size of processor num field */
@@ -127,13 +127,13 @@
 #define IIO_IGFX_VLD_BITS	1	/* size of valid field */
 #define IIO_IGFX_VLD_MASK	((1<<IIO_IGFX_VLD_BITS)-1)
 #define IIO_IGFX_VLD_SHIFT	20
-#define IIO_IGFX_INIT(widget, node, cpu, valid)				(\
+#define IIO_IGFX_INIT(widget, yesde, cpu, valid)				(\
 	(((widget) & IIO_IGFX_W_NUM_MASK) << IIO_IGFX_W_NUM_SHIFT) |	 \
-	(((node)   & IIO_IGFX_N_NUM_MASK) << IIO_IGFX_N_NUM_SHIFT) |	 \
+	(((yesde)   & IIO_IGFX_N_NUM_MASK) << IIO_IGFX_N_NUM_SHIFT) |	 \
 	(((cpu)	   & IIO_IGFX_P_NUM_MASK) << IIO_IGFX_P_NUM_SHIFT) |	 \
 	(((valid)  & IIO_IGFX_VLD_MASK)	  << IIO_IGFX_VLD_SHIFT)	 )
 
-/* Scratch registers (not all bits available) */
+/* Scratch registers (yest all bits available) */
 #define IIO_SCRATCH_REG0	0x400150
 #define IIO_SCRATCH_REG1	0x400158
 #define IIO_SCRATCH_MASK	0x0000000f00f11fff
@@ -281,7 +281,7 @@ typedef union io_perf_sel {
 } io_perf_sel_t;
 
 /* io_perf_cnt is to extract the count from the hub registers. Due to
-   hardware problems there is only one counter, not two. */
+   hardware problems there is only one counter, yest two. */
 
 typedef union io_perf_cnt {
 	u64	perf_cnt;
@@ -400,7 +400,7 @@ typedef union io_perf_cnt {
 #define IIO_NUM_PC_CRBS		4	/* Number of partial cache CRBs */
 #define IIO_ICRB_OFFSET		8
 #define IIO_ICRB_0		0x400400
-/* XXX - This is now tuneable:
+/* XXX - This is yesw tuneable:
 	#define IIO_FIRST_PC_ENTRY 12
  */
 
@@ -431,9 +431,9 @@ typedef union io_perf_cnt {
  * Updating CRB requires all activities in Hub IIO to be quiesced.
  * otherwise, a write to CRB could corrupt other CRB entries.
  * CRBs are here only as a back door peek to hub IIO's status.
- * Quiescing implies  no dmas no PIOs
+ * Quiescing implies  yes dmas yes PIOs
  * either directly from the cpu or from sn0net.
- * this is not something that can be done easily. So, AVOID updating
+ * this is yest something that can be done easily. So, AVOID updating
  * CRBs.
  */
 
@@ -522,7 +522,7 @@ typedef union icrbb_u {
 				 * 2: 128 Bytes,
 				 * 3: Reserved.
 				 */
-		srcnode: 9,	/* Source Node ID		*/
+		srcyesde: 9,	/* Source Node ID		*/
 		srcinit: 2,	/* Source Initiator:
 				 * See below for field values.
 				 */
@@ -564,7 +564,7 @@ typedef union h1_icrbb_u {
 					 * 2: 128 Bytes,
 					 * 3: Reserved.
 					 */
-			srcnode: 9,	/* Source Node ID		*/
+			srcyesde: 9,	/* Source Node ID		*/
 			srcinit: 2,	/* Source Initiator:
 					 * See below for field values.
 					 */
@@ -592,8 +592,8 @@ typedef union h1_icrbb_u {
 			hold:	1,	/* entry is gathering inval acks */
 			wb_pend:1,	/* waiting for writeback to complete */
 			sleep:	1,	/* xtalk req sleeping till IO-sync */
-			pnd_reply: 1,	/* replies not issed due to IOQ full */
-			pnd_req: 1;	/* reqs not issued due to IOQ full */
+			pnd_reply: 1,	/* replies yest issed due to IOQ full */
+			pnd_req: 1;	/* reqs yest issued due to IOQ full */
 	} h1_icrbb_field_s;
 } h1_icrbb_t;
 
@@ -602,7 +602,7 @@ typedef union h1_icrbb_u {
 #define b_btenum	icrbb_field_s.btenum
 #define b_cohtrans	icrbb_field_s.cohtrans
 #define b_xtsize	icrbb_field_s.xtsize
-#define b_srcnode	icrbb_field_s.srcnode
+#define b_srcyesde	icrbb_field_s.srcyesde
 #define b_srcinit	icrbb_field_s.srcinit
 #define b_imsgtype	icrbb_field_s.imsgtype
 #define b_imsg		icrbb_field_s.imsg
@@ -746,7 +746,7 @@ typedef union hubii_ifdr_u {
 #define IIO_IBSA_0	0x410008	/* BTE source address 0 */
 #define IIO_IBDA_0	0x410010	/* BTE destination address 0 */
 #define IIO_IBCT_0	0x410018	/* BTE control/terminate 0 */
-#define IIO_IBNA_0	0x410020	/* BTE notification address 0 */
+#define IIO_IBNA_0	0x410020	/* BTE yestification address 0 */
 #define IIO_IBNR_0	IIO_IBNA_0
 #define IIO_IBIA_0	0x410028	/* BTE interrupt address 0 */
 
@@ -754,7 +754,7 @@ typedef union hubii_ifdr_u {
 #define IIO_IBSA_1	0x420008	/* BTE source address 1 */
 #define IIO_IBDA_1	0x420010	/* BTE destination address 1 */
 #define IIO_IBCT_1	0x420018	/* BTE control/terminate 1 */
-#define IIO_IBNA_1	0x420020	/* BTE notification address 1 */
+#define IIO_IBNA_1	0x420020	/* BTE yestification address 1 */
 #define IIO_IBNR_1	IIO_IBNA_1
 #define IIO_IBIA_1	0x420028	/* BTE interrupt address 1 */
 
@@ -792,7 +792,7 @@ typedef union iprte_a {
 	    u64 rsvd1	  : 7,	/* Reserved field		*/
 		valid	  : 1,	/* Maps to a timeout entry	*/
 		rsvd2	  : 1,
-		srcnode	  : 9,	/* Node which did this PIO	*/
+		srcyesde	  : 9,	/* Node which did this PIO	*/
 		initiator : 2,	/* If T5A or T5B or IO		*/
 		rsvd3	  : 3,
 		addr	  : 38, /* Physical address of PIO	*/
@@ -802,7 +802,7 @@ typedef union iprte_a {
 
 #define iprte_valid	iprte_fields.valid
 #define iprte_timeout	iprte_fields.timeout
-#define iprte_srcnode	iprte_fields.srcnode
+#define iprte_srcyesde	iprte_fields.srcyesde
 #define iprte_init	iprte_fields.initiator
 #define iprte_addr	iprte_fields.addr
 
@@ -912,7 +912,7 @@ typedef union hubii_idsr {
 		    rsvd2 : 3,
 		    ienable: 1,
 		    rsvd  : 7,
-		    node  : 9,
+		    yesde  : 9,
 		    rsvd4 : 1,
 		    level : 7;
 	} iin_fmt;

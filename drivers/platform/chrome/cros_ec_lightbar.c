@@ -24,7 +24,7 @@
 static unsigned long lb_interval_jiffies = 50 * HZ / 1000;
 
 /*
- * Whether or not we have given userspace control of the lightbar.
+ * Whether or yest we have given userspace control of the lightbar.
  * If this is true, we won't do anything during suspend/resume.
  */
 static bool userspace_control;
@@ -56,27 +56,27 @@ static DEFINE_MUTEX(lb_mutex);
 static int lb_throttle(void)
 {
 	static unsigned long last_access;
-	unsigned long now, next_timeslot;
+	unsigned long yesw, next_timeslot;
 	long delay;
 	int ret = 0;
 
 	mutex_lock(&lb_mutex);
 
-	now = jiffies;
+	yesw = jiffies;
 	next_timeslot = last_access + lb_interval_jiffies;
 
-	if (time_before(now, next_timeslot)) {
-		delay = (long)(next_timeslot) - (long)now;
+	if (time_before(yesw, next_timeslot)) {
+		delay = (long)(next_timeslot) - (long)yesw;
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (schedule_timeout(delay) > 0) {
 			/* interrupted - just abort */
 			ret = -EINTR;
 			goto out;
 		}
-		now = jiffies;
+		yesw = jiffies;
 	}
 
-	last_access = now;
+	last_access = yesw;
 out:
 	mutex_unlock(&lb_mutex);
 
@@ -125,7 +125,7 @@ static int get_lightbar_version(struct cros_ec_dev *ec,
 
 	switch (msg->result) {
 	case EC_RES_INVALID_PARAM:
-		/* Pixel had no version command. */
+		/* Pixel had yes version command. */
 		if (ver_ptr)
 			*ver_ptr = 0;
 		if (flg_ptr)
@@ -145,7 +145,7 @@ static int get_lightbar_version(struct cros_ec_dev *ec,
 		goto exit;
 	}
 
-	/* Anything else (ie, EC_RES_INVALID_COMMAND) - no lightbar */
+	/* Anything else (ie, EC_RES_INVALID_COMMAND) - yes lightbar */
 	ret = 0;
 exit:
 	kfree(msg);

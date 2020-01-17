@@ -29,7 +29,7 @@
  * Each processor is responsible for creating the outgoing SMEM items and each
  * item is writable by the local processor and readable by the remote
  * processor.  By using two separate SMEM items that are single-reader and
- * single-writer, SMP2P does not require any remote locking mechanisms.
+ * single-writer, SMP2P does yest require any remote locking mechanisms.
  *
  * The driver uses the Linux GPIO and interrupt framework to expose a virtual
  * GPIO for each outbound entry and a virtual interrupt controller for each
@@ -75,7 +75,7 @@ struct smp2p_smem_item {
 
 /**
  * struct smp2p_entry - driver context matching one entry
- * @node:	list entry to keep track of allocated entries
+ * @yesde:	list entry to keep track of allocated entries
  * @smp2p:	reference to the device driver context
  * @name:	name of the entry, to match against smp2p_smem_item
  * @value:	pointer to smp2p_smem_item entry value
@@ -88,7 +88,7 @@ struct smp2p_smem_item {
  * @lock:	spinlock to protect read-modify-write of the value
  */
 struct smp2p_entry {
-	struct list_head node;
+	struct list_head yesde;
 	struct qcom_smp2p *smp2p;
 
 	const char *name;
@@ -162,11 +162,11 @@ static void qcom_smp2p_kick(struct qcom_smp2p *smp2p)
 }
 
 /**
- * qcom_smp2p_intr() - interrupt handler for incoming notifications
+ * qcom_smp2p_intr() - interrupt handler for incoming yestifications
  * @irq:	unused
  * @data:	smp2p driver context
  *
- * Handle notifications from the remote side to handle newly allocated entries
+ * Handle yestifications from the remote side to handle newly allocated entries
  * or any changes to the state bits of existing entries.
  */
 static irqreturn_t qcom_smp2p_intr(int irq, void *data)
@@ -185,7 +185,7 @@ static irqreturn_t qcom_smp2p_intr(int irq, void *data)
 
 	in = smp2p->in;
 
-	/* Acquire smem item, if not already found */
+	/* Acquire smem item, if yest already found */
 	if (!in) {
 		in = qcom_smem_get(pid, smem_id, &size);
 		if (IS_ERR(in)) {
@@ -199,7 +199,7 @@ static irqreturn_t qcom_smp2p_intr(int irq, void *data)
 
 	/* Match newly created entries */
 	for (i = smp2p->valid_entries; i < in->valid_entries; i++) {
-		list_for_each_entry(entry, &smp2p->inbound, node) {
+		list_for_each_entry(entry, &smp2p->inbound, yesde) {
 			memcpy(buf, in->entries[i].name, sizeof(buf));
 			if (!strcmp(buf, entry->name)) {
 				entry->value = &in->entries[i].value;
@@ -210,8 +210,8 @@ static irqreturn_t qcom_smp2p_intr(int irq, void *data)
 	smp2p->valid_entries = i;
 
 	/* Fire interrupts based on any value changes */
-	list_for_each_entry(entry, &smp2p->inbound, node) {
-		/* Ignore entries not yet allocated by the remote side */
+	list_for_each_entry(entry, &smp2p->inbound, yesde) {
+		/* Igyesre entries yest yet allocated by the remote side */
 		if (!entry->value)
 			continue;
 
@@ -292,7 +292,7 @@ static int smp2p_irq_map(struct irq_domain *d,
 	irq_set_chip_and_handler(irq, &smp2p_irq_chip, handle_level_irq);
 	irq_set_chip_data(irq, entry);
 	irq_set_nested_thread(irq, 1);
-	irq_set_noprobe(irq);
+	irq_set_yesprobe(irq);
 
 	return 0;
 }
@@ -304,9 +304,9 @@ static const struct irq_domain_ops smp2p_irq_ops = {
 
 static int qcom_smp2p_inbound_entry(struct qcom_smp2p *smp2p,
 				    struct smp2p_entry *entry,
-				    struct device_node *node)
+				    struct device_yesde *yesde)
 {
-	entry->domain = irq_domain_add_linear(node, 32, &smp2p_irq_ops, entry);
+	entry->domain = irq_domain_add_linear(yesde, 32, &smp2p_irq_ops, entry);
 	if (!entry->domain) {
 		dev_err(smp2p->dev, "failed to add irq_domain\n");
 		return -ENOMEM;
@@ -340,7 +340,7 @@ static const struct qcom_smem_state_ops smp2p_state_ops = {
 
 static int qcom_smp2p_outbound_entry(struct qcom_smp2p *smp2p,
 				     struct smp2p_entry *entry,
-				     struct device_node *node)
+				     struct device_yesde *yesde)
 {
 	struct smp2p_smem_item *out = smp2p->out;
 	char buf[SMP2P_MAX_ENTRY_NAME] = {};
@@ -354,7 +354,7 @@ static int qcom_smp2p_outbound_entry(struct qcom_smp2p *smp2p,
 
 	out->valid_entries++;
 
-	entry->state = qcom_smem_state_register(node, &smp2p_state_ops, entry);
+	entry->state = qcom_smem_state_register(yesde, &smp2p_state_ops, entry);
 	if (IS_ERR(entry->state)) {
 		dev_err(smp2p->dev, "failed to register qcom_smem_state\n");
 		return PTR_ERR(entry->state);
@@ -407,31 +407,31 @@ static int qcom_smp2p_alloc_outbound_item(struct qcom_smp2p *smp2p)
 
 static int smp2p_parse_ipc(struct qcom_smp2p *smp2p)
 {
-	struct device_node *syscon;
+	struct device_yesde *syscon;
 	struct device *dev = smp2p->dev;
 	const char *key;
 	int ret;
 
-	syscon = of_parse_phandle(dev->of_node, "qcom,ipc", 0);
+	syscon = of_parse_phandle(dev->of_yesde, "qcom,ipc", 0);
 	if (!syscon) {
-		dev_err(dev, "no qcom,ipc node\n");
+		dev_err(dev, "yes qcom,ipc yesde\n");
 		return -ENODEV;
 	}
 
-	smp2p->ipc_regmap = syscon_node_to_regmap(syscon);
+	smp2p->ipc_regmap = syscon_yesde_to_regmap(syscon);
 	if (IS_ERR(smp2p->ipc_regmap))
 		return PTR_ERR(smp2p->ipc_regmap);
 
 	key = "qcom,ipc";
-	ret = of_property_read_u32_index(dev->of_node, key, 1, &smp2p->ipc_offset);
+	ret = of_property_read_u32_index(dev->of_yesde, key, 1, &smp2p->ipc_offset);
 	if (ret < 0) {
-		dev_err(dev, "no offset in %s\n", key);
+		dev_err(dev, "yes offset in %s\n", key);
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32_index(dev->of_node, key, 2, &smp2p->ipc_bit);
+	ret = of_property_read_u32_index(dev->of_yesde, key, 2, &smp2p->ipc_bit);
 	if (ret < 0) {
-		dev_err(dev, "no bit in %s\n", key);
+		dev_err(dev, "yes bit in %s\n", key);
 		return -EINVAL;
 	}
 
@@ -441,7 +441,7 @@ static int smp2p_parse_ipc(struct qcom_smp2p *smp2p)
 static int qcom_smp2p_probe(struct platform_device *pdev)
 {
 	struct smp2p_entry *entry;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct qcom_smp2p *smp2p;
 	const char *key;
 	int irq;
@@ -458,18 +458,18 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, smp2p);
 
 	key = "qcom,smem";
-	ret = of_property_read_u32_array(pdev->dev.of_node, key,
+	ret = of_property_read_u32_array(pdev->dev.of_yesde, key,
 					 smp2p->smem_items, 2);
 	if (ret)
 		return ret;
 
 	key = "qcom,local-pid";
-	ret = of_property_read_u32(pdev->dev.of_node, key, &smp2p->local_pid);
+	ret = of_property_read_u32(pdev->dev.of_yesde, key, &smp2p->local_pid);
 	if (ret)
 		goto report_read_failure;
 
 	key = "qcom,remote-pid";
-	ret = of_property_read_u32(pdev->dev.of_node, key, &smp2p->remote_pid);
+	ret = of_property_read_u32(pdev->dev.of_yesde, key, &smp2p->remote_pid);
 	if (ret)
 		goto report_read_failure;
 
@@ -480,7 +480,7 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 	}
 
 	smp2p->mbox_client.dev = &pdev->dev;
-	smp2p->mbox_client.knows_txdone = true;
+	smp2p->mbox_client.kyesws_txdone = true;
 	smp2p->mbox_chan = mbox_request_channel(&smp2p->mbox_client, 0);
 	if (IS_ERR(smp2p->mbox_chan)) {
 		if (PTR_ERR(smp2p->mbox_chan) != -ENODEV)
@@ -497,7 +497,7 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto release_mbox;
 
-	for_each_available_child_of_node(pdev->dev.of_node, node) {
+	for_each_available_child_of_yesde(pdev->dev.of_yesde, yesde) {
 		entry = devm_kzalloc(&pdev->dev, sizeof(*entry), GFP_KERNEL);
 		if (!entry) {
 			ret = -ENOMEM;
@@ -507,22 +507,22 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 		entry->smp2p = smp2p;
 		spin_lock_init(&entry->lock);
 
-		ret = of_property_read_string(node, "qcom,entry-name", &entry->name);
+		ret = of_property_read_string(yesde, "qcom,entry-name", &entry->name);
 		if (ret < 0)
 			goto unwind_interfaces;
 
-		if (of_property_read_bool(node, "interrupt-controller")) {
-			ret = qcom_smp2p_inbound_entry(smp2p, entry, node);
+		if (of_property_read_bool(yesde, "interrupt-controller")) {
+			ret = qcom_smp2p_inbound_entry(smp2p, entry, yesde);
 			if (ret < 0)
 				goto unwind_interfaces;
 
-			list_add(&entry->node, &smp2p->inbound);
+			list_add(&entry->yesde, &smp2p->inbound);
 		} else  {
-			ret = qcom_smp2p_outbound_entry(smp2p, entry, node);
+			ret = qcom_smp2p_outbound_entry(smp2p, entry, yesde);
 			if (ret < 0)
 				goto unwind_interfaces;
 
-			list_add(&entry->node, &smp2p->outbound);
+			list_add(&entry->yesde, &smp2p->outbound);
 		}
 	}
 
@@ -542,10 +542,10 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 	return 0;
 
 unwind_interfaces:
-	list_for_each_entry(entry, &smp2p->inbound, node)
+	list_for_each_entry(entry, &smp2p->inbound, yesde)
 		irq_domain_remove(entry->domain);
 
-	list_for_each_entry(entry, &smp2p->outbound, node)
+	list_for_each_entry(entry, &smp2p->outbound, yesde)
 		qcom_smem_state_unregister(entry->state);
 
 	smp2p->out->valid_entries = 0;
@@ -565,10 +565,10 @@ static int qcom_smp2p_remove(struct platform_device *pdev)
 	struct qcom_smp2p *smp2p = platform_get_drvdata(pdev);
 	struct smp2p_entry *entry;
 
-	list_for_each_entry(entry, &smp2p->inbound, node)
+	list_for_each_entry(entry, &smp2p->inbound, yesde)
 		irq_domain_remove(entry->domain);
 
-	list_for_each_entry(entry, &smp2p->outbound, node)
+	list_for_each_entry(entry, &smp2p->outbound, yesde)
 		qcom_smem_state_unregister(entry->state);
 
 	mbox_free_channel(smp2p->mbox_chan);

@@ -3,7 +3,7 @@
  *
  * Copyright(c) 2007 Atheros Corporation. All rights reserved.
  * Copyright(c) 2006 xiong huang <xiong.huang@atheros.com>
- * Copyright(c) 2007 Chris Snook <csnook@redhat.com>
+ * Copyright(c) 2007 Chris Syesok <csyesok@redhat.com>
  *
  * Derived from Intel e1000 driver
  * Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
@@ -85,10 +85,10 @@ static void atl2_force_ps(struct atl2_hw *hw);
 /* register definition */
 
 /* Block IDLE Status Register */
-#define IDLE_STATUS_RXMAC	1	/* 1: RXMAC is non-IDLE */
-#define IDLE_STATUS_TXMAC	2	/* 1: TXMAC is non-IDLE */
-#define IDLE_STATUS_DMAR	8	/* 1: DMAR is non-IDLE */
-#define IDLE_STATUS_DMAW	4	/* 1: DMAW is non-IDLE */
+#define IDLE_STATUS_RXMAC	1	/* 1: RXMAC is yesn-IDLE */
+#define IDLE_STATUS_TXMAC	2	/* 1: TXMAC is yesn-IDLE */
+#define IDLE_STATUS_DMAR	8	/* 1: DMAR is yesn-IDLE */
+#define IDLE_STATUS_DMAW	4	/* 1: DMAW is yesn-IDLE */
 
 /* MDIO Control Register */
 #define MDIO_WAIT_TIMES		10

@@ -14,7 +14,7 @@
 #include <linux/pci.h>
 #include <linux/genalloc.h>
 #include <linux/hwmon.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/iommu.h>
 #include <linux/seq_file.h>
 
@@ -39,12 +39,12 @@
  * PQ, CB and the data are on the host.
  *
  * QMAN TPC/MME:
- * PQ, CQ and CP are not secured.
+ * PQ, CQ and CP are yest secured.
  * PQ, CB and the data are on the SRAM/DRAM.
  *
  * Since QMAN DMA is secured, the driver is parsing the DMA CB:
  *     - checks DMA pointer
- *     - WREG, MSG_PROT are not allowed.
+ *     - WREG, MSG_PROT are yest allowed.
  *     - MSG_LONG/SHORT are allowed.
  *
  * A read/write transaction by the QMAN to a protected area will succeed if
@@ -60,15 +60,15 @@
  *     - CP writes to MSIX register and to kernel address space (completion
  *       queue).
  *
- * DMA is not secured but because CP is secured, the driver still needs to parse
+ * DMA is yest secured but because CP is secured, the driver still needs to parse
  * the CB, but doesn't need to check the DMA addresses.
  *
  * For QMAN DMA 0, DMA is also secured because only the driver uses this DMA and
  * the driver doesn't map memory in MMU.
  *
- * QMAN TPC/MME: PQ, CQ and CP aren't secured (no change from MMU disabled mode)
+ * QMAN TPC/MME: PQ, CQ and CP aren't secured (yes change from MMU disabled mode)
  *
- * DMA RR does NOT protect host because DMA is not secured
+ * DMA RR does NOT protect host because DMA is yest secured
  *
  */
 
@@ -133,7 +133,7 @@ static u16 goya_packet_sizes[MAX_PACKET_ID] = {
 	[PACKET_MSG_PROT]	= sizeof(struct packet_msg_prot),
 	[PACKET_FENCE]		= sizeof(struct packet_fence),
 	[PACKET_LIN_DMA]	= sizeof(struct packet_lin_dma),
-	[PACKET_NOP]		= sizeof(struct packet_nop),
+	[PACKET_NOP]		= sizeof(struct packet_yesp),
 	[PACKET_STOP]		= sizeof(struct packet_stop)
 };
 
@@ -533,7 +533,7 @@ static int goya_early_init(struct hl_device *hdev)
 		val = RREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS);
 		if (val & PSOC_GLOBAL_CONF_BOOT_STRAP_PINS_SRIOV_EN_MASK)
 			dev_warn(hdev->dev,
-				"PCI strap is not configured correctly, PCI bus errors may occur\n");
+				"PCI strap is yest configured correctly, PCI bus errors may occur\n");
 	}
 
 	return 0;
@@ -922,7 +922,7 @@ static int goya_stop_queue(struct hl_device *hdev, u32 cfg_reg,
 			1000,
 			QMAN_FENCE_TIMEOUT_USEC);
 
-		/* if QMAN is stuck in fence no need to check for stop */
+		/* if QMAN is stuck in fence yes need to check for stop */
 		if (rc)
 			return 0;
 	}
@@ -1133,12 +1133,12 @@ static void _goya_tpc_mbist_workaround(struct hl_device *hdev, u8 tpc_id)
 
 	/*
 	 * Workaround for Bug H2 #2443 :
-	 * "TPC SB is not initialized on chip reset"
+	 * "TPC SB is yest initialized on chip reset"
 	 */
 
 	val = RREG32(mmTPC0_CFG_FUNC_MBIST_CNTRL + tpc_offset);
 	if (val & TPC0_CFG_FUNC_MBIST_CNTRL_MBIST_ACTIVE_MASK)
-		dev_warn(hdev->dev, "TPC%d MBIST ACTIVE is not cleared\n",
+		dev_warn(hdev->dev, "TPC%d MBIST ACTIVE is yest cleared\n",
 			tpc_id);
 
 	WREG32(mmTPC0_CFG_FUNC_MBIST_PAT + tpc_offset, val & 0xFFFFF000);
@@ -1215,22 +1215,22 @@ static void goya_tpc_mbist_workaround(struct hl_device *hdev)
 static void goya_init_golden_registers(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
-	u32 polynom[10], tpc_intr_mask, offset;
+	u32 polyyesm[10], tpc_intr_mask, offset;
 	int i;
 
 	if (goya->hw_cap_initialized & HW_CAP_GOLDEN)
 		return;
 
-	polynom[0] = 0x00020080;
-	polynom[1] = 0x00401000;
-	polynom[2] = 0x00200800;
-	polynom[3] = 0x00002000;
-	polynom[4] = 0x00080200;
-	polynom[5] = 0x00040100;
-	polynom[6] = 0x00100400;
-	polynom[7] = 0x00004000;
-	polynom[8] = 0x00010000;
-	polynom[9] = 0x00008000;
+	polyyesm[0] = 0x00020080;
+	polyyesm[1] = 0x00401000;
+	polyyesm[2] = 0x00200800;
+	polyyesm[3] = 0x00002000;
+	polyyesm[4] = 0x00080200;
+	polyyesm[5] = 0x00040100;
+	polyyesm[6] = 0x00100400;
+	polyyesm[7] = 0x00004000;
+	polyyesm[8] = 0x00010000;
+	polyyesm[9] = 0x00008000;
 
 	/* Mask all arithmetic interrupts from TPC */
 	tpc_intr_mask = 0x7FFF;
@@ -1442,24 +1442,24 @@ static void goya_init_golden_registers(struct hl_device *hdev)
 	WREG32(mmTPC6_RTR_HBW_WR_RS_W_ARB, 0x01010501);
 
 	for (i = 0, offset = 0 ; i < 10 ; i++, offset += 4) {
-		WREG32(mmMME1_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
-		WREG32(mmMME2_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
-		WREG32(mmMME3_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
-		WREG32(mmMME4_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
-		WREG32(mmMME5_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
-		WREG32(mmMME6_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmMME1_RTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
+		WREG32(mmMME2_RTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
+		WREG32(mmMME3_RTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
+		WREG32(mmMME4_RTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
+		WREG32(mmMME5_RTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
+		WREG32(mmMME6_RTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
 
-		WREG32(mmTPC0_NRTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
-		WREG32(mmTPC1_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
-		WREG32(mmTPC2_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
-		WREG32(mmTPC3_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
-		WREG32(mmTPC4_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
-		WREG32(mmTPC5_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
-		WREG32(mmTPC6_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
-		WREG32(mmTPC7_NRTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmTPC0_NRTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
+		WREG32(mmTPC1_RTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
+		WREG32(mmTPC2_RTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
+		WREG32(mmTPC3_RTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
+		WREG32(mmTPC4_RTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
+		WREG32(mmTPC5_RTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
+		WREG32(mmTPC6_RTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
+		WREG32(mmTPC7_NRTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
 
-		WREG32(mmPCI_NRTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
-		WREG32(mmDMA_NRTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmPCI_NRTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
+		WREG32(mmDMA_NRTR_SPLIT_COEF_0 + offset, polyyesm[i] >> 7);
 	}
 
 	for (i = 0, offset = 0 ; i < 6 ; i++, offset += 0x40000) {
@@ -1496,7 +1496,7 @@ static void goya_init_golden_registers(struct hl_device *hdev)
 	/*
 	 * Workaround for H2 #HW-23 bug
 	 * Set DMA max outstanding read requests to 240 on DMA CH 1.
-	 * This limitation is still large enough to not affect Gen4 bandwidth.
+	 * This limitation is still large eyesugh to yest affect Gen4 bandwidth.
 	 * We need to only limit that DMA channel because the user can only read
 	 * from Host using DMA CH 1
 	 */
@@ -1787,7 +1787,7 @@ static int goya_stop_internal_queues(struct hl_device *hdev)
 	/*
 	 * Each queue (QMAN) is a separate H/W logic. That means that each
 	 * QMAN can be stopped independently and failure to stop one does NOT
-	 * mandate we should not try to stop other QMANs
+	 * mandate we should yest try to stop other QMANs
 	 */
 
 	rc = goya_stop_queue(hdev,
@@ -2123,7 +2123,7 @@ static void goya_halt_engines(struct hl_device *hdev, bool hard_reset)
 
 	if (hard_reset) {
 		/*
-		 * I don't know what is the state of the CPU so make sure it is
+		 * I don't kyesw what is the state of the CPU so make sure it is
 		 * stopped in any means necessary
 		 */
 		WREG32(mmPSOC_GLOBAL_CONF_UBOOT_MAGIC, KMD_MSG_GOTO_WFE);
@@ -2162,7 +2162,7 @@ static void goya_halt_engines(struct hl_device *hdev, bool hard_reset)
  *
  * Copy u-boot fw code from firmware file to SRAM BAR.
  *
- * Return: 0 on success, non-zero for failure.
+ * Return: 0 on success, yesn-zero for failure.
  */
 static int goya_push_uboot_to_device(struct hl_device *hdev)
 {
@@ -2179,7 +2179,7 @@ static int goya_push_uboot_to_device(struct hl_device *hdev)
  *
  * Copy LINUX fw code from firmware file to HBM BAR.
  *
- * Return: 0 on success, non-zero for failure.
+ * Return: 0 on success, yesn-zero for failure.
  */
 static int goya_push_linux_to_device(struct hl_device *hdev)
 {
@@ -2312,7 +2312,7 @@ static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
 		10000,
 		cpu_timeout);
 
-	/* Read U-Boot version now in case we will later fail */
+	/* Read U-Boot version yesw in case we will later fail */
 	goya_read_device_fw_version(hdev, FW_COMP_UBOOT);
 	goya_read_device_fw_version(hdev, FW_COMP_PREBOOT);
 
@@ -2879,7 +2879,7 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 
 	if (!hdev->asic_funcs->is_device_idle(hdev, NULL, NULL)) {
 		dev_err_ratelimited(hdev->dev,
-			"Can't send driver job on QMAN0 because the device is not idle\n");
+			"Can't send driver job on QMAN0 because the device is yest idle\n");
 		return -EBUSY;
 	}
 
@@ -2905,7 +2905,7 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 	fence_pkt->value = cpu_to_le32(GOYA_QMAN0_FENCE_VAL);
 	fence_pkt->addr = cpu_to_le64(fence_dma_addr);
 
-	rc = hl_hw_queue_send_cb_no_cmpl(hdev, GOYA_QUEUE_ID_DMA_0,
+	rc = hl_hw_queue_send_cb_yes_cmpl(hdev, GOYA_QUEUE_ID_DMA_0,
 					job->job_cb_size, cb->bus_address);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to send CB on QMAN0, %d\n", rc);
@@ -2985,7 +2985,7 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 	fence_pkt->value = cpu_to_le32(fence_val);
 	fence_pkt->addr = cpu_to_le64(fence_dma_addr);
 
-	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id,
+	rc = hl_hw_queue_send_cb_yes_cmpl(hdev, hw_queue_id,
 					sizeof(struct packet_msg_prot),
 					pkt_dma_addr);
 	if (rc) {
@@ -3021,7 +3021,7 @@ int goya_test_cpu_queue(struct hl_device *hdev)
 
 	/*
 	 * check capability here as send_cpu_message() won't update the result
-	 * value if no capability
+	 * value if yes capability
 	 */
 	if (!(goya->hw_cap_initialized & HW_CAP_CPU_Q))
 		return 0;
@@ -3177,7 +3177,7 @@ static int goya_pin_memory_before_cs(struct hl_device *hdev,
 	if (rc)
 		goto free_userptr;
 
-	list_add_tail(&userptr->job_node, parser->job_userptr_list);
+	list_add_tail(&userptr->job_yesde, parser->job_userptr_list);
 
 	rc = hdev->asic_funcs->asic_dma_map_sg(hdev, userptr->sgt->sgl,
 					userptr->sgt->nents, dir);
@@ -3305,7 +3305,7 @@ static int goya_validate_dma_pkt_host(struct hl_device *hdev,
 	return rc;
 }
 
-static int goya_validate_dma_pkt_no_host(struct hl_device *hdev,
+static int goya_validate_dma_pkt_yes_host(struct hl_device *hdev,
 				struct hl_cs_parser *parser,
 				struct packet_lin_dma *user_dma_pkt)
 {
@@ -3350,7 +3350,7 @@ static int goya_validate_dma_pkt_no_host(struct hl_device *hdev,
 	return 0;
 }
 
-static int goya_validate_dma_pkt_no_mmu(struct hl_device *hdev,
+static int goya_validate_dma_pkt_yes_mmu(struct hl_device *hdev,
 				struct hl_cs_parser *parser,
 				struct packet_lin_dma *user_dma_pkt)
 {
@@ -3380,7 +3380,7 @@ static int goya_validate_dma_pkt_no_mmu(struct hl_device *hdev,
 	}
 
 	if ((user_dir == DMA_DRAM_TO_SRAM) || (user_dir == DMA_SRAM_TO_DRAM))
-		rc = goya_validate_dma_pkt_no_host(hdev, parser, user_dma_pkt);
+		rc = goya_validate_dma_pkt_yes_host(hdev, parser, user_dma_pkt);
 	else
 		rc = goya_validate_dma_pkt_host(hdev, parser, user_dma_pkt);
 
@@ -3446,9 +3446,9 @@ static int goya_validate_wreg32(struct hl_device *hdev,
 	}
 
 	/*
-	 * With MMU, DMA channels are not secured, so it doesn't matter where
+	 * With MMU, DMA channels are yest secured, so it doesn't matter where
 	 * the WR COMP will be written to because it will go out with
-	 * non-secured property
+	 * yesn-secured property
 	 */
 	if (goya->hw_cap_initialized & HW_CAP_MMU)
 		return 0;
@@ -3503,7 +3503,7 @@ static int goya_validate_cb(struct hl_device *hdev,
 			/*
 			 * Although it is validated after copy in patch_cb(),
 			 * need to validate here as well because patch_cb() is
-			 * not called in MMU path while this function is called
+			 * yest called in MMU path while this function is called
 			 */
 			rc = goya_validate_wreg32(hdev,
 				parser, (struct packet_wreg32 *) user_pkt);
@@ -3511,23 +3511,23 @@ static int goya_validate_cb(struct hl_device *hdev,
 
 		case PACKET_WREG_BULK:
 			dev_err(hdev->dev,
-				"User not allowed to use WREG_BULK\n");
+				"User yest allowed to use WREG_BULK\n");
 			rc = -EPERM;
 			break;
 
 		case PACKET_MSG_PROT:
 			dev_err(hdev->dev,
-				"User not allowed to use MSG_PROT\n");
+				"User yest allowed to use MSG_PROT\n");
 			rc = -EPERM;
 			break;
 
 		case PACKET_CP_DMA:
-			dev_err(hdev->dev, "User not allowed to use CP_DMA\n");
+			dev_err(hdev->dev, "User yest allowed to use CP_DMA\n");
 			rc = -EPERM;
 			break;
 
 		case PACKET_STOP:
-			dev_err(hdev->dev, "User not allowed to use STOP\n");
+			dev_err(hdev->dev, "User yest allowed to use STOP\n");
 			rc = -EPERM;
 			break;
 
@@ -3536,7 +3536,7 @@ static int goya_validate_cb(struct hl_device *hdev,
 				rc = goya_validate_dma_pkt_mmu(hdev, parser,
 					(struct packet_lin_dma *) user_pkt);
 			else
-				rc = goya_validate_dma_pkt_no_mmu(hdev, parser,
+				rc = goya_validate_dma_pkt_yes_mmu(hdev, parser,
 					(struct packet_lin_dma *) user_pkt);
 			break;
 
@@ -3750,23 +3750,23 @@ static int goya_patch_cb(struct hl_device *hdev,
 
 		case PACKET_WREG_BULK:
 			dev_err(hdev->dev,
-				"User not allowed to use WREG_BULK\n");
+				"User yest allowed to use WREG_BULK\n");
 			rc = -EPERM;
 			break;
 
 		case PACKET_MSG_PROT:
 			dev_err(hdev->dev,
-				"User not allowed to use MSG_PROT\n");
+				"User yest allowed to use MSG_PROT\n");
 			rc = -EPERM;
 			break;
 
 		case PACKET_CP_DMA:
-			dev_err(hdev->dev, "User not allowed to use CP_DMA\n");
+			dev_err(hdev->dev, "User yest allowed to use CP_DMA\n");
 			rc = -EPERM;
 			break;
 
 		case PACKET_STOP:
-			dev_err(hdev->dev, "User not allowed to use STOP\n");
+			dev_err(hdev->dev, "User yest allowed to use STOP\n");
 			rc = -EPERM;
 			break;
 
@@ -3871,7 +3871,7 @@ out:
 	return rc;
 }
 
-static int goya_parse_cb_no_mmu(struct hl_device *hdev,
+static int goya_parse_cb_yes_mmu(struct hl_device *hdev,
 				struct hl_cs_parser *parser)
 {
 	u64 patched_cb_handle;
@@ -3923,7 +3923,7 @@ free_userptr:
 	return rc;
 }
 
-static int goya_parse_cb_no_ext_queue(struct hl_device *hdev,
+static int goya_parse_cb_yes_ext_queue(struct hl_device *hdev,
 					struct hl_cs_parser *parser)
 {
 	struct asic_fixed_properties *asic_prop = &hdev->asic_prop;
@@ -3948,7 +3948,7 @@ static int goya_parse_cb_no_ext_queue(struct hl_device *hdev,
 		return 0;
 
 	dev_err(hdev->dev,
-		"Internal CB address 0x%px + 0x%x is not in SRAM nor in DRAM\n",
+		"Internal CB address 0x%px + 0x%x is yest in SRAM yesr in DRAM\n",
 		parser->user_cb, parser->user_cb_size);
 
 	return -EFAULT;
@@ -3959,12 +3959,12 @@ int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser)
 	struct goya_device *goya = hdev->asic_specific;
 
 	if (parser->queue_type == QUEUE_TYPE_INT)
-		return goya_parse_cb_no_ext_queue(hdev, parser);
+		return goya_parse_cb_yes_ext_queue(hdev, parser);
 
 	if (goya->hw_cap_initialized & HW_CAP_MMU)
 		return goya_parse_cb_mmu(hdev, parser);
 	else
-		return goya_parse_cb_no_mmu(hdev, parser);
+		return goya_parse_cb_yes_mmu(hdev, parser);
 }
 
 void goya_add_end_of_cb_packets(struct hl_device *hdev, u64 kernel_address,
@@ -4030,10 +4030,10 @@ static void goya_clear_sm_regs(struct hl_device *hdev)
  * @addr:	device or host mapped address
  * @val:	returned value
  *
- * In case of DDR address that is not mapped into the default aperture that
+ * In case of DDR address that is yest mapped into the default aperture that
  * the DDR bar exposes, the function will configure the iATU so that the DDR
  * bar will be positioned at a base address that allows reading from the
- * required address. Configuring the iATU during normal operation can
+ * required address. Configuring the iATU during yesrmal operation can
  * lead to undefined behavior and therefore, should be done with extreme care
  *
  */
@@ -4087,10 +4087,10 @@ static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
  * @addr:	device or host mapped address
  * @val:	returned value
  *
- * In case of DDR address that is not mapped into the default aperture that
+ * In case of DDR address that is yest mapped into the default aperture that
  * the DDR bar exposes, the function will configure the iATU so that the DDR
  * bar will be positioned at a base address that allows writing to the
- * required address. Configuring the iATU during normal operation can
+ * required address. Configuring the iATU during yesrmal operation can
  * lead to undefined behavior and therefore, should be done with extreme care
  *
  */
@@ -4869,7 +4869,7 @@ static void goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 		hdev->hard_reset_pending)
 		return;
 
-	/* no need in L1 only invalidation in Goya */
+	/* yes need in L1 only invalidation in Goya */
 	if (!is_hard)
 		return;
 
@@ -4894,7 +4894,7 @@ static void goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 	mutex_unlock(&hdev->mmu_cache_lock);
 
 	if (rc)
-		dev_notice_ratelimited(hdev->dev,
+		dev_yestice_ratelimited(hdev->dev,
 			"Timeout when waiting for MMU cache invalidation\n");
 }
 
@@ -4909,7 +4909,7 @@ static void goya_mmu_invalidate_cache_range(struct hl_device *hdev,
 		hdev->hard_reset_pending)
 		return;
 
-	/* no need in L1 only invalidation in Goya */
+	/* yes need in L1 only invalidation in Goya */
 	if (!is_hard)
 		return;
 
@@ -4945,7 +4945,7 @@ static void goya_mmu_invalidate_cache_range(struct hl_device *hdev,
 	mutex_unlock(&hdev->mmu_cache_lock);
 
 	if (rc)
-		dev_notice_ratelimited(hdev->dev,
+		dev_yestice_ratelimited(hdev->dev,
 			"Timeout when waiting for MMU cache invalidation\n");
 }
 

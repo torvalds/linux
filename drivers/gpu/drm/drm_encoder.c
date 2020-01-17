@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -49,7 +49,7 @@
  * of encoders to facilitate code sharing. But for more complex settings it is
  * usually better to move shared code into a separate &drm_bridge. Compared to
  * encoders, bridges also have the benefit of being purely an internal
- * abstraction since they are not exposed to userspace at all.
+ * abstraction since they are yest exposed to userspace at all.
  *
  * Encoders are initialized with drm_encoder_init() and cleaned up using
  * drm_encoder_cleanup().
@@ -193,7 +193,7 @@ static struct drm_crtc *drm_encoder_get_crtc(struct drm_encoder *encoder)
 	bool uses_atomic = false;
 	struct drm_connector_list_iter conn_iter;
 
-	/* For atomic drivers only state objects are synchronously updated and
+	/* For atomic drivers only state objects are synchroyesusly updated and
 	 * protected by modeset locks, so check those first. */
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {

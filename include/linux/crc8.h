@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -37,40 +37,40 @@
 	static u8 _table[CRC8_TABLE_SIZE]
 
 /**
- * crc8_populate_lsb - fill crc table for given polynomial in regular bit order.
+ * crc8_populate_lsb - fill crc table for given polyyesmial in regular bit order.
  *
  * @table:	table to be filled.
- * @polynomial:	polynomial for which table is to be filled.
+ * @polyyesmial:	polyyesmial for which table is to be filled.
  *
- * This function fills the provided table according the polynomial provided for
- * regular bit order (lsb first). Polynomials in CRC algorithms are typically
+ * This function fills the provided table according the polyyesmial provided for
+ * regular bit order (lsb first). Polyyesmials in CRC algorithms are typically
  * represented as shown below.
  *
  *	poly = x^8 + x^7 + x^6 + x^4 + x^2 + 1
  *
- * For lsb first direction x^7 maps to the lsb. So the polynomial is as below.
+ * For lsb first direction x^7 maps to the lsb. So the polyyesmial is as below.
  *
  * - lsb first: poly = 10101011(1) = 0xAB
  */
-void crc8_populate_lsb(u8 table[CRC8_TABLE_SIZE], u8 polynomial);
+void crc8_populate_lsb(u8 table[CRC8_TABLE_SIZE], u8 polyyesmial);
 
 /**
- * crc8_populate_msb - fill crc table for given polynomial in reverse bit order.
+ * crc8_populate_msb - fill crc table for given polyyesmial in reverse bit order.
  *
  * @table:	table to be filled.
- * @polynomial:	polynomial for which table is to be filled.
+ * @polyyesmial:	polyyesmial for which table is to be filled.
  *
- * This function fills the provided table according the polynomial provided for
- * reverse bit order (msb first). Polynomials in CRC algorithms are typically
+ * This function fills the provided table according the polyyesmial provided for
+ * reverse bit order (msb first). Polyyesmials in CRC algorithms are typically
  * represented as shown below.
  *
  *	poly = x^8 + x^7 + x^6 + x^4 + x^2 + 1
  *
- * For msb first direction x^7 maps to the msb. So the polynomial is as below.
+ * For msb first direction x^7 maps to the msb. So the polyyesmial is as below.
  *
  * - msb first: poly = (1)11010101 = 0xD5
  */
-void crc8_populate_msb(u8 table[CRC8_TABLE_SIZE], u8 polynomial);
+void crc8_populate_msb(u8 table[CRC8_TABLE_SIZE], u8 polyyesmial);
 
 /**
  * crc8() - calculate a crc8 over the given input data.
@@ -80,7 +80,7 @@ void crc8_populate_msb(u8 table[CRC8_TABLE_SIZE], u8 polynomial);
  * @nbytes:	number of bytes in data buffer.
  * @crc:	previous returned crc8 value.
  *
- * The CRC8 is calculated using the polynomial given in crc8_populate_msb()
+ * The CRC8 is calculated using the polyyesmial given in crc8_populate_msb()
  * or crc8_populate_lsb().
  *
  * The caller provides the initial value (either %CRC8_INIT_VALUE

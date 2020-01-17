@@ -31,7 +31,7 @@
   periodically reads those statistical counters and measure rate.
 
   Currently, the measurement is activated by slow timer handler. Hope
-  this measurement will not introduce too much load.
+  this measurement will yest introduce too much load.
 
   We measure rate during the last 8 seconds every 2 seconds:
 

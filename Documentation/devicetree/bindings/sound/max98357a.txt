@@ -1,17 +1,17 @@
 Maxim MAX98357A audio DAC
 
-This node models the Maxim MAX98357A DAC.
+This yesde models the Maxim MAX98357A DAC.
 
 Required properties:
 - compatible   : "maxim,max98357a"
 
 Optional properties:
 - sdmode-gpios : GPIO specifier for the chip's SD_MODE pin.
-        If this option is not specified then driver does not manage
+        If this option is yest specified then driver does yest manage
         the pin state (e.g. chip is always on).
 - sdmode-delay : specify delay time for SD_MODE pin.
         If this option is specified, which means it's required i2s clocks
-        ready before SD_MODE is unmuted in order to avoid the speaker pop noise.
+        ready before SD_MODE is unmuted in order to avoid the speaker pop yesise.
         It's observed that 5ms is sufficient.
 
 Example:

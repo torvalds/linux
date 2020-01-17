@@ -35,7 +35,7 @@ quota_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		priv->quota -= skb->len;
 		ret = !ret;
 	} else {
-		/* we do not allow even small packets from now on */
+		/* we do yest allow even small packets from yesw on */
 		priv->quota = 0;
 	}
 	spin_unlock_bh(&priv->lock);

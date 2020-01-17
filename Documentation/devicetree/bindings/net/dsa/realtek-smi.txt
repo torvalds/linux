@@ -3,7 +3,7 @@ Realtek SMI-based Switches
 
 The SMI "Simple Management Interface" is a two-wire protocol using
 bit-banged GPIO that while it reuses the MDIO lines MCK and MDIO does
-not use the MDIO protocol. This binding defines how to specify the
+yest use the MDIO protocol. This binding defines how to specify the
 SMI-based Realtek devices.
 
 Required properties:
@@ -24,11 +24,11 @@ Required properties:
 - reset-gpios: GPIO line for the reset signal.
 
 Optional properties:
-- realtek,disable-leds: if the LED drivers are not used in the
-  hardware design this will disable them so they are not turned on
+- realtek,disable-leds: if the LED drivers are yest used in the
+  hardware design this will disable them so they are yest turned on
   and wasting power.
 
-Required subnodes:
+Required subyesdes:
 
 - interrupt-controller
 
@@ -58,7 +58,7 @@ Required properties of mdio:
 See net/mdio.txt for additional MDIO bus properties.
 
 See net/dsa/dsa.txt for a list of additional required and optional properties
-and subnodes of DSA switches.
+and subyesdes of DSA switches.
 
 Examples:
 

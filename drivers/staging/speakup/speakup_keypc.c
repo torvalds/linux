@@ -5,8 +5,8 @@
  * Copyright (C) 2003 David Borowski.
  *
  * specificly written as a driver for the speakup screenreview
- * package it's not a general device driver.
- * This driver is for the Keynote Gold internal synthesizer.
+ * package it's yest a general device driver.
+ * This driver is for the Keyyeste Gold internal synthesizer.
  */
 #include <linux/jiffies.h>
 #include <linux/sched.h>
@@ -24,7 +24,7 @@
 #define SYNTH_CLEAR 0x03
 
 static int synth_probe(struct spk_synth *synth);
-static void keynote_release(void);
+static void keyyeste_release(void);
 static const char *synth_immediate(struct spk_synth *synth, const char *buf);
 static void do_catch_up(struct spk_synth *synth);
 static void synth_flush(struct spk_synth *synth);
@@ -85,7 +85,7 @@ static struct attribute *synth_attrs[] = {
 static struct spk_synth synth_keypc = {
 	.name = "keypc",
 	.version = DRV_VERSION,
-	.long_name = "Keynote PC",
+	.long_name = "Keyyeste PC",
 	.init = "[t][n7,1][n8,0]",
 	.procspeech = PROCSPEECH,
 	.clear = SYNTH_CLEAR,
@@ -98,11 +98,11 @@ static struct spk_synth synth_keypc = {
 	.vars = vars,
 	.io_ops = &spk_serial_io_ops,
 	.probe = synth_probe,
-	.release = keynote_release,
+	.release = keyyeste_release,
 	.synth_immediate = synth_immediate,
 	.catch_up = do_catch_up,
 	.flush = synth_flush,
-	.is_alive = spk_synth_is_alive_nop,
+	.is_alive = spk_synth_is_alive_yesp,
 	.synth_adjust = NULL,
 	.read_buff_add = NULL,
 	.get_index = NULL,
@@ -190,7 +190,7 @@ static void do_catch_up(struct spk_synth *synth)
 			synth->flush(synth);
 			continue;
 		}
-		synth_buffer_skip_nonlatin1();
+		synth_buffer_skip_yesnlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
@@ -283,7 +283,7 @@ static int synth_probe(struct spk_synth *synth)
 		}
 	}
 	if (port_val != 0x80) {
-		pr_info("%s: not found\n", synth->long_name);
+		pr_info("%s: yest found\n", synth->long_name);
 		synth_release_region(synth_port, SYNTH_IO_EXTENT);
 		synth_port = 0;
 		return -ENODEV;
@@ -295,7 +295,7 @@ static int synth_probe(struct spk_synth *synth)
 	return 0;
 }
 
-static void keynote_release(void)
+static void keyyeste_release(void)
 {
 	spk_stop_serial_interrupt();
 	if (synth_port)
@@ -312,7 +312,7 @@ MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 module_spk_synth(synth_keypc);
 
 MODULE_AUTHOR("David Borowski");
-MODULE_DESCRIPTION("Speakup support for Keynote Gold PC synthesizers");
+MODULE_DESCRIPTION("Speakup support for Keyyeste Gold PC synthesizers");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 

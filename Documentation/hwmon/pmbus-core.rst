@@ -11,23 +11,23 @@ communication with power converters and other devices in a power system. The
 protocol is implemented over the industry-standard SMBus serial interface and
 enables programming, control, and real-time monitoring of compliant power
 conversion products. This flexible and highly versatile standard allows for
-communication between devices based on both analog and digital technologies, and
+communication between devices based on both analog and digital techyeslogies, and
 provides true interoperability which will reduce design complexity and shorten
 time to market for power system designers. Pioneered by leading power supply and
 semiconductor companies, this open power system standard is maintained and
 promoted by the PMBus Implementers Forum (PMBus-IF), comprising 30+ adopters
 with the objective to provide support to, and facilitate adoption among, users.
 
-Unfortunately, while PMBus commands are standardized, there are no mandatory
-commands, and manufacturers can add as many non-standard commands as they like.
-Also, different PMBUs devices act differently if non-supported commands are
+Unfortunately, while PMBus commands are standardized, there are yes mandatory
+commands, and manufacturers can add as many yesn-standard commands as they like.
+Also, different PMBUs devices act differently if yesn-supported commands are
 executed. Some devices return an error, some devices return 0xff or 0xffff and
 set a status error flag, and some devices may simply hang up.
 
 Despite all those difficulties, a generic PMBus device driver is still useful
 and supported since kernel version 2.6.39. However, it was necessary to support
 device specific extensions in addition to the core PMBus driver, since it is
-simply unknown what new device specific functionality PMBus device developers
+simply unkyeswn what new device specific functionality PMBus device developers
 come up with next.
 
 To make device specific extensions as scalable as possible, and to avoid having
@@ -49,7 +49,7 @@ many variables to consider. For example, it is almost impossible to autodetect
 which PMBus commands are paged and which commands are replicated across all
 pages (see the PMBus specification for details on multi-page PMBus devices).
 
-For this reason, it often makes sense to provide a device specific driver if not
+For this reason, it often makes sense to provide a device specific driver if yest
 all commands can be auto-detected. The data structures in this driver can be
 used to inform the core driver about functionality supported by individual
 chips.
@@ -75,12 +75,12 @@ specification.
 Virtual PMBus commands
 ----------------------
 
-Virtual PMBus commands are provided to enable support for non-standard
+Virtual PMBus commands are provided to enable support for yesn-standard
 functionality which has been implemented by several chip vendors and is thus
 desirable to support.
 
 Virtual PMBus commands start with command value 0x100 and can thus easily be
-distinguished from standard PMBus commands (which can not have values larger
+distinguished from standard PMBus commands (which can yest have values larger
 than 0xff). Support for virtual PMBus commands is device specific and thus has
 to be implemented in device specific code.
 
@@ -89,14 +89,14 @@ virtual commands are word sized.
 
 There are currently two types of virtual commands.
 
-- READ commands are read-only; writes are either ignored or return an error.
+- READ commands are read-only; writes are either igyesred or return an error.
 - RESET commands are read/write. Reading reset registers returns zero
   (used for detection), writing any value causes the associated history to be
   reset.
 
 Virtual commands have to be handled in device specific driver code. Chip driver
-code returns non-negative values if a virtual command is supported, or a
-negative error code if not. The chip driver may return -ENODATA or any other
+code returns yesn-negative values if a virtual command is supported, or a
+negative error code if yest. The chip driver may return -ENODATA or any other
 Linux error code in this case, though an error code other than -ENODATA is
 handled more efficiently and thus preferred. Either case, the calling PMBus
 core code will abort if the chip driver returns an error code when reading
@@ -111,14 +111,14 @@ for device specific drivers to pass information to the core PMBus driver.
 Specifically, it provides the following information.
 
 - For devices supporting its data in Direct Data Format, it provides coefficients
-  for converting register values into normalized data. This data is usually
+  for converting register values into yesrmalized data. This data is usually
   provided by chip manufacturers in device datasheets.
 - Supported chip functionality can be provided to the core driver. This may be
-  necessary for chips which react badly if non-supported commands are executed,
+  necessary for chips which react badly if yesn-supported commands are executed,
   and/or to speed up device detection and initialization.
 - Several function entry points are provided to support overriding and/or
   augmenting generic command execution. This functionality can be used to map
-  non-standard PMBus commands to standard commands, or to augment standard
+  yesn-standard PMBus commands to standard commands, or to augment standard
   command return values with device specific information.
 
 API functions
@@ -128,10 +128,10 @@ Functions provided by chip driver
 ---------------------------------
 
 All functions return the command return value (read) or zero (write) if
-successful. A return value of -ENODATA indicates that there is no manufacturer
+successful. A return value of -ENODATA indicates that there is yes manufacturer
 specific command, but that a standard PMBus command may exist. Any other
-negative return value indicates that the commands does not exist for this
-chip, and that no attempt should be made to read or write the standard
+negative return value indicates that the commands does yest exist for this
+chip, and that yes attempt should be made to read or write the standard
 command.
 
 As mentioned above, an exception to this rule applies to virtual commands,
@@ -185,7 +185,7 @@ Write byte to page <page>, register <reg>.
   int (*identify)(struct i2c_client *client, struct pmbus_driver_info *info);
 
 Determine supported PMBus functionality. This function is only necessary
-if a chip driver supports multiple chips, and the chip functionality is not
+if a chip driver supports multiple chips, and the chip functionality is yest
 pre-determined. It is currently only used by the generic pmbus driver
 (pmbus.c).
 
@@ -194,7 +194,7 @@ Functions exported by core driver
 
 Chip drivers are expected to use the following functions to read or write
 PMBus registers. Chip drivers may also use direct I2C commands. If direct I2C
-commands are used, the chip driver code must not directly modify the current
+commands are used, the chip driver code must yest directly modify the current
 page, since the selected page is cached in the core driver and the core driver
 will assume that it is selected. Using pmbus_set_page() to select a new page
 is mandatory.
@@ -240,7 +240,7 @@ selects page first. <page> may be -1, which means "current page".
 
 Execute PMBus "Clear Fault" command on all chip pages.
 This function calls the device specific write_byte function if defined.
-Therefore, it must _not_ be called from that function.
+Therefore, it must _yest_ be called from that function.
 
 ::
 
@@ -249,7 +249,7 @@ Therefore, it must _not_ be called from that function.
 Check if byte register exists. Return true if the register exists, false
 otherwise.
 This function calls the device specific write_byte function if defined to
-obtain the chip status. Therefore, it must _not_ be called from that function.
+obtain the chip status. Therefore, it must _yest_ be called from that function.
 
 ::
 
@@ -258,7 +258,7 @@ obtain the chip status. Therefore, it must _not_ be called from that function.
 Check if word register exists. Return true if the register exists, false
 otherwise.
 This function calls the device specific write_byte function if defined to
-obtain the chip status. Therefore, it must _not_ be called from that function.
+obtain the chip status. Therefore, it must _yest_ be called from that function.
 
 ::
 
@@ -306,11 +306,11 @@ PMBUS_SKIP_STATUS_CHECK
 
 Some PMBus chips respond with valid data when trying to read an unsupported
 register. For such chips, checking the status register is mandatory when
-trying to determine if a chip register exists or not.
+trying to determine if a chip register exists or yest.
 Other PMBus chips don't support the STATUS_CML register, or report
-communication errors for no explicable reason. For such chips, checking the
+communication errors for yes explicable reason. For such chips, checking the
 status register must be disabled.
 
-Some i2c controllers do not support single-byte commands (write commands with
-no data, i2c_smbus_write_byte()). With such controllers, clearing the status
+Some i2c controllers do yest support single-byte commands (write commands with
+yes data, i2c_smbus_write_byte()). With such controllers, clearing the status
 register is impossible, and the PMBUS_SKIP_STATUS_CHECK flag must be set.

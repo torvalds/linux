@@ -24,7 +24,7 @@ acpi_dm_compare_aml_resources(u8 *aml1_buffer,
 			      acpi_rsdesc_size aml2_buffer_length);
 
 static acpi_status
-acpi_dm_test_resource_conversion(struct acpi_namespace_node *node, char *name);
+acpi_dm_test_resource_conversion(struct acpi_namespace_yesde *yesde, char *name);
 
 static acpi_status
 acpi_db_resource_callback(struct acpi_resource *resource, void *context);
@@ -39,20 +39,20 @@ static char *acpi_db_trace_method_name = NULL;
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_db_convert_to_node
+ * FUNCTION:    acpi_db_convert_to_yesde
  *
  * PARAMETERS:  in_string           - String to convert
  *
- * RETURN:      Pointer to a NS node
+ * RETURN:      Pointer to a NS yesde
  *
  * DESCRIPTION: Convert a string to a valid NS pointer. Handles numeric or
  *              alphanumeric strings.
  *
  ******************************************************************************/
 
-struct acpi_namespace_node *acpi_db_convert_to_node(char *in_string)
+struct acpi_namespace_yesde *acpi_db_convert_to_yesde(char *in_string)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	acpi_size address;
 
 	if ((*in_string >= 0x30) && (*in_string <= 0x39)) {
@@ -60,18 +60,18 @@ struct acpi_namespace_node *acpi_db_convert_to_node(char *in_string)
 		/* Numeric argument, convert */
 
 		address = strtoul(in_string, NULL, 16);
-		node = ACPI_TO_POINTER(address);
-		if (!acpi_os_readable(node, sizeof(struct acpi_namespace_node))) {
-			acpi_os_printf("Address %p is invalid", node);
+		yesde = ACPI_TO_POINTER(address);
+		if (!acpi_os_readable(yesde, sizeof(struct acpi_namespace_yesde))) {
+			acpi_os_printf("Address %p is invalid", yesde);
 			return (NULL);
 		}
 
-		/* Make sure pointer is valid NS node */
+		/* Make sure pointer is valid NS yesde */
 
-		if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
+		if (ACPI_GET_DESCRIPTOR_TYPE(yesde) != ACPI_DESC_TYPE_NAMED) {
 			acpi_os_printf
-			    ("Address %p is not a valid namespace node [%s]\n",
-			     node, acpi_ut_get_descriptor_name(node));
+			    ("Address %p is yest a valid namespace yesde [%s]\n",
+			     yesde, acpi_ut_get_descriptor_name(yesde));
 			return (NULL);
 		}
 	} else {
@@ -79,16 +79,16 @@ struct acpi_namespace_node *acpi_db_convert_to_node(char *in_string)
 		 * Alpha argument: The parameter is a name string that must be
 		 * resolved to a Namespace object.
 		 */
-		node = acpi_db_local_ns_lookup(in_string);
-		if (!node) {
+		yesde = acpi_db_local_ns_lookup(in_string);
+		if (!yesde) {
 			acpi_os_printf
-			    ("Could not find [%s] in namespace, defaulting to root node\n",
+			    ("Could yest find [%s] in namespace, defaulting to root yesde\n",
 			     in_string);
-			node = acpi_gbl_root_node;
+			yesde = acpi_gbl_root_yesde;
 		}
 	}
 
-	return (node);
+	return (yesde);
 }
 
 /*******************************************************************************
@@ -111,7 +111,7 @@ acpi_status acpi_db_sleep(char *object_arg)
 
 	ACPI_FUNCTION_TRACE(acpi_db_sleep);
 
-	/* Null input (no arguments) means to invoke all sleep states */
+	/* Null input (yes arguments) means to invoke all sleep states */
 
 	if (!object_arg) {
 		acpi_os_printf("Invoking all possible sleep states, 0-%d\n",
@@ -165,7 +165,7 @@ static void acpi_db_do_one_sleep_state(u8 sleep_state)
 	status =
 	    acpi_get_sleep_type_data(sleep_state, &sleep_type_a, &sleep_type_b);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not evaluate [%s] method, %s\n",
+		acpi_os_printf("Could yest evaluate [%s] method, %s\n",
 			       acpi_gbl_sleep_state_names[sleep_state],
 			       acpi_format_exception(status));
 		return;
@@ -327,27 +327,27 @@ void acpi_db_display_table_info(char *table_arg)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Unload an ACPI table, via any namespace node that is owned
+ * DESCRIPTION: Unload an ACPI table, via any namespace yesde that is owned
  *              by the table.
  *
  ******************************************************************************/
 
 void acpi_db_unload_acpi_table(char *object_name)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	acpi_status status;
 
 	/* Translate name to an Named object */
 
-	node = acpi_db_convert_to_node(object_name);
-	if (!node) {
+	yesde = acpi_db_convert_to_yesde(object_name);
+	if (!yesde) {
 		return;
 	}
 
-	status = acpi_unload_parent_table(ACPI_CAST_PTR(acpi_handle, node));
+	status = acpi_unload_parent_table(ACPI_CAST_PTR(acpi_handle, yesde));
 	if (ACPI_SUCCESS(status)) {
 		acpi_os_printf("Parent of [%s] (%p) unloaded and uninstalled\n",
-			       object_name, node);
+			       object_name, yesde);
 	} else {
 		acpi_os_printf("%s, while unloading parent table of [%s]\n",
 			       acpi_format_exception(status), object_name);
@@ -356,42 +356,42 @@ void acpi_db_unload_acpi_table(char *object_name)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_db_send_notify
+ * FUNCTION:    acpi_db_send_yestify
  *
- * PARAMETERS:  name                - Name of ACPI object where to send notify
- *              value               - Value of the notify to send.
+ * PARAMETERS:  name                - Name of ACPI object where to send yestify
+ *              value               - Value of the yestify to send.
  *
  * RETURN:      None
  *
- * DESCRIPTION: Send an ACPI notification. The value specified is sent to the
- *              named object as an ACPI notify.
+ * DESCRIPTION: Send an ACPI yestification. The value specified is sent to the
+ *              named object as an ACPI yestify.
  *
  ******************************************************************************/
 
-void acpi_db_send_notify(char *name, u32 value)
+void acpi_db_send_yestify(char *name, u32 value)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	acpi_status status;
 
 	/* Translate name to an Named object */
 
-	node = acpi_db_convert_to_node(name);
-	if (!node) {
+	yesde = acpi_db_convert_to_yesde(name);
+	if (!yesde) {
 		return;
 	}
 
-	/* Dispatch the notify if legal */
+	/* Dispatch the yestify if legal */
 
-	if (acpi_ev_is_notify_object(node)) {
-		status = acpi_ev_queue_notify_request(node, value);
+	if (acpi_ev_is_yestify_object(yesde)) {
+		status = acpi_ev_queue_yestify_request(yesde, value);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not queue notify\n");
+			acpi_os_printf("Could yest queue yestify\n");
 		}
 	} else {
 		acpi_os_printf("Named object [%4.4s] Type %s, "
 			       "must be Device/Thermal/Processor type\n",
-			       acpi_ut_get_node_name(node),
-			       acpi_ut_get_type_name(node->type));
+			       acpi_ut_get_yesde_name(yesde),
+			       acpi_ut_get_type_name(yesde->type));
 	}
 }
 
@@ -414,7 +414,7 @@ void acpi_db_display_interfaces(char *action_arg, char *interface_name_arg)
 	char *sub_string;
 	acpi_status status;
 
-	/* If no arguments, just display current interface list */
+	/* If yes arguments, just display current interface list */
 
 	if (!action_arg) {
 		(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex,
@@ -490,23 +490,23 @@ void acpi_db_display_interfaces(char *action_arg, char *interface_name_arg)
 
 void acpi_db_display_template(char *buffer_arg)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	acpi_status status;
 	struct acpi_buffer return_buffer;
 
 	/* Translate buffer_arg to an Named object */
 
-	node = acpi_db_convert_to_node(buffer_arg);
-	if (!node || (node == acpi_gbl_root_node)) {
+	yesde = acpi_db_convert_to_yesde(buffer_arg);
+	if (!yesde || (yesde == acpi_gbl_root_yesde)) {
 		acpi_os_printf("Invalid argument: %s\n", buffer_arg);
 		return;
 	}
 
 	/* We must have a buffer object */
 
-	if (node->type != ACPI_TYPE_BUFFER) {
+	if (yesde->type != ACPI_TYPE_BUFFER) {
 		acpi_os_printf
-		    ("Not a Buffer object, cannot be a template: %s\n",
+		    ("Not a Buffer object, canyest be a template: %s\n",
 		     buffer_arg);
 		return;
 	}
@@ -516,14 +516,14 @@ void acpi_db_display_template(char *buffer_arg)
 
 	/* Attempt to convert the raw buffer to a resource list */
 
-	status = acpi_rs_create_resource_list(node->object, &return_buffer);
+	status = acpi_rs_create_resource_list(yesde->object, &return_buffer);
 
 	acpi_db_set_output_destination(ACPI_DB_REDIRECTABLE_OUTPUT);
 	acpi_dbg_level |= ACPI_LV_RESOURCES;
 
 	if (ACPI_FAILURE(status)) {
 		acpi_os_printf
-		    ("Could not convert Buffer to a resource list: %s, %s\n",
+		    ("Could yest convert Buffer to a resource list: %s, %s\n",
 		     buffer_arg, acpi_format_exception(status));
 		goto dump_buffer;
 	}
@@ -535,8 +535,8 @@ void acpi_db_display_template(char *buffer_arg)
 
 dump_buffer:
 	acpi_os_printf("\nRaw data buffer:\n");
-	acpi_ut_debug_dump_buffer((u8 *)node->object->buffer.pointer,
-				  node->object->buffer.length,
+	acpi_ut_debug_dump_buffer((u8 *)yesde->object->buffer.pointer,
+				  yesde->object->buffer.length,
 				  DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
 
 	acpi_db_set_output_destination(ACPI_DB_CONSOLE_OUTPUT);
@@ -645,7 +645,7 @@ acpi_dm_compare_aml_resources(u8 *aml1_buffer,
  *
  * FUNCTION:    acpi_dm_test_resource_conversion
  *
- * PARAMETERS:  node                - Parent device node
+ * PARAMETERS:  yesde                - Parent device yesde
  *              name                - resource method name (_CRS)
  *
  * RETURN:      Status
@@ -656,7 +656,7 @@ acpi_dm_compare_aml_resources(u8 *aml1_buffer,
  ******************************************************************************/
 
 static acpi_status
-acpi_dm_test_resource_conversion(struct acpi_namespace_node *node, char *name)
+acpi_dm_test_resource_conversion(struct acpi_namespace_yesde *yesde, char *name)
 {
 	acpi_status status;
 	struct acpi_buffer return_buffer;
@@ -672,16 +672,16 @@ acpi_dm_test_resource_conversion(struct acpi_namespace_node *node, char *name)
 
 	/* Get the original _CRS AML resource template */
 
-	status = acpi_evaluate_object(node, name, NULL, &return_buffer);
+	status = acpi_evaluate_object(yesde, name, NULL, &return_buffer);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not obtain %s: %s\n",
+		acpi_os_printf("Could yest obtain %s: %s\n",
 			       name, acpi_format_exception(status));
 		return (status);
 	}
 
 	/* Get the AML resource template, converted to internal resource structs */
 
-	status = acpi_get_current_resources(node, &resource_buffer);
+	status = acpi_get_current_resources(yesde, &resource_buffer);
 	if (ACPI_FAILURE(status)) {
 		acpi_os_printf("AcpiGetCurrentResources failed: %s\n",
 			       acpi_format_exception(status));
@@ -752,33 +752,33 @@ static acpi_status
 acpi_db_device_resources(acpi_handle obj_handle,
 			 u32 nesting_level, void *context, void **return_value)
 {
-	struct acpi_namespace_node *node;
-	struct acpi_namespace_node *prt_node = NULL;
-	struct acpi_namespace_node *crs_node = NULL;
-	struct acpi_namespace_node *prs_node = NULL;
-	struct acpi_namespace_node *aei_node = NULL;
+	struct acpi_namespace_yesde *yesde;
+	struct acpi_namespace_yesde *prt_yesde = NULL;
+	struct acpi_namespace_yesde *crs_yesde = NULL;
+	struct acpi_namespace_yesde *prs_yesde = NULL;
+	struct acpi_namespace_yesde *aei_yesde = NULL;
 	char *parent_path;
 	struct acpi_buffer return_buffer;
 	acpi_status status;
 
-	node = ACPI_CAST_PTR(struct acpi_namespace_node, obj_handle);
-	parent_path = acpi_ns_get_normalized_pathname(node, TRUE);
+	yesde = ACPI_CAST_PTR(struct acpi_namespace_yesde, obj_handle);
+	parent_path = acpi_ns_get_yesrmalized_pathname(yesde, TRUE);
 	if (!parent_path) {
 		return (AE_NO_MEMORY);
 	}
 
 	/* Get handles to the resource methods for this device */
 
-	(void)acpi_get_handle(node, METHOD_NAME__PRT,
-			      ACPI_CAST_PTR(acpi_handle, &prt_node));
-	(void)acpi_get_handle(node, METHOD_NAME__CRS,
-			      ACPI_CAST_PTR(acpi_handle, &crs_node));
-	(void)acpi_get_handle(node, METHOD_NAME__PRS,
-			      ACPI_CAST_PTR(acpi_handle, &prs_node));
-	(void)acpi_get_handle(node, METHOD_NAME__AEI,
-			      ACPI_CAST_PTR(acpi_handle, &aei_node));
+	(void)acpi_get_handle(yesde, METHOD_NAME__PRT,
+			      ACPI_CAST_PTR(acpi_handle, &prt_yesde));
+	(void)acpi_get_handle(yesde, METHOD_NAME__CRS,
+			      ACPI_CAST_PTR(acpi_handle, &crs_yesde));
+	(void)acpi_get_handle(yesde, METHOD_NAME__PRS,
+			      ACPI_CAST_PTR(acpi_handle, &prs_yesde));
+	(void)acpi_get_handle(yesde, METHOD_NAME__AEI,
+			      ACPI_CAST_PTR(acpi_handle, &aei_yesde));
 
-	if (!prt_node && !crs_node && !prs_node && !aei_node) {
+	if (!prt_yesde && !crs_yesde && !prs_yesde && !aei_yesde) {
 		goto cleanup;	/* Nothing to do */
 	}
 
@@ -791,13 +791,13 @@ acpi_db_device_resources(acpi_handle obj_handle,
 
 	/* _PRT */
 
-	if (prt_node) {
+	if (prt_yesde) {
 		acpi_os_printf("Evaluating _PRT\n");
 
 		status =
-		    acpi_evaluate_object(prt_node, NULL, NULL, &return_buffer);
+		    acpi_evaluate_object(prt_yesde, NULL, NULL, &return_buffer);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not evaluate _PRT: %s\n",
+			acpi_os_printf("Could yest evaluate _PRT: %s\n",
 				       acpi_format_exception(status));
 			goto get_crs;
 		}
@@ -805,7 +805,7 @@ acpi_db_device_resources(acpi_handle obj_handle,
 		return_buffer.pointer = acpi_gbl_db_buffer;
 		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
 
-		status = acpi_get_irq_routing_table(node, &return_buffer);
+		status = acpi_get_irq_routing_table(yesde, &return_buffer);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("GetIrqRoutingTable failed: %s\n",
 				       acpi_format_exception(status));
@@ -818,23 +818,23 @@ acpi_db_device_resources(acpi_handle obj_handle,
 	/* _CRS */
 
 get_crs:
-	if (crs_node) {
+	if (crs_yesde) {
 		acpi_os_printf("Evaluating _CRS\n");
 
 		return_buffer.pointer = acpi_gbl_db_buffer;
 		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
 
 		status =
-		    acpi_evaluate_object(crs_node, NULL, NULL, &return_buffer);
+		    acpi_evaluate_object(crs_yesde, NULL, NULL, &return_buffer);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not evaluate _CRS: %s\n",
+			acpi_os_printf("Could yest evaluate _CRS: %s\n",
 				       acpi_format_exception(status));
 			goto get_prs;
 		}
 
 		/* This code exercises the acpi_walk_resources interface */
 
-		status = acpi_walk_resources(node, METHOD_NAME__CRS,
+		status = acpi_walk_resources(yesde, METHOD_NAME__CRS,
 					     acpi_db_resource_callback, NULL);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("AcpiWalkResources failed: %s\n",
@@ -847,7 +847,7 @@ get_crs:
 		return_buffer.pointer = NULL;
 		return_buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 
-		status = acpi_get_current_resources(node, &return_buffer);
+		status = acpi_get_current_resources(yesde, &return_buffer);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("AcpiGetCurrentResources failed: %s\n",
 				       acpi_format_exception(status));
@@ -876,13 +876,13 @@ get_crs:
 		 * tests both the AML->Resource conversion and the Resource->AML
 		 * conversion.
 		 */
-		(void)acpi_dm_test_resource_conversion(node, METHOD_NAME__CRS);
+		(void)acpi_dm_test_resource_conversion(yesde, METHOD_NAME__CRS);
 
 		/* Execute _SRS with the resource list */
 
 		acpi_os_printf("Evaluating _SRS\n");
 
-		status = acpi_set_current_resources(node, &return_buffer);
+		status = acpi_set_current_resources(yesde, &return_buffer);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("AcpiSetCurrentResources failed: %s\n",
 				       acpi_format_exception(status));
@@ -896,16 +896,16 @@ end_crs:
 	/* _PRS */
 
 get_prs:
-	if (prs_node) {
+	if (prs_yesde) {
 		acpi_os_printf("Evaluating _PRS\n");
 
 		return_buffer.pointer = acpi_gbl_db_buffer;
 		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
 
 		status =
-		    acpi_evaluate_object(prs_node, NULL, NULL, &return_buffer);
+		    acpi_evaluate_object(prs_yesde, NULL, NULL, &return_buffer);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not evaluate _PRS: %s\n",
+			acpi_os_printf("Could yest evaluate _PRS: %s\n",
 				       acpi_format_exception(status));
 			goto get_aei;
 		}
@@ -913,7 +913,7 @@ get_prs:
 		return_buffer.pointer = acpi_gbl_db_buffer;
 		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
 
-		status = acpi_get_possible_resources(node, &return_buffer);
+		status = acpi_get_possible_resources(yesde, &return_buffer);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("AcpiGetPossibleResources failed: %s\n",
 				       acpi_format_exception(status));
@@ -928,16 +928,16 @@ get_prs:
 	/* _AEI */
 
 get_aei:
-	if (aei_node) {
+	if (aei_yesde) {
 		acpi_os_printf("Evaluating _AEI\n");
 
 		return_buffer.pointer = acpi_gbl_db_buffer;
 		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
 
 		status =
-		    acpi_evaluate_object(aei_node, NULL, NULL, &return_buffer);
+		    acpi_evaluate_object(aei_yesde, NULL, NULL, &return_buffer);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not evaluate _AEI: %s\n",
+			acpi_os_printf("Could yest evaluate _AEI: %s\n",
 				       acpi_format_exception(status));
 			goto cleanup;
 		}
@@ -945,7 +945,7 @@ get_aei:
 		return_buffer.pointer = acpi_gbl_db_buffer;
 		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
 
-		status = acpi_get_event_resources(node, &return_buffer);
+		status = acpi_get_event_resources(yesde, &return_buffer);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("AcpiGetEventResources failed: %s\n",
 				       acpi_format_exception(status));
@@ -978,7 +978,7 @@ cleanup:
 
 void acpi_db_display_resources(char *object_arg)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 
 	acpi_db_set_output_destination(ACPI_DB_REDIRECTABLE_OUTPUT);
 	acpi_dbg_level |= ACPI_LV_RESOURCES;
@@ -993,15 +993,15 @@ void acpi_db_display_resources(char *object_arg)
 	} else {
 		/* Convert string to object pointer */
 
-		node = acpi_db_convert_to_node(object_arg);
-		if (node) {
-			if (node->type != ACPI_TYPE_DEVICE) {
+		yesde = acpi_db_convert_to_yesde(object_arg);
+		if (yesde) {
+			if (yesde->type != ACPI_TYPE_DEVICE) {
 				acpi_os_printf
-				    ("%4.4s: Name is not a device object (%s)\n",
-				     node->name.ascii,
-				     acpi_ut_get_type_name(node->type));
+				    ("%4.4s: Name is yest a device object (%s)\n",
+				     yesde->name.ascii,
+				     acpi_ut_get_type_name(yesde->type));
 			} else {
-				(void)acpi_db_device_resources(node, 0, NULL,
+				(void)acpi_db_device_resources(yesde, 0, NULL,
 							       NULL);
 			}
 		}
@@ -1034,7 +1034,7 @@ void acpi_db_generate_gpe(char *gpe_arg, char *block_arg)
 	gpe_number = strtoul(gpe_arg, NULL, 0);
 
 	/*
-	 * If no block arg, or block arg == 0 or 1, use the FADT-defined
+	 * If yes block arg, or block arg == 0 or 1, use the FADT-defined
 	 * GPE blocks.
 	 */
 	if (block_arg) {

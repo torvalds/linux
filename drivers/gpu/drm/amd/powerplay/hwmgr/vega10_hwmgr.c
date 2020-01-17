@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -586,7 +586,7 @@ static int vega10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 			PP_ASSERT_WITH_CODE((vddc < 2000 && vddc != 0),
 					"Invalid VDDC value", result = -EINVAL;);
 
-			/* the voltage should not be zero nor equal to leakage ID */
+			/* the voltage should yest be zero yesr equal to leakage ID */
 			if (vddc != 0 && vddc != vv_id) {
 				data->vddc_leakage.actual_voltage[data->vddc_leakage.count] = (uint16_t)(vddc/100);
 				data->vddc_leakage.leakage_id[data->vddc_leakage.count] = vv_id;
@@ -621,7 +621,7 @@ static void vega10_patch_with_vdd_leakage(struct pp_hwmgr *hwmgr,
 	}
 
 	if (*voltage > ATOM_VIRTUAL_VOLTAGE_ID0)
-		pr_info("Voltage value looks like a Leakage ID but it's not patched\n");
+		pr_info("Voltage value looks like a Leakage ID but it's yest patched\n");
 }
 
 /**
@@ -854,7 +854,7 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		kfree(hwmgr->backend);
 		hwmgr->backend = NULL;
 		PP_ASSERT_WITH_CODE(false,
-				"VDDCR_SOC is not SVID2!",
+				"VDDCR_SOC is yest SVID2!",
 				return -1);
 	}
 
@@ -1404,7 +1404,7 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	}
 	vega10_init_dpm_state(&(dpm_table->dpm_state));
 
-	/* Assume there is no headless Vega10 for now */
+	/* Assume there is yes headless Vega10 for yesw */
 	dpm_table = &(data->dpm_table.dcef_table);
 	vega10_setup_default_single_dpm_table(hwmgr,
 			dpm_table,
@@ -1575,7 +1575,7 @@ static int vega10_populate_single_gfx_level(struct pp_hwmgr *hwmgr,
 				break;
 		}
 		PP_ASSERT_WITH_CODE(dep_on_sclk->count > i,
-				"Cannot find gfx_clk in SOC_VDD-GFX_CLK!",
+				"Canyest find gfx_clk in SOC_VDD-GFX_CLK!",
 				return -EINVAL);
 	}
 
@@ -1636,7 +1636,7 @@ static int vega10_populate_single_soc_level(struct pp_hwmgr *hwmgr,
 	}
 
 	PP_ASSERT_WITH_CODE(dep_on_soc->count > i,
-			"Cannot find SOC_CLK in SOC_VDD-SOC_CLK Dependency Table",
+			"Canyest find SOC_CLK in SOC_VDD-SOC_CLK Dependency Table",
 			return -EINVAL);
 
 	PP_ASSERT_WITH_CODE(!pp_atomfwctrl_get_gpu_pll_dividers_vega10(hwmgr,
@@ -1776,7 +1776,7 @@ static int vega10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 				break;
 		}
 		PP_ASSERT_WITH_CODE(dep_on_mclk->count > i,
-				"Cannot find UCLK in SOC_VDD-UCLK Dependency Table!",
+				"Canyest find UCLK in SOC_VDD-UCLK Dependency Table!",
 				return -EINVAL);
 	}
 
@@ -2968,7 +2968,7 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(!tmp_result,
 			"Failed to start DPM!", result = tmp_result);
 
-	/* enable didt, do not abort if failed didt */
+	/* enable didt, do yest abort if failed didt */
 	tmp_result = vega10_enable_didt_config(hwmgr);
 	PP_ASSERT(!tmp_result,
 			"Failed to enable didt config!");
@@ -3021,7 +3021,7 @@ static int vega10_get_pp_table_entry_callback_func(struct pp_hwmgr *hwmgr,
 			le16_to_cpu(powerplay_table->usMclkDependencyTableOffset));
 
 
-	/* The following fields are not initialized here:
+	/* The following fields are yest initialized here:
 	 * id orderedList allStatesList
 	 */
 	power_state->classification.ui_label =
@@ -3030,7 +3030,7 @@ static int vega10_get_pp_table_entry_callback_func(struct pp_hwmgr *hwmgr,
 			ATOM_PPLIB_CLASSIFICATION_UI_SHIFT;
 	power_state->classification.flags = classification_flag;
 	/* NOTE: There is a classification2 flag in BIOS
-	 * that is not being used right now
+	 * that is yest being used right yesw
 	 */
 	power_state->classification.temporary_state = false;
 	power_state->classification.to_be_deleted = false;
@@ -3410,7 +3410,7 @@ static int vega10_trim_dpm_states(struct pp_hwmgr *hwmgr,
 	uint32_t high_limit_count;
 
 	PP_ASSERT_WITH_CODE((vega10_ps->performance_level_count >= 1),
-			"power state did not have any performance level",
+			"power state did yest have any performance level",
 			return -1);
 
 	high_limit_count = (vega10_ps->performance_level_count == 1) ? 0 : 1;
@@ -3846,7 +3846,7 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	return ret;
 }
 
-static void vega10_notify_smc_display_change(struct pp_hwmgr *hwmgr,
+static void vega10_yestify_smc_display_change(struct pp_hwmgr *hwmgr,
 		bool has_disp)
 {
 	smum_send_msg_to_smc_with_parameter(hwmgr,
@@ -3912,7 +3912,7 @@ static uint8_t vega10_get_uclk_index(struct pp_hwmgr *hwmgr,
 	return i-1;
 }
 
-static int vega10_notify_smc_display_config_after_ps_adjustment(
+static int vega10_yestify_smc_display_config_after_ps_adjustment(
 		struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
@@ -3929,9 +3929,9 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 	if ((hwmgr->display_config->num_display > 1) &&
 	     !hwmgr->display_config->multi_monitor_in_sync &&
 	     !hwmgr->display_config->nb_pstate_switch_disable)
-		vega10_notify_smc_display_change(hwmgr, false);
+		vega10_yestify_smc_display_change(hwmgr, false);
 	else
-		vega10_notify_smc_display_change(hwmgr, true);
+		vega10_yestify_smc_display_change(hwmgr, true);
 
 	min_clocks.dcefClock = hwmgr->display_config->min_dcef_set_clk;
 	min_clocks.dcefClockInSR = hwmgr->display_config->min_dcef_deep_sleep_set_clk;
@@ -3953,7 +3953,7 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 			pr_info("Attempt to set Hard Min for DCEFCLK Failed!");
 		}
 	} else {
-		pr_debug("Cannot find requested DCEFCLK!");
+		pr_debug("Canyest find requested DCEFCLK!");
 	}
 
 	if (min_clocks.memoryClock != 0) {
@@ -4128,7 +4128,7 @@ static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
 		break;
 
 	case PP_DCEFCLK:
-		pr_info("Setting DCEFCLK min/max dpm level is not supported!\n");
+		pr_info("Setting DCEFCLK min/max dpm level is yest supported!\n");
 		break;
 
 	case PP_PCIE:
@@ -4480,7 +4480,7 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 	struct vega10_pcie_table *pcie_table = &(data->dpm_table.pcie_table);
 	struct vega10_odn_clock_voltage_dependency_table *podn_vdd_dep = NULL;
 
-	int i, now, size = 0;
+	int i, yesw, size = 0;
 
 	switch (type) {
 	case PP_SCLK:
@@ -4488,36 +4488,36 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 			break;
 
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentGfxclkIndex);
-		now = smum_get_argument(hwmgr);
+		yesw = smum_get_argument(hwmgr);
 
 		for (i = 0; i < sclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i, sclk_table->dpm_levels[i].value / 100,
-					(i == now) ? "*" : "");
+					(i == yesw) ? "*" : "");
 		break;
 	case PP_MCLK:
 		if (data->registry_data.mclk_dpm_key_disabled)
 			break;
 
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentUclkIndex);
-		now = smum_get_argument(hwmgr);
+		yesw = smum_get_argument(hwmgr);
 
 		for (i = 0; i < mclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i, mclk_table->dpm_levels[i].value / 100,
-					(i == now) ? "*" : "");
+					(i == yesw) ? "*" : "");
 		break;
 	case PP_SOCCLK:
 		if (data->registry_data.socclk_dpm_key_disabled)
 			break;
 
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentSocclkIndex);
-		now = smum_get_argument(hwmgr);
+		yesw = smum_get_argument(hwmgr);
 
 		for (i = 0; i < soc_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i, soc_table->dpm_levels[i].value / 100,
-					(i == now) ? "*" : "");
+					(i == yesw) ? "*" : "");
 		break;
 	case PP_DCEFCLK:
 		if (data->registry_data.dcefclk_dpm_key_disabled)
@@ -4525,24 +4525,24 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_GetClockFreqMHz, CLK_DCEFCLK);
-		now = smum_get_argument(hwmgr);
+		yesw = smum_get_argument(hwmgr);
 
 		for (i = 0; i < dcef_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i, dcef_table->dpm_levels[i].value / 100,
-					(dcef_table->dpm_levels[i].value / 100 == now) ?
+					(dcef_table->dpm_levels[i].value / 100 == yesw) ?
 					"*" : "");
 		break;
 	case PP_PCIE:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentLinkIndex);
-		now = smum_get_argument(hwmgr);
+		yesw = smum_get_argument(hwmgr);
 
 		for (i = 0; i < pcie_table->count; i++)
 			size += sprintf(buf + size, "%d: %s %s\n", i,
 					(pcie_table->pcie_gen[i] == 0) ? "2.5GT/s, x1" :
 					(pcie_table->pcie_gen[i] == 1) ? "5.0GT/s, x16" :
 					(pcie_table->pcie_gen[i] == 2) ? "8.0GT/s, x16" : "",
-					(i == now) ? "*" : "");
+					(i == yesw) ? "*" : "");
 		break;
 	case OD_SCLK:
 		if (hwmgr->od_enabled) {
@@ -4658,7 +4658,7 @@ static int vega10_check_states_equal(struct pp_hwmgr *hwmgr,
 
 	psa = cast_const_phw_vega10_power_state(pstate1);
 	psb = cast_const_phw_vega10_power_state(pstate2);
-	/* If the two states don't even have the same number of performance levels they cannot be the same state. */
+	/* If the two states don't even have the same number of performance levels they canyest be the same state. */
 	if (psa->performance_level_count != psb->performance_level_count) {
 		*equal = false;
 		return 0;
@@ -4853,7 +4853,7 @@ static int vega10_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 	return 0;
 }
 
-static int vega10_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
+static int vega10_yestify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 					uint32_t virtual_addr_low,
 					uint32_t virtual_addr_hi,
 					uint32_t mc_addr_low,
@@ -5174,7 +5174,7 @@ static int vega10_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 				return -EINVAL);
 
 	if (!hwmgr->od_enabled) {
-		pr_info("OverDrive feature not enabled\n");
+		pr_info("OverDrive feature yest enabled\n");
 		return -EINVAL;
 	}
 
@@ -5338,8 +5338,8 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.power_state_set = vega10_set_power_state_tasks,
 	.get_sclk = vega10_dpm_get_sclk,
 	.get_mclk = vega10_dpm_get_mclk,
-	.notify_smc_display_config_after_ps_adjustment =
-			vega10_notify_smc_display_config_after_ps_adjustment,
+	.yestify_smc_display_config_after_ps_adjustment =
+			vega10_yestify_smc_display_config_after_ps_adjustment,
 	.force_dpm_level = vega10_dpm_force_dpm_level,
 	.stop_thermal_controller = vega10_thermal_stop_thermal_controller,
 	.get_fan_speed_info = vega10_fan_ctrl_get_fan_speed_info,
@@ -5374,7 +5374,7 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.get_mclk_od = vega10_get_mclk_od,
 	.set_mclk_od = vega10_set_mclk_od,
 	.avfs_control = vega10_avfs_enable,
-	.notify_cac_buffer_info = vega10_notify_cac_buffer_info,
+	.yestify_cac_buffer_info = vega10_yestify_cac_buffer_info,
 	.get_thermal_temperature_range = vega10_get_thermal_temperature_range,
 	.register_irq_handlers = smu9_register_irq_handlers,
 	.start_thermal_controller = vega10_start_thermal_controller,

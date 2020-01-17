@@ -379,7 +379,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 			tmp = bcma_erom_get_addr_desc(bus, eromptr,
 				SCAN_ADDR_TYPE_SLAVE, i);
 			if (IS_ERR_VALUE_U32(tmp)) {
-				/* no more entries for port _i_ */
+				/* yes more entries for port _i_ */
 				/* pr_debug("erom: slave port %d "
 				 * "has %d descriptors\n", i, j); */
 				break;
@@ -396,7 +396,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 			tmp = bcma_erom_get_addr_desc(bus, eromptr,
 				SCAN_ADDR_TYPE_MWRAP, i);
 			if (IS_ERR_VALUE_U32(tmp)) {
-				/* no more entries for port _i_ */
+				/* yes more entries for port _i_ */
 				/* pr_debug("erom: master wrapper %d "
 				 * "has %d descriptors\n", i, j); */
 				break;
@@ -414,7 +414,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 			tmp = bcma_erom_get_addr_desc(bus, eromptr,
 				SCAN_ADDR_TYPE_SWRAP, i + hack);
 			if (IS_ERR_VALUE_U32(tmp)) {
-				/* no more entries for port _i_ */
+				/* yes more entries for port _i_ */
 				/* pr_debug("erom: master wrapper %d "
 				 * has %d descriptors\n", i, j); */
 				break;
@@ -425,11 +425,11 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 		}
 	}
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
-		core->io_addr = ioremap_nocache(core->addr, BCMA_CORE_SIZE);
+		core->io_addr = ioremap_yescache(core->addr, BCMA_CORE_SIZE);
 		if (!core->io_addr)
 			return -ENOMEM;
 		if (core->wrap) {
-			core->io_wrap = ioremap_nocache(core->wrap,
+			core->io_wrap = ioremap_yescache(core->wrap,
 							BCMA_CORE_SIZE);
 			if (!core->io_wrap) {
 				iounmap(core->io_addr);
@@ -472,7 +472,7 @@ int bcma_bus_scan(struct bcma_bus *bus)
 
 	erombase = bcma_scan_read32(bus, 0, BCMA_CC_EROM);
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
-		eromptr = ioremap_nocache(erombase, BCMA_CORE_SIZE);
+		eromptr = ioremap_yescache(erombase, BCMA_CORE_SIZE);
 		if (!eromptr)
 			return -ENOMEM;
 	} else {

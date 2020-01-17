@@ -25,7 +25,7 @@
 #define PCI_DEVICE_ID_MADGE_AMBASSADOR_BAD 0x1002
 #endif
 
-// diagnostic output
+// diagyesstic output
 
 #define PRINTK(severity,format,args...) \
   printk(severity DEV_LABEL ": " format "\n" , ## args)
@@ -50,8 +50,8 @@
 #define DBG_DATA 0x8000
 #define DBG_MASK 0xffff
 
-/* the ## prevents the annoying double expansion of the macro arguments */
-/* KERN_INFO is used since KERN_DEBUG often does not make it to the console */
+/* the ## prevents the anyesying double expansion of the macro arguments */
+/* KERN_INFO is used since KERN_DEBUG often does yest make it to the console */
 #define PRINTDB(bits,format,args...) \
   ( (debug & (bits)) ? printk (KERN_INFO DEV_LABEL ": " format , ## args) : 1 )
 #define PRINTDM(bits,format,args...) \
@@ -163,7 +163,7 @@
 #define SRB_GET_VERSION		14
 /* returns 		*/
 /* par_0: dwordswap(Major Version) */
-/* par_1: dwordswap(Minor Version) */
+/* par_1: dwordswap(Miyesr Version) */
 
 #define SRB_FLUSH_BUFFER_Q	15
 /* Only flags to define which buffer pool; all others must be zero */
@@ -222,13 +222,13 @@
 #define FP_25_RATE	0x1f9d
 
 /* #define VERSION_NUMBER 0x01000000 // initial release */
-/* #define VERSION_NUMBER 0x01010000 // fixed startup probs PLX MB0 not cleared */
+/* #define VERSION_NUMBER 0x01010000 // fixed startup probs PLX MB0 yest cleared */
 /* #define VERSION_NUMBER 0x01020000 // changed SUNI reset timings; allowed r/w onchip */
 
 /* #define VERSION_NUMBER 0x01030000 // clear local doorbell int reg on reset */
 /* #define VERSION_NUMBER 0x01040000 // PLX bug work around version PLUS */
 /* remove race conditions on basic interface */
-/* indicate to the host that diagnostics */
+/* indicate to the host that diagyesstics */
 /* have finished; if failed, how and what  */
 /* failed */
 /* fix host memory test to fix PLX bug */
@@ -374,7 +374,7 @@ typedef	struct {
     } suni;
     struct {
       __be32 major;
-      __be32 minor;
+      __be32 miyesr;
     } version;
     struct {
       __be32 read;

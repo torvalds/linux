@@ -127,7 +127,7 @@
 /**
  * struct fsl_qdma_format - This is the struct holding describing compound
  *			    descriptor format with qDMA.
- * @status:		    Command status and enqueue status notification.
+ * @status:		    Command status and enqueue status yestification.
  * @cfg:		    Frame offset and frame format.
  * @addr_lo:		    Holding the compound descriptor of the lower
  *			    32-bits address in memory 40-bit address.
@@ -153,7 +153,7 @@ struct fsl_qdma_format {
 	};
 } __packed;
 
-/* qDMA status notification pre information */
+/* qDMA status yestification pre information */
 struct fsl_pre_status {
 	u64 addr;
 	u8 queue;
@@ -359,7 +359,7 @@ static void fsl_qdma_comp_fill_memcpy(struct fsl_qdma_comp *fsl_comp,
 	qdma_desc_addr_set64(ccdf, fsl_comp->bus_addr + 16);
 	qdma_ccdf_set_format(ccdf, qdma_ccdf_get_offset(ccdf));
 	qdma_ccdf_set_ser(ccdf, qdma_ccdf_get_status(ccdf));
-	/* Status notification is enqueued to status queue. */
+	/* Status yestification is enqueued to status queue. */
 	/* Compound Command Descriptor(Frame List Table) */
 	qdma_desc_addr_set64(csgf_desc, fsl_comp->desc_bus_addr);
 	/* It must be 32 as Compound S/G Descriptor */
@@ -531,7 +531,7 @@ static struct fsl_qdma_queue
 	int ret;
 	unsigned int status_size;
 	struct fsl_qdma_queue *status_head;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	ret = of_property_read_u32(np, "status-sizes", &status_size);
 	if (ret) {
@@ -948,7 +948,7 @@ static void fsl_qdma_enqueue_desc(struct fsl_qdma_chan *fsl_chan)
 	vdesc = vchan_next_desc(&fsl_chan->vchan);
 	if (!vdesc)
 		return;
-	list_del(&vdesc->node);
+	list_del(&vdesc->yesde);
 	fsl_comp = to_fsl_qdma_comp(vdesc);
 
 	memcpy(fsl_queue->virt_head++,
@@ -1071,7 +1071,7 @@ static int fsl_qdma_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct fsl_qdma_chan *fsl_chan;
 	struct fsl_qdma_engine *fsl_qdma;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	ret = of_property_read_u32(np, "dma-channels", &chans);
 	if (ret) {
@@ -1209,8 +1209,8 @@ static void fsl_qdma_cleanup_vchan(struct dma_device *dmadev)
 	struct fsl_qdma_chan *chan, *_chan;
 
 	list_for_each_entry_safe(chan, _chan,
-				 &dmadev->channels, vchan.chan.device_node) {
-		list_del(&chan->vchan.chan.device_node);
+				 &dmadev->channels, vchan.chan.device_yesde) {
+		list_del(&chan->vchan.chan.device_yesde);
 		tasklet_kill(&chan->vchan.task);
 	}
 }
@@ -1219,7 +1219,7 @@ static int fsl_qdma_remove(struct platform_device *pdev)
 {
 	int i;
 	struct fsl_qdma_queue *status;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct fsl_qdma_engine *fsl_qdma = platform_get_drvdata(pdev);
 
 	fsl_qdma_irq_exit(pdev, fsl_qdma);

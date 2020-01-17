@@ -6,7 +6,7 @@
 #ifndef _LINUX_KALLSYMS_H
 #define _LINUX_KALLSYMS_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/mm.h>
@@ -33,14 +33,14 @@ static inline int is_kernel_text(unsigned long addr)
 	if ((addr >= (unsigned long)_stext && addr <= (unsigned long)_etext) ||
 	    arch_is_kernel_text(addr))
 		return 1;
-	return in_gate_area_no_mm(addr);
+	return in_gate_area_yes_mm(addr);
 }
 
 static inline int is_kernel(unsigned long addr)
 {
 	if (addr >= (unsigned long)_stext && addr <= (unsigned long)_end)
 		return 1;
-	return in_gate_area_no_mm(addr);
+	return in_gate_area_yes_mm(addr);
 }
 
 static inline int is_ksym_addr(unsigned long addr)
@@ -71,7 +71,7 @@ static inline void *dereference_symbol_descriptor(void *ptr)
 }
 
 #ifdef CONFIG_KALLSYMS
-/* Lookup the address for a symbol. Returns 0 if not found. */
+/* Lookup the address for a symbol. Returns 0 if yest found. */
 unsigned long kallsyms_lookup_name(const char *name);
 
 /* Call a function on each kallsyms symbol in the core kernel */
@@ -91,7 +91,7 @@ const char *kallsyms_lookup(unsigned long addr,
 
 /* Look up a kernel symbol and return it in a text buffer. */
 extern int sprint_symbol(char *buffer, unsigned long address);
-extern int sprint_symbol_no_offset(char *buffer, unsigned long address);
+extern int sprint_symbol_yes_offset(char *buffer, unsigned long address);
 extern int sprint_backtrace(char *buffer, unsigned long address);
 
 int lookup_symbol_name(unsigned long addr, char *symname);
@@ -136,7 +136,7 @@ static inline int sprint_symbol(char *buffer, unsigned long addr)
 	return 0;
 }
 
-static inline int sprint_symbol_no_offset(char *buffer, unsigned long addr)
+static inline int sprint_symbol_yes_offset(char *buffer, unsigned long addr)
 {
 	*buffer = '\0';
 	return 0;

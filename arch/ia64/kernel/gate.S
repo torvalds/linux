@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file contains the code that gets mapped at the upper end of each task's text
- * region.  For now, it contains the signal trampoline code only.
+ * region.  For yesw, it contains the signal trampoline code only.
  *
  * Copyright (C) 1999-2003 Hewlett-Packard Co
  * 	David Mosberger-Tang <davidm@hpl.hp.com>
@@ -9,7 +9,7 @@
 
 
 #include <asm/asmmacro.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/asm-offsets.h>
 #include <asm/sigcontext.h>
 #include <asm/unistd.h>
@@ -46,7 +46,7 @@ GLOBAL_ENTRY(__kernel_syscall_via_break)
 	 */
 { .mib
 	break 0x100000
-	nop.i 0
+	yesp.i 0
 	br.ret.sptk.many b6
 }
 END(__kernel_syscall_via_break)
@@ -125,7 +125,7 @@ GLOBAL_ENTRY(__kernel_sigtramp)
 	ld8 r15=[base1]					// get address of new RBS base (or NULL)
 	cover				// push args in interrupted frame onto backing store
 	;;
-	cmp.ne p1,p0=r15,r0		// do we need to switch rbs? (note: pr is saved by kernel)
+	cmp.ne p1,p0=r15,r0		// do we need to switch rbs? (yeste: pr is saved by kernel)
 	mov.m r9=ar.bsp			// fetch ar.bsp
 	.spillsp.p p1, ar.rnat, RNAT_OFF+SIGCONTEXT_OFF
 (p1)	br.cond.spnt setup_rbs		// yup -> (clobbers p8, r14-r16, and r18-r20)
@@ -220,7 +220,7 @@ setup_rbs:
 	shl r15=r15,16
 	;;
 	st8 [r14]=r15				// save sc_loadrs
-(p8)	st8 [r18]=r19		// if bspstore points at RNaT slot, store RNaT there now
+(p8)	st8 [r18]=r19		// if bspstore points at RNaT slot, store RNaT there yesw
 	.restore sp				// pop .prologue
 	br.cond.sptk back_from_setup_rbs
 
@@ -293,7 +293,7 @@ restore_rbs:
 	;;
 	mov ar.rnat=r16				// restore RNaT
 	mov ar.rsc=0xf				// (will be restored later on from sc_ar_rsc)
-	// invala not necessary as that will happen when returning to user-mode
+	// invala yest necessary as that will happen when returning to user-mode
 	br.cond.sptk back_from_restore_rbs
 END(__kernel_sigtramp)
 
@@ -317,9 +317,9 @@ GLOBAL_ENTRY(__kernel_syscall_via_epc)
 	.body
 {
 	/*
-	 * Note: the kernel cannot assume that the first two instructions in this
+	 * Note: the kernel canyest assume that the first two instructions in this
 	 * bundle get executed.  The remaining code must be safe even if
-	 * they do not get executed.
+	 * they do yest get executed.
 	 */
 	adds r17=-1024,r15			// A
 	mov r10=0				// A    default to successful syscall execution
@@ -344,11 +344,11 @@ GLOBAL_ENTRY(__kernel_syscall_via_epc)
 	;;
 	srlz.d					// M0 (forces split-issue) ensure PSR.BE==0
 (p6)	ld8 r18=[r18]				// M0|1
-	nop.i 0
+	yesp.i 0
 	;;
-	nop.m 0
+	yesp.m 0
 (p6)	tbit.z.unc p8,p0=r18,0			// I0 (dual-issues with "mov b7=r18"!)
-	nop.i 0
+	yesp.i 0
 	;;
 	SSM_PSR_I(p8, p14, r25)
 (p6)	mov b7=r18				// I0

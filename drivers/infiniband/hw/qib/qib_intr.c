@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -137,8 +137,8 @@ void qib_handle_e_ibstatuschanged(struct qib_pportdata *ppd, u64 ibcs)
 				  msecs_to_jiffies(75));
 		} else if (ltstate == IB_PHYSPORTSTATE_LINKUP &&
 			   !(ppd->lflags & QIBL_LINKACTIVE)) {
-			/* active, but not active defered */
-			qib_hol_up(ppd); /* useful only for 6120 now */
+			/* active, but yest active defered */
+			qib_hol_up(ppd); /* useful only for 6120 yesw */
 			*ppd->statusp |=
 				QIB_STATUS_IB_READY | QIB_STATUS_IB_CONF;
 			qib_clear_symerror_on_linkup(&ppd->symerr_clear_timer);

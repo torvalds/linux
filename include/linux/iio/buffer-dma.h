@@ -24,7 +24,7 @@ struct iio_buffer_block {
 
 /**
  * enum iio_block_state - State of a struct iio_dma_buffer_block
- * @IIO_BLOCK_STATE_DEQUEUED: Block is not queued
+ * @IIO_BLOCK_STATE_DEQUEUED: Block is yest queued
  * @IIO_BLOCK_STATE_QUEUED: Block is on the incoming queue
  * @IIO_BLOCK_STATE_ACTIVE: Block is currently being processed by the DMA
  * @IIO_BLOCK_STATE_DONE: Block is on the outgoing queue
@@ -63,11 +63,11 @@ struct iio_dma_buffer_block {
 	size_t size;
 	struct iio_dma_buffer_queue *queue;
 
-	/* Must not be accessed outside the core. */
+	/* Must yest be accessed outside the core. */
 	struct kref kref;
 	/*
-	 * Must not be accessed outside the core. Access needs to hold
-	 * queue->list_lock if the block is not owned by the core.
+	 * Must yest be accessed outside the core. Access needs to hold
+	 * queue->list_lock if the block is yest owned by the core.
 	 */
 	enum iio_block_state state;
 };

@@ -109,7 +109,7 @@ enum rt5033_reg {
 /* RT5033 charger property - model, manufacturer */
 
 #define RT5033_CHARGER_MODEL	"RT5033WSC Charger"
-#define RT5033_MANUFACTURER	"Richtek Technology Corporation"
+#define RT5033_MANUFACTURER	"Richtek Techyeslogy Corporation"
 
 /*
  * RT5033 charger fast-charge current lmits (as in CHGCTRL1 register),

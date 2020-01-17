@@ -26,7 +26,7 @@ static size_t sof_trace_avail(struct snd_sof_dev *sdev,
 	if (host_offset < pos)
 		return buffer_size - pos;
 
-	/* If there is available trace data now, it is unnecessary to wait. */
+	/* If there is available trace data yesw, it is unnecessary to wait. */
 	if (host_offset > pos)
 		return host_offset - pos;
 
@@ -58,7 +58,7 @@ static size_t sof_wait_trace_avail(struct snd_sof_dev *sdev,
 	add_wait_queue(&sdev->trace_sleep, &wait);
 
 	if (!signal_pending(current)) {
-		/* set timeout to max value, no error code */
+		/* set timeout to max value, yes error code */
 		schedule_timeout(MAX_SCHEDULE_TIMEOUT);
 	}
 	remove_wait_queue(&sdev->trace_sleep, &wait);
@@ -76,7 +76,7 @@ static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
 	size_t avail, buffer_size = dfse->size;
 	u64 lpos_64;
 
-	/* make sure we know about any failures on the DSP side */
+	/* make sure we kyesw about any failures on the DSP side */
 	sdev->dtrace_error = false;
 
 	/* check pos and count */
@@ -89,7 +89,7 @@ static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
 	lpos_64 = lpos;
 	lpos = do_div(lpos_64, buffer_size);
 
-	if (count > buffer_size - lpos) /* min() not used to avoid sparse warnings */
+	if (count > buffer_size - lpos) /* min() yest used to avoid sparse warnings */
 		count = buffer_size - lpos;
 
 	/* get available count based on current host offset */
@@ -113,9 +113,9 @@ static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
 	return count;
 }
 
-static int sof_dfsentry_trace_release(struct inode *inode, struct file *file)
+static int sof_dfsentry_trace_release(struct iyesde *iyesde, struct file *file)
 {
-	struct snd_sof_dfsentry *dfse = inode->i_private;
+	struct snd_sof_dfsentry *dfse = iyesde->i_private;
 	struct snd_sof_dev *sdev = dfse->sdev;
 
 	/* avoid duplicate traces at next open */
@@ -174,7 +174,7 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 	if (v->abi_version >= SOF_ABI_VER(3, 7, 0)) {
 		params.hdr.size = sizeof(struct sof_ipc_dma_trace_params_ext);
 		params.hdr.cmd |= SOF_IPC_TRACE_DMA_PARAMS_EXT;
-		params.timestamp_ns = ktime_get(); /* in nanosecond */
+		params.timestamp_ns = ktime_get(); /* in nayessecond */
 	} else {
 		params.hdr.size = sizeof(struct sof_ipc_dma_trace_params);
 		params.hdr.cmd |= SOF_IPC_TRACE_DMA_PARAMS;
@@ -300,7 +300,7 @@ int snd_sof_trace_update_pos(struct snd_sof_dev *sdev,
 }
 
 /* an error has occurred within the DSP that prevents further trace */
-void snd_sof_trace_notify_for_error(struct snd_sof_dev *sdev)
+void snd_sof_trace_yestify_for_error(struct snd_sof_dev *sdev)
 {
 	if (!sdev->dtrace_is_supported)
 		return;
@@ -311,7 +311,7 @@ void snd_sof_trace_notify_for_error(struct snd_sof_dev *sdev)
 		wake_up(&sdev->trace_sleep);
 	}
 }
-EXPORT_SYMBOL(snd_sof_trace_notify_for_error);
+EXPORT_SYMBOL(snd_sof_trace_yestify_for_error);
 
 void snd_sof_release_trace(struct snd_sof_dev *sdev)
 {

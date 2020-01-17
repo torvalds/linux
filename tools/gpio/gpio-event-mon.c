@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <poll.h>
 #include <fcntl.h>
@@ -43,7 +43,7 @@ int monitor_device(const char *device_name,
 
 	fd = open(chrdev_name, 0);
 	if (fd == -1) {
-		ret = -errno;
+		ret = -erryes;
 		fprintf(stderr, "Failed to open %s\n", chrdev_name);
 		goto exit_close_error;
 	}
@@ -55,7 +55,7 @@ int monitor_device(const char *device_name,
 
 	ret = ioctl(fd, GPIO_GET_LINEEVENT_IOCTL, &req);
 	if (ret == -1) {
-		ret = -errno;
+		ret = -erryes;
 		fprintf(stderr, "Failed to issue GET EVENT "
 			"IOCTL (%d)\n",
 			ret);
@@ -65,7 +65,7 @@ int monitor_device(const char *device_name,
 	/* Read initial states */
 	ret = ioctl(req.fd, GPIOHANDLE_GET_LINE_VALUES_IOCTL, &data);
 	if (ret == -1) {
-		ret = -errno;
+		ret = -erryes;
 		fprintf(stderr, "Failed to issue GPIOHANDLE GET LINE "
 			"VALUES IOCTL (%d)\n",
 			ret);
@@ -80,11 +80,11 @@ int monitor_device(const char *device_name,
 
 		ret = read(req.fd, &event, sizeof(event));
 		if (ret == -1) {
-			if (errno == -EAGAIN) {
-				fprintf(stderr, "nothing available\n");
+			if (erryes == -EAGAIN) {
+				fprintf(stderr, "yesthing available\n");
 				continue;
 			} else {
-				ret = -errno;
+				ret = -erryes;
 				fprintf(stderr, "Failed to read event (%d)\n",
 					ret);
 				break;
@@ -105,7 +105,7 @@ int monitor_device(const char *device_name,
 			fprintf(stdout, "falling edge");
 			break;
 		default:
-			fprintf(stdout, "unknown event");
+			fprintf(stdout, "unkyeswn event");
 		}
 		fprintf(stdout, "\n");
 
@@ -131,7 +131,7 @@ void print_usage(void)
 		"  -s         Set line as open source\n"
 		"  -r         Listen for rising edges\n"
 		"  -f         Listen for falling edges\n"
-		" [-c <n>]    Do <n> loops (optional, infinite loop if not stated)\n"
+		" [-c <n>]    Do <n> loops (optional, infinite loop if yest stated)\n"
 		"  -?         This helptext\n"
 		"\n"
 		"Example:\n"

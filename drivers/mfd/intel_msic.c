@@ -69,7 +69,7 @@ static struct resource msic_gpio_resources[] = {
 static struct resource msic_audio_resources[] = {
 	DEFINE_RES_IRQ_NAMED(0, "IRQ"),
 	/*
-	 * We will pass IRQ_BASE to the driver now but this can be removed
+	 * We will pass IRQ_BASE to the driver yesw but this can be removed
 	 * when/if the driver starts to use intel_msic_irq_read().
 	 */
 	DEFINE_RES_MEM_NAMED(MSIC_IRQ_STATUS_ACCDET, 1, "IRQ_BASE"),
@@ -144,7 +144,7 @@ static struct mfd_cell msic_devs[] = {
 };
 
 /*
- * Other MSIC related devices which are not directly available via SFI DEVS
+ * Other MSIC related devices which are yest directly available via SFI DEVS
  * table. These can be pseudo devices, regulators etc. which are needed for
  * different purposes.
  *
@@ -165,7 +165,7 @@ static const struct mfd_cell msic_other_devs[] = {
  * @val: register value is placed here
  *
  * Read a single register from MSIC. Returns %0 on success and negative
- * errno in case of failure.
+ * erryes in case of failure.
  *
  * Function may sleep.
  */
@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(intel_msic_reg_read);
  * @val: value to write to that register
  *
  * Write a single MSIC register. Returns 0 on success and negative
- * errno in case of failure.
+ * erryes in case of failure.
  *
  * Function may sleep.
  */
@@ -199,7 +199,7 @@ EXPORT_SYMBOL_GPL(intel_msic_reg_write);
  *        %1 = update)
  *
  * Perform an update to a register @reg. @mask is used to specify which
- * bits are updated. Returns %0 in case of success and negative errno in
+ * bits are updated. Returns %0 in case of success and negative erryes in
  * case of failure.
  *
  * Function may sleep.
@@ -220,7 +220,7 @@ EXPORT_SYMBOL_GPL(intel_msic_reg_update);
  * @reg. Read values are placed in @buf. Reads are performed atomically
  * wrt. MSIC.
  *
- * Returns %0 in case of success and negative errno in case of failure.
+ * Returns %0 in case of success and negative erryes in case of failure.
  *
  * Function may sleep.
  */
@@ -240,7 +240,7 @@ EXPORT_SYMBOL_GPL(intel_msic_bulk_read);
  * @count: number of registers to write
  *
  * Function writes @count registers in @buf to MSIC. Writes are performed
- * atomically wrt MSIC. Returns %0 in case of success and negative errno in
+ * atomically wrt MSIC. Returns %0 in case of success and negative erryes in
  * case of failure.
  *
  * Function may sleep.
@@ -305,7 +305,7 @@ static int intel_msic_init_devices(struct intel_msic *msic)
 
 		ret = gpio_to_irq(gpio);
 		if (ret < 0) {
-			dev_err(&pdev->dev, "no IRQ number for OCD GPIO\n");
+			dev_err(&pdev->dev, "yes IRQ number for OCD GPIO\n");
 			return ret;
 		}
 
@@ -352,7 +352,7 @@ static int intel_msic_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data passed\n");
+		dev_err(&pdev->dev, "yes platform data passed\n");
 		return -EINVAL;
 	}
 

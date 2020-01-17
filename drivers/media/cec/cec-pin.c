@@ -249,7 +249,7 @@ static bool tx_error_inj(struct cec_pin *pin, unsigned int mode_offset,
 #endif
 }
 
-static bool tx_no_eom(struct cec_pin *pin)
+static bool tx_yes_eom(struct cec_pin *pin)
 {
 	return tx_error_inj(pin, CEC_ERROR_INJ_TX_NO_EOM_OFFSET, -1, NULL);
 }
@@ -429,13 +429,13 @@ static void cec_pin_tx_states(struct cec_pin *pin, ktime_t ts)
 		 * low drive condition.
 		 *
 		 * Special case: when we generate a poll message due to an
-		 * Arbitration Lost error injection, then ignore this since
+		 * Arbitration Lost error injection, then igyesre this since
 		 * the pin can actually be low in that case.
 		 */
 		if (!cec_pin_read(pin) && !pin->tx_generated_poll) {
 			/*
 			 * It's 0, so someone detected an error and pulled the
-			 * line low for 1.5 times the nominal bit period.
+			 * line low for 1.5 times the yesminal bit period.
 			 */
 			pin->tx_msg.len = 0;
 			pin->state = CEC_ST_TX_WAIT_FOR_HIGH;
@@ -518,8 +518,8 @@ static void cec_pin_tx_states(struct cec_pin *pin, ktime_t ts)
 				/* Error injection: set EOM one byte early */
 				v = true;
 				pin->tx_post_eom = true;
-			} else if (v && tx_no_eom(pin)) {
-				/* Error injection: no EOM */
+			} else if (v && tx_yes_eom(pin)) {
+				/* Error injection: yes EOM */
 				v = false;
 			}
 			pin->state = v ? CEC_ST_TX_DATA_BIT_1_LOW :
@@ -601,7 +601,7 @@ static void cec_pin_tx_states(struct cec_pin *pin, ktime_t ts)
 			break;
 		/* Was the message ACKed? */
 		ack = cec_msg_is_broadcast(&pin->tx_msg) ? v : !v;
-		if (!ack && (!pin->tx_ignore_nack_until_eom ||
+		if (!ack && (!pin->tx_igyesre_nack_until_eom ||
 		    pin->tx_bit / 10 == pin->tx_msg.len - 1) &&
 		    !pin->tx_post_eom) {
 			/*
@@ -688,7 +688,7 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 		v = cec_pin_read(pin);
 		delta = ktime_us_delta(ts, pin->ts);
 		/*
-		 * Unfortunately the spec does not specify when to give up
+		 * Unfortunately the spec does yest specify when to give up
 		 * and go to idle. We just pick TOTAL_LONG.
 		 */
 		if (v && delta > CEC_TIM_START_BIT_TOTAL_LONG) {
@@ -746,7 +746,7 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 		v = cec_pin_read(pin);
 		delta = ktime_us_delta(ts, pin->ts);
 		/*
-		 * Unfortunately the spec does not specify when to give up
+		 * Unfortunately the spec does yest specify when to give up
 		 * and go to idle. We just pick TOTAL_LONG.
 		 */
 		if (v && delta > CEC_TIM_DATA_BIT_TOTAL_LONG) {
@@ -872,18 +872,18 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 		if (pin->wait_usecs > 150) {
 			pin->wait_usecs -= 100;
 			pin->timer_ts = ktime_add_us(ts, 100);
-			hrtimer_forward_now(timer, ns_to_ktime(100000));
+			hrtimer_forward_yesw(timer, ns_to_ktime(100000));
 			return HRTIMER_RESTART;
 		}
 		if (pin->wait_usecs > 100) {
 			pin->wait_usecs /= 2;
 			pin->timer_ts = ktime_add_us(ts, pin->wait_usecs);
-			hrtimer_forward_now(timer,
+			hrtimer_forward_yesw(timer,
 					ns_to_ktime(pin->wait_usecs * 1000));
 			return HRTIMER_RESTART;
 		}
 		pin->timer_ts = ktime_add_us(ts, pin->wait_usecs);
-		hrtimer_forward_now(timer,
+		hrtimer_forward_yesw(timer,
 				    ns_to_ktime(pin->wait_usecs * 1000));
 		pin->wait_usecs = 0;
 		return HRTIMER_RESTART;
@@ -938,9 +938,9 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 			pin->state = CEC_ST_RX_START_BIT_LOW;
 			/*
 			 * If a transmit is pending, then that transmit should
-			 * use a signal free time of no more than
+			 * use a signal free time of yes more than
 			 * CEC_SIGNAL_FREE_TIME_NEW_INITIATOR since it will
-			 * have a new initiator due to the receive that is now
+			 * have a new initiator due to the receive that is yesw
 			 * starting.
 			 */
 			if (pin->tx_msg.len && pin->tx_signal_free_time >
@@ -953,7 +953,7 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 			pin->ts = ts;
 		if (pin->tx_msg.len) {
 			/*
-			 * Check if the bus has been free for long enough
+			 * Check if the bus has been free for long eyesugh
 			 * so we can kick off the pending transmit.
 			 */
 			delta = ktime_us_delta(ts, pin->ts);
@@ -1019,13 +1019,13 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 	if (!adap->monitor_pin_cnt || usecs <= 150) {
 		pin->wait_usecs = 0;
 		pin->timer_ts = ktime_add_us(ts, usecs);
-		hrtimer_forward_now(timer,
+		hrtimer_forward_yesw(timer,
 				ns_to_ktime(usecs * 1000));
 		return HRTIMER_RESTART;
 	}
 	pin->wait_usecs = usecs - 100;
 	pin->timer_ts = ktime_add_us(ts, 100);
-	hrtimer_forward_now(timer, ns_to_ktime(100000));
+	hrtimer_forward_yesw(timer, ns_to_ktime(100000));
 	return HRTIMER_RESTART;
 }
 

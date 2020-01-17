@@ -2,7 +2,7 @@
 /*
  * ADC12130/ADC12132/ADC12138 12-bit plus sign ADC driver
  *
- * Copyright (c) 2016 Akinobu Mita <akinobu.mita@gmail.com>
+ * Copyright (c) 2016 Akiyesbu Mita <akiyesbu.mita@gmail.com>
  *
  * Datasheet: http://www.ti.com/lit/ds/symlink/adc12138.pdf
  */
@@ -289,7 +289,7 @@ static int adc12138_init(struct adc12138 *adc)
 	if (ret)
 		return ret;
 
-	/* data output at this time has no significance */
+	/* data output at this time has yes significance */
 	status = adc12138_read_status(adc);
 	if (status < 0)
 		return status;
@@ -375,7 +375,7 @@ static irqreturn_t adc12138_trigger_handler(int irq, void *p)
 out:
 	mutex_unlock(&adc->lock);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -425,7 +425,7 @@ static int adc12138_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(spi->dev.of_node, "ti,acquisition-time",
+	ret = of_property_read_u32(spi->dev.of_yesde, "ti,acquisition-time",
 				   &adc->acquisition_time);
 	if (ret)
 		adc->acquisition_time = 10;
@@ -441,7 +441,7 @@ static int adc12138_probe(struct spi_device *spi)
 	adc->vref_n = devm_regulator_get_optional(&spi->dev, "vref-n");
 	if (IS_ERR(adc->vref_n)) {
 		/*
-		 * Assume vref_n is 0V if an optional regulator is not
+		 * Assume vref_n is 0V if an optional regulator is yest
 		 * specified, otherwise return the error code.
 		 */
 		ret = PTR_ERR(adc->vref_n);
@@ -543,6 +543,6 @@ static struct spi_driver adc12138_driver = {
 };
 module_spi_driver(adc12138_driver);
 
-MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
+MODULE_AUTHOR("Akiyesbu Mita <akiyesbu.mita@gmail.com>");
 MODULE_DESCRIPTION("ADC12130/ADC12132/ADC12138 driver");
 MODULE_LICENSE("GPL v2");

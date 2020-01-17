@@ -22,7 +22,7 @@
 #include <linux/types.h>
 #include <linux/nls.h>
 
-#define  UNIUPR_NOLOWER		/* Example to not expand lower case tables */
+#define  UNIUPR_NOLOWER		/* Example to yest expand lower case tables */
 
 /*
  * Windows maps these to the user defined 16 bit Unicode range since they are
@@ -39,7 +39,7 @@
 
 /*
  * Macs use an older "SFM" mapping of the symbols above. Fortunately it does
- * not conflict (although almost does) with the mapping above.
+ * yest conflict (although almost does) with the mapping above.
  */
 
 #define SFM_DOUBLEQUOTE ((__u16) 0xF020)
@@ -57,9 +57,9 @@
  * Mapping mechanism to use when one of the seven reserved characters is
  * encountered.  We can only map using one of the mechanisms at a time
  * since otherwise readdir could return directory entries which we would
- * not be able to open
+ * yest be able to open
  *
- * NO_MAP_UNI_RSVD  = do not perform any remapping of the character
+ * NO_MAP_UNI_RSVD  = do yest perform any remapping of the character
  * SFM_MAP_UNI_RSVD = map reserved characters using SFM scheme (MAC compatible)
  * SFU_MAP_UNI_RSVD = map reserved characters ala SFU ("mapchars" option)
  *
@@ -130,7 +130,7 @@ UniStrcat(__le16 *ucs1, const __le16 *ucs2)
  *
  * Returns:
  *     Address of first occurrence of character in string
- *     or NULL if the character is not in the string
+ *     or NULL if the character is yest in the string
  */
 static inline wchar_t *
 UniStrchr(const wchar_t *ucs, wchar_t uc)
@@ -174,7 +174,7 @@ UniStrcpy(wchar_t *ucs1, const wchar_t *ucs2)
 }
 
 /*
- * UniStrlen:  Return the length of a string (in 16 bit Unicode chars not bytes)
+ * UniStrlen:  Return the length of a string (in 16 bit Unicode chars yest bytes)
  */
 static inline size_t
 UniStrlen(const wchar_t *ucs1)
@@ -187,7 +187,7 @@ UniStrlen(const wchar_t *ucs1)
 }
 
 /*
- * UniStrnlen:  Return the length (in 16 bit Unicode chars not bytes) of a
+ * UniStrnlen:  Return the length (in 16 bit Unicode chars yest bytes) of a
  *		string (length limited)
  */
 static inline size_t
@@ -290,7 +290,7 @@ UniStrncpy_le(wchar_t *ucs1, const wchar_t *ucs2, size_t n)
  *
  * Returns:
  *     Address of first match found
- *     NULL if no matching string is found
+ *     NULL if yes matching string is found
  */
 static inline wchar_t *
 UniStrstr(const wchar_t *ucs1, const wchar_t *ucs2)

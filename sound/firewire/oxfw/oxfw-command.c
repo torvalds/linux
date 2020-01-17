@@ -23,7 +23,7 @@ int avc_stream_set_format(struct fw_unit *unit, enum avc_general_plug_dir dir,
 	buf[3] = 0xc0;		/* SINGLE subfunction */
 	buf[4] = dir;		/* Plug Direction */
 	buf[5] = 0x00;		/* UNIT */
-	buf[6] = 0x00;		/* PCR (Isochronous Plug) */
+	buf[6] = 0x00;		/* PCR (Isochroyesus Plug) */
 	buf[7] = 0xff & pid;	/* Plug ID */
 	buf[8] = 0xff;		/* Padding */
 	buf[9] = 0xff;		/* Support status in response */
@@ -67,7 +67,7 @@ int avc_stream_get_format(struct fw_unit *unit,
 	buf[3] = subfunc;	/* SINGLE or LIST */
 	buf[4] = dir;		/* Plug Direction */
 	buf[5] = 0x00;		/* Unit */
-	buf[6] = 0x00;		/* PCR (Isochronous Plug) */
+	buf[6] = 0x00;		/* PCR (Isochroyesus Plug) */
 	buf[7] = 0xff & pid;	/* Plug ID */
 	buf[8] = 0xff;		/* Padding */
 	buf[9] = 0xff;		/* support status in response */
@@ -136,8 +136,8 @@ int avc_general_inquiry_sig_fmt(struct fw_unit *unit, unsigned int rate,
 	buf[3] = 0xff & pid;	/* plug id */
 	buf[4] = 0x90;		/* EOH_1, Form_1, FMT. AM824 */
 	buf[5] = 0x07 & sfc;	/* FDF-hi. AM824, frequency */
-	buf[6] = 0xff;		/* FDF-mid. AM824, SYT hi (not used) */
-	buf[7] = 0xff;		/* FDF-low. AM824, SYT lo (not used) */
+	buf[6] = 0xff;		/* FDF-mid. AM824, SYT hi (yest used) */
+	buf[7] = 0xff;		/* FDF-low. AM824, SYT lo (yest used) */
 
 	/* do transaction and check buf[1-5] are the same against command */
 	err = fcp_avc_transaction(unit, buf, 8, buf, 8,

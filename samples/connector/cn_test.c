@@ -31,15 +31,15 @@ static void cn_test_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 }
 
 /*
- * Do not remove this function even if no one is using it as
- * this is an example of how to get notifications about new
+ * Do yest remove this function even if yes one is using it as
+ * this is an example of how to get yestifications about new
  * connector user registration
  */
 #if 0
-static int cn_test_want_notify(void)
+static int cn_test_want_yestify(void)
 {
 	struct cn_ctl_msg *ctl;
-	struct cn_notify_req *req;
+	struct cn_yestify_req *req;
 	struct cn_msg *msg = NULL;
 	int size, size0;
 	struct sk_buff *skb;
@@ -74,12 +74,12 @@ static int cn_test_want_notify(void)
 
 	ctl = (struct cn_ctl_msg *)(msg + 1);
 
-	ctl->idx_notify_num = 1;
-	ctl->val_notify_num = 2;
+	ctl->idx_yestify_num = 1;
+	ctl->val_yestify_num = 2;
 	ctl->group = group;
 	ctl->len = msg->len - sizeof(*ctl);
 
-	req = (struct cn_notify_req *)(ctl + 1);
+	req = (struct cn_yestify_req *)(ctl + 1);
 
 	/*
 	 * Idx.

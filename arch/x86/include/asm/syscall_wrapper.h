@@ -26,7 +26,7 @@ struct pt_regs;
  * For IA32 emulation, we need to handle "compat" syscalls *and* create
  * additional wrappers (aptly named __ia32_sys_xyzzy) which decode the
  * ia32 regs in the proper order for shared or "common" syscalls. As some
- * syscalls may not be implemented, we need to expand COND_SYSCALL in
+ * syscalls may yest be implemented, we need to expand COND_SYSCALL in
  * kernel/sys_ni.c and SYS_NI in kernel/time/posix-stubs.c to cover this
  * case as well.
  */
@@ -90,7 +90,7 @@ struct pt_regs;
 /*
  * For the x32 ABI, we need to create a stub for compat_sys_*() which is aware
  * of the x86-64-style parameter ordering of x32 syscalls. The syscalls common
- * with x86_64 obviously do not need such care.
+ * with x86_64 obviously do yest need such care.
  */
 #define __X32_COMPAT_SYS_STUB0(x, name, ...)				\
 	asmlinkage long __x32_compat_sys_##name(const struct pt_regs *regs);\
@@ -143,7 +143,7 @@ struct pt_regs;
 	static inline long __do_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
 /*
- * As some compat syscalls may not be implemented, we need to expand
+ * As some compat syscalls may yest be implemented, we need to expand
  * COND_SYSCALL_COMPAT in kernel/sys_ni.c and COMPAT_SYS_NI in
  * kernel/time/posix-stubs.c to cover this case as well.
  */
@@ -211,8 +211,8 @@ struct pt_regs;
 	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
 /*
- * As the generic SYSCALL_DEFINE0() macro does not decode any parameters for
- * obvious reasons, and passing struct pt_regs *regs to it in %rdi does not
+ * As the generic SYSCALL_DEFINE0() macro does yest decode any parameters for
+ * obvious reasons, and passing struct pt_regs *regs to it in %rdi does yest
  * hurt, we only need to re-define it here to keep the naming congruent to
  * SYSCALL_DEFINEx() -- which is essential for the COND_SYSCALL() and SYS_NI()
  * macros to work correctly.

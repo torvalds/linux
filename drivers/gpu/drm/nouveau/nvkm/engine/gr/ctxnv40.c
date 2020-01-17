@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -23,8 +23,8 @@
  */
 
 /* NVIDIA context programs handle a number of other conditions which are
- * not implemented in our versions.  It's not clear why NVIDIA context
- * programs have this code, nor whether it's strictly necessary for
+ * yest implemented in our versions.  It's yest clear why NVIDIA context
+ * programs have this code, yesr whether it's strictly necessary for
  * correct operation.  We'll implement additional handling if/when we
  * discover it's necessary.
  *
@@ -32,18 +32,18 @@
  *   flag is set, this gets saved into the context.
  * - On context save, the context program for all cards load nsource
  *   into a flag register and check for ILLEGAL_MTHD.  If it's set,
- *   opcode 0x60000d is called before resuming normal operation.
+ *   opcode 0x60000d is called before resuming yesrmal operation.
  * - Some context programs check more conditions than the above.  NV44
  *   checks: ((nsource & 0x0857) || (0x400718 & 0x0100) || (intr & 0x0001))
- *   and calls 0x60000d before resuming normal operation.
+ *   and calls 0x60000d before resuming yesrmal operation.
  * - At the very beginning of NVIDIA's context programs, flag 9 is checked
  *   and if true 0x800001 is called with count=0, pos=0, the flag is cleared
  *   and then the ctxprog is aborted.  It looks like a complicated NOP,
- *   its purpose is unknown.
+ *   its purpose is unkyeswn.
  * - In the section of code that loads the per-vs state, NVIDIA check
  *   flag 10.  If it's set, they only transfer the small 0x300 byte block
  *   of state + the state for a single vs as opposed to the state for
- *   all vs units.  It doesn't seem likely that it'll occur in normal
+ *   all vs units.  It doesn't seem likely that it'll occur in yesrmal
  *   operation, especially seeing as it appears NVIDIA may have screwed
  *   up the ctxprogs for some cards and have an invalid instruction
  *   rather than a cp_lsr(ctx, dwords_for_1_vs_unit) instruction.
@@ -105,7 +105,7 @@
 #define CP_NEXT_TO_CURRENT       0x00600009
 #define CP_SET_CONTEXT_POINTER   0x0060000a
 #define CP_END                   0x0060000e
-#define CP_LOAD_MAGIC_UNK01      0x00800001 /* unknown */
+#define CP_LOAD_MAGIC_UNK01      0x00800001 /* unkyeswn */
 #define CP_LOAD_MAGIC_NV44TCL    0x00800029 /* per-vs state (0x4497) */
 #define CP_LOAD_MAGIC_NV40TCL    0x00800041 /* per-vs state (0x4097) */
 

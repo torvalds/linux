@@ -197,7 +197,7 @@ static int max77686_clk_probe(struct platform_device *pdev)
 		break;
 
 	default:
-		dev_err(dev, "Unknown Chip ID\n");
+		dev_err(dev, "Unkyeswn Chip ID\n");
 		return -EINVAL;
 	}
 
@@ -219,8 +219,8 @@ static int max77686_clk_probe(struct platform_device *pdev)
 		max_clk_data->clk_idata.flags = hw_clks[i].flags;
 		max_clk_data->clk_idata.ops = &max77686_clk_ops;
 
-		if (parent->of_node &&
-		    !of_property_read_string_index(parent->of_node,
+		if (parent->of_yesde &&
+		    !of_property_read_string_index(parent->of_yesde,
 						   "clock-output-names",
 						   i, &clk_name))
 			max_clk_data->clk_idata.name = clk_name;
@@ -244,7 +244,7 @@ static int max77686_clk_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (parent->of_node) {
+	if (parent->of_yesde) {
 		ret = devm_of_clk_add_hw_provider(dev, of_clk_max77686_get,
 						  drv_data);
 

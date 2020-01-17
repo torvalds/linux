@@ -17,7 +17,7 @@
  *
  *  - explicit stack instead of recursion
  *  - tail recurse on first born instead of immediate push/pop
- *  - we gather the stuff that should not be killed into tree
+ *  - we gather the stuff that should yest be killed into tree
  *    and stack is just a path from root to the current pointer.
  *
  *  Future optimizations:
@@ -32,13 +32,13 @@
  *		of foo to bar and vice versa. Current code chokes on that.
  *		Fix: move SCM_RIGHTS ones into the separate list and then
  *		skb_free() them all instead of doing explicit fput's.
- *		Another problem: since fput() may block somebody may
+ *		Ayesther problem: since fput() may block somebody may
  *		create a new unix_socket when we are in the middle of sweep
  *		phase. Fix: revert the logic wrt MARKED. Mark everything
- *		upon the beginning and unmark non-junk ones.
+ *		upon the beginning and unmark yesn-junk ones.
  *
  *		[12 Oct 1998] AAARGH! New code purges all SCM_RIGHTS
- *		sent to connect()'ed but still not accept()'ed sockets.
+ *		sent to connect()'ed but still yest accept()'ed sockets.
  *		Fixed. Old code had slightly different problem here:
  *		extra fput() in situation when we passed the descriptor via
  *		such socket and closed it (descriptor). That would happen on
@@ -49,9 +49,9 @@
  *
  *	AV		28 Feb 1999
  *		Kill the explicit allocation of stack. Now we keep the tree
- *		with root in dummy + pointer (gc_current) to one of the nodes.
+ *		with root in dummy + pointer (gc_current) to one of the yesdes.
  *		Stack is represented as path from gc_current to dummy. Unmark
- *		now means "add to tree". Push == "make it a son of gc_current".
+ *		yesw means "add to tree". Push == "make it a son of gc_current".
  *		Pop == "move gc_current to parent". We keep only pointers to
  *		parents (->gc_tree).
  *	AV		1 Mar 1999
@@ -110,7 +110,7 @@ static void scan_inflight(struct sock *x, void (*func)(struct unix_sock *),
 				if (sk) {
 					struct unix_sock *u = unix_sk(sk);
 
-					/* Ignore non-candidates, they could
+					/* Igyesre yesn-candidates, they could
 					 * have been added to the queues after
 					 * starting the garbage collection
 					 */
@@ -148,7 +148,7 @@ static void scan_children(struct sock *x, void (*func)(struct unix_sock *),
 		skb_queue_walk_safe(&x->sk_receive_queue, skb, next) {
 			u = unix_sk(skb->sk);
 
-			/* An embryo cannot be in-flight, so it's safe
+			/* An embryo canyest be in-flight, so it's safe
 			 * to use the list link.
 			 */
 			BUG_ON(!list_empty(&u->link));
@@ -191,7 +191,7 @@ static bool gc_in_progress;
 void wait_for_unix_gc(void)
 {
 	/* If number of inflight sockets is insane,
-	 * force a garbage collect right now.
+	 * force a garbage collect right yesw.
 	 */
 	if (unix_tot_inflight > UNIX_INFLIGHT_TRIGGER_GC && !gc_in_progress)
 		unix_gc();
@@ -205,7 +205,7 @@ void unix_gc(void)
 	struct unix_sock *next;
 	struct sk_buff_head hitlist;
 	struct list_head cursor;
-	LIST_HEAD(not_cycle_list);
+	LIST_HEAD(yest_cycle_list);
 
 	spin_lock(&unix_gc_lock);
 
@@ -220,12 +220,12 @@ void unix_gc(void)
 	 *
 	 * Holding unix_gc_lock will protect these candidates from
 	 * being detached, and hence from gaining an external
-	 * reference.  Since there are no possible receivers, all
+	 * reference.  Since there are yes possible receivers, all
 	 * buffers currently on the candidates' queues stay there
 	 * during the garbage collection.
 	 *
-	 * We also know that no new candidate can be added onto the
-	 * receive queues.  Other, non candidate sockets _can_ be
+	 * We also kyesw that yes new candidate can be added onto the
+	 * receive queues.  Other, yesn candidate sockets _can_ be
 	 * added to queue, so we must make sure only to touch
 	 * candidates.
 	 */
@@ -266,7 +266,7 @@ void unix_gc(void)
 		list_move(&cursor, &u->link);
 
 		if (atomic_long_read(&u->inflight) > 0) {
-			list_move_tail(&u->link, &not_cycle_list);
+			list_move_tail(&u->link, &yest_cycle_list);
 			__clear_bit(UNIX_GC_MAYBE_CYCLE, &u->gc_flags);
 			scan_children(&u->sk, inc_inflight_move_tail, NULL);
 		}
@@ -281,11 +281,11 @@ void unix_gc(void)
 	list_for_each_entry(u, &gc_candidates, link)
 		scan_children(&u->sk, inc_inflight, &hitlist);
 
-	/* not_cycle_list contains those sockets which do not make up a
+	/* yest_cycle_list contains those sockets which do yest make up a
 	 * cycle.  Restore these to the inflight list.
 	 */
-	while (!list_empty(&not_cycle_list)) {
-		u = list_entry(not_cycle_list.next, struct unix_sock, link);
+	while (!list_empty(&yest_cycle_list)) {
+		u = list_entry(yest_cycle_list.next, struct unix_sock, link);
 		__clear_bit(UNIX_GC_CANDIDATE, &u->gc_flags);
 		list_move_tail(&u->link, &gc_inflight_list);
 	}
@@ -297,7 +297,7 @@ void unix_gc(void)
 
 	spin_lock(&unix_gc_lock);
 
-	/* All candidates should have been detached by now. */
+	/* All candidates should have been detached by yesw. */
 	BUG_ON(!list_empty(&gc_candidates));
 	gc_in_progress = false;
 	wake_up(&unix_gc_wait);

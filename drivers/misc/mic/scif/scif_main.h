@@ -14,7 +14,7 @@
 #include <linux/miscdevice.h>
 #include <linux/dmaengine.h>
 #include <linux/iova.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/file.h>
 #include <linux/vmalloc.h>
 #include <linux/scif.h>
@@ -27,7 +27,7 @@
 #define SCIF_RMA_TEMP_CACHE_LIMIT 0x20000
 
 /*
- * Generic state used for certain node QP message exchanges
+ * Generic state used for certain yesde QP message exchanges
  * like Unregister, Alloc etc.
  */
 enum scif_msg_state {
@@ -40,27 +40,27 @@ enum scif_msg_state {
 /*
  * struct scif_info - Global SCIF information
  *
- * @nodeid: Node ID this node is to others
- * @maxid: Max known node ID
- * @total: Total number of SCIF nodes
+ * @yesdeid: Node ID this yesde is to others
+ * @maxid: Max kyeswn yesde ID
+ * @total: Total number of SCIF yesdes
  * @nr_zombies: number of zombie endpoints
  * @eplock: Lock to synchronize listening, zombie endpoint lists
  * @connlock: Lock to synchronize connected and disconnected lists
- * @nb_connect_lock: Synchronize non blocking connect operations
+ * @nb_connect_lock: Synchronize yesn blocking connect operations
  * @port_lock: Synchronize access to SCIF ports
  * @uaccept: List of user acceptreq waiting for acceptreg
  * @listen: List of listening end points
  * @zombie: List of zombie end points with pending RMA's
  * @connected: List of end points in connected state
  * @disconnected: List of end points in disconnected state
- * @nb_connect_list: List for non blocking connections
+ * @nb_connect_list: List for yesn blocking connections
  * @misc_work: miscellaneous SCIF tasks
- * @conflock: Lock to synchronize SCIF node configuration changes
+ * @conflock: Lock to synchronize SCIF yesde configuration changes
  * @en_msg_log: Enable debug message logging
  * @p2p_enable: Enable P2P SCIF network
  * @mdev: The MISC device
  * @conn_work: Work for workqueue handling all connections
- * @exitwq: Wait queue for waiting for an EXIT node QP message response
+ * @exitwq: Wait queue for waiting for an EXIT yesde QP message response
  * @loopb_dev: Dummy SCIF device used for loopback
  * @loopb_wq: Workqueue used for handling loopback messages
  * @loopb_wqname[16]: Name of loopback workqueue
@@ -72,12 +72,12 @@ enum scif_msg_state {
  * @rma: List of temporary registered windows to be destroyed.
  * @rma_tc: List of temporary registered & cached Windows to be destroyed
  * @fence: List of remote fence requests
- * @mmu_notif_work: Work for registration caching MMU notifier workqueue
- * @mmu_notif_cleanup: List of temporary cached windows for reg cache
+ * @mmu_yestif_work: Work for registration caching MMU yestifier workqueue
+ * @mmu_yestif_cleanup: List of temporary cached windows for reg cache
  * @rma_tc_limit: RMA temporary cache limit
  */
 struct scif_info {
-	u8 nodeid;
+	u8 yesdeid;
 	u8 maxid;
 	u8 total;
 	u32 nr_zombies;
@@ -109,15 +109,15 @@ struct scif_info {
 	struct list_head rma;
 	struct list_head rma_tc;
 	struct list_head fence;
-	struct work_struct mmu_notif_work;
-	struct list_head mmu_notif_cleanup;
+	struct work_struct mmu_yestif_work;
+	struct list_head mmu_yestif_cleanup;
 	unsigned long rma_tc_limit;
 };
 
 /*
  * struct scif_p2p_info - SCIF mapping information used for P2P
  *
- * @ppi_peer_id - SCIF peer node id
+ * @ppi_peer_id - SCIF peer yesde id
  * @ppi_sg - Scatter list for bar information (One for mmio and one for aper)
  * @sg_nentries - Number of entries in the scatterlist
  * @ppi_da: DMA address for MMIO and APER bars
@@ -138,11 +138,11 @@ struct scif_p2p_info {
 /*
  * struct scif_dev - SCIF remote device specific fields
  *
- * @node: Node id
+ * @yesde: Node id
  * @p2p: List of P2P mapping information
- * @qpairs: The node queue pair for exchanging control messages
+ * @qpairs: The yesde queue pair for exchanging control messages
  * @intr_wq: Workqueue for handling Node QP messages
- * @intr_wqname: Name of node QP workqueue for handling interrupts
+ * @intr_wqname: Name of yesde QP workqueue for handling interrupts
  * @intr_bh: Used for submitting work to intr_wq
  * @lock: Lock used for synchronizing access to the scif device
  * @sdev: SCIF hardware device on the SCIF hardware bus
@@ -156,17 +156,17 @@ struct scif_p2p_info {
  * @base_addr: P2P aperture bar base address
  * @mic_mw mmio: The peer MMIO information used for P2P
  * @spdev: SCIF peer device on the SCIF peer bus
- * @node_remove_ack_pending: True if a node_remove_ack is pending
+ * @yesde_remove_ack_pending: True if a yesde_remove_ack is pending
  * @exit_ack_pending: true if an exit_ack is pending
- * @disconn_wq: Used while waiting for a node remove response
- * @disconn_rescnt: Keeps track of number of node remove requests sent
+ * @disconn_wq: Used while waiting for a yesde remove response
+ * @disconn_rescnt: Keeps track of number of yesde remove requests sent
  * @exit: Status of exit message
  * @qp_dma_addr: Queue pair DMA address passed to the peer
  * @dma_ch_idx: Round robin index for DMA channels
  * @signal_pool: DMA pool used for scheduling scif_fence_signal DMA's
 */
 struct scif_dev {
-	u8 node;
+	u8 yesde;
 	struct list_head p2p;
 	struct scif_qp *qpairs;
 	struct workqueue_struct *intr_wq;
@@ -184,7 +184,7 @@ struct scif_dev {
 	dma_addr_t base_addr;
 	struct mic_mw mmio;
 	struct scif_peer_dev __rcu *spdev;
-	bool node_remove_ack_pending;
+	bool yesde_remove_ack_pending;
 	bool exit_ack_pending;
 	wait_queue_head_t disconn_wq;
 	atomic_t disconn_rescnt;
@@ -201,12 +201,12 @@ extern struct idr scif_ports;
 extern struct bus_type scif_peer_bus;
 extern struct scif_dev *scif_dev;
 extern const struct file_operations scif_fops;
-extern const struct file_operations scif_anon_fops;
+extern const struct file_operations scif_ayesn_fops;
 
 /* Size of the RB for the Node QP */
 #define SCIF_NODE_QP_SIZE 0x10000
 
-#include "scif_nodeqp.h"
+#include "scif_yesdeqp.h"
 #include "scif_rma.h"
 #include "scif_rma_list.h"
 
@@ -218,12 +218,12 @@ extern const struct file_operations scif_anon_fops;
  */
 static inline int scifdev_self(struct scif_dev *dev)
 {
-	return dev->node == scif_info.nodeid;
+	return dev->yesde == scif_info.yesdeid;
 }
 
-static inline bool scif_is_mgmt_node(void)
+static inline bool scif_is_mgmt_yesde(void)
 {
-	return !scif_info.nodeid;
+	return !scif_info.yesdeid;
 }
 
 /*
@@ -234,7 +234,7 @@ static inline bool scif_is_mgmt_node(void)
  */
 static inline bool scifdev_is_p2p(struct scif_dev *dev)
 {
-	if (scif_is_mgmt_node())
+	if (scif_is_mgmt_yesde())
 		return false;
 	else
 		return dev != &scif_dev[SCIF_MGMT_NODE] &&
@@ -265,8 +265,8 @@ void scif_exit_debugfs(void);
 int scif_setup_intr_wq(struct scif_dev *scifdev);
 void scif_destroy_intr_wq(struct scif_dev *scifdev);
 void scif_cleanup_scifdev(struct scif_dev *dev);
-void scif_handle_remove_node(int node);
-void scif_disconnect_node(u32 node_id, bool mgmt_initiated);
+void scif_handle_remove_yesde(int yesde);
+void scif_disconnect_yesde(u32 yesde_id, bool mgmt_initiated);
 void scif_free_qp(struct scif_dev *dev);
 void scif_misc_handler(struct work_struct *work);
 void scif_stop(struct scif_dev *scifdev);

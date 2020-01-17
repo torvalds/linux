@@ -59,7 +59,7 @@ static void sth_iowrite(void __iomem *dest, const unsigned char *payload,
 	}
 }
 
-static ssize_t notrace sth_stm_packet(struct stm_data *stm_data,
+static ssize_t yestrace sth_stm_packet(struct stm_data *stm_data,
 				      unsigned int master,
 				      unsigned int channel,
 				      unsigned int packet,

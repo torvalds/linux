@@ -4,8 +4,8 @@ Marvell Berlin reset controller
 Please also refer to reset.txt in this directory for common reset
 controller binding usage.
 
-The reset controller node must be a sub-node of the chip controller
-node on Berlin SoCs.
+The reset controller yesde must be a sub-yesde of the chip controller
+yesde on Berlin SoCs.
 
 Required properties:
 - compatible: should be "marvell,berlin2-reset"

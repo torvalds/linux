@@ -78,7 +78,7 @@
  * if the contents is the same for all hubs, only the "s" structure is
  * generated.
  *
- * If the MMR exists on ONLY 1 type of hub, no generic definition is
+ * If the MMR exists on ONLY 1 type of hub, yes generic definition is
  * generated:
  *	#define UVnH_xxx	<uvn address>
  *	union uvnh_xxx {
@@ -1891,21 +1891,21 @@ union uvh_lb_bau_intd_payload_queue_first_u {
 		unsigned long	rsvd_0_3:4;
 		unsigned long	address:39;			/* RW */
 		unsigned long	rsvd_43_48:6;
-		unsigned long	node_id:14;			/* RW */
+		unsigned long	yesde_id:14;			/* RW */
 		unsigned long	rsvd_63:1;
 	} s1;
 	struct uv2h_lb_bau_intd_payload_queue_first_s {
 		unsigned long	rsvd_0_3:4;
 		unsigned long	address:39;			/* RW */
 		unsigned long	rsvd_43_48:6;
-		unsigned long	node_id:14;			/* RW */
+		unsigned long	yesde_id:14;			/* RW */
 		unsigned long	rsvd_63:1;
 	} s2;
 	struct uv3h_lb_bau_intd_payload_queue_first_s {
 		unsigned long	rsvd_0_3:4;
 		unsigned long	address:39;			/* RW */
 		unsigned long	rsvd_43_48:6;
-		unsigned long	node_id:14;			/* RW */
+		unsigned long	yesde_id:14;			/* RW */
 		unsigned long	rsvd_63:1;
 	} s3;
 };
@@ -2116,9 +2116,9 @@ union uvh_lb_bau_intd_payload_queue_tail_u {
 #define UV3H_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE_TIMEOUT_7_MASK 0x0000000000008000UL
 
 
-union uvh_lb_bau_intd_software_acknowledge_u {
+union uvh_lb_bau_intd_software_ackyeswledge_u {
 	unsigned long	v;
-	struct uv1h_lb_bau_intd_software_acknowledge_s {
+	struct uv1h_lb_bau_intd_software_ackyeswledge_s {
 		unsigned long	pending_0:1;			/* RW, W1C */
 		unsigned long	pending_1:1;			/* RW, W1C */
 		unsigned long	pending_2:1;			/* RW, W1C */
@@ -2137,7 +2137,7 @@ union uvh_lb_bau_intd_software_acknowledge_u {
 		unsigned long	timeout_7:1;			/* RW, W1C */
 		unsigned long	rsvd_16_63:48;
 	} s1;
-	struct uv2h_lb_bau_intd_software_acknowledge_s {
+	struct uv2h_lb_bau_intd_software_ackyeswledge_s {
 		unsigned long	pending_0:1;			/* RW */
 		unsigned long	pending_1:1;			/* RW */
 		unsigned long	pending_2:1;			/* RW */
@@ -2156,7 +2156,7 @@ union uvh_lb_bau_intd_software_acknowledge_u {
 		unsigned long	timeout_7:1;			/* RW */
 		unsigned long	rsvd_16_63:48;
 	} s2;
-	struct uv3h_lb_bau_intd_software_acknowledge_s {
+	struct uv3h_lb_bau_intd_software_ackyeswledge_s {
 		unsigned long	pending_0:1;			/* RW */
 		unsigned long	pending_1:1;			/* RW */
 		unsigned long	pending_2:1;			/* RW */
@@ -2508,7 +2508,7 @@ union uvh_lb_bau_misc_control_u {
 		unsigned long	rejection_delay:8;		/* RW */
 		unsigned long	apic_mode:1;			/* RW */
 		unsigned long	force_broadcast:1;		/* RW */
-		unsigned long	force_lock_nop:1;		/* RW */
+		unsigned long	force_lock_yesp:1;		/* RW */
 		unsigned long	qpi_agent_presence_vector:3;	/* RW */
 		unsigned long	descriptor_fetch_mode:1;	/* RW */
 		unsigned long	rsvd_15_19:5;
@@ -2526,7 +2526,7 @@ union uvh_lb_bau_misc_control_u {
 		unsigned long	rejection_delay:8;		/* RW */
 		unsigned long	apic_mode:1;			/* RW */
 		unsigned long	force_broadcast:1;		/* RW */
-		unsigned long	force_lock_nop:1;		/* RW */
+		unsigned long	force_lock_yesp:1;		/* RW */
 		unsigned long	qpi_agent_presence_vector:3;	/* RW */
 		unsigned long	descriptor_fetch_mode:1;	/* RW */
 		unsigned long	enable_intd_soft_ack_mode:1;	/* RW */
@@ -2545,7 +2545,7 @@ union uvh_lb_bau_misc_control_u {
 		unsigned long	rejection_delay:8;		/* RW */
 		unsigned long	apic_mode:1;			/* RW */
 		unsigned long	force_broadcast:1;		/* RW */
-		unsigned long	force_lock_nop:1;		/* RW */
+		unsigned long	force_lock_yesp:1;		/* RW */
 		unsigned long	qpi_agent_presence_vector:3;	/* RW */
 		unsigned long	descriptor_fetch_mode:1;	/* RW */
 		unsigned long	rsvd_15_19:5;
@@ -2570,7 +2570,7 @@ union uvh_lb_bau_misc_control_u {
 		unsigned long	rejection_delay:8;		/* RW */
 		unsigned long	apic_mode:1;			/* RW */
 		unsigned long	force_broadcast:1;		/* RW */
-		unsigned long	force_lock_nop:1;		/* RW */
+		unsigned long	force_lock_yesp:1;		/* RW */
 		unsigned long	qpi_agent_presence_vector:3;	/* RW */
 		unsigned long	descriptor_fetch_mode:1;	/* RW */
 		unsigned long	enable_intd_soft_ack_mode:1;	/* RW */
@@ -2596,7 +2596,7 @@ union uvh_lb_bau_misc_control_u {
 		unsigned long	rejection_delay:8;		/* RW */
 		unsigned long	apic_mode:1;			/* RW */
 		unsigned long	force_broadcast:1;		/* RW */
-		unsigned long	force_lock_nop:1;		/* RW */
+		unsigned long	force_lock_yesp:1;		/* RW */
 		unsigned long	qpi_agent_presence_vector:3;	/* RW */
 		unsigned long	descriptor_fetch_mode:1;	/* RW */
 		unsigned long	enable_intd_soft_ack_mode:1;	/* RW */
@@ -2625,7 +2625,7 @@ union uvh_lb_bau_misc_control_u {
 		unsigned long	rejection_delay:8;		/* RW */
 		unsigned long	apic_mode:1;			/* RW */
 		unsigned long	force_broadcast:1;		/* RW */
-		unsigned long	force_lock_nop:1;		/* RW */
+		unsigned long	force_lock_yesp:1;		/* RW */
 		unsigned long	qpi_agent_presence_vector:3;	/* RW */
 		unsigned long	descriptor_fetch_mode:1;	/* RW */
 		unsigned long	rsvd_15_19:5;
@@ -2931,73 +2931,73 @@ union uvh_lb_bau_sb_activation_status_1_u {
 #define UV4H_NODE_ID_NI_PORT_MASK			0x3e00000000000000UL
 
 
-union uvh_node_id_u {
+union uvh_yesde_id_u {
 	unsigned long	v;
-	struct uvh_node_id_s {
+	struct uvh_yesde_id_s {
 		unsigned long	force1:1;			/* RO */
 		unsigned long	manufacturer:11;		/* RO */
 		unsigned long	part_number:16;			/* RO */
 		unsigned long	revision:4;			/* RO */
-		unsigned long	node_id:15;			/* RW */
+		unsigned long	yesde_id:15;			/* RW */
 		unsigned long	rsvd_47_63:17;
 	} s;
-	struct uv1h_node_id_s {
+	struct uv1h_yesde_id_s {
 		unsigned long	force1:1;			/* RO */
 		unsigned long	manufacturer:11;		/* RO */
 		unsigned long	part_number:16;			/* RO */
 		unsigned long	revision:4;			/* RO */
-		unsigned long	node_id:15;			/* RW */
+		unsigned long	yesde_id:15;			/* RW */
 		unsigned long	rsvd_47:1;
-		unsigned long	nodes_per_bit:7;		/* RW */
+		unsigned long	yesdes_per_bit:7;		/* RW */
 		unsigned long	rsvd_55:1;
 		unsigned long	ni_port:4;			/* RO */
 		unsigned long	rsvd_60_63:4;
 	} s1;
-	struct uvxh_node_id_s {
+	struct uvxh_yesde_id_s {
 		unsigned long	force1:1;			/* RO */
 		unsigned long	manufacturer:11;		/* RO */
 		unsigned long	part_number:16;			/* RO */
 		unsigned long	revision:4;			/* RO */
-		unsigned long	node_id:15;			/* RW */
+		unsigned long	yesde_id:15;			/* RW */
 		unsigned long	rsvd_47_49:3;
-		unsigned long	nodes_per_bit:7;		/* RO */
+		unsigned long	yesdes_per_bit:7;		/* RO */
 		unsigned long	ni_port:5;			/* RO */
 		unsigned long	rsvd_62_63:2;
 	} sx;
-	struct uv2h_node_id_s {
+	struct uv2h_yesde_id_s {
 		unsigned long	force1:1;			/* RO */
 		unsigned long	manufacturer:11;		/* RO */
 		unsigned long	part_number:16;			/* RO */
 		unsigned long	revision:4;			/* RO */
-		unsigned long	node_id:15;			/* RW */
+		unsigned long	yesde_id:15;			/* RW */
 		unsigned long	rsvd_47_49:3;
-		unsigned long	nodes_per_bit:7;		/* RO */
+		unsigned long	yesdes_per_bit:7;		/* RO */
 		unsigned long	ni_port:5;			/* RO */
 		unsigned long	rsvd_62_63:2;
 	} s2;
-	struct uv3h_node_id_s {
+	struct uv3h_yesde_id_s {
 		unsigned long	force1:1;			/* RO */
 		unsigned long	manufacturer:11;		/* RO */
 		unsigned long	part_number:16;			/* RO */
 		unsigned long	revision:4;			/* RO */
-		unsigned long	node_id:15;			/* RW */
+		unsigned long	yesde_id:15;			/* RW */
 		unsigned long	rsvd_47:1;
 		unsigned long	router_select:1;		/* RO */
 		unsigned long	rsvd_49:1;
-		unsigned long	nodes_per_bit:7;		/* RO */
+		unsigned long	yesdes_per_bit:7;		/* RO */
 		unsigned long	ni_port:5;			/* RO */
 		unsigned long	rsvd_62_63:2;
 	} s3;
-	struct uv4h_node_id_s {
+	struct uv4h_yesde_id_s {
 		unsigned long	force1:1;			/* RO */
 		unsigned long	manufacturer:11;		/* RO */
 		unsigned long	part_number:16;			/* RO */
 		unsigned long	revision:4;			/* RO */
-		unsigned long	node_id:15;			/* RW */
+		unsigned long	yesde_id:15;			/* RW */
 		unsigned long	rsvd_47:1;
 		unsigned long	router_select:1;		/* RO */
 		unsigned long	rsvd_49:1;
-		unsigned long	nodes_per_bit:7;		/* RO */
+		unsigned long	yesdes_per_bit:7;		/* RO */
 		unsigned long	ni_port:5;			/* RO */
 		unsigned long	rsvd_62_63:2;
 	} s4;
@@ -3022,10 +3022,10 @@ union uvh_node_id_u {
 #define UVH_NODE_PRESENT_TABLE_NODES_MASK		0xffffffffffffffffUL
 
 
-union uvh_node_present_table_u {
+union uvh_yesde_present_table_u {
 	unsigned long	v;
-	struct uvh_node_present_table_s {
-		unsigned long	nodes:64;			/* RW */
+	struct uvh_yesde_present_table_s {
+		unsigned long	yesdes:64;			/* RW */
 	} s;
 };
 

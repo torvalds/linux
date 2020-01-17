@@ -14,7 +14,7 @@
 #include <uapi/linux/usb/cdc.h>
 
 /*
- * inofficial magic numbers
+ * iyesfficial magic numbers
  */
 
 #define CDC_PHONET_MAGIC_NUMBER		0xAB

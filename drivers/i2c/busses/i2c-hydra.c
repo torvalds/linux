@@ -4,7 +4,7 @@
 
     Copyright (c) 1999-2004 Geert Uytterhoeven <geert@linux-m68k.org>
 
-    Based on i2c Support for Via Technologies 82C586B South Bridge
+    Based on i2c Support for Via Techyeslogies 82C586B South Bridge
     Copyright (c) 1998, 1999 Kyösti Mälkki <kmalkki@cc.hut.fi>
 
 */

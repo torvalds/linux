@@ -35,10 +35,10 @@ struct max77620_therm_info {
  * @data:	Device specific data.
  * temp:	Temperature in millidegrees Celsius
  *
- * The actual temperature of PMIC die is not available from PMIC.
- * PMIC only tells the status if it has crossed or not the threshold level
+ * The actual temperature of PMIC die is yest available from PMIC.
+ * PMIC only tells the status if it has crossed or yest the threshold level
  * of 120degC or 140degC.
- * If threshold has not been crossed then assume die temperature as 100degC
+ * If threshold has yest been crossed then assume die temperature as 100degC
  * else 120degC or 140deG based on the PMIC die temp threshold status.
  *
  * Return 0 on success otherwise error number to show reason of failure.
@@ -97,7 +97,7 @@ static int max77620_thermal_probe(struct platform_device *pdev)
 	mtherm->irq_tjalarm1 = platform_get_irq(pdev, 0);
 	mtherm->irq_tjalarm2 = platform_get_irq(pdev, 1);
 	if ((mtherm->irq_tjalarm1 < 0) || (mtherm->irq_tjalarm2 < 0)) {
-		dev_err(&pdev->dev, "Alarm irq number not available\n");
+		dev_err(&pdev->dev, "Alarm irq number yest available\n");
 		return -EINVAL;
 	}
 
@@ -109,10 +109,10 @@ static int max77620_thermal_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * The reference taken to the parent's node which will be balanced on
+	 * The reference taken to the parent's yesde which will be balanced on
 	 * reprobe or on platform-device release.
 	 */
-	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
+	device_set_of_yesde_from_dev(&pdev->dev, pdev->dev.parent);
 
 	mtherm->tz_device = devm_thermal_zone_of_sensor_register(&pdev->dev, 0,
 				mtherm, &max77620_thermal_ops);

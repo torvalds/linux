@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -73,7 +73,7 @@ nvkm_outp_xlat(struct nvkm_outp *outp, enum nvkm_ior_type *type)
 	case 1:
 		switch (outp->info.type) {
 		case DCB_OUTPUT_TMDS: *type = PIOR; return TMDS;
-		case DCB_OUTPUT_DP  : *type = PIOR; return TMDS; /* not a bug */
+		case DCB_OUTPUT_DP  : *type = PIOR; return TMDS; /* yest a bug */
 		default:
 			break;
 		}
@@ -196,7 +196,7 @@ nvkm_outp_init_route(struct nvkm_outp *outp)
 	if (ior->func->route.get) {
 		id = ior->func->route.get(outp, &link);
 		if (id < 0) {
-			OUTP_DBG(outp, "no route");
+			OUTP_DBG(outp, "yes route");
 			return;
 		}
 	} else {
@@ -214,7 +214,7 @@ nvkm_outp_init_route(struct nvkm_outp *outp)
 	/* Determine if the OR is already configured for this device. */
 	ior->func->state(ior, &ior->arm);
 	if (!ior->arm.head || ior->arm.proto != proto) {
-		OUTP_DBG(outp, "no heads (%x %d %d)", ior->arm.head,
+		OUTP_DBG(outp, "yes heads (%x %d %d)", ior->arm.head,
 			 ior->arm.proto, proto);
 		return;
 	}

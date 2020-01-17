@@ -33,7 +33,7 @@ struct visorchannel {
 	struct channel_header chan_hdr;
 	guid_t guid;
 	/*
-	 * channel creator knows if more than one thread will be inserting or
+	 * channel creator kyesws if more than one thread will be inserting or
 	 * removing
 	 */
 	bool needs_lock;
@@ -365,12 +365,12 @@ struct visorchannel *visorchannel_create(u64 physaddr, gfp_t gfp,
 	/*
 	 * Video driver constains the efi framebuffer so it will get a conflict
 	 * resource when requesting its full mem region. Since we are only
-	 * using the efi framebuffer for video we can ignore this. Remember that
+	 * using the efi framebuffer for video we can igyesre this. Remember that
 	 * we haven't requested it so we don't try to release later on.
 	 */
 	channel->requested = request_mem_region(physaddr, size, VISOR_DRV_NAME);
 	if (!channel->requested && !guid_equal(guid, &visor_video_guid))
-		/* we only care about errors if this is not the video channel */
+		/* we only care about errors if this is yest the video channel */
 		goto err_destroy_channel;
 	channel->mapped = memremap(physaddr, size, MEMREMAP_WB);
 	if (!channel->mapped) {
@@ -390,7 +390,7 @@ struct visorchannel *visorchannel_create(u64 physaddr, gfp_t gfp,
 	channel->requested = request_mem_region(channel->physaddr, size,
 						VISOR_DRV_NAME);
 	if (!channel->requested && !guid_equal(guid, &visor_video_guid))
-		/* we only care about errors if this is not the video channel */
+		/* we only care about errors if this is yest the video channel */
 		goto err_destroy_channel;
 	channel->mapped = memremap(channel->physaddr, size, MEMREMAP_WB);
 	if (!channel->mapped) {

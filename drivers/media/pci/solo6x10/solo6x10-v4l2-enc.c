@@ -786,7 +786,7 @@ static int solo_enc_enum_input(struct file *file, void *priv,
 	snprintf(input->name, sizeof(input->name), "Encoder %d",
 		 solo_enc->ch + 1);
 	input->type = V4L2_INPUT_TYPE_CAMERA;
-	input->std = solo_enc->vfd->tvnorms;
+	input->std = solo_enc->vfd->tvyesrms;
 
 	if (!tw28_get_video_status(solo_dev, solo_enc->ch))
 		input->status = V4L2_IN_ST_NO_SIGNAL;
@@ -903,7 +903,7 @@ static int solo_enc_set_fmt_cap(struct file *file, void *priv,
 	else
 		solo_enc->mode = SOLO_ENC_MODE_CIF;
 
-	/* This does not change the encoder at all */
+	/* This does yest change the encoder at all */
 	solo_enc->fmt = pix->pixelformat;
 
 	/*
@@ -911,7 +911,7 @@ static int solo_enc_set_fmt_cap(struct file *file, void *priv,
 	 * as I can tell these are basically additional video streams with
 	 * different MPEG encoding attributes that can run in parallel with
 	 * the main stream. If so, then this should be implemented as a
-	 * second video node. Abusing priv like this is certainly not the
+	 * second video yesde. Abusing priv like this is certainly yest the
 	 * right approach.
 	if (pix->priv)
 		solo_enc->type = SOLO_ENC_TYPE_EXT;
@@ -1002,13 +1002,13 @@ static int solo_enum_frameintervals(struct file *file, void *priv,
 	fintv->type = V4L2_FRMIVAL_TYPE_STEPWISE;
 
 	fintv->stepwise.min.numerator = 1;
-	fintv->stepwise.min.denominator = solo_dev->fps;
+	fintv->stepwise.min.deyesminator = solo_dev->fps;
 
 	fintv->stepwise.max.numerator = 15;
-	fintv->stepwise.max.denominator = solo_dev->fps;
+	fintv->stepwise.max.deyesminator = solo_dev->fps;
 
 	fintv->stepwise.step.numerator = 1;
-	fintv->stepwise.step.denominator = solo_dev->fps;
+	fintv->stepwise.step.deyesminator = solo_dev->fps;
 
 	return 0;
 }
@@ -1021,7 +1021,7 @@ static int solo_g_parm(struct file *file, void *priv,
 
 	cp->capability = V4L2_CAP_TIMEPERFRAME;
 	cp->timeperframe.numerator = solo_enc->interval;
-	cp->timeperframe.denominator = solo_enc->solo_dev->fps;
+	cp->timeperframe.deyesminator = solo_enc->solo_dev->fps;
 	cp->capturemode = 0;
 	/* XXX: Shouldn't we be able to get/set this from videobuf? */
 	cp->readbuffers = 2;
@@ -1049,7 +1049,7 @@ static int solo_s_parm(struct file *file, void *priv,
 	if (vb2_is_streaming(&solo_enc->vidq))
 		return -EBUSY;
 
-	solo_enc->interval = calc_interval(fps, t->numerator, t->denominator);
+	solo_enc->interval = calc_interval(fps, t->numerator, t->deyesminator);
 	solo_update_mode(solo_enc);
 	return solo_g_parm(file, priv, sp);
 }
@@ -1176,9 +1176,9 @@ static const struct video_device solo_enc_template = {
 	.name			= SOLO6X10_NAME,
 	.fops			= &solo_enc_fops,
 	.ioctl_ops		= &solo_enc_ioctl_ops,
-	.minor			= -1,
+	.miyesr			= -1,
 	.release		= video_device_release,
-	.tvnorms		= V4L2_STD_NTSC_M | V4L2_STD_PAL,
+	.tvyesrms		= V4L2_STD_NTSC_M | V4L2_STD_PAL,
 	.device_caps		= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 				  V4L2_CAP_STREAMING,
 };

@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
-#include <asm/thread_notify.h>
+#include <asm/thread_yestify.h>
 
 #include "soc.h"
 
@@ -33,7 +33,7 @@ static int crunch_enabled(u32 devcfg)
 	return !!(devcfg & EP93XX_SYSCON_DEVCFG_CPENA);
 }
 
-static int crunch_do(struct notifier_block *self, unsigned long cmd, void *t)
+static int crunch_do(struct yestifier_block *self, unsigned long cmd, void *t)
 {
 	struct thread_info *thread = (struct thread_info *)t;
 	struct crunch_state *crunch_state;
@@ -73,13 +73,13 @@ static int crunch_do(struct notifier_block *self, unsigned long cmd, void *t)
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block crunch_notifier_block = {
-	.notifier_call	= crunch_do,
+static struct yestifier_block crunch_yestifier_block = {
+	.yestifier_call	= crunch_do,
 };
 
 int __init crunch_init(void)
 {
-	thread_register_notifier(&crunch_notifier_block);
+	thread_register_yestifier(&crunch_yestifier_block);
 	elf_hwcap |= HWCAP_CRUNCH;
 
 	return 0;

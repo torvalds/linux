@@ -70,7 +70,7 @@
 
 	flash@0 {
 		reg = <0>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		spi-max-frequency = <104000000>;
 		m25p,fast-read;
 	};

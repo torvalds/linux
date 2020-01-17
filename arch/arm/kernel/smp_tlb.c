@@ -23,7 +23,7 @@ struct tlb_args {
 	unsigned long ta_end;
 };
 
-static inline void ipi_flush_tlb_all(void *ignored)
+static inline void ipi_flush_tlb_all(void *igyesred)
 {
 	local_flush_tlb_all();
 }
@@ -69,7 +69,7 @@ static inline void ipi_flush_tlb_kernel_range(void *arg)
 	local_flush_tlb_kernel_range(ta->ta_start, ta->ta_end);
 }
 
-static inline void ipi_flush_bp_all(void *ignored)
+static inline void ipi_flush_bp_all(void *igyesred)
 {
 	local_flush_bp_all();
 }

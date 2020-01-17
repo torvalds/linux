@@ -3,7 +3,7 @@ Kernel driver i2c-via
 =====================
 
 Supported adapters:
-  * VIA Technologies, InC. VT82C586B
+  * VIA Techyeslogies, InC. VT82C586B
     Datasheet: Publicly available at the VIA website
 
 Author: Kyösti Mälkki <kmalkki@cc.hut.fi>
@@ -19,13 +19,13 @@ The following VIA pci chipsets are supported:
 
 Your ``lspci`` listing must show this ::
 
- Bridge: VIA Technologies, Inc. VT82C586B ACPI (rev 10)
+ Bridge: VIA Techyeslogies, Inc. VT82C586B ACPI (rev 10)
 
 Problems?
 ---------
 
  Q:
-    You have VT82C586B on the motherboard, but not in the listing.
+    You have VT82C586B on the motherboard, but yest in the listing.
 
  A:
     Go to your BIOS setup, section PCI devices or similar.

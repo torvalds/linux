@@ -151,7 +151,7 @@ unsigned long sq_remap(unsigned long phys, unsigned int size,
 	end = phys + size - 1;
 	if (unlikely(!size || end < phys))
 		return -EINVAL;
-	/* Don't allow anyone to remap normal memory.. */
+	/* Don't allow anyone to remap yesrmal memory.. */
 	if (unlikely(phys < virt_to_phys(high_memory)))
 		return -EINVAL;
 
@@ -251,7 +251,7 @@ EXPORT_SYMBOL(sq_unmap);
  *
  * Some day we may want to have an additional abstraction per store
  * queue, but considering the kobject hell we already have to deal with,
- * it's simply not worth the trouble.
+ * it's simply yest worth the trouble.
  */
 static struct kobject *sq_kobject[NR_CPUS];
 

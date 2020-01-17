@@ -89,17 +89,17 @@ int msgqueue_msglength(MsgQueue_t *msgq)
 }
 
 /*
- * Function: struct message *msgqueue_getmsg(MsgQueue_t *msgq, int msgno)
+ * Function: struct message *msgqueue_getmsg(MsgQueue_t *msgq, int msgyes)
  * Purpose : return a message
  * Params  : msgq   - queue to obtain message from
- *	   : msgno  - message number
+ *	   : msgyes  - message number
  * Returns : pointer to message string, or NULL
  */
-struct message *msgqueue_getmsg(MsgQueue_t *msgq, int msgno)
+struct message *msgqueue_getmsg(MsgQueue_t *msgq, int msgyes)
 {
 	struct msgqueue_entry *mq;
 
-	for (mq = msgq->qe; mq && msgno; mq = mq->next, msgno--);
+	for (mq = msgq->qe; mq && msgyes; mq = mq->next, msgyes--);
 
 	return mq ? &mq->msg : NULL;
 }

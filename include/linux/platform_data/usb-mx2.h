@@ -21,7 +21,7 @@ struct mx21_usbh_platform_data {
 		enable_host2:1,
 		enable_otg_host:1, /* enable "OTG" port (as host) */
 		host1_xcverless:1, /* traceiverless host1 port */
-		host1_txenoe:1, /* output enable host1 transmit enable */
+		host1_txeyese:1, /* output enable host1 transmit enable */
 		otg_ext_xcvr:1, /* external tranceiver for OTG port */
 		unused:10;
 };

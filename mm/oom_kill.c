@@ -31,7 +31,7 @@
 #include <linux/jiffies.h>
 #include <linux/cpuset.h>
 #include <linux/export.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/memcontrol.h>
 #include <linux/mempolicy.h>
 #include <linux/security.h>
@@ -41,7 +41,7 @@
 #include <linux/ratelimit.h>
 #include <linux/kthread.h>
 #include <linux/init.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 
 #include <asm/tlb.h>
 #include "internal.h"
@@ -75,9 +75,9 @@ static inline bool is_memcg_oom(struct oom_control *oc)
  * @start: task struct of which task to consider
  * @oc: pointer to struct oom_control
  *
- * Task eligibility is determined by whether or not a candidate task, @tsk,
- * shares the same mempolicy nodes as current if it is bound by such a policy
- * and whether or not it has the same set of allowed cpuset nodes.
+ * Task eligibility is determined by whether or yest a candidate task, @tsk,
+ * shares the same mempolicy yesdes as current if it is bound by such a policy
+ * and whether or yest it has the same set of allowed cpuset yesdes.
  *
  * This function is assuming oom-killer context and 'current' has triggered
  * the oom-killer.
@@ -87,7 +87,7 @@ static bool oom_cpuset_eligible(struct task_struct *start,
 {
 	struct task_struct *tsk;
 	bool ret = false;
-	const nodemask_t *mask = oc->nodemask;
+	const yesdemask_t *mask = oc->yesdemask;
 
 	if (is_memcg_oom(oc))
 		return true;
@@ -101,10 +101,10 @@ static bool oom_cpuset_eligible(struct task_struct *start,
 			 * mempolicy intersects current, otherwise it may be
 			 * needlessly killed.
 			 */
-			ret = mempolicy_nodemask_intersects(tsk, mask);
+			ret = mempolicy_yesdemask_intersects(tsk, mask);
 		} else {
 			/*
-			 * This is not a mempolicy constrained oom, so only
+			 * This is yest a mempolicy constrained oom, so only
 			 * check the mems of tsk's cpuset.
 			 */
 			ret = cpuset_mems_allowed_intersects(current, tsk);
@@ -157,7 +157,7 @@ static inline bool is_sysrq_oom(struct oom_control *oc)
 	return oc->order == -1;
 }
 
-/* return true if the task is not adequate as candidate victim task. */
+/* return true if the task is yest adequate as candidate victim task. */
 static bool oom_unkillable_task(struct task_struct *p)
 {
 	if (is_global_init(p))
@@ -175,15 +175,15 @@ static bool is_dump_unreclaim_slabs(void)
 {
 	unsigned long nr_lru;
 
-	nr_lru = global_node_page_state(NR_ACTIVE_ANON) +
-		 global_node_page_state(NR_INACTIVE_ANON) +
-		 global_node_page_state(NR_ACTIVE_FILE) +
-		 global_node_page_state(NR_INACTIVE_FILE) +
-		 global_node_page_state(NR_ISOLATED_ANON) +
-		 global_node_page_state(NR_ISOLATED_FILE) +
-		 global_node_page_state(NR_UNEVICTABLE);
+	nr_lru = global_yesde_page_state(NR_ACTIVE_ANON) +
+		 global_yesde_page_state(NR_INACTIVE_ANON) +
+		 global_yesde_page_state(NR_ACTIVE_FILE) +
+		 global_yesde_page_state(NR_INACTIVE_FILE) +
+		 global_yesde_page_state(NR_ISOLATED_ANON) +
+		 global_yesde_page_state(NR_ISOLATED_FILE) +
+		 global_yesde_page_state(NR_UNEVICTABLE);
 
-	return (global_node_page_state(NR_SLAB_UNRECLAIMABLE) > nr_lru);
+	return (global_yesde_page_state(NR_SLAB_UNRECLAIMABLE) > nr_lru);
 }
 
 /**
@@ -208,7 +208,7 @@ unsigned long oom_badness(struct task_struct *p, unsigned long totalpages)
 		return 0;
 
 	/*
-	 * Do not even consider tasks which are explicitly marked oom
+	 * Do yest even consider tasks which are explicitly marked oom
 	 * unkillable or have been already oom reaped or the are in
 	 * the middle of vfork
 	 */
@@ -273,34 +273,34 @@ static enum oom_constraint constrained_alloc(struct oom_control *oc)
 	/*
 	 * Reach here only when __GFP_NOFAIL is used. So, we should avoid
 	 * to kill current.We have to random task kill in this case.
-	 * Hopefully, CONSTRAINT_THISNODE...but no way to handle it, now.
+	 * Hopefully, CONSTRAINT_THISNODE...but yes way to handle it, yesw.
 	 */
 	if (oc->gfp_mask & __GFP_THISNODE)
 		return CONSTRAINT_NONE;
 
 	/*
-	 * This is not a __GFP_THISNODE allocation, so a truncated nodemask in
+	 * This is yest a __GFP_THISNODE allocation, so a truncated yesdemask in
 	 * the page allocator means a mempolicy is in effect.  Cpuset policy
 	 * is enforced in get_page_from_freelist().
 	 */
-	if (oc->nodemask &&
-	    !nodes_subset(node_states[N_MEMORY], *oc->nodemask)) {
+	if (oc->yesdemask &&
+	    !yesdes_subset(yesde_states[N_MEMORY], *oc->yesdemask)) {
 		oc->totalpages = total_swap_pages;
-		for_each_node_mask(nid, *oc->nodemask)
-			oc->totalpages += node_present_pages(nid);
+		for_each_yesde_mask(nid, *oc->yesdemask)
+			oc->totalpages += yesde_present_pages(nid);
 		return CONSTRAINT_MEMORY_POLICY;
 	}
 
 	/* Check this allocation failure is caused by cpuset's wall function */
-	for_each_zone_zonelist_nodemask(zone, z, oc->zonelist,
-			high_zoneidx, oc->nodemask)
+	for_each_zone_zonelist_yesdemask(zone, z, oc->zonelist,
+			high_zoneidx, oc->yesdemask)
 		if (!cpuset_zone_allowed(zone, oc->gfp_mask))
 			cpuset_limited = true;
 
 	if (cpuset_limited) {
 		oc->totalpages = total_swap_pages;
-		for_each_node_mask(nid, cpuset_current_mems_allowed)
-			oc->totalpages += node_present_pages(nid);
+		for_each_yesde_mask(nid, cpuset_current_mems_allowed)
+			oc->totalpages += yesde_present_pages(nid);
 		return CONSTRAINT_CPUSET;
 	}
 	return CONSTRAINT_NONE;
@@ -314,7 +314,7 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
 	if (oom_unkillable_task(task))
 		goto next;
 
-	/* p may not have freeable memory in nodemask */
+	/* p may yest have freeable memory in yesdemask */
 	if (!is_memcg_oom(oc) && !oom_cpuset_eligible(task, oc))
 		goto next;
 
@@ -385,7 +385,7 @@ static int dump_task(struct task_struct *p, void *arg)
 	if (oom_unkillable_task(p))
 		return 0;
 
-	/* p may not have freeable memory in nodemask */
+	/* p may yest have freeable memory in yesdemask */
 	if (!is_memcg_oom(oc) && !oom_cpuset_eligible(p, oc))
 		return 0;
 
@@ -393,7 +393,7 @@ static int dump_task(struct task_struct *p, void *arg)
 	if (!task) {
 		/*
 		 * This is a kthread or all of p's threads have already
-		 * detached their mm's.  There's no need to report
+		 * detached their mm's.  There's yes need to report
 		 * them; they can't be oom killed anyway.
 		 */
 		return 0;
@@ -414,9 +414,9 @@ static int dump_task(struct task_struct *p, void *arg)
  * dump_tasks - dump current memory state of all system tasks
  * @oc: pointer to struct oom_control
  *
- * Dumps the current memory state of all eligible tasks.  Tasks not in the same
- * memcg, not in the same cpuset, or bound to a disjoint set of mempolicy nodes
- * are not shown.
+ * Dumps the current memory state of all eligible tasks.  Tasks yest in the same
+ * memcg, yest in the same cpuset, or bound to a disjoint set of mempolicy yesdes
+ * are yest shown.
  * State information includes task's pid, uid, tgid, vm size, rss,
  * pgtables_bytes, swapents, oom_score_adj value, and name.
  */
@@ -440,9 +440,9 @@ static void dump_tasks(struct oom_control *oc)
 static void dump_oom_summary(struct oom_control *oc, struct task_struct *victim)
 {
 	/* one line summary of the oom killer context. */
-	pr_info("oom-kill:constraint=%s,nodemask=%*pbl",
+	pr_info("oom-kill:constraint=%s,yesdemask=%*pbl",
 			oom_constraint_text[oc->constraint],
-			nodemask_pr_args(oc->nodemask));
+			yesdemask_pr_args(oc->yesdemask));
 	cpuset_print_current_mems_allowed();
 	mem_cgroup_print_oom_context(oc->memcg, victim);
 	pr_cont(",task=%s,pid=%d,uid=%d\n", victim->comm, victim->pid,
@@ -461,7 +461,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
 	if (is_memcg_oom(oc))
 		mem_cgroup_print_oom_meminfo(oc->memcg);
 	else {
-		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
+		show_mem(SHOW_MEM_FILTER_NODES, oc->yesdemask);
 		if (is_dump_unreclaim_slabs())
 			dump_unreclaimable_slab();
 	}
@@ -516,7 +516,7 @@ bool __oom_reap_task_mm(struct mm_struct *mm)
 
 	/*
 	 * Tell all users of get_user/copy_from_user etc... that the content
-	 * is no longer stable. No barriers really needed because unmapping
+	 * is yes longer stable. No barriers really needed because unmapping
 	 * should imply barriers already and the reader would hit a page fault
 	 * if it stumbled over a reaped memory.
 	 */
@@ -527,30 +527,30 @@ bool __oom_reap_task_mm(struct mm_struct *mm)
 			continue;
 
 		/*
-		 * Only anonymous pages have a good chance to be dropped
-		 * without additional steps which we cannot afford as we
+		 * Only ayesnymous pages have a good chance to be dropped
+		 * without additional steps which we canyest afford as we
 		 * are OOM already.
 		 *
-		 * We do not even care about fs backed pages because all
+		 * We do yest even care about fs backed pages because all
 		 * which are reclaimable have already been reclaimed and
-		 * we do not want to block exit_mmap by keeping mm ref
+		 * we do yest want to block exit_mmap by keeping mm ref
 		 * count elevated without a good reason.
 		 */
-		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED)) {
-			struct mmu_notifier_range range;
+		if (vma_is_ayesnymous(vma) || !(vma->vm_flags & VM_SHARED)) {
+			struct mmu_yestifier_range range;
 			struct mmu_gather tlb;
 
-			mmu_notifier_range_init(&range, MMU_NOTIFY_UNMAP, 0,
+			mmu_yestifier_range_init(&range, MMU_NOTIFY_UNMAP, 0,
 						vma, mm, vma->vm_start,
 						vma->vm_end);
 			tlb_gather_mmu(&tlb, mm, range.start, range.end);
-			if (mmu_notifier_invalidate_range_start_nonblock(&range)) {
+			if (mmu_yestifier_invalidate_range_start_yesnblock(&range)) {
 				tlb_finish_mmu(&tlb, range.start, range.end);
 				ret = false;
 				continue;
 			}
 			unmap_page_range(&tlb, vma, range.start, range.end, NULL);
-			mmu_notifier_invalidate_range_end(&range);
+			mmu_yestifier_invalidate_range_end(&range);
 			tlb_finish_mmu(&tlb, range.start, range.end);
 		}
 	}
@@ -561,7 +561,7 @@ bool __oom_reap_task_mm(struct mm_struct *mm)
 /*
  * Reaps the address space of the give task.
  *
- * Returns true on success and false if none or part of the address space
+ * Returns true on success and false if yesne or part of the address space
  * has been reclaimed and the caller should retry later.
  */
 static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
@@ -591,7 +591,7 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
 	if (!ret)
 		goto out_finish;
 
-	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+	pr_info("oom_reaper: reaped process %d (%s), yesw ayesn-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
 			task_pid_nr(tsk), tsk->comm,
 			K(get_mm_counter(mm, MM_ANONPAGES)),
 			K(get_mm_counter(mm, MM_FILEPAGES)),
@@ -690,7 +690,7 @@ static inline void wake_oom_reaper(struct task_struct *tsk)
  * Has to be called with oom_lock held and never after
  * oom has been disabled already.
  *
- * tsk->mm has to be non NULL and caller has to guarantee it is stable (either
+ * tsk->mm has to be yesn NULL and caller has to guarantee it is stable (either
  * under task_lock or operate on the current).
  */
 static void mark_oom_victim(struct task_struct *tsk)
@@ -712,7 +712,7 @@ static void mark_oom_victim(struct task_struct *tsk)
 	 * Make sure that the task is woken up from uninterruptible sleep
 	 * if it is frozen because OOM killer wouldn't be able to free
 	 * any memory and livelock. freezing_slow_path will tell the freezer
-	 * that TIF_MEMDIE tasks should be ignored.
+	 * that TIF_MEMDIE tasks should be igyesred.
 	 */
 	__thaw_task(tsk);
 	atomic_inc(&oom_victims);
@@ -720,7 +720,7 @@ static void mark_oom_victim(struct task_struct *tsk)
 }
 
 /**
- * exit_oom_victim - note the exit of an OOM victim
+ * exit_oom_victim - yeste the exit of an OOM victim
  */
 void exit_oom_victim(void)
 {
@@ -747,11 +747,11 @@ void oom_killer_enable(void)
  * Will block and wait until all OOM victims are killed or the given
  * timeout expires.
  *
- * The function cannot be called when there are runnable user tasks because
+ * The function canyest be called when there are runnable user tasks because
  * the userspace would see unexpected allocation failures as a result. Any
  * new usage of this function should be consulted with MM people.
  *
- * Returns true if successful and false if the OOM killer cannot be
+ * Returns true if successful and false if the OOM killer canyest be
  * disabled.
  */
 bool oom_killer_disable(signed long timeout)
@@ -759,8 +759,8 @@ bool oom_killer_disable(signed long timeout)
 	signed long ret;
 
 	/*
-	 * Make sure to not race with an ongoing OOM killer. Check that the
-	 * current is not killed (possibly due to sharing the victim's memory).
+	 * Make sure to yest race with an ongoing OOM killer. Check that the
+	 * current is yest killed (possibly due to sharing the victim's memory).
 	 */
 	if (mutex_lock_killable(&oom_lock))
 		return false;
@@ -784,7 +784,7 @@ static inline bool __task_will_free_mem(struct task_struct *task)
 
 	/*
 	 * A coredumping process may sleep for an extended period in exit_mm(),
-	 * so the oom killer cannot assume that the process will promptly exit
+	 * so the oom killer canyest assume that the process will promptly exit
 	 * and release memory.
 	 */
 	if (sig->flags & SIGNAL_GROUP_COREDUMP)
@@ -814,8 +814,8 @@ static bool task_will_free_mem(struct task_struct *task)
 
 	/*
 	 * Skip tasks without mm because it might have passed its exit_mm and
-	 * exit_oom_victim. oom_reaper could have rescued that but do not rely
-	 * on that for now. We can consider find_lock_task_mm in future.
+	 * exit_oom_victim. oom_reaper could have rescued that but do yest rely
+	 * on that for yesw. We can consider find_lock_task_mm in future.
 	 */
 	if (!mm)
 		return false;
@@ -835,7 +835,7 @@ static bool task_will_free_mem(struct task_struct *task)
 
 	/*
 	 * Make sure that all tasks which share the mm with the given tasks
-	 * are dying as well to make sure that a) nobody pins its mm and
+	 * are dying as well to make sure that a) yesbody pins its mm and
 	 * b) the task is also reapable by the oom reaper.
 	 */
 	rcu_read_lock();
@@ -884,7 +884,7 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
 	 */
 	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
 	mark_oom_victim(victim);
-	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB, UID:%u pgtables:%lukB oom_score_adj:%hd\n",
+	pr_err("%s: Killed process %d (%s) total-vm:%lukB, ayesn-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB, UID:%u pgtables:%lukB oom_score_adj:%hd\n",
 		message, task_pid_nr(victim), victim->comm, K(mm->total_vm),
 		K(get_mm_counter(mm, MM_ANONPAGES)),
 		K(get_mm_counter(mm, MM_FILEPAGES)),
@@ -897,9 +897,9 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
 	 * Kill all user processes sharing victim->mm in other thread groups, if
 	 * any.  They don't get access to memory reserves, though, to avoid
 	 * depletion of all memory.  This prevents mm->mmap_sem livelock when an
-	 * oom killed thread cannot exit because it requires the semaphore and
-	 * its contended by another thread trying to allocate memory itself.
-	 * That thread will now get access to memory reserves since it has a
+	 * oom killed thread canyest exit because it requires the semaphore and
+	 * its contended by ayesther thread trying to allocate memory itself.
+	 * That thread will yesw get access to memory reserves since it has a
 	 * pending fatal signal.
 	 */
 	rcu_read_lock();
@@ -1003,13 +1003,13 @@ static void check_panic_on_oom(struct oom_control *oc)
 	if (sysctl_panic_on_oom != 2) {
 		/*
 		 * panic_on_oom == 1 only affects CONSTRAINT_NONE, the kernel
-		 * does not panic for cpuset, mempolicy, or memcg allocation
+		 * does yest panic for cpuset, mempolicy, or memcg allocation
 		 * failures.
 		 */
 		if (oc->constraint != CONSTRAINT_NONE)
 			return;
 	}
-	/* Do not panic for oom kills triggered by sysrq */
+	/* Do yest panic for oom kills triggered by sysrq */
 	if (is_sysrq_oom(oc))
 		return;
 	dump_header(oc, NULL);
@@ -1017,19 +1017,19 @@ static void check_panic_on_oom(struct oom_control *oc)
 		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
 }
 
-static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
+static BLOCKING_NOTIFIER_HEAD(oom_yestify_list);
 
-int register_oom_notifier(struct notifier_block *nb)
+int register_oom_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&oom_notify_list, nb);
+	return blocking_yestifier_chain_register(&oom_yestify_list, nb);
 }
-EXPORT_SYMBOL_GPL(register_oom_notifier);
+EXPORT_SYMBOL_GPL(register_oom_yestifier);
 
-int unregister_oom_notifier(struct notifier_block *nb)
+int unregister_oom_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&oom_notify_list, nb);
+	return blocking_yestifier_chain_unregister(&oom_yestify_list, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+EXPORT_SYMBOL_GPL(unregister_oom_yestifier);
 
 /**
  * out_of_memory - kill the "best" process when we run out of memory
@@ -1048,7 +1048,7 @@ bool out_of_memory(struct oom_control *oc)
 		return false;
 
 	if (!is_memcg_oom(oc)) {
-		blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+		blocking_yestifier_call_chain(&oom_yestify_list, 0, &freed);
 		if (freed > 0)
 			/* Got some memory back in the last second. */
 			return true;
@@ -1066,7 +1066,7 @@ bool out_of_memory(struct oom_control *oc)
 	}
 
 	/*
-	 * The OOM killer does not compensate for IO-less reclaim.
+	 * The OOM killer does yest compensate for IO-less reclaim.
 	 * pagefault_out_of_memory lost its gfp context so we have to
 	 * make sure exclude 0 mask - all other users should have at least
 	 * ___GFP_DIRECT_RECLAIM to get here. But mem_cgroup_oom() has to
@@ -1081,7 +1081,7 @@ bool out_of_memory(struct oom_control *oc)
 	 */
 	oc->constraint = constrained_alloc(oc);
 	if (oc->constraint != CONSTRAINT_MEMORY_POLICY)
-		oc->nodemask = NULL;
+		oc->yesdemask = NULL;
 	check_panic_on_oom(oc);
 
 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
@@ -1095,14 +1095,14 @@ bool out_of_memory(struct oom_control *oc)
 	}
 
 	select_bad_process(oc);
-	/* Found nothing?!?! */
+	/* Found yesthing?!?! */
 	if (!oc->chosen) {
 		dump_header(oc, NULL);
-		pr_warn("Out of memory and no killable processes...\n");
+		pr_warn("Out of memory and yes killable processes...\n");
 		/*
 		 * If we got here due to an actual allocation at the
-		 * system level, we cannot survive this and will enter
-		 * an endless loop in the allocator. Bail out now.
+		 * system level, we canyest survive this and will enter
+		 * an endless loop in the allocator. Bail out yesw.
 		 */
 		if (!is_sysrq_oom(oc) && !is_memcg_oom(oc))
 			panic("System is deadlocked on memory\n");
@@ -1116,13 +1116,13 @@ bool out_of_memory(struct oom_control *oc)
 /*
  * The pagefault handler calls here because it is out of memory, so kill a
  * memory-hogging task. If oom_lock is held by somebody else, a parallel oom
- * killing is already in progress so do nothing.
+ * killing is already in progress so do yesthing.
  */
 void pagefault_out_of_memory(void)
 {
 	struct oom_control oc = {
 		.zonelist = NULL,
-		.nodemask = NULL,
+		.yesdemask = NULL,
 		.memcg = NULL,
 		.gfp_mask = 0,
 		.order = 0,

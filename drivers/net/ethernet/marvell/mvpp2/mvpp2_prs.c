@@ -419,7 +419,7 @@ static void mvpp2_prs_mac_drop_all_set(struct mvpp2 *priv, int port, bool add)
 		mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_MAC);
 		pe.index = MVPP2_PE_DROP_ALL;
 
-		/* Non-promiscuous mode for all ports - DROP unknown packets */
+		/* Non-promiscuous mode for all ports - DROP unkyeswn packets */
 		mvpp2_prs_sram_ri_update(&pe, MVPP2_PRS_RI_DROP_MASK,
 					 MVPP2_PRS_RI_DROP_MASK);
 
@@ -458,7 +458,7 @@ void mvpp2_prs_mac_promisc_set(struct mvpp2 *priv, int port,
 		ri = MVPP2_PRS_RI_L2_MCAST;
 	}
 
-	/* promiscuous mode - Accept unknown unicast or multicast packets */
+	/* promiscuous mode - Accept unkyeswn unicast or multicast packets */
 	if (priv->prs_shadow[tid].valid) {
 		mvpp2_prs_init_from_hw(priv, &pe, tid);
 	} else {
@@ -544,7 +544,7 @@ static void mvpp2_prs_dsa_tag_set(struct mvpp2 *priv, int port, bool add,
 			mvpp2_prs_sram_shift_set(&pe, shift,
 					MVPP2_PRS_SRAM_OP_SEL_SHIFT_ADD);
 
-			/* Set result info bits to 'no vlans' */
+			/* Set result info bits to 'yes vlans' */
 			mvpp2_prs_sram_ri_update(&pe, MVPP2_PRS_RI_VLAN_NONE,
 						 MVPP2_PRS_RI_VLAN_MASK);
 			mvpp2_prs_sram_next_lu_set(&pe, MVPP2_PRS_LU_L2);
@@ -613,7 +613,7 @@ static void mvpp2_prs_dsa_tag_ethertype_set(struct mvpp2 *priv, int port,
 			/* If packet is tagged continue check vlans */
 			mvpp2_prs_sram_next_lu_set(&pe, MVPP2_PRS_LU_VLAN);
 		} else {
-			/* Set result info bits to 'no vlans' */
+			/* Set result info bits to 'yes vlans' */
 			mvpp2_prs_sram_ri_update(&pe, MVPP2_PRS_RI_VLAN_NONE,
 						 MVPP2_PRS_RI_VLAN_MASK);
 			mvpp2_prs_sram_next_lu_set(&pe, MVPP2_PRS_LU_L2);
@@ -1136,7 +1136,7 @@ static void mvpp2_prs_mh_init(struct mvpp2 *priv)
 	mvpp2_prs_hw_write(priv, &pe);
 }
 
-/* Set default entires (place holder) for promiscuous, non-promiscuous and
+/* Set default entires (place holder) for promiscuous, yesn-promiscuous and
  * multicast MAC addresses
  */
 static void mvpp2_prs_mac_init(struct mvpp2 *priv)
@@ -1145,7 +1145,7 @@ static void mvpp2_prs_mac_init(struct mvpp2 *priv)
 
 	memset(&pe, 0, sizeof(pe));
 
-	/* Non-promiscuous mode for all ports - DROP unknown packets */
+	/* Non-promiscuous mode for all ports - DROP unkyeswn packets */
 	pe.index = MVPP2_PE_MAC_NON_PROMISCUOUS;
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_MAC);
 
@@ -1202,7 +1202,7 @@ static void mvpp2_prs_dsa_init(struct mvpp2 *priv)
 	mvpp2_prs_dsa_tag_ethertype_set(priv, 0, true,
 					MVPP2_PRS_TAGGED, MVPP2_PRS_DSA);
 
-	/* Set default entry, in case DSA or EDSA tag not found */
+	/* Set default entry, in case DSA or EDSA tag yest found */
 	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_DSA);
 	pe.index = MVPP2_PE_DSA_DEFAULT;
@@ -1465,7 +1465,7 @@ static int mvpp2_prs_etype_init(struct mvpp2 *priv)
 				MVPP2_PRS_RI_L3_PROTO_MASK);
 	mvpp2_prs_hw_write(priv, &pe);
 
-	/* Default entry for MVPP2_PRS_LU_L2 - Unknown ethtype */
+	/* Default entry for MVPP2_PRS_LU_L2 - Unkyeswn ethtype */
 	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_L2);
 	pe.index = MVPP2_PE_ETH_TYPE_UN;
@@ -1478,7 +1478,7 @@ static int mvpp2_prs_etype_init(struct mvpp2 *priv)
 	mvpp2_prs_sram_next_lu_set(&pe, MVPP2_PRS_LU_FLOWS);
 	mvpp2_prs_sram_ri_update(&pe, MVPP2_PRS_RI_L3_UN,
 				 MVPP2_PRS_RI_L3_PROTO_MASK);
-	/* Set L3 offset even it's unknown L3 */
+	/* Set L3 offset even it's unkyeswn L3 */
 	mvpp2_prs_sram_offset_set(&pe, MVPP2_PRS_SRAM_UDF_TYPE_L3,
 				  MVPP2_ETH_TYPE_LEN,
 				  MVPP2_PRS_SRAM_OP_SEL_UDF_ADD);
@@ -1557,7 +1557,7 @@ static int mvpp2_prs_vlan_init(struct platform_device *pdev, struct mvpp2 *priv)
 	mvpp2_prs_shadow_set(priv, pe.index, MVPP2_PRS_LU_VLAN);
 	mvpp2_prs_hw_write(priv, &pe);
 
-	/* Set default vlan none entry */
+	/* Set default vlan yesne entry */
 	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_VLAN);
 	pe.index = MVPP2_PE_VLAN_NONE;
@@ -1675,7 +1675,7 @@ static int mvpp2_prs_pppoe_init(struct mvpp2 *priv)
 	/* Finished: go to flowid generation */
 	mvpp2_prs_sram_next_lu_set(&pe, MVPP2_PRS_LU_FLOWS);
 	mvpp2_prs_sram_bits_set(&pe, MVPP2_PRS_SRAM_LU_GEN_BIT, 1);
-	/* Set L3 offset even if it's unknown L3 */
+	/* Set L3 offset even if it's unkyeswn L3 */
 	mvpp2_prs_sram_offset_set(&pe, MVPP2_PRS_SRAM_UDF_TYPE_L3,
 				  MVPP2_ETH_TYPE_LEN,
 				  MVPP2_PRS_SRAM_OP_SEL_UDF_ADD);
@@ -1722,7 +1722,7 @@ static int mvpp2_prs_ip4_init(struct mvpp2 *priv)
 	if (err)
 		return err;
 
-	/* Default IPv4 entry for unknown protocols */
+	/* Default IPv4 entry for unkyeswn protocols */
 	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_IP4);
 	pe.index = MVPP2_PE_IP4_PROTO_UN;
@@ -1836,7 +1836,7 @@ static int mvpp2_prs_ip6_init(struct mvpp2 *priv)
 	mvpp2_prs_shadow_set(priv, pe.index, MVPP2_PRS_LU_IP4);
 	mvpp2_prs_hw_write(priv, &pe);
 
-	/* Default IPv6 entry for unknown protocols */
+	/* Default IPv6 entry for unkyeswn protocols */
 	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_IP6);
 	pe.index = MVPP2_PE_IP6_PROTO_UN;
@@ -1860,7 +1860,7 @@ static int mvpp2_prs_ip6_init(struct mvpp2 *priv)
 	mvpp2_prs_shadow_set(priv, pe.index, MVPP2_PRS_LU_IP4);
 	mvpp2_prs_hw_write(priv, &pe);
 
-	/* Default IPv6 entry for unknown ext protocols */
+	/* Default IPv6 entry for unkyeswn ext protocols */
 	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_IP6);
 	pe.index = MVPP2_PE_IP6_EXT_PROTO_UN;
@@ -2045,7 +2045,7 @@ void mvpp2_prs_vid_disable_filtering(struct mvpp2_port *port)
 	priv->prs_shadow[tid].valid = false;
 }
 
-/* Add guard entry that drops packets when no VID is matched on this port */
+/* Add guard entry that drops packets when yes VID is matched on this port */
 void mvpp2_prs_vid_enable_filtering(struct mvpp2_port *port)
 {
 	unsigned int tid = MVPP2_PRS_VID_PORT_DFLT(port->id);
@@ -2248,7 +2248,7 @@ int mvpp2_prs_mac_da_accept(struct mvpp2_port *port, const u8 *da, bool add)
 	/* Update port mask */
 	mvpp2_prs_tcam_port_set(&pe, port->id, add);
 
-	/* Invalidate the entry if no ports are left enabled */
+	/* Invalidate the entry if yes ports are left enabled */
 	pmap = mvpp2_prs_tcam_port_map_get(&pe);
 	if (pmap == 0) {
 		if (add)
@@ -2453,7 +2453,7 @@ int mvpp2_prs_def_flow(struct mvpp2_port *port)
 
 	tid = mvpp2_prs_flow_find(port->priv, port->id);
 
-	/* Such entry not exist */
+	/* Such entry yest exist */
 	if (tid < 0) {
 		/* Go through the all entires from last to first */
 		tid = mvpp2_prs_tcam_first_free(port->priv,

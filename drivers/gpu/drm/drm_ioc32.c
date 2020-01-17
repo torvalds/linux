@@ -15,7 +15,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -79,7 +79,7 @@
 
 typedef struct drm_version_32 {
 	int version_major;	  /* Major version */
-	int version_minor;	  /* Minor version */
+	int version_miyesr;	  /* Miyesr version */
 	int version_patchlevel;	   /* Patch level */
 	u32 name_len;		  /* Length of name buffer */
 	u32 name;		  /* Name of driver */
@@ -113,7 +113,7 @@ static int compat_drm_version(struct file *file, unsigned int cmd,
 		return err;
 
 	v32.version_major = v.version_major;
-	v32.version_minor = v.version_minor;
+	v32.version_miyesr = v.version_miyesr;
 	v32.version_patchlevel = v.version_patchlevel;
 	v32.name_len = v.name_len;
 	v32.date_len = v.date_len;
@@ -297,7 +297,7 @@ static int compat_drm_getstats(struct file *file, unsigned int cmd,
 	drm_stats32_t __user *argp = (void __user *)arg;
 	int err;
 
-	err = drm_ioctl_kernel(file, drm_noop, NULL, 0);
+	err = drm_ioctl_kernel(file, drm_yesop, NULL, 0);
 	if (err)
 		return err;
 
@@ -635,7 +635,7 @@ static int compat_drm_agp_enable(struct file *file, unsigned int cmd,
 
 typedef struct drm_agp_info32 {
 	int agp_version_major;
-	int agp_version_minor;
+	int agp_version_miyesr;
 	u32 mode;
 	u32 aperture_base;	/* physical address */
 	u32 aperture_size;	/* bytes */
@@ -660,7 +660,7 @@ static int compat_drm_agp_info(struct file *file, unsigned int cmd,
 		return err;
 
 	i32.agp_version_major = info.agp_version_major;
-	i32.agp_version_minor = info.agp_version_minor;
+	i32.agp_version_miyesr = info.agp_version_miyesr;
 	i32.mode = info.mode;
 	i32.aperture_base = info.aperture_base;
 	i32.aperture_size = info.aperture_size;
@@ -779,7 +779,7 @@ static int compat_drm_sg_alloc(struct file *file, unsigned int cmd,
 	if (err)
 		return err;
 
-	/* XXX not sure about the handle conversion here... */
+	/* XXX yest sure about the handle conversion here... */
 	if (put_user(request.handle >> PAGE_SHIFT, &argp->handle))
 		return -EFAULT;
 
@@ -816,7 +816,7 @@ static int compat_drm_update_draw(struct file *file, unsigned int cmd,
 	if (copy_from_user(&update32, (void __user *)arg, sizeof(update32)))
 		return -EFAULT;
 
-	return drm_ioctl_kernel(file, drm_noop, NULL,
+	return drm_ioctl_kernel(file, drm_yesop, NULL,
 				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 }
 #endif
@@ -975,7 +975,7 @@ long drm_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int ret;
 
 	/* Assume that ioctls without an explicit compat routine will just
-	 * work.  This may not always be a good assumption, but it's better
+	 * work.  This may yest always be a good assumption, but it's better
 	 * than always failing.
 	 */
 	if (nr >= ARRAY_SIZE(drm_compat_ioctls))
@@ -987,7 +987,7 @@ long drm_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	DRM_DEBUG("pid=%d, dev=0x%lx, auth=%d, %s\n",
 		  task_pid_nr(current),
-		  (long)old_encode_dev(file_priv->minor->kdev->devt),
+		  (long)old_encode_dev(file_priv->miyesr->kdev->devt),
 		  file_priv->authenticated,
 		  drm_compat_ioctls[nr].name);
 	ret = (*fn)(filp, cmd, arg);

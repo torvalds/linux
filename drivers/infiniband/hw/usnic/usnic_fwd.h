@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -51,7 +51,7 @@ struct usnic_fwd_dev {
 	/*
 	 * The following fields can be read directly off the device.
 	 * However, they should be set by a accessor function, except name,
-	 * which cannot be changed.
+	 * which canyest be changed.
 	 */
 	bool				link_up;
 	char				mac[ETH_ALEN];
@@ -84,7 +84,7 @@ void usnic_fwd_set_mtu(struct usnic_fwd_dev *ufdev, unsigned int mtu);
 /*
  * Allocate a flow on this forwarding device. Whoever calls this function,
  * must monitor netdev events on ufdev's netdevice. If NETDEV_REBOOT or
- * NETDEV_DOWN is seen, flow will no longer function and must be
+ * NETDEV_DOWN is seen, flow will yes longer function and must be
  * immediately freed by calling usnic_dealloc_flow.
  */
 struct usnic_fwd_flow*

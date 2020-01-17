@@ -41,22 +41,22 @@ extern int of_device_request_module(struct device *dev);
 extern void of_device_uevent(struct device *dev, struct kobj_uevent_env *env);
 extern int of_device_uevent_modalias(struct device *dev, struct kobj_uevent_env *env);
 
-static inline void of_device_node_put(struct device *dev)
+static inline void of_device_yesde_put(struct device *dev)
 {
-	of_node_put(dev->of_node);
+	of_yesde_put(dev->of_yesde);
 }
 
-static inline struct device_node *of_cpu_device_node_get(int cpu)
+static inline struct device_yesde *of_cpu_device_yesde_get(int cpu)
 {
 	struct device *cpu_dev;
 	cpu_dev = get_cpu_device(cpu);
 	if (!cpu_dev)
-		return of_get_cpu_node(cpu, NULL);
-	return of_node_get(cpu_dev->of_node);
+		return of_get_cpu_yesde(cpu, NULL);
+	return of_yesde_get(cpu_dev->of_yesde);
 }
 
 int of_dma_configure(struct device *dev,
-		     struct device_node *np,
+		     struct device_yesde *np,
 		     bool force_dma);
 #else /* CONFIG_OF */
 
@@ -91,7 +91,7 @@ static inline int of_device_uevent_modalias(struct device *dev,
 	return -ENODEV;
 }
 
-static inline void of_device_node_put(struct device *dev) { }
+static inline void of_device_yesde_put(struct device *dev) { }
 
 static inline const struct of_device_id *__of_match_device(
 		const struct of_device_id *matches, const struct device *dev)
@@ -101,13 +101,13 @@ static inline const struct of_device_id *__of_match_device(
 #define of_match_device(matches, dev)	\
 	__of_match_device(of_match_ptr(matches), (dev))
 
-static inline struct device_node *of_cpu_device_node_get(int cpu)
+static inline struct device_yesde *of_cpu_device_yesde_get(int cpu)
 {
 	return NULL;
 }
 
 static inline int of_dma_configure(struct device *dev,
-				   struct device_node *np,
+				   struct device_yesde *np,
 				   bool force_dma)
 {
 	return 0;

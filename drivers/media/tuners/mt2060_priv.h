@@ -91,7 +91,7 @@ struct mt2060_priv {
 
 	/*
 	 * Use REG_MISC_CTRL register for sleep. That drops sleep power usage
-	 * about 0.9W (huge!). Register bit meanings are unknown, so let it be
+	 * about 0.9W (huge!). Register bit meanings are unkyeswn, so let it be
 	 * disabled by default to avoid possible regression. Convert driver to
 	 * i2c model in order to enable it.
 	 */

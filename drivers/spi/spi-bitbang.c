@@ -8,7 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -369,7 +369,7 @@ EXPORT_SYMBOL_GPL(spi_bitbang_init);
  * Caller should have zero-initialized all parts of the structure, and then
  * provided callbacks for chip selection and I/O loops.  If the master has
  * a transfer method, its final step should call spi_bitbang_transfer; or,
- * that's the default if the transfer routine is not initialized.  It should
+ * that's the default if the transfer routine is yest initialized.  It should
  * also set up the bus number and number of chipselects.
  *
  * For i/o loops, provide callbacks either per-word (for bitbanging, or for

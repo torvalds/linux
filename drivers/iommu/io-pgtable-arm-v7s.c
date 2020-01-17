@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * CPU-agnostic ARM page table allocator.
+ * CPU-agyesstic ARM page table allocator.
  *
  * ARMv7 Short-descriptor format, supporting
  * - Basic memory attributes
@@ -71,8 +71,8 @@
  * entries, along the lines of the LPAE contiguous hint, but all with the
  * same output address. For want of a better common name we'll call them
  * "contiguous" versions of their respective page/section entries here, but
- * noting the distinction (WRT to TLB maintenance) that they represent *one*
- * entry repeated 16 times, not 16 separate entries (as in the LPAE case).
+ * yesting the distinction (WRT to TLB maintenance) that they represent *one*
+ * entry repeated 16 times, yest 16 separate entries (as in the LPAE case).
  */
 #define ARM_V7S_CONT_PAGES		16
 
@@ -247,7 +247,7 @@ static void *__arm_v7s_alloc_table(int lvl, gfp_t gfp,
 	phys = virt_to_phys(table);
 	if (phys != (arm_v7s_iopte)phys) {
 		/* Doesn't fit in PTE */
-		dev_err(dev, "Page table does not fit in PTE: %pa", &phys);
+		dev_err(dev, "Page table does yest fit in PTE: %pa", &phys);
 		goto out_free;
 	}
 	if (table && !cfg->coherent_walk) {
@@ -263,11 +263,11 @@ static void *__arm_v7s_alloc_table(int lvl, gfp_t gfp,
 			goto out_unmap;
 	}
 	if (lvl == 2)
-		kmemleak_ignore(table);
+		kmemleak_igyesre(table);
 	return table;
 
 out_unmap:
-	dev_err(dev, "Cannot accommodate DMA translation for IOMMU page tables\n");
+	dev_err(dev, "Canyest accommodate DMA translation for IOMMU page tables\n");
 	dma_unmap_single(dev, dma, size, DMA_TO_DEVICE);
 out_free:
 	if (lvl == 1)
@@ -501,7 +501,7 @@ static int __arm_v7s_map(struct arm_v7s_io_pgtable *data, unsigned long iova,
 		if (pte)
 			__arm_v7s_free_table(cptep, lvl + 1, data);
 	} else {
-		/* We've no easy way of knowing if it's synced yet, so... */
+		/* We've yes easy way of kyeswing if it's synced yet, so... */
 		__arm_v7s_pte_sync(ptep, 1, cfg);
 	}
 
@@ -524,7 +524,7 @@ static int arm_v7s_map(struct io_pgtable_ops *ops, unsigned long iova,
 	struct io_pgtable *iop = &data->iop;
 	int ret;
 
-	/* If no access, then nothing to do */
+	/* If yes access, then yesthing to do */
 	if (!(prot & (IOMMU_READ | IOMMU_WRITE)))
 		return 0;
 
@@ -803,7 +803,7 @@ static struct io_pgtable *arm_v7s_alloc_pgtable(struct io_pgtable_cfg *cfg,
 
 	/*
 	 * TEX remap: the indices used map to the closest equivalent types
-	 * under the non-TEX-remap interpretation of those attribute bits,
+	 * under the yesn-TEX-remap interpretation of those attribute bits,
 	 * excepting various implementation-defined aspects of shareability.
 	 */
 	cfg->arm_v7s_cfg.prrr = ARM_V7S_PRRR_TR(1, ARM_V7S_PRRR_TYPE_DEVICE) |

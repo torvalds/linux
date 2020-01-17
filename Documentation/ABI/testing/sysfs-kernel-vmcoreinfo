@@ -5,10 +5,10 @@ Contact:	Ken'ichi Ohmichi <oomichi@mxs.nes.nec.co.jp>
 		Kexec Mailing List <kexec@lists.infradead.org>
 		Vivek Goyal <vgoyal@redhat.com>
 Description:
-		Shows physical address and size of vmcoreinfo ELF note.
-		First value contains physical address of note in hex and
-		second value contains the size of note in hex. This ELF
-		note info is parsed by second kernel and exported to user
-		space as part of ELF note in /proc/vmcore file. This note
+		Shows physical address and size of vmcoreinfo ELF yeste.
+		First value contains physical address of yeste in hex and
+		second value contains the size of yeste in hex. This ELF
+		yeste info is parsed by second kernel and exported to user
+		space as part of ELF yeste in /proc/vmcore file. This yeste
 		contains various information like struct size, symbol
 		values, page size etc.

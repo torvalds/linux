@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -51,7 +51,7 @@
  * enters/exits self-refresh mode. The hardware takes care of sending the
  * required DP aux message and could even retrain the link (that part isn't
  * enabled yet though). The hardware also keeps track of any frontbuffer
- * changes to know when to exit self-refresh mode again. Unfortunately that
+ * changes to kyesw when to exit self-refresh mode again. Unfortunately that
  * part doesn't work too well, hence why the i915 PSR support uses the
  * software frontbuffer tracking to make sure it doesn't miss a screen
  * update. For this integration intel_psr_invalidate() and intel_psr_flush()
@@ -75,7 +75,7 @@ static bool psr_global_enabled(u32 debug)
 static bool intel_psr2_enabled(struct drm_i915_private *dev_priv,
 			       const struct intel_crtc_state *crtc_state)
 {
-	/* Cannot enable DSC and PSR2 simultaneously */
+	/* Canyest enable DSC and PSR2 simultaneously */
 	WARN_ON(crtc_state->dsc.compression_enable &&
 		crtc_state->has_psr2);
 
@@ -200,7 +200,7 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 		dev_priv->psr.irq_aux_error = true;
 
 		/*
-		 * If this interruption is not masked it will keep
+		 * If this interruption is yest masked it will keep
 		 * interrupting so fast that it prevents the scheduled
 		 * work to run.
 		 * Also after a PSR error, we don't want to arm PSR
@@ -243,7 +243,7 @@ static u16 intel_dp_get_su_x_granulartiy(struct intel_dp *intel_dp)
 	ssize_t r;
 
 	/*
-	 * Returning the default X granularity if granularity not required or
+	 * Returning the default X granularity if granularity yest required or
 	 * if DPCD read fails
 	 */
 	if (!(intel_dp->psr_dpcd[1] & DP_PSR2_SU_GRANULARITY_REQUIRED))
@@ -282,12 +282,12 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 		      intel_dp->psr_dpcd[0]);
 
 	if (drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_NO_PSR)) {
-		DRM_DEBUG_KMS("PSR support not currently available for this panel\n");
+		DRM_DEBUG_KMS("PSR support yest currently available for this panel\n");
 		return;
 	}
 
 	if (!(intel_dp->edp_dpcd[1] & DP_EDP_SET_POWER_CAP)) {
-		DRM_DEBUG_KMS("Panel lacks power state control, PSR cannot be enabled\n");
+		DRM_DEBUG_KMS("Panel lacks power state control, PSR canyest be enabled\n");
 		return;
 	}
 
@@ -316,7 +316,7 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 		 */
 		dev_priv->psr.sink_psr2_support = y_req && alpm;
 		DRM_DEBUG_KMS("PSR2 %ssupported\n",
-			      dev_priv->psr.sink_psr2_support ? "" : "not ");
+			      dev_priv->psr.sink_psr2_support ? "" : "yest ");
 
 		if (dev_priv->psr.sink_psr2_support) {
 			dev_priv->psr.colorimetry_support =
@@ -457,13 +457,13 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 	u32 max_sleep_time = 0x1f;
 	u32 val = EDP_PSR_ENABLE;
 
-	/* Let's use 6 as the minimum to cover all known cases including the
+	/* Let's use 6 as the minimum to cover all kyeswn cases including the
 	 * off-by-one issue that HW has in some cases.
 	 */
 	int idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
 
 	/* sink_sync_latency of 8 means source has to wait for more than 8
-	 * frames, we'll go with 9 frames for now
+	 * frames, we'll go with 9 frames for yesw
 	 */
 	idle_frames = max(idle_frames, dev_priv->psr.sink_sync_latency + 1);
 	val |= idle_frames << EDP_PSR_IDLE_FRAME_SHIFT;
@@ -490,7 +490,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 val;
 
-	/* Let's use 6 as the minimum to cover all known cases including the
+	/* Let's use 6 as the minimum to cover all kyeswn cases including the
 	 * off-by-one issue that HW has in some cases.
 	 */
 	int idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
@@ -567,7 +567,7 @@ static void tgl_psr2_disable_dc3co(struct drm_i915_private *dev_priv)
 
 	intel_display_power_set_target_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
 	/*
-	 * Restore PSR2 idle frame let's use 6 as the minimum to cover all known
+	 * Restore PSR2 idle frame let's use 6 as the minimum to cover all kyeswn
 	 * cases including the off-by-one issue that HW has in some cases.
 	 */
 	idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
@@ -581,7 +581,7 @@ static void tgl_dc5_idle_thread(struct work_struct *work)
 		container_of(work, typeof(*dev_priv), psr.idle_work.work);
 
 	mutex_lock(&dev_priv->psr.lock);
-	/* If delayed work is pending, it is not idle */
+	/* If delayed work is pending, it is yest idle */
 	if (delayed_work_pending(&dev_priv->psr.idle_work))
 		goto unlock;
 
@@ -613,18 +613,18 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 
 	if (!transcoder_has_psr2(dev_priv, crtc_state->cpu_transcoder)) {
-		DRM_DEBUG_KMS("PSR2 not supported in transcoder %s\n",
+		DRM_DEBUG_KMS("PSR2 yest supported in transcoder %s\n",
 			      transcoder_name(crtc_state->cpu_transcoder));
 		return false;
 	}
 
 	/*
-	 * DSC and PSR2 cannot be enabled simultaneously. If a requested
+	 * DSC and PSR2 canyest be enabled simultaneously. If a requested
 	 * resolution requires DSC to be enabled, priority is given to DSC
 	 * over PSR2.
 	 */
 	if (crtc_state->dsc.compression_enable) {
-		DRM_DEBUG_KMS("PSR2 cannot be enabled since DSC is enabled\n");
+		DRM_DEBUG_KMS("PSR2 canyest be enabled since DSC is enabled\n");
 		return false;
 	}
 
@@ -640,7 +640,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	}
 
 	if (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v) {
-		DRM_DEBUG_KMS("PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
+		DRM_DEBUG_KMS("PSR2 yest enabled, resolution %dx%d > max supported %dx%d\n",
 			      crtc_hdisplay, crtc_vdisplay,
 			      psr_max_h, psr_max_v);
 		return false;
@@ -653,13 +653,13 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	 * x granularity.
 	 */
 	if (crtc_hdisplay % dev_priv->psr.su_x_granularity) {
-		DRM_DEBUG_KMS("PSR2 not enabled, hdisplay(%d) not multiple of %d\n",
+		DRM_DEBUG_KMS("PSR2 yest enabled, hdisplay(%d) yest multiple of %d\n",
 			      crtc_hdisplay, dev_priv->psr.su_x_granularity);
 		return false;
 	}
 
 	if (crtc_state->crc_enabled) {
-		DRM_DEBUG_KMS("PSR2 not enabled because it would inhibit pipe CRC calculation\n");
+		DRM_DEBUG_KMS("PSR2 yest enabled because it would inhibit pipe CRC calculation\n");
 		return false;
 	}
 
@@ -684,16 +684,16 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	/*
 	 * HSW spec explicitly says PSR is tied to port A.
 	 * BDW+ platforms have a instance of PSR registers per transcoder but
-	 * for now it only supports one instance of PSR, so lets keep it
+	 * for yesw it only supports one instance of PSR, so lets keep it
 	 * hardcoded to PORT_A
 	 */
 	if (dig_port->base.port != PORT_A) {
-		DRM_DEBUG_KMS("PSR condition failed: Port not supported\n");
+		DRM_DEBUG_KMS("PSR condition failed: Port yest supported\n");
 		return;
 	}
 
-	if (dev_priv->psr.sink_not_reliable) {
-		DRM_DEBUG_KMS("PSR sink implementation is not reliable\n");
+	if (dev_priv->psr.sink_yest_reliable) {
+		DRM_DEBUG_KMS("PSR sink implementation is yest reliable\n");
 		return;
 	}
 
@@ -766,7 +766,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	/*
 	 * Per Spec: Avoid continuous PSR exit by masking MEMUP and HPD also
 	 * mask LPSP to avoid dependency on other drivers that might block
-	 * runtime_pm besides preventing  other hw tracking issues now we
+	 * runtime_pm besides preventing  other hw tracking issues yesw we
 	 * can rely on frontbuffer tracking.
 	 */
 	mask = EDP_PSR_DEBUG_MASK_MEMUP |
@@ -813,8 +813,8 @@ static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
 		val &= EDP_PSR_ERROR(dev_priv->psr.transcoder);
 	}
 	if (val) {
-		dev_priv->psr.sink_not_reliable = true;
-		DRM_DEBUG_KMS("PSR interruption error set, not enabling PSR\n");
+		dev_priv->psr.sink_yest_reliable = true;
+		DRM_DEBUG_KMS("PSR interruption error set, yest enabling PSR\n");
 		return;
 	}
 
@@ -969,7 +969,7 @@ static void psr_force_hw_tracking_exit(struct drm_i915_private *dev_priv)
 		I915_WRITE(CURSURFLIVE(dev_priv->psr.pipe), 0);
 	else
 		/*
-		 * A write to CURSURFLIVE do not cause HW tracking to exit PSR
+		 * A write to CURSURFLIVE do yest cause HW tracking to exit PSR
 		 * on older gens so doing the manual exit instead.
 		 */
 		intel_psr_exit(dev_priv);
@@ -1032,9 +1032,9 @@ unlock:
  * @out_value: PSR status in case of failure
  *
  * This function is expected to be called from pipe_update_start() where it is
- * not expected to race with PSR enable or disable.
+ * yest expected to race with PSR enable or disable.
  *
- * Returns: 0 on success or -ETIMEOUT if PSR status does not idle.
+ * Returns: 0 on success or -ETIMEOUT if PSR status does yest idle.
  */
 int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
 			    u32 *out_value)
@@ -1053,7 +1053,7 @@ int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
 	 * From bspec: Panel Self Refresh (BDW+)
 	 * Max. time for PSR to idle = Inverse of the refresh rate + 6 ms of
 	 * exit training time + 1.5 ms of aux channel handshake. 50 ms is
-	 * defensive enough to cover everything.
+	 * defensive eyesugh to cover everything.
 	 */
 
 	return __intel_wait_for_register(&dev_priv->uncore,
@@ -1182,7 +1182,7 @@ static void intel_psr_handle_irq(struct drm_i915_private *dev_priv)
 	struct i915_psr *psr = &dev_priv->psr;
 
 	intel_psr_disable_locked(psr->dp);
-	psr->sink_not_reliable = true;
+	psr->sink_yest_reliable = true;
 	/* let's make sure that sink is awaken */
 	drm_dp_dpcd_writeb(&psr->dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
 }
@@ -1306,7 +1306,7 @@ unlock:
  * Since the hardware frontbuffer tracking has gaps we need to integrate
  * with the software frontbuffer tracking. This function gets called every
  * time frontbuffer rendering has completed and flushed out to memory. PSR
- * can be enabled again if no other frontbuffer relevant to PSR is dirty.
+ * can be enabled again if yes other frontbuffer relevant to PSR is dirty.
  *
  * Dirty frontbuffers relevant to PSR are tracked in busy_frontbuffer_bits.
  */
@@ -1404,7 +1404,7 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 	if ((val & DP_PSR_SINK_STATE_MASK) == DP_PSR_SINK_INTERNAL_ERROR) {
 		DRM_DEBUG_KMS("PSR sink internal error, disabling PSR\n");
 		intel_psr_disable_locked(intel_dp);
-		psr->sink_not_reliable = true;
+		psr->sink_yest_reliable = true;
 	}
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_ERROR_STATUS, &val) != 1) {
@@ -1424,7 +1424,7 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 			  val & ~errors);
 	if (val & errors) {
 		intel_psr_disable_locked(intel_dp);
-		psr->sink_not_reliable = true;
+		psr->sink_yest_reliable = true;
 	}
 	/* clear status register */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_ERROR_STATUS, val);

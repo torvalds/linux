@@ -48,7 +48,7 @@ enum superblock_flag_bits {
 enum mapping_bits {
 	/*
 	 * A valid mapping.  Because we're using an array we clear this
-	 * flag for an non existant mapping.
+	 * flag for an yesn existant mapping.
 	 */
 	M_VALID = 1,
 
@@ -334,7 +334,7 @@ static int __write_initial_superblock(struct dm_cache_metadata *cmd)
 	int r;
 	struct dm_block *sblock;
 	struct cache_disk_superblock *disk_super;
-	sector_t bdev_size = i_size_read(cmd->bdev->bd_inode) >> SECTOR_SHIFT;
+	sector_t bdev_size = i_size_read(cmd->bdev->bd_iyesde) >> SECTOR_SHIFT;
 
 	/* FIXME: see if we can lose the max sectors limit */
 	if (bdev_size > DM_CACHE_METADATA_MAX_SECTORS)
@@ -441,7 +441,7 @@ static int __check_incompat_features(struct cache_disk_superblock *disk_super,
 	incompat_flags = le32_to_cpu(disk_super->incompat_flags);
 	features = incompat_flags & ~DM_CACHE_FEATURE_INCOMPAT_SUPP;
 	if (features) {
-		DMERR("could not access metadata due to unsupported optional features (%lx).",
+		DMERR("could yest access metadata due to unsupported optional features (%lx).",
 		      (unsigned long)features);
 		return -EINVAL;
 	}
@@ -454,7 +454,7 @@ static int __check_incompat_features(struct cache_disk_superblock *disk_super,
 
 	features = le32_to_cpu(disk_super->compat_ro_flags) & ~DM_CACHE_FEATURE_COMPAT_RO_SUPP;
 	if (features) {
-		DMERR("could not access metadata RDWR due to unsupported optional features (%lx).",
+		DMERR("could yest access metadata RDWR due to unsupported optional features (%lx).",
 		      (unsigned long)features);
 		return -EINVAL;
 	}
@@ -479,7 +479,7 @@ static int __open_metadata(struct dm_cache_metadata *cmd)
 
 	/* Verify the data block size hasn't changed */
 	if (le32_to_cpu(disk_super->data_block_size) != cmd->data_block_size) {
-		DMERR("changing the data block size (from %u to %llu) is not supported",
+		DMERR("changing the data block size (from %u to %llu) is yest supported",
 		      le32_to_cpu(disk_super->data_block_size),
 		      (unsigned long long)cmd->data_block_size);
 		r = -EINVAL;
@@ -536,7 +536,7 @@ static int __create_persistent_data_objects(struct dm_cache_metadata *cmd,
 	cmd->bm = dm_block_manager_create(cmd->bdev, DM_CACHE_METADATA_BLOCK_SIZE << SECTOR_SHIFT,
 					  CACHE_MAX_CONCURRENT_LOCKS);
 	if (IS_ERR(cmd->bm)) {
-		DMERR("could not create block manager");
+		DMERR("could yest create block manager");
 		return PTR_ERR(cmd->bm);
 	}
 
@@ -655,7 +655,7 @@ static int __commit_transaction(struct dm_cache_metadata *cmd,
 	struct dm_block *sblock;
 
 	/*
-	 * We need to know if the cache_disk_superblock exceeds a 512-byte sector.
+	 * We need to kyesw if the cache_disk_superblock exceeds a 512-byte sector.
 	 */
 	BUILD_BUG_ON(sizeof(struct cache_disk_superblock) > 512);
 
@@ -750,7 +750,7 @@ static struct dm_cache_metadata *metadata_open(struct block_device *bdev,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		DMERR("could not allocate metadata struct");
+		DMERR("could yest allocate metadata struct");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1154,7 +1154,7 @@ static int __load_discards(struct dm_cache_metadata *cmd,
 	struct dm_bitset_cursor c;
 
 	if (from_dblock(cmd->discard_nr_blocks) == 0)
-		/* nothing to do */
+		/* yesthing to do */
 		return 0;
 
 	if (cmd->clean_when_opened) {
@@ -1553,7 +1553,7 @@ static int __dirty(struct dm_cache_metadata *cmd, dm_cblock_t cblock, bool dirty
 	unpack_value(value, &oblock, &flags);
 
 	if (((flags & M_DIRTY) && dirty) || (!(flags & M_DIRTY) && !dirty))
-		/* nothing to be done */
+		/* yesthing to be done */
 		return 0;
 
 	value = pack_value(oblock, (flags & ~M_DIRTY) | (dirty ? M_DIRTY : 0));

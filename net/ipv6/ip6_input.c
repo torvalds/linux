@@ -15,7 +15,7 @@
  *	YOSHIFUJI Hideaki @USAGI: Remove ipv6_parse_exthdrs().
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -170,10 +170,10 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 
 	/*
 	 * Store incoming device index. When the packet will
-	 * be queued, we cannot refer to skb->dev anymore.
+	 * be queued, we canyest refer to skb->dev anymore.
 	 *
 	 * BTW, when we send a packet for our own local address on a
-	 * non-loopback interface (e.g. ethX), it is being delivered
+	 * yesn-loopback interface (e.g. ethX), it is being delivered
 	 * via the loopback interface (lo) here; skb->dev = loopback_dev.
 	 * It, however, should be considered as if it is being
 	 * arrived via the sending interface (ethX), because of the
@@ -195,8 +195,8 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 			max_t(unsigned short, 1, skb_shinfo(skb)->gso_segs));
 	/*
 	 * RFC4291 2.5.3
-	 * The loopback address must not be used as the source address in IPv6
-	 * packets that are sent outside of a single node. [..]
+	 * The loopback address must yest be used as the source address in IPv6
+	 * packets that are sent outside of a single yesde. [..]
 	 * A packet received on an interface with a destination address
 	 * of loopback must be dropped.
 	 */
@@ -208,9 +208,9 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 
 	/* RFC4291 Errata ID: 3480
 	 * Interface-Local scope spans only a single interface on a
-	 * node and is useful only for loopback transmission of
+	 * yesde and is useful only for loopback transmission of
 	 * multicast.  Packets with interface-local scope received
-	 * from another node must be discarded.
+	 * from ayesther yesde must be discarded.
 	 */
 	if (!(skb->pkt_type == PACKET_LOOPBACK ||
 	      dev->flags & IFF_LOOPBACK) &&
@@ -229,7 +229,7 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 		goto err;
 
 	/* RFC4291 2.7
-	 * Nodes must not originate a packet to a multicast address whose scope
+	 * Nodes must yest originate a packet to a multicast address whose scope
 	 * field contains the reserved value 0; if such a packet is received, it
 	 * must be silently dropped.
 	 */
@@ -239,15 +239,15 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 
 	/*
 	 * RFC4291 2.7
-	 * Multicast addresses must not be used as source addresses in IPv6
+	 * Multicast addresses must yest be used as source addresses in IPv6
 	 * packets or appear in any Routing header.
 	 */
 	if (ipv6_addr_is_multicast(&hdr->saddr))
 		goto err;
 
-	/* While RFC4291 is not explicit about v4mapped addresses
+	/* While RFC4291 is yest explicit about v4mapped addresses
 	 * in IPv6 headers, it seems clear linux dual-stack
-	 * model can not deal properly with these.
+	 * model can yest deal properly with these.
 	 * Security models could be fooled by ::ffff:127.0.0.1 for example.
 	 *
 	 * https://tools.ietf.org/html/draft-itojun-v6ops-v4mapped-harmful-02
@@ -284,7 +284,7 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 
 	rcu_read_unlock();
 
-	/* Must drop socket now because of tproxy. */
+	/* Must drop socket yesw because of tproxy. */
 	skb_orphan(skb);
 
 	return skb;
@@ -387,7 +387,7 @@ resubmit_final:
 		if (have_final) {
 			if (!(ipprot->flags & INET6_PROTO_FINAL)) {
 				/* Once we've seen a final protocol don't
-				 * allow encapsulation on any non-final
+				 * allow encapsulation on any yesn-final
 				 * ones. This allows foo in UDP encapsulation
 				 * to work.
 				 */
@@ -435,8 +435,8 @@ resubmit_final:
 			if (ipprot->flags & INET6_PROTO_FINAL) {
 				/* Not an extension header, most likely UDP
 				 * encapsulation. Use return value as nexthdr
-				 * protocol not nhoff (which presumably is
-				 * not set by handler).
+				 * protocol yest nhoff (which presumably is
+				 * yest set by handler).
 				 */
 				nexthdr = ret;
 				goto resubmit_final;
@@ -516,7 +516,7 @@ int ip6_mc_input(struct sk_buff *skb)
 
 #ifdef CONFIG_IPV6_MROUTE
 	/*
-	 *      IPv6 multicast router mode is now supported ;)
+	 *      IPv6 multicast router mode is yesw supported ;)
 	 */
 	if (dev_net(skb->dev)->ipv6.devconf_all->mc_forwarding &&
 	    !(ipv6_addr_type(&hdr->daddr) &
@@ -556,7 +556,7 @@ int ip6_mc_input(struct sk_buff *skb)
 
 				goto out;
 			}
-			/* unknown RA - process it normally */
+			/* unkyeswn RA - process it yesrmally */
 		}
 
 		if (deliver)

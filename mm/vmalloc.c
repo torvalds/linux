@@ -23,7 +23,7 @@
 #include <linux/debugobjects.h>
 #include <linux/kallsyms.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/rbtree.h>
 #include <linux/radix-tree.h>
 #include <linux/rcupdate.h>
@@ -52,10 +52,10 @@ static void __vunmap(const void *, int);
 static void free_work(struct work_struct *w)
 {
 	struct vfree_deferred *p = container_of(w, struct vfree_deferred, wq);
-	struct llist_node *t, *llnode;
+	struct llist_yesde *t, *llyesde;
 
-	llist_for_each_safe(llnode, t, llist_del_all(&p->list))
-		__vunmap((void *)llnode, 1);
+	llist_for_each_safe(llyesde, t, llist_del_all(&p->list))
+		__vunmap((void *)llyesde, 1);
 }
 
 /*** Page table manipulation functions ***/
@@ -67,7 +67,7 @@ static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end)
 	pte = pte_offset_kernel(pmd, addr);
 	do {
 		pte_t ptent = ptep_get_and_clear(&init_mm, addr, pte);
-		WARN_ON(!pte_none(ptent) && !pte_present(ptent));
+		WARN_ON(!pte_yesne(ptent) && !pte_present(ptent));
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 }
 
@@ -81,7 +81,7 @@ static void vunmap_pmd_range(pud_t *pud, unsigned long addr, unsigned long end)
 		next = pmd_addr_end(addr, end);
 		if (pmd_clear_huge(pmd))
 			continue;
-		if (pmd_none_or_clear_bad(pmd))
+		if (pmd_yesne_or_clear_bad(pmd))
 			continue;
 		vunmap_pte_range(pmd, addr, next);
 	} while (pmd++, addr = next, addr != end);
@@ -97,7 +97,7 @@ static void vunmap_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end)
 		next = pud_addr_end(addr, end);
 		if (pud_clear_huge(pud))
 			continue;
-		if (pud_none_or_clear_bad(pud))
+		if (pud_yesne_or_clear_bad(pud))
 			continue;
 		vunmap_pmd_range(pud, addr, next);
 	} while (pud++, addr = next, addr != end);
@@ -113,7 +113,7 @@ static void vunmap_p4d_range(pgd_t *pgd, unsigned long addr, unsigned long end)
 		next = p4d_addr_end(addr, end);
 		if (p4d_clear_huge(p4d))
 			continue;
-		if (p4d_none_or_clear_bad(p4d))
+		if (p4d_yesne_or_clear_bad(p4d))
 			continue;
 		vunmap_pud_range(p4d, addr, next);
 	} while (p4d++, addr = next, addr != end);
@@ -128,7 +128,7 @@ static void vunmap_page_range(unsigned long addr, unsigned long end)
 	pgd = pgd_offset_k(addr);
 	do {
 		next = pgd_addr_end(addr, end);
-		if (pgd_none_or_clear_bad(pgd))
+		if (pgd_yesne_or_clear_bad(pgd))
 			continue;
 		vunmap_p4d_range(pgd, addr, next);
 	} while (pgd++, addr = next, addr != end);
@@ -150,7 +150,7 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
 	do {
 		struct page *page = pages[*nr];
 
-		if (WARN_ON(!pte_none(*pte)))
+		if (WARN_ON(!pte_yesne(*pte)))
 			return -EBUSY;
 		if (WARN_ON(!page))
 			return -ENOMEM;
@@ -217,7 +217,7 @@ static int vmap_p4d_range(pgd_t *pgd, unsigned long addr,
  *
  * Ie. pte at addr+N*PAGE_SIZE shall point to pfn corresponding to pages[N]
  */
-static int vmap_page_range_noflush(unsigned long start, unsigned long end,
+static int vmap_page_range_yesflush(unsigned long start, unsigned long end,
 				   pgprot_t prot, struct page **pages)
 {
 	pgd_t *pgd;
@@ -243,7 +243,7 @@ static int vmap_page_range(unsigned long start, unsigned long end,
 {
 	int ret;
 
-	ret = vmap_page_range_noflush(start, end, prot, pages);
+	ret = vmap_page_range_yesflush(start, end, prot, pages);
 	flush_cache_vmap(start, end);
 	return ret;
 }
@@ -278,14 +278,14 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 
 	/*
 	 * XXX we might need to change this if we add VIRTUAL_BUG_ON for
-	 * architectures that do not vmalloc module space
+	 * architectures that do yest vmalloc module space
 	 */
 	VIRTUAL_BUG_ON(!is_vmalloc_or_module_addr(vmalloc_addr));
 
-	if (pgd_none(*pgd))
+	if (pgd_yesne(*pgd))
 		return NULL;
 	p4d = p4d_offset(pgd, addr);
-	if (p4d_none(*p4d))
+	if (p4d_yesne(*p4d))
 		return NULL;
 	pud = pud_offset(p4d, addr);
 
@@ -294,15 +294,15 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 	 * identify huge mappings, which we may encounter on architectures
 	 * that define CONFIG_HAVE_ARCH_HUGE_VMAP=y. Such regions will be
 	 * identified as vmalloc addresses by is_vmalloc_addr(), but are
-	 * not [unambiguously] associated with a struct page, so there is
-	 * no correct value to return for them.
+	 * yest [unambiguously] associated with a struct page, so there is
+	 * yes correct value to return for them.
 	 */
 	WARN_ON_ONCE(pud_bad(*pud));
-	if (pud_none(*pud) || pud_bad(*pud))
+	if (pud_yesne(*pud) || pud_bad(*pud))
 		return NULL;
 	pmd = pmd_offset(pud, addr);
 	WARN_ON_ONCE(pmd_bad(*pmd));
-	if (pmd_none(*pmd) || pmd_bad(*pmd))
+	if (pmd_yesne(*pmd) || pmd_bad(*pmd))
 		return NULL;
 
 	ptep = pte_offset_map(pmd, addr);
@@ -341,7 +341,7 @@ static bool vmap_initialized __read_mostly;
 /*
  * This kmem_cache is used for vmap_area objects. Instead of
  * allocating from slab we reuse an object from this cache to
- * make things faster. Especially in "no edge" splitting of
+ * make things faster. Especially in "yes edge" splitting of
  * free block.
  */
 static struct kmem_cache *vmap_area_cachep;
@@ -358,18 +358,18 @@ static LIST_HEAD(free_vmap_area_list);
  * address. It is used for allocation and merging when a vmap
  * object is released.
  *
- * Each vmap_area node contains a maximum available free block
+ * Each vmap_area yesde contains a maximum available free block
  * of its sub-tree, right or left. Therefore it is possible to
  * find a lowest match of free area.
  */
 static struct rb_root free_vmap_area_root = RB_ROOT;
 
 /*
- * Preload a CPU with one object for "no edge" split case. The
+ * Preload a CPU with one object for "yes edge" split case. The
  * aim is to get rid of allocations from the atomic context, thus
  * to use more permissive allocation masks.
  */
-static DEFINE_PER_CPU(struct vmap_area *, ne_fit_preload_node);
+static DEFINE_PER_CPU(struct vmap_area *, ne_fit_preload_yesde);
 
 static __always_inline unsigned long
 va_size(struct vmap_area *va)
@@ -378,30 +378,30 @@ va_size(struct vmap_area *va)
 }
 
 static __always_inline unsigned long
-get_subtree_max_size(struct rb_node *node)
+get_subtree_max_size(struct rb_yesde *yesde)
 {
 	struct vmap_area *va;
 
-	va = rb_entry_safe(node, struct vmap_area, rb_node);
+	va = rb_entry_safe(yesde, struct vmap_area, rb_yesde);
 	return va ? va->subtree_max_size : 0;
 }
 
 /*
- * Gets called when remove the node and rotate.
+ * Gets called when remove the yesde and rotate.
  */
 static __always_inline unsigned long
 compute_subtree_max_size(struct vmap_area *va)
 {
 	return max3(va_size(va),
-		get_subtree_max_size(va->rb_node.rb_left),
-		get_subtree_max_size(va->rb_node.rb_right));
+		get_subtree_max_size(va->rb_yesde.rb_left),
+		get_subtree_max_size(va->rb_yesde.rb_right));
 }
 
 RB_DECLARE_CALLBACKS_MAX(static, free_vmap_area_rb_augment_cb,
-	struct vmap_area, rb_node, unsigned long, subtree_max_size, va_size)
+	struct vmap_area, rb_yesde, unsigned long, subtree_max_size, va_size)
 
 static void purge_vmap_area_lazy(void);
-static BLOCKING_NOTIFIER_HEAD(vmap_notify_list);
+static BLOCKING_NOTIFIER_HEAD(vmap_yestify_list);
 static unsigned long lazy_max_pages(void);
 
 static atomic_long_t nr_vmalloc_pages;
@@ -413,12 +413,12 @@ unsigned long vmalloc_nr_pages(void)
 
 static struct vmap_area *__find_vmap_area(unsigned long addr)
 {
-	struct rb_node *n = vmap_area_root.rb_node;
+	struct rb_yesde *n = vmap_area_root.rb_yesde;
 
 	while (n) {
 		struct vmap_area *va;
 
-		va = rb_entry(n, struct vmap_area, rb_node);
+		va = rb_entry(n, struct vmap_area, rb_yesde);
 		if (addr < va->va_start)
 			n = n->rb_left;
 		else if (addr >= va->va_end)
@@ -431,19 +431,19 @@ static struct vmap_area *__find_vmap_area(unsigned long addr)
 }
 
 /*
- * This function returns back addresses of parent node
+ * This function returns back addresses of parent yesde
  * and its left or right link for further processing.
  */
-static __always_inline struct rb_node **
+static __always_inline struct rb_yesde **
 find_va_links(struct vmap_area *va,
-	struct rb_root *root, struct rb_node *from,
-	struct rb_node **parent)
+	struct rb_root *root, struct rb_yesde *from,
+	struct rb_yesde **parent)
 {
 	struct vmap_area *tmp_va;
-	struct rb_node **link;
+	struct rb_yesde **link;
 
 	if (root) {
-		link = &root->rb_node;
+		link = &root->rb_yesde;
 		if (unlikely(!*link)) {
 			*parent = NULL;
 			return link;
@@ -454,11 +454,11 @@ find_va_links(struct vmap_area *va,
 
 	/*
 	 * Go to the bottom of the tree. When we hit the last point
-	 * we end up with parent rb_node and correct direction, i name
-	 * it link, where the new va->rb_node will be attached to.
+	 * we end up with parent rb_yesde and correct direction, i name
+	 * it link, where the new va->rb_yesde will be attached to.
 	 */
 	do {
-		tmp_va = rb_entry(*link, struct vmap_area, rb_node);
+		tmp_va = rb_entry(*link, struct vmap_area, rb_yesde);
 
 		/*
 		 * During the traversal we also do some sanity check.
@@ -475,12 +475,12 @@ find_va_links(struct vmap_area *va,
 			BUG();
 	} while (*link);
 
-	*parent = &tmp_va->rb_node;
+	*parent = &tmp_va->rb_yesde;
 	return link;
 }
 
 static __always_inline struct list_head *
-get_va_next_sibling(struct rb_node *parent, struct rb_node **link)
+get_va_next_sibling(struct rb_yesde *parent, struct rb_yesde **link)
 {
 	struct list_head *list;
 
@@ -488,48 +488,48 @@ get_va_next_sibling(struct rb_node *parent, struct rb_node **link)
 		/*
 		 * The red-black tree where we try to find VA neighbors
 		 * before merging or inserting is empty, i.e. it means
-		 * there is no free vmap space. Normally it does not
+		 * there is yes free vmap space. Normally it does yest
 		 * happen but we handle this case anyway.
 		 */
 		return NULL;
 
-	list = &rb_entry(parent, struct vmap_area, rb_node)->list;
+	list = &rb_entry(parent, struct vmap_area, rb_yesde)->list;
 	return (&parent->rb_right == link ? list->next : list);
 }
 
 static __always_inline void
 link_va(struct vmap_area *va, struct rb_root *root,
-	struct rb_node *parent, struct rb_node **link, struct list_head *head)
+	struct rb_yesde *parent, struct rb_yesde **link, struct list_head *head)
 {
 	/*
-	 * VA is still not in the list, but we can
-	 * identify its future previous list_head node.
+	 * VA is still yest in the list, but we can
+	 * identify its future previous list_head yesde.
 	 */
 	if (likely(parent)) {
-		head = &rb_entry(parent, struct vmap_area, rb_node)->list;
+		head = &rb_entry(parent, struct vmap_area, rb_yesde)->list;
 		if (&parent->rb_right != link)
 			head = head->prev;
 	}
 
 	/* Insert to the rb-tree */
-	rb_link_node(&va->rb_node, parent, link);
+	rb_link_yesde(&va->rb_yesde, parent, link);
 	if (root == &free_vmap_area_root) {
 		/*
 		 * Some explanation here. Just perform simple insertion
-		 * to the tree. We do not set va->subtree_max_size to
+		 * to the tree. We do yest set va->subtree_max_size to
 		 * its current size before calling rb_insert_augmented().
 		 * It is because of we populate the tree from the bottom
-		 * to parent levels when the node _is_ in the tree.
+		 * to parent levels when the yesde _is_ in the tree.
 		 *
 		 * Therefore we set subtree_max_size to zero after insertion,
 		 * to let __augment_tree_propagate_from() puts everything to
 		 * the correct order later on.
 		 */
-		rb_insert_augmented(&va->rb_node,
+		rb_insert_augmented(&va->rb_yesde,
 			root, &free_vmap_area_rb_augment_cb);
 		va->subtree_max_size = 0;
 	} else {
-		rb_insert_color(&va->rb_node, root);
+		rb_insert_color(&va->rb_yesde, root);
 	}
 
 	/* Address-sort this list */
@@ -539,52 +539,52 @@ link_va(struct vmap_area *va, struct rb_root *root,
 static __always_inline void
 unlink_va(struct vmap_area *va, struct rb_root *root)
 {
-	if (WARN_ON(RB_EMPTY_NODE(&va->rb_node)))
+	if (WARN_ON(RB_EMPTY_NODE(&va->rb_yesde)))
 		return;
 
 	if (root == &free_vmap_area_root)
-		rb_erase_augmented(&va->rb_node,
+		rb_erase_augmented(&va->rb_yesde,
 			root, &free_vmap_area_rb_augment_cb);
 	else
-		rb_erase(&va->rb_node, root);
+		rb_erase(&va->rb_yesde, root);
 
 	list_del(&va->list);
-	RB_CLEAR_NODE(&va->rb_node);
+	RB_CLEAR_NODE(&va->rb_yesde);
 }
 
 #if DEBUG_AUGMENT_PROPAGATE_CHECK
 static void
-augment_tree_propagate_check(struct rb_node *n)
+augment_tree_propagate_check(struct rb_yesde *n)
 {
 	struct vmap_area *va;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	unsigned long size;
 	bool found = false;
 
 	if (n == NULL)
 		return;
 
-	va = rb_entry(n, struct vmap_area, rb_node);
+	va = rb_entry(n, struct vmap_area, rb_yesde);
 	size = va->subtree_max_size;
-	node = n;
+	yesde = n;
 
-	while (node) {
-		va = rb_entry(node, struct vmap_area, rb_node);
+	while (yesde) {
+		va = rb_entry(yesde, struct vmap_area, rb_yesde);
 
-		if (get_subtree_max_size(node->rb_left) == size) {
-			node = node->rb_left;
+		if (get_subtree_max_size(yesde->rb_left) == size) {
+			yesde = yesde->rb_left;
 		} else {
 			if (va_size(va) == size) {
 				found = true;
 				break;
 			}
 
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		}
 	}
 
 	if (!found) {
-		va = rb_entry(n, struct vmap_area, rb_node);
+		va = rb_entry(n, struct vmap_area, rb_yesde);
 		pr_emerg("tree is corrupted: %lu, %lu\n",
 			va_size(va), va->subtree_max_size);
 	}
@@ -605,9 +605,9 @@ augment_tree_propagate_check(struct rb_node *n)
  * - After VA has been shrunk(allocation path);
  * - After VA has been increased(merging path).
  *
- * Please note that, it does not mean that upper parent nodes
+ * Please yeste that, it does yest mean that upper parent yesdes
  * and their subtree_max_size are recalculated all the time up
- * to the root node.
+ * to the root yesde.
  *
  *       4--8
  *        /\
@@ -615,20 +615,20 @@ augment_tree_propagate_check(struct rb_node *n)
  *      /    \
  *    2--2  8--8
  *
- * For example if we modify the node 4, shrinking it to 2, then
- * no any modification is required. If we shrink the node 2 to 1
+ * For example if we modify the yesde 4, shrinking it to 2, then
+ * yes any modification is required. If we shrink the yesde 2 to 1
  * its subtree_max_size is updated only, and set to 1. If we shrink
- * the node 8 to 6, then its subtree_max_size is set to 6 and parent
- * node becomes 4--6.
+ * the yesde 8 to 6, then its subtree_max_size is set to 6 and parent
+ * yesde becomes 4--6.
  */
 static __always_inline void
 augment_tree_propagate_from(struct vmap_area *va)
 {
-	struct rb_node *node = &va->rb_node;
+	struct rb_yesde *yesde = &va->rb_yesde;
 	unsigned long new_va_sub_max_size;
 
-	while (node) {
-		va = rb_entry(node, struct vmap_area, rb_node);
+	while (yesde) {
+		va = rb_entry(yesde, struct vmap_area, rb_yesde);
 		new_va_sub_max_size = compute_subtree_max_size(va);
 
 		/*
@@ -641,11 +641,11 @@ augment_tree_propagate_from(struct vmap_area *va)
 			break;
 
 		va->subtree_max_size = new_va_sub_max_size;
-		node = rb_parent(&va->rb_node);
+		yesde = rb_parent(&va->rb_yesde);
 	}
 
 #if DEBUG_AUGMENT_PROPAGATE_CHECK
-	augment_tree_propagate_check(free_vmap_area_root.rb_node);
+	augment_tree_propagate_check(free_vmap_area_root.rb_yesde);
 #endif
 }
 
@@ -653,8 +653,8 @@ static void
 insert_vmap_area(struct vmap_area *va,
 	struct rb_root *root, struct list_head *head)
 {
-	struct rb_node **link;
-	struct rb_node *parent;
+	struct rb_yesde **link;
+	struct rb_yesde *parent;
 
 	link = find_va_links(va, root, NULL, &parent);
 	link_va(va, root, parent, link, head);
@@ -662,11 +662,11 @@ insert_vmap_area(struct vmap_area *va,
 
 static void
 insert_vmap_area_augment(struct vmap_area *va,
-	struct rb_node *from, struct rb_root *root,
+	struct rb_yesde *from, struct rb_root *root,
 	struct list_head *head)
 {
-	struct rb_node **link;
-	struct rb_node *parent;
+	struct rb_yesde **link;
+	struct rb_yesde *parent;
 
 	if (from)
 		link = find_va_links(va, NULL, from, &parent);
@@ -679,7 +679,7 @@ insert_vmap_area_augment(struct vmap_area *va,
 
 /*
  * Merge de-allocated chunk of VA memory with previous
- * and next free blocks. If coalesce is not done a new
+ * and next free blocks. If coalesce is yest done a new
  * free area is inserted. If VA has been merged, it is
  * freed.
  */
@@ -689,8 +689,8 @@ merge_or_add_vmap_area(struct vmap_area *va,
 {
 	struct vmap_area *sibling;
 	struct list_head *next;
-	struct rb_node **link;
-	struct rb_node *parent;
+	struct rb_yesde **link;
+	struct rb_yesde *parent;
 	bool merged = false;
 
 	/*
@@ -700,7 +700,7 @@ merge_or_add_vmap_area(struct vmap_area *va,
 	link = find_va_links(va, root, NULL, &parent);
 
 	/*
-	 * Get next node of VA to check if merging can be done.
+	 * Get next yesde of VA to check if merging can be done.
 	 */
 	next = get_va_next_sibling(parent, link);
 	if (unlikely(next == NULL))
@@ -795,32 +795,32 @@ find_vmap_lowest_match(unsigned long size,
 	unsigned long align, unsigned long vstart)
 {
 	struct vmap_area *va;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	unsigned long length;
 
 	/* Start from the root. */
-	node = free_vmap_area_root.rb_node;
+	yesde = free_vmap_area_root.rb_yesde;
 
 	/* Adjust the search size for alignment overhead. */
 	length = size + align - 1;
 
-	while (node) {
-		va = rb_entry(node, struct vmap_area, rb_node);
+	while (yesde) {
+		va = rb_entry(yesde, struct vmap_area, rb_yesde);
 
-		if (get_subtree_max_size(node->rb_left) >= length &&
+		if (get_subtree_max_size(yesde->rb_left) >= length &&
 				vstart < va->va_start) {
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		} else {
 			if (is_within_this_va(va, size, align, vstart))
 				return va;
 
 			/*
-			 * Does not make sense to go deeper towards the right
-			 * sub-tree if it does not have a free block that is
+			 * Does yest make sense to go deeper towards the right
+			 * sub-tree if it does yest have a free block that is
 			 * equal or bigger to the requested search length.
 			 */
-			if (get_subtree_max_size(node->rb_right) >= length) {
-				node = node->rb_right;
+			if (get_subtree_max_size(yesde->rb_right) >= length) {
+				yesde = yesde->rb_right;
 				continue;
 			}
 
@@ -829,14 +829,14 @@ find_vmap_lowest_match(unsigned long size,
 			 * that will satisfy the search criteria. It can happen
 			 * only once due to "vstart" restriction.
 			 */
-			while ((node = rb_parent(node))) {
-				va = rb_entry(node, struct vmap_area, rb_node);
+			while ((yesde = rb_parent(yesde))) {
+				va = rb_entry(yesde, struct vmap_area, rb_yesde);
 				if (is_within_this_va(va, size, align, vstart))
 					return va;
 
-				if (get_subtree_max_size(node->rb_right) >= length &&
+				if (get_subtree_max_size(yesde->rb_right) >= length &&
 						vstart <= va->va_start) {
-					node = node->rb_right;
+					yesde = yesde->rb_right;
 					break;
 				}
 			}
@@ -879,7 +879,7 @@ find_vmap_lowest_match_check(unsigned long size)
 	va_2 = find_vmap_lowest_linear_match(size, 1, vstart);
 
 	if (va_1 != va_2)
-		pr_emerg("not lowest: t: 0x%p, l: 0x%p, v: 0x%lx\n",
+		pr_emerg("yest lowest: t: 0x%p, l: 0x%p, v: 0x%lx\n",
 			va_1, va_2, vstart);
 }
 #endif
@@ -889,7 +889,7 @@ enum fit_type {
 	FL_FIT_TYPE = 1,	/* full fit */
 	LE_FIT_TYPE = 2,	/* left edge fit */
 	RE_FIT_TYPE = 3,	/* right edge fit */
-	NE_FIT_TYPE = 4		/* no edge fit */
+	NE_FIT_TYPE = 4		/* yes edge fit */
 };
 
 static __always_inline enum fit_type
@@ -955,16 +955,16 @@ adjust_va_to_fit_type(struct vmap_area *va,
 		va->va_end = nva_start_addr;
 	} else if (type == NE_FIT_TYPE) {
 		/*
-		 * Split no edge of fit VA.
+		 * Split yes edge of fit VA.
 		 *
 		 *     |       |
 		 *   L V  NVA  V R
 		 * |---|-------|---|
 		 */
-		lva = __this_cpu_xchg(ne_fit_preload_node, NULL);
+		lva = __this_cpu_xchg(ne_fit_preload_yesde, NULL);
 		if (unlikely(!lva)) {
 			/*
-			 * For percpu allocator we do not do any pre-allocation
+			 * For percpu allocator we do yest do any pre-allocation
 			 * and leave it as it is. The reason is it most likely
 			 * never ends up with NE_FIT_TYPE splitting. In case of
 			 * percpu allocations offsets and sizes are aligned to
@@ -976,10 +976,10 @@ adjust_va_to_fit_type(struct vmap_area *va,
 			 * big free space that has to be split.
 			 *
 			 * Also we can hit this path in case of regular "vmap"
-			 * allocations, if "this" current CPU was not preloaded.
+			 * allocations, if "this" current CPU was yest preloaded.
 			 * See the comment in alloc_vmap_area() why. If so, then
 			 * GFP_NOWAIT is used instead to get an extra object for
-			 * split purpose. That is rare and most time does not
+			 * split purpose. That is rare and most time does yest
 			 * occur.
 			 *
 			 * What happens if an allocation gets failed. Basically,
@@ -1011,7 +1011,7 @@ adjust_va_to_fit_type(struct vmap_area *va,
 		augment_tree_propagate_from(va);
 
 		if (lva)	/* type == NE_FIT_TYPE */
-			insert_vmap_area_augment(lva, &va->rb_node,
+			insert_vmap_area_augment(lva, &va->rb_yesde,
 				&free_vmap_area_root, &free_vmap_area_list);
 	}
 
@@ -1088,7 +1088,7 @@ static void free_vmap_area(struct vmap_area *va)
 static struct vmap_area *alloc_vmap_area(unsigned long size,
 				unsigned long align,
 				unsigned long vstart, unsigned long vend,
-				int node, gfp_t gfp_mask)
+				int yesde, gfp_t gfp_mask)
 {
 	struct vmap_area *va, *pva;
 	unsigned long addr;
@@ -1105,7 +1105,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
 	might_sleep();
 	gfp_mask = gfp_mask & GFP_RECLAIM_MASK;
 
-	va = kmem_cache_alloc_node(vmap_area_cachep, gfp_mask, node);
+	va = kmem_cache_alloc_yesde(vmap_area_cachep, gfp_mask, yesde);
 	if (unlikely(!va))
 		return ERR_PTR(-ENOMEM);
 
@@ -1113,37 +1113,37 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
 	 * Only scan the relevant parts containing pointers to other objects
 	 * to avoid false negatives.
 	 */
-	kmemleak_scan_area(&va->rb_node, SIZE_MAX, gfp_mask);
+	kmemleak_scan_area(&va->rb_yesde, SIZE_MAX, gfp_mask);
 
 retry:
 	/*
 	 * Preload this CPU with one extra vmap_area object. It is used
-	 * when fit type of free area is NE_FIT_TYPE. Please note, it
-	 * does not guarantee that an allocation occurs on a CPU that
-	 * is preloaded, instead we minimize the case when it is not.
+	 * when fit type of free area is NE_FIT_TYPE. Please yeste, it
+	 * does yest guarantee that an allocation occurs on a CPU that
+	 * is preloaded, instead we minimize the case when it is yest.
 	 * It can happen because of cpu migration, because there is a
 	 * race until the below spinlock is taken.
 	 *
-	 * The preload is done in non-atomic context, thus it allows us
+	 * The preload is done in yesn-atomic context, thus it allows us
 	 * to use more permissive allocation masks to be more stable under
 	 * low memory condition and high memory pressure. In rare case,
-	 * if not preloaded, GFP_NOWAIT is used.
+	 * if yest preloaded, GFP_NOWAIT is used.
 	 *
 	 * Set "pva" to NULL here, because of "retry" path.
 	 */
 	pva = NULL;
 
-	if (!this_cpu_read(ne_fit_preload_node))
+	if (!this_cpu_read(ne_fit_preload_yesde))
 		/*
-		 * Even if it fails we do not really care about that.
+		 * Even if it fails we do yest really care about that.
 		 * Just proceed as it is. If needed "overflow" path
 		 * will refill the cache we allocate from.
 		 */
-		pva = kmem_cache_alloc_node(vmap_area_cachep, gfp_mask, node);
+		pva = kmem_cache_alloc_yesde(vmap_area_cachep, gfp_mask, yesde);
 
 	spin_lock(&free_vmap_area_lock);
 
-	if (pva && __this_cpu_cmpxchg(ne_fit_preload_node, NULL, pva))
+	if (pva && __this_cpu_cmpxchg(ne_fit_preload_yesde, NULL, pva))
 		kmem_cache_free(vmap_area_cachep, pva);
 
 	/*
@@ -1186,7 +1186,7 @@ overflow:
 
 	if (gfpflags_allow_blocking(gfp_mask)) {
 		unsigned long freed = 0;
-		blocking_notifier_call_chain(&vmap_notify_list, 0, &freed);
+		blocking_yestifier_call_chain(&vmap_yestify_list, 0, &freed);
 		if (freed > 0) {
 			purged = 0;
 			goto retry;
@@ -1201,17 +1201,17 @@ overflow:
 	return ERR_PTR(-EBUSY);
 }
 
-int register_vmap_purge_notifier(struct notifier_block *nb)
+int register_vmap_purge_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&vmap_notify_list, nb);
+	return blocking_yestifier_chain_register(&vmap_yestify_list, nb);
 }
-EXPORT_SYMBOL_GPL(register_vmap_purge_notifier);
+EXPORT_SYMBOL_GPL(register_vmap_purge_yestifier);
 
-int unregister_vmap_purge_notifier(struct notifier_block *nb)
+int unregister_vmap_purge_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&vmap_notify_list, nb);
+	return blocking_yestifier_chain_unregister(&vmap_yestify_list, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
+EXPORT_SYMBOL_GPL(unregister_vmap_purge_yestifier);
 
 /*
  * Clear the pagetable entries of a given vmap_area
@@ -1231,8 +1231,8 @@ static void unmap_vmap_area(struct vmap_area *va)
  * this number up linearly with the number of CPUs (because vmapping activity
  * could also scale linearly with the number of CPUs), however it is likely
  * that in practice, workloads might be constrained in other ways that mean
- * vmap activity will not scale linearly with CPUs. Also, I want to be
- * conservative and not introduce a big latency on huge systems, so go with
+ * vmap activity will yest scale linearly with CPUs. Also, I want to be
+ * conservative and yest introduce a big latency on huge systems, so go with
  * a less aggressive log scale. It will still be an improvement over the old
  * code, and it will be simple to change the scale factor if we find that it
  * becomes a problem on bigger systems.
@@ -1249,7 +1249,7 @@ static unsigned long lazy_max_pages(void)
 static atomic_long_t vmap_lazy_nr = ATOMIC_LONG_INIT(0);
 
 /*
- * Serialize vmap purging.  There is no actual criticial section protected
+ * Serialize vmap purging.  There is yes actual criticial section protected
  * by this look, but we want to avoid concurrent calls for performance
  * reasons and to make the pcpu_get_vm_areas more deterministic.
  */
@@ -1262,7 +1262,7 @@ static void purge_fragmented_blocks_allcpus(void);
  * called before a call to iounmap() if the caller wants vm_area_struct's
  * immediately freed.
  */
-void set_iounmap_nonlazy(void)
+void set_iounmap_yesnlazy(void)
 {
 	atomic_long_set(&vmap_lazy_nr, lazy_max_pages()+1);
 }
@@ -1273,7 +1273,7 @@ void set_iounmap_nonlazy(void)
 static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
 {
 	unsigned long resched_threshold;
-	struct llist_node *valist;
+	struct llist_yesde *valist;
 	struct vmap_area *va;
 	struct vmap_area *n_va;
 
@@ -1311,7 +1311,7 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
 
 		/*
 		 * Finally insert or merge lazily-freed area. It is
-		 * detached and there is no need to "unlink" it from
+		 * detached and there is yes need to "unlink" it from
 		 * anything.
 		 */
 		va = merge_or_add_vmap_area(va, &free_vmap_area_root,
@@ -1358,7 +1358,7 @@ static void purge_vmap_area_lazy(void)
  * and flush_cache_vunmap had been called for the correct range
  * previously.
  */
-static void free_vmap_area_noflush(struct vmap_area *va)
+static void free_vmap_area_yesflush(struct vmap_area *va)
 {
 	unsigned long nr_lazy;
 
@@ -1386,7 +1386,7 @@ static void free_unmap_vmap_area(struct vmap_area *va)
 	if (debug_pagealloc_enabled_static())
 		flush_tlb_kernel_range(va->va_start, va->va_end);
 
-	free_vmap_area_noflush(va);
+	free_vmap_area_yesflush(va);
 }
 
 static struct vmap_area *find_vmap_area(unsigned long addr)
@@ -1451,7 +1451,7 @@ static DEFINE_PER_CPU(struct vmap_block_queue, vmap_block_queue);
 /*
  * Radix tree of vmap blocks, indexed by address, to quickly find a vmap block
  * in the free path. Could get rid of this if we change the API to return a
- * "cookie" from alloc, to be passed to free. But no big deal yet.
+ * "cookie" from alloc, to be passed to free. But yes big deal yet.
  */
 static DEFINE_SPINLOCK(vmap_block_tree_lock);
 static RADIX_TREE(vmap_block_tree, GFP_ATOMIC);
@@ -1485,7 +1485,7 @@ static void *vmap_block_vaddr(unsigned long va_start, unsigned long pages_off)
  * @order:    how many 2^order pages should be occupied in newly allocated block
  * @gfp_mask: flags for the page level allocator
  *
- * Return: virtual address in a newly allocated block or ERR_PTR(-errno)
+ * Return: virtual address in a newly allocated block or ERR_PTR(-erryes)
  */
 static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
 {
@@ -1493,19 +1493,19 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
 	struct vmap_block *vb;
 	struct vmap_area *va;
 	unsigned long vb_idx;
-	int node, err;
+	int yesde, err;
 	void *vaddr;
 
-	node = numa_node_id();
+	yesde = numa_yesde_id();
 
-	vb = kmalloc_node(sizeof(struct vmap_block),
-			gfp_mask & GFP_RECLAIM_MASK, node);
+	vb = kmalloc_yesde(sizeof(struct vmap_block),
+			gfp_mask & GFP_RECLAIM_MASK, yesde);
 	if (unlikely(!vb))
 		return ERR_PTR(-ENOMEM);
 
 	va = alloc_vmap_area(VMAP_BLOCK_SIZE, VMAP_BLOCK_SIZE,
 					VMALLOC_START, VMALLOC_END,
-					node, gfp_mask);
+					yesde, gfp_mask);
 	if (IS_ERR(va)) {
 		kfree(vb);
 		return ERR_CAST(va);
@@ -1556,7 +1556,7 @@ static void free_vmap_block(struct vmap_block *vb)
 	spin_unlock(&vmap_block_tree_lock);
 	BUG_ON(tmp != vb);
 
-	free_vmap_area_noflush(vb->va);
+	free_vmap_area_yesflush(vb->va);
 	kfree_rcu(vb, rcu_head);
 }
 
@@ -1649,7 +1649,7 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
 	put_cpu_var(vmap_block_queue);
 	rcu_read_unlock();
 
-	/* Allocate new block if nothing was found */
+	/* Allocate new block if yesthing was found */
 	if (!vaddr)
 		vaddr = new_vmap_block(order, gfp_mask);
 
@@ -1745,12 +1745,12 @@ static void _vm_unmap_aliases(unsigned long start, unsigned long end, int flush)
  *
  * The vmap/vmalloc layer lazily flushes kernel virtual mappings primarily
  * to amortize TLB flushing overheads. What this means is that any page you
- * have now, may, in a former life, have been mapped into kernel virtual
+ * have yesw, may, in a former life, have been mapped into kernel virtual
  * address by the vmap layer and so there might be some CPUs with TLB entries
  * still referencing that page (additional to the regular 1:1 kernel mapping).
  *
  * vm_unmap_aliases flushes all such lazy mappings. After it returns, we can
- * be sure that none of the pages we have control over will have any aliases
+ * be sure that yesne of the pages we have control over will have any aliases
  * from the vmap layer.
  */
 void vm_unmap_aliases(void)
@@ -1765,7 +1765,7 @@ EXPORT_SYMBOL_GPL(vm_unmap_aliases);
 /**
  * vm_unmap_ram - unmap linear kernel address space set up by vm_map_ram
  * @mem: the pointer returned by vm_map_ram
- * @count: the count passed to that vm_map_ram call (cannot unmap partial)
+ * @count: the count passed to that vm_map_ram call (canyest unmap partial)
  */
 void vm_unmap_ram(const void *mem, unsigned int count)
 {
@@ -1782,14 +1782,14 @@ void vm_unmap_ram(const void *mem, unsigned int count)
 	kasan_poison_vmalloc(mem, size);
 
 	if (likely(count <= VMAP_MAX_ALLOC)) {
-		debug_check_no_locks_freed(mem, size);
+		debug_check_yes_locks_freed(mem, size);
 		vb_free(mem, size);
 		return;
 	}
 
 	va = find_vmap_area(addr);
 	BUG_ON(!va);
-	debug_check_no_locks_freed((void *)va->va_start,
+	debug_check_yes_locks_freed((void *)va->va_start,
 				    (va->va_end - va->va_start));
 	free_unmap_vmap_area(va);
 }
@@ -1799,7 +1799,7 @@ EXPORT_SYMBOL(vm_unmap_ram);
  * vm_map_ram - map pages linearly into kernel virtual address (vmalloc space)
  * @pages: an array of pointers to the pages to be mapped
  * @count: number of pages
- * @node: prefer to allocate data structures on this node
+ * @yesde: prefer to allocate data structures on this yesde
  * @prot: memory protection to use. PAGE_KERNEL for regular RAM
  *
  * If you use this function for less than VMAP_MAX_ALLOC pages, it could be
@@ -1810,7 +1810,7 @@ EXPORT_SYMBOL(vm_unmap_ram);
  *
  * Returns: a pointer to the address that has been mapped, or %NULL on failure
  */
-void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t prot)
+void *vm_map_ram(struct page **pages, unsigned int count, int yesde, pgprot_t prot)
 {
 	unsigned long size = (unsigned long)count << PAGE_SHIFT;
 	unsigned long addr;
@@ -1824,7 +1824,7 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
 	} else {
 		struct vmap_area *va;
 		va = alloc_vmap_area(size, PAGE_SIZE,
-				VMALLOC_START, VMALLOC_END, node, GFP_KERNEL);
+				VMALLOC_START, VMALLOC_END, yesde, GFP_KERNEL);
 		if (IS_ERR(va))
 			return NULL;
 
@@ -1979,7 +1979,7 @@ void __init vmalloc_init(void)
 }
 
 /**
- * map_kernel_range_noflush - map kernel VM area with the specified pages
+ * map_kernel_range_yesflush - map kernel VM area with the specified pages
  * @addr: start of the VM area to map
  * @size: size of the VM area to map
  * @prot: page protection flags to use
@@ -1995,16 +1995,16 @@ void __init vmalloc_init(void)
  * before calling this function.
  *
  * RETURNS:
- * The number of pages mapped on success, -errno on failure.
+ * The number of pages mapped on success, -erryes on failure.
  */
-int map_kernel_range_noflush(unsigned long addr, unsigned long size,
+int map_kernel_range_yesflush(unsigned long addr, unsigned long size,
 			     pgprot_t prot, struct page **pages)
 {
-	return vmap_page_range_noflush(addr, addr + size, prot, pages);
+	return vmap_page_range_yesflush(addr, addr + size, prot, pages);
 }
 
 /**
- * unmap_kernel_range_noflush - unmap kernel VM area
+ * unmap_kernel_range_yesflush - unmap kernel VM area
  * @addr: start of the VM area to unmap
  * @size: size of the VM area to unmap
  *
@@ -2017,18 +2017,18 @@ int map_kernel_range_noflush(unsigned long addr, unsigned long size,
  * responsible for calling flush_cache_vunmap() on to-be-mapped areas
  * before calling this function and flush_tlb_kernel_range() after.
  */
-void unmap_kernel_range_noflush(unsigned long addr, unsigned long size)
+void unmap_kernel_range_yesflush(unsigned long addr, unsigned long size)
 {
 	vunmap_page_range(addr, addr + size);
 }
-EXPORT_SYMBOL_GPL(unmap_kernel_range_noflush);
+EXPORT_SYMBOL_GPL(unmap_kernel_range_yesflush);
 
 /**
  * unmap_kernel_range - unmap kernel VM area and flush cache and TLB
  * @addr: start of the VM area to unmap
  * @size: size of the VM area to unmap
  *
- * Similar to unmap_kernel_range_noflush() but flushes vcache before
+ * Similar to unmap_kernel_range_yesflush() but flushes vcache before
  * the unmapping and tlb after.
  */
 void unmap_kernel_range(unsigned long addr, unsigned long size)
@@ -2082,9 +2082,9 @@ static void clear_vm_uninitialized_flag(struct vm_struct *vm)
 	vm->flags &= ~VM_UNINITIALIZED;
 }
 
-static struct vm_struct *__get_vm_area_node(unsigned long size,
+static struct vm_struct *__get_vm_area_yesde(unsigned long size,
 		unsigned long align, unsigned long flags, unsigned long start,
-		unsigned long end, int node, gfp_t gfp_mask, const void *caller)
+		unsigned long end, int yesde, gfp_t gfp_mask, const void *caller)
 {
 	struct vmap_area *va;
 	struct vm_struct *area;
@@ -2099,14 +2099,14 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 		align = 1ul << clamp_t(int, get_count_order_long(size),
 				       PAGE_SHIFT, IOREMAP_MAX_ORDER);
 
-	area = kzalloc_node(sizeof(*area), gfp_mask & GFP_RECLAIM_MASK, node);
+	area = kzalloc_yesde(sizeof(*area), gfp_mask & GFP_RECLAIM_MASK, yesde);
 	if (unlikely(!area))
 		return NULL;
 
 	if (!(flags & VM_NO_GUARD))
 		size += PAGE_SIZE;
 
-	va = alloc_vmap_area(size, align, start, end, node, gfp_mask);
+	va = alloc_vmap_area(size, align, start, end, yesde, gfp_mask);
 	if (IS_ERR(va)) {
 		kfree(area);
 		return NULL;
@@ -2122,7 +2122,7 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 				unsigned long start, unsigned long end)
 {
-	return __get_vm_area_node(size, 1, flags, start, end, NUMA_NO_NODE,
+	return __get_vm_area_yesde(size, 1, flags, start, end, NUMA_NO_NODE,
 				  GFP_KERNEL, __builtin_return_address(0));
 }
 EXPORT_SYMBOL_GPL(__get_vm_area);
@@ -2131,7 +2131,7 @@ struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
 				       unsigned long start, unsigned long end,
 				       const void *caller)
 {
-	return __get_vm_area_node(size, 1, flags, start, end, NUMA_NO_NODE,
+	return __get_vm_area_yesde(size, 1, flags, start, end, NUMA_NO_NODE,
 				  GFP_KERNEL, caller);
 }
 
@@ -2148,7 +2148,7 @@ struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
  */
 struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
 {
-	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
+	return __get_vm_area_yesde(size, 1, flags, VMALLOC_START, VMALLOC_END,
 				  NUMA_NO_NODE, GFP_KERNEL,
 				  __builtin_return_address(0));
 }
@@ -2156,7 +2156,7 @@ struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
 struct vm_struct *get_vm_area_caller(unsigned long size, unsigned long flags,
 				const void *caller)
 {
-	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
+	return __get_vm_area_yesde(size, 1, flags, VMALLOC_START, VMALLOC_END,
 				  NUMA_NO_NODE, GFP_KERNEL, caller);
 }
 
@@ -2235,12 +2235,12 @@ static void vm_remove_mappings(struct vm_struct *area, int deallocate_pages)
 
 	remove_vm_area(area->addr);
 
-	/* If this is not VM_FLUSH_RESET_PERMS memory, no need for the below. */
+	/* If this is yest VM_FLUSH_RESET_PERMS memory, yes need for the below. */
 	if (!flush_reset)
 		return;
 
 	/*
-	 * If not deallocating pages, just do the flush of the VM area and
+	 * If yest deallocating pages, just do the flush of the VM area and
 	 * return.
 	 */
 	if (!deallocate_pages) {
@@ -2267,9 +2267,9 @@ static void vm_remove_mappings(struct vm_struct *area, int deallocate_pages)
 	 * there are any accesses after the TLB flush, then flush the TLB and
 	 * reset the direct map permissions to the default.
 	 */
-	set_area_direct_map(area, set_direct_map_invalid_noflush);
+	set_area_direct_map(area, set_direct_map_invalid_yesflush);
 	_vm_unmap_aliases(start, end, flush_dmap);
-	set_area_direct_map(area, set_direct_map_default_noflush);
+	set_area_direct_map(area, set_direct_map_default_yesflush);
 }
 
 static void __vunmap(const void *addr, int deallocate_pages)
@@ -2285,13 +2285,13 @@ static void __vunmap(const void *addr, int deallocate_pages)
 
 	area = find_vm_area(addr);
 	if (unlikely(!area)) {
-		WARN(1, KERN_ERR "Trying to vfree() nonexistent vm area (%p)\n",
+		WARN(1, KERN_ERR "Trying to vfree() yesnexistent vm area (%p)\n",
 				addr);
 		return;
 	}
 
-	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
-	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
+	debug_check_yes_locks_freed(area->addr, get_vm_area_size(area));
+	debug_check_yes_obj_freed(area->addr, get_vm_area_size(area));
 
 	kasan_poison_vmalloc(area->addr, area->size);
 
@@ -2321,11 +2321,11 @@ static inline void __vfree_deferred(const void *addr)
 	 * Use raw_cpu_ptr() because this can be called from preemptible
 	 * context. Preemption is absolutely fine here, because the llist_add()
 	 * implementation is lockless, so it works even if we are adding to
-	 * nother cpu's list.  schedule_work() should be fine with this too.
+	 * yesther cpu's list.  schedule_work() should be fine with this too.
 	 */
 	struct vfree_deferred *p = raw_cpu_ptr(&vfree_deferred);
 
-	if (llist_add((struct llist_node *)addr, &p->list))
+	if (llist_add((struct llist_yesde *)addr, &p->list))
 		schedule_work(&p->wq);
 }
 
@@ -2361,15 +2361,15 @@ static void __vfree(const void *addr)
  *
  * Free the virtually continuous memory area starting at @addr, as
  * obtained from vmalloc(), vmalloc_32() or __vmalloc(). If @addr is
- * NULL, no operation is performed.
+ * NULL, yes operation is performed.
  *
- * Must not be called in NMI context (strictly speaking, only if we don't
+ * Must yest be called in NMI context (strictly speaking, only if we don't
  * have CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG, but making the calling
  * conventions for vfree() arch-depenedent would be a really bad idea)
  *
- * May sleep if called *not* from interrupt context.
+ * May sleep if called *yest* from interrupt context.
  *
- * NOTE: assumes that the object at @addr has a size >= sizeof(llist_node)
+ * NOTE: assumes that the object at @addr has a size >= sizeof(llist_yesde)
  */
 void vfree(const void *addr)
 {
@@ -2393,7 +2393,7 @@ EXPORT_SYMBOL(vfree);
  * Free the virtually contiguous memory area starting at @addr,
  * which was created from the page array passed to vmap().
  *
- * Must not be called in interrupt context.
+ * Must yest be called in interrupt context.
  */
 void vunmap(const void *addr)
 {
@@ -2441,11 +2441,11 @@ void *vmap(struct page **pages, unsigned int count,
 }
 EXPORT_SYMBOL(vmap);
 
-static void *__vmalloc_node(unsigned long size, unsigned long align,
+static void *__vmalloc_yesde(unsigned long size, unsigned long align,
 			    gfp_t gfp_mask, pgprot_t prot,
-			    int node, const void *caller);
-static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
-				 pgprot_t prot, int node)
+			    int yesde, const void *caller);
+static void *__vmalloc_area_yesde(struct vm_struct *area, gfp_t gfp_mask,
+				 pgprot_t prot, int yesde)
 {
 	struct page **pages;
 	unsigned int nr_pages, array_size, i;
@@ -2458,12 +2458,12 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;
 	array_size = (nr_pages * sizeof(struct page *));
 
-	/* Please note that the recursion is strictly bounded. */
+	/* Please yeste that the recursion is strictly bounded. */
 	if (array_size > PAGE_SIZE) {
-		pages = __vmalloc_node(array_size, 1, nested_gfp|highmem_mask,
-				PAGE_KERNEL, node, area->caller);
+		pages = __vmalloc_yesde(array_size, 1, nested_gfp|highmem_mask,
+				PAGE_KERNEL, yesde, area->caller);
 	} else {
-		pages = kmalloc_node(array_size, nested_gfp, node);
+		pages = kmalloc_yesde(array_size, nested_gfp, yesde);
 	}
 
 	if (!pages) {
@@ -2478,10 +2478,10 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 	for (i = 0; i < area->nr_pages; i++) {
 		struct page *page;
 
-		if (node == NUMA_NO_NODE)
+		if (yesde == NUMA_NO_NODE)
 			page = alloc_page(alloc_mask|highmem_mask);
 		else
-			page = alloc_pages_node(node, alloc_mask|highmem_mask, 0);
+			page = alloc_pages_yesde(yesde, alloc_mask|highmem_mask, 0);
 
 		if (unlikely(!page)) {
 			/* Successfully allocated i pages, free them in __vunmap() */
@@ -2508,7 +2508,7 @@ fail:
 }
 
 /**
- * __vmalloc_node_range - allocate virtually contiguous memory
+ * __vmalloc_yesde_range - allocate virtually contiguous memory
  * @size:		  allocation size
  * @align:		  desired alignment
  * @start:		  vm area range start
@@ -2516,18 +2516,18 @@ fail:
  * @gfp_mask:		  flags for the page level allocator
  * @prot:		  protection mask for the allocated pages
  * @vm_flags:		  additional vm area flags (e.g. %VM_NO_GUARD)
- * @node:		  node to use for allocation or NUMA_NO_NODE
+ * @yesde:		  yesde to use for allocation or NUMA_NO_NODE
  * @caller:		  caller's return address
  *
- * Allocate enough pages to cover @size from the page level
+ * Allocate eyesugh pages to cover @size from the page level
  * allocator with @gfp_mask flags.  Map them into contiguous
  * kernel virtual space, using a pagetable protection of @prot.
  *
  * Return: the address of the area or %NULL on failure
  */
-void *__vmalloc_node_range(unsigned long size, unsigned long align,
+void *__vmalloc_yesde_range(unsigned long size, unsigned long align,
 			unsigned long start, unsigned long end, gfp_t gfp_mask,
-			pgprot_t prot, unsigned long vm_flags, int node,
+			pgprot_t prot, unsigned long vm_flags, int yesde,
 			const void *caller)
 {
 	struct vm_struct *area;
@@ -2538,18 +2538,18 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
 	if (!size || (size >> PAGE_SHIFT) > totalram_pages())
 		goto fail;
 
-	area = __get_vm_area_node(real_size, align, VM_ALLOC | VM_UNINITIALIZED |
-				vm_flags, start, end, node, gfp_mask, caller);
+	area = __get_vm_area_yesde(real_size, align, VM_ALLOC | VM_UNINITIALIZED |
+				vm_flags, start, end, yesde, gfp_mask, caller);
 	if (!area)
 		goto fail;
 
-	addr = __vmalloc_area_node(area, gfp_mask, prot, node);
+	addr = __vmalloc_area_yesde(area, gfp_mask, prot, yesde);
 	if (!addr)
 		return NULL;
 
 	/*
 	 * In this function, newly allocated vm_struct has VM_UNINITIALIZED
-	 * flag. It means that vm_struct is not fully initialized.
+	 * flag. It means that vm_struct is yest fully initialized.
 	 * Now, it is fully initialized, so remove this flag here.
 	 */
 	clear_vm_uninitialized_flag(area);
@@ -2566,68 +2566,68 @@ fail:
 
 /*
  * This is only for performance analysis of vmalloc and stress purpose.
- * It is required by vmalloc test module, therefore do not use it other
+ * It is required by vmalloc test module, therefore do yest use it other
  * than that.
  */
 #ifdef CONFIG_TEST_VMALLOC_MODULE
-EXPORT_SYMBOL_GPL(__vmalloc_node_range);
+EXPORT_SYMBOL_GPL(__vmalloc_yesde_range);
 #endif
 
 /**
- * __vmalloc_node - allocate virtually contiguous memory
+ * __vmalloc_yesde - allocate virtually contiguous memory
  * @size:	    allocation size
  * @align:	    desired alignment
  * @gfp_mask:	    flags for the page level allocator
  * @prot:	    protection mask for the allocated pages
- * @node:	    node to use for allocation or NUMA_NO_NODE
+ * @yesde:	    yesde to use for allocation or NUMA_NO_NODE
  * @caller:	    caller's return address
  *
- * Allocate enough pages to cover @size from the page level
+ * Allocate eyesugh pages to cover @size from the page level
  * allocator with @gfp_mask flags.  Map them into contiguous
  * kernel virtual space, using a pagetable protection of @prot.
  *
  * Reclaim modifiers in @gfp_mask - __GFP_NORETRY, __GFP_RETRY_MAYFAIL
- * and __GFP_NOFAIL are not supported
+ * and __GFP_NOFAIL are yest supported
  *
  * Any use of gfp flags outside of GFP_KERNEL should be consulted
  * with mm people.
  *
  * Return: pointer to the allocated memory or %NULL on error
  */
-static void *__vmalloc_node(unsigned long size, unsigned long align,
+static void *__vmalloc_yesde(unsigned long size, unsigned long align,
 			    gfp_t gfp_mask, pgprot_t prot,
-			    int node, const void *caller)
+			    int yesde, const void *caller)
 {
-	return __vmalloc_node_range(size, align, VMALLOC_START, VMALLOC_END,
-				gfp_mask, prot, 0, node, caller);
+	return __vmalloc_yesde_range(size, align, VMALLOC_START, VMALLOC_END,
+				gfp_mask, prot, 0, yesde, caller);
 }
 
 void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
 {
-	return __vmalloc_node(size, 1, gfp_mask, prot, NUMA_NO_NODE,
+	return __vmalloc_yesde(size, 1, gfp_mask, prot, NUMA_NO_NODE,
 				__builtin_return_address(0));
 }
 EXPORT_SYMBOL(__vmalloc);
 
-static inline void *__vmalloc_node_flags(unsigned long size,
-					int node, gfp_t flags)
+static inline void *__vmalloc_yesde_flags(unsigned long size,
+					int yesde, gfp_t flags)
 {
-	return __vmalloc_node(size, 1, flags, PAGE_KERNEL,
-					node, __builtin_return_address(0));
+	return __vmalloc_yesde(size, 1, flags, PAGE_KERNEL,
+					yesde, __builtin_return_address(0));
 }
 
 
-void *__vmalloc_node_flags_caller(unsigned long size, int node, gfp_t flags,
+void *__vmalloc_yesde_flags_caller(unsigned long size, int yesde, gfp_t flags,
 				  void *caller)
 {
-	return __vmalloc_node(size, 1, flags, PAGE_KERNEL, node, caller);
+	return __vmalloc_yesde(size, 1, flags, PAGE_KERNEL, yesde, caller);
 }
 
 /**
  * vmalloc - allocate virtually contiguous memory
  * @size:    allocation size
  *
- * Allocate enough pages to cover @size from the page level
+ * Allocate eyesugh pages to cover @size from the page level
  * allocator and map them into contiguous kernel virtual space.
  *
  * For tight control over page level allocator and protection flags
@@ -2637,7 +2637,7 @@ void *__vmalloc_node_flags_caller(unsigned long size, int node, gfp_t flags,
  */
 void *vmalloc(unsigned long size)
 {
-	return __vmalloc_node_flags(size, NUMA_NO_NODE,
+	return __vmalloc_yesde_flags(size, NUMA_NO_NODE,
 				    GFP_KERNEL);
 }
 EXPORT_SYMBOL(vmalloc);
@@ -2646,7 +2646,7 @@ EXPORT_SYMBOL(vmalloc);
  * vzalloc - allocate virtually contiguous memory with zero fill
  * @size:    allocation size
  *
- * Allocate enough pages to cover @size from the page level
+ * Allocate eyesugh pages to cover @size from the page level
  * allocator and map them into contiguous kernel virtual space.
  * The memory allocated is set to zero.
  *
@@ -2657,7 +2657,7 @@ EXPORT_SYMBOL(vmalloc);
  */
 void *vzalloc(unsigned long size)
 {
-	return __vmalloc_node_flags(size, NUMA_NO_NODE,
+	return __vmalloc_yesde_flags(size, NUMA_NO_NODE,
 				GFP_KERNEL | __GFP_ZERO);
 }
 EXPORT_SYMBOL(vzalloc);
@@ -2673,7 +2673,7 @@ EXPORT_SYMBOL(vzalloc);
  */
 void *vmalloc_user(unsigned long size)
 {
-	return __vmalloc_node_range(size, SHMLBA,  VMALLOC_START, VMALLOC_END,
+	return __vmalloc_yesde_range(size, SHMLBA,  VMALLOC_START, VMALLOC_END,
 				    GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL,
 				    VM_USERMAP, NUMA_NO_NODE,
 				    __builtin_return_address(0));
@@ -2681,11 +2681,11 @@ void *vmalloc_user(unsigned long size)
 EXPORT_SYMBOL(vmalloc_user);
 
 /**
- * vmalloc_node - allocate memory on a specific node
+ * vmalloc_yesde - allocate memory on a specific yesde
  * @size:	  allocation size
- * @node:	  numa node
+ * @yesde:	  numa yesde
  *
- * Allocate enough pages to cover @size from the page level
+ * Allocate eyesugh pages to cover @size from the page level
  * allocator and map them into contiguous kernel virtual space.
  *
  * For tight control over page level allocator and protection flags
@@ -2693,38 +2693,38 @@ EXPORT_SYMBOL(vmalloc_user);
  *
  * Return: pointer to the allocated memory or %NULL on error
  */
-void *vmalloc_node(unsigned long size, int node)
+void *vmalloc_yesde(unsigned long size, int yesde)
 {
-	return __vmalloc_node(size, 1, GFP_KERNEL, PAGE_KERNEL,
-					node, __builtin_return_address(0));
+	return __vmalloc_yesde(size, 1, GFP_KERNEL, PAGE_KERNEL,
+					yesde, __builtin_return_address(0));
 }
-EXPORT_SYMBOL(vmalloc_node);
+EXPORT_SYMBOL(vmalloc_yesde);
 
 /**
- * vzalloc_node - allocate memory on a specific node with zero fill
+ * vzalloc_yesde - allocate memory on a specific yesde with zero fill
  * @size:	allocation size
- * @node:	numa node
+ * @yesde:	numa yesde
  *
- * Allocate enough pages to cover @size from the page level
+ * Allocate eyesugh pages to cover @size from the page level
  * allocator and map them into contiguous kernel virtual space.
  * The memory allocated is set to zero.
  *
  * For tight control over page level allocator and protection flags
- * use __vmalloc_node() instead.
+ * use __vmalloc_yesde() instead.
  *
  * Return: pointer to the allocated memory or %NULL on error
  */
-void *vzalloc_node(unsigned long size, int node)
+void *vzalloc_yesde(unsigned long size, int yesde)
 {
-	return __vmalloc_node_flags(size, node,
+	return __vmalloc_yesde_flags(size, yesde,
 			 GFP_KERNEL | __GFP_ZERO);
 }
-EXPORT_SYMBOL(vzalloc_node);
+EXPORT_SYMBOL(vzalloc_yesde);
 
 /**
- * vmalloc_user_node_flags - allocate memory for userspace on a specific node
+ * vmalloc_user_yesde_flags - allocate memory for userspace on a specific yesde
  * @size: allocation size
- * @node: numa node
+ * @yesde: numa yesde
  * @flags: flags for the page level allocator
  *
  * The resulting memory area is zeroed so it can be mapped to userspace
@@ -2732,20 +2732,20 @@ EXPORT_SYMBOL(vzalloc_node);
  *
  * Return: pointer to the allocated memory or %NULL on error
  */
-void *vmalloc_user_node_flags(unsigned long size, int node, gfp_t flags)
+void *vmalloc_user_yesde_flags(unsigned long size, int yesde, gfp_t flags)
 {
-	return __vmalloc_node_range(size, SHMLBA,  VMALLOC_START, VMALLOC_END,
+	return __vmalloc_yesde_range(size, SHMLBA,  VMALLOC_START, VMALLOC_END,
 				    flags | __GFP_ZERO, PAGE_KERNEL,
-				    VM_USERMAP, node,
+				    VM_USERMAP, yesde,
 				    __builtin_return_address(0));
 }
-EXPORT_SYMBOL(vmalloc_user_node_flags);
+EXPORT_SYMBOL(vmalloc_user_yesde_flags);
 
 /**
  * vmalloc_exec - allocate virtually contiguous, executable memory
  * @size:	  allocation size
  *
- * Kernel-internal function to allocate enough pages to cover @size
+ * Kernel-internal function to allocate eyesugh pages to cover @size
  * the page level allocator and map them into contiguous and
  * executable kernel virtual space.
  *
@@ -2756,7 +2756,7 @@ EXPORT_SYMBOL(vmalloc_user_node_flags);
  */
 void *vmalloc_exec(unsigned long size)
 {
-	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
+	return __vmalloc_yesde_range(size, 1, VMALLOC_START, VMALLOC_END,
 			GFP_KERNEL, PAGE_KERNEL_EXEC, VM_FLUSH_RESET_PERMS,
 			NUMA_NO_NODE, __builtin_return_address(0));
 }
@@ -2768,7 +2768,7 @@ void *vmalloc_exec(unsigned long size)
 #else
 /*
  * 64b systems should always have either DMA or DMA32 zones. For others
- * GFP_DMA32 should do the right thing and use the normal zone.
+ * GFP_DMA32 should do the right thing and use the yesrmal zone.
  */
 #define GFP_VMALLOC32 GFP_DMA32 | GFP_KERNEL
 #endif
@@ -2777,14 +2777,14 @@ void *vmalloc_exec(unsigned long size)
  * vmalloc_32 - allocate virtually contiguous memory (32bit addressable)
  * @size:	allocation size
  *
- * Allocate enough 32bit PA addressable pages to cover @size from the
+ * Allocate eyesugh 32bit PA addressable pages to cover @size from the
  * page level allocator and map them into contiguous kernel virtual space.
  *
  * Return: pointer to the allocated memory or %NULL on error
  */
 void *vmalloc_32(unsigned long size)
 {
-	return __vmalloc_node(size, 1, GFP_VMALLOC32, PAGE_KERNEL,
+	return __vmalloc_yesde(size, 1, GFP_VMALLOC32, PAGE_KERNEL,
 			      NUMA_NO_NODE, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(vmalloc_32);
@@ -2800,7 +2800,7 @@ EXPORT_SYMBOL(vmalloc_32);
  */
 void *vmalloc_32_user(unsigned long size)
 {
-	return __vmalloc_node_range(size, SHMLBA,  VMALLOC_START, VMALLOC_END,
+	return __vmalloc_yesde_range(size, SHMLBA,  VMALLOC_START, VMALLOC_END,
 				    GFP_VMALLOC32 | __GFP_ZERO, PAGE_KERNEL,
 				    VM_USERMAP, NUMA_NO_NODE,
 				    __builtin_return_address(0));
@@ -2809,7 +2809,7 @@ EXPORT_SYMBOL(vmalloc_32_user);
 
 /*
  * small helper routine , copy contents to buf from addr.
- * If the page is not present, fill zero.
+ * If the page is yest present, fill zero.
  */
 
 static int aligned_vread(char *buf, char *addr, unsigned long count)
@@ -2834,7 +2834,7 @@ static int aligned_vread(char *buf, char *addr, unsigned long count)
 		 */
 		if (p) {
 			/*
-			 * we can expect USER0 is not used (see vread/vwrite's
+			 * we can expect USER0 is yest used (see vread/vwrite's
 			 * function description)
 			 */
 			void *map = kmap_atomic(p);
@@ -2873,7 +2873,7 @@ static int aligned_vwrite(char *buf, char *addr, unsigned long count)
 		 */
 		if (p) {
 			/*
-			 * we can expect USER0 is not used (see vread/vwrite's
+			 * we can expect USER0 is yest used (see vread/vwrite's
 			 * function description)
 			 */
 			void *map = kmap_atomic(p);
@@ -2898,13 +2898,13 @@ static int aligned_vwrite(char *buf, char *addr, unsigned long count)
  * copy data from that area to a given buffer. If the given memory range
  * of [addr...addr+count) includes some valid address, data is copied to
  * proper area of @buf. If there are memory holes, they'll be zero-filled.
- * IOREMAP area is treated as memory hole and no copy is done.
+ * IOREMAP area is treated as memory hole and yes copy is done.
  *
  * If [addr...addr+count) doesn't includes any intersects with alive
  * vm_struct area, returns 0. @buf should be kernel's buffer.
  *
  * Note: In usual ops, vread() is never necessary because the caller
- * should know vmalloc() area is valid and can use memcpy().
+ * should kyesw vmalloc() area is valid and can use memcpy().
  * This is for routines which have to access vmalloc area without
  * any information, as /dev/kmem.
  *
@@ -2976,14 +2976,14 @@ finished:
  * This function checks that addr is a valid vmalloc'ed area, and
  * copy data from a buffer to the given addr. If specified range of
  * [addr...addr+count) includes some valid address, data is copied from
- * proper area of @buf. If there are memory holes, no copy to hole.
- * IOREMAP area is treated as memory hole and no copy is done.
+ * proper area of @buf. If there are memory holes, yes copy to hole.
+ * IOREMAP area is treated as memory hole and yes copy is done.
  *
  * If [addr...addr+count) doesn't includes any intersects with alive
  * vm_struct area, returns 0. @buf should be kernel's buffer.
  *
  * Note: In usual ops, vwrite() is never necessary because the caller
- * should know vmalloc() area is valid and can use memcpy().
+ * should kyesw vmalloc() area is valid and can use memcpy().
  * This is for routines which have to access vmalloc area without
  * any information, as /dev/kmem.
  *
@@ -3051,7 +3051,7 @@ finished:
  * Returns:	0 for success, -Exxx on failure
  *
  * This function checks that @kaddr is a valid vmalloc'ed area,
- * and that it is big enough to cover the range starting at
+ * and that it is big eyesugh to cover the range starting at
  * @uaddr in @vma. Will return failure if that criteria isn't
  * met.
  *
@@ -3105,7 +3105,7 @@ EXPORT_SYMBOL(remap_vmalloc_range_partial);
  * Returns:	0 for success, -Exxx on failure
  *
  * This function checks that addr is a valid vmalloc'ed area, and
- * that it is big enough to cover the vma. Will return failure if
+ * that it is big eyesugh to cover the vma. Will return failure if
  * that criteria isn't met.
  *
  * Similar to remap_pfn_range() (see mm/memory.c)
@@ -3120,7 +3120,7 @@ int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
 EXPORT_SYMBOL(remap_vmalloc_range);
 
 /*
- * Implement a stub for vmalloc_sync_all() if the architecture chose not to
+ * Implement a stub for vmalloc_sync_all() if the architecture chose yest to
  * have one.
  *
  * The purpose of this function is to make sure the vmalloc area
@@ -3153,7 +3153,7 @@ static int f(pte_t *pte, unsigned long addr, void *data)
  * allocates pagetables to map that range.  No actual mappings
  * are created.
  *
- * If @ptes is non-NULL, pointers to the PTEs (in init_mm)
+ * If @ptes is yesn-NULL, pointers to the PTEs (in init_mm)
  * allocated for the VM area are returned.
  */
 struct vm_struct *alloc_vm_area(size_t size, pte_t **ptes)
@@ -3189,31 +3189,31 @@ void free_vm_area(struct vm_struct *area)
 EXPORT_SYMBOL_GPL(free_vm_area);
 
 #ifdef CONFIG_SMP
-static struct vmap_area *node_to_va(struct rb_node *n)
+static struct vmap_area *yesde_to_va(struct rb_yesde *n)
 {
-	return rb_entry_safe(n, struct vmap_area, rb_node);
+	return rb_entry_safe(n, struct vmap_area, rb_yesde);
 }
 
 /**
  * pvm_find_va_enclose_addr - find the vmap_area @addr belongs to
  * @addr: target address
  *
- * Returns: vmap_area if it is found. If there is no such area
+ * Returns: vmap_area if it is found. If there is yes such area
  *   the first highest(reverse order) vmap_area is returned
  *   i.e. va->va_start < addr && va->va_end < addr or NULL
- *   if there are no any areas before @addr.
+ *   if there are yes any areas before @addr.
  */
 static struct vmap_area *
 pvm_find_va_enclose_addr(unsigned long addr)
 {
 	struct vmap_area *va, *tmp;
-	struct rb_node *n;
+	struct rb_yesde *n;
 
-	n = free_vmap_area_root.rb_node;
+	n = free_vmap_area_root.rb_yesde;
 	va = NULL;
 
 	while (n) {
-		tmp = rb_entry(n, struct vmap_area, rb_node);
+		tmp = rb_entry(n, struct vmap_area, rb_yesde);
 		if (tmp->va_start <= addr) {
 			va = tmp;
 			if (tmp->va_end >= addr)
@@ -3274,7 +3274,7 @@ pvm_determine_end_from_reverse(struct vmap_area **va, unsigned long align)
  *
  * Despite its complicated look, this allocator is rather simple. It
  * does everything top-down and scans free blocks from the end looking
- * for matching base. While scanning, if any of the areas do not fit the
+ * for matching base. While scanning, if any of the areas do yest fit the
  * base address is pulled down to fit the area. Scanning is repeated till
  * all the areas fit and then all necessary data structures are inserted
  * and the result is returned.
@@ -3351,7 +3351,7 @@ retry:
 			goto overflow;
 
 		/*
-		 * Fitting base has not been found.
+		 * Fitting base has yest been found.
 		 */
 		if (va == NULL)
 			goto overflow;
@@ -3367,10 +3367,10 @@ retry:
 		}
 
 		/*
-		 * If this VA does not fit, move base downwards and recheck.
+		 * If this VA does yest fit, move base downwards and recheck.
 		 */
 		if (base + start < va->va_start) {
-			va = node_to_va(rb_prev(&va->rb_node));
+			va = yesde_to_va(rb_prev(&va->rb_yesde));
 			base = pvm_determine_end_from_reverse(&va, align) - end;
 			term_area = area;
 			continue;
@@ -3442,7 +3442,7 @@ retry:
 
 recovery:
 	/*
-	 * Remove previously allocated areas. There is no
+	 * Remove previously allocated areas. There is yes
 	 * need in removing these areas from the busy tree,
 	 * because they are inserted only on the final step
 	 * and when pcpu_get_vm_areas() is success.
@@ -3566,12 +3566,12 @@ static void show_numa_info(struct seq_file *m, struct vm_struct *v)
 		/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
 		smp_rmb();
 
-		memset(counters, 0, nr_node_ids * sizeof(unsigned int));
+		memset(counters, 0, nr_yesde_ids * sizeof(unsigned int));
 
 		for (nr = 0; nr < v->nr_pages; nr++)
 			counters[page_to_nid(v->pages[nr])]++;
 
-		for_each_node_state(nr, N_HIGH_MEMORY)
+		for_each_yesde_state(nr, N_HIGH_MEMORY)
 			if (counters[nr])
 				seq_printf(m, " N%u=%u", nr, counters[nr]);
 	}
@@ -3579,7 +3579,7 @@ static void show_numa_info(struct seq_file *m, struct vm_struct *v)
 
 static void show_purge_info(struct seq_file *m)
 {
-	struct llist_node *head;
+	struct llist_yesde *head;
 	struct vmap_area *va;
 
 	head = READ_ONCE(vmap_purge_list.first);
@@ -3649,8 +3649,8 @@ static int s_show(struct seq_file *m, void *p)
 
 	/*
 	 * As a final step, dump "unpurged" areas. Note,
-	 * that entire "/proc/vmallocinfo" output will not
-	 * be address sorted, because the purge list is not
+	 * that entire "/proc/vmallocinfo" output will yest
+	 * be address sorted, because the purge list is yest
 	 * sorted.
 	 */
 	if (list_is_last(&va->list, &vmap_area_list))
@@ -3671,7 +3671,7 @@ static int __init proc_vmalloc_init(void)
 	if (IS_ENABLED(CONFIG_NUMA))
 		proc_create_seq_private("vmallocinfo", 0400, NULL,
 				&vmalloc_op,
-				nr_node_ids * sizeof(unsigned int), NULL);
+				nr_yesde_ids * sizeof(unsigned int), NULL);
 	else
 		proc_create_seq("vmallocinfo", 0400, NULL, &vmalloc_op);
 	return 0;

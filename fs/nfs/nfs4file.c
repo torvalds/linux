@@ -23,18 +23,18 @@
 #define NFSDBG_FACILITY		NFSDBG_FILE
 
 static int
-nfs4_file_open(struct inode *inode, struct file *filp)
+nfs4_file_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct nfs_open_context *ctx;
 	struct dentry *dentry = file_dentry(filp);
 	struct dentry *parent = NULL;
-	struct inode *dir;
+	struct iyesde *dir;
 	unsigned openflags = filp->f_flags;
 	struct iattr attr;
 	int err;
 
 	/*
-	 * If no cached dentry exists or if it's negative, NFSv4 handled the
+	 * If yes cached dentry exists or if it's negative, NFSv4 handled the
 	 * opens in ->lookup() or ->create().
 	 *
 	 * We only get this far for a cached positive dentry.  We skipped
@@ -49,13 +49,13 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 		return err;
 
 	if ((openflags & O_ACCMODE) == 3)
-		return nfs_open(inode, filp);
+		return nfs_open(iyesde, filp);
 
 	/* We can't create new files here */
 	openflags &= ~(O_CREAT|O_EXCL);
 
 	parent = dget_parent(dentry);
-	dir = d_inode(parent);
+	dir = d_iyesde(parent);
 
 	ctx = alloc_nfs_open_context(file_dentry(filp), filp->f_mode, filp);
 	err = PTR_ERR(ctx);
@@ -66,12 +66,12 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	if (openflags & O_TRUNC) {
 		attr.ia_valid |= ATTR_SIZE;
 		attr.ia_size = 0;
-		filemap_write_and_wait(inode->i_mapping);
+		filemap_write_and_wait(iyesde->i_mapping);
 	}
 
-	inode = NFS_PROTO(dir)->open_context(dir, ctx, openflags, &attr, NULL);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
+	iyesde = NFS_PROTO(dir)->open_context(dir, ctx, openflags, &attr, NULL);
+	if (IS_ERR(iyesde)) {
+		err = PTR_ERR(iyesde);
 		switch (err) {
 		default:
 			goto out_put_ctx;
@@ -83,12 +83,12 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 			goto out_drop;
 		}
 	}
-	if (inode != d_inode(dentry))
+	if (iyesde != d_iyesde(dentry))
 		goto out_drop;
 
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	nfs_file_set_open_context(filp, ctx);
-	nfs_fscache_open_file(inode, filp);
+	nfs_fscache_open_file(iyesde, filp);
 	err = 0;
 
 out_put_ctx:
@@ -109,23 +109,23 @@ out_drop:
 static int
 nfs4_file_flush(struct file *file, fl_owner_t id)
 {
-	struct inode	*inode = file_inode(file);
+	struct iyesde	*iyesde = file_iyesde(file);
 
 	dprintk("NFS: flush(%pD2)\n", file);
 
-	nfs_inc_stats(inode, NFSIOS_VFSFLUSH);
+	nfs_inc_stats(iyesde, NFSIOS_VFSFLUSH);
 	if ((file->f_mode & FMODE_WRITE) == 0)
 		return 0;
 
 	/*
 	 * If we're holding a write delegation, then check if we're required
-	 * to flush the i/o on close. If not, then just start the i/o now.
+	 * to flush the i/o on close. If yest, then just start the i/o yesw.
 	 */
-	if (!nfs4_delegation_flush_on_close(inode))
+	if (!nfs4_delegation_flush_on_close(iyesde))
 		return filemap_fdatawrite(file->f_mapping);
 
 	/* Flush writes to the server and return any errors */
-	return nfs_wb_all(inode);
+	return nfs_wb_all(iyesde);
 }
 
 #ifdef CONFIG_NFS_V4_2
@@ -133,7 +133,7 @@ static ssize_t __nfs4_copy_file_range(struct file *file_in, loff_t pos_in,
 				      struct file *file_out, loff_t pos_out,
 				      size_t count, unsigned int flags)
 {
-	struct nfs42_copy_notify_res *cn_resp = NULL;
+	struct nfs42_copy_yestify_res *cn_resp = NULL;
 	struct nl4_server *nss = NULL;
 	nfs4_stateid *cnrs = NULL;
 	ssize_t ret;
@@ -142,14 +142,14 @@ static ssize_t __nfs4_copy_file_range(struct file *file_in, loff_t pos_in,
 	/* Only offload copy if superblock is the same */
 	if (file_in->f_op != &nfs4_file_operations)
 		return -EXDEV;
-	if (!nfs_server_capable(file_inode(file_out), NFS_CAP_COPY))
+	if (!nfs_server_capable(file_iyesde(file_out), NFS_CAP_COPY))
 		return -EOPNOTSUPP;
-	if (file_inode(file_in) == file_inode(file_out))
+	if (file_iyesde(file_in) == file_iyesde(file_out))
 		return -EOPNOTSUPP;
 	/* if the copy size if smaller than 2 RPC payloads, make it
-	 * synchronous
+	 * synchroyesus
 	 */
-	if (count <= 2 * NFS_SERVER(file_inode(file_in))->rsize)
+	if (count <= 2 * NFS_SERVER(file_iyesde(file_in))->rsize)
 		sync = true;
 retry:
 	if (!nfs42_files_from_same_server(file_in, file_out)) {
@@ -159,14 +159,14 @@ retry:
 		 * servers.
 		 */
 		if (sync ||
-			count <= 14 * NFS_SERVER(file_inode(file_in))->rsize)
+			count <= 14 * NFS_SERVER(file_iyesde(file_in))->rsize)
 			return -EOPNOTSUPP;
-		cn_resp = kzalloc(sizeof(struct nfs42_copy_notify_res),
+		cn_resp = kzalloc(sizeof(struct nfs42_copy_yestify_res),
 				GFP_NOFS);
 		if (unlikely(cn_resp == NULL))
 			return -ENOMEM;
 
-		ret = nfs42_proc_copy_notify(file_in, file_out, cn_resp);
+		ret = nfs42_proc_copy_yestify(file_in, file_out, cn_resp);
 		if (ret) {
 			ret = -EOPNOTSUPP;
 			goto out;
@@ -216,16 +216,16 @@ static loff_t nfs4_file_llseek(struct file *filep, loff_t offset, int whence)
 
 static long nfs42_fallocate(struct file *filep, int mode, loff_t offset, loff_t len)
 {
-	struct inode *inode = file_inode(filep);
+	struct iyesde *iyesde = file_iyesde(filep);
 	long ret;
 
-	if (!S_ISREG(inode->i_mode))
+	if (!S_ISREG(iyesde->i_mode))
 		return -EOPNOTSUPP;
 
 	if ((mode != 0) && (mode != (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE)))
 		return -EOPNOTSUPP;
 
-	ret = inode_newsize_ok(inode, offset + len);
+	ret = iyesde_newsize_ok(iyesde, offset + len);
 	if (ret < 0)
 		return ret;
 
@@ -238,14 +238,14 @@ static loff_t nfs42_remap_file_range(struct file *src_file, loff_t src_off,
 		struct file *dst_file, loff_t dst_off, loff_t count,
 		unsigned int remap_flags)
 {
-	struct inode *dst_inode = file_inode(dst_file);
-	struct nfs_server *server = NFS_SERVER(dst_inode);
-	struct inode *src_inode = file_inode(src_file);
+	struct iyesde *dst_iyesde = file_iyesde(dst_file);
+	struct nfs_server *server = NFS_SERVER(dst_iyesde);
+	struct iyesde *src_iyesde = file_iyesde(src_file);
 	unsigned int bs = server->clone_blksize;
-	bool same_inode = false;
+	bool same_iyesde = false;
 	int ret;
 
-	/* NFS does not support deduplication. */
+	/* NFS does yest support deduplication. */
 	if (remap_flags & REMAP_FILE_DEDUP)
 		return -EOPNOTSUPP;
 
@@ -257,49 +257,49 @@ static loff_t nfs42_remap_file_range(struct file *src_file, loff_t src_off,
 	if (bs) {
 		if (!IS_ALIGNED(src_off, bs) || !IS_ALIGNED(dst_off, bs))
 			goto out;
-		if (!IS_ALIGNED(count, bs) && i_size_read(src_inode) != (src_off + count))
+		if (!IS_ALIGNED(count, bs) && i_size_read(src_iyesde) != (src_off + count))
 			goto out;
 	}
 
-	if (src_inode == dst_inode)
-		same_inode = true;
+	if (src_iyesde == dst_iyesde)
+		same_iyesde = true;
 
 	/* XXX: do we lock at all? what if server needs CB_RECALL_LAYOUT? */
-	if (same_inode) {
-		inode_lock(src_inode);
-	} else if (dst_inode < src_inode) {
-		inode_lock_nested(dst_inode, I_MUTEX_PARENT);
-		inode_lock_nested(src_inode, I_MUTEX_CHILD);
+	if (same_iyesde) {
+		iyesde_lock(src_iyesde);
+	} else if (dst_iyesde < src_iyesde) {
+		iyesde_lock_nested(dst_iyesde, I_MUTEX_PARENT);
+		iyesde_lock_nested(src_iyesde, I_MUTEX_CHILD);
 	} else {
-		inode_lock_nested(src_inode, I_MUTEX_PARENT);
-		inode_lock_nested(dst_inode, I_MUTEX_CHILD);
+		iyesde_lock_nested(src_iyesde, I_MUTEX_PARENT);
+		iyesde_lock_nested(dst_iyesde, I_MUTEX_CHILD);
 	}
 
 	/* flush all pending writes on both src and dst so that server
 	 * has the latest data */
-	ret = nfs_sync_inode(src_inode);
+	ret = nfs_sync_iyesde(src_iyesde);
 	if (ret)
 		goto out_unlock;
-	ret = nfs_sync_inode(dst_inode);
+	ret = nfs_sync_iyesde(dst_iyesde);
 	if (ret)
 		goto out_unlock;
 
 	ret = nfs42_proc_clone(src_file, dst_file, src_off, dst_off, count);
 
-	/* truncate inode page cache of the dst range so that future reads can fetch
+	/* truncate iyesde page cache of the dst range so that future reads can fetch
 	 * new data from server */
 	if (!ret)
-		truncate_inode_pages_range(&dst_inode->i_data, dst_off, dst_off + count - 1);
+		truncate_iyesde_pages_range(&dst_iyesde->i_data, dst_off, dst_off + count - 1);
 
 out_unlock:
-	if (same_inode) {
-		inode_unlock(src_inode);
-	} else if (dst_inode < src_inode) {
-		inode_unlock(src_inode);
-		inode_unlock(dst_inode);
+	if (same_iyesde) {
+		iyesde_unlock(src_iyesde);
+	} else if (dst_iyesde < src_iyesde) {
+		iyesde_unlock(src_iyesde);
+		iyesde_unlock(dst_iyesde);
 	} else {
-		inode_unlock(dst_inode);
-		inode_unlock(src_inode);
+		iyesde_unlock(dst_iyesde);
+		iyesde_unlock(src_iyesde);
 	}
 out:
 	return ret < 0 ? ret : count;
@@ -315,13 +315,13 @@ nfs42_ssc_open(struct vfsmount *ss_mnt, struct nfs_fh *src_fh,
 	struct nfs_fattr fattr;
 	struct file *filep, *res;
 	struct nfs_server *server;
-	struct inode *r_ino = NULL;
+	struct iyesde *r_iyes = NULL;
 	struct nfs_open_context *ctx;
 	struct nfs4_state_owner *sp;
 	char *read_name = NULL;
 	int len, status = 0;
 
-	server = NFS_SERVER(ss_mnt->mnt_root->d_inode);
+	server = NFS_SERVER(ss_mnt->mnt_root->d_iyesde);
 
 	nfs_fattr_init(&fattr);
 
@@ -338,15 +338,15 @@ nfs42_ssc_open(struct vfsmount *ss_mnt, struct nfs_fh *src_fh,
 		goto out;
 	snprintf(read_name, len, SSC_READ_NAME_BODY, read_name_gen++);
 
-	r_ino = nfs_fhget(ss_mnt->mnt_root->d_inode->i_sb, src_fh, &fattr,
+	r_iyes = nfs_fhget(ss_mnt->mnt_root->d_iyesde->i_sb, src_fh, &fattr,
 			NULL);
-	if (IS_ERR(r_ino)) {
-		res = ERR_CAST(r_ino);
+	if (IS_ERR(r_iyes)) {
+		res = ERR_CAST(r_iyes);
 		goto out_free_name;
 	}
 
-	filep = alloc_file_pseudo(r_ino, ss_mnt, read_name, FMODE_READ,
-				     r_ino->i_fop);
+	filep = alloc_file_pseudo(r_iyes, ss_mnt, read_name, FMODE_READ,
+				     r_iyes->i_fop);
 	if (IS_ERR(filep)) {
 		res = ERR_CAST(filep);
 		goto out_free_name;
@@ -365,7 +365,7 @@ nfs42_ssc_open(struct vfsmount *ss_mnt, struct nfs_fh *src_fh,
 	if (sp == NULL)
 		goto out_ctx;
 
-	ctx->state = nfs4_get_open_state(r_ino, sp);
+	ctx->state = nfs4_get_open_state(r_iyes, sp);
 	if (ctx->state == NULL)
 		goto out_stateowner;
 
@@ -415,7 +415,7 @@ const struct file_operations nfs4_file_operations = {
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.check_flags	= nfs_check_flags,
-	.setlease	= simple_nosetlease,
+	.setlease	= simple_yessetlease,
 #ifdef CONFIG_NFS_V4_2
 	.copy_file_range = nfs4_copy_file_range,
 	.llseek		= nfs4_file_llseek,

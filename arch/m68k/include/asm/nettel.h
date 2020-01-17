@@ -77,9 +77,9 @@ static __inline__ void mcf_setppdata(unsigned int mask, unsigned int bits)
  *	NETtel/5272 based hardware. DTR/DCD lines are wired to GPB lines.
  */
 #define	MCFPP_DCD0	0x0080
-#define	MCFPP_DCD1	0x0000		/* Port 1 no DCD support */
+#define	MCFPP_DCD1	0x0000		/* Port 1 yes DCD support */
 #define	MCFPP_DTR0	0x0040
-#define	MCFPP_DTR1	0x0000		/* Port 1 no DTR support */
+#define	MCFPP_DTR1	0x0000		/* Port 1 yes DTR support */
 
 #ifndef __ASSEMBLY__
 /*

@@ -16,7 +16,7 @@
 struct usbport_trig_data {
 	struct led_classdev *led_cdev;
 	struct list_head ports;
-	struct notifier_block nb;
+	struct yestifier_block nb;
 	int count; /* Amount of connected matching devices */
 };
 
@@ -130,24 +130,24 @@ static bool usbport_trig_port_observed(struct usbport_trig_data *usbport_data,
 				       struct usb_device *usb_dev, int port1)
 {
 	struct device *dev = usbport_data->led_cdev->dev;
-	struct device_node *led_np = dev->of_node;
+	struct device_yesde *led_np = dev->of_yesde;
 	struct of_phandle_args args;
-	struct device_node *port_np;
+	struct device_yesde *port_np;
 	int count, i;
 
 	if (!led_np)
 		return false;
 
 	/*
-	 * Get node of port being added
+	 * Get yesde of port being added
 	 *
-	 * FIXME: This is really the device node of the connected device
+	 * FIXME: This is really the device yesde of the connected device
 	 */
-	port_np = usb_of_get_device_node(usb_dev, port1);
+	port_np = usb_of_get_device_yesde(usb_dev, port1);
 	if (!port_np)
 		return false;
 
-	of_node_put(port_np);
+	of_yesde_put(port_np);
 
 	/* Amount of trigger sources for this LED */
 	count = of_count_phandle_with_args(led_np, "trigger-sources",
@@ -171,7 +171,7 @@ static bool usbport_trig_port_observed(struct usbport_trig_data *usbport_data,
 			continue;
 		}
 
-		of_node_put(args.np);
+		of_yesde_put(args.np);
 
 		if (args.np == port_np)
 			return true;
@@ -272,7 +272,7 @@ static void usbport_trig_remove_usb_dev_ports(struct usbport_trig_data *usbport_
  * Init, exit, etc.
  ***************************************/
 
-static int usbport_trig_notify(struct notifier_block *nb, unsigned long action,
+static int usbport_trig_yestify(struct yestifier_block *nb, unsigned long action,
 			       void *data)
 {
 	struct usbport_trig_data *usbport_data =
@@ -318,9 +318,9 @@ static int usbport_trig_activate(struct led_classdev *led_cdev)
 	usbport_trig_update_count(usbport_data);
 
 	/* Notifications */
-	usbport_data->nb.notifier_call = usbport_trig_notify;
+	usbport_data->nb.yestifier_call = usbport_trig_yestify;
 	led_set_trigger_data(led_cdev, usbport_data);
-	usb_register_notify(&usbport_data->nb);
+	usb_register_yestify(&usbport_data->nb);
 	return 0;
 
 err_free:
@@ -339,7 +339,7 @@ static void usbport_trig_deactivate(struct led_classdev *led_cdev)
 
 	sysfs_remove_group(&led_cdev->dev->kobj, &ports_group);
 
-	usb_unregister_notify(&usbport_data->nb);
+	usb_unregister_yestify(&usbport_data->nb);
 
 	kfree(usbport_data);
 }

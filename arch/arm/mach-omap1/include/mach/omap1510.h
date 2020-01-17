@@ -20,7 +20,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if yest, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -103,7 +103,7 @@
 
 /*
  * Power up Giga UART driver, turn on HID clock.
- * Turn off BT power, since we're not using it and it
+ * Turn off BT power, since we're yest using it and it
  * draws power.
  */
 #define OMAP1510_FPGA_RESET_VALUE		0x42
@@ -118,7 +118,7 @@
 #define OMAP1510_FPGA_PCR_RSRVD_BIT0		(1 << 0)
 
 /*
- * Innovator/OMAP1510 FPGA HID register bit definitions
+ * Inyesvator/OMAP1510 FPGA HID register bit definitions
  */
 #define OMAP1510_FPGA_HID_SCLK	(1<<0)	/* output */
 #define OMAP1510_FPGA_HID_MOSI	(1<<1)	/* output */

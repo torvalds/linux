@@ -304,7 +304,7 @@ static ssize_t lpc_debug_write(struct file *filp, const char __user *ubuf,
 		 * it's different to handle. We need to pass the value to OPAL in
 		 * a register whose layout depends on the access size. We want
 		 * to reproduce the memory layout of the user, however we aren't
-		 * doing a load from user and a store to another memory location
+		 * doing a load from user and a store to ayesther memory location
 		 * which would achieve that. Here we pass the value to OPAL via
 		 * a register which is expected to contain the "BE" interpretation
 		 * of the byte sequence. IE: for a 32-bit access, byte 0 should be
@@ -383,14 +383,14 @@ machine_device_initcall(powernv, opal_lpc_init_debugfs);
 
 void __init opal_lpc_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	/*
 	 * Look for a Power8 LPC bus tagged as "primary",
 	 * we currently support only one though the OPAL APIs
 	 * support any number.
 	 */
-	for_each_compatible_node(np, NULL, "ibm,power8-lpc") {
+	for_each_compatible_yesde(np, NULL, "ibm,power8-lpc") {
 		if (!of_device_is_available(np))
 			continue;
 		if (!of_get_property(np, "primary", NULL))
@@ -405,9 +405,9 @@ void __init opal_lpc_init(void)
 	if (of_get_property(np, "ranges", NULL)) {
 		pr_info("OPAL: Found memory mapped LPC bus on chip %d\n",
 			opal_lpc_chip_id);
-		isa_bridge_init_non_pci(np);
+		isa_bridge_init_yesn_pci(np);
 	} else {
-		pr_info("OPAL: Found non-mapped LPC bus on chip %d\n",
+		pr_info("OPAL: Found yesn-mapped LPC bus on chip %d\n",
 			opal_lpc_chip_id);
 
 		/* Setup special IO ops */

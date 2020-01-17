@@ -31,7 +31,7 @@
 #include <time.h>
 #include <cpuid.h>
 #include <linux/capability.h>
-#include <errno.h>
+#include <erryes.h>
 #include <math.h>
 
 char *proc_stat = "/proc/stat";
@@ -63,7 +63,7 @@ unsigned int hygon_genuine;
 unsigned int max_level, max_extended_level;
 unsigned int has_invariant_tsc;
 unsigned int do_nhm_platform_info;
-unsigned int no_MSR_MISC_PWR_MGMT;
+unsigned int yes_MSR_MISC_PWR_MGMT;
 unsigned int aperf_mperf_multiplier = 1;
 double bclk;
 double base_hz;
@@ -94,13 +94,13 @@ int base_cpu;
 double discover_bclk(unsigned int family, unsigned int model);
 unsigned int has_hwp;	/* IA32_PM_ENABLE, IA32_HWP_CAPABILITIES */
 			/* IA32_HWP_REQUEST, IA32_HWP_STATUS */
-unsigned int has_hwp_notify;		/* IA32_HWP_INTERRUPT */
+unsigned int has_hwp_yestify;		/* IA32_HWP_INTERRUPT */
 unsigned int has_hwp_activity_window;	/* IA32_HWP_REQUEST[bits 41:32] */
 unsigned int has_hwp_epp;		/* IA32_HWP_REQUEST[bits 31:24] */
 unsigned int has_hwp_pkg;		/* IA32_HWP_REQUEST_PKG */
 unsigned int has_misc_feature_control;
 unsigned int first_counter_read = 1;
-int ignore_stdin;
+int igyesre_stdin;
 
 #define RAPL_PKG		(1 << 0)
 					/* 0x610 MSR_PKG_POWER_LIMIT */
@@ -132,7 +132,7 @@ int ignore_stdin;
 					/* 0x639 MSR_PP0_ENERGY_STATUS */
 #define RAPL_PER_CORE_ENERGY	(1 << 10)
 					/* Indicates cores energy collection is per-core,
-					 * not per-package. */
+					 * yest per-package. */
 #define RAPL_AMD_F17H		(1 << 11)
 					/* 0xc0010299 MSR_RAPL_PWR_UNIT */
 					/* 0xc001029a MSR_CORE_ENERGY_STAT */
@@ -140,7 +140,7 @@ int ignore_stdin;
 #define RAPL_CORES (RAPL_CORES_ENERGY_STATUS | RAPL_CORES_POWER_LIMIT)
 #define	TJMAX_DEFAULT	100
 
-/* MSRs that are not yet in the kernel-provided header. */
+/* MSRs that are yest yet in the kernel-provided header. */
 #define MSR_RAPL_PWR_UNIT	0xc0010299
 #define MSR_CORE_ENERGY_STAT	0xc001029a
 #define MSR_PKG_ENERGY_STAT	0xc001029b
@@ -187,7 +187,7 @@ struct core_data {
 	unsigned long long c3;
 	unsigned long long c6;
 	unsigned long long c7;
-	unsigned long long mc6_us;	/* duplicate as per-core for now, even though per module */
+	unsigned long long mc6_us;	/* duplicate as per-core for yesw, even though per module */
 	unsigned int core_temp_c;
 	unsigned int core_energy;	/* MSR_CORE_ENERGY_STAT */
 	unsigned int core_id;
@@ -224,22 +224,22 @@ struct pkg_data {
 #define ODD_COUNTERS thread_odd, core_odd, package_odd
 #define EVEN_COUNTERS thread_even, core_even, package_even
 
-#define GET_THREAD(thread_base, thread_no, core_no, node_no, pkg_no)	      \
+#define GET_THREAD(thread_base, thread_yes, core_yes, yesde_yes, pkg_yes)	      \
 	((thread_base) +						      \
-	 ((pkg_no) *							      \
-	  topo.nodes_per_pkg * topo.cores_per_node * topo.threads_per_core) + \
-	 ((node_no) * topo.cores_per_node * topo.threads_per_core) +	      \
-	 ((core_no) * topo.threads_per_core) +				      \
-	 (thread_no))
+	 ((pkg_yes) *							      \
+	  topo.yesdes_per_pkg * topo.cores_per_yesde * topo.threads_per_core) + \
+	 ((yesde_yes) * topo.cores_per_yesde * topo.threads_per_core) +	      \
+	 ((core_yes) * topo.threads_per_core) +				      \
+	 (thread_yes))
 
-#define GET_CORE(core_base, core_no, node_no, pkg_no)			\
+#define GET_CORE(core_base, core_yes, yesde_yes, pkg_yes)			\
 	((core_base) +							\
-	 ((pkg_no) *  topo.nodes_per_pkg * topo.cores_per_node) +	\
-	 ((node_no) * topo.cores_per_node) +				\
-	 (core_no))
+	 ((pkg_yes) *  topo.yesdes_per_pkg * topo.cores_per_yesde) +	\
+	 ((yesde_yes) * topo.cores_per_yesde) +				\
+	 (core_yes))
 
 
-#define GET_PKG(pkg_base, pkg_no) (pkg_base + pkg_no)
+#define GET_PKG(pkg_base, pkg_yes) (pkg_base + pkg_yes)
 
 enum counter_scope {SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE};
 enum counter_type {COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC};
@@ -278,8 +278,8 @@ struct cpu_topology {
 	int physical_package_id;
 	int die_id;
 	int logical_cpu_id;
-	int physical_node_id;
-	int logical_node_id;	/* 0-based count within the package */
+	int physical_yesde_id;
+	int logical_yesde_id;	/* 0-based count within the package */
 	int physical_core_id;
 	int thread_id;
 	cpu_set_t *put_ids; /* Processing Unit/Thread IDs */
@@ -291,9 +291,9 @@ struct topo_params {
 	int num_cpus;
 	int num_cores;
 	int max_cpu_num;
-	int max_node_num;
-	int nodes_per_pkg;
-	int cores_per_node;
+	int max_yesde_num;
+	int yesdes_per_pkg;
+	int cores_per_yesde;
 	int threads_per_core;
 } topo;
 
@@ -304,39 +304,39 @@ int *irqs_per_cpu;		/* indexed by cpu_num */
 
 void setup_all_buffers(void);
 
-int cpu_is_not_present(int cpu)
+int cpu_is_yest_present(int cpu)
 {
 	return !CPU_ISSET_S(cpu, cpu_present_setsize, cpu_present_set);
 }
 /*
  * run func(thread, core, package) in topology order
- * skip non-present cpus
+ * skip yesn-present cpus
  */
 
 int for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_data *),
 	struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base)
 {
-	int retval, pkg_no, core_no, thread_no, node_no;
+	int retval, pkg_yes, core_yes, thread_yes, yesde_yes;
 
-	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
-		for (node_no = 0; node_no < topo.nodes_per_pkg; node_no++) {
-			for (core_no = 0; core_no < topo.cores_per_node; ++core_no) {
-				for (thread_no = 0; thread_no <
-					topo.threads_per_core; ++thread_no) {
+	for (pkg_yes = 0; pkg_yes < topo.num_packages; ++pkg_yes) {
+		for (yesde_yes = 0; yesde_yes < topo.yesdes_per_pkg; yesde_yes++) {
+			for (core_yes = 0; core_yes < topo.cores_per_yesde; ++core_yes) {
+				for (thread_yes = 0; thread_yes <
+					topo.threads_per_core; ++thread_yes) {
 					struct thread_data *t;
 					struct core_data *c;
 					struct pkg_data *p;
 
-					t = GET_THREAD(thread_base, thread_no,
-						       core_no, node_no,
-						       pkg_no);
+					t = GET_THREAD(thread_base, thread_yes,
+						       core_yes, yesde_yes,
+						       pkg_yes);
 
-					if (cpu_is_not_present(t->cpu_id))
+					if (cpu_is_yest_present(t->cpu_id))
 						continue;
 
-					c = GET_CORE(core_base, core_no,
-						     node_no, pkg_no);
-					p = GET_PKG(pkg_base, pkg_no);
+					c = GET_CORE(core_base, core_yes,
+						     yesde_yes, pkg_yes);
+					p = GET_PKG(pkg_base, pkg_yes);
 
 					retval = func(t, c, p);
 					if (retval)
@@ -391,7 +391,7 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 
 /*
  * This list matches the column headers, except
- * 1. built-in only, the sysfs counters are not here -- we learn of those at run-time
+ * 1. built-in only, the sysfs counters are yest here -- we learn of those at run-time
  * 2. Core and CPU are moved to the end, we can't have strings that contain them
  *    matching on them for --show and --hide.
  */
@@ -531,7 +531,7 @@ void help(void)
 	"\n"
 	"Turbostat forks the specified COMMAND and prints statistics\n"
 	"when COMMAND completes.\n"
-	"If no COMMAND is specified, turbostat wakes every 5-seconds\n"
+	"If yes COMMAND is specified, turbostat wakes every 5-seconds\n"
 	"to print statistics, until interrupted.\n"
 	"  -a, --add	add a counter\n"
 	"		  eg. --add msr0x10,u64,cpu,delta,MY_TSC\n"
@@ -896,7 +896,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (show_pkg_only && !(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
 		return 0;
 
-	/*if not summary line and --cpu is used */
+	/*if yest summary line and --cpu is used */
 	if ((t != &average.threads) &&
 		(cpu_subset && !CPU_ISSET_S(t->cpu_id, cpu_subset_size, cpu_subset)))
 		return 0;
@@ -950,7 +950,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 			if (t)
 				outp += sprintf(outp, "%s%d",
 						(printed++ ? delim : ""),
-					      cpus[t->cpu_id].physical_node_id);
+					      cpus[t->cpu_id].physical_yesde_id);
 			else
 				outp += sprintf(outp, "%s-",
 						(printed++ ? delim : ""));
@@ -1351,14 +1351,14 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 		 */
 	} else {
 		/*
-		 * As counter collection is not atomic,
-		 * it is possible for mperf's non-halted cycles + idle states
+		 * As counter collection is yest atomic,
+		 * it is possible for mperf's yesn-halted cycles + idle states
 		 * to exceed TSC's all cycles: show c1 = 0% in that case.
 		 */
 		if ((old->mperf + core_delta->c3 + core_delta->c6 + core_delta->c7) > (old->tsc * tsc_tweak))
 			old->c1 = 0;
 		else {
-			/* normal case, derive c1 */
+			/* yesrmal case, derive c1 */
 			old->c1 = (old->tsc * tsc_tweak) - old->mperf - core_delta->c3
 				- core_delta->c6 - core_delta->c7;
 		}
@@ -1780,7 +1780,7 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	int i;
 
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "Could yest migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
@@ -2020,11 +2020,11 @@ done:
 
 /*
  * MSR_PKG_CST_CONFIG_CONTROL decoding for pkg_cstate_limit:
- * If you change the values, note they are used both in comparisons
+ * If you change the values, yeste they are used both in comparisons
  * (>= PCL__7) and to index pkg_cstate_limit_strings[].
  */
 
-#define PCLUKN 0 /* Unknown */
+#define PCLUKN 0 /* Unkyeswn */
 #define PCLRSV 1 /* Reserved */
 #define PCL__0 2 /* PC0 */
 #define PCL__1 3 /* PC1 */
@@ -2042,7 +2042,7 @@ done:
 #define PCLUNL 15 /* Unlimited */
 
 int pkg_cstate_limit = PCLUKN;
-char *pkg_cstate_limit_strings[] = { "reserved", "unknown", "pc0", "pc1", "pc2",
+char *pkg_cstate_limit_strings[] = { "reserved", "unkyeswn", "pc0", "pc1", "pc2",
 	"pc3", "pc4", "pc6", "pc6n", "pc6r", "pc7", "pc7s", "pc8", "pc9", "pc10", "unlimited"};
 
 int nhm_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCL__3, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
@@ -2291,13 +2291,13 @@ dump_atom_turbo_ratio_limits(void)
 static void
 dump_knl_turbo_ratio_limits(void)
 {
-	const unsigned int buckets_no = 7;
+	const unsigned int buckets_yes = 7;
 
 	unsigned long long msr;
 	int delta_cores, delta_ratio;
 	int i, b_nr;
-	unsigned int cores[buckets_no];
-	unsigned int ratio[buckets_no];
+	unsigned int cores[buckets_yes];
+	unsigned int ratio[buckets_yes];
 
 	get_msr(base_cpu, MSR_TURBO_RATIO_LIMIT, &msr);
 
@@ -2340,7 +2340,7 @@ dump_knl_turbo_ratio_limits(void)
 		b_nr++;
 	}
 
-	for (i = buckets_no - 1; i >= 0; i--)
+	for (i = buckets_yes - 1; i >= 0; i--)
 		if (i > 0 ? ratio[i] != ratio[i - 1] : 1)
 			fprintf(outf,
 				"%d * %.1f = %.1f MHz max turbo %d active cores\n",
@@ -2518,8 +2518,8 @@ void free_all_buffers(void)
 
 /*
  * Parse a file containing a single int.
- * Return 0 if file can not be opened
- * Exit if file can be opened, but can not be parsed
+ * Return 0 if file can yest be opened
+ * Exit if file can be opened, but can yest be parsed
  */
 int parse_int_file(const char *fmt, ...)
 {
@@ -2564,48 +2564,48 @@ int get_core_id(int cpu)
 	return parse_int_file("/sys/devices/system/cpu/cpu%d/topology/core_id", cpu);
 }
 
-void set_node_data(void)
+void set_yesde_data(void)
 {
-	int pkg, node, lnode, cpu, cpux;
+	int pkg, yesde, lyesde, cpu, cpux;
 	int cpu_count;
 
-	/* initialize logical_node_id */
+	/* initialize logical_yesde_id */
 	for (cpu = 0; cpu <= topo.max_cpu_num; ++cpu)
-		cpus[cpu].logical_node_id = -1;
+		cpus[cpu].logical_yesde_id = -1;
 
 	cpu_count = 0;
 	for (pkg = 0; pkg < topo.num_packages; pkg++) {
-		lnode = 0;
+		lyesde = 0;
 		for (cpu = 0; cpu <= topo.max_cpu_num; ++cpu) {
 			if (cpus[cpu].physical_package_id != pkg)
 				continue;
-			/* find a cpu with an unset logical_node_id */
-			if (cpus[cpu].logical_node_id != -1)
+			/* find a cpu with an unset logical_yesde_id */
+			if (cpus[cpu].logical_yesde_id != -1)
 				continue;
-			cpus[cpu].logical_node_id = lnode;
-			node = cpus[cpu].physical_node_id;
+			cpus[cpu].logical_yesde_id = lyesde;
+			yesde = cpus[cpu].physical_yesde_id;
 			cpu_count++;
 			/*
 			 * find all matching cpus on this pkg and set
-			 * the logical_node_id
+			 * the logical_yesde_id
 			 */
 			for (cpux = cpu; cpux <= topo.max_cpu_num; cpux++) {
 				if ((cpus[cpux].physical_package_id == pkg) &&
-				   (cpus[cpux].physical_node_id == node)) {
-					cpus[cpux].logical_node_id = lnode;
+				   (cpus[cpux].physical_yesde_id == yesde)) {
+					cpus[cpux].logical_yesde_id = lyesde;
 					cpu_count++;
 				}
 			}
-			lnode++;
-			if (lnode > topo.nodes_per_pkg)
-				topo.nodes_per_pkg = lnode;
+			lyesde++;
+			if (lyesde > topo.yesdes_per_pkg)
+				topo.yesdes_per_pkg = lyesde;
 		}
 		if (cpu_count >= topo.max_cpu_num)
 			break;
 	}
 }
 
-int get_physical_node_id(struct cpu_topology *thiscpu)
+int get_physical_yesde_id(struct cpu_topology *thiscpu)
 {
 	char path[80];
 	FILE *filep;
@@ -2613,7 +2613,7 @@ int get_physical_node_id(struct cpu_topology *thiscpu)
 	int cpu = thiscpu->logical_cpu_id;
 
 	for (i = 0; i <= topo.max_cpu_num; i++) {
-		sprintf(path, "/sys/devices/system/cpu/cpu%d/node%i/cpulist",
+		sprintf(path, "/sys/devices/system/cpu/cpu%d/yesde%i/cpulist",
 			cpu, i);
 		filep = fopen(path, "r");
 		if (!filep)
@@ -2672,7 +2672,7 @@ int get_thread_siblings(struct cpu_topology *thiscpu)
 
 /*
  * run func(thread, core, package) in topology order
- * skip non-present cpus
+ * skip yesn-present cpus
  */
 
 int for_all_cpus_2(int (func)(struct thread_data *, struct core_data *,
@@ -2682,37 +2682,37 @@ int for_all_cpus_2(int (func)(struct thread_data *, struct core_data *,
 	struct thread_data *thread_base2, struct core_data *core_base2,
 	struct pkg_data *pkg_base2)
 {
-	int retval, pkg_no, node_no, core_no, thread_no;
+	int retval, pkg_yes, yesde_yes, core_yes, thread_yes;
 
-	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
-		for (node_no = 0; node_no < topo.nodes_per_pkg; ++node_no) {
-			for (core_no = 0; core_no < topo.cores_per_node;
-			     ++core_no) {
-				for (thread_no = 0; thread_no <
-					topo.threads_per_core; ++thread_no) {
+	for (pkg_yes = 0; pkg_yes < topo.num_packages; ++pkg_yes) {
+		for (yesde_yes = 0; yesde_yes < topo.yesdes_per_pkg; ++yesde_yes) {
+			for (core_yes = 0; core_yes < topo.cores_per_yesde;
+			     ++core_yes) {
+				for (thread_yes = 0; thread_yes <
+					topo.threads_per_core; ++thread_yes) {
 					struct thread_data *t, *t2;
 					struct core_data *c, *c2;
 					struct pkg_data *p, *p2;
 
-					t = GET_THREAD(thread_base, thread_no,
-						       core_no, node_no,
-						       pkg_no);
+					t = GET_THREAD(thread_base, thread_yes,
+						       core_yes, yesde_yes,
+						       pkg_yes);
 
-					if (cpu_is_not_present(t->cpu_id))
+					if (cpu_is_yest_present(t->cpu_id))
 						continue;
 
-					t2 = GET_THREAD(thread_base2, thread_no,
-							core_no, node_no,
-							pkg_no);
+					t2 = GET_THREAD(thread_base2, thread_yes,
+							core_yes, yesde_yes,
+							pkg_yes);
 
-					c = GET_CORE(core_base, core_no,
-						     node_no, pkg_no);
-					c2 = GET_CORE(core_base2, core_no,
-						      node_no,
-						      pkg_no);
+					c = GET_CORE(core_base, core_yes,
+						     yesde_yes, pkg_yes);
+					c2 = GET_CORE(core_base2, core_yes,
+						      yesde_yes,
+						      pkg_yes);
 
-					p = GET_PKG(pkg_base, pkg_no);
-					p2 = GET_PKG(pkg_base2, pkg_no);
+					p = GET_PKG(pkg_base, pkg_yes);
+					p2 = GET_PKG(pkg_base2, pkg_yes);
 
 					retval = func(t, c, p, t2, c2, p2);
 					if (retval)
@@ -3031,8 +3031,8 @@ void do_sleep(void)
 	FD_ZERO(&readfds);
 	FD_SET(0, &readfds);
 
-	if (ignore_stdin) {
-		nanosleep(&interval_ts, NULL);
+	if (igyesre_stdin) {
+		nayessleep(&interval_ts, NULL);
 		return;
 	}
 
@@ -3049,11 +3049,11 @@ void do_sleep(void)
 			 * 'stdin' is a pipe closed on the other end. There
 			 * won't be any further input.
 			 */
-			ignore_stdin = 1;
+			igyesre_stdin = 1;
 			/* Sleep the rest of the time */
 			rest.tv_sec = (tout.tv_sec + tout.tv_usec / 1000000);
 			rest.tv_nsec = (tout.tv_usec % 1000000) * 1000;
-			nanosleep(&rest, NULL);
+			nayessleep(&rest, NULL);
 		}
 	}
 }
@@ -3087,7 +3087,7 @@ restart:
 	gettimeofday(&tv_even, (struct timezone *)NULL);
 
 	while (1) {
-		if (for_all_proc_cpus(cpu_is_not_present)) {
+		if (for_all_proc_cpus(cpu_is_yest_present)) {
 			re_initialize();
 			goto restart;
 		}
@@ -3148,7 +3148,7 @@ void check_dev_msr()
 	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
 	if (stat(pathname, &sb))
  		if (system("/sbin/modprobe msr > /dev/null 2>&1"))
-			err(-5, "no /dev/cpu/0/msr, Try \"# modprobe msr\" ");
+			err(-5, "yes /dev/cpu/0/msr, Try \"# modprobe msr\" ");
 }
 
 void check_permissions()
@@ -3251,13 +3251,13 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 		has_misc_feature_control = 1;
 		break;
 	case INTEL_FAM6_ATOM_SILVERMONT:	/* BYT */
-		no_MSR_MISC_PWR_MGMT = 1;
+		yes_MSR_MISC_PWR_MGMT = 1;
 	case INTEL_FAM6_ATOM_SILVERMONT_D:	/* AVN */
 		pkg_cstate_limits = slv_pkg_cstate_limits;
 		break;
 	case INTEL_FAM6_ATOM_AIRMONT:	/* AMT */
 		pkg_cstate_limits = amt_pkg_cstate_limits;
-		no_MSR_MISC_PWR_MGMT = 1;
+		yes_MSR_MISC_PWR_MGMT = 1;
 		break;
 	case INTEL_FAM6_XEON_PHI_KNL:	/* PHI */
 		pkg_cstate_limits = phi_pkg_cstate_limits;
@@ -3343,7 +3343,7 @@ int has_turbo_ratio_limit(unsigned int family, unsigned int model)
 		return 0;
 
 	switch (model) {
-	/* Nehalem compatible, but do not include turbo-ratio limit support */
+	/* Nehalem compatible, but do yest include turbo-ratio limit support */
 	case INTEL_FAM6_NEHALEM_EX:	/* Nehalem-EX Xeon - Beckton */
 	case INTEL_FAM6_XEON_PHI_KNL:	/* PHI - Knights Landing (different MSR definition) */
 		return 0;
@@ -3525,7 +3525,7 @@ dump_sysfs_pstate_config(void)
 {
 	char path[64];
 	char driver_buf[64];
-	char governor_buf[64];
+	char goveryesr_buf[64];
 	FILE *input;
 	int turbo;
 
@@ -3540,19 +3540,19 @@ dump_sysfs_pstate_config(void)
 		err(1, "%s: failed to read file", path);
 	fclose(input);
 
-	sprintf(path, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_governor",
+	sprintf(path, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_goveryesr",
 			base_cpu);
 	input = fopen(path, "r");
 	if (input == NULL) {
 		fprintf(outf, "NSFOD %s\n", path);
 		return;
 	}
-	if (!fgets(governor_buf, sizeof(governor_buf), input))
+	if (!fgets(goveryesr_buf, sizeof(goveryesr_buf), input))
 		err(1, "%s: failed to read file", path);
 	fclose(input);
 
 	fprintf(outf, "cpu%d: cpufreq driver: %s", base_cpu, driver_buf);
-	fprintf(outf, "cpu%d: cpufreq governor: %s", base_cpu, governor_buf);
+	fprintf(outf, "cpu%d: cpufreq goveryesr: %s", base_cpu, goveryesr_buf);
 
 	sprintf(path, "/sys/devices/system/cpu/cpufreq/boost");
 	input = fopen(path, "r");
@@ -3563,12 +3563,12 @@ dump_sysfs_pstate_config(void)
 		fclose(input);
 	}
 
-	sprintf(path, "/sys/devices/system/cpu/intel_pstate/no_turbo");
+	sprintf(path, "/sys/devices/system/cpu/intel_pstate/yes_turbo");
 	input = fopen(path, "r");
 	if (input != NULL) {
 		if (fscanf(input, "%d", &turbo) != 1)
 			err(1, "%s: failed to parse number from file", path);
-		fprintf(outf, "cpufreq intel_pstate no_turbo: %d\n", turbo);
+		fprintf(outf, "cpufreq intel_pstate yes_turbo: %d\n", turbo);
 		fclose(input);
 	}
 }
@@ -3594,7 +3594,7 @@ int print_epb(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		return 0;
 
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "Could yest migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
@@ -3638,7 +3638,7 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		return 0;
 
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "Could yest migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
@@ -3689,7 +3689,7 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			(unsigned int)(((msr) >> 24) & 0xff),
 			(unsigned int)(((msr) >> 32) & 0xff3));
 	}
-	if (has_hwp_notify) {
+	if (has_hwp_yestify) {
 		if (get_msr(cpu, MSR_HWP_INTERRUPT, &msr))
 			return 0;
 
@@ -3726,7 +3726,7 @@ int print_perf_limit(struct thread_data *t, struct core_data *c, struct pkg_data
 		return 0;
 
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "Could yest migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
@@ -4092,12 +4092,12 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 
 	cpu = t->cpu_id;
 
-	/* DTS is per-core, no need to print for each thread */
+	/* DTS is per-core, yes need to print for each thread */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		return 0;
 
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "Could yest migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
@@ -4169,7 +4169,7 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 	cpu = t->cpu_id;
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "Could yest migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
@@ -4403,7 +4403,7 @@ double slm_bclk(void)
 	double freq;
 
 	if (get_msr(base_cpu, MSR_FSB_FREQ, &msr))
-		fprintf(outf, "SLM BCLK: unknown\n");
+		fprintf(outf, "SLM BCLK: unkyeswn\n");
 
 	i = msr & 0xf;
 	if (i >= SLM_BCLK_FREQS) {
@@ -4433,7 +4433,7 @@ double discover_bclk(unsigned int family, unsigned int model)
  * the Thermal Control Circuit (TCC) activates.
  * This is usually equal to tjMax.
  *
- * Older processors do not have this MSR, so there we guess,
+ * Older processors do yest have this MSR, so there we guess,
  * but also allow cmdline over-ride with -T.
  *
  * Several MSR temperature values are in units of degrees-C
@@ -4456,7 +4456,7 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 
 	cpu = t->cpu_id;
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "Could yest migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
@@ -4552,7 +4552,7 @@ void decode_misc_pwr_mgmt_msr(void)
 	if (!do_nhm_platform_info)
 		return;
 
-	if (no_MSR_MISC_PWR_MGMT)
+	if (yes_MSR_MISC_PWR_MGMT)
 		return;
 
 	if (!get_msr(base_cpu, MSR_MISC_PWR_MGMT, &msr))
@@ -4680,7 +4680,7 @@ void process_cpuid()
 		model = intel_model_duplicates(model);
 
 	if (!(edx_flags & (1 << 5)))
-		errx(1, "CPUID: no MSR");
+		errx(1, "CPUID: yes MSR");
 
 	if (max_extended_level >= 0x80000007) {
 
@@ -4712,7 +4712,7 @@ void process_cpuid()
 	if (do_ptm)
 		BIC_PRESENT(BIC_PkgTmp);
 	has_hwp = eax & (1 << 7);
-	has_hwp_notify = eax & (1 << 8);
+	has_hwp_yestify = eax & (1 << 8);
 	has_hwp_activity_window = eax & (1 << 9);
 	has_hwp_epp = eax & (1 << 10);
 	has_hwp_pkg = eax & (1 << 11);
@@ -4720,13 +4720,13 @@ void process_cpuid()
 
 	if (!quiet)
 		fprintf(outf, "CPUID(6): %sAPERF, %sTURBO, %sDTS, %sPTM, %sHWP, "
-			"%sHWPnotify, %sHWPwindow, %sHWPepp, %sHWPpkg, %sEPB\n",
+			"%sHWPyestify, %sHWPwindow, %sHWPepp, %sHWPpkg, %sEPB\n",
 			has_aperf ? "" : "No-",
 			has_turbo ? "" : "No-",
 			do_dts ? "" : "No-",
 			do_ptm ? "" : "No-",
 			has_hwp ? "" : "No-",
-			has_hwp_notify ? "" : "No-",
+			has_hwp_yestify ? "" : "No-",
 			has_hwp_activity_window ? "" : "No-",
 			has_hwp_epp ? "" : "No-",
 			has_hwp_pkg ? "" : "No-",
@@ -4973,7 +4973,7 @@ void topology_probe()
 	for (i = 0; i < CPU_SUBSET_MAXCPUS; ++i) {
 		if (CPU_ISSET_S(i, cpu_subset_size, cpu_subset))
 			if (!CPU_ISSET_S(i, cpu_present_setsize, cpu_present_set))
-				err(1, "cpu%d not present", i);
+				err(1, "cpu%d yest present", i);
 	}
 
 	/*
@@ -4994,7 +4994,7 @@ void topology_probe()
 	for (i = 0; i <= topo.max_cpu_num; ++i) {
 		int siblings;
 
-		if (cpu_is_not_present(i)) {
+		if (cpu_is_yest_present(i)) {
 			if (debug > 1)
 				fprintf(outf, "cpu%d NOT PRESENT\n", i);
 			continue;
@@ -5012,10 +5012,10 @@ void topology_probe()
 		if (cpus[i].die_id > max_die_id)
 			max_die_id = cpus[i].die_id;
 
-		/* get numa node information */
-		cpus[i].physical_node_id = get_physical_node_id(&cpus[i]);
-		if (cpus[i].physical_node_id > topo.max_node_num)
-			topo.max_node_num = cpus[i].physical_node_id;
+		/* get numa yesde information */
+		cpus[i].physical_yesde_id = get_physical_yesde_id(&cpus[i]);
+		if (cpus[i].physical_yesde_id > topo.max_yesde_num)
+			topo.max_yesde_num = cpus[i].physical_yesde_id;
 
 		/* get core information */
 		cpus[i].physical_core_id = get_core_id(i);
@@ -5030,11 +5030,11 @@ void topology_probe()
 			topo.num_cores++;
 	}
 
-	topo.cores_per_node = max_core_id + 1;
+	topo.cores_per_yesde = max_core_id + 1;
 	if (debug > 1)
 		fprintf(outf, "max_core_id %d, sizing for %d cores per package\n",
-			max_core_id, topo.cores_per_node);
-	if (!summary_only && topo.cores_per_node > 1)
+			max_core_id, topo.cores_per_yesde);
+	if (!summary_only && topo.cores_per_yesde > 1)
 		BIC_PRESENT(BIC_Core);
 
 	topo.num_die = max_die_id + 1;
@@ -5051,10 +5051,10 @@ void topology_probe()
 	if (!summary_only && topo.num_packages > 1)
 		BIC_PRESENT(BIC_Package);
 
-	set_node_data();
+	set_yesde_data();
 	if (debug > 1)
-		fprintf(outf, "nodes_per_pkg %d\n", topo.nodes_per_pkg);
-	if (!summary_only && topo.nodes_per_pkg > 1)
+		fprintf(outf, "yesdes_per_pkg %d\n", topo.yesdes_per_pkg);
+	if (!summary_only && topo.yesdes_per_pkg > 1)
 		BIC_PRESENT(BIC_Node);
 
 	topo.threads_per_core = max_siblings;
@@ -5065,13 +5065,13 @@ void topology_probe()
 		return;
 
 	for (i = 0; i <= topo.max_cpu_num; ++i) {
-		if (cpu_is_not_present(i))
+		if (cpu_is_yest_present(i))
 			continue;
 		fprintf(outf,
-			"cpu %d pkg %d die %d node %d lnode %d core %d thread %d\n",
+			"cpu %d pkg %d die %d yesde %d lyesde %d core %d thread %d\n",
 			i, cpus[i].physical_package_id, cpus[i].die_id,
-			cpus[i].physical_node_id,
-			cpus[i].logical_node_id,
+			cpus[i].physical_yesde_id,
+			cpus[i].logical_yesde_id,
 			cpus[i].physical_core_id,
 			cpus[i].thread_id);
 	}
@@ -5083,7 +5083,7 @@ allocate_counters(struct thread_data **t, struct core_data **c,
 		  struct pkg_data **p)
 {
 	int i;
-	int num_cores = topo.cores_per_node * topo.nodes_per_pkg *
+	int num_cores = topo.cores_per_yesde * topo.yesdes_per_pkg *
 			topo.num_packages;
 	int num_threads = topo.threads_per_core * num_cores;
 
@@ -5121,7 +5121,7 @@ void init_counter(struct thread_data *thread_base, struct core_data *core_base,
 	struct pkg_data *pkg_base, int cpu_id)
 {
 	int pkg_id = cpus[cpu_id].physical_package_id;
-	int node_id = cpus[cpu_id].logical_node_id;
+	int yesde_id = cpus[cpu_id].logical_yesde_id;
 	int core_id = cpus[cpu_id].physical_core_id;
 	int thread_id = cpus[cpu_id].thread_id;
 	struct thread_data *t;
@@ -5129,14 +5129,14 @@ void init_counter(struct thread_data *thread_base, struct core_data *core_base,
 	struct pkg_data *p;
 
 
-	/* Workaround for systems where physical_node_id==-1
-	 * and logical_node_id==(-1 - topo.num_cpus)
+	/* Workaround for systems where physical_yesde_id==-1
+	 * and logical_yesde_id==(-1 - topo.num_cpus)
 	 */
-	if (node_id < 0)
-		node_id = 0;
+	if (yesde_id < 0)
+		yesde_id = 0;
 
-	t = GET_THREAD(thread_base, thread_id, core_id, node_id, pkg_id);
-	c = GET_CORE(core_base, core_id, node_id, pkg_id);
+	t = GET_THREAD(thread_base, thread_id, core_id, yesde_id, pkg_id);
+	c = GET_CORE(core_base, core_id, yesde_id, pkg_id);
 	p = GET_PKG(pkg_base, pkg_id);
 
 	t->cpu_id = cpu_id;
@@ -5250,7 +5250,7 @@ int fork_it(char **argv)
 	if (!child_pid) {
 		/* child */
 		execvp(argv[0], argv);
-		err(errno, "exec %s", argv[0]);
+		err(erryes, "exec %s", argv[0]);
 	} else {
 
 		/* parent */
@@ -5266,7 +5266,7 @@ int fork_it(char **argv)
 			status = WEXITSTATUS(status);
 	}
 	/*
-	 * n.b. fork_it() does not check for errors from for_all_cpus()
+	 * n.b. fork_it() does yest check for errors from for_all_cpus()
 	 * because re-starting is problematic when forking
 	 */
 	snapshot_proc_sysfs_files();
@@ -5587,7 +5587,7 @@ void parse_cpu_command(char *optarg)
 
 	while (next && *next) {
 
-		if (*next == '-')	/* no negative cpu numbers */
+		if (*next == '-')	/* yes negative cpu numbers */
 			goto error;
 
 		start = strtoul(next, &next, 10);
@@ -5646,21 +5646,21 @@ void cmdline(int argc, char **argv)
 	static struct option long_options[] = {
 		{"add",		required_argument,	0, 'a'},
 		{"cpu",		required_argument,	0, 'c'},
-		{"Dump",	no_argument,		0, 'D'},
-		{"debug",	no_argument,		0, 'd'},	/* internal, not documented */
+		{"Dump",	yes_argument,		0, 'D'},
+		{"debug",	yes_argument,		0, 'd'},	/* internal, yest documented */
 		{"enable",	required_argument,	0, 'e'},
 		{"interval",	required_argument,	0, 'i'},
 		{"num_iterations",	required_argument,	0, 'n'},
-		{"help",	no_argument,		0, 'h'},
+		{"help",	yes_argument,		0, 'h'},
 		{"hide",	required_argument,	0, 'H'},	// meh, -h taken by --help
-		{"Joules",	no_argument,		0, 'J'},
-		{"list",	no_argument,		0, 'l'},
+		{"Joules",	yes_argument,		0, 'J'},
+		{"list",	yes_argument,		0, 'l'},
 		{"out",		required_argument,	0, 'o'},
-		{"quiet",	no_argument,		0, 'q'},
+		{"quiet",	yes_argument,		0, 'q'},
 		{"show",	required_argument,	0, 's'},
-		{"Summary",	no_argument,		0, 'S'},
+		{"Summary",	yes_argument,		0, 'S'},
 		{"TCC",		required_argument,	0, 'T'},
-		{"version",	no_argument,		0, 'v' },
+		{"version",	yes_argument,		0, 'v' },
 		{0,		0,			0,  0 }
 	};
 
@@ -5688,7 +5688,7 @@ void cmdline(int argc, char **argv)
 			break;
 		case 'H':
 			/*
-			 * --hide: do not show those specified
+			 * --hide: do yest show those specified
 			 *  multiple invocations simply clear more bits in enabled mask
 			 */
 			bic_enabled &= ~bic_lookup(optarg, HIDE_LIST);

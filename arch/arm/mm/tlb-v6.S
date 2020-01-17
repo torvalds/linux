@@ -22,8 +22,8 @@
  *
  *	Invalidate a range of TLB entries in the specified address space.
  *
- *	- start - start address (may not be aligned)
- *	- end   - end address (exclusive, may not be aligned)
+ *	- start - start address (may yest be aligned)
+ *	- end   - end address (exclusive, may yest be aligned)
  *	- vma   - vma_struct describing address range
  *
  *	It is assumed that:
@@ -60,8 +60,8 @@ ENTRY(v6wbi_flush_user_tlb_range)
  *
  *	Invalidate a range of kernel TLB entries
  *
- *	- start - start address (may not be aligned)
- *	- end   - end address (exclusive, may not be aligned)
+ *	- start - start address (may yest be aligned)
+ *	- end   - end address (exclusive, may yest be aligned)
  */
 ENTRY(v6wbi_flush_kern_tlb_range)
 	mov	r2, #0

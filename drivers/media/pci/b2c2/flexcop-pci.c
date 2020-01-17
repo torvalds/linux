@@ -23,7 +23,7 @@ MODULE_PARM_DESC(irq_chk_intv, "set the interval for IRQ streaming watchdog.");
 #define DEBSTATUS ""
 #else
 #define dprintk(level,args...)
-#define DEBSTATUS " (debugging is not enabled)"
+#define DEBSTATUS " (debugging is yest enabled)"
 #endif
 
 #define deb_info(args...) dprintk(0x01, args)
@@ -111,7 +111,7 @@ static void flexcop_pci_irq_check_work(struct work_struct *work)
 	if (fc->feedcount) {
 
 		if (fc_pci->count == fc_pci->count_prev) {
-			deb_chk("no IRQ since the last check\n");
+			deb_chk("yes IRQ since the last check\n");
 			if (fc_pci->stream_problem++ == 3) {
 				struct dvb_demux_feed *feed;
 				deb_info("flexcop-pci: stream problem, resetting pid filter\n");
@@ -229,10 +229,10 @@ static irqreturn_t flexcop_pci_isr(int irq, void *dev_id)
 	return ret;
 }
 
-static int flexcop_pci_stream_control(struct flexcop_device *fc, int onoff)
+static int flexcop_pci_stream_control(struct flexcop_device *fc, int oyesff)
 {
 	struct flexcop_pci *fc_pci = fc->bus_specific;
-	if (onoff) {
+	if (oyesff) {
 		flexcop_dma_config(fc, &fc_pci->dma[0], FC_DMA_1);
 		flexcop_dma_config(fc, &fc_pci->dma[1], FC_DMA_2);
 		flexcop_dma_config_timer(fc, FC_DMA_1, 0);
@@ -303,7 +303,7 @@ static int flexcop_pci_init(struct flexcop_pci *fc_pci)
 	fc_pci->io_mem = pci_iomap(fc_pci->pdev, 0, 0x800);
 
 	if (!fc_pci->io_mem) {
-		err("cannot map io memory\n");
+		err("canyest map io memory\n");
 		ret = -EIO;
 		goto err_pci_release_regions;
 	}

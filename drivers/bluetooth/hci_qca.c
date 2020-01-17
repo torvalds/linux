@@ -8,7 +8,7 @@
  *  Copyright (C) 2007 Texas Instruments, Inc.
  *  Copyright (c) 2010, 2012, 2018 The Linux Foundation. All rights reserved.
  *
- *  Acknowledgements:
+ *  Ackyeswledgements:
  *  This file is based on hci_ll.c, which was...
  *  Written by Ohad Ben-Cohen <ohad@bencohen.org>
  *  which was in turn based on hci_h4.c, which was written
@@ -350,11 +350,11 @@ static void qca_wq_awake_rx(struct work_struct *work)
 	spin_lock_irqsave(&qca->hci_ibs_lock, flags);
 	qca->rx_ibs_state = HCI_IBS_RX_AWAKE;
 
-	/* Always acknowledge device wake up,
+	/* Always ackyeswledge device wake up,
 	 * sending IBS message doesn't count as TX ON.
 	 */
 	if (send_hci_ibs_cmd(HCI_IBS_WAKE_ACK, hu) < 0)
-		BT_ERR("Failed to acknowledge device wake up");
+		BT_ERR("Failed to ackyeswledge device wake up");
 
 	qca->ibs_sent_wacks++;
 
@@ -451,7 +451,7 @@ static void hci_ibs_wake_retrans_timeout(struct timer_list *t)
 		/* No WAKE_ACK, retransmit WAKE */
 		retransmit = true;
 		if (send_hci_ibs_cmd(HCI_IBS_WAKE_IND, hu) < 0) {
-			BT_ERR("Failed to acknowledge device wake up");
+			BT_ERR("Failed to ackyeswledge device wake up");
 			break;
 		}
 		qca->ibs_sent_wakes++;
@@ -495,7 +495,7 @@ static int qca_open(struct hci_uart *hu)
 	spin_lock_init(&qca->hci_ibs_lock);
 	qca->workqueue = alloc_ordered_workqueue("qca_wq", 0);
 	if (!qca->workqueue) {
-		BT_ERR("QCA Workqueue not initialized properly");
+		BT_ERR("QCA Workqueue yest initialized properly");
 		kfree(qca);
 		return -ENOMEM;
 	}
@@ -674,11 +674,11 @@ static void device_want_to_wakeup(struct hci_uart *hu)
 		return;
 
 	case HCI_IBS_RX_AWAKE:
-		/* Always acknowledge device wake up,
+		/* Always ackyeswledge device wake up,
 		 * sending IBS message doesn't count as TX ON.
 		 */
 		if (send_hci_ibs_cmd(HCI_IBS_WAKE_ACK, hu) < 0) {
-			BT_ERR("Failed to acknowledge device wake up");
+			BT_ERR("Failed to ackyeswledge device wake up");
 			break;
 		}
 		qca->ibs_sent_wacks++;
@@ -733,7 +733,7 @@ static void device_want_to_sleep(struct hci_uart *hu)
 	spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
 }
 
-/* Called upon wake-up-acknowledgement from the device
+/* Called upon wake-up-ackyeswledgement from the device
  */
 static void device_woke_up(struct hci_uart *hu)
 {
@@ -747,7 +747,7 @@ static void device_woke_up(struct hci_uart *hu)
 
 	qca->ibs_recv_wacks++;
 
-	/* Don't react to the wake-up-acknowledgment when suspending. */
+	/* Don't react to the wake-up-ackyeswledgment when suspending. */
 	if (test_bit(QCA_SUSPENDING, &qca->flags)) {
 		spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
 		return;
@@ -817,7 +817,7 @@ static int qca_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	/* Act according to current state */
 	switch (qca->tx_ibs_state) {
 	case HCI_IBS_TX_AWAKE:
-		BT_DBG("Device awake, sending normally");
+		BT_DBG("Device awake, sending yesrmally");
 		skb_queue_tail(&qca->txq, skb);
 		idle_delay = msecs_to_jiffies(qca->tx_idle_delay);
 		mod_timer(&qca->tx_idle_timer, jiffies + idle_delay);
@@ -892,7 +892,7 @@ static int qca_recv_acl_data(struct hci_dev *hdev, struct sk_buff *skb)
 	/* We receive debug logs from chip as an ACL packets.
 	 * Instead of sending the data to ACL to decode the
 	 * received data, we are pushing them to the above layers
-	 * as a diagnostic packet.
+	 * as a diagyesstic packet.
 	 */
 	if (get_unaligned_le16(skb->data) == QCA_DEBUG_HANDLE)
 		return hci_recv_diag(hdev, skb);
@@ -909,7 +909,7 @@ static int qca_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 		struct hci_event_hdr *hdr = (void *)skb->data;
 
 		/* For the WCN3990 the vendor command for a baudrate change
-		 * isn't sent as synchronous HCI command, because the
+		 * isn't sent as synchroyesus HCI command, because the
 		 * controller sends the corresponding vendor event with the
 		 * new baudrate. The event is received and properly decoded
 		 * after changing the baudrate of the host port. It needs to
@@ -1083,7 +1083,7 @@ static int qca_send_power_pulse(struct hci_uart *hu, bool on)
 	 * circuit at Tx pin which decodes the pulse sent at specific baudrate.
 	 * For example, wcn3990 supports RF COEX antenna for both Wi-Fi/BT
 	 * and also we use the same power inputs to turn on and off for
-	 * Wi-Fi/BT. Powering up the power sources will not enable BT, until
+	 * Wi-Fi/BT. Powering up the power sources will yest enable BT, until
 	 * we send a power on pulse at 115200 bps. This algorithm will help to
 	 * save power. Disabling hardware flow control is mandatory while
 	 * sending power pulses to SoC.
@@ -1325,7 +1325,7 @@ static int qca_setup(struct hci_uart *hu)
 		ret = 0;
 	} else if (ret == -EAGAIN) {
 		/*
-		 * Userspace firmware loader will return -EAGAIN in case no
+		 * Userspace firmware loader will return -EAGAIN in case yes
 		 * patch/nvm-config is found, so run with original fw/config.
 		 */
 		ret = 0;
@@ -1638,7 +1638,7 @@ static int __maybe_unused qca_suspend(struct device *dev)
 				      msecs_to_jiffies(CMD_TRANS_TIMEOUT_MS));
 
 	/* Wait for HCI_IBS_SLEEP_IND sent by device to indicate its Tx is going
-	 * to sleep, so that the packet does not wake the system later.
+	 * to sleep, so that the packet does yest wake the system later.
 	 */
 
 	ret = wait_event_interruptible_timeout(qca->suspend_wait_q,

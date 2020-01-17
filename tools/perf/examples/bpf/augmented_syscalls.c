@@ -51,7 +51,7 @@ int syscall_enter(syscall)(struct syscall_enter_##syscall##_args *args)				\
 		len -= sizeof(augmented_args.filename.value) - augmented_args.filename.size;	\
 		len &= sizeof(augmented_args.filename.value) - 1;				\
 	}											\
-	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */	\
+	/* If perf_event_output fails, return yesn-zero so that it gets recorded unaugmented */	\
 	return perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, 		\
 				 &augmented_args, len);						\
 }												\
@@ -81,7 +81,7 @@ struct syscall_enter_open_args {
 
 augmented_filename_syscall(open);
 
-struct syscall_enter_inotify_add_watch_args {
+struct syscall_enter_iyestify_add_watch_args {
 	unsigned long long common_tp_fields;
 	long		   syscall_nr;
 	long		   fd;
@@ -89,7 +89,7 @@ struct syscall_enter_inotify_add_watch_args {
 	long		   mask;
 };
 
-augmented_filename_syscall(inotify_add_watch);
+augmented_filename_syscall(iyestify_add_watch);
 
 struct statbuf;
 
@@ -121,7 +121,7 @@ int syscall_enter(syscall)(struct syscall_enter_##syscall##_args *args)				\
 /*		addrlen = augmented_args.args.addrlen;				     */		\
 /*										     */		\
 	probe_read(&augmented_args.addr, addrlen, args->addr_ptr); 				\
-	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */	\
+	/* If perf_event_output fails, return yesn-zero so that it gets recorded unaugmented */	\
 	return perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, 		\
 				 &augmented_args, 						\
 				sizeof(augmented_args) - sizeof(augmented_args.addr) + addrlen);\

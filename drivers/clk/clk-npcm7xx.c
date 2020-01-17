@@ -4,7 +4,7 @@
  * All the clocks are initialized by the bootloader, so this driver allow only
  * reading of current settings directly from the hardware.
  *
- * Copyright (C) 2018 Nuvoton Technologies tali.perry@nuvoton.com
+ * Copyright (C) 2018 Nuvoton Techyeslogies tali.perry@nuvoton.com
  */
 
 #include <linux/module.h>
@@ -361,7 +361,7 @@ static const struct npcm7xx_clk_mux_data npcm7xx_muxes[] __initconst = {
 	dvcssel_mux_parents, ARRAY_SIZE(dvcssel_mux_parents), 0, -1},
 };
 
-/* fixed ratio dividers (no register): */
+/* fixed ratio dividers (yes register): */
 static const struct npcm7xx_clk_div_fixed_data npcm7xx_divs_fx[] __initconst = {
 	{ 1, 2, NPCM7XX_CLK_S_MC, NPCM7XX_CLK_S_MC_MUX, 0, NPCM7XX_CLK_MC},
 	{ 1, 2, NPCM7XX_CLK_S_PLL1_DIV2, NPCM7XX_CLK_S_PLL1, 0, -1},
@@ -538,7 +538,7 @@ static const struct npcm7xx_clk_gate_data npcm7xx_gates[] __initconst = {
 
 static DEFINE_SPINLOCK(npcm7xx_clk_lock);
 
-static void __init npcm7xx_clk_init(struct device_node *clk_np)
+static void __init npcm7xx_clk_init(struct device_yesde *clk_np)
 {
 	struct clk_hw_onecell_data *npcm7xx_clk_data;
 	void __iomem *clk_base;
@@ -642,7 +642,7 @@ static void __init npcm7xx_clk_init(struct device_node *clk_np)
 	if (ret)
 		pr_err("failed to add DT provider: %d\n", ret);
 
-	of_node_put(clk_np);
+	of_yesde_put(clk_np);
 
 	return;
 
@@ -651,6 +651,6 @@ npcm7xx_init_fail:
 npcm7xx_init_np_err:
 	iounmap(clk_base);
 npcm7xx_init_error:
-	of_node_put(clk_np);
+	of_yesde_put(clk_np);
 }
 CLK_OF_DECLARE(npcm7xx_clk_init, "nuvoton,npcm750-clk", npcm7xx_clk_init);

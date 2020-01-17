@@ -20,20 +20,20 @@
 #endif
 
 /*
- * objtool annotation to ignore the alternatives and only consider the original
+ * objtool anyestation to igyesre the alternatives and only consider the original
  * instruction(s).
  */
 .macro ANNOTATE_IGNORE_ALTERNATIVE
-	.Lannotate_\@:
-	.pushsection .discard.ignore_alts
-	.long .Lannotate_\@ - .
+	.Lanyestate_\@:
+	.pushsection .discard.igyesre_alts
+	.long .Lanyestate_\@ - .
 	.popsection
 .endm
 
 /*
  * Issue one struct alt_instr descriptor entry (need to put it into
  * the section .altinstructions, see below). This entry contains
- * enough information for the alternatives patching code to patch an
+ * eyesugh information for the alternatives patching code to patch an
  * instruction. See apply_alternatives().
  */
 .macro altinstruction_entry orig alt feature orig_len alt_len pad_len

@@ -8,10 +8,10 @@
  *   20-Apr-2003 : ported to v2.5 (Dustin McIntire, Sensoria Corp.)
  *
  * Note:
- *   This driver may change the memory bus clock rate, but will not do any
+ *   This driver may change the memory bus clock rate, but will yest do any
  *   platform specific access timing changes... for example if you have flash
  *   memory connected to CS0, you will need to register a platform specific
- *   notifier which will adjust the memory access strobes to maintain a
+ *   yestifier which will adjust the memory access strobes to maintain a
  *   minimum strobe width.
  */
 
@@ -171,7 +171,7 @@ static void pxa27x_guess_max_freq(void)
 {
 	if (!pxa27x_maxfreq) {
 		pxa27x_maxfreq = 416000;
-		pr_info("PXA CPU 27x max frequency not defined (pxa27x_maxfreq), assuming pxa271 with %dkHz maxfreq\n",
+		pr_info("PXA CPU 27x max frequency yest defined (pxa27x_maxfreq), assuming pxa271 with %dkHz maxfreq\n",
 			pxa27x_maxfreq);
 	} else {
 		pxa27x_maxfreq *= 1000;
@@ -212,7 +212,7 @@ static int pxa_set_target(struct cpufreq_policy *policy, unsigned int idx)
 
 	/*
 	 * Even if voltage setting fails, we don't report it, as the frequency
-	 * change succeeded. The voltage reduction is not a critical failure,
+	 * change succeeded. The voltage reduction is yest a critical failure,
 	 * only power savings will suffer from this.
 	 *
 	 * Note: if the voltage change fails, and a return value is returned, a

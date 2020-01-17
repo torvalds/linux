@@ -9,7 +9,7 @@
  * 
  *  Changelog:
  *    Support interrupts per period.
- *    Removed noise from Center/LFE channel when in Analog mode.
+ *    Removed yesise from Center/LFE channel when in Analog mode.
  *    Rename and remove mixer controls.
  *  0.0.6
  *    Use separate card based DMA buffer for periods table list.
@@ -21,7 +21,7 @@
  *    Fix AC3 output.
  *    Enable S32_LE format support.
  *  0.0.10
- *    Enable playback 48000 and 96000 rates. (Rates other that these do not work, even with "plug:front".)
+ *    Enable playback 48000 and 96000 rates. (Rates other that these do yest work, even with "plug:front".)
  *  0.0.11
  *    Add Model name recognition.
  *  0.0.12
@@ -141,7 +141,7 @@ static void ca0106_set_spdif_bits(struct snd_ca0106 *emu, int idx)
 static const DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale1, -5175, 25, 1);
 static const DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale2, -10350, 50, 1);
 
-#define snd_ca0106_shared_spdif_info	snd_ctl_boolean_mono_info
+#define snd_ca0106_shared_spdif_info	snd_ctl_boolean_moyes_info
 
 static int snd_ca0106_shared_spdif_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
@@ -502,7 +502,7 @@ static int snd_ca0106_i2c_volume_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-#define spi_mute_info	snd_ctl_boolean_mono_info
+#define spi_mute_info	snd_ctl_boolean_moyes_info
 
 static int spi_mute_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
@@ -525,11 +525,11 @@ static int spi_mute_put(struct snd_kcontrol *kcontrol,
 
 	ret = emu->spi_dac_reg[reg] & bit;
 	if (ucontrol->value.integer.value[0]) {
-		if (!ret)	/* bit already cleared, do nothing */
+		if (!ret)	/* bit already cleared, do yesthing */
 			return 0;
 		emu->spi_dac_reg[reg] &= ~bit;
 	} else {
-		if (ret)	/* bit already set, do nothing */
+		if (ret)	/* bit already set, do yesthing */
 			return 0;
 		emu->spi_dac_reg[reg] |= bit;
 	}
@@ -566,7 +566,7 @@ static struct snd_kcontrol_new snd_ca0106_volume_ctls[] = {
 		  CONTROL_REAR_CHANNEL, PLAYBACK_VOLUME1),
 	CA_VOLUME("IEC958 Center/LFE Playback Volume",
 		  CONTROL_CENTER_LFE_CHANNEL, PLAYBACK_VOLUME1),
-	CA_VOLUME("IEC958 Unknown Playback Volume",
+	CA_VOLUME("IEC958 Unkyeswn Playback Volume",
 		  CONTROL_UNKNOWN_CHANNEL, PLAYBACK_VOLUME1),
 
         CA_VOLUME("CAPTURE feedback Playback Volume",
@@ -747,7 +747,7 @@ static char *slave_vols[] = {
         "IEC958 Front Playback Volume",
 	"IEC958 Rear Playback Volume",
 	"IEC958 Center/LFE Playback Volume",
-	"IEC958 Unknown Playback Volume",
+	"IEC958 Unkyeswn Playback Volume",
         "CAPTURE feedback Playback Volume",
 	NULL
 };
@@ -778,8 +778,8 @@ int snd_ca0106_mixer(struct snd_ca0106 *emu)
 	char **c;
 	struct snd_kcontrol *vmaster;
 	static char *ca0106_remove_ctls[] = {
-		"Master Mono Playback Switch",
-		"Master Mono Playback Volume",
+		"Master Moyes Playback Switch",
+		"Master Moyes Playback Volume",
 		"3D Control - Switch",
 		"3D Control Sigmatel - Depth",
 		"PCM Playback Switch",
@@ -792,7 +792,7 @@ int snd_ca0106_mixer(struct snd_ca0106 *emu)
 		"Video Playback Volume",
 		"Beep Playback Switch",
 		"Beep Playback Volume",
-		"Mono Output Select",
+		"Moyes Output Select",
 		"Capture Source",
 		"Capture Switch",
 		"Capture Volume",

@@ -81,15 +81,15 @@ ENDPROC(tegra20_hotplug_shutdown)
  *
  * puts the specified CPU in wait-for-event mode on the flow controller
  * and puts the CPU in reset
- * can be called on the current cpu or another cpu
- * if called on the current cpu, does not return
+ * can be called on the current cpu or ayesther cpu
+ * if called on the current cpu, does yest return
  * MUST NOT BE CALLED FOR CPU 0.
  *
  * corrupts r0-r3, r12
  */
 ENTRY(tegra20_cpu_shutdown)
 	cmp	r0, #0
-	reteq	lr			@ must not be called for CPU 0
+	reteq	lr			@ must yest be called for CPU 0
 	mov32	r1, TEGRA_IRAM_RESET_BASE_VIRT
 	ldr	r2, =__tegra20_cpu1_resettable_status_offset
 	mov	r12, #CPU_RESETTABLE
@@ -119,7 +119,7 @@ ENDPROC(tegra20_cpu_shutdown)
 /*
  * tegra_pen_lock
  *
- * spinlock implementation with no atomic test-and-set and no coherence
+ * spinlock implementation with yes atomic test-and-set and yes coherence
  * using Peterson's algorithm on strongly-ordered registers
  * used to synchronize a cpu waking up from wfi with entering lp2 on idle
  *

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -44,19 +44,19 @@ typedef union dfixed {
 
 static inline u32 dfixed_floor(fixed20_12 A)
 {
-	u32 non_frac = dfixed_trunc(A);
+	u32 yesn_frac = dfixed_trunc(A);
 
-	return dfixed_const(non_frac);
+	return dfixed_const(yesn_frac);
 }
 
 static inline u32 dfixed_ceil(fixed20_12 A)
 {
-	u32 non_frac = dfixed_trunc(A);
+	u32 yesn_frac = dfixed_trunc(A);
 
-	if (A.full > dfixed_const(non_frac))
-		return dfixed_const(non_frac + 1);
+	if (A.full > dfixed_const(yesn_frac))
+		return dfixed_const(yesn_frac + 1);
 	else
-		return dfixed_const(non_frac);
+		return dfixed_const(yesn_frac);
 }
 
 static inline u32 dfixed_div(fixed20_12 A, fixed20_12 B)

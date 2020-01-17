@@ -14,7 +14,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/timer.h>
 #include <linux/list.h>
@@ -138,7 +138,7 @@ static int process_ep_req(struct mv_udc *udc, int index,
 
 	for (i = 0; i < curr_req->dtd_count; i++) {
 		if (curr_dtd->size_ioc_sts & DTD_STATUS_ACTIVE) {
-			dev_dbg(&udc->dev->dev, "%s, dTD not completed\n",
+			dev_dbg(&udc->dev->dev, "%s, dTD yest completed\n",
 				udc->eps[index].name);
 			return 1;
 		}
@@ -289,7 +289,7 @@ static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 			 * Reread the ATDTW semaphore bit to check if it is
 			 * cleared. When hardware see a hazard, it will clear
 			 * the bit or else we remain set to 1 and we can
-			 * proceed with priming of endpoint if not already
+			 * proceed with priming of endpoint if yest already
 			 * primed.
 			 */
 			if (readl(&udc->op_regs->usbcmd)
@@ -354,8 +354,8 @@ static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
 	udc = req->ep->udc;
 
 	/*
-	 * Be careful that no _GFP_HIGHMEM is set,
-	 * or we can not use dma_to_virt
+	 * Be careful that yes _GFP_HIGHMEM is set,
+	 * or we can yest use dma_to_virt
 	 */
 	dtd = dma_pool_alloc(udc->dtd_pool, GFP_ATOMIC, dma);
 	if (dtd == NULL)
@@ -388,7 +388,7 @@ static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
 	temp = ((*length << DTD_LENGTH_BIT_POS) | DTD_STATUS_ACTIVE);
 
 	/* Enable interrupt for the last dtd of a request */
-	if (*is_last && !req->req.no_interrupt)
+	if (*is_last && !req->req.yes_interrupt)
 		temp |= DTD_IOC;
 
 	temp |= mult << 10;
@@ -803,7 +803,7 @@ static int mv_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		goto out;
 	}
 
-	/* The request is in progress, or completed but not dequeued */
+	/* The request is in progress, or completed but yest dequeued */
 	if (ep->queue.next == &req->queue) {
 		_req->status = -ECONNRESET;
 		mv_ep_fifo_flush(_ep);	/* flush current transfer */
@@ -1129,12 +1129,12 @@ static int mv_udc_wakeup(struct usb_gadget *gadget)
 	struct mv_udc *udc = container_of(gadget, struct mv_udc, gadget);
 	u32 portsc;
 
-	/* Remote wakeup feature not enabled by host */
+	/* Remote wakeup feature yest enabled by host */
 	if (!udc->remote_wakeup)
 		return -ENOTSUPP;
 
 	portsc = readl(&udc->op_regs->portsc);
-	/* not suspended? */
+	/* yest suspended? */
 	if (!(portsc & PORTSCX_PORT_SUSPEND))
 		return 0;
 	/* trigger force resume */
@@ -1224,7 +1224,7 @@ static const struct usb_gadget_ops mv_ops = {
 	/* tries to wake up the host connected to this gadget */
 	.wakeup		= mv_udc_wakeup,
 
-	/* notify controller that VBUS is powered or not */
+	/* yestify controller that VBUS is powered or yest */
 	.vbus_session	= mv_udc_vbus_session,
 
 	/* D+ pullup, software-controlled connect/disconnect to USB host */
@@ -1378,7 +1378,7 @@ static int mv_udc_start(struct usb_gadget *gadget,
 		}
 	}
 
-	/* When boot with cable attached, there will be no vbus irq occurred */
+	/* When boot with cable attached, there will be yes vbus irq occurred */
 	if (udc->qwork)
 		queue_work(udc->qwork, &udc->vbus_work);
 
@@ -1484,7 +1484,7 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 				"Failed to queue dtd when prime status\n");
 			goto out;
 		}
-	} else{	/* no mem */
+	} else{	/* yes mem */
 		retval = -ENOMEM;
 		dev_err(&udc->dev->dev,
 			"Failed to dma_pool_alloc when prime status\n");
@@ -1508,7 +1508,7 @@ static void mv_udc_testmode(struct mv_udc *udc, u16 index)
 			ep0_stall(udc);
 	} else
 		dev_err(&udc->dev->dev,
-			"This test mode(%d) is not supported\n", index);
+			"This test mode(%d) is yest supported\n", index);
 }
 
 static void ch9setaddress(struct mv_udc *udc, struct usb_ctrlrequest *setup)
@@ -1705,7 +1705,7 @@ static void handle_setup_packet(struct mv_udc *udc, u8 ep_num,
 			udc->ep0_state = (setup->bRequestType & USB_DIR_IN)
 					?  DATA_STATE_XMIT : DATA_STATE_RECV;
 		} else {
-			/* no DATA phase, IN STATUS phase from gadget */
+			/* yes DATA phase, IN STATUS phase from gadget */
 			udc->ep0_dir = EP_DIR_IN;
 			spin_unlock(&udc->lock);
 			if (udc->driver->setup(&udc->gadget,
@@ -1811,7 +1811,7 @@ static void irq_process_tr_complete(struct mv_udc *udc)
 	 * It is cleared as a setup packet is read out of the buffer
 	 */
 
-	/* Process non-setup transaction complete interrupts */
+	/* Process yesn-setup transaction complete interrupts */
 	tmp = readl(&udc->op_regs->epcomplete);
 
 	if (!tmp)
@@ -2149,7 +2149,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 
 	r = platform_get_resource_byname(udc->dev, IORESOURCE_MEM, "capregs");
 	if (r == NULL) {
-		dev_err(&pdev->dev, "no I/O memory resource defined\n");
+		dev_err(&pdev->dev, "yes I/O memory resource defined\n");
 		return -ENODEV;
 	}
 
@@ -2162,7 +2162,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 
 	r = platform_get_resource_byname(udc->dev, IORESOURCE_MEM, "phyregs");
 	if (r == NULL) {
-		dev_err(&pdev->dev, "no phy I/O memory resource defined\n");
+		dev_err(&pdev->dev, "yes phy I/O memory resource defined\n");
 		return -ENODEV;
 	}
 
@@ -2184,7 +2184,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 	udc->max_eps = readl(&udc->cap_regs->dccparams) & DCCPARAMS_DEN_MASK;
 
 	/*
-	 * some platform will use usb to download image, it may not disconnect
+	 * some platform will use usb to download image, it may yest disconnect
 	 * usb gadget before loading kernel. So first stop udc here.
 	 */
 	udc_stop(udc);
@@ -2241,7 +2241,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(udc->dev, IORESOURCE_IRQ, 0);
 	if (r == NULL) {
-		dev_err(&pdev->dev, "no IRQ resource defined\n");
+		dev_err(&pdev->dev, "yes IRQ resource defined\n");
 		retval = -ENODEV;
 		goto err_destroy_dma;
 	}
@@ -2276,14 +2276,14 @@ static int mv_udc_probe(struct platform_device *pdev)
 				mv_udc_vbus_irq, IRQF_ONESHOT, "vbus", udc);
 		if (retval) {
 			dev_info(&pdev->dev,
-				"Can not request irq for VBUS, "
+				"Can yest request irq for VBUS, "
 				"disable clock gating\n");
 			udc->clock_gating = 0;
 		}
 
 		udc->qwork = create_singlethread_workqueue("mv_udc_queue");
 		if (!udc->qwork) {
-			dev_err(&pdev->dev, "cannot create workqueue\n");
+			dev_err(&pdev->dev, "canyest create workqueue\n");
 			retval = -ENOMEM;
 			goto err_destroy_dma;
 		}
@@ -2293,7 +2293,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 
 	/*
 	 * When clock gating is supported, we can disable clk and phy.
-	 * If not, it means that VBUS detection is not supported, we
+	 * If yest, it means that VBUS detection is yest supported, we
 	 * have to enable vbus active all the time to let controller work.
 	 */
 	if (udc->clock_gating)
@@ -2344,7 +2344,7 @@ static int mv_udc_suspend(struct device *dev)
 
 	/*
 	 * only cable is unplugged, udc can suspend.
-	 * So do not care about clock_gating == 1.
+	 * So do yest care about clock_gating == 1.
 	 */
 	if (!udc->clock_gating) {
 		udc_stop(udc);

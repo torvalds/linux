@@ -10,11 +10,11 @@
 
 /* Maximum variable offset umax_value permitted when resolving memory accesses.
  * In practice this is far bigger than any realistic pointer offset; this limit
- * ensures that umax_value + (int)off + (int)size cannot overflow a u64.
+ * ensures that umax_value + (int)off + (int)size canyest overflow a u64.
  */
 #define BPF_MAX_VAR_OFF	(1 << 29)
 /* Maximum variable size permitted for ARG_CONST_SIZE[_OR_ZERO].  This ensures
- * that converting umax_value to int cannot overflow.
+ * that converting umax_value to int canyest overflow.
  */
 #define BPF_MAX_VAR_SIZ	(1 << 29)
 
@@ -22,12 +22,12 @@
  * Read marks propagate upwards until they find a write mark; they record that
  * "one of this state's descendants read this reg" (and therefore the reg is
  * relevant for states_equal() checks).
- * Write marks collect downwards and do not propagate; they record that "the
+ * Write marks collect downwards and do yest propagate; they record that "the
  * straight-line code that reached this state (from its parent) wrote this reg"
  * (and therefore that reads propagated from this state or its descendants
- * should not propagate to its parent).
+ * should yest propagate to its parent).
  * A state with a write mark can receive read marks; it just won't propagate
- * them to its parent, since the write mark is a property, not of the state,
+ * them to its parent, since the write mark is a property, yest of the state,
  * but of the link between it and its parent.  See mark_reg_read() and
  * mark_stack_slot_read() in kernel/bpf/verifier.c.
  */
@@ -60,7 +60,7 @@ struct bpf_reg_state {
 	/* Fixed part of pointer offset, pointer types only */
 	s32 off;
 	/* For PTR_TO_PACKET, used to find other pointers with the same variable
-	 * offset, so they can share range knowledge.
+	 * offset, so they can share range kyeswledge.
 	 * For PTR_TO_MAP_VALUE_OR_NULL this is used to share which map value we
 	 * came from, when one is tested for != NULL.
 	 * For PTR_TO_SOCKET this is used to share which pointers retain the
@@ -102,12 +102,12 @@ struct bpf_reg_state {
 	 * which is the same as sk_reg->ref_obj_id.
 	 *
 	 * From the verifier perspective, if sk, fullsock and tp
-	 * are not NULL, they are the same ptr with different
+	 * are yest NULL, they are the same ptr with different
 	 * reg->type.  In particular, bpf_sk_release(tp) is also
 	 * allowed and has the same effect as bpf_sk_release(sk).
 	 */
 	u32 ref_obj_id;
-	/* For scalar types (SCALAR_VALUE), this represents our knowledge of
+	/* For scalar types (SCALAR_VALUE), this represents our kyeswledge of
 	 * the actual value.
 	 * For pointer types, this represents the variable part of the offset
 	 * from the pointed-to object, and is shared with all bpf_reg_states
@@ -116,7 +116,7 @@ struct bpf_reg_state {
 	struct tnum var_off;
 	/* Used to determine if any memory access using this register will
 	 * result in a bad access.
-	 * These refer to the same value as var_off, not necessarily the actual
+	 * These refer to the same value as var_off, yest necessarily the actual
 	 * contents of the register.
 	 */
 	s64 smin_value; /* minimum possible (s64)value */
@@ -127,11 +127,11 @@ struct bpf_reg_state {
 	struct bpf_reg_state *parent;
 	/* Inside the callee two registers can be both PTR_TO_STACK like
 	 * R1=fp-8 and R2=fp-8, but one of them points to this function stack
-	 * while another to the caller's stack. To differentiate them 'frameno'
+	 * while ayesther to the caller's stack. To differentiate them 'frameyes'
 	 * is used which is an index in bpf_verifier_state->frame[] array
 	 * pointing to bpf_func_state.
 	 */
-	u32 frameno;
+	u32 frameyes;
 	/* Tracks subreg definition. The stored value is the insn_idx of the
 	 * writing insn. This is safe because subreg_def is used before any insn
 	 * patching which only happens after main verification finished.
@@ -143,7 +143,7 @@ struct bpf_reg_state {
 };
 
 enum bpf_stack_slot_type {
-	STACK_INVALID,    /* nothing was stored in this stack slot */
+	STACK_INVALID,    /* yesthing was stored in this stack slot */
 	STACK_SPILL,      /* register spilled into stack */
 	STACK_MISC,	  /* BPF program wrote some data into this slot */
 	STACK_ZERO,	  /* BPF program wrote constant zero */
@@ -178,11 +178,11 @@ struct bpf_func_state {
 	 * enclosing bpf_verifier_state.
 	 * 0 = main function, 1 = first callee.
 	 */
-	u32 frameno;
+	u32 frameyes;
 	/* subprog number == index within subprog_stack_depth
 	 * zero == main subprog
 	 */
-	u32 subprogno;
+	u32 subprogyes;
 
 	/* The following fields should be last. See copy_func_state() */
 	int acquired_refs;
@@ -209,7 +209,7 @@ struct bpf_verifier_state {
 	 * This state hasn't reached bpf_exit
 	 * 2 - at least two paths are being explored.
 	 * This state is an immediate parent of two children.
-	 * One is fallthrough branch with branches==1 and another
+	 * One is fallthrough branch with branches==1 and ayesther
 	 * state is pushed into stack (to be explored later) also with
 	 * branches==1. The parent of this state has branches==1.
 	 * The verifier state tree connected via 'parent' pointer looks like:
@@ -237,12 +237,12 @@ struct bpf_verifier_state {
 	 * If is_state_visited() sees a state with branches > 0 it means
 	 * there is a loop. If such state is exactly equal to the current state
 	 * it's an infinite loop. Note states_equal() checks for states
-	 * equvalency, so two states being 'states_equal' does not mean
+	 * equvalency, so two states being 'states_equal' does yest mean
 	 * infinite loop. The exact comparison is provided by
 	 * states_maybe_looping() function. It's a stronger pre-check and
 	 * much faster than states_equal().
 	 *
-	 * This algorithm may not find all possible infinite loops or
+	 * This algorithm may yest find all possible infinite loops or
 	 * loop iteration count may be too high.
 	 * In such cases BPF_COMPLEXITY_LIMIT_INSNS limit kicks in.
 	 */

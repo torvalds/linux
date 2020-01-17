@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -78,7 +78,7 @@ void dwb2_config_dwb_cnv(struct dwbc *dwbc, struct dc_dwb_params *params)
 	REG_UPDATE_2(CNV_SOURCE_SIZE, CNV_SOURCE_WIDTH, params->cnv_params.src_width,
 			CNV_SOURCE_HEIGHT, params->cnv_params.src_height);
 
-	/* source size is not equal the source size, then enable cropping. */
+	/* source size is yest equal the source size, then enable cropping. */
 	if (params->cnv_params.crop_en) {
 		REG_UPDATE(CNV_MODE, CNV_WINDOW_CROP_EN, 1);
 		REG_UPDATE(CNV_WINDOW_START, CNV_WINDOW_START_X, params->cnv_params.crop_x);
@@ -114,7 +114,7 @@ if ((params->cnv_params.src_width  != params->dest_width) ||
 	//			 DISPCLK_G_WB_GATE_DIS, 1, DISPCLK_G_WBSCL_GATE_DIS, 1,
 	//			 WB_LB_LS_DIS, 1, WB_LUT_LS_DIS, 1);
 
-	/* Set WB_ENABLE (not double buffered; capture not enabled) */
+	/* Set WB_ENABLE (yest double buffered; capture yest enabled) */
 	REG_UPDATE(WB_ENABLE, WB_ENABLE, 1);
 
 	/* Set CNV parameters */
@@ -171,7 +171,7 @@ static bool dwb2_update(struct dwbc *dwbc, struct dc_dwb_params *params)
 	/*
 	 * Check if the caller has already locked CNV registers.
 	 * If so: assume the caller will unlock, so don't touch the lock.
-	 * If not: lock them for this update, then unlock after the
+	 * If yest: lock them for this update, then unlock after the
 	 * update is complete.
 	 */
 	REG_GET(CNV_UPDATE, CNV_UPDATE_LOCK, &pre_locked);

@@ -503,7 +503,7 @@ void rtl8821ae_dm_init_edca_turbo(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->dm.current_turbo_edca = false;
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_yesnbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
 }
 
@@ -849,7 +849,7 @@ static void rtl8821ae_dm_dig(struct ieee80211_hw *hw)
 
 	if (rtlpriv->falsealm_cnt.cnt_all > 10000) {
 		RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
-			 "Abnormally false alarm case.\n");
+			 "Abyesrmally false alarm case.\n");
 
 		if (dm_digtable->large_fa_hit != 3)
 			dm_digtable->large_fa_hit++;
@@ -1660,7 +1660,7 @@ void rtl8812ae_dm_txpower_tracking_callback_thermalmeter(
 			thermal_value_avg_count++;
 		}
 	}
-	/*Calculate Average ThermalValue after average enough times*/
+	/*Calculate Average ThermalValue after average eyesugh times*/
 	if (thermal_value_avg_count) {
 		thermal_value = (u8)(thermal_value_avg /
 				thermal_value_avg_count);
@@ -1671,7 +1671,7 @@ void rtl8812ae_dm_txpower_tracking_callback_thermalmeter(
 
 	/*5. Calculate delta, delta_LCK, delta_IQK.
 	 *"delta" here is used to determine whether
-	 *thermal value changes or not.
+	 *thermal value changes or yest.
 	 */
 	delta = (thermal_value > rtldm->thermalvalue) ?
 		(thermal_value - rtldm->thermalvalue) :
@@ -1870,7 +1870,7 @@ void rtl8812ae_dm_txpower_tracking_callback_thermalmeter(
 		 *Always TRUE after Tx Power is adjusted by power tracking.
 		 *
 		 *2012/04/23 MH According to Luke's suggestion,
-		 *we can not write BB digital
+		 *we can yest write BB digital
 		 *to increase TX power. Otherwise, EVM will be bad.
 		 *
 		 *2012/04/25 MH Add for tx power tracking to set
@@ -2240,7 +2240,7 @@ void rtl8821ae_dm_txpower_tracking_callback_thermalmeter(
 			thermal_value_avg_count++;
 		}
 	}
-	/*Calculate Average ThermalValue after average enough times*/
+	/*Calculate Average ThermalValue after average eyesugh times*/
 	if (thermal_value_avg_count) {
 		thermal_value = (u8)(thermal_value_avg /
 				thermal_value_avg_count);
@@ -2251,7 +2251,7 @@ void rtl8821ae_dm_txpower_tracking_callback_thermalmeter(
 
 	/*5. Calculate delta, delta_LCK, delta_IQK.
 	 *"delta" here is used to determine whether
-	 * thermal value changes or not.
+	 * thermal value changes or yest.
 	 */
 	delta = (thermal_value > rtldm->thermalvalue) ?
 		(thermal_value - rtldm->thermalvalue) :
@@ -2416,7 +2416,7 @@ void rtl8821ae_dm_txpower_tracking_callback_thermalmeter(
 		/*Always TRUE after Tx Power is adjusted by power tracking.*/
 		/*
 		 *  2012/04/23 MH According to Luke's suggestion,
-		 *  we can not write BB digital
+		 *  we can yest write BB digital
 		 *  to increase TX power. Otherwise, EVM will be bad.
 		 *
 		 *  2012/04/25 MH Add for tx power tracking to
@@ -2528,7 +2528,7 @@ static void rtl8821ae_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 
 	if (!rtlpriv->dm.useramask) {
 		RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
-			 "driver does not control rate adaptive mask\n");
+			 "driver does yest control rate adaptive mask\n");
 		return;
 	}
 
@@ -2662,9 +2662,9 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		 "Original BE PARAM: 0x%x\n",
 		 rtl_read_dword(rtlpriv, DM_REG_EDCA_BE_11N));
 
-	if (rtlpriv->dm.dbginfo.num_non_be_pkt > 0x100)
-		rtlpriv->dm.is_any_nonbepkts = true;
-	rtlpriv->dm.dbginfo.num_non_be_pkt = 0;
+	if (rtlpriv->dm.dbginfo.num_yesn_be_pkt > 0x100)
+		rtlpriv->dm.is_any_yesnbepkts = true;
+	rtlpriv->dm.dbginfo.num_yesn_be_pkt = 0;
 
 	/*===============================
 	 * list paramter for different platform
@@ -2680,7 +2680,7 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 
 	iot_peer = rtlpriv->mac80211.vendor;
 	b_bias_on_rx = false;
-	b_edca_turbo_on = ((!rtlpriv->dm.is_any_nonbepkts) &&
+	b_edca_turbo_on = ((!rtlpriv->dm.is_any_yesnbepkts) &&
 			   (!rtlpriv->dm.disable_framebursting)) ?
 			   true : false;
 
@@ -2694,7 +2694,7 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 
 	RT_TRACE(rtlpriv, COMP_TURBO, DBG_LOUD,
 		 "bIsAnyNonBEPkts : 0x%x  bDisableFrameBursting : 0x%x\n",
-		 rtlpriv->dm.is_any_nonbepkts,
+		 rtlpriv->dm.is_any_yesnbepkts,
 		 rtlpriv->dm.disable_framebursting);
 
 	RT_TRACE(rtlpriv, COMP_TURBO, DBG_LOUD,
@@ -2734,7 +2734,7 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		rtlpriv->dm.current_turbo_edca = false;
 	}
 
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_yesnbepkts = false;
 	rtldm->last_tx_ok_cnt = rtlpriv->stats.txbytesunicast;
 	rtldm->last_rx_ok_cnt = rtlpriv->stats.rxbytesunicast;
 }
@@ -2837,7 +2837,7 @@ static void rtl8821ae_dm_dynamic_atc_switch(struct ieee80211_hw *hw)
 			 "cfo_khz_a = %dkHz, cfo_khz_b = %dkHz, cfo_ave = %dkHz\n",
 			 cfo_khz_a, cfo_khz_b, cfo_ave);
 
-		/*4.Avoid abnormal large CFO*/
+		/*4.Avoid abyesrmal large CFO*/
 		cfo_ave_diff = (rtldm->cfo_ave_pre >= cfo_ave) ?
 						(rtldm->cfo_ave_pre - cfo_ave) :
 						(cfo_ave - rtldm->cfo_ave_pre);

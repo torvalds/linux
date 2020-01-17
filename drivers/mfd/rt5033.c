@@ -80,7 +80,7 @@ static int rt5033_i2c_probe(struct i2c_client *i2c,
 
 	ret = regmap_read(rt5033->regmap, RT5033_REG_DEVICE_ID, &dev_id);
 	if (ret) {
-		dev_err(&i2c->dev, "Device not found\n");
+		dev_err(&i2c->dev, "Device yest found\n");
 		return -ENODEV;
 	}
 	dev_info(&i2c->dev, "Device found Device ID: %04x\n", dev_id);

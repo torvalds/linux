@@ -27,7 +27,7 @@ static inline int erofs_dirnamecmp(const struct erofs_qstr *qn,
 	 */
 	DBG_BUGON(qd->name > qd->end);
 
-	/* qd could not have trailing '\0' */
+	/* qd could yest have trailing '\0' */
 	/* However it is absolutely safe if < qd->end */
 	while (qd->name + i < qd->end && qd->name[i] != '\0') {
 		if (qn->name[i] != qd->name[i]) {
@@ -87,7 +87,7 @@ static struct erofs_dirent *find_target_dirent(struct erofs_qstr *name,
 	return ERR_PTR(-ENOENT);
 }
 
-static struct page *find_target_block_classic(struct inode *dir,
+static struct page *find_target_block_classic(struct iyesde *dir,
 					      struct erofs_qstr *name,
 					      int *_ndirents)
 {
@@ -98,7 +98,7 @@ static struct page *find_target_block_classic(struct inode *dir,
 
 	startprfx = endprfx = 0;
 	head = 0;
-	back = erofs_inode_datablocks(dir) - 1;
+	back = erofs_iyesde_datablocks(dir) - 1;
 
 	while (head <= back) {
 		const int mid = head + (back - head) / 2;
@@ -165,7 +165,7 @@ out:		/* free if the candidate is valid */
 	return candidate;
 }
 
-int erofs_namei(struct inode *dir,
+int erofs_namei(struct iyesde *dir,
 		struct qstr *name,
 		erofs_nid_t *nid, unsigned int *d_type)
 {
@@ -206,17 +206,17 @@ int erofs_namei(struct inode *dir,
 }
 
 /* NOTE: i_mutex is already held by vfs */
-static struct dentry *erofs_lookup(struct inode *dir,
+static struct dentry *erofs_lookup(struct iyesde *dir,
 				   struct dentry *dentry,
 				   unsigned int flags)
 {
 	int err;
 	erofs_nid_t nid;
 	unsigned int d_type;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	DBG_BUGON(!d_really_is_negative(dentry));
-	/* dentry must be unhashed in lookup, no need to worry about */
+	/* dentry must be unhashed in lookup, yes need to worry about */
 	DBG_BUGON(!d_unhashed(dentry));
 
 	trace_erofs_lookup(dir, dentry, flags);
@@ -230,18 +230,18 @@ static struct dentry *erofs_lookup(struct inode *dir,
 
 	if (err == -ENOENT) {
 		/* negative dentry */
-		inode = NULL;
+		iyesde = NULL;
 	} else if (err) {
-		inode = ERR_PTR(err);
+		iyesde = ERR_PTR(err);
 	} else {
 		erofs_dbg("%s, %s (nid %llu) found, d_type %u", __func__,
 			  dentry->d_name.name, nid, d_type);
-		inode = erofs_iget(dir->i_sb, nid, d_type == FT_DIR);
+		iyesde = erofs_iget(dir->i_sb, nid, d_type == FT_DIR);
 	}
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(iyesde, dentry);
 }
 
-const struct inode_operations erofs_dir_iops = {
+const struct iyesde_operations erofs_dir_iops = {
 	.lookup = erofs_lookup,
 	.getattr = erofs_getattr,
 #ifdef CONFIG_EROFS_FS_XATTR

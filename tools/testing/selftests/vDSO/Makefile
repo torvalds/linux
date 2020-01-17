@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 include ../lib.mk
 
-uname_M := $(shell uname -m 2>/dev/null || echo not)
+uname_M := $(shell uname -m 2>/dev/null || echo yest)
 ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/x86/ -e s/x86_64/x86/)
 
 TEST_GEN_PROGS := $(OUTPUT)/vdso_test
@@ -11,7 +11,7 @@ endif
 
 ifndef CROSS_COMPILE
 CFLAGS := -std=gnu99
-CFLAGS_vdso_standalone_test_x86 := -nostdlib -fno-asynchronous-unwind-tables -fno-stack-protector
+CFLAGS_vdso_standalone_test_x86 := -yesstdlib -fyes-asynchroyesus-unwind-tables -fyes-stack-protector
 ifeq ($(CONFIG_X86_32),y)
 LDLIBS += -lgcc_s
 endif

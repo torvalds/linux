@@ -3,14 +3,14 @@
  * Framebuffer driver for EFI/UEFI based system
  *
  * (c) 2006 Edgar Hucek <gimli@dark-green.com>
- * Original efi driver written by Gerd Knorr <kraxel@goldbach.in-berlin.de>
+ * Original efi driver written by Gerd Kyesrr <kraxel@goldbach.in-berlin.de>
  *
  */
 
 #include <linux/kernel.h>
 #include <linux/efi.h>
 #include <linux/efi-bgrt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -64,7 +64,7 @@ static struct fb_fix_screeninfo efifb_fix = {
 	.visual			= FB_VISUAL_TRUECOLOR,
 };
 
-static int efifb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int efifb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
@@ -72,17 +72,17 @@ static int efifb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	 *  Set a single color register. The values supplied are
 	 *  already rounded down to the hardware's capabilities
 	 *  (according to the entries in the `var' structure). Return
-	 *  != 0 for invalid regno.
+	 *  != 0 for invalid regyes.
 	 */
 
-	if (regno >= info->cmap.len)
+	if (regyes >= info->cmap.len)
 		return 1;
 
-	if (regno < 16) {
+	if (regyes < 16) {
 		red   >>= 16 - info->var.red.length;
 		green >>= 16 - info->var.green.length;
 		blue  >>= 16 - info->var.blue.length;
-		((u32 *)(info->pseudo_palette))[regno] =
+		((u32 *)(info->pseudo_palette))[regyes] =
 			(red   << info->var.red.offset)   |
 			(green << info->var.green.offset) |
 			(blue  << info->var.blue.offset);
@@ -114,7 +114,7 @@ static void efifb_copy_bmp(u8 *src, u32 *dst, int width, struct screen_info *si)
 
 #ifdef CONFIG_X86
 /*
- * On x86 some firmwares use a low non native resolution for the display when
+ * On x86 some firmwares use a low yesn native resolution for the display when
  * they have shown some text messages. While keeping the bgrt filled with info
  * for the native resolution. If the bgrt image intended for the native
  * resolution still fits, it will be displayed very close to the right edge of
@@ -150,12 +150,12 @@ static void efifb_show_boot_graphics(struct fb_info *info)
 		return;
 
 	if (!bgrt_tab.image_address) {
-		pr_info("efifb: No BGRT, not showing boot graphics\n");
+		pr_info("efifb: No BGRT, yest showing boot graphics\n");
 		return;
 	}
 
 	if (bgrt_tab.status & 0x06) {
-		pr_info("efifb: BGRT rotation bits set, not showing boot graphics\n");
+		pr_info("efifb: BGRT rotation bits set, yest showing boot graphics\n");
 		return;
 	}
 
@@ -166,14 +166,14 @@ static void efifb_show_boot_graphics(struct fb_info *info)
 	/* bgrt_tab.status is unreliable, so we don't check it */
 
 	if (si->lfb_depth != 32) {
-		pr_info("efifb: not 32 bits, not showing boot graphics\n");
+		pr_info("efifb: yest 32 bits, yest showing boot graphics\n");
 		return;
 	}
 
 	bgrt_image = memremap(bgrt_tab.image_address, bgrt_image_size,
 			      MEMREMAP_WB);
 	if (!bgrt_image) {
-		pr_warn("efifb: Ignoring BGRT: failed to map image memory\n");
+		pr_warn("efifb: Igyesring BGRT: failed to map image memory\n");
 		return;
 	}
 
@@ -235,7 +235,7 @@ static void efifb_show_boot_graphics(struct fb_info *info)
 
 error:
 	memunmap(bgrt_image);
-	pr_warn("efifb: Ignoring BGRT: unexpected or invalid BMP data\n");
+	pr_warn("efifb: Igyesring BGRT: unexpected or invalid BMP data\n");
 }
 #else
 static inline void efifb_show_boot_graphics(struct fb_info *info) {}
@@ -282,9 +282,9 @@ static int efifb_setup(char *options)
 				screen_info.lfb_height = simple_strtoul(this_opt+7, NULL, 0);
 			else if (!strncmp(this_opt, "width:", 6))
 				screen_info.lfb_width = simple_strtoul(this_opt+6, NULL, 0);
-			else if (!strcmp(this_opt, "nowc"))
+			else if (!strcmp(this_opt, "yeswc"))
 				mem_flags &= ~EFI_MEMORY_WC;
-			else if (!strcmp(this_opt, "nobgrt"))
+			else if (!strcmp(this_opt, "yesbgrt"))
 				use_bgrt = false;
 		}
 	}
@@ -355,7 +355,7 @@ static int efifb_probe(struct platform_device *dev)
 	efifb_setup(option);
 
 	/* We don't get linelength from UGA Draw Protocol, only from
-	 * EFI Graphics Protocol.  So if it's not in DMI, and it's not
+	 * EFI Graphics Protocol.  So if it's yest in DMI, and it's yest
 	 * passed in from the user, we really can't use the framebuffer.
 	 */
 	if (!screen_info.lfb_linelength)
@@ -417,7 +417,7 @@ static int efifb_probe(struct platform_device *dev)
 		size_total = size_vmode;
 
 	/*   size_remap -- the amount of video memory we are going to
-	 *                 use for efifb.  With modern cards it is no
+	 *                 use for efifb.  With modern cards it is yes
 	 *                 option to simply use size_total as that
 	 *                 wastes plenty of kernel address space. */
 	size_remap  = size_vmode * 2;
@@ -430,9 +430,9 @@ static int efifb_probe(struct platform_device *dev)
 	if (request_mem_region(efifb_fix.smem_start, size_remap, "efifb")) {
 		request_mem_succeeded = true;
 	} else {
-		/* We cannot make this fatal. Sometimes this comes from magic
-		   spaces our resource handlers simply don't know about */
-		pr_warn("efifb: cannot reserve video memory at 0x%lx\n",
+		/* We canyest make this fatal. Sometimes this comes from magic
+		   spaces our resource handlers simply don't kyesw about */
+		pr_warn("efifb: canyest reserve video memory at 0x%lx\n",
 			efifb_fix.smem_start);
 	}
 
@@ -486,7 +486,7 @@ static int efifb_probe(struct platform_device *dev)
 		info->screen_base = memremap(efifb_fix.smem_start,
 					     efifb_fix.smem_len, MEMREMAP_WB);
 	if (!info->screen_base) {
-		pr_err("efifb: abort, cannot remap video memory 0x%x @ 0x%lx\n",
+		pr_err("efifb: abort, canyest remap video memory 0x%x @ 0x%lx\n",
 			efifb_fix.smem_len, efifb_fix.smem_start);
 		err = -EIO;
 		goto err_release_fb;
@@ -561,17 +561,17 @@ static int efifb_probe(struct platform_device *dev)
 
 	err = sysfs_create_groups(&dev->dev.kobj, efifb_groups);
 	if (err) {
-		pr_err("efifb: cannot add sysfs attrs\n");
+		pr_err("efifb: canyest add sysfs attrs\n");
 		goto err_unmap;
 	}
 	err = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (err < 0) {
-		pr_err("efifb: cannot allocate colormap\n");
+		pr_err("efifb: canyest allocate colormap\n");
 		goto err_groups;
 	}
 	err = register_framebuffer(info);
 	if (err < 0) {
-		pr_err("efifb: cannot register framebuffer\n");
+		pr_err("efifb: canyest register framebuffer\n");
 		goto err_fb_dealoc;
 	}
 	fb_info(info, "%s frame buffer device\n", info->fix.id);

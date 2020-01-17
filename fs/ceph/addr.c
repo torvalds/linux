@@ -28,26 +28,26 @@
  * snapshot the page was logically dirtied in, and thus which snap
  * context needs to be associated with the osd write during writeback.
  *
- * Similarly, struct ceph_inode_info maintains a set of counters to
- * count dirty pages on the inode.  In the absence of snapshots,
+ * Similarly, struct ceph_iyesde_info maintains a set of counters to
+ * count dirty pages on the iyesde.  In the absence of snapshots,
  * i_wrbuffer_ref == i_wrbuffer_ref_head == the dirty page count.
  *
  * When a snapshot is taken (that is, when the client receives
- * notification that a snapshot was taken), each inode with caps and
+ * yestification that a snapshot was taken), each iyesde with caps and
  * with dirty pages (dirty pages implies there is a cap) gets a new
  * ceph_cap_snap in the i_cap_snaps list (which is sorted in ascending
  * order, new snaps go to the tail).  The i_wrbuffer_ref_head count is
  * moved to capsnap->dirty. (Unless a sync write is currently in
  * progress.  In that case, the capsnap is said to be "pending", new
- * writes cannot start, and the capsnap isn't "finalized" until the
- * write completes (or fails) and a final size/mtime for the inode for
+ * writes canyest start, and the capsnap isn't "finalized" until the
+ * write completes (or fails) and a final size/mtime for the iyesde for
  * that snap can be settled upon.)  i_wrbuffer_ref_head is reset to 0.
  *
  * On writeback, we must submit writes to the osd IN SNAP ORDER.  So,
  * we look for the first capsnap in i_cap_snaps and write out pages in
  * that snap context _only_.  Then we move on to the next capsnap,
  * eventually reaching the "live" or "head" context (i.e., pages that
- * are not yet snapped) and are writing the most recently dirtied
+ * are yest yet snapped) and are writing the most recently dirtied
  * pages.
  *
  * Invalidate and so forth must take care to ensure the dirty page
@@ -73,8 +73,8 @@ static inline struct ceph_snap_context *page_snap_context(struct page *page)
 static int ceph_set_page_dirty(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
-	struct inode *inode;
-	struct ceph_inode_info *ci;
+	struct iyesde *iyesde;
+	struct ceph_iyesde_info *ci;
 	struct ceph_snap_context *snapc;
 	int ret;
 
@@ -88,8 +88,8 @@ static int ceph_set_page_dirty(struct page *page)
 		return 0;
 	}
 
-	inode = mapping->host;
-	ci = ceph_inode(inode);
+	iyesde = mapping->host;
+	ci = ceph_iyesde(iyesde);
 
 	/* dirty the head */
 	spin_lock(&ci->i_ceph_lock);
@@ -107,7 +107,7 @@ static int ceph_set_page_dirty(struct page *page)
 		++ci->i_wrbuffer_ref_head;
 	}
 	if (ci->i_wrbuffer_ref == 0)
-		ihold(inode);
+		ihold(iyesde);
 	++ci->i_wrbuffer_ref;
 	dout("%p set_page_dirty %p idx %lu head %d/%d -> %d/%d "
 	     "snapc %p seq %lld (%d snaps)\n",
@@ -125,7 +125,7 @@ static int ceph_set_page_dirty(struct page *page)
 	page->private = (unsigned long)snapc;
 	SetPagePrivate(page);
 
-	ret = __set_page_dirty_nobuffers(page);
+	ret = __set_page_dirty_yesbuffers(page);
 	WARN_ON(!PageLocked(page));
 	WARN_ON(!page->mapping);
 
@@ -140,20 +140,20 @@ static int ceph_set_page_dirty(struct page *page)
 static void ceph_invalidatepage(struct page *page, unsigned int offset,
 				unsigned int length)
 {
-	struct inode *inode;
-	struct ceph_inode_info *ci;
+	struct iyesde *iyesde;
+	struct ceph_iyesde_info *ci;
 	struct ceph_snap_context *snapc = page_snap_context(page);
 
-	inode = page->mapping->host;
-	ci = ceph_inode(inode);
+	iyesde = page->mapping->host;
+	ci = ceph_iyesde(iyesde);
 
 	if (offset != 0 || length != PAGE_SIZE) {
 		dout("%p invalidatepage %p idx %lu partial dirty page %u~%u\n",
-		     inode, page, page->index, offset, length);
+		     iyesde, page, page->index, offset, length);
 		return;
 	}
 
-	ceph_invalidate_fscache_page(inode, page);
+	ceph_invalidate_fscache_page(iyesde, page);
 
 	WARN_ON(!PageLocked(page));
 	if (!PagePrivate(page))
@@ -162,7 +162,7 @@ static void ceph_invalidatepage(struct page *page, unsigned int offset,
 	ClearPageChecked(page);
 
 	dout("%p invalidatepage %p idx %lu full dirty page\n",
-	     inode, page, page->index);
+	     iyesde, page, page->index);
 
 	ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
 	ceph_put_snap_context(snapc);
@@ -173,7 +173,7 @@ static void ceph_invalidatepage(struct page *page, unsigned int offset,
 static int ceph_releasepage(struct page *page, gfp_t g)
 {
 	dout("%p releasepage %p idx %lu (%sdirty)\n", page->mapping->host,
-	     page, page->index, PageDirty(page) ? "" : "not ");
+	     page, page->index, PageDirty(page) ? "" : "yest ");
 
 	/* Can we release the page from the cache? */
 	if (!ceph_release_fscache_page(page, g))
@@ -187,14 +187,14 @@ static int ceph_releasepage(struct page *page, gfp_t g)
  */
 static int ceph_do_readpage(struct file *filp, struct page *page)
 {
-	struct inode *inode = file_inode(filp);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
 	int err = 0;
 	u64 off = page_offset(page);
 	u64 len = PAGE_SIZE;
 
-	if (off >= i_size_read(inode)) {
+	if (off >= i_size_read(iyesde)) {
 		zero_user_segment(page, 0, PAGE_SIZE);
 		SetPageUptodate(page);
 		return 0;
@@ -212,13 +212,13 @@ static int ceph_do_readpage(struct file *filp, struct page *page)
 		return 0;
 	}
 
-	err = ceph_readpage_from_fscache(inode, page);
+	err = ceph_readpage_from_fscache(iyesde, page);
 	if (err == 0)
 		return -EINPROGRESS;
 
-	dout("readpage inode %p file %p page %p index %lu\n",
-	     inode, filp, page, page->index);
-	err = ceph_osdc_readpages(&fsc->client->osdc, ceph_vino(inode),
+	dout("readpage iyesde %p file %p page %p index %lu\n",
+	     iyesde, filp, page, page->index);
+	err = ceph_osdc_readpages(&fsc->client->osdc, ceph_viyes(iyesde),
 				  &ci->i_layout, off, &len,
 				  ci->i_truncate_seq, ci->i_truncate_size,
 				  &page, 1, 0);
@@ -226,7 +226,7 @@ static int ceph_do_readpage(struct file *filp, struct page *page)
 		err = 0;
 	if (err < 0) {
 		SetPageError(page);
-		ceph_fscache_readpage_cancel(inode, page);
+		ceph_fscache_readpage_cancel(iyesde, page);
 		if (err == -EBLACKLISTED)
 			fsc->blacklisted = true;
 		goto out;
@@ -238,7 +238,7 @@ static int ceph_do_readpage(struct file *filp, struct page *page)
 		flush_dcache_page(page);
 
 	SetPageUptodate(page);
-	ceph_readpage_to_fscache(inode, page);
+	ceph_readpage_to_fscache(iyesde, page);
 
 out:
 	return err < 0 ? err : 0;
@@ -259,16 +259,16 @@ static int ceph_readpage(struct file *filp, struct page *page)
  */
 static void finish_read(struct ceph_osd_request *req)
 {
-	struct inode *inode = req->r_inode;
+	struct iyesde *iyesde = req->r_iyesde;
 	struct ceph_osd_data *osd_data;
 	int rc = req->r_result <= 0 ? req->r_result : 0;
 	int bytes = req->r_result >= 0 ? req->r_result : 0;
 	int num_pages;
 	int i;
 
-	dout("finish_read %p req %p rc %d bytes %d\n", inode, req, rc, bytes);
+	dout("finish_read %p req %p rc %d bytes %d\n", iyesde, req, rc, bytes);
 	if (rc == -EBLACKLISTED)
-		ceph_inode_to_client(inode)->blacklisted = true;
+		ceph_iyesde_to_client(iyesde)->blacklisted = true;
 
 	/* unlock all pages, zeroing any data we didn't read */
 	osd_data = osd_req_op_extent_osd_data(req, 0);
@@ -279,7 +279,7 @@ static void finish_read(struct ceph_osd_request *req)
 		struct page *page = osd_data->pages[i];
 
 		if (rc < 0 && rc != -ENOENT) {
-			ceph_fscache_readpage_cancel(inode, page);
+			ceph_fscache_readpage_cancel(iyesde, page);
 			goto unlock;
 		}
 		if (bytes < (int)PAGE_SIZE) {
@@ -287,11 +287,11 @@ static void finish_read(struct ceph_osd_request *req)
 			int s = bytes < 0 ? 0 : bytes;
 			zero_user_segment(page, s, PAGE_SIZE);
 		}
- 		dout("finish_read %p uptodate %p idx %lu\n", inode, page,
+ 		dout("finish_read %p uptodate %p idx %lu\n", iyesde, page,
 		     page->index);
 		flush_dcache_page(page);
 		SetPageUptodate(page);
-		ceph_readpage_to_fscache(inode, page);
+		ceph_readpage_to_fscache(iyesde, page);
 unlock:
 		unlock_page(page);
 		put_page(page);
@@ -304,14 +304,14 @@ unlock:
  * start an async read(ahead) operation.  return nr_pages we submitted
  * a read for on success, or negative error code.
  */
-static int start_read(struct inode *inode, struct ceph_rw_context *rw_ctx,
+static int start_read(struct iyesde *iyesde, struct ceph_rw_context *rw_ctx,
 		      struct list_head *page_list, int max)
 {
 	struct ceph_osd_client *osdc =
-		&ceph_inode_to_client(inode)->client->osdc;
-	struct ceph_inode_info *ci = ceph_inode(inode);
+		&ceph_iyesde_to_client(iyesde)->client->osdc;
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	struct page *page = lru_to_page(page_list);
-	struct ceph_vino vino;
+	struct ceph_viyes viyes;
 	struct ceph_osd_request *req;
 	u64 off;
 	u64 len;
@@ -323,15 +323,15 @@ static int start_read(struct inode *inode, struct ceph_rw_context *rw_ctx,
 	int ret = 0;
 
 	if (!rw_ctx) {
-		/* caller of readpages does not hold buffer and read caps
+		/* caller of readpages does yest hold buffer and read caps
 		 * (fadvise, madvise and readahead cases) */
 		int want = CEPH_CAP_FILE_CACHE;
-		ret = ceph_try_get_caps(inode, CEPH_CAP_FILE_RD, want,
+		ret = ceph_try_get_caps(iyesde, CEPH_CAP_FILE_RD, want,
 					true, &got);
 		if (ret < 0) {
-			dout("start_read %p, error getting cap\n", inode);
+			dout("start_read %p, error getting cap\n", iyesde);
 		} else if (!(got & want)) {
-			dout("start_read %p, no cache cap\n", inode);
+			dout("start_read %p, yes cache cap\n", iyesde);
 			ret = 0;
 		}
 		if (ret <= 0) {
@@ -359,10 +359,10 @@ static int start_read(struct inode *inode, struct ceph_rw_context *rw_ctx,
 			break;
 	}
 	len = nr_pages << PAGE_SHIFT;
-	dout("start_read %p nr_pages %d is %lld~%lld\n", inode, nr_pages,
+	dout("start_read %p nr_pages %d is %lld~%lld\n", iyesde, nr_pages,
 	     off, len);
-	vino = ceph_vino(inode);
-	req = ceph_osdc_new_request(osdc, &ci->i_layout, vino, off, &len,
+	viyes = ceph_viyes(iyesde);
+	req = ceph_osdc_new_request(osdc, &ci->i_layout, viyes, off, &len,
 				    0, 1, CEPH_OSD_OP_READ,
 				    CEPH_OSD_FLAG_READ, NULL,
 				    ci->i_truncate_seq, ci->i_truncate_size,
@@ -384,14 +384,14 @@ static int start_read(struct inode *inode, struct ceph_rw_context *rw_ctx,
 		BUG_ON(PageLocked(page));
 		list_del(&page->lru);
 
- 		dout("start_read %p adding %p idx %lu\n", inode, page,
+ 		dout("start_read %p adding %p idx %lu\n", iyesde, page,
 		     page->index);
-		if (add_to_page_cache_lru(page, &inode->i_data, page->index,
+		if (add_to_page_cache_lru(page, &iyesde->i_data, page->index,
 					  GFP_KERNEL)) {
-			ceph_fscache_uncache_page(inode, page);
+			ceph_fscache_uncache_page(iyesde, page);
 			put_page(page);
 			dout("start_read %p add_to_page_cache failed %p\n",
-			     inode, page);
+			     iyesde, page);
 			nr_pages = i;
 			if (nr_pages > 0) {
 				len = nr_pages << PAGE_SHIFT;
@@ -404,15 +404,15 @@ static int start_read(struct inode *inode, struct ceph_rw_context *rw_ctx,
 	}
 	osd_req_op_extent_osd_data_pages(req, 0, pages, len, 0, false, false);
 	req->r_callback = finish_read;
-	req->r_inode = inode;
+	req->r_iyesde = iyesde;
 
-	dout("start_read %p starting %p %lld~%lld\n", inode, req, off, len);
+	dout("start_read %p starting %p %lld~%lld\n", iyesde, req, off, len);
 	ret = ceph_osdc_start_request(osdc, req, false);
 	if (ret < 0)
 		goto out_pages;
 	ceph_osdc_put_request(req);
 
-	/* After adding locked pages to page cache, the inode holds cache cap.
+	/* After adding locked pages to page cache, the iyesde holds cache cap.
 	 * So we can drop our cap refs. */
 	if (got)
 		ceph_put_cap_refs(ci, got);
@@ -421,7 +421,7 @@ static int start_read(struct inode *inode, struct ceph_rw_context *rw_ctx,
 
 out_pages:
 	for (i = 0; i < nr_pages; ++i) {
-		ceph_fscache_readpage_cancel(inode, pages[i]);
+		ceph_fscache_readpage_cancel(iyesde, pages[i]);
 		unlock_page(pages[i]);
 	}
 	ceph_put_page_vector(pages, nr_pages, false);
@@ -441,14 +441,14 @@ out:
 static int ceph_readpages(struct file *file, struct address_space *mapping,
 			  struct list_head *page_list, unsigned nr_pages)
 {
-	struct inode *inode = file_inode(file);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
 	struct ceph_file_info *fi = file->private_data;
 	struct ceph_rw_context *rw_ctx;
 	int rc = 0;
 	int max = 0;
 
-	if (ceph_inode(inode)->i_inline_version != CEPH_INLINE_NONE)
+	if (ceph_iyesde(iyesde)->i_inline_version != CEPH_INLINE_NONE)
 		return -EINVAL;
 
 	rc = ceph_readpages_from_fscache(mapping->host, mapping, page_list,
@@ -460,16 +460,16 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 	rw_ctx = ceph_find_rw_context(fi);
 	max = fsc->mount_options->rsize >> PAGE_SHIFT;
 	dout("readpages %p file %p ctx %p nr_pages %d max %d\n",
-	     inode, file, rw_ctx, nr_pages, max);
+	     iyesde, file, rw_ctx, nr_pages, max);
 	while (!list_empty(page_list)) {
-		rc = start_read(inode, rw_ctx, page_list, max);
+		rc = start_read(iyesde, rw_ctx, page_list, max);
 		if (rc < 0)
 			goto out;
 	}
 out:
-	ceph_fscache_readpages_cancel(inode, page_list);
+	ceph_fscache_readpages_cancel(iyesde, page_list);
 
-	dout("readpages %p file %p ret %d\n", inode, file, rc);
+	dout("readpages %p file %p ret %d\n", iyesde, file, rc);
 	return rc;
 }
 
@@ -483,14 +483,14 @@ struct ceph_writeback_ctl
 };
 
 /*
- * Get ref for the oldest snapc for an inode with dirty data... that is, the
+ * Get ref for the oldest snapc for an iyesde with dirty data... that is, the
  * only snap context we are allowed to write back.
  */
 static struct ceph_snap_context *
-get_oldest_context(struct inode *inode, struct ceph_writeback_ctl *ctl,
+get_oldest_context(struct iyesde *iyesde, struct ceph_writeback_ctl *ctl,
 		   struct ceph_snap_context *page_snapc)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	struct ceph_snap_context *snapc = NULL;
 	struct ceph_cap_snap *capsnap = NULL;
 
@@ -507,7 +507,7 @@ get_oldest_context(struct inode *inode, struct ceph_writeback_ctl *ctl,
 
 		if (ctl) {
 			if (capsnap->writing) {
-				ctl->i_size = i_size_read(inode);
+				ctl->i_size = i_size_read(iyesde);
 				ctl->size_stable = false;
 			} else {
 				ctl->i_size = capsnap->size;
@@ -532,7 +532,7 @@ get_oldest_context(struct inode *inode, struct ceph_writeback_ctl *ctl,
 		dout(" head snapc %p has %d dirty pages\n",
 		     snapc, ci->i_wrbuffer_ref_head);
 		if (ctl) {
-			ctl->i_size = i_size_read(inode);
+			ctl->i_size = i_size_read(iyesde);
 			ctl->truncate_size = ci->i_truncate_size;
 			ctl->truncate_seq = ci->i_truncate_seq;
 			ctl->size_stable = false;
@@ -543,13 +543,13 @@ get_oldest_context(struct inode *inode, struct ceph_writeback_ctl *ctl,
 	return snapc;
 }
 
-static u64 get_writepages_data_length(struct inode *inode,
+static u64 get_writepages_data_length(struct iyesde *iyesde,
 				      struct page *page, u64 start)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	struct ceph_snap_context *snapc = page_snap_context(page);
 	struct ceph_cap_snap *capsnap = NULL;
-	u64 end = i_size_read(inode);
+	u64 end = i_size_read(iyesde);
 
 	if (snapc != ci->i_head_snapc) {
 		bool found = false;
@@ -574,12 +574,12 @@ static u64 get_writepages_data_length(struct inode *inode,
  * Write a single page, but leave the page locked.
  *
  * If we get a write error, mark the mapping for error, but still adjust the
- * dirty page accounting (i.e., page is no longer dirty).
+ * dirty page accounting (i.e., page is yes longer dirty).
  */
-static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
+static int writepage_yesunlock(struct page *page, struct writeback_control *wbc)
 {
-	struct inode *inode;
-	struct ceph_inode_info *ci;
+	struct iyesde *iyesde;
+	struct ceph_iyesde_info *ci;
 	struct ceph_fs_client *fsc;
 	struct ceph_snap_context *snapc, *oldest;
 	loff_t page_off = page_offset(page);
@@ -588,21 +588,21 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 
 	dout("writepage %p idx %lu\n", page, page->index);
 
-	inode = page->mapping->host;
-	ci = ceph_inode(inode);
-	fsc = ceph_inode_to_client(inode);
+	iyesde = page->mapping->host;
+	ci = ceph_iyesde(iyesde);
+	fsc = ceph_iyesde_to_client(iyesde);
 
 	/* verify this is a writeable snap context */
 	snapc = page_snap_context(page);
 	if (!snapc) {
-		dout("writepage %p page %p not dirty?\n", inode, page);
+		dout("writepage %p page %p yest dirty?\n", iyesde, page);
 		return 0;
 	}
-	oldest = get_oldest_context(inode, &ceph_wbc, snapc);
+	oldest = get_oldest_context(iyesde, &ceph_wbc, snapc);
 	if (snapc->seq > oldest->seq) {
-		dout("writepage %p page %p snapc %p not writeable - noop\n",
-		     inode, page, snapc);
-		/* we should only noop if called by kswapd */
+		dout("writepage %p page %p snapc %p yest writeable - yesop\n",
+		     iyesde, page, snapc);
+		/* we should only yesop if called by kswapd */
 		WARN_ON(!(current->flags & PF_MEMALLOC));
 		ceph_put_snap_context(oldest);
 		redirty_page_for_writepage(wbc, page);
@@ -621,18 +621,18 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 		len = ceph_wbc.i_size - page_off;
 
 	dout("writepage %p page %p index %lu on %llu~%u snapc %p seq %lld\n",
-	     inode, page, page->index, page_off, len, snapc, snapc->seq);
+	     iyesde, page, page->index, page_off, len, snapc, snapc->seq);
 
 	if (atomic_long_inc_return(&fsc->writeback_count) >
 	    CONGESTION_ON_THRESH(fsc->mount_options->congestion_kb))
-		set_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
+		set_bdi_congested(iyesde_to_bdi(iyesde), BLK_RW_ASYNC);
 
 	set_page_writeback(page);
-	err = ceph_osdc_writepages(&fsc->client->osdc, ceph_vino(inode),
+	err = ceph_osdc_writepages(&fsc->client->osdc, ceph_viyes(iyesde),
 				   &ci->i_layout, snapc, page_off, len,
 				   ceph_wbc.truncate_seq,
 				   ceph_wbc.truncate_size,
-				   &inode->i_mtime, &page, 1);
+				   &iyesde->i_mtime, &page, 1);
 	if (err < 0) {
 		struct writeback_control tmp_wbc;
 		if (!wbc)
@@ -648,7 +648,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 			fsc->blacklisted = true;
 		dout("writepage setting page/mapping error %d %p\n",
 		     err, page);
-		mapping_set_error(&inode->i_data, err);
+		mapping_set_error(&iyesde->i_data, err);
 		wbc->pages_skipped++;
 	} else {
 		dout("writepage cleaned page %p\n", page);
@@ -662,7 +662,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 
 	if (atomic_long_dec_return(&fsc->writeback_count) <
 	    CONGESTION_OFF_THRESH(fsc->mount_options->congestion_kb))
-		clear_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
+		clear_bdi_congested(iyesde_to_bdi(iyesde), BLK_RW_ASYNC);
 
 	return err;
 }
@@ -670,41 +670,41 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 static int ceph_writepage(struct page *page, struct writeback_control *wbc)
 {
 	int err;
-	struct inode *inode = page->mapping->host;
-	BUG_ON(!inode);
-	ihold(inode);
-	err = writepage_nounlock(page, wbc);
+	struct iyesde *iyesde = page->mapping->host;
+	BUG_ON(!iyesde);
+	ihold(iyesde);
+	err = writepage_yesunlock(page, wbc);
 	if (err == -ERESTARTSYS) {
 		/* direct memory reclaimer was killed by SIGKILL. return 0
 		 * to prevent caller from setting mapping/page error */
 		err = 0;
 	}
 	unlock_page(page);
-	iput(inode);
+	iput(iyesde);
 	return err;
 }
 
 /*
  * async writeback completion handler.
  *
- * If we get an error, set the mapping error bit, but not the individual
+ * If we get an error, set the mapping error bit, but yest the individual
  * page error bits.
  */
 static void writepages_finish(struct ceph_osd_request *req)
 {
-	struct inode *inode = req->r_inode;
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct iyesde *iyesde = req->r_iyesde;
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	struct ceph_osd_data *osd_data;
 	struct page *page;
 	int num_pages, total_pages = 0;
 	int i, j;
 	int rc = req->r_result;
 	struct ceph_snap_context *snapc = req->r_snapc;
-	struct address_space *mapping = inode->i_mapping;
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct address_space *mapping = iyesde->i_mapping;
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
 	bool remove_page;
 
-	dout("writepages_finish %p rc %d\n", inode, rc);
+	dout("writepages_finish %p rc %d\n", iyesde, rc);
 	if (rc < 0) {
 		mapping_set_error(mapping, rc);
 		ceph_set_error_write(ci);
@@ -741,7 +741,7 @@ static void writepages_finish(struct ceph_osd_request *req)
 			if (atomic_long_dec_return(&fsc->writeback_count) <
 			     CONGESTION_OFF_THRESH(
 					fsc->mount_options->congestion_kb))
-				clear_bdi_congested(inode_to_bdi(inode),
+				clear_bdi_congested(iyesde_to_bdi(iyesde),
 						    BLK_RW_ASYNC);
 
 			ceph_put_snap_context(page_snap_context(page));
@@ -751,13 +751,13 @@ static void writepages_finish(struct ceph_osd_request *req)
 			end_page_writeback(page);
 
 			if (remove_page)
-				generic_error_remove_page(inode->i_mapping,
+				generic_error_remove_page(iyesde->i_mapping,
 							  page);
 
 			unlock_page(page);
 		}
 		dout("writepages_finish %p wrote %llu bytes cleaned %d pages\n",
-		     inode, osd_data->length, rc >= 0 ? num_pages : 0);
+		     iyesde, osd_data->length, rc >= 0 ? num_pages : 0);
 
 		release_pages(osd_data->pages, num_pages);
 	}
@@ -767,7 +767,7 @@ static void writepages_finish(struct ceph_osd_request *req)
 	osd_data = osd_req_op_extent_osd_data(req, 0);
 	if (osd_data->pages_from_pool)
 		mempool_free(osd_data->pages,
-			     ceph_sb_to_client(inode->i_sb)->wb_pagevec_pool);
+			     ceph_sb_to_client(iyesde->i_sb)->wb_pagevec_pool);
 	else
 		kfree(osd_data->pages);
 	ceph_osdc_put_request(req);
@@ -779,21 +779,21 @@ static void writepages_finish(struct ceph_osd_request *req)
 static int ceph_writepages_start(struct address_space *mapping,
 				 struct writeback_control *wbc)
 {
-	struct inode *inode = mapping->host;
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
-	struct ceph_vino vino = ceph_vino(inode);
+	struct iyesde *iyesde = mapping->host;
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
+	struct ceph_viyes viyes = ceph_viyes(iyesde);
 	pgoff_t index, start_index, end = -1;
 	struct ceph_snap_context *snapc = NULL, *last_snapc = NULL, *pgsnapc;
 	struct pagevec pvec;
 	int rc = 0;
-	unsigned int wsize = i_blocksize(inode);
+	unsigned int wsize = i_blocksize(iyesde);
 	struct ceph_osd_request *req = NULL;
 	struct ceph_writeback_ctl ceph_wbc;
 	bool should_loop, range_whole = false;
 	bool done = false;
 
-	dout("writepages_start %p (mode=%s)\n", inode,
+	dout("writepages_start %p (mode=%s)\n", iyesde,
 	     wbc->sync_mode == WB_SYNC_NONE ? "NONE" :
 	     (wbc->sync_mode == WB_SYNC_ALL ? "ALL" : "HOLD"));
 
@@ -801,7 +801,7 @@ static int ceph_writepages_start(struct address_space *mapping,
 		if (ci->i_wrbuffer_ref > 0) {
 			pr_warn_ratelimited(
 				"writepage_start %p %lld forced umount\n",
-				inode, ceph_ino(inode));
+				iyesde, ceph_iyes(iyesde));
 		}
 		mapping_set_error(mapping, -EIO);
 		return -EIO; /* we're in a forced umount, don't write! */
@@ -816,11 +816,11 @@ static int ceph_writepages_start(struct address_space *mapping,
 
 retry:
 	/* find oldest snap context with dirty data */
-	snapc = get_oldest_context(inode, &ceph_wbc, NULL);
+	snapc = get_oldest_context(iyesde, &ceph_wbc, NULL);
 	if (!snapc) {
 		/* hmm, why does writepages get called when there
-		   is no dirty data? */
-		dout(" no snap context with dirty data?\n");
+		   is yes dirty data? */
+		dout(" yes snap context with dirty data?\n");
 		goto out;
 	}
 	dout(" oldest snapc is %p seq %lld (%d snaps)\n",
@@ -840,16 +840,16 @@ retry:
 			end = wbc->range_end >> PAGE_SHIFT;
 			if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
 				range_whole = true;
-			dout(" not cyclic, %lu to %lu\n", index, end);
+			dout(" yest cyclic, %lu to %lu\n", index, end);
 		}
 	} else if (!ceph_wbc.head_snapc) {
-		/* Do not respect wbc->range_{start,end}. Dirty pages
+		/* Do yest respect wbc->range_{start,end}. Dirty pages
 		 * in that range can be associated with newer snapc.
-		 * They are not writeable until we write all dirty pages
+		 * They are yest writeable until we write all dirty pages
 		 * associated with 'snapc' get written */
 		if (index > 0)
 			should_loop = true;
-		dout(" non-head snapc, range whole\n");
+		dout(" yesn-head snapc, range whole\n");
 	}
 
 	ceph_put_snap_context(last_snapc);
@@ -859,7 +859,7 @@ retry:
 		int num_ops = 0, op_idx;
 		unsigned i, pvec_pages, max_pages, locked_pages = 0;
 		struct page **pages = NULL, **data_pages;
-		mempool_t *pool = NULL;	/* Becomes non-null if mempool used */
+		mempool_t *pool = NULL;	/* Becomes yesn-null if mempool used */
 		struct page *page;
 		pgoff_t strip_unit_end = 0;
 		u64 offset = 0, len = 0;
@@ -904,7 +904,7 @@ get_more_pages:
 				dout("%p page eof %llu\n",
 				     page, ceph_wbc.i_size);
 				if ((ceph_wbc.size_stable ||
-				    page_offset(page) >= i_size_read(inode)) &&
+				    page_offset(page) >= i_size_read(iyesde)) &&
 				    clear_page_dirty_for_io(page))
 					mapping->a_ops->invalidatepage(page,
 								0, PAGE_SIZE);
@@ -981,14 +981,14 @@ get_more_pages:
 				len = 0;
 			}
 
-			/* note position of first page in pvec */
+			/* yeste position of first page in pvec */
 			dout("%p will write page %p idx %lu\n",
-			     inode, page, page->index);
+			     iyesde, page, page->index);
 
 			if (atomic_long_inc_return(&fsc->writeback_count) >
 			    CONGESTION_ON_THRESH(
 				    fsc->mount_options->congestion_kb)) {
-				set_bdi_congested(inode_to_bdi(inode),
+				set_bdi_congested(iyesde_to_bdi(iyesde),
 						  BLK_RW_ASYNC);
 			}
 
@@ -1027,14 +1027,14 @@ new_request:
 		len = wsize;
 
 		req = ceph_osdc_new_request(&fsc->client->osdc,
-					&ci->i_layout, vino,
+					&ci->i_layout, viyes,
 					offset, &len, 0, num_ops,
 					CEPH_OSD_OP_WRITE, CEPH_OSD_FLAG_WRITE,
 					snapc, ceph_wbc.truncate_seq,
 					ceph_wbc.truncate_size, false);
 		if (IS_ERR(req)) {
 			req = ceph_osdc_new_request(&fsc->client->osdc,
-						&ci->i_layout, vino,
+						&ci->i_layout, viyes,
 						offset, &len, 0,
 						min(num_ops,
 						    CEPH_OSD_SLAB_OPS),
@@ -1048,7 +1048,7 @@ new_request:
 			     PAGE_SIZE - offset);
 
 		req->r_callback = writepages_finish;
-		req->r_inode = inode;
+		req->r_iyesde = iyesde;
 
 		/* Format the osd request message and submit the write */
 		len = 0;
@@ -1085,7 +1085,7 @@ new_request:
 			 * according to the data length, so make sure
 			 * data length covers all locked pages */
 			u64 min_len = len + 1 - PAGE_SIZE;
-			len = get_writepages_data_length(inode, pages[i - 1],
+			len = get_writepages_data_length(iyesde, pages[i - 1],
 							 offset);
 			len = max(len, min_len);
 		}
@@ -1119,11 +1119,11 @@ new_request:
 		} else {
 			BUG_ON(num_ops != req->r_num_ops);
 			index = pages[i - 1]->index + 1;
-			/* request message now owns the pages array */
+			/* request message yesw owns the pages array */
 			pages = NULL;
 		}
 
-		req->r_mtime = inode->i_mtime;
+		req->r_mtime = iyesde->i_mtime;
 		rc = ceph_osdc_start_request(&fsc->client->osdc, req, true);
 		BUG_ON(rc);
 		req = NULL;
@@ -1133,7 +1133,7 @@ new_request:
 			goto new_request;
 
 		/*
-		 * We stop writing back only if we are not doing
+		 * We stop writing back only if we are yest doing
 		 * integrity sync. In case of integrity sync we have to
 		 * keep going until we have written all the pages
 		 * we tagged for writeback prior to entering this loop.
@@ -1194,10 +1194,10 @@ out:
 /*
  * See if a given @snapc is either writeable, or already written.
  */
-static int context_is_writeable_or_written(struct inode *inode,
+static int context_is_writeable_or_written(struct iyesde *iyesde,
 					   struct ceph_snap_context *snapc)
 {
-	struct ceph_snap_context *oldest = get_oldest_context(inode, NULL, NULL);
+	struct ceph_snap_context *oldest = get_oldest_context(iyesde, NULL, NULL);
 	int ret = !oldest || snapc->seq <= oldest->seq;
 
 	ceph_put_snap_context(oldest);
@@ -1216,9 +1216,9 @@ static int ceph_update_writeable_page(struct file *file,
 			    loff_t pos, unsigned len,
 			    struct page *page)
 {
-	struct inode *inode = file_inode(file);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	loff_t page_off = pos & PAGE_MASK;
 	int pos_in_page = pos & ~PAGE_MASK;
 	int end_in_page = pos_in_page + len;
@@ -1239,13 +1239,13 @@ retry_locked:
 	snapc = page_snap_context(page);
 	if (snapc && snapc != ci->i_head_snapc) {
 		/*
-		 * this page is already dirty in another (older) snap
-		 * context!  is it writeable now?
+		 * this page is already dirty in ayesther (older) snap
+		 * context!  is it writeable yesw?
 		 */
-		oldest = get_oldest_context(inode, NULL, NULL);
+		oldest = get_oldest_context(iyesde, NULL, NULL);
 		if (snapc->seq > oldest->seq) {
 			ceph_put_snap_context(oldest);
-			dout(" page %p snapc %p not current or oldest\n",
+			dout(" page %p snapc %p yest current or oldest\n",
 			     page, snapc);
 			/*
 			 * queue for writeback, and wait for snapc to
@@ -1253,9 +1253,9 @@ retry_locked:
 			 */
 			snapc = ceph_get_snap_context(snapc);
 			unlock_page(page);
-			ceph_queue_writeback(inode);
+			ceph_queue_writeback(iyesde);
 			r = wait_event_killable(ci->i_cap_wq,
-			       context_is_writeable_or_written(inode, snapc));
+			       context_is_writeable_or_written(iyesde, snapc));
 			ceph_put_snap_context(snapc);
 			if (r == -ERESTARTSYS)
 				return r;
@@ -1263,12 +1263,12 @@ retry_locked:
 		}
 		ceph_put_snap_context(oldest);
 
-		/* yay, writeable, do it now (without dropping page lock) */
-		dout(" page %p snapc %p not current, but oldest\n",
+		/* yay, writeable, do it yesw (without dropping page lock) */
+		dout(" page %p snapc %p yest current, but oldest\n",
 		     page, snapc);
 		if (!clear_page_dirty_for_io(page))
 			goto retry_locked;
-		r = writepage_nounlock(page, NULL);
+		r = writepage_yesunlock(page, NULL);
 		if (r < 0)
 			goto fail_unlock;
 		goto retry_locked;
@@ -1284,7 +1284,7 @@ retry_locked:
 		return 0;
 
 	/* past end of file? */
-	i_size = i_size_read(inode);
+	i_size = i_size_read(iyesde);
 
 	if (page_off >= i_size ||
 	    (pos_in_page == 0 && (pos+len) >= i_size &&
@@ -1318,7 +1318,7 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
 			    loff_t pos, unsigned len, unsigned flags,
 			    struct page **pagep, void **fsdata)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct page *page;
 	pgoff_t index = pos >> PAGE_SHIFT;
 	int r;
@@ -1329,8 +1329,8 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
 		if (!page)
 			return -ENOMEM;
 
-		dout("write_begin file %p inode %p page %p %d~%d\n", file,
-		     inode, page, (int)pos, (int)len);
+		dout("write_begin file %p iyesde %p page %p %d~%d\n", file,
+		     iyesde, page, (int)pos, (int)len);
 
 		r = ceph_update_writeable_page(file, pos, len, page);
 		if (r < 0)
@@ -1350,11 +1350,11 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 			  loff_t pos, unsigned len, unsigned copied,
 			  struct page *page, void *fsdata)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	bool check_cap = false;
 
-	dout("write_end file %p inode %p page %p %d~%d (%d)\n", file,
-	     inode, page, (int)pos, (int)copied, (int)len);
+	dout("write_end file %p iyesde %p page %p %d~%d (%d)\n", file,
+	     iyesde, page, (int)pos, (int)copied, (int)len);
 
 	/* zero the stale part of the page if we did a short copy */
 	if (!PageUptodate(page)) {
@@ -1366,8 +1366,8 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 	}
 
 	/* did file size increase? */
-	if (pos+copied > i_size_read(inode))
-		check_cap = ceph_inode_set_size(inode, pos+copied);
+	if (pos+copied > i_size_read(iyesde))
+		check_cap = ceph_iyesde_set_size(iyesde, pos+copied);
 
 	set_page_dirty(page);
 
@@ -1376,7 +1376,7 @@ out:
 	put_page(page);
 
 	if (check_cap)
-		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_AUTHONLY, NULL);
+		ceph_check_caps(ceph_iyesde(iyesde), CHECK_CAPS_AUTHONLY, NULL);
 
 	return copied;
 }
@@ -1423,8 +1423,8 @@ static void ceph_restore_sigs(sigset_t *oldset)
 static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
-	struct inode *inode = file_inode(vma->vm_file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct iyesde *iyesde = file_iyesde(vma->vm_file);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	struct ceph_file_info *fi = vma->vm_file->private_data;
 	struct page *pinned_page = NULL;
 	loff_t off = vmf->pgoff << PAGE_SHIFT;
@@ -1435,7 +1435,7 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 	ceph_block_sigs(&oldset);
 
 	dout("filemap_fault %p %llx.%llx %llu~%zd trying to get caps\n",
-	     inode, ceph_vinop(inode), off, (size_t)PAGE_SIZE);
+	     iyesde, ceph_viyesp(iyesde), off, (size_t)PAGE_SIZE);
 	if (fi->fmode & CEPH_FILE_MODE_LAZY)
 		want = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
 	else
@@ -1448,7 +1448,7 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 		goto out_restore;
 
 	dout("filemap_fault %p %llu~%zd got cap refs on %s\n",
-	     inode, off, (size_t)PAGE_SIZE, ceph_cap_string(got));
+	     iyesde, off, (size_t)PAGE_SIZE, ceph_cap_string(got));
 
 	if ((got & (CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO)) ||
 	    ci->i_inline_version == CEPH_INLINE_NONE) {
@@ -1457,7 +1457,7 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 		ret = filemap_fault(vmf);
 		ceph_del_rw_context(fi, &rw_ctx);
 		dout("filemap_fault %p %llu~%zd drop cap refs %s ret %x\n",
-			inode, off, (size_t)PAGE_SIZE,
+			iyesde, off, (size_t)PAGE_SIZE,
 				ceph_cap_string(got), ret);
 	} else
 		err = -EAGAIN;
@@ -1471,10 +1471,10 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 
 	/* read inline data */
 	if (off >= PAGE_SIZE) {
-		/* does not support inline data > PAGE_SIZE */
+		/* does yest support inline data > PAGE_SIZE */
 		ret = VM_FAULT_SIGBUS;
 	} else {
-		struct address_space *mapping = inode->i_mapping;
+		struct address_space *mapping = iyesde->i_mapping;
 		struct page *page = find_or_create_page(mapping, 0,
 						mapping_gfp_constraint(mapping,
 						~__GFP_FS));
@@ -1482,9 +1482,9 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 			ret = VM_FAULT_OOM;
 			goto out_inline;
 		}
-		err = __ceph_do_getattr(inode, page,
+		err = __ceph_do_getattr(iyesde, page,
 					 CEPH_STAT_CAP_INLINE_DATA, true);
-		if (err < 0 || off >= i_size_read(inode)) {
+		if (err < 0 || off >= i_size_read(iyesde)) {
 			unlock_page(page);
 			put_page(page);
 			ret = vmf_error(err);
@@ -1499,7 +1499,7 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 		ret = VM_FAULT_MAJOR | VM_FAULT_LOCKED;
 out_inline:
 		dout("filemap_fault %p %llu~%zd read inline data ret %x\n",
-		     inode, off, (size_t)PAGE_SIZE, ret);
+		     iyesde, off, (size_t)PAGE_SIZE, ret);
 	}
 out_restore:
 	ceph_restore_sigs(&oldset);
@@ -1515,13 +1515,13 @@ out_restore:
 static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
-	struct inode *inode = file_inode(vma->vm_file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct iyesde *iyesde = file_iyesde(vma->vm_file);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	struct ceph_file_info *fi = vma->vm_file->private_data;
 	struct ceph_cap_flush *prealloc_cf;
 	struct page *page = vmf->page;
 	loff_t off = page_offset(page);
-	loff_t size = i_size_read(inode);
+	loff_t size = i_size_read(iyesde);
 	size_t len;
 	int want, got, err;
 	sigset_t oldset;
@@ -1531,7 +1531,7 @@ static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 	if (!prealloc_cf)
 		return VM_FAULT_OOM;
 
-	sb_start_pagefault(inode->i_sb);
+	sb_start_pagefault(iyesde->i_sb);
 	ceph_block_sigs(&oldset);
 
 	if (ci->i_inline_version != CEPH_INLINE_NONE) {
@@ -1553,7 +1553,7 @@ static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 		len = size & ~PAGE_MASK;
 
 	dout("page_mkwrite %p %llx.%llx %llu~%zd getting caps i_size %llu\n",
-	     inode, ceph_vinop(inode), off, len, size);
+	     iyesde, ceph_viyesp(iyesde), off, len, size);
 	if (fi->fmode & CEPH_FILE_MODE_LAZY)
 		want = CEPH_CAP_FILE_BUFFER | CEPH_CAP_FILE_LAZYIO;
 	else
@@ -1566,16 +1566,16 @@ static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 		goto out_free;
 
 	dout("page_mkwrite %p %llu~%zd got cap refs on %s\n",
-	     inode, off, len, ceph_cap_string(got));
+	     iyesde, off, len, ceph_cap_string(got));
 
 	/* Update time before taking page lock */
 	file_update_time(vma->vm_file);
-	inode_inc_iversion_raw(inode);
+	iyesde_inc_iversion_raw(iyesde);
 
 	do {
 		lock_page(page);
 
-		if ((off > size) || (page->mapping != inode->i_mapping)) {
+		if ((off > size) || (page->mapping != iyesde->i_mapping)) {
 			unlock_page(page);
 			ret = VM_FAULT_NOPAGE;
 			break;
@@ -1598,31 +1598,31 @@ static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 					       &prealloc_cf);
 		spin_unlock(&ci->i_ceph_lock);
 		if (dirty)
-			__mark_inode_dirty(inode, dirty);
+			__mark_iyesde_dirty(iyesde, dirty);
 	}
 
 	dout("page_mkwrite %p %llu~%zd dropping cap refs on %s ret %x\n",
-	     inode, off, len, ceph_cap_string(got), ret);
+	     iyesde, off, len, ceph_cap_string(got), ret);
 	ceph_put_cap_refs(ci, got);
 out_free:
 	ceph_restore_sigs(&oldset);
-	sb_end_pagefault(inode->i_sb);
+	sb_end_pagefault(iyesde->i_sb);
 	ceph_free_cap_flush(prealloc_cf);
 	if (err < 0)
 		ret = vmf_error(err);
 	return ret;
 }
 
-void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
+void ceph_fill_inline_data(struct iyesde *iyesde, struct page *locked_page,
 			   char	*data, size_t len)
 {
-	struct address_space *mapping = inode->i_mapping;
+	struct address_space *mapping = iyesde->i_mapping;
 	struct page *page;
 
 	if (locked_page) {
 		page = locked_page;
 	} else {
-		if (i_size_read(inode) == 0)
+		if (i_size_read(iyesde) == 0)
 			return;
 		page = find_or_create_page(mapping, 0,
 					   mapping_gfp_constraint(mapping,
@@ -1637,7 +1637,7 @@ void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
 	}
 
 	dout("fill_inline_data %p %llx.%llx len %zu locked_page %p\n",
-	     inode, ceph_vinop(inode), len, locked_page);
+	     iyesde, ceph_viyesp(iyesde), len, locked_page);
 
 	if (len > 0) {
 		void *kaddr = kmap_atomic(page);
@@ -1659,9 +1659,9 @@ void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
 
 int ceph_uninline_data(struct file *filp, struct page *locked_page)
 {
-	struct inode *inode = file_inode(filp);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
 	struct ceph_osd_request *req;
 	struct page *page = NULL;
 	u64 len, inline_version;
@@ -1673,9 +1673,9 @@ int ceph_uninline_data(struct file *filp, struct page *locked_page)
 	spin_unlock(&ci->i_ceph_lock);
 
 	dout("uninline_data %p %llx.%llx inline_version %llu\n",
-	     inode, ceph_vinop(inode), inline_version);
+	     iyesde, ceph_viyesp(iyesde), inline_version);
 
-	if (inline_version == 1 || /* initial version, no data */
+	if (inline_version == 1 || /* initial version, yes data */
 	    inline_version == CEPH_INLINE_NONE)
 		goto out;
 
@@ -1684,7 +1684,7 @@ int ceph_uninline_data(struct file *filp, struct page *locked_page)
 		WARN_ON(!PageUptodate(page));
 	} else if (ceph_caps_issued(ci) &
 		   (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) {
-		page = find_get_page(inode->i_mapping, 0);
+		page = find_get_page(iyesde->i_mapping, 0);
 		if (page) {
 			if (PageUptodate(page)) {
 				from_pagecache = true;
@@ -1697,7 +1697,7 @@ int ceph_uninline_data(struct file *filp, struct page *locked_page)
 	}
 
 	if (page) {
-		len = i_size_read(inode);
+		len = i_size_read(iyesde);
 		if (len > PAGE_SIZE)
 			len = PAGE_SIZE;
 	} else {
@@ -1706,10 +1706,10 @@ int ceph_uninline_data(struct file *filp, struct page *locked_page)
 			err = -ENOMEM;
 			goto out;
 		}
-		err = __ceph_do_getattr(inode, page,
+		err = __ceph_do_getattr(iyesde, page,
 					CEPH_STAT_CAP_INLINE_DATA, true);
 		if (err < 0) {
-			/* no inline data */
+			/* yes inline data */
 			if (err == -ENODATA)
 				err = 0;
 			goto out;
@@ -1718,7 +1718,7 @@ int ceph_uninline_data(struct file *filp, struct page *locked_page)
 	}
 
 	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
-				    ceph_vino(inode), 0, &len, 0, 1,
+				    ceph_viyes(iyesde), 0, &len, 0, 1,
 				    CEPH_OSD_OP_CREATE, CEPH_OSD_FLAG_WRITE,
 				    NULL, 0, 0, false);
 	if (IS_ERR(req)) {
@@ -1726,7 +1726,7 @@ int ceph_uninline_data(struct file *filp, struct page *locked_page)
 		goto out;
 	}
 
-	req->r_mtime = inode->i_mtime;
+	req->r_mtime = iyesde->i_mtime;
 	err = ceph_osdc_start_request(&fsc->client->osdc, req, false);
 	if (!err)
 		err = ceph_osdc_wait_request(&fsc->client->osdc, req);
@@ -1735,7 +1735,7 @@ int ceph_uninline_data(struct file *filp, struct page *locked_page)
 		goto out;
 
 	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
-				    ceph_vino(inode), 0, &len, 1, 3,
+				    ceph_viyes(iyesde), 0, &len, 1, 3,
 				    CEPH_OSD_OP_WRITE, CEPH_OSD_FLAG_WRITE,
 				    NULL, ci->i_truncate_seq,
 				    ci->i_truncate_size, false);
@@ -1768,7 +1768,7 @@ int ceph_uninline_data(struct file *filp, struct page *locked_page)
 			goto out_put;
 	}
 
-	req->r_mtime = inode->i_mtime;
+	req->r_mtime = iyesde->i_mtime;
 	err = ceph_osdc_start_request(&fsc->client->osdc, req, false);
 	if (!err)
 		err = ceph_osdc_wait_request(&fsc->client->osdc, req);
@@ -1786,7 +1786,7 @@ out:
 	}
 
 	dout("uninline_data %p %llx.%llx inline_version %llu = %d\n",
-	     inode, ceph_vinop(inode), inline_version, err);
+	     iyesde, ceph_viyesp(iyesde), inline_version, err);
 	return err;
 }
 
@@ -1811,22 +1811,22 @@ enum {
 	POOL_WRITE	= 2,
 };
 
-static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
+static int __ceph_pool_perm_get(struct ceph_iyesde_info *ci,
 				s64 pool, struct ceph_string *pool_ns)
 {
-	struct ceph_fs_client *fsc = ceph_inode_to_client(&ci->vfs_inode);
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(&ci->vfs_iyesde);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_osd_request *rd_req = NULL, *wr_req = NULL;
-	struct rb_node **p, *parent;
+	struct rb_yesde **p, *parent;
 	struct ceph_pool_perm *perm;
 	struct page **pages;
 	size_t pool_ns_len;
 	int err = 0, err2 = 0, have = 0;
 
 	down_read(&mdsc->pool_perm_rwsem);
-	p = &mdsc->pool_perm_tree.rb_node;
+	p = &mdsc->pool_perm_tree.rb_yesde;
 	while (*p) {
-		perm = rb_entry(*p, struct ceph_pool_perm, node);
+		perm = rb_entry(*p, struct ceph_pool_perm, yesde);
 		if (pool < perm->pool)
 			p = &(*p)->rb_left;
 		else if (pool > perm->pool)
@@ -1850,17 +1850,17 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 		goto out;
 
 	if (pool_ns)
-		dout("__ceph_pool_perm_get pool %lld ns %.*s no perm cached\n",
+		dout("__ceph_pool_perm_get pool %lld ns %.*s yes perm cached\n",
 		     pool, (int)pool_ns->len, pool_ns->str);
 	else
-		dout("__ceph_pool_perm_get pool %lld no perm cached\n", pool);
+		dout("__ceph_pool_perm_get pool %lld yes perm cached\n", pool);
 
 	down_write(&mdsc->pool_perm_rwsem);
-	p = &mdsc->pool_perm_tree.rb_node;
+	p = &mdsc->pool_perm_tree.rb_yesde;
 	parent = NULL;
 	while (*p) {
 		parent = *p;
-		perm = rb_entry(parent, struct ceph_pool_perm, node);
+		perm = rb_entry(parent, struct ceph_pool_perm, yesde);
 		if (pool < perm->pool)
 			p = &(*p)->rb_left;
 		else if (pool > perm->pool)
@@ -1896,7 +1896,7 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 	rd_req->r_base_oloc.pool = pool;
 	if (pool_ns)
 		rd_req->r_base_oloc.pool_ns = ceph_get_string(pool_ns);
-	ceph_oid_printf(&rd_req->r_base_oid, "%llx.00000000", ci->i_vino.ino);
+	ceph_oid_printf(&rd_req->r_base_oid, "%llx.00000000", ci->i_viyes.iyes);
 
 	err = ceph_osdc_alloc_messages(rd_req, GFP_NOFS);
 	if (err)
@@ -1918,7 +1918,7 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 	if (err)
 		goto out_unlock;
 
-	/* one page should be large enough for STAT data */
+	/* one page should be large eyesugh for STAT data */
 	pages = ceph_alloc_page_vector(1, GFP_KERNEL);
 	if (IS_ERR(pages)) {
 		err = PTR_ERR(pages);
@@ -1929,7 +1929,7 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 				     0, false, true);
 	err = ceph_osdc_start_request(&fsc->client->osdc, rd_req, false);
 
-	wr_req->r_mtime = ci->vfs_inode.i_mtime;
+	wr_req->r_mtime = ci->vfs_iyesde.i_mtime;
 	err2 = ceph_osdc_start_request(&fsc->client->osdc, wr_req, false);
 
 	if (!err)
@@ -1968,8 +1968,8 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 		memcpy(perm->pool_ns, pool_ns->str, pool_ns_len);
 	perm->pool_ns[pool_ns_len] = 0;
 
-	rb_link_node(&perm->node, parent, p);
-	rb_insert_color(&perm->node, &mdsc->pool_perm_tree);
+	rb_link_yesde(&perm->yesde, parent, p);
+	rb_insert_color(&perm->yesde, &mdsc->pool_perm_tree);
 	err = 0;
 out_unlock:
 	up_write(&mdsc->pool_perm_rwsem);
@@ -1987,14 +1987,14 @@ out:
 	return err;
 }
 
-int ceph_pool_perm_check(struct inode *inode, int need)
+int ceph_pool_perm_check(struct iyesde *iyesde, int need)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	struct ceph_string *pool_ns;
 	s64 pool;
 	int ret, flags;
 
-	if (ci->i_vino.snap != CEPH_NOSNAP) {
+	if (ci->i_viyes.snap != CEPH_NOSNAP) {
 		/*
 		 * Pool permission check needs to write to the first object.
 		 * But for snapshot, head of the first object may have alread
@@ -2003,7 +2003,7 @@ int ceph_pool_perm_check(struct inode *inode, int need)
 		return 0;
 	}
 
-	if (ceph_test_mount_opt(ceph_inode_to_client(inode),
+	if (ceph_test_mount_opt(ceph_iyesde_to_client(iyesde),
 				NOPOOLPERM))
 		return 0;
 
@@ -2014,12 +2014,12 @@ int ceph_pool_perm_check(struct inode *inode, int need)
 check:
 	if (flags & CEPH_I_POOL_PERM) {
 		if ((need & CEPH_CAP_FILE_RD) && !(flags & CEPH_I_POOL_RD)) {
-			dout("ceph_pool_perm_check pool %lld no read perm\n",
+			dout("ceph_pool_perm_check pool %lld yes read perm\n",
 			     pool);
 			return -EPERM;
 		}
 		if ((need & CEPH_CAP_FILE_WR) && !(flags & CEPH_I_POOL_WR)) {
-			dout("ceph_pool_perm_check pool %lld no write perm\n",
+			dout("ceph_pool_perm_check pool %lld yes write perm\n",
 			     pool);
 			return -EPERM;
 		}
@@ -2053,11 +2053,11 @@ check:
 void ceph_pool_perm_destroy(struct ceph_mds_client *mdsc)
 {
 	struct ceph_pool_perm *perm;
-	struct rb_node *n;
+	struct rb_yesde *n;
 
 	while (!RB_EMPTY_ROOT(&mdsc->pool_perm_tree)) {
 		n = rb_first(&mdsc->pool_perm_tree);
-		perm = rb_entry(n, struct ceph_pool_perm, node);
+		perm = rb_entry(n, struct ceph_pool_perm, yesde);
 		rb_erase(n, &mdsc->pool_perm_tree);
 		kfree(perm);
 	}

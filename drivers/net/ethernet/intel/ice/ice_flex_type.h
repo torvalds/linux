@@ -175,8 +175,8 @@ struct ice_sw_fv_section {
 };
 
 /* The BOOST TCAM stores the match packet header in reverse order, meaning
- * the fields are reversed; in addition, this means that the normally big endian
- * fields of the packet are now little endian.
+ * the fields are reversed; in addition, this means that the yesrmally big endian
+ * fields of the packet are yesw little endian.
  */
 struct ice_boost_key_value {
 #define ICE_BOOST_REMAINING_HV_KEY	15
@@ -198,7 +198,7 @@ struct ice_boost_tcam_entry {
 	/* break up the 40 bytes of key into different fields */
 	struct ice_boost_key key;
 	u8 boost_hit_index_group;
-	/* The following contains bitfields which are not on byte boundaries.
+	/* The following contains bitfields which are yest on byte boundaries.
 	 * These fields are currently unused by driver software.
 	 */
 #define ICE_BOOST_BIT_FIELDS		43

@@ -293,33 +293,33 @@ atomic_long_fetch_and_relaxed(long i, atomic_long_t *v)
 }
 
 static inline void
-atomic_long_andnot(long i, atomic_long_t *v)
+atomic_long_andyest(long i, atomic_long_t *v)
 {
-	atomic64_andnot(i, v);
+	atomic64_andyest(i, v);
 }
 
 static inline long
-atomic_long_fetch_andnot(long i, atomic_long_t *v)
+atomic_long_fetch_andyest(long i, atomic_long_t *v)
 {
-	return atomic64_fetch_andnot(i, v);
+	return atomic64_fetch_andyest(i, v);
 }
 
 static inline long
-atomic_long_fetch_andnot_acquire(long i, atomic_long_t *v)
+atomic_long_fetch_andyest_acquire(long i, atomic_long_t *v)
 {
-	return atomic64_fetch_andnot_acquire(i, v);
+	return atomic64_fetch_andyest_acquire(i, v);
 }
 
 static inline long
-atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
+atomic_long_fetch_andyest_release(long i, atomic_long_t *v)
 {
-	return atomic64_fetch_andnot_release(i, v);
+	return atomic64_fetch_andyest_release(i, v);
 }
 
 static inline long
-atomic_long_fetch_andnot_relaxed(long i, atomic_long_t *v)
+atomic_long_fetch_andyest_relaxed(long i, atomic_long_t *v)
 {
-	return atomic64_fetch_andnot_relaxed(i, v);
+	return atomic64_fetch_andyest_relaxed(i, v);
 }
 
 static inline void
@@ -491,9 +491,9 @@ atomic_long_add_unless(atomic_long_t *v, long a, long u)
 }
 
 static inline bool
-atomic_long_inc_not_zero(atomic_long_t *v)
+atomic_long_inc_yest_zero(atomic_long_t *v)
 {
-	return atomic64_inc_not_zero(v);
+	return atomic64_inc_yest_zero(v);
 }
 
 static inline bool
@@ -787,33 +787,33 @@ atomic_long_fetch_and_relaxed(long i, atomic_long_t *v)
 }
 
 static inline void
-atomic_long_andnot(long i, atomic_long_t *v)
+atomic_long_andyest(long i, atomic_long_t *v)
 {
-	atomic_andnot(i, v);
+	atomic_andyest(i, v);
 }
 
 static inline long
-atomic_long_fetch_andnot(long i, atomic_long_t *v)
+atomic_long_fetch_andyest(long i, atomic_long_t *v)
 {
-	return atomic_fetch_andnot(i, v);
+	return atomic_fetch_andyest(i, v);
 }
 
 static inline long
-atomic_long_fetch_andnot_acquire(long i, atomic_long_t *v)
+atomic_long_fetch_andyest_acquire(long i, atomic_long_t *v)
 {
-	return atomic_fetch_andnot_acquire(i, v);
+	return atomic_fetch_andyest_acquire(i, v);
 }
 
 static inline long
-atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
+atomic_long_fetch_andyest_release(long i, atomic_long_t *v)
 {
-	return atomic_fetch_andnot_release(i, v);
+	return atomic_fetch_andyest_release(i, v);
 }
 
 static inline long
-atomic_long_fetch_andnot_relaxed(long i, atomic_long_t *v)
+atomic_long_fetch_andyest_relaxed(long i, atomic_long_t *v)
 {
-	return atomic_fetch_andnot_relaxed(i, v);
+	return atomic_fetch_andyest_relaxed(i, v);
 }
 
 static inline void
@@ -985,9 +985,9 @@ atomic_long_add_unless(atomic_long_t *v, long a, long u)
 }
 
 static inline bool
-atomic_long_inc_not_zero(atomic_long_t *v)
+atomic_long_inc_yest_zero(atomic_long_t *v)
 {
-	return atomic_inc_not_zero(v);
+	return atomic_inc_yest_zero(v);
 }
 
 static inline bool

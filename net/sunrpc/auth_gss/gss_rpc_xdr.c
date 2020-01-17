@@ -75,7 +75,7 @@ static int gssx_dec_buffer(struct xdr_stream *xdr,
 		return -ENOSPC;
 
 	if (buf->len == 0) {
-		/* we intentionally are not interested in this buffer */
+		/* we intentionally are yest interested in this buffer */
 		return 0;
 	}
 	if (length > buf->len)
@@ -307,19 +307,19 @@ static int gssx_dec_status(struct xdr_stream *xdr,
 	if (err)
 		return err;
 
-	/* status->minor_status */
+	/* status->miyesr_status */
 	p = xdr_inline_decode(xdr, 8);
 	if (unlikely(p == NULL))
 		return -ENOSPC;
-	p = xdr_decode_hyper(p, &status->minor_status);
+	p = xdr_decode_hyper(p, &status->miyesr_status);
 
 	/* status->major_status_string */
 	err = gssx_dec_buffer(xdr, &status->major_status_string);
 	if (err)
 		return err;
 
-	/* status->minor_status_string */
-	err = gssx_dec_buffer(xdr, &status->minor_status_string);
+	/* status->miyesr_status_string */
+	err = gssx_dec_buffer(xdr, &status->miyesr_status_string);
 	if (err)
 		return err;
 
@@ -328,7 +328,7 @@ static int gssx_dec_status(struct xdr_stream *xdr,
 	if (err)
 		return err;
 
-	/* we assume we have no options for now, so simply consume them */
+	/* we assume we have yes options for yesw, so simply consume them */
 	/* status->options */
 	err = dummy_dec_opt_array(xdr, &status->options);
 
@@ -462,14 +462,14 @@ static int gssx_enc_name(struct xdr_stream *xdr,
 	if (err)
 		return err;
 
-	/* leave name_attributes empty for now, will add once we have any
+	/* leave name_attributes empty for yesw, will add once we have any
 	 * to pass up at all */
 	/* name->name_attributes */
 	err = dummy_enc_nameattr_array(xdr, &zero_name_attr_array);
 	if (err)
 		return err;
 
-	/* leave options empty for now, will add once we have any options
+	/* leave options empty for yesw, will add once we have any options
 	 * to pass up at all */
 	/* name->extensions */
 	err = dummy_enc_opt_array(xdr, &zero_option_array);
@@ -506,13 +506,13 @@ static int gssx_dec_name(struct xdr_stream *xdr,
 	if (err)
 		return err;
 
-	/* we assume we have no attributes for now, so simply consume them */
+	/* we assume we have yes attributes for yesw, so simply consume them */
 	/* name->name_attributes */
 	err = dummy_dec_nameattr_array(xdr, &dummy_name_attr_array);
 	if (err)
 		return err;
 
-	/* we assume we have no options for now, so simply consume them */
+	/* we assume we have yes options for yesw, so simply consume them */
 	/* name->extensions */
 	err = dummy_dec_opt_array(xdr, &dummy_option_array);
 
@@ -616,7 +616,7 @@ static int gssx_enc_ctx(struct xdr_stream *xdr,
 	if (err)
 		return err;
 
-	/* leave options empty for now, will add once we have any options
+	/* leave options empty for yesw, will add once we have any options
 	 * to pass up at all */
 	/* ctx->options */
 	err = dummy_enc_opt_array(xdr, &ctx->options);
@@ -679,7 +679,7 @@ static int gssx_dec_ctx(struct xdr_stream *xdr,
 	if (err)
 		return err;
 
-	/* we assume we have no options for now, so simply consume them */
+	/* we assume we have yes options for yesw, so simply consume them */
 	/* ctx->options */
 	err = dummy_dec_opt_array(xdr, &ctx->options);
 
@@ -763,7 +763,7 @@ void gssx_enc_accept_sec_context(struct rpc_rqst *req,
 	if (err)
 		goto done;
 
-	/* leave options empty for now, will add once we have any options
+	/* leave options empty for yesw, will add once we have any options
 	 * to pass up at all */
 	/* arg->options */
 	err = dummy_enc_opt_array(xdr, &arg->options);
@@ -825,7 +825,7 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 	if (err)
 		goto out_free;
 	if (value_follows) {
-		/* we do not support upcall servers sending this data. */
+		/* we do yest support upcall servers sending this data. */
 		err = -EINVAL;
 		goto out_free;
 	}

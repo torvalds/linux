@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -98,7 +98,7 @@ const char *dml_get_status_message(enum dm_validation_status status)
 	case DML_FAIL_VIEWPORT_SIZE:              return "Viewport size";
 	case DML_FAIL_TOTAL_V_ACTIVE_BW:          return "Total vertical active bandwidth";
 	case DML_FAIL_DIO_SUPPORT:                return "DIO support";
-	case DML_FAIL_NOT_ENOUGH_DSC:             return "Not enough DSC Units";
+	case DML_FAIL_NOT_ENOUGH_DSC:             return "Not eyesugh DSC Units";
 	case DML_FAIL_DSC_CLK_REQUIRED:           return "DSC clock required";
 	case DML_FAIL_URGENT_LATENCY:             return "Urgent latency";
 	case DML_FAIL_REORDERING_BUFFER:          return "Re-ordering buffer";
@@ -114,6 +114,6 @@ const char *dml_get_status_message(enum dm_validation_status status)
 	case DML_FAIL_DSC_INPUT_BPC:              return "DSC input bpc";
 	case DML_FAIL_PREFETCH_SUPPORT:           return "Prefetch support";
 	case DML_FAIL_V_RATIO_PREFETCH:           return "Vertical ratio prefetch";
-	default:                                  return "Unknown Status";
+	default:                                  return "Unkyeswn Status";
 	}
 }

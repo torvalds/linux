@@ -35,7 +35,7 @@
 &mac0 {
 	status = "okay";
 	use-ncsi;
-	no-hw-checksum;
+	yes-hw-checksum;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rmii1_default>;
 	clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>,

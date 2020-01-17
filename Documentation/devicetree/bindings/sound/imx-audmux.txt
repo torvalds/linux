@@ -8,12 +8,12 @@ Required properties:
 
   - reg			: Should contain AUDMUX registers location and length.
 
-An initial configuration can be setup using child nodes.
+An initial configuration can be setup using child yesdes.
 
-Required properties of optional child nodes:
+Required properties of optional child yesdes:
 
   - fsl,audmux-port	: Integer of the audmux port that is configured by this
-			  child node.
+			  child yesde.
 
   - fsl,port-config	: List of configuration options for the specific port.
 			  For imx31-audmux and above, it is a list of tuples

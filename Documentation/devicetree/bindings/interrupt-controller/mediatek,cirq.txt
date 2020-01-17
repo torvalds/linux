@@ -14,7 +14,7 @@ Required properties:
   - "mediatek,mt8135-cirq" for mt8135 CIRQ
   - "mediatek,mt8173-cirq" for mt8173 CIRQ
   and "mediatek,cirq" as a fallback.
-- interrupt-controller : Identifies the node as an interrupt controller.
+- interrupt-controller : Identifies the yesde as an interrupt controller.
 - #interrupt-cells : Use the same format as specified by GIC in arm,gic.txt.
 - reg: Physical base address of the cirq registers and length of memory
   mapped region.

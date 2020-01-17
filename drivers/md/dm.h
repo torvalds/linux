@@ -53,7 +53,7 @@ void dm_table_event_callback(struct dm_table *t,
 			     void (*fn)(void *), void *context);
 struct dm_target *dm_table_get_target(struct dm_table *t, unsigned int index);
 struct dm_target *dm_table_find_target(struct dm_table *t, sector_t sector);
-bool dm_table_has_no_data_devices(struct dm_table *table);
+bool dm_table_has_yes_data_devices(struct dm_table *table);
 int dm_calculate_queue_limits(struct dm_table *table,
 			      struct queue_limits *limits);
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
@@ -86,12 +86,12 @@ struct target_type *dm_get_immutable_target_type(struct mapped_device *md);
 int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t);
 
 /*
- * To check whether the target type is bio-based or not (request-based).
+ * To check whether the target type is bio-based or yest (request-based).
  */
 #define dm_target_bio_based(t) ((t)->type->map != NULL)
 
 /*
- * To check whether the target type is request-based or not (bio-based).
+ * To check whether the target type is request-based or yest (bio-based).
  */
 #define dm_target_request_based(t) ((t)->type->clone_and_map_rq != NULL)
 
@@ -129,7 +129,7 @@ int dm_suspended_md(struct mapped_device *md);
 int dm_suspended_internally_md(struct mapped_device *md);
 void dm_internal_suspend_fast(struct mapped_device *md);
 void dm_internal_resume_fast(struct mapped_device *md);
-void dm_internal_suspend_noflush(struct mapped_device *md);
+void dm_internal_suspend_yesflush(struct mapped_device *md);
 void dm_internal_resume(struct mapped_device *md);
 
 /*

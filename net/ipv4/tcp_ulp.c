@@ -2,7 +2,7 @@
 /*
  * Pluggable TCP upper layer protocol support.
  *
- * Copyright (c) 2016-2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016-2017, Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2016-2017, Dave Watson <davejwatson@fb.com>. All rights reserved.
  *
  */

@@ -73,11 +73,11 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 
 	spin_lock_irqsave(&engine->queue_lock, flags);
 
-	/* Make sure we are not already running a request */
+	/* Make sure we are yest already running a request */
 	if (engine->cur_req)
 		goto out;
 
-	/* If another context is idling then defer */
+	/* If ayesther context is idling then defer */
 	if (engine->idling) {
 		kthread_queue_work(engine->kworker, &engine->pump_requests);
 		goto out;
@@ -362,7 +362,7 @@ int crypto_engine_stop(struct crypto_engine *engine)
 	spin_lock_irqsave(&engine->queue_lock, flags);
 
 	/*
-	 * If the engine queue is not empty or the engine is on busy state,
+	 * If the engine queue is yest empty or the engine is on busy state,
 	 * we need to wait for a while to pump the requests of engine queue.
 	 */
 	while ((crypto_queue_len(&engine->queue) || engine->busy) && limit--) {
@@ -379,7 +379,7 @@ int crypto_engine_stop(struct crypto_engine *engine)
 	spin_unlock_irqrestore(&engine->queue_lock, flags);
 
 	if (ret)
-		dev_warn(engine->dev, "could not stop engine\n");
+		dev_warn(engine->dev, "could yest stop engine\n");
 
 	return ret;
 }

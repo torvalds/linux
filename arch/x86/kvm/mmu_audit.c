@@ -140,7 +140,7 @@ static void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 	if (!slot) {
 		if (!__ratelimit(&ratelimit_state))
 			return;
-		audit_printk(kvm, "no memslot for gfn %llx\n", gfn);
+		audit_printk(kvm, "yes memslot for gfn %llx\n", gfn);
 		audit_printk(kvm, "index %ld of sp (gfn=%llx)\n",
 		       (long int)(sptep - rev_sp->spt), rev_sp->gfn);
 		dump_stack();
@@ -151,7 +151,7 @@ static void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 	if (!rmap_head->val) {
 		if (!__ratelimit(&ratelimit_state))
 			return;
-		audit_printk(kvm, "no rmap for writable spte %llx\n",
+		audit_printk(kvm, "yes rmap for writable spte %llx\n",
 			     *sptep);
 		dump_stack();
 	}

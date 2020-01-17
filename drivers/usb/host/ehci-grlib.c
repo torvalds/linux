@@ -19,7 +19,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 
-#define GRUSBHC_HCIVERSION 0x0100 /* Known value of cap. reg. HCIVERSION */
+#define GRUSBHC_HCIVERSION 0x0100 /* Kyeswn value of cap. reg. HCIVERSION */
 
 static const struct hc_driver ehci_grlib_hc_driver = {
 	.description		= hcd_name,
@@ -71,7 +71,7 @@ static const struct hc_driver ehci_grlib_hc_driver = {
 
 static int ehci_hcd_grlib_probe(struct platform_device *op)
 {
-	struct device_node *dn = op->dev.of_node;
+	struct device_yesde *dn = op->dev.of_yesde;
 	struct usb_hcd *hcd;
 	struct ehci_hcd	*ehci = NULL;
 	struct resource res;

@@ -11,7 +11,7 @@
  * =====================================
  *
  * We'd like to be able to summarize the current health status of the
- * filesystem so that the administrator knows when it's necessary to schedule
+ * filesystem so that the administrator kyesws when it's necessary to schedule
  * some downtime for repairs.  Until then, we would also like to avoid abrupt
  * shutdowns due to corrupt metadata.
  *
@@ -19,7 +19,7 @@
  * When scrub detects corruption in a piece of metadata it will set the
  * corresponding sickness flag, and repair will clear it if successful.  If
  * problems remain at unmount time, we can also request manual intervention by
- * logging a notice to run xfs_repair.
+ * logging a yestice to run xfs_repair.
  *
  * Each health tracking group uses a pair of fields for reporting.  The
  * "checked" field tell us if a given piece of metadata has ever been examined,
@@ -28,12 +28,12 @@
  *
  *  - checked && sick  => metadata needs repair
  *  - checked && !sick => metadata is ok
- *  - !checked         => has not been examined since mount
+ *  - !checked         => has yest been examined since mount
  */
 
 struct xfs_mount;
 struct xfs_perag;
-struct xfs_inode;
+struct xfs_iyesde;
 struct xfs_fsop_geom;
 
 /* Observable health issues for metadata spanning the entire filesystem. */
@@ -53,13 +53,13 @@ struct xfs_fsop_geom;
 #define XFS_SICK_AG_AGI		(1 << 3)  /* AGI header */
 #define XFS_SICK_AG_BNOBT	(1 << 4)  /* free space by block */
 #define XFS_SICK_AG_CNTBT	(1 << 5)  /* free space by length */
-#define XFS_SICK_AG_INOBT	(1 << 6)  /* inode index */
-#define XFS_SICK_AG_FINOBT	(1 << 7)  /* free inode index */
+#define XFS_SICK_AG_INOBT	(1 << 6)  /* iyesde index */
+#define XFS_SICK_AG_FINOBT	(1 << 7)  /* free iyesde index */
 #define XFS_SICK_AG_RMAPBT	(1 << 8)  /* reverse mappings */
 #define XFS_SICK_AG_REFCNTBT	(1 << 9)  /* reference counts */
 
-/* Observable health issues for inode metadata. */
-#define XFS_SICK_INO_CORE	(1 << 0)  /* inode core */
+/* Observable health issues for iyesde metadata. */
+#define XFS_SICK_INO_CORE	(1 << 0)  /* iyesde core */
 #define XFS_SICK_INO_BMBTD	(1 << 1)  /* data fork */
 #define XFS_SICK_INO_BMBTA	(1 << 2)  /* attr fork */
 #define XFS_SICK_INO_BMBTC	(1 << 3)  /* cow fork */
@@ -114,9 +114,9 @@ void xfs_ag_mark_healthy(struct xfs_perag *pag, unsigned int mask);
 void xfs_ag_measure_sickness(struct xfs_perag *pag, unsigned int *sick,
 		unsigned int *checked);
 
-void xfs_inode_mark_sick(struct xfs_inode *ip, unsigned int mask);
-void xfs_inode_mark_healthy(struct xfs_inode *ip, unsigned int mask);
-void xfs_inode_measure_sickness(struct xfs_inode *ip, unsigned int *sick,
+void xfs_iyesde_mark_sick(struct xfs_iyesde *ip, unsigned int mask);
+void xfs_iyesde_mark_healthy(struct xfs_iyesde *ip, unsigned int mask);
+void xfs_iyesde_measure_sickness(struct xfs_iyesde *ip, unsigned int *sick,
 		unsigned int *checked);
 
 void xfs_health_unmount(struct xfs_mount *mp);
@@ -151,11 +151,11 @@ xfs_ag_has_sickness(struct xfs_perag *pag, unsigned int mask)
 }
 
 static inline bool
-xfs_inode_has_sickness(struct xfs_inode *ip, unsigned int mask)
+xfs_iyesde_has_sickness(struct xfs_iyesde *ip, unsigned int mask)
 {
 	unsigned int	sick, checked;
 
-	xfs_inode_measure_sickness(ip, &sick, &checked);
+	xfs_iyesde_measure_sickness(ip, &sick, &checked);
 	return sick & mask;
 }
 
@@ -178,13 +178,13 @@ xfs_ag_is_healthy(struct xfs_perag *pag)
 }
 
 static inline bool
-xfs_inode_is_healthy(struct xfs_inode *ip)
+xfs_iyesde_is_healthy(struct xfs_iyesde *ip)
 {
-	return !xfs_inode_has_sickness(ip, -1U);
+	return !xfs_iyesde_has_sickness(ip, -1U);
 }
 
 void xfs_fsop_geom_health(struct xfs_mount *mp, struct xfs_fsop_geom *geo);
 void xfs_ag_geom_health(struct xfs_perag *pag, struct xfs_ag_geometry *ageo);
-void xfs_bulkstat_health(struct xfs_inode *ip, struct xfs_bulkstat *bs);
+void xfs_bulkstat_health(struct xfs_iyesde *ip, struct xfs_bulkstat *bs);
 
 #endif	/* __XFS_HEALTH_H__ */

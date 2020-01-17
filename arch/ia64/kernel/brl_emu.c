@@ -45,7 +45,7 @@ struct illegal_op_return {
 /*
  *  Handle an illegal operation fault that was caused by an
  *  unimplemented "brl" instruction.
- *  If we are not successful (e.g because the illegal operation
+ *  If we are yest successful (e.g because the illegal operation
  *  wasn't caused by a "brl" after all), we return -1.
  *  If we are successful, we return either 0 or the address
  *  of a "fixup" function for manipulating preserved register
@@ -177,7 +177,7 @@ ia64_emulate_brl (struct pt_regs *regs, unsigned long ar_ec)
 
 		default:
 			/*
-			 *  Unknown opcode.
+			 *  Unkyeswn opcode.
 			 */
 			return rv;
 

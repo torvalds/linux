@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -412,8 +412,8 @@ static void mlxsw_sx_port_get_drvinfo(struct net_device *dev,
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%d.%d.%d",
 		 mlxsw_sx->bus_info->fw_rev.major,
-		 mlxsw_sx->bus_info->fw_rev.minor,
-		 mlxsw_sx->bus_info->fw_rev.subminor);
+		 mlxsw_sx->bus_info->fw_rev.miyesr,
+		 mlxsw_sx->bus_info->fw_rev.submiyesr);
 	strlcpy(drvinfo->bus_info, mlxsw_sx->bus_info->device_name,
 		sizeof(drvinfo->bus_info));
 }
@@ -921,7 +921,7 @@ static int mlxsw_sx_port_dev_addr_get(struct mlxsw_sx_port *mlxsw_sx_port)
 		return err;
 	mlxsw_reg_ppad_mac_memcpy_from(ppad_pl, dev->dev_addr);
 	/* The last byte value in base mac address is guaranteed
-	 * to be such it does not overflow when adding local_port
+	 * to be such it does yest overflow when adding local_port
 	 * value.
 	 */
 	dev->dev_addr[ETH_ALEN - 1] += mlxsw_sx_port->local_port;
@@ -1336,7 +1336,7 @@ static void mlxsw_sx_pude_event_func(const struct mlxsw_reg_info *reg,
 	local_port = mlxsw_reg_pude_local_port_get(pude_pl);
 	mlxsw_sx_port = mlxsw_sx->ports[local_port];
 	if (!mlxsw_sx_port) {
-		dev_warn(mlxsw_sx->bus_info->dev, "Port %d: Link event received for non-existent port\n",
+		dev_warn(mlxsw_sx->bus_info->dev, "Port %d: Link event received for yesn-existent port\n",
 			 local_port);
 		return;
 	}
@@ -1357,7 +1357,7 @@ static void mlxsw_sx_rx_listener_func(struct sk_buff *skb, u8 local_port,
 	struct mlxsw_sx_port_pcpu_stats *pcpu_stats;
 
 	if (unlikely(!mlxsw_sx_port)) {
-		dev_warn_ratelimited(mlxsw_sx->bus_info->dev, "Port %d: skb received for non-existent port\n",
+		dev_warn_ratelimited(mlxsw_sx->bus_info->dev, "Port %d: skb received for yesn-existent port\n",
 				     local_port);
 		return;
 	}
@@ -1699,6 +1699,6 @@ module_init(mlxsw_sx_module_init);
 module_exit(mlxsw_sx_module_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox SwitchX-2 driver");
+MODULE_AUTHOR("Jiri Pirko <jiri@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx SwitchX-2 driver");
 MODULE_DEVICE_TABLE(pci, mlxsw_sx_pci_id_table);

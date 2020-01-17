@@ -101,14 +101,14 @@ static int owl_sps_probe(struct platform_device *pdev)
 	struct owl_sps *sps;
 	int i, ret;
 
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "no device node\n");
+	if (!pdev->dev.of_yesde) {
+		dev_err(&pdev->dev, "yes device yesde\n");
 		return -ENODEV;
 	}
 
 	match = of_match_device(pdev->dev.driver->of_match_table, &pdev->dev);
 	if (!match || !match->data) {
-		dev_err(&pdev->dev, "unknown compatible or missing data\n");
+		dev_err(&pdev->dev, "unkyeswn compatible or missing data\n");
 		return -EINVAL;
 	}
 
@@ -120,7 +120,7 @@ static int owl_sps_probe(struct platform_device *pdev)
 	if (!sps)
 		return -ENOMEM;
 
-	sps->base = of_io_request_and_map(pdev->dev.of_node, 0, "owl-sps");
+	sps->base = of_io_request_and_map(pdev->dev.of_yesde, 0, "owl-sps");
 	if (IS_ERR(sps->base)) {
 		dev_err(&pdev->dev, "failed to map sps registers\n");
 		return PTR_ERR(sps->base);
@@ -137,7 +137,7 @@ static int owl_sps_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	ret = of_genpd_add_provider_onecell(pdev->dev.of_node, &sps->genpd_data);
+	ret = of_genpd_add_provider_onecell(pdev->dev.of_yesde, &sps->genpd_data);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add provider (%d)", ret);
 		return ret;

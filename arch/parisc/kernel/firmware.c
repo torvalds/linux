@@ -32,7 +32,7 @@
  *	 - keep the order of arguments
  *	 - don't be smart (setting trailing NUL bytes for strings, return
  *	   something useful even if the call failed) unless you are sure
- *	   it's not going to affect functionality or performance
+ *	   it's yest going to affect functionality or performance
  *
  *	Example:
  *	int pdc_cache_info(struct pdc_cache_info *cache_info )
@@ -89,10 +89,10 @@ int parisc_narrow_firmware __ro_after_init = 1;
  * and MEM_PDC calls are always the same width as the OS.
  * Some PAT boxes may have 64-bit IODC I/O.
  *
- * Ryan Bradetich added the now obsolete CONFIG_PDC_NARROW to allow
+ * Ryan Bradetich added the yesw obsolete CONFIG_PDC_NARROW to allow
  * 64-bit kernels to run on systems with 32-bit MEM_PDC calls.
  * This allowed wide kernels to run on Cxxx boxes.
- * We now detect 32-bit-only PDC and dynamically switch to 32-bit mode
+ * We yesw detect 32-bit-only PDC and dynamically switch to 32-bit mode
  * when running a 64-bit kernel on such boxes (e.g. C200 or C360).
  */
 
@@ -410,7 +410,7 @@ EXPORT_SYMBOL(pdc_iodc_read);
  * @mod_index: fixed address module index.
  *
  * To locate and identify modules which reside at fixed I/O addresses, which
- * do not self-identify via architected bus walks.
+ * do yest self-identify via architected bus walks.
  */
 int pdc_system_map_find_mods(struct pdc_system_map_mod_info *pdc_mod_info,
 			     struct pdc_module_path *mod_path, long mod_index)
@@ -511,7 +511,7 @@ int pdc_model_sysmodel(char *name)
  *
  * Returns the version number for each processor component.
  *
- * This comment was here before, but I do not know what it means :( -RB
+ * This comment was here before, but I do yest kyesw what it means :( -RB
  * id: 0 = cpu revision, 1 = boot-rom-version
  */
 int pdc_model_versions(unsigned long *versions, int id)
@@ -541,7 +541,7 @@ int pdc_model_cpuid(unsigned long *cpu_id)
 	unsigned long flags;
 
         spin_lock_irqsave(&pdc_lock, flags);
-        pdc_result[0] = 0; /* preset zero (call may not be implemented!) */
+        pdc_result[0] = 0; /* preset zero (call may yest be implemented!) */
         retval = mem_pdc_call(PDC_MODEL, PDC_MODEL_CPU_ID, __pa(pdc_result), 0);
         convert_to_wide(pdc_result);
         *cpu_id = pdc_result[0];
@@ -563,7 +563,7 @@ int pdc_model_capabilities(unsigned long *capabilities)
 	unsigned long flags;
 
         spin_lock_irqsave(&pdc_lock, flags);
-        pdc_result[0] = 0; /* preset zero (call may not be implemented!) */
+        pdc_result[0] = 0; /* preset zero (call may yest be implemented!) */
         retval = mem_pdc_call(PDC_MODEL, PDC_MODEL_CAPABILITIES, __pa(pdc_result), 0);
         convert_to_wide(pdc_result);
         if (retval == PDC_OK) {
@@ -580,20 +580,20 @@ int pdc_model_capabilities(unsigned long *capabilities)
  * pdc_model_platform_info - Returns machine product and serial number.
  * @orig_prod_num: Return buffer for original product number.
  * @current_prod_num: Return buffer for current product number.
- * @serial_no: Return buffer for serial number.
+ * @serial_yes: Return buffer for serial number.
  *
  * Returns strings containing the original and current product numbers and the
  * serial number of the system.
  */
 int pdc_model_platform_info(char *orig_prod_num, char *current_prod_num,
-		char *serial_no)
+		char *serial_yes)
 {
 	int retval;
 	unsigned long flags;
 
 	spin_lock_irqsave(&pdc_lock, flags);
 	retval = mem_pdc_call(PDC_MODEL, PDC_MODEL_GET_PLATFORM_INFO,
-		__pa(orig_prod_num), __pa(current_prod_num), __pa(serial_no));
+		__pa(orig_prod_num), __pa(current_prod_num), __pa(serial_yes));
 	convert_to_wide(pdc_result);
 	spin_unlock_irqrestore(&pdc_lock, flags);
 
@@ -622,7 +622,7 @@ int pdc_cache_info(struct pdc_cache_info *cache_info)
 
 /**
  * pdc_spaceid_bits - Return whether Space ID hashing is turned on.
- * @space_bits: Should be 0, if not, bad mojo!
+ * @space_bits: Should be 0, if yest, bad mojo!
  *
  * Returns information about Space ID hashing.
  */
@@ -698,7 +698,7 @@ int pdc_mem_map_hpa(struct pdc_memory_map *address,
  * @lan_addr: The return buffer.
  * @hpa: The network device HPA.
  *
- * Get the LAN station address when it is not directly available from the LAN hardware.
+ * Get the LAN station address when it is yest directly available from the LAN hardware.
  */
 int pdc_lan_station_id(char *lan_addr, unsigned long hpa)
 {
@@ -1050,8 +1050,8 @@ int pdc_mem_pdt_read_entries(struct pdc_mem_read_pdt *pret,
 
 #ifdef CONFIG_64BIT
 	/*
-	 * 64-bit kernels should not call this PDT function in narrow mode.
-	 * The pdt_entries_ptr array above will now contain 32-bit values
+	 * 64-bit kernels should yest call this PDT function in narrow mode.
+	 * The pdt_entries_ptr array above will yesw contain 32-bit values
 	 */
 	if (WARN_ON_ONCE((retval == PDC_OK) && parisc_narrow_firmware))
 		return PDC_ERROR;
@@ -1098,8 +1098,8 @@ int pdc_mem_mem_table(struct pdc_memory_table_raddr *r_addr,
 }
 #endif /* CONFIG_64BIT */
 
-/* FIXME: Is this pdc used?  I could not find type reference to ftc_bitmap
- * so I guessed at unsigned long.  Someone who knows what this does, can fix
+/* FIXME: Is this pdc used?  I could yest find type reference to ftc_bitmap
+ * so I guessed at unsigned long.  Someone who kyesws what this does, can fix
  * it later. :)
  */
 int pdc_do_firm_test_reset(unsigned long ftc_bitmap)
@@ -1182,7 +1182,7 @@ int pdc_soft_power_button(int sw_control)
 /*
  * pdc_io_reset - Hack to avoid overlapping range registers of Bridges devices.
  * Primarily a problem on T600 (which parisc-linux doesn't support) but
- * who knows what other platform firmware might do with this OS "hook".
+ * who kyesws what other platform firmware might do with this OS "hook".
  */
 void pdc_io_reset(void)
 {
@@ -1259,10 +1259,10 @@ print:
 
 #if !defined(BOOTLOADER)
 /**
- * pdc_iodc_getc - Read a character (non-blocking) from the PDC console.
+ * pdc_iodc_getc - Read a character (yesn-blocking) from the PDC console.
  *
- * Read a character (non-blocking) from the PDC console, returns -1 if
- * key is not present.
+ * Read a character (yesn-blocking) from the PDC console, returns -1 if
+ * key is yest present.
  */
 int pdc_iodc_getc(void)
 {
@@ -1270,7 +1270,7 @@ int pdc_iodc_getc(void)
 	int status;
 	unsigned long flags;
 
-	/* Bail if no console input device. */
+	/* Bail if yes console input device. */
 	if (!PAGE0->mem_kbd.iodc_io)
 		return 0;
 	
@@ -1687,7 +1687,7 @@ int pdc_pat_mem_get_dimm_phys_location(
  */
 
 struct narrow_stack {
-	/* use int, not long which is 64 bits */
+	/* use int, yest long which is 64 bits */
 	unsigned int arg13;
 	unsigned int arg12;
 	unsigned int arg11;

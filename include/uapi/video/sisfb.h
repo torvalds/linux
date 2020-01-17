@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * sisfb.h - definitions for the SiS framebuffer driver
  *
@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  */
 
@@ -132,7 +132,7 @@ struct sisfb_info {
 	__u8	reserved[183];		/* for future use */
 };
 
-#define SISFB_CMD_GETVBFLAGS	0x55AA0001	/* no arg; result[1] = vbflags */
+#define SISFB_CMD_GETVBFLAGS	0x55AA0001	/* yes arg; result[1] = vbflags */
 #define SISFB_CMD_SWITCHCRT1	0x55AA0010	/* arg[0]: 99 = query, 0 = off, 1 = on */
 /* more to come */
 
@@ -142,7 +142,7 @@ struct sisfb_info {
 #define SISFB_CMD_ERR_NOVB	0x80000003	/* No video bridge */
 #define SISFB_CMD_ERR_NOCRT2	0x80000004	/* can't change CRT1 status, CRT2 disabled */
 /* more to come */
-#define SISFB_CMD_ERR_UNKNOWN   0x8000ffff	/* Unknown command */
+#define SISFB_CMD_ERR_UNKNOWN   0x8000ffff	/* Unkyeswn command */
 #define SISFB_CMD_ERR_OTHER	0x80010000	/* Other error */
 
 /* Argument for SISFB_CMD ioctl */
@@ -162,7 +162,7 @@ struct sisfb_cmd {
 /* ioctrl to get current vertical retrace status */
 #define SISFB_GET_VBRSTATUS	_IOR(0xF3,0x02,__u32)
 
-/* ioctl to enable/disable panning auto-maximize (like nomax parameter) */
+/* ioctl to enable/disable panning auto-maximize (like yesmax parameter) */
 #define SISFB_GET_AUTOMAXIMIZE	_IOR(0xF3,0x03,__u32)
 #define SISFB_SET_AUTOMAXIMIZE	_IOW(0xF3,0x03,__u32)
 
@@ -173,8 +173,8 @@ struct sisfb_cmd {
 /* ioctl for internal sisfb commands (sisfbctrl) */
 #define SISFB_COMMAND		_IOWR(0xF3,0x05,struct sisfb_cmd)
 
-/* ioctl for locking sisfb (no register access during lock) */
-/* As of now, only used to avoid register access during
+/* ioctl for locking sisfb (yes register access during lock) */
+/* As of yesw, only used to avoid register access during
  * the ioctls listed above.
  */
 #define SISFB_SET_LOCK		_IOW(0xF3,0x06,__u32)
@@ -182,13 +182,13 @@ struct sisfb_cmd {
 /* ioctls 0xF3 up to 0x3F reserved for sisfb */
 
 /****************************************************************/
-/* The following are deprecated and should not be used anymore: */
+/* The following are deprecated and should yest be used anymore: */
 /****************************************************************/
 /* ioctl for identifying and giving some info (esp. memory heap start) */
 #define SISFB_GET_INFO_OLD	   _IOR('n',0xF8,__u32)
 /* ioctrl to get current vertical retrace status */
 #define SISFB_GET_VBRSTATUS_OLD	   _IOR('n',0xF9,__u32)
-/* ioctl to enable/disable panning auto-maximize (like nomax parameter) */
+/* ioctl to enable/disable panning auto-maximize (like yesmax parameter) */
 #define SISFB_GET_AUTOMAXIMIZE_OLD _IOR('n',0xFA,__u32)
 #define SISFB_SET_AUTOMAXIMIZE_OLD _IOW('n',0xFA,__u32)
 /****************************************************************/

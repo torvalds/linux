@@ -136,7 +136,7 @@ static inline void save_complete(void)
 {
 	/* Save, Step 18:
 	 *    Issue a stop-and-signal instruction indicating
-	 *    "save complete".  Note: This function will not
+	 *    "save complete".  Note: This function will yest
 	 *    return!!
 	 */
 	spu_stop(SPU_SAVE_COMPLETE);
@@ -148,7 +148,7 @@ static inline void save_complete(void)
  * This code deviates from the documented sequence as follows:
  *
  *      1. The EA for LSCSA is passed from PPE in the
- *         signal notification channels.
+ *         signal yestification channels.
  *      2. All 128 registers are saved by crt0.o.
  */
 int main()

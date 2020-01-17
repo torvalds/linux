@@ -91,7 +91,7 @@
 	.endif
 .endm
 
-/* SVE instruction encodings for non-SVE-capable assemblers */
+/* SVE instruction encodings for yesn-SVE-capable assemblers */
 
 /* STR (vector): STR Z\nz, [X\nxbase, #\offset, MUL VL] */
 .macro _sve_str_v nz, nxbase, offset=0

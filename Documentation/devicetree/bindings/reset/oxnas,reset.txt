@@ -9,7 +9,7 @@ Required properties:
 	      For OX820, should be "oxsemi,ox820-reset"
 - #reset-cells: 1, see below
 
-Parent node should have the following properties :
+Parent yesde should have the following properties :
 - compatible: For OX810SE, should be :
 			"oxsemi,ox810se-sys-ctrl", "syscon", "simple-mfd"
 	      For OX820, should be :

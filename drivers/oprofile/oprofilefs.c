@@ -24,22 +24,22 @@
 
 DEFINE_RAW_SPINLOCK(oprofilefs_lock);
 
-static struct inode *oprofilefs_get_inode(struct super_block *sb, int mode)
+static struct iyesde *oprofilefs_get_iyesde(struct super_block *sb, int mode)
 {
-	struct inode *inode = new_inode(sb);
+	struct iyesde *iyesde = new_iyesde(sb);
 
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		inode->i_mode = mode;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	if (iyesde) {
+		iyesde->i_iyes = get_next_iyes();
+		iyesde->i_mode = mode;
+		iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
 	}
-	return inode;
+	return iyesde;
 }
 
 
 static const struct super_operations s_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode 	= generic_delete_inode,
+	.drop_iyesde 	= generic_delete_iyesde,
 };
 
 
@@ -65,7 +65,7 @@ ssize_t oprofilefs_ulong_to_user(unsigned long val, char __user *buf, size_t cou
  * Note: If oprofilefs_ulong_from_user() returns 0, then *val remains
  * unchanged and might be uninitialized. This follows write syscall
  * implementation when count is zero: "If count is zero ... [and if]
- * no errors are detected, 0 will be returned without causing any
+ * yes errors are detected, 0 will be returned without causing any
  * other effect." (man 2 write)
  */
 int oprofilefs_ulong_from_user(unsigned long *val, char const __user *buf, size_t count)
@@ -137,27 +137,27 @@ static int __oprofilefs_create_file(struct dentry *root, char const *name,
 	const struct file_operations *fops, int perm, void *priv)
 {
 	struct dentry *dentry;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	if (!root)
 		return -ENOMEM;
 
-	inode_lock(d_inode(root));
+	iyesde_lock(d_iyesde(root));
 	dentry = d_alloc_name(root, name);
 	if (!dentry) {
-		inode_unlock(d_inode(root));
+		iyesde_unlock(d_iyesde(root));
 		return -ENOMEM;
 	}
-	inode = oprofilefs_get_inode(root->d_sb, S_IFREG | perm);
-	if (!inode) {
+	iyesde = oprofilefs_get_iyesde(root->d_sb, S_IFREG | perm);
+	if (!iyesde) {
 		dput(dentry);
-		inode_unlock(d_inode(root));
+		iyesde_unlock(d_iyesde(root));
 		return -ENOMEM;
 	}
-	inode->i_fop = fops;
-	inode->i_private = priv;
-	d_add(dentry, inode);
-	inode_unlock(d_inode(root));
+	iyesde->i_fop = fops;
+	iyesde->i_private = priv;
+	d_add(dentry, iyesde);
+	iyesde_unlock(d_iyesde(root));
 	return 0;
 }
 
@@ -217,31 +217,31 @@ int oprofilefs_create_file_perm(struct dentry *root,
 struct dentry *oprofilefs_mkdir(struct dentry *parent, char const *name)
 {
 	struct dentry *dentry;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
-	inode_lock(d_inode(parent));
+	iyesde_lock(d_iyesde(parent));
 	dentry = d_alloc_name(parent, name);
 	if (!dentry) {
-		inode_unlock(d_inode(parent));
+		iyesde_unlock(d_iyesde(parent));
 		return NULL;
 	}
-	inode = oprofilefs_get_inode(parent->d_sb, S_IFDIR | 0755);
-	if (!inode) {
+	iyesde = oprofilefs_get_iyesde(parent->d_sb, S_IFDIR | 0755);
+	if (!iyesde) {
 		dput(dentry);
-		inode_unlock(d_inode(parent));
+		iyesde_unlock(d_iyesde(parent));
 		return NULL;
 	}
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
-	d_add(dentry, inode);
-	inode_unlock(d_inode(parent));
+	iyesde->i_op = &simple_dir_iyesde_operations;
+	iyesde->i_fop = &simple_dir_operations;
+	d_add(dentry, iyesde);
+	iyesde_unlock(d_iyesde(parent));
 	return dentry;
 }
 
 
 static int oprofilefs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
-	struct inode *root_inode;
+	struct iyesde *root_iyesde;
 
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;
@@ -249,12 +249,12 @@ static int oprofilefs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_op = &s_ops;
 	sb->s_time_gran = 1;
 
-	root_inode = oprofilefs_get_inode(sb, S_IFDIR | 0755);
-	if (!root_inode)
+	root_iyesde = oprofilefs_get_iyesde(sb, S_IFDIR | 0755);
+	if (!root_iyesde)
 		return -ENOMEM;
-	root_inode->i_op = &simple_dir_inode_operations;
-	root_inode->i_fop = &simple_dir_operations;
-	sb->s_root = d_make_root(root_inode);
+	root_iyesde->i_op = &simple_dir_iyesde_operations;
+	root_iyesde->i_fop = &simple_dir_operations;
+	sb->s_root = d_make_root(root_iyesde);
 	if (!sb->s_root)
 		return -ENOMEM;
 

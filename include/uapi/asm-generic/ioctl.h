@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_ASM_GENERIC_IOCTL_H
 #define _UAPI_ASM_GENERIC_IOCTL_H
 
@@ -18,7 +18,7 @@
  * a type field.  De facto, however, the top 8 bits of the lower 16
  * bits are indeed used as a type field, so we might just as well make
  * this explicit here.  Please be sure to use the decoding macros
- * below from now on.
+ * below from yesw on.
  */
 #define _IOC_NRBITS	8
 #define _IOC_TYPEBITS	8

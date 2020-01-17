@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <core/event.h>
-#include <core/notify.h>
+#include <core/yestify.h>
 
 void
 nvkm_event_put(struct nvkm_event *event, u32 types, int index)
@@ -52,20 +52,20 @@ void
 nvkm_event_send(struct nvkm_event *event, u32 types, int index,
 		void *data, u32 size)
 {
-	struct nvkm_notify *notify;
+	struct nvkm_yestify *yestify;
 	unsigned long flags;
 
 	if (!event->refs || WARN_ON(index >= event->index_nr))
 		return;
 
 	spin_lock_irqsave(&event->list_lock, flags);
-	list_for_each_entry(notify, &event->list, head) {
-		if (notify->index == index && (notify->types & types)) {
+	list_for_each_entry(yestify, &event->list, head) {
+		if (yestify->index == index && (yestify->types & types)) {
 			if (event->func->send) {
-				event->func->send(data, size, notify);
+				event->func->send(data, size, yestify);
 				continue;
 			}
-			nvkm_notify_send(notify, data, size);
+			nvkm_yestify_send(yestify, data, size);
 		}
 	}
 	spin_unlock_irqrestore(&event->list_lock, flags);

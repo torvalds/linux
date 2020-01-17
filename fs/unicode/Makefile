@@ -3,11 +3,11 @@
 obj-$(CONFIG_UNICODE) += unicode.o
 obj-$(CONFIG_UNICODE_NORMALIZATION_SELFTEST) += utf8-selftest.o
 
-unicode-y := utf8-norm.o utf8-core.o
+unicode-y := utf8-yesrm.o utf8-core.o
 
-$(obj)/utf8-norm.o: $(obj)/utf8data.h
+$(obj)/utf8-yesrm.o: $(obj)/utf8data.h
 
-# In the normal build, the checked-in utf8data.h is just shipped.
+# In the yesrmal build, the checked-in utf8data.h is just shipped.
 #
 # To generate utf8data.h from UCD, put *.txt files in this directory
 # and pass REGENERATE_UTF8DATA=1 from the command line.

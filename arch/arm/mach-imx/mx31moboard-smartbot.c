@@ -116,7 +116,7 @@ void __init mx31moboard_smartbot_init(int board)
 		smartbot_otg_host_init();
 		break;
 	default:
-		printk(KERN_WARNING "Unknown board %d, USB OTG not initialized",
+		printk(KERN_WARNING "Unkyeswn board %d, USB OTG yest initialized",
 			board);
 	}
 

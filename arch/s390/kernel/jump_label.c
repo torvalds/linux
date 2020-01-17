@@ -15,7 +15,7 @@ struct insn {
 	s32 offset;
 } __packed;
 
-static void jump_label_make_nop(struct jump_entry *entry, struct insn *insn)
+static void jump_label_make_yesp(struct jump_entry *entry, struct insn *insn)
 {
 	/* brcl 0,offset */
 	insn->opcode = 0xc004;
@@ -43,7 +43,7 @@ static void jump_label_bug(struct jump_entry *entry, struct insn *expected,
 	panic("Corrupted kernel text");
 }
 
-static struct insn orignop = {
+static struct insn origyesp = {
 	.opcode = 0xc004,
 	.offset = JUMP_LABEL_NOP_OFFSET >> 1,
 };
@@ -56,15 +56,15 @@ static void __jump_label_transform(struct jump_entry *entry,
 	struct insn old, new;
 
 	if (type == JUMP_LABEL_JMP) {
-		jump_label_make_nop(entry, &old);
+		jump_label_make_yesp(entry, &old);
 		jump_label_make_branch(entry, &new);
 	} else {
 		jump_label_make_branch(entry, &old);
-		jump_label_make_nop(entry, &new);
+		jump_label_make_yesp(entry, &new);
 	}
 	if (init) {
-		if (memcmp(code, &orignop, sizeof(orignop)))
-			jump_label_bug(entry, &orignop, &new);
+		if (memcmp(code, &origyesp, sizeof(origyesp)))
+			jump_label_bug(entry, &origyesp, &new);
 	} else {
 		if (memcmp(code, &old, sizeof(old)))
 			jump_label_bug(entry, &old, &new);

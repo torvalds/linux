@@ -292,7 +292,7 @@ static int __init pca100_otg_mode(char *options)
 	else if (!strcmp(options, "device"))
 		otg_mode_host = false;
 	else
-		pr_info("otg_mode neither \"host\" nor \"device\". "
+		pr_info("otg_mode neither \"host\" yesr \"device\". "
 			"Defaulting to device\n");
 	return 1;
 }
@@ -321,7 +321,7 @@ static struct imx_fb_videomode pca100_fb_modes[] = {
 		 * VSYNC active low
 		 * use HSYNC for ACD count
 		 * line clock disable while idle
-		 * always enable line clock even if no data
+		 * always enable line clock even if yes data
 		 */
 		.pcr = 0xf0c08080,
 		.bpp = 16,

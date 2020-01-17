@@ -2,7 +2,7 @@
 /*
  * AXS101/AXS103 Software Development Platform
  *
- * Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2013-15 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <linux/of_fdt.h>
@@ -49,7 +49,7 @@ static void __init axs10x_enable_gpio_intc_wire(void)
 	 *
 	 * Current implementation of "irq-dw-apb-ictl" driver doesn't work well
 	 * with stacked INTCs. In particular problem happens if its master INTC
-	 * not yet instantiated. See discussion here -
+	 * yest yet instantiated. See discussion here -
 	 * https://lkml.org/lkml/2015/3/4/755
 	 *
 	 * So setup the first gpio block as a passive pass thru and hide it from
@@ -225,7 +225,7 @@ static const struct aperture axs_mb_memmap[16] = {
 	{AXS_MB_SLV_AXI_TUNNEL_CPU,	0xF},
 };
 
-static noinline void __init
+static yesinline void __init
 axs101_set_memmap(void __iomem *base, const struct aperture map[16])
 {
 	unsigned int slave_select, slave_offset;

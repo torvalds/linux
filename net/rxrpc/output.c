@@ -47,7 +47,7 @@ static void rxrpc_tx_backoff(struct rxrpc_call *call, int ret)
 
 /*
  * Arrange for a keepalive ping a certain time after we last transmitted.  This
- * lets the far side know we're still interested in this call and helps keep
+ * lets the far side kyesw we're still interested in this call and helps keep
  * the route through any intervening firewall open.
  *
  * Receiving a response to the ping will prevent the ->expect_rx_by timer from
@@ -55,11 +55,11 @@ static void rxrpc_tx_backoff(struct rxrpc_call *call, int ret)
  */
 static void rxrpc_set_keepalive(struct rxrpc_call *call)
 {
-	unsigned long now = jiffies, keepalive_at = call->next_rx_timo / 6;
+	unsigned long yesw = jiffies, keepalive_at = call->next_rx_timo / 6;
 
-	keepalive_at += now;
+	keepalive_at += yesw;
 	WRITE_ONCE(call->keepalive_at, keepalive_at);
-	rxrpc_reduce_call_timer(call, keepalive_at, now,
+	rxrpc_reduce_call_timer(call, keepalive_at, yesw,
 				rxrpc_timer_set_for_keepalive);
 }
 
@@ -262,9 +262,9 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 	int ret;
 
 	/* Don't bother sending aborts for a client call once the server has
-	 * hard-ACK'd all of its request data.  After that point, we're not
+	 * hard-ACK'd all of its request data.  After that point, we're yest
 	 * going to stop the operation proceeding, and whilst we might limit
-	 * the reply, it's not worth it if we can send a new call on the same
+	 * the reply, it's yest worth it if we can send a new call on the same
 	 * channel instead, thereby closing off this call.
 	 */
 	if (rxrpc_is_client_call(call) &&
@@ -397,7 +397,7 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 			    false);
 
 	/* send the packet with the don't fragment bit set if we currently
-	 * think it's small enough */
+	 * think it's small eyesugh */
 	if (iov[1].iov_len >= call->peer->maxdata)
 		goto send_fragmentable;
 
@@ -419,10 +419,10 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	up_read(&conn->params.local->defrag_sem);
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
-				    rxrpc_tx_point_call_data_nofrag);
+				    rxrpc_tx_point_call_data_yesfrag);
 	else
 		trace_rxrpc_tx_packet(call->debug_id, &whdr,
-				      rxrpc_tx_point_call_data_nofrag);
+				      rxrpc_tx_point_call_data_yesfrag);
 	rxrpc_tx_backoff(call, ret);
 	if (ret == -EMSGSIZE)
 		goto send_fragmentable;
@@ -433,15 +433,15 @@ done:
 			call->peer->rtt_last_req = skb->tstamp;
 			trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_data, serial);
 			if (call->peer->rtt_usage > 1) {
-				unsigned long nowj = jiffies, ack_lost_at;
+				unsigned long yeswj = jiffies, ack_lost_at;
 
 				ack_lost_at = nsecs_to_jiffies(2 * call->peer->rtt);
 				if (ack_lost_at < 1)
 					ack_lost_at = 1;
 
-				ack_lost_at += nowj;
+				ack_lost_at += yeswj;
 				WRITE_ONCE(call->ack_lost_at, ack_lost_at);
-				rxrpc_reduce_call_timer(call, ack_lost_at, nowj,
+				rxrpc_reduce_call_timer(call, ack_lost_at, yeswj,
 							rxrpc_timer_set_for_lost_ack);
 			}
 		}
@@ -449,12 +449,12 @@ done:
 		if (sp->hdr.seq == 1 &&
 		    !test_and_set_bit(RXRPC_CALL_BEGAN_RX_TIMER,
 				      &call->flags)) {
-			unsigned long nowj = jiffies, expect_rx_by;
+			unsigned long yeswj = jiffies, expect_rx_by;
 
-			expect_rx_by = nowj + call->next_rx_timo;
+			expect_rx_by = yeswj + call->next_rx_timo;
 			WRITE_ONCE(call->expect_rx_by, expect_rx_by);
-			rxrpc_reduce_call_timer(call, expect_rx_by, nowj,
-						rxrpc_timer_set_for_normal);
+			rxrpc_reduce_call_timer(call, expect_rx_by, yeswj,
+						rxrpc_timer_set_for_yesrmal);
 		}
 
 		rxrpc_set_keepalive(call);

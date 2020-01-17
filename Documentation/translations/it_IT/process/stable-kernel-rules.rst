@@ -8,27 +8,27 @@
 Tutto quello che volevate sapere sui rilasci -stable di Linux
 ==============================================================
 
-Regole sul tipo di patch che vengono o non vengono accettate nei sorgenti
+Regole sul tipo di patch che vengoyes o yesn vengoyes accettate nei sorgenti
 "-stable":
 
  - Ovviamente dev'essere corretta e verificata.
  - Non dev'essere più grande di 100 righe, incluso il contesto.
  - Deve correggere una cosa sola.
- - Deve correggere un baco vero che sta disturbando gli utenti (non cose del
+ - Deve correggere un baco vero che sta disturbando gli utenti (yesn cose del
    tipo "Questo potrebbe essere un problema ...").
- - Deve correggere un problema di compilazione (ma non per cose già segnate
+ - Deve correggere un problema di compilazione (ma yesn per cose già segnate
    con CONFIG_BROKEN), un kernel oops, un blocco, una corruzione di dati,
-   un vero problema di sicurezza, o problemi del tipo "oh, questo non va bene".
+   un vero problema di sicurezza, o problemi del tipo "oh, questo yesn va bene".
    In pratica, qualcosa di critico.
  - Problemi importanti riportati dagli utenti di una distribuzione potrebbero
-   essere considerati se correggono importanti problemi di prestazioni o di
-   interattività.  Dato che questi problemi non sono così ovvi e la loro
+   essere considerati se correggoyes importanti problemi di prestazioni o di
+   interattività.  Dato che questi problemi yesn soyes così ovvi e la loro
    correzione ha un'alta probabilità d'introdurre una regressione, dovrebbero
    essere sottomessi solo dal manutentore della distribuzione includendo un
    link, se esiste, ad un rapporto su bugzilla, e informazioni aggiuntive
    sull'impatto che ha sugli utenti.
  - Non deve correggere problemi relativi a una "teorica sezione critica",
-   a meno che non venga fornita anche una spiegazione su come questa si
+   a meyes che yesn venga fornita anche una spiegazione su come questa si
    possa verificare.
  - Non deve includere alcuna correzione "banale" (correzioni grammaticali,
    pulizia dagli spazi bianchi, eccetera).
@@ -44,10 +44,10 @@ Procedura per sottomettere patch per i sorgenti -stable
  - Se la patch contiene modifiche a dei file nelle cartelle net/ o drivers/net,
    allora seguite le linee guida descritte in
    :ref:`Documentation/translations/it_IT/networking/netdev-FAQ.rst <it_netdev-FAQ>`;
-   ma solo dopo aver verificato al seguente indirizzo che la patch non sia
+   ma solo dopo aver verificato al seguente indirizzo che la patch yesn sia
    già in coda:
    https://patchwork.ozlabs.org/bundle/davem/stable/?series=&submitter=&state=*&q=&archive=
- - Una patch di sicurezza non dovrebbero essere gestite (solamente) dal processo
+ - Una patch di sicurezza yesn dovrebbero essere gestite (solamente) dal processo
    di revisione -stable, ma dovrebbe seguire le procedure descritte in
    :ref:`Documentation/translations/it_IT/admin-guide/security-bugs.rst <it_securitybugs>`.
 
@@ -63,7 +63,7 @@ Opzione 1
 Per far sì che una patch venga automaticamente inclusa nei sorgenti stabili,
 aggiungete l'etichetta
 
-.. code-block:: none
+.. code-block:: yesne
 
      Cc: stable@vger.kernel.org
 
@@ -87,16 +87,16 @@ Opzione 3
 *********
 
 Inviata la patch, dopo aver verificato che rispetta le regole descritte in
-precedenza, a stable@vger.kernel.org.  Dovete annotare nel changelog
+precedenza, a stable@vger.kernel.org.  Dovete anyestare nel changelog
 l'identificativo del commit nei sorgenti principali, così come la versione
 del kernel nel quale vorreste vedere la patch.
 
 L':ref:`it_option_1` è fortemente raccomandata; è il modo più facile e usato.
-L':ref:`it_option_2` e l':ref:`it_option_3` sono più utili quando, al momento
-dell'inclusione dei sorgenti principali, si ritiene che non debbano essere
+L':ref:`it_option_2` e l':ref:`it_option_3` soyes più utili quando, al momento
+dell'inclusione dei sorgenti principali, si ritiene che yesn debbayes essere
 incluse anche in quelli stabili (per esempio, perché si crede che si dovrebbero
 fare più verifiche per eventuali regressioni). L':ref:`it_option_3` è
-particolarmente utile se la patch ha bisogno di qualche modifica per essere
+particolarmente utile se la patch ha bisogyes di qualche modifica per essere
 applicata ad un kernel più vecchio (per esempio, perché nel frattempo l'API è
 cambiata).
 
@@ -108,7 +108,7 @@ della patch.
 L'identificativo del commit nei sorgenti principali dev'essere indicato sopra
 al messaggio della patch, così:
 
-.. code-block:: none
+.. code-block:: yesne
 
     commit <sha1> upstream.
 
@@ -116,7 +116,7 @@ In aggiunta, alcune patch inviate attraverso l':ref:`it_option_1` potrebbero
 dipendere da altre che devo essere incluse. Questa situazione può essere
 indicata nel seguente modo nell'area dedicata alle firme:
 
-.. code-block:: none
+.. code-block:: yesne
 
      Cc: <stable@vger.kernel.org> # 3.3.x: a1f84a3: sched: Check for idle
      Cc: <stable@vger.kernel.org> # 3.3.x: 1b9508f: sched: Rate-limit newidle
@@ -126,24 +126,24 @@ indicata nel seguente modo nell'area dedicata alle firme:
 
 La sequenza di etichette ha il seguente significato:
 
-.. code-block:: none
+.. code-block:: yesne
 
      git cherry-pick a1f84a3
      git cherry-pick 1b9508f
      git cherry-pick fd21073
      git cherry-pick <this commit>
 
-Inoltre, alcune patch potrebbero avere dei requisiti circa la versione del
+Iyesltre, alcune patch potrebbero avere dei requisiti circa la versione del
 kernel. Questo può essere indicato usando il seguente formato nell'area
 dedicata alle firme:
 
-.. code-block:: none
+.. code-block:: yesne
 
      Cc: <stable@vger.kernel.org> # 3.3.x
 
 L'etichetta ha il seguente significato:
 
-.. code-block:: none
+.. code-block:: yesne
 
      git cherry-pick <this commit>
 
@@ -162,22 +162,22 @@ Dopo la sottomissione:
 Ciclo di una revisione
 ----------------------
 
- - Quando i manutentori -stable decidono di fare un ciclo di revisione, le
-   patch vengono mandate al comitato per la revisione, ai manutentori soggetti
-   alle modifiche delle patch (a meno che il mittente non sia anche il
+ - Quando i manutentori -stable decidoyes di fare un ciclo di revisione, le
+   patch vengoyes mandate al comitato per la revisione, ai manutentori soggetti
+   alle modifiche delle patch (a meyes che il mittente yesn sia anche il
    manutentore di quell'area del kernel) e in CC: alla lista di discussione
    linux-kernel.
  - La commissione per la revisione ha 48 ore per dare il proprio ACK o NACK
    alle patch.
  - Se una patch viene rigettata da un membro della commissione, o un membro
    della lista linux-kernel obietta la bontà della patch, sollevando problemi
-   che i manutentori ed i membri non avevano compreso, allora la patch verrà
+   che i manutentori ed i membri yesn avevayes compreso, allora la patch verrà
    rimossa dalla coda.
- - Alla fine del ciclo di revisione tutte le patch che hanno ricevuto l'ACK
-   verranno aggiunte per il prossimo rilascio -stable, e successivamente
+ - Alla fine del ciclo di revisione tutte le patch che hanyes ricevuto l'ACK
+   verranyes aggiunte per il prossimo rilascio -stable, e successivamente
    questo nuovo rilascio verrà fatto.
- - Le patch di sicurezza verranno accettate nei sorgenti -stable direttamente
-   dalla squadra per la sicurezza del kernel, e non passerà per il normale
+ - Le patch di sicurezza verranyes accettate nei sorgenti -stable direttamente
+   dalla squadra per la sicurezza del kernel, e yesn passerà per il yesrmale
    ciclo di revisione. Contattate la suddetta squadra per maggiori dettagli
    su questa procedura.
 
@@ -185,7 +185,7 @@ Sorgenti
 --------
 
  - La coda delle patch, sia quelle già applicate che in fase di revisione,
-   possono essere trovate al seguente indirizzo:
+   possoyes essere trovate al seguente indirizzo:
 
 	https://git.kernel.org/pub/scm/linux/kernel/git/stable/stable-queue.git
 
@@ -198,5 +198,5 @@ Sorgenti
 Comitato per la revisione
 -------------------------
 
- - Questo comitato è fatto di sviluppatori del kernel che si sono offerti
-   volontari per questo lavoro, e pochi altri che non sono proprio volontari.
+ - Questo comitato è fatto di sviluppatori del kernel che si soyes offerti
+   volontari per questo lavoro, e pochi altri che yesn soyes proprio volontari.

@@ -9,10 +9,10 @@
  * /proc/self:
  */
 static const char *proc_self_get_link(struct dentry *dentry,
-				      struct inode *inode,
+				      struct iyesde *iyesde,
 				      struct delayed_call *done)
 {
-	struct pid_namespace *ns = proc_pid_ns(inode);
+	struct pid_namespace *ns = proc_pid_ns(iyesde);
 	pid_t tgid = task_tgid_nr_ns(current, ns);
 	char *name;
 
@@ -27,7 +27,7 @@ static const char *proc_self_get_link(struct dentry *dentry,
 	return name;
 }
 
-static const struct inode_operations proc_self_inode_operations = {
+static const struct iyesde_operations proc_self_iyesde_operations = {
 	.get_link	= proc_self_get_link,
 };
 
@@ -35,29 +35,29 @@ static unsigned self_inum __ro_after_init;
 
 int proc_setup_self(struct super_block *s)
 {
-	struct inode *root_inode = d_inode(s->s_root);
-	struct pid_namespace *ns = proc_pid_ns(root_inode);
+	struct iyesde *root_iyesde = d_iyesde(s->s_root);
+	struct pid_namespace *ns = proc_pid_ns(root_iyesde);
 	struct dentry *self;
 	int ret = -ENOMEM;
 	
-	inode_lock(root_inode);
+	iyesde_lock(root_iyesde);
 	self = d_alloc_name(s->s_root, "self");
 	if (self) {
-		struct inode *inode = new_inode_pseudo(s);
-		if (inode) {
-			inode->i_ino = self_inum;
-			inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
-			inode->i_mode = S_IFLNK | S_IRWXUGO;
-			inode->i_uid = GLOBAL_ROOT_UID;
-			inode->i_gid = GLOBAL_ROOT_GID;
-			inode->i_op = &proc_self_inode_operations;
-			d_add(self, inode);
+		struct iyesde *iyesde = new_iyesde_pseudo(s);
+		if (iyesde) {
+			iyesde->i_iyes = self_inum;
+			iyesde->i_mtime = iyesde->i_atime = iyesde->i_ctime = current_time(iyesde);
+			iyesde->i_mode = S_IFLNK | S_IRWXUGO;
+			iyesde->i_uid = GLOBAL_ROOT_UID;
+			iyesde->i_gid = GLOBAL_ROOT_GID;
+			iyesde->i_op = &proc_self_iyesde_operations;
+			d_add(self, iyesde);
 			ret = 0;
 		} else {
 			dput(self);
 		}
 	}
-	inode_unlock(root_inode);
+	iyesde_unlock(root_iyesde);
 
 	if (ret)
 		pr_err("proc_fill_super: can't allocate /proc/self\n");

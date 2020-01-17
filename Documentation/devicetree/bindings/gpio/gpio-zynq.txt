@@ -8,10 +8,10 @@ Required properties:
 			    parameters (unused)
 - compatible		: Should be "xlnx,zynq-gpio-1.0" or "xlnx,zynqmp-gpio-1.0"
 - clocks		: Clock specifier (see clock bindings for details)
-- gpio-controller	: Marks the device node as a GPIO controller.
+- gpio-controller	: Marks the device yesde as a GPIO controller.
 - interrupts		: Interrupt specifier (see interrupt bindings for
 			  details)
-- interrupt-controller	: Marks the device node as an interrupt controller.
+- interrupt-controller	: Marks the device yesde as an interrupt controller.
 - #interrupt-cells 	: Should be 2.  The first cell is the GPIO number.
 			  The second cell bits[3:0] is used to specify trigger type and level flags:
 			      1 = low-to-high edge triggered.

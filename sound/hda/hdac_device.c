@@ -15,7 +15,7 @@
 #include <sound/pcm.h>
 #include "local.h"
 
-static void setup_fg_nodes(struct hdac_device *codec);
+static void setup_fg_yesdes(struct hdac_device *codec);
 static int get_codec_vendor_name(struct hdac_device *codec);
 
 static void default_release(struct device *dev)
@@ -58,7 +58,7 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 	codec->type = HDA_DEV_CORE;
 	mutex_init(&codec->widget_lock);
 	pm_runtime_set_active(&codec->dev);
-	pm_runtime_get_noresume(&codec->dev);
+	pm_runtime_get_yesresume(&codec->dev);
 	atomic_set(&codec->in_pm, 0);
 
 	err = snd_hdac_bus_add_device(bus, codec);
@@ -81,9 +81,9 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 	codec->revision_id = snd_hdac_read_parm(codec, AC_NODE_ROOT,
 						AC_PAR_REV_ID);
 
-	setup_fg_nodes(codec);
+	setup_fg_yesdes(codec);
 	if (!codec->afg && !codec->mfg) {
-		dev_err(dev, "no AFG or MFG node found\n");
+		dev_err(dev, "yes AFG or MFG yesde found\n");
 		err = -ENODEV;
 		goto error;
 	}
@@ -95,7 +95,7 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 		goto error;
 
 	codec->power_caps = snd_hdac_read_parm(codec, fg, AC_PAR_POWER_STATE);
-	/* reread ssid if not set by parameter */
+	/* reread ssid if yest set by parameter */
 	if (codec->subsystem_id == -1 || codec->subsystem_id == 0)
 		snd_hdac_read(codec, fg, AC_VERB_GET_SUBSYSTEM_ID, 0,
 			      &codec->subsystem_id);
@@ -125,7 +125,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_device_init);
  */
 void snd_hdac_device_exit(struct hdac_device *codec)
 {
-	pm_runtime_put_noidle(&codec->dev);
+	pm_runtime_put_yesidle(&codec->dev);
 	snd_hdac_bus_remove_device(codec->bus, codec);
 	kfree(codec->vendor_name);
 	kfree(codec->chip_name);
@@ -247,7 +247,7 @@ static unsigned int snd_hdac_make_cmd(struct hdac_device *codec, hda_nid_t nid,
  *
  * Returns zero if successful, or a negative error code.
  *
- * This calls the exec_verb op when set in hdac_codec.  If not,
+ * This calls the exec_verb op when set in hdac_codec.  If yest,
  * call the default snd_hdac_bus_exec_verb().
  */
 int snd_hdac_exec_verb(struct hdac_device *codec, unsigned int cmd,
@@ -338,15 +338,15 @@ int snd_hdac_override_parm(struct hdac_device *codec, hda_nid_t nid,
 EXPORT_SYMBOL_GPL(snd_hdac_override_parm);
 
 /**
- * snd_hdac_get_sub_nodes - get start NID and number of subtree nodes
+ * snd_hdac_get_sub_yesdes - get start NID and number of subtree yesdes
  * @codec: the codec object
  * @nid: NID to inspect
  * @start_id: the pointer to store the starting NID
  *
- * Returns the number of subtree nodes or zero if not found.
+ * Returns the number of subtree yesdes or zero if yest found.
  * This function reads parameters always without caching.
  */
-int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,
+int snd_hdac_get_sub_yesdes(struct hdac_device *codec, hda_nid_t nid,
 			   hda_nid_t *start_id)
 {
 	unsigned int parm;
@@ -359,18 +359,18 @@ int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,
 	*start_id = (parm >> 16) & 0x7fff;
 	return (int)(parm & 0x7fff);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_get_sub_nodes);
+EXPORT_SYMBOL_GPL(snd_hdac_get_sub_yesdes);
 
 /*
- * look for an AFG and MFG nodes
+ * look for an AFG and MFG yesdes
  */
-static void setup_fg_nodes(struct hdac_device *codec)
+static void setup_fg_yesdes(struct hdac_device *codec)
 {
-	int i, total_nodes, function_id;
+	int i, total_yesdes, function_id;
 	hda_nid_t nid;
 
-	total_nodes = snd_hdac_get_sub_nodes(codec, AC_NODE_ROOT, &nid);
-	for (i = 0; i < total_nodes; i++, nid++) {
+	total_yesdes = snd_hdac_get_sub_yesdes(codec, AC_NODE_ROOT, &nid);
+	for (i = 0; i < total_yesdes; i++, nid++) {
 		function_id = snd_hdac_read_parm(codec, nid,
 						 AC_PAR_FUNCTION_TYPE);
 		switch (function_id & 0xff) {
@@ -391,7 +391,7 @@ static void setup_fg_nodes(struct hdac_device *codec)
 }
 
 /**
- * snd_hdac_refresh_widgets - Reset the widget start/end nodes
+ * snd_hdac_refresh_widgets - Reset the widget start/end yesdes
  * @codec: the codec object
  */
 int snd_hdac_refresh_widgets(struct hdac_device *codec)
@@ -404,9 +404,9 @@ int snd_hdac_refresh_widgets(struct hdac_device *codec)
 	 * widgets array.
 	 */
 	mutex_lock(&codec->widget_lock);
-	nums = snd_hdac_get_sub_nodes(codec, codec->afg, &start_nid);
+	nums = snd_hdac_get_sub_yesdes(codec, codec->afg, &start_nid);
 	if (!start_nid || nums <= 0 || nums >= 0xff) {
-		dev_err(&codec->dev, "cannot read sub nodes for FG 0x%02x\n",
+		dev_err(&codec->dev, "canyest read sub yesdes for FG 0x%02x\n",
 			codec->afg);
 		err = -EINVAL;
 		goto unlock;
@@ -416,7 +416,7 @@ int snd_hdac_refresh_widgets(struct hdac_device *codec)
 	if (err < 0)
 		goto unlock;
 
-	codec->num_nodes = nums;
+	codec->num_yesdes = nums;
 	codec->start_nid = start_nid;
 	codec->end_nid = start_nid + nums;
 unlock:
@@ -448,7 +448,7 @@ static unsigned int get_num_conns(struct hdac_device *codec, hda_nid_t nid)
  * @conn_list: the array to store the results, can be NULL
  * @max_conns: the max size of the given array
  *
- * Returns the number of connected widgets, zero for no connection, or a
+ * Returns the number of connected widgets, zero for yes connection, or a
  * negative error code.  When the number of elements don't fit with the
  * given array size, it returns -ENOSPC.
  *
@@ -480,7 +480,7 @@ int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
 	mask = (1 << (shift-1)) - 1;
 
 	if (!conn_len)
-		return 0; /* no connection */
+		return 0; /* yes connection */
 
 	if (conn_len == 1) {
 		/* single connection */
@@ -509,7 +509,7 @@ int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
 		}
 		range_val = !!(parm & (1 << (shift-1))); /* ranges */
 		val = parm & mask;
-		if (val == 0 && null_count++) {  /* no second chance */
+		if (val == 0 && null_count++) {  /* yes second chance */
 			dev_dbg(&codec->dev,
 				"invalid CONNECT_LIST verb %x[%i]:%x\n",
 				nid, i, parm);
@@ -591,19 +591,19 @@ EXPORT_SYMBOL_GPL(snd_hdac_power_down);
  */
 int snd_hdac_power_up_pm(struct hdac_device *codec)
 {
-	if (!atomic_inc_not_zero(&codec->in_pm))
+	if (!atomic_inc_yest_zero(&codec->in_pm))
 		return snd_hdac_power_up(codec);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_up_pm);
 
 /* like snd_hdac_power_up_pm(), but only increment the pm count when
- * already powered up.  Returns -1 if not powered up, 1 if incremented
+ * already powered up.  Returns -1 if yest powered up, 1 if incremented
  * or 0 if unchanged.  Only used in hdac_regmap.c
  */
 int snd_hdac_keep_power_up(struct hdac_device *codec)
 {
-	if (!atomic_inc_not_zero(&codec->in_pm)) {
+	if (!atomic_inc_yest_zero(&codec->in_pm)) {
 		int ret = pm_runtime_get_if_in_use(&codec->dev);
 		if (!ret)
 			return -1;
@@ -710,7 +710,7 @@ static struct hda_rate_tbl rate_bits[] = {
 #define AC_PAR_PCM_RATE_BITS	11
 	/* up to bits 10, 384kHZ isn't supported properly */
 
-	/* not autodetected value */
+	/* yest autodetected value */
 	{ 9600, SNDRV_PCM_RATE_KNOT, HDA_RATE(48, 1, 5) },
 
 	{ 0 } /* terminator */
@@ -811,7 +811,7 @@ static unsigned int query_stream_param(struct hdac_device *codec, hda_nid_t nid)
  * @bpsp: the pointer to store the detected format widths
  *
  * Queries the supported PCM rates and formats.  The NULL @ratesp, @formatsp
- * or @bsps argument is ignored.
+ * or @bsps argument is igyesred.
  *
  * Returns 0 if successful, otherwise a negative error code.
  */
@@ -886,7 +886,7 @@ int snd_hdac_query_supported_pcm(struct hdac_device *codec, hda_nid_t nid,
 #endif
 		if (streams == AC_SUPFMT_AC3) {
 			/* should be exclusive */
-			/* temporary hack: we have still no proper support
+			/* temporary hack: we have still yes proper support
 			 * for the direct AC3 stream...
 			 */
 			formats |= SNDRV_PCM_FMTBIT_U8;
@@ -916,9 +916,9 @@ EXPORT_SYMBOL_GPL(snd_hdac_query_supported_pcm);
  * @nid: NID to check
  * @format: the HD-audio format value to check
  *
- * Check whether the given node supports the format value.
+ * Check whether the given yesde supports the format value.
  *
- * Returns true if supported, false if not.
+ * Returns true if supported, false if yest.
  */
 bool snd_hdac_is_supported_format(struct hdac_device *codec, hda_nid_t nid,
 				  unsigned int format)
@@ -1043,7 +1043,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_codec_write);
  * @nid: NID to send the command
  * @target_state: target state to check for
  *
- * Return true if state matches, false if not
+ * Return true if state matches, false if yest
  */
 bool snd_hdac_check_power_state(struct hdac_device *hdac,
 		hda_nid_t nid, unsigned int target_state)

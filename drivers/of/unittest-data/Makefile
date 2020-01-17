@@ -17,13 +17,13 @@ obj-$(CONFIG_OF_OVERLAY) += overlay.dtb.o \
 			    overlay_12.dtb.o \
 			    overlay_13.dtb.o \
 			    overlay_15.dtb.o \
-			    overlay_bad_add_dup_node.dtb.o \
+			    overlay_bad_add_dup_yesde.dtb.o \
 			    overlay_bad_add_dup_prop.dtb.o \
 			    overlay_bad_phandle.dtb.o \
 			    overlay_bad_symbol.dtb.o \
 			    overlay_base.dtb.o
 
-# enable creation of __symbols__ node
+# enable creation of __symbols__ yesde
 DTC_FLAGS_overlay += -@
 DTC_FLAGS_overlay_bad_phandle += -@
 DTC_FLAGS_overlay_bad_symbol += -@
@@ -31,4 +31,4 @@ DTC_FLAGS_overlay_base += -@
 DTC_FLAGS_testcases += -@
 
 # suppress warnings about intentional errors
-DTC_FLAGS_testcases += -Wno-interrupts_property
+DTC_FLAGS_testcases += -Wyes-interrupts_property

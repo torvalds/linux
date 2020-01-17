@@ -17,7 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/mempool.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/vmalloc.h>
 
 #include "snic_io.h"
@@ -74,7 +74,7 @@ snic_fmt_trc_data(struct snic_trc_data *td, char *buf, int buf_sz)
 			tmspec.tv_sec,
 			tmspec.tv_nsec,
 			td->fn,
-			td->hno,
+			td->hyes,
 			td->tag,
 			td->data[0], td->data[1], td->data[2], td->data[3],
 			td->data[4]);
@@ -129,7 +129,7 @@ snic_trc_init(void)
 	tbuf = vzalloc(tbuf_sz);
 	if (!tbuf) {
 		SNIC_ERR("Failed to Allocate Trace Buffer Size. %d\n", tbuf_sz);
-		SNIC_ERR("Trace Facility not enabled.\n");
+		SNIC_ERR("Trace Facility yest enabled.\n");
 		ret = -ENOMEM;
 
 		return ret;

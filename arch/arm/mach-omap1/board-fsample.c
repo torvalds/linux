@@ -126,7 +126,7 @@ static void __init fsample_init_smc91x(void)
 	mdelay(50);
 }
 
-static struct mtd_partition nor_partitions[] = {
+static struct mtd_partition yesr_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
 	{
 	      .name		= "bootloader",
@@ -157,27 +157,27 @@ static struct mtd_partition nor_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data nor_data = {
+static struct physmap_flash_data yesr_data = {
 	.width		= 2,
 	.set_vpp	= omap1_set_vpp,
-	.parts		= nor_partitions,
-	.nr_parts	= ARRAY_SIZE(nor_partitions),
+	.parts		= yesr_partitions,
+	.nr_parts	= ARRAY_SIZE(yesr_partitions),
 };
 
-static struct resource nor_resource = {
+static struct resource yesr_resource = {
 	.start		= OMAP_CS0_PHYS,
 	.end		= OMAP_CS0_PHYS + SZ_32M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
-static struct platform_device nor_device = {
+static struct platform_device yesr_device = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &nor_data,
+		.platform_data	= &yesr_data,
 	},
 	.num_resources	= 1,
-	.resource	= &nor_resource,
+	.resource	= &yesr_resource,
 };
 
 #define FSAMPLE_NAND_RB_GPIO_PIN	62
@@ -256,7 +256,7 @@ static struct platform_device kp_device = {
 };
 
 static struct platform_device *devices[] __initdata = {
-	&nor_device,
+	&yesr_device,
 	&nand_device,
 	&smc91x_device,
 	&kp_device,

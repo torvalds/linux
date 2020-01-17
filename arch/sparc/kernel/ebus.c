@@ -47,7 +47,7 @@
 
 #define EBUS_DMA_RESET_TIMEOUT	10000
 
-static void __ebus_dma_reset(struct ebus_dma_info *p, int no_drain)
+static void __ebus_dma_reset(struct ebus_dma_info *p, int yes_drain)
 {
 	int i;
 	u32 val = 0;
@@ -55,7 +55,7 @@ static void __ebus_dma_reset(struct ebus_dma_info *p, int no_drain)
 	writel(EBDMA_CSR_RESET, p->regs + EBDMA_CSR);
 	udelay(1);
 
-	if (no_drain)
+	if (yes_drain)
 		return;
 
 	for (i = EBUS_DMA_RESET_TIMEOUT; i > 0; i--) {

@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -35,7 +35,7 @@
 #define BFL_FEM			0x00000800
 /* Board has an external LNA in 2.4GHz band */
 #define BFL_EXTLNA		0x00001000
-/* Board has no PA */
+/* Board has yes PA */
 #define BFL_NOPA		0x00010000
 /* Power topology uses BUCKBOOST */
 #define BFL_BUCKBOOST		0x00200000
@@ -232,7 +232,7 @@
 	 PHYTYPE_IS(phytype, PHY_TYPE_LCN) || \
 	 PHYTYPE_IS(phytype, PHY_TYPE_SSN))
 
-/* Last but not least: shorter wlc-specific var checks */
+/* Last but yest least: shorter wlc-specific var checks */
 #define BRCMS_ISNPHY(band)		PHYTYPE_IS((band)->phytype, PHY_TYPE_N)
 #define BRCMS_ISLCNPHY(band)	PHYTYPE_IS((band)->phytype, PHY_TYPE_LCN)
 #define BRCMS_ISSSLPNPHY(band)	PHYTYPE_IS((band)->phytype, PHY_TYPE_SSN)

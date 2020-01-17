@@ -11,7 +11,7 @@
 #include "../drm_dp_mst_topology_internal.h"
 #include "test-drm_modeset_common.h"
 
-int igt_dp_mst_calc_pbn_mode(void *ignored)
+int igt_dp_mst_calc_pbn_mode(void *igyesred)
 {
 	int pbn, i;
 	const struct {
@@ -66,7 +66,7 @@ sideband_msg_req_equal(const struct drm_dp_sideband_msg_req_body *in,
 			txout = &OUT.transactions[i];
 
 			if (txin->i2c_dev_id != txout->i2c_dev_id ||
-			    txin->no_stop_bit != txout->no_stop_bit ||
+			    txin->yes_stop_bit != txout->yes_stop_bit ||
 			    txin->num_bytes != txout->num_bytes ||
 			    txin->i2c_transaction_delay !=
 			    txout->i2c_transaction_delay)

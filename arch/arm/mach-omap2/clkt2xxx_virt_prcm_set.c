@@ -13,18 +13,18 @@
  * Gordon McNutt and RidgeRun, Inc.
  *
  * XXX Some of this code should be replaceable by the upcoming OPP layer
- * code.  However, some notion of "rate set" is probably still necessary
+ * code.  However, some yestion of "rate set" is probably still necessary
  * for OMAP2xxx at least.  Rate sets should be generalized so they can be
- * used for any OMAP chip, not just OMAP2xxx.  In particular, Richard Woodruff
+ * used for any OMAP chip, yest just OMAP2xxx.  In particular, Richard Woodruff
  * has in the past expressed a preference to use rate sets for OPP changes,
  * rather than dynamically recalculating the clock tree, so if someone wants
- * this badly enough to write the code to handle it, we should support it
+ * this badly eyesugh to write the code to handle it, we should support it
  * as an option.
  */
 #undef DEBUG
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/cpufreq.h>
@@ -45,7 +45,7 @@ const struct prcm_config *rate_table;
 /*
  * sys_ck_rate: the rate of the external high-frequency clock
  * oscillator on the board.  Set by the SoC-specific clock init code.
- * Once set during a boot, will not change.
+ * Once set during a boot, will yest change.
  */
 static unsigned long sys_ck_rate;
 
@@ -64,7 +64,7 @@ unsigned long omap2_table_mpu_recalc(struct clk_hw *clk,
 /*
  * Look for a rate equal or less than the target rate given a configuration set.
  *
- * What's not entirely clear is "which" field represents the key field.
+ * What's yest entirely clear is "which" field represents the key field.
  * Some might argue L3-DDR, others ARM, others IVA. This code is simple and
  * just uses the ARM rates.
  */
@@ -114,7 +114,7 @@ int omap2_select_table_rate(struct clk_hw *hw, unsigned long rate,
 	}
 
 	if (!found_speed) {
-		printk(KERN_INFO "Could not set MPU rate to %luMHz\n",
+		printk(KERN_INFO "Could yest set MPU rate to %luMHz\n",
 		       rate / 1000000);
 		return -EINVAL;
 	}
@@ -188,7 +188,7 @@ void omap2xxx_clkt_vps_check_bootloader_rates(void)
  * omap2xxx_clkt_vps_late_init - store a copy of the sys_ck rate
  *
  * Store a copy of the sys_ck rate for later use by the OMAP2xxx DVFS
- * code.  (The sys_ck rate does not -- or rather, must not -- change
+ * code.  (The sys_ck rate does yest -- or rather, must yest -- change
  * during kernel runtime.)  Must be called after we have a valid
  * sys_ck rate, but before the virt_prcm_set clock rate is
  * recalculated.  No return value.
@@ -199,7 +199,7 @@ void omap2xxx_clkt_vps_late_init(void)
 
 	c = clk_get(NULL, "sys_ck");
 	if (IS_ERR(c)) {
-		WARN(1, "could not locate sys_ck\n");
+		WARN(1, "could yest locate sys_ck\n");
 	} else {
 		sys_ck_rate = clk_get_rate(c);
 		clk_put(c);
@@ -221,7 +221,7 @@ static const struct clk_ops virt_prcm_set_ops = {
  *
  * Does a manual init for the virtual prcm DVFS clock for OMAP2. This
  * function is called only from omap2 DT clock init, as the virtual
- * node is not modelled in the DT clock data.
+ * yesde is yest modelled in the DT clock data.
  */
 void omap2xxx_clkt_vps_init(void)
 {

@@ -8,7 +8,7 @@
 #include <linux/futex.h>
 #include <linux/uaccess.h>
 
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 #define FUTEX_MAX_LOOPS	128 /* What's the largest number you can think of? */
 

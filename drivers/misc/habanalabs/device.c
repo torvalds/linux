@@ -54,7 +54,7 @@ static void hpriv_release(struct kref *ref)
 	mutex_destroy(&hpriv->restore_phase_mutex);
 
 	mutex_lock(&hdev->fpriv_list_lock);
-	list_del(&hpriv->dev_node);
+	list_del(&hpriv->dev_yesde);
 	hdev->compute_ctx = NULL;
 	mutex_unlock(&hdev->fpriv_list_lock);
 
@@ -74,12 +74,12 @@ void hl_hpriv_put(struct hl_fpriv *hpriv)
 /*
  * hl_device_release - release function for habanalabs device
  *
- * @inode: pointer to inode structure
+ * @iyesde: pointer to iyesde structure
  * @filp: pointer to file structure
  *
  * Called when process closes an habanalabs device
  */
-static int hl_device_release(struct inode *inode, struct file *filp)
+static int hl_device_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct hl_fpriv *hpriv = filp->private_data;
 
@@ -93,7 +93,7 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int hl_device_release_ctrl(struct inode *inode, struct file *filp)
+static int hl_device_release_ctrl(struct iyesde *iyesde, struct file *filp)
 {
 	struct hl_fpriv *hpriv = filp->private_data;
 	struct hl_device *hdev;
@@ -103,7 +103,7 @@ static int hl_device_release_ctrl(struct inode *inode, struct file *filp)
 	hdev = hpriv->hdev;
 
 	mutex_lock(&hdev->fpriv_list_lock);
-	list_del(&hpriv->dev_node);
+	list_del(&hpriv->dev_yesde);
 	mutex_unlock(&hdev->fpriv_list_lock);
 
 	kfree(hpriv);
@@ -159,7 +159,7 @@ static void device_release_func(struct device *dev)
  *
  * @hdev: pointer to habanalabs device structure
  * @hclass: pointer to the class object of the device
- * @minor: minor number of the specific device
+ * @miyesr: miyesr number of the specific device
  * @fpos: file operations to install for this device
  * @name: name of the device as it will appear in the filesystem
  * @cdev: pointer to the char device object that will be initialized
@@ -168,7 +168,7 @@ static void device_release_func(struct device *dev)
  * Initialize a cdev and a Linux device for habanalabs's device.
  */
 static int device_init_cdev(struct hl_device *hdev, struct class *hclass,
-				int minor, const struct file_operations *fops,
+				int miyesr, const struct file_operations *fops,
 				char *name, struct cdev *cdev,
 				struct device **dev)
 {
@@ -180,7 +180,7 @@ static int device_init_cdev(struct hl_device *hdev, struct class *hclass,
 		return -ENOMEM;
 
 	device_initialize(*dev);
-	(*dev)->devt = MKDEV(hdev->major, minor);
+	(*dev)->devt = MKDEV(hdev->major, miyesr);
 	(*dev)->class = hclass;
 	(*dev)->release = device_release_func;
 	dev_set_drvdata(*dev, hdev);
@@ -561,12 +561,12 @@ uint32_t hl_device_utilization(struct hl_device *hdev, uint32_t period_ms)
  * @hdev: pointer to habanalabs device structure
  * @freq: the new frequency value
  *
- * Change the frequency if needed. This function has no protection against
+ * Change the frequency if needed. This function has yes protection against
  * concurrency, therefore it is assumed that the calling function has protected
  * itself against the case of calling this function from multiple threads with
  * different values
  *
- * Returns 0 if no change was done, otherwise returns 1
+ * Returns 0 if yes change was done, otherwise returns 1
  */
 int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq)
 {
@@ -593,7 +593,7 @@ int hl_device_set_debug_mode(struct hl_device *hdev, bool enable)
 	if (!enable) {
 		if (!hdev->in_debug) {
 			dev_err(hdev->dev,
-				"Failed to disable debug mode because device was not in debug mode\n");
+				"Failed to disable debug mode because device was yest in debug mode\n");
 			rc = -EFAULT;
 			goto out;
 		}
@@ -641,7 +641,7 @@ int hl_device_suspend(struct hl_device *hdev)
 		return -EIO;
 	}
 
-	/* This blocks all other stuff that is not blocked by in_reset */
+	/* This blocks all other stuff that is yest blocked by in_reset */
 	hdev->disabled = true;
 
 	/*
@@ -738,7 +738,7 @@ static void device_kill_open_processes(struct hl_device *hdev)
 	/* This section must be protected because we are dereferencing
 	 * pointers that are freed if the process exits
 	 */
-	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_node) {
+	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_yesde) {
 		task = get_pid_task(hpriv->taskpid, PIDTYPE_PID);
 		if (task) {
 			dev_info(hdev->dev, "Killing user process pid=%d\n",
@@ -894,7 +894,7 @@ again:
 		 */
 		device_kill_open_processes(hdev);
 
-		/* Flush the Event queue workers to make sure no other thread is
+		/* Flush the Event queue workers to make sure yes other thread is
 		 * reading or writing to registers during the reset
 		 */
 		flush_workqueue(hdev->eq_wq);
@@ -923,7 +923,7 @@ again:
 	hdev->idle_busy_ts_arr[0].idle_to_busy_ts = ktime_set(0, 0);
 
 	if (hdev->cs_active_cnt)
-		dev_crit(hdev->dev, "CS active cnt %d is not 0 during reset\n",
+		dev_crit(hdev->dev, "CS active cnt %d is yest 0 during reset\n",
 			hdev->cs_active_cnt);
 
 	mutex_lock(&hdev->fpriv_list_lock);
@@ -1194,7 +1194,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 
 	/*
 	 * From this point, in case of an error, add char devices and create
-	 * sysfs nodes as part of the error flow, to allow debugging.
+	 * sysfs yesdes as part of the error flow, to allow debugging.
 	 */
 	add_cdev_sysfs_on_err = true;
 
@@ -1234,15 +1234,15 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	}
 
 	/*
-	 * Expose devices and sysfs nodes to user.
-	 * From here there is no need to add char devices and create sysfs nodes
+	 * Expose devices and sysfs yesdes to user.
+	 * From here there is yes need to add char devices and create sysfs yesdes
 	 * in case of an error.
 	 */
 	add_cdev_sysfs_on_err = false;
 	rc = device_cdev_sysfs_add(hdev);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to add char devices and sysfs nodes\n");
+			"Failed to add char devices and sysfs yesdes\n");
 		rc = 0;
 		goto out_disabled;
 	}
@@ -1260,7 +1260,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto out_disabled;
 	}
 
-	dev_notice(hdev->dev,
+	dev_yestice(hdev->dev,
 		"Successfully added device to habanalabs driver\n");
 
 	hdev->init_done = true;
@@ -1332,7 +1332,7 @@ void hl_device_fini(struct hl_device *hdev)
 		usleep_range(50, 200);
 		rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
 		if (ktime_compare(ktime_get(), timeout) > 0) {
-			WARN(1, "Failed to remove device because reset function did not finish\n");
+			WARN(1, "Failed to remove device because reset function did yest finish\n");
 			return;
 		}
 	}
@@ -1400,7 +1400,7 @@ void hl_device_fini(struct hl_device *hdev)
 
 	device_early_fini(hdev);
 
-	/* Hide devices and sysfs nodes from user */
+	/* Hide devices and sysfs yesdes from user */
 	device_cdev_sysfs_del(hdev);
 
 	pr_info("removed device successfully\n");

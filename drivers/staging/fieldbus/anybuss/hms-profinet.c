@@ -22,7 +22,7 @@
  * ---------------------------------------------------------------
  * Anybus Profinet mailbox messages - definitions
  * ---------------------------------------------------------------
- * note that we're depending on the layout of these structures being
+ * yeste that we're depending on the layout of these structures being
  * exactly as advertised.
  */
 

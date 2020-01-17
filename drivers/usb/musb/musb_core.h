@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/timer.h>
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
@@ -211,7 +211,7 @@ struct musb_hw_ep {
 	struct dma_channel	*rx_channel;
 
 #if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
-	/* TUSB has "asynchronous" and "synchronous" dma modes */
+	/* TUSB has "asynchroyesus" and "synchroyesus" dma modes */
 	dma_addr_t		fifo_async;
 	dma_addr_t		fifo_sync;
 	void __iomem		*fifo_sync_va;
@@ -283,7 +283,7 @@ struct musb {
 
 	u16			intrrxe;
 	u16			intrtxe;
-/* this hub status bit is reserved by USB 2.0 and not seen by usbcore */
+/* this hub status bit is reserved by USB 2.0 and yest seen by usbcore */
 #define MUSB_PORT_STAT_RESUME	(1 << 31)
 
 	u32			port1_status;
@@ -292,7 +292,7 @@ struct musb {
 
 	enum musb_h_ep0_state	ep0_stage;
 
-	/* bulk traffic normally dedicates endpoint hardware, and each
+	/* bulk traffic yesrmally dedicates endpoint hardware, and each
 	 * direction has its own ring of host side endpoints.
 	 * we try to progress the transfer at the head of each endpoint's
 	 * queue until it completes or NAKs too much; then we try the next
@@ -307,7 +307,7 @@ struct musb {
 
 	struct timer_list	otg_timer;
 	struct timer_list	dev_timer;
-	struct notifier_block	nb;
+	struct yestifier_block	nb;
 
 	struct dma_controller	*dma_controller;
 
@@ -356,7 +356,7 @@ struct musb {
 	unsigned		is_initialized:1;
 	unsigned		is_runtime_suspended:1;
 
-	/* active means connected and not suspended */
+	/* active means connected and yest suspended */
 	unsigned		is_active:1;
 
 	unsigned is_multipoint:1;
@@ -448,7 +448,7 @@ static inline int musb_read_fifosize(struct musb *musb,
 
 	/* read from core using indexed model */
 	reg = musb_readb(mbase, musb->io.ep_offset(epnum, MUSB_FIFOSIZE));
-	/* 0's returned when no more endpoints */
+	/* 0's returned when yes more endpoints */
 	if (!reg)
 		return -ENODEV;
 
@@ -582,7 +582,7 @@ static inline void musb_platform_clear_ep_rxintr(struct musb *musb, int epnum)
 
 /*
  * gets the "dr_mode" property from DT and converts it into musb_mode
- * if the property is not found or not recognized returns MUSB_OTG
+ * if the property is yest found or yest recognized returns MUSB_OTG
  */
 extern enum musb_mode musb_get_mode(struct device *dev);
 

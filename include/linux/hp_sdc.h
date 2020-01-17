@@ -8,9 +8,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -76,7 +76,7 @@ int hp_sdc_enqueue_transaction(hp_sdc_transaction *this);
 int hp_sdc_dequeue_transaction(hp_sdc_transaction *this);
 
 /* The HP_SDC_ACT* values are peculiar to this driver.
- * Nuance: never HP_SDC_ACT_DATAIN | HP_SDC_ACT_DEALLOC, use another
+ * Nuance: never HP_SDC_ACT_DATAIN | HP_SDC_ACT_DEALLOC, use ayesther
  * act to perform the dealloc.
  */
 #define HP_SDC_ACT_PRECMD	0x01		/* Send a command first */
@@ -109,7 +109,7 @@ int hp_sdc_dequeue_transaction(hp_sdc_transaction *this);
 
 #define HP_SDC_NMISTATUS_FHS	0x40	/* NMI is a fast handshake irq */
 
-/* Internal i8042 registers (there are more, but they are not too useful). */
+/* Internal i8042 registers (there are more, but they are yest too useful). */
 
 #define HP_SDC_USE		0x02	/* Resource usage (including OB bit) */
 #define HP_SDC_IM		0x04	/* Interrupt mask */
@@ -136,7 +136,7 @@ int hp_sdc_dequeue_transaction(hp_sdc_transaction *this);
 /* Bitfields for above registers */
 #define HP_SDC_USE_LOOP		0x04	/* Command is currently on the loop. */
 
-#define HP_SDC_IM_MASK          0x1f    /* these bits not part of cmd/status */
+#define HP_SDC_IM_MASK          0x1f    /* these bits yest part of cmd/status */
 #define HP_SDC_IM_FH		0x10	/* Mask the fast handshake irq */
 #define HP_SDC_IM_PT		0x08	/* Mask the periodic timer irq */
 #define HP_SDC_IM_TIMERS	0x04	/* Mask the MT/DT/CT irq */
@@ -146,10 +146,10 @@ int hp_sdc_dequeue_transaction(hp_sdc_transaction *this);
 #define HP_SDC_CFG_ROLLOVER	0x08	/* WTF is "N-key rollover"? */
 #define HP_SDC_CFG_KBD		0x10	/* There is a keyboard */
 #define HP_SDC_CFG_NEW		0x20	/* Supports/uses HIL MLC */
-#define HP_SDC_CFG_KBD_OLD	0x03	/* keyboard code for non-HIL */
+#define HP_SDC_CFG_KBD_OLD	0x03	/* keyboard code for yesn-HIL */
 #define HP_SDC_CFG_KBD_NEW	0x07	/* keyboard code from HIL autoconfig */
 #define HP_SDC_CFG_REV		0x40	/* Code revision bit */
-#define HP_SDC_CFG_IDPROM	0x80	/* IDPROM present in kbd (not HIL) */
+#define HP_SDC_CFG_IDPROM	0x80	/* IDPROM present in kbd (yest HIL) */
 
 #define HP_SDC_LPS_NDEV		0x07	/* # devices autoconfigured on HIL */
 #define HP_SDC_LPS_ACSUCC	0x08	/* loop autoconfigured successfully */
@@ -167,7 +167,7 @@ switch (val) {						\
 	case 0x1: str = "1820-3712"; break;		\
 	case 0x2: str = "1820-4379"; break;		\
 	case 0x3: str = "1820-4784"; break;		\
-	default: str = "unknown";			\
+	default: str = "unkyeswn";			\
 };
 #define HP_SDC_XTD_BEEPER	0x08	/* TI SN76494 beeper available */
 #define HP_SDC_XTD_BBRTC	0x20	/* OKI MSM-58321 BBRTC present */
@@ -180,7 +180,7 @@ switch (val) {						\
 
 #define HP_SDC_CMD_SET_IM	0x40    /* 010xxxxx == set irq mask */
 
-/* The documents provided do not explicitly state that all registers betweem 
+/* The documents provided do yest explicitly state that all registers betweem 
  * 0x01 and 0x1f inclusive can be read by sending their register index as a 
  * command, but this is implied and appears to be the case.
  */
@@ -270,7 +270,7 @@ typedef struct {
 	uint8_t		im;		/* Interrupt mask */
 	int		set_im; 	/* Interrupt mask needs to be set. */
 
-	int		ibf;		/* Last known status of IBF flag */
+	int		ibf;		/* Last kyeswn status of IBF flag */
 	uint8_t		wi;		/* current i8042 write index */
 	uint8_t		r7[4];          /* current i8042[0x70 - 0x74] values */
 	uint8_t		r11, r7e;	/* Values from version/revision regs */

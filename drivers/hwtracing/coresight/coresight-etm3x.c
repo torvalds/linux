@@ -35,7 +35,7 @@
 
 /*
  * Not really modular but using module_param is the easiest way to
- * remain consistent with existing use cases for now.
+ * remain consistent with existing use cases for yesw.
  */
 static int boot_enable;
 module_param_named(boot_enable, boot_enable, int, S_IRUGO);
@@ -47,7 +47,7 @@ static struct etm_drvdata *etmdrvdata[NR_CPUS];
 static enum cpuhp_state hp_online;
 
 /*
- * Memory mapped writes to clear os lock are not supported on some processors
+ * Memory mapped writes to clear os lock are yest supported on some processors
  * and OS lock must be unlocked before any memory mapped access on such
  * processors, otherwise memory mapped reads/writes will be invalid.
  */
@@ -250,7 +250,7 @@ void etm_config_trace_mode(struct etm_config *config)
 	if (mode == (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER))
 		return;
 
-	/* nothing to do if neither flags are set */
+	/* yesthing to do if neither flags are set */
 	if (!(mode & ETM_MODE_EXCL_KERN) && !(mode & ETM_MODE_EXCL_USER))
 		return;
 
@@ -258,7 +258,7 @@ void etm_config_trace_mode(struct etm_config *config)
 		 3 << 3 |	/* ARM instruction */
 		 0 << 5 |	/* No data value comparison */
 		 0 << 7 |	/* No exact mach */
-		 0 << 8);	/* Ignore context ID */
+		 0 << 8);	/* Igyesre context ID */
 
 	/* No need to worry about single address comparators. */
 	config->enable_ctrl2 = 0x0;
@@ -272,12 +272,12 @@ void etm_config_trace_mode(struct etm_config *config)
 	 * ETMACTRn[12,10] == Secure state comparison control
 	 *
 	 * b00 == Match in all modes in this state
-	 * b01 == Do not match in any more in this state
+	 * b01 == Do yest match in any more in this state
 	 * b10 == Match in all modes excepts user mode in this state
 	 * b11 == Match only in user mode in this state
 	 */
 
-	/* Tracing in secure mode is not supported at this time */
+	/* Tracing in secure mode is yest supported at this time */
 	flags |= (0 << 12 | 1 << 10);
 
 	if (mode & ETM_MODE_EXCL_USER) {
@@ -345,8 +345,8 @@ static int etm_parse_event_config(struct etm_drvdata *drvdata,
 	/*
 	 * Possible to have cores with PTM (supports ret stack) and ETM
 	 * (never has ret stack) on the same SoC. So if we have a request
-	 * for return stack that can't be honoured on this core then
-	 * clear the bit - trace will still continue normally
+	 * for return stack that can't be hoyesured on this core then
+	 * clear the bit - trace will still continue yesrmally
 	 */
 	if ((config->ctrl & ETMCR_RETURN_STACK) &&
 	    !(drvdata->etmccer & ETMCCER_RETSTACK))
@@ -600,7 +600,7 @@ static void etm_disable_perf(struct coresight_device *csdev)
 	etm_set_prog(drvdata);
 
 	/*
-	 * There is no way to know when the tracer will be used again so
+	 * There is yes way to kyesw when the tracer will be used again so
 	 * power down the tracer.
 	 */
 	etm_set_pwrdwn(drvdata);
@@ -641,7 +641,7 @@ static void etm_disable(struct coresight_device *csdev,
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	/*
-	 * For as long as the tracer isn't disabled another entity can't
+	 * For as long as the tracer isn't disabled ayesther entity can't
 	 * change its status.  As such we can read the status here without
 	 * fearing it will change under us.
 	 */
@@ -749,7 +749,7 @@ static void etm_init_arch_data(void *info)
 	etm_set_pwrup(drvdata);
 	/*
 	 * Clear power down bit since when this bit is set writes to
-	 * certain registers might be ignored.
+	 * certain registers might be igyesred.
 	 */
 	etm_clr_pwrdwn(drvdata);
 	/*
@@ -796,7 +796,7 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 	if (!drvdata)
 		return -ENOMEM;
 
-	drvdata->use_cp14 = fwnode_property_read_bool(dev->fwnode, "arm,cp14");
+	drvdata->use_cp14 = fwyesde_property_read_bool(dev->fwyesde, "arm,cp14");
 	dev_set_drvdata(dev, drvdata);
 
 	/* Validity for the resource is already checked by the AMBA core */
@@ -831,10 +831,10 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 		dev_err(dev, "ETM arch init failed\n");
 
 	if (!etm_count++) {
-		cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ARM_CORESIGHT_STARTING,
+		cpuhp_setup_state_yescalls_cpuslocked(CPUHP_AP_ARM_CORESIGHT_STARTING,
 						     "arm/coresight:starting",
 						     etm_starting_cpu, etm_dying_cpu);
-		ret = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
+		ret = cpuhp_setup_state_yescalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
 							   "arm/coresight:online",
 							   etm_online_cpu, NULL);
 		if (ret < 0)
@@ -888,9 +888,9 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 
 err_arch_supported:
 	if (--etm_count == 0) {
-		cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
+		cpuhp_remove_state_yescalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
 		if (hp_online)
-			cpuhp_remove_state_nocalls(hp_online);
+			cpuhp_remove_state_yescalls(hp_online);
 	}
 	return ret;
 }

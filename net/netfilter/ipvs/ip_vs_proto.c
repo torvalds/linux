@@ -28,7 +28,7 @@
 
 /*
  * IPVS protocols can only be registered/unregistered when the ipvs
- * module is loaded/unloaded, so no lock is needed in accessing the
+ * module is loaded/unloaded, so yes lock is needed in accessing the
  * ipvs protocol table.
  */
 

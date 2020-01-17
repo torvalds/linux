@@ -40,13 +40,13 @@ static int board_show(struct seq_file *seq, void *p)
 
 	cfg = s3c_cpufreq_getconfig();
 	if (!cfg) {
-		seq_printf(seq, "no configuration registered\n");
+		seq_printf(seq, "yes configuration registered\n");
 		return 0;
 	}
 
 	brd = cfg->board;
 	if (!brd) {
-		seq_printf(seq, "no board definition set?\n");
+		seq_printf(seq, "yes board definition set?\n");
 		return 0;
 	}
 
@@ -68,7 +68,7 @@ static int info_show(struct seq_file *seq, void *p)
 
 	cfg = s3c_cpufreq_getconfig();
 	if (!cfg) {
-		seq_printf(seq, "no configuration registered\n");
+		seq_printf(seq, "yes configuration registered\n");
 		return 0;
 	}
 
@@ -103,19 +103,19 @@ static int io_show(struct seq_file *seq, void *p)
 
 	cfg = s3c_cpufreq_getconfig();
 	if (!cfg) {
-		seq_printf(seq, "no configuration registered\n");
+		seq_printf(seq, "yes configuration registered\n");
 		return 0;
 	}
 
 	show_bank = cfg->info->debug_io_show;
 	if (!show_bank) {
-		seq_printf(seq, "no code to show bank timing\n");
+		seq_printf(seq, "yes code to show bank timing\n");
 		return 0;
 	}
 
 	iot = s3c_cpufreq_getiotimings();
 	if (!iot) {
-		seq_printf(seq, "no io timings registered\n");
+		seq_printf(seq, "yes io timings registered\n");
 		return 0;
 	}
 
@@ -127,7 +127,7 @@ static int io_show(struct seq_file *seq, void *p)
 		seq_printf(seq, "bank %d: ", bank);
 
 		if (!iob->io_2410) {
-			seq_printf(seq, "nothing set\n");
+			seq_printf(seq, "yesthing set\n");
 			continue;
 		}
 

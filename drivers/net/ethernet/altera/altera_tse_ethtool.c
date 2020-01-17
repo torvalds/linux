@@ -204,7 +204,7 @@ static void tse_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	struct altera_tse_private *priv = netdev_priv(dev);
 	u32 *buf = regbuf;
 
-	/* Set version to a known value, so ethtool knows
+	/* Set version to a kyeswn value, so ethtool kyesws
 	 * how to do any special formatting of this data.
 	 * This version number will need to change if and
 	 * when this register table is changed.

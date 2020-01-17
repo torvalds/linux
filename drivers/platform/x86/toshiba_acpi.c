@@ -66,7 +66,7 @@ MODULE_LICENSE("GPL");
  * be uniform across all their models.  Ideally we would just call
  * dedicated ACPI methods instead of using this primitive interface.
  * However the ACPI methods seem to be incomplete in some areas (for
- * example they allow setting, but not reading, the LCD brightness value),
+ * example they allow setting, but yest reading, the LCD brightness value),
  * so this is still useful.
  *
  * SCI stands for "System Configuration Interface" which aim is to
@@ -341,7 +341,7 @@ static acpi_status tci_raw(struct toshiba_acpi_dev *dev,
  * Common hci tasks
  *
  * In addition to the ACPI status, the HCI system returns a result which
- * may be useful (such as "not supported").
+ * may be useful (such as "yest supported").
  */
 
 static u32 hci_write(struct toshiba_acpi_dev *dev, u32 reg, u32 in1)
@@ -389,20 +389,20 @@ static int sci_open(struct toshiba_acpi_dev *dev)
 		return 1;
 	} else if (out[0] == TOS_NOT_SUPPORTED) {
 		/*
-		 * Some BIOSes do not have the SCI open/close functions
+		 * Some BIOSes do yest have the SCI open/close functions
 		 * implemented and return 0x8000 (Not Supported), failing to
 		 * register some supported features.
 		 *
 		 * Simply return 1 if we hit those affected laptops to make the
 		 * supported features work.
 		 *
-		 * In the case that some laptops really do not support the SCI,
+		 * In the case that some laptops really do yest support the SCI,
 		 * all the SCI dependent functions check for TOS_NOT_SUPPORTED,
-		 * and thus, not registering support for the queried feature.
+		 * and thus, yest registering support for the queried feature.
 		 */
 		return 1;
 	} else if (out[0] == TOS_NOT_PRESENT) {
-		pr_info("Toshiba SCI is not present\n");
+		pr_info("Toshiba SCI is yest present\n");
 	}
 
 	return 0;
@@ -422,9 +422,9 @@ static void sci_close(struct toshiba_acpi_dev *dev)
 	if (out[0] == TOS_OPEN_CLOSE_OK)
 		return;
 	else if (out[0] == TOS_NOT_OPENED)
-		pr_info("Toshiba SCI not opened\n");
+		pr_info("Toshiba SCI yest opened\n");
 	else if (out[0] == TOS_NOT_PRESENT)
-		pr_info("Toshiba SCI is not present\n");
+		pr_info("Toshiba SCI is yest present\n");
 }
 
 static u32 sci_read(struct toshiba_acpi_dev *dev, u32 reg, u32 *out1)
@@ -547,7 +547,7 @@ static void toshiba_kbd_illum_available(struct toshiba_acpi_dev *dev)
 	/*
 	 * Check for keyboard backlight timeout max value,
 	 * previous kbd backlight implementation set this to
-	 * 0x3c0003, and now the new implementation set this
+	 * 0x3c0003, and yesw the new implementation set this
 	 * to 0x3c001a, use this to distinguish between them.
 	 */
 	if (out[3] == SCI_KBD_TIME_MAX)
@@ -1186,7 +1186,7 @@ static void toshiba_wwan_available(struct toshiba_acpi_dev *dev)
 	 * If supported, out[0] contains TOS_SUCCESS and out[2] contains
 	 * HCI_WIRELESS_WWAN_STATUS (0x2000).
 	 *
-	 * If not supported, out[0] contains TOS_INPUT_DATA_ERROR (0x8300)
+	 * If yest supported, out[0] contains TOS_INPUT_DATA_ERROR (0x8300)
 	 * or TOS_NOT_SUPPORTED (0x8000).
 	 */
 	in[3] = HCI_WIRELESS_WWAN;
@@ -1372,9 +1372,9 @@ static int lcd_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int lcd_proc_open(struct inode *inode, struct file *file)
+static int lcd_proc_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, lcd_proc_show, PDE_DATA(inode));
+	return single_open(file, lcd_proc_show, PDE_DATA(iyesde));
 }
 
 static int set_lcd_brightness(struct toshiba_acpi_dev *dev, int value)
@@ -1410,7 +1410,7 @@ static int set_lcd_status(struct backlight_device *bd)
 static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
 			      size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE_DATA(file_inode(file));
+	struct toshiba_acpi_dev *dev = PDE_DATA(file_iyesde(file));
 	char cmd[42];
 	size_t len;
 	int levels;
@@ -1474,15 +1474,15 @@ static int video_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int video_proc_open(struct inode *inode, struct file *file)
+static int video_proc_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, video_proc_show, PDE_DATA(inode));
+	return single_open(file, video_proc_show, PDE_DATA(iyesde));
 }
 
 static ssize_t video_proc_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE_DATA(file_inode(file));
+	struct toshiba_acpi_dev *dev = PDE_DATA(file_iyesde(file));
 	char *buffer;
 	char *cmd;
 	int lcd_out, crt_out, tv_out;
@@ -1499,7 +1499,7 @@ static ssize_t video_proc_write(struct file *file, const char __user *buf,
 
 	/*
 	 * Scan expression.  Multiple expressions may be delimited with ;
-	 * NOTE: To keep scanning simple, invalid fields are ignored.
+	 * NOTE: To keep scanning simple, invalid fields are igyesred.
 	 */
 	while (remain) {
 		if (sscanf(buffer, " lcd_out : %i", &value) == 1)
@@ -1587,15 +1587,15 @@ static int fan_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int fan_proc_open(struct inode *inode, struct file *file)
+static int fan_proc_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, fan_proc_show, PDE_DATA(inode));
+	return single_open(file, fan_proc_show, PDE_DATA(iyesde));
 }
 
 static ssize_t fan_proc_write(struct file *file, const char __user *buf,
 			      size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE_DATA(file_inode(file));
+	struct toshiba_acpi_dev *dev = PDE_DATA(file_iyesde(file));
 	char cmd[42];
 	size_t len;
 	int value;
@@ -1636,15 +1636,15 @@ static int keys_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int keys_proc_open(struct inode *inode, struct file *file)
+static int keys_proc_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, keys_proc_show, PDE_DATA(inode));
+	return single_open(file, keys_proc_show, PDE_DATA(iyesde));
 }
 
 static ssize_t keys_proc_write(struct file *file, const char __user *buf,
 			       size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE_DATA(file_inode(file));
+	struct toshiba_acpi_dev *dev = PDE_DATA(file_iyesde(file));
 	char cmd[42];
 	size_t len;
 	int value;
@@ -1829,15 +1829,15 @@ static ssize_t kbd_backlight_mode_store(struct device *dev,
 
 		/*
 		 * Some laptop models with the second generation backlit
-		 * keyboard (type 2) do not generate the keyboard backlight
+		 * keyboard (type 2) do yest generate the keyboard backlight
 		 * changed event (0x92), and thus, the driver will never update
 		 * the sysfs entries.
 		 *
 		 * The event is generated right when changing the keyboard
-		 * backlight mode and the *notify function will set the
+		 * backlight mode and the *yestify function will set the
 		 * kbd_event_generated to true.
 		 *
-		 * In case the event is not generated, schedule the keyboard
+		 * In case the event is yest generated, schedule the keyboard
 		 * backlight work to update the sysfs entries and emulate the
 		 * event via genetlink.
 		 */
@@ -2411,7 +2411,7 @@ static void toshiba_acpi_kbd_bl_work(struct work_struct *work)
 	/* Notify LED subsystem about keyboard backlight change */
 	if (toshiba_acpi->kbd_type == 2 &&
 	    toshiba_acpi->kbd_mode != SCI_KBD_MODE_AUTO)
-		led_classdev_notify_brightness_hw_changed(&toshiba_acpi->kbd_led,
+		led_classdev_yestify_brightness_hw_changed(&toshiba_acpi->kbd_led,
 				(toshiba_acpi->kbd_mode == SCI_KBD_MODE_ON) ?
 				LED_FULL : LED_OFF);
 
@@ -2567,7 +2567,7 @@ static long toshiba_acpi_ioctl(struct file *fp, unsigned int cmd,
 static const struct file_operations toshiba_acpi_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl = toshiba_acpi_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 /*
@@ -2716,12 +2716,12 @@ static void toshiba_acpi_report_hotkey(struct toshiba_acpi_dev *dev,
 	if (scancode == 0x100)
 		return;
 
-	/* Act on key press; ignore key release */
+	/* Act on key press; igyesre key release */
 	if (scancode & 0x80)
 		return;
 
 	if (!sparse_keymap_report_event(dev->hotkey_dev, scancode, 1, true))
-		pr_info("Unknown key %x\n", scancode);
+		pr_info("Unkyeswn key %x\n", scancode);
 }
 
 static void toshiba_acpi_process_hotkeys(struct toshiba_acpi_dev *dev)
@@ -2757,7 +2757,7 @@ static void toshiba_acpi_process_hotkeys(struct toshiba_acpi_dev *dev)
 				 */
 				result = hci_write(dev, HCI_SYSTEM_EVENT, 1);
 				if (result == TOS_SUCCESS)
-					pr_notice("Re-enabled hotkeys\n");
+					pr_yestice("Re-enabled hotkeys\n");
 				/* Fall through */
 			default:
 				retries--;
@@ -2779,7 +2779,7 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	}
 
 	if (wmi_has_guid(TOSHIBA_WMI_EVENT_GUID)) {
-		pr_info("WMI event detected, hotkeys will not be monitored\n");
+		pr_info("WMI event detected, hotkeys will yest be monitored\n");
 		return 0;
 	}
 
@@ -2788,7 +2788,7 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 		return error;
 
 	if (toshiba_hotkey_event_type_get(dev, &dev->hotkey_event_type))
-		pr_notice("Unable to query Hotkey Event Type\n");
+		pr_yestice("Unable to query Hotkey Event Type\n");
 
 	dev->hotkey_dev = input_allocate_device();
 	if (!dev->hotkey_dev)
@@ -2805,7 +2805,7 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 		 dev->kbd_function_keys_supported)
 		keymap = toshiba_acpi_alt_keymap;
 	else
-		pr_info("Unknown event type received %x\n",
+		pr_info("Unkyeswn event type received %x\n",
 			dev->hotkey_event_type);
 	error = sparse_keymap_setup(dev->hotkey_dev, keymap, NULL);
 	if (error)
@@ -2813,7 +2813,7 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 
 	/*
 	 * For some machines the SCI responsible for providing hotkey
-	 * notification doesn't fire. We can trigger the notification
+	 * yestification doesn't fire. We can trigger the yestification
 	 * whenever the Fn key is pressed using the NTFY method, if
 	 * supported, so if it's present set up an i8042 key filter
 	 * for this purpose.
@@ -2917,7 +2917,7 @@ static int toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 						       &props);
 	if (IS_ERR(dev->backlight_dev)) {
 		ret = PTR_ERR(dev->backlight_dev);
-		pr_err("Could not register toshiba backlight device\n");
+		pr_err("Could yest register toshiba backlight device\n");
 		dev->backlight_dev = NULL;
 		return ret;
 	}
@@ -3045,7 +3045,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 
 	hci_method = find_hci_method(acpi_dev->handle);
 	if (!hci_method) {
-		pr_err("HCI interface not found\n");
+		pr_err("HCI interface yest found\n");
 		return -ENODEV;
 	}
 
@@ -3054,7 +3054,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 		return -ENOMEM;
 	dev->acpi_dev = acpi_dev;
 	dev->method_hci = hci_method;
-	dev->miscdev.minor = MISC_DYNAMIC_MINOR;
+	dev->miscdev.miyesr = MISC_DYNAMIC_MINOR;
 	dev->miscdev.name = "toshiba_acpi";
 	dev->miscdev.fops = &toshiba_acpi_fops;
 
@@ -3082,7 +3082,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 	if (toshiba_acpi_setup_keyboard(dev))
 		pr_info("Unable to activate hotkeys\n");
 
-	/* Determine whether or not BIOS supports transflective backlight */
+	/* Determine whether or yest BIOS supports transflective backlight */
 	ret = get_tr_backlight_status(dev, &dummy);
 	dev->tr_backlight_supported = !ret;
 
@@ -3203,7 +3203,7 @@ error:
 	return ret;
 }
 
-static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
+static void toshiba_acpi_yestify(struct acpi_device *acpi_dev, u32 event)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
 
@@ -3242,17 +3242,17 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 			pr_err("Unable to update sysfs entries\n");
 		/* Notify LED subsystem about keyboard backlight change */
 		if (dev->kbd_type == 2 && dev->kbd_mode != SCI_KBD_MODE_AUTO)
-			led_classdev_notify_brightness_hw_changed(&dev->kbd_led,
+			led_classdev_yestify_brightness_hw_changed(&dev->kbd_led,
 					(dev->kbd_mode == SCI_KBD_MODE_ON) ?
 					LED_FULL : LED_OFF);
 		break;
-	case 0x85: /* Unknown */
-	case 0x8d: /* Unknown */
-	case 0x8e: /* Unknown */
-	case 0x94: /* Unknown */
-	case 0x95: /* Unknown */
+	case 0x85: /* Unkyeswn */
+	case 0x8d: /* Unkyeswn */
+	case 0x8e: /* Unkyeswn */
+	case 0x94: /* Unkyeswn */
+	case 0x95: /* Unkyeswn */
 	default:
-		pr_info("Unknown event received %x\n", event);
+		pr_info("Unkyeswn event received %x\n", event);
 		break;
 	}
 
@@ -3307,7 +3307,7 @@ static struct acpi_driver toshiba_acpi_driver = {
 	.ops	= {
 		.add		= toshiba_acpi_add,
 		.remove		= toshiba_acpi_remove,
-		.notify		= toshiba_acpi_notify,
+		.yestify		= toshiba_acpi_yestify,
 	},
 	.drv.pm	= &toshiba_acpi_pm,
 };

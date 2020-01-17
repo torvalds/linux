@@ -6,7 +6,7 @@
  * Copyright (C) 2008 Intel Corporation <linux-wimax@intel.com>
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
  *
- * This implements a simple synchronous call to reset a WiMAX device.
+ * This implements a simple synchroyesus call to reset a WiMAX device.
  *
  * Resets aim at being warm, keeping the device handles active;
  * however, when that fails, it falls back to a cold reset (that will
@@ -35,13 +35,13 @@
  * the system).
  *
  * -%ENODEV if a cold/bus reset had to be done (device has
- * disconnected and reconnected, so current handle is not valid
+ * disconnected and reconnected, so current handle is yest valid
  * any more).
  *
- * -%EINVAL if the device is not even registered.
+ * -%EINVAL if the device is yest even registered.
  *
  * Any other negative error code shall be considered as
- * non-recoverable.
+ * yesn-recoverable.
  *
  * Description:
  *
@@ -93,16 +93,16 @@ int wimax_gnl_doit_reset(struct sk_buff *skb, struct genl_info *info)
 	result = -ENODEV;
 	if (info->attrs[WIMAX_GNL_RESET_IFIDX] == NULL) {
 		pr_err("WIMAX_GNL_OP_RFKILL: can't find IFIDX attribute\n");
-		goto error_no_wimax_dev;
+		goto error_yes_wimax_dev;
 	}
 	ifindex = nla_get_u32(info->attrs[WIMAX_GNL_RESET_IFIDX]);
 	wimax_dev = wimax_dev_get_by_genl_info(info, ifindex);
 	if (wimax_dev == NULL)
-		goto error_no_wimax_dev;
+		goto error_yes_wimax_dev;
 	/* Execute the operation and send the result back to user space */
 	result = wimax_reset(wimax_dev);
 	dev_put(wimax_dev->net_dev);
-error_no_wimax_dev:
+error_yes_wimax_dev:
 	d_fnend(3, NULL, "(skb %p info %p) = %d\n", skb, info, result);
 	return result;
 }

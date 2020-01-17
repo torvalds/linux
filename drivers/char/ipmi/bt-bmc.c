@@ -5,7 +5,7 @@
 
 #include <linux/atomic.h>
 #include <linux/bt-bmc.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
@@ -164,7 +164,7 @@ static struct bt_bmc *file_bt_bmc(struct file *file)
 	return container_of(file->private_data, struct bt_bmc, miscdev);
 }
 
-static int bt_bmc_open(struct inode *inode, struct file *file)
+static int bt_bmc_open(struct iyesde *iyesde, struct file *file)
 {
 	struct bt_bmc *bt_bmc = file_bt_bmc(file);
 
@@ -179,7 +179,7 @@ static int bt_bmc_open(struct inode *inode, struct file *file)
 
 /*
  * The BT (Block Transfer) interface means that entire messages are
- * buffered by the host before a notification is sent to the BMC that
+ * buffered by the host before a yestification is sent to the BMC that
  * there is data to be read. The first byte is the length and the
  * message data follows. The read operation just tries to capture the
  * whole before returning it to userspace.
@@ -218,7 +218,7 @@ static ssize_t bt_bmc_read(struct file *file, char __user *buf,
 	clr_rd_ptr(bt_bmc);
 
 	/*
-	 * The BT frames start with the message length, which does not
+	 * The BT frames start with the message length, which does yest
 	 * include the length byte.
 	 */
 	kbuffer[0] = bt_read(bt_bmc);
@@ -273,7 +273,7 @@ static ssize_t bt_bmc_write(struct file *file, const char __user *buf,
 	WARN_ON(*ppos);
 
 	/*
-	 * There's no interrupt for clearing bmc busy so we have to
+	 * There's yes interrupt for clearing bmc busy so we have to
 	 * poll
 	 */
 	if (wait_event_interruptible(bt_bmc->queue,
@@ -325,7 +325,7 @@ static long bt_bmc_ioctl(struct file *file, unsigned int cmd,
 	return -EINVAL;
 }
 
-static int bt_bmc_release(struct inode *inode, struct file *file)
+static int bt_bmc_release(struct iyesde *iyesde, struct file *file)
 {
 	struct bt_bmc *bt_bmc = file_bt_bmc(file);
 
@@ -430,7 +430,7 @@ static int bt_bmc_probe(struct platform_device *pdev)
 	struct device *dev;
 	int rc;
 
-	if (!pdev || !pdev->dev.of_node)
+	if (!pdev || !pdev->dev.of_yesde)
 		return -ENODEV;
 
 	dev = &pdev->dev;
@@ -442,12 +442,12 @@ static int bt_bmc_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, bt_bmc);
 
-	bt_bmc->map = syscon_node_to_regmap(pdev->dev.parent->of_node);
+	bt_bmc->map = syscon_yesde_to_regmap(pdev->dev.parent->of_yesde);
 	if (IS_ERR(bt_bmc->map)) {
 		void __iomem *base;
 
 		/*
-		 * Assume it's not the MFD-based devicetree description, in
+		 * Assume it's yest the MFD-based devicetree description, in
 		 * which case generate a regmap ourselves
 		 */
 		base = devm_platform_ioremap_resource(pdev, 0);
@@ -457,7 +457,7 @@ static int bt_bmc_probe(struct platform_device *pdev)
 		bt_bmc->map = devm_regmap_init_mmio(dev, base, &bt_regmap_cfg);
 		bt_bmc->offset = 0;
 	} else {
-		rc = of_property_read_u32(dev->of_node, "reg", &bt_bmc->offset);
+		rc = of_property_read_u32(dev->of_yesde, "reg", &bt_bmc->offset);
 		if (rc)
 			return rc;
 	}
@@ -465,7 +465,7 @@ static int bt_bmc_probe(struct platform_device *pdev)
 	mutex_init(&bt_bmc->mutex);
 	init_waitqueue_head(&bt_bmc->queue);
 
-	bt_bmc->miscdev.minor	= MISC_DYNAMIC_MINOR,
+	bt_bmc->miscdev.miyesr	= MISC_DYNAMIC_MINOR,
 		bt_bmc->miscdev.name	= DEVICE_NAME,
 		bt_bmc->miscdev.fops	= &bt_bmc_fops,
 		bt_bmc->miscdev.parent = dev;

@@ -13,16 +13,16 @@
  * Supports following chips:
  *
  * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
- * w83627hf	9	3	2	3	0x20	0x5ca3	no	yes(LPC)
- * w83627thf	7	3	3	3	0x90	0x5ca3	no	yes(LPC)
- * w83637hf	7	3	3	3	0x80	0x5ca3	no	yes(LPC)
- * w83687thf	7	3	3	3	0x90	0x5ca3	no	yes(LPC)
- * w83697hf	8	2	2	2	0x60	0x5ca3	no	yes(LPC)
+ * w83627hf	9	3	2	3	0x20	0x5ca3	yes	no(LPC)
+ * w83627thf	7	3	3	3	0x90	0x5ca3	yes	no(LPC)
+ * w83637hf	7	3	3	3	0x80	0x5ca3	yes	no(LPC)
+ * w83687thf	7	3	3	3	0x90	0x5ca3	yes	no(LPC)
+ * w83697hf	8	2	2	2	0x60	0x5ca3	yes	no(LPC)
  *
  * For other winbond chips, and for i2c support in the above chips,
  * use w83781d.c.
  *
- * Note: automatic ("cruise") fan control for 697, 637 & 627thf not
+ * Note: automatic ("cruise") fan control for 697, 637 & 627thf yest
  * supported yet.
  */
 
@@ -245,7 +245,7 @@ static const u8 BIT_SCFG2[] = { 0x10, 0x20, 0x40 };
  * Conversions. Limit checking is only done on the TO_REG
  * variants. Note that you should be a bit careful with which arguments
  * these macros are called: arguments may be evaluated more than once.
- * Fixing this is just not worth it.
+ * Fixing this is just yest worth it.
  */
 #define IN_TO_REG(val)  (clamp_val((((val) + 8) / 16), 0, 255))
 #define IN_FROM_REG(val) ((val) * 16)
@@ -308,7 +308,7 @@ static inline unsigned long pwm_freq_from_reg(u8 reg)
 	unsigned long clock = (reg & 0x80) ? 180000UL : 24000000UL;
 
 	reg &= 0x7f;
-	/* This should not happen but anyway... */
+	/* This should yest happen but anyway... */
 	if (reg == 0)
 		reg++;
 	return clock / (reg << 8);
@@ -1293,7 +1293,7 @@ static int __init w83627hf_find(int sioaddr, unsigned short *addr,
 	       superio_inb(sio_data, WINB_BASE_REG + 1);
 	*addr = val & WINB_ALIGNMENT;
 	if (*addr == 0) {
-		pr_warn("Base address not set, skipping\n");
+		pr_warn("Base address yest set, skipping\n");
 		goto exit;
 	}
 
@@ -1577,7 +1577,7 @@ static inline void w83627hf_set_bank(struct w83627hf_data *data, u16 reg)
 	}
 }
 
-/* Not strictly necessary, but play it safe for now */
+/* Not strictly necessary, but play it safe for yesw */
 static inline void w83627hf_reset_bank(struct w83627hf_data *data, u16 reg)
 {
 	if (reg & 0xff00) {
@@ -1623,7 +1623,7 @@ static int w83627thf_read_gpio5(struct platform_device *pdev)
 		 * so display a warning and keep going.
 		 */
 		dev_warn(&pdev->dev,
-			 "Can not read VID data: Failed to enable SuperIO access\n");
+			 "Can yest read VID data: Failed to enable SuperIO access\n");
 		return res;
 	}
 
@@ -1633,7 +1633,7 @@ static int w83627thf_read_gpio5(struct platform_device *pdev)
 
 	/* Make sure these GPIO pins are enabled */
 	if (!(superio_inb(sio_data, W83627THF_GPIO5_EN) & (1<<3))) {
-		dev_dbg(&pdev->dev, "GPIO5 disabled, no VID function\n");
+		dev_dbg(&pdev->dev, "GPIO5 disabled, yes VID function\n");
 		goto exit;
 	}
 
@@ -1643,7 +1643,7 @@ static int w83627thf_read_gpio5(struct platform_device *pdev)
 	 */
 	sel = superio_inb(sio_data, W83627THF_GPIO5_IOSR) & 0x3f;
 	if ((sel & 0x1f) != 0x1f) {
-		dev_dbg(&pdev->dev, "GPIO5 not configured for VID "
+		dev_dbg(&pdev->dev, "GPIO5 yest configured for VID "
 			"function\n");
 		goto exit;
 	}
@@ -1668,7 +1668,7 @@ static int w83687thf_read_vid(struct platform_device *pdev)
 		 * so display a warning and keep going.
 		 */
 		dev_warn(&pdev->dev,
-			 "Can not read VID data: Failed to enable SuperIO access\n");
+			 "Can yest read VID data: Failed to enable SuperIO access\n");
 		return res;
 	}
 
@@ -1676,14 +1676,14 @@ static int w83687thf_read_vid(struct platform_device *pdev)
 
 	/* Make sure these GPIO pins are enabled */
 	if (!(superio_inb(sio_data, W83687THF_VID_EN) & (1 << 2))) {
-		dev_dbg(&pdev->dev, "VID disabled, no VID function\n");
+		dev_dbg(&pdev->dev, "VID disabled, yes VID function\n");
 		goto exit;
 	}
 
 	/* Make sure the pins are configured for input */
 	if (!(superio_inb(sio_data, W83687THF_VID_CFG) & (1 << 4))) {
 		dev_dbg(&pdev->dev, "VID configured as output, "
-			"no VID function\n");
+			"yes VID function\n");
 		goto exit;
 	}
 
@@ -1771,7 +1771,7 @@ static void w83627hf_init_device(struct platform_device *pdev)
 		tmp = w83627hf_read_value(data, W83627HF_REG_TEMP2_CONFIG);
 		if (tmp & 0x01) {
 			dev_warn(&pdev->dev, "Enabling temp2, readings "
-				 "might not make sense\n");
+				 "might yest make sense\n");
 			w83627hf_write_value(data, W83627HF_REG_TEMP2_CONFIG,
 				tmp & 0xfe);
 		}
@@ -1782,7 +1782,7 @@ static void w83627hf_init_device(struct platform_device *pdev)
 				W83627HF_REG_TEMP3_CONFIG);
 			if (tmp & 0x01) {
 				dev_warn(&pdev->dev, "Enabling temp3, "
-					 "readings might not make sense\n");
+					 "readings might yest make sense\n");
 				w83627hf_write_value(data,
 					W83627HF_REG_TEMP3_CONFIG, tmp & 0xfe);
 			}

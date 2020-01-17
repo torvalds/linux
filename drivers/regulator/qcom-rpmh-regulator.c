@@ -78,7 +78,7 @@ enum rpmh_regulator_type {
  *				for LDO hardware type regulators only.
  * @pmic_mode_map:		Array indexed by regulator framework mode
  *				containing PMIC hardware modes.  Must be large
- *				enough to index all framework modes supported
+ *				eyesugh to index all framework modes supported
  *				by this regulator hardware type.
  * @of_map_mode:		Maps an RPMH_REGULATOR_MODE_* mode value defined
  *				in device tree to a regulator framework mode
@@ -109,9 +109,9 @@ struct rpmh_vreg_hw_data {
  *				if it corresponds to a strictly lower power
  *				state (e.g. enabled --> disabled).
  * @enabled:			Flag indicating if the regulator is enabled or
- *				not
+ *				yest
  * @bypassed:			Boolean indicating if the regulator is in
- *				bypass (pass-through) mode or not.  This is
+ *				bypass (pass-through) mode or yest.  This is
  *				only used by BOB rpmh-regulator resources.
  * @voltage_selector:		Selector used for get_voltage_sel() and
  *				set_voltage_sel() callbacks
@@ -133,7 +133,7 @@ struct rpmh_vreg {
 /**
  * struct rpmh_vreg_init_data - initialization data for an RPMh regulator
  * @name:			Name for the regulator which also corresponds
- *				to the device tree subnode name of the regulator
+ *				to the device tree subyesde name of the regulator
  * @resource_name:		RPMh regulator resource name format string.
  *				This must include exactly one field: '%s' which
  *				is filled at run-time with the PMIC ID provided
@@ -154,9 +154,9 @@ struct rpmh_vreg_init_data {
  * @vreg:		Pointer to the RPMh regulator
  * @cmd:		Pointer to the RPMh command to send
  * @wait_for_ack:	Boolean indicating if execution must wait until the
- *			request has been acknowledged as complete
+ *			request has been ackyeswledged as complete
  *
- * Return: 0 on success, errno on failure
+ * Return: 0 on success, erryes on failure
  */
 static int rpmh_regulator_send_request(struct rpmh_vreg *vreg,
 			struct tcs_cmd *cmd, bool wait_for_ack)
@@ -314,7 +314,7 @@ static unsigned int rpmh_regulator_vrm_get_mode(struct regulator_dev *rdev)
  * This function is used in the regulator_ops for VRM type RPMh regulator
  * devices.
  *
- * Return: 0 on success, errno on failure
+ * Return: 0 on success, erryes on failure
  */
 static int rpmh_regulator_vrm_set_load(struct regulator_dev *rdev, int load_uA)
 {
@@ -401,17 +401,17 @@ static const struct regulator_ops rpmh_regulator_xob_ops = {
  * rpmh_regulator_init_vreg() - initialize all attributes of an rpmh-regulator
  * vreg:		Pointer to the individual rpmh-regulator resource
  * dev:			Pointer to the top level rpmh-regulator PMIC device
- * node:		Pointer to the individual rpmh-regulator resource
- *			device node
+ * yesde:		Pointer to the individual rpmh-regulator resource
+ *			device yesde
  * pmic_id:		String used to identify the top level rpmh-regulator
  *			PMIC device on the board
  * pmic_rpmh_data:	Pointer to a null-terminated array of rpmh-regulator
  *			resources defined for the top level PMIC device
  *
- * Return: 0 on success, errno on failure
+ * Return: 0 on success, erryes on failure
  */
 static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
-			struct device_node *node, const char *pmic_id,
+			struct device_yesde *yesde, const char *pmic_id,
 			const struct rpmh_vreg_init_data *pmic_rpmh_data)
 {
 	struct regulator_config reg_config = {};
@@ -424,11 +424,11 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 	vreg->dev = dev;
 
 	for (rpmh_data = pmic_rpmh_data; rpmh_data->name; rpmh_data++)
-		if (of_node_name_eq(node, rpmh_data->name))
+		if (of_yesde_name_eq(yesde, rpmh_data->name))
 			break;
 
 	if (!rpmh_data->name) {
-		dev_err(dev, "Unknown regulator %pOFn\n", node);
+		dev_err(dev, "Unkyeswn regulator %pOFn\n", yesde);
 		return -EINVAL;
 	}
 
@@ -437,8 +437,8 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 
 	vreg->addr = cmd_db_read_addr(rpmh_resource_name);
 	if (!vreg->addr) {
-		dev_err(dev, "%pOFn: could not find RPMh address for resource %s\n",
-			node, rpmh_resource_name);
+		dev_err(dev, "%pOFn: could yest find RPMh address for resource %s\n",
+			yesde, rpmh_resource_name);
 		return -ENODEV;
 	}
 
@@ -456,7 +456,7 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 		vreg->rdesc.n_voltages = rpmh_data->hw_data->n_voltages;
 	}
 
-	vreg->always_wait_for_ack = of_property_read_bool(node,
+	vreg->always_wait_for_ack = of_property_read_bool(yesde,
 						"qcom,always-wait-for-ack");
 
 	vreg->rdesc.owner	= THIS_MODULE;
@@ -464,7 +464,7 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 	vreg->rdesc.ops		= vreg->hw_data->ops;
 	vreg->rdesc.of_map_mode	= vreg->hw_data->of_map_mode;
 
-	init_data = of_get_regulator_init_data(dev, node, &vreg->rdesc);
+	init_data = of_get_regulator_init_data(dev, yesde, &vreg->rdesc);
 	if (!init_data)
 		return -ENOMEM;
 
@@ -477,19 +477,19 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 
 	reg_config.dev		= dev;
 	reg_config.init_data	= init_data;
-	reg_config.of_node	= node;
+	reg_config.of_yesde	= yesde;
 	reg_config.driver_data	= vreg;
 
 	rdev = devm_regulator_register(dev, &vreg->rdesc, &reg_config);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
 		dev_err(dev, "%pOFn: devm_regulator_register() failed, ret=%d\n",
-			node, ret);
+			yesde, ret);
 		return ret;
 	}
 
 	dev_dbg(dev, "%pOFn regulator registered for RPMh resource %s @ 0x%05X\n",
-		node, rpmh_resource_name, vreg->addr);
+		yesde, rpmh_resource_name, vreg->addr);
 
 	return 0;
 }
@@ -672,7 +672,7 @@ static const struct rpmh_vreg_hw_data pmic4_bob = {
 static const struct rpmh_vreg_hw_data pmic4_lvs = {
 	.regulator_type = XOB,
 	.ops = &rpmh_regulator_xob_ops,
-	/* LVS hardware does not support voltage or mode configuration. */
+	/* LVS hardware does yest support voltage or mode configuration. */
 };
 
 static const struct rpmh_vreg_hw_data pmic5_pldo = {
@@ -934,7 +934,7 @@ static int rpmh_regulator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct rpmh_vreg_init_data *vreg_data;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct rpmh_vreg *vreg;
 	const char *pmic_id;
 	int ret;
@@ -943,23 +943,23 @@ static int rpmh_regulator_probe(struct platform_device *pdev)
 	if (!vreg_data)
 		return -ENODEV;
 
-	ret = of_property_read_string(dev->of_node, "qcom,pmic-id", &pmic_id);
+	ret = of_property_read_string(dev->of_yesde, "qcom,pmic-id", &pmic_id);
 	if (ret < 0) {
-		dev_err(dev, "qcom,pmic-id missing in DT node\n");
+		dev_err(dev, "qcom,pmic-id missing in DT yesde\n");
 		return ret;
 	}
 
-	for_each_available_child_of_node(dev->of_node, node) {
+	for_each_available_child_of_yesde(dev->of_yesde, yesde) {
 		vreg = devm_kzalloc(dev, sizeof(*vreg), GFP_KERNEL);
 		if (!vreg) {
-			of_node_put(node);
+			of_yesde_put(yesde);
 			return -ENOMEM;
 		}
 
-		ret = rpmh_regulator_init_vreg(vreg, dev, node, pmic_id,
+		ret = rpmh_regulator_init_vreg(vreg, dev, yesde, pmic_id,
 						vreg_data);
 		if (ret < 0) {
-			of_node_put(node);
+			of_yesde_put(yesde);
 			return ret;
 		}
 	}

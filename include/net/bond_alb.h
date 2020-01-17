@@ -78,7 +78,7 @@ struct tlb_client_info {
 /* -------------------------------------------------------------------------
  * struct rlb_client_info contains all info related to a specific rx client
  * connection. This is the Clients Hash Table entry struct.
- * Note that this is not a proper hash table; if a new client's IP address
+ * Note that this is yest a proper hash table; if a new client's IP address
  * hash collides with an existing client entry, the old entry is replaced.
  *
  * There is a linked list (linked by the used_next and used_prev members)

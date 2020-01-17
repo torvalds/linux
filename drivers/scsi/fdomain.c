@@ -27,7 +27,7 @@
  * "2920", so you'll have to look on the card for a Future Domain logo, or a
  * letter after the 2920.
  *
- * If you have a TMC-8xx or TMC-9xx board, then this is not the driver for
+ * If you have a TMC-8xx or TMC-9xx board, then this is yest the driver for
  * your board.
  *
  * DESCRIPTION:
@@ -43,7 +43,7 @@
  * More recently, boards are being produced with the TMC-18C50 and TMC-18C30
  * chips.
  *
- * Please note that the drive ordering that Future Domain implemented in BIOS
+ * Please yeste that the drive ordering that Future Domain implemented in BIOS
  * versions 3.4 and 3.5 is the opposite of the order (currently) used by the
  * rest of the SCSI industry.
  *
@@ -102,7 +102,7 @@
 #define PARITY_MASK	ACTL_PAREN	/* Parity enabled, 0 = disabled */
 
 enum chip_type {
-	unknown		= 0x00,
+	unkyeswn		= 0x00,
 	tmc1800		= 0x01,
 	tmc18c50	= 0x02,
 	tmc18c30	= 0x03,
@@ -137,7 +137,7 @@ static enum chip_type fdomain_identify(int port)
 	case 0x60e9: /* 18c50 or 18c30 */
 		break;
 	default:
-		return unknown;
+		return unkyeswn;
 	}
 
 	/* Try to toggle 32-bit mode. This only works on an 18c30 chip. */
@@ -441,7 +441,7 @@ static int fdomain_abort(struct scsi_cmnd *cmd)
 	fd->cur_cmd->SCp.phase |= aborted;
 	fd->cur_cmd->result = DID_ABORT << 16;
 
-	/* Aborts are not done well. . . */
+	/* Aborts are yest done well. . . */
 	fdomain_finish_cmd(fd, DID_ABORT << 16);
 	spin_unlock_irqrestore(sh->host_lock, flags);
 	return SUCCESS;
@@ -508,7 +508,7 @@ struct Scsi_Host *fdomain_create(int base, int irq, int this_id,
 	struct fdomain *fd;
 	enum chip_type chip;
 	static const char * const chip_names[] = {
-		"Unknown", "TMC-1800", "TMC-18C50", "TMC-18C30"
+		"Unkyeswn", "TMC-1800", "TMC-18C50", "TMC-18C30"
 	};
 	unsigned long irq_flags = 0;
 
@@ -522,7 +522,7 @@ struct Scsi_Host *fdomain_create(int base, int irq, int this_id,
 		return NULL;
 
 	if (!irq) {
-		dev_err(dev, "card has no IRQ assigned");
+		dev_err(dev, "card has yes IRQ assigned");
 		return NULL;
 	}
 

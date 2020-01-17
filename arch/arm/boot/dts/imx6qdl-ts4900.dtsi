@@ -1,9 +1,9 @@
 /*
- * Copyright 2015 Technologic Systems
+ * Copyright 2015 Techyeslogic Systems
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -26,7 +26,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -101,7 +101,7 @@
 	status = "okay";
 
 	n25q064: flash@0 {
-		compatible = "micron,n25q064", "jedec,spi-nor";
+		compatible = "micron,n25q064", "jedec,spi-yesr";
 		reg = <0>;
 		spi-max-frequency = <20000000>;
 	};
@@ -136,7 +136,7 @@
 	};
 
 	gpio8: gpio@28 {
-		compatible = "technologic,ts4900-gpio";
+		compatible = "techyeslogic,ts4900-gpio";
 		reg = <0x28>;
 		#gpio-cells = <2>;
 		gpio-controller;
@@ -474,6 +474,6 @@
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	vmmc-supply = <&reg_3p3v>;
 	bus-width = <4>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };

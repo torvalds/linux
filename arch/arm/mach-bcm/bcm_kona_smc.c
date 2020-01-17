@@ -42,18 +42,18 @@ static const struct of_device_id bcm_kona_smc_ids[] __initconst = {
 /* Map in the args buffer area */
 int __init bcm_kona_smc_init(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	const __be32 *prop_val;
 	u64 prop_size = 0;
 	unsigned long buffer_size;
 	u32 buffer_phys;
 
-	/* Read buffer addr and size from the device tree node */
-	node = of_find_matching_node(NULL, bcm_kona_smc_ids);
-	if (!node)
+	/* Read buffer addr and size from the device tree yesde */
+	yesde = of_find_matching_yesde(NULL, bcm_kona_smc_ids);
+	if (!yesde)
 		return -ENODEV;
 
-	prop_val = of_get_address(node, 0, &prop_size, NULL);
+	prop_val = of_get_address(yesde, 0, &prop_size, NULL);
 	if (!prop_val)
 		return -EINVAL;
 

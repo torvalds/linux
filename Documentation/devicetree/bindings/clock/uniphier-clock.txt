@@ -28,7 +28,7 @@ Example:
 			#clock-cells = <1>;
 		};
 
-		other nodes ...
+		other yesdes ...
 	};
 
 Provided clocks:
@@ -70,7 +70,7 @@ Example:
 			#clock-cells = <1>;
 		};
 
-		other nodes ...
+		other yesdes ...
 	};
 
 Provided clocks:
@@ -114,7 +114,7 @@ Example:
 			#clock-cells = <1>;
 		};
 
-		other nodes ...
+		other yesdes ...
 	};
 
 Provided clocks:

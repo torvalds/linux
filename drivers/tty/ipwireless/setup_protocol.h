@@ -25,7 +25,7 @@
 #define TL_SETUP_VERSION_QRY_TMO	1000
 #define TL_SETUP_MAX_VERSION_QRY	30
 
-/* Message numbers 0-9 are obsoleted and must not be reused! */
+/* Message numbers 0-9 are obsoleted and must yest be reused! */
 #define TL_SETUP_SIGNO_GET_VERSION_QRY	10
 #define TL_SETUP_SIGNO_GET_VERSION_RSP	11
 #define TL_SETUP_SIGNO_CONFIG_MSG	12
@@ -39,36 +39,36 @@
 #define TL_SETUP_SIGNO_REBOOT_MSG      22
 #define TL_SETUP_SIGNO_REBOOT_MSG_ACK  23
 
-/* Synchronous start-messages */
+/* Synchroyesus start-messages */
 struct tl_setup_get_version_qry {
-	unsigned char sig_no;		/* TL_SETUP_SIGNO_GET_VERSION_QRY */
+	unsigned char sig_yes;		/* TL_SETUP_SIGNO_GET_VERSION_QRY */
 } __attribute__ ((__packed__));
 
 struct tl_setup_get_version_rsp {
-	unsigned char sig_no;		/* TL_SETUP_SIGNO_GET_VERSION_RSP */
+	unsigned char sig_yes;		/* TL_SETUP_SIGNO_GET_VERSION_RSP */
 	unsigned char version;		/* TL_SETUP_VERSION */
 } __attribute__ ((__packed__));
 
 struct tl_setup_config_msg {
-	unsigned char sig_no;		/* TL_SETUP_SIGNO_CONFIG_MSG */
-	unsigned char port_no;
+	unsigned char sig_yes;		/* TL_SETUP_SIGNO_CONFIG_MSG */
+	unsigned char port_yes;
 	unsigned char prio_data;
 	unsigned char prio_ctrl;
 } __attribute__ ((__packed__));
 
 struct tl_setup_config_done_msg {
-	unsigned char sig_no;		/* TL_SETUP_SIGNO_CONFIG_DONE_MSG */
+	unsigned char sig_yes;		/* TL_SETUP_SIGNO_CONFIG_DONE_MSG */
 } __attribute__ ((__packed__));
 
-/* Asynchronous messages */
+/* Asynchroyesus messages */
 struct tl_setup_open_msg {
-	unsigned char sig_no;		/* TL_SETUP_SIGNO_OPEN_MSG */
-	unsigned char port_no;
+	unsigned char sig_yes;		/* TL_SETUP_SIGNO_OPEN_MSG */
+	unsigned char port_yes;
 } __attribute__ ((__packed__));
 
 struct tl_setup_close_msg {
-	unsigned char sig_no;		/* TL_SETUP_SIGNO_CLOSE_MSG */
-	unsigned char port_no;
+	unsigned char sig_yes;		/* TL_SETUP_SIGNO_CLOSE_MSG */
+	unsigned char port_yes;
 } __attribute__ ((__packed__));
 
 /* Driver type  - for use in tl_setup_info_msg.driver_type */
@@ -78,27 +78,27 @@ struct tl_setup_close_msg {
 #define NDISWAN_DRIVER_MINOR_VERSION  0
 
 /*
- * It should not matter when this message comes over as we just store the
+ * It should yest matter when this message comes over as we just store the
  * results and send the ACK.
  */
 struct tl_setup_info_msg {
-	unsigned char sig_no;		/* TL_SETUP_SIGNO_INFO_MSG */
+	unsigned char sig_yes;		/* TL_SETUP_SIGNO_INFO_MSG */
 	unsigned char driver_type;
 	unsigned char major_version;
-	unsigned char minor_version;
+	unsigned char miyesr_version;
 } __attribute__ ((__packed__));
 
 struct tl_setup_info_msgAck {
-	unsigned char sig_no;		/* TL_SETUP_SIGNO_INFO_MSG_ACK */
+	unsigned char sig_yes;		/* TL_SETUP_SIGNO_INFO_MSG_ACK */
 } __attribute__ ((__packed__));
 
 struct TlSetupRebootMsgAck {
-	unsigned char sig_no;		/* TL_SETUP_SIGNO_REBOOT_MSG_ACK */
+	unsigned char sig_yes;		/* TL_SETUP_SIGNO_REBOOT_MSG_ACK */
 } __attribute__ ((__packed__));
 
 /* Define a union of all the msgs that the driver can receive from the card.*/
 union ipw_setup_rx_msg {
-	unsigned char sig_no;
+	unsigned char sig_yes;
 	struct tl_setup_get_version_rsp version_rsp_msg;
 	struct tl_setup_open_msg open_msg;
 	struct tl_setup_close_msg close_msg;

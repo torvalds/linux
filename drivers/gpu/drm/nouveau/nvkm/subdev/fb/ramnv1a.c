@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -39,7 +39,7 @@ nv1a_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 
 	bridge = pci_get_domain_bus_and_slot(domain, 0, PCI_DEVFN(0, 1));
 	if (!bridge) {
-		nvkm_error(&fb->subdev, "no bridge device\n");
+		nvkm_error(&fb->subdev, "yes bridge device\n");
 		return -ENODEV;
 	}
 

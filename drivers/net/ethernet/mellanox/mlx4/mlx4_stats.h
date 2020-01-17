@@ -40,7 +40,7 @@ struct mlx4_en_port_stats {
 	unsigned long tx_timeout;
 	unsigned long rx_alloc_pages;
 	unsigned long rx_chksum_good;
-	unsigned long rx_chksum_none;
+	unsigned long rx_chksum_yesne;
 	unsigned long rx_chksum_complete;
 	unsigned long tx_chksum_offload;
 #define NUM_PORT_STATS		10

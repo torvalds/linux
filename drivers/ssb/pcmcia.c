@@ -542,13 +542,13 @@ static int ssb_pcmcia_sprom_write_all(struct ssb_bus *bus, const u16 *sprom)
 	bool failed = 0;
 	size_t size = SSB_PCMCIA_SPROM_SIZE;
 
-	pr_notice("Writing SPROM. Do NOT turn off the power! Please stand by...\n");
+	pr_yestice("Writing SPROM. Do NOT turn off the power! Please stand by...\n");
 	err = ssb_pcmcia_sprom_command(bus, SSB_PCMCIA_SPROMCTL_WRITEEN);
 	if (err) {
-		pr_notice("Could not enable SPROM write access\n");
+		pr_yestice("Could yest enable SPROM write access\n");
 		return -EBUSY;
 	}
-	pr_notice("[ 0%%");
+	pr_yestice("[ 0%%");
 	msleep(500);
 	for (i = 0; i < size; i++) {
 		if (i == size / 4)
@@ -561,20 +561,20 @@ static int ssb_pcmcia_sprom_write_all(struct ssb_bus *bus, const u16 *sprom)
 			pr_cont(".");
 		err = ssb_pcmcia_sprom_write(bus, i, sprom[i]);
 		if (err) {
-			pr_notice("Failed to write to SPROM\n");
+			pr_yestice("Failed to write to SPROM\n");
 			failed = 1;
 			break;
 		}
 	}
 	err = ssb_pcmcia_sprom_command(bus, SSB_PCMCIA_SPROMCTL_WRITEDIS);
 	if (err) {
-		pr_notice("Could not disable SPROM write access\n");
+		pr_yestice("Could yest disable SPROM write access\n");
 		failed = 1;
 	}
 	msleep(500);
 	if (!failed) {
 		pr_cont("100%% ]\n");
-		pr_notice("SPROM written\n");
+		pr_yestice("SPROM written\n");
 	}
 
 	return failed ? -EBUSY : 0;
@@ -648,7 +648,7 @@ static int ssb_pcmcia_do_get_invariants(struct pcmcia_device *p_dev,
 		sprom->maxpwr_bg = tuple->TupleData[8];
 		break;
 	case SSB_PCMCIA_CIS_OEMNAME:
-		/* We ignore this. */
+		/* We igyesre this. */
 		break;
 	case SSB_PCMCIA_CIS_CCODE:
 		GOTO_ERROR_ON(tuple->TupleDataLen != 2,
@@ -786,7 +786,7 @@ int ssb_pcmcia_hardware_setup(struct ssb_bus *bus)
 	if (bus->bustype != SSB_BUSTYPE_PCMCIA)
 		return 0;
 
-	/* Switch segment to a known state and sync
+	/* Switch segment to a kyeswn state and sync
 	 * bus->mapped_pcmcia_seg with hardware state. */
 	ssb_pcmcia_switch_segment(bus, 0);
 	/* Init the COR register. */

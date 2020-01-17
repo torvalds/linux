@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -45,8 +45,8 @@ acr_r375_generate_pmu_bl_desc(const struct nvkm_acr *acr,
 
 	desc->ctx_dma = FALCON_DMAIDX_UCODE;
 	desc->code_dma_base = u64_to_flcn64(addr_code);
-	desc->non_sec_code_off = pdesc->app_resident_code_offset;
-	desc->non_sec_code_size = pdesc->app_resident_code_size;
+	desc->yesn_sec_code_off = pdesc->app_resident_code_offset;
+	desc->yesn_sec_code_size = pdesc->app_resident_code_size;
 	desc->code_entry_point = pdesc->app_imem_entry;
 	desc->data_dma_base = u64_to_flcn64(addr_data);
 	desc->data_size = pdesc->app_resident_data_size;

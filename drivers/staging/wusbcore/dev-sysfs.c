@@ -33,7 +33,7 @@ static ssize_t wusb_disconnect_store(struct device *dev,
 		return -ENODEV;
 
 	mutex_lock(&wusbhc->mutex);
-	port_idx = wusb_port_no_to_idx(usb_dev->portnum);
+	port_idx = wusb_port_yes_to_idx(usb_dev->portnum);
 	__wusbhc_dev_disable(wusbhc, port_idx);
 	mutex_unlock(&wusbhc->mutex);
 	wusbhc_put(wusbhc);
@@ -111,7 +111,7 @@ int wusb_dev_sysfs_add(struct wusbhc *wusbhc, struct usb_device *usb_dev,
 					&wusb_dev_attr_group);
 	struct device *dev = &usb_dev->dev;
 	if (result < 0)
-		dev_err(dev, "Cannot register WUSB-dev attributes: %d\n",
+		dev_err(dev, "Canyest register WUSB-dev attributes: %d\n",
 			result);
 	return result;
 }

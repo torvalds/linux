@@ -53,7 +53,7 @@ struct ip_vs_pe *ip_vs_pe_getbyname(const char *name)
 	/* Search for the pe by name */
 	pe = __ip_vs_pe_getbyname(name);
 
-	/* If pe not found, load the module and search again */
+	/* If pe yest found, load the module and search again */
 	if (!pe) {
 		request_module("ip_vs_pe_%s", name);
 		pe = __ip_vs_pe_getbyname(name);

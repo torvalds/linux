@@ -14,7 +14,7 @@
  * Add fscrypt_pullback_bio_page()
  *	Jaegeuk Kim, 2015.
  *
- * This has not yet undergone a rigorous security audit.
+ * This has yest yet undergone a rigorous security audit.
  *
  * The usage of AES-XTS should conform to recommendations in NIST
  * Special Publication 800-38E and IEEE P1619/D16.
@@ -79,15 +79,15 @@ void fscrypt_generate_iv(union fscrypt_iv *iv, u64 lblk_num,
 
 	if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) {
 		WARN_ON_ONCE((u32)lblk_num != lblk_num);
-		lblk_num |= (u64)ci->ci_inode->i_ino << 32;
+		lblk_num |= (u64)ci->ci_iyesde->i_iyes << 32;
 	} else if (flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) {
-		memcpy(iv->nonce, ci->ci_nonce, FS_KEY_DERIVATION_NONCE_SIZE);
+		memcpy(iv->yesnce, ci->ci_yesnce, FS_KEY_DERIVATION_NONCE_SIZE);
 	}
 	iv->lblk_num = cpu_to_le64(lblk_num);
 }
 
 /* Encrypt or decrypt a single filesystem block of file contents */
-int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
+int fscrypt_crypt_block(const struct iyesde *iyesde, fscrypt_direction_t rw,
 			u64 lblk_num, struct page *src_page,
 			struct page *dest_page, unsigned int len,
 			unsigned int offs, gfp_t gfp_flags)
@@ -96,7 +96,7 @@ int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
 	struct skcipher_request *req = NULL;
 	DECLARE_CRYPTO_WAIT(wait);
 	struct scatterlist dst, src;
-	struct fscrypt_info *ci = inode->i_crypt_info;
+	struct fscrypt_info *ci = iyesde->i_crypt_info;
 	struct crypto_skcipher *tfm = ci->ci_ctfm;
 	int res = 0;
 
@@ -126,7 +126,7 @@ int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
 		res = crypto_wait_req(crypto_skcipher_encrypt(req), &wait);
 	skcipher_request_free(req);
 	if (res) {
-		fscrypt_err(inode, "%scryption failed for block %llu: %d",
+		fscrypt_err(iyesde, "%scryption failed for block %llu: %d",
 			    (rw == FS_DECRYPT ? "De" : "En"), lblk_num, res);
 		return res;
 	}
@@ -136,7 +136,7 @@ int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
 /**
  * fscrypt_encrypt_pagecache_blocks() - Encrypt filesystem blocks from a pagecache page
  * @page:      The locked pagecache page containing the block(s) to encrypt
- * @len:       Total size of the block(s) to encrypt.  Must be a nonzero
+ * @len:       Total size of the block(s) to encrypt.  Must be a yesnzero
  *		multiple of the filesystem's block size.
  * @offs:      Byte offset within @page of the first block to encrypt.  Must be
  *		a multiple of the filesystem's block size.
@@ -145,7 +145,7 @@ int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
  * A new bounce page is allocated, and the specified block(s) are encrypted into
  * it.  In the bounce page, the ciphertext block(s) will be located at the same
  * offsets at which the plaintext block(s) were located in the source page; any
- * other parts of the bounce page will be left uninitialized.  However, normally
+ * other parts of the bounce page will be left uninitialized.  However, yesrmally
  * blocksize == PAGE_SIZE and the whole page is encrypted at once.
  *
  * This is for use by the filesystem's ->writepages() method.
@@ -158,8 +158,8 @@ struct page *fscrypt_encrypt_pagecache_blocks(struct page *page,
 					      gfp_t gfp_flags)
 
 {
-	const struct inode *inode = page->mapping->host;
-	const unsigned int blockbits = inode->i_blkbits;
+	const struct iyesde *iyesde = page->mapping->host;
+	const unsigned int blockbits = iyesde->i_blkbits;
 	const unsigned int blocksize = 1 << blockbits;
 	struct page *ciphertext_page;
 	u64 lblk_num = ((u64)page->index << (PAGE_SHIFT - blockbits)) +
@@ -178,7 +178,7 @@ struct page *fscrypt_encrypt_pagecache_blocks(struct page *page,
 		return ERR_PTR(-ENOMEM);
 
 	for (i = offs; i < offs + len; i += blocksize, lblk_num++) {
-		err = fscrypt_crypt_block(inode, FS_ENCRYPT, lblk_num,
+		err = fscrypt_crypt_block(iyesde, FS_ENCRYPT, lblk_num,
 					  page, ciphertext_page,
 					  blocksize, i, gfp_flags);
 		if (err) {
@@ -194,7 +194,7 @@ EXPORT_SYMBOL(fscrypt_encrypt_pagecache_blocks);
 
 /**
  * fscrypt_encrypt_block_inplace() - Encrypt a filesystem block in-place
- * @inode:     The inode to which this block belongs
+ * @iyesde:     The iyesde to which this block belongs
  * @page:      The page containing the block to encrypt
  * @len:       Size of block to encrypt.  Doesn't need to be a multiple of the
  *		fs block size, but must be a multiple of FS_CRYPTO_BLOCK_SIZE.
@@ -204,16 +204,16 @@ EXPORT_SYMBOL(fscrypt_encrypt_pagecache_blocks);
  * @gfp_flags: Memory allocation flags
  *
  * Encrypt a possibly-compressed filesystem block that is located in an
- * arbitrary page, not necessarily in the original pagecache page.  The @inode
+ * arbitrary page, yest necessarily in the original pagecache page.  The @iyesde
  * and @lblk_num must be specified, as they can't be determined from @page.
  *
- * Return: 0 on success; -errno on failure
+ * Return: 0 on success; -erryes on failure
  */
-int fscrypt_encrypt_block_inplace(const struct inode *inode, struct page *page,
+int fscrypt_encrypt_block_inplace(const struct iyesde *iyesde, struct page *page,
 				  unsigned int len, unsigned int offs,
 				  u64 lblk_num, gfp_t gfp_flags)
 {
-	return fscrypt_crypt_block(inode, FS_ENCRYPT, lblk_num, page, page,
+	return fscrypt_crypt_block(iyesde, FS_ENCRYPT, lblk_num, page, page,
 				   len, offs, gfp_flags);
 }
 EXPORT_SYMBOL(fscrypt_encrypt_block_inplace);
@@ -221,24 +221,24 @@ EXPORT_SYMBOL(fscrypt_encrypt_block_inplace);
 /**
  * fscrypt_decrypt_pagecache_blocks() - Decrypt filesystem blocks in a pagecache page
  * @page:      The locked pagecache page containing the block(s) to decrypt
- * @len:       Total size of the block(s) to decrypt.  Must be a nonzero
+ * @len:       Total size of the block(s) to decrypt.  Must be a yesnzero
  *		multiple of the filesystem's block size.
  * @offs:      Byte offset within @page of the first block to decrypt.  Must be
  *		a multiple of the filesystem's block size.
  *
  * The specified block(s) are decrypted in-place within the pagecache page,
- * which must still be locked and not uptodate.  Normally, blocksize ==
+ * which must still be locked and yest uptodate.  Normally, blocksize ==
  * PAGE_SIZE and the whole page is decrypted at once.
  *
  * This is for use by the filesystem's ->readpages() method.
  *
- * Return: 0 on success; -errno on failure
+ * Return: 0 on success; -erryes on failure
  */
 int fscrypt_decrypt_pagecache_blocks(struct page *page, unsigned int len,
 				     unsigned int offs)
 {
-	const struct inode *inode = page->mapping->host;
-	const unsigned int blockbits = inode->i_blkbits;
+	const struct iyesde *iyesde = page->mapping->host;
+	const unsigned int blockbits = iyesde->i_blkbits;
 	const unsigned int blocksize = 1 << blockbits;
 	u64 lblk_num = ((u64)page->index << (PAGE_SHIFT - blockbits)) +
 		       (offs >> blockbits);
@@ -252,7 +252,7 @@ int fscrypt_decrypt_pagecache_blocks(struct page *page, unsigned int len,
 		return -EINVAL;
 
 	for (i = offs; i < offs + len; i += blocksize, lblk_num++) {
-		err = fscrypt_crypt_block(inode, FS_DECRYPT, lblk_num, page,
+		err = fscrypt_crypt_block(iyesde, FS_DECRYPT, lblk_num, page,
 					  page, blocksize, i, GFP_NOFS);
 		if (err)
 			return err;
@@ -263,7 +263,7 @@ EXPORT_SYMBOL(fscrypt_decrypt_pagecache_blocks);
 
 /**
  * fscrypt_decrypt_block_inplace() - Decrypt a filesystem block in-place
- * @inode:     The inode to which this block belongs
+ * @iyesde:     The iyesde to which this block belongs
  * @page:      The page containing the block to decrypt
  * @len:       Size of block to decrypt.  Doesn't need to be a multiple of the
  *		fs block size, but must be a multiple of FS_CRYPTO_BLOCK_SIZE.
@@ -272,16 +272,16 @@ EXPORT_SYMBOL(fscrypt_decrypt_pagecache_blocks);
  *		number of the block within the file
  *
  * Decrypt a possibly-compressed filesystem block that is located in an
- * arbitrary page, not necessarily in the original pagecache page.  The @inode
+ * arbitrary page, yest necessarily in the original pagecache page.  The @iyesde
  * and @lblk_num must be specified, as they can't be determined from @page.
  *
- * Return: 0 on success; -errno on failure
+ * Return: 0 on success; -erryes on failure
  */
-int fscrypt_decrypt_block_inplace(const struct inode *inode, struct page *page,
+int fscrypt_decrypt_block_inplace(const struct iyesde *iyesde, struct page *page,
 				  unsigned int len, unsigned int offs,
 				  u64 lblk_num)
 {
-	return fscrypt_crypt_block(inode, FS_DECRYPT, lblk_num, page, page,
+	return fscrypt_crypt_block(iyesde, FS_DECRYPT, lblk_num, page, page,
 				   len, offs, GFP_NOFS);
 }
 EXPORT_SYMBOL(fscrypt_decrypt_block_inplace);
@@ -298,7 +298,7 @@ static int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags)
 
 	/*
 	 * Plaintext names are always valid, since fscrypt doesn't support
-	 * reverting to ciphertext names without evicting the directory's inode
+	 * reverting to ciphertext names without evicting the directory's iyesde
 	 * -- which implies eviction of the dentries in the directory.
 	 */
 	if (!(dentry->d_flags & DCACHE_ENCRYPTED_NAME))
@@ -320,8 +320,8 @@ static int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags)
 		return -ECHILD;
 
 	dir = dget_parent(dentry);
-	err = fscrypt_get_encryption_info(d_inode(dir));
-	valid = !fscrypt_has_encryption_key(d_inode(dir));
+	err = fscrypt_get_encryption_info(d_iyesde(dir));
+	valid = !fscrypt_has_encryption_key(d_iyesde(dir));
 	dput(dir);
 
 	if (err < 0)
@@ -341,7 +341,7 @@ const struct dentry_operations fscrypt_d_ops = {
  * We only call this when we start accessing encrypted files, since it
  * results in memory getting allocated that wouldn't otherwise be used.
  *
- * Return: 0 on success; -errno on failure
+ * Return: 0 on success; -erryes on failure
  */
 int fscrypt_initialize(unsigned int cop_flags)
 {
@@ -367,7 +367,7 @@ out_unlock:
 	return err;
 }
 
-void fscrypt_msg(const struct inode *inode, const char *level,
+void fscrypt_msg(const struct iyesde *iyesde, const char *level,
 		 const char *fmt, ...)
 {
 	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
@@ -381,9 +381,9 @@ void fscrypt_msg(const struct inode *inode, const char *level,
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	if (inode)
-		printk("%sfscrypt (%s, inode %lu): %pV\n",
-		       level, inode->i_sb->s_id, inode->i_ino, &vaf);
+	if (iyesde)
+		printk("%sfscrypt (%s, iyesde %lu): %pV\n",
+		       level, iyesde->i_sb->s_id, iyesde->i_iyes, &vaf);
 	else
 		printk("%sfscrypt: %pV\n", level, &vaf);
 	va_end(args);

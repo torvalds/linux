@@ -13,7 +13,7 @@ General Properties:
 Clock Properties:
 
   - fsl,cksel        Timer reference clock source.
-  - fsl,tclk-period  Timer reference clock period in nanoseconds.
+  - fsl,tclk-period  Timer reference clock period in nayesseconds.
   - fsl,tmr-prsc     Prescaler, divides the output clock.
   - fsl,tmr-add      Frequency compensation value.
   - fsl,tmr-fiper1   Fixed interval period pulse generator.
@@ -30,7 +30,7 @@ Clock Properties:
   Here is how to figure good values:
 
   TimerOsc     = selected reference clock   MHz
-  tclk_period  = desired clock period       nanoseconds
+  tclk_period  = desired clock period       nayesseconds
   NominalFreq  = 1000 / tclk_period         MHz
   FreqDivRatio = TimerOsc / NominalFreq     (must be greater that 1.0)
   tmr_add      = ceil(2^32 / FreqDivRatio)
@@ -64,7 +64,7 @@ Clock Properties:
   <2> - reserved
   <3> - RTC clock oscillator
 
-  When this attribute is not used, the IEEE 1588 timer reference clock
+  When this attribute is yest used, the IEEE 1588 timer reference clock
   will use the eTSEC system clock (for Gianfar) or the MAC system
   clock (for DPAA).
 

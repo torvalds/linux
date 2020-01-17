@@ -4,7 +4,7 @@
 #include <linux/linkage.h>
 #include <abi/entry.h>
 #include <abi/pgtable-bits.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/setup.h>
 #include <asm/unistd.h>
 #include <asm/asm-offsets.h>
@@ -182,7 +182,7 @@ csky_syscall_trace:
 #endif
 	stw	a0, (sp, LSAVE_A0)	/* Save return value */
 
-	mov     a0, sp                  /* right now, sp --> pt_regs */
+	mov     a0, sp                  /* right yesw, sp --> pt_regs */
 	jbsr    syscall_trace_exit
 	br	ret_from_exception
 
@@ -233,7 +233,7 @@ exit_work:
 
 	mov	a0, sp
 	mov	a1, r12
-	jmpi	do_notify_resume
+	jmpi	do_yestify_resume
 
 work_resched:
 	jmpi	schedule
@@ -261,7 +261,7 @@ ENTRY(csky_get_tls)
 
 	/* get current task thread_info with kernel 8K stack */
 	bmaski	a0, THREAD_SHIFT
-	not	a0
+	yest	a0
 	subi	sp, 1
 	and	a0, sp
 	addi	sp, 1

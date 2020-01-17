@@ -27,14 +27,14 @@ Getting Access to the Device
 ----------------------------
 
 The most widely supported form of IO is memory mapped IO. That is, a
-part of the CPU's address space is interpreted not as accesses to
+part of the CPU's address space is interpreted yest as accesses to
 memory, but as accesses to a device. Some architectures define devices
 to be at a fixed address, but most have some method of discovering
 devices. The PCI bus walk is a good example of such a scheme. This
-document does not cover how to receive such an address, but assumes you
+document does yest cover how to receive such an address, but assumes you
 are starting with one. Physical addresses are of type unsigned long.
 
-This address should not be used directly. Instead, to get an address
+This address should yest be used directly. Instead, to get an address
 suitable for passing to the accessor functions described below, you
 should call :c:func:`ioremap()`. An address suitable for accessing
 the device will be returned to you.
@@ -52,7 +52,7 @@ The part of the interface most used by drivers is reading and writing
 memory-mapped registers on the device. Linux provides interfaces to read
 and write 8-bit, 16-bit, 32-bit and 64-bit quantities. Due to a
 historical accident, these are named byte, word, long and quad accesses.
-Both read and write accesses are supported; there is no prefetch support
+Both read and write accesses are supported; there is yes prefetch support
 at this time.
 
 The functions are named readb(), readw(), readl(), readq(),
@@ -62,21 +62,21 @@ writeb(), writew(), writel() and writeq().
 Some devices (such as framebuffers) would like to use larger transfers than
 8 bytes at a time. For these devices, the :c:func:`memcpy_toio()`,
 :c:func:`memcpy_fromio()` and :c:func:`memset_io()` functions are
-provided. Do not use memset or memcpy on IO addresses; they are not
+provided. Do yest use memset or memcpy on IO addresses; they are yest
 guaranteed to copy data in order.
 
 The read and write functions are defined to be ordered. That is the
-compiler is not permitted to reorder the I/O sequence. When the ordering
+compiler is yest permitted to reorder the I/O sequence. When the ordering
 can be compiler optimised, you can use __readb() and friends to
 indicate the relaxed ordering. Use this with care.
 
-While the basic functions are defined to be synchronous with respect to
+While the basic functions are defined to be synchroyesus with respect to
 each other and ordered with respect to each other the busses the devices
 sit on may themselves have asynchronicity. In particular many authors
-are burned by the fact that PCI bus writes are posted asynchronously. A
+are burned by the fact that PCI bus writes are posted asynchroyesusly. A
 driver author must issue a read from the same device to ensure that
 writes have occurred in the specific cases the author cares. This kind
-of property cannot be hidden from driver writers in the API. In some
+of property canyest be hidden from driver writers in the API. In some
 cases, the read used to flush the device may be expected to fail (if the
 card is resetting, for example). In that case, the read should be done
 from config space, which is guaranteed to soft-fail if the card doesn't
@@ -107,9 +107,9 @@ PCI ordering rules also guarantee that PIO read responses arrive after any
 outstanding DMA writes from that bus, since for some devices the result of
 a readb() call may signal to the driver that a DMA transaction is
 complete. In many cases, however, the driver may want to indicate that the
-next readb() call has no relation to any previous DMA writes
+next readb() call has yes relation to any previous DMA writes
 performed by the device. The driver can use readb_relaxed() for
-these cases, although only some platforms will honor the relaxed
+these cases, although only some platforms will hoyesr the relaxed
 semantics. Using the relaxed read functions will provide significant
 performance benefits on platforms that support it. The qla2xxx driver
 provides examples of how to use readX_relaxed(). In many cases, a majority
@@ -122,19 +122,19 @@ Port Space Accesses
 Port Space Explained
 --------------------
 
-Another form of IO commonly supported is Port Space. This is a range of
-addresses separate to the normal memory address space. Access to these
-addresses is generally not as fast as accesses to the memory mapped
+Ayesther form of IO commonly supported is Port Space. This is a range of
+addresses separate to the yesrmal memory address space. Access to these
+addresses is generally yest as fast as accesses to the memory mapped
 addresses, and it also has a potentially smaller address space.
 
-Unlike memory mapped IO, no preparation is required to access port
+Unlike memory mapped IO, yes preparation is required to access port
 space.
 
 Accessing Port Space
 --------------------
 
 Accesses to this space are provided through a set of functions which
-allow 8-bit, 16-bit and 32-bit accesses; also known as byte, word and
+allow 8-bit, 16-bit and 32-bit accesses; also kyeswn as byte, word and
 long. These functions are :c:func:`inb()`, :c:func:`inw()`,
 :c:func:`inl()`, :c:func:`outb()`, :c:func:`outw()` and
 :c:func:`outl()`.

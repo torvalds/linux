@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -48,7 +48,7 @@
 static const struct agp_version agp_current_version =
 {
 	.major = AGPGART_VERSION_MAJOR,
-	.minor = AGPGART_VERSION_MINOR,
+	.miyesr = AGPGART_VERSION_MINOR,
 };
 
 struct agp_bridge_data *(*agp_find_bridge)(struct pci_dev *) =
@@ -85,7 +85,7 @@ EXPORT_SYMBOL(agp_backend_acquire);
  *	agp_backend_release  -  release the lock on the agp backend.
  *
  *	The caller must insure that the graphics aperture translation table
- *	is read for use by another entity.
+ *	is read for use by ayesther entity.
  *
  *	(Ensure that all memory it bound is unbound.)
  */
@@ -180,7 +180,7 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 	}
 	got_keylist = 1;
 
-	/* FIXME vmalloc'd memory not guaranteed contiguous */
+	/* FIXME vmalloc'd memory yest guaranteed contiguous */
 
 	if (bridge->driver->configure()) {
 		dev_err(&bridge->dev->dev, "error configuring host chipset\n");
@@ -208,7 +208,7 @@ err_out:
 	return rc;
 }
 
-/* cannot be __exit b/c as it could be called from __init code */
+/* canyest be __exit b/c as it could be called from __init code */
 static void agp_backend_cleanup(struct agp_bridge_data *bridge)
 {
 	if (bridge->driver->cleanup)
@@ -271,7 +271,7 @@ int agp_add_bridge(struct agp_bridge_data *bridge)
 	}
 
 	if (!bridge->dev) {
-		printk (KERN_DEBUG PFX "Erk, registering with no pci_dev!\n");
+		printk (KERN_DEBUG PFX "Erk, registering with yes pci_dev!\n");
 		error = -EINVAL;
 		goto err_put_bridge;
 	}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2004-2013 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004-2013 Syyespsys, Inc. (www.syyespsys.com)
  *
  * MDIO implementation for ARC EMAC
  */
@@ -131,7 +131,7 @@ static int arc_mdio_reset(struct mii_bus *bus)
 int arc_mdio_probe(struct arc_emac_priv *priv)
 {
 	struct arc_emac_mdio_bus_data *data = &priv->bus_data;
-	struct device_node *np = priv->dev->of_node;
+	struct device_yesde *np = priv->dev->of_yesde;
 	struct mii_bus *bus;
 	int error;
 
@@ -142,7 +142,7 @@ int arc_mdio_probe(struct arc_emac_priv *priv)
 	priv->bus = bus;
 	bus->priv = priv;
 	bus->parent = priv->dev;
-	bus->name = "Synopsys MII Bus";
+	bus->name = "Syyespsys MII Bus";
 	bus->read = &arc_mdio_read;
 	bus->write = &arc_mdio_write;
 	bus->reset = &arc_mdio_reset;
@@ -157,15 +157,15 @@ int arc_mdio_probe(struct arc_emac_priv *priv)
 	}
 
 	of_property_read_u32(np, "phy-reset-duration", &data->msec);
-	/* A sane reset duration should not be longer than 1s */
+	/* A sane reset duration should yest be longer than 1s */
 	if (data->msec > 1000)
 		data->msec = 1;
 
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s", bus->name);
 
-	error = of_mdiobus_register(bus, priv->dev->of_node);
+	error = of_mdiobus_register(bus, priv->dev->of_yesde);
 	if (error) {
-		dev_err(priv->dev, "cannot register MDIO bus %s\n", bus->name);
+		dev_err(priv->dev, "canyest register MDIO bus %s\n", bus->name);
 		mdiobus_free(bus);
 		return error;
 	}

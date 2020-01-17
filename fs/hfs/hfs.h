@@ -2,7 +2,7 @@
  *  linux/fs/hfs/hfs.h
  *
  * Copyright (C) 1995-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techyeslogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  */
 

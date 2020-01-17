@@ -20,7 +20,7 @@
  * handler to call when the PME triggers through _AEI and _L02 / _E02
  * methods as would be done for a real GPIO interrupt in ACPI. Note this
  * is a hack to define an AML event handler for the PME while using existing
- * ACPI mechanisms, this is not a real GPIO at all.
+ * ACPI mechanisms, this is yest a real GPIO at all.
  *
  * This driver will bind to the INT0002 device, and register as a GPIO
  * controller, letting gpiolib-acpi.c call the _L02 handler as it would
@@ -52,7 +52,7 @@
 #define GPE0A_EN_PORT			0x428
 
 /*
- * As this is not a real GPIO at all, but just a hack to model an event in
+ * As this is yest a real GPIO at all, but just a hack to model an event in
  * ACPI the get / set functions are dummy functions.
  */
 

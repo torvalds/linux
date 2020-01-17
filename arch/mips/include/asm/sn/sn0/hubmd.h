@@ -103,7 +103,7 @@
  *   MD_SIZE_xxx are useful for representing the size of a SIMM or bank
  *   (SIMM pair).  They correspond to the values needed for the bit
  *   triplets (MMC_BANK_MASK) in the MD_MEMORY_CONFIG register for bank size.
- *   Bits not used by the MD are used by software.
+ *   Bits yest used by the MD are used by software.
  */
 
 #define MD_SIZE_EMPTY		0	/* Valid in MEMORY_CONFIG	    */
@@ -207,13 +207,13 @@
 
 /* MD_SLOTID_USTAT bit definitions */
 
-#define MSU_CORECLK_TST_SHFT	7	/* You don't wanna know		    */
+#define MSU_CORECLK_TST_SHFT	7	/* You don't wanna kyesw		    */
 #define MSU_CORECLK_TST_MASK	(UINT64_CAST 1 << 7)
 #define MSU_CORECLK_TST		(UINT64_CAST 1 << 7)
-#define MSU_CORECLK_SHFT	6	/* You don't wanna know		    */
+#define MSU_CORECLK_SHFT	6	/* You don't wanna kyesw		    */
 #define MSU_CORECLK_MASK	(UINT64_CAST 1 << 6)
 #define MSU_CORECLK		(UINT64_CAST 1 << 6)
-#define MSU_NETSYNC_SHFT	5	/* You don't wanna know		    */
+#define MSU_NETSYNC_SHFT	5	/* You don't wanna kyesw		    */
 #define MSU_NETSYNC_MASK	(UINT64_CAST 1 << 5)
 #define MSU_NETSYNC		(UINT64_CAST 1 << 5)
 #define MSU_FPROMRDY_SHFT	4	/* Flash PROM ready bit		    */

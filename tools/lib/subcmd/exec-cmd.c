@@ -45,14 +45,14 @@ static const char *get_pwd_cwd(void)
 		stat(cwd, &cwd_stat);
 		if (!stat(pwd, &pwd_stat) &&
 		    pwd_stat.st_dev == cwd_stat.st_dev &&
-		    pwd_stat.st_ino == cwd_stat.st_ino) {
+		    pwd_stat.st_iyes == cwd_stat.st_iyes) {
 			strlcpy(cwd, pwd, PATH_MAX);
 		}
 	}
 	return cwd;
 }
 
-static const char *make_nonrelative_path(const char *path)
+static const char *make_yesnrelative_path(const char *path)
 {
 	static char buf[PATH_MAX + 1];
 
@@ -62,7 +62,7 @@ static const char *make_nonrelative_path(const char *path)
 	} else {
 		const char *cwd = get_pwd_cwd();
 		if (!cwd)
-			die("Cannot determine the current working directory");
+			die("Canyest determine the current working directory");
 		if (snprintf(buf, PATH_MAX, "%s/%s", cwd, path) >= PATH_MAX)
 			die("Too long path: %.*s", 60, path);
 	}
@@ -131,7 +131,7 @@ static void add_path(char **out, const char *path)
 		if (is_absolute_path(path))
 			astrcat(out, path);
 		else
-			astrcat(out, make_nonrelative_path(path));
+			astrcat(out, make_yesnrelative_path(path));
 
 		astrcat(out, ":");
 	}

@@ -175,7 +175,7 @@ void snd_hdac_stream_reset(struct hdac_stream *azx_dev)
 			break;
 	} while (--timeout);
 
-	/* reset first position - may not be synced with hw at this time */
+	/* reset first position - may yest be synced with hw at this time */
 	if (azx_dev->posbuf)
 		*azx_dev->posbuf = 0;
 }
@@ -201,7 +201,7 @@ int snd_hdac_stream_setup(struct hdac_stream *azx_dev)
 	val = snd_hdac_stream_readl(azx_dev, SD_CTL);
 	val = (val & ~SD_CTL_STREAM_TAG_MASK) |
 		(azx_dev->stream_tag << SD_CTL_STREAM_TAG_SHIFT);
-	if (!bus->snoop)
+	if (!bus->syesop)
 		val |= SD_CTL_TRAFFIC_PRIO;
 	snd_hdac_stream_writel(azx_dev, SD_CTL, val);
 
@@ -235,7 +235,7 @@ int snd_hdac_stream_setup(struct hdac_stream *azx_dev)
 	azx_dev->fifo_size = snd_hdac_stream_readw(azx_dev, SD_FIFOSIZE) + 1;
 
 	/* when LPIB delay correction gives a small negative value,
-	 * we ignore it; currently set the threshold statically to
+	 * we igyesre it; currently set the threshold statically to
 	 * 64 frames
 	 */
 	if (runtime && runtime->period_size > 64)
@@ -274,7 +274,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_stream_cleanup);
  * @substream: PCM substream to assign
  *
  * Look for an unused stream for the given PCM substream, assign it
- * and return the stream object.  If no stream is free, returns NULL.
+ * and return the stream object.  If yes stream is free, returns NULL.
  * The function tries to keep using the same stream object when it's used
  * beforehand.  Also, when bus->reverse_assign flag is set, the last free
  * or matching entry is returned.  This is needed for some strange codecs.
@@ -285,7 +285,7 @@ struct hdac_stream *snd_hdac_stream_assign(struct hdac_bus *bus,
 	struct hdac_stream *azx_dev;
 	struct hdac_stream *res = NULL;
 
-	/* make a non-zero unique key for the substream */
+	/* make a yesn-zero unique key for the substream */
 	int key = (substream->pcm->device << 16) | (substream->number << 2) |
 		(substream->stream + 1);
 
@@ -376,7 +376,7 @@ static int setup_bdle(struct hdac_bus *bus,
 		bdl[1] = cpu_to_le32(upper_32_bits(addr));
 		/* program the size field of the BDL entry */
 		chunk = snd_sgbuf_get_chunk_size(dmab, ofs, size);
-		/* one BDLE cannot cross 4K boundary on CTHDA chips */
+		/* one BDLE canyest cross 4K boundary on CTHDA chips */
 		if (bus->align_bdle_4k) {
 			u32 remain = 0x1000 - (ofs & 0xfff);
 
@@ -426,7 +426,7 @@ int snd_hdac_stream_setup_periods(struct hdac_stream *azx_dev)
 	azx_dev->frags = 0;
 
 	pos_adj = bus->bdl_pos_adj;
-	if (!azx_dev->no_period_wakeup && pos_adj > 0) {
+	if (!azx_dev->yes_period_wakeup && pos_adj > 0) {
 		pos_align = pos_adj;
 		pos_adj = (pos_adj * runtime->rate + 47999) / 48000;
 		if (!pos_adj)
@@ -458,7 +458,7 @@ int snd_hdac_stream_setup_periods(struct hdac_stream *azx_dev)
 			ofs = setup_bdle(bus, snd_pcm_get_dma_buf(substream),
 					 azx_dev, &bdl, ofs,
 					 period_bytes,
-					 !azx_dev->no_period_wakeup);
+					 !azx_dev->yes_period_wakeup);
 		if (ofs < 0)
 			goto error;
 	}
@@ -497,11 +497,11 @@ int snd_hdac_stream_set_params(struct hdac_stream *azx_dev,
 	if (bufsize != azx_dev->bufsize ||
 	    period_bytes != azx_dev->period_bytes ||
 	    format_val != azx_dev->format_val ||
-	    runtime->no_period_wakeup != azx_dev->no_period_wakeup) {
+	    runtime->yes_period_wakeup != azx_dev->yes_period_wakeup) {
 		azx_dev->bufsize = bufsize;
 		azx_dev->period_bytes = period_bytes;
 		azx_dev->format_val = format_val;
-		azx_dev->no_period_wakeup = runtime->no_period_wakeup;
+		azx_dev->yes_period_wakeup = runtime->yes_period_wakeup;
 		err = snd_hdac_stream_setup_periods(azx_dev);
 		if (err < 0)
 			return err;
@@ -534,7 +534,7 @@ static void azx_timecounter_init(struct hdac_stream *azx_dev,
 	 * last after reading the timecounter value.
 	 * Applying the 1/3 factor as part of the multiplication
 	 * requires at least 20 bits for a decent precision, however
-	 * overflows occur after about 4 hours or less, not a option.
+	 * overflows occur after about 4 hours or less, yest a option.
 	 */
 
 	cc->mult = 125; /* saturation after 195 years */
@@ -732,7 +732,7 @@ void snd_hdac_dsp_trigger(struct hdac_stream *azx_dev, bool start)
 EXPORT_SYMBOL_GPL(snd_hdac_dsp_trigger);
 
 /**
- * snd_hdac_dsp_cleanup - clean up the stream from DSP loading to normal
+ * snd_hdac_dsp_cleanup - clean up the stream from DSP loading to yesrmal
  * @azx_dev: HD-audio core stream used for DSP loading
  * @dmab: buffer used by DSP loading
  */

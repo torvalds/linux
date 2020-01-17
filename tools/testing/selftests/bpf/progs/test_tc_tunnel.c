@@ -45,13 +45,13 @@ union l4hdr {
 struct v4hdr {
 	struct iphdr ip;
 	union l4hdr l4hdr;
-	__u8 pad[16];			/* enough space for L2 header */
+	__u8 pad[16];			/* eyesugh space for L2 header */
 } __attribute__((packed));
 
 struct v6hdr {
 	struct ipv6hdr ip;
 	union l4hdr l4hdr;
-	__u8 pad[16];			/* enough space for L2 header */
+	__u8 pad[16];			/* eyesugh space for L2 header */
 } __attribute__((packed));
 
 static __always_inline void set_ipv4_csum(struct iphdr *iph)
@@ -309,8 +309,8 @@ static __always_inline int encap_ipv6(struct __sk_buff *skb, __u8 encap_proto,
 	return TC_ACT_OK;
 }
 
-SEC("encap_ipip_none")
-int __encap_ipip_none(struct __sk_buff *skb)
+SEC("encap_ipip_yesne")
+int __encap_ipip_yesne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IP))
 		return encap_ipv4(skb, IPPROTO_IPIP, ETH_P_IP);
@@ -318,8 +318,8 @@ int __encap_ipip_none(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
-SEC("encap_gre_none")
-int __encap_gre_none(struct __sk_buff *skb)
+SEC("encap_gre_yesne")
+int __encap_gre_yesne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IP))
 		return encap_ipv4(skb, IPPROTO_GRE, ETH_P_IP);
@@ -345,8 +345,8 @@ int __encap_gre_eth(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
-SEC("encap_udp_none")
-int __encap_udp_none(struct __sk_buff *skb)
+SEC("encap_udp_yesne")
+int __encap_udp_yesne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IP))
 		return encap_ipv4(skb, IPPROTO_UDP, ETH_P_IP);
@@ -372,8 +372,8 @@ int __encap_udp_eth(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
-SEC("encap_sit_none")
-int __encap_sit_none(struct __sk_buff *skb)
+SEC("encap_sit_yesne")
+int __encap_sit_yesne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IPV6))
 		return encap_ipv4(skb, IPPROTO_IPV6, ETH_P_IP);
@@ -381,8 +381,8 @@ int __encap_sit_none(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
-SEC("encap_ip6tnl_none")
-int __encap_ip6tnl_none(struct __sk_buff *skb)
+SEC("encap_ip6tnl_yesne")
+int __encap_ip6tnl_yesne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IPV6))
 		return encap_ipv6(skb, IPPROTO_IPV6, ETH_P_IPV6);
@@ -390,8 +390,8 @@ int __encap_ip6tnl_none(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
-SEC("encap_ip6gre_none")
-int __encap_ip6gre_none(struct __sk_buff *skb)
+SEC("encap_ip6gre_yesne")
+int __encap_ip6gre_yesne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IPV6))
 		return encap_ipv6(skb, IPPROTO_GRE, ETH_P_IPV6);
@@ -417,8 +417,8 @@ int __encap_ip6gre_eth(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
-SEC("encap_ip6udp_none")
-int __encap_ip6udp_none(struct __sk_buff *skb)
+SEC("encap_ip6udp_yesne")
+int __encap_ip6udp_yesne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IPV6))
 		return encap_ipv6(skb, IPPROTO_UDP, ETH_P_IPV6);
@@ -528,7 +528,7 @@ int decap_f(struct __sk_buff *skb)
 	case __bpf_constant_htons(ETH_P_IPV6):
 		return decap_ipv6(skb);
 	default:
-		/* does not match, ignore */
+		/* does yest match, igyesre */
 		return TC_ACT_OK;
 	}
 }

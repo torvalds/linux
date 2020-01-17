@@ -110,11 +110,11 @@ static irqreturn_t adt7x10_irq_handler(int irq, void *private)
 		return IRQ_HANDLED;
 
 	if (status & ADT7X10_STAT_T_HIGH)
-		sysfs_notify(&dev->kobj, NULL, "temp1_max_alarm");
+		sysfs_yestify(&dev->kobj, NULL, "temp1_max_alarm");
 	if (status & ADT7X10_STAT_T_LOW)
-		sysfs_notify(&dev->kobj, NULL, "temp1_min_alarm");
+		sysfs_yestify(&dev->kobj, NULL, "temp1_min_alarm");
 	if (status & ADT7X10_STAT_T_CRIT)
-		sysfs_notify(&dev->kobj, NULL, "temp1_crit_alarm");
+		sysfs_yestify(&dev->kobj, NULL, "temp1_crit_alarm");
 
 	return IRQ_HANDLED;
 }
@@ -381,7 +381,7 @@ int adt7x10_probe(struct device *dev, const char *name, int irq,
 	data->oldconfig = ret;
 
 	/*
-	 * Set to 16 bit resolution, continous conversion and comparator mode.
+	 * Set to 16 bit resolution, contiyesus conversion and comparator mode.
 	 */
 	data->config = data->oldconfig;
 	data->config &= ~(ADT7X10_MODE_MASK | ADT7X10_CT_POLARITY |
@@ -406,7 +406,7 @@ int adt7x10_probe(struct device *dev, const char *name, int irq,
 
 	/*
 	 * The I2C device will already have it's own 'name' attribute, but for
-	 * the SPI device we need to register it. name will only be non NULL if
+	 * the SPI device we need to register it. name will only be yesn NULL if
 	 * the device doesn't register the 'name' attribute on its own.
 	 */
 	if (name) {

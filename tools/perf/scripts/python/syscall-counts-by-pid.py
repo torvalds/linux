@@ -55,7 +55,7 @@ def syscalls__sys_enter(event_name, context, common_cpu,
 	raw_syscalls__sys_enter(**locals())
 
 def print_syscall_totals():
-	if for_comm is not None:
+	if for_comm is yest None:
 		print("\nsyscall events for %s:\n" % (for_comm))
 	else:
 		print("\nsyscall events by comm/pid:\n")

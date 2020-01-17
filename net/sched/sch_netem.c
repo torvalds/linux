@@ -3,10 +3,10 @@
  * net/sched/sch_netem.c	Network emulator
  *
  *  		Many of the algorithms and ideas for this came from
- *		NIST Net which is not copyrighted.
+ *		NIST Net which is yest copyrighted.
  *
  * Authors:	Stephen Hemminger <shemminger@osdl.org>
- *		Catalin(ux aka Dino) BOIE <catab at umbrella dot ro>
+ *		Catalin(ux aka Diyes) BOIE <catab at umbrella dot ro>
  */
 
 #include <linux/mm.h>
@@ -14,7 +14,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
@@ -41,11 +41,11 @@
 	 of a full blown network emulator like NISTnet. It can delay
 	 packets and add random jitter (and correlation). The random
 	 distribution can be loaded from a table as well to provide
-	 normal, Pareto, or experimental curves. Packet loss,
+	 yesrmal, Pareto, or experimental curves. Packet loss,
 	 duplication, and reordering can also be emulated.
 
-	 This qdisc does not do classification that can be handled in
-	 layering other disciplines.  It does not need to do bandwidth
+	 This qdisc does yest do classification that can be handled in
+	 layering other disciplines.  It does yest need to do bandwidth
 	 control either since that can be handled by using token
 	 bucket or other rate control.
 
@@ -56,11 +56,11 @@
 
 	References:
 	[1] NetemCLG Home http://netgroup.uniroma2.it/NetemCLG
-	[2] S. Salsano, F. Ludovici, A. Ordine, "Definition of a general
+	[2] S. Salsayes, F. Ludovici, A. Ordine, "Definition of a general
 	and intuitive loss model for packet networks and its implementation
 	in the Netem module in the Linux kernel", available in [1]
 
-	Authors: Stefano Salsano <stefano.salsano at uniroma2.it
+	Authors: Stefayes Salsayes <stefayes.salsayes at uniroma2.it
 		 Fabio Ludovici <fabio.ludovici at yahoo.it>
 */
 
@@ -150,7 +150,7 @@ struct netem_sched_data {
 /* Time stamp put into socket buffer control block
  * Only valid when skbs are in our internal t(ime)fifo queue.
  *
- * As skb->rbnode uses same storage than skb->next, skb->prev and skb->tstamp,
+ * As skb->rbyesde uses same storage than skb->next, skb->prev and skb->tstamp,
  * and skb->next & skb->prev are scratch space for a qdisc,
  * we save skb->tstamp value in skb->cb[] before destroying it.
  */
@@ -160,7 +160,7 @@ struct netem_skb_cb {
 
 static inline struct netem_skb_cb *netem_skb_cb(struct sk_buff *skb)
 {
-	/* we assume we can use skb next/prev/tstamp as storage for rb_node */
+	/* we assume we can use skb next/prev/tstamp as storage for rb_yesde */
 	qdisc_cb_private_validate(skb, sizeof(struct netem_skb_cb));
 	return (struct netem_skb_cb *)qdisc_skb_cb(skb)->data;
 }
@@ -183,7 +183,7 @@ static u32 get_crandom(struct crndstate *state)
 	u64 value, rho;
 	unsigned long answer;
 
-	if (!state || state->rho == 0)	/* no correlation */
+	if (!state || state->rho == 0)	/* yes correlation */
 		return prandom_u32();
 
 	value = prandom_u32();
@@ -287,7 +287,7 @@ static bool loss_event(struct netem_sched_data *q)
 {
 	switch (q->loss_model) {
 	case CLG_RANDOM:
-		/* Random packet drop 0 => none, ~0 => all */
+		/* Random packet drop 0 => yesne, ~0 => all */
 		return q->loss && q->loss >= get_crandom(&q->loss_cor);
 
 	case CLG_4_STATES:
@@ -307,7 +307,7 @@ static bool loss_event(struct netem_sched_data *q)
 		return loss_gilb_ell(q);
 	}
 
-	return false;	/* not reached */
+	return false;	/* yest reached */
 }
 
 
@@ -360,13 +360,13 @@ static u64 packet_time_ns(u64 len, const struct netem_sched_data *q)
 static void tfifo_reset(struct Qdisc *sch)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
-	struct rb_node *p = rb_first(&q->t_root);
+	struct rb_yesde *p = rb_first(&q->t_root);
 
 	while (p) {
 		struct sk_buff *skb = rb_to_skb(p);
 
 		p = rb_next(p);
-		rb_erase(&skb->rbnode, &q->t_root);
+		rb_erase(&skb->rbyesde, &q->t_root);
 		rtnl_kfree_skbs(skb, skb);
 	}
 
@@ -387,7 +387,7 @@ static void tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 			q->t_head = nskb;
 		q->t_tail = nskb;
 	} else {
-		struct rb_node **p = &q->t_root.rb_node, *parent = NULL;
+		struct rb_yesde **p = &q->t_root.rb_yesde, *parent = NULL;
 
 		while (*p) {
 			struct sk_buff *skb;
@@ -399,8 +399,8 @@ static void tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 			else
 				p = &parent->rb_left;
 		}
-		rb_link_node(&nskb->rbnode, parent, p);
-		rb_insert_color(&nskb->rbnode, &q->t_root);
+		rb_link_yesde(&nskb->rbyesde, parent, p);
+		rb_insert_color(&nskb->rbyesde, &q->t_root);
 	}
 	sch->q.qlen++;
 }
@@ -435,7 +435,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			 struct sk_buff **to_free)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
-	/* We don't fill cb now as skb_unshare() may invalidate it */
+	/* We don't fill cb yesw as skb_unshare() may invalidate it */
 	struct netem_skb_cb *cb;
 	struct sk_buff *skb2;
 	struct sk_buff *segs = NULL;
@@ -444,7 +444,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	int rc = NET_XMIT_SUCCESS;
 	int rc_drop = NET_XMIT_DROP;
 
-	/* Do not fool qdisc_drop_all() */
+	/* Do yest fool qdisc_drop_all() */
 	skb->prev = NULL;
 
 	/* Random duplication */
@@ -489,7 +489,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	 * Randomized packet corruption.
 	 * Make copy if needed since we are modifying
 	 * If packet is going to be hardware checksummed, then
-	 * do it now in software before we mangle it.
+	 * do it yesw in software before we mangle it.
 	 */
 	if (q->corrupt && q->corrupt >= get_crandom(&q->corrupt_cor)) {
 		if (skb_is_gso(skb)) {
@@ -497,7 +497,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			if (!skb)
 				return rc_drop;
 			segs = skb->next;
-			skb_mark_not_on_list(skb);
+			skb_mark_yest_on_list(skb);
 			qdisc_skb_cb(skb)->pkt_len = skb->len;
 		}
 
@@ -527,23 +527,23 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	qdisc_qstats_backlog_inc(sch, skb);
 
 	cb = netem_skb_cb(skb);
-	if (q->gap == 0 ||		/* not doing reordering */
+	if (q->gap == 0 ||		/* yest doing reordering */
 	    q->counter < q->gap - 1 ||	/* inside last reordering gap */
 	    q->reorder < get_crandom(&q->reorder_cor)) {
-		u64 now;
+		u64 yesw;
 		s64 delay;
 
 		delay = tabledist(q->latency, q->jitter,
 				  &q->delay_cor, q->delay_dist);
 
-		now = ktime_get_ns();
+		yesw = ktime_get_ns();
 
 		if (q->rate) {
 			struct netem_skb_cb *last = NULL;
 
 			if (sch->q.tail)
 				last = netem_skb_cb(sch->q.tail);
-			if (q->t_root.rb_node) {
+			if (q->t_root.rb_yesde) {
 				struct sk_buff *t_skb;
 				struct netem_skb_cb *t_last;
 
@@ -564,19 +564,19 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 			if (last) {
 				/*
-				 * Last packet in queue is reference point (now),
+				 * Last packet in queue is reference point (yesw),
 				 * calculate this time bonus and subtract
 				 * from delay.
 				 */
-				delay -= last->time_to_send - now;
+				delay -= last->time_to_send - yesw;
 				delay = max_t(s64, 0, delay);
-				now = last->time_to_send;
+				yesw = last->time_to_send;
 			}
 
 			delay += packet_time_ns(qdisc_pkt_len(skb), q);
 		}
 
-		cb->time_to_send = now + delay;
+		cb->time_to_send = yesw + delay;
 		++q->counter;
 		tfifo_enqueue(skb, sch);
 	} else {
@@ -601,7 +601,7 @@ finish_segs:
 
 		while (segs) {
 			skb2 = segs->next;
-			skb_mark_not_on_list(segs);
+			skb_mark_yest_on_list(segs);
 			qdisc_skb_cb(segs)->pkt_len = segs->len;
 			last_len = segs->len;
 			rc = qdisc_enqueue(segs, sch, to_free);
@@ -626,7 +626,7 @@ finish_segs:
  * correct number of bytes and packets.
  */
 
-static void get_slot_next(struct netem_sched_data *q, u64 now)
+static void get_slot_next(struct netem_sched_data *q, u64 yesw)
 {
 	s64 next_delay;
 
@@ -640,7 +640,7 @@ static void get_slot_next(struct netem_sched_data *q, u64 now)
 				       (s32)(q->slot_config.dist_jitter),
 				       NULL, q->slot_dist);
 
-	q->slot.slot_next = now + next_delay;
+	q->slot.slot_next = yesw + next_delay;
 	q->slot.packets_left = q->slot_config.max_packets;
 	q->slot.bytes_left = q->slot_config.max_bytes;
 }
@@ -669,7 +669,7 @@ static void netem_erase_head(struct netem_sched_data *q, struct sk_buff *skb)
 		if (!q->t_head)
 			q->t_tail = NULL;
 	} else {
-		rb_erase(&skb->rbnode, &q->t_root);
+		rb_erase(&skb->rbyesde, &q->t_root);
 	}
 }
 
@@ -689,20 +689,20 @@ deliver:
 	skb = netem_peek(q);
 	if (skb) {
 		u64 time_to_send;
-		u64 now = ktime_get_ns();
+		u64 yesw = ktime_get_ns();
 
 		/* if more time remaining? */
 		time_to_send = netem_skb_cb(skb)->time_to_send;
 		if (q->slot.slot_next && q->slot.slot_next < time_to_send)
-			get_slot_next(q, now);
+			get_slot_next(q, yesw);
 
-		if (time_to_send <= now && q->slot.slot_next <= now) {
+		if (time_to_send <= yesw && q->slot.slot_next <= yesw) {
 			netem_erase_head(q, skb);
 			sch->q.qlen--;
 			qdisc_qstats_backlog_dec(sch, skb);
 			skb->next = NULL;
 			skb->prev = NULL;
-			/* skb->dev shares skb->rbnode area,
+			/* skb->dev shares skb->rbyesde area,
 			 * we need to restore its value.
 			 */
 			skb->dev = qdisc_dev(sch);
@@ -712,7 +712,7 @@ deliver:
 				q->slot.bytes_left -= qdisc_pkt_len(skb);
 				if (q->slot.packets_left <= 0 ||
 				    q->slot.bytes_left <= 0)
-					get_slot_next(q, now);
+					get_slot_next(q, yesw);
 			}
 
 			if (q->qdisc) {
@@ -906,7 +906,7 @@ static int get_loss_clg(struct netem_sched_data *q, const struct nlattr *attr)
 		}
 
 		default:
-			pr_info("netem: unknown loss type %u\n", type);
+			pr_info("netem: unkyeswn loss type %u\n", type);
 			return -EINVAL;
 		}
 	}
@@ -1083,7 +1083,7 @@ static int dump_loss_model(const struct netem_sched_data *q,
 {
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, TCA_NETEM_LOSS);
+	nest = nla_nest_start_yesflag(skb, TCA_NETEM_LOSS);
 	if (nest == NULL)
 		goto nla_put_failure;
 
@@ -1091,7 +1091,7 @@ static int dump_loss_model(const struct netem_sched_data *q,
 	case CLG_RANDOM:
 		/* legacy loss model */
 		nla_nest_cancel(skb, nest);
-		return 0;	/* no data */
+		return 0;	/* yes data */
 
 	case CLG_4_STATES: {
 		struct tc_netem_gimodel gi = {

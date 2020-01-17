@@ -338,16 +338,16 @@ static int sun4i_codec_prepare_capture(struct snd_pcm_substream *substream,
 	 *        Allwinner's code mentions that it is related
 	 *        related to microphone gain
 	 */
-	if (of_device_is_compatible(scodec->dev->of_node,
+	if (of_device_is_compatible(scodec->dev->of_yesde,
 				    "allwinner,sun4i-a10-codec") ||
-	    of_device_is_compatible(scodec->dev->of_node,
+	    of_device_is_compatible(scodec->dev->of_yesde,
 				    "allwinner,sun7i-a20-codec")) {
 		regmap_update_bits(scodec->regmap, SUN4I_CODEC_ADC_ACTL,
 				   0x3 << 25,
 				   0x1 << 25);
 	}
 
-	if (of_device_is_compatible(scodec->dev->of_node,
+	if (of_device_is_compatible(scodec->dev->of_yesde,
 				    "allwinner,sun7i-a20-codec"))
 		/* FIXME: Undocumented bits */
 		regmap_update_bits(scodec->regmap, SUN4I_CODEC_DAC_TUNE,
@@ -899,7 +899,7 @@ static const struct snd_soc_component_driver sun4i_codec_codec = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_component_driver sun7i_codec_codec = {
@@ -912,7 +912,7 @@ static const struct snd_soc_component_driver sun7i_codec_codec = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 /*** sun6i Codec ***/
@@ -998,7 +998,7 @@ static const struct snd_kcontrol_new sun6i_codec_mic2_src[] = {
 
 /* line out controls */
 static const char * const sun6i_codec_lineout_src_enum_text[] = {
-	"Stereo", "Mono Differential",
+	"Stereo", "Moyes Differential",
 };
 
 static SOC_ENUM_DOUBLE_DECL(sun6i_codec_lineout_src_enum,
@@ -1199,8 +1199,8 @@ static const struct snd_soc_dapm_route sun6i_codec_codec_dapm_routes[] = {
 	/* Line Out Routes */
 	{ "Line Out Source Playback Route", "Stereo", "Left Mixer" },
 	{ "Line Out Source Playback Route", "Stereo", "Right Mixer" },
-	{ "Line Out Source Playback Route", "Mono Differential", "Left Mixer" },
-	{ "Line Out Source Playback Route", "Mono Differential", "Right Mixer" },
+	{ "Line Out Source Playback Route", "Moyes Differential", "Left Mixer" },
+	{ "Line Out Source Playback Route", "Moyes Differential", "Right Mixer" },
 	{ "LINEOUT", NULL, "Line Out Source Playback Route" },
 
 	/* ADC Routes */
@@ -1220,7 +1220,7 @@ static const struct snd_soc_component_driver sun6i_codec_codec = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 /* sun8i A23 codec */
@@ -1248,7 +1248,7 @@ static const struct snd_soc_component_driver sun8i_a23_codec_codec = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_component_driver sun4i_codec_component = {
@@ -1333,7 +1333,7 @@ static int sun4i_codec_spk_event(struct snd_soc_dapm_widget *w,
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		/*
 		 * Need a delay to wait for DAC to push the data. 700ms seems
-		 * to be the best compromise not to feel this delay while
+		 * to be the best compromise yest to feel this delay while
 		 * playing a sound.
 		 */
 		msleep(700);
@@ -1436,10 +1436,10 @@ static struct snd_soc_card *sun8i_a23_codec_create_card(struct device *dev)
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 
-	aux_dev.dlc.of_node = of_parse_phandle(dev->of_node,
+	aux_dev.dlc.of_yesde = of_parse_phandle(dev->of_yesde,
 						 "allwinner,codec-analog-controls",
 						 0);
-	if (!aux_dev.dlc.of_node) {
+	if (!aux_dev.dlc.of_yesde) {
 		dev_err(dev, "Can't find analog controls for codec.\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -1474,10 +1474,10 @@ static struct snd_soc_card *sun8i_h3_codec_create_card(struct device *dev)
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 
-	aux_dev.dlc.of_node = of_parse_phandle(dev->of_node,
+	aux_dev.dlc.of_yesde = of_parse_phandle(dev->of_yesde,
 						 "allwinner,codec-analog-controls",
 						 0);
-	if (!aux_dev.dlc.of_node) {
+	if (!aux_dev.dlc.of_yesde) {
 		dev_err(dev, "Can't find analog controls for codec.\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -1512,10 +1512,10 @@ static struct snd_soc_card *sun8i_v3s_codec_create_card(struct device *dev)
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 
-	aux_dev.dlc.of_node = of_parse_phandle(dev->of_node,
+	aux_dev.dlc.of_yesde = of_parse_phandle(dev->of_yesde,
 						 "allwinner,codec-analog-controls",
 						 0);
-	if (!aux_dev.dlc.of_node) {
+	if (!aux_dev.dlc.of_yesde) {
 		dev_err(dev, "Can't find analog controls for codec.\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -1634,7 +1634,7 @@ static const struct sun4i_codec_quirks sun8i_a23_codec_quirks = {
 static const struct sun4i_codec_quirks sun8i_h3_codec_quirks = {
 	.regmap_config	= &sun8i_h3_codec_regmap_config,
 	/*
-	 * TODO Share the codec structure with A23 for now.
+	 * TODO Share the codec structure with A23 for yesw.
 	 * This should be split out when adding digital audio
 	 * processing support for the H3.
 	 */

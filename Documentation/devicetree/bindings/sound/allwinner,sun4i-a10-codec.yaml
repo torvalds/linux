@@ -58,7 +58,7 @@ properties:
       is a pair of strings, the first being the connection's sink, the
       second being the connection's source.
     allOf:
-      - $ref: /schemas/types.yaml#definitions/non-unique-string-array
+      - $ref: /schemas/types.yaml#definitions/yesn-unique-string-array
       - minItems: 2
         maxItems: 18
         items:

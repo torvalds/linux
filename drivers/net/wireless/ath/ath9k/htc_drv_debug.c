@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -129,7 +129,7 @@ static ssize_t read_file_tgt_tx_stats(struct file *file, char __user *user_buf,
 
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "NoBuf",
-			 be32_to_cpu(cmd_rsp.nobuf));
+			 be32_to_cpu(cmd_rsp.yesbuf));
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -167,7 +167,7 @@ static ssize_t read_file_tgt_rx_stats(struct file *file, char __user *user_buf,
 
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "NoBuf",
-			 be32_to_cpu(cmd_rsp.nobuf));
+			 be32_to_cpu(cmd_rsp.yesbuf));
 
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "HostSend",

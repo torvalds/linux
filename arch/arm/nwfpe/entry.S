@@ -15,7 +15,7 @@ It is called from the kernel with code similar to this:
 
 	sub	r4, r5, #4
 	ldrt	r0, [r4]			@ r0  = instruction
-	adrsvc	al, r9, ret_from_exception	@ r9  = normal FP return
+	adrsvc	al, r9, ret_from_exception	@ r9  = yesrmal FP return
 	adrsvc	al, lr, fpundefinstr		@ lr  = undefined instr return
 
 	get_current_task r10
@@ -46,13 +46,13 @@ This routine does three things:
 user registers into it.  See /usr/include/asm/proc/ptrace.h for details.
 
 2) It calls EmulateAll to emulate a floating point instruction.
-EmulateAll returns 1 if the emulation was successful, or 0 if not.
+EmulateAll returns 1 if the emulation was successful, or 0 if yest.
 
 3) If an instruction has been emulated successfully, it looks ahead at
 the next instruction.  If it is a floating point instruction, it
 executes the instruction, without returning to user space.  In this
 way it repeatedly looks ahead and executes floating point instructions
-until it encounters a non floating point instruction, at which time it
+until it encounters a yesn floating point instruction, at which time it
 returns via _fpreturn.
 
 This is done to reduce the effect of the trap overhead on each
@@ -80,7 +80,7 @@ emulate:
 	mov	r0, r6			@ prepare for EmulateAll()
 	bl	EmulateAll		@ emulate the instruction
 	cmp	r0, #0			@ was emulation successful
-	reteq	r4			@ no, return failure
+	reteq	r4			@ yes, return failure
 
 next:
 	uaccess_enable r3
@@ -91,7 +91,7 @@ next:
 	teq	r2, #0x0C000000
 	teqne	r2, #0x0D000000
 	teqne	r2, #0x0E000000
-	retne	r9			@ return ok if not a fp insn
+	retne	r9			@ return ok if yest a fp insn
 
 	str	r5, [sp, #S_PC]		@ update PC copy in regs
 

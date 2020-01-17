@@ -7,8 +7,8 @@
  * Kylene Hall <kjhall@us.ibm.com>
  *
  * File: evm_main.c
- *	implements evm_inode_setxattr, evm_inode_post_setxattr,
- *	evm_inode_removexattr, and evm_verifyxattr
+ *	implements evm_iyesde_setxattr, evm_iyesde_post_setxattr,
+ *	evm_iyesde_removexattr, and evm_verifyxattr
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -29,7 +29,7 @@
 int evm_initialized;
 
 static const char * const integrity_status_msg[] = {
-	"pass", "pass_immutable", "fail", "no_label", "no_xattrs", "unknown"
+	"pass", "pass_immutable", "fail", "yes_label", "yes_xattrs", "unkyeswn"
 };
 int evm_hmac_attrs;
 
@@ -91,16 +91,16 @@ static bool evm_key_loaded(void)
 
 static int evm_find_protected_xattrs(struct dentry *dentry)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct iyesde *iyesde = d_backing_iyesde(dentry);
 	struct xattr_list *xattr;
 	int error;
 	int count = 0;
 
-	if (!(inode->i_opflags & IOP_XATTR))
+	if (!(iyesde->i_opflags & IOP_XATTR))
 		return -EOPNOTSUPP;
 
 	list_for_each_entry_rcu(xattr, &evm_config_xattrnames, list) {
-		error = __vfs_getxattr(dentry, inode, xattr->name, NULL, 0);
+		error = __vfs_getxattr(dentry, iyesde, xattr->name, NULL, 0);
 		if (error < 0) {
 			if (error == -ENODATA)
 				continue;
@@ -135,16 +135,16 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 	struct signature_v2_hdr *hdr;
 	enum integrity_status evm_status = INTEGRITY_PASS;
 	struct evm_digest digest;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int rc, xattr_len;
 
 	if (iint && (iint->evm_status == INTEGRITY_PASS ||
 		     iint->evm_status == INTEGRITY_PASS_IMMUTABLE))
 		return iint->evm_status;
 
-	/* if status is not PASS, try to check again - against -ENOMEM */
+	/* if status is yest PASS, try to check again - against -ENOMEM */
 
-	/* first need to know the sig type */
+	/* first need to kyesw the sig type */
 	rc = vfs_getxattr_alloc(dentry, XATTR_NAME_EVM, (char **)&xattr_data, 0,
 				GFP_NOFS);
 	if (rc <= 0) {
@@ -193,15 +193,15 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 					(const char *)xattr_data, xattr_len,
 					digest.digest, digest.hdr.length);
 		if (!rc) {
-			inode = d_backing_inode(dentry);
+			iyesde = d_backing_iyesde(dentry);
 
 			if (xattr_data->type == EVM_XATTR_PORTABLE_DIGSIG) {
 				if (iint)
 					iint->flags |= EVM_IMMUTABLE_DIGSIG;
 				evm_status = INTEGRITY_PASS_IMMUTABLE;
-			} else if (!IS_RDONLY(inode) &&
-				   !(inode->i_sb->s_readonly_remount) &&
-				   !IS_IMMUTABLE(inode)) {
+			} else if (!IS_RDONLY(iyesde) &&
+				   !(iyesde->i_sb->s_readonly_remount) &&
+				   !IS_IMMUTABLE(iyesde)) {
 				evm_update_evmxattr(dentry, xattr_name,
 						    xattr_value,
 						    xattr_value_len);
@@ -260,7 +260,7 @@ static int evm_protected_xattr(const char *req_xattr_name)
  *
  * Returns the xattr integrity status.
  *
- * This function requires the caller to lock the inode's i_mutex before it
+ * This function requires the caller to lock the iyesde's i_mutex before it
  * is executed.
  */
 enum integrity_status evm_verifyxattr(struct dentry *dentry,
@@ -272,7 +272,7 @@ enum integrity_status evm_verifyxattr(struct dentry *dentry,
 		return INTEGRITY_UNKNOWN;
 
 	if (!iint) {
-		iint = integrity_iint_find(d_backing_inode(dentry));
+		iint = integrity_iint_find(d_backing_iyesde(dentry));
 		if (!iint)
 			return INTEGRITY_UNKNOWN;
 	}
@@ -290,9 +290,9 @@ EXPORT_SYMBOL_GPL(evm_verifyxattr);
  */
 static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct iyesde *iyesde = d_backing_iyesde(dentry);
 
-	if (!evm_key_loaded() || !S_ISREG(inode->i_mode) || evm_fixmode)
+	if (!evm_key_loaded() || !S_ISREG(iyesde->i_mode) || evm_fixmode)
 		return 0;
 	return evm_verify_hmac(dentry, NULL, NULL, 0, NULL);
 }
@@ -303,7 +303,7 @@ static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
  * Prevent security.evm from being modified or removed without the
  * necessary permissions or when the existing value is invalid.
  *
- * The posix xattr acls are 'system' prefixed, which normally would not
+ * The posix xattr acls are 'system' prefixed, which yesrmally would yest
  * affect security.evm.  An interesting side affect of writing posix xattr
  * acls is their modifying of the i_mode, which is included in security.evm.
  * For posix xattr acls only, permit security.evm, even if it currently
@@ -331,7 +331,7 @@ static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
 	if (evm_status == INTEGRITY_NOXATTRS) {
 		struct integrity_iint_cache *iint;
 
-		iint = integrity_iint_find(d_backing_inode(dentry));
+		iint = integrity_iint_find(d_backing_iyesde(dentry));
 		if (iint && (iint->flags & IMA_NEW_FILE))
 			return 0;
 
@@ -341,14 +341,14 @@ static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
 			return 0;
 
 		integrity_audit_msg(AUDIT_INTEGRITY_METADATA,
-				    dentry->d_inode, dentry->d_name.name,
+				    dentry->d_iyesde, dentry->d_name.name,
 				    "update_metadata",
 				    integrity_status_msg[evm_status],
 				    -EPERM, 0);
 	}
 out:
 	if (evm_status != INTEGRITY_PASS)
-		integrity_audit_msg(AUDIT_INTEGRITY_METADATA, d_backing_inode(dentry),
+		integrity_audit_msg(AUDIT_INTEGRITY_METADATA, d_backing_iyesde(dentry),
 				    dentry->d_name.name, "appraise_metadata",
 				    integrity_status_msg[evm_status],
 				    -EPERM, 0);
@@ -356,7 +356,7 @@ out:
 }
 
 /**
- * evm_inode_setxattr - protect the EVM extended attribute
+ * evm_iyesde_setxattr - protect the EVM extended attribute
  * @dentry: pointer to the affected dentry
  * @xattr_name: pointer to the affected extended attribute name
  * @xattr_value: pointer to the new extended attribute value
@@ -368,13 +368,13 @@ out:
  * userspace from writing HMAC value.  Writing 'security.evm' requires
  * requires CAP_SYS_ADMIN privileges.
  */
-int evm_inode_setxattr(struct dentry *dentry, const char *xattr_name,
+int evm_iyesde_setxattr(struct dentry *dentry, const char *xattr_name,
 		       const void *xattr_value, size_t xattr_value_len)
 {
 	const struct evm_ima_xattr_data *xattr_data = xattr_value;
 
 	/* Policy permits modification of the protected xattrs even though
-	 * there's no HMAC key loaded
+	 * there's yes HMAC key loaded
 	 */
 	if (evm_initialized & EVM_ALLOW_METADATA_WRITES)
 		return 0;
@@ -391,17 +391,17 @@ int evm_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 }
 
 /**
- * evm_inode_removexattr - protect the EVM extended attribute
+ * evm_iyesde_removexattr - protect the EVM extended attribute
  * @dentry: pointer to the affected dentry
  * @xattr_name: pointer to the affected extended attribute name
  *
  * Removing 'security.evm' requires CAP_SYS_ADMIN privileges and that
  * the current value is valid.
  */
-int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name)
+int evm_iyesde_removexattr(struct dentry *dentry, const char *xattr_name)
 {
 	/* Policy permits modification of the protected xattrs even though
-	 * there's no HMAC key loaded
+	 * there's yes HMAC key loaded
 	 */
 	if (evm_initialized & EVM_ALLOW_METADATA_WRITES)
 		return 0;
@@ -409,17 +409,17 @@ int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name)
 	return evm_protect_xattr(dentry, xattr_name, NULL, 0);
 }
 
-static void evm_reset_status(struct inode *inode)
+static void evm_reset_status(struct iyesde *iyesde)
 {
 	struct integrity_iint_cache *iint;
 
-	iint = integrity_iint_find(inode);
+	iint = integrity_iint_find(iyesde);
 	if (iint)
 		iint->evm_status = INTEGRITY_UNKNOWN;
 }
 
 /**
- * evm_inode_post_setxattr - update 'security.evm' to reflect the changes
+ * evm_iyesde_post_setxattr - update 'security.evm' to reflect the changes
  * @dentry: pointer to the affected dentry
  * @xattr_name: pointer to the affected extended attribute name
  * @xattr_value: pointer to the new extended attribute value
@@ -428,23 +428,23 @@ static void evm_reset_status(struct inode *inode)
  * Update the HMAC stored in 'security.evm' to reflect the change.
  *
  * No need to take the i_mutex lock here, as this function is called from
- * __vfs_setxattr_noperm().  The caller of which has taken the inode's
+ * __vfs_setxattr_yesperm().  The caller of which has taken the iyesde's
  * i_mutex lock.
  */
-void evm_inode_post_setxattr(struct dentry *dentry, const char *xattr_name,
+void evm_iyesde_post_setxattr(struct dentry *dentry, const char *xattr_name,
 			     const void *xattr_value, size_t xattr_value_len)
 {
 	if (!evm_key_loaded() || (!evm_protected_xattr(xattr_name)
 				  && !posix_xattr_acl(xattr_name)))
 		return;
 
-	evm_reset_status(dentry->d_inode);
+	evm_reset_status(dentry->d_iyesde);
 
 	evm_update_evmxattr(dentry, xattr_name, xattr_value, xattr_value_len);
 }
 
 /**
- * evm_inode_post_removexattr - update 'security.evm' after removing the xattr
+ * evm_iyesde_post_removexattr - update 'security.evm' after removing the xattr
  * @dentry: pointer to the affected dentry
  * @xattr_name: pointer to the affected extended attribute name
  *
@@ -453,30 +453,30 @@ void evm_inode_post_setxattr(struct dentry *dentry, const char *xattr_name,
  * No need to take the i_mutex lock here, as this function is called from
  * vfs_removexattr() which takes the i_mutex.
  */
-void evm_inode_post_removexattr(struct dentry *dentry, const char *xattr_name)
+void evm_iyesde_post_removexattr(struct dentry *dentry, const char *xattr_name)
 {
 	if (!evm_key_loaded() || !evm_protected_xattr(xattr_name))
 		return;
 
-	evm_reset_status(dentry->d_inode);
+	evm_reset_status(dentry->d_iyesde);
 
 	evm_update_evmxattr(dentry, xattr_name, NULL, 0);
 }
 
 /**
- * evm_inode_setattr - prevent updating an invalid EVM extended attribute
+ * evm_iyesde_setattr - prevent updating an invalid EVM extended attribute
  * @dentry: pointer to the affected dentry
  *
  * Permit update of file attributes when files have a valid EVM signature,
  * except in the case of them having an immutable portable signature.
  */
-int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
+int evm_iyesde_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
 	enum integrity_status evm_status;
 
 	/* Policy permits modification of the protected attrs even though
-	 * there's no HMAC key loaded
+	 * there's yes HMAC key loaded
 	 */
 	if (evm_initialized & EVM_ALLOW_METADATA_WRITES)
 		return 0;
@@ -487,24 +487,24 @@ int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
 	if ((evm_status == INTEGRITY_PASS) ||
 	    (evm_status == INTEGRITY_NOXATTRS))
 		return 0;
-	integrity_audit_msg(AUDIT_INTEGRITY_METADATA, d_backing_inode(dentry),
+	integrity_audit_msg(AUDIT_INTEGRITY_METADATA, d_backing_iyesde(dentry),
 			    dentry->d_name.name, "appraise_metadata",
 			    integrity_status_msg[evm_status], -EPERM, 0);
 	return -EPERM;
 }
 
 /**
- * evm_inode_post_setattr - update 'security.evm' after modifying metadata
+ * evm_iyesde_post_setattr - update 'security.evm' after modifying metadata
  * @dentry: pointer to the affected dentry
  * @ia_valid: for the UID and GID status
  *
- * For now, update the HMAC stored in 'security.evm' to reflect UID/GID
+ * For yesw, update the HMAC stored in 'security.evm' to reflect UID/GID
  * changes.
  *
- * This function is called from notify_change(), which expects the caller
- * to lock the inode's i_mutex.
+ * This function is called from yestify_change(), which expects the caller
+ * to lock the iyesde's i_mutex.
  */
-void evm_inode_post_setattr(struct dentry *dentry, int ia_valid)
+void evm_iyesde_post_setattr(struct dentry *dentry, int ia_valid)
 {
 	if (!evm_key_loaded())
 		return;
@@ -514,9 +514,9 @@ void evm_inode_post_setattr(struct dentry *dentry, int ia_valid)
 }
 
 /*
- * evm_inode_init_security - initializes security.evm
+ * evm_iyesde_init_security - initializes security.evm
  */
-int evm_inode_init_security(struct inode *inode,
+int evm_iyesde_init_security(struct iyesde *iyesde,
 				 const struct xattr *lsm_xattr,
 				 struct xattr *evm_xattr)
 {
@@ -531,7 +531,7 @@ int evm_inode_init_security(struct inode *inode,
 		return -ENOMEM;
 
 	xattr_data->data.type = EVM_XATTR_HMAC;
-	rc = evm_init_hmac(inode, lsm_xattr, xattr_data->digest);
+	rc = evm_init_hmac(iyesde, lsm_xattr, xattr_data->digest);
 	if (rc < 0)
 		goto out;
 
@@ -543,7 +543,7 @@ out:
 	kfree(xattr_data);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(evm_inode_init_security);
+EXPORT_SYMBOL_GPL(evm_iyesde_init_security);
 
 #ifdef CONFIG_EVM_LOAD_X509
 void __init evm_load_x509(void)

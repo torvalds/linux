@@ -33,8 +33,8 @@
 #define MCFINTC_ICR0        0x40        /* Base ICR register */
 
 /*
- *  The common interrupt controller code just wants to know the absolute
- *  address to the SIMR and CIMR registers (not offsets into IPSBAR).
+ *  The common interrupt controller code just wants to kyesw the absolute
+ *  address to the SIMR and CIMR registers (yest offsets into IPSBAR).
  *  The 520x family only has a single INTC unit.
  */
 #define MCFINTC0_SIMR       (MCFICM_INTC0 + MCFINTC_SIMR)

@@ -178,17 +178,17 @@ enum sctp_state {
 
 /* These are values for sk->state.
  * For a UDP-style SCTP socket, the states are defined as follows
- * - A socket in SCTP_SS_CLOSED state indicates that it is not willing to
+ * - A socket in SCTP_SS_CLOSED state indicates that it is yest willing to
  *   accept new associations, but it can initiate the creation of new ones.
  * - A socket in SCTP_SS_LISTENING state indicates that it is willing to
  *   accept new  associations and can initiate the creation of new ones.
  * - A socket in SCTP_SS_ESTABLISHED state indicates that it is a peeled off
  *   socket with one association.
  * For a TCP-style SCTP socket, the states are defined as follows
- * - A socket in SCTP_SS_CLOSED state indicates that it is not willing to
+ * - A socket in SCTP_SS_CLOSED state indicates that it is yest willing to
  *   accept new associations, but it can initiate the creation of new ones.
  * - A socket in SCTP_SS_LISTENING state indicates that it is willing to
- *   accept new associations, but cannot initiate the creation of new ones.
+ *   accept new associations, but canyest initiate the creation of new ones.
  * - A socket in SCTP_SS_ESTABLISHED state indicates that it has a single 
  *   association.
  */
@@ -233,9 +233,9 @@ enum { SCTP_ARBITRARY_COOKIE_ECHO_LEN = 200 };
 #define SCTP_TSN_MAP_INCREMENT SCTP_TSN_MAP_INITIAL
 #define SCTP_TSN_MAP_SIZE 4096
 
-/* We will not record more than this many duplicate TSNs between two
+/* We will yest record more than this many duplicate TSNs between two
  * SACKs.  The minimum PMTU is 512.  Remove all the headers and there
- * is enough room for 117 duplicate reports.  Round down to the
+ * is eyesugh room for 117 duplicate reports.  Round down to the
  * nearest power of 2.
  */
 enum { SCTP_MAX_DUP_TSNS = 16 };
@@ -276,7 +276,7 @@ enum { SCTP_MAX_GABS = 16 };
 #define SCTP_DEFAULT_MAXSEGMENT 1500	/* MTU size, this is the limit
                                          * to which we will raise the P-MTU.
 					 */
-#define SCTP_DEFAULT_MINSEGMENT 512	/* MTU size ... if no mtu disc */
+#define SCTP_DEFAULT_MINSEGMENT 512	/* MTU size ... if yes mtu disc */
 
 #define SCTP_SECRET_SIZE 32		/* Number of octets in a 256 bits. */
 
@@ -317,7 +317,7 @@ enum sctp_transport_cmd {
 
 /* These are the address scopes defined mainly for IPv4 addresses
  * based on draft of SCTP IPv4 scoping <draft-stewart-tsvwg-sctp-ipv4-00.txt>.
- * These scopes are hopefully generic enough to be used on scoping both
+ * These scopes are hopefully generic eyesugh to be used on scoping both
  * IPv4 and IPv6 addresses in SCTP.
  * At this point, the IPv6 scopes will be mapped to these internal scopes
  * as much as possible.
@@ -342,7 +342,7 @@ enum {
 /* Based on IPv4 scoping <draft-stewart-tsvwg-sctp-ipv4-00.txt>,
  * SCTP IPv4 unusable addresses: 0.0.0.0/8, 224.0.0.0/4, 198.18.0.0/24,
  * 192.88.99.0/24.
- * Also, RFC 8.4, non-unicast addresses are not considered valid SCTP
+ * Also, RFC 8.4, yesn-unicast addresses are yest considered valid SCTP
  * addresses.
  */
 #define IS_IPV4_UNUSABLE_ADDRESS(a)	    \

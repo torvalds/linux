@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 file: media/v4l/v4l2grab.c
 ==========================
@@ -29,7 +29,7 @@ file: media/v4l/v4l2grab.c
     #include <stdlib.h>
     #include <string.h>
     #include <fcntl.h>
-    #include <errno.h>
+    #include <erryes.h>
     #include <sys/ioctl.h>
     #include <sys/types.h>
     #include <sys/time.h>
@@ -50,10 +50,10 @@ file: media/v4l/v4l2grab.c
 
 	    do {
 		    r = v4l2_ioctl(fh, request, arg);
-	    } while (r == -1 && ((errno == EINTR) || (errno == EAGAIN)));
+	    } while (r == -1 && ((erryes == EINTR) || (erryes == EAGAIN)));
 
 	    if (r == -1) {
-		    fprintf(stderr, "error %d, %s\\n", errno, strerror(errno));
+		    fprintf(stderr, "error %d, %s\\n", erryes, strerror(erryes));
 		    exit(EXIT_FAILURE);
 	    }
     }
@@ -75,7 +75,7 @@ file: media/v4l/v4l2grab.c
 
 	    fd = v4l2_open(dev_name, O_RDWR | O_NONBLOCK, 0);
 	    if (fd < 0) {
-		    perror("Cannot open device");
+		    perror("Canyest open device");
 		    exit(EXIT_FAILURE);
 	    }
 
@@ -141,10 +141,10 @@ file: media/v4l/v4l2grab.c
 			    tv.tv_usec = 0;
 
 			    r = select(fd + 1, &fds, NULL, NULL, &tv);
-		    } while ((r == -1 && (errno = EINTR)));
+		    } while ((r == -1 && (erryes = EINTR)));
 		    if (r == -1) {
 			    perror("select");
-			    return errno;
+			    return erryes;
 		    }
 
 		    CLEAR(buf);
@@ -155,7 +155,7 @@ file: media/v4l/v4l2grab.c
 		    sprintf(out_name, "out%03d.ppm", i);
 		    fout = fopen(out_name, "w");
 		    if (!fout) {
-			    perror("Cannot open image");
+			    perror("Canyest open image");
 			    exit(EXIT_FAILURE);
 		    }
 		    fprintf(fout, "P6\\n%d %d 255\\n",

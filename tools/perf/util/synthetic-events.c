@@ -30,7 +30,7 @@
 #include <perf/threadmap.h>
 #include <symbol/kallsyms.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
@@ -115,21 +115,21 @@ static int perf_event__get_comm_ids(pid_t pid, char *comm, size_t len,
 		memcpy(comm, name, size);
 		comm[size] = '\0';
 	} else {
-		pr_debug("Name: string not found for pid %d\n", pid);
+		pr_debug("Name: string yest found for pid %d\n", pid);
 	}
 
 	if (tgids) {
 		tgids += 5;  /* strlen("Tgid:") */
 		*tgid = atoi(tgids);
 	} else {
-		pr_debug("Tgid: string not found for pid %d\n", pid);
+		pr_debug("Tgid: string yest found for pid %d\n", pid);
 	}
 
 	if (ppids) {
 		ppids += 5;  /* strlen("PPid:") */
 		*ppid = atoi(ppids);
 	} else {
-		pr_debug("PPid: string not found for pid %d\n", pid);
+		pr_debug("PPid: string yest found for pid %d\n", pid);
 	}
 
 	return 0;
@@ -197,7 +197,7 @@ static void perf_event__get_ns_link_info(pid_t pid, const char *ns,
 	sprintf(proc_ns, "/proc/%u/ns/%s", pid, ns);
 	if (stat64(proc_ns, &st) == 0) {
 		ns_link_info->dev = st.st_dev;
-		ns_link_info->ino = st.st_ino;
+		ns_link_info->iyes = st.st_iyes;
 	}
 }
 
@@ -311,8 +311,8 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 		char bf[BUFSIZ];
 		char prot[5];
 		char execname[PATH_MAX];
-		char anonstr[] = "//anon";
-		unsigned int ino;
+		char ayesnstr[] = "//ayesn";
+		unsigned int iyes;
 		size_t size;
 		ssize_t n;
 
@@ -336,15 +336,15 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 		       &event->mmap2.start, &event->mmap2.len, prot,
 		       &event->mmap2.pgoff, &event->mmap2.maj,
 		       &event->mmap2.min,
-		       &ino, execname);
+		       &iyes, execname);
 
 		/*
- 		 * Anon maps don't have the execname.
+ 		 * Ayesn maps don't have the execname.
  		 */
 		if (n < 7)
 			continue;
 
-		event->mmap2.ino = (u64)ino;
+		event->mmap2.iyes = (u64)iyes;
 
 		/*
 		 * Just like the kernel, see __perf_event_mmap in kernel/perf_event.c
@@ -381,11 +381,11 @@ out:
 			event->header.misc |= PERF_RECORD_MISC_PROC_MAP_PARSE_TIMEOUT;
 
 		if (!strcmp(execname, ""))
-			strcpy(execname, anonstr);
+			strcpy(execname, ayesnstr);
 
 		if (hugetlbfs_mnt_len &&
 		    !strncmp(execname, hugetlbfs_mnt, hugetlbfs_mnt_len)) {
-			strcpy(execname, anonstr);
+			strcpy(execname, ayesnstr);
 			event->mmap2.flags |= MAP_HUGETLB;
 		}
 
@@ -422,7 +422,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool, perf_event__handler_t
 	union perf_event *event = zalloc((sizeof(event->mmap) +
 					  machine->id_hdr_size));
 	if (event == NULL) {
-		pr_debug("Not enough memory synthesizing mmap event "
+		pr_debug("Not eyesugh memory synthesizing mmap event "
 			 "for kernel modules\n");
 		return -1;
 	}
@@ -610,7 +610,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				}
 			}
 
-			/* if not, generate events for it */
+			/* if yest, generate events for it */
 			if (need_leader &&
 			    __event__synthesize_thread(comm_event, mmap_event,
 						       fork_event, namespaces_event,
@@ -834,7 +834,7 @@ static int __perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	 */
 	event = zalloc((sizeof(event->mmap) + machine->id_hdr_size));
 	if (event == NULL) {
-		pr_debug("Not enough memory synthesizing mmap event "
+		pr_debug("Not eyesugh memory synthesizing mmap event "
 			 "for kernel modules\n");
 		return -1;
 	}
@@ -1635,7 +1635,7 @@ int perf_event__synthesize_extra_attr(struct perf_tool *tool, struct evlist *evs
 	int err;
 
 	/*
-	 * Synthesize other events stuff not carried within
+	 * Synthesize other events stuff yest carried within
 	 * attr event - unit, scale, name
 	 */
 	evlist__for_each_entry(evsel_list, evsel) {
@@ -1728,8 +1728,8 @@ int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd, struct e
 	/*
 	 * We are going to store the size of the data followed
 	 * by the data contents. Since the fd descriptor is a pipe,
-	 * we cannot seek back to store the size of the data once
-	 * we know it. Instead we:
+	 * we canyest seek back to store the size of the data once
+	 * we kyesw it. Instead we:
 	 *
 	 * - write the tracing data to the temp file
 	 * - get/write the data size to pipe

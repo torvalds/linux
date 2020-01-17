@@ -23,7 +23,7 @@ config PS3_ADVANCED
 	help
 	  This gives you access to some advanced options for the PS3. The
 	  defaults should be fine for most users, but these options may make
-	  it possible to better control the kernel configuration if you know
+	  it possible to better control the kernel configuration if you kyesw
 	  what you are doing.
 
 	  Note that the answer to this question won't directly affect the
@@ -135,7 +135,7 @@ config PS3_FLASH
 
 	  As this driver needs a fixed buffer of 256 KiB of memory, it can
 	  be disabled on the kernel command line using "ps3flash=off", to
-	  not allocate this fixed buffer.
+	  yest allocate this fixed buffer.
 
 config PS3_VRAM
 	tristate "PS3 Video RAM Storage Driver"

@@ -19,7 +19,7 @@ description: |+
   conditions.
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^iommu@[0-9a-f]*"
   compatible:
     oneOf:
@@ -59,7 +59,7 @@ properties:
     allOf:
       - $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
-    maximum: 260   # 2 secure, 2 non-secure, and up to 256 perf counters
+    maximum: 260   # 2 secure, 2 yesn-secure, and up to 256 perf counters
 
   '#iommu-cells':
     enum: [ 1, 2 ]
@@ -71,7 +71,7 @@ properties:
       SMMUs with stream matching support and complex masters may use a value of
       2, where the second cell of the IOMMU specifier represents an SMR mask to
       combine with the ID in the first cell.  Care must be taken to ensure the
-      set of matched IDs does not result in conflicts.
+      set of matched IDs does yest result in conflicts.
 
   interrupts:
     minItems: 1
@@ -90,26 +90,26 @@ properties:
       Present if page table walks made by the SMMU are cache coherent with the
       CPU.
 
-      NOTE: this only applies to the SMMU itself, not masters connected
+      NOTE: this only applies to the SMMU itself, yest masters connected
       upstream of the SMMU.
 
   calxeda,smmu-secure-config-access:
     type: boolean
     description:
       Enable proper handling of buggy implementations that always use secure
-      access to SMMU configuration registers. In this case non-secure aliases of
+      access to SMMU configuration registers. In this case yesn-secure aliases of
       secure registers have to be used during SMMU configuration.
 
   stream-match-mask:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       For SMMUs supporting stream matching and using #iommu-cells = <1>,
-      specifies a mask of bits to ignore when matching stream IDs (e.g. this may
+      specifies a mask of bits to igyesre when matching stream IDs (e.g. this may
       be programmed into the SMRn.MASK field of every stream match register
-      used). For cases where it is desirable to ignore some portion of every
+      used). For cases where it is desirable to igyesre some portion of every
       Stream ID (e.g. for certain MMU-500 configurations given globally unique
-      input IDs). This property is not valid for SMMUs using stream indexing, or
-      using stream matching with #iommu-cells = <2>, and may be ignored if
+      input IDs). This property is yest valid for SMMUs using stream indexing, or
+      using stream matching with #iommu-cells = <2>, and may be igyesred if
       present in such cases.
 
   clock-names:
@@ -197,7 +197,7 @@ examples:
                          <0 48 4>,
                          <0 49 4>;
             #iommu-cells = <1>;
-            /* always ignore appended 5-bit TBU number */
+            /* always igyesre appended 5-bit TBU number */
             stream-match-mask = <0x7c00>;
     };
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * GSPCA Endpoints (formerly known as AOX) se401 USB Camera sub Driver
+ * GSPCA Endpoints (formerly kyeswn as AOX) se401 USB Camera sub Driver
  *
  * Copyright (C) 2011 Hans de Goede <hdegoede@redhat.com>
  *
@@ -158,7 +158,7 @@ static int se401_get_feature(struct gspca_dev *gspca_dev, u16 selector)
 
 static void setbrightness(struct gspca_dev *gspca_dev, s32 val)
 {
-	/* HDG: this does not seem to do anything on my cam */
+	/* HDG: this does yest seem to do anything on my cam */
 	se401_write_req(gspca_dev, SE401_REQ_SET_BRT, val, 0);
 }
 
@@ -182,7 +182,7 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 val, s32 freq)
 
 	/* Do this before the set_feature calls, for proper timing wrt
 	   the interrupt driven pkt_scan. Note we may still race but that
-	   is not a big issue, the expo change state machine is merely for
+	   is yest a big issue, the expo change state machine is merely for
 	   avoiding underexposed frames getting send out, if one sneaks
 	   through so be it */
 	sd->expo_change_state = EXPO_CHANGED;
@@ -234,7 +234,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	if (!(cd[2] & SE401_FORMAT_BAYER)) {
-		pr_err("Bayer format not supported!\n");
+		pr_err("Bayer format yest supported!\n");
 		return -ENODEV;
 	}
 
@@ -319,7 +319,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 /* function called at start time before URB creation */
 static int sd_isoc_init(struct gspca_dev *gspca_dev)
 {
-	gspca_dev->alt = 1;	/* Ignore the bogus isoc alt settings */
+	gspca_dev->alt = 1;	/* Igyesre the bogus isoc alt settings */
 
 	return gspca_dev->usb_err;
 }
@@ -349,7 +349,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	se401_write_req(gspca_dev, SE401_REQ_SET_HEIGHT,
 			gspca_dev->pixfmt.height * mult, 0);
 	/*
-	 * HDG: disabled this as it does not seem to do anything
+	 * HDG: disabled this as it does yest seem to do anything
 	 * se401_write_req(gspca_dev, SE401_REQ_SET_OUTPUT_MODE,
 	 *		   SE401_FORMAT_BAYER, 0);
 	 */
@@ -405,7 +405,7 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 	if (sd->resetlevel_frame_count < 20)
 		return;
 
-	/* For some reason this normally read-only register doesn't get reset
+	/* For some reason this yesrmally read-only register doesn't get reset
 	   to zero after reading them just once... */
 	se401_get_feature(gspca_dev, HV7131_REG_HIREFNOH);
 	se401_get_feature(gspca_dev, HV7131_REG_HIREFNOL);
@@ -485,7 +485,7 @@ static void sd_pkt_scan_janggu(struct gspca_dev *gspca_dev, u8 *data, int len)
 
 	i = 0;
 	while (i < len) {
-		/* Read header if not already be present from prev bulk pkt */
+		/* Read header if yest already be present from prev bulk pkt */
 		if (sd->packet_read < 4) {
 			count = 4 - sd->packet_read;
 			if (count > len - i)
@@ -507,7 +507,7 @@ static void sd_pkt_scan_janggu(struct gspca_dev *gspca_dev, u8 *data, int len)
 			goto error;
 		}
 		if (info == 3) {
-			pr_err("unknown frame info value restarting stream\n");
+			pr_err("unkyeswn frame info value restarting stream\n");
 			goto error;
 		}
 
@@ -651,7 +651,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	if (sd->has_brightness)
 		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_BRIGHTNESS, 0, 255, 1, 15);
-	/* max is really 63 but > 50 is not pretty */
+	/* max is really 63 but > 50 is yest pretty */
 	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_GAIN, 0, 50, 1, 25);
 	sd->exposure = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
@@ -661,7 +661,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_POWER_LINE_FREQUENCY_60HZ, 0, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	v4l2_ctrl_cluster(2, &sd->exposure);

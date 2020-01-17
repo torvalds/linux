@@ -91,7 +91,7 @@ MODULE_PARM_DESC(probe_wait_ms,
  * We can have multiple work items (and connection probing)
  * scheduling this timer, but we need to take care to only
  * reschedule it when it should fire _earlier_ than it was
- * asked for before, or if it's not pending right now. This
+ * asked for before, or if it's yest pending right yesw. This
  * function ensures that. Note that it then is required to
  * run this function for all timeouts after the first one
  * has happened -- the work that runs from this timer will
@@ -289,7 +289,7 @@ out:
 		vht_chandef = *chandef;
 
 	/*
-	 * Ignore the DISABLED flag when we're already connected and only
+	 * Igyesre the DISABLED flag when we're already connected and only
 	 * tracking the APs beacon for bandwidth changes - otherwise we
 	 * might get disconnected here if we connect to an AP, update our
 	 * regulatory information based on the AP's country IE and the
@@ -339,11 +339,11 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 	if (ifmgd->flags & IEEE80211_STA_DISABLE_HT || !ht_oper)
 		return 0;
 
-	/* don't check VHT if we associated as non-VHT station */
+	/* don't check VHT if we associated as yesn-VHT station */
 	if (ifmgd->flags & IEEE80211_STA_DISABLE_VHT)
 		vht_oper = NULL;
 
-	/* don't check HE if we associated as non-HE station */
+	/* don't check HE if we associated as yesn-HE station */
 	if (ifmgd->flags & IEEE80211_STA_DISABLE_HE ||
 	    !ieee80211_get_he_sta_cap(sband))
 		he_oper = NULL;
@@ -370,7 +370,7 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 	 * Downgrade the new channel if we associated with restricted
 	 * capabilities. For example, if we associated as a 20 MHz STA
 	 * to a 40 MHz AP (due to regulatory, capabilities or config
-	 * reasons) then switching to a 40 MHz channel now won't do us
+	 * reasons) then switching to a 40 MHz channel yesw won't do us
 	 * any good -- we couldn't use it with the AP.
 	 */
 	if (ifmgd->flags & IEEE80211_STA_DISABLE_80P80MHZ &&
@@ -570,7 +570,7 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 		cap &= ~IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE;
 
 	/*
-	 * If some other vif is using the MU-MIMO capablity we cannot associate
+	 * If some other vif is using the MU-MIMO capablity we canyest associate
 	 * using MU-MIMO - this will lead to contradictions in the group-id
 	 * mechanism.
 	 * Ownership is defined since association request, in order to avoid
@@ -643,7 +643,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos, qos_info, *ie_start;
-	size_t offset = 0, noffset;
+	size_t offset = 0, yesffset;
 	int i, count, rates_len, supp_rates_len, shift;
 	u16 capab;
 	struct ieee80211_supported_band *sband;
@@ -677,7 +677,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 						     &rates);
 	} else {
 		/*
-		 * In case AP not provide any supported rates information
+		 * In case AP yest provide any supported rates information
 		 * before association, we send information element(s) with
 		 * all rates that we support.
 		 */
@@ -817,7 +817,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	    !(ifmgd->flags & IEEE80211_STA_DISABLE_HE) && assoc_data->ie_len) {
 		struct element *elem;
 
-		/* we know it's writable, cast away the const */
+		/* we kyesw it's writable, cast away the const */
 		elem = (void *)cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY,
 						  assoc_data->ie,
 						  assoc_data->ie_len);
@@ -857,15 +857,15 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			WLAN_EID_OPMODE_NOTIF,
 		};
 
-		noffset = ieee80211_ie_split_ric(assoc_data->ie,
+		yesffset = ieee80211_ie_split_ric(assoc_data->ie,
 						 assoc_data->ie_len,
 						 before_ht,
 						 ARRAY_SIZE(before_ht),
 						 after_ric,
 						 ARRAY_SIZE(after_ric),
 						 offset);
-		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
-		offset = noffset;
+		skb_put_data(skb, assoc_data->ie + offset, yesffset - offset);
+		offset = yesffset;
 	}
 
 	if (WARN_ON_ONCE((ifmgd->flags & IEEE80211_STA_DISABLE_HT) &&
@@ -880,7 +880,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	if (assoc_data->ie_len) {
 		static const u8 before_vht[] = {
 			/*
-			 * no need to list the ones split off before HT
+			 * yes need to list the ones split off before HT
 			 * or generated here
 			 */
 			WLAN_EID_BSS_COEX_2040,
@@ -891,19 +891,19 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			/* 60 GHz (Multi-band, DMG, MMS) can't happen */
 		};
 
-		/* RIC already taken above, so no need to handle here anymore */
-		noffset = ieee80211_ie_split(assoc_data->ie, assoc_data->ie_len,
+		/* RIC already taken above, so yes need to handle here anymore */
+		yesffset = ieee80211_ie_split(assoc_data->ie, assoc_data->ie_len,
 					     before_vht, ARRAY_SIZE(before_vht),
 					     offset);
-		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
-		offset = noffset;
+		skb_put_data(skb, assoc_data->ie + offset, yesffset - offset);
+		offset = yesffset;
 	}
 
 	/* if present, add any custom IEs that go before HE */
 	if (assoc_data->ie_len) {
 		static const u8 before_he[] = {
 			/*
-			 * no need to list the ones split off before VHT
+			 * yes need to list the ones split off before VHT
 			 * or generated here
 			 */
 			WLAN_EID_OPMODE_NOTIF,
@@ -917,13 +917,13 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			/* TODO: add 11ah/11aj/11ak elements */
 		};
 
-		/* RIC already taken above, so no need to handle here anymore */
-		noffset = ieee80211_ie_split(assoc_data->ie, assoc_data->ie_len,
+		/* RIC already taken above, so yes need to handle here anymore */
+		yesffset = ieee80211_ie_split(assoc_data->ie, assoc_data->ie_len,
 					     before_he, ARRAY_SIZE(before_he),
 					     offset);
-		pos = skb_put(skb, noffset - offset);
-		memcpy(pos, assoc_data->ie + offset, noffset - offset);
-		offset = noffset;
+		pos = skb_put(skb, yesffset - offset);
+		memcpy(pos, assoc_data->ie + offset, yesffset - offset);
+		offset = yesffset;
 	}
 
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
@@ -942,13 +942,13 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE))
 		ieee80211_add_he_ie(sdata, skb, sband);
 
-	/* if present, add any custom non-vendor IEs that go after HE */
+	/* if present, add any custom yesn-vendor IEs that go after HE */
 	if (assoc_data->ie_len) {
-		noffset = ieee80211_ie_split_vendor(assoc_data->ie,
+		yesffset = ieee80211_ie_split_vendor(assoc_data->ie,
 						    assoc_data->ie_len,
 						    offset);
-		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
-		offset = noffset;
+		skb_put_data(skb, assoc_data->ie + offset, yesffset - offset);
+		offset = yesffset;
 	}
 
 	if (assoc_data->wmm) {
@@ -965,8 +965,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 
 	/* add any remaining custom (i.e. vendor specific here) IEs */
 	if (assoc_data->ie_len) {
-		noffset = assoc_data->ie_len;
-		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
+		yesffset = assoc_data->ie_len;
+		skb_put_data(skb, assoc_data->ie + offset, yesffset - offset);
 	}
 
 	if (assoc_data->fils_kek_len &&
@@ -1098,7 +1098,7 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 	/*
 	 * using reservation isn't immediate as it may be deferred until later
 	 * with multi-vif. once reservation is complete it will re-schedule the
-	 * work with no reserved_chanctx so verify chandef to check if it
+	 * work with yes reserved_chanctx so verify chandef to check if it
 	 * completed successfully
 	 */
 
@@ -1122,7 +1122,7 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 			 * station bandwidth and align the rate scale algorithm
 			 * on the bandwidth change. Here we only consider the
 			 * bandwidth of the new channel definition (as channel
-			 * switch flow does not have the full HT/VHT/HE
+			 * switch flow does yest have the full HT/VHT/HE
 			 * information), assuming that if additional changes are
 			 * required they would be done as part of the processing
 			 * of the next beacon from the AP.
@@ -1225,7 +1225,7 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_sub_if_data *sdata)
 		return;
 	}
 
-	cfg80211_ch_switch_notify(sdata->dev, &sdata->reserved_chandef);
+	cfg80211_ch_switch_yestify(sdata->dev, &sdata->reserved_chandef);
 }
 
 void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success)
@@ -1330,7 +1330,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 			drv_channel_switch_rx_beacon(sdata, &ch_switch);
 		return;
 	} else if (sdata->vif.csa_active || res) {
-		/* disregard subsequent announcements if already processing */
+		/* disregard subsequent anyesuncements if already processing */
 		return;
 	}
 
@@ -1350,19 +1350,19 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	if (cfg80211_chandef_identical(&csa_ie.chandef,
 				       &sdata->vif.bss_conf.chandef) &&
 	    (!csa_ie.mode || !beacon)) {
-		if (ifmgd->csa_ignored_same_chan)
+		if (ifmgd->csa_igyesred_same_chan)
 			return;
 		sdata_info(sdata,
-			   "AP %pM tries to chanswitch to same channel, ignore\n",
+			   "AP %pM tries to chanswitch to same channel, igyesre\n",
 			   ifmgd->associated->bssid);
-		ifmgd->csa_ignored_same_chan = true;
+		ifmgd->csa_igyesred_same_chan = true;
 		return;
 	}
 
 	/*
 	 * Drop all TDLS peers - either we disconnect or move to a different
-	 * channel from this point on. There's no telling what our peer will do.
-	 * The TDLS WIDER_BW scenario is also problematic, as peers might now
+	 * channel from this point on. There's yes telling what our peer will do.
+	 * The TDLS WIDER_BW scenario is also problematic, as peers might yesw
 	 * have an incompatible wider chandef.
 	 */
 	ieee80211_teardown_tdls_peers(sdata);
@@ -1373,7 +1373,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 					 lockdep_is_held(&local->chanctx_mtx));
 	if (!conf) {
 		sdata_info(sdata,
-			   "no channel context assigned to vif?, disconnecting\n");
+			   "yes channel context assigned to vif?, disconnecting\n");
 		goto drop_connection;
 	}
 
@@ -1405,14 +1405,14 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.csa_active = true;
 	sdata->csa_chandef = csa_ie.chandef;
 	sdata->csa_block_tx = ch_switch.block_tx;
-	ifmgd->csa_ignored_same_chan = false;
+	ifmgd->csa_igyesred_same_chan = false;
 
 	if (sdata->csa_block_tx)
 		ieee80211_stop_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
 	mutex_unlock(&local->mtx);
 
-	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chandef,
+	cfg80211_ch_switch_started_yestify(sdata->dev, &csa_ie.chandef,
 					  csa_ie.count);
 
 	if (local->ops->channel_switch) {
@@ -1431,9 +1431,9 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	return;
  drop_connection:
 	/*
-	 * This is just so that the disconnect flow will know that
+	 * This is just so that the disconnect flow will kyesw that
 	 * we were trying to switch channel and failed. In case the
-	 * mode is 1 (we are not allowed to Tx), we will know not to
+	 * mode is 1 (we are yest allowed to Tx), we will kyesw yest to
 	 * send a deauthentication frame. Those two fields will be
 	 * reset when the disconnection worker runs.
 	 */
@@ -1591,7 +1591,7 @@ static void ieee80211_enable_ps(struct ieee80211_local *local,
 	struct ieee80211_conf *conf = &local->hw.conf;
 
 	/*
-	 * If we are scanning right now then the parameters will
+	 * If we are scanning right yesw then the parameters will
 	 * take effect when scan finishes.
 	 */
 	if (local->scanning)
@@ -1714,7 +1714,7 @@ void ieee80211_recalc_ps_vif(struct ieee80211_sub_if_data *sdata)
 
 	if (sdata->vif.bss_conf.ps != ps_allowed) {
 		sdata->vif.bss_conf.ps = ps_allowed;
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_PS);
+		ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_PS);
 	}
 }
 
@@ -1766,7 +1766,7 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		/*
 		 * transmission can be stopped by others which leads to
 		 * dynamic_ps_timer expiry. Postpone the ps timer if it
-		 * is not the actual idle state.
+		 * is yest the actual idle state.
 		 */
 		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 		for (q = 0; q < local->hw.queues; q++) {
@@ -1842,14 +1842,14 @@ __ieee80211_sta_handle_tspec_ac_params(struct ieee80211_sub_if_data *sdata)
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		struct ieee80211_sta_tx_tspec *tx_tspec = &ifmgd->tx_tspec[ac];
-		int non_acm_ac;
-		unsigned long now = jiffies;
+		int yesn_acm_ac;
+		unsigned long yesw = jiffies;
 
 		if (tx_tspec->action == TX_TSPEC_ACTION_NONE &&
 		    tx_tspec->admitted_time &&
-		    time_after(now, tx_tspec->time_slice_start + HZ)) {
+		    time_after(yesw, tx_tspec->time_slice_start + HZ)) {
 			tx_tspec->consumed_tx_time = 0;
-			tx_tspec->time_slice_start = now;
+			tx_tspec->time_slice_start = yesw;
 
 			if (tx_tspec->downgraded)
 				tx_tspec->action =
@@ -1868,38 +1868,38 @@ __ieee80211_sta_handle_tspec_ac_params(struct ieee80211_sub_if_data *sdata)
 			ret = true;
 			break;
 		case TX_TSPEC_ACTION_DOWNGRADE:
-			if (time_after(now, tx_tspec->time_slice_start + HZ)) {
+			if (time_after(yesw, tx_tspec->time_slice_start + HZ)) {
 				tx_tspec->action = TX_TSPEC_ACTION_NONE;
 				ret = true;
 				break;
 			}
-			/* downgrade next lower non-ACM AC */
-			for (non_acm_ac = ac + 1;
-			     non_acm_ac < IEEE80211_NUM_ACS;
-			     non_acm_ac++)
-				if (!(sdata->wmm_acm & BIT(7 - 2 * non_acm_ac)))
+			/* downgrade next lower yesn-ACM AC */
+			for (yesn_acm_ac = ac + 1;
+			     yesn_acm_ac < IEEE80211_NUM_ACS;
+			     yesn_acm_ac++)
+				if (!(sdata->wmm_acm & BIT(7 - 2 * yesn_acm_ac)))
 					break;
 			/* Usually the loop will result in using BK even if it
 			 * requires admission control, but such a configuration
-			 * makes no sense and we have to transmit somehow - the
+			 * makes yes sense and we have to transmit somehow - the
 			 * AC selection does the same thing.
 			 * If we started out trying to downgrade from BK, then
 			 * the extra condition here might be needed.
 			 */
-			if (non_acm_ac >= IEEE80211_NUM_ACS)
-				non_acm_ac = IEEE80211_AC_BK;
+			if (yesn_acm_ac >= IEEE80211_NUM_ACS)
+				yesn_acm_ac = IEEE80211_AC_BK;
 			if (drv_conf_tx(local, sdata, ac,
-					&sdata->tx_conf[non_acm_ac]))
+					&sdata->tx_conf[yesn_acm_ac]))
 				sdata_err(sdata,
 					  "failed to set TX queue parameters for queue %d\n",
 					  ac);
 			tx_tspec->action = TX_TSPEC_ACTION_NONE;
 			ret = true;
 			schedule_delayed_work(&ifmgd->tx_tspec_wk,
-				tx_tspec->time_slice_start + HZ - now + 1);
+				tx_tspec->time_slice_start + HZ - yesw + 1);
 			break;
 		case TX_TSPEC_ACTION_NONE:
-			/* nothing now */
+			/* yesthing yesw */
 			break;
 		}
 	}
@@ -1910,7 +1910,7 @@ __ieee80211_sta_handle_tspec_ac_params(struct ieee80211_sub_if_data *sdata)
 void ieee80211_sta_handle_tspec_ac_params(struct ieee80211_sub_if_data *sdata)
 {
 	if (__ieee80211_sta_handle_tspec_ac_params(sdata))
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_QOS);
+		ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_QOS);
 }
 
 static void ieee80211_sta_handle_tspec_ac_params_wk(struct work_struct *work)
@@ -1953,7 +1953,7 @@ ieee80211_sta_wmm_params(struct ieee80211_local *local,
 
 	count = wmm_param[6] & 0x0f;
 	/* -1 is the initial value of ifmgd->mu_edca_last_param_set.
-	 * if mu_edca was preset before and now it disappeared tell
+	 * if mu_edca was preset before and yesw it disappeared tell
 	 * the driver about it.
 	 */
 	mu_edca_count = mu_edca ? mu_edca->mu_qos_info & 0x0f : -1;
@@ -2165,11 +2165,11 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 			ret = cfg80211_get_p2p_attr(
 					ies->data, ies->len,
 					IEEE80211_P2P_ATTR_ABSENCE_NOTICE,
-					(u8 *) &bss_conf->p2p_noa_attr,
-					sizeof(bss_conf->p2p_noa_attr));
+					(u8 *) &bss_conf->p2p_yesa_attr,
+					sizeof(bss_conf->p2p_yesa_attr));
 			if (ret >= 2) {
-				sdata->u.mgd.p2p_noa_index =
-					bss_conf->p2p_noa_attr.index;
+				sdata->u.mgd.p2p_yesa_index =
+					bss_conf->p2p_yesa_attr.index;
 				bss_info_changed |= BSS_CHANGED_P2P_PS;
 			}
 		}
@@ -2183,8 +2183,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	if (sdata->u.mgd.have_beacon) {
 		/*
-		 * If the AP is buggy we may get here with no DTIM period
-		 * known, so assume it's 1 which is the only safe assumption
+		 * If the AP is buggy we may get here with yes DTIM period
+		 * kyeswn, so assume it's 1 which is the only safe assumption
 		 * in that case, although if the TIM IE is broken powersave
 		 * probably just won't work at all.
 		 */
@@ -2207,7 +2207,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	if (bss_conf->arp_addr_cnt)
 		bss_info_changed |= BSS_CHANGED_ARP_FILTER;
 
-	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
+	ieee80211_bss_info_change_yestify(sdata, bss_info_changed);
 
 	mutex_lock(&local->iflist_mtx);
 	ieee80211_recalc_ps(local);
@@ -2259,14 +2259,14 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	/*
 	 * drop any frame before deauth/disassoc, this can be data or
-	 * management frame. Since we are disconnecting, we should not
+	 * management frame. Since we are disconnecting, we should yest
 	 * insist sending these frames which can take time and delay
 	 * the disconnection and possible the roaming.
 	 */
 	if (tx)
 		ieee80211_flush_queues(local, sdata, true);
 
-	/* deauthenticate/disassociate now */
+	/* deauthenticate/disassociate yesw */
 	if (tx || frame_buf) {
 		/*
 		 * In multi channel scenarios guarantee that the virtual
@@ -2300,9 +2300,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	changed |= BSS_CHANGED_ASSOC;
 	sdata->vif.bss_conf.assoc = false;
 
-	ifmgd->p2p_noa_index = -1;
-	memset(&sdata->vif.bss_conf.p2p_noa_attr, 0,
-	       sizeof(sdata->vif.bss_conf.p2p_noa_attr));
+	ifmgd->p2p_yesa_index = -1;
+	memset(&sdata->vif.bss_conf.p2p_yesa_attr, 0,
+	       sizeof(sdata->vif.bss_conf.p2p_yesa_attr));
 
 	/* on the next assoc, re-program HT/VHT parameters */
 	memset(&ifmgd->ht_capa, 0, sizeof(ifmgd->ht_capa));
@@ -2330,11 +2330,11 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.bss_conf.qos = false;
 	changed |= BSS_CHANGED_QOS;
 
-	/* The BSSID (not really interesting) and HT changed */
+	/* The BSSID (yest really interesting) and HT changed */
 	changed |= BSS_CHANGED_BSSID | BSS_CHANGED_HT;
-	ieee80211_bss_info_change_notify(sdata, changed);
+	ieee80211_bss_info_change_yestify(sdata, changed);
 
-	/* disassociated - set to defaults now */
+	/* disassociated - set to defaults yesw */
 	ieee80211_set_wmm_default(sdata, false, false);
 
 	del_timer_sync(&sdata->u.mgd.conn_mon_timer);
@@ -2353,7 +2353,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	sdata->vif.csa_active = false;
 	ifmgd->csa_waiting_bcn = false;
-	ifmgd->csa_ignored_same_chan = false;
+	ifmgd->csa_igyesred_same_chan = false;
 	if (sdata->csa_block_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
@@ -2361,21 +2361,21 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 	mutex_unlock(&local->mtx);
 
-	/* existing TX TSPEC sessions no longer exist */
+	/* existing TX TSPEC sessions yes longer exist */
 	memset(ifmgd->tx_tspec, 0, sizeof(ifmgd->tx_tspec));
 	cancel_delayed_work_sync(&ifmgd->tx_tspec_wk);
 
 	sdata->encrypt_headroom = IEEE80211_ENCRYPT_HEADROOM;
 }
 
-void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
+void ieee80211_sta_rx_yestify(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_hdr *hdr)
 {
 	/*
 	 * We can postpone the mgd.timer whenever receiving unicast frames
-	 * from AP because we know that the connection is working both ways
+	 * from AP because we kyesw that the connection is working both ways
 	 * at that time. But multicast frames (and hence also beacons) must
-	 * be ignored here, because we need to trigger the timer during
+	 * be igyesred here, because we need to trigger the timer during
 	 * data idle periods for sending the periodic probe request to the
 	 * AP we're connected to.
 	 */
@@ -2404,7 +2404,7 @@ static void ieee80211_reset_ap_probe(struct ieee80211_sub_if_data *sdata)
 		goto out;
 
 	/*
-	 * We've received a probe response, but are not sure whether
+	 * We've received a probe response, but are yest sure whether
 	 * we have or will be receiving any beacons or data, so let's
 	 * schedule the timers again, just in case.
 	 */
@@ -2417,7 +2417,7 @@ out:
 	mutex_unlock(&local->mtx);
 }
 
-static void ieee80211_sta_tx_wmm_ac_notify(struct ieee80211_sub_if_data *sdata,
+static void ieee80211_sta_tx_wmm_ac_yestify(struct ieee80211_sub_if_data *sdata,
 					   struct ieee80211_hdr *hdr,
 					   u16 tx_time)
 {
@@ -2425,14 +2425,14 @@ static void ieee80211_sta_tx_wmm_ac_notify(struct ieee80211_sub_if_data *sdata,
 	u16 tid = ieee80211_get_tid(hdr);
 	int ac = ieee80211_ac_from_tid(tid);
 	struct ieee80211_sta_tx_tspec *tx_tspec = &ifmgd->tx_tspec[ac];
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 
 	if (likely(!tx_tspec->admitted_time))
 		return;
 
-	if (time_after(now, tx_tspec->time_slice_start + HZ)) {
+	if (time_after(yesw, tx_tspec->time_slice_start + HZ)) {
 		tx_tspec->consumed_tx_time = 0;
-		tx_tspec->time_slice_start = now;
+		tx_tspec->time_slice_start = yesw;
 
 		if (tx_tspec->downgraded) {
 			tx_tspec->action = TX_TSPEC_ACTION_STOP_DOWNGRADE;
@@ -2452,10 +2452,10 @@ static void ieee80211_sta_tx_wmm_ac_notify(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
+void ieee80211_sta_tx_yestify(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_hdr *hdr, bool ack, u16 tx_time)
 {
-	ieee80211_sta_tx_wmm_ac_notify(sdata, hdr, tx_time);
+	ieee80211_sta_tx_wmm_ac_yestify(sdata, hdr, tx_time);
 
 	if (!ieee80211_is_data(hdr->frame_control))
 	    return;
@@ -2573,7 +2573,7 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 				     "detected beacon loss from AP (missed %d beacons) - probing\n",
 				     beacon_loss_count);
 
-		ieee80211_cqm_beacon_loss_notify(&sdata->vif, GFP_KERNEL);
+		ieee80211_cqm_beacon_loss_yestify(&sdata->vif, GFP_KERNEL);
 	}
 
 	/*
@@ -2582,7 +2582,7 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 	 * a probe request. Or maybe the AP died and the driver keeps
 	 * reporting until we disassociate...
 	 *
-	 * In either case we have to ignore the current call to this
+	 * In either case we have to igyesre the current call to this
 	 * function (except for setting the correct probe reason bit)
 	 * because otherwise we would reset the timer every time and
 	 * never check whether we received a probe response!
@@ -2682,7 +2682,7 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 
 	tx = !sdata->csa_block_tx;
 
-	/* AP is probably out of range (or not reachable for another reason) so
+	/* AP is probably out of range (or yest reachable for ayesther reason) so
 	 * remove the bss struct for that AP.
 	 */
 	cfg80211_unlink_bss(local->hw.wiphy, ifmgd->associated);
@@ -2768,15 +2768,15 @@ static void ieee80211_destroy_auth_data(struct ieee80211_sub_if_data *sdata,
 
 	if (!assoc) {
 		/*
-		 * we are not authenticated yet, the only timer that could be
+		 * we are yest authenticated yet, the only timer that could be
 		 * running is the timeout for the authentication response which
-		 * which is not relevant anymore.
+		 * which is yest relevant anymore.
 		 */
 		del_timer_sync(&sdata->u.mgd.timer);
 		sta_info_destroy_addr(sdata, auth_data->bss->bssid);
 
 		eth_zero_addr(sdata->u.mgd.bssid);
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
+		ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_BSSID);
 		sdata->u.mgd.flags = 0;
 		mutex_lock(&sdata->local->mtx);
 		ieee80211_vif_release_channel(sdata);
@@ -2797,15 +2797,15 @@ static void ieee80211_destroy_assoc_data(struct ieee80211_sub_if_data *sdata,
 
 	if (!assoc) {
 		/*
-		 * we are not associated yet, the only timer that could be
+		 * we are yest associated yet, the only timer that could be
 		 * running is the timeout for the association response which
-		 * which is not relevant anymore.
+		 * which is yest relevant anymore.
 		 */
 		del_timer_sync(&sdata->u.mgd.timer);
 		sta_info_destroy_addr(sdata, assoc_data->bss->bssid);
 
 		eth_zero_addr(sdata->u.mgd.bssid);
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
+		ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_BSSID);
 		sdata->u.mgd.flags = 0;
 		sdata->vif.mu_mimo_owner = false;
 
@@ -2864,7 +2864,7 @@ static bool ieee80211_mark_sta_auth(struct ieee80211_sub_if_data *sdata,
 	mutex_lock(&sdata->local->sta_mtx);
 	sta = sta_info_get(sdata, bssid);
 	if (!sta) {
-		WARN_ONCE(1, "%s: STA %pM not found", sdata->name, bssid);
+		WARN_ONCE(1, "%s: STA %pM yest found", sdata->name, bssid);
 		result = false;
 		goto out;
 	}
@@ -2943,7 +2943,7 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	case WLAN_AUTH_SHARED_KEY:
 		if (ifmgd->auth_data->expected_transaction != 4) {
 			ieee80211_auth_challenge(sdata, mgmt, len);
-			/* need another frame */
+			/* need ayesther frame */
 			return;
 		}
 		break;
@@ -2970,7 +2970,7 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	return;
  out_err:
 	mutex_unlock(&sdata->local->sta_mtx);
-	/* ignore frame -- wait for timeout */
+	/* igyesre frame -- wait for timeout */
 }
 
 #define case_WLAN(type) \
@@ -3026,7 +3026,7 @@ const char *ieee80211_get_reason_code_string(u16 reason_code)
 	case_WLAN(MAC_EXISTS_IN_MBSS);
 	case_WLAN(MESH_CHAN_REGULATORY);
 	case_WLAN(MESH_CHAN);
-	default: return "<unknown>";
+	default: return "<unkyeswn>";
 	}
 }
 
@@ -3126,11 +3126,11 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 			*have_higher_than_11mbit = true;
 
 		/*
-		 * Skip HT and VHT BSS membership selectors since they're not
+		 * Skip HT and VHT BSS membership selectors since they're yest
 		 * rates.
 		 *
 		 * Note: Even though the membership selector and the basic
-		 *	 rate flag share the same bit, they are not exactly
+		 *	 rate flag share the same bit, they are yest exactly
 		 *	 the same.
 		 */
 		if (supp_rates[i] == (0x80 | BSS_MEMBERSHIP_SELECTOR_HT_PHY) ||
@@ -3222,7 +3222,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (!elems->supp_rates) {
-		sdata_info(sdata, "no SuppRates element in AssocResp\n");
+		sdata_info(sdata, "yes SuppRates element in AssocResp\n");
 		return false;
 	}
 
@@ -3232,7 +3232,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		(elems->ext_capab[4] & WLAN_EXT_CAPA5_TDLS_CH_SW_PROHIBITED);
 
 	/*
-	 * Some APs are erroneously not including some information in their
+	 * Some APs are erroneously yest including some information in their
 	 * (re)association response frames. Try to recover by using the data
 	 * from the beacon or probe response. This seems to afflict mobile
 	 * 2G/3G/4G wifi routers, reported models include the "Onda PN51T",
@@ -3397,7 +3397,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (cbss->transmitted_bss) {
-		bss_conf->nontransmitted = true;
+		bss_conf->yesntransmitted = true;
 		ether_addr_copy(bss_conf->transmitter_bssid,
 				cbss->transmitted_bss->bssid);
 		bss_conf->bssid_indicator = cbss->max_bssid_indicator;
@@ -3406,21 +3406,21 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 
 	/*
 	 * Some APs, e.g. Netgear WNDR3700, report invalid HT operation data
-	 * in their association response, so ignore that data for our own
+	 * in their association response, so igyesre that data for our own
 	 * configuration. If it changed since the last beacon, we'll get the
 	 * next beacon and update then.
 	 */
 
 	/*
-	 * If an operating mode notification IE is present, override the
+	 * If an operating mode yestification IE is present, override the
 	 * NSS calculation (that would be done in rate_control_rate_init())
 	 * and use the # of streams from that element.
 	 */
-	if (elems->opmode_notif &&
-	    !(*elems->opmode_notif & IEEE80211_OPMODE_NOTIF_RX_NSS_TYPE_BF)) {
+	if (elems->opmode_yestif &&
+	    !(*elems->opmode_yestif & IEEE80211_OPMODE_NOTIF_RX_NSS_TYPE_BF)) {
 		u8 nss;
 
-		nss = *elems->opmode_notif & IEEE80211_OPMODE_NOTIF_RX_NSS_MASK;
+		nss = *elems->opmode_yestif & IEEE80211_OPMODE_NOTIF_RX_NSS_MASK;
 		nss >>= IEEE80211_OPMODE_NOTIF_RX_NSS_SHIFT;
 		nss += 1;
 		sta->sta.rx_nss = nss;
@@ -3498,17 +3498,17 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	ieee80211_set_associated(sdata, cbss, changed);
 
 	/*
-	 * If we're using 4-addr mode, let the AP know that we're
+	 * If we're using 4-addr mode, let the AP kyesw that we're
 	 * doing so, so that it can create the STA VLAN on its side
 	 */
 	if (ifmgd->use_4addr)
 		ieee80211_send_4addr_nullfunc(local, sdata);
 
 	/*
-	 * Start timer to probe the connection to the AP now.
+	 * Start timer to probe the connection to the AP yesw.
 	 * Also start the timer that will detect beacon loss.
 	 */
-	ieee80211_sta_rx_notify(sdata, (struct ieee80211_hdr *)mgmt);
+	ieee80211_sta_rx_yestify(sdata, (struct ieee80211_hdr *)mgmt);
 	ieee80211_sta_reset_beacon_monitor(sdata);
 
 	ret = true;
@@ -3594,7 +3594,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		drv_event_callback(sdata->local, sdata, &event);
 	} else {
 		if (!ieee80211_assoc_success(sdata, bss, mgmt, len, &elems)) {
-			/* oops -- internal error -- send timeout for now */
+			/* oops -- internal error -- send timeout for yesw */
 			ieee80211_destroy_assoc_data(sdata, false, false);
 			cfg80211_assoc_timeout(sdata->dev, bss);
 			return;
@@ -3656,7 +3656,7 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 	sdata_assert_lock(sdata);
 
 	if (!ether_addr_equal(mgmt->da, sdata->vif.addr))
-		return; /* ignore ProbeResp to foreign address */
+		return; /* igyesre ProbeResp to foreign address */
 
 	baselen = (u8 *) mgmt->u.probe_resp.variable - (u8 *) mgmt;
 	if (baselen > len)
@@ -3670,7 +3670,7 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 }
 
 /*
- * This is the canonical list of information elements we care about,
+ * This is the cayesnical list of information elements we care about,
  * the filter code also gives us all changes to the Microsoft OUI
  * (00:50:F2) vendor IE which is used for WMM which we need to track,
  * as well as the DTPC IE (part of the Cisco OUI) used for signaling
@@ -3678,7 +3678,7 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
  *
  * We implement beacon filtering in software since that means we can
  * avoid processing the frame here and in cfg80211, and userspace
- * will not be able to tell whether the hardware supports it or not.
+ * will yest be able to tell whether the hardware supports it or yest.
  *
  * XXX: This list needs to be dynamic -- userspace needs to be able to
  *	add items it requires. It also needs to be able to tell us to
@@ -3750,14 +3750,14 @@ static void ieee80211_handle_beacon_sig(struct ieee80211_sub_if_data *sdata,
 		if (sig < thold &&
 		    (last_event == 0 || sig < last_event - hyst)) {
 			ifmgd->last_cqm_event_signal = sig;
-			ieee80211_cqm_rssi_notify(
+			ieee80211_cqm_rssi_yestify(
 				&sdata->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
 				sig, GFP_KERNEL);
 		} else if (sig > thold &&
 			   (last_event == 0 || sig > last_event + hyst)) {
 			ifmgd->last_cqm_event_signal = sig;
-			ieee80211_cqm_rssi_notify(
+			ieee80211_cqm_rssi_yestify(
 				&sdata->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
 				sig, GFP_KERNEL);
@@ -3774,14 +3774,14 @@ static void ieee80211_handle_beacon_sig(struct ieee80211_sub_if_data *sdata,
 		if (sig < low &&
 		    (last_event == 0 || last_event >= low)) {
 			ifmgd->last_cqm_event_signal = sig;
-			ieee80211_cqm_rssi_notify(
+			ieee80211_cqm_rssi_yestify(
 				&sdata->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
 				sig, GFP_KERNEL);
 		} else if (sig > high &&
 			   (last_event == 0 || last_event <= high)) {
 			ifmgd->last_cqm_event_signal = sig;
-			ieee80211_cqm_rssi_notify(
+			ieee80211_cqm_rssi_yestify(
 				&sdata->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
 				sig, GFP_KERNEL);
@@ -3892,7 +3892,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	/*
 	 * Push the beacon loss detection into the future since
-	 * we are processing a beacon from the AP just now.
+	 * we are processing a beacon from the AP just yesw.
 	 */
 	ieee80211_sta_reset_beacon_monitor(sdata);
 
@@ -3928,18 +3928,18 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	if (sdata->vif.p2p ||
 	    sdata->vif.driver_flags & IEEE80211_VIF_GET_NOA_UPDATE) {
-		struct ieee80211_p2p_noa_attr noa = {};
+		struct ieee80211_p2p_yesa_attr yesa = {};
 		int ret;
 
 		ret = cfg80211_get_p2p_attr(mgmt->u.beacon.variable,
 					    len - baselen,
 					    IEEE80211_P2P_ATTR_ABSENCE_NOTICE,
-					    (u8 *) &noa, sizeof(noa));
+					    (u8 *) &yesa, sizeof(yesa));
 		if (ret >= 2) {
-			if (sdata->u.mgd.p2p_noa_index != noa.index) {
-				/* valid noa_attr and index changed */
-				sdata->u.mgd.p2p_noa_index = noa.index;
-				memcpy(&bss_conf->p2p_noa_attr, &noa, sizeof(noa));
+			if (sdata->u.mgd.p2p_yesa_index != yesa.index) {
+				/* valid yesa_attr and index changed */
+				sdata->u.mgd.p2p_yesa_index = yesa.index;
+				memcpy(&bss_conf->p2p_yesa_attr, &yesa, sizeof(yesa));
 				changed |= BSS_CHANGED_P2P_PS;
 				/*
 				 * make sure we update all information, the CRC
@@ -3947,10 +3947,10 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 				 */
 				ifmgd->beacon_crc_valid = false;
 			}
-		} else if (sdata->u.mgd.p2p_noa_index != -1) {
-			/* noa_attr not found and we had valid noa_attr before */
-			sdata->u.mgd.p2p_noa_index = -1;
-			memset(&bss_conf->p2p_noa_attr, 0, sizeof(bss_conf->p2p_noa_attr));
+		} else if (sdata->u.mgd.p2p_yesa_index != -1) {
+			/* yesa_attr yest found and we had valid yesa_attr before */
+			sdata->u.mgd.p2p_yesa_index = -1;
+			memset(&bss_conf->p2p_yesa_attr, 0, sizeof(bss_conf->p2p_yesa_attr));
 			changed |= BSS_CHANGED_P2P_PS;
 			ifmgd->beacon_crc_valid = false;
 		}
@@ -3994,10 +3994,10 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	/*
 	 * If we haven't had a beacon before, tell the driver about the
-	 * DTIM period (and beacon timing if desired) now.
+	 * DTIM period (and beacon timing if desired) yesw.
 	 */
 	if (!ifmgd->have_beacon) {
-		/* a few bogus AP send dtim_period = 0 or no TIM IE */
+		/* a few bogus AP send dtim_period = 0 or yes TIM IE */
 		bss_conf->dtim_period = elems.dtim_period ?: 1;
 
 		changed |= BSS_CHANGED_BEACON_INFO;
@@ -4042,8 +4042,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	if (sta && elems.opmode_notif)
-		ieee80211_vht_handle_opmode(sdata, sta, *elems.opmode_notif,
+	if (sta && elems.opmode_yestif)
+		ieee80211_vht_handle_opmode(sdata, sta, *elems.opmode_yestif,
 					    rx_status->band);
 	mutex_unlock(&local->sta_mtx);
 
@@ -4053,7 +4053,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 					       elems.pwr_constr_elem,
 					       elems.cisco_dtpc_elem);
 
-	ieee80211_bss_info_change_notify(sdata, changed);
+	ieee80211_bss_info_change_yestify(sdata, changed);
 }
 
 void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
@@ -4100,7 +4100,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			if (ies_len < 0)
 				break;
 
-			/* CSA IE cannot be overridden, no need for BSSID */
+			/* CSA IE canyest be overridden, yes need for BSSID */
 			ieee802_11_parse_elems(
 				mgmt->u.action.u.chan_switch.variable,
 				ies_len, true, &elems, mgmt->bssid, NULL);
@@ -4121,7 +4121,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				break;
 
 			/*
-			 * extended CSA IE can't be overridden, no need for
+			 * extended CSA IE can't be overridden, yes need for
 			 * BSSID
 			 */
 			ieee802_11_parse_elems(
@@ -4187,7 +4187,7 @@ static int ieee80211_auth(struct ieee80211_sub_if_data *sdata)
 			   auth_data->bss->bssid);
 
 		/*
-		 * Most likely AP is not in the range so remove the
+		 * Most likely AP is yest in the range so remove the
 		 * bss struct for that AP.
 		 */
 		cfg80211_unlink_bss(local->hw.wiphy, auth_data->bss);
@@ -4253,7 +4253,7 @@ static int ieee80211_do_assoc(struct ieee80211_sub_if_data *sdata)
 			   assoc_data->bss->bssid);
 
 		/*
-		 * Most likely AP is not in the range so remove the
+		 * Most likely AP is yest in the range so remove the
 		 * bss struct for that AP.
 		 */
 		cfg80211_unlink_bss(local->hw.wiphy, assoc_data->bss);
@@ -4503,7 +4503,7 @@ void ieee80211_mgd_quiesce(struct ieee80211_sub_if_data *sdata)
 
 		/*
 		 * If we are trying to authenticate / associate while suspending,
-		 * cfg80211 won't know and won't actually abort those attempts,
+		 * cfg80211 won't kyesw and won't actually abort those attempts,
 		 * thus we need to do that ourselves.
 		 */
 		ieee80211_send_deauth_disassoc(sdata, bssid, bssid,
@@ -4520,8 +4520,8 @@ void ieee80211_mgd_quiesce(struct ieee80211_sub_if_data *sdata)
 
 	/* This is a bit of a hack - we should find a better and more generic
 	 * solution to this. Normally when suspending, cfg80211 will in fact
-	 * deauthenticate. However, it doesn't (and cannot) stop an ongoing
-	 * auth (not so important) or assoc (this is the problem) process.
+	 * deauthenticate. However, it doesn't (and canyest) stop an ongoing
+	 * auth (yest so important) or assoc (this is the problem) process.
 	 *
 	 * As a consequence, it can happen that we are in the process of both
 	 * associating and suspending, and receive an association response
@@ -4529,11 +4529,11 @@ void ieee80211_mgd_quiesce(struct ieee80211_sub_if_data *sdata)
 	 * we actually set the flag to drop incoming frames. This will then
 	 * cause the workqueue flush to process the association response in
 	 * the suspend, resulting in a successful association just before it
-	 * tries to remove the interface from the driver, which now though
+	 * tries to remove the interface from the driver, which yesw though
 	 * has a channel context assigned ... this results in issues.
 	 *
-	 * To work around this (for now) simply deauth here again if we're
-	 * now connected.
+	 * To work around this (for yesw) simply deauth here again if we're
+	 * yesw connected.
 	 */
 	if (ifmgd->associated && !sdata->local->wowlan) {
 		u8 bssid[ETH_ALEN];
@@ -4599,7 +4599,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	ifmgd->powersave = sdata->wdev.ps;
 	ifmgd->uapsd_queues = sdata->local->hw.uapsd_queues;
 	ifmgd->uapsd_max_sp_len = sdata->local->hw.uapsd_max_sp_len;
-	ifmgd->p2p_noa_index = -1;
+	ifmgd->p2p_yesa_index = -1;
 
 	if (sdata->local->hw.wiphy->features & NL80211_FEATURE_DYNAMIC_SMPS)
 		ifmgd->req_smps = IEEE80211_SMPS_AUTOMATIC;
@@ -4612,8 +4612,8 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	ifmgd->orig_teardown_skb = NULL;
 }
 
-/* scan finished notification */
-void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
+/* scan finished yestification */
+void ieee80211_mlme_yestify_scan_completed(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 
@@ -4702,7 +4702,7 @@ ieee80211_verify_sta_he_mcs_support(struct ieee80211_supported_band *sband,
 		 * ieee80211_he_mcs_support. Need to make sure STA TX and RX
 		 * capabilities aren't less than the AP's minimum requirements
 		 * for this HE BSS per SS.
-		 * It is enough to find one such band that meets the reqs.
+		 * It is eyesugh to find one such band that meets the reqs.
 		 */
 		for (nss = 8; nss > 0; nss--) {
 			u8 sta_rx_val = (sta_mcs_map_rx >> (2 * (nss - 1))) & 3;
@@ -4886,7 +4886,7 @@ static bool ieee80211_get_dtim(const struct cfg80211_bss_ies *ies,
 	if (dtim_period)
 		*dtim_period = valid ? tim->dtim_period : 0;
 
-	/* Check if value is overridden by non-transmitted profile */
+	/* Check if value is overridden by yesn-transmitted profile */
 	if (!idx_ie || idx_ie[1] < 3)
 		return valid;
 
@@ -4963,7 +4963,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 
 		/*
 		 * This used to be a workaround for basic rates missing
-		 * in the association response frame. Now that we no
+		 * in the association response frame. Now that we yes
 		 * longer use the basic rates from there, it probably
 		 * doesn't happen any more, but keep the workaround so
 		 * in case some *other* APs are buggy in different ways
@@ -5007,7 +5007,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		} else if (!ieee80211_hw_check(&sdata->local->hw,
 					       TIMING_BEACON_ONLY)) {
 			ies = rcu_dereference(cbss->proberesp_ies);
-			/* must be non-NULL since beacon IEs were NULL */
+			/* must be yesn-NULL since beacon IEs were NULL */
 			sdata->vif.bss_conf.sync_tsf = ies->tsf;
 			sdata->vif.bss_conf.sync_device_ts =
 				bss->device_ts_presp;
@@ -5034,7 +5034,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		 * tell driver about BSSID, basic rates and timing
 		 * this was set up above, before setting the channel
 		 */
-		ieee80211_bss_info_change_notify(sdata,
+		ieee80211_bss_info_change_yestify(sdata,
 			BSS_CHANGED_BSSID | BSS_CHANGED_BASIC_RATES |
 			BSS_CHANGED_BEACON_INT);
 
@@ -5052,7 +5052,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	} else
 		WARN_ON_ONCE(!ether_addr_equal(ifmgd->bssid, cbss->bssid));
 
-	/* Cancel scan to ensure that nothing interferes with connection */
+	/* Cancel scan to ensure that yesthing interferes with connection */
 	if (local->scanning)
 		ieee80211_scan_cancel(local);
 
@@ -5201,7 +5201,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 
  err_clear:
 	eth_zero_addr(ifmgd->bssid);
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
+	ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_BSSID);
 	ifmgd->auth_data = NULL;
 	mutex_lock(&sdata->local->mtx);
 	ieee80211_vif_release_channel(sdata);
@@ -5279,10 +5279,10 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 			  (local->hw.queues >= IEEE80211_NUM_ACS);
 
 	/*
-	 * IEEE802.11n does not allow TKIP/WEP as pairwise ciphers in HT mode.
-	 * We still associate in non-HT mode (11a/b/g) if any one of these
+	 * IEEE802.11n does yest allow TKIP/WEP as pairwise ciphers in HT mode.
+	 * We still associate in yesn-HT mode (11a/b/g) if any one of these
 	 * ciphers is configured as pairwise.
-	 * We can set this to true for non-11n hardware, that'll be checked
+	 * We can set this to true for yesn-11n hardware, that'll be checked
 	 * separately along with the peer capabilities.
 	 */
 	for (i = 0; i < req->crypto.n_ciphers_pairwise; i++) {
@@ -5306,7 +5306,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		if (!bss->wmm_used &&
 		    !(ifmgd->flags & IEEE80211_STA_DISABLE_WMM))
 			netdev_info(sdata->dev,
-				    "disabling HT as WMM/QoS is not supported by the AP\n");
+				    "disabling HT as WMM/QoS is yest supported by the AP\n");
 	}
 
 	/* disable VHT if we don't support it or the AP doesn't use WMM */
@@ -5317,7 +5317,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		if (!bss->wmm_used &&
 		    !(ifmgd->flags & IEEE80211_STA_DISABLE_WMM))
 			netdev_info(sdata->dev,
-				    "disabling VHT as WMM/QoS is not supported by the AP\n");
+				    "disabling VHT as WMM/QoS is yest supported by the AP\n");
 	}
 
 	memcpy(&ifmgd->ht_capa, &req->ht_capa, sizeof(ifmgd->ht_capa));
@@ -5344,8 +5344,8 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		assoc_data->fils_kek_len = req->fils_kek_len;
 	}
 
-	if (req->fils_nonces)
-		memcpy(assoc_data->fils_nonces, req->fils_nonces,
+	if (req->fils_yesnces)
+		memcpy(assoc_data->fils_yesnces, req->fils_yesnces,
 		       2 * FILS_NONCE_LEN);
 
 	assoc_data->bss = req->bss;
@@ -5379,7 +5379,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	if (WARN((sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_UAPSD) &&
 		 ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK),
-	     "U-APSD not supported with HW_PS_NULLFUNC_STACK\n"))
+	     "U-APSD yest supported with HW_PS_NULLFUNC_STACK\n"))
 		sdata->vif.driver_flags &= ~IEEE80211_VIF_SUPPORTS_UAPSD;
 
 	if (bss->wmm_used && bss->uapsd_supported &&
@@ -5413,7 +5413,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		ifmgd->flags &= ~IEEE80211_STA_CONTROL_PORT;
 
 	sdata->control_port_protocol = req->crypto.control_port_ethertype;
-	sdata->control_port_no_encrypt = req->crypto.control_port_no_encrypt;
+	sdata->control_port_yes_encrypt = req->crypto.control_port_yes_encrypt;
 	sdata->control_port_over_nl80211 =
 					req->crypto.control_port_over_nl80211;
 	sdata->encrypt_headroom = ieee80211_cs_headroom(local, &req->crypto,
@@ -5525,7 +5525,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	return 0;
  err_clear:
 	eth_zero_addr(ifmgd->bssid);
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
+	ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_BSSID);
 	ifmgd->assoc_data = NULL;
  err_free:
 	kfree(assoc_data);
@@ -5632,8 +5632,8 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	/*
-	 * Make sure some work items will not run after this,
-	 * they will not do anything but might not have been
+	 * Make sure some work items will yest run after this,
+	 * they will yest do anything but might yest have been
 	 * cancelled when disconnecting.
 	 */
 	cancel_work_sync(&ifmgd->monitor_work);
@@ -5665,25 +5665,25 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 	sdata_unlock(sdata);
 }
 
-void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
+void ieee80211_cqm_rssi_yestify(struct ieee80211_vif *vif,
 			       enum nl80211_cqm_rssi_threshold_event rssi_event,
 			       s32 rssi_level,
 			       gfp_t gfp)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 
-	trace_api_cqm_rssi_notify(sdata, rssi_event, rssi_level);
+	trace_api_cqm_rssi_yestify(sdata, rssi_event, rssi_level);
 
-	cfg80211_cqm_rssi_notify(sdata->dev, rssi_event, rssi_level, gfp);
+	cfg80211_cqm_rssi_yestify(sdata->dev, rssi_event, rssi_level, gfp);
 }
-EXPORT_SYMBOL(ieee80211_cqm_rssi_notify);
+EXPORT_SYMBOL(ieee80211_cqm_rssi_yestify);
 
-void ieee80211_cqm_beacon_loss_notify(struct ieee80211_vif *vif, gfp_t gfp)
+void ieee80211_cqm_beacon_loss_yestify(struct ieee80211_vif *vif, gfp_t gfp)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 
-	trace_api_cqm_beacon_loss_notify(sdata->local, sdata);
+	trace_api_cqm_beacon_loss_yestify(sdata->local, sdata);
 
-	cfg80211_cqm_beacon_loss_notify(sdata->dev, gfp);
+	cfg80211_cqm_beacon_loss_yestify(sdata->dev, gfp);
 }
-EXPORT_SYMBOL(ieee80211_cqm_beacon_loss_notify);
+EXPORT_SYMBOL(ieee80211_cqm_beacon_loss_yestify);

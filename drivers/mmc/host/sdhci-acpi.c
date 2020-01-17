@@ -152,7 +152,7 @@ static void intel_dsm_init(struct intel_host *intel_host, struct device *dev,
 
 	err = __intel_dsm(intel_host, dev, INTEL_DSM_FNS, &intel_host->dsm_fns);
 	if (err) {
-		pr_debug("%s: DSM not supported, error %d\n",
+		pr_debug("%s: DSM yest supported, error %d\n",
 			 mmc_hostname(mmc), err);
 		return;
 	}
@@ -320,12 +320,12 @@ static bool sdhci_acpi_cht_pci_wifi(unsigned int vendor, unsigned int device,
 
 /*
  * GPDwin uses PCI wifi which conflicts with SDIO's use of
- * acpi_device_fix_up_power() on child device nodes. Identifying GPDwin is
+ * acpi_device_fix_up_power() on child device yesdes. Identifying GPDwin is
  * problematic, but since SDIO is only used for wifi, the presence of the PCI
- * wifi card in the expected slot with an ACPI companion node, is used to
+ * wifi card in the expected slot with an ACPI companion yesde, is used to
  * indicate that acpi_device_fix_up_power() should be avoided.
  */
-static inline bool sdhci_acpi_no_fixup_child_power(struct acpi_device *adev)
+static inline bool sdhci_acpi_yes_fixup_child_power(struct acpi_device *adev)
 {
 	return sdhci_acpi_cht() &&
 	       acpi_dev_hid_uid_match(adev, "80860F14", "2") &&
@@ -343,7 +343,7 @@ static inline bool sdhci_acpi_byt_defer(struct device *dev)
 	return false;
 }
 
-static inline bool sdhci_acpi_no_fixup_child_power(struct acpi_device *adev)
+static inline bool sdhci_acpi_yes_fixup_child_power(struct acpi_device *adev)
 {
 	return false;
 }
@@ -678,8 +678,8 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 
 	/* Power on the SDHCI controller and its children */
 	acpi_device_fix_up_power(device);
-	if (!sdhci_acpi_no_fixup_child_power(device)) {
-		list_for_each_entry(child, &device->children, node)
+	if (!sdhci_acpi_yes_fixup_child_power(device)) {
+		list_for_each_entry(child, &device->children, yesde)
 			if (child->status.present && child->status.enabled)
 				acpi_device_fix_up_power(child);
 	}
@@ -719,7 +719,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	host->ioaddr = devm_ioremap_nocache(dev, iomem->start,
+	host->ioaddr = devm_ioremap_yescache(dev, iomem->start,
 					    resource_size(iomem));
 	if (host->ioaddr == NULL) {
 		err = -ENOMEM;
@@ -777,7 +777,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 
 	if (c->use_runtime_pm) {
 		pm_runtime_set_active(dev);
-		pm_suspend_ignore_children(dev, 1);
+		pm_suspend_igyesre_children(dev, 1);
 		pm_runtime_set_autosuspend_delay(dev, 50);
 		pm_runtime_use_autosuspend(dev);
 		pm_runtime_enable(dev);
@@ -806,7 +806,7 @@ static int sdhci_acpi_remove(struct platform_device *pdev)
 	if (c->use_runtime_pm) {
 		pm_runtime_get_sync(dev);
 		pm_runtime_disable(dev);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 	}
 
 	if (c->slot && c->slot->remove_slot)

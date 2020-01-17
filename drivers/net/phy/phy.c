@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -67,7 +67,7 @@ static const char *phy_pause_str(struct phy_device *phydev)
 	bool local_pause, local_asym_pause;
 
 	if (phydev->autoneg == AUTONEG_DISABLE)
-		goto no_pause;
+		goto yes_pause;
 
 	local_pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
 					phydev->advertising);
@@ -84,7 +84,7 @@ static const char *phy_pause_str(struct phy_device *phydev)
 			return "tx";
 	}
 
-no_pause:
+yes_pause:
 	return "off";
 }
 
@@ -144,7 +144,7 @@ static int phy_config_interrupt(struct phy_device *phydev, bool interrupts)
  * @phydev: target phy_device struct
  *
  * Restart the autonegotiation on @phydev.  Returns >= 0 on success or
- * negative errno on error.
+ * negative erryes on error.
  */
 int phy_restart_aneg(struct phy_device *phydev)
 {
@@ -188,7 +188,7 @@ EXPORT_SYMBOL(phy_aneg_done);
  * - an exact match for the specified speed and duplex mode
  * - a match for the specified speed, or slower speed
  * - the slowest supported speed
- * Returns the matched phy_setting entry, or %NULL if no supported phy
+ * Returns the matched phy_setting entry, or %NULL if yes supported phy
  * settings were found.
  */
 static const struct phy_setting *
@@ -247,7 +247,7 @@ static void phy_sanitize_settings(struct phy_device *phydev)
 		phydev->speed = setting->speed;
 		phydev->duplex = setting->duplex;
 	} else {
-		/* We failed to find anything (no supported speeds?) */
+		/* We failed to find anything (yes supported speeds?) */
 		phydev->speed = SPEED_UNKNOWN;
 		phydev->duplex = DUPLEX_UNKNOWN;
 	}
@@ -404,7 +404,7 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 				change_autoneg = true;
 				break;
 			default:
-				/* do nothing */
+				/* do yesthing */
 				break;
 			}
 		}
@@ -449,7 +449,7 @@ static int phy_config_aneg(struct phy_device *phydev)
 	if (phydev->drv->config_aneg)
 		return phydev->drv->config_aneg(phydev);
 
-	/* Clause 45 PHYs that don't implement Clause 22 registers are not
+	/* Clause 45 PHYs that don't implement Clause 22 registers are yest
 	 * allowed to call genphy_config_aneg()
 	 */
 	if (phydev->is_c45 && !(phydev->c45_ids.devices_in_package & BIT(0)))
@@ -496,7 +496,7 @@ static int phy_check_link_status(struct phy_device *phydev)
  * phy_start_aneg - start auto-negotiation for this PHY device
  * @phydev: the phy_device struct
  *
- * Description: Sanitizes the settings (if we're not autonegotiating
+ * Description: Sanitizes the settings (if we're yest autonegotiating
  *   them), and then calls the driver's config_aneg function.
  *   If the PHYCONTROL Layer is operating, we change the state to
  *   reflect the beginning of Auto-negotiation or forcing.
@@ -545,7 +545,7 @@ static int phy_poll_aneg_done(struct phy_device *phydev)
 /**
  * phy_speed_down - set speed to lowest speed supported by both link partners
  * @phydev: the phy_device struct
- * @sync: perform action synchronously
+ * @sync: perform action synchroyesusly
  *
  * Description: Typically used to save energy when waiting for a WoL packet
  *
@@ -617,7 +617,7 @@ EXPORT_SYMBOL_GPL(phy_speed_up);
  *   which tracks whether the PHY is starting up, negotiating,
  *   etc.  This function starts the delayed workqueue which tracks
  *   the state of the PHY. If you want to maintain your own state machine,
- *   do not call this function.
+ *   do yest call this function.
  */
 void phy_start_machine(struct phy_device *phydev)
 {
@@ -649,7 +649,7 @@ void phy_stop_machine(struct phy_device *phydev)
  *
  * Moves the PHY to the HALTED state in response to a read
  * or write error, and tells the controller the link is down.
- * Must not be called from interrupt context, or while the
+ * Must yest be called from interrupt context, or while the
  * phydev->lock is held.
  */
 static void phy_error(struct phy_device *phydev)
@@ -792,9 +792,9 @@ void phy_stop(struct phy_device *phydev)
 	phy_state_machine(&phydev->state_queue.work);
 	phy_stop_machine(phydev);
 
-	/* Cannot call flush_scheduled_work() here as desired because
+	/* Canyest call flush_scheduled_work() here as desired because
 	 * of rtnl_lock(), but PHY_HALTED shall guarantee irq handler
-	 * will not reenable interrupts.
+	 * will yest reenable interrupts.
 	 */
 }
 EXPORT_SYMBOL(phy_stop);
@@ -885,8 +885,8 @@ void phy_state_machine(struct work_struct *work)
 		phydev_dbg(phydev, "PHY state change %s -> %s\n",
 			   phy_state_to_str(old_state),
 			   phy_state_to_str(phydev->state));
-		if (phydev->drv && phydev->drv->link_change_notify)
-			phydev->drv->link_change_notify(phydev);
+		if (phydev->drv && phydev->drv->link_change_yestify)
+			phydev->drv->link_change_yestify(phydev);
 	}
 
 	/* Only re-schedule a PHY state machine change if we are polling the
@@ -895,7 +895,7 @@ void phy_state_machine(struct work_struct *work)
 	 *
 	 * In state PHY_HALTED the PHY gets suspended, so rescheduling the
 	 * state machine would be pointless and possibly error prone when
-	 * called from phy_disconnect() synchronously.
+	 * called from phy_disconnect() synchroyesusly.
 	 */
 	mutex_lock(&phydev->lock);
 	if (phy_polling_mode(phydev) && phy_is_started(phydev))
@@ -1017,7 +1017,7 @@ EXPORT_SYMBOL(phy_init_eee);
  * @phydev: target phy_device struct
  *
  * Description: it is to report the number of time where the PHY
- * failed to complete its normal wake sequence.
+ * failed to complete its yesrmal wake sequence.
  */
 int phy_get_eee_err(struct phy_device *phydev)
 {

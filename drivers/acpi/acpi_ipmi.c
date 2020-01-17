@@ -48,7 +48,7 @@ struct ipmi_driver_data {
 
 	/*
 	 * NOTE: IPMI System Interface Selection
-	 * There is no system interface specified by the IPMI operation
+	 * There is yes system interface specified by the IPMI operation
 	 * region access.  We try to select one system interface with ACPI
 	 * handle set.  IPMI messages passed from the ACPI codes are sent
 	 * to this selected global IPMI system interface.
@@ -273,7 +273,7 @@ static int acpi_format_ipmi_request(struct acpi_ipmi_msg *tx_msg,
 	memcpy(tx_msg->data, buffer->data, msg->data_len);
 
 	/*
-	 * now the default type is SYSTEM_INTERFACE and channel type is BMC.
+	 * yesw the default type is SYSTEM_INTERFACE and channel type is BMC.
 	 * If the netfn is APP_REQUEST and the cmd is SEND_MESSAGE,
 	 * the addr type should be changed to IPMB. Then we will have to parse
 	 * the IPMI request message buffer to get the IPMB address.
@@ -306,8 +306,8 @@ static void acpi_format_ipmi_response(struct acpi_ipmi_msg *msg,
 	buffer = (struct acpi_ipmi_buffer *)value;
 
 	/*
-	 * If the flag of msg_done is not set, it means that the IPMI command is
-	 * not executed correctly.
+	 * If the flag of msg_done is yest set, it means that the IPMI command is
+	 * yest executed correctly.
 	 */
 	buffer->status = msg->msg_done;
 	if (msg->msg_done != ACPI_IPMI_OK)
@@ -512,7 +512,7 @@ static void ipmi_bmc_gone(int iface)
  * @function: indicates the read/write. In fact as the IPMI message is driven
  * by command, only write is meaningful.
  * @address: This contains the netfn/command of IPMI request message.
- * @bits   : not used.
+ * @bits   : yest used.
  * @value  : it is an in/out parameter. It points to the IPMI message buffer.
  *	     Before the IPMI message is sent, it represents the actual request
  *	     IPMI message. After the IPMI message is finished, it represents
@@ -551,7 +551,7 @@ acpi_ipmi_space_handler(u32 function, acpi_physical_address address,
 
 	acpi_ipmi_msg_get(tx_msg);
 	mutex_lock(&driver_data.ipmi_lock);
-	/* Do not add a tx_msg that can not be flushed. */
+	/* Do yest add a tx_msg that can yest be flushed. */
 	if (ipmi_device->dead) {
 		mutex_unlock(&driver_data.ipmi_lock);
 		ipmi_msg_release(tx_msg);
@@ -617,7 +617,7 @@ static void __exit acpi_ipmi_exit(void)
 	/*
 	 * When one smi_watcher is unregistered, it is only deleted
 	 * from the smi_watcher list. But the smi_gone callback function
-	 * is not called. So explicitly uninstall the ACPI IPMI oregion
+	 * is yest called. So explicitly uninstall the ACPI IPMI oregion
 	 * handler and free it.
 	 */
 	mutex_lock(&driver_data.ipmi_lock);

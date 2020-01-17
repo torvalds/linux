@@ -3,7 +3,7 @@
 #define __ASM_GENERIC_MMU_CONTEXT_H
 
 /*
- * Generic hooks for NOMMU architectures, which do not need to do
+ * Generic hooks for NOMMU architectures, which do yest need to do
  * anything special here.
  */
 

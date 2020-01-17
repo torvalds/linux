@@ -34,7 +34,7 @@ struct io {
 	unsigned long error_bits;
 	atomic_t count;
 	struct dm_io_client *client;
-	io_notify_fn callback;
+	io_yestify_fn callback;
 	void *context;
 	void *vma_invalidate_address;
 	unsigned long vma_invalidate_size;
@@ -83,7 +83,7 @@ EXPORT_SYMBOL(dm_io_client_destroy);
 /*-----------------------------------------------------------------
  * We need to keep track of which region a bio is doing io for.
  * To avoid a memory allocation to store just 5 or 6 bits, we
- * ensure the 'struct io' pointer is aligned so enough low bits are
+ * ensure the 'struct io' pointer is aligned so eyesugh low bits are
  * always zero and then combine it with the region number directly in
  * bi_private.
  *---------------------------------------------------------------*/
@@ -114,7 +114,7 @@ static void retrieve_io_and_region_from_bio(struct bio *bio, struct io **io,
 static void complete_io(struct io *io)
 {
 	unsigned long error_bits = io->error_bits;
-	io_notify_fn fn = io->callback;
+	io_yestify_fn fn = io->callback;
 	void *context = io->context;
 
 	if (io->vma_invalidate_size)
@@ -465,7 +465,7 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 
 static int async_io(struct dm_io_client *client, unsigned int num_regions,
 		    struct dm_io_region *where, int op, int op_flags,
-		    struct dpages *dp, io_notify_fn fn, void *context)
+		    struct dpages *dp, io_yestify_fn fn, void *context)
 {
 	struct io *io;
 
@@ -527,9 +527,9 @@ static int dp_init(struct dm_io_request *io_req, struct dpages *dp,
 }
 
 /*
- * New collapsed (a)synchronous interface.
+ * New collapsed (a)synchroyesus interface.
  *
- * If the IO is asynchronous (i.e. it has notify.fn), you must either unplug
+ * If the IO is asynchroyesus (i.e. it has yestify.fn), you must either unplug
  * the queue with blk_unplug() some time later or set REQ_SYNC in
  * io_req->bi_opf. If you fail to do one of these, the IO will be submitted to
  * the disk after q->unplug_delay, which defaults to 3ms in blk-settings.c.
@@ -544,14 +544,14 @@ int dm_io(struct dm_io_request *io_req, unsigned num_regions,
 	if (r)
 		return r;
 
-	if (!io_req->notify.fn)
+	if (!io_req->yestify.fn)
 		return sync_io(io_req->client, num_regions, where,
 			       io_req->bi_op, io_req->bi_op_flags, &dp,
 			       sync_error_bits);
 
 	return async_io(io_req->client, num_regions, where, io_req->bi_op,
-			io_req->bi_op_flags, &dp, io_req->notify.fn,
-			io_req->notify.context);
+			io_req->bi_op_flags, &dp, io_req->yestify.fn,
+			io_req->yestify.context);
 }
 EXPORT_SYMBOL(dm_io);
 

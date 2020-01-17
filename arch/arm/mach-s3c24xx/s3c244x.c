@@ -3,7 +3,7 @@
 // Copyright (c) 2004-2006 Simtec Electronics
 //   Ben Dooks <ben@simtec.co.uk>
 //
-// Samsung S3C2440 and S3C2442 Mobile CPU support (not S3C2443)
+// Samsung S3C2440 and S3C2442 Mobile CPU support (yest S3C2443)
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -49,9 +49,9 @@ static struct map_desc s3c244x_iodesc[] __initdata = {
 
 /* uart initialisation */
 
-void __init s3c244x_init_uarts(struct s3c2410_uartcfg *cfg, int no)
+void __init s3c244x_init_uarts(struct s3c2410_uartcfg *cfg, int yes)
 {
-	s3c24xx_init_uartdevs("s3c2440-uart", s3c2410_uart_resources, cfg, no);
+	s3c24xx_init_uartdevs("s3c2440-uart", s3c2410_uart_resources, cfg, yes);
 }
 
 void __init s3c244x_map_io(void)
@@ -84,7 +84,7 @@ struct bus_type s3c2442_subsys = {
 
 /* need to register the subsystem before we actually register the device, and
  * we also need to ensure that it has been initialised before any of the
- * drivers even try to use it (even if not on an s3c2440 based system)
+ * drivers even try to use it (even if yest on an s3c2440 based system)
  * as a driver which may support both 2410 and 2440 may try and use it.
 */
 

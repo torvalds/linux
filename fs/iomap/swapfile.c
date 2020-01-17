@@ -72,10 +72,10 @@ static int iomap_swapfile_add_extent(struct iomap_swapfile_info *isi)
 
 /*
  * Accumulate iomaps for this swap file.  We have to accumulate iomaps because
- * swap only cares about contiguous page-aligned physical extents and makes no
+ * swap only cares about contiguous page-aligned physical extents and makes yes
  * distinction between written and unwritten extents.
  */
-static loff_t iomap_swapfile_activate_actor(struct inode *inode, loff_t pos,
+static loff_t iomap_swapfile_activate_actor(struct iyesde *iyesde, loff_t pos,
 		loff_t count, void *data, struct iomap *iomap,
 		struct iomap *srcmap)
 {
@@ -98,7 +98,7 @@ static loff_t iomap_swapfile_activate_actor(struct inode *inode, loff_t pos,
 
 	/* No uncommitted metadata or shared blocks. */
 	if (iomap->flags & IOMAP_F_DIRTY) {
-		pr_err("swapon: file is not committed\n");
+		pr_err("swapon: file is yest committed\n");
 		return -EINVAL;
 	}
 	if (iomap->flags & IOMAP_F_SHARED) {
@@ -141,9 +141,9 @@ int iomap_swapfile_activate(struct swap_info_struct *sis,
 		.lowest_ppage = (sector_t)-1ULL,
 	};
 	struct address_space *mapping = swap_file->f_mapping;
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	loff_t pos = 0;
-	loff_t len = ALIGN_DOWN(i_size_read(inode), PAGE_SIZE);
+	loff_t len = ALIGN_DOWN(i_size_read(iyesde), PAGE_SIZE);
 	loff_t ret;
 
 	/*
@@ -155,7 +155,7 @@ int iomap_swapfile_activate(struct swap_info_struct *sis,
 		return ret;
 
 	while (len > 0) {
-		ret = iomap_apply(inode, pos, len, IOMAP_REPORT,
+		ret = iomap_apply(iyesde, pos, len, IOMAP_REPORT,
 				ops, &isi, iomap_swapfile_activate_actor);
 		if (ret <= 0)
 			return ret;

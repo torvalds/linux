@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
     i2c-dev.h - i2c-bus driver, char device interface
 
@@ -16,7 +16,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if yest, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
     MA 02110-1301 USA.
 */
@@ -34,7 +34,7 @@
  *	- I2C_SMBUS, takes pointer to struct i2c_smbus_ioctl_data
  */
 #define I2C_RETRIES	0x0701	/* number of times a device address should
-				   be polled when not acknowledging */
+				   be polled when yest ackyeswledging */
 #define I2C_TIMEOUT	0x0702	/* set timeout in units of 10 ms */
 
 /* NOTE: Slave address is 7 or 10 bits, but 10-bit addresses

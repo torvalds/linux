@@ -24,12 +24,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -305,7 +305,7 @@ struct hw_sdma_desc {
  *
  * This structure has the state for each sdma_engine.
  *
- * Accessing to non public fields are not supported
+ * Accessing to yesn public fields are yest supported
  * since the private members are subject to change.
  */
 struct sdma_engine {
@@ -385,7 +385,7 @@ struct sdma_engine {
 	seqlock_t            waitlock;
 	struct list_head      dmawait;
 
-	/* CONFIG SDMA for now, just blindly duplicate */
+	/* CONFIG SDMA for yesw, just blindly duplicate */
 	/* private: */
 	struct tasklet_struct sdma_hw_clean_up_task
 		____cacheline_aligned_in_smp;
@@ -415,7 +415,7 @@ void sdma_exit(struct hfi1_devdata *dd);
 void sdma_clean(struct hfi1_devdata *dd, size_t num_engines);
 void sdma_all_running(struct hfi1_devdata *dd);
 void sdma_all_idle(struct hfi1_devdata *dd);
-void sdma_freeze_notify(struct hfi1_devdata *dd, int go_idle);
+void sdma_freeze_yestify(struct hfi1_devdata *dd, int go_idle);
 void sdma_freeze(struct hfi1_devdata *dd);
 void sdma_unfreeze(struct hfi1_devdata *dd);
 void sdma_wait(struct hfi1_devdata *dd);
@@ -427,7 +427,7 @@ void sdma_wait(struct hfi1_devdata *dd);
  * Currently used by verbs as a latency optimization.
  *
  * Return:
- * 1 - empty, 0 - non-empty
+ * 1 - empty, 0 - yesn-empty
  */
 static inline int sdma_empty(struct sdma_engine *sde)
 {
@@ -463,7 +463,7 @@ static inline int __sdma_running(struct sdma_engine *engine)
  * for submitting packets.
  *
  * Return:
- * 1 - ok to submit, 0 - not ok to submit
+ * 1 - ok to submit, 0 - yest ok to submit
  *
  */
 static inline int sdma_running(struct sdma_engine *engine)
@@ -512,7 +512,7 @@ void _sdma_txreq_ahgadd(
  * Completions of submitted requests can be gotten on selected
  * txreqs by giving a completion routine callback to sdma_txinit() or
  * sdma_txinit_ahg().  The environment in which the callback runs
- * can be from an ISR, a tasklet, or a thread, so no sleeping
+ * can be from an ISR, a tasklet, or a thread, so yes sleeping
  * kernel routines can be used.   Aspects of the sdma ring may
  * be locked so care should be taken with locking.
  *
@@ -574,7 +574,7 @@ static inline int sdma_txinit_ahg(
 }
 
 /**
- * sdma_txinit() - initialize an sdma_txreq struct (no AHG)
+ * sdma_txinit() - initialize an sdma_txreq struct (yes AHG)
  * @tx: tx request to initialize
  * @flags: flags to key last descriptor additions
  * @tlen: total packet length (pbc + headers + data)
@@ -592,14 +592,14 @@ static inline int sdma_txinit_ahg(
  * Completions of submitted requests can be gotten on selected
  * txreqs by giving a completion routine callback to sdma_txinit() or
  * sdma_txinit_ahg().  The environment in which the callback runs
- * can be from an ISR, a tasklet, or a thread, so no sleeping
+ * can be from an ISR, a tasklet, or a thread, so yes sleeping
  * kernel routines can be used.   The head size of the sdma ring may
  * be locked so care should be taken with locking.
  *
  * The callback pointer can be NULL to avoid any callback for the packet
  * being submitted.
  *
- * The callback, if non-NULL,  will be provided this tx and a status.  The
+ * The callback, if yesn-NULL,  will be provided this tx and a status.  The
  * status will be one of SDMA_TXREQ_S_OK, SDMA_TXREQ_S_SENDERROR,
  * SDMA_TXREQ_S_ABORTED, or SDMA_TXREQ_S_SHUTDOWN.
  *
@@ -769,7 +769,7 @@ static inline int sdma_txadd_page(
  *
  * This is used to add a descriptor for memory that is already dma mapped.
  *
- * In this case, there is no unmapping as part of the progress processing for
+ * In this case, there is yes unmapping as part of the progress processing for
  * this memory location.
  *
  * Return:
@@ -893,7 +893,7 @@ static inline u32 sdma_build_ahg_descriptor(
  *
  * If the seqcount indicates that progress needs to be checked,
  * re-submission is detected by checking whether the descriptor
- * queue has enough descriptor for the txreq.
+ * queue has eyesugh descriptor for the txreq.
  */
 static inline unsigned sdma_progress(struct sdma_engine *sde, unsigned seq,
 				     struct sdma_txreq *tx)
@@ -933,7 +933,7 @@ void sdma_engine_interrupt(struct sdma_engine *sde, u64 status);
  *
  * The diagram below details the relationship of the mapping structures
  *
- * Since the mapping now allows for non-uniform engines per vl, the
+ * Since the mapping yesw allows for yesn-uniform engines per vl, the
  * number of engines for a vl is either the vl_engines[vl] or
  * a computation based on num_sdma/num_vls:
  *

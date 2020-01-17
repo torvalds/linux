@@ -8,7 +8,7 @@
  * license, and/or sell copies of the Software, and to permit persons to whom
  * the Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -29,12 +29,12 @@
 
 /*
  * drawable cmd cache - allocate a bunch of VRAM pages, suballocate
- * into 256 byte chunks for now - gives 16 cmds per page.
+ * into 256 byte chunks for yesw - gives 16 cmds per page.
  *
  * use an ida to index into the chunks?
  */
 /* manage releaseables */
-/* stack them 16 high for now -drawable object is 191 */
+/* stack them 16 high for yesw -drawable object is 191 */
 #define RELEASE_SIZE 256
 #define RELEASES_PER_BO (4096 / RELEASE_SIZE)
 /* put an alloc/dealloc surface cmd into one bo and round up to 128 */
@@ -73,7 +73,7 @@ retry:
 	if (dma_fence_is_signaled(fence))
 		goto signaled;
 
-	qxl_io_notify_oom(qdev);
+	qxl_io_yestify_oom(qdev);
 
 	for (count = 0; count < 11; count++) {
 		if (!qxl_queue_garbage_collect(qdev, true))
@@ -104,7 +104,7 @@ retry:
 	}
 	/*
 	 * yeah, original sync_obj_wait gave up after 3 spins when
-	 * have_drawable_releases is not set.
+	 * have_drawable_releases is yest set.
 	 */
 
 signaled:
@@ -142,7 +142,7 @@ qxl_release_alloc(struct qxl_device *qdev, int type,
 	idr_preload(GFP_KERNEL);
 	spin_lock(&qdev->release_idr_lock);
 	handle = idr_alloc(&qdev->release_idr, release, 1, 0, GFP_NOWAIT);
-	release->base.seqno = ++qdev->release_seqno;
+	release->base.seqyes = ++qdev->release_seqyes;
 	spin_unlock(&qdev->release_idr_lock);
 	idr_preload_end();
 	if (handle < 0) {
@@ -249,18 +249,18 @@ static int qxl_release_validate_bo(struct qxl_bo *bo)
 	return 0;
 }
 
-int qxl_release_reserve_list(struct qxl_release *release, bool no_intr)
+int qxl_release_reserve_list(struct qxl_release *release, bool yes_intr)
 {
 	int ret;
 	struct qxl_bo_list *entry;
 
 	/* if only one object on the release its the release itself
-	   since these objects are pinned no need to reserve */
+	   since these objects are pinned yes need to reserve */
 	if (list_is_singular(&release->bos))
 		return 0;
 
 	ret = ttm_eu_reserve_buffers(&release->ticket, &release->bos,
-				     !no_intr, NULL);
+				     !yes_intr, NULL);
 	if (ret)
 		return ret;
 
@@ -279,7 +279,7 @@ int qxl_release_reserve_list(struct qxl_release *release, bool no_intr)
 void qxl_release_backoff_reserve_list(struct qxl_release *release)
 {
 	/* if only one object on the release its the release itself
-	   since these objects are pinned no need to reserve */
+	   since these objects are pinned yes need to reserve */
 	if (list_is_singular(&release->bos))
 		return;
 
@@ -434,7 +434,7 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 	struct qxl_device *qdev;
 
 	/* if only one object on the release its the release itself
-	   since these objects are pinned no need to reserve */
+	   since these objects are pinned yes need to reserve */
 	if (list_is_singular(&release->bos) || list_empty(&release->bos))
 		return;
 
@@ -447,7 +447,7 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 	 * set the highest bits. This will break if we really allow exporting of dma-bufs.
 	 */
 	dma_fence_init(&release->base, &qxl_fence_ops, &qdev->release_lock,
-		       release->id | 0xf0000000, release->base.seqno);
+		       release->id | 0xf0000000, release->base.seqyes);
 	trace_dma_fence_emit(&release->base);
 
 	spin_lock(&ttm_bo_glob.lru_lock);

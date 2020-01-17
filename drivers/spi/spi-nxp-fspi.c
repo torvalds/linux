@@ -35,7 +35,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -763,14 +763,14 @@ static int nxp_fspi_do_op(struct nxp_fspi *f, const struct spi_mem_op *op)
 	/*
 	 * Always start the sequence at the same index since we update
 	 * the LUT at each exec_op() call. And also specify the DATA
-	 * length, since it's has not been specified in the LUT.
+	 * length, since it's has yest been specified in the LUT.
 	 */
 	fspi_writel(f, op->data.nbytes |
 		 (SEQID_LUT << FSPI_IPCR1_SEQID_SHIFT) |
 		 (seqnum << FSPI_IPCR1_SEQNUM_SHIFT),
 		 base + FSPI_IPCR1);
 
-	/* Trigger the LUT now. */
+	/* Trigger the LUT yesw. */
 	fspi_writel(f, FSPI_IPCMD_TRG, base + FSPI_IPCMD);
 
 	/* Wait for the interrupt. */
@@ -893,7 +893,7 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 	fspi_writel(f, (f->devtype_data->ahb_buf_size / 8 |
 		  FSPI_AHBRXBUF0CR7_PREF), base + FSPI_AHBRX_BUF7CR0);
 
-	/* prefetch and no start address alignment limitation */
+	/* prefetch and yes start address alignment limitation */
 	fspi_writel(f, FSPI_AHBCR_PREF_EN | FSPI_AHBCR_RDADDROPT,
 		 base + FSPI_AHBCR);
 
@@ -918,7 +918,7 @@ static const char *nxp_fspi_get_name(struct spi_mem *mem)
 	const char *name;
 
 	// Set custom name derived from the platform_device of the controller.
-	if (of_get_available_child_count(f->dev->of_node) == 1)
+	if (of_get_available_child_count(f->dev->of_yesde) == 1)
 		return dev_name(f->dev);
 
 	name = devm_kasprintf(dev, GFP_KERNEL,
@@ -944,7 +944,7 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct resource *res;
 	struct nxp_fspi *f;
 	int ret;
@@ -1001,7 +1001,7 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 
 	ret = nxp_fspi_clk_prep_enable(f);
 	if (ret) {
-		dev_err(dev, "can not enable the clock\n");
+		dev_err(dev, "can yest enable the clock\n");
 		goto err_put_ctrl;
 	}
 
@@ -1025,7 +1025,7 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 
 	nxp_fspi_default_setup(f);
 
-	ctlr->dev.of_node = np;
+	ctlr->dev.of_yesde = np;
 
 	ret = devm_spi_register_controller(&pdev->dev, ctlr);
 	if (ret)

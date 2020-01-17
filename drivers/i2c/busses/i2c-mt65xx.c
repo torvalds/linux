@@ -10,7 +10,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -217,7 +217,7 @@ struct mtk_i2c {
 	u16 high_speed_reg;
 	u16 ltiming_reg;
 	unsigned char auto_restart;
-	bool ignore_restart_irq;
+	bool igyesre_restart_irq;
 	const struct mtk_i2c_compatible *dev_comp;
 };
 
@@ -799,12 +799,12 @@ static int mtk_i2c_transfer(struct i2c_adapter *adap,
 	}
 
 	if (i2c->auto_restart && num >= 2 && i2c->speed_hz > MAX_FS_MODE_SPEED)
-		/* ignore the first restart irq after the master code,
+		/* igyesre the first restart irq after the master code,
 		 * otherwise the first transfer will be discarded.
 		 */
-		i2c->ignore_restart_irq = true;
+		i2c->igyesre_restart_irq = true;
 	else
-		i2c->ignore_restart_irq = false;
+		i2c->igyesre_restart_irq = false;
 
 	while (left_num--) {
 		if (!msgs->buf) {
@@ -841,7 +841,7 @@ err_exit:
 	return ret;
 }
 
-static irqreturn_t mtk_i2c_irq(int irqno, void *dev_id)
+static irqreturn_t mtk_i2c_irq(int irqyes, void *dev_id)
 {
 	struct mtk_i2c *i2c = dev_id;
 	u16 restart_flag = 0;
@@ -860,8 +860,8 @@ static irqreturn_t mtk_i2c_irq(int irqno, void *dev_id)
 	 */
 	i2c->irq_stat |= intr_stat;
 
-	if (i2c->ignore_restart_irq && (i2c->irq_stat & restart_flag)) {
-		i2c->ignore_restart_irq = false;
+	if (i2c->igyesre_restart_irq && (i2c->irq_stat & restart_flag)) {
+		i2c->igyesre_restart_irq = false;
 		i2c->irq_stat = 0;
 		mtk_i2c_writew(i2c, I2C_RS_MUL_CNFG | I2C_RS_MUL_TRIG |
 				    I2C_TRANSAC_START, OFFSET_START);
@@ -887,7 +887,7 @@ static const struct i2c_algorithm mtk_i2c_algorithm = {
 	.functionality = mtk_i2c_functionality,
 };
 
-static int mtk_i2c_parse_dt(struct device_node *np, struct mtk_i2c *i2c)
+static int mtk_i2c_parse_dt(struct device_yesde *np, struct mtk_i2c *i2c)
 {
 	int ret;
 
@@ -938,7 +938,7 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 	init_completion(&i2c->msg_complete);
 
 	i2c->dev_comp = of_device_get_match_data(&pdev->dev);
-	i2c->adap.dev.of_node = pdev->dev.of_node;
+	i2c->adap.dev.of_yesde = pdev->dev.of_yesde;
 	i2c->dev = &pdev->dev;
 	i2c->adap.dev.parent = &pdev->dev;
 	i2c->adap.owner = THIS_MODULE;
@@ -947,7 +947,7 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 	i2c->adap.timeout = 2 * HZ;
 	i2c->adap.retries = 1;
 
-	ret = mtk_i2c_parse_dt(pdev->dev.of_node, i2c);
+	ret = mtk_i2c_parse_dt(pdev->dev.of_yesde, i2c);
 	if (ret)
 		return -EINVAL;
 
@@ -959,13 +959,13 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 
 	i2c->clk_main = devm_clk_get(&pdev->dev, "main");
 	if (IS_ERR(i2c->clk_main)) {
-		dev_err(&pdev->dev, "cannot get main clock\n");
+		dev_err(&pdev->dev, "canyest get main clock\n");
 		return PTR_ERR(i2c->clk_main);
 	}
 
 	i2c->clk_dma = devm_clk_get(&pdev->dev, "dma");
 	if (IS_ERR(i2c->clk_dma)) {
-		dev_err(&pdev->dev, "cannot get dma clock\n");
+		dev_err(&pdev->dev, "canyest get dma clock\n");
 		return PTR_ERR(i2c->clk_dma);
 	}
 
@@ -977,7 +977,7 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 	if (i2c->have_pmic) {
 		i2c->clk_pmic = devm_clk_get(&pdev->dev, "pmic");
 		if (IS_ERR(i2c->clk_pmic)) {
-			dev_err(&pdev->dev, "cannot get pmic clock\n");
+			dev_err(&pdev->dev, "canyest get pmic clock\n");
 			return PTR_ERR(i2c->clk_pmic);
 		}
 		clk = i2c->clk_pmic;

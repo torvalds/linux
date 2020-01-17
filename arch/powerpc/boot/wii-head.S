@@ -10,12 +10,12 @@
 #include "ppc_asm.h"
 
 /*
- * The entry code does no assumptions regarding:
- * - if the data and instruction caches are enabled or not
- * - if the MMU is enabled or not
- * - if the high BATs are enabled or not
+ * The entry code does yes assumptions regarding:
+ * - if the data and instruction caches are enabled or yest
+ * - if the MMU is enabled or yest
+ * - if the high BATs are enabled or yest
  *
- * We enable the high BATs, enable the caches if not already enabled,
+ * We enable the high BATs, enable the caches if yest already enabled,
  * enable the MMU with an identity mapping scheme and jump to the start code.
  */
 
@@ -96,7 +96,7 @@ _mmu_off:
 	oris	8, 8, 0x0200
 	mtspr	0x3f3, 8	/* HID4 */
 
-	/* enable and invalidate the caches if not already enabled */
+	/* enable and invalidate the caches if yest already enabled */
 	mfspr	8, 0x3f0	/* HID0 */
 	andi.	0, 8, (1<<15)		/* HID0_ICE */
 	bne	1f

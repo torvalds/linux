@@ -26,7 +26,7 @@
 #define PFX "als100: "
 
 MODULE_DESCRIPTION("Avance Logic ALS007/ALS1X0");
-MODULE_SUPPORTED_DEVICE("{{Diamond Technologies DT-019X},"
+MODULE_SUPPORTED_DEVICE("{{Diamond Techyeslogies DT-019X},"
 		"{Avance Logic ALS-007}}"
 		"{{Avance Logic,ALS100 - PRO16PNP},"
 	        "{Avance Logic,ALS110},"
@@ -246,14 +246,14 @@ static int snd_card_als100_probe(int dev,
 					mpu_port[dev], 0, 
 					mpu_irq[dev],
 					NULL) < 0)
-			snd_printk(KERN_ERR PFX "no MPU-401 device at 0x%lx\n", mpu_port[dev]);
+			snd_printk(KERN_ERR PFX "yes MPU-401 device at 0x%lx\n", mpu_port[dev]);
 	}
 
 	if (fm_port[dev] > 0 && fm_port[dev] != SNDRV_AUTO_PORT) {
 		if (snd_opl3_create(card,
 				    fm_port[dev], fm_port[dev] + 2,
 				    OPL3_HW_AUTO, 0, &opl3) < 0) {
-			snd_printk(KERN_ERR PFX "no OPL device at 0x%lx-0x%lx\n",
+			snd_printk(KERN_ERR PFX "yes OPL device at 0x%lx-0x%lx\n",
 				   fm_port[dev], fm_port[dev] + 2);
 		} else {
 			if ((error = snd_opl3_timer_new(opl3, 0, 1)) < 0) {
@@ -350,7 +350,7 @@ static int __init alsa_card_als100_init(void)
 	if (!als100_devices) {
 		pnp_unregister_card_driver(&als100_pnpc_driver);
 #ifdef MODULE
-		snd_printk(KERN_ERR "no Avance Logic based soundcards found\n");
+		snd_printk(KERN_ERR "yes Avance Logic based soundcards found\n");
 #endif
 		return -ENODEV;
 	}

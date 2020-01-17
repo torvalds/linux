@@ -133,7 +133,7 @@ static struct mu3h_sch_tt *find_tt(struct usb_device *udev)
 	return tt;
 }
 
-/* Release the TT above udev, if it's not in use */
+/* Release the TT above udev, if it's yest in use */
 static void drop_tt(struct usb_device *udev)
 {
 	struct usb_tt *utt = udev->tt;
@@ -237,7 +237,7 @@ static void setup_sch_info(struct usb_device *udev,
 
 		/*
 		 * usb_20 spec section5.9
-		 * a single microframe is enough for HS synchromous endpoints
+		 * a single microframe is eyesugh for HS synchromous endpoints
 		 * in a interval
 		 */
 		sch_ep->num_budget_microframes = 1;
@@ -528,7 +528,7 @@ static int check_sch_bw(struct usb_device *udev,
 	sch_ep->num_budget_microframes = min_num_budget;
 
 	if (is_fs_or_ls(udev->speed)) {
-		/* all offset for tt is not ok*/
+		/* all offset for tt is yest ok*/
 		if (!tt_offset_ok)
 			return -ERANGE;
 
@@ -550,8 +550,8 @@ static bool need_bw_sch(struct usb_host_endpoint *ep,
 		return false;
 
 	/*
-	 * for LS & FS periodic endpoints which its device is not behind
-	 * a TT are also ignored, root-hub will schedule them directly,
+	 * for LS & FS periodic endpoints which its device is yest behind
+	 * a TT are also igyesred, root-hub will schedule them directly,
 	 * but need set @bpkts field of endpoint context to 1.
 	 */
 	if (is_fs_or_ls(speed) && !has_tt)
@@ -619,7 +619,7 @@ int xhci_mtk_add_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
 	if (!need_bw_sch(ep, udev->speed, slot_ctx->tt_info & TT_SLOT)) {
 		/*
 		 * set @bpkts to 1 if it is LS or FS periodic endpoint, and its
-		 * device does not connected through an external HS hub
+		 * device does yest connected through an external HS hub
 		 */
 		if (usb_endpoint_xfer_int(&ep->desc)
 			|| usb_endpoint_xfer_isoc(&ep->desc))
@@ -639,7 +639,7 @@ int xhci_mtk_add_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
 
 	ret = check_sch_bw(udev, sch_bw, sch_ep);
 	if (ret) {
-		xhci_err(xhci, "Not enough bandwidth!\n");
+		xhci_err(xhci, "Not eyesugh bandwidth!\n");
 		if (is_fs_or_ls(udev->speed))
 			drop_tt(udev);
 

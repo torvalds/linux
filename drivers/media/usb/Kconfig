@@ -44,7 +44,7 @@ source "drivers/media/usb/dvb-usb/Kconfig"
 source "drivers/media/usb/dvb-usb-v2/Kconfig"
 source "drivers/media/usb/ttusb-budget/Kconfig"
 source "drivers/media/usb/ttusb-dec/Kconfig"
-source "drivers/media/usb/siano/Kconfig"
+source "drivers/media/usb/siayes/Kconfig"
 source "drivers/media/usb/b2c2/Kconfig"
 source "drivers/media/usb/as102/Kconfig"
 endif

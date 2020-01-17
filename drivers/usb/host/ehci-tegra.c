@@ -52,14 +52,14 @@ struct tegra_ehci_hcd {
 
 static int tegra_reset_usb_controller(struct platform_device *pdev)
 {
-	struct device_node *phy_np;
+	struct device_yesde *phy_np;
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct tegra_ehci_hcd *tegra =
 		(struct tegra_ehci_hcd *)hcd_to_ehci(hcd)->priv;
 	struct reset_control *rst;
 	int err;
 
-	phy_np = of_parse_phandle(pdev->dev.of_node, "nvidia,phy", 0);
+	phy_np = of_parse_phandle(pdev->dev.of_yesde, "nvidia,phy", 0);
 	if (!phy_np)
 		return -ENOENT;
 
@@ -77,12 +77,12 @@ static int tegra_reset_usb_controller(struct platform_device *pdev)
 	} else {
 		/*
 		 * PHY driver performs UTMI-pads reset in a case of
-		 * non-legacy DT.
+		 * yesn-legacy DT.
 		 */
 		reset_control_put(rst);
 	}
 
-	of_node_put(phy_np);
+	of_yesde_put(phy_np);
 
 	/* reset control is shared, hence initialize it first */
 	err = reset_control_deassert(tegra->rst);
@@ -322,7 +322,7 @@ static int alloc_dma_aligned_buffer(struct urb *urb, gfp_t mem_flags)
 	    !((uintptr_t)urb->transfer_buffer & (TEGRA_USB_DMA_ALIGN - 1)))
 		return 0;
 
-	/* Allocate a buffer with enough padding for alignment */
+	/* Allocate a buffer with eyesugh padding for alignment */
 	kmalloc_size = urb->transfer_buffer_length +
 		sizeof(struct dma_aligned_buffer) + TEGRA_USB_DMA_ALIGN - 1;
 
@@ -399,8 +399,8 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	}
 	soc_config = match->data;
 
-	/* Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
+	/* Right yesw device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for yesw.
 	 * Once we have dma capability bindings this can go away.
 	 */
 	err = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -451,7 +451,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	hcd->usb_phy = u_phy;
 	hcd->skip_phy_initialization = 1;
 
-	tegra->needs_double_reset = of_property_read_bool(pdev->dev.of_node,
+	tegra->needs_double_reset = of_property_read_bool(pdev->dev.of_yesde,
 		"nvidia,needs-double-reset");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -593,7 +593,7 @@ static int __init ehci_tegra_init(void)
 	/*
 	 * The Tegra HW has some unusual quirks, which require Tegra-specific
 	 * workarounds. We override certain hc_driver functions here to
-	 * achieve that. We explicitly do not enhance ehci_driver_overrides to
+	 * achieve that. We explicitly do yest enhance ehci_driver_overrides to
 	 * allow this more easily, since this is an unusual case, and we don't
 	 * want to encourage others to override these functions by making it
 	 * too easy.

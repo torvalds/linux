@@ -9,7 +9,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/unwind.h>
 
 #include "proc-macros.S"
@@ -25,7 +25,7 @@
  *	Flush the whole I-cache.
  *
  *	ARM1136 erratum 411920 - Invalidate Instruction Cache operation can fail.
- *	This erratum is present in 1136, 1156 and 1176. It does not affect the
+ *	This erratum is present in 1136, 1156 and 1176. It does yest affect the
  *	MPCore.
  *
  *	Registers:
@@ -43,7 +43,7 @@ ENTRY(v6_flush_icache_all)
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate entire I-cache
 	msr	cpsr_cx, r1			@ restore interrupts
 	.rept	11				@ ARM Ltd recommends at least
-	nop					@ 11 NOPs
+	yesp					@ 11 NOPs
 	.endr
 #else
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I-cache
@@ -87,8 +87,8 @@ ENTRY(v6_flush_user_cache_all)
  *
  *	Flush a range of TLB entries in the specified address space.
  *
- *	- start - start address (may not be aligned)
- *	- end   - end address (exclusive, may not be aligned)
+ *	- start - start address (may yest be aligned)
+ *	- end   - end address (exclusive, may yest be aligned)
  *	- flags	- vm_area_struct flags describing address space
  *
  *	It is assumed that:
@@ -108,7 +108,7 @@ ENTRY(v6_flush_user_cache_range)
  *	- end     - virtual end address of region
  *
  *	It is assumed that:
- *	- the Icache does not read data from the write buffer
+ *	- the Icache does yest read data from the write buffer
  */
 ENTRY(v6_coherent_kern_range)
 	/* FALLTHROUGH */
@@ -124,7 +124,7 @@ ENTRY(v6_coherent_kern_range)
  *	- end     - virtual end address of region
  *
  *	It is assumed that:
- *	- the Icache does not read data from the write buffer
+ *	- the Icache does yest read data from the write buffer
  */
 ENTRY(v6_coherent_user_range)
  UNWIND(.fnstart		)

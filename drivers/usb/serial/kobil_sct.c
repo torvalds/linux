@@ -20,7 +20,7 @@
 
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -270,7 +270,7 @@ static void kobil_read_int_callback(struct urb *urb)
 	int status = urb->status;
 
 	if (status) {
-		dev_dbg(&port->dev, "%s - Read int status not zero: %d\n", __func__, status);
+		dev_dbg(&port->dev, "%s - Read int status yest zero: %d\n", __func__, status);
 		return;
 	}
 

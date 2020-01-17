@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/clk.h>
@@ -25,7 +25,7 @@
  * Very simple clock implementation
  */
 struct clk {
-	struct list_head	node;
+	struct list_head	yesde;
 	unsigned long		rate;
 	const char		*name;
 };
@@ -59,7 +59,7 @@ struct clk *clk_get(struct device *dev, const char *id)
 	struct clk *p, *clk = ERR_PTR(-ENOENT);
 
 	mutex_lock(&clocks_mutex);
-	list_for_each_entry(p, &clocks, node) {
+	list_for_each_entry(p, &clocks, yesde) {
 		if (strcmp(id, p->name) == 0) {
 			clk = p;
 			break;
@@ -214,7 +214,7 @@ EXPORT_SYMBOL(clk_set_rate);
 int clk_register(struct clk *clk)
 {
 	mutex_lock(&clocks_mutex);
-	list_add(&clk->node, &clocks);
+	list_add(&clk->yesde, &clocks);
 	mutex_unlock(&clocks_mutex);
 	printk(KERN_DEFAULT "PKUnity PM: %s %lu.%02luM\n", clk->name,
 		(clk->rate)/1000000, (clk->rate)/10000 % 100);
@@ -225,7 +225,7 @@ EXPORT_SYMBOL(clk_register);
 void clk_unregister(struct clk *clk)
 {
 	mutex_lock(&clocks_mutex);
-	list_del(&clk->node);
+	list_del(&clk->yesde);
 	mutex_unlock(&clocks_mutex);
 }
 EXPORT_SYMBOL(clk_unregister);

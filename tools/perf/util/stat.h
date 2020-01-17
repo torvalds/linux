@@ -97,7 +97,7 @@ typedef int (*aggr_get_id_t)(struct perf_stat_config *config,
 struct perf_stat_config {
 	enum aggr_mode		 aggr_mode;
 	bool			 scale;
-	bool			 no_inherit;
+	bool			 yes_inherit;
 	bool			 identifier;
 	bool			 csv_output;
 	bool			 interval_clear;
@@ -105,7 +105,7 @@ struct perf_stat_config {
 	bool			 null_run;
 	bool			 ru_display;
 	bool			 big_num;
-	bool			 no_merge;
+	bool			 yes_merge;
 	bool			 walltime_run_table;
 	bool			 all_kernel;
 	bool			 all_user;

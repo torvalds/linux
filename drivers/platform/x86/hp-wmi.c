@@ -126,14 +126,14 @@ struct bios_rfkill2_device_state {
 	u16 subsys_product_id;
 	u8 rfkill_id;
 	u8 power;
-	u8 unknown[4];
+	u8 unkyeswn[4];
 };
 
 /* 7 devices fit into the 128 byte buffer */
 #define HPWMI_MAX_RFKILL2_DEVICES	7
 
 struct bios_rfkill2_state {
-	u8 unknown[7];
+	u8 unkyeswn[7];
 	u8 count;
 	u8 pad[8];
 	struct bios_rfkill2_device_state device[HPWMI_MAX_RFKILL2_DEVICES];
@@ -195,7 +195,7 @@ static inline int encode_outsize_for_pvsz(int outsize)
  *
  * returns zero on success
  *         an HP WMI query specific error code (which is positive)
- *         -EINVAL if the query was not successful at all
+ *         -EINVAL if the query was yest successful at all
  *         -EINVAL if the output buffer size exceeds buffersize
  *
  * Note: The buffersize must at least be the maximum of the input and output
@@ -251,7 +251,7 @@ static int hp_wmi_perform_query(int query, enum hp_wmi_command command,
 		goto out_free;
 	}
 
-	/* Ignore output data of zero size */
+	/* Igyesre output data of zero size */
 	if (!outsize)
 		goto out_free;
 
@@ -513,7 +513,7 @@ static struct attribute *hp_wmi_attrs[] = {
 };
 ATTRIBUTE_GROUPS(hp_wmi);
 
-static void hp_wmi_notify(u32 value, void *context)
+static void hp_wmi_yestify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	u32 event_id, event_data;
@@ -533,7 +533,7 @@ static void hp_wmi_notify(u32 value, void *context)
 	if (!obj)
 		return;
 	if (obj->type != ACPI_TYPE_BUFFER) {
-		pr_info("Unknown response received %d\n", obj->type);
+		pr_info("Unkyeswn response received %d\n", obj->type);
 		kfree(obj);
 		return;
 	}
@@ -550,7 +550,7 @@ static void hp_wmi_notify(u32 value, void *context)
 		event_id = *location;
 		event_data = *(location + 2);
 	} else {
-		pr_info("Unknown buffer length %d\n", obj->buffer.length);
+		pr_info("Unkyeswn buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return;
 	}
@@ -577,7 +577,7 @@ static void hp_wmi_notify(u32 value, void *context)
 
 		if (!sparse_keymap_report_event(hp_wmi_input_dev,
 						key_code, 1, true))
-			pr_info("Unknown key code - 0x%x\n", key_code);
+			pr_info("Unkyeswn key code - 0x%x\n", key_code);
 		break;
 	case HPWMI_WIRELESS:
 		if (rfkill2_count) {
@@ -620,7 +620,7 @@ static void hp_wmi_notify(u32 value, void *context)
 	case HPWMI_BATTERY_CHARGE_PERIOD:
 		break;
 	default:
-		pr_info("Unknown event_id - %d - 0x%x\n", event_id, event_data);
+		pr_info("Unkyeswn event_id - %d - 0x%x\n", event_id, event_data);
 		break;
 	}
 }
@@ -664,7 +664,7 @@ static int __init hp_wmi_input_setup(void)
 	if (!hp_wmi_bios_2009_later() && hp_wmi_bios_2008_later())
 		hp_wmi_enable_hotkeys();
 
-	status = wmi_install_notify_handler(HPWMI_EVENT_GUID, hp_wmi_notify, NULL);
+	status = wmi_install_yestify_handler(HPWMI_EVENT_GUID, hp_wmi_yestify, NULL);
 	if (ACPI_FAILURE(status)) {
 		err = -EIO;
 		goto err_free_dev;
@@ -672,12 +672,12 @@ static int __init hp_wmi_input_setup(void)
 
 	err = input_register_device(hp_wmi_input_dev);
 	if (err)
-		goto err_uninstall_notifier;
+		goto err_uninstall_yestifier;
 
 	return 0;
 
- err_uninstall_notifier:
-	wmi_remove_notify_handler(HPWMI_EVENT_GUID);
+ err_uninstall_yestifier:
+	wmi_remove_yestify_handler(HPWMI_EVENT_GUID);
  err_free_dev:
 	input_free_device(hp_wmi_input_dev);
 	return err;
@@ -685,7 +685,7 @@ static int __init hp_wmi_input_setup(void)
 
 static void hp_wmi_input_destroy(void)
 {
-	wmi_remove_notify_handler(HPWMI_EVENT_GUID);
+	wmi_remove_yestify_handler(HPWMI_EVENT_GUID);
 	input_unregister_device(hp_wmi_input_dev);
 }
 
@@ -809,7 +809,7 @@ static int __init hp_wmi_rfkill2_setup(struct platform_device *device)
 			name = "hp-gps";
 			break;
 		default:
-			pr_warn("unknown device type 0x%x\n",
+			pr_warn("unkyeswn device type 0x%x\n",
 				state.device[i].radio_type);
 			continue;
 		}

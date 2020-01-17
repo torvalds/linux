@@ -6,8 +6,8 @@
 #include <linux/ktime.h>
 
 
-struct timerqueue_node {
-	struct rb_node node;
+struct timerqueue_yesde {
+	struct rb_yesde yesde;
 	ktime_t expires;
 };
 
@@ -17,40 +17,40 @@ struct timerqueue_head {
 
 
 extern bool timerqueue_add(struct timerqueue_head *head,
-			   struct timerqueue_node *node);
+			   struct timerqueue_yesde *yesde);
 extern bool timerqueue_del(struct timerqueue_head *head,
-			   struct timerqueue_node *node);
-extern struct timerqueue_node *timerqueue_iterate_next(
-						struct timerqueue_node *node);
+			   struct timerqueue_yesde *yesde);
+extern struct timerqueue_yesde *timerqueue_iterate_next(
+						struct timerqueue_yesde *yesde);
 
 /**
  * timerqueue_getnext - Returns the timer with the earliest expiration time
  *
  * @head: head of timerqueue
  *
- * Returns a pointer to the timer node that has the earliest expiration time.
+ * Returns a pointer to the timer yesde that has the earliest expiration time.
  */
 static inline
-struct timerqueue_node *timerqueue_getnext(struct timerqueue_head *head)
+struct timerqueue_yesde *timerqueue_getnext(struct timerqueue_head *head)
 {
-	struct rb_node *leftmost = rb_first_cached(&head->rb_root);
+	struct rb_yesde *leftmost = rb_first_cached(&head->rb_root);
 
-	return rb_entry(leftmost, struct timerqueue_node, node);
+	return rb_entry(leftmost, struct timerqueue_yesde, yesde);
 }
 
-static inline void timerqueue_init(struct timerqueue_node *node)
+static inline void timerqueue_init(struct timerqueue_yesde *yesde)
 {
-	RB_CLEAR_NODE(&node->node);
+	RB_CLEAR_NODE(&yesde->yesde);
 }
 
-static inline bool timerqueue_node_queued(struct timerqueue_node *node)
+static inline bool timerqueue_yesde_queued(struct timerqueue_yesde *yesde)
 {
-	return !RB_EMPTY_NODE(&node->node);
+	return !RB_EMPTY_NODE(&yesde->yesde);
 }
 
-static inline bool timerqueue_node_expires(struct timerqueue_node *node)
+static inline bool timerqueue_yesde_expires(struct timerqueue_yesde *yesde)
 {
-	return node->expires;
+	return yesde->expires;
 }
 
 static inline void timerqueue_init_head(struct timerqueue_head *head)

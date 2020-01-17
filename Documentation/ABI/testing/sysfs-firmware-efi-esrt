@@ -35,7 +35,7 @@ What:		/sys/firmware/efi/esrt/entries/entry$N/fw_type
 Date:		February 2015
 Contact:	Peter Jones <pjones@redhat.com>
 Description:	What kind of firmware entry this is:
-		0 - Unknown
+		0 - Unkyeswn
 		1 - System Firmware
 		2 - Device Firmware
 		3 - UEFI Driver

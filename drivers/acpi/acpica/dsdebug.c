@@ -22,14 +22,14 @@ ACPI_MODULE_NAME("dsdebug")
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 /* Local prototypes */
 static void
-acpi_ds_print_node_pathname(struct acpi_namespace_node *node,
+acpi_ds_print_yesde_pathname(struct acpi_namespace_yesde *yesde,
 			    const char *message);
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ds_print_node_pathname
+ * FUNCTION:    acpi_ds_print_yesde_pathname
  *
- * PARAMETERS:  node            - Object
+ * PARAMETERS:  yesde            - Object
  *              message         - Prefix message
  *
  * DESCRIPTION: Print an object's full namespace pathname
@@ -38,15 +38,15 @@ acpi_ds_print_node_pathname(struct acpi_namespace_node *node,
  ******************************************************************************/
 
 static void
-acpi_ds_print_node_pathname(struct acpi_namespace_node *node,
+acpi_ds_print_yesde_pathname(struct acpi_namespace_yesde *yesde,
 			    const char *message)
 {
 	struct acpi_buffer buffer;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE(ds_print_node_pathname);
+	ACPI_FUNCTION_TRACE(ds_print_yesde_pathname);
 
-	if (!node) {
+	if (!yesde) {
 		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DISPATCH, "[NULL NAME]"));
 		return_VOID;
 	}
@@ -55,7 +55,7 @@ acpi_ds_print_node_pathname(struct acpi_namespace_node *node,
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 
-	status = acpi_ns_handle_to_pathname(node, &buffer, TRUE);
+	status = acpi_ns_handle_to_pathname(yesde, &buffer, TRUE);
 	if (ACPI_SUCCESS(status)) {
 		if (message) {
 			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DISPATCH, "%s ",
@@ -63,7 +63,7 @@ acpi_ds_print_node_pathname(struct acpi_namespace_node *node,
 		}
 
 		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DISPATCH, "[%s] (Node %p)",
-				      (char *)buffer.pointer, node));
+				      (char *)buffer.pointer, yesde));
 		ACPI_FREE(buffer.pointer);
 	}
 
@@ -93,12 +93,12 @@ acpi_ds_dump_method_stack(acpi_status status,
 	union acpi_parse_object *next;
 	struct acpi_thread_state *thread;
 	struct acpi_walk_state *next_walk_state;
-	struct acpi_namespace_node *previous_method = NULL;
+	struct acpi_namespace_yesde *previous_method = NULL;
 	union acpi_operand_object *method_desc;
 
 	ACPI_FUNCTION_TRACE(ds_dump_method_stack);
 
-	/* Ignore control codes, they are not errors */
+	/* Igyesre control codes, they are yest errors */
 
 	if ((status & AE_CODE_MASK) == AE_CODE_CONTROL) {
 		return_VOID;
@@ -106,14 +106,14 @@ acpi_ds_dump_method_stack(acpi_status status,
 
 	/* We may be executing a deferred opcode */
 
-	if (walk_state->deferred_node) {
+	if (walk_state->deferred_yesde) {
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 				  "Executing subtree for Buffer/Package/Region\n"));
 		return_VOID;
 	}
 
 	/*
-	 * If there is no Thread, we are not actually executing a method.
+	 * If there is yes Thread, we are yest actually executing a method.
 	 * This can happen when the iASL compiler calls the interpreter
 	 * to perform constant folding.
 	 */
@@ -128,7 +128,7 @@ acpi_ds_dump_method_stack(acpi_status status,
 			  "\n**** Exception %s during execution of method ",
 			  acpi_format_exception(status)));
 
-	acpi_ds_print_node_pathname(walk_state->method_node, NULL);
+	acpi_ds_print_yesde_pathname(walk_state->method_yesde, NULL);
 
 	/* Display stack of executing methods */
 
@@ -141,15 +141,15 @@ acpi_ds_dump_method_stack(acpi_status status,
 	while (next_walk_state) {
 		method_desc = next_walk_state->method_desc;
 		if (method_desc) {
-			acpi_ex_stop_trace_method((struct acpi_namespace_node *)
-						  method_desc->method.node,
+			acpi_ex_stop_trace_method((struct acpi_namespace_yesde *)
+						  method_desc->method.yesde,
 						  method_desc, walk_state);
 		}
 
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 				  "    Method [%4.4s] executing: ",
-				  acpi_ut_get_node_name(next_walk_state->
-							method_node)));
+				  acpi_ut_get_yesde_name(next_walk_state->
+							method_yesde)));
 
 		/* First method is the currently executing method */
 
@@ -162,10 +162,10 @@ acpi_ds_dump_method_stack(acpi_status status,
 				op->common.next = NULL;
 
 #ifdef ACPI_DISASSEMBLER
-				if (walk_state->method_node !=
-				    acpi_gbl_root_node) {
+				if (walk_state->method_yesde !=
+				    acpi_gbl_root_yesde) {
 
-					/* More verbose if not module-level code */
+					/* More verbose if yest module-level code */
 
 					acpi_os_printf("Failed at ");
 					acpi_dm_disassemble(next_walk_state, op,
@@ -176,16 +176,16 @@ acpi_ds_dump_method_stack(acpi_status status,
 			}
 		} else {
 			/*
-			 * This method has called another method
+			 * This method has called ayesther method
 			 * NOTE: the method call parse subtree is already deleted at
-			 * this point, so we cannot disassemble the method invocation.
+			 * this point, so we canyest disassemble the method invocation.
 			 */
 			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DISPATCH,
 					      "Call to method "));
-			acpi_ds_print_node_pathname(previous_method, NULL);
+			acpi_ds_print_yesde_pathname(previous_method, NULL);
 		}
 
-		previous_method = next_walk_state->method_node;
+		previous_method = next_walk_state->method_yesde;
 		next_walk_state = next_walk_state->next;
 		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DISPATCH, "\n"));
 	}

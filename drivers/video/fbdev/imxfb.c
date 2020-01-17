@@ -16,7 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -215,7 +215,7 @@ static inline int is_imx1_fb(struct imxfb_info *fbi)
 
 /* Actually this really is 18bit support, the lowest 2 bits of each colour
  * are unused in hardware. We claim to have 24bit support to make software
- * like X work, which does not support 18bit.
+ * like X work, which does yest support 18bit.
  */
 static struct imxfb_rgb def_rgb_18 = {
 	.red	= {.offset = 16, .length = 8,},
@@ -255,25 +255,25 @@ static inline u_int chan_to_field(u_int chan, struct fb_bitfield *bf)
 	return chan << bf->offset;
 }
 
-static int imxfb_setpalettereg(u_int regno, u_int red, u_int green, u_int blue,
+static int imxfb_setpalettereg(u_int regyes, u_int red, u_int green, u_int blue,
 		u_int trans, struct fb_info *info)
 {
 	struct imxfb_info *fbi = info->par;
 	u_int val, ret = 1;
 
 #define CNVT_TOHW(val,width) ((((val)<<(width))+0x7FFF-(val))>>16)
-	if (regno < fbi->palette_size) {
+	if (regyes < fbi->palette_size) {
 		val = (CNVT_TOHW(red, 4) << 8) |
 		      (CNVT_TOHW(green,4) << 4) |
 		      CNVT_TOHW(blue,  4);
 
-		writel(val, fbi->regs + 0x800 + (regno << 2));
+		writel(val, fbi->regs + 0x800 + (regyes << 2));
 		ret = 0;
 	}
 	return ret;
 }
 
-static int imxfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int imxfb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 		   u_int trans, struct fb_info *info)
 {
 	struct imxfb_info *fbi = info->par;
@@ -294,7 +294,7 @@ static int imxfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 	/*
 	 * If greyscale is true, then we convert the RGB value
-	 * to greyscale no mater what visual we are using.
+	 * to greyscale yes mater what visual we are using.
 	 */
 	if (info->var.grayscale)
 		red = green = blue = (19595 * red + 38470 * green +
@@ -306,21 +306,21 @@ static int imxfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		 * 12 or 16-bit True Colour.  We encode the RGB value
 		 * according to the RGB bitfield information.
 		 */
-		if (regno < 16) {
+		if (regyes < 16) {
 			u32 *pal = info->pseudo_palette;
 
 			val  = chan_to_field(red, &info->var.red);
 			val |= chan_to_field(green, &info->var.green);
 			val |= chan_to_field(blue, &info->var.blue);
 
-			pal[regno] = val;
+			pal[regyes] = val;
 			ret = 0;
 		}
 		break;
 
 	case FB_VISUAL_STATIC_PSEUDOCOLOR:
 	case FB_VISUAL_PSEUDOCOLOR:
-		ret = imxfb_setpalettereg(regno, red, green, blue, trans, info);
+		ret = imxfb_setpalettereg(regyes, red, green, blue, trans, info);
 		break;
 	}
 
@@ -427,7 +427,7 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	fbi->pcr = pcr;
 	/*
-	 * The LCDC AUS Mode Control Register does not exist on imx1.
+	 * The LCDC AUS Mode Control Register does yest exist on imx1.
 	 */
 	if (!is_imx1_fb(fbi) && imxfb_mode->aus_mode)
 		fbi->lauscr = LAUSCR_AUS_MODE;
@@ -643,7 +643,7 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 		writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
 	writel(fbi->lscr1, fbi->regs + LCDC_LSCR1);
 
-	/* dmacr = 0 is no valid value, as we need DMA control marks. */
+	/* dmacr = 0 is yes valid value, as we need DMA control marks. */
 	if (fbi->dmacr)
 		writel(fbi->dmacr, fbi->regs + LCDC_DMACR);
 
@@ -658,7 +658,7 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 	struct imx_fb_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct fb_info *info = dev_get_drvdata(&pdev->dev);
 	struct imxfb_info *fbi = info->par;
-	struct device_node *np;
+	struct device_yesde *np;
 
 	pr_debug("%s\n",__func__);
 
@@ -679,7 +679,7 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 	info->fix.ywrapstep		= 0;
 	info->fix.accel			= FB_ACCEL_NONE;
 
-	info->var.nonstd		= 0;
+	info->var.yesnstd		= 0;
 	info->var.activate		= FB_ACTIVATE_NOW;
 	info->var.height		= -1;
 	info->var.width	= -1;
@@ -694,7 +694,7 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 		fbi->dmacr			= pdata->dmacr;
 		fbi->pwmr			= pdata->pwmr;
 	} else {
-		np = pdev->dev.of_node;
+		np = pdev->dev.of_yesde;
 		info->var.grayscale = of_property_read_bool(np,
 						"cmap-greyscale");
 		fbi->cmap_inverse = of_property_read_bool(np, "cmap-inverse");
@@ -712,7 +712,7 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 	return 0;
 }
 
-static int imxfb_of_read_mode(struct device *dev, struct device_node *np,
+static int imxfb_of_read_mode(struct device *dev, struct device_yesde *np,
 		struct imx_fb_videomode *imxfb_mode)
 {
 	int ret;
@@ -890,10 +890,10 @@ static int imxfb_probe(struct platform_device *pdev)
 		fbi->mode = pdata->mode;
 		fbi->num_modes = pdata->num_modes;
 	} else {
-		struct device_node *display_np;
+		struct device_yesde *display_np;
 		fb_mode = NULL;
 
-		display_np = of_parse_phandle(pdev->dev.of_node, "display", 0);
+		display_np = of_parse_phandle(pdev->dev.of_yesde, "display", 0);
 		if (!display_np) {
 			dev_err(&pdev->dev, "No display defined in devicetree\n");
 			ret = -EINVAL;
@@ -901,7 +901,7 @@ static int imxfb_probe(struct platform_device *pdev)
 		}
 
 		/*
-		 * imxfb does not support more modes, we choose only the native
+		 * imxfb does yest support more modes, we choose only the native
 		 * mode.
 		 */
 		fbi->num_modes = 1;
@@ -940,9 +940,9 @@ static int imxfb_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * The LCDC controller does not have an enable bit. The
+	 * The LCDC controller does yest have an enable bit. The
 	 * controller starts directly when the clocks are enabled.
-	 * If the clocks are enabled when the controller is not yet
+	 * If the clocks are enabled when the controller is yest yet
 	 * programmed with proper register values (enabled at the
 	 * bootloader, for example) then it just goes into some undefined
 	 * state.
@@ -968,7 +968,7 @@ static int imxfb_probe(struct platform_device *pdev)
 
 	fbi->regs = ioremap(res->start, resource_size(res));
 	if (fbi->regs == NULL) {
-		dev_err(&pdev->dev, "Cannot map frame buffer registers\n");
+		dev_err(&pdev->dev, "Canyest map frame buffer registers\n");
 		ret = -ENOMEM;
 		goto failed_ioremap;
 	}
@@ -1003,7 +1003,7 @@ static int imxfb_probe(struct platform_device *pdev)
 
 	/*
 	 * For modes > 8bpp, the color map is bypassed.
-	 * Therefore, 256 entries are enough.
+	 * Therefore, 256 entries are eyesugh.
 	 */
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (ret < 0)

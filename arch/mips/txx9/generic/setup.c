@@ -114,11 +114,11 @@ static void __init prom_init_cmdline(void)
 {
 	int argc;
 	int *argv32;
-	int i;			/* Always ignore the "-c" at argv[0] */
+	int i;			/* Always igyesre the "-c" at argv[0] */
 
 	if (fw_arg0 >= CKSEG0 || fw_arg1 < CKSEG0) {
 		/*
-		 * argc is not a valid number, or argv32 is not a valid
+		 * argc is yest a valid number, or argv32 is yest a valid
 		 * pointer
 		 */
 		argc = 0;
@@ -366,7 +366,7 @@ const char *__init prom_getenv(const char *name)
 	return NULL;
 }
 
-static void __noreturn txx9_machine_halt(void)
+static void __yesreturn txx9_machine_halt(void)
 {
 	local_irq_disable();
 	clear_c0_status(ST0_IM);
@@ -396,7 +396,7 @@ void __init txx9_wdt_init(unsigned long base)
 	platform_device_register_simple("txx9wdt", -1, &res, 1);
 }
 
-void txx9_wdt_now(unsigned long base)
+void txx9_wdt_yesw(unsigned long base)
 {
 	struct txx9_tmr_reg __iomem *tmrptr =
 		ioremap(base, sizeof(struct txx9_tmr_reg));
@@ -438,7 +438,7 @@ void __init txx9_ethaddr_init(unsigned int id, unsigned char *ethaddr)
 }
 
 void __init txx9_sio_init(unsigned long baseaddr, int irq,
-			  unsigned int line, unsigned int sclk, int nocts)
+			  unsigned int line, unsigned int sclk, int yescts)
 {
 #ifdef CONFIG_SERIAL_TXX9
 	struct uart_port req;
@@ -449,7 +449,7 @@ void __init txx9_sio_init(unsigned long baseaddr, int irq,
 	req.membase = ioremap(baseaddr, 0x24);
 	req.mapbase = baseaddr;
 	req.irq = irq;
-	if (!nocts)
+	if (!yescts)
 		req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
 	if (sclk) {
 		req.flags |= UPF_MAGIC_MULTIPLIER /*USE_SCLK*/;
@@ -495,9 +495,9 @@ void __init txx9_sio_putchar_init(unsigned long baseaddr)
 void __init plat_mem_setup(void)
 {
 	ioport_resource.start = 0;
-	ioport_resource.end = ~0UL;	/* no limit */
+	ioport_resource.end = ~0UL;	/* yes limit */
 	iomem_resource.start = 0;
-	iomem_resource.end = ~0UL;	/* no limit */
+	iomem_resource.end = ~0UL;	/* yes limit */
 
 	/* fallback restart/halt routines */
 	_machine_restart = (void (*)(char *))txx9_machine_halt;
@@ -586,11 +586,11 @@ asmlinkage void plat_irq_dispatch(void)
 
 /* see include/asm-mips/mach-tx39xx/mangle-port.h, for example. */
 #ifdef NEEDS_TXX9_SWIZZLE_ADDR_B
-static unsigned long __swizzle_addr_none(unsigned long port)
+static unsigned long __swizzle_addr_yesne(unsigned long port)
 {
 	return port;
 }
-unsigned long (*__swizzle_addr_b)(unsigned long port) = __swizzle_addr_none;
+unsigned long (*__swizzle_addr_b)(unsigned long port) = __swizzle_addr_yesne;
 EXPORT_SYMBOL(__swizzle_addr_b);
 #endif
 
@@ -609,7 +609,7 @@ u16 (*__mem_ioswabw)(volatile u16 *a, u16 x) = __mem_ioswabw_default;
 EXPORT_SYMBOL(__mem_ioswabw);
 #endif
 
-void __init txx9_physmap_flash_init(int no, unsigned long addr,
+void __init txx9_physmap_flash_init(int yes, unsigned long addr,
 				    unsigned long size,
 				    const struct physmap_flash_data *pdata)
 {
@@ -639,7 +639,7 @@ void __init txx9_physmap_flash_init(int no, unsigned long addr,
 		pdata = &pdata_part;
 	}
 
-	pdev = platform_device_alloc("physmap-flash", no);
+	pdev = platform_device_alloc("physmap-flash", yes);
 	if (!pdev ||
 	    platform_device_add_resources(pdev, &res, 1) ||
 	    platform_device_add_data(pdev, pdata, sizeof(*pdata)) ||

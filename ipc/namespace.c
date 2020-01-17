@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * linux/ipc/namespace.c
- * Copyright (C) 2006 Pavel Emelyanov <xemul@openvz.org> OpenVZ, SWsoft Inc.
+ * Copyright (C) 2006 Pavel Emelyayesv <xemul@openvz.org> OpenVZ, SWsoft Inc.
  */
 
 #include <linux/ipc.h>
@@ -133,7 +133,7 @@ static void free_ipc_ns(struct ipc_namespace *ns)
  *
  * If this is the last task in the namespace exiting, and
  * it is dropping the refcount to 0, then it can race with
- * a task in another ipc namespace but in a mounts namespace
+ * a task in ayesther ipc namespace but in a mounts namespace
  * which has this ipcns's mqueuefs mounted, doing some action
  * with one of the mqueuefs files.  That can raise the refcount.
  * So dropping the refcount, and raising the refcount when

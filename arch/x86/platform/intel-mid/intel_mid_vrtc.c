@@ -53,7 +53,7 @@ void vrtc_cmos_write(unsigned char val, unsigned char reg)
 }
 EXPORT_SYMBOL_GPL(vrtc_cmos_write);
 
-void vrtc_get_time(struct timespec64 *now)
+void vrtc_get_time(struct timespec64 *yesw)
 {
 	u8 sec, min, hour, mday, mon;
 	unsigned long flags;
@@ -79,18 +79,18 @@ void vrtc_get_time(struct timespec64 *now)
 	pr_info("vRTC: sec: %d min: %d hour: %d day: %d "
 		"mon: %d year: %d\n", sec, min, hour, mday, mon, year);
 
-	now->tv_sec = mktime64(year, mon, mday, hour, min, sec);
-	now->tv_nsec = 0;
+	yesw->tv_sec = mktime64(year, mon, mday, hour, min, sec);
+	yesw->tv_nsec = 0;
 }
 
-int vrtc_set_mmss(const struct timespec64 *now)
+int vrtc_set_mmss(const struct timespec64 *yesw)
 {
 	unsigned long flags;
 	struct rtc_time tm;
 	int year;
 	int retval = 0;
 
-	rtc_time64_to_tm(now->tv_sec, &tm);
+	rtc_time64_to_tm(yesw->tv_sec, &tm);
 	if (!rtc_valid_tm(&tm) && tm.tm_year >= 72) {
 		/*
 		 * tm.year is the number of years since 1900, and the
@@ -107,7 +107,7 @@ int vrtc_set_mmss(const struct timespec64 *now)
 		spin_unlock_irqrestore(&rtc_lock, flags);
 	} else {
 		pr_err("%s: Invalid vRTC value: write of %llx to vRTC failed\n",
-			__func__, (s64)now->tv_sec);
+			__func__, (s64)yesw->tv_sec);
 		retval = -EINVAL;
 	}
 	return retval;
@@ -123,7 +123,7 @@ void __init intel_mid_rtc_init(void)
 	if (!sfi_mrtc_num || !vrtc_paddr)
 		return;
 
-	vrtc_virt_base = (void __iomem *)set_fixmap_offset_nocache(FIX_LNW_VRTC,
+	vrtc_virt_base = (void __iomem *)set_fixmap_offset_yescache(FIX_LNW_VRTC,
 								vrtc_paddr);
 	x86_platform.get_wallclock = vrtc_get_time;
 	x86_platform.set_wallclock = vrtc_set_mmss;
@@ -153,10 +153,10 @@ static struct platform_device vrtc_device = {
 /* Register the RTC device if appropriate */
 static int __init intel_mid_device_create(void)
 {
-	/* No Moorestown, no device */
+	/* No Moorestown, yes device */
 	if (!intel_mid_identify_cpu())
 		return -ENODEV;
-	/* No timer, no device */
+	/* No timer, yes device */
 	if (!sfi_mrtc_num)
 		return -ENODEV;
 

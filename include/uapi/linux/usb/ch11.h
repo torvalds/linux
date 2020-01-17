@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * This file holds Hub protocol constants and data structures that are
  * defined in chapter 11 (Hub Specification) of the USB 2.0 specification.
@@ -209,7 +209,7 @@ struct usb_port_status {
 #define HUB_CHAR_LPSM		0x0003 /* Logical Power Switching Mode mask */
 #define HUB_CHAR_COMMON_LPSM	0x0000 /* All ports power control at once */
 #define HUB_CHAR_INDV_PORT_LPSM	0x0001 /* per-port power control */
-#define HUB_CHAR_NO_LPSM	0x0002 /* no power switching */
+#define HUB_CHAR_NO_LPSM	0x0002 /* yes power switching */
 
 #define HUB_CHAR_COMPOUND	0x0004 /* hub is part of a compound device */
 

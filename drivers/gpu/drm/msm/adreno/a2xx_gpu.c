@@ -18,9 +18,9 @@ static bool a2xx_me_init(struct msm_gpu *gpu)
 
 	/* All fields present (bits 9:0) */
 	OUT_RING(ring, 0x000003ff);
-	/* Disable/Enable Real-Time Stream processing (present but ignored) */
+	/* Disable/Enable Real-Time Stream processing (present but igyesred) */
 	OUT_RING(ring, 0x00000000);
-	/* Enable (2D <-> 3D) implicit synchronization (present but ignored) */
+	/* Enable (2D <-> 3D) implicit synchronization (present but igyesred) */
 	OUT_RING(ring, 0x00000000);
 
 	OUT_RING(ring, REG_A2XX_RB_SURFACE_INFO - 0x2000);
@@ -59,7 +59,7 @@ static bool a2xx_me_init(struct msm_gpu *gpu)
 
 static int a2xx_hw_init(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
 	dma_addr_t pt_base, tran_error;
 	uint32_t *ptr, len;
 	int i, ret;
@@ -74,15 +74,15 @@ static int a2xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A2XX_RBBM_PM_OVERRIDE1, 0xfffffffe);
 	gpu_write(gpu, REG_A2XX_RBBM_PM_OVERRIDE2, 0xffffffff);
 
-	/* note: kgsl uses 0x00000001 after first reset on a22x */
+	/* yeste: kgsl uses 0x00000001 after first reset on a22x */
 	gpu_write(gpu, REG_A2XX_RBBM_SOFT_RESET, 0xffffffff);
 	msleep(30);
 	gpu_write(gpu, REG_A2XX_RBBM_SOFT_RESET, 0x00000000);
 
-	if (adreno_is_a225(adreno_gpu))
+	if (adreyes_is_a225(adreyes_gpu))
 		gpu_write(gpu, REG_A2XX_SQ_FLOW_CONTROL, 0x18000000);
 
-	/* note: kgsl uses 0x0000ffff for a20x */
+	/* yeste: kgsl uses 0x0000ffff for a20x */
 	gpu_write(gpu, REG_A2XX_RBBM_CNTL, 0x00004442);
 
 	/* MPU: physical range */
@@ -102,7 +102,7 @@ static int a2xx_hw_init(struct msm_gpu *gpu)
 		A2XX_MH_MMU_CONFIG_TC_R_CLNT_BEHAVIOR(BEH_TRAN_RNG) |
 		A2XX_MH_MMU_CONFIG_PA_W_CLNT_BEHAVIOR(BEH_TRAN_RNG));
 
-	/* same as parameters in adreno_gpu */
+	/* same as parameters in adreyes_gpu */
 	gpu_write(gpu, REG_A2XX_MH_MMU_VA_RANGE, SZ_16M |
 		A2XX_MH_MMU_VA_RANGE_NUM_64KB_REGIONS(0xfff));
 
@@ -127,7 +127,7 @@ static int a2xx_hw_init(struct msm_gpu *gpu)
 		A2XX_MH_ARBITER_CONFIG_TC_CLNT_ENABLE |
 		A2XX_MH_ARBITER_CONFIG_RB_CLNT_ENABLE |
 		A2XX_MH_ARBITER_CONFIG_PA_CLNT_ENABLE);
-	if (!adreno_is_a20x(adreno_gpu))
+	if (!adreyes_is_a20x(adreyes_gpu))
 		gpu_write(gpu, REG_A2XX_MH_CLNT_INTF_CTRL_CONFIG1, 0x00032f07);
 
 	gpu_write(gpu, REG_A2XX_SQ_VS_PROGRAM, 0x00000000);
@@ -136,7 +136,7 @@ static int a2xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A2XX_RBBM_PM_OVERRIDE1, 0); /* 0x200 for msm8960? */
 	gpu_write(gpu, REG_A2XX_RBBM_PM_OVERRIDE2, 0); /* 0x80/0x1a0 for a22x? */
 
-	/* note: gsl doesn't set this */
+	/* yeste: gsl doesn't set this */
 	gpu_write(gpu, REG_A2XX_RBBM_DEBUG, 0x00080000);
 
 	gpu_write(gpu, REG_A2XX_RBBM_INT_CNTL,
@@ -156,23 +156,23 @@ static int a2xx_hw_init(struct msm_gpu *gpu)
 		A2XX_MH_INTERRUPT_MASK_MMU_PAGE_FAULT);
 
 	for (i = 3; i <= 5; i++)
-		if ((SZ_16K << i) == adreno_gpu->gmem)
+		if ((SZ_16K << i) == adreyes_gpu->gmem)
 			break;
 	gpu_write(gpu, REG_A2XX_RB_EDRAM_INFO, i);
 
-	ret = adreno_hw_init(gpu);
+	ret = adreyes_hw_init(gpu);
 	if (ret)
 		return ret;
 
 	/* NOTE: PM4/micro-engine firmware registers look to be the same
 	 * for a2xx and a3xx.. we could possibly push that part down to
-	 * adreno_gpu base class.  Or push both PM4 and PFP but
+	 * adreyes_gpu base class.  Or push both PM4 and PFP but
 	 * parameterize the pfp ucode addr/data registers..
 	 */
 
 	/* Load PM4: */
-	ptr = (uint32_t *)(adreno_gpu->fw[ADRENO_FW_PM4]->data);
-	len = adreno_gpu->fw[ADRENO_FW_PM4]->size / 4;
+	ptr = (uint32_t *)(adreyes_gpu->fw[ADRENO_FW_PM4]->data);
+	len = adreyes_gpu->fw[ADRENO_FW_PM4]->size / 4;
 	DBG("loading PM4 ucode version: %x", ptr[1]);
 
 	gpu_write(gpu, REG_AXXX_CP_DEBUG,
@@ -182,8 +182,8 @@ static int a2xx_hw_init(struct msm_gpu *gpu)
 		gpu_write(gpu, REG_AXXX_CP_ME_RAM_DATA, ptr[i]);
 
 	/* Load PFP: */
-	ptr = (uint32_t *)(adreno_gpu->fw[ADRENO_FW_PFP]->data);
-	len = adreno_gpu->fw[ADRENO_FW_PFP]->size / 4;
+	ptr = (uint32_t *)(adreyes_gpu->fw[ADRENO_FW_PFP]->data);
+	len = adreyes_gpu->fw[ADRENO_FW_PFP]->size / 4;
 	DBG("loading PFP ucode version: %x", ptr[5]);
 
 	gpu_write(gpu, REG_A2XX_CP_PFP_UCODE_ADDR, 0);
@@ -202,7 +202,7 @@ static void a2xx_recover(struct msm_gpu *gpu)
 {
 	int i;
 
-	adreno_dump_info(gpu);
+	adreyes_dump_info(gpu);
 
 	for (i = 0; i < 8; i++) {
 		printk("CP_SCRATCH_REG%d: %u\n", i,
@@ -216,17 +216,17 @@ static void a2xx_recover(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A2XX_RBBM_SOFT_RESET, 1);
 	gpu_read(gpu, REG_A2XX_RBBM_SOFT_RESET);
 	gpu_write(gpu, REG_A2XX_RBBM_SOFT_RESET, 0);
-	adreno_recover(gpu);
+	adreyes_recover(gpu);
 }
 
 static void a2xx_destroy(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a2xx_gpu *a2xx_gpu = to_a2xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a2xx_gpu *a2xx_gpu = to_a2xx_gpu(adreyes_gpu);
 
 	DBG("%s", gpu->name);
 
-	adreno_gpu_cleanup(adreno_gpu);
+	adreyes_gpu_cleanup(adreyes_gpu);
 
 	kfree(a2xx_gpu);
 }
@@ -234,7 +234,7 @@ static void a2xx_destroy(struct msm_gpu *gpu)
 static bool a2xx_idle(struct msm_gpu *gpu)
 {
 	/* wait for ringbuffer to drain: */
-	if (!adreno_idle(gpu, gpu->rb[0]))
+	if (!adreyes_idle(gpu, gpu->rb[0]))
 		return false;
 
 	/* then wait for GPU to finish: */
@@ -379,12 +379,12 @@ static const unsigned int a225_registers[] = {
 	~0   /* sentinel */
 };
 
-/* would be nice to not have to duplicate the _show() stuff with printk(): */
+/* would be nice to yest have to duplicate the _show() stuff with printk(): */
 static void a2xx_dump(struct msm_gpu *gpu)
 {
 	printk("status:   %08x\n",
 			gpu_read(gpu, REG_A2XX_RBBM_STATUS));
-	adreno_dump(gpu);
+	adreyes_dump(gpu);
 }
 
 static struct msm_gpu_state *a2xx_gpu_state_get(struct msm_gpu *gpu)
@@ -394,7 +394,7 @@ static struct msm_gpu_state *a2xx_gpu_state_get(struct msm_gpu *gpu)
 	if (!state)
 		return ERR_PTR(-ENOMEM);
 
-	adreno_gpu_state_get(gpu, state);
+	adreyes_gpu_state_get(gpu, state);
 
 	state->rbbm_status = gpu_read(gpu, REG_A2XX_RBBM_STATUS);
 
@@ -412,23 +412,23 @@ static const unsigned int a2xx_register_offsets[REG_ADRENO_REGISTER_MAX] = {
 	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_CNTL, REG_AXXX_CP_RB_CNTL),
 };
 
-static const struct adreno_gpu_funcs funcs = {
+static const struct adreyes_gpu_funcs funcs = {
 	.base = {
-		.get_param = adreno_get_param,
+		.get_param = adreyes_get_param,
 		.hw_init = a2xx_hw_init,
 		.pm_suspend = msm_gpu_pm_suspend,
 		.pm_resume = msm_gpu_pm_resume,
 		.recover = a2xx_recover,
-		.submit = adreno_submit,
-		.flush = adreno_flush,
-		.active_ring = adreno_active_ring,
+		.submit = adreyes_submit,
+		.flush = adreyes_flush,
+		.active_ring = adreyes_active_ring,
 		.irq = a2xx_irq,
 		.destroy = a2xx_destroy,
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
-		.show = adreno_show,
+		.show = adreyes_show,
 #endif
 		.gpu_state_get = a2xx_gpu_state_get,
-		.gpu_state_put = adreno_gpu_state_put,
+		.gpu_state_put = adreyes_gpu_state_put,
 	},
 };
 
@@ -439,14 +439,14 @@ static const struct msm_gpu_perfcntr perfcntrs[] = {
 struct msm_gpu *a2xx_gpu_init(struct drm_device *dev)
 {
 	struct a2xx_gpu *a2xx_gpu = NULL;
-	struct adreno_gpu *adreno_gpu;
+	struct adreyes_gpu *adreyes_gpu;
 	struct msm_gpu *gpu;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
 	int ret;
 
 	if (!pdev) {
-		dev_err(dev->dev, "no a2xx device\n");
+		dev_err(dev->dev, "yes a2xx device\n");
 		ret = -ENXIO;
 		goto fail;
 	}
@@ -457,22 +457,22 @@ struct msm_gpu *a2xx_gpu_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	adreno_gpu = &a2xx_gpu->base;
-	gpu = &adreno_gpu->base;
+	adreyes_gpu = &a2xx_gpu->base;
+	gpu = &adreyes_gpu->base;
 
 	gpu->perfcntrs = perfcntrs;
 	gpu->num_perfcntrs = ARRAY_SIZE(perfcntrs);
 
-	if (adreno_is_a20x(adreno_gpu))
-		adreno_gpu->registers = a200_registers;
-	else if (adreno_is_a225(adreno_gpu))
-		adreno_gpu->registers = a225_registers;
+	if (adreyes_is_a20x(adreyes_gpu))
+		adreyes_gpu->registers = a200_registers;
+	else if (adreyes_is_a225(adreyes_gpu))
+		adreyes_gpu->registers = a225_registers;
 	else
-		adreno_gpu->registers = a220_registers;
+		adreyes_gpu->registers = a220_registers;
 
-	adreno_gpu->reg_offsets = a2xx_register_offsets;
+	adreyes_gpu->reg_offsets = a2xx_register_offsets;
 
-	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 1);
+	ret = adreyes_gpu_init(dev, pdev, adreyes_gpu, &funcs, 1);
 	if (ret)
 		goto fail;
 

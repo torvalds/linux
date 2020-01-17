@@ -40,7 +40,7 @@ acpi_buffer_to_resource(u8 *aml_buffer,
 
 	/*
 	 * Note: we allow AE_AML_NO_RESOURCE_END_TAG, since an end tag
-	 * is not required here.
+	 * is yest required here.
 	 */
 
 	/* Get the required length for the converted resource */
@@ -90,7 +90,7 @@ ACPI_EXPORT_SYMBOL(acpi_buffer_to_resource)
  *              output_buffer       - Pointer to the user's buffer
  *
  * RETURN:      Status: AE_OK if okay, else a valid acpi_status code
- *              If output_buffer is not large enough, output_buffer_length
+ *              If output_buffer is yest large eyesugh, output_buffer_length
  *              indicates how large output_buffer should be, else it
  *              indicates how may u8 elements of output_buffer are valid.
  *
@@ -187,7 +187,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 	u32 number_of_elements;
 	u32 index;
 	struct acpi_pci_routing_table *user_prt;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	acpi_status status;
 	struct acpi_buffer path_buffer;
 
@@ -253,7 +253,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 
 		/*
 		 * Dereference the subpackage.
-		 * The sub_object_list will now point to an array of the four IRQ
+		 * The sub_object_list will yesw point to an array of the four IRQ
 		 * elements: [Address, Pin, Source, source_index]
 		 */
 		sub_object_list = (*top_object_list)->package.elements;
@@ -302,7 +302,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 					return_ACPI_STATUS(AE_BAD_DATA);
 				}
 
-				node = obj_desc->reference.node;
+				yesde = obj_desc->reference.yesde;
 
 				/* Use *remaining* length of the buffer as max for pathname */
 
@@ -311,7 +311,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 					   (u8 *) output_buffer->pointer);
 				path_buffer.pointer = user_prt->source;
 
-				status = acpi_ns_handle_to_pathname((acpi_handle)node, &path_buffer, FALSE);
+				status = acpi_ns_handle_to_pathname((acpi_handle)yesde, &path_buffer, FALSE);
 				if (ACPI_FAILURE(status)) {
 					return_ACPI_STATUS(status);
 				}
@@ -409,7 +409,7 @@ acpi_rs_create_aml_resources(struct acpi_buffer *resource_list,
 
 	ACPI_FUNCTION_TRACE(rs_create_aml_resources);
 
-	/* Params already validated, no need to re-validate here */
+	/* Params already validated, yes need to re-validate here */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "ResourceList Buffer = %p\n",
 			  resource_list->pointer));

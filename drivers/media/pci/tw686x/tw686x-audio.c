@@ -62,7 +62,7 @@ void tw686x_audio_irq(struct tw686x_dev *dev, unsigned long requests,
 		if (!done || !next)
 			continue;
 		/*
-		 * Checking for a non-nil dma_desc[pb]->virt buffer is
+		 * Checking for a yesn-nil dma_desc[pb]->virt buffer is
 		 * the same as checking for memcpy DMA mode.
 		 */
 		desc = &ac->dma_descs[pb];

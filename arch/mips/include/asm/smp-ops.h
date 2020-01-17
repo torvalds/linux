@@ -3,7 +3,7 @@
  * Public License.  See the file "COPYING" in the main directory of this
  * archive for more details.
  *
- * Copyright (C) 2000 - 2001 by Kanoj Sarcar (kanoj@sgi.com)
+ * Copyright (C) 2000 - 2001 by Kayesj Sarcar (kayesj@sgi.com)
  * Copyright (C) 2000 - 2001 by Silicon Graphics, Inc.
  * Copyright (C) 2000, 2001, 2002 Ralf Baechle
  * Copyright (C) 2000, 2001 Broadcom Corporation
@@ -11,7 +11,7 @@
 #ifndef __ASM_SMP_OPS_H
 #define __ASM_SMP_OPS_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include <asm/mips-cps.h>
 
@@ -35,7 +35,7 @@ struct plat_smp_ops {
 	void (*cpu_die)(unsigned int cpu);
 #endif
 #ifdef CONFIG_KEXEC
-	void (*kexec_nonboot_cpu)(void);
+	void (*kexec_yesnboot_cpu)(void);
 #endif
 };
 
@@ -58,7 +58,7 @@ struct plat_smp_ops;
 
 static inline void plat_smp_setup(void)
 {
-	/* UP, nothing to do ...  */
+	/* UP, yesthing to do ...  */
 }
 
 static inline void register_smp_ops(const struct plat_smp_ops *ops)

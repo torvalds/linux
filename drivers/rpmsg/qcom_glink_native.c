@@ -38,7 +38,7 @@ struct glink_msg {
 
 /**
  * struct glink_defer_cmd - deferred incoming control message
- * @node:	list node
+ * @yesde:	list yesde
  * @msg:	message header
  * @data:	payload of the message
  *
@@ -46,7 +46,7 @@ struct glink_msg {
  * by @rx_work of @qcom_glink.
  */
 struct glink_defer_cmd {
-	struct list_head node;
+	struct list_head yesde;
 
 	struct glink_msg msg;
 	u8 data[];
@@ -58,11 +58,11 @@ struct glink_defer_cmd {
  *
  * @data: pointer to the data (may be NULL for zero-copy)
  * @id: remote or local intent ID
- * @size: size of the original intent (do not modify)
+ * @size: size of the original intent (do yest modify)
  * @reuse: To mark if the intent can be reused after first use
  * @in_use: To mark if intent is already in use for the channel
  * @offset: next write offset (initially 0)
- * @node:	list node
+ * @yesde:	list yesde
  */
 struct glink_core_rx_intent {
 	void *data;
@@ -72,7 +72,7 @@ struct glink_core_rx_intent {
 	bool in_use;
 	u32 offset;
 
-	struct list_head node;
+	struct list_head yesde;
 };
 
 /**
@@ -88,10 +88,10 @@ struct glink_core_rx_intent {
  * @rx_queue:	queue of received control messages to be processed in @rx_work
  * @tx_lock:	synchronizes operations on the tx fifo
  * @idr_lock:	synchronizes @lcids and @rcids modifications
- * @lcids:	idr of all channels with a known local channel id
- * @rcids:	idr of all channels with a known remote channel id
+ * @lcids:	idr of all channels with a kyeswn local channel id
+ * @rcids:	idr of all channels with a kyeswn remote channel id
  * @features:	remote features
- * @intentless:	flag to indicate that there is no intent
+ * @intentless:	flag to indicate that there is yes intent
  */
 struct qcom_glink {
 	struct device *dev;
@@ -141,7 +141,7 @@ enum {
  * @liids:	idr of all local intents
  * @riids:	idr of all remote intents
  * @intent_work: worker responsible for transmitting rx_done packets
- * @done_intents: list of intents that needs to be announced rx_done
+ * @done_intents: list of intents that needs to be anyesunced rx_done
  * @buf:	receive buffer, for gathering fragments
  * @buf_offset:	write offset in @buf
  * @buf_size:	size of current @buf
@@ -250,8 +250,8 @@ static void qcom_glink_channel_release(struct kref *ref)
 	cancel_work_sync(&channel->intent_work);
 
 	spin_lock_irqsave(&channel->intent_lock, flags);
-	/* Free all non-reuse intents pending rx_done work */
-	list_for_each_entry_safe(intent, tmp, &channel->done_intents, node) {
+	/* Free all yesn-reuse intents pending rx_done work */
+	list_for_each_entry_safe(intent, tmp, &channel->done_intents, yesde) {
 		if (!intent->reuse) {
 			kfree(intent->data);
 			kfree(intent);
@@ -400,7 +400,7 @@ static void qcom_glink_handle_intent_req_ack(struct qcom_glink *glink,
  * Allocates a local channel id and sends a RPM_CMD_OPEN message to the remote.
  * Will return with refcount held, regardless of outcome.
  *
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erryes otherwise.
  */
 static int qcom_glink_send_open_req(struct qcom_glink *glink,
 				    struct glink_channel *channel)
@@ -488,8 +488,8 @@ static void qcom_glink_rx_done_work(struct work_struct *work)
 	unsigned long flags;
 
 	spin_lock_irqsave(&channel->intent_lock, flags);
-	list_for_each_entry_safe(intent, tmp, &channel->done_intents, node) {
-		list_del(&intent->node);
+	list_for_each_entry_safe(intent, tmp, &channel->done_intents, yesde) {
+		list_del(&intent->yesde);
 		spin_unlock_irqrestore(&channel->intent_lock, flags);
 		iid = intent->id;
 		reuse = intent->reuse;
@@ -528,7 +528,7 @@ static void qcom_glink_rx_done(struct qcom_glink *glink,
 
 	/* Schedule the sending of a rx_done indication */
 	spin_lock(&channel->intent_lock);
-	list_add_tail(&intent->node, &channel->done_intents);
+	list_add_tail(&intent->yesde, &channel->done_intents);
 	spin_unlock(&channel->intent_lock);
 
 	schedule_work(&channel->intent_work);
@@ -729,7 +729,7 @@ static void qcom_glink_handle_rx_done(struct qcom_glink *glink,
  * @size:	size of the intent
  *
  * The function searches for the local channel to which the request for
- * rx_intent has arrived and allocates and notifies the remote back
+ * rx_intent has arrived and allocates and yestifies the remote back
  */
 static void qcom_glink_handle_intent_req(struct qcom_glink *glink,
 					 u32 cid, size_t size)
@@ -743,7 +743,7 @@ static void qcom_glink_handle_intent_req(struct qcom_glink *glink,
 	spin_unlock_irqrestore(&glink->idr_lock, flags);
 
 	if (!channel) {
-		pr_err("%s channel not found for cid %d\n", __func__, cid);
+		pr_err("%s channel yest found for cid %d\n", __func__, cid);
 		return;
 	}
 
@@ -769,12 +769,12 @@ static int qcom_glink_rx_defer(struct qcom_glink *glink, size_t extra)
 	if (!dcmd)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&dcmd->node);
+	INIT_LIST_HEAD(&dcmd->yesde);
 
 	qcom_glink_rx_peak(glink, &dcmd->msg, 0, sizeof(dcmd->msg) + extra);
 
 	spin_lock(&glink->rx_lock);
-	list_add_tail(&dcmd->node, &glink->rx_queue);
+	list_add_tail(&dcmd->yesde, &glink->rx_queue);
 	spin_unlock(&glink->rx_lock);
 
 	schedule_work(&glink->rx_work);
@@ -800,7 +800,7 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 	unsigned long flags;
 
 	if (avail < sizeof(hdr)) {
-		dev_dbg(glink->dev, "Not enough data in fifo\n");
+		dev_dbg(glink->dev, "Not eyesugh data in fifo\n");
 		return -EAGAIN;
 	}
 
@@ -809,7 +809,7 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 	left_size = le32_to_cpu(hdr.left_size);
 
 	if (avail < sizeof(hdr) + chunk_size) {
-		dev_dbg(glink->dev, "Payload not yet in fifo\n");
+		dev_dbg(glink->dev, "Payload yest yet in fifo\n");
 		return -EAGAIN;
 	}
 
@@ -818,7 +818,7 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 	channel = idr_find(&glink->rcids, rcid);
 	spin_unlock_irqrestore(&glink->idr_lock, flags);
 	if (!channel) {
-		dev_dbg(glink->dev, "Data on non-existing channel\n");
+		dev_dbg(glink->dev, "Data on yesn-existing channel\n");
 
 		/* Drop the message */
 		goto advance_rx;
@@ -855,7 +855,7 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 
 		if (!intent) {
 			dev_err(glink->dev,
-				"no intent found for channel %s intent %d",
+				"yes intent found for channel %s intent %d",
 				channel->name, liid);
 			goto advance_rx;
 		}
@@ -872,7 +872,7 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 			   sizeof(hdr), chunk_size);
 	intent->offset += chunk_size;
 
-	/* Handle message when no fragments remain to be received */
+	/* Handle message when yes fragments remain to be received */
 	if (!left_size) {
 		spin_lock(&channel->recv_lock);
 		if (channel->ept.cb) {
@@ -919,7 +919,7 @@ static void qcom_glink_handle_intent(struct qcom_glink *glink,
 	unsigned long flags;
 
 	if (avail < msglen) {
-		dev_dbg(glink->dev, "Not enough data in fifo\n");
+		dev_dbg(glink->dev, "Not eyesugh data in fifo\n");
 		return;
 	}
 
@@ -927,7 +927,7 @@ static void qcom_glink_handle_intent(struct qcom_glink *glink,
 	channel = idr_find(&glink->rcids, cid);
 	spin_unlock_irqrestore(&glink->idr_lock, flags);
 	if (!channel) {
-		dev_err(glink->dev, "intents for non-existing channel\n");
+		dev_err(glink->dev, "intents for yesn-existing channel\n");
 		return;
 	}
 
@@ -1165,10 +1165,10 @@ static struct rpmsg_endpoint *qcom_glink_create_ept(struct rpmsg_device *rpdev,
 	return ept;
 }
 
-static int qcom_glink_announce_create(struct rpmsg_device *rpdev)
+static int qcom_glink_anyesunce_create(struct rpmsg_device *rpdev)
 {
 	struct glink_channel *channel = to_glink_channel(rpdev->ept);
-	struct device_node *np = rpdev->dev.of_node;
+	struct device_yesde *np = rpdev->dev.of_yesde;
 	struct qcom_glink *glink = channel->glink;
 	struct glink_core_rx_intent *intent;
 	const struct property *prop = NULL;
@@ -1187,7 +1187,7 @@ static int qcom_glink_announce_create(struct rpmsg_device *rpdev)
 		num_groups = prop->length / sizeof(u32) / 2;
 	}
 
-	/* Channel is now open, advertise base set of intents */
+	/* Channel is yesw open, advertise base set of intents */
 	while (num_groups--) {
 		size = be32_to_cpup(val++);
 		num_intents = be32_to_cpup(val++);
@@ -1333,17 +1333,17 @@ static int qcom_glink_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 }
 
 /*
- * Finds the device_node for the glink child interested in this channel.
+ * Finds the device_yesde for the glink child interested in this channel.
  */
-static struct device_node *qcom_glink_match_channel(struct device_node *node,
+static struct device_yesde *qcom_glink_match_channel(struct device_yesde *yesde,
 						    const char *channel)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	const char *name;
 	const char *key;
 	int ret;
 
-	for_each_available_child_of_node(node, child) {
+	for_each_available_child_of_yesde(yesde, child) {
 		key = "qcom,glink-channels";
 		ret = of_property_read_string(child, key, &name);
 		if (ret)
@@ -1358,7 +1358,7 @@ static struct device_node *qcom_glink_match_channel(struct device_node *node,
 
 static const struct rpmsg_device_ops glink_device_ops = {
 	.create_ept = qcom_glink_create_ept,
-	.announce_create = qcom_glink_announce_create,
+	.anyesunce_create = qcom_glink_anyesunce_create,
 };
 
 static const struct rpmsg_endpoint_ops glink_endpoint_ops = {
@@ -1382,7 +1382,7 @@ static int qcom_glink_rx_open(struct qcom_glink *glink, unsigned int rcid,
 	struct glink_channel *channel;
 	struct rpmsg_device *rpdev;
 	bool create_device = false;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int lcid;
 	int ret;
 	unsigned long flags;
@@ -1428,8 +1428,8 @@ static int qcom_glink_rx_open(struct qcom_glink *glink, unsigned int rcid,
 		rpdev->dst = RPMSG_ADDR_ANY;
 		rpdev->ops = &glink_device_ops;
 
-		node = qcom_glink_match_channel(glink->dev->of_node, name);
-		rpdev->dev.of_node = node;
+		yesde = qcom_glink_match_channel(glink->dev->of_yesde, name);
+		rpdev->dev.of_yesde = yesde;
 		rpdev->dev.parent = glink->dev;
 		rpdev->dev.release = qcom_glink_rpdev_release;
 
@@ -1464,7 +1464,7 @@ static void qcom_glink_rx_close(struct qcom_glink *glink, unsigned int rcid)
 	spin_lock_irqsave(&glink->idr_lock, flags);
 	channel = idr_find(&glink->rcids, rcid);
 	spin_unlock_irqrestore(&glink->idr_lock, flags);
-	if (WARN(!channel, "close request on unknown channel\n"))
+	if (WARN(!channel, "close request on unkyeswn channel\n"))
 		return;
 
 	/* cancel pending rx_done work */
@@ -1495,7 +1495,7 @@ static void qcom_glink_rx_close_ack(struct qcom_glink *glink, unsigned int lcid)
 
 	spin_lock_irqsave(&glink->idr_lock, flags);
 	channel = idr_find(&glink->lcids, lcid);
-	if (WARN(!channel, "close ack on unknown channel\n")) {
+	if (WARN(!channel, "close ack on unkyeswn channel\n")) {
 		spin_unlock_irqrestore(&glink->idr_lock, flags);
 		return;
 	}
@@ -1525,8 +1525,8 @@ static void qcom_glink_work(struct work_struct *work)
 			break;
 		}
 		dcmd = list_first_entry(&glink->rx_queue,
-					struct glink_defer_cmd, node);
-		list_del(&dcmd->node);
+					struct glink_defer_cmd, yesde);
+		list_del(&dcmd->yesde);
 		spin_unlock_irqrestore(&glink->rx_lock, flags);
 
 		msg = &dcmd->msg;
@@ -1554,7 +1554,7 @@ static void qcom_glink_work(struct work_struct *work)
 			qcom_glink_handle_intent_req(glink, param1, param2);
 			break;
 		default:
-			WARN(1, "Unknown defer object %d\n", cmd);
+			WARN(1, "Unkyeswn defer object %d\n", cmd);
 			break;
 		}
 
@@ -1570,7 +1570,7 @@ static void qcom_glink_cancel_rx_work(struct qcom_glink *glink)
 	/* cancel any pending deferred rx_work */
 	cancel_work_sync(&glink->rx_work);
 
-	list_for_each_entry_safe(dcmd, tmp, &glink->rx_queue, node)
+	list_for_each_entry_safe(dcmd, tmp, &glink->rx_queue, yesde)
 		kfree(dcmd);
 }
 
@@ -1604,12 +1604,12 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 	idr_init(&glink->lcids);
 	idr_init(&glink->rcids);
 
-	ret = of_property_read_string(dev->of_node, "label", &glink->name);
+	ret = of_property_read_string(dev->of_yesde, "label", &glink->name);
 	if (ret < 0)
-		glink->name = dev->of_node->name;
+		glink->name = dev->of_yesde->name;
 
 	glink->mbox_client.dev = dev;
-	glink->mbox_client.knows_txdone = true;
+	glink->mbox_client.kyesws_txdone = true;
 	glink->mbox_chan = mbox_request_channel(&glink->mbox_client, 0);
 	if (IS_ERR(glink->mbox_chan)) {
 		if (PTR_ERR(glink->mbox_chan) != -EPROBE_DEFER)
@@ -1617,7 +1617,7 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 		return ERR_CAST(glink->mbox_chan);
 	}
 
-	irq = of_irq_get(dev->of_node, 0);
+	irq = of_irq_get(dev->of_yesde, 0);
 	ret = devm_request_irq(dev, irq,
 			       qcom_glink_native_intr,
 			       IRQF_NO_SUSPEND | IRQF_SHARED,

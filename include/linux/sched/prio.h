@@ -16,7 +16,7 @@
  * RT priority to be separate from the value exported to
  * user-space.  This allows kernel threads to set their
  * priority to a value higher than any user task. Note:
- * MAX_RT_PRIO must not be smaller than MAX_USER_RT_PRIO.
+ * MAX_RT_PRIO must yest be smaller than MAX_USER_RT_PRIO.
  */
 
 #define MAX_USER_RT_PRIO	100

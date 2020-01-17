@@ -27,7 +27,7 @@ extern unsigned long long max_possible_pfn;
 
 /**
  * enum memblock_flags - definition of memory region attributes
- * @MEMBLOCK_NONE: no special request
+ * @MEMBLOCK_NONE: yes special request
  * @MEMBLOCK_HOTPLUG: hotpluggable region
  * @MEMBLOCK_MIRROR: mirrored region
  * @MEMBLOCK_NOMAP: don't add to kernel direct mapping
@@ -44,7 +44,7 @@ enum memblock_flags {
  * @base: physical address of the region
  * @size: size of the region
  * @flags: memory region attributes
- * @nid: NUMA node id
+ * @nid: NUMA yesde id
  */
 struct memblock_region {
 	phys_addr_t base;
@@ -108,7 +108,7 @@ static inline void memblock_discard(void) {}
 phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
 				   phys_addr_t size, phys_addr_t align);
 void memblock_allow_resize(void);
-int memblock_add_node(phys_addr_t base, phys_addr_t size, int nid);
+int memblock_add_yesde(phys_addr_t base, phys_addr_t size, int nid);
 int memblock_add(phys_addr_t base, phys_addr_t size);
 int memblock_remove(phys_addr_t base, phys_addr_t size);
 int memblock_free(phys_addr_t base, phys_addr_t size);
@@ -119,11 +119,11 @@ bool memblock_overlaps_region(struct memblock_type *type,
 int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
 int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
 int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
-int memblock_mark_nomap(phys_addr_t base, phys_addr_t size);
-int memblock_clear_nomap(phys_addr_t base, phys_addr_t size);
+int memblock_mark_yesmap(phys_addr_t base, phys_addr_t size);
+int memblock_clear_yesmap(phys_addr_t base, phys_addr_t size);
 
 unsigned long memblock_free_all(void);
-void reset_node_managed_pages(pg_data_t *pgdat);
+void reset_yesde_managed_pages(pg_data_t *pgdat);
 void reset_all_zones_managed_pages(void);
 
 /* Low level functions */
@@ -147,12 +147,12 @@ void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
 void __memblock_free_late(phys_addr_t base, phys_addr_t size);
 
 /**
- * for_each_mem_range - iterate through memblock areas from type_a and not
+ * for_each_mem_range - iterate through memblock areas from type_a and yest
  * included in type_b. Or just type_a if type_b is NULL.
  * @i: u64 used as loop variable
  * @type_a: ptr to memblock_type to iterate
  * @type_b: ptr to memblock_type which excludes from the iteration
- * @nid: node selector, %NUMA_NO_NODE for all nodes
+ * @nid: yesde selector, %NUMA_NO_NODE for all yesdes
  * @flags: pick from blocks based on memory attributes
  * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
  * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
@@ -168,11 +168,11 @@ void __memblock_free_late(phys_addr_t base, phys_addr_t size);
 
 /**
  * for_each_mem_range_rev - reverse iterate through memblock areas from
- * type_a and not included in type_b. Or just type_a if type_b is NULL.
+ * type_a and yest included in type_b. Or just type_a if type_b is NULL.
  * @i: u64 used as loop variable
  * @type_a: ptr to memblock_type to iterate
  * @type_b: ptr to memblock_type which excludes from the iteration
- * @nid: node selector, %NUMA_NO_NODE for all nodes
+ * @nid: yesde selector, %NUMA_NO_NODE for all yesdes
  * @flags: pick from blocks based on memory attributes
  * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
  * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
@@ -211,7 +211,7 @@ static inline bool memblock_is_mirror(struct memblock_region *m)
 	return m->flags & MEMBLOCK_MIRROR;
 }
 
-static inline bool memblock_is_nomap(struct memblock_region *m)
+static inline bool memblock_is_yesmap(struct memblock_region *m)
 {
 	return m->flags & MEMBLOCK_NOMAP;
 }
@@ -225,7 +225,7 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
 /**
  * for_each_mem_pfn_range - early memory pfn range iterator
  * @i: an integer used as loop variable
- * @nid: node selector, %MAX_NUMNODES for all nodes
+ * @nid: yesde selector, %MAX_NUMNODES for all yesdes
  * @p_start: ptr to ulong for start pfn of the range, can be %NULL
  * @p_end: ptr to ulong for end pfn of the range, can be %NULL
  * @p_nid: ptr to int for nid of the range, can be %NULL
@@ -252,7 +252,7 @@ void __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
  * Walks over free (memory && !reserved) areas of memblock in a specific
  * zone. Available once memblock and an empty zone is initialized. The main
  * assumption is that the zone start, end, and pgdat have been associated.
- * This way we can use the zone to determine NUMA node, and if a given part
+ * This way we can use the zone to determine NUMA yesde, and if a given part
  * of the memblock is valid for the zone.
  */
 #define for_each_free_mem_pfn_range_in_zone(i, zone, p_start, p_end)	\
@@ -281,7 +281,7 @@ void __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
 /**
  * for_each_free_mem_range - iterate through free memblock areas
  * @i: u64 used as loop variable
- * @nid: node selector, %NUMA_NO_NODE for all nodes
+ * @nid: yesde selector, %NUMA_NO_NODE for all yesdes
  * @flags: pick from blocks based on memory attributes
  * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
  * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
@@ -297,7 +297,7 @@ void __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
 /**
  * for_each_free_mem_range_reverse - rev-iterate through free memblock areas
  * @i: u64 used as loop variable
- * @nid: node selector, %NUMA_NO_NODE for all nodes
+ * @nid: yesde selector, %NUMA_NO_NODE for all yesdes
  * @flags: pick from blocks based on memory attributes
  * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
  * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
@@ -312,24 +312,24 @@ void __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
 			       nid, flags, p_start, p_end, p_nid)
 
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-int memblock_set_node(phys_addr_t base, phys_addr_t size,
+int memblock_set_yesde(phys_addr_t base, phys_addr_t size,
 		      struct memblock_type *type, int nid);
 
-static inline void memblock_set_region_node(struct memblock_region *r, int nid)
+static inline void memblock_set_region_yesde(struct memblock_region *r, int nid)
 {
 	r->nid = nid;
 }
 
-static inline int memblock_get_region_node(const struct memblock_region *r)
+static inline int memblock_get_region_yesde(const struct memblock_region *r)
 {
 	return r->nid;
 }
 #else
-static inline void memblock_set_region_node(struct memblock_region *r, int nid)
+static inline void memblock_set_region_yesde(struct memblock_region *r, int nid)
 {
 }
 
-static inline int memblock_get_region_node(const struct memblock_region *r)
+static inline int memblock_get_region_yesde(const struct memblock_region *r)
 {
 	return 0;
 }
@@ -397,7 +397,7 @@ static inline void * __init memblock_alloc_low(phys_addr_t size,
 				      ARCH_LOW_ADDRESS_LIMIT, NUMA_NO_NODE);
 }
 
-static inline void * __init memblock_alloc_node(phys_addr_t size,
+static inline void * __init memblock_alloc_yesde(phys_addr_t size,
 						phys_addr_t align, int nid)
 {
 	return memblock_alloc_try_nid(size, align, MEMBLOCK_LOW_LIMIT,
@@ -430,7 +430,7 @@ static inline void __init memblock_set_bottom_up(bool enable)
 }
 
 /*
- * Check if the allocation direction is bottom-up or not.
+ * Check if the allocation direction is bottom-up or yest.
  * if this is true, that said, memblock will allocate memory
  * in bottom-up direction.
  */
@@ -476,8 +476,8 @@ phys_addr_t memblock_get_current_limit(void);
  * pfn conversion functions
  *
  * While the memory MEMBLOCKs should always be page aligned, the reserved
- * MEMBLOCKs may not be. This accessor attempt to provide a very clear
- * idea of what they return for such non aligned MEMBLOCKs.
+ * MEMBLOCKs may yest be. This accessor attempt to provide a very clear
+ * idea of what they return for such yesn aligned MEMBLOCKs.
  */
 
 /**
@@ -554,7 +554,7 @@ extern void *alloc_large_system_hash(const char *tablename,
  */
 #ifdef CONFIG_NUMA
 #define HASHDIST_DEFAULT IS_ENABLED(CONFIG_64BIT)
-extern int hashdist;		/* Distribute hashes across NUMA nodes? */
+extern int hashdist;		/* Distribute hashes across NUMA yesdes? */
 #else
 #define hashdist (0)
 #endif

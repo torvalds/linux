@@ -57,20 +57,20 @@ void kunit_unary_assert_format(const struct kunit_assert *assert,
 	kunit_assert_print_msg(assert, stream);
 }
 
-void kunit_ptr_not_err_assert_format(const struct kunit_assert *assert,
+void kunit_ptr_yest_err_assert_format(const struct kunit_assert *assert,
 				     struct string_stream *stream)
 {
-	struct kunit_ptr_not_err_assert *ptr_assert = container_of(
-			assert, struct kunit_ptr_not_err_assert, assert);
+	struct kunit_ptr_yest_err_assert *ptr_assert = container_of(
+			assert, struct kunit_ptr_yest_err_assert, assert);
 
 	kunit_base_assert_format(assert, stream);
 	if (!ptr_assert->value) {
 		string_stream_add(stream,
-				 "\tExpected %s is not null, but is\n",
+				 "\tExpected %s is yest null, but is\n",
 				 ptr_assert->text);
 	} else if (IS_ERR(ptr_assert->value)) {
 		string_stream_add(stream,
-				 "\tExpected %s is not error, but is: %ld\n",
+				 "\tExpected %s is yest error, but is: %ld\n",
 				 ptr_assert->text,
 				 PTR_ERR(ptr_assert->value));
 	}

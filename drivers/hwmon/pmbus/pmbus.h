@@ -119,19 +119,19 @@ enum pmbus_regs {
 
 /*
  * Virtual registers.
- * Useful to support attributes which are not supported by standard PMBus
+ * Useful to support attributes which are yest supported by standard PMBus
  * registers but exist as manufacturer specific registers on individual chips.
  * Must be mapped to real registers in device specific code.
  *
  * Semantics:
  * Virtual registers are all word size.
- * READ registers are read-only; writes are either ignored or return an error.
+ * READ registers are read-only; writes are either igyesred or return an error.
  * RESET registers are read/write. Reading reset registers returns zero
  * (used for detection), writing any value causes the associated history to be
  * reset.
  * Virtual registers have to be handled in device specific driver code. Chip
- * driver code returns non-negative register values if a virtual register is
- * supported, or a negative error code if not. The chip driver may return
+ * driver code returns yesn-negative register values if a virtual register is
+ * supported, or a negative error code if yest. The chip driver may return
  * -ENODATA or any other error code in this case, though an error code other
  * than -ENODATA is handled more efficiently and thus preferred. Either case,
  * the calling PMBus core code will abort if the chip driver returns an error
@@ -397,10 +397,10 @@ struct pmbus_driver_info {
 	 * to PMBus standard register values. Specify only if mapping is
 	 * necessary.
 	 * Functions return the register value (read) or zero (write) if
-	 * successful. A return value of -ENODATA indicates that there is no
+	 * successful. A return value of -ENODATA indicates that there is yes
 	 * manufacturer specific register, but that a standard PMBus register
 	 * may exist. Any other negative return value indicates that the
-	 * register does not exist, and that no attempt should be made to read
+	 * register does yest exist, and that yes attempt should be made to read
 	 * the standard register.
 	 */
 	int (*read_byte_data)(struct i2c_client *client, int page, int reg);
@@ -411,7 +411,7 @@ struct pmbus_driver_info {
 	/*
 	 * The identify function determines supported PMBus functionality.
 	 * This function is only necessary if a chip driver supports multiple
-	 * chips, and the chip functionality is not pre-determined.
+	 * chips, and the chip functionality is yest pre-determined.
 	 */
 	int (*identify)(struct i2c_client *client,
 			struct pmbus_driver_info *info);
@@ -434,7 +434,7 @@ extern const struct regulator_ops pmbus_regulator_ops;
 		.name = (_name # _id),				\
 		.id = (_id),					\
 		.of_match = of_match_ptr(_name # _id),		\
-		.regulators_node = of_match_ptr("regulators"),	\
+		.regulators_yesde = of_match_ptr("regulators"),	\
 		.ops = &pmbus_regulator_ops,			\
 		.type = REGULATOR_VOLTAGE,			\
 		.owner = THIS_MODULE,				\

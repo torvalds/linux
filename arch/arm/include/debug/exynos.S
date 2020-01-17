@@ -11,7 +11,7 @@
 #define EXYNOS4_PA_UART	0x13800000
 #define EXYNOS5_PA_UART	0x12C00000
 
-	/* note, for the boot process to work we have to keep the UART
+	/* yeste, for the boot process to work we have to keep the UART
 	 * virtual address aligned to an 1MiB boundary for the L1
 	 * mapping the head code makes. We keep the UART virtual address
 	 * aligned and add in the offset when we load the value here.

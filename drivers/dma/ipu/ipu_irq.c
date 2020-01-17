@@ -159,7 +159,7 @@ static void ipu_irq_ack(struct irq_data *d)
  * ipu_irq_status() - returns the current interrupt status of the specified IRQ.
  * @irq:	interrupt line to get status for.
  * @return:	true if the interrupt is pending/asserted or false if the
- *		interrupt is not pending.
+ *		interrupt is yest pending.
  */
 bool ipu_irq_status(unsigned int irq)
 {
@@ -184,9 +184,9 @@ bool ipu_irq_status(unsigned int irq)
  *
  * The source parameter has to be explained further. On i.MX31 IPU has 137 IRQ
  * sources, they are broken down in 5 32-bit registers, like 32, 32, 24, 32, 17.
- * However, the source argument of this function is not the sequence number of
+ * However, the source argument of this function is yest the sequence number of
  * the possible IRQ, but rather its bit position. So, first interrupt in fourth
- * register has source number 96, and not 88. This makes calculations easier,
+ * register has source number 96, and yest 88. This makes calculations easier,
  * and also provides forward compatibility with any future IPU implementations
  * with any interrupt bit assignments.
  */
@@ -315,7 +315,7 @@ int __init ipu_irq_attach_irq(struct ipu *ipu, struct platform_device *dev)
 {
 	unsigned int irq, i;
 	int irq_base = irq_alloc_descs(-1, 0, CONFIG_MX3_IPU_IRQS,
-				       numa_node_id());
+				       numa_yesde_id());
 
 	if (irq_base < 0)
 		return irq_base;

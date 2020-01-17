@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -265,7 +265,7 @@ struct dereg_dev_req {
 
 /*
  * brief the data structure of DEVICE_REGISTRATION Response
- * use to notify the completion of the device registration  (64 bytes)
+ * use to yestify the completion of the device registration  (64 bytes)
  */
 
 struct dev_reg_resp {
@@ -318,7 +318,7 @@ struct port_ctl_req {
 
 /*
  * brief the data structure of HW Event Ack Command
- * use to acknowledge receive HW event (64 bytes)
+ * use to ackyeswledge receive HW event (64 bytes)
  */
 
 struct hw_event_ack_req {
@@ -452,8 +452,8 @@ struct task_abort_resp {
 
 
 /**
- * brief the data structure of SAS Diagnostic Start/End Command
- * use to describe MPI SAS Diagnostic Start/End Command (64 bytes)
+ * brief the data structure of SAS Diagyesstic Start/End Command
+ * use to describe MPI SAS Diagyesstic Start/End Command (64 bytes)
  */
 struct sas_diag_start_end_req {
 	__le32	tag;
@@ -463,8 +463,8 @@ struct sas_diag_start_end_req {
 
 
 /**
- * brief the data structure of SAS Diagnostic Execute Command
- * use to describe MPI SAS Diagnostic Execute Command (64 bytes)
+ * brief the data structure of SAS Diagyesstic Execute Command
+ * use to describe MPI SAS Diagyesstic Execute Command (64 bytes)
  */
 struct sas_diag_execute_req{
 	__le32	tag;
@@ -500,7 +500,7 @@ struct sas_re_initialization_req {
 	__le32	SSAHOLT;/* bit29-set max port;
 			** bit28-set open reject cmd retries.
 			** bit27-set open reject data retries.
-			** bit26-set open reject option, remap:1 or not:0.
+			** bit26-set open reject option, remap:1 or yest:0.
 			** bit25-set sata head of line time out.
 			*/
 	__le32 reserved_maxPorts;
@@ -659,8 +659,8 @@ struct get_nvm_data_resp {
 
 
 /**
- * brief the data structure of SAS Diagnostic Start/End Response
- * use to describe MPI SAS Diagnostic Start/End Response (64 bytes)
+ * brief the data structure of SAS Diagyesstic Start/End Response
+ * use to describe MPI SAS Diagyesstic Start/End Response (64 bytes)
  *
  */
 struct sas_diag_start_end_resp {
@@ -671,8 +671,8 @@ struct sas_diag_start_end_resp {
 
 
 /**
- * brief the data structure of SAS Diagnostic Execute Response
- * use to describe MPI SAS Diagnostic Execute Response (64 bytes)
+ * brief the data structure of SAS Diagyesstic Execute Response
+ * use to describe MPI SAS Diagyesstic Execute Response (64 bytes)
  *
  */
 struct sas_diag_execute_resp {
@@ -823,7 +823,7 @@ struct set_dev_state_resp {
 #define MSGU_HOST_INT_MASK			0x0C
 #define MSGU_IOPIB_INT_STATUS			0x18
 #define MSGU_IOPIB_INT_MASK			0x1C
-#define MSGU_IBDB_CLEAR				0x20/* RevB - Host not use */
+#define MSGU_IBDB_CLEAR				0x20/* RevB - Host yest use */
 #define MSGU_MSGU_CONTROL			0x24
 #define MSGU_ODR				0x3C/* RevB */
 #define MSGU_ODCR				0x40/* RevB */

@@ -32,13 +32,13 @@ struct compressed_bio {
 	/* the pages with the compressed data on them */
 	struct page **compressed_pages;
 
-	/* inode that owns this data */
-	struct inode *inode;
+	/* iyesde that owns this data */
+	struct iyesde *iyesde;
 
-	/* starting offset in the inode for our pages */
+	/* starting offset in the iyesde for our pages */
 	u64 start;
 
-	/* number of bytes in the inode we're working on */
+	/* number of bytes in the iyesde we're working on */
 	unsigned long len;
 
 	/* number of bytes on disk */
@@ -88,14 +88,14 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 			      unsigned long total_out, u64 disk_start,
 			      struct bio *bio);
 
-blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
+blk_status_t btrfs_submit_compressed_write(struct iyesde *iyesde, u64 start,
 				  unsigned long len, u64 disk_start,
 				  unsigned long compressed_len,
 				  struct page **compressed_pages,
 				  unsigned long nr_pages,
 				  unsigned int write_flags,
 				  struct cgroup_subsys_state *blkcg_css);
-blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
+blk_status_t btrfs_submit_compressed_read(struct iyesde *iyesde, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags);
 
 unsigned int btrfs_compress_str2level(unsigned int type, const char *str);
@@ -142,6 +142,6 @@ bool btrfs_compress_is_valid_type(const char *str, size_t len);
 
 unsigned int btrfs_compress_set_level(int type, unsigned level);
 
-int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end);
+int btrfs_compress_heuristic(struct iyesde *iyesde, u64 start, u64 end);
 
 #endif

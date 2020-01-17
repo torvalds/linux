@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _fe_property_parameters:
 
@@ -15,7 +15,7 @@ Digital TV property parameters
 
 There are several different Digital TV parameters that can be used by
 :ref:`FE_SET_PROPERTY and FE_GET_PROPERTY ioctls<FE_GET_PROPERTY>`.
-This section describes each of them. Please notice, however, that only
+This section describes each of them. Please yestice, however, that only
 a subset of them are needed to setup a frontend.
 
 
@@ -42,7 +42,7 @@ tunerequest so we can pass validation in the ``FE_SET_FRONTEND`` ioctl.
 DTV_CLEAR
 =========
 
-Reset a cache of data specific to the frontend here. This does not
+Reset a cache of data specific to the frontend here. This does yest
 effect hardware.
 
 
@@ -53,7 +53,7 @@ DTV_FREQUENCY
 
 Frequency of the digital TV transponder/channel.
 
-.. note::
+.. yeste::
 
   #. For satellite delivery systems, the frequency is in kHz.
 
@@ -104,10 +104,10 @@ ISDB-T			QPSK, DQPSK, 16-QAM and 64-QAM.
 ISDB-S			8-PSK, QPSK and BPSK.
 ======================= =======================================================
 
-.. note::
+.. yeste::
 
-   Please notice that some of the above modulation types may not be
-   defined currently at the Kernel. The reason is simple: no driver
+   Please yestice that some of the above modulation types may yest be
+   defined currently at the Kernel. The reason is simple: yes driver
    needed such definition yet.
 
 
@@ -135,7 +135,7 @@ ISDB-T			5MHz, 6MHz, 7MHz and 8MHz, although most places
 ======================= =======================================================
 
 
-.. note::
+.. yeste::
 
 
   #. For ISDB-Tsb, the bandwidth can vary depending on the number of
@@ -145,7 +145,7 @@ ISDB-T			5MHz, 6MHz, 7MHz and 8MHz, although most places
      (DTV_ISDBT_SB_SEGMENT_IDX, DTV_ISDBT_SB_SEGMENT_COUNT).
 
   #. On Satellite and Cable delivery systems, the bandwidth depends on
-     the symbol rate. So, the Kernel will silently ignore any setting
+     the symbol rate. So, the Kernel will silently igyesre any setting
      :ref:`DTV-BANDWIDTH-HZ`. I will however fill it back with a
      bandwidth estimation.
 
@@ -161,7 +161,7 @@ ISDB-T			5MHz, 6MHz, 7MHz and 8MHz, although most places
 DTV_INVERSION
 =============
 
-Specifies if the frontend should do spectral inversion or not.
+Specifies if the frontend should do spectral inversion or yest.
 
 The acceptable values are defined by :c:type:`fe_spectral_inversion`.
 
@@ -171,7 +171,7 @@ The acceptable values are defined by :c:type:`fe_spectral_inversion`.
 DTV_DISEQC_MASTER
 =================
 
-Currently not implemented.
+Currently yest implemented.
 
 
 .. _DTV-SYMBOL-RATE:
@@ -201,7 +201,7 @@ DTV_VOLTAGE
 
 Used on satellite delivery systems.
 
-The voltage is usually used with non-DiSEqC capable LNBs to switch the
+The voltage is usually used with yesn-DiSEqC capable LNBs to switch the
 polarzation (horizontal/vertical). When using DiSEqC epuipment this
 voltage has to be switched consistently to the DiSEqC commands as
 described in the DiSEqC spec.
@@ -214,7 +214,7 @@ The acceptable values are defined by :c:type:`fe_sec_voltage`.
 DTV_TONE
 ========
 
-Currently not used.
+Currently yest used.
 
 
 .. _DTV-PILOT:
@@ -246,7 +246,7 @@ The acceptable values are defined by :c:type:`fe_rolloff`.
 DTV_DISEQC_SLAVE_REPLY
 ======================
 
-Currently not implemented.
+Currently yest implemented.
 
 
 .. _DTV-FE-CAPABILITY-COUNT:
@@ -254,7 +254,7 @@ Currently not implemented.
 DTV_FE_CAPABILITY_COUNT
 =======================
 
-Currently not implemented.
+Currently yest implemented.
 
 
 .. _DTV-FE-CAPABILITY:
@@ -262,7 +262,7 @@ Currently not implemented.
 DTV_FE_CAPABILITY
 =================
 
-Currently not implemented.
+Currently yest implemented.
 
 
 .. _DTV-DELIVERY-SYSTEM:
@@ -283,7 +283,7 @@ DTV_ISDBT_PARTIAL_RECEPTION
 Used only on ISDB.
 
 If ``DTV_ISDBT_SOUND_BROADCASTING`` is '0' this bit-field represents
-whether the channel is in partial reception mode or not.
+whether the channel is in partial reception mode or yest.
 
 If '1' ``DTV_ISDBT_LAYERA_*`` values are assigned to the center segment
 and ``DTV_ISDBT_LAYERA_SEGMENT_COUNT`` has to be '1'.
@@ -318,7 +318,7 @@ Used only on ISDB.
 
 This field only applies if ``DTV_ISDBT_SOUND_BROADCASTING`` is '1'.
 
-(Note of the author: This might not be the correct description of the
+(Note of the author: This might yest be the correct description of the
 ``SUBCHANNEL-ID`` in all details, but it is my understanding of the
 technical background needed to program a device)
 
@@ -330,7 +330,7 @@ available.
 
 Example: Assume 8 ISDB-Tsb connected segments are broadcasted. The
 broadcaster has several possibilities to put those channels in the air:
-Assuming a normal 13-segment ISDB-T spectrum he can align the 8 segments
+Assuming a yesrmal 13-segment ISDB-T spectrum he can align the 8 segments
 from position 1-8 to 5-13 or anything in between.
 
 The underlying layer of segments are subchannels: each segment is
@@ -338,7 +338,7 @@ consisting of several subchannels with a predefined IDs. A sub-channel
 is used to help the demodulator to synchronize on the channel.
 
 An ISDB-T channel is always centered over all sub-channels. As for the
-example above, in ISDB-Tsb it is no longer as simple as that.
+example above, in ISDB-Tsb it is yes longer as simple as that.
 
 ``The DTV_ISDBT_SB_SUBCHANNEL_ID`` parameter is used to give the
 sub-channel ID of the segment to be demodulated.
@@ -361,7 +361,7 @@ transmitted in the connected manner.
 
 Possible values: 0 .. ``DTV_ISDBT_SB_SEGMENT_COUNT`` - 1
 
-Note: This value cannot be determined by an automatic channel search.
+Note: This value canyest be determined by an automatic channel search.
 
 
 .. _DTV-ISDBT-SB-SEGMENT-COUNT:
@@ -378,7 +378,7 @@ ISDB-Tsb channels.
 
 Possible values: 1 .. 13
 
-Note: This value cannot be determined by an automatic channel search.
+Note: This value canyest be determined by an automatic channel search.
 
 
 .. _isdb-hierq-layers:
@@ -420,7 +420,7 @@ In ISDB-Tsb only layer A is used, it can be 1 or 3 in ISDB-Tsb according
 to ``DTV_ISDBT_PARTIAL_RECEPTION``. ``SEGMENT_COUNT`` must be filled
 accordingly.
 
-Only the values of the first 3 bits are used. Other bits will be silently ignored:
+Only the values of the first 3 bits are used. Other bits will be silently igyesred:
 
 ``DTV_ISDBT_LAYER_ENABLED`` bit 0: layer A enabled
 
@@ -458,7 +458,7 @@ The modulation used by a given ISDB Layer, as defined by
 
 Possible values are: ``QAM_AUTO``, ``QPSK``, ``QAM_16``, ``QAM_64``, ``DQPSK``
 
-.. note::
+.. yeste::
 
    #. If layer C is ``DQPSK``, then layer B has to be ``DQPSK``.
 
@@ -826,7 +826,7 @@ Possible values are the same as documented on enum
 DTV_API_VERSION
 ===============
 
-Returns the major/minor version of the Digital TV API
+Returns the major/miyesr version of the Digital TV API
 
 
 .. _DTV-CODE-RATE-HP:
@@ -856,7 +856,7 @@ DTV_GUARD_INTERVAL
 
 The acceptable values are defined by :c:type:`fe_guard_interval`.
 
-.. note::
+.. yeste::
 
    #. If ``DTV_GUARD_INTERVAL`` is set the ``GUARD_INTERVAL_AUTO`` the
       hardware will try to find the correct guard interval (if capable) and
@@ -882,7 +882,7 @@ carriers) used by the standard.
 
 The acceptable values are defined by :c:type:`fe_transmit_mode`.
 
-.. note::
+.. yeste::
 
    #. ISDB-T supports three carrier/symbol-size: 8K, 4K, 2K. It is called
       **mode** on such standard, and are numbered from 1 to 3:
@@ -981,7 +981,7 @@ The acceptable values are defined by :c:type:`fe_interleaving`.
 DTV_LNA
 =======
 
-Low-noise amplifier.
+Low-yesise amplifier.
 
 Hardware might offer controllable LNA which can be set manually using
 that parameter. Usually LNA could be found only from terrestrial devices
@@ -1005,7 +1005,7 @@ Used on DVB-S2.
 
 This 18 bit field, when present, carries the index of the DVB-S2 physical
 layer scrambling sequence as defined in clause 5.5.4 of EN 302 307.
-There is no explicit signalling method to convey scrambling sequence index
+There is yes explicit signalling method to convey scrambling sequence index
 to the receiver. If S2 satellite delivery system descriptor is available
 it can be used to read the scrambling sequence index (EN 300 468 table 41).
 

@@ -36,9 +36,9 @@ __udivdi3:
 	mshalds.l r1,r21,r1
 	shari r4,26,r4
 	shlld r8,r0,r8
-	add r1,r4,r1 // 31 bit unsigned reciprocal now in r1 (msb equiv. 0.5)
+	add r1,r4,r1 // 31 bit unsigned reciprocal yesw in r1 (msb equiv. 0.5)
 	sub r2,r8,r2
-	/* Can do second step of 64 : 32 div now, using r1 and the rest in r2.  */
+	/* Can do second step of 64 : 32 div yesw, using r1 and the rest in r2.  */
 
 	shlri r2,22,r21
 	mulu.l r21,r1,r21
@@ -83,23 +83,23 @@ large_divisor:
 	mulu.l r8,r7,r5
 	mshalds.l r1,r21,r1
 	shari r4,26,r4
-	add r1,r4,r1 // 31 bit unsigned reciprocal now in r1 (msb equiv. 0.5)
+	add r1,r4,r1 // 31 bit unsigned reciprocal yesw in r1 (msb equiv. 0.5)
 	sub r25,r5,r25
-	/* Can do second step of 64 : 32 div now, using r1 and the rest in r25.  */
+	/* Can do second step of 64 : 32 div yesw, using r1 and the rest in r25.  */
 
 	shlri r25,22,r21
 	mulu.l r21,r1,r21
-	pta no_lo_adj,tr0
+	pta yes_lo_adj,tr0
 	addi r22,32,r0
 	shlri r21,40,r21
 	mulu.l r21,r7,r5
 	add r8,r21,r8
 	shlld r2,r0,r2
 	sub r25,r5,r25
-	bgtu/u r7,r25,tr0 // no_lo_adj
+	bgtu/u r7,r25,tr0 // yes_lo_adj
 	addi r8,1,r8
 	sub r25,r7,r25
-no_lo_adj:
+yes_lo_adj:
 	mextr4 r2,r25,r2
 
 	/* large_divisor: only needs a few adjustments.  */
@@ -115,7 +115,7 @@ no_lo_adj:
    would require a lot of instructions to do the shifts just right.  Using
    the full 64 bit shift result to multiply with the divisor would require
    four extra instructions for the upper 32 bits (shift / mulu / shift / sub).
-   Fortunately, if the upper 32 bits of the shift result are nonzero, we
-   know that the rest after taking this partial result into account will
+   Fortunately, if the upper 32 bits of the shift result are yesnzero, we
+   kyesw that the rest after taking this partial result into account will
    fit into 32 bits.  So we just clear the upper 32 bits of the rest if the
-   upper 32 bits of the partial result are nonzero.  */
+   upper 32 bits of the partial result are yesnzero.  */

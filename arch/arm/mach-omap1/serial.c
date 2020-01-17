@@ -44,7 +44,7 @@ static inline void omap_serial_outp(struct plat_serial8250_port *p, int offset,
 
 /*
  * Internal UARTs need to be initialized for the 8250 autoconfig to work
- * properly. Note that the TX watermark initialization may not be needed
+ * properly. Note that the TX watermark initialization may yest be needed
  * once the 8250.c watermark handling code is merged.
  */
 static void __init omap_serial_reset(struct plat_serial8250_port *p)
@@ -98,8 +98,8 @@ static struct platform_device serial_device = {
 };
 
 /*
- * Note that on Innovator-1510 UART2 pins conflict with USB2.
- * By default UART2 does not work on Innovator-1510 if you have
+ * Note that on Inyesvator-1510 UART2 pins conflict with USB2.
+ * By default UART2 does yest work on Inyesvator-1510 if you have
  * USB OHCI enabled. To use UART2, you must disable USB2 first.
  */
 void __init omap_serial_init(void)
@@ -132,14 +132,14 @@ void __init omap_serial_init(void)
 		serial_platform_data[i].membase =
 			ioremap(serial_platform_data[i].mapbase, SZ_2K);
 		if (!serial_platform_data[i].membase) {
-			printk(KERN_ERR "Could not ioremap uart%i\n", i);
+			printk(KERN_ERR "Could yest ioremap uart%i\n", i);
 			continue;
 		}
 		switch (i) {
 		case 0:
 			uart1_ck = clk_get(NULL, "uart1_ck");
 			if (IS_ERR(uart1_ck))
-				printk("Could not get uart1_ck\n");
+				printk("Could yest get uart1_ck\n");
 			else {
 				clk_enable(uart1_ck);
 				if (cpu_is_omap15xx())
@@ -149,7 +149,7 @@ void __init omap_serial_init(void)
 		case 1:
 			uart2_ck = clk_get(NULL, "uart2_ck");
 			if (IS_ERR(uart2_ck))
-				printk("Could not get uart2_ck\n");
+				printk("Could yest get uart2_ck\n");
 			else {
 				clk_enable(uart2_ck);
 				if (cpu_is_omap15xx())
@@ -161,7 +161,7 @@ void __init omap_serial_init(void)
 		case 2:
 			uart3_ck = clk_get(NULL, "uart3_ck");
 			if (IS_ERR(uart3_ck))
-				printk("Could not get uart3_ck\n");
+				printk("Could yest get uart3_ck\n");
 			else {
 				clk_enable(uart3_ck);
 				if (cpu_is_omap15xx())
@@ -217,7 +217,7 @@ static void __init omap_serial_set_port_wakeup(int gpio_nr)
 
 	ret = gpio_request(gpio_nr, "UART wake");
 	if (ret < 0) {
-		printk(KERN_ERR "Could not request UART wake GPIO: %i\n",
+		printk(KERN_ERR "Could yest request UART wake GPIO: %i\n",
 		       gpio_nr);
 		return;
 	}

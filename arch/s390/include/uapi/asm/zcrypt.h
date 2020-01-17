@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *  include/asm-s390/zcrypt.h
  *
@@ -73,7 +73,7 @@ struct ica_rsa_modexpo_crt {
 /**
  * CPRBX
  *	  Note that all shorts and ints are big-endian.
- *	  All pointer fields are 16 bytes long, and mean nothing.
+ *	  All pointer fields are 16 bytes long, and mean yesthing.
  *
  *	  A request CPRB is followed by a request_parameter_block.
  *
@@ -189,7 +189,7 @@ struct ep11_target_dev {
  * @targets_num:	Number of target adapters
  * @targets:		Addr to target adapter list
  * @weight:		Level of request priority
- * @req_no:		Request id/number
+ * @req_yes:		Request id/number
  * @req_len:		Request length
  * @req:		Addr to request block
  * @resp_len:		Response length
@@ -199,7 +199,7 @@ struct ep11_urb {
 	__u16		targets_num;
 	__u64		targets;
 	__u64		weight;
-	__u64		req_no;
+	__u64		req_yes;
 	__u64		req_len;
 	__u64		req;
 	__u64		resp_len;
@@ -242,7 +242,7 @@ struct zcrypt_device_matrix_ext {
 #define ZCRYPT_IOCTL_MAGIC 'z'
 
 /**
- * Interface notes:
+ * Interface yestes:
  *
  * The ioctl()s which are implemented (along with relevant details)
  * are:
@@ -271,7 +271,7 @@ struct zcrypt_device_matrix_ext {
  *
  *   ZCRYPT_DEVICE_STATUS
  *     The given struct zcrypt_device_matrix_ext is updated with
- *     status information for each currently known apqn.
+ *     status information for each currently kyeswn apqn.
  *
  *   ZCRYPT_STATUS_MASK
  *     Return an MAX_ZDEV_CARDIDS_EXT element array of unsigned chars for the
@@ -314,10 +314,10 @@ struct zcrypt_device_matrix_ext {
 #define ZCRYPT_PERDEV_REQCNT _IOR(ZCRYPT_IOCTL_MAGIC, 0x5a, int[MAX_ZDEV_CARDIDS_EXT])
 
 /*
- * Support for multiple zcrypt device nodes.
+ * Support for multiple zcrypt device yesdes.
  */
 
-/* Nr of minor device node numbers to allocate. */
+/* Nr of miyesr device yesde numbers to allocate. */
 #define ZCRYPT_MAX_MINOR_NODES 256
 
 /* Max amount of possible ioctls */

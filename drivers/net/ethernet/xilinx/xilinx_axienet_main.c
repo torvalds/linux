@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2008 Nissin Systems Co., Ltd.,  Yoshio Kashiwagi
  * Copyright (c) 2005-2008 DLA Systems,  David H. Lynch Jr. <dhlii@dlasys.net>
- * Copyright (c) 2008-2009 Secret Lab Technologies Ltd.
+ * Copyright (c) 2008-2009 Secret Lab Techyeslogies Ltd.
  * Copyright (c) 2010 - 2011 Michal Simek <monstr@monstr.eu>
  * Copyright (c) 2010 - 2011 PetaLogix
  * Copyright (c) 2019 SED Systems, a division of Calian Ltd.
@@ -275,7 +275,7 @@ static int axienet_dma_bd_init(struct net_device *ndev)
 			  (sizeof(*lp->rx_bd_v) * (lp->rx_bd_num - 1)));
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
-	 * Tx channel is now ready to run. But only after we write to the
+	 * Tx channel is yesw ready to run. But only after we write to the
 	 * tail pointer register that the Tx channel will start transmitting.
 	 */
 	axienet_dma_out32(lp, XAXIDMA_TX_CDESC_OFFSET, lp->tx_bd_p);
@@ -325,7 +325,7 @@ static void axienet_set_mac_address(struct net_device *ndev,
  * @ndev:	Pointer to the net_device structure
  * @p:		6 byte Address to be written as MAC address
  *
- * Return: 0 for all conditions. Presently, there is no failure case.
+ * Return: 0 for all conditions. Presently, there is yes failure case.
  *
  * This function is called to initialize the MAC address of the Axi Ethernet
  * core. It calls the core specific axienet_set_mac_address. This is the
@@ -359,7 +359,7 @@ static void axienet_set_multicast_list(struct net_device *ndev)
 	    netdev_mc_count(ndev) > XAE_MULTICAST_CAM_TABLE_NUM) {
 		/* We must make the kernel realize we had to move into
 		 * promiscuous mode. If it was a promiscuous mode request
-		 * the flag is already set. If not we set it.
+		 * the flag is already set. If yest we set it.
 		 */
 		ndev->flags |= IFF_PROMISC;
 		reg = axienet_ior(lp, XAE_FMI_OFFSET);
@@ -525,7 +525,7 @@ static void axienet_device_reset(struct net_device *ndev)
  * Axi DMA Tx channel.
  * @ndev:	Pointer to the net_device structure
  *
- * This function is invoked from the Axi DMA Tx isr to notify the completion
+ * This function is invoked from the Axi DMA Tx isr to yestify the completion
  * of transmit operation. It clears fields in the corresponding Tx BDs and
  * unmaps the corresponding buffer so that CPU can regain ownership of the
  * buffer. It finally invokes "netif_wake_queue" to restart transmission if
@@ -579,11 +579,11 @@ static void axienet_start_xmit_done(struct net_device *ndev)
  * @num_frag:	The number of BDs to check for
  *
  * Return: 0, on success
- *	    NETDEV_TX_BUSY, if any of the descriptors are not free
+ *	    NETDEV_TX_BUSY, if any of the descriptors are yest free
  *
  * This function is invoked before BDs are allocated and transmission starts.
  * This function returns 0 if a BD or group of BDs can be allocated for
- * transmission. If the BD or any of the BDs are not free the function
+ * transmission. If the BD or any of the BDs are yest free the function
  * returns a busy status. This is invoked from axienet_start_xmit.
  */
 static inline int axienet_check_tx_bd_space(struct axienet_local *lp,
@@ -602,7 +602,7 @@ static inline int axienet_check_tx_bd_space(struct axienet_local *lp,
  * @ndev:	Pointer to net_device structure.
  *
  * Return: NETDEV_TX_OK, on success
- *	    NETDEV_TX_BUSY, if any of the descriptors are not free
+ *	    NETDEV_TX_BUSY, if any of the descriptors are yest free
  *
  * This function is invoked from upper layers to initiate transmission. The
  * function uses the next available free BDs and populates their fields to
@@ -718,7 +718,7 @@ static void axienet_recv(struct net_device *ndev)
 
 		skb_put(skb, length);
 		skb->protocol = eth_type_trans(skb, ndev);
-		/*skb_checksum_none_assert(skb);*/
+		/*skb_checksum_yesne_assert(skb);*/
 		skb->ip_summed = CHECKSUM_NONE;
 
 		/* if we're doing Rx csum offload, set it up */
@@ -898,7 +898,7 @@ static void axienet_dma_err_handler(unsigned long data);
  * @ndev:	Pointer to net_device structure
  *
  * Return: 0, on success.
- *	    non-zero error value on failure
+ *	    yesn-zero error value on failure
  *
  * This is the driver open routine. It calls phylink_start to start the
  * PHY device.
@@ -927,7 +927,7 @@ static int axienet_open(struct net_device *ndev)
 	if (ret < 0)
 		return ret;
 
-	ret = phylink_of_phy_connect(lp->phylink, lp->dev->of_node, 0);
+	ret = phylink_of_phy_connect(lp->phylink, lp->dev->of_yesde, 0);
 	if (ret) {
 		dev_err(lp->dev, "phylink_of_phy_connect() failed: %d\n", ret);
 		return ret;
@@ -1045,7 +1045,7 @@ static int axienet_stop(struct net_device *ndev)
  *
  * This is the change mtu driver routine. It checks if the Axi Ethernet
  * hardware supports jumbo frames before changing the mtu. This can be
- * called only when the device is not up.
+ * called only when the device is yest up.
  */
 static int axienet_change_mtu(struct net_device *ndev, int new_mtu)
 {
@@ -1382,7 +1382,7 @@ static void axienet_validate(struct phylink_config *config,
 	/* Only support the mode we are configured for */
 	if (state->interface != PHY_INTERFACE_MODE_NA &&
 	    state->interface != lp->phy_mode) {
-		netdev_warn(ndev, "Cannot use PHY mode %s, supported: %s\n",
+		netdev_warn(ndev, "Canyest use PHY mode %s, supported: %s\n",
 			    phy_modes(state->interface),
 			    phy_modes(lp->phy_mode));
 		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
@@ -1435,7 +1435,7 @@ static void axienet_mac_pcs_get_state(struct phylink_config *config,
 
 static void axienet_mac_an_restart(struct phylink_config *config)
 {
-	/* Unsupported, do nothing */
+	/* Unsupported, do yesthing */
 }
 
 static void axienet_mac_config(struct phylink_config *config, unsigned int mode,
@@ -1460,7 +1460,7 @@ static void axienet_mac_config(struct phylink_config *config, unsigned int mode,
 		break;
 	default:
 		dev_err(&ndev->dev,
-			"Speed other than 10, 100 or 1Gbps is not supported\n");
+			"Speed other than 10, 100 or 1Gbps is yest supported\n");
 		break;
 	}
 
@@ -1482,7 +1482,7 @@ static void axienet_mac_link_down(struct phylink_config *config,
 				  unsigned int mode,
 				  phy_interface_t interface)
 {
-	/* nothing meaningful to do */
+	/* yesthing meaningful to do */
 }
 
 static void axienet_mac_link_up(struct phylink_config *config,
@@ -1490,7 +1490,7 @@ static void axienet_mac_link_up(struct phylink_config *config,
 				phy_interface_t interface,
 				struct phy_device *phy)
 {
-	/* nothing meaningful to do */
+	/* yesthing meaningful to do */
 }
 
 static const struct phylink_mac_ops axienet_phylink_ops = {
@@ -1602,7 +1602,7 @@ static void axienet_dma_err_handler(unsigned long data)
 			  (sizeof(*lp->rx_bd_v) * (lp->rx_bd_num - 1)));
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
-	 * Tx channel is now ready to run. But only after we write to the
+	 * Tx channel is yesw ready to run. But only after we write to the
 	 * tail pointer register that the Tx channel will start transmitting
 	 */
 	axienet_dma_out32(lp, XAXIDMA_TX_CDESC_OFFSET, lp->tx_bd_p);
@@ -1646,7 +1646,7 @@ static void axienet_dma_err_handler(unsigned long data)
 static int axienet_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct axienet_local *lp;
 	struct net_device *ndev;
 	const void *mac_addr;
@@ -1679,16 +1679,16 @@ static int axienet_probe(struct platform_device *pdev)
 	ethres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	lp->regs = devm_ioremap_resource(&pdev->dev, ethres);
 	if (IS_ERR(lp->regs)) {
-		dev_err(&pdev->dev, "could not map Axi Ethernet regs.\n");
+		dev_err(&pdev->dev, "could yest map Axi Ethernet regs.\n");
 		ret = PTR_ERR(lp->regs);
 		goto free_netdev;
 	}
 	lp->regs_start = ethres->start;
 
-	/* Setup checksum offload, but default to off if not specified */
+	/* Setup checksum offload, but default to off if yest specified */
 	lp->features = 0;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "xlnx,txcsum", &value);
+	ret = of_property_read_u32(pdev->dev.of_yesde, "xlnx,txcsum", &value);
 	if (!ret) {
 		switch (value) {
 		case 1:
@@ -1709,7 +1709,7 @@ static int axienet_probe(struct platform_device *pdev)
 			lp->csum_offload_on_tx_path = XAE_NO_CSUM_OFFLOAD;
 		}
 	}
-	ret = of_property_read_u32(pdev->dev.of_node, "xlnx,rxcsum", &value);
+	ret = of_property_read_u32(pdev->dev.of_yesde, "xlnx,rxcsum", &value);
 	if (!ret) {
 		switch (value) {
 		case 1:
@@ -1732,10 +1732,10 @@ static int axienet_probe(struct platform_device *pdev)
 	 * Here we check for memory allocated for Rx/Tx in the hardware from
 	 * the device-tree and accordingly set flags.
 	 */
-	of_property_read_u32(pdev->dev.of_node, "xlnx,rxmem", &lp->rxmem);
+	of_property_read_u32(pdev->dev.of_yesde, "xlnx,rxmem", &lp->rxmem);
 
 	/* Start with the proprietary, and broken phy_type */
-	ret = of_property_read_u32(pdev->dev.of_node, "xlnx,phy-type", &value);
+	ret = of_property_read_u32(pdev->dev.of_yesde, "xlnx,phy-type", &value);
 	if (!ret) {
 		netdev_warn(ndev, "Please upgrade your device tree binary blob to use phy-mode");
 		switch (value) {
@@ -1759,13 +1759,13 @@ static int axienet_probe(struct platform_device *pdev)
 			goto free_netdev;
 		}
 	} else {
-		ret = of_get_phy_mode(pdev->dev.of_node, &lp->phy_mode);
+		ret = of_get_phy_mode(pdev->dev.of_yesde, &lp->phy_mode);
 		if (ret)
 			goto free_netdev;
 	}
 
-	/* Find the DMA node, map the DMA registers, and decode the DMA IRQs */
-	np = of_parse_phandle(pdev->dev.of_node, "axistream-connected", 0);
+	/* Find the DMA yesde, map the DMA registers, and decode the DMA IRQs */
+	np = of_parse_phandle(pdev->dev.of_yesde, "axistream-connected", 0);
 	if (np) {
 		struct resource dmares;
 
@@ -1773,17 +1773,17 @@ static int axienet_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev,
 				"unable to get DMA resource\n");
-			of_node_put(np);
+			of_yesde_put(np);
 			goto free_netdev;
 		}
 		lp->dma_regs = devm_ioremap_resource(&pdev->dev,
 						     &dmares);
 		lp->rx_irq = irq_of_parse_and_map(np, 1);
 		lp->tx_irq = irq_of_parse_and_map(np, 0);
-		of_node_put(np);
+		of_yesde_put(np);
 		lp->eth_irq = platform_get_irq(pdev, 0);
 	} else {
-		/* Check for these resources directly on the Ethernet node. */
+		/* Check for these resources directly on the Ethernet yesde. */
 		struct resource *res = platform_get_resource(pdev,
 							     IORESOURCE_MEM, 1);
 		lp->dma_regs = devm_ioremap_resource(&pdev->dev, res);
@@ -1792,24 +1792,24 @@ static int axienet_probe(struct platform_device *pdev)
 		lp->eth_irq = platform_get_irq(pdev, 2);
 	}
 	if (IS_ERR(lp->dma_regs)) {
-		dev_err(&pdev->dev, "could not map DMA regs\n");
+		dev_err(&pdev->dev, "could yest map DMA regs\n");
 		ret = PTR_ERR(lp->dma_regs);
 		goto free_netdev;
 	}
 	if ((lp->rx_irq <= 0) || (lp->tx_irq <= 0)) {
-		dev_err(&pdev->dev, "could not determine irqs\n");
+		dev_err(&pdev->dev, "could yest determine irqs\n");
 		ret = -ENOMEM;
 		goto free_netdev;
 	}
 
 	/* Check for Ethernet core IRQ (optional) */
 	if (lp->eth_irq <= 0)
-		dev_info(&pdev->dev, "Ethernet core IRQ not defined\n");
+		dev_info(&pdev->dev, "Ethernet core IRQ yest defined\n");
 
 	/* Retrieve the MAC address */
-	mac_addr = of_get_mac_address(pdev->dev.of_node);
+	mac_addr = of_get_mac_address(pdev->dev.of_yesde);
 	if (IS_ERR(mac_addr)) {
-		dev_warn(&pdev->dev, "could not find MAC address property: %ld\n",
+		dev_warn(&pdev->dev, "could yest find MAC address property: %ld\n",
 			 PTR_ERR(mac_addr));
 		mac_addr = NULL;
 	}
@@ -1818,8 +1818,8 @@ static int axienet_probe(struct platform_device *pdev)
 	lp->coalesce_count_rx = XAXIDMA_DFT_RX_THRESHOLD;
 	lp->coalesce_count_tx = XAXIDMA_DFT_TX_THRESHOLD;
 
-	lp->phy_node = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
-	if (lp->phy_node) {
+	lp->phy_yesde = of_parse_phandle(pdev->dev.of_yesde, "phy-handle", 0);
+	if (lp->phy_yesde) {
 		lp->clk = devm_clk_get(&pdev->dev, NULL);
 		if (IS_ERR(lp->clk)) {
 			dev_warn(&pdev->dev, "Failed to get clock: %ld\n",
@@ -1843,7 +1843,7 @@ static int axienet_probe(struct platform_device *pdev)
 	lp->phylink_config.dev = &ndev->dev;
 	lp->phylink_config.type = PHYLINK_NETDEV;
 
-	lp->phylink = phylink_create(&lp->phylink_config, pdev->dev.fwnode,
+	lp->phylink = phylink_create(&lp->phylink_config, pdev->dev.fwyesde,
 				     lp->phy_mode,
 				     &axienet_phylink_ops);
 	if (IS_ERR(lp->phylink)) {
@@ -1881,8 +1881,8 @@ static int axienet_remove(struct platform_device *pdev)
 	if (lp->clk)
 		clk_disable_unprepare(lp->clk);
 
-	of_node_put(lp->phy_node);
-	lp->phy_node = NULL;
+	of_yesde_put(lp->phy_yesde);
+	lp->phy_yesde = NULL;
 
 	free_netdev(ndev);
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * apb_timer.h: Driver for Langwell APB timer based on Synopsis DesignWare
+ * apb_timer.h: Driver for Langwell APB timer based on Syyespsis DesignWare
  *
  * (C) Copyright 2009 Intel Corporation
  * Author: Jacob Pan (jacob.jun.pan@intel.com)

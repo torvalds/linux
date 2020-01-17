@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -47,7 +47,7 @@ static void xgpu_nv_mailbox_set_valid(struct amdgpu_device *adev, bool val)
  * RCV_MSG_VALID filed of BIF_BX_PF_MAILBOX_CONTROL must already be set to 1
  * by host.
  *
- * if called no in IRQ routine, this peek_msg cannot guaranteed to return the
+ * if called yes in IRQ routine, this peek_msg canyest guaranteed to return the
  * correct value since it doesn't return the RCV_DW0 under the case that
  * RCV_MSG_VALID is set by host.
  */
@@ -132,7 +132,7 @@ static void xgpu_nv_mailbox_trans_msg (struct amdgpu_device *adev,
 		xgpu_nv_mailbox_set_valid(adev, false);
 		trn = xgpu_nv_peek_ack(adev);
 		if (trn) {
-			pr_err("trn=%x ACK should not assert! wait again !\n", trn);
+			pr_err("trn=%x ACK should yest assert! wait again !\n", trn);
 			msleep(1);
 		}
 	} while (trn);
@@ -217,7 +217,7 @@ static int xgpu_nv_mailbox_ack_irq(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *source,
 					struct amdgpu_iv_entry *entry)
 {
-	DRM_DEBUG("get ack intr and do nothing.\n");
+	DRM_DEBUG("get ack intr and do yesthing.\n");
 	return 0;
 }
 
@@ -268,7 +268,7 @@ flr_done:
 		mutex_unlock(&adev->lock_reset);
 	}
 
-	/* Trigger recovery for world switch failure if no TDR */
+	/* Trigger recovery for world switch failure if yes TDR */
 	if (amdgpu_device_should_recover_gpu(adev))
 		amdgpu_device_gpu_recover(adev, NULL);
 }
@@ -298,9 +298,9 @@ static int xgpu_nv_mailbox_rcv_irq(struct amdgpu_device *adev,
 		if (amdgpu_sriov_runtime(adev))
 			schedule_work(&adev->virt.flr_work);
 		break;
-		/* READY_TO_ACCESS_GPU is fetched by kernel polling, IRQ can ignore
+		/* READY_TO_ACCESS_GPU is fetched by kernel polling, IRQ can igyesre
 		 * it byfar since that polling thread will handle it,
-		 * other msg like flr complete is not handled here.
+		 * other msg like flr complete is yest handled here.
 		 */
 	case IDH_CLR_MSG_BUF:
 	case IDH_FLR_NOTIFICATION_CMPL:

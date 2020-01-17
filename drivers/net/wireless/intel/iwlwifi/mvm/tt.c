@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -85,7 +85,7 @@ void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
 	}
 
 	/* Don't schedule an exit work if we're in test mode, since
-	 * the temperature will not change unless we manually set it
+	 * the temperature will yest change unless we manually set it
 	 * again (or disable testing).
 	 */
 	if (!mvm->temperature_test)
@@ -104,7 +104,7 @@ static void iwl_mvm_exit_ctkill(struct iwl_mvm *mvm)
 
 void iwl_mvm_tt_temp_changed(struct iwl_mvm *mvm, u32 temp)
 {
-	/* ignore the notification if we are in test mode */
+	/* igyesre the yestification if we are in test mode */
 	if (mvm->temperature_test)
 		return;
 
@@ -115,24 +115,24 @@ void iwl_mvm_tt_temp_changed(struct iwl_mvm *mvm, u32 temp)
 	iwl_mvm_tt_handler(mvm);
 }
 
-static int iwl_mvm_temp_notif_parse(struct iwl_mvm *mvm,
+static int iwl_mvm_temp_yestif_parse(struct iwl_mvm *mvm,
 				    struct iwl_rx_packet *pkt)
 {
-	struct iwl_dts_measurement_notif_v1 *notif_v1;
+	struct iwl_dts_measurement_yestif_v1 *yestif_v1;
 	int len = iwl_rx_packet_payload_len(pkt);
 	int temp;
 
-	/* we can use notif_v1 only, because v2 only adds an additional
-	 * parameter, which is not used in this function.
+	/* we can use yestif_v1 only, because v2 only adds an additional
+	 * parameter, which is yest used in this function.
 	*/
-	if (WARN_ON_ONCE(len < sizeof(*notif_v1))) {
+	if (WARN_ON_ONCE(len < sizeof(*yestif_v1))) {
 		IWL_ERR(mvm, "Invalid DTS_MEASUREMENT_NOTIFICATION\n");
 		return -EINVAL;
 	}
 
-	notif_v1 = (void *)pkt->data;
+	yestif_v1 = (void *)pkt->data;
 
-	temp = le32_to_cpu(notif_v1->temp);
+	temp = le32_to_cpu(yestif_v1->temp);
 
 	/* shouldn't be negative, but since it's s32, make sure it isn't */
 	if (WARN_ON_ONCE(temp < 0))
@@ -143,15 +143,15 @@ static int iwl_mvm_temp_notif_parse(struct iwl_mvm *mvm,
 	return temp;
 }
 
-static bool iwl_mvm_temp_notif_wait(struct iwl_notif_wait_data *notif_wait,
+static bool iwl_mvm_temp_yestif_wait(struct iwl_yestif_wait_data *yestif_wait,
 				    struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_mvm *mvm =
-		container_of(notif_wait, struct iwl_mvm, notif_wait);
+		container_of(yestif_wait, struct iwl_mvm, yestif_wait);
 	int *temp = data;
 	int ret;
 
-	ret = iwl_mvm_temp_notif_parse(mvm, pkt);
+	ret = iwl_mvm_temp_yestif_parse(mvm, pkt);
 	if (ret < 0)
 		return true;
 
@@ -160,19 +160,19 @@ static bool iwl_mvm_temp_notif_wait(struct iwl_notif_wait_data *notif_wait,
 	return true;
 }
 
-void iwl_mvm_temp_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
+void iwl_mvm_temp_yestif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_dts_measurement_notif_v2 *notif_v2;
+	struct iwl_dts_measurement_yestif_v2 *yestif_v2;
 	int len = iwl_rx_packet_payload_len(pkt);
 	int temp;
 	u32 ths_crossed;
 
-	/* the notification is handled synchronously in ctkill, so skip here */
+	/* the yestification is handled synchroyesusly in ctkill, so skip here */
 	if (test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status))
 		return;
 
-	temp = iwl_mvm_temp_notif_parse(mvm, pkt);
+	temp = iwl_mvm_temp_yestif_parse(mvm, pkt);
 
 	if (!iwl_mvm_is_tt_in_fw(mvm)) {
 		if (temp >= 0)
@@ -180,16 +180,16 @@ void iwl_mvm_temp_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		return;
 	}
 
-	if (WARN_ON_ONCE(len < sizeof(*notif_v2))) {
+	if (WARN_ON_ONCE(len < sizeof(*yestif_v2))) {
 		IWL_ERR(mvm, "Invalid DTS_MEASUREMENT_NOTIFICATION\n");
 		return;
 	}
 
-	notif_v2 = (void *)pkt->data;
-	ths_crossed = le32_to_cpu(notif_v2->threshold_idx);
+	yestif_v2 = (void *)pkt->data;
+	ths_crossed = le32_to_cpu(yestif_v2->threshold_idx);
 
-	/* 0xFF in ths_crossed means the notification is not related
-	 * to a trip, so we can ignore it here.
+	/* 0xFF in ths_crossed means the yestification is yest related
+	 * to a trip, so we can igyesre it here.
 	 */
 	if (ths_crossed == 0xFF)
 		return;
@@ -204,26 +204,26 @@ void iwl_mvm_temp_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	if (mvm->tz_device.tzone) {
 		struct iwl_mvm_thermal_device *tz_dev = &mvm->tz_device;
 
-		thermal_notify_framework(tz_dev->tzone,
+		thermal_yestify_framework(tz_dev->tzone,
 					 tz_dev->fw_trips_index[ths_crossed]);
 	}
 #endif /* CONFIG_THERMAL */
 }
 
-void iwl_mvm_ct_kill_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
+void iwl_mvm_ct_kill_yestif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct ct_kill_notif *notif;
+	struct ct_kill_yestif *yestif;
 	int len = iwl_rx_packet_payload_len(pkt);
 
-	if (WARN_ON_ONCE(len != sizeof(*notif))) {
+	if (WARN_ON_ONCE(len != sizeof(*yestif))) {
 		IWL_ERR(mvm, "Invalid CT_KILL_NOTIFICATION\n");
 		return;
 	}
 
-	notif = (struct ct_kill_notif *)pkt->data;
-	IWL_DEBUG_TEMP(mvm, "CT Kill notification temperature = %d\n",
-		       notif->temperature);
+	yestif = (struct ct_kill_yestif *)pkt->data;
+	IWL_DEBUG_TEMP(mvm, "CT Kill yestification temperature = %d\n",
+		       yestif->temperature);
 
 	iwl_mvm_enter_ctkill(mvm);
 }
@@ -250,25 +250,25 @@ static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
 
 int iwl_mvm_get_temp(struct iwl_mvm *mvm, s32 *temp)
 {
-	struct iwl_notification_wait wait_temp_notif;
-	static u16 temp_notif[] = { WIDE_ID(PHY_OPS_GROUP,
+	struct iwl_yestification_wait wait_temp_yestif;
+	static u16 temp_yestif[] = { WIDE_ID(PHY_OPS_GROUP,
 					    DTS_MEASUREMENT_NOTIF_WIDE) };
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	iwl_init_notification_wait(&mvm->notif_wait, &wait_temp_notif,
-				   temp_notif, ARRAY_SIZE(temp_notif),
-				   iwl_mvm_temp_notif_wait, temp);
+	iwl_init_yestification_wait(&mvm->yestif_wait, &wait_temp_yestif,
+				   temp_yestif, ARRAY_SIZE(temp_yestif),
+				   iwl_mvm_temp_yestif_wait, temp);
 
 	ret = iwl_mvm_get_temp_cmd(mvm);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to get the temperature (err=%d)\n", ret);
-		iwl_remove_notification(&mvm->notif_wait, &wait_temp_notif);
+		iwl_remove_yestification(&mvm->yestif_wait, &wait_temp_yestif);
 		return ret;
 	}
 
-	ret = iwl_wait_notification(&mvm->notif_wait, &wait_temp_notif,
+	ret = iwl_wait_yestification(&mvm->yestif_wait, &wait_temp_yestif,
 				    IWL_MVM_TEMP_NOTIF_WAIT_TIMEOUT);
 	if (ret)
 		IWL_ERR(mvm, "Getting the temperature timed out\n");
@@ -455,7 +455,7 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 		   tt->tx_backoff == tt->min_backoff &&
 		   temperature <= params->tx_protection_exit) {
 		IWL_WARN(mvm,
-			 "Temperature is back to normal thermal throttling stopped\n");
+			 "Temperature is back to yesrmal thermal throttling stopped\n");
 		tt->throttle = false;
 	}
 }
@@ -699,7 +699,7 @@ static int iwl_mvm_tzone_set_trip_temp(struct thermal_zone_device *device,
 		goto out;
 	}
 
-	/* no updates*/
+	/* yes updates*/
 	if (tzone->temp_trips[trip] == temperature) {
 		ret = 0;
 		goto out;

@@ -16,7 +16,7 @@
  * 1997-12-01  Modified for POSIX.1b signals by Andreas Schwab
  *
  * mathemu support by Roman Zippel
- *  (Note: fpstate in the signal context is completely ignored for the emulator
+ *  (Note: fpstate in the signal context is completely igyesred for the emulator
  *         and the internal floating point format is put on stack)
  */
 
@@ -24,7 +24,7 @@
  * ++roman (07/09/96): implemented signal stacks (specially for tosemu on
  * Atari :-) Current limitation: Only one sigstack can be active at one time.
  * If a second signal with SA_ONSTACK set arrives while working on a sigstack,
- * SA_ONSTACK is ignored. This behaviour avoids lots of trouble with nested
+ * SA_ONSTACK is igyesred. This behaviour avoids lots of trouble with nested
  * signal handlers!
  */
 
@@ -33,7 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/syscalls.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -124,7 +124,7 @@ static inline void push_cache (unsigned long vaddr)
 		unsigned long temp;
 
 		__asm__ __volatile__ (".chip 68040\n\t"
-				      "nop\n\t"
+				      "yesp\n\t"
 				      "ptestr (%1)\n\t"
 				      "movec %%mmusr,%0\n\t"
 				      ".chip 68k"
@@ -135,7 +135,7 @@ static inline void push_cache (unsigned long vaddr)
 		temp |= vaddr & ~PAGE_MASK;
 
 		__asm__ __volatile__ (".chip 68040\n\t"
-				      "nop\n\t"
+				      "yesp\n\t"
 				      "cpushl %%bc,(%0)\n\t"
 				      ".chip 68k"
 				      : : "a" (temp));
@@ -153,7 +153,7 @@ static inline void push_cache (unsigned long vaddr)
 				      : : "a" (temp));
 	} else if (!CPU_IS_COLDFIRE) {
 		/*
-		 * 68030/68020 have no writeback cache;
+		 * 68030/68020 have yes writeback cache;
 		 * still need to clear icache.
 		 * Note that vaddr is guaranteed to be long word aligned.
 		 */
@@ -191,7 +191,7 @@ void ret_from_user_rt_signal(void);
 
 static inline int frame_extra_sizes(int f)
 {
-	/* No frame size adjustments required on non-MMU CPUs */
+	/* No frame size adjustments required on yesn-MMU CPUs */
 	return 0;
 }
 
@@ -299,7 +299,7 @@ static inline int restore_fpu_state(struct sigcontext *sc)
 				  "fmovel %1,%%fpcr\n\t"
 				  "fmovel %2,%%fpsr\n\t"
 				  "fmovel %3,%%fpiar"
-				  : /* no outputs */
+				  : /* yes outputs */
 				  : "m" (sc->sc_fpregs[0]),
 				    "m" (sc->sc_fpcntl[0]),
 				    "m" (sc->sc_fpcntl[1]),
@@ -309,7 +309,7 @@ static inline int restore_fpu_state(struct sigcontext *sc)
 				  "fmovemx %0,%%fp0-%%fp1\n\t"
 				  "fmoveml %1,%%fpcr/%%fpsr/%%fpiar\n\t"
 				  ".chip 68k"
-				  : /* no outputs */
+				  : /* yes outputs */
 				  : "m" (*sc->sc_fpregs),
 				    "m" (*sc->sc_fpcntl));
 	    }
@@ -390,7 +390,7 @@ static inline int rt_restore_fpu_state(struct ucontext __user *uc)
 					  "fmovel %1,%%fpcr\n\t"
 					  "fmovel %2,%%fpsr\n\t"
 					  "fmovel %3,%%fpiar"
-					  : /* no outputs */
+					  : /* yes outputs */
 					  : "m" (fpregs.f_fpregs[0]),
 					    "m" (fpregs.f_fpcntl[0]),
 					    "m" (fpregs.f_fpcntl[1]),
@@ -400,7 +400,7 @@ static inline int rt_restore_fpu_state(struct ucontext __user *uc)
 					  "fmovemx %0,%%fp0-%%fp7\n\t"
 					  "fmoveml %1,%%fpcr/%%fpsr/%%fpiar\n\t"
 					  ".chip 68k"
-					  : /* no outputs */
+					  : /* yes outputs */
 					  : "m" (*fpregs.f_fpregs),
 					    "m" (*fpregs.f_fpcntl));
 		}
@@ -465,7 +465,7 @@ static inline void save_fpu_state(struct sigcontext *sc, struct pt_regs *regs)
 					    "=m" (sc->sc_fpcntl[0]),
 					    "=m" (sc->sc_fpcntl[1]),
 					    "=m" (sc->sc_fpcntl[2])
-					  : /* no inputs */
+					  : /* yes inputs */
 					  : "memory");
 		} else {
 			__asm__ volatile (".chip 68k/68881\n\t"
@@ -474,7 +474,7 @@ static inline void save_fpu_state(struct sigcontext *sc, struct pt_regs *regs)
 					  ".chip 68k"
 					  : "=m" (*sc->sc_fpregs),
 					    "=m" (*sc->sc_fpcntl)
-					  : /* no inputs */
+					  : /* yes inputs */
 					  : "memory");
 		}
 	}
@@ -527,7 +527,7 @@ static inline int rt_save_fpu_state(struct ucontext __user *uc, struct pt_regs *
 					    "=m" (fpregs.f_fpcntl[0]),
 					    "=m" (fpregs.f_fpcntl[1]),
 					    "=m" (fpregs.f_fpcntl[2])
-					  : /* no inputs */
+					  : /* yes inputs */
 					  : "memory");
 		} else {
 			__asm__ volatile (".chip 68k/68881\n\t"
@@ -536,7 +536,7 @@ static inline int rt_save_fpu_state(struct ucontext __user *uc, struct pt_regs *
 					  ".chip 68k"
 					  : "=m" (*fpregs.f_fpregs),
 					    "=m" (*fpregs.f_fpcntl)
-					  : /* no inputs */
+					  : /* yes inputs */
 					  : "memory");
 		}
 		err |= copy_to_user(&uc->uc_mcontext.fpregs, &fpregs,
@@ -551,7 +551,7 @@ static inline int rt_save_fpu_state(struct ucontext __user *uc, struct pt_regs *
 #else /* CONFIG_FPU */
 
 /*
- * For the case with no FPU configured these all do nothing.
+ * For the case with yes FPU configured these all do yesthing.
  */
 static inline int restore_fpu_state(struct sigcontext *sc)
 {
@@ -584,9 +584,9 @@ static inline void siginfo_build_tests(void)
 	/* This is part of the ABI and can never change in size: */
 	BUILD_BUG_ON(sizeof(siginfo_t) != 128);
 
-	/* Ensure the known fields never change in location */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_signo) != 0);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_errno) != 4);
+	/* Ensure the kyeswn fields never change in location */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_sigyes) != 0);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_erryes) != 4);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_code)  != 8);
 
 	/* _kill */
@@ -651,14 +651,14 @@ static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
 		regs->vector = formatvec & 0xfff;
 	} else {
 		struct switch_stack *sw = (struct switch_stack *)regs - 1;
-		/* yes, twice as much as max(sizeof(frame.un.fmt<x>)) */
+		/* no, twice as much as max(sizeof(frame.un.fmt<x>)) */
 		unsigned long buf[sizeof(((struct frame *)0)->un) / 2];
 
 		/* that'll make sure that expansion won't crap over data */
 		if (copy_from_user(buf + fsize / 4, fp, fsize))
 			return 1;
 
-		/* point of no return */
+		/* point of yes return */
 		regs->format = formatvec >> 12;
 		regs->vector = formatvec & 0xfff;
 #define frame_offset (sizeof(struct pt_regs)+sizeof(struct switch_stack))
@@ -681,7 +681,7 @@ static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
 			 "   dbra %1,2b\n\t"
 			 "   bral ret_from_signal\n"
 #endif
-			 : /* no outputs, it doesn't ever return */
+			 : /* yes outputs, it doesn't ever return */
 			 : "a" (sw), "d" (fsize), "d" (frame_offset/4-1),
 			   "n" (frame_offset), "a" (buf + fsize/4)
 			 : "a0");
@@ -700,7 +700,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *usc, void __u
 	siginfo_build_tests();
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	/* get previous context */
 	if (copy_from_user(&context, usc, sizeof(context)))
@@ -738,7 +738,7 @@ rt_restore_ucontext(struct pt_regs *regs, struct switch_stack *sw,
 	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	err = __get_user(temp, &uc->uc_mcontext.version);
 	if (temp != MCONTEXT_VERSION)
@@ -892,7 +892,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	int err = 0, sig = ksig->sig;
 
 	if (fsize < 0) {
-		pr_debug("setup_frame: Unknown frame format %#x\n",
+		pr_debug("setup_frame: Unkyeswn frame format %#x\n",
 			 regs->format);
 		return -EFAULT;
 	}
@@ -968,7 +968,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	int err = 0, sig = ksig->sig;
 
 	if (fsize < 0) {
-		pr_debug("setup_frame: Unknown frame format %#x\n",
+		pr_debug("setup_frame: Unkyeswn frame format %#x\n",
 			 regs->format);
 		return -EFAULT;
 	}
@@ -999,7 +999,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	err |= __put_user(0x00004e40 + (__NR_rt_sigreturn << 16),
 			  (long __user *)(frame->retcode + 4));
 #else
-	/* moveq #,d0; notb d0; trap #0 */
+	/* moveq #,d0; yestb d0; trap #0 */
 	err |= __put_user(0x70004600 + ((__NR_rt_sigreturn ^ 0xff) << 16),
 			  (long __user *)(frame->retcode + 0));
 	err |= __put_user(0x4e40, (short __user *)(frame->retcode + 4));
@@ -1106,7 +1106,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  */
 static void do_signal(struct pt_regs *regs)
@@ -1123,18 +1123,18 @@ static void do_signal(struct pt_regs *regs)
 
 	/* Did we come from a system call? */
 	if (regs->orig_d0 >= 0)
-		/* Restart the system call - no handlers present */
+		/* Restart the system call - yes handlers present */
 		handle_restart(regs, NULL, 0);
 
-	/* If there's no signal to deliver, we just restore the saved mask.  */
+	/* If there's yes signal to deliver, we just restore the saved mask.  */
 	restore_saved_sigmask();
 }
 
-void do_notify_resume(struct pt_regs *regs)
+void do_yestify_resume(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal(regs);
 
 	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 }

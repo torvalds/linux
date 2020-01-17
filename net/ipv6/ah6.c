@@ -5,7 +5,7 @@
  * Authors
  *
  *	Mitsuru KANDA @USAGI       : IPv6 Support
- *	Kazunori MIYAZAWA @USAGI   :
+ *	Kazuyesri MIYAZAWA @USAGI   :
  *	Kunihiro Ishiguro <kunihiro@ipinfusion.com>
  *
  *	This file is derived from net/ipv4/ah.c.
@@ -58,7 +58,7 @@ static void *ah_alloc_tmp(struct crypto_ahash *ahash, int nfrags,
 	len = ALIGN(len, crypto_tfm_ctx_alignment());
 
 	len += sizeof(struct ahash_request) + crypto_ahash_reqsize(ahash);
-	len = ALIGN(len, __alignof__(struct scatterlist));
+	len = ALIGN(len, __aligyesf__(struct scatterlist));
 
 	len += sizeof(struct scatterlist) * nfrags;
 
@@ -99,7 +99,7 @@ static inline struct scatterlist *ah_req_sg(struct crypto_ahash *ahash,
 {
 	return (void *)ALIGN((unsigned long)(req + 1) +
 			     crypto_ahash_reqsize(ahash),
-			     __alignof__(struct scatterlist));
+			     __aligyesf__(struct scatterlist));
 }
 
 static bool zero_out_mutable_opts(struct ipv6_opt_hdr *opthdr)
@@ -379,7 +379,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	nexthdr = *skb_mac_header(skb);
 	*skb_mac_header(skb) = IPPROTO_AH;
 
-	/* When there are no extension headers, we only need to save the first
+	/* When there are yes extension headers, we only need to save the first
 	 * 8 bytes of the base IP header.
 	 */
 	memcpy(iph_base, top_iph, IPV6HDR_BASELEN);
@@ -410,10 +410,10 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
-	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.low);
+	ah->seq_yes = htonl(XFRM_SKB_CB(skb)->seq.output.low);
 
 	sg_init_table(sg, nfrags + sglists);
-	err = skb_to_sgvec_nomark(skb, sg, 0, skb->len);
+	err = skb_to_sgvec_yesmark(skb, sg, 0, skb->len);
 	if (unlikely(err < 0))
 		goto out_free;
 
@@ -598,7 +598,7 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	ip6h->hop_limit   = 0;
 
 	sg_init_table(sg, nfrags + sglists);
-	err = skb_to_sgvec_nomark(skb, sg, 0, skb->len);
+	err = skb_to_sgvec_yesmark(skb, sg, 0, skb->len);
 	if (unlikely(err < 0))
 		goto out_free;
 
@@ -696,7 +696,7 @@ static int ah6_init_state(struct xfrm_state *x)
 	/*
 	 * Lookup the algorithm description maintained by xfrm_algo,
 	 * verify crypto transform properties, and store information
-	 * we need for AH processing.  This lookup cannot fail here
+	 * we need for AH processing.  This lookup canyest fail here
 	 * after a successful crypto_alloc_hash().
 	 */
 	aalg_desc = xfrm_aalg_get_byname(x->aalg->alg_name, 0);

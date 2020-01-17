@@ -27,7 +27,7 @@
 ENTRY(_SecondaryResetVector)
 	_j _SetupOCD
 
-	.begin  no-absolute-literals
+	.begin  yes-absolute-literals
 	.literal_position
 
 _SetupOCD:
@@ -59,4 +59,4 @@ _SetupMMU:
 	movi	a3, _startup
 	jx	a3
 
-	.end    no-absolute-literals
+	.end    yes-absolute-literals

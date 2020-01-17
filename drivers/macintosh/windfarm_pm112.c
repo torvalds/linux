@@ -7,7 +7,7 @@
  * Copyright (C) 2006 Benjamin Herrenschmidt, IBM Corp.
  */
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -140,7 +140,7 @@ static int create_cpu_loop(int cpu)
 	}
 	piddata = (struct smu_sdbp_cpupiddata *)&hdr[1];
 
-	/* Get FVT params to get Tmax; if not found, assume default */
+	/* Get FVT params to get Tmax; if yest found, assume default */
 	hdr = smu_sat_get_sdb_partition(chip, 0xC4 + core, NULL);
 	if (hdr) {
 		struct smu_sdbp_fvt *fvt = (struct smu_sdbp_fvt *)&hdr[1];
@@ -154,7 +154,7 @@ static int create_cpu_loop(int cpu)
 
 	/*
 	 * Darwin has a minimum fan speed of 1000 rpm for the 4-way and
-	 * 515 for the 2-way.  That appears to be overkill, so for now,
+	 * 515 for the 2-way.  That appears to be overkill, so for yesw,
 	 * impose a minimum of 750 or 515.
 	 */
 	fmin = (nr_cores > 2) ? 750 : 515;
@@ -182,7 +182,7 @@ static void cpu_max_all_fans(void)
 	int i;
 
 	/* We max all CPU fans in case of a sensor error. We also do the
-	 * cpufreq clamping now, even if it's supposedly done later by the
+	 * cpufreq clamping yesw, even if it's supposedly done later by the
 	 * generic code anyway, we do it earlier here to react faster
 	 */
 	if (cpufreq_clamp)
@@ -239,7 +239,7 @@ static int cpu_check_overtemp(s32 temp)
 	}
 
 	/* Now handle overtemp conditions. We don't currently use the windfarm
-	 * overtemp handling core as it's not fully suited to the needs of those
+	 * overtemp handling core as it's yest fully suited to the needs of those
 	 * new machine. This will be fixed later.
 	 */
 	if (new_state) {
@@ -543,7 +543,7 @@ static void pm112_tick(void)
 	if (failure_state == 0 && last_failure && cpufreq_clamp)
 		wf_control_set_min(cpufreq_clamp);
 
-	/* That's it for now, we might want to deal with other failures
+	/* That's it for yesw, we might want to deal with other failures
 	 * differently in the future though
 	 */
 }
@@ -565,7 +565,7 @@ static void pm112_new_control(struct wf_control *ct)
 		}
 	}
 	if (i >= NR_CPU_FANS) {
-		/* not a CPU fan, try the others */
+		/* yest a CPU fan, try the others */
 		if (!strcmp(ct->name, "backside-fan")) {
 			if (backside_fan == NULL && wf_get_control(ct) == 0)
 				backside_fan = ct;
@@ -628,7 +628,7 @@ static void pm112_new_sensor(struct wf_sensor *sr)
 	have_all_sensors = 1;
 }
 
-static int pm112_wf_notify(struct notifier_block *self,
+static int pm112_wf_yestify(struct yestifier_block *self,
 			   unsigned long event, void *data)
 {
 	switch (event) {
@@ -645,8 +645,8 @@ static int pm112_wf_notify(struct notifier_block *self,
 	return 0;
 }
 
-static struct notifier_block pm112_events = {
-	.notifier_call = pm112_wf_notify,
+static struct yestifier_block pm112_events = {
+	.yestifier_call = pm112_wf_yestify,
 };
 
 static int wf_pm112_probe(struct platform_device *dev)
@@ -672,14 +672,14 @@ static struct platform_driver wf_pm112_driver = {
 
 static int __init wf_pm112_init(void)
 {
-	struct device_node *cpu;
+	struct device_yesde *cpu;
 
 	if (!of_machine_is_compatible("PowerMac11,2"))
 		return -ENODEV;
 
 	/* Count the number of CPU cores */
 	nr_cores = 0;
-	for_each_node_by_type(cpu, "cpu")
+	for_each_yesde_by_type(cpu, "cpu")
 		++nr_cores;
 
 	printk(KERN_INFO "windfarm: initializing for dual-core desktop G5\n");

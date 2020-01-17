@@ -78,8 +78,8 @@ xfs_trans_free(
  * This is called to create a new transaction which will share the
  * permanent log reservation of the given transaction.  The remaining
  * unused block and rt extent reservations are also inherited.  This
- * implies that the original transaction is no longer allowed to allocate
- * blocks.  Locks and log items, however, are no inherited.  They must
+ * implies that the original transaction is yes longer allowed to allocate
+ * blocks.  Locks and log items, however, are yes inherited.  They must
  * be added to the new transaction explicitly.
  */
 STATIC struct xfs_trans *
@@ -134,13 +134,13 @@ xfs_trans_dup(
  * given transaction.  This must be done before allocating any resources
  * within the transaction.
  *
- * This will return ENOSPC if there are not enough blocks available.
+ * This will return ENOSPC if there are yest eyesugh blocks available.
  * It will sleep waiting for available log space.
  * The only valid value for the flags parameter is XFS_RES_LOG_PERM, which
  * is used by long running transactions.  If any one of the reservations
  * fails then they will all be backed out.
  *
- * This does not do quota reservations. That typically is done by the
+ * This does yest do quota reservations. That typically is done by the
  * caller afterwards.
  */
 static int
@@ -296,12 +296,12 @@ xfs_trans_alloc(
 }
 
 /*
- * Create an empty transaction with no reservation.  This is a defensive
+ * Create an empty transaction with yes reservation.  This is a defensive
  * mechanism for routines that query metadata without actually modifying
  * them -- if the metadata being queried is somehow cross-linked (think a
  * btree block pointer that points higher in the tree), we risk deadlock.
  * However, blocks grabbed as part of a transaction can be re-grabbed.
- * The verifiers will notice the corrupt block and the operation will fail
+ * The verifiers will yestice the corrupt block and the operation will fail
  * back to userspace without deadlocking.
  *
  * Note the zero-length reservation; this transaction MUST be cancelled
@@ -320,13 +320,13 @@ xfs_trans_alloc_empty(
 /*
  * Record the indicated change to the given field for application
  * to the file system's superblock when the transaction commits.
- * For now, just store the change in the transaction structure.
+ * For yesw, just store the change in the transaction structure.
  *
  * Mark the transaction structure to indicate that the superblock
  * needs to be updated before committing.
  *
- * Because we may not be keeping track of allocated/free inodes and
- * used filesystem blocks in the superblock, we do not mark the
+ * Because we may yest be keeping track of allocated/free iyesdes and
+ * used filesystem blocks in the superblock, we do yest mark the
  * superblock dirty in this transaction if we modify these fields.
  * We still need to update the transaction deltas so that they get
  * applied to the incore superblock, but we don't want them to
@@ -356,7 +356,7 @@ xfs_trans_mod_sb(
 	case XFS_TRANS_SB_FDBLOCKS:
 		/*
 		 * Track the number of blocks allocated in the transaction.
-		 * Make sure it does not exceed the number reserved. If so,
+		 * Make sure it does yest exceed the number reserved. If so,
 		 * shutdown as this can lead to accounting inconsistency.
 		 */
 		if (delta < 0) {
@@ -381,7 +381,7 @@ xfs_trans_mod_sb(
 	case XFS_TRANS_SB_FREXTENTS:
 		/*
 		 * Track the number of blocks allocated in the
-		 * transaction.  Make sure it does not exceed the
+		 * transaction.  Make sure it does yest exceed the
 		 * number reserved.
 		 */
 		if (delta < 0) {
@@ -438,7 +438,7 @@ xfs_trans_mod_sb(
  * to bring the superblock buffer into the current transaction
  * and modify it as requested by earlier calls to xfs_trans_mod_sb().
  *
- * For now we just look at each field allowed to change and change
+ * For yesw we just look at each field allowed to change and change
  * it if necessary.
  */
 STATIC void
@@ -514,7 +514,7 @@ xfs_trans_apply_sb_deltas(
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_SB_BUF);
 	if (whole)
 		/*
-		 * Log the whole thing, the fields are noncontiguous.
+		 * Log the whole thing, the fields are yesncontiguous.
 		 */
 		xfs_trans_log_buf(tp, bp, 0, sizeof(xfs_dsb_t) - 1);
 	else
@@ -582,9 +582,9 @@ xfs_sb_mod64(
  * applied to the in-core superblock.  The idea is that that has already been
  * done.
  *
- * If we are not logging superblock counters, then the inode allocated/free and
- * used block counts are not updated in the on disk superblock. In this case,
- * XFS_TRANS_SB_DIRTY will not be set when the transaction is updated but we
+ * If we are yest logging superblock counters, then the iyesde allocated/free and
+ * used block counts are yest updated in the on disk superblock. In this case,
+ * XFS_TRANS_SB_DIRTY will yest be set when the transaction is updated but we
  * still need to update the incore superblock with the changes.
  */
 void
@@ -751,7 +751,7 @@ xfs_trans_add_item(
 }
 
 /*
- * Unlink the log item from the transaction. the log item is no longer
+ * Unlink the log item from the transaction. the log item is yes longer
  * considered dirty in this transaction, as the linked transaction has
  * finished, either by abort or commit completion.
  */
@@ -817,7 +817,7 @@ xfs_log_item_batch_insert(
  * this case all we need to do is iop_committed processing, followed by an
  * iop_unpin(aborted) call.
  *
- * The AIL cursor is used to optimise the insert process. If commit_lsn is not
+ * The AIL cursor is used to optimise the insert process. If commit_lsn is yest
  * at the end of the AIL, the insert cursor avoids the need to walk
  * the AIL to find the insertion point on every xfs_log_item_batch_insert()
  * call. This saves a lot of needless list walking and is a net win, even
@@ -859,12 +859,12 @@ xfs_trans_committed_bulk(
 		else
 			item_lsn = commit_lsn;
 
-		/* item_lsn of -1 means the item needs no further processing */
+		/* item_lsn of -1 means the item needs yes further processing */
 		if (XFS_LSN_CMP(item_lsn, (xfs_lsn_t)-1) == 0)
 			continue;
 
 		/*
-		 * if we are aborting the operation, no point in inserting the
+		 * if we are aborting the operation, yes point in inserting the
 		 * object into the AIL as we are in a shutdown situation.
 		 */
 		if (aborted) {
@@ -880,7 +880,7 @@ xfs_trans_committed_bulk(
 			 * Not a bulk update option due to unusual item_lsn.
 			 * Push into AIL immediately, rechecking the lsn once
 			 * we have the ail lock. Then unpin the item. This does
-			 * not affect the AIL cursor the bulk insert path is
+			 * yest affect the AIL cursor the bulk insert path is
 			 * using.
 			 */
 			spin_lock(&ailp->ail_lock);
@@ -914,14 +914,14 @@ xfs_trans_committed_bulk(
 /*
  * Commit the given transaction to the log.
  *
- * XFS disk error handling mechanism is not based on a typical
+ * XFS disk error handling mechanism is yest based on a typical
  * transaction abort mechanism. Logically after the filesystem
  * gets marked 'SHUTDOWN', we can't let any new transactions
  * be durable - ie. committed to disk - because some metadata might
  * be inconsistent. In such cases, this returns an error, and the
  * caller may assume that all locked objects joined to the transaction
  * have already been unlocked as if the commit had succeeded.
- * Do not reference the transaction structure after this call.
+ * Do yest reference the transaction structure after this call.
  */
 static int
 __xfs_trans_commit(
@@ -942,13 +942,13 @@ __xfs_trans_commit(
 	WARN_ON_ONCE(!list_empty(&tp->t_dfops) &&
 		     !(tp->t_flags & XFS_TRANS_PERM_LOG_RES));
 	if (!regrant && (tp->t_flags & XFS_TRANS_PERM_LOG_RES)) {
-		error = xfs_defer_finish_noroll(&tp);
+		error = xfs_defer_finish_yesroll(&tp);
 		if (error)
 			goto out_unreserve;
 	}
 
 	/*
-	 * If there is nothing to be logged by the transaction,
+	 * If there is yesthing to be logged by the transaction,
 	 * then unlock all of the items associated with the
 	 * transaction and free the transaction structure.
 	 * Also make sure to return any reserved blocks to
@@ -965,7 +965,7 @@ __xfs_trans_commit(
 	ASSERT(tp->t_ticket != NULL);
 
 	/*
-	 * If we need to update the superblock, then do it now.
+	 * If we need to update the superblock, then do it yesw.
 	 */
 	if (tp->t_flags & XFS_TRANS_SB_DIRTY)
 		xfs_trans_apply_sb_deltas(tp);
@@ -977,8 +977,8 @@ __xfs_trans_commit(
 	xfs_trans_free(tp);
 
 	/*
-	 * If the transaction needs to be synchronous, then force the
-	 * log out now and wait for it.
+	 * If the transaction needs to be synchroyesus, then force the
+	 * log out yesw and wait for it.
 	 */
 	if (sync) {
 		error = xfs_log_force_lsn(mp, commit_lsn, XFS_LOG_SYNC, NULL);
@@ -993,9 +993,9 @@ out_unreserve:
 	xfs_trans_unreserve_and_mod_sb(tp);
 
 	/*
-	 * It is indeed possible for the transaction to be not dirty but
+	 * It is indeed possible for the transaction to be yest dirty but
 	 * the dqinfo portion to be.  All that means is that we have some
-	 * (non-persistent) quota reservations that need to be unreserved.
+	 * (yesn-persistent) quota reservations that need to be unreserved.
 	 */
 	xfs_trans_unreserve_and_mod_dquots(tp);
 	if (tp->t_ticket) {
@@ -1021,8 +1021,8 @@ xfs_trans_commit(
 
 /*
  * Unlock all of the transaction's items and free the transaction.
- * The transaction must not have modified any of its items, because
- * there is no way to restore them to their previous state.
+ * The transaction must yest have modified any of its items, because
+ * there is yes way to restore them to their previous state.
  *
  * If the transaction has made a log reservation, make sure to release
  * it as well.
@@ -1064,7 +1064,7 @@ xfs_trans_cancel(
 		tp->t_ticket = NULL;
 	}
 
-	/* mark this thread as no longer being in a transaction */
+	/* mark this thread as yes longer being in a transaction */
 	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
 
 	xfs_trans_free_items(tp, dirty);
@@ -1099,7 +1099,7 @@ xfs_trans_roll(
 	/*
 	 * Commit the current transaction.
 	 * If this commit failed, then it'd just unlock those items that
-	 * are not marked ihold. That also means that a filesystem shutdown
+	 * are yest marked ihold. That also means that a filesystem shutdown
 	 * is in progress. The caller takes the responsibility to cancel
 	 * the duplicate transaction that gets returned.
 	 */
@@ -1111,7 +1111,7 @@ xfs_trans_roll(
 	 * Reserve space in the log for the next transaction.
 	 * This also pushes items in the "AIL", the list of logged items,
 	 * out to disk if they are taking up space at the tail of the log
-	 * that we want to use.  This requires that either nothing be locked
+	 * that we want to use.  This requires that either yesthing be locked
 	 * across this call, or that anything that is locked be logged in
 	 * the prior and the next transactions.
 	 */

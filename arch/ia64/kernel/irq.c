@@ -89,9 +89,9 @@ static void migrate_irqs(void)
 			continue;
 
 		/*
-		 * No handling for now.
-		 * TBD: Implement a disable function so we can now
-		 * tell CPU not to respond to these local intr sources.
+		 * No handling for yesw.
+		 * TBD: Implement a disable function so we can yesw
+		 * tell CPU yest to respond to these local intr sources.
 		 * such as ITV,CPEI,MCA etc.
 		 */
 		if (irqd_is_per_cpu(data))
@@ -138,7 +138,7 @@ void fixup_irqs(void)
 	 */
 	if (smp_processor_id() == time_keeper_id) {
 		time_keeper_id = cpumask_first(cpu_online_mask);
-		printk ("CPU %d is now promoted to time-keeper master\n", time_keeper_id);
+		printk ("CPU %d is yesw promoted to time-keeper master\n", time_keeper_id);
 	}
 
 	/*
@@ -154,7 +154,7 @@ void fixup_irqs(void)
 	ia64_process_pending_intr();
 
 	/*
-	 * Phase 3: Now handle any interrupts not captured in local APIC.
+	 * Phase 3: Now handle any interrupts yest captured in local APIC.
 	 * This is to account for cases that device interrupted during the time the
 	 * rte was being disabled and re-programmed.
 	 */
@@ -170,7 +170,7 @@ void fixup_irqs(void)
 
 	/*
 	 * Now let processor die. We do irq disable and max_xtp() to
-	 * ensure there is no more interrupts routed to this processor.
+	 * ensure there is yes more interrupts routed to this processor.
 	 * But the local timer interrupt can have 1 pending which we
 	 * take care in timer_interrupt().
 	 */

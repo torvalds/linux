@@ -13,14 +13,14 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      yestice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright yestice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. yesr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
@@ -125,7 +125,7 @@ enum {
 #define RPCSVC_MAXPAYLOAD_RDMA	RPCSVC_MAXPAYLOAD
 
 struct svc_rdma_recv_ctxt {
-	struct llist_node	rc_node;
+	struct llist_yesde	rc_yesde;
 	struct list_head	rc_list;
 	struct ib_recv_wr	rc_recv_wr;
 	struct ib_cqe		rc_cqe;
@@ -146,7 +146,7 @@ struct svc_rdma_send_ctxt {
 	struct ib_cqe		sc_cqe;
 	void			*sc_xprt_buf;
 	int			sc_page_count;
-	int			sc_cur_sge_no;
+	int			sc_cur_sge_yes;
 	struct page		*sc_pages[RPCSVC_MAXPAGES];
 	struct ib_sge		sc_sges[];
 };

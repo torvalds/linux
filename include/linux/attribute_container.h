@@ -14,7 +14,7 @@
 struct device;
 
 struct attribute_container {
-	struct list_head	node;
+	struct list_head	yesde;
 	struct klist		containers;
 	struct class		*class;
 	const struct attribute_group *grp;
@@ -25,13 +25,13 @@ struct attribute_container {
 };
 
 static inline int
-attribute_container_no_classdevs(struct attribute_container *atc)
+attribute_container_yes_classdevs(struct attribute_container *atc)
 {
 	return atc->flags & ATTRIBUTE_CONTAINER_NO_CLASSDEVS;
 }
 
 static inline void
-attribute_container_set_no_classdevs(struct attribute_container *atc)
+attribute_container_set_yes_classdevs(struct attribute_container *atc)
 {
 	atc->flags |= ATTRIBUTE_CONTAINER_NO_CLASSDEVS;
 }

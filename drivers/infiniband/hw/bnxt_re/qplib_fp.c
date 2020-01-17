@@ -15,9 +15,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -279,7 +279,7 @@ static void bnxt_qplib_service_nq(unsigned long data)
 				num_cqne_processed++;
 			else
 				dev_warn(&nq->pdev->dev,
-					 "cqn - type 0x%x not handled\n", type);
+					 "cqn - type 0x%x yest handled\n", type);
 			spin_unlock_bh(&cq->compl_lock);
 			break;
 		}
@@ -299,7 +299,7 @@ static void bnxt_qplib_service_nq(unsigned long data)
 				num_srqne_processed++;
 			else
 				dev_warn(&nq->pdev->dev,
-					 "SRQ event 0x%x not handled\n",
+					 "SRQ event 0x%x yest handled\n",
 					 nqsrqe->event);
 			break;
 		}
@@ -307,7 +307,7 @@ static void bnxt_qplib_service_nq(unsigned long data)
 			break;
 		default:
 			dev_warn(&nq->pdev->dev,
-				 "nqe with type = 0x%x not handled\n", type);
+				 "nqe with type = 0x%x yest handled\n", type);
 			break;
 		}
 		raw_cons++;
@@ -429,7 +429,7 @@ int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 	if (srqn_handler)
 		nq->srqn_handler = srqn_handler;
 
-	/* Have a task to schedule CQ notifiers in post send case */
+	/* Have a task to schedule CQ yestifiers in post send case */
 	nq->cqn_wq  = create_singlethread_workqueue("bnxt_qplib_nq");
 	if (!nq->cqn_wq)
 		return -ENOMEM;
@@ -442,7 +442,7 @@ int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 		goto fail;
 	}
 	/* Unconditionally map 8 bytes to support 57500 series */
-	nq->bar_reg_iomem = ioremap_nocache(nq_base + nq->bar_reg_off, 8);
+	nq->bar_reg_iomem = ioremap_yescache(nq_base + nq->bar_reg_off, 8);
 	if (!nq->bar_reg_iomem) {
 		rc = -ENOMEM;
 		goto fail;
@@ -910,7 +910,7 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 			      &hw_sq_send_ptr[get_sqe_pg(sq->hwq.max_elements)]
 			      [get_sqe_idx(sq->hwq.max_elements)];
 		if (psn_search & ~PAGE_MASK) {
-			/* If the psn_search does not start on a page boundary,
+			/* If the psn_search does yest start on a page boundary,
 			 * then calculate the offset
 			 */
 			poff = (psn_search & ~PAGE_MASK) /
@@ -1095,7 +1095,7 @@ static void __modify_flags_from_init_state(struct bnxt_qplib_qp *qp)
 	switch (qp->state) {
 	case CMDQ_MODIFY_QP_NEW_STATE_RTR:
 		/* INIT->RTR, configure the path_mtu to the default
-		 * 2048 if not being requested
+		 * 2048 if yest being requested
 		 */
 		if (!(qp->modify_flags &
 		    CMDQ_MODIFY_QP_MODIFY_MASK_PATH_MTU)) {
@@ -1106,11 +1106,11 @@ static void __modify_flags_from_init_state(struct bnxt_qplib_qp *qp)
 		}
 		qp->modify_flags &=
 			~CMDQ_MODIFY_QP_MODIFY_MASK_VLAN_ID;
-		/* Bono FW require the max_dest_rd_atomic to be >= 1 */
+		/* Boyes FW require the max_dest_rd_atomic to be >= 1 */
 		if (qp->max_dest_rd_atomic < 1)
 			qp->max_dest_rd_atomic = 1;
 		qp->modify_flags &= ~CMDQ_MODIFY_QP_MODIFY_MASK_SRC_MAC;
-		/* Bono FW 20.6.5 requires SGID_INDEX configuration */
+		/* Boyes FW 20.6.5 requires SGID_INDEX configuration */
 		if (!(qp->modify_flags &
 		    CMDQ_MODIFY_QP_MODIFY_MASK_SGID_INDEX)) {
 			qp->modify_flags |=
@@ -1127,10 +1127,10 @@ static void __modify_flags_from_rtr_state(struct bnxt_qplib_qp *qp)
 {
 	switch (qp->state) {
 	case CMDQ_MODIFY_QP_NEW_STATE_RTS:
-		/* Bono FW requires the max_rd_atomic to be >= 1 */
+		/* Boyes FW requires the max_rd_atomic to be >= 1 */
 		if (qp->max_rd_atomic < 1)
 			qp->max_rd_atomic = 1;
-		/* Bono FW does not allow PKEY_INDEX,
+		/* Boyes FW does yest allow PKEY_INDEX,
 		 * DGID, FLOW_LABEL, SGID_INDEX, HOP_LIMIT,
 		 * TRAFFIC_CLASS, DEST_MAC, PATH_MTU, RQ_PSN,
 		 * MIN_RNR_TIMER, MAX_DEST_RD_ATOMIC, DEST_QP_ID
@@ -1197,12 +1197,12 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	req.modify_mask = cpu_to_le32(qp->modify_flags);
 	req.qp_cid = cpu_to_le32(qp->id);
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_STATE) {
-		req.network_type_en_sqd_async_notify_new_state =
+		req.network_type_en_sqd_async_yestify_new_state =
 				(qp->state & CMDQ_MODIFY_QP_NEW_STATE_MASK) |
-				(qp->en_sqd_async_notify ?
+				(qp->en_sqd_async_yestify ?
 					CMDQ_MODIFY_QP_EN_SQD_ASYNC_NOTIFY : 0);
 	}
-	req.network_type_en_sqd_async_notify_new_state |= qp->nw_type;
+	req.network_type_en_sqd_async_yestify_new_state |= qp->nw_type;
 
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_ACCESS)
 		req.access = qp->access;
@@ -1310,9 +1310,9 @@ int bnxt_qplib_query_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	if (rc)
 		goto bail;
 	/* Extract the context from the side buffer */
-	qp->state = sb->en_sqd_async_notify_state &
+	qp->state = sb->en_sqd_async_yestify_state &
 			CREQ_QUERY_QP_RESP_SB_STATE_MASK;
-	qp->en_sqd_async_notify = sb->en_sqd_async_notify_state &
+	qp->en_sqd_async_yestify = sb->en_sqd_async_yestify_state &
 				  CREQ_QUERY_QP_RESP_SB_EN_SQD_ASYNC_NOTIFY ?
 				  true : false;
 	qp->access = sb->access;
@@ -1335,7 +1335,7 @@ int bnxt_qplib_query_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		}
 	}
 	if (i == res->sgid_tbl.max)
-		dev_warn(&res->pdev->dev, "SGID not found??\n");
+		dev_warn(&res->pdev->dev, "SGID yest found??\n");
 
 	qp->ah.hop_limit = sb->hop_limit;
 	qp->ah.traffic_class = sb->traffic_class;
@@ -1587,7 +1587,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 		/* Each SGE entry = 1 WQE size16 */
 		wqe_size16 = wqe->num_sge;
 		/* HW requires wqe size has room for atleast one SGE even if
-		 * none was supplied by ULP
+		 * yesne was supplied by ULP
 		 */
 		if (!wqe->num_sge)
 			wqe_size16++;
@@ -1861,13 +1861,13 @@ int bnxt_qplib_post_recv(struct bnxt_qplib_qp *qp,
 	rqe->flags = wqe->flags;
 	rqe->wqe_size = wqe->num_sge +
 			((offsetof(typeof(*rqe), data) + 15) >> 4);
-	/* HW requires wqe size has room for atleast one SGE even if none
+	/* HW requires wqe size has room for atleast one SGE even if yesne
 	 * was supplied by ULP
 	 */
 	if (!wqe->num_sge)
 		rqe->wqe_size++;
 
-	/* Supply the rqe->wr_id index to the wr_id_tbl for now */
+	/* Supply the rqe->wr_id index to the wr_id_tbl for yesw */
 	rqe->wr_id[0] = cpu_to_le32(sw_prod);
 
 queue_err:
@@ -2194,7 +2194,7 @@ static int do_wa9060(struct bnxt_qplib_qp *qp, struct bnxt_qplib_cq *cq,
 						goto out;
 					}
 				}
-				/* Valid but not the phantom, so keep looping */
+				/* Valid but yest the phantom, so keep looping */
 			} else {
 				/* Not valid yet, just exit and wait */
 				rc = -EINVAL;
@@ -2204,7 +2204,7 @@ static int do_wa9060(struct bnxt_qplib_qp *qp, struct bnxt_qplib_cq *cq,
 			peek_raw_cq_cons++;
 		}
 		dev_err(&cq->hwq.pdev->dev,
-			"Should not have come here! cq_cons=0x%x qp=0x%x sq cons sw=0x%x hw=0x%x\n",
+			"Should yest have come here! cq_cons=0x%x qp=0x%x sq cons sw=0x%x hw=0x%x\n",
 			cq_cons, qp->id, sw_sq_cons, cqe_sq_cons);
 		rc = -EINVAL;
 	}
@@ -2268,7 +2268,7 @@ static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 		cqe->type = swq->type;
 
 		/* For the last CQE, check for status.  For errors, regardless
-		 * of the request being signaled or not, it must complete with
+		 * of the request being signaled or yest, it must complete with
 		 * the hwcqe error status
 		 */
 		if (HWQ_CMP((sw_sq_cons + 1), &sq->hwq) == cqe_sq_cons &&
@@ -2308,7 +2308,7 @@ out:
 		goto done;
 	}
 	/*
-	 * Back to normal completion mode only after it has completed all of
+	 * Back to yesrmal completion mode only after it has completed all of
 	 * the WC for this CQE
 	 */
 	sq->single = false;
@@ -2547,7 +2547,7 @@ static int bnxt_qplib_cq_process_res_raweth_qp1(struct bnxt_qplib_cq *cq,
 		srq = qp->srq;
 		if (!srq) {
 			dev_err(&cq->hwq.pdev->dev,
-				"FP: SRQ used but not defined??\n");
+				"FP: SRQ used but yest defined??\n");
 			return -EINVAL;
 		}
 		if (wr_id_idx >= srq->hwq.max_elements) {
@@ -2793,7 +2793,7 @@ int bnxt_qplib_poll_cq(struct bnxt_qplib_cq *cq, struct bnxt_qplib_cqe *cqe,
 			goto exit;
 		default:
 			dev_err(&cq->hwq.pdev->dev,
-				"process_cq unknown type 0x%lx\n",
+				"process_cq unkyeswn type 0x%lx\n",
 				hw_cqe->cqe_type_toggle &
 				CQ_BASE_CQE_TYPE_MASK);
 			rc = -EINVAL;
@@ -2818,7 +2818,7 @@ exit:
 	return num_cqes - budget;
 }
 
-void bnxt_qplib_req_notify_cq(struct bnxt_qplib_cq *cq, u32 arm_type)
+void bnxt_qplib_req_yestify_cq(struct bnxt_qplib_cq *cq, u32 arm_type)
 {
 	if (arm_type)
 		bnxt_qplib_arm_cq(cq, arm_type);

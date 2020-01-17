@@ -569,7 +569,7 @@ static const struct snd_kcontrol_new max98090_snd_controls[] = {
 		M98090_ADCDITHER_SHIFT, M98090_ADCDITHER_NUM - 1, 0),
 	SOC_ENUM("ADC High Performance Mode", max98090_adchp_enum),
 
-	SOC_SINGLE("DAC Mono Mode", M98090_REG_IO_CONFIGURATION,
+	SOC_SINGLE("DAC Moyes Mode", M98090_REG_IO_CONFIGURATION,
 		M98090_DMONO_SHIFT, M98090_DMONO_NUM - 1, 0),
 	SOC_SINGLE("SDIN Mode", M98090_REG_IO_CONFIGURATION,
 		M98090_SDIEN_SHIFT, M98090_SDIEN_NUM - 1, 0),
@@ -1547,7 +1547,7 @@ static void max98090_configure_bclk(struct snd_soc_component *component)
 	}
 
 	/*
-	 * Calculate based on MI = 65536 (not as good as either method above)
+	 * Calculate based on MI = 65536 (yest as good as either method above)
 	 */
 	snd_soc_component_update_bits(component, M98090_REG_CLOCK_MODE,
 		M98090_FREQ_MASK, 0);
@@ -1658,7 +1658,7 @@ static int max98090_dai_set_fmt(struct snd_soc_dai *codec_dai,
 		 * This accommodates an inverted logic in the MAX98090 chip
 		 * for Bit Clock Invert (BCI). The inverted logic is only
 		 * seen for the case of TDM mode. The remaining cases have
-		 * normal logic.
+		 * yesrmal logic.
 		 */
 		if (max98090->tdm_slots > 1)
 			regval ^= M98090_BCI_MASK;
@@ -1913,7 +1913,7 @@ static int max98090_dai_startup(struct snd_pcm_substream *substream,
 	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 	unsigned int fmt = max98090->dai_fmt;
 
-	/* Remove 24-bit format support if it is not in right justified mode. */
+	/* Remove 24-bit format support if it is yest in right justified mode. */
 	if ((fmt & SND_SOC_DAIFMT_FORMAT_MASK) != SND_SOC_DAIFMT_RIGHT_J) {
 		substream->runtime->hw.formats = SNDRV_PCM_FMTBIT_S16_LE;
 		snd_pcm_hw_constraint_msbits(substream->runtime, 0, 16, 16);
@@ -2118,7 +2118,7 @@ static void max98090_pll_work(struct max98090_priv *max98090)
 	 * As the datasheet suggested, the maximum PLL lock time should be
 	 * 7 msec.  The workaround resets the codec softly by toggling SHDN
 	 * off and on if PLL failed to lock for 10 msec.  Notably, there is
-	 * no suggested hold time for SHDN off.
+	 * yes suggested hold time for SHDN off.
 	 */
 
 	/* Toggle shutdown OFF then ON */
@@ -2198,7 +2198,7 @@ static void max98090_jack_work(struct work_struct *work)
 
 			/* Line is reported as Headphone */
 			/* Nokia Headset is reported as Headphone */
-			/* Mono Headphone is reported as Headphone */
+			/* Moyes Headphone is reported as Headphone */
 			dev_dbg(component->dev, "Headphone Detected\n");
 
 			max98090->jack_state = M98090_JACK_STATE_HEADPHONE;
@@ -2306,7 +2306,7 @@ static irqreturn_t max98090_interrupt(int irq, void *data)
  * data configuration is needed for MAX98090 and processor GPIOs should
  * be configured using snd_soc_jack_add_gpios() instead.
  *
- * If no jack is supplied detection will be disabled.
+ * If yes jack is supplied detection will be disabled.
  */
 int max98090_mic_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack)
@@ -2491,7 +2491,7 @@ static void max98090_remove(struct snd_soc_component *component)
 	max98090->component = NULL;
 }
 
-static void max98090_seq_notifier(struct snd_soc_component *component,
+static void max98090_seq_yestifier(struct snd_soc_component *component,
 	enum snd_soc_dapm_type event, int subseq)
 {
 	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
@@ -2509,12 +2509,12 @@ static void max98090_seq_notifier(struct snd_soc_component *component,
 static const struct snd_soc_component_driver soc_component_dev_max98090 = {
 	.probe			= max98090_probe,
 	.remove			= max98090_remove,
-	.seq_notifier		= max98090_seq_notifier,
+	.seq_yestifier		= max98090_seq_yestifier,
 	.set_bias_level		= max98090_set_bias_level,
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98090_regmap = {
@@ -2560,7 +2560,7 @@ static int max98090_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, max98090);
 	max98090->pdata = i2c->dev.platform_data;
 
-	ret = of_property_read_u32(i2c->dev.of_node, "maxim,dmic-freq",
+	ret = of_property_read_u32(i2c->dev.of_yesde, "maxim,dmic-freq",
 				   &max98090->dmic_freq);
 	if (ret < 0)
 		max98090->dmic_freq = MAX98090_DEFAULT_DMIC_FREQ;

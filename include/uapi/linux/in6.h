@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *	Types and definitions for AF_INET6 
  *	Linux INET6 implementation 
@@ -133,7 +133,7 @@ struct in6_flowlabel_req {
 #define IPPROTO_ROUTING		43	/* IPv6 routing header		*/
 #define IPPROTO_FRAGMENT	44	/* IPv6 fragmentation header	*/
 #define IPPROTO_ICMPV6		58	/* ICMPv6			*/
-#define IPPROTO_NONE		59	/* IPv6 no next header		*/
+#define IPPROTO_NONE		59	/* IPv6 yes next header		*/
 #define IPPROTO_DSTOPTS		60	/* IPv6 destination options	*/
 #define IPPROTO_MH		135	/* IPv6 mobility header		*/
 #endif /* __UAPI_DEF_IPPROTO_V6 */
@@ -219,7 +219,7 @@ struct in6_flowlabel_req {
 /*
  * Advanced API (RFC3542) (1)
  *
- * Note: IPV6_RECVRTHDRDSTOPTS does not exist. see net/ipv6/datagram.c.
+ * Note: IPV6_RECVRTHDRDSTOPTS does yest exist. see net/ipv6/datagram.c.
  */
 
 #define IPV6_RECVPKTINFO	49
@@ -236,7 +236,7 @@ struct in6_flowlabel_req {
 #define IPV6_RECVPATHMTU	60
 #define IPV6_PATHMTU		61
 #define IPV6_DONTFRAG		62
-#if 0	/* not yet */
+#if 0	/* yest yet */
 #define IPV6_USE_MIN_MTU	63
 #endif
 

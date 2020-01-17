@@ -68,7 +68,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 			container_of(itr, struct arm_spe_recording, itr);
 	struct perf_pmu *arm_spe_pmu = sper->arm_spe_pmu;
 	struct evsel *evsel, *arm_spe_evsel = NULL;
-	bool privileged = perf_event_paranoid_check(-1);
+	bool privileged = perf_event_parayesid_check(-1);
 	struct evsel *tracking_evsel;
 	int err;
 
@@ -208,7 +208,7 @@ struct perf_event_attr
 
 	attr = zalloc(sizeof(struct perf_event_attr));
 	if (!attr) {
-		pr_err("arm_spe default config cannot allocate a perf_event_attr\n");
+		pr_err("arm_spe default config canyest allocate a perf_event_attr\n");
 		return NULL;
 	}
 

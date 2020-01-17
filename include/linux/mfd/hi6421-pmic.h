@@ -2,7 +2,7 @@
 /*
  * Header file for device driver Hi6421 PMIC
  *
- * Copyright (c) <2011-2014> HiSilicon Technologies Co., Ltd.
+ * Copyright (c) <2011-2014> HiSilicon Techyeslogies Co., Ltd.
  *              http://www.hisilicon.com
  * Copyright (c) <2013-2014> Linaro Ltd.
  *              http://www.linaro.org

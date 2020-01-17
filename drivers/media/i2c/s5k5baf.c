@@ -27,7 +27,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 
 static int debug;
 module_param(debug, int, 0644);
@@ -817,7 +817,7 @@ static void s5k5baf_hw_find_min_fiv(struct s5k5baf *state)
 			state->error = -EINVAL;
 		}
 	}
-	v4l2_err(&state->sd, "cannot find correct frame interval\n");
+	v4l2_err(&state->sd, "canyest find correct frame interval\n");
 	state->error = -ERANGE;
 }
 
@@ -1031,7 +1031,7 @@ static int s5k5baf_load_setfile(struct s5k5baf *state)
 
 	ret = request_firmware(&fw, S5K5BAF_FW_FILENAME, &c->dev);
 	if (ret < 0) {
-		dev_warn(&c->dev, "firmware file (%s) not loaded\n",
+		dev_warn(&c->dev, "firmware file (%s) yest loaded\n",
 			 S5K5BAF_FW_FILENAME);
 		return ret;
 	}
@@ -1136,7 +1136,7 @@ static int s5k5baf_g_frame_interval(struct v4l2_subdev *sd,
 
 	mutex_lock(&state->lock);
 	fi->interval.numerator = state->fiv;
-	fi->interval.denominator = 10000;
+	fi->interval.deyesminator = 10000;
 	mutex_unlock(&state->lock);
 
 	return 0;
@@ -1147,11 +1147,11 @@ static void s5k5baf_set_frame_interval(struct s5k5baf *state,
 {
 	struct v4l2_fract *i = &fi->interval;
 
-	if (fi->interval.denominator == 0)
+	if (fi->interval.deyesminator == 0)
 		state->req_fiv = S5K5BAF_MAX_FR_TIME;
 	else
 		state->req_fiv = clamp_t(u32,
-					 i->numerator * 10000 / i->denominator,
+					 i->numerator * 10000 / i->deyesminator,
 					 S5K5BAF_MIN_FR_TIME,
 					 S5K5BAF_MAX_FR_TIME);
 
@@ -1194,7 +1194,7 @@ static int s5k5baf_enum_frame_interval(struct v4l2_subdev *sd,
 			      S5K5BAF_CIS_HEIGHT, 1, 0);
 
 	fie->interval.numerator = S5K5BAF_MIN_FR_TIME + fie->index;
-	fie->interval.denominator = 10000;
+	fie->interval.deyesminator = 10000;
 
 	return 0;
 }
@@ -1634,7 +1634,7 @@ static int s5k5baf_initialize_ctrls(struct s5k5baf *state)
 
 	ret = v4l2_ctrl_handler_init(hdl, 16);
 	if (ret < 0) {
-		v4l2_err(&state->sd, "cannot init ctrl handler (%d)\n", ret);
+		v4l2_err(&state->sd, "canyest init ctrl handler (%d)\n", ret);
 		return ret;
 	}
 
@@ -1736,7 +1736,7 @@ static int s5k5baf_check_fw_revision(struct s5k5baf *state)
 		  api_ver, fw_rev, s_id);
 
 	if (api_ver != S5K5BAF_FW_APIVER) {
-		v4l2_err(&state->sd, "FW API version not supported\n");
+		v4l2_err(&state->sd, "FW API version yest supported\n");
 		return -ENODEV;
 	}
 
@@ -1817,14 +1817,14 @@ static int s5k5baf_parse_gpios(struct s5k5baf_gpio *gpios, struct device *dev)
 		"stbyn-gpios",
 		"rstn-gpios",
 	};
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	enum of_gpio_flags flags;
 	int ret, i;
 
 	for (i = 0; i < NUM_GPIOS; ++i) {
-		ret = of_get_named_gpio_flags(node, names[i], 0, &flags);
+		ret = of_get_named_gpio_flags(yesde, names[i], 0, &flags);
 		if (ret < 0) {
-			dev_err(dev, "no %s GPIO pin provided\n", names[i]);
+			dev_err(dev, "yes %s GPIO pin provided\n", names[i]);
 			return ret;
 		}
 		gpios[i].gpio = ret;
@@ -1834,19 +1834,19 @@ static int s5k5baf_parse_gpios(struct s5k5baf_gpio *gpios, struct device *dev)
 	return 0;
 }
 
-static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
+static int s5k5baf_parse_device_yesde(struct s5k5baf *state, struct device *dev)
 {
-	struct device_node *node = dev->of_node;
-	struct device_node *node_ep;
-	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
+	struct device_yesde *yesde = dev->of_yesde;
+	struct device_yesde *yesde_ep;
+	struct v4l2_fwyesde_endpoint ep = { .bus_type = 0 };
 	int ret;
 
-	if (!node) {
-		dev_err(dev, "no device-tree node provided\n");
+	if (!yesde) {
+		dev_err(dev, "yes device-tree yesde provided\n");
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(node, "clock-frequency",
+	ret = of_property_read_u32(yesde, "clock-frequency",
 				   &state->mclk_frequency);
 	if (ret < 0) {
 		state->mclk_frequency = S5K5BAF_DEFAULT_MCLK_FREQ;
@@ -1858,14 +1858,14 @@ static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	node_ep = of_graph_get_next_endpoint(node, NULL);
-	if (!node_ep) {
-		dev_err(dev, "no endpoint defined at node %pOF\n", node);
+	yesde_ep = of_graph_get_next_endpoint(yesde, NULL);
+	if (!yesde_ep) {
+		dev_err(dev, "yes endpoint defined at yesde %pOF\n", yesde);
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(node_ep), &ep);
-	of_node_put(node_ep);
+	ret = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(yesde_ep), &ep);
+	of_yesde_put(yesde_ep);
 	if (ret)
 		return ret;
 
@@ -1878,8 +1878,8 @@ static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
 	case V4L2_MBUS_PARALLEL:
 		break;
 	default:
-		dev_err(dev, "unsupported bus in endpoint defined at node %pOF\n",
-			node);
+		dev_err(dev, "unsupported bus in endpoint defined at yesde %pOF\n",
+			yesde);
 		return -EINVAL;
 	}
 
@@ -1926,7 +1926,7 @@ static int s5k5baf_configure_subdevs(struct s5k5baf *state,
 
 	media_entity_cleanup(&state->cis_sd.entity);
 err:
-	dev_err(&c->dev, "cannot init media entity %s\n", sd->name);
+	dev_err(&c->dev, "canyest init media entity %s\n", sd->name);
 	return ret;
 }
 
@@ -1960,7 +1960,7 @@ static int s5k5baf_probe(struct i2c_client *c)
 	state->compose = s5k5baf_cis_rect;
 	state->crop_source = s5k5baf_cis_rect;
 
-	ret = s5k5baf_parse_device_node(state, &c->dev);
+	ret = s5k5baf_parse_device_yesde(state, &c->dev);
 	if (ret < 0)
 		return ret;
 

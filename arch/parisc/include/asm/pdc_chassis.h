@@ -37,8 +37,8 @@ void parisc_pdc_chassis_init(void);
 #define PDC_CHASSIS_DIRECT_PANIC	3
 #define PDC_CHASSIS_DIRECT_HPMC		4
 #define PDC_CHASSIS_DIRECT_LPMC		5
-#define PDC_CHASSIS_DIRECT_DUMP		6	/* not yet implemented */
-#define PDC_CHASSIS_DIRECT_OOPS		7	/* not yet implemented */
+#define PDC_CHASSIS_DIRECT_DUMP		6	/* yest yet implemented */
+#define PDC_CHASSIS_DIRECT_OOPS		7	/* yest yet implemented */
 
 
 /*
@@ -72,7 +72,7 @@ void parisc_pdc_chassis_init(void);
  * Valid PDC PAT LED states combinations
  */
 
-/* System running normally */
+/* System running yesrmally */
 #define PDC_CHASSIS_LSTATE_RUN_NORMAL	(PDC_CHASSIS_LED_RUN_ON		| \
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_OFF	| \
@@ -82,52 +82,52 @@ void parisc_pdc_chassis_init(void);
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_FLASH	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* There was a system interruption that did not take the system down */
+/* There was a system interruption that did yest take the system down */
 #define PDC_CHASSIS_LSTATE_RUN_SYSINT	(PDC_CHASSIS_LED_RUN_ON		| \
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_OFF	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* System running and unexpected reboot or non-critical error detected */
+/* System running and unexpected reboot or yesn-critical error detected */
 #define PDC_CHASSIS_LSTATE_RUN_NCRIT	(PDC_CHASSIS_LED_RUN_ON		| \
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_FLASH	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Executing non-OS code */
+/* Executing yesn-OS code */
 #define PDC_CHASSIS_LSTATE_NONOS	(PDC_CHASSIS_LED_RUN_FLASH	| \
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_OFF	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Boot failed - Executing non-OS code */
+/* Boot failed - Executing yesn-OS code */
 #define PDC_CHASSIS_LSTATE_NONOS_BFAIL	(PDC_CHASSIS_LED_RUN_FLASH	| \
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_ON	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Unexpected reboot occurred - Executing non-OS code */
+/* Unexpected reboot occurred - Executing yesn-OS code */
 #define PDC_CHASSIS_LSTATE_NONOS_UNEXP	(PDC_CHASSIS_LED_RUN_FLASH	| \
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_FLASH	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Executing non-OS code - Non-critical error detected */
+/* Executing yesn-OS code - Non-critical error detected */
 #define PDC_CHASSIS_LSTATE_NONOS_NCRIT	(PDC_CHASSIS_LED_RUN_FLASH	| \
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_OFF	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Boot failed - Executing non-OS code - Non-critical error detected */
+/* Boot failed - Executing yesn-OS code - Non-critical error detected */
 #define PDC_CHASSIS_LSTATE_BFAIL_NCRIT	(PDC_CHASSIS_LED_RUN_FLASH	| \
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_ON	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Unexpected reboot/recovering - Executing non-OS code - Non-critical error detected */
+/* Unexpected reboot/recovering - Executing yesn-OS code - Non-critical error detected */
 #define PDC_CHASSIS_LSTATE_UNEXP_NCRIT	(PDC_CHASSIS_LED_RUN_FLASH	| \
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_FLASH	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Cannot execute PDC */
+/* Canyest execute PDC */
 #define PDC_CHASSIS_LSTATE_CANNOT_PDC	(PDC_CHASSIS_LED_RUN_OFF	| \
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_OFF	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Boot failed - OS not up - PDC has detected a failure that prevents boot */
+/* Boot failed - OS yest up - PDC has detected a failure that prevents boot */
 #define PDC_CHASSIS_LSTATE_FATAL_BFAIL	(PDC_CHASSIS_LED_RUN_OFF	| \
 					 PDC_CHASSIS_LED_ATTN_OFF	| \
 					 PDC_CHASSIS_LED_FAULT_ON	| \
@@ -137,7 +137,7 @@ void parisc_pdc_chassis_init(void);
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_OFF	| \
 					 PDC_CHASSIS_LED_VALID		)
-/* Boot failed - OS not up - Fatal failure detected - Non-critical error detected */
+/* Boot failed - OS yest up - Fatal failure detected - Non-critical error detected */
 #define PDC_CHASSIS_LSTATE_FATAL_NCRIT	(PDC_CHASSIS_LED_RUN_OFF	| \
 					 PDC_CHASSIS_LED_ATTN_FLASH	| \
 					 PDC_CHASSIS_LED_FAULT_ON	| \
@@ -157,9 +157,9 @@ void parisc_pdc_chassis_init(void);
  */
 
 /* Alert level */
-#define PDC_CHASSIS_ALERT_FORWARD	(0ULL << 36)	/* no failure detected */
-#define PDC_CHASSIS_ALERT_SERPROC	(1ULL << 36)	/* service proc - no failure */
-#define PDC_CHASSIS_ALERT_NURGENT	(2ULL << 36)	/* non-urgent operator attn */
+#define PDC_CHASSIS_ALERT_FORWARD	(0ULL << 36)	/* yes failure detected */
+#define PDC_CHASSIS_ALERT_SERPROC	(1ULL << 36)	/* service proc - yes failure */
+#define PDC_CHASSIS_ALERT_NURGENT	(2ULL << 36)	/* yesn-urgent operator attn */
 #define PDC_CHASSIS_ALERT_BLOCKED	(3ULL << 36)	/* system blocked */
 #define PDC_CHASSIS_ALERT_CONF_CHG	(4ULL << 36)	/* unexpected configuration change */
 #define PDC_CHASSIS_ALERT_ENV_PB	(5ULL << 36)	/* boot possible, environmental pb */
@@ -172,7 +172,7 @@ void parisc_pdc_chassis_init(void);
 #define PDC_CHASSIS_ALERT_HW_FATAL	(15ULL << 36)	/* fatal hardware problem */
 
 /* Source */
-#define PDC_CHASSIS_SRC_NONE		(0ULL << 28)	/* unknown, no source stated */
+#define PDC_CHASSIS_SRC_NONE		(0ULL << 28)	/* unkyeswn, yes source stated */
 #define PDC_CHASSIS_SRC_PROC		(1ULL << 28)	/* processor */
 /* For later use ? */
 #define PDC_CHASSIS_SRC_PROC_CACHE	(2ULL << 28)	/* processor cache*/
@@ -192,7 +192,7 @@ void parisc_pdc_chassis_init(void);
 #define PDC_CHASSIS_SRC_ID_UNSPEC	(0ULL << 16)
 
 /* Problem detail - problem source dependent */
-#define PDC_CHASSIS_PB_D_PROC_NONE	(0ULL << 32)	/* no problem detail */
+#define PDC_CHASSIS_PB_D_PROC_NONE	(0ULL << 32)	/* yes problem detail */
 #define PDC_CHASSIS_PB_D_PROC_TIMEOUT	(4ULL << 32)	/* timeout */
 
 /* Caller activity */
@@ -217,7 +217,7 @@ void parisc_pdc_chassis_init(void);
 #define PDC_CHASSIS_RET_GENERICOS	(12ULL << 52)	/* generic OSes */
 #define PDC_CHASSIS_RET_IA64_NT		(13ULL << 52)	/* IA-64 NT */
 #define PDC_CHASSIS_RET_HPUX		(14ULL << 52)	/* HP-UX */
-#define PDC_CHASSIS_RET_DIAG		(15ULL << 52)	/* offline diagnostics & utilities */
+#define PDC_CHASSIS_RET_DIAG		(15ULL << 52)	/* offline diagyesstics & utilities */
 
 /* Reporting entity ID */
 #define PDC_CHASSIS_REID_UNSPEC		(0ULL << 44)
@@ -260,14 +260,14 @@ void parisc_pdc_chassis_init(void);
 #define PDC_CHASSIS_SYSTATE_HALT	(15ULL << 0)	/* system halted */
 
 /* Message ID */
-#define PDC_CHASSIS_MSG_ID		(0ULL << 40)	/* we do not handle msg IDs atm */
+#define PDC_CHASSIS_MSG_ID		(0ULL << 40)	/* we do yest handle msg IDs atm */
 
 /* EOM - separates log entries */
 #define PDC_CHASSIS_EOM_CLEAR		(0ULL << 43)
 #define PDC_CHASSIS_EOM_SET		(1ULL << 43)
 
 /*
- * Preformated well known messages
+ * Preformated well kyeswn messages
  */
 
 /* Boot started */

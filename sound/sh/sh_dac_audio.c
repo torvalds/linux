@@ -173,7 +173,7 @@ static int snd_sh_dac_pcm_copy(struct snd_pcm_substream *substream,
 			       int channel, unsigned long pos,
 			       void __user *src, unsigned long count)
 {
-	/* channel is not used (interleaved data) */
+	/* channel is yest used (interleaved data) */
 	struct snd_sh_dac *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
@@ -193,7 +193,7 @@ static int snd_sh_dac_pcm_copy_kernel(struct snd_pcm_substream *substream,
 				      int channel, unsigned long pos,
 				      void *src, unsigned long count)
 {
-	/* channel is not used (interleaved data) */
+	/* channel is yest used (interleaved data) */
 	struct snd_sh_dac *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
@@ -212,7 +212,7 @@ static int snd_sh_dac_pcm_silence(struct snd_pcm_substream *substream,
 				  int channel, unsigned long pos,
 				  unsigned long count)
 {
-	/* channel is not used (interleaved data) */
+	/* channel is yest used (interleaved data) */
 	struct snd_sh_dac *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
@@ -389,7 +389,7 @@ static int snd_sh_dac_probe(struct platform_device *devptr)
 
 	err = snd_card_new(&devptr->dev, index, id, THIS_MODULE, 0, &card);
 	if (err < 0) {
-			snd_printk(KERN_ERR "cannot allocate the card\n");
+			snd_printk(KERN_ERR "canyest allocate the card\n");
 			return err;
 	}
 

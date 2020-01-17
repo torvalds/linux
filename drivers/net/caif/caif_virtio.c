@@ -2,7 +2,7 @@
 /*
  * Copyright (C) ST-Ericsson AB 2013
  * Authors: Vicram Arv
- *	    Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ *	    Dmitry Tarnyagin <dmitry.tarnyagin@lockless.yes>
  *	    Sjur Brendeland
  */
 #include <linux/module.h>
@@ -53,20 +53,20 @@ struct cfv_napi_context {
 /* struct cfv_stats - statistics for debugfs
  * @rx_napi_complete:	Number of NAPI completions (RX)
  * @rx_napi_resched:	Number of calls where the full quota was used (RX)
- * @rx_nomem:		Number of SKB alloc failures (RX)
+ * @rx_yesmem:		Number of SKB alloc failures (RX)
  * @rx_kicks:		Number of RX kicks
  * @tx_full_ring:	Number times TX ring was full
- * @tx_no_mem:		Number of times TX went out of memory
+ * @tx_yes_mem:		Number of times TX went out of memory
  * @tx_flow_on:		Number of flow on (TX)
  * @tx_kicks:		Number of TX kicks
  */
 struct cfv_stats {
 	u32 rx_napi_complete;
 	u32 rx_napi_resched;
-	u32 rx_nomem;
+	u32 rx_yesmem;
 	u32 rx_kicks;
 	u32 tx_full_ring;
-	u32 tx_no_mem;
+	u32 tx_yes_mem;
 	u32 tx_flow_on;
 	u32 tx_kicks;
 };
@@ -173,14 +173,14 @@ static void cfv_release_used_buf(struct virtqueue *vq_tx)
 		buf_info = virtqueue_get_buf(vq_tx, &len);
 		spin_unlock_irqrestore(&cfv->tx_lock, flags);
 
-		/* Stop looping if there are no more buffers to free */
+		/* Stop looping if there are yes more buffers to free */
 		if (!buf_info)
 			break;
 
 		free_buf_info(cfv, buf_info);
 
 		/* watermark_tx indicates if we previously stopped the tx
-		 * queues. If we have enough free stots in the virtio ring,
+		 * queues. If we have eyesugh free stots in the virtio ring,
 		 * re-establish memory reserved and open up tx queues.
 		 */
 		if (cfv->vq_tx->num_free <= cfv->watermark_tx)
@@ -198,12 +198,12 @@ static void cfv_release_used_buf(struct virtqueue *vq_tx)
 				virtqueue_get_vring_size(cfv->vq_tx);
 			netif_tx_wake_all_queues(cfv->ndev);
 			/* Buffers are recycled in cfv_netdev_tx, so
-			 * disable notifications when queues are opened.
+			 * disable yestifications when queues are opened.
 			 */
 			virtqueue_disable_cb(cfv->vq_tx);
 			++cfv->stats.tx_flow_on;
 		} else {
-			/* if no memory reserve, wait for more free slots */
+			/* if yes memory reserve, wait for more free slots */
 			WARN_ON(cfv->watermark_tx >
 			       virtqueue_get_vring_size(cfv->vq_tx));
 			cfv->watermark_tx +=
@@ -317,19 +317,19 @@ exit:
 
 		/* Really out of patckets? (stolen from virtio_net)*/
 		napi_complete(napi);
-		if (unlikely(!vringh_notify_enable_kern(cfv->vr_rx)) &&
+		if (unlikely(!vringh_yestify_enable_kern(cfv->vr_rx)) &&
 		    napi_schedule_prep(napi)) {
-			vringh_notify_disable_kern(cfv->vr_rx);
+			vringh_yestify_disable_kern(cfv->vr_rx);
 			__napi_schedule(napi);
 		}
 		break;
 
 	case -ENOMEM:
-		++cfv->stats.rx_nomem;
+		++cfv->stats.rx_yesmem;
 		dev_kfree_skb(skb);
 		/* Stop NAPI poll on OOM, we hope to be polled later */
 		napi_complete(napi);
-		vringh_notify_enable_kern(cfv->vr_rx);
+		vringh_yestify_enable_kern(cfv->vr_rx);
 		break;
 
 	default:
@@ -337,13 +337,13 @@ exit:
 		netdev_warn(cfv->ndev, "Bad ring, disable device\n");
 		cfv->ndev->stats.rx_dropped = riov->used - riov->i;
 		napi_complete(napi);
-		vringh_notify_disable_kern(cfv->vr_rx);
+		vringh_yestify_disable_kern(cfv->vr_rx);
 		netif_carrier_off(cfv->ndev);
 		break;
 	}
 out:
-	if (rxcnt && vringh_need_notify_kern(cfv->vr_rx) > 0)
-		vringh_notify(cfv->vr_rx);
+	if (rxcnt && vringh_need_yestify_kern(cfv->vr_rx) > 0)
+		vringh_yestify(cfv->vr_rx);
 	return rxcnt;
 }
 
@@ -352,7 +352,7 @@ static void cfv_recv(struct virtio_device *vdev, struct vringh *vr_rx)
 	struct cfv_info *cfv = vdev->priv;
 
 	++cfv->stats.rx_kicks;
-	vringh_notify_disable_kern(cfv->vr_rx);
+	vringh_yestify_disable_kern(cfv->vr_rx);
 	napi_schedule(&cfv->napi);
 }
 
@@ -388,7 +388,7 @@ static int cfv_create_genpool(struct cfv_info *cfv)
 
 	for (;;) {
 		if (cfv->allocsz <= num_possible_cpus() * cfv->ndev->mtu) {
-			netdev_info(cfv->ndev, "Not enough device memory\n");
+			netdev_info(cfv->ndev, "Not eyesugh device memory\n");
 			return -ENOMEM;
 		}
 
@@ -460,7 +460,7 @@ static int cfv_netdev_close(struct net_device *netdev)
 	/* Disable interrupts, queues and NAPI polling */
 	netif_carrier_off(netdev);
 	virtqueue_disable_cb(cfv->vq_tx);
-	vringh_notify_disable_kern(cfv->vr_rx);
+	vringh_yestify_disable_kern(cfv->vr_rx);
 	napi_disable(&cfv->napi);
 
 	/* Release any TX buffers on both used and avilable rings */
@@ -533,7 +533,7 @@ static int cfv_netdev_tx(struct sk_buff *skb, struct net_device *netdev)
 	spin_lock_irqsave(&cfv->tx_lock, flags);
 
 	/* Flow-off check takes into account number of cpus to make sure
-	 * virtqueue will not be overfilled in any possible smp conditions.
+	 * virtqueue will yest be overfilled in any possible smp conditions.
 	 *
 	 * Flow-on is triggered when sufficient buffers are freed
 	 */
@@ -547,7 +547,7 @@ static int cfv_netdev_tx(struct sk_buff *skb, struct net_device *netdev)
 	 */
 	buf_info = cfv_alloc_and_copy_to_shm(cfv, skb, &sg);
 	if (unlikely(!buf_info)) {
-		cfv->stats.tx_no_mem++;
+		cfv->stats.tx_yes_mem++;
 		flow_off = true;
 
 		if (cfv->reserved_mem && cfv->genpool) {
@@ -561,7 +561,7 @@ static int cfv_netdev_tx(struct sk_buff *skb, struct net_device *netdev)
 	if (unlikely(flow_off)) {
 		/* Turn flow on when a 1/4 of the descriptors are released */
 		cfv->watermark_tx = virtqueue_get_vring_size(cfv->vq_tx) / 4;
-		/* Enable notifications of recycled TX buffers */
+		/* Enable yestifications of recycled TX buffers */
 		virtqueue_enable_cb(cfv->vq_tx);
 		netif_tx_stop_all_queues(netdev);
 	}
@@ -629,14 +629,14 @@ static inline void debugfs_init(struct cfv_info *cfv)
 			   &cfv->stats.rx_napi_complete);
 	debugfs_create_u32("rx-napi-resched", 0400, cfv->debugfs,
 			   &cfv->stats.rx_napi_resched);
-	debugfs_create_u32("rx-nomem", 0400, cfv->debugfs,
-			   &cfv->stats.rx_nomem);
+	debugfs_create_u32("rx-yesmem", 0400, cfv->debugfs,
+			   &cfv->stats.rx_yesmem);
 	debugfs_create_u32("rx-kicks", 0400, cfv->debugfs,
 			   &cfv->stats.rx_kicks);
 	debugfs_create_u32("tx-full-ring", 0400, cfv->debugfs,
 			   &cfv->stats.tx_full_ring);
-	debugfs_create_u32("tx-no-mem", 0400, cfv->debugfs,
-			   &cfv->stats.tx_no_mem);
+	debugfs_create_u32("tx-yes-mem", 0400, cfv->debugfs,
+			   &cfv->stats.tx_yes_mem);
 	debugfs_create_u32("tx-kicks", 0400, cfv->debugfs,
 			   &cfv->stats.tx_kicks);
 	debugfs_create_u32("tx-flow-on", 0400, cfv->debugfs,

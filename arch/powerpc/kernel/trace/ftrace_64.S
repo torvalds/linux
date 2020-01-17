@@ -48,7 +48,7 @@ _GLOBAL(return_to_handler)
 	ld	r2, PACATOC(r13)
 
 	bl	ftrace_return_to_handler
-	nop
+	yesp
 
 	/* return value has real return address */
 	mtlr	r3

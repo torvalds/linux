@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2005 Andrey Panin <pazke@donpac.ru>
  *
- * Based on driver written by Pete Reynolds.
+ * Based on driver written by Pete Reyyeslds.
  * Copyright (c) IBM Corporation, 1998-2004.
  *
  * This software may be used and distributed according to the terms
@@ -60,7 +60,7 @@ enum {
 #define SPRUCE_ASR_TOGGLE_MASK	0x02	/* bit 0: 0, then 1, then 0 */
 
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 
 static unsigned long asr_is_open;
 static char asr_expect_close;
@@ -180,7 +180,7 @@ static int __init asr_get_base_address(void)
 		pci_dev_put(pdev);
 #else
 		/* FIXME: need to use pci_config_lock here,
-		   but it's not exported */
+		   but it's yest exported */
 
 /*		spin_lock_irqsave(&pci_config_lock, flags);*/
 
@@ -248,7 +248,7 @@ static ssize_t asr_write(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
 	if (count) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			/* In case it was set long ago */
@@ -304,7 +304,7 @@ static long asr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		asr_toggle();
 		return 0;
 	/*
-	 * The hardware has a fixed timeout value, so no WDIOC_SETTIMEOUT
+	 * The hardware has a fixed timeout value, so yes WDIOC_SETTIMEOUT
 	 * and WDIOC_GETTIMEOUT always returns 256.
 	 */
 	case WDIOC_GETTIMEOUT:
@@ -315,7 +315,7 @@ static long asr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 }
 
-static int asr_open(struct inode *inode, struct file *file)
+static int asr_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(0, &asr_is_open))
 		return -EBUSY;
@@ -323,15 +323,15 @@ static int asr_open(struct inode *inode, struct file *file)
 	asr_toggle();
 	asr_enable();
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int asr_release(struct inode *inode, struct file *file)
+static int asr_release(struct iyesde *iyesde, struct file *file)
 {
 	if (asr_expect_close == 42)
 		asr_disable();
 	else {
-		pr_crit("unexpected close, not stopping watchdog!\n");
+		pr_crit("unexpected close, yest stopping watchdog!\n");
 		asr_toggle();
 	}
 	clear_bit(0, &asr_is_open);
@@ -341,7 +341,7 @@ static int asr_release(struct inode *inode, struct file *file)
 
 static const struct file_operations asr_fops = {
 	.owner =		THIS_MODULE,
-	.llseek =		no_llseek,
+	.llseek =		yes_llseek,
 	.write =		asr_write,
 	.unlocked_ioctl =	asr_ioctl,
 	.compat_ioctl =		compat_ptr_ioctl,
@@ -350,7 +350,7 @@ static const struct file_operations asr_fops = {
 };
 
 static struct miscdevice asr_miscdev = {
-	.minor =	WATCHDOG_MINOR,
+	.miyesr =	WATCHDOG_MINOR,
 	.name =		"watchdog",
 	.fops =		&asr_fops,
 };
@@ -401,7 +401,7 @@ static int __init ibmasr_init(void)
 
 static void __exit ibmasr_exit(void)
 {
-	if (!nowayout)
+	if (!yeswayout)
 		asr_disable();
 
 	misc_deregister(&asr_miscdev);
@@ -412,9 +412,9 @@ static void __exit ibmasr_exit(void)
 module_init(ibmasr_init);
 module_exit(ibmasr_exit);
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+	"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 MODULE_DESCRIPTION("IBM Automatic Server Restart driver");

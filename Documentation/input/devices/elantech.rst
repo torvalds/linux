@@ -13,7 +13,7 @@ Elantech Touchpad Driver
 .. Contents
 
  1. Introduction
- 2. Extra knobs
+ 2. Extra kyesbs
  3. Differentiating hardware versions
  4. Hardware version 1
     4.1 Registers
@@ -74,22 +74,22 @@ by the driver as sysfs entries under /sys/bus/serio/drivers/psmouse/serio?
 that can be read from and written to.
 
 Currently only the registers for hardware version 1 are somewhat understood.
-Hardware version 2 seems to use some of the same registers but it is not
-known whether the bits in the registers represent the same thing or might
+Hardware version 2 seems to use some of the same registers but it is yest
+kyeswn whether the bits in the registers represent the same thing or might
 have changed their meaning.
 
 On top of that, some register settings have effect only when the touchpad is
-in relative mode and not in absolute mode. As the Linux Elantech touchpad
-driver always puts the hardware into absolute mode not all information
-mentioned below can be used immediately. But because there is no freely
+in relative mode and yest in absolute mode. As the Linux Elantech touchpad
+driver always puts the hardware into absolute mode yest all information
+mentioned below can be used immediately. But because there is yes freely
 available Elantech documentation the information is provided here anyway for
 completeness sake.
 
 
-Extra knobs
+Extra kyesbs
 ~~~~~~~~~~~
 
-Currently the Linux Elantech touchpad driver provides three extra knobs under
+Currently the Linux Elantech touchpad driver provides three extra kyesbs under
 /sys/bus/serio/drivers/psmouse/serio? for the user.
 
 * debug
@@ -111,28 +111,28 @@ Currently the Linux Elantech touchpad driver provides three extra knobs under
    Turns parity checking ON or OFF.
 
    By echoing "0" to this file parity checking will be turned OFF. Any
-   non-zero value will turn it ON. For hardware version 1 the default is ON.
+   yesn-zero value will turn it ON. For hardware version 1 the default is ON.
    For version 2 the default it is OFF.
 
    Hardware version 1 provides basic data integrity verification by
    calculating a parity bit for the last 3 bytes of each packet. The driver
    can check these bits and reject any packet that appears corrupted. Using
-   this knob you can bypass that check.
+   this kyesb you can bypass that check.
 
-   Hardware version 2 does not provide the same parity bits. Only some basic
-   data consistency checking can be done. For now checking is disabled by
-   default. Currently even turning it on will do nothing.
+   Hardware version 2 does yest provide the same parity bits. Only some basic
+   data consistency checking can be done. For yesw checking is disabled by
+   default. Currently even turning it on will do yesthing.
 
 * crc_enabled
 
    Sets crc_enabled to 0/1. The name "crc_enabled" is the official name of
-   this integrity check, even though it is not an actual cyclic redundancy
+   this integrity check, even though it is yest an actual cyclic redundancy
    check.
 
    Depending on the state of crc_enabled, certain basic data integrity
    verification is done by the driver on hardware version 3 and 4. The
-   driver will reject any packet that appears corrupted. Using this knob,
-   The state of crc_enabled can be altered with this knob.
+   driver will reject any packet that appears corrupted. Using this kyesb,
+   The state of crc_enabled can be altered with this kyesb.
 
    Reading the crc_enabled value will show the active value. Echoing
    "0" or "1" to this file will set the state to "0" or "1".
@@ -158,7 +158,7 @@ In the wild, there appear to be more versions, such as 00.01.64, 01.00.21,
  04.02.XX => EF051
 
 In the wild, there appear to be more versions, such as 04.03.01, 04.04.11. There
-appears to be almost no difference, except for EF113, which does not report
+appears to be almost yes difference, except for EF113, which does yest report
 pressure/width and has different data consistency checks.
 
 Probably all the versions with param[0] <= 01 can be considered as
@@ -268,7 +268,7 @@ byte 3::
       bit   7   6   5   4   3   2   1   0
             w   h  n1  n0  ds3 ds2 ds1 ds0
 
-            normally:
+            yesrmally:
                ds3..ds0 = scroll wheel amount and direction
                           positive = down or left
                           negative = up or right
@@ -381,7 +381,7 @@ For example::
 
 * reg_21::
 
-         unknown (0x00)
+         unkyeswn (0x00)
 
 * reg_22::
 
@@ -395,7 +395,7 @@ Native absolute mode 6 byte packet format
 Parity checking and packet re-synchronization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-There is no parity checking, however some consistency checks can be performed.
+There is yes parity checking, however some consistency checks can be performed.
 
 For instance for EF113::
 
@@ -453,23 +453,23 @@ byte 3::
 	 n4 = set if more than 3 fingers (only in 3 fingers mode)
 	 vf = a kind of flag ? (only on EF123, 0 when finger is over one
 	      of the buttons, 1 otherwise)
-	 w3..w0 = width of the finger touch (not EF113)
+	 w3..w0 = width of the finger touch (yest EF113)
 	 b2 (on EF113 only, 0 otherwise), b2.R.L indicates one button pressed:
-		0 = none
+		0 = yesne
 		1 = Left
 		2 = Right
 		3 = Middle (Left and Right)
 		4 = Forward
 		5 = Back
-		6 = Another one
-		7 = Another one
+		6 = Ayesther one
+		7 = Ayesther one
 
 byte 4::
 
    bit   7   6   5   4   3   2   1   0
         p3  p1  p2  p0  y11 y10 y9  y8
 
-	 p7..p0 = pressure (not EF113)
+	 p7..p0 = pressure (yest EF113)
 
 byte 5::
 
@@ -482,7 +482,7 @@ byte 5::
 Two finger touch
 ^^^^^^^^^^^^^^^^
 
-Note that the two pairs of coordinates are not exactly the coordinates of the
+Note that the two pairs of coordinates are yest exactly the coordinates of the
 two fingers, but only the pair of the lower-left and upper-right coordinates.
 So the actual fingers might be situated on the other diagonal of the square
 defined by these two points.
@@ -565,7 +565,7 @@ The debouce packet has the following signature::
     byte 4: 0xff
     byte 5: 0xff
 
-When we encounter this kind of packet, we just ignore it.
+When we encounter this kind of packet, we just igyesre it.
 
 One/Three finger touch
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -672,7 +672,7 @@ byte 1::
 
 byte 2::
 
-   not used
+   yest used
 
 byte 3::
 
@@ -690,7 +690,7 @@ byte 4::
 
 byte 5::
 
-   not used
+   yest used
 
 Head packet
 ^^^^^^^^^^^
@@ -785,7 +785,7 @@ byte 5::
         y7..y0 = delta y (two's complement)
 
         byte 0 ~ 2 for one finger
-        byte 3 ~ 5 for another
+        byte 3 ~ 5 for ayesther
 
 
 Trackpoint (for Hardware version 3 and 4)

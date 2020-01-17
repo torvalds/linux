@@ -95,7 +95,7 @@ static int pfe_pmbus_probe(struct i2c_client *client,
 	model = (int)id->driver_data;
 
 	/*
-	 * PFE3000-12-069RA devices may not stay in page 0 during device
+	 * PFE3000-12-069RA devices may yest stay in page 0 during device
 	 * probe which leads to probe failure (read status word failed).
 	 * So let's set the device to page 0 at the beginning.
 	 */

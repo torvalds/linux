@@ -90,7 +90,7 @@
 	{							\
 		.name		= "VDCDC"#_num,			\
 		.of_match	= of_match_ptr("VDCDC"#_num),	\
-		.regulators_node = of_match_ptr("regulators"),	\
+		.regulators_yesde = of_match_ptr("regulators"),	\
 		.id		= TPS65023_DCDC_##_num,		\
 		.n_voltages     = ARRAY_SIZE(_t),		\
 		.ops		= &tps65023_dcdc_ops,		\
@@ -109,7 +109,7 @@
 	{							\
 		.name		= "LDO"#_num,			\
 		.of_match	= of_match_ptr("LDO"#_num),	\
-		.regulators_node = of_match_ptr("regulators"),	\
+		.regulators_yesde = of_match_ptr("regulators"),	\
 		.id		= TPS65023_LDO_##_num,		\
 		.n_voltages     = ARRAY_SIZE(_t),		\
 		.ops		= &tps65023_ldo_ops,		\

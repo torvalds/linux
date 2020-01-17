@@ -17,7 +17,7 @@
 #include <linux/percpu_counter.h>
 #include <linux/rbtree.h>
 
-/* XXX Here for now... not interested in restructing headers JUST now */
+/* XXX Here for yesw... yest interested in restructing headers JUST yesw */
 
 /* data type for block offset of block group */
 typedef int ext2_grpblk_t;
@@ -32,8 +32,8 @@ struct ext2_reserve_window {
 	ext2_fsblk_t		_rsv_end;	/* Last byte reserved or 0 */
 };
 
-struct ext2_reserve_window_node {
-	struct rb_node	 	rsv_node;
+struct ext2_reserve_window_yesde {
+	struct rb_yesde	 	rsv_yesde;
 	__u32			rsv_goal_size;
 	__u32			rsv_alloc_hit;
 	struct ext2_reserve_window	rsv_window;
@@ -41,16 +41,16 @@ struct ext2_reserve_window_node {
 
 struct ext2_block_alloc_info {
 	/* information about reservation window */
-	struct ext2_reserve_window_node	rsv_window_node;
+	struct ext2_reserve_window_yesde	rsv_window_yesde;
 	/*
-	 * was i_next_alloc_block in ext2_inode_info
+	 * was i_next_alloc_block in ext2_iyesde_info
 	 * is the logical (file-relative) number of the
 	 * most-recently-allocated block in this file.
 	 * We use this for detecting linearly ascending allocation requests.
 	 */
 	__u32			last_alloc_logical_block;
 	/*
-	 * Was i_next_alloc_goal in ext2_inode_info
+	 * Was i_next_alloc_goal in ext2_iyesde_info
 	 * is the *physical* companion to i_next_alloc_block.
 	 * it the the physical block number of the block which was most-recentl
 	 * allocated to this file.  This give us the goal (target) for the next
@@ -70,11 +70,11 @@ struct mb_cache;
 struct ext2_sb_info {
 	unsigned long s_frag_size;	/* Size of a fragment in bytes */
 	unsigned long s_frags_per_block;/* Number of fragments per block */
-	unsigned long s_inodes_per_block;/* Number of inodes per block */
+	unsigned long s_iyesdes_per_block;/* Number of iyesdes per block */
 	unsigned long s_frags_per_group;/* Number of fragments in a group */
 	unsigned long s_blocks_per_group;/* Number of blocks in a group */
-	unsigned long s_inodes_per_group;/* Number of inodes in a group */
-	unsigned long s_itb_per_group;	/* Number of inode table blocks per group */
+	unsigned long s_iyesdes_per_group;/* Number of iyesdes in a group */
+	unsigned long s_itb_per_group;	/* Number of iyesde table blocks per group */
 	unsigned long s_gdb_count;	/* Number of group descriptor blocks */
 	unsigned long s_desc_per_block;	/* Number of group descriptors per block */
 	unsigned long s_groups_count;	/* Number of groups in the fs */
@@ -91,20 +91,20 @@ struct ext2_sb_info {
 	unsigned short s_pad;
 	int s_addr_per_block_bits;
 	int s_desc_per_block_bits;
-	int s_inode_size;
-	int s_first_ino;
+	int s_iyesde_size;
+	int s_first_iyes;
 	spinlock_t s_next_gen_lock;
 	u32 s_next_generation;
 	unsigned long s_dir_count;
 	u8 *s_debts;
 	struct percpu_counter s_freeblocks_counter;
-	struct percpu_counter s_freeinodes_counter;
+	struct percpu_counter s_freeiyesdes_counter;
 	struct percpu_counter s_dirs_counter;
 	struct blockgroup_lock *s_blockgroup_lock;
 	/* root of the per fs reservation window tree */
 	spinlock_t s_rsv_window_lock;
 	struct rb_root s_rsv_window_root;
-	struct ext2_reserve_window_node s_rsv_window_head;
+	struct ext2_reserve_window_yesde s_rsv_window_head;
 	/*
 	 * s_lock protects against concurrent modifications of s_mount_state,
 	 * s_blocks_last, s_overhead_last and the content of superblock's
@@ -156,14 +156,14 @@ sb_bgl_lock(struct ext2_sb_info *sbi, unsigned int block_group)
 #endif
 
 /*
- * Special inode numbers
+ * Special iyesde numbers
  */
-#define	EXT2_BAD_INO		 1	/* Bad blocks inode */
-#define EXT2_ROOT_INO		 2	/* Root inode */
-#define EXT2_BOOT_LOADER_INO	 5	/* Boot loader inode */
-#define EXT2_UNDEL_DIR_INO	 6	/* Undelete directory inode */
+#define	EXT2_BAD_INO		 1	/* Bad blocks iyesde */
+#define EXT2_ROOT_INO		 2	/* Root iyesde */
+#define EXT2_BOOT_LOADER_INO	 5	/* Boot loader iyesde */
+#define EXT2_UNDEL_DIR_INO	 6	/* Undelete directory iyesde */
 
-/* First non-reserved inode for old ext2 filesystems */
+/* First yesn-reserved iyesde for old ext2 filesystems */
 #define EXT2_GOOD_OLD_FIRST_INO	11
 
 static inline struct ext2_sb_info *EXT2_SB(struct super_block *sb)
@@ -181,8 +181,8 @@ static inline struct ext2_sb_info *EXT2_SB(struct super_block *sb)
 #define	EXT2_ADDR_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (__u32))
 #define EXT2_BLOCK_SIZE_BITS(s)		((s)->s_blocksize_bits)
 #define	EXT2_ADDR_PER_BLOCK_BITS(s)	(EXT2_SB(s)->s_addr_per_block_bits)
-#define EXT2_INODE_SIZE(s)		(EXT2_SB(s)->s_inode_size)
-#define EXT2_FIRST_INO(s)		(EXT2_SB(s)->s_first_ino)
+#define EXT2_INODE_SIZE(s)		(EXT2_SB(s)->s_iyesde_size)
+#define EXT2_FIRST_INO(s)		(EXT2_SB(s)->s_first_iyes)
 
 /*
  * Macro-instructions used to manage fragments
@@ -199,10 +199,10 @@ static inline struct ext2_sb_info *EXT2_SB(struct super_block *sb)
 struct ext2_group_desc
 {
 	__le32	bg_block_bitmap;		/* Blocks bitmap block */
-	__le32	bg_inode_bitmap;		/* Inodes bitmap block */
-	__le32	bg_inode_table;		/* Inodes table block */
+	__le32	bg_iyesde_bitmap;		/* Iyesdes bitmap block */
+	__le32	bg_iyesde_table;		/* Iyesdes table block */
 	__le16	bg_free_blocks_count;	/* Free blocks count */
-	__le16	bg_free_inodes_count;	/* Free inodes count */
+	__le16	bg_free_iyesdes_count;	/* Free iyesdes count */
 	__le16	bg_used_dirs_count;	/* Directories count */
 	__le16	bg_pad;
 	__le32	bg_reserved[3];
@@ -213,7 +213,7 @@ struct ext2_group_desc
  */
 #define EXT2_BLOCKS_PER_GROUP(s)	(EXT2_SB(s)->s_blocks_per_group)
 #define EXT2_DESC_PER_BLOCK(s)		(EXT2_SB(s)->s_desc_per_block)
-#define EXT2_INODES_PER_GROUP(s)	(EXT2_SB(s)->s_inodes_per_group)
+#define EXT2_INODES_PER_GROUP(s)	(EXT2_SB(s)->s_iyesdes_per_group)
 #define EXT2_DESC_PER_BLOCK_BITS(s)	(EXT2_SB(s)->s_desc_per_block_bits)
 
 /*
@@ -226,27 +226,27 @@ struct ext2_group_desc
 #define	EXT2_N_BLOCKS			(EXT2_TIND_BLOCK + 1)
 
 /*
- * Inode flags (GETFLAGS/SETFLAGS)
+ * Iyesde flags (GETFLAGS/SETFLAGS)
  */
 #define	EXT2_SECRM_FL			FS_SECRM_FL	/* Secure deletion */
 #define	EXT2_UNRM_FL			FS_UNRM_FL	/* Undelete */
 #define	EXT2_COMPR_FL			FS_COMPR_FL	/* Compress file */
-#define EXT2_SYNC_FL			FS_SYNC_FL	/* Synchronous updates */
+#define EXT2_SYNC_FL			FS_SYNC_FL	/* Synchroyesus updates */
 #define EXT2_IMMUTABLE_FL		FS_IMMUTABLE_FL	/* Immutable file */
 #define EXT2_APPEND_FL			FS_APPEND_FL	/* writes to file may only append */
-#define EXT2_NODUMP_FL			FS_NODUMP_FL	/* do not dump file */
-#define EXT2_NOATIME_FL			FS_NOATIME_FL	/* do not update atime */
+#define EXT2_NODUMP_FL			FS_NODUMP_FL	/* do yest dump file */
+#define EXT2_NOATIME_FL			FS_NOATIME_FL	/* do yest update atime */
 /* Reserved for compression usage... */
 #define EXT2_DIRTY_FL			FS_DIRTY_FL
 #define EXT2_COMPRBLK_FL		FS_COMPRBLK_FL	/* One or more compressed clusters */
 #define EXT2_NOCOMP_FL			FS_NOCOMP_FL	/* Don't compress */
 #define EXT2_ECOMPR_FL			FS_ECOMPR_FL	/* Compression error */
-/* End compression flags --- maybe not all used */	
+/* End compression flags --- maybe yest all used */	
 #define EXT2_BTREE_FL			FS_BTREE_FL	/* btree format dir */
 #define EXT2_INDEX_FL			FS_INDEX_FL	/* hash-indexed directory */
 #define EXT2_IMAGIC_FL			FS_IMAGIC_FL	/* AFS directory */
 #define EXT2_JOURNAL_DATA_FL		FS_JOURNAL_DATA_FL /* Reserved for ext3 */
-#define EXT2_NOTAIL_FL			FS_NOTAIL_FL	/* file tail should not be merged */
+#define EXT2_NOTAIL_FL			FS_NOTAIL_FL	/* file tail should yest be merged */
 #define EXT2_DIRSYNC_FL			FS_DIRSYNC_FL	/* dirsync behaviour (directories only) */
 #define EXT2_TOPDIR_FL			FS_TOPDIR_FL	/* Top of directory hierarchies*/
 #define EXT2_RESERVED_FL		FS_RESERVED_FL	/* reserved for ext2 lib */
@@ -254,7 +254,7 @@ struct ext2_group_desc
 #define EXT2_FL_USER_VISIBLE		FS_FL_USER_VISIBLE	/* User visible flags */
 #define EXT2_FL_USER_MODIFIABLE		FS_FL_USER_MODIFIABLE	/* User modifiable flags */
 
-/* Flags that should be inherited by new inodes from their parent. */
+/* Flags that should be inherited by new iyesdes from their parent. */
 #define EXT2_FL_INHERITED (EXT2_SECRM_FL | EXT2_UNRM_FL | EXT2_COMPR_FL |\
 			   EXT2_SYNC_FL | EXT2_NODUMP_FL |\
 			   EXT2_NOATIME_FL | EXT2_COMPRBLK_FL |\
@@ -264,10 +264,10 @@ struct ext2_group_desc
 /* Flags that are appropriate for regular files (all but dir-specific ones). */
 #define EXT2_REG_FLMASK (~(EXT2_DIRSYNC_FL | EXT2_TOPDIR_FL))
 
-/* Flags that are appropriate for non-directories/regular files. */
+/* Flags that are appropriate for yesn-directories/regular files. */
 #define EXT2_OTHER_FLMASK (EXT2_NODUMP_FL | EXT2_NOATIME_FL)
 
-/* Mask out flags that are inappropriate for the given type of inode. */
+/* Mask out flags that are inappropriate for the given type of iyesde. */
 static inline __u32 ext2_mask_flags(umode_t mode, __u32 flags)
 {
 	if (S_ISDIR(mode))
@@ -297,9 +297,9 @@ static inline __u32 ext2_mask_flags(umode_t mode, __u32 flags)
 #define EXT2_IOC32_SETVERSION		FS_IOC32_SETVERSION
 
 /*
- * Structure of an inode on the disk
+ * Structure of an iyesde on the disk
  */
-struct ext2_inode {
+struct ext2_iyesde {
 	__le16	i_mode;		/* File mode */
 	__le16	i_uid;		/* Low 16 bits of Owner Uid */
 	__le32	i_size;		/* Size in bytes */
@@ -415,17 +415,17 @@ struct ext2_inode {
  * Structure of the super block
  */
 struct ext2_super_block {
-	__le32	s_inodes_count;		/* Inodes count */
+	__le32	s_iyesdes_count;		/* Iyesdes count */
 	__le32	s_blocks_count;		/* Blocks count */
 	__le32	s_r_blocks_count;	/* Reserved blocks count */
 	__le32	s_free_blocks_count;	/* Free blocks count */
-	__le32	s_free_inodes_count;	/* Free inodes count */
+	__le32	s_free_iyesdes_count;	/* Free iyesdes count */
 	__le32	s_first_data_block;	/* First Data Block */
 	__le32	s_log_block_size;	/* Block size */
 	__le32	s_log_frag_size;	/* Fragment size */
 	__le32	s_blocks_per_group;	/* # Blocks per group */
 	__le32	s_frags_per_group;	/* # Fragments per group */
-	__le32	s_inodes_per_group;	/* # Inodes per group */
+	__le32	s_iyesdes_per_group;	/* # Iyesdes per group */
 	__le32	s_mtime;		/* Mount time */
 	__le32	s_wtime;		/* Write time */
 	__le16	s_mnt_count;		/* Mount count */
@@ -433,7 +433,7 @@ struct ext2_super_block {
 	__le16	s_magic;		/* Magic signature */
 	__le16	s_state;		/* File system state */
 	__le16	s_errors;		/* Behaviour when detecting errors */
-	__le16	s_minor_rev_level; 	/* minor revision level */
+	__le16	s_miyesr_rev_level; 	/* miyesr revision level */
 	__le32	s_lastcheck;		/* time of last check */
 	__le32	s_checkinterval;	/* max. time between checks */
 	__le32	s_creator_os;		/* OS */
@@ -446,15 +446,15 @@ struct ext2_super_block {
 	 * Note: the difference between the compatible feature set and
 	 * the incompatible feature set is that if there is a bit set
 	 * in the incompatible feature set that the kernel doesn't
-	 * know about, it should refuse to mount the filesystem.
+	 * kyesw about, it should refuse to mount the filesystem.
 	 * 
-	 * e2fsck's requirements are more strict; if it doesn't know
+	 * e2fsck's requirements are more strict; if it doesn't kyesw
 	 * about a feature in either the compatible or incompatible
-	 * feature set, it must abort and not try to meddle with
+	 * feature set, it must abort and yest try to meddle with
 	 * things it doesn't understand...
 	 */
-	__le32	s_first_ino; 		/* First non-reserved inode */
-	__le16   s_inode_size; 		/* size of inode structure */
+	__le32	s_first_iyes; 		/* First yesn-reserved iyesde */
+	__le16   s_iyesde_size; 		/* size of iyesde structure */
 	__le16	s_block_group_nr; 	/* block group # of this superblock */
 	__le32	s_feature_compat; 	/* compatible feature set */
 	__le32	s_feature_incompat; 	/* incompatible feature set */
@@ -474,9 +474,9 @@ struct ext2_super_block {
 	 * Journaling support valid if EXT3_FEATURE_COMPAT_HAS_JOURNAL set.
 	 */
 	__u8	s_journal_uuid[16];	/* uuid of journal superblock */
-	__u32	s_journal_inum;		/* inode number of journal file */
+	__u32	s_journal_inum;		/* iyesde number of journal file */
 	__u32	s_journal_dev;		/* device number of journal file */
-	__u32	s_last_orphan;		/* start of list of inodes to delete */
+	__u32	s_last_orphan;		/* start of list of iyesdes to delete */
 	__u32	s_hash_seed[4];		/* HTREE hash seed */
 	__u8	s_def_hash_version;	/* Default hash version to use */
 	__u8	s_reserved_char_pad;
@@ -499,7 +499,7 @@ struct ext2_super_block {
  * Revision levels
  */
 #define EXT2_GOOD_OLD_REV	0	/* The good old (original) format */
-#define EXT2_DYNAMIC_REV	1 	/* V2 format w/ dynamic inode sizes */
+#define EXT2_DYNAMIC_REV	1 	/* V2 format w/ dynamic iyesde sizes */
 
 #define EXT2_CURRENT_REV	EXT2_GOOD_OLD_REV
 #define EXT2_MAX_SUPP_REV	EXT2_DYNAMIC_REV
@@ -583,7 +583,7 @@ struct ext2_super_block {
  */
 
 struct ext2_dir_entry {
-	__le32	inode;			/* Inode number */
+	__le32	iyesde;			/* Iyesde number */
 	__le16	rec_len;		/* Directory entry length */
 	__le16	name_len;		/* Name length */
 	char	name[];			/* File name, up to EXT2_NAME_LEN */
@@ -596,7 +596,7 @@ struct ext2_dir_entry {
  * file_type field.
  */
 struct ext2_dir_entry_2 {
-	__le32	inode;			/* Inode number */
+	__le32	iyesde;			/* Iyesde number */
 	__le16	rec_len;		/* Directory entry length */
 	__u8	name_len;		/* Name length */
 	__u8	file_type;
@@ -633,13 +633,13 @@ struct ext2_mount_options {
 };
 
 /*
- * second extended file system inode data in memory
+ * second extended file system iyesde data in memory
  */
-struct ext2_inode_info {
+struct ext2_iyesde_info {
 	__le32	i_data[15];
 	__u32	i_flags;
 	__u32	i_faddr;
-	__u8	i_frag_no;
+	__u8	i_frag_yes;
 	__u8	i_frag_size;
 	__u16	i_state;
 	__u32	i_file_acl;
@@ -648,10 +648,10 @@ struct ext2_inode_info {
 
 	/*
 	 * i_block_group is the number of the block group which contains
-	 * this file's inode.  Constant across the lifetime of the inode,
+	 * this file's iyesde.  Constant across the lifetime of the iyesde,
 	 * it is used for making block allocation decisions - we try to
-	 * place a file's data blocks near its inode block, and new inodes
-	 * near to their parent directory's inode.
+	 * place a file's data blocks near its iyesde block, and new iyesdes
+	 * near to their parent directory's iyesde.
 	 */
 	__u32	i_block_group;
 
@@ -676,30 +676,30 @@ struct ext2_inode_info {
 
 	/*
 	 * truncate_mutex is for serialising ext2_truncate() against
-	 * ext2_getblock().  It also protects the internals of the inode's
+	 * ext2_getblock().  It also protects the internals of the iyesde's
 	 * reservation data structures: ext2_reserve_window and
-	 * ext2_reserve_window_node.
+	 * ext2_reserve_window_yesde.
 	 */
 	struct mutex truncate_mutex;
-	struct inode	vfs_inode;
-	struct list_head i_orphan;	/* unlinked but open inodes */
+	struct iyesde	vfs_iyesde;
+	struct list_head i_orphan;	/* unlinked but open iyesdes */
 #ifdef CONFIG_QUOTA
 	struct dquot *i_dquot[MAXQUOTAS];
 #endif
 };
 
 #ifdef CONFIG_FS_DAX
-#define dax_sem_down_write(ext2_inode)	down_write(&(ext2_inode)->dax_sem)
-#define dax_sem_up_write(ext2_inode)	up_write(&(ext2_inode)->dax_sem)
+#define dax_sem_down_write(ext2_iyesde)	down_write(&(ext2_iyesde)->dax_sem)
+#define dax_sem_up_write(ext2_iyesde)	up_write(&(ext2_iyesde)->dax_sem)
 #else
-#define dax_sem_down_write(ext2_inode)
-#define dax_sem_up_write(ext2_inode)
+#define dax_sem_down_write(ext2_iyesde)
+#define dax_sem_up_write(ext2_iyesde)
 #endif
 
 /*
- * Inode dynamic state flags
+ * Iyesde dynamic state flags
  */
-#define EXT2_STATE_NEW			0x00000001 /* inode is newly created */
+#define EXT2_STATE_NEW			0x00000001 /* iyesde is newly created */
 
 
 /*
@@ -707,60 +707,60 @@ struct ext2_inode_info {
  */
 
 /*
- * Ok, these declarations are also in <linux/kernel.h> but none of the
+ * Ok, these declarations are also in <linux/kernel.h> but yesne of the
  * ext2 source programs needs to include it so they are duplicated here.
  */
 
-static inline struct ext2_inode_info *EXT2_I(struct inode *inode)
+static inline struct ext2_iyesde_info *EXT2_I(struct iyesde *iyesde)
 {
-	return container_of(inode, struct ext2_inode_info, vfs_inode);
+	return container_of(iyesde, struct ext2_iyesde_info, vfs_iyesde);
 }
 
 /* balloc.c */
 extern int ext2_bg_has_super(struct super_block *sb, int group);
 extern unsigned long ext2_bg_num_gdb(struct super_block *sb, int group);
-extern ext2_fsblk_t ext2_new_block(struct inode *, unsigned long, int *);
-extern ext2_fsblk_t ext2_new_blocks(struct inode *, unsigned long,
+extern ext2_fsblk_t ext2_new_block(struct iyesde *, unsigned long, int *);
+extern ext2_fsblk_t ext2_new_blocks(struct iyesde *, unsigned long,
 				unsigned long *, int *);
 extern int ext2_data_block_valid(struct ext2_sb_info *sbi, ext2_fsblk_t start_blk,
 				 unsigned int count);
-extern void ext2_free_blocks (struct inode *, unsigned long,
+extern void ext2_free_blocks (struct iyesde *, unsigned long,
 			      unsigned long);
 extern unsigned long ext2_count_free_blocks (struct super_block *);
 extern unsigned long ext2_count_dirs (struct super_block *);
 extern struct ext2_group_desc * ext2_get_group_desc(struct super_block * sb,
 						    unsigned int block_group,
 						    struct buffer_head ** bh);
-extern void ext2_discard_reservation (struct inode *);
+extern void ext2_discard_reservation (struct iyesde *);
 extern int ext2_should_retry_alloc(struct super_block *sb, int *retries);
-extern void ext2_init_block_alloc_info(struct inode *);
-extern void ext2_rsv_window_add(struct super_block *sb, struct ext2_reserve_window_node *rsv);
+extern void ext2_init_block_alloc_info(struct iyesde *);
+extern void ext2_rsv_window_add(struct super_block *sb, struct ext2_reserve_window_yesde *rsv);
 
 /* dir.c */
-extern int ext2_add_link (struct dentry *, struct inode *);
-extern ino_t ext2_inode_by_name(struct inode *, const struct qstr *);
-extern int ext2_make_empty(struct inode *, struct inode *);
-extern struct ext2_dir_entry_2 * ext2_find_entry (struct inode *,const struct qstr *, struct page **);
+extern int ext2_add_link (struct dentry *, struct iyesde *);
+extern iyes_t ext2_iyesde_by_name(struct iyesde *, const struct qstr *);
+extern int ext2_make_empty(struct iyesde *, struct iyesde *);
+extern struct ext2_dir_entry_2 * ext2_find_entry (struct iyesde *,const struct qstr *, struct page **);
 extern int ext2_delete_entry (struct ext2_dir_entry_2 *, struct page *);
-extern int ext2_empty_dir (struct inode *);
-extern struct ext2_dir_entry_2 * ext2_dotdot (struct inode *, struct page **);
-extern void ext2_set_link(struct inode *, struct ext2_dir_entry_2 *, struct page *, struct inode *, int);
+extern int ext2_empty_dir (struct iyesde *);
+extern struct ext2_dir_entry_2 * ext2_dotdot (struct iyesde *, struct page **);
+extern void ext2_set_link(struct iyesde *, struct ext2_dir_entry_2 *, struct page *, struct iyesde *, int);
 
 /* ialloc.c */
-extern struct inode * ext2_new_inode (struct inode *, umode_t, const struct qstr *);
-extern void ext2_free_inode (struct inode *);
-extern unsigned long ext2_count_free_inodes (struct super_block *);
+extern struct iyesde * ext2_new_iyesde (struct iyesde *, umode_t, const struct qstr *);
+extern void ext2_free_iyesde (struct iyesde *);
+extern unsigned long ext2_count_free_iyesdes (struct super_block *);
 extern unsigned long ext2_count_free (struct buffer_head *, unsigned);
 
-/* inode.c */
-extern struct inode *ext2_iget (struct super_block *, unsigned long);
-extern int ext2_write_inode (struct inode *, struct writeback_control *);
-extern void ext2_evict_inode(struct inode *);
-extern int ext2_get_block(struct inode *, sector_t, struct buffer_head *, int);
+/* iyesde.c */
+extern struct iyesde *ext2_iget (struct super_block *, unsigned long);
+extern int ext2_write_iyesde (struct iyesde *, struct writeback_control *);
+extern void ext2_evict_iyesde(struct iyesde *);
+extern int ext2_get_block(struct iyesde *, sector_t, struct buffer_head *, int);
 extern int ext2_setattr (struct dentry *, struct iattr *);
 extern int ext2_getattr (const struct path *, struct kstat *, u32, unsigned int);
-extern void ext2_set_inode_flags(struct inode *inode);
-extern int ext2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+extern void ext2_set_iyesde_flags(struct iyesde *iyesde);
+extern int ext2_fiemap(struct iyesde *iyesde, struct fiemap_extent_info *fieinfo,
 		       u64 start, u64 len);
 
 /* ioctl.c */
@@ -780,7 +780,7 @@ extern void ext2_sync_super(struct super_block *sb, struct ext2_super_block *es,
 			    int wait);
 
 /*
- * Inodes and files operations
+ * Iyesdes and files operations
  */
 
 /* dir.c */
@@ -789,39 +789,39 @@ extern const struct file_operations ext2_dir_operations;
 /* file.c */
 extern int ext2_fsync(struct file *file, loff_t start, loff_t end,
 		      int datasync);
-extern const struct inode_operations ext2_file_inode_operations;
+extern const struct iyesde_operations ext2_file_iyesde_operations;
 extern const struct file_operations ext2_file_operations;
 
-/* inode.c */
-extern void ext2_set_file_ops(struct inode *inode);
+/* iyesde.c */
+extern void ext2_set_file_ops(struct iyesde *iyesde);
 extern const struct address_space_operations ext2_aops;
-extern const struct address_space_operations ext2_nobh_aops;
+extern const struct address_space_operations ext2_yesbh_aops;
 extern const struct iomap_ops ext2_iomap_ops;
 
 /* namei.c */
-extern const struct inode_operations ext2_dir_inode_operations;
-extern const struct inode_operations ext2_special_inode_operations;
+extern const struct iyesde_operations ext2_dir_iyesde_operations;
+extern const struct iyesde_operations ext2_special_iyesde_operations;
 
 /* symlink.c */
-extern const struct inode_operations ext2_fast_symlink_inode_operations;
-extern const struct inode_operations ext2_symlink_inode_operations;
+extern const struct iyesde_operations ext2_fast_symlink_iyesde_operations;
+extern const struct iyesde_operations ext2_symlink_iyesde_operations;
 
 static inline ext2_fsblk_t
-ext2_group_first_block_no(struct super_block *sb, unsigned long group_no)
+ext2_group_first_block_yes(struct super_block *sb, unsigned long group_yes)
 {
-	return group_no * (ext2_fsblk_t)EXT2_BLOCKS_PER_GROUP(sb) +
+	return group_yes * (ext2_fsblk_t)EXT2_BLOCKS_PER_GROUP(sb) +
 		le32_to_cpu(EXT2_SB(sb)->s_es->s_first_data_block);
 }
 
 static inline ext2_fsblk_t
-ext2_group_last_block_no(struct super_block *sb, unsigned long group_no)
+ext2_group_last_block_yes(struct super_block *sb, unsigned long group_yes)
 {
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 
-	if (group_no == sbi->s_groups_count - 1)
+	if (group_yes == sbi->s_groups_count - 1)
 		return le32_to_cpu(sbi->s_es->s_blocks_count) - 1;
 	else
-		return ext2_group_first_block_no(sb, group_no) +
+		return ext2_group_first_block_yes(sb, group_yes) +
 			EXT2_BLOCKS_PER_GROUP(sb) - 1;
 }
 

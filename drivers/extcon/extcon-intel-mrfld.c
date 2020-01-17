@@ -127,7 +127,7 @@ static int mrfld_extcon_get_id(struct mrfld_extcon_data *data)
 		return ground ? INTEL_USB_ID_FLOAT : INTEL_USB_ID_GND;
 	}
 
-	/* Unknown or unsupported type */
+	/* Unkyeswn or unsupported type */
 	return INTEL_USB_ID_FLOAT;
 }
 

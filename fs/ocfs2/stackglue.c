@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * stackglue.c
  *
@@ -35,8 +35,8 @@ static char cluster_stack_name[OCFS2_STACK_LABEL_LEN + 1];
 static char ocfs2_hb_ctl_path[OCFS2_MAX_HB_CTL_PATH] = "/sbin/ocfs2_hb_ctl";
 
 /*
- * The stack currently in use.  If not null, active_stack->sp_count > 0,
- * the module is pinned, and the locking protocol cannot be changed.
+ * The stack currently in use.  If yest null, active_stack->sp_count > 0,
+ * the module is pinned, and the locking protocol canyest be changed.
  */
 static struct ocfs2_stack_plugin *active_stack;
 
@@ -73,8 +73,8 @@ static int ocfs2_stack_driver_request(const char *stack_name,
 
 	if (active_stack) {
 		/*
-		 * If the active stack isn't the one we want, it cannot
-		 * be selected right now.
+		 * If the active stack isn't the one we want, it canyest
+		 * be selected right yesw.
 		 */
 		if (!strcmp(active_stack->sp_name, plugin_name))
 			rc = 0;
@@ -103,8 +103,8 @@ out:
 
 /*
  * This function looks up the appropriate stack and makes it active.  If
- * there is no stack, it tries to load it.  It will fail if the stack still
- * cannot be found.  It will also fail if a different stack is in use.
+ * there is yes stack, it tries to load it.  It will fail if the stack still
+ * canyest be found.  It will also fail if a different stack is in use.
  */
 static int ocfs2_stack_driver_get(const char *stack_name)
 {
@@ -112,7 +112,7 @@ static int ocfs2_stack_driver_get(const char *stack_name)
 	char *plugin_name = OCFS2_STACK_PLUGIN_O2CB;
 
 	/*
-	 * Classic stack does not pass in a stack name.  This is
+	 * Classic stack does yest pass in a stack name.  This is
 	 * compatible with older tools as well.
 	 */
 	if (!stack_name || !*stack_name)
@@ -137,7 +137,7 @@ static int ocfs2_stack_driver_get(const char *stack_name)
 
 	if (rc == -ENOENT) {
 		printk(KERN_ERR
-		       "ocfs2: Cluster stack driver \"%s\" cannot be found\n",
+		       "ocfs2: Cluster stack driver \"%s\" canyest be found\n",
 		       plugin_name);
 	} else if (rc == -EBUSY) {
 		printk(KERN_ERR
@@ -198,7 +198,7 @@ void ocfs2_stack_glue_unregister(struct ocfs2_stack_plugin *plugin)
 		printk(KERN_INFO "ocfs2: Unregistered cluster interface %s\n",
 		       plugin->sp_name);
 	} else {
-		printk(KERN_ERR "Stack \"%s\" is not registered\n",
+		printk(KERN_ERR "Stack \"%s\" is yest registered\n",
 		       plugin->sp_name);
 	}
 	spin_unlock(&ocfs2_stack_lock);
@@ -225,7 +225,7 @@ EXPORT_SYMBOL_GPL(ocfs2_stack_glue_set_max_proto_version);
 
 
 /*
- * The ocfs2_dlm_lock() and ocfs2_dlm_unlock() functions take no argument
+ * The ocfs2_dlm_lock() and ocfs2_dlm_unlock() functions take yes argument
  * for the ast and bast functions.  They will pass the lksb to the ast
  * and bast.  The caller can wrap the lksb with their own structure to
  * get more information.
@@ -290,12 +290,12 @@ EXPORT_SYMBOL_GPL(ocfs2_stack_supports_plocks);
  * ocfs2_plock() can only be safely called if
  * ocfs2_stack_supports_plocks() returned true
  */
-int ocfs2_plock(struct ocfs2_cluster_connection *conn, u64 ino,
+int ocfs2_plock(struct ocfs2_cluster_connection *conn, u64 iyes,
 		struct file *file, int cmd, struct file_lock *fl)
 {
 	WARN_ON_ONCE(active_stack->sp_ops->plock == NULL);
 	if (active_stack->sp_ops->plock)
-		return active_stack->sp_ops->plock(conn, ino, file, cmd, fl);
+		return active_stack->sp_ops->plock(conn, iyes, file, cmd, fl);
 	return -EOPNOTSUPP;
 }
 EXPORT_SYMBOL_GPL(ocfs2_plock);
@@ -306,7 +306,7 @@ int ocfs2_cluster_connect(const char *stack_name,
 			  const char *group,
 			  int grouplen,
 			  struct ocfs2_locking_protocol *lproto,
-			  void (*recovery_handler)(int node_num,
+			  void (*recovery_handler)(int yesde_num,
 						   void *recovery_data),
 			  void *recovery_data,
 			  struct ocfs2_cluster_connection **conn)
@@ -371,11 +371,11 @@ out:
 }
 EXPORT_SYMBOL_GPL(ocfs2_cluster_connect);
 
-/* The caller will ensure all nodes have the same cluster stack */
-int ocfs2_cluster_connect_agnostic(const char *group,
+/* The caller will ensure all yesdes have the same cluster stack */
+int ocfs2_cluster_connect_agyesstic(const char *group,
 				   int grouplen,
 				   struct ocfs2_locking_protocol *lproto,
-				   void (*recovery_handler)(int node_num,
+				   void (*recovery_handler)(int yesde_num,
 							    void *recovery_data),
 				   void *recovery_data,
 				   struct ocfs2_cluster_connection **conn)
@@ -388,7 +388,7 @@ int ocfs2_cluster_connect_agnostic(const char *group,
 				     lproto, recovery_handler, recovery_data,
 				     conn);
 }
-EXPORT_SYMBOL_GPL(ocfs2_cluster_connect_agnostic);
+EXPORT_SYMBOL_GPL(ocfs2_cluster_connect_agyesstic);
 
 /* If hangup_pending is 0, the stack driver will be dropped */
 int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn,
@@ -459,12 +459,12 @@ void ocfs2_cluster_hangup(const char *group, int grouplen)
 }
 EXPORT_SYMBOL_GPL(ocfs2_cluster_hangup);
 
-int ocfs2_cluster_this_node(struct ocfs2_cluster_connection *conn,
-			    unsigned int *node)
+int ocfs2_cluster_this_yesde(struct ocfs2_cluster_connection *conn,
+			    unsigned int *yesde)
 {
-	return active_stack->sp_ops->this_node(conn, node);
+	return active_stack->sp_ops->this_yesde(conn, yesde);
 }
-EXPORT_SYMBOL_GPL(ocfs2_cluster_this_node);
+EXPORT_SYMBOL_GPL(ocfs2_cluster_this_yesde);
 
 
 /*
@@ -481,7 +481,7 @@ static ssize_t ocfs2_max_locking_protocol_show(struct kobject *kobj,
 	if (locking_max_version.pv_major)
 		ret = snprintf(buf, PAGE_SIZE, "%u.%u\n",
 			       locking_max_version.pv_major,
-			       locking_max_version.pv_minor);
+			       locking_max_version.pv_miyesr);
 	spin_unlock(&ocfs2_stack_lock);
 
 	return ret;

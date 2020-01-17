@@ -19,7 +19,7 @@
 
 struct iavf_client_version {
 	u8 major;
-	u8 minor;
+	u8 miyesr;
 	u8 build;
 	u8 rsvd;
 };
@@ -37,7 +37,7 @@ enum iavf_client_instance_state {
 struct iavf_ops;
 struct iavf_client;
 
-/* HW does not define a type value for AEQ; only for RX/TX and CEQ.
+/* HW does yest define a type value for AEQ; only for RX/TX and CEQ.
  * In order for us to keep the interface simple, SW will define a
  * unique type value for AEQ.
  */

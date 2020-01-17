@@ -55,7 +55,7 @@ static bool acpi_dev_resource_len_valid(u64 start, u64 end, u64 len, bool io)
 	/*
 	 * CHECKME: len might be required to check versus a minimum
 	 * length as well. 1 for io is fine, but for memory it does
-	 * not make any sense at all.
+	 * yest make any sense at all.
 	 * Note: some BIOSes report incorrect length for ACPI address space
 	 * descriptor, so remove check of 'reslen == len' to avoid regression.
 	 */
@@ -98,7 +98,7 @@ static void acpi_dev_get_memresource(struct resource *res, u64 start, u64 len,
  * resource object pointed to by @res.
  *
  * Return:
- * 1) false with res->flags setting to zero: not the expected resource type
+ * 1) false with res->flags setting to zero: yest the expected resource type
  * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
  * 3) true: valid assigned resource
  */
@@ -171,7 +171,7 @@ static void acpi_dev_get_ioresource(struct resource *res, u64 start, u64 len,
  * resource object pointed to by @res.
  *
  * Return:
- * 1) false with res->flags setting to zero: not the expected resource type
+ * 1) false with res->flags setting to zero: yest the expected resource type
  * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
  * 3) true: valid assigned resource
  */
@@ -231,7 +231,7 @@ static bool acpi_decode_space(struct resource_win *win,
 	if (addr->producer_consumer == ACPI_PRODUCER)
 		offset = attr->translation_offset;
 	else if (attr->translation_offset)
-		pr_debug("ACPI: translation_offset(%lld) is invalid for non-bridge device.\n",
+		pr_debug("ACPI: translation_offset(%lld) is invalid for yesn-bridge device.\n",
 			 attr->translation_offset);
 	start = attr->minimum + offset;
 	end = attr->maximum + offset;
@@ -241,7 +241,7 @@ static bool acpi_decode_space(struct resource_win *win,
 	res->end = end;
 	if (sizeof(resource_size_t) < sizeof(u64) &&
 	    (offset != win->offset || start != res->start || end != res->end)) {
-		pr_warn("acpi resource window ([%#llx-%#llx] ignored, not CPU addressable)\n",
+		pr_warn("acpi resource window ([%#llx-%#llx] igyesred, yest CPU addressable)\n",
 			attr->minimum, attr->maximum);
 		return false;
 	}
@@ -280,7 +280,7 @@ static bool acpi_decode_space(struct resource_win *win,
  * resource object pointed to by @win.
  *
  * Return:
- * 1) false with win->res.flags setting to zero: not the expected resource type
+ * 1) false with win->res.flags setting to zero: yest the expected resource type
  * 2) false with IORESOURCE_DISABLED in win->res.flags: valid unassigned
  *    resource
  * 3) true: valid assigned resource
@@ -309,7 +309,7 @@ EXPORT_SYMBOL_GPL(acpi_dev_resource_address_space);
  * generic resource object pointed to by @win.
  *
  * Return:
- * 1) false with win->res.flags setting to zero: not the expected resource type
+ * 1) false with win->res.flags setting to zero: yest the expected resource type
  * 2) false with IORESOURCE_DISABLED in win->res.flags: valid unassigned
  *    resource
  * 3) true: valid assigned resource
@@ -334,7 +334,7 @@ EXPORT_SYMBOL_GPL(acpi_dev_resource_ext_address_space);
  * acpi_dev_irq_flags - Determine IRQ resource flags.
  * @triggering: Triggering type as provided by ACPI.
  * @polarity: Interrupt polarity as provided by ACPI.
- * @shareable: Whether or not the interrupt is shareable.
+ * @shareable: Whether or yest the interrupt is shareable.
  */
 unsigned long acpi_dev_irq_flags(u8 triggering, u8 polarity, u8 shareable)
 {
@@ -437,15 +437,15 @@ static void acpi_dev_get_irqresource(struct resource *res, u32 gsi,
  * @res: Output generic resource object.
  *
  * Check if the given ACPI resource object represents an interrupt resource
- * and @index does not exceed the resource's interrupt count (true is returned
+ * and @index does yest exceed the resource's interrupt count (true is returned
  * in that case regardless of the results of the other checks)).  If that's the
  * case, register the GSI corresponding to @index from the array of interrupts
  * represented by the resource and populate the generic resource object pointed
- * to by @res accordingly.  If the registration of the GSI is not successful,
+ * to by @res accordingly.  If the registration of the GSI is yest successful,
  * IORESOURCE_DISABLED will be set it that object's flags.
  *
  * Return:
- * 1) false with res->flags setting to zero: not the expected resource type
+ * 1) false with res->flags setting to zero: yest the expected resource type
  * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
  * 3) true: valid assigned resource
  */
@@ -597,17 +597,17 @@ static int __acpi_dev_get_resources(struct acpi_device *adev,
 
 /**
  * acpi_dev_get_resources - Get current resources of a device.
- * @adev: ACPI device node to get the resources for.
+ * @adev: ACPI device yesde to get the resources for.
  * @list: Head of the resultant list of resources (must be empty).
  * @preproc: The caller's preprocessing routine.
  * @preproc_data: Pointer passed to the caller's preprocessing routine.
  *
- * Evaluate the _CRS method for the given device node and process its output by
+ * Evaluate the _CRS method for the given device yesde and process its output by
  * (1) executing the @preproc() rountine provided by the caller, passing the
  * resource pointer and @preproc_data to it as arguments, for each ACPI resource
  * returned and (2) converting all of the returned ACPI resources into struct
  * resource objects if possible.  If the return value of @preproc() in step (1)
- * is different from 0, step (2) is not applied to the given ACPI resource and
+ * is different from 0, step (2) is yest applied to the given ACPI resource and
  * if that value is negative, the whole processing is aborted and that value is
  * returned as the final error code.
  *
@@ -628,7 +628,7 @@ int acpi_dev_get_resources(struct acpi_device *adev, struct list_head *list,
 }
 EXPORT_SYMBOL_GPL(acpi_dev_get_resources);
 
-static int is_memory(struct acpi_resource *ares, void *not_used)
+static int is_memory(struct acpi_resource *ares, void *yest_used)
 {
 	struct resource_win win;
 	struct resource *res = &win.res;
@@ -642,10 +642,10 @@ static int is_memory(struct acpi_resource *ares, void *not_used)
 
 /**
  * acpi_dev_get_dma_resources - Get current DMA resources of a device.
- * @adev: ACPI device node to get the resources for.
+ * @adev: ACPI device yesde to get the resources for.
  * @list: Head of the resultant list of resources (must be empty).
  *
- * Evaluate the _DMA method for the given device node and process its
+ * Evaluate the _DMA method for the given device yesde and process its
  * output.
  *
  * The resultant struct resource objects are put on the list pointed to
@@ -729,7 +729,7 @@ static int acpi_dev_consumes_res(struct acpi_device *adev, struct resource *res)
 	if (ret < 0)
 		return 0;
 
-	list_for_each_entry(rentry, &resource_list, node) {
+	list_for_each_entry(rentry, &resource_list, yesde) {
 		if (resource_contains(rentry->res, res)) {
 			found = 1;
 			break;
@@ -763,7 +763,7 @@ static acpi_status acpi_res_consumer_cb(acpi_handle handle, u32 depth,
  * acpi_resource_consumer - Find the ACPI device that consumes @res.
  * @res: Resource to search for.
  *
- * Search the current resource settings (_CRS) of every ACPI device node
+ * Search the current resource settings (_CRS) of every ACPI device yesde
  * for @res.  If we find an ACPI device whose _CRS includes @res, return
  * it.  Otherwise, return NULL.
  */

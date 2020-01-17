@@ -14,14 +14,14 @@
  * conditions are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *
  *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
+ *    copyright yestice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials provided
  *    with the distribution.
  *
- *  * Neither the name of Cavium Inc. nor the names of its contributors may be
+ *  * Neither the name of Cavium Inc. yesr the names of its contributors may be
  *    used to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -67,7 +67,7 @@ u64 zip_reg_read(u64 __iomem *addr)
 
 /*
  * Allocates new ZIP device structure
- * Returns zip_device pointer or NULL if cannot allocate memory for zip_device
+ * Returns zip_device pointer or NULL if canyest allocate memory for zip_device
  */
 static struct zip_device *zip_alloc_device(struct pci_dev *pdev)
 {
@@ -92,28 +92,28 @@ static struct zip_device *zip_alloc_device(struct pci_dev *pdev)
 }
 
 /**
- * zip_get_device - Get ZIP device based on node id of cpu
+ * zip_get_device - Get ZIP device based on yesde id of cpu
  *
- * @node: Node id of the current cpu
+ * @yesde: Node id of the current cpu
  * Return: Pointer to Zip device structure
  */
-struct zip_device *zip_get_device(int node)
+struct zip_device *zip_get_device(int yesde)
 {
-	if ((node < MAX_ZIP_DEVICES) && (node >= 0))
-		return zip_dev[node];
+	if ((yesde < MAX_ZIP_DEVICES) && (yesde >= 0))
+		return zip_dev[yesde];
 
-	zip_err("ZIP device not found for node id %d\n", node);
+	zip_err("ZIP device yest found for yesde id %d\n", yesde);
 	return NULL;
 }
 
 /**
- * zip_get_node_id - Get the node id of the current cpu
+ * zip_get_yesde_id - Get the yesde id of the current cpu
  *
  * Return: Node id of the current cpu
  */
-int zip_get_node_id(void)
+int zip_get_yesde_id(void)
 {
-	return cpu_to_node(raw_smp_processor_id());
+	return cpu_to_yesde(raw_smp_processor_id());
 }
 
 /* Initializes the ZIP h/w sub-system */
@@ -202,7 +202,7 @@ static int zip_init_hw(struct zip_device *zip)
 
 	/*
 	 * Queue-to-ZIP core mapping
-	 * If a queue is not mapped to a particular core, it is equivalent to
+	 * If a queue is yest mapped to a particular core, it is equivalent to
 	 * the ZIP core being disabled.
 	 */
 	que_ena.u_reg64 = 0x0ull;
@@ -246,7 +246,7 @@ static int zip_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 
 	dev_info(dev, "Found ZIP device %d %x:%x on Node %d\n", zip->index,
-		 pdev->vendor, pdev->device, dev_to_node(dev));
+		 pdev->vendor, pdev->device, dev_to_yesde(dev));
 
 	pci_set_drvdata(pdev, zip);
 	zip->pdev = pdev;
@@ -278,7 +278,7 @@ static int zip_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* MAP configuration registers */
 	zip->reg_base = pci_ioremap_bar(pdev, PCI_CFG_ZIP_PF_BAR0);
 	if (!zip->reg_base) {
-		dev_err(dev, "ZIP: Cannot map BAR0 CSR memory space, aborting");
+		dev_err(dev, "ZIP: Canyest map BAR0 CSR memory space, aborting");
 		err = -ENOMEM;
 		goto err_release_regions;
 	}
@@ -584,7 +584,7 @@ static int zip_print_regs(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int zip_stats_open(struct inode *inode, struct file *file)
+static int zip_stats_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, zip_show_stats, NULL);
 }
@@ -596,7 +596,7 @@ static const struct file_operations zip_stats_fops = {
 	.release = single_release,
 };
 
-static int zip_clear_open(struct inode *inode, struct file *file)
+static int zip_clear_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, zip_clear_stats, NULL);
 }
@@ -608,7 +608,7 @@ static const struct file_operations zip_clear_fops = {
 	.release = single_release,
 };
 
-static int zip_regs_open(struct inode *inode, struct file *file)
+static int zip_regs_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, zip_print_regs, NULL);
 }

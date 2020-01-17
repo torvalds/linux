@@ -44,10 +44,10 @@ Optional properties:
 				The value is an integer from 0 to 31.
 - mediatek,hs400-cmd-resp-sel-rising:  HS400 command response sample selection
 				       If present,HS400 command responses are sampled on rising edges.
-				       If not present,HS400 command responses are sampled on falling edges.
-- mediatek,latch-ck: Some SoCs do not support enhance_rx, need set correct latch-ck to avoid data crc
+				       If yest present,HS400 command responses are sampled on falling edges.
+- mediatek,latch-ck: Some SoCs do yest support enhance_rx, need set correct latch-ck to avoid data crc
 		     error caused by stop clock(fifo full)
-		     Valid range = [0:0x7]. if not present, default value is 0.
+		     Valid range = [0:0x7]. if yest present, default value is 0.
 		     applied to compatible "mediatek,mt2701-mmc".
 
 Examples:

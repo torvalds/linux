@@ -3,7 +3,7 @@
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -41,18 +41,18 @@
  */
 
 /*
- * The LinkSprite pcDuino2 board is almost identical to the older
- * LinkSprite pcDuino1 board. The only software visible difference
- * is that the pcDuino2 board got a USB VBUS voltage regulator, which
+ * The LinkSprite pcDuiyes2 board is almost identical to the older
+ * LinkSprite pcDuiyes1 board. The only software visible difference
+ * is that the pcDuiyes2 board got a USB VBUS voltage regulator, which
  * is controlled by the PD2 pin (pulled-up by default). Also one of
  * the USB host ports has been replaced with a USB WIFI chip.
  */
 
-#include "sun4i-a10-pcduino.dts"
+#include "sun4i-a10-pcduiyes.dts"
 
 / {
-	model = "LinkSprite pcDuino2";
-	compatible = "linksprite,a10-pcduino2", "allwinner,sun4i-a10";
+	model = "LinkSprite pcDuiyes2";
+	compatible = "linksprite,a10-pcduiyes2", "allwinner,sun4i-a10";
 };
 
 &reg_usb2_vbus {

@@ -55,7 +55,7 @@ static int rtw8822c_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 		rtw8822ce_efuse_parsing(efuse, map);
 		break;
 	default:
-		/* unsupported now */
+		/* unsupported yesw */
 		return -ENOTSUPP;
 	}
 
@@ -931,7 +931,7 @@ static void rtw8822c_rf_dac_cal(struct rtw_dev *rtwdev)
 	if (rtw8822c_dac_cal_restore(rtwdev))
 		return;
 
-	/* not able to restore, do it */
+	/* yest able to restore, do it */
 
 	rtw8822c_dac_backup_reg(rtwdev, backup, backup_rf);
 
@@ -1276,7 +1276,7 @@ static int rtw8822c_mac_init(struct rtw_dev *rtwdev)
 		| BIT_RXPSF_OFDMRST;
 	rtw_write16(rtwdev, REG_RXPSF_CTRL, value16);
 	rtw_write32(rtwdev, REG_RXPSF_TYPE_CTRL, 0xFFFFFFFF);
-	/* rx ignore configuration */
+	/* rx igyesre configuration */
 	value16 = rtw_read16(rtwdev, REG_RXPSF_CTRL);
 	value16 &= ~(BIT_RXPSF_MHCHKEN | BIT_RXPSF_CCKRST |
 		     BIT_RXPSF_CONT_ERRCHKEN);
@@ -1785,7 +1785,7 @@ static void rtw8822c_query_rx_desc(struct rtw_dev *rtwdev, u8 *rx_desc,
 	/* drv_info_sz is in unit of 8-bytes */
 	pkt_stat->drv_info_sz *= 8;
 
-	/* c2h cmd pkt's rx/phy status is not interested */
+	/* c2h cmd pkt's rx/phy status is yest interested */
 	if (pkt_stat->is_c2h)
 		return;
 
@@ -1993,11 +1993,11 @@ static void rtw8822c_coex_cfg_init(struct rtw_dev *rtwdev)
 
 	/* enable PTA (tx/rx signal form WiFi side) */
 	rtw_write8_set(rtwdev, REG_QUEUE_CTRL, BIT_PTA_WL_TX_EN);
-	/* wl tx signal to PTA not case EDCCA */
+	/* wl tx signal to PTA yest case EDCCA */
 	rtw_write8_clr(rtwdev, REG_QUEUE_CTRL, BIT_PTA_EDCCA_EN);
 	/* GNT_BT=1 while select both */
 	rtw_write8_set(rtwdev, REG_BT_COEX_V2, BIT_GNT_BT_POLARITY);
-	/* BT_CCA = ~GNT_WL_BB, (not or GNT_BT_BB, LTE_Rx */
+	/* BT_CCA = ~GNT_WL_BB, (yest or GNT_BT_BB, LTE_Rx */
 	rtw_write8_clr(rtwdev, REG_DUMMY_PAGE4_V1, BIT_BTCCA_CTRL);
 
 	/* to avoid RF parameter error */
@@ -2027,11 +2027,11 @@ static void rtw8822c_coex_cfg_gnt_fix(struct rtw_dev *rtwdev)
 
 	rtw_write_rf(rtwdev, RF_PATH_B, 0x1, 0xfffff, rf_0x1);
 
-	/* WL-S0 2G RF TRX cannot be masked by GNT_BT
+	/* WL-S0 2G RF TRX canyest be masked by GNT_BT
 	 * enable "WLS0 BB chage RF mode if GNT_BT = 1" for shared-antenna type
 	 * disable:0x1860[3] = 1, enable:0x1860[3] = 0
 	 *
-	 * enable "DAC off if GNT_WL = 0" for non-shared-antenna
+	 * enable "DAC off if GNT_WL = 0" for yesn-shared-antenna
 	 * disable 0x1c30[22] = 0,
 	 * enable: 0x1c30[22] = 1, 0x1c38[12] = 0, 0x1c38[28] = 1
 	 *
@@ -2339,7 +2339,7 @@ static void rtw8822c_dpk_afe_setting(struct rtw_dev *rtwdev, bool is_do_dpk)
 	if (is_do_dpk)
 		rtw_load_table(rtwdev, &rtw8822c_dpk_afe_is_dpk_tbl);
 	else
-		rtw_load_table(rtwdev, &rtw8822c_dpk_afe_no_dpk_tbl);
+		rtw_load_table(rtwdev, &rtw8822c_dpk_afe_yes_dpk_tbl);
 }
 
 static void rtw8822c_dpk_pre_setting(struct rtw_dev *rtwdev)
@@ -3918,7 +3918,7 @@ static const struct coex_5g_afh_map afh_5g_8822c[] = { {0, 0, 0} };
 
 /* wl_tx_dec_power, bt_tx_dec_power, wl_rx_gain, bt_rx_lna_constrain */
 static const struct coex_rf_para rf_para_tx_8822c[] = {
-	{0, 0, false, 7},  /* for normal */
+	{0, 0, false, 7},  /* for yesrmal */
 	{0, 16, false, 7}, /* for WL-CPT */
 	{8, 17, true, 4},
 	{7, 18, true, 4},
@@ -3927,7 +3927,7 @@ static const struct coex_rf_para rf_para_tx_8822c[] = {
 };
 
 static const struct coex_rf_para rf_para_rx_8822c[] = {
-	{0, 0, false, 7},  /* for normal */
+	{0, 0, false, 7},  /* for yesrmal */
 	{0, 16, false, 7}, /* for WL-CPT */
 	{3, 24, true, 5},
 	{2, 26, true, 5},

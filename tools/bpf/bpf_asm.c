@@ -7,7 +7,7 @@
  * close to Steven McCanne and Van Jacobson's original BPF paper).
  * In particular for BPF JIT implementors, JIT security auditors, or
  * just for defining BPF expressions that contain extensions which are
- * not supported by compilers.
+ * yest supported by compilers.
  *
  * How to get into it:
  *

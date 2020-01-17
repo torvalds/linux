@@ -23,7 +23,7 @@
 
 /*
  * pre-allocated buffer size for IMGU dummy buffers. Those
- * values should be tuned to big enough to avoid buffer
+ * values should be tuned to big eyesugh to avoid buffer
  * re-allocation when streaming to lower streaming latency.
  */
 #define CSS_QUEUE_IN_BUF_SIZE		0
@@ -40,7 +40,7 @@ static const size_t css_queue_buf_size_map[IPU3_CSS_QUEUES] = {
 	[IPU3_CSS_QUEUE_STAT_3A] = CSS_QUEUE_STAT_3A_BUF_SIZE,
 };
 
-static const struct imgu_node_mapping imgu_node_map[IMGU_NODE_NUM] = {
+static const struct imgu_yesde_mapping imgu_yesde_map[IMGU_NODE_NUM] = {
 	[IMGU_NODE_IN] = {IPU3_CSS_QUEUE_IN, "input"},
 	[IMGU_NODE_PARAMS] = {IPU3_CSS_QUEUE_PARAMS, "parameters"},
 	[IMGU_NODE_OUT] = {IPU3_CSS_QUEUE_OUT, "output"},
@@ -48,17 +48,17 @@ static const struct imgu_node_mapping imgu_node_map[IMGU_NODE_NUM] = {
 	[IMGU_NODE_STAT_3A] = {IPU3_CSS_QUEUE_STAT_3A, "3a stat"},
 };
 
-unsigned int imgu_node_to_queue(unsigned int node)
+unsigned int imgu_yesde_to_queue(unsigned int yesde)
 {
-	return imgu_node_map[node].css_queue;
+	return imgu_yesde_map[yesde].css_queue;
 }
 
-unsigned int imgu_map_node(struct imgu_device *imgu, unsigned int css_queue)
+unsigned int imgu_map_yesde(struct imgu_device *imgu, unsigned int css_queue)
 {
 	unsigned int i;
 
 	for (i = 0; i < IMGU_NODE_NUM; i++)
-		if (imgu_node_map[i].css_queue == css_queue)
+		if (imgu_yesde_map[i].css_queue == css_queue)
 			break;
 
 	return i;
@@ -86,7 +86,7 @@ static int imgu_dummybufs_preallocate(struct imgu_device *imgu,
 	for (i = 0; i < IPU3_CSS_QUEUES; i++) {
 		size = css_queue_buf_size_map[i];
 		/*
-		 * Do not enable dummy buffers for master queue,
+		 * Do yest enable dummy buffers for master queue,
 		 * always require that real buffers from user are
 		 * available.
 		 */
@@ -107,28 +107,28 @@ static int imgu_dummybufs_init(struct imgu_device *imgu, unsigned int pipe)
 {
 	const struct v4l2_pix_format_mplane *mpix;
 	const struct v4l2_meta_format	*meta;
-	unsigned int i, k, node;
+	unsigned int i, k, yesde;
 	size_t size;
 	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
 	/* Allocate a dummy buffer for each queue where buffer is optional */
 	for (i = 0; i < IPU3_CSS_QUEUES; i++) {
-		node = imgu_map_node(imgu, i);
-		if (!imgu_pipe->queue_enabled[node] || i == IMGU_QUEUE_MASTER)
+		yesde = imgu_map_yesde(imgu, i);
+		if (!imgu_pipe->queue_enabled[yesde] || i == IMGU_QUEUE_MASTER)
 			continue;
 
-		if (!imgu_pipe->nodes[IMGU_NODE_VF].enabled &&
+		if (!imgu_pipe->yesdes[IMGU_NODE_VF].enabled &&
 		    i == IPU3_CSS_QUEUE_VF)
 			/*
-			 * Do not enable dummy buffers for VF if it is not
+			 * Do yest enable dummy buffers for VF if it is yest
 			 * requested by the user.
 			 */
 			continue;
 
-		meta = &imgu_pipe->nodes[node].vdev_fmt.fmt.meta;
-		mpix = &imgu_pipe->nodes[node].vdev_fmt.fmt.pix_mp;
+		meta = &imgu_pipe->yesdes[yesde].vdev_fmt.fmt.meta;
+		mpix = &imgu_pipe->yesdes[yesde].vdev_fmt.fmt.pix_mp;
 
-		if (node == IMGU_NODE_STAT_3A || node == IMGU_NODE_PARAMS)
+		if (yesde == IMGU_NODE_STAT_3A || yesde == IMGU_NODE_PARAMS)
 			size = meta->buffersize;
 		else
 			size = mpix->plane_fmt[0].sizeimage;
@@ -155,12 +155,12 @@ static struct imgu_css_buffer *imgu_dummybufs_get(struct imgu_device *imgu,
 	unsigned int i;
 	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
-	/* dummybufs are not allocated for master q */
+	/* dummybufs are yest allocated for master q */
 	if (queue == IPU3_CSS_QUEUE_IN)
 		return NULL;
 
 	if (WARN_ON(!imgu_pipe->queues[queue].dmap.vaddr))
-		/* Buffer should not be allocated here */
+		/* Buffer should yest be allocated here */
 		return NULL;
 
 	for (i = 0; i < IMGU_MAX_QUEUE_DEPTH; i++)
@@ -201,23 +201,23 @@ static void imgu_buffer_done(struct imgu_device *imgu, struct vb2_buffer *vb,
 }
 
 static struct imgu_css_buffer *imgu_queue_getbuf(struct imgu_device *imgu,
-						 unsigned int node,
+						 unsigned int yesde,
 						 unsigned int pipe)
 {
 	struct imgu_buffer *buf;
 	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
-	if (WARN_ON(node >= IMGU_NODE_NUM))
+	if (WARN_ON(yesde >= IMGU_NODE_NUM))
 		return NULL;
 
-	/* Find first free buffer from the node */
-	list_for_each_entry(buf, &imgu_pipe->nodes[node].buffers, vid_buf.list) {
+	/* Find first free buffer from the yesde */
+	list_for_each_entry(buf, &imgu_pipe->yesdes[yesde].buffers, vid_buf.list) {
 		if (imgu_css_buf_state(&buf->css_buf) == IPU3_CSS_BUFFER_NEW)
 			return &buf->css_buf;
 	}
 
-	/* There were no free buffers, try to return a dummy buffer */
-	return imgu_dummybufs_get(imgu, imgu_node_map[node].css_queue, pipe);
+	/* There were yes free buffers, try to return a dummy buffer */
+	return imgu_dummybufs_get(imgu, imgu_yesde_map[yesde].css_queue, pipe);
 }
 
 /*
@@ -226,7 +226,7 @@ static struct imgu_css_buffer *imgu_queue_getbuf(struct imgu_device *imgu,
  */
 int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe)
 {
-	unsigned int node;
+	unsigned int yesde;
 	int r = 0;
 	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
@@ -242,24 +242,24 @@ int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe
 	}
 
 	/* Buffer set is queued to FW only when input buffer is ready */
-	for (node = IMGU_NODE_NUM - 1;
+	for (yesde = IMGU_NODE_NUM - 1;
 	     imgu_queue_getbuf(imgu, IMGU_NODE_IN, pipe);
-	     node = node ? node - 1 : IMGU_NODE_NUM - 1) {
-		if (node == IMGU_NODE_VF &&
-		    !imgu_pipe->nodes[IMGU_NODE_VF].enabled) {
+	     yesde = yesde ? yesde - 1 : IMGU_NODE_NUM - 1) {
+		if (yesde == IMGU_NODE_VF &&
+		    !imgu_pipe->yesdes[IMGU_NODE_VF].enabled) {
 			dev_warn(&imgu->pci_dev->dev,
-				 "Vf not enabled, ignore queue");
+				 "Vf yest enabled, igyesre queue");
 			continue;
-		} else if (node == IMGU_NODE_PARAMS &&
-			   imgu_pipe->nodes[node].enabled) {
+		} else if (yesde == IMGU_NODE_PARAMS &&
+			   imgu_pipe->yesdes[yesde].enabled) {
 			struct vb2_buffer *vb;
 			struct imgu_vb2_buffer *ivb;
 
 			/* No parameters for this frame */
-			if (list_empty(&imgu_pipe->nodes[node].buffers))
+			if (list_empty(&imgu_pipe->yesdes[yesde].buffers))
 				continue;
 
-			ivb = list_first_entry(&imgu_pipe->nodes[node].buffers,
+			ivb = list_first_entry(&imgu_pipe->yesdes[yesde].buffers,
 					       struct imgu_vb2_buffer, list);
 			vb = &ivb->vbb.vb2_buf;
 			r = imgu_css_set_parameters(&imgu->css, pipe,
@@ -275,9 +275,9 @@ int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe
 			dev_dbg(&imgu->pci_dev->dev,
 				"queue user parameters %d to css.", vb->index);
 			list_del(&ivb->list);
-		} else if (imgu_pipe->queue_enabled[node]) {
+		} else if (imgu_pipe->queue_enabled[yesde]) {
 			struct imgu_css_buffer *buf =
-				imgu_queue_getbuf(imgu, node, pipe);
+				imgu_queue_getbuf(imgu, yesde, pipe);
 			struct imgu_buffer *ibuf = NULL;
 			bool dummy;
 
@@ -294,7 +294,7 @@ int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe
 			dev_dbg(&imgu->pci_dev->dev,
 				"queue %s %s buffer %u to css da: 0x%08x\n",
 				dummy ? "dummy" : "user",
-				imgu_node_map[node].name,
+				imgu_yesde_map[yesde].name,
 				dummy ? 0 : ibuf->vid_buf.vbb.vb2_buf.index,
 				(u32)buf->daddr);
 		}
@@ -308,26 +308,26 @@ int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe
 
 failed:
 	/*
-	 * On error, mark all buffers as failed which are not
+	 * On error, mark all buffers as failed which are yest
 	 * yet queued to CSS
 	 */
 	dev_err(&imgu->pci_dev->dev,
 		"failed to queue buffer to CSS on queue %i (%d)\n",
-		node, r);
+		yesde, r);
 
 	if (initial)
-		/* If we were called from streamon(), no need to finish bufs */
+		/* If we were called from streamon(), yes need to finish bufs */
 		return r;
 
-	for (node = 0; node < IMGU_NODE_NUM; node++) {
+	for (yesde = 0; yesde < IMGU_NODE_NUM; yesde++) {
 		struct imgu_buffer *buf, *buf0;
 
-		if (!imgu_pipe->queue_enabled[node])
+		if (!imgu_pipe->queue_enabled[yesde])
 			continue;	/* Skip disabled queues */
 
 		mutex_lock(&imgu->lock);
 		list_for_each_entry_safe(buf, buf0,
-					 &imgu_pipe->nodes[node].buffers,
+					 &imgu_pipe->yesdes[yesde].buffers,
 					 vid_buf.list) {
 			if (imgu_css_buf_state(&buf->css_buf) ==
 			    IPU3_CSS_BUFFER_QUEUED)
@@ -429,7 +429,7 @@ fail_start_streaming:
 	return r;
 }
 
-static int imgu_video_nodes_init(struct imgu_device *imgu)
+static int imgu_video_yesdes_init(struct imgu_device *imgu)
 {
 	struct v4l2_pix_format_mplane *fmts[IPU3_CSS_QUEUES] = { NULL };
 	struct v4l2_rect *rects[IPU3_CSS_RECTS] = { NULL };
@@ -443,14 +443,14 @@ static int imgu_video_nodes_init(struct imgu_device *imgu)
 		imgu_pipe = &imgu->imgu_pipe[j];
 
 		for (i = 0; i < IMGU_NODE_NUM; i++) {
-			imgu_pipe->nodes[i].name = imgu_node_map[i].name;
-			imgu_pipe->nodes[i].output = i < IMGU_QUEUE_FIRST_INPUT;
-			imgu_pipe->nodes[i].enabled = false;
+			imgu_pipe->yesdes[i].name = imgu_yesde_map[i].name;
+			imgu_pipe->yesdes[i].output = i < IMGU_QUEUE_FIRST_INPUT;
+			imgu_pipe->yesdes[i].enabled = false;
 
 			if (i != IMGU_NODE_PARAMS && i != IMGU_NODE_STAT_3A)
-				fmts[imgu_node_map[i].css_queue] =
-					&imgu_pipe->nodes[i].vdev_fmt.fmt.pix_mp;
-			atomic_set(&imgu_pipe->nodes[i].sequence, 0);
+				fmts[imgu_yesde_map[i].css_queue] =
+					&imgu_pipe->yesdes[i].vdev_fmt.fmt.pix_mp;
+			atomic_set(&imgu_pipe->yesdes[i].sequence, 0);
 		}
 	}
 
@@ -458,7 +458,7 @@ static int imgu_video_nodes_init(struct imgu_device *imgu)
 	if (r)
 		return r;
 
-	/* Set initial formats and initialize formats of video nodes */
+	/* Set initial formats and initialize formats of video yesdes */
 	for (j = 0; j < IMGU_MAX_PIPE_NUM; j++) {
 		imgu_pipe = &imgu->imgu_pipe[j];
 
@@ -486,7 +486,7 @@ out_cleanup:
 	return r;
 }
 
-static void imgu_video_nodes_exit(struct imgu_device *imgu)
+static void imgu_video_yesdes_exit(struct imgu_device *imgu)
 {
 	int i;
 
@@ -509,7 +509,7 @@ static irqreturn_t imgu_isr_threaded(int irq, void *imgu_ptr)
 		u64 ns = ktime_get_ns();
 		struct imgu_css_buffer *b;
 		struct imgu_buffer *buf = NULL;
-		unsigned int node, pipe;
+		unsigned int yesde, pipe;
 		bool dummy;
 
 		do {
@@ -526,7 +526,7 @@ static irqreturn_t imgu_isr_threaded(int irq, void *imgu_ptr)
 			break;
 		}
 
-		node = imgu_map_node(imgu, b->queue);
+		yesde = imgu_map_yesde(imgu, b->queue);
 		pipe = b->pipe;
 		dummy = imgu_dummybufs_check(imgu, b, pipe);
 		if (!dummy)
@@ -534,7 +534,7 @@ static irqreturn_t imgu_isr_threaded(int irq, void *imgu_ptr)
 		dev_dbg(&imgu->pci_dev->dev,
 			"dequeue %s %s buffer %d daddr 0x%x from css\n",
 			dummy ? "dummy" : "user",
-			imgu_node_map[node].name,
+			imgu_yesde_map[yesde].name,
 			dummy ? 0 : buf->vid_buf.vbb.vb2_buf.index,
 			(u32)b->daddr);
 
@@ -544,12 +544,12 @@ static irqreturn_t imgu_isr_threaded(int irq, void *imgu_ptr)
 
 		/* Fill vb2 buffer entries and tell it's ready */
 		imgu_pipe = &imgu->imgu_pipe[pipe];
-		if (!imgu_pipe->nodes[node].output) {
+		if (!imgu_pipe->yesdes[yesde].output) {
 			buf->vid_buf.vbb.vb2_buf.timestamp = ns;
 			buf->vid_buf.vbb.field = V4L2_FIELD_NONE;
 			buf->vid_buf.vbb.sequence =
 				atomic_inc_return(
-				&imgu_pipe->nodes[node].sequence);
+				&imgu_pipe->yesdes[yesde].sequence);
 			dev_dbg(&imgu->pci_dev->dev, "vb2 buffer sequence %d",
 				buf->vid_buf.vbb.sequence);
 		}
@@ -580,7 +580,7 @@ static irqreturn_t imgu_isr(int irq, void *imgu_ptr)
 {
 	struct imgu_device *imgu = imgu_ptr;
 
-	/* acknowledge interruption */
+	/* ackyeswledge interruption */
 	if (imgu_css_irq_ack(&imgu->css) < 0)
 		return IRQ_NONE;
 
@@ -695,7 +695,7 @@ static int imgu_pci_probe(struct pci_dev *pci_dev,
 	}
 
 	/* v4l2 sub-device registration */
-	r = imgu_video_nodes_init(imgu);
+	r = imgu_video_yesdes_init(imgu);
 	if (r) {
 		dev_err(&pci_dev->dev, "failed to create V4L2 devices (%d)\n",
 			r);
@@ -710,13 +710,13 @@ static int imgu_pci_probe(struct pci_dev *pci_dev,
 		goto out_video_exit;
 	}
 
-	pm_runtime_put_noidle(&pci_dev->dev);
+	pm_runtime_put_yesidle(&pci_dev->dev);
 	pm_runtime_allow(&pci_dev->dev);
 
 	return 0;
 
 out_video_exit:
-	imgu_video_nodes_exit(imgu);
+	imgu_video_yesdes_exit(imgu);
 out_css_cleanup:
 	imgu_css_cleanup(&imgu->css);
 out_dmamap_exit:
@@ -736,9 +736,9 @@ static void imgu_pci_remove(struct pci_dev *pci_dev)
 	struct imgu_device *imgu = pci_get_drvdata(pci_dev);
 
 	pm_runtime_forbid(&pci_dev->dev);
-	pm_runtime_get_noresume(&pci_dev->dev);
+	pm_runtime_get_yesresume(&pci_dev->dev);
 
-	imgu_video_nodes_exit(imgu);
+	imgu_video_yesdes_exit(imgu);
 	imgu_css_cleanup(&imgu->css);
 	imgu_css_set_powerdown(&pci_dev->dev, imgu->base);
 	imgu_dmamap_exit(imgu);
@@ -759,7 +759,7 @@ static int __maybe_unused imgu_suspend(struct device *dev)
 	atomic_set(&imgu->qbuf_barrier, 1);
 	/*
 	 * Wait for currently running irq handler to be done so that
-	 * no new buffers will be queued to fw later.
+	 * yes new buffers will be queued to fw later.
 	 */
 	synchronize_irq(pci_dev->irq);
 	/* Wait until all buffers in CSS are done. */

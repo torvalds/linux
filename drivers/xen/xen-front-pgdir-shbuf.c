@@ -10,7 +10,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 
 #include <asm/xen/hypervisor.h>
@@ -93,7 +93,7 @@ EXPORT_SYMBOL_GPL(xen_front_pgdir_shbuf_get_dir_start);
  * Map granted references of the shared buffer.
  *
  * Depending on the shared buffer mode of allocation
- * (be_alloc flag) this can either do nothing (for buffers
+ * (be_alloc flag) this can either do yesthing (for buffers
  * shared by the frontend itself) or map the provided granted
  * references onto the backing storage (buf->pages).
  *
@@ -114,7 +114,7 @@ EXPORT_SYMBOL_GPL(xen_front_pgdir_shbuf_map);
  * Unmap granted references of the shared buffer.
  *
  * Depending on the shared buffer mode of allocation
- * (be_alloc flag) this can either do nothing (for buffers
+ * (be_alloc flag) this can either do yesthing (for buffers
  * shared by the frontend itself) or unmap the provided granted
  * references.
  *
@@ -347,7 +347,7 @@ static void backend_fill_page_dir(struct xen_front_pgdir_shbuf *buf)
 		page_dir->gref_dir_next_page = buf->grefs[i + 1];
 		ptr += PAGE_SIZE;
 	}
-	/* Last page must say there is no more pages. */
+	/* Last page must say there is yes more pages. */
 	page_dir = (struct xen_page_directory *)ptr;
 	page_dir->gref_dir_next_page = GRANT_INVALID_REF;
 }
@@ -438,7 +438,7 @@ static int grant_references(struct xen_front_pgdir_shbuf *buf)
 	ret = gnttab_alloc_grant_references(buf->num_grefs, &priv_gref_head);
 	if (ret < 0) {
 		dev_err(&buf->xb_dev->dev,
-			"Cannot allocate grant references\n");
+			"Canyest allocate grant references\n");
 		return ret;
 	}
 
@@ -499,7 +499,7 @@ static const struct xen_front_pgdir_shbuf_ops backend_ops = {
 };
 
 /*
- * For locally granted references we do not need to map/unmap
+ * For locally granted references we do yest need to map/unmap
  * the references.
  */
 static const struct xen_front_pgdir_shbuf_ops local_ops = {

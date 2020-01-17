@@ -24,7 +24,7 @@
 		ti,dp83867-rxctrl-strap-quirk;
 	};
 	/* Cleanup from RevA */
-	/delete-node/ phy@21;
+	/delete-yesde/ phy@21;
 };
 
 /* Fix collision with u61 */
@@ -35,7 +35,7 @@
 				compatible = "maxim,max15303";
 				reg = <0x1b>;
 			};
-			/delete-node/ max15303@20;
+			/delete-yesde/ max15303@20;
 		};
 	};
 };

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -207,7 +207,7 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 		break;
 
 	default:
-		pr_err("Unknown T4 status 0x%x QPID 0x%x\n",
+		pr_err("Unkyeswn T4 status 0x%x QPID 0x%x\n",
 		       CQE_STATUS(err_cqe), qhp->wq.sq.qid);
 		post_qp_event(dev, chp, qhp, err_cqe, IB_EVENT_QP_FATAL);
 		break;
@@ -237,7 +237,7 @@ int c4iw_ev_handler(struct c4iw_dev *dev, u32 qid)
 		if (atomic_dec_and_test(&chp->refcnt))
 			wake_up(&chp->wait);
 	} else {
-		pr_debug("unknown cqid 0x%x\n", qid);
+		pr_debug("unkyeswn cqid 0x%x\n", qid);
 		xa_unlock_irqrestore(&dev->cqs, flag);
 	}
 	return 0;

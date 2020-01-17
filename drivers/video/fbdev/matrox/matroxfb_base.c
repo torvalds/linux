@@ -30,7 +30,7 @@
  *               "Scott Wood" <sawst46+@pitt.edu>
  *                     Fixes
  *
- *               "Gerd Knorr" <kraxel@goldbach.isdn.cs.tu-berlin.de>
+ *               "Gerd Kyesrr" <kraxel@goldbach.isdn.cs.tu-berlin.de>
  *                     Betatesting
  *
  *               "Kelly French" <targon@hazmat.com>
@@ -70,7 +70,7 @@
  *                     Fixes
  *
  *               "Anton Altaparmakov" <AntonA@bigfoot.com>
- *                     G400 MAX/non-MAX distinction
+ *                     G400 MAX/yesn-MAX distinction
  *
  *               "Ken Aaker" <kdaaker@rchland.vnet.ibm.com>
  *                     memtype extension (needed for GXT130P RS/6000 adapter)
@@ -87,13 +87,13 @@
  *               "Diego Biurrun" <diego@biurrun.de>
  *                     DFP testing
  *
- * (following author is not in any relation with this code, but his code
+ * (following author is yest in any relation with this code, but his code
  *  is included in this driver)
  *
  * Based on framebuffer driver for VBE 2.0 compliant graphic boards
- *     (c) 1998 Gerd Knorr <kraxel@cs.tu-berlin.de>
+ *     (c) 1998 Gerd Kyesrr <kraxel@cs.tu-berlin.de>
  *
- * (following author is not in any relation with this code, but his ideas
+ * (following author is yest in any relation with this code, but his ideas
  *  were used when writing this driver)
  *
  *		 FreeVBE/AF (Matrox), "Shawn Hargreaves" <shawn@talula.demon.co.uk>
@@ -134,7 +134,7 @@ static void matroxfb_unregister_device(struct matrox_fb_info* minfo);
 
 static struct fb_var_screeninfo vesafb_defined = {
 	640,480,640,480,/* W,H, W, H (virtual) load xres,xres_virtual*/
-	0,0,		/* virtual -> visible no offset */
+	0,0,		/* virtual -> visible yes offset */
 	8,		/* depth -> load bits_per_pixel */
 	0,		/* greyscale ? */
 	{0,0,0},	/* R */
@@ -329,7 +329,7 @@ static void matrox_pan_var(struct matrox_fb_info *minfo,
 	p2 = minfo->hw.CRTCEXT[0] = (minfo->hw.CRTCEXT[0] & 0xB0) | ((pos >> 16) & 0x0F) | ((pos >> 14) & 0x40);
 	p3 = minfo->hw.CRTCEXT[8] = pos >> 21;
 
-	/* FB_ACTIVATE_VBL and we can acquire interrupts? Honor FB_ACTIVATE_VBL then... */
+	/* FB_ACTIVATE_VBL and we can acquire interrupts? Hoyesr FB_ACTIVATE_VBL then... */
 	vbl = (var->activate & FB_ACTIVATE_VBL) && (matroxfb_enable_irq(minfo, 0) == 0);
 
 	CRITBEGIN
@@ -356,8 +356,8 @@ static void matrox_pan_var(struct matrox_fb_info *minfo,
 static void matroxfb_remove(struct matrox_fb_info *minfo, int dummy)
 {
 	/* Currently we are holding big kernel lock on all dead & usecount updates.
-	 * Destroy everything after all users release it. Especially do not unregister
-	 * framebuffer and iounmap memory, neither fbmem nor fbcon-cfb* does not check
+	 * Destroy everything after all users release it. Especially do yest unregister
+	 * framebuffer and iounmap memory, neither fbmem yesr fbcon-cfb* does yest check
 	 * for device unplugged when in use.
 	 * In future we should point mmio.vbase & video.vbase somewhere where we can
 	 * write data without causing too much damage...
@@ -463,7 +463,7 @@ static int matroxfb_test_and_set_rounding(const struct matrox_fb_info *minfo,
 		case 24:	rounding = 64;	/* doc says 64; 32 is OK for G400 */
 				break;
 		default:	rounding = 16;
-				/* on G400, 16 really does not work */
+				/* on G400, 16 really does yest work */
 				if (minfo->devflags.accelerator == FB_ACCEL_MATROX_MGAG400)
 					rounding = 32;
 				break;
@@ -576,7 +576,7 @@ static int matroxfb_decode_var(const struct matrox_fb_info *minfo,
 		var->yres_virtual = vramlen * 8 / (var->xres_virtual * bpp);
 		memlen = var->xres_virtual * bpp * var->yres_virtual / 8;
 	}
-	/* There is hardware bug that no line can cross 4MB boundary */
+	/* There is hardware bug that yes line can cross 4MB boundary */
 	/* give up for CFB24, it is impossible to easy workaround it */
 	/* for other try to do something */
 	if (!minfo->capable.cross4MB && (memlen > 0x400000)) {
@@ -585,7 +585,7 @@ static int matroxfb_decode_var(const struct matrox_fb_info *minfo,
 		} else {
 			unsigned int linelen;
 			unsigned int m1 = linelen = var->xres_virtual * bpp / 8;
-			unsigned int m2 = PAGE_SIZE;	/* or 128 if you do not need PAGE ALIGNED address */
+			unsigned int m2 = PAGE_SIZE;	/* or 128 if you do yest need PAGE ALIGNED address */
 			unsigned int max_yres;
 
 			while (m1) {
@@ -640,7 +640,7 @@ static int matroxfb_decode_var(const struct matrox_fb_info *minfo,
 	return 0;
 }
 
-static int matroxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int matroxfb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			      unsigned blue, unsigned transp,
 			      struct fb_info *fb_info)
 {
@@ -652,10 +652,10 @@ static int matroxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	 *  Set a single color register. The values supplied are
 	 *  already rounded down to the hardware's capabilities
 	 *  (according to the entries in the `var' structure). Return
-	 *  != 0 for invalid regno.
+	 *  != 0 for invalid regyes.
 	 */
 
-	if (regno >= minfo->curr.cmap_len)
+	if (regyes >= minfo->curr.cmap_len)
 		return 1;
 
 	if (minfo->fbcon.var.grayscale) {
@@ -671,13 +671,13 @@ static int matroxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	switch (minfo->fbcon.var.bits_per_pixel) {
 	case 4:
 	case 8:
-		mga_outb(M_DAC_REG, regno);
+		mga_outb(M_DAC_REG, regyes);
 		mga_outb(M_DAC_VAL, red);
 		mga_outb(M_DAC_VAL, green);
 		mga_outb(M_DAC_VAL, blue);
 		break;
 	case 16:
-		if (regno >= 16)
+		if (regyes >= 16)
 			break;
 		{
 			u_int16_t col =
@@ -685,14 +685,14 @@ static int matroxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 				(green << minfo->fbcon.var.green.offset) |
 				(blue << minfo->fbcon.var.blue.offset)   |
 				(transp << minfo->fbcon.var.transp.offset); /* for 1:5:5:5 */
-			minfo->cmap[regno] = col | (col << 16);
+			minfo->cmap[regyes] = col | (col << 16);
 		}
 		break;
 	case 24:
 	case 32:
-		if (regno >= 16)
+		if (regyes >= 16)
 			break;
-		minfo->cmap[regno] =
+		minfo->cmap[regyes] =
 			(red   << minfo->fbcon.var.red.offset)   |
 			(green << minfo->fbcon.var.green.offset) |
 			(blue  << minfo->fbcon.var.blue.offset)  |
@@ -1166,7 +1166,7 @@ static int matroxfb_ioctl(struct fb_info *info,
 	return -ENOTTY;
 }
 
-/* 0 unblank, 1 blank, 2 no vsync, 3 no hsync, 4 off */
+/* 0 unblank, 1 blank, 2 yes vsync, 3 yes hsync, 4 off */
 
 static int matroxfb_blank(int blank, struct fb_info *info)
 {
@@ -1238,19 +1238,19 @@ static struct { struct fb_bitfield red, green, blue, transp; int bits_per_pixel;
 
 /* initialized by setup, see explanation at end of file (search for MODULE_PARM_DESC) */
 static unsigned int mem;		/* "matroxfb:mem:xxxxxM" */
-static int option_precise_width = 1;	/* cannot be changed, option_precise_width==0 must imply noaccel */
+static int option_precise_width = 1;	/* canyest be changed, option_precise_width==0 must imply yesaccel */
 static int inv24;			/* "matroxfb:inv24" */
 static int cross4MB = -1;		/* "matroxfb:cross4MB" */
 static int disabled;			/* "matroxfb:disabled" */
-static int noaccel;			/* "matroxfb:noaccel" */
-static int nopan;			/* "matroxfb:nopan" */
-static int no_pci_retry;		/* "matroxfb:nopciretry" */
-static int novga;			/* "matroxfb:novga" */
-static int nobios;			/* "matroxfb:nobios" */
-static int noinit = 1;			/* "matroxfb:init" */
+static int yesaccel;			/* "matroxfb:yesaccel" */
+static int yespan;			/* "matroxfb:yespan" */
+static int yes_pci_retry;		/* "matroxfb:yespciretry" */
+static int yesvga;			/* "matroxfb:yesvga" */
+static int yesbios;			/* "matroxfb:yesbios" */
+static int yesinit = 1;			/* "matroxfb:init" */
 static int inverse;			/* "matroxfb:inverse" */
 static int sgram;			/* "matroxfb:sgram" */
-static int mtrr = 1;			/* "matroxfb:nomtrr" */
+static int mtrr = 1;			/* "matroxfb:yesmtrr" */
 static int grayscale;			/* "matroxfb:grayscale" */
 static int dev = -1;			/* "matroxfb:dev:xxxxx" */
 static unsigned int vesa = ~0;		/* "matroxfb:vesa:xxxxx" */
@@ -1404,7 +1404,7 @@ static struct video_board vbG400 = {
 
 #define DEVF_GCORE	(DEVF_VIDEO64BIT | DEVF_SWAPS | DEVF_CROSS4MB)
 #define DEVF_G2CORE	(DEVF_GCORE | DEVF_ANY_VXRES | DEVF_MAVEN_CAPABLE | DEVF_PANELLINK_CAPABLE | DEVF_SRCORG | DEVF_DUALHEAD)
-#define DEVF_G100	(DEVF_GCORE) /* no doc, no vxres... */
+#define DEVF_G100	(DEVF_GCORE) /* yes doc, yes vxres... */
 #define DEVF_G200	(DEVF_G2CORE)
 #define DEVF_G400	(DEVF_G2CORE | DEVF_SUPPORT32MB | DEVF_TEXT16B | DEVF_CRTC2)
 /* if you'll find how to drive DFP... */
@@ -1609,7 +1609,7 @@ static void setDefaultOutputs(struct matrox_fb_info *minfo)
 		} else if (c == '2' && minfo->devflags.crtc2) {
 			minfo->outputs[i].default_src = MATROXFB_SRC_CRTC2;
 		} else {
-			printk(KERN_ERR "matroxfb: Unknown outputs setting\n");
+			printk(KERN_ERR "matroxfb: Unkyeswn outputs setting\n");
 			break;
 		}
 	}
@@ -1687,11 +1687,11 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 	}
 	err = -EINVAL;
 	if (!ctrlptr_phys) {
-		printk(KERN_ERR "matroxfb: control registers are not available, matroxfb disabled\n");
+		printk(KERN_ERR "matroxfb: control registers are yest available, matroxfb disabled\n");
 		goto fail;
 	}
 	if (!video_base_phys) {
-		printk(KERN_ERR "matroxfb: video RAM is not available in PCI address space, matroxfb disabled\n");
+		printk(KERN_ERR "matroxfb: video RAM is yest available in PCI address space, matroxfb disabled\n");
 		goto fail;
 	}
 	memsize = b->base->maxvram;
@@ -1710,9 +1710,9 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 		memsize = mem;
 	err = -ENOMEM;
 
-	minfo->mmio.vbase.vaddr = ioremap_nocache(ctrlptr_phys, 16384);
+	minfo->mmio.vbase.vaddr = ioremap_yescache(ctrlptr_phys, 16384);
 	if (!minfo->mmio.vbase.vaddr) {
-		printk(KERN_ERR "matroxfb: cannot ioremap(%lX, 16384), matroxfb disabled\n", ctrlptr_phys);
+		printk(KERN_ERR "matroxfb: canyest ioremap(%lX, 16384), matroxfb disabled\n", ctrlptr_phys);
 		goto failVideoMR;
 	}
 	minfo->mmio.base = ctrlptr_phys;
@@ -1720,7 +1720,7 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 	minfo->video.base = video_base_phys;
 	minfo->video.vbase.vaddr = ioremap_wc(video_base_phys, memsize);
 	if (!minfo->video.vbase.vaddr) {
-		printk(KERN_ERR "matroxfb: cannot ioremap(%lX, %d), matroxfb disabled\n",
+		printk(KERN_ERR "matroxfb: canyest ioremap(%lX, %d), matroxfb disabled\n",
 			video_base_phys, memsize);
 		goto failCtrlIO;
 	}
@@ -1732,20 +1732,20 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 		pci_read_config_dword(minfo->pcidev, PCI_COMMAND, &cmd);
 		mga_option &= 0x7FFFFFFF; /* clear BIG_ENDIAN */
 		mga_option |= MX_OPTION_BSWAP;
-		/* disable palette snooping */
+		/* disable palette syesoping */
 		cmd &= ~PCI_COMMAND_VGA_PALETTE;
 		if (pci_dev_present(intel_82437)) {
-			if (!(mga_option & 0x20000000) && !minfo->devflags.nopciretry) {
+			if (!(mga_option & 0x20000000) && !minfo->devflags.yespciretry) {
 				printk(KERN_WARNING "matroxfb: Disabling PCI retries due to i82437 present\n");
 			}
 			mga_option |= 0x20000000;
-			minfo->devflags.nopciretry = 1;
+			minfo->devflags.yespciretry = 1;
 		}
 		pci_write_config_dword(minfo->pcidev, PCI_COMMAND, cmd);
 		pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, mga_option);
 		minfo->hw.MXoptionReg = mga_option;
 
-		/* select non-DMA memory for PCI_MGA_DATA, otherwise dump of PCI cfg space can lock PCI bus */
+		/* select yesn-DMA memory for PCI_MGA_DATA, otherwise dump of PCI cfg space can lock PCI bus */
 		/* maybe preinit() candidate, but it is same... for all devices... at this time... */
 		pci_write_config_dword(minfo->pcidev, PCI_MGA_INDEX, 0x00003C00);
 	}
@@ -1758,7 +1758,7 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 
 	err = -ENOMEM;
 	if (!matroxfb_getmemory(minfo, memsize, &minfo->video.len) || !minfo->video.len) {
-		printk(KERN_ERR "matroxfb: cannot determine memory size\n");
+		printk(KERN_ERR "matroxfb: canyest determine memory size\n");
 		goto failVideoIO;
 	}
 	minfo->devflags.ydstorg = 0;
@@ -1771,7 +1771,7 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 		minfo->wc_cookie = arch_phys_wc_add(video_base_phys,
 						    minfo->video.len);
 
-	if (!minfo->devflags.novga)
+	if (!minfo->devflags.yesvga)
 		request_region(0x3C0, 32, "matrox");
 	matroxfb_g450_connect(minfo);
 	minfo->hw_switch->reset(minfo);
@@ -1789,7 +1789,7 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 	vesafb_defined.bits_per_pixel = colors[depth-1].bits_per_pixel;
 	vesafb_defined.grayscale = grayscale;
 	vesafb_defined.vmode = 0;
-	if (noaccel)
+	if (yesaccel)
 		vesafb_defined.accel_flags &= ~FB_ACCELF_TEXT;
 
 	minfo->fbops = matroxfb_ops;
@@ -1885,24 +1885,24 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 		if (!mac_vmode_to_var(default_vmode, default_cmode, &var)) {
 			var.accel_flags = vesafb_defined.accel_flags;
 			var.xoffset = var.yoffset = 0;
-			/* Note: mac_vmode_to_var() does not set all parameters */
+			/* Note: mac_vmode_to_var() does yest set all parameters */
 			vesafb_defined = var;
 		}
 	}
 #endif /* !MODULE */
 #endif /* CONFIG_PPC_PMAC */
 	vesafb_defined.xres_virtual = vesafb_defined.xres;
-	if (nopan) {
+	if (yespan) {
 		vesafb_defined.yres_virtual = vesafb_defined.yres;
 	} else {
-		vesafb_defined.yres_virtual = 65536; /* large enough to be INF, but small enough
+		vesafb_defined.yres_virtual = 65536; /* large eyesugh to be INF, but small eyesugh
 							to yres_virtual * xres_virtual < 2^32 */
 	}
 	matroxfb_init_fix(minfo);
 	minfo->fbcon.screen_base = vaddr_va(minfo->video.vbase);
 	/* Normalize values (namely yres_virtual) */
 	matroxfb_check_var(&vesafb_defined, &minfo->fbcon);
-	/* And put it into "current" var. Do NOT program hardware yet, or we'll not take over
+	/* And put it into "current" var. Do NOT program hardware yet, or we'll yest take over
 	 * vgacon correctly. fbcon_startup will call fb_set_par for us, WITHOUT check_var,
 	 * and unfortunately it will do it BEFORE vgacon contents is saved, so it won't work
 	 * anyway. But we at least tried... */
@@ -1915,8 +1915,8 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 	printk(KERN_INFO "matroxfb: framebuffer at 0x%lX, mapped to 0x%p, size %d\n",
 		minfo->video.base, vaddr_va(minfo->video.vbase), minfo->video.len);
 
-/* We do not have to set currcon to 0... register_framebuffer do it for us on first console
- * and we do not want currcon == 0 for subsequent framebuffers */
+/* We do yest have to set currcon to 0... register_framebuffer do it for us on first console
+ * and we do yest want currcon == 0 for subsequent framebuffers */
 
 	minfo->fbcon.device = &minfo->pcidev->dev;
 	if (register_framebuffer(&minfo->fbcon) < 0) {
@@ -1924,7 +1924,7 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 	}
 	fb_info(&minfo->fbcon, "%s frame buffer device\n", minfo->fbcon.fix.id);
 
-	/* there is no console on this fb... but we have to initialize hardware
+	/* there is yes console on this fb... but we have to initialize hardware
 	 * until someone tells me what is proper thing to do */
 	if (!minfo->initialized) {
 		fb_info(&minfo->fbcon, "initializing hardware\n");
@@ -1952,11 +1952,11 @@ static LIST_HEAD(matroxfb_list);
 static LIST_HEAD(matroxfb_driver_list);
 
 #define matroxfb_l(x) list_entry(x, struct matrox_fb_info, next_fb)
-#define matroxfb_driver_l(x) list_entry(x, struct matroxfb_driver, node)
+#define matroxfb_driver_l(x) list_entry(x, struct matroxfb_driver, yesde)
 int matroxfb_register_driver(struct matroxfb_driver* drv) {
 	struct matrox_fb_info* minfo;
 
-	list_add(&drv->node, &matroxfb_driver_list);
+	list_add(&drv->yesde, &matroxfb_driver_list);
 	for (minfo = matroxfb_l(matroxfb_list.next);
 	     minfo != matroxfb_l(&matroxfb_list);
 	     minfo = matroxfb_l(minfo->next_fb.next)) {
@@ -1976,7 +1976,7 @@ int matroxfb_register_driver(struct matroxfb_driver* drv) {
 void matroxfb_unregister_driver(struct matroxfb_driver* drv) {
 	struct matrox_fb_info* minfo;
 
-	list_del(&drv->node);
+	list_del(&drv->yesde);
 	for (minfo = matroxfb_l(matroxfb_list.next);
 	     minfo != matroxfb_l(&matroxfb_list);
 	     minfo = matroxfb_l(minfo->next_fb.next)) {
@@ -2000,7 +2000,7 @@ static void matroxfb_register_device(struct matrox_fb_info* minfo) {
 	list_add(&minfo->next_fb, &matroxfb_list);
 	for (drv = matroxfb_driver_l(matroxfb_driver_list.next);
 	     drv != matroxfb_driver_l(&matroxfb_driver_list);
-	     drv = matroxfb_driver_l(drv->node.next)) {
+	     drv = matroxfb_driver_l(drv->yesde.next)) {
 		if (drv->probe) {
 			void *p = drv->probe(minfo);
 			if (p) {
@@ -2043,11 +2043,11 @@ static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dumm
 			if ((b->svid != svid) || (b->sid != sid)) continue;
 		break;
 	}
-	/* not match... */
+	/* yest match... */
 	if (!b->vendor)
 		return -ENODEV;
 	if (dev > 0) {
-		/* not requested one... */
+		/* yest requested one... */
 		dev--;
 		return -ENODEV;
 	}
@@ -2069,22 +2069,22 @@ static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dumm
 	/* DEVFLAGS */
 	minfo->devflags.memtype = memtype;
 	if (memtype != -1)
-		noinit = 0;
+		yesinit = 0;
 	if (cmd & PCI_COMMAND_MEMORY) {
-		minfo->devflags.novga = novga;
-		minfo->devflags.nobios = nobios;
-		minfo->devflags.noinit = noinit;
-		/* subsequent heads always needs initialization and must not enable BIOS */
-		novga = 1;
-		nobios = 1;
-		noinit = 0;
+		minfo->devflags.yesvga = yesvga;
+		minfo->devflags.yesbios = yesbios;
+		minfo->devflags.yesinit = yesinit;
+		/* subsequent heads always needs initialization and must yest enable BIOS */
+		yesvga = 1;
+		yesbios = 1;
+		yesinit = 0;
 	} else {
-		minfo->devflags.novga = 1;
-		minfo->devflags.nobios = 1;
-		minfo->devflags.noinit = 0;
+		minfo->devflags.yesvga = 1;
+		minfo->devflags.yesbios = 1;
+		minfo->devflags.yesinit = 0;
 	}
 
-	minfo->devflags.nopciretry = no_pci_retry;
+	minfo->devflags.yespciretry = yes_pci_retry;
 	minfo->devflags.mga_24bpp_fix = inv24;
 	minfo->devflags.precise_width = option_precise_width;
 	minfo->devflags.sgram = sgram;
@@ -2402,11 +2402,11 @@ static int __init matroxfb_setup(char *options) {
 			}
 		}
 #endif
-		else if (!strcmp(this_opt, "disabled"))	/* nodisabled does not exist */
+		else if (!strcmp(this_opt, "disabled"))	/* yesdisabled does yest exist */
 			disabled = 1;
-		else if (!strcmp(this_opt, "enabled"))	/* noenabled does not exist */
+		else if (!strcmp(this_opt, "enabled"))	/* yesenabled does yest exist */
 			disabled = 0;
-		else if (!strcmp(this_opt, "sgram"))	/* nosgram == sdram */
+		else if (!strcmp(this_opt, "sgram"))	/* yessgram == sdram */
 			sgram = 1;
 		else if (!strcmp(this_opt, "sdram"))
 			sgram = 0;
@@ -2415,24 +2415,24 @@ static int __init matroxfb_setup(char *options) {
 		else {
 			int value = 1;
 
-			if (!strncmp(this_opt, "no", 2)) {
+			if (!strncmp(this_opt, "yes", 2)) {
 				value = 0;
 				this_opt += 2;
 			}
 			if (! strcmp(this_opt, "inverse"))
 				inverse = value;
 			else if (!strcmp(this_opt, "accel"))
-				noaccel = !value;
+				yesaccel = !value;
 			else if (!strcmp(this_opt, "pan"))
-				nopan = !value;
+				yespan = !value;
 			else if (!strcmp(this_opt, "pciretry"))
-				no_pci_retry = !value;
+				yes_pci_retry = !value;
 			else if (!strcmp(this_opt, "vga"))
-				novga = !value;
+				yesvga = !value;
 			else if (!strcmp(this_opt, "bios"))
-				nobios = !value;
+				yesbios = !value;
 			else if (!strcmp(this_opt, "init"))
-				noinit = !value;
+				yesinit = !value;
 			else if (!strcmp(this_opt, "mtrr"))
 				mtrr = value;
 			else if (!strcmp(this_opt, "inv24"))
@@ -2489,18 +2489,18 @@ module_param(mem, int, 0);
 MODULE_PARM_DESC(mem, "Size of available memory in MB, KB or B (2,4,8,12,16MB, default=autodetect)");
 module_param(disabled, int, 0);
 MODULE_PARM_DESC(disabled, "Disabled (0 or 1=disabled) (default=0)");
-module_param(noaccel, int, 0);
-MODULE_PARM_DESC(noaccel, "Do not use accelerating engine (0 or 1=disabled) (default=0)");
-module_param(nopan, int, 0);
-MODULE_PARM_DESC(nopan, "Disable pan on startup (0 or 1=disabled) (default=0)");
-module_param(no_pci_retry, int, 0);
-MODULE_PARM_DESC(no_pci_retry, "PCI retries enabled (0 or 1=disabled) (default=0)");
-module_param(novga, int, 0);
-MODULE_PARM_DESC(novga, "VGA I/O (0x3C0-0x3DF) disabled (0 or 1=disabled) (default=0)");
-module_param(nobios, int, 0);
-MODULE_PARM_DESC(nobios, "Disables ROM BIOS (0 or 1=disabled) (default=do not change BIOS state)");
-module_param(noinit, int, 0);
-MODULE_PARM_DESC(noinit, "Disables W/SG/SD-RAM and bus interface initialization (0 or 1=do not initialize) (default=0)");
+module_param(yesaccel, int, 0);
+MODULE_PARM_DESC(yesaccel, "Do yest use accelerating engine (0 or 1=disabled) (default=0)");
+module_param(yespan, int, 0);
+MODULE_PARM_DESC(yespan, "Disable pan on startup (0 or 1=disabled) (default=0)");
+module_param(yes_pci_retry, int, 0);
+MODULE_PARM_DESC(yes_pci_retry, "PCI retries enabled (0 or 1=disabled) (default=0)");
+module_param(yesvga, int, 0);
+MODULE_PARM_DESC(yesvga, "VGA I/O (0x3C0-0x3DF) disabled (0 or 1=disabled) (default=0)");
+module_param(yesbios, int, 0);
+MODULE_PARM_DESC(yesbios, "Disables ROM BIOS (0 or 1=disabled) (default=do yest change BIOS state)");
+module_param(yesinit, int, 0);
+MODULE_PARM_DESC(yesinit, "Disables W/SG/SD-RAM and bus interface initialization (0 or 1=do yest initialize) (default=0)");
 module_param(memtype, int, 0);
 MODULE_PARM_DESC(memtype, "Memory type for G200/G400 (see Documentation/fb/matroxfb.rst for explanation) (default=3 for G200, 0 for G400)");
 module_param(mtrr, int, 0);
@@ -2508,7 +2508,7 @@ MODULE_PARM_DESC(mtrr, "This speeds up video memory accesses (0=disabled or 1) (
 module_param(sgram, int, 0);
 MODULE_PARM_DESC(sgram, "Indicates that G100/G200/G400 has SGRAM memory (0=SDRAM, 1=SGRAM) (default=0)");
 module_param(inv24, int, 0);
-MODULE_PARM_DESC(inv24, "Inverts clock polarity for 24bpp and loop frequency > 100MHz (default=do not invert polarity)");
+MODULE_PARM_DESC(inv24, "Inverts clock polarity for 24bpp and loop frequency > 100MHz (default=do yest invert polarity)");
 module_param(inverse, int, 0);
 MODULE_PARM_DESC(inverse, "Inverse (0 or 1) (default=0)");
 module_param(dev, int, 0);
@@ -2545,7 +2545,7 @@ module_param(fv, int, 0);
 MODULE_PARM_DESC(fv, "Startup vertical frequency, 0-INF Hz\n"
 "You should specify \"fv:max_monitor_vsync,fh:max_monitor_hsync,maxclk:max_monitor_dotclock\"");
 module_param(grayscale, int, 0);
-MODULE_PARM_DESC(grayscale, "Sets display into grayscale. Works perfectly with paletized videomode (4, 8bpp), some limitations apply to 16, 24 and 32bpp videomodes (default=nograyscale)");
+MODULE_PARM_DESC(grayscale, "Sets display into grayscale. Works perfectly with paletized videomode (4, 8bpp), some limitations apply to 16, 24 and 32bpp videomodes (default=yesgrayscale)");
 module_param(cross4MB, int, 0);
 MODULE_PARM_DESC(cross4MB, "Specifies that 4MB boundary can be in middle of line. (default=autodetected)");
 module_param(dfp, int, 0);
@@ -2583,7 +2583,7 @@ int __init init_module(void){
 	else if (depth == 32)
 		depth = RS32bpp;
 	else if (depth != -1) {
-		printk(KERN_ERR "matroxfb: depth %d is not supported, using default\n", depth);
+		printk(KERN_ERR "matroxfb: depth %d is yest supported, using default\n", depth);
 		depth = -1;
 	}
 	matrox_init();

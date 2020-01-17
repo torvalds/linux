@@ -2,7 +2,7 @@
 /*
  * Copyright (C) ST-Ericsson AB 2010
  * Author:  Daniel Martensson
- *	    Dmitry.Tarnyagin  / dmitry.tarnyagin@lockless.no
+ *	    Dmitry.Tarnyagin  / dmitry.tarnyagin@lockless.yes
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME fmt
@@ -36,14 +36,14 @@ static const struct cfhsi_config  hsi_default_config = {
 	/* Inactivity timeout on HSI, ms */
 	.inactivity_timeout = HZ,
 
-	/* Aggregation timeout (ms) of zero means no aggregation is done*/
+	/* Aggregation timeout (ms) of zero means yes aggregation is done*/
 	.aggregation_timeout = 1,
 
 	/*
 	 * HSI link layer flow-control thresholds.
 	 * Threshold values for the HSI packet queue. Flow-control will be
 	 * asserted when the number of packets exceeds q_high_mark. It will
-	 * not be de-asserted before the number of packets drops below
+	 * yest be de-asserted before the number of packets drops below
 	 * q_low_mark.
 	 * Warning: A high threshold value might increase throughput but it
 	 * will at the same time prevent channel prioritization and increase
@@ -55,7 +55,7 @@ static const struct cfhsi_config  hsi_default_config = {
 
 	/*
 	 * HSI padding options.
-	 * Warning: must be a base of 2 (& operation used) and can not be zero !
+	 * Warning: must be a base of 2 (& operation used) and can yest be zero !
 	 */
 	.head_align = 4,
 	.tail_align = 4,
@@ -178,7 +178,7 @@ static int cfhsi_flush_fifo(struct cfhsi *cfhsi)
 				__func__, ret);
 			break;
 		} else if (!fifo_occupancy)
-			/* No more data, exitting normally */
+			/* No more data, exitting yesrmally */
 			break;
 
 		fifo_occupancy = min(sizeof(buffer), fifo_occupancy);
@@ -318,7 +318,7 @@ static int cfhsi_tx_frm(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 		nfrms++;
 	}
 
-	/* Check if we can piggy-back another descriptor. */
+	/* Check if we can piggy-back ayesther descriptor. */
 	if (cfhsi_can_send_aggregate(cfhsi))
 		desc->header |= CFHSI_PIGGY_DESC;
 	else
@@ -460,7 +460,7 @@ static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 
 		/*
 		 * We are in a callback handler and
-		 * unfortunately we don't know what context we're
+		 * unfortunately we don't kyesw what context we're
 		 * running in.
 		 */
 		if (in_interrupt())
@@ -487,7 +487,7 @@ static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 
 	if ((xfer_sz % 4) || (xfer_sz > (CFHSI_BUF_SZ_RX - CFHSI_DESC_SZ))) {
 		netdev_err(cfhsi->ndev,
-				"%s: Invalid payload len: %d, ignored.\n",
+				"%s: Invalid payload len: %d, igyesred.\n",
 			__func__, xfer_sz);
 		return -EPROTO;
 	}
@@ -517,7 +517,7 @@ static int cfhsi_rx_desc_len(struct cfhsi_desc *desc)
 	}
 
 	if (xfer_sz % 4) {
-		pr_err("Invalid payload len: %d, ignored.\n", xfer_sz);
+		pr_err("Invalid payload len: %d, igyesred.\n", xfer_sz);
 		return -EPROTO;
 	}
 	return xfer_sz;
@@ -589,7 +589,7 @@ static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 
 		/*
 		 * We're called in callback from HSI
-		 * and don't know the context we're running in.
+		 * and don't kyesw the context we're running in.
 		 */
 		if (in_interrupt())
 			netif_rx(skb);
@@ -712,7 +712,7 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 			/* Extract any payload in piggyback descriptor. */
 			if (cfhsi_rx_desc(piggy_desc, cfhsi) < 0)
 				goto out_of_sync;
-			/* Mark no embedded frame after extracting it */
+			/* Mark yes embedded frame after extracting it */
 			piggy_desc->offset = 0;
 		}
 	}
@@ -789,7 +789,7 @@ static void cfhsi_wake_up(struct work_struct *work)
 	netdev_dbg(cfhsi->ndev, "%s: Start waiting.\n",
 		__func__);
 
-	/* Wait for acknowledge. */
+	/* Wait for ackyeswledge. */
 	ret = CFHSI_WAKE_TOUT;
 	ret = wait_event_interruptible_timeout(cfhsi->wake_up_wait,
 					test_and_clear_bit(CFHSI_WAKE_UP_ACK,
@@ -851,12 +851,12 @@ wake_ack:
 	if (WARN_ON(res < 0))
 		netdev_err(cfhsi->ndev, "%s: RX err %d.\n", __func__, res);
 
-	/* Clear power up acknowledment. */
+	/* Clear power up ackyeswledment. */
 	clear_bit(CFHSI_WAKE_UP_ACK, &cfhsi->bits);
 
 	spin_lock_bh(&cfhsi->lock);
 
-	/* Resume transmit if queues are not empty. */
+	/* Resume transmit if queues are yest empty. */
 	if (!cfhsi_tx_queue_len(cfhsi)) {
 		netdev_dbg(cfhsi->ndev, "%s: Peer wake, start timer.\n",
 			__func__);
@@ -906,7 +906,7 @@ static void cfhsi_wake_down(struct work_struct *work)
 	/* Deactivate wake line. */
 	cfhsi->ops->cfhsi_wake_down(cfhsi->ops);
 
-	/* Wait for acknowledge. */
+	/* Wait for ackyeswledge. */
 	ret = CFHSI_WAKE_TOUT;
 	ret = wait_event_interruptible_timeout(cfhsi->wake_down_wait,
 					test_and_clear_bit(CFHSI_WAKE_DOWN_ACK,
@@ -1044,7 +1044,7 @@ static int cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Queue the SKB */
 	skb_queue_tail(&cfhsi->qhead[prio], skb);
 
-	/* Sanity check; xmit should not be called after unregister_netdev */
+	/* Sanity check; xmit should yest be called after unregister_netdev */
 	if (WARN_ON(test_bit(CFHSI_SHUTDOWN, &cfhsi->bits))) {
 		spin_unlock_bh(&cfhsi->lock);
 		cfhsi_abort_tx(cfhsi);
@@ -1304,7 +1304,7 @@ static void cfhsi_netlink_parms(struct nlattr *data[], struct cfhsi *cfhsi)
 	int i;
 
 	if (!data) {
-		pr_debug("no params data found\n");
+		pr_debug("yes params data found\n");
 		return;
 	}
 
@@ -1446,15 +1446,15 @@ static struct rtnl_link_ops caif_hsi_link_ops __read_mostly = {
 
 static void __exit cfhsi_exit_module(void)
 {
-	struct list_head *list_node;
+	struct list_head *list_yesde;
 	struct list_head *n;
 	struct cfhsi *cfhsi;
 
 	rtnl_link_unregister(&caif_hsi_link_ops);
 
 	rtnl_lock();
-	list_for_each_safe(list_node, n, &cfhsi_list) {
-		cfhsi = list_entry(list_node, struct cfhsi, list);
+	list_for_each_safe(list_yesde, n, &cfhsi_list) {
+		cfhsi = list_entry(list_yesde, struct cfhsi, list);
 		unregister_netdevice(cfhsi->ndev);
 	}
 	rtnl_unlock();

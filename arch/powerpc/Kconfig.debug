@@ -72,7 +72,7 @@ config JUMP_LABEL_FEATURE_CHECK_DEBUG
 	  This tries to catch incorrect usage of cpu_has_feature() and
 	  mmu_has_feature() in the code.
 
-	  If you don't know what this means, say N.
+	  If you don't kyesw what this means, say N.
 
 config FTR_FIXUP_SELFTEST
 	bool "Run self-tests of the feature-fixup code"
@@ -92,20 +92,20 @@ config XMON
 	  Include in-kernel hooks for the xmon kernel monitor/debugger.
 	  Unless you are intending to debug the kernel, say N here.
 	  Make sure to enable also CONFIG_BOOTX_TEXT on Macs. Otherwise
-	  nothing will appear on the screen (xmon writes directly to the
+	  yesthing will appear on the screen (xmon writes directly to the
 	  framebuffer memory).
 	  The cmdline option 'xmon' or 'xmon=early' will drop into xmon
 	  very early during boot. 'xmon=on' will just enable the xmon
 	  debugger hooks.  'xmon=off' will disable the debugger hooks
 	  if CONFIG_XMON_DEFAULT is set.
 	  xmon will print a backtrace on the very first invocation.
-	  'xmon=nobt' will disable this autobacktrace.
+	  'xmon=yesbt' will disable this autobacktrace.
 
 config XMON_DEFAULT
 	bool "Enable xmon by default"
 	depends on XMON
 	help
-	  xmon is normally disabled unless booted with 'xmon=on'.
+	  xmon is yesrmally disabled unless booted with 'xmon=on'.
 	  Use 'xmon=off' to disable xmon init during runtime.
 
 config XMON_DISASSEMBLY
@@ -150,7 +150,7 @@ config PPC_EARLY_DEBUG
 	help
 	  Say Y to enable some early debugging facilities that may be available
 	  for your processor/board combination. Those facilities are hacks
-	  intended to debug problems early during boot, this should not be
+	  intended to debug problems early during boot, this should yest be
 	  enabled in a production kernel.
 	  Note that enabling this will also cause the kernel default log level
 	  to be pushed to max automatically very early during boot
@@ -161,7 +161,7 @@ choice
 	help
 	  Use the selected console for early debugging. Careful, if you
 	  enable debugging for the wrong type of machine your kernel
-	  _will not boot_.
+	  _will yest boot_.
 
 config PPC_EARLY_DEBUG_BOOTX
 	bool "BootX or OpenFirmware"
@@ -230,7 +230,7 @@ config PPC_EARLY_DEBUG_40x
 	help
 	  Select this to enable early debugging for IBM 40x chips via the
 	  inbuilt serial port. This works on chips with a 16550 compatible
-	  UART. Xilinx chips with uartlite cannot use this option.
+	  UART. Xilinx chips with uartlite canyest use this option.
 
 config PPC_EARLY_DEBUG_CPM
 	bool "Early serial debugging for Freescale CPM-based serial ports"
@@ -365,7 +365,7 @@ config PPC_PTDUMP
 	  This option exports the state of the kernel pagetables to a
 	  debugfs file. This is only useful for kernel developers who are
 	  working in architecture specific areas of the kernel - probably
-	  not a good idea to enable this feature in a production kernel.
+	  yest a good idea to enable this feature in a production kernel.
 
 	  If you are unsure, say N.
 
@@ -379,11 +379,11 @@ config PPC_DEBUG_WX
 	  W+X mappings after applying NX, as such mappings are a security risk.
 
 	  Note that even if the check fails, your kernel is possibly
-	  still fine, as W+X mappings are not a security hole in
+	  still fine, as W+X mappings are yest a security hole in
 	  themselves, what they do is that they make the exploitation
 	  of other unfixed kernel bugs easier.
 
-	  There is no runtime or memory usage effect of this option
+	  There is yes runtime or memory usage effect of this option
 	  once the kernel has booted up - it's a one time check.
 
 	  If in doubt, say "Y".

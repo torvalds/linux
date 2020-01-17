@@ -7,7 +7,7 @@
 
 #include <linux/clk.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -95,7 +95,7 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 {
 	struct mtk_mdp_dev *mdp;
 	struct device *dev = &pdev->dev;
-	struct device_node *node, *parent;
+	struct device_yesde *yesde, *parent;
 	int i, ret = 0;
 
 	mdp = devm_kzalloc(dev, sizeof(*mdp), GFP_KERNEL);
@@ -109,52 +109,52 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 	mutex_init(&mdp->lock);
 	mutex_init(&mdp->vpulock);
 
-	/* Old dts had the components as child nodes */
-	node = of_get_next_child(dev->of_node, NULL);
-	if (node) {
-		of_node_put(node);
-		parent = dev->of_node;
+	/* Old dts had the components as child yesdes */
+	yesde = of_get_next_child(dev->of_yesde, NULL);
+	if (yesde) {
+		of_yesde_put(yesde);
+		parent = dev->of_yesde;
 		dev_warn(dev, "device tree is out of date\n");
 	} else {
-		parent = dev->of_node->parent;
+		parent = dev->of_yesde->parent;
 	}
 
 	/* Iterate over sibling MDP function blocks */
-	for_each_child_of_node(parent, node) {
+	for_each_child_of_yesde(parent, yesde) {
 		const struct of_device_id *of_id;
 		enum mtk_mdp_comp_type comp_type;
 		int comp_id;
 		struct mtk_mdp_comp *comp;
 
-		of_id = of_match_node(mtk_mdp_comp_dt_ids, node);
+		of_id = of_match_yesde(mtk_mdp_comp_dt_ids, yesde);
 		if (!of_id)
 			continue;
 
-		if (!of_device_is_available(node)) {
+		if (!of_device_is_available(yesde)) {
 			dev_err(dev, "Skipping disabled component %pOF\n",
-				node);
+				yesde);
 			continue;
 		}
 
 		comp_type = (enum mtk_mdp_comp_type)of_id->data;
-		comp_id = mtk_mdp_comp_get_id(dev, node, comp_type);
+		comp_id = mtk_mdp_comp_get_id(dev, yesde, comp_type);
 		if (comp_id < 0) {
-			dev_warn(dev, "Skipping unknown component %pOF\n",
-				 node);
+			dev_warn(dev, "Skipping unkyeswn component %pOF\n",
+				 yesde);
 			continue;
 		}
 
 		comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
 		if (!comp) {
 			ret = -ENOMEM;
-			of_node_put(node);
+			of_yesde_put(yesde);
 			goto err_comp;
 		}
 		mdp->comp[comp_id] = comp;
 
-		ret = mtk_mdp_comp_init(dev, node, comp, comp_id);
+		ret = mtk_mdp_comp_init(dev, yesde, comp, comp_id);
 		if (ret) {
-			of_node_put(node);
+			of_yesde_put(yesde);
 			goto err_comp;
 		}
 	}

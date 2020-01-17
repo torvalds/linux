@@ -15,7 +15,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -37,7 +37,7 @@
 #define CIFS_XATTR_CREATETIME "cifs.creationtime"  /* user.cifs.creationtime */
 /*
  * Although these three are just aliases for the above, need to move away from
- * confusing users and using the 20+ year old term 'cifs' when it is no longer
+ * confusing users and using the 20+ year old term 'cifs' when it is yes longer
  * secure, replaced by SMB2 (then even more highly secure SMB3) many years ago
  */
 #define SMB3_XATTR_CIFS_ACL "system.smb3_acl"
@@ -48,7 +48,7 @@
 enum { XATTR_USER, XATTR_CIFS_ACL, XATTR_ACL_ACCESS, XATTR_ACL_DEFAULT };
 
 static int cifs_xattr_set(const struct xattr_handler *handler,
-			  struct dentry *dentry, struct inode *inode,
+			  struct dentry *dentry, struct iyesde *iyesde,
 			  const char *name, const void *value,
 			  size_t size, int flags)
 {
@@ -108,12 +108,12 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 			if (value &&
 			    pTcon->ses->server->ops->set_acl)
 				rc = pTcon->ses->server->ops->set_acl(pacl,
-						size, inode,
+						size, iyesde,
 						full_path, CIFS_ACL_DACL);
 			else
 				rc = -EOPNOTSUPP;
-			if (rc == 0) /* force revalidate of the inode */
-				CIFS_I(inode)->time = 0;
+			if (rc == 0) /* force revalidate of the iyesde */
+				CIFS_I(iyesde)->time = 0;
 			kfree(pacl);
 		}
 		break;
@@ -152,7 +152,7 @@ out:
 }
 
 static int cifs_attrib_get(struct dentry *dentry,
-			   struct inode *inode, void *value,
+			   struct iyesde *iyesde, void *value,
 			   size_t size)
 {
 	ssize_t rc;
@@ -170,12 +170,12 @@ static int cifs_attrib_get(struct dentry *dentry,
 
 	/* return dos attributes as pseudo xattr */
 	pattribute = (__u32 *)value;
-	*pattribute = CIFS_I(inode)->cifsAttrs;
+	*pattribute = CIFS_I(iyesde)->cifsAttrs;
 
 	return sizeof(__u32);
 }
 
-static int cifs_creation_time_get(struct dentry *dentry, struct inode *inode,
+static int cifs_creation_time_get(struct dentry *dentry, struct iyesde *iyesde,
 				  void *value, size_t size)
 {
 	ssize_t rc;
@@ -192,13 +192,13 @@ static int cifs_creation_time_get(struct dentry *dentry, struct inode *inode,
 
 	/* return dos attributes as pseudo xattr */
 	pcreatetime = (__u64 *)value;
-	*pcreatetime = CIFS_I(inode)->createtime;
+	*pcreatetime = CIFS_I(iyesde)->createtime;
 	return sizeof(__u64);
 }
 
 
 static int cifs_xattr_get(const struct xattr_handler *handler,
-			  struct dentry *dentry, struct inode *inode,
+			  struct dentry *dentry, struct iyesde *iyesde,
 			  const char *name, void *value, size_t size)
 {
 	ssize_t rc = -EOPNOTSUPP;
@@ -228,11 +228,11 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 		cifs_dbg(FYI, "%s:querying user xattr %s\n", __func__, name);
 		if ((strcmp(name, CIFS_XATTR_ATTRIB) == 0) ||
 		    (strcmp(name, SMB3_XATTR_ATTRIB) == 0)) {
-			rc = cifs_attrib_get(dentry, inode, value, size);
+			rc = cifs_attrib_get(dentry, iyesde, value, size);
 			break;
 		} else if ((strcmp(name, CIFS_XATTR_CREATETIME) == 0) ||
 		    (strcmp(name, SMB3_XATTR_CREATETIME) == 0)) {
-			rc = cifs_creation_time_get(dentry, inode, value, size);
+			rc = cifs_creation_time_get(dentry, iyesde, value, size);
 			break;
 		}
 
@@ -252,7 +252,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 			goto out; /* rc already EOPNOTSUPP */
 
 		pacl = pTcon->ses->server->ops->get_acl(cifs_sb,
-				inode, full_path, &acllen);
+				iyesde, full_path, &acllen);
 		if (IS_ERR(pacl)) {
 			rc = PTR_ERR(pacl);
 			cifs_dbg(VFS, "%s: error %zd getting sec desc\n",
@@ -371,7 +371,7 @@ static const struct xattr_handler cifs_cifs_acl_xattr_handler = {
 
 /*
  * Although this is just an alias for the above, need to move away from
- * confusing users and using the 20 year old term 'cifs' when it is no
+ * confusing users and using the 20 year old term 'cifs' when it is yes
  * longer secure and was replaced by SMB2/SMB3 a long time ago, and
  * SMB3 and later are highly secure.
  */

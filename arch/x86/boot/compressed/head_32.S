@@ -65,7 +65,7 @@ SYM_FUNC_START(startup_32)
 	cld
 	/*
 	 * Test KEEP_SEGMENTS flag to see if the bootloader is asking
-	 * us to not reload segments
+	 * us to yest reload segments
 	 */
 	testb	$KEEP_SEGMENTS, BP_loadflags(%esi)
 	jnz	1f
@@ -103,7 +103,7 @@ SYM_FUNC_START(startup_32)
 	movl	BP_kernel_alignment(%esi), %eax
 	decl	%eax
 	addl    %eax, %ebx
-	notl	%eax
+	yestl	%eax
 	andl    %eax, %ebx
 	cmpl	$LOAD_PHYSICAL_ADDR, %ebx
 	jge	1f

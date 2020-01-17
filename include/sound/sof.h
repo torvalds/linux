@@ -29,7 +29,7 @@ struct snd_sof_pdata {
 	struct device *dev;
 
 	/*
-	 * notification callback used if the hardware initialization
+	 * yestification callback used if the hardware initialization
 	 * can take time or is handled in a workqueue. This callback
 	 * can be used by the caller to e.g. enable runtime_pm
 	 * or limit functionality until all low-level inits are
@@ -65,7 +65,7 @@ struct sof_dev_desc {
 	struct snd_soc_acpi_mach *alt_machines;
 
 	/* Platform resource indexes in BAR / ACPI resources. */
-	/* Must set to -1 if not used - add new items to end */
+	/* Must set to -1 if yest used - add new items to end */
 	int resindex_lpe_base;
 	int resindex_pcicfg_base;
 	int resindex_imr_base;
@@ -83,9 +83,9 @@ struct sof_dev_desc {
 	/* chip information for dsp */
 	const void *chip_info;
 
-	/* defaults for no codec mode */
-	const char *nocodec_fw_filename;
-	const char *nocodec_tplg_filename;
+	/* defaults for yes codec mode */
+	const char *yescodec_fw_filename;
+	const char *yescodec_tplg_filename;
 
 	/* defaults paths for firmware and topology files */
 	const char *default_fw_path;
@@ -95,7 +95,7 @@ struct sof_dev_desc {
 	const struct sof_arch_ops *arch_ops;
 };
 
-int sof_nocodec_setup(struct device *dev,
+int sof_yescodec_setup(struct device *dev,
 		      struct snd_sof_pdata *sof_pdata,
 		      struct snd_soc_acpi_mach *mach,
 		      const struct sof_dev_desc *desc,

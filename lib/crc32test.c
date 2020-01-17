@@ -681,7 +681,7 @@ static int __init crc32c_test(void)
 		    test[i].start, test[i].length);
 	}
 
-	/* reduce OS noise */
+	/* reduce OS yesise */
 	local_irq_save(flags);
 	local_irq_disable();
 
@@ -766,7 +766,7 @@ static int __init crc32_test(void)
 		    test[i].start, test[i].length);
 	}
 
-	/* reduce OS noise */
+	/* reduce OS yesise */
 	local_irq_save(flags);
 	local_irq_disable();
 

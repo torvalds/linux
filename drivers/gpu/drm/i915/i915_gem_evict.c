@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -60,7 +60,7 @@ mark_free(struct drm_mm_scan *scan,
 		return false;
 
 	list_add(&vma->evict_link, unwind);
-	return drm_mm_scan_add_block(scan, &vma->node);
+	return drm_mm_scan_add_block(scan, &vma->yesde);
 }
 
 /**
@@ -80,10 +80,10 @@ mark_free(struct drm_mm_scan *scan,
  * This function is used by the object/vma binding code.
  *
  * Since this function is only used to free up virtual address space it only
- * ignores pinned vmas, and not object where the backing storage itself is
- * pinned. Hence obj->pages_pin_count does not protect against eviction.
+ * igyesres pinned vmas, and yest object where the backing storage itself is
+ * pinned. Hence obj->pages_pin_count does yest protect against eviction.
  *
- * To clarify: This is for freeing up virtual address space, not for freeing
+ * To clarify: This is for freeing up virtual address space, yest for freeing
  * memory in e.g. the shrinker.
  */
 int
@@ -96,7 +96,7 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	struct drm_mm_scan scan;
 	struct list_head eviction_list;
 	struct i915_vma *vma, *next;
-	struct drm_mm_node *node;
+	struct drm_mm_yesde *yesde;
 	enum drm_mm_insert_mode mode;
 	struct i915_vma *active;
 	int ret;
@@ -142,7 +142,7 @@ search_again:
 		 * fairly static, and keeping it in least-recently scan order
 		 * is suitable.
 		 *
-		 * To notice when we complete one full cycle, we record the
+		 * To yestice when we complete one full cycle, we record the
 		 * first active element seen, before moving it to the tail.
 		 */
 		if (i915_vma_is_active(vma)) {
@@ -168,14 +168,14 @@ search_again:
 
 	/* Nothing found, clean up and bail out! */
 	list_for_each_entry_safe(vma, next, &eviction_list, evict_link) {
-		ret = drm_mm_scan_remove_block(&scan, &vma->node);
+		ret = drm_mm_scan_remove_block(&scan, &vma->yesde);
 		BUG_ON(ret);
 	}
 
 	/*
 	 * Can we unpin some objects such as idle hw contents,
 	 * or pending flips? But since only the GGTT has global entries
-	 * such as scanouts, rinbuffers and contexts, we can skip the
+	 * such as scayesuts, rinbuffers and contexts, we can skip the
 	 * purge when inspecting per-process local address spaces.
 	 */
 	if (!i915_is_ggtt(vm) || flags & PIN_NONBLOCK)
@@ -192,7 +192,7 @@ search_again:
 	 * To ensure that all user contexts are evictable, we perform
 	 * a switch to the perma-pinned kernel context. This all also gives
 	 * us a termination condition, when the last retired context is
-	 * the kernel's there is no more we can evict.
+	 * the kernel's there is yes more we can evict.
 	 */
 	if (I915_SELFTEST_ONLY(igt_evict_ctl.fail_if_busy))
 		return -EBUSY;
@@ -214,7 +214,7 @@ found:
 	 * of any of our objects, thus corrupting the list).
 	 */
 	list_for_each_entry_safe(vma, next, &eviction_list, evict_link) {
-		if (drm_mm_scan_remove_block(&scan, &vma->node))
+		if (drm_mm_scan_remove_block(&scan, &vma->yesde))
 			__i915_vma_pin(vma);
 		else
 			list_del(&vma->evict_link);
@@ -228,8 +228,8 @@ found:
 			ret = __i915_vma_unbind(vma);
 	}
 
-	while (ret == 0 && (node = drm_mm_scan_color_evict(&scan))) {
-		vma = container_of(node, struct i915_vma, node);
+	while (ret == 0 && (yesde = drm_mm_scan_color_evict(&scan))) {
+		vma = container_of(yesde, struct i915_vma, yesde);
 		ret = __i915_vma_unbind(vma);
 	}
 
@@ -242,17 +242,17 @@ found:
  * @target: range (and color) to evict for
  * @flags: additional flags to control the eviction algorithm
  *
- * This function will try to evict vmas that overlap the target node.
+ * This function will try to evict vmas that overlap the target yesde.
  *
- * To clarify: This is for freeing up virtual address space, not for freeing
+ * To clarify: This is for freeing up virtual address space, yest for freeing
  * memory in e.g. the shrinker.
  */
-int i915_gem_evict_for_node(struct i915_address_space *vm,
-			    struct drm_mm_node *target,
+int i915_gem_evict_for_yesde(struct i915_address_space *vm,
+			    struct drm_mm_yesde *target,
 			    unsigned int flags)
 {
 	LIST_HEAD(eviction_list);
-	struct drm_mm_node *node;
+	struct drm_mm_yesde *yesde;
 	u64 start = target->start;
 	u64 end = start + target->size;
 	struct i915_vma *vma, *next;
@@ -262,7 +262,7 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 	GEM_BUG_ON(!IS_ALIGNED(start, I915_GTT_PAGE_SIZE));
 	GEM_BUG_ON(!IS_ALIGNED(end, I915_GTT_PAGE_SIZE));
 
-	trace_i915_gem_evict_node(vm, target, flags);
+	trace_i915_gem_evict_yesde(vm, target, flags);
 
 	/*
 	 * Retire before we search the active list. Although we have
@@ -282,15 +282,15 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 	}
 	GEM_BUG_ON(start >= end);
 
-	drm_mm_for_each_node_in_range(node, &vm->mm, start, end) {
-		/* If we find any non-objects (!vma), we cannot evict them */
-		if (node->color == I915_COLOR_UNEVICTABLE) {
+	drm_mm_for_each_yesde_in_range(yesde, &vm->mm, start, end) {
+		/* If we find any yesn-objects (!vma), we canyest evict them */
+		if (yesde->color == I915_COLOR_UNEVICTABLE) {
 			ret = -ENOSPC;
 			break;
 		}
 
-		GEM_BUG_ON(!drm_mm_node_allocated(node));
-		vma = container_of(node, typeof(*vma), node);
+		GEM_BUG_ON(!drm_mm_yesde_allocated(yesde));
+		vma = container_of(yesde, typeof(*vma), yesde);
 
 		/* If we are using coloring to insert guard pages between
 		 * different cache domains within the address space, we have
@@ -299,12 +299,12 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 		 * those as well to make room for our guard pages.
 		 */
 		if (i915_vm_has_cache_coloring(vm)) {
-			if (node->start + node->size == target->start) {
-				if (node->color == target->color)
+			if (yesde->start + yesde->size == target->start) {
+				if (yesde->color == target->color)
 					continue;
 			}
-			if (node->start == target->start + target->size) {
-				if (node->color == target->color)
+			if (yesde->start == target->start + target->size) {
+				if (yesde->color == target->color)
 					continue;
 			}
 		}
@@ -326,11 +326,11 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 
 		/* Never show fear in the face of dragons!
 		 *
-		 * We cannot directly remove this node from within this
+		 * We canyest directly remove this yesde from within this
 		 * iterator and as with i915_gem_evict_something() we employ
 		 * the vma pin_count in order to prevent the action of
 		 * unbinding one vma from freeing (by dropping its active
-		 * reference) another in our eviction list.
+		 * reference) ayesther in our eviction list.
 		 */
 		__i915_vma_pin(vma);
 		list_add(&vma->evict_link, &eviction_list);
@@ -354,7 +354,7 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
  * This is used by the execbuf code as a last-ditch effort to defragment the
  * address space.
  *
- * To clarify: This is for freeing up virtual address space, not for freeing
+ * To clarify: This is for freeing up virtual address space, yest for freeing
  * memory in e.g. the shrinker.
  */
 int i915_gem_evict_vm(struct i915_address_space *vm)

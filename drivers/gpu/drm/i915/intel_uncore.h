@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -26,9 +26,9 @@
 #define __INTEL_UNCORE_H__
 
 #include <linux/spinlock.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/hrtimer.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 #include "i915_reg.h"
 
@@ -123,7 +123,7 @@ struct intel_uncore {
 	const struct intel_forcewake_range *fw_domains_table;
 	unsigned int fw_domains_table_entries;
 
-	struct notifier_block pmic_bus_access_nb;
+	struct yestifier_block pmic_bus_access_nb;
 	struct intel_uncore_funcs funcs;
 
 	unsigned int fifo_count;
@@ -300,24 +300,24 @@ static inline void intel_uncore_##name__(struct intel_uncore *uncore, \
 __uncore_read(read8, 8, b, true)
 __uncore_read(read16, 16, w, true)
 __uncore_read(read, 32, l, true)
-__uncore_read(read16_notrace, 16, w, false)
-__uncore_read(read_notrace, 32, l, false)
+__uncore_read(read16_yestrace, 16, w, false)
+__uncore_read(read_yestrace, 32, l, false)
 
 __uncore_write(write8, 8, b, true)
 __uncore_write(write16, 16, w, true)
 __uncore_write(write, 32, l, true)
-__uncore_write(write_notrace, 32, l, false)
+__uncore_write(write_yestrace, 32, l, false)
 
 /* Be very careful with read/write 64-bit values. On 32-bit machines, they
  * will be implemented using 2 32-bit writes in an arbitrary order with
  * an arbitrary delay between them. This can cause the hardware to
  * act upon the intermediate value, possibly leading to corruption and
- * machine death. For this reason we do not support I915_WRITE64, or
+ * machine death. For this reason we do yest support I915_WRITE64, or
  * uncore->funcs.mmio_writeq.
  *
  * When reading a 64-bit value as two 32-bit values, the delay may cause
- * the two reads to mismatch, e.g. a timestamp overflowing. Also note that
- * occasionally a 64-bit register does not actually support a full readq
+ * the two reads to mismatch, e.g. a timestamp overflowing. Also yeste that
+ * occasionally a 64-bit register does yest actually support a full readq
  * and must be read using two 32-bit reads.
  *
  * You have been warned.
@@ -338,8 +338,8 @@ intel_uncore_read64_2x32(struct intel_uncore *uncore,
 	return (u64)upper << 32 | lower;
 }
 
-#define intel_uncore_posting_read(...) ((void)intel_uncore_read_notrace(__VA_ARGS__))
-#define intel_uncore_posting_read16(...) ((void)intel_uncore_read16_notrace(__VA_ARGS__))
+#define intel_uncore_posting_read(...) ((void)intel_uncore_read_yestrace(__VA_ARGS__))
+#define intel_uncore_posting_read16(...) ((void)intel_uncore_read16_yestrace(__VA_ARGS__))
 
 #undef __uncore_read
 #undef __uncore_write
@@ -361,7 +361,7 @@ intel_uncore_read64_2x32(struct intel_uncore *uncore,
  * spin_unlock_irq(&uncore->lock);
  *
  *
- * Note: some registers may not need forcewake held, so
+ * Note: some registers may yest need forcewake held, so
  * intel_uncore_forcewake_{get,put} can be omitted, see
  * intel_uncore_forcewake_for_reg().
  *

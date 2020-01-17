@@ -177,7 +177,7 @@ static ssize_t reset_store(struct device *dev,
 	if (val)
 		config->mode = 0x0;
 
-	/* Disable data tracing: do not trace load and store data transfers */
+	/* Disable data tracing: do yest trace load and store data transfers */
 	config->mode &= ~(ETM_MODE_LOAD | ETM_MODE_STORE);
 	config->cfg &= ~(BIT(1) | BIT(2));
 
@@ -402,7 +402,7 @@ static ssize_t mode_store(struct device *dev,
 
 	/* bit[13], Trace overflow prevention bit */
 	if ((config->mode & ETM_MODE_NOOVERFLOW) &&
-		(drvdata->nooverflow == true))
+		(drvdata->yesoverflow == true))
 		config->stall_ctrl |= BIT(13);
 	else
 		config->stall_ctrl &= ~BIT(13);
@@ -978,7 +978,7 @@ static ssize_t addr_range_store(struct device *dev,
 	/*  exclude is optional, but need at least two parameter */
 	if (elements < 2)
 		return -EINVAL;
-	/* lower address comparator cannot have a higher address value */
+	/* lower address comparator canyest have a higher address value */
 	if (val1 > val2)
 		return -EINVAL;
 
@@ -1138,7 +1138,7 @@ static ssize_t addr_ctxtype_show(struct device *dev,
 	idx = config->addr_idx;
 	/* CONTEXTTYPE, bits[3:2] */
 	val = BMVAL(config->addr_acc[idx], 2, 3);
-	len = scnprintf(buf, PAGE_SIZE, "%s\n", val == ETM_CTX_NONE ? "none" :
+	len = scnprintf(buf, PAGE_SIZE, "%s\n", val == ETM_CTX_NONE ? "yesne" :
 			(val == ETM_CTX_CTXID ? "ctxid" :
 			(val == ETM_CTX_VMID ? "vmid" : "all")));
 	spin_unlock(&drvdata->spinlock);
@@ -1161,7 +1161,7 @@ static ssize_t addr_ctxtype_store(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	idx = config->addr_idx;
-	if (!strcmp(str, "none"))
+	if (!strcmp(str, "yesne"))
 		/* start by clearing context type bits */
 		config->addr_acc[idx] &= ~(BIT(2) | BIT(3));
 	else if (!strcmp(str, "ctxid")) {
@@ -1909,7 +1909,7 @@ static ssize_t ctxid_pid_store(struct device *dev,
 	 * a process is in a namespace the PID of that process as seen from the
 	 * namespace won't be what the kernel sees, something that makes the
 	 * feature confusing and can potentially leak kernel only information.
-	 * As such refuse to use the feature if @current is not in the initial
+	 * As such refuse to use the feature if @current is yest in the initial
 	 * PID namespace.
 	 */
 	if (task_active_pid_ns(current) != &init_pid_ns)

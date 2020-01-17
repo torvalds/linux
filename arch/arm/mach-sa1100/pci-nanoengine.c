@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * linux/arch/arm/mach-sa1100/pci-nanoengine.c
+ * linux/arch/arm/mach-sa1100/pci-nayesengine.c
  *
- * PCI functions for BSE nanoEngine PCI
+ * PCI functions for BSE nayesEngine PCI
  *
  * Copyright (C) 2010 Marcelo Roberto Jimenez <mroberto@cpti.cetuc.puc-rio.br>
  */
@@ -13,10 +13,10 @@
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
 
-#include <mach/nanoengine.h>
+#include <mach/nayesengine.h>
 #include <mach/hardware.h>
 
-static void __iomem *nanoengine_pci_map_bus(struct pci_bus *bus,
+static void __iomem *nayesengine_pci_map_bus(struct pci_bus *bus,
 					    unsigned int devfn, int where)
 {
 	if (bus->number != 0 || (devfn >> 3) != 0)
@@ -26,13 +26,13 @@ static void __iomem *nanoengine_pci_map_bus(struct pci_bus *bus,
 		((bus->number << 16) | (devfn << 8) | (where & ~3));
 }
 
-static struct pci_ops pci_nano_ops = {
-	.map_bus = nanoengine_pci_map_bus,
+static struct pci_ops pci_nayes_ops = {
+	.map_bus = nayesengine_pci_map_bus,
 	.read	= pci_generic_config_read32,
 	.write	= pci_generic_config_write32,
 };
 
-static int __init pci_nanoengine_map_irq(const struct pci_dev *dev, u8 slot,
+static int __init pci_nayesengine_map_irq(const struct pci_dev *dev, u8 slot,
 	u8 pin)
 {
 	return NANOENGINE_IRQ_GPIO_PCI;
@@ -41,10 +41,10 @@ static int __init pci_nanoengine_map_irq(const struct pci_dev *dev, u8 slot,
 static struct resource pci_io_ports =
 	DEFINE_RES_IO_NAMED(0x400, 0x400, "PCI IO");
 
-static struct resource pci_non_prefetchable_memory = {
-	.name	= "PCI non-prefetchable",
+static struct resource pci_yesn_prefetchable_memory = {
+	.name	= "PCI yesn-prefetchable",
 	.start	= NANO_PCI_MEM_RW_PHYS,
-	/* nanoEngine documentation says there is a 1 Megabyte window here,
+	/* nayesEngine documentation says there is a 1 Megabyte window here,
 	 * but PCI reports just 128 + 8 kbytes. */
 	.end	= NANO_PCI_MEM_RW_PHYS + NANO_PCI_MEM_RW_SIZE - 1,
 /*	.end	= NANO_PCI_MEM_RW_PHYS + SZ_128K + SZ_8K - 1,*/
@@ -52,7 +52,7 @@ static struct resource pci_non_prefetchable_memory = {
 };
 
 /*
- * nanoEngine PCI reports 1 Megabyte of prefetchable memory, but it
+ * nayesEngine PCI reports 1 Megabyte of prefetchable memory, but it
  * overlaps with previously defined memory.
  *
  * Here is what happens:
@@ -76,9 +76,9 @@ pci 0000:00:00.0: BAR 0: set to [mem 0x18620000-0x18620fff] (PCI address [0x2000
 pci 0000:00:00.0: BAR 1: assigned [io  0x0400-0x043f]
 pci 0000:00:00.0: BAR 1: set to [io  0x0400-0x043f] (PCI address [0x0-0x3f])
  *
- * On the other hand, if we do not request the prefetchable memory resource,
- * linux will alloc it first and the two non-prefetchable memory areas that
- * are our real interest will not be mapped. So we choose to map it to an
+ * On the other hand, if we do yest request the prefetchable memory resource,
+ * linux will alloc it first and the two yesn-prefetchable memory areas that
+ * are our real interest will yest be mapped. So we choose to map it to an
  * unused area. It gets recognized as expansion ROM, but becomes disabled.
  *
  * Here is what happens then:
@@ -104,13 +104,13 @@ pci 0000:00:00.0: BAR 1: set to [io  0x0400-0x043f] (PCI address [0x0-0x3f])
 
 # lspci -vv -s 0000:00:00.0
 00:00.0 Class 0200: Device 8086:1209 (rev 09)
-        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr+ Stepping- SERR+ FastB2B- DisINTx-
+        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASyesop- ParErr+ Stepping- SERR+ FastB2B- DisINTx-
         Status: Cap+ 66MHz- UDF- FastB2B+ ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR+ <PERR+ INTx-
         Latency: 0 (2000ns min, 14000ns max), Cache Line Size: 32 bytes
         Interrupt: pin A routed to IRQ 0
-        Region 0: Memory at 18620000 (32-bit, non-prefetchable) [size=4K]
+        Region 0: Memory at 18620000 (32-bit, yesn-prefetchable) [size=4K]
         Region 1: I/O ports at 0400 [size=64]
-        Region 2: [virtual] Memory at 18600000 (32-bit, non-prefetchable) [size=128K]
+        Region 2: [virtual] Memory at 18600000 (32-bit, yesn-prefetchable) [size=128K]
         [virtual] Expansion ROM at 78000000 [disabled] [size=1M]
         Capabilities: [dc] Power Management version 2
                 Flags: PMEClk- DSI+ D1+ D2+ AuxCurrent=0mA PME(D0+,D1+,D2+,D3hot+,D3cold-)
@@ -126,33 +126,33 @@ static struct resource pci_prefetchable_memory = {
 	.flags	= IORESOURCE_MEM  | IORESOURCE_PREFETCH,
 };
 
-static int __init pci_nanoengine_setup_resources(struct pci_sys_data *sys)
+static int __init pci_nayesengine_setup_resources(struct pci_sys_data *sys)
 {
 	if (request_resource(&ioport_resource, &pci_io_ports)) {
 		printk(KERN_ERR "PCI: unable to allocate io port region\n");
 		return -EBUSY;
 	}
-	if (request_resource(&iomem_resource, &pci_non_prefetchable_memory)) {
+	if (request_resource(&iomem_resource, &pci_yesn_prefetchable_memory)) {
 		release_resource(&pci_io_ports);
-		printk(KERN_ERR "PCI: unable to allocate non prefetchable\n");
+		printk(KERN_ERR "PCI: unable to allocate yesn prefetchable\n");
 		return -EBUSY;
 	}
 	if (request_resource(&iomem_resource, &pci_prefetchable_memory)) {
 		release_resource(&pci_io_ports);
-		release_resource(&pci_non_prefetchable_memory);
+		release_resource(&pci_yesn_prefetchable_memory);
 		printk(KERN_ERR "PCI: unable to allocate prefetchable\n");
 		return -EBUSY;
 	}
 	pci_add_resource_offset(&sys->resources, &pci_io_ports, sys->io_offset);
 	pci_add_resource_offset(&sys->resources,
-				&pci_non_prefetchable_memory, sys->mem_offset);
+				&pci_yesn_prefetchable_memory, sys->mem_offset);
 	pci_add_resource_offset(&sys->resources,
 				&pci_prefetchable_memory, sys->mem_offset);
 
 	return 1;
 }
 
-int __init pci_nanoengine_setup(int nr, struct pci_sys_data *sys)
+int __init pci_nayesengine_setup(int nr, struct pci_sys_data *sys)
 {
 	int ret = 0;
 
@@ -162,7 +162,7 @@ int __init pci_nanoengine_setup(int nr, struct pci_sys_data *sys)
 	if (nr == 0) {
 		sys->mem_offset = NANO_PCI_MEM_RW_PHYS;
 		sys->io_offset = 0x400;
-		ret = pci_nanoengine_setup_resources(sys);
+		ret = pci_nayesengine_setup_resources(sys);
 		/* Enable alternate memory bus master mode, see
 		 * "Intel StrongARM SA1110 Developer's Manual",
 		 * section 10.8, "Alternate Memory Bus Master Mode". */
@@ -174,18 +174,18 @@ int __init pci_nanoengine_setup(int nr, struct pci_sys_data *sys)
 	return ret;
 }
 
-static struct hw_pci nanoengine_pci __initdata = {
-	.map_irq		= pci_nanoengine_map_irq,
+static struct hw_pci nayesengine_pci __initdata = {
+	.map_irq		= pci_nayesengine_map_irq,
 	.nr_controllers		= 1,
-	.ops			= &pci_nano_ops,
-	.setup			= pci_nanoengine_setup,
+	.ops			= &pci_nayes_ops,
+	.setup			= pci_nayesengine_setup,
 };
 
-static int __init nanoengine_pci_init(void)
+static int __init nayesengine_pci_init(void)
 {
-	if (machine_is_nanoengine())
-		pci_common_init(&nanoengine_pci);
+	if (machine_is_nayesengine())
+		pci_common_init(&nayesengine_pci);
 	return 0;
 }
 
-subsys_initcall(nanoengine_pci_init);
+subsys_initcall(nayesengine_pci_init);

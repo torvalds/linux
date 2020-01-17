@@ -9,7 +9,7 @@
  * based on ixdp425-setup.c:
  *	Copyright (C) 2003-2004 MontaVista Software, Inc.
  * based on nslu2-power.c
- *	Copyright (C) 2005 Tower Technologies
+ *	Copyright (C) 2005 Tower Techyeslogies
  *
  * Author: Rod Whitby <rod@whitby.id.au>
  * Maintainers: http://www.nslu2-linux.org/
@@ -210,7 +210,7 @@ static void __init fsg_init(void)
 
 	/* This is only useful on a modified machine, but it is valuable
 	 * to have it first in order to see debug messages, and so that
-	 * it does *not* get removed if platform_add_devices fails!
+	 * it does *yest* get removed if platform_add_devices fails!
 	 */
 	(void)platform_device_register(&fsg_uart);
 
@@ -219,14 +219,14 @@ static void __init fsg_init(void)
 	if (request_irq(gpio_to_irq(FSG_RB_GPIO), &fsg_reset_handler,
 			IRQF_TRIGGER_LOW, "FSG reset button", NULL) < 0) {
 
-		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
+		printk(KERN_DEBUG "Reset Button IRQ %d yest available\n",
 			gpio_to_irq(FSG_RB_GPIO));
 	}
 
 	if (request_irq(gpio_to_irq(FSG_SB_GPIO), &fsg_power_handler,
 			IRQF_TRIGGER_LOW, "FSG power button", NULL) < 0) {
 
-		printk(KERN_DEBUG "Power Button IRQ %d not available\n",
+		printk(KERN_DEBUG "Power Button IRQ %d yest available\n",
 			gpio_to_irq(FSG_SB_GPIO));
 	}
 

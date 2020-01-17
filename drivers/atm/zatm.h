@@ -42,11 +42,11 @@
 
 struct zatm_vcc {
 	/*-------------------------------- RX part */
-	int rx_chan;			/* RX channel, 0 if none */
+	int rx_chan;			/* RX channel, 0 if yesne */
 	int pool;			/* free buffer pool */
 	/*-------------------------------- TX part */
-	int tx_chan;			/* TX channel, 0 if none */
-	int shaper;			/* shaper, <0 if none */
+	int tx_chan;			/* TX channel, 0 if yesne */
+	int shaper;			/* shaper, <0 if yesne */
 	struct sk_buff_head tx_queue;	/* list of buffers in transit */
 	wait_queue_head_t tx_wait;	/* for close */
 	u32 *ring;			/* transmit ring */
@@ -59,7 +59,7 @@ struct zatm_dev {
 	/*-------------------------------- TX part */
 	int tx_bw;			/* remaining bandwidth */
 	u32 free_shapers;		/* bit set */
-	int ubr;			/* UBR shaper; -1 if none */
+	int ubr;			/* UBR shaper; -1 if yesne */
 	int ubr_ref_cnt;		/* number of VCs using UBR shaper */
 	/*-------------------------------- RX part */
 	int pool_ref[NR_POOLS];		/* free buffer pool usage counters */

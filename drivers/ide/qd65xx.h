@@ -53,7 +53,7 @@ static inline u8 QD_TIMREG(ide_drive_t *drive)
 
 static struct qd65xx_timing_s {
 	s8	offset;   /* ofset from the beginning of Model Number" */
-	char	model[4];    /* 4 chars from Model number, no conversion */
+	char	model[4];    /* 4 chars from Model number, yes conversion */
 	s16	active;   /* active time */
 	s16	recovery; /* recovery time */
 } qd65xx_timing [] = {
@@ -141,5 +141,5 @@ static struct qd65xx_timing_s {
 	{ 30, "0326", 150, 270 },  /* Samsung Electronics 120MB		*/
 	{ 30, "3044", 110, 195 },  /* Conner CFA340A			*/
 	{ 30, "43A0", 110, 195 },  /* Conner CFA340A			*/
-	{ -1, "    ", 175, 415 }   /* unknown disk name			*/
+	{ -1, "    ", 175, 415 }   /* unkyeswn disk name			*/
 };

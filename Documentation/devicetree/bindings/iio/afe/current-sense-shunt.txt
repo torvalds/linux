@@ -3,12 +3,12 @@ Current Sense Shunt
 
 When an io-channel measures the voltage over a current sense shunt,
 the interesting measurement is almost always the current through the
-shunt, not the voltage over it. This binding describes such a current
+shunt, yest the voltage over it. This binding describes such a current
 sense circuit.
 
 Required properties:
 - compatible : "current-sense-shunt"
-- io-channels : Channel node of a voltage io-channel.
+- io-channels : Channel yesde of a voltage io-channel.
 - shunt-resistor-micro-ohms : The shunt resistance in microohms.
 
 Example:

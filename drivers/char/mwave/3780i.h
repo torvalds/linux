@@ -24,7 +24,7 @@
 * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
 * solely responsible for determining the appropriateness of using and
 * distributing the Program and assumes all risks associated with its
-* exercise of rights under this Agreement, including but not limited to
+* exercise of rights under this Agreement, including but yest limited to
 * the risks and costs of program errors, damage to or loss of data,
 * programs or equipment, and unavailability or interruption of operations.
 *
@@ -38,7 +38,7 @@
 * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 *
 * You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
+* along with this program; if yest, write to the Free Software
 * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 *
 *
@@ -65,9 +65,9 @@
 #define DSP_Interrupt              0x000E	/* Interrupt register (IPC source) */
 
 typedef struct {
-	unsigned char ClockControl:1;	/* RW: Clock control: 0=normal, 1=stop 3780i clocks */
-	unsigned char SoftReset:1;	/* RW: Soft reset 0=normal, 1=soft reset active */
-	unsigned char ConfigMode:1;	/* RW: Configuration mode, 0=normal, 1=config mode */
+	unsigned char ClockControl:1;	/* RW: Clock control: 0=yesrmal, 1=stop 3780i clocks */
+	unsigned char SoftReset:1;	/* RW: Soft reset 0=yesrmal, 1=soft reset active */
+	unsigned char ConfigMode:1;	/* RW: Configuration mode, 0=yesrmal, 1=config mode */
 	unsigned char Reserved:5;	/* 0: Reserved */
 } DSP_ISA_SLAVE_CONTROL;
 
@@ -76,7 +76,7 @@ typedef struct {
 	unsigned short EnableDspInt:1;	/* RW: Enable DSP to X86 ISA interrupt 0=mask it, 1=enable it */
 	unsigned short MemAutoInc:1;	/* RW: Memory address auto increment, 0=disable, 1=enable */
 	unsigned short IoAutoInc:1;	/* RW: I/O address auto increment, 0=disable, 1=enable */
-	unsigned short DiagnosticMode:1;	/* RW: Disgnostic mode 0=nromal, 1=diagnostic mode */
+	unsigned short DiagyessticMode:1;	/* RW: Disgyesstic mode 0=nromal, 1=diagyesstic mode */
 	unsigned short IsaPacingTimer:12;	/* R: ISA access pacing timer: count of core cycles stolen */
 } DSP_HBRIDGE_CONTROL;
 
@@ -160,7 +160,7 @@ typedef struct {
 #define DSP_GpioOutputData_15_8    0x80000072
 
 typedef struct {
-	unsigned short NMI:1;	/* RW: non maskable interrupt */
+	unsigned short NMI:1;	/* RW: yesn maskable interrupt */
 	unsigned short Halt:1;	/* RW: Halt MSP clock */
 	unsigned short ResetCore:1;	/* RW: Reset MSP core interface */
 	unsigned short Reserved:13;	/* 0: Reserved */

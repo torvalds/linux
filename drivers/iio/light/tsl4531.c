@@ -178,7 +178,7 @@ static int tsl4531_probe(struct i2c_client *client,
 
 	ret = tsl4531_check_id(client);
 	if (ret) {
-		dev_err(&client->dev, "no TSL4531 sensor\n");
+		dev_err(&client->dev, "yes TSL4531 sensor\n");
 		return ret;
 	}
 

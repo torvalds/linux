@@ -24,7 +24,7 @@
 static char *cros_ec_loc[] = {
 	[MOTIONSENSE_LOC_BASE] = "base",
 	[MOTIONSENSE_LOC_LID] = "lid",
-	[MOTIONSENSE_LOC_MAX] = "unknown",
+	[MOTIONSENSE_LOC_MAX] = "unkyeswn",
 };
 
 static int cros_ec_get_host_cmd_version_mask(struct cros_ec_device *ec_dev,
@@ -130,7 +130,7 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 		state->param.info.sensor_num = sensor_platform->sensor_num;
 		ret = cros_ec_motion_send_host_cmd(state, 0);
 		if (ret) {
-			dev_warn(dev, "Can not access sensor info\n");
+			dev_warn(dev, "Can yest access sensor info\n");
 			return ret;
 		}
 		state->type = state->resp->info.type;
@@ -293,14 +293,14 @@ static int cros_ec_sensors_cmd_read_u16(struct cros_ec_device *ec,
 }
 
 /**
- * cros_ec_sensors_read_until_not_busy() - read until is not busy
+ * cros_ec_sensors_read_until_yest_busy() - read until is yest busy
  *
  * @st:	pointer to state information for device
  *
- * Read from EC status byte until it reads not busy.
- * Return: 8-bit status if ok, -errno on failure.
+ * Read from EC status byte until it reads yest busy.
+ * Return: 8-bit status if ok, -erryes on failure.
  */
-static int cros_ec_sensors_read_until_not_busy(
+static int cros_ec_sensors_read_until_yest_busy(
 					struct cros_ec_sensors_core_state *st)
 {
 	struct cros_ec_device *ec = st->ec;
@@ -312,7 +312,7 @@ static int cros_ec_sensors_read_until_not_busy(
 		return ret;
 
 	while (status & EC_MEMMAP_ACC_STATUS_BUSY_BIT) {
-		/* Give up after enough attempts, return error. */
+		/* Give up after eyesugh attempts, return error. */
 		if (attempts++ >= 50)
 			return -EIO;
 
@@ -335,10 +335,10 @@ static int cros_ec_sensors_read_until_not_busy(
  * @scan_mask:	bitmap of the sensor indices to scan
  * @data:	location to store data
  *
- * This is the unsafe function for reading the EC data. It does not guarantee
- * that the EC will not modify the data as it is being read in.
+ * This is the unsafe function for reading the EC data. It does yest guarantee
+ * that the EC will yest modify the data as it is being read in.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erryes on failure.
  */
 static int cros_ec_sensors_read_data_unsafe(struct iio_dev *indio_dev,
 			 unsigned long scan_mask, s16 *data)
@@ -370,9 +370,9 @@ static int cros_ec_sensors_read_data_unsafe(struct iio_dev *indio_dev,
  * @data: location to store data.
  *
  * Note: this is the safe function for reading the EC data. It guarantees
- * that the data sampled was not modified by the EC while being read.
+ * that the data sampled was yest modified by the EC while being read.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erryes on failure.
  */
 int cros_ec_sensors_read_lpc(struct iio_dev *indio_dev,
 			     unsigned long scan_mask, s16 *data)
@@ -384,9 +384,9 @@ int cros_ec_sensors_read_lpc(struct iio_dev *indio_dev,
 
 	/*
 	 * Continually read all data from EC until the status byte after
-	 * all reads reflects that the EC is not busy and the sample id
+	 * all reads reflects that the EC is yest busy and the sample id
 	 * matches the sample id from before all reads. This guarantees
-	 * that data read in was not modified by the EC while reading.
+	 * that data read in was yest modified by the EC while reading.
 	 */
 	while ((status & (EC_MEMMAP_ACC_STATUS_BUSY_BIT |
 			  EC_MEMMAP_ACC_STATUS_SAMPLE_ID_MASK)) != samp_id) {
@@ -394,8 +394,8 @@ int cros_ec_sensors_read_lpc(struct iio_dev *indio_dev,
 		if (attempts++ >= 5)
 			return -EIO;
 
-		/* Read status byte until EC is not busy. */
-		ret = cros_ec_sensors_read_until_not_busy(st);
+		/* Read status byte until EC is yest busy. */
+		ret = cros_ec_sensors_read_until_yest_busy(st);
 		if (ret < 0)
 			return ret;
 
@@ -473,7 +473,7 @@ done:
 	 * Tell the core we are done with this trigger and ready for the
 	 * next one.
 	 */
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	mutex_unlock(&st->cmd_lock);
 
@@ -584,7 +584,7 @@ static int __maybe_unused cros_ec_sensors_prepare(struct device *dev)
 		return 0;
 
 	/*
-	 * If the sensors are sampled at high frequency, we will not be able to
+	 * If the sensors are sampled at high frequency, we will yest be able to
 	 * sleep. Set sampling to a long period if necessary.
 	 */
 	if (st->curr_sampl_freq < CROS_EC_MIN_SUSPEND_SAMPLING_FREQUENCY) {

@@ -162,7 +162,7 @@ static void sun4i_csi_buffer_mark_done(struct sun4i_csi *csi,
 	struct vb2_v4l2_buffer *v_buf;
 
 	if (!csi->current_buf[slot]) {
-		dev_dbg(csi->dev, "Scratch buffer was used, ignoring..\n");
+		dev_dbg(csi->dev, "Scratch buffer was used, igyesring..\n");
 		return;
 	}
 
@@ -180,7 +180,7 @@ static int sun4i_csi_buffer_flip(struct sun4i_csi *csi, unsigned int sequence)
 	u32 reg = readl(csi->regs + CSI_BUF_CTRL_REG);
 	unsigned int next;
 
-	/* Our next buffer is not the current buffer */
+	/* Our next buffer is yest the current buffer */
 	next = !(reg & CSI_BUF_CTRL_DBS);
 
 	/* Report the previous buffer as done */
@@ -204,10 +204,10 @@ static void sun4i_csi_buffer_queue(struct vb2_buffer *vb)
 static void return_all_buffers(struct sun4i_csi *csi,
 			       enum vb2_buffer_state state)
 {
-	struct sun4i_csi_buffer *buf, *node;
+	struct sun4i_csi_buffer *buf, *yesde;
 	unsigned int slot;
 
-	list_for_each_entry_safe(buf, node, &csi->buf_list, list) {
+	list_for_each_entry_safe(buf, yesde, &csi->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -226,7 +226,7 @@ static void return_all_buffers(struct sun4i_csi *csi,
 static int sun4i_csi_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct sun4i_csi *csi = vb2_get_drv_priv(vq);
-	struct v4l2_fwnode_bus_parallel *bus = &csi->bus;
+	struct v4l2_fwyesde_bus_parallel *bus = &csi->bus;
 	const struct sun4i_csi_format *csi_fmt;
 	unsigned long hsync_pol, pclk_pol, vsync_pol;
 	unsigned long flags;
@@ -242,14 +242,14 @@ static int sun4i_csi_start_streaming(struct vb2_queue *vq, unsigned int count)
 	csi->sequence = 0;
 
 	/*
-	 * We need a scratch buffer in case where we'll not have any
+	 * We need a scratch buffer in case where we'll yest have any
 	 * more buffer queued so that we don't error out. One of those
 	 * cases is when you end up at the last frame to capture, you
 	 * don't havea any buffer queued any more, and yet it doesn't
 	 * really matter since you'll never reach the next buffer.
 	 *
 	 * Since we support the multi-planar API, we need to have a
-	 * buffer for each plane. Allocating a single one large enough
+	 * buffer for each plane. Allocating a single one large eyesugh
 	 * to hold all the buffers is simpler, so let's go for that.
 	 */
 	csi->scratch.size = 0;
@@ -374,7 +374,7 @@ static irqreturn_t sun4i_csi_irq(int irq, void *data)
 
 	reg = readl(csi->regs + CSI_INT_STA_REG);
 
-	/* Acknowledge the interrupts */
+	/* Ackyeswledge the interrupts */
 	writel(reg, csi->regs + CSI_INT_STA_REG);
 
 	if (!(reg & CSI_INT_FRM_DONE))

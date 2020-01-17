@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2019 Mellanox Technologies.
+// Copyright (c) 2019 Mellayesx Techyeslogies.
 
 #include "en.h"
 #include "en_accel/ktls.h"
@@ -41,7 +41,7 @@ static int mlx5e_ktls_add(struct net_device *netdev, struct sock *sk,
 	tx_priv->crypto_info  = *(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
 	mlx5e_set_ktls_tx_priv_ctx(tls_ctx, tx_priv);
 
-	/* tc and underlay_qpn values are not in use for tls tis */
+	/* tc and underlay_qpn values are yest in use for tls tis */
 	err = mlx5e_ktls_create_tis(mdev, &tx_priv->tisn);
 	if (err)
 		goto create_tis_fail;

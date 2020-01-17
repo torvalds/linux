@@ -16,20 +16,20 @@
  * Updated: Mon, 14 Apr 2008 15:41:24 +0100
  * Status: works
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: yest applicable, uses PCI auto config
  *
- * There is code to support AI commands, but it may not work.
+ * There is code to support AI commands, but it may yest work.
  *
- * AO commands are not supported.
+ * AO commands are yest supported.
  */
 
 /*
  * The DT3000 series is Data Translation's attempt to make a PCI
  * data acquisition board.  The design of this series is very nice,
  * since each board has an on-board DSP (Texas Instruments TMS320C52).
- * However, a few details are a little annoying.  The boards lack
+ * However, a few details are a little anyesying.  The boards lack
  * bus-mastering DMA, which eliminates them from serious work.
- * They also are not capable of autocalibration, which is a common
+ * They also are yest capable of autocalibration, which is a common
  * feature in modern hardware.  The default firmware is pretty bad,
  * making it nearly impossible to write an RT compatible driver.
  * It would make an interesting project to write a decent firmware
@@ -339,30 +339,30 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
+static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nayessec,
 			    unsigned int flags)
 {
 	unsigned int divider, base, prescale;
 
 	/* This function needs improvement */
-	/* Don't know if divider==0 works. */
+	/* Don't kyesw if divider==0 works. */
 
 	for (prescale = 0; prescale < 16; prescale++) {
 		base = timer_base * (prescale + 1);
 		switch (flags & CMDF_ROUND_MASK) {
 		case CMDF_ROUND_NEAREST:
 		default:
-			divider = DIV_ROUND_CLOSEST(*nanosec, base);
+			divider = DIV_ROUND_CLOSEST(*nayessec, base);
 			break;
 		case CMDF_ROUND_DOWN:
-			divider = (*nanosec) / base;
+			divider = (*nayessec) / base;
 			break;
 		case CMDF_ROUND_UP:
-			divider = DIV_ROUND_UP(*nanosec, base);
+			divider = DIV_ROUND_UP(*nayessec, base);
 			break;
 		}
 		if (divider < 65536) {
-			*nanosec = divider * base;
+			*nayessec = divider * base;
 			return (prescale << 16) | (divider);
 		}
 	}
@@ -370,7 +370,7 @@ static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
 	prescale = 15;
 	base = timer_base * (prescale + 1);
 	divider = 65535;
-	*nanosec = divider * base;
+	*nayessec = divider * base;
 	return (prescale << 16) | (divider);
 }
 
@@ -697,7 +697,7 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 0x1000;
 	s->maxdata	= 0xff;
-	s->range_table	= &range_unknown;
+	s->range_table	= &range_unkyeswn;
 	s->insn_read	= dt3k_mem_insn_read;
 
 	return 0;

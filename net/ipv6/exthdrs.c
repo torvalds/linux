@@ -10,14 +10,14 @@
  */
 
 /* Changes:
- *	yoshfuji		: ensure not to overrun while parsing
+ *	yoshfuji		: ensure yest to overrun while parsing
  *				  tlv options.
  *	Mitsuru KANDA @USAGI and: Remove ipv6_parse_exthdrs().
  *	YOSHIFUJI Hideaki @USAGI  Register inbound extension header
  *				  handlers as inet6_protocol{}.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -68,15 +68,15 @@ struct tlvtype_proc {
   Generic functions
  *********************/
 
-/* An unknown option is detected, decide what to do */
+/* An unkyeswn option is detected, decide what to do */
 
-static bool ip6_tlvopt_unknown(struct sk_buff *skb, int optoff,
-			       bool disallow_unknowns)
+static bool ip6_tlvopt_unkyeswn(struct sk_buff *skb, int optoff,
+			       bool disallow_unkyeswns)
 {
-	if (disallow_unknowns) {
-		/* If unknown TLVs are disallowed by configuration
+	if (disallow_unkyeswns) {
+		/* If unkyeswn TLVs are disallowed by configuration
 		 * then always silently drop packet. Note this also
-		 * means no ICMP parameter problem is sent which
+		 * means yes ICMP parameter problem is sent which
 		 * could be a good property to mitigate a reflection DOS
 		 * attack.
 		 */
@@ -85,13 +85,13 @@ static bool ip6_tlvopt_unknown(struct sk_buff *skb, int optoff,
 	}
 
 	switch ((skb_network_header(skb)[optoff] & 0xC0) >> 6) {
-	case 0: /* ignore */
+	case 0: /* igyesre */
 		return true;
 
 	case 1: /* drop packet */
 		break;
 
-	case 3: /* Send ICMP if not a multicast address and drop packet */
+	case 3: /* Send ICMP if yest a multicast address and drop packet */
 		/* Actually, it is redundant check. icmp_send
 		   will recheck in any case.
 		 */
@@ -118,12 +118,12 @@ static bool ip6_parse_tlv(const struct tlvtype_proc *procs,
 	const unsigned char *nh = skb_network_header(skb);
 	int off = skb_network_header_len(skb);
 	const struct tlvtype_proc *curr;
-	bool disallow_unknowns = false;
+	bool disallow_unkyeswns = false;
 	int tlv_count = 0;
 	int padlen = 0;
 
 	if (unlikely(max_count < 0)) {
-		disallow_unknowns = true;
+		disallow_unkyeswns = true;
 		max_count = -max_count;
 	}
 
@@ -183,7 +183,7 @@ static bool ip6_parse_tlv(const struct tlvtype_proc *procs,
 				}
 			}
 			if (curr->type < 0 &&
-			    !ip6_tlvopt_unknown(skb, off, disallow_unknowns))
+			    !ip6_tlvopt_unkyeswn(skb, off, disallow_unkyeswns))
 				return false;
 
 			padlen = 0;
@@ -228,7 +228,7 @@ static bool ipv6_dest_hao(struct sk_buff *skb, int optoff)
 	}
 
 	if (!(ipv6_addr_type(&hao->addr) & IPV6_ADDR_UNICAST)) {
-		net_dbg_ratelimited("hao is not an unicast addr: %pI6\n",
+		net_dbg_ratelimited("hao is yest an unicast addr: %pI6\n",
 				    &hao->addr);
 		goto discard;
 	}
@@ -327,7 +327,7 @@ static void seg6_update_csum(struct sk_buff *skb)
 	__be32 from, to;
 
 	/* srh is at transport offset and seg_left is already decremented
-	 * but daddr is not yet updated with next segment
+	 * but daddr is yest yet updated with next segment
 	 */
 
 	hdr = (struct ipv6_sr_hdr *)skb_transport_header(skb);
@@ -542,7 +542,7 @@ looped_back:
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
 	case IPV6_SRCRT_TYPE_2:
 		if (accept_source_route < 0)
-			goto unknown_rh;
+			goto unkyeswn_rh;
 		/* Silently discard invalid RTH type 2 */
 		if (hdr->hdrlen != 2 || hdr->segments_left != 1) {
 			__IP6_INC_STATS(net, idev, IPSTATS_MIB_INHDRERRORS);
@@ -552,7 +552,7 @@ looped_back:
 		break;
 #endif
 	default:
-		goto unknown_rh;
+		goto unkyeswn_rh;
 	}
 
 	/*
@@ -571,7 +571,7 @@ looped_back:
 	}
 
 	/* We are about to mangle packet header. Be careful!
-	   Do not damage packets queued somewhere.
+	   Do yest damage packets queued somewhere.
 	 */
 	if (skb_cloned(skb)) {
 		/* the copy is a forwarded packet */
@@ -648,7 +648,7 @@ looped_back:
 	dst_input(skb);
 	return -1;
 
-unknown_rh:
+unkyeswn_rh:
 	__IP6_INC_STATS(net, idev, IPSTATS_MIB_INHDRERRORS);
 	icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
 			  (&hdr->type) - skb_network_header(skb));
@@ -665,7 +665,7 @@ static const struct inet6_protocol destopt_protocol = {
 	.flags		=	INET6_PROTO_NOPOLICY,
 };
 
-static const struct inet6_protocol nodata_protocol = {
+static const struct inet6_protocol yesdata_protocol = {
 	.handler	=	dst_discard,
 	.flags		=	INET6_PROTO_NOPOLICY,
 };
@@ -682,7 +682,7 @@ int __init ipv6_exthdrs_init(void)
 	if (ret)
 		goto out_rthdr;
 
-	ret = inet6_add_protocol(&nodata_protocol, IPPROTO_NONE);
+	ret = inet6_add_protocol(&yesdata_protocol, IPPROTO_NONE);
 	if (ret)
 		goto out_destopt;
 
@@ -697,7 +697,7 @@ out_rthdr:
 
 void ipv6_exthdrs_exit(void)
 {
-	inet6_del_protocol(&nodata_protocol, IPPROTO_NONE);
+	inet6_del_protocol(&yesdata_protocol, IPPROTO_NONE);
 	inet6_del_protocol(&destopt_protocol, IPPROTO_DSTOPTS);
 	inet6_del_protocol(&rthdr_protocol, IPPROTO_ROUTING);
 }
@@ -707,7 +707,7 @@ void ipv6_exthdrs_exit(void)
  **********************************/
 
 /*
- * Note: we cannot rely on skb_dst(skb) before we assign it in ip6_route_input().
+ * Note: we canyest rely on skb_dst(skb) before we assign it in ip6_route_input().
  */
 static inline struct inet6_dev *ipv6_skb_idev(struct sk_buff *skb)
 {
@@ -859,7 +859,7 @@ fail_and_free:
  *	"build" functions work when skb is filled from head to tail (datagram)
  *	"push"	functions work when headers are added from tail to head (tcp)
  *
- *	In both cases we assume, that caller reserved enough room
+ *	In both cases we assume, that caller reserved eyesugh room
  *	for headers.
  */
 
@@ -971,7 +971,7 @@ void ipv6_push_nfrag_opts(struct sk_buff *skb, struct ipv6_txoptions *opt,
 	if (opt->srcrt) {
 		ipv6_push_rthdr(skb, proto, opt->srcrt, daddr, saddr);
 		/*
-		 * IPV6_RTHDRDSTOPTS is ignored
+		 * IPV6_RTHDRDSTOPTS is igyesred
 		 * unless IPV6_RTHDR is set (RFC3542).
 		 */
 		if (opt->dst0opt)
@@ -1044,7 +1044,7 @@ static void ipv6_renew_option(int renewtype,
  * containing just @newopt.
  *
  * @newopt may be NULL, in which case the specified option type is
- * not copied into the new set of options.
+ * yest copied into the new set of options.
  *
  * The new set of options is allocated from the socket option memory
  * buffer of @sk.
@@ -1110,7 +1110,7 @@ struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 					  struct ipv6_txoptions *opt)
 {
 	/*
-	 * ignore the dest before srcrt unless srcrt is being included.
+	 * igyesre the dest before srcrt unless srcrt is being included.
 	 * --yoshfuji
 	 */
 	if (opt && opt->dst0opt && !opt->srcrt) {
@@ -1134,7 +1134,7 @@ EXPORT_SYMBOL_GPL(ipv6_fixup_options);
  * @opt: struct ipv6_txoptions in which to look for srcrt opt
  * @orig: copy of original daddr address if modified
  *
- * Returns NULL if no txoptions or no srcrt, otherwise returns orig
+ * Returns NULL if yes txoptions or yes srcrt, otherwise returns orig
  * and initial value of fl6->daddr set in orig
  */
 struct in6_addr *fl6_update_dst(struct flowi6 *fl6,

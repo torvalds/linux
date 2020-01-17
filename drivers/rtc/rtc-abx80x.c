@@ -557,7 +557,7 @@ static const struct rtc_class_ops abx80x_rtc_ops = {
 	.ioctl		= abx80x_ioctl,
 };
 
-static int abx80x_dt_trickle_cfg(struct device_node *np)
+static int abx80x_dt_trickle_cfg(struct device_yesde *np)
 {
 	const char *diode;
 	int trickle_cfg = 0;
@@ -675,7 +675,7 @@ static int abx80x_setup_watchdog(struct abx80x_priv *priv)
 static int abx80x_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	struct abx80x_priv *priv;
 	int i, data, err, trickle_cfg = -EINVAL;
 	char buf[7];
@@ -745,7 +745,7 @@ static int abx80x_probe(struct i2c_client *client,
 
 		/*
 		 * Avoid extra power leakage. The RV1805 uses smaller
-		 * 10pin package and the EXTI input is not present.
+		 * 10pin package and the EXTI input is yest present.
 		 * Disable it to avoid leakage.
 		 */
 		data = i2c_smbus_read_byte_data(client, ABX8XX_REG_OUT_CTRL);
@@ -782,7 +782,7 @@ static int abx80x_probe(struct i2c_client *client,
 			if (partnumber == abx80x_caps[i].pn)
 				break;
 		if (abx80x_caps[i].pn == 0) {
-			dev_err(&client->dev, "Unknown part: %04x\n",
+			dev_err(&client->dev, "Unkyeswn part: %04x\n",
 				partnumber);
 			return -EINVAL;
 		}

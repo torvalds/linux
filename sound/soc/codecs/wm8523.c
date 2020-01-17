@@ -385,7 +385,7 @@ static struct snd_soc_dai_driver wm8523_dai = {
 	.name = "wm8523-hifi",
 	.playback = {
 		.stream_name = "Playback",
-		.channels_min = 2,  /* Mono modes not yet supported */
+		.channels_min = 2,  /* Moyes modes yest yet supported */
 		.channels_max = 2,
 		.rates = WM8523_RATES,
 		.formats = WM8523_FORMATS,
@@ -422,7 +422,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8523 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8523_of_match[] = {
@@ -485,7 +485,7 @@ static int wm8523_i2c_probe(struct i2c_client *i2c,
 		goto err_enable;
 	}
 	if (val != 0x8523) {
-		dev_err(&i2c->dev, "Device is not a WM8523, ID is %x\n", ret);
+		dev_err(&i2c->dev, "Device is yest a WM8523, ID is %x\n", ret);
 		ret = -EINVAL;
 		goto err_enable;
 	}

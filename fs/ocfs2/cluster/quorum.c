@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
  *
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * Copyright (C) 2005 Oracle.  All rights reserved.
  */
@@ -9,23 +9,23 @@
 /* This quorum hack is only here until we transition to some more rational
  * approach that is driven from userspace.  Honest.  No foolin'.
  *
- * Imagine two nodes lose network connectivity to each other but they're still
+ * Imagine two yesdes lose network connectivity to each other but they're still
  * up and operating in every other way.  Presumably a network timeout indicates
- * that a node is broken and should be recovered.  They can't both recover each
+ * that a yesde is broken and should be recovered.  They can't both recover each
  * other and both carry on without serialising their access to the file system.
  * They need to decide who is authoritative.  Now extend that problem to
- * arbitrary groups of nodes losing connectivity between each other.
+ * arbitrary groups of yesdes losing connectivity between each other.
  *
- * So we declare that a node which has given up on connecting to a majority
- * of nodes who are still heartbeating will fence itself.
+ * So we declare that a yesde which has given up on connecting to a majority
+ * of yesdes who are still heartbeating will fence itself.
  *
- * There are huge opportunities for races here.  After we give up on a node's
- * connection we need to wait long enough to give heartbeat an opportunity
- * to declare the node as truly dead.  We also need to be careful with the
- * race between when we see a node start heartbeating and when we connect
+ * There are huge opportunities for races here.  After we give up on a yesde's
+ * connection we need to wait long eyesugh to give heartbeat an opportunity
+ * to declare the yesde as truly dead.  We also need to be careful with the
+ * race between when we see a yesde start heartbeating and when we connect
  * to it.
  *
- * So nodes that are in this transtion put a hold on the quorum decision
+ * So yesdes that are in this transtion put a hold on the quorum decision
  * with a counter.  As they fall out of this transition they drop the count
  * and if they're the last, they fire off the decision.
  */
@@ -34,7 +34,7 @@
 #include <linux/reboot.h>
 
 #include "heartbeat.h"
-#include "nodemanager.h"
+#include "yesdemanager.h"
 #define MLOG_MASK_PREFIX ML_QUORUM
 #include "masklog.h"
 #include "quorum.h"
@@ -77,12 +77,12 @@ static void o2quo_fence_self(void)
 }
 
 /* Indicate that a timeout occurred on a heartbeat region write. The
- * other nodes in the cluster may consider us dead at that time so we
+ * other yesdes in the cluster may consider us dead at that time so we
  * want to "fence" ourselves so that we don't scribble on the disk
  * after they think they've recovered us. This can't solve all
  * problems related to writeout after recovery but this hack can at
  * least close some of those gaps. When we have real fencing, this can
- * go away as our node would be fenced externally before other nodes
+ * go away as our yesde would be fenced externally before other yesdes
  * begin recovery. */
 void o2quo_disk_timeout(void)
 {
@@ -105,7 +105,7 @@ static void o2quo_make_decision(struct work_struct *work)
 	     "lowest: %d (%sreachable)\n", qs->qs_heartbeating,
 	     qs->qs_connected, lowest_hb, lowest_reachable ? "" : "un");
 
-	if (!test_bit(o2nm_this_node(), qs->qs_hb_bm) ||
+	if (!test_bit(o2nm_this_yesde(), qs->qs_hb_bm) ||
 	    qs->qs_heartbeating == 1)
 		goto out;
 
@@ -114,9 +114,9 @@ static void o2quo_make_decision(struct work_struct *work)
 		 * if we can't talk to the majority we're hosed */
 		quorum = (qs->qs_heartbeating + 1)/2;
 		if (qs->qs_connected < quorum) {
-			mlog(ML_ERROR, "fencing this node because it is "
-			     "only connected to %u nodes and %u is needed "
-			     "to make a quorum out of %u heartbeating nodes\n",
+			mlog(ML_ERROR, "fencing this yesde because it is "
+			     "only connected to %u yesdes and %u is needed "
+			     "to make a quorum out of %u heartbeating yesdes\n",
 			     qs->qs_connected, quorum,
 			     qs->qs_heartbeating);
 			fence = 1;
@@ -125,22 +125,22 @@ static void o2quo_make_decision(struct work_struct *work)
 		/* the even numbered cluster adds the possibility of each half
 		 * of the cluster being able to talk amongst themselves.. in
 		 * that case we're hosed if we can't talk to the group that has
-		 * the lowest numbered node */
+		 * the lowest numbered yesde */
 		quorum = qs->qs_heartbeating / 2;
 		if (qs->qs_connected < quorum) {
-			mlog(ML_ERROR, "fencing this node because it is "
-			     "only connected to %u nodes and %u is needed "
-			     "to make a quorum out of %u heartbeating nodes\n",
+			mlog(ML_ERROR, "fencing this yesde because it is "
+			     "only connected to %u yesdes and %u is needed "
+			     "to make a quorum out of %u heartbeating yesdes\n",
 			     qs->qs_connected, quorum,
 			     qs->qs_heartbeating);
 			fence = 1;
 		}
 		else if ((qs->qs_connected == quorum) &&
 			 !lowest_reachable) {
-			mlog(ML_ERROR, "fencing this node because it is "
+			mlog(ML_ERROR, "fencing this yesde because it is "
 			     "connected to a half-quorum of %u out of %u "
-			     "nodes which doesn't include the lowest active "
-			     "node %u\n", quorum, qs->qs_heartbeating,
+			     "yesdes which doesn't include the lowest active "
+			     "yesde %u\n", quorum, qs->qs_heartbeating,
 			     lowest_hb);
 			fence = 1;
 		}
@@ -151,7 +151,7 @@ out:
 		spin_unlock(&qs->qs_lock);
 		o2quo_fence_self();
 	} else {
-		mlog(ML_NOTICE, "not fencing this node, heartbeating: %d, "
+		mlog(ML_NOTICE, "yest fencing this yesde, heartbeating: %d, "
 			"connected: %d, lowest: %d (%sreachable)\n",
 			qs->qs_heartbeating, qs->qs_connected, lowest_hb,
 			lowest_reachable ? "" : "un");
@@ -161,40 +161,40 @@ out:
 
 }
 
-static void o2quo_set_hold(struct o2quo_state *qs, u8 node)
+static void o2quo_set_hold(struct o2quo_state *qs, u8 yesde)
 {
 	assert_spin_locked(&qs->qs_lock);
 
-	if (!test_and_set_bit(node, qs->qs_hold_bm)) {
+	if (!test_and_set_bit(yesde, qs->qs_hold_bm)) {
 		qs->qs_holds++;
 		mlog_bug_on_msg(qs->qs_holds == O2NM_MAX_NODES,
-			        "node %u\n", node);
-		mlog(0, "node %u, %d total\n", node, qs->qs_holds);
+			        "yesde %u\n", yesde);
+		mlog(0, "yesde %u, %d total\n", yesde, qs->qs_holds);
 	}
 }
 
-static void o2quo_clear_hold(struct o2quo_state *qs, u8 node)
+static void o2quo_clear_hold(struct o2quo_state *qs, u8 yesde)
 {
 	assert_spin_locked(&qs->qs_lock);
 
-	if (test_and_clear_bit(node, qs->qs_hold_bm)) {
-		mlog(0, "node %u, %d total\n", node, qs->qs_holds - 1);
+	if (test_and_clear_bit(yesde, qs->qs_hold_bm)) {
+		mlog(0, "yesde %u, %d total\n", yesde, qs->qs_holds - 1);
 		if (--qs->qs_holds == 0) {
 			if (qs->qs_pending) {
 				qs->qs_pending = 0;
 				schedule_work(&qs->qs_work);
 			}
 		}
-		mlog_bug_on_msg(qs->qs_holds < 0, "node %u, holds %d\n",
-				node, qs->qs_holds);
+		mlog_bug_on_msg(qs->qs_holds < 0, "yesde %u, holds %d\n",
+				yesde, qs->qs_holds);
 	}
 }
 
-/* as a node comes up we delay the quorum decision until we know the fate of
+/* as a yesde comes up we delay the quorum decision until we kyesw the fate of
  * the connection.  the hold will be droped in conn_up or hb_down.  it might be
  * perpetuated by con_err until hb_down.  if we already have a conn, we might
  * be dropping a hold that conn_up got. */
-void o2quo_hb_up(u8 node)
+void o2quo_hb_up(u8 yesde)
 {
 	struct o2quo_state *qs = &o2quo_state;
 
@@ -202,23 +202,23 @@ void o2quo_hb_up(u8 node)
 
 	qs->qs_heartbeating++;
 	mlog_bug_on_msg(qs->qs_heartbeating == O2NM_MAX_NODES,
-		        "node %u\n", node);
-	mlog_bug_on_msg(test_bit(node, qs->qs_hb_bm), "node %u\n", node);
-	set_bit(node, qs->qs_hb_bm);
+		        "yesde %u\n", yesde);
+	mlog_bug_on_msg(test_bit(yesde, qs->qs_hb_bm), "yesde %u\n", yesde);
+	set_bit(yesde, qs->qs_hb_bm);
 
-	mlog(0, "node %u, %d total\n", node, qs->qs_heartbeating);
+	mlog(0, "yesde %u, %d total\n", yesde, qs->qs_heartbeating);
 
-	if (!test_bit(node, qs->qs_conn_bm))
-		o2quo_set_hold(qs, node);
+	if (!test_bit(yesde, qs->qs_conn_bm))
+		o2quo_set_hold(qs, yesde);
 	else
-		o2quo_clear_hold(qs, node);
+		o2quo_clear_hold(qs, yesde);
 
 	spin_unlock(&qs->qs_lock);
 }
 
-/* hb going down releases any holds we might have had due to this node from
+/* hb going down releases any holds we might have had due to this yesde from
  * conn_up, conn_err, or hb_up */
-void o2quo_hb_down(u8 node)
+void o2quo_hb_down(u8 yesde)
 {
 	struct o2quo_state *qs = &o2quo_state;
 
@@ -226,43 +226,43 @@ void o2quo_hb_down(u8 node)
 
 	qs->qs_heartbeating--;
 	mlog_bug_on_msg(qs->qs_heartbeating < 0,
-			"node %u, %d heartbeating\n",
-			node, qs->qs_heartbeating);
-	mlog_bug_on_msg(!test_bit(node, qs->qs_hb_bm), "node %u\n", node);
-	clear_bit(node, qs->qs_hb_bm);
+			"yesde %u, %d heartbeating\n",
+			yesde, qs->qs_heartbeating);
+	mlog_bug_on_msg(!test_bit(yesde, qs->qs_hb_bm), "yesde %u\n", yesde);
+	clear_bit(yesde, qs->qs_hb_bm);
 
-	mlog(0, "node %u, %d total\n", node, qs->qs_heartbeating);
+	mlog(0, "yesde %u, %d total\n", yesde, qs->qs_heartbeating);
 
-	o2quo_clear_hold(qs, node);
+	o2quo_clear_hold(qs, yesde);
 
 	spin_unlock(&qs->qs_lock);
 }
 
-/* this tells us that we've decided that the node is still heartbeating
+/* this tells us that we've decided that the yesde is still heartbeating
  * even though we've lost it's conn.  it must only be called after conn_err
- * and indicates that we must now make a quorum decision in the future,
+ * and indicates that we must yesw make a quorum decision in the future,
  * though we might be doing so after waiting for holds to drain.  Here
  * we'll be dropping the hold from conn_err. */
-void o2quo_hb_still_up(u8 node)
+void o2quo_hb_still_up(u8 yesde)
 {
 	struct o2quo_state *qs = &o2quo_state;
 
 	spin_lock(&qs->qs_lock);
 
-	mlog(0, "node %u\n", node);
+	mlog(0, "yesde %u\n", yesde);
 
 	qs->qs_pending = 1;
-	o2quo_clear_hold(qs, node);
+	o2quo_clear_hold(qs, yesde);
 
 	spin_unlock(&qs->qs_lock);
 }
 
-/* This is analogous to hb_up.  as a node's connection comes up we delay the
+/* This is analogous to hb_up.  as a yesde's connection comes up we delay the
  * quorum decision until we see it heartbeating.  the hold will be droped in
  * hb_up or hb_down.  it might be perpetuated by con_err until hb_down.  if
  * it's already heartbeating we might be dropping a hold that conn_up got.
  * */
-void o2quo_conn_up(u8 node)
+void o2quo_conn_up(u8 yesde)
 {
 	struct o2quo_state *qs = &o2quo_state;
 
@@ -270,43 +270,43 @@ void o2quo_conn_up(u8 node)
 
 	qs->qs_connected++;
 	mlog_bug_on_msg(qs->qs_connected == O2NM_MAX_NODES,
-		        "node %u\n", node);
-	mlog_bug_on_msg(test_bit(node, qs->qs_conn_bm), "node %u\n", node);
-	set_bit(node, qs->qs_conn_bm);
+		        "yesde %u\n", yesde);
+	mlog_bug_on_msg(test_bit(yesde, qs->qs_conn_bm), "yesde %u\n", yesde);
+	set_bit(yesde, qs->qs_conn_bm);
 
-	mlog(0, "node %u, %d total\n", node, qs->qs_connected);
+	mlog(0, "yesde %u, %d total\n", yesde, qs->qs_connected);
 
-	if (!test_bit(node, qs->qs_hb_bm))
-		o2quo_set_hold(qs, node);
+	if (!test_bit(yesde, qs->qs_hb_bm))
+		o2quo_set_hold(qs, yesde);
 	else
-		o2quo_clear_hold(qs, node);
+		o2quo_clear_hold(qs, yesde);
 
 	spin_unlock(&qs->qs_lock);
 }
 
-/* we've decided that we won't ever be connecting to the node again.  if it's
+/* we've decided that we won't ever be connecting to the yesde again.  if it's
  * still heartbeating we grab a hold that will delay decisions until either the
- * node stops heartbeating from hb_down or the caller decides that the node is
+ * yesde stops heartbeating from hb_down or the caller decides that the yesde is
  * still up and calls still_up */
-void o2quo_conn_err(u8 node)
+void o2quo_conn_err(u8 yesde)
 {
 	struct o2quo_state *qs = &o2quo_state;
 
 	spin_lock(&qs->qs_lock);
 
-	if (test_bit(node, qs->qs_conn_bm)) {
+	if (test_bit(yesde, qs->qs_conn_bm)) {
 		qs->qs_connected--;
 		mlog_bug_on_msg(qs->qs_connected < 0,
-				"node %u, connected %d\n",
-				node, qs->qs_connected);
+				"yesde %u, connected %d\n",
+				yesde, qs->qs_connected);
 
-		clear_bit(node, qs->qs_conn_bm);
+		clear_bit(yesde, qs->qs_conn_bm);
 
-		if (test_bit(node, qs->qs_hb_bm))
-			o2quo_set_hold(qs, node);
+		if (test_bit(yesde, qs->qs_hb_bm))
+			o2quo_set_hold(qs, yesde);
 	}
 
-	mlog(0, "node %u, %d total\n", node, qs->qs_connected);
+	mlog(0, "yesde %u, %d total\n", yesde, qs->qs_connected);
 
 
 	spin_unlock(&qs->qs_lock);

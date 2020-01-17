@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __LINUX_NEIGHBOUR_H
 #define __LINUX_NEIGHBOUR_H
 
@@ -64,8 +64,8 @@ enum {
 #define NUD_NONE	0x00
 
 /* NUD_NOARP & NUD_PERMANENT are pseudostates, they never change
-   and make no address resolution or NUD.
-   NUD_PERMANENT also cannot be deleted by garbage collectors.
+   and make yes address resolution or NUD.
+   NUD_PERMANENT also canyest be deleted by garbage collectors.
  */
 
 struct nda_cacheinfo {
@@ -82,14 +82,14 @@ struct nda_cacheinfo {
  * NLM_F_DUMP flag set. Every neighbour table configuration is
  * spread over multiple messages to avoid running into message
  * size limits on systems with many interfaces. The first message
- * in the sequence transports all not device specific data such as
+ * in the sequence transports all yest device specific data such as
  * statistics, configuration, and the default parameter set.
  * This message is followed by 0..n messages carrying device
  * specific parameter sets.
  * Although the ordering should be sufficient, NDTA_NAME can be
  * used to identify sequences. The initial message can be identified
  * by checking for NDTA_CONFIG. The device specific messages do
- * not contain this TLV but have NDTPA_IFINDEX set to the
+ * yest contain this TLV but have NDTPA_IFINDEX set to the
  * corresponding interface index.
  *
  * To change neighbour table attributes, send RTM_SETNEIGHTBL
@@ -148,8 +148,8 @@ struct ndt_config {
 	__u16		ndtc_key_len;
 	__u16		ndtc_entry_size;
 	__u32		ndtc_entries;
-	__u32		ndtc_last_flush;	/* delta to now in msecs */
-	__u32		ndtc_last_rand;		/* delta to now in msecs */
+	__u32		ndtc_last_flush;	/* delta to yesw in msecs */
+	__u32		ndtc_last_rand;		/* delta to yesw in msecs */
 	__u32		ndtc_hash_rnd;
 	__u32		ndtc_hash_mask;
 	__u32		ndtc_hash_chain_gc;

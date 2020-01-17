@@ -37,11 +37,11 @@ static ssize_t default_write_file(struct file *file, const char __user *buf,
 	return count;
 }
 
-const struct file_operations debugfs_noop_file_operations = {
+const struct file_operations debugfs_yesop_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		simple_open,
-	.llseek =	noop_llseek,
+	.llseek =	yesop_llseek,
 };
 
 #define F_DENTRY(filp) ((filp)->f_path.dentry)
@@ -75,7 +75,7 @@ EXPORT_SYMBOL_GPL(debugfs_real_fops);
  * call to debugfs_file_get() without worrying about lifetime issues.
  *
  * If -%EIO is returned, the file has already been removed and thus,
- * it is not safe to access any of its data. If, on the other hand,
+ * it is yest safe to access any of its data. If, on the other hand,
  * it is allowed to access the file data, zero is returned.
  */
 int debugfs_file_get(struct dentry *dentry)
@@ -106,13 +106,13 @@ int debugfs_file_get(struct dentry *dentry)
 	 * strictly necessary and must follow it, see the comment in
 	 * __debugfs_remove_file().
 	 * OTOH, if the cmpxchg() hasn't been executed or wasn't
-	 * successful, this serves the purpose of not starving
+	 * successful, this serves the purpose of yest starving
 	 * removers.
 	 */
 	if (d_unlinked(dentry))
 		return -EIO;
 
-	if (!refcount_inc_not_zero(&fsd->active_users))
+	if (!refcount_inc_yest_zero(&fsd->active_users))
 		return -EIO;
 
 	return 0;
@@ -142,11 +142,11 @@ EXPORT_SYMBOL_GPL(debugfs_file_put);
  * We also need to exclude any file that has ways to write or alter it as root
  * can bypass the permissions check.
  */
-static bool debugfs_is_locked_down(struct inode *inode,
+static bool debugfs_is_locked_down(struct iyesde *iyesde,
 				   struct file *filp,
 				   const struct file_operations *real_fops)
 {
-	if ((inode->i_mode & 07777) == 0444 &&
+	if ((iyesde->i_mode & 07777) == 0444 &&
 	    !(filp->f_mode & FMODE_WRITE) &&
 	    !real_fops->unlocked_ioctl &&
 	    !real_fops->compat_ioctl &&
@@ -156,7 +156,7 @@ static bool debugfs_is_locked_down(struct inode *inode,
 	return security_locked_down(LOCKDOWN_DEBUGFS);
 }
 
-static int open_proxy_open(struct inode *inode, struct file *filp)
+static int open_proxy_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct dentry *dentry = F_DENTRY(filp);
 	const struct file_operations *real_fops = NULL;
@@ -168,14 +168,14 @@ static int open_proxy_open(struct inode *inode, struct file *filp)
 
 	real_fops = debugfs_real_fops(filp);
 
-	r = debugfs_is_locked_down(inode, filp, real_fops);
+	r = debugfs_is_locked_down(iyesde, filp, real_fops);
 	if (r)
 		goto out;
 
 	real_fops = fops_get(real_fops);
 	if (!real_fops) {
-		/* Huh? Module did not clean up after itself at exit? */
-		WARN(1, "debugfs file owner did not clean up at exit: %pd",
+		/* Huh? Module did yest clean up after itself at exit? */
+		WARN(1, "debugfs file owner did yest clean up at exit: %pd",
 			dentry);
 		r = -ENXIO;
 		goto out;
@@ -183,7 +183,7 @@ static int open_proxy_open(struct inode *inode, struct file *filp)
 	replace_fops(filp, real_fops);
 
 	if (real_fops->open)
-		r = real_fops->open(inode, filp);
+		r = real_fops->open(iyesde, filp);
 
 out:
 	debugfs_file_put(dentry);
@@ -247,7 +247,7 @@ static __poll_t full_proxy_poll(struct file *filp,
 	return r;
 }
 
-static int full_proxy_release(struct inode *inode, struct file *filp)
+static int full_proxy_release(struct iyesde *iyesde, struct file *filp)
 {
 	const struct dentry *dentry = F_DENTRY(filp);
 	const struct file_operations *real_fops = debugfs_real_fops(filp);
@@ -255,15 +255,15 @@ static int full_proxy_release(struct inode *inode, struct file *filp)
 	int r = 0;
 
 	/*
-	 * We must not protect this against removal races here: the
+	 * We must yest protect this against removal races here: the
 	 * original releaser should be called unconditionally in order
-	 * not to leak any resources. Releasers must not assume that
+	 * yest to leak any resources. Releasers must yest assume that
 	 * ->i_private is still being meaningful here.
 	 */
 	if (real_fops->release)
-		r = real_fops->release(inode, filp);
+		r = real_fops->release(iyesde, filp);
 
-	replace_fops(filp, d_inode(dentry)->i_fop);
+	replace_fops(filp, d_iyesde(dentry)->i_fop);
 	kfree((void *)proxy_fops);
 	fops_put(real_fops);
 	return r;
@@ -285,7 +285,7 @@ static void __full_proxy_fops_init(struct file_operations *proxy_fops,
 		proxy_fops->unlocked_ioctl = full_proxy_unlocked_ioctl;
 }
 
-static int full_proxy_open(struct inode *inode, struct file *filp)
+static int full_proxy_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct dentry *dentry = F_DENTRY(filp);
 	const struct file_operations *real_fops = NULL;
@@ -298,14 +298,14 @@ static int full_proxy_open(struct inode *inode, struct file *filp)
 
 	real_fops = debugfs_real_fops(filp);
 
-	r = debugfs_is_locked_down(inode, filp, real_fops);
+	r = debugfs_is_locked_down(iyesde, filp, real_fops);
 	if (r)
 		goto out;
 
 	real_fops = fops_get(real_fops);
 	if (!real_fops) {
-		/* Huh? Module did not cleanup after itself at exit? */
-		WARN(1, "debugfs file owner did not clean up at exit: %pd",
+		/* Huh? Module did yest cleanup after itself at exit? */
+		WARN(1, "debugfs file owner did yest clean up at exit: %pd",
 			dentry);
 		r = -ENXIO;
 		goto out;
@@ -320,9 +320,9 @@ static int full_proxy_open(struct inode *inode, struct file *filp)
 	replace_fops(filp, proxy_fops);
 
 	if (real_fops->open) {
-		r = real_fops->open(inode, filp);
+		r = real_fops->open(iyesde, filp);
 		if (r) {
-			replace_fops(filp, d_inode(dentry)->i_fop);
+			replace_fops(filp, d_iyesde(dentry)->i_fop);
 			goto free_proxy;
 		} else if (filp->f_op != proxy_fops) {
 			/* No protection against file removal anymore. */
@@ -381,11 +381,11 @@ static struct dentry *debugfs_create_mode_unsafe(const char *name, umode_t mode,
 					const struct file_operations *fops_ro,
 					const struct file_operations *fops_wo)
 {
-	/* if there are no write bits set, make read only */
+	/* if there are yes write bits set, make read only */
 	if (!(mode & S_IWUGO))
 		return debugfs_create_file_unsafe(name, mode, parent, value,
 						fops_ro);
-	/* if there are no read bits set, make write only */
+	/* if there are yes read bits set, make write only */
 	if (!(mode & S_IRUGO))
 		return debugfs_create_file_unsafe(name, mode, parent, value,
 						fops_wo);
@@ -495,11 +495,11 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_u32_wo, NULL, debugfs_u32_set, "%llu\n");
  *
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
+ * to be removed (yes automatic cleanup happens if your module is unloaded,
  * you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR) will be
  * returned.
  *
- * If debugfs is not enabled in the kernel, the value %ERR_PTR(-ENODEV) will
+ * If debugfs is yest enabled in the kernel, the value %ERR_PTR(-ENODEV) will
  * be returned.
  */
 struct dentry *debugfs_create_u32(const char *name, umode_t mode,
@@ -580,11 +580,11 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_ulong_wo, NULL, debugfs_ulong_set, "%llu\n");
  *
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
+ * to be removed (yes automatic cleanup happens if your module is unloaded,
  * you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR) will be
  * returned.
  *
- * If debugfs is not enabled in the kernel, the value %ERR_PTR(-ENODEV) will
+ * If debugfs is yest enabled in the kernel, the value %ERR_PTR(-ENODEV) will
  * be returned.
  */
 struct dentry *debugfs_create_ulong(const char *name, umode_t mode,
@@ -845,11 +845,11 @@ static const struct file_operations fops_bool_wo = {
  *
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
+ * to be removed (yes automatic cleanup happens if your module is unloaded,
  * you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR) will be
  * returned.
  *
- * If debugfs is not enabled in the kernel, the value %ERR_PTR(-ENODEV) will
+ * If debugfs is yest enabled in the kernel, the value %ERR_PTR(-ENODEV) will
  * be returned.
  */
 struct dentry *debugfs_create_bool(const char *name, umode_t mode,
@@ -894,15 +894,15 @@ static const struct file_operations fops_blob = {
  *
  * This function creates a file in debugfs with the given name that exports
  * @blob->data as a binary blob. If the @mode variable is so set it can be
- * read from. Writing is not supported.
+ * read from. Writing is yest supported.
  *
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
+ * to be removed (yes automatic cleanup happens if your module is unloaded,
  * you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR) will be
  * returned.
  *
- * If debugfs is not enabled in the kernel, the value %ERR_PTR(-ENODEV) will
+ * If debugfs is yest enabled in the kernel, the value %ERR_PTR(-ENODEV) will
  * be returned.
  */
 struct dentry *debugfs_create_blob(const char *name, umode_t mode,
@@ -936,9 +936,9 @@ static size_t u32_format_array(char *buf, size_t bufsize,
 	return ret;
 }
 
-static int u32_array_open(struct inode *inode, struct file *file)
+static int u32_array_open(struct iyesde *iyesde, struct file *file)
 {
-	struct array_data *data = inode->i_private;
+	struct array_data *data = iyesde->i_private;
 	int size, elements = data->elements;
 	char *buf;
 
@@ -956,7 +956,7 @@ static int u32_array_open(struct inode *inode, struct file *file)
 	file->private_data = buf;
 	u32_format_array(buf, size, data->array, data->elements);
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
 static ssize_t u32_array_read(struct file *file, char __user *buf, size_t len,
@@ -968,7 +968,7 @@ static ssize_t u32_array_read(struct file *file, char __user *buf, size_t len,
 					file->private_data, size);
 }
 
-static int u32_array_release(struct inode *inode, struct file *file)
+static int u32_array_release(struct iyesde *iyesde, struct file *file)
 {
 	kfree(file->private_data);
 
@@ -980,7 +980,7 @@ static const struct file_operations u32_array_fops = {
 	.open	 = u32_array_open,
 	.release = u32_array_release,
 	.read	 = u32_array_read,
-	.llseek  = no_llseek,
+	.llseek  = yes_llseek,
 };
 
 /**
@@ -996,8 +996,8 @@ static const struct file_operations u32_array_fops = {
  *
  * This function creates a file in debugfs with the given name that exports
  * @array as data. If the @mode variable is so set it can be read from.
- * Writing is not supported. Seek within the file is also not supported.
- * Once array is created its size can not be changed.
+ * Writing is yest supported. Seek within the file is also yest supported.
+ * Once array is created its size can yest be changed.
  */
 void debugfs_create_u32_array(const char *name, umode_t mode,
 			      struct dentry *parent, u32 *array, u32 elements)
@@ -1061,9 +1061,9 @@ static int debugfs_show_regset32(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int debugfs_open_regset32(struct inode *inode, struct file *file)
+static int debugfs_open_regset32(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, debugfs_show_regset32, inode->i_private);
+	return single_open(file, debugfs_show_regset32, iyesde->i_private);
 }
 
 static const struct file_operations fops_regset32 = {
@@ -1086,15 +1086,15 @@ static const struct file_operations fops_regset32 = {
  *
  * This function creates a file in debugfs with the given name that reports
  * the names and values of a set of 32-bit registers. If the @mode variable
- * is so set it can be read from. Writing is not supported.
+ * is so set it can be read from. Writing is yest supported.
  *
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
+ * to be removed (yes automatic cleanup happens if your module is unloaded,
  * you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR) will be
  * returned.
  *
- * If debugfs is not enabled in the kernel, the value %ERR_PTR(-ENODEV) will
+ * If debugfs is yest enabled in the kernel, the value %ERR_PTR(-ENODEV) will
  * be returned.
  */
 struct dentry *debugfs_create_regset32(const char *name, umode_t mode,
@@ -1112,9 +1112,9 @@ struct debugfs_devm_entry {
 	struct device *dev;
 };
 
-static int debugfs_devm_entry_open(struct inode *inode, struct file *f)
+static int debugfs_devm_entry_open(struct iyesde *iyesde, struct file *f)
 {
-	struct debugfs_devm_entry *entry = inode->i_private;
+	struct debugfs_devm_entry *entry = iyesde->i_private;
 
 	return single_open(f, entry->read, entry->dev);
 }

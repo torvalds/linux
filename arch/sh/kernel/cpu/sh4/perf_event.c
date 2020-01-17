@@ -256,7 +256,7 @@ static int __init sh7750_pmu_init(void)
 	 * Make sure this CPU actually has perf counters.
 	 */
 	if (!(boot_cpu_data.flags & CPU_HAS_PERF_COUNTER)) {
-		pr_notice("HW perf events unsupported, software events only.\n");
+		pr_yestice("HW perf events unsupported, software events only.\n");
 		return -ENODEV;
 	}
 

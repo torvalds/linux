@@ -24,7 +24,7 @@ struct dentry;
 enum wb_state {
 	WB_registered,		/* bdi_register() was done */
 	WB_writeback_running,	/* Writeback is in progress */
-	WB_has_dirty_io,	/* Dirty inodes on ->b_{dirty|io|more_io} */
+	WB_has_dirty_io,	/* Dirty iyesdes on ->b_{dirty|io|more_io} */
 	WB_start_all,		/* nr_pages == 0 (all) work pending */
 };
 
@@ -57,7 +57,7 @@ enum wb_reason {
 	WB_REASON_FREE_MORE_MEM,
 	WB_REASON_FS_FREE_SPACE,
 	/*
-	 * There is no bdi forker thread any more and works are done
+	 * There is yes bdi forker thread any more and works are done
 	 * by emergency worker, however, this is TPs userland visible
 	 * and we'll be exposing exactly the same information,
 	 * so it has a mismatch name.
@@ -104,7 +104,7 @@ struct bdi_writeback_congested {
 					 * on bdi unregistration. For memcg-wb
 					 * internal use only! */
 	int blkcg_id;			/* ID of the associated blkcg */
-	struct rb_node rb_node;		/* on bdi->cgwb_congestion_tree */
+	struct rb_yesde rb_yesde;		/* on bdi->cgwb_congestion_tree */
 #endif
 };
 
@@ -121,7 +121,7 @@ struct bdi_writeback_congested {
  * the tasks which are generating the dirty pages to be written back.
  *
  * A cgroup wb is indexed on its bdi by the ID of the associated memcg,
- * refcounted with the number of inodes attached to it, and pins the memcg
+ * refcounted with the number of iyesdes attached to it, and pins the memcg
  * and the corresponding blkcg.  As the corresponding blkcg for a memcg may
  * change as blkcg is disabled and enabled higher up in the hierarchy, a wb
  * is tested for blkcg after lookup and removed from index on mismatch so
@@ -133,7 +133,7 @@ struct bdi_writeback {
 	unsigned long state;		/* Always use atomic bitops on this */
 	unsigned long last_old_flush;	/* last old data flush */
 
-	struct list_head b_dirty;	/* dirty inodes */
+	struct list_head b_dirty;	/* dirty iyesdes */
 	struct list_head b_io;		/* parked for writeback */
 	struct list_head b_more_io;	/* parked for more writeback */
 	struct list_head b_dirty_time;	/* time stamps are dirty */
@@ -168,15 +168,15 @@ struct bdi_writeback {
 
 	unsigned long dirty_sleep;	/* last wait */
 
-	struct list_head bdi_node;	/* anchored at bdi->wb_list */
+	struct list_head bdi_yesde;	/* anchored at bdi->wb_list */
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct percpu_ref refcnt;	/* used only for !root wb's */
 	struct fprop_local_percpu memcg_completions;
 	struct cgroup_subsys_state *memcg_css; /* the associated memcg */
 	struct cgroup_subsys_state *blkcg_css; /* and blkcg */
-	struct list_head memcg_node;	/* anchored at memcg->cgwb_list */
-	struct list_head blkcg_node;	/* anchored at blkcg->cgwb_list */
+	struct list_head memcg_yesde;	/* anchored at memcg->cgwb_list */
+	struct list_head blkcg_yesde;	/* anchored at blkcg->cgwb_list */
 
 	union {
 		struct work_struct release_work;
@@ -187,7 +187,7 @@ struct bdi_writeback {
 
 struct backing_dev_info {
 	u64 id;
-	struct rb_node rb_node; /* keyed by ->id */
+	struct rb_yesde rb_yesde; /* keyed by ->id */
 	struct list_head bdi_list;
 	unsigned long ra_pages;	/* max readahead in PAGE_SIZE units */
 	unsigned long io_pages;	/* max allowed IO size */
@@ -202,7 +202,7 @@ struct backing_dev_info {
 	unsigned int max_ratio, max_prop_frac;
 
 	/*
-	 * Sum of avg_write_bw of wbs with dirty inodes.  > 0 if there are
+	 * Sum of avg_write_bw of wbs with dirty iyesdes.  > 0 if there are
 	 * any dirty wbs, which is depended upon by bdi_has_dirty().
 	 */
 	atomic_long_t tot_write_bandwidth;
@@ -213,7 +213,7 @@ struct backing_dev_info {
 	struct radix_tree_root cgwb_tree; /* radix tree of active cgroup wbs */
 	struct rb_root cgwb_congested_tree; /* their congested states */
 	struct mutex cgwb_release_mutex;  /* protect shutdown of wb structs */
-	struct rw_semaphore wb_switch_rwsem; /* no cgwb switch while syncing */
+	struct rw_semaphore wb_switch_rwsem; /* yes cgwb switch while syncing */
 #else
 	struct bdi_writeback_congested *wb_congested;
 #endif

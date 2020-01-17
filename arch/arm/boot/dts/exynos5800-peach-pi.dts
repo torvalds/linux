@@ -12,8 +12,8 @@
 #include <dt-bindings/clock/maxim,max77802.h>
 #include <dt-bindings/regulator/maxim,max77802.h>
 #include <dt-bindings/sound/samsung-i2s.h>
-#include "exynos5800.dtsi"
-#include "exynos5420-cpus.dtsi"
+#include "exyyess5800.dtsi"
+#include "exyyess5420-cpus.dtsi"
 
 / {
 	model = "Google Peach Pi Rev 10+";
@@ -22,8 +22,8 @@
 		"google,pi-rev15", "google,pi-rev14",
 		"google,pi-rev13", "google,pi-rev12",
 		"google,pi-rev11", "google,pi-rev10",
-		"google,pi", "google,peach", "samsung,exynos5800",
-		"samsung,exynos5";
+		"google,pi", "google,peach", "samsung,exyyess5800",
+		"samsung,exyyess5";
 
 	aliases {
 		/* Assign 20 so we don't get confused w/ builtin ones */
@@ -47,7 +47,7 @@
 
 	fixed-rate-clocks {
 		oscclk {
-			compatible = "samsung,exynos5420-oscclk";
+			compatible = "samsung,exyyess5420-oscclk";
 			clock-frequency = <24000000>;
 		};
 	};
@@ -82,7 +82,7 @@
 	};
 
 	sound {
-		compatible = "google,snow-audio-max98091";
+		compatible = "google,syesw-audio-max98091";
 
 		samsung,model = "Peach-Pi-I2S-MAX98091";
 		samsung,i2s-controller = <&i2s0>;
@@ -692,7 +692,7 @@
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
 	cap-mmc-highspeed;
-	non-removable;
+	yesn-removable;
 	clock-frequency = <800000000>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <0 4>;
@@ -707,7 +707,7 @@
 /* WiFi SDIO module */
 &mmc_1 {
 	status = "okay";
-	non-removable;
+	yesn-removable;
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	clock-frequency = <400000000>;
@@ -1035,7 +1035,7 @@
 };
 
 &timer {
-	arm,cpu-registers-not-fw-configured;
+	arm,cpu-registers-yest-fw-configured;
 };
 
 &tmu_cpu0 {
@@ -1076,7 +1076,7 @@
 
 /*
  * Use longest HW watchdog in SoC (32 seconds) since the hardware
- * watchdog provides no debugging information (compared to soft/hard
+ * watchdog provides yes debugging information (compared to soft/hard
  * lockup detectors) and so should be last resort.
  */
 &watchdog {

@@ -141,8 +141,8 @@ static ssize_t module_read(struct file *file, char __user *user_buf,
 			"Out Queue Mask %d\n\tDMA ID %d\n\tMem Pages %d\n\t"
 			"Module Type %d\n\tModule State %d\n",
 			mconfig->domain,
-			mconfig->homogenous_inputs ? "true" : "false",
-			mconfig->homogenous_outputs ? "true" : "false",
+			mconfig->homogeyesus_inputs ? "true" : "false",
+			mconfig->homogeyesus_outputs ? "true" : "false",
 			mconfig->in_queue_mask, mconfig->out_queue_mask,
 			mconfig->dma_id, mconfig->mem_pages, mconfig->m_state,
 			mconfig->m_type);
@@ -227,7 +227,7 @@ struct skl_debug *skl_debugfs_init(struct skl_dev *skl)
 	d->skl = skl;
 	d->dev = &skl->pci->dev;
 
-	/* now create the module dir */
+	/* yesw create the module dir */
 	d->modules = debugfs_create_dir("modules", d->fs);
 
 	debugfs_create_file("fw_soft_regs_rd", 0444, d->fs, d,

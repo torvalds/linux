@@ -6,7 +6,7 @@ Required Properties:
 			"x-powers,axp221-battery-power-supply"
 			"x-powers,axp813-battery-power-supply"
 
-This node is a subnode of its respective PMIC DT node.
+This yesde is a subyesde of its respective PMIC DT yesde.
 
 The supported devices can read the battery voltage, charge and discharge
 currents of the battery by reading ADC channels from the ADC.

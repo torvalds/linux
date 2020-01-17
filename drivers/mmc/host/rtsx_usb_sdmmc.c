@@ -326,7 +326,7 @@ static void sd_send_cmd_get_rsp(struct rtsx_usb_sdmmc *host,
 		rsp_type = SD_RSP_TYPE_R3;
 		break;
 	default:
-		dev_dbg(sdmmc_dev(host), "cmd->flag is not valid\n");
+		dev_dbg(sdmmc_dev(host), "cmd->flag is yest valid\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -542,7 +542,7 @@ static inline void sd_disable_initial_mode(struct rtsx_usb_sdmmc *host)
 			SD_CLK_DIVIDE_MASK, SD_CLK_DIVIDE_0);
 }
 
-static void sd_normal_rw(struct rtsx_usb_sdmmc *host,
+static void sd_yesrmal_rw(struct rtsx_usb_sdmmc *host,
 		struct mmc_request *mrq)
 {
 	struct mmc_command *cmd = mrq->cmd;
@@ -767,7 +767,7 @@ static int sdmmc_get_ro(struct mmc_host *mmc)
 	mutex_unlock(&ucr->dev_mutex);
 
 
-	/* Treat failed detection as non-ro */
+	/* Treat failed detection as yesn-ro */
 	if (err)
 		return 0;
 
@@ -794,16 +794,16 @@ static int sdmmc_get_cd(struct mmc_host *mmc)
 
 	mutex_unlock(&ucr->dev_mutex);
 
-	/* Treat failed detection as non-exist */
+	/* Treat failed detection as yesn-exist */
 	if (err)
-		goto no_card;
+		goto yes_card;
 
 	if (val & SD_CD) {
 		host->card_exist = true;
 		return 1;
 	}
 
-no_card:
+yes_card:
 	host->card_exist = false;
 	return 0;
 }
@@ -853,7 +853,7 @@ static void sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			}
 		}
 	} else {
-		sd_normal_rw(host, mrq);
+		sd_yesrmal_rw(host, mrq);
 	}
 
 	if (mrq->data) {
@@ -1032,9 +1032,9 @@ static int sd_set_power_mode(struct rtsx_usb_sdmmc *host,
 
 	if (power_mode == MMC_POWER_OFF) {
 		err = sd_power_off(host);
-		pm_runtime_put_noidle(sdmmc_dev(host));
+		pm_runtime_put_yesidle(sdmmc_dev(host));
 	} else {
-		pm_runtime_get_noresume(sdmmc_dev(host));
+		pm_runtime_get_yesresume(sdmmc_dev(host));
 		err = sd_power_on(host);
 	}
 
@@ -1287,7 +1287,7 @@ static void rtsx_usb_update_led(struct work_struct *work)
 		container_of(work, struct rtsx_usb_sdmmc, led_work);
 	struct rtsx_ucr *ucr = host->ucr;
 
-	pm_runtime_get_noresume(sdmmc_dev(host));
+	pm_runtime_get_yesresume(sdmmc_dev(host));
 	mutex_lock(&ucr->dev_mutex);
 
 	if (host->power_mode == MMC_POWER_OFF)

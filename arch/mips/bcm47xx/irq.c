@@ -18,7 +18,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -69,7 +69,7 @@ void __init arch_init_irq(void)
 {
 	/*
 	 * This is the first arch callback after mm_init (we can use kmalloc),
-	 * so let's finish bus initialization now.
+	 * so let's finish bus initialization yesw.
 	 */
 	bcm47xx_bus_setup();
 

@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/slab.h>
@@ -50,7 +50,7 @@ static DEFINE_PER_CPU(struct cf_diag_csd, cf_diag_csd);
  * The trailer consists of a:
  * - flag field indicating valid fields when corresponding bit set
  * - the counter facility first and second version number
- * - the CPU speed if nonzero
+ * - the CPU speed if yesnzero
  * - the time stamp the counter sets have been collected
  * - the time of day (TOD) base value
  * - the machine type.
@@ -211,7 +211,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	 * the hardware init function is either called per-cpu or just once
 	 * for all CPUS (event->cpu == -1).  This depends on the whether
 	 * counting is started for all CPUs or on a per workload base where
-	 * the perf event moves from one CPU to another CPU.
+	 * the perf event moves from one CPU to ayesther CPU.
 	 * Checking the authorization on any CPU is fine as the hardware
 	 * applies the same authorization settings to all CPUs.
 	 */
@@ -221,7 +221,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 			event->hw.config_base |= cpumf_ctr_ctl[i];
 	put_cpu_var(cpu_cf_events);
 
-	/* No authorized counter sets, nothing to count/sample */
+	/* No authorized counter sets, yesthing to count/sample */
 	if (!event->hw.config_base) {
 		err = -EINVAL;
 		goto out;
@@ -253,7 +253,7 @@ static int cf_diag_event_init(struct perf_event *event)
 		goto out;
 
 	/* Raw events are used to access counters directly,
-	 * hence do not permit excludes.
+	 * hence do yest permit excludes.
 	 * This event is usesless without PERF_SAMPLE_RAW to return counter set
 	 * values as raw data.
 	 */
@@ -362,7 +362,7 @@ static size_t cf_diag_ctrset_maxsize(struct cpumf_ctr_info *info)
  *
  * The functions returns the number of bytes occupied by this counter set
  * including the header.
- * If there is no counter in the counter set, this counter set is useless and
+ * If there is yes counter in the counter set, this counter set is useless and
  * zero is returned on this case.
  */
 static size_t cf_diag_getctrset(struct cf_ctrset_entry *ctrdata, int ctrset,
@@ -411,7 +411,7 @@ static size_t cf_diag_getctr(void *data, size_t sz, unsigned long auth)
 		struct cf_ctrset_entry *ctrdata = data + offset;
 
 		if (!(auth & cpumf_ctr_ctl[i]))
-			continue;	/* Counter set not authorized */
+			continue;	/* Counter set yest authorized */
 
 		done = cf_diag_getctrset(ctrdata, i, sz - offset);
 		offset += done;
@@ -482,7 +482,7 @@ static int cf_diag_diffctr(struct cf_diag_csd *csd, unsigned long auth)
  * possible event overflows. If an event overflow occurs, the PMU is
  * stopped.
  *
- * Return non-zero if an event overflow occurred.
+ * Return yesn-zero if an event overflow occurred.
  */
 static int cf_diag_push_sample(struct perf_event *event,
 			       struct cf_diag_csd *csd)

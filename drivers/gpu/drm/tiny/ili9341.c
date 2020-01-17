@@ -2,7 +2,7 @@
 /*
  * DRM driver for Ilitek ILI9341 panels
  *
- * Copyright 2018 David Lechner <david@lechnology.com>
+ * Copyright 2018 David Lechner <david@lechyeslogy.com>
  *
  * Based on mi0283qt.c:
  * Copyright 2016 Noralf Trønnes
@@ -158,7 +158,7 @@ static struct drm_driver ili9341_driver = {
 	.desc			= "Ilitek ILI9341",
 	.date			= "20180514",
 	.major			= 1,
-	.minor			= 0,
+	.miyesr			= 0,
 };
 
 static const struct of_device_id ili9341_of_match[] = {
@@ -264,5 +264,5 @@ static struct spi_driver ili9341_spi_driver = {
 module_spi_driver(ili9341_spi_driver);
 
 MODULE_DESCRIPTION("Ilitek ILI9341 DRM driver");
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechyeslogy.com>");
 MODULE_LICENSE("GPL");

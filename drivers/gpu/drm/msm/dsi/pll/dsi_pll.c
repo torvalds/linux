@@ -10,7 +10,7 @@ static int dsi_pll_enable(struct msm_dsi_pll *pll)
 	int i, ret = 0;
 
 	/*
-	 * Certain PLLs do not allow VCO rate update when it is on.
+	 * Certain PLLs do yest allow VCO rate update when it is on.
 	 * Keep track of their status to turn on/off after set rate success.
 	 */
 	if (unlikely(pll->pll_on))
@@ -78,7 +78,7 @@ void msm_dsi_pll_helper_clk_unprepare(struct clk_hw *hw)
 void msm_dsi_pll_helper_unregister_clks(struct platform_device *pdev,
 					struct clk **clks, u32 num_clks)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 
 	if (!num_clks || !clks)
 		return;

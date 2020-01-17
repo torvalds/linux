@@ -1,14 +1,14 @@
 ST-Ericsson U300 Device Tree Bindings
 
-For various board the "board" node may contain specific properties
+For various board the "board" yesde may contain specific properties
 that pertain to this particular board, such as board-specific GPIOs
 or board power regulator supplies.
 
-Required root node property:
+Required root yesde property:
 
 compatible="stericsson,u300";
 
-Required node: syscon
+Required yesde: syscon
 This contains the system controller.
 - compatible: must be "stericsson,u300-syscon".
 - reg: the base address and size of the system controller.
@@ -17,12 +17,12 @@ Boards with the U300 SoC include:
 
 S365 "Small Board U365":
 
-Required node: s365
+Required yesde: s365
 This contains the board-specific information.
 - compatible: must be "stericsson,s365".
 - vana15-supply: the regulator supplying the 1.5V to drive the
   board.
-- syscon: a pointer to the syscon node so we can access the
+- syscon: a pointer to the syscon yesde so we can access the
   syscon registers to set the board as self-powered.
 
 Example:

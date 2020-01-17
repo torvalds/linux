@@ -28,7 +28,7 @@
 
 /*
  * This macro converts a instruction virtual address to a physical address
- * Right now for simulation purposes the virtual addresses are
+ * Right yesw for simulation purposes the virtual addresses are
  * direct mapped to physical addresses.
  *	1. Lop off bits 61 thru 63 in the virtual address
  */
@@ -36,7 +36,7 @@
 	dep	addr	= 0, addr, 61, 3
 /*
  * This macro converts a data virtual address to a physical address
- * Right now for simulation purposes the virtual addresses are
+ * Right yesw for simulation purposes the virtual addresses are
  * direct mapped to physical addresses.
  *	1. Lop off bits 61 thru 63 in the virtual address
  */
@@ -44,7 +44,7 @@
 	tpa	addr	= addr
 /*
  * This macro converts a data physical address to a virtual address
- * Right now for simulation purposes the virtual addresses are
+ * Right yesw for simulation purposes the virtual addresses are
  * direct mapped to physical addresses.
  *	1. Put 0x7 in bits 61 thru 63.
  */
@@ -131,10 +131,10 @@
 	;;										\
 	srlz.i;										\
 	;;										\
-	nop	1;									\
-	nop	2;									\
-	nop	1;									\
-	nop	2;									\
+	yesp	1;									\
+	yesp	2;									\
+	yesp	1;									\
+	yesp	2;									\
 	rfi;										\
 	;;
 
@@ -147,7 +147,7 @@
  *	2.	Clear the interrupt state collection bit in the current psr.
  *
  *	3.	Set the instruction translation bit back in the old psr
- *		Note we have to do this since we are right now saving only the
+ *		Note we have to do this since we are right yesw saving only the
  *		lower 32-bits of old psr.(Also the old psr has the data and
  *		rse translation bits on)
  *
@@ -206,14 +206,14 @@
 	DATA_PA_TO_VA(sp, temp1);				\
 	srlz.i;							\
 	;;							\
-	nop	1;						\
-	nop	2;						\
-	nop	1;						\
+	yesp	1;						\
+	yesp	2;						\
+	yesp	1;						\
 	rfi							\
 	;;
 
 /*
- * The MCA and INIT stacks in struct ia64_mca_cpu look like normal kernel
+ * The MCA and INIT stacks in struct ia64_mca_cpu look like yesrmal kernel
  * stacks, except that the SAL/OS state and a switch_stack are stored near the
  * top of the MCA/INIT stack.  To support concurrent entry to MCA or INIT, as
  * well as MCA over INIT, each event needs its own SAL/OS state.  All entries

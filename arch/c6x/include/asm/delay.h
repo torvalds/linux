@@ -21,7 +21,7 @@ static inline void __delay(unsigned long loops)
 		      "0: [%1] b     .s1  0b\n"
 		      "        add   .l1  -6,%0,%0\n"
 		      "        cmplt .l1  1,%0,%1\n"
-		      "        nop   3\n"
+		      "        yesp   3\n"
 		      : "+a"(loops), "=A"(tmp));
 }
 
@@ -36,7 +36,7 @@ static inline void _c6x_tickdelay(unsigned int x)
 		      "        mvc   .s2   TSCL,%0\n"
 		      "        sub   .s2   %0,%2,%0\n"
 		      "        cmpgt .l2   0,%0,B0\n"
-		      "        nop   2\n"
+		      "        yesp   2\n"
 		      : "=b"(cnt), "+a"(x), "=b"(endcnt) : : "B0");
 }
 

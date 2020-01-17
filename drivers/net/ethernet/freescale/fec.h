@@ -84,7 +84,7 @@
 #define BM_MIIGSK_CFGR_RMII		0x01
 #define BM_MIIGSK_CFGR_FRCONT_10M	0x40
 
-#define RMON_T_DROP		0x200 /* Count of frames not cntd correctly */
+#define RMON_T_DROP		0x200 /* Count of frames yest cntd correctly */
 #define RMON_T_PACKETS		0x204 /* RMON TX packet count */
 #define RMON_T_BC_PKT		0x208 /* RMON TX broadcast pkts */
 #define RMON_T_MC_PKT		0x20c /* RMON TX multicast pkts */
@@ -102,7 +102,7 @@
 #define RMON_T_P1024TO2047	0x23c /* RMON TX 1024 to 2047 byte pkts */
 #define RMON_T_P_GTE2048	0x240 /* RMON TX pkts > 2048 bytes */
 #define RMON_T_OCTETS		0x244 /* RMON TX octets */
-#define IEEE_T_DROP		0x248 /* Count of frames not counted crtly */
+#define IEEE_T_DROP		0x248 /* Count of frames yest counted crtly */
 #define IEEE_T_FRAME_OK		0x24c /* Frames tx'd OK */
 #define IEEE_T_1COL		0x250 /* Frames tx'd with single collision */
 #define IEEE_T_MCOL		0x254 /* Frames tx'd with multiple collision */
@@ -131,7 +131,7 @@
 #define RMON_R_P1024TO2047	0x2bc /* RMON RX 1024 to 2047 byte pkts */
 #define RMON_R_P_GTE2048	0x2c0 /* RMON RX pkts > 2048 bytes */
 #define RMON_R_OCTETS		0x2c4 /* RMON RX octets */
-#define IEEE_R_DROP		0x2c8 /* Count frames not counted correctly */
+#define IEEE_R_DROP		0x2c8 /* Count frames yest counted correctly */
 #define IEEE_R_FRAME_OK		0x2cc /* Frames rx'd OK */
 #define IEEE_R_CRC		0x2d0 /* Frames rx'd with CRC err */
 #define IEEE_R_ALIGN		0x2d4 /* Frames rx'd with alignment err */
@@ -408,10 +408,10 @@ struct bufdesc_ex {
 /* ENET IP errata ERR006358
  *
  * If the ready bit in the transmit buffer descriptor (TxBD[R]) is previously
- * detected as not set during a prior frame transmission, then the
+ * detected as yest set during a prior frame transmission, then the
  * ENET_TDAR[TDAR] bit is cleared at a later time, even if additional TxBDs
  * were added to the ring and the ENET_TDAR[TDAR] bit is set. This results in
- * frames not being transmitted until there is a 0-to-1 transition on
+ * frames yest being transmitted until there is a 0-to-1 transition on
  * ENET_TDAR[TDAR].
  */
 #define FEC_QUIRK_ERR006358		(1 << 7)
@@ -533,7 +533,7 @@ struct fec_enet_private {
 	struct	mii_bus *mii_bus;
 	uint	phy_speed;
 	phy_interface_t	phy_interface;
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 	int	link;
 	int	full_duplex;
 	int	speed;

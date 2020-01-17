@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _cec-intro:
 
@@ -20,7 +20,7 @@ Channel) of the HDMI 1.4a (:ref:`hdmi`) specification and the
 extensions added to CEC version 2.0 are defined in chapter 11 of the
 HDMI 2.0 (:ref:`hdmi2`) specification.
 
-The bitrate is very slow (effectively no more than 36 bytes per second)
+The bitrate is very slow (effectively yes more than 36 bytes per second)
 and is based on the ancient AV.link protocol used in old SCART
 connectors. The protocol closely resembles a crazy Rube Goldberg
 contraption and is an unholy mix of low and high level messages. Some
@@ -32,7 +32,7 @@ In addition, CEC can be implemented in HDMI receivers, transmitters and
 in USB devices that have an HDMI input and an HDMI output and that
 control just the CEC pin.
 
-Drivers that support CEC will create a CEC device node (/dev/cecX) to
+Drivers that support CEC will create a CEC device yesde (/dev/cecX) to
 give userspace access to the CEC adapter. The
 :ref:`CEC_ADAP_G_CAPS` ioctl will tell userspace what it is allowed to do.
 

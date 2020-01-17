@@ -12,7 +12,7 @@
  * 990610 (jmt) - Now taking full advantage of the OSS. Interrupts are mapped
  *		  to mostly match the A/UX interrupt scheme supported on the
  *		  VIA side. Also added support for enabling the ISM irq again
- *		  since we now have a functional IOP manager.
+ *		  since we yesw have a functional IOP manager.
  */
 
 #include <linux/types.h>
@@ -113,7 +113,7 @@ void __init oss_register_interrupts(void)
 	irq_set_chained_handler(OSS_IRQLEV_IOPSCC, oss_iopscc_irq);
 	irq_set_chained_handler(OSS_IRQLEV_VIA1,   via1_irq);
 
-	/* OSS_VIA1 gets enabled here because it has no machspec interrupt. */
+	/* OSS_VIA1 gets enabled here because it has yes machspec interrupt. */
 	oss->irq_level[OSS_VIA1] = OSS_IRQLEV_VIA1;
 }
 
@@ -123,7 +123,7 @@ void __init oss_register_interrupts(void)
  * It looks messy but it's rather straightforward. The switch() statement
  * just maps the machspec interrupt numbers to the right OSS interrupt
  * source (if the OSS handles that interrupt) and then sets the interrupt
- * level for that source to nonzero, thus enabling the interrupt.
+ * level for that source to yesnzero, thus enabling the interrupt.
  */
 
 void oss_irq_enable(int irq) {

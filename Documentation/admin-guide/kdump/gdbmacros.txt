@@ -13,7 +13,7 @@
 # Maneesh Soni <maneesh@in.ibm.com>
 #
 
-define bttnobp
+define bttyesbp
 	set $tasks_off=((size_t)&((struct task_struct *)0)->tasks)
 	set $pid_off=((size_t)&((struct task_struct *)0)->thread_group.next)
 	set $init_t=&init_task
@@ -51,7 +51,7 @@ define bttnobp
 		set $next_t=(char *)($next_t->tasks.next) - $tasks_off
 	end
 end
-document bttnobp
+document bttyesbp
 	dump all thread stack traces on a kernel compiled with !CONFIG_FRAME_POINTER
 end
 
@@ -160,7 +160,7 @@ define trapinfo
 		set $next_t=(char *)($next_t->tasks.next) - $tasks_off
 	end
 
-	printf "Trapno %ld, cr2 0x%lx, error_code %ld\n", $pid_task.thread.trap_no, \
+	printf "Trapyes %ld, cr2 0x%lx, error_code %ld\n", $pid_task.thread.trap_yes, \
 				$pid_task.thread.cr2, $pid_task.thread.error_code
 
 end

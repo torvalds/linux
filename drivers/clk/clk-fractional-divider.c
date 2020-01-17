@@ -76,7 +76,7 @@ static void clk_fd_general_approximation(struct clk_hw *hw, unsigned long rate,
 	unsigned long scale;
 
 	/*
-	 * Get rate closer to *parent_rate to guarantee there is no overflow
+	 * Get rate closer to *parent_rate to guarantee there is yes overflow
 	 * for m and n. In the result it will be the nearest rate left shifted
 	 * by (scale - fd->nwidth) bits.
 	 */

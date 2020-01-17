@@ -57,7 +57,7 @@
 	};
 
 	usb_phy0: phy0 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-yesp-xceiv";
 		#phy-cells = <0>;
 	};
 };
@@ -272,7 +272,7 @@
 			bias-pull-up;
 		};
 
-		conf-pull-none {
+		conf-pull-yesne {
 			pins = "MIO7", "MIO8";
 			bias-disable;
 		};

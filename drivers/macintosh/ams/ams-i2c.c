@@ -12,7 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 
@@ -38,9 +38,9 @@
 #define AMS_CTRLX	0x28	/* control X */
 #define AMS_CTRLY	0x29	/* control Y */
 #define AMS_CTRLZ	0x2A	/* control Z */
-#define AMS_UNKNOWN1	0x2B	/* unknown 1 */
-#define AMS_UNKNOWN2	0x2C	/* unknown 2 */
-#define AMS_UNKNOWN3	0x2D	/* unknown 3 */
+#define AMS_UNKNOWN1	0x2B	/* unkyeswn 1 */
+#define AMS_UNKNOWN2	0x2C	/* unkyeswn 2 */
+#define AMS_UNKNOWN3	0x2D	/* unkyeswn 3 */
 #define AMS_VENDOR	0x2E	/* vendor */
 
 /* AMS commands - use with the AMS_COMMAND register */
@@ -254,12 +254,12 @@ static void ams_i2c_exit(void)
 	i2c_del_driver(&ams_i2c_driver);
 }
 
-int __init ams_i2c_init(struct device_node *np)
+int __init ams_i2c_init(struct device_yesde *np)
 {
 	int result;
 
 	/* Set implementation stuff */
-	ams_info.of_node = np;
+	ams_info.of_yesde = np;
 	ams_info.exit = ams_i2c_exit;
 	ams_info.get_vendor = ams_i2c_get_vendor;
 	ams_info.get_xyz = ams_i2c_get_xyz;

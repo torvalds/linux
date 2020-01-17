@@ -1,7 +1,7 @@
 /* 
  * tie-asm.h -- compile-time HAL assembler definitions dependent on CORE & TIE
  *
- *  NOTE:  This header file is not meant to be included directly.
+ *  NOTE:  This header file is yest meant to be included directly.
  */
 
 /* This header file contains assembly-language definitions (assembly
@@ -18,7 +18,7 @@
    permit persons to whom the Software is furnished to do so, subject to
    the following conditions:
 
-   The above copyright notice and this permission notice shall be included
+   The above copyright yestice and this permission yestice shall be included
    in all copies or substantial portions of the Software.
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -35,10 +35,10 @@
 /*  Selection parameter values for save-area save/restore macros:  */
 /*  Option vs. TIE:  */
 #define XTHAL_SAS_TIE	0x0001	/* custom extension or coprocessor */
-#define XTHAL_SAS_OPT	0x0002	/* optional (and not a coprocessor) */
+#define XTHAL_SAS_OPT	0x0002	/* optional (and yest a coprocessor) */
 #define XTHAL_SAS_ANYOT	0x0003	/* both of the above */
 /*  Whether used automatically by compiler:  */
-#define XTHAL_SAS_NOCC	0x0004	/* not used by compiler w/o special opts/code */
+#define XTHAL_SAS_NOCC	0x0004	/* yest used by compiler w/o special opts/code */
 #define XTHAL_SAS_CC	0x0008	/* used by compiler without special opts/code */
 #define XTHAL_SAS_ANYCC	0x000C	/* both of the above */
 /*  ABI handling across function calls:  */
@@ -55,8 +55,8 @@
 
 
     /*
-     *  Macro to save all non-coprocessor (extra) custom TIE and optional state
-     *  (not including zero-overhead loop registers).
+     *  Macro to save all yesn-coprocessor (extra) custom TIE and optional state
+     *  (yest including zero-overhead loop registers).
      *  Required parameters:
      *      ptr		Save area pointer address register (clobbered)
      *			(register must contain a 4 byte aligned address).
@@ -64,14 +64,14 @@
      *			registers are clobbered, the remaining are unused).
      *  Optional parameters:
      *      continue	If macro invoked as part of a larger store sequence, set to 1
-     *			if this is not the first in the sequence.  Defaults to 0.
+     *			if this is yest the first in the sequence.  Defaults to 0.
      *      ofs		Offset from start of larger sequence (from value of first ptr
      *			in sequence) at which to store.  Defaults to next available space
      *			(or 0 if <continue> is 0).
      *      select	Select what category(ies) of registers to store, as a bitmask
      *			(see XTHAL_SAS_xxx constants).  Defaults to all registers.
      *      alloc	Select what category(ies) of registers to allocate; if any
-     *			category is selected here that is not in <select>, space for
+     *			category is selected here that is yest in <select>, space for
      *			the corresponding registers is skipped without doing any store.
      */
     .macro xchal_ncp_store  ptr at1 at2 at3 at4  continue=0 ofs=-1 select=XTHAL_SAS_ALL alloc=0
@@ -98,7 +98,7 @@
 	xchal_sa_align	\ptr, 0, 1016, 4, 4
 	.set	.Lxchal_ofs_, .Lxchal_ofs_ + 8
 	.endif
-	// Optional caller-saved registers not used by default by the compiler:
+	// Optional caller-saved registers yest used by default by the compiler:
 	.ifeq (XTHAL_SAS_OPT | XTHAL_SAS_NOCC | XTHAL_SAS_CALR) & ~(\select)
 	xchal_sa_align	\ptr, 0, 1000, 4, 4
 	rsr.M0	\at1		// MAC16 option
@@ -121,8 +121,8 @@
     .endm	// xchal_ncp_store
 
     /*
-     *  Macro to restore all non-coprocessor (extra) custom TIE and optional state
-     *  (not including zero-overhead loop registers).
+     *  Macro to restore all yesn-coprocessor (extra) custom TIE and optional state
+     *  (yest including zero-overhead loop registers).
      *  Required parameters:
      *      ptr		Save area pointer address register (clobbered)
      *			(register must contain a 4 byte aligned address).
@@ -130,14 +130,14 @@
      *			registers are clobbered, the remaining are unused).
      *  Optional parameters:
      *      continue	If macro invoked as part of a larger load sequence, set to 1
-     *			if this is not the first in the sequence.  Defaults to 0.
+     *			if this is yest the first in the sequence.  Defaults to 0.
      *      ofs		Offset from start of larger sequence (from value of first ptr
      *			in sequence) at which to load.  Defaults to next available space
      *			(or 0 if <continue> is 0).
      *      select	Select what category(ies) of registers to load, as a bitmask
      *			(see XTHAL_SAS_xxx constants).  Defaults to all registers.
      *      alloc	Select what category(ies) of registers to allocate; if any
-     *			category is selected here that is not in <select>, space for
+     *			category is selected here that is yest in <select>, space for
      *			the corresponding registers is skipped without doing any load.
      */
     .macro xchal_ncp_load  ptr at1 at2 at3 at4  continue=0 ofs=-1 select=XTHAL_SAS_ALL alloc=0
@@ -164,7 +164,7 @@
 	xchal_sa_align	\ptr, 0, 1016, 4, 4
 	.set	.Lxchal_ofs_, .Lxchal_ofs_ + 8
 	.endif
-	// Optional caller-saved registers not used by default by the compiler:
+	// Optional caller-saved registers yest used by default by the compiler:
 	.ifeq (XTHAL_SAS_OPT | XTHAL_SAS_NOCC | XTHAL_SAS_CALR) & ~(\select)
 	xchal_sa_align	\ptr, 0, 1000, 4, 4
 	l32i	\at1, \ptr, .Lxchal_ofs_+0
@@ -204,7 +204,7 @@
 #define xchal_cp_AudioEngineLX_store	xchal_cp1_store
     .macro	xchal_cp1_store  ptr at1 at2 at3 at4  continue=0 ofs=-1 select=XTHAL_SAS_ALL alloc=0
 	xchal_sa_start \continue, \ofs
-	// Custom caller-saved registers not used by default by the compiler:
+	// Custom caller-saved registers yest used by default by the compiler:
 	.ifeq (XTHAL_SAS_TIE | XTHAL_SAS_NOCC | XTHAL_SAS_CALR) & ~(\select)
 	xchal_sa_align	\ptr, 0, 0, 8, 8
 	rur.AE_OVF_SAR	\at1		// ureg 240
@@ -261,7 +261,7 @@
 #define xchal_cp_AudioEngineLX_load	xchal_cp1_load
     .macro	xchal_cp1_load  ptr at1 at2 at3 at4  continue=0 ofs=-1 select=XTHAL_SAS_ALL alloc=0
 	xchal_sa_start \continue, \ofs
-	// Custom caller-saved registers not used by default by the compiler:
+	// Custom caller-saved registers yest used by default by the compiler:
 	.ifeq (XTHAL_SAS_TIE | XTHAL_SAS_NOCC | XTHAL_SAS_CALR) & ~(\select)
 	xchal_sa_align	\ptr, 0, 0, 8, 8
 	l32i	\at1, \ptr, .Lxchal_ofs_+0

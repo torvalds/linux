@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Support for Faraday Technology FTPC100 PCI Controller
+ * Support for Faraday Techyeslogy FTPC100 PCI Controller
  *
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  *
  * Based on the out-of-tree OpenWRT patch for Cortina Gemini:
- * Copyright (C) 2009 Janos Laube <janos.dev@gmail.com>
+ * Copyright (C) 2009 Jayess Laube <jayess.dev@gmail.com>
  * Copyright (C) 2009 Paulius Zaleckas <paulius.zaleckas@teltonika.lt>
  * Based on SL2312 PCI controller code
  * Storlink (C) 2003
@@ -174,7 +174,7 @@ static int faraday_res_to_memcfg(resource_size_t mem_base,
 	}
 	outval <<= FARADAY_PCI_MEMSIZE_SHIFT;
 
-	/* This is probably not good */
+	/* This is probably yest good */
 	if (mem_base & ~(FARADAY_PCI_MEMBASE_MASK))
 		pr_warn("truncated PCI memory base\n");
 	/* Translate to bridge side address space */
@@ -342,12 +342,12 @@ static const struct irq_domain_ops faraday_pci_irqdomain_ops = {
 
 static int faraday_pci_setup_cascaded_irq(struct faraday_pci *p)
 {
-	struct device_node *intc = of_get_next_child(p->dev->of_node, NULL);
+	struct device_yesde *intc = of_get_next_child(p->dev->of_yesde, NULL);
 	int irq;
 	int i;
 
 	if (!intc) {
-		dev_err(p->dev, "missing child interrupt-controller node\n");
+		dev_err(p->dev, "missing child interrupt-controller yesde\n");
 		return -EINVAL;
 	}
 
@@ -355,13 +355,13 @@ static int faraday_pci_setup_cascaded_irq(struct faraday_pci *p)
 	irq = of_irq_get(intc, 0);
 	if (irq <= 0) {
 		dev_err(p->dev, "failed to get parent IRQ\n");
-		of_node_put(intc);
+		of_yesde_put(intc);
 		return irq ?: -EINVAL;
 	}
 
 	p->irqdomain = irq_domain_add_linear(intc, PCI_NUM_INTX,
 					     &faraday_pci_irqdomain_ops, p);
-	of_node_put(intc);
+	of_yesde_put(intc);
 	if (!p->irqdomain) {
 		dev_err(p->dev, "failed to create Gemini PCI IRQ domain\n");
 		return -EINVAL;
@@ -407,7 +407,7 @@ static int faraday_pci_parse_map_dma_ranges(struct faraday_pci *p)
 			faraday_raw_pci_write_config(p, 0, 0, confreg[i],
 						     4, val);
 		} else {
-			dev_err(dev, "ignore extraneous dma-range %d\n", i);
+			dev_err(dev, "igyesre extraneous dma-range %d\n", i);
 			break;
 		}
 
@@ -453,7 +453,7 @@ static int faraday_pci_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 	ret = clk_prepare_enable(clk);
 	if (ret) {
-		dev_err(dev, "could not prepare PCLK\n");
+		dev_err(dev, "could yest prepare PCLK\n");
 		return ret;
 	}
 	p->bus_clk = devm_clk_get(dev, "PCICLK");
@@ -461,7 +461,7 @@ static int faraday_pci_probe(struct platform_device *pdev)
 		return PTR_ERR(p->bus_clk);
 	ret = clk_prepare_enable(p->bus_clk);
 	if (ret) {
-		dev_err(dev, "could not prepare PCICLK\n");
+		dev_err(dev, "could yest prepare PCICLK\n");
 		return ret;
 	}
 

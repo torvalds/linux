@@ -5,7 +5,7 @@
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-event.h>
@@ -1489,7 +1489,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_class = {
 };
 
 int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
-		bool show_ccs_out, bool no_error_inj,
+		bool show_ccs_out, bool yes_error_inj,
 		bool has_sdtv, bool has_hdmi)
 {
 	struct v4l2_ctrl_handler *hdl_user_gen = &dev->ctrl_hdl_user_gen;
@@ -1534,12 +1534,12 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	v4l2_ctrl_handler_init(hdl_vid_cap, 55);
 	v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_vid_out, 26);
-	if (!no_error_inj || dev->has_fb || dev->num_hdmi_outputs)
+	if (!yes_error_inj || dev->has_fb || dev->num_hdmi_outputs)
 		v4l2_ctrl_new_custom(hdl_vid_out, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_vbi_cap, 21);
 	v4l2_ctrl_new_custom(hdl_vbi_cap, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_vbi_out, 19);
-	if (!no_error_inj)
+	if (!yes_error_inj)
 		v4l2_ctrl_new_custom(hdl_vbi_out, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_radio_rx, 17);
 	v4l2_ctrl_new_custom(hdl_radio_rx, &vivid_ctrl_class, NULL);
@@ -1646,11 +1646,11 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 
 	/*
 	 * Testing this driver with v4l2-compliance will trigger the error
-	 * injection controls, and after that nothing will work as expected.
+	 * injection controls, and after that yesthing will work as expected.
 	 * So we have a module option to drop these error injecting controls
 	 * allowing us to run v4l2_compliance again.
 	 */
-	if (!no_error_inj) {
+	if (!yes_error_inj) {
 		v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_disconnect, NULL);
 		v4l2_ctrl_new_custom(hdl_streaming, &vivid_ctrl_dqbuf_error, NULL);
 		v4l2_ctrl_new_custom(hdl_streaming, &vivid_ctrl_perc_dropped, NULL);
@@ -1783,7 +1783,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		if (dev->radio_tx_rds_radiotext)
 			v4l2_ctrl_s_ctrl_string(dev->radio_tx_rds_radiotext,
 			       "This is a VIVID default Radio Text template text, change at will");
-		dev->radio_tx_rds_mono_stereo = v4l2_ctrl_new_std(hdl_radio_tx,
+		dev->radio_tx_rds_moyes_stereo = v4l2_ctrl_new_std(hdl_radio_tx,
 			&vivid_radio_tx_ctrl_ops,
 			V4L2_CID_RDS_TX_MONO_STEREO, 0, 1, 1, 1);
 		dev->radio_tx_rds_art_head = v4l2_ctrl_new_std(hdl_radio_tx,

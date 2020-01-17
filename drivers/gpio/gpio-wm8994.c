@@ -180,7 +180,7 @@ static const char *wm8994_gpio_fn(u16 fn)
 	case WM8994_GP_FN_FLL2_OUT:
 		return "FLL1 output";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -195,9 +195,9 @@ static void wm8994_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		int reg;
 		const char *label;
 
-		/* We report the GPIO even if it's not requested since
+		/* We report the GPIO even if it's yest requested since
 		 * we're also reporting things like alternate
-		 * functions which apply even when the GPIO is not in
+		 * functions which apply even when the GPIO is yest in
 		 * use as a GPIO.
 		 */
 		label = gpiochip_is_requested(chip, i);
@@ -229,7 +229,7 @@ static void wm8994_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		if (reg & WM8994_GPN_POL)
 			seq_printf(s, "inverted ");
 		else
-			seq_printf(s, "noninverted ");
+			seq_printf(s, "yesninverted ");
 
 		if (reg & WM8994_GPN_OP_CFG)
 			seq_printf(s, "open drain ");
@@ -282,7 +282,7 @@ static int wm8994_gpio_probe(struct platform_device *pdev)
 	ret = devm_gpiochip_add_data(&pdev->dev, &wm8994_gpio->gpio_chip,
 				     wm8994_gpio);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n",
+		dev_err(&pdev->dev, "Could yest register gpiochip, %d\n",
 			ret);
 		return ret;
 	}

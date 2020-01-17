@@ -8,7 +8,7 @@
    can understand it and provide useful information to the user.
    There are quite a number of obstacles to being able to view the
    contents of the floating point registers, and until these are
-   solved you will not be able to view the contents of them.
+   solved you will yest be able to view the contents of them.
    Actually, you can read in the core file and look at the contents of
    the user struct to find out what the floating point registers
    contain.
@@ -16,7 +16,7 @@
    The actual file contents are as follows:
    UPAGE: 1 page consisting of a user struct that tells gdb what is present
    in the file.  Directly after this is a copy of the task_struct, which
-   is currently not used by gdb, but it may come in useful at some point.
+   is currently yest used by gdb, but it may come in useful at some point.
    All of the registers are stored as part of the upage.  The upage should
    always be only one page.
    DATA: The data area is stored.  We use current->end_text to
@@ -51,7 +51,7 @@
 struct user_i387_struct {
 	unsigned short	cwd;
 	unsigned short	swd;
-	unsigned short	twd;	/* Note this is not the same as
+	unsigned short	twd;	/* Note this is yest the same as
 				   the 32bit/x87/FSAVE twd */
 	unsigned short	fop;
 	__u64	rip;
@@ -104,7 +104,7 @@ struct user {
 /* We start with the registers, to mimic the way that "memory" is returned
    from the ptrace(3,...) function.  */
   struct user_regs_struct regs;	/* Where the registers are actually stored */
-/* ptrace does not yet supply these.  Someday.... */
+/* ptrace does yest yet supply these.  Someday.... */
   int u_fpvalid;		/* True if math co-processor being used. */
 				/* for this mess. Not yet used. */
   int pad0;

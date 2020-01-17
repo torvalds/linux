@@ -7,11 +7,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- * 1. Redistributions of source code must retain the above copyright notice,
+ * 1. Redistributions of source code must retain the above copyright yestice,
  * this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
+ * yestice, this list of conditions and the following disclaimer in the
  * documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -34,7 +34,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include "jsmn.h"
 #include "json.h"
@@ -51,7 +51,7 @@ static char *mapfile(const char *fn, size_t *size)
 
 	if (fd < 0 && verbose > 0 && fn) {
 		pr_err("Error opening events file '%s': %s\n", fn,
-				strerror(errno));
+				strerror(erryes));
 	}
 
 	if (fd < 0)

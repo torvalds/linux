@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -39,7 +39,7 @@
 #include "name_table.h"
 #include "bearer.h"
 #include "link.h"
-#include "node.h"
+#include "yesde.h"
 #include "net.h"
 #include "udp_media.h"
 #include <net/genetlink.h>
@@ -99,7 +99,7 @@ const struct nla_policy tipc_nl_link_policy[TIPC_NLA_LINK_MAX + 1] = {
 	[TIPC_NLA_LINK_TX]		= { .type = NLA_U32 }
 };
 
-const struct nla_policy tipc_nl_node_policy[TIPC_NLA_NODE_MAX + 1] = {
+const struct nla_policy tipc_nl_yesde_policy[TIPC_NLA_NODE_MAX + 1] = {
 	[TIPC_NLA_NODE_UNSPEC]		= { .type = NLA_UNSPEC },
 	[TIPC_NLA_NODE_ADDR]		= { .type = NLA_U32 },
 	[TIPC_NLA_NODE_UP]		= { .type = NLA_FLAG },
@@ -187,18 +187,18 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	{
 		.cmd	= TIPC_NL_LINK_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit   = tipc_nl_node_get_link,
-		.dumpit	= tipc_nl_node_dump_link,
+		.doit   = tipc_nl_yesde_get_link,
+		.dumpit	= tipc_nl_yesde_dump_link,
 	},
 	{
 		.cmd	= TIPC_NL_LINK_SET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit	= tipc_nl_node_set_link,
+		.doit	= tipc_nl_yesde_set_link,
 	},
 	{
 		.cmd	= TIPC_NL_LINK_RESET_STATS,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit   = tipc_nl_node_reset_link_stats,
+		.doit   = tipc_nl_yesde_reset_link_stats,
 	},
 	{
 		.cmd	= TIPC_NL_MEDIA_GET,
@@ -214,7 +214,7 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	{
 		.cmd	= TIPC_NL_NODE_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.dumpit	= tipc_nl_node_dump,
+		.dumpit	= tipc_nl_yesde_dump,
 	},
 	{
 		.cmd	= TIPC_NL_NET_GET,
@@ -234,19 +234,19 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	{
 		.cmd	= TIPC_NL_MON_SET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit	= tipc_nl_node_set_monitor,
+		.doit	= tipc_nl_yesde_set_monitor,
 	},
 	{
 		.cmd	= TIPC_NL_MON_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit	= tipc_nl_node_get_monitor,
-		.dumpit	= tipc_nl_node_dump_monitor,
+		.doit	= tipc_nl_yesde_get_monitor,
+		.dumpit	= tipc_nl_yesde_dump_monitor,
 	},
 	{
 		.cmd	= TIPC_NL_MON_PEER_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT |
 			    GENL_DONT_VALIDATE_DUMP_STRICT,
-		.dumpit	= tipc_nl_node_dump_monitor_peer,
+		.dumpit	= tipc_nl_yesde_dump_monitor_peer,
 	},
 	{
 		.cmd	= TIPC_NL_PEER_REMOVE,
@@ -265,12 +265,12 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	{
 		.cmd	= TIPC_NL_KEY_SET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit	= tipc_nl_node_set_key,
+		.doit	= tipc_nl_yesde_set_key,
 	},
 	{
 		.cmd	= TIPC_NL_KEY_FLUSH,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit	= tipc_nl_node_flush_key,
+		.doit	= tipc_nl_yesde_flush_key,
 	},
 #endif
 };

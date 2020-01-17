@@ -13,7 +13,7 @@ Frequency Scaling only
 
 No vendor specific driver required for this.
 
-Located in CPU's node:
+Located in CPU's yesde:
 
 - operating-points		: [See: ../power/opp.txt]
 
@@ -35,7 +35,7 @@ Dynamic Voltage and Frequency Scaling (DVFS)
 
 This requires the ST CPUFreq driver to supply 'process' and 'version' info.
 
-Located in CPU's node:
+Located in CPU's yesde:
 
 - operating-points-v2		: [See ../power/opp.txt]
 
@@ -52,11 +52,11 @@ cpu0_opp_table: opp_table {
 	compatible = "operating-points-v2";
 
 	/* ############################################################### */
-	/* # WARNING: Do not attempt to copy/replicate these nodes,      # */
+	/* # WARNING: Do yest attempt to copy/replicate these yesdes,      # */
 	/* #          they are only to be supplied by the bootloader !!! # */
 	/* ############################################################### */
 	opp0 {
-		/*			   Major       Minor       Substrate */
+		/*			   Major       Miyesr       Substrate */
 		/*			   2           all         all       */
 		opp-supported-hw	= <0x00000004  0xffffffff  0xffffffff>;
 		opp-hz			= /bits/ 64 <1500000000>;
@@ -73,7 +73,7 @@ cpu0_opp_table: opp_table {
 	};
 
 	opp1 {
-		/*			   Major       Minor       Substrate */
+		/*			   Major       Miyesr       Substrate */
 		/*			   all         all         all       */
 		opp-supported-hw	= <0xffffffff  0xffffffff  0xffffffff>;
 		opp-hz			= /bits/ 64 <1200000000>;

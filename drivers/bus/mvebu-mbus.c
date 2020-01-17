@@ -105,7 +105,7 @@
 #define MBUS_BRIDGE_CTRL_OFF	0x0
 #define MBUS_BRIDGE_BASE_OFF	0x4
 
-/* Maximum number of windows, for all known platforms */
+/* Maximum number of windows, for all kyeswn platforms */
 #define MBUS_WINS_MAX           20
 
 struct mvebu_mbus_state;
@@ -156,15 +156,15 @@ static struct mvebu_mbus_state mbus_state;
 /*
  * We provide two variants of the mv_mbus_dram_info() function:
  *
- * - The normal one, where the described DRAM ranges may overlap with
+ * - The yesrmal one, where the described DRAM ranges may overlap with
  *   the I/O windows, but for which the DRAM ranges are guaranteed to
  *   have a power of two size. Such ranges are suitable for the DMA
  *   masters that only DMA between the RAM and the device, which is
  *   actually all devices except the crypto engines.
  *
- * - The 'nooverlap' one, where the described DRAM ranges are
- *   guaranteed to not overlap with the I/O windows, but for which the
- *   DRAM ranges will not have power of two sizes. They will only be
+ * - The 'yesoverlap' one, where the described DRAM ranges are
+ *   guaranteed to yest overlap with the I/O windows, but for which the
+ *   DRAM ranges will yest have power of two sizes. They will only be
  *   aligned on a 64 KB boundary, and have a size multiple of 64
  *   KB. Such ranges are suitable for the DMA masters that DMA between
  *   the crypto SRAM (which is mapped through an I/O window) and a
@@ -172,7 +172,7 @@ static struct mvebu_mbus_state mbus_state;
  */
 
 static struct mbus_dram_target_info mvebu_mbus_dram_info;
-static struct mbus_dram_target_info mvebu_mbus_dram_info_nooverlap;
+static struct mbus_dram_target_info mvebu_mbus_dram_info_yesoverlap;
 
 const struct mbus_dram_target_info *mv_mbus_dram_info(void)
 {
@@ -180,11 +180,11 @@ const struct mbus_dram_target_info *mv_mbus_dram_info(void)
 }
 EXPORT_SYMBOL_GPL(mv_mbus_dram_info);
 
-const struct mbus_dram_target_info *mv_mbus_dram_info_nooverlap(void)
+const struct mbus_dram_target_info *mv_mbus_dram_info_yesoverlap(void)
 {
-	return &mvebu_mbus_dram_info_nooverlap;
+	return &mvebu_mbus_dram_info_yesoverlap;
 }
-EXPORT_SYMBOL_GPL(mv_mbus_dram_info_nooverlap);
+EXPORT_SYMBOL_GPL(mv_mbus_dram_info_yesoverlap);
 
 /* Checks whether the given window has remap capability */
 static bool mvebu_mbus_window_is_remappable(struct mvebu_mbus_state *mbus,
@@ -390,7 +390,7 @@ static int mvebu_mbus_alloc_window(struct mvebu_mbus_state *mbus,
 	}
 
 	for (win = 0; win < mbus->soc->num_wins; win++) {
-		/* Skip window if need remap but is not supported */
+		/* Skip window if need remap but is yest supported */
 		if ((remap != MVEBU_MBUS_NO_REMAP) &&
 		    !mvebu_mbus_window_is_remappable(mbus, win))
 			continue;
@@ -470,9 +470,9 @@ static int mvebu_sdram_debug_show(struct seq_file *seq, void *v)
 	return mbus->soc->show_cpu_target(mbus, seq, v);
 }
 
-static int mvebu_sdram_debug_open(struct inode *inode, struct file *file)
+static int mvebu_sdram_debug_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, mvebu_sdram_debug_show, inode->i_private);
+	return single_open(file, mvebu_sdram_debug_show, iyesde->i_private);
 }
 
 static const struct file_operations mvebu_sdram_debug_fops = {
@@ -520,9 +520,9 @@ static int mvebu_devs_debug_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int mvebu_devs_debug_open(struct inode *inode, struct file *file)
+static int mvebu_devs_debug_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, mvebu_devs_debug_show, inode->i_private);
+	return single_open(file, mvebu_devs_debug_show, iyesde->i_private);
 }
 
 static const struct file_operations mvebu_devs_debug_fops = {
@@ -543,7 +543,7 @@ static unsigned int generic_mbus_win_cfg_offset(int win)
 
 static unsigned int armada_370_xp_mbus_win_cfg_offset(int win)
 {
-	/* The register layout is a bit annoying and the below code
+	/* The register layout is a bit anyesying and the below code
 	 * tries to cope with it.
 	 * - At offset 0x0, there are the registers for the first 8
 	 *   windows, with 4 registers of 32 bits per window (ctrl,
@@ -634,15 +634,15 @@ mvebu_mbus_find_bridge_hole(uint64_t *start, uint64_t *end)
 }
 
 /*
- * This function fills in the mvebu_mbus_dram_info_nooverlap data
+ * This function fills in the mvebu_mbus_dram_info_yesoverlap data
  * structure, by looking at the mvebu_mbus_dram_info data, and
  * removing the parts of it that overlap with I/O windows.
  */
 static void __init
-mvebu_mbus_setup_cpu_target_nooverlap(struct mvebu_mbus_state *mbus)
+mvebu_mbus_setup_cpu_target_yesoverlap(struct mvebu_mbus_state *mbus)
 {
 	uint64_t mbus_bridge_base, mbus_bridge_end;
-	int cs_nooverlap = 0;
+	int cs_yesoverlap = 0;
 	int i;
 
 	mvebu_mbus_find_bridge_hole(&mbus_bridge_base, &mbus_bridge_end);
@@ -658,7 +658,7 @@ mvebu_mbus_setup_cpu_target_nooverlap(struct mvebu_mbus_state *mbus)
 
 		/*
 		 * The CS is fully enclosed inside the MBus bridge
-		 * area, so ignore it.
+		 * area, so igyesre it.
 		 */
 		if (base >= mbus_bridge_base && end <= mbus_bridge_end)
 			continue;
@@ -679,7 +679,7 @@ mvebu_mbus_setup_cpu_target_nooverlap(struct mvebu_mbus_state *mbus)
 		if (base < mbus_bridge_base && end > mbus_bridge_base)
 			size -= end - mbus_bridge_base;
 
-		w = &mvebu_mbus_dram_info_nooverlap.cs[cs_nooverlap++];
+		w = &mvebu_mbus_dram_info_yesoverlap.cs[cs_yesoverlap++];
 		w->cs_index = i;
 		w->mbus_attr = 0xf & ~(1 << i);
 		if (mbus->hw_io_coherency)
@@ -688,8 +688,8 @@ mvebu_mbus_setup_cpu_target_nooverlap(struct mvebu_mbus_state *mbus)
 		w->size = size;
 	}
 
-	mvebu_mbus_dram_info_nooverlap.mbus_dram_target_id = TARGET_DDR;
-	mvebu_mbus_dram_info_nooverlap.num_cs = cs_nooverlap;
+	mvebu_mbus_dram_info_yesoverlap.mbus_dram_target_id = TARGET_DDR;
+	mvebu_mbus_dram_info_yesoverlap.num_cs = cs_yesoverlap;
 }
 
 static void __init
@@ -768,7 +768,7 @@ mvebu_mbus_dove_setup_cpu_target(struct mvebu_mbus_state *mbus)
 			w = &mvebu_mbus_dram_info.cs[cs++];
 			w->cs_index = i;
 			w->mbus_attr = 0; /* CS address decoding done inside */
-					  /* the DDR controller, no need to  */
+					  /* the DDR controller, yes need to  */
 					  /* provide attributes */
 			w->base = map & 0xff800000;
 			w->size = 0x100000 << (((map & 0x000f0000) >> 16) - 4);
@@ -907,7 +907,7 @@ int mvebu_mbus_add_window_remap_by_id(unsigned int target,
 	struct mvebu_mbus_state *s = &mbus_state;
 
 	if (!mvebu_mbus_window_conflicts(s, base, size, target, attribute)) {
-		pr_err("cannot add window '%x:%x', conflicts with another window\n",
+		pr_err("canyest add window '%x:%x', conflicts with ayesther window\n",
 		       target, attribute);
 		return -EINVAL;
 	}
@@ -1005,7 +1005,7 @@ static __init int mvebu_mbus_debugfs_init(void)
 	struct mvebu_mbus_state *s = &mbus_state;
 
 	/*
-	 * If no base has been initialized, doesn't make sense to
+	 * If yes base has been initialized, doesn't make sense to
 	 * register the debugfs entries. We may be on a multiplatform
 	 * kernel that isn't running a Marvell EBU SoC.
 	 */
@@ -1132,7 +1132,7 @@ static int __init mvebu_mbus_common_init(struct mvebu_mbus_state *mbus,
 		mvebu_mbus_disable_window(mbus, win);
 
 	mbus->soc->setup_cpu_target(mbus);
-	mvebu_mbus_setup_cpu_target_nooverlap(mbus);
+	mvebu_mbus_setup_cpu_target_yesoverlap(mbus);
 
 	if (is_coherent)
 		writel(UNIT_SYNC_BARRIER_ALL,
@@ -1155,7 +1155,7 @@ int __init mvebu_mbus_init(const char *soc, phys_addr_t mbuswins_phys_base,
 			break;
 
 	if (!of_id->compatible[0]) {
-		pr_err("could not find a matching SoC family\n");
+		pr_err("could yest find a matching SoC family\n");
 		return -ENODEV;
 	}
 
@@ -1185,14 +1185,14 @@ static int __init mbus_dt_setup_win(struct mvebu_mbus_state *mbus,
 				    u8 target, u8 attr)
 {
 	if (!mvebu_mbus_window_conflicts(mbus, base, size, target, attr)) {
-		pr_err("cannot add window '%04x:%04x', conflicts with another window\n",
+		pr_err("canyest add window '%04x:%04x', conflicts with ayesther window\n",
 		       target, attr);
 		return -EBUSY;
 	}
 
 	if (mvebu_mbus_alloc_window(mbus, base, size, MVEBU_MBUS_NO_REMAP,
 				    target, attr)) {
-		pr_err("cannot add window '%04x:%04x', too many windows\n",
+		pr_err("canyest add window '%04x:%04x', too many windows\n",
 		       target, attr);
 		return -ENOMEM;
 	}
@@ -1200,7 +1200,7 @@ static int __init mbus_dt_setup_win(struct mvebu_mbus_state *mbus,
 }
 
 static int __init
-mbus_parse_ranges(struct device_node *node,
+mbus_parse_ranges(struct device_yesde *yesde,
 		  int *addr_cells, int *c_addr_cells, int *c_size_cells,
 		  int *cell_count, const __be32 **ranges_start,
 		  const __be32 **ranges_end)
@@ -1208,8 +1208,8 @@ mbus_parse_ranges(struct device_node *node,
 	const __be32 *prop;
 	int ranges_len, tuple_len;
 
-	/* Allow a node with no 'ranges' property */
-	*ranges_start = of_get_property(node, "ranges", &ranges_len);
+	/* Allow a yesde with yes 'ranges' property */
+	*ranges_start = of_get_property(yesde, "ranges", &ranges_len);
 	if (*ranges_start == NULL) {
 		*addr_cells = *c_addr_cells = *c_size_cells = *cell_count = 0;
 		*ranges_start = *ranges_end = NULL;
@@ -1217,26 +1217,26 @@ mbus_parse_ranges(struct device_node *node,
 	}
 	*ranges_end = *ranges_start + ranges_len / sizeof(__be32);
 
-	*addr_cells = of_n_addr_cells(node);
+	*addr_cells = of_n_addr_cells(yesde);
 
-	prop = of_get_property(node, "#address-cells", NULL);
+	prop = of_get_property(yesde, "#address-cells", NULL);
 	*c_addr_cells = be32_to_cpup(prop);
 
-	prop = of_get_property(node, "#size-cells", NULL);
+	prop = of_get_property(yesde, "#size-cells", NULL);
 	*c_size_cells = be32_to_cpup(prop);
 
 	*cell_count = *addr_cells + *c_addr_cells + *c_size_cells;
 	tuple_len = (*cell_count) * sizeof(__be32);
 
 	if (ranges_len % tuple_len) {
-		pr_warn("malformed ranges entry '%pOFn'\n", node);
+		pr_warn("malformed ranges entry '%pOFn'\n", yesde);
 		return -EINVAL;
 	}
 	return 0;
 }
 
 static int __init mbus_dt_setup(struct mvebu_mbus_state *mbus,
-				struct device_node *np)
+				struct device_yesde *np)
 {
 	int addr_cells, c_addr_cells, c_size_cells;
 	int i, ret, cell_count;
@@ -1253,7 +1253,7 @@ static int __init mbus_dt_setup(struct mvebu_mbus_state *mbus,
 		u8 target, attr;
 
 		/*
-		 * An entry with a non-zero custom field do not
+		 * An entry with a yesn-zero custom field do yest
 		 * correspond to a static window, so skip it.
 		 */
 		windowid = of_read_number(r, 1);
@@ -1273,7 +1273,7 @@ static int __init mbus_dt_setup(struct mvebu_mbus_state *mbus,
 	return 0;
 }
 
-static void __init mvebu_mbus_get_pcie_resources(struct device_node *np,
+static void __init mvebu_mbus_get_pcie_resources(struct device_yesde *np,
 						 struct resource *mem,
 						 struct resource *io)
 {
@@ -1307,14 +1307,14 @@ static void __init mvebu_mbus_get_pcie_resources(struct device_node *np,
 int __init mvebu_mbus_dt_init(bool is_coherent)
 {
 	struct resource mbuswins_res, sdramwins_res, mbusbridge_res;
-	struct device_node *np, *controller;
+	struct device_yesde *np, *controller;
 	const struct of_device_id *of_id;
 	const __be32 *prop;
 	int ret;
 
-	np = of_find_matching_node_and_match(NULL, of_mvebu_mbus_ids, &of_id);
+	np = of_find_matching_yesde_and_match(NULL, of_mvebu_mbus_ids, &of_id);
 	if (!np) {
-		pr_err("could not find a matching SoC family\n");
+		pr_err("could yest find a matching SoC family\n");
 		return -ENODEV;
 	}
 
@@ -1326,19 +1326,19 @@ int __init mvebu_mbus_dt_init(bool is_coherent)
 		return -EINVAL;
 	}
 
-	controller = of_find_node_by_phandle(be32_to_cpup(prop));
+	controller = of_find_yesde_by_phandle(be32_to_cpup(prop));
 	if (!controller) {
-		pr_err("could not find an 'mbus-controller' node\n");
+		pr_err("could yest find an 'mbus-controller' yesde\n");
 		return -ENODEV;
 	}
 
 	if (of_address_to_resource(controller, 0, &mbuswins_res)) {
-		pr_err("cannot get MBUS register address\n");
+		pr_err("canyest get MBUS register address\n");
 		return -EINVAL;
 	}
 
 	if (of_address_to_resource(controller, 1, &sdramwins_res)) {
-		pr_err("cannot get SDRAM register address\n");
+		pr_err("canyest get SDRAM register address\n");
 		return -EINVAL;
 	}
 
@@ -1352,7 +1352,7 @@ int __init mvebu_mbus_dt_init(bool is_coherent)
 
 	if (mbus_state.soc->has_mbus_bridge) {
 		if (of_address_to_resource(controller, 2, &mbusbridge_res))
-			pr_warn(FW_WARN "deprecated mbus-mvebu Device Tree, suspend/resume will not work\n");
+			pr_warn(FW_WARN "deprecated mbus-mvebu Device Tree, suspend/resume will yest work\n");
 	}
 
 	mbus_state.hw_io_coherency = is_coherent;

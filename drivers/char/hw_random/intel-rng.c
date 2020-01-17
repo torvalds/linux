@@ -93,9 +93,9 @@
  * Data for PCI driver interface
  *
  * This data only exists for exporting the supported
- * PCI ids via MODULE_DEVICE_TABLE.  We do not actually
+ * PCI ids via MODULE_DEVICE_TABLE.  We do yest actually
  * register a pci_driver, because someone else might one day
- * want to register another driver on the same PCI id.
+ * want to register ayesther driver on the same PCI id.
  */
 static const struct pci_device_id pci_tbl[] = {
 /* AA
@@ -146,9 +146,9 @@ static const struct pci_device_id pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, pci_tbl);
 
-static __initdata int no_fwh_detect;
-module_param(no_fwh_detect, int, 0);
-MODULE_PARM_DESC(no_fwh_detect, "Skip FWH detection:\n"
+static __initdata int yes_fwh_detect;
+module_param(yes_fwh_detect, int, 0);
+MODULE_PARM_DESC(yes_fwh_detect, "Skip FWH detection:\n"
                                 " positive value - skip if FWH space locked read-only\n"
                                 " negative value - skip always");
 
@@ -199,7 +199,7 @@ static int intel_rng_init(struct hwrng *rng)
 	if ((hw_status & INTEL_RNG_ENABLED) == 0)
 		hw_status = hwstatus_set(mem, hw_status | INTEL_RNG_ENABLED);
 	if ((hw_status & INTEL_RNG_ENABLED) == 0) {
-		pr_err(PFX "cannot enable RNG, aborting\n");
+		pr_err(PFX "canyest enable RNG, aborting\n");
 		goto out;
 	}
 	err = 0;
@@ -274,7 +274,7 @@ static int __init intel_rng_hw_init(void *_intel_rng_hw)
 	if (mfc != INTEL_FWH_MANUFACTURER_CODE ||
 	    (dvc != INTEL_FWH_DEVICE_CODE_8M &&
 	     dvc != INTEL_FWH_DEVICE_CODE_4M)) {
-		pr_notice(PFX "FWH not detected\n");
+		pr_yestice(PFX "FWH yest detected\n");
 		return -ENODEV;
 	}
 
@@ -309,15 +309,15 @@ static int __init intel_init_hw_struct(struct intel_rng_hw *intel_rng_hw,
 PFX "Firmware space is locked read-only. If you can't or\n"
 PFX "don't want to disable this in firmware setup, and if\n"
 PFX "you are certain that your system has a functional\n"
-PFX "RNG, try using the 'no_fwh_detect' option.\n";
+PFX "RNG, try using the 'yes_fwh_detect' option.\n";
 
-		if (no_fwh_detect)
+		if (yes_fwh_detect)
 			return -ENODEV;
 		pr_warn("%s", warning);
 		return -EBUSY;
 	}
 
-	intel_rng_hw->mem = ioremap_nocache(INTEL_FWH_ADDR, INTEL_FWH_ADDR_LEN);
+	intel_rng_hw->mem = ioremap_yescache(INTEL_FWH_ADDR, INTEL_FWH_ADDR_LEN);
 	if (intel_rng_hw->mem == NULL)
 		return -EBUSY;
 
@@ -339,9 +339,9 @@ static int __init mod_init(void)
 				     NULL);
 
 	if (!dev)
-		goto out; /* Device not found. */
+		goto out; /* Device yest found. */
 
-	if (no_fwh_detect < 0) {
+	if (yes_fwh_detect < 0) {
 		pci_dev_put(dev);
 		goto fwh_done;
 	}
@@ -362,9 +362,9 @@ static int __init mod_init(void)
 	}
 
 	/*
-	 * Since the BIOS code/data is going to disappear from its normal
+	 * Since the BIOS code/data is going to disappear from its yesrmal
 	 * location with the Read ID command, all activity on the system
-	 * must be stopped until the state is back to normal.
+	 * must be stopped until the state is back to yesrmal.
 	 *
 	 * Use stop_machine because IPIs can be blocked by disabling
 	 * interrupts.

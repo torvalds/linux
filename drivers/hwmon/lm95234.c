@@ -23,7 +23,7 @@
 
 enum chips { lm95233, lm95234 };
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short yesrmal_i2c[] = {
 	0x18, 0x2a, 0x2b, 0x4d, 0x4e, I2C_CLIENT_END };
 
 /* LM95234 registers */
@@ -668,7 +668,7 @@ static int lm95234_init_client(struct i2c_client *client)
 	if (model < 0)
 		return model;
 	if (model & val) {
-		dev_notice(&client->dev,
+		dev_yestice(&client->dev,
 			   "Fixing remote diode type misconfiguration (0x%x)\n",
 			   val);
 		i2c_smbus_write_byte_data(client, LM95234_REG_REM_MODEL,
@@ -722,7 +722,7 @@ static struct i2c_driver lm95234_driver = {
 	.probe		= lm95234_probe,
 	.id_table	= lm95234_id,
 	.detect		= lm95234_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(lm95234_driver);

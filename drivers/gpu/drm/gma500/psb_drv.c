@@ -9,7 +9,7 @@
 
 #include <linux/cpu.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
 
@@ -130,7 +130,7 @@ static int psb_do_init(struct drm_device *dev)
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK1);
 	PSB_RSGX32(PSB_CR_BIF_BANK1);
 
-	/* Do not bypass any MMU access, let them pagefault instead */
+	/* Do yest bypass any MMU access, let them pagefault instead */
 	PSB_WSGX32((PSB_RSGX32(PSB_CR_BIF_CTRL) & ~_PSB_MMU_ER_MASK),
 		   PSB_CR_BIF_CTRL);
 	PSB_RSGX32(PSB_CR_BIF_CTRL);
@@ -256,7 +256,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 							    PSB_AUX_RESOURCE);
 			resource_len = pci_resource_len(dev_priv->aux_pdev,
 							PSB_AUX_RESOURCE);
-			dev_priv->aux_reg = ioremap_nocache(resource_start,
+			dev_priv->aux_reg = ioremap_yescache(resource_start,
 							    resource_len);
 			if (!dev_priv->aux_reg)
 				goto out_err;
@@ -411,7 +411,7 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			       unsigned long arg)
 {
 	struct drm_file *file_priv = filp->private_data;
-	struct drm_device *dev = file_priv->minor->dev;
+	struct drm_device *dev = file_priv->miyesr->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	static unsigned int runtime_allowed;
 
@@ -489,7 +489,7 @@ static struct drm_driver driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.miyesr = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL
 };
 

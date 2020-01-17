@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/netdevice.h>
@@ -107,7 +107,7 @@ static int __init stnic_probe(void)
   int i, err;
   struct ei_device *ei_local;
 
-  /* If we are not running on a SolutionEngine, give up now */
+  /* If we are yest running on a SolutionEngine, give up yesw */
   if (! MACH_SE)
     return -ENODEV;
 
@@ -117,17 +117,17 @@ static int __init stnic_probe(void)
   	return -ENOMEM;
 
 #ifdef CONFIG_SH_STANDARD_BIOS
-  sh_bios_get_node_addr (stnic_eadr);
+  sh_bios_get_yesde_addr (stnic_eadr);
 #endif
   for (i = 0; i < ETH_ALEN; i++)
     dev->dev_addr[i] = stnic_eadr[i];
 
-  /* Set the base address to point to the NIC, not the "real" base! */
+  /* Set the base address to point to the NIC, yest the "real" base! */
   dev->base_addr = 0x1000;
   dev->irq = IRQ_STNIC;
   dev->netdev_ops = &ei_netdev_ops;
 
-  /* Snarf the interrupt now.  There's no point in waiting since we cannot
+  /* Snarf the interrupt yesw.  There's yes point in waiting since we canyest
      share and the board will usually be enabled. */
   err = request_irq (dev->irq, ei_interrupt, 0, DRV_NAME, dev);
   if (err)  {
@@ -255,7 +255,7 @@ static void
 stnic_block_output (struct net_device *dev, int length,
 		    const unsigned char *buf, int output_page)
 {
-  STNIC_WRITE (PG0_RBCR0, 1);	/* Write non-zero value */
+  STNIC_WRITE (PG0_RBCR0, 1);	/* Write yesn-zero value */
   STNIC_WRITE (STNIC_CR, CR_RRD | CR_PG0 | CR_STA);
   STNIC_DELAY ();
 

@@ -7,7 +7,7 @@
  *
  * Status:
  *   - Only DTE (external clock) support with NRZ and NRZI encodings
- *   - wanXL100 will require minor driver modifications, no access to hw
+ *   - wanXL100 will require miyesr driver modifications, yes access to hw
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -19,7 +19,7 @@
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -55,7 +55,7 @@ struct port {
 	struct net_device *dev;
 	struct card *card;
 	spinlock_t lock;	/* for wanxl_xmit */
-        int node;		/* physical port #0 - 3 */
+        int yesde;		/* physical port #0 - 3 */
 	unsigned int clock_type;
 	int tx_in, tx_out;
 	struct sk_buff *tx_skbs[TX_BUFFERS];
@@ -91,7 +91,7 @@ static inline struct port *dev_to_port(struct net_device *dev)
 
 static inline port_status_t *get_status(struct port *port)
 {
-	return &port->card->status->port_status[port->node];
+	return &port->card->status->port_status[port->yesde];
 }
 
 
@@ -123,7 +123,7 @@ static inline void wanxl_cable_intr(struct port *port)
 	case STATUS_CABLE_X21: cable = "X.21"; break;
 	case STATUS_CABLE_V24: cable = "V.24"; break;
 	case STATUS_CABLE_EIA530: cable = "EIA530"; break;
-	case STATUS_CABLE_NONE: cable = "no"; break;
+	case STATUS_CABLE_NONE: cable = "yes"; break;
 	default: cable = "invalid";
 	}
 
@@ -132,7 +132,7 @@ static inline void wanxl_cable_intr(struct port *port)
 	case STATUS_CABLE_X21: pm = "X.21"; break;
 	case STATUS_CABLE_V24: pm = "V.24"; break;
 	case STATUS_CABLE_EIA530: pm = "EIA530"; break;
-	case STATUS_CABLE_NONE: pm = "no personality"; valid = 0; break;
+	case STATUS_CABLE_NONE: pm = "yes personality"; valid = 0; break;
 	default: pm = "invalid personality"; valid = 0;
 	}
 
@@ -196,7 +196,7 @@ static inline void wanxl_rx_intr(struct card *card)
 	while (desc = &card->status->rx_descs[card->rx_in],
 	       desc->stat != PACKET_EMPTY) {
 		if ((desc->stat & PACKET_PORT_MASK) > card->n_ports)
-			pr_crit("%s: received packet for nonexistent port\n",
+			pr_crit("%s: received packet for yesnexistent port\n",
 				pci_name(card->pdev));
 		else {
 			struct sk_buff *skb = card->rx_skbs[card->rx_in];
@@ -295,7 +295,7 @@ static netdev_tx_t wanxl_xmit(struct sk_buff *skb, struct net_device *dev)
 				       PCI_DMA_TODEVICE);
 	desc->length = skb->len;
 	desc->stat = PACKET_FULL;
-	writel(1 << (DOORBELL_TO_CARD_TX_0 + port->node),
+	writel(1 << (DOORBELL_TO_CARD_TX_0 + port->yesde),
 	       port->card->plx + PLX_DOORBELL_TO_CARD);
 
 	port->tx_out = (port->tx_out + 1) % TX_BUFFERS;
@@ -406,7 +406,7 @@ static int wanxl_open(struct net_device *dev)
 	for (i = 0; i < TX_BUFFERS; i++)
 		get_status(port)->tx_descs[i].stat = PACKET_EMPTY;
 	/* signal the card */
-	writel(1 << (DOORBELL_TO_CARD_OPEN_0 + port->node), dbr);
+	writel(1 << (DOORBELL_TO_CARD_OPEN_0 + port->yesde), dbr);
 
 	timeout = jiffies + HZ;
 	do {
@@ -418,7 +418,7 @@ static int wanxl_open(struct net_device *dev)
 
 	netdev_err(dev, "unable to open port\n");
 	/* ask the card to close the port, should it be still alive */
-	writel(1 << (DOORBELL_TO_CARD_CLOSE_0 + port->node), dbr);
+	writel(1 << (DOORBELL_TO_CARD_CLOSE_0 + port->yesde), dbr);
 	return -EFAULT;
 }
 
@@ -432,7 +432,7 @@ static int wanxl_close(struct net_device *dev)
 
 	hdlc_close(dev);
 	/* signal the card */
-	writel(1 << (DOORBELL_TO_CARD_CLOSE_0 + port->node),
+	writel(1 << (DOORBELL_TO_CARD_CLOSE_0 + port->yesde),
 	       port->card->plx + PLX_DOORBELL_TO_CARD);
 
 	timeout = jiffies + HZ;
@@ -635,7 +635,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	/* set up PLX mapping */
 	plx_phy = pci_resource_start(pdev, 0);
 
-	card->plx = ioremap_nocache(plx_phy, 0x70);
+	card->plx = ioremap_yescache(plx_phy, 0x70);
 	if (!card->plx) {
 		pr_err("ioremap() failed\n");
  		wanxl_pci_remove_one(pdev);
@@ -656,7 +656,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 		}
 
 		switch(stat & 0xC0) {
-		case 0x00:	/* hmm - PUTS completed with non-zero code? */
+		case 0x00:	/* hmm - PUTS completed with yesn-zero code? */
 		case 0x80:	/* PUTS still testing the hardware */
 			break;
 
@@ -670,7 +670,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 		schedule();
 	}
 
-	/* get on-board memory size (PUTS detects no more than 4 MB) */
+	/* get on-board memory size (PUTS detects yes more than 4 MB) */
 	ramsize = readl(card->plx + PLX_MAILBOX_2) & MBX2_MEMSZ_MASK;
 
 	/* set up on-board RAM mapping */
@@ -680,7 +680,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	/* sanity check the board's reported memory size */
 	if (ramsize < BUFFERS_ADDR +
 	    (TX_BUFFERS + RX_BUFFERS) * BUFFER_LENGTH * ports) {
-		pr_warn("%s: no enough on-board RAM (%u bytes detected, %u bytes required)\n",
+		pr_warn("%s: yes eyesugh on-board RAM (%u bytes detected, %u bytes required)\n",
 			pci_name(pdev), ramsize,
 			BUFFERS_ADDR +
 			(TX_BUFFERS + RX_BUFFERS) * BUFFER_LENGTH * ports);
@@ -704,7 +704,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 					       PCI_DMA_FROMDEVICE);
 	}
 
-	mem = ioremap_nocache(mem_phy, PDM_OFFSET + sizeof(firmware));
+	mem = ioremap_yescache(mem_phy, PDM_OFFSET + sizeof(firmware));
 	if (!mem) {
 		pr_err("ioremap() failed\n");
  		wanxl_pci_remove_one(pdev);
@@ -753,7 +753,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 
 	/* Allocate IRQ */
 	if (request_irq(pdev->irq, wanxl_intr, IRQF_SHARED, "wanXL", card)) {
-		pr_warn("%s: could not allocate IRQ%i\n",
+		pr_warn("%s: could yest allocate IRQ%i\n",
 			pci_name(pdev), pdev->irq);
 		wanxl_pci_remove_one(pdev);
 		return -EBUSY;
@@ -779,7 +779,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 		hdlc->attach = wanxl_attach;
 		hdlc->xmit = wanxl_xmit;
 		port->card = card;
-		port->node = i;
+		port->yesde = i;
 		get_status(port)->clocking = CLOCK_EXT;
 		if (register_hdlc_device(dev)) {
 			pr_err("%s: unable to register hdlc device\n",

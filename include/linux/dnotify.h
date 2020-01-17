@@ -2,15 +2,15 @@
 #ifndef _LINUX_DNOTIFY_H
 #define _LINUX_DNOTIFY_H
 /*
- * Directory notification for Linux
+ * Directory yestification for Linux
  *
  * Copyright (C) 2000,2002 Stephen Rothwell
  */
 
 #include <linux/fs.h>
 
-struct dnotify_struct {
-	struct dnotify_struct *	dn_next;
+struct dyestify_struct {
+	struct dyestify_struct *	dn_next;
 	__u32			dn_mask;
 	int			dn_fd;
 	struct file *		dn_filp;
@@ -29,17 +29,17 @@ struct dnotify_struct {
 			    FS_CREATE | FS_DN_RENAME |\
 			    FS_MOVED_FROM | FS_MOVED_TO)
 
-extern int dir_notify_enable;
-extern void dnotify_flush(struct file *, fl_owner_t);
-extern int fcntl_dirnotify(int, struct file *, unsigned long);
+extern int dir_yestify_enable;
+extern void dyestify_flush(struct file *, fl_owner_t);
+extern int fcntl_diryestify(int, struct file *, unsigned long);
 
 #else
 
-static inline void dnotify_flush(struct file *filp, fl_owner_t id)
+static inline void dyestify_flush(struct file *filp, fl_owner_t id)
 {
 }
 
-static inline int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
+static inline int fcntl_diryestify(int fd, struct file *filp, unsigned long arg)
 {
 	return -EINVAL;
 }

@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -69,22 +69,22 @@ struct vmw_fb_par {
 	struct delayed_work local_work;
 };
 
-static int vmw_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int vmw_fb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			    unsigned blue, unsigned transp,
 			    struct fb_info *info)
 {
 	struct vmw_fb_par *par = info->par;
 	u32 *pal = par->pseudo_palette;
 
-	if (regno > 15) {
-		DRM_ERROR("Bad regno %u.\n", regno);
+	if (regyes > 15) {
+		DRM_ERROR("Bad regyes %u.\n", regyes);
 		return 1;
 	}
 
 	switch (par->set_fb->format->depth) {
 	case 24:
 	case 32:
-		pal[regno] = ((red & 0xff00) << 8) |
+		pal[regyes] = ((red & 0xff00) << 8) |
 			      (green & 0xff00) |
 			     ((blue  & 0xff00) >> 8);
 		break;
@@ -142,14 +142,14 @@ static int vmw_fb_check_var(struct fb_var_screeninfo *var,
 
 	if ((var->xoffset + var->xres) > par->max_width ||
 	    (var->yoffset + var->yres) > par->max_height) {
-		DRM_ERROR("Requested geom can not fit in framebuffer\n");
+		DRM_ERROR("Requested geom can yest fit in framebuffer\n");
 		return -EINVAL;
 	}
 
 	if (!vmw_kms_validate_mode_vram(vmw_priv,
 					var->xres * var->bits_per_pixel/8,
 					var->yoffset + var->yres)) {
-		DRM_ERROR("Requested geom can not fit in framebuffer\n");
+		DRM_ERROR("Requested geom can yest fit in framebuffer\n");
 		return -EINVAL;
 	}
 
@@ -169,7 +169,7 @@ static int vmw_fb_blank(int blank, struct fb_info *info)
  * This function flushes the dirty regions of the vmalloc framebuffer to the
  * kms framebuffer, and if the kms framebuffer is visible, also updated the
  * corresponding displays. Note that this function runs even if the kms
- * framebuffer is not bound to a crtc and thus not visible, but it's turned
+ * framebuffer is yest bound to a crtc and thus yest visible, but it's turned
  * off during hibernation using the par->dirty.active bool.
  */
 static void vmw_fb_dirty_flush(struct work_struct *work)
@@ -303,7 +303,7 @@ static int vmw_fb_pan_display(struct fb_var_screeninfo *var,
 
 	if ((var->xoffset + var->xres) > var->xres_virtual ||
 	    (var->yoffset + var->yres) > var->yres_virtual) {
-		DRM_ERROR("Requested panning can not fit in framebuffer\n");
+		DRM_ERROR("Requested panning can yest fit in framebuffer\n");
 		return -EINVAL;
 	}
 
@@ -478,7 +478,7 @@ static int vmw_fb_kms_detach(struct vmw_fb_par *par,
 		set.connectors = &par->con;
 		ret = vmwgfx_set_config_internal(&set);
 		if (ret) {
-			DRM_ERROR("Could not unset a mode.\n");
+			DRM_ERROR("Could yest unset a mode.\n");
 			return ret;
 		}
 		drm_mode_destroy(par->vmw_priv->dev, par->set_mode);
@@ -569,7 +569,7 @@ static int vmw_fb_set_par(struct fb_info *info)
 
 	mode = drm_mode_duplicate(vmw_priv->dev, &new_mode);
 	if (!mode) {
-		DRM_ERROR("Could not create new fb mode.\n");
+		DRM_ERROR("Could yest create new fb mode.\n");
 		return -ENOMEM;
 	}
 
@@ -609,7 +609,7 @@ static int vmw_fb_set_par(struct fb_info *info)
 			  par->set_fb->width, par->set_fb->height);
 
 	/* If there already was stuff dirty we wont
-	 * schedule a new work, so lets do it now */
+	 * schedule a new work, so lets do it yesw */
 
 	schedule_delayed_work(&par->local_work, 0);
 

@@ -105,8 +105,8 @@ static void cursor_dbg_cml(struct seq_file *s,
 
 static int cursor_dbg_show(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct sti_cursor *cursor = (struct sti_cursor *)node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct sti_cursor *cursor = (struct sti_cursor *)yesde->info_ent->data;
 
 	seq_printf(s, "%s: (vaddr = 0x%p)",
 		   sti_plane_to_str(&cursor->plane), cursor->regs);
@@ -132,7 +132,7 @@ static struct drm_info_list cursor_debugfs_files[] = {
 };
 
 static int cursor_debugfs_init(struct sti_cursor *cursor,
-			       struct drm_minor *minor)
+			       struct drm_miyesr *miyesr)
 {
 	unsigned int i;
 
@@ -141,7 +141,7 @@ static int cursor_debugfs_init(struct sti_cursor *cursor,
 
 	return drm_debugfs_create_files(cursor_debugfs_files,
 					ARRAY_SIZE(cursor_debugfs_files),
-					minor->debugfs_root, minor);
+					miyesr->debugfs_root, miyesr);
 }
 
 static void sti_cursor_argb8888_to_clut8(struct sti_cursor *cursor, u32 *src)
@@ -192,7 +192,7 @@ static int sti_cursor_atomic_check(struct drm_plane *drm_plane,
 	int dst_x, dst_y, dst_w, dst_h;
 	int src_w, src_h;
 
-	/* no need for further checks if the plane is being disabled */
+	/* yes need for further checks if the plane is being disabled */
 	if (!crtc || !fb)
 		return 0;
 
@@ -311,7 +311,7 @@ static void sti_cursor_atomic_disable(struct drm_plane *drm_plane,
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 
 	if (!oldstate->crtc) {
-		DRM_DEBUG_DRIVER("drm plane:%d not enabled\n",
+		DRM_DEBUG_DRIVER("drm plane:%d yest enabled\n",
 				 drm_plane->base.id);
 		return;
 	}

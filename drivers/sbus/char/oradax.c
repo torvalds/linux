@@ -11,12 +11,12 @@
  * caches as well as physical memory. It can perform several
  * operations on data streams with various input and output formats.
  * The driver provides a transport mechanism only and has limited
- * knowledge of the various opcodes and data formats. A user space
+ * kyeswledge of the various opcodes and data formats. A user space
  * library provides high level services and translates these into low
  * level commands which are then passed into the driver and
  * subsequently the hypervisor and the coprocessor.  The library is
  * the recommended way for applications to use the coprocessor, and
- * the driver interface is not intended for general use.
+ * the driver interface is yest intended for general use.
  *
  * See Documentation/sparc/oradax/oracle-dax.rst for more details.
  */
@@ -89,7 +89,7 @@ enum {
 #define	CCA_STAT_PIPE_DST	7
 
 /* completion err */
-#define	CCA_ERR_SUCCESS		0x0	/* no error */
+#define	CCA_ERR_SUCCESS		0x0	/* yes error */
 #define	CCA_ERR_OVERFLOW	0x1	/* buffer overflow */
 #define	CCA_ERR_DECODE		0x2	/* CCB decode error */
 #define	CCA_ERR_PAGE_OVERFLOW	0x3	/* page overflow */
@@ -97,7 +97,7 @@ enum {
 #define	CCA_ERR_TIMEOUT		0x8	/* Timeout */
 #define	CCA_ERR_ADI		0x9	/* ADI error */
 #define	CCA_ERR_DATA_FMT	0xA	/* data format error */
-#define	CCA_ERR_OTHER_NO_RETRY	0xE	/* Other error, do not retry */
+#define	CCA_ERR_OTHER_NO_RETRY	0xE	/* Other error, do yest retry */
 #define	CCA_ERR_OTHER_RETRY	0xF	/* Other error, retry */
 #define	CCA_ERR_PARTIAL_SYMBOL	0x80	/* QP partial symbol warning */
 
@@ -174,13 +174,13 @@ struct dax_ccb {
 
 struct dax_cca {
 	u8	status;		/* user may mwait on this address */
-	u8	err;		/* user visible error notification */
+	u8	err;		/* user visible error yestification */
 	u8	rsvd[2];	/* reserved */
 	u32	n_remaining;	/* for QP partial symbol warning */
 	u32	output_sz;	/* output in bytes */
 	u32	rsvd2;		/* reserved */
 	u64	run_cycles;	/* run time in OCND2 cycles */
-	u64	run_stats;	/* nothing reported in version 1.0 */
+	u64	run_stats;	/* yesthing reported in version 1.0 */
 	u32	n_processed;	/* number input elements */
 	u32	rsvd3[5];	/* reserved */
 	u64	retval;		/* command return value */
@@ -203,13 +203,13 @@ struct dax_ctx {
 };
 
 /* driver public entry points */
-static int dax_open(struct inode *inode, struct file *file);
+static int dax_open(struct iyesde *iyesde, struct file *file);
 static ssize_t dax_read(struct file *filp, char __user *buf,
 			size_t count, loff_t *ppos);
 static ssize_t dax_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *ppos);
 static int dax_devmap(struct file *f, struct vm_area_struct *vma);
-static int dax_close(struct inode *i, struct file *f);
+static int dax_close(struct iyesde *i, struct file *f);
 
 static const struct file_operations dax_fops = {
 	.owner	=	THIS_MODULE,
@@ -236,7 +236,7 @@ MODULE_PARM_DESC(dax_debug, "Debug flags");
 
 static int __init dax_attach(void)
 {
-	unsigned long dummy, hv_rv, major, minor, minor_requested, max_ccbs;
+	unsigned long dummy, hv_rv, major, miyesr, miyesr_requested, max_ccbs;
 	struct mdesc_handle *hp = mdesc_grab();
 	char *prop, *dax_name;
 	bool found = false;
@@ -248,18 +248,18 @@ static int __init dax_attach(void)
 		return -ENODEV;
 	}
 
-	mdesc_for_each_node_by_name(hp, pn, "virtual-device") {
+	mdesc_for_each_yesde_by_name(hp, pn, "virtual-device") {
 		prop = (char *)mdesc_get_property(hp, pn, "name", &len);
 		if (prop == NULL)
 			continue;
 		if (strncmp(prop, "dax", strlen("dax")))
 			continue;
-		dax_dbg("Found node 0x%llx = %s", pn, prop);
+		dax_dbg("Found yesde 0x%llx = %s", pn, prop);
 
 		prop = (char *)mdesc_get_property(hp, pn, "compatible", &len);
 		if (prop == NULL)
 			continue;
-		dax_dbg("Found node 0x%llx = %s", pn, prop);
+		dax_dbg("Found yesde 0x%llx = %s", pn, prop);
 		found = true;
 		break;
 	}
@@ -273,33 +273,33 @@ static int __init dax_attach(void)
 	if (strncmp(prop, DAX2_STR, strlen(DAX2_STR)) == 0) {
 		dax_name = DAX_NAME "2";
 		major = DAX2_MAJOR;
-		minor_requested = DAX2_MINOR;
+		miyesr_requested = DAX2_MINOR;
 		max_ccb_version = 1;
 		dax_dbg("MD indicates DAX2 coprocessor");
 	} else if (strncmp(prop, DAX1_STR, strlen(DAX1_STR)) == 0) {
 		dax_name = DAX_NAME "1";
 		major = DAX1_MAJOR;
-		minor_requested = DAX1_MINOR;
+		miyesr_requested = DAX1_MINOR;
 		max_ccb_version = 0;
 		dax_dbg("MD indicates DAX1 coprocessor");
 	} else {
-		dax_err("Unknown dax type: %s", prop);
+		dax_err("Unkyeswn dax type: %s", prop);
 		ret = -ENODEV;
 		goto done;
 	}
 
-	minor = minor_requested;
-	dax_dbg("Registering DAX HV api with major %ld minor %ld", major,
-		minor);
-	if (sun4v_hvapi_register(HV_GRP_DAX, major, &minor)) {
+	miyesr = miyesr_requested;
+	dax_dbg("Registering DAX HV api with major %ld miyesr %ld", major,
+		miyesr);
+	if (sun4v_hvapi_register(HV_GRP_DAX, major, &miyesr)) {
 		dax_err("hvapi_register failed");
 		ret = -ENODEV;
 		goto done;
 	} else {
-		dax_dbg("Max minor supported by HV = %ld (major %ld)", minor,
+		dax_dbg("Max miyesr supported by HV = %ld (major %ld)", miyesr,
 			major);
-		minor = min(minor, minor_requested);
-		dax_dbg("registered DAX major %ld minor %ld", major, minor);
+		miyesr = min(miyesr, miyesr_requested);
+		dax_dbg("registered DAX major %ld miyesr %ld", major, miyesr);
 	}
 
 	/* submit a zero length ccb array to query coprocessor queue size */
@@ -521,7 +521,7 @@ static void dax_ccb_wait(struct dax_ctx *ctx, int idx)
 	dax_dbg("Kill CCB[%d] %s", idx, ret ? "failed" : "succeeded");
 }
 
-static int dax_close(struct inode *ino, struct file *f)
+static int dax_close(struct iyesde *iyes, struct file *f)
 {
 	struct dax_ctx *ctx = (struct dax_ctx *)f->private_data;
 	int i;
@@ -530,7 +530,7 @@ static int dax_close(struct inode *ino, struct file *f)
 
 	for (i = 0; i < DAX_CA_ELEMS; i++) {
 		if (ctx->ca_buf[i].status == CCA_STAT_NOT_COMPLETED) {
-			dax_dbg("CCB[%d] not completed", i);
+			dax_dbg("CCB[%d] yest completed", i);
 			dax_ccb_wait(ctx, i);
 		}
 		dax_unlock_pages(ctx, i, 1);
@@ -641,7 +641,7 @@ static ssize_t dax_write(struct file *f, const char __user *buf,
 	}
 }
 
-static int dax_open(struct inode *inode, struct file *f)
+static int dax_open(struct iyesde *iyesde, struct file *f)
 {
 	struct dax_ctx *ctx = NULL;
 	int i;
@@ -681,7 +681,7 @@ done:
 	return -ENOMEM;
 }
 
-static char *dax_hv_errno(unsigned long hv_ret, int *ret)
+static char *dax_hv_erryes(unsigned long hv_ret, int *ret)
 {
 	switch (hv_ret) {
 	case HV_EBADALIGN:
@@ -721,7 +721,7 @@ static int dax_ccb_kill(u64 ca, u16 *kill_res)
 			dax_info_dbg("HV_EOK (ca_ra 0x%llx): %d", ca,
 				     *kill_res);
 		} else {
-			err_str = dax_hv_errno(hv_ret, &ret);
+			err_str = dax_hv_erryes(hv_ret, &ret);
 			dax_dbg("%s (ca_ra 0x%llx)", err_str, ca);
 		}
 
@@ -750,7 +750,7 @@ static int dax_ccb_info(u64 ca, struct ccb_info_result *info)
 				     info->inst_num, info->q_num, info->q_pos);
 		}
 	} else {
-		err_str = dax_hv_errno(hv_ret, &ret);
+		err_str = dax_hv_erryes(hv_ret, &ret);
 		dax_dbg("%s (ca_ra 0x%llx)", err_str, ca);
 	}
 
@@ -781,7 +781,7 @@ static int dax_preprocess_usr_ccbs(struct dax_ctx *ctx, int idx, int nelem)
 	int i;
 
 	/*
-	 * The user is not allowed to specify real address types in
+	 * The user is yest allowed to specify real address types in
 	 * the CCB header.  This must be enforced by the kernel before
 	 * submitting the CCBs to HV.  The only allowed values for all
 	 * address fields are VA or IMM
@@ -885,7 +885,7 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 	/* check to see if ca_buf[idx] .. ca_buf[idx + nccbs] are available */
 	for (i = idx; i < idx + nccbs; i++) {
 		if (ctx->ca_buf[i].status == CCA_STAT_NOT_COMPLETED) {
-			dax_dbg("CA range not available, dequeue needed");
+			dax_dbg("CA range yest available, dequeue needed");
 			ctx->result.exec.status = DAX_SUBMIT_ERR_NO_CA_AVAIL;
 			return 0;
 		}
@@ -911,11 +911,11 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 	switch (hv_rv) {
 	case HV_EOK:
 		/*
-		 * Hcall succeeded with no errors but the accepted
+		 * Hcall succeeded with yes errors but the accepted
 		 * length may be less than the requested length.  The
 		 * only way the driver can resubmit the remainder is
 		 * to wait for completion of the submitted CCBs since
-		 * there is no way to guarantee the ordering semantics
+		 * there is yes way to guarantee the ordering semantics
 		 * required by the client applications.  Therefore we
 		 * let the user library deal with resubmissions.
 		 */
@@ -932,7 +932,7 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 	case HV_ENOMAP:
 		/*
 		 * HV was unable to translate a VA. The VA it could
-		 * not translate is returned in the status_data param.
+		 * yest translate is returned in the status_data param.
 		 */
 		dax_dbg("hcall returned HV_ENOMAP");
 		ctx->result.exec.status = DAX_SUBMIT_ERR_NOMAP;
@@ -941,7 +941,7 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 		/*
 		 * This is the result of an invalid user CCB as HV is
 		 * validating some of the user CCB fields.  Pass this
-		 * error back to the user. There is no supporting info
+		 * error back to the user. There is yes supporting info
 		 * to isolate the invalid field.
 		 */
 		dax_dbg("hcall returned HV_EINVAL");
@@ -949,7 +949,7 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 		break;
 	case HV_ENOACCESS:
 		/*
-		 * HV found a VA that did not have the appropriate
+		 * HV found a VA that did yest have the appropriate
 		 * permissions (such as the w bit). The VA in question
 		 * is returned in status_data param.
 		 */
@@ -958,7 +958,7 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 		break;
 	case HV_EUNAVAILABLE:
 		/*
-		 * The requested CCB operation could not be performed
+		 * The requested CCB operation could yest be performed
 		 * at this time. Return the specific unavailable code
 		 * in the status_data field.
 		 */
@@ -967,7 +967,7 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 		break;
 	default:
 		ctx->result.exec.status = DAX_SUBMIT_ERR_INTERNAL;
-		dax_dbg("unknown hcall return value (%ld)", hv_rv);
+		dax_dbg("unkyeswn hcall return value (%ld)", hv_rv);
 		break;
 	}
 
@@ -975,7 +975,7 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 	naccepted = accepted_len / sizeof(struct dax_ccb);
 	dax_unlock_pages(ctx, idx + naccepted, nccbs - naccepted);
 
-	/* mark unaccepted CCBs as not completed */
+	/* mark unaccepted CCBs as yest completed */
 	for (i = idx + naccepted; i < idx + nccbs; i++)
 		ctx->ca_buf[i].status = CCA_STAT_COMPLETED;
 
@@ -987,6 +987,6 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 		ctx->result.exec.status);
 
 	if (count == accepted_len)
-		ctx->client = NULL; /* no read needed to complete protocol */
+		ctx->client = NULL; /* yes read needed to complete protocol */
 	return accepted_len;
 }

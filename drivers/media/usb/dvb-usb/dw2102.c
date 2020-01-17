@@ -4,7 +4,7 @@
  *	TeVii S421, S480, S482, S600, S630, S632, S650, S660, S662,
  *	Prof 1100, 7500,
  *	Geniatech SU3000, T220,
- *	TechnoTrend S2-4600,
+ *	TechyesTrend S2-4600,
  *	Terratec Cinergy S2 cards
  * Copyright (C) 2008-2012 Igor M. Liplianin (liplianin@me.by)
  *
@@ -58,7 +58,7 @@
 #define P1100_FIRMWARE  "dvb-usb-p1100.fw"
 #define P7500_FIRMWARE  "dvb-usb-p7500.fw"
 
-#define	err_str "did not find the firmware file '%s'. You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware"
+#define	err_str "did yest find the firmware file '%s'. You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware"
 
 struct dw2102_state {
 	u8 initialized;
@@ -200,7 +200,7 @@ static int dw2102_serit_i2c_transfer(struct i2c_adapter *adap,
 	switch (num) {
 	case 2:
 		if (msg[0].len != 1) {
-			warn("i2c rd: len=%d is not 1!\n",
+			warn("i2c rd: len=%d is yest 1!\n",
 			     msg[0].len);
 			num = -EOPNOTSUPP;
 			break;
@@ -279,7 +279,7 @@ static int dw2102_earda_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg ms
 		u8 ibuf[MAX_XFER_SIZE], obuf[3];
 
 		if (2 + msg[0].len != sizeof(obuf)) {
-			warn("i2c rd: len=%d is not 1!\n",
+			warn("i2c rd: len=%d is yest 1!\n",
 			     msg[0].len);
 			ret = -EOPNOTSUPP;
 			goto unlock;
@@ -486,7 +486,7 @@ static int dw3101_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		u8 ibuf[MAX_XFER_SIZE], obuf[3];
 
 		if (2 + msg[0].len != sizeof(obuf)) {
-			warn("i2c rd: len=%d is not 1!\n",
+			warn("i2c rd: len=%d is yest 1!\n",
 			     msg[0].len);
 			ret = -EOPNOTSUPP;
 			goto unlock;
@@ -773,7 +773,7 @@ static int su3000_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		memcpy(msg[1].buf, &state->data[1], msg[1].len);
 		break;
 	default:
-		warn("more than 2 i2c messages at a time is not handled yet.");
+		warn("more than 2 i2c messages at a time is yest handled yet.");
 		break;
 	}
 	mutex_unlock(&d->data_mutex);
@@ -885,14 +885,14 @@ static int s6x0_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 	return 0;
 };
 
-static int su3000_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int su3000_streaming_ctrl(struct dvb_usb_adapter *adap, int oyesff)
 {
 	static u8 command_start[] = {0x00};
 	static u8 command_stop[] = {0x01};
 	struct i2c_msg msg = {
 		.addr = SU3000_STREAM_CTRL,
 		.flags = 0,
-		.buf = onoff ? command_start : command_stop,
+		.buf = oyesff ? command_start : command_stop,
 		.len = 1
 	};
 
@@ -1824,12 +1824,12 @@ static int dw2102_load_firmware(struct usb_device *dev,
 		reset = 0;
 		if (ret || dw210x_op_rw(dev, 0xa0, 0x7f92, 0, &reset, 1,
 					DW210X_WRITE_MSG) != 1) {
-			err("could not restart the USB controller CPU.");
+			err("could yest restart the USB controller CPU.");
 			ret = -EINVAL;
 		}
 		if (ret || dw210x_op_rw(dev, 0xa0, 0xe600, 0, &reset, 1,
 					DW210X_WRITE_MSG) != 1) {
-			err("could not restart the USB controller CPU.");
+			err("could yest restart the USB controller CPU.");
 			ret = -EINVAL;
 		}
 		/* init registers */
@@ -1900,7 +1900,7 @@ static struct dvb_usb_device_properties dw2102_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = DW2102_FIRMWARE,
-	.no_reconnect = 1,
+	.yes_reconnect = 1,
 
 	.i2c_algo = &dw2102_serit_i2c_algo,
 
@@ -1956,7 +1956,7 @@ static struct dvb_usb_device_properties dw2104_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = DW2104_FIRMWARE,
-	.no_reconnect = 1,
+	.yes_reconnect = 1,
 
 	.i2c_algo = &dw2104_i2c_algo,
 	.rc.core = {
@@ -2007,7 +2007,7 @@ static struct dvb_usb_device_properties dw3101_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = DW3101_FIRMWARE,
-	.no_reconnect = 1,
+	.yes_reconnect = 1,
 
 	.i2c_algo = &dw3101_i2c_algo,
 	.rc.core = {
@@ -2056,7 +2056,7 @@ static struct dvb_usb_device_properties s6x0_properties = {
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.size_of_priv = sizeof(struct dw2102_state),
 	.firmware = S630_FIRMWARE,
-	.no_reconnect = 1,
+	.yes_reconnect = 1,
 
 	.i2c_algo = &s6x0_i2c_algo,
 	.rc.core = {
@@ -2300,7 +2300,7 @@ static struct dvb_usb_device_properties tt_s2_4600_properties = {
 	},
 	.num_device_descs = 5,
 	.devices = {
-		{ "TechnoTrend TT-connect S2-4600",
+		{ "TechyesTrend TT-connect S2-4600",
 			{ &dw2102_table[TECHNOTREND_S2_4600], NULL },
 			{ NULL },
 		},
@@ -2456,7 +2456,7 @@ static struct usb_driver dw2102_driver = {
 module_usb_driver(dw2102_driver);
 
 MODULE_AUTHOR("Igor M. Liplianin (c) liplianin@me.by");
-MODULE_DESCRIPTION("Driver for DVBWorld DVB-S 2101, 2102, DVB-S2 2104, DVB-C 3101 USB2.0, TeVii S421, S480, S482, S600, S630, S632, S650, TeVii S660, S662, Prof 1100, 7500 USB2.0, Geniatech SU3000, T220, TechnoTrend S2-4600, Terratec Cinergy S2 devices");
+MODULE_DESCRIPTION("Driver for DVBWorld DVB-S 2101, 2102, DVB-S2 2104, DVB-C 3101 USB2.0, TeVii S421, S480, S482, S600, S630, S632, S650, TeVii S660, S662, Prof 1100, 7500 USB2.0, Geniatech SU3000, T220, TechyesTrend S2-4600, Terratec Cinergy S2 devices");
 MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(DW2101_FIRMWARE);

@@ -79,7 +79,7 @@ config MVNETA_BM
 	select HWBM
 	select GENERIC_ALLOCATOR
 	help
-	  MVNETA_BM must not be 'm' if MVNETA=y, so this symbol ensures
+	  MVNETA_BM must yest be 'm' if MVNETA=y, so this symbol ensures
 	  that all dependencies are met.
 
 config MVPP2
@@ -111,14 +111,14 @@ config SKGE
 	  and related Gigabit Ethernet adapters. It is a new smaller driver
 	  with better performance and more complete ethtool support.
 
-	  It does not support the link failover and network management
+	  It does yest support the link failover and network management
 	  features that "portable" vendor supplied sk98lin driver does.
 
 	  This driver supports adapters based on the original Yukon chipset:
 	  Marvell 88E8001, Belkin F5D5005, CNet GigaCard, DLink DGE-530T,
 	  Linksys EG1032/EG1064, 3Com 3C940/3C940B, SysKonnect SK-9871/9872.
 
-	  It does not support the newer Yukon2 chipset: a separate driver,
+	  It does yest support the newer Yukon2 chipset: a separate driver,
 	  sky2, is provided for these adapters.
 
 	  To compile this driver as a module, choose M here: the module

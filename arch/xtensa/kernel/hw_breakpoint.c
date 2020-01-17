@@ -28,7 +28,7 @@ int hw_breakpoint_slots(int type)
 	case TYPE_DATA:
 		return XCHAL_NUM_DBREAK;
 	default:
-		pr_warn("unknown slot type: %d\n", type);
+		pr_warn("unkyeswn slot type: %d\n", type);
 		return 0;
 	}
 }
@@ -82,7 +82,7 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 	return 0;
 }
 
-int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
+int hw_breakpoint_exceptions_yestify(struct yestifier_block *unused,
 				    unsigned long val, void *data)
 {
 	return NOTIFY_DONE;

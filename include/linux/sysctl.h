@@ -10,7 +10,7 @@
  **  WARNING:
  **  The values in this file are exported to user space via 
  **  the sysctl() binary interface.  Do *NOT* change the
- **  numbering of any existing values here, and do not change
+ **  numbering of any existing values here, and do yest change
  **  any numbers within any one set of values.  If you have to
  **  redefine an existing interface, use a new number for it.
  **  The kernel will then return -ENOTDIR to any application using
@@ -78,25 +78,25 @@ extern int proc_do_static_key(struct ctl_table *table, int write,
  * Register a set of sysctl names by calling register_sysctl_table
  * with an initialised array of struct ctl_table's.  An entry with 
  * NULL procname terminates the table.  table->de will be
- * set up by the registration and need not be initialised in advance.
+ * set up by the registration and need yest be initialised in advance.
  *
  * sysctl names can be mirrored automatically under /proc/sys.  The
  * procname supplied controls /proc naming.
  *
- * The table's mode will be honoured both for sys_sysctl(2) and
+ * The table's mode will be hoyesured both for sys_sysctl(2) and
  * proc-fs access.
  *
- * Leaf nodes in the sysctl tree will be represented by a single file
- * under /proc; non-leaf nodes will be represented by directories.  A
- * null procname disables /proc mirroring at this node.
+ * Leaf yesdes in the sysctl tree will be represented by a single file
+ * under /proc; yesn-leaf yesdes will be represented by directories.  A
+ * null procname disables /proc mirroring at this yesde.
  *
  * sysctl(2) can automatically manage read and write requests through
  * the sysctl table.  The data and maxlen fields of the ctl_table
  * struct enable minimal validation of the values being written to be
  * performed, and the mode field allows minimal authentication.
  * 
- * There must be a proc_handler routine for any terminal nodes
- * mirrored under /proc/sys (non-terminals are handled by a built-in
+ * There must be a proc_handler routine for any terminal yesdes
+ * mirrored under /proc/sys (yesn-terminals are handled by a built-in
  * directory handler).  Several default handlers are available to
  * cover common cases.
  */
@@ -132,8 +132,8 @@ struct ctl_table {
 	void *extra2;
 } __randomize_layout;
 
-struct ctl_node {
-	struct rb_node node;
+struct ctl_yesde {
+	struct rb_yesde yesde;
 	struct ctl_table_header *header;
 };
 
@@ -154,8 +154,8 @@ struct ctl_table_header {
 	struct ctl_table_root *root;
 	struct ctl_table_set *set;
 	struct ctl_dir *parent;
-	struct ctl_node *node;
-	struct hlist_head inodes; /* head for proc_inode->sysctl_inodes */
+	struct ctl_yesde *yesde;
+	struct hlist_head iyesdes; /* head for proc_iyesde->sysctl_iyesdes */
 };
 
 struct ctl_dir {
@@ -185,7 +185,7 @@ struct ctl_path {
 
 #ifdef CONFIG_SYSCTL
 
-void proc_sys_poll_notify(struct ctl_table_poll *poll);
+void proc_sys_poll_yestify(struct ctl_table_poll *poll);
 
 extern void setup_sysctl_set(struct ctl_table_set *p,
 	struct ctl_table_root *root,

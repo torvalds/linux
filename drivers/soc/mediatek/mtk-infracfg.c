@@ -26,7 +26,7 @@
  *              by regmap_write with set register(PROTECTEN_SET).
  *
  * This function enables the bus protection bits for disabled power
- * domains so that the system does not hang when some unit accesses the
+ * domains so that the system does yest hang when some unit accesses the
  * bus while in power down.
  */
 int mtk_infracfg_set_bus_protection(struct regmap *infracfg, u32 mask,

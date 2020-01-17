@@ -45,7 +45,7 @@ static const struct snd_soc_dapm_route base_map[] = {
 	{ "MIC3L", NULL, "GSM In" },
 
 	/* Speaker is connected to LINEOUT{LN,LP,RN,RP}, however we are
-	 * not using the DAPM to power it up and down as there it makes
+	 * yest using the DAPM to power it up and down as there it makes
 	 * a click when powering up. */
 };
 

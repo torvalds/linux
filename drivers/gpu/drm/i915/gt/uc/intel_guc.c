@@ -23,11 +23,11 @@
  * - GT Power management.
  *
  * The enable_guc module parameter can be used to select which of those
- * operations to enable within GuC. Note that not all the operations are
+ * operations to enable within GuC. Note that yest all the operations are
  * supported on all gen9+ platforms.
  *
- * Enabling the GuC is not mandatory and therefore the firmware is only loaded
- * if at least one of the operations is selected. However, not loading the GuC
+ * Enabling the GuC is yest mandatory and therefore the firmware is only loaded
+ * if at least one of the operations is selected. However, yest loading the GuC
  * might result in the loss of some features that do require the GuC (currently
  * just the HuC, but more are expected to land in the future).
  */
@@ -177,15 +177,15 @@ void intel_guc_init_early(struct intel_guc *guc)
 
 	mutex_init(&guc->send_mutex);
 	spin_lock_init(&guc->irq_lock);
-	guc->send = intel_guc_send_nop;
-	guc->handler = intel_guc_to_host_event_handler_nop;
+	guc->send = intel_guc_send_yesp;
+	guc->handler = intel_guc_to_host_event_handler_yesp;
 	if (INTEL_GEN(i915) >= 11) {
-		guc->notify = gen11_guc_raise_irq;
+		guc->yestify = gen11_guc_raise_irq;
 		guc->interrupts.reset = gen11_reset_guc_interrupts;
 		guc->interrupts.enable = gen11_enable_guc_interrupts;
 		guc->interrupts.disable = gen11_disable_guc_interrupts;
 	} else {
-		guc->notify = gen8_guc_raise_irq;
+		guc->yestify = gen8_guc_raise_irq;
 		guc->interrupts.reset = gen9_reset_guc_interrupts;
 		guc->interrupts.enable = gen9_enable_guc_interrupts;
 		guc->interrupts.disable = gen9_disable_guc_interrupts;
@@ -285,7 +285,7 @@ static u32 guc_ctl_ads_flags(struct intel_guc *guc)
 /*
  * Initialise the GuC parameter block before starting the firmware
  * transfer. These parameters are read by the firmware on startup
- * and cannot be changed thereafter.
+ * and canyest be changed thereafter.
  */
 static void guc_init_params(struct intel_guc *guc)
 {
@@ -307,7 +307,7 @@ static void guc_init_params(struct intel_guc *guc)
 /*
  * Initialise the GuC parameter block before starting the firmware
  * transfer. These parameters are read by the firmware on startup
- * and cannot be changed thereafter.
+ * and canyest be changed thereafter.
  */
 void intel_guc_write_params(struct intel_guc *guc)
 {
@@ -361,10 +361,10 @@ int intel_guc_init(struct intel_guc *guc)
 			goto err_ct;
 	}
 
-	/* now that everything is perma-pinned, initialize the parameters */
+	/* yesw that everything is perma-pinned, initialize the parameters */
 	guc_init_params(guc);
 
-	/* We need to notify the guc whenever we change the GGTT */
+	/* We need to yestify the guc whenever we change the GGTT */
 	i915_ggtt_enable_guc(gt->ggtt);
 
 	return 0;
@@ -403,16 +403,16 @@ void intel_guc_fini(struct intel_guc *guc)
 	intel_uc_fw_cleanup_fetch(&guc->fw);
 }
 
-int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len,
+int intel_guc_send_yesp(struct intel_guc *guc, const u32 *action, u32 len,
 		       u32 *response_buf, u32 response_buf_size)
 {
 	WARN(1, "Unexpected send: action=%#x\n", *action);
 	return -ENODEV;
 }
 
-void intel_guc_to_host_event_handler_nop(struct intel_guc *guc)
+void intel_guc_to_host_event_handler_yesp(struct intel_guc *guc)
 {
-	WARN(1, "Unexpected event: no suitable handler\n");
+	WARN(1, "Unexpected event: yes suitable handler\n");
 }
 
 /*
@@ -444,7 +444,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 
 	intel_uncore_posting_read(uncore, guc_send_reg(guc, i - 1));
 
-	intel_guc_notify(guc);
+	intel_guc_yestify(guc);
 
 	/*
 	 * No GuC command should ever take longer than 10ms.
@@ -527,7 +527,7 @@ int intel_guc_sample_forcewake(struct intel_guc *guc)
  * INTEL_GUC_ACTION_AUTHENTICATE_HUC interface. This function is invoked by
  * intel_huc_auth().
  *
- * Return:	non-zero code on error
+ * Return:	yesn-zero code on error
  */
 int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset)
 {
@@ -540,7 +540,7 @@ int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset)
 }
 
 /**
- * intel_guc_suspend() - notify GuC entering suspend state
+ * intel_guc_suspend() - yestify GuC entering suspend state
  * @guc:	the guc
  */
 int intel_guc_suspend(struct intel_guc *guc)
@@ -554,18 +554,18 @@ int intel_guc_suspend(struct intel_guc *guc)
 	};
 
 	/*
-	 * If GuC communication is enabled but submission is not supported,
-	 * we do not need to suspend the GuC.
+	 * If GuC communication is enabled but submission is yest supported,
+	 * we do yest need to suspend the GuC.
 	 */
 	if (!intel_guc_submission_is_enabled(guc))
 		return 0;
 
 	/*
 	 * The ENTER_S_STATE action queues the save/restore operation in GuC FW
-	 * and then returns, so waiting on the H2G is not enough to guarantee
+	 * and then returns, so waiting on the H2G is yest eyesugh to guarantee
 	 * GuC is done. When all the processing is done, GuC writes
 	 * INTEL_GUC_SLEEP_STATE_SUCCESS to scratch register 14, so we can poll
-	 * on that. Note that GuC does not ensure that the value in the register
+	 * on that. Note that GuC does yest ensure that the value in the register
 	 * is different from INTEL_GUC_SLEEP_STATE_SUCCESS while the action is
 	 * in progress so we need to take care of that ourselves as well.
 	 */
@@ -607,7 +607,7 @@ int intel_guc_reset_engine(struct intel_guc *guc,
 }
 
 /**
- * intel_guc_resume() - notify GuC resuming from suspend state
+ * intel_guc_resume() - yestify GuC resuming from suspend state
  * @guc:	the guc
  */
 int intel_guc_resume(struct intel_guc *guc)
@@ -618,8 +618,8 @@ int intel_guc_resume(struct intel_guc *guc)
 	};
 
 	/*
-	 * If GuC communication is enabled but submission is not supported,
-	 * we do not need to resume the GuC but we do need to enable the
+	 * If GuC communication is enabled but submission is yest supported,
+	 * we do yest need to resume the GuC but we do need to enable the
 	 * GuC communication on resume (above).
 	 */
 	if (!intel_guc_submission_is_enabled(guc))
@@ -635,7 +635,7 @@ int intel_guc_resume(struct intel_guc *guc)
  * be handled by the host driver. GuC accesses the memory via the GGTT, with the
  * exception of the top and bottom parts of the 4GB address space, which are
  * instead re-mapped by the GuC HW to memory location of the FW itself (WOPCM)
- * or other parts of the HW. The driver must take care not to place objects that
+ * or other parts of the HW. The driver must take care yest to place objects that
  * the GuC is going to access in these reserved ranges. The layout of the GuC
  * address space is shown below:
  *

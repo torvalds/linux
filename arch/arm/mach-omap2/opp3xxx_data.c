@@ -2,7 +2,7 @@
  * OMAP3 OPP table definitions.
  *
  * Copyright (C) 2009-2010 Texas Instruments Incorporated - http://www.ti.com/
- *	Nishanth Menon
+ *	Nishanth Meyesn
  *	Kevin Hilman
  * Copyright (C) 2010-2011 Nokia Corporation.
  *      Eduardo Valentin

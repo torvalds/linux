@@ -11,17 +11,17 @@
 #include "omapdss.h"
 
 struct omap_dss_device *
-omapdss_of_find_connected_device(struct device_node *node, unsigned int port)
+omapdss_of_find_connected_device(struct device_yesde *yesde, unsigned int port)
 {
-	struct device_node *remote_node;
+	struct device_yesde *remote_yesde;
 	struct omap_dss_device *dssdev;
 
-	remote_node = of_graph_get_remote_node(node, port, 0);
-	if (!remote_node)
+	remote_yesde = of_graph_get_remote_yesde(yesde, port, 0);
+	if (!remote_yesde)
 		return NULL;
 
-	dssdev = omapdss_find_device_by_node(remote_node);
-	of_node_put(remote_node);
+	dssdev = omapdss_find_device_by_yesde(remote_yesde);
+	of_yesde_put(remote_yesde);
 
 	return dssdev ? dssdev : ERR_PTR(-EPROBE_DEFER);
 }

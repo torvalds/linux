@@ -205,7 +205,7 @@ static int configure_port(const unsigned char *buf, struct resource *io_parent,
  * and at byte 3 the value to write starts.
  * I assume that there are and- and or- masks
  * here when HPEE_PORT_INIT_MASK is set but I have 
- * not yet encountered this. */
+ * yest yet encountered this. */
 static int configure_port_init(const unsigned char *buf)
 {
 	int len=0;
@@ -301,7 +301,7 @@ static int configure_type_string(const unsigned char *buf)
 static int configure_function(const unsigned char *buf, int *more) 
 {
 	/* the init field seems to be a two-byte field
-	 * which is non-zero if there are an other function following
+	 * which is yesn-zero if there are an other function following
 	 * I think it is the length of the function def 
 	 */
 	*more = get_16(buf);
@@ -351,7 +351,7 @@ static int parse_slot_config(int slot,
 			continue;
 		}
 		if (flags & HPEE_FUNCTION_INFO_CFG_FREE_FORM) {
-			/* I have no idea how to handle this */
+			/* I have yes idea how to handle this */
 			printk("function %d have free-form configuration, skipping ",
 				num_func);
 			pos = p0 + function_len;
@@ -437,10 +437,10 @@ static int init_slot(int slot, struct eeprom_eisa_slot_info *es)
 			if (es->eisa_slot_id == 0xffffffff)
 				return -1;
 			
-			/* this board is not here or it does not 
+			/* this board is yest here or it does yest 
 			 * support readid 
 			 */
-			printk(KERN_ERR "EISA slot %d a configured board was not detected (", 
+			printk(KERN_ERR "EISA slot %d a configured board was yest detected (", 
 			       slot);
 			
 			print_eisa_id(id_string, es->eisa_slot_id);
@@ -462,7 +462,7 @@ static int init_slot(int slot, struct eeprom_eisa_slot_info *es)
 		}
 	}
 	
-	/* now: we need to enable the board if 
+	/* yesw: we need to enable the board if 
 	 * it supports enabling and run through
 	 * the port init sction if present
 	 * and finally record any interrupt polarity

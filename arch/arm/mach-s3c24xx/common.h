@@ -17,7 +17,7 @@ struct s3c2410_uartcfg;
 extern  int s3c2410_init(void);
 extern  int s3c2410a_init(void);
 extern void s3c2410_map_io(void);
-extern void s3c2410_init_uarts(struct s3c2410_uartcfg *cfg, int no);
+extern void s3c2410_init_uarts(struct s3c2410_uartcfg *cfg, int yes);
 extern void s3c2410_init_clocks(int xtal);
 extern void s3c2410_init_irq(void);
 #else
@@ -31,7 +31,7 @@ extern void s3c2410_init_irq(void);
 #ifdef CONFIG_CPU_S3C2412
 extern  int s3c2412_init(void);
 extern void s3c2412_map_io(void);
-extern void s3c2412_init_uarts(struct s3c2410_uartcfg *cfg, int no);
+extern void s3c2412_init_uarts(struct s3c2410_uartcfg *cfg, int yes);
 extern void s3c2412_init_clocks(int xtal);
 extern  int s3c2412_baseclk_add(void);
 extern void s3c2412_init_irq(void);
@@ -45,7 +45,7 @@ extern void s3c2412_init_irq(void);
 #ifdef CONFIG_CPU_S3C2416
 extern  int s3c2416_init(void);
 extern void s3c2416_map_io(void);
-extern void s3c2416_init_uarts(struct s3c2410_uartcfg *cfg, int no);
+extern void s3c2416_init_uarts(struct s3c2410_uartcfg *cfg, int yes);
 extern void s3c2416_init_clocks(int xtal);
 extern  int s3c2416_baseclk_add(void);
 extern void s3c2416_init_irq(void);
@@ -60,7 +60,7 @@ extern struct syscore_ops s3c2416_irq_syscore_ops;
 
 #if defined(CONFIG_CPU_S3C2440) || defined(CONFIG_CPU_S3C2442)
 extern void s3c244x_map_io(void);
-extern void s3c244x_init_uarts(struct s3c2410_uartcfg *cfg, int no);
+extern void s3c244x_init_uarts(struct s3c2410_uartcfg *cfg, int yes);
 #else
 #define s3c244x_init_uarts NULL
 #endif
@@ -88,7 +88,7 @@ extern void s3c2442_init_irq(void);
 #ifdef CONFIG_CPU_S3C2443
 extern  int s3c2443_init(void);
 extern void s3c2443_map_io(void);
-extern void s3c2443_init_uarts(struct s3c2410_uartcfg *cfg, int no);
+extern void s3c2443_init_uarts(struct s3c2410_uartcfg *cfg, int yes);
 extern void s3c2443_init_clocks(int xtal);
 extern  int s3c2443_baseclk_add(void);
 extern void s3c2443_init_irq(void);
@@ -109,16 +109,16 @@ extern struct platform_device s3c2443_device_dma;
 extern struct platform_device s3c2410_device_dclk;
 
 #ifdef CONFIG_S3C2410_COMMON_CLK
-void __init s3c2410_common_clk_init(struct device_node *np, unsigned long xti_f,
+void __init s3c2410_common_clk_init(struct device_yesde *np, unsigned long xti_f,
 				    int current_soc,
 				    void __iomem *reg_base);
 #endif
 #ifdef CONFIG_S3C2412_COMMON_CLK
-void __init s3c2412_common_clk_init(struct device_node *np, unsigned long xti_f,
+void __init s3c2412_common_clk_init(struct device_yesde *np, unsigned long xti_f,
 				unsigned long ext_f, void __iomem *reg_base);
 #endif
 #ifdef CONFIG_S3C2443_COMMON_CLK
-void __init s3c2443_common_clk_init(struct device_node *np, unsigned long xti_f,
+void __init s3c2443_common_clk_init(struct device_yesde *np, unsigned long xti_f,
 				    int current_soc,
 				    void __iomem *reg_base);
 #endif

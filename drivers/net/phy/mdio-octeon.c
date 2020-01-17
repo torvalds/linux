@@ -29,7 +29,7 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res_mem == NULL) {
-		dev_err(&pdev->dev, "found no memory resource\n");
+		dev_err(&pdev->dev, "found yes memory resource\n");
 		return -ENXIO;
 	}
 
@@ -64,7 +64,7 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, bus);
 
-	err = of_mdiobus_register(bus->mii_bus, pdev->dev.of_node);
+	err = of_mdiobus_register(bus->mii_bus, pdev->dev.of_yesde);
 	if (err)
 		goto fail_register;
 

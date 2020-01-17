@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -33,12 +33,12 @@
  */
 
 /*
- * This file contains support for diagnostic functions.  It is accessed by
- * opening the qib_diag device, normally minor number 129.  Diagnostic use
+ * This file contains support for diagyesstic functions.  It is accessed by
+ * opening the qib_diag device, yesrmally miyesr number 129.  Diagyesstic use
  * of the QLogic_IB chip may render the chip or board unusable until the
  * driver is unloaded, or in some cases, until the system is rebooted.
  *
- * Accesses to the chip through this interface are not similar to going
+ * Accesses to the chip through this interface are yest similar to going
  * through the /sys/bus/pci resource mmap interface.
  */
 
@@ -63,7 +63,7 @@
  */
 enum diag_state { UNUSED = 0, OPENED, INIT, READY };
 
-/* State for an individual client. PID so children cannot abuse handshake */
+/* State for an individual client. PID so children canyest abuse handshake */
 static struct qib_diag_client {
 	struct qib_diag_client *next;
 	struct qib_devdata *dd;
@@ -128,8 +128,8 @@ static void return_client(struct qib_diag_client *dc)
 	}
 }
 
-static int qib_diag_open(struct inode *in, struct file *fp);
-static int qib_diag_release(struct inode *in, struct file *fp);
+static int qib_diag_open(struct iyesde *in, struct file *fp);
+static int qib_diag_release(struct iyesde *in, struct file *fp);
 static ssize_t qib_diag_read(struct file *fp, char __user *data,
 			     size_t count, loff_t *off);
 static ssize_t qib_diag_write(struct file *fp, const char __user *data,
@@ -154,7 +154,7 @@ static ssize_t qib_diagpkt_write(struct file *fp, const char __user *data,
 static const struct file_operations diagpkt_file_ops = {
 	.owner = THIS_MODULE,
 	.write = qib_diagpkt_write,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 int qib_diag_add(struct qib_devdata *dd)
@@ -190,8 +190,8 @@ void qib_diag_remove(struct qib_devdata *dd)
 	qib_cdev_cleanup(&dd->diag_cdev, &dd->diag_device);
 
 	/*
-	 * Return all diag_clients of this device. There should be none,
-	 * as we are "guaranteed" that no clients are still open
+	 * Return all diag_clients of this device. There should be yesne,
+	 * as we are "guaranteed" that yes clients are still open
 	 */
 	while (dd->diag_client)
 		return_client(dd->diag_client);
@@ -214,7 +214,7 @@ void qib_diag_remove(struct qib_devdata *dd)
  * This returns a u32 __iomem * so it can be used for both 64 and 32-bit
  * mapping. It is needed because with the use of PAT for control of
  * write-combining, the logically contiguous address-space of the chip
- * may be split into virtually non-contiguous spaces, with different
+ * may be split into virtually yesn-contiguous spaces, with different
  * attributes, which are them mapped to contiguous physical space
  * based from the first BAR.
  *
@@ -228,8 +228,8 @@ void qib_diag_remove(struct qib_devdata *dd)
  *		- piobufs (2K and 4K bufs in either order)
  *		- uregs
  *
- * If cntp is non-NULL, returns how many bytes from offset can be accessed
- * Returns 0 if the offset is not mapped.
+ * If cntp is yesn-NULL, returns how many bytes from offset can be accessed
+ * Returns 0 if the offset is yest mapped.
  */
 static u32 __iomem *qib_remap_ioaddr32(struct qib_devdata *dd, u32 offset,
 				       u32 *cntp)
@@ -251,7 +251,7 @@ static u32 __iomem *qib_remap_ioaddr32(struct qib_devdata *dd, u32 offset,
 
 	/*
 	 * Next check for user regs, the next most common case,
-	 * and a cheap check because if they are not in the first map
+	 * and a cheap check because if they are yest in the first map
 	 * they are last in chip.
 	 */
 	if (dd->userbase) {
@@ -271,11 +271,11 @@ static u32 __iomem *qib_remap_ioaddr32(struct qib_devdata *dd, u32 offset,
 	/*
 	 * Lastly, check for offset within Send Buffers.
 	 * This is gnarly because struct devdata is deliberately vague
-	 * about things like 7322 VL15 buffers, and we are not in
-	 * chip-specific code here, so should not make many assumptions.
+	 * about things like 7322 VL15 buffers, and we are yest in
+	 * chip-specific code here, so should yest make many assumptions.
 	 * The one we _do_ make is that the only chip that has more sndbufs
 	 * than we admit is the 7322, and it has userregs above that, so
-	 * we know the snd_lim.
+	 * we kyesw the snd_lim.
 	 */
 	/* Assume 2K buffers are first. */
 	snd_bottom = dd->pio2k_bufbase;
@@ -299,8 +299,8 @@ static u32 __iomem *qib_remap_ioaddr32(struct qib_devdata *dd, u32 offset,
 		}
 	}
 	/*
-	 * Judgement call: can we ignore the space between SendBuffs and
-	 * UserRegs, where we would like to see vl15 buffs, but not more?
+	 * Judgement call: can we igyesre the space between SendBuffs and
+	 * UserRegs, where we would like to see vl15 buffs, but yest more?
 	 */
 	if (offset >= snd_bottom && offset < snd_lim) {
 		offset -= snd_bottom;
@@ -353,7 +353,7 @@ static int qib_read_umem64(struct qib_devdata *dd, void __user *uaddr,
 		count = limit;
 	reg_end = reg_addr + (count / sizeof(u64));
 
-	/* not very efficient, but it works for now */
+	/* yest very efficient, but it works for yesw */
 	while (reg_addr < reg_end) {
 		u64 data = readq(reg_addr);
 
@@ -397,7 +397,7 @@ static int qib_write_umem64(struct qib_devdata *dd, u32 regoffs,
 		count = limit;
 	reg_end = reg_addr + (count / sizeof(u64));
 
-	/* not very efficient, but it works for now */
+	/* yest very efficient, but it works for yesw */
 	while (reg_addr < reg_end) {
 		u64 data;
 
@@ -422,7 +422,7 @@ bail:
  * @regoffs: the offset from BAR0 (_NOT_ full pointer, anymore)
  * @count: number of bytes to copy
  *
- * read 32 bit values, not 64 bit; for memories that only
+ * read 32 bit values, yest 64 bit; for memories that only
  * support 32 bit reads; usually a single dword.
  */
 static int qib_read_umem32(struct qib_devdata *dd, void __user *uaddr,
@@ -442,7 +442,7 @@ static int qib_read_umem32(struct qib_devdata *dd, void __user *uaddr,
 		count = limit;
 	reg_end = reg_addr + (count / sizeof(u32));
 
-	/* not very efficient, but it works for now */
+	/* yest very efficient, but it works for yesw */
 	while (reg_addr < reg_end) {
 		u32 data = readl(reg_addr);
 
@@ -467,7 +467,7 @@ bail:
  * @uaddr: the source of the data in user memory
  * @count: number of bytes to copy
  *
- * write 32 bit values, not 64 bit; for memories that only
+ * write 32 bit values, yest 64 bit; for memories that only
  * support 32 bit write; usually a single dword.
  */
 
@@ -505,9 +505,9 @@ bail:
 	return ret;
 }
 
-static int qib_diag_open(struct inode *in, struct file *fp)
+static int qib_diag_open(struct iyesde *in, struct file *fp)
 {
-	int unit = iminor(in) - QIB_DIAG_MINOR_BASE;
+	int unit = imiyesr(in) - QIB_DIAG_MINOR_BASE;
 	struct qib_devdata *dd;
 	struct qib_diag_client *dc;
 	int ret;
@@ -571,7 +571,7 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 		goto bail;
 	}
 	if (!(dd->flags & QIB_INITTED)) {
-		/* no hardware, freeze, etc. */
+		/* yes hardware, freeze, etc. */
 		ret = -ENODEV;
 		goto bail;
 	}
@@ -595,7 +595,7 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 
 	/*
 	 * need total length before first word written, plus 2 Dwords. One Dword
-	 * is for padding so we get the full user data when not aligned on
+	 * is for padding so we get the full user data when yest aligned on
 	 * a word boundary. The other Dword is to make sure we have room for the
 	 * ICRC which gets tacked on later.
 	 */
@@ -673,7 +673,7 @@ bail:
 	return ret;
 }
 
-static int qib_diag_release(struct inode *in, struct file *fp)
+static int qib_diag_release(struct iyesde *in, struct file *fp)
 {
 	mutex_lock(&qib_mutex);
 	return_client(fp->private_data);
@@ -771,7 +771,7 @@ static ssize_t qib_diag_read(struct file *fp, char __user *data,
 	if (count == 0)
 		ret = 0;
 	else if ((count % 4) || (*off % 4))
-		/* address or length is not 32-bit aligned, hence invalid */
+		/* address or length is yest 32-bit aligned, hence invalid */
 		ret = -EINVAL;
 	else if (dc->state < READY && (*off || count != 8))
 		ret = -EINVAL;  /* prevent cat /dev/qib_diag* */
@@ -803,7 +803,7 @@ static ssize_t qib_diag_read(struct file *fp, char __user *data,
 		if (!op) {
 			if (use_32)
 				/*
-				 * Address or length is not 64-bit aligned;
+				 * Address or length is yest 64-bit aligned;
 				 * do 32-bit rd
 				 */
 				ret = qib_read_umem32(dd, data, (u32) *off,
@@ -845,7 +845,7 @@ static ssize_t qib_diag_write(struct file *fp, const char __user *data,
 	if (count == 0)
 		ret = 0;
 	else if ((count % 4) || (*off % 4))
-		/* address or length is not 32-bit aligned, hence invalid */
+		/* address or length is yest 32-bit aligned, hence invalid */
 		ret = -EINVAL;
 	else if (dc->state < READY &&
 		((*off || count != 8) || dc->state != INIT))
@@ -862,7 +862,7 @@ static ssize_t qib_diag_write(struct file *fp, const char __user *data,
 		 * via observer, currently. This helps, because
 		 * we would otherwise have to jump through hoops
 		 * to make "diag transaction" meaningful when we
-		 * cannot do a copy_from_user while holding the lock.
+		 * canyest do a copy_from_user while holding the lock.
 		 */
 		if (count == 4 || count == 8) {
 			u64 data64;
@@ -884,7 +884,7 @@ static ssize_t qib_diag_write(struct file *fp, const char __user *data,
 		if (!op) {
 			if (use_32)
 				/*
-				 * Address or length is not 64-bit aligned;
+				 * Address or length is yest 64-bit aligned;
 				 * do 32-bit write
 				 */
 				ret = qib_write_umem32(dd, (u32) *off, data,
@@ -899,7 +899,7 @@ static ssize_t qib_diag_write(struct file *fp, const char __user *data,
 		*off += count;
 		ret = count;
 		if (dc->state == INIT)
-			dc->state = READY; /* all read/write OK now */
+			dc->state = READY; /* all read/write OK yesw */
 	}
 bail:
 	return ret;

@@ -49,8 +49,8 @@ static const struct constant_table common_set_sb_flag[] = {
 
 static const struct constant_table common_clear_sb_flag[] = {
 	{ "async",	SB_SYNCHRONOUS },
-	{ "nolazytime",	SB_LAZYTIME },
-	{ "nomand",	SB_MANDLOCK },
+	{ "yeslazytime",	SB_LAZYTIME },
+	{ "yesmand",	SB_MANDLOCK },
 	{ "rw",		SB_RDONLY },
 	{ "silent",	SB_SILENT },
 };
@@ -60,13 +60,13 @@ static const char *const forbidden_sb_flag[] = {
 	"dev",
 	"exec",
 	"move",
-	"noatime",
-	"nodev",
-	"nodiratime",
-	"noexec",
-	"norelatime",
-	"nostrictatime",
-	"nosuid",
+	"yesatime",
+	"yesdev",
+	"yesdiratime",
+	"yesexec",
+	"yesrelatime",
+	"yesstrictatime",
+	"yessuid",
 	"private",
 	"rec",
 	"relatime",
@@ -160,7 +160,7 @@ int vfs_parse_fs_param(struct fs_context *fc, struct fs_parameter *param)
 		return 0;
 	}
 
-	return invalf(fc, "%s: Unknown parameter '%s'",
+	return invalf(fc, "%s: Unkyeswn parameter '%s'",
 		      fc->fs_type->name, param->key);
 }
 EXPORT_SYMBOL(vfs_parse_fs_param);
@@ -192,17 +192,17 @@ int vfs_parse_fs_string(struct fs_context *fc, const char *key,
 EXPORT_SYMBOL(vfs_parse_fs_string);
 
 /**
- * generic_parse_monolithic - Parse key[=val][,key[=val]]* mount data
+ * generic_parse_moyeslithic - Parse key[=val][,key[=val]]* mount data
  * @ctx: The superblock configuration to fill in.
  * @data: The data to parse
  *
  * Parse a blob of data that's in key[=val][,key[=val]]* form.  This can be
- * called from the ->monolithic_mount_data() fs_context operation.
+ * called from the ->moyeslithic_mount_data() fs_context operation.
  *
  * Returns 0 on success or the error returned by the ->parse_option() fs_context
  * operation on failure.
  */
-int generic_parse_monolithic(struct fs_context *fc, void *data)
+int generic_parse_moyeslithic(struct fs_context *fc, void *data)
 {
 	char *options = data, *key;
 	int ret = 0;
@@ -233,7 +233,7 @@ int generic_parse_monolithic(struct fs_context *fc, void *data)
 
 	return ret;
 }
-EXPORT_SYMBOL(generic_parse_monolithic);
+EXPORT_SYMBOL(generic_parse_moyeslithic);
 
 /**
  * alloc_fs_context - Create a filesystem context.
@@ -245,7 +245,7 @@ EXPORT_SYMBOL(generic_parse_monolithic);
  *
  * Open a filesystem and create a mount context.  The mount context is
  * initialised with the supplied flags and, if a submount/automount from
- * another superblock (referred to by @reference) is supplied, may have
+ * ayesther superblock (referred to by @reference) is supplied, may have
  * parameters such as namespaces copied across from that superblock.
  */
 static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
@@ -571,7 +571,7 @@ static int legacy_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	}
 
 	if (ctx->param_type == LEGACY_FS_MONOLITHIC_PARAMS)
-		return invalf(fc, "VFS: Legacy: Can't mix monolithic and individual options");
+		return invalf(fc, "VFS: Legacy: Can't mix moyeslithic and individual options");
 
 	switch (param->type) {
 	case fs_value_is_string:
@@ -581,7 +581,7 @@ static int legacy_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		len += strlen(param->key);
 		break;
 	default:
-		return invalf(fc, "VFS: Legacy: Parameter type for '%s' not supported",
+		return invalf(fc, "VFS: Legacy: Parameter type for '%s' yest supported",
 			      param->key);
 	}
 
@@ -614,14 +614,14 @@ static int legacy_parse_param(struct fs_context *fc, struct fs_parameter *param)
 }
 
 /*
- * Add monolithic mount data.
+ * Add moyeslithic mount data.
  */
-static int legacy_parse_monolithic(struct fs_context *fc, void *data)
+static int legacy_parse_moyeslithic(struct fs_context *fc, void *data)
 {
 	struct legacy_fs_context *ctx = fc->fs_private;
 
 	if (ctx->param_type != LEGACY_FS_UNSET_PARAMS) {
-		pr_warn("VFS: Can't mix monolithic and individual options\n");
+		pr_warn("VFS: Can't mix moyeslithic and individual options\n");
 		return -EINVAL;
 	}
 
@@ -675,7 +675,7 @@ const struct fs_context_operations legacy_fs_context_ops = {
 	.free			= legacy_fs_context_free,
 	.dup			= legacy_fs_context_dup,
 	.parse_param		= legacy_parse_param,
-	.parse_monolithic	= legacy_parse_monolithic,
+	.parse_moyeslithic	= legacy_parse_moyeslithic,
 	.get_tree		= legacy_get_tree,
 	.reconfigure		= legacy_reconfigure,
 };
@@ -693,15 +693,15 @@ static int legacy_init_fs_context(struct fs_context *fc)
 	return 0;
 }
 
-int parse_monolithic_mount_data(struct fs_context *fc, void *data)
+int parse_moyeslithic_mount_data(struct fs_context *fc, void *data)
 {
-	int (*monolithic_mount_data)(struct fs_context *, void *);
+	int (*moyeslithic_mount_data)(struct fs_context *, void *);
 
-	monolithic_mount_data = fc->ops->parse_monolithic;
-	if (!monolithic_mount_data)
-		monolithic_mount_data = generic_parse_monolithic;
+	moyeslithic_mount_data = fc->ops->parse_moyeslithic;
+	if (!moyeslithic_mount_data)
+		moyeslithic_mount_data = generic_parse_moyeslithic;
 
-	return monolithic_mount_data(fc, data);
+	return moyeslithic_mount_data(fc, data);
 }
 
 /*

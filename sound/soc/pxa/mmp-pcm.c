@@ -143,7 +143,7 @@ static int mmp_pcm_mmap(struct snd_soc_component *component,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned long off = vma->vm_pgoff;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	return remap_pfn_range(vma, vma->vm_start,
 		__phys_to_pfn(runtime->dma_addr) + off,
 		vma->vm_end - vma->vm_start, vma->vm_page_prot);

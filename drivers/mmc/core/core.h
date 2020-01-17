@@ -34,7 +34,7 @@ struct mmc_bus_ops {
 void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops);
 void mmc_detach_bus(struct mmc_host *host);
 
-struct device_node *mmc_of_find_child_device(struct mmc_host *host,
+struct device_yesde *mmc_of_find_child_device(struct mmc_host *host,
 		unsigned func_num);
 
 void mmc_init_erase(struct mmc_card *card);
@@ -94,11 +94,11 @@ int mmc_hs200_to_hs400(struct mmc_card *card);
 int mmc_hs400_to_hs200(struct mmc_card *card);
 
 #ifdef CONFIG_PM_SLEEP
-void mmc_register_pm_notifier(struct mmc_host *host);
-void mmc_unregister_pm_notifier(struct mmc_host *host);
+void mmc_register_pm_yestifier(struct mmc_host *host);
+void mmc_unregister_pm_yestifier(struct mmc_host *host);
 #else
-static inline void mmc_register_pm_notifier(struct mmc_host *host) { }
-static inline void mmc_unregister_pm_notifier(struct mmc_host *host) { }
+static inline void mmc_register_pm_yestifier(struct mmc_host *host) { }
+static inline void mmc_unregister_pm_yestifier(struct mmc_host *host) { }
 #endif
 
 void mmc_wait_for_req_done(struct mmc_host *host, struct mmc_request *mrq);
@@ -147,7 +147,7 @@ int mmc_cqe_recovery(struct mmc_host *host);
  *
  *	mmc_pre_req() is called in prior to mmc_start_req() to let
  *	host prepare for the new request. Preparation of a request may be
- *	performed while another request is running on the host.
+ *	performed while ayesther request is running on the host.
  */
 static inline void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq)
 {
@@ -159,10 +159,10 @@ static inline void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq)
  *	mmc_post_req - Post process a completed request
  *	@host: MMC host to post process command
  *	@mrq: MMC request to post process for
- *	@err: Error, if non zero, clean up any resources made in pre_req
+ *	@err: Error, if yesn zero, clean up any resources made in pre_req
  *
  *	Let the host post process a completed request. Post processing of
- *	a request may be performed while another request is running.
+ *	a request may be performed while ayesther request is running.
  */
 static inline void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
 				int err)

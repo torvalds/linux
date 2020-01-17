@@ -10,7 +10,7 @@
  */
 #define BSS_FIRST_SECTIONS *(.bss..swapper_pg_dir)
 
-/* Cavium Octeon should not have a separate PT_NOTE Program Header. */
+/* Cavium Octeon should yest have a separate PT_NOTE Program Header. */
 #ifndef CONFIG_CAVIUM_OCTEON_SOC
 #define EMITS_PT_NOTE
 #endif
@@ -24,7 +24,7 @@ ENTRY(kernel_entry)
 PHDRS {
 	text PT_LOAD FLAGS(7);	/* RWX */
 #ifndef CONFIG_CAVIUM_OCTEON_SOC
-	note PT_NOTE FLAGS(4);	/* R__ */
+	yeste PT_NOTE FLAGS(4);	/* R__ */
 #endif /* CAVIUM_OCTEON_SOC */
 }
 
@@ -48,7 +48,7 @@ SECTIONS
 	/* . = 0xc00000000001c000; */
 
 	/* Set the vaddr for the text segment to a value
-	 *   >= 0xa800 0000 0001 9000 if no symmon is going to configured
+	 *   >= 0xa800 0000 0001 9000 if yes symmon is going to configured
 	 *   >= 0xa800 0000 0030 0000 otherwise
 	 */
 
@@ -124,7 +124,7 @@ SECTIONS
 		__mips_machines_end = .;
 	}
 
-	/* .exit.text is discarded at runtime, not link time, to deal with
+	/* .exit.text is discarded at runtime, yest link time, to deal with
 	 * references from .rodata
 	 */
 	.exit.text : {
@@ -155,7 +155,7 @@ SECTIONS
 		 * relocs tool can overwrite the content.
 		 * An invalid value is left at the start of the
 		 * section to abort relocation if the table
-		 * has not been filled in.
+		 * has yest been filled in.
 		 */
 		LONG(0xFFFFFFFF);
 		FILL(0);
@@ -182,7 +182,7 @@ SECTIONS
 	/*
 	 * Force .bss to 64K alignment so that .bss..swapper_pg_dir
 	 * gets that alignment.	 .sbss should be empty, so there will be
-	 * no holes after __init_end. */
+	 * yes holes after __init_end. */
 	BSS_SECTION(0, 0x10000, 8)
 
 	_end = . ;

@@ -33,8 +33,8 @@
 
 /* EHCI operational registers */
 #define HC_USBCMD		0x020
-#define CMD_LRESET		(1 << 7)		/* partial reset (no ports, etc) */
-#define CMD_RESET		(1 << 1)		/* reset HC not bus */
+#define CMD_LRESET		(1 << 7)		/* partial reset (yes ports, etc) */
+#define CMD_RESET		(1 << 1)		/* reset HC yest bus */
 #define CMD_RUN			(1 << 0)		/* start/stop HC */
 
 #define HC_USBSTS		0x024

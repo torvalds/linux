@@ -20,7 +20,7 @@
 #include <asm/unistd.h>
 #include <linux/linkage.h>
 #include <linux/stringify.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/syscalls.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -64,7 +64,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct vm_area_struct *vmm;
 
 	if (flags & MAP_FIXED) {
-		/* We do not accept a shared mapping if it would violate
+		/* We do yest accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&

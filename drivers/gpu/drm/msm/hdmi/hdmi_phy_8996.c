@@ -559,7 +559,7 @@ static int hdmi_8996_phy_ready_status(struct hdmi_phy *phy)
 		udelay(timeout);
 	}
 
-	DBG("PHY is %sready", phy_ready ? "" : "*not* ");
+	DBG("PHY is %sready", phy_ready ? "" : "*yest* ");
 
 	return phy_ready;
 }
@@ -584,7 +584,7 @@ static int hdmi_8996_pll_lock_status(struct hdmi_pll_8996 *pll)
 		udelay(timeout);
 	}
 
-	DBG("HDMI PLL is %slocked", pll_locked ? "" : "*not* ");
+	DBG("HDMI PLL is %slocked", pll_locked ? "" : "*yest* ");
 
 	return pll_locked;
 }

@@ -9,15 +9,15 @@ Required properties:
 - resets:	a handle for the shared "USB OTG" reset line
 - reset-names:	must be "usb_otg"
 
-Required child node:
-A child node must exist to represent the core DWC3 IP block. The name of
-the node is not important. The content of the node is defined in dwc3.txt.
+Required child yesde:
+A child yesde must exist to represent the core DWC3 IP block. The name of
+the yesde is yest important. The content of the yesde is defined in dwc3.txt.
 
 PHY documentation is provided in the following places:
 - Documentation/devicetree/bindings/phy/meson-gxl-usb2-phy.txt
 - Documentation/devicetree/bindings/phy/meson-gxl-usb3-phy.txt
 
-Example device nodes:
+Example device yesdes:
 		usb0: usb@ff500000 {
 			compatible = "amlogic,meson-axg-dwc3";
 			#address-cells = <2>;

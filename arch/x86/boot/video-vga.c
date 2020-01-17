@@ -111,7 +111,7 @@ static void vga_set_14font(void)
 
 static void vga_set_80x43(void)
 {
-	/* Set 80x43 mode on VGA (not EGA) */
+	/* Set 80x43 mode on VGA (yest EGA) */
 	struct biosregs ireg;
 
 	initregs(&ireg);

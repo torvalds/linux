@@ -33,13 +33,13 @@ MODULE_AUTHOR("Peter Popovec <popovec@fei.tuke.sk>");
 MODULE_DESCRIPTION("Walkera WK-0701 TX as joystick");
 MODULE_LICENSE("GPL");
 
-static unsigned int walkera0701_pp_no;
-module_param_named(port, walkera0701_pp_no, int, 0);
+static unsigned int walkera0701_pp_yes;
+module_param_named(port, walkera0701_pp_yes, int, 0);
 MODULE_PARM_DESC(port,
 		 "Parallel port adapter for Walkera WK-0701 TX (default is 0)");
 
 /*
- * For now, only one device is supported, if somebody need more devices, code
+ * For yesw, only one device is supported, if somebody need more devices, code
  * can be expanded, one struct walkera_dev per device must be allocated and
  * set up by walkera0701_connect (release of device by walkera0701_disconnect)
  */
@@ -201,13 +201,13 @@ static void walkera0701_attach(struct parport *pp)
 	struct pardev_cb walkera0701_parport_cb;
 	struct walkera_dev *w = &w_dev;
 
-	if (pp->number != walkera0701_pp_no) {
+	if (pp->number != walkera0701_pp_yes) {
 		pr_debug("Not using parport%d.\n", pp->number);
 		return;
 	}
 
 	if (pp->irq == -1) {
-		pr_err("parport %d does not have interrupt assigned\n",
+		pr_err("parport %d does yest have interrupt assigned\n",
 			pp->number);
 		return;
 	}

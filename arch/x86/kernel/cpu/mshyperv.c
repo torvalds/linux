@@ -3,7 +3,7 @@
  * HyperV  Detection code.
  *
  * Copyright (C) 2010, Novell, Inc.
- * Author : K. Y. Srinivasan <ksrinivasan@novell.com>
+ * Author : K. Y. Srinivasan <ksrinivasan@yesvell.com>
  */
 
 #include <linux/types.h>
@@ -63,7 +63,7 @@ void hv_setup_vmbus_irq(void (*handler)(void))
 
 void hv_remove_vmbus_irq(void)
 {
-	/* We have no way to deallocate the interrupt gate */
+	/* We have yes way to deallocate the interrupt gate */
 	vmbus_handler = NULL;
 }
 EXPORT_SYMBOL_GPL(hv_setup_vmbus_irq);
@@ -100,7 +100,7 @@ EXPORT_SYMBOL_GPL(hv_setup_stimer0_irq);
 
 void hv_remove_stimer0_irq(int irq)
 {
-	/* We have no way to deallocate the interrupt gate */
+	/* We have yes way to deallocate the interrupt gate */
 	hv_stimer0_handler = NULL;
 }
 EXPORT_SYMBOL_GPL(hv_remove_stimer0_irq);
@@ -174,13 +174,13 @@ static unsigned char hv_get_nmi_reason(void)
 /*
  * Prior to WS2016 Debug-VM sends NMIs to all CPUs which makes
  * it dificult to process CHANNELMSG_UNLOAD in case of crash. Handle
- * unknown NMI on the first CPU which gets it.
+ * unkyeswn NMI on the first CPU which gets it.
  */
-static int hv_nmi_unknown(unsigned int val, struct pt_regs *regs)
+static int hv_nmi_unkyeswn(unsigned int val, struct pt_regs *regs)
 {
 	static atomic_t nmi_cpu = ATOMIC_INIT(-1);
 
-	if (!unknown_nmi_panic)
+	if (!unkyeswn_nmi_panic)
 		return NMI_DONE;
 
 	if (atomic_cmpxchg(&nmi_cpu, -1, raw_smp_processor_id()) != -1)
@@ -278,12 +278,12 @@ static void __init ms_hyperv_init_platform(void)
 			lapic_timer_period);
 	}
 
-	register_nmi_handler(NMI_UNKNOWN, hv_nmi_unknown, NMI_FLAG_FIRST,
-			     "hv_nmi_unknown");
+	register_nmi_handler(NMI_UNKNOWN, hv_nmi_unkyeswn, NMI_FLAG_FIRST,
+			     "hv_nmi_unkyeswn");
 #endif
 
 #ifdef CONFIG_X86_IO_APIC
-	no_timer_check = 1;
+	yes_timer_check = 1;
 #endif
 
 #if IS_ENABLED(CONFIG_HYPERV) && defined(CONFIG_KEXEC_CORE)
@@ -308,9 +308,9 @@ static void __init ms_hyperv_init_platform(void)
 	 * Hyper-V VMs have a PIT emulation quirk such that zeroing the
 	 * counter register during PIT shutdown restarts the PIT. So it
 	 * continues to interrupt @18.2 HZ. Setting i8253_clear_counter
-	 * to false tells pit_shutdown() not to zero the counter so that
+	 * to false tells pit_shutdown() yest to zero the counter so that
 	 * the PIT really is shutdown. Generation 2 VMs don't have a PIT,
-	 * and setting this value has no effect.
+	 * and setting this value has yes effect.
 	 */
 	i8253_clear_counter_on_shutdown = false;
 
@@ -323,7 +323,7 @@ static void __init ms_hyperv_init_platform(void)
 	/* Setup the IDT for hypervisor callback */
 	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, hyperv_callback_vector);
 
-	/* Setup the IDT for reenlightenment notifications */
+	/* Setup the IDT for reenlightenment yestifications */
 	if (ms_hyperv.features & HV_X64_ACCESS_REENLIGHTENMENT)
 		alloc_intr_gate(HYPERV_REENLIGHTENMENT_VECTOR,
 				hyperv_reenlightenment_vector);

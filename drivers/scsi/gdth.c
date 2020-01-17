@@ -28,20 +28,20 @@
  * command line options are:
  * disable:Y                    disable driver
  * disable:N                    enable driver
- * reserve_mode:0               reserve no drives for the raw service
- * reserve_mode:1               reserve all not init., removable drives
- * reserve_mode:2               reserve all not init. drives
+ * reserve_mode:0               reserve yes drives for the raw service
+ * reserve_mode:1               reserve all yest init., removable drives
+ * reserve_mode:2               reserve all yest init. drives
  * reserve_list:h,b,t,l,h,b,t,l,...     reserve particular drive(s) with 
- *                              h- controller no., b- channel no., 
+ *                              h- controller yes., b- channel yes., 
  *                              t- target ID, l- LUN
  * reverse_scan:Y               reverse scan order for PCI controllers         
  * reverse_scan:N               scan PCI controllers like BIOS
  * max_ids:x                    x - target ID count per channel (1..MAXID)
  * rescan:Y                     rescan all channels/IDs 
- * rescan:N                     use all devices found until now
+ * rescan:N                     use all devices found until yesw
  * hdr_channel:x                x - number of virtual bus for host drives
  * shared_access:Y              disable driver reserve/release protocol to 
- *                              access a shared resource from several nodes, 
+ *                              access a shared resource from several yesdes, 
  *                              appropriate controller firmware required
  * shared_access:N              enable driver reserve/release protocol
  * force_dma32:Y                use only 32 bit DMA mode
@@ -50,7 +50,7 @@
  * The default values are: "gdth=disable:N,reserve_mode:1,reverse_scan:N,
  *                          max_ids:127,rescan:N,hdr_channel:0,
  *                          shared_access:Y,force_dma32:N".
- * Here is another example: "gdth=reserve_list:0,1,2,0,0,1,3,0,rescan:Y".
+ * Here is ayesther example: "gdth=reserve_list:0,1,2,0,0,1,3,0,rescan:Y".
  * 
  * When loading the gdth driver as a module, the same options are available. 
  * You can set the IRQs with "IRQ=...". However, the syntax to specify the
@@ -152,8 +152,8 @@ static int gdth_analyse_hdrive(gdth_ha_str *ha, u16 hdrive);
 
 static const char *gdth_ctr_name(gdth_ha_str *ha);
 
-static int gdth_open(struct inode *inode, struct file *filep);
-static int gdth_close(struct inode *inode, struct file *filep);
+static int gdth_open(struct iyesde *iyesde, struct file *filep);
+static int gdth_close(struct iyesde *iyesde, struct file *filep);
 static long gdth_unlocked_ioctl(struct file *filep, unsigned int cmd,
 			        unsigned long arg);
 
@@ -197,8 +197,8 @@ static int major;
 
 #define DIN     1                               /* IN data direction */
 #define DOU     2                               /* OUT data direction */
-#define DNO     DIN                             /* no data transfer */
-#define DUN     DIN                             /* unknown data direction */
+#define DNO     DIN                             /* yes data transfer */
+#define DUN     DIN                             /* unkyeswn data direction */
 static u8 gdth_direction_tab[0x100] = {
     DNO,DNO,DIN,DIN,DOU,DIN,DIN,DOU,DIN,DUN,DOU,DOU,DUN,DUN,DUN,DIN,
     DNO,DIN,DIN,DOU,DIN,DOU,DNO,DNO,DOU,DNO,DIN,DNO,DIN,DOU,DNO,DUN,
@@ -259,7 +259,7 @@ static const struct file_operations gdth_fops = {
     .unlocked_ioctl   = gdth_unlocked_ioctl,
     .open    = gdth_open,
     .release = gdth_close,
-    .llseek = noop_llseek,
+    .llseek = yesop_llseek,
 };
 
 #include "gdth_proc.h"
@@ -421,7 +421,7 @@ static void gdth_pci_remove_one(struct pci_dev *pdev);
 static void gdth_remove_one(gdth_ha_str *ha);
 
 /* Vortex only makes RAID controllers.
- * We do not really want to specify all 550 ids here, so wildcard match.
+ * We do yest really want to specify all 550 ids here, so wildcard match.
  */
 static const struct pci_device_id gdthtable[] = {
 	{ PCI_VDEVICE(VORTEX, PCI_ANY_ID) },
@@ -537,7 +537,7 @@ static int gdth_init_pci(struct pci_dev *pdev, gdth_pci_str *pcistr,
         dp6_ptr = ha->brd;
         writel(DPMEM_MAGIC, &dp6_ptr->u);
         if (readl(&dp6_ptr->u) != DPMEM_MAGIC) {
-            printk("GDT-PCI: Cannot access DPMEM at 0x%lx (shadowed?)\n", 
+            printk("GDT-PCI: Canyest access DPMEM at 0x%lx (shadowed?)\n", 
                    pcistr->dpmem);
             found = FALSE;
             for (i = 0xC8000; i < 0xE8000; i += 0x4000) {
@@ -646,7 +646,7 @@ static int gdth_init_pci(struct pci_dev *pdev, gdth_pci_str *pcistr,
         dp6c_ptr = ha->brd;
         writel(DPMEM_MAGIC, &dp6c_ptr->u);
         if (readl(&dp6c_ptr->u) != DPMEM_MAGIC) {
-            printk("GDT-PCI: Cannot access DPMEM at 0x%lx (shadowed?)\n", 
+            printk("GDT-PCI: Canyest access DPMEM at 0x%lx (shadowed?)\n", 
                    pcistr->dpmem);
             found = FALSE;
             for (i = 0xC8000; i < 0xE8000; i += 0x4000) {
@@ -760,7 +760,7 @@ static int gdth_init_pci(struct pci_dev *pdev, gdth_pci_str *pcistr,
 
         dp6m_ptr = ha->brd;
 
-        /* Ensure that it is safe to access the non HW portions of DPMEM.
+        /* Ensure that it is safe to access the yesn HW portions of DPMEM.
          * Aditional check needed for Xscale based RAID controllers */
         while( ((int)readb(&dp6m_ptr->i960r.sema0_reg) ) & 3 )
             gdth_delay(1);
@@ -768,7 +768,7 @@ static int gdth_init_pci(struct pci_dev *pdev, gdth_pci_str *pcistr,
         /* check and reset interface area */
         writel(DPMEM_MAGIC, &dp6m_ptr->u);
         if (readl(&dp6m_ptr->u) != DPMEM_MAGIC) {
-            printk("GDT-PCI: Cannot access DPMEM at 0x%lx (shadowed?)\n", 
+            printk("GDT-PCI: Canyest access DPMEM at 0x%lx (shadowed?)\n", 
                    pcistr->dpmem);
             found = FALSE;
             for (i = 0xC8000; i < 0xE8000; i += 0x4000) {
@@ -870,7 +870,7 @@ static int gdth_init_pci(struct pci_dev *pdev, gdth_pci_str *pcistr,
         }
         prot_ver = (u8)(readl(&dp6m_ptr->u.ic.S_Info[0]) >> 16);
         writeb(0, &dp6m_ptr->u.ic.S_Status);
-        if (prot_ver < 0x2b)      /* FW < x.43: no 64-bit DMA support */
+        if (prot_ver < 0x2b)      /* FW < x.43: yes 64-bit DMA support */
             ha->dma64_support = 0;
         else 
             ha->dma64_support = 1;
@@ -982,13 +982,13 @@ static void gdth_copy_command(gdth_ha_str *ha)
     register gdt6m_dpram_str __iomem *dp6m_ptr;
     register gdt6c_dpram_str __iomem *dp6c_ptr;
     gdt6_dpram_str __iomem *dp6_ptr;
-    u16 cp_count,dp_offset,cmd_no;
+    u16 cp_count,dp_offset,cmd_yes;
     
     TRACE(("gdth_copy_command() hanum %d\n", ha->hanum));
 
     cp_count = ha->cmd_len;
     dp_offset= ha->cmd_offs_dpmem;
-    cmd_no   = ha->cmd_cnt;
+    cmd_yes   = ha->cmd_cnt;
     cmd_ptr  = ha->pccb;
 
     ++ha->cmd_cnt;                                                      
@@ -1003,23 +1003,23 @@ static void gdth_copy_command(gdth_ha_str *ha)
     if (ha->type == GDT_PCI) {
         dp6_ptr = ha->brd;
         writew(dp_offset + DPMEM_COMMAND_OFFSET,
-                    &dp6_ptr->u.ic.comm_queue[cmd_no].offset);
+                    &dp6_ptr->u.ic.comm_queue[cmd_yes].offset);
         writew((u16)cmd_ptr->Service,
-                    &dp6_ptr->u.ic.comm_queue[cmd_no].serv_id);
+                    &dp6_ptr->u.ic.comm_queue[cmd_yes].serv_id);
         memcpy_toio(&dp6_ptr->u.ic.gdt_dpr_cmd[dp_offset],cmd_ptr,cp_count);
     } else if (ha->type == GDT_PCINEW) {
         dp6c_ptr = ha->brd;
         writew(dp_offset + DPMEM_COMMAND_OFFSET,
-                    &dp6c_ptr->u.ic.comm_queue[cmd_no].offset);
+                    &dp6c_ptr->u.ic.comm_queue[cmd_yes].offset);
         writew((u16)cmd_ptr->Service,
-                    &dp6c_ptr->u.ic.comm_queue[cmd_no].serv_id);
+                    &dp6c_ptr->u.ic.comm_queue[cmd_yes].serv_id);
         memcpy_toio(&dp6c_ptr->u.ic.gdt_dpr_cmd[dp_offset],cmd_ptr,cp_count);
     } else if (ha->type == GDT_PCIMPR) {
         dp6m_ptr = ha->brd;
         writew(dp_offset + DPMEM_COMMAND_OFFSET,
-                    &dp6m_ptr->u.ic.comm_queue[cmd_no].offset);
+                    &dp6m_ptr->u.ic.comm_queue[cmd_yes].offset);
         writew((u16)cmd_ptr->Service,
-                    &dp6m_ptr->u.ic.comm_queue[cmd_no].serv_id);
+                    &dp6m_ptr->u.ic.comm_queue[cmd_yes].serv_id);
         memcpy_toio(&dp6m_ptr->u.ic.gdt_dpr_cmd[dp_offset],cmd_ptr,cp_count);
     }
 }
@@ -1063,7 +1063,7 @@ static int gdth_wait(gdth_ha_str *ha, int index, u32 time)
     TRACE(("gdth_wait() hanum %d index %d time %d\n", ha->hanum, index, time));
 
     if (index == 0)
-        return 1;                               /* no wait required */
+        return 1;                               /* yes wait required */
 
     do {
 	__gdth_interrupt(ha, true, &wait_index);
@@ -1162,7 +1162,7 @@ static int gdth_search_drives(gdth_ha_str *ha)
 {
     u16 cdev_cnt, i;
     int ok;
-    u32 bus_no, drv_cnt, drv_no, j;
+    u32 bus_yes, drv_cnt, drv_yes, j;
     gdth_getch_str *chn;
     gdth_drlist_str *drl;
     gdth_iochan_str *ioc;
@@ -1223,22 +1223,22 @@ static int gdth_search_drives(gdth_ha_str *ha)
                           INVALID_CHANNEL,sizeof(gdth_raw_iochan_str))) {
         TRACE2(("IOCHAN_RAW_DESC supported!\n"));
         ha->bus_cnt = iocr->hdr.chan_count;
-        for (bus_no = 0; bus_no < ha->bus_cnt; ++bus_no) {
-            if (iocr->list[bus_no].proc_id < MAXID)
-                ha->bus_id[bus_no] = iocr->list[bus_no].proc_id;
+        for (bus_yes = 0; bus_yes < ha->bus_cnt; ++bus_yes) {
+            if (iocr->list[bus_yes].proc_id < MAXID)
+                ha->bus_id[bus_yes] = iocr->list[bus_yes].proc_id;
             else
-                ha->bus_id[bus_no] = 0xff;
+                ha->bus_id[bus_yes] = 0xff;
         }
     } else {
         /* old method */
         chn = (gdth_getch_str *)ha->pscratch;
-        for (bus_no = 0; bus_no < MAXBUS; ++bus_no) {
-            chn->channel_no = bus_no;
+        for (bus_yes = 0; bus_yes < MAXBUS; ++bus_yes) {
+            chn->channel_yes = bus_yes;
             if (!gdth_internal_cmd(ha, CACHESERVICE, GDT_IOCTL,
                                    SCSI_CHAN_CNT | L_CTRL_PATTERN,
                                    IO_CHANNEL | INVALID_CHANNEL,
                                    sizeof(gdth_getch_str))) {
-                if (bus_no == 0) {
+                if (bus_yes == 0) {
                     printk("GDT-HA %d: Error detecting channel count (0x%x)\n",
                            ha->hanum, ha->status);
                     return 0;
@@ -1246,11 +1246,11 @@ static int gdth_search_drives(gdth_ha_str *ha)
                 break;
             }
             if (chn->siop_id < MAXID)
-                ha->bus_id[bus_no] = chn->siop_id;
+                ha->bus_id[bus_yes] = chn->siop_id;
             else
-                ha->bus_id[bus_no] = 0xff;
+                ha->bus_id[bus_yes] = 0xff;
         }       
-        ha->bus_cnt = (u8)bus_no;
+        ha->bus_cnt = (u8)bus_yes;
     }
     TRACE2(("gdth_search_drives() %d channels\n",ha->bus_cnt));
 
@@ -1295,39 +1295,39 @@ static int gdth_search_drives(gdth_ha_str *ha)
         ioc->hdr.list_offset    = GDTOFFSOF(gdth_iochan_str, list[0]);
         if (gdth_internal_cmd(ha, CACHESERVICE, GDT_IOCTL, IOCHAN_DESC,
                               INVALID_CHANNEL,sizeof(gdth_iochan_str))) {
-            for (bus_no = 0; bus_no < ha->bus_cnt; ++bus_no) {
-                ha->raw[bus_no].address = ioc->list[bus_no].address;
-                ha->raw[bus_no].local_no = ioc->list[bus_no].local_no;
+            for (bus_yes = 0; bus_yes < ha->bus_cnt; ++bus_yes) {
+                ha->raw[bus_yes].address = ioc->list[bus_yes].address;
+                ha->raw[bus_yes].local_yes = ioc->list[bus_yes].local_yes;
             }
         } else {
-            for (bus_no = 0; bus_no < ha->bus_cnt; ++bus_no) {
-                ha->raw[bus_no].address = IO_CHANNEL;
-                ha->raw[bus_no].local_no = bus_no;
+            for (bus_yes = 0; bus_yes < ha->bus_cnt; ++bus_yes) {
+                ha->raw[bus_yes].address = IO_CHANNEL;
+                ha->raw[bus_yes].local_yes = bus_yes;
             }
         }
-        for (bus_no = 0; bus_no < ha->bus_cnt; ++bus_no) {
+        for (bus_yes = 0; bus_yes < ha->bus_cnt; ++bus_yes) {
             chn = (gdth_getch_str *)ha->pscratch;
-            chn->channel_no = ha->raw[bus_no].local_no;
+            chn->channel_yes = ha->raw[bus_yes].local_yes;
             if (gdth_internal_cmd(ha, CACHESERVICE, GDT_IOCTL,
                                   SCSI_CHAN_CNT | L_CTRL_PATTERN,
-                                  ha->raw[bus_no].address | INVALID_CHANNEL,
+                                  ha->raw[bus_yes].address | INVALID_CHANNEL,
                                   sizeof(gdth_getch_str))) {
-                ha->raw[bus_no].pdev_cnt = chn->drive_cnt;
+                ha->raw[bus_yes].pdev_cnt = chn->drive_cnt;
                 TRACE2(("Channel %d: %d phys. drives\n",
-                        bus_no,chn->drive_cnt));
+                        bus_yes,chn->drive_cnt));
             }
-            if (ha->raw[bus_no].pdev_cnt > 0) {
+            if (ha->raw[bus_yes].pdev_cnt > 0) {
                 drl = (gdth_drlist_str *)ha->pscratch;
-                drl->sc_no = ha->raw[bus_no].local_no;
-                drl->sc_cnt = ha->raw[bus_no].pdev_cnt;
+                drl->sc_yes = ha->raw[bus_yes].local_yes;
+                drl->sc_cnt = ha->raw[bus_yes].pdev_cnt;
                 if (gdth_internal_cmd(ha, CACHESERVICE, GDT_IOCTL,
                                       SCSI_DR_LIST | L_CTRL_PATTERN,
-                                      ha->raw[bus_no].address | INVALID_CHANNEL,
+                                      ha->raw[bus_yes].address | INVALID_CHANNEL,
                                       sizeof(gdth_drlist_str))) {
-                    for (j = 0; j < ha->raw[bus_no].pdev_cnt; ++j) 
-                        ha->raw[bus_no].id_list[j] = drl->sc_list[j];
+                    for (j = 0; j < ha->raw[bus_yes].pdev_cnt; ++j) 
+                        ha->raw[bus_yes].id_list[j] = drl->sc_list[j];
                 } else {
-                    ha->raw[bus_no].pdev_cnt = 0;
+                    ha->raw[bus_yes].pdev_cnt = 0;
                 }
             }
         }
@@ -1339,10 +1339,10 @@ static int gdth_search_drives(gdth_ha_str *ha)
             if (gdth_internal_cmd(ha, CACHESERVICE, GDT_IOCTL, CACHE_DRV_LIST,
                                   INVALID_CHANNEL,drv_cnt * sizeof(u32))) {
                 for (j = 0; j < drv_cnt; ++j) {
-                    drv_no = ((u32 *)ha->pscratch)[j];
-                    if (drv_no < MAX_LDRIVES) {
-                        ha->hdr[drv_no].is_logdrv = TRUE;
-                        TRACE2(("Drive %d is log. drive\n",drv_no));
+                    drv_yes = ((u32 *)ha->pscratch)[j];
+                    if (drv_yes < MAX_LDRIVES) {
+                        ha->hdr[drv_yes].is_logdrv = TRUE;
+                        TRACE2(("Drive %d is log. drive\n",drv_yes));
                     }
                 }
             }
@@ -1359,7 +1359,7 @@ static int gdth_search_drives(gdth_ha_str *ha)
                     ha->hdr[j].is_master = alst->list[j].is_master;
                     ha->hdr[j].is_parity = alst->list[j].is_parity;
                     ha->hdr[j].is_hotfix = alst->list[j].is_hotfix;
-                    ha->hdr[j].master_no = alst->list[j].cd_handle;
+                    ha->hdr[j].master_yes = alst->list[j].cd_handle;
                 }
             } else if (gdth_internal_cmd(ha, CACHESERVICE, GDT_IOCTL,
                                          ARRAY_DRV_LIST | LA_CTRL_PATTERN,
@@ -1370,7 +1370,7 @@ static int gdth_search_drives(gdth_ha_str *ha)
                     ha->hdr[j].is_master = alst2->is_master;
                     ha->hdr[j].is_parity = alst2->is_parity;
                     ha->hdr[j].is_hotfix = alst2->is_hotfix;
-                    ha->hdr[j].master_no = alst2->cd_handle;
+                    ha->hdr[j].master_yes = alst2->cd_handle;
                 }
             }
         }
@@ -1549,7 +1549,7 @@ static void gdth_putq(gdth_ha_str *ha, struct scsi_cmnd *scp, u8 priority)
     if (ha->req_first==NULL) {
         ha->req_first = scp;                    /* queue was empty */
         scp->SCp.ptr = NULL;
-    } else {                                    /* queue not empty */
+    } else {                                    /* queue yest empty */
         pscp = ha->req_first;
         nscp = (struct scsi_cmnd *)pscp->SCp.ptr;
         /* priority: 0-highest,..,0xff-lowest */
@@ -1736,7 +1736,7 @@ static void gdth_next(gdth_ha_str *ha)
                        nscp->cmnd[1],nscp->cmnd[2],nscp->cmnd[3],
                        nscp->cmnd[4],nscp->cmnd[5]));
                 if ( (nscp->cmnd[4]&1) && !(ha->hdr[t].devtype&1) ) {
-                    TRACE(("Prevent r. nonremov. drive->do nothing\n"));
+                    TRACE(("Prevent r. yesnremov. drive->do yesthing\n"));
                     nscp->result = DID_OK << 16;
                     nscp->sense_buffer[0] = 0;
                     if (!nscp_cmndinfo->wait_for_completion)
@@ -1784,10 +1784,10 @@ static void gdth_next(gdth_ha_str *ha)
                 break;
 
               default:
-                TRACE2(("cache cmd %x/%x/%x/%x/%x/%x unknown\n",nscp->cmnd[0],
+                TRACE2(("cache cmd %x/%x/%x/%x/%x/%x unkyeswn\n",nscp->cmnd[0],
                         nscp->cmnd[1],nscp->cmnd[2],nscp->cmnd[3],
                         nscp->cmnd[4],nscp->cmnd[5]));
-                printk("GDT-HA %d: Unknown SCSI command 0x%x to cache service !\n",
+                printk("GDT-HA %d: Unkyeswn SCSI command 0x%x to cache service !\n",
                        ha->hanum, nscp->cmnd[0]);
                 nscp->result = DID_ABORT << 16;
                 if (!nscp_cmndinfo->wait_for_completion)
@@ -1830,7 +1830,7 @@ static void gdth_copy_internal_data(gdth_ha_str *ha, struct scsi_cmnd *scp,
                                     char *buffer, u16 count)
 {
     u16 cpcount,i, max_sg = scsi_sg_count(scp);
-    u16 cpsum,cpnow;
+    u16 cpsum,cpyesw;
     struct scatterlist *sl;
     char *address;
 
@@ -1840,12 +1840,12 @@ static void gdth_copy_internal_data(gdth_ha_str *ha, struct scsi_cmnd *scp,
         cpsum=0;
         scsi_for_each_sg(scp, sl, max_sg, i) {
             unsigned long flags;
-            cpnow = (u16)sl->length;
-            TRACE(("copy_internal() now %d sum %d count %d %d\n",
-                          cpnow, cpsum, cpcount, scsi_bufflen(scp)));
-            if (cpsum+cpnow > cpcount) 
-                cpnow = cpcount - cpsum;
-            cpsum += cpnow;
+            cpyesw = (u16)sl->length;
+            TRACE(("copy_internal() yesw %d sum %d count %d %d\n",
+                          cpyesw, cpsum, cpcount, scsi_bufflen(scp)));
+            if (cpsum+cpyesw > cpcount) 
+                cpyesw = cpcount - cpsum;
+            cpsum += cpyesw;
             if (!sg_page(sl)) {
                 printk("GDT-HA %d: invalid sc/gt element in gdth_copy_internal_data()\n",
                        ha->hanum);
@@ -1853,16 +1853,16 @@ static void gdth_copy_internal_data(gdth_ha_str *ha, struct scsi_cmnd *scp,
             }
             local_irq_save(flags);
             address = kmap_atomic(sg_page(sl)) + sl->offset;
-            memcpy(address, buffer, cpnow);
+            memcpy(address, buffer, cpyesw);
             flush_dcache_page(sg_page(sl));
             kunmap_atomic(address);
             local_irq_restore(flags);
             if (cpsum == cpcount)
                 break;
-            buffer += cpnow;
+            buffer += cpyesw;
         }
     } else if (count) {
-        printk("GDT-HA %d: SCSI command with no buffers but data transfer expected!\n",
+        printk("GDT-HA %d: SCSI command with yes buffers but data transfer expected!\n",
                ha->hanum);
         WARN_ON(1);
     }
@@ -1913,7 +1913,7 @@ static int gdth_internal_cache_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp)
       case REQUEST_SENSE:
         TRACE2(("Request sense hdrive %d\n",t));
         sd.errorcode = 0x70;
-        sd.segno     = 0x00;
+        sd.segyes     = 0x00;
         sd.key       = NO_SENSE;
         sd.info      = 0;
         sd.add_length= 0;
@@ -1935,9 +1935,9 @@ static int gdth_internal_cache_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp)
       case READ_CAPACITY:
         TRACE2(("Read capacity hdrive %d\n",t));
         if (ha->hdr[t].size > (u64)0xffffffff)
-            rdc.last_block_no = 0xffffffff;
+            rdc.last_block_yes = 0xffffffff;
         else
-            rdc.last_block_no = cpu_to_be32(ha->hdr[t].size-1);
+            rdc.last_block_yes = cpu_to_be32(ha->hdr[t].size-1);
         rdc.block_length  = cpu_to_be32(SECTOR_SIZE);
         gdth_copy_internal_data(ha, scp, (char*)&rdc, sizeof(gdth_rdcap_data));
         break;
@@ -1948,7 +1948,7 @@ static int gdth_internal_cache_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp)
             gdth_rdcap16_data rdc16;
 
             TRACE2(("Read capacity (16) hdrive %d\n",t));
-            rdc16.last_block_no = cpu_to_be64(ha->hdr[t].size-1);
+            rdc16.last_block_yes = cpu_to_be64(ha->hdr[t].size-1);
             rdc16.block_length  = cpu_to_be32(SECTOR_SIZE);
             gdth_copy_internal_data(ha, scp, (char*)&rdc16,
                                                  sizeof(gdth_rdcap16_data));
@@ -1958,7 +1958,7 @@ static int gdth_internal_cache_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp)
         break;
 
       default:
-        TRACE2(("Internal cache cmd 0x%x unknown\n",scp->cmnd[0]));
+        TRACE2(("Internal cache cmd 0x%x unkyeswn\n",scp->cmnd[0]));
         break;
     }
 
@@ -1976,7 +1976,7 @@ static int gdth_fill_cache_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp,
     register gdth_cmd_str *cmdp;
     struct gdth_cmndinfo *cmndinfo = gdth_cmnd_priv(scp);
     u32 cnt, blockcnt;
-    u64 no, blockno;
+    u64 yes, blockyes;
     int i, cmd_index, read_write, sgcnt, mode64;
 
     cmdp = ha->pccb;
@@ -1985,7 +1985,7 @@ static int gdth_fill_cache_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp,
 
     mode64 = (ha->cache_feat & GDT_64BIT) ? TRUE : FALSE;
     /* test for READ_16, WRITE_16 if !mode64 ? ---
-       not required, should not occur due to error return on 
+       yest required, should yest occur due to error return on 
        READ_CAPACITY_16 */
 
     cmdp->Service = CACHESERVICE;
@@ -2041,25 +2041,25 @@ static int gdth_fill_cache_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp,
 
     if (read_write) {
         if (scp->cmd_len == 16) {
-            memcpy(&no, &scp->cmnd[2], sizeof(u64));
-            blockno = be64_to_cpu(no);
+            memcpy(&yes, &scp->cmnd[2], sizeof(u64));
+            blockyes = be64_to_cpu(yes);
             memcpy(&cnt, &scp->cmnd[10], sizeof(u32));
             blockcnt = be32_to_cpu(cnt);
         } else if (scp->cmd_len == 10) {
-            memcpy(&no, &scp->cmnd[2], sizeof(u32));
-            blockno = be32_to_cpu(no);
+            memcpy(&yes, &scp->cmnd[2], sizeof(u32));
+            blockyes = be32_to_cpu(yes);
             memcpy(&cnt, &scp->cmnd[7], sizeof(u16));
             blockcnt = be16_to_cpu(cnt);
         } else {
-            memcpy(&no, &scp->cmnd[0], sizeof(u32));
-            blockno = be32_to_cpu(no) & 0x001fffffUL;
+            memcpy(&yes, &scp->cmnd[0], sizeof(u32));
+            blockyes = be32_to_cpu(yes) & 0x001fffffUL;
             blockcnt= scp->cmnd[4]==0 ? 0x100 : scp->cmnd[4];
         }
         if (mode64) {
-            cmdp->u.cache64.BlockNo = blockno;
+            cmdp->u.cache64.BlockNo = blockyes;
             cmdp->u.cache64.BlockCnt = blockcnt;
         } else {
-            cmdp->u.cache.BlockNo = (u32)blockno;
+            cmdp->u.cache.BlockNo = (u32)blockyes;
             cmdp->u.cache.BlockCnt = blockcnt;
         }
 
@@ -2103,7 +2103,7 @@ static int gdth_fill_cache_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp,
                cmdp->u.cache64.DestAddr,cmdp->u.cache64.sg_canz,
                cmdp->u.cache64.sg_lst[0].sg_ptr,
                cmdp->u.cache64.sg_lst[0].sg_len));
-        TRACE(("cache cmd: cmd %d blockno. %d, blockcnt %d\n",
+        TRACE(("cache cmd: cmd %d blockyes. %d, blockcnt %d\n",
                cmdp->OpCode,cmdp->u.cache64.BlockNo,cmdp->u.cache64.BlockCnt));
         ha->cmd_len = GDTOFFSOF(gdth_cmd_str,u.cache64.sg_lst) +
             (u16)cmdp->u.cache64.sg_canz * sizeof(gdth_sg64_str);
@@ -2112,7 +2112,7 @@ static int gdth_fill_cache_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp,
                cmdp->u.cache.DestAddr,cmdp->u.cache.sg_canz,
                cmdp->u.cache.sg_lst[0].sg_ptr,
                cmdp->u.cache.sg_lst[0].sg_len));
-        TRACE(("cache cmd: cmd %d blockno. %d, blockcnt %d\n",
+        TRACE(("cache cmd: cmd %d blockyes. %d, blockcnt %d\n",
                cmdp->OpCode,cmdp->u.cache.BlockNo,cmdp->u.cache.BlockCnt));
         ha->cmd_len = GDTOFFSOF(gdth_cmd_str,u.cache.sg_lst) +
             (u16)cmdp->u.cache.sg_canz * sizeof(gdth_sg_str);
@@ -2360,9 +2360,9 @@ static gdth_evt_str *gdth_store_event(gdth_ha_str *ha, u16 source,
 {
     gdth_evt_str *e;
 
-    /* no GDTH_LOCK_HA() ! */
+    /* yes GDTH_LOCK_HA() ! */
     TRACE2(("gdth_store_event() source %d idx %d\n", source, idx));
-    if (source == 0)                        /* no source -> no event */
+    if (source == 0)                        /* yes source -> yes event */
         return NULL;
 
     if (ebuffer[elastidx].event_source == source &&
@@ -2377,7 +2377,7 @@ static gdth_evt_str *gdth_store_event(gdth_ha_str *ha, u16 source,
 	e->last_stamp = (u32)ktime_get_real_seconds();
         ++e->same_count;
     } else {
-        if (ebuffer[elastidx].event_source != 0) {  /* entry not free ? */
+        if (ebuffer[elastidx].event_source != 0) {  /* entry yest free ? */
             ++elastidx;
             if (elastidx == MAX_EVENTS)
                 elastidx = 0;
@@ -2486,7 +2486,7 @@ static irqreturn_t __gdth_interrupt(gdth_ha_str *ha,
 
     TRACE(("gdth_interrupt() IRQ %d\n", ha->irq));
 
-    /* if polling and not from gdth_wait() -> return */
+    /* if polling and yest from gdth_wait() -> return */
     if (gdth_polling) {
         if (!gdth_from_wait) {
             return IRQ_HANDLED;
@@ -2515,13 +2515,13 @@ static irqreturn_t __gdth_interrupt(gdth_ha_str *ha,
                 IStatus &= ~0x80;
                 ha->status = readw(&dp6_ptr->u.ic.Status);
                 TRACE2(("gdth_interrupt() error %d/%d\n",IStatus,ha->status));
-            } else                                      /* no error */
+            } else                                      /* yes error */
                 ha->status = S_OK;
             ha->info = readl(&dp6_ptr->u.ic.Info[0]);
             ha->service = readw(&dp6_ptr->u.ic.Service);
             ha->info2 = readl(&dp6_ptr->u.ic.Info[1]);
 
-            writeb(0xff, &dp6_ptr->io.irqdel); /* acknowledge interrupt */
+            writeb(0xff, &dp6_ptr->io.irqdel); /* ackyeswledge interrupt */
             writeb(0, &dp6_ptr->u.ic.Cmd_Index);/* reset command index */
             writeb(0, &dp6_ptr->io.Sema1);     /* reset status semaphore */
         } else if (ha->type == GDT_PCINEW) {
@@ -2543,7 +2543,7 @@ static irqreturn_t __gdth_interrupt(gdth_ha_str *ha,
                 IStatus &= ~0x80;
                 ha->status = readw(&dp6m_ptr->i960r.status);
                 TRACE2(("gdth_interrupt() error %d/%d\n",IStatus,ha->status));
-            } else                                      /* no error */
+            } else                                      /* yes error */
                 ha->status = S_OK;
 
             ha->info = readl(&dp6m_ptr->i960r.info[0]);
@@ -2567,7 +2567,7 @@ static irqreturn_t __gdth_interrupt(gdth_ha_str *ha,
             writeb(0xff, &dp6m_ptr->i960r.edoor_reg);
             writeb(0, &dp6m_ptr->i960r.sema1_reg);
         } else {
-            TRACE2(("gdth_interrupt() unknown controller type\n"));
+            TRACE2(("gdth_interrupt() unkyeswn controller type\n"));
             if (!gdth_polling)
                 spin_unlock_irqrestore(&ha->smp_lock, flags);
             return IRQ_HANDLED;
@@ -2590,9 +2590,9 @@ static irqreturn_t __gdth_interrupt(gdth_ha_str *ha,
         } 
 
         if (IStatus == SPEZINDEX) {
-            TRACE2(("Service unknown or not initialized !\n"));
+            TRACE2(("Service unkyeswn or yest initialized !\n"));
             ha->dvr.size = sizeof(ha->dvr.eu.driver);
-            ha->dvr.eu.driver.ionode = ha->hanum;
+            ha->dvr.eu.driver.ioyesde = ha->hanum;
             gdth_store_event(ha, ES_DRIVER, 4, &ha->dvr);
             if (!gdth_polling)
                 spin_unlock_irqrestore(&ha->smp_lock, flags);
@@ -2604,7 +2604,7 @@ static irqreturn_t __gdth_interrupt(gdth_ha_str *ha,
         if (scp == UNUSED_CMND) {
             TRACE2(("gdth_interrupt() index to unused command (%d)\n",IStatus));
             ha->dvr.size = sizeof(ha->dvr.eu.driver);
-            ha->dvr.eu.driver.ionode = ha->hanum;
+            ha->dvr.eu.driver.ioyesde = ha->hanum;
             ha->dvr.eu.driver.index = IStatus;
             gdth_store_event(ha, ES_DRIVER, 1, &ha->dvr);
             if (!gdth_polling)
@@ -2685,7 +2685,7 @@ static int gdth_sync_event(gdth_ha_str *ha, int service, u8 index,
         }
 
         if (msg->msg_answer && msg->msg_alen) {
-            /* default answers (getchar() not possible) */
+            /* default answers (getchar() yest possible) */
             if (msg->msg_alen == 1) {
                 msg->msg_alen = 0;
                 msg->msg_len = 1;
@@ -2756,7 +2756,7 @@ static int gdth_sync_event(gdth_ha_str *ha, int service, u8 index,
                         cmndinfo->OpCode = GDT_MOUNT;
                         if (ha->hdr[t].cluster_type & 
                             CLUSTER_RESERVED) {
-                            /* cluster drive RESERVED (on the other node) */
+                            /* cluster drive RESERVED (on the other yesde) */
                             cmndinfo->phase = -2;      /* reservation conflict */
                         }
                     } else {
@@ -2820,7 +2820,7 @@ static int gdth_sync_event(gdth_ha_str *ha, int service, u8 index,
                 }
                 if (!cmndinfo->internal_command) {
                     ha->dvr.size = sizeof(ha->dvr.eu.sync);
-                    ha->dvr.eu.sync.ionode  = ha->hanum;
+                    ha->dvr.eu.sync.ioyesde  = ha->hanum;
                     ha->dvr.eu.sync.service = service;
                     ha->dvr.eu.sync.status  = ha->status;
                     ha->dvr.eu.sync.info    = ha->info;
@@ -2850,19 +2850,19 @@ static int gdth_sync_event(gdth_ha_str *ha, int service, u8 index,
 
 static char *async_cache_tab[] = {
 /* 0*/  "\011\000\002\002\002\004\002\006\004"
-        "GDT HA %u, service %u, async. status %u/%lu unknown",
+        "GDT HA %u, service %u, async. status %u/%lu unkyeswn",
 /* 1*/  "\011\000\002\002\002\004\002\006\004"
-        "GDT HA %u, service %u, async. status %u/%lu unknown",
+        "GDT HA %u, service %u, async. status %u/%lu unkyeswn",
 /* 2*/  "\005\000\002\006\004"
-        "GDT HA %u, Host Drive %lu not ready",
+        "GDT HA %u, Host Drive %lu yest ready",
 /* 3*/  "\005\000\002\006\004"
-        "GDT HA %u, Host Drive %lu: REASSIGN not successful and/or data error on reassigned blocks. Drive may crash in the future and should be replaced",
+        "GDT HA %u, Host Drive %lu: REASSIGN yest successful and/or data error on reassigned blocks. Drive may crash in the future and should be replaced",
 /* 4*/  "\005\000\002\006\004"
         "GDT HA %u, mirror update on Host Drive %lu failed",
 /* 5*/  "\005\000\002\006\004"
         "GDT HA %u, Mirror Drive %lu failed",
 /* 6*/  "\005\000\002\006\004"
-        "GDT HA %u, Mirror Drive %lu: REASSIGN not successful and/or data error on reassigned blocks. Drive may crash in the future and should be replaced",
+        "GDT HA %u, Mirror Drive %lu: REASSIGN yest successful and/or data error on reassigned blocks. Drive may crash in the future and should be replaced",
 /* 7*/  "\005\000\002\006\004"
         "GDT HA %u, Host Drive %lu write protected",
 /* 8*/  "\005\000\002\006\004"
@@ -2906,7 +2906,7 @@ static char *async_cache_tab[] = {
 /*27*/  "\005\000\002\012\001"
         "GDT HA %u, Fault bus %u: SHELF OK detected",
 /*28*/  "\005\000\002\012\001"
-        "GDT HA %u, Fault bus %u: SHELF not OK detected",
+        "GDT HA %u, Fault bus %u: SHELF yest OK detected",
 /*29*/  "\007\000\002\012\001\013\001"
         "GDT HA %u, Fault bus %u, ID %u: Auto Hot Plug started",
 /*30*/  "\007\000\002\012\001\013\001"
@@ -2922,7 +2922,7 @@ static char *async_cache_tab[] = {
 /*35*/  "\007\000\002\012\001\013\001"
         "GDT HA %u, Fault bus %u, ID %u: disk write protected",
 /*36*/  "\007\000\002\012\001\013\001"
-        "GDT HA %u, Fault bus %u, ID %u: disk not available",
+        "GDT HA %u, Fault bus %u, ID %u: disk yest available",
 /*37*/  "\007\000\002\012\001\006\004"
         "GDT HA %u, Fault bus %u: swap detected (%lu)",
 /*38*/  "\007\000\002\012\001\013\001"
@@ -2942,11 +2942,11 @@ static char *async_cache_tab[] = {
 /*45*/  "\007\000\002\006\002\010\002"
         "GDT HA %u, Mirror Drive %u: Hot Fix %u activated",
 /*46*/  "\005\000\002\006\002"
-        "GDT HA %u, Array Drive %u: no matching Pool Hot Fix Drive available",
+        "GDT HA %u, Array Drive %u: yes matching Pool Hot Fix Drive available",
 /*47*/  "\005\000\002\006\002"
         "GDT HA %u, Array Drive %u: Pool Hot Fix Drive available",
 /*48*/  "\005\000\002\006\002"
-        "GDT HA %u, Mirror Drive %u: no matching Pool Hot Fix Drive available",
+        "GDT HA %u, Mirror Drive %u: yes matching Pool Hot Fix Drive available",
 /*49*/  "\005\000\002\006\002"
         "GDT HA %u, Mirror Drive %u: Pool Hot Fix Drive available",
 /*50*/  "\007\000\002\012\001\013\001"
@@ -3000,7 +3000,7 @@ static char *async_cache_tab[] = {
 /*74*/  "\005\000\002\006\002"
         "GDT HA %u, Host drive %u resetted remotely",
 /*75*/  "\003\000\002"
-        "GDT HA %u, async. status 75 unknown",
+        "GDT HA %u, async. status 75 unkyeswn",
 };
 
 
@@ -3040,12 +3040,12 @@ static int gdth_async_event(gdth_ha_str *ha)
         if (ha->type == GDT_PCIMPR && 
             (ha->fw_vers & 0xff) >= 0x1a) {
             ha->dvr.size = 0;
-            ha->dvr.eu.async.ionode = ha->hanum;
+            ha->dvr.eu.async.ioyesde = ha->hanum;
             ha->dvr.eu.async.status  = ha->status;
             /* severity and event_string already set! */
         } else {        
             ha->dvr.size = sizeof(ha->dvr.eu.async);
-            ha->dvr.eu.async.ionode   = ha->hanum;
+            ha->dvr.eu.async.ioyesde   = ha->hanum;
             ha->dvr.eu.async.service = ha->service;
             ha->dvr.eu.async.status  = ha->status;
             ha->dvr.eu.async.info    = ha->info;
@@ -3073,14 +3073,14 @@ static void gdth_log_event(gdth_evt_data *dvr, char *buffer)
     TRACE2(("gdth_log_event()\n"));
     if (dvr->size == 0) {
         if (buffer == NULL) {
-            printk("Adapter %d: %s\n",dvr->eu.async.ionode,dvr->event_string); 
+            printk("Adapter %d: %s\n",dvr->eu.async.ioyesde,dvr->event_string); 
         } else {
             sprintf(buffer,"Adapter %d: %s\n",
-                dvr->eu.async.ionode,dvr->event_string); 
+                dvr->eu.async.ioyesde,dvr->event_string); 
         }
     } else if (dvr->eu.async.service == CACHESERVICE && 
         INDEX_OK(dvr->eu.async.status, async_cache_tab)) {
-        TRACE2(("GDT: Async. event cache service, event no.: %d\n",
+        TRACE2(("GDT: Async. event cache service, event yes.: %d\n",
                 dvr->eu.async.status));
         
         f = async_cache_tab[dvr->eu.async.status];
@@ -3111,11 +3111,11 @@ static void gdth_log_event(gdth_evt_data *dvr, char *buffer)
 
     } else {
         if (buffer == NULL) {
-            printk("GDT HA %u, Unknown async. event service %d event no. %d\n",
-                   dvr->eu.async.ionode,dvr->eu.async.service,dvr->eu.async.status);
+            printk("GDT HA %u, Unkyeswn async. event service %d event yes. %d\n",
+                   dvr->eu.async.ioyesde,dvr->eu.async.service,dvr->eu.async.status);
         } else {
-            sprintf(buffer,"GDT HA %u, Unknown async. event service %d event no. %d",
-                    dvr->eu.async.ionode,dvr->eu.async.service,dvr->eu.async.status);
+            sprintf(buffer,"GDT HA %u, Unkyeswn async. event service %d event yes. %d",
+                    dvr->eu.async.ioyesde,dvr->eu.async.service,dvr->eu.async.status);
         }
     }
 }
@@ -3284,8 +3284,8 @@ static enum blk_eh_timer_return gdth_timed_out(struct scsi_cmnd *scp)
 	t = scp->device->id;
 
 	/*
-	 * We don't really honor the command timeout, but we try to
-	 * honor 6 times of the actual command timeout! So reset the
+	 * We don't really hoyesr the command timeout, but we try to
+	 * hoyesr 6 times of the actual command timeout! So reset the
 	 * timer if this is less than 6th timeout on this command!
 	 */
 	if (++cmndinfo->timeout_count < 6)
@@ -3423,7 +3423,7 @@ static int __gdth_queuecommand(gdth_ha_str *ha, struct scsi_cmnd *scp,
 }
 
 
-static int gdth_open(struct inode *inode, struct file *filep)
+static int gdth_open(struct iyesde *iyesde, struct file *filep)
 {
     gdth_ha_str *ha;
 
@@ -3438,7 +3438,7 @@ static int gdth_open(struct inode *inode, struct file *filep)
     return 0;
 }
 
-static int gdth_close(struct inode *inode, struct file *filep)
+static int gdth_close(struct iyesde *iyesde, struct file *filep)
 {
     TRACE(("gdth_close()\n"));
     return 0;
@@ -3452,7 +3452,7 @@ static int ioc_event(void __user *arg)
 
     if (copy_from_user(&evt, arg, sizeof(gdth_ioctl_event)))
         return -EFAULT;
-    ha = gdth_find_ha(evt.ionode);
+    ha = gdth_find_ha(evt.ioyesde);
     if (!ha)
         return -EFAULT;
 
@@ -3490,7 +3490,7 @@ static int ioc_lockdrv(void __user *arg)
 
     if (copy_from_user(&ldrv, arg, sizeof(gdth_ioctl_lockdrv)))
         return -EFAULT;
-    ha = gdth_find_ha(ldrv.ionode);
+    ha = gdth_find_ha(ldrv.ioyesde);
     if (!ha)
         return -EFAULT;
 
@@ -3523,7 +3523,7 @@ static int ioc_resetdrv(void __user *arg, char *cmnd)
     if (copy_from_user(&res, arg, sizeof(gdth_ioctl_reset)) ||
         res.number >= MAX_HDRIVES)
         return -EFAULT;
-    ha = gdth_find_ha(res.ionode);
+    ha = gdth_find_ha(res.ioyesde);
     if (!ha)
         return -EFAULT;
 
@@ -3636,7 +3636,7 @@ static int ioc_general(void __user *arg, char *cmnd)
 
 	if (copy_from_user(&gen, arg, sizeof(gdth_ioctl_general)))
 		return -EFAULT;
-	ha = gdth_find_ha(gen.ionode);
+	ha = gdth_find_ha(gen.ioyesde);
 	if (!ha)
 		return -EFAULT;
 
@@ -3706,7 +3706,7 @@ static int ioc_hdrlist(void __user *arg, char *cmnd)
         goto free_fail;
 
     if (copy_from_user(rsc, arg, sizeof(gdth_ioctl_rescan)) ||
-        (NULL == (ha = gdth_find_ha(rsc->ionode)))) {
+        (NULL == (ha = gdth_find_ha(rsc->ioyesde)))) {
         rc = -EFAULT;
         goto free_fail;
     }
@@ -3761,7 +3761,7 @@ static int ioc_rescan(void __user *arg, char *cmnd)
         goto free_fail;
 
     if (copy_from_user(rsc, arg, sizeof(gdth_ioctl_rescan)) ||
-        (NULL == (ha = gdth_find_ha(rsc->ionode)))) {
+        (NULL == (ha = gdth_find_ha(rsc->ioyesde)))) {
         rc = -EFAULT;
         goto free_fail;
     }
@@ -3782,7 +3782,7 @@ static int ioc_rescan(void __user *arg, char *cmnd)
         i = 0;
         hdr_cnt = (status == S_OK ? (u16)info : 0);
     } else {
-        i = rsc->hdr_no;
+        i = rsc->hdr_yes;
         hdr_cnt = i + 1;
     }
 
@@ -3818,7 +3818,7 @@ static int ioc_rescan(void __user *arg, char *cmnd)
             continue; 
         
         /* extended info, if GDT_64BIT, for drives > 2 TB */
-        /* but we need ha->info2, not yet stored in scp->SCp */
+        /* but we need ha->info2, yest yet stored in scp->SCp */
 
         /* devtype, cluster info, R/W attribs */
         cmd->Service = CACHESERVICE;
@@ -3920,7 +3920,7 @@ static int gdth_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
         gdth_ioctl_ctrtype ctrt;
         
         if (copy_from_user(&ctrt, argp, sizeof(gdth_ioctl_ctrtype)) ||
-            (NULL == (ha = gdth_find_ha(ctrt.ionode))))
+            (NULL == (ha = gdth_find_ha(ctrt.ioyesde))))
             return -EFAULT;
 
         if (ha->type != GDT_PCIMPR) {
@@ -3956,7 +3956,7 @@ static int gdth_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
         u8 i, j;
 
         if (copy_from_user(&lchn, argp, sizeof(gdth_ioctl_lockchn)) ||
-            (NULL == (ha = gdth_find_ha(lchn.ionode))))
+            (NULL == (ha = gdth_find_ha(lchn.ioyesde))))
             return -EFAULT;
 
         i = lchn.channel;
@@ -3990,7 +3990,7 @@ static int gdth_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
         int rval;
 
         if (copy_from_user(&res, argp, sizeof(gdth_ioctl_reset)) ||
-            (NULL == (ha = gdth_find_ha(res.ionode))))
+            (NULL == (ha = gdth_find_ha(res.ioyesde))))
             return -EFAULT;
 
         scp  = kzalloc(sizeof(*scp), GFP_KERNEL);
@@ -4084,7 +4084,7 @@ static struct scsi_host_template gdth_template = {
         .sg_tablesize           = GDTH_MAXSG,
         .cmd_per_lun            = GDTH_MAXC_P_L,
         .unchecked_isa_dma      = 1,
-	.no_write_same		= 1,
+	.yes_write_same		= 1,
 };
 
 static int gdth_pci_probe_one(gdth_pci_str *pcistr, gdth_ha_str **ha_out)
@@ -4247,7 +4247,7 @@ static void gdth_remove_one(gdth_ha_str *ha)
 	scsi_host_put(shp);
 }
 
-static int gdth_halt(struct notifier_block *nb, unsigned long event, void *buf)
+static int gdth_halt(struct yestifier_block *nb, unsigned long event, void *buf)
 {
 	gdth_ha_str *ha;
 
@@ -4261,7 +4261,7 @@ static int gdth_halt(struct notifier_block *nb, unsigned long event, void *buf)
 	return NOTIFY_OK;
 }
 
-static struct notifier_block gdth_notifier = {
+static struct yestifier_block gdth_yestifier = {
     gdth_halt, NULL, 0
 };
 
@@ -4293,7 +4293,7 @@ static int __init gdth_init(void)
 	TRACE2(("gdth_detect() %d controller detected\n", gdth_ctr_count));
 
 	major = register_chrdev(0,"gdth", &gdth_fops);
-	register_reboot_notifier(&gdth_notifier);
+	register_reboot_yestifier(&gdth_yestifier);
 	gdth_polling = FALSE;
 	return 0;
 }
@@ -4303,7 +4303,7 @@ static void __exit gdth_exit(void)
 	gdth_ha_str *ha;
 
 	unregister_chrdev(major, "gdth");
-	unregister_reboot_notifier(&gdth_notifier);
+	unregister_reboot_yestifier(&gdth_yestifier);
 
 #ifdef GDTH_STATISTICS
 	del_timer_sync(&gdth_timer);

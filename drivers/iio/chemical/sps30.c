@@ -37,7 +37,7 @@
 #define SPS30_READ_SERIAL 0xd033
 #define SPS30_START_FAN_CLEANING 0x5607
 #define SPS30_AUTO_CLEANING_PERIOD 0x8004
-/* not a sensor command per se, used only to distinguish write from read */
+/* yest a sensor command per se, used only to distinguish write from read */
 #define SPS30_READ_AUTO_CLEANING_PERIOD 0x8005
 
 enum {
@@ -70,7 +70,7 @@ static int sps30_write_then_read(struct sps30_state *state, u8 *txbuf,
 	int ret;
 
 	/*
-	 * Sensor does not support repeated start so instead of
+	 * Sensor does yest support repeated start so instead of
 	 * sending two i2c messages in a row we just send one by one.
 	 */
 	ret = i2c_master_send(state->client, txbuf, txsize);
@@ -161,7 +161,7 @@ static s32 sps30_float_to_int_clamped(const u8 *fp)
 {
 	int val = get_unaligned_be32(fp);
 	int mantissa = val & GENMASK(22, 0);
-	/* this is fine since passed float is always non-negative */
+	/* this is fine since passed float is always yesn-negative */
 	int exp = val >> 23;
 	int fraction, shift;
 
@@ -241,7 +241,7 @@ static irqreturn_t sps30_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, data,
 					   iio_get_time_ns(indio_dev));
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }

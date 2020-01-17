@@ -7,7 +7,7 @@
 
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/printk.h>
@@ -21,7 +21,7 @@
 
 static void __iomem *sysc_base2;
 
-static int rmobile_reset_handler(struct notifier_block *this,
+static int rmobile_reset_handler(struct yestifier_block *this,
 				 unsigned long mode, void *cmd)
 {
 	pr_debug("%s %lu\n", __func__, mode);
@@ -32,8 +32,8 @@ static int rmobile_reset_handler(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block rmobile_reset_nb = {
-	.notifier_call = rmobile_reset_handler,
+static struct yestifier_block rmobile_reset_nb = {
+	.yestifier_call = rmobile_reset_handler,
 	.priority = 192,
 };
 
@@ -41,14 +41,14 @@ static int rmobile_reset_probe(struct platform_device *pdev)
 {
 	int error;
 
-	sysc_base2 = of_iomap(pdev->dev.of_node, 1);
+	sysc_base2 = of_iomap(pdev->dev.of_yesde, 1);
 	if (!sysc_base2)
 		return -ENODEV;
 
 	error = register_restart_handler(&rmobile_reset_nb);
 	if (error) {
 		dev_err(&pdev->dev,
-			"cannot register restart handler (err=%d)\n", error);
+			"canyest register restart handler (err=%d)\n", error);
 		goto fail_unmap;
 	}
 

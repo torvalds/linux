@@ -46,15 +46,15 @@
 #define IOP_LOGINFO_CODE_INVALID_SAS_ADDRESS                 (0x00010000)
 #define IOP_LOGINFO_CODE_UNUSED2                             (0x00020000)
 #define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE                 (0x00030000)
-#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_RT              (0x00030100) /* Route Table Entry not found */
+#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_RT              (0x00030100) /* Route Table Entry yest found */
 #define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_PN              (0x00030200) /* Invalid Page Number */
 #define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_FORM            (0x00030300) /* Invalid FORM */
 #define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_PT              (0x00030400) /* Invalid Page Type */
 #define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_DNM             (0x00030500) /* Device Not Mapped */
-#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_PERSIST         (0x00030600) /* Persistent Page not found */
-#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_DEFAULT         (0x00030700) /* Default Page not found */
+#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_PERSIST         (0x00030600) /* Persistent Page yest found */
+#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_DEFAULT         (0x00030700) /* Default Page yest found */
 
-#define IOP_LOGINFO_CODE_FWUPLOAD_NO_FLASH_AVAILABLE         (0x0003E000) /* Tried to upload from flash, but there is none */
+#define IOP_LOGINFO_CODE_FWUPLOAD_NO_FLASH_AVAILABLE         (0x0003E000) /* Tried to upload from flash, but there is yesne */
 #define IOP_LOGINFO_CODE_FWUPLOAD_UNKNOWN_IMAGE_TYPE         (0x0003E001) /* ImageType field contents were invalid */
 #define IOP_LOGINFO_CODE_FWUPLOAD_WRONG_IMAGE_SIZE           (0x0003E002) /* ImageSize field in TCSGE was bad/offset in MfgPg 4 was wrong */
 #define IOP_LOGINFO_CODE_FWUPLOAD_ENTIRE_FLASH_UPLOAD_FAILED (0x0003E003) /* Error occurred while attempting to upload the entire flash */
@@ -65,7 +65,7 @@
 
 #define IOP_LOGINFO_CODE_TASK_TERMINATED                     (0x00050000)
 
-#define IOP_LOGINFO_CODE_ENCL_MGMT_READ_ACTION_ERR0R         (0x00060001) /* Read Action not supported for SEP msg */
+#define IOP_LOGINFO_CODE_ENCL_MGMT_READ_ACTION_ERR0R         (0x00060001) /* Read Action yest supported for SEP msg */
 #define IOP_LOGINFO_CODE_ENCL_MGMT_INVALID_BUS_ID_ERR0R      (0x00060002) /* Invalid Bus/ID in SEP msg */
 
 #define IOP_LOGINFO_CODE_TARGET_ASSIST_TERMINATED            (0x00070001)
@@ -124,7 +124,7 @@
 #define PL_LOGINFO_CODE_SATA_LINK_DOWN                       (0x000D0000)
 #define PL_LOGINFO_CODE_DISCOVERY_SATA_INIT_W_IOS            (0x000E0000)
 #define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE                  (0x000F0000)
-#define PL_LOGINFO_CODE_CONFIG_PL_NOT_INITIALIZED            (0x000F0001) /* PL not yet initialized, can't do config page req. */
+#define PL_LOGINFO_CODE_CONFIG_PL_NOT_INITIALIZED            (0x000F0001) /* PL yest yet initialized, can't do config page req. */
 #define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_PT               (0x000F0100) /* Invalid Page Type */
 #define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_NUM_PHYS         (0x000F0200) /* Invalid Number of Phys */
 #define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_NOT_IMP          (0x000F0300) /* Case Not Handled */
@@ -182,7 +182,7 @@
 #define PL_LOGINFO_SUB_CODE_SECOND_OPEN                      (0x00000F00)
 #define PL_LOGINFO_SUB_CODE_DSCVRY_SATA_INIT_TIMEOUT         (0x00001000)
 #define PL_LOGINFO_SUB_CODE_BREAK_ON_SATA_CONNECTION         (0x00002000)
-/* not currently used in mainline */
+/* yest currently used in mainline */
 #define PL_LOGINFO_SUB_CODE_BREAK_ON_STUCK_LINK              (0x00003000)
 #define PL_LOGINFO_SUB_CODE_BREAK_ON_STUCK_LINK_AIP          (0x00004000)
 #define PL_LOGINFO_SUB_CODE_BREAK_ON_INCOMPLETE_BREAK_RCVD   (0x00005000)
@@ -190,11 +190,11 @@
 #define PL_LOGINFO_CODE_ENCL_MGMT_SMP_FRAME_FAILURE          (0x00200000) /* Can't get SMP Frame */
 #define PL_LOGINFO_CODE_ENCL_MGMT_SMP_READ_ERROR             (0x00200010) /* Error occurred on SMP Read */
 #define PL_LOGINFO_CODE_ENCL_MGMT_SMP_WRITE_ERROR            (0x00200020) /* Error occurred on SMP Write */
-#define PL_LOGINFO_CODE_ENCL_MGMT_NOT_SUPPORTED_ON_ENCL      (0x00200040) /* Encl Mgmt services not available for this WWID */
-#define PL_LOGINFO_CODE_ENCL_MGMT_ADDR_MODE_NOT_SUPPORTED    (0x00200050) /* Address Mode not suppored */
+#define PL_LOGINFO_CODE_ENCL_MGMT_NOT_SUPPORTED_ON_ENCL      (0x00200040) /* Encl Mgmt services yest available for this WWID */
+#define PL_LOGINFO_CODE_ENCL_MGMT_ADDR_MODE_NOT_SUPPORTED    (0x00200050) /* Address Mode yest suppored */
 #define PL_LOGINFO_CODE_ENCL_MGMT_BAD_SLOT_NUM               (0x00200060) /* Invalid Slot Number in SEP Msg */
-#define PL_LOGINFO_CODE_ENCL_MGMT_SGPIO_NOT_PRESENT          (0x00200070) /* SGPIO not present/enabled */
-#define PL_LOGINFO_CODE_ENCL_MGMT_GPIO_NOT_CONFIGURED        (0x00200080) /* GPIO not configured */
+#define PL_LOGINFO_CODE_ENCL_MGMT_SGPIO_NOT_PRESENT          (0x00200070) /* SGPIO yest present/enabled */
+#define PL_LOGINFO_CODE_ENCL_MGMT_GPIO_NOT_CONFIGURED        (0x00200080) /* GPIO yest configured */
 #define PL_LOGINFO_CODE_ENCL_MGMT_GPIO_FRAME_ERROR           (0x00200090) /* GPIO can't allocate a frame */
 #define PL_LOGINFO_CODE_ENCL_MGMT_GPIO_CONFIG_PAGE_ERROR     (0x002000A0) /* GPIO failed config page request */
 #define PL_LOGINFO_CODE_ENCL_MGMT_SES_FRAME_ALLOC_ERROR      (0x002000B0) /* Can't get frame for SES command */
@@ -202,7 +202,7 @@
 #define PL_LOGINFO_CODE_ENCL_MGMT_SES_RETRIES_EXHAUSTED      (0x002000D0) /* SEP I/O retries exhausted */
 #define PL_LOGINFO_CODE_ENCL_MGMT_SMP_FRAME_ALLOC_ERROR      (0x002000E0) /* Can't get frame for SMP command */
 
-#define PL_LOGINFO_DA_SEP_NOT_PRESENT                        (0x00200100) /* SEP not present when msg received */
+#define PL_LOGINFO_DA_SEP_NOT_PRESENT                        (0x00200100) /* SEP yest present when msg received */
 #define PL_LOGINFO_DA_SEP_SINGLE_THREAD_ERROR                (0x00200101) /* Can only accept 1 msg at a time */
 #define PL_LOGINFO_DA_SEP_ISTWI_INTR_IN_IDLE_STATE           (0x00200102) /* ISTWI interrupt recvd. while IDLE */
 #define PL_LOGINFO_DA_SEP_RECEIVED_NACK_FROM_SLAVE           (0x00200103) /* SEP NACK'd, it is busy */
@@ -210,8 +210,8 @@
 #define PL_LOGINFO_DA_SEP_BAD_STATUS_HDR_CHKSUM              (0x00200105) /* SEP stopped or sent bad chksum in Hdr */
 #define PL_LOGINFO_DA_SEP_STOP_ON_DATA                       (0x00200106) /* SEP stopped while transferring data */
 #define PL_LOGINFO_DA_SEP_STOP_ON_SENSE_DATA                 (0x00200107) /* SEP stopped while transferring sense data */
-#define PL_LOGINFO_DA_SEP_UNSUPPORTED_SCSI_STATUS_1          (0x00200108) /* SEP returned unknown scsi status */
-#define PL_LOGINFO_DA_SEP_UNSUPPORTED_SCSI_STATUS_2          (0x00200109) /* SEP returned unknown scsi status */
+#define PL_LOGINFO_DA_SEP_UNSUPPORTED_SCSI_STATUS_1          (0x00200108) /* SEP returned unkyeswn scsi status */
+#define PL_LOGINFO_DA_SEP_UNSUPPORTED_SCSI_STATUS_2          (0x00200109) /* SEP returned unkyeswn scsi status */
 #define PL_LOGINFO_DA_SEP_CHKSUM_ERROR_AFTER_STOP            (0x0020010A) /* SEP returned bad chksum after STOP */
 #define PL_LOGINFO_DA_SEP_CHKSUM_ERROR_AFTER_STOP_GETDATA    (0x0020010B) /* SEP returned bad chksum after STOP while gettin data*/
 #define PL_LOGINFO_DA_SEP_UNSUPPORTED_COMMAND                (0x0020010C) /* SEP doesn't support CDB opcode f/w location 1 */
@@ -271,15 +271,15 @@
 #define IR_LOGINFO_COMPAT_ERROR_RAID_DISABLED                  (0x00010030)
 /* Compatibility Error : Inquiry Command failed */
 #define IR_LOGINFO_COMPAT_ERROR_INQUIRY_FAILED                 (0x00010031)
-/* Compatibility Error : Device not direct access device */
+/* Compatibility Error : Device yest direct access device */
 #define IR_LOGINFO_COMPAT_ERROR_NOT_DIRECT_ACCESS              (0x00010032)
 /* Compatibility Error : Removable device found */
 #define IR_LOGINFO_COMPAT_ERROR_REMOVABLE_FOUND                (0x00010033)
-/* Compatibility Error : Device SCSI Version not 2 or higher */
+/* Compatibility Error : Device SCSI Version yest 2 or higher */
 #define IR_LOGINFO_COMPAT_ERROR_NEED_SCSI_2_OR_HIGHER          (0x00010034)
-/* Compatibility Error : SATA device, 48 BIT LBA not supported */
+/* Compatibility Error : SATA device, 48 BIT LBA yest supported */
 #define IR_LOGINFO_COMPAT_ERROR_SATA_48BIT_LBA_NOT_SUPPORTED   (0x00010035)
-/* Compatibility Error : Device does not have 512 byte block sizes */
+/* Compatibility Error : Device does yest have 512 byte block sizes */
 #define IR_LOGINFO_COMPAT_ERROR_DEVICE_NOT_512_BYTE_BLOCK      (0x00010036)
 /* Compatibility Error : Volume Type check failed */
 #define IR_LOGINFO_COMPAT_ERROR_VOLUME_TYPE_CHECK_FAILED       (0x00010037)
@@ -287,7 +287,7 @@
 #define IR_LOGINFO_COMPAT_ERROR_UNSUPPORTED_VOLUME_TYPE        (0x00010038)
 /* Compatibility Error : Disk drive too small for use in volume */
 #define IR_LOGINFO_COMPAT_ERROR_DISK_TOO_SMALL                 (0x00010039)
-/* Compatibility Error : Phys disk for Create Volume not found */
+/* Compatibility Error : Phys disk for Create Volume yest found */
 #define IR_LOGINFO_COMPAT_ERROR_PHYS_DISK_NOT_FOUND            (0x0001003A)
 /* Compatibility Error : membership count error, too many or too few disks for volume type */
 #define IR_LOGINFO_COMPAT_ERROR_MEMBERSHIP_COUNT               (0x0001003B)
@@ -298,9 +298,9 @@
 
 /* Device Firmware Update: DFU can only be started once */
 #define IR_LOGINFO_DEV_FW_UPDATE_ERR_DFU_IN_PROGRESS            (0x00010050)
-/* Device Firmware Update: Volume must be Optimal/Active/non-Quiesced */
+/* Device Firmware Update: Volume must be Optimal/Active/yesn-Quiesced */
 #define IR_LOGINFO_DEV_FW_UPDATE_ERR_DEVICE_IN_INVALID_STATE    (0x00010051)
-/* Device Firmware Update: DFU Timeout cannot be zero */
+/* Device Firmware Update: DFU Timeout canyest be zero */
 #define IR_LOGINFO_DEV_FW_UPDATE_ERR_INVALID_TIMEOUT            (0x00010052)
 /* Device Firmware Update: CREATE TIMER FAILED */
 #define IR_LOGINFO_DEV_FW_UPDATE_ERR_NO_TIMERS                  (0x00010053)

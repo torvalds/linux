@@ -370,7 +370,7 @@ static int dma_debug_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static int knav_dma_debug_open(struct inode *inode, struct file *file)
+static int knav_dma_debug_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, dma_debug_show, NULL);
 }
@@ -382,18 +382,18 @@ static const struct file_operations knav_dma_debug_ops = {
 	.release	= single_release,
 };
 
-static int of_channel_match_helper(struct device_node *np, const char *name,
+static int of_channel_match_helper(struct device_yesde *np, const char *name,
 					const char **dma_instance)
 {
 	struct of_phandle_args args;
-	struct device_node *dma_node;
+	struct device_yesde *dma_yesde;
 	int index;
 
-	dma_node = of_parse_phandle(np, "ti,navigator-dmas", 0);
-	if (!dma_node)
+	dma_yesde = of_parse_phandle(np, "ti,navigator-dmas", 0);
+	if (!dma_yesde)
 		return -ENODEV;
 
-	*dma_instance = dma_node->name;
+	*dma_instance = dma_yesde->name;
 	index = of_property_match_string(np, "ti,navigator-dma-names", name);
 	if (index < 0) {
 		dev_err(kdev->dev, "No 'ti,navigator-dma-names' property\n");
@@ -432,11 +432,11 @@ void *knav_dma_open_channel(struct device *dev, const char *name,
 	const char *instance;
 
 	if (!kdev) {
-		pr_err("keystone-navigator-dma driver not registered\n");
+		pr_err("keystone-navigator-dma driver yest registered\n");
 		return (void *)-EINVAL;
 	}
 
-	chan_num = of_channel_match_helper(dev->of_node, name, &instance);
+	chan_num = of_channel_match_helper(dev->of_yesde, name, &instance);
 	if (chan_num < 0) {
 		dev_err(kdev->dev, "No DMA instance with name %s\n", name);
 		return (void *)-EINVAL;
@@ -445,7 +445,7 @@ void *knav_dma_open_channel(struct device *dev, const char *name,
 	dev_dbg(kdev->dev, "initializing %s channel %d from DMA %s\n",
 		  config->direction == DMA_MEM_TO_DEV ? "transmit" :
 		  config->direction == DMA_DEV_TO_MEM ? "receive"  :
-		  "unknown", chan_num, instance);
+		  "unkyeswn", chan_num, instance);
 
 	if (config->direction != DMA_MEM_TO_DEV &&
 	    config->direction != DMA_DEV_TO_MEM) {
@@ -481,7 +481,7 @@ void *knav_dma_open_channel(struct device *dev, const char *name,
 		}
 	}
 	if (!found) {
-		dev_err(kdev->dev, "channel %d is not in DMA %s\n",
+		dev_err(kdev->dev, "channel %d is yest in DMA %s\n",
 				chan_num, instance);
 		return (void *)-EINVAL;
 	}
@@ -518,7 +518,7 @@ void knav_dma_close_channel(void *channel)
 	struct knav_dma_chan *chan = channel;
 
 	if (!kdev) {
-		pr_err("keystone-navigator-dma driver not registered\n");
+		pr_err("keystone-navigator-dma driver yest registered\n");
 		return;
 	}
 
@@ -534,7 +534,7 @@ void knav_dma_close_channel(void *channel)
 EXPORT_SYMBOL_GPL(knav_dma_close_channel);
 
 static void __iomem *pktdma_get_regs(struct knav_dma_device *dma,
-				struct device_node *node,
+				struct device_yesde *yesde,
 				unsigned index, resource_size_t *_size)
 {
 	struct device *dev = kdev->dev;
@@ -542,17 +542,17 @@ static void __iomem *pktdma_get_regs(struct knav_dma_device *dma,
 	void __iomem *regs;
 	int ret;
 
-	ret = of_address_to_resource(node, index, &res);
+	ret = of_address_to_resource(yesde, index, &res);
 	if (ret) {
-		dev_err(dev, "Can't translate of node(%pOFn) address for index(%d)\n",
-			node, index);
+		dev_err(dev, "Can't translate of yesde(%pOFn) address for index(%d)\n",
+			yesde, index);
 		return ERR_PTR(ret);
 	}
 
 	regs = devm_ioremap_resource(kdev->dev, &res);
 	if (IS_ERR(regs))
-		dev_err(dev, "Failed to map register base for index(%d) node(%pOFn)\n",
-			index, node);
+		dev_err(dev, "Failed to map register base for index(%d) yesde(%pOFn)\n",
+			index, yesde);
 	if (_size)
 		*_size = resource_size(&res);
 
@@ -609,7 +609,7 @@ static int pktdma_init_chan(struct knav_dma_device *dma,
 		chan->direction = dir;
 		ret = pktdma_init_rx_chan(chan, chan_num);
 	} else {
-		dev_err(dev, "channel(%d) direction unknown\n", chan_num);
+		dev_err(dev, "channel(%d) direction unkyeswn\n", chan_num);
 	}
 
 	list_add_tail(&chan->list, &dma->chan_list);
@@ -617,10 +617,10 @@ static int pktdma_init_chan(struct knav_dma_device *dma,
 	return ret;
 }
 
-static int dma_init(struct device_node *cloud, struct device_node *dma_node)
+static int dma_init(struct device_yesde *cloud, struct device_yesde *dma_yesde)
 {
 	unsigned max_tx_chan, max_rx_chan, max_rx_flow, max_tx_sched;
-	struct device_node *node = dma_node;
+	struct device_yesde *yesde = dma_yesde;
 	struct knav_dma_device *dma;
 	int ret, len, num_chan = 0;
 	resource_size_t size;
@@ -629,7 +629,7 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 
 	dma = devm_kzalloc(kdev->dev, sizeof(*dma), GFP_KERNEL);
 	if (!dma) {
-		dev_err(kdev->dev, "could not allocate driver mem\n");
+		dev_err(kdev->dev, "could yest allocate driver mem\n");
 		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&dma->list);
@@ -642,7 +642,7 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 
 	dma->logical_queue_managers = len / sizeof(u32);
 	if (dma->logical_queue_managers > DMA_MAX_QMS) {
-		dev_warn(kdev->dev, "too many queue mgrs(>%d) rest ignored\n",
+		dev_warn(kdev->dev, "too many queue mgrs(>%d) rest igyesred\n",
 			 dma->logical_queue_managers);
 		dma->logical_queue_managers = DMA_MAX_QMS;
 	}
@@ -655,7 +655,7 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 		return -ENODEV;
 	}
 
-	dma->reg_global	 = pktdma_get_regs(dma, node, 0, &size);
+	dma->reg_global	 = pktdma_get_regs(dma, yesde, 0, &size);
 	if (!dma->reg_global)
 		return -ENODEV;
 	if (size < sizeof(struct reg_global)) {
@@ -663,22 +663,22 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 		return -ENODEV;
 	}
 
-	dma->reg_tx_chan = pktdma_get_regs(dma, node, 1, &size);
+	dma->reg_tx_chan = pktdma_get_regs(dma, yesde, 1, &size);
 	if (!dma->reg_tx_chan)
 		return -ENODEV;
 
 	max_tx_chan = size / sizeof(struct reg_chan);
-	dma->reg_rx_chan = pktdma_get_regs(dma, node, 2, &size);
+	dma->reg_rx_chan = pktdma_get_regs(dma, yesde, 2, &size);
 	if (!dma->reg_rx_chan)
 		return -ENODEV;
 
 	max_rx_chan = size / sizeof(struct reg_chan);
-	dma->reg_tx_sched = pktdma_get_regs(dma, node, 3, &size);
+	dma->reg_tx_sched = pktdma_get_regs(dma, yesde, 3, &size);
 	if (!dma->reg_tx_sched)
 		return -ENODEV;
 
 	max_tx_sched = size / sizeof(struct reg_tx_sched);
-	dma->reg_rx_flow = pktdma_get_regs(dma, node, 4, &size);
+	dma->reg_rx_flow = pktdma_get_regs(dma, yesde, 4, &size);
 	if (!dma->reg_rx_flow)
 		return -ENODEV;
 
@@ -686,10 +686,10 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 	dma->rx_priority = DMA_PRIO_DEFAULT;
 	dma->tx_priority = DMA_PRIO_DEFAULT;
 
-	dma->enable_all	= (of_get_property(node, "ti,enable-all", NULL) != NULL);
-	dma->loopback	= (of_get_property(node, "ti,loop-back",  NULL) != NULL);
+	dma->enable_all	= (of_get_property(yesde, "ti,enable-all", NULL) != NULL);
+	dma->loopback	= (of_get_property(yesde, "ti,loop-back",  NULL) != NULL);
 
-	ret = of_property_read_u32(node, "ti,rx-retry-timeout", &timeout);
+	ret = of_property_read_u32(yesde, "ti,rx-retry-timeout", &timeout);
 	if (ret < 0) {
 		dev_dbg(kdev->dev, "unspecified rx timeout using value %d\n",
 			DMA_RX_TIMEOUT_DEFAULT);
@@ -701,7 +701,7 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 	dma->max_rx_flow = max_rx_flow;
 	dma->max_tx_chan = min(max_tx_chan, max_tx_sched);
 	atomic_set(&dma->ref_count, 0);
-	strcpy(dma->name, node->name);
+	strcpy(dma->name, yesde->name);
 	spin_lock_init(&dma->lock);
 
 	for (i = 0; i < dma->max_tx_chan; i++) {
@@ -737,19 +737,19 @@ static int dma_init(struct device_node *cloud, struct device_node *dma_node)
 static int knav_dma_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *child;
 	int ret = 0;
 
-	if (!node) {
-		dev_err(&pdev->dev, "could not find device info\n");
+	if (!yesde) {
+		dev_err(&pdev->dev, "could yest find device info\n");
 		return -EINVAL;
 	}
 
 	kdev = devm_kzalloc(dev,
 			sizeof(struct knav_dma_pool_device), GFP_KERNEL);
 	if (!kdev) {
-		dev_err(dev, "could not allocate driver mem\n");
+		dev_err(dev, "could yest allocate driver mem\n");
 		return -ENOMEM;
 	}
 
@@ -764,8 +764,8 @@ static int knav_dma_probe(struct platform_device *pdev)
 	}
 
 	/* Initialise all packet dmas */
-	for_each_child_of_node(node, child) {
-		ret = dma_init(node, child);
+	for_each_child_of_yesde(yesde, child) {
+		ret = dma_init(yesde, child);
 		if (ret) {
 			dev_err(&pdev->dev, "init failed with %d\n", ret);
 			break;
@@ -773,7 +773,7 @@ static int knav_dma_probe(struct platform_device *pdev)
 	}
 
 	if (list_empty(&kdev->list)) {
-		dev_err(dev, "no valid dma instance\n");
+		dev_err(dev, "yes valid dma instance\n");
 		return -ENODEV;
 	}
 

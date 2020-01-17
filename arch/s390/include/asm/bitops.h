@@ -242,7 +242,7 @@ static inline void arch___clear_bit_unlock(unsigned long nr,
 }
 
 #include <asm-generic/bitops/instrumented-atomic.h>
-#include <asm-generic/bitops/instrumented-non-atomic.h>
+#include <asm-generic/bitops/instrumented-yesn-atomic.h>
 #include <asm-generic/bitops/instrumented-lock.h>
 
 /*
@@ -299,7 +299,7 @@ static inline bool test_bit_inv(unsigned long nr,
  *
  * Returns the bit number of the most significant bit set,
  * where the most significant bit has bit number 0.
- * If no bit is set this function returns 64.
+ * If yes bit is set this function returns 64.
  */
 static inline unsigned char __flogr(unsigned long word)
 {
@@ -348,7 +348,7 @@ static inline unsigned char __flogr(unsigned long word)
  * __ffs - find first bit in word.
  * @word: The word to search
  *
- * Undefined if no bit exists, so code should check against 0 first.
+ * Undefined if yes bit exists, so code should check against 0 first.
  */
 static inline unsigned long __ffs(unsigned long word)
 {
@@ -374,7 +374,7 @@ static inline int ffs(int word)
  * __fls - find last (most-significant) set bit in a long word
  * @word: the word to search
  *
- * Undefined if no set bit exists, so code should check against 0 first.
+ * Undefined if yes set bit exists, so code should check against 0 first.
  */
 static inline unsigned long __fls(unsigned long word)
 {
@@ -389,7 +389,7 @@ static inline unsigned long __fls(unsigned long word)
  * ffsll, but returns the position of the most significant set bit.
  *
  * fls64(value) returns 0 if value is 0 or the position of the last
- * set bit if value is nonzero. The last (most significant) bit is
+ * set bit if value is yesnzero. The last (most significant) bit is
  * at position 64.
  */
 static inline int fls64(unsigned long word)

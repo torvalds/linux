@@ -187,7 +187,7 @@
 #define K_INT_MAP_I3	3
 #define K_INT_MAP_I4	4
 #define K_INT_MAP_I5	5
-#define K_INT_MAP_NMI	6		/* nonmaskable */
+#define K_INT_MAP_NMI	6		/* yesnmaskable */
 #define K_INT_MAP_DINT	7		/* debug interrupt */
 
 /*

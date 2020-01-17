@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /**
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techyeslogy Ltd. All Rights Reserved.
  *
  * @File	cthardware.h
  *
@@ -52,7 +52,7 @@ enum ADCSRC{
 
 struct card_conf {
 	/* device virtual mem page table page physical addr
-	 * (supporting one page table page now) */
+	 * (supporting one page table page yesw) */
 	unsigned long vm_pgt_phys;
 	unsigned int rsr;	/* reference sample rate in Hzs*/
 	unsigned int msr;	/* master sample rate in rsrs */

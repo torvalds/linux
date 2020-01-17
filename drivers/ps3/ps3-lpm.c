@@ -93,7 +93,7 @@ struct ps3_lpm_shadow_regs {
  * @open: An atomic variable indicating the lpm driver has been opened.
  * @rights: The lpm rigths granted by the system policy module.  A logical
  *  OR of enum ps3_lpm_rights.
- * @node_id: The node id of a BE processor whose performance monitor this
+ * @yesde_id: The yesde id of a BE processor whose performance monitor this
  *  lpar has the right to use.
  * @pu_id: The lv1 id of the logical PU.
  * @lpm_id: The lv1 id of this lpm instance.
@@ -117,7 +117,7 @@ struct ps3_lpm_shadow_regs {
 struct ps3_lpm_priv {
 	atomic_t open;
 	u64 rights;
-	u64 node_id;
+	u64 yesde_id;
 	u64 pu_id;
 	u64 lpm_id;
 	u64 outlet_id;
@@ -136,7 +136,7 @@ enum {
 /**
  * lpm_priv - Static instance of the lpm data.
  *
- * Since the exported routines don't support the notion of a device
+ * Since the exported routines don't support the yestion of a device
  * instance we need to hold the instance in this static variable
  * and then only allow at most one instance at a time to be created.
  */
@@ -152,7 +152,7 @@ static struct device *sbd_core(void)
 /**
  * use_start_stop_bookmark - Enable the PPU bookmark trace.
  *
- * And it enables PPU bookmark triggers ONLY if the other triggers are not set.
+ * And it enables PPU bookmark triggers ONLY if the other triggers are yest set.
  * The start/stop bookmarks are inserted at ps3_enable_pm() and ps3_disable_pm()
  * to start/stop LPM.
  *
@@ -165,14 +165,14 @@ void ps3_set_bookmark(u64 bookmark)
 {
 	/*
 	 * As per the PPE book IV, to avoid bookmark loss there must
-	 * not be a traced branch within 10 cycles of setting the
+	 * yest be a traced branch within 10 cycles of setting the
 	 * SPRN_BKMK register.  The actual text is unclear if 'within'
 	 * includes cycles before the call.
 	 */
 
-	asm volatile("nop;nop;nop;nop;nop;nop;nop;nop;nop;");
+	asm volatile("yesp;yesp;yesp;yesp;yesp;yesp;yesp;yesp;yesp;");
 	mtspr(SPRN_BKMK, bookmark);
-	asm volatile("nop;nop;nop;nop;nop;nop;nop;nop;nop;");
+	asm volatile("yesp;yesp;yesp;yesp;yesp;yesp;yesp;yesp;yesp;");
 }
 EXPORT_SYMBOL_GPL(ps3_set_bookmark);
 
@@ -422,7 +422,7 @@ u32 ps3_read_pm(u32 cpu, enum pm_reg_name reg)
 	case ext_tr_timer:
 		return 0;
 	default:
-		dev_dbg(sbd_core(), "%s:%u: unknown reg: %d\n", __func__,
+		dev_dbg(sbd_core(), "%s:%u: unkyeswn reg: %d\n", __func__,
 			__LINE__, reg);
 		BUG();
 		break;
@@ -487,7 +487,7 @@ void ps3_write_pm(u32 cpu, enum pm_reg_name reg, u32 val)
 	case pm_status:
 		break;
 	default:
-		dev_dbg(sbd_core(), "%s:%u: unknown reg: %d\n", __func__,
+		dev_dbg(sbd_core(), "%s:%u: unkyeswn reg: %d\n", __func__,
 			__LINE__, reg);
 		BUG();
 		break;
@@ -721,7 +721,7 @@ static u64 pm_signal_group_to_ps3_lv1_signal_group(u64 group)
 	case 8:
 		return pm_translate_signal_group_number_on_island8(subgroup);
 	default:
-		dev_dbg(sbd_core(), "%s:%u: island not found: %llu\n", __func__,
+		dev_dbg(sbd_core(), "%s:%u: island yest found: %llu\n", __func__,
 			__LINE__, group);
 		BUG();
 		break;
@@ -1120,7 +1120,7 @@ int ps3_lpm_open(enum ps3_lpm_tb_type tb_type, void *tb_cache,
 			(unsigned long)lpm_priv->tb_cache_internal, 128);
 	}
 
-	result = lv1_construct_lpm(lpm_priv->node_id, tb_type, 0, 0,
+	result = lv1_construct_lpm(lpm_priv->yesde_id, tb_type, 0, 0,
 				ps3_mm_phys_to_lpar(__pa(lpm_priv->tb_cache)),
 				lpm_priv->tb_cache_size, &lpm_priv->lpm_id,
 				&lpm_priv->outlet_id, &tb_size);
@@ -1189,7 +1189,7 @@ static int ps3_lpm_probe(struct ps3_system_bus_device *dev)
 		return -ENOMEM;
 
 	lpm_priv->sbd = dev;
-	lpm_priv->node_id = dev->lpm.node_id;
+	lpm_priv->yesde_id = dev->lpm.yesde_id;
 	lpm_priv->pu_id = dev->lpm.pu_id;
 	lpm_priv->rights = dev->lpm.rights;
 

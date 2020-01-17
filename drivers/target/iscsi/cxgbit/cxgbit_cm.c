@@ -8,7 +8,7 @@
 #include <linux/workqueue.h>
 #include <linux/skbuff.h>
 #include <linux/timer.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/inetdevice.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -59,7 +59,7 @@ cxgbit_wait_for_reply(struct cxgbit_device *cdev,
 
 	ret = wait_for_completion_timeout(&wr_waitp->completion, timeout * HZ);
 	if (!ret) {
-		pr_info("%s - Device %s not responding tid %u\n",
+		pr_info("%s - Device %s yest responding tid %u\n",
 			func, pci_name(cdev->lldi.pdev), tid);
 		wr_waitp->ret = -ETIMEDOUT;
 	}
@@ -175,7 +175,7 @@ cxgbit_create_server6(struct cxgbit_device *cdev, unsigned int stid,
 		ret = cxgbit_wait_for_reply(cdev, &cnp->com.wr_wait,
 					    0, 10, __func__);
 	else if (ret > 0)
-		ret = net_xmit_errno(ret);
+		ret = net_xmit_erryes(ret);
 	else
 		cxgbit_put_cnp(cnp);
 
@@ -215,7 +215,7 @@ cxgbit_create_server4(struct cxgbit_device *cdev, unsigned int stid,
 					    &cnp->com.wr_wait,
 					    0, 10, __func__);
 	else if (ret > 0)
-		ret = net_xmit_errno(ret);
+		ret = net_xmit_erryes(ret);
 	else
 		cxgbit_put_cnp(cnp);
 
@@ -248,7 +248,7 @@ struct cxgbit_device *cxgbit_find_device(struct net_device *ndev, u8 *port_id)
 static struct net_device *cxgbit_get_real_dev(struct net_device *ndev)
 {
 	if (ndev->priv_flags & IFF_BONDING) {
-		pr_err("Bond devices are not supported. Interface:%s\n",
+		pr_err("Bond devices are yest supported. Interface:%s\n",
 		       ndev->name);
 		return NULL;
 	}
@@ -503,9 +503,9 @@ accept_wait:
 
 	csk = list_first_entry(&cnp->np_accept_list,
 			       struct cxgbit_sock,
-			       accept_node);
+			       accept_yesde);
 
-	list_del_init(&csk->accept_node);
+	list_del_init(&csk->accept_yesde);
 	spin_unlock_bh(&cnp->np_accept_lock);
 	conn->context = csk;
 	csk->conn = conn;
@@ -535,7 +535,7 @@ __cxgbit_free_cdev_np(struct cxgbit_device *cdev, struct cxgbit_np *cnp)
 				  cdev->lldi.rxq_ids[0], ipv6);
 
 	if (ret > 0)
-		ret = net_xmit_errno(ret);
+		ret = net_xmit_erryes(ret);
 
 	if (ret) {
 		cxgbit_put_cnp(cnp);
@@ -609,8 +609,8 @@ void cxgbit_free_np(struct iscsi_np *np)
 		cxgbit_free_all_np(cnp);
 
 	spin_lock_bh(&cnp->np_accept_lock);
-	list_for_each_entry_safe(csk, tmp, &cnp->np_accept_list, accept_node) {
-		list_del_init(&csk->accept_node);
+	list_for_each_entry_safe(csk, tmp, &cnp->np_accept_list, accept_yesde) {
+		list_del_init(&csk->accept_yesde);
 		__cxgbit_free_conn(csk);
 	}
 	spin_unlock_bh(&cnp->np_accept_lock);
@@ -681,7 +681,7 @@ __cxgbit_abort_conn(struct cxgbit_sock *csk, struct sk_buff *skb)
 	__kfree_skb(skb);
 
 	if (csk->com.state != CSK_STATE_ESTABLISHED)
-		goto no_abort;
+		goto yes_abort;
 
 	set_bit(CSK_ABORT_RPL_WAIT, &csk->com.flags);
 	csk->com.state = CSK_STATE_ABORTING;
@@ -690,7 +690,7 @@ __cxgbit_abort_conn(struct cxgbit_sock *csk, struct sk_buff *skb)
 
 	return;
 
-no_abort:
+yes_abort:
 	cxgbit_wake_up(&csk->com.wr_wait, __func__, CPL_ERR_NONE);
 	cxgbit_put_csk(csk);
 }
@@ -999,7 +999,7 @@ int cxgbit_ofld_send(struct cxgbit_device *cdev, struct sk_buff *skb)
 
 	if (!test_bit(CDEV_STATE_UP, &cdev->flags)) {
 		kfree_skb(skb);
-		pr_err("%s - device not up - dropping\n", __func__);
+		pr_err("%s - device yest up - dropping\n", __func__);
 		return -EIO;
 	}
 
@@ -1030,7 +1030,7 @@ cxgbit_l2t_send(struct cxgbit_device *cdev, struct sk_buff *skb,
 
 	if (!test_bit(CDEV_STATE_UP, &cdev->flags)) {
 		kfree_skb(skb);
-		pr_err("%s - device not up - dropping\n", __func__);
+		pr_err("%s - device yest up - dropping\n", __func__);
 		return -EIO;
 	}
 
@@ -1241,14 +1241,14 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 	}
 
 	if (cnp->com.state != CSK_STATE_LISTEN) {
-		pr_err("%s - listening parent not in CSK_STATE_LISTEN\n",
+		pr_err("%s - listening parent yest in CSK_STATE_LISTEN\n",
 		       __func__);
 		goto reject;
 	}
 
 	csk = lookup_tid(t, tid);
 	if (csk) {
-		pr_err("%s csk not null tid %u\n",
+		pr_err("%s csk yest null tid %u\n",
 		       __func__, tid);
 		goto rel_skb;
 	}
@@ -1306,7 +1306,7 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 	kref_init(&csk->kref);
 	init_completion(&csk->com.wr_wait.completion);
 
-	INIT_LIST_HEAD(&csk->accept_node);
+	INIT_LIST_HEAD(&csk->accept_yesde);
 
 	hdrs = (iptype == 4 ? sizeof(struct iphdr) : sizeof(struct ipv6hdr)) +
 		sizeof(struct tcphdr) +	(req->tcpopt.tstamp ? 12 : 0);
@@ -1639,7 +1639,7 @@ cxgbit_pass_establish(struct cxgbit_device *cdev, struct sk_buff *skb)
 	dst_confirm(csk->dst);
 	csk->com.state = CSK_STATE_ESTABLISHED;
 	spin_lock_bh(&cnp->np_accept_lock);
-	list_add_tail(&csk->accept_node, &cnp->np_accept_list);
+	list_add_tail(&csk->accept_yesde, &cnp->np_accept_list);
 	spin_unlock_bh(&cnp->np_accept_lock);
 	complete(&cnp->accept_comp);
 rel_skb:

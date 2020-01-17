@@ -44,7 +44,7 @@ struct usb_dmac_sg {
  * @sg_len: length of sg
  * @sg_index: index of sg
  * @residue: residue after the DMAC completed a transfer
- * @node: node for desc_got and desc_freed
+ * @yesde: yesde for desc_got and desc_freed
  * @done_cookie: cookie after the DMAC completed a transfer
  * @sg: information for the transfer
  */
@@ -55,7 +55,7 @@ struct usb_dmac_desc {
 	unsigned int sg_len;
 	unsigned int sg_index;
 	u32 residue;
-	struct list_head node;
+	struct list_head yesde;
 	dma_cookie_t done_cookie;
 	struct usb_dmac_sg sg[];
 };
@@ -234,7 +234,7 @@ static void usb_dmac_chan_start_desc(struct usb_dmac_chan *chan)
 	 * will get the previous value from vchan_next_desc() after a transfer
 	 * was completed.
 	 */
-	list_del(&vd->node);
+	list_del(&vd->yesde);
 
 	chan->desc = to_usb_dmac_desc(vd);
 	chan->desc->sg_index = 0;
@@ -271,10 +271,10 @@ static int usb_dmac_desc_alloc(struct usb_dmac_chan *chan, unsigned int sg_len,
 		return -ENOMEM;
 
 	desc->sg_allocated_len = sg_len;
-	INIT_LIST_HEAD(&desc->node);
+	INIT_LIST_HEAD(&desc->yesde);
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
-	list_add_tail(&desc->node, &chan->desc_freed);
+	list_add_tail(&desc->yesde, &chan->desc_freed);
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
 
 	return 0;
@@ -288,8 +288,8 @@ static void usb_dmac_desc_free(struct usb_dmac_chan *chan)
 	list_splice_init(&chan->desc_freed, &list);
 	list_splice_init(&chan->desc_got, &list);
 
-	list_for_each_entry_safe(desc, _desc, &list, node) {
-		list_del(&desc->node);
+	list_for_each_entry_safe(desc, _desc, &list, yesde) {
+		list_del(&desc->yesde);
 		kfree(desc);
 	}
 	chan->descs_allocated = 0;
@@ -303,9 +303,9 @@ static struct usb_dmac_desc *usb_dmac_desc_get(struct usb_dmac_chan *chan,
 
 	/* Get a freed descritpor */
 	spin_lock_irqsave(&chan->vc.lock, flags);
-	list_for_each_entry(desc, &chan->desc_freed, node) {
+	list_for_each_entry(desc, &chan->desc_freed, yesde) {
 		if (sg_len <= desc->sg_allocated_len) {
-			list_move_tail(&desc->node, &chan->desc_got);
+			list_move_tail(&desc->yesde, &chan->desc_got);
 			spin_unlock_irqrestore(&chan->vc.lock, flags);
 			return desc;
 		}
@@ -317,8 +317,8 @@ static struct usb_dmac_desc *usb_dmac_desc_get(struct usb_dmac_chan *chan,
 		/* If allocated the desc, it was added to tail of the list */
 		spin_lock_irqsave(&chan->vc.lock, flags);
 		desc = list_last_entry(&chan->desc_freed, struct usb_dmac_desc,
-				       node);
-		list_move_tail(&desc->node, &chan->desc_got);
+				       yesde);
+		list_move_tail(&desc->yesde, &chan->desc_got);
 		spin_unlock_irqrestore(&chan->vc.lock, flags);
 		return desc;
 	}
@@ -332,7 +332,7 @@ static void usb_dmac_desc_put(struct usb_dmac_chan *chan,
 	unsigned long flags;
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
-	list_move_tail(&desc->node, &chan->desc_freed);
+	list_move_tail(&desc->yesde, &chan->desc_freed);
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
 }
 
@@ -456,8 +456,8 @@ static int usb_dmac_chan_terminate_all(struct dma_chan *chan)
 	if (uchan->desc)
 		uchan->desc = NULL;
 	list_splice_init(&uchan->desc_got, &list);
-	list_for_each_entry_safe(desc, _desc, &list, node)
-		list_move_tail(&desc->node, &uchan->desc_freed);
+	list_for_each_entry_safe(desc, _desc, &list, yesde)
+		list_move_tail(&desc->yesde, &uchan->desc_freed);
 	spin_unlock_irqrestore(&uchan->vc.lock, flags);
 	vchan_dma_desc_free_list(&uchan->vc, &head);
 
@@ -473,7 +473,7 @@ static unsigned int usb_dmac_get_current_residue(struct usb_dmac_chan *chan,
 	unsigned int residue = sg->size;
 
 	/*
-	 * We cannot use USB_DMATCR to calculate residue because USB_DMATCR
+	 * We canyest use USB_DMATCR to calculate residue because USB_DMATCR
 	 * has unsuited value to calculate.
 	 */
 	if (desc->direction == DMA_DEV_TO_MEM)
@@ -490,7 +490,7 @@ static u32 usb_dmac_chan_get_residue_if_complete(struct usb_dmac_chan *chan,
 	struct usb_dmac_desc *desc;
 	u32 residue = 0;
 
-	list_for_each_entry_reverse(desc, &chan->desc_freed, node) {
+	list_for_each_entry_reverse(desc, &chan->desc_freed, yesde) {
 		if (desc->done_cookie == cookie) {
 			residue = desc->residue;
 			break;
@@ -657,7 +657,7 @@ static struct dma_chan *usb_dmac_of_xlate(struct of_phandle_args *dma_spec,
 	dma_cap_set(DMA_SLAVE, mask);
 
 	chan = __dma_request_channel(&mask, usb_dmac_chan_filter, dma_spec,
-				     ofdma->of_node);
+				     ofdma->of_yesde);
 	if (!chan)
 		return NULL;
 
@@ -743,7 +743,7 @@ static int usb_dmac_chan_probe(struct usb_dmac *dmac,
 
 static int usb_dmac_parse_of(struct device *dev, struct usb_dmac *dmac)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int ret;
 
 	ret = of_property_read_u32(np, "dma-channels", &dmac->n_channels);
@@ -817,7 +817,7 @@ static int usb_dmac_probe(struct platform_device *pdev)
 	}
 
 	/* Register the DMAC as a DMA provider for DT. */
-	ret = of_dma_controller_register(pdev->dev.of_node, usb_dmac_of_xlate,
+	ret = of_dma_controller_register(pdev->dev.of_yesde, usb_dmac_of_xlate,
 					 NULL);
 	if (ret < 0)
 		goto error;
@@ -852,7 +852,7 @@ static int usb_dmac_probe(struct platform_device *pdev)
 	return 0;
 
 error:
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 	pm_runtime_put(&pdev->dev);
 error_pm:
 	pm_runtime_disable(&pdev->dev);
@@ -873,7 +873,7 @@ static int usb_dmac_remove(struct platform_device *pdev)
 
 	for (i = 0; i < dmac->n_channels; ++i)
 		usb_dmac_chan_remove(dmac, &dmac->channels[i]);
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 	dma_async_device_unregister(&dmac->engine);
 
 	pm_runtime_disable(&pdev->dev);

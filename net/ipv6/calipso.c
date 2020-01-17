@@ -92,7 +92,7 @@ static struct calipso_map_cache_bkt *calipso_cache;
  *
  * Description:
  * This function frees the memory associated with a cache entry including the
- * LSM cache data if there are no longer any users, i.e. reference count == 0.
+ * LSM cache data if there are yes longer any users, i.e. reference count == 0.
  *
  */
 static void calipso_cache_entry_free(struct calipso_map_cache_entry *entry)
@@ -181,7 +181,7 @@ static void calipso_cache_invalidate(void)
  * This function checks the cache to see if a label mapping already exists for
  * the given key.  If there is a match then the cache is adjusted and the
  * @secattr struct is populated with the correct LSM security attributes.  The
- * cache is adjusted in the following manner if the entry is not already the
+ * cache is adjusted in the following manner if the entry is yest already the
  * first in the cache bucket:
  *
  *  1. The cache entry's activity counter is incremented
@@ -251,10 +251,10 @@ static int calipso_cache_check(const unsigned char *key,
  * Description:
  * Add a new entry into the CALIPSO label mapping cache.  Add the new entry to
  * head of the cache bucket's list, if the cache bucket is out of room remove
- * the last entry in the list first.  It is important to note that there is
- * currently no checking for duplicate keys.  Returns zero on success,
+ * the last entry in the list first.  It is important to yeste that there is
+ * currently yes checking for duplicate keys.  Returns zero on success,
  * negative values on failure.  The key stored starts at calipso_ptr + 2,
- * i.e. the type and length bytes are not stored, this corresponds to
+ * i.e. the type and length bytes are yest stored, this corresponds to
  * calipso_ptr[1] bytes of data.
  *
  */
@@ -339,7 +339,7 @@ static struct calipso_doi *calipso_doi_search(u32 doi)
  * function to add it to the list of acceptable domains.  The caller must
  * ensure that the mapping table specified in @doi_def->map meets all of the
  * requirements of the mapping type (see calipso.h for details).  Returns
- * zero on success and non-zero on failure.
+ * zero on success and yesn-zero on failure.
  *
  */
 static int calipso_doi_add(struct calipso_doi *doi_def,
@@ -378,7 +378,7 @@ doi_add_return:
 			type_str = "pass";
 			break;
 		default:
-			type_str = "(unknown)";
+			type_str = "(unkyeswn)";
 		}
 		audit_log_format(audit_buf,
 				 " calipso_doi=%u calipso_type=%s res=%u",
@@ -485,7 +485,7 @@ static struct calipso_doi *calipso_doi_getdef(u32 doi)
 	doi_def = calipso_doi_search(doi);
 	if (!doi_def)
 		goto doi_getdef_return;
-	if (!refcount_inc_not_zero(&doi_def->refcount))
+	if (!refcount_inc_yest_zero(&doi_def->refcount))
 		doi_def = NULL;
 
 doi_getdef_return:
@@ -711,7 +711,7 @@ static int calipso_pad_write(unsigned char *buf, unsigned int offset,
 }
 
 /**
- * calipso_genopt - Generate a CALIPSO option
+ * calipso_geyespt - Generate a CALIPSO option
  * @buf: the option buffer
  * @start: offset from which to write
  * @buf_len: the size of opt_buf
@@ -724,7 +724,7 @@ static int calipso_pad_write(unsigned char *buf, unsigned int offset,
  * padding that ensures that the option is 4n + 2 aligned.  It returns the
  * number of bytes written (including any initial padding).
  */
-static int calipso_genopt(unsigned char *buf, u32 start, u32 buf_len,
+static int calipso_geyespt(unsigned char *buf, u32 start, u32 buf_len,
 			  const struct calipso_doi *doi_def,
 			  const struct netlbl_lsm_secattr *secattr)
 {
@@ -778,7 +778,7 @@ static int calipso_genopt(unsigned char *buf, u32 start, u32 buf_len,
  *
  * Description:
  * Replaces @sk's hop options with @hop.  @hop may be NULL to leave
- * the socket with no hop options.
+ * the socket with yes hop options.
  *
  */
 static int calipso_opt_update(struct sock *sk, struct ipv6_opt_hdr *hop)
@@ -807,7 +807,7 @@ static int calipso_opt_update(struct sock *sk, struct ipv6_opt_hdr *hop)
  * Description:
  * Returns the length of the TLV option at offset @offset within
  * the option header @opt.  Checks that the entire TLV fits inside
- * the option header, returns a negative value if this is not the case.
+ * the option header, returns a negative value if this is yest the case.
  */
 static int calipso_tlv_len(struct ipv6_opt_hdr *opt, unsigned int offset)
 {
@@ -830,7 +830,7 @@ static int calipso_tlv_len(struct ipv6_opt_hdr *opt, unsigned int offset)
  * calipso_opt_find - Finds the CALIPSO option in an IPv6 hop options header
  * @hop: the hop options header
  * @start: on return holds the offset of any leading padding
- * @end: on return holds the offset of the first non-pad TLV after CALIPSO
+ * @end: on return holds the offset of the first yesn-pad TLV after CALIPSO
  *
  * Description:
  * Finds the space occupied by a CALIPSO option (including any leading and
@@ -935,7 +935,7 @@ calipso_opt_insert(struct ipv6_opt_hdr *hop,
 
 	if (start > sizeof(*hop))
 		memcpy(new, hop, start);
-	ret_val = calipso_genopt((unsigned char *)new, start, buf_len, doi_def,
+	ret_val = calipso_geyespt((unsigned char *)new, start, buf_len, doi_def,
 				 secattr);
 	if (ret_val < 0) {
 		kfree(new);
@@ -966,7 +966,7 @@ calipso_opt_insert(struct ipv6_opt_hdr *hop,
  * Description:
  * Creates a new header based on @hop without any CALIPSO option.  If @hop
  * doesn't contain a CALIPSO option it returns -ENOENT.  If @hop contains
- * no other non-padding options, it returns zero with @new set to NULL.
+ * yes other yesn-padding options, it returns zero with @new set to NULL.
  * Otherwise it returns zero, creates a new header without the CALIPSO
  * option (and removing as much padding as possible) and returns with
  * @new set to that header.
@@ -984,7 +984,7 @@ static int calipso_opt_del(struct ipv6_opt_hdr *hop,
 
 	hop_len = ipv6_optlen(hop);
 	if (start == sizeof(*hop) && end == hop_len) {
-		/* There's no other option in the header so return NULL */
+		/* There's yes other option in the header so return NULL */
 		*new = NULL;
 		return 0;
 	}
@@ -1068,7 +1068,7 @@ getattr_return:
  * Description:
  * Query @sk to see if there is a CALIPSO option attached to the sock and if
  * there is return the CALIPSO security attributes in @secattr.  This function
- * requires that @sk be locked, or privately held, but it does not do any
+ * requires that @sk be locked, or privately held, but it does yest do any
  * locking itself.  Returns zero on success and negative values on failure.
  *
  */
@@ -1265,7 +1265,7 @@ static void calipso_req_delattr(struct request_sock *req)
  *
  * Description:
  * Parse the packet's IP header looking for a CALIPSO option.  Returns a pointer
- * to the start of the CALIPSO option on success, NULL if one if not found.
+ * to the start of the CALIPSO option on success, NULL if one if yest found.
  *
  */
 static unsigned char *calipso_skbuff_optptr(const struct sk_buff *skb)
@@ -1317,7 +1317,7 @@ static int calipso_skbuff_setattr(struct sk_buff *skb,
 	}
 
 	memset(buf, 0, sizeof(buf));
-	ret_val = calipso_genopt(buf, start & 3, sizeof(buf), doi_def, secattr);
+	ret_val = calipso_geyespt(buf, start & 3, sizeof(buf), doi_def, secattr);
 	if (ret_val < 0)
 		return ret_val;
 
@@ -1393,7 +1393,7 @@ static int calipso_skbuff_delattr(struct sk_buff *skb)
 		return ret_val;
 
 	if (start == sizeof(*old_hop) && end == old_hop_len) {
-		/* There's no other option in the header so we delete
+		/* There's yes other option in the header so we delete
 		 * the whole thing. */
 		delta = old_hop_len;
 		size = sizeof(*ip6_hdr);

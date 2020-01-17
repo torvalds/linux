@@ -38,13 +38,13 @@ static int __init ide_4drives_init(void)
 		return -ENODEV;
 
 	if (!request_region(base, 8, DRV_NAME)) {
-		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
+		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX yest free.\n",
 				DRV_NAME, base, base + 7);
 		return -EBUSY;
 	}
 
 	if (!request_region(ctl, 1, DRV_NAME)) {
-		printk(KERN_ERR "%s: I/O resource 0x%lX not free.\n",
+		printk(KERN_ERR "%s: I/O resource 0x%lX yest free.\n",
 				DRV_NAME, ctl);
 		release_region(base, 8);
 		return -EBUSY;

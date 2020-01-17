@@ -6,7 +6,7 @@
 
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/spinlock.h>
 #include <linux/bitrev.h>
 #include <linux/io.h>
@@ -223,7 +223,7 @@ static int calc_resize_coeffs(struct ipu_ic *ic,
 	u32 temp_size, temp_downsize;
 
 	/*
-	 * Input size cannot be more than 4096, and output size cannot
+	 * Input size canyest be more than 4096, and output size canyest
 	 * be more than 1024
 	 */
 	if (in_size > 4096) {
@@ -235,7 +235,7 @@ static int calc_resize_coeffs(struct ipu_ic *ic,
 		return -EINVAL;
 	}
 
-	/* Cannot downsize more than 4:1 */
+	/* Canyest downsize more than 4:1 */
 	if ((out_size << 2) < in_size) {
 		dev_err(ipu->dev, "Unsupported downsize\n");
 		return -EINVAL;

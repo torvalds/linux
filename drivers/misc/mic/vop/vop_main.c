@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 #include "vop_main.h"
 
@@ -39,7 +39,7 @@
  * @virtio_cookie: Cookie returned upon requesting a interrupt
  * @c2h_vdev_db: The doorbell used by the guest to interrupt the host
  * @h2c_vdev_db: The doorbell used by the host to interrupt the guest
- * @dnode: The destination node
+ * @dyesde: The destination yesde
  */
 struct _vop_vdev {
 	struct virtio_device vdev;
@@ -54,7 +54,7 @@ struct _vop_vdev {
 	struct mic_irq *virtio_cookie;
 	int c2h_vdev_db;
 	int h2c_vdev_db;
-	int dnode;
+	int dyesde;
 };
 
 #define to_vopvdev(vd) container_of(vd, struct _vop_vdev, vdev)
@@ -119,7 +119,7 @@ static u64 vop_get_features(struct virtio_device *vdev)
 static void vop_transport_features(struct virtio_device *vdev)
 {
 	/*
-	 * Packed ring isn't enabled on virtio_vop for now,
+	 * Packed ring isn't enabled on virtio_vop for yesw,
 	 * because virtio_vop uses vring_new_virtqueue() which
 	 * creates virtio rings on preallocated memory.
 	 */
@@ -233,9 +233,9 @@ static void vop_reset(struct virtio_device *dev)
 }
 
 /*
- * The virtio_ring code calls this API when it wants to notify the Host.
+ * The virtio_ring code calls this API when it wants to yestify the Host.
  */
-static bool vop_notify(struct virtqueue *vq)
+static bool vop_yestify(struct virtqueue *vq)
 {
 	struct _vop_vdev *vdev = vq->priv;
 	struct vop_device *vpdev = vdev->vpdev;
@@ -275,7 +275,7 @@ static struct virtqueue *vop_new_virtqueue(unsigned int index,
 				      struct virtio_device *vdev,
 				      bool context,
 				      void *pages,
-				      bool (*notify)(struct virtqueue *vq),
+				      bool (*yestify)(struct virtqueue *vq),
 				      void (*callback)(struct virtqueue *vq),
 				      const char *name,
 				      void *used)
@@ -287,7 +287,7 @@ static struct virtqueue *vop_new_virtqueue(unsigned int index,
 	vring.used = used;
 
 	return __vring_new_virtqueue(index, vring, vdev, weak_barriers, context,
-				     notify, callback, name);
+				     yestify, callback, name);
 }
 
 /*
@@ -350,7 +350,7 @@ static struct virtqueue *vop_find_vq(struct virtio_device *dev,
 	}
 
 	vq = vop_new_virtqueue(index, le16_to_cpu(config.num), dev, ctx,
-			       (void __force *)va, vop_notify, callback,
+			       (void __force *)va, vop_yestify, callback,
 			       name, used);
 	if (!vq) {
 		err = -ENOMEM;
@@ -479,7 +479,7 @@ static void vop_virtio_release_dev(struct device *_d)
  */
 static int _vop_add_device(struct mic_device_desc __iomem *d,
 			   unsigned int offset, struct vop_device *vpdev,
-			   int dnode)
+			   int dyesde)
 {
 	struct _vop_vdev *vdev, *reg_dev = NULL;
 	int ret;
@@ -496,8 +496,8 @@ static int _vop_add_device(struct mic_device_desc __iomem *d,
 	vdev->vdev.config = &vop_vq_config_ops;
 	vdev->desc = d;
 	vdev->dc = (void __iomem *)d + _vop_aligned_desc_size(d);
-	vdev->dnode = dnode;
-	vdev->vdev.priv = (void *)(unsigned long)dnode;
+	vdev->dyesde = dyesde;
+	vdev->vdev.priv = (void *)(unsigned long)dyesde;
 	init_completion(&vdev->reset_done);
 
 	vdev->h2c_vdev_db = vpdev->hw_ops->next_db(vpdev);
@@ -607,7 +607,7 @@ static int _vop_remove_device(struct mic_device_desc __iomem *d,
 #define REMOVE_DEVICES true
 
 static void _vop_scan_devices(void __iomem *dp, struct vop_device *vpdev,
-			      bool remove, int dnode)
+			      bool remove, int dyesde)
 {
 	s8 type;
 	unsigned int i;
@@ -656,7 +656,7 @@ static void _vop_scan_devices(void __iomem *dp, struct vop_device *vpdev,
 		dev_dbg(&vpdev->dev, "%s %d Adding new virtio device %p\n",
 			__func__, __LINE__, d);
 		if (!remove)
-			_vop_add_device(d, i, vpdev, dnode);
+			_vop_add_device(d, i, vpdev, dyesde);
 	}
 }
 
@@ -668,7 +668,7 @@ static void vop_scan_devices(struct vop_info *vi,
 	if (!dp)
 		return;
 	mutex_lock(&vi->vop_mutex);
-	_vop_scan_devices(dp, vpdev, remove, vpdev->dnode);
+	_vop_scan_devices(dp, vpdev, remove, vpdev->dyesde);
 	mutex_unlock(&vi->vop_mutex);
 }
 
@@ -715,7 +715,7 @@ static int vop_driver_probe(struct vop_device *vpdev)
 
 	mutex_init(&vi->vop_mutex);
 	INIT_WORK(&vi->hotplug_work, vop_hotplug_devices);
-	if (vpdev->dnode) {
+	if (vpdev->dyesde) {
 		rc = vop_host_init(vi);
 		if (rc < 0)
 			goto free;
@@ -748,7 +748,7 @@ static void vop_driver_remove(struct vop_device *vpdev)
 {
 	struct vop_info *vi = dev_get_drvdata(&vpdev->dev);
 
-	if (vpdev->dnode) {
+	if (vpdev->dyesde) {
 		vop_host_uninit(vi);
 	} else {
 		struct mic_bootparam __iomem *bootparam =

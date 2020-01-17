@@ -14,7 +14,7 @@
 	compatible = "efm32,dk3750";
 
 	chosen {
-		bootargs = "console=ttyefm4,115200 init=/linuxrc ignore_loglevel ihash_entries=64 dhash_entries=64 earlyprintk uclinux.physaddr=0x8c400000 root=/dev/mtdblock0";
+		bootargs = "console=ttyefm4,115200 init=/linuxrc igyesre_loglevel ihash_entries=64 dhash_entries=64 earlyprintk uclinux.physaddr=0x8c400000 root=/dev/mtdblock0";
 	};
 
 	memory@88000000 {

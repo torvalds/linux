@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2010-2011 Canonical Ltd <jeremy.kerr@canonical.com>
+ * Copyright (C) 2010-2011 Cayesnical Ltd <jeremy.kerr@cayesnical.com>
  * Copyright (C) 2011-2012 Mike Turquette, Linaro Ltd <mturquette@linaro.org>
  *
  * Fixed rate clock implementation
@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 
 /*
- * DOC: basic fixed-rate clock that cannot gate
+ * DOC: basic fixed-rate clock that canyest gate
  *
  * Traits of this clock:
  * prepare - clk_(un)prepare only ensures parents are prepared
@@ -49,8 +49,8 @@ EXPORT_SYMBOL_GPL(clk_fixed_rate_ops);
  * @name: name of this clock
  * @parent_name: name of clock's parent
  * @flags: framework-specific flags
- * @fixed_rate: non-adjustable clock rate
- * @fixed_accuracy: non-adjustable clock rate
+ * @fixed_rate: yesn-adjustable clock rate
+ * @fixed_accuracy: yesn-adjustable clock rate
  */
 struct clk_hw *clk_hw_register_fixed_rate_with_accuracy(struct device *dev,
 		const char *name, const char *parent_name, unsigned long flags,
@@ -110,7 +110,7 @@ EXPORT_SYMBOL_GPL(clk_register_fixed_rate_with_accuracy);
  * @name: name of this clock
  * @parent_name: name of clock's parent
  * @flags: framework-specific flags
- * @fixed_rate: non-adjustable clock rate
+ * @fixed_rate: yesn-adjustable clock rate
  */
 struct clk_hw *clk_hw_register_fixed_rate(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
@@ -155,27 +155,27 @@ void clk_hw_unregister_fixed_rate(struct clk_hw *hw)
 EXPORT_SYMBOL_GPL(clk_hw_unregister_fixed_rate);
 
 #ifdef CONFIG_OF
-static struct clk *_of_fixed_clk_setup(struct device_node *node)
+static struct clk *_of_fixed_clk_setup(struct device_yesde *yesde)
 {
 	struct clk *clk;
-	const char *clk_name = node->name;
+	const char *clk_name = yesde->name;
 	u32 rate;
 	u32 accuracy = 0;
 	int ret;
 
-	if (of_property_read_u32(node, "clock-frequency", &rate))
+	if (of_property_read_u32(yesde, "clock-frequency", &rate))
 		return ERR_PTR(-EIO);
 
-	of_property_read_u32(node, "clock-accuracy", &accuracy);
+	of_property_read_u32(yesde, "clock-accuracy", &accuracy);
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(yesde, "clock-output-names", &clk_name);
 
 	clk = clk_register_fixed_rate_with_accuracy(NULL, clk_name, NULL,
 						    0, rate, accuracy);
 	if (IS_ERR(clk))
 		return clk;
 
-	ret = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	ret = of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 	if (ret) {
 		clk_unregister(clk);
 		return ERR_PTR(ret);
@@ -187,9 +187,9 @@ static struct clk *_of_fixed_clk_setup(struct device_node *node)
 /**
  * of_fixed_clk_setup() - Setup function for simple fixed rate clock
  */
-void __init of_fixed_clk_setup(struct device_node *node)
+void __init of_fixed_clk_setup(struct device_yesde *yesde)
 {
-	_of_fixed_clk_setup(node);
+	_of_fixed_clk_setup(yesde);
 }
 CLK_OF_DECLARE(fixed_clk, "fixed-clock", of_fixed_clk_setup);
 
@@ -197,7 +197,7 @@ static int of_fixed_clk_remove(struct platform_device *pdev)
 {
 	struct clk *clk = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 	clk_unregister_fixed_rate(clk);
 
 	return 0;
@@ -208,10 +208,10 @@ static int of_fixed_clk_probe(struct platform_device *pdev)
 	struct clk *clk;
 
 	/*
-	 * This function is not executed when of_fixed_clk_setup
+	 * This function is yest executed when of_fixed_clk_setup
 	 * succeeded.
 	 */
-	clk = _of_fixed_clk_setup(pdev->dev.of_node);
+	clk = _of_fixed_clk_setup(pdev->dev.of_yesde);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 

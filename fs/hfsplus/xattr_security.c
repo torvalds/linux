@@ -14,25 +14,25 @@
 #include "xattr.h"
 
 static int hfsplus_security_getxattr(const struct xattr_handler *handler,
-				     struct dentry *unused, struct inode *inode,
+				     struct dentry *unused, struct iyesde *iyesde,
 				     const char *name, void *buffer, size_t size)
 {
-	return hfsplus_getxattr(inode, name, buffer, size,
+	return hfsplus_getxattr(iyesde, name, buffer, size,
 				XATTR_SECURITY_PREFIX,
 				XATTR_SECURITY_PREFIX_LEN);
 }
 
 static int hfsplus_security_setxattr(const struct xattr_handler *handler,
-				     struct dentry *unused, struct inode *inode,
+				     struct dentry *unused, struct iyesde *iyesde,
 				     const char *name, const void *buffer,
 				     size_t size, int flags)
 {
-	return hfsplus_setxattr(inode, name, buffer, size, flags,
+	return hfsplus_setxattr(iyesde, name, buffer, size, flags,
 				XATTR_SECURITY_PREFIX,
 				XATTR_SECURITY_PREFIX_LEN);
 }
 
-static int hfsplus_initxattrs(struct inode *inode,
+static int hfsplus_initxattrs(struct iyesde *iyesde,
 				const struct xattr *xattr_array,
 				void *fs_info)
 {
@@ -55,7 +55,7 @@ static int hfsplus_initxattrs(struct inode *inode,
 		memset(xattr_name +
 			XATTR_SECURITY_PREFIX_LEN + strlen(xattr->name), 0, 1);
 
-		err = __hfsplus_setxattr(inode, xattr_name,
+		err = __hfsplus_setxattr(iyesde, xattr_name,
 					xattr->value, xattr->value_len, 0);
 		if (err)
 			break;
@@ -64,10 +64,10 @@ static int hfsplus_initxattrs(struct inode *inode,
 	return err;
 }
 
-int hfsplus_init_security(struct inode *inode, struct inode *dir,
+int hfsplus_init_security(struct iyesde *iyesde, struct iyesde *dir,
 				const struct qstr *qstr)
 {
-	return security_inode_init_security(inode, dir, qstr,
+	return security_iyesde_init_security(iyesde, dir, qstr,
 					&hfsplus_initxattrs, NULL);
 }
 

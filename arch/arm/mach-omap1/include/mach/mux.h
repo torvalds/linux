@@ -13,7 +13,7 @@
  * NOTE: Please use the following naming style for new pin entries.
  *	 For example, W8_1610_MMC2_DAT0, where:
  *	 - W8	     = ball
- *	 - 1610	     = 1510 or 1610, none if common for both 1510 and 1610
+ *	 - 1610	     = 1510 or 1610, yesne if common for both 1510 and 1610
  *	 - MMC2_DAT0 = function
  */
 
@@ -87,7 +87,7 @@
 /*
  * OMAP730/850 has a slightly different config for the pin mux.
  * - config regs are the OMAP7XX_IO_CONF_x regs (see omap7xx.h) regs and
- *   not the FUNC_MUX_CTRL_x regs from hardware.h
+ *   yest the FUNC_MUX_CTRL_x regs from hardware.h
  * - for pull-up/down, only has one enable bit which is is in the same register
  *   as mux config
  */
@@ -431,7 +431,7 @@ extern int omap1_mux_init(void);
 extern int omap_mux_register(struct omap_mux_cfg *);
 extern int omap_cfg_reg(unsigned long reg_cfg);
 #else
-/* boot loader does it all (no warnings from CONFIG_OMAP_MUX_WARNINGS) */
+/* boot loader does it all (yes warnings from CONFIG_OMAP_MUX_WARNINGS) */
 static inline int omap1_mux_init(void) { return 0; }
 static inline int omap_cfg_reg(unsigned long reg_cfg) { return 0; }
 #endif

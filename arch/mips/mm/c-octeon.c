@@ -58,7 +58,7 @@ static void local_octeon_flush_icache_range(unsigned long start,
 
 /**
  * Flush caches as necessary for all cores affected by a
- * vma. If no vma is supplied, all cores are flushed.
+ * vma. If yes vma is supplied, all cores are flushed.
  *
  * @vma:    VMA to flush or NULL to flush all icaches.
  */
@@ -237,14 +237,14 @@ static void probe_octeon(void)
 	c->dcache.sets = dcache_size / (c->dcache.linesz * c->dcache.ways);
 
 	if (smp_processor_id() == 0) {
-		pr_notice("Primary instruction cache %ldkB, %s, %d way, "
+		pr_yestice("Primary instruction cache %ldkB, %s, %d way, "
 			  "%d sets, linesize %d bytes.\n",
 			  icache_size >> 10,
 			  cpu_has_vtag_icache ?
 				"virtually tagged" : "physically tagged",
 			  c->icache.ways, c->icache.sets, c->icache.linesz);
 
-		pr_notice("Primary data cache %ldkB, %d-way, %d sets, "
+		pr_yestice("Primary data cache %ldkB, %d-way, %d sets, "
 			  "linesize %d bytes.\n",
 			  dcache_size >> 10, c->dcache.ways,
 			  c->dcache.sets, c->dcache.linesz);
@@ -292,21 +292,21 @@ void octeon_cache_init(void)
  */
 static RAW_NOTIFIER_HEAD(co_cache_error_chain);
 
-int register_co_cache_error_notifier(struct notifier_block *nb)
+int register_co_cache_error_yestifier(struct yestifier_block *nb)
 {
-	return raw_notifier_chain_register(&co_cache_error_chain, nb);
+	return raw_yestifier_chain_register(&co_cache_error_chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_co_cache_error_notifier);
+EXPORT_SYMBOL_GPL(register_co_cache_error_yestifier);
 
-int unregister_co_cache_error_notifier(struct notifier_block *nb)
+int unregister_co_cache_error_yestifier(struct yestifier_block *nb)
 {
-	return raw_notifier_chain_unregister(&co_cache_error_chain, nb);
+	return raw_yestifier_chain_unregister(&co_cache_error_chain, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_co_cache_error_notifier);
+EXPORT_SYMBOL_GPL(unregister_co_cache_error_yestifier);
 
-static void co_cache_error_call_notifiers(unsigned long val)
+static void co_cache_error_call_yestifiers(unsigned long val)
 {
-	int rv = raw_notifier_call_chain(&co_cache_error_chain, val, NULL);
+	int rv = raw_yestifier_call_chain(&co_cache_error_chain, val, NULL);
 	if ((rv & ~NOTIFY_STOP_MASK) != NOTIFY_OK) {
 		u64 dcache_err;
 		unsigned long coreid = cvmx_get_core_num();
@@ -339,15 +339,15 @@ static void co_cache_error_call_notifiers(unsigned long val)
 
 asmlinkage void cache_parity_error_octeon_recoverable(void)
 {
-	co_cache_error_call_notifiers(0);
+	co_cache_error_call_yestifiers(0);
 }
 
 /**
- * Called when the the exception is not recoverable
+ * Called when the the exception is yest recoverable
  */
 
-asmlinkage void cache_parity_error_octeon_non_recoverable(void)
+asmlinkage void cache_parity_error_octeon_yesn_recoverable(void)
 {
-	co_cache_error_call_notifiers(1);
+	co_cache_error_call_yestifiers(1);
 	panic("Can't handle cache error: nested exception");
 }

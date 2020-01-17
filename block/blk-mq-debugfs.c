@@ -713,7 +713,7 @@ static ssize_t ctx_completed_write(void *data, const char __user *buf,
 static int blk_mq_debugfs_show(struct seq_file *m, void *v)
 {
 	const struct blk_mq_debugfs_attr *attr = m->private;
-	void *data = d_inode(m->file->f_path.dentry->d_parent)->i_private;
+	void *data = d_iyesde(m->file->f_path.dentry->d_parent)->i_private;
 
 	return attr->show(data, m);
 }
@@ -723,7 +723,7 @@ static ssize_t blk_mq_debugfs_write(struct file *file, const char __user *buf,
 {
 	struct seq_file *m = file->private_data;
 	const struct blk_mq_debugfs_attr *attr = m->private;
-	void *data = d_inode(file->f_path.dentry->d_parent)->i_private;
+	void *data = d_iyesde(file->f_path.dentry->d_parent)->i_private;
 
 	/*
 	 * Attributes that only implement .seq_ops are read-only and 'attr' is
@@ -735,10 +735,10 @@ static ssize_t blk_mq_debugfs_write(struct file *file, const char __user *buf,
 	return attr->write(data, buf, count, ppos);
 }
 
-static int blk_mq_debugfs_open(struct inode *inode, struct file *file)
+static int blk_mq_debugfs_open(struct iyesde *iyesde, struct file *file)
 {
-	const struct blk_mq_debugfs_attr *attr = inode->i_private;
-	void *data = d_inode(file->f_path.dentry->d_parent)->i_private;
+	const struct blk_mq_debugfs_attr *attr = iyesde->i_private;
+	void *data = d_iyesde(file->f_path.dentry->d_parent)->i_private;
 	struct seq_file *m;
 	int ret;
 
@@ -754,17 +754,17 @@ static int blk_mq_debugfs_open(struct inode *inode, struct file *file)
 	if (WARN_ON_ONCE(!attr->show))
 		return -EPERM;
 
-	return single_open(file, blk_mq_debugfs_show, inode->i_private);
+	return single_open(file, blk_mq_debugfs_show, iyesde->i_private);
 }
 
-static int blk_mq_debugfs_release(struct inode *inode, struct file *file)
+static int blk_mq_debugfs_release(struct iyesde *iyesde, struct file *file)
 {
-	const struct blk_mq_debugfs_attr *attr = inode->i_private;
+	const struct blk_mq_debugfs_attr *attr = iyesde->i_private;
 
 	if (attr->show)
-		return single_release(inode, file);
+		return single_release(iyesde, file);
 
-	return seq_release(inode, file);
+	return seq_release(iyesde, file);
 }
 
 static const struct file_operations blk_mq_debugfs_fops = {
@@ -811,7 +811,7 @@ static void debugfs_create_files(struct dentry *parent, void *data,
 	if (IS_ERR_OR_NULL(parent))
 		return;
 
-	d_inode(parent)->i_private = data;
+	d_iyesde(parent)->i_private = data;
 
 	for (; attr->name; attr++)
 		debugfs_create_file(attr->name, attr->mode, parent,
@@ -830,7 +830,7 @@ void blk_mq_debugfs_register(struct request_queue *q)
 
 	/*
 	 * blk_mq_init_sched() attempted to do this already, but q->debugfs_dir
-	 * didn't exist yet (because we don't know what to name the directory
+	 * didn't exist yet (because we don't kyesw what to name the directory
 	 * until the queue is registered to a gendisk).
 	 */
 	if (q->elevator && !q->sched_debugfs_dir)
@@ -919,7 +919,7 @@ void blk_mq_debugfs_register_sched(struct request_queue *q)
 	struct elevator_type *e = q->elevator->type;
 
 	/*
-	 * If the parent directory has not been created yet, return, we will be
+	 * If the parent directory has yest been created yet, return, we will be
 	 * called again later on and the directory/files will be created then.
 	 */
 	if (!q->debugfs_dir)

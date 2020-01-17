@@ -48,7 +48,7 @@ struct int3403_priv {
 	void *priv;
 };
 
-static void int3403_notify(acpi_handle handle,
+static void int3403_yestify(acpi_handle handle,
 		u32 event, void *data)
 {
 	struct int3403_priv *priv = data;
@@ -94,8 +94,8 @@ static int int3403_sensor_add(struct int3403_priv *priv)
 	if (IS_ERR(obj->int340x_zone))
 		return PTR_ERR(obj->int340x_zone);
 
-	result = acpi_install_notify_handler(priv->adev->handle,
-			ACPI_DEVICE_NOTIFY, int3403_notify,
+	result = acpi_install_yestify_handler(priv->adev->handle,
+			ACPI_DEVICE_NOTIFY, int3403_yestify,
 			(void *)priv);
 	if (result)
 		goto err_free_obj;
@@ -111,8 +111,8 @@ static int int3403_sensor_remove(struct int3403_priv *priv)
 {
 	struct int3403_sensor *obj = priv->priv;
 
-	acpi_remove_notify_handler(priv->adev->handle,
-				   ACPI_DEVICE_NOTIFY, int3403_notify);
+	acpi_remove_yestify_handler(priv->adev->handle,
+				   ACPI_DEVICE_NOTIFY, int3403_yestify);
 	int340x_thermal_zone_remove(obj->int340x_zone);
 
 	return 0;
@@ -195,7 +195,7 @@ static int int3403_cdev_add(struct int3403_priv *priv)
 		result = PTR_ERR(obj->cdev);
 
 	kfree(buf.pointer);
-	/* TODO: add ACPI notification support */
+	/* TODO: add ACPI yestification support */
 
 	return result;
 }

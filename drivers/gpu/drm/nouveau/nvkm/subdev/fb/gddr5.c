@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -25,7 +25,7 @@
 
 /* binary driver only executes this path if the condition (a) is true
  * for any configuration (combination of rammap+ramcfg+timing) that
- * can be reached on a given card.  for now, we will execute the branch
+ * can be reached on a given card.  for yesw, we will execute the branch
  * unconditionally in the hope that a "false everywhere" in the bios
  * tables doesn't actually mean "don't touch this".
  */
@@ -84,7 +84,7 @@ nvkm_gddr5_calc(struct nvkm_ram *ram, bool nuts)
 	ram->mr[1] |= (ds & 0x03) << 0;
 
 	/* this seems wrong, alternate field used for the broadcast
-	 * on nuts vs non-nuts configs..  meh, it matches for now.
+	 * on nuts vs yesn-nuts configs..  meh, it matches for yesw.
 	 */
 	ram->mr1_nuts = ram->mr[1];
 	if (nuts) {

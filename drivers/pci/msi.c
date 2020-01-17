@@ -17,7 +17,7 @@
 #include <linux/proc_fs.h>
 #include <linux/msi.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/acpi_iort.h>
 #include <linux/slab.h>
@@ -27,7 +27,7 @@
 #include "pci.h"
 
 static int pci_msi_enable = 1;
-int pci_msi_ignore_mask;
+int pci_msi_igyesre_mask;
 
 #define msix_table_size(flags)	((flags & PCI_MSIX_FLAGS_QSIZE) + 1)
 
@@ -114,7 +114,7 @@ int __weak arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 }
 
 /*
- * We have a default implementation available as a separate non-weak
+ * We have a default implementation available as a separate yesn-weak
  * function, as it is used by the Xen x86 PCI code
  */
 void default_teardown_msi_irqs(struct pci_dev *dev)
@@ -165,8 +165,8 @@ static inline __attribute_const__ u32 msi_mask(unsigned x)
 }
 
 /*
- * PCI 2.3 does not specify mask bits for each MSI interrupt.  Attempting to
- * mask all MSI interrupts by clearing the MSI enable bit does not work
+ * PCI 2.3 does yest specify mask bits for each MSI interrupt.  Attempting to
+ * mask all MSI interrupts by clearing the MSI enable bit does yest work
  * reliably as devices without an INTx disable bit will then generate a
  * level IRQ which will never be cleared.
  */
@@ -174,7 +174,7 @@ u32 __pci_msi_desc_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
 {
 	u32 mask_bits = desc->masked;
 
-	if (pci_msi_ignore_mask || !desc->msi_attrib.maskbit)
+	if (pci_msi_igyesre_mask || !desc->msi_attrib.maskbit)
 		return 0;
 
 	mask_bits &= ~mask;
@@ -200,7 +200,7 @@ static void __iomem *pci_msix_desc_addr(struct msi_desc *desc)
 }
 
 /*
- * This internal function does not flush PCI writes to the device.
+ * This internal function does yest flush PCI writes to the device.
  * All users must ensure that they read from the device before either
  * assuming that the device state is up to date, or returning out of this
  * file.  This saves a few milliseconds when initialising devices with lots
@@ -211,7 +211,7 @@ u32 __pci_msix_desc_mask_irq(struct msi_desc *desc, u32 flag)
 	u32 mask_bits = desc->masked;
 	void __iomem *desc_addr;
 
-	if (pci_msi_ignore_mask)
+	if (pci_msi_igyesre_mask)
 		return 0;
 
 	desc_addr = pci_msix_desc_addr(desc);
@@ -313,7 +313,7 @@ void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 	struct pci_dev *dev = msi_desc_to_pci_dev(entry);
 
 	if (dev->current_state != PCI_D0 || pci_dev_is_disconnected(dev)) {
-		/* Don't touch the hardware now */
+		/* Don't touch the hardware yesw */
 	} else if (entry->msi_attrib.is_msix) {
 		void __iomem *base = pci_msix_desc_addr(entry);
 
@@ -599,7 +599,7 @@ static int msi_verify_entries(struct pci_dev *dev)
 	struct msi_desc *entry;
 
 	for_each_pci_msi_entry(entry, dev) {
-		if (!dev->no_64bit_msi || !entry->msg.address_hi)
+		if (!dev->yes_64bit_msi || !entry->msg.address_hi)
 			continue;
 		pci_err(dev, "Device has broken 64-bit MSI but arch"
 			" tried to assign one above 4G\n");
@@ -688,7 +688,7 @@ static void __iomem *msix_map_region(struct pci_dev *dev, unsigned nr_entries)
 	table_offset &= PCI_MSIX_TABLE_OFFSET;
 	phys_addr = pci_resource_start(dev, bir) + table_offset;
 
-	return ioremap_nocache(phys_addr, nr_entries * PCI_MSIX_ENTRY_SIZE);
+	return ioremap_yescache(phys_addr, nr_entries * PCI_MSIX_ENTRY_SIZE);
 }
 
 static int msix_setup_entries(struct pci_dev *dev, void __iomem *base,
@@ -710,7 +710,7 @@ static int msix_setup_entries(struct pci_dev *dev, void __iomem *base,
 				iounmap(base);
 			else
 				free_msi_irqs(dev);
-			/* No enough memory. Don't try again */
+			/* No eyesugh memory. Don't try again */
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -769,7 +769,7 @@ static void msix_program_entries(struct pci_dev *dev,
  *
  * Setup the MSI-X capability structure of device function with a
  * single MSI-X IRQ. A return of zero indicates the successful setup of
- * requested MSI-X entries with allocated IRQs or non-zero for otherwise.
+ * requested MSI-X entries with allocated IRQs or yesn-zero for otherwise.
  **/
 static int msix_capability_init(struct pci_dev *dev, struct msix_entry *entries,
 				int nvec, struct irq_affinity *affd)
@@ -795,7 +795,7 @@ static int msix_capability_init(struct pci_dev *dev, struct msix_entry *entries,
 	if (ret)
 		goto out_avail;
 
-	/* Check if all MSI entries honor device restrictions */
+	/* Check if all MSI entries hoyesr device restrictions */
 	ret = msi_verify_entries(dev);
 	if (ret)
 		goto out_free;
@@ -862,7 +862,7 @@ static int pci_msi_supported(struct pci_dev *dev, int nvec)
 	if (!pci_msi_enable)
 		return 0;
 
-	if (!dev || dev->no_msi)
+	if (!dev || dev->yes_msi)
 		return 0;
 
 	/*
@@ -892,8 +892,8 @@ static int pci_msi_supported(struct pci_dev *dev, int nvec)
  * @dev: device to report about
  *
  * This function returns the number of MSI vectors a device requested via
- * Multiple Message Capable register. It returns a negative errno if the
- * device is not capable sending MSI interrupts. Otherwise, the call succeeds
+ * Multiple Message Capable register. It returns a negative erryes if the
+ * device is yest capable sending MSI interrupts. Otherwise, the call succeeds
  * and returns a power of two, up to a maximum of 2^5 (32), according to the
  * MSI specification.
  **/
@@ -952,7 +952,7 @@ EXPORT_SYMBOL(pci_disable_msi);
  * @dev: pointer to the pci_dev data structure of MSI-X device function
  * This function returns the number of device's MSI-X table entries and
  * therefore the number of MSI-X vectors device is capable of sending.
- * It returns a negative errno if the device is not capable of sending MSI-X
+ * It returns a negative erryes if the device is yest capable of sending MSI-X
  * interrupts.
  **/
 int pci_msix_vec_count(struct pci_dev *dev)
@@ -1036,7 +1036,7 @@ void pci_disable_msix(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_disable_msix);
 
-void pci_no_msi(void)
+void pci_yes_msi(void)
 {
 	pci_msi_enable = 0;
 }
@@ -1044,8 +1044,8 @@ void pci_no_msi(void)
 /**
  * pci_msi_enabled - is MSI enabled?
  *
- * Returns true if MSI has not been disabled by the command-line option
- * pci=nomsi.
+ * Returns true if MSI has yest been disabled by the command-line option
+ * pci=yesmsi.
  **/
 int pci_msi_enabled(void)
 {
@@ -1156,7 +1156,7 @@ static int __pci_enable_msix_range(struct pci_dev *dev,
  * Setup the MSI-X capability structure of device function with a maximum
  * possible number of interrupts in the range between @minvec and @maxvec
  * upon its software driver call to request for MSI-X mode enabled on its
- * hardware device function. It returns a negative errno if an error occurs.
+ * hardware device function. It returns a negative erryes if an error occurs.
  * If it succeeds, it returns the actual number of interrupts allocated and
  * indicates the successful configuration of MSI-X capability structure
  * with new allocated MSI-X interrupts.
@@ -1377,7 +1377,7 @@ static inline bool pci_msi_desc_is_multi_msi(struct msi_desc *desc)
  *
  * Returns:
  *  0 if the functionality is supported
- *  1 if Multi MSI is requested, but the domain does not support it
+ *  1 if Multi MSI is requested, but the domain does yest support it
  *  -ENOTSUPP otherwise
  */
 int pci_msi_domain_check_cap(struct irq_domain *domain,
@@ -1454,7 +1454,7 @@ static void pci_msi_domain_update_chip_ops(struct msi_domain_info *info)
 
 /**
  * pci_msi_create_irq_domain - Create a MSI interrupt domain
- * @fwnode:	Optional fwnode of the interrupt controller
+ * @fwyesde:	Optional fwyesde of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  *
@@ -1463,7 +1463,7 @@ static void pci_msi_domain_update_chip_ops(struct msi_domain_info *info)
  * Returns:
  * A domain pointer or NULL in case of failure.
  */
-struct irq_domain *pci_msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *pci_msi_create_irq_domain(struct fwyesde_handle *fwyesde,
 					     struct msi_domain_info *info,
 					     struct irq_domain *parent)
 {
@@ -1484,7 +1484,7 @@ struct irq_domain *pci_msi_create_irq_domain(struct fwnode_handle *fwnode,
 	/* PCI-MSI is oneshot-safe */
 	info->chip->flags |= IRQCHIP_ONESHOT_SAFE;
 
-	domain = msi_create_irq_domain(fwnode, info, parent);
+	domain = msi_create_irq_domain(fwyesde, info, parent);
 	if (!domain)
 		return NULL;
 
@@ -1497,14 +1497,14 @@ EXPORT_SYMBOL_GPL(pci_msi_create_irq_domain);
  * Users of the generic MSI infrastructure expect a device to have a single ID,
  * so with DMA aliases we have to pick the least-worst compromise. Devices with
  * DMA phantom functions tend to still emit MSIs from the real function number,
- * so we ignore those and only consider topological aliases where either the
+ * so we igyesre those and only consider topological aliases where either the
  * alias device or RID appears on a different bus number. We also make the
  * reasonable assumption that bridges are walked in an upstream direction (so
  * the last one seen wins), and the much braver assumption that the most likely
  * case is that of PCI->PCIe so we should always use the alias RID. This echoes
  * the logic from intel_irq_remapping's set_msi_sid(), which presumably works
- * well enough in practice; in the face of the horrible PCIe<->PCI-X conditions
- * for taking ownership all we can really do is close our eyes and hope...
+ * well eyesugh in practice; in the face of the horrible PCIe<->PCI-X conditions
+ * for taking ownership all we can really do is close our eno and hope...
  */
 static int get_msi_id_cb(struct pci_dev *pdev, u16 alias, void *data)
 {
@@ -1529,13 +1529,13 @@ static int get_msi_id_cb(struct pci_dev *pdev, u16 alias, void *data)
  */
 u32 pci_msi_domain_get_msi_rid(struct irq_domain *domain, struct pci_dev *pdev)
 {
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 	u32 rid = pci_dev_id(pdev);
 
 	pci_for_each_dma_alias(pdev, get_msi_id_cb, &rid);
 
-	of_node = irq_domain_get_of_node(domain);
-	rid = of_node ? of_msi_map_rid(&pdev->dev, of_node, rid) :
+	of_yesde = irq_domain_get_of_yesde(domain);
+	rid = of_yesde ? of_msi_map_rid(&pdev->dev, of_yesde, rid) :
 			iort_msi_map_rid(&pdev->dev, rid);
 
 	return rid;
@@ -1546,9 +1546,9 @@ u32 pci_msi_domain_get_msi_rid(struct irq_domain *domain, struct pci_dev *pdev)
  * @pdev:	The PCI device
  *
  * Use the firmware data to find a device-specific MSI domain
- * (i.e. not one that is set as a default).
+ * (i.e. yest one that is set as a default).
  *
- * Returns: The corresponding MSI domain or NULL if none has been found.
+ * Returns: The corresponding MSI domain or NULL if yesne has been found.
  */
 struct irq_domain *pci_msi_get_device_domain(struct pci_dev *pdev)
 {

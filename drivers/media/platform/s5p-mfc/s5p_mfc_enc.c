@@ -1101,7 +1101,7 @@ static int s5p_mfc_ctx_ready(struct s5p_mfc_ctx *ctx)
 	if (ctx->state == MFCINST_FINISHING &&
 		ctx->dst_queue_cnt >= 1)
 		return 1;
-	mfc_debug(2, "ctx is not ready\n");
+	mfc_debug(2, "ctx is yest ready\n");
 	return 0;
 }
 
@@ -1477,7 +1477,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 	int ret = 0;
 
-	/* if memory is not mmp or userptr return error */
+	/* if memory is yest mmp or userptr return error */
 	if ((reqbufs->memory != V4L2_MEMORY_MMAP) &&
 		(reqbufs->memory != V4L2_MEMORY_USERPTR))
 		return -EINVAL;
@@ -1556,7 +1556,7 @@ static int vidioc_querybuf(struct file *file, void *priv,
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 	int ret = 0;
 
-	/* if memory is not mmp or userptr return error */
+	/* if memory is yest mmp or userptr return error */
 	if ((buf->memory != V4L2_MEMORY_MMAP) &&
 		(buf->memory != V4L2_MEMORY_USERPTR))
 		return -EINVAL;
@@ -2171,7 +2171,7 @@ static int s5p_mfc_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 		p->codec.hevc.max_num_merge_mv = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_HEVC_WITHOUT_STARTCODE:
-		p->codec.hevc.encoding_nostartcode_enable = ctrl->val;
+		p->codec.hevc.encoding_yesstartcode_enable = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_HEVC_REFRESH_PERIOD:
 		p->codec.hevc.refreshperiod = ctrl->val;
@@ -2208,7 +2208,7 @@ static int s5p_mfc_enc_g_v_ctrl(struct v4l2_ctrl *ctrl)
 			ctrl->val = ctx->pb_count;
 			break;
 		} else if (ctx->state != MFCINST_INIT) {
-			v4l2_err(&dev->v4l2_dev, "Encoding not initialised\n");
+			v4l2_err(&dev->v4l2_dev, "Encoding yest initialised\n");
 			return -EINVAL;
 		}
 		/* Should wait for the header to be produced */
@@ -2218,7 +2218,7 @@ static int s5p_mfc_enc_g_v_ctrl(struct v4l2_ctrl *ctrl)
 		    ctx->state < MFCINST_ABORT) {
 			ctrl->val = ctx->pb_count;
 		} else {
-			v4l2_err(&dev->v4l2_dev, "Encoding not initialised\n");
+			v4l2_err(&dev->v4l2_dev, "Encoding yest initialised\n");
 			return -EINVAL;
 		}
 		break;
@@ -2238,8 +2238,8 @@ static int vidioc_s_parm(struct file *file, void *priv,
 
 	if (a->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		ctx->enc_params.rc_framerate_num =
-					a->parm.output.timeperframe.denominator;
-		ctx->enc_params.rc_framerate_denom =
+					a->parm.output.timeperframe.deyesminator;
+		ctx->enc_params.rc_framerate_deyesm =
 					a->parm.output.timeperframe.numerator;
 	} else {
 		mfc_err("Setting FPS is only possible for the output queue\n");
@@ -2254,10 +2254,10 @@ static int vidioc_g_parm(struct file *file, void *priv,
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 
 	if (a->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		a->parm.output.timeperframe.denominator =
+		a->parm.output.timeperframe.deyesminator =
 					ctx->enc_params.rc_framerate_num;
 		a->parm.output.timeperframe.numerator =
-					ctx->enc_params.rc_framerate_denom;
+					ctx->enc_params.rc_framerate_deyesm;
 	} else {
 		mfc_err("Setting FPS is only possible for the output queue\n");
 		return -EINVAL;

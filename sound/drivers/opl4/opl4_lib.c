@@ -214,7 +214,7 @@ int snd_opl4_create(struct snd_card *card,
 	err = snd_opl4_detect(opl4);
 	if (err < 0) {
 		snd_opl4_free(opl4);
-		snd_printd("OPL4 chip not detected at %#lx/%#lx\n", fm_port, pcm_port);
+		snd_printd("OPL4 chip yest detected at %#lx/%#lx\n", fm_port, pcm_port);
 		return err;
 	}
 

@@ -18,7 +18,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -50,7 +50,7 @@
  * Fences mark an event in the GPUs pipeline and are used
  * for GPU/CPU synchronization.  When the fence is written,
  * it is expected that all buffers associated with that fence
- * are no longer in use by the associated ring on the GPU and
+ * are yes longer in use by the associated ring on the GPU and
  * that the the relevant GPU caches have been flushed.  Whether
  * we use a scratch register or memory location depends on the asic
  * and whether writeback is enabled.
@@ -114,7 +114,7 @@ static u32 radeon_fence_read(struct radeon_device *rdev, int ring)
 static void radeon_fence_schedule_check(struct radeon_device *rdev, int ring)
 {
 	/*
-	 * Do not reset the timer here with mod_delayed_work,
+	 * Do yest reset the timer here with mod_delayed_work,
 	 * this can livelock in an interaction with TTM delayed destroy.
 	 */
 	queue_delayed_work(system_power_efficient_wq,
@@ -172,7 +172,7 @@ static int radeon_fence_check_signaled(wait_queue_entry_t *wait, unsigned mode, 
 	fence = container_of(wait, struct radeon_fence, fence_wake);
 
 	/*
-	 * We cannot use radeon_fence_process here because we're already
+	 * We canyest use radeon_fence_process here because we're already
 	 * in the waitqueue, in a call from wake_up_all.
 	 */
 	seq = atomic64_read(&fence->rdev->fence_drv[fence->ring].last_seq);
@@ -210,7 +210,7 @@ static bool radeon_fence_activity(struct radeon_device *rdev, int ring)
 
 	/* Note there is a scenario here for an infinite loop but it's
 	 * very unlikely to happen. For it to happen, the current polling
-	 * process need to be interrupted by another process and another
+	 * process need to be interrupted by ayesther process and ayesther
 	 * process needs to update the last_seq btw the atomic read and
 	 * xchg of the current process.
 	 *
@@ -226,7 +226,7 @@ static bool radeon_fence_activity(struct radeon_device *rdev, int ring)
 	 *
 	 * To be even more safe we count the number of time we loop and
 	 * we bail after 10 loop just accepting the fact that we might
-	 * have temporarly set the last_seq not to the true real last
+	 * have temporarly set the last_seq yest to the true real last
 	 * seq but to an older one.
 	 */
 	last_seq = atomic64_read(&rdev->fence_drv[ring].last_seq);
@@ -269,7 +269,7 @@ static bool radeon_fence_activity(struct radeon_device *rdev, int ring)
  *
  * @work: delayed work item
  *
- * Checks for fence activity and if there is none probe
+ * Checks for fence activity and if there is yesne probe
  * the hardware if a lockup occured.
  */
 static void radeon_fence_check_lockup(struct work_struct *work)
@@ -341,7 +341,7 @@ void radeon_fence_process(struct radeon_device *rdev, int ring)
  * Check if the last signaled fence sequnce number is >= the requested
  * sequence number (all asics).
  * Returns true if the fence has signaled (current fence value
- * is >= requested value) or false if it has not (current fence
+ * is >= requested value) or false if it has yest (current fence
  * value is < the requested value.  Helper function for
  * radeon_fence_signaled().
  */
@@ -412,7 +412,7 @@ static bool radeon_fence_enable_signaling(struct dma_fence *f)
 
 		up_read(&rdev->exclusive_lock);
 	} else {
-		/* we're probably in a lockup, lets not fiddle too much */
+		/* we're probably in a lockup, lets yest fiddle too much */
 		if (radeon_irq_kms_sw_irq_get_delayed(rdev, fence->ring))
 			rdev->fence_drv[fence->ring].delayed_irq = true;
 		radeon_fence_schedule_check(rdev, fence->ring);
@@ -434,7 +434,7 @@ static bool radeon_fence_enable_signaling(struct dma_fence *f)
  * @fence: radeon fence object
  *
  * Check if the requested fence has signaled (all asics).
- * Returns true if the fence has signaled or false if it has not.
+ * Returns true if the fence has signaled or false if it has yest.
  */
 bool radeon_fence_signaled(struct radeon_fence *fence)
 {
@@ -461,7 +461,7 @@ bool radeon_fence_signaled(struct radeon_fence *fence)
  * Check if the last signaled fence sequnce number is >= the requested
  * sequence number (all asics).
  * Returns true if any has signaled (current value is >= requested value)
- * or false if it has not. Helper function for radeon_fence_wait_seq.
+ * or false if it has yest. Helper function for radeon_fence_wait_seq.
  */
 static bool radeon_fence_any_seq_signaled(struct radeon_device *rdev, u64 *seq)
 {
@@ -484,7 +484,7 @@ static bool radeon_fence_any_seq_signaled(struct radeon_device *rdev, u64 *seq)
  *
  * Wait for the requested sequence number(s) to be written by any ring
  * (all asics).  Sequnce number array is indexed by ring id.
- * @intr selects whether to use interruptable (true) or non-interruptable
+ * @intr selects whether to use interruptable (true) or yesn-interruptable
  * (false) sleep when waiting for the sequence number.  Helper function
  * for radeon_fence_wait_*().
  * Returns remaining time if the sequence number has passed, 0 when
@@ -541,7 +541,7 @@ static long radeon_fence_wait_seq_timeout(struct radeon_device *rdev,
  * @intr: use interruptible sleep
  *
  * Wait for the requested fence to signal (all asics).
- * @intr selects whether to use interruptable (true) or non-interruptable
+ * @intr selects whether to use interruptable (true) or yesn-interruptable
  * (false) sleep when waiting for the fence.
  * @timeout: maximum time to wait, or MAX_SCHEDULE_TIMEOUT for infinite wait
  * Returns remaining time if the sequence number has passed, 0 when
@@ -554,10 +554,10 @@ long radeon_fence_wait_timeout(struct radeon_fence *fence, bool intr, long timeo
 	int r_sig;
 
 	/*
-	 * This function should not be called on !radeon fences.
+	 * This function should yest be called on !radeon fences.
 	 * If this is the case, it would mean this function can
-	 * also be called on radeon fences belonging to another card.
-	 * exclusive_lock is not held in that case.
+	 * also be called on radeon fences belonging to ayesther card.
+	 * exclusive_lock is yest held in that case.
 	 */
 	if (WARN_ON_ONCE(!to_radeon_fence(&fence->base)))
 		return dma_fence_wait(&fence->base, intr);
@@ -581,7 +581,7 @@ long radeon_fence_wait_timeout(struct radeon_fence *fence, bool intr, long timeo
  * @intr: use interruptible sleep
  *
  * Wait for the requested fence to signal (all asics).
- * @intr selects whether to use interruptable (true) or non-interruptable
+ * @intr selects whether to use interruptable (true) or yesn-interruptable
  * (false) sleep when waiting for the fence.
  * Returns 0 if the fence has passed, error for all other cases.
  */
@@ -604,7 +604,7 @@ int radeon_fence_wait(struct radeon_fence *fence, bool intr)
  *
  * Wait for any requested fence to signal (all asics).  Fence
  * array is indexed by ring id.  @intr selects whether to use
- * interruptable (true) or non-interruptable (false) sleep when
+ * interruptable (true) or yesn-interruptable (false) sleep when
  * waiting for the fences. Used by the suballocator.
  * Returns 0 if any fence has passed, error for all other cases.
  */
@@ -627,7 +627,7 @@ int radeon_fence_wait_any(struct radeon_device *rdev,
 		++num_rings;
 	}
 
-	/* nothing to wait for ? */
+	/* yesthing to wait for ? */
 	if (num_rings == 0)
 		return -ENOENT;
 
@@ -655,7 +655,7 @@ int radeon_fence_wait_next(struct radeon_device *rdev, int ring)
 
 	seq[ring] = atomic64_read(&rdev->fence_drv[ring].last_seq) + 1ULL;
 	if (seq[ring] >= rdev->fence_drv[ring].sync_seq[ring]) {
-		/* nothing to wait for, last_seq is
+		/* yesthing to wait for, last_seq is
 		   already the last emited fence */
 		return -ENOENT;
 	}
@@ -740,7 +740,7 @@ unsigned radeon_fence_count_emitted(struct radeon_device *rdev, int ring)
 {
 	uint64_t emitted;
 
-	/* We are not protected by ring lock when reading the last sequence
+	/* We are yest protected by ring lock when reading the last sequence
 	 * but it's ok to report slightly wrong fence count here.
 	 */
 	radeon_fence_process(rdev, ring);
@@ -759,10 +759,10 @@ unsigned radeon_fence_count_emitted(struct radeon_device *rdev, int ring)
  * @fence: radeon fence object
  * @dst_ring: which ring to check against
  *
- * Check if the fence needs to be synced against another ring
+ * Check if the fence needs to be synced against ayesther ring
  * (all asics).  If so, we need to emit a semaphore.
- * Returns true if we need to sync with another ring, false if
- * not.
+ * Returns true if we need to sync with ayesther ring, false if
+ * yest.
  */
 bool radeon_fence_need_sync(struct radeon_fence *fence, int dst_ring)
 {
@@ -786,7 +786,7 @@ bool radeon_fence_need_sync(struct radeon_fence *fence, int dst_ring)
 }
 
 /**
- * radeon_fence_note_sync - record the sync point
+ * radeon_fence_yeste_sync - record the sync point
  *
  * @fence: radeon fence object
  * @dst_ring: which ring to check against
@@ -794,7 +794,7 @@ bool radeon_fence_need_sync(struct radeon_fence *fence, int dst_ring)
  * Note the sequence number at which point the fence will
  * be synced with the requested ring (all asics).
  */
-void radeon_fence_note_sync(struct radeon_fence *fence, int dst_ring)
+void radeon_fence_yeste_sync(struct radeon_fence *fence, int dst_ring)
 {
 	struct radeon_fence_driver *dst, *src;
 	unsigned i;
@@ -940,7 +940,7 @@ void radeon_fence_driver_fini(struct radeon_device *rdev)
 			continue;
 		r = radeon_fence_wait_empty(rdev, ring);
 		if (r) {
-			/* no need to trigger GPU reset as we are unloading */
+			/* yes need to trigger GPU reset as we are unloading */
 			radeon_fence_driver_force_completion(rdev, ring);
 		}
 		cancel_delayed_work_sync(&rdev->fence_drv[ring].lockup_work);
@@ -957,7 +957,7 @@ void radeon_fence_driver_fini(struct radeon_device *rdev)
  * @rdev: radeon device pointer
  * @ring: the ring to complete
  *
- * In case of GPU reset failure make sure no process keep waiting on fence
+ * In case of GPU reset failure make sure yes process keep waiting on fence
  * that will never complete.
  */
 void radeon_fence_driver_force_completion(struct radeon_device *rdev, int ring)
@@ -975,8 +975,8 @@ void radeon_fence_driver_force_completion(struct radeon_device *rdev, int ring)
 #if defined(CONFIG_DEBUG_FS)
 static int radeon_debugfs_fence_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	int i, j;
 
@@ -1008,8 +1008,8 @@ static int radeon_debugfs_fence_info(struct seq_file *m, void *data)
  */
 static int radeon_debugfs_gpu_reset(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
 	down_read(&rdev->exclusive_lock);

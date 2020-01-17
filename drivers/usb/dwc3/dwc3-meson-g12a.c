@@ -366,14 +366,14 @@ static struct device *dwc3_meson_g12_find_child(struct device *dev,
 						const char *compatible)
 {
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_get_compatible_child(dev->of_node, compatible);
+	np = of_get_compatible_child(dev->of_yesde, compatible);
 	if (!np)
 		return NULL;
 
-	pdev = of_find_device_by_node(np);
-	of_node_put(np);
+	pdev = of_find_device_by_yesde(np);
+	of_yesde_put(np);
 	if (!pdev)
 		return NULL;
 
@@ -384,7 +384,7 @@ static int dwc3_meson_g12a_probe(struct platform_device *pdev)
 {
 	struct dwc3_meson_g12a	*priv;
 	struct device		*dev = &pdev->dev;
-	struct device_node	*np = dev->of_node;
+	struct device_yesde	*np = dev->of_yesde;
 	void __iomem *base;
 	enum phy_mode otg_id;
 	int ret, i, irq;
@@ -537,7 +537,7 @@ static int dwc3_meson_g12a_remove(struct platform_device *pdev)
 	}
 
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 	pm_runtime_set_suspended(dev);
 
 	return 0;

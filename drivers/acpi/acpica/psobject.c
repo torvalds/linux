@@ -45,7 +45,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 	 * First cut to determine what we have found:
 	 * 1) A valid AML opcode
 	 * 2) A name string
-	 * 3) An unknown/invalid opcode
+	 * 3) An unkyeswn/invalid opcode
 	 */
 	walk_state->op_info = acpi_ps_get_opcode_info(walk_state->opcode);
 
@@ -62,7 +62,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 
 	case AML_CLASS_UNKNOWN:
 
-		/* The opcode is unrecognized. Complain and skip unknown opcodes */
+		/* The opcode is unrecognized. Complain and skip unkyeswn opcodes */
 
 		if (walk_state->pass_number == 2) {
 			ACPI_ERROR_ONLY(aml_offset =
@@ -72,7 +72,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 							   aml_start));
 
 			ACPI_ERROR((AE_INFO,
-				    "Unknown opcode 0x%.2X at table offset 0x%.4X, ignoring",
+				    "Unkyeswn opcode 0x%.2X at table offset 0x%.4X, igyesring",
 				    walk_state->opcode,
 				    (u32)(aml_offset +
 					  sizeof(struct acpi_table_header))));
@@ -86,7 +86,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 			 * to the disassembled ASL output file.
 			 */
 			acpi_os_printf
-			    ("/*\nError: Unknown opcode 0x%.2X at table offset 0x%.4X, context:\n",
+			    ("/*\nError: Unkyeswn opcode 0x%.2X at table offset 0x%.4X, context:\n",
 			     walk_state->opcode,
 			     (u32)(aml_offset +
 				   sizeof(struct acpi_table_header)));
@@ -104,7 +104,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 			acpi_os_printf(" */\n");
 
 			/*
-			 * Just abort the disassembly, cannot continue because the
+			 * Just abort the disassembly, canyest continue because the
 			 * parser is essentially lost. The disassembler can then
 			 * randomly fail because an ill-constructed parse tree
 			 * can result.
@@ -124,7 +124,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 
 	default:
 
-		/* Found opcode info, this is a normal opcode */
+		/* Found opcode info, this is a yesrmal opcode */
 
 		walk_state->parser_state.aml +=
 		    acpi_ps_get_opcode_size(walk_state->opcode);
@@ -141,7 +141,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
  *
  * PARAMETERS:  walk_state          - Current state
  *              aml_op_start        - Begin of named Op in AML
- *              unnamed_op          - Early Op (not a named Op)
+ *              unnamed_op          - Early Op (yest a named Op)
  *              op                  - Returned Op
  *
  * RETURN:      Status
@@ -166,7 +166,7 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 	unnamed_op->common.aml_opcode = walk_state->opcode;
 
 	/*
-	 * Get and append arguments until we find the node that contains
+	 * Get and append arguments until we find the yesde that contains
 	 * the name (the type ARGP_NAME).
 	 */
 	while (GET_CURRENT_ARG_TYPE(walk_state->arg_types) &&
@@ -204,7 +204,7 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(AE_AML_NO_OPERAND);
 	}
 
-	/* We know that this arg is a name, move to next arg */
+	/* We kyesw that this arg is a name, move to next arg */
 
 	INCREMENT_ARG_LIST(walk_state->arg_types);
 
@@ -242,7 +242,7 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 	/* save any comments that might be associated with unnamed_op. */
 
 	(*op)->common.inline_comment = unnamed_op->common.inline_comment;
-	(*op)->common.end_node_comment = unnamed_op->common.end_node_comment;
+	(*op)->common.end_yesde_comment = unnamed_op->common.end_yesde_comment;
 	(*op)->common.close_brace_comment =
 	    unnamed_op->common.close_brace_comment;
 	(*op)->common.name_comment = unnamed_op->common.name_comment;
@@ -254,7 +254,7 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 	(*op)->named.aml = unnamed_op->common.aml;
 
 	unnamed_op->common.inline_comment = NULL;
-	unnamed_op->common.end_node_comment = NULL;
+	unnamed_op->common.end_yesde_comment = NULL;
 	unnamed_op->common.close_brace_comment = NULL;
 	unnamed_op->common.name_comment = NULL;
 	unnamed_op->common.comment_list = NULL;
@@ -265,13 +265,13 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 	    (*op)->common.aml_opcode == AML_DATA_REGION_OP) {
 		/*
 		 * Defer final parsing of an operation_region body, because we don't
-		 * have enough info in the first pass to parse it correctly (i.e.,
+		 * have eyesugh info in the first pass to parse it correctly (i.e.,
 		 * there may be method calls within the term_arg elements of the body.)
 		 *
-		 * However, we must continue parsing because the opregion is not a
-		 * standalone package -- we don't know where the end is at this point.
+		 * However, we must continue parsing because the opregion is yest a
+		 * standalone package -- we don't kyesw where the end is at this point.
 		 *
-		 * (Length is unknown until parse of the body complete)
+		 * (Length is unkyeswn until parse of the body complete)
 		 */
 		(*op)->named.data = aml_op_start;
 		(*op)->named.length = 0;
@@ -361,7 +361,7 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 	if (walk_state->op_info->flags & AML_CREATE) {
 		/*
 		 * Backup to beginning of create_XXXfield declaration
-		 * body_length is unknown until we parse the body
+		 * body_length is unkyeswn until we parse the body
 		 */
 		op->named.data = aml_op_start;
 		op->named.length = 0;
@@ -370,7 +370,7 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 	if (walk_state->opcode == AML_BANK_FIELD_OP) {
 		/*
 		 * Backup to beginning of bank_field declaration
-		 * body_length is unknown until we parse the body
+		 * body_length is unkyeswn until we parse the body
 		 */
 		op->named.data = aml_op_start;
 		op->named.length = 0;
@@ -543,22 +543,22 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 
 		return_ACPI_STATUS(AE_OK);
 
-	default:		/* All other non-AE_OK status */
+	default:		/* All other yesn-AE_OK status */
 
 		do {
 			if (*op) {
 				/*
 				 * These Opcodes need to be removed from the namespace because they
-				 * get created even if these opcodes cannot be created due to
+				 * get created even if these opcodes canyest be created due to
 				 * errors.
 				 */
 				if (((*op)->common.aml_opcode == AML_REGION_OP)
 				    || ((*op)->common.aml_opcode ==
 					AML_DATA_REGION_OP)) {
 					acpi_ns_delete_children((*op)->common.
-								node);
-					acpi_ns_remove_node((*op)->common.node);
-					(*op)->common.node = NULL;
+								yesde);
+					acpi_ns_remove_yesde((*op)->common.yesde);
+					(*op)->common.yesde = NULL;
 					acpi_ps_delete_parse_tree(*op);
 				}
 
@@ -593,11 +593,11 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 			 * There was something that went wrong while executing code at the
 			 * module-level. We need to skip parsing whatever caused the
 			 * error and keep going. One runtime error during the table load
-			 * should not cause the entire table to not be loaded. This is
+			 * should yest cause the entire table to yest be loaded. This is
 			 * because there could be correct AML beyond the parts that caused
 			 * the runtime error.
 			 */
-			ACPI_INFO(("Ignoring error and continuing table load"));
+			ACPI_INFO(("Igyesring error and continuing table load"));
 			return_ACPI_STATUS(AE_OK);
 		}
 		return_ACPI_STATUS(status);
@@ -641,7 +641,7 @@ acpi_ps_complete_final_op(struct acpi_walk_state *walk_state,
 	ACPI_FUNCTION_TRACE_PTR(ps_complete_final_op, walk_state);
 
 	/*
-	 * Complete the last Op (if not completed), and clear the scope stack.
+	 * Complete the last Op (if yest completed), and clear the scope stack.
 	 * It is easily possible to end an AML "package" with an unbounded number
 	 * of open scopes (such as when several ASL blocks are closed with
 	 * sequential closing braces). We want to terminate each one cleanly.

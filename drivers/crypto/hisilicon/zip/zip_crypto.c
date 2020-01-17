@@ -170,7 +170,7 @@ static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type)
 	int ret, i, j;
 
 	/* find the proper zip device */
-	hisi_zip = find_zip_device(cpu_to_node(smp_processor_id()));
+	hisi_zip = find_zip_device(cpu_to_yesde(smp_processor_id()));
 	if (!hisi_zip) {
 		pr_err("Failed to find a proper ZIP device!\n");
 		return -ENODEV;
@@ -449,7 +449,7 @@ static size_t get_comp_head_size(struct scatterlist *src, u8 req_type)
 	case HZIP_ALG_TYPE_GZIP:
 		return get_gzip_head_size(src);
 	default:
-		pr_err("request type does not support!\n");
+		pr_err("request type does yest support!\n");
 		return -EINVAL;
 	}
 }
@@ -481,7 +481,7 @@ static struct hisi_zip_req *hisi_zip_create_req(struct acomp_req *req,
 	int ret, req_id;
 
 	/*
-	 * remove/add zlib/gzip head, as hardware operations do not include
+	 * remove/add zlib/gzip head, as hardware operations do yest include
 	 * comp head. so split req->src to get sgl without heads in acomp, or
 	 * add comp head to req->dst ahead of that hardware output compressed
 	 * data in sgl splited from req->dst without comp head.
@@ -498,7 +498,7 @@ static struct hisi_zip_req *hisi_zip_create_req(struct acomp_req *req,
 	if (ret)
 		return ERR_PTR(ret);
 
-	/* sgl for comp head is useless, so free it now */
+	/* sgl for comp head is useless, so free it yesw */
 	kfree(out[0]);
 
 	write_lock(&req_q->req_lock);
@@ -588,7 +588,7 @@ static int hisi_zip_acompress(struct acomp_req *acomp_req)
 	int head_size;
 	int ret;
 
-	/* let's output compression head now */
+	/* let's output compression head yesw */
 	head_size = add_comp_head(acomp_req->dst, qp_ctx->qp->req_type);
 	if (head_size < 0)
 		return -ENOMEM;

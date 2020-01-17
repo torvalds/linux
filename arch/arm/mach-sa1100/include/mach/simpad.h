@@ -122,8 +122,8 @@ void simpad_clear_cs3_bit(int value);
 
 /*--- Battery ---*/
 struct simpad_battery {
-	unsigned char ac_status;	/* line connected yes/no */
-	unsigned char status;		/* battery loading yes/no */
+	unsigned char ac_status;	/* line connected no/yes */
+	unsigned char status;		/* battery loading no/yes */
 	unsigned char percentage;	/* percentage loaded */
 	unsigned short life;		/* life till empty */
 };
@@ -140,7 +140,7 @@ struct simpad_battery {
 #define SIMPAD_BATT_STATUS_CRITICAL      0x04
 #define SIMPAD_BATT_STATUS_CHARGING      0x08
 #define SIMPAD_BATT_STATUS_CHARGE_MAIN   0x10
-#define SIMPAD_BATT_STATUS_DEAD          0x20   /* Battery will not charge */
+#define SIMPAD_BATT_STATUS_DEAD          0x20   /* Battery will yest charge */
 #define SIMPAD_BATT_NOT_INSTALLED        0x20   /* For expansion pack batteries */
 #define SIMPAD_BATT_STATUS_FULL          0x40   /* Battery fully charged (and connected to AC) */
 #define SIMPAD_BATT_STATUS_NOBATT        0x80

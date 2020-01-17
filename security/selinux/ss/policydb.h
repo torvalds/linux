@@ -16,7 +16,7 @@
  *	Added conditional policy language extensions
  *
  * Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
- * Copyright (C) 2003 - 2004 Tresys Technology, LLC
+ * Copyright (C) 2003 - 2004 Tresys Techyeslogy, LLC
  */
 
 #ifndef _SS_POLICYDB_H_
@@ -54,8 +54,8 @@ struct class_datum {
 	char *comkey;			/* common name */
 	struct common_datum *comdatum;	/* common datum */
 	struct symtab permissions;	/* class-specific permission symbol table */
-	struct constraint_node *constraints;	/* constraints on class permissions */
-	struct constraint_node *validatetrans;	/* special transition rules */
+	struct constraint_yesde *constraints;	/* constraints on class permissions */
+	struct constraint_yesde *validatetrans;	/* special transition rules */
 /* Options how a new object user, role, and type should be decided */
 #define DEFAULT_SOURCE         1
 #define DEFAULT_TARGET         2
@@ -127,13 +127,13 @@ struct user_datum {
 /* Sensitivity attributes */
 struct level_datum {
 	struct mls_level *level;	/* sensitivity and associated categories */
-	unsigned char isalias;	/* is this sensitivity an alias for another? */
+	unsigned char isalias;	/* is this sensitivity an alias for ayesther? */
 };
 
 /* Category attributes */
 struct cat_datum {
 	u32 value;		/* internal category bit + 1 */
-	unsigned char isalias;  /* is this category an alias for another? */
+	unsigned char isalias;  /* is this category an alias for ayesther? */
 };
 
 struct range_trans {
@@ -148,11 +148,11 @@ struct cond_bool_datum {
 	int state;
 };
 
-struct cond_node;
+struct cond_yesde;
 
 /*
  * type set preserves data needed to determine constraint info from
- * policy source. This is not used by the kernel policy but allows
+ * policy source. This is yest used by the kernel policy but allows
  * utilities such as audit2allow to determine constraint denials.
  */
 struct type_set {
@@ -164,7 +164,7 @@ struct type_set {
 /*
  * The configuration data includes security contexts for
  * initial SIDs, unlabeled file systems, TCP and UDP port numbers,
- * network interfaces, and nodes.  This structure stores the
+ * network interfaces, and yesdes.  This structure stores the
  * relevant data for one such entry.  Entries of the same kind
  * (e.g. all initial SIDs) are linked together into a list.
  */
@@ -179,11 +179,11 @@ struct ocontext {
 		struct {
 			u32 addr;
 			u32 mask;
-		} node;		/* node information */
+		} yesde;		/* yesde information */
 		struct {
 			u32 addr[4];
 			u32 mask[4];
-		} node6;        /* IPv6 node information */
+		} yesde6;        /* IPv6 yesde information */
 		struct {
 			u64 subnet_prefix;
 			u16 low_pkey;
@@ -225,9 +225,9 @@ struct genfs {
 #define OCON_FS		1 /* unlabeled file systems */
 #define OCON_PORT	2 /* TCP and UDP port numbers */
 #define OCON_NETIF	3 /* network interfaces */
-#define OCON_NODE	4 /* nodes */
+#define OCON_NODE	4 /* yesdes */
 #define OCON_FSUSE	5 /* fs_use */
-#define OCON_NODE6	6 /* IPv6 nodes */
+#define OCON_NODE6	6 /* IPv6 yesdes */
 #define OCON_IBPKEY	7 /* Infiniband PKeys */
 #define OCON_IBENDPORT	8 /* Infiniband end ports */
 #define OCON_NUM	9
@@ -263,7 +263,7 @@ struct policydb {
 	struct role_trans *role_tr;
 
 	/* file transitions with the last path component */
-	/* quickly exclude lookups when parent ttype has no rules */
+	/* quickly exclude lookups when parent ttype has yes rules */
 	struct ebitmap filename_trans_ttypes;
 	/* actual set of filename_trans rules */
 	struct hashtab *filename_trans;
@@ -273,17 +273,17 @@ struct policydb {
 	/* type enforcement conditional access vectors and transitions */
 	struct avtab te_cond_avtab;
 	/* linked list indexing te_cond_avtab by conditional */
-	struct cond_node *cond_list;
+	struct cond_yesde *cond_list;
 
 	/* role allows */
 	struct role_allow *role_allow;
 
 	/* security contexts of initial SIDs, unlabeled file systems,
-	   TCP or UDP port numbers, network interfaces and nodes */
+	   TCP or UDP port numbers, network interfaces and yesdes */
 	struct ocontext *ocontexts[OCON_NUM];
 
-	/* security contexts for files in filesystems that cannot support
-	   a persistent label mapping or use another
+	/* security contexts for files in filesystems that canyest support
+	   a persistent label mapping or use ayesther
 	   fixed labeling behavior. */
 	struct genfs *genfs;
 
@@ -302,8 +302,8 @@ struct policydb {
 
 	unsigned int policyvers;
 
-	unsigned int reject_unknown : 1;
-	unsigned int allow_unknown : 1;
+	unsigned int reject_unkyeswn : 1;
+	unsigned int allow_unkyeswn : 1;
 
 	u16 process_class;
 	u32 process_trans_perms;
@@ -322,7 +322,7 @@ extern int policydb_write(struct policydb *p, void *fp);
 
 #define POLICYDB_CONFIG_MLS    1
 
-/* the config flags related to unknown classes/perms are bits 2 and 3 */
+/* the config flags related to unkyeswn classes/perms are bits 2 and 3 */
 #define REJECT_UNKNOWN	0x00000002
 #define ALLOW_UNKNOWN	0x00000004
 

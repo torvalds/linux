@@ -2,10 +2,10 @@
 /*
  * powr1220.c - Driver for the Lattice POWR1220 programmable power supply
  * and monitor. Users can read all ADC inputs along with their labels
- * using the sysfs nodes.
+ * using the sysfs yesdes.
  *
  * Copyright (c) 2014 Echo360 http://www.echo360.com
- * Scott Kanowitz <skanowitz@echo360.com> <scott.kanowitz@gmail.com>
+ * Scott Kayeswitz <skayeswitz@echo360.com> <scott.kayeswitz@gmail.com>
  */
 
 #include <linux/module.h>
@@ -148,7 +148,7 @@ static int powr1220_read_adc(struct device *dev, int ch_num)
 
 		reading |= result << 4;
 
-		/* now convert the reading to a voltage */
+		/* yesw convert the reading to a voltage */
 		reading *= ADC_STEP_MV;
 		data->adc_values[ch_num] = reading;
 		data->adc_valid[ch_num] = true;
@@ -337,6 +337,6 @@ static struct i2c_driver powr1220_driver = {
 
 module_i2c_driver(powr1220_driver);
 
-MODULE_AUTHOR("Scott Kanowitz");
+MODULE_AUTHOR("Scott Kayeswitz");
 MODULE_DESCRIPTION("POWR1220 driver");
 MODULE_LICENSE("GPL");

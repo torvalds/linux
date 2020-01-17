@@ -221,7 +221,7 @@ acpi_status acpi_hw_legacy_wake_prep(u8 sleep_state)
 			pm1b_control |= (acpi_gbl_sleep_type_b <<
 					 sleep_type_reg_info->bit_position);
 
-			/* Write the control registers and ignore any errors */
+			/* Write the control registers and igyesre any errors */
 
 			(void)acpi_hw_write_pm1_control(pm1a_control,
 							pm1b_control);

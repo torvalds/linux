@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -40,7 +40,7 @@ struct brcms_ucode {
 	__le32 *bcm43xx_24_lcn;
 	size_t bcm43xx_24_lcnsz;
 	u32 *bcm43xx_bommajor;
-	u32 *bcm43xx_bomminor;
+	u32 *bcm43xx_bommiyesr;
 };
 
 int brcms_ucode_data_init(struct brcms_info *wl, struct brcms_ucode *ucode);

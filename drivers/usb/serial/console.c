@@ -103,12 +103,12 @@ static int usb_console_setup(struct console *co, char *options)
 	}
 
 	/*
-	 * no need to check the index here: if the index is wrong, console
+	 * yes need to check the index here: if the index is wrong, console
 	 * code won't call us
 	 */
-	port = usb_serial_port_get_by_minor(co->index);
+	port = usb_serial_port_get_by_miyesr(co->index);
 	if (port == NULL) {
-		/* no device is connected yet, sorry :( */
+		/* yes device is connected yet, sorry :( */
 		pr_err("No USB device connected to ttyUSB%i\n", co->index);
 		return -ENODEV;
 	}
@@ -152,7 +152,7 @@ static int usb_console_setup(struct console *co, char *options)
 		 * is the first time the port is opened */
 		retval = serial->type->open(NULL, port);
 		if (retval) {
-			dev_err(&port->dev, "could not open USB console port\n");
+			dev_err(&port->dev, "could yest open USB console port\n");
 			goto fail;
 		}
 
@@ -172,7 +172,7 @@ static int usb_console_setup(struct console *co, char *options)
 	 * the tty port count */
 	--port->port.count;
 	/* The console is special in terms of closing the device so
-	 * indicate this port is now acting as a system console. */
+	 * indicate this port is yesw acting as a system console. */
 	port->port.console = 1;
 
 	mutex_unlock(&serial->disc_mutex);
@@ -209,7 +209,7 @@ static void usb_console_write(struct console *co,
 	dev_dbg(&port->dev, "%s - %d byte(s)\n", __func__, count);
 
 	if (!port->port.console) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
+		dev_dbg(&port->dev, "%s - port yest opened\n", __func__);
 		return;
 	}
 
@@ -269,13 +269,13 @@ void usb_serial_console_disconnect(struct usb_serial *serial)
 	}
 }
 
-void usb_serial_console_init(int minor)
+void usb_serial_console_init(int miyesr)
 {
-	if (minor == 0) {
+	if (miyesr == 0) {
 		/*
 		 * Call register_console() if this is the first device plugged
 		 * in.  If we call it earlier, then the callback to
-		 * console_setup() will fail, as there is not a device seen by
+		 * console_setup() will fail, as there is yest a device seen by
 		 * the USB subsystem yet.
 		 */
 		/*

@@ -63,7 +63,7 @@ Load PCI Express AER Root Driver
 
 Some systems have AER support in firmware. Enabling Linux AER support at
 the same time the firmware handles AER may result in unpredictable
-behavior. Therefore, Linux does not handle AER events unless the firmware
+behavior. Therefore, Linux does yest handle AER events unless the firmware
 grants AER control to the OS via the ACPI _OSC method. See the PCI FW 3.0
 Specification for details regarding _OSC usage.
 
@@ -107,14 +107,14 @@ and uncorrectable errors. This classification is based on the impacts
 of those errors, which may result in degraded performance or function
 failure.
 
-Correctable errors pose no impacts on the functionality of the
+Correctable errors pose yes impacts on the functionality of the
 interface. The PCI Express protocol can recover without any software
 intervention or any loss of data. These errors are detected and
 corrected by hardware. Unlike correctable errors, uncorrectable
 errors impact functionality of the interface. Uncorrectable errors
 can cause a particular transaction or a particular PCI Express link
 to be unreliable. Depending on those error conditions, uncorrectable
-errors are further classified into non-fatal errors and fatal errors.
+errors are further classified into yesn-fatal errors and fatal errors.
 Non-fatal errors cause the particular transaction to be unreliable,
 but the PCI Express link itself is fully functional. Fatal errors, on
 the other hand, cause the link to be unreliable.
@@ -131,7 +131,7 @@ Error Command Register, the Root Port generates an interrupt if an
 error is detected.
 
 Note that the errors as described above are related to the PCI Express
-hierarchy and links. These errors do not include any device specific
+hierarchy and links. These errors do yest include any device specific
 errors because device specific errors will still get sent directly to
 the device driver.
 
@@ -184,18 +184,18 @@ Below sections specify when to call the error callback functions.
 Correctable errors
 ~~~~~~~~~~~~~~~~~~
 
-Correctable errors pose no impacts on the functionality of
+Correctable errors pose yes impacts on the functionality of
 the interface. The PCI Express protocol can recover without any
-software intervention or any loss of data. These errors do not
+software intervention or any loss of data. These errors do yest
 require any recovery actions. The AER driver clears the device's
 correctable error status register accordingly and logs these errors.
 
-Non-correctable (non-fatal and fatal) errors
+Non-correctable (yesn-fatal and fatal) errors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If an error message indicates a non-fatal error, performing link reset
-at upstream is not required. The AER driver calls error_detected(dev,
-pci_channel_io_normal) to all drivers associated within a hierarchy in
+If an error message indicates a yesn-fatal error, performing link reset
+at upstream is yest required. The AER driver calls error_detected(dev,
+pci_channel_io_yesrmal) to all drivers associated within a hierarchy in
 question. for example::
 
   EndPoint<==>DownstreamPort B<==>UpstreamPort A<==>RootPort
@@ -214,7 +214,7 @@ necessary. As different kinds of devices might use different approaches
 to reset link, AER port service driver is required to provide the
 function to reset link. Firstly, kernel looks for if the upstream
 component has an aer driver. If it has, kernel uses the reset_link
-callback of the aer driver. If the upstream component has no aer driver
+callback of the aer driver. If the upstream component has yes aer driver
 and the port is downstream port, we will perform a hot reset as the
 default by setting the Secondary Bus Reset bit of the Bridge Control
 register associated with the downstream port. As for upstream ports,
@@ -252,7 +252,7 @@ Frequent Asked Questions
 ------------------------
 
 Q:
-  What happens if a PCI Express device driver does not provide an
+  What happens if a PCI Express device driver does yest provide an
   error recovery handler (pci_driver->err_handler is equal to NULL)?
 
 A:
@@ -261,7 +261,7 @@ A:
   to section 3 for more information.
 
 Q:
-  What happens if an upstream port service driver does not provide
+  What happens if an upstream port service driver does yest provide
   callback reset_link?
 
 A:
@@ -269,13 +269,13 @@ A:
   upstream ports who are attached by the service driver.
 
 Q:
-  How does this infrastructure deal with driver that is not PCI
+  How does this infrastructure deal with driver that is yest PCI
   Express aware?
 
 A:
   This infrastructure calls the error callback functions of the
-  driver when an error happens. But if the driver is not aware of
-  PCI Express, the device might not report its own errors to root
+  driver when an error happens. But if the driver is yest aware of
+  PCI Express, the device might yest report its own errors to root
   port.
 
 Q:

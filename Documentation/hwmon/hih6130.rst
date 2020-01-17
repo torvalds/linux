@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'hih6130'
 
-    Addresses scanned: none
+    Addresses scanned: yesne
 
     Datasheet: Publicly available at the Honeywell website
 
@@ -42,4 +42,4 @@ humidity1_input
 Notes
 -----
 
-Command mode and alarms are not currently supported.
+Command mode and alarms are yest currently supported.

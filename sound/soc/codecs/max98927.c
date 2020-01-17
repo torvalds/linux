@@ -368,7 +368,7 @@ static int max98927_dai_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = MAX98927_PCM_SR_SET1_SR_48000;
 		break;
 	default:
-		dev_err(component->dev, "rate %d not supported\n",
+		dev_err(component->dev, "rate %d yest supported\n",
 			params_rate(params));
 		goto err;
 	}
@@ -413,7 +413,7 @@ static int max98927_dai_tdm_slot(struct snd_soc_dai *dai,
 	/* BCLK configuration */
 	bsel = max98927_get_bclk_sel(slots * slot_width);
 	if (bsel == 0) {
-		dev_err(component->dev, "BCLK %d not supported\n",
+		dev_err(component->dev, "BCLK %d yest supported\n",
 			slots * slot_width);
 		return -EINVAL;
 	}
@@ -728,7 +728,7 @@ static int max98927_probe(struct snd_soc_component *component)
 	regmap_write(max98927->regmap,
 		MAX98927_R0045_MEAS_ADC_BASE_LSB,
 		0x24);
-	/* Brownout Level */
+	/* Browyesut Level */
 	regmap_write(max98927->regmap,
 		MAX98927_R007F_BROWNOUT_LVL4_AMP1_CTRL1,
 		0x06);
@@ -830,7 +830,7 @@ static const struct snd_soc_component_driver soc_component_dev_max98927 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98927_regmap = {
@@ -850,12 +850,12 @@ static void max98927_slot_config(struct i2c_client *i2c,
 	int value;
 	struct device *dev = &i2c->dev;
 
-	if (!device_property_read_u32(dev, "vmon-slot-no", &value))
+	if (!device_property_read_u32(dev, "vmon-slot-yes", &value))
 		max98927->v_l_slot = value & 0xF;
 	else
 		max98927->v_l_slot = 0;
 
-	if (!device_property_read_u32(dev, "imon-slot-no", &value))
+	if (!device_property_read_u32(dev, "imon-slot-yes", &value))
 		max98927->i_l_slot = value & 0xF;
 	else
 		max98927->i_l_slot = 1;
@@ -879,7 +879,7 @@ static int max98927_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, max98927);
 
 	/* update interleave mode info */
-	if (!of_property_read_u32(i2c->dev.of_node,
+	if (!of_property_read_u32(i2c->dev.of_yesde,
 		"interleave_mode", &value)) {
 		if (value > 0)
 			max98927->interleave_mode = true;

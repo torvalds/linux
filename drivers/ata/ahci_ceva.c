@@ -98,7 +98,7 @@ static unsigned int ceva_ahci_read_id(struct ata_device *dev,
 	if (err_mask)
 		return err_mask;
 	/*
-	 * Since CEVA controller does not support device sleep feature, we
+	 * Since CEVA controller does yest support device sleep feature, we
 	 * need to clear DEVSLP (bit 8) in word78 of the IDENTIFY DEVICE data.
 	 */
 	id[ATA_ID_FEATURE_SUPP] &= cpu_to_le16(~(1 << 8));
@@ -138,7 +138,7 @@ static void ahci_ceva_setup(struct ahci_host_priv *hpriv)
 		/*
 		 * AXI Data bus width to 64
 		 * Set Mem Addr Read, Write ID for data transfers
-		 * Set Mem Addr Read ID, Write ID for non-data transfers
+		 * Set Mem Addr Read ID, Write ID for yesn-data transfers
 		 * Transfer limit to 72 DWord
 		 */
 		tmp = PAXIC_ADBW_BW64 | PAXIC_MAWIDD(i) | PAXIC_MARIDD(i) |
@@ -189,7 +189,7 @@ static struct scsi_host_template ahci_platform_sht = {
 
 static int ceva_ahci_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 	struct ahci_host_priv *hpriv;
 	struct ceva_ahci_priv *cevapriv;
@@ -216,52 +216,52 @@ static int ceva_ahci_probe(struct platform_device *pdev)
 	/* Read OOB timing value for COMINIT from device-tree */
 	if (of_property_read_u8_array(np, "ceva,p0-cominit-params",
 					(u8 *)&cevapriv->pp2c[0], 4) < 0) {
-		dev_warn(dev, "ceva,p0-cominit-params property not defined\n");
+		dev_warn(dev, "ceva,p0-cominit-params property yest defined\n");
 		return -EINVAL;
 	}
 
 	if (of_property_read_u8_array(np, "ceva,p1-cominit-params",
 					(u8 *)&cevapriv->pp2c[1], 4) < 0) {
-		dev_warn(dev, "ceva,p1-cominit-params property not defined\n");
+		dev_warn(dev, "ceva,p1-cominit-params property yest defined\n");
 		return -EINVAL;
 	}
 
 	/* Read OOB timing value for COMWAKE from device-tree*/
 	if (of_property_read_u8_array(np, "ceva,p0-comwake-params",
 					(u8 *)&cevapriv->pp3c[0], 4) < 0) {
-		dev_warn(dev, "ceva,p0-comwake-params property not defined\n");
+		dev_warn(dev, "ceva,p0-comwake-params property yest defined\n");
 		return -EINVAL;
 	}
 
 	if (of_property_read_u8_array(np, "ceva,p1-comwake-params",
 					(u8 *)&cevapriv->pp3c[1], 4) < 0) {
-		dev_warn(dev, "ceva,p1-comwake-params property not defined\n");
+		dev_warn(dev, "ceva,p1-comwake-params property yest defined\n");
 		return -EINVAL;
 	}
 
 	/* Read phy BURST timing value from device-tree */
 	if (of_property_read_u8_array(np, "ceva,p0-burst-params",
 					(u8 *)&cevapriv->pp4c[0], 4) < 0) {
-		dev_warn(dev, "ceva,p0-burst-params property not defined\n");
+		dev_warn(dev, "ceva,p0-burst-params property yest defined\n");
 		return -EINVAL;
 	}
 
 	if (of_property_read_u8_array(np, "ceva,p1-burst-params",
 					(u8 *)&cevapriv->pp4c[1], 4) < 0) {
-		dev_warn(dev, "ceva,p1-burst-params property not defined\n");
+		dev_warn(dev, "ceva,p1-burst-params property yest defined\n");
 		return -EINVAL;
 	}
 
 	/* Read phy RETRY interval timing value from device-tree */
 	if (of_property_read_u16_array(np, "ceva,p0-retry-params",
 					(u16 *)&cevapriv->pp5c[0], 2) < 0) {
-		dev_warn(dev, "ceva,p0-retry-params property not defined\n");
+		dev_warn(dev, "ceva,p0-retry-params property yest defined\n");
 		return -EINVAL;
 	}
 
 	if (of_property_read_u16_array(np, "ceva,p1-retry-params",
 					(u16 *)&cevapriv->pp5c[1], 2) < 0) {
-		dev_warn(dev, "ceva,p1-retry-params property not defined\n");
+		dev_warn(dev, "ceva,p1-retry-params property yest defined\n");
 		return -EINVAL;
 	}
 

@@ -150,7 +150,7 @@ struct sec_dev {
 	unsigned long status;
 };
 
-struct sec_dev *sec_find_device(int node);
+struct sec_dev *sec_find_device(int yesde);
 int sec_register_to_crypto(void);
 void sec_unregister_from_crypto(void);
 #endif

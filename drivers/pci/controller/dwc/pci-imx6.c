@@ -73,7 +73,7 @@ struct imx6_pcie {
 	u32			controller_id;
 	struct reset_control	*pciephy_reset;
 	struct reset_control	*apps_reset;
-	struct reset_control	*turnoff_reset;
+	struct reset_control	*turyesff_reset;
 	u32			tx_deemph_gen1;
 	u32			tx_deemph_gen2_3p5db;
 	u32			tx_deemph_gen2_6db;
@@ -118,7 +118,7 @@ struct imx6_pcie {
 
 #define PCIE_LINK_WIDTH_SPEED_CONTROL	0x80C
 
-/* PHY registers (not memory-mapped) */
+/* PHY registers (yest memory-mapped) */
 #define PCIE_PHY_ATEOVRD			0x10
 #define  PCIE_PHY_ATEOVRD_EN			BIT(2)
 #define  PCIE_PHY_ATEOVRD_REF_CLKDIV_SHIFT	0
@@ -196,7 +196,7 @@ static int pcie_phy_wait_ack(struct imx6_pcie *imx6_pcie, int addr)
 	return pcie_phy_poll_ack(imx6_pcie, false);
 }
 
-/* Read from the 16-bit PCIe PHY control registers (not memory-mapped) */
+/* Read from the 16-bit PCIe PHY control registers (yest memory-mapped) */
 static int pcie_phy_read(struct imx6_pcie *imx6_pcie, int addr, u16 *data)
 {
 	struct dw_pcie *pci = imx6_pcie->pci;
@@ -339,14 +339,14 @@ static int imx6_pcie_attach_pd(struct device *dev)
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
 	struct device_link *link;
 
-	/* Do nothing when in a single power domain */
+	/* Do yesthing when in a single power domain */
 	if (dev->pm_domain)
 		return 0;
 
 	imx6_pcie->pd_pcie = dev_pm_domain_attach_by_name(dev, "pcie");
 	if (IS_ERR(imx6_pcie->pd_pcie))
 		return PTR_ERR(imx6_pcie->pd_pcie);
-	/* Do nothing when power domain missing */
+	/* Do yesthing when power domain missing */
 	if (!imx6_pcie->pd_pcie)
 		return 0;
 	link = device_link_add(dev, imx6_pcie->pd_pcie,
@@ -447,7 +447,7 @@ static int imx6_pcie_enable_ref_clk(struct imx6_pcie *imx6_pcie)
 		/*
 		 * the async reset input need ref clock to sync internally,
 		 * when the ref clock comes after reset, internal synced
-		 * reset time is too short, cannot meet the requirement.
+		 * reset time is too short, canyest meet the requirement.
 		 * add one ~10us delay here.
 		 */
 		usleep_range(10, 100);
@@ -685,7 +685,7 @@ static int imx6_setup_phy_mpll(struct imx6_pcie *imx6_pcie)
 	case 125000000:
 		/*
 		 * The default settings of the MPLL are for a 125MHz input
-		 * clock, so no need to reconfigure anything in that case.
+		 * clock, so yes need to reconfigure anything in that case.
 		 */
 		return 0;
 	case 100000000:
@@ -767,7 +767,7 @@ static int imx6_pcie_establish_link(struct imx6_pcie *imx6_pcie)
 	/*
 	 * Force Gen1 operation when starting the link.  In case the link is
 	 * started in Gen2 mode, there is a possibility the devices on the
-	 * bus will not be detected at all.  This happens with PCIe switches.
+	 * bus will yest be detected at all.  This happens with PCIe switches.
 	 */
 	tmp = dw_pcie_readl_dbi(pci, PCIE_RC_LCR);
 	tmp &= ~PCIE_RC_LCR_MAX_LINK_SPEEDS_MASK;
@@ -800,9 +800,9 @@ static int imx6_pcie_establish_link(struct imx6_pcie *imx6_pcie)
 		    IMX6_PCIE_FLAG_IMX6_SPEED_CHANGE) {
 			/*
 			 * On i.MX7, DIRECT_SPEED_CHANGE behaves differently
-			 * from i.MX6 family when no link speed transition
+			 * from i.MX6 family when yes link speed transition
 			 * occurs and we go Gen1 -> yep, Gen1. The difference
-			 * is that, in such case, it will not be cleared by HW
+			 * is that, in such case, it will yest be cleared by HW
 			 * which will cause the following code to report false
 			 * failure.
 			 */
@@ -904,19 +904,19 @@ static void imx6_pcie_ltssm_disable(struct device *dev)
 		reset_control_assert(imx6_pcie->apps_reset);
 		break;
 	default:
-		dev_err(dev, "ltssm_disable not supported\n");
+		dev_err(dev, "ltssm_disable yest supported\n");
 	}
 }
 
-static void imx6_pcie_pm_turnoff(struct imx6_pcie *imx6_pcie)
+static void imx6_pcie_pm_turyesff(struct imx6_pcie *imx6_pcie)
 {
 	struct device *dev = imx6_pcie->pci->dev;
 
-	/* Some variants have a turnoff reset in DT */
-	if (imx6_pcie->turnoff_reset) {
-		reset_control_assert(imx6_pcie->turnoff_reset);
-		reset_control_deassert(imx6_pcie->turnoff_reset);
-		goto pm_turnoff_sleep;
+	/* Some variants have a turyesff reset in DT */
+	if (imx6_pcie->turyesff_reset) {
+		reset_control_assert(imx6_pcie->turyesff_reset);
+		reset_control_deassert(imx6_pcie->turyesff_reset);
+		goto pm_turyesff_sleep;
 	}
 
 	/* Others poke directly at IOMUXC registers */
@@ -929,7 +929,7 @@ static void imx6_pcie_pm_turnoff(struct imx6_pcie *imx6_pcie)
 				IMX6SX_GPR12_PCIE_PM_TURN_OFF, 0);
 		break;
 	default:
-		dev_err(dev, "PME_Turn_Off not implemented\n");
+		dev_err(dev, "PME_Turn_Off yest implemented\n");
 		return;
 	}
 
@@ -940,7 +940,7 @@ static void imx6_pcie_pm_turnoff(struct imx6_pcie *imx6_pcie)
 	 * The standard recommends a 1-10ms timeout after which to
 	 * proceed anyway as if acks were received.
 	 */
-pm_turnoff_sleep:
+pm_turyesff_sleep:
 	usleep_range(1000, 10000);
 }
 
@@ -967,21 +967,21 @@ static void imx6_pcie_clk_disable(struct imx6_pcie *imx6_pcie)
 	}
 }
 
-static int imx6_pcie_suspend_noirq(struct device *dev)
+static int imx6_pcie_suspend_yesirq(struct device *dev)
 {
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
 
 	if (!(imx6_pcie->drvdata->flags & IMX6_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
 
-	imx6_pcie_pm_turnoff(imx6_pcie);
+	imx6_pcie_pm_turyesff(imx6_pcie);
 	imx6_pcie_clk_disable(imx6_pcie);
 	imx6_pcie_ltssm_disable(dev);
 
 	return 0;
 }
 
-static int imx6_pcie_resume_noirq(struct device *dev)
+static int imx6_pcie_resume_yesirq(struct device *dev)
 {
 	int ret;
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
@@ -1004,8 +1004,8 @@ static int imx6_pcie_resume_noirq(struct device *dev)
 #endif
 
 static const struct dev_pm_ops imx6_pcie_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(imx6_pcie_suspend_noirq,
-				      imx6_pcie_resume_noirq)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(imx6_pcie_suspend_yesirq,
+				      imx6_pcie_resume_yesirq)
 };
 
 static int imx6_pcie_probe(struct platform_device *pdev)
@@ -1013,9 +1013,9 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct dw_pcie *pci;
 	struct imx6_pcie *imx6_pcie;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource *dbi_base;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	int ret;
 	u16 val;
 
@@ -1034,7 +1034,7 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 	imx6_pcie->drvdata = of_device_get_match_data(dev);
 
 	/* Find the PHY if one is defined, only imx7d uses it */
-	np = of_parse_phandle(node, "fsl,imx7d-pcie-phy", 0);
+	np = of_parse_phandle(yesde, "fsl,imx7d-pcie-phy", 0);
 	if (np) {
 		struct resource res;
 
@@ -1056,8 +1056,8 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 		return PTR_ERR(pci->dbi_base);
 
 	/* Fetch GPIOs */
-	imx6_pcie->reset_gpio = of_get_named_gpio(node, "reset-gpio", 0);
-	imx6_pcie->gpio_active_high = of_property_read_bool(node,
+	imx6_pcie->reset_gpio = of_get_named_gpio(yesde, "reset-gpio", 0);
+	imx6_pcie->gpio_active_high = of_property_read_bool(yesde,
 						"reset-gpio-active-high");
 	if (gpio_is_valid(imx6_pcie->reset_gpio)) {
 		ret = devm_gpio_request_one(dev, imx6_pcie->reset_gpio,
@@ -1130,11 +1130,11 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 		break;
 	}
 
-	/* Grab turnoff reset */
-	imx6_pcie->turnoff_reset = devm_reset_control_get_optional_exclusive(dev, "turnoff");
-	if (IS_ERR(imx6_pcie->turnoff_reset)) {
+	/* Grab turyesff reset */
+	imx6_pcie->turyesff_reset = devm_reset_control_get_optional_exclusive(dev, "turyesff");
+	if (IS_ERR(imx6_pcie->turyesff_reset)) {
 		dev_err(dev, "Failed to get TURNOFF reset control\n");
-		return PTR_ERR(imx6_pcie->turnoff_reset);
+		return PTR_ERR(imx6_pcie->turyesff_reset);
 	}
 
 	/* Grab GPR config register range */
@@ -1146,28 +1146,28 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 	}
 
 	/* Grab PCIe PHY Tx Settings */
-	if (of_property_read_u32(node, "fsl,tx-deemph-gen1",
+	if (of_property_read_u32(yesde, "fsl,tx-deemph-gen1",
 				 &imx6_pcie->tx_deemph_gen1))
 		imx6_pcie->tx_deemph_gen1 = 0;
 
-	if (of_property_read_u32(node, "fsl,tx-deemph-gen2-3p5db",
+	if (of_property_read_u32(yesde, "fsl,tx-deemph-gen2-3p5db",
 				 &imx6_pcie->tx_deemph_gen2_3p5db))
 		imx6_pcie->tx_deemph_gen2_3p5db = 0;
 
-	if (of_property_read_u32(node, "fsl,tx-deemph-gen2-6db",
+	if (of_property_read_u32(yesde, "fsl,tx-deemph-gen2-6db",
 				 &imx6_pcie->tx_deemph_gen2_6db))
 		imx6_pcie->tx_deemph_gen2_6db = 20;
 
-	if (of_property_read_u32(node, "fsl,tx-swing-full",
+	if (of_property_read_u32(yesde, "fsl,tx-swing-full",
 				 &imx6_pcie->tx_swing_full))
 		imx6_pcie->tx_swing_full = 127;
 
-	if (of_property_read_u32(node, "fsl,tx-swing-low",
+	if (of_property_read_u32(yesde, "fsl,tx-swing-low",
 				 &imx6_pcie->tx_swing_low))
 		imx6_pcie->tx_swing_low = 127;
 
 	/* Limit link speed */
-	ret = of_property_read_u32(node, "fsl,max-link-speed",
+	ret = of_property_read_u32(yesde, "fsl,max-link-speed",
 				   &imx6_pcie->link_gen);
 	if (ret)
 		imx6_pcie->link_gen = 1;
@@ -1292,13 +1292,13 @@ static int __init imx6_pcie_init(void)
 #ifdef CONFIG_ARM
 	/*
 	 * Since probe() can be deferred we need to make sure that
-	 * hook_fault_code is not called after __init memory is freed
-	 * by kernel and since imx6q_pcie_abort_handler() is a no-op,
+	 * hook_fault_code is yest called after __init memory is freed
+	 * by kernel and since imx6q_pcie_abort_handler() is a yes-op,
 	 * we can install the handler here without risking it
 	 * accessing some uninitialized driver state.
 	 */
 	hook_fault_code(8, imx6q_pcie_abort_handler, SIGBUS, 0,
-			"external abort on non-linefetch");
+			"external abort on yesn-linefetch");
 #endif
 
 	return platform_driver_register(&imx6_pcie_driver);

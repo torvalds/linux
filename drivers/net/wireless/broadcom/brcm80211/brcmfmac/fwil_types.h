@@ -46,7 +46,7 @@
 #define BRCMF_STA_DWDS_CAP		0x01000000	/* DWDS CAP */
 #define BRCMF_STA_DWDS			0x02000000	/* DWDS active */
 
-/* size of brcmf_scan_params not including variable length array */
+/* size of brcmf_scan_params yest including variable length array */
 #define BRCMF_SCAN_PARAMS_FIXED_SIZE	64
 
 /* masks for channel and ssid count */
@@ -320,7 +320,7 @@ struct brcmf_bss_info_le {
 	__le16 atim_window;	/* units are Kusec */
 	u8 dtim_period;	/* DTIM period */
 	__le16 RSSI;		/* receive signal strength (in dBm) */
-	s8 phy_noise;		/* noise (in dBm) */
+	s8 phy_yesise;		/* yesise (in dBm) */
 
 	u8 n_cap;		/* BSS is 802.11N Capable */
 	/* 802.11N BSS Capabilities (based on HT_CAP_*): */
@@ -381,7 +381,7 @@ struct brcmf_scan_params_le {
 				 *
 				 * if ssid count is zero, single ssid in the
 				 * fixed parameter portion is assumed, otherwise
-				 * ssid in the fixed portion is ignored
+				 * ssid in the fixed portion is igyesred
 				 */
 	__le16 channel_list[1];	/* list of chanspecs */
 };
@@ -578,7 +578,7 @@ struct brcmf_sta_info_le {
 	__le64 rx_ucast_bytes; /* data bytes recvd (ucast) */
 	__le64 rx_mcast_bytes; /* data bytes recvd (mcast) */
 	s8 rssi[BRCMF_ANT_MAX];   /* per antenna rssi */
-	s8 nf[BRCMF_ANT_MAX];     /* per antenna noise floor */
+	s8 nf[BRCMF_ANT_MAX];     /* per antenna yesise floor */
 	__le16 aid;                    /* association ID */
 	__le16 ht_capabilities;        /* advertised ht caps */
 	__le16 vht_flags;              /* converted vht flags */
@@ -662,7 +662,7 @@ struct brcmf_rx_mgmt_data {
  * @cmd: "add", "del" or "clr".
  * @masksize: Size of the mask in #of bytes
  * @offset: Pattern byte offset in packet
- * @patternoffset: Offset of start of pattern. Starting from field masksize.
+ * @patteryesffset: Offset of start of pattern. Starting from field masksize.
  * @patternsize: Size of the pattern itself in #of bytes
  * @id: id
  * @reasonsize: Size of the wakeup reason code
@@ -672,13 +672,13 @@ struct brcmf_fil_wowl_pattern_le {
 	u8	cmd[4];
 	__le32	masksize;
 	__le32	offset;
-	__le32	patternoffset;
+	__le32	patteryesffset;
 	__le32	patternsize;
 	__le32	id;
 	__le32	reasonsize;
 	__le32	type;
 	/* u8 mask[] - Mask follows the structure above */
-	/* u8 pattern[] - Pattern follows the mask is at 'patternoffset' */
+	/* u8 pattern[] - Pattern follows the mask is at 'patteryesffset' */
 };
 
 struct brcmf_mbss_ssid_le {
@@ -754,7 +754,7 @@ struct brcmf_assoclist_le {
 
 /**
  * struct brcmf_wowl_wakeind_le - Wakeup indicators
- *	Note: note both fields contain same information.
+ *	Note: yeste both fields contain same information.
  *
  * @pci_wakeind: Whether PCI PMECSR PMEStatus bit was set.
  * @ucode_wakeind: What wakeup-event indication was set by ucode
@@ -787,7 +787,7 @@ struct brcmf_pmk_list_le {
 };
 
 /**
- * struct brcmf_pno_param_le - PNO scan configuration parameters
+ * struct brcmf_pyes_param_le - PNO scan configuration parameters
  *
  * @version: PNO parameters version.
  * @scan_freq: scan frequency.
@@ -803,7 +803,7 @@ struct brcmf_pmk_list_le {
  * @exp: exponent of 2 for maximum scan interval.
  * @slow_freq: slow scan period.
  */
-struct brcmf_pno_param_le {
+struct brcmf_pyes_param_le {
 	__le32 version;
 	__le32 scan_freq;
 	__le32 lost_network_timeout;
@@ -817,14 +817,14 @@ struct brcmf_pno_param_le {
 };
 
 /**
- * struct brcmf_pno_config_le - PNO channel configuration.
+ * struct brcmf_pyes_config_le - PNO channel configuration.
  *
  * @reporttype: determines what is reported.
  * @channel_num: number of channels specified in @channel_list.
  * @channel_list: channels to use in PNO scan.
  * @flags: reserved.
  */
-struct brcmf_pno_config_le {
+struct brcmf_pyes_config_le {
 	__le32  reporttype;
 	__le32  channel_num;
 	__le16  channel_list[BRCMF_NUMCHANNELS];
@@ -832,7 +832,7 @@ struct brcmf_pno_config_le {
 };
 
 /**
- * struct brcmf_pno_net_param_le - scan parameters per preferred network.
+ * struct brcmf_pyes_net_param_le - scan parameters per preferred network.
  *
  * @ssid: ssid name and its length.
  * @flags: bit2: hidden.
@@ -841,7 +841,7 @@ struct brcmf_pno_config_le {
  * @wpa_auth: WPA type.
  * @wsec: wsec value.
  */
-struct brcmf_pno_net_param_le {
+struct brcmf_pyes_net_param_le {
 	struct brcmf_ssid_le ssid;
 	__le32 flags;
 	__le32 infra;
@@ -851,7 +851,7 @@ struct brcmf_pno_net_param_le {
 };
 
 /**
- * struct brcmf_pno_net_info_le - information per found network.
+ * struct brcmf_pyes_net_info_le - information per found network.
  *
  * @bssid: BSS network identifier.
  * @channel: channel number only.
@@ -860,7 +860,7 @@ struct brcmf_pno_net_param_le {
  * @RSSI: receive signal strength (in dBm).
  * @timestamp: age in seconds.
  */
-struct brcmf_pno_net_info_le {
+struct brcmf_pyes_net_info_le {
 	u8 bssid[ETH_ALEN];
 	u8 channel;
 	u8 SSID_len;
@@ -870,19 +870,19 @@ struct brcmf_pno_net_info_le {
 };
 
 /**
- * struct brcmf_pno_scanresults_le - result returned in PNO NET FOUND event.
+ * struct brcmf_pyes_scanresults_le - result returned in PNO NET FOUND event.
  *
  * @version: PNO version identifier.
  * @status: indicates completion status of PNO scan.
- * @count: amount of brcmf_pno_net_info_le entries appended.
+ * @count: amount of brcmf_pyes_net_info_le entries appended.
  */
-struct brcmf_pno_scanresults_le {
+struct brcmf_pyes_scanresults_le {
 	__le32 version;
 	__le32 status;
 	__le32 count;
 };
 
-struct brcmf_pno_scanresults_v2_le {
+struct brcmf_pyes_scanresults_v2_le {
 	__le32 version;
 	__le32 status;
 	__le32 count;
@@ -890,13 +890,13 @@ struct brcmf_pno_scanresults_v2_le {
 };
 
 /**
- * struct brcmf_pno_macaddr_le - to configure PNO macaddr randomization.
+ * struct brcmf_pyes_macaddr_le - to configure PNO macaddr randomization.
  *
  * @version: PNO version identifier.
  * @flags: Flags defining how mac addrss should be used.
  * @mac: MAC address.
  */
-struct brcmf_pno_macaddr_le {
+struct brcmf_pyes_macaddr_le {
 	u8 version;
 	u8 flags;
 	u8 mac[ETH_ALEN];
@@ -919,12 +919,12 @@ struct brcmf_dload_data_le {
 };
 
 /**
- * struct brcmf_pno_bssid_le - bssid configuration for PNO scan.
+ * struct brcmf_pyes_bssid_le - bssid configuration for PNO scan.
  *
  * @bssid: BSS network identifier.
  * @flags: flags for this BSSID.
  */
-struct brcmf_pno_bssid_le {
+struct brcmf_pyes_bssid_le {
 	u8 bssid[ETH_ALEN];
 	__le16 flags;
 };
@@ -965,7 +965,7 @@ struct brcmf_gtk_keyinfo_le {
  * struct brcmf_gscan_bucket_config - configuration data for channel bucket.
  *
  * @bucket_end_index: last channel index in @channel_list in
- *	@struct brcmf_pno_config_le.
+ *	@struct brcmf_pyes_config_le.
  * @bucket_freq_multiple: scan interval expressed in N * @scan_freq.
  * @flag: channel bucket report flags.
  * @reserved: for future use.
@@ -1008,8 +1008,8 @@ enum brcmf_gscan_cfg_flags {
  *	will generate an event.
  * @swc_rssi_window_size: size of rssi cache buffer (max=8).
  * @count_of_channel_buckets: number of array members in @bucket.
- * @retry_threshold: !unknown!
- * @lost_ap_window: !unknown!
+ * @retry_threshold: !unkyeswn!
+ * @lost_ap_window: !unkyeswn!
  * @bucket: array of channel buckets.
  */
 struct brcmf_gscan_config {

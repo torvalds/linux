@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -103,7 +103,7 @@ static void nbio_v7_4_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE);
 	else
 		/*
-		 * These registers address of SDMA2~7 is not consecutive
+		 * These registers address of SDMA2~7 is yest consecutive
 		 * from SDMA0~1. Need plus 4 dwords offset.
 		 *
 		 *   BIF_SDMA0_DOORBELL_RANGE:  0x3bc0
@@ -243,7 +243,7 @@ static void nbio_v7_4_ih_control(struct amdgpu_device *adev)
 	 * INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=1 - dummy read controlled by IH_DUMMY_RD_EN
 	 */
 	interrupt_cntl = REG_SET_FIELD(interrupt_cntl, INTERRUPT_CNTL, IH_DUMMY_RD_OVERRIDE, 0);
-	/* INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN_MASK=1 if ring is in non-cacheable memory, e.g., vram */
+	/* INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN_MASK=1 if ring is in yesn-cacheable memory, e.g., vram */
 	interrupt_cntl = REG_SET_FIELD(interrupt_cntl, INTERRUPT_CNTL, IH_REQ_NONSNOOP_EN, 0);
 	WREG32_SOC15(NBIO, 0, mmINTERRUPT_CNTL, interrupt_cntl);
 }
@@ -311,7 +311,7 @@ static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
 
 }
 
-static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device *adev)
+static void nbio_v7_4_handle_ras_controller_intr_yes_bifring(struct amdgpu_device *adev)
 {
 	uint32_t bif_doorbell_intr_cntl;
 
@@ -328,7 +328,7 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 	}
 }
 
-static void nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring(struct amdgpu_device *adev)
+static void nbio_v7_4_handle_ras_err_event_athub_intr_yes_bifring(struct amdgpu_device *adev)
 {
 	uint32_t bif_doorbell_intr_cntl;
 
@@ -375,8 +375,8 @@ static int nbio_v7_4_process_ras_controller_irq(struct amdgpu_device *adev,
 						struct amdgpu_iv_entry *entry)
 {
 	/* By design, the ih cookie for ras_controller_irq should be written
-	 * to BIFring instead of general iv ring. However, due to known bif ring
-	 * hw bug, it has to be disabled. There is no chance the process function
+	 * to BIFring instead of general iv ring. However, due to kyeswn bif ring
+	 * hw bug, it has to be disabled. There is yes chance the process function
 	 * will be involked. Just left it as a dummy one.
 	 */
 	return 0;
@@ -411,8 +411,8 @@ static int nbio_v7_4_process_err_event_athub_irq(struct amdgpu_device *adev,
 						 struct amdgpu_iv_entry *entry)
 {
 	/* By design, the ih cookie for err_event_athub_irq should be written
-	 * to BIFring instead of general iv ring. However, due to known bif ring
-	 * hw bug, it has to be disabled. There is no chance the process function
+	 * to BIFring instead of general iv ring. However, due to kyeswn bif ring
+	 * hw bug, it has to be disabled. There is yes chance the process function
 	 * will be involked. Just left it as a dummy one.
 	 */
 	return 0;
@@ -471,13 +471,13 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
 {
 	uint32_t global_sts, central_sts, int_eoi;
-	uint32_t corr, fatal, non_fatal;
+	uint32_t corr, fatal, yesn_fatal;
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 
 	global_sts = RREG32_PCIE(smnRAS_GLOBAL_STATUS_LO);
 	corr = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO, ParityErrCorr);
 	fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO, ParityErrFatal);
-	non_fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO,
+	yesn_fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO,
 				ParityErrNonFatal);
 
 	if (corr)
@@ -485,7 +485,7 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 	if (fatal)
 		err_data->ue_count++;
 
-	if (corr || fatal || non_fatal) {
+	if (corr || fatal || yesn_fatal) {
 		central_sts = RREG32_PCIE(smnBIFL_RAS_CENTRAL_STATUS);
 		/* clear error status register */
 		WREG32_PCIE(smnRAS_GLOBAL_STATUS_LO, global_sts);
@@ -531,8 +531,8 @@ const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.init_registers = nbio_v7_4_init_registers,
 	.detect_hw_virt = nbio_v7_4_detect_hw_virt,
 	.remap_hdp_registers = nbio_v7_4_remap_hdp_registers,
-	.handle_ras_controller_intr_no_bifring = nbio_v7_4_handle_ras_controller_intr_no_bifring,
-	.handle_ras_err_event_athub_intr_no_bifring = nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring,
+	.handle_ras_controller_intr_yes_bifring = nbio_v7_4_handle_ras_controller_intr_yes_bifring,
+	.handle_ras_err_event_athub_intr_yes_bifring = nbio_v7_4_handle_ras_err_event_athub_intr_yes_bifring,
 	.init_ras_controller_interrupt = nbio_v7_4_init_ras_controller_interrupt,
 	.init_ras_err_event_athub_interrupt = nbio_v7_4_init_ras_err_event_athub_interrupt,
 	.query_ras_error_count = nbio_v7_4_query_ras_error_count,

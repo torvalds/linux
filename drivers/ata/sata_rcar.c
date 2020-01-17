@@ -2,7 +2,7 @@
 /*
  * Renesas R-Car SATA driver
  *
- * Author: Vladimir Barinov <source@cogentembedded.com>
+ * Author: Vladimir Bariyesv <source@cogentembedded.com>
  * Copyright (C) 2013-2015 Cogent Embedded, Inc.
  * Copyright (C) 2013-2015 Renesas Solutions Corp.
  */
@@ -80,7 +80,7 @@
 #define SATAPHYRESET_PHYRST		BIT(1)
 #define SATAPHYRESET_PHYSRES		BIT(0)
 
-/* Physical layer control acknowledge register (SATAPHYACK) bits */
+/* Physical layer control ackyeswledge register (SATAPHYACK) bits */
 #define SATAPHYACK_PHYACK		BIT(0)
 
 /* Serial-ATA HOST control registers */
@@ -306,7 +306,7 @@ static unsigned int sata_rcar_ata_devchk(struct ata_port *ap,
 	if (nsect == 0x55 && lbal == 0xaa)
 		return 1;	/* found a device */
 
-	return 0;		/* nothing found */
+	return 0;		/* yesthing found */
 }
 
 static int sata_rcar_wait_after_reset(struct ata_link *link,
@@ -354,7 +354,7 @@ static int sata_rcar_softreset(struct ata_link *link, unsigned int *classes,
 	rc = sata_rcar_bus_softreset(ap, deadline);
 	/* if link is occupied, -ENODEV too is an error */
 	if (rc && (rc != -ENODEV || sata_scr_valid(link))) {
-		ata_link_err(link, "SRST failed (errno=%d)\n", rc);
+		ata_link_err(link, "SRST failed (erryes=%d)\n", rc);
 		return rc;
 	}
 
@@ -834,7 +834,7 @@ static void sata_rcar_init_controller(struct ata_host *host)
 	case RCAR_GEN3_SATA:
 		break;
 	default:
-		dev_warn(host->dev, "SATA phy is not initialized\n");
+		dev_warn(host->dev, "SATA phy is yest initialized\n");
 		break;
 	}
 
@@ -1055,5 +1055,5 @@ static struct platform_driver sata_rcar_driver = {
 module_platform_driver(sata_rcar_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Vladimir Barinov");
+MODULE_AUTHOR("Vladimir Bariyesv");
 MODULE_DESCRIPTION("Renesas R-Car SATA controller low level driver");

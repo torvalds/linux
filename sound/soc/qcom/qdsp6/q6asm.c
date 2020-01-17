@@ -18,7 +18,7 @@
 #include <linux/mm.h>
 #include "q6asm.h"
 #include "q6core.h"
-#include "q6dsp-errno.h"
+#include "q6dsp-erryes.h"
 #include "q6dsp-common.h"
 
 #define ASM_STREAM_CMD_CLOSE			0x00010BCD
@@ -547,7 +547,7 @@ static int32_t q6asm_stream_callback(struct apr_device *adev,
 	int ret = 0;
 
 	ac = q6asm_get_audio_client(q6asm, session_id);
-	if (!ac)/* Audio client might already be freed by now */
+	if (!ac)/* Audio client might already be freed by yesw */
 		return 0;
 
 	result = data->payload;
@@ -592,7 +592,7 @@ static int32_t q6asm_stream_callback(struct apr_device *adev,
 			}
 			break;
 		default:
-			dev_err(ac->dev, "command[0x%x] not expecting rsp\n",
+			dev_err(ac->dev, "command[0x%x] yest expecting rsp\n",
 				result->opcode);
 			break;
 		}
@@ -697,7 +697,7 @@ static int q6asm_srvc_callback(struct apr_device *adev,
 	sid = (hdr->token >> 8) & 0x0F;
 	ac = q6asm_get_audio_client(q6asm, sid);
 	if (!ac) {
-		dev_err(&adev->dev, "Audio Client not active\n");
+		dev_err(&adev->dev, "Audio Client yest active\n");
 		return 0;
 	}
 
@@ -715,7 +715,7 @@ static int q6asm_srvc_callback(struct apr_device *adev,
 			wake_up(&a->mem_wait);
 			break;
 		default:
-			dev_err(&adev->dev, "command[0x%x] not expecting rsp\n",
+			dev_err(&adev->dev, "command[0x%x] yest expecting rsp\n",
 				 result->opcode);
 			break;
 		}
@@ -964,7 +964,7 @@ int q6asm_run(struct audio_client *ac, uint32_t flags,
 EXPORT_SYMBOL_GPL(q6asm_run);
 
 /**
- * q6asm_run_nowait() - start the audio client withou blocking
+ * q6asm_run_yeswait() - start the audio client withou blocking
  *
  * @ac: audio client pointer
  * @flags: flags associated with write
@@ -973,12 +973,12 @@ EXPORT_SYMBOL_GPL(q6asm_run);
  *
  * Return: Will be an negative value on error or zero on success
  */
-int q6asm_run_nowait(struct audio_client *ac, uint32_t flags,
+int q6asm_run_yeswait(struct audio_client *ac, uint32_t flags,
 	      uint32_t msw_ts, uint32_t lsw_ts)
 {
 	return __q6asm_run(ac, flags, msw_ts, lsw_ts, false);
 }
-EXPORT_SYMBOL_GPL(q6asm_run_nowait);
+EXPORT_SYMBOL_GPL(q6asm_run_yeswait);
 
 /**
  * q6asm_media_format_block_multi_ch_pcm() - setup pcm configuration
@@ -1246,7 +1246,7 @@ int q6asm_open_read(struct audio_client *ac, uint32_t format,
 EXPORT_SYMBOL_GPL(q6asm_open_read);
 
 /**
- * q6asm_write_async() - non blocking write
+ * q6asm_write_async() - yesn blocking write
  *
  * @ac: audio client pointer
  * @len: length in bytes
@@ -1385,18 +1385,18 @@ int q6asm_cmd(struct audio_client *ac, int cmd)
 EXPORT_SYMBOL_GPL(q6asm_cmd);
 
 /**
- * q6asm_cmd_nowait() - non blocking, run cmd on audio client
+ * q6asm_cmd_yeswait() - yesn blocking, run cmd on audio client
  *
  * @ac: audio client pointer
  * @cmd: command to run on audio client.
  *
  * Return: Will be an negative value on error or zero on success
  */
-int q6asm_cmd_nowait(struct audio_client *ac, int cmd)
+int q6asm_cmd_yeswait(struct audio_client *ac, int cmd)
 {
 	return __q6asm_cmd(ac, cmd, false);
 }
-EXPORT_SYMBOL_GPL(q6asm_cmd_nowait);
+EXPORT_SYMBOL_GPL(q6asm_cmd_yeswait);
 
 static int q6asm_probe(struct apr_device *adev)
 {
@@ -1415,7 +1415,7 @@ static int q6asm_probe(struct apr_device *adev)
 	spin_lock_init(&q6asm->slock);
 	dev_set_drvdata(dev, q6asm);
 
-	return of_platform_populate(dev->of_node, NULL, NULL, dev);
+	return of_platform_populate(dev->of_yesde, NULL, NULL, dev);
 }
 
 static int q6asm_remove(struct apr_device *adev)

@@ -124,7 +124,7 @@ static irqreturn_t gpio_hostwakeup_irq_thread(int irq, void *data)
 	struct adapter *padapter = data;
 	DBG_871X_LEVEL(_drv_always_, "gpio_hostwakeup_irq_thread\n");
 	/* Disable interrupt before calling handler */
-	/* disable_irq_nosync(oob_irq); */
+	/* disable_irq_yessync(oob_irq); */
 	rtw_lock_suspend_timeout(HZ/2);
 	return IRQ_HANDLED;
 }
@@ -138,8 +138,8 @@ static u8 gpio_hostwakeup_alloc_irq(struct adapter *padapter)
 	}
 	/* dont set it IRQF_TRIGGER_LOW, or wowlan */
 	/* power is high after suspend */
-	/* and failing can prevent can not sleep issue if */
-	/* wifi gpio12 pin is not linked with CPU */
+	/* and failing can prevent can yest sleep issue if */
+	/* wifi gpio12 pin is yest linked with CPU */
 	err = request_threaded_irq(oob_irq, gpio_hostwakeup_irq_thread, NULL,
 		/* IRQF_TRIGGER_LOW | IRQF_ONESHOT, */
 		IRQF_TRIGGER_FALLING,
@@ -208,7 +208,7 @@ static void sdio_deinit(struct dvobj_priv *dvobj)
 	int err;
 
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("+sdio_deinit\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_yestice_, ("+sdio_deinit\n"));
 
 	func = dvobj->intf_data.func;
 
@@ -450,7 +450,7 @@ static void rtw_sdio_if1_deinit(struct adapter *if1)
 /*
  * drv_init() - a device potentially for us
  *
- * notes: drv_init() is called when the bus driver has located a card for us to support.
+ * yestes: drv_init() is called when the bus driver has located a card for us to support.
  *        We accept the new device by returning 0.
  */
 static int rtw_drv_init(
@@ -487,7 +487,7 @@ static int rtw_drv_init(
 
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-871x_drv - drv_init, success!\n"));
 
-	rtw_ndev_notifier_register();
+	rtw_ndev_yestifier_register();
 	status = _SUCCESS;
 
 free_if2:
@@ -508,7 +508,7 @@ static void rtw_dev_remove(struct sdio_func *func)
 	struct dvobj_priv *dvobj = sdio_get_drvdata(func);
 	struct adapter *padapter = dvobj->if1;
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("+rtw_dev_remove\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_yestice_, ("+rtw_dev_remove\n"));
 
 	dvobj->processing_dev_remove = true;
 
@@ -540,11 +540,11 @@ static void rtw_dev_remove(struct sdio_func *func)
 
 	sdio_dvobj_deinit(func);
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("-rtw_dev_remove\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_yestice_, ("-rtw_dev_remove\n"));
 }
 
-extern int pm_netdev_open(struct net_device *pnetdev, u8 bnormal);
-extern int pm_netdev_close(struct net_device *pnetdev, u8 bnormal);
+extern int pm_netdev_open(struct net_device *pnetdev, u8 byesrmal);
+extern int pm_netdev_close(struct net_device *pnetdev, u8 byesrmal);
 
 static int rtw_sdio_suspend(struct device *dev)
 {
@@ -618,7 +618,7 @@ static int __init rtw_drv_entry(void)
 	ret = sdio_register_driver(&sdio_drvpriv.r871xs_drv);
 	if (ret != 0) {
 		sdio_drvpriv.drv_registered = false;
-		rtw_ndev_notifier_unregister();
+		rtw_ndev_yestifier_unregister();
 		DBG_871X("%s: register driver failed!!(%d)\n", __func__, ret);
 		goto exit;
 	}
@@ -638,7 +638,7 @@ static void __exit rtw_drv_halt(void)
 
 	sdio_unregister_driver(&sdio_drvpriv.r871xs_drv);
 
-	rtw_ndev_notifier_unregister();
+	rtw_ndev_yestifier_unregister();
 
 	DBG_871X_LEVEL(_drv_always_, "module exit success\n");
 

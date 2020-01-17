@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * Vineetg: Aug 2009
  *  -Moved core context switch macro out of entry.S into this file.
@@ -27,7 +27,7 @@ __switch_to:
 	st.a    fp, [sp, -4]
 	SAVE_CALLEE_SAVED_KERNEL
 
-	/* Save the now KSP in task->thread.ksp */
+	/* Save the yesw KSP in task->thread.ksp */
 #if KSP_WORD_OFF  <= 255
 	st.as  sp, [r0, KSP_WORD_OFF]
 #else

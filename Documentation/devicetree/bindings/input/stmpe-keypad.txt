@@ -7,7 +7,7 @@ Required properties:
 Optional properties:
  - debounce-interval        : Debouncing interval time in milliseconds
  - st,scan-count            : Scanning cycles elapsed before key data is updated
- - st,no-autorepeat         : If specified device will not autorepeat
+ - st,yes-autorepeat         : If specified device will yest autorepeat
  - keypad,num-rows          : See ./matrix-keymap.txt
  - keypad,num-columns       : See ./matrix-keymap.txt
 
@@ -18,7 +18,7 @@ Example:
 
 		debounce-interval = <64>;
 		st,scan-count = <8>;
-		st,no-autorepeat;
+		st,yes-autorepeat;
 
 		linux,keymap = <0x205006b
 				0x4010074

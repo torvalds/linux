@@ -24,7 +24,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -62,7 +62,7 @@ static int __init init_msp_flash(void)
 	/* If ELB is disabled by "ful-mux" mode, we can't get at flash */
 	if ((*DEV_ID_REG & DEV_ID_SINGLE_PC) &&
 	    (*ELB_1PC_EN_REG & SINGLE_PCCARD)) {
-		printk(KERN_NOTICE "Single PC Card mode: no flash access\n");
+		printk(KERN_NOTICE "Single PC Card mode: yes flash access\n");
 		return -ENXIO;
 	}
 
@@ -97,7 +97,7 @@ static int __init init_msp_flash(void)
 
 		if (pcnt == 0) {
 			printk(KERN_NOTICE "Skipping flash device %d "
-				"(no partitions defined)\n", i);
+				"(yes partitions defined)\n", i);
 			continue;
 		}
 
@@ -106,7 +106,7 @@ static int __init init_msp_flash(void)
 		if (!msp_parts[i])
 			goto cleanup_loop;
 
-		/* now initialize the devices proper */
+		/* yesw initialize the devices proper */
 		flash_name[5] = '0' + i;
 		env = prom_getenv(flash_name);
 
@@ -166,7 +166,7 @@ static int __init init_msp_flash(void)
 			msp_parts[i][j].name = env + coff;
 		}
 
-		/* now probe and add the device */
+		/* yesw probe and add the device */
 		simple_map_init(&msp_maps[i]);
 		msp_flash[i] = do_map_probe("cfi_probe", &msp_maps[i]);
 		if (msp_flash[i]) {

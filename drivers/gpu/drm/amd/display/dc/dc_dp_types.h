@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -282,7 +282,7 @@ enum dpcd_downstream_port_detailed_type {
 	DOWN_STREAM_DETAILED_VGA,
 	DOWN_STREAM_DETAILED_DVI,
 	DOWN_STREAM_DETAILED_HDMI,
-	DOWN_STREAM_DETAILED_NONDDC,/* has no EDID (TV,CV)*/
+	DOWN_STREAM_DETAILED_NONDDC,/* has yes EDID (TV,CV)*/
 	DOWN_STREAM_DETAILED_DP_PLUS_PLUS
 };
 
@@ -389,7 +389,7 @@ union down_stream_port_count {
 		 stream without MSA timing parameters*/
 		uint8_t IGNORE_MSA_TIMING_PARAM:1;
 		/*Bit 7 = OUI Support
-		0 = OUI not supported
+		0 = OUI yest supported
 		1 = OUI supported
 		(OUI and Device Identification mandatory for DP 1.2)*/
 		uint8_t OUI_SUPPORT:1;
@@ -401,7 +401,7 @@ union down_spread_ctrl {
 	struct {
 		uint8_t RESERVED1:4;/* Bit 3:0 = RESERVED. Read all 0s*/
 	/* Bits 4 = SPREAD_AMP. Spreading amplitude
-	0 = Main link signal is not downspread
+	0 = Main link signal is yest downspread
 	1 = Main link signal is downspread <= 0.5%
 	with frequency in the range of 30kHz ~ 33kHz*/
 		uint8_t SPREAD_AMP:1;

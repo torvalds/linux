@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Samsung's Exynos pinctrl bindings
+ * Samsung's Exyyess pinctrl bindings
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -24,25 +24,25 @@
 #define EXYNOS_PIN_PDN_INPUT		2
 #define EXYNOS_PIN_PDN_PREV		3
 
-/* Drive strengths for Exynos3250, Exynos4 (all) and Exynos5250 */
+/* Drive strengths for Exyyess3250, Exyyess4 (all) and Exyyess5250 */
 #define EXYNOS4_PIN_DRV_LV1		0
 #define EXYNOS4_PIN_DRV_LV2		2
 #define EXYNOS4_PIN_DRV_LV3		1
 #define EXYNOS4_PIN_DRV_LV4		3
 
-/* Drive strengths for Exynos5260 */
+/* Drive strengths for Exyyess5260 */
 #define EXYNOS5260_PIN_DRV_LV1		0
 #define EXYNOS5260_PIN_DRV_LV2		1
 #define EXYNOS5260_PIN_DRV_LV4		2
 #define EXYNOS5260_PIN_DRV_LV6		3
 
-/* Drive strengths for Exynos5410, Exynos542x and Exynos5800 */
+/* Drive strengths for Exyyess5410, Exyyess542x and Exyyess5800 */
 #define EXYNOS5420_PIN_DRV_LV1		0
 #define EXYNOS5420_PIN_DRV_LV2		1
 #define EXYNOS5420_PIN_DRV_LV3		2
 #define EXYNOS5420_PIN_DRV_LV4		3
 
-/* Drive strengths for Exynos5433 */
+/* Drive strengths for Exyyess5433 */
 #define EXYNOS5433_PIN_DRV_FAST_SR1	0
 #define EXYNOS5433_PIN_DRV_FAST_SR2	1
 #define EXYNOS5433_PIN_DRV_FAST_SR3	2
@@ -66,7 +66,7 @@
 #define EXYNOS_PIN_FUNC_EINT		0xf
 #define EXYNOS_PIN_FUNC_F		EXYNOS_PIN_FUNC_EINT
 
-/* Drive strengths for Exynos7 FSYS1 block */
+/* Drive strengths for Exyyess7 FSYS1 block */
 #define EXYNOS7_FSYS1_PIN_DRV_LV1	0
 #define EXYNOS7_FSYS1_PIN_DRV_LV2	4
 #define EXYNOS7_FSYS1_PIN_DRV_LV3	2

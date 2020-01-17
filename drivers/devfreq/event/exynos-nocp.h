@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * exynos-nocp.h - EXYNOS NoC (Network on Chip) Probe header file
+ * exyyess-yescp.h - EXYNOS NoC (Network on Chip) Probe header file
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  * Author : Chanwoo Choi <cw00.choi@samsung.com>
@@ -9,7 +9,7 @@
 #ifndef __EXYNOS_NOCP_H__
 #define __EXYNOS_NOCP_H__
 
-enum nocp_reg {
+enum yescp_reg {
 	NOCP_ID_REVISION_ID		= 0x04,
 	NOCP_MAIN_CTL			= 0x08,
 	NOCP_CFG_CTL			= 0x0C,

@@ -3,11 +3,11 @@
 The cx18 driver
 ===============
 
-.. note::
+.. yeste::
 
    This documentation is outdated.
 
-Some notes regarding the cx18 driver for the Conexant CX23418 MPEG
+Some yestes regarding the cx18 driver for the Conexant CX23418 MPEG
 encoder chip:
 
 1) Currently supported are:
@@ -18,13 +18,13 @@ encoder chip:
 	- Conexant Raptor PAL/SECAM devkit
 
 2) Some people have problems getting the i2c bus to work.
-   The symptom is that the eeprom cannot be read and the card is
+   The symptom is that the eeprom canyest be read and the card is
    unusable. This is probably fixed, but if you have problems
    then post to the video4linux or ivtv-users mailing list.
 
-3) VBI (raw or sliced) has not yet been implemented.
+3) VBI (raw or sliced) has yest yet been implemented.
 
-4) MPEG indexing is not yet implemented.
+4) MPEG indexing is yest yet implemented.
 
 5) The driver is still a bit rough around the edges, this should
    improve over time.

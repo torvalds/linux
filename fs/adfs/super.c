@@ -64,7 +64,7 @@ static int adfs_checkdiscrecord(struct adfs_discrecord *dr)
 	if (dr->idlen < dr->log2secsize + 3)
 		return 1;
 
-	/* we cannot have such a large disc that we
+	/* we canyest have such a large disc that we
 	 * are unable to represent sector offsets in
 	 * 32 bits.  This works out at 2.0 TB.
 	 */
@@ -74,7 +74,7 @@ static int adfs_checkdiscrecord(struct adfs_discrecord *dr)
 	/*
 	 * Maximum idlen is limited to 16 bits for new directories by
 	 * the three-byte storage of an indirect disc address.  For
-	 * big directories, idlen must be no greater than 19 v2 [1.0]
+	 * big directories, idlen must be yes greater than 19 v2 [1.0]
 	 */
 	max_idlen = dr->format_version ? 19 : 16;
 	if (dr->idlen > max_idlen)
@@ -266,56 +266,56 @@ static int adfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static struct kmem_cache *adfs_inode_cachep;
+static struct kmem_cache *adfs_iyesde_cachep;
 
-static struct inode *adfs_alloc_inode(struct super_block *sb)
+static struct iyesde *adfs_alloc_iyesde(struct super_block *sb)
 {
-	struct adfs_inode_info *ei;
-	ei = kmem_cache_alloc(adfs_inode_cachep, GFP_KERNEL);
+	struct adfs_iyesde_info *ei;
+	ei = kmem_cache_alloc(adfs_iyesde_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
-	return &ei->vfs_inode;
+	return &ei->vfs_iyesde;
 }
 
-static void adfs_free_inode(struct inode *inode)
+static void adfs_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(adfs_inode_cachep, ADFS_I(inode));
+	kmem_cache_free(adfs_iyesde_cachep, ADFS_I(iyesde));
 }
 
 static void init_once(void *foo)
 {
-	struct adfs_inode_info *ei = (struct adfs_inode_info *) foo;
+	struct adfs_iyesde_info *ei = (struct adfs_iyesde_info *) foo;
 
-	inode_init_once(&ei->vfs_inode);
+	iyesde_init_once(&ei->vfs_iyesde);
 }
 
-static int __init init_inodecache(void)
+static int __init init_iyesdecache(void)
 {
-	adfs_inode_cachep = kmem_cache_create("adfs_inode_cache",
-					     sizeof(struct adfs_inode_info),
+	adfs_iyesde_cachep = kmem_cache_create("adfs_iyesde_cache",
+					     sizeof(struct adfs_iyesde_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
-	if (adfs_inode_cachep == NULL)
+	if (adfs_iyesde_cachep == NULL)
 		return -ENOMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_iyesdecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(adfs_inode_cachep);
+	kmem_cache_destroy(adfs_iyesde_cachep);
 }
 
 static const struct super_operations adfs_sops = {
-	.alloc_inode	= adfs_alloc_inode,
-	.free_inode	= adfs_free_inode,
-	.drop_inode	= generic_delete_inode,
-	.write_inode	= adfs_write_inode,
+	.alloc_iyesde	= adfs_alloc_iyesde,
+	.free_iyesde	= adfs_free_iyesde,
+	.drop_iyesde	= generic_delete_iyesde,
+	.write_iyesde	= adfs_write_iyesde,
 	.put_super	= adfs_put_super,
 	.statfs		= adfs_statfs,
 	.remount_fs	= adfs_remount,
@@ -339,7 +339,7 @@ static struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_di
 
 	dm = kmalloc_array(nzones, sizeof(*dm), GFP_KERNEL);
 	if (dm == NULL) {
-		adfs_error(sb, "not enough memory");
+		adfs_error(sb, "yest eyesugh memory");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -383,7 +383,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned char *b_data;
 	unsigned int blocksize;
 	struct adfs_sb_info *asb;
-	struct inode *root;
+	struct iyesde *root;
 	int ret = -EINVAL;
 
 	sb->s_flags |= ADFS_SB_FLAGS;
@@ -455,7 +455,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/*
-	 * blocksize on this device should now be set to the ADFS log2secsize
+	 * blocksize on this device should yesw be set to the ADFS log2secsize
 	 */
 
 	sb->s_magic		= ADFS_SUPER_MAGIC;
@@ -473,7 +473,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	brelse(bh);
 
 	/*
-	 * set up enough so that we can read an inode
+	 * set up eyesugh so that we can read an iyesde
 	 */
 	sb->s_op = &adfs_sops;
 
@@ -515,7 +515,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		for (i = 0; i < asb->s_map_size; i++)
 			brelse(asb->s_map[i].dm_bh);
 		kfree(asb->s_map);
-		adfs_error(sb, "get root inode failed\n");
+		adfs_error(sb, "get root iyesde failed\n");
 		ret = -EIO;
 		goto error;
 	}
@@ -551,7 +551,7 @@ MODULE_ALIAS_FS("adfs");
 
 static int __init init_adfs_fs(void)
 {
-	int err = init_inodecache();
+	int err = init_iyesdecache();
 	if (err)
 		goto out1;
 	err = register_filesystem(&adfs_fs_type);
@@ -559,7 +559,7 @@ static int __init init_adfs_fs(void)
 		goto out;
 	return 0;
 out:
-	destroy_inodecache();
+	destroy_iyesdecache();
 out1:
 	return err;
 }
@@ -567,7 +567,7 @@ out1:
 static void __exit exit_adfs_fs(void)
 {
 	unregister_filesystem(&adfs_fs_type);
-	destroy_inodecache();
+	destroy_iyesdecache();
 }
 
 module_init(init_adfs_fs)

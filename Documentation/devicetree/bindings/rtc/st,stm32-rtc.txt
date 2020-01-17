@@ -9,7 +9,7 @@ Required properties:
 - clocks: can use up to two clocks, depending on part used:
   - "rtc_ck": RTC clock source.
   - "pclk": RTC APB interface clock.
-    It is not present on stm32(f4/f7).
+    It is yest present on stm32(f4/f7).
     It is required on stm32(h7/mp1).
 - clock-names: must be "rtc_ck" and "pclk".
     It is required on stm32(h7/mp1).

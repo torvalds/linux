@@ -103,7 +103,7 @@ struct metadata_dst;
 
 struct ip_tunnel {
 	struct ip_tunnel __rcu	*next;
-	struct hlist_node hash_node;
+	struct hlist_yesde hash_yesde;
 	struct net_device	*dev;
 	struct net		*net;	/* netns for packet i/o */
 
@@ -112,8 +112,8 @@ struct ip_tunnel {
 	int		err_count;	/* Number of arrived ICMP errors */
 
 	/* These four fields used only by GRE */
-	u32		i_seqno;	/* The last seen seqno	*/
-	u32		o_seqno;	/* The last output seqno */
+	u32		i_seqyes;	/* The last seen seqyes	*/
+	u32		o_seqyes;	/* The last output seqyes */
 	int		tun_hlen;	/* Precalculated header length */
 
 	/* These four fields used only by ERSPAN */
@@ -141,7 +141,7 @@ struct ip_tunnel {
 	struct gro_cells	gro_cells;
 	__u32			fwmark;
 	bool			collect_md;
-	bool			ignore_df;
+	bool			igyesre_df;
 };
 
 struct tnl_ptk_info {

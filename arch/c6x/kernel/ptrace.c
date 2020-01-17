@@ -22,33 +22,33 @@
  */
 void ptrace_disable(struct task_struct *child)
 {
-	/* nothing to do */
+	/* yesthing to do */
 }
 
 /*
  * Get a register number from live pt_regs for the specified task.
  */
-static inline long get_reg(struct task_struct *task, int regno)
+static inline long get_reg(struct task_struct *task, int regyes)
 {
 	long *addr = (long *)task_pt_regs(task);
 
-	if (regno == PT_TSR || regno == PT_CSR)
+	if (regyes == PT_TSR || regyes == PT_CSR)
 		return 0;
 
-	return addr[regno];
+	return addr[regyes];
 }
 
 /*
  * Write contents of register REGNO in task TASK.
  */
 static inline int put_reg(struct task_struct *task,
-			  int regno,
+			  int regyes,
 			  unsigned long data)
 {
 	unsigned long *addr = (unsigned long *)task_pt_regs(task);
 
-	if (regno != PT_TSR && regno != PT_CSR)
-		addr[regno] = data;
+	if (regyes != PT_TSR && regyes != PT_CSR)
+		addr[regyes] = data;
 
 	return 0;
 }
@@ -73,7 +73,7 @@ enum c6x_regset {
 
 static const struct user_regset c6x_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_yeste_type = NT_PRSTATUS,
 		.n = ELF_NGREG,
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -125,7 +125,7 @@ long arch_ptrace(struct task_struct *child, long request,
 asmlinkage unsigned long syscall_trace_entry(struct pt_regs *regs)
 {
 	if (tracehook_report_syscall_entry(regs))
-		/* tracing decided this syscall should not happen, so
+		/* tracing decided this syscall should yest happen, so
 		 * We'll return a bogus call number to get an ENOSYS
 		 * error, but leave the original number in
 		 * regs->orig_a4

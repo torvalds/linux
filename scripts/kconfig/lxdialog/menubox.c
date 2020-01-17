@@ -24,7 +24,7 @@
  *        cursor is at the bottom of the box.  Now it writes the temporary file
  *        lxdialog.scrltmp which contains this information. The file is
  *        deleted by lxdialog if the user leaves a submenu or enters a new
- *        one, but it would be nice if Menuconfig could make another "rm -f"
+ *        one, but it would be nice if Menuconfig could make ayesther "rm -f"
  *        just to be sure.  Just try it out - you will recognise a difference!
  *
  *  [ 1998-06-14 ]
@@ -32,9 +32,9 @@
  *    *)  Now lxdialog is crash-safe against broken "lxdialog.scrltmp" files
  *        and menus change their size on the fly.
  *
- *    *)  If for some reason the last scrolling position is not saved by
+ *    *)  If for some reason the last scrolling position is yest saved by
  *        lxdialog, it sets the scrolling so that the selected item is in the
- *        middle of the menu box, not at the bottom.
+ *        middle of the menu box, yest at the bottom.
  *
  * 02 January 1999, Michael Elizabeth Chastain (mec@shout.net)
  * Reset 'scroll' to 0 if the value from lxdialog.scrltmp is bogus.
@@ -95,7 +95,7 @@ do {									\
 /*
  * Print the scroll indicators.
  */
-static void print_arrows(WINDOW * win, int item_no, int scroll, int y, int x,
+static void print_arrows(WINDOW * win, int item_yes, int scroll, int y, int x,
 			 int height)
 {
 	int cur_y, cur_x;
@@ -120,7 +120,7 @@ static void print_arrows(WINDOW * win, int item_no, int scroll, int y, int x,
 	wmove(win, y, x);
 	wrefresh(win);
 
-	if ((height < item_no) && (scroll + height < item_no)) {
+	if ((height < item_yes) && (scroll + height < item_yes)) {
 		wattrset(win, dlg.darrow.atr);
 		waddch(win, ACS_DARROW);
 		waddstr(win, "(+)");
@@ -257,7 +257,7 @@ do_resize:
 		print_item(first_item + i, i, i == choice);
 	}
 
-	wnoutrefresh(menu);
+	wyesutrefresh(menu);
 
 	print_arrows(dialog, item_count(), scroll,
 		     box_y, box_x + item_x + 1, menu_height);
@@ -351,10 +351,10 @@ do_resize:
 			print_arrows(dialog, item_count(), scroll,
 				     box_y, box_x + item_x + 1, menu_height);
 
-			wnoutrefresh(dialog);
+			wyesutrefresh(dialog);
 			wrefresh(menu);
 
-			continue;	/* wait for another key press */
+			continue;	/* wait for ayesther key press */
 		}
 
 		switch (key) {

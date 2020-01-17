@@ -463,46 +463,46 @@ static void ConstructARPResponse(
 }
 
 #ifdef CONFIG_PNO_SUPPORT
-static void ConstructPnoInfo(
+static void ConstructPyesInfo(
 	struct adapter *padapter, u8 *pframe, u32 *pLength
 )
 {
 
 	struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
 
-	u8 *pPnoInfoPkt = pframe;
-	pPnoInfoPkt = (u8 *)(pframe + *pLength);
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->ssid_num, 4);
+	u8 *pPyesInfoPkt = pframe;
+	pPyesInfoPkt = (u8 *)(pframe + *pLength);
+	memcpy(pPyesInfoPkt, &pwrctl->pnlo_info->ssid_num, 4);
 
 	*pLength += 4;
-	pPnoInfoPkt += 4;
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->fast_scan_period, 4);
+	pPyesInfoPkt += 4;
+	memcpy(pPyesInfoPkt, &pwrctl->pnlo_info->fast_scan_period, 4);
 
 	*pLength += 4;
-	pPnoInfoPkt += 4;
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->fast_scan_iterations, 4);
+	pPyesInfoPkt += 4;
+	memcpy(pPyesInfoPkt, &pwrctl->pnlo_info->fast_scan_iterations, 4);
 
 	*pLength += 4;
-	pPnoInfoPkt += 4;
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->slow_scan_period, 4);
+	pPyesInfoPkt += 4;
+	memcpy(pPyesInfoPkt, &pwrctl->pnlo_info->slow_scan_period, 4);
 
 	*pLength += 4;
-	pPnoInfoPkt += 4;
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->ssid_length,
+	pPyesInfoPkt += 4;
+	memcpy(pPyesInfoPkt, &pwrctl->pnlo_info->ssid_length,
 			MAX_PNO_LIST_COUNT);
 
 	*pLength += MAX_PNO_LIST_COUNT;
-	pPnoInfoPkt += MAX_PNO_LIST_COUNT;
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->ssid_cipher_info,
+	pPyesInfoPkt += MAX_PNO_LIST_COUNT;
+	memcpy(pPyesInfoPkt, &pwrctl->pnlo_info->ssid_cipher_info,
 			MAX_PNO_LIST_COUNT);
 
 	*pLength += MAX_PNO_LIST_COUNT;
-	pPnoInfoPkt += MAX_PNO_LIST_COUNT;
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->ssid_channel_info,
+	pPyesInfoPkt += MAX_PNO_LIST_COUNT;
+	memcpy(pPyesInfoPkt, &pwrctl->pnlo_info->ssid_channel_info,
 			MAX_PNO_LIST_COUNT);
 
 	*pLength += MAX_PNO_LIST_COUNT;
-	pPnoInfoPkt += MAX_PNO_LIST_COUNT;
+	pPyesInfoPkt += MAX_PNO_LIST_COUNT;
 }
 
 static void ConstructSSIDList(
@@ -516,7 +516,7 @@ static void ConstructSSIDList(
 	pSSIDListPkt = (u8 *)(pframe + *pLength);
 
 	for (i = 0; i < pwrctl->pnlo_info->ssid_num ; i++) {
-		memcpy(pSSIDListPkt, &pwrctl->pno_ssid_list->node[i].SSID,
+		memcpy(pSSIDListPkt, &pwrctl->pyes_ssid_list->yesde[i].SSID,
 			pwrctl->pnlo_info->ssid_length[i]);
 
 		*pLength += WLAN_SSID_MAXLEN;
@@ -873,7 +873,7 @@ static void rtl8723b_set_FwAoacRsvdPage_cmd(struct adapter *padapter, PRSVDPAGE_
 		FillH2CCmd8723B(padapter, H2C_8723B_AOAC_RSVD_PAGE, H2C_AOAC_RSVDPAGE_LOC_LEN, u1H2CAoacRsvdPageParm);
 	} else {
 #ifdef CONFIG_PNO_SUPPORT
-		if (!pwrpriv->pno_in_resume) {
+		if (!pwrpriv->pyes_in_resume) {
 			DBG_871X("NLO_INFO =%d\n", rsvdpageloc->LocPNOInfo);
 			memset(&u1H2CAoacRsvdPageParm, 0, sizeof(u1H2CAoacRsvdPageParm));
 			SET_H2CCMD_AOAC_RSVDPAGE_LOC_NLO_INFO(u1H2CAoacRsvdPageParm, rsvdpageloc->LocPNOInfo);
@@ -1005,7 +1005,7 @@ void rtl8723b_set_rssi_cmd(struct adapter *padapter, u8 *param)
 	SET_8723B_H2CCMD_RSSI_SETTING_RSSI(u1H2CRssiSettingParm, rssi);
 	SET_8723B_H2CCMD_RSSI_SETTING_ULDL_STATE(u1H2CRssiSettingParm, uldl_state);
 
-	RT_PRINT_DATA(_module_hal_init_c_, _drv_notice_, "u1H2CRssiSettingParm:", u1H2CRssiSettingParm, H2C_RSSI_SETTING_LEN);
+	RT_PRINT_DATA(_module_hal_init_c_, _drv_yestice_, "u1H2CRssiSettingParm:", u1H2CRssiSettingParm, H2C_RSSI_SETTING_LEN);
 	FillH2CCmd8723B(padapter, H2C_8723B_RSSI_SETTING, H2C_RSSI_SETTING_LEN, u1H2CRssiSettingParm);
 }
 
@@ -1186,7 +1186,7 @@ static void rtl8723b_set_FwWoWlanCtrl_Cmd(struct adapter *padapter, u8 bFuncEn)
 #endif
 
 #ifdef CONFIG_PNO_SUPPORT
-	if (!ppwrpriv->wowlan_pno_enable)
+	if (!ppwrpriv->wowlan_pyes_enable)
 		magic_pkt = 1;
 #endif
 
@@ -1221,7 +1221,7 @@ static void rtl8723b_set_FwRemoteWakeCtrl_Cmd(struct adapter *padapter, u8 benab
 
 	DBG_871X("%s(): Enable =%d\n", __func__, benable);
 
-	if (!ppwrpriv->wowlan_pno_enable) {
+	if (!ppwrpriv->wowlan_pyes_enable) {
 		SET_H2CCMD_REMOTE_WAKECTRL_ENABLE(u1H2CRemoteWakeCtrlParm, benable);
 		SET_H2CCMD_REMOTE_WAKE_CTRL_ARP_OFFLOAD_EN(u1H2CRemoteWakeCtrlParm, 1);
 #ifdef CONFIG_GTK_OL
@@ -1229,7 +1229,7 @@ static void rtl8723b_set_FwRemoteWakeCtrl_Cmd(struct adapter *padapter, u8 benab
 		    psecuritypriv->dot11PrivacyAlgrthm == _AES_) {
 			SET_H2CCMD_REMOTE_WAKE_CTRL_GTK_OFFLOAD_EN(u1H2CRemoteWakeCtrlParm, 1);
 		} else {
-			DBG_871X("no kck or security is not AES\n");
+			DBG_871X("yes kck or security is yest AES\n");
 			SET_H2CCMD_REMOTE_WAKE_CTRL_GTK_OFFLOAD_EN(u1H2CRemoteWakeCtrlParm, 0);
 		}
 #endif /* CONFIG_GTK_OL */
@@ -1252,7 +1252,7 @@ static void rtl8723b_set_FwRemoteWakeCtrl_Cmd(struct adapter *padapter, u8 benab
 	FillH2CCmd8723B(padapter, H2C_8723B_REMOTE_WAKE_CTRL,
 		H2C_REMOTE_WAKE_CTRL_LEN, u1H2CRemoteWakeCtrlParm);
 #ifdef CONFIG_PNO_SUPPORT
-	if (ppwrpriv->wowlan_pno_enable && !ppwrpriv->pno_in_resume) {
+	if (ppwrpriv->wowlan_pyes_enable && !ppwrpriv->pyes_in_resume) {
 		res = rtw_read8(padapter, REG_PNO_STATUS);
 		DBG_871X("cmd: 0x81 REG_PNO_STATUS: 0x%02x\n", res);
 		while (!(res&BIT(7)) && count < 25) {
@@ -1314,16 +1314,16 @@ void rtl8723b_set_wowlan_cmd(struct adapter *padapter, u8 enable)
 
 		rtl8723b_set_FwJoinBssRpt_cmd(padapter, RT_MEDIA_CONNECT);	/* RT_MEDIA_CONNECT will confuse in the future */
 
-		if (!(ppwrpriv->wowlan_pno_enable)) {
+		if (!(ppwrpriv->wowlan_pyes_enable)) {
 			psta = rtw_get_stainfo(&padapter->stapriv, get_bssid(pmlmepriv));
 			if (psta)
 				rtl8723b_set_FwMediaStatusRpt_cmd(padapter, RT_MEDIA_CONNECT, psta->mac_id);
 		} else
-			DBG_871X("%s(): Disconnected, no FwMediaStatusRpt CONNECT\n", __func__);
+			DBG_871X("%s(): Disconnected, yes FwMediaStatusRpt CONNECT\n", __func__);
 
 		msleep(2);
 
-		if (!(ppwrpriv->wowlan_pno_enable)) {
+		if (!(ppwrpriv->wowlan_pyes_enable)) {
 			rtl8723b_set_FwDisconDecision_cmd(padapter, enable);
 			msleep(2);
 
@@ -1658,7 +1658,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 #endif /* CONFIG_WOWLAN */
 	{
 #ifdef CONFIG_PNO_SUPPORT
-		if (!pwrctl->pno_in_resume && pwrctl->pno_inited) {
+		if (!pwrctl->pyes_in_resume && pwrctl->pyes_inited) {
 			/* Probe Request */
 			RsvdPageLoc.LocProbePacket = TotalPageNum;
 			ConstructProbeReq(
@@ -1690,7 +1690,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 
 			/* PNO INFO Page */
 			RsvdPageLoc.LocPNOInfo = TotalPageNum;
-			ConstructPnoInfo(padapter, &ReservedPagePacket[BufIndex-TxDescLen], &PNOLength);
+			ConstructPyesInfo(padapter, &ReservedPagePacket[BufIndex-TxDescLen], &PNOLength);
 #ifdef CONFIG_PNO_SET_DEBUG
 	{
 			int gj;
@@ -1756,7 +1756,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 	}
 
 	if (TotalPacketLen > MaxRsvdPageBufSize) {
-		DBG_871X("%s(): ERROR: The rsvd page size is not enough!!TotalPacketLen %d, MaxRsvdPageBufSize %d\n", __func__,
+		DBG_871X("%s(): ERROR: The rsvd page size is yest eyesugh!!TotalPacketLen %d, MaxRsvdPageBufSize %d\n", __func__,
 			TotalPacketLen, MaxRsvdPageBufSize);
 		goto error;
 	} else {
@@ -1775,7 +1775,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 	} else {
 		rtl8723b_set_FwAoacRsvdPage_cmd(padapter, &RsvdPageLoc);
 #ifdef CONFIG_PNO_SUPPORT
-		if (pwrctl->pno_in_resume)
+		if (pwrctl->pyes_in_resume)
 			rtl8723b_set_FwScanOffloadInfo_cmd(padapter,
 					&RsvdPageLoc, 0);
 		else
@@ -1888,7 +1888,7 @@ static void rtl8723b_set_AP_FwRsvdPagePkt(
 	TotalPacketLen = BufIndex + ProbeRspLength;
 
 	if (TotalPacketLen > MaxRsvdPageBufSize) {
-		DBG_871X("%s(): ERROR: The rsvd page size is not enough \
+		DBG_871X("%s(): ERROR: The rsvd page size is yest eyesugh \
 				!!TotalPacketLen %d, MaxRsvdPageBufSize %d\n",
 				__func__, TotalPacketLen, MaxRsvdPageBufSize);
 		goto error;
@@ -1948,11 +1948,11 @@ void rtl8723b_download_rsvd_page(struct adapter *padapter, u8 mstatus)
 		val8 |= DIS_TSF_UDT;
 		rtw_write8(padapter, REG_BCN_CTRL, val8);
 
-		/*  Set FWHW_TXQ_CTRL 0x422[6]= 0 to tell Hw the packet is not a real beacon frame. */
+		/*  Set FWHW_TXQ_CTRL 0x422[6]= 0 to tell Hw the packet is yest a real beacon frame. */
 		if (pHalData->RegFwHwTxQCtrl & BIT(6))
 			bRecover = true;
 
-		/*  To tell Hw the packet is not a real beacon frame. */
+		/*  To tell Hw the packet is yest a real beacon frame. */
 		rtw_write8(padapter, REG_FWHW_TXQ_CTRL+2, pHalData->RegFwHwTxQCtrl & ~BIT(6));
 		pHalData->RegFwHwTxQCtrl &= ~BIT(6);
 
@@ -2003,14 +2003,14 @@ void rtl8723b_download_rsvd_page(struct adapter *padapter, u8 mstatus)
 		/*  To make sure that if there exists an adapter which would like to send beacon. */
 		/*  If exists, the origianl value of 0x422[6] will be 1, we should check this to */
 		/*  prevent from setting 0x422[6] to 0 after download reserved page, or it will cause */
-		/*  the beacon cannot be sent by HW. */
+		/*  the beacon canyest be sent by HW. */
 		/*  2010.06.23. Added by tynli. */
 		if (bRecover) {
 			rtw_write8(padapter, REG_FWHW_TXQ_CTRL+2, pHalData->RegFwHwTxQCtrl | BIT(6));
 			pHalData->RegFwHwTxQCtrl |= BIT(6);
 		}
 
-		/*  Clear CR[8] or beacon packet will not be send to TxBuf anymore. */
+		/*  Clear CR[8] or beacon packet will yest be send to TxBuf anymore. */
 		v8 = rtw_read8(padapter, REG_CR+1);
 		v8 &= ~BIT(0); /*  ~ENSWBCN */
 		rtw_write8(padapter, REG_CR+1, v8);
@@ -2187,7 +2187,7 @@ static void SetFwRsvdPagePkt_BTCoex(struct adapter *padapter)
 
 	TotalPacketLen = BufIndex + BTQosNullLength;
 	if (TotalPacketLen > MaxRsvdPageBufSize) {
-		DBG_8192C(FUNC_ADPT_FMT ": ERROR: The rsvd page size is not enough!!TotalPacketLen %d, MaxRsvdPageBufSize %d\n",
+		DBG_8192C(FUNC_ADPT_FMT ": ERROR: The rsvd page size is yest eyesugh!!TotalPacketLen %d, MaxRsvdPageBufSize %d\n",
 			FUNC_ADPT_ARG(padapter), TotalPacketLen, MaxRsvdPageBufSize);
 		goto error;
 	}
@@ -2227,7 +2227,7 @@ void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter)
 
 #ifdef DEBUG
 	if (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == false) {
-		DBG_8192C(FUNC_ADPT_FMT ": [WARNING] not in AP mode!!\n",
+		DBG_8192C(FUNC_ADPT_FMT ": [WARNING] yest in AP mode!!\n",
 			FUNC_ADPT_ARG(padapter));
 	}
 #endif /*  DEBUG */
@@ -2253,11 +2253,11 @@ void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter)
 	val8 |= DIS_TSF_UDT;
 	rtw_write8(padapter, REG_BCN_CTRL, val8);
 
-	/*  Set FWHW_TXQ_CTRL 0x422[6]= 0 to tell Hw the packet is not a real beacon frame. */
+	/*  Set FWHW_TXQ_CTRL 0x422[6]= 0 to tell Hw the packet is yest a real beacon frame. */
 	if (pHalData->RegFwHwTxQCtrl & BIT(6))
 		bRecover = true;
 
-	/*  To tell Hw the packet is not a real beacon frame. */
+	/*  To tell Hw the packet is yest a real beacon frame. */
 	pHalData->RegFwHwTxQCtrl &= ~BIT(6);
 	rtw_write8(padapter, REG_FWHW_TXQ_CTRL+2, pHalData->RegFwHwTxQCtrl);
 
@@ -2302,14 +2302,14 @@ void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter)
 	/*  To make sure that if there exists an adapter which would like to send beacon. */
 	/*  If exists, the origianl value of 0x422[6] will be 1, we should check this to */
 	/*  prevent from setting 0x422[6] to 0 after download reserved page, or it will cause */
-	/*  the beacon cannot be sent by HW. */
+	/*  the beacon canyest be sent by HW. */
 	/*  2010.06.23. Added by tynli. */
 	if (bRecover) {
 		pHalData->RegFwHwTxQCtrl |= BIT(6);
 		rtw_write8(padapter, REG_FWHW_TXQ_CTRL+2, pHalData->RegFwHwTxQCtrl);
 	}
 
-	/*  Clear CR[8] or beacon packet will not be send to TxBuf anymore. */
+	/*  Clear CR[8] or beacon packet will yest be send to TxBuf anymore. */
 	val8 = rtw_read8(padapter, REG_CR+1);
 	val8 &= ~BIT(0); /*  ~ENSWBCN */
 	rtw_write8(padapter, REG_CR+1, val8);

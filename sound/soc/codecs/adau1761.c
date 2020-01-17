@@ -319,10 +319,10 @@ static const struct snd_kcontrol_new adau1761_controls[] = {
 	SOC_ENUM("Headphone Bias", adau1761_hp_bias_enum),
 };
 
-static const struct snd_kcontrol_new adau1761_mono_controls[] = {
-	SOC_SINGLE_TLV("Mono Playback Volume", ADAU1761_PLAY_MONO_OUTPUT_VOL,
+static const struct snd_kcontrol_new adau1761_moyes_controls[] = {
+	SOC_SINGLE_TLV("Moyes Playback Volume", ADAU1761_PLAY_MONO_OUTPUT_VOL,
 		2, 0x3f, 0, adau1761_out_tlv),
-	SOC_SINGLE("Mono Playback Switch", ADAU1761_PLAY_MONO_OUTPUT_VOL,
+	SOC_SINGLE("Moyes Playback Switch", ADAU1761_PLAY_MONO_OUTPUT_VOL,
 		1, 1, 0),
 };
 
@@ -426,8 +426,8 @@ static const struct snd_soc_dapm_widget adau1x61_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("RHP"),
 };
 
-static const struct snd_soc_dapm_widget adau1761_mono_dapm_widgets[] = {
-	SND_SOC_DAPM_MIXER("Mono Playback Mixer", ADAU1761_PLAY_MIXER_MONO,
+static const struct snd_soc_dapm_widget adau1761_moyes_dapm_widgets[] = {
+	SND_SOC_DAPM_MIXER("Moyes Playback Mixer", ADAU1761_PLAY_MIXER_MONO,
 		0, 0, NULL, 0),
 
 	SND_SOC_DAPM_OUTPUT("MONOOUT"),
@@ -481,11 +481,11 @@ static const struct snd_soc_dapm_route adau1x61_dapm_routes[] = {
 	{ "Right Playback Mixer", "Right Bypass Volume", "Right Input Mixer" },
 };
 
-static const struct snd_soc_dapm_route adau1761_mono_dapm_routes[] = {
-	{ "Mono Playback Mixer", NULL, "Left Playback Mixer" },
-	{ "Mono Playback Mixer", NULL, "Right Playback Mixer" },
+static const struct snd_soc_dapm_route adau1761_moyes_dapm_routes[] = {
+	{ "Moyes Playback Mixer", NULL, "Left Playback Mixer" },
+	{ "Moyes Playback Mixer", NULL, "Right Playback Mixer" },
 
-	{ "MONOOUT", NULL, "Mono Playback Mixer" },
+	{ "MONOOUT", NULL, "Moyes Playback Mixer" },
 };
 
 static const struct snd_soc_dapm_route adau1761_capless_dapm_routes[] = {
@@ -511,7 +511,7 @@ static const struct snd_soc_dapm_route adau1761_dmic_routes[] = {
 	{ "Right Decimator", NULL, "Right Decimator Mux" },
 };
 
-static const struct snd_soc_dapm_route adau1761_no_dmic_routes[] = {
+static const struct snd_soc_dapm_route adau1761_yes_dmic_routes[] = {
 	{ "Left Decimator", NULL, "Left Input Mixer" },
 	{ "Right Decimator", NULL, "Right Input Mixer" },
 };
@@ -644,8 +644,8 @@ static int adau1761_setup_digmic_jackdetect(struct snd_soc_component *component)
 			return ret;
 		/* fall through */
 	case ADAU1761_DIGMIC_JACKDET_PIN_MODE_NONE:
-		ret = snd_soc_dapm_add_routes(dapm, adau1761_no_dmic_routes,
-			ARRAY_SIZE(adau1761_no_dmic_routes));
+		ret = snd_soc_dapm_add_routes(dapm, adau1761_yes_dmic_routes,
+			ARRAY_SIZE(adau1761_yes_dmic_routes));
 		if (ret)
 			return ret;
 		break;
@@ -713,18 +713,18 @@ static int adau1761_setup_headphone_mode(struct snd_soc_component *component)
 			adau1761_capless_dapm_routes,
 			ARRAY_SIZE(adau1761_capless_dapm_routes));
 	} else {
-		ret = snd_soc_add_component_controls(component, adau1761_mono_controls,
-			ARRAY_SIZE(adau1761_mono_controls));
+		ret = snd_soc_add_component_controls(component, adau1761_moyes_controls,
+			ARRAY_SIZE(adau1761_moyes_controls));
 		if (ret)
 			return ret;
 		ret = snd_soc_dapm_new_controls(dapm,
-			adau1761_mono_dapm_widgets,
-			ARRAY_SIZE(adau1761_mono_dapm_widgets));
+			adau1761_moyes_dapm_widgets,
+			ARRAY_SIZE(adau1761_moyes_dapm_widgets));
 		if (ret)
 			return ret;
 		ret = snd_soc_dapm_add_routes(dapm,
-			adau1761_mono_dapm_routes,
-			ARRAY_SIZE(adau1761_mono_dapm_routes));
+			adau1761_moyes_dapm_routes,
+			ARRAY_SIZE(adau1761_moyes_dapm_routes));
 	}
 
 	return ret;
@@ -856,7 +856,7 @@ static const struct snd_soc_component_driver adau1761_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 #define ADAU1761_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \

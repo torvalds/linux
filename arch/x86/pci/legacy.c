@@ -58,12 +58,12 @@ EXPORT_SYMBOL_GPL(pcibios_scan_specific_bus);
 static int __init pci_subsys_init(void)
 {
 	/*
-	 * The init function returns an non zero value when
+	 * The init function returns an yesn zero value when
 	 * pci_legacy_init should be invoked.
 	 */
 	if (x86_init.pci.init()) {
 		if (pci_legacy_init()) {
-			pr_info("PCI: System does not support PCI\n");
+			pr_info("PCI: System does yest support PCI\n");
 			return -ENODEV;
 		}
 	}

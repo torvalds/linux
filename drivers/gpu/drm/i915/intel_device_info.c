@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -68,7 +68,7 @@ const char *intel_platform_name(enum intel_platform platform)
 
 	if (WARN_ON_ONCE(platform >= ARRAY_SIZE(platform_names) ||
 			 platform_names[platform] == NULL))
-		return "<unknown>";
+		return "<unkyeswn>";
 
 	return platform_names[platform];
 }
@@ -76,11 +76,11 @@ const char *intel_platform_name(enum intel_platform platform)
 void intel_device_info_dump_flags(const struct intel_device_info *info,
 				  struct drm_printer *p)
 {
-#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, yesno(info->name));
+#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, noyes(info->name));
 	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
 
-#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, yesno(info->display.name));
+#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, noyes(info->display.name));
 	DEV_INFO_DISPLAY_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
 }
@@ -100,10 +100,10 @@ static void sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p)
 	drm_printf(p, "EU total: %u\n", sseu->eu_total);
 	drm_printf(p, "EU per subslice: %u\n", sseu->eu_per_subslice);
 	drm_printf(p, "has slice power gating: %s\n",
-		   yesno(sseu->has_slice_pg));
+		   noyes(sseu->has_slice_pg));
 	drm_printf(p, "has subslice power gating: %s\n",
-		   yesno(sseu->has_subslice_pg));
-	drm_printf(p, "has EU power gating: %s\n", yesno(sseu->has_eu_pg));
+		   noyes(sseu->has_subslice_pg));
+	drm_printf(p, "has EU power gating: %s\n", noyes(sseu->has_eu_pg));
 }
 
 void intel_device_info_dump_runtime(const struct intel_runtime_info *info,
@@ -257,7 +257,7 @@ static void gen11_sseu_info_init(struct drm_i915_private *dev_priv)
 
 	gen11_compute_sseu_info(sseu, s_en, ss_en, eu_en);
 
-	/* ICL has no power gating restrictions. */
+	/* ICL has yes power gating restrictions. */
 	sseu->has_slice_pg = 1;
 	sseu->has_subslice_pg = 1;
 	sseu->has_eu_pg = 1;
@@ -782,7 +782,7 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		return freq;
 	}
 
-	MISSING_CASE("Unknown gen, unable to read command streamer timestamp frequency\n");
+	MISSING_CASE("Unkyeswn gen, unable to read command streamer timestamp frequency\n");
 	return 0;
 }
 
@@ -916,7 +916,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		/*
 		 * Skylake and Broxton currently don't expose the topmost plane as its
 		 * use is exclusive with the legacy cursor and we only want to expose
-		 * one of those, not both. Until we can safely expose the topmost plane
+		 * one of those, yest both. Until we can safely expose the topmost plane
 		 * as a DRM_PLANE_TYPE_CURSOR with all the features exposed/supported,
 		 * we don't expose the topmost plane at all to prevent ABI breakage
 		 * down the line.
@@ -973,7 +973,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 
 		/*
 		 * At least one pipe should be enabled and if there are
-		 * disabled pipes, they should be the last ones, with no holes
+		 * disabled pipes, they should be the last ones, with yes holes
 		 * in the mask.
 		 */
 		if (enabled_mask == 0 || !is_power_of_2(enabled_mask + 1))
@@ -1025,7 +1025,7 @@ void intel_driver_caps_print(const struct intel_driver_caps *caps,
 			     struct drm_printer *p)
 {
 	drm_printf(p, "Has logical contexts? %s\n",
-		   yesno(caps->has_logical_contexts));
+		   noyes(caps->has_logical_contexts));
 	drm_printf(p, "scheduler: %x\n", caps->scheduler);
 }
 

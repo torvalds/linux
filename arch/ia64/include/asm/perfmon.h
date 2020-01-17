@@ -39,7 +39,7 @@ extern int  pfm_remove_alt_pmu_interrupt(pfm_intr_handler_desc_t *h);
 typedef union {
 	unsigned int val;
 	struct {
-		unsigned int notify_user:1;	/* notify user program of overflow */
+		unsigned int yestify_user:1;	/* yestify user program of overflow */
 		unsigned int reset_ovfl_pmds:1;	/* reset overflowed PMDs */
 		unsigned int block_task:1;	/* block monitored task on kernel exit */
 		unsigned int mask_monitoring:1; /* mask monitors via PMCx.plm */
@@ -49,7 +49,7 @@ typedef union {
 
 typedef struct {
 	unsigned char	ovfl_pmd;			/* index of overflowed PMD  */
-	unsigned char   ovfl_notify;			/* =1 if monitor requested overflow notification */
+	unsigned char   ovfl_yestify;			/* =1 if monitor requested overflow yestification */
 	unsigned short  active_set;			/* event set active at the time of the overflow */
 	pfm_ovfl_ctrl_t ovfl_ctrl;			/* return: perfmon controls to set by handler */
 

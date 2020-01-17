@@ -6,7 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
@@ -251,7 +251,7 @@ ltq_etop_hw_init(struct net_device *dev)
 		break;
 
 	default:
-		netdev_err(dev, "unknown mii mode %d\n",
+		netdev_err(dev, "unkyeswn mii mode %d\n",
 			priv->pldata->mii_mode);
 		return -ENOTSUPP;
 	}
@@ -333,7 +333,7 @@ ltq_etop_mdio_rd(struct mii_bus *bus, int phy_addr, int phy_reg)
 static void
 ltq_etop_mdio_link(struct net_device *dev)
 {
-	/* nothing to do  */
+	/* yesthing to do  */
 }
 
 static int
@@ -345,7 +345,7 @@ ltq_etop_mdio_probe(struct net_device *dev)
 	phydev = phy_find_first(priv->mii_bus);
 
 	if (!phydev) {
-		netdev_err(dev, "no PHY found\n");
+		netdev_err(dev, "yes PHY found\n");
 		return -ENODEV;
 	}
 
@@ -353,7 +353,7 @@ ltq_etop_mdio_probe(struct net_device *dev)
 			     &ltq_etop_mdio_link, priv->pldata->mii_mode);
 
 	if (IS_ERR(phydev)) {
-		netdev_err(dev, "Could not attach to PHY\n");
+		netdev_err(dev, "Could yest attach to PHY\n");
 		return PTR_ERR(phydev);
 	}
 
@@ -541,7 +541,7 @@ ltq_etop_set_multicast_list(struct net_device *dev)
 	struct ltq_etop_priv *priv = netdev_priv(dev);
 	unsigned long flags;
 
-	/* ensure that the unicast filter is not enabled in promiscious mode */
+	/* ensure that the unicast filter is yest enabled in promiscious mode */
 	spin_lock_irqsave(&priv->lock, flags);
 	if ((dev->flags & IFF_PROMISC) || (dev->flags & IFF_ALLMULTI))
 		ltq_etop_w32_mask(ETOP_FTCU, 0, LTQ_ETOP_ENETS0);
@@ -649,7 +649,7 @@ ltq_etop_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	ltq_etop_membase = devm_ioremap_nocache(&pdev->dev,
+	ltq_etop_membase = devm_ioremap_yescache(&pdev->dev,
 		res->start, resource_size(res));
 	if (!ltq_etop_membase) {
 		dev_err(&pdev->dev, "failed to remap etop engine %d\n",

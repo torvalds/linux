@@ -34,7 +34,7 @@
 
 /*
  * These are unique identifiers for the sysfs functions - unlike the
- * numbers above, these are not also indexes into an array
+ * numbers above, these are yest also indexes into an array
  */
 
 #define ALARM		9
@@ -152,7 +152,7 @@
 #define TEMP_OFFSET_REG(idx) (REG_TEMP_OFFSET_BASE + (idx))
 #define TEMP_TRANGE_REG(idx) (REG_TEMP_TRANGE_BASE + (idx))
 
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 enum chips { adt7473, adt7475, adt7476, adt7490 };
 
@@ -786,7 +786,7 @@ static ssize_t pwm_store(struct device *dev, struct device_attribute *attr,
 			adt7475_read(PWM_CONFIG_REG(sattr->index));
 
 		/*
-		 * If we are not in manual mode, then we shouldn't allow
+		 * If we are yest in manual mode, then we shouldn't allow
 		 * the user to set the pwm speed
 		 */
 		if (((data->pwm[CONTROL][sattr->index] >> 5) & 7) != 7) {
@@ -1481,7 +1481,7 @@ static int adt7475_probe(struct i2c_client *client,
 	data->client = client;
 	i2c_set_clientdata(client, data);
 
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		chip = (enum chips)of_device_get_match_data(&client->dev);
 	else
 		chip = id->driver_data;
@@ -1641,7 +1641,7 @@ static struct i2c_driver adt7475_driver = {
 	.probe		= adt7475_probe,
 	.id_table	= adt7475_id,
 	.detect		= adt7475_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 static void adt7475_read_hystersis(struct i2c_client *client)

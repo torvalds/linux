@@ -16,7 +16,7 @@
 /*
  * The MSP430 firmware on the DM355 EVM uses a watch crystal to feed
  * a 1 Hz counter.  When a backup battery is supplied, that makes a
- * reasonable RTC for applications where alarms and non-NTP drift
+ * reasonable RTC for applications where alarms and yesn-NTP drift
  * compensation aren't important.
  *
  * The only real glitch is the inability to read or write all four
@@ -90,8 +90,8 @@ static int dm355evm_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	dev_dbg(dev, "write timestamp %08x\n", time.value);
 
 	/*
-	 * REVISIT handle non-atomic writes ... maybe just retry until
-	 * byte[1] sticks (no rollover)?
+	 * REVISIT handle yesn-atomic writes ... maybe just retry until
+	 * byte[1] sticks (yes rollover)?
 	 */
 	status = dm355evm_msp_write(time.bytes[0], DM355EVM_MSP_RTC_0);
 	if (status < 0)

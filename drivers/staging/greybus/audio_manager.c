@@ -101,7 +101,7 @@ void gb_audio_manager_remove_all(void)
 	up_write(&modules_rwsem);
 
 	if (!is_empty)
-		pr_warn("Not all nodes were deleted\n");
+		pr_warn("Not all yesdes were deleted\n");
 }
 EXPORT_SYMBOL_GPL(gb_audio_manager_remove_all);
 

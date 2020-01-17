@@ -19,7 +19,7 @@
 
 KBUILD_DEFCONFIG := or1ksim_defconfig
 
-OBJCOPYFLAGS    := -O binary -R .note -R .comment -S
+OBJCOPYFLAGS    := -O binary -R .yeste -R .comment -S
 LIBGCC 		:= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 KBUILD_CFLAGS	+= -pipe -ffixed-r10 -D__linux__

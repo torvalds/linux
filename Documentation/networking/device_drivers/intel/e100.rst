@@ -14,7 +14,7 @@ Contents
 - Building and Installation
 - Driver Configuration Parameters
 - Additional Configurations
-- Known Issues
+- Kyeswn Issues
 - Support
 
 
@@ -27,7 +27,7 @@ Adapters. This driver includes support for Itanium(R)2-based systems.
 For questions related to hardware requirements, refer to the documentation
 supplied with your Intel PRO/100 adapter.
 
-The following features are now available in supported kernels:
+The following features are yesw available in supported kernels:
  - Native VLANs
  - Channel Bonding (teaming)
  - SNMP
@@ -47,7 +47,7 @@ Driver Configuration Parameters
 ===============================
 
 The default value for each parameter is generally the recommended setting,
-unless otherwise noted.
+unless otherwise yested.
 
 Rx Descriptors:
    Number of receive descriptors. A receive descriptor is a data
@@ -126,13 +126,13 @@ driver::
 If you wish to see all messages issued by the driver, including debug
 messages, set the dmesg level to eight.
 
-NOTE: This setting is not saved across reboots.
+NOTE: This setting is yest saved across reboots.
 
 ethtool
 -------
 
 The driver utilizes the ethtool interface for driver configuration and
-diagnostics, as well as displaying statistical information.  The ethtool
+diagyesstics, as well as displaying statistical information.  The ethtool
 version 1.6 or later is required for this functionality.
 
 The latest release of ethtool can be found from
@@ -157,9 +157,9 @@ information on NAPI.
 Multiple Interfaces on Same Ethernet Broadcast Network
 ------------------------------------------------------
 
-Due to the default ARP behavior on Linux, it is not possible to have one
+Due to the default ARP behavior on Linux, it is yest possible to have one
 system on two IP networks in the same Ethernet broadcast domain
-(non-partitioned switch) behave as expected.  All Ethernet interfaces
+(yesn-partitioned switch) behave as expected.  All Ethernet interfaces
 will respond to IP traffic for any IP address assigned to the system.
 This results in unbalanced receive traffic.
 

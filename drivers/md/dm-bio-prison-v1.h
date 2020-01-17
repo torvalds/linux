@@ -39,7 +39,7 @@ struct dm_cell_key {
  */
 struct dm_bio_prison_cell {
 	struct list_head user_list;	/* for client use */
-	struct rb_node node;
+	struct rb_yesde yesde;
 
 	struct dm_cell_key key;
 	struct bio *holder;
@@ -87,14 +87,14 @@ int dm_bio_detain(struct dm_bio_prison *prison,
 void dm_cell_release(struct dm_bio_prison *prison,
 		     struct dm_bio_prison_cell *cell,
 		     struct bio_list *bios);
-void dm_cell_release_no_holder(struct dm_bio_prison *prison,
+void dm_cell_release_yes_holder(struct dm_bio_prison *prison,
 			       struct dm_bio_prison_cell *cell,
 			       struct bio_list *inmates);
 void dm_cell_error(struct dm_bio_prison *prison,
 		   struct dm_bio_prison_cell *cell, blk_status_t error);
 
 /*
- * Visits the cell and then releases.  Guarantees no new inmates are
+ * Visits the cell and then releases.  Guarantees yes new inmates are
  * inserted between the visit and release.
  */
 void dm_cell_visit_release(struct dm_bio_prison *prison,
@@ -109,7 +109,7 @@ void dm_cell_visit_release(struct dm_bio_prison *prison,
  *
  * This function can have two outcomes:
  * i) An inmate is promoted to be the holder of the cell (return value of 0).
- * ii) The cell has no inmate for promotion and is released (return value of 1).
+ * ii) The cell has yes inmate for promotion and is released (return value of 1).
  */
 int dm_cell_promote_or_release(struct dm_bio_prison *prison,
 			       struct dm_bio_prison_cell *cell);

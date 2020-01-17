@@ -19,7 +19,7 @@
  *   [1] - IRQ (optional, required for timed conversions)
  *   [2] - DMA (optional, required for timed conversions)
  *
- * Yet another driver for obsolete hardware brought to you by Frank Hess.
+ * Yet ayesther driver for obsolete hardware brought to you by Frank Hess.
  * Testing and debugging help provided by Dave Andruczyk.
  *
  * If you want to ac couple the board's inputs, use AREF_OTHER.
@@ -71,7 +71,7 @@
 #define FIFO_DATA_REG		0xa	/* read data */
 #define DMA_TC_CLEAR_REG	0xe	/* clear dma terminal count interrupt */
 #define STATUS_REG		0x12	/* read only */
-#define   FNE_BIT		0x1	/* fifo not empty */
+#define   FNE_BIT		0x1	/* fifo yest empty */
 #define   OVFL_BIT		0x8	/* fifo overflow */
 #define   EDAQ_BIT		0x10	/* end of acquisition interrupt */
 #define   DCAL_BIT		0x20	/* offset calibration in progress */
@@ -92,9 +92,9 @@
 
 struct a2150_board {
 	const char *name;
-	int clock[4];		/* master clock periods, in nanoseconds */
+	int clock[4];		/* master clock periods, in nayesseconds */
 	int num_clocks;		/* number of available master clock speeds */
-	int ai_speed;		/* maximum conversion rate in nanoseconds */
+	int ai_speed;		/* maximum conversion rate in nayesseconds */
 };
 
 /* analog input range */
@@ -187,7 +187,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	/*
 	 * There should only be a residue if collection was stopped by having
 	 * the stop_src set to an external trigger, in which case there
-	 * will be no more data
+	 * will be yes more data
 	 */
 	if (residue)
 		leftover = 0;
@@ -269,7 +269,7 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 	for (i = 0; i < 4; i++) {
 		/* there are a maximum of 4 master clocks */
 		for (j = 0; j < board->num_clocks; j++) {
-			/* temp is the period in nanosec we are evaluating */
+			/* temp is the period in nayessec we are evaluating */
 			temp = board->clock[j] * (1 << i);
 			/* if it is the best match yet */
 			if (temp < lub && temp >= *period) {
@@ -539,7 +539,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* set trigger source to delay trigger */
 		trigger_bits |= DELAY_TRIGGER_BITS;
 	} else {
-		/* otherwise no delay */
+		/* otherwise yes delay */
 		trigger_bits |= POST_TRIGGER_BITS;
 	}
 	/* enable external hardware trigger */

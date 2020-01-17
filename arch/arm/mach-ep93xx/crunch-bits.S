@@ -69,7 +69,7 @@ ENTRY(crunch_task_enable)
 
 	ldr	r1, [r8, #0x80]
 	tst	r1, #0x00800000			@ access to crunch enabled?
-	bne	2f				@ if so no business here
+	bne	2f				@ if so yes business here
 	mov	r3, #0xaa			@ unlock syscon swlock
 	str	r3, [r8, #0xc0]
 	orr	r1, r1, #0x00800000		@ enable access to crunch
@@ -79,7 +79,7 @@ ENTRY(crunch_task_enable)
 	add	r0, r10, #TI_CRUNCH_STATE	@ get task crunch save area
 	ldr	r2, [sp, #60]			@ current task pc value
 	ldr	r1, [r3]			@ get current crunch owner
-	str	r0, [r3]			@ this task now owns crunch
+	str	r0, [r3]			@ this task yesw owns crunch
 	sub	r2, r2, #4			@ adjust pc back
 	str	r2, [sp, #60]
 
@@ -87,8 +87,8 @@ ENTRY(crunch_task_enable)
 	mov	r2, r2				@ flush out enable (@@@)
 
 	teq	r1, #0				@ test for last ownership
-	mov	lr, r9				@ normal exit from exception
-	beq	crunch_load			@ no owner, skip save
+	mov	lr, r9				@ yesrmal exit from exception
+	beq	crunch_load			@ yes owner, skip save
 
 crunch_save:
 	cfstr64		mvdx0, [r1, #CRUNCH_MVDX0]	@ save 64b registers
@@ -216,10 +216,10 @@ ENTRY(crunch_task_disable)
 	add	r2, r0, #TI_CRUNCH_STATE	@ get task crunch save area
 	ldr	r1, [r3]			@ get current crunch owner
 	teq	r1, #0				@ any current owner?
-	beq	1f				@ no: quit
+	beq	1f				@ yes: quit
 	teq	r0, #0				@ any owner?
 	teqne	r1, r2				@ or specified one?
-	bne	1f				@ no: quit
+	bne	1f				@ yes: quit
 
 	ldr	r5, [r4, #0x80]			@ enable access to crunch
 	mov	r2, #0xaa
@@ -227,8 +227,8 @@ ENTRY(crunch_task_disable)
 	orr	r5, r5, #0x00800000
 	str	r5, [r4, #0x80]
 
-	mov	r0, #0				@ nothing to load
-	str	r0, [r3]			@ no more current owner
+	mov	r0, #0				@ yesthing to load
+	str	r0, [r3]			@ yes more current owner
 	ldr	r2, [r4, #0x80]			@ flush out enable (@@@)
 	mov	r2, r2
 	bl	crunch_save
@@ -270,7 +270,7 @@ ENTRY(crunch_task_copy)
 	b	memcpy
 
 1:	@ this task owns crunch regs -- grab a copy from there
-	mov	r0, #0				@ nothing to load
+	mov	r0, #0				@ yesthing to load
 	mov	r3, lr				@ preserve return address
 	bl	crunch_save
 	msr	cpsr_c, ip			@ restore interrupt mode
@@ -303,7 +303,7 @@ ENTRY(crunch_task_restore)
 
 1:	@ this task owns crunch regs -- load them directly
 	mov	r0, r1
-	mov	r1, #0				@ nothing to save
+	mov	r1, #0				@ yesthing to save
 	mov	r3, lr				@ preserve return address
 	bl	crunch_load
 	msr	cpsr_c, ip			@ restore interrupt mode

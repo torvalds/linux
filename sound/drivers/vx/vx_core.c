@@ -148,7 +148,7 @@ static int vx_read_status(struct vx_core *chip, struct vx_rmh *rmh)
 {
 	int i, err, val, size;
 
-	/* no read necessary? */
+	/* yes read necessary? */
 	if (rmh->DspStat == RMH_SSIZE_FIXED && rmh->LgStat == 0)
 		return 0;
 
@@ -217,7 +217,7 @@ static int vx_read_status(struct vx_core *chip, struct vx_rmh *rmh)
 #define MASK_1_WORD_COMMAND             0x00ff7fff
 
 /*
- * vx_send_msg_nolock - send a DSP message and read back the status
+ * vx_send_msg_yeslock - send a DSP message and read back the status
  * @rmh: the rmh record to send and receive
  *
  * returns 0 if successful, or a negative error code.
@@ -225,7 +225,7 @@ static int vx_read_status(struct vx_core *chip, struct vx_rmh *rmh)
  * 
  * this function doesn't call mutex lock at all.
  */
-int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
+int vx_send_msg_yeslock(struct vx_core *chip, struct vx_rmh *rmh)
 {
 	int i, err;
 	
@@ -328,21 +328,21 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
  * @rmh: the rmh record to send and receive
  *
  * returns 0 if successful, or a negative error code.
- * see vx_send_msg_nolock().
+ * see vx_send_msg_yeslock().
  */
 int vx_send_msg(struct vx_core *chip, struct vx_rmh *rmh)
 {
 	int err;
 
 	mutex_lock(&chip->lock);
-	err = vx_send_msg_nolock(chip, rmh);
+	err = vx_send_msg_yeslock(chip, rmh);
 	mutex_unlock(&chip->lock);
 	return err;
 }
 
 
 /*
- * vx_send_rih_nolock - send an RIH to xilinx
+ * vx_send_rih_yeslock - send an RIH to xilinx
  * @cmd: the command to send
  *
  * returns 0 if successful, or a negative error code.
@@ -350,9 +350,9 @@ int vx_send_msg(struct vx_core *chip, struct vx_rmh *rmh)
  *
  * this function doesn't call mutex at all.
  *
- * unlike RMH, no command is sent to DSP.
+ * unlike RMH, yes command is sent to DSP.
  */
-int vx_send_rih_nolock(struct vx_core *chip, int cmd)
+int vx_send_rih_yeslock(struct vx_core *chip, int cmd)
 {
 	int err;
 
@@ -387,14 +387,14 @@ int vx_send_rih_nolock(struct vx_core *chip, int cmd)
  * vx_send_rih - send an RIH with mutex
  * @cmd: the command to send
  *
- * see vx_send_rih_nolock().
+ * see vx_send_rih_yeslock().
  */
 int vx_send_rih(struct vx_core *chip, int cmd)
 {
 	int err;
 
 	mutex_lock(&chip->lock);
-	err = vx_send_rih_nolock(chip, cmd);
+	err = vx_send_rih_yeslock(chip, cmd);
 	mutex_unlock(&chip->lock);
 	return err;
 }
@@ -409,7 +409,7 @@ int vx_send_rih(struct vx_core *chip, int cmd)
 int snd_vx_load_boot_image(struct vx_core *chip, const struct firmware *boot)
 {
 	unsigned int i;
-	int no_fillup = vx_has_new_dsp(chip);
+	int yes_fillup = vx_has_new_dsp(chip);
 
 	/* check the length of boot image */
 	if (boot->size <= 0)
@@ -428,12 +428,12 @@ int snd_vx_load_boot_image(struct vx_core *chip, const struct firmware *boot)
 	/* reset dsp */
 	vx_reset_dsp(chip);
 	
-	udelay(END_OF_RESET_WAIT_TIME); /* another wait? */
+	udelay(END_OF_RESET_WAIT_TIME); /* ayesther wait? */
 
 	/* download boot strap */
 	for (i = 0; i < 0x600; i += 3) {
 		if (i >= boot->size) {
-			if (no_fillup)
+			if (yes_fillup)
 				break;
 			if (vx_wait_isr_bit(chip, ISR_TX_EMPTY) < 0) {
 				snd_printk(KERN_ERR "dsp boot failed at %d\n", i);
@@ -469,7 +469,7 @@ static int vx_test_irq_src(struct vx_core *chip, unsigned int *ret)
 
 	vx_init_rmh(&chip->irq_rmh, CMD_TEST_IT);
 	mutex_lock(&chip->lock);
-	err = vx_send_msg_nolock(chip, &chip->irq_rmh);
+	err = vx_send_msg_yeslock(chip, &chip->irq_rmh);
 	if (err < 0)
 		*ret = 0;
 	else
@@ -512,7 +512,7 @@ irqreturn_t snd_vx_threaded_irq_handler(int irq, void *dev)
 	 * received by the board is equal to one of those given to it).
 	 */
 	if (events & TIME_CODE_EVENT_PENDING)
-		; /* so far, nothing to do yet */
+		; /* so far, yesthing to do yet */
 
 	/* The frequency has changed on the board (UER mode). */
 	if (events & FREQUENCY_CHANGE_EVENT_PENDING)
@@ -571,7 +571,7 @@ static void vx_reset_board(struct vx_core *chip, int cold_reset)
 	vx_reset_dsp(chip);
 
 	if (vx_is_pcmcia(chip)) {
-		/* Acknowledge any pending IRQ and reset the MEMIRQ flag. */
+		/* Ackyeswledge any pending IRQ and reset the MEMIRQ flag. */
 		vx_test_and_ack(chip);
 		vx_validate_irq(chip, 1);
 	}

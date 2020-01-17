@@ -43,8 +43,8 @@ static void __init add_arg(char *arg)
 }
 
 /*
- * These fields are initialized at boot time and not changed.
- * XXX This structure is used only in the non-SMP case.  Maybe this
+ * These fields are initialized at boot time and yest changed.
+ * XXX This structure is used only in the yesn-SMP case.  Maybe this
  * should be moved to smp.c.
  */
 struct cpuinfo_um boot_cpu_data = {
@@ -148,17 +148,17 @@ __uml_setup("root=", uml_root_setup,
 "        root=/dev/ubd5\n\n"
 );
 
-static int __init no_skas_debug_setup(char *line, int *add)
+static int __init yes_skas_debug_setup(char *line, int *add)
 {
-	os_warn("'debug' is not necessary to gdb UML in skas mode - run\n");
+	os_warn("'debug' is yest necessary to gdb UML in skas mode - run\n");
 	os_warn("'gdb linux'\n");
 
 	return 0;
 }
 
-__uml_setup("debug", no_skas_debug_setup,
+__uml_setup("debug", yes_skas_debug_setup,
 "debug\n"
-"    this flag is not needed to run gdb on UML in skas mode\n\n"
+"    this flag is yest needed to run gdb on UML in skas mode\n\n"
 );
 
 static int __init Usage(char *line, int *add)
@@ -208,7 +208,7 @@ static void __init uml_postsetup(void)
 	return;
 }
 
-static int panic_exit(struct notifier_block *self, unsigned long unused1,
+static int panic_exit(struct yestifier_block *self, unsigned long unused1,
 		      void *unused2)
 {
 	kmsg_dump(KMSG_DUMP_PANIC);
@@ -219,16 +219,16 @@ static int panic_exit(struct notifier_block *self, unsigned long unused1,
 	return 0;
 }
 
-static struct notifier_block panic_exit_notifier = {
-	.notifier_call 		= panic_exit,
+static struct yestifier_block panic_exit_yestifier = {
+	.yestifier_call 		= panic_exit,
 	.next 			= NULL,
 	.priority 		= 0
 };
 
 void uml_finishsetup(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &panic_exit_notifier);
+	atomic_yestifier_chain_register(&panic_yestifier_list,
+				       &panic_exit_yestifier);
 
 	uml_postsetup();
 
@@ -281,7 +281,7 @@ int __init linux_main(int argc, char **argv)
 	/*
 	 * Increase physical memory size for exec-shield users
 	 * so they actually get what they asked for. This should
-	 * add zero for non-exec shield users
+	 * add zero for yesn-exec shield users
 	 */
 
 	diff = UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -45,7 +45,7 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
 #define SIGPWR		19	/* Power failure restart (System V).  */
 #define SIGWINCH	20	/* Window size change (4.3 BSD, Sun).  */
 #define SIGURG		21	/* Urgent condition on socket (4.2 BSD).  */
-#define SIGIO		22	/* I/O now possible (4.2 BSD).	*/
+#define SIGIO		22	/* I/O yesw possible (4.2 BSD).	*/
 #define SIGPOLL		SIGIO	/* Pollable event occurred (System V).	*/
 #define SIGSTOP		23	/* Stop, unblockable (POSIX).  */
 #define SIGTSTP		24	/* Keyboard stop (POSIX).  */
@@ -57,7 +57,7 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
 #define SIGXCPU		30	/* CPU limit exceeded (4.2 BSD).  */
 #define SIGXFSZ		31	/* File size limit exceeded (4.2 BSD).	*/
 
-/* These should not be considered constants from userland.  */
+/* These should yest be considered constants from userland.  */
 #define SIGRTMIN	32
 #define SIGRTMAX	_NSIG
 
@@ -75,7 +75,7 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
  * Unix names RESETHAND and NODEFER respectively.
  *
  * SA_RESTORER used to be defined as 0x04000000 but only the O32 ABI ever
- * supported its use and no libc was using it, so the entire sa-restorer
+ * supported its use and yes libc was using it, so the entire sa-restorer
  * functionality was removed with lmo commit 39bffc12c3580ab for 2.5.48
  * retaining only the SA_RESTORER definition as a reminder to avoid
  * accidental reuse of the mask bit.

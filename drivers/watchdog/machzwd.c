@@ -2,7 +2,7 @@
 /*
  *  MachZ ZF-Logic Watchdog Timer driver for Linux
  *
- *  The author does NOT admit liability nor provide warranty for
+ *  The author does NOT admit liability yesr provide warranty for
  *  any of this software. This material is provided "AS-IS" in
  *  the hope that it may be useful for others.
  *
@@ -19,7 +19,7 @@
  *  the system when the counter reaches zero.
  *
  *  14-Dec-2001 Matt Domsch <Matt_Domsch@dell.com>
- *      Added nowayout module option to override CONFIG_WATCHDOG_NOWAYOUT
+ *      Added yeswayout module option to override CONFIG_WATCHDOG_NOWAYOUT
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -33,7 +33,7 @@
 #include <linux/watchdog.h>
 #include <linux/fs.h>
 #include <linux/ioport.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -87,10 +87,10 @@ MODULE_AUTHOR("Fernando Fuganti <fuganti@conectiva.com.br>");
 MODULE_DESCRIPTION("MachZ ZF-Logic Watchdog driver");
 MODULE_LICENSE("GPL");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 #define PFX "machzwd"
@@ -198,7 +198,7 @@ static void zf_timer_off(void)
 	zf_set_control(ctrl_reg);
 	spin_unlock_irqrestore(&zf_port_lock, flags);
 
-	pr_info("Watchdog timer is now disabled\n");
+	pr_info("Watchdog timer is yesw disabled\n");
 }
 
 
@@ -228,7 +228,7 @@ static void zf_timer_on(void)
 	zf_set_control(ctrl_reg);
 	spin_unlock_irqrestore(&zf_port_lock, flags);
 
-	pr_info("Watchdog timer is now enabled\n");
+	pr_info("Watchdog timer is yesw enabled\n");
 }
 
 
@@ -251,7 +251,7 @@ static void zf_ping(struct timer_list *unused)
 		ctrl_reg |= RESET_WD1;
 		zf_set_control(ctrl_reg);
 
-		/* ...and nothing changes until here */
+		/* ...and yesthing changes until here */
 		ctrl_reg &= ~(RESET_WD1);
 		zf_set_control(ctrl_reg);
 		spin_unlock_irqrestore(&zf_port_lock, flags);
@@ -267,18 +267,18 @@ static ssize_t zf_write(struct file *file, const char __user *buf, size_t count,
 	/* See if we got the magic character */
 	if (count) {
 		/*
-		 * no need to check for close confirmation
-		 * no way to disable watchdog ;)
+		 * yes need to check for close confirmation
+		 * yes way to disable watchdog ;)
 		 */
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t ofs;
 			/*
-			 * note: just in case someone wrote the magic character
+			 * yeste: just in case someone wrote the magic character
 			 * five months ago...
 			 */
 			zf_expect_close = 0;
 
-			/* now scan */
+			/* yesw scan */
 			for (ofs = 0; ofs != count; ofs++) {
 				char c;
 				if (get_user(c, buf + ofs))
@@ -321,23 +321,23 @@ static long zf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-static int zf_open(struct inode *inode, struct file *file)
+static int zf_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(0, &zf_is_open))
 		return -EBUSY;
-	if (nowayout)
+	if (yeswayout)
 		__module_get(THIS_MODULE);
 	zf_timer_on();
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int zf_close(struct inode *inode, struct file *file)
+static int zf_close(struct iyesde *iyesde, struct file *file)
 {
 	if (zf_expect_close == 42)
 		zf_timer_off();
 	else {
 		del_timer(&zf_timer);
-		pr_err("device file closed unexpectedly. Will not stop the WDT!\n");
+		pr_err("device file closed unexpectedly. Will yest stop the WDT!\n");
 	}
 	clear_bit(0, &zf_is_open);
 	zf_expect_close = 0;
@@ -348,7 +348,7 @@ static int zf_close(struct inode *inode, struct file *file)
  * Notifier for system down
  */
 
-static int zf_notify_sys(struct notifier_block *this, unsigned long code,
+static int zf_yestify_sys(struct yestifier_block *this, unsigned long code,
 								void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
@@ -358,7 +358,7 @@ static int zf_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations zf_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= zf_write,
 	.unlocked_ioctl = zf_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -367,7 +367,7 @@ static const struct file_operations zf_fops = {
 };
 
 static struct miscdevice zf_miscdev = {
-	.minor = WATCHDOG_MINOR,
+	.miyesr = WATCHDOG_MINOR,
 	.name = "watchdog",
 	.fops = &zf_fops,
 };
@@ -377,8 +377,8 @@ static struct miscdevice zf_miscdev = {
  * The device needs to learn about soft shutdowns in order to
  * turn the timebomb registers off.
  */
-static struct notifier_block zf_notifier = {
-	.notifier_call = zf_notify_sys,
+static struct yestifier_block zf_yestifier = {
+	.yestifier_call = zf_yestify_sys,
 };
 
 static void __init zf_show_action(int act)
@@ -396,7 +396,7 @@ static int __init zf_init(void)
 
 	ret = zf_get_ZFL_version();
 	if (!ret || ret == 0xffff) {
-		pr_warn("no ZF-Logic found\n");
+		pr_warn("yes ZF-Logic found\n");
 		return -ENODEV;
 	}
 
@@ -408,21 +408,21 @@ static int __init zf_init(void)
 	zf_show_action(action);
 
 	if (!request_region(ZF_IOBASE, 3, "MachZ ZFL WDT")) {
-		pr_err("cannot reserve I/O ports at %d\n", ZF_IOBASE);
+		pr_err("canyest reserve I/O ports at %d\n", ZF_IOBASE);
 		ret = -EBUSY;
-		goto no_region;
+		goto yes_region;
 	}
 
-	ret = register_reboot_notifier(&zf_notifier);
+	ret = register_reboot_yestifier(&zf_yestifier);
 	if (ret) {
-		pr_err("can't register reboot notifier (err=%d)\n", ret);
-		goto no_reboot;
+		pr_err("can't register reboot yestifier (err=%d)\n", ret);
+		goto yes_reboot;
 	}
 
 	ret = misc_register(&zf_miscdev);
 	if (ret) {
-		pr_err("can't misc_register on minor=%d\n", WATCHDOG_MINOR);
-		goto no_misc;
+		pr_err("can't misc_register on miyesr=%d\n", WATCHDOG_MINOR);
+		goto yes_misc;
 	}
 
 	zf_set_status(0);
@@ -430,11 +430,11 @@ static int __init zf_init(void)
 
 	return 0;
 
-no_misc:
-	unregister_reboot_notifier(&zf_notifier);
-no_reboot:
+yes_misc:
+	unregister_reboot_yestifier(&zf_yestifier);
+yes_reboot:
 	release_region(ZF_IOBASE, 3);
-no_region:
+yes_region:
 	return ret;
 }
 
@@ -444,7 +444,7 @@ static void __exit zf_exit(void)
 	zf_timer_off();
 
 	misc_deregister(&zf_miscdev);
-	unregister_reboot_notifier(&zf_notifier);
+	unregister_reboot_yestifier(&zf_yestifier);
 	release_region(ZF_IOBASE, 3);
 }
 

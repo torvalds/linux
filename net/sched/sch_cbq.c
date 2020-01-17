@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
@@ -30,7 +30,7 @@
 		 Parameters", 1996
 
 		 [4] Sally Floyd and Michael Speer, "Experimental Results
-		 for Class-Based Queueing", 1998, not published.
+		 for Class-Based Queueing", 1998, yest published.
 
 	-----------------------------------------------------------------------
 
@@ -53,12 +53,12 @@
 	and C = MTU*r. The proof (if correct at all) is trivial.
 
 
-	--- It seems that cbq-2.0 is not very accurate. At least, I cannot
+	--- It seems that cbq-2.0 is yest very accurate. At least, I canyest
 	interpret some places, which look like wrong translations
 	from NS. Anyone is advised to find these differences
 	and explain to me, why I am wrong 8).
 
-	--- Linux has no EOI event, so that we cannot estimate true class
+	--- Linux has yes EOI event, so that we canyest estimate true class
 	idle time. Workaround is to consider the next dequeue event
 	as sign that previous packet is finished. This is wrong because of
 	internal device queueing, but on a permanently loaded link it is true.
@@ -92,7 +92,7 @@ struct cbq_class {
 	long			weight;		/* Relative allotment: see below */
 
 	struct Qdisc		*qdisc;		/* Ptr to CBQ discipline */
-	struct cbq_class	*split;		/* Ptr to split node */
+	struct cbq_class	*split;		/* Ptr to split yesde */
 	struct cbq_class	*share;		/* Ptr to LS parent in the class tree */
 	struct cbq_class	*tparent;	/* Ptr to tree parent in the class tree */
 	struct cbq_class	*borrow;	/* NULL if class is bandwidth limited;
@@ -108,7 +108,7 @@ struct cbq_class {
 	unsigned char		delayed;
 	unsigned char		level;		/* level of the class in hierarchy:
 						   0 for leaf classes, and maximal
-						   level of children + 1 for nodes.
+						   level of children + 1 for yesdes.
 						 */
 
 	psched_time_t		last;		/* Last end of service */
@@ -146,14 +146,14 @@ struct cbq_sched_data {
 	struct cbq_class	*tx_class;
 	struct cbq_class	*tx_borrowed;
 	int			tx_len;
-	psched_time_t		now;		/* Cached timestamp */
+	psched_time_t		yesw;		/* Cached timestamp */
 	unsigned int		pmask;
 
 	struct hrtimer		delay_timer;
 	struct qdisc_watchdog	watchdog;	/* Watchdog timer,
 						   started when CBQ has
-						   backlog, but cannot
-						   transmit just now */
+						   backlog, but canyest
+						   transmit just yesw */
 	psched_tdiff_t		wd_expires;
 	int			toplevel;
 	u32			hgenerator;
@@ -196,9 +196,9 @@ cbq_reclassify(struct sk_buff *skb, struct cbq_class *this)
  * transparently.
  *
  * Namely, you can put link sharing rules (f.e. route based) at root of CBQ,
- * so that it resolves to split nodes. Then packets are classified
+ * so that it resolves to split yesdes. Then packets are classified
  * by logical priority, or a more specific classifier may be attached
- * to the split node.
+ * to the split yesde.
  */
 
 static struct cbq_class *
@@ -263,7 +263,7 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		/*
 		 * Step 3+n. If classifier selected a link sharing class,
 		 *	   apply agency specific classifier.
-		 *	   Repeat this procdure until we hit a leaf node.
+		 *	   Repeat this procdure until we hit a leaf yesde.
 		 */
 		head = cl;
 	}
@@ -344,10 +344,10 @@ cbq_mark_toplevel(struct cbq_sched_data *q, struct cbq_class *cl)
 	int toplevel = q->toplevel;
 
 	if (toplevel > cl->level) {
-		psched_time_t now = psched_get_time();
+		psched_time_t yesw = psched_get_time();
 
 		do {
-			if (cl->undertime < now) {
+			if (cl->undertime < yesw) {
 				q->toplevel = cl->level;
 				return;
 			}
@@ -394,13 +394,13 @@ cbq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 static void cbq_overlimit(struct cbq_class *cl)
 {
 	struct cbq_sched_data *q = qdisc_priv(cl->qdisc);
-	psched_tdiff_t delay = cl->undertime - q->now;
+	psched_tdiff_t delay = cl->undertime - q->yesw;
 
 	if (!cl->delayed) {
 		delay += cl->offtime;
 
 		/*
-		 * Class goes to sleep, so that it will have no
+		 * Class goes to sleep, so that it will have yes
 		 * chance to work avgidle. Let's forgive it 8)
 		 *
 		 * BTW cbq-2.0 has a crap in this
@@ -412,7 +412,7 @@ static void cbq_overlimit(struct cbq_class *cl)
 			cl->avgidle = cl->minidle;
 		if (delay <= 0)
 			delay = 1;
-		cl->undertime = q->now + delay;
+		cl->undertime = q->yesw + delay;
 
 		cl->xstats.overactions++;
 		cl->delayed = 1;
@@ -429,7 +429,7 @@ static void cbq_overlimit(struct cbq_class *cl)
 		psched_tdiff_t base_delay = q->wd_expires;
 
 		for (b = cl->borrow; b; b = b->borrow) {
-			delay = b->undertime - q->now;
+			delay = b->undertime - q->yesw;
 			if (delay < base_delay) {
 				if (delay <= 0)
 					delay = 1;
@@ -442,18 +442,18 @@ static void cbq_overlimit(struct cbq_class *cl)
 }
 
 static psched_tdiff_t cbq_undelay_prio(struct cbq_sched_data *q, int prio,
-				       psched_time_t now)
+				       psched_time_t yesw)
 {
 	struct cbq_class *cl;
 	struct cbq_class *cl_prev = q->active[prio];
-	psched_time_t sched = now;
+	psched_time_t sched = yesw;
 
 	if (cl_prev == NULL)
 		return 0;
 
 	do {
 		cl = cl_prev->next_alive;
-		if (now - cl->penalized > 0) {
+		if (yesw - cl->penalized > 0) {
 			cl_prev->next_alive = cl->next_alive;
 			cl->next_alive = NULL;
 			cl->cpriority = cl->priority;
@@ -473,7 +473,7 @@ static psched_tdiff_t cbq_undelay_prio(struct cbq_sched_data *q, int prio,
 			sched = cl->penalized;
 	} while ((cl_prev = cl) != q->active[prio]);
 
-	return sched - now;
+	return sched - yesw;
 }
 
 static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
@@ -481,11 +481,11 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 	struct cbq_sched_data *q = container_of(timer, struct cbq_sched_data,
 						delay_timer);
 	struct Qdisc *sch = q->watchdog.qdisc;
-	psched_time_t now;
+	psched_time_t yesw;
 	psched_tdiff_t delay = 0;
 	unsigned int pmask;
 
-	now = psched_get_time();
+	yesw = psched_get_time();
 
 	pmask = q->pmask;
 	q->pmask = 0;
@@ -496,7 +496,7 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 
 		pmask &= ~(1<<prio);
 
-		tmp = cbq_undelay_prio(q, prio, now);
+		tmp = cbq_undelay_prio(q, prio, yesw);
 		if (tmp > 0) {
 			q->pmask |= 1<<prio;
 			if (tmp < delay || delay == 0)
@@ -508,7 +508,7 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 		ktime_t time;
 
 		time = 0;
-		time = ktime_add_ns(time, PSCHED_TICKS2NS(now + delay));
+		time = ktime_add_ns(time, PSCHED_TICKS2NS(yesw + delay));
 		hrtimer_start(&q->delay_timer, time, HRTIMER_MODE_ABS_PINNED);
 	}
 
@@ -520,7 +520,7 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
  * It is mission critical procedure.
  *
  * We "regenerate" toplevel cutoff, if transmitting class
- * has backlog and it is not regulated. It is not part of
+ * has backlog and it is yest regulated. It is yest part of
  * original CBQ description, but looks more reasonable.
  * Probably, it is wrong. This question needs further investigation.
  */
@@ -539,7 +539,7 @@ cbq_update_toplevel(struct cbq_sched_data *q, struct cbq_class *cl,
 			} while ((borrowed = borrowed->borrow) != NULL);
 		}
 #if 0
-	/* It is not necessary now. Uncommenting it
+	/* It is yest necessary yesw. Uncommenting it
 	   will save CPU cycles, but decrease fairness.
 	 */
 		q->toplevel = TC_CBQ_MAXLEVEL;
@@ -553,13 +553,13 @@ cbq_update(struct cbq_sched_data *q)
 	struct cbq_class *this = q->tx_class;
 	struct cbq_class *cl = this;
 	int len = q->tx_len;
-	psched_time_t now;
+	psched_time_t yesw;
 
 	q->tx_class = NULL;
 	/* Time integrator. We calculate EOS time
 	 * by adding expected packet transmission time.
 	 */
-	now = q->now + L2T(&q->link, len);
+	yesw = q->yesw + L2T(&q->link, len);
 
 	for ( ; cl; cl = cl->share) {
 		long avgidle = cl->avgidle;
@@ -569,13 +569,13 @@ cbq_update(struct cbq_sched_data *q)
 		cl->bstats.bytes += len;
 
 		/*
-		 * (now - last) is total time between packet right edges.
+		 * (yesw - last) is total time between packet right edges.
 		 * (last_pktlen/rate) is "virtual" busy time, so that
 		 *
-		 *	idle = (now - last) - last_pktlen/rate
+		 *	idle = (yesw - last) - last_pktlen/rate
 		 */
 
-		idle = now - cl->last;
+		idle = yesw - cl->last;
 		if ((unsigned long)idle > 128*1024*1024) {
 			avgidle = cl->maxidle;
 		} else {
@@ -608,7 +608,7 @@ cbq_update(struct cbq_sched_data *q)
 			idle = (-avgidle) - ((-avgidle) >> cl->ewma_log);
 
 			/*
-			 * That is not all.
+			 * That is yest all.
 			 * To maintain the rate allocated to the class,
 			 * we add to undertime virtual clock,
 			 * necessary to complete transmitted packet.
@@ -619,7 +619,7 @@ cbq_update(struct cbq_sched_data *q)
 			idle -= L2T(&q->link, len);
 			idle += L2T(cl, len);
 
-			cl->undertime = now + idle;
+			cl->undertime = yesw + idle;
 		} else {
 			/* Underlimit */
 
@@ -629,8 +629,8 @@ cbq_update(struct cbq_sched_data *q)
 			else
 				cl->avgidle = avgidle;
 		}
-		if ((s64)(now - cl->last) > 0)
-			cl->last = now;
+		if ((s64)(yesw - cl->last) > 0)
+			cl->last = yesw;
 	}
 
 	cbq_update_toplevel(q, this, q->tx_borrowed);
@@ -645,21 +645,21 @@ cbq_under_limit(struct cbq_class *cl)
 	if (cl->tparent == NULL)
 		return cl;
 
-	if (cl->undertime == PSCHED_PASTPERFECT || q->now >= cl->undertime) {
+	if (cl->undertime == PSCHED_PASTPERFECT || q->yesw >= cl->undertime) {
 		cl->delayed = 0;
 		return cl;
 	}
 
 	do {
 		/* It is very suspicious place. Now overlimit
-		 * action is generated for not bounded classes
+		 * action is generated for yest bounded classes
 		 * only if link is completely congested.
 		 * Though it is in agree with ancestor-only paradigm,
 		 * it looks very stupid. Particularly,
 		 * it means that this chunk of code will either
 		 * never be called or result in strong amplification
 		 * of burstiness. Dangerous, silly, and, however,
-		 * no another solution exists.
+		 * yes ayesther solution exists.
 		 */
 		cl = cl->borrow;
 		if (!cl) {
@@ -669,7 +669,7 @@ cbq_under_limit(struct cbq_class *cl)
 		}
 		if (cl->level > q->toplevel)
 			return NULL;
-	} while (cl->undertime != PSCHED_PASTPERFECT && q->now < cl->undertime);
+	} while (cl->undertime != PSCHED_PASTPERFECT && q->yesw < cl->undertime);
 
 	cl->delayed = 0;
 	return cl;
@@ -708,7 +708,7 @@ cbq_dequeue_prio(struct Qdisc *sch, int prio)
 
 			skb = cl->q->dequeue(cl->q);
 
-			/* Class did not give us any skb :-(
+			/* Class did yest give us any skb :-(
 			 * It could occur even if cl->q->q.qlen != 0
 			 * f.e. if cl->q == "tbf"
 			 */
@@ -801,14 +801,14 @@ cbq_dequeue(struct Qdisc *sch)
 {
 	struct sk_buff *skb;
 	struct cbq_sched_data *q = qdisc_priv(sch);
-	psched_time_t now;
+	psched_time_t yesw;
 
-	now = psched_get_time();
+	yesw = psched_get_time();
 
 	if (q->tx_class)
 		cbq_update(q);
 
-	q->now = now;
+	q->yesw = yesw;
 
 	for (;;) {
 		q->wd_expires = 0;
@@ -832,7 +832,7 @@ cbq_dequeue(struct Qdisc *sch)
 		 *
 		 * Note, that NS and cbq-2.0 are buggy, peeking
 		 * an arbitrary class is appropriate for ancestor-only
-		 * sharing, but not for toplevel algorithm.
+		 * sharing, but yest for toplevel algorithm.
 		 *
 		 * Our version is better, but slower, because it requires
 		 * two passes, but it is unavoidable with top-level sharing.
@@ -846,7 +846,7 @@ cbq_dequeue(struct Qdisc *sch)
 		q->link.undertime = PSCHED_PASTPERFECT;
 	}
 
-	/* No packets in scheduler or nobody wants to give them to us :-(
+	/* No packets in scheduler or yesbody wants to give them to us :-(
 	 * Sigh... start watchdog timer in the last case.
 	 */
 
@@ -854,7 +854,7 @@ cbq_dequeue(struct Qdisc *sch)
 		qdisc_qstats_overlimit(sch);
 		if (q->wd_expires)
 			qdisc_watchdog_schedule(&q->watchdog,
-						now + q->wd_expires);
+						yesw + q->wd_expires);
 	}
 	return NULL;
 }
@@ -881,7 +881,7 @@ static void cbq_adjust_levels(struct cbq_class *this)
 	} while ((this = this->tparent) != NULL);
 }
 
-static void cbq_normalize_quanta(struct cbq_sched_data *q, int prio)
+static void cbq_yesrmalize_quanta(struct cbq_sched_data *q, int prio)
 {
 	struct cbq_class *cl;
 	unsigned int h;
@@ -890,7 +890,7 @@ static void cbq_normalize_quanta(struct cbq_sched_data *q, int prio)
 		return;
 
 	for (h = 0; h < q->clhash.hashsize; h++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hyesde) {
 			/* BUGGGG... Beware! This expression suffer of
 			 * arithmetic overflows!
 			 */
@@ -933,7 +933,7 @@ static void cbq_sync_defmap(struct cbq_class *cl)
 			struct cbq_class *c;
 
 			hlist_for_each_entry(c, &q->clhash.hash[h],
-					     common.hnode) {
+					     common.hyesde) {
 				if (c->split == split && c->level < level &&
 				    c->defmap & (1<<i)) {
 					split->defaults[i] = c;
@@ -1037,13 +1037,13 @@ cbq_reset(struct Qdisc *sch)
 	qdisc_watchdog_cancel(&q->watchdog);
 	hrtimer_cancel(&q->delay_timer);
 	q->toplevel = TC_CBQ_MAXLEVEL;
-	q->now = psched_get_time();
+	q->yesw = psched_get_time();
 
 	for (prio = 0; prio <= TC_CBQ_MAXPRIO; prio++)
 		q->active[prio] = NULL;
 
 	for (h = 0; h < q->clhash.hashsize; h++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hyesde) {
 			qdisc_reset(cl->q);
 
 			cl->next_alive = NULL;
@@ -1082,14 +1082,14 @@ static void cbq_rmprio(struct cbq_sched_data *q, struct cbq_class *cl)
 {
 	q->nclasses[cl->priority]--;
 	q->quanta[cl->priority] -= cl->weight;
-	cbq_normalize_quanta(q, cl->priority);
+	cbq_yesrmalize_quanta(q, cl->priority);
 }
 
 static void cbq_addprio(struct cbq_sched_data *q, struct cbq_class *cl)
 {
 	q->nclasses[cl->priority]++;
 	q->quanta[cl->priority] += cl->weight;
-	cbq_normalize_quanta(q, cl->priority);
+	cbq_yesrmalize_quanta(q, cl->priority);
 }
 
 static int cbq_set_wrr(struct cbq_class *cl, struct tc_cbq_wrropt *wrr)
@@ -1195,7 +1195,7 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt,
 	q->link.q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 				      sch->handle, NULL);
 	if (!q->link.q)
-		q->link.q = &noop_qdisc;
+		q->link.q = &yesop_qdisc;
 	else
 		qdisc_hash_add(q->link.q, true);
 
@@ -1211,7 +1211,7 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt,
 	q->link.minidle = -0x7FFFFFFF;
 
 	q->toplevel = TC_CBQ_MAXLEVEL;
-	q->now = psched_get_time();
+	q->yesw = psched_get_time();
 
 	cbq_link_class(&q->link);
 
@@ -1322,7 +1322,7 @@ static int cbq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct nlattr *nest;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (cbq_dump_attr(skb, &q->link) < 0)
@@ -1357,7 +1357,7 @@ cbq_dump_class(struct Qdisc *sch, unsigned long arg,
 	tcm->tcm_handle = cl->common.classid;
 	tcm->tcm_info = cl->q->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (cbq_dump_attr(skb, cl) < 0)
@@ -1382,7 +1382,7 @@ cbq_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 	qdisc_qstats_qlen_backlog(cl->q, &qlen, &cl->qstats.backlog);
 
 	if (cl->undertime != PSCHED_PASTPERFECT)
-		cl->xstats.undertime = cl->undertime - q->now;
+		cl->xstats.undertime = cl->undertime - q->yesw;
 
 	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
 				  d, NULL, &cl->bstats) < 0 ||
@@ -1416,7 +1416,7 @@ static struct Qdisc *cbq_leaf(struct Qdisc *sch, unsigned long arg)
 	return cl->q;
 }
 
-static void cbq_qlen_notify(struct Qdisc *sch, unsigned long arg)
+static void cbq_qlen_yestify(struct Qdisc *sch, unsigned long arg)
 {
 	struct cbq_class *cl = (struct cbq_class *)arg;
 
@@ -1447,7 +1447,7 @@ static void cbq_destroy_class(struct Qdisc *sch, struct cbq_class *cl)
 static void cbq_destroy(struct Qdisc *sch)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 	struct cbq_class *cl;
 	unsigned int h;
 
@@ -1460,14 +1460,14 @@ static void cbq_destroy(struct Qdisc *sch)
 	 * be bound to classes which have been destroyed already. --TGR '04
 	 */
 	for (h = 0; h < q->clhash.hashsize; h++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hyesde) {
 			tcf_block_put(cl->block);
 			cl->block = NULL;
 		}
 	}
 	for (h = 0; h < q->clhash.hashsize; h++) {
 		hlist_for_each_entry_safe(cl, next, &q->clhash.hash[h],
-					  common.hnode)
+					  common.hyesde)
 			cbq_destroy_class(sch, cl);
 	}
 	qdisc_class_hash_destroy(&q->clhash);
@@ -1490,7 +1490,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 		return err;
 
 	if (tb[TCA_CBQ_OVL_STRATEGY] || tb[TCA_CBQ_POLICE]) {
-		NL_SET_ERR_MSG(extack, "Neither overlimit strategy nor policing attributes can be used for changing class params");
+		NL_SET_ERR_MSG(extack, "Neither overlimit strategy yesr policing attributes can be used for changing class params");
 		return -EOPNOTSUPP;
 	}
 
@@ -1575,7 +1575,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 		err = -EINVAL;
 		if (TC_H_MAJ(classid ^ sch->handle) ||
 		    cbq_class_lookup(q, classid)) {
-			NL_SET_ERR_MSG(extack, "Specified class not found");
+			NL_SET_ERR_MSG(extack, "Specified class yest found");
 			goto failure;
 		}
 	} else {
@@ -1635,7 +1635,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	cl->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, classid,
 				  NULL);
 	if (!cl->q)
-		cl->q = &noop_qdisc;
+		cl->q = &yesop_qdisc;
 	else
 		qdisc_hash_add(cl->q, true);
 
@@ -1758,7 +1758,7 @@ static void cbq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 		return;
 
 	for (h = 0; h < q->clhash.hashsize; h++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hyesde) {
 			if (arg->count < arg->skip) {
 				arg->count++;
 				continue;
@@ -1775,7 +1775,7 @@ static void cbq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 static const struct Qdisc_class_ops cbq_class_ops = {
 	.graft		=	cbq_graft,
 	.leaf		=	cbq_leaf,
-	.qlen_notify	=	cbq_qlen_notify,
+	.qlen_yestify	=	cbq_qlen_yestify,
 	.find		=	cbq_find,
 	.change		=	cbq_change_class,
 	.delete		=	cbq_delete,

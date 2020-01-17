@@ -64,7 +64,7 @@ smbhash(unsigned char *out, const unsigned char *in, unsigned char *key)
 	str_to_key(key, key2);
 
 	if (fips_enabled) {
-		cifs_dbg(VFS, "FIPS compliance enabled: DES not permitted\n");
+		cifs_dbg(VFS, "FIPS compliance enabled: DES yest permitted\n");
 		return -ENOENT;
 	}
 
@@ -118,17 +118,17 @@ mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
 
 	rc = crypto_shash_init(&sdescmd4->shash);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not init md4 shash\n", __func__);
+		cifs_dbg(VFS, "%s: Could yest init md4 shash\n", __func__);
 		goto mdfour_err;
 	}
 	rc = crypto_shash_update(&sdescmd4->shash, link_str, link_len);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not update with link_str\n", __func__);
+		cifs_dbg(VFS, "%s: Could yest update with link_str\n", __func__);
 		goto mdfour_err;
 	}
 	rc = crypto_shash_final(&sdescmd4->shash, md4_hash);
 	if (rc)
-		cifs_dbg(VFS, "%s: Could not generate md4 hash\n", __func__);
+		cifs_dbg(VFS, "%s: Could yest generate md4 hash\n", __func__);
 
 mdfour_err:
 	cifs_free_hash(&md4, &sdescmd4);
@@ -173,7 +173,7 @@ E_md4hash(const unsigned char *passwd, unsigned char *p16,
 	int len;
 	__le16 wpwd[129];
 
-	/* Password cannot be longer than 128 characters */
+	/* Password canyest be longer than 128 characters */
 	if (passwd) /* Password must be converted to NT unicode */
 		len = cifs_strtoUTF16(wpwd, passwd, 128, codepage);
 	else {

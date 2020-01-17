@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -125,9 +125,9 @@ static int hfi1_caps_set(const char *val, const struct kernel_param *kp)
 	/* Get the changed bits (except the locked bit) */
 	diff = value ^ (cap_mask & ~HFI1_CAP_LOCKED_SMASK);
 
-	/* Remove any bits that are not allowed to change after driver load */
+	/* Remove any bits that are yest allowed to change after driver load */
 	if (HFI1_CAP_LOCKED() && (diff & ~write_mask)) {
-		pr_warn("Ignoring non-writable capability bits %#lx\n",
+		pr_warn("Igyesring yesn-writable capability bits %#lx\n",
 			diff & ~write_mask);
 		diff &= write_mask;
 	}
@@ -193,7 +193,7 @@ int hfi1_count_active_units(void)
 }
 
 /*
- * Get address of eager buffer from it's index (allocated in chunks, not
+ * Get address of eager buffer from it's index (allocated in chunks, yest
  * contiguous).
  */
 static inline void *get_egrbuf(const struct hfi1_ctxtdata *rcd, u64 rhf,
@@ -333,7 +333,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 				hfi1_rc_hdrerr(rcd, packet, qp);
 				break;
 			default:
-				/* For now don't handle any other QP types */
+				/* For yesw don't handle any other QP types */
 				break;
 			}
 
@@ -422,7 +422,7 @@ static inline void init_packet(struct hfi1_ctxtdata *rcd,
 	packet->numpkt = 0;
 }
 
-/* We support only two types - 9B and 16B for now */
+/* We support only two types - 9B and 16B for yesw */
 static const hfi1_handle_cnp hfi1_handle_cnp_tbl[2] = {
 	[HFI1_PKT_TYPE_9B] = &return_cnp,
 	[HFI1_PKT_TYPE_16B] = &return_cnp_16B
@@ -434,12 +434,12 @@ static const hfi1_handle_cnp hfi1_handle_cnp_tbl[2] = {
  * @pkt: The packet itself.
  * @prescan: Is the caller the RXQ prescan
  *
- * Process the packet's FECN or BECN bits. By now, the packet
+ * Process the packet's FECN or BECN bits. By yesw, the packet
  * has already been evaluated whether processing of those bit should
  * be done.
  * The significance of the @prescan argument is that if the caller
  * is the RXQ prescan, a CNP will be send out instead of waiting for the
- * normal packet processing to send an ACK with BECN set (or a CNP).
+ * yesrmal packet processing to send an ACK with BECN set (or a CNP).
  */
 bool hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool prescan)
@@ -452,7 +452,7 @@ bool hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 	u16 pkey;
 	u32 rlid, slid, dlid = 0;
 	u8 hdr_type, sc, svc_type, opcode;
-	bool is_mcast = false, ignore_fecn = false, do_cnp = false,
+	bool is_mcast = false, igyesre_fecn = false, do_cnp = false,
 		fecn, becn;
 
 	/* can be called from prescan */
@@ -506,11 +506,11 @@ bool hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 		return false;
 	}
 
-	ignore_fecn = is_mcast || (opcode == IB_OPCODE_CNP) ||
+	igyesre_fecn = is_mcast || (opcode == IB_OPCODE_CNP) ||
 		(opcode == IB_OPCODE_RC_ACKNOWLEDGE);
 	/*
-	 * ACKNOWLEDGE packets do not get a CNP but this will be
-	 * guarded by ignore_fecn above.
+	 * ACKNOWLEDGE packets do yest get a CNP but this will be
+	 * guarded by igyesre_fecn above.
 	 */
 	do_cnp = prescan ||
 		(opcode >= IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST &&
@@ -519,7 +519,7 @@ bool hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 		opcode == TID_OP(ACK);
 
 	/* Call appropriate CNP handler */
-	if (!ignore_fecn && do_cnp && fecn)
+	if (!igyesre_fecn && do_cnp && fecn)
 		hfi1_handle_cnp_tbl[hdr_type](ibp, qp, rqpn, pkey,
 					      dlid, rlid, sc, grh);
 
@@ -529,7 +529,7 @@ bool hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 
 		process_becn(ppd, sl, rlid, lqpn, rqpn, svc_type);
 	}
-	return !ignore_fecn && fecn;
+	return !igyesre_fecn && fecn;
 }
 
 struct ps_mdata {
@@ -556,7 +556,7 @@ static inline void init_ps_mdata(struct ps_mdata *mdata,
 		if (rcd->ctxt == HFI1_CTRL_CTXT)
 			mdata->ps_seq = rcd->seq_cnt;
 		else
-			mdata->ps_seq = 0; /* not used with DMA_RTAIL */
+			mdata->ps_seq = 0; /* yest used with DMA_RTAIL */
 	} else {
 		mdata->ps_tail = 0; /* used only with DMA_RTAIL*/
 		mdata->ps_seq = rcd->seq_cnt;
@@ -605,7 +605,7 @@ static inline void update_ps_mdata(struct ps_mdata *mdata,
  * When an ECN is found, process the Congestion Notification, and toggle
  * it off.
  * This is declared as a macro to allow quick checking of the port to avoid
- * the overhead of a function call if not enabled.
+ * the overhead of a function call if yest enabled.
  */
 #define prescan_rxq(rcd, packet) \
 	do { \
@@ -707,7 +707,7 @@ static void process_rcv_qp_work(struct hfi1_packet *packet)
 	}
 }
 
-static noinline int max_packet_exceeded(struct hfi1_packet *packet, int thread)
+static yesinline int max_packet_exceeded(struct hfi1_packet *packet, int thread)
 {
 	if (thread) {
 		if ((packet->numpkt & (MAX_PKT_RECV_THREAD - 1)) == 0)
@@ -730,7 +730,7 @@ static inline int check_max_packet(struct hfi1_packet *packet, int thread)
 	return ret;
 }
 
-static noinline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
+static yesinline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
 {
 	int ret;
 
@@ -779,7 +779,7 @@ static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 	 * should be able to trust that etype won't be beyond
 	 * the range of valid indexes. If so something is really
 	 * wrong and we can probably just let things come
-	 * crashing down. There is no need to eat another
+	 * crashing down. There is yes need to eat ayesther
 	 * comparison in this performance critical code.
 	 */
 	packet->rcd->rhf_rcv_function_map[packet->etype](packet);
@@ -802,7 +802,7 @@ static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 static inline void process_rcv_update(int last, struct hfi1_packet *packet)
 {
 	/*
-	 * Update head regs etc., every 16 packets, if not last pkt,
+	 * Update head regs etc., every 16 packets, if yest last pkt,
 	 * to help prevent rcvhdrq overflows, when many packets
 	 * are processed and queue is nearly full.
 	 * Don't request an interrupt for intermediate updates.
@@ -828,9 +828,9 @@ static inline void finish_packet(struct hfi1_packet *packet)
 }
 
 /*
- * Handle receive interrupts when using the no dma rtail option.
+ * Handle receive interrupts when using the yes dma rtail option.
  */
-int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread)
+int handle_receive_interrupt_yesdma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 {
 	u32 seq;
 	int last = RCV_PKT_OK;
@@ -890,7 +890,7 @@ bail:
 	return last;
 }
 
-static inline void set_nodma_rtail(struct hfi1_devdata *dd, u16 ctxt)
+static inline void set_yesdma_rtail(struct hfi1_devdata *dd, u16 ctxt)
 {
 	struct hfi1_ctxtdata *rcd;
 	u16 i;
@@ -904,7 +904,7 @@ static inline void set_nodma_rtail(struct hfi1_devdata *dd, u16 ctxt)
 		rcd = hfi1_rcd_get_by_index_safe(dd, ctxt);
 		if (rcd) {
 			rcd->do_interrupt =
-				&handle_receive_interrupt_nodma_rtail;
+				&handle_receive_interrupt_yesdma_rtail;
 			hfi1_rcd_put(rcd);
 		}
 		return;
@@ -914,7 +914,7 @@ static inline void set_nodma_rtail(struct hfi1_devdata *dd, u16 ctxt)
 		rcd = hfi1_rcd_get_by_index(dd, i);
 		if (rcd)
 			rcd->do_interrupt =
-				&handle_receive_interrupt_nodma_rtail;
+				&handle_receive_interrupt_yesdma_rtail;
 		hfi1_rcd_put(rcd);
 	}
 }
@@ -1066,7 +1066,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 			last = skip_rcv_packet(&packet, thread);
 			skip_pkt = 0;
 		} else {
-			/* Auto activate link on non-SC15 packet receive */
+			/* Auto activate link on yesn-SC15 packet receive */
 			if (unlikely(rcd->ppd->host_link_state ==
 				     HLS_UP_ARMED) &&
 			    set_armed_to_active(rcd, &packet, dd))
@@ -1083,7 +1083,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 				last = RCV_PKT_DONE;
 			if (needset) {
 				dd_dev_info(dd, "Switching to NO_DMA_RTAIL\n");
-				set_nodma_rtail(dd, rcd->ctxt);
+				set_yesdma_rtail(dd, rcd->ctxt);
 				needset = 0;
 			}
 		} else {
@@ -1119,7 +1119,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 bail:
 	/*
 	 * Always write head at end, and setup rcv interrupt, even
-	 * if no packets were processed.
+	 * if yes packets were processed.
 	 */
 	finish_packet(&packet);
 	return last;
@@ -1127,8 +1127,8 @@ bail:
 
 /*
  * We may discover in the interrupt that the hardware link state has
- * changed from ARMED to ACTIVE (due to the arrival of a non-SC15 packet),
- * and we need to update the driver's notion of the link state.  We cannot
+ * changed from ARMED to ACTIVE (due to the arrival of a yesn-SC15 packet),
+ * and we need to update the driver's yestion of the link state.  We canyest
  * run set_link_state from interrupt context, so we queue this function on
  * a workqueue.
  *
@@ -1150,8 +1150,8 @@ void receive_interrupt_work(struct work_struct *work)
 	struct hfi1_ctxtdata *rcd;
 	u16 i;
 
-	/* Received non-SC15 packet implies neighbor_normal */
-	ppd->neighbor_normal = 1;
+	/* Received yesn-SC15 packet implies neighbor_yesrmal */
+	ppd->neighbor_yesrmal = 1;
 	set_link_state(ppd, HLS_UP_ACTIVE);
 
 	/*
@@ -1205,7 +1205,7 @@ u16 enum_to_mtu(int mtu)
  * @ppd: the per port data
  *
  * We can handle "any" incoming size, the issue here is whether we
- * need to restrict our outgoing size.  We do not deal with what happens
+ * need to restrict our outgoing size.  We do yest deal with what happens
  * to programs that are already running when the size changes.
  */
 int set_mtu(struct hfi1_pportdata *ppd)
@@ -1229,14 +1229,14 @@ int set_mtu(struct hfi1_pportdata *ppd)
 
 	if (drain)
 		/*
-		 * MTU is specified per-VL. To ensure that no packet gets
+		 * MTU is specified per-VL. To ensure that yes packet gets
 		 * stuck (due, e.g., to the MTU for the packet's VL being
 		 * reduced), empty the per-VL FIFOs before adjusting MTU.
 		 */
 		ret = stop_drain_data_vls(dd);
 
 	if (ret) {
-		dd_dev_err(dd, "%s: cannot stop/drain VLs - refusing to change per-VL MTUs\n",
+		dd_dev_err(dd, "%s: canyest stop/drain VLs - refusing to change per-VL MTUs\n",
 			   __func__);
 		goto err;
 	}
@@ -1282,7 +1282,7 @@ void shutdown_led_override(struct hfi1_pportdata *ppd)
 		smp_wmb();
 	}
 
-	/* Hand control of the LED to the DC for normal operation */
+	/* Hand control of the LED to the DC for yesrmal operation */
 	write_csr(dd, DCC_CFG_LED_CNTRL, 0);
 }
 
@@ -1311,7 +1311,7 @@ static void run_led_override(struct timer_list *t)
 /*
  * To have the LED blink in a particular pattern, provide timeon and timeoff
  * in milliseconds.
- * To turn off custom blinking and return to normal operation, use
+ * To turn off custom blinking and return to yesrmal operation, use
  * shutdown_led_override()
  */
 void hfi1_start_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
@@ -1328,7 +1328,7 @@ void hfi1_start_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
 	ppd->led_override_phase = 1;
 
 	/*
-	 * If the timer has not already been started, do so. Use a "quick"
+	 * If the timer has yest already been started, do so. Use a "quick"
 	 * timeout so the handler will be called soon to look at our request.
 	 */
 	if (!timer_pending(&ppd->led_override_timer)) {
@@ -1345,10 +1345,10 @@ void hfi1_start_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
  * hfi1_reset_device - reset the chip if possible
  * @unit: the device to reset
  *
- * Whether or not reset is successful, we attempt to re-initialize the chip
+ * Whether or yest reset is successful, we attempt to re-initialize the chip
  * (that is, much like a driver unload/reload).  We clear the INITTED flag
  * so that the various entry points will fail until we reinitialize.  For
- * now, we only allow this if no user contexts are open that use chip resources
+ * yesw, we only allow this if yes user contexts are open that use chip resources
  */
 int hfi1_reset_device(int unit)
 {
@@ -1366,13 +1366,13 @@ int hfi1_reset_device(int unit)
 
 	if (!dd->kregbase1 || !(dd->flags & HFI1_PRESENT)) {
 		dd_dev_info(dd,
-			    "Invalid unit number %u or not initialized or not present\n",
+			    "Invalid unit number %u or yest initialized or yest present\n",
 			    unit);
 		ret = -ENXIO;
 		goto bail;
 	}
 
-	/* If there are any user/vnic contexts, we cannot reset */
+	/* If there are any user/vnic contexts, we canyest reset */
 	mutex_lock(&hfi1_mutex);
 	if (dd->rcd)
 		if (hfi1_stats.sps_ctxts) {
@@ -1418,7 +1418,7 @@ static int hfi1_bypass_ingress_pkt_check(struct hfi1_packet *packet)
 {
 	struct hfi1_pportdata *ppd = packet->rcd->ppd;
 
-	/* slid and dlid cannot be 0 */
+	/* slid and dlid canyest be 0 */
 	if ((!packet->slid) || (!packet->dlid))
 		return -EINVAL;
 
@@ -1661,7 +1661,7 @@ static int process_receive_bypass(struct hfi1_packet *packet)
 		hfi1_16B_rcv(packet);
 	} else {
 		dd_dev_err(dd,
-			   "Bypass packets other than 16B are not supported in normal operation. Dropping\n");
+			   "Bypass packets other than 16B are yest supported in yesrmal operation. Dropping\n");
 		incr_cntr64(&dd->sw_rcv_bypass_packet_errors);
 		if (!(dd->err_info_rcvport.status_and_code &
 		      OPA_EI_STATUS_SMASK)) {
@@ -1750,7 +1750,7 @@ void seqfile_dump_rcd(struct seq_file *s, struct hfi1_ctxtdata *rcd)
 	seq_printf(s, "Rcd %u: RcvHdr cnt %u entsize %u %s head %llu tail %llu\n",
 		   rcd->ctxt, rcd->rcvhdrq_cnt, rcd->rcvhdrqentsize,
 		   HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL) ?
-		   "dma_rtail" : "nodma_rtail",
+		   "dma_rtail" : "yesdma_rtail",
 		   read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_HEAD) &
 		   RCV_HDR_HEAD_HEAD_MASK,
 		   read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_TAIL));
@@ -1800,7 +1800,7 @@ next:
 	}
 }
 
-const rhf_rcv_function_ptr normal_rhf_rcv_functions[] = {
+const rhf_rcv_function_ptr yesrmal_rhf_rcv_functions[] = {
 	[RHF_RCV_TYPE_EXPECTED] = kdeth_process_expected,
 	[RHF_RCV_TYPE_EAGER] = kdeth_process_eager,
 	[RHF_RCV_TYPE_IB] = process_receive_ib,

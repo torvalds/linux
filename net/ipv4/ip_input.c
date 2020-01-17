@@ -13,16 +13,16 @@
  *		Richard Underwood
  *		Stefan Becker, <stefanb@yello.ping.de>
  *		Jorge Cwik, <jorge@laser.satlink.net>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
+ *		Arnt Gulbrandsen, <agulbra@nvg.unit.yes>
  *
  * Fixes:
- *		Alan Cox	:	Commented a couple of minor bits of surplus code
+ *		Alan Cox	:	Commented a couple of miyesr bits of surplus code
  *		Alan Cox	:	Undefining IP_FORWARD doesn't include the code
  *					(just stops a compiler warning).
  *		Alan Cox	:	Frames with >=MAX_ROUTE record routes, strict routes or loose routes
  *					are junked rather than corrupting things.
  *		Alan Cox	:	Frames to bad broadcast subnets are dumped
- *					We used to process them non broadcast and
+ *					We used to process them yesn broadcast and
  *					boy could that cause havoc.
  *		Alan Cox	:	ip_forward sets the free flag on the
  *					new frame it queues. Still crap because
@@ -34,7 +34,7 @@
  *		Gerhard Koerting: 	Fixes to my fix of the above 8-).
  *		Gerhard Koerting:	IP interface addressing fix.
  *		Linus Torvalds	:	More robustness checks
- *		Alan Cox	:	Even more checks: Still not as robust as it ought to be
+ *		Alan Cox	:	Even more checks: Still yest as robust as it ought to be
  *		Alan Cox	:	Save IP header pointer for later
  *		Alan Cox	:	ip option setting
  *		Alan Cox	:	Use ip_tos/ip_ttl settings
@@ -66,7 +66,7 @@
  *					Masquerading support.
  *		Alan Cox	:	Multicast loopback error for 224.0.0.1
  *		Alan Cox	:	IP_MULTICAST_LOOP option.
- *		Alan Cox	:	Use notifiers.
+ *		Alan Cox	:	Use yestifiers.
  *		Bjorn Ekwall	:	Removed ip_csum (from slhc.c too)
  *		Bjorn Ekwall	:	Moved ip_fast_csum to ip.h (inline!)
  *		Stefan Becker   :       Send out ICMP HOST REDIRECT
@@ -112,7 +112,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 
 #include <linux/net.h>
@@ -194,7 +194,7 @@ resubmit:
 
 	ipprot = rcu_dereference(inet_protos[protocol]);
 	if (ipprot) {
-		if (!ipprot->no_policy) {
+		if (!ipprot->yes_policy) {
 			if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 				kfree_skb(skb);
 				return;
@@ -259,9 +259,9 @@ static inline bool ip_rcv_options(struct sk_buff *skb, struct net_device *dev)
 	struct ip_options *opt;
 	const struct iphdr *iph;
 
-	/* It looks as overkill, because not all
+	/* It looks as overkill, because yest all
 	   IP options require packet mangling.
-	   But it is the easiest for now, especially taking
+	   But it is the easiest for yesw, especially taking
 	   into account that combination of IP options
 	   and running sniffer is extremely rare condition.
 					      --ANK (980813)
@@ -350,7 +350,7 @@ static int ip_rcv_finish_core(struct net *net, struct sock *sk,
 	 *	how the packet travels inside Linux networking.
 	 */
 	if (!skb_valid_dst(skb)) {
-		err = ip_route_input_noref(skb, iph->daddr, iph->saddr,
+		err = ip_route_input_yesref(skb, iph->daddr, iph->saddr,
 					   iph->tos, dev);
 		if (unlikely(err))
 			goto drop_error;
@@ -386,7 +386,7 @@ static int ip_rcv_finish_core(struct net *net, struct sock *sk,
 		 *   broadcast or IP multicast address.
 		 *
 		 *   A host SHOULD silently discard a datagram that is received
-		 *   via a link-layer broadcast (see Section 2.4) but does not
+		 *   via a link-layer broadcast (see Section 2.4) but does yest
 		 *   specify an IP multicast or broadcast destination address.
 		 *
 		 * This doesn't explicitly say L2 *broadcast*, but broadcast is
@@ -438,7 +438,7 @@ static struct sk_buff *ip_rcv_core(struct sk_buff *skb, struct net *net)
 	u32 len;
 
 	/* When the interface is in promisc. mode, drop all the crap
-	 * that it receives, do not try to analyse it.
+	 * that it receives, do yest try to analyse it.
 	 */
 	if (skb->pkt_type == PACKET_OTHERHOST)
 		goto drop;
@@ -492,9 +492,9 @@ static struct sk_buff *ip_rcv_core(struct sk_buff *skb, struct net *net)
 	} else if (len < (iph->ihl*4))
 		goto inhdr_error;
 
-	/* Our transport medium may have padded the buffer out. Now we know it
+	/* Our transport medium may have padded the buffer out. Now we kyesw it
 	 * is IP we can trim to the true length of the frame.
-	 * Note this now means skb->len holds ntohs(iph->tot_len).
+	 * Note this yesw means skb->len holds ntohs(iph->tot_len).
 	 */
 	if (pskb_trim_rcsum(skb, len)) {
 		__IP_INC_STATS(net, IPSTATS_MIB_INDISCARDS);
@@ -508,7 +508,7 @@ static struct sk_buff *ip_rcv_core(struct sk_buff *skb, struct net *net)
 	memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
 	IPCB(skb)->iif = skb->skb_iif;
 
-	/* Must drop socket now because of tproxy. */
+	/* Must drop socket yesw because of tproxy. */
 	skb_orphan(skb);
 
 	return skb;

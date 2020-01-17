@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -97,7 +97,7 @@ nv50_devinit_preinit(struct nvkm_devinit *base)
 	struct nvkm_device *device = subdev->device;
 
 	/* our heuristics can't detect whether the board has had its
-	 * devinit scripts executed or not if the display engine is
+	 * devinit scripts executed or yest if the display engine is
 	 * missing, assume it's a secondary gpu which requires post
 	 */
 	if (!base->post) {
@@ -106,13 +106,13 @@ nv50_devinit_preinit(struct nvkm_devinit *base)
 			base->post = true;
 	}
 
-	/* magic to detect whether or not x86 vbios code has executed
+	/* magic to detect whether or yest x86 vbios code has executed
 	 * the devinit scripts to initialise the board
 	 */
 	if (!base->post) {
 		if (!nvkm_rdvgac(device, 0, 0x00) &&
 		    !nvkm_rdvgac(device, 0, 0x1a)) {
-			nvkm_debug(subdev, "adaptor not initialised\n");
+			nvkm_debug(subdev, "adaptor yest initialised\n");
 			base->post = true;
 		}
 	}

@@ -7,14 +7,14 @@
 
 #ifdef CONFIG_JFS_POSIX_ACL
 
-struct posix_acl *jfs_get_acl(struct inode *inode, int type);
-int jfs_set_acl(struct inode *inode, struct posix_acl *acl, int type);
-int jfs_init_acl(tid_t, struct inode *, struct inode *);
+struct posix_acl *jfs_get_acl(struct iyesde *iyesde, int type);
+int jfs_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type);
+int jfs_init_acl(tid_t, struct iyesde *, struct iyesde *);
 
 #else
 
-static inline int jfs_init_acl(tid_t tid, struct inode *inode,
-			       struct inode *dir)
+static inline int jfs_init_acl(tid_t tid, struct iyesde *iyesde,
+			       struct iyesde *dir)
 {
 	return 0;
 }

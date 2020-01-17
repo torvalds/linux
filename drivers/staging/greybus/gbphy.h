@@ -74,7 +74,7 @@ static inline int gbphy_runtime_get_sync(struct gbphy_device *gbphy_dev)
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
 		dev_err(dev, "pm_runtime_get_sync failed: %d\n", ret);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		return ret;
 	}
 
@@ -89,20 +89,20 @@ static inline void gbphy_runtime_put_autosuspend(struct gbphy_device *gbphy_dev)
 	pm_runtime_put_autosuspend(dev);
 }
 
-static inline void gbphy_runtime_get_noresume(struct gbphy_device *gbphy_dev)
+static inline void gbphy_runtime_get_yesresume(struct gbphy_device *gbphy_dev)
 {
-	pm_runtime_get_noresume(&gbphy_dev->dev);
+	pm_runtime_get_yesresume(&gbphy_dev->dev);
 }
 
-static inline void gbphy_runtime_put_noidle(struct gbphy_device *gbphy_dev)
+static inline void gbphy_runtime_put_yesidle(struct gbphy_device *gbphy_dev)
 {
-	pm_runtime_put_noidle(&gbphy_dev->dev);
+	pm_runtime_put_yesidle(&gbphy_dev->dev);
 }
 #else
 static inline int gbphy_runtime_get_sync(struct gbphy_device *gbphy_dev) { return 0; }
 static inline void gbphy_runtime_put_autosuspend(struct gbphy_device *gbphy_dev) {}
-static inline void gbphy_runtime_get_noresume(struct gbphy_device *gbphy_dev) {}
-static inline void gbphy_runtime_put_noidle(struct gbphy_device *gbphy_dev) {}
+static inline void gbphy_runtime_get_yesresume(struct gbphy_device *gbphy_dev) {}
+static inline void gbphy_runtime_put_yesidle(struct gbphy_device *gbphy_dev) {}
 #endif
 
 #endif /* __GBPHY_H */

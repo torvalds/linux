@@ -13,7 +13,7 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
@@ -202,7 +202,7 @@ static irqreturn_t tiny_spi_irq(int irq, void *dev)
 static int tiny_spi_of_probe(struct platform_device *pdev)
 {
 	struct tiny_spi *hw = platform_get_drvdata(pdev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	unsigned int i;
 	u32 val;
 
@@ -221,7 +221,7 @@ static int tiny_spi_of_probe(struct platform_device *pdev)
 		if (hw->gpio_cs[i] < 0)
 			return -ENODEV;
 	}
-	hw->bitbang.master->dev.of_node = pdev->dev.of_node;
+	hw->bitbang.master->dev.of_yesde = pdev->dev.of_yesde;
 	if (!of_property_read_u32(np, "clock-frequency", &val))
 		hw->freq = val;
 	if (!of_property_read_u32(np, "baud-width", &val))

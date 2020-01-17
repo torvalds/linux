@@ -32,7 +32,7 @@ ENTRY(csum_partial_copy)
 	;; Check alignment and size
 	AND	.S1	3,A4,A1
 ||	AND	.S2	3,B4,B0
-	OR	.L2X	B0,A1,B0	; non aligned condition
+	OR	.L2X	B0,A1,B0	; yesn aligned condition
 ||	MVC	.S2	B5,ILC
 ||	MVK	.D2	1,B2
 ||	MV	.D1X	B5,A1		; words condition
@@ -59,7 +59,7 @@ ENTRY(csum_partial_copy)
 L6:
   [!A1]	BNOP	.S1	L8,5
 
-	;; Main loop for non-aligned words
+	;; Main loop for yesn-aligned words
 	SPLOOP		2
  ||	MVK	.L1	1,A2
 

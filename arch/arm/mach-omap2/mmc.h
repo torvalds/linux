@@ -18,5 +18,5 @@ static inline int omap_msdi_reset(struct omap_hwmod *oh)
 #endif
 
 /* called from board-specific card detection service routine */
-extern void omap_mmc_notify_cover_event(struct device *dev, int slot,
+extern void omap_mmc_yestify_cover_event(struct device *dev, int slot,
 					int is_closed);

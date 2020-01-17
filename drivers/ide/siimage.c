@@ -17,7 +17,7 @@
  *
  *  FAQ Items:
  *	If you are using Marvell SATA-IDE adapters with Maxtor drives
- *	ensure the system is set up for ATA100/UDMA5, not UDMA6.
+ *	ensure the system is set up for ATA100/UDMA5, yest UDMA6.
  *
  *	If you are using WD drives with SATA bridges you must set the
  *	drive to "Single". "Master" will hang.
@@ -264,14 +264,14 @@ static void sil_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 			tf_pio = pair_pio;
 	}
 
-	/* cheat for now and use the docs */
+	/* cheat for yesw and use the docs */
 	speedp = data_speed[pio];
 	speedt = tf_speed[tf_pio];
 
 	sil_iowrite16(dev, speedp, addr);
 	sil_iowrite16(dev, speedt, tfaddr);
 
-	/* now set up IORDY */
+	/* yesw set up IORDY */
 	speedp = sil_ioread16(dev, tfaddr - 2);
 	speedp &= ~0x200;
 
@@ -467,7 +467,7 @@ static int init_chipset_siimage(struct pci_dev *dev)
 	if (ioaddr && pdev_is_sata(dev)) {
 		u32 tmp32, irq_mask;
 
-		/* make sure IDE0/1 interrupts are not masked */
+		/* make sure IDE0/1 interrupts are yest masked */
 		irq_mask = (1 << 22) | (1 << 23);
 		tmp32 = readl(ioaddr + 0x48);
 		if (tmp32 & irq_mask) {
@@ -624,7 +624,7 @@ static int is_dev_seagate_sata(ide_drive_t *drive)
  *
  *	Called after drive probe we use this to decide whether the
  *	Seagate fixup must be applied. This used to be in init_iops but
- *	that can occur before we know what drives are present.
+ *	that can occur before we kyesw what drives are present.
  */
 
 static void sil_quirkproc(ide_drive_t *drive)
@@ -768,7 +768,7 @@ static int siimage_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		* seem to get terminally confused in the PCI spaces.
 		*/
 		if (!request_mem_region(bar5, barsize, d.name)) {
-			printk(KERN_WARNING DRV_NAME " %s: MMIO ports not "
+			printk(KERN_WARNING DRV_NAME " %s: MMIO ports yest "
 				"available\n", pci_name(dev));
 		} else {
 			ioaddr = pci_ioremap_bar(dev, 5);

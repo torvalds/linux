@@ -1,5 +1,5 @@
 /*
- * Linux ARCnet driver - "raw mode" packet encapsulation (no soft headers)
+ * Linux ARCnet driver - "raw mode" packet encapsulation (yes soft headers)
  *
  * Written 1994-1999 by Avery Pennarun.
  * Derived from skeleton.c by Donald Becker.
@@ -79,7 +79,7 @@ static void rx(struct net_device *dev, int bufnum,
 }
 
 /* Create the ARCnet hard/soft headers for raw mode.
- * There aren't any soft headers in raw mode - not even the protocol id.
+ * There aren't any soft headers in raw mode - yest even the protocol id.
  */
 static int build_header(struct sk_buff *skb, struct net_device *dev,
 			unsigned short type, uint8_t daddr)
@@ -90,7 +90,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 	/* Set the source hardware address.
 	 *
 	 * This is pretty pointless for most purposes, but it can help in
-	 * debugging.  ARCnet does not allow us to change the source address
+	 * debugging.  ARCnet does yest allow us to change the source address
 	 * in the actual packet sent.
 	 */
 	pkt->hard.source = *dev->dev_addr;
@@ -99,7 +99,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 
 	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
 		/* FIXME: fill in the last byte of the dest ipaddr here
-		 * to better comply with RFC1051 in "noarp" mode.
+		 * to better comply with RFC1051 in "yesarp" mode.
 		 */
 		pkt->hard.dest = 0;
 		return hdr_size;
@@ -120,7 +120,7 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	arc_printk(D_DURING, dev, "prepare_tx: txbufs=%d/%d/%d\n",
 		   lp->next_tx, lp->cur_tx, bufnum);
 
-	/* hard header is not included in packet length */
+	/* hard header is yest included in packet length */
 	length -= ARC_HDR_SIZE;
 
 	if (length > XMTU) {
@@ -170,7 +170,7 @@ static int __init arcnet_raw_init(void)
 		if (arc_proto_map[count] == arc_proto_default)
 			arc_proto_map[count] = &rawmode_proto;
 
-	/* for raw mode, we only set the bcast proto if there's no better one */
+	/* for raw mode, we only set the bcast proto if there's yes better one */
 	if (arc_bcast_proto == arc_proto_default)
 		arc_bcast_proto = &rawmode_proto;
 

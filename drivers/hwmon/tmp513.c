@@ -536,7 +536,7 @@ static int tmp51x_calibrate(struct tmp51x_data *data)
 	/*
 	 * If shunt_uohms is equal to 0, the calibration should be set to 0.
 	 * The consequence will be that the current and power measurement engine
-	 * of the sensor will not work. Temperature and voltage sensing will
+	 * of the sensor will yest work. Temperature and voltage sensing will
 	 * continue to work.
 	 */
 	if (data->shunt_uohms == 0)
@@ -701,7 +701,7 @@ static int tmp51x_configure(struct device *dev, struct tmp51x_data *data)
 	data->temp_config = (data->id == tmp513) ?
 			TMP513_TEMP_CONFIG_DEFAULT : TMP512_TEMP_CONFIG_DEFAULT;
 
-	if (dev->of_node)
+	if (dev->of_yesde)
 		return tmp51x_read_properties(dev, data);
 
 	tmp51x_use_default(data);
@@ -721,7 +721,7 @@ static int tmp51x_probe(struct i2c_client *client,
 	if (!data)
 		return -ENOMEM;
 
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		data->id = (enum tmp51x_ids)device_get_match_data(&client->dev);
 	else
 		data->id = id->driver_data;

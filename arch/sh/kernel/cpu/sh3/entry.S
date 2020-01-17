@@ -6,7 +6,7 @@
  *  Copyright (C) 2003 - 2012  Paul Mundt
  */
 #include <linux/sys.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
@@ -97,7 +97,7 @@ OFF_TRA	=  (16*4+6*4)
 !
 !
 ! Find the pmd/pte entry and loadtlb
-! If it's not found, cause address error (SEGV)
+! If it's yest found, cause address error (SEGV)
 !
 ! Although this could be written in assembly language (and it'd be faster),
 ! this first version depends *much* on C implementation.
@@ -142,7 +142,7 @@ call_handle_tlbmiss:
 	bf/s	0f
 	 lds	r10, pr
 	rts
-	 nop
+	 yesp
 0:
 	mov	r8, r5
 call_do_page_fault:
@@ -189,7 +189,7 @@ call_dae:
 ENTRY(sh_bios_handler)
 	mov.l	1f, r8
 	bsr	restore_regs
-	 nop
+	 yesp
 
 	lds	k2, pr			! restore pr
 	mov	k4, r15
@@ -249,7 +249,7 @@ ENTRY(restore_regs)
 restore_all:
 	mov.l	7f, r8
 	bsr	restore_regs
-	 nop
+	 yesp
 
 	lds	k2, pr			! restore pr
 	!
@@ -257,7 +257,7 @@ restore_all:
 	mov	k3, k2			! original SR value
 	mov	#0xfffffff0, k1
 	extu.b	k1, k1
-	not	k1, k1
+	yest	k1, k1
 	and	k1, k2			! Mask original SR value
 	!
 	mov	k3, k0			! Calculate IMASK-bits
@@ -273,7 +273,7 @@ restore_all:
 	!
 	mov	k4, r15
 	rte
-	 nop
+	 yesp
 
 	.align	2
 5:	.long	0x00001000	! DSP
@@ -339,7 +339,7 @@ prepare_stack:
 	!
 1:
 	rts
-	 nop
+	 yesp
 
 !
 ! 0x400: Instruction and Data TLB miss exception vector
@@ -494,9 +494,9 @@ ENTRY(handle_interrupt)
 	jmp	@r9		! Off to do_IRQ() we go.
 	 mov	r15, r5		! pass saved registers as arg1
 
-ENTRY(exception_none)
+ENTRY(exception_yesne)
 	rts
-	 nop
+	 yesp
 
 	.align	L1_CACHE_SHIFT
 exception_data:

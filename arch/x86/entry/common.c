@@ -12,7 +12,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/tracehook.h>
 #include <linux/audit.h>
@@ -20,8 +20,8 @@
 #include <linux/signal.h>
 #include <linux/export.h>
 #include <linux/context_tracking.h>
-#include <linux/user-return-notifier.h>
-#include <linux/nospec.h>
+#include <linux/user-return-yestifier.h>
+#include <linux/yesspec.h>
 #include <linux/uprobes.h>
 #include <linux/livepatch.h>
 #include <linux/syscalls.h>
@@ -32,7 +32,7 @@
 #include <asm/vdso.h>
 #include <asm/cpufeature.h>
 #include <asm/fpu/api.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 #include <asm/io_bitmap.h>
 
 #define CREATE_TRACE_POINTS
@@ -137,7 +137,7 @@ static void exit_to_usermode_loop(struct pt_regs *regs, u32 cached_flags)
 {
 	/*
 	 * In order to return to user mode, we need to have IRQs off with
-	 * none of EXIT_TO_USERMODE_LOOP_FLAGS set.  Several of these flags
+	 * yesne of EXIT_TO_USERMODE_LOOP_FLAGS set.  Several of these flags
 	 * can be set at any time on preemptible kernels if we have IRQs on,
 	 * so we need to loop.  Disabling preemption wouldn't help: doing the
 	 * work to clear some of the flags can sleep.
@@ -150,7 +150,7 @@ static void exit_to_usermode_loop(struct pt_regs *regs, u32 cached_flags)
 			schedule();
 
 		if (cached_flags & _TIF_UPROBE)
-			uprobe_notify_resume(regs);
+			uprobe_yestify_resume(regs);
 
 		if (cached_flags & _TIF_PATCH_PENDING)
 			klp_update_patch_state(current);
@@ -161,12 +161,12 @@ static void exit_to_usermode_loop(struct pt_regs *regs, u32 cached_flags)
 
 		if (cached_flags & _TIF_NOTIFY_RESUME) {
 			clear_thread_flag(TIF_NOTIFY_RESUME);
-			tracehook_notify_resume(regs);
-			rseq_handle_notify_resume(NULL, regs);
+			tracehook_yestify_resume(regs);
+			rseq_handle_yestify_resume(NULL, regs);
 		}
 
 		if (cached_flags & _TIF_USER_RETURN_NOTIFY)
-			fire_user_return_notifiers();
+			fire_user_return_yestifiers();
 
 		/* Disable IRQs and retry */
 		local_irq_disable();
@@ -290,12 +290,12 @@ __visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
 		nr = syscall_trace_enter(regs);
 
 	if (likely(nr < NR_syscalls)) {
-		nr = array_index_nospec(nr, NR_syscalls);
+		nr = array_index_yesspec(nr, NR_syscalls);
 		regs->ax = sys_call_table[nr](regs);
 #ifdef CONFIG_X86_X32_ABI
 	} else if (likely((nr & __X32_SYSCALL_BIT) &&
 			  (nr & ~__X32_SYSCALL_BIT) < X32_NR_syscalls)) {
-		nr = array_index_nospec(nr & ~__X32_SYSCALL_BIT,
+		nr = array_index_yesspec(nr & ~__X32_SYSCALL_BIT,
 					X32_NR_syscalls);
 		regs->ax = x32_sys_call_table[nr](regs);
 #endif
@@ -325,20 +325,20 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
 		/*
 		 * Subtlety here: if ptrace pokes something larger than
 		 * 2^32-1 into orig_ax, this truncates it.  This may or
-		 * may not be necessary, but it matches the old asm
+		 * may yest be necessary, but it matches the old asm
 		 * behavior.
 		 */
 		nr = syscall_trace_enter(regs);
 	}
 
 	if (likely(nr < IA32_NR_syscalls)) {
-		nr = array_index_nospec(nr, IA32_NR_syscalls);
+		nr = array_index_yesspec(nr, IA32_NR_syscalls);
 #ifdef CONFIG_IA32_EMULATION
 		regs->ax = ia32_sys_call_table[nr](regs);
 #else
 		/*
 		 * It's possible that a 32-bit syscall implementation
-		 * takes a 64-bit parameter but nonetheless assumes that
+		 * takes a 64-bit parameter but yesnetheless assumes that
 		 * the high bits are zero.  Make sure we zero-extend all
 		 * of the args.
 		 */
@@ -404,7 +404,7 @@ __visible long do_fast_syscall_32(struct pt_regs *regs)
 		return 0;	/* Keep it simple: use IRET. */
 	}
 
-	/* Now this is just like a normal syscall. */
+	/* Now this is just like a yesrmal syscall. */
 	do_syscall_32_irqs_on(regs);
 
 #ifdef CONFIG_X86_64

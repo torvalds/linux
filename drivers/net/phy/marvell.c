@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/unistd.h>
 #include <linux/hwmon.h>
 #include <linux/interrupt.h>
@@ -302,7 +302,7 @@ static int marvell_config_aneg(struct phy_device *phydev)
 	if (phydev->autoneg != AUTONEG_ENABLE || changed) {
 		/* A write to speed/duplex bits (that is performed by
 		 * genphy_config_aneg() call above) must be followed by
-		 * a software reset. Otherwise, the write has no effect.
+		 * a software reset. Otherwise, the write has yes effect.
 		 */
 		err = genphy_soft_reset(phydev);
 		if (err < 0)
@@ -349,7 +349,7 @@ static int m88e1101_config_aneg(struct phy_device *phydev)
 
 #ifdef CONFIG_OF_MDIO
 /* Set and/or override some configuration registers based on the
- * marvell,reg-init property stored in the of_node for the phydev.
+ * marvell,reg-init property stored in the of_yesde for the phydev.
  *
  * marvell,reg-init = <reg-page reg mask value>,...;
  *
@@ -357,7 +357,7 @@ static int m88e1101_config_aneg(struct phy_device *phydev)
  *
  * reg-page: which register bank to use.
  * reg: the register.
- * mask: if non-zero, ANDed with existing register value.
+ * mask: if yesn-zero, ANDed with existing register value.
  * value: ORed with the masked value and written to the regiser.
  *
  */
@@ -366,10 +366,10 @@ static int marvell_of_reg_init(struct phy_device *phydev)
 	const __be32 *paddr;
 	int len, i, saved_page, current_page, ret = 0;
 
-	if (!phydev->mdio.dev.of_node)
+	if (!phydev->mdio.dev.of_yesde)
 		return 0;
 
-	paddr = of_get_property(phydev->mdio.dev.of_node,
+	paddr = of_get_property(phydev->mdio.dev.of_yesde,
 				"marvell,reg-init", &len);
 	if (!paddr || len < (4 * sizeof(*paddr)))
 		return 0;
@@ -516,7 +516,7 @@ static inline u32 linkmode_adv_to_fiber_adv_t(unsigned long *advertise)
  * @phydev: target phy_device struct
  *
  * Description: If auto-negotiation is enabled, we configure the
- *   advertising, and then restart auto-negotiation.  If it is not
+ *   advertising, and then restart auto-negotiation.  If it is yest
  *   enabled, then we write the BMCR. Adapted for fiber link in
  *   some Marvell's devices.
  */
@@ -586,7 +586,7 @@ static int m88e1510_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		goto error;
 
-	/* Do not touch the fiber page if we're in copper->sgmii mode */
+	/* Do yest touch the fiber page if we're in copper->sgmii mode */
 	if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
 		return 0;
 
@@ -903,7 +903,7 @@ static int m88e1011_set_tunable(struct phy_device *phydev,
 	}
 }
 
-static void m88e1011_link_change_notify(struct phy_device *phydev)
+static void m88e1011_link_change_yestify(struct phy_device *phydev)
 {
 	int status;
 
@@ -1640,8 +1640,8 @@ static int m88e1318_set_wol(struct phy_device *phydev,
 			goto error;
 
 		/* If WOL event happened once, the LED[2] interrupt pin
-		 * will not be cleared unless we reading the interrupt status
-		 * register. If interrupts are in use, the normal interrupt
+		 * will yest be cleared unless we reading the interrupt status
+		 * register. If interrupts are in use, the yesrmal interrupt
 		 * handling will clear the WOL event. Clear the WOL event
 		 * before enabling it if !phy_interrupt_is_valid()
 		 */
@@ -2289,7 +2289,7 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1011_get_tunable,
 		.set_tunable = m88e1011_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
+		.link_change_yestify = m88e1011_link_change_yestify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1111,
@@ -2311,7 +2311,7 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1111_get_tunable,
 		.set_tunable = m88e1111_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
+		.link_change_yestify = m88e1011_link_change_yestify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1118,
@@ -2352,7 +2352,7 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1011_get_tunable,
 		.set_tunable = m88e1011_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
+		.link_change_yestify = m88e1011_link_change_yestify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1318S,
@@ -2396,7 +2396,7 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1111_get_tunable,
 		.set_tunable = m88e1111_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
+		.link_change_yestify = m88e1011_link_change_yestify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1149R,
@@ -2452,7 +2452,7 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1011_get_tunable,
 		.set_tunable = m88e1011_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
+		.link_change_yestify = m88e1011_link_change_yestify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1510,
@@ -2478,7 +2478,7 @@ static struct phy_driver marvell_drivers[] = {
 		.set_loopback = genphy_loopback,
 		.get_tunable = m88e1011_get_tunable,
 		.set_tunable = m88e1011_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
+		.link_change_yestify = m88e1011_link_change_yestify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1540,
@@ -2501,7 +2501,7 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1540_get_tunable,
 		.set_tunable = m88e1540_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
+		.link_change_yestify = m88e1011_link_change_yestify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1545,
@@ -2524,7 +2524,7 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1540_get_tunable,
 		.set_tunable = m88e1540_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
+		.link_change_yestify = m88e1011_link_change_yestify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E3016,
@@ -2567,7 +2567,7 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1540_get_tunable,
 		.set_tunable = m88e1540_set_tunable,
-		.link_change_notify = m88e1011_link_change_notify,
+		.link_change_yestify = m88e1011_link_change_yestify,
 	},
 };
 

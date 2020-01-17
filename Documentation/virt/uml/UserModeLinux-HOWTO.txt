@@ -3,7 +3,7 @@
   Mon Nov 18 14:16:16 EST 2002
 
   This document describes the use and abuse of Jeff Dike's User Mode
-  Linux: a port of the Linux kernel as a normal Intel Linux process.
+  Linux: a port of the Linux kernel as a yesrmal Intel Linux process.
   ______________________________________________________________________
 
   Table of Contents
@@ -58,7 +58,7 @@
      7.1 A warning
      7.2 Using layered block devices
      7.3 Note!
-     7.4 Another warning
+     7.4 Ayesther warning
      7.5 uml_moo : Merging a COW file with its backing file
 
   8. Creating filesystems
@@ -108,15 +108,15 @@
      13.6 UML hangs on boot when compiled with gprof support
      13.7 syslogd dies with a SIGTERM on startup
      13.8 TUN/TAP networking doesn't work on a 2.4 host
-     13.9 You can network to the host but not to other machines on the net
-     13.10 I have no root and I want to scream
+     13.9 You can network to the host but yest to other machines on the net
+     13.10 I have yes root and I want to scream
      13.11 UML build conflict between ptrace.h and ucontext.h
      13.12 The UML BogoMips is exactly half the host's BogoMips
      13.13 When you run UML, it immediately segfaults
      13.14 xterms appear, then immediately disappear
      13.15 Any other panic, hang, or strange behavior
 
-  14. Diagnosing Problems
+  14. Diagyessing Problems
 
      14.1 Case 1 : Normal kernel panics
      14.2 Case 2 : Tracing thread panics
@@ -161,8 +161,8 @@
 
   The User Mode Linux Kernel is different; instead of talking to the
   hardware, it talks to a `real' Linux kernel (called the `host kernel'
-  from now on), like any other program.  Programs can then run inside
-  User-Mode Linux as if they were running under a normal kernel, like
+  from yesw on), like any other program.  Programs can then run inside
+  User-Mode Linux as if they were running under a yesrmal kernel, like
   so:
 
 
@@ -186,9 +186,9 @@
 
   1. If User Mode Linux crashes, your host kernel is still fine.
 
-  2. You can run a usermode kernel as a non-root user.
+  2. You can run a usermode kernel as a yesn-root user.
 
-  3. You can debug the User Mode Linux like any normal process.
+  3. You can debug the User Mode Linux like any yesrmal process.
 
   4. You can run gprof (profiling) and gcov (coverage testing).
 
@@ -288,7 +288,7 @@
 
      Note:  If the host is configured with a 2G/2G address space split
      rather than the usual 3G/1G split, then the packaged UML binaries
-     will not run.  They will immediately segfault.  See ``UML on 2G/2G
+     will yest run.  They will immediately segfault.  See ``UML on 2G/2G
      hosts''  for the scoop on running UML on your system.
 
 
@@ -318,7 +318,7 @@
 
 
 
-  where 'x' is the version in your pool. Note that you will not get the
+  where 'x' is the version in your pool. Note that you will yest get the
   bug fixes and enhancements that have gone into subsequent releases.
 
 
@@ -341,7 +341,7 @@
 
   You can also get the kernel build process to install them as follows:
 
-  1. with the kernel not booted, mount the root filesystem in the top
+  1. with the kernel yest booted, mount the root filesystem in the top
      level of the kernel pool:
 
 
@@ -381,7 +381,7 @@
   as modules, especially filesystems and network protocols and filters,
   so most symbols which need to be exported probably already are.
   However, if you do find symbols that need exporting, let  us
-  <http://user-mode-linux.sourceforge.net/>  know, and
+  <http://user-mode-linux.sourceforge.net/>  kyesw, and
   they'll be "taken care of".
 
 
@@ -433,8 +433,8 @@
 
 
   Booting UML is straightforward.  Simply run 'linux': it will try to
-  mount the file `root_fs' in the current directory.  You do not need to
-  run it as root.  If your root filesystem is not named `root_fs', then
+  mount the file `root_fs' in the current directory.  You do yest need to
+  run it as root.  If your root filesystem is yest named `root_fs', then
   you need to put a `ubd0=root_fs_whatever' switch on the linux command
   line.
 
@@ -449,7 +449,7 @@
 
   Note:  If the host is configured with a 2G/2G address space split
   rather than the usual 3G/1G split, then the packaged UML binaries will
-  not run.  They will immediately segfault.  See ``UML on 2G/2G hosts''
+  yest run.  They will immediately segfault.  See ``UML on 2G/2G hosts''
   for the scoop on running UML on your system.
 
 
@@ -549,7 +549,7 @@
   4.2.  The problem
 
 
-  The prebuilt UML binaries on this site will not run on 2G/2G hosts
+  The prebuilt UML binaries on this site will yest run on 2G/2G hosts
   because UML occupies the upper .5G of the 3G process address space
   (0xa0000000 - 0xbfffffff).  Obviously, on 2G/2G hosts, this is right
   in the middle of the kernel address space, so UML won't even load - it
@@ -636,7 +636,7 @@
 
 
      This will cause UML to allocate a free host pseudo-terminal for the
-     device.  The terminal that it got will be announced in the boot
+     device.  The terminal that it got will be anyesunced in the boot
      log.  You access it by attaching a terminal program to the
      corresponding tty:
 
@@ -644,7 +644,7 @@
 
   o  screen /dev/ttyxx
 
-  o  minicom -o -p /dev/ttyxx - minicom seems not able to handle pts
+  o  minicom -o -p /dev/ttyxx - minicom seems yest able to handle pts
      devices
 
   o  kermit - start it up, 'open' the device, then 'connect'
@@ -705,16 +705,16 @@
   You access these devices by telnetting to that port.  Each active tel-
   net session gets a different device.  If there are more telnets to a
   port than UML devices attached to it, then the extra telnet sessions
-  will block until an existing telnet detaches, or until another device
+  will block until an existing telnet detaches, or until ayesther device
   becomes active (i.e. by being activated in /etc/inittab).
 
   This channel has the advantage that you can both attach multiple UML
-  devices to it and know how to access them without reading the UML boot
+  devices to it and kyesw how to access them without reading the UML boot
   log.  It is also unique in allowing access to a UML from remote
   machines without requiring that the UML be networked.  This could be
   useful in allowing public access to UMLs because they would be
   accessible from the net, but wouldn't need any kind of network
-  filtering or access control because they would have no network access.
+  filtering or access control because they would have yes network access.
 
 
   If you attach the main console to a portal, then the UML boot will
@@ -746,7 +746,7 @@
   o  Nothing - device=null
 
 
-     This allows the device to be opened, in contrast to 'none', but
+     This allows the device to be opened, in contrast to 'yesne', but
      reads will block, and writes will succeed and the data will be
      thrown out.
 
@@ -754,7 +754,7 @@
 
 
 
-  o  None - device=none
+  o  None - device=yesne
 
 
      This causes the device to disappear.
@@ -833,7 +833,7 @@
 
 
 
-  Log in, make sure that it has no getty on that serial line, attach a
+  Log in, make sure that it has yes getty on that serial line, attach a
   terminal program like minicom to it, and you should see the login
   prompt of the other virtual machine.
 
@@ -908,13 +908,13 @@
      don't mind running the daemon in order to get somewhat better
      performance
 
-  o  slip - there is no particular reason to run the slip backend unless
-     ethertap and TUN/TAP are just not available for some reason
+  o  slip - there is yes particular reason to run the slip backend unless
+     ethertap and TUN/TAP are just yest available for some reason
 
   o  slirp - if you don't have root access on the host to setup
      networking, or if you don't want to allocate an IP to your UML
 
-  o  pcap - not much use for actual network connectivity, but great for
+  o  pcap - yest much use for actual network connectivity, but great for
      monitoring traffic on the host
 
      Ethertap is available on 2.4 and works fine.  TUN/TAP is preferred
@@ -966,14 +966,14 @@
   If you are short on IPs and don't want to consume two per UML, then
   you can reuse the host's eth IP address for the host ends of the tap
   devices.  Internally, the UMLs must still get unique IPs for their eth
-  devices.  You can also give the UMLs non-routable IPs (192.168.x.x or
+  devices.  You can also give the UMLs yesn-routable IPs (192.168.x.x or
   10.x.x.x) and have the host masquerade them.  This will let outgoing
   connections work, but incoming connections won't without more work,
   such as port forwarding from the host.
-  Also note that when you configure the host side of an interface, it is
+  Also yeste that when you configure the host side of an interface, it is
   only acting as a gateway.  It will respond to pings sent to it
-  locally, but is not useful to do that since it's a host interface.
-  You are not talking to the UML when you ping that interface and get a
+  locally, but is yest useful to do that since it's a host interface.
+  You are yest talking to the UML when you ping that interface and get a
   response.
 
 
@@ -1002,7 +1002,7 @@
   either, you can skip the rest of this section.
 
 
-  If not, then you need to check them out of CVS, build them, and
+  If yest, then you need to check them out of CVS, build them, and
   install them.  The helper is uml_net, in CVS /tools/uml_net, and the
   daemon is uml_switch, in CVS /tools/uml_router.  They are both built
   with a plain 'make'.  Both need to be installed in a directory that's
@@ -1015,15 +1015,15 @@
 
   Below, you will see that the TUN/TAP, ethertap, and daemon interfaces
   allow you to specify hardware addresses for the virtual ethernet
-  devices.  This is generally not necessary.  If you don't have a
-  specific reason to do it, you probably shouldn't.  If one is not
+  devices.  This is generally yest necessary.  If you don't have a
+  specific reason to do it, you probably shouldn't.  If one is yest
   specified on the command line, the driver will assign one based on the
   device IP address.  It will provide the address fe:fd:nn:nn:nn:nn
   where nn.nn.nn.nn is the device IP address.  This is nearly always
   sufficient to guarantee a unique hardware address for the device.  A
   couple of exceptions are:
 
-  o  Another set of virtual ethernet devices are on the same network and
+  o  Ayesther set of virtual ethernet devices are on the same network and
      they are assigned hardware addresses using a different scheme which
      may conflict with the UML IP address-based scheme
 
@@ -1031,7 +1031,7 @@
      assign the device an IP address
 
      If you let the driver provide the hardware address, you should make
-     sure that the device IP address is known before the interface is
+     sure that the device IP address is kyeswn before the interface is
      brought up.  So, inside UML, this will guarantee that:
 
 
@@ -1087,7 +1087,7 @@
   This is wrong, because it will cause UML to try to figure out hardware
   addresses of the local machines by arping on the interface to the
   host.  Since that interface is basically a single strand of ethernet
-  with two nodes on it (UML and the host) and arp requests don't cross
+  with two yesdes on it (UML and the host) and arp requests don't cross
   networks, they will fail to elicit any responses.  So, what you want
   is for UML to just blindly throw all packets at the host and let it
   figure out what to do with them, which is what leaving out the network
@@ -1108,7 +1108,7 @@
 
 
 
-  with a mask that's not 255.255.255.255, then replace it with a route
+  with a mask that's yest 255.255.255.255, then replace it with a route
   to your host:
 
 
@@ -1138,7 +1138,7 @@
   present in UML version 2.4.5-5um and later.  Your system must have
   multicast enabled in the kernel and there must be a multicast-capable
   network device on the host.  Normally, this is eth0, but if there is
-  no ethernet card on the host, then you will likely get strange error
+  yes ethernet card on the host, then you will likely get strange error
   messages when you bring the device up inside UML.
 
 
@@ -1183,7 +1183,7 @@
   some other issues.
 
   There is also a related point-to-point only "ucast" transport.
-  This is useful when your network does not support multicast, and
+  This is useful when your network does yest support multicast, and
   all network connections are simple point to point links.
 
   The full set of command line options for this transport are
@@ -1247,7 +1247,7 @@
   There are a couple potential problems with running the TUN/TAP
   transport on a 2.4 host kernel
 
-  o  TUN/TAP seems not to work on 2.4.3 and earlier.  Upgrade the host
+  o  TUN/TAP seems yest to work on 2.4.3 and earlier.  Upgrade the host
      kernel or use the ethertap transport.
 
   o  With an upgraded kernel, TUN/TAP may fail with
@@ -1271,10 +1271,10 @@
 
   6.7.  TUN/TAP with a preconfigured tap device
 
-  If you prefer not to have UML use uml_net (which is somewhat
+  If you prefer yest to have UML use uml_net (which is somewhat
   insecure), with UML 2.4.17-11, you can set up a TUN/TAP device
   beforehand.  The setup needs to be done as root, but once that's done,
-  there is no need for root assistance.  Setting up the device is done
+  there is yes need for root assistance.  Setting up the device is done
   as follows:
 
   o  Create the device with tunctl (available from the UML utilities
@@ -1333,7 +1333,7 @@
 
 
   Note that this must be done every time the host boots - this configu-
-  ration is not stored across host reboots.  So, it's probably a good
+  ration is yest stored across host reboots.  So, it's probably a good
   idea to stick it in an rc file.  An even better idea would be a little
   utility which reads the information from a config file and sets up
   devices at boot time.
@@ -1415,7 +1415,7 @@
 
 
   Note that 'br0' should be setup using ifconfig with the existing IP
-  address of eth0, as eth0 no longer has its own IP.
+  address of eth0, as eth0 yes longer has its own IP.
 
   o
 
@@ -1430,7 +1430,7 @@
 
 
 
-  Making it world-writable looks bad, but it seems not to be
+  Making it world-writable looks bad, but it seems yest to be
   exploitable as a security hole.  However, it does allow anyone to cre-
   ate useless tap devices (useless because they can't configure them),
   which is a DOS attack.  A somewhat more secure alternative would to be
@@ -1444,7 +1444,7 @@
 
   o  Bring the eth device up in UML and you're in business.
 
-     If you don't want that tap device any more, you can make it non-
+     If you don't want that tap device any more, you can make it yesn-
      persistent with
 
 
@@ -1501,19 +1501,19 @@
 
   The presence of the tap IP address will cause the helper to run and do
   whatever host setup is needed to allow the virtual machine to
-  communicate with the outside world.  If you're not sure you know what
+  communicate with the outside world.  If you're yest sure you kyesw what
   you're doing, this is the way to go.
 
 
   If it is absent, then you must configure the tap device and whatever
   arping and routing you will need on the host.  However, even in this
   case, the uml_net helper still needs to be in your path and it must be
-  setuid root if you're not running UML as root.  This is because the
+  setuid root if you're yest running UML as root.  This is because the
   tap device doesn't support SIGIO, which UML needs in order to use
   something as a source of input.  So, the helper is used as a
-  convenient asynchronous IO thread.
+  convenient asynchroyesus IO thread.
 
-  If you're using the uml_net helper, you can ignore the following host
+  If you're using the uml_net helper, you can igyesre the following host
   setup - uml_net will do it for you.  You just need to make sure you
   have ethertap available, either built in to the host kernel or
   available as a module.
@@ -1524,7 +1524,7 @@
   it as follows:
 
 
-       mknod /dev/tap <minor>  c 36  <minor>  + 16
+       mkyesd /dev/tap <miyesr>  c 36  <miyesr>  + 16
 
 
 
@@ -1532,7 +1532,7 @@
   For example, this is how to create /dev/tap0:
 
 
-       mknod /dev/tap0 c 36 0 + 16
+       mkyesd /dev/tap0 c 36 0 + 16
 
 
 
@@ -1563,16 +1563,16 @@
 
   6.9.  The switch daemon
 
-  Note: This is the daemon formerly known as uml_router, but which was
+  Note: This is the daemon formerly kyeswn as uml_router, but which was
   renamed so the network weenies of the world would stop growling at me.
 
 
   The switch daemon, uml_switch, provides a mechanism for creating a
-  totally virtual network.  By default, it provides no connection to the
+  totally virtual network.  By default, it provides yes connection to the
   host network (but see -tap, below).
 
 
-  The first thing you need to do is run the daemon.  Running it with no
+  The first thing you need to do is run the daemon.  Running it with yes
   arguments will make it listen on a default pair of unix domain
   sockets.
 
@@ -1638,7 +1638,7 @@
   isn't acceptable for some reason.  The rest of the arguments describe
   how to communicate with the daemon.  You should only specify them if
   you told the daemon to use different sockets than the default.  So, if
-  you ran the daemon with no arguments, running the UML on the same
+  you ran the daemon with yes arguments, running the UML on the same
   machine with
        eth0=daemon
 
@@ -1651,7 +1651,7 @@
 
   6.10.  Slip
 
-  Slip is another, less general, mechanism for a process to communicate
+  Slip is ayesther, less general, mechanism for a process to communicate
   with the host networking.  In contrast to the ethertap interface,
   which exchanges ethernet frames with the host and can be used to
   transport any higher-level protocol, it can only be used to transport
@@ -1675,7 +1675,7 @@
 
   There are some oddities with this interface that you should be aware
   of.  You should only specify one slip device on a given virtual
-  machine, and its name inside UML will be 'umn', not 'eth0' or whatever
+  machine, and its name inside UML will be 'umn', yest 'eth0' or whatever
   you specified on the command line.  These problems will be fixed at
   some point.
 
@@ -1686,8 +1686,8 @@
   slirp uses an external program, usually /usr/bin/slirp, to provide IP
   only networking connectivity through the host. This is similar to IP
   masquerading with a firewall, although the translation is performed in
-  user-space, rather than by the kernel.  As slirp does not set up any
-  interfaces on the host, or changes routing, slirp does not require
+  user-space, rather than by the kernel.  As slirp does yest set up any
+  interfaces on the host, or changes routing, slirp does yest require
   root access or setuid binaries on the host.
 
 
@@ -1714,7 +1714,7 @@
 
 
   The eth0 interface on UML should be set up with the IP 10.2.0.15,
-  although you can use anything as long as it is not used by a network
+  although you can use anything as long as it is yest used by a network
   you will be connecting to. The default route on UML should be set to
   use
 
@@ -1755,10 +1755,10 @@
 
   The interface is whatever network device on the host you want to
   sniff.  The expression is a pcap filter expression, which is also what
-  tcpdump uses, so if you know how to specify tcpdump filters, you will
+  tcpdump uses, so if you kyesw how to specify tcpdump filters, you will
   use the same expressions here.  The options are up to two of
   'promisc', control whether pcap puts the host interface into
-  promiscuous mode. 'optimize' and 'nooptimize' control whether the pcap
+  promiscuous mode. 'optimize' and 'yesoptimize' control whether the pcap
   expression optimizer is used.
 
 
@@ -1773,7 +1773,7 @@
 
 
   will cause the UML eth0 to emit all tcp packets on the host eth0 and
-  the UML eth1 to emit all non-tcp packets on the host eth0.
+  the UML eth1 to emit all yesn-tcp packets on the host eth0.
 
 
 
@@ -1859,7 +1859,7 @@
   device over a read-only shared device.  A machine's writes are stored
   in the private device, while reads come from either device - the
   private one if the requested block is valid in it, the shared one if
-  not.  Using this scheme, the majority of data which is unchanged is
+  yest.  Using this scheme, the majority of data which is unchanged is
   shared between an arbitrary number of virtual machines, each of which
   has a much smaller file containing the changes that it has made.  With
   a large number of UMLs booting from a large root filesystem, this
@@ -1881,7 +1881,7 @@
 
 
   where 'root_fs_cow' is the private COW file and 'root_fs_debian_22' is
-  the existing shared filesystem.  The COW file need not exist.  If it
+  the existing shared filesystem.  The COW file need yest exist.  If it
   doesn't, the driver will create and initialize it.  Once the COW file
   has been initialized, it can be used on its own on the command line:
 
@@ -1926,10 +1926,10 @@
 
 
 
-  7.4.  Another warning
+  7.4.  Ayesther warning
 
   Once a filesystem is being used as a readonly backing file for a COW
-  file, do not boot directly from it or modify it in any way.  Doing so
+  file, do yest boot directly from it or modify it in any way.  Doing so
   will invalidate any COW files that are using it.  The mtime and size
   of the backing file are stored in the COW file header at its creation,
   and they must continue to match.  If they don't, the driver will
@@ -1947,7 +1947,7 @@
 
   Among other things, this means that upgrading the distribution in a
   backing file and expecting that all of the COW files using it will see
-  the upgrade will not work.
+  the upgrade will yest work.
 
 
 
@@ -1969,8 +1969,8 @@
 
 
 
-  There's no need to specify the backing file since that information is
-  already in the COW file header.  If you're paranoid, boot the new
+  There's yes need to specify the backing file since that information is
+  already in the COW file header.  If you're parayesid, boot the new
   merged file, and if you're happy with it, move it over the old backing
   file.
 
@@ -1984,7 +1984,7 @@
   there are multiple COWs associated with a backing file, a -d merge of
   one of them will invalidate all of the others.  However, it is
   convenient if you're short of disk space, and it should also be
-  noticeably faster than a non-destructive merge.
+  yesticeably faster than a yesn-destructive merge.
 
 
 
@@ -2005,7 +2005,7 @@
 
 
   You may want to create and mount new UML filesystems, either because
-  your root filesystem isn't large enough or because you want to use a
+  your root filesystem isn't large eyesugh or because you want to use a
   filesystem other than ext2.
 
 
@@ -2107,7 +2107,7 @@
   virtual machine without needing to use the network.
 
 
-  This is now possible with the hostfs virtual filesystem.  With it, you
+  This is yesw possible with the hostfs virtual filesystem.  With it, you
   can mount a host directory into the UML filesystem and access the
   files contained in it just as you would on the host.
 
@@ -2122,7 +2122,7 @@
 
 
 
-  .  hostfs should be listed.  If it's not, either rebuild the kernel
+  .  hostfs should be listed.  If it's yest, either rebuild the kernel
   with hostfs configured into it or make sure that hostfs is built as a
   module and available inside the virtual machine, and insmod it.
 
@@ -2130,7 +2130,7 @@
   Now all you need to do is run mount:
 
 
-       UML# mount none /mnt/host -t hostfs
+       UML# mount yesne /mnt/host -t hostfs
 
 
 
@@ -2142,7 +2142,7 @@
   specify a subdirectory to mount with the -o switch to mount:
 
 
-       UML# mount none /mnt/home -t hostfs -o /home
+       UML# mount yesne /mnt/home -t hostfs -o /home
 
 
 
@@ -2182,7 +2182,7 @@
 
 
 
-  Next, make sure that your UML kernel has hostfs compiled in, not as a
+  Next, make sure that your UML kernel has hostfs compiled in, yest as a
   module.  Then run UML with the boot device pointing at that directory:
 
 
@@ -2191,12 +2191,12 @@
 
 
 
-  UML should then boot as it does normally.
+  UML should then boot as it does yesrmally.
 
 
   9.3.  Building hostfs
 
-  If you need to build hostfs because it's not in your kernel, you have
+  If you need to build hostfs because it's yest in your kernel, you have
   two choices:
 
 
@@ -2323,7 +2323,7 @@
 
   10.1.  version
 
-  This takes no arguments.  It prints the UML version.
+  This takes yes arguments.  It prints the UML version.
 
 
        (mconsole)  version
@@ -2332,20 +2332,20 @@
 
 
 
-  There are a couple actual uses for this.  It's a simple no-op which
+  There are a couple actual uses for this.  It's a simple yes-op which
   can be used to check that a UML is running.  It's also a way of
   sending an interrupt to the UML.  This is sometimes useful on SMP
   hosts, where there's a bug which causes signals to UML to be lost,
   often causing it to appear to hang.  Sending such a UML the mconsole
   version command is a good way to 'wake it up' before networking has
-  been enabled, as it does not do anything to the function of the UML.
+  been enabled, as it does yest do anything to the function of the UML.
 
 
 
   10.2.  halt and reboot
 
-  These take no arguments.  They shut the machine down immediately, with
-  no syncing of disks and no clean shutdown of userspace.  So, they are
+  These take yes arguments.  They shut the machine down immediately, with
+  yes syncing of disks and yes clean shutdown of userspace.  So, they are
   pretty close to crashing the machine.
 
 
@@ -2383,7 +2383,7 @@
   "remove" deletes a device from the system.  Its argument is just the
   name of the device to be removed. The device must be idle in whatever
   sense the driver considers necessary.  In the case of the ubd driver,
-  the removed block device must not be mounted, swapped on, or otherwise
+  the removed block device must yest be mounted, swapped on, or otherwise
   open, and in the case of the network driver, the device must be down.
 
 
@@ -2418,12 +2418,12 @@
 
   This invokes the Ctl-Alt-Del action on init.  What exactly this ends
   up doing is up to /etc/inittab.  Normally, it reboots the machine.
-  With UML, this is usually not desired, so if a halt would be better,
+  With UML, this is usually yest desired, so if a halt would be better,
   then find the section of inittab that looks like this
 
 
        # What to do when CTRL-ALT-DEL is pressed.
-       ca:12345:ctrlaltdel:/sbin/shutdown -t1 -a -r now
+       ca:12345:ctrlaltdel:/sbin/shutdown -t1 -a -r yesw
 
 
 
@@ -2443,7 +2443,7 @@
 
   Note that a UML running with more than one CPU will have problems
   after you send the 'stop' command, as only one CPU will be held in a
-  mconsole loop and all others will continue as normal.  This is a bug,
+  mconsole loop and all others will continue as yesrmal.  This is a bug,
   and will be fixed.
 
 
@@ -2469,7 +2469,7 @@
   is present in 2.4.0-test6 kernels and later.
 
 
-  Since the user-mode kernel runs as a normal Linux process, it is
+  Since the user-mode kernel runs as a yesrmal Linux process, it is
   possible to debug it with gdb almost like any other process.  It is
   slightly different because the kernel's threads are already being
   ptraced for system call interception, so gdb can't ptrace them.
@@ -2563,7 +2563,7 @@
 
 
 
-  Here, specifying any pid which is not the process id of a UML thread
+  Here, specifying any pid which is yest the process id of a UML thread
   will cause gdb to reattach to the current thread.  I commonly use 1,
   but any other invalid pid would work.
 
@@ -2656,7 +2656,7 @@
        GDB is free software, covered by the GNU General Public License, and you are
        welcome to change it and/or distribute copies of it under certain conditions.
        Type "show copying" to see the conditions.
-       There is absolutely no warranty for GDB.  Type "show warranty" for details.
+       There is absolutely yes warranty for GDB.  Type "show warranty" for details.
        This GDB was configured as "i386-redhat-linux"...
        (gdb) b sys_init_module
        Breakpoint 1 at 0xa0011923: file module.c, line 349.
@@ -2665,7 +2665,7 @@
 
 
 
-  After you run UML and it sits there doing nothing, you hit return at
+  After you run UML and it sits there doing yesthing, you hit return at
   the 'att 1' and continue it:
 
 
@@ -2677,7 +2677,7 @@
 
 
 
-  At this point, you debug normally.  When you insmod something, the
+  At this point, you debug yesrmally.  When you insmod something, the
   expect magic will kick in and you'll see something like:
 
 
@@ -2754,7 +2754,7 @@
 
   This is a list of modules that have been loaded into the kernel, with
   the most recently loaded module first.  Normally, the module you want
-  is at module_list.  If it's not, walk down the next links, looking at
+  is at module_list.  If it's yest, walk down the next links, looking at
   the name fields until find the module you want to debug.  Take the
   address of that structure, and add module.size_of_struct (which in
   2.4.10 kernels is 96 (0x60)) to it.  Gdb can make this hard addition
@@ -2784,7 +2784,7 @@
 
 
   If there's any doubt that you got the offset right, like breakpoints
-  appear not to work, or they're appearing in the wrong place, you can
+  appear yest to work, or they're appearing in the wrong place, you can
   check it by looking at the module structure.  The init and cleanup
   fields should look like:
 
@@ -2794,14 +2794,14 @@
 
 
 
-  with no offsets on the symbol names.  If the names are right, but they
+  with yes offsets on the symbol names.  If the names are right, but they
   are offset, then the offset tells you how much you need to add to the
   address you gave to add-symbol-file.
 
 
   When you want to load in a new version of the module, you need to get
   gdb to forget about the old one.  The only way I've found to do that
-  is to tell gdb to forget about all symbols that it knows about:
+  is to tell gdb to forget about all symbols that it kyesws about:
 
 
        (UML gdb)  symbol-file
@@ -2962,8 +2962,8 @@
 
   Setting hostname uml                    [ OK ]
   Checking root filesystem
-  /dev/fhd0 was not cleanly unmounted, check forced.
-  Error reading block 86894 (Attempt to read block from filesystem resulted in short read) while reading indirect blocks of inode 19780.
+  /dev/fhd0 was yest cleanly unmounted, check forced.
+  Error reading block 86894 (Attempt to read block from filesystem resulted in short read) while reading indirect blocks of iyesde 19780.
 
   /dev/fhd0: UNEXPECTED INCONSISTENCY; RUN fsck MANUALLY.
           (i.e., without -a or -p options)
@@ -2973,36 +2973,36 @@
   *** Dropping you to a shell; the system will reboot
   *** when you leave the shell.
   Give root password for maintenance
-  (or type Control-D for normal startup):
+  (or type Control-D for yesrmal startup):
 
   [root@uml /root]# fsck -y /dev/fhd0
   fsck -y /dev/fhd0
   Parallelizing fsck version 1.14 (9-Jan-1999)
   e2fsck 1.14, 9-Jan-1999 for EXT2 FS 0.5b, 95/08/09
   /dev/fhd0 contains a file system with errors, check forced.
-  Pass 1: Checking inodes, blocks, and sizes
-  Error reading block 86894 (Attempt to read block from filesystem resulted in short read) while reading indirect blocks of inode 19780.  Ignore error? yes
+  Pass 1: Checking iyesdes, blocks, and sizes
+  Error reading block 86894 (Attempt to read block from filesystem resulted in short read) while reading indirect blocks of iyesde 19780.  Igyesre error? no
 
-  Inode 19780, i_blocks is 1548, should be 540.  Fix? yes
+  Iyesde 19780, i_blocks is 1548, should be 540.  Fix? no
 
   Pass 2: Checking directory structure
-  Error reading block 49405 (Attempt to read block from filesystem resulted in short read).  Ignore error? yes
+  Error reading block 49405 (Attempt to read block from filesystem resulted in short read).  Igyesre error? no
 
-  Directory inode 11858, block 0, offset 0: directory corrupted
-  Salvage? yes
+  Directory iyesde 11858, block 0, offset 0: directory corrupted
+  Salvage? no
 
-  Missing '.' in directory inode 11858.
-  Fix? yes
+  Missing '.' in directory iyesde 11858.
+  Fix? no
 
-  Missing '..' in directory inode 11858.
-  Fix? yes
+  Missing '..' in directory iyesde 11858.
+  Fix? no
 
 
 
 
 
   The standard drill in this sort of situation is to fire up gdb on the
-  signal thread, which, in this case, was pid 1935.  In another window,
+  signal thread, which, in this case, was pid 1935.  In ayesther window,
   I run gdb and attach pid 1935.
 
 
@@ -3014,7 +3014,7 @@
        GDB is free software, covered by the GNU General Public License, and you are
        welcome to change it and/or distribute copies of it under certain conditions.
        Type "show copying" to see the conditions.
-       There is absolutely no warranty for GDB.  Type "show warranty" for details.
+       There is absolutely yes warranty for GDB.  Type "show warranty" for details.
        This GDB was configured as "i386-redhat-linux"...
 
        (gdb) att 1935
@@ -3133,7 +3133,7 @@
        #7  0x1006c5d8 in segv_handler (sc=0x5006e940) at trap_user.c:174
        #8  0x1006c5ec in kern_segv_handler (sig=11) at trap_user.c:182
        #9  <signal handler called>
-       #10 0x10155404 in errno ()
+       #10 0x10155404 in erryes ()
        #11 0x1006c0aa in segv (address=1342179328, is_write=2) at trap_kern.c:50
        #12 0x1006c5d8 in segv_handler (sc=0x5006eaf8) at trap_user.c:174
        #13 0x1006c5ec in kern_segv_handler (sig=11) at trap_user.c:182
@@ -3166,7 +3166,7 @@
 
 
   The initial faulting address is interesting because it is on the idle
-  thread's stack.  I had been seeing the idle thread segfault for no
+  thread's stack.  I had been seeing the idle thread segfault for yes
   apparent reason, and the cause looked like stack corruption.  In hopes
   of catching the culprit in the act, I had turned off all protections
   to that stack while the idle thread wasn't running.  This apparently
@@ -3206,19 +3206,19 @@
        #8  0x1006c5ec in kern_segv_handler (sig=11) at trap_user.c:182
        182       segv_handler(sc);
        (gdb) p *sc
-       Cannot access memory at address 0x0.
+       Canyest access memory at address 0x0.
 
 
 
 
-  That's not very useful, so I'll try a more manual method:
+  That's yest very useful, so I'll try a more manual method:
 
 
        (gdb) p *((struct sigcontext *) (&sig + 1))
        $19 = {gs = 0, __gsh = 0, fs = 0, __fsh = 0, es = 43, __esh = 0, ds = 43,
          __dsh = 0, edi = 1342179328, esi = 1350378548, ebp = 1342630440,
          esp = 1342630420, ebx = 1348150624, edx = 1280, ecx = 0, eax = 0,
-         trapno = 14, err = 4, eip = 268480945, cs = 35, __csh = 0, eflags = 66118,
+         trapyes = 14, err = 4, eip = 268480945, cs = 35, __csh = 0, eflags = 66118,
          esp_at_signal = 1342630420, ss = 43, __ssh = 0, fpstate = 0x0, oldmask = 0,
          cr2 = 1280}
 
@@ -3387,12 +3387,12 @@
 
 
 
-  It's not stack overflow.  The only "stack-like" piece of this data is
+  It's yest stack overflow.  The only "stack-like" piece of this data is
   the vma_struct itself.
 
 
   At this point, I don't see any avenues to pursue, so I just have to
-  admit that I have no idea what's going on.  What I will do, though, is
+  admit that I have yes idea what's going on.  What I will do, though, is
   stick a trap on the segfault handler which will stop if it sees any
   writes to the idle thread's stack.  That was the thing that happened
   first, and it may be that if I can catch it immediately, what's going
@@ -3425,7 +3425,7 @@
   Setting hostname uml                            [ OK ]
   Checking root filesystem
   /dev/fhd0 contains a file system with errors, check forced.
-  Error reading block 86894 (Attempt to read block from filesystem resulted in short read) while reading indirect blocks of inode 19780.
+  Error reading block 86894 (Attempt to read block from filesystem resulted in short read) while reading indirect blocks of iyesde 19780.
 
   /dev/fhd0: UNEXPECTED INCONSISTENCY; RUN fsck MANUALLY.
           (i.e., without -a or -p options)
@@ -3435,27 +3435,27 @@
   *** Dropping you to a shell; the system will reboot
   *** when you leave the shell.
   Give root password for maintenance
-  (or type Control-D for normal startup):
+  (or type Control-D for yesrmal startup):
 
   [root@uml /root]# fsck -y /dev/fhd0
   fsck -y /dev/fhd0
   Parallelizing fsck version 1.14 (9-Jan-1999)
   e2fsck 1.14, 9-Jan-1999 for EXT2 FS 0.5b, 95/08/09
   /dev/fhd0 contains a file system with errors, check forced.
-  Pass 1: Checking inodes, blocks, and sizes
-  Error reading block 86894 (Attempt to read block from filesystem resulted in short read) while reading indirect blocks of inode 19780.  Ignore error? yes
+  Pass 1: Checking iyesdes, blocks, and sizes
+  Error reading block 86894 (Attempt to read block from filesystem resulted in short read) while reading indirect blocks of iyesde 19780.  Igyesre error? no
 
   Pass 2: Checking directory structure
-  Error reading block 49405 (Attempt to read block from filesystem resulted in short read).  Ignore error? yes
+  Error reading block 49405 (Attempt to read block from filesystem resulted in short read).  Igyesre error? no
 
-  Directory inode 11858, block 0, offset 0: directory corrupted
-  Salvage? yes
+  Directory iyesde 11858, block 0, offset 0: directory corrupted
+  Salvage? no
 
-  Missing '.' in directory inode 11858.
-  Fix? yes
+  Missing '.' in directory iyesde 11858.
+  Fix? no
 
-  Missing '..' in directory inode 11858.
-  Fix? yes
+  Missing '..' in directory iyesde 11858.
+  Fix? no
 
   Untested (4127) [100fe44c]: trap_kern.c line 31
 
@@ -3494,11 +3494,11 @@
   GDB is free software, covered by the GNU General Public License, and you are
   welcome to change it and/or distribute copies of it under certain conditions.
   Type "show copying" to see the conditions.
-  There is absolutely no warranty for GDB.  Type "show warranty" for details.
+  There is absolutely yes warranty for GDB.  Type "show warranty" for details.
   This GDB was configured as "i386-redhat-linux"...
   (gdb) att 4127
   Attaching to program `/home/dike/linux/2.3.26/um/linux', Pid 4127
-  0x10075891 in __libc_nanosleep ()
+  0x10075891 in __libc_nayessleep ()
 
 
 
@@ -3510,7 +3510,7 @@
 
 
        (gdb) bt
-       #0  0x10075891 in __libc_nanosleep ()
+       #0  0x10075891 in __libc_nayessleep ()
        #1  0x1007584d in __sleep (seconds=1000000)
            at ../sysdeps/unix/sysv/linux/sleep.c:78
        #2  0x1006ce9a in stop () at user_util.c:191
@@ -3570,7 +3570,7 @@
   (gdb) p *sc
   $1 = {gs = 0, __gsh = 0, fs = 0, __fsh = 0, es = 43, __esh = 0, ds = 43,
     __dsh = 0, edi = 1342179328, esi = 134973440, ebp = 1342631484,
-    esp = 1342630864, ebx = 256, edx = 0, ecx = 256, eax = 1024, trapno = 14,
+    esp = 1342630864, ebx = 256, edx = 0, ecx = 256, eax = 1024, trapyes = 14,
     err = 6, eip = 268550834, cs = 35, __csh = 0, eflags = 66070,
     esp_at_signal = 1342630864, ss = 43, __ssh = 0, fpstate = 0x0, oldmask = 0,
     cr2 = 1342179328}
@@ -3677,7 +3677,7 @@
 
   The b_data field is indeed 0x50000800, so the question becomes how
   that happened.  The rest of the structure looks fine, so this probably
-  is not a case of data corruption.  It happened on purpose somehow.
+  is yest a case of data corruption.  It happened on purpose somehow.
 
 
   The b_page field is a pointer to the page_struct representing the
@@ -3719,7 +3719,7 @@
 
 
   Now to check out the page_struct itself.  In particular, the flags
-  field shows whether the page is considered free or not:
+  field shows whether the page is considered free or yest:
 
 
        (gdb) p (void *)132
@@ -3729,7 +3729,7 @@
 
 
 
-  The "reserved" bit is the high bit, which is definitely not set, so
+  The "reserved" bit is the high bit, which is definitely yest set, so
   the kernel considers the signal stack page to be free and available to
   be used.
 
@@ -3814,9 +3814,9 @@
   See ``Compiling the kernel and modules''  for more details.
 
 
-  Another cause of strange compilation errors is building UML in
+  Ayesther cause of strange compilation errors is building UML in
   /usr/src/linux.  If you do this, the first thing you need to do is
-  clean up the mess you made.  The /usr/src/linux/asm link will now
+  clean up the mess you made.  The /usr/src/linux/asm link will yesw
   point to /usr/src/linux/asm-um.  Make it point back to
   /usr/src/linux/asm-i386.  Then, move your UML pool someplace else and
   build it there.  Also see below, where a more specific set of symptoms
@@ -3835,9 +3835,9 @@
 
 
 
-  are diagnostic of this problem.  This is a reiserfs bug which causes a
+  are diagyesstic of this problem.  This is a reiserfs bug which causes a
   thread to occasionally read stale data from a mmapped page shared with
-  another thread.  The fix is to upgrade the filesystem or to have /tmp
+  ayesther thread.  The fix is to upgrade the filesystem or to have /tmp
   be an ext2 filesystem.
 
 
@@ -3857,8 +3857,8 @@
   13.5.  UML doesn't work when /tmp is an NFS filesystem
 
   This seems to be a similar situation with the ReiserFS problem above.
-  Some versions of NFS seems not to handle mmap correctly, which UML
-  depends on.  The workaround is have /tmp be a non-NFS directory.
+  Some versions of NFS seems yest to handle mmap correctly, which UML
+  depends on.  The workaround is have /tmp be a yesn-NFS directory.
 
 
   13.6.  UML hangs on boot when compiled with gprof support
@@ -3874,7 +3874,7 @@
 
   you have a buggy gcc.  You can work around the problem by removing
   UM_FASTCALL from CFLAGS in arch/um/Makefile-i386.  This will open up
-  another bug, but that one is fairly hard to reproduce.
+  ayesther bug, but that one is fairly hard to reproduce.
 
 
 
@@ -3921,15 +3921,15 @@
 
 
 
-  13.9.  You can network to the host but not to other machines on the
+  13.9.  You can network to the host but yest to other machines on the
   net
 
   If you can connect to the host, and the host can connect to UML, but
-  you cannot connect to any other machines, then you may need to enable
+  you canyest connect to any other machines, then you may need to enable
   IP Masquerading on the host.  Usually this is only experienced when
   using private IP addresses (192.168.x.x or 10.x.x.x) for host/UML
   networking, rather than the public address space that your host is
-  connected to.  UML does not enable IP Masquerading, so you will need
+  connected to.  UML does yest enable IP Masquerading, so you will need
   to create a static rule to enable it:
 
 
@@ -3947,7 +3947,7 @@
   www.netfilter.org  <http://www.netfilter.org> .
 
 
-  If you can reach the local net, but not the outside Internet, then
+  If you can reach the local net, but yest the outside Internet, then
   that is usually a routing problem.  The UML needs a default route:
 
 
@@ -3957,28 +3957,28 @@
 
 
 
-  The gateway IP can be any machine on the local net that knows how to
+  The gateway IP can be any machine on the local net that kyesws how to
   reach the outside world.  Usually, this is the host or the local net-
   work's gateway.
 
 
   Occasionally, we hear from someone who can reach some machines, but
-  not others on the same net, or who can reach some ports on other
-  machines, but not others.  These are usually caused by strange
+  yest others on the same net, or who can reach some ports on other
+  machines, but yest others.  These are usually caused by strange
   firewalling somewhere between the UML and the other box.  You track
   this down by running tcpdump on every interface the packets travel
   over and see where they disappear.  When you find a machine that takes
-  the packets in, but does not send them onward, that's the culprit.
+  the packets in, but does yest send them onward, that's the culprit.
 
 
 
-  13.10.  I have no root and I want to scream
+  13.10.  I have yes root and I want to scream
 
   Thanks to Birgit Wahlich for telling me about this strange one.  It
   turns out that there's a limit of six environment variables on the
   kernel command line.  When that limit is reached or exceeded, argument
   processing stops, which means that the 'root=' argument that UML
-  usually adds is not seen.  So, the filesystem has no idea what the
+  usually adds is yest seen.  So, the filesystem has yes idea what the
   root device is, so it panics.
 
 
@@ -4012,7 +4012,7 @@
   On i386 kernels, there are two ways of running the loop that is used
   to calculate the BogoMips rating, using the TSC if it's there or using
   a one-instruction loop.  The TSC produces twice the BogoMips as the
-  loop.  UML uses the loop, since it has nothing resembling a TSC, and
+  loop.  UML uses the loop, since it has yesthing resembling a TSC, and
   will get almost exactly the same BogoMips as a host using the loop.
   However, on a host with a TSC, its BogoMips will be double the loop
   BogoMips, and therefore double the UML BogoMips.
@@ -4030,7 +4030,7 @@
   13.14.  xterms appear, then immediately disappear
 
   If you're running an up to date kernel with an old release of
-  uml_utilities, the port-helper program will not work properly, so
+  uml_utilities, the port-helper program will yest work properly, so
   xterms will exit straight after they appear. The solution is to
   upgrade to the latest release of uml_utilities.  Usually this problem
   occurs when you have installed a packaged release of UML then compiled
@@ -4044,22 +4044,22 @@
   If you're seeing truly strange behavior, such as hangs or panics that
   happen in random places, or you try running the debugger to see what's
   happening and it acts strangely, then it could be a problem in the
-  host kernel.  If you're not running a stock Linus or -ac kernel, then
+  host kernel.  If you're yest running a stock Linus or -ac kernel, then
   try that.  An early version of the preemption patch and a 2.4.10 SuSE
   kernel have caused very strange problems in UML.
 
 
-  Otherwise, let me know about it.  Send a message to one of the UML
+  Otherwise, let me kyesw about it.  Send a message to one of the UML
   mailing lists - either the developer list - user-mode-linux-devel at
   lists dot sourceforge dot net (subscription info) or the user list -
   user-mode-linux-user at lists dot sourceforge do net (subscription
-  info), whichever you prefer.  Don't assume that everyone knows about
+  info), whichever you prefer.  Don't assume that everyone kyesws about
   it and that a fix is imminent.
 
 
-  If you want to be super-helpful, read ``Diagnosing Problems'' and
+  If you want to be super-helpful, read ``Diagyessing Problems'' and
   follow the instructions contained therein.
-  14.  Diagnosing Problems
+  14.  Diagyessing Problems
 
 
   If you get UML to crash, hang, or otherwise misbehave, you should
@@ -4072,7 +4072,7 @@
   report the results to the list.
 
 
-  For any diagnosis, you're going to need to build a debugging kernel.
+  For any diagyessis, you're going to need to build a debugging kernel.
   The binaries from this site aren't debuggable.  If you haven't done
   this before, read about ``Compiling the kernel and modules''  and
   ``Kernel debugging''  UML first.
@@ -4080,7 +4080,7 @@
 
   14.1.  Case 1 : Normal kernel panics
 
-  The most common case is for a normal thread to panic.  To debug this,
+  The most common case is for a yesrmal thread to panic.  To debug this,
   you will need to run it under the debugger (add 'debug' to the command
   line).  An xterm will start up with gdb running inside it.  Continue
   it when it stops in start_kernel and make it crash.  Now ^C gdb and
@@ -4163,7 +4163,7 @@
 
   14.3.  Case 3 : Tracing thread panics caused by other threads
 
-  However, there are cases where the misbehavior of another thread
+  However, there are cases where the misbehavior of ayesther thread
   caused the problem.  The most common panic of this type is:
 
 
@@ -4174,7 +4174,7 @@
 
   In this case, you'll need to get a backtrace from the process men-
   tioned in the panic, which is complicated by the fact that the kernel
-  debugger is defunct and without some fancy footwork, another gdb can't
+  debugger is defunct and without some fancy footwork, ayesther gdb can't
   attach to it.  So, this is how the fancy footwork goes:
 
   In a shell:
@@ -4232,11 +4232,11 @@
   Hangs seem to be fairly rare, but they sometimes happen.  When a hang
   happens, we need a backtrace from the offending process.  Run the
   kernel debugger as described in case 1 and get a backtrace.  If the
-  current process is not the idle thread, then send in the backtrace.
+  current process is yest the idle thread, then send in the backtrace.
   You can tell that it's the idle thread if the stack looks like this:
 
 
-       #0  0x100b1401 in __libc_nanosleep ()
+       #0  0x100b1401 in __libc_nayessleep ()
        #1  0x100a2885 in idle_sleep (secs=10) at time.c:122
        #2  0x100a546f in do_idle () at process_kern.c:445
        #3  0x100a5508 in cpu_idle () at process_kern.c:471
@@ -4249,7 +4249,7 @@
 
   If this is the case, then some other process is at fault, and went to
   sleep when it shouldn't have.  Run ps on the host and figure out which
-  process should not have gone to sleep and stayed asleep.  Then attach
+  process should yest have gone to sleep and stayed asleep.  Then attach
   to it with gdb and get a backtrace as described in case 3.
 
 
@@ -4265,12 +4265,12 @@
 
 
   If you're listed here and you would prefer a real link on your name,
-  or no link at all, instead of the despammed email address pseudo-link,
-  let me know.
+  or yes link at all, instead of the despammed email address pseudo-link,
+  let me kyesw.
 
 
-  If you're not listed here and you think maybe you should be, please
-  let me know that as well.  I try to get everyone, but sometimes my
+  If you're yest listed here and you think maybe you should be, please
+  let me kyesw that as well.  I try to get everyone, but sometimes my
   bookkeeping lapses and I forget about contributions.
 
 
@@ -4313,8 +4313,8 @@
   Jim Leu <jleu at mindspring.com>  - Wrote the virtual ethernet driver
   and associated usermode tools
 
-  Lars Brinkhoff <http://lars.nocrew.org/>  - Contributed the ptrace
-  proxy from his own  project <http://a386.nocrew.org/> to allow easier
+  Lars Brinkhoff <http://lars.yescrew.org/>  - Contributed the ptrace
+  proxy from his own  project <http://a386.yescrew.org/> to allow easier
   kernel debugging
 
 
@@ -4333,12 +4333,12 @@
   Jorgen Cederlof - Added special file support to hostfs
 
 
-  Greg Lonnon  <glonnon at ridgerun dot com>  - Changed the ubd driver
+  Greg Lonyesn  <glonyesn at ridgerun dot com>  - Changed the ubd driver
   to allow it to layer a COW file on a shared read-only filesystem and
   wrote the iomem emulation support
 
 
-  Henrik Nordstrom <http://hem.passagen.se/hno/>  - Provided a variety
+  Henrik Nordstrom <http://hem.passagen.se/hyes/>  - Provided a variety
   of patches, fixes, and clues
 
 
@@ -4355,7 +4355,7 @@
 
 
   Matt Zimmerman - Matt volunteered to be the UML Debian maintainer and
-  is doing a real nice job of it.  He also noticed and fixed a number of
+  is doing a real nice job of it.  He also yesticed and fixed a number of
   actually and potentially exploitable security holes in uml_net.  Plus
   the occasional patch.  I like patches.
 
@@ -4525,7 +4525,7 @@
 
   o  Lorenzo Colitti
 
-  o  Gwendal Grignou
+  o  Gwendal Grigyesu
 
   o  Andre' Breiler
 
@@ -4551,7 +4551,7 @@
   work with RH 6.2.
 
   Michael Jennings <mikejen at hevanet.com>  sent in some material which
-  is now gracing the top of the  index  page <http://user-mode-
+  is yesw gracing the top of the  index  page <http://user-mode-
   linux.sourceforge.net/>  of this site.
 
   SGI <http://www.sgi.com>  (and more specifically Ralf Baechle <ralf at
@@ -4562,7 +4562,7 @@
 
   Laurent Bonnaud <Laurent.Bonnaud at inpg.fr>  took the old grotty
   Debian filesystem that I've been distributing and updated it to 2.2.
-  It is now available by itself here.
+  It is yesw available by itself here.
 
   Rik van Riel gave me some ftp space on ftp.nl.linux.org so I can make
   releases even when Sourceforge is broken.

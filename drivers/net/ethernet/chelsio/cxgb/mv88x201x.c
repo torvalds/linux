@@ -12,7 +12,7 @@
  * published by the Free Software Foundation.                                *
  *                                                                           *
  * You should have received a copy of the GNU General Public License along   *
- * with this program; if not, see <http://www.gnu.org/licenses/>.            *
+ * with this program; if yest, see <http://www.gnu.org/licenses/>.            *
  *                                                                           *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED    *
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF      *
@@ -49,7 +49,7 @@
 static int led_init(struct cphy *cphy)
 {
 	/* Setup the LED registers so we can turn on/off.
-	 * Writing these bits maps control to another
+	 * Writing these bits maps control to ayesther
 	 * register. mmd(0x1) addr(0x7)
 	 */
 	cphy_mdio_write(cphy, MDIO_MMD_PCS, 0x8304, 0xdddd);
@@ -76,7 +76,7 @@ static int led_link(struct cphy *cphy, u32 do_enable)
 /* Port Reset */
 static int mv88x201x_reset(struct cphy *cphy, int wait)
 {
-	/* This can be done through registers.  It is not required since
+	/* This can be done through registers.  It is yest required since
 	 * a full chip reset is used.
 	 */
 	return 0;

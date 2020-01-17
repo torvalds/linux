@@ -26,7 +26,7 @@ struct kvm_event_stats {
 
 struct kvm_event {
 	struct list_head hash_entry;
-	struct rb_node rb;
+	struct rb_yesde rb;
 
 	struct event_key key;
 

@@ -49,11 +49,11 @@ MODULE_DEVICE_TABLE(of, atmel_pdmic_of_match);
 
 static struct atmel_pdmic_pdata *atmel_pdmic_dt_init(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct atmel_pdmic_pdata *pdata;
 
 	if (!np) {
-		dev_err(dev, "device node not found\n");
+		dev_err(dev, "device yesde yest found\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -78,7 +78,7 @@ static struct atmel_pdmic_pdata *atmel_pdmic_dt_init(struct device *dev)
 
 	if (pdata->mic_max_freq < pdata->mic_min_freq) {
 		dev_err(dev,
-			"mic-max-freq should not be less than mic-min-freq\n");
+			"mic-max-freq should yest be less than mic-min-freq\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -362,7 +362,7 @@ static struct snd_soc_component_driver soc_component_dev_pdmic = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 /* codec dai component */
@@ -671,7 +671,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 					      &atmel_pdmic_cpu_dai_component,
 					      &atmel_pdmic_cpu_dai, 1);
 	if (ret) {
-		dev_err(dev, "could not register CPU DAI: %d\n", ret);
+		dev_err(dev, "could yest register CPU DAI: %d\n", ret);
 		return ret;
 	}
 
@@ -680,7 +680,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 					     &atmel_pdmic_dmaengine_pcm_config,
 					     0);
 	if (ret) {
-		dev_err(dev, "could not register platform: %d\n", ret);
+		dev_err(dev, "could yest register platform: %d\n", ret);
 		return ret;
 	}
 
@@ -690,7 +690,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 	ret = devm_snd_soc_register_component(dev, &soc_component_dev_pdmic,
 				     &atmel_pdmic_codec_dai, 1);
 	if (ret) {
-		dev_err(dev, "could not register component: %d\n", ret);
+		dev_err(dev, "could yest register component: %d\n", ret);
 		return ret;
 	}
 

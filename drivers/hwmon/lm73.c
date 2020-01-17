@@ -3,7 +3,7 @@
  * LM73 Sensor driver
  * Based on LM75
  *
- * Copyright (C) 2007, CenoSYS (www.cenosys.com).
+ * Copyright (C) 2007, CeyesSYS (www.ceyessys.com).
  * Copyright (C) 2009, Bollore telecom (www.bolloretelecom.eu).
  *
  * Guillaume Ligneul <guillaume.ligneul@gmail.com>
@@ -21,7 +21,7 @@
 
 
 /* Addresses scanned */
-static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4c,
+static const unsigned short yesrmal_i2c[] = { 0x48, 0x49, 0x4a, 0x4c,
 					0x4d, 0x4e, I2C_CLIENT_END };
 
 /* LM73 registers */
@@ -270,7 +270,7 @@ static struct i2c_driver lm73_driver = {
 	.probe		= lm73_probe,
 	.id_table	= lm73_ids,
 	.detect		= lm73_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(lm73_driver);

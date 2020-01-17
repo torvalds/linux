@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -98,7 +98,7 @@ static int __init qed_init(void)
 
 static void __exit qed_cleanup(void)
 {
-	pr_notice("qed_cleanup called\n");
+	pr_yestice("qed_cleanup called\n");
 }
 
 module_init(qed_init);
@@ -153,7 +153,7 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		DP_NOTICE(cdev, "Cannot enable PCI device\n");
+		DP_NOTICE(cdev, "Canyest enable PCI device\n");
 		goto err0;
 	}
 
@@ -189,14 +189,14 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 		goto err2;
 	}
 	if (!pci_is_pcie(pdev)) {
-		DP_NOTICE(cdev, "The bus is not PCI Express\n");
+		DP_NOTICE(cdev, "The bus is yest PCI Express\n");
 		rc = -EIO;
 		goto err2;
 	}
 
 	cdev->pci_params.pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
 	if (IS_PF(cdev) && !cdev->pci_params.pm_cap)
-		DP_NOTICE(cdev, "Cannot find power management capability\n");
+		DP_NOTICE(cdev, "Canyest find power management capability\n");
 
 	rc = qed_set_coherency_mask(cdev);
 	if (rc)
@@ -208,7 +208,7 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 
 	cdev->regview = pci_ioremap_bar(pdev, 0);
 	if (!cdev->regview) {
-		DP_NOTICE(cdev, "Cannot map register space, aborting\n");
+		DP_NOTICE(cdev, "Canyest map register space, aborting\n");
 		rc = -ENOMEM;
 		goto err2;
 	}
@@ -227,7 +227,7 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 	cdev->doorbells = ioremap_wc(cdev->db_phys_addr, cdev->db_size);
 
 	if (!cdev->doorbells) {
-		DP_NOTICE(cdev, "Cannot map doorbell space\n");
+		DP_NOTICE(cdev, "Canyest map doorbell space\n");
 		return -ENOMEM;
 	}
 
@@ -275,7 +275,7 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 
 	if (IS_PF(cdev)) {
 		dev_info->fw_major = FW_MAJOR_VERSION;
-		dev_info->fw_minor = FW_MINOR_VERSION;
+		dev_info->fw_miyesr = FW_MINOR_VERSION;
 		dev_info->fw_rev = FW_REVISION_VERSION;
 		dev_info->fw_eng = FW_ENGINEERING_VERSION;
 		dev_info->b_inter_pf_switch = test_bit(QED_MF_INTER_PF_SWITCH,
@@ -290,7 +290,7 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 		dev_info->abs_pf_id = QED_LEADING_HWFN(cdev)->abs_pf_id;
 	} else {
 		qed_vf_get_fw_version(&cdev->hwfns[0], &dev_info->fw_major,
-				      &dev_info->fw_minor, &dev_info->fw_rev,
+				      &dev_info->fw_miyesr, &dev_info->fw_rev,
 				      &dev_info->fw_eng);
 	}
 
@@ -618,7 +618,7 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 			rc = 0;
 			goto out;
 	default:
-		DP_NOTICE(cdev, "Unknown int_mode value %d\n",
+		DP_NOTICE(cdev, "Unkyeswn int_mode value %d\n",
 			  int_params->in.int_mode);
 		rc = -EINVAL;
 	}
@@ -702,7 +702,7 @@ static irqreturn_t qed_single_int(int irq, void *dev_instance)
 
 		if (unlikely(status))
 			DP_VERBOSE(hwfn, NETIF_MSG_INTR,
-				   "got an unknown interrupt status 0x%llx\n",
+				   "got an unkyeswn interrupt status 0x%llx\n",
 				   status);
 	}
 
@@ -865,7 +865,7 @@ static int qed_get_int_fp(struct qed_dev *cdev, struct qed_int_info *info)
 
 	if (!cdev->int_params.fp_initialized) {
 		DP_INFO(cdev,
-			"Protocol driver requested interrupt information, but its support is not yet configured\n");
+			"Protocol driver requested interrupt information, but its support is yest yet configured\n");
 		return -EINVAL;
 	}
 
@@ -891,7 +891,7 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 	int i;
 
 	if ((int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
-		DP_NOTICE(cdev, "MSI mode is not supported for CMT devices\n");
+		DP_NOTICE(cdev, "MSI mode is yest supported for CMT devices\n");
 		return -EINVAL;
 	}
 
@@ -1194,7 +1194,7 @@ static int qed_slowpath_wq_start(struct qed_dev *cdev)
 
 		hwfn->slowpath_wq = alloc_workqueue(name, 0, 0);
 		if (!hwfn->slowpath_wq) {
-			DP_NOTICE(hwfn, "Cannot create slowpath workqueue\n");
+			DP_NOTICE(hwfn, "Canyest create slowpath workqueue\n");
 			return -ENOMEM;
 		}
 
@@ -1319,7 +1319,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	if (IS_PF(cdev)) {
 		hwfn = QED_LEADING_HWFN(cdev);
 		drv_version.version = (params->drv_major << 24) |
-				      (params->drv_minor << 16) |
+				      (params->drv_miyesr << 16) |
 				      (params->drv_rev << 8) |
 				      (params->drv_eng);
 		strlcpy(drv_version.name, params->name,
@@ -1495,7 +1495,7 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 	hwfn = &cdev->hwfns[0];
 
 	/* When VF wants to set link, force it to read the bulletin instead.
-	 * This mimics the PF behavior, where a noitification [both immediate
+	 * This mimics the PF behavior, where a yesitification [both immediate
 	 * and possible later] would be generated when changing properties.
 	 */
 	if (IS_VF(cdev)) {
@@ -1804,7 +1804,7 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 	case MEDIA_UNSPECIFIED:
 	case MEDIA_NOT_PRESENT:
 		DP_VERBOSE(hwfn->cdev, QED_MSG_DEBUG,
-			   "Unknown media and transceiver type;\n");
+			   "Unkyeswn media and transceiver type;\n");
 		break;
 	}
 }
@@ -1822,7 +1822,7 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 
 	/* Prepare source inputs */
 	if (qed_get_link_data(hwfn, &params, &link, &link_caps)) {
-		dev_warn(&hwfn->cdev->pdev->dev, "no link data available\n");
+		dev_warn(&hwfn->cdev->pdev->dev, "yes link data available\n");
 		return;
 	}
 
@@ -2003,7 +2003,7 @@ static u32 qed_nvm_flash_image_access_crc(struct qed_dev *cdev,
 		*(u32 *)&buf[j] = val;
 	}
 
-	/* Calc CRC for the "actual" image buffer, i.e. not including
+	/* Calc CRC for the "actual" image buffer, i.e. yest including
 	 * the last 4 CRC bytes.
 	 */
 	*crc = (~cpu_to_be32(crc32(0xffffffff, buf, nvm_image->length - 4)));
@@ -2410,7 +2410,7 @@ static int qed_nvm_flash(struct qed_dev *cdev, const char *name)
 			rc = qed_nvm_flash_cfg_write(cdev, &data);
 			break;
 		default:
-			DP_ERR(cdev, "Unknown command %08x\n", cmd_type);
+			DP_ERR(cdev, "Unkyeswn command %08x\n", cmd_type);
 			rc = -EINVAL;
 			goto exit;
 		}

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -62,7 +62,7 @@ gf119_hdmi_ctrl(struct nvkm_ior *ior, int head, bool enable, u8 max_ac_packet,
 	if (vendor_size) {
 		/*
 		 * These appear to be the audio infoframe registers,
-		 * but no other set of infoframe registers has yet
+		 * but yes other set of infoframe registers has yet
 		 * been found.
 		 */
 		nvkm_wr32(device, 0x616738 + hoff, vendor_infoframe.header);

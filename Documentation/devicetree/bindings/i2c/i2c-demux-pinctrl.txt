@@ -3,7 +3,7 @@ Pinctrl-based I2C Bus DeMux
 This binding describes an I2C bus demultiplexer that uses pin multiplexing to
 route the I2C signals, and represents the pin multiplexing configuration using
 the pinctrl device tree bindings. This may be used to select one I2C IP core at
-runtime which may have a better feature set for a given task than another I2C
+runtime which may have a better feature set for a given task than ayesther I2C
 IP core on the SoC. The most simple example is to fall back to GPIO bitbanging
 if your current runtime configuration hits an errata of the internal IP core.
 
@@ -27,7 +27,7 @@ Required properties:
 - i2c-bus-name: The name of this bus. Also needed as pinctrl-name for the I2C
 		parents.
 
-Furthermore, I2C mux properties and child nodes. See i2c-mux.txt in this
+Furthermore, I2C mux properties and child yesdes. See i2c-mux.txt in this
 directory.
 
 Example:
@@ -126,10 +126,10 @@ And for clarification, here are the snipplets for the i2c-parents:
 	clock-frequency = <100000>;
 };
 
-Please note:
+Please yeste:
 
 - pinctrl properties for the parent I2C controllers need a pinctrl state
-  with the same name as i2c-bus-name, not "default"!
+  with the same name as i2c-bus-name, yest "default"!
 
 - the i2c masters must have their status "disabled". This driver will
   enable them at runtime when needed.

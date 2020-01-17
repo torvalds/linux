@@ -61,7 +61,7 @@ struct mixart_mgr {
 	/* memory-maps */
 	struct mem_area mem[2];
 
-	/* one and only blocking message or notification may be pending  */
+	/* one and only blocking message or yestification may be pending  */
 	u32 pending_event;
 	wait_queue_head_t msg_sleep;
 
@@ -121,7 +121,7 @@ struct mixart_stream {
 	struct mixart_pipe *pipe;
 	int pcm_number;
 
-	int status;      /* nothing, running, draining */
+	int status;      /* yesthing, running, draining */
 
 	u64  abs_period_elapsed;  /* last absolute stream position where period_elapsed was called (multiple of runtime->period_size) */
 	u32  buf_periods;         /* periods counter in the buffer (< runtime->periods) */

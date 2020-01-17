@@ -9,8 +9,8 @@
 #include <linux/file.h>
 #include <linux/sched.h>
 #include <linux/list_lru.h>
-#include <linux/fsnotify_backend.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify_backend.h>
+#include <linux/fsyestify.h>
 #include <linux/seq_file.h>
 
 #include "vfs.h"
@@ -49,7 +49,7 @@ static struct kmem_cache		*nfsd_file_mark_slab;
 static struct nfsd_fcache_bucket	*nfsd_file_hashtbl;
 static struct list_lru			nfsd_file_lru;
 static long				nfsd_file_lru_flags;
-static struct fsnotify_group		*nfsd_file_fsnotify_group;
+static struct fsyestify_group		*nfsd_file_fsyestify_group;
 static atomic_long_t			nfsd_filecache_count;
 static struct delayed_work		nfsd_filecache_laundrette;
 
@@ -90,7 +90,7 @@ nfsd_file_slab_free(struct rcu_head *rcu)
 }
 
 static void
-nfsd_file_mark_free(struct fsnotify_mark *mark)
+nfsd_file_mark_free(struct fsyestify_mark *mark)
 {
 	struct nfsd_file_mark *nfm = container_of(mark, struct nfsd_file_mark,
 						  nfm_mark);
@@ -101,7 +101,7 @@ nfsd_file_mark_free(struct fsnotify_mark *mark)
 static struct nfsd_file_mark *
 nfsd_file_mark_get(struct nfsd_file_mark *nfm)
 {
-	if (!atomic_inc_not_zero(&nfm->nfm_ref))
+	if (!atomic_inc_yest_zero(&nfm->nfm_ref))
 		return NULL;
 	return nfm;
 }
@@ -111,8 +111,8 @@ nfsd_file_mark_put(struct nfsd_file_mark *nfm)
 {
 	if (atomic_dec_and_test(&nfm->nfm_ref)) {
 
-		fsnotify_destroy_mark(&nfm->nfm_mark, nfsd_file_fsnotify_group);
-		fsnotify_put_mark(&nfm->nfm_mark);
+		fsyestify_destroy_mark(&nfm->nfm_mark, nfsd_file_fsyestify_group);
+		fsyestify_put_mark(&nfm->nfm_mark);
 	}
 }
 
@@ -120,68 +120,68 @@ static struct nfsd_file_mark *
 nfsd_file_mark_find_or_create(struct nfsd_file *nf)
 {
 	int			err;
-	struct fsnotify_mark	*mark;
+	struct fsyestify_mark	*mark;
 	struct nfsd_file_mark	*nfm = NULL, *new;
-	struct inode *inode = nf->nf_inode;
+	struct iyesde *iyesde = nf->nf_iyesde;
 
 	do {
-		mutex_lock(&nfsd_file_fsnotify_group->mark_mutex);
-		mark = fsnotify_find_mark(&inode->i_fsnotify_marks,
-				nfsd_file_fsnotify_group);
+		mutex_lock(&nfsd_file_fsyestify_group->mark_mutex);
+		mark = fsyestify_find_mark(&iyesde->i_fsyestify_marks,
+				nfsd_file_fsyestify_group);
 		if (mark) {
 			nfm = nfsd_file_mark_get(container_of(mark,
 						 struct nfsd_file_mark,
 						 nfm_mark));
-			mutex_unlock(&nfsd_file_fsnotify_group->mark_mutex);
-			fsnotify_put_mark(mark);
+			mutex_unlock(&nfsd_file_fsyestify_group->mark_mutex);
+			fsyestify_put_mark(mark);
 			if (likely(nfm))
 				break;
 		} else
-			mutex_unlock(&nfsd_file_fsnotify_group->mark_mutex);
+			mutex_unlock(&nfsd_file_fsyestify_group->mark_mutex);
 
 		/* allocate a new nfm */
 		new = kmem_cache_alloc(nfsd_file_mark_slab, GFP_KERNEL);
 		if (!new)
 			return NULL;
-		fsnotify_init_mark(&new->nfm_mark, nfsd_file_fsnotify_group);
+		fsyestify_init_mark(&new->nfm_mark, nfsd_file_fsyestify_group);
 		new->nfm_mark.mask = FS_ATTRIB|FS_DELETE_SELF;
 		atomic_set(&new->nfm_ref, 1);
 
-		err = fsnotify_add_inode_mark(&new->nfm_mark, inode, 0);
+		err = fsyestify_add_iyesde_mark(&new->nfm_mark, iyesde, 0);
 
 		/*
 		 * If the add was successful, then return the object.
 		 * Otherwise, we need to put the reference we hold on the
-		 * nfm_mark. The fsnotify code will take a reference and put
+		 * nfm_mark. The fsyestify code will take a reference and put
 		 * it on failure, so we can't just free it directly. It's also
-		 * not safe to call fsnotify_destroy_mark on it as the
+		 * yest safe to call fsyestify_destroy_mark on it as the
 		 * mark->group will be NULL. Thus, we can't let the nfm_ref
 		 * counter drive the destruction at this point.
 		 */
 		if (likely(!err))
 			nfm = new;
 		else
-			fsnotify_put_mark(&new->nfm_mark);
+			fsyestify_put_mark(&new->nfm_mark);
 	} while (unlikely(err == -EEXIST));
 
 	return nfm;
 }
 
 static struct nfsd_file *
-nfsd_file_alloc(struct inode *inode, unsigned int may, unsigned int hashval,
+nfsd_file_alloc(struct iyesde *iyesde, unsigned int may, unsigned int hashval,
 		struct net *net)
 {
 	struct nfsd_file *nf;
 
 	nf = kmem_cache_alloc(nfsd_file_slab, GFP_KERNEL);
 	if (nf) {
-		INIT_HLIST_NODE(&nf->nf_node);
+		INIT_HLIST_NODE(&nf->nf_yesde);
 		INIT_LIST_HEAD(&nf->nf_lru);
 		nf->nf_file = NULL;
 		nf->nf_cred = get_current_cred();
 		nf->nf_net = net;
 		nf->nf_flags = 0;
-		nf->nf_inode = inode;
+		nf->nf_iyesde = iyesde;
 		nf->nf_hashval = hashval;
 		atomic_set(&nf->nf_ref, 1);
 		nf->nf_may = may & NFSD_FILE_MAY_MASK;
@@ -255,7 +255,7 @@ nfsd_file_do_unhash(struct nfsd_file *nf)
 	if (nfsd_file_check_write_error(nf))
 		nfsd_reset_boot_verifier(net_generic(nf->nf_net, nfsd_net_id));
 	--nfsd_file_hashtbl[nf->nf_hashval].nfb_count;
-	hlist_del_rcu(&nf->nf_node);
+	hlist_del_rcu(&nf->nf_yesde);
 	if (!list_empty(&nf->nf_lru))
 		list_lru_del(&nfsd_file_lru, &nf->nf_lru);
 	atomic_long_dec(&nfsd_filecache_count);
@@ -291,7 +291,7 @@ nfsd_file_unhash_and_release_locked(struct nfsd_file *nf, struct list_head *disp
 }
 
 static int
-nfsd_file_put_noref(struct nfsd_file *nf)
+nfsd_file_put_yesref(struct nfsd_file *nf)
 {
 	int count;
 	trace_nfsd_file_put(nf);
@@ -311,14 +311,14 @@ nfsd_file_put(struct nfsd_file *nf)
 	bool unused = !nfsd_file_in_use(nf);
 
 	set_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
-	if (nfsd_file_put_noref(nf) == 1 && is_hashed && unused)
+	if (nfsd_file_put_yesref(nf) == 1 && is_hashed && unused)
 		nfsd_file_schedule_laundrette(NFSD_FILE_LAUNDRETTE_MAY_FLUSH);
 }
 
 struct nfsd_file *
 nfsd_file_get(struct nfsd_file *nf)
 {
-	if (likely(atomic_inc_not_zero(&nf->nf_ref)))
+	if (likely(atomic_inc_yest_zero(&nf->nf_ref)))
 		return nf;
 	return NULL;
 }
@@ -331,7 +331,7 @@ nfsd_file_dispose_list(struct list_head *dispose)
 	while(!list_empty(dispose)) {
 		nf = list_first_entry(dispose, struct nfsd_file, nf_lru);
 		list_del(&nf->nf_lru);
-		nfsd_file_put_noref(nf);
+		nfsd_file_put_yesref(nf);
 	}
 }
 
@@ -409,7 +409,7 @@ nfsd_file_lru_dispose(struct list_head *head)
 		spin_lock(&nfsd_file_hashtbl[nf->nf_hashval].nfb_lock);
 		nfsd_file_do_unhash(nf);
 		spin_unlock(&nfsd_file_hashtbl[nf->nf_hashval].nfb_lock);
-		nfsd_file_put_noref(nf);
+		nfsd_file_put_yesref(nf);
 	}
 }
 
@@ -437,58 +437,58 @@ static struct shrinker	nfsd_file_shrinker = {
 };
 
 static void
-__nfsd_file_close_inode(struct inode *inode, unsigned int hashval,
+__nfsd_file_close_iyesde(struct iyesde *iyesde, unsigned int hashval,
 			struct list_head *dispose)
 {
 	struct nfsd_file	*nf;
-	struct hlist_node	*tmp;
+	struct hlist_yesde	*tmp;
 
 	spin_lock(&nfsd_file_hashtbl[hashval].nfb_lock);
-	hlist_for_each_entry_safe(nf, tmp, &nfsd_file_hashtbl[hashval].nfb_head, nf_node) {
-		if (inode == nf->nf_inode)
+	hlist_for_each_entry_safe(nf, tmp, &nfsd_file_hashtbl[hashval].nfb_head, nf_yesde) {
+		if (iyesde == nf->nf_iyesde)
 			nfsd_file_unhash_and_release_locked(nf, dispose);
 	}
 	spin_unlock(&nfsd_file_hashtbl[hashval].nfb_lock);
 }
 
 /**
- * nfsd_file_close_inode_sync - attempt to forcibly close a nfsd_file
- * @inode: inode of the file to attempt to remove
+ * nfsd_file_close_iyesde_sync - attempt to forcibly close a nfsd_file
+ * @iyesde: iyesde of the file to attempt to remove
  *
- * Walk the whole hash bucket, looking for any files that correspond to "inode".
+ * Walk the whole hash bucket, looking for any files that correspond to "iyesde".
  * If any do, then unhash them and put the hashtable reference to them and
  * destroy any that had their last reference put. Also ensure that any of the
  * fputs also have their final __fput done as well.
  */
 void
-nfsd_file_close_inode_sync(struct inode *inode)
+nfsd_file_close_iyesde_sync(struct iyesde *iyesde)
 {
-	unsigned int		hashval = (unsigned int)hash_long(inode->i_ino,
+	unsigned int		hashval = (unsigned int)hash_long(iyesde->i_iyes,
 						NFSD_FILE_HASH_BITS);
 	LIST_HEAD(dispose);
 
-	__nfsd_file_close_inode(inode, hashval, &dispose);
-	trace_nfsd_file_close_inode_sync(inode, hashval, !list_empty(&dispose));
+	__nfsd_file_close_iyesde(iyesde, hashval, &dispose);
+	trace_nfsd_file_close_iyesde_sync(iyesde, hashval, !list_empty(&dispose));
 	nfsd_file_dispose_list_sync(&dispose);
 }
 
 /**
- * nfsd_file_close_inode_sync - attempt to forcibly close a nfsd_file
- * @inode: inode of the file to attempt to remove
+ * nfsd_file_close_iyesde_sync - attempt to forcibly close a nfsd_file
+ * @iyesde: iyesde of the file to attempt to remove
  *
- * Walk the whole hash bucket, looking for any files that correspond to "inode".
+ * Walk the whole hash bucket, looking for any files that correspond to "iyesde".
  * If any do, then unhash them and put the hashtable reference to them and
  * destroy any that had their last reference put.
  */
 static void
-nfsd_file_close_inode(struct inode *inode)
+nfsd_file_close_iyesde(struct iyesde *iyesde)
 {
-	unsigned int		hashval = (unsigned int)hash_long(inode->i_ino,
+	unsigned int		hashval = (unsigned int)hash_long(iyesde->i_iyes,
 						NFSD_FILE_HASH_BITS);
 	LIST_HEAD(dispose);
 
-	__nfsd_file_close_inode(inode, hashval, &dispose);
-	trace_nfsd_file_close_inode(inode, hashval, !list_empty(&dispose));
+	__nfsd_file_close_iyesde(iyesde, hashval, &dispose);
+	trace_nfsd_file_close_iyesde(iyesde, hashval, !list_empty(&dispose));
 	nfsd_file_dispose_list(&dispose);
 }
 
@@ -496,7 +496,7 @@ nfsd_file_close_inode(struct inode *inode)
  * nfsd_file_delayed_close - close unused nfsd_files
  * @work: dummy
  *
- * Walk the LRU list and close any entries that have not been used since
+ * Walk the LRU list and close any entries that have yest been used since
  * the last scan.
  *
  * Note this can deadlock with nfsd_file_cache_purge.
@@ -518,49 +518,49 @@ nfsd_file_delayed_close(struct work_struct *work)
 }
 
 static int
-nfsd_file_lease_notifier_call(struct notifier_block *nb, unsigned long arg,
+nfsd_file_lease_yestifier_call(struct yestifier_block *nb, unsigned long arg,
 			    void *data)
 {
 	struct file_lock *fl = data;
 
 	/* Only close files for F_SETLEASE leases */
 	if (fl->fl_flags & FL_LEASE)
-		nfsd_file_close_inode_sync(file_inode(fl->fl_file));
+		nfsd_file_close_iyesde_sync(file_iyesde(fl->fl_file));
 	return 0;
 }
 
-static struct notifier_block nfsd_file_lease_notifier = {
-	.notifier_call = nfsd_file_lease_notifier_call,
+static struct yestifier_block nfsd_file_lease_yestifier = {
+	.yestifier_call = nfsd_file_lease_yestifier_call,
 };
 
 static int
-nfsd_file_fsnotify_handle_event(struct fsnotify_group *group,
-				struct inode *inode,
+nfsd_file_fsyestify_handle_event(struct fsyestify_group *group,
+				struct iyesde *iyesde,
 				u32 mask, const void *data, int data_type,
 				const struct qstr *file_name, u32 cookie,
-				struct fsnotify_iter_info *iter_info)
+				struct fsyestify_iter_info *iter_info)
 {
-	trace_nfsd_file_fsnotify_handle_event(inode, mask);
+	trace_nfsd_file_fsyestify_handle_event(iyesde, mask);
 
-	/* Should be no marks on non-regular files */
-	if (!S_ISREG(inode->i_mode)) {
+	/* Should be yes marks on yesn-regular files */
+	if (!S_ISREG(iyesde->i_mode)) {
 		WARN_ON_ONCE(1);
 		return 0;
 	}
 
-	/* don't close files if this was not the last link */
+	/* don't close files if this was yest the last link */
 	if (mask & FS_ATTRIB) {
-		if (inode->i_nlink)
+		if (iyesde->i_nlink)
 			return 0;
 	}
 
-	nfsd_file_close_inode(inode);
+	nfsd_file_close_iyesde(iyesde);
 	return 0;
 }
 
 
-static const struct fsnotify_ops nfsd_file_fsnotify_ops = {
-	.handle_event = nfsd_file_fsnotify_handle_event,
+static const struct fsyestify_ops nfsd_file_fsyestify_ops = {
+	.handle_event = nfsd_file_fsyestify_handle_event,
 	.free_mark = nfsd_file_mark_free,
 };
 
@@ -609,18 +609,18 @@ nfsd_file_cache_init(void)
 		goto out_lru;
 	}
 
-	ret = lease_register_notifier(&nfsd_file_lease_notifier);
+	ret = lease_register_yestifier(&nfsd_file_lease_yestifier);
 	if (ret) {
-		pr_err("nfsd: unable to register lease notifier: %d\n", ret);
+		pr_err("nfsd: unable to register lease yestifier: %d\n", ret);
 		goto out_shrinker;
 	}
 
-	nfsd_file_fsnotify_group = fsnotify_alloc_group(&nfsd_file_fsnotify_ops);
-	if (IS_ERR(nfsd_file_fsnotify_group)) {
-		pr_err("nfsd: unable to create fsnotify group: %ld\n",
-			PTR_ERR(nfsd_file_fsnotify_group));
-		nfsd_file_fsnotify_group = NULL;
-		goto out_notifier;
+	nfsd_file_fsyestify_group = fsyestify_alloc_group(&nfsd_file_fsyestify_ops);
+	if (IS_ERR(nfsd_file_fsyestify_group)) {
+		pr_err("nfsd: unable to create fsyestify group: %ld\n",
+			PTR_ERR(nfsd_file_fsyestify_group));
+		nfsd_file_fsyestify_group = NULL;
+		goto out_yestifier;
 	}
 
 	for (i = 0; i < NFSD_FILE_HASH_SIZE; i++) {
@@ -631,8 +631,8 @@ nfsd_file_cache_init(void)
 	INIT_DELAYED_WORK(&nfsd_filecache_laundrette, nfsd_file_delayed_close);
 out:
 	return ret;
-out_notifier:
-	lease_unregister_notifier(&nfsd_file_lease_notifier);
+out_yestifier:
+	lease_unregister_yestifier(&nfsd_file_lease_yestifier);
 out_shrinker:
 	unregister_shrinker(&nfsd_file_shrinker);
 out_lru:
@@ -655,7 +655,7 @@ nfsd_file_cache_purge(struct net *net)
 {
 	unsigned int		i;
 	struct nfsd_file	*nf;
-	struct hlist_node	*next;
+	struct hlist_yesde	*next;
 	LIST_HEAD(dispose);
 	bool del;
 
@@ -666,7 +666,7 @@ nfsd_file_cache_purge(struct net *net)
 		struct nfsd_fcache_bucket *nfb = &nfsd_file_hashtbl[i];
 
 		spin_lock(&nfb->nfb_lock);
-		hlist_for_each_entry_safe(nf, next, &nfb->nfb_head, nf_node) {
+		hlist_for_each_entry_safe(nf, next, &nfb->nfb_head, nf_yesde) {
 			if (net && nf->nf_net != net)
 				continue;
 			del = nfsd_file_unhash_and_release_locked(nf, &dispose);
@@ -687,7 +687,7 @@ nfsd_file_cache_shutdown(void)
 {
 	set_bit(NFSD_FILE_SHUTDOWN, &nfsd_file_lru_flags);
 
-	lease_unregister_notifier(&nfsd_file_lease_notifier);
+	lease_unregister_yestifier(&nfsd_file_lease_yestifier);
 	unregister_shrinker(&nfsd_file_shrinker);
 	/*
 	 * make sure all callers of nfsd_file_lru_cb are done before
@@ -697,11 +697,11 @@ nfsd_file_cache_shutdown(void)
 	nfsd_file_cache_purge(NULL);
 	list_lru_destroy(&nfsd_file_lru);
 	rcu_barrier();
-	fsnotify_put_group(nfsd_file_fsnotify_group);
-	nfsd_file_fsnotify_group = NULL;
+	fsyestify_put_group(nfsd_file_fsyestify_group);
+	nfsd_file_fsyestify_group = NULL;
 	kmem_cache_destroy(nfsd_file_slab);
 	nfsd_file_slab = NULL;
-	fsnotify_wait_marks_destroyed();
+	fsyestify_wait_marks_destroyed();
 	kmem_cache_destroy(nfsd_file_mark_slab);
 	nfsd_file_mark_slab = NULL;
 	kfree(nfsd_file_hashtbl);
@@ -729,17 +729,17 @@ nfsd_match_cred(const struct cred *c1, const struct cred *c2)
 }
 
 static struct nfsd_file *
-nfsd_file_find_locked(struct inode *inode, unsigned int may_flags,
+nfsd_file_find_locked(struct iyesde *iyesde, unsigned int may_flags,
 			unsigned int hashval, struct net *net)
 {
 	struct nfsd_file *nf;
 	unsigned char need = may_flags & NFSD_FILE_MAY_MASK;
 
 	hlist_for_each_entry_rcu(nf, &nfsd_file_hashtbl[hashval].nfb_head,
-				 nf_node) {
+				 nf_yesde) {
 		if ((need & nf->nf_may) != need)
 			continue;
-		if (nf->nf_inode != inode)
+		if (nf->nf_iyesde != iyesde)
 			continue;
 		if (nf->nf_net != net)
 			continue;
@@ -753,30 +753,30 @@ nfsd_file_find_locked(struct inode *inode, unsigned int may_flags,
 
 /**
  * nfsd_file_is_cached - are there any cached open files for this fh?
- * @inode: inode of the file to check
+ * @iyesde: iyesde of the file to check
  *
  * Scan the hashtable for open files that match this fh. Returns true if there
- * are any, and false if not.
+ * are any, and false if yest.
  */
 bool
-nfsd_file_is_cached(struct inode *inode)
+nfsd_file_is_cached(struct iyesde *iyesde)
 {
 	bool			ret = false;
 	struct nfsd_file	*nf;
 	unsigned int		hashval;
 
-        hashval = (unsigned int)hash_long(inode->i_ino, NFSD_FILE_HASH_BITS);
+        hashval = (unsigned int)hash_long(iyesde->i_iyes, NFSD_FILE_HASH_BITS);
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(nf, &nfsd_file_hashtbl[hashval].nfb_head,
-				 nf_node) {
-		if (inode == nf->nf_inode) {
+				 nf_yesde) {
+		if (iyesde == nf->nf_iyesde) {
 			ret = true;
 			break;
 		}
 	}
 	rcu_read_unlock();
-	trace_nfsd_file_is_cached(inode, hashval, (int)ret);
+	trace_nfsd_file_is_cached(iyesde, hashval, (int)ret);
 	return ret;
 }
 
@@ -787,7 +787,7 @@ nfsd_file_acquire(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	__be32	status;
 	struct net *net = SVC_NET(rqstp);
 	struct nfsd_file *nf, *new;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	unsigned int hashval;
 
 	/* FIXME: skip this if fh_dentry is already set? */
@@ -796,24 +796,24 @@ nfsd_file_acquire(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (status != nfs_ok)
 		return status;
 
-	inode = d_inode(fhp->fh_dentry);
-	hashval = (unsigned int)hash_long(inode->i_ino, NFSD_FILE_HASH_BITS);
+	iyesde = d_iyesde(fhp->fh_dentry);
+	hashval = (unsigned int)hash_long(iyesde->i_iyes, NFSD_FILE_HASH_BITS);
 retry:
 	rcu_read_lock();
-	nf = nfsd_file_find_locked(inode, may_flags, hashval, net);
+	nf = nfsd_file_find_locked(iyesde, may_flags, hashval, net);
 	rcu_read_unlock();
 	if (nf)
 		goto wait_for_construction;
 
-	new = nfsd_file_alloc(inode, may_flags, hashval, net);
+	new = nfsd_file_alloc(iyesde, may_flags, hashval, net);
 	if (!new) {
-		trace_nfsd_file_acquire(rqstp, hashval, inode, may_flags,
+		trace_nfsd_file_acquire(rqstp, hashval, iyesde, may_flags,
 					NULL, nfserr_jukebox);
 		return nfserr_jukebox;
 	}
 
 	spin_lock(&nfsd_file_hashtbl[hashval].nfb_lock);
-	nf = nfsd_file_find_locked(inode, may_flags, hashval, net);
+	nf = nfsd_file_find_locked(iyesde, may_flags, hashval, net);
 	if (nf == NULL)
 		goto open_file;
 	spin_unlock(&nfsd_file_hashtbl[hashval].nfb_lock);
@@ -824,7 +824,7 @@ wait_for_construction:
 
 	/* Did construction of this file fail? */
 	if (!test_bit(NFSD_FILE_HASHED, &nf->nf_flags)) {
-		nfsd_file_put_noref(nf);
+		nfsd_file_put_yesref(nf);
 		goto retry;
 	}
 
@@ -835,8 +835,8 @@ wait_for_construction:
 
 		if (test_bit(NFSD_FILE_BREAK_READ, &nf->nf_flags) ||
 		    (test_bit(NFSD_FILE_BREAK_WRITE, &nf->nf_flags) && write)) {
-			status = nfserrno(nfsd_open_break_lease(
-					file_inode(nf->nf_file), may_flags));
+			status = nfserryes(nfsd_open_break_lease(
+					file_iyesde(nf->nf_file), may_flags));
 			if (status == nfs_ok) {
 				clear_bit(NFSD_FILE_BREAK_READ, &nf->nf_flags);
 				if (write)
@@ -853,7 +853,7 @@ out:
 		nf = NULL;
 	}
 
-	trace_nfsd_file_acquire(rqstp, hashval, inode, may_flags, nf, status);
+	trace_nfsd_file_acquire(rqstp, hashval, iyesde, may_flags, nf, status);
 	return status;
 open_file:
 	nf = new;
@@ -862,7 +862,7 @@ open_file:
 	__set_bit(NFSD_FILE_HASHED, &nf->nf_flags);
 	__set_bit(NFSD_FILE_PENDING, &nf->nf_flags);
 	list_lru_add(&nfsd_file_lru, &nf->nf_lru);
-	hlist_add_head_rcu(&nf->nf_node, &nfsd_file_hashtbl[hashval].nfb_head);
+	hlist_add_head_rcu(&nf->nf_yesde, &nfsd_file_hashtbl[hashval].nfb_head);
 	++nfsd_file_hashtbl[hashval].nfb_count;
 	nfsd_file_hashtbl[hashval].nfb_maxcount = max(nfsd_file_hashtbl[hashval].nfb_maxcount,
 			nfsd_file_hashtbl[hashval].nfb_count);
@@ -879,13 +879,13 @@ open_file:
 	 * If construction failed, or we raced with a call to unlink()
 	 * then unhash.
 	 */
-	if (status != nfs_ok || inode->i_nlink == 0) {
+	if (status != nfs_ok || iyesde->i_nlink == 0) {
 		bool do_free;
 		spin_lock(&nfsd_file_hashtbl[hashval].nfb_lock);
 		do_free = nfsd_file_unhash(nf);
 		spin_unlock(&nfsd_file_hashtbl[hashval].nfb_lock);
 		if (do_free)
-			nfsd_file_put_noref(nf);
+			nfsd_file_put_yesref(nf);
 	}
 	clear_bit_unlock(NFSD_FILE_PENDING, &nf->nf_flags);
 	smp_mb__after_atomic();
@@ -904,7 +904,7 @@ static int nfsd_file_cache_stats_show(struct seq_file *m, void *v)
 	unsigned long hits = 0;
 
 	/*
-	 * No need for spinlocks here since we're not terribly interested in
+	 * No need for spinlocks here since we're yest terribly interested in
 	 * accuracy. We do take the nfsd_mutex simply to ensure that we
 	 * don't end up racing with server shutdown
 	 */
@@ -926,7 +926,7 @@ static int nfsd_file_cache_stats_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-int nfsd_file_cache_stats_open(struct inode *inode, struct file *file)
+int nfsd_file_cache_stats_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, nfsd_file_cache_stats_show, NULL);
 }

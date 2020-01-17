@@ -137,7 +137,7 @@ The following information is available in this file:
 	  version of the driver.
    6.2.36 (June 3rd, 2003)
         - Correct code that disables PCI parity error checking.
-        - Correct and simplify handling of the ignore wide residue
+        - Correct and simplify handling of the igyesre wide residue
           message.  The previous code would fail to report a residual
           if the transaction data length was even and we received
           an IWR message.
@@ -146,7 +146,7 @@ The following information is available in this file:
         - Correct Domain Validation command-line option parsing.
         - When negotiation async via an 8bit WDTR message, send
           an SDTR with an offset of 0 to be sure the target
-          knows we are async.  This works around a firmware defect
+          kyesws we are async.  This works around a firmware defect
           in the Quantum Atlas 10K.
         - Clear PCI error state during driver attach so that we
           don't disable memory mapped I/O due to a stray write
@@ -202,17 +202,17 @@ The following information is available in this file:
    -----------------------------------------------------------------
               Option: debug:[value]
           Definition: Enables various levels of debugging information
-     Possible Values: 0x0000 = no debugging, 0xffff = full debugging
+     Possible Values: 0x0000 = yes debugging, 0xffff = full debugging
        Default Value: 0x0000
    -----------------------------------------------------------------
-              Option: no_probe
+              Option: yes_probe
               Option: probe_eisa_vl
-          Definition: Do not probe for EISA/VLB controllers.
+          Definition: Do yest probe for EISA/VLB controllers.
                       This is a toggle.  If the driver is compiled
-                      to not probe EISA/VLB controllers by default,
-                      specifying "no_probe" will enable this probing.
+                      to yest probe EISA/VLB controllers by default,
+                      specifying "yes_probe" will enable this probing.
                       If the driver is compiled to probe EISA/VLB
-                      controllers by default, specifying "no_probe"
+                      controllers by default, specifying "yes_probe"
                       will disable this probing.
      Possible Values: This option is a toggle
        Default Value: EISA/VLB probing is disabled by default.
@@ -220,7 +220,7 @@ The following information is available in this file:
               Option: pci_parity
           Definition: Toggles the detection of PCI parity errors.
                       On many motherboards with VIA chipsets,
-                      PCI parity is not generated correctly on the
+                      PCI parity is yest generated correctly on the
                       PCI bus.  It is impossible for the hardware to
                       differentiate between these "spurious" parity
                       errors and real parity errors.  The symptom of
@@ -230,8 +230,8 @@ The following information is available in this file:
      Possible Values: This option is a toggle
        Default Value: PCI Parity Error reporting is disabled
    -----------------------------------------------------------------
-              Option: no_reset
-          Definition: Do not reset the bus during the initial probe
+              Option: yes_reset
+          Definition: Do yest reset the bus during the initial probe
                       phase
      Possible Values: This option is a flag
        Default Value: disabled
@@ -309,7 +309,7 @@ The following information is available in this file:
    -----------------------------------------------------------------
 
    Example:
-   'options aic7xxx aic7xxx=verbose,no_probe,tag_info:{{},{,,10}},seltime:1'
+   'options aic7xxx aic7xxx=verbose,yes_probe,tag_info:{{},{,,10}},seltime:1'
         enables verbose logging, Disable EISA/VLB probing,
         and set tag depth on Controller 1/Target 2 to 10 tags.
 
@@ -323,7 +323,7 @@ The following information is available in this file:
       product and support status.
 
    Support Options
-    - Search the Adaptec Support Knowledgebase (ASK) at
+    - Search the Adaptec Support Kyeswledgebase (ASK) at
       http://ask.adaptec.com for articles, troubleshooting tips, and
       frequently asked questions about your product.
     - For support via Email, submit your question to Adaptec's 
@@ -370,14 +370,14 @@ The following information is available in this file:
  * or in part in conjunction with redistribution of software governed by the
  * General Public License, provided that the following conditions are met:
  * 1. Redistributions of README file must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  * 3. Modifications or new contributions must be attributed in a copyright
- *    notice identifying the author ("Contributor") and added below the
- *    original copyright notice. The copyright notice is for purposes of
- *    identifying contributors and should not be deemed as permission to alter
+ *    yestice identifying the author ("Contributor") and added below the
+ *    original copyright yestice. The copyright yestice is for purposes of
+ *    identifying contributors and should yest be deemed as permission to alter
  *    the permissions given by Adaptec.
  *
  * THIS README FILE IS PROVIDED BY ADAPTEC AND CONTRIBUTORS ``AS IS'' AND

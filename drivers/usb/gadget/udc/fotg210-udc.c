@@ -2,7 +2,7 @@
 /*
  * FOTG210 UDC Driver supports Bulk transfer so far
  *
- * Copyright (C) 2013 Faraday Technology Corporation
+ * Copyright (C) 2013 Faraday Techyeslogy Corporation
  *
  * Author : Yuan-Hsin Chen <yhchen@faraday-tech.com>
  */

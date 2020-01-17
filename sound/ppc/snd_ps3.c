@@ -128,7 +128,7 @@ static int snd_ps3_verify_dma_stop(struct snd_ps3_card_info *card,
 			}
 		} while (!done && --retries);
 		if (!retries && force_stop) {
-			pr_info("%s: DMA ch %d is not stopped.",
+			pr_info("%s: DMA ch %d is yest stopped.",
 				__func__, dma_ch);
 			/* last resort. force to stop dma.
 			 *  NOTE: this cause DMA done interrupts
@@ -143,7 +143,7 @@ static int snd_ps3_verify_dma_stop(struct snd_ps3_card_info *card,
 /*
  * wait for all dma is done.
  * NOTE: caller should reset card->running before call.
- *       If not, the interrupt handler will re-start DMA,
+ *       If yest, the interrupt handler will re-start DMA,
  *       then DMA is never stopped.
  */
 static void snd_ps3_wait_for_dma_stop(struct snd_ps3_card_info *card)
@@ -167,7 +167,7 @@ static void snd_ps3_wait_for_dma_stop(struct snd_ps3_card_info *card)
 	update_reg(PS3_AUDIO_AX_IS, 0);
 
 	/*
-	 *revert CLEAR bit since it will not reset automatically after DMA stop
+	 *revert CLEAR bit since it will yest reset automatically after DMA stop
 	 */
 	if (stop_forced)
 		update_mask_reg(PS3_AUDIO_CONFIG, ~PS3_AUDIO_CONFIG_CLEAR, 0);
@@ -216,7 +216,7 @@ static void snd_ps3_bump_buffer(struct snd_ps3_card_info *card,
 static int snd_ps3_program_dma(struct snd_ps3_card_info *card,
 			       enum snd_ps3_dma_filltype filltype)
 {
-	/* this dmac does not support over 4G */
+	/* this dmac does yest support over 4G */
 	uint32_t dma_addr;
 	int fill_stages, dma_ch, stage;
 	enum snd_ps3_ch ch;
@@ -340,13 +340,13 @@ static irqreturn_t snd_ps3_interrupt(int irq, void *dev_id)
 	} else if (port_intr & PS3_AUDIO_AX_IE_ASOBUIE(0)) {
 		write_reg(PS3_AUDIO_AX_IS, PS3_AUDIO_AX_IE_ASOBUIE(0));
 		/*
-		 * serial out underflow, but buffer empty not detected.
+		 * serial out underflow, but buffer empty yest detected.
 		 * in this case, fill fifo with 0 to recover.  After
 		 * filling dummy data, serial automatically start to
-		 * consume them and then will generate normal buffer
+		 * consume them and then will generate yesrmal buffer
 		 * empty interrupts.
 		 * If both buffer underflow and buffer empty are occurred,
-		 * it is better to do nomal data transfer than empty one
+		 * it is better to do yesmal data transfer than empty one
 		 */
 		snd_ps3_program_dma(card,
 				    SND_PS3_DMA_FILLTYPE_SILENT_FIRSTFILL);
@@ -496,9 +496,9 @@ static int snd_ps3_set_avsetting(struct snd_pcm_substream *substream)
 	} else
 		ret = 1;
 
-	/* check CS non-audio bit and mute accordingly */
+	/* check CS yesn-audio bit and mute accordingly */
 	if (avs.avs_cs_info[0] & 0x02)
-		ps3av_audio_mute_analog(1); /* mute if non-audio */
+		ps3av_audio_mute_analog(1); /* mute if yesn-audio */
 	else
 		ps3av_audio_mute_analog(0);
 
@@ -821,13 +821,13 @@ static int snd_ps3_allocate_irq(void)
 	/* irq */
 	ret = ps3_irq_plug_setup(PS3_BINDING_CPU_ANY,
 				 the_card.audio_irq_outlet,
-				 &the_card.irq_no);
+				 &the_card.irq_yes);
 	if (ret) {
 		pr_info("%s:ps3_alloc_irq failed (%d)\n", __func__, ret);
 		return ret;
 	}
 
-	ret = request_irq(the_card.irq_no, snd_ps3_interrupt, 0,
+	ret = request_irq(the_card.irq_yes, snd_ps3_interrupt, 0,
 			  SND_PS3_DRIVER_NAME, &the_card);
 	if (ret) {
 		pr_info("%s: request_irq failed (%d)\n", __func__, ret);
@@ -837,14 +837,14 @@ static int snd_ps3_allocate_irq(void)
 	return 0;
 
  cleanup_irq:
-	ps3_irq_plug_destroy(the_card.irq_no);
+	ps3_irq_plug_destroy(the_card.irq_yes);
 	return ret;
 };
 
 static void snd_ps3_free_irq(void)
 {
-	free_irq(the_card.irq_no, &the_card);
-	ps3_irq_plug_destroy(the_card.irq_no);
+	free_irq(the_card.irq_yes, &the_card);
+	ps3_irq_plug_destroy(the_card.irq_yes);
 }
 
 static void snd_ps3_audio_set_base_addr(uint64_t ioaddr_start)
@@ -870,7 +870,7 @@ static void snd_ps3_audio_fixup(struct snd_ps3_card_info *card)
 	 * so, init them here once
 	 */
 
-	/* no dma interrupt needed */
+	/* yes dma interrupt needed */
 	write_reg(PS3_AUDIO_INTR_EN_0, 0);
 
 	/* use every 4 buffer empty interrupt */
@@ -943,7 +943,7 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	/* setup DMA area */
 	ps3_dma_region_init(dev, dev->d_region,
 			    PAGE_SHIFT, /* use system page size */
-			    0, /* dma type; not used */
+			    0, /* dma type; yest used */
 			    NULL,
 			    _ALIGN_UP(SND_PS3_DMA_REGION_SIZE, PAGE_SIZE));
 	dev->d_region->ioid = PS3_AUDIO_IOID;
@@ -1016,7 +1016,7 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	/*
 	 * allocate null buffer
 	 * its size should be lager than PS3_AUDIO_FIFO_STAGE_SIZE * 2
-	 * PAGE_SIZE is enogh
+	 * PAGE_SIZE is eyesgh
 	 */
 	the_card.null_buffer_start_vaddr =
 		dma_alloc_coherent(&the_card.ps3_dev->core,
@@ -1061,7 +1061,7 @@ clean_dev_map:
 clean_open:
 	ps3_close_hv_device(dev);
 	/*
-	 * there is no destructor function to pcm.
+	 * there is yes destructor function to pcm.
 	 * midlayer automatically releases if the card removed
 	 */
 	return ret;

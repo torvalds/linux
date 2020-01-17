@@ -7,7 +7,7 @@ Required properties:
 - clocks: phandle to the source clock
 
 Optional properties:
-- timer-width: Bit width of the timer, necessary if not 16.
+- timer-width: Bit width of the timer, necessary if yest 16.
 
 Example:
 

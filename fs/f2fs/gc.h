@@ -8,7 +8,7 @@
 #define GC_THREAD_MIN_WB_PAGES		1	/*
 						 * a threshold to determine
 						 * whether IO subsystem is idle
-						 * or not
+						 * or yest
 						 */
 #define DEF_GC_THREAD_URGENT_SLEEP_TIME	500	/* 500 ms */
 #define DEF_GC_THREAD_MIN_SLEEP_TIME	30000	/* milliseconds */
@@ -30,13 +30,13 @@ struct f2fs_gc_kthread {
 	unsigned int urgent_sleep_time;
 	unsigned int min_sleep_time;
 	unsigned int max_sleep_time;
-	unsigned int no_gc_sleep_time;
+	unsigned int yes_gc_sleep_time;
 
 	/* for changing gc mode */
 	unsigned int gc_wake;
 };
 
-struct gc_inode_list {
+struct gc_iyesde_list {
 	struct list_head ilist;
 	struct radix_tree_root iroot;
 };
@@ -71,7 +71,7 @@ static inline void increase_sleep_time(struct f2fs_gc_kthread *gc_th,
 	unsigned int min_time = gc_th->min_sleep_time;
 	unsigned int max_time = gc_th->max_sleep_time;
 
-	if (*wait == gc_th->no_gc_sleep_time)
+	if (*wait == gc_th->yes_gc_sleep_time)
 		return;
 
 	if ((long long)*wait + (long long)min_time > (long long)max_time)
@@ -85,7 +85,7 @@ static inline void decrease_sleep_time(struct f2fs_gc_kthread *gc_th,
 {
 	unsigned int min_time = gc_th->min_sleep_time;
 
-	if (*wait == gc_th->no_gc_sleep_time)
+	if (*wait == gc_th->yes_gc_sleep_time)
 		*wait = gc_th->max_sleep_time;
 
 	if ((long long)*wait - (long long)min_time < (long long)min_time)
@@ -94,14 +94,14 @@ static inline void decrease_sleep_time(struct f2fs_gc_kthread *gc_th,
 		*wait -= min_time;
 }
 
-static inline bool has_enough_invalid_blocks(struct f2fs_sb_info *sbi)
+static inline bool has_eyesugh_invalid_blocks(struct f2fs_sb_info *sbi)
 {
 	block_t invalid_user_blocks = sbi->user_block_count -
 					written_block_count(sbi);
 	/*
 	 * Background GC is triggered with the following conditions.
 	 * 1. There are a number of invalid blocks.
-	 * 2. There is not enough free space.
+	 * 2. There is yest eyesugh free space.
 	 */
 	if (invalid_user_blocks > limit_invalid_user_blocks(sbi) &&
 			free_user_blocks(sbi) < limit_free_user_blocks(sbi))

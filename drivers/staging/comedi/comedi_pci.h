@@ -15,7 +15,7 @@
 #include "comedidev.h"
 
 /*
- * PCI Vendor IDs not in <linux/pci_ids.h>
+ * PCI Vendor IDs yest in <linux/pci_ids.h>
  */
 #define PCI_VENDOR_ID_KOLTER		0x1001
 #define PCI_VENDOR_ID_ICP		0x104c
@@ -45,7 +45,7 @@ void comedi_pci_driver_unregister(struct comedi_driver *comedi_driver,
  * @__comedi_driver: comedi_driver struct
  * @__pci_driver: pci_driver struct
  *
- * Helper macro for comedi PCI drivers which do not do anything special
+ * Helper macro for comedi PCI drivers which do yest do anything special
  * in module init/exit. This eliminates a lot of boilerplate. Each
  * module may only use this macro once, and calling it replaces
  * module_init() and module_exit()

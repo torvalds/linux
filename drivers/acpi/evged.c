@@ -46,7 +46,7 @@ struct acpi_ged_device {
 };
 
 struct acpi_ged_event {
-	struct list_head node;
+	struct list_head yesde;
 	struct device *dev;
 	unsigned int gsi;
 	unsigned int irq;
@@ -95,7 +95,7 @@ static acpi_status acpi_ged_request_interrupt(struct acpi_resource *ares,
 	irq = r.start;
 
 	if (ACPI_FAILURE(acpi_get_handle(handle, "_EVT", &evt_handle))) {
-		dev_err(dev, "cannot locate _EVT method\n");
+		dev_err(dev, "canyest locate _EVT method\n");
 		return AE_ERROR;
 	}
 
@@ -118,7 +118,7 @@ static acpi_status acpi_ged_request_interrupt(struct acpi_resource *ares,
 	}
 
 	dev_dbg(dev, "GED listening GSI %u @ IRQ %u\n", gsi, irq);
-	list_add_tail(&event->node, &geddev->event_list);
+	list_add_tail(&event->yesde, &geddev->event_list);
 	return AE_OK;
 }
 
@@ -149,9 +149,9 @@ static void ged_shutdown(struct platform_device *pdev)
 	struct acpi_ged_device *geddev = platform_get_drvdata(pdev);
 	struct acpi_ged_event *event, *next;
 
-	list_for_each_entry_safe(event, next, &geddev->event_list, node) {
+	list_for_each_entry_safe(event, next, &geddev->event_list, yesde) {
 		free_irq(event->irq, event);
-		list_del(&event->node);
+		list_del(&event->yesde);
 		dev_dbg(geddev->dev, "GED releasing GSI %u @ IRQ %u\n",
 			 event->gsi, event->irq);
 	}

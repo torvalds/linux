@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _func-select:
 
@@ -16,10 +16,10 @@ V4L2 select()
 Name
 ====
 
-v4l2-select - Synchronous I/O multiplexing
+v4l2-select - Synchroyesus I/O multiplexing
 
 
-Synopsis
+Syyespsis
 ========
 
 .. code-block:: c
@@ -65,8 +65,8 @@ the outgoing queue of the driver the function returns immediately.
 
 On success :ref:`select() <func-select>` returns the total number of bits set in
 :c:func:`struct fd_set`. When the function timed out it returns
-a value of zero. On failure it returns -1 and the ``errno`` variable is
-set appropriately. When the application did not call
+a value of zero. On failure it returns -1 and the ``erryes`` variable is
+set appropriately. When the application did yest call
 :ref:`VIDIOC_QBUF` or
 :ref:`VIDIOC_STREAMON` yet the :ref:`select() <func-select>`
 function succeeds, setting the bit of the file descriptor in ``readfds``
@@ -74,7 +74,7 @@ or ``writefds``, but subsequent :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`
 calls will fail. [#f1]_
 
 When use of the :ref:`read() <func-read>` function has been negotiated and the
-driver does not capture yet, the :ref:`select() <func-select>` function starts
+driver does yest capture yet, the :ref:`select() <func-select>` function starts
 capturing. When that fails, :ref:`select() <func-select>` returns successful and
 a subsequent :ref:`read() <func-read>` call, which also attempts to start
 capturing, will return an appropriate error code. When the driver
@@ -84,7 +84,7 @@ immediately.
 
 When use of the :ref:`write() <func-write>` function has been negotiated the
 :ref:`select() <func-select>` function just waits until the driver is ready for a
-non-blocking :ref:`write() <func-write>` call.
+yesn-blocking :ref:`write() <func-write>` call.
 
 All drivers implementing the :ref:`read() <func-read>` or :ref:`write() <func-write>`
 function or streaming I/O must also support the :ref:`select() <func-select>`
@@ -98,16 +98,16 @@ Return Value
 
 On success, :ref:`select() <func-select>` returns the number of descriptors
 contained in the three returned descriptor sets, which will be zero if
-the timeout expired. On error -1 is returned, and the ``errno`` variable
+the timeout expired. On error -1 is returned, and the ``erryes`` variable
 is set appropriately; the sets and ``timeout`` are undefined. Possible
 error codes are:
 
 EBADF
     One or more of the file descriptor sets specified a file descriptor
-    that is not open.
+    that is yest open.
 
 EBUSY
-    The driver does not support multiple read or write streams and the
+    The driver does yest support multiple read or write streams and the
     device is already in use.
 
 EFAULT
@@ -123,5 +123,5 @@ EINVAL
 
 .. [#f1]
    The Linux kernel implements :ref:`select() <func-select>` like the
-   :ref:`poll() <func-poll>` function, but :ref:`select() <func-select>` cannot
+   :ref:`poll() <func-poll>` function, but :ref:`select() <func-select>` canyest
    return a ``POLLERR``.

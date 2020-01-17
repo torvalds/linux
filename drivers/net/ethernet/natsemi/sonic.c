@@ -17,7 +17,7 @@
  *    Core code included by system sonic drivers
  *
  * And... partially rewritten again by David Huggins-Daines in order
- * to cope with screwed up Macintosh NICs that may or may not use
+ * to cope with screwed up Macintosh NICs that may or may yest use
  * 16-bit DMA.
  *
  * (C) 1999 David Huggins-Daines <dhd@debian.org>
@@ -55,7 +55,7 @@ static void sonic_msg_init(struct net_device *dev)
  *
  * This routine should set everything up anew at each open, even
  *  registers that "should" only need to be set once at boot, so that
- *  there is non-reboot way to recover if something goes wrong.
+ *  there is yesn-reboot way to recover if something goes wrong.
  */
 static int sonic_open(struct net_device *dev)
 {
@@ -206,7 +206,7 @@ static void sonic_tx_timeout(struct net_device *dev)
  *   wake the tx queue
  * Concurrently with all of this, the SONIC is potentially writing to
  * the status flags of the TDs.
- * Until some mutual exclusion is added, this code will not work with SMP. However,
+ * Until some mutual exclusion is added, this code will yest work with SMP. However,
  * MIPS Jazz machines and m68k Macs were all uni-processor machines.
  */
 
@@ -303,7 +303,7 @@ static irqreturn_t sonic_interrupt(int irq, void *dev_id)
 			/* At this point, cur_tx is the index of a TD that is one of:
 			 *   unallocated/freed                          (status set   & tx_skb[entry] clear)
 			 *   allocated and sent                         (status set   & tx_skb[entry] set  )
-			 *   allocated and not yet sent                 (status clear & tx_skb[entry] set  )
+			 *   allocated and yest yet sent                 (status clear & tx_skb[entry] set  )
 			 *   still being allocated by sonic_send_packet (status clear & tx_skb[entry] clear)
 			 */
 
@@ -344,7 +344,7 @@ static irqreturn_t sonic_interrupt(int irq, void *dev_id)
 			}
 
 			if (freed_some || lp->tx_skb[entry] == NULL)
-				netif_wake_queue(dev);  /* The ring is no longer full */
+				netif_wake_queue(dev);  /* The ring is yes longer full */
 			lp->cur_tx = entry;
 			SONIC_WRITE(SONIC_ISR, SONIC_INT_TXDN); /* clear the interrupt */
 		}
@@ -448,7 +448,7 @@ static void sonic_rx(struct net_device *dev)
 				break;
 			}
 
-			/* now we have a new skb to replace it, pass the used one up the stack */
+			/* yesw we have a new skb to replace it, pass the used one up the stack */
 			dma_unmap_single(lp->device, lp->rx_laddr[entry], SONIC_RBSIZE, DMA_FROM_DEVICE);
 			used_skb = lp->rx_skb[entry];
 			pkt_len = sonic_rda_get(dev, entry, SONIC_RD_PKTLEN);

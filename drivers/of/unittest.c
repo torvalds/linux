@@ -8,7 +8,7 @@
 #include <linux/memblock.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/hashtable.h>
 #include <linux/libfdt.h>
 #include <linux/of.h>
@@ -46,111 +46,111 @@ static struct unittest_results {
 	failed; \
 })
 
-static void __init of_unittest_find_node_by_name(void)
+static void __init of_unittest_find_yesde_by_name(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const char *options, *name;
 
-	np = of_find_node_by_path("/testcase-data");
+	np = of_find_yesde_by_path("/testcase-data");
 	name = kasprintf(GFP_KERNEL, "%pOF", np);
 	unittest(np && !strcmp("/testcase-data", name),
 		"find /testcase-data failed\n");
-	of_node_put(np);
+	of_yesde_put(np);
 	kfree(name);
 
 	/* Test if trailing '/' works */
-	np = of_find_node_by_path("/testcase-data/");
+	np = of_find_yesde_by_path("/testcase-data/");
 	unittest(!np, "trailing '/' on /testcase-data/ should fail\n");
 
-	np = of_find_node_by_path("/testcase-data/phandle-tests/consumer-a");
+	np = of_find_yesde_by_path("/testcase-data/phandle-tests/consumer-a");
 	name = kasprintf(GFP_KERNEL, "%pOF", np);
 	unittest(np && !strcmp("/testcase-data/phandle-tests/consumer-a", name),
 		"find /testcase-data/phandle-tests/consumer-a failed\n");
-	of_node_put(np);
+	of_yesde_put(np);
 	kfree(name);
 
-	np = of_find_node_by_path("testcase-alias");
+	np = of_find_yesde_by_path("testcase-alias");
 	name = kasprintf(GFP_KERNEL, "%pOF", np);
 	unittest(np && !strcmp("/testcase-data", name),
 		"find testcase-alias failed\n");
-	of_node_put(np);
+	of_yesde_put(np);
 	kfree(name);
 
 	/* Test if trailing '/' works on aliases */
-	np = of_find_node_by_path("testcase-alias/");
+	np = of_find_yesde_by_path("testcase-alias/");
 	unittest(!np, "trailing '/' on testcase-alias/ should fail\n");
 
-	np = of_find_node_by_path("testcase-alias/phandle-tests/consumer-a");
+	np = of_find_yesde_by_path("testcase-alias/phandle-tests/consumer-a");
 	name = kasprintf(GFP_KERNEL, "%pOF", np);
 	unittest(np && !strcmp("/testcase-data/phandle-tests/consumer-a", name),
 		"find testcase-alias/phandle-tests/consumer-a failed\n");
-	of_node_put(np);
+	of_yesde_put(np);
 	kfree(name);
 
-	np = of_find_node_by_path("/testcase-data/missing-path");
-	unittest(!np, "non-existent path returned node %pOF\n", np);
-	of_node_put(np);
+	np = of_find_yesde_by_path("/testcase-data/missing-path");
+	unittest(!np, "yesn-existent path returned yesde %pOF\n", np);
+	of_yesde_put(np);
 
-	np = of_find_node_by_path("missing-alias");
-	unittest(!np, "non-existent alias returned node %pOF\n", np);
-	of_node_put(np);
+	np = of_find_yesde_by_path("missing-alias");
+	unittest(!np, "yesn-existent alias returned yesde %pOF\n", np);
+	of_yesde_put(np);
 
-	np = of_find_node_by_path("testcase-alias/missing-path");
-	unittest(!np, "non-existent alias with relative path returned node %pOF\n", np);
-	of_node_put(np);
+	np = of_find_yesde_by_path("testcase-alias/missing-path");
+	unittest(!np, "yesn-existent alias with relative path returned yesde %pOF\n", np);
+	of_yesde_put(np);
 
-	np = of_find_node_opts_by_path("/testcase-data:testoption", &options);
+	np = of_find_yesde_opts_by_path("/testcase-data:testoption", &options);
 	unittest(np && !strcmp("testoption", options),
 		 "option path test failed\n");
-	of_node_put(np);
+	of_yesde_put(np);
 
-	np = of_find_node_opts_by_path("/testcase-data:test/option", &options);
+	np = of_find_yesde_opts_by_path("/testcase-data:test/option", &options);
 	unittest(np && !strcmp("test/option", options),
 		 "option path test, subcase #1 failed\n");
-	of_node_put(np);
+	of_yesde_put(np);
 
-	np = of_find_node_opts_by_path("/testcase-data/testcase-device1:test/option", &options);
+	np = of_find_yesde_opts_by_path("/testcase-data/testcase-device1:test/option", &options);
 	unittest(np && !strcmp("test/option", options),
 		 "option path test, subcase #2 failed\n");
-	of_node_put(np);
+	of_yesde_put(np);
 
-	np = of_find_node_opts_by_path("/testcase-data:testoption", NULL);
+	np = of_find_yesde_opts_by_path("/testcase-data:testoption", NULL);
 	unittest(np, "NULL option path test failed\n");
-	of_node_put(np);
+	of_yesde_put(np);
 
-	np = of_find_node_opts_by_path("testcase-alias:testaliasoption",
+	np = of_find_yesde_opts_by_path("testcase-alias:testaliasoption",
 				       &options);
 	unittest(np && !strcmp("testaliasoption", options),
 		 "option alias path test failed\n");
-	of_node_put(np);
+	of_yesde_put(np);
 
-	np = of_find_node_opts_by_path("testcase-alias:test/alias/option",
+	np = of_find_yesde_opts_by_path("testcase-alias:test/alias/option",
 				       &options);
 	unittest(np && !strcmp("test/alias/option", options),
 		 "option alias path test, subcase #1 failed\n");
-	of_node_put(np);
+	of_yesde_put(np);
 
-	np = of_find_node_opts_by_path("testcase-alias:testaliasoption", NULL);
+	np = of_find_yesde_opts_by_path("testcase-alias:testaliasoption", NULL);
 	unittest(np, "NULL option alias path test failed\n");
-	of_node_put(np);
+	of_yesde_put(np);
 
 	options = "testoption";
-	np = of_find_node_opts_by_path("testcase-alias", &options);
+	np = of_find_yesde_opts_by_path("testcase-alias", &options);
 	unittest(np && !options, "option clearing test failed\n");
-	of_node_put(np);
+	of_yesde_put(np);
 
 	options = "testoption";
-	np = of_find_node_opts_by_path("/", &options);
-	unittest(np && !options, "option clearing root node test failed\n");
-	of_node_put(np);
+	np = of_find_yesde_opts_by_path("/", &options);
+	unittest(np && !options, "option clearing root yesde test failed\n");
+	of_yesde_put(np);
 }
 
 static void __init of_unittest_dynamic(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct property *prop;
 
-	np = of_find_node_by_path("/testcase-data");
+	np = of_find_yesde_by_path("/testcase-data");
 	if (!np) {
 		pr_err("missing testcase data\n");
 		return;
@@ -183,7 +183,7 @@ static void __init of_unittest_dynamic(void)
 	unittest(of_update_property(np, prop) == 0,
 		 "Updating an existing property should have passed\n");
 
-	/* Try to modify non-existent property - should pass*/
+	/* Try to modify yesn-existent property - should pass*/
 	prop++;
 	prop->name = "modify-property";
 	prop->value = "modify-missing-property-data-should-pass";
@@ -206,20 +206,20 @@ static void __init of_unittest_dynamic(void)
 			 "Adding a large property should have passed\n");
 }
 
-static int __init of_unittest_check_node_linkage(struct device_node *np)
+static int __init of_unittest_check_yesde_linkage(struct device_yesde *np)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	int count = 0, rc;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		if (child->parent != np) {
-			pr_err("Child node %pOFn links to wrong parent %pOFn\n",
+			pr_err("Child yesde %pOFn links to wrong parent %pOFn\n",
 				 child, np);
 			rc = -EINVAL;
 			goto put_child;
 		}
 
-		rc = of_unittest_check_node_linkage(child);
+		rc = of_unittest_check_yesde_linkage(child);
 		if (rc < 0)
 			goto put_child;
 		count += rc;
@@ -227,30 +227,30 @@ static int __init of_unittest_check_node_linkage(struct device_node *np)
 
 	return count + 1;
 put_child:
-	of_node_put(child);
+	of_yesde_put(child);
 	return rc;
 }
 
 static void __init of_unittest_check_tree_linkage(void)
 {
-	struct device_node *np;
-	int allnode_count = 0, child_count;
+	struct device_yesde *np;
+	int allyesde_count = 0, child_count;
 
 	if (!of_root)
 		return;
 
-	for_each_of_allnodes(np)
-		allnode_count++;
-	child_count = of_unittest_check_node_linkage(of_root);
+	for_each_of_allyesdes(np)
+		allyesde_count++;
+	child_count = of_unittest_check_yesde_linkage(of_root);
 
-	unittest(child_count > 0, "Device node data structure is corrupted\n");
-	unittest(child_count == allnode_count,
-		 "allnodes list size (%i) doesn't match sibling lists size (%i)\n",
-		 allnode_count, child_count);
-	pr_debug("allnodes list size (%i); sibling lists size (%i)\n", allnode_count, child_count);
+	unittest(child_count > 0, "Device yesde data structure is corrupted\n");
+	unittest(child_count == allyesde_count,
+		 "allyesdes list size (%i) doesn't match sibling lists size (%i)\n",
+		 allyesde_count, child_count);
+	pr_debug("allyesdes list size (%i); sibling lists size (%i)\n", allyesde_count, child_count);
 }
 
-static void __init of_unittest_printf_one(struct device_node *np, const char *fmt,
+static void __init of_unittest_printf_one(struct device_yesde *np, const char *fmt,
 					  const char *expected)
 {
 	unsigned char *buf;
@@ -286,11 +286,11 @@ static void __init of_unittest_printf_one(struct device_node *np, const char *fm
 
 static void __init of_unittest_printf(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const char *full_name = "/testcase-data/platform-tests/test-device@1/dev@100";
 	char phandle_str[16] = "";
 
-	np = of_find_node_by_path(full_name);
+	np = of_find_yesde_by_path(full_name);
 	if (!np) {
 		unittest(np, "testcase data missing\n");
 		return;
@@ -318,24 +318,24 @@ static void __init of_unittest_printf(void)
 			"\"test-sub-device\",\"test-compat2\",\"test-compat3\"");
 }
 
-struct node_hash {
-	struct hlist_node node;
-	struct device_node *np;
+struct yesde_hash {
+	struct hlist_yesde yesde;
+	struct device_yesde *np;
 };
 
 static DEFINE_HASHTABLE(phandle_ht, 8);
 static void __init of_unittest_check_phandles(void)
 {
-	struct device_node *np;
-	struct node_hash *nh;
-	struct hlist_node *tmp;
+	struct device_yesde *np;
+	struct yesde_hash *nh;
+	struct hlist_yesde *tmp;
 	int i, dup_count = 0, phandle_count = 0;
 
-	for_each_of_allnodes(np) {
+	for_each_of_allyesdes(np) {
 		if (!np->phandle)
 			continue;
 
-		hash_for_each_possible(phandle_ht, nh, node, np->phandle) {
+		hash_for_each_possible(phandle_ht, nh, yesde, np->phandle) {
 			if (nh->np->phandle == np->phandle) {
 				pr_info("Duplicate phandle! %i used by %pOF and %pOF\n",
 					np->phandle, nh->np, np);
@@ -349,26 +349,26 @@ static void __init of_unittest_check_phandles(void)
 			return;
 
 		nh->np = np;
-		hash_add(phandle_ht, &nh->node, np->phandle);
+		hash_add(phandle_ht, &nh->yesde, np->phandle);
 		phandle_count++;
 	}
 	unittest(dup_count == 0, "Found %i duplicates in %i phandles\n",
 		 dup_count, phandle_count);
 
 	/* Clean up */
-	hash_for_each_safe(phandle_ht, i, tmp, nh, node) {
-		hash_del(&nh->node);
+	hash_for_each_safe(phandle_ht, i, tmp, nh, yesde) {
+		hash_del(&nh->yesde);
 		kfree(nh);
 	}
 }
 
 static void __init of_unittest_parse_phandle_with_args(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct of_phandle_args args;
 	int i, rc;
 
-	np = of_find_node_by_path("/testcase-data/phandle-tests/consumer-a");
+	np = of_find_yesde_by_path("/testcase-data/phandle-tests/consumer-a");
 	if (!np) {
 		pr_err("missing testcase data\n");
 		return;
@@ -429,7 +429,7 @@ static void __init of_unittest_parse_phandle_with_args(void)
 			passed = false;
 		}
 
-		unittest(passed, "index %i - data error on node %pOF rc=%i\n",
+		unittest(passed, "index %i - data error on yesde %pOF rc=%i\n",
 			 i, args.np, rc);
 	}
 
@@ -472,35 +472,35 @@ static void __init of_unittest_parse_phandle_with_args(void)
 
 static void __init of_unittest_parse_phandle_with_args_map(void)
 {
-	struct device_node *np, *p0, *p1, *p2, *p3;
+	struct device_yesde *np, *p0, *p1, *p2, *p3;
 	struct of_phandle_args args;
 	int i, rc;
 
-	np = of_find_node_by_path("/testcase-data/phandle-tests/consumer-b");
+	np = of_find_yesde_by_path("/testcase-data/phandle-tests/consumer-b");
 	if (!np) {
 		pr_err("missing testcase data\n");
 		return;
 	}
 
-	p0 = of_find_node_by_path("/testcase-data/phandle-tests/provider0");
+	p0 = of_find_yesde_by_path("/testcase-data/phandle-tests/provider0");
 	if (!p0) {
 		pr_err("missing testcase data\n");
 		return;
 	}
 
-	p1 = of_find_node_by_path("/testcase-data/phandle-tests/provider1");
+	p1 = of_find_yesde_by_path("/testcase-data/phandle-tests/provider1");
 	if (!p1) {
 		pr_err("missing testcase data\n");
 		return;
 	}
 
-	p2 = of_find_node_by_path("/testcase-data/phandle-tests/provider2");
+	p2 = of_find_yesde_by_path("/testcase-data/phandle-tests/provider2");
 	if (!p2) {
 		pr_err("missing testcase data\n");
 		return;
 	}
 
-	p3 = of_find_node_by_path("/testcase-data/phandle-tests/provider3");
+	p3 = of_find_yesde_by_path("/testcase-data/phandle-tests/provider3");
 	if (!p3) {
 		pr_err("missing testcase data\n");
 		return;
@@ -565,7 +565,7 @@ static void __init of_unittest_parse_phandle_with_args_map(void)
 			passed = false;
 		}
 
-		unittest(passed, "index %i - data error on node %s rc=%i\n",
+		unittest(passed, "index %i - data error on yesde %s rc=%i\n",
 			 i, args.np->full_name, rc);
 	}
 
@@ -597,10 +597,10 @@ static void __init of_unittest_parse_phandle_with_args_map(void)
 static void __init of_unittest_property_string(void)
 {
 	const char *strings[4];
-	struct device_node *np;
+	struct device_yesde *np;
 	int rc;
 
-	np = of_find_node_by_path("/testcase-data/phandle-tests/consumer-a");
+	np = of_find_yesde_by_path("/testcase-data/phandle-tests/consumer-a");
 	if (!np) {
 		pr_err("No testcase data in device tree\n");
 		return;
@@ -693,7 +693,7 @@ static void __init of_unittest_property_copy(void)
 	kfree(new);
 
 	new = __of_prop_dup(&p2, GFP_KERNEL);
-	unittest(new && propcmp(&p2, new), "non-empty property didn't copy correctly\n");
+	unittest(new && propcmp(&p2, new), "yesn-empty property didn't copy correctly\n");
 	kfree(new->value);
 	kfree(new->name);
 	kfree(new);
@@ -709,20 +709,20 @@ static void __init of_unittest_changeset(void)
 	struct property *ppname_n21, pname_n21 = { .name = "name", .length = 3, .value = "n21" };
 	struct property *ppupdate, pupdate = { .name = "prop-update", .length = 5, .value = "abcd" };
 	struct property *ppremove;
-	struct device_node *n1, *n2, *n21, *nchangeset, *nremove, *parent, *np;
+	struct device_yesde *n1, *n2, *n21, *nchangeset, *nremove, *parent, *np;
 	struct of_changeset chgset;
 
-	n1 = __of_node_dup(NULL, "n1");
+	n1 = __of_yesde_dup(NULL, "n1");
 	unittest(n1, "testcase setup failure\n");
 
-	n2 = __of_node_dup(NULL, "n2");
+	n2 = __of_yesde_dup(NULL, "n2");
 	unittest(n2, "testcase setup failure\n");
 
-	n21 = __of_node_dup(NULL, "n21");
+	n21 = __of_yesde_dup(NULL, "n21");
 	unittest(n21, "testcase setup failure %p\n", n21);
 
-	nchangeset = of_find_node_by_path("/testcase-data/changeset");
-	nremove = of_get_child_by_name(nchangeset, "node-remove");
+	nchangeset = of_find_yesde_by_path("/testcase-data/changeset");
+	nremove = of_get_child_by_name(nchangeset, "yesde-remove");
 	unittest(nremove, "testcase setup failure\n");
 
 	ppadd = __of_prop_dup(&padd, GFP_KERNEL);
@@ -750,16 +750,16 @@ static void __init of_unittest_changeset(void)
 
 	of_changeset_init(&chgset);
 
-	unittest(!of_changeset_attach_node(&chgset, n1), "fail attach n1\n");
+	unittest(!of_changeset_attach_yesde(&chgset, n1), "fail attach n1\n");
 	unittest(!of_changeset_add_property(&chgset, n1, ppname_n1), "fail add prop name\n");
 
-	unittest(!of_changeset_attach_node(&chgset, n2), "fail attach n2\n");
+	unittest(!of_changeset_attach_yesde(&chgset, n2), "fail attach n2\n");
 	unittest(!of_changeset_add_property(&chgset, n2, ppname_n2), "fail add prop name\n");
 
-	unittest(!of_changeset_detach_node(&chgset, nremove), "fail remove node\n");
+	unittest(!of_changeset_detach_yesde(&chgset, nremove), "fail remove yesde\n");
 	unittest(!of_changeset_add_property(&chgset, n21, ppname_n21), "fail add prop name\n");
 
-	unittest(!of_changeset_attach_node(&chgset, n21), "fail attach n21\n");
+	unittest(!of_changeset_attach_yesde(&chgset, n21), "fail attach n21\n");
 
 	unittest(!of_changeset_add_property(&chgset, parent, ppadd), "fail add prop prop-add\n");
 	unittest(!of_changeset_update_property(&chgset, parent, ppupdate), "fail update prop\n");
@@ -767,12 +767,12 @@ static void __init of_unittest_changeset(void)
 
 	unittest(!of_changeset_apply(&chgset), "apply failed\n");
 
-	of_node_put(nchangeset);
+	of_yesde_put(nchangeset);
 
-	/* Make sure node names are constructed correctly */
-	unittest((np = of_find_node_by_path("/testcase-data/changeset/n2/n21")),
-		 "'%pOF' not added\n", n21);
-	of_node_put(np);
+	/* Make sure yesde names are constructed correctly */
+	unittest((np = of_find_yesde_by_path("/testcase-data/changeset/n2/n21")),
+		 "'%pOF' yest added\n", n21);
+	of_yesde_put(np);
 
 	unittest(!of_changeset_revert(&chgset), "revert failed\n");
 
@@ -783,11 +783,11 @@ static void __init of_unittest_changeset(void)
 static void __init of_unittest_dma_ranges_one(const char *path,
 		u64 expect_dma_addr, u64 expect_paddr, u64 expect_size)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u64 dma_addr, paddr, size;
 	int rc;
 
-	np = of_find_node_by_path(path);
+	np = of_find_yesde_by_path(path);
 	if (!np) {
 		pr_err("missing testcase data\n");
 		return;
@@ -795,16 +795,16 @@ static void __init of_unittest_dma_ranges_one(const char *path,
 
 	rc = of_dma_get_range(np, &dma_addr, &paddr, &size);
 
-	unittest(!rc, "of_dma_get_range failed on node %pOF rc=%i\n", np, rc);
+	unittest(!rc, "of_dma_get_range failed on yesde %pOF rc=%i\n", np, rc);
 	if (!rc) {
 		unittest(size == expect_size,
-			 "of_dma_get_range wrong size on node %pOF size=%llx\n", np, size);
+			 "of_dma_get_range wrong size on yesde %pOF size=%llx\n", np, size);
 		unittest(paddr == expect_paddr,
-			 "of_dma_get_range wrong phys addr (%llx) on node %pOF", paddr, np);
+			 "of_dma_get_range wrong phys addr (%llx) on yesde %pOF", paddr, np);
 		unittest(dma_addr == expect_dma_addr,
-			 "of_dma_get_range wrong DMA addr (%llx) on node %pOF", dma_addr, np);
+			 "of_dma_get_range wrong DMA addr (%llx) on yesde %pOF", dma_addr, np);
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 static void __init of_unittest_parse_dma_ranges(void)
@@ -819,7 +819,7 @@ static void __init of_unittest_parse_dma_ranges(void)
 
 static void __init of_unittest_pci_dma_ranges(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct of_pci_range range;
 	struct of_pci_range_parser parser;
 	int i = 0;
@@ -827,7 +827,7 @@ static void __init of_unittest_pci_dma_ranges(void)
 	if (!IS_ENABLED(CONFIG_PCI))
 		return;
 
-	np = of_find_node_by_path("/testcase-data/address-tests/pci@90000000");
+	np = of_find_yesde_by_path("/testcase-data/address-tests/pci@90000000");
 	if (!np) {
 		pr_err("missing testcase data\n");
 		return;
@@ -844,41 +844,41 @@ static void __init of_unittest_pci_dma_ranges(void)
 	for_each_of_pci_range(&parser, &range) {
 		if (!i) {
 			unittest(range.size == 0x10000000,
-				 "for_each_of_pci_range wrong size on node %pOF size=%llx\n",
+				 "for_each_of_pci_range wrong size on yesde %pOF size=%llx\n",
 				 np, range.size);
 			unittest(range.cpu_addr == 0x20000000,
-				 "for_each_of_pci_range wrong CPU addr (%llx) on node %pOF",
+				 "for_each_of_pci_range wrong CPU addr (%llx) on yesde %pOF",
 				 range.cpu_addr, np);
 			unittest(range.pci_addr == 0x80000000,
-				 "for_each_of_pci_range wrong DMA addr (%llx) on node %pOF",
+				 "for_each_of_pci_range wrong DMA addr (%llx) on yesde %pOF",
 				 range.pci_addr, np);
 		} else {
 			unittest(range.size == 0x10000000,
-				 "for_each_of_pci_range wrong size on node %pOF size=%llx\n",
+				 "for_each_of_pci_range wrong size on yesde %pOF size=%llx\n",
 				 np, range.size);
 			unittest(range.cpu_addr == 0x40000000,
-				 "for_each_of_pci_range wrong CPU addr (%llx) on node %pOF",
+				 "for_each_of_pci_range wrong CPU addr (%llx) on yesde %pOF",
 				 range.cpu_addr, np);
 			unittest(range.pci_addr == 0xc0000000,
-				 "for_each_of_pci_range wrong DMA addr (%llx) on node %pOF",
+				 "for_each_of_pci_range wrong DMA addr (%llx) on yesde %pOF",
 				 range.pci_addr, np);
 		}
 		i++;
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 static void __init of_unittest_parse_interrupts(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct of_phandle_args args;
 	int i, rc;
 
 	if (of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)
 		return;
 
-	np = of_find_node_by_path("/testcase-data/interrupts/interrupts0");
+	np = of_find_yesde_by_path("/testcase-data/interrupts/interrupts0");
 	if (!np) {
 		pr_err("missing testcase data\n");
 		return;
@@ -894,12 +894,12 @@ static void __init of_unittest_parse_interrupts(void)
 		passed &= (args.args_count == 1);
 		passed &= (args.args[0] == (i + 1));
 
-		unittest(passed, "index %i - data error on node %pOF rc=%i\n",
+		unittest(passed, "index %i - data error on yesde %pOF rc=%i\n",
 			 i, args.np, rc);
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 
-	np = of_find_node_by_path("/testcase-data/interrupts/interrupts1");
+	np = of_find_yesde_by_path("/testcase-data/interrupts/interrupts1");
 	if (!np) {
 		pr_err("missing testcase data\n");
 		return;
@@ -940,22 +940,22 @@ static void __init of_unittest_parse_interrupts(void)
 		default:
 			passed = false;
 		}
-		unittest(passed, "index %i - data error on node %pOF rc=%i\n",
+		unittest(passed, "index %i - data error on yesde %pOF rc=%i\n",
 			 i, args.np, rc);
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 static void __init of_unittest_parse_interrupts_extended(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct of_phandle_args args;
 	int i, rc;
 
 	if (of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)
 		return;
 
-	np = of_find_node_by_path("/testcase-data/interrupts/interrupts-extended0");
+	np = of_find_yesde_by_path("/testcase-data/interrupts/interrupts-extended0");
 	if (!np) {
 		pr_err("missing testcase data\n");
 		return;
@@ -1014,13 +1014,13 @@ static void __init of_unittest_parse_interrupts_extended(void)
 			passed = false;
 		}
 
-		unittest(passed, "index %i - data error on node %pOF rc=%i\n",
+		unittest(passed, "index %i - data error on yesde %pOF rc=%i\n",
 			 i, args.np, rc);
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
-static const struct of_device_id match_node_table[] = {
+static const struct of_device_id match_yesde_table[] = {
 	{ .data = "A", .name = "name0", }, /* Name alone is lowest priority */
 	{ .data = "B", .type = "type1", }, /* followed by type alone */
 
@@ -1040,45 +1040,45 @@ static const struct of_device_id match_node_table[] = {
 static struct {
 	const char *path;
 	const char *data;
-} match_node_tests[] = {
-	{ .path = "/testcase-data/match-node/name0", .data = "A", },
-	{ .path = "/testcase-data/match-node/name1", .data = "B", },
-	{ .path = "/testcase-data/match-node/a/name2", .data = "Ca", },
-	{ .path = "/testcase-data/match-node/b/name2", .data = "Cb", },
-	{ .path = "/testcase-data/match-node/c/name2", .data = "Cc", },
-	{ .path = "/testcase-data/match-node/name3", .data = "E", },
-	{ .path = "/testcase-data/match-node/name4", .data = "G", },
-	{ .path = "/testcase-data/match-node/name5", .data = "H", },
-	{ .path = "/testcase-data/match-node/name6", .data = "G", },
-	{ .path = "/testcase-data/match-node/name7", .data = "I", },
-	{ .path = "/testcase-data/match-node/name8", .data = "J", },
-	{ .path = "/testcase-data/match-node/name9", .data = "K", },
+} match_yesde_tests[] = {
+	{ .path = "/testcase-data/match-yesde/name0", .data = "A", },
+	{ .path = "/testcase-data/match-yesde/name1", .data = "B", },
+	{ .path = "/testcase-data/match-yesde/a/name2", .data = "Ca", },
+	{ .path = "/testcase-data/match-yesde/b/name2", .data = "Cb", },
+	{ .path = "/testcase-data/match-yesde/c/name2", .data = "Cc", },
+	{ .path = "/testcase-data/match-yesde/name3", .data = "E", },
+	{ .path = "/testcase-data/match-yesde/name4", .data = "G", },
+	{ .path = "/testcase-data/match-yesde/name5", .data = "H", },
+	{ .path = "/testcase-data/match-yesde/name6", .data = "G", },
+	{ .path = "/testcase-data/match-yesde/name7", .data = "I", },
+	{ .path = "/testcase-data/match-yesde/name8", .data = "J", },
+	{ .path = "/testcase-data/match-yesde/name9", .data = "K", },
 };
 
-static void __init of_unittest_match_node(void)
+static void __init of_unittest_match_yesde(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct of_device_id *match;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(match_node_tests); i++) {
-		np = of_find_node_by_path(match_node_tests[i].path);
+	for (i = 0; i < ARRAY_SIZE(match_yesde_tests); i++) {
+		np = of_find_yesde_by_path(match_yesde_tests[i].path);
 		if (!np) {
-			unittest(0, "missing testcase node %s\n",
-				match_node_tests[i].path);
+			unittest(0, "missing testcase yesde %s\n",
+				match_yesde_tests[i].path);
 			continue;
 		}
 
-		match = of_match_node(match_node_table, np);
+		match = of_match_yesde(match_yesde_table, np);
 		if (!match) {
 			unittest(0, "%s didn't match anything\n",
-				match_node_tests[i].path);
+				match_yesde_tests[i].path);
 			continue;
 		}
 
-		if (strcmp(match->data, match_node_tests[i].data) != 0) {
+		if (strcmp(match->data, match_yesde_tests[i].data) != 0) {
 			unittest(0, "%s got wrong match. expected %s, got %s\n",
-				match_node_tests[i].path, match_node_tests[i].data,
+				match_yesde_tests[i].path, match_yesde_tests[i].data,
 				(const char *)match->data);
 			continue;
 		}
@@ -1097,19 +1097,19 @@ static const struct platform_device_info test_bus_info = {
 static void __init of_unittest_platform_populate(void)
 {
 	int irq, rc;
-	struct device_node *np, *child, *grandchild;
+	struct device_yesde *np, *child, *grandchild;
 	struct platform_device *pdev, *test_bus;
 	const struct of_device_id match[] = {
 		{ .compatible = "test-device", },
 		{}
 	};
 
-	np = of_find_node_by_path("/testcase-data");
+	np = of_find_yesde_by_path("/testcase-data");
 	of_platform_default_populate(np, NULL, NULL);
 
 	/* Test that a missing irq domain returns -EPROBE_DEFER */
-	np = of_find_node_by_path("/testcase-data/testcase-device1");
-	pdev = of_find_device_by_node(np);
+	np = of_find_yesde_by_path("/testcase-data/testcase-device1");
+	pdev = of_find_device_by_yesde(np);
 	unittest(pdev, "device 1 creation failed\n");
 
 	if (!(of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)) {
@@ -1117,16 +1117,16 @@ static void __init of_unittest_platform_populate(void)
 		unittest(irq == -EPROBE_DEFER,
 			 "device deferred probe failed - %d\n", irq);
 
-		/* Test that a parsing failure does not return -EPROBE_DEFER */
-		np = of_find_node_by_path("/testcase-data/testcase-device2");
-		pdev = of_find_device_by_node(np);
+		/* Test that a parsing failure does yest return -EPROBE_DEFER */
+		np = of_find_yesde_by_path("/testcase-data/testcase-device2");
+		pdev = of_find_device_by_yesde(np);
 		unittest(pdev, "device 2 creation failed\n");
 		irq = platform_get_irq(pdev, 0);
 		unittest(irq < 0 && irq != -EPROBE_DEFER,
 			 "device parsing error failed - %d\n", irq);
 	}
 
-	np = of_find_node_by_path("/testcase-data/platform-tests");
+	np = of_find_yesde_by_path("/testcase-data/platform-tests");
 	unittest(np, "No testcase data in device tree\n");
 	if (!np)
 		return;
@@ -1135,13 +1135,13 @@ static void __init of_unittest_platform_populate(void)
 	rc = PTR_ERR_OR_ZERO(test_bus);
 	unittest(!rc, "testbus registration failed; rc=%i\n", rc);
 	if (rc) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return;
 	}
-	test_bus->dev.of_node = np;
+	test_bus->dev.of_yesde = np;
 
 	/*
-	 * Add a dummy resource to the test bus node after it is
+	 * Add a dummy resource to the test bus yesde after it is
 	 * registered to catch problems with un-inserted resources. The
 	 * DT code doesn't insert the resources, and it has caused the
 	 * kernel to oops in the past. This makes sure the same bug
@@ -1150,48 +1150,48 @@ static void __init of_unittest_platform_populate(void)
 	platform_device_add_resources(test_bus, &test_bus_res, 1);
 
 	of_platform_populate(np, match, NULL, &test_bus->dev);
-	for_each_child_of_node(np, child) {
-		for_each_child_of_node(child, grandchild)
-			unittest(of_find_device_by_node(grandchild),
-				 "Could not create device for node '%pOFn'\n",
+	for_each_child_of_yesde(np, child) {
+		for_each_child_of_yesde(child, grandchild)
+			unittest(of_find_device_by_yesde(grandchild),
+				 "Could yest create device for yesde '%pOFn'\n",
 				 grandchild);
 	}
 
 	of_platform_depopulate(&test_bus->dev);
-	for_each_child_of_node(np, child) {
-		for_each_child_of_node(child, grandchild)
-			unittest(!of_find_device_by_node(grandchild),
+	for_each_child_of_yesde(np, child) {
+		for_each_child_of_yesde(child, grandchild)
+			unittest(!of_find_device_by_yesde(grandchild),
 				 "device didn't get destroyed '%pOFn'\n",
 				 grandchild);
 	}
 
 	platform_device_unregister(test_bus);
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 /**
- *	update_node_properties - adds the properties
- *	of np into dup node (present in live tree) and
+ *	update_yesde_properties - adds the properties
+ *	of np into dup yesde (present in live tree) and
  *	updates parent of children of np to dup.
  *
- *	@np:	node whose properties are being added to the live tree
- *	@dup:	node present in live tree to be updated
+ *	@np:	yesde whose properties are being added to the live tree
+ *	@dup:	yesde present in live tree to be updated
  */
-static void update_node_properties(struct device_node *np,
-					struct device_node *dup)
+static void update_yesde_properties(struct device_yesde *np,
+					struct device_yesde *dup)
 {
 	struct property *prop;
 	struct property *save_next;
-	struct device_node *child;
+	struct device_yesde *child;
 	int ret;
 
-	for_each_child_of_node(np, child)
+	for_each_child_of_yesde(np, child)
 		child->parent = dup;
 
 	/*
 	 * "unittest internal error: unable to add testdata property"
 	 *
-	 *    If this message reports a property in node '/__symbols__' then
+	 *    If this message reports a property in yesde '/__symbols__' then
 	 *    the respective unittest overlay contains a label that has the
 	 *    same name as a label in the live devicetree.  The label will
 	 *    be in the live devicetree only if the devicetree source was
@@ -1202,7 +1202,7 @@ static void update_node_properties(struct device_node *np,
 	 */
 
 	/*
-	 * open code for_each_property_of_node() because of_add_property()
+	 * open code for_each_property_of_yesde() because of_add_property()
 	 * sets prop->next to NULL
 	 */
 	for (prop = np->properties; prop != NULL; prop = save_next) {
@@ -1218,18 +1218,18 @@ static void update_node_properties(struct device_node *np,
 }
 
 /**
- *	attach_node_and_children - attaches nodes
+ *	attach_yesde_and_children - attaches yesdes
  *	and its children to live tree.
- *	CAUTION: misleading function name - if node @np already exists in
- *	the live tree then children of @np are *not* attached to the live
- *	tree.  This works for the current test devicetree nodes because such
- *	nodes do not have child nodes.
+ *	CAUTION: misleading function name - if yesde @np already exists in
+ *	the live tree then children of @np are *yest* attached to the live
+ *	tree.  This works for the current test devicetree yesdes because such
+ *	yesdes do yest have child yesdes.
  *
  *	@np:	Node to attach to live tree
  */
-static void attach_node_and_children(struct device_node *np)
+static void attach_yesde_and_children(struct device_yesde *np)
 {
-	struct device_node *next, *dup, *child;
+	struct device_yesde *next, *dup, *child;
 	unsigned long flags;
 	const char *full_name;
 
@@ -1241,10 +1241,10 @@ static void attach_node_and_children(struct device_node *np)
 		return;
 	}
 
-	dup = of_find_node_by_path(full_name);
+	dup = of_find_yesde_by_path(full_name);
 	kfree(full_name);
 	if (dup) {
-		update_node_properties(np, dup);
+		update_yesde_properties(np, dup);
 		return;
 	}
 
@@ -1255,15 +1255,15 @@ static void attach_node_and_children(struct device_node *np)
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	np->sibling = np->parent->child;
 	np->parent->child = np;
-	of_node_clear_flag(np, OF_DETACHED);
+	of_yesde_clear_flag(np, OF_DETACHED);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
-	__of_attach_node_sysfs(np);
+	__of_attach_yesde_sysfs(np);
 	mutex_unlock(&of_mutex);
 
 	while (child) {
 		next = child->sibling;
-		attach_node_and_children(child);
+		attach_yesde_and_children(child);
 		child = next;
 	}
 }
@@ -1275,7 +1275,7 @@ static void attach_node_and_children(struct device_node *np)
 static int __init unittest_data_add(void)
 {
 	void *unittest_data;
-	struct device_node *unittest_data_node, *np;
+	struct device_yesde *unittest_data_yesde, *np;
 	/*
 	 * __dtb_testcases_begin[] and __dtb_testcases_end[] are magically
 	 * created by cmd_dt_S_dtb in scripts/Makefile.lib
@@ -1286,7 +1286,7 @@ static int __init unittest_data_add(void)
 	int rc;
 
 	if (!size) {
-		pr_warn("%s: No testcase data to attach; not running tests\n",
+		pr_warn("%s: No testcase data to attach; yest running tests\n",
 			__func__);
 		return -ENODATA;
 	}
@@ -1296,19 +1296,19 @@ static int __init unittest_data_add(void)
 	if (!unittest_data)
 		return -ENOMEM;
 
-	of_fdt_unflatten_tree(unittest_data, NULL, &unittest_data_node);
-	if (!unittest_data_node) {
-		pr_warn("%s: No tree to attach; not running tests\n", __func__);
+	of_fdt_unflatten_tree(unittest_data, NULL, &unittest_data_yesde);
+	if (!unittest_data_yesde) {
+		pr_warn("%s: No tree to attach; yest running tests\n", __func__);
 		kfree(unittest_data);
 		return -ENODATA;
 	}
 
 	/*
-	 * This lock normally encloses of_resolve_phandles()
+	 * This lock yesrmally encloses of_resolve_phandles()
 	 */
 	of_overlay_mutex_lock();
 
-	rc = of_resolve_phandles(unittest_data_node);
+	rc = of_resolve_phandles(unittest_data_yesde);
 	if (rc) {
 		pr_err("%s: Failed to resolve phandles (rc=%i)\n", __func__, rc);
 		of_overlay_mutex_unlock();
@@ -1316,22 +1316,22 @@ static int __init unittest_data_add(void)
 	}
 
 	if (!of_root) {
-		of_root = unittest_data_node;
-		for_each_of_allnodes(np)
-			__of_attach_node_sysfs(np);
-		of_aliases = of_find_node_by_path("/aliases");
-		of_chosen = of_find_node_by_path("/chosen");
+		of_root = unittest_data_yesde;
+		for_each_of_allyesdes(np)
+			__of_attach_yesde_sysfs(np);
+		of_aliases = of_find_yesde_by_path("/aliases");
+		of_chosen = of_find_yesde_by_path("/chosen");
 		of_overlay_mutex_unlock();
 		return 0;
 	}
 
 	/* attach the sub-tree to live tree */
-	np = unittest_data_node->child;
+	np = unittest_data_yesde->child;
 	while (np) {
-		struct device_node *next = np->sibling;
+		struct device_yesde *next = np->sibling;
 
 		np->parent = of_root;
-		attach_node_and_children(np);
+		attach_yesde_and_children(np);
 		np = next;
 	}
 
@@ -1346,7 +1346,7 @@ static int __init overlay_data_apply(const char *overlay_name, int *overlay_id);
 static int unittest_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	if (np == NULL) {
 		dev_err(dev, "No OF data for device\n");
@@ -1354,7 +1354,7 @@ static int unittest_probe(struct platform_device *pdev)
 
 	}
 
-	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
+	dev_dbg(dev, "%s for yesde @%pOF\n", __func__, np);
 
 	of_platform_populate(np, NULL, NULL, &pdev->dev);
 
@@ -1364,9 +1364,9 @@ static int unittest_probe(struct platform_device *pdev)
 static int unittest_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
-	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
+	dev_dbg(dev, "%s for yesde @%pOF\n", __func__, np);
 	return 0;
 }
 
@@ -1387,15 +1387,15 @@ static struct platform_driver unittest_driver = {
 /* get the platform device instantiated at the path */
 static struct platform_device *of_path_to_platform_device(const char *path)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct platform_device *pdev;
 
-	np = of_find_node_by_path(path);
+	np = of_find_yesde_by_path(path);
 	if (np == NULL)
 		return NULL;
 
-	pdev = of_find_device_by_node(np);
-	of_node_put(np);
+	pdev = of_find_device_by_yesde(np);
+	of_yesde_put(np);
 
 	return pdev;
 }
@@ -1415,15 +1415,15 @@ static int of_path_platform_device_exists(const char *path)
 /* get the i2c client device instantiated at the path */
 static struct i2c_client *of_path_to_i2c_client(const char *path)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct i2c_client *client;
 
-	np = of_find_node_by_path(path);
+	np = of_find_yesde_by_path(path);
 	if (np == NULL)
 		return NULL;
 
-	client = of_find_i2c_device_by_node(np);
-	of_node_put(np);
+	client = of_find_i2c_device_by_yesde(np);
+	of_yesde_put(np);
 
 	return client;
 }
@@ -1469,10 +1469,10 @@ static const char *unittest_path(int nr, enum overlay_type ovtype)
 
 	switch (ovtype) {
 	case PDEV_OVERLAY:
-		base = "/testcase-data/overlay-node/test-bus";
+		base = "/testcase-data/overlay-yesde/test-bus";
 		break;
 	case I2C_OVERLAY:
-		base = "/testcase-data/overlay-node/test-bus/i2c-test-bus";
+		base = "/testcase-data/overlay-yesde/test-bus/i2c-test-bus";
 		break;
 	default:
 		buf[0] = '\0';
@@ -1509,7 +1509,7 @@ static const char *overlay_name_from_nr(int nr)
 	return buf;
 }
 
-static const char *bus_path = "/testcase-data/overlay-node/test-bus";
+static const char *bus_path = "/testcase-data/overlay-yesde/test-bus";
 
 /* it is guaranteed that overlay ids are assigned in sequence */
 #define MAX_UNITTEST_OVERLAYS	256
@@ -1543,7 +1543,7 @@ static void of_unittest_destroy_tracked_overlays(void)
 	if (overlay_first_id < 0)
 		return;
 
-	/* try until no defers */
+	/* try until yes defers */
 	do {
 		defers = 0;
 		/* remove in reverse order */
@@ -1554,7 +1554,7 @@ static void of_unittest_destroy_tracked_overlays(void)
 			ovcs_id = id + overlay_first_id;
 			ret = of_overlay_remove(&ovcs_id);
 			if (ret == -ENODEV) {
-				pr_warn("%s: no overlay to destroy for #%d\n",
+				pr_warn("%s: yes overlay to destroy for #%d\n",
 					__func__, id + overlay_first_id);
 				continue;
 			}
@@ -1577,7 +1577,7 @@ static int __init of_unittest_apply_overlay(int overlay_nr, int *overlay_id)
 	overlay_name = overlay_name_from_nr(overlay_nr);
 
 	if (!overlay_data_apply(overlay_name, overlay_id)) {
-		unittest(0, "could not apply overlay \"%s\"\n",
+		unittest(0, "could yest apply overlay \"%s\"\n",
 				overlay_name);
 		return -EFAULT;
 	}
@@ -1593,7 +1593,7 @@ static int __init of_unittest_apply_overlay_check(int overlay_nr,
 {
 	int ret, ovcs_id;
 
-	/* unittest device must not be in before state */
+	/* unittest device must yest be in before state */
 	if (of_unittest_device_exists(unittest_nr, ovtype) != before) {
 		unittest(0, "%s with device @\"%s\" %s\n",
 				overlay_name_from_nr(overlay_nr),
@@ -1714,7 +1714,7 @@ static void __init of_unittest_overlay_3(void)
 	unittest(1, "overlay test %d passed\n", 3);
 }
 
-/* test activation of a full device node */
+/* test activation of a full device yesde */
 static void __init of_unittest_overlay_4(void)
 {
 	/* device should disable */
@@ -1761,7 +1761,7 @@ static void __init of_unittest_overlay_6(void)
 		overlay_name = overlay_name_from_nr(overlay_nr + i);
 
 		if (!overlay_data_apply(overlay_name, &ovcs_id)) {
-			unittest(0, "could not apply overlay \"%s\"\n",
+			unittest(0, "could yest apply overlay \"%s\"\n",
 					overlay_name);
 			return;
 		}
@@ -1825,7 +1825,7 @@ static void __init of_unittest_overlay_8(void)
 		overlay_name = overlay_name_from_nr(overlay_nr + i);
 
 		if (!overlay_data_apply(overlay_name, &ovcs_id)) {
-			unittest(0, "could not apply overlay \"%s\"\n",
+			unittest(0, "could yest apply overlay \"%s\"\n",
 					overlay_name);
 			return;
 		}
@@ -1833,7 +1833,7 @@ static void __init of_unittest_overlay_8(void)
 		of_unittest_track_overlay(ov_id[i]);
 	}
 
-	/* now try to remove first overlay (it should fail) */
+	/* yesw try to remove first overlay (it should fail) */
 	ovcs_id = ov_id[0];
 	if (!of_overlay_remove(&ovcs_id)) {
 		unittest(0, "%s was destroyed @\"%s\"\n",
@@ -1847,7 +1847,7 @@ static void __init of_unittest_overlay_8(void)
 	for (i = 1; i >= 0; i--) {
 		ovcs_id = ov_id[i];
 		if (of_overlay_remove(&ovcs_id)) {
-			unittest(0, "%s not destroyed @\"%s\"\n",
+			unittest(0, "%s yest destroyed @\"%s\"\n",
 					overlay_name_from_nr(overlay_nr + i),
 					unittest_path(unittest_nr,
 						PDEV_OVERLAY));
@@ -1879,7 +1879,7 @@ static void __init of_unittest_overlay_10(void)
 	ret = of_path_device_type_exists(child_path, PDEV_OVERLAY);
 	kfree(child_path);
 
-	unittest(ret, "overlay test %d failed; no child device\n", 10);
+	unittest(ret, "overlay test %d failed; yes child device\n", 10);
 }
 
 /* test insertion of a bus with parent devices (and revert) */
@@ -1923,7 +1923,7 @@ static const struct i2c_algorithm unittest_i2c_algo = {
 static int unittest_i2c_bus_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct unittest_i2c_bus_data *std;
 	struct i2c_adapter *adap;
 	int ret;
@@ -1934,7 +1934,7 @@ static int unittest_i2c_bus_probe(struct platform_device *pdev)
 
 	}
 
-	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
+	dev_dbg(dev, "%s for yesde @%pOF\n", __func__, np);
 
 	std = devm_kzalloc(dev, sizeof(*std), GFP_KERNEL);
 	if (!std)
@@ -1951,7 +1951,7 @@ static int unittest_i2c_bus_probe(struct platform_device *pdev)
 	adap->class = I2C_CLASS_DEPRECATED;
 	adap->algo = &unittest_i2c_algo;
 	adap->dev.parent = dev;
-	adap->dev.of_node = dev->of_node;
+	adap->dev.of_yesde = dev->of_yesde;
 	adap->timeout = 5 * HZ;
 	adap->retries = 3;
 
@@ -1967,10 +1967,10 @@ static int unittest_i2c_bus_probe(struct platform_device *pdev)
 static int unittest_i2c_bus_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct unittest_i2c_bus_data *std = platform_get_drvdata(pdev);
 
-	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
+	dev_dbg(dev, "%s for yesde @%pOF\n", __func__, np);
 	i2c_del_adapter(&std->adap);
 
 	return 0;
@@ -1994,14 +1994,14 @@ static int unittest_i2c_dev_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 
 	if (!np) {
-		dev_err(dev, "No OF node\n");
+		dev_err(dev, "No OF yesde\n");
 		return -EINVAL;
 	}
 
-	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
+	dev_dbg(dev, "%s for yesde @%pOF\n", __func__, np);
 
 	return 0;
 };
@@ -2009,9 +2009,9 @@ static int unittest_i2c_dev_probe(struct i2c_client *client,
 static int unittest_i2c_dev_remove(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 
-	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
+	dev_dbg(dev, "%s for yesde @%pOF\n", __func__, np);
 	return 0;
 }
 
@@ -2042,19 +2042,19 @@ static int unittest_i2c_mux_probe(struct i2c_client *client,
 	int i, nchans;
 	struct device *dev = &client->dev;
 	struct i2c_adapter *adap = client->adapter;
-	struct device_node *np = client->dev.of_node, *child;
+	struct device_yesde *np = client->dev.of_yesde, *child;
 	struct i2c_mux_core *muxc;
 	u32 reg, max_reg;
 
-	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
+	dev_dbg(dev, "%s for yesde @%pOF\n", __func__, np);
 
 	if (!np) {
-		dev_err(dev, "No OF node\n");
+		dev_err(dev, "No OF yesde\n");
 		return -EINVAL;
 	}
 
 	max_reg = (u32)-1;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		if (of_property_read_u32(child, "reg", &reg))
 			continue;
 		if (max_reg == (u32)-1 || reg > max_reg)
@@ -2086,10 +2086,10 @@ static int unittest_i2c_mux_probe(struct i2c_client *client,
 static int unittest_i2c_mux_remove(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
 
-	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
+	dev_dbg(dev, "%s for yesde @%pOF\n", __func__, np);
 	i2c_mux_del_adapters(muxc);
 	return 0;
 }
@@ -2116,18 +2116,18 @@ static int of_unittest_overlay_i2c_init(void)
 
 	ret = i2c_add_driver(&unittest_i2c_dev_driver);
 	if (unittest(ret == 0,
-			"could not register unittest i2c device driver\n"))
+			"could yest register unittest i2c device driver\n"))
 		return ret;
 
 	ret = platform_driver_register(&unittest_i2c_bus_driver);
 	if (unittest(ret == 0,
-			"could not register unittest i2c bus driver\n"))
+			"could yest register unittest i2c bus driver\n"))
 		return ret;
 
 #if IS_BUILTIN(CONFIG_I2C_MUX)
 	ret = i2c_add_driver(&unittest_i2c_mux_driver);
 	if (unittest(ret == 0,
-			"could not register unittest i2c mux driver\n"))
+			"could yest register unittest i2c mux driver\n"))
 		return ret;
 #endif
 
@@ -2185,32 +2185,32 @@ static inline void of_unittest_overlay_i2c_15(void) { }
 
 static void __init of_unittest_overlay(void)
 {
-	struct device_node *bus_np = NULL;
+	struct device_yesde *bus_np = NULL;
 
 	if (platform_driver_register(&unittest_driver)) {
-		unittest(0, "could not register unittest driver\n");
+		unittest(0, "could yest register unittest driver\n");
 		goto out;
 	}
 
-	bus_np = of_find_node_by_path(bus_path);
+	bus_np = of_find_yesde_by_path(bus_path);
 	if (bus_np == NULL) {
-		unittest(0, "could not find bus_path \"%s\"\n", bus_path);
+		unittest(0, "could yest find bus_path \"%s\"\n", bus_path);
 		goto out;
 	}
 
 	if (of_platform_default_populate(bus_np, NULL, NULL)) {
-		unittest(0, "could not populate bus @ \"%s\"\n", bus_path);
+		unittest(0, "could yest populate bus @ \"%s\"\n", bus_path);
 		goto out;
 	}
 
 	if (!of_unittest_device_exists(100, PDEV_OVERLAY)) {
-		unittest(0, "could not find unittest0 @ \"%s\"\n",
+		unittest(0, "could yest find unittest0 @ \"%s\"\n",
 				unittest_path(100, PDEV_OVERLAY));
 		goto out;
 	}
 
 	if (of_unittest_device_exists(101, PDEV_OVERLAY)) {
-		unittest(0, "unittest1 @ \"%s\" should not exist\n",
+		unittest(0, "unittest1 @ \"%s\" should yest exist\n",
 				unittest_path(101, PDEV_OVERLAY));
 		goto out;
 	}
@@ -2245,7 +2245,7 @@ static void __init of_unittest_overlay(void)
 	of_unittest_destroy_tracked_overlays();
 
 out:
-	of_node_put(bus_np);
+	of_yesde_put(bus_np);
 }
 
 #else
@@ -2295,7 +2295,7 @@ OVERLAY_INFO_EXTERN(overlay_11);
 OVERLAY_INFO_EXTERN(overlay_12);
 OVERLAY_INFO_EXTERN(overlay_13);
 OVERLAY_INFO_EXTERN(overlay_15);
-OVERLAY_INFO_EXTERN(overlay_bad_add_dup_node);
+OVERLAY_INFO_EXTERN(overlay_bad_add_dup_yesde);
 OVERLAY_INFO_EXTERN(overlay_bad_add_dup_prop);
 OVERLAY_INFO_EXTERN(overlay_bad_phandle);
 OVERLAY_INFO_EXTERN(overlay_bad_symbol);
@@ -2319,7 +2319,7 @@ static struct overlay_info overlays[] = {
 	OVERLAY_INFO(overlay_12, 0),
 	OVERLAY_INFO(overlay_13, 0),
 	OVERLAY_INFO(overlay_15, 0),
-	OVERLAY_INFO(overlay_bad_add_dup_node, -EINVAL),
+	OVERLAY_INFO(overlay_bad_add_dup_yesde, -EINVAL),
 	OVERLAY_INFO(overlay_bad_add_dup_prop, -EINVAL),
 	OVERLAY_INFO(overlay_bad_phandle, -EINVAL),
 	OVERLAY_INFO(overlay_bad_symbol, -EINVAL),
@@ -2327,7 +2327,7 @@ static struct overlay_info overlays[] = {
 	{.dtb_begin = NULL, .dtb_end = NULL, .expected_result = 0, .name = NULL}
 };
 
-static struct device_node *overlay_base_root;
+static struct device_yesde *overlay_base_root;
 
 static void * __init dt_alloc_memory(u64 size, u64 align)
 {
@@ -2346,7 +2346,7 @@ static void * __init dt_alloc_memory(u64 size, u64 align)
  * This is called from very early boot code.
  *
  * Do as much as possible the same way as done in __unflatten_device_tree
- * and other early boot steps for the normal FDT so that the overlay base
+ * and other early boot steps for the yesrmal FDT so that the overlay base
  * unflattened tree will have the same characteristics as the real tree
  * (such as having memory allocated by the early allocator).  The goal
  * is to test "the real thing" as much as possible, and test "test setup
@@ -2370,7 +2370,7 @@ void __init unittest_unflatten_overlay_base(void)
 		}
 	}
 	if (!found) {
-		pr_err("no overlay data for %s\n", overlay_name);
+		pr_err("yes overlay data for %s\n", overlay_name);
 		return;
 	}
 
@@ -2407,7 +2407,7 @@ void __init unittest_unflatten_overlay_base(void)
 
 /*
  * The purpose of of_unittest_overlay_data_add is to add an
- * overlay in the normal fashion.  This is a test of the whole
+ * overlay in the yesrmal fashion.  This is a test of the whole
  * picture, instead of testing individual elements.
  *
  * A secondary purpose is to be able to verify that the contents of
@@ -2430,13 +2430,13 @@ static int __init overlay_data_apply(const char *overlay_name, int *overlay_id)
 		}
 	}
 	if (!found) {
-		pr_err("no overlay data for %s\n", overlay_name);
+		pr_err("yes overlay data for %s\n", overlay_name);
 		return 0;
 	}
 
 	size = info->dtb_end - info->dtb_begin;
 	if (!size)
-		pr_err("no overlay data for %s\n", overlay_name);
+		pr_err("yes overlay data for %s\n", overlay_name);
 
 	ret = of_overlay_fdt_apply(info->dtb_begin, size, &info->overlay_id);
 	if (overlay_id)
@@ -2456,29 +2456,29 @@ out:
 
 /*
  * The purpose of of_unittest_overlay_high_level is to add an overlay
- * in the normal fashion.  This is a test of the whole picture,
+ * in the yesrmal fashion.  This is a test of the whole picture,
  * instead of individual elements.
  *
- * The first part of the function is _not_ normal overlay usage; it is
+ * The first part of the function is _yest_ yesrmal overlay usage; it is
  * finishing splicing the base overlay device tree into the live tree.
  */
 static __init void of_unittest_overlay_high_level(void)
 {
-	struct device_node *last_sibling;
-	struct device_node *np;
-	struct device_node *of_symbols;
-	struct device_node *overlay_base_symbols;
-	struct device_node **pprev;
+	struct device_yesde *last_sibling;
+	struct device_yesde *np;
+	struct device_yesde *of_symbols;
+	struct device_yesde *overlay_base_symbols;
+	struct device_yesde **pprev;
 	struct property *prop;
 
 	if (!overlay_base_root) {
-		unittest(0, "overlay_base_root not initialized\n");
+		unittest(0, "overlay_base_root yest initialized\n");
 		return;
 	}
 
 	/*
-	 * Could not fixup phandles in unittest_unflatten_overlay_base()
-	 * because kmalloc() was not yet available.
+	 * Could yest fixup phandles in unittest_unflatten_overlay_base()
+	 * because kmalloc() was yest yet available.
 	 */
 	of_overlay_mutex_lock();
 	of_resolve_phandles(overlay_base_root);
@@ -2486,30 +2486,30 @@ static __init void of_unittest_overlay_high_level(void)
 
 
 	/*
-	 * do not allow overlay_base to duplicate any node already in
+	 * do yest allow overlay_base to duplicate any yesde already in
 	 * tree, this greatly simplifies the code
 	 */
 
 	/*
-	 * remove overlay_base_root node "__local_fixups", after
+	 * remove overlay_base_root yesde "__local_fixups", after
 	 * being used by of_resolve_phandles()
 	 */
 	pprev = &overlay_base_root->child;
 	for (np = overlay_base_root->child; np; np = np->sibling) {
-		if (of_node_name_eq(np, "__local_fixups__")) {
+		if (of_yesde_name_eq(np, "__local_fixups__")) {
 			*pprev = np->sibling;
 			break;
 		}
 		pprev = &np->sibling;
 	}
 
-	/* remove overlay_base_root node "__symbols__" if in live tree */
+	/* remove overlay_base_root yesde "__symbols__" if in live tree */
 	of_symbols = of_get_child_by_name(of_root, "__symbols__");
 	if (of_symbols) {
-		/* will have to graft properties from node into live tree */
+		/* will have to graft properties from yesde into live tree */
 		pprev = &overlay_base_root->child;
 		for (np = overlay_base_root->child; np; np = np->sibling) {
-			if (of_node_name_eq(np, "__symbols__")) {
+			if (of_yesde_name_eq(np, "__symbols__")) {
 				overlay_base_symbols = np;
 				*pprev = np->sibling;
 				break;
@@ -2518,11 +2518,11 @@ static __init void of_unittest_overlay_high_level(void)
 		}
 	}
 
-	for_each_child_of_node(overlay_base_root, np) {
-		struct device_node *base_child;
-		for_each_child_of_node(of_root, base_child) {
+	for_each_child_of_yesde(overlay_base_root, np) {
+		struct device_yesde *base_child;
+		for_each_child_of_yesde(of_root, base_child) {
 			if (!strcmp(np->full_name, base_child->full_name)) {
-				unittest(0, "illegal node name in overlay_base %pOFn",
+				unittest(0, "illegal yesde name in overlay_base %pOFn",
 					 np);
 				return;
 			}
@@ -2530,10 +2530,10 @@ static __init void of_unittest_overlay_high_level(void)
 	}
 
 	/*
-	 * overlay 'overlay_base' is not allowed to have root
-	 * properties, so only need to splice nodes into main device tree.
+	 * overlay 'overlay_base' is yest allowed to have root
+	 * properties, so only need to splice yesdes into main device tree.
 	 *
-	 * root node of *overlay_base_root will not be freed, it is lost
+	 * root yesde of *overlay_base_root will yest be freed, it is lost
 	 * memory.
 	 */
 
@@ -2550,16 +2550,16 @@ static __init void of_unittest_overlay_high_level(void)
 	else
 		of_root->child = overlay_base_root->child;
 
-	for_each_of_allnodes_from(overlay_base_root, np)
-		__of_attach_node_sysfs(np);
+	for_each_of_allyesdes_from(overlay_base_root, np)
+		__of_attach_yesde_sysfs(np);
 
 	if (of_symbols) {
 		struct property *new_prop;
-		for_each_property_of_node(overlay_base_symbols, prop) {
+		for_each_property_of_yesde(overlay_base_symbols, prop) {
 
 			new_prop = __of_prop_dup(prop, GFP_KERNEL);
 			if (!new_prop) {
-				unittest(0, "__of_prop_dup() of '%s' from overlay_base node __symbols__",
+				unittest(0, "__of_prop_dup() of '%s' from overlay_base yesde __symbols__",
 					 prop->name);
 				goto err_unlock;
 			}
@@ -2567,12 +2567,12 @@ static __init void of_unittest_overlay_high_level(void)
 				/* "name" auto-generated by unflatten */
 				if (!strcmp(new_prop->name, "name"))
 					continue;
-				unittest(0, "duplicate property '%s' in overlay_base node __symbols__",
+				unittest(0, "duplicate property '%s' in overlay_base yesde __symbols__",
 					 prop->name);
 				goto err_unlock;
 			}
 			if (__of_add_property_sysfs(of_symbols, new_prop)) {
-				unittest(0, "unable to add property '%s' in overlay_base node __symbols__ to sysfs",
+				unittest(0, "unable to add property '%s' in overlay_base yesde __symbols__ to sysfs",
 					 prop->name);
 				goto err_unlock;
 			}
@@ -2582,13 +2582,13 @@ static __init void of_unittest_overlay_high_level(void)
 	mutex_unlock(&of_mutex);
 
 
-	/* now do the normal overlay usage test */
+	/* yesw do the yesrmal overlay usage test */
 
 	unittest(overlay_data_apply("overlay", NULL),
 		 "Adding overlay 'overlay' failed\n");
 
-	unittest(overlay_data_apply("overlay_bad_add_dup_node", NULL),
-		 "Adding overlay 'overlay_bad_add_dup_node' failed\n");
+	unittest(overlay_data_apply("overlay_bad_add_dup_yesde", NULL),
+		 "Adding overlay 'overlay_bad_add_dup_yesde' failed\n");
 
 	unittest(overlay_data_apply("overlay_bad_add_dup_prop", NULL),
 		 "Adding overlay 'overlay_bad_add_dup_prop' failed\n");
@@ -2613,7 +2613,7 @@ static inline __init void of_unittest_overlay_high_level(void) {}
 
 static int __init of_unittest(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int res;
 
 	/* adding data for unittest */
@@ -2625,19 +2625,19 @@ static int __init of_unittest(void)
 	if (res)
 		return res;
 	if (!of_aliases)
-		of_aliases = of_find_node_by_path("/aliases");
+		of_aliases = of_find_yesde_by_path("/aliases");
 
-	np = of_find_node_by_path("/testcase-data/phandle-tests/consumer-a");
+	np = of_find_yesde_by_path("/testcase-data/phandle-tests/consumer-a");
 	if (!np) {
-		pr_info("No testcase data in device tree; not running tests\n");
+		pr_info("No testcase data in device tree; yest running tests\n");
 		return 0;
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 
 	pr_info("start of unittest - you will see error messages\n");
 	of_unittest_check_tree_linkage();
 	of_unittest_check_phandles();
-	of_unittest_find_node_by_name();
+	of_unittest_find_yesde_by_name();
 	of_unittest_dynamic();
 	of_unittest_parse_phandle_with_args();
 	of_unittest_parse_phandle_with_args_map();
@@ -2649,7 +2649,7 @@ static int __init of_unittest(void)
 	of_unittest_parse_interrupts_extended();
 	of_unittest_parse_dma_ranges();
 	of_unittest_pci_dma_ranges();
-	of_unittest_match_node();
+	of_unittest_match_yesde();
 	of_unittest_platform_populate();
 	of_unittest_overlay();
 

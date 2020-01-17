@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *    driver for Microsemi PQI-based storage controllers
- *    Copyright (c) 2019 Microchip Technology Inc. and its subsidiaries
+ *    Copyright (c) 2019 Microchip Techyeslogy Inc. and its subsidiaries
  *    Copyright (c) 2016-2018 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
@@ -26,7 +26,7 @@ static struct pqi_sas_phy *pqi_alloc_sas_phy(struct pqi_sas_port *pqi_sas_port)
 	if (!pqi_sas_phy)
 		return NULL;
 
-	phy = sas_phy_alloc(pqi_sas_port->parent_node->parent_dev,
+	phy = sas_phy_alloc(pqi_sas_port->parent_yesde->parent_dev,
 		pqi_sas_port->next_phy_index);
 	if (!phy) {
 		kfree(pqi_sas_phy);
@@ -116,7 +116,7 @@ static struct sas_rphy *pqi_sas_rphy_alloc(struct pqi_sas_port *pqi_sas_port)
 }
 
 static struct pqi_sas_port *pqi_alloc_sas_port(
-	struct pqi_sas_node *pqi_sas_node, u64 sas_address,
+	struct pqi_sas_yesde *pqi_sas_yesde, u64 sas_address,
 	struct pqi_scsi_dev *device)
 {
 	int rc;
@@ -128,9 +128,9 @@ static struct pqi_sas_port *pqi_alloc_sas_port(
 		return NULL;
 
 	INIT_LIST_HEAD(&pqi_sas_port->phy_list_head);
-	pqi_sas_port->parent_node = pqi_sas_node;
+	pqi_sas_port->parent_yesde = pqi_sas_yesde;
 
-	port = sas_port_alloc_num(pqi_sas_node->parent_dev);
+	port = sas_port_alloc_num(pqi_sas_yesde->parent_dev);
 	if (!port)
 		goto free_pqi_port;
 
@@ -142,7 +142,7 @@ static struct pqi_sas_port *pqi_alloc_sas_port(
 	pqi_sas_port->sas_address = sas_address;
 	pqi_sas_port->device = device;
 	list_add_tail(&pqi_sas_port->port_list_entry,
-		&pqi_sas_node->port_list_head);
+		&pqi_sas_yesde->port_list_head);
 
 	return pqi_sas_port;
 
@@ -168,32 +168,32 @@ static void pqi_free_sas_port(struct pqi_sas_port *pqi_sas_port)
 	kfree(pqi_sas_port);
 }
 
-static struct pqi_sas_node *pqi_alloc_sas_node(struct device *parent_dev)
+static struct pqi_sas_yesde *pqi_alloc_sas_yesde(struct device *parent_dev)
 {
-	struct pqi_sas_node *pqi_sas_node;
+	struct pqi_sas_yesde *pqi_sas_yesde;
 
-	pqi_sas_node = kzalloc(sizeof(*pqi_sas_node), GFP_KERNEL);
-	if (pqi_sas_node) {
-		pqi_sas_node->parent_dev = parent_dev;
-		INIT_LIST_HEAD(&pqi_sas_node->port_list_head);
+	pqi_sas_yesde = kzalloc(sizeof(*pqi_sas_yesde), GFP_KERNEL);
+	if (pqi_sas_yesde) {
+		pqi_sas_yesde->parent_dev = parent_dev;
+		INIT_LIST_HEAD(&pqi_sas_yesde->port_list_head);
 	}
 
-	return pqi_sas_node;
+	return pqi_sas_yesde;
 }
 
-static void pqi_free_sas_node(struct pqi_sas_node *pqi_sas_node)
+static void pqi_free_sas_yesde(struct pqi_sas_yesde *pqi_sas_yesde)
 {
 	struct pqi_sas_port *pqi_sas_port;
 	struct pqi_sas_port *next;
 
-	if (!pqi_sas_node)
+	if (!pqi_sas_yesde)
 		return;
 
 	list_for_each_entry_safe(pqi_sas_port, next,
-		&pqi_sas_node->port_list_head, port_list_entry)
+		&pqi_sas_yesde->port_list_head, port_list_entry)
 		pqi_free_sas_port(pqi_sas_port);
 
-	kfree(pqi_sas_node);
+	kfree(pqi_sas_yesde);
 }
 
 struct pqi_scsi_dev *pqi_find_device_by_sas_rphy(
@@ -216,21 +216,21 @@ int pqi_add_sas_host(struct Scsi_Host *shost, struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
 	struct device *parent_dev;
-	struct pqi_sas_node *pqi_sas_node;
+	struct pqi_sas_yesde *pqi_sas_yesde;
 	struct pqi_sas_port *pqi_sas_port;
 	struct pqi_sas_phy *pqi_sas_phy;
 
 	parent_dev = &shost->shost_dev;
 
-	pqi_sas_node = pqi_alloc_sas_node(parent_dev);
-	if (!pqi_sas_node)
+	pqi_sas_yesde = pqi_alloc_sas_yesde(parent_dev);
+	if (!pqi_sas_yesde)
 		return -ENOMEM;
 
-	pqi_sas_port = pqi_alloc_sas_port(pqi_sas_node,
+	pqi_sas_port = pqi_alloc_sas_port(pqi_sas_yesde,
 		ctrl_info->sas_address, NULL);
 	if (!pqi_sas_port) {
 		rc = -ENODEV;
-		goto free_sas_node;
+		goto free_sas_yesde;
 	}
 
 	pqi_sas_phy = pqi_alloc_sas_phy(pqi_sas_port);
@@ -243,7 +243,7 @@ int pqi_add_sas_host(struct Scsi_Host *shost, struct pqi_ctrl_info *ctrl_info)
 	if (rc)
 		goto free_sas_phy;
 
-	ctrl_info->sas_host = pqi_sas_node;
+	ctrl_info->sas_host = pqi_sas_yesde;
 
 	return 0;
 
@@ -251,25 +251,25 @@ free_sas_phy:
 	pqi_free_sas_phy(pqi_sas_phy);
 free_sas_port:
 	pqi_free_sas_port(pqi_sas_port);
-free_sas_node:
-	pqi_free_sas_node(pqi_sas_node);
+free_sas_yesde:
+	pqi_free_sas_yesde(pqi_sas_yesde);
 
 	return rc;
 }
 
 void pqi_delete_sas_host(struct pqi_ctrl_info *ctrl_info)
 {
-	pqi_free_sas_node(ctrl_info->sas_host);
+	pqi_free_sas_yesde(ctrl_info->sas_host);
 }
 
-int pqi_add_sas_device(struct pqi_sas_node *pqi_sas_node,
+int pqi_add_sas_device(struct pqi_sas_yesde *pqi_sas_yesde,
 	struct pqi_scsi_dev *device)
 {
 	int rc;
 	struct pqi_sas_port *pqi_sas_port;
 	struct sas_rphy *rphy;
 
-	pqi_sas_port = pqi_alloc_sas_port(pqi_sas_node,
+	pqi_sas_port = pqi_alloc_sas_port(pqi_sas_yesde,
 		device->sas_address, device);
 	if (!pqi_sas_port)
 		return -ENOMEM;

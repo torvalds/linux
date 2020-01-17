@@ -8,7 +8,7 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -85,7 +85,7 @@ struct mpll_cfg {
 	uint32_t mpllb_ssc_up_spread;
 	uint32_t mpllb_fracn_rem;
 	uint32_t mpllb_hdmi_div;
-	// TODO: May not mpll params, need to figure out.
+	// TODO: May yest mpll params, need to figure out.
 	uint32_t tx_vboost_lvl;
 	uint32_t hdmi_pixel_clk_div;
 	uint32_t ref_range;

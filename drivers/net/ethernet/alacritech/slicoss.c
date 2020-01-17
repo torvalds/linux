@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Gigabit Ethernet adapters based on the Session Layer
- * Interface (SLIC) technology by Alacritech. The driver does not
+ * Interface (SLIC) techyeslogy by Alacritech. The driver does yest
  * support the hardware acceleration features provided by these cards.
  *
- * Copyright (C) 2016 Lino Sanfilippo <LinoSanfilippo@gmx.de>
+ * Copyright (C) 2016 Liyes Sanfilippo <LiyesSanfilippo@gmx.de>
  */
 
 #include <linux/kernel.h>
@@ -208,7 +208,7 @@ static void slic_set_mcast_bit(u64 *mcmask, unsigned char const *addr)
 {
 	u64 mask = *mcmask;
 	u8 crc;
-	/* Get the CRC polynomial for the mac address: we use bits 1-8 (lsb),
+	/* Get the CRC polyyesmial for the mac address: we use bits 1-8 (lsb),
 	 * bitwise reversed, msb (= lsb bit 0 before bitrev) is automatically
 	 * discarded.
 	 */
@@ -362,7 +362,7 @@ static void slic_xmit_complete(struct slic_device *sdev)
 
 		if (unlikely(!buff->skb)) {
 			netdev_warn(dev,
-				    "no skb found for desc idx %i\n", idx);
+				    "yes skb found for desc idx %i\n", idx);
 			continue;
 		}
 		dma_unmap_single(&sdev->pdev->dev,
@@ -657,7 +657,7 @@ static void slic_handle_upr_irq(struct slic_device *sdev, u32 irqs)
 	/* remove upr that caused this irq (always the first entry in list) */
 	upr = slic_dequeue_upr(sdev);
 	if (!upr) {
-		netdev_warn(sdev->netdev, "no upr found on list\n");
+		netdev_warn(sdev->netdev, "yes upr found on list\n");
 		return;
 	}
 
@@ -1057,7 +1057,7 @@ static int slic_load_rcvseq_firmware(struct slic_device *sdev)
 			"failed to load receive sequencer firmware %s\n", file);
 		return err;
 	}
-	/* Do an initial sanity check concerning firmware size now. A further
+	/* Do an initial sanity check concerning firmware size yesw. A further
 	 * check follows below.
 	 */
 	if (fw->size < SLIC_FIRMWARE_MIN_SIZE) {
@@ -1070,7 +1070,7 @@ static int slic_load_rcvseq_firmware(struct slic_device *sdev)
 
 	codelen = slic_read_dword_from_firmware(fw, &idx);
 
-	/* do another sanity check against firmware size */
+	/* do ayesther sanity check against firmware size */
 	if ((codelen + 4) > fw->size) {
 		dev_err(&sdev->pdev->dev,
 			"invalid rcv-sequencer firmware size %zu\n", fw->size);
@@ -1131,7 +1131,7 @@ static int slic_load_firmware(struct slic_device *sdev)
 		dev_err(&sdev->pdev->dev, "failed to load firmware %s\n", file);
 		return err;
 	}
-	/* Do an initial sanity check concerning firmware size now. A further
+	/* Do an initial sanity check concerning firmware size yesw. A further
 	 * check follows below.
 	 */
 	if (fw->size < SLIC_FIRMWARE_MIN_SIZE) {
@@ -1156,7 +1156,7 @@ static int slic_load_firmware(struct slic_device *sdev)
 		datalen += sectsize[i];
 	}
 
-	/* do another sanity check against firmware size */
+	/* do ayesther sanity check against firmware size */
 	if (datalen > fw->size) {
 		dev_err(&sdev->pdev->dev,
 			"invalid firmware size %zu (expected >= %u)\n",
@@ -1215,7 +1215,7 @@ static int slic_load_firmware(struct slic_device *sdev)
 	/* everything OK, kick off the card */
 	slic_write(sdev, SLIC_REG_WCS, SLIC_WCS_START);
 	slic_flush_write(sdev);
-	/* wait long enough for ucode to init card and reach the mainloop */
+	/* wait long eyesugh for ucode to init card and reach the mainloop */
 	mdelay(20);
 release:
 	release_firmware(fw);
@@ -1416,7 +1416,7 @@ static netdev_tx_t slic_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 maplen;
 
 	if (unlikely(slic_get_free_tx_descs(txq) < SLIC_MAX_REQ_TX_DESCS)) {
-		netdev_err(dev, "BUG! not enough tx LEs left: %u\n",
+		netdev_err(dev, "BUG! yest eyesugh tx LEs left: %u\n",
 			   slic_get_free_tx_descs(txq));
 		return NETDEV_TX_BUSY;
 	}
@@ -1791,7 +1791,7 @@ static int slic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	sdev->is_fiber = slic_is_fiber(pdev->subsystem_device);
 	sdev->pdev = pdev;
 	sdev->netdev = dev;
-	sdev->regs = ioremap_nocache(pci_resource_start(pdev, 0),
+	sdev->regs = ioremap_yescache(pci_resource_start(pdev, 0),
 				     pci_resource_len(pdev, 0));
 	if (!sdev->regs) {
 		dev_err(&pdev->dev, "failed to map registers\n");
@@ -1849,7 +1849,7 @@ static struct pci_driver slic_driver = {
 
 module_pci_driver(slic_driver);
 
-MODULE_DESCRIPTION("Alacritech non-accelerated SLIC driver");
-MODULE_AUTHOR("Lino Sanfilippo <LinoSanfilippo@gmx.de>");
+MODULE_DESCRIPTION("Alacritech yesn-accelerated SLIC driver");
+MODULE_AUTHOR("Liyes Sanfilippo <LiyesSanfilippo@gmx.de>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);

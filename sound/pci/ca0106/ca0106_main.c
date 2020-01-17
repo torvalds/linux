@@ -9,7 +9,7 @@
  *    Surround40 and Surround51.
  *    Capture from MIC an LINE IN input.
  *    SPDIF digital playback of PCM stereo and AC3/DTS works.
- *    (One can use a standard mono mini-jack to one RCA plugs cable.
+ *    (One can use a standard moyes mini-jack to one RCA plugs cable.
  *     or one can use a standard stereo mini-jack to two RCA plugs cable.
  *     Plug one of the RCA plugs into the Coax input of the external decoder/receiver.)
  *    ( In theory one could output 3 different AC3 streams at once, to 3 different SPDIF outputs. )
@@ -35,7 +35,7 @@
  * 
  *  Changelog:
  *    Support interrupts per period.
- *    Removed noise from Center/LFE channel when in Analog mode.
+ *    Removed yesise from Center/LFE channel when in Analog mode.
  *    Rename and remove mixer controls.
  *  0.0.6
  *    Use separate card based DMA buffer for periods table list.
@@ -47,7 +47,7 @@
  *    Fix AC3 output.
  *    Enable S32_LE format support.
  *  0.0.10
- *    Enable playback 48000 and 96000 rates. (Rates other that these do not work, even with "plug:front".)
+ *    Enable playback 48000 and 96000 rates. (Rates other that these do yest work, even with "plug:front".)
  *  0.0.11
  *    Add Model name recognition.
  *  0.0.12
@@ -61,7 +61,7 @@
  *    capture hw constraints require period_size = n * 64 bytes.
  *    playback hw constraints require period_size = n * 64 bytes.
  *  0.0.15
- *    Minor updates.
+ *    Miyesr updates.
  *  0.0.16
  *    Implement 192000 sample rate.
  *  0.0.17
@@ -75,7 +75,7 @@
  *    Merge "pci_disable_device(pci);" fixes.
  *  0.0.21
  *    Add 4 capture channels. (SPDIF only comes in on channel 0. )
- *    Add SPDIF capture using optional digital I/O module for SB Live 24bit. (Analog capture does not yet work.)
+ *    Add SPDIF capture using optional digital I/O module for SB Live 24bit. (Analog capture does yest yet work.)
  *  0.0.22
  *    Add support for MSI K8N Diamond Motherboard with onboard SB Live 24bit without AC97. From kiksen, bug #901
  *  0.0.23
@@ -83,7 +83,7 @@
  *  0.0.24
  *    Add support for mute control on SB Live 24bit (cards w/ SPI DAC)
  *  0.0.25
- *    Powerdown SPI DAC channels when not in use
+ *    Powerdown SPI DAC channels when yest in use
  *
  *  BUGS:
  *    Some stability problems when unloading the snd-ca0106 kernel module.
@@ -91,7 +91,7 @@
  *
  *  TODO:
  *    4 Capture channels, only one implemented so far.
- *    Other capture rates apart from 48khz not implemented.
+ *    Other capture rates apart from 48khz yest implemented.
  *    MIDI
  *    --
  *  GENERAL INFO:
@@ -114,8 +114,8 @@
  *    Model: SB0413
  *    P17 Chip: CA0106-DAT
  *    AC97 Codec: None.
- *    ADC: Unknown
- *    DAC: Unknown
+ *    ADC: Unkyeswn
+ *    DAC: Unkyeswn
  *    Trying to handle it like the SB0410.
  *
  *  This code was initially based on code from ALSA's emu10k1x.c which is:
@@ -157,8 +157,8 @@ MODULE_PARM_DESC(subsystem, "Force card subsystem model.");
 #include "ca0106.h"
 
 static struct snd_ca0106_details ca0106_chip_details[] = {
-	 /* Sound Blaster X-Fi Extreme Audio. This does not have an AC97. 53SB079000000 */
-	 /* It is really just a normal SB Live 24bit. */
+	 /* Sound Blaster X-Fi Extreme Audio. This does yest have an AC97. 53SB079000000 */
+	 /* It is really just a yesrmal SB Live 24bit. */
 	 /* Tested:
 	  * See ALSA bug#3251
 	  */
@@ -166,8 +166,8 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	   .name   = "X-Fi Extreme Audio [SBxxxx]",
 	   .gpio_type = 1,
 	   .i2c_adc = 1 } ,
-	 /* Sound Blaster X-Fi Extreme Audio. This does not have an AC97. 53SB079000000 */
-	 /* It is really just a normal SB Live 24bit. */
+	 /* Sound Blaster X-Fi Extreme Audio. This does yest have an AC97. 53SB079000000 */
+	 /* It is really just a yesrmal SB Live 24bit. */
 	 /*
  	  * CTRL:CA0111-WTLF
 	  * ADC: WM8775SEDS
@@ -184,21 +184,21 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	   .name   = "X-Fi Extreme Audio [SB0790]",
 	   .gpio_type = 1,
 	   .i2c_adc = 1 } ,
-	 /* New Dell Sound Blaster Live! 7.1 24bit. This does not have an AC97.  */
+	 /* New Dell Sound Blaster Live! 7.1 24bit. This does yest have an AC97.  */
 	 /* AudigyLS[SB0310] */
 	 { .serial = 0x10021102,
 	   .name   = "AudigyLS [SB0310]",
 	   .ac97   = 1 } , 
-	 /* Unknown AudigyLS that also says SB0310 on it */
+	 /* Unkyeswn AudigyLS that also says SB0310 on it */
 	 { .serial = 0x10051102,
 	   .name   = "AudigyLS [SB0310b]",
 	   .ac97   = 1 } ,
-	 /* New Sound Blaster Live! 7.1 24bit. This does not have an AC97. 53SB041000001 */
+	 /* New Sound Blaster Live! 7.1 24bit. This does yest have an AC97. 53SB041000001 */
 	 { .serial = 0x10061102,
 	   .name   = "Live! 7.1 24bit [SB0410]",
 	   .gpio_type = 1,
 	   .i2c_adc = 1 } ,
-	 /* New Dell Sound Blaster Live! 7.1 24bit. This does not have an AC97.  */
+	 /* New Dell Sound Blaster Live! 7.1 24bit. This does yest have an AC97.  */
 	 { .serial = 0x10071102,
 	   .name   = "Live! 7.1 24bit [SB0413]",
 	   .gpio_type = 1,
@@ -278,7 +278,7 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	  .gpio_type = 1,
 	  .i2c_adc = 1 } ,
 	 { .serial = 0,
-	   .name   = "AudigyLS [Unknown]" }
+	   .name   = "AudigyLS [Unkyeswn]" }
 };
 
 /* hardware definition */
@@ -309,7 +309,7 @@ static const struct snd_pcm_hardware snd_ca0106_capture_hw = {
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
-#if 0 /* FIXME: looks like 44.1kHz capture causes noisy output on 48kHz */
+#if 0 /* FIXME: looks like 44.1kHz capture causes yesisy output on 48kHz */
 	.rates =		(SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
 				 SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000),
 	.rate_min =		44100,
@@ -393,7 +393,7 @@ int snd_ca0106_spi_write(struct snd_ca0106 * emu,
 	return 0;
 }
 
-/* The ADC does not support i2c read, so only write is implemented */
+/* The ADC does yest support i2c read, so only write is implemented */
 int snd_ca0106_i2c_write(struct snd_ca0106 *emu,
 				u32 reg,
 				u32 value)
@@ -516,7 +516,7 @@ static int snd_ca0106_channel_dac(struct snd_ca0106 *chip,
 	case PCM_UNKNOWN_CHANNEL:
 		return (details->spi_dac & 0x000f) >> (4 * 0);
 	default:
-		dev_dbg(chip->card->dev, "ca0106: unknown channel_id %d\n",
+		dev_dbg(chip->card->dev, "ca0106: unkyeswn channel_id %d\n",
 			   channel_id);
 	}
 	return 0;
@@ -625,7 +625,7 @@ static int snd_ca0106_pcm_open_playback_center_lfe(struct snd_pcm_substream *sub
 	return snd_ca0106_pcm_open_playback_channel(substream, PCM_CENTER_LFE_CHANNEL);
 }
 
-static int snd_ca0106_pcm_open_playback_unknown(struct snd_pcm_substream *substream)
+static int snd_ca0106_pcm_open_playback_unkyeswn(struct snd_pcm_substream *substream)
 {
 	return snd_ca0106_pcm_open_playback_channel(substream, PCM_UNKNOWN_CHANNEL);
 }
@@ -750,8 +750,8 @@ static int snd_ca0106_pcm_prepare_playback(struct snd_pcm_substream *substream)
 	u32 reg40_mask = 0x30000 << (channel<<1);
 	u32 reg40_set = 0;
 	u32 reg40;
-	/* FIXME: Depending on mixer selection of SPDIF out or not, select the spdif rate or the DAC rate. */
-	u32 reg71_mask = 0x03030000 ; /* Global. Set SPDIF rate. We only support 44100 to spdif, not to DAC. */
+	/* FIXME: Depending on mixer selection of SPDIF out or yest, select the spdif rate or the DAC rate. */
+	u32 reg71_mask = 0x03030000 ; /* Global. Set SPDIF rate. We only support 44100 to spdif, yest to DAC. */
 	u32 reg71_set = 0;
 	u32 reg71;
 	int i;
@@ -1159,8 +1159,8 @@ static const struct snd_pcm_ops snd_ca0106_playback_center_lfe_ops = {
         .pointer =      snd_ca0106_pcm_pointer_playback, 
 };
 
-static const struct snd_pcm_ops snd_ca0106_playback_unknown_ops = {
-        .open =         snd_ca0106_pcm_open_playback_unknown,
+static const struct snd_pcm_ops snd_ca0106_playback_unkyeswn_ops = {
+        .open =         snd_ca0106_pcm_open_playback_unkyeswn,
         .close =        snd_ca0106_pcm_close_playback,
         .ioctl =        snd_pcm_lib_ioctl,
         .hw_params =    snd_ca0106_pcm_hw_params_playback,
@@ -1220,7 +1220,7 @@ static int snd_ca0106_ac97(struct snd_ca0106 *chip)
   
 	if ((err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus)) < 0)
 		return err;
-	pbus->no_vra = 1; /* we don't need VRA */
+	pbus->yes_vra = 1; /* we don't need VRA */
 
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
@@ -1322,7 +1322,7 @@ static irqreturn_t snd_ca0106_interrupt(int irq, void *dev_id)
 			chip->midi.interrupt_disable(&chip->midi, chip->midi.tx_enable | chip->midi.rx_enable);
 	}
 
-	// acknowledge the interrupt if necessary
+	// ackyeswledge the interrupt if necessary
 	outl(status, chip->port+IPR);
 
 	return IRQ_HANDLED;
@@ -1376,7 +1376,7 @@ static int snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
 	  map = clfe_map;
           break;
 	case 3:
-	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ca0106_playback_unknown_ops);
+	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ca0106_playback_unkyeswn_ops);
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ca0106_capture_3_ops);
 	  map = side_map;
           break;
@@ -1635,8 +1635,8 @@ static void ca0106_stop_chip(struct snd_ca0106 *chip)
 	/* outl(HCFG_LOCKSOUNDCACHE, chip->port + HCFG); */
 	outl(0, chip->port + HCFG);
 	/* FIXME: We need to stop and DMA transfers here.
-	 *        But as I am not sure how yet, we cannot from the dma pages.
-	 * So we can fix: snd-malloc: Memory leak?  pages not freed = 8
+	 *        But as I am yest sure how yet, we canyest from the dma pages.
+	 * So we can fix: snd-malloc: Memory leak?  pages yest freed = 8
 	 */
 }
 
@@ -1679,14 +1679,14 @@ static int snd_ca0106_create(int dev, struct snd_card *card,
 	chip->res_port = request_region(chip->port, 0x20, "snd_ca0106");
 	if (!chip->res_port) {
 		snd_ca0106_free(chip);
-		dev_err(card->dev, "cannot allocate the port\n");
+		dev_err(card->dev, "canyest allocate the port\n");
 		return -EBUSY;
 	}
 
 	if (request_irq(pci->irq, snd_ca0106_interrupt,
 			IRQF_SHARED, KBUILD_MODNAME, chip)) {
 		snd_ca0106_free(chip);
-		dev_err(card->dev, "cannot grab irq\n");
+		dev_err(card->dev, "canyest grab irq\n");
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
@@ -1850,7 +1850,7 @@ static int snd_ca0106_probe(struct pci_dev *pci,
 	}
 
 	if (chip->details->ac97 == 1) {
-		/* The SB0410 and SB0413 do not have an AC97 chip. */
+		/* The SB0410 and SB0413 do yest have an AC97 chip. */
 		err = snd_ca0106_ac97(chip);
 		if (err < 0)
 			goto error;

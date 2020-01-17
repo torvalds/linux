@@ -9,7 +9,7 @@
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
  * Maxim Osipov <maxim.osipov@siemens.com>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiryesv <alex.bluesman.smiryesv@gmail.com>
  */
 
 #ifndef IEEE802154_NETDEVICE_H
@@ -79,7 +79,7 @@ struct ieee802154_hdr {
 
 /* pushes hdr onto the skb. fields of hdr->fc that can be calculated from
  * the contents of hdr will be, and the actual value of those bits in
- * hdr->fc will be ignored. this includes the INTRA_PAN bit and the frame
+ * hdr->fc will be igyesred. this includes the INTRA_PAN bit and the frame
  * version, if SECEN is set.
  */
 int ieee802154_hdr_push(struct sk_buff *skb, struct ieee802154_hdr *hdr);

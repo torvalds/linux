@@ -14,13 +14,13 @@ config CPU_ICACHE_DISABLE
 	bool "Disable I-Cache (I-bit)"
 	help
 	  Say Y here to disable the processor instruction cache. Unless
-	  you have a reason not to or are unsure, say N.
+	  you have a reason yest to or are unsure, say N.
 
 config CPU_DCACHE_DISABLE
 	bool "Disable D-Cache (D-bit)"
 	help
 	  Say Y here to disable the processor data cache. Unless
-	  you have a reason not to or are unsure, say N.
+	  you have a reason yest to or are unsure, say N.
 
 config CPU_DCACHE_WRITETHROUGH
 	bool "Force write through D-cache"

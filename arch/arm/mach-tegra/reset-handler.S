@@ -37,7 +37,7 @@ ENTRY(tegra_resume)
 	cpu_id	r0
 	cmp	r0, #0				@ CPU0?
  THUMB(	it	ne )
-	bne	cpu_resume			@ no
+	bne	cpu_resume			@ yes
 
 	tegra_get_soc_id TEGRA_APB_MISC_BASE, r6
 	/* Are we on Tegra20? */
@@ -150,10 +150,10 @@ t20_errata:
 	mrc	p15, 0, r0, c1, c0, 0   @ read system control register
 	orr	r0, r0, #1 << 14        @ erratum 716044
 	mcr	p15, 0, r0, c1, c0, 0   @ write system control register
-	mrc	p15, 0, r0, c15, c0, 1  @ read diagnostic register
+	mrc	p15, 0, r0, c15, c0, 1  @ read diagyesstic register
 	orr	r0, r0, #1 << 4         @ erratum 742230
 	orr	r0, r0, #1 << 11        @ erratum 751472
-	mcr	p15, 0, r0, c15, c0, 1  @ write diagnostic register
+	mcr	p15, 0, r0, c15, c0, 1  @ write diagyesstic register
 	b	after_errata
 after_t20_check:
 #endif
@@ -163,10 +163,10 @@ t30_check:
 	bne	after_t30_check
 t30_errata:
 	# Tegra30 is a Cortex-A9 r2p9
-	mrc	p15, 0, r0, c15, c0, 1  @ read diagnostic register
+	mrc	p15, 0, r0, c15, c0, 1  @ read diagyesstic register
 	orr	r0, r0, #1 << 6         @ erratum 743622
 	orr	r0, r0, #1 << 11        @ erratum 751472
-	mcr	p15, 0, r0, c15, c0, 1  @ write diagnostic register
+	mcr	p15, 0, r0, c15, c0, 1  @ write diagyesstic register
 	b	after_errata
 after_t30_check:
 #endif
@@ -177,17 +177,17 @@ after_errata:
 	mov	r11, r11, lsl r10  		@ R11 = CPU mask
 
 #ifdef CONFIG_SMP
-	/* Does the OS know about this CPU? */
+	/* Does the OS kyesw about this CPU? */
 	ldr	r7, [r12, #RESET_DATA(MASK_PRESENT)]
 	tst	r7, r11 			@ if !present
-	bleq	__die				@ CPU not present (to OS)
+	bleq	__die				@ CPU yest present (to OS)
 #endif
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	/* Are we on Tegra20? */
 	cmp	r6, #TEGRA20
 	bne	1f
-	/* If not CPU0, don't let CPU0 reset CPU1 now that CPU1 is coming up. */
+	/* If yest CPU0, don't let CPU0 reset CPU1 yesw that CPU1 is coming up. */
 	mov	r0, #CPU_NOT_RESETTABLE
 	cmp	r10, #0
 	strbne	r0, [r12, #RESET_DATA(RESETTABLE_STATUS)]
@@ -197,26 +197,26 @@ after_errata:
 	/* Waking up from LP1? */
 	ldr	r8, [r12, #RESET_DATA(MASK_LP1)]
 	tst	r8, r11				@ if in_lp1
-	beq	__is_not_lp1
+	beq	__is_yest_lp1
 	cmp	r10, #0
 	bne	__die				@ only CPU0 can be here
 	ldr	lr, [r12, #RESET_DATA(STARTUP_LP1)]
 	cmp	lr, #0
-	bleq	__die				@ no LP1 startup handler
+	bleq	__die				@ yes LP1 startup handler
  THUMB(	add	lr, lr, #1 )			@ switch to Thumb mode
 	bx	lr
-__is_not_lp1:
+__is_yest_lp1:
 
 	/* Waking up from LP2? */
 	ldr	r9, [r12, #RESET_DATA(MASK_LP2)]
 	tst	r9, r11				@ if in_lp2
-	beq	__is_not_lp2
+	beq	__is_yest_lp2
 	ldr	lr, [r12, #RESET_DATA(STARTUP_LP2)]
 	cmp	lr, #0
-	bleq	__die				@ no LP2 startup handler
+	bleq	__die				@ yes LP2 startup handler
 	bx	lr
 
-__is_not_lp2:
+__is_yest_lp2:
 
 #ifdef CONFIG_SMP
 	/*
@@ -224,18 +224,18 @@ __is_not_lp2:
 	 * CPU0 can't be here for Tegra20/30
 	 */
 	cmp	r6, #TEGRA114
-	beq	__no_cpu0_chk
+	beq	__yes_cpu0_chk
 	cmp	r10, #0
-	bleq	__die				@ CPU0 cannot be here
-__no_cpu0_chk:
+	bleq	__die				@ CPU0 canyest be here
+__yes_cpu0_chk:
 	ldr	lr, [r12, #RESET_DATA(STARTUP_SECONDARY)]
 	cmp	lr, #0
-	bleq	__die				@ no secondary startup handler
+	bleq	__die				@ yes secondary startup handler
 	bx	lr
 #endif
 
 /*
- * We don't know why the CPU reset. Just kill it.
+ * We don't kyesw why the CPU reset. Just kill it.
  * The LR register will contain the address we died at + 4.
  */
 
@@ -267,7 +267,7 @@ __die:
 	addne	r1, r1, #(FLOW_CTRL_HALT_CPU1_EVENTS-8)
 
 	/* Clear CPU "event" and "interrupt" flags and power gate
-	   it when halting but not before it is in the "WFI" state. */
+	   it when halting but yest before it is in the "WFI" state. */
 	ldr	r0, [r6, +r2]
 	orr	r0, r0, #FLOW_CTRL_CSR_INTR_FLAG | FLOW_CTRL_CSR_EVENT_FLAG
 	orr	r0, r0, #FLOW_CTRL_CSR_ENABLE

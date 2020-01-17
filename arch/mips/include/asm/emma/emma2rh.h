@@ -242,7 +242,7 @@ static inline u8 emma2rh_in8(u32 offset)
 #ifdef CONFIG_NEC_MARKEINS
 #include <asm/emma/markeins.h>
 #else
-#error "Unknown EMMA2RH board!"
+#error "Unkyeswn EMMA2RH board!"
 #endif
 
 #endif /* __ASM_EMMA_EMMA2RH_H */

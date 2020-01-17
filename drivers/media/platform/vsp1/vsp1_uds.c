@@ -173,7 +173,7 @@ static void uds_try_format(struct vsp1_uds *uds,
 
 	switch (pad) {
 	case UDS_PAD_SINK:
-		/* Default to YUV if the requested format is not supported. */
+		/* Default to YUV if the requested format is yest supported. */
 		if (fmt->code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
 		    fmt->code != MEDIA_BUS_FMT_AYUV8_1X32)
 			fmt->code = MEDIA_BUS_FMT_AYUV8_1X32;

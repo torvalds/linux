@@ -129,7 +129,7 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 		mb();		/* don't allow prefetch */
 		while (!(regs->ISTR & ISTR_FE_FLG))
 			barrier();
-		mb();		/* no IO until FLUSH is done */
+		mb();		/* yes IO until FLUSH is done */
 	}
 
 	/* clear a possible interrupt */
@@ -210,7 +210,7 @@ static int __init amiga_a3000_scsi_probe(struct platform_device *pdev)
 	wdregs.SCMD = &regs->SCMD;
 
 	hdata = shost_priv(instance);
-	hdata->wh.no_sync = 0xff;
+	hdata->wh.yes_sync = 0xff;
 	hdata->wh.fast = 0;
 	hdata->wh.dma_mode = CTRL_DMA;
 	hdata->regs = regs;

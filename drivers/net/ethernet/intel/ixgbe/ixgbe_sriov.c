@@ -54,7 +54,7 @@ static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 	int i;
 
 	if (adapter->xdp_prog) {
-		e_warn(probe, "SRIOV is not supported with XDP\n");
+		e_warn(probe, "SRIOV is yest supported with XDP\n");
 		return -EINVAL;
 	}
 
@@ -148,7 +148,7 @@ static void ixgbe_get_vfs(struct ixgbe_adapter *adapter)
 }
 
 /* Note this function is called when the user wants to enable SR-IOV
- * VFs using the now deprecated module parameter
+ * VFs using the yesw deprecated module parameter
  */
 void ixgbe_enable_sriov(struct ixgbe_adapter *adapter, unsigned int max_vfs)
 {
@@ -192,7 +192,7 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter, unsigned int max_vfs)
 		return;
 	}
 
-	/* If we have gotten to this point then there is no memory available
+	/* If we have gotten to this point then there is yes memory available
 	 * to manage the VF devices - print message and bail.
 	 */
 	e_err(probe, "Unable to allocate memory for VF Data Storage - "
@@ -227,18 +227,18 @@ int ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 	kfree(adapter->mv_list);
 	adapter->mv_list = NULL;
 
-	/* if SR-IOV is already disabled then there is nothing to do */
+	/* if SR-IOV is already disabled then there is yesthing to do */
 	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
 		return 0;
 
 #ifdef CONFIG_PCI_IOV
 	/*
-	 * If our VFs are assigned we cannot shut down SR-IOV
+	 * If our VFs are assigned we canyest shut down SR-IOV
 	 * without causing issues, so just leave the hardware
 	 * available but disabled
 	 */
 	if (pci_vfs_assigned(adapter->pdev)) {
-		e_dev_warn("Unloading driver while VFs are assigned - VFs will not be deallocated\n");
+		e_dev_warn("Unloading driver while VFs are assigned - VFs will yest be deallocated\n");
 		return -EPERM;
 	}
 	/* disable iov and allow time for transactions to clear */
@@ -298,7 +298,7 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 		(num_tc > 1) ? IXGBE_MAX_VFS_4TC : IXGBE_MAX_VFS_1TC;
 
 	if (num_vfs > (limit - num_rx_pools)) {
-		e_dev_err("Currently configured with %d TCs, and %d offloaded macvlans. Creating more than %d VFs is not allowed\n",
+		e_dev_err("Currently configured with %d TCs, and %d offloaded macvlans. Creating more than %d VFs is yest allowed\n",
 			  num_tc, num_rx_pools - 1, limit - num_rx_pools);
 		return -EPERM;
 	}
@@ -337,7 +337,7 @@ static int ixgbe_pci_sriov_disable(struct pci_dev *dev)
 
 	err = ixgbe_disable_sriov(adapter);
 
-	/* Only reinit if no error and state changed */
+	/* Only reinit if yes error and state changed */
 #ifdef CONFIG_PCI_IOV
 	if (!err && (current_flags != adapter->flags ||
 		     prev_num_vf != pci_num_vf(dev)))
@@ -506,7 +506,7 @@ static s32 ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 			/* fall through */
 		default:
 			/* If the PF or VF are running w/ jumbo frames enabled
-			 * we need to shut down the VF Rx path as we cannot
+			 * we need to shut down the VF Rx path as we canyest
 			 * support jumbo frames on legacy VFs
 			 */
 			if ((pf_max_frame > ETH_FRAME_LEN) ||
@@ -609,7 +609,7 @@ static void ixgbe_clear_vf_vlans(struct ixgbe_adapter *adapter, u32 vf)
 		if (bits[0] || bits[1])
 			goto update_vlvf;
 
-		/* if we cannot determine VLAN just remove ourselves */
+		/* if we canyest determine VLAN just remove ourselves */
 		vlvf = IXGBE_READ_REG(hw, IXGBE_VLVF(i));
 		if (!vlvf)
 			goto update_vlvfb;
@@ -672,7 +672,7 @@ static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 	 * If we traversed the entire list and didn't find a free entry
 	 * then we're out of space on the RAR table.  Also entry may
 	 * be NULL because the original memory allocation for the list
-	 * failed, which is not fatal but does mean we can't support
+	 * failed, which is yest fatal but does mean we can't support
 	 * VF requests for MACVLAN because we couldn't allocate
 	 * memory for the list management required.
 	 */
@@ -739,7 +739,7 @@ static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 	ixgbe_del_mac_filter(adapter, adapter->vfinfo[vf].vf_mac_addresses, vf);
 	ixgbe_set_vf_macvlan(adapter, vf, 0, NULL);
 
-	/* reset VF api back to unknown */
+	/* reset VF api back to unkyeswn */
 	adapter->vfinfo[vf].vf_api = ixgbe_mbox_api_10;
 
 	/* Restart each queue for given VF */
@@ -863,7 +863,7 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 	reg = IXGBE_READ_REG(hw, IXGBE_VFRE(reg_offset));
 	reg |= BIT(vf_shift);
 	/*
-	 * The 82599 cannot support a mix of jumbo and non-jumbo PF/VFs.
+	 * The 82599 canyest support a mix of jumbo and yesn-jumbo PF/VFs.
 	 * For more info take a look at ixgbe_set_vf_lpe
 	 */
 	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
@@ -891,7 +891,7 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 
 	/*
 	 * Reset the VFs TDWBAL and TDWBAH registers
-	 * which are not cleared by an FLR
+	 * which are yest cleared by an FLR
 	 */
 	for (i = 0; i < q_per_pool; i++) {
 		IXGBE_WRITE_REG(hw, IXGBE_PVFTDWBAHn(q_per_pool, vf, i), 0);
@@ -977,7 +977,7 @@ static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
 		return -1;
 	}
 
-	/* An non-zero index indicates the VF is setting a filter */
+	/* An yesn-zero index indicates the VF is setting a filter */
 	if (index) {
 		if (!is_valid_ether_addr(new_mac)) {
 			e_warn(drv, "VF %d attempted to set invalid mac\n", vf);
@@ -999,7 +999,7 @@ static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
 	err = ixgbe_set_vf_macvlan(adapter, vf, index, new_mac);
 	if (err == -ENOSPC)
 		e_warn(drv,
-		       "VF %d has requested a MACVLAN filter but there is no space for it\n",
+		       "VF %d has requested a MACVLAN filter but there is yes space for it\n",
 		       vf);
 
 	return err < 0;
@@ -1055,7 +1055,7 @@ static int ixgbe_get_vf_queues(struct ixgbe_adapter *adapter,
 	if (num_tcs > 1)
 		default_tc = netdev_get_prio_tc_map(dev, adapter->default_up);
 
-	/* notify VF of need for VLAN tag stripping, and correct queue */
+	/* yestify VF of need for VLAN tag stripping, and correct queue */
 	if (num_tcs)
 		msgbuf[IXGBE_VF_TRANS_VLAN] = num_tcs;
 	else if (adapter->vfinfo[vf].pf_vlan || adapter->vfinfo[vf].pf_qos)
@@ -1063,7 +1063,7 @@ static int ixgbe_get_vf_queues(struct ixgbe_adapter *adapter,
 	else
 		msgbuf[IXGBE_VF_TRANS_VLAN] = 0;
 
-	/* notify VF of default queue */
+	/* yestify VF of default queue */
 	msgbuf[IXGBE_VF_DEF_QUEUE] = default_tc;
 
 	return 0;
@@ -1218,7 +1218,7 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 		return retval;
 	}
 
-	/* this is a message we already processed, do nothing */
+	/* this is a message we already processed, do yesthing */
 	if (msgbuf[0] & (IXGBE_VT_MSGTYPE_ACK | IXGBE_VT_MSGTYPE_NACK))
 		return 0;
 
@@ -1229,7 +1229,7 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 		return ixgbe_vf_reset_msg(adapter, vf);
 
 	/*
-	 * until the vf completes a virtual function reset it should not be
+	 * until the vf completes a virtual function reset it should yest be
 	 * allowed to start any configuration.
 	 */
 	if (!adapter->vfinfo[vf].clear_to_send) {
@@ -1281,7 +1281,7 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 		break;
 	}
 
-	/* notify the VF of the results of what it sent us */
+	/* yestify the VF of the results of what it sent us */
 	if (retval)
 		msgbuf[0] |= IXGBE_VT_MSGTYPE_NACK;
 	else
@@ -1379,7 +1379,7 @@ int ixgbe_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 			adapter->vfinfo[vf].pf_set_mac = true;
 
 			if (test_bit(__IXGBE_DOWN, &adapter->state)) {
-				dev_warn(&adapter->pdev->dev, "The VF MAC address has been set, but the PF device is not up.\n");
+				dev_warn(&adapter->pdev->dev, "The VF MAC address has been set, but the PF device is yest up.\n");
 				dev_warn(&adapter->pdev->dev, "Bring the PF device up before attempting to use the VF device.\n");
 			}
 		} else {
@@ -1389,7 +1389,7 @@ int ixgbe_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 		unsigned char *vf_mac_addr =
 					   adapter->vfinfo[vf].vf_mac_addresses;
 
-		/* nothing to do */
+		/* yesthing to do */
 		if (is_zero_ether_addr(vf_mac_addr))
 			return 0;
 
@@ -1436,7 +1436,7 @@ static int ixgbe_enable_port_vlan(struct ixgbe_adapter *adapter, int vf,
 		 "Setting VLAN %d, QOS 0x%x on VF %d\n", vlan, qos, vf);
 	if (test_bit(__IXGBE_DOWN, &adapter->state)) {
 		dev_warn(&adapter->pdev->dev,
-			 "The VF VLAN has been set, but the PF device is not up.\n");
+			 "The VF VLAN has been set, but the PF device is yest up.\n");
 		dev_warn(&adapter->pdev->dev,
 			 "Bring the PF device up before attempting to use the VF device.\n");
 	}
@@ -1483,7 +1483,7 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 		 * can set the new one.  The usage model had
 		 * previously assumed the user would delete the
 		 * old port VLAN before setting a new one but this
-		 * is not necessarily the case.
+		 * is yest necessarily the case.
 		 */
 		if (adapter->vfinfo[vf].pf_vlan)
 			err = ixgbe_disable_port_vlan(adapter, vf);
@@ -1568,7 +1568,7 @@ void ixgbe_check_vf_rate_limit(struct ixgbe_adapter *adapter)
 {
 	int i;
 
-	/* VF Tx rate limit was not set */
+	/* VF Tx rate limit was yest set */
 	if (!adapter->vf_rate_link_speed)
 		return;
 
@@ -1608,7 +1608,7 @@ int ixgbe_ndo_set_vf_bw(struct net_device *netdev, int vf, int min_tx_rate,
 	if (min_tx_rate)
 		return -EINVAL;
 
-	/* rate limit cannot be less than 10Mbs or greater than link speed */
+	/* rate limit canyest be less than 10Mbs or greater than link speed */
 	if (max_tx_rate && ((max_tx_rate <= 10) || (max_tx_rate > link_speed)))
 		return -EINVAL;
 
@@ -1685,7 +1685,7 @@ int ixgbe_ndo_set_vf_trust(struct net_device *netdev, int vf, bool setting)
 	if (vf >= adapter->num_vfs)
 		return -EINVAL;
 
-	/* nothing to do */
+	/* yesthing to do */
 	if (adapter->vfinfo[vf].trusted == setting)
 		return 0;
 
@@ -1695,7 +1695,7 @@ int ixgbe_ndo_set_vf_trust(struct net_device *netdev, int vf, bool setting)
 	adapter->vfinfo[vf].clear_to_send = false;
 	ixgbe_ping_vf(adapter, vf);
 
-	e_info(drv, "VF %u is %strusted\n", vf, setting ? "" : "not ");
+	e_info(drv, "VF %u is %strusted\n", vf, setting ? "" : "yest ");
 
 	return 0;
 }

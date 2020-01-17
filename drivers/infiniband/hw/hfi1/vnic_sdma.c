@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -88,7 +88,7 @@ static void vnic_sdma_complete(struct sdma_txreq *txreq,
 	kmem_cache_free(vnic_sdma->dd->vnic.txreq_cache, tx);
 }
 
-static noinline int build_vnic_ulp_payload(struct sdma_engine *sde,
+static yesinline int build_vnic_ulp_payload(struct sdma_engine *sde,
 					   struct vnic_txreq *tx)
 {
 	int i, ret = 0;
@@ -219,7 +219,7 @@ tx_err:
 /*
  * hfi1_vnic_sdma_sleep - vnic sdma sleep function
  *
- * This function gets called from sdma_send_txreq() when there are not enough
+ * This function gets called from sdma_send_txreq() when there are yest eyesugh
  * sdma descriptors available to send the packet. It adds Tx queue's wait
  * structure to sdma engine's dmawait list to be woken up when descriptors
  * become available.
@@ -253,7 +253,7 @@ static int hfi1_vnic_sdma_sleep(struct sdma_engine *sde,
  *
  * This function gets called when SDMA descriptors becomes available and Tx
  * queue's wait structure was previously added to sdma engine's dmawait list.
- * It notifies the upper driver about Tx queue wakeup.
+ * It yestifies the upper driver about Tx queue wakeup.
  */
 static void hfi1_vnic_sdma_wakeup(struct iowait *wait, int reason)
 {

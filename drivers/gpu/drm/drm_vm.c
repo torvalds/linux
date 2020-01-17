@@ -20,7 +20,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -77,7 +77,7 @@ static pgprot_t drm_io_prot(struct drm_local_map *map,
 #if defined(__i386__) || defined(__x86_64__) || defined(__powerpc__) || \
     defined(__mips__)
 	if (map->type == _DRM_REGISTERS && !(map->flags & _DRM_WRITE_COMBINING))
-		tmp = pgprot_noncached(tmp);
+		tmp = pgprot_yesncached(tmp);
 	else
 		tmp = pgprot_writecombine(tmp);
 #elif defined(__ia64__)
@@ -85,9 +85,9 @@ static pgprot_t drm_io_prot(struct drm_local_map *map,
 				    vma->vm_start))
 		tmp = pgprot_writecombine(tmp);
 	else
-		tmp = pgprot_noncached(tmp);
+		tmp = pgprot_yesncached(tmp);
 #elif defined(__sparc__) || defined(__arm__)
-	tmp = pgprot_noncached(tmp);
+	tmp = pgprot_yesncached(tmp);
 #endif
 	return tmp;
 }
@@ -97,7 +97,7 @@ static pgprot_t drm_dma_prot(uint32_t map_type, struct vm_area_struct *vma)
 	pgprot_t tmp = vm_get_page_prot(vma->vm_flags);
 
 #if defined(__powerpc__) && defined(CONFIG_NOT_COHERENT_CACHE)
-	tmp = pgprot_noncached_wc(tmp);
+	tmp = pgprot_yesncached_wc(tmp);
 #endif
 	return tmp;
 }
@@ -117,7 +117,7 @@ static vm_fault_t drm_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_file *priv = vma->vm_file->private_data;
-	struct drm_device *dev = priv->minor->dev;
+	struct drm_device *dev = priv->miyesr->dev;
 	struct drm_local_map *map = NULL;
 	struct drm_map_list *r_list;
 	struct drm_hash_item *hash;
@@ -193,7 +193,7 @@ static vm_fault_t drm_vm_fault(struct vm_fault *vmf)
 #endif
 
 /**
- * \c nopage method for shared virtual memory.
+ * \c yespage method for shared virtual memory.
  *
  * \param vma virtual memory area.
  * \param address access address.
@@ -231,12 +231,12 @@ static vm_fault_t drm_vm_shm_fault(struct vm_fault *vmf)
  * \param vma virtual memory area.
  *
  * Deletes map information if we are the last
- * person to close a mapping and it's not in the global maplist.
+ * person to close a mapping and it's yest in the global maplist.
  */
 static void drm_vm_shm_close(struct vm_area_struct *vma)
 {
 	struct drm_file *priv = vma->vm_file->private_data;
-	struct drm_device *dev = priv->minor->dev;
+	struct drm_device *dev = priv->miyesr->dev;
 	struct drm_vma_entry *pt, *temp;
 	struct drm_local_map *map;
 	struct drm_map_list *r_list;
@@ -259,7 +259,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 
 	/* We were the only map that was found */
 	if (found_maps == 1 && map->flags & _DRM_REMOVABLE) {
-		/* Check to see if we are in the maplist, if we are not, then
+		/* Check to see if we are in the maplist, if we are yest, then
 		 * we delete this mappings information.
 		 */
 		found_maps = 0;
@@ -308,7 +308,7 @@ static vm_fault_t drm_vm_dma_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_file *priv = vma->vm_file->private_data;
-	struct drm_device *dev = priv->minor->dev;
+	struct drm_device *dev = priv->miyesr->dev;
 	struct drm_device_dma *dma = dev->dma;
 	unsigned long offset;
 	unsigned long page_nr;
@@ -344,7 +344,7 @@ static vm_fault_t drm_vm_sg_fault(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_local_map *map = vma->vm_private_data;
 	struct drm_file *priv = vma->vm_file->private_data;
-	struct drm_device *dev = priv->minor->dev;
+	struct drm_device *dev = priv->miyesr->dev;
 	struct drm_sg_mem *entry = dev->sg;
 	unsigned long offset;
 	unsigned long map_offset;
@@ -413,7 +413,7 @@ static void drm_vm_open_locked(struct drm_device *dev,
 static void drm_vm_open(struct vm_area_struct *vma)
 {
 	struct drm_file *priv = vma->vm_file->private_data;
-	struct drm_device *dev = priv->minor->dev;
+	struct drm_device *dev = priv->miyesr->dev;
 
 	mutex_lock(&dev->struct_mutex);
 	drm_vm_open_locked(dev, vma);
@@ -448,7 +448,7 @@ static void drm_vm_close_locked(struct drm_device *dev,
 static void drm_vm_close(struct vm_area_struct *vma)
 {
 	struct drm_file *priv = vma->vm_file->private_data;
-	struct drm_device *dev = priv->minor->dev;
+	struct drm_device *dev = priv->miyesr->dev;
 
 	mutex_lock(&dev->struct_mutex);
 	drm_vm_close_locked(dev, vma);
@@ -472,7 +472,7 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 	struct drm_device_dma *dma;
 	unsigned long length = vma->vm_end - vma->vm_start;
 
-	dev = priv->minor->dev;
+	dev = priv->miyesr->dev;
 	dma = dev->dma;
 	DRM_DEBUG("start = 0x%lx, end = 0x%lx, page offset = 0x%lx\n",
 		  vma->vm_start, vma->vm_end, vma->vm_pgoff);
@@ -522,16 +522,16 @@ static resource_size_t drm_core_get_reg_ofs(struct drm_device *dev)
  * \param vma virtual memory area.
  * \return zero on success or a negative number on failure.
  *
- * If the virtual memory area has no offset associated with it then it's a DMA
+ * If the virtual memory area has yes offset associated with it then it's a DMA
  * area, so calls mmap_dma(). Otherwise searches the map in drm_device::maplist,
- * checks that the restricted flag is not set, sets the virtual memory operations
+ * checks that the restricted flag is yest set, sets the virtual memory operations
  * according to the mapping type and remaps the pages. Finally sets the file
  * pointer and calls vm_open().
  */
 static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->minor->dev;
+	struct drm_device *dev = priv->miyesr->dev;
 	struct drm_local_map *map = NULL;
 	resource_size_t offset = 0;
 	struct drm_hash_item *hash;
@@ -555,7 +555,7 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 		return drm_mmap_dma(filp, vma);
 
 	if (drm_ht_find_item(&dev->map_hash, vma->vm_pgoff, &hash)) {
-		DRM_ERROR("Could not find map\n");
+		DRM_ERROR("Could yest find map\n");
 		return -EINVAL;
 	}
 
@@ -592,7 +592,7 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 			 * pages and mappings in fault()
 			 */
 #if defined(__powerpc__)
-			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+			vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 #endif
 			vma->vm_ops = &drm_vm_ops;
 			break;
@@ -645,7 +645,7 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 int drm_legacy_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->minor->dev;
+	struct drm_device *dev = priv->miyesr->dev;
 	int ret;
 
 	if (drm_dev_is_unplugged(dev))

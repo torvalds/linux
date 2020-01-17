@@ -67,37 +67,37 @@ static struct nfcmrvl_if_ops uart_ops = {
 	.nci_update_config = nfcmrvl_uart_nci_update_config
 };
 
-static int nfcmrvl_uart_parse_dt(struct device_node *node,
+static int nfcmrvl_uart_parse_dt(struct device_yesde *yesde,
 				 struct nfcmrvl_platform_data *pdata)
 {
-	struct device_node *matched_node;
+	struct device_yesde *matched_yesde;
 	int ret;
 
-	matched_node = of_get_compatible_child(node, "marvell,nfc-uart");
-	if (!matched_node) {
-		matched_node = of_get_compatible_child(node, "mrvl,nfc-uart");
-		if (!matched_node)
+	matched_yesde = of_get_compatible_child(yesde, "marvell,nfc-uart");
+	if (!matched_yesde) {
+		matched_yesde = of_get_compatible_child(yesde, "mrvl,nfc-uart");
+		if (!matched_yesde)
 			return -ENODEV;
 	}
 
-	ret = nfcmrvl_parse_dt(matched_node, pdata);
+	ret = nfcmrvl_parse_dt(matched_yesde, pdata);
 	if (ret < 0) {
 		pr_err("Failed to get generic entries\n");
-		of_node_put(matched_node);
+		of_yesde_put(matched_yesde);
 		return ret;
 	}
 
-	if (of_find_property(matched_node, "flow-control", NULL))
+	if (of_find_property(matched_yesde, "flow-control", NULL))
 		pdata->flow_control = 1;
 	else
 		pdata->flow_control = 0;
 
-	if (of_find_property(matched_node, "break-control", NULL))
+	if (of_find_property(matched_yesde, "break-control", NULL))
 		pdata->break_control = 1;
 	else
 		pdata->break_control = 0;
 
-	of_node_put(matched_node);
+	of_yesde_put(matched_yesde);
 
 	return 0;
 }
@@ -114,13 +114,13 @@ static int nfcmrvl_nci_uart_open(struct nci_uart *nu)
 	struct device *dev = nu->tty->dev;
 
 	/*
-	 * Platform data cannot be used here since usually it is already used
+	 * Platform data canyest be used here since usually it is already used
 	 * by low level serial driver. We can try to retrieve serial device
 	 * and check if DT entries were added.
 	 */
 
-	if (dev && dev->parent && dev->parent->of_node)
-		if (nfcmrvl_uart_parse_dt(dev->parent->of_node, &config) == 0)
+	if (dev && dev->parent && dev->parent->of_yesde)
+		if (nfcmrvl_uart_parse_dt(dev->parent->of_yesde, &config) == 0)
 			pdata = &config;
 
 	if (!pdata) {

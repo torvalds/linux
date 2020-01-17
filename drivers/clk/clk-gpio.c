@@ -238,7 +238,7 @@ EXPORT_SYMBOL_GPL(clk_register_gpio_mux);
 
 static int gpio_clk_driver_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	const char **parent_names, *gpio_name;
 	unsigned int num_parents;
 	struct gpio_desc *gpiod;
@@ -246,45 +246,45 @@ static int gpio_clk_driver_probe(struct platform_device *pdev)
 	bool is_mux;
 	int ret;
 
-	num_parents = of_clk_get_parent_count(node);
+	num_parents = of_clk_get_parent_count(yesde);
 	if (num_parents) {
 		parent_names = devm_kcalloc(&pdev->dev, num_parents,
 					    sizeof(char *), GFP_KERNEL);
 		if (!parent_names)
 			return -ENOMEM;
 
-		of_clk_parent_fill(node, parent_names, num_parents);
+		of_clk_parent_fill(yesde, parent_names, num_parents);
 	} else {
 		parent_names = NULL;
 	}
 
-	is_mux = of_device_is_compatible(node, "gpio-mux-clock");
+	is_mux = of_device_is_compatible(yesde, "gpio-mux-clock");
 
 	gpio_name = is_mux ? "select" : "enable";
 	gpiod = devm_gpiod_get(&pdev->dev, gpio_name, GPIOD_OUT_LOW);
 	if (IS_ERR(gpiod)) {
 		ret = PTR_ERR(gpiod);
 		if (ret == -EPROBE_DEFER)
-			pr_debug("%pOFn: %s: GPIOs not yet available, retry later\n",
-					node, __func__);
+			pr_debug("%pOFn: %s: GPIOs yest yet available, retry later\n",
+					yesde, __func__);
 		else
 			pr_err("%pOFn: %s: Can't get '%s' named GPIO property\n",
-					node, __func__,
+					yesde, __func__,
 					gpio_name);
 		return ret;
 	}
 
 	if (is_mux)
-		clk = clk_register_gpio_mux(&pdev->dev, node->name,
+		clk = clk_register_gpio_mux(&pdev->dev, yesde->name,
 				parent_names, num_parents, gpiod, 0);
 	else
-		clk = clk_register_gpio_gate(&pdev->dev, node->name,
+		clk = clk_register_gpio_gate(&pdev->dev, yesde->name,
 				parent_names ?  parent_names[0] : NULL, gpiod,
 				CLK_SET_RATE_PARENT);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	return of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	return of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 }
 
 static const struct of_device_id gpio_clk_match_table[] = {

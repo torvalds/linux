@@ -41,7 +41,7 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 		{ "rw",			xfsstats_offset(xs_attr_get)	},
 		{ "attr",		xfsstats_offset(xs_iflush_count)},
 		{ "icluster",		xfsstats_offset(vn_active)	},
-		{ "vnodes",		xfsstats_offset(xb_get)		},
+		{ "vyesdes",		xfsstats_offset(xb_get)		},
 		{ "buf",		xfsstats_offset(xs_abtb_2)	},
 		{ "abtb2",		xfsstats_offset(xs_abtc_2)	},
 		{ "abtc2",		xfsstats_offset(xs_bmbt_2)	},
@@ -89,7 +89,7 @@ void xfs_stats_clearall(struct xfsstats __percpu *stats)
 	int		c;
 	uint32_t	vn_active;
 
-	xfs_notice(NULL, "Clearing xfsstats");
+	xfs_yestice(NULL, "Clearing xfsstats");
 	for_each_possible_cpu(c) {
 		preempt_disable();
 		/* save vn_active, it's a universal truth! */
@@ -116,7 +116,7 @@ static int xqm_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-/* legacy quota stats interface no 2 */
+/* legacy quota stats interface yes 2 */
 static int xqmstat_proc_show(struct seq_file *m, void *v)
 {
 	int j;

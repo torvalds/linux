@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/mtd/spi-nor.h>
+#include <linux/mtd/spi-yesr.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -56,7 +56,7 @@ struct nxp_spifi {
 	struct clk *clk_reg;
 	void __iomem *io_base;
 	void __iomem *flash_base;
-	struct spi_nor nor;
+	struct spi_yesr yesr;
 	bool memory_mode;
 	u32 mcmd;
 };
@@ -123,10 +123,10 @@ static int nxp_spifi_set_memory_mode_on(struct nxp_spifi *spifi)
 	return ret;
 }
 
-static int nxp_spifi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
+static int nxp_spifi_read_reg(struct spi_yesr *yesr, u8 opcode, u8 *buf,
 			      size_t len)
 {
-	struct nxp_spifi *spifi = nor->priv;
+	struct nxp_spifi *spifi = yesr->priv;
 	u32 cmd;
 	int ret;
 
@@ -146,10 +146,10 @@ static int nxp_spifi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 	return nxp_spifi_wait_for_cmd(spifi);
 }
 
-static int nxp_spifi_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
+static int nxp_spifi_write_reg(struct spi_yesr *yesr, u8 opcode, const u8 *buf,
 			       size_t len)
 {
-	struct nxp_spifi *spifi = nor->priv;
+	struct nxp_spifi *spifi = yesr->priv;
 	u32 cmd;
 	int ret;
 
@@ -170,10 +170,10 @@ static int nxp_spifi_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
 	return nxp_spifi_wait_for_cmd(spifi);
 }
 
-static ssize_t nxp_spifi_read(struct spi_nor *nor, loff_t from, size_t len,
+static ssize_t nxp_spifi_read(struct spi_yesr *yesr, loff_t from, size_t len,
 			      u_char *buf)
 {
-	struct nxp_spifi *spifi = nor->priv;
+	struct nxp_spifi *spifi = yesr->priv;
 	int ret;
 
 	ret = nxp_spifi_set_memory_mode_on(spifi);
@@ -185,10 +185,10 @@ static ssize_t nxp_spifi_read(struct spi_nor *nor, loff_t from, size_t len,
 	return len;
 }
 
-static ssize_t nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
+static ssize_t nxp_spifi_write(struct spi_yesr *yesr, loff_t to, size_t len,
 			       const u_char *buf)
 {
-	struct nxp_spifi *spifi = nor->priv;
+	struct nxp_spifi *spifi = yesr->priv;
 	u32 cmd;
 	int ret;
 	size_t i;
@@ -202,8 +202,8 @@ static ssize_t nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
 	cmd = SPIFI_CMD_DOUT |
 	      SPIFI_CMD_DATALEN(len) |
 	      SPIFI_CMD_FIELDFORM_ALL_SERIAL |
-	      SPIFI_CMD_OPCODE(nor->program_opcode) |
-	      SPIFI_CMD_FRAMEFORM(spifi->nor.addr_width + 1);
+	      SPIFI_CMD_OPCODE(yesr->program_opcode) |
+	      SPIFI_CMD_FRAMEFORM(spifi->yesr.addr_width + 1);
 	writel(cmd, spifi->io_base + SPIFI_CMD);
 
 	for (i = 0; i < len; i++)
@@ -216,9 +216,9 @@ static ssize_t nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
 	return len;
 }
 
-static int nxp_spifi_erase(struct spi_nor *nor, loff_t offs)
+static int nxp_spifi_erase(struct spi_yesr *yesr, loff_t offs)
 {
-	struct nxp_spifi *spifi = nor->priv;
+	struct nxp_spifi *spifi = yesr->priv;
 	u32 cmd;
 	int ret;
 
@@ -229,8 +229,8 @@ static int nxp_spifi_erase(struct spi_nor *nor, loff_t offs)
 	writel(offs, spifi->io_base + SPIFI_ADDR);
 
 	cmd = SPIFI_CMD_FIELDFORM_ALL_SERIAL |
-	      SPIFI_CMD_OPCODE(nor->erase_opcode) |
-	      SPIFI_CMD_FRAMEFORM(spifi->nor.addr_width + 1);
+	      SPIFI_CMD_OPCODE(yesr->erase_opcode) |
+	      SPIFI_CMD_FRAMEFORM(spifi->yesr.addr_width + 1);
 	writel(cmd, spifi->io_base + SPIFI_CMD);
 
 	return nxp_spifi_wait_for_cmd(spifi);
@@ -238,7 +238,7 @@ static int nxp_spifi_erase(struct spi_nor *nor, loff_t offs)
 
 static int nxp_spifi_setup_memory_cmd(struct nxp_spifi *spifi)
 {
-	switch (spifi->nor.read_proto) {
+	switch (spifi->yesr.read_proto) {
 	case SNOR_PROTO_1_1_1:
 		spifi->mcmd = SPIFI_CMD_FIELDFORM_ALL_SERIAL;
 		break;
@@ -252,24 +252,24 @@ static int nxp_spifi_setup_memory_cmd(struct nxp_spifi *spifi)
 	}
 
 	/* Memory mode supports address length between 1 and 4 */
-	if (spifi->nor.addr_width < 1 || spifi->nor.addr_width > 4)
+	if (spifi->yesr.addr_width < 1 || spifi->yesr.addr_width > 4)
 		return -EINVAL;
 
-	spifi->mcmd |= SPIFI_CMD_OPCODE(spifi->nor.read_opcode) |
-		       SPIFI_CMD_INTLEN(spifi->nor.read_dummy / 8) |
-		       SPIFI_CMD_FRAMEFORM(spifi->nor.addr_width + 1);
+	spifi->mcmd |= SPIFI_CMD_OPCODE(spifi->yesr.read_opcode) |
+		       SPIFI_CMD_INTLEN(spifi->yesr.read_dummy / 8) |
+		       SPIFI_CMD_FRAMEFORM(spifi->yesr.addr_width + 1);
 
 	return 0;
 }
 
-static void nxp_spifi_dummy_id_read(struct spi_nor *nor)
+static void nxp_spifi_dummy_id_read(struct spi_yesr *yesr)
 {
 	u8 id[SPI_NOR_MAX_ID_LEN];
-	nor->controller_ops->read_reg(nor, SPINOR_OP_RDID, id,
+	yesr->controller_ops->read_reg(yesr, SPINOR_OP_RDID, id,
 				      SPI_NOR_MAX_ID_LEN);
 }
 
-static const struct spi_nor_controller_ops nxp_spifi_controller_ops = {
+static const struct spi_yesr_controller_ops nxp_spifi_controller_ops = {
 	.read_reg  = nxp_spifi_read_reg,
 	.write_reg = nxp_spifi_write_reg,
 	.read  = nxp_spifi_read,
@@ -278,9 +278,9 @@ static const struct spi_nor_controller_ops nxp_spifi_controller_ops = {
 };
 
 static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
-				 struct device_node *np)
+				 struct device_yesde *np)
 {
-	struct spi_nor_hwcaps hwcaps = {
+	struct spi_yesr_hwcaps hwcaps = {
 		.mask = SNOR_HWCAPS_READ |
 			SNOR_HWCAPS_READ_FAST |
 			SNOR_HWCAPS_PP,
@@ -340,23 +340,23 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 
 	writel(ctrl, spifi->io_base + SPIFI_CTRL);
 
-	spifi->nor.dev   = spifi->dev;
-	spi_nor_set_flash_node(&spifi->nor, np);
-	spifi->nor.priv  = spifi;
-	spifi->nor.controller_ops = &nxp_spifi_controller_ops;
+	spifi->yesr.dev   = spifi->dev;
+	spi_yesr_set_flash_yesde(&spifi->yesr, np);
+	spifi->yesr.priv  = spifi;
+	spifi->yesr.controller_ops = &nxp_spifi_controller_ops;
 
 	/*
 	 * The first read on a hard reset isn't reliable so do a
-	 * dummy read of the id before calling spi_nor_scan().
-	 * The reason for this problem is unknown.
+	 * dummy read of the id before calling spi_yesr_scan().
+	 * The reason for this problem is unkyeswn.
 	 *
 	 * The official NXP spifilib uses more or less the same
 	 * workaround that is applied here by reading the device
 	 * id multiple times.
 	 */
-	nxp_spifi_dummy_id_read(&spifi->nor);
+	nxp_spifi_dummy_id_read(&spifi->yesr);
 
-	ret = spi_nor_scan(&spifi->nor, NULL, &hwcaps);
+	ret = spi_yesr_scan(&spifi->yesr, NULL, &hwcaps);
 	if (ret) {
 		dev_err(spifi->dev, "device scan failed\n");
 		return ret;
@@ -368,7 +368,7 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 		return ret;
 	}
 
-	ret = mtd_device_register(&spifi->nor.mtd, NULL, 0);
+	ret = mtd_device_register(&spifi->yesr.mtd, NULL, 0);
 	if (ret) {
 		dev_err(spifi->dev, "mtd device parse failed\n");
 		return ret;
@@ -379,7 +379,7 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 
 static int nxp_spifi_probe(struct platform_device *pdev)
 {
-	struct device_node *flash_np;
+	struct device_yesde *flash_np;
 	struct nxp_spifi *spifi;
 	struct resource *res;
 	int ret;
@@ -400,13 +400,13 @@ static int nxp_spifi_probe(struct platform_device *pdev)
 
 	spifi->clk_spifi = devm_clk_get(&pdev->dev, "spifi");
 	if (IS_ERR(spifi->clk_spifi)) {
-		dev_err(&pdev->dev, "spifi clock not found\n");
+		dev_err(&pdev->dev, "spifi clock yest found\n");
 		return PTR_ERR(spifi->clk_spifi);
 	}
 
 	spifi->clk_reg = devm_clk_get(&pdev->dev, "reg");
 	if (IS_ERR(spifi->clk_reg)) {
-		dev_err(&pdev->dev, "reg clock not found\n");
+		dev_err(&pdev->dev, "reg clock yest found\n");
 		return PTR_ERR(spifi->clk_reg);
 	}
 
@@ -431,15 +431,15 @@ static int nxp_spifi_probe(struct platform_device *pdev)
 	writel(0, spifi->io_base + SPIFI_MCMD);
 	nxp_spifi_reset(spifi);
 
-	flash_np = of_get_next_available_child(pdev->dev.of_node, NULL);
+	flash_np = of_get_next_available_child(pdev->dev.of_yesde, NULL);
 	if (!flash_np) {
-		dev_err(&pdev->dev, "no SPI flash device to configure\n");
+		dev_err(&pdev->dev, "yes SPI flash device to configure\n");
 		ret = -ENODEV;
 		goto dis_clks;
 	}
 
 	ret = nxp_spifi_setup_flash(spifi, flash_np);
-	of_node_put(flash_np);
+	of_yesde_put(flash_np);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to setup flash chip\n");
 		goto dis_clks;
@@ -458,7 +458,7 @@ static int nxp_spifi_remove(struct platform_device *pdev)
 {
 	struct nxp_spifi *spifi = platform_get_drvdata(pdev);
 
-	mtd_device_unregister(&spifi->nor.mtd);
+	mtd_device_unregister(&spifi->yesr.mtd);
 	clk_disable_unprepare(spifi->clk_spifi);
 	clk_disable_unprepare(spifi->clk_reg);
 

@@ -98,11 +98,11 @@ static int sun4i_a10_display_reset_xlate(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
-static void __init sun4i_a10_display_init(struct device_node *node,
+static void __init sun4i_a10_display_init(struct device_yesde *yesde,
 					  const struct sun4i_a10_display_clk_data *data)
 {
 	const char *parents[4];
-	const char *clk_name = node->name;
+	const char *clk_name = yesde->name;
 	struct reset_data *reset_data;
 	struct clk_divider *div = NULL;
 	struct clk_gate *gate;
@@ -112,17 +112,17 @@ static void __init sun4i_a10_display_init(struct device_node *node,
 	struct clk *clk;
 	int ret;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(yesde, "clock-output-names", &clk_name);
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(yesde, 0, of_yesde_full_name(yesde));
 	if (IS_ERR(reg)) {
-		pr_err("%s: Could not map the clock registers\n", clk_name);
+		pr_err("%s: Could yest map the clock registers\n", clk_name);
 		return;
 	}
 
-	ret = of_clk_parent_fill(node, parents, data->parents);
+	ret = of_clk_parent_fill(yesde, parents, data->parents);
 	if (ret != data->parents) {
-		pr_err("%s: Could not retrieve the parents\n", clk_name);
+		pr_err("%s: Could yest retrieve the parents\n", clk_name);
 		goto unmap;
 	}
 
@@ -166,7 +166,7 @@ static void __init sun4i_a10_display_init(struct device_node *node,
 		goto free_div;
 	}
 
-	ret = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	ret = of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 	if (ret) {
 		pr_err("%s: Couldn't register DT provider\n", clk_name);
 		goto free_clk;
@@ -184,7 +184,7 @@ static void __init sun4i_a10_display_init(struct device_node *node,
 	reset_data->lock = &sun4i_a10_display_lock;
 	reset_data->rcdev.nr_resets = data->num_rst;
 	reset_data->rcdev.ops = &sun4i_a10_display_reset_ops;
-	reset_data->rcdev.of_node = node;
+	reset_data->rcdev.of_yesde = yesde;
 
 	if (data->num_rst == 1) {
 		reset_data->rcdev.of_reset_n_cells = 0;
@@ -204,7 +204,7 @@ static void __init sun4i_a10_display_init(struct device_node *node,
 free_reset:
 	kfree(reset_data);
 free_of_clk:
-	of_clk_del_provider(node);
+	of_clk_del_provider(yesde);
 free_clk:
 	clk_unregister_composite(clk);
 free_div:
@@ -215,7 +215,7 @@ free_mux:
 	kfree(mux);
 unmap:
 	iounmap(reg);
-	of_address_to_resource(node, 0, &res);
+	of_address_to_resource(yesde, 0, &res);
 	release_mem_region(res.start, resource_size(&res));
 }
 
@@ -229,9 +229,9 @@ static const struct sun4i_a10_display_clk_data sun4i_a10_tcon_ch0_data __initcon
 	.flags		= CLK_SET_RATE_PARENT,
 };
 
-static void __init sun4i_a10_tcon_ch0_setup(struct device_node *node)
+static void __init sun4i_a10_tcon_ch0_setup(struct device_yesde *yesde)
 {
-	sun4i_a10_display_init(node, &sun4i_a10_tcon_ch0_data);
+	sun4i_a10_display_init(yesde, &sun4i_a10_tcon_ch0_data);
 }
 CLK_OF_DECLARE(sun4i_a10_tcon_ch0, "allwinner,sun4i-a10-tcon-ch0-clk",
 	       sun4i_a10_tcon_ch0_setup);
@@ -248,9 +248,9 @@ static const struct sun4i_a10_display_clk_data sun4i_a10_display_data __initcons
 	.width_div	= 4,
 };
 
-static void __init sun4i_a10_display_setup(struct device_node *node)
+static void __init sun4i_a10_display_setup(struct device_yesde *yesde)
 {
-	sun4i_a10_display_init(node, &sun4i_a10_display_data);
+	sun4i_a10_display_init(yesde, &sun4i_a10_display_data);
 }
 CLK_OF_DECLARE(sun4i_a10_display, "allwinner,sun4i-a10-display-clk",
 	       sun4i_a10_display_setup);

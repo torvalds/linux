@@ -23,12 +23,12 @@
 
 #include "rsxx_priv.h"
 
-static unsigned int blkdev_minors = 64;
-module_param(blkdev_minors, uint, 0444);
-MODULE_PARM_DESC(blkdev_minors, "Number of minors(partitions)");
+static unsigned int blkdev_miyesrs = 64;
+module_param(blkdev_miyesrs, uint, 0444);
+MODULE_PARM_DESC(blkdev_miyesrs, "Number of miyesrs(partitions)");
 
 /*
- * For now I'm making this tweakable in case any applications hit this limit.
+ * For yesw I'm making this tweakable in case any applications hit this limit.
  * If you see a "bio too big" error in the log you will need to raise this
  * value.
  */
@@ -255,7 +255,7 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
 		return -ENOMEM;
 	}
 
-	card->gendisk = alloc_disk(blkdev_minors);
+	card->gendisk = alloc_disk(blkdev_miyesrs);
 	if (!card->gendisk) {
 		dev_err(CARD_TO_DEV(card), "Failed disk alloc\n");
 		blk_cleanup_queue(card->queue);
@@ -288,7 +288,7 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
 	snprintf(card->gendisk->disk_name, sizeof(card->gendisk->disk_name),
 		 "rsxx%d", card->disk_id);
 	card->gendisk->major = card->major;
-	card->gendisk->first_minor = 0;
+	card->gendisk->first_miyesr = 0;
 	card->gendisk->fops = &rsxx_fops;
 	card->gendisk->private_data = card;
 	card->gendisk->queue = card->queue;

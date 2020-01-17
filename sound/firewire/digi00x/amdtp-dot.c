@@ -23,7 +23,7 @@
 
 /*
  * Several devices look only at the first eight data blocks.
- * In any case, this is more than enough for the MIDI data rate.
+ * In any case, this is more than eyesugh for the MIDI data rate.
  */
 #define MAX_MIDI_RX_BLOCKS	8
 
@@ -63,7 +63,7 @@ static u8 dot_scrt(const u8 idx, const unsigned int off)
 {
 	/*
 	 * the length of the added pattern only depends on the lower nibble
-	 * of the last non-zero data
+	 * of the last yesn-zero data
 	 */
 	static const u8 len[16] = {0, 1, 3, 5, 7, 9, 11, 13, 14,
 				   12, 10, 8, 6, 4, 2, 0};
@@ -81,8 +81,8 @@ static u8 dot_scrt(const u8 idx, const unsigned int off)
 
 	/*
 	 * start offset for upper nibble mapping.
-	 * note: 9 is /special/. In the case where the high nibble == 0x9,
-	 * hir[] is not used and - coincidentally - the salt's hi nibble is
+	 * yeste: 9 is /special/. In the case where the high nibble == 0x9,
+	 * hir[] is yest used and - coincidentally - the salt's hi nibble is
 	 * 0x09 regardless of the offset.
 	 */
 	static const u8 hio[16] = {0, 11, 12, 6, 7, 5, 1, 4,
@@ -132,7 +132,7 @@ int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	p->pcm_channels = pcm_channels;
 
 	/*
-	 * We do not know the actual MIDI FIFO size of most devices.  Just
+	 * We do yest kyesw the actual MIDI FIFO size of most devices.  Just
 	 * assume two bytes, i.e., one byte can be received over the bus while
 	 * the previous one is transmitted over MIDI.
 	 * (The value here is adjusted for midi_ratelimit_per_packet().)

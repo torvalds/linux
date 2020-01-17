@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// ALSA SoC Texas Instruments TAS2770 20-W Digital Input Mono Class-D
+// ALSA SoC Texas Instruments TAS2770 20-W Digital Input Moyes Class-D
 // Audio Amplifier with Speaker I/V Sense
 //
 // Copyright (C) 2016-2017 Texas Instruments Incorporated - http://www.ti.com/
@@ -395,7 +395,7 @@ static int tas2770_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_CBS_CFS:
 		break;
 	default:
-		dev_err(tas2770->dev, "ASI format master is not found\n");
+		dev_err(tas2770->dev, "ASI format master is yest found\n");
 		return -EINVAL;
 	}
 
@@ -407,7 +407,7 @@ static int tas2770_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		asi_cfg_1 |= TAS2770_TDM_CFG_REG1_RX_FALING;
 		break;
 	default:
-		dev_err(tas2770->dev, "ASI format Inverse is not found\n");
+		dev_err(tas2770->dev, "ASI format Inverse is yest found\n");
 		return -EINVAL;
 	}
 
@@ -432,7 +432,7 @@ static int tas2770_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	default:
 		dev_err(tas2770->dev,
-			"DAI Format is not found, fmt=0x%x\n", fmt);
+			"DAI Format is yest found, fmt=0x%x\n", fmt);
 		return -EINVAL;
 	}
 
@@ -514,7 +514,7 @@ static int tas2770_set_dai_tdm_slot(struct snd_soc_dai *dai,
 		break;
 
 	case 0:
-		/* Do not change slot width */
+		/* Do yest change slot width */
 		ret = 0;
 		break;
 
@@ -602,7 +602,7 @@ static const struct snd_soc_component_driver soc_component_driver_tas2770 = {
 	.num_dapm_routes	= ARRAY_SIZE(tas2770_audio_map),
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int tas2770_register_codec(struct tas2770_priv *tas2770)
@@ -697,7 +697,7 @@ static int tas2770_parse_dt(struct device *dev, struct tas2770_priv *tas2770)
 {
 	int rc = 0;
 
-	rc = fwnode_property_read_u32(dev->fwnode, "ti,asi-format",
+	rc = fwyesde_property_read_u32(dev->fwyesde, "ti,asi-format",
 					&tas2770->asi_format);
 	if (rc) {
 		dev_err(tas2770->dev, "Looking up %s property failed %d\n",
@@ -705,19 +705,19 @@ static int tas2770_parse_dt(struct device *dev, struct tas2770_priv *tas2770)
 		goto end;
 	}
 
-	rc = fwnode_property_read_u32(dev->fwnode, "ti,imon-slot-no",
+	rc = fwyesde_property_read_u32(dev->fwyesde, "ti,imon-slot-yes",
 			&tas2770->i_sense_slot);
 	if (rc) {
 		dev_err(tas2770->dev, "Looking up %s property failed %d\n",
-			"ti,imon-slot-no", rc);
+			"ti,imon-slot-yes", rc);
 		goto end;
 	}
 
-	rc = fwnode_property_read_u32(dev->fwnode, "ti,vmon-slot-no",
+	rc = fwyesde_property_read_u32(dev->fwyesde, "ti,vmon-slot-yes",
 				&tas2770->v_sense_slot);
 	if (rc) {
 		dev_err(tas2770->dev, "Looking up %s property failed %d\n",
-			"ti,vmon-slot-no", rc);
+			"ti,vmon-slot-yes", rc);
 		goto end;
 	}
 
@@ -749,7 +749,7 @@ static int tas2770_i2c_probe(struct i2c_client *client,
 		goto end;
 	}
 
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		result = tas2770_parse_dt(&client->dev, tas2770);
 		if (result) {
 			dev_err(tas2770->dev, "%s: Failed to parse devicetree\n",

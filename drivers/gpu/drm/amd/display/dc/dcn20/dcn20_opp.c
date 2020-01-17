@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -314,7 +314,7 @@ void opp2_program_left_edge_extra_pixel (
 
 	/* Specifies the number of extra left edge pixels that are supplied to
 	 * the 422 horizontal chroma sub-sample filter.
-	 * Note that when left edge pixel is not "0", fmt pixel encoding can be in either 420 or 422 mode
+	 * Note that when left edge pixel is yest "0", fmt pixel encoding can be in either 420 or 422 mode
 	 * */
 	REG_UPDATE(FMT_422_CONTROL, FMT_LEFT_EDGE_EXTRA_PIXEL_COUNT, count);
 }

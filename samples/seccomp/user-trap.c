@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stddef.h>
@@ -25,7 +25,7 @@
 
 static int seccomp(unsigned int op, unsigned int flags, void *args)
 {
-	errno = 0;
+	erryes = 0;
 	return syscall(__NR_seccomp, op, flags, args);
 }
 
@@ -101,8 +101,8 @@ static int user_trap_syscall(int nr, unsigned int flags)
 	return seccomp(SECCOMP_SET_MODE_FILTER, flags, &prog);
 }
 
-static int handle_req(struct seccomp_notif *req,
-		      struct seccomp_notif_resp *resp, int listener)
+static int handle_req(struct seccomp_yestif *req,
+		      struct seccomp_yestif_resp *resp, int listener)
 {
 	char path[PATH_MAX], source[PATH_MAX], target[PATH_MAX];
 	int ret = -1, mem;
@@ -138,8 +138,8 @@ static int handle_req(struct seccomp_notif *req,
 	 * ask the listener fd this as follows.
 	 *
 	 * Note that this check should occur *after* any task-specific
-	 * resources are opened, to make sure that the task has not died and
-	 * we're not wrongly reading someone else's state in order to make
+	 * resources are opened, to make sure that the task has yest died and
+	 * we're yest wrongly reading someone else's state in order to make
 	 * decisions.
 	 */
 	if (ioctl(listener, SECCOMP_IOCTL_NOTIF_ID_VALID, &req->id) < 0) {
@@ -149,7 +149,7 @@ static int handle_req(struct seccomp_notif *req,
 
 	/*
 	 * Phew, we've got the right /proc/pid/mem. Now we can read it. Note
-	 * that to avoid another TOCTOU, we should read all of the pointer args
+	 * that to avoid ayesther TOCTOU, we should read all of the pointer args
 	 * before we decide to allow the syscall.
 	 */
 	if (lseek(mem, req->data.args[0], SEEK_SET) < 0) {
@@ -251,7 +251,7 @@ int main(void)
 			exit(1);
 		}
 
-		if (errno != EPERM) {
+		if (erryes != EPERM) {
 			perror("bad error from mount");
 			exit(1);
 		}
@@ -286,26 +286,26 @@ int main(void)
 	}
 
 	if (tracer == 0) {
-		struct seccomp_notif *req;
-		struct seccomp_notif_resp *resp;
-		struct seccomp_notif_sizes sizes;
+		struct seccomp_yestif *req;
+		struct seccomp_yestif_resp *resp;
+		struct seccomp_yestif_sizes sizes;
 
 		if (seccomp(SECCOMP_GET_NOTIF_SIZES, 0, &sizes) < 0) {
 			perror("seccomp(GET_NOTIF_SIZES)");
 			goto out_close;
 		}
 
-		req = malloc(sizes.seccomp_notif);
+		req = malloc(sizes.seccomp_yestif);
 		if (!req)
 			goto out_close;
 
-		resp = malloc(sizes.seccomp_notif_resp);
+		resp = malloc(sizes.seccomp_yestif_resp);
 		if (!resp)
 			goto out_req;
-		memset(resp, 0, sizes.seccomp_notif_resp);
+		memset(resp, 0, sizes.seccomp_yestif_resp);
 
 		while (1) {
-			memset(req, 0, sizes.seccomp_notif);
+			memset(req, 0, sizes.seccomp_yestif);
 			if (ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, req)) {
 				perror("ioctl recv");
 				goto out_resp;
@@ -318,13 +318,13 @@ int main(void)
 			 * ENOENT here means that the task may have gotten a
 			 * signal and restarted the syscall. It's up to the
 			 * handler to decide what to do in this case, but for
-			 * the sample code, we just ignore it. Probably
+			 * the sample code, we just igyesre it. Probably
 			 * something better should happen, like undoing the
 			 * mount, or keeping track of the args to make sure we
 			 * don't do it again.
 			 */
 			if (ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, resp) < 0 &&
-			    errno != ENOENT) {
+			    erryes != ENOENT) {
 				perror("ioctl send");
 				goto out_resp;
 			}
@@ -345,18 +345,18 @@ out_close:
 		goto out_kill;
 	}
 
-	if (umount2("/tmp/foo", MNT_DETACH) < 0 && errno != EINVAL) {
+	if (umount2("/tmp/foo", MNT_DETACH) < 0 && erryes != EINVAL) {
 		perror("umount2");
 		goto out_kill;
 	}
 
-	if (remove("/tmp/foo") < 0 && errno != ENOENT) {
+	if (remove("/tmp/foo") < 0 && erryes != ENOENT) {
 		perror("remove");
 		exit(1);
 	}
 
 	if (!WIFEXITED(status) || WEXITSTATUS(status)) {
-		fprintf(stderr, "worker exited nonzero\n");
+		fprintf(stderr, "worker exited yesnzero\n");
 		goto out_kill;
 	}
 

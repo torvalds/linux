@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -35,26 +35,26 @@
  * then only that revision will be matched.  Care should be taken when
  * checking for both specific models and families that the specific
  * models are checked for first.  While these defines are similar to
- * the processor ID, they are not intended to be used by anything
+ * the processor ID, they are yest intended to be used by anything
  * other that the OCTEON_IS_MODEL framework, and the values are
- * subject to change at anytime without notice.
+ * subject to change at anytime without yestice.
  *
  * NOTE: only the OCTEON_IS_MODEL() macro/function and the OCTEON_CN*
  * macros should be used outside of this file.	All other macros are
- * for internal use only, and may change without notice.
+ * for internal use only, and may change without yestice.
  */
 
 #define OCTEON_FAMILY_MASK	0x00ffff00
 #define OCTEON_PRID_MASK	0x00ffffff
 
 /* Flag bits in top byte */
-/* Ignores revision in model checks */
+/* Igyesres revision in model checks */
 #define OM_IGNORE_REVISION	  0x01000000
 /* Check submodels */
 #define OM_CHECK_SUBMODEL	  0x02000000
 /* Match all models previous than the one specified */
 #define OM_MATCH_PREVIOUS_MODELS  0x04000000
-/* Ignores the minor revison on newer parts */
+/* Igyesres the miyesr revison on newer parts */
 #define OM_IGNORE_MINOR_REVISION  0x08000000
 #define OM_FLAG_MASK		  0xff000000
 
@@ -212,7 +212,7 @@
 #define OCTEON_CN50XX_PASS1	OCTEON_CN50XX_PASS1_X
 
 /*
- * NOTE: Octeon CN5000F model is not identifiable using the
+ * NOTE: Octeon CN5000F model is yest identifiable using the
  * OCTEON_IS_MODEL() functions, but are treated as CN50XX.
  */
 
@@ -243,7 +243,7 @@
 #define OCTEON_CN31XX		(OCTEON_CN31XX_PASS1 | OM_IGNORE_REVISION)
 
 /*
- * This model is only used for internal checks, it is not a valid
+ * This model is only used for internal checks, it is yest a valid
  * model for the OCTEON_MODEL environment variable.  This matches the
  * CN3010 and CN3005 but NOT the CN3020.
  */
@@ -267,7 +267,7 @@
 #define OCTEON_CN3020		(OCTEON_CN3020_PASS1 | OM_IGNORE_REVISION | OM_CHECK_SUBMODEL)
 
 /*
- * This matches the complete family of CN3xxx CPUs, and not subsequent
+ * This matches the complete family of CN3xxx CPUs, and yest subsequent
  * models
  */
 #define OCTEON_CN3XXX		(OCTEON_CN58XX_PASS1_0 | OM_MATCH_PREVIOUS_MODELS | OM_IGNORE_REVISION)
@@ -292,7 +292,7 @@
  *     <7>:   reserved (0)
  *     <6>:   alternate package
  *     <5:3>: major revision
- *     <2:0>: minor revision
+ *     <2:0>: miyesr revision
  *
  */
 

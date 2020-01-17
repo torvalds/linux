@@ -136,7 +136,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 			ret = -E2BIG;
 			goto out;
 		}
-		/* we need another page for writing out.  Test this
+		/* we need ayesther page for writing out.  Test this
 		 * before the total_in so we will pull in a new page for
 		 * the stream end if required
 		 */
@@ -233,7 +233,7 @@ int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	workspace->strm.next_out = workspace->buf;
 	workspace->strm.avail_out = PAGE_SIZE;
 
-	/* If it's deflate, and it's got no preset dictionary, then
+	/* If it's deflate, and it's got yes preset dictionary, then
 	   we can tell zlib to skip the adler32 check. */
 	if (srclen > 2 && !(data_in[1] & PRESET_DICT) &&
 	    ((data_in[0] & 0x0f) == Z_DEFLATED) &&
@@ -322,7 +322,7 @@ int zlib_decompress(struct list_head *ws, unsigned char *data_in,
 	workspace->strm.next_out = workspace->buf;
 	workspace->strm.avail_out = PAGE_SIZE;
 	workspace->strm.total_out = 0;
-	/* If it's deflate, and it's got no preset dictionary, then
+	/* If it's deflate, and it's got yes preset dictionary, then
 	   we can tell zlib to skip the adler32 check. */
 	if (srclen > 2 && !(data_in[1] & PRESET_DICT) &&
 	    ((data_in[0] & 0x0f) == Z_DEFLATED) &&

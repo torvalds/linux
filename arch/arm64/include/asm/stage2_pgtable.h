@@ -25,7 +25,7 @@
  *
  * This implies, the total number of page table levels required for
  * IPA_SHIFT at stage2 expected by the hardware can be calculated using
- * the same logic used for the (non-collapsable) stage1 page tables but for
+ * the same logic used for the (yesn-collapsable) stage1 page tables but for
  * (IPA_SHIFT - 4).
  */
 #define stage2_pgtable_levels(ipa)	ARM64_HW_PGTABLE_LEVELS((ipa) - 4)
@@ -68,10 +68,10 @@ static inline bool kvm_stage2_has_pud(struct kvm *kvm)
 #define S2_PUD_SIZE			(1UL << S2_PUD_SHIFT)
 #define S2_PUD_MASK			(~(S2_PUD_SIZE - 1))
 
-static inline bool stage2_pgd_none(struct kvm *kvm, pgd_t pgd)
+static inline bool stage2_pgd_yesne(struct kvm *kvm, pgd_t pgd)
 {
 	if (kvm_stage2_has_pud(kvm))
-		return pgd_none(pgd);
+		return pgd_yesne(pgd);
 	else
 		return 0;
 }
@@ -141,10 +141,10 @@ static inline bool kvm_stage2_has_pmd(struct kvm *kvm)
 #define S2_PMD_SIZE			(1UL << S2_PMD_SHIFT)
 #define S2_PMD_MASK			(~(S2_PMD_SIZE - 1))
 
-static inline bool stage2_pud_none(struct kvm *kvm, pud_t pud)
+static inline bool stage2_pud_yesne(struct kvm *kvm, pud_t pud)
 {
 	if (kvm_stage2_has_pmd(kvm))
-		return pud_none(pud);
+		return pud_yesne(pud);
 	else
 		return 0;
 }

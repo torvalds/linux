@@ -44,7 +44,7 @@ struct attribute_group isa207_pmu_format_group = {
 
 static inline bool event_is_fab_match(u64 event)
 {
-	/* Only check pmc, unit and pmcxsel, ignore the edge bit (0) */
+	/* Only check pmc, unit and pmcxsel, igyesre the edge bit (0) */
 	event &= 0xff0fe;
 
 	/* PM_MRK_FAB_RSP_MATCH & PM_MRK_FAB_RSP_MATCH_CYC */
@@ -73,10 +73,10 @@ static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
 {
 	/*
 	 * MMCRA[SDAR_MODE] specifices how the SDAR should be updated in
-	 * continous sampling mode.
+	 * contiyesus sampling mode.
 	 *
 	 * Incase of Power8:
-	 * MMCRA[SDAR_MODE] will be programmed as "0b01" for continous sampling
+	 * MMCRA[SDAR_MODE] will be programmed as "0b01" for contiyesus sampling
 	 * mode and will be un-changed when setting MMCRA[63] (Marked events).
 	 *
 	 * Incase of Power9:
@@ -85,7 +85,7 @@ static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
 	 * For rest
 	 *	MMCRA[SDAR_MODE] will be set from event code.
 	 *      If sdar_mode from event is zero, default to 0b01. Hardware
-	 *      requires that we set a non-zero value.
+	 *      requires that we set a yesn-zero value.
 	 */
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 		if (is_event_marked(event) || (*mmcra & MMCRA_SAMPLE_ENABLE))
@@ -132,7 +132,7 @@ static bool is_thresh_cmp_valid(u64 event)
 	unsigned int cmp, exp;
 
 	/*
-	 * Check the mantissa upper two bits are not zero, unless the
+	 * Check the mantissa upper two bits are yest zero, unless the
 	 * exponent is also zero. See the THRESH_CMP_MANTISSA doc.
 	 */
 	cmp = (event >> EVENT_THR_CMP_SHIFT) & EVENT_THR_CMP_MASK;
@@ -208,7 +208,7 @@ void isa207_get_mem_data_src(union perf_mem_data_src *dsrc, u32 flags,
 	u64 sier;
 	u64 val;
 
-	/* Skip if no SIER support */
+	/* Skip if yes SIER support */
 	if (!(flags & PPMU_HAS_SIER)) {
 		dsrc->val = 0;
 		return;
@@ -260,7 +260,7 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 		if (pmc > 6)
 			return -1;
 
-		/* Ignore Linux defined bits when checking event below */
+		/* Igyesre Linux defined bits when checking event below */
 		base_event = event & ~EVENT_LINUX_MASK;
 
 		if (pmc >= 5 && base_event != 0x500fa &&
@@ -294,7 +294,7 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 			/*
 			 * L2/L3 events contain a cache selector field, which is
 			 * supposed to be programmed into MMCRC. However MMCRC is only
-			 * HV writable, and there is no API for guest kernels to modify
+			 * HV writable, and there is yes API for guest kernels to modify
 			 * it. The solution is for the hypervisor to initialise the
 			 * field to zeroes, and for us to only ever allow events that
 			 * have a cache selector of zero. The bank selector (bit 3) is
@@ -349,7 +349,7 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 	}
 
 	/*
-	 * All events must agree on EBB, either all request it or none.
+	 * All events must agree on EBB, either all request it or yesne.
 	 * EBB events are pinned & exclusive, so this should never actually
 	 * hit, but we leave it as a fallback in case.
 	 */
@@ -473,7 +473,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 	if (pmc_inuse & 0x7c)
 		mmcr[0] |= MMCR0_PMCjCE;
 
-	/* If we're not using PMC 5 or 6, freeze them */
+	/* If we're yest using PMC 5 or 6, freeze them */
 	if (!(pmc_inuse & 0x60))
 		mmcr[0] |= MMCR0_FC56;
 

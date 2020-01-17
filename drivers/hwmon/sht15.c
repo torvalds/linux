@@ -136,11 +136,11 @@ static const u8 sht15_crc8_table[] = {
  * @dev:		associate device structure.
  * @hwmon_dev:		device associated with hwmon subsystem.
  * @reg:		associated regulator (if specified).
- * @nb:			notifier block to handle notifications of voltage
+ * @nb:			yestifier block to handle yestifications of voltage
  *                      changes.
  * @supply_uv:		local copy of supply voltage used to allow use of
  *                      regulator consumer if available.
- * @supply_uv_valid:	indicates that an updated value has not yet been
+ * @supply_uv_valid:	indicates that an updated value has yest yet been
  *			obtained from the regulator and so any calculations
  *			based upon it will be invalid.
  * @update_supply_work:	work struct that is used to update the supply_uv.
@@ -165,7 +165,7 @@ struct sht15_data {
 	struct device			*dev;
 	struct device			*hwmon_dev;
 	struct regulator		*reg;
-	struct notifier_block		nb;
+	struct yestifier_block		nb;
 	int				supply_uv;
 	bool				supply_uv_valid;
 	struct work_struct		update_supply_work;
@@ -238,7 +238,7 @@ static inline void sht15_send_bit(struct sht15_data *data, int val)
  * sht15_transmission_start() - specific sequence for new transmission
  * @data:	device state data
  *
- * Timings for this are not documented on the data sheet, so very
+ * Timings for this are yest documented on the data sheet, so very
  * conservative ones used in implementation. This implements
  * figure 12 on the data sheet.
  */
@@ -298,7 +298,7 @@ static int sht15_wait_for_response(struct sht15_data *data)
 	ndelay(SHT15_TSCKH);
 	if (gpiod_get_value(data->data)) {
 		gpiod_set_value(data->sck, 0);
-		dev_err(data->dev, "Command not acknowledged\n");
+		dev_err(data->dev, "Command yest ackyeswledged\n");
 		err = sht15_connection_reset(data);
 		if (err)
 			return err;
@@ -352,7 +352,7 @@ static int sht15_soft_reset(struct sht15_data *data)
  * sht15_ack() - send a ack
  * @data:	sht15 specific data.
  *
- * Each byte of data is acknowledged by pulling the data line
+ * Each byte of data is ackyeswledged by pulling the data line
  * low for one clock pulse.
  */
 static int sht15_ack(struct sht15_data *data)
@@ -373,7 +373,7 @@ static int sht15_ack(struct sht15_data *data)
 }
 
 /**
- * sht15_end_transmission() - notify device of end of transmission
+ * sht15_end_transmission() - yestify device of end of transmission
  * @data:	device state.
  *
  * This is basically a NAK (single clock pulse, data high).
@@ -534,7 +534,7 @@ static int sht15_measurement(struct sht15_data *data,
 
 	enable_irq(gpiod_to_irq(data->data));
 	if (gpiod_get_value(data->data) == 0) {
-		disable_irq_nosync(gpiod_to_irq(data->data));
+		disable_irq_yessync(gpiod_to_irq(data->data));
 		/* Only relevant if the interrupt hasn't occurred. */
 		if (!atomic_read(&data->interrupt_handled))
 			schedule_work(&data->read_work);
@@ -546,7 +546,7 @@ static int sht15_measurement(struct sht15_data *data,
 		data->state = SHT15_READING_NOTHING;
 		return -EIO;
 	} else if (ret == 0) { /* timeout occurred */
-		disable_irq_nosync(gpiod_to_irq(data->data));
+		disable_irq_yessync(gpiod_to_irq(data->data));
 		ret = sht15_connection_reset(data);
 		if (ret)
 			return ret;
@@ -675,7 +675,7 @@ static inline int sht15_calc_humid(struct sht15_data *data)
  *
  * Will be called on read access to temp1_fault, humidity1_fault
  * and heater_enable sysfs attributes.
- * Returns number of bytes written into buffer, negative errno on error.
+ * Returns number of bytes written into buffer, negative erryes on error.
  */
 static ssize_t sht15_status_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
@@ -697,7 +697,7 @@ static ssize_t sht15_status_show(struct device *dev,
  * @count:	length of the data.
  *
  * Will be called on write access to heater_enable sysfs attribute.
- * Returns number of bytes actually decoded, negative errno on error.
+ * Returns number of bytes actually decoded, negative erryes on error.
  */
 static ssize_t sht15_status_store(struct device *dev,
 				  struct device_attribute *attr,
@@ -731,7 +731,7 @@ static ssize_t sht15_status_store(struct device *dev,
  * @buf:	sysfs buffer where measurement values are written to.
  *
  * Will be called on read access to temp1_input sysfs attribute.
- * Returns number of bytes written into buffer, negative errno on error.
+ * Returns number of bytes written into buffer, negative erryes on error.
  */
 static ssize_t sht15_temp_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
@@ -739,7 +739,7 @@ static ssize_t sht15_temp_show(struct device *dev,
 	int ret;
 	struct sht15_data *data = dev_get_drvdata(dev);
 
-	/* Technically no need to read humidity as well */
+	/* Technically yes need to read humidity as well */
 	ret = sht15_update_measurements(data);
 
 	return ret ? ret : sprintf(buf, "%d\n",
@@ -753,7 +753,7 @@ static ssize_t sht15_temp_show(struct device *dev,
  * @buf:	sysfs buffer where measurement values are written to.
  *
  * Will be called on read access to humidity1_input sysfs attribute.
- * Returns number of bytes written into buffer, negative errno on error.
+ * Returns number of bytes written into buffer, negative erryes on error.
  */
 static ssize_t sht15_humidity_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
@@ -801,7 +801,7 @@ static irqreturn_t sht15_interrupt_fired(int irq, void *d)
 	struct sht15_data *data = d;
 
 	/* First disable the interrupt */
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	atomic_inc(&data->interrupt_handled);
 	/* Then schedule a reading work struct */
 	if (data->state != SHT15_READING_NOTHING)
@@ -821,12 +821,12 @@ static void sht15_bh_read_data(struct work_struct *work_s)
 	/* Firstly, verify the line is low */
 	if (gpiod_get_value(data->data)) {
 		/*
-		 * If not, then start the interrupt again - care here as could
+		 * If yest, then start the interrupt again - care here as could
 		 * have gone low in meantime so verify it hasn't!
 		 */
 		atomic_set(&data->interrupt_handled, 0);
 		enable_irq(gpiod_to_irq(data->data));
-		/* If still not occurred or another handler was scheduled */
+		/* If still yest occurred or ayesther handler was scheduled */
 		if (gpiod_get_value(data->data)
 		    || atomic_read(&data->interrupt_handled))
 			return;
@@ -884,17 +884,17 @@ static void sht15_update_voltage(struct work_struct *work_s)
 }
 
 /**
- * sht15_invalidate_voltage() - mark supply voltage invalid when notified by reg
- * @nb:		associated notification structure
+ * sht15_invalidate_voltage() - mark supply voltage invalid when yestified by reg
+ * @nb:		associated yestification structure
  * @event:	voltage regulator state change event code
- * @ignored:	function parameter - ignored here
+ * @igyesred:	function parameter - igyesred here
  *
- * Note that as the notification code holds the regulator lock, we have
+ * Note that as the yestification code holds the regulator lock, we have
  * to schedule an update of the supply voltage rather than getting it directly.
  */
-static int sht15_invalidate_voltage(struct notifier_block *nb,
+static int sht15_invalidate_voltage(struct yestifier_block *nb,
 				    unsigned long event,
-				    void *ignored)
+				    void *igyesred)
 {
 	struct sht15_data *data = container_of(nb, struct sht15_data, nb);
 
@@ -949,14 +949,14 @@ static int sht15_probe(struct platform_device *pdev)
 		}
 
 		/*
-		 * Setup a notifier block to update this if another device
+		 * Setup a yestifier block to update this if ayesther device
 		 * causes the voltage to change
 		 */
-		data->nb.notifier_call = &sht15_invalidate_voltage;
-		ret = regulator_register_notifier(data->reg, &data->nb);
+		data->nb.yestifier_call = &sht15_invalidate_voltage;
+		ret = regulator_register_yestifier(data->reg, &data->nb);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"regulator notifier request failed\n");
+				"regulator yestifier request failed\n");
 			regulator_disable(data->reg);
 			return ret;
 		}
@@ -985,7 +985,7 @@ static int sht15_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get irq for data line\n");
 		goto err_release_reg;
 	}
-	disable_irq_nosync(gpiod_to_irq(data->data));
+	disable_irq_yessync(gpiod_to_irq(data->data));
 	ret = sht15_connection_reset(data);
 	if (ret)
 		goto err_release_reg;
@@ -1011,7 +1011,7 @@ err_release_sysfs_group:
 	sysfs_remove_group(&pdev->dev.kobj, &sht15_attr_group);
 err_release_reg:
 	if (!IS_ERR(data->reg)) {
-		regulator_unregister_notifier(data->reg, &data->nb);
+		regulator_unregister_yestifier(data->reg, &data->nb);
 		regulator_disable(data->reg);
 	}
 	return ret;
@@ -1033,7 +1033,7 @@ static int sht15_remove(struct platform_device *pdev)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &sht15_attr_group);
 	if (!IS_ERR(data->reg)) {
-		regulator_unregister_notifier(data->reg, &data->nb);
+		regulator_unregister_yestifier(data->reg, &data->nb);
 		regulator_disable(data->reg);
 	}
 

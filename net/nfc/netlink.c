@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Nokia de Tecyeslogia
  *
  * Authors:
  *    Lauro Ramos Venancio <lauro.venancio@openbossa.org>
@@ -356,7 +356,7 @@ int nfc_genl_llc_send_sdres(struct nfc_dev *dev, struct hlist_head *sdres_list)
 	struct sk_buff *msg;
 	struct nlattr *sdp_attr, *uri_attr;
 	struct nfc_llcp_sdp_tlv *sdres;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	void *hdr;
 	int rc = -EMSGSIZE;
 	int i;
@@ -373,17 +373,17 @@ int nfc_genl_llc_send_sdres(struct nfc_dev *dev, struct hlist_head *sdres_list)
 	if (nla_put_u32(msg, NFC_ATTR_DEVICE_INDEX, dev->idx))
 		goto nla_put_failure;
 
-	sdp_attr = nla_nest_start_noflag(msg, NFC_ATTR_LLC_SDP);
+	sdp_attr = nla_nest_start_yesflag(msg, NFC_ATTR_LLC_SDP);
 	if (sdp_attr == NULL) {
 		rc = -ENOMEM;
 		goto nla_put_failure;
 	}
 
 	i = 1;
-	hlist_for_each_entry_safe(sdres, n, sdres_list, node) {
+	hlist_for_each_entry_safe(sdres, n, sdres_list, yesde) {
 		pr_debug("uri: %s, sap: %d\n", sdres->uri, sdres->sap);
 
-		uri_attr = nla_nest_start_noflag(msg, i++);
+		uri_attr = nla_nest_start_yesflag(msg, i++);
 		if (uri_attr == NULL) {
 			rc = -ENOMEM;
 			goto nla_put_failure;
@@ -397,7 +397,7 @@ int nfc_genl_llc_send_sdres(struct nfc_dev *dev, struct hlist_head *sdres_list)
 
 		nla_nest_end(msg, uri_attr);
 
-		hlist_del(&sdres->node);
+		hlist_del(&sdres->yesde);
 
 		nfc_llcp_free_sdp_tlv(sdres);
 	}
@@ -507,7 +507,7 @@ int nfc_genl_se_transaction(struct nfc_dev *dev, u8 se_idx,
 		    evt_transaction->params))
 		goto nla_put_failure;
 
-	/* evt_transaction is no more used */
+	/* evt_transaction is yes more used */
 	devm_kfree(&dev->dev, evt_transaction);
 
 	genlmsg_end(msg, hdr);
@@ -518,7 +518,7 @@ int nfc_genl_se_transaction(struct nfc_dev *dev, u8 se_idx,
 
 nla_put_failure:
 free_msg:
-	/* evt_transaction is no more used */
+	/* evt_transaction is yes more used */
 	devm_kfree(&dev->dev, evt_transaction);
 	nlmsg_free(msg);
 	return -EMSGSIZE;
@@ -1189,7 +1189,7 @@ static int nfc_genl_llc_sdreq(struct sk_buff *skb, struct genl_info *info)
 
 		tlvs_len += sdreq->tlv_len;
 
-		hlist_add_head(&sdreq->node, &sdreq_list);
+		hlist_add_head(&sdreq->yesde, &sdreq_list);
 	}
 
 	if (hlist_empty(&sdreq_list)) {
@@ -1574,7 +1574,7 @@ static int nfc_genl_vendor_cmd(struct sk_buff *skb,
 static inline void *nfc_hdr_put(struct sk_buff *skb, u32 portid, u32 seq,
 				int flags, u8 cmd)
 {
-	/* since there is no private header just add the generic one */
+	/* since there is yes private header just add the generic one */
 	return genlmsg_put(skb, portid, seq, &nfc_genl_family, flags, cmd);
 }
 
@@ -1634,7 +1634,7 @@ int nfc_vendor_cmd_reply(struct sk_buff *skb)
 	struct nfc_dev *dev = ((void **)skb->cb)[0];
 	void *hdr = ((void **)skb->cb)[1];
 
-	/* clear CB data for netlink core to own from now on */
+	/* clear CB data for netlink core to own from yesw on */
 	memset(skb->cb, 0, sizeof(skb->cb));
 
 	if (WARN_ON(!dev->cur_cmd_info)) {
@@ -1802,10 +1802,10 @@ static void nfc_urelease_event_work(struct work_struct *work)
 	kfree(w);
 }
 
-static int nfc_genl_rcv_nl_event(struct notifier_block *this,
+static int nfc_genl_rcv_nl_event(struct yestifier_block *this,
 				 unsigned long event, void *ptr)
 {
-	struct netlink_notify *n = ptr;
+	struct netlink_yestify *n = ptr;
 	struct urelease_work *w;
 
 	if (event != NETLINK_URELEASE || n->protocol != NETLINK_GENERIC)
@@ -1835,8 +1835,8 @@ void nfc_genl_data_exit(struct nfc_genl_data *genl_data)
 	mutex_destroy(&genl_data->genl_data_mutex);
 }
 
-static struct notifier_block nl_notifier = {
-	.notifier_call  = nfc_genl_rcv_nl_event,
+static struct yestifier_block nl_yestifier = {
+	.yestifier_call  = nfc_genl_rcv_nl_event,
 };
 
 /**
@@ -1852,7 +1852,7 @@ int __init nfc_genl_init(void)
 	if (rc)
 		return rc;
 
-	netlink_register_notifier(&nl_notifier);
+	netlink_register_yestifier(&nl_yestifier);
 
 	return 0;
 }
@@ -1864,6 +1864,6 @@ int __init nfc_genl_init(void)
  */
 void nfc_genl_exit(void)
 {
-	netlink_unregister_notifier(&nl_notifier);
+	netlink_unregister_yestifier(&nl_yestifier);
 	genl_unregister_family(&nfc_genl_family);
 }

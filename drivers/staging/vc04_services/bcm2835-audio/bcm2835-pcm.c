@@ -130,7 +130,7 @@ static int snd_bcm2835_playback_open_generic(
 	if (spdif) {
 		runtime->hw = snd_bcm2835_playback_spdif_hw;
 	} else {
-		/* clear spdif status, as we are not in spdif mode */
+		/* clear spdif status, as we are yest in spdif mode */
 		chip->spdif_status = 0;
 		runtime->hw = snd_bcm2835_playback_hw;
 	}
@@ -182,7 +182,7 @@ static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 	bcm2835_audio_close(alsa_stream);
 	alsa_stream->chip->alsa_stream[alsa_stream->idx] = NULL;
 	/*
-	 * Do not free up alsa_stream here, it will be freed up by
+	 * Do yest free up alsa_stream here, it will be freed up by
 	 * runtime->private_free callback we registered in *_open above
 	 */
 
@@ -212,7 +212,7 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 	int channels;
 	int err;
 
-	/* notify the vchiq that it should enter spdif passthrough mode by
+	/* yestify the vchiq that it should enter spdif passthrough mode by
 	 * setting channels=0 (see
 	 * https://github.com/raspberrypi/linux/issues/528)
 	 */
@@ -288,17 +288,17 @@ snd_bcm2835_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
-	ktime_t now = ktime_get();
+	ktime_t yesw = ktime_get();
 
 	/* Give userspace better delay reporting by interpolating between GPU
-	 * notifications, assuming audio speed is close enough to the clock
+	 * yestifications, assuming audio speed is close eyesugh to the clock
 	 * used for ktime
 	 */
 
 	if ((ktime_to_ns(alsa_stream->interpolate_start)) &&
-	    (ktime_compare(alsa_stream->interpolate_start, now) < 0)) {
+	    (ktime_compare(alsa_stream->interpolate_start, yesw) < 0)) {
 		u64 interval =
-			(ktime_to_ns(ktime_sub(now,
+			(ktime_to_ns(ktime_sub(yesw,
 				alsa_stream->interpolate_start)));
 		u64 frames_output_in_interval =
 			div_u64((interval * runtime->rate), 1000000000);
@@ -350,7 +350,7 @@ int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, const char *name,
 		return err;
 
 	pcm->private_data = chip;
-	pcm->nonatomic = true;
+	pcm->yesnatomic = true;
 	strcpy(pcm->name, name);
 	if (!spdif) {
 		chip->dest = route;

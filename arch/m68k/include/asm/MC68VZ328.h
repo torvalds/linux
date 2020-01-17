@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-/* include/asm-m68knommu/MC68VZ328.h: 'VZ328 control registers
+/* include/asm-m68kyesmmu/MC68VZ328.h: 'VZ328 control registers
  *
  * Copyright (c) 2000-2001	Lineo Inc. <www.lineo.com>
  * Copyright (c) 2000-2001	Lineo Canada Corp. <www.lineo.ca>
  * Copyright (C) 1999		Vladimir Gurevich <vgurevic@cisco.com>
  * 				Bare & Hare Software, Inc.
- * Based on include/asm-m68knommu/MC68332.h
- * Copyright (C) 1998  Kenneth Albanowski <kjahds@kjahds.com>,
+ * Based on include/asm-m68kyesmmu/MC68332.h
+ * Copyright (C) 1998  Kenneth Albayeswski <kjahds@kjahds.com>,
  *                     The Silver Hammer Group, Ltd.
  *
  * M68VZ328 fixes by Evan Stawnyczy <evan@lineo.com>
@@ -828,7 +828,7 @@
 #define URX_FRAME_ERROR	 0x0400	/* Framing Error */
 #define URX_OVRUN	 0x0800	/* Serial Overrun */
 #define URX_OLD_DATA	 0x1000	/* Old data in FIFO */
-#define URX_DATA_READY	 0x2000	/* Data Ready (FIFO not empty) */
+#define URX_DATA_READY	 0x2000	/* Data Ready (FIFO yest empty) */
 #define URX_FIFO_HALF	 0x4000 /* FIFO is Half-Full */
 #define URX_FIFO_FULL	 0x8000	/* FIFO is Full */
 
@@ -846,7 +846,7 @@
 #define UTX_CTS_DELTA	 0x0100	/* CTS changed */
 #define UTX_CTS_STAT	 0x0200	/* CTS State */
 #define	UTX_BUSY	 0x0400	/* FIFO is busy, sending a character */
-#define	UTX_NOCTS	 0x0800	/* Ignore CTS */
+#define	UTX_NOCTS	 0x0800	/* Igyesre CTS */
 #define UTX_SEND_BREAK	 0x1000	/* Send a BREAK */
 #define UTX_TX_AVAIL	 0x2000	/* Transmit FIFO has a slot available */
 #define UTX_FIFO_HALF	 0x4000	/* Transmit FIFO is half empty */
@@ -936,7 +936,7 @@ typedef struct {
 #define LVPW		BYTE_REF(LVPW_ADDR)
 
 /*
- * LCD Screen Width Register (not compatible with '328 !!!) 
+ * LCD Screen Width Register (yest compatible with '328 !!!) 
  */
 #define LXMAX_ADDR	0xfffffa08
 #define LXMAX		WORD_REF(LXMAX_ADDR)

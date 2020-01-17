@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 yestice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -86,12 +86,12 @@ static inline void bm_ccsr_out(u32 offset, u32 val)
 	iowrite32be(val, bm_ccsr_start + offset/4);
 }
 
-static void bm_get_version(u16 *id, u8 *major, u8 *minor)
+static void bm_get_version(u16 *id, u8 *major, u8 *miyesr)
 {
 	u32 v = bm_ccsr_in(REG_IP_REV_1);
 	*id = (v >> 16);
 	*major = (v >> 8) & 0xff;
-	*minor = v & 0xff;
+	*miyesr = v & 0xff;
 }
 
 /* signal transactions for FBPRs with higher priority */
@@ -138,7 +138,7 @@ static int bm_set_memory(u64 ba, u32 size)
  *
  * Ideally we would use the DMA API to turn rmem->base into a DMA address
  * (especially if iommu translations ever get involved).  Unfortunately, the
- * DMA API currently does not allow mapping anything that is not backed with
+ * DMA API currently does yest allow mapping anything that is yest backed with
  * a struct page.
  */
 static dma_addr_t fbpr_a;
@@ -209,36 +209,36 @@ static int fsl_bman_probe(struct platform_device *pdev)
 {
 	int ret, err_irq;
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct resource *res;
 	u16 id, bm_pool_cnt;
-	u8 major, minor;
+	u8 major, miyesr;
 
 	__bman_probed = -1;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "Can't get %pOF property 'IORESOURCE_MEM'\n",
-			node);
+			yesde);
 		return -ENXIO;
 	}
 	bm_ccsr_start = devm_ioremap(dev, res->start, resource_size(res));
 	if (!bm_ccsr_start)
 		return -ENXIO;
 
-	bm_get_version(&id, &major, &minor);
-	if (major == 1 && minor == 0) {
+	bm_get_version(&id, &major, &miyesr);
+	if (major == 1 && miyesr == 0) {
 		bman_ip_rev = BMAN_REV10;
 		bm_pool_cnt = BM_POOL_MAX;
-	} else if (major == 2 && minor == 0) {
+	} else if (major == 2 && miyesr == 0) {
 		bman_ip_rev = BMAN_REV20;
 		bm_pool_cnt = 8;
-	} else if (major == 2 && minor == 1) {
+	} else if (major == 2 && miyesr == 1) {
 		bman_ip_rev = BMAN_REV21;
 		bm_pool_cnt = BM_POOL_MAX;
 	} else {
-		dev_err(dev, "Unknown Bman version:%04x,%02x,%02x\n",
-			id, major, minor);
+		dev_err(dev, "Unkyeswn Bman version:%04x,%02x,%02x\n",
+			id, major, miyesr);
 		return -ENODEV;
 	}
 
@@ -261,14 +261,14 @@ static int fsl_bman_probe(struct platform_device *pdev)
 
 	err_irq = platform_get_irq(pdev, 0);
 	if (err_irq <= 0) {
-		dev_info(dev, "Can't get %pOF IRQ\n", node);
+		dev_info(dev, "Can't get %pOF IRQ\n", yesde);
 		return -ENODEV;
 	}
 	ret = devm_request_irq(dev, err_irq, bman_isr, IRQF_SHARED, "bman-err",
 			       dev);
 	if (ret)  {
 		dev_err(dev, "devm_request_irq() failed %d for '%pOF'\n",
-			ret, node);
+			ret, yesde);
 		return ret;
 	}
 	/* Disable Buffer Pool State Change */

@@ -19,8 +19,8 @@ struct scsi_driver;
  * MAX_COMMAND_SIZE is:
  * The longest fixed-length SCSI CDB as per the SCSI standard.
  * fixed-length means: commands that their size can be determined
- * by their opcode and the CDB does not carry a length specifier, (unlike
- * the VARIABLE_LENGTH_CMD(0x7f) command). This is actually not exactly
+ * by their opcode and the CDB does yest carry a length specifier, (unlike
+ * the VARIABLE_LENGTH_CMD(0x7f) command). This is actually yest exactly
  * true and the SCSI standard also defines extended commands and
  * vendor specific commands that can be bigger than 16 bytes. The kernel
  * will support these using the same infrastructure used for VARLEN CDB's.
@@ -29,7 +29,7 @@ struct scsi_driver;
  */
 #define MAX_COMMAND_SIZE 16
 #if (MAX_COMMAND_SIZE > BLK_MAX_CDB)
-# error MAX_COMMAND_SIZE can not be bigger than BLK_MAX_CDB
+# error MAX_COMMAND_SIZE can yest be bigger than BLK_MAX_CDB
 #endif
 
 struct scsi_data_buffer {
@@ -153,7 +153,7 @@ static inline void *scsi_cmd_priv(struct scsi_cmnd *cmd)
 	return cmd + 1;
 }
 
-/* make sure not to use it with passthrough commands */
+/* make sure yest to use it with passthrough commands */
 static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
 {
 	return *(struct scsi_driver **)cmd->request->rq_disk->private_data;
@@ -258,9 +258,9 @@ enum scsi_prot_flags {
 };
 
 /*
- * The controller usually does not know anything about the target it
+ * The controller usually does yest kyesw anything about the target it
  * is communicating with.  However, when DIX is enabled the controller
- * must be know target type so it can verify the protection
+ * must be kyesw target type so it can verify the protection
  * information passed along with the I/O.
  */
 enum scsi_prot_target_type {

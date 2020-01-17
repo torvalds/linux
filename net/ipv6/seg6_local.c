@@ -81,7 +81,7 @@ static struct ipv6_sr_hdr *get_srh(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, srhoff + len))
 		return NULL;
 
-	/* note that pskb_may_pull may change pointers in header;
+	/* yeste that pskb_may_pull may change pointers in header;
 	 * for this reason it is necessary to reload them when needed.
 	 */
 	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
@@ -290,7 +290,7 @@ static int input_action_end_dx2(struct sk_buff *skb,
 	eth = (struct ethhdr *)skb->data;
 
 	/* To determine the frame's protocol, we assume it is 802.3. This avoids
-	 * a call to eth_type_trans(), which is not really relevant for our
+	 * a call to eth_type_trans(), which is yest really relevant for our
 	 * use case.
 	 */
 	if (!eth_proto_is_802_3(eth->h_proto))
@@ -336,7 +336,7 @@ static int input_action_end_dx6(struct sk_buff *skb,
 	struct in6_addr *nhaddr = NULL;
 
 	/* this function accepts IPv6 encapsulated packets, with either
-	 * an SRH with SL=0, or no SRH.
+	 * an SRH with SL=0, or yes SRH.
 	 */
 
 	if (!decap_and_validate(skb, IPPROTO_IPV6))
@@ -345,8 +345,8 @@ static int input_action_end_dx6(struct sk_buff *skb,
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto drop;
 
-	/* The inner packet is not associated to any local interface,
-	 * so we do not call netif_rx().
+	/* The inner packet is yest associated to any local interface,
+	 * so we do yest call netif_rx().
 	 *
 	 * If slwt->nh6 is set to ::, then lookup the nexthop for the
 	 * inner packet's DA. Otherwise, use the specified nexthop.
@@ -874,7 +874,7 @@ static int put_nla_bpf(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 	if (!slwt->bpf.prog)
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, SEG6_LOCAL_BPF);
+	nest = nla_nest_start_yesflag(skb, SEG6_LOCAL_BPF);
 	if (!nest)
 		return -EMSGSIZE;
 

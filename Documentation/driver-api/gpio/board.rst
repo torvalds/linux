@@ -6,7 +6,7 @@ This document explains how GPIOs can be assigned to given devices and functions.
 
 Note that it only applies to the new descriptor-based interface. For a
 description of the deprecated integer-based GPIO interface please refer to
-gpio-legacy.txt (actually, there is no real mapping possible with the old
+gpio-legacy.txt (actually, there is yes real mapping possible with the old
 interface; you just fetch an integer from somewhere and request the
 corresponding GPIO).
 
@@ -22,7 +22,7 @@ GPIOs can easily be mapped to devices and functions in the device tree. The
 exact way to do it depends on the GPIO controller providing the GPIOs, see the
 device tree bindings for your controller.
 
-GPIOs mappings are defined in the consumer device's node, in a property named
+GPIOs mappings are defined in the consumer device's yesde, in a property named
 <function>-gpios, where <function> is the function the driver will request
 through gpiod_get(). For example::
 
@@ -37,7 +37,7 @@ through gpiod_get(). For example::
 	};
 
 Properties named <function>-gpio are also considered valid and old bindings use
-it but are only supported for compatibility reasons and should not be used for
+it but are only supported for compatibility reasons and should yest be used for
 newer bindings since it has been deprecated.
 
 This property will make GPIOs 15, 16 and 17 available to the driver under the
@@ -199,7 +199,7 @@ Arrays of pins
 In addition to requesting pins belonging to a function one by one, a device may
 also request an array of pins assigned to the function.  The way those pins are
 mapped to the device determines if the array qualifies for fast bitmap
-processing.  If yes, a bitmap is passed over get/set array functions directly
+processing.  If no, a bitmap is passed over get/set array functions directly
 between a caller and a respective .get/set_multiple() callback of a GPIO chip.
 
 In order to qualify for fast bitmap processing, the array must meet the
@@ -209,8 +209,8 @@ following requirements:
 - pin hardware numbers of consecutive array members which belong to the same
   chip as member 0 does must also match their array indexes.
 
-Otherwise fast bitmap processing path is not used in order to avoid consecutive
-pins which belong to the same chip but are not in hardware order being processed
+Otherwise fast bitmap processing path is yest used in order to avoid consecutive
+pins which belong to the same chip but are yest in hardware order being processed
 separately.
 
 If the array applies for fast bitmap processing path, pins which belong to

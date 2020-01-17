@@ -3,7 +3,7 @@
  * New driver for Marvell Yukon 2 chipset.
  * Based on earlier sk98lin, and skge driver.
  *
- * This driver intentionally does not support all the features
+ * This driver intentionally does yest support all the features
  * of the original driver such as link fail-over and link management because
  * those should be done at higher levels.
  *
@@ -76,7 +76,7 @@ static const u32 default_msg =
 
 static int debug = -1;		/* defaults above */
 module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=yesne,...,16=all)");
 
 static int copybreak __read_mostly = 128;
 module_param(copybreak, int, 0);
@@ -611,7 +611,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 0);
 	} else if (hw->chip_id != CHIP_ID_YUKON_EX &&
 		   hw->chip_id < CHIP_ID_YUKON_SUPR) {
-		/* no effect on Yukon-XL */
+		/* yes effect on Yukon-XL */
 		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
 
 		if (!(sky2->flags & SKY2_FLAG_AUTO_SPEED) ||
@@ -835,7 +835,7 @@ static void sky2_wol_init(struct sky2_port *sky2)
 	sky2->flow_mode = save_mode;
 	sky2->advertising = ctrl;
 
-	/* Set GMAC to no flow control and auto update for speed/duplex */
+	/* Set GMAC to yes flow control and auto update for speed/duplex */
 	gma_write16(hw, port, GM_GP_CTRL,
 		    GM_GPCR_FC_TX_DIS|GM_GPCR_TX_ENA|GM_GPCR_RX_ENA|
 		    GM_GPCR_DUP_FULL|GM_GPCR_FC_RX_DIS|GM_GPCR_AU_FCT_DIS);
@@ -942,7 +942,7 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	/* transmit control */
 	gma_write16(hw, port, GM_TX_CTRL, TX_COL_THR(TX_COL_DEF));
 
-	/* receive control reg: unicast + multicast + no FCS  */
+	/* receive control reg: unicast + multicast + yes FCS  */
 	gma_write16(hw, port, GM_RX_CTRL,
 		    GM_RXCR_UCF_ENA | GM_RXCR_CRC_DIS | GM_RXCR_MCF_ENA);
 
@@ -975,7 +975,7 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	/* physical address: used for pause frames */
 	gma_set_addr(hw, port, GM_SRC_ADDR_1L, addr);
 
-	/* ignore counter overflows */
+	/* igyesre counter overflows */
 	gma_write16(hw, port, GM_TX_IRQ_MSK, 0);
 	gma_write16(hw, port, GM_RX_IRQ_MSK, 0);
 	gma_write16(hw, port, GM_TR_IRQ_MSK, 0);
@@ -999,7 +999,7 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 	/* Set threshold to 0xa (64 bytes) + 1 to workaround pause bug  */
 	reg = RX_GMF_FL_THR_DEF + 1;
-	/* Another magic mystery workaround from sk98lin */
+	/* Ayesther magic mystery workaround from sk98lin */
 	if (hw->chip_id == CHIP_ID_YUKON_FE_P &&
 	    hw->chip_rev == CHIP_REV_YU_FE2_A0)
 		reg = 0x178;
@@ -1310,12 +1310,12 @@ static void rx_set_rss(struct net_device *dev, netdev_features_t features)
 }
 
 /*
- * The RX Stop command will not work for Yukon-2 if the BMU does not
+ * The RX Stop command will yest work for Yukon-2 if the BMU does yest
  * reach the end of packet and since we can't make sure that we have
- * incoming data, we must reset the BMU while it is not doing a DMA
+ * incoming data, we must reset the BMU while it is yest doing a DMA
  * transfer. Since it is possible that the RX path is still active,
  * the RX RAM buffer will be stopped first, so any possible incoming
- * data will not trigger a DMA. After the RAM buffer is stopped, the
+ * data will yest trigger a DMA. After the RAM buffer is stopped, the
  * BMU is polled until any DMA in progress is ended and only then it
  * will be reset.
  */
@@ -1433,8 +1433,8 @@ static inline unsigned sky2_rx_pad(const struct sky2_hw *hw)
 }
 
 /*
- * Allocate an skb for receiving. If the MTU is large enough
- * make the skb non-linear with a fragment list of pages.
+ * Allocate an skb for receiving. If the MTU is large eyesugh
+ * make the skb yesn-linear with a fragment list of pages.
  */
 static struct sk_buff *sky2_rx_alloc(struct sky2_port *sky2, gfp_t gfp)
 {
@@ -1445,13 +1445,13 @@ static struct sk_buff *sky2_rx_alloc(struct sky2_port *sky2, gfp_t gfp)
 				 sky2->rx_data_size + sky2_rx_pad(sky2->hw),
 				 gfp);
 	if (!skb)
-		goto nomem;
+		goto yesmem;
 
 	if (sky2->hw->flags & SKY2_HW_RAM_BUFFER) {
 		unsigned char *start;
 		/*
 		 * Workaround for a bug in FIFO that cause hang
-		 * if the FIFO if the receive buffer is not 64 byte aligned.
+		 * if the FIFO if the receive buffer is yest 64 byte aligned.
 		 * The buffer returned from netdev_alloc_skb is
 		 * aligned except if slab debugging is enabled.
 		 */
@@ -1471,7 +1471,7 @@ static struct sk_buff *sky2_rx_alloc(struct sky2_port *sky2, gfp_t gfp)
 	return skb;
 free_partial:
 	kfree_skb(skb);
-nomem:
+yesmem:
 	return NULL;
 }
 
@@ -1527,7 +1527,7 @@ static void sky2_rx_start(struct sky2_port *sky2)
 	if (pci_is_pcie(hw->pdev))
 		sky2_write32(hw, Q_ADDR(rxq, Q_WM), BMU_WM_PEX);
 
-	/* These chips have no ram buffer?
+	/* These chips have yes ram buffer?
 	 * MAC Rx RAM Read is controlled by hardware */
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
 	    hw->chip_rev > CHIP_REV_YU_EC_U_A0)
@@ -1567,10 +1567,10 @@ static void sky2_rx_start(struct sky2_port *sky2)
 	if (hw->chip_id == CHIP_ID_YUKON_EX ||
 	    hw->chip_id == CHIP_ID_YUKON_SUPR) {
 		/*
-		 * Disable flushing of non ASF packets;
+		 * Disable flushing of yesn ASF packets;
 		 * must be done after initializing the BMUs;
 		 * drivers without ASF support should do this too, otherwise
-		 * it may happen that they cannot run on ASF devices;
+		 * it may happen that they canyest run on ASF devices;
 		 * remember that the MAC FIFO isn't reset during initialization.
 		 */
 		sky2_write32(hw, SK_REG(sky2->port, RX_GMF_CTRL_T), RX_MACSEC_FLUSH_OFF);
@@ -1597,25 +1597,25 @@ static int sky2_alloc_buffers(struct sky2_port *sky2)
 					   sizeof(struct sky2_tx_le),
 					   &sky2->tx_le_map);
 	if (!sky2->tx_le)
-		goto nomem;
+		goto yesmem;
 
 	sky2->tx_ring = kcalloc(sky2->tx_ring_size, sizeof(struct tx_ring_info),
 				GFP_KERNEL);
 	if (!sky2->tx_ring)
-		goto nomem;
+		goto yesmem;
 
 	sky2->rx_le = pci_zalloc_consistent(hw->pdev, RX_LE_BYTES,
 					    &sky2->rx_le_map);
 	if (!sky2->rx_le)
-		goto nomem;
+		goto yesmem;
 
 	sky2->rx_ring = kcalloc(sky2->rx_pending, sizeof(struct rx_ring_info),
 				GFP_KERNEL);
 	if (!sky2->rx_ring)
-		goto nomem;
+		goto yesmem;
 
 	return sky2_alloc_rx_skbs(sky2);
-nomem:
+yesmem:
 	return -ENOMEM;
 }
 
@@ -1689,7 +1689,7 @@ static void sky2_hw_up(struct sky2_port *sky2)
 
 	sky2_qset(hw, txqaddr[port]);
 
-	/* This is copied from sk98lin 10.0.5.3; no one tells me about erratta's */
+	/* This is copied from sk98lin 10.0.5.3; yes one tells me about erratta's */
 	if (hw->chip_id == CHIP_ID_YUKON_EX && hw->chip_rev == CHIP_REV_YU_EX_B0)
 		sky2_write32(hw, Q_ADDR(txqaddr[port], Q_TEST), F_TX_CHK_AUTO_OFF);
 
@@ -1717,7 +1717,7 @@ static int sky2_setup_irq(struct sky2_hw *hw, const char *name)
 			  (hw->flags & SKY2_HW_USE_MSI) ? 0 : IRQF_SHARED,
 			  name, hw);
 	if (err)
-		dev_err(&pdev->dev, "cannot assign irq %d\n", pdev->irq);
+		dev_err(&pdev->dev, "canyest assign irq %d\n", pdev->irq);
 	else {
 		hw->flags |= SKY2_HW_IRQ_SETUP;
 
@@ -1992,9 +1992,9 @@ mapping_error:
  *
  * NB:
  *  1. The hardware will tell us about partial completion of multi-part
- *     buffers so make sure not to free skb to early.
+ *     buffers so make sure yest to free skb to early.
  *  2. This may run in parallel start_xmit because the it only
- *     looks at the tail of the queue of FIFO (tx_cons), not
+ *     looks at the tail of the queue of FIFO (tx_cons), yest
  *     the head (tx_prod)
  */
 static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
@@ -2174,7 +2174,7 @@ static void sky2_link_up(struct sky2_port *sky2)
 	struct sky2_hw *hw = sky2->hw;
 	unsigned port = sky2->port;
 	static const char *fc_name[] = {
-		[FC_NONE]	= "none",
+		[FC_NONE]	= "yesne",
 		[FC_TX]		= "tx",
 		[FC_RX]		= "rx",
 		[FC_BOTH]	= "both",
@@ -2526,10 +2526,10 @@ static struct sk_buff *receive_new(struct sky2_port *sky2,
 
 	nre.skb = sky2_rx_alloc(sky2, GFP_ATOMIC);
 	if (unlikely(!nre.skb))
-		goto nobuf;
+		goto yesbuf;
 
 	if (sky2_rx_map_skb(sky2->hw->pdev, &nre, hdr_space))
-		goto nomap;
+		goto yesmap;
 
 	skb = re->skb;
 	sky2_rx_unmap_skb(sky2->hw->pdev, re);
@@ -2542,9 +2542,9 @@ static struct sk_buff *receive_new(struct sky2_port *sky2,
 		skb_put(skb, length);
 	return skb;
 
-nomap:
+yesmap:
 	dev_kfree_skb(nre.skb);
-nobuf:
+yesbuf:
 	return NULL;
 }
 
@@ -2585,7 +2585,7 @@ static struct sk_buff *sky2_receive(struct net_device *dev,
 	if (!(status & GMR_FS_RX_OK))
 		goto resubmit;
 
-	/* if length reported by DMA does not match PHY, packet was truncated */
+	/* if length reported by DMA does yest match PHY, packet was truncated */
 	if (length != count)
 		goto error;
 
@@ -2668,7 +2668,7 @@ static void sky2_rx_checksum(struct sky2_port *sky2, u32 status)
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = le16_to_cpu(status);
 	} else {
-		dev_notice(&sky2->hw->pdev->dev,
+		dev_yestice(&sky2->hw->pdev->dev,
 			   "%s: receive checksum problem (status = %#x)\n",
 			   sky2->netdev->name, status);
 
@@ -2785,7 +2785,7 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 
 		default:
 			if (net_ratelimit())
-				pr_warn("unknown status opcode 0x%x\n", opcode);
+				pr_warn("unkyeswn status opcode 0x%x\n", opcode);
 		}
 	} while (hw->st_idx != idx);
 
@@ -3269,9 +3269,9 @@ static void sky2_reset(struct sky2_hw *hw)
 		sky2_write32(hw, Y2_CFG_AER + PCI_ERR_UNCOR_STATUS,
 			     0xfffffffful);
 
-		/* If error bit is stuck on ignore it */
+		/* If error bit is stuck on igyesre it */
 		if (sky2_read32(hw, B0_HWE_ISRC) & Y2_IS_PCI_EXP)
-			dev_info(&pdev->dev, "ignoring stuck error report bit\n");
+			dev_info(&pdev->dev, "igyesring stuck error report bit\n");
 		else
 			hwe_mask |= Y2_IS_PCI_EXP;
 	}
@@ -3346,7 +3346,7 @@ static void sky2_reset(struct sky2_hw *hw)
 		sky2_write32(hw, Y2_PEX_PHY_DATA, PEX_DB_ACCESS | (0x08UL << 16));
 	}
 
-	/* Clear I2C IRQ noise */
+	/* Clear I2C IRQ yesise */
 	sky2_write32(hw, B2_I2C_IRQ, 1);
 
 	/* turn off hardware timer (unused) */
@@ -3421,7 +3421,7 @@ static void sky2_reset(struct sky2_hw *hw)
 }
 
 /* Take device down (offline).
- * Equivalent to doing dev_stop() but this does not
+ * Equivalent to doing dev_stop() but this does yest
  * inform upper layers of the transition.
  */
 static void sky2_detach(struct net_device *dev)
@@ -3442,7 +3442,7 @@ static int sky2_reattach(struct net_device *dev)
 	if (netif_running(dev)) {
 		err = sky2_open(dev);
 		if (err) {
-			netdev_info(dev, "could not restart %d\n", err);
+			netdev_info(dev, "could yest restart %d\n", err);
 			dev_close(dev);
 		} else {
 			netif_device_attach(dev);
@@ -4237,7 +4237,7 @@ static void sky2_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	regs->version = 1;
 
 	for (b = 0; b < 128; b++) {
-		/* skip poisonous diagnostic ram region in block 3 */
+		/* skip poisoyesus diagyesstic ram region in block 3 */
 		if (b == 3)
 			memcpy_fromio(p + 0x10, io + 0x10, 128 - 0x10);
 		else if (sky2_reg_access_ok(sky2->hw, b))
@@ -4345,7 +4345,7 @@ static int sky2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom
 	if (eeprom->magic != SKY2_EEPROM_MAGIC)
 		return -EINVAL;
 
-	/* Partial writes not supported */
+	/* Partial writes yest supported */
 	if ((eeprom->offset & 3) || (eeprom->len & 3))
 		return -EINVAL;
 
@@ -4362,7 +4362,7 @@ static netdev_features_t sky2_fix_features(struct net_device *dev,
 	 * transmit store/forward. Therefore checksum offload won't work.
 	 */
 	if (dev->mtu > ETH_DATA_LEN && hw->chip_id == CHIP_ID_YUKON_EC_U) {
-		netdev_info(dev, "checksum offload not possible with jumbo frames\n");
+		netdev_info(dev, "checksum offload yest possible with jumbo frames\n");
 		features &= ~(NETIF_F_TSO | NETIF_F_SG | NETIF_F_CSUM_MASK);
 	}
 
@@ -4466,7 +4466,7 @@ static void sky2_show_vpd(struct seq_file *seq, struct sky2_hw *hw)
 	seq_printf(seq, "%s Product Data\n", pci_name(hw->pdev));
 	buf = kmalloc(vpd_size, GFP_KERNEL);
 	if (!buf) {
-		seq_puts(seq, "no memory!\n");
+		seq_puts(seq, "yes memory!\n");
 		return;
 	}
 
@@ -4527,7 +4527,7 @@ static int sky2_debug_show(struct seq_file *seq, void *v)
 		   sky2_read32(hw, B0_Y2_SP_ICR));
 
 	if (!netif_running(dev)) {
-		seq_puts(seq, "network not running\n");
+		seq_puts(seq, "network yest running\n");
 		return 0;
 	}
 
@@ -4612,10 +4612,10 @@ DEFINE_SHOW_ATTRIBUTE(sky2_debug);
  * Use network device events to create/remove/rename
  * debugfs file entries
  */
-static int sky2_device_event(struct notifier_block *unused,
+static int sky2_device_event(struct yestifier_block *unused,
 			     unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct sky2_port *sky2 = netdev_priv(dev);
 
 	if (dev->netdev_ops->ndo_open != sky2_open || !sky2_debug)
@@ -4648,8 +4648,8 @@ static int sky2_device_event(struct notifier_block *unused,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block sky2_notifier = {
-	.notifier_call = sky2_device_event,
+static struct yestifier_block sky2_yestifier = {
+	.yestifier_call = sky2_device_event,
 };
 
 
@@ -4662,13 +4662,13 @@ static __init void sky2_debug_init(void)
 		return;
 
 	sky2_debug = ent;
-	register_netdevice_notifier(&sky2_notifier);
+	register_netdevice_yestifier(&sky2_yestifier);
 }
 
 static __exit void sky2_debug_cleanup(void)
 {
 	if (sky2_debug) {
-		unregister_netdevice_notifier(&sky2_notifier);
+		unregister_netdevice_yestifier(&sky2_yestifier);
 		debugfs_remove(sky2_debug);
 		sky2_debug = NULL;
 	}
@@ -4680,7 +4680,7 @@ static __exit void sky2_debug_cleanup(void)
 #endif
 
 /* Two copies of network device operations to handle special case of
-   not allowing netpoll on second port */
+   yest allowing netpoll on second port */
 static const struct net_device_ops sky2_netdev_ops[2] = {
   {
 	.ndo_open		= sky2_open,
@@ -4767,7 +4767,7 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 	if (highmem)
 		dev->features |= NETIF_F_HIGHDMA;
 
-	/* Enable receive hashing unless hardware is known broken */
+	/* Enable receive hashing unless hardware is kyeswn broken */
 	if (!(hw->flags & SKY2_HW_RSS_BROKEN))
 		dev->hw_features |= NETIF_F_RXHASH;
 
@@ -4791,7 +4791,7 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 	 * 1) from device tree data
 	 * 2) from internal registers set by bootloader
 	 */
-	iap = of_get_mac_address(hw->pdev->dev.of_node);
+	iap = of_get_mac_address(hw->pdev->dev.of_yesde);
 	if (!IS_ERR(iap))
 		ether_addr_copy(dev->dev_addr, iap);
 	else
@@ -4849,7 +4849,7 @@ static int sky2_test_msi(struct sky2_hw *hw)
 
 	err = request_irq(pdev->irq, sky2_test_intr, 0, DRV_NAME, hw);
 	if (err) {
-		dev_err(&pdev->dev, "cannot assign irq %d\n", pdev->irq);
+		dev_err(&pdev->dev, "canyest assign irq %d\n", pdev->irq);
 		return err;
 	}
 
@@ -4889,7 +4889,7 @@ static const char *sky2_name(u8 chipid, char *buf, int sz)
 		"FE+",		/* 0xb8 */
 		"Supreme",	/* 0xb9 */
 		"UL 2",		/* 0xba */
-		"Unknown",	/* 0xbb */
+		"Unkyeswn",	/* 0xbb */
 		"Optima",	/* 0xbc */
 		"OptimaEEE",    /* 0xbd */
 		"Optima 2",	/* 0xbe */
@@ -4951,7 +4951,7 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "cannot enable PCI device\n");
+		dev_err(&pdev->dev, "canyest enable PCI device\n");
 		goto err_out;
 	}
 
@@ -4974,7 +4974,7 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		dev_err(&pdev->dev, "cannot obtain PCI resources\n");
+		dev_err(&pdev->dev, "canyest obtain PCI resources\n");
 		goto err_out_disable;
 	}
 
@@ -4992,7 +4992,7 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
-			dev_err(&pdev->dev, "no usable DMA configuration\n");
+			dev_err(&pdev->dev, "yes usable DMA configuration\n");
 			goto err_out_free_regions;
 		}
 	}
@@ -5022,9 +5022,9 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->pdev = pdev;
 	sprintf(hw->irq_name, DRV_NAME "@pci:%s", pci_name(pdev));
 
-	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);
+	hw->regs = ioremap_yescache(pci_resource_start(pdev, 0), 0x4000);
 	if (!hw->regs) {
-		dev_err(&pdev->dev, "cannot map device registers\n");
+		dev_err(&pdev->dev, "canyest map device registers\n");
 		goto err_out_free_hw;
 	}
 
@@ -5068,7 +5068,7 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = register_netdev(dev);
 	if (err) {
-		dev_err(&pdev->dev, "cannot register net device\n");
+		dev_err(&pdev->dev, "canyest register net device\n");
 		goto err_out_free_netdev;
 	}
 
@@ -5085,7 +5085,7 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		err = register_netdev(dev1);
 		if (err) {
-			dev_err(&pdev->dev, "cannot register second net device\n");
+			dev_err(&pdev->dev, "canyest register second net device\n");
 			goto err_out_free_dev1;
 		}
 

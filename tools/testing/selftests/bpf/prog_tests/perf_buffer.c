@@ -20,7 +20,7 @@ static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 void test_perf_buffer(void)
 {
 	int err, prog_fd, nr_cpus, i, duration = 0;
-	const char *prog_name = "kprobe/sys_nanosleep";
+	const char *prog_name = "kprobe/sys_nayessleep";
 	const char *file = "./test_perf_buffer.o";
 	struct perf_buffer_opts pb_opts = {};
 	struct bpf_map *perf_buf_map;
@@ -36,16 +36,16 @@ void test_perf_buffer(void)
 
 	/* load program */
 	err = bpf_prog_load(file, BPF_PROG_TYPE_KPROBE, &obj, &prog_fd);
-	if (CHECK(err, "obj_load", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "obj_load", "err %d erryes %d\n", err, erryes))
 		return;
 
 	prog = bpf_object__find_program_by_title(obj, prog_name);
-	if (CHECK(!prog, "find_probe", "prog '%s' not found\n", prog_name))
+	if (CHECK(!prog, "find_probe", "prog '%s' yest found\n", prog_name))
 		goto out_close;
 
 	/* load map */
 	perf_buf_map = bpf_object__find_map_by_name(obj, "perf_buf_map");
-	if (CHECK(!perf_buf_map, "find_perf_buf_map", "not found\n"))
+	if (CHECK(!perf_buf_map, "find_perf_buf_map", "yest found\n"))
 		goto out_close;
 
 	/* attach kprobe */

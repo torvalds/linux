@@ -81,13 +81,13 @@ static int sp_get_irqs(struct sp_device *sp)
 		return 0;
 
 	/* Couldn't get MSI-X vectors, try MSI */
-	dev_notice(dev, "could not enable MSI-X (%d), trying MSI\n", ret);
+	dev_yestice(dev, "could yest enable MSI-X (%d), trying MSI\n", ret);
 	ret = sp_get_msi_irq(sp);
 	if (!ret)
 		return 0;
 
 	/* Couldn't get MSI interrupt */
-	dev_notice(dev, "could not enable MSI (%d)\n", ret);
+	dev_yestice(dev, "could yest enable MSI (%d)\n", ret);
 
 	return ret;
 }
@@ -226,7 +226,7 @@ static int sp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 e_err:
-	dev_notice(dev, "initialization failed\n");
+	dev_yestice(dev, "initialization failed\n");
 	return ret;
 }
 

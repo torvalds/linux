@@ -99,8 +99,8 @@ static int tegra_clk_rst_assert(struct reset_controller_dev *rcdev,
 	/*
 	 * If peripheral is on the APB bus then we must read the APB bus to
 	 * flush the write operation in apb bus. This will avoid peripheral
-	 * access after disabling clock. Since the reset driver has no
-	 * knowledge of which reset IDs represent which devices, simply do
+	 * access after disabling clock. Since the reset driver has yes
+	 * kyeswledge of which reset IDs represent which devices, simply do
 	 * this all the time.
 	 */
 	tegra_read_chipid();
@@ -192,7 +192,7 @@ void tegra_clk_periph_resume(void)
 		writel_relaxed(periph_state_ctx[idx],
 			       clk_base + periph_regs[i].enb_reg);
 	/*
-	 * All non-boot peripherals will be in reset state on resume.
+	 * All yesn-boot peripherals will be in reset state on resume.
 	 * Wait for 5us of reset propagation delay before de-asserting
 	 * the peripherals based on the saved context.
 	 */
@@ -313,7 +313,7 @@ static struct reset_controller_dev rst_ctlr = {
 	.of_reset_n_cells = 1,
 };
 
-void __init tegra_add_of_provider(struct device_node *np,
+void __init tegra_add_of_provider(struct device_yesde *np,
 				  void *clk_src_onecell_get)
 {
 	int i;
@@ -332,7 +332,7 @@ void __init tegra_add_of_provider(struct device_node *np,
 	clk_data.clk_num = clk_num;
 	of_clk_add_provider(np, clk_src_onecell_get, &clk_data);
 
-	rst_ctlr.of_node = np;
+	rst_ctlr.of_yesde = np;
 	rst_ctlr.nr_resets = periph_banks * 32 + num_special_reset;
 	reset_controller_register(&rst_ctlr);
 }

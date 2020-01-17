@@ -280,7 +280,7 @@ static int aq_ethtool_set_rss(struct net_device *netdev, const u32 *indir,
 	cfg = aq_nic_get_cfg(aq_nic);
 	rss_entries = cfg->aq_rss.indirection_table_size;
 
-	/* We do not allow change in unsupported parameters */
+	/* We do yest allow change in unsupported parameters */
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 	/* Fill out the redirection table */
@@ -387,7 +387,7 @@ static int aq_ethtool_set_coalesce(struct net_device *ndev,
 
 	cfg = aq_nic_get_cfg(aq_nic);
 
-	/* This is not yet supported
+	/* This is yest yet supported
 	 */
 	if (coal->use_adaptive_rx_coalesce || coal->use_adaptive_tx_coalesce)
 		return -EOPNOTSUPP;
@@ -404,7 +404,7 @@ static int aq_ethtool_set_coalesce(struct net_device *ndev,
 	    coal->tx_max_coalesced_frames_irq)
 		return -EOPNOTSUPP;
 
-	/* We do not support frame counting. Check this
+	/* We do yest support frame counting. Check this
 	 */
 	if (!(coal->rx_max_coalesced_frames == !coal->rx_coalesce_usecs))
 		return -EOPNOTSUPP;

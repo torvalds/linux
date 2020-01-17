@@ -5,7 +5,7 @@
  * Copyright 2006 Johannes Berg <johannes@sipsolutions.net>
  *
  * This is a driver for the toonie codec chip. This chip is present
- * on the Mac Mini and is nothing but a DAC.
+ * on the Mac Mini and is yesthing but a DAC.
  */
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -86,7 +86,7 @@ static int toonie_init_codec(struct aoa_codec *codec)
 {
 	struct toonie *toonie = codec_to_toonie(codec);
 
-	/* nothing connected? what a joke! */
+	/* yesthing connected? what a joke! */
 	if (toonie->codec.connected != 1)
 		return -ENOTCONN;
 

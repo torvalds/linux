@@ -2,7 +2,7 @@
 /*
  * IMG PowerDown Controller (PDC)
  *
- * Copyright 2010-2013 Imagination Technologies Ltd.
+ * Copyright 2010-2013 Imagination Techyeslogies Ltd.
  *
  * Exposes the syswake and PDC peripheral wake interrupts to the system.
  *
@@ -124,7 +124,7 @@ static struct pdc_intc_priv *irqd_to_priv(struct irq_data *data)
 
 /*
  * perip_irq_mask() and perip_irq_unmask() use IRQ_ROUTE which also contains
- * wake bits, therefore we cannot use the generic irqchip mask callbacks as they
+ * wake bits, therefore we canyest use the generic irqchip mask callbacks as they
  * cache the mask.
  */
 
@@ -223,7 +223,7 @@ static void pdc_intc_perip_isr(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct pdc_intc_priv *priv;
-	unsigned int i, irq_no;
+	unsigned int i, irq_yes;
 
 	priv = (struct pdc_intc_priv *)irq_desc_get_handler_data(desc);
 
@@ -237,14 +237,14 @@ static void pdc_intc_perip_isr(struct irq_desc *desc)
 found:
 
 	/* pass on the interrupt */
-	irq_no = irq_linear_revmap(priv->domain, i);
-	generic_handle_irq(irq_no);
+	irq_yes = irq_linear_revmap(priv->domain, i);
+	generic_handle_irq(irq_yes);
 }
 
 static void pdc_intc_syswake_isr(struct irq_desc *desc)
 {
 	struct pdc_intc_priv *priv;
-	unsigned int syswake, irq_no;
+	unsigned int syswake, irq_yes;
 	unsigned int status;
 
 	priv = (struct pdc_intc_priv *)irq_desc_get_handler_data(desc);
@@ -258,9 +258,9 @@ static void pdc_intc_syswake_isr(struct irq_desc *desc)
 		if (!(status & 1))
 			continue;
 
-		irq_no = irq_linear_revmap(priv->domain,
+		irq_yes = irq_linear_revmap(priv->domain,
 					   syswake_to_hwirq(syswake));
-		generic_handle_irq(irq_no);
+		generic_handle_irq(irq_yes);
 	}
 }
 
@@ -286,7 +286,7 @@ static void pdc_intc_setup(struct pdc_intc_priv *priv)
 
 	/* Initialise syswake IRQ */
 	for (i = 0; i < priv->nr_syswakes; ++i) {
-		/* set the IRQ mode to none */
+		/* set the IRQ mode to yesne */
 		soc_sys_wake_regoff = PDC_SYS_WAKE_BASE + i*PDC_SYS_WAKE_STRIDE;
 		soc_sys_wake = PDC_SYS_WAKE_INT_NONE
 				<< PDC_SYS_WAKE_INT_MODE_SHIFT;
@@ -297,27 +297,27 @@ static void pdc_intc_setup(struct pdc_intc_priv *priv)
 static int pdc_intc_probe(struct platform_device *pdev)
 {
 	struct pdc_intc_priv *priv;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct resource *res_regs;
 	struct irq_chip_generic *gc;
 	unsigned int i;
 	int irq, ret;
 	u32 val;
 
-	if (!node)
+	if (!yesde)
 		return -ENOENT;
 
 	/* Get registers */
 	res_regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res_regs == NULL) {
-		dev_err(&pdev->dev, "cannot find registers resource\n");
+		dev_err(&pdev->dev, "canyest find registers resource\n");
 		return -ENOENT;
 	}
 
 	/* Allocate driver data */
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		dev_err(&pdev->dev, "cannot allocate device data\n");
+		dev_err(&pdev->dev, "canyest allocate device data\n");
 		return -ENOMEM;
 	}
 	raw_spin_lock_init(&priv->lock);
@@ -330,9 +330,9 @@ static int pdc_intc_probe(struct platform_device *pdev)
 		return -EIO;
 
 	/* Get number of peripherals */
-	ret = of_property_read_u32(node, "num-perips", &val);
+	ret = of_property_read_u32(yesde, "num-perips", &val);
 	if (ret) {
-		dev_err(&pdev->dev, "No num-perips node property found\n");
+		dev_err(&pdev->dev, "No num-perips yesde property found\n");
 		return -EINVAL;
 	}
 	if (val > SYS0_HWIRQ) {
@@ -342,9 +342,9 @@ static int pdc_intc_probe(struct platform_device *pdev)
 	priv->nr_perips = val;
 
 	/* Get number of syswakes */
-	ret = of_property_read_u32(node, "num-syswakes", &val);
+	ret = of_property_read_u32(yesde, "num-syswakes", &val);
 	if (ret) {
-		dev_err(&pdev->dev, "No num-syswakes node property found\n");
+		dev_err(&pdev->dev, "No num-syswakes yesde property found\n");
 		return -EINVAL;
 	}
 	if (val > SYS0_HWIRQ) {
@@ -357,7 +357,7 @@ static int pdc_intc_probe(struct platform_device *pdev)
 	priv->perip_irqs = devm_kcalloc(&pdev->dev, 4, priv->nr_perips,
 					GFP_KERNEL);
 	if (!priv->perip_irqs) {
-		dev_err(&pdev->dev, "cannot allocate perip IRQ list\n");
+		dev_err(&pdev->dev, "canyest allocate perip IRQ list\n");
 		return -ENOMEM;
 	}
 	for (i = 0; i < priv->nr_perips; ++i) {
@@ -379,10 +379,10 @@ static int pdc_intc_probe(struct platform_device *pdev)
 	priv->syswake_irq = irq;
 
 	/* Set up an IRQ domain */
-	priv->domain = irq_domain_add_linear(node, 16, &irq_generic_chip_ops,
+	priv->domain = irq_domain_add_linear(yesde, 16, &irq_generic_chip_ops,
 					     priv);
 	if (unlikely(!priv->domain)) {
-		dev_err(&pdev->dev, "cannot add IRQ domain\n");
+		dev_err(&pdev->dev, "canyest add IRQ domain\n");
 		return -ENOMEM;
 	}
 

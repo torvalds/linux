@@ -13,7 +13,7 @@ struct xfs_trans;
 
 /*
  * XXX: Most of the realtime allocation functions deal in units of realtime
- * extents, not realtime blocks.  This looks funny when paired with the type
+ * extents, yest realtime blocks.  This looks funny when paired with the type
  * name and screams for a larger cleanup.
  */
 struct xfs_rtalloc_rec {
@@ -39,7 +39,7 @@ typedef int (*xfs_rtalloc_query_range_fn)(
 int					/* error */
 xfs_rtallocate_extent(
 	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_rtblock_t		bno,	/* starting block number to allocate */
+	xfs_rtblock_t		byes,	/* starting block number to allocate */
 	xfs_extlen_t		minlen,	/* minimum length to allocate */
 	xfs_extlen_t		maxlen,	/* maximum length to allocate */
 	xfs_extlen_t		*len,	/* out: actual length allocated */
@@ -54,7 +54,7 @@ xfs_rtallocate_extent(
 int					/* error */
 xfs_rtfree_extent(
 	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_rtblock_t		bno,	/* starting block number to free */
+	xfs_rtblock_t		byes,	/* starting block number to free */
 	xfs_extlen_t		len);	/* length of extent freed */
 
 /*
@@ -64,20 +64,20 @@ int					/* error */
 xfs_rtmount_init(
 	struct xfs_mount	*mp);	/* file system mount structure */
 void
-xfs_rtunmount_inodes(
+xfs_rtunmount_iyesdes(
 	struct xfs_mount	*mp);
 
 /*
- * Get the bitmap and summary inodes into the mount structure
+ * Get the bitmap and summary iyesdes into the mount structure
  * at mount time.
  */
 int					/* error */
-xfs_rtmount_inodes(
+xfs_rtmount_iyesdes(
 	struct xfs_mount	*mp);	/* file system mount structure */
 
 /*
  * Pick an extent for allocation at the start of a new realtime file.
- * Use the sequence number stored in the atime field of the bitmap inode.
+ * Use the sequence number stored in the atime field of the bitmap iyesde.
  * Translate this to a fraction of the rtextents, and return the product
  * of rtextents and the fraction.
  * The fraction sequence is 0, 1/2, 1/4, 3/4, 1/8, ..., 7/8, 1/16, ...
@@ -114,11 +114,11 @@ int xfs_rtfind_forw(struct xfs_mount *mp, struct xfs_trans *tp,
 int xfs_rtmodify_range(struct xfs_mount *mp, struct xfs_trans *tp,
 		       xfs_rtblock_t start, xfs_extlen_t len, int val);
 int xfs_rtmodify_summary_int(struct xfs_mount *mp, struct xfs_trans *tp,
-			     int log, xfs_rtblock_t bbno, int delta,
+			     int log, xfs_rtblock_t bbyes, int delta,
 			     xfs_buf_t **rbpp, xfs_fsblock_t *rsb,
 			     xfs_suminfo_t *sum);
 int xfs_rtmodify_summary(struct xfs_mount *mp, struct xfs_trans *tp, int log,
-			 xfs_rtblock_t bbno, int delta, xfs_buf_t **rbpp,
+			 xfs_rtblock_t bbyes, int delta, xfs_buf_t **rbpp,
 			 xfs_fsblock_t *rsb);
 int xfs_rtfree_range(struct xfs_mount *mp, struct xfs_trans *tp,
 		     xfs_rtblock_t start, xfs_extlen_t len,
@@ -131,7 +131,7 @@ int xfs_rtalloc_query_range(struct xfs_trans *tp,
 int xfs_rtalloc_query_all(struct xfs_trans *tp,
 			  xfs_rtalloc_query_range_fn fn,
 			  void *priv);
-bool xfs_verify_rtbno(struct xfs_mount *mp, xfs_rtblock_t rtbno);
+bool xfs_verify_rtbyes(struct xfs_mount *mp, xfs_rtblock_t rtbyes);
 int xfs_rtalloc_extent_is_free(struct xfs_mount *mp, struct xfs_trans *tp,
 			       xfs_rtblock_t start, xfs_extlen_t len,
 			       bool *is_free);
@@ -143,7 +143,7 @@ int xfs_rtalloc_extent_is_free(struct xfs_mount *mp, struct xfs_trans *tp,
 # define xfs_rtalloc_query_range(t,l,h,f,p)             (ENOSYS)
 # define xfs_rtalloc_query_all(t,f,p)                   (ENOSYS)
 # define xfs_rtbuf_get(m,t,b,i,p)                       (ENOSYS)
-# define xfs_verify_rtbno(m, r)			(false)
+# define xfs_verify_rtbyes(m, r)			(false)
 # define xfs_rtalloc_extent_is_free(m,t,s,l,i)          (ENOSYS)
 static inline int		/* error */
 xfs_rtmount_init(
@@ -155,8 +155,8 @@ xfs_rtmount_init(
 	xfs_warn(mp, "Not built with CONFIG_XFS_RT");
 	return -ENOSYS;
 }
-# define xfs_rtmount_inodes(m)  (((mp)->m_sb.sb_rblocks == 0)? 0 : (ENOSYS))
-# define xfs_rtunmount_inodes(m)
+# define xfs_rtmount_iyesdes(m)  (((mp)->m_sb.sb_rblocks == 0)? 0 : (ENOSYS))
+# define xfs_rtunmount_iyesdes(m)
 #endif	/* CONFIG_XFS_RT */
 
 #endif	/* __XFS_RTALLOC_H__ */

@@ -9,7 +9,7 @@ clocks. Si5351a also has a reduced pin-count package (MSOP10) where only
 3 output clocks are accessible. The internal structure of the clock
 generators can be found in [1].
 
-==I2C device node==
+==I2C device yesde==
 
 Required properties:
 - compatible: shall be one of the following:
@@ -30,16 +30,16 @@ Optional properties:
 - silabs,pll-source: pair of (number, source) for each pll. Allows
   to overwrite clock source of pll A (number=0) or B (number=1).
 
-==Child nodes==
+==Child yesdes==
 
 Each of the clock outputs can be overwritten individually by
-using a child node to the I2C device node. If a child node for a clock
-output is not set, the eeprom configuration is not overwritten.
+using a child yesde to the I2C device yesde. If a child yesde for a clock
+output is yest set, the eeprom configuration is yest overwritten.
 
-Required child node properties:
+Required child yesde properties:
 - reg: number of clock output.
 
-Optional child node properties:
+Optional child yesde properties:
 - silabs,clock-source: source clock of the output divider stage N, shall be
   0 = multisynth N
   1 = multisynth 0 for output clocks 0-3, else multisynth4
@@ -65,7 +65,7 @@ ref25: ref25M {
 	clock-frequency = <25000000>;
 };
 
-i2c-master-node {
+i2c-master-yesde {
 
 	/* Si5351a msop10 i2c clock generator */
 	si5351a: clock-generator@60 {

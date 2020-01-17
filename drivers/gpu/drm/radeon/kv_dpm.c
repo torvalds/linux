@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -439,13 +439,13 @@ static int kv_enable_smc_cac(struct radeon_device *rdev, bool enable)
 
 	if (pi->caps_cac) {
 		if (enable) {
-			ret = kv_notify_message_to_smu(rdev, PPSMC_MSG_EnableCac);
+			ret = kv_yestify_message_to_smu(rdev, PPSMC_MSG_EnableCac);
 			if (ret)
 				pi->cac_enabled = false;
 			else
 				pi->cac_enabled = true;
 		} else if (pi->cac_enabled) {
-			kv_notify_message_to_smu(rdev, PPSMC_MSG_DisableCac);
+			kv_yestify_message_to_smu(rdev, PPSMC_MSG_DisableCac);
 			pi->cac_enabled = false;
 		}
 	}
@@ -678,7 +678,7 @@ static void kv_reset_am(struct radeon_device *rdev)
 
 static int kv_freeze_sclk_dpm(struct radeon_device *rdev, bool freeze)
 {
-	return kv_notify_message_to_smu(rdev, freeze ?
+	return kv_yestify_message_to_smu(rdev, freeze ?
 					PPSMC_MSG_SCLKDPM_FreezeLevel : PPSMC_MSG_SCLKDPM_UnfreezeLevel);
 }
 
@@ -690,7 +690,7 @@ static int kv_force_lowest_valid(struct radeon_device *rdev)
 static int kv_unforce_levels(struct radeon_device *rdev)
 {
 	if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS)
-		return kv_notify_message_to_smu(rdev, PPSMC_MSG_NoForcedLevel);
+		return kv_yestify_message_to_smu(rdev, PPSMC_MSG_NoForcedLevel);
 	else
 		return kv_set_enabled_levels(rdev);
 }
@@ -701,7 +701,7 @@ static int kv_update_sclk_t(struct radeon_device *rdev)
 	u32 low_sclk_interrupt_t = 0;
 	int ret = 0;
 
-	if (pi->caps_sclk_throttle_low_notification) {
+	if (pi->caps_sclk_throttle_low_yestification) {
 		low_sclk_interrupt_t = cpu_to_be32(pi->low_sclk_interrupt_t);
 
 		ret = kv_copy_bytes_to_smc(rdev,
@@ -1126,7 +1126,7 @@ static void kv_calculate_dfs_bypass_settings(struct radeon_device *rdev)
 
 static int kv_enable_ulv(struct radeon_device *rdev, bool enable)
 {
-	return kv_notify_message_to_smu(rdev, enable ?
+	return kv_yestify_message_to_smu(rdev, enable ?
 					PPSMC_MSG_EnableULV : PPSMC_MSG_DisableULV);
 }
 
@@ -1298,7 +1298,7 @@ int kv_dpm_late_enable(struct radeon_device *rdev)
 		kv_enable_thermal_int(rdev, true);
 	}
 
-	/* powerdown unused blocks for now */
+	/* powerdown unused blocks for yesw */
 	kv_dpm_powergate_acp(rdev, true);
 	kv_dpm_powergate_samu(rdev, true);
 	kv_dpm_powergate_vce(rdev, true);
@@ -1400,25 +1400,25 @@ static void kv_init_powergate_state(struct radeon_device *rdev)
 
 static int kv_enable_uvd_dpm(struct radeon_device *rdev, bool enable)
 {
-	return kv_notify_message_to_smu(rdev, enable ?
+	return kv_yestify_message_to_smu(rdev, enable ?
 					PPSMC_MSG_UVDDPM_Enable : PPSMC_MSG_UVDDPM_Disable);
 }
 
 static int kv_enable_vce_dpm(struct radeon_device *rdev, bool enable)
 {
-	return kv_notify_message_to_smu(rdev, enable ?
+	return kv_yestify_message_to_smu(rdev, enable ?
 					PPSMC_MSG_VCEDPM_Enable : PPSMC_MSG_VCEDPM_Disable);
 }
 
 static int kv_enable_samu_dpm(struct radeon_device *rdev, bool enable)
 {
-	return kv_notify_message_to_smu(rdev, enable ?
+	return kv_yestify_message_to_smu(rdev, enable ?
 					PPSMC_MSG_SAMUDPM_Enable : PPSMC_MSG_SAMUDPM_Disable);
 }
 
 static int kv_enable_acp_dpm(struct radeon_device *rdev, bool enable)
 {
-	return kv_notify_message_to_smu(rdev, enable ?
+	return kv_yestify_message_to_smu(rdev, enable ?
 					PPSMC_MSG_ACPDPM_Enable : PPSMC_MSG_ACPDPM_Disable);
 }
 
@@ -1507,7 +1507,7 @@ static int kv_update_vce_dpm(struct radeon_device *rdev,
 		kv_enable_vce_dpm(rdev, true);
 	} else if (radeon_new_state->evclk == 0 && radeon_current_state->evclk > 0) {
 		kv_enable_vce_dpm(rdev, false);
-		/* turn the clocks off when not encoding */
+		/* turn the clocks off when yest encoding */
 		cik_update_cg(rdev, RADEON_CG_BLOCK_VCE, true);
 		kv_dpm_powergate_vce(rdev, true);
 	}
@@ -1626,10 +1626,10 @@ void kv_dpm_powergate_uvd(struct radeon_device *rdev, bool gate)
 		}
 		kv_update_uvd_dpm(rdev, gate);
 		if (pi->caps_uvd_pg)
-			kv_notify_message_to_smu(rdev, PPSMC_MSG_UVDPowerOFF);
+			kv_yestify_message_to_smu(rdev, PPSMC_MSG_UVDPowerOFF);
 	} else {
 		if (pi->caps_uvd_pg) {
-			kv_notify_message_to_smu(rdev, PPSMC_MSG_UVDPowerON);
+			kv_yestify_message_to_smu(rdev, PPSMC_MSG_UVDPowerON);
 			uvd_v4_2_resume(rdev);
 			uvd_v1_0_start(rdev);
 			cik_update_cg(rdev, RADEON_CG_BLOCK_UVD, true);
@@ -1650,11 +1650,11 @@ static void kv_dpm_powergate_vce(struct radeon_device *rdev, bool gate)
 	if (gate) {
 		if (pi->caps_vce_pg) {
 			/* XXX do we need a vce_v1_0_stop() ?  */
-			kv_notify_message_to_smu(rdev, PPSMC_MSG_VCEPowerOFF);
+			kv_yestify_message_to_smu(rdev, PPSMC_MSG_VCEPowerOFF);
 		}
 	} else {
 		if (pi->caps_vce_pg) {
-			kv_notify_message_to_smu(rdev, PPSMC_MSG_VCEPowerON);
+			kv_yestify_message_to_smu(rdev, PPSMC_MSG_VCEPowerON);
 			vce_v2_0_resume(rdev);
 			vce_v1_0_start(rdev);
 		}
@@ -1673,10 +1673,10 @@ static void kv_dpm_powergate_samu(struct radeon_device *rdev, bool gate)
 	if (gate) {
 		kv_update_samu_dpm(rdev, true);
 		if (pi->caps_samu_pg)
-			kv_notify_message_to_smu(rdev, PPSMC_MSG_SAMPowerOFF);
+			kv_yestify_message_to_smu(rdev, PPSMC_MSG_SAMPowerOFF);
 	} else {
 		if (pi->caps_samu_pg)
-			kv_notify_message_to_smu(rdev, PPSMC_MSG_SAMPowerON);
+			kv_yestify_message_to_smu(rdev, PPSMC_MSG_SAMPowerON);
 		kv_update_samu_dpm(rdev, false);
 	}
 }
@@ -1696,10 +1696,10 @@ static void kv_dpm_powergate_acp(struct radeon_device *rdev, bool gate)
 	if (gate) {
 		kv_update_acp_dpm(rdev, true);
 		if (pi->caps_acp_pg)
-			kv_notify_message_to_smu(rdev, PPSMC_MSG_ACPPowerOFF);
+			kv_yestify_message_to_smu(rdev, PPSMC_MSG_ACPPowerOFF);
 	} else {
 		if (pi->caps_acp_pg)
-			kv_notify_message_to_smu(rdev, PPSMC_MSG_ACPPowerON);
+			kv_yestify_message_to_smu(rdev, PPSMC_MSG_ACPPowerON);
 		kv_update_acp_dpm(rdev, false);
 	}
 }
@@ -1797,13 +1797,13 @@ static int kv_enable_nb_dpm(struct radeon_device *rdev,
 
 	if (enable) {
 		if (pi->enable_nb_dpm && !pi->nb_dpm_enabled) {
-			ret = kv_notify_message_to_smu(rdev, PPSMC_MSG_NBDPM_Enable);
+			ret = kv_yestify_message_to_smu(rdev, PPSMC_MSG_NBDPM_Enable);
 			if (ret == 0)
 				pi->nb_dpm_enabled = true;
 		}
 	} else {
 		if (pi->enable_nb_dpm && pi->nb_dpm_enabled) {
-			ret = kv_notify_message_to_smu(rdev, PPSMC_MSG_NBDPM_Disable);
+			ret = kv_yestify_message_to_smu(rdev, PPSMC_MSG_NBDPM_Disable);
 			if (ret == 0)
 				pi->nb_dpm_enabled = false;
 		}
@@ -2581,20 +2581,20 @@ static void kv_patch_boot_state(struct radeon_device *rdev,
 	ps->levels[0] = pi->boot_pl;
 }
 
-static void kv_parse_pplib_non_clock_info(struct radeon_device *rdev,
+static void kv_parse_pplib_yesn_clock_info(struct radeon_device *rdev,
 					  struct radeon_ps *rps,
-					  struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info,
+					  struct _ATOM_PPLIB_NONCLOCK_INFO *yesn_clock_info,
 					  u8 table_rev)
 {
 	struct kv_ps *ps = kv_get_ps(rps);
 
-	rps->caps = le32_to_cpu(non_clock_info->ulCapsAndSettings);
-	rps->class = le16_to_cpu(non_clock_info->usClassification);
-	rps->class2 = le16_to_cpu(non_clock_info->usClassification2);
+	rps->caps = le32_to_cpu(yesn_clock_info->ulCapsAndSettings);
+	rps->class = le16_to_cpu(yesn_clock_info->usClassification);
+	rps->class2 = le16_to_cpu(yesn_clock_info->usClassification2);
 
 	if (ATOM_PPLIB_NONCLOCKINFO_VER1 < table_rev) {
-		rps->vclk = le32_to_cpu(non_clock_info->ulVCLK);
-		rps->dclk = le32_to_cpu(non_clock_info->ulDCLK);
+		rps->vclk = le32_to_cpu(yesn_clock_info->ulVCLK);
+		rps->dclk = le32_to_cpu(yesn_clock_info->ulDCLK);
 	} else {
 		rps->vclk = 0;
 		rps->dclk = 0;
@@ -2633,13 +2633,13 @@ static void kv_parse_pplib_clock_info(struct radeon_device *rdev,
 static int kv_parse_power_table(struct radeon_device *rdev)
 {
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
-	struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info;
+	struct _ATOM_PPLIB_NONCLOCK_INFO *yesn_clock_info;
 	union pplib_power_state *power_state;
-	int i, j, k, non_clock_array_index, clock_array_index;
+	int i, j, k, yesn_clock_array_index, clock_array_index;
 	union pplib_clock_info *clock_info;
 	struct _StateArray *state_array;
 	struct _ClockInfoArray *clock_info_array;
-	struct _NonClockInfoArray *non_clock_info_array;
+	struct _NonClockInfoArray *yesn_clock_info_array;
 	union power_info *power_info;
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
 	u16 data_offset;
@@ -2658,7 +2658,7 @@ static int kv_parse_power_table(struct radeon_device *rdev)
 	clock_info_array = (struct _ClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usClockInfoArrayOffset));
-	non_clock_info_array = (struct _NonClockInfoArray *)
+	yesn_clock_info_array = (struct _NonClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
 
@@ -2671,9 +2671,9 @@ static int kv_parse_power_table(struct radeon_device *rdev)
 	for (i = 0; i < state_array->ucNumEntries; i++) {
 		u8 *idx;
 		power_state = (union pplib_power_state *)power_state_offset;
-		non_clock_array_index = power_state->v2.nonClockInfoIndex;
-		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
-			&non_clock_info_array->nonClockInfo[non_clock_array_index];
+		yesn_clock_array_index = power_state->v2.yesnClockInfoIndex;
+		yesn_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
+			&yesn_clock_info_array->yesnClockInfo[yesn_clock_array_index];
 		if (!rdev->pm.power_state[i].clock_info)
 			return -EINVAL;
 		ps = kzalloc(sizeof(struct kv_ps), GFP_KERNEL);
@@ -2698,9 +2698,9 @@ static int kv_parse_power_table(struct radeon_device *rdev)
 						  clock_info);
 			k++;
 		}
-		kv_parse_pplib_non_clock_info(rdev, &rdev->pm.dpm.ps[i],
-					      non_clock_info,
-					      non_clock_info_array->ucEntrySize);
+		kv_parse_pplib_yesn_clock_info(rdev, &rdev->pm.dpm.ps[i],
+					      yesn_clock_info,
+					      yesn_clock_info_array->ucEntrySize);
 		power_state_offset += 2 + power_state->v2.ucNumDPMLevels;
 	}
 	rdev->pm.dpm.num_ps = state_array->ucNumEntries;
@@ -2774,7 +2774,7 @@ int kv_dpm_init(struct radeon_device *rdev)
 		pi->bapm_enable = true;
 	}
 	pi->voltage_drop_t = 0;
-	pi->caps_sclk_throttle_low_notification = false;
+	pi->caps_sclk_throttle_low_yestification = false;
 	pi->caps_fps = false; /* true? */
 	pi->caps_uvd_pg = true;
 	pi->caps_uvd_dpm = true;

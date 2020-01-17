@@ -38,7 +38,7 @@ Optional properties:
 - clock-names :
   - cml1 :
     cml1 clock should be defined here if the PHY driver
-    doesn't manage them. If it does, they should not be.
+    doesn't manage them. If it does, they should yest be.
 - phy-names :
   - For T210:
     - sata-phy

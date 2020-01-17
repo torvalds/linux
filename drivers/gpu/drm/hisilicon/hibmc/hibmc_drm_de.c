@@ -71,7 +71,7 @@ static int hibmc_plane_atomic_check(struct drm_plane *plane,
 		return PTR_ERR(crtc_state);
 
 	if (src_w != state->crtc_w || src_h != state->crtc_h) {
-		DRM_DEBUG_ATOMIC("scale not support\n");
+		DRM_DEBUG_ATOMIC("scale yest support\n");
 		return -EINVAL;
 	}
 
@@ -115,7 +115,7 @@ static void hibmc_plane_atomic_update(struct drm_plane *plane,
 	writel(gpu_addr, priv->mmio + HIBMC_CRT_FB_ADDRESS);
 
 	reg = state->fb->width * (state->fb->format->cpp[0]);
-	/* now line_pad is 16 */
+	/* yesw line_pad is 16 */
 	reg = PADDING(16, reg);
 
 	line_l = state->fb->width * state->fb->format->cpp[0];
@@ -290,7 +290,7 @@ static void get_pll_config(unsigned long x, unsigned long y,
 		}
 	}
 
-	/* if found none, we use default value */
+	/* if found yesne, we use default value */
 	*pll1 = CRT_PLL1_HS_25MHZ;
 	*pll2 = CRT_PLL2_HS_25MHZ;
 }
@@ -321,7 +321,7 @@ static unsigned int display_ctrl_adjust(struct drm_device *dev,
 	/*
 	 * Hisilicon has to set up the top-left and bottom-right
 	 * registers as well.
-	 * Note that normal chip only use those two register for
+	 * Note that yesrmal chip only use those two register for
 	 * auto-centering mode.
 	 */
 	writel(HIBMC_FIELD(HIBMC_CRT_AUTO_CENTERING_TL_TOP, 0) |
@@ -352,7 +352,7 @@ static unsigned int display_ctrl_adjust(struct drm_device *dev,
 	return ctrl;
 }
 
-static void hibmc_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void hibmc_crtc_mode_set_yesfb(struct drm_crtc *crtc)
 {
 	unsigned int val;
 	struct drm_display_mode *mode = &crtc->state->mode;
@@ -449,7 +449,7 @@ static const struct drm_crtc_funcs hibmc_crtc_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs hibmc_crtc_helper_funcs = {
-	.mode_set_nofb	= hibmc_crtc_mode_set_nofb,
+	.mode_set_yesfb	= hibmc_crtc_mode_set_yesfb,
 	.atomic_begin	= hibmc_crtc_atomic_begin,
 	.atomic_flush	= hibmc_crtc_atomic_flush,
 	.atomic_enable	= hibmc_crtc_atomic_enable,

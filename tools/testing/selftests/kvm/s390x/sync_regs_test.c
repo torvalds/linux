@@ -39,7 +39,7 @@ static void guest_code(void)
 #define REG_COMPARE(reg) \
 	TEST_ASSERT(left->reg == right->reg, \
 		    "Register " #reg \
-		    " values did not match: 0x%llx, 0x%llx\n", \
+		    " values did yest match: 0x%llx, 0x%llx\n", \
 		    left->reg, right->reg)
 
 static void compare_regs(struct kvm_regs *left, struct kvm_sync_regs *right)
@@ -74,12 +74,12 @@ int main(int argc, char *argv[])
 	struct kvm_sregs sregs;
 	int rv, cap;
 
-	/* Tell stdout not to buffer its content */
+	/* Tell stdout yest to buffer its content */
 	setbuf(stdout, NULL);
 
 	cap = kvm_check_cap(KVM_CAP_SYNC_REGS);
 	if (!cap) {
-		fprintf(stderr, "CAP_SYNC_REGS not supported, skipping test\n");
+		fprintf(stderr, "CAP_SYNC_REGS yest supported, skipping test\n");
 		exit(KSFT_SKIP);
 	}
 
@@ -91,30 +91,30 @@ int main(int argc, char *argv[])
 	/* Request reading invalid register set from VCPU. */
 	run->kvm_valid_regs = INVALID_SYNC_FIELD;
 	rv = _vcpu_run(vm, VCPU_ID);
-	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d\n",
+	TEST_ASSERT(rv < 0 && erryes == EINVAL,
+		    "Invalid kvm_valid_regs did yest cause expected KVM_RUN error: %d\n",
 		    rv);
 	vcpu_state(vm, VCPU_ID)->kvm_valid_regs = 0;
 
 	run->kvm_valid_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
 	rv = _vcpu_run(vm, VCPU_ID);
-	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d\n",
+	TEST_ASSERT(rv < 0 && erryes == EINVAL,
+		    "Invalid kvm_valid_regs did yest cause expected KVM_RUN error: %d\n",
 		    rv);
 	vcpu_state(vm, VCPU_ID)->kvm_valid_regs = 0;
 
 	/* Request setting invalid register set into VCPU. */
 	run->kvm_dirty_regs = INVALID_SYNC_FIELD;
 	rv = _vcpu_run(vm, VCPU_ID);
-	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d\n",
+	TEST_ASSERT(rv < 0 && erryes == EINVAL,
+		    "Invalid kvm_dirty_regs did yest cause expected KVM_RUN error: %d\n",
 		    rv);
 	vcpu_state(vm, VCPU_ID)->kvm_dirty_regs = 0;
 
 	run->kvm_dirty_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
 	rv = _vcpu_run(vm, VCPU_ID);
-	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d\n",
+	TEST_ASSERT(rv < 0 && erryes == EINVAL,
+		    "Invalid kvm_dirty_regs did yest cause expected KVM_RUN error: %d\n",
 		    rv);
 	vcpu_state(vm, VCPU_ID)->kvm_dirty_regs = 0;
 

@@ -11,16 +11,16 @@
  * device driver. To avoid confusion, all the USB related stuff is
  * prefixed by mts_usb_ and all the SCSI stuff by mts_scsi_.
  *
- * Microtek (www.microtek.com) did not release the specifications for
+ * Microtek (www.microtek.com) did yest release the specifications for
  * their USB protocol to us, so we had to reverse engineer them. We
- * don't know for which models they are valid.
+ * don't kyesw for which models they are valid.
  *
  * The X6 USB has three bulk endpoints, one output (0x1) down which
  * commands and outgoing data are sent, and two input: 0x82 from which
- * normal data is read from the scanner (in packets of maximum 32
+ * yesrmal data is read from the scanner (in packets of maximum 32
  * bytes) and from which the status byte is read, and 0x83 from which
  * the results of a scan (or preview) are read in up to 64 * 1024 byte
- * chunks by the Windows driver. We don't know how much it is possible
+ * chunks by the Windows driver. We don't kyesw how much it is possible
  * to read at a time from 0x83.
  *
  * It seems possible to read (with URB transfers) everything from 0x82
@@ -70,7 +70,7 @@
  *	20000513 added IDs for all products supported by Windows driver (john)
  *	20000514 Rewrote mts_scsi_queuecommand to use URBs (john)
  *	20000514 Version 0.0.8j
- *      20000514 Fix reporting of non-existent devices to SCSI layer (john)
+ *      20000514 Fix reporting of yesn-existent devices to SCSI layer (john)
  *	20000514 Added MTS_DEBUG_INT (john)
  *	20000514 Changed "usb-microtek" to "microtek" for consistency (john)
  *	20000514 Stupid bug fixes (john)
@@ -81,26 +81,26 @@
  *      20000515 Fixed up URB allocation (clear URB on alloc) (john)
  *      20000515 Version 0.0.11j
  *	20000516 Removed unnecessary spinlock in mts_transfer_context (john)
- *	20000516 Removed unnecessary up on instance lock in mts_remove_nolock (john)
+ *	20000516 Removed unnecessary up on instance lock in mts_remove_yeslock (john)
  *	20000516 Implemented (badly) scsi_abort (john)
  *	20000516 Version 0.0.12j
- *      20000517 Hopefully removed mts_remove_nolock quasideadlock (john)
+ *      20000517 Hopefully removed mts_remove_yeslock quasideadlock (john)
  *      20000517 Added mts_debug_dump to print ll USB info (john)
  *	20000518 Tweaks and documentation updates (john)
  *	20000518 Version 0.0.13j
  *	20000518 Cleaned up abort handling (john)
  *	20000523 Removed scsi_command and various scsi_..._resets (john)
- *	20000523 Added unlink URB on scsi_abort, now OHCI supports it (john)
+ *	20000523 Added unlink URB on scsi_abort, yesw OHCI supports it (john)
  *	20000523 Fixed last tiresome compile warning (john)
  *	20000523 Version 0.0.14j (though version 0.1 has come out?)
  *	20000602 Added primitive reset
  *	20000602 Version 0.2.0
  *	20000603 various cosmetic changes
  *	20000603 Version 0.2.1
- *	20000620 minor cosmetic changes
+ *	20000620 miyesr cosmetic changes
  *	20000620 Version 0.2.2
- *	20000822 Hopefully fixed deadlock in mts_remove_nolock()
- *	20000822 Fixed minor race in mts_transfer_cleanup()
+ *	20000822 Hopefully fixed deadlock in mts_remove_yeslock()
+ *	20000822 Fixed miyesr race in mts_transfer_cleanup()
  *	20000822 Fixed deadlock on submission error in queuecommand
  *	20000822 Version 0.2.3
  *	20000913 Reduced module size if debugging is off
@@ -123,7 +123,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/random.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
@@ -388,7 +388,7 @@ void mts_int_submit_urb (struct urb* transfer,
 
 	res = usb_submit_urb( transfer, GFP_ATOMIC );
 	if ( unlikely(res) ) {
-		MTS_INT_ERROR( "could not submit URB! Error was %d\n",(int)res );
+		MTS_INT_ERROR( "could yest submit URB! Error was %d\n",(int)res );
 		context->srb->result = DID_ERROR << 16;
 		mts_transfer_cleanup(transfer);
 	}
@@ -694,7 +694,7 @@ static int mts_usb_probe(struct usb_interface *intf,
 		if ((altsetting->endpoint[i].desc.bmAttributes &
 		     USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_BULK) {
 
-			MTS_WARNING( "can only deal with bulk endpoints; endpoint %d is not bulk.\n",
+			MTS_WARNING( "can only deal with bulk endpoints; endpoint %d is yest bulk.\n",
 			     (int)altsetting->endpoint[i].desc.bEndpointAddress );
 		} else {
 			if (altsetting->endpoint[i].desc.bEndpointAddress &
@@ -747,15 +747,15 @@ static int mts_usb_probe(struct usb_interface *intf,
 	new_desc->ep_image = ep_in_set[1];
 
 	if ( new_desc->ep_out != MTS_EP_OUT )
-		MTS_WARNING( "will this work? Command EP is not usually %d\n",
+		MTS_WARNING( "will this work? Command EP is yest usually %d\n",
 			     (int)new_desc->ep_out );
 
 	if ( new_desc->ep_response != MTS_EP_RESPONSE )
-		MTS_WARNING( "will this work? Response EP is not usually %d\n",
+		MTS_WARNING( "will this work? Response EP is yest usually %d\n",
 			     (int)new_desc->ep_response );
 
 	if ( new_desc->ep_image != MTS_EP_IMAGE )
-		MTS_WARNING( "will this work? Image data EP is not usually %d\n",
+		MTS_WARNING( "will this work? Image data EP is yest usually %d\n",
 			     (int)new_desc->ep_image );
 
 	new_desc->host = scsi_host_alloc(&mts_scsi_host_template,

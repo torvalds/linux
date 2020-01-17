@@ -26,15 +26,15 @@ static int __init cpuidle_sysfs_setup(char *unused)
 }
 __setup("cpuidle_sysfs_switch", cpuidle_sysfs_setup);
 
-static ssize_t show_available_governors(struct device *dev,
+static ssize_t show_available_goveryesrs(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
 	ssize_t i = 0;
-	struct cpuidle_governor *tmp;
+	struct cpuidle_goveryesr *tmp;
 
 	mutex_lock(&cpuidle_lock);
-	list_for_each_entry(tmp, &cpuidle_governors, governor_list) {
+	list_for_each_entry(tmp, &cpuidle_goveryesrs, goveryesr_list) {
 		if (i >= (ssize_t) ((PAGE_SIZE/sizeof(char)) -
 				    CPUIDLE_NAME_LEN - 2))
 			goto out;
@@ -59,36 +59,36 @@ static ssize_t show_current_driver(struct device *dev,
 	if (drv)
 		ret = sprintf(buf, "%s\n", drv->name);
 	else
-		ret = sprintf(buf, "none\n");
+		ret = sprintf(buf, "yesne\n");
 	spin_unlock(&cpuidle_driver_lock);
 
 	return ret;
 }
 
-static ssize_t show_current_governor(struct device *dev,
+static ssize_t show_current_goveryesr(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
 	ssize_t ret;
 
 	mutex_lock(&cpuidle_lock);
-	if (cpuidle_curr_governor)
-		ret = sprintf(buf, "%s\n", cpuidle_curr_governor->name);
+	if (cpuidle_curr_goveryesr)
+		ret = sprintf(buf, "%s\n", cpuidle_curr_goveryesr->name);
 	else
-		ret = sprintf(buf, "none\n");
+		ret = sprintf(buf, "yesne\n");
 	mutex_unlock(&cpuidle_lock);
 
 	return ret;
 }
 
-static ssize_t store_current_governor(struct device *dev,
+static ssize_t store_current_goveryesr(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
 	char gov_name[CPUIDLE_NAME_LEN];
 	int ret = -EINVAL;
 	size_t len = count;
-	struct cpuidle_governor *gov;
+	struct cpuidle_goveryesr *gov;
 
 	if (!len || len >= sizeof(gov_name))
 		return -EINVAL;
@@ -100,9 +100,9 @@ static ssize_t store_current_governor(struct device *dev,
 
 	mutex_lock(&cpuidle_lock);
 
-	list_for_each_entry(gov, &cpuidle_governors, governor_list) {
+	list_for_each_entry(gov, &cpuidle_goveryesrs, goveryesr_list) {
 		if (strlen(gov->name) == len && !strcmp(gov->name, gov_name)) {
-			ret = cpuidle_switch_governor(gov);
+			ret = cpuidle_switch_goveryesr(gov);
 			break;
 		}
 	}
@@ -116,22 +116,22 @@ static ssize_t store_current_governor(struct device *dev,
 }
 
 static DEVICE_ATTR(current_driver, 0444, show_current_driver, NULL);
-static DEVICE_ATTR(current_governor_ro, 0444, show_current_governor, NULL);
+static DEVICE_ATTR(current_goveryesr_ro, 0444, show_current_goveryesr, NULL);
 
 static struct attribute *cpuidle_default_attrs[] = {
 	&dev_attr_current_driver.attr,
-	&dev_attr_current_governor_ro.attr,
+	&dev_attr_current_goveryesr_ro.attr,
 	NULL
 };
 
-static DEVICE_ATTR(available_governors, 0444, show_available_governors, NULL);
-static DEVICE_ATTR(current_governor, 0644, show_current_governor,
-		   store_current_governor);
+static DEVICE_ATTR(available_goveryesrs, 0444, show_available_goveryesrs, NULL);
+static DEVICE_ATTR(current_goveryesr, 0644, show_current_goveryesr,
+		   store_current_goveryesr);
 
 static struct attribute *cpuidle_switch_attrs[] = {
-	&dev_attr_available_governors.attr,
+	&dev_attr_available_goveryesrs.attr,
 	&dev_attr_current_driver.attr,
-	&dev_attr_current_governor.attr,
+	&dev_attr_current_goveryesr.attr,
 	NULL
 };
 
@@ -399,7 +399,7 @@ static void cpuidle_add_s2idle_attr_group(struct cpuidle_state_kobj *kobj)
 
 	ret = sysfs_create_group(&kobj->kobj, &cpuidle_state_s2idle_group);
 	if (ret)
-		pr_debug("%s: sysfs attribute group not created\n", __func__);
+		pr_debug("%s: sysfs attribute group yest created\n", __func__);
 }
 
 static void cpuidle_remove_s2idle_attr_group(struct cpuidle_state_kobj *kobj)
@@ -557,7 +557,7 @@ static ssize_t show_driver_name(struct cpuidle_driver *drv, char *buf)
 	ssize_t ret;
 
 	spin_lock(&cpuidle_driver_lock);
-	ret = sprintf(buf, "%s\n", drv ? drv->name : "none");
+	ret = sprintf(buf, "%s\n", drv ? drv->name : "yesne");
 	spin_unlock(&cpuidle_driver_lock);
 
 	return ret;
@@ -706,11 +706,11 @@ int cpuidle_add_sysfs(struct cpuidle_device *dev)
 	int error;
 
 	/*
-	 * Return if cpu_device is not setup for this CPU.
+	 * Return if cpu_device is yest setup for this CPU.
 	 *
-	 * This could happen if the arch did not set up cpu_device
-	 * since this CPU is not in cpu_present mask and the
-	 * driver did not send a correct CPU mask during registration.
+	 * This could happen if the arch did yest set up cpu_device
+	 * since this CPU is yest in cpu_present mask and the
+	 * driver did yest send a correct CPU mask during registration.
 	 * Without this check we would end up passing bogus
 	 * value for &cpu_dev->kobj in kobject_init_and_add()
 	 */

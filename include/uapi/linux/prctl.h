@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_PRCTL_H
 #define _LINUX_PRCTL_H
 
@@ -19,7 +19,7 @@
 # define PR_UNALIGN_NOPRINT	1	/* silently fix up unaligned user accesses */
 # define PR_UNALIGN_SIGBUS	2	/* generate SIGBUS on unaligned user access */
 
-/* Get/set whether or not to drop capabilities on setuid() away from
+/* Get/set whether or yest to drop capabilities on setuid() away from
  * uid 0 (as per security/commoncap.c) */
 #define PR_GET_KEEPCAPS   7
 #define PR_SET_KEEPCAPS   8
@@ -40,7 +40,7 @@
 # define PR_FP_EXC_RES		0x080000	/* floating point inexact result */
 # define PR_FP_EXC_INV		0x100000	/* floating point invalid operation */
 # define PR_FP_EXC_DISABLED	0	/* FP exceptions disabled */
-# define PR_FP_EXC_NONRECOV	1	/* async non-recoverable exc. mode */
+# define PR_FP_EXC_NONRECOV	1	/* async yesn-recoverable exc. mode */
 # define PR_FP_EXC_ASYNC	2	/* async recoverable exception mode */
 # define PR_FP_EXC_PRECISE	3	/* precise exception mode */
 
@@ -82,7 +82,7 @@
 #define PR_SET_SECUREBITS 28
 
 /*
- * Get/set the timerslack as used by poll/select/nanosleep
+ * Get/set the timerslack as used by poll/select/nayessleep
  * A value of 0 means "use default"
  */
 #define PR_SET_TIMERSLACK 29
@@ -150,7 +150,7 @@ struct prctl_mm_map {
 
 /*
  * Set specific pid that is allowed to ptrace the current task.
- * A value of 0 mean "no process".
+ * A value of 0 mean "yes process".
  */
 #define PR_SET_PTRACER 0x59616d61
 # define PR_SET_PTRACER_ANY ((unsigned long)-1)
@@ -159,8 +159,8 @@ struct prctl_mm_map {
 #define PR_GET_CHILD_SUBREAPER	37
 
 /*
- * If no_new_privs is set, then operations that grant new privileges (i.e.
- * execve) will either fail or not grant them.  This affects suid/sgid,
+ * If yes_new_privs is set, then operations that grant new privileges (i.e.
+ * execve) will either fail or yest grant them.  This affects suid/sgid,
  * file capabilities, and LSMs.
  *
  * Operations that merely manipulate or drop existing privileges (setresuid,
@@ -170,7 +170,7 @@ struct prctl_mm_map {
  * asking selinux for a specific new context (e.g. with runcon) will result
  * in execve returning -EPERM.
  *
- * See Documentation/userspace-api/no_new_privs.rst for more details.
+ * See Documentation/userspace-api/yes_new_privs.rst for more details.
  */
 #define PR_SET_NO_NEW_PRIVS	38
 #define PR_GET_NO_NEW_PRIVS	39

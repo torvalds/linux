@@ -6,7 +6,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 #if !defined(CONFIG_SMP)
 #include <asm/futex-irq.h>
@@ -15,7 +15,7 @@
 #elif defined(CONFIG_CPU_SH4A)
 #include <asm/futex-llsc.h>
 #else
-#error SMP not supported on this configuration.
+#error SMP yest supported on this configuration.
 #endif
 
 static inline int

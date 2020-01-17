@@ -6,7 +6,7 @@ Running CAIF over SPI needs some extra setup, owing to the nature of SPI.
 Two extra GPIOs have been added in order to negotiate the transfers
  between the master and the slave. The minimum requirement for running
 CAIF over SPI is a SPI slave chip and two GPIOs (more details below).
-Please note that running as a slave implies that you need to keep up
+Please yeste that running as a slave implies that you need to keep up
 with the master clock. An overrun or underrun event is fatal.
 
 - CAIF SPI framework:
@@ -52,7 +52,7 @@ the physical hardware, both with regard to SPI and to GPIOs.
 	signal a change of state of the input GPIO (SS) to the interface.
 	Only active edges are mandatory to be reported.
 	This function can be called from IRQ context (recommended in order
-	not to introduce latency). The ifc parameter should be the pointer
+	yest to introduce latency). The ifc parameter should be the pointer
 	returned from the platform probe function in the SPI device structure.
 
 	void (*xfer_done_cb) (struct cfspi_ifc *ifc);
@@ -61,7 +61,7 @@ the physical hardware, both with regard to SPI and to GPIOs.
 	report that a transfer is completed. This function should only be
 	called once both the transmission and the reception are completed.
 	This function can be called from IRQ context (recommended in order
-	not to introduce latency). The ifc parameter should be the pointer
+	yest to introduce latency). The ifc parameter should be the pointer
 	returned from the platform probe function in the SPI device structure.
 
 	- Connecting the bits and pieces:
@@ -120,7 +120,7 @@ static irqreturn_t sspi_irq(int irq, void *arg)
 	 * SS signal. Once a edge is detected, the ss_cb() function should be
 	 * called with the parameter assert set to true. It is OK
 	 * (and even advised) to call the ss_cb() function in IRQ context in
-	 * order not to add any delay. */
+	 * order yest to add any delay. */
 
 	return IRQ_HANDLED;
 }
@@ -136,7 +136,7 @@ static void sspi_complete(void *context)
 
 static int sspi_init_xfer(struct cfspi_xfer *xfer, struct cfspi_dev *dev)
 {
-	/* Store transfer info. For a normal implementation you should
+	/* Store transfer info. For a yesrmal implementation you should
 	 * set up your DMA here and make sure that you are ready to
 	 * receive the data from the master SPI. */
 

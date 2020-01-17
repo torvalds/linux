@@ -16,13 +16,13 @@
 
 static inline int kvm_para_available(void)
 {
-	struct device_node *hyper_node;
+	struct device_yesde *hyper_yesde;
 
-	hyper_node = of_find_node_by_path("/hypervisor");
-	if (!hyper_node)
+	hyper_yesde = of_find_yesde_by_path("/hypervisor");
+	if (!hyper_yesde)
 		return 0;
 
-	if (!of_device_is_compatible(hyper_node, "linux,kvm"))
+	if (!of_device_is_compatible(hyper_yesde, "linux,kvm"))
 		return 0;
 
 	return 1;

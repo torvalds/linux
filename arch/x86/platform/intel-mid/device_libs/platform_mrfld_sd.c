@@ -22,7 +22,7 @@ static struct sdhci_pci_data mrfld_sdhci_pci_data = {
 };
 
 static struct sdhci_pci_data *
-mrfld_sdhci_pci_get_data(struct pci_dev *pdev, int slotno)
+mrfld_sdhci_pci_get_data(struct pci_dev *pdev, int slotyes)
 {
 	unsigned int func = PCI_FUNC(pdev->devfn);
 

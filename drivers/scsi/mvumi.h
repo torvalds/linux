@@ -108,7 +108,7 @@ enum {
 	/*
 	* Command flag is the flag for the CDB command itself
 	*/
-	/* 1-non data; 0-data command */
+	/* 1-yesn data; 0-data command */
 	CMD_FLAG_NON_DATA		= 1 << 0,
 	CMD_FLAG_DMA			= 1 << 1,
 	CMD_FLAG_PIO			= 1 << 2,
@@ -135,7 +135,7 @@ struct mvumi_hotplug_event {
 
 struct mvumi_driver_event {
 	u32	time_stamp;
-	u32	sequence_no;
+	u32	sequence_yes;
 	u32	event_id;
 	u8	severity;
 	u8	param_count;
@@ -295,7 +295,7 @@ struct mvumi_ob_data {
 
 struct version_info {
 	u32 ver_major;
-	u32 ver_minor;
+	u32 ver_miyesr;
 	u32 ver_oem;
 	u32 ver_build;
 };
@@ -407,7 +407,7 @@ struct mvumi_hs_page1 {
 	struct version_info fw_ver;
 	u8 cl_in_max_entry_size;
 	u8 cl_out_max_entry_size;
-	u8 cl_inout_list_depth;
+	u8 cl_iyesut_list_depth;
 	u8 total_pages;
 	u16 capability;
 	u16 reserved1;

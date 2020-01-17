@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -82,7 +82,7 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 		 * function returns false, the xdp_buff shouldn't be recycled,
 		 * as it was already done in xdp_convert_zc_to_xdp_frame.
 		 */
-		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* non-atomic */
+		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* yesn-atomic */
 
 		xdpi.mode = MLX5E_XDP_XMIT_MODE_FRAME;
 
@@ -152,7 +152,7 @@ bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
 	case XDP_TX:
 		if (unlikely(!mlx5e_xmit_xdp_buff(rq->xdpsq, rq, di, &xdp)))
 			goto xdp_abort;
-		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* non-atomic */
+		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* yesn-atomic */
 		return true;
 	case XDP_REDIRECT:
 		/* When XDP enabled then page-refcnt==1 here */
@@ -266,7 +266,7 @@ static bool mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq,
 		return false;
 
 	if (check_result == MLX5E_XDP_CHECK_START_MPWQE) {
-		/* Start the session when nothing can fail, so it's guaranteed
+		/* Start the session when yesthing can fail, so it's guaranteed
 		 * that if there is an active session, it has at least one dseg,
 		 * and it's safe to complete it at any time.
 		 */
@@ -275,7 +275,7 @@ static bool mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq,
 
 	mlx5e_xdp_mpwqe_add_dseg(sq, xdptxd, stats);
 
-	if (unlikely(mlx5e_xdp_no_room_for_inline_pkt(session) ||
+	if (unlikely(mlx5e_xdp_yes_room_for_inline_pkt(session) ||
 		     session->ds_count == MLX5E_XDP_MPW_MAX_NUM_DS))
 		mlx5e_xdp_mpwqe_complete(sq);
 
@@ -477,7 +477,7 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	int sq_num;
 	int i;
 
-	/* this flag is sufficient, no need to test internal sq state */
+	/* this flag is sufficient, yes need to test internal sq state */
 	if (unlikely(!mlx5e_xdp_tx_is_enabled(priv)))
 		return -ENETDOWN;
 

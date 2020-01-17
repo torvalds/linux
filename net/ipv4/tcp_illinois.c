@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * TCP Illinois congestion control.
+ * TCP Illiyesis congestion control.
  * Home page:
- *	http://www.ews.uiuc.edu/~shaoliu/tcpillinois/index.html
+ *	http://www.ews.uiuc.edu/~shaoliu/tcpilliyesis/index.html
  *
  * The algorithm is described in:
- * "TCP-Illinois: A Loss and Delay-Based Congestion Control Algorithm
+ * "TCP-Illiyesis: A Loss and Delay-Based Congestion Control Algorithm
  *  for High-Speed Networks"
- * http://tamerbasar.csl.illinois.edu/LiuBasarSrikantPerfEvalArtJun2008.pdf
+ * http://tamerbasar.csl.illiyesis.edu/LiuBasarSrikantPerfEvalArtJun2008.pdf
  *
  * Implemented from description in paper and ns-2 simulation.
  * Copyright (C) 2007 Stephen Hemminger <shemminger@linux-foundation.org>
@@ -40,8 +40,8 @@ static int theta __read_mostly = 5;
 module_param(theta, int, 0);
 MODULE_PARM_DESC(theta, "# of fast RTT's before full growth");
 
-/* TCP Illinois Parameters */
-struct illinois {
+/* TCP Illiyesis Parameters */
+struct illiyesis {
 	u64	sum_rtt;	/* sum of rtt's measured within last rtt */
 	u16	cnt_rtt;	/* # of rtts measured within last rtt */
 	u32	base_rtt;	/* min of all rtt in usec */
@@ -57,7 +57,7 @@ struct illinois {
 static void rtt_reset(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct illinois *ca = inet_csk_ca(sk);
+	struct illiyesis *ca = inet_csk_ca(sk);
 
 	ca->end_seq = tp->snd_nxt;
 	ca->cnt_rtt = 0;
@@ -66,9 +66,9 @@ static void rtt_reset(struct sock *sk)
 	/* TODO: age max_rtt? */
 }
 
-static void tcp_illinois_init(struct sock *sk)
+static void tcp_illiyesis_init(struct sock *sk)
 {
-	struct illinois *ca = inet_csk_ca(sk);
+	struct illiyesis *ca = inet_csk_ca(sk);
 
 	ca->alpha = ALPHA_MAX;
 	ca->beta = BETA_BASE;
@@ -83,18 +83,18 @@ static void tcp_illinois_init(struct sock *sk)
 }
 
 /* Measure RTT for each ack. */
-static void tcp_illinois_acked(struct sock *sk, const struct ack_sample *sample)
+static void tcp_illiyesis_acked(struct sock *sk, const struct ack_sample *sample)
 {
-	struct illinois *ca = inet_csk_ca(sk);
+	struct illiyesis *ca = inet_csk_ca(sk);
 	s32 rtt_us = sample->rtt_us;
 
 	ca->acked = sample->pkts_acked;
 
-	/* dup ack, no rtt sample */
+	/* dup ack, yes rtt sample */
 	if (rtt_us < 0)
 		return;
 
-	/* ignore bogus values, this prevents wraparound in alpha math */
+	/* igyesre bogus values, this prevents wraparound in alpha math */
 	if (rtt_us > RTT_MAX)
 		rtt_us = RTT_MAX;
 
@@ -111,13 +111,13 @@ static void tcp_illinois_acked(struct sock *sk, const struct ack_sample *sample)
 }
 
 /* Maximum queuing delay */
-static inline u32 max_delay(const struct illinois *ca)
+static inline u32 max_delay(const struct illiyesis *ca)
 {
 	return ca->max_rtt - ca->base_rtt;
 }
 
 /* Average queuing delay */
-static inline u32 avg_delay(const struct illinois *ca)
+static inline u32 avg_delay(const struct illiyesis *ca)
 {
 	u64 t = ca->sum_rtt;
 
@@ -127,7 +127,7 @@ static inline u32 avg_delay(const struct illinois *ca)
 
 /*
  * Compute value of alpha used for additive increase.
- * If small window then use 1.0, equivalent to Reno.
+ * If small window then use 1.0, equivalent to Reyes.
  *
  * For larger windows, adjust based on average delay.
  * A. If average delay is at minimum (we are uncongested),
@@ -137,7 +137,7 @@ static inline u32 avg_delay(const struct illinois *ca)
  *
  * The result is a convex window growth curve.
  */
-static u32 alpha(struct illinois *ca, u32 da, u32 dm)
+static u32 alpha(struct illiyesis *ca, u32 da, u32 dm)
 {
 	u32 d1 = dm / 100;	/* Low threshold */
 
@@ -183,7 +183,7 @@ static u32 alpha(struct illinois *ca, u32 da, u32 dm)
 
 /*
  * Beta used for multiplicative decrease.
- * For small window sizes returns same value as Reno (0.5)
+ * For small window sizes returns same value as Reyes (0.5)
  *
  * If delay is small (10% of max) then beta = 1/8
  * If delay is up to 80% of max then beta = 1/2
@@ -222,7 +222,7 @@ static u32 beta(u32 da, u32 dm)
 static void update_params(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct illinois *ca = inet_csk_ca(sk);
+	struct illiyesis *ca = inet_csk_ca(sk);
 
 	if (tp->snd_cwnd < win_thresh) {
 		ca->alpha = ALPHA_BASE;
@@ -241,9 +241,9 @@ static void update_params(struct sock *sk)
 /*
  * In case of loss, reset to default values
  */
-static void tcp_illinois_state(struct sock *sk, u8 new_state)
+static void tcp_illiyesis_state(struct sock *sk, u8 new_state)
 {
-	struct illinois *ca = inet_csk_ca(sk);
+	struct illiyesis *ca = inet_csk_ca(sk);
 
 	if (new_state == TCP_CA_Loss) {
 		ca->alpha = ALPHA_BASE;
@@ -255,12 +255,12 @@ static void tcp_illinois_state(struct sock *sk, u8 new_state)
 }
 
 /*
- * Increase window in response to successful acknowledgment.
+ * Increase window in response to successful ackyeswledgment.
  */
-static void tcp_illinois_cong_avoid(struct sock *sk, u32 ack, u32 acked)
+static void tcp_illiyesis_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct illinois *ca = inet_csk_ca(sk);
+	struct illiyesis *ca = inet_csk_ca(sk);
 
 	if (after(ack, ca->end_seq))
 		update_params(sk);
@@ -292,20 +292,20 @@ static void tcp_illinois_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	}
 }
 
-static u32 tcp_illinois_ssthresh(struct sock *sk)
+static u32 tcp_illiyesis_ssthresh(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct illinois *ca = inet_csk_ca(sk);
+	struct illiyesis *ca = inet_csk_ca(sk);
 
 	/* Multiplicative decrease */
 	return max(tp->snd_cwnd - ((tp->snd_cwnd * ca->beta) >> BETA_SHIFT), 2U);
 }
 
 /* Extract info for Tcp socket info provided via netlink. */
-static size_t tcp_illinois_info(struct sock *sk, u32 ext, int *attr,
+static size_t tcp_illiyesis_info(struct sock *sk, u32 ext, int *attr,
 				union tcp_cc_info *info)
 {
-	const struct illinois *ca = inet_csk_ca(sk);
+	const struct illiyesis *ca = inet_csk_ca(sk);
 
 	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
 		info->vegas.tcpv_enabled = 1;
@@ -325,34 +325,34 @@ static size_t tcp_illinois_info(struct sock *sk, u32 ext, int *attr,
 	return 0;
 }
 
-static struct tcp_congestion_ops tcp_illinois __read_mostly = {
-	.init		= tcp_illinois_init,
-	.ssthresh	= tcp_illinois_ssthresh,
-	.undo_cwnd	= tcp_reno_undo_cwnd,
-	.cong_avoid	= tcp_illinois_cong_avoid,
-	.set_state	= tcp_illinois_state,
-	.get_info	= tcp_illinois_info,
-	.pkts_acked	= tcp_illinois_acked,
+static struct tcp_congestion_ops tcp_illiyesis __read_mostly = {
+	.init		= tcp_illiyesis_init,
+	.ssthresh	= tcp_illiyesis_ssthresh,
+	.undo_cwnd	= tcp_reyes_undo_cwnd,
+	.cong_avoid	= tcp_illiyesis_cong_avoid,
+	.set_state	= tcp_illiyesis_state,
+	.get_info	= tcp_illiyesis_info,
+	.pkts_acked	= tcp_illiyesis_acked,
 
 	.owner		= THIS_MODULE,
-	.name		= "illinois",
+	.name		= "illiyesis",
 };
 
-static int __init tcp_illinois_register(void)
+static int __init tcp_illiyesis_register(void)
 {
-	BUILD_BUG_ON(sizeof(struct illinois) > ICSK_CA_PRIV_SIZE);
-	return tcp_register_congestion_control(&tcp_illinois);
+	BUILD_BUG_ON(sizeof(struct illiyesis) > ICSK_CA_PRIV_SIZE);
+	return tcp_register_congestion_control(&tcp_illiyesis);
 }
 
-static void __exit tcp_illinois_unregister(void)
+static void __exit tcp_illiyesis_unregister(void)
 {
-	tcp_unregister_congestion_control(&tcp_illinois);
+	tcp_unregister_congestion_control(&tcp_illiyesis);
 }
 
-module_init(tcp_illinois_register);
-module_exit(tcp_illinois_unregister);
+module_init(tcp_illiyesis_register);
+module_exit(tcp_illiyesis_unregister);
 
 MODULE_AUTHOR("Stephen Hemminger, Shao Liu");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("TCP Illinois");
+MODULE_DESCRIPTION("TCP Illiyesis");
 MODULE_VERSION("1.0");

@@ -83,16 +83,16 @@ KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/include \
 		   -I$(objtree)/$(HOST_DIR)/include/generated \
 		   -I$(objtree)/$(HOST_DIR)/include/generated/uapi
 
-# -Derrno=kernel_errno - This turns all kernel references to errno into
-# kernel_errno to separate them from the libc errno.  This allows -fno-common
+# -Derryes=kernel_erryes - This turns all kernel references to erryes into
+# kernel_erryes to separate them from the libc erryes.  This allows -fyes-common
 # in KBUILD_CFLAGS.  Otherwise, it would cause ld to complain about the two different
-# errnos.
+# erryess.
 # These apply to kernelspace only.
 #
 # strip leading and trailing whitespace to make the USER_CFLAGS removal of these
 # defines more robust
 
-KERNEL_DEFINES = $(strip -Derrno=kernel_errno -Dsigprocmask=kernel_sigprocmask \
+KERNEL_DEFINES = $(strip -Derryes=kernel_erryes -Dsigprocmask=kernel_sigprocmask \
 			 -Dmktime=kernel_mktime $(ARCH_KERNEL_DEFINES))
 KBUILD_CFLAGS += $(KERNEL_DEFINES)
 
@@ -118,11 +118,11 @@ archprepare:
 	$(Q)$(MAKE) $(build)=$(HOST_DIR)/um include/generated/user_constants.h
 
 LINK-$(CONFIG_LD_SCRIPT_STATIC) += -static
-LINK-$(CONFIG_LD_SCRIPT_DYN) += -Wl,-rpath,/lib $(call cc-option, -no-pie)
+LINK-$(CONFIG_LD_SCRIPT_DYN) += -Wl,-rpath,/lib $(call cc-option, -yes-pie)
 
-CFLAGS_NO_HARDENING := $(call cc-option, -fno-PIC,) $(call cc-option, -fno-pic,) \
-	$(call cc-option, -fno-stack-protector,) \
-	$(call cc-option, -fno-stack-protector-all,)
+CFLAGS_NO_HARDENING := $(call cc-option, -fyes-PIC,) $(call cc-option, -fyes-pic,) \
+	$(call cc-option, -fyes-stack-protector,) \
+	$(call cc-option, -fyes-stack-protector-all,)
 
 # Options used by linker script
 export LDS_START      := $(START)

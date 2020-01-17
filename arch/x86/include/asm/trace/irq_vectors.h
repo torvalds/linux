@@ -92,7 +92,7 @@ TRACE_EVENT_PERF_PERM(irq_work_exit, is_sampling_event(p_event) ? -EPERM : 0);
 
 /*
  * The ifdef is required because that tracepoint macro hell emits tracepoint
- * code in files which include this header even if the tracepoint is not
+ * code in files which include this header even if the tracepoint is yest
  * enabled. Brilliant stuff that.
  */
 #ifdef CONFIG_SMP

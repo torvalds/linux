@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* linux/drivers/media/platform/exynos3250-jpeg/jpeg-hw.h
+/* linux/drivers/media/platform/exyyess3250-jpeg/jpeg-hw.h
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -13,15 +13,15 @@
 
 #include "jpeg-core.h"
 #include "jpeg-regs.h"
-#include "jpeg-hw-exynos3250.h"
+#include "jpeg-hw-exyyess3250.h"
 
-void exynos3250_jpeg_reset(void __iomem *regs)
+void exyyess3250_jpeg_reset(void __iomem *regs)
 {
 	u32 reg = 1;
 	int count = 1000;
 
 	writel(1, regs + EXYNOS3250_SW_RESET);
-	/* no other way but polling for when JPEG IP becomes operational */
+	/* yes other way but polling for when JPEG IP becomes operational */
 	while (reg != 0 && --count > 0) {
 		udelay(1);
 		cpu_relax();
@@ -41,12 +41,12 @@ void exynos3250_jpeg_reset(void __iomem *regs)
 	writel(0, regs + EXYNOS3250_JPGDRI);
 }
 
-void exynos3250_jpeg_poweron(void __iomem *regs)
+void exyyess3250_jpeg_poweron(void __iomem *regs)
 {
 	writel(EXYNOS3250_POWER_ON, regs + EXYNOS3250_JPGCLKCON);
 }
 
-void exynos3250_jpeg_set_dma_num(void __iomem *regs)
+void exyyess3250_jpeg_set_dma_num(void __iomem *regs)
 {
 	writel(((EXYNOS3250_DMA_MO_COUNT << EXYNOS3250_WDMA_ISSUE_NUM_SHIFT) &
 			EXYNOS3250_WDMA_ISSUE_NUM_MASK) |
@@ -57,7 +57,7 @@ void exynos3250_jpeg_set_dma_num(void __iomem *regs)
 		regs + EXYNOS3250_DMA_ISSUE_NUM);
 }
 
-void exynos3250_jpeg_clk_set(void __iomem *base)
+void exyyess3250_jpeg_clk_set(void __iomem *base)
 {
 	u32 reg;
 
@@ -66,7 +66,7 @@ void exynos3250_jpeg_clk_set(void __iomem *base)
 	writel(reg | EXYNOS3250_HALF_EN, base + EXYNOS3250_JPGCMOD);
 }
 
-void exynos3250_jpeg_input_raw_fmt(void __iomem *regs, unsigned int fmt)
+void exyyess3250_jpeg_input_raw_fmt(void __iomem *regs, unsigned int fmt)
 {
 	u32 reg;
 
@@ -117,7 +117,7 @@ void exynos3250_jpeg_input_raw_fmt(void __iomem *regs, unsigned int fmt)
 	writel(reg, regs + EXYNOS3250_JPGCMOD);
 }
 
-void exynos3250_jpeg_set_y16(void __iomem *regs, bool y16)
+void exyyess3250_jpeg_set_y16(void __iomem *regs, bool y16)
 {
 	u32 reg;
 
@@ -129,7 +129,7 @@ void exynos3250_jpeg_set_y16(void __iomem *regs, bool y16)
 	writel(reg, regs + EXYNOS3250_JPGCMOD);
 }
 
-void exynos3250_jpeg_proc_mode(void __iomem *regs, unsigned int mode)
+void exyyess3250_jpeg_proc_mode(void __iomem *regs, unsigned int mode)
 {
 	u32 reg, m;
 
@@ -143,7 +143,7 @@ void exynos3250_jpeg_proc_mode(void __iomem *regs, unsigned int mode)
 	writel(reg, regs + EXYNOS3250_JPGMOD);
 }
 
-void exynos3250_jpeg_subsampling_mode(void __iomem *regs, unsigned int mode)
+void exyyess3250_jpeg_subsampling_mode(void __iomem *regs, unsigned int mode)
 {
 	u32 reg, m = 0;
 
@@ -165,13 +165,13 @@ void exynos3250_jpeg_subsampling_mode(void __iomem *regs, unsigned int mode)
 	writel(reg, regs + EXYNOS3250_JPGMOD);
 }
 
-unsigned int exynos3250_jpeg_get_subsampling_mode(void __iomem *regs)
+unsigned int exyyess3250_jpeg_get_subsampling_mode(void __iomem *regs)
 {
 	return readl(regs + EXYNOS3250_JPGMOD) &
 				EXYNOS3250_SUBSAMPLING_MODE_MASK;
 }
 
-void exynos3250_jpeg_dri(void __iomem *regs, unsigned int dri)
+void exyyess3250_jpeg_dri(void __iomem *regs, unsigned int dri)
 {
 	u32 reg;
 
@@ -179,7 +179,7 @@ void exynos3250_jpeg_dri(void __iomem *regs, unsigned int dri)
 	writel(reg, regs + EXYNOS3250_JPGDRI);
 }
 
-void exynos3250_jpeg_qtbl(void __iomem *regs, unsigned int t, unsigned int n)
+void exyyess3250_jpeg_qtbl(void __iomem *regs, unsigned int t, unsigned int n)
 {
 	unsigned long reg;
 
@@ -190,7 +190,7 @@ void exynos3250_jpeg_qtbl(void __iomem *regs, unsigned int t, unsigned int n)
 	writel(reg, regs + EXYNOS3250_QHTBL);
 }
 
-void exynos3250_jpeg_htbl_ac(void __iomem *regs, unsigned int t)
+void exyyess3250_jpeg_htbl_ac(void __iomem *regs, unsigned int t)
 {
 	unsigned long reg;
 
@@ -202,7 +202,7 @@ void exynos3250_jpeg_htbl_ac(void __iomem *regs, unsigned int t)
 	writel(reg, regs + EXYNOS3250_QHTBL);
 }
 
-void exynos3250_jpeg_htbl_dc(void __iomem *regs, unsigned int t)
+void exyyess3250_jpeg_htbl_dc(void __iomem *regs, unsigned int t)
 {
 	unsigned long reg;
 
@@ -214,7 +214,7 @@ void exynos3250_jpeg_htbl_dc(void __iomem *regs, unsigned int t)
 	writel(reg, regs + EXYNOS3250_QHTBL);
 }
 
-void exynos3250_jpeg_set_y(void __iomem *regs, unsigned int y)
+void exyyess3250_jpeg_set_y(void __iomem *regs, unsigned int y)
 {
 	u32 reg;
 
@@ -222,7 +222,7 @@ void exynos3250_jpeg_set_y(void __iomem *regs, unsigned int y)
 	writel(reg, regs + EXYNOS3250_JPGY);
 }
 
-void exynos3250_jpeg_set_x(void __iomem *regs, unsigned int x)
+void exyyess3250_jpeg_set_x(void __iomem *regs, unsigned int x)
 {
 	u32 reg;
 
@@ -231,18 +231,18 @@ void exynos3250_jpeg_set_x(void __iomem *regs, unsigned int x)
 }
 
 #if 0	/* Currently unused */
-unsigned int exynos3250_jpeg_get_y(void __iomem *regs)
+unsigned int exyyess3250_jpeg_get_y(void __iomem *regs)
 {
 	return readl(regs + EXYNOS3250_JPGY);
 }
 
-unsigned int exynos3250_jpeg_get_x(void __iomem *regs)
+unsigned int exyyess3250_jpeg_get_x(void __iomem *regs)
 {
 	return readl(regs + EXYNOS3250_JPGX);
 }
 #endif
 
-void exynos3250_jpeg_interrupts_enable(void __iomem *regs)
+void exyyess3250_jpeg_interrupts_enable(void __iomem *regs)
 {
 	u32 reg;
 
@@ -257,7 +257,7 @@ void exynos3250_jpeg_interrupts_enable(void __iomem *regs)
 	writel(reg, regs + EXYNOS3250_JPGINTSE);
 }
 
-void exynos3250_jpeg_enc_stream_bound(void __iomem *regs, unsigned int size)
+void exyyess3250_jpeg_enc_stream_bound(void __iomem *regs, unsigned int size)
 {
 	u32 reg;
 
@@ -265,7 +265,7 @@ void exynos3250_jpeg_enc_stream_bound(void __iomem *regs, unsigned int size)
 	writel(reg, regs + EXYNOS3250_ENC_STREAM_BOUND);
 }
 
-void exynos3250_jpeg_output_raw_fmt(void __iomem *regs, unsigned int fmt)
+void exyyess3250_jpeg_output_raw_fmt(void __iomem *regs, unsigned int fmt)
 {
 	u32 reg;
 
@@ -313,19 +313,19 @@ void exynos3250_jpeg_output_raw_fmt(void __iomem *regs, unsigned int fmt)
 	writel(reg, regs + EXYNOS3250_OUTFORM);
 }
 
-void exynos3250_jpeg_jpgadr(void __iomem *regs, unsigned int addr)
+void exyyess3250_jpeg_jpgadr(void __iomem *regs, unsigned int addr)
 {
 	writel(addr, regs + EXYNOS3250_JPG_JPGADR);
 }
 
-void exynos3250_jpeg_imgadr(void __iomem *regs, struct s5p_jpeg_addr *img_addr)
+void exyyess3250_jpeg_imgadr(void __iomem *regs, struct s5p_jpeg_addr *img_addr)
 {
 	writel(img_addr->y, regs + EXYNOS3250_LUMA_BASE);
 	writel(img_addr->cb, regs + EXYNOS3250_CHROMA_BASE);
 	writel(img_addr->cr, regs + EXYNOS3250_CHROMA_CR_BASE);
 }
 
-void exynos3250_jpeg_stride(void __iomem *regs, unsigned int img_fmt,
+void exyyess3250_jpeg_stride(void __iomem *regs, unsigned int img_fmt,
 			    unsigned int width)
 {
 	u32 reg_luma = 0, reg_cr = 0, reg_cb = 0;
@@ -360,7 +360,7 @@ void exynos3250_jpeg_stride(void __iomem *regs, unsigned int img_fmt,
 	writel(reg_cr, regs + EXYNOS3250_CHROMA_CR_STRIDE);
 }
 
-void exynos3250_jpeg_offset(void __iomem *regs, unsigned int x_offset,
+void exyyess3250_jpeg_offset(void __iomem *regs, unsigned int x_offset,
 				unsigned int y_offset)
 {
 	u32 reg;
@@ -387,7 +387,7 @@ void exynos3250_jpeg_offset(void __iomem *regs, unsigned int x_offset,
 	writel(reg, regs + EXYNOS3250_CHROMA_CR_XY_OFFSET);
 }
 
-void exynos3250_jpeg_coef(void __iomem *base, unsigned int mode)
+void exyyess3250_jpeg_coef(void __iomem *base, unsigned int mode)
 {
 	if (mode == S5P_JPEG_ENCODE) {
 		writel(EXYNOS3250_JPEG_ENC_COEF1,
@@ -406,45 +406,45 @@ void exynos3250_jpeg_coef(void __iomem *base, unsigned int mode)
 	}
 }
 
-void exynos3250_jpeg_start(void __iomem *regs)
+void exyyess3250_jpeg_start(void __iomem *regs)
 {
 	writel(1, regs + EXYNOS3250_JSTART);
 }
 
-void exynos3250_jpeg_rstart(void __iomem *regs)
+void exyyess3250_jpeg_rstart(void __iomem *regs)
 {
 	writel(1, regs + EXYNOS3250_JRSTART);
 }
 
-unsigned int exynos3250_jpeg_get_int_status(void __iomem *regs)
+unsigned int exyyess3250_jpeg_get_int_status(void __iomem *regs)
 {
 	return readl(regs + EXYNOS3250_JPGINTST);
 }
 
-void exynos3250_jpeg_clear_int_status(void __iomem *regs,
+void exyyess3250_jpeg_clear_int_status(void __iomem *regs,
 				      unsigned int value)
 {
 	writel(value, regs + EXYNOS3250_JPGINTST);
 }
 
-unsigned int exynos3250_jpeg_operating(void __iomem *regs)
+unsigned int exyyess3250_jpeg_operating(void __iomem *regs)
 {
 	return readl(regs + S5P_JPGOPR) & EXYNOS3250_JPGOPR_MASK;
 }
 
-unsigned int exynos3250_jpeg_compressed_size(void __iomem *regs)
+unsigned int exyyess3250_jpeg_compressed_size(void __iomem *regs)
 {
 	return readl(regs + EXYNOS3250_JPGCNT) & EXYNOS3250_JPGCNT_MASK;
 }
 
-void exynos3250_jpeg_dec_stream_size(void __iomem *regs,
+void exyyess3250_jpeg_dec_stream_size(void __iomem *regs,
 						unsigned int size)
 {
 	writel(size & EXYNOS3250_DEC_STREAM_MASK,
 				regs + EXYNOS3250_DEC_STREAM_SIZE);
 }
 
-void exynos3250_jpeg_dec_scaling_ratio(void __iomem *regs,
+void exyyess3250_jpeg_dec_scaling_ratio(void __iomem *regs,
 						unsigned int sratio)
 {
 	switch (sratio) {
@@ -467,7 +467,7 @@ void exynos3250_jpeg_dec_scaling_ratio(void __iomem *regs,
 				regs + EXYNOS3250_DEC_SCALING_RATIO);
 }
 
-void exynos3250_jpeg_set_timer(void __iomem *regs, unsigned int time_value)
+void exyyess3250_jpeg_set_timer(void __iomem *regs, unsigned int time_value)
 {
 	time_value &= EXYNOS3250_TIMER_INIT_MASK;
 
@@ -475,12 +475,12 @@ void exynos3250_jpeg_set_timer(void __iomem *regs, unsigned int time_value)
 					regs + EXYNOS3250_TIMER_SE);
 }
 
-unsigned int exynos3250_jpeg_get_timer_status(void __iomem *regs)
+unsigned int exyyess3250_jpeg_get_timer_status(void __iomem *regs)
 {
 	return readl(regs + EXYNOS3250_TIMER_ST);
 }
 
-void exynos3250_jpeg_clear_timer_status(void __iomem *regs)
+void exyyess3250_jpeg_clear_timer_status(void __iomem *regs)
 {
 	writel(EXYNOS3250_TIMER_INT_STAT, regs + EXYNOS3250_TIMER_ST);
 }

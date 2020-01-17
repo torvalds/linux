@@ -13,11 +13,11 @@ FILES = audio.h.rst ca.h.rst dmx.h.rst frontend.h.rst net.h.rst video.h.rst \
 TARGETS := $(addprefix $(BUILDDIR)/, $(FILES))
 
 gen_rst = \
-	echo ${PARSER} $< $@ $(SRC_DIR)/$(notdir $@).exceptions; \
-	${PARSER} $< $@ $(SRC_DIR)/$(notdir $@).exceptions
+	echo ${PARSER} $< $@ $(SRC_DIR)/$(yestdir $@).exceptions; \
+	${PARSER} $< $@ $(SRC_DIR)/$(yestdir $@).exceptions
 
 quiet_gen_rst = echo '  PARSE   $(patsubst $(srctree)/%,%,$<)'; \
-	${PARSER} $< $@ $(SRC_DIR)/$(notdir $@).exceptions
+	${PARSER} $< $@ $(SRC_DIR)/$(yestdir $@).exceptions
 
 silent_gen_rst = ${gen_rst}
 

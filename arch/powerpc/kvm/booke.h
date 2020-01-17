@@ -63,7 +63,7 @@ extern unsigned long kvmppc_booke_handlers;
 extern unsigned long kvmppc_booke_handler_addr[];
 
 void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr);
-void kvmppc_mmu_msr_notify(struct kvm_vcpu *vcpu, u32 old_msr);
+void kvmppc_mmu_msr_yestify(struct kvm_vcpu *vcpu, u32 old_msr);
 
 void kvmppc_set_epcr(struct kvm_vcpu *vcpu, u32 new_epcr);
 void kvmppc_set_tcr(struct kvm_vcpu *vcpu, u32 new_tcr);

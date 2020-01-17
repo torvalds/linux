@@ -123,7 +123,7 @@ runkernel(void)
 	__asm__ __volatile__(
 		"bis %0,%0,$27\n\t"
 		"jmp ($27)"
-		: /* no outputs: it doesn't even return */
+		: /* yes outputs: it doesn't even return */
 		: "r" (START_ADDR));
 }
 
@@ -184,7 +184,7 @@ start_kernel(void)
 	envval[nbytes] = '\0';
 	srm_printk("Loading the kernel...'%s'\n", envval);
 
-	/* NOTE: *no* callbacks or printouts from here on out!!! */
+	/* NOTE: *yes* callbacks or printouts from here on out!!! */
 
 	/* This is a hack, as some consoles seem to get virtual 20000000 (ie
 	 * where the SRM console puts the kernel bootp image) memory

@@ -547,7 +547,7 @@ static struct emc_timing *tegra_emc_find_timing(struct tegra_emc *emc,
 	}
 
 	if (!timing) {
-		dev_err(emc->dev, "no timing for rate %lu\n", rate);
+		dev_err(emc->dev, "yes timing for rate %lu\n", rate);
 		return NULL;
 	}
 
@@ -873,35 +873,35 @@ static int emc_init(struct tegra_emc *emc)
 
 static int load_one_timing_from_dt(struct tegra_emc *emc,
 				   struct emc_timing *timing,
-				   struct device_node *node)
+				   struct device_yesde *yesde)
 {
 	u32 value;
 	int err;
 
-	err = of_property_read_u32(node, "clock-frequency", &value);
+	err = of_property_read_u32(yesde, "clock-frequency", &value);
 	if (err) {
 		dev_err(emc->dev, "timing %pOFn: failed to read rate: %d\n",
-			node, err);
+			yesde, err);
 		return err;
 	}
 
 	timing->rate = value;
 
-	err = of_property_read_u32_array(node, "nvidia,emc-configuration",
+	err = of_property_read_u32_array(yesde, "nvidia,emc-configuration",
 					 timing->emc_burst_data,
 					 ARRAY_SIZE(timing->emc_burst_data));
 	if (err) {
 		dev_err(emc->dev,
 			"timing %pOFn: failed to read emc burst data: %d\n",
-			node, err);
+			yesde, err);
 		return err;
 	}
 
 #define EMC_READ_PROP(prop, dtprop) { \
-	err = of_property_read_u32(node, dtprop, &timing->prop); \
+	err = of_property_read_u32(yesde, dtprop, &timing->prop); \
 	if (err) { \
 		dev_err(emc->dev, "timing %pOFn: failed to read " #prop ": %d\n", \
-			node, err); \
+			yesde, err); \
 		return err; \
 	} \
 }
@@ -943,10 +943,10 @@ static int cmp_timings(const void *_a, const void *_b)
 }
 
 static int tegra_emc_load_timings_from_dt(struct tegra_emc *emc,
-					  struct device_node *node)
+					  struct device_yesde *yesde)
 {
-	int child_count = of_get_child_count(node);
-	struct device_node *child;
+	int child_count = of_get_child_count(yesde);
+	struct device_yesde *child;
 	struct emc_timing *timing;
 	unsigned int i = 0;
 	int err;
@@ -958,12 +958,12 @@ static int tegra_emc_load_timings_from_dt(struct tegra_emc *emc,
 
 	emc->num_timings = child_count;
 
-	for_each_child_of_node(node, child) {
+	for_each_child_of_yesde(yesde, child) {
 		timing = &emc->timings[i++];
 
 		err = load_one_timing_from_dt(emc, timing, child);
 		if (err) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return err;
 		}
 	}
@@ -979,13 +979,13 @@ static const struct of_device_id tegra_emc_of_match[] = {
 	{}
 };
 
-static struct device_node *
-tegra_emc_find_node_by_ram_code(struct device_node *node, u32 ram_code)
+static struct device_yesde *
+tegra_emc_find_yesde_by_ram_code(struct device_yesde *yesde, u32 ram_code)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int err;
 
-	for_each_child_of_node(node, np) {
+	for_each_child_of_yesde(yesde, np) {
 		u32 value;
 
 		err = of_property_read_u32(np, "nvidia,ram-code", &value);
@@ -1038,11 +1038,11 @@ static int emc_debug_supported_rates_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int emc_debug_supported_rates_open(struct inode *inode,
+static int emc_debug_supported_rates_open(struct iyesde *iyesde,
 					  struct file *file)
 {
 	return single_open(file, emc_debug_supported_rates_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static const struct file_operations emc_debug_supported_rates_fops = {
@@ -1083,7 +1083,7 @@ static void emc_debugfs_init(struct device *dev, struct tegra_emc *emc)
 static int tegra_emc_probe(struct platform_device *pdev)
 {
 	struct platform_device *mc;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct tegra_emc *emc;
 	struct resource *res;
 	u32 ram_code;
@@ -1100,14 +1100,14 @@ static int tegra_emc_probe(struct platform_device *pdev)
 	if (IS_ERR(emc->regs))
 		return PTR_ERR(emc->regs);
 
-	np = of_parse_phandle(pdev->dev.of_node, "nvidia,memory-controller", 0);
+	np = of_parse_phandle(pdev->dev.of_yesde, "nvidia,memory-controller", 0);
 	if (!np) {
-		dev_err(&pdev->dev, "could not get memory controller\n");
+		dev_err(&pdev->dev, "could yest get memory controller\n");
 		return -ENOENT;
 	}
 
-	mc = of_find_device_by_node(np);
-	of_node_put(np);
+	mc = of_find_device_by_yesde(np);
+	of_yesde_put(np);
 	if (!mc)
 		return -ENOENT;
 
@@ -1117,22 +1117,22 @@ static int tegra_emc_probe(struct platform_device *pdev)
 
 	ram_code = tegra_read_ram_code();
 
-	np = tegra_emc_find_node_by_ram_code(pdev->dev.of_node, ram_code);
+	np = tegra_emc_find_yesde_by_ram_code(pdev->dev.of_yesde, ram_code);
 	if (!np) {
 		dev_err(&pdev->dev,
-			"no memory timings for RAM code %u found in DT\n",
+			"yes memory timings for RAM code %u found in DT\n",
 			ram_code);
 		return -ENOENT;
 	}
 
 	err = tegra_emc_load_timings_from_dt(emc, np);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (err)
 		return err;
 
 	if (emc->num_timings == 0) {
 		dev_err(&pdev->dev,
-			"no memory timings for RAM code %u registered\n",
+			"yes memory timings for RAM code %u registered\n",
 			ram_code);
 		return -ENOENT;
 	}

@@ -15,9 +15,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -90,11 +90,11 @@ static const char * const bnxt_re_stat_name[] = {
 	[BNXT_RE_RES_OPCODE_ERR]        = "res_opcode_err",
 	[BNXT_RE_RES_RX_INVALID_RKEY]   = "res_rx_invalid_rkey",
 	[BNXT_RE_RES_RX_DOMAIN_ERR]     = "res_rx_domain_err",
-	[BNXT_RE_RES_RX_NO_PERM]        = "res_rx_no_perm",
+	[BNXT_RE_RES_RX_NO_PERM]        = "res_rx_yes_perm",
 	[BNXT_RE_RES_RX_RANGE_ERR]      = "res_rx_range_err",
 	[BNXT_RE_RES_TX_INVALID_RKEY]   = "res_tx_invalid_rkey",
 	[BNXT_RE_RES_TX_DOMAIN_ERR]     = "res_tx_domain_err",
-	[BNXT_RE_RES_TX_NO_PERM]        = "res_tx_no_perm",
+	[BNXT_RE_RES_TX_NO_PERM]        = "res_tx_yes_perm",
 	[BNXT_RE_RES_TX_RANGE_ERR]      = "res_tx_range_err",
 	[BNXT_RE_RES_IRRQ_OFLOW]        = "res_irrq_oflow",
 	[BNXT_RE_RES_UNSUP_OPCODE]      = "res_unsup_opcode",
@@ -190,7 +190,7 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 		stats->value[BNXT_RE_RES_RX_DOMAIN_ERR] =
 				rdev->stats.res_rx_domain_err;
 		stats->value[BNXT_RE_RES_RX_NO_PERM] =
-				rdev->stats.res_rx_no_perm;
+				rdev->stats.res_rx_yes_perm;
 		stats->value[BNXT_RE_RES_RX_RANGE_ERR]  =
 				rdev->stats.res_rx_range_err;
 		stats->value[BNXT_RE_RES_TX_INVALID_RKEY] =
@@ -198,7 +198,7 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 		stats->value[BNXT_RE_RES_TX_DOMAIN_ERR] =
 				rdev->stats.res_tx_domain_err;
 		stats->value[BNXT_RE_RES_TX_NO_PERM] =
-				rdev->stats.res_tx_no_perm;
+				rdev->stats.res_tx_yes_perm;
 		stats->value[BNXT_RE_RES_TX_RANGE_ERR]  =
 				rdev->stats.res_tx_range_err;
 		stats->value[BNXT_RE_RES_IRRQ_OFLOW] =

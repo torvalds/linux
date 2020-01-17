@@ -131,7 +131,7 @@ static void finish_session(struct snd_dg00x *dg00x)
 			   DG00X_ADDR_BASE + DG00X_OFFSET_STREAMING_SET,
 			   &data, sizeof(data), 0);
 
-	// Unregister isochronous channels for both direction.
+	// Unregister isochroyesus channels for both direction.
 	data = 0;
 	snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
 			   DG00X_ADDR_BASE + DG00X_OFFSET_ISOC_CHANNELS,
@@ -148,7 +148,7 @@ static int begin_session(struct snd_dg00x *dg00x)
 	u32 curr;
 	int err;
 
-	// Register isochronous channels for both direction.
+	// Register isochroyesus channels for both direction.
 	data = cpu_to_be32((dg00x->tx_resources.channel << 16) |
 			   dg00x->rx_resources.channel);
 	err = snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,

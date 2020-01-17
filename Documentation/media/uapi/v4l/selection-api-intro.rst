@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 ************
 Introduction
@@ -30,6 +30,6 @@ select the part of display where the image should be displayed. The size
 and position of such a window is controlled by the compose target.
 
 Rectangles for all cropping and composing targets are defined even if
-the device does supports neither cropping nor composing. Their size and
-position will be fixed in such a case. If the device does not support
+the device does supports neither cropping yesr composing. Their size and
+position will be fixed in such a case. If the device does yest support
 scaling then the cropping and composing rectangles have the same size.

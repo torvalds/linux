@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -136,7 +136,7 @@ struct pm8001_tmf_task {
 struct pm8001_ioctl_payload {
 	u32	signature;
 	u16	major_function;
-	u16	minor_function;
+	u16	miyesr_function;
 	u16	length;
 	u16	status;
 	u16	offset;
@@ -385,7 +385,7 @@ union main_cfg_table {
 	u32			fatal_err_dump_offset1;
 	u32			fatal_err_dump_length1;
 	u32			hda_mode_flag;
-	u32			anolog_setup_table_offset;
+	u32			ayeslog_setup_table_offset;
 	u32			rsvd[4];
 	} pm8001_tbl;
 
@@ -422,7 +422,7 @@ union main_cfg_table {
 	u32			phy_attr_table_offset;
 	u32			port_recovery_timer;
 	u32			interrupt_reassertion_delay;
-	u32			fatal_n_non_fatal_dump;	        /* 0x28 */
+	u32			fatal_n_yesn_fatal_dump;	        /* 0x28 */
 	u32			ila_version;
 	u32			inc_fw_version;
 	} pm80xx_tbl;

@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ8795 series register access through SPI
  *
- * Copyright (C) 2017 Microchip Technology Inc.
+ * Copyright (C) 2017 Microchip Techyeslogy Inc.
  *	Tristram Ha <Tristram.Ha@microchip.com>
  */
 
@@ -51,7 +51,7 @@ static int ksz8795_spi_probe(struct spi_device *spi)
 
 	ret = ksz8795_switch_register(dev);
 
-	/* Main DSA driver may not be started yet. */
+	/* Main DSA driver may yest be started yet. */
 	if (ret)
 		return ret;
 

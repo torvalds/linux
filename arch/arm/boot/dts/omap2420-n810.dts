@@ -5,7 +5,7 @@
 
 / {
 	model = "Nokia N810";
-	compatible = "nokia,n810", "nokia,n8x0", "ti,omap2420", "ti,omap2";
+	compatible = "yeskia,n810", "yeskia,n8x0", "ti,omap2420", "ti,omap2";
 
 	vio_ape: vio_ape {
 		compatible = "regulator-fixed";

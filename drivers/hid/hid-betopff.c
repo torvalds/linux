@@ -12,7 +12,7 @@
  *   - tested with BTP2185 PC Mode.
  *
  *  0x8380:0x1850 "BTP2185 V2 PC mode USB Gamepad"
- *   - tested with BTP2185 PC Mode with another version.
+ *   - tested with BTP2185 PC Mode with ayesther version.
  *
  *  0x20bc:0x5500 "BTP2185 V2 BFM mode Joystick"
  *   - tested with BTP2171s.
@@ -66,7 +66,7 @@ static int betopff_init(struct hid_device *hid)
 	int i, j;
 
 	if (list_empty(report_list)) {
-		hid_err(hid, "no output reports found\n");
+		hid_err(hid, "yes output reports found\n");
 		return -ENODEV;
 	}
 
@@ -87,7 +87,7 @@ static int betopff_init(struct hid_device *hid)
 	}
 
 	if (field_count < 4) {
-		hid_err(hid, "not enough fields in the report: %d\n",
+		hid_err(hid, "yest eyesugh fields in the report: %d\n",
 				field_count);
 		return -ENODEV;
 	}

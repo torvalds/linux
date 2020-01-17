@@ -8,7 +8,7 @@
  * Author: Cyrille Pitchen <cyrille.pitchen@atmel.com>
  * Author: Piotr Bugalski <bugalski.piotr@gmail.com>
  *
- * This driver is based on drivers/mtd/spi-nor/fsl-quadspi.c from Freescale.
+ * This driver is based on drivers/mtd/spi-yesr/fsl-quadspi.c from Freescale.
  */
 
 #include <linux/clk.h>
@@ -204,7 +204,7 @@ static bool atmel_qspi_supports_op(struct spi_mem *mem,
 	if (atmel_qspi_find_mode(op) < 0)
 		return false;
 
-	/* special case not supported by hardware */
+	/* special case yest supported by hardware */
 	if (op->addr.nbytes == 2 && op->cmd.buswidth != op->addr.buswidth &&
 		op->dummy.nbytes == 0)
 		return false;
@@ -240,7 +240,7 @@ static int atmel_qspi_set_cfg(struct atmel_qspi *aq,
 	 * Otherwise opcode is disabled and the first byte of the address
 	 * contains the command opcode (works only if the opcode and address
 	 * use the same buswidth). The limitation is when the 16-bit address is
-	 * used without enough dummy cycles and the opcode is using a different
+	 * used without eyesugh dummy cycles and the opcode is using a different
 	 * buswidth than the address.
 	 */
 	if (op->addr.buswidth) {
@@ -333,7 +333,7 @@ static int atmel_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	if (err)
 		return err;
 
-	/* Skip to the final steps if there is no data */
+	/* Skip to the final steps if there is yes data */
 	if (op->data.nbytes) {
 		/* Dummy read of QSPI_IFR to synchronize APB and AHB accesses */
 		(void)readl_relaxed(aq->regs + QSPI_IFR);
@@ -454,7 +454,7 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 	ctrl->bus_num = -1;
 	ctrl->mem_ops = &atmel_qspi_mem_ops;
 	ctrl->num_chipselect = 1;
-	ctrl->dev.of_node = pdev->dev.of_node;
+	ctrl->dev.of_yesde = pdev->dev.of_yesde;
 	platform_set_drvdata(pdev, ctrl);
 
 	aq = spi_controller_get_devdata(ctrl);
@@ -500,7 +500,7 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 
 	aq->caps = of_device_get_match_data(&pdev->dev);
 	if (!aq->caps) {
-		dev_err(&pdev->dev, "Could not retrieve QSPI caps\n");
+		dev_err(&pdev->dev, "Could yest retrieve QSPI caps\n");
 		err = -EINVAL;
 		goto exit;
 	}

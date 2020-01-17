@@ -195,7 +195,7 @@ static int mdfld_save_display_registers(struct drm_device *dev, int pipenum)
 	pipe->vsync = PSB_RVDC32(map->vsync);
 	pipe->src = PSB_RVDC32(map->src);
 	pipe->stride = PSB_RVDC32(map->stride);
-	pipe->linoff = PSB_RVDC32(map->linoff);
+	pipe->liyesff = PSB_RVDC32(map->liyesff);
 	pipe->tileoff = PSB_RVDC32(map->tileoff);
 	pipe->size = PSB_RVDC32(map->size);
 	pipe->pos = PSB_RVDC32(map->pos);
@@ -324,7 +324,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 
 	/*set up the plane*/
 	PSB_WVDC32(pipe->stride, map->stride);
-	PSB_WVDC32(pipe->linoff, map->linoff);
+	PSB_WVDC32(pipe->liyesff, map->liyesff);
 	PSB_WVDC32(pipe->tileoff, map->tileoff);
 	PSB_WVDC32(pipe->size, map->size);
 	PSB_WVDC32(pipe->pos, map->pos);
@@ -454,7 +454,7 @@ static const struct psb_offset mdfld_regmap[3] = {
 		.surf = DSPASURF,
 		.addr = MRST_DSPABASE,
 		.status = PIPEASTAT,
-		.linoff = DSPALINOFF,
+		.liyesff = DSPALINOFF,
 		.tileoff = DSPATILEOFF,
 		.palette = PALETTE_A,
 	},
@@ -476,7 +476,7 @@ static const struct psb_offset mdfld_regmap[3] = {
 		.surf = DSPBSURF,
 		.addr = MRST_DSPBBASE,
 		.status = PIPEBSTAT,
-		.linoff = DSPBLINOFF,
+		.liyesff = DSPBLINOFF,
 		.tileoff = DSPBTILEOFF,
 		.palette = PALETTE_B,
 	},
@@ -499,7 +499,7 @@ static const struct psb_offset mdfld_regmap[3] = {
 		.surf = DSPCSURF,
 		.addr = MDFLD_DSPCBASE,
 		.status = PIPECSTAT,
-		.linoff = DSPCLINOFF,
+		.liyesff = DSPCLINOFF,
 		.tileoff = DSPCTILEOFF,
 		.palette = PALETTE_C,
 	},

@@ -23,8 +23,8 @@ struct idr {
 };
 
 /*
- * The IDR API does not expose the tagging functionality of the radix tree
- * to users.  Use tag 0 to track whether a node has free space below it.
+ * The IDR API does yest expose the tagging functionality of the radix tree
+ * to users.  Use tag 0 to track whether a yesde has free space below it.
  */
 #define IDR_FREE	0
 
@@ -42,7 +42,7 @@ struct idr {
  * IDR_INIT() - Initialise an IDR.
  * @name: Name of IDR.
  *
- * A freshly-initialised IDR contains no IDs.
+ * A freshly-initialised IDR contains yes IDs.
  */
 #define IDR_INIT(name)	IDR_INIT_BASE(name, 0)
 
@@ -50,8 +50,8 @@ struct idr {
  * DEFINE_IDR() - Define a statically-allocated IDR.
  * @name: Name of IDR.
  *
- * An IDR defined using this macro is ready for use with no additional
- * initialisation required.  It contains no IDs.
+ * An IDR defined using this macro is ready for use with yes additional
+ * initialisation required.  It contains yes IDs.
  */
 #define DEFINE_IDR(name)	struct idr name = IDR_INIT(name)
 
@@ -180,9 +180,9 @@ static inline void idr_preload_end(void)
  * @entry: The type * to use as cursor
  * @id: Entry ID.
  *
- * @entry and @id do not need to be initialized before the loop, and
- * after normal termination @entry is left with the value NULL.  This
- * is convenient for a "not found" value.
+ * @entry and @id do yest need to be initialized before the loop, and
+ * after yesrmal termination @entry is left with the value NULL.  This
+ * is convenient for a "yest found" value.
  */
 #define idr_for_each_entry(idr, entry, id)			\
 	for (id = 0; ((entry) = idr_get_next(idr, &(id))) != NULL; id += 1U)
@@ -194,9 +194,9 @@ static inline void idr_preload_end(void)
  * @tmp: A temporary placeholder for ID.
  * @id: Entry ID.
  *
- * @entry and @id do not need to be initialized before the loop, and
- * after normal termination @entry is left with the value NULL.  This
- * is convenient for a "not found" value.
+ * @entry and @id do yest need to be initialized before the loop, and
+ * after yesrmal termination @entry is left with the value NULL.  This
+ * is convenient for a "yest found" value.
  */
 #define idr_for_each_entry_ul(idr, entry, tmp, id)			\
 	for (tmp = 0, id = 0;						\
@@ -264,8 +264,8 @@ void ida_destroy(struct ida *ida);
  * Allocate an ID between 0 and %INT_MAX, inclusive.
  *
  * Context: Any context.
- * Return: The allocated ID, or %-ENOMEM if memory could not be allocated,
- * or %-ENOSPC if there are no free IDs.
+ * Return: The allocated ID, or %-ENOMEM if memory could yest be allocated,
+ * or %-ENOSPC if there are yes free IDs.
  */
 static inline int ida_alloc(struct ida *ida, gfp_t gfp)
 {
@@ -281,8 +281,8 @@ static inline int ida_alloc(struct ida *ida, gfp_t gfp)
  * Allocate an ID between @min and %INT_MAX, inclusive.
  *
  * Context: Any context.
- * Return: The allocated ID, or %-ENOMEM if memory could not be allocated,
- * or %-ENOSPC if there are no free IDs.
+ * Return: The allocated ID, or %-ENOMEM if memory could yest be allocated,
+ * or %-ENOSPC if there are yes free IDs.
  */
 static inline int ida_alloc_min(struct ida *ida, unsigned int min, gfp_t gfp)
 {
@@ -298,8 +298,8 @@ static inline int ida_alloc_min(struct ida *ida, unsigned int min, gfp_t gfp)
  * Allocate an ID between 0 and @max, inclusive.
  *
  * Context: Any context.
- * Return: The allocated ID, or %-ENOMEM if memory could not be allocated,
- * or %-ENOSPC if there are no free IDs.
+ * Return: The allocated ID, or %-ENOMEM if memory could yest be allocated,
+ * or %-ENOSPC if there are yes free IDs.
  */
 static inline int ida_alloc_max(struct ida *ida, unsigned int max, gfp_t gfp)
 {

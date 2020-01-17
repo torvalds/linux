@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * fs/kernfs/inode.c - kernfs inode implementation
+ * fs/kernfs/iyesde.c - kernfs iyesde implementation
  *
  * Copyright (c) 2001-3 Patrick Mochel
  * Copyright (c) 2007 SUSE Linux Products GmbH
@@ -10,7 +10,7 @@
 #include <linux/pagemap.h>
 #include <linux/backing-dev.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/xattr.h>
 #include <linux/security.h>
@@ -23,14 +23,14 @@ static const struct address_space_operations kernfs_aops = {
 	.write_end	= simple_write_end,
 };
 
-static const struct inode_operations kernfs_iops = {
+static const struct iyesde_operations kernfs_iops = {
 	.permission	= kernfs_iop_permission,
 	.setattr	= kernfs_iop_setattr,
 	.getattr	= kernfs_iop_getattr,
 	.listxattr	= kernfs_iop_listxattr,
 };
 
-static struct kernfs_iattrs *__kernfs_iattrs(struct kernfs_node *kn, int alloc)
+static struct kernfs_iattrs *__kernfs_iattrs(struct kernfs_yesde *kn, int alloc)
 {
 	static DEFINE_MUTEX(iattr_mutex);
 	struct kernfs_iattrs *ret;
@@ -59,17 +59,17 @@ out_unlock:
 	return ret;
 }
 
-static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
+static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_yesde *kn)
 {
 	return __kernfs_iattrs(kn, 1);
 }
 
-static struct kernfs_iattrs *kernfs_iattrs_noalloc(struct kernfs_node *kn)
+static struct kernfs_iattrs *kernfs_iattrs_yesalloc(struct kernfs_yesde *kn)
 {
 	return __kernfs_iattrs(kn, 0);
 }
 
-int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
+int __kernfs_setattr(struct kernfs_yesde *kn, const struct iattr *iattr)
 {
 	struct kernfs_iattrs *attrs;
 	unsigned int ia_valid = iattr->ia_valid;
@@ -94,13 +94,13 @@ int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 }
 
 /**
- * kernfs_setattr - set iattr on a node
- * @kn: target node
+ * kernfs_setattr - set iattr on a yesde
+ * @kn: target yesde
  * @iattr: iattr to set
  *
- * Returns 0 on success, -errno on failure.
+ * Returns 0 on success, -erryes on failure.
  */
-int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
+int kernfs_setattr(struct kernfs_yesde *kn, const struct iattr *iattr)
 {
 	int ret;
 
@@ -112,8 +112,8 @@ int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 
 int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = d_inode(dentry);
-	struct kernfs_node *kn = inode->i_private;
+	struct iyesde *iyesde = d_iyesde(dentry);
+	struct kernfs_yesde *kn = iyesde->i_private;
 	int error;
 
 	if (!kn)
@@ -128,8 +128,8 @@ int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (error)
 		goto out;
 
-	/* this ignores size changes */
-	setattr_copy(inode, iattr);
+	/* this igyesres size changes */
+	setattr_copy(iyesde, iattr);
 
 out:
 	mutex_unlock(&kernfs_mutex);
@@ -138,165 +138,165 @@ out:
 
 ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size)
 {
-	struct kernfs_node *kn = kernfs_dentry_node(dentry);
+	struct kernfs_yesde *kn = kernfs_dentry_yesde(dentry);
 	struct kernfs_iattrs *attrs;
 
 	attrs = kernfs_iattrs(kn);
 	if (!attrs)
 		return -ENOMEM;
 
-	return simple_xattr_list(d_inode(dentry), &attrs->xattrs, buf, size);
+	return simple_xattr_list(d_iyesde(dentry), &attrs->xattrs, buf, size);
 }
 
-static inline void set_default_inode_attr(struct inode *inode, umode_t mode)
+static inline void set_default_iyesde_attr(struct iyesde *iyesde, umode_t mode)
 {
-	inode->i_mode = mode;
-	inode->i_atime = inode->i_mtime =
-		inode->i_ctime = current_time(inode);
+	iyesde->i_mode = mode;
+	iyesde->i_atime = iyesde->i_mtime =
+		iyesde->i_ctime = current_time(iyesde);
 }
 
-static inline void set_inode_attr(struct inode *inode,
+static inline void set_iyesde_attr(struct iyesde *iyesde,
 				  struct kernfs_iattrs *attrs)
 {
-	inode->i_uid = attrs->ia_uid;
-	inode->i_gid = attrs->ia_gid;
-	inode->i_atime = timestamp_truncate(attrs->ia_atime, inode);
-	inode->i_mtime = timestamp_truncate(attrs->ia_mtime, inode);
-	inode->i_ctime = timestamp_truncate(attrs->ia_ctime, inode);
+	iyesde->i_uid = attrs->ia_uid;
+	iyesde->i_gid = attrs->ia_gid;
+	iyesde->i_atime = timestamp_truncate(attrs->ia_atime, iyesde);
+	iyesde->i_mtime = timestamp_truncate(attrs->ia_mtime, iyesde);
+	iyesde->i_ctime = timestamp_truncate(attrs->ia_ctime, iyesde);
 }
 
-static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
+static void kernfs_refresh_iyesde(struct kernfs_yesde *kn, struct iyesde *iyesde)
 {
 	struct kernfs_iattrs *attrs = kn->iattr;
 
-	inode->i_mode = kn->mode;
+	iyesde->i_mode = kn->mode;
 	if (attrs)
 		/*
-		 * kernfs_node has non-default attributes get them from
-		 * persistent copy in kernfs_node.
+		 * kernfs_yesde has yesn-default attributes get them from
+		 * persistent copy in kernfs_yesde.
 		 */
-		set_inode_attr(inode, attrs);
+		set_iyesde_attr(iyesde, attrs);
 
 	if (kernfs_type(kn) == KERNFS_DIR)
-		set_nlink(inode, kn->dir.subdirs + 2);
+		set_nlink(iyesde, kn->dir.subdirs + 2);
 }
 
 int kernfs_iop_getattr(const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(path->dentry);
-	struct kernfs_node *kn = inode->i_private;
+	struct iyesde *iyesde = d_iyesde(path->dentry);
+	struct kernfs_yesde *kn = iyesde->i_private;
 
 	mutex_lock(&kernfs_mutex);
-	kernfs_refresh_inode(kn, inode);
+	kernfs_refresh_iyesde(kn, iyesde);
 	mutex_unlock(&kernfs_mutex);
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(iyesde, stat);
 	return 0;
 }
 
-static void kernfs_init_inode(struct kernfs_node *kn, struct inode *inode)
+static void kernfs_init_iyesde(struct kernfs_yesde *kn, struct iyesde *iyesde)
 {
 	kernfs_get(kn);
-	inode->i_private = kn;
-	inode->i_mapping->a_ops = &kernfs_aops;
-	inode->i_op = &kernfs_iops;
-	inode->i_generation = kernfs_gen(kn);
+	iyesde->i_private = kn;
+	iyesde->i_mapping->a_ops = &kernfs_aops;
+	iyesde->i_op = &kernfs_iops;
+	iyesde->i_generation = kernfs_gen(kn);
 
-	set_default_inode_attr(inode, kn->mode);
-	kernfs_refresh_inode(kn, inode);
+	set_default_iyesde_attr(iyesde, kn->mode);
+	kernfs_refresh_iyesde(kn, iyesde);
 
-	/* initialize inode according to type */
+	/* initialize iyesde according to type */
 	switch (kernfs_type(kn)) {
 	case KERNFS_DIR:
-		inode->i_op = &kernfs_dir_iops;
-		inode->i_fop = &kernfs_dir_fops;
+		iyesde->i_op = &kernfs_dir_iops;
+		iyesde->i_fop = &kernfs_dir_fops;
 		if (kn->flags & KERNFS_EMPTY_DIR)
-			make_empty_dir_inode(inode);
+			make_empty_dir_iyesde(iyesde);
 		break;
 	case KERNFS_FILE:
-		inode->i_size = kn->attr.size;
-		inode->i_fop = &kernfs_file_fops;
+		iyesde->i_size = kn->attr.size;
+		iyesde->i_fop = &kernfs_file_fops;
 		break;
 	case KERNFS_LINK:
-		inode->i_op = &kernfs_symlink_iops;
+		iyesde->i_op = &kernfs_symlink_iops;
 		break;
 	default:
 		BUG();
 	}
 
-	unlock_new_inode(inode);
+	unlock_new_iyesde(iyesde);
 }
 
 /**
- *	kernfs_get_inode - get inode for kernfs_node
+ *	kernfs_get_iyesde - get iyesde for kernfs_yesde
  *	@sb: super block
- *	@kn: kernfs_node to allocate inode for
+ *	@kn: kernfs_yesde to allocate iyesde for
  *
- *	Get inode for @kn.  If such inode doesn't exist, a new inode is
- *	allocated and basics are initialized.  New inode is returned
+ *	Get iyesde for @kn.  If such iyesde doesn't exist, a new iyesde is
+ *	allocated and basics are initialized.  New iyesde is returned
  *	locked.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep).
  *
  *	RETURNS:
- *	Pointer to allocated inode on success, NULL on failure.
+ *	Pointer to allocated iyesde on success, NULL on failure.
  */
-struct inode *kernfs_get_inode(struct super_block *sb, struct kernfs_node *kn)
+struct iyesde *kernfs_get_iyesde(struct super_block *sb, struct kernfs_yesde *kn)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 
-	inode = iget_locked(sb, kernfs_ino(kn));
-	if (inode && (inode->i_state & I_NEW))
-		kernfs_init_inode(kn, inode);
+	iyesde = iget_locked(sb, kernfs_iyes(kn));
+	if (iyesde && (iyesde->i_state & I_NEW))
+		kernfs_init_iyesde(kn, iyesde);
 
-	return inode;
+	return iyesde;
 }
 
 /*
- * The kernfs_node serves as both an inode and a directory entry for
- * kernfs.  To prevent the kernfs inode numbers from being freed
- * prematurely we take a reference to kernfs_node from the kernfs inode.  A
- * super_operations.evict_inode() implementation is needed to drop that
- * reference upon inode destruction.
+ * The kernfs_yesde serves as both an iyesde and a directory entry for
+ * kernfs.  To prevent the kernfs iyesde numbers from being freed
+ * prematurely we take a reference to kernfs_yesde from the kernfs iyesde.  A
+ * super_operations.evict_iyesde() implementation is needed to drop that
+ * reference upon iyesde destruction.
  */
-void kernfs_evict_inode(struct inode *inode)
+void kernfs_evict_iyesde(struct iyesde *iyesde)
 {
-	struct kernfs_node *kn = inode->i_private;
+	struct kernfs_yesde *kn = iyesde->i_private;
 
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
+	truncate_iyesde_pages_final(&iyesde->i_data);
+	clear_iyesde(iyesde);
 	kernfs_put(kn);
 }
 
-int kernfs_iop_permission(struct inode *inode, int mask)
+int kernfs_iop_permission(struct iyesde *iyesde, int mask)
 {
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 
 	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
-	kn = inode->i_private;
+	kn = iyesde->i_private;
 
 	mutex_lock(&kernfs_mutex);
-	kernfs_refresh_inode(kn, inode);
+	kernfs_refresh_iyesde(kn, iyesde);
 	mutex_unlock(&kernfs_mutex);
 
-	return generic_permission(inode, mask);
+	return generic_permission(iyesde, mask);
 }
 
-int kernfs_xattr_get(struct kernfs_node *kn, const char *name,
+int kernfs_xattr_get(struct kernfs_yesde *kn, const char *name,
 		     void *value, size_t size)
 {
-	struct kernfs_iattrs *attrs = kernfs_iattrs_noalloc(kn);
+	struct kernfs_iattrs *attrs = kernfs_iattrs_yesalloc(kn);
 	if (!attrs)
 		return -ENODATA;
 
 	return simple_xattr_get(&attrs->xattrs, name, value, size);
 }
 
-int kernfs_xattr_set(struct kernfs_node *kn, const char *name,
+int kernfs_xattr_set(struct kernfs_yesde *kn, const char *name,
 		     const void *value, size_t size, int flags)
 {
 	struct kernfs_iattrs *attrs = kernfs_iattrs(kn);
@@ -307,22 +307,22 @@ int kernfs_xattr_set(struct kernfs_node *kn, const char *name,
 }
 
 static int kernfs_vfs_xattr_get(const struct xattr_handler *handler,
-				struct dentry *unused, struct inode *inode,
+				struct dentry *unused, struct iyesde *iyesde,
 				const char *suffix, void *value, size_t size)
 {
 	const char *name = xattr_full_name(handler, suffix);
-	struct kernfs_node *kn = inode->i_private;
+	struct kernfs_yesde *kn = iyesde->i_private;
 
 	return kernfs_xattr_get(kn, name, value, size);
 }
 
 static int kernfs_vfs_xattr_set(const struct xattr_handler *handler,
-				struct dentry *unused, struct inode *inode,
+				struct dentry *unused, struct iyesde *iyesde,
 				const char *suffix, const void *value,
 				size_t size, int flags)
 {
 	const char *name = xattr_full_name(handler, suffix);
-	struct kernfs_node *kn = inode->i_private;
+	struct kernfs_yesde *kn = iyesde->i_private;
 
 	return kernfs_xattr_set(kn, name, value, size, flags);
 }

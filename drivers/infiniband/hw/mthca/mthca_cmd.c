@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -34,7 +34,7 @@
 
 #include <linux/completion.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -147,9 +147,9 @@ enum {
 };
 
 /*
- * According to Mellanox code, FW may be starved and never complete
+ * According to Mellayesx code, FW may be starved and never complete
  * commands.  So we can't use strict timeouts described in PRM -- we
- * just arbitrarily select 60 seconds for now.
+ * just arbitrarily select 60 seconds for yesw.
  */
 #if 0
 /*
@@ -186,7 +186,7 @@ struct mthca_cmd_context {
 
 static int fw_cmd_doorbell = 0;
 module_param(fw_cmd_doorbell, int, 0644);
-MODULE_PARM_DESC(fw_cmd_doorbell, "post FW commands through doorbell page if nonzero "
+MODULE_PARM_DESC(fw_cmd_doorbell, "post FW commands through doorbell page if yesnzero "
 		 "(and supported by FW)");
 
 static inline int go_bit(struct mthca_dev *dev)
@@ -261,7 +261,7 @@ static int mthca_cmd_post_hcr(struct mthca_dev *dev,
 	__raw_writel((__force u32) cpu_to_be32(out_param & 0xfffffffful), dev->hcr + 4 * 4);
 	__raw_writel((__force u32) cpu_to_be32(token << 16),              dev->hcr + 5 * 4);
 
-	/* __raw_writel may not order writes. */
+	/* __raw_writel may yest order writes. */
 	wmb();
 
 	__raw_writel((__force u32) cpu_to_be32((1 << HCR_GO_BIT)                |
@@ -297,7 +297,7 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 }
 
 
-static int mthca_status_to_errno(u8 status)
+static int mthca_status_to_erryes(u8 status)
 {
 	static const int trans_table[] = {
 		[MTHCA_CMD_STAT_INTERNAL_ERR]   = -EIO,
@@ -376,7 +376,7 @@ static int mthca_cmd_poll(struct mthca_dev *dev,
 	if (status) {
 		mthca_dbg(dev, "Command %02x completed with status %02x\n",
 			  op, status);
-		err = mthca_status_to_errno(status);
+		err = mthca_status_to_erryes(status);
 	}
 
 out:
@@ -445,7 +445,7 @@ static int mthca_cmd_wait(struct mthca_dev *dev,
 	if (context->status) {
 		mthca_dbg(dev, "Command %02x completed with status %02x\n",
 			  op, context->status);
-		err = mthca_status_to_errno(context->status);
+		err = mthca_status_to_erryes(context->status);
 	}
 
 	if (out_is_imm && out_param) {
@@ -484,7 +484,7 @@ static int mthca_cmd_box(struct mthca_dev *dev,
 				      timeout);
 }
 
-/* Invoke a command with no output parameter */
+/* Invoke a command with yes output parameter */
 static int mthca_cmd(struct mthca_dev *dev,
 		     u64 in_param,
 		     u32 in_modifier,
@@ -579,7 +579,7 @@ int mthca_cmd_use_events(struct mthca_dev *dev)
 	for (dev->cmd.token_mask = 1;
 	     dev->cmd.token_mask < dev->cmd.max_cmds;
 	     dev->cmd.token_mask <<= 1)
-		; /* nothing */
+		; /* yesthing */
 	--dev->cmd.token_mask;
 
 	dev->cmd.flags |= MTHCA_CMD_USE_EVENTS;
@@ -682,7 +682,7 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 		 */
 		lg = ffs(mthca_icm_addr(&iter) | mthca_icm_size(&iter)) - 1;
 		if (lg < MTHCA_ICM_PAGE_SHIFT) {
-			mthca_warn(dev, "Got FW area not aligned to %d (%llx/%lx).\n",
+			mthca_warn(dev, "Got FW area yest aligned to %d (%llx/%lx).\n",
 				   MTHCA_ICM_PAGE_SIZE,
 				   (unsigned long long) mthca_icm_addr(&iter),
 				   mthca_icm_size(&iter));
@@ -815,7 +815,7 @@ int mthca_QUERY_FW(struct mthca_dev *dev)
 
 	MTHCA_GET(dev->fw_ver,   outbox, QUERY_FW_VER_OFFSET);
 	/*
-	 * FW subminor version is at more significant bits than minor
+	 * FW submiyesr version is at more significant bits than miyesr
 	 * version, so swap here.
 	 */
 	dev->fw_ver = (dev->fw_ver & 0xffff00000000ull) |
@@ -913,9 +913,9 @@ int mthca_ENABLE_LAM(struct mthca_dev *dev)
 	if (!!(info & ENABLE_LAM_INFO_HIDDEN_FLAG) !=
 	    !!(dev->mthca_flags & MTHCA_FLAG_DDR_HIDDEN)) {
 		mthca_info(dev, "FW reports that HCA-attached memory "
-			   "is %s hidden; does not match PCI config\n",
+			   "is %s hidden; does yest match PCI config\n",
 			   (info & ENABLE_LAM_INFO_HIDDEN_FLAG) ?
-			   "" : "not");
+			   "" : "yest");
 	}
 	if (info & ENABLE_LAM_INFO_HIDDEN_FLAG)
 		mthca_dbg(dev, "HCA-attached memory is hidden.\n");
@@ -968,9 +968,9 @@ int mthca_QUERY_DDR(struct mthca_dev *dev)
 	if (!!(info & QUERY_DDR_INFO_HIDDEN_FLAG) !=
 	    !!(dev->mthca_flags & MTHCA_FLAG_DDR_HIDDEN)) {
 		mthca_info(dev, "FW reports that HCA-attached memory "
-			   "is %s hidden; does not match PCI config\n",
+			   "is %s hidden; does yest match PCI config\n",
 			   (info & QUERY_DDR_INFO_HIDDEN_FLAG) ?
-			   "" : "not");
+			   "" : "yest");
 	}
 	if (info & QUERY_DDR_INFO_HIDDEN_FLAG)
 		mthca_dbg(dev, "HCA-attached memory is hidden.\n");
@@ -1193,13 +1193,13 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 			  QUERY_DEV_LIM_MAX_ICM_SZ_OFFSET);
 
 		if (dev_lim->hca.arbel.bmme_flags & 1)
-			mthca_dbg(dev, "Base MM extensions: yes "
+			mthca_dbg(dev, "Base MM extensions: no "
 				  "(flags %d, max PBL %d, rsvd L_Key %08x)\n",
 				  dev_lim->hca.arbel.bmme_flags,
 				  dev_lim->hca.arbel.max_pbl_sz,
 				  dev_lim->hca.arbel.reserved_lkey);
 		else
-			mthca_dbg(dev, "Base MM extensions: no\n");
+			mthca_dbg(dev, "Base MM extensions: yes\n");
 
 		mthca_dbg(dev, "Max ICM size %lld MB\n",
 			  (unsigned long long) dev_lim->hca.arbel.max_icm_sz >> 20);
@@ -1368,7 +1368,7 @@ int mthca_INIT_HCA(struct mthca_dev *dev,
 #elif defined(__BIG_ENDIAN)
 	*(inbox + INIT_HCA_FLAGS2_OFFSET / 4) |= cpu_to_be32(1 << 1);
 #else
-#error Host endianness not defined
+#error Host endianness yest defined
 #endif
 	/* Check port for UD address vector: */
 	*(inbox + INIT_HCA_FLAGS2_OFFSET / 4) |= cpu_to_be32(1);
@@ -1465,7 +1465,7 @@ int mthca_INIT_IB(struct mthca_dev *dev,
 
 	flags = 0;
 	flags |= param->set_guid0     ? INIT_IB_FLAG_G0  : 0;
-	flags |= param->set_node_guid ? INIT_IB_FLAG_NG  : 0;
+	flags |= param->set_yesde_guid ? INIT_IB_FLAG_NG  : 0;
 	flags |= param->set_si_guid   ? INIT_IB_FLAG_SIG : 0;
 	flags |= param->vl_cap << INIT_IB_VL_SHIFT;
 	flags |= param->port_width << INIT_IB_PORT_WIDTH_SHIFT;
@@ -1475,7 +1475,7 @@ int mthca_INIT_IB(struct mthca_dev *dev,
 	MTHCA_PUT(inbox, param->gid_cap,   INIT_IB_MAX_GID_OFFSET);
 	MTHCA_PUT(inbox, param->pkey_cap,  INIT_IB_MAX_PKEY_OFFSET);
 	MTHCA_PUT(inbox, param->guid0,     INIT_IB_GUID0_OFFSET);
-	MTHCA_PUT(inbox, param->node_guid, INIT_IB_NODE_GUID_OFFSET);
+	MTHCA_PUT(inbox, param->yesde_guid, INIT_IB_NODE_GUID_OFFSET);
 	MTHCA_PUT(inbox, param->si_guid,   INIT_IB_SI_GUID_OFFSET);
 
 	err = mthca_cmd(dev, mailbox->dma, port, 0, CMD_INIT_IB,
@@ -1859,7 +1859,7 @@ int mthca_CONF_SPECIAL_QP(struct mthca_dev *dev, int type, u32 qpn)
 			 CMD_TIME_CLASS_B);
 }
 
-int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
+int mthca_MAD_IFC(struct mthca_dev *dev, int igyesre_mkey, int igyesre_bkey,
 		  int port, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		  const void *in_mad, void *response_mad)
 {
@@ -1895,9 +1895,9 @@ int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
 	 * Key check traps can't be generated unless we have in_wc to
 	 * tell us where to send the trap.
 	 */
-	if (ignore_mkey || !in_wc)
+	if (igyesre_mkey || !in_wc)
 		op_modifier |= 0x1;
-	if (ignore_bkey || !in_wc)
+	if (igyesre_bkey || !in_wc)
 		op_modifier |= 0x2;
 
 	if (in_wc) {

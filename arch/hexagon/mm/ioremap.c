@@ -20,7 +20,7 @@ void __iomem *ioremap(unsigned long phys_addr, unsigned long size)
 
 	last_addr = phys_addr + size - 1;
 
-	/*  Wrapping not allowed  */
+	/*  Wrapping yest allowed  */
 	if (!size || (last_addr < phys_addr))
 		return NULL;
 

@@ -596,7 +596,7 @@ static int s5h1411_set_frontend(struct dvb_frontend *fe)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
-	/* Issue a reset to the demod so it knows to resync against the
+	/* Issue a reset to the demod so it kyesws to resync against the
 	   newly tuned frequency */
 	s5h1411_softreset(fe);
 

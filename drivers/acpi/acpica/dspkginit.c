@@ -43,7 +43,7 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element);
  * if num_elements is larger, the Package object is padded out with
  * objects of type Uninitialized (as per ACPI spec.)
  *
- * Even though the ASL compilers do not allow num_elements to be smaller
+ * Even though the ASL compilers do yest allow num_elements to be smaller
  * than the Package list length (for the fixed length package opcode), some
  * BIOS code modifies the AML on the fly to adjust the num_elements, and
  * this code compensates for that. This also provides compatibility with
@@ -95,7 +95,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 
-		obj_desc->package.node = parent->common.node;
+		obj_desc->package.yesde = parent->common.yesde;
 	}
 
 	if (obj_desc->package.flags & AOPOBJ_DATA_VALID) {	/* Just in case */
@@ -152,11 +152,11 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 	 */
 	for (i = 0; arg && (i < element_count); i++) {
 		if (arg->common.aml_opcode == AML_INT_RETURN_VALUE_OP) {
-			if (!arg->common.node) {
+			if (!arg->common.yesde) {
 				/*
 				 * This is the case where an expression has returned a value.
 				 * The use of expressions (term_args) within individual
-				 * package elements is not supported by the AML interpreter,
+				 * package elements is yest supported by the AML interpreter,
 				 * even though the ASL grammar supports it. Example:
 				 *
 				 *      Name (INT1, 0x1234)
@@ -165,20 +165,20 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 				 *          Add (INT1, 0xAAAA0000)
 				 *      })
 				 *
-				 *  1) No known AML interpreter supports this type of construct
+				 *  1) No kyeswn AML interpreter supports this type of construct
 				 *  2) This fixes a fault if the construct is encountered
 				 */
 				ACPI_EXCEPTION((AE_INFO, AE_SUPPORT,
-						"Expressions within package elements are not supported"));
+						"Expressions within package elements are yest supported"));
 
-				/* Cleanup the return object, it is not needed */
+				/* Cleanup the return object, it is yest needed */
 
 				acpi_ut_remove_reference(walk_state->results->
 							 results.obj_desc[0]);
 				return_ACPI_STATUS(AE_SUPPORT);
 			}
 
-			if (arg->common.node->type == ACPI_TYPE_METHOD) {
+			if (arg->common.yesde->type == ACPI_TYPE_METHOD) {
 				/*
 				 * A method reference "looks" to the parser to be a method
 				 * invocation, so we special case it here
@@ -195,7 +195,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 
 				obj_desc->package.elements[i] =
 				    ACPI_CAST_PTR(union acpi_operand_object,
-						  arg->common.node);
+						  arg->common.yesde);
 			}
 		} else {
 			status =
@@ -204,7 +204,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 							  elements[i]);
 			if (status == AE_NOT_FOUND) {
 				ACPI_ERROR((AE_INFO, "%-48s",
-					    "****DS namepath not found"));
+					    "****DS namepath yest found"));
 			}
 
 			if (!module_level_code) {
@@ -255,7 +255,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		 *
 		 * Note: technically, this is an error, from ACPI spec: "It is an
 		 * error for NumElements to be less than the number of elements in
-		 * the PackageList". However, we just print a message and no
+		 * the PackageList". However, we just print a message and yes
 		 * exception is returned. This provides compatibility with other
 		 * ACPI implementations. Some firmware implementations will alter
 		 * the num_elements on the fly, possibly creating this type of
@@ -264,14 +264,14 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		while (arg) {
 			/*
 			 * We must delete any package elements that were created earlier
-			 * and are not going to be used because of the package truncation.
+			 * and are yest going to be used because of the package truncation.
 			 */
-			if (arg->common.node) {
+			if (arg->common.yesde) {
 				acpi_ut_remove_reference(ACPI_CAST_PTR
 							 (union
 							  acpi_operand_object,
-							  arg->common.node));
-				arg->common.node = NULL;
+							  arg->common.yesde));
+				arg->common.yesde = NULL;
 			}
 
 			/* Find out how many elements there really are */
@@ -285,10 +285,10 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 			   i, element_count));
 	} else if (i < element_count) {
 		/*
-		 * Arg list (elements) was exhausted, but we did not reach
+		 * Arg list (elements) was exhausted, but we did yest reach
 		 * num_elements count.
 		 *
-		 * Note: this is not an error, the package is padded out
+		 * Note: this is yest an error, the package is padded out
 		 * with NULLs as per the ACPI specification.
 		 */
 		ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO,
@@ -304,7 +304,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		obj_desc->package.flags |= AOPOBJ_DATA_VALID;
 	}
 
-	op->common.node = ACPI_CAST_PTR(struct acpi_namespace_node, obj_desc);
+	op->common.yesde = ACPI_CAST_PTR(struct acpi_namespace_yesde, obj_desc);
 	return_ACPI_STATUS(status);
 }
 
@@ -354,7 +354,7 @@ acpi_ds_init_package_element(u8 object_type,
 
 	if (source_object->common.type == ACPI_TYPE_LOCAL_REFERENCE) {
 
-		/* Attempt to resolve the (named) reference to a namespace node */
+		/* Attempt to resolve the (named) reference to a namespace yesde */
 
 		acpi_ds_resolve_package_element(element_ptr);
 	} else if (source_object->common.type == ACPI_TYPE_PACKAGE) {
@@ -384,8 +384,8 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 	acpi_status status2;
 	union acpi_generic_state scope_info;
 	union acpi_operand_object *element = *element_ptr;
-	struct acpi_namespace_node *resolved_node;
-	struct acpi_namespace_node *original_node;
+	struct acpi_namespace_yesde *resolved_yesde;
+	struct acpi_namespace_yesde *original_yesde;
 	char *external_path = "";
 	acpi_object_type type;
 
@@ -403,28 +403,28 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 
 	/* Element must be a reference object of correct type */
 
-	scope_info.scope.node = element->reference.node;	/* Prefix node */
+	scope_info.scope.yesde = element->reference.yesde;	/* Prefix yesde */
 
 	status = acpi_ns_lookup(&scope_info, (char *)element->reference.aml,
 				ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
 				ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
-				NULL, &resolved_node);
+				NULL, &resolved_yesde);
 	if (ACPI_FAILURE(status)) {
 		if ((status == AE_NOT_FOUND)
-		    && acpi_gbl_ignore_package_resolution_errors) {
+		    && acpi_gbl_igyesre_package_resolution_errors) {
 			/*
 			 * Optionally be silent about the NOT_FOUND case for the referenced
 			 * name. Although this is potentially a serious problem,
-			 * it can generate a lot of noise/errors on platforms whose
+			 * it can generate a lot of yesise/errors on platforms whose
 			 * firmware carries around a bunch of unused Package objects.
 			 * To disable these errors, set this global to TRUE:
-			 *     acpi_gbl_ignore_package_resolution_errors
+			 *     acpi_gbl_igyesre_package_resolution_errors
 			 *
 			 * If the AML actually tries to use such a package, the unresolved
 			 * element(s) will be replaced with NULL elements.
 			 */
 
-			/* Referenced name not found, set the element to NULL */
+			/* Referenced name yest found, set the element to NULL */
 
 			acpi_ut_remove_reference(*element_ptr);
 			*element_ptr = NULL;
@@ -442,54 +442,54 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 			ACPI_FREE(external_path);
 		}
 
-		/* Could not resolve name, set the element to NULL */
+		/* Could yest resolve name, set the element to NULL */
 
 		acpi_ut_remove_reference(*element_ptr);
 		*element_ptr = NULL;
 		return_VOID;
-	} else if (resolved_node->type == ACPI_TYPE_ANY) {
+	} else if (resolved_yesde->type == ACPI_TYPE_ANY) {
 
-		/* Named reference not resolved, return a NULL package element */
+		/* Named reference yest resolved, return a NULL package element */
 
 		ACPI_ERROR((AE_INFO,
-			    "Could not resolve named package element [%4.4s] in [%4.4s]",
-			    resolved_node->name.ascii,
-			    scope_info.scope.node->name.ascii));
+			    "Could yest resolve named package element [%4.4s] in [%4.4s]",
+			    resolved_yesde->name.ascii,
+			    scope_info.scope.yesde->name.ascii));
 		*element_ptr = NULL;
 		return_VOID;
 	}
 
 	/*
-	 * Special handling for Alias objects. We need resolved_node to point
+	 * Special handling for Alias objects. We need resolved_yesde to point
 	 * to the Alias target. This effectively "resolves" the alias.
 	 */
-	if (resolved_node->type == ACPI_TYPE_LOCAL_ALIAS) {
-		resolved_node = ACPI_CAST_PTR(struct acpi_namespace_node,
-					      resolved_node->object);
+	if (resolved_yesde->type == ACPI_TYPE_LOCAL_ALIAS) {
+		resolved_yesde = ACPI_CAST_PTR(struct acpi_namespace_yesde,
+					      resolved_yesde->object);
 	}
 
 	/* Update the reference object */
 
 	element->reference.resolved = TRUE;
-	element->reference.node = resolved_node;
-	type = element->reference.node->type;
+	element->reference.yesde = resolved_yesde;
+	type = element->reference.yesde->type;
 
 	/*
-	 * Attempt to resolve the node to a value before we insert it into
+	 * Attempt to resolve the yesde to a value before we insert it into
 	 * the package. If this is a reference to a common data type,
 	 * resolve it immediately. According to the ACPI spec, package
 	 * elements can only be "data objects" or method references.
 	 * Attempt to resolve to an Integer, Buffer, String or Package.
-	 * If cannot, return the named reference (for things like Devices,
+	 * If canyest, return the named reference (for things like Devices,
 	 * Methods, etc.) Buffer Fields and Fields will resolve to simple
 	 * objects (int/buf/str/pkg).
 	 *
 	 * NOTE: References to things like Devices, Methods, Mutexes, etc.
-	 * will remain as named references. This behavior is not described
+	 * will remain as named references. This behavior is yest described
 	 * in the ACPI spec, but it appears to be an oversight.
 	 */
-	original_node = resolved_node;
-	status = acpi_ex_resolve_node_to_value(&resolved_node, NULL);
+	original_yesde = resolved_yesde;
+	status = acpi_ex_resolve_yesde_to_value(&resolved_yesde, NULL);
 	if (ACPI_FAILURE(status)) {
 		return_VOID;
 	}
@@ -498,7 +498,7 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 		/*
 		 * These object types are a result of named references, so we will
 		 * leave them as reference objects. In other words, these types
-		 * have no intrinsic "value".
+		 * have yes intrinsic "value".
 		 */
 	case ACPI_TYPE_DEVICE:
 	case ACPI_TYPE_THERMAL:
@@ -511,19 +511,19 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 	case ACPI_TYPE_EVENT:
 	case ACPI_TYPE_REGION:
 
-		/* acpi_ex_resolve_node_to_value gave these an extra reference */
+		/* acpi_ex_resolve_yesde_to_value gave these an extra reference */
 
-		acpi_ut_remove_reference(original_node->object);
+		acpi_ut_remove_reference(original_yesde->object);
 		break;
 
 	default:
 		/*
-		 * For all other types - the node was resolved to an actual
+		 * For all other types - the yesde was resolved to an actual
 		 * operand object with a value, return the object. Remove
 		 * a reference on the existing object.
 		 */
 		acpi_ut_remove_reference(element);
-		*element_ptr = (union acpi_operand_object *)resolved_node;
+		*element_ptr = (union acpi_operand_object *)resolved_yesde;
 		break;
 	}
 

@@ -377,7 +377,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 		new->devnum = last_devnum+1;
 
 	/* Check that the device and any partitions will get valid
-	 * minor numbers and that the disk naming code below can cope
+	 * miyesr numbers and that the disk naming code below can cope
 	 * with this number. */
 	if (new->devnum > (MINORMASK >> tr->part_bits) ||
 	    (tr->part_bits && new->devnum >= 27 * 26)) {
@@ -404,7 +404,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	new->disk = gd;
 	gd->private_data = new;
 	gd->major = tr->major;
-	gd->first_minor = (new->devnum) << tr->part_bits;
+	gd->first_miyesr = (new->devnum) << tr->part_bits;
 	gd->fops = &mtd_block_ops;
 
 	if (tr->part_bits)
@@ -518,7 +518,7 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 	return 0;
 }
 
-static void blktrans_notify_remove(struct mtd_info *mtd)
+static void blktrans_yestify_remove(struct mtd_info *mtd)
 {
 	struct mtd_blktrans_ops *tr;
 	struct mtd_blktrans_dev *dev, *next;
@@ -529,7 +529,7 @@ static void blktrans_notify_remove(struct mtd_info *mtd)
 				tr->remove_dev(dev);
 }
 
-static void blktrans_notify_add(struct mtd_info *mtd)
+static void blktrans_yestify_add(struct mtd_info *mtd)
 {
 	struct mtd_blktrans_ops *tr;
 
@@ -540,9 +540,9 @@ static void blktrans_notify_add(struct mtd_info *mtd)
 		tr->add_mtd(tr, mtd);
 }
 
-static struct mtd_notifier blktrans_notifier = {
-	.add = blktrans_notify_add,
-	.remove = blktrans_notify_remove,
+static struct mtd_yestifier blktrans_yestifier = {
+	.add = blktrans_yestify_add,
+	.remove = blktrans_yestify_remove,
 };
 
 int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
@@ -550,11 +550,11 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	struct mtd_info *mtd;
 	int ret;
 
-	/* Register the notifier if/when the first device type is
+	/* Register the yestifier if/when the first device type is
 	   registered, to prevent the link/init ordering from fucking
 	   us over. */
-	if (!blktrans_notifier.list.next)
-		register_mtd_user(&blktrans_notifier);
+	if (!blktrans_yestifier.list.next)
+		register_mtd_user(&blktrans_yestifier);
 
 
 	mutex_lock(&mtd_table_mutex);
@@ -606,8 +606,8 @@ static void __exit mtd_blktrans_exit(void)
 {
 	/* No race here -- if someone's currently in register_mtd_blktrans
 	   we're screwed anyway. */
-	if (blktrans_notifier.list.next)
-		unregister_mtd_user(&blktrans_notifier);
+	if (blktrans_yestifier.list.next)
+		unregister_mtd_user(&blktrans_yestifier);
 }
 
 module_exit(mtd_blktrans_exit);

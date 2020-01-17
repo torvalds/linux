@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2005-2008 Red Hat, Inc.  All rights reserved.
  *
@@ -33,7 +33,7 @@ struct dlm_plock_info {
 	__u8 wait;
 	__u8 flags;
 	__u32 pid;
-	__s32 nodeid;
+	__s32 yesdeid;
 	__s32 rv;
 	__u32 fsid;
 	__u64 number;

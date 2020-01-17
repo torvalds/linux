@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -61,7 +61,7 @@ static unsigned char edid_get_byte(struct intel_vgpu *vgpu)
 	}
 
 	if (!edid->edid_available) {
-		gvt_vgpu_err("Reading EDID but EDID is not available!\n");
+		gvt_vgpu_err("Reading EDID but EDID is yest available!\n");
 		return 0;
 	}
 
@@ -215,7 +215,7 @@ static int gmbus1_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		} else if (slave_addr != 0) {
 			gvt_dbg_dpy(
 				"vgpu%d: unsupported gmbus slave addr(0x%x)\n"
-				"	gmbus operations will be ignored.\n",
+				"	gmbus operations will be igyesred.\n",
 					vgpu->id, slave_addr);
 		}
 
@@ -240,7 +240,7 @@ static int gmbus1_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 				/* After the 'stop' cycle, hw state would become
 				 * 'stop phase' and then 'idle phase' after a
 				 * few milliseconds. In emulation, we just set
-				 * it as 'idle phase' ('stop phase' is not
+				 * it as 'idle phase' ('stop phase' is yest
 				 * visible in gmbus interface)
 				 */
 				i2c_edid->gmbus.phase = GMBUS_IDLE_PHASE;
@@ -259,7 +259,7 @@ static int gmbus1_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			vgpu_vreg_t(vgpu, PCH_GMBUS2) |= GMBUS_ACTIVE;
 			break;
 		default:
-			gvt_vgpu_err("Unknown/reserved GMBUS cycle detected!\n");
+			gvt_vgpu_err("Unkyeswn/reserved GMBUS cycle detected!\n");
 			break;
 		}
 		/*
@@ -328,7 +328,7 @@ static int gmbus3_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 		 */
 	} else {
 		memcpy(p_data, &vgpu_vreg(vgpu, offset), bytes);
-		gvt_vgpu_err("warning: gmbus3 read with nothing returned\n");
+		gvt_vgpu_err("warning: gmbus3 read with yesthing returned\n");
 	}
 	return 0;
 }
@@ -527,8 +527,8 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 	} else if ((op & 0x1) == GVT_AUX_I2C_WRITE) {
 		/* TODO
 		 * We only support EDID reading from I2C_over_AUX. And
-		 * we do not expect the index mode to be used. Right now
-		 * the WRITE operation is ignored. It is good enough to
+		 * we do yest expect the index mode to be used. Right yesw
+		 * the WRITE operation is igyesred. It is good eyesugh to
 		 * support the gfx driver to do EDID access.
 		 */
 	} else {

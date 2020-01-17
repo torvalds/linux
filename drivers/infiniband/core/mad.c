@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004-2007 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies Ltd.  All rights reserved.
  * Copyright (c) 2009 HNR Consulting. All rights reserved.
  * Copyright (c) 2014,2018 Intel Corporation.  All rights reserved.
  *
@@ -16,11 +16,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -85,7 +85,7 @@ MODULE_PARM_DESC(send_queue_size, "Size of send queue in number of work requests
 module_param_named(recv_queue_size, mad_recvq_size, int, 0444);
 MODULE_PARM_DESC(recv_queue_size, "Size of receive queue in number of work requests");
 
-/* Client ID 0 is used for snoop-only clients */
+/* Client ID 0 is used for syesop-only clients */
 static DEFINE_XARRAY_ALLOC1(ib_mad_clients);
 static u32 ib_mad_client_next;
 static struct list_head ib_mad_port_list;
@@ -105,7 +105,7 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 static void cancel_mads(struct ib_mad_agent_private *mad_agent_priv);
 static void timeout_sends(struct work_struct *work);
 static void local_completions(struct work_struct *work);
-static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
+static int add_yesyesui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 			      struct ib_mad_agent_private *agent_priv,
 			      u8 mgmt_class);
 static int add_oui_reg_req(struct ib_mad_reg_req *mad_reg_req,
@@ -273,7 +273,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 		}
 		if (!recv_handler) {
 			dev_dbg_ratelimited(&device->dev,
-					    "%s: no recv_handler\n", __func__);
+					    "%s: yes recv_handler\n", __func__);
 			goto error1;
 		}
 		if (mad_reg_req->mgmt_class >= MAX_MGMT_CLASS) {
@@ -300,7 +300,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 		} else if (is_vendor_class(mad_reg_req->mgmt_class)) {
 			/*
 			 * If class is in "new" vendor range,
-			 * ensure supplied OUI is not zero
+			 * ensure supplied OUI is yest zero
 			 */
 			if (!is_vendor_oui(mad_reg_req->oui)) {
 				dev_dbg_ratelimited(&device->dev,
@@ -314,7 +314,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 		if (!ib_is_mad_class_rmpp(mad_reg_req->mgmt_class)) {
 			if (rmpp_version) {
 				dev_dbg_ratelimited(&device->dev,
-					"%s: RMPP version for non-RMPP class 0x%x\n",
+					"%s: RMPP version for yesn-RMPP class 0x%x\n",
 					__func__, mad_reg_req->mgmt_class);
 				goto error1;
 			}
@@ -360,10 +360,10 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	}
 
 	/* Verify the QP requested is supported. For example, Ethernet devices
-	 * will not have QP0.
+	 * will yest have QP0.
 	 */
 	if (!port_priv->qp_info[qpn].qp) {
-		dev_dbg_ratelimited(&device->dev, "%s: QP %d not supported\n",
+		dev_dbg_ratelimited(&device->dev, "%s: QP %d yest supported\n",
 				    __func__, qpn);
 		ret = ERR_PTR(-EPROTONOSUPPORT);
 		goto error1;
@@ -426,7 +426,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 
 	/*
 	 * Make sure MAD registration (if supplied)
-	 * is non overlapping with any existing ones
+	 * is yesn overlapping with any existing ones
 	 */
 	spin_lock_irq(&port_priv->reg_lock);
 	if (mad_reg_req) {
@@ -442,7 +442,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 						goto error6;
 				}
 			}
-			ret2 = add_nonoui_reg_req(mad_reg_req, mad_agent_priv,
+			ret2 = add_yesyesui_reg_req(mad_reg_req, mad_agent_priv,
 						  mgmt_class);
 		} else {
 			/* "New" vendor class range */
@@ -483,73 +483,73 @@ error1:
 }
 EXPORT_SYMBOL(ib_register_mad_agent);
 
-static inline int is_snooping_sends(int mad_snoop_flags)
+static inline int is_syesoping_sends(int mad_syesop_flags)
 {
-	return (mad_snoop_flags &
+	return (mad_syesop_flags &
 		(/*IB_MAD_SNOOP_POSTED_SENDS |
 		 IB_MAD_SNOOP_RMPP_SENDS |*/
 		 IB_MAD_SNOOP_SEND_COMPLETIONS /*|
 		 IB_MAD_SNOOP_RMPP_SEND_COMPLETIONS*/));
 }
 
-static inline int is_snooping_recvs(int mad_snoop_flags)
+static inline int is_syesoping_recvs(int mad_syesop_flags)
 {
-	return (mad_snoop_flags &
+	return (mad_syesop_flags &
 		(IB_MAD_SNOOP_RECVS /*|
 		 IB_MAD_SNOOP_RMPP_RECVS*/));
 }
 
-static int register_snoop_agent(struct ib_mad_qp_info *qp_info,
-				struct ib_mad_snoop_private *mad_snoop_priv)
+static int register_syesop_agent(struct ib_mad_qp_info *qp_info,
+				struct ib_mad_syesop_private *mad_syesop_priv)
 {
-	struct ib_mad_snoop_private **new_snoop_table;
+	struct ib_mad_syesop_private **new_syesop_table;
 	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&qp_info->snoop_lock, flags);
+	spin_lock_irqsave(&qp_info->syesop_lock, flags);
 	/* Check for empty slot in array. */
-	for (i = 0; i < qp_info->snoop_table_size; i++)
-		if (!qp_info->snoop_table[i])
+	for (i = 0; i < qp_info->syesop_table_size; i++)
+		if (!qp_info->syesop_table[i])
 			break;
 
-	if (i == qp_info->snoop_table_size) {
+	if (i == qp_info->syesop_table_size) {
 		/* Grow table. */
-		new_snoop_table = krealloc(qp_info->snoop_table,
-					   sizeof mad_snoop_priv *
-					   (qp_info->snoop_table_size + 1),
+		new_syesop_table = krealloc(qp_info->syesop_table,
+					   sizeof mad_syesop_priv *
+					   (qp_info->syesop_table_size + 1),
 					   GFP_ATOMIC);
-		if (!new_snoop_table) {
+		if (!new_syesop_table) {
 			i = -ENOMEM;
 			goto out;
 		}
 
-		qp_info->snoop_table = new_snoop_table;
-		qp_info->snoop_table_size++;
+		qp_info->syesop_table = new_syesop_table;
+		qp_info->syesop_table_size++;
 	}
-	qp_info->snoop_table[i] = mad_snoop_priv;
-	atomic_inc(&qp_info->snoop_count);
+	qp_info->syesop_table[i] = mad_syesop_priv;
+	atomic_inc(&qp_info->syesop_count);
 out:
-	spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
+	spin_unlock_irqrestore(&qp_info->syesop_lock, flags);
 	return i;
 }
 
-struct ib_mad_agent *ib_register_mad_snoop(struct ib_device *device,
+struct ib_mad_agent *ib_register_mad_syesop(struct ib_device *device,
 					   u8 port_num,
 					   enum ib_qp_type qp_type,
-					   int mad_snoop_flags,
-					   ib_mad_snoop_handler snoop_handler,
+					   int mad_syesop_flags,
+					   ib_mad_syesop_handler syesop_handler,
 					   ib_mad_recv_handler recv_handler,
 					   void *context)
 {
 	struct ib_mad_port_private *port_priv;
 	struct ib_mad_agent *ret;
-	struct ib_mad_snoop_private *mad_snoop_priv;
+	struct ib_mad_syesop_private *mad_syesop_priv;
 	int qpn;
 	int err;
 
 	/* Validate parameters */
-	if ((is_snooping_sends(mad_snoop_flags) && !snoop_handler) ||
-	    (is_snooping_recvs(mad_snoop_flags) && !recv_handler)) {
+	if ((is_syesoping_sends(mad_syesop_flags) && !syesop_handler) ||
+	    (is_syesoping_recvs(mad_syesop_flags) && !recv_handler)) {
 		ret = ERR_PTR(-EINVAL);
 		goto error1;
 	}
@@ -564,47 +564,47 @@ struct ib_mad_agent *ib_register_mad_snoop(struct ib_device *device,
 		goto error1;
 	}
 	/* Allocate structures */
-	mad_snoop_priv = kzalloc(sizeof *mad_snoop_priv, GFP_KERNEL);
-	if (!mad_snoop_priv) {
+	mad_syesop_priv = kzalloc(sizeof *mad_syesop_priv, GFP_KERNEL);
+	if (!mad_syesop_priv) {
 		ret = ERR_PTR(-ENOMEM);
 		goto error1;
 	}
 
 	/* Now, fill in the various structures */
-	mad_snoop_priv->qp_info = &port_priv->qp_info[qpn];
-	mad_snoop_priv->agent.device = device;
-	mad_snoop_priv->agent.recv_handler = recv_handler;
-	mad_snoop_priv->agent.snoop_handler = snoop_handler;
-	mad_snoop_priv->agent.context = context;
-	mad_snoop_priv->agent.qp = port_priv->qp_info[qpn].qp;
-	mad_snoop_priv->agent.port_num = port_num;
-	mad_snoop_priv->mad_snoop_flags = mad_snoop_flags;
-	init_completion(&mad_snoop_priv->comp);
+	mad_syesop_priv->qp_info = &port_priv->qp_info[qpn];
+	mad_syesop_priv->agent.device = device;
+	mad_syesop_priv->agent.recv_handler = recv_handler;
+	mad_syesop_priv->agent.syesop_handler = syesop_handler;
+	mad_syesop_priv->agent.context = context;
+	mad_syesop_priv->agent.qp = port_priv->qp_info[qpn].qp;
+	mad_syesop_priv->agent.port_num = port_num;
+	mad_syesop_priv->mad_syesop_flags = mad_syesop_flags;
+	init_completion(&mad_syesop_priv->comp);
 
-	err = ib_mad_agent_security_setup(&mad_snoop_priv->agent, qp_type);
+	err = ib_mad_agent_security_setup(&mad_syesop_priv->agent, qp_type);
 	if (err) {
 		ret = ERR_PTR(err);
 		goto error2;
 	}
 
-	mad_snoop_priv->snoop_index = register_snoop_agent(
+	mad_syesop_priv->syesop_index = register_syesop_agent(
 						&port_priv->qp_info[qpn],
-						mad_snoop_priv);
-	if (mad_snoop_priv->snoop_index < 0) {
-		ret = ERR_PTR(mad_snoop_priv->snoop_index);
+						mad_syesop_priv);
+	if (mad_syesop_priv->syesop_index < 0) {
+		ret = ERR_PTR(mad_syesop_priv->syesop_index);
 		goto error3;
 	}
 
-	atomic_set(&mad_snoop_priv->refcount, 1);
-	return &mad_snoop_priv->agent;
+	atomic_set(&mad_syesop_priv->refcount, 1);
+	return &mad_syesop_priv->agent;
 error3:
-	ib_mad_agent_security_cleanup(&mad_snoop_priv->agent);
+	ib_mad_agent_security_cleanup(&mad_syesop_priv->agent);
 error2:
-	kfree(mad_snoop_priv);
+	kfree(mad_syesop_priv);
 error1:
 	return ret;
 }
-EXPORT_SYMBOL(ib_register_mad_snoop);
+EXPORT_SYMBOL(ib_register_mad_syesop);
 
 static inline void deref_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 {
@@ -612,10 +612,10 @@ static inline void deref_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 		complete(&mad_agent_priv->comp);
 }
 
-static inline void deref_snoop_agent(struct ib_mad_snoop_private *mad_snoop_priv)
+static inline void deref_syesop_agent(struct ib_mad_syesop_private *mad_syesop_priv)
 {
-	if (atomic_dec_and_test(&mad_snoop_priv->refcount))
-		complete(&mad_snoop_priv->comp);
+	if (atomic_dec_and_test(&mad_syesop_priv->refcount))
+		complete(&mad_syesop_priv->comp);
 }
 
 static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
@@ -650,23 +650,23 @@ static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 	kfree_rcu(mad_agent_priv, rcu);
 }
 
-static void unregister_mad_snoop(struct ib_mad_snoop_private *mad_snoop_priv)
+static void unregister_mad_syesop(struct ib_mad_syesop_private *mad_syesop_priv)
 {
 	struct ib_mad_qp_info *qp_info;
 	unsigned long flags;
 
-	qp_info = mad_snoop_priv->qp_info;
-	spin_lock_irqsave(&qp_info->snoop_lock, flags);
-	qp_info->snoop_table[mad_snoop_priv->snoop_index] = NULL;
-	atomic_dec(&qp_info->snoop_count);
-	spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
+	qp_info = mad_syesop_priv->qp_info;
+	spin_lock_irqsave(&qp_info->syesop_lock, flags);
+	qp_info->syesop_table[mad_syesop_priv->syesop_index] = NULL;
+	atomic_dec(&qp_info->syesop_count);
+	spin_unlock_irqrestore(&qp_info->syesop_lock, flags);
 
-	deref_snoop_agent(mad_snoop_priv);
-	wait_for_completion(&mad_snoop_priv->comp);
+	deref_syesop_agent(mad_syesop_priv);
+	wait_for_completion(&mad_syesop_priv->comp);
 
-	ib_mad_agent_security_cleanup(&mad_snoop_priv->agent);
+	ib_mad_agent_security_cleanup(&mad_syesop_priv->agent);
 
-	kfree(mad_snoop_priv);
+	kfree(mad_syesop_priv);
 }
 
 /*
@@ -677,19 +677,19 @@ static void unregister_mad_snoop(struct ib_mad_snoop_private *mad_snoop_priv)
 void ib_unregister_mad_agent(struct ib_mad_agent *mad_agent)
 {
 	struct ib_mad_agent_private *mad_agent_priv;
-	struct ib_mad_snoop_private *mad_snoop_priv;
+	struct ib_mad_syesop_private *mad_syesop_priv;
 
-	/* If the TID is zero, the agent can only snoop. */
+	/* If the TID is zero, the agent can only syesop. */
 	if (mad_agent->hi_tid) {
 		mad_agent_priv = container_of(mad_agent,
 					      struct ib_mad_agent_private,
 					      agent);
 		unregister_mad_agent(mad_agent_priv);
 	} else {
-		mad_snoop_priv = container_of(mad_agent,
-					      struct ib_mad_snoop_private,
+		mad_syesop_priv = container_of(mad_agent,
+					      struct ib_mad_syesop_private,
 					      agent);
-		unregister_mad_snoop(mad_snoop_priv);
+		unregister_mad_syesop(mad_syesop_priv);
 	}
 }
 EXPORT_SYMBOL(ib_unregister_mad_agent);
@@ -706,55 +706,55 @@ static void dequeue_mad(struct ib_mad_list_head *mad_list)
 	spin_unlock_irqrestore(&mad_queue->lock, flags);
 }
 
-static void snoop_send(struct ib_mad_qp_info *qp_info,
+static void syesop_send(struct ib_mad_qp_info *qp_info,
 		       struct ib_mad_send_buf *send_buf,
 		       struct ib_mad_send_wc *mad_send_wc,
-		       int mad_snoop_flags)
+		       int mad_syesop_flags)
 {
-	struct ib_mad_snoop_private *mad_snoop_priv;
+	struct ib_mad_syesop_private *mad_syesop_priv;
 	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&qp_info->snoop_lock, flags);
-	for (i = 0; i < qp_info->snoop_table_size; i++) {
-		mad_snoop_priv = qp_info->snoop_table[i];
-		if (!mad_snoop_priv ||
-		    !(mad_snoop_priv->mad_snoop_flags & mad_snoop_flags))
+	spin_lock_irqsave(&qp_info->syesop_lock, flags);
+	for (i = 0; i < qp_info->syesop_table_size; i++) {
+		mad_syesop_priv = qp_info->syesop_table[i];
+		if (!mad_syesop_priv ||
+		    !(mad_syesop_priv->mad_syesop_flags & mad_syesop_flags))
 			continue;
 
-		atomic_inc(&mad_snoop_priv->refcount);
-		spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
-		mad_snoop_priv->agent.snoop_handler(&mad_snoop_priv->agent,
+		atomic_inc(&mad_syesop_priv->refcount);
+		spin_unlock_irqrestore(&qp_info->syesop_lock, flags);
+		mad_syesop_priv->agent.syesop_handler(&mad_syesop_priv->agent,
 						    send_buf, mad_send_wc);
-		deref_snoop_agent(mad_snoop_priv);
-		spin_lock_irqsave(&qp_info->snoop_lock, flags);
+		deref_syesop_agent(mad_syesop_priv);
+		spin_lock_irqsave(&qp_info->syesop_lock, flags);
 	}
-	spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
+	spin_unlock_irqrestore(&qp_info->syesop_lock, flags);
 }
 
-static void snoop_recv(struct ib_mad_qp_info *qp_info,
+static void syesop_recv(struct ib_mad_qp_info *qp_info,
 		       struct ib_mad_recv_wc *mad_recv_wc,
-		       int mad_snoop_flags)
+		       int mad_syesop_flags)
 {
-	struct ib_mad_snoop_private *mad_snoop_priv;
+	struct ib_mad_syesop_private *mad_syesop_priv;
 	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&qp_info->snoop_lock, flags);
-	for (i = 0; i < qp_info->snoop_table_size; i++) {
-		mad_snoop_priv = qp_info->snoop_table[i];
-		if (!mad_snoop_priv ||
-		    !(mad_snoop_priv->mad_snoop_flags & mad_snoop_flags))
+	spin_lock_irqsave(&qp_info->syesop_lock, flags);
+	for (i = 0; i < qp_info->syesop_table_size; i++) {
+		mad_syesop_priv = qp_info->syesop_table[i];
+		if (!mad_syesop_priv ||
+		    !(mad_syesop_priv->mad_syesop_flags & mad_syesop_flags))
 			continue;
 
-		atomic_inc(&mad_snoop_priv->refcount);
-		spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
-		mad_snoop_priv->agent.recv_handler(&mad_snoop_priv->agent, NULL,
+		atomic_inc(&mad_syesop_priv->refcount);
+		spin_unlock_irqrestore(&qp_info->syesop_lock, flags);
+		mad_syesop_priv->agent.recv_handler(&mad_syesop_priv->agent, NULL,
 						   mad_recv_wc);
-		deref_snoop_agent(mad_snoop_priv);
-		spin_lock_irqsave(&qp_info->snoop_lock, flags);
+		deref_syesop_agent(mad_syesop_priv);
+		spin_lock_irqsave(&qp_info->syesop_lock, flags);
 	}
-	spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
+	spin_unlock_irqrestore(&qp_info->syesop_lock, flags);
 }
 
 static void build_smp_wc(struct ib_qp *qp, struct ib_cqe *cqe, u16 slid,
@@ -802,7 +802,7 @@ static size_t mad_priv_dma_size(const struct ib_mad_private *mp)
 
 /*
  * Return 0 if SMP is to be sent
- * Return 1 if SMP was consumed locally (whether or not solicited)
+ * Return 1 if SMP was consumed locally (whether or yest solicited)
  * Return < 0 if error
  */
 static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
@@ -1491,7 +1491,7 @@ static void remove_methods_mad_agent(struct ib_mad_mgmt_method_table *method,
 	}
 }
 
-static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
+static int add_yesyesui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 			      struct ib_mad_agent_private *agent_priv,
 			      u8 mgmt_class)
 {
@@ -1523,7 +1523,7 @@ static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 		}
 	}
 
-	/* Now, make sure methods are not already in use */
+	/* Now, make sure methods are yest already in use */
 	if (method_in_use(method, mad_reg_req))
 		goto error3;
 
@@ -1538,7 +1538,7 @@ error3:
 	remove_methods_mad_agent(*method, agent_priv);
 	/* Now, check to see if there are any methods in use */
 	if (!check_method_table(*method)) {
-		/* If not, release management method table */
+		/* If yest, release management method table */
 		kfree(*method);
 		*method = NULL;
 	}
@@ -1615,7 +1615,7 @@ static int add_oui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 	goto error3;
 
 check_in_use:
-	/* Now, make sure methods are not already in use */
+	/* Now, make sure methods are yest already in use */
 	if (method_in_use(method, mad_reg_req))
 		goto error4;
 
@@ -1630,7 +1630,7 @@ error4:
 	remove_methods_mad_agent(*method, agent_priv);
 	/* Now, check to see if there are any methods in use */
 	if (!check_method_table(*method)) {
-		/* If not, release management method table */
+		/* If yest, release management method table */
 		kfree(*method);
 		*method = NULL;
 	}
@@ -1680,12 +1680,12 @@ static void remove_mad_reg_req(struct ib_mad_agent_private *agent_priv)
 		remove_methods_mad_agent(method, agent_priv);
 		/* Now, check to see if there are any methods still in use */
 		if (!check_method_table(method)) {
-			/* If not, release management method table */
+			/* If yest, release management method table */
 			kfree(method);
 			class->method_table[mgmt_class] = NULL;
 			/* Any management classes left ? */
 			if (!check_class_table(class)) {
-				/* If not, release management class table */
+				/* If yest, release management class table */
 				kfree(class);
 				port_priv->version[
 					agent_priv->reg_req->
@@ -1698,7 +1698,7 @@ vendor_check:
 	if (!is_vendor_class(mgmt_class))
 		goto out;
 
-	/* normalize mgmt_class to vendor range 2 */
+	/* yesrmalize mgmt_class to vendor range 2 */
 	mgmt_class = vendor_class_index(agent_priv->reg_req->mgmt_class);
 	vendor = port_priv->version[
 			agent_priv->reg_req->mgmt_class_version].vendor;
@@ -1720,13 +1720,13 @@ vendor_check:
 			 * any methods still in use
 			 */
 			if (!check_method_table(method)) {
-				/* If not, release management method table */
+				/* If yest, release management method table */
 				kfree(method);
 				vendor_class->method_table[index] = NULL;
 				memset(vendor_class->oui[index], 0, 3);
 				/* Any OUIs left ? */
 				if (!check_vendor_class(vendor_class)) {
-					/* If not, release vendor class table */
+					/* If yest, release vendor class table */
 					kfree(vendor_class);
 					vendor->vendor_class[mgmt_class] = NULL;
 					/* Any other vendor classes left ? */
@@ -1763,7 +1763,7 @@ find_mad_agent(struct ib_mad_port_private *port_priv,
 		hi_tid = be64_to_cpu(mad_hdr->tid) >> 32;
 		rcu_read_lock();
 		mad_agent = xa_load(&ib_mad_clients, hi_tid);
-		if (mad_agent && !atomic_inc_not_zero(&mad_agent->refcount))
+		if (mad_agent && !atomic_inc_yest_zero(&mad_agent->refcount))
 			mad_agent = NULL;
 		rcu_read_unlock();
 	} else {
@@ -1821,7 +1821,7 @@ out:
 	}
 
 	if (mad_agent && !mad_agent->agent.recv_handler) {
-		dev_notice(&port_priv->device->dev,
+		dev_yestice(&port_priv->device->dev,
 			   "No receive handler for client %p on port %d\n",
 			   &mad_agent->agent, port_priv->port_num);
 		deref_mad_agent(mad_agent);
@@ -1906,12 +1906,12 @@ static inline int rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_
 		return 0;
 
 	if (rdma_query_ah(wr->send_buf.ah, &attr))
-		/* Assume not equal, to avoid false positives. */
+		/* Assume yest equal, to avoid false positives. */
 		return 0;
 
 	has_grh = !!(rdma_ah_get_ah_flags(&attr) & IB_AH_GRH);
 	if (has_grh != !!(rwc->wc->wc_flags & IB_WC_GRH))
-		/* one has GID, other does not.  Assume different */
+		/* one has GID, other does yest.  Assume different */
 		return 0;
 
 	if (!send_resp && rcv_resp) {
@@ -1970,7 +1970,7 @@ ib_find_send_mad(const struct ib_mad_agent_private *mad_agent_priv,
 
 	/*
 	 * It's possible to receive the response before we've
-	 * been notified that the send has completed
+	 * been yestified that the send has completed
 	 */
 	list_for_each_entry(wr, &mad_agent_priv->send_list, agent_list) {
 		if (is_rmpp_data_mad(mad_agent_priv, wr->send_buf.mad) &&
@@ -1983,7 +1983,7 @@ ib_find_send_mad(const struct ib_mad_agent_private *mad_agent_priv,
 		     */
 		    (is_direct(mad_hdr->mgmt_class) ||
 		     rcv_has_same_gid(mad_agent_priv, wr, wc)))
-			/* Verify request has not been canceled */
+			/* Verify request has yest been canceled */
 			return (wr->status == IB_WC_SUCCESS) ? wr : NULL;
 	}
 	return NULL;
@@ -2042,7 +2042,7 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 						mad_recv_wc);
 				atomic_dec(&mad_agent_priv->refcount);
 			} else {
-				/* not user rmpp, revert to normal behavior and
+				/* yest user rmpp, revert to yesrmal behavior and
 				 * drop the mad */
 				ib_free_recv_mad(mad_recv_wc);
 				deref_mad_agent(mad_agent_priv);
@@ -2274,7 +2274,7 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			    mad_priv_dma_size(recv),
 			    DMA_FROM_DEVICE);
 
-	/* Setup MAD receive work completion from "normal" work completion */
+	/* Setup MAD receive work completion from "yesrmal" work completion */
 	recv->header.wc = *wc;
 	recv->header.recv_wc.wc = &recv->header.wc;
 
@@ -2289,8 +2289,8 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	recv->header.recv_wc.recv_buf.mad = (struct ib_mad *)recv->mad;
 	recv->header.recv_wc.recv_buf.grh = &recv->grh;
 
-	if (atomic_read(&qp_info->snoop_count))
-		snoop_recv(qp_info, &recv->header.recv_wc, IB_MAD_SNOOP_RECVS);
+	if (atomic_read(&qp_info->syesop_count))
+		syesop_recv(qp_info, &recv->header.recv_wc, IB_MAD_SNOOP_RECVS);
 
 	/* Validate MAD */
 	if (!validate_mad((const struct ib_mad_hdr *)recv->mad, qp_info, opa))
@@ -2360,7 +2360,7 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	}
 
 out:
-	/* Post another receive request for this QP */
+	/* Post ayesther receive request for this QP */
 	if (response) {
 		ib_mad_post_receive_mads(qp_info, response);
 		kfree(recv);
@@ -2465,7 +2465,7 @@ void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
 		goto done;
 	}
 
-	/* Remove send from MAD agent and notify client of completion */
+	/* Remove send from MAD agent and yestify client of completion */
 	list_del(&mad_send_wr->agent_list);
 	adjust_timeout(mad_agent_priv);
 	spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
@@ -2538,8 +2538,8 @@ retry:
 	mad_send_wc.send_buf = &mad_send_wr->send_buf;
 	mad_send_wc.status = wc->status;
 	mad_send_wc.vendor_err = wc->vendor_err;
-	if (atomic_read(&qp_info->snoop_count))
-		snoop_send(qp_info, &mad_send_wr->send_buf, &mad_send_wc,
+	if (atomic_read(&qp_info->syesop_count))
+		syesop_send(qp_info, &mad_send_wr->send_buf, &mad_send_wc,
 			   IB_MAD_SNOOP_SEND_COMPLETIONS);
 	ib_mad_complete_send_wr(mad_send_wr, &mad_send_wc);
 
@@ -2782,8 +2782,8 @@ static void local_completions(struct work_struct *work)
 			local->mad_priv->header.recv_wc.recv_buf.grh = NULL;
 			local->mad_priv->header.recv_wc.recv_buf.mad =
 						(struct ib_mad *)local->mad_priv->mad;
-			if (atomic_read(&recv_mad_agent->qp_info->snoop_count))
-				snoop_recv(recv_mad_agent->qp_info,
+			if (atomic_read(&recv_mad_agent->qp_info->syesop_count))
+				syesop_recv(recv_mad_agent->qp_info,
 					  &local->mad_priv->header.recv_wc,
 					   IB_MAD_SNOOP_RECVS);
 			recv_mad_agent->agent.recv_handler(
@@ -2800,8 +2800,8 @@ local_send_completion:
 		mad_send_wc.status = IB_WC_SUCCESS;
 		mad_send_wc.vendor_err = 0;
 		mad_send_wc.send_buf = &local->mad_send_wr->send_buf;
-		if (atomic_read(&mad_agent_priv->qp_info->snoop_count))
-			snoop_send(mad_agent_priv->qp_info,
+		if (atomic_read(&mad_agent_priv->qp_info->syesop_count))
+			syesop_send(mad_agent_priv->qp_info,
 				   &local->mad_send_wr->send_buf,
 				   &mad_send_wc, IB_MAD_SNOOP_SEND_COMPLETIONS);
 		mad_agent_priv->agent.send_handler(&mad_agent_priv->agent,
@@ -3069,10 +3069,10 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 		}
 	}
 
-	ret = ib_req_notify_cq(port_priv->cq, IB_CQ_NEXT_COMP);
+	ret = ib_req_yestify_cq(port_priv->cq, IB_CQ_NEXT_COMP);
 	if (ret) {
 		dev_err(&port_priv->device->dev,
-			"Failed to request completion notification: %d\n",
+			"Failed to request completion yestification: %d\n",
 			ret);
 		goto out;
 	}
@@ -3119,10 +3119,10 @@ static void init_mad_qp(struct ib_mad_port_private *port_priv,
 	init_mad_queue(qp_info, &qp_info->send_queue);
 	init_mad_queue(qp_info, &qp_info->recv_queue);
 	INIT_LIST_HEAD(&qp_info->overflow_list);
-	spin_lock_init(&qp_info->snoop_lock);
-	qp_info->snoop_table = NULL;
-	qp_info->snoop_table_size = 0;
-	atomic_set(&qp_info->snoop_count, 0);
+	spin_lock_init(&qp_info->syesop_lock);
+	qp_info->syesop_table = NULL;
+	qp_info->syesop_table_size = 0;
+	atomic_set(&qp_info->syesop_count, 0);
 }
 
 static int create_mad_qp(struct ib_mad_qp_info *qp_info,
@@ -3166,7 +3166,7 @@ static void destroy_mad_qp(struct ib_mad_qp_info *qp_info)
 		return;
 
 	ib_destroy_qp(qp_info->qp);
-	kfree(qp_info->snoop_table);
+	kfree(qp_info->syesop_table);
 }
 
 /*
@@ -3272,7 +3272,7 @@ error3:
 
 /*
  * Close the port
- * If there are no classes using the port, free the port
+ * If there are yes classes using the port, free the port
  * resources (CQ, MR, PD, QP) and remove the port's info structure
  */
 static int ib_mad_port_close(struct ib_device *device, int port_num)
@@ -3284,7 +3284,7 @@ static int ib_mad_port_close(struct ib_device *device, int port_num)
 	port_priv = __ib_get_mad_port(device, port_num);
 	if (port_priv == NULL) {
 		spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
-		dev_err(&device->dev, "Port %d not found\n", port_num);
+		dev_err(&device->dev, "Port %d yest found\n", port_num);
 		return -ENODEV;
 	}
 	list_del_init(&port_priv->port_list);

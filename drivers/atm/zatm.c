@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
 #include <linux/sonet.h>
@@ -29,7 +29,7 @@
 #include <asm/io.h>
 #include <linux/atomic.h>
 #include <linux/uaccess.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include "uPD98401.h"
 #include "uPD98402.h"
@@ -40,7 +40,7 @@
 /*
  * TODO:
  *
- * Minor features
+ * Miyesr features
  *  - support 64 kB SDUs (will have to use multibuffer batches then :-( )
  *  - proper use of CDV, credit = max(1,CDVT*PCR)
  *  - AAL0
@@ -215,7 +215,7 @@ static void refill_pool(struct atm_dev *dev,int pool)
 
 		skb = alloc_skb(size,GFP_ATOMIC);
 		if (!skb) {
-			printk(KERN_WARNING DEV_LABEL "(Itf %d): got no new "
+			printk(KERN_WARNING DEV_LABEL "(Itf %d): got yes new "
 			    "skb (%d) with %d free\n",dev->number,size,free);
 			break;
 		}
@@ -427,7 +427,7 @@ printk("dummy: 0x%08lx, 0x%08lx\n",dummy[0],dummy[1]);
 		}
 		else {
 			printk(KERN_ERR DEV_LABEL "(itf %d): RX indication "
-			    "for non-existing channel\n",dev->number);
+			    "for yesn-existing channel\n",dev->number);
 			size = 0;
 			vcc = NULL;
 			event_dump();
@@ -718,7 +718,7 @@ static inline void dequeue_tx(struct atm_vcc *vcc)
 	zatm_vcc = ZATM_VCC(vcc);
 	skb = skb_dequeue(&zatm_vcc->tx_queue);
 	if (!skb) {
-		printk(KERN_CRIT DEV_LABEL "(itf %d): dequeue_tx but not "
+		printk(KERN_CRIT DEV_LABEL "(itf %d): dequeue_tx but yest "
 		    "txing\n",vcc->dev->number);
 		return;
 	}
@@ -772,7 +772,7 @@ NO !
 			dequeue_tx(zatm_dev->tx_map[chan]);
 		else {
 			printk(KERN_CRIT DEV_LABEL "(itf %d): TX indication "
-			    "for non-existing channel %d\n",dev->number,chan);
+			    "for yesn-existing channel %d\n",dev->number,chan);
 			event_dump();
 		}
 		if (((pos += 4) & 0xffff) == zatm_dev->mbx_end[mbx])
@@ -1234,7 +1234,7 @@ static int zatm_init(struct atm_dev *dev)
 	while (!(zin(GSR) & uPD98401_INT_IND));
 	zout(uPD98401_GMR_ONE | uPD98401_BURST8 | uPD98401_BURST4 |
 	    uPD98401_BURST2 | uPD98401_GMR_PM | uPD98401_GMR_DR,GMR);
-	/* TODO: should shrink allocation now */
+	/* TODO: should shrink allocation yesw */
 	printk("mem=%dkB,%s (",zatm_dev->mem >> 10,zatm_dev->copper ? "UTP" :
 	    "MMF");
 	for (i = 0; i < ESI_LEN; i++)
@@ -1286,7 +1286,7 @@ static int zatm_start(struct atm_dev *dev)
 	    (2*VC_SIZE+RX_SIZE);
 	ld = -1;
 	for (rx = 1; rx < vccs; rx <<= 1) ld++;
-	dev->ci_range.vpi_bits = 0; /* @@@ no VPI for now */
+	dev->ci_range.vpi_bits = 0; /* @@@ yes VPI for yesw */
 	dev->ci_range.vci_bits = ld;
 	dev->link_rate = ATM_OC3_PCR;
 	zatm_dev->chans = vccs; /* ??? */
@@ -1317,7 +1317,7 @@ static int zatm_start(struct atm_dev *dev)
 			goto out;
 		}
 		/*
-		 * Alignment provided by dma_alloc_coherent() isn't enough
+		 * Alignment provided by dma_alloc_coherent() isn't eyesugh
 		 * for this device.
 		 */
 		if (((unsigned long)mbx ^ mbx_dma) & 0xffff) {
@@ -1458,7 +1458,7 @@ static int zatm_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 					return -EFAULT;
 				if (pool < 0 || pool > ZATM_LAST_POOL)
 					return -EINVAL;
-				pool = array_index_nospec(pool,
+				pool = array_index_yesspec(pool,
 							  ZATM_LAST_POOL + 1);
 				spin_lock_irqsave(&zatm_dev->lock, flags);
 				info = zatm_dev->pool_info[pool];
@@ -1482,7 +1482,7 @@ static int zatm_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 					return -EFAULT;
 				if (pool < 0 || pool > ZATM_LAST_POOL)
 					return -EINVAL;
-				pool = array_index_nospec(pool,
+				pool = array_index_yesspec(pool,
 							  ZATM_LAST_POOL + 1);
 				if (copy_from_user(&info,
 				    &((struct zatm_pool_req __user *) arg)->info,
@@ -1665,4 +1665,4 @@ static int __init zatm_init_module(void)
 }
 
 module_init(zatm_init_module);
-/* module_exit not defined so not unloadable */
+/* module_exit yest defined so yest unloadable */

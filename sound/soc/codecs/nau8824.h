@@ -2,7 +2,7 @@
 /*
  * NAU88L24 ALSA SoC audio driver
  *
- * Copyright 2016 Nuvoton Technology Corp.
+ * Copyright 2016 Nuvoton Techyeslogy Corp.
  * Author: John Hsu <KCHSU0@nuvoton.com>
  */
 

@@ -19,7 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/resource.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/suspend.h>
 #include <linux/rwsem.h>
 #include <linux/ptrace.h>
@@ -50,7 +50,7 @@ static DECLARE_WAIT_QUEUE_HEAD(kmod_wq);
  * believe you've somehow ended up with a recursive module dependency
  * creating a loop.
  *
- * We have no option but to fail.
+ * We have yes option but to fail.
  *
  * Userspace should proactively try to detect and prevent these.
  */
@@ -108,19 +108,19 @@ out:
 
 /**
  * __request_module - try to load a kernel module
- * @wait: wait (or not) for the operation to complete
+ * @wait: wait (or yest) for the operation to complete
  * @fmt: printf style format string for the name of the module
  * @...: arguments as specified in the format string
  *
  * Load a module using the user mode module loader. The function returns
- * zero on success or a negative errno code or positive exit code from
- * "modprobe" on failure. Note that a successful module load does not mean
- * the module did not then unload and exit on an error of its own. Callers
- * must check that the service they requested is now available not blindly
+ * zero on success or a negative erryes code or positive exit code from
+ * "modprobe" on failure. Note that a successful module load does yest mean
+ * the module did yest then unload and exit on an error of its own. Callers
+ * must check that the service they requested is yesw available yest blindly
  * invoke it.
  *
  * If module auto-loading support is disabled then this function
- * becomes a no-operation.
+ * becomes a yes-operation.
  */
 int __request_module(bool wait, const char *fmt, ...)
 {
@@ -129,7 +129,7 @@ int __request_module(bool wait, const char *fmt, ...)
 	int ret;
 
 	/*
-	 * We don't allow synchronous module loading from async.  Module
+	 * We don't allow synchroyesus module loading from async.  Module
 	 * init may invoke async_synchronize_full() which will end up
 	 * waiting for this task which already is waiting for the module
 	 * loading to complete, leading to a deadlock.
@@ -157,7 +157,7 @@ int __request_module(bool wait, const char *fmt, ...)
 						  atomic_dec_if_positive(&kmod_concurrent_max) >= 0,
 						  MAX_KMOD_ALL_BUSY_TIMEOUT * HZ);
 		if (!ret) {
-			pr_warn_ratelimited("request_module: modprobe %s cannot be processed, kmod busy with %d threads for more than %d seconds now",
+			pr_warn_ratelimited("request_module: modprobe %s canyest be processed, kmod busy with %d threads for more than %d seconds yesw",
 					    module_name, MAX_KMOD_CONCURRENT, MAX_KMOD_ALL_BUSY_TIMEOUT);
 			return -ETIME;
 		} else if (ret == -ERESTARTSYS) {

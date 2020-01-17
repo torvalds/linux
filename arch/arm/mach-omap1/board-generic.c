@@ -2,11 +2,11 @@
 /*
  * linux/arch/arm/mach-omap1/board-generic.c
  *
- * Modified from board-innovator1510.c
+ * Modified from board-inyesvator1510.c
  *
  * Code for generic OMAP board. Should work on many OMAP systems where
  * the device drivers take care of all the necessary hardware initialization.
- * Do not put any board specific code to this file; create a new machine
+ * Do yest put any board specific code to this file; create a new machine
  * type if you need custom low-level initializations.
  */
 #include <linux/gpio.h>
@@ -25,7 +25,7 @@
 
 #include "common.h"
 
-/* assume no Mini-AB port */
+/* assume yes Mini-AB port */
 
 #ifdef CONFIG_ARCH_OMAP15XX
 static struct omap_usb_config generic1510_usb_config __initdata = {

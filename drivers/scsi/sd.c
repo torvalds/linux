@@ -17,7 +17,7 @@
  *	 - Torben Mathiasen <tmm@image.dk> Resource allocation fixes in 
  *	   sd_init and cleanups.
  *	 - Alex Davis <letmein@erols.com> Fix problem where partition info
- *	   not being read in sd_open. Fix problem where removable media 
+ *	   yest being read in sd_open. Fix problem where removable media 
  *	   could be ejected after sd_open.
  *	 - Douglas Gilbert <dgilbert@interlog.com> cleanup for lk 2.5.x
  *	 - Badari Pulavarty <pbadari@us.ibm.com>, Matthew Wilcox 
@@ -40,7 +40,7 @@
 #include <linux/bio.h>
 #include <linux/genhd.h>
 #include <linux/hdreg.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -135,8 +135,8 @@ static mempool_t *sd_cdb_pool;
 static mempool_t *sd_page_pool;
 
 static const char *sd_cache_types[] = {
-	"write through", "none", "write back",
-	"write back, no read (daft)"
+	"write through", "yesne", "write back",
+	"write back, yes read (daft)"
 };
 
 static void sd_set_flush_flag(struct scsi_disk *sdkp)
@@ -167,9 +167,9 @@ cache_type_store(struct device *dev, struct device_attribute *attr,
 	int len;
 
 	if (sdp->type != TYPE_DISK && sdp->type != TYPE_ZBC)
-		/* no cache control on RBC devices; theoretically they
+		/* yes cache control on RBC devices; theoretically they
 		 * can do it, but there's probably so many exceptions
-		 * it's not worth the risk */
+		 * it's yest worth the risk */
 		return -EINVAL;
 
 	if (strncmp(buf, temp, sizeof(temp) - 1) == 0) {
@@ -350,7 +350,7 @@ protection_mode_show(struct device *dev, struct device_attribute *attr,
 	}
 
 	if (!dif && !dix)
-		return sprintf(buf, "none\n");
+		return sprintf(buf, "yesne\n");
 
 	return sprintf(buf, "%s%u\n", dix ? "dix" : "dif", dif);
 }
@@ -516,9 +516,9 @@ max_write_same_blocks_store(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	if (max == 0)
-		sdp->no_write_same = 1;
+		sdp->yes_write_same = 1;
 	else if (max <= SD_MAX_WS16_BLOCKS) {
-		sdp->no_write_same = 0;
+		sdp->yes_write_same = 0;
 		sdkp->max_ws_blocks = max;
 	}
 
@@ -584,24 +584,24 @@ static struct scsi_driver sd_template = {
  * The default ->probe function will call modprobe, which is
  * pointless as this module is already loaded.
  */
-static struct kobject *sd_default_probe(dev_t devt, int *partno, void *data)
+static struct kobject *sd_default_probe(dev_t devt, int *partyes, void *data)
 {
 	return NULL;
 }
 
 /*
- * Device no to disk mapping:
+ * Device yes to disk mapping:
  * 
  *       major         disc2     disc  p1
  *   |............|.............|....|....| <- dev_t
  *    31        20 19          8 7  4 3  0
  * 
- * Inside a major, we have 16k disks, however mapped non-
+ * Inside a major, we have 16k disks, however mapped yesn-
  * contiguously. The first 16 disks are for major0, the next
  * ones with major1, ... Disk 256 is for major0 again, disk 272 
  * for major1, ... 
  * As we stay compatible with our numbering scheme, we can reuse 
- * the well-know SCSI majors 8, 65--71, 136--143.
+ * the well-kyesw SCSI majors 8, 65--71, 136--143.
  */
 static int sd_major(int major_idx)
 {
@@ -787,7 +787,7 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 		return;
 
 	case SD_LBP_UNMAP:
-		max_blocks = min_not_zero(sdkp->max_unmap_blocks,
+		max_blocks = min_yest_zero(sdkp->max_unmap_blocks,
 					  (u32)SD_MAX_WS16_BLOCKS);
 		break;
 
@@ -797,7 +797,7 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 		else
 			max_blocks = sdkp->max_ws_blocks;
 
-		max_blocks = min_not_zero(max_blocks, (u32)SD_MAX_WS16_BLOCKS);
+		max_blocks = min_yest_zero(max_blocks, (u32)SD_MAX_WS16_BLOCKS);
 		break;
 
 	case SD_LBP_WS10:
@@ -806,11 +806,11 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 		else
 			max_blocks = sdkp->max_ws_blocks;
 
-		max_blocks = min_not_zero(max_blocks, (u32)SD_MAX_WS10_BLOCKS);
+		max_blocks = min_yest_zero(max_blocks, (u32)SD_MAX_WS10_BLOCKS);
 		break;
 
 	case SD_LBP_ZERO:
-		max_blocks = min_not_zero(sdkp->max_ws_blocks,
+		max_blocks = min_yest_zero(sdkp->max_ws_blocks,
 					  (u32)SD_MAX_WS10_BLOCKS);
 		break;
 	}
@@ -932,7 +932,7 @@ static blk_status_t sd_setup_write_zeroes_cmnd(struct scsi_cmnd *cmd)
 		}
 	}
 
-	if (sdp->no_write_same)
+	if (sdp->yes_write_same)
 		return BLK_STS_TARGET;
 
 	if (sdkp->ws16 || lba > 0xffffffff || nr_blocks > 0xffff)
@@ -946,24 +946,24 @@ static void sd_config_write_same(struct scsi_disk *sdkp)
 	struct request_queue *q = sdkp->disk->queue;
 	unsigned int logical_block_size = sdkp->device->sector_size;
 
-	if (sdkp->device->no_write_same) {
+	if (sdkp->device->yes_write_same) {
 		sdkp->max_ws_blocks = 0;
 		goto out;
 	}
 
-	/* Some devices can not handle block counts above 0xffff despite
+	/* Some devices can yest handle block counts above 0xffff despite
 	 * supporting WRITE SAME(16). Consequently we default to 64k
 	 * blocks per I/O unless the device explicitly advertises a
 	 * bigger limit.
 	 */
 	if (sdkp->max_ws_blocks > SD_MAX_WS10_BLOCKS)
-		sdkp->max_ws_blocks = min_not_zero(sdkp->max_ws_blocks,
+		sdkp->max_ws_blocks = min_yest_zero(sdkp->max_ws_blocks,
 						   (u32)SD_MAX_WS16_BLOCKS);
-	else if (sdkp->ws16 || sdkp->ws10 || sdkp->device->no_report_opcodes)
-		sdkp->max_ws_blocks = min_not_zero(sdkp->max_ws_blocks,
+	else if (sdkp->ws16 || sdkp->ws10 || sdkp->device->yes_report_opcodes)
+		sdkp->max_ws_blocks = min_yest_zero(sdkp->max_ws_blocks,
 						   (u32)SD_MAX_WS10_BLOCKS);
 	else {
-		sdkp->device->no_write_same = 1;
+		sdkp->device->yes_write_same = 1;
 		sdkp->max_ws_blocks = 0;
 	}
 
@@ -979,7 +979,7 @@ static void sd_config_write_same(struct scsi_disk *sdkp)
 	if (sdkp->max_ws_blocks &&
 	    sdkp->physical_block_size > logical_block_size) {
 		/*
-		 * Reporting a maximum number of blocks that is not aligned
+		 * Reporting a maximum number of blocks that is yest aligned
 		 * on the device physical size would cause a large write same
 		 * request to be split into physically unaligned chunks by
 		 * __blkdev_issue_write_zeroes() and __blkdev_issue_write_same()
@@ -1020,7 +1020,7 @@ static blk_status_t sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	u32 nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
 	blk_status_t ret;
 
-	if (sdkp->device->no_write_same)
+	if (sdkp->device->yes_write_same)
 		return BLK_STS_TARGET;
 
 	BUG_ON(bio_offset(bio) || bio_iovec(bio).bv_len != sdp->sector_size);
@@ -1050,7 +1050,7 @@ static blk_status_t sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	 * DATA OUT buffer so that blk_rq_map_sg sets up the proper S/G list
 	 * to transfer a single sector of data first, but then reset it to
 	 * the amount of data to be written right after so that the I/O path
-	 * knows how much to actually write.
+	 * kyesws how much to actually write.
 	 */
 	rq->__data_len = sdp->sector_size;
 	ret = scsi_init_io(cmd);
@@ -1186,7 +1186,7 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *cmd)
 	}
 
 	if ((blk_rq_pos(rq) & mask) || (blk_rq_sectors(rq) & mask)) {
-		scmd_printk(KERN_ERR, cmd, "request not aligned to the logical block size\n");
+		scmd_printk(KERN_ERR, cmd, "request yest aligned to the logical block size\n");
 		return BLK_STS_IOERR;
 	}
 
@@ -1198,7 +1198,7 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *cmd)
 
 	if (unlikely(sdp->last_sector_bug && lba + nr_blocks > threshold)) {
 		if (lba < threshold) {
-			/* Access up to the threshold but not beyond */
+			/* Access up to the threshold but yest beyond */
 			nr_blocks = threshold - lba;
 		} else {
 			/* Access only a single logical block */
@@ -1327,13 +1327,13 @@ static void sd_uninit_command(struct scsi_cmnd *SCpnt)
  *	@bdev: Block device of the scsi disk to open
  *	@mode: FMODE_* mask
  *
- *	Returns 0 if successful. Returns a negated errno value in case 
+ *	Returns 0 if successful. Returns a negated erryes value in case 
  *	of error.
  *
  *	Note: This can be called from a user context (e.g. fsck(1) )
  *	or from within the kernel (e.g. as a result of a mount(1) ).
- *	In the latter case @inode and @filp carry an abridged amount
- *	of information as noted above.
+ *	In the latter case @iyesde and @filp carry an abridged amount
+ *	of information as yested above.
  *
  *	Locking: called with bdev->bd_mutex held.
  **/
@@ -1460,7 +1460,7 @@ static int sd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
  *	Often contains a pointer.
  *
  *	Returns 0 if successful (some ioctls return positive numbers on
- *	success as well). Returns a negated errno value in case of error.
+ *	success as well). Returns a negated erryes value in case of error.
  *
  *	Note: most ioctls are forward onto the block subsystem or further
  *	down in the scsi subsystem.
@@ -1516,7 +1516,7 @@ out:
 	return error;
 }
 
-static void set_media_not_present(struct scsi_disk *sdkp)
+static void set_media_yest_present(struct scsi_disk *sdkp)
 {
 	if (sdkp->media_present)
 		sdkp->device->changed = 1;
@@ -1527,19 +1527,19 @@ static void set_media_not_present(struct scsi_disk *sdkp)
 	}
 }
 
-static int media_not_present(struct scsi_disk *sdkp,
+static int media_yest_present(struct scsi_disk *sdkp,
 			     struct scsi_sense_hdr *sshdr)
 {
 	if (!scsi_sense_valid(sshdr))
 		return 0;
 
-	/* not invoked for commands that could return deferred errors */
+	/* yest invoked for commands that could return deferred errors */
 	switch (sshdr->sense_key) {
 	case UNIT_ATTENTION:
 	case NOT_READY:
-		/* medium not present */
+		/* medium yest present */
 		if (sshdr->asc == 0x3A) {
-			set_media_not_present(sdkp);
+			set_media_yest_present(sdkp);
 			return 1;
 		}
 	}
@@ -1574,13 +1574,13 @@ static unsigned int sd_check_events(struct gendisk *disk, unsigned int clearing)
 	 * that we would ever take a device offline in the first place.
 	 */
 	if (!scsi_device_online(sdp)) {
-		set_media_not_present(sdkp);
+		set_media_yest_present(sdkp);
 		goto out;
 	}
 
 	/*
 	 * Using TEST_UNIT_READY enables differentiation between drive with
-	 * no cartridge loaded - NOT READY, drive with changed cartridge -
+	 * yes cartridge loaded - NOT READY, drive with changed cartridge -
 	 * UNIT ATTENTION, or with same cartridge - GOOD STATUS.
 	 *
 	 * Drives that auto spin down. eg iomega jaz 1G, will be started
@@ -1593,13 +1593,13 @@ static unsigned int sd_check_events(struct gendisk *disk, unsigned int clearing)
 		retval = scsi_test_unit_ready(sdp, SD_TIMEOUT, SD_MAX_RETRIES,
 					      &sshdr);
 
-		/* failed to execute TUR, assume media not present */
+		/* failed to execute TUR, assume media yest present */
 		if (host_byte(retval)) {
-			set_media_not_present(sdkp);
+			set_media_yest_present(sdkp);
 			goto out;
 		}
 
-		if (media_not_present(sdkp, &sshdr))
+		if (media_yest_present(sdkp, &sshdr))
 			goto out;
 	}
 
@@ -1634,7 +1634,7 @@ static int sd_sync_cache(struct scsi_disk *sdkp, struct scsi_sense_hdr *sshdr)
 	if (!scsi_device_online(sdp))
 		return -ENODEV;
 
-	/* caller might not be interested in sense, but we need it */
+	/* caller might yest be interested in sense, but we need it */
 	if (!sshdr)
 		sshdr = &my_sshdr;
 
@@ -1660,14 +1660,14 @@ static int sd_sync_cache(struct scsi_disk *sdkp, struct scsi_sense_hdr *sshdr)
 
 		/* we need to evaluate the error return  */
 		if (scsi_sense_valid(sshdr) &&
-			(sshdr->asc == 0x3a ||	/* medium not present */
+			(sshdr->asc == 0x3a ||	/* medium yest present */
 			 sshdr->asc == 0x20 ||	/* invalid command */
 			 (sshdr->asc == 0x74 && sshdr->ascq == 0x71)))	/* drive is password locked */
-				/* this is no error here */
+				/* this is yes error here */
 				return 0;
 
 		switch (host_byte(res)) {
-		/* ignore errors due to racing a disconnection */
+		/* igyesre errors due to racing a disconnection */
 		case DID_BAD_TARGET:
 		case DID_NO_CONNECT:
 			return 0;
@@ -1695,7 +1695,7 @@ static void sd_rescan(struct device *dev)
 #ifdef CONFIG_COMPAT
 /* 
  * This gets directly called from VFS. When the ioctl 
- * is not recognized we go back to the other translation paths. 
+ * is yest recognized we go back to the other translation paths. 
  */
 static int sd_compat_ioctl(struct block_device *bdev, fmode_t mode,
 			   unsigned int cmd, unsigned long arg)
@@ -1853,7 +1853,7 @@ static void sd_eh_reset(struct scsi_cmnd *scmd)
 	struct scsi_disk *sdkp = scsi_disk(scmd->request->rq_disk);
 
 	/* New SCSI EH run, reset gate variable */
-	sdkp->ignore_medium_access_errors = false;
+	sdkp->igyesre_medium_access_errors = false;
 }
 
 /**
@@ -1864,7 +1864,7 @@ static void sd_eh_reset(struct scsi_cmnd *scmd)
  *	This function is called by the SCSI midlayer upon completion of an
  *	error test command (currently TEST UNIT READY). The result of sending
  *	the eh command is passed in eh_disp.  We're looking for devices that
- *	fail medium access commands but are OK with non access commands like
+ *	fail medium access commands but are OK with yesn access commands like
  *	test unit ready (so wrongly see the device as having a successful
  *	recovery)
  **/
@@ -1886,15 +1886,15 @@ static int sd_eh_action(struct scsi_cmnd *scmd, int eh_disp)
 	 * process of recovering or has it suffered an internal failure
 	 * that prevents access to the storage medium.
 	 */
-	if (!sdkp->ignore_medium_access_errors) {
+	if (!sdkp->igyesre_medium_access_errors) {
 		sdkp->medium_access_timed_out++;
-		sdkp->ignore_medium_access_errors = true;
+		sdkp->igyesre_medium_access_errors = true;
 	}
 
 	/*
 	 * If the device keeps failing read/write commands but TEST UNIT
 	 * READY always completes successfully we assume that medium
-	 * access is no longer possible and take the device offline.
+	 * access is yes longer possible and take the device offline.
 	 */
 	if (sdkp->medium_access_timed_out >= sdkp->max_medium_access_timeouts) {
 		scmd_printk(KERN_ERR, scmd,
@@ -1930,7 +1930,7 @@ static unsigned int sd_completed_bytes(struct scsi_cmnd *scmd)
 		return 0;
 
 	/*
-	 * If the bad lba was reported incorrectly, we have no idea where
+	 * If the bad lba was reported incorrectly, we have yes idea where
 	 * the error is.
 	 */
 	start_lba = sectors_to_logical(sdev, blk_rq_pos(req));
@@ -1957,7 +1957,7 @@ static unsigned int sd_completed_bytes(struct scsi_cmnd *scmd)
  *	driver has completed (successfully or otherwise) a scsi command.
  *	@SCpnt: mid-level's per command structure.
  *
- *	Note: potentially run from within an ISR. Must not block.
+ *	Note: potentially run from within an ISR. Must yest block.
  **/
 static int sd_done(struct scsi_cmnd *SCpnt)
 {
@@ -2007,7 +2007,7 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 	}
 
 	if (result) {
-		sense_valid = scsi_command_normalize_sense(SCpnt, &sshdr);
+		sense_valid = scsi_command_yesrmalize_sense(SCpnt, &sshdr);
 		if (sense_valid)
 			sense_deferred = scsi_sense_is_deferred(&sshdr);
 	}
@@ -2026,8 +2026,8 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 		good_bytes = scsi_bufflen(SCpnt);
 		break;
 	case NO_SENSE:
-		/* This indicates a false check condition, so ignore it.  An
-		 * unknown amount of data was transferred so treat it as an
+		/* This indicates a false check condition, so igyesre it.  An
+		 * unkyeswn amount of data was transferred so treat it as an
 		 * error.
 		 */
 		SCpnt->result = 0;
@@ -2053,7 +2053,7 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 				if (SCpnt->cmnd[1] & 8) { /* UNMAP */
 					sd_config_discard(sdkp, SD_LBP_DISABLE);
 				} else {
-					sdkp->device->no_write_same = 1;
+					sdkp->device->yes_write_same = 1;
 					sd_config_write_same(sdkp);
 					req->rq_flags |= RQF_QUIET;
 				}
@@ -2110,7 +2110,7 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 			 * doesn't have any media in it, don't bother
 			 * with any more polling.
 			 */
-			if (media_not_present(sdkp, &sshdr))
+			if (media_yest_present(sdkp, &sshdr))
 				return;
 
 			if (the_result)
@@ -2122,7 +2122,7 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 			  sense_valid && sshdr.sense_key == UNIT_ATTENTION)));
 
 		if (driver_byte(the_result) != DRIVER_SENSE) {
-			/* no sense, TUR either succeeded or failed
+			/* yes sense, TUR either succeeded or failed
 			 * with a status error */
 			if(!spintime && !scsi_status_is_good(the_result)) {
 				sd_print_result(sdkp, "Test Unit Ready failed",
@@ -2132,9 +2132,9 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 		}
 
 		/*
-		 * The device does not want the automatic start to be issued.
+		 * The device does yest want the automatic start to be issued.
 		 */
-		if (sdkp->device->no_start_on_add)
+		if (sdkp->device->yes_start_on_add)
 			break;
 
 		if (sense_valid && sshdr.sense_key == NOT_READY) {
@@ -2147,7 +2147,7 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 			if (sshdr.asc == 4 && sshdr.ascq == 0x1b)
 				break;	/* sanitize in progress */
 			/*
-			 * Issue command to spin up drive when not ready
+			 * Issue command to spin up drive when yest ready
 			 */
 			if (!spintime) {
 				sd_printk(KERN_NOTICE, sdkp, "Spinning up disk...");
@@ -2198,7 +2198,7 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 		if (scsi_status_is_good(the_result))
 			printk(KERN_CONT "ready\n");
 		else
-			printk(KERN_CONT "not responding...\n");
+			printk(KERN_CONT "yest responding...\n");
 	}
 }
 
@@ -2252,27 +2252,27 @@ static void read_capacity_error(struct scsi_disk *sdkp, struct scsi_device *sdp,
 	if (driver_byte(the_result) == DRIVER_SENSE)
 		sd_print_sense_hdr(sdkp, sshdr);
 	else
-		sd_printk(KERN_NOTICE, sdkp, "Sense not available.\n");
+		sd_printk(KERN_NOTICE, sdkp, "Sense yest available.\n");
 
 	/*
-	 * Set dirty bit for removable devices if not ready -
-	 * sometimes drives will not report this properly.
+	 * Set dirty bit for removable devices if yest ready -
+	 * sometimes drives will yest report this properly.
 	 */
 	if (sdp->removable &&
 	    sense_valid && sshdr->sense_key == NOT_READY)
-		set_media_not_present(sdkp);
+		set_media_yest_present(sdkp);
 
 	/*
-	 * We used to set media_present to 0 here to indicate no media
+	 * We used to set media_present to 0 here to indicate yes media
 	 * in the drive, but some drives fail read capacity even with
 	 * media present, so we can't do that.
 	 */
-	sdkp->capacity = 0; /* unknown mapped to zero - as usual */
+	sdkp->capacity = 0; /* unkyeswn mapped to zero - as usual */
 }
 
 #define RC16_LEN 32
 #if RC16_LEN > SD_BUF_SIZE
-#error RC16_LEN must not be more than SD_BUF_SIZE
+#error RC16_LEN must yest be more than SD_BUF_SIZE
 #endif
 
 #define READ_CAPACITY_RETRIES_ON_RESET	10
@@ -2289,7 +2289,7 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 	unsigned long long lba;
 	unsigned sector_size;
 
-	if (sdp->no_read_capacity_16)
+	if (sdp->yes_read_capacity_16)
 		return -EINVAL;
 
 	do {
@@ -2303,7 +2303,7 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 					buffer, RC16_LEN, &sshdr,
 					SD_TIMEOUT, SD_MAX_RETRIES, NULL);
 
-		if (media_not_present(sdkp, &sshdr))
+		if (media_yest_present(sdkp, &sshdr))
 			return -ENODEV;
 
 		if (the_result) {
@@ -2388,7 +2388,7 @@ static int read_capacity_10(struct scsi_disk *sdkp, struct scsi_device *sdp,
 					buffer, 8, &sshdr,
 					SD_TIMEOUT, SD_MAX_RETRIES, NULL);
 
-		if (media_not_present(sdkp, &sshdr))
+		if (media_yest_present(sdkp, &sshdr))
 			return -ENODEV;
 
 		if (the_result) {
@@ -2414,10 +2414,10 @@ static int read_capacity_10(struct scsi_disk *sdkp, struct scsi_device *sdp,
 	sector_size = get_unaligned_be32(&buffer[4]);
 	lba = get_unaligned_be32(&buffer[0]);
 
-	if (sdp->no_read_capacity_16 && (lba == 0xffffffff)) {
+	if (sdp->yes_read_capacity_16 && (lba == 0xffffffff)) {
 		/* Some buggy (usb cardreader) devices return an lba of
 		   0xffffffff when the want to report a size of 0 (with
-		   which they really mean no media is present) */
+		   which they really mean yes media is present) */
 		sdkp->capacity = 0;
 		sdkp->physical_block_size = sector_size;
 		return sector_size;
@@ -2484,14 +2484,14 @@ sd_read_capacity(struct scsi_disk *sdkp, unsigned char *buffer)
 		}
 	}
 
-	/* Some devices are known to return the total number of blocks,
-	 * not the highest block number.  Some devices have versions
-	 * which do this and others which do not.  Some devices we might
-	 * suspect of doing this but we don't know for certain.
+	/* Some devices are kyeswn to return the total number of blocks,
+	 * yest the highest block number.  Some devices have versions
+	 * which do this and others which do yest.  Some devices we might
+	 * suspect of doing this but we don't kyesw for certain.
 	 *
-	 * If we know the reported capacity is wrong, decrement it.  If
+	 * If we kyesw the reported capacity is wrong, decrement it.  If
 	 * we can only guess, then assume the number of blocks is even
-	 * (usually true but not always) and err on the side of lowering
+	 * (usually true but yest always) and err on the side of lowering
 	 * the capacity.
 	 */
 	if (sdp->fix_capacity ||
@@ -2523,7 +2523,7 @@ got_data:
 		 */
 		sdkp->capacity = 0;
 		/*
-		 * set a bogus sector size so the normal read/write
+		 * set a bogus sector size so the yesrmal read/write
 		 * logic in the block layer will eventually refuse any
 		 * request on this device without tripping over power
 		 * of two sector size assumptions
@@ -2698,7 +2698,7 @@ sd_read_cache_type(struct scsi_disk *sdkp, unsigned char *buffer)
 				"Missing header in MODE_SENSE response\n");
 	}
 
-	/* that went OK, now ask for the proper length */
+	/* that went OK, yesw ask for the proper length */
 	len = data.length;
 
 	/*
@@ -2841,7 +2841,7 @@ static void sd_read_app_tag_own(struct scsi_disk *sdkp, unsigned char *buffer)
 	if (!scsi_status_is_good(res) || !data.header_length ||
 	    data.length < 6) {
 		sd_first_printk(KERN_WARNING, sdkp,
-			  "getting Control mode page failed, assume no ATO\n");
+			  "getting Control mode page failed, assume yes ATO\n");
 
 		if (scsi_sense_valid(&sshdr))
 			sd_print_sense_hdr(sdkp, &sshdr);
@@ -2905,7 +2905,7 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 			sdkp->unmap_alignment =
 				get_unaligned_be32(&buffer[32]) & ~(1 << 31);
 
-		if (!sdkp->lbpvpd) { /* LBP VPD page not provided */
+		if (!sdkp->lbpvpd) { /* LBP VPD page yest provided */
 
 			if (sdkp->max_unmap_blocks)
 				sd_config_discard(sdkp, SD_LBP_UNMAP);
@@ -3006,8 +3006,8 @@ static void sd_read_write_same(struct scsi_disk *sdkp, unsigned char *buffer)
 {
 	struct scsi_device *sdev = sdkp->device;
 
-	if (sdev->host->no_write_same) {
-		sdev->no_write_same = 1;
+	if (sdev->host->yes_write_same) {
+		sdev->yes_write_same = 1;
 
 		return;
 	}
@@ -3016,14 +3016,14 @@ static void sd_read_write_same(struct scsi_disk *sdkp, unsigned char *buffer)
 		/* too large values might cause issues with arcmsr */
 		int vpd_buf_len = 64;
 
-		sdev->no_report_opcodes = 1;
+		sdev->yes_report_opcodes = 1;
 
 		/* Disable WRITE SAME if REPORT SUPPORTED OPERATION
 		 * CODES is unsupported and the device has an ATA
 		 * Information VPD page (SAT).
 		 */
 		if (!scsi_get_vpd_page(sdev, 0x89, buffer, vpd_buf_len))
-			sdev->no_write_same = 1;
+			sdev->yes_write_same = 1;
 	}
 
 	if (scsi_report_opcode(sdev, buffer, SD_BUF_SIZE, WRITE_SAME_16) == 1)
@@ -3049,7 +3049,7 @@ static void sd_read_security(struct scsi_disk *sdkp, unsigned char *buffer)
 
 /*
  * Determine the device's preferred I/O size for reads and writes
- * unless the reported value is unreasonably small, large, not a
+ * unless the reported value is unreasonably small, large, yest a
  * multiple of the physical block size, or simply garbage.
  */
 static bool sd_validate_opt_xfer_size(struct scsi_disk *sdkp,
@@ -3088,7 +3088,7 @@ static bool sd_validate_opt_xfer_size(struct scsi_disk *sdkp,
 
 	if (opt_xfer_bytes & (sdkp->physical_block_size - 1)) {
 		sd_first_printk(KERN_WARNING, sdkp,
-				"Optimal transfer size %u bytes not a " \
+				"Optimal transfer size %u bytes yest a " \
 				"multiple of physical block size (%u bytes)\n",
 				opt_xfer_bytes, sdkp->physical_block_size);
 		return false;
@@ -3133,14 +3133,14 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	sd_spinup_disk(sdkp);
 
 	/*
-	 * Without media there is no reason to ask; moreover, some devices
+	 * Without media there is yes reason to ask; moreover, some devices
 	 * react badly if we do.
 	 */
 	if (sdkp->media_present) {
 		sd_read_capacity(sdkp, buffer);
 
 		/*
-		 * set the default to rotational.  All non-rotational devices
+		 * set the default to rotational.  All yesn-rotational devices
 		 * support the block characteristics VPD page, which will
 		 * cause this to be updated correctly and any device which
 		 * doesn't support it should be treated as rotational.
@@ -3165,7 +3165,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	}
 
 	/*
-	 * We now have all cache related info, determine how we deal
+	 * We yesw have all cache related info, determine how we deal
 	 * with flush requests.
 	 */
 	sd_set_flush_flag(sdkp);
@@ -3174,17 +3174,17 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	dev_max = sdp->use_16_for_rw ? SD_MAX_XFER_BLOCKS : SD_DEF_XFER_BLOCKS;
 
 	/* Some devices report a maximum block count for READ/WRITE requests. */
-	dev_max = min_not_zero(dev_max, sdkp->max_xfer_blocks);
+	dev_max = min_yest_zero(dev_max, sdkp->max_xfer_blocks);
 	q->limits.max_dev_sectors = logical_to_sectors(sdp, dev_max);
 
 	if (sd_validate_opt_xfer_size(sdkp, dev_max)) {
 		q->limits.io_opt = logical_to_bytes(sdp, sdkp->opt_xfer_blocks);
 		rw_max = logical_to_sectors(sdp, sdkp->opt_xfer_blocks);
 	} else
-		rw_max = min_not_zero(logical_to_sectors(sdp, dev_max),
+		rw_max = min_yest_zero(logical_to_sectors(sdp, dev_max),
 				      (sector_t)BLK_DEF_MAX_SECTORS);
 
-	/* Do not exceed controller limit */
+	/* Do yest exceed controller limit */
 	rw_max = min(rw_max, queue_max_hw_sectors(q));
 
 	/*
@@ -3246,7 +3246,7 @@ static void sd_unlock_native_capacity(struct gendisk *disk)
  *	Don't care.
  *
  *	RETURNS:
- *	0 on success, -errno on failure.
+ *	0 on success, -erryes on failure.
  */
 static int sd_format_disk_name(char *prefix, int index, char *buf, int buflen)
 {
@@ -3275,19 +3275,19 @@ static int sd_format_disk_name(char *prefix, int index, char *buf, int buflen)
 /**
  *	sd_probe - called during driver initialization and whenever a
  *	new scsi device is attached to the system. It is called once
- *	for each scsi device (not just disks) present.
+ *	for each scsi device (yest just disks) present.
  *	@dev: pointer to device object
  *
- *	Returns 0 if successful (or not interested in this scsi device 
+ *	Returns 0 if successful (or yest interested in this scsi device 
  *	(e.g. scanner)); 1 when there is an error.
  *
  *	Note: this function is invoked from the scsi mid-level.
  *	This function sets up the mapping between a given 
  *	<host,channel,id,lun> (found in sdp) and new device name 
  *	(e.g. /dev/sda). More precisely it is the block device major 
- *	and minor number that is chosen here.
+ *	and miyesr number that is chosen here.
  *
- *	Assume sd_probe is not re-entrant (for time being)
+ *	Assume sd_probe is yest re-entrant (for time being)
  *	Also think about sd_probe() and sd_remove() running coincidentally.
  **/
 static int sd_probe(struct device *dev)
@@ -3362,7 +3362,7 @@ static int sd_probe(struct device *dev)
 	dev_set_drvdata(dev, sdkp);
 
 	gd->major = sd_major((index & 0xf0) >> 4);
-	gd->first_minor = ((index & 0xf) << 4) | (index & 0xfff00);
+	gd->first_miyesr = ((index & 0xf) << 4) | (index & 0xfff00);
 
 	gd->fops = &sd_fops;
 	gd->private_data = &sdkp->driver;
@@ -3432,7 +3432,7 @@ static int sd_probe(struct device *dev)
  *	Note: this function is invoked from the scsi mid-level.
  *	This function potentially frees up a device name (e.g. /dev/sdc)
  *	that could be re-used by a subsequent sd_probe().
- *	This function is not called when the built-in sd driver is "exit-ed".
+ *	This function is yest called when the built-in sd driver is "exit-ed".
  **/
 static int sd_remove(struct device *dev)
 {
@@ -3484,7 +3484,7 @@ static void scsi_disk_release(struct device *dev)
 	 * due to clearing the disk->private_data pointer. Wait from inside
 	 * scsi_disk_release() instead of from sd_release() to avoid that
 	 * freezing and unfreezing the request queue affects user space I/O
-	 * in case multiple processes open a /dev/sd... node concurrently.
+	 * in case multiple processes open a /dev/sd... yesde concurrently.
 	 */
 	blk_mq_freeze_queue(q);
 	blk_mq_unfreeze_queue(q);
@@ -3519,12 +3519,12 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 		if (driver_byte(res) == DRIVER_SENSE)
 			sd_print_sense_hdr(sdkp, &sshdr);
 		if (scsi_sense_valid(&sshdr) &&
-			/* 0x3a is medium not present */
+			/* 0x3a is medium yest present */
 			sshdr.asc == 0x3a)
 			res = 0;
 	}
 
-	/* SCSI error codes must not go to the generic layer */
+	/* SCSI error codes must yest go to the generic layer */
 	if (res)
 		return -EIO;
 
@@ -3533,7 +3533,7 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 
 /*
  * Send a SYNCHRONIZE CACHE instruction down to the device through
- * the normal SCSI command structure.  Wait for the command to
+ * the yesrmal SCSI command structure.  Wait for the command to
  * complete.
  */
 static void sd_shutdown(struct device *dev)
@@ -3557,7 +3557,7 @@ static void sd_shutdown(struct device *dev)
 	}
 }
 
-static int sd_suspend_common(struct device *dev, bool ignore_stop_errors)
+static int sd_suspend_common(struct device *dev, bool igyesre_stop_errors)
 {
 	struct scsi_disk *sdkp = dev_get_drvdata(dev);
 	struct scsi_sense_hdr sshdr;
@@ -3571,7 +3571,7 @@ static int sd_suspend_common(struct device *dev, bool ignore_stop_errors)
 		ret = sd_sync_cache(sdkp, &sshdr);
 
 		if (ret) {
-			/* ignore OFFLINE device */
+			/* igyesre OFFLINE device */
 			if (ret == -ENODEV)
 				return 0;
 
@@ -3581,7 +3581,7 @@ static int sd_suspend_common(struct device *dev, bool ignore_stop_errors)
 
 			/*
 			 * sshdr.sense_key == ILLEGAL_REQUEST means this drive
-			 * doesn't support sync. There's not much to do and
+			 * doesn't support sync. There's yest much to do and
 			 * suspend shouldn't fail.
 			 */
 			ret = 0;
@@ -3590,9 +3590,9 @@ static int sd_suspend_common(struct device *dev, bool ignore_stop_errors)
 
 	if (sdkp->device->manage_start_stop) {
 		sd_printk(KERN_NOTICE, sdkp, "Stopping disk\n");
-		/* an error is not worth aborting a system sleep */
+		/* an error is yest worth aborting a system sleep */
 		ret = sd_start_stop_device(sdkp, 0);
-		if (ignore_stop_errors)
+		if (igyesre_stop_errors)
 			ret = 0;
 	}
 

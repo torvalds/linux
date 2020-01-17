@@ -13,7 +13,7 @@
     Library General Public License for more details.
 
     You should have received a copy of the GNU Library General Public
-    License along with this library; if not, write to the Free
+    License along with this library; if yest, write to the Free
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     Richard Gooch may be reached by email at  rgooch@atnf.csiro.au
@@ -28,7 +28,7 @@
 
 
 /*
- * The following functions are for use by other drivers that cannot use
+ * The following functions are for use by other drivers that canyest use
  * arch_phys_wc_add and arch_phys_wc_del.
  */
 # ifdef CONFIG_MTRR
@@ -53,7 +53,7 @@ extern int amd_special_default_mtrr(void);
 static inline u8 mtrr_type_lookup(u64 addr, u64 end, u8 *uniform)
 {
 	/*
-	 * Return no-MTRRs:
+	 * Return yes-MTRRs:
 	 */
 	return MTRR_TYPE_INVALID;
 }

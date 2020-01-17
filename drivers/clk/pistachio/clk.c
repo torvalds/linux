@@ -13,7 +13,7 @@
 #include "clk.h"
 
 struct pistachio_clk_provider *
-pistachio_clk_alloc_provider(struct device_node *node, unsigned int num_clks)
+pistachio_clk_alloc_provider(struct device_yesde *yesde, unsigned int num_clks)
 {
 	struct pistachio_clk_provider *p;
 
@@ -25,8 +25,8 @@ pistachio_clk_alloc_provider(struct device_node *node, unsigned int num_clks)
 	if (!p->clk_data.clks)
 		goto free_provider;
 	p->clk_data.clk_num = num_clks;
-	p->node = node;
-	p->base = of_iomap(node, 0);
+	p->yesde = yesde;
+	p->base = of_iomap(yesde, 0);
 	if (!p->base) {
 		pr_err("Failed to map clock provider registers\n");
 		goto free_clks;
@@ -51,7 +51,7 @@ void pistachio_clk_register_provider(struct pistachio_clk_provider *p)
 				PTR_ERR(p->clk_data.clks[i]));
 	}
 
-	of_clk_add_provider(p->node, of_clk_src_onecell_get, &p->clk_data);
+	of_clk_add_provider(p->yesde, of_clk_src_onecell_get, &p->clk_data);
 }
 
 void pistachio_clk_register_gate(struct pistachio_clk_provider *p,

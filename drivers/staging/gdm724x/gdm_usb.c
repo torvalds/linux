@@ -142,7 +142,7 @@ static void free_tx_sdu_struct(struct usb_tx_sdu *t_sdu)
 	}
 }
 
-static struct usb_tx_sdu *get_tx_sdu_struct(struct tx_cxt *tx, int *no_spc)
+static struct usb_tx_sdu *get_tx_sdu_struct(struct tx_cxt *tx, int *yes_spc)
 {
 	struct usb_tx_sdu *t_sdu;
 
@@ -154,7 +154,7 @@ static struct usb_tx_sdu *get_tx_sdu_struct(struct tx_cxt *tx, int *no_spc)
 
 	tx->avail_count--;
 
-	*no_spc = list_empty(&tx->free_list) ? 1 : 0;
+	*yes_spc = list_empty(&tx->free_list) ? 1 : 0;
 
 	return t_sdu;
 }
@@ -205,7 +205,7 @@ static void free_rx_struct(struct usb_rx *r)
 	}
 }
 
-static struct usb_rx *get_rx_struct(struct rx_cxt *rx, int *no_spc)
+static struct usb_rx *get_rx_struct(struct rx_cxt *rx, int *yes_spc)
 {
 	struct usb_rx *r;
 	unsigned long flags;
@@ -222,7 +222,7 @@ static struct usb_rx *get_rx_struct(struct rx_cxt *rx, int *no_spc)
 
 	rx->avail_count--;
 
-	*no_spc = list_empty(&rx->free_list) ? 1 : 0;
+	*yes_spc = list_empty(&rx->free_list) ? 1 : 0;
 
 	spin_unlock_irqrestore(&rx->rx_lock, flags);
 
@@ -486,7 +486,7 @@ static int gdm_usb_recv(void *priv_dev,
 	struct usb_device *usbdev = udev->usbdev;
 	struct rx_cxt *rx = &udev->rx;
 	struct usb_rx *r;
-	int no_spc;
+	int yes_spc;
 	int ret;
 	unsigned long flags;
 
@@ -495,7 +495,7 @@ static int gdm_usb_recv(void *priv_dev,
 		return -ENODEV;
 	}
 
-	r = get_rx_struct(rx, &no_spc);
+	r = get_rx_struct(rx, &yes_spc);
 	if (!r) {
 		pr_err("Out of Memory\n");
 		return -ENOMEM;
@@ -707,7 +707,7 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 	struct usb_tx_sdu *t_sdu;
 	struct sdu *sdu = NULL;
 	unsigned long flags;
-	int no_spc = 0;
+	int yes_spc = 0;
 	u16 send_len;
 
 	if (!udev->usbdev) {
@@ -716,7 +716,7 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 	}
 
 	spin_lock_irqsave(&tx->lock, flags);
-	t_sdu = get_tx_sdu_struct(tx, &no_spc);
+	t_sdu = get_tx_sdu_struct(tx, &yes_spc);
 	spin_unlock_irqrestore(&tx->lock, flags);
 
 	if (!t_sdu) {
@@ -749,7 +749,7 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 	schedule_work(&udev->work_tx.work);
 	spin_unlock_irqrestore(&tx->lock, flags);
 
-	if (no_spc)
+	if (yes_spc)
 		return TX_NO_BUFFER;
 
 	return 0;
@@ -813,7 +813,7 @@ static int gdm_usb_probe(struct usb_interface *intf,
 	pr_info("net vid = 0x%04x pid = 0x%04x\n", idVendor, idProduct);
 
 	if (bInterfaceNumber > NETWORK_INTERFACE) {
-		pr_info("not a network device\n");
+		pr_info("yest a network device\n");
 		return -ENODEV;
 	}
 

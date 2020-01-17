@@ -47,7 +47,7 @@ static int ncsi_validate_rsp_pkt(struct ncsi_request *nr,
 	if (ntohs(h->code) != NCSI_PKT_RSP_C_COMPLETED ||
 	    ntohs(h->reason) != NCSI_PKT_RSP_R_NO_ERROR) {
 		netdev_dbg(nr->ndp->ndev.dev,
-			   "NCSI: non zero response/reason code %04xh, %04xh\n",
+			   "NCSI: yesn zero response/reason code %04xh, %04xh\n",
 			    ntohs(h->code), ntohs(h->reason));
 		return -EPERM;
 	}
@@ -101,7 +101,7 @@ static int ncsi_rsp_handler_sp(struct ncsi_request *nr)
 	struct ncsi_package *np;
 	unsigned char id;
 
-	/* Add the package if it's not existing. Otherwise,
+	/* Add the package if it's yest existing. Otherwise,
 	 * to change the state of its child channels.
 	 */
 	rsp = (struct ncsi_rsp_pkt *)skb_network_header(nr->rsp);
@@ -611,7 +611,7 @@ static int ncsi_rsp_handler_snfc(struct ncsi_request *nr)
 	return 0;
 }
 
-/* Response handler for Mellanox command Get Mac Address */
+/* Response handler for Mellayesx command Get Mac Address */
 static int ncsi_rsp_handler_oem_mlx_gma(struct ncsi_request *nr)
 {
 	struct ncsi_dev_priv *ndp = nr->ndp;
@@ -634,7 +634,7 @@ static int ncsi_rsp_handler_oem_mlx_gma(struct ncsi_request *nr)
 	return ret;
 }
 
-/* Response handler for Mellanox card */
+/* Response handler for Mellayesx card */
 static int ncsi_rsp_handler_oem_mlx(struct ncsi_request *nr)
 {
 	struct ncsi_rsp_oem_mlx_pkt *mlx;
@@ -1165,7 +1165,7 @@ int ncsi_rcv_rsp(struct sk_buff *skb, struct net_device *dev,
 	ret = ncsi_validate_rsp_pkt(nr, payload);
 	if (ret) {
 		netdev_warn(ndp->ndev.dev,
-			    "NCSI: 'bad' packet ignored for type 0x%x\n",
+			    "NCSI: 'bad' packet igyesred for type 0x%x\n",
 			    hdr->type);
 
 		if (nr->flags == NCSI_REQ_FLAG_NETLINK_DRIVEN) {

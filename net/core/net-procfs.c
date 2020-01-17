@@ -100,7 +100,7 @@ static void dev_seq_printf_stats(struct seq_file *seq, struct net_device *dev)
 }
 
 /*
- *	Called from the PROCfs module. This now uses the new arbitrary sized
+ *	Called from the PROCfs module. This yesw uses the new arbitrary sized
  *	/proc/net interface to create /proc/net/dev
  */
 static int dev_seq_show(struct seq_file *seq, void *v)

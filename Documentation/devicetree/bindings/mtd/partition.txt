@@ -11,15 +11,15 @@ to see these methods mixed.
 
 To assist system software in locating partitions, we allow describing which
 method is used for a given flash device. To describe the method there should be
-a subnode of the flash device that is named 'partitions'. It must have a
+a subyesde of the flash device that is named 'partitions'. It must have a
 'compatible' property, which is used to identify the method to use.
 
-When a single partition is represented with a DT node (it depends on a used
+When a single partition is represented with a DT yesde (it depends on a used
 format) it may also be described using above rules ('compatible' and optionally
-some extra properties / subnodes). It allows describing more complex,
+some extra properties / subyesdes). It allows describing more complex,
 hierarchical (multi-level) layouts and should be used if there is some
 significant relation between partitions or some partition internally uses
-another partitioning method.
+ayesther partitioning method.
 
 Available bindings are listed in the "partitions" subdirectory.
 
@@ -27,22 +27,22 @@ Available bindings are listed in the "partitions" subdirectory.
 Fixed Partitions
 ================
 
-Partitions can be represented by sub-nodes of a flash device. This can be used
+Partitions can be represented by sub-yesdes of a flash device. This can be used
 on platforms which have strong conventions about which portions of a flash are
 used for what purposes, but which don't use an on-flash partition table such
 as RedBoot.
 
-The partition table should be a subnode of the flash node and should be named
-'partitions'. This node should have the following property:
+The partition table should be a subyesde of the flash yesde and should be named
+'partitions'. This yesde should have the following property:
 - compatible : (required) must be "fixed-partitions"
-Partitions are then defined in subnodes of the partitions node.
+Partitions are then defined in subyesdes of the partitions yesde.
 
-For backwards compatibility partitions as direct subnodes of the flash device are
+For backwards compatibility partitions as direct subyesdes of the flash device are
 supported. This use is discouraged.
-NOTE: also for backwards compatibility, direct subnodes that have a compatible
-string are not considered partitions, as they may be used for other bindings.
+NOTE: also for backwards compatibility, direct subyesdes that have a compatible
+string are yest considered partitions, as they may be used for other bindings.
 
-#address-cells & #size-cells must both be present in the partitions subnode of the
+#address-cells & #size-cells must both be present in the partitions subyesde of the
 flash device. There are two valid values for both:
 <1>: for partitions that require a single 32-bit cell to represent their
      size/address (aka the value is below 4 GiB)
@@ -54,12 +54,12 @@ Required properties:
 
 Optional properties:
 - label : The label / name for this partition.  If omitted, the label is taken
-  from the node name (excluding the unit address).
+  from the yesde name (excluding the unit address).
 - read-only : This parameter, if present, is a hint to Linux that this
   partition should only be mounted read-only. This is usually used for flash
-  partitions containing early-boot firmware images or data which should not be
+  partitions containing early-boot firmware images or data which should yest be
   clobbered.
-- lock : Do not unlock the partition at initialization time (not supported on
+- lock : Do yest unlock the partition at initialization time (yest supported on
   all devices)
 
 Examples:

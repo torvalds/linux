@@ -80,7 +80,7 @@ static struct shash_desc *init_desc(char type, uint8_t hash_algo)
 
 	if (type == EVM_XATTR_HMAC) {
 		if (!(evm_initialized & EVM_INIT_HMAC)) {
-			pr_err_once("HMAC key is not set\n");
+			pr_err_once("HMAC key is yest set\n");
 			return ERR_PTR(-ENOKEY);
 		}
 		tfm = &hmac_tfm;
@@ -100,7 +100,7 @@ static struct shash_desc *init_desc(char type, uint8_t hash_algo)
 		*tfm = crypto_alloc_shash(algo, 0, CRYPTO_NOLOAD);
 		if (IS_ERR(*tfm)) {
 			rc = PTR_ERR(*tfm);
-			pr_err("Can not allocate %s (reason: %ld)\n", algo, rc);
+			pr_err("Can yest allocate %s (reason: %ld)\n", algo, rc);
 			*tfm = NULL;
 			mutex_unlock(&mutex);
 			return ERR_PTR(rc);
@@ -133,17 +133,17 @@ out:
 	return desc;
 }
 
-/* Protect against 'cutting & pasting' security.evm xattr, include inode
+/* Protect against 'cutting & pasting' security.evm xattr, include iyesde
  * specific info.
  *
  * (Additional directory/file metadata needs to be added for more complete
  * protection.)
  */
-static void hmac_add_misc(struct shash_desc *desc, struct inode *inode,
+static void hmac_add_misc(struct shash_desc *desc, struct iyesde *iyesde,
 			  char type, char *digest)
 {
 	struct h_misc {
-		unsigned long ino;
+		unsigned long iyes;
 		__u32 generation;
 		uid_t uid;
 		gid_t gid;
@@ -151,28 +151,28 @@ static void hmac_add_misc(struct shash_desc *desc, struct inode *inode,
 	} hmac_misc;
 
 	memset(&hmac_misc, 0, sizeof(hmac_misc));
-	/* Don't include the inode or generation number in portable
+	/* Don't include the iyesde or generation number in portable
 	 * signatures
 	 */
 	if (type != EVM_XATTR_PORTABLE_DIGSIG) {
-		hmac_misc.ino = inode->i_ino;
-		hmac_misc.generation = inode->i_generation;
+		hmac_misc.iyes = iyesde->i_iyes;
+		hmac_misc.generation = iyesde->i_generation;
 	}
 	/* The hmac uid and gid must be encoded in the initial user
-	 * namespace (not the filesystems user namespace) as encoding
+	 * namespace (yest the filesystems user namespace) as encoding
 	 * them in the filesystems user namespace allows an attack
 	 * where first they are written in an unprivileged fuse mount
 	 * of a filesystem and then the system is tricked to mount the
 	 * filesystem for real on next boot and trust it because
 	 * everything is signed.
 	 */
-	hmac_misc.uid = from_kuid(&init_user_ns, inode->i_uid);
-	hmac_misc.gid = from_kgid(&init_user_ns, inode->i_gid);
-	hmac_misc.mode = inode->i_mode;
+	hmac_misc.uid = from_kuid(&init_user_ns, iyesde->i_uid);
+	hmac_misc.gid = from_kgid(&init_user_ns, iyesde->i_gid);
+	hmac_misc.mode = iyesde->i_mode;
 	crypto_shash_update(desc, (const u8 *)&hmac_misc, sizeof(hmac_misc));
 	if ((evm_hmac_attrs & EVM_ATTR_FSUUID) &&
 	    type != EVM_XATTR_PORTABLE_DIGSIG)
-		crypto_shash_update(desc, (u8 *)&inode->i_sb->s_uuid, UUID_SIZE);
+		crypto_shash_update(desc, (u8 *)&iyesde->i_sb->s_uuid, UUID_SIZE);
 	crypto_shash_final(desc, digest);
 }
 
@@ -189,7 +189,7 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 				 size_t req_xattr_value_len,
 				 uint8_t type, struct evm_digest *data)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct iyesde *iyesde = d_backing_iyesde(dentry);
 	struct xattr_list *xattr;
 	struct shash_desc *desc;
 	size_t xattr_size = 0;
@@ -198,8 +198,8 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 	int size;
 	bool ima_present = false;
 
-	if (!(inode->i_opflags & IOP_XATTR) ||
-	    inode->i_sb->s_user_ns != &init_user_ns)
+	if (!(iyesde->i_opflags & IOP_XATTR) ||
+	    iyesde->i_sb->s_user_ns != &init_user_ns)
 		return -EOPNOTSUPP;
 
 	desc = init_desc(type, data->hdr.algo);
@@ -239,7 +239,7 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 		if (is_ima)
 			ima_present = true;
 	}
-	hmac_add_misc(desc, inode, type, data->digest);
+	hmac_add_misc(desc, iyesde, type, data->digest);
 
 	/* Portable EVM signatures must include an IMA hash */
 	if (type == EVM_XATTR_PORTABLE_DIGSIG && !ima_present)
@@ -266,13 +266,13 @@ int evm_calc_hash(struct dentry *dentry, const char *req_xattr_name,
 				     req_xattr_value_len, type, data);
 }
 
-static int evm_is_immutable(struct dentry *dentry, struct inode *inode)
+static int evm_is_immutable(struct dentry *dentry, struct iyesde *iyesde)
 {
 	const struct evm_ima_xattr_data *xattr_data = NULL;
 	struct integrity_iint_cache *iint;
 	int rc = 0;
 
-	iint = integrity_iint_find(inode);
+	iint = integrity_iint_find(iyesde);
 	if (iint && (iint->flags & EVM_IMMUTABLE_DIGSIG))
 		return 1;
 
@@ -302,7 +302,7 @@ static int evm_is_immutable(struct dentry *dentry, struct inode *inode)
 int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 			const char *xattr_value, size_t xattr_value_len)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct iyesde *iyesde = d_backing_iyesde(dentry);
 	struct evm_digest data;
 	int rc = 0;
 
@@ -310,7 +310,7 @@ int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 	 * Don't permit any transformation of the EVM xattr if the signature
 	 * is of an immutable type
 	 */
-	rc = evm_is_immutable(dentry, inode);
+	rc = evm_is_immutable(dentry, iyesde);
 	if (rc < 0)
 		return rc;
 	if (rc)
@@ -321,16 +321,16 @@ int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 			   xattr_value_len, &data);
 	if (rc == 0) {
 		data.hdr.xattr.sha1.type = EVM_XATTR_HMAC;
-		rc = __vfs_setxattr_noperm(dentry, XATTR_NAME_EVM,
+		rc = __vfs_setxattr_yesperm(dentry, XATTR_NAME_EVM,
 					   &data.hdr.xattr.data[1],
 					   SHA1_DIGEST_SIZE + 1, 0);
-	} else if (rc == -ENODATA && (inode->i_opflags & IOP_XATTR)) {
+	} else if (rc == -ENODATA && (iyesde->i_opflags & IOP_XATTR)) {
 		rc = __vfs_removexattr(dentry, XATTR_NAME_EVM);
 	}
 	return rc;
 }
 
-int evm_init_hmac(struct inode *inode, const struct xattr *lsm_xattr,
+int evm_init_hmac(struct iyesde *iyesde, const struct xattr *lsm_xattr,
 		  char *hmac_val)
 {
 	struct shash_desc *desc;
@@ -342,7 +342,7 @@ int evm_init_hmac(struct inode *inode, const struct xattr *lsm_xattr,
 	}
 
 	crypto_shash_update(desc, lsm_xattr->value, lsm_xattr->value_len);
-	hmac_add_misc(desc, inode, EVM_XATTR_HMAC, hmac_val);
+	hmac_add_misc(desc, iyesde, EVM_XATTR_HMAC, hmac_val);
 	kfree(desc);
 	return 0;
 }

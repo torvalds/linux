@@ -18,7 +18,7 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 
 	err = bpf_prog_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
 			    &pkt_obj, &pkt_fd);
-	if (CHECK(err, "prog_load sched cls", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "prog_load sched cls", "err %d erryes %d\n", err, erryes))
 		return;
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts,
 			    .attach_prog_fd = pkt_fd,
@@ -43,21 +43,21 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 
 	for (i = 0; i < prog_cnt; i++) {
 		prog[i] = bpf_object__find_program_by_title(obj, prog_name[i]);
-		if (CHECK(!prog[i], "find_prog", "prog %s not found\n", prog_name[i]))
+		if (CHECK(!prog[i], "find_prog", "prog %s yest found\n", prog_name[i]))
 			goto close_prog;
 		link[i] = bpf_program__attach_trace(prog[i]);
 		if (CHECK(IS_ERR(link[i]), "attach_trace", "failed to link\n"))
 			goto close_prog;
 	}
 	data_map = bpf_object__find_map_by_name(obj, "fexit_bp.bss");
-	if (CHECK(!data_map, "find_data_map", "data map not found\n"))
+	if (CHECK(!data_map, "find_data_map", "data map yest found\n"))
 		goto close_prog;
 
 	err = bpf_prog_test_run(pkt_fd, 1, &pkt_v6, sizeof(pkt_v6),
 				NULL, NULL, &retval, &duration);
 	CHECK(err || retval, "ipv6",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
+	      "err %d erryes %d retval %d duration %d\n",
+	      err, erryes, retval, duration);
 
 	err = bpf_map_lookup_elem(bpf_map__fd(data_map), &zero, result);
 	if (CHECK(err, "get_result",
@@ -81,7 +81,7 @@ close_prog:
 	free(result);
 }
 
-static void test_target_no_callees(void)
+static void test_target_yes_callees(void)
 {
 	const char *prog_name[] = {
 		"fexit/test_pkt_md_access",
@@ -92,7 +92,7 @@ static void test_target_no_callees(void)
 				  prog_name);
 }
 
-static void test_target_yes_callees(void)
+static void test_target_no_callees(void)
 {
 	const char *prog_name[] = {
 		"fexit/test_pkt_access",
@@ -107,6 +107,6 @@ static void test_target_yes_callees(void)
 
 void test_fexit_bpf2bpf(void)
 {
-	test_target_no_callees();
 	test_target_yes_callees();
+	test_target_no_callees();
 }

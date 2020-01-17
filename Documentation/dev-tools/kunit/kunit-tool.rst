@@ -46,7 +46,7 @@ append the ``--defconfig`` flag as well:
 
 	./tools/testing/kunit/kunit.py run --timeout=30 --jobs=`nproc --all` --defconfig
 
-.. note::
+.. yeste::
 	This command is particularly helpful for getting started because it
 	just works. No kunitconfig needs to be present.
 

@@ -29,7 +29,7 @@
 struct bsg_device {
 	struct request_queue *queue;
 	spinlock_t lock;
-	struct hlist_node dev_list;
+	struct hlist_yesde dev_list;
 	refcount_t ref_count;
 	char name[20];
 	int max_queue;
@@ -39,7 +39,7 @@ struct bsg_device {
 #define BSG_MAX_DEVS		32768
 
 static DEFINE_MUTEX(bsg_mutex);
-static DEFINE_IDR(bsg_minor_idr);
+static DEFINE_IDR(bsg_miyesr_idr);
 
 #define BSG_LIST_ARRAY_SIZE	8
 static struct hlist_head bsg_device_list[BSG_LIST_ARRAY_SIZE];
@@ -231,7 +231,7 @@ static int bsg_put_device(struct bsg_device *bd)
 	return 0;
 }
 
-static struct bsg_device *bsg_add_device(struct inode *inode,
+static struct bsg_device *bsg_add_device(struct iyesde *iyesde,
 					 struct request_queue *rq,
 					 struct file *file)
 {
@@ -252,22 +252,22 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 	bd->queue = rq;
 
 	refcount_set(&bd->ref_count, 1);
-	hlist_add_head(&bd->dev_list, bsg_dev_idx_hash(iminor(inode)));
+	hlist_add_head(&bd->dev_list, bsg_dev_idx_hash(imiyesr(iyesde)));
 
 	strncpy(bd->name, dev_name(rq->bsg_dev.class_dev), sizeof(bd->name) - 1);
 	bsg_dbg(bd, "bound to <%s>, max queue %d\n",
-		format_dev_t(buf, inode->i_rdev), bd->max_queue);
+		format_dev_t(buf, iyesde->i_rdev), bd->max_queue);
 
 	return bd;
 }
 
-static struct bsg_device *__bsg_get_device(int minor, struct request_queue *q)
+static struct bsg_device *__bsg_get_device(int miyesr, struct request_queue *q)
 {
 	struct bsg_device *bd;
 
 	lockdep_assert_held(&bsg_mutex);
 
-	hlist_for_each_entry(bd, bsg_dev_idx_hash(minor), dev_list) {
+	hlist_for_each_entry(bd, bsg_dev_idx_hash(miyesr), dev_list) {
 		if (bd->queue == q) {
 			refcount_inc(&bd->ref_count);
 			goto found;
@@ -278,7 +278,7 @@ found:
 	return bd;
 }
 
-static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
+static struct bsg_device *bsg_get_device(struct iyesde *iyesde, struct file *file)
 {
 	struct bsg_device *bd;
 	struct bsg_class_device *bcd;
@@ -287,27 +287,27 @@ static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
 	 * find the class device
 	 */
 	mutex_lock(&bsg_mutex);
-	bcd = idr_find(&bsg_minor_idr, iminor(inode));
+	bcd = idr_find(&bsg_miyesr_idr, imiyesr(iyesde));
 
 	if (!bcd) {
 		bd = ERR_PTR(-ENODEV);
 		goto out_unlock;
 	}
 
-	bd = __bsg_get_device(iminor(inode), bcd->queue);
+	bd = __bsg_get_device(imiyesr(iyesde), bcd->queue);
 	if (!bd)
-		bd = bsg_add_device(inode, bcd->queue, file);
+		bd = bsg_add_device(iyesde, bcd->queue, file);
 
 out_unlock:
 	mutex_unlock(&bsg_mutex);
 	return bd;
 }
 
-static int bsg_open(struct inode *inode, struct file *file)
+static int bsg_open(struct iyesde *iyesde, struct file *file)
 {
 	struct bsg_device *bd;
 
-	bd = bsg_get_device(inode, file);
+	bd = bsg_get_device(iyesde, file);
 
 	if (IS_ERR(bd))
 		return PTR_ERR(bd);
@@ -316,7 +316,7 @@ static int bsg_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int bsg_release(struct inode *inode, struct file *file)
+static int bsg_release(struct iyesde *iyesde, struct file *file)
 {
 	struct bsg_device *bd = file->private_data;
 
@@ -394,7 +394,7 @@ void bsg_unregister_queue(struct request_queue *q)
 		return;
 
 	mutex_lock(&bsg_mutex);
-	idr_remove(&bsg_minor_idr, bcd->minor);
+	idr_remove(&bsg_miyesr_idr, bcd->miyesr);
 	if (q->kobj.sd)
 		sysfs_remove_link(&q->kobj, "bsg");
 	device_unregister(bcd->class_dev);
@@ -412,7 +412,7 @@ int bsg_register_queue(struct request_queue *q, struct device *parent,
 	struct device *class_dev = NULL;
 
 	/*
-	 * we need a proper transport to send commands, not a stacked device
+	 * we need a proper transport to send commands, yest a stacked device
 	 */
 	if (!queue_is_mq(q))
 		return 0;
@@ -422,7 +422,7 @@ int bsg_register_queue(struct request_queue *q, struct device *parent,
 
 	mutex_lock(&bsg_mutex);
 
-	ret = idr_alloc(&bsg_minor_idr, bcd, 0, BSG_MAX_DEVS, GFP_KERNEL);
+	ret = idr_alloc(&bsg_miyesr_idr, bcd, 0, BSG_MAX_DEVS, GFP_KERNEL);
 	if (ret < 0) {
 		if (ret == -ENOSPC) {
 			printk(KERN_ERR "bsg: too many bsg devices\n");
@@ -431,10 +431,10 @@ int bsg_register_queue(struct request_queue *q, struct device *parent,
 		goto unlock;
 	}
 
-	bcd->minor = ret;
+	bcd->miyesr = ret;
 	bcd->queue = q;
 	bcd->ops = ops;
-	dev = MKDEV(bsg_major, bcd->minor);
+	dev = MKDEV(bsg_major, bcd->miyesr);
 	class_dev = device_create(bsg_class, parent, dev, NULL, "%s", name);
 	if (IS_ERR(class_dev)) {
 		ret = PTR_ERR(class_dev);
@@ -454,7 +454,7 @@ int bsg_register_queue(struct request_queue *q, struct device *parent,
 unregister_class_dev:
 	device_unregister(class_dev);
 idr_remove:
-	idr_remove(&bsg_minor_idr, bcd->minor);
+	idr_remove(&bsg_miyesr_idr, bcd->miyesr);
 unlock:
 	mutex_unlock(&bsg_mutex);
 	return ret;
@@ -463,7 +463,7 @@ unlock:
 int bsg_scsi_register_queue(struct request_queue *q, struct device *parent)
 {
 	if (!blk_queue_scsi_passthrough(q)) {
-		WARN_ONCE(true, "Attempt to register a non-SCSI queue\n");
+		WARN_ONCE(true, "Attempt to register a yesn-SCSI queue\n");
 		return -EINVAL;
 	}
 
@@ -473,7 +473,7 @@ EXPORT_SYMBOL_GPL(bsg_scsi_register_queue);
 
 static struct cdev bsg_cdev;
 
-static char *bsg_devnode(struct device *dev, umode_t *mode)
+static char *bsg_devyesde(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "bsg/%s", dev_name(dev));
 }
@@ -489,7 +489,7 @@ static int __init bsg_init(void)
 	bsg_class = class_create(THIS_MODULE, "bsg");
 	if (IS_ERR(bsg_class))
 		return PTR_ERR(bsg_class);
-	bsg_class->devnode = bsg_devnode;
+	bsg_class->devyesde = bsg_devyesde;
 
 	ret = alloc_chrdev_region(&devid, 0, BSG_MAX_DEVS, "bsg");
 	if (ret)

@@ -66,7 +66,7 @@ static struct quirk_entry quirk_inspiron5675 = {
 	.deepslp = 0,
 };
 
-static struct quirk_entry quirk_unknown = {
+static struct quirk_entry quirk_unkyeswn = {
 	.num_zones = 2,
 	.hdmi_mux = 0,
 	.amplifier = 0,
@@ -249,7 +249,7 @@ static int parse_rgb(const char *buf, struct platform_zone *zone)
 	if (ret)
 		return ret;
 
-	/* RGB triplet notation is 24-bit hexadecimal */
+	/* RGB triplet yestation is 24-bit hexadecimal */
 	if (rgb > 0xFFFFFF)
 		return -EINVAL;
 
@@ -531,7 +531,7 @@ static acpi_status alienware_wmax_command(struct wmax_basic_args *in_args,
 }
 
 /*
- *	The HDMI mux sysfs node indicates the status of the HDMI input mux.
+ *	The HDMI mux sysfs yesde indicates the status of the HDMI input mux.
  *	It can toggle between standard system GPU output and HDMI input.
  */
 static ssize_t show_hdmi_cable(struct device *dev,
@@ -548,13 +548,13 @@ static ssize_t show_hdmi_cable(struct device *dev,
 	if (ACPI_SUCCESS(status)) {
 		if (out_data == 0)
 			return scnprintf(buf, PAGE_SIZE,
-					 "[unconnected] connected unknown\n");
+					 "[unconnected] connected unkyeswn\n");
 		else if (out_data == 1)
 			return scnprintf(buf, PAGE_SIZE,
-					 "unconnected [connected] unknown\n");
+					 "unconnected [connected] unkyeswn\n");
 	}
-	pr_err("alienware-wmi: unknown HDMI cable status: %d\n", status);
-	return scnprintf(buf, PAGE_SIZE, "unconnected connected [unknown]\n");
+	pr_err("alienware-wmi: unkyeswn HDMI cable status: %d\n", status);
+	return scnprintf(buf, PAGE_SIZE, "unconnected connected [unkyeswn]\n");
 }
 
 static ssize_t show_hdmi_source(struct device *dev,
@@ -572,13 +572,13 @@ static ssize_t show_hdmi_source(struct device *dev,
 	if (ACPI_SUCCESS(status)) {
 		if (out_data == 1)
 			return scnprintf(buf, PAGE_SIZE,
-					 "[input] gpu unknown\n");
+					 "[input] gpu unkyeswn\n");
 		else if (out_data == 2)
 			return scnprintf(buf, PAGE_SIZE,
-					 "input [gpu] unknown\n");
+					 "input [gpu] unkyeswn\n");
 	}
-	pr_err("alienware-wmi: unknown HDMI source status: %u\n", status);
-	return scnprintf(buf, PAGE_SIZE, "input gpu [unknown]\n");
+	pr_err("alienware-wmi: unkyeswn HDMI source status: %u\n", status);
+	return scnprintf(buf, PAGE_SIZE, "input gpu [unkyeswn]\n");
 }
 
 static ssize_t toggle_hdmi_source(struct device *dev,
@@ -653,13 +653,13 @@ static ssize_t show_amplifier_status(struct device *dev,
 	if (ACPI_SUCCESS(status)) {
 		if (out_data == 0)
 			return scnprintf(buf, PAGE_SIZE,
-					 "[unconnected] connected unknown\n");
+					 "[unconnected] connected unkyeswn\n");
 		else if (out_data == 1)
 			return scnprintf(buf, PAGE_SIZE,
-					 "unconnected [connected] unknown\n");
+					 "unconnected [connected] unkyeswn\n");
 	}
-	pr_err("alienware-wmi: unknown amplifier cable status: %d\n", status);
-	return scnprintf(buf, PAGE_SIZE, "unconnected connected [unknown]\n");
+	pr_err("alienware-wmi: unkyeswn amplifier cable status: %d\n", status);
+	return scnprintf(buf, PAGE_SIZE, "unconnected connected [unkyeswn]\n");
 }
 
 static DEVICE_ATTR(status, S_IRUGO, show_amplifier_status, NULL);
@@ -715,8 +715,8 @@ static ssize_t show_deepsleep_status(struct device *dev,
 			return scnprintf(buf, PAGE_SIZE,
 					 "disabled s5 [s5_s4]\n");
 	}
-	pr_err("alienware-wmi: unknown deep sleep status: %d\n", status);
-	return scnprintf(buf, PAGE_SIZE, "disabled s5 s5_s4 [unknown]\n");
+	pr_err("alienware-wmi: unkyeswn deep sleep status: %d\n", status);
+	return scnprintf(buf, PAGE_SIZE, "disabled s5 s5_s4 [unkyeswn]\n");
 }
 
 static ssize_t toggle_deepsleep(struct device *dev,
@@ -780,13 +780,13 @@ static int __init alienware_wmi_init(void)
 	else if (wmi_has_guid(WMAX_CONTROL_GUID))
 		interface = WMAX;
 	else {
-		pr_warn("alienware-wmi: No known WMI GUID found\n");
+		pr_warn("alienware-wmi: No kyeswn WMI GUID found\n");
 		return -ENODEV;
 	}
 
 	dmi_check_system(alienware_quirks);
 	if (quirks == NULL)
-		quirks = &quirk_unknown;
+		quirks = &quirk_unkyeswn;
 
 	ret = platform_driver_register(&platform_driver);
 	if (ret)

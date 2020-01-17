@@ -9,7 +9,7 @@ menuconfig VIRTUALIZATION
 	---help---
 	  Say Y here to get to see options for using your Linux host to run
 	  other operating systems inside virtual machines (guests).
-	  This option alone does not add any kernel code.
+	  This option alone does yest add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
@@ -38,7 +38,7 @@ config KVM_MIPS_TE
 	bool "Trap & Emulate"
 	---help---
 	  Use trap and emulate to virtualize 32-bit guests in user mode. This
-	  does not require any special hardware Virtualization support beyond
+	  does yest require any special hardware Virtualization support beyond
 	  standard MIPS32/64 r2 or later, but it does require the guest kernel
 	  to be configured with CONFIG_KVM_GUEST=y so that it resides in the
 	  user address segment.

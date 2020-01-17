@@ -44,7 +44,7 @@ config PTY_CHAN
 	  lines to host pseudo-terminals.  Access to both traditional
 	  pseudo-terminals (/dev/pty*) and pts pseudo-terminals are controlled
 	  with this option.  The assignment of UML devices to host devices
-	  will be announced in the kernel message log.
+	  will be anyesunced in the kernel message log.
 	  It is safe to say 'Y' here.
 
 config TTY_CHAN
@@ -131,7 +131,7 @@ menu "UML Network Devices"
 config UML_NET
 	bool "Virtual network device"
 	help
-	  While the User-Mode port cannot directly talk to any physical
+	  While the User-Mode port canyest directly talk to any physical
 	  hardware devices, this choice and the following transport options
 	  provide one or more virtual network devices through which the UML
 	  kernels can talk to each other, the host, and with the host's help,
@@ -191,7 +191,7 @@ config UML_NET_SLIP
 	help
 	  The slip User-Mode Linux network transport allows a running UML to
 	  network with its host over a point-to-point link.  Unlike Ethertap,
-	  which can carry any Ethernet frame (and hence even non-IP packets),
+	  which can carry any Ethernet frame (and hence even yesn-IP packets),
 	  the slip transport can only carry IP packets.
 
 	  To use this, your host must support slip devices.
@@ -214,7 +214,7 @@ config UML_NET_DAEMON
 	depends on UML_NET
 	help
 	  This User-Mode Linux network transport allows one or more running
-	  UMLs on a single host to communicate with each other, but not to
+	  UMLs on a single host to communicate with each other, but yest to
 	  the host.
 
 	  To use this form of networking, you'll need to run the UML
@@ -282,12 +282,12 @@ config UML_NET_MCAST
 	  For more information, see
 	  <http://user-mode-linux.sourceforge.net/old/networking.html>  That site
 	  has examples of the UML command line to use to enable Multicast
-	  networking, and notes about the security of this approach.
+	  networking, and yestes about the security of this approach.
 
 	  If you need UMLs on multiple physical hosts to communicate as if
 	  they shared an Ethernet network, say Y.  If you need to communicate
 	  with other IP machines, make sure you select one of the other
-	  transports (possibly in addition to Multicast; they're not
+	  transports (possibly in addition to Multicast; they're yest
 	  exclusive).  If you don't need to network UMLs say N to each of
 	  the transports.
 
@@ -313,15 +313,15 @@ config UML_NET_SLIRP
 	help
 	  The SLiRP User-Mode Linux network transport allows a running UML
 	  to network by invoking a program that can handle SLIP encapsulated
-	  packets.  This is commonly (but not limited to) the application
-	  known as SLiRP, a program that can re-socket IP packets back onto
+	  packets.  This is commonly (but yest limited to) the application
+	  kyeswn as SLiRP, a program that can re-socket IP packets back onto
 	  he host on which it is run.  Only IP packets are supported,
 	  unlike other network transports that can handle all Ethernet
 	  frames.  In general, slirp allows the UML the same IP connectivity
 	  to the outside world that the host user is permitted, and unlike
 	  other transports, SLiRP works without the need of root level
 	  privleges, setuid binaries, or SLIP devices on the host.  This
-	  also means not every type of connection is possible, but most
+	  also means yest every type of connection is possible, but most
 	  situations can be accommodated with carefully crafted slirp
 	  commands that can be passed along as part of the network device's
 	  setup string.  The effect of this transport on the UML is similar

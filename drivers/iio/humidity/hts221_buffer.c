@@ -76,7 +76,7 @@ int hts221_allocate_trigger(struct hts221_hw *hw)
 {
 	struct iio_dev *iio_dev = iio_priv_to_dev(hw);
 	bool irq_active_low = false, open_drain = false;
-	struct device_node *np = hw->dev->of_node;
+	struct device_yesde *np = hw->dev->of_yesde;
 	struct st_sensors_platform_data *pdata;
 	unsigned long irq_type;
 	int err;
@@ -187,7 +187,7 @@ static irqreturn_t hts221_buffer_handler_thread(int irq, void *p)
 					   iio_get_time_ns(iio_dev));
 
 out:
-	iio_trigger_notify_done(hw->trig);
+	iio_trigger_yestify_done(hw->trig);
 
 	return IRQ_HANDLED;
 }

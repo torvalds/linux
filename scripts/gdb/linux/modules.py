@@ -21,7 +21,7 @@ module_type = utils.CachedType("struct module")
 
 def module_list():
     global module_type
-    modules = utils.gdb_eval_or_none("modules")
+    modules = utils.gdb_eval_or_yesne("modules")
     if modules is None:
         return
 

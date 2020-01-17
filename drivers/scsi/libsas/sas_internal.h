@@ -68,8 +68,8 @@ void sas_porte_timer_event(struct work_struct *work);
 void sas_porte_hard_reset(struct work_struct *work);
 int sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw);
 
-int sas_notify_lldd_dev_found(struct domain_device *);
-void sas_notify_lldd_dev_gone(struct domain_device *);
+int sas_yestify_lldd_dev_found(struct domain_device *);
+void sas_yestify_lldd_dev_gone(struct domain_device *);
 
 void sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 		struct sas_rphy *rphy);
@@ -77,7 +77,7 @@ int sas_smp_phy_control(struct domain_device *dev, int phy_id,
 			enum phy_func phy_func, struct sas_phy_linkrates *);
 int sas_smp_get_phy_events(struct sas_phy *phy);
 
-int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event);
+int sas_yestify_phy_event(struct asd_sas_phy *phy, enum phy_event event);
 void sas_device_set_phy(struct domain_device *dev, struct sas_port *port);
 struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy);
 struct domain_device *sas_ex_to_ata(struct domain_device *ex_dev, int phy_id);
@@ -100,7 +100,7 @@ static inline void sas_smp_host_handler(struct bsg_job *job,
 		struct Scsi_Host *shost)
 {
 	shost_printk(KERN_ERR, shost,
-		"Cannot send SMP to a sas host (not enabled in CONFIG)\n");
+		"Canyest send SMP to a sas host (yest enabled in CONFIG)\n");
 	bsg_job_done(job, -EINVAL, 0);
 }
 #endif
@@ -176,8 +176,8 @@ static inline struct domain_device *sas_alloc_device(void)
 
 	if (dev) {
 		INIT_LIST_HEAD(&dev->siblings);
-		INIT_LIST_HEAD(&dev->dev_list_node);
-		INIT_LIST_HEAD(&dev->disco_list_node);
+		INIT_LIST_HEAD(&dev->dev_list_yesde);
+		INIT_LIST_HEAD(&dev->disco_list_yesde);
 		kref_init(&dev->kref);
 		spin_lock_init(&dev->done_lock);
 	}

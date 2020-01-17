@@ -18,7 +18,7 @@ static inline pte_t *find_linux_pte(pgd_t *pgdir, unsigned long ea,
 #if defined(CONFIG_DEBUG_VM) &&						\
 	!(defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE))
 	/*
-	 * We should not find huge page if these configs are not enabled.
+	 * We should yest find huge page if these configs are yest enabled.
 	 */
 	if (hshift)
 		WARN_ON(*hshift);
@@ -48,7 +48,7 @@ static inline pte_t *find_current_mm_pte(pgd_t *pgdir, unsigned long ea,
 #if defined(CONFIG_DEBUG_VM) &&						\
 	!(defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE))
 	/*
-	 * We should not find huge page if these configs are not enabled.
+	 * We should yest find huge page if these configs are yest enabled.
 	 */
 	if (hshift)
 		WARN_ON(*hshift);

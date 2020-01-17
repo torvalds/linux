@@ -20,7 +20,7 @@ static atomic_t fscache_object_debug_id = ATOMIC_INIT(0);
 #define fscache_cookie_hash_shift 15
 static struct hlist_bl_head fscache_cookie_hash[1 << fscache_cookie_hash_shift];
 
-static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie,
+static int fscache_acquire_yesn_index_cookie(struct fscache_cookie *cookie,
 					    loff_t object_size);
 static int fscache_alloc_object(struct fscache_cache *cache,
 				struct fscache_cookie *cookie);
@@ -29,7 +29,7 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 
 static void fscache_print_cookie(struct fscache_cookie *cookie, char prefix)
 {
-	struct hlist_node *object;
+	struct hlist_yesde *object;
 	const u8 *k;
 	unsigned loop;
 
@@ -67,7 +67,7 @@ void fscache_free_cookie(struct fscache_cookie *cookie)
 
 /*
  * Set the index key in a cookie.  The cookie struct has space for a 16-byte
- * key plus length and hash, but if that's not big enough, it's instead a
+ * key plus length and hash, but if that's yest big eyesugh, it's instead a
  * pointer to a buffer containing 3 bytes of hash, 1 byte of length and then
  * the key data.
  */
@@ -151,14 +151,14 @@ struct fscache_cookie *fscache_alloc_cookie(
 	cookie->aux_len = aux_data_len;
 
 	if (fscache_set_key(cookie, index_key, index_key_len) < 0)
-		goto nomem;
+		goto yesmem;
 
 	if (cookie->aux_len <= sizeof(cookie->inline_aux)) {
 		memcpy(cookie->inline_aux, aux_data, cookie->aux_len);
 	} else {
 		cookie->aux = kmemdup(aux_data, cookie->aux_len, GFP_KERNEL);
 		if (!cookie->aux)
-			goto nomem;
+			goto yesmem;
 	}
 
 	atomic_set(&cookie->usage, 1);
@@ -179,24 +179,24 @@ struct fscache_cookie *fscache_alloc_cookie(
 	INIT_HLIST_HEAD(&cookie->backing_objects);
 
 	/* radix tree insertion won't use the preallocation pool unless it's
-	 * told it may not wait */
+	 * told it may yest wait */
 	INIT_RADIX_TREE(&cookie->stores, GFP_NOFS & ~__GFP_DIRECT_RECLAIM);
 	return cookie;
 
-nomem:
+yesmem:
 	fscache_free_cookie(cookie);
 	return NULL;
 }
 
 /*
  * Attempt to insert the new cookie into the hash.  If there's a collision, we
- * return the old cookie if it's not in use and an error otherwise.
+ * return the old cookie if it's yest in use and an error otherwise.
  */
 struct fscache_cookie *fscache_hash_cookie(struct fscache_cookie *candidate)
 {
 	struct fscache_cookie *cursor;
 	struct hlist_bl_head *h;
-	struct hlist_bl_node *p;
+	struct hlist_bl_yesde *p;
 	unsigned int bucket;
 
 	bucket = candidate->key_hash & (ARRAY_SIZE(fscache_cookie_hash) - 1);
@@ -260,7 +260,7 @@ struct fscache_cookie *__fscache_acquire_cookie(
 	BUG_ON(!def);
 
 	_enter("{%s},{%s},%p,%u",
-	       parent ? (char *) parent->def->name : "<no-parent>",
+	       parent ? (char *) parent->def->name : "<yes-parent>",
 	       def->name, netfs_data, enable);
 
 	if (!index_key || !index_key_len || index_key_len > 255 || aux_data_len > 255)
@@ -272,10 +272,10 @@ struct fscache_cookie *__fscache_acquire_cookie(
 
 	fscache_stat(&fscache_n_acquires);
 
-	/* if there's no parent cookie, then we don't create one here either */
+	/* if there's yes parent cookie, then we don't create one here either */
 	if (!parent) {
 		fscache_stat(&fscache_n_acquires_null);
-		_leave(" [no parent]");
+		_leave(" [yes parent]");
 		return NULL;
 	}
 
@@ -319,17 +319,17 @@ struct fscache_cookie *__fscache_acquire_cookie(
 	trace_fscache_acquire(cookie);
 
 	if (enable) {
-		/* if the object is an index then we need do nothing more here
+		/* if the object is an index then we need do yesthing more here
 		 * - we create indices on disk when we need them as an index
 		 * may exist in multiple caches */
 		if (cookie->type != FSCACHE_COOKIE_TYPE_INDEX) {
-			if (fscache_acquire_non_index_cookie(cookie, object_size) == 0) {
+			if (fscache_acquire_yesn_index_cookie(cookie, object_size) == 0) {
 				set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
 			} else {
 				atomic_dec(&parent->n_children);
 				fscache_cookie_put(cookie,
-						   fscache_cookie_put_acquire_nobufs);
-				fscache_stat(&fscache_n_acquires_nobufs);
+						   fscache_cookie_put_acquire_yesbufs);
+				fscache_stat(&fscache_n_acquires_yesbufs);
 				_leave(" = NULL");
 				return NULL;
 			}
@@ -373,7 +373,7 @@ void __fscache_enable_cookie(struct fscache_cookie *cookie,
 		/* Wait for outstanding disablement to complete */
 		__fscache_wait_on_invalidate(cookie);
 
-		if (fscache_acquire_non_index_cookie(cookie, object_size) == 0)
+		if (fscache_acquire_yesn_index_cookie(cookie, object_size) == 0)
 			set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
 	} else {
 		set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
@@ -386,11 +386,11 @@ out_unlock:
 EXPORT_SYMBOL(__fscache_enable_cookie);
 
 /*
- * acquire a non-index cookie
+ * acquire a yesn-index cookie
  * - this must make sure the index chain is instantiated and instantiate the
  *   object representation too
  */
-static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie,
+static int fscache_acquire_yesn_index_cookie(struct fscache_cookie *cookie,
 					    loff_t object_size)
 {
 	struct fscache_object *object;
@@ -401,13 +401,13 @@ static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie,
 
 	set_bit(FSCACHE_COOKIE_UNAVAILABLE, &cookie->flags);
 
-	/* now we need to see whether the backing objects for this cookie yet
-	 * exist, if not there'll be nothing to search */
+	/* yesw we need to see whether the backing objects for this cookie yet
+	 * exist, if yest there'll be yesthing to search */
 	down_read(&fscache_addremove_sem);
 
 	if (list_empty(&fscache_cache_list)) {
 		up_read(&fscache_addremove_sem);
-		_leave(" = 0 [no caches]");
+		_leave(" = 0 [yes caches]");
 		return 0;
 	}
 
@@ -415,8 +415,8 @@ static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie,
 	cache = fscache_select_cache_for_object(cookie->parent);
 	if (!cache) {
 		up_read(&fscache_addremove_sem);
-		fscache_stat(&fscache_n_acquires_no_cache);
-		_leave(" = -ENOMEDIUM [no cache]");
+		fscache_stat(&fscache_n_acquires_yes_cache);
+		_leave(" = -ENOMEDIUM [yes cache]");
 		return -ENOMEDIUM;
 	}
 
@@ -452,7 +452,7 @@ static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie,
 
 	/* we may be required to wait for lookup to complete at this point */
 	if (!fscache_defer_lookup) {
-		_debug("non-deferred lookup %p", &cookie->flags);
+		_debug("yesn-deferred lookup %p", &cookie->flags);
 		wait_on_bit(&cookie->flags, FSCACHE_COOKIE_LOOKING_UP,
 			    TASK_UNINTERRUPTIBLE);
 		_debug("complete");
@@ -496,7 +496,7 @@ static int fscache_alloc_object(struct fscache_cache *cache,
 	object = cache->ops->alloc_object(cache, cookie);
 	fscache_stat_d(&fscache_n_cop_alloc_object);
 	if (IS_ERR(object)) {
-		fscache_stat(&fscache_n_object_no_alloc);
+		fscache_stat(&fscache_n_object_yes_alloc);
 		ret = PTR_ERR(object);
 		goto error;
 	}
@@ -629,7 +629,7 @@ void __fscache_invalidate(struct fscache_cookie *cookie)
 	ASSERTCMP(cookie->type, ==, FSCACHE_COOKIE_TYPE_DATAFILE);
 
 	/* If there's an object, we tell the object state machine to handle the
-	 * invalidation on our behalf, otherwise there's nothing to do.
+	 * invalidation on our behalf, otherwise there's yesthing to do.
 	 */
 	if (!hlist_empty(&cookie->backing_objects)) {
 		spin_lock(&cookie->lock);
@@ -678,7 +678,7 @@ void __fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data
 
 	if (!cookie) {
 		fscache_stat(&fscache_n_updates_null);
-		_leave(" [no cookie]");
+		_leave(" [yes cookie]");
 		return;
 	}
 
@@ -799,7 +799,7 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie,
 
 	if (!cookie) {
 		fscache_stat(&fscache_n_relinquishes_null);
-		_leave(" [no cookie]");
+		_leave(" [yes cookie]");
 		return;
 	}
 
@@ -881,9 +881,9 @@ void fscache_cookie_put(struct fscache_cookie *cookie,
 }
 
 /*
- * check the consistency between the netfs inode and the backing cache
+ * check the consistency between the netfs iyesde and the backing cache
  *
- * NOTE: it only serves no-index type
+ * NOTE: it only serves yes-index type
  */
 int __fscache_check_consistency(struct fscache_cookie *cookie,
 				const void *aux_data)
@@ -931,12 +931,12 @@ int __fscache_check_consistency(struct fscache_cookie *cookie,
 	if (fscache_submit_op(object, op) < 0)
 		goto submit_failed;
 
-	/* the work queue now carries its own ref on the object */
+	/* the work queue yesw carries its own ref on the object */
 	spin_unlock(&cookie->lock);
 
 	ret = fscache_wait_for_operation_activation(object, op, NULL, NULL);
 	if (ret == 0) {
-		/* ask the cache to honour the operation */
+		/* ask the cache to hoyesur the operation */
 		ret = object->cache->ops->check_consistency(op);
 		fscache_op_complete(op, false);
 	} else if (ret == -ENOBUFS) {

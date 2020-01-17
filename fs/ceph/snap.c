@@ -19,12 +19,12 @@
  * whether a write logically occurs before or after a recently created
  * snapshot.
  *
- * This provides a perfect instantanous client-wide snapshot.  Between
+ * This provides a perfect instantayesus client-wide snapshot.  Between
  * clients, however, snapshots may appear to be applied at slightly
  * different points in time, depending on delays in delivering the
- * snapshot notification.
+ * snapshot yestification.
  *
- * Snapshots are _not_ file system-wide.  Instead, each snapshot
+ * Snapshots are _yest_ file system-wide.  Instead, each snapshot
  * applies to the subdirectory nested beneath some directory.  This
  * effectively divides the hierarchy into multiple "realms," where all
  * of the files contained by each realm share the same set of
@@ -39,7 +39,7 @@
  * realm relationship, and for each realm has an explicit list of snaps
  * inherited from prior parents.
  *
- * A snap_realm struct is maintained for realms containing every inode
+ * A snap_realm struct is maintained for realms containing every iyesde
  * with an open cap in the system.  (The needed snap realm information is
  * provided by the MDS whenever a cap is issued, i.e., on open.)  A 'seq'
  * version number is used to ensure that as realm parameters change (new
@@ -51,8 +51,8 @@
  */
 /*
  * Unfortunately error handling is a bit mixed here.  If we get a snap
- * update, but don't have enough memory to update our realm hierarchy,
- * it's not clear what we can do about it (besides complaining to the
+ * update, but don't have eyesugh memory to update our realm hierarchy,
+ * it's yest clear what we can do about it (besides complaining to the
  * console).
  */
 
@@ -83,33 +83,33 @@ void ceph_get_snap_realm(struct ceph_mds_client *mdsc,
 static void __insert_snap_realm(struct rb_root *root,
 				struct ceph_snap_realm *new)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &root->rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct ceph_snap_realm *r = NULL;
 
 	while (*p) {
 		parent = *p;
-		r = rb_entry(parent, struct ceph_snap_realm, node);
-		if (new->ino < r->ino)
+		r = rb_entry(parent, struct ceph_snap_realm, yesde);
+		if (new->iyes < r->iyes)
 			p = &(*p)->rb_left;
-		else if (new->ino > r->ino)
+		else if (new->iyes > r->iyes)
 			p = &(*p)->rb_right;
 		else
 			BUG();
 	}
 
-	rb_link_node(&new->node, parent, p);
-	rb_insert_color(&new->node, root);
+	rb_link_yesde(&new->yesde, parent, p);
+	rb_insert_color(&new->yesde, root);
 }
 
 /*
- * create and get the realm rooted at @ino and bump its ref count.
+ * create and get the realm rooted at @iyes and bump its ref count.
  *
  * caller must hold snap_rwsem for write.
  */
 static struct ceph_snap_realm *ceph_create_snap_realm(
 	struct ceph_mds_client *mdsc,
-	u64 ino)
+	u64 iyes)
 {
 	struct ceph_snap_realm *realm;
 
@@ -118,39 +118,39 @@ static struct ceph_snap_realm *ceph_create_snap_realm(
 		return ERR_PTR(-ENOMEM);
 
 	atomic_set(&realm->nref, 1);    /* for caller */
-	realm->ino = ino;
+	realm->iyes = iyes;
 	INIT_LIST_HEAD(&realm->children);
 	INIT_LIST_HEAD(&realm->child_item);
 	INIT_LIST_HEAD(&realm->empty_item);
 	INIT_LIST_HEAD(&realm->dirty_item);
-	INIT_LIST_HEAD(&realm->inodes_with_caps);
-	spin_lock_init(&realm->inodes_with_caps_lock);
+	INIT_LIST_HEAD(&realm->iyesdes_with_caps);
+	spin_lock_init(&realm->iyesdes_with_caps_lock);
 	__insert_snap_realm(&mdsc->snap_realms, realm);
 	mdsc->num_snap_realms++;
 
-	dout("create_snap_realm %llx %p\n", realm->ino, realm);
+	dout("create_snap_realm %llx %p\n", realm->iyes, realm);
 	return realm;
 }
 
 /*
- * lookup the realm rooted at @ino.
+ * lookup the realm rooted at @iyes.
  *
  * caller must hold snap_rwsem for write.
  */
 static struct ceph_snap_realm *__lookup_snap_realm(struct ceph_mds_client *mdsc,
-						   u64 ino)
+						   u64 iyes)
 {
-	struct rb_node *n = mdsc->snap_realms.rb_node;
+	struct rb_yesde *n = mdsc->snap_realms.rb_yesde;
 	struct ceph_snap_realm *r;
 
 	while (n) {
-		r = rb_entry(n, struct ceph_snap_realm, node);
-		if (ino < r->ino)
+		r = rb_entry(n, struct ceph_snap_realm, yesde);
+		if (iyes < r->iyes)
 			n = n->rb_left;
-		else if (ino > r->ino)
+		else if (iyes > r->iyes)
 			n = n->rb_right;
 		else {
-			dout("lookup_snap_realm %llx %p\n", r->ino, r);
+			dout("lookup_snap_realm %llx %p\n", r->iyes, r);
 			return r;
 		}
 	}
@@ -158,10 +158,10 @@ static struct ceph_snap_realm *__lookup_snap_realm(struct ceph_mds_client *mdsc,
 }
 
 struct ceph_snap_realm *ceph_lookup_snap_realm(struct ceph_mds_client *mdsc,
-					       u64 ino)
+					       u64 iyes)
 {
 	struct ceph_snap_realm *r;
-	r = __lookup_snap_realm(mdsc, ino);
+	r = __lookup_snap_realm(mdsc, iyes);
 	if (r)
 		ceph_get_snap_realm(mdsc, r);
 	return r;
@@ -176,9 +176,9 @@ static void __put_snap_realm(struct ceph_mds_client *mdsc,
 static void __destroy_snap_realm(struct ceph_mds_client *mdsc,
 				 struct ceph_snap_realm *realm)
 {
-	dout("__destroy_snap_realm %p %llx\n", realm, realm->ino);
+	dout("__destroy_snap_realm %p %llx\n", realm, realm->iyes);
 
-	rb_erase(&realm->node, &mdsc->snap_realms);
+	rb_erase(&realm->yesde, &mdsc->snap_realms);
 	mdsc->num_snap_realms--;
 
 	if (realm->parent) {
@@ -198,7 +198,7 @@ static void __destroy_snap_realm(struct ceph_mds_client *mdsc,
 static void __put_snap_realm(struct ceph_mds_client *mdsc,
 			     struct ceph_snap_realm *realm)
 {
-	dout("__put_snap_realm %llx %p %d -> %d\n", realm->ino, realm,
+	dout("__put_snap_realm %llx %p %d -> %d\n", realm->iyes, realm,
 	     atomic_read(&realm->nref), atomic_read(&realm->nref)-1);
 	if (atomic_dec_and_test(&realm->nref))
 		__destroy_snap_realm(mdsc, realm);
@@ -210,7 +210,7 @@ static void __put_snap_realm(struct ceph_mds_client *mdsc,
 void ceph_put_snap_realm(struct ceph_mds_client *mdsc,
 			 struct ceph_snap_realm *realm)
 {
-	dout("put_snap_realm %llx %p %d -> %d\n", realm->ino, realm,
+	dout("put_snap_realm %llx %p %d -> %d\n", realm->iyes, realm,
 	     atomic_read(&realm->nref), atomic_read(&realm->nref)-1);
 	if (!atomic_dec_and_test(&realm->nref))
 		return;
@@ -227,7 +227,7 @@ void ceph_put_snap_realm(struct ceph_mds_client *mdsc,
 
 /*
  * Clean up any realms whose ref counts have dropped to zero.  Note
- * that this does not include realms who were created but not yet
+ * that this does yest include realms who were created but yest yet
  * used.
  *
  * Called under snap_rwsem (write)
@@ -265,27 +265,27 @@ void ceph_cleanup_empty_realms(struct ceph_mds_client *mdsc)
  */
 static int adjust_snap_realm_parent(struct ceph_mds_client *mdsc,
 				    struct ceph_snap_realm *realm,
-				    u64 parentino)
+				    u64 parentiyes)
 {
 	struct ceph_snap_realm *parent;
 
-	if (realm->parent_ino == parentino)
+	if (realm->parent_iyes == parentiyes)
 		return 0;
 
-	parent = ceph_lookup_snap_realm(mdsc, parentino);
+	parent = ceph_lookup_snap_realm(mdsc, parentiyes);
 	if (!parent) {
-		parent = ceph_create_snap_realm(mdsc, parentino);
+		parent = ceph_create_snap_realm(mdsc, parentiyes);
 		if (IS_ERR(parent))
 			return PTR_ERR(parent);
 	}
 	dout("adjust_snap_realm_parent %llx %p: %llx %p -> %llx %p\n",
-	     realm->ino, realm, realm->parent_ino, realm->parent,
-	     parentino, parent);
+	     realm->iyes, realm, realm->parent_iyes, realm->parent,
+	     parentiyes, parent);
 	if (realm->parent) {
 		list_del_init(&realm->child_item);
 		ceph_put_snap_realm(mdsc, realm->parent);
 	}
-	realm->parent_ino = parentino;
+	realm->parent_iyes = parentiyes;
 	realm->parent = parent;
 	list_add(&realm->child_item, &parent->children);
 	return 1;
@@ -327,7 +327,7 @@ static int build_snap_context(struct ceph_snap_realm *realm,
 		num += parent->cached_context->num_snaps;
 	}
 
-	/* do i actually need to update?  not if my context seq
+	/* do i actually need to update?  yest if my context seq
 	   matches realm seq, and my parents' does to.  (this works
 	   because we rebuild_snap_realms() works _downward_ in
 	   hierarchy after each update.) */
@@ -337,7 +337,7 @@ static int build_snap_context(struct ceph_snap_realm *realm,
 	     realm->cached_context->seq >= parent->cached_context->seq)) {
 		dout("build_snap_context %llx %p: %p seq %lld (%u snaps)"
 		     " (unchanged)\n",
-		     realm->ino, realm, realm->cached_context,
+		     realm->iyes, realm, realm->cached_context,
 		     realm->cached_context->seq,
 		     (unsigned int)realm->cached_context->num_snaps);
 		return 0;
@@ -377,7 +377,7 @@ static int build_snap_context(struct ceph_snap_realm *realm,
 	sort(snapc->snaps, num, sizeof(u64), cmpu64_rev, NULL);
 	snapc->num_snaps = num;
 	dout("build_snap_context %llx %p: %p seq %lld (%u snaps)\n",
-	     realm->ino, realm, snapc, snapc->seq,
+	     realm->iyes, realm, snapc, snapc->seq,
 	     (unsigned int) snapc->num_snaps);
 
 	ceph_put_snap_context(realm->cached_context);
@@ -395,7 +395,7 @@ fail:
 		ceph_put_snap_context(realm->cached_context);
 		realm->cached_context = NULL;
 	}
-	pr_err("build_snap_context %llx %p fail %d\n", realm->ino,
+	pr_err("build_snap_context %llx %p fail %d\n", realm->iyes,
 	       realm, err);
 	return err;
 }
@@ -408,7 +408,7 @@ static void rebuild_snap_realms(struct ceph_snap_realm *realm,
 {
 	struct ceph_snap_realm *child;
 
-	dout("rebuild_snap_realms %llx %p\n", realm->ino, realm);
+	dout("rebuild_snap_realms %llx %p\n", realm->iyes, realm);
 	build_snap_context(realm, dirty_realms);
 
 	list_for_each_entry(child, &realm->children, child_item)
@@ -447,22 +447,22 @@ static bool has_new_snaps(struct ceph_snap_context *o,
 }
 
 /*
- * When a snapshot is applied, the size/mtime inode metadata is queued
+ * When a snapshot is applied, the size/mtime iyesde metadata is queued
  * in a ceph_cap_snap (one for each snapshot) until writeback
  * completes and the metadata can be flushed back to the MDS.
  *
  * However, if a (sync) write is currently in-progress when we apply
  * the snapshot, we have to wait until the write succeeds or fails
- * (and a final size/mtime is known).  In this case the
+ * (and a final size/mtime is kyeswn).  In this case the
  * cap_snap->writing = 1, and is said to be "pending."  When the write
  * finishes, we __ceph_finish_cap_snap().
  *
  * Caller must hold snap_rwsem for read (i.e., the realm topology won't
  * change).
  */
-void ceph_queue_cap_snap(struct ceph_inode_info *ci)
+void ceph_queue_cap_snap(struct ceph_iyesde_info *ci)
 {
-	struct inode *inode = &ci->vfs_inode;
+	struct iyesde *iyesde = &ci->vfs_iyesde;
 	struct ceph_cap_snap *capsnap;
 	struct ceph_snap_context *old_snapc, *new_snapc;
 	struct ceph_buffer *old_blob = NULL;
@@ -470,7 +470,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 
 	capsnap = kzalloc(sizeof(*capsnap), GFP_NOFS);
 	if (!capsnap) {
-		pr_err("ENOMEM allocating ceph_cap_snap on %p\n", inode);
+		pr_err("ENOMEM allocating ceph_cap_snap on %p\n", iyesde);
 		return;
 	}
 
@@ -490,24 +490,24 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		dirty |= CEPH_CAP_FILE_WR;
 
 	if (__ceph_have_pending_cap_snap(ci)) {
-		/* there is no point in queuing multiple "pending" cap_snaps,
-		   as no new writes are allowed to start when pending, so any
-		   writes in progress now were started before the previous
+		/* there is yes point in queuing multiple "pending" cap_snaps,
+		   as yes new writes are allowed to start when pending, so any
+		   writes in progress yesw were started before the previous
 		   cap_snap.  lucky us. */
-		dout("queue_cap_snap %p already pending\n", inode);
+		dout("queue_cap_snap %p already pending\n", iyesde);
 		goto update_snapc;
 	}
 	if (ci->i_wrbuffer_ref_head == 0 &&
 	    !(dirty & (CEPH_CAP_ANY_EXCL|CEPH_CAP_FILE_WR))) {
-		dout("queue_cap_snap %p nothing dirty|writing\n", inode);
+		dout("queue_cap_snap %p yesthing dirty|writing\n", iyesde);
 		goto update_snapc;
 	}
 
 	BUG_ON(!old_snapc);
 
 	/*
-	 * There is no need to send FLUSHSNAP message to MDS if there is
-	 * no new snapshot. But when there is dirty pages or on-going
+	 * There is yes need to send FLUSHSNAP message to MDS if there is
+	 * yes new snapshot. But when there is dirty pages or on-going
 	 * writes, we still need to create cap_snap. cap_snap is needed
 	 * by the write path and page writeback path.
 	 *
@@ -520,15 +520,15 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		if (!(used & CEPH_CAP_FILE_WR) &&
 		    ci->i_wrbuffer_ref_head == 0) {
 			dout("queue_cap_snap %p "
-			     "no new_snap|dirty_page|writing\n", inode);
+			     "yes new_snap|dirty_page|writing\n", iyesde);
 			goto update_snapc;
 		}
 	}
 
 	dout("queue_cap_snap %p cap_snap %p queuing under %p %s %s\n",
-	     inode, capsnap, old_snapc, ceph_cap_string(dirty),
-	     capsnap->need_flush ? "" : "no_flush");
-	ihold(inode);
+	     iyesde, capsnap, old_snapc, ceph_cap_string(dirty),
+	     capsnap->need_flush ? "" : "yes_flush");
+	ihold(iyesde);
 
 	refcount_set(&capsnap->nref, 1);
 	INIT_LIST_HEAD(&capsnap->ci_item);
@@ -537,9 +537,9 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 	capsnap->issued = __ceph_caps_issued(ci, NULL);
 	capsnap->dirty = dirty;
 
-	capsnap->mode = inode->i_mode;
-	capsnap->uid = inode->i_uid;
-	capsnap->gid = inode->i_gid;
+	capsnap->mode = iyesde->i_mode;
+	capsnap->uid = iyesde->i_uid;
+	capsnap->gid = iyesde->i_gid;
 
 	if (dirty & CEPH_CAP_XATTR_EXCL) {
 		old_blob = __ceph_build_xattrs_blob(ci);
@@ -563,11 +563,11 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 
 	if (used & CEPH_CAP_FILE_WR) {
 		dout("queue_cap_snap %p cap_snap %p snapc %p"
-		     " seq %llu used WR, now pending\n", inode,
+		     " seq %llu used WR, yesw pending\n", iyesde,
 		     capsnap, old_snapc, old_snapc->seq);
 		capsnap->writing = 1;
 	} else {
-		/* note mtime, size NOW. */
+		/* yeste mtime, size NOW. */
 		__ceph_finish_cap_snap(ci, capsnap);
 	}
 	capsnap = NULL;
@@ -594,29 +594,29 @@ update_snapc:
  * Finalize the size, mtime for a cap_snap.. that is, settle on final values
  * to be used for the snapshot, to be flushed back to the mds.
  *
- * If capsnap can now be flushed, add to snap_flush list, and return 1.
+ * If capsnap can yesw be flushed, add to snap_flush list, and return 1.
  *
  * Caller must hold i_ceph_lock.
  */
-int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
+int __ceph_finish_cap_snap(struct ceph_iyesde_info *ci,
 			    struct ceph_cap_snap *capsnap)
 {
-	struct inode *inode = &ci->vfs_inode;
-	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
+	struct iyesde *iyesde = &ci->vfs_iyesde;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(iyesde->i_sb)->mdsc;
 
 	BUG_ON(capsnap->writing);
-	capsnap->size = inode->i_size;
-	capsnap->mtime = inode->i_mtime;
-	capsnap->atime = inode->i_atime;
-	capsnap->ctime = inode->i_ctime;
+	capsnap->size = iyesde->i_size;
+	capsnap->mtime = iyesde->i_mtime;
+	capsnap->atime = iyesde->i_atime;
+	capsnap->ctime = iyesde->i_ctime;
 	capsnap->btime = ci->i_btime;
-	capsnap->change_attr = inode_peek_iversion_raw(inode);
+	capsnap->change_attr = iyesde_peek_iversion_raw(iyesde);
 	capsnap->time_warp_seq = ci->i_time_warp_seq;
 	capsnap->truncate_size = ci->i_truncate_size;
 	capsnap->truncate_seq = ci->i_truncate_seq;
 	if (capsnap->dirty_pages) {
 		dout("finish_cap_snap %p cap_snap %p snapc %p %llu %s s=%llu "
-		     "still has %d dirty pages\n", inode, capsnap,
+		     "still has %d dirty pages\n", iyesde, capsnap,
 		     capsnap->context, capsnap->context->seq,
 		     ceph_cap_string(capsnap->dirty), capsnap->size,
 		     capsnap->dirty_pages);
@@ -625,7 +625,7 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 
 	ci->i_ceph_flags |= CEPH_I_FLUSH_SNAPS;
 	dout("finish_cap_snap %p cap_snap %p snapc %p %llu %s s=%llu\n",
-	     inode, capsnap, capsnap->context,
+	     iyesde, capsnap, capsnap->context,
 	     capsnap->context->seq, ceph_cap_string(capsnap->dirty),
 	     capsnap->size);
 
@@ -642,28 +642,28 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
  */
 static void queue_realm_cap_snaps(struct ceph_snap_realm *realm)
 {
-	struct ceph_inode_info *ci;
-	struct inode *lastinode = NULL;
+	struct ceph_iyesde_info *ci;
+	struct iyesde *lastiyesde = NULL;
 
-	dout("queue_realm_cap_snaps %p %llx inodes\n", realm, realm->ino);
+	dout("queue_realm_cap_snaps %p %llx iyesdes\n", realm, realm->iyes);
 
-	spin_lock(&realm->inodes_with_caps_lock);
-	list_for_each_entry(ci, &realm->inodes_with_caps, i_snap_realm_item) {
-		struct inode *inode = igrab(&ci->vfs_inode);
-		if (!inode)
+	spin_lock(&realm->iyesdes_with_caps_lock);
+	list_for_each_entry(ci, &realm->iyesdes_with_caps, i_snap_realm_item) {
+		struct iyesde *iyesde = igrab(&ci->vfs_iyesde);
+		if (!iyesde)
 			continue;
-		spin_unlock(&realm->inodes_with_caps_lock);
+		spin_unlock(&realm->iyesdes_with_caps_lock);
 		/* avoid calling iput_final() while holding
 		 * mdsc->snap_rwsem or in mds dispatch threads */
-		ceph_async_iput(lastinode);
-		lastinode = inode;
+		ceph_async_iput(lastiyesde);
+		lastiyesde = iyesde;
 		ceph_queue_cap_snap(ci);
-		spin_lock(&realm->inodes_with_caps_lock);
+		spin_lock(&realm->iyesdes_with_caps_lock);
 	}
-	spin_unlock(&realm->inodes_with_caps_lock);
-	ceph_async_iput(lastinode);
+	spin_unlock(&realm->iyesdes_with_caps_lock);
+	ceph_async_iput(lastiyesde);
 
-	dout("queue_realm_cap_snaps %p %llx done\n", realm, realm->ino);
+	dout("queue_realm_cap_snaps %p %llx done\n", realm, realm->iyes);
 }
 
 /*
@@ -698,9 +698,9 @@ more:
 	prior_parent_snaps = p;
 	p += sizeof(u64) * le32_to_cpu(ri->num_prior_parent_snaps);
 
-	realm = ceph_lookup_snap_realm(mdsc, le64_to_cpu(ri->ino));
+	realm = ceph_lookup_snap_realm(mdsc, le64_to_cpu(ri->iyes));
 	if (!realm) {
-		realm = ceph_create_snap_realm(mdsc, le64_to_cpu(ri->ino));
+		realm = ceph_create_snap_realm(mdsc, le64_to_cpu(ri->iyes));
 		if (IS_ERR(realm)) {
 			err = PTR_ERR(realm);
 			goto fail;
@@ -715,7 +715,7 @@ more:
 
 	if (le64_to_cpu(ri->seq) > realm->seq) {
 		dout("update_snap_trace updating %llx %p %lld -> %lld\n",
-		     realm->ino, realm, realm->seq, le64_to_cpu(ri->seq));
+		     realm->iyes, realm, realm->seq, le64_to_cpu(ri->seq));
 		/* update realm parameters, snap lists */
 		realm->seq = le64_to_cpu(ri->seq);
 		realm->created = le64_to_cpu(ri->created);
@@ -739,14 +739,14 @@ more:
 		invalidate = 1;
 	} else if (!realm->cached_context) {
 		dout("update_snap_trace %llx %p seq %lld new\n",
-		     realm->ino, realm, realm->seq);
+		     realm->iyes, realm, realm->seq);
 		invalidate = 1;
 	} else {
 		dout("update_snap_trace %llx %p seq %lld unchanged\n",
-		     realm->ino, realm, realm->seq);
+		     realm->iyes, realm, realm->seq);
 	}
 
-	dout("done with %llx %p, invalidated=%d, %p %p\n", realm->ino,
+	dout("done with %llx %p, invalidated=%d, %p %p\n", realm->iyes,
 	     realm, invalidate, p, e);
 
 	/* invalidate when we reach the _end_ (root) of the trace */
@@ -796,26 +796,26 @@ fail:
  * Send any cap_snaps that are queued for flush.  Try to carry
  * s_mutex across multiple snap flushes to avoid locking overhead.
  *
- * Caller holds no locks.
+ * Caller holds yes locks.
  */
 static void flush_snaps(struct ceph_mds_client *mdsc)
 {
-	struct ceph_inode_info *ci;
-	struct inode *inode;
+	struct ceph_iyesde_info *ci;
+	struct iyesde *iyesde;
 	struct ceph_mds_session *session = NULL;
 
 	dout("flush_snaps\n");
 	spin_lock(&mdsc->snap_flush_lock);
 	while (!list_empty(&mdsc->snap_flush_list)) {
 		ci = list_first_entry(&mdsc->snap_flush_list,
-				struct ceph_inode_info, i_snap_flush_item);
-		inode = &ci->vfs_inode;
-		ihold(inode);
+				struct ceph_iyesde_info, i_snap_flush_item);
+		iyesde = &ci->vfs_iyesde;
+		ihold(iyesde);
 		spin_unlock(&mdsc->snap_flush_lock);
 		ceph_flush_snaps(ci, &session);
 		/* avoid calling iput_final() while holding
 		 * session->s_mutex or in mds dispatch threads */
-		ceph_async_iput(inode);
+		ceph_async_iput(iyesde);
 		spin_lock(&mdsc->snap_flush_lock);
 	}
 	spin_unlock(&mdsc->snap_flush_lock);
@@ -829,15 +829,15 @@ static void flush_snaps(struct ceph_mds_client *mdsc)
 
 
 /*
- * Handle a snap notification from the MDS.
+ * Handle a snap yestification from the MDS.
  *
  * This can take two basic forms: the simplest is just a snap creation
- * or deletion notification on an existing realm.  This should update the
+ * or deletion yestification on an existing realm.  This should update the
  * realm and its children.
  *
  * The more difficult case is realm creation, due to snap creation at a
  * new point in the file hierarchy, or due to a rename that moves a file or
- * directory into another realm.
+ * directory into ayesther realm.
  */
 void ceph_handle_snap(struct ceph_mds_client *mdsc,
 		      struct ceph_mds_session *session,
@@ -852,8 +852,8 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 	void *p = msg->front.iov_base;
 	void *e = p + msg->front.iov_len;
 	struct ceph_mds_snap_head *h;
-	int num_split_inos, num_split_realms;
-	__le64 *split_inos = NULL, *split_realms = NULL;
+	int num_split_iyess, num_split_realms;
+	__le64 *split_iyess = NULL, *split_realms = NULL;
 	int i;
 	int locked_rwsem = 0;
 
@@ -862,9 +862,9 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 		goto bad;
 	h = p;
 	op = le32_to_cpu(h->op);
-	split = le64_to_cpu(h->split);   /* non-zero if we are splitting an
+	split = le64_to_cpu(h->split);   /* yesn-zero if we are splitting an
 					  * existing realm */
-	num_split_inos = le32_to_cpu(h->num_split_inos);
+	num_split_iyess = le32_to_cpu(h->num_split_iyess);
 	num_split_realms = le32_to_cpu(h->num_split_realms);
 	trace_len = le32_to_cpu(h->trace_len);
 	p += sizeof(*h);
@@ -884,16 +884,16 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 
 		/*
 		 * A "split" breaks part of an existing realm off into
-		 * a new realm.  The MDS provides a list of inodes
+		 * a new realm.  The MDS provides a list of iyesdes
 		 * (with caps) and child realms that belong to the new
 		 * child.
 		 */
-		split_inos = p;
-		p += sizeof(u64) * num_split_inos;
+		split_iyess = p;
+		p += sizeof(u64) * num_split_iyess;
 		split_realms = p;
 		p += sizeof(u64) * num_split_realms;
 		ceph_decode_need(&p, e, sizeof(*ri), bad);
-		/* we will peek at realm info here, but will _not_
+		/* we will peek at realm info here, but will _yest_
 		 * advance p, as the realm update will occur below in
 		 * ceph_update_snap_trace. */
 		ri = p;
@@ -905,54 +905,54 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 				goto out;
 		}
 
-		dout("splitting snap_realm %llx %p\n", realm->ino, realm);
-		for (i = 0; i < num_split_inos; i++) {
-			struct ceph_vino vino = {
-				.ino = le64_to_cpu(split_inos[i]),
+		dout("splitting snap_realm %llx %p\n", realm->iyes, realm);
+		for (i = 0; i < num_split_iyess; i++) {
+			struct ceph_viyes viyes = {
+				.iyes = le64_to_cpu(split_iyess[i]),
 				.snap = CEPH_NOSNAP,
 			};
-			struct inode *inode = ceph_find_inode(sb, vino);
-			struct ceph_inode_info *ci;
+			struct iyesde *iyesde = ceph_find_iyesde(sb, viyes);
+			struct ceph_iyesde_info *ci;
 			struct ceph_snap_realm *oldrealm;
 
-			if (!inode)
+			if (!iyesde)
 				continue;
-			ci = ceph_inode(inode);
+			ci = ceph_iyesde(iyesde);
 
 			spin_lock(&ci->i_ceph_lock);
 			if (!ci->i_snap_realm)
-				goto skip_inode;
+				goto skip_iyesde;
 			/*
-			 * If this inode belongs to a realm that was
+			 * If this iyesde belongs to a realm that was
 			 * created after our new realm, we experienced
-			 * a race (due to another split notifications
+			 * a race (due to ayesther split yestifications
 			 * arriving from a different MDS).  So skip
-			 * this inode.
+			 * this iyesde.
 			 */
 			if (ci->i_snap_realm->created >
 			    le64_to_cpu(ri->created)) {
 				dout(" leaving %p in newer realm %llx %p\n",
-				     inode, ci->i_snap_realm->ino,
+				     iyesde, ci->i_snap_realm->iyes,
 				     ci->i_snap_realm);
-				goto skip_inode;
+				goto skip_iyesde;
 			}
 			dout(" will move %p to split realm %llx %p\n",
-			     inode, realm->ino, realm);
+			     iyesde, realm->iyes, realm);
 			/*
-			 * Move the inode to the new realm
+			 * Move the iyesde to the new realm
 			 */
 			oldrealm = ci->i_snap_realm;
-			spin_lock(&oldrealm->inodes_with_caps_lock);
+			spin_lock(&oldrealm->iyesdes_with_caps_lock);
 			list_del_init(&ci->i_snap_realm_item);
-			spin_unlock(&oldrealm->inodes_with_caps_lock);
+			spin_unlock(&oldrealm->iyesdes_with_caps_lock);
 
-			spin_lock(&realm->inodes_with_caps_lock);
+			spin_lock(&realm->iyesdes_with_caps_lock);
 			list_add(&ci->i_snap_realm_item,
-				 &realm->inodes_with_caps);
+				 &realm->iyesdes_with_caps);
 			ci->i_snap_realm = realm;
-			if (realm->ino == ci->i_vino.ino)
-                                realm->inode = inode;
-			spin_unlock(&realm->inodes_with_caps_lock);
+			if (realm->iyes == ci->i_viyes.iyes)
+                                realm->iyesde = iyesde;
+			spin_unlock(&realm->iyesdes_with_caps_lock);
 
 			spin_unlock(&ci->i_ceph_lock);
 
@@ -961,12 +961,12 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 
 			/* avoid calling iput_final() while holding
 			 * mdsc->snap_rwsem or mds in dispatch threads */
-			ceph_async_iput(inode);
+			ceph_async_iput(iyesde);
 			continue;
 
-skip_inode:
+skip_iyesde:
 			spin_unlock(&ci->i_ceph_lock);
-			ceph_async_iput(inode);
+			ceph_async_iput(iyesde);
 		}
 
 		/* we may have taken some of the old realm's children. */
@@ -976,7 +976,7 @@ skip_inode:
 					   le64_to_cpu(split_realms[i]));
 			if (!child)
 				continue;
-			adjust_snap_realm_parent(mdsc, child, realm->ino);
+			adjust_snap_realm_parent(mdsc, child, realm->iyes);
 		}
 	}
 
@@ -1011,14 +1011,14 @@ struct ceph_snapid_map* ceph_get_snapid_map(struct ceph_mds_client *mdsc,
 					    u64 snap)
 {
 	struct ceph_snapid_map *sm, *exist;
-	struct rb_node **p, *parent;
+	struct rb_yesde **p, *parent;
 	int ret;
 
 	exist = NULL;
 	spin_lock(&mdsc->snapid_map_lock);
-	p = &mdsc->snapid_map_tree.rb_node;
+	p = &mdsc->snapid_map_tree.rb_yesde;
 	while (*p) {
-		exist = rb_entry(*p, struct ceph_snapid_map, node);
+		exist = rb_entry(*p, struct ceph_snapid_map, yesde);
 		if (snap > exist->snap) {
 			p = &(*p)->rb_left;
 		} else if (snap < exist->snap) {
@@ -1040,7 +1040,7 @@ struct ceph_snapid_map* ceph_get_snapid_map(struct ceph_mds_client *mdsc,
 	if (!sm)
 		return NULL;
 
-	ret = get_anon_bdev(&sm->dev);
+	ret = get_ayesn_bdev(&sm->dev);
 	if (ret < 0) {
 		kfree(sm);
 		return NULL;
@@ -1052,11 +1052,11 @@ struct ceph_snapid_map* ceph_get_snapid_map(struct ceph_mds_client *mdsc,
 
 	exist = NULL;
 	parent = NULL;
-	p = &mdsc->snapid_map_tree.rb_node;
+	p = &mdsc->snapid_map_tree.rb_yesde;
 	spin_lock(&mdsc->snapid_map_lock);
 	while (*p) {
 		parent = *p;
-		exist = rb_entry(*p, struct ceph_snapid_map, node);
+		exist = rb_entry(*p, struct ceph_snapid_map, yesde);
 		if (snap > exist->snap)
 			p = &(*p)->rb_left;
 		else if (snap < exist->snap)
@@ -1069,12 +1069,12 @@ struct ceph_snapid_map* ceph_get_snapid_map(struct ceph_mds_client *mdsc,
 		if (atomic_inc_return(&exist->ref) == 1)
 			list_del_init(&exist->lru);
 	} else {
-		rb_link_node(&sm->node, parent, p);
-		rb_insert_color(&sm->node, &mdsc->snapid_map_tree);
+		rb_link_yesde(&sm->yesde, parent, p);
+		rb_insert_color(&sm->yesde, &mdsc->snapid_map_tree);
 	}
 	spin_unlock(&mdsc->snapid_map_lock);
 	if (exist) {
-		free_anon_bdev(sm->dev);
+		free_ayesn_bdev(sm->dev);
 		kfree(sm);
 		dout("found snapid map %llx -> %x\n", exist->snap, exist->dev);
 		return exist;
@@ -1090,7 +1090,7 @@ void ceph_put_snapid_map(struct ceph_mds_client* mdsc,
 	if (!sm)
 		return;
 	if (atomic_dec_and_lock(&sm->ref, &mdsc->snapid_map_lock)) {
-		if (!RB_EMPTY_NODE(&sm->node)) {
+		if (!RB_EMPTY_NODE(&sm->yesde)) {
 			sm->last_used = jiffies;
 			list_add_tail(&sm->lru, &mdsc->snapid_map_lru);
 			spin_unlock(&mdsc->snapid_map_lock);
@@ -1106,19 +1106,19 @@ void ceph_put_snapid_map(struct ceph_mds_client* mdsc,
 void ceph_trim_snapid_map(struct ceph_mds_client *mdsc)
 {
 	struct ceph_snapid_map *sm;
-	unsigned long now;
+	unsigned long yesw;
 	LIST_HEAD(to_free);
 
 	spin_lock(&mdsc->snapid_map_lock);
-	now = jiffies;
+	yesw = jiffies;
 
 	while (!list_empty(&mdsc->snapid_map_lru)) {
 		sm = list_first_entry(&mdsc->snapid_map_lru,
 				      struct ceph_snapid_map, lru);
-		if (time_after(sm->last_used + CEPH_SNAPID_MAP_TIMEOUT, now))
+		if (time_after(sm->last_used + CEPH_SNAPID_MAP_TIMEOUT, yesw))
 			break;
 
-		rb_erase(&sm->node, &mdsc->snapid_map_tree);
+		rb_erase(&sm->yesde, &mdsc->snapid_map_tree);
 		list_move(&sm->lru, &to_free);
 	}
 	spin_unlock(&mdsc->snapid_map_lock);
@@ -1127,7 +1127,7 @@ void ceph_trim_snapid_map(struct ceph_mds_client *mdsc)
 		sm = list_first_entry(&to_free, struct ceph_snapid_map, lru);
 		list_del(&sm->lru);
 		dout("trim snapid map %llx -> %x\n", sm->snap, sm->dev);
-		free_anon_bdev(sm->dev);
+		free_ayesn_bdev(sm->dev);
 		kfree(sm);
 	}
 }
@@ -1135,12 +1135,12 @@ void ceph_trim_snapid_map(struct ceph_mds_client *mdsc)
 void ceph_cleanup_snapid_map(struct ceph_mds_client *mdsc)
 {
 	struct ceph_snapid_map *sm;
-	struct rb_node *p;
+	struct rb_yesde *p;
 	LIST_HEAD(to_free);
 
 	spin_lock(&mdsc->snapid_map_lock);
 	while ((p = rb_first(&mdsc->snapid_map_tree))) {
-		sm = rb_entry(p, struct ceph_snapid_map, node);
+		sm = rb_entry(p, struct ceph_snapid_map, yesde);
 		rb_erase(p, &mdsc->snapid_map_tree);
 		RB_CLEAR_NODE(p);
 		list_move(&sm->lru, &to_free);
@@ -1150,7 +1150,7 @@ void ceph_cleanup_snapid_map(struct ceph_mds_client *mdsc)
 	while (!list_empty(&to_free)) {
 		sm = list_first_entry(&to_free, struct ceph_snapid_map, lru);
 		list_del(&sm->lru);
-		free_anon_bdev(sm->dev);
+		free_ayesn_bdev(sm->dev);
 		if (WARN_ON_ONCE(atomic_read(&sm->ref))) {
 			pr_err("snapid map %llx -> %x still in use\n",
 			       sm->snap, sm->dev);

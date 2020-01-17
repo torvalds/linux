@@ -5,13 +5,13 @@
  * Copyright 2014 Hans de Goede <hdegoede@redhat.com>
  *
  * based on the AHCI SATA platform driver by Jeff Garzik and Anton Vorontsov
- * Based on code from Allwinner Technology Co., Ltd. <www.allwinnertech.com>,
+ * Based on code from Allwinner Techyeslogy Co., Ltd. <www.allwinnertech.com>,
  * Daniel Wang <danielwang@allwinnertech.com>
  */
 
 #include <linux/ahci_platform.h>
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -235,8 +235,8 @@ static int ahci_sunxi_probe(struct platform_device *pdev)
 
 	/*
 	 * The sunxi sata controller seems to be unable to successfully do a
-	 * soft reset if no pmp is attached, so disable pmp use unless
-	 * requested, otherwise directly attached disks do not work.
+	 * soft reset if yes pmp is attached, so disable pmp use unless
+	 * requested, otherwise directly attached disks do yest work.
 	 */
 	if (!enable_pmp)
 		hpriv->flags |= AHCI_HFLAG_NO_PMP;

@@ -23,7 +23,7 @@
  * [1] - IRQ (optional, required for timed or externally triggered conversions)
  *
  * Notes:
- *	IRQ can be omitted, although the cmd interface will not work without it.
+ *	IRQ can be omitted, although the cmd interface will yest work without it.
  *
  *	All entries in the channel/gain list must use the same gain and be
  *	consecutive channels counting upwards in channel number (these are
@@ -32,7 +32,7 @@
  *	I've never tested the gain setting stuff since I only have a
  *	DAS-800 board with fixed gain.
  *
- *	The cio-das802/16 does not have a fifo-empty status bit!  Therefore
+ *	The cio-das802/16 does yest have a fifo-empty status bit!  Therefore
  *	only fifo-half-full transfers are possible with this card.
  *
  * cmd triggers supported:
@@ -445,10 +445,10 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	status = das800_ind_read(dev, CONTROL1) & STATUS2_HCEN;
 	/*
 	 * Don't release spinlock yet since we want to make sure
-	 * no one else disables hardware conversions.
+	 * yes one else disables hardware conversions.
 	 */
 
-	/* if hardware conversions are not enabled, then quit */
+	/* if hardware conversions are yest enabled, then quit */
 	if (status == 0) {
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 		return IRQ_HANDLED;
@@ -460,7 +460,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 			fifo_empty = !!(val & FIFO_EMPTY);
 			fifo_overflow = !!(val & FIFO_OVF);
 		} else {
-			/* cio-das802/16 has no fifo empty status bit */
+			/* cio-das802/16 has yes fifo empty status bit */
 			fifo_empty = false;
 			fifo_overflow = !!(inb(dev->iobase + DAS800_GAIN) &
 						CIO_FFOV);
@@ -608,7 +608,7 @@ static const struct das800_board *das800_probe(struct comedi_device *dev)
 	 * driver. If so, this function sanity checks the id_bits to verify
 	 * that the board is correct.
 	 *
-	 * If the dev->board_ptr is not set, the user is trying to attach
+	 * If the dev->board_ptr is yest set, the user is trying to attach
 	 * an unspecified board to this driver. In this case the id_bits
 	 * are used to 'probe' for the correct dev->board_ptr.
 	 */
@@ -634,7 +634,7 @@ static const struct das800_board *das800_probe(struct comedi_device *dev)
 		index = BOARD_DAS802;
 		break;
 	default:
-		dev_dbg(dev->class_dev, "Board model: 0x%x (unknown)\n",
+		dev_dbg(dev->class_dev, "Board model: 0x%x (unkyeswn)\n",
 			id_bits);
 		return NULL;
 	}

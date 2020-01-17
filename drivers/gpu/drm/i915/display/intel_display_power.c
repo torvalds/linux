@@ -259,8 +259,8 @@ bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 
 /*
  * Starting with Haswell, we have a "Power Down Well" that can be turned off
- * when not needed anymore. We have 4 registers that can request the power well
- * to be enabled, and it will only be disabled if none of the registers is
+ * when yest needed anymore. We have 4 registers that can request the power well
+ * to be enabled, and it will only be disabled if yesne of the registers is
  * requesting it to be enabled.
  */
 static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv,
@@ -286,7 +286,7 @@ static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
 	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
 	int pw_idx = power_well->desc->hsw.idx;
 
-	/* Timeout for PW1:10 us, AUX:not specified, other PWs:20 us. */
+	/* Timeout for PW1:10 us, AUX:yest specified, other PWs:20 us. */
 	if (intel_de_wait_for_set(dev_priv, regs->driver,
 				  HSW_PWR_WELL_CTL_STATE(pw_idx), 1)) {
 		DRM_DEBUG_KMS("%s power well enable timeout\n",
@@ -323,12 +323,12 @@ static void hsw_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
 
 	/*
 	 * Bspec doesn't require waiting for PWs to get disabled, but still do
-	 * this for paranoia. The known cases where a PW will be forced on:
+	 * this for parayesia. The kyeswn cases where a PW will be forced on:
 	 * - a KVMR request on any power well via the KVMR request register
 	 * - a DMC request on PW1 and MISC_IO power wells via the BIOS and
 	 *   DEBUG request registers
 	 * Skip the wait in case any of the request bits are set and print a
-	 * diagnostic message.
+	 * diagyesstic message.
 	 */
 	wait_for((disabled = !(I915_READ(regs->driver) &
 			       HSW_PWR_WELL_CTL_STATE(pw_idx))) ||
@@ -502,7 +502,7 @@ static void icl_tc_port_assert_ref_held(struct drm_i915_private *dev_priv,
 	struct intel_digital_port *dig_port = NULL;
 	struct intel_encoder *encoder;
 
-	/* Bypass the check if all references are released asynchronously */
+	/* Bypass the check if all references are released asynchroyesusly */
 	if (power_well_async_ref_count(dev_priv, power_well) ==
 	    power_well->count)
 		return;
@@ -605,7 +605,7 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 
 	/*
 	 * On GEN9 big core due to a DMC bug the driver's request bits for PW1
-	 * and the MISC_IO PW will be not restored, so check instead for the
+	 * and the MISC_IO PW will be yest restored, so check instead for the
 	 * BIOS's own request bits, which are forced-on for these power wells
 	 * when exiting DC5/6.
 	 */
@@ -621,12 +621,12 @@ static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
 	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
 		  "DC9 already programmed to be enabled.\n");
 	WARN_ONCE(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
-		  "DC5 still not disabled to enable DC9.\n");
+		  "DC5 still yest disabled to enable DC9.\n");
 	WARN_ONCE(I915_READ(HSW_PWR_WELL_CTL2) &
 		  HSW_PWR_WELL_CTL_REQ(SKL_PW_CTL_IDX_PW_2),
 		  "Power well 2 on.\n");
 	WARN_ONCE(intel_irqs_enabled(dev_priv),
-		  "Interrupts not disabled yet.\n");
+		  "Interrupts yest disabled yet.\n");
 
 	 /*
 	  * TODO: check for the following to verify the conditions to enter DC9
@@ -640,9 +640,9 @@ static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
 static void assert_can_disable_dc9(struct drm_i915_private *dev_priv)
 {
 	WARN_ONCE(intel_irqs_enabled(dev_priv),
-		  "Interrupts not disabled yet.\n");
+		  "Interrupts yest disabled yet.\n");
 	WARN_ONCE(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
-		  "DC5 still not disabled.\n");
+		  "DC5 still yest disabled.\n");
 
 	 /*
 	  * TODO: check for the following to verify DC9 state was indeed
@@ -664,7 +664,7 @@ static void gen9_write_dc_state(struct drm_i915_private *dev_priv,
 
 	/* It has been observed that disabling the dc6 state sometimes
 	 * doesn't stick and dmc keeps returning old value. Make sure
-	 * the write really sticks enough times and also force rewrite until
+	 * the write really sticks eyesugh times and also force rewrite until
 	 * we are confident that state is exactly what we want.
 	 */
 	do  {
@@ -681,7 +681,7 @@ static void gen9_write_dc_state(struct drm_i915_private *dev_priv,
 	} while (rewrites < 100);
 
 	if (v != state)
-		DRM_ERROR("Writing dc state to 0x%x failed, now 0x%x\n",
+		DRM_ERROR("Writing dc state to 0x%x failed, yesw 0x%x\n",
 			  state, v);
 
 	/* Most of the times we need one retry, avoid spam */
@@ -737,8 +737,8 @@ static void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv)
  * depending on the active state of display pipes. The state of display
  * registers backed by affected power rails are saved/restored as needed.
  *
- * Based on the above enabling a deeper DC power state is asynchronous wrt.
- * enabling it. Disabling a deeper power state is synchronous: for instance
+ * Based on the above enabling a deeper DC power state is asynchroyesus wrt.
+ * enabling it. Disabling a deeper power state is synchroyesus: for instance
  * setting %DC_STATE_DISABLE won't complete until all HW resources are turned
  * back on and register state is restored. This is guaranteed by the MMIO write
  * to DC_STATE_EN blocking until the state is restored.
@@ -756,7 +756,7 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state)
 	DRM_DEBUG_KMS("Setting DC state from %02x to %02x\n",
 		      val & mask, state);
 
-	/* Check if DMC is ignoring our DC state requests */
+	/* Check if DMC is igyesring our DC state requests */
 	if ((val & mask) != dev_priv->csr.dc_state)
 		DRM_ERROR("DC state mismatch (0x%x -> 0x%x)\n",
 			  dev_priv->csr.dc_state, val & mask);
@@ -821,7 +821,7 @@ static void bxt_enable_dc9(struct drm_i915_private *dev_priv)
 
 	DRM_DEBUG_KMS("Enabling DC9\n");
 	/*
-	 * Power sequencer reset is not needed on
+	 * Power sequencer reset is yest needed on
 	 * platforms with South Display Engine on PCH,
 	 * because PPS registers are always on.
 	 */
@@ -860,13 +860,13 @@ lookup_power_well(struct drm_i915_private *dev_priv,
 			return power_well;
 
 	/*
-	 * It's not feasible to add error checking code to the callers since
+	 * It's yest feasible to add error checking code to the callers since
 	 * this condition really shouldn't happen and it doesn't even make sense
 	 * to abort things like display initialization sequences. Just return
 	 * the first power well and hope the WARN gets reported so we can fix
 	 * our driver.
 	 */
-	WARN(1, "Power well %d not defined for this platform\n", power_well_id);
+	WARN(1, "Power well %d yest defined for this platform\n", power_well_id);
 	return &dev_priv->power_domains.power_wells[0];
 }
 
@@ -920,7 +920,7 @@ static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 	bool pg2_enabled = intel_display_power_well_is_enabled(dev_priv,
 					SKL_DISP_PW_2);
 
-	WARN_ONCE(pg2_enabled, "PG2 not disabled to enable DC5.\n");
+	WARN_ONCE(pg2_enabled, "PG2 yest disabled to enable DC5.\n");
 
 	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5),
 		  "DC5 already programmed to be enabled.\n");
@@ -946,7 +946,7 @@ static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
 static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	WARN_ONCE(I915_READ(UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
-		  "Backlight is not disabled.\n");
+		  "Backlight is yest disabled.\n");
 	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
 		  "DC6 already programmed to be enabled.\n");
 
@@ -1094,12 +1094,12 @@ static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void i9xx_power_well_sync_hw_noop(struct drm_i915_private *dev_priv,
+static void i9xx_power_well_sync_hw_yesop(struct drm_i915_private *dev_priv,
 					 struct i915_power_well *power_well)
 {
 }
 
-static void i9xx_always_on_power_well_noop(struct drm_i915_private *dev_priv,
+static void i9xx_always_on_power_well_yesop(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
 }
@@ -1343,7 +1343,7 @@ static void vlv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	vlv_set_power_well(dev_priv, power_well, true);
 
 	/*
-	 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
+	 * From VLV2A0_DP_eDP_DPIO_driver_vbios_yestes_10.docx -
 	 *  6.	De-assert cmn_reset/side_reset. Same as VLV X0.
 	 *   a.	GUnit 0x2110 bit[0] set to 1 (def 0)
 	 *   b.	The other bits such as sfr settings / modesel may all
@@ -1467,7 +1467,7 @@ static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
 	phy_status &= phy_status_mask;
 
 	/*
-	 * The PHY may be busy with some initial calibration and whatnot,
+	 * The PHY may be busy with some initial calibration and whatyest,
 	 * so the power state can take a while to actually change.
 	 */
 	if (intel_de_wait_for_register(dev_priv, DISPLAY_PHY_STATUS,
@@ -1504,7 +1504,7 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	/* Poll for phypwrgood signal */
 	if (intel_de_wait_for_set(dev_priv, DISPLAY_PHY_STATUS,
 				  PHY_POWERGOOD(phy), 1))
-		DRM_ERROR("Display PHY %d is not power up\n", phy);
+		DRM_ERROR("Display PHY %d is yest power up\n", phy);
 
 	vlv_dpio_get(dev_priv);
 
@@ -1520,7 +1520,7 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW6_CH1, tmp);
 	} else {
 		/*
-		 * Force the non-existing CL2 off. BXT does this
+		 * Force the yesn-existing CL2 off. BXT does this
 		 * too, so maybe it saves some power even though
 		 * CL2 doesn't exist?
 		 */
@@ -1565,7 +1565,7 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 	DRM_DEBUG_KMS("Disabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
 		      phy, dev_priv->chv_phy_control);
 
-	/* PHY is fully reset now, so we can enable the PHY state asserts */
+	/* PHY is fully reset yesw, so we can enable the PHY state asserts */
 	dev_priv->chv_phy_assert[phy] = true;
 
 	assert_chv_phy_status(dev_priv);
@@ -1604,7 +1604,7 @@ static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpi
 	if (!override || mask == 0xf) {
 		expected = DPIO_ALLDL_POWERDOWN | DPIO_ANYDL_POWERDOWN;
 		/*
-		 * If CH1 common lane is not active anymore
+		 * If CH1 common lane is yest active anymore
 		 * (eg. for pipe B DPLL) the entire channel will
 		 * shut down, which causes the common lane registers
 		 * to read as 0. That means we can't actually check
@@ -2019,7 +2019,7 @@ static void __intel_display_power_put(struct drm_i915_private *dev_priv,
  * block right away if this is the last reference.
  *
  * This function exists only for historical reasons and should be avoided in
- * new code, as the correctness of its use cannot be checked. Always use
+ * new code, as the correctness of its use canyest be checked. Always use
  * intel_display_power_put() instead.
  */
 void intel_display_power_put_unchecked(struct drm_i915_private *dev_priv,
@@ -2111,7 +2111,7 @@ out_verify:
 }
 
 /**
- * intel_display_power_put_async - release a power domain reference asynchronously
+ * intel_display_power_put_async - release a power domain reference asynchroyesusly
  * @i915: i915 device instance
  * @domain: power domain to reference
  * @wakeref: wakeref acquired for the reference that is being released
@@ -2199,7 +2199,7 @@ out_verify:
  * @i915: i915 device instance
  *
  * Like intel_display_power_flush_work(), but also ensure that the work
- * handler function is not running any more when this function returns.
+ * handler function is yest running any more when this function returns.
  */
 static void
 intel_display_power_flush_work_sync(struct drm_i915_private *i915)
@@ -2732,21 +2732,21 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_AUX_I_TBT))
 
 static const struct i915_power_well_ops i9xx_always_on_power_well_ops = {
-	.sync_hw = i9xx_power_well_sync_hw_noop,
-	.enable = i9xx_always_on_power_well_noop,
-	.disable = i9xx_always_on_power_well_noop,
+	.sync_hw = i9xx_power_well_sync_hw_yesop,
+	.enable = i9xx_always_on_power_well_yesop,
+	.disable = i9xx_always_on_power_well_yesop,
 	.is_enabled = i9xx_always_on_power_well_enabled,
 };
 
 static const struct i915_power_well_ops chv_pipe_power_well_ops = {
-	.sync_hw = i9xx_power_well_sync_hw_noop,
+	.sync_hw = i9xx_power_well_sync_hw_yesop,
 	.enable = chv_pipe_power_well_enable,
 	.disable = chv_pipe_power_well_disable,
 	.is_enabled = chv_pipe_power_well_enabled,
 };
 
 static const struct i915_power_well_ops chv_dpio_cmn_power_well_ops = {
-	.sync_hw = i9xx_power_well_sync_hw_noop,
+	.sync_hw = i9xx_power_well_sync_hw_yesop,
 	.enable = chv_dpio_cmn_power_well_enable,
 	.disable = chv_dpio_cmn_power_well_disable,
 	.is_enabled = vlv_power_well_enabled,
@@ -2793,14 +2793,14 @@ static const struct i915_power_well_ops hsw_power_well_ops = {
 };
 
 static const struct i915_power_well_ops gen9_dc_off_power_well_ops = {
-	.sync_hw = i9xx_power_well_sync_hw_noop,
+	.sync_hw = i9xx_power_well_sync_hw_yesop,
 	.enable = gen9_dc_off_power_well_enable,
 	.disable = gen9_dc_off_power_well_disable,
 	.is_enabled = gen9_dc_off_power_well_enabled,
 };
 
 static const struct i915_power_well_ops bxt_dpio_cmn_power_well_ops = {
-	.sync_hw = i9xx_power_well_sync_hw_noop,
+	.sync_hw = i9xx_power_well_sync_hw_yesop,
 	.enable = bxt_dpio_cmn_power_well_enable,
 	.disable = bxt_dpio_cmn_power_well_disable,
 	.is_enabled = bxt_dpio_cmn_power_well_enabled,
@@ -2857,21 +2857,21 @@ static const struct i915_power_well_desc bdw_power_wells[] = {
 };
 
 static const struct i915_power_well_ops vlv_display_power_well_ops = {
-	.sync_hw = i9xx_power_well_sync_hw_noop,
+	.sync_hw = i9xx_power_well_sync_hw_yesop,
 	.enable = vlv_display_power_well_enable,
 	.disable = vlv_display_power_well_disable,
 	.is_enabled = vlv_power_well_enabled,
 };
 
 static const struct i915_power_well_ops vlv_dpio_cmn_power_well_ops = {
-	.sync_hw = i9xx_power_well_sync_hw_noop,
+	.sync_hw = i9xx_power_well_sync_hw_yesop,
 	.enable = vlv_dpio_cmn_power_well_enable,
 	.disable = vlv_dpio_cmn_power_well_disable,
 	.is_enabled = vlv_power_well_enabled,
 };
 
 static const struct i915_power_well_ops vlv_dpio_power_well_ops = {
-	.sync_hw = i9xx_power_well_sync_hw_noop,
+	.sync_hw = i9xx_power_well_sync_hw_yesop,
 	.enable = vlv_power_well_enable,
 	.disable = vlv_power_well_disable,
 	.is_enabled = vlv_power_well_enabled,
@@ -4183,7 +4183,7 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 		max_dc = 4;
 		/*
 		 * DC9 has a separate HW flow from the rest of the DC states,
-		 * not depending on the DMC firmware. It's needed by system
+		 * yest depending on the DMC firmware. It's needed by system
 		 * suspend/resume, so allow it unconditionally.
 		 */
 		mask = DC_STATE_EN_DC9;
@@ -4444,7 +4444,7 @@ static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
 		DRM_ERROR("DBuf power enable timeout\n");
 	else
 		/*
-		 * FIXME: for now pretend that we only have 1 slice, see
+		 * FIXME: for yesw pretend that we only have 1 slice, see
 		 * intel_enabled_dbuf_slices_num().
 		 */
 		dev_priv->wm.skl_hw.ddb.enabled_slices = 1;
@@ -4463,7 +4463,7 @@ static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
 		DRM_ERROR("DBuf power disable timeout!\n");
 	else
 		/*
-		 * FIXME: for now pretend that the first slice is always
+		 * FIXME: for yesw pretend that the first slice is always
 		 * enabled, see intel_enabled_dbuf_slices_num().
 		 */
 		dev_priv->wm.skl_hw.ddb.enabled_slices = 1;
@@ -4486,19 +4486,19 @@ static void hsw_assert_cdclk(struct drm_i915_private *dev_priv)
 	u32 val = I915_READ(LCPLL_CTL);
 
 	/*
-	 * The LCPLL register should be turned on by the BIOS. For now
+	 * The LCPLL register should be turned on by the BIOS. For yesw
 	 * let's just check its state and print errors in case
 	 * something is wrong.  Don't even try to turn it on.
 	 */
 
 	if (val & LCPLL_CD_SOURCE_FCLK)
-		DRM_ERROR("CDCLK source is not LCPLL\n");
+		DRM_ERROR("CDCLK source is yest LCPLL\n");
 
 	if (val & LCPLL_PLL_DISABLE)
 		DRM_ERROR("LCPLL is disabled\n");
 
 	if ((val & LCPLL_REF_MASK) != LCPLL_REF_NON_SSC)
-		DRM_ERROR("LCPLL not using non-SSC reference\n");
+		DRM_ERROR("LCPLL yest using yesn-SSC reference\n");
 }
 
 static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
@@ -4536,7 +4536,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	 * In theory we can still leave IRQs enabled, as long as only the HPD
 	 * interrupts remain enabled. We used to check for that, but since it's
 	 * gen-specific and since we only disable LCPLL after we fully disable
-	 * the interrupts, the check below should be enough.
+	 * the interrupts, the check below should be eyesugh.
 	 */
 	I915_STATE_WARN(intel_irqs_enabled(dev_priv), "IRQs enabled\n");
 }
@@ -4628,7 +4628,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 		return;
 
 	/*
-	 * Make sure we're not on PC8 state before disabling PC8, otherwise
+	 * Make sure we're yest on PC8 state before disabling PC8, otherwise
 	 * we'll hang the machine. To prevent PC8 state, just enable force_wake.
 	 */
 	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
@@ -4649,7 +4649,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	I915_WRITE(LCPLL_CTL, val);
 
 	if (intel_de_wait_for_set(dev_priv, LCPLL_CTL, LCPLL_PLL_LOCK, 5))
-		DRM_ERROR("LCPLL not locked yet\n");
+		DRM_ERROR("LCPLL yest locked yet\n");
 
 	if (val & LCPLL_CD_SOURCE_FCLK) {
 		val = I915_READ(LCPLL_CTL);
@@ -4677,12 +4677,12 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
  * well is disabled and most interrupts are disabled, and these are also
  * requirements for runtime PM. When these conditions are met, we manually do
  * the other conditions: disable the interrupts, clocks and switch LCPLL refclk
- * to Fclk. If we're in PC8+ and we get an non-hotplug interrupt, we can hard
+ * to Fclk. If we're in PC8+ and we get an yesn-hotplug interrupt, we can hard
  * hang the machine.
  *
- * When we really reach PC8 or deeper states (not just when we allow it) we lose
+ * When we really reach PC8 or deeper states (yest just when we allow it) we lose
  * the state of some registers, so when we come back from PC8+ we need to
- * restore this state. We don't get into PC8+ if we're not in RC6, so we don't
+ * restore this state. We don't get into PC8+ if we're yest in RC6, so we don't
  * need to take care of the registers kept by RC6. Notice that this happens even
  * if we don't put the device in PCI D3 state (which is what currently happens
  * because of the runtime PM support).
@@ -4815,7 +4815,7 @@ static void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume
 
 	/*
 	 * NDE_RSTWRN_OPT RST PCH Handshake En must always be 0b on BXT
-	 * or else the reset will hang because there is no PCH to respond.
+	 * or else the reset will hang because there is yes PCH to respond.
 	 * Move the handshake programming to initialization sequence.
 	 * Previously was left up to BIOS.
 	 */
@@ -5099,10 +5099,10 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
 	disp2d->desc->ops->enable(dev_priv, disp2d);
 
 	/*
-	 * From VLV2A0_DP_eDP_HDMI_DPIO_driver_vbios_notes_11.docx:
+	 * From VLV2A0_DP_eDP_HDMI_DPIO_driver_vbios_yestes_11.docx:
 	 * Need to assert and de-assert PHY SB reset by gating the
 	 * common lane power, then un-gating it.
-	 * Simply ungating isn't enough to reset the PHY enough to get
+	 * Simply ungating isn't eyesugh to reset the PHY eyesugh to get
 	 * ports and lanes running.
 	 */
 	cmn->desc->ops->disable(dev_priv, cmn);
@@ -5122,7 +5122,7 @@ static bool vlv_punit_is_power_gated(struct drm_i915_private *dev_priv, u32 reg0
 static void assert_ved_power_gated(struct drm_i915_private *dev_priv)
 {
 	WARN(!vlv_punit_is_power_gated(dev_priv, PUNIT_REG_VEDSSPM0),
-	     "VED not power gated\n");
+	     "VED yest power gated\n");
 }
 
 static void assert_isp_power_gated(struct drm_i915_private *dev_priv)
@@ -5135,7 +5135,7 @@ static void assert_isp_power_gated(struct drm_i915_private *dev_priv)
 
 	WARN(!pci_dev_present(isp_ids) &&
 	     !vlv_punit_is_power_gated(dev_priv, PUNIT_REG_ISPSSPM0),
-	     "ISP not power gated\n");
+	     "ISP yest power gated\n");
 }
 
 static void intel_power_domains_verify_state(struct drm_i915_private *dev_priv);
@@ -5143,11 +5143,11 @@ static void intel_power_domains_verify_state(struct drm_i915_private *dev_priv);
 /**
  * intel_power_domains_init_hw - initialize hardware power domain state
  * @i915: i915 device instance
- * @resume: Called from resume code paths or not
+ * @resume: Called from resume code paths or yest
  *
  * This function initializes the hardware power domain state and enables all
  * power wells belonging to the INIT power domain. Power wells in other
- * domains (and not in the INIT domain) are referenced or disabled by
+ * domains (and yest in the INIT domain) are referenced or disabled by
  * intel_modeset_readout_hw_state(). After that the reference count of each
  * power well must match its HW enabled state, see
  * intel_power_domains_verify_state().
@@ -5241,8 +5241,8 @@ void intel_power_domains_driver_remove(struct drm_i915_private *i915)
  * @i915: i915 device instance
  *
  * Enable the ondemand enabling/disabling of the display power wells. Note that
- * power wells not belonging to POWER_DOMAIN_INIT are allowed to be toggled
- * only at specific points of the display modeset sequence, thus they are not
+ * power wells yest belonging to POWER_DOMAIN_INIT are allowed to be toggled
+ * only at specific points of the display modeset sequence, thus they are yest
  * affected by the intel_power_domains_enable()/disable() calls. The purpose
  * of these function is to keep the rest of power wells enabled until the end
  * of display HW readout (which will acquire the power references reflecting
@@ -5386,7 +5386,7 @@ static void intel_power_domains_dump_info(struct drm_i915_private *i915)
  * state and the total refcount of the domains it belongs to. This must be
  * called after modeset HW state sanitization, which is responsible for
  * acquiring reference counts for any power wells in use and disabling the
- * ones left on by BIOS but not required by any active output.
+ * ones left on by BIOS but yest required by any active output.
  */
 static void intel_power_domains_verify_state(struct drm_i915_private *i915)
 {

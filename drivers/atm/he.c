@@ -16,7 +16,7 @@
   Lesser General Public License for more details.
 
   You should have received a copy of the GNU Lesser General Public
-  License along with this library; if not, write to the Free Software
+  License along with this library; if yest, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
@@ -30,9 +30,9 @@
 
   Permission to use, copy, modify and distribute this software and its
   documentation is hereby granted, provided that both the copyright
-  notice and this permission notice appear in all copies of the software,
+  yestice and this permission yestice appear in all copies of the software,
   derivative works or modified versions, and any portions thereof, and
-  that both notices appear in supporting documentation.
+  that both yestices appear in supporting documentation.
 
   NRL ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION AND
   DISCLAIMS ANY LIABILITY OF ANY KIND FOR ANY DAMAGES WHATSOEVER
@@ -49,7 +49,7 @@
 	4096 supported 'connections'
 	group 0 is used for all traffic
 	interrupt queue 0 is used for all interrupts
-	aal0 support (based on work from ulrich.u.muller@nokia.com)
+	aal0 support (based on work from ulrich.u.muller@yeskia.com)
 
  */
 
@@ -57,7 +57,7 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/delay.h>
@@ -241,8 +241,8 @@ he_readl_internal(struct he_dev *he_dev, unsigned addr, unsigned flags)
 	/* from page 2-20
 	 *
 	 * NOTE While the transmit connection is active, bits 23 through 0
-	 *      of this register must not be written by the host.  Byte
-	 *      enables should be used during normal operation when writing
+	 *      of this register must yest be written by the host.  Byte
+	 *      enables should be used during yesrmal operation when writing
 	 *      the most significant byte.
 	 */
 
@@ -360,7 +360,7 @@ static int he_init_one(struct pci_dev *pci_dev,
 	if (pci_enable_device(pci_dev))
 		return -EIO;
 	if (dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(32)) != 0) {
-		printk(KERN_WARNING "he: no suitable dma available\n");
+		printk(KERN_WARNING "he: yes suitable dma available\n");
 		err = -EIO;
 		goto init_one_failure;
 	}
@@ -733,7 +733,7 @@ static int he_init_cs_block_rcm(struct he_dev *he_dev)
 		 * there are two table entries in each 32-bit register
 		 */
 
-#ifdef notdef
+#ifdef yestdef
 		buf = rate_cps * he_dev->tx_numbuffs /
 				(he_dev->atm_dev->link_rate * 2);
 #else
@@ -1482,7 +1482,7 @@ static int he_start(struct atm_dev *dev)
 #endif /* CONFIG_ATM_HE_USE_SUNI */
 
 	if (sdh) {
-		/* this really should be in suni.c but for now... */
+		/* this really should be in suni.c but for yesw... */
 		int val;
 
 		val = he_phy_get(he_dev->atm_dev, SUNI_TPOP_APM);
@@ -1762,7 +1762,7 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 			hprintk("pdu_len (%d) > vcc->qos.rxtp.max_sdu (%d)!  cid 0x%x\n", skb->len, vcc->qos.rxtp.max_sdu, cid);
 #endif
 
-#ifdef notdef
+#ifdef yestdef
 		ATM_SKB(skb)->vcc = vcc;
 #endif
 		spin_unlock(&he_dev->global_lock);
@@ -1983,7 +1983,7 @@ he_tasklet(unsigned long data)
 			case ITYPE_TYPE(ITYPE_INVALID):
 				/* see 8.1.1 -- check all queues */
 
-				HPRINTK("isw not updated 0x%x\n", he_dev->irq_head->isw);
+				HPRINTK("isw yest updated 0x%x\n", he_dev->irq_head->isw);
 
 				he_service_rbrq(he_dev, 0);
 				he_service_rbpl(he_dev, 0);
@@ -2027,7 +2027,7 @@ he_irq_handler(int irq, void *dev_id)
 						(*he_dev->irq_tailoffset << 2));
 
 	if (he_dev->irq_tail == he_dev->irq_head) {
-		HPRINTK("tailoffset not updated?\n");
+		HPRINTK("tailoffset yest updated?\n");
 		he_dev->irq_tail = (struct he_irq *) ((unsigned long)he_dev->irq_base |
 			((he_readl(he_dev, IRQ0_BASE) & IRQ_MASK) << 2));
 		(void) he_readl(he_dev, INT_FIFO);	/* 8.1.2 controller errata */
@@ -2081,7 +2081,7 @@ __enqueue_tpd(struct he_dev *he_dev, struct he_tpd *tpd, unsigned cid)
 			 * FIXME
 			 * push tpd onto a transmit backlog queue
 			 * after service_tbrq, service the backlog
-			 * for now, we just drop the pdu
+			 * for yesw, we just drop the pdu
 			 */
 			for (slot = 0; slot < TPD_MAXIOV; ++slot) {
 				if (tpd->iovec[slot].addr)
@@ -2179,7 +2179,7 @@ he_open(struct atm_vcc *vcc)
 		spin_unlock_irqrestore(&he_dev->global_lock, flags);
 
 		if (TSR0_CONN_STATE(tsr0) != 0) {
-			hprintk("cid 0x%x not idle (tsr0 = 0x%x)\n", cid, tsr0);
+			hprintk("cid 0x%x yest idle (tsr0 = 0x%x)\n", cid, tsr0);
 			err = -EBUSY;
 			goto open_failed;
 		}
@@ -2289,7 +2289,7 @@ he_open(struct atm_vcc *vcc)
 		if (rsr0 & RSR0_OPEN_CONN) {
 			spin_unlock_irqrestore(&he_dev->global_lock, flags);
 
-			hprintk("cid 0x%x not idle (rsr0 = 0x%x)\n", cid, rsr0);
+			hprintk("cid 0x%x yest idle (rsr0 = 0x%x)\n", cid, rsr0);
 			err = -EBUSY;
 			goto open_failed;
 		}
@@ -2513,7 +2513,7 @@ he_send(struct atm_vcc *vcc, struct sk_buff *skb)
 
 #ifndef USE_SCATTERGATHER
 	if (skb_shinfo(skb)->nr_frags) {
-		hprintk("no scatter/gather support\n");
+		hprintk("yes scatter/gather support\n");
 		if (vcc->pop)
 			vcc->pop(vcc, skb);
 		else
@@ -2561,7 +2561,7 @@ he_send(struct atm_vcc *vcc, struct sk_buff *skb)
 
 		if (slot == TPD_MAXIOV) {	/* queue tpd; start new tpd */
 			tpd->vcc = vcc;
-			tpd->skb = NULL;	/* not the last fragment
+			tpd->skb = NULL;	/* yest the last fragment
 						   so dont ->push() yet */
 			wmb();
 
@@ -2705,7 +2705,7 @@ he_proc_read(struct atm_dev *dev, loff_t *pos, char *page)
 	unsigned long flags;
 	struct he_dev *he_dev = HE_DEV(dev);
 	int left, i;
-#ifdef notdef
+#ifdef yestdef
 	struct he_rbrq *rbrq_tail;
 	struct he_tpdrq *tpdrq_head;
 	int rbpl_head, rbpl_tail;
@@ -2752,7 +2752,7 @@ he_proc_read(struct atm_dev *dev, loff_t *pos, char *page)
 					CONFIG_TBRQ_SIZE, he_dev->tbrq_peak);
 
 
-#ifdef notdef
+#ifdef yestdef
 	rbpl_head = RBPL_MASK(he_readl(he_dev, G0_RBPL_S));
 	rbpl_tail = RBPL_MASK(he_readl(he_dev, G0_RBPL_T));
 

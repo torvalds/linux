@@ -10,7 +10,7 @@
 
 /*
  * Arrange for legacy / undefined architecture specific flags to be
- * ignored by mmap handling code.
+ * igyesred by mmap handling code.
  */
 #ifndef MAP_32BIT
 #define MAP_32BIT 0
@@ -30,7 +30,7 @@
 
 /*
  * The historical set of flags that all mmap implementations implicitly
- * support when a ->mmap_validate() op is not provided in file_operations.
+ * support when a ->mmap_validate() op is yest provided in file_operations.
  */
 #define LEGACY_MAP_MASK (MAP_SHARED \
 		| MAP_PRIVATE \

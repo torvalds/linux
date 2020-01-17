@@ -446,7 +446,7 @@ gusspec_control(struct snd_emux *emu, struct snd_emux_port *port, int cmd,
 
 	case _GUS_VOICEVOL:
 	case _GUS_VOICEVOL2:
-		/* not supported yet */
+		/* yest supported yet */
 		return;
 
 	case _GUS_RAMPRANGE:
@@ -454,7 +454,7 @@ gusspec_control(struct snd_emux *emu, struct snd_emux_port *port, int cmd,
 	case _GUS_RAMPMODE:
 	case _GUS_RAMPON:
 	case _GUS_RAMPOFF:
-		/* volume ramping not supported */
+		/* volume ramping yest supported */
 		return;
 
 	case _GUS_VOLUME_SCALE:

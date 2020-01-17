@@ -191,7 +191,7 @@ void mt76_send_tx_status(struct mt7601u_dev *dev, struct mt76_tx_status *stat)
 	mt76_mac_fill_tx_status(dev, &info, stat);
 
 	spin_lock_bh(&dev->mac_lock);
-	ieee80211_tx_status_noskb(dev->hw, sta, &info);
+	ieee80211_tx_status_yesskb(dev->hw, sta, &info);
 	spin_unlock_bh(&dev->mac_lock);
 
 	rcu_read_unlock();
@@ -201,7 +201,7 @@ void mt7601u_mac_set_protection(struct mt7601u_dev *dev, bool legacy_prot,
 				int ht_mode)
 {
 	int mode = ht_mode & IEEE80211_HT_OP_MODE_PROTECTION;
-	bool non_gf = !!(ht_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+	bool yesn_gf = !!(ht_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 	u32 prot[6];
 	bool ht_rts[4] = {};
 	int i;
@@ -245,7 +245,7 @@ void mt7601u_mac_set_protection(struct mt7601u_dev *dev, bool legacy_prot,
 		break;
 	}
 
-	if (non_gf)
+	if (yesn_gf)
 		ht_rts[2] = ht_rts[3] = true;
 
 	for (i = 0; i < 4; i++)
@@ -478,7 +478,7 @@ u32 mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb,
 		status->flag |= RX_FLAG_IV_STRIPPED;
 	}
 	/* let mac80211 take care of PN validation since apparently
-	 * the hardware does not support it
+	 * the hardware does yest support it
 	 */
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_PN_LEN))
 		status->flag &= ~RX_FLAG_IV_STRIPPED;

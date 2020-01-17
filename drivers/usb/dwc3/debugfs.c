@@ -340,7 +340,7 @@ static int dwc3_lsp_show(struct seq_file *s, void *unused)
 		dwc3_gadget_lsp(s);
 		break;
 	default:
-		seq_puts(s, "Mode is unknown, no LSP register printed\n");
+		seq_puts(s, "Mode is unkyeswn, yes LSP register printed\n");
 		break;
 	}
 	spin_unlock_irqrestore(&dwc->lock, flags);
@@ -348,9 +348,9 @@ static int dwc3_lsp_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int dwc3_lsp_open(struct inode *inode, struct file *file)
+static int dwc3_lsp_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, dwc3_lsp_show, inode->i_private);
+	return single_open(file, dwc3_lsp_show, iyesde->i_private);
 }
 
 static ssize_t dwc3_lsp_write(struct file *file, const char __user *ubuf,
@@ -412,9 +412,9 @@ static int dwc3_mode_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int dwc3_mode_open(struct inode *inode, struct file *file)
+static int dwc3_mode_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, dwc3_mode_show, inode->i_private);
+	return single_open(file, dwc3_mode_show, iyesde->i_private);
 }
 
 static ssize_t dwc3_mode_write(struct file *file,
@@ -464,7 +464,7 @@ static int dwc3_testmode_show(struct seq_file *s, void *unused)
 
 	switch (reg) {
 	case 0:
-		seq_printf(s, "no test\n");
+		seq_printf(s, "yes test\n");
 		break;
 	case TEST_J:
 		seq_printf(s, "test_j\n");
@@ -488,9 +488,9 @@ static int dwc3_testmode_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int dwc3_testmode_open(struct inode *inode, struct file *file)
+static int dwc3_testmode_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, dwc3_testmode_show, inode->i_private);
+	return single_open(file, dwc3_testmode_show, iyesde->i_private);
 }
 
 static ssize_t dwc3_testmode_write(struct file *file,
@@ -561,9 +561,9 @@ static int dwc3_link_state_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int dwc3_link_state_open(struct inode *inode, struct file *file)
+static int dwc3_link_state_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, dwc3_link_state_show, inode->i_private);
+	return single_open(file, dwc3_link_state_show, iyesde->i_private);
 }
 
 static ssize_t dwc3_link_state_write(struct file *file,
@@ -761,7 +761,7 @@ static int dwc3_transfer_type_show(struct seq_file *s, void *unused)
 		seq_printf(s, "control\n");
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		seq_printf(s, "isochronous\n");
+		seq_printf(s, "isochroyesus\n");
 		break;
 	case USB_ENDPOINT_XFER_BULK:
 		seq_printf(s, "bulk\n");

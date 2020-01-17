@@ -39,20 +39,20 @@ extern const struct address_space_operations gfs2_rgrp_aops;
 
 static inline struct gfs2_sbd *gfs2_mapping2sbd(struct address_space *mapping)
 {
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	if (mapping->a_ops == &gfs2_meta_aops)
 		return (((struct gfs2_glock *)mapping) - 1)->gl_name.ln_sbd;
 	else if (mapping->a_ops == &gfs2_rgrp_aops)
 		return container_of(mapping, struct gfs2_sbd, sd_aspace);
 	else
-		return inode->i_sb->s_fs_info;
+		return iyesde->i_sb->s_fs_info;
 }
 
-extern struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno);
-extern int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
+extern struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkyes);
+extern int gfs2_meta_read(struct gfs2_glock *gl, u64 blkyes, int flags,
 			  int rahead, struct buffer_head **bhp);
 extern int gfs2_meta_wait(struct gfs2_sbd *sdp, struct buffer_head *bh);
-extern struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno,
+extern struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkyes,
 				       int create);
 enum {
 	REMOVE_JDATA = 0,
@@ -60,14 +60,14 @@ enum {
 };
 
 extern void gfs2_remove_from_journal(struct buffer_head *bh, int meta);
-extern void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen);
-extern int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
+extern void gfs2_meta_wipe(struct gfs2_iyesde *ip, u64 bstart, u32 blen);
+extern int gfs2_meta_indirect_buffer(struct gfs2_iyesde *ip, int height, u64 num,
 				     struct buffer_head **bhp);
 
-static inline int gfs2_meta_inode_buffer(struct gfs2_inode *ip,
+static inline int gfs2_meta_iyesde_buffer(struct gfs2_iyesde *ip,
 					 struct buffer_head **bhp)
 {
-	return gfs2_meta_indirect_buffer(ip, 0, ip->i_no_addr, bhp);
+	return gfs2_meta_indirect_buffer(ip, 0, ip->i_yes_addr, bhp);
 }
 
 struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen);

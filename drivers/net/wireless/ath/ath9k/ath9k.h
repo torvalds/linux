@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -30,11 +30,11 @@
 #include "mci.h"
 #include "dfs.h"
 
-struct ath_node;
+struct ath_yesde;
 struct ath_vif;
 
 extern struct ieee80211_ops ath9k_ops;
-extern int ath9k_modparam_nohwcrypt;
+extern int ath9k_modparam_yeshwcrypt;
 extern int ath9k_led_blink;
 extern bool is_ath9k_unloaded;
 extern int ath9k_use_chanctx;
@@ -106,7 +106,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 #define ATH_AGGR_ENCRYPTDELIM      10
 /* minimum h/w qdepth to be sustained to maximize aggregation */
 #define ATH_AGGR_MIN_QDEPTH        2
-/* minimum h/w qdepth for non-aggregated traffic */
+/* minimum h/w qdepth for yesn-aggregated traffic */
 #define ATH_NON_AGGR_MIN_QDEPTH    8
 #define ATH_HW_CHECK_POLL_INT      1000
 #define ATH_TXFIFO_DEPTH           8
@@ -133,7 +133,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 /* return block-ack bitmap index given sequence and starting sequence */
 #define ATH_BA_INDEX(_st, _seq) (((_seq) - (_st)) & (IEEE80211_SEQ_MAX - 1))
 
-/* return the seqno for _start + _offset */
+/* return the seqyes for _start + _offset */
 #define ATH_BA_INDEX2SEQ(_seq, _offset) (((_seq) + (_offset)) & (IEEE80211_SEQ_MAX - 1))
 
 /* returns delimiter padding required given the packet length */
@@ -141,10 +141,10 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
        (((_len) >= ATH_AGGR_MINPLEN) ? 0 :                             \
         DIV_ROUND_UP(ATH_AGGR_MINPLEN - (_len), ATH_AGGR_DELIM_SZ))
 
-#define BAW_WITHIN(_start, _bawsz, _seqno) \
-	((((_seqno) - (_start)) & 4095) < (_bawsz))
+#define BAW_WITHIN(_start, _bawsz, _seqyes) \
+	((((_seqyes) - (_start)) & 4095) < (_bawsz))
 
-#define ATH_AN_2_TID(_an, _tidno) ath_node_to_tid(_an, _tidno)
+#define ATH_AN_2_TID(_an, _tidyes) ath_yesde_to_tid(_an, _tidyes)
 
 #define IS_HT_RATE(rate)   (rate & 0x80)
 #define IS_CCK_RATE(rate)  ((rate >= 0x18) && (rate <= 0x1e))
@@ -156,7 +156,7 @@ enum {
 };
 
 struct ath_txq {
-	int mac80211_qnum; /* mac80211 queue number, -1 means not mac80211 Q */
+	int mac80211_qnum; /* mac80211 queue number, -1 means yest mac80211 Q */
 	u32 axq_qnum; /* ath9k hardware queue number */
 	void *axq_link;
 	struct list_head axq_q;
@@ -211,7 +211,7 @@ struct ath_buf_state {
 	u8 bfs_paprd;
 	u8 ndelim;
 	bool stale;
-	u16 seqno;
+	u16 seqyes;
 	unsigned long bfs_paprd_timestamp;
 };
 
@@ -231,13 +231,13 @@ struct ath_buf {
 struct ath_atx_tid {
 	struct list_head list;
 	struct sk_buff_head retry_q;
-	struct ath_node *an;
+	struct ath_yesde *an;
 	struct ath_txq *txq;
 	unsigned long tx_buf[BITS_TO_LONGS(ATH_TID_MAX_BUFS)];
 	u16 seq_start;
 	u16 seq_next;
 	u16 baw_size;
-	u8 tidno;
+	u8 tidyes;
 	int baw_head;   /* first un-acked tx buffer */
 	int baw_tail;   /* next unused tx buffer slot */
 
@@ -248,7 +248,7 @@ struct ath_atx_tid {
 
 void ath_tx_queue_tid(struct ath_softc *sc, struct ath_atx_tid *tid);
 
-struct ath_node {
+struct ath_yesde {
 	struct ath_softc *sc;
 	struct ieee80211_sta *sta; /* station struct we're part of */
 	struct ieee80211_vif *vif; /* interface with which we're associated */
@@ -258,7 +258,7 @@ struct ath_node {
 	s8 ps_key;
 
 	bool sleeping;
-	bool no_ps_filter;
+	bool yes_ps_filter;
 
 #ifdef CONFIG_ATH9K_STATION_STATISTICS
 	struct ath_rx_rate_stats rx_rate_stats;
@@ -271,7 +271,7 @@ struct ath_node {
 
 struct ath_tx_control {
 	struct ath_txq *txq;
-	struct ath_node *an;
+	struct ath_yesde *an;
 	struct ieee80211_sta *sta;
 	u8 paprd;
 };
@@ -279,7 +279,7 @@ struct ath_tx_control {
 
 /**
  * @txq_map:  Index is mac80211 queue number.  This is
- *  not necessarily the same as the hardware queue number
+ *  yest necessarily the same as the hardware queue number
  *  (axq_qnum).
  */
 struct ath_tx {
@@ -330,7 +330,7 @@ struct ath_chanctx {
 	struct ath_acq acq[IEEE80211_NUM_ACS];
 	int hw_queue_base;
 
-	/* do not dereference, use for comparison only */
+	/* do yest dereference, use for comparison only */
 	struct ieee80211_vif *primary_sta;
 
 	struct ath_beacon_config beacon;
@@ -379,7 +379,7 @@ struct ath_chanctx_sched {
 	bool beacon_adjust;
 	bool offchannel_pending;
 	bool wait_switch;
-	bool force_noa_update;
+	bool force_yesa_update;
 	bool extend_absence;
 	bool mgd_prepare_tx;
 	enum ath_chanctx_state state;
@@ -424,7 +424,7 @@ struct ath_offchannel {
 };
 
 static inline struct ath_atx_tid *
-ath_node_to_tid(struct ath_node *an, u8 tidno)
+ath_yesde_to_tid(struct ath_yesde *an, u8 tidyes)
 {
 	struct ieee80211_sta *sta = an->sta;
 	struct ieee80211_vif *vif = an->vif;
@@ -432,7 +432,7 @@ ath_node_to_tid(struct ath_node *an, u8 tidno)
 
 	BUG_ON(!vif);
 	if (sta)
-		txq = sta->txq[tidno % ARRAY_SIZE(sta->txq)];
+		txq = sta->txq[tidyes % ARRAY_SIZE(sta->txq)];
 	else
 		txq = vif->txq;
 
@@ -471,7 +471,7 @@ void ath9k_p2p_remove_vif(struct ath_softc *sc,
 void ath9k_p2p_beacon_sync(struct ath_softc *sc);
 void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
 				struct ieee80211_vif *vif);
-void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
+void ath9k_beacon_add_yesa(struct ath_softc *sc, struct ath_vif *avp,
 			  struct sk_buff *skb);
 void ath9k_p2p_ps_timer(void *priv);
 void ath9k_chanctx_wake_queues(struct ath_softc *sc, struct ath_chanctx *ctx);
@@ -540,7 +540,7 @@ static inline void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
 					      struct ieee80211_vif *vif)
 {
 }
-static inline void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
+static inline void ath9k_beacon_add_yesa(struct ath_softc *sc, struct ath_vif *avp,
 					struct sk_buff *skb)
 {
 }
@@ -582,8 +582,8 @@ void ath_txq_unlock_complete(struct ath_softc *sc, struct ath_txq *txq);
 void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq);
 bool ath_drain_all_txq(struct ath_softc *sc);
 void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq);
-void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an);
-void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an);
+void ath_tx_yesde_init(struct ath_softc *sc, struct ath_yesde *an);
+void ath_tx_yesde_cleanup(struct ath_softc *sc, struct ath_yesde *an);
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq);
 void ath_txq_schedule_all(struct ath_softc *sc);
 int ath_tx_init(struct ath_softc *sc, int nbufs);
@@ -603,9 +603,9 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 		      u16 tid, u16 *ssn);
 void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 
-void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an);
+void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_yesde *an);
 void ath_tx_aggr_sleep(struct ieee80211_sta *sta, struct ath_softc *sc,
-		       struct ath_node *an);
+		       struct ath_yesde *an);
 void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 				   struct ieee80211_sta *sta,
 				   u16 tids, int nframes,
@@ -622,7 +622,7 @@ void ath9k_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *queue);
 struct ath_vif {
 	struct list_head list;
 
-	u16 seq_no;
+	u16 seq_yes;
 
 	/* BSS info */
 	u8 bssid[ETH_ALEN] __aligned(2);
@@ -630,25 +630,25 @@ struct ath_vif {
 	bool assoc;
 
 	struct ieee80211_vif *vif;
-	struct ath_node mcast_node;
+	struct ath_yesde mcast_yesde;
 	int av_bslot;
 	__le64 tsf_adjust; /* TSF adjustment for staggered beacons */
 	struct ath_buf *av_bcbuf;
 	struct ath_chanctx *chanctx;
 
 	/* P2P Client */
-	struct ieee80211_noa_data noa;
+	struct ieee80211_yesa_data yesa;
 
 	/* P2P GO */
-	u8 noa_index;
+	u8 yesa_index;
 	u32 offchannel_start;
 	u32 offchannel_duration;
 
 	/* These are used for both periodic and one-shot */
-	u32 noa_start;
-	u32 noa_duration;
-	bool periodic_noa;
-	bool oneshot_noa;
+	u32 yesa_start;
+	u32 yesa_duration;
+	bool periodic_yesa;
+	bool oneshot_yesa;
 };
 
 struct ath9k_vif_iter_data {
@@ -663,7 +663,7 @@ struct ath9k_vif_iter_data {
 	int nstations; /* number of station vifs */
 	int nwds;      /* number of WDS vifs */
 	int nadhocs;   /* number of adhoc vifs */
-	int nocbs;     /* number of OCB vifs */
+	int yescbs;     /* number of OCB vifs */
 	int nbcnvifs;  /* number of beaconing vifs */
 	struct ieee80211_vif *primary_beacon_vif;
 	struct ieee80211_vif *primary_sta;
@@ -682,7 +682,7 @@ void ath9k_set_txpower(struct ath_softc *sc, struct ieee80211_vif *vif);
 
 /*
  * Regardless of the number of beacons we stagger, (i.e. regardless of the
- * number of BSSIDs) if a given beacon does not go out even after waiting this
+ * number of BSSIDs) if a given beacon does yest go out even after waiting this
  * number of beacon intervals, the game's up.
  */
 #define BSTUCK_THRESH           	9
@@ -695,7 +695,7 @@ void ath9k_set_txpower(struct ath_softc *sc, struct ieee80211_vif *vif);
 
 struct ath_beacon {
 	enum {
-		OK,		/* no change needed */
+		OK,		/* yes change needed */
 		UPDATE,		/* update pending */
 		COMMIT		/* beacon sent, commit change */
 	} updateslot;		/* slot time update fsm */
@@ -772,14 +772,14 @@ enum bt_op_flags {
 struct ath_btcoex {
 	spinlock_t btcoex_lock;
 	struct timer_list period_timer; /* Timer for BT period */
-	struct timer_list no_stomp_timer;
+	struct timer_list yes_stomp_timer;
 	u32 bt_priority_cnt;
 	unsigned long bt_priority_time;
 	unsigned long op_flags;
 	int bt_stomp_type; /* Types of BT stomping */
-	u32 btcoex_no_stomp; /* in msec */
+	u32 btcoex_yes_stomp; /* in msec */
 	u32 btcoex_period; /* in msec */
-	u32 btscan_no_stomp; /* in msec */
+	u32 btscan_yes_stomp; /* in msec */
 	u32 duty_cycle;
 	u32 bt_wait_time;
 	int rssi_count;
@@ -911,7 +911,7 @@ struct ath_ant_comb {
 	u16 count;
 	u16 total_pkt_count;
 	bool scan;
-	bool scan_not_start;
+	bool scan_yest_start;
 	int main_total_rssi;
 	int alt_total_rssi;
 	int alt_recv_cnt;
@@ -962,7 +962,7 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
 
 /*
  * Default cache line size, in bytes.
- * Used when PCI device not fully initialized by bootrom/BIOS
+ * Used when PCI device yest fully initialized by bootrom/BIOS
 */
 #define DEFAULT_CACHELINE       32
 #define ATH_CABQ_READY_TIME     80      /* % of beacon interval */

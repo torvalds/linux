@@ -129,7 +129,7 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 
 	if (pdata) {
 		new_bus->phy_mask = pdata->phy_mask;
-		new_bus->phy_ignore_ta_mask = pdata->phy_ignore_ta_mask;
+		new_bus->phy_igyesre_ta_mask = pdata->phy_igyesre_ta_mask;
 	}
 
 	dev_set_drvdata(dev, new_bus);
@@ -166,8 +166,8 @@ static int mdio_gpio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (pdev->dev.of_node) {
-		bus_id = of_alias_get_id(pdev->dev.of_node, "mdio-gpio");
+	if (pdev->dev.of_yesde) {
+		bus_id = of_alias_get_id(pdev->dev.of_yesde, "mdio-gpio");
 		if (bus_id < 0) {
 			dev_warn(&pdev->dev, "failed to get alias id\n");
 			bus_id = 0;
@@ -180,7 +180,7 @@ static int mdio_gpio_probe(struct platform_device *pdev)
 	if (!new_bus)
 		return -ENODEV;
 
-	ret = of_mdiobus_register(new_bus, pdev->dev.of_node);
+	ret = of_mdiobus_register(new_bus, pdev->dev.of_yesde);
 	if (ret)
 		mdio_gpio_bus_deinit(&pdev->dev);
 

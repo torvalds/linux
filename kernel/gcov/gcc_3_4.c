@@ -15,7 +15,7 @@
  *    Uses gcc-internal data definitions.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
@@ -151,7 +151,7 @@ bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
 
 /* Symbolic links to be created for each profiling data file. */
 const struct gcov_link gcov_link[] = {
-	{ OBJ_TREE, "gcno" },	/* Link to .gcno file in $(objtree). */
+	{ OBJ_TREE, "gcyes" },	/* Link to .gcyes file in $(objtree). */
 	{ 0, NULL},
 };
 
@@ -197,7 +197,7 @@ void gcov_info_reset(struct gcov_info *info)
  * @info1: first profiling data set
  * @info2: second profiling data set
  *
- * Returns non-zero if profiling data can be added, zero otherwise.
+ * Returns yesn-zero if profiling data can be added, zero otherwise.
  */
 int gcov_info_is_compatible(struct gcov_info *info1, struct gcov_info *info2)
 {
@@ -231,8 +231,8 @@ static size_t get_fn_size(struct gcov_info *info)
 
 	size = sizeof(struct gcov_fn_info) + num_counter_active(info) *
 	       sizeof(unsigned int);
-	if (__alignof__(struct gcov_fn_info) > sizeof(unsigned int))
-		size = ALIGN(size, __alignof__(struct gcov_fn_info));
+	if (__aligyesf__(struct gcov_fn_info) > sizeof(unsigned int))
+		size = ALIGN(size, __aligyesf__(struct gcov_fn_info));
 	return size;
 }
 
@@ -438,7 +438,7 @@ void gcov_iter_start(struct gcov_iterator *iter)
  * gcov_iter_next - advance file iterator to next logical record
  * @iter: file iterator
  *
- * Return zero if new position is valid, non-zero if iterator has reached end.
+ * Return zero if new position is valid, yesn-zero if iterator has reached end.
  */
 int gcov_iter_next(struct gcov_iterator *iter)
 {
@@ -527,7 +527,7 @@ static int seq_write_gcov_u64(struct seq_file *seq, u64 v)
  * @iter: file iterator
  * @seq: seq_file handle
  *
- * Return zero on success, non-zero otherwise.
+ * Return zero on success, yesn-zero otherwise.
  */
 int gcov_iter_write(struct gcov_iterator *iter, struct seq_file *seq)
 {

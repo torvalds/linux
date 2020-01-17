@@ -12,7 +12,7 @@
 #include "xfs_bit.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_dir2.h"
 #include "xfs_ialloc.h"
 #include "xfs_alloc.h"
@@ -137,12 +137,12 @@ STATIC void
 xfs_free_perag(
 	xfs_mount_t	*mp)
 {
-	xfs_agnumber_t	agno;
+	xfs_agnumber_t	agyes;
 	struct xfs_perag *pag;
 
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
+	for (agyes = 0; agyes < mp->m_sb.sb_agcount; agyes++) {
 		spin_lock(&mp->m_perag_lock);
-		pag = radix_tree_delete(&mp->m_perag_tree, agno);
+		pag = radix_tree_delete(&mp->m_perag_tree, agyes);
 		spin_unlock(&mp->m_perag_lock);
 		ASSERT(pag);
 		ASSERT(atomic_read(&pag->pag_ref) == 0);
@@ -197,7 +197,7 @@ xfs_initialize_perag(
 		pag = kmem_zalloc(sizeof(*pag), KM_MAYFAIL);
 		if (!pag)
 			goto out_unwind_new_pags;
-		pag->pag_agno = index;
+		pag->pag_agyes = index;
 		pag->pag_mount = mp;
 		spin_lock_init(&pag->pag_ici_lock);
 		mutex_init(&pag->pag_ici_reclaim_lock);
@@ -231,7 +231,7 @@ xfs_initialize_perag(
 		spin_lock_init(&pag->pag_state_lock);
 	}
 
-	index = xfs_set_inode_alloc(mp, agcount);
+	index = xfs_set_iyesde_alloc(mp, agcount);
 
 	if (maxagi)
 		*maxagi = index;
@@ -280,10 +280,10 @@ xfs_readsb(
 
 	/*
 	 * For the initial read, we must guess at the sector
-	 * size based on the block device.  It's enough to
+	 * size based on the block device.  It's eyesugh to
 	 * get the sb_sectsize out of the superblock and
 	 * then reread with the proper length.
-	 * We don't verify it yet, because it may not be complete.
+	 * We don't verify it yet, because it may yest be complete.
 	 */
 	sector_size = xfs_getsize_buftarg(mp->m_ddev_targp);
 	buf_ops = NULL;
@@ -313,7 +313,7 @@ reread:
 	xfs_sb_from_disk(sbp, XFS_BUF_TO_SBP(bp));
 
 	/*
-	 * If we haven't validated the superblock, do so now before we try
+	 * If we haven't validated the superblock, do so yesw before we try
 	 * to check the sector size and reread the superblock appropriately.
 	 */
 	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
@@ -328,7 +328,7 @@ reread:
 	 */
 	if (sector_size > sbp->sb_sectsize) {
 		if (loud)
-			xfs_warn(mp, "device supports %u byte sectors (not %u)",
+			xfs_warn(mp, "device supports %u byte sectors (yest %u)",
 				sector_size, sbp->sb_sectsize);
 		error = -ENOSYS;
 		goto release_buf;
@@ -347,7 +347,7 @@ reread:
 
 	xfs_reinit_percpu_counters(mp);
 
-	/* no need to be quiet anymore, so reset the buf ops */
+	/* yes need to be quiet anymore, so reset the buf ops */
 	bp->b_ops = &xfs_sb_buf_ops;
 
 	mp->m_sb_bp = bp;
@@ -360,7 +360,7 @@ release_buf:
 }
 
 /*
- * If the sunit/swidth change would move the precomputed root inode value, we
+ * If the sunit/swidth change would move the precomputed root iyesde value, we
  * must reject the ondisk change because repair will stumble over that.
  * However, we allow the mount to proceed because we never rejected this
  * combination before.  Returns true to update the sb, false otherwise.
@@ -372,23 +372,23 @@ xfs_check_new_dalign(
 	bool			*update_sb)
 {
 	struct xfs_sb		*sbp = &mp->m_sb;
-	xfs_ino_t		calc_ino;
+	xfs_iyes_t		calc_iyes;
 
-	calc_ino = xfs_ialloc_calc_rootino(mp, new_dalign);
-	trace_xfs_check_new_dalign(mp, new_dalign, calc_ino);
+	calc_iyes = xfs_ialloc_calc_rootiyes(mp, new_dalign);
+	trace_xfs_check_new_dalign(mp, new_dalign, calc_iyes);
 
-	if (sbp->sb_rootino == calc_ino) {
+	if (sbp->sb_rootiyes == calc_iyes) {
 		*update_sb = true;
 		return 0;
 	}
 
 	xfs_warn(mp,
-"Cannot change stripe alignment; would require moving root inode.");
+"Canyest change stripe alignment; would require moving root iyesde.");
 
 	/*
 	 * XXX: Next time we add a new incompat feature, this should start
 	 * returning -EINVAL to fail the mount.  Until then, spit out a warning
-	 * that we're ignoring the administrator's instructions.
+	 * that we're igyesring the administrator's instructions.
 	 */
 	xfs_warn(mp, "Skipping superblock stripe alignment update.");
 	*update_sb = false;
@@ -399,7 +399,7 @@ xfs_check_new_dalign(
  * If we were provided with new sunit/swidth values as mount options, make sure
  * that they pass basic alignment and superblock feature checks, and convert
  * them into the same units (FSB) that everything else expects.  This step
- * /must/ be done before computing the inode geometry.
+ * /must/ be done before computing the iyesde geometry.
  */
 STATIC int
 xfs_validate_new_dalign(
@@ -409,7 +409,7 @@ xfs_validate_new_dalign(
 		return 0;
 
 	/*
-	 * If stripe unit and stripe width are not multiples
+	 * If stripe unit and stripe width are yest multiples
 	 * of the fs blocksize turn off alignment.
 	 */
 	if ((BBTOB(mp->m_dalign) & mp->m_blockmask) ||
@@ -440,7 +440,7 @@ xfs_validate_new_dalign(
 
 	if (!xfs_sb_version_hasdalign(&mp->m_sb)) {
 		xfs_warn(mp,
-"cannot change alignment: superblock does not support data alignment");
+"canyest change alignment: superblock does yest support data alignment");
 		return -EINVAL;
 	}
 
@@ -569,7 +569,7 @@ xfs_default_resblks(xfs_mount_t *mp)
 	/*
 	 * We default to 5% or 8192 fsbs of space reserved, whichever is
 	 * smaller.  This is intended to cover concurrent allocation
-	 * transactions when we initially hit enospc. These each require a 4
+	 * transactions when we initially hit eyesspc. These each require a 4
 	 * block reservation. Hence by default we cover roughly 2000 concurrent
 	 * allocation reservations.
 	 */
@@ -595,9 +595,9 @@ xfs_check_summary_counts(
 	}
 
 	/*
-	 * Now the log is mounted, we know if it was an unclean shutdown or
-	 * not. If it was, with the first phase of recovery has completed, we
-	 * have consistent AG blocks on disk. We have not recovered EFIs yet,
+	 * Now the log is mounted, we kyesw if it was an unclean shutdown or
+	 * yest. If it was, with the first phase of recovery has completed, we
+	 * have consistent AG blocks on disk. We have yest recovered EFIs yet,
 	 * but they are recovered transactionally in the second recovery phase
 	 * later.
 	 *
@@ -613,12 +613,12 @@ xfs_check_summary_counts(
 
 	/*
 	 * We can safely re-initialise incore superblock counters from the
-	 * per-ag data. These may not be correct if the filesystem was not
+	 * per-ag data. These may yest be correct if the filesystem was yest
 	 * cleanly unmounted, so we waited for recovery to finish before doing
 	 * this.
 	 *
 	 * If the filesystem was cleanly unmounted or the previous check did
-	 * not flag anything weird, then we can trust the values in the
+	 * yest flag anything weird, then we can trust the values in the
 	 * superblock to be correct and we don't need to do anything here.
 	 * Otherwise, recalculate the summary counters.
 	 */
@@ -636,7 +636,7 @@ xfs_check_summary_counts(
  *	- if we're a 32-bit kernel, do a size check on the superblock
  *		so we don't mount terabyte filesystems
  *	- init mount struct realtime fields
- *	- allocate inode hash table for fs
+ *	- allocate iyesde hash table for fs
  *	- init directory manager
  *	- perform recovery and init the log manager
  */
@@ -645,8 +645,8 @@ xfs_mountfs(
 	struct xfs_mount	*mp)
 {
 	struct xfs_sb		*sbp = &(mp->m_sb);
-	struct xfs_inode	*rip;
-	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
+	struct xfs_iyesde	*rip;
+	struct xfs_iyes_geometry	*igeo = M_IGEO(mp);
 	uint64_t		resblks;
 	uint			quotamount = 0;
 	uint			quotaflags = 0;
@@ -657,7 +657,7 @@ xfs_mountfs(
 	/*
 	 * Check for a mismatched features2 values.  Older kernels read & wrote
 	 * into the wrong sb offset for sb_features2 on some platforms due to
-	 * xfs_sb_t not being 64bit size aligned when sb_features2 was added,
+	 * xfs_sb_t yest being 64bit size aligned when sb_features2 was added,
 	 * which made older superblock reading/writing routines swap it as a
 	 * 64-bit value.
 	 *
@@ -694,7 +694,7 @@ xfs_mountfs(
 			mp->m_update_sb = true;
 	}
 
-	/* always use v2 inodes by default now */
+	/* always use v2 iyesdes by default yesw */
 	if (!(mp->m_sb.sb_versionnum & XFS_SB_VERSION_NLINKBIT)) {
 		mp->m_sb.sb_versionnum |= XFS_SB_VERSION_NLINKBIT;
 		mp->m_update_sb = true;
@@ -704,7 +704,7 @@ xfs_mountfs(
 	 * If we were given new sunit/swidth options, do some basic validation
 	 * checks and convert the incore dalign and swidth values to the
 	 * same units (FSB) that everything else uses.  This /must/ happen
-	 * before computing the inode geometry.
+	 * before computing the iyesde geometry.
 	 */
 	error = xfs_validate_new_dalign(mp);
 	if (error)
@@ -765,17 +765,17 @@ xfs_mountfs(
 	xfs_set_low_space_thresholds(mp);
 
 	/*
-	 * If enabled, sparse inode chunk alignment is expected to match the
-	 * cluster size. Full inode chunk alignment must match the chunk size,
+	 * If enabled, sparse iyesde chunk alignment is expected to match the
+	 * cluster size. Full iyesde chunk alignment must match the chunk size,
 	 * but that is checked on sb read verification...
 	 */
-	if (xfs_sb_version_hassparseinodes(&mp->m_sb) &&
-	    mp->m_sb.sb_spino_align !=
-			XFS_B_TO_FSBT(mp, igeo->inode_cluster_size_raw)) {
+	if (xfs_sb_version_hassparseiyesdes(&mp->m_sb) &&
+	    mp->m_sb.sb_spiyes_align !=
+			XFS_B_TO_FSBT(mp, igeo->iyesde_cluster_size_raw)) {
 		xfs_warn(mp,
-	"Sparse inode block alignment (%u) must match cluster size (%llu).",
-			 mp->m_sb.sb_spino_align,
-			 XFS_B_TO_FSBT(mp, igeo->inode_cluster_size_raw));
+	"Sparse iyesde block alignment (%u) must match cluster size (%llu).",
+			 mp->m_sb.sb_spiyes_align,
+			 XFS_B_TO_FSBT(mp, igeo->iyesde_cluster_size_raw));
 		error = -EINVAL;
 		goto out_remove_uuid;
 	}
@@ -826,7 +826,7 @@ xfs_mountfs(
 	}
 
 	if (XFS_IS_CORRUPT(mp, !sbp->sb_logblocks)) {
-		xfs_warn(mp, "no log defined");
+		xfs_warn(mp, "yes log defined");
 		error = -EFSCORRUPTED;
 		goto out_free_perag;
 	}
@@ -850,23 +850,23 @@ xfs_mountfs(
 		goto out_log_dealloc;
 
 	/*
-	 * Get and sanity-check the root inode.
+	 * Get and sanity-check the root iyesde.
 	 * Save the pointer to it in the mount structure.
 	 */
-	error = xfs_iget(mp, NULL, sbp->sb_rootino, XFS_IGET_UNTRUSTED,
+	error = xfs_iget(mp, NULL, sbp->sb_rootiyes, XFS_IGET_UNTRUSTED,
 			 XFS_ILOCK_EXCL, &rip);
 	if (error) {
 		xfs_warn(mp,
-			"Failed to read root inode 0x%llx, error %d",
-			sbp->sb_rootino, -error);
+			"Failed to read root iyesde 0x%llx, error %d",
+			sbp->sb_rootiyes, -error);
 		goto out_log_dealloc;
 	}
 
 	ASSERT(rip != NULL);
 
 	if (XFS_IS_CORRUPT(mp, !S_ISDIR(VFS_I(rip)->i_mode))) {
-		xfs_warn(mp, "corrupted root inode %llu: not a directory",
-			(unsigned long long)rip->i_ino);
+		xfs_warn(mp, "corrupted root iyesde %llu: yest a directory",
+			(unsigned long long)rip->i_iyes);
 		xfs_iunlock(rip, XFS_ILOCK_EXCL);
 		error = -EFSCORRUPTED;
 		goto out_rele_rip;
@@ -876,14 +876,14 @@ xfs_mountfs(
 	xfs_iunlock(rip, XFS_ILOCK_EXCL);
 
 	/*
-	 * Initialize realtime inode pointers in the mount structure
+	 * Initialize realtime iyesde pointers in the mount structure
 	 */
-	error = xfs_rtmount_inodes(mp);
+	error = xfs_rtmount_iyesdes(mp);
 	if (error) {
 		/*
-		 * Free up the root inode.
+		 * Free up the root iyesde.
 		 */
-		xfs_warn(mp, "failed to read RT inodes");
+		xfs_warn(mp, "failed to read RT iyesdes");
 		goto out_rele_rip;
 	}
 
@@ -916,7 +916,7 @@ xfs_mountfs(
 		 * quotachecked license.
 		 */
 		if (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_ACCT) {
-			xfs_notice(mp, "resetting quota flags");
+			xfs_yestice(mp, "resetting quota flags");
 			error = xfs_mount_reset_sbqflags(mp);
 			if (error)
 				goto out_rtunmount;
@@ -925,7 +925,7 @@ xfs_mountfs(
 
 	/*
 	 * Finish recovering the file system.  This part needed to be delayed
-	 * until after the root and real-time bitmap inodes were consistently
+	 * until after the root and real-time bitmap iyesdes were consistently
 	 * read in.
 	 */
 	error = xfs_log_mount_finish(mp);
@@ -937,7 +937,7 @@ xfs_mountfs(
 	/*
 	 * Now the log is fully replayed, we can transition to full read-only
 	 * mode for read-only mounts. This will sync all the metadata and clean
-	 * the log so that the recovery we just performed does not have to be
+	 * the log so that the recovery we just performed does yest have to be
 	 * replayed again on the next mount.
 	 *
 	 * We use the same quiesce mechanism as the rw->ro remount, as they are
@@ -964,7 +964,7 @@ xfs_mountfs(
 	 * space required for critical operations can dip into this pool
 	 * when at ENOSPC. This is needed for operations like create with
 	 * attr, unwritten extent conversion at ENOSPC, etc. Data allocations
-	 * are not allowed to use this reserved space.
+	 * are yest allowed to use this reserved space.
 	 *
 	 * This may drive us straight to ENOSPC on mount, but that implies
 	 * we were already there on the last unmount. Warn if this occurs.
@@ -998,24 +998,24 @@ xfs_mountfs(
  out_quota:
 	xfs_qm_unmount_quotas(mp);
  out_rtunmount:
-	xfs_rtunmount_inodes(mp);
+	xfs_rtunmount_iyesdes(mp);
  out_rele_rip:
 	xfs_irele(rip);
 	/* Clean out dquots that might be in memory after quotacheck. */
 	xfs_qm_unmount(mp);
 	/*
-	 * Cancel all delayed reclaim work and reclaim the inodes directly.
+	 * Cancel all delayed reclaim work and reclaim the iyesdes directly.
 	 * We have to do this /after/ rtunmount and qm_unmount because those
-	 * two will have scheduled delayed reclaim for the rt/quota inodes.
+	 * two will have scheduled delayed reclaim for the rt/quota iyesdes.
 	 *
 	 * This is slightly different from the unmountfs call sequence
 	 * because we could be tearing down a partially set up mount.  In
 	 * particular, if log_mount_finish fails we bail out without calling
 	 * qm_unmount_quotas and therefore rely on qm_unmount to release the
-	 * quota inodes.
+	 * quota iyesdes.
 	 */
 	cancel_delayed_work_sync(&mp->m_reclaim_work);
-	xfs_reclaim_inodes(mp, SYNC_WAIT);
+	xfs_reclaim_iyesdes(mp, SYNC_WAIT);
 	xfs_health_unmount(mp);
  out_log_dealloc:
 	mp->m_flags |= XFS_MOUNT_UNMOUNTING;
@@ -1043,7 +1043,7 @@ xfs_mountfs(
 }
 
 /*
- * This flushes out the inodes,dquots and the superblock, unmounts the
+ * This flushes out the iyesdes,dquots and the superblock, unmounts the
  * log and makes sure that incore structures are freed.
  */
 void
@@ -1056,16 +1056,16 @@ xfs_unmountfs(
 	xfs_stop_block_reaping(mp);
 	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
-	xfs_rtunmount_inodes(mp);
+	xfs_rtunmount_iyesdes(mp);
 	xfs_irele(mp->m_rootip);
 
 	/*
-	 * We can potentially deadlock here if we have an inode cluster
+	 * We can potentially deadlock here if we have an iyesde cluster
 	 * that has been freed has its buffer still pinned in memory because
-	 * the transaction is still sitting in a iclog. The stale inodes
+	 * the transaction is still sitting in a iclog. The stale iyesdes
 	 * on that buffer will have their flush locks held until the
-	 * transaction hits the disk and the callbacks run. the inode
-	 * flush takes the flush lock unconditionally and with nothing to
+	 * transaction hits the disk and the callbacks run. the iyesde
+	 * flush takes the flush lock unconditionally and with yesthing to
 	 * push out the iclog we will never get that unlocked. hence we
 	 * need to force the log first.
 	 */
@@ -1079,7 +1079,7 @@ xfs_unmountfs(
 	flush_workqueue(xfs_discard_wq);
 
 	/*
-	 * We now need to tell the world we are unmounting. This will allow
+	 * We yesw need to tell the world we are unmounting. This will allow
 	 * us to detect that the filesystem is going away and we should error
 	 * out anything that we have been retrying in the background. This will
 	 * prevent neverending retries in AIL pushing from hanging the unmount.
@@ -1092,13 +1092,13 @@ xfs_unmountfs(
 	xfs_ail_push_all_sync(mp->m_ail);
 
 	/*
-	 * And reclaim all inodes.  At this point there should be no dirty
-	 * inodes and none should be pinned or locked, but use synchronous
-	 * reclaim just to be sure. We can stop background inode reclaim
+	 * And reclaim all iyesdes.  At this point there should be yes dirty
+	 * iyesdes and yesne should be pinned or locked, but use synchroyesus
+	 * reclaim just to be sure. We can stop background iyesde reclaim
 	 * here as well if it is still running.
 	 */
 	cancel_delayed_work_sync(&mp->m_reclaim_work);
-	xfs_reclaim_inodes(mp, SYNC_WAIT);
+	xfs_reclaim_iyesdes(mp, SYNC_WAIT);
 	xfs_health_unmount(mp);
 
 	xfs_qm_unmount(mp);
@@ -1113,20 +1113,20 @@ xfs_unmountfs(
 	 * counting because on mount of an unclean filesystem we reconstruct the
 	 * correct counter value and this is irrelevant.
 	 *
-	 * For non-lazy counter filesystems, this doesn't matter at all because
+	 * For yesn-lazy counter filesystems, this doesn't matter at all because
 	 * we only every apply deltas to the superblock and hence the incore
-	 * value does not matter....
+	 * value does yest matter....
 	 */
 	resblks = 0;
 	error = xfs_reserve_blocks(mp, &resblks, NULL);
 	if (error)
 		xfs_warn(mp, "Unable to free reserved block pool. "
-				"Freespace may not be correct on next mount.");
+				"Freespace may yest be correct on next mount.");
 
 	error = xfs_log_sbcount(mp);
 	if (error)
 		xfs_warn(mp, "Unable to update superblock counters. "
-				"Freespace may not be correct on next mount.");
+				"Freespace may yest be correct on next mount.");
 
 
 	xfs_log_unmount(mp);
@@ -1146,7 +1146,7 @@ xfs_unmountfs(
 
 /*
  * Determine whether modifications can proceed. The caller specifies the minimum
- * freeze level for which modifications should not be allowed. This allows
+ * freeze level for which modifications should yest be allowed. This allows
  * certain operations to proceed while the freeze sequence is in progress, if
  * necessary.
  */
@@ -1169,7 +1169,7 @@ xfs_fs_writable(
  * Sync the superblock counters to disk.
  *
  * Note this code can be called during the process of freezing, so we use the
- * transaction allocator that does not block when the transaction subsystem is
+ * transaction allocator that does yest block when the transaction subsystem is
  * in its frozen state.
  */
 int
@@ -1190,7 +1190,7 @@ xfs_log_sbcount(xfs_mount_t *mp)
 }
 
 /*
- * Deltas for the inode count are +/-64, hence we use a large batch size
+ * Deltas for the iyesde count are +/-64, hence we use a large batch size
  * of 128 so we don't need to take the counter lock on every update.
  */
 #define XFS_ICOUNT_BATCH	128
@@ -1292,7 +1292,7 @@ xfs_mod_fdblocks(
 	spin_lock(&mp->m_sb_lock);
 	percpu_counter_add(&mp->m_fdblocks, -delta);
 	if (!rsvd)
-		goto fdblocks_enospc;
+		goto fdblocks_eyesspc;
 
 	lcounter = (long long)mp->m_resblks_avail + delta;
 	if (lcounter >= 0) {
@@ -1304,7 +1304,7 @@ xfs_mod_fdblocks(
 		"Filesystem \"%s\": reserve blocks depleted! "
 		"Consider increasing reserve pool size.",
 		mp->m_super->s_id);
-fdblocks_enospc:
+fdblocks_eyesspc:
 	spin_unlock(&mp->m_sb_lock);
 	return -ENOSPC;
 }
@@ -1360,7 +1360,7 @@ xfs_freesb(
 
 /*
  * If the underlying (data/log/rt) device is readonly, there are some
- * operations that cannot proceed.
+ * operations that canyest proceed.
  */
 int
 xfs_dev_is_read_only(
@@ -1370,8 +1370,8 @@ xfs_dev_is_read_only(
 	if (xfs_readonly_buftarg(mp->m_ddev_targp) ||
 	    xfs_readonly_buftarg(mp->m_logdev_targp) ||
 	    (mp->m_rtdev_targp && xfs_readonly_buftarg(mp->m_rtdev_targp))) {
-		xfs_notice(mp, "%s required on read-only device.", message);
-		xfs_notice(mp, "write access unavailable, cannot proceed.");
+		xfs_yestice(mp, "%s required on read-only device.", message);
+		xfs_yestice(mp, "write access unavailable, canyest proceed.");
 		return -EROFS;
 	}
 	return 0;

@@ -13,23 +13,23 @@
  */
 #include <asm/page.h>
 #define __ARCH_USE_5LEVEL_HACK
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 
 /* A handy thing to have if one has the RAM. Declared in head.S */
 extern unsigned long empty_zero_page;
 
 /*
  * The PTE model described here is that of the Hexagon Virtual Machine,
- * which autonomously walks 2-level page tables.  At a lower level, we
+ * which autoyesmously walks 2-level page tables.  At a lower level, we
  * also describe the RISCish software-loaded TLB entry structure of
  * the underlying Hexagon processor. A kernel built to run on the
- * virtual machine has no need to know about the underlying hardware.
+ * virtual machine has yes need to kyesw about the underlying hardware.
  */
 #include <asm/vm_mmu.h>
 
 /*
  * To maximize the comfort level for the PTE manipulation macros,
- * define the "well known" architecture-specific bits.
+ * define the "well kyeswn" architecture-specific bits.
  */
 #define _PAGE_READ	__HVM_PTE_R
 #define _PAGE_WRITE	__HVM_PTE_W
@@ -39,7 +39,7 @@ extern unsigned long empty_zero_page;
 /*
  * We have a total of 4 "soft" bits available in the abstract PTE.
  * The two mandatory software bits are Dirty and Accessed.
- * To make nonlinear swap work according to the more recent
+ * To make yesnlinear swap work according to the more recent
  * model, we want a low order "Present" bit to indicate whether
  * the PTE describes MMU programming or swap space.
  */
@@ -48,18 +48,18 @@ extern unsigned long empty_zero_page;
 #define _PAGE_ACCESSED	(1<<2)
 
 /*
- * For now, let's say that Valid and Present are the same thing.
+ * For yesw, let's say that Valid and Present are the same thing.
  * Alternatively, we could say that it's the "or" of R, W, and X
  * permissions.
  */
 #define _PAGE_VALID	_PAGE_PRESENT
 
 /*
- * We're not defining _PAGE_GLOBAL here, since there's no concept
+ * We're yest defining _PAGE_GLOBAL here, since there's yes concept
  * of global pages or ASIDs exposed to the Hexagon Virtual Machine,
  * and we want to use the same page table structures and macros in
  * the native kernel as we do in the virtual machine kernel.
- * So we'll put up with a bit of inefficiency for now...
+ * So we'll put up with a bit of inefficiency for yesw...
  */
 
 /*
@@ -161,13 +161,13 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];  /* located in head.S */
 #define pte_special(pte)	0
 #define pte_mkspecial(pte)	(pte)
 
-/*  HUGETLB not working currently  */
+/*  HUGETLB yest working currently  */
 #ifdef CONFIG_HUGETLB_PAGE
 #define pte_mkhuge(pte) __pte((pte_val(pte) & ~0x3) | HVM_HUGEPAGE_SIZE)
 #endif
 
 /*
- * For now, assume that higher-level code will do TLB/MMU invalidations
+ * For yesw, assume that higher-level code will do TLB/MMU invalidations
  * and don't insert that overhead into this low-level function.
  */
 extern void sync_icache_dcache(pte_t pte);
@@ -237,21 +237,21 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
 
 /**
- * pmd_none - check if pmd_entry is mapped
+ * pmd_yesne - check if pmd_entry is mapped
  * @pmd_entry:  pmd entry
  *
  * MIPS checks it against that "invalid pte table" thing.
  */
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_yesne(pmd_t pmd)
 {
 	return pmd_val(pmd) == _NULL_PMD;
 }
 
 /**
  * pmd_present - is there a page table behind this?
- * Essentially the inverse of pmd_none.  We maybe
+ * Essentially the inverse of pmd_yesne.  We maybe
  * save an inline instruction by defining it this
- * way, instead of simply "!pmd_none".
+ * way, instead of simply "!pmd_yesne".
  */
 static inline int pmd_present(pmd_t pmd)
 {
@@ -260,7 +260,7 @@ static inline int pmd_present(pmd_t pmd)
 
 /**
  * pmd_bad - check if a PMD entry is "bad". That might mean swapped out.
- * As we have no known cause of badness, it's null, as it is for many
+ * As we have yes kyeswn cause of badness, it's null, as it is for many
  * architectures.
  */
 static inline int pmd_bad(pmd_t pmd)
@@ -275,10 +275,10 @@ static inline int pmd_bad(pmd_t pmd)
 #define pmd_pgtable(pmd) pmd_page(pmd)
 
 /**
- * pte_none - check if pte is mapped
+ * pte_yesne - check if pte is mapped
  * @pte: pte_t entry
  */
-static inline int pte_none(pte_t pte)
+static inline int pte_yesne(pte_t pte)
 {
 	return pte_val(pte) == _NULL_PTE;
 };
@@ -297,7 +297,7 @@ static inline int pte_present(pte_t pte)
 /* pte_page - returns a page (frame pointer/descriptor?) based on a PTE */
 #define pte_page(x) pfn_to_page(pte_pfn(x))
 
-/* pte_mkold - mark PTE as not recently accessed */
+/* pte_mkold - mark PTE as yest recently accessed */
 static inline pte_t pte_mkold(pte_t pte)
 {
 	pte_val(pte) &= ~_PAGE_ACCESSED;
@@ -345,7 +345,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t prot)
 	return pte;
 }
 
-/* pte_wrprotect - mark page as not writable */
+/* pte_wrprotect - mark page as yest writable */
 static inline pte_t pte_wrprotect(pte_t pte)
 {
 	pte_val(pte) &= ~_PAGE_WRITE;
@@ -400,7 +400,7 @@ static inline int pte_exec(pte_t pte)
 
 /*
  * set_pte_at - update page table and do whatever magic may be
- * necessary to make the underlying hardware/firmware take note.
+ * necessary to make the underlying hardware/firmware take yeste.
  *
  * VM may require a virtual instruction to alert the MMU.
  */
@@ -439,7 +439,7 @@ static inline int pte_exec(pte_t pte)
  * all zeros for swap entries, which speeds up the miss handler at the cost of
  * 3 bits of offset.  That trade-off can be revisited if necessary, but Hexagon
  * processor architecture and target applications suggest a lot of TLB misses
- * and not much swap space.
+ * and yest much swap space.
  *
  * Format of swap PTE:
  *	bit	0:	Present (zero)

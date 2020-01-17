@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2007 Kristoffer Ericson <Kristoffer.Ericson@gmail.com>
  * Copyright (C) 2006 Filip Zyzniewski <filip.zyzniewski@tefnet.pl>
- *  Copyright (C) 2005 Michael Gernoth <michael@gernoth.net>
+ *  Copyright (C) 2005 Michael Geryesth <michael@geryesth.net>
  */
 
 #include <linux/init.h>
@@ -156,7 +156,7 @@ static struct s1d13xxxfb_regval s1d13xxxfb_initregs[] = {
 	{0x0119,0x00},	// BitBlt Foreground Color Register 1
 	{0x01E0,0x00},	// Look-Up Table Mode Register
 	{0x01E2,0x00},	// Look-Up Table Address Register
-	/* not sure, wouldn't like to mess with the driver */
+	/* yest sure, wouldn't like to mess with the driver */
 	{0x01E4,0x00},	// Look-Up Table Data Register
 	/* jornada doc says 0x00, but I trust the driver */
 	{0x01F0,0x10},	// Power Save Configuration Register

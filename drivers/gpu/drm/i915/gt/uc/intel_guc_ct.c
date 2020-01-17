@@ -148,7 +148,7 @@ static int ctch_init(struct intel_guc *guc,
 	 *      |_______________________________|
 	 *
 	 * Each message can use a maximum of 32 dwords and we don't expect to
-	 * have more than 1 in flight at any time, so we have enough space.
+	 * have more than 1 in flight at any time, so we have eyesugh space.
 	 * Some logic further ahead will rely on the fact that there is only 1
 	 * page and that it is always mapped, so if the size is changed the
 	 * other code will need updating as well.
@@ -266,7 +266,7 @@ static void ctch_disable(struct intel_guc *guc,
 
 static u32 ctch_get_next_fence(struct intel_guc_ct_channel *ctch)
 {
-	/* For now it's trivial */
+	/* For yesw it's trivial */
 	return ++ctch->next_fence;
 }
 
@@ -309,7 +309,7 @@ static int ctb_write(struct intel_guc_ct_buffer *ctb,
 	GEM_BUG_ON(tail >= size);
 
 	/*
-	 * tail == head condition indicates empty. GuC FW does not support
+	 * tail == head condition indicates empty. GuC FW does yest support
 	 * using up the entire buffer to get tail == head meaning full.
 	 */
 	if (tail < head)
@@ -347,7 +347,7 @@ static int ctb_write(struct intel_guc_ct_buffer *ctb,
 		tail = (tail + 1) % size;
 	}
 
-	/* now update desc tail (back in bytes) */
+	/* yesw update desc tail (back in bytes) */
 	desc->tail = tail * 4;
 	GEM_BUG_ON(desc->tail > desc->size);
 
@@ -367,8 +367,8 @@ static int ctb_write(struct intel_guc_ct_buffer *ctb,
  *
  * Return:
  * *	0 response received (status is valid)
- * *	-ETIMEDOUT no response within hardcoded timeout
- * *	-EPROTO no response, CT buffer is in error
+ * *	-ETIMEDOUT yes response within hardcoded timeout
+ * *	-EPROTO yes response, CT buffer is in error
  */
 static int wait_for_ctb_desc_update(struct guc_ct_buffer_desc *desc,
 				    u32 fence,
@@ -416,7 +416,7 @@ static int wait_for_ctb_desc_update(struct guc_ct_buffer_desc *desc,
  *
  * Return:
  * *	0 response received (status is valid)
- * *	-ETIMEDOUT no response within hardcoded timeout
+ * *	-ETIMEDOUT yes response within hardcoded timeout
  */
 static int wait_for_ct_request_update(struct ct_request *req, u32 *status)
 {
@@ -474,7 +474,7 @@ static int ctch_send(struct intel_guc_ct *ct,
 	if (unlikely(err))
 		goto unlink;
 
-	intel_guc_notify(ct_to_guc(ct));
+	intel_guc_yestify(ct_to_guc(ct));
 
 	if (response_buf)
 		err = wait_for_ct_request_update(&request, status);
@@ -489,12 +489,12 @@ static int ctch_send(struct intel_guc_ct *ct,
 	}
 
 	if (response_buf) {
-		/* There shall be no data in the status */
+		/* There shall be yes data in the status */
 		WARN_ON(INTEL_GUC_MSG_TO_DATA(request.status));
 		/* Return actual response len */
 		err = request.response_len;
 	} else {
-		/* There shall be no response payload */
+		/* There shall be yes response payload */
 		WARN_ON(request.response_len);
 		/* Return data decoded from the status dword */
 		err = INTEL_GUC_MSG_TO_DATA(*status);
@@ -814,7 +814,7 @@ static void ct_process_host_channel(struct intel_guc_ct *ct)
 
 /*
  * When we're communicating with the GuC over CT, GuC uses events
- * to notify us about new messages being posted on the RECV buffer.
+ * to yestify us about new messages being posted on the RECV buffer.
  */
 void intel_guc_to_host_event_handler_ct(struct intel_guc *guc)
 {
@@ -830,7 +830,7 @@ void intel_guc_to_host_event_handler_ct(struct intel_guc *guc)
  * Allocate memory required for communication via
  * the CT channel.
  *
- * Return: 0 on success, a negative errno code on failure.
+ * Return: 0 on success, a negative erryes code on failure.
  */
 int intel_guc_ct_init(struct intel_guc_ct *ct)
 {
@@ -868,7 +868,7 @@ void intel_guc_ct_fini(struct intel_guc_ct *ct)
  * intel_guc_ct_enable - Enable buffer based command transport.
  * @ct: pointer to CT struct
  *
- * Return: 0 on success, a negative errno code on failure.
+ * Return: 0 on success, a negative erryes code on failure.
  */
 int intel_guc_ct_enable(struct intel_guc_ct *ct)
 {

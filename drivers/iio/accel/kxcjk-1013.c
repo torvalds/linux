@@ -37,7 +37,7 @@
 /*
  * From low byte X axis register, all the other addresses of Y and Z can be
  * obtained by just applying axis offset. The following axis defines are just
- * provide clarity, but not used.
+ * provide clarity, but yest used.
  */
 #define KXCJK1013_REG_XOUT_H		0x07
 #define KXCJK1013_REG_YOUT_L		0x08
@@ -445,7 +445,7 @@ static int kxcjk1013_set_power_state(struct kxcjk1013_data *data, bool on)
 		dev_err(&data->client->dev,
 			"Failed: %s for %d\n", __func__, on);
 		if (on)
-			pm_runtime_put_noidle(&data->client->dev);
+			pm_runtime_put_yesidle(&data->client->dev);
 		return ret;
 	}
 #endif
@@ -1047,7 +1047,7 @@ static irqreturn_t kxcjk1013_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 					   data->timestamp);
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1392,7 +1392,7 @@ static int kxcjk1013_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	if (data->dready_trig) {
 		iio_triggered_buffer_cleanup(indio_dev);

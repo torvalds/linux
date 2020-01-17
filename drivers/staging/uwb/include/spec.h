@@ -10,7 +10,7 @@
  *
  * Note all definitions are Little Endian in the wire, and we will
  * convert them to host order before operating on the bitfields (that
- * yes, we use extensively).
+ * no, we use extensively).
  */
 
 #ifndef __LINUX__UWB_SPEC_H__
@@ -221,7 +221,7 @@ enum uwb_relinquish_req_reason {
 /**
  *  DRP Notification Reason Codes (WHCI 0.95 [3.1.4.9])
  */
-enum uwb_drp_notif_reason {
+enum uwb_drp_yestif_reason {
 	UWB_DRP_NOTIF_DRP_IE_RCVD = 0,
 	UWB_DRP_NOTIF_CONFLICT,
 	UWB_DRP_NOTIF_TERMINATE,
@@ -611,13 +611,13 @@ struct uwb_rc_evt_set_daa_energy_mask {
 } __attribute__((packed));
 
 /* Set Notification Filter Extended event. [WHCI 0.96] section 3.1.3.18. */
-struct uwb_rc_evt_set_notification_filter_ex {
+struct uwb_rc_evt_set_yestification_filter_ex {
 	struct uwb_rceb rceb;
 	__le16 wLength;
 	u8 result;
 } __attribute__((packed));
 
-/* IE Received notification. [WHCI] section 3.1.4.1. */
+/* IE Received yestification. [WHCI] section 3.1.4.1. */
 struct uwb_rc_evt_ie_rcv {
 	struct uwb_rceb rceb;
 	struct uwb_dev_addr SrcAddr;
@@ -633,7 +633,7 @@ enum uwb_rc_beacon_type {
 	UWB_RC_BEACON_TYPE_NOL_ALIEN,
 };
 
-/* Beacon received notification. [WHCI] 3.1.4.2. */
+/* Beacon received yestification. [WHCI] 3.1.4.2. */
 struct uwb_rc_evt_beacon {
 	struct uwb_rceb rceb;
 	u8	bChannelNumber;
@@ -646,14 +646,14 @@ struct uwb_rc_evt_beacon {
 } __attribute__((packed));
 
 
-/* Beacon Size Change notification. [WHCI] section 3.1.4.3 */
+/* Beacon Size Change yestification. [WHCI] section 3.1.4.3 */
 struct uwb_rc_evt_beacon_size {
 	struct uwb_rceb rceb;
 	__le16 wNewBeaconSize;
 } __attribute__((packed));
 
 
-/* BPOIE Change notification. [WHCI] section 3.1.4.4. */
+/* BPOIE Change yestification. [WHCI] section 3.1.4.4. */
 struct uwb_rc_evt_bpoie_change {
 	struct uwb_rceb rceb;
 	__le16 wBPOIELength;
@@ -661,7 +661,7 @@ struct uwb_rc_evt_bpoie_change {
 } __attribute__((packed));
 
 
-/* Beacon Slot Change notification. [WHCI] section 3.1.4.5. */
+/* Beacon Slot Change yestification. [WHCI] section 3.1.4.5. */
 struct uwb_rc_evt_bp_slot_change {
 	struct uwb_rceb rceb;
 	u8 slot_info;
@@ -673,13 +673,13 @@ static inline int uwb_rc_evt_bp_slot_change_slot_num(
 	return evt->slot_info & 0x7f;
 }
 
-static inline int uwb_rc_evt_bp_slot_change_no_slot(
+static inline int uwb_rc_evt_bp_slot_change_yes_slot(
 	const struct uwb_rc_evt_bp_slot_change *evt)
 {
 	return (evt->slot_info & 0x80) >> 7;
 }
 
-/* BP Switch IE Received notification. [WHCI] section 3.1.4.6. */
+/* BP Switch IE Received yestification. [WHCI] section 3.1.4.6. */
 struct uwb_rc_evt_bp_switch_ie_rcv {
 	struct uwb_rceb rceb;
 	struct uwb_dev_addr wSrcAddr;
@@ -687,12 +687,12 @@ struct uwb_rc_evt_bp_switch_ie_rcv {
 	u8 IEData[];
 } __attribute__((packed));
 
-/* DevAddr Conflict notification. [WHCI] section 3.1.4.7. */
+/* DevAddr Conflict yestification. [WHCI] section 3.1.4.7. */
 struct uwb_rc_evt_dev_addr_conflict {
 	struct uwb_rceb rceb;
 } __attribute__((packed));
 
-/* DRP notification. [WHCI] section 3.1.4.9. */
+/* DRP yestification. [WHCI] section 3.1.4.9. */
 struct uwb_rc_evt_drp {
 	struct uwb_rceb           rceb;
 	struct uwb_dev_addr       src_addr;
@@ -702,19 +702,19 @@ struct uwb_rc_evt_drp {
 	u8                        ie_data[];
 } __attribute__((packed));
 
-static inline enum uwb_drp_notif_reason uwb_rc_evt_drp_reason(struct uwb_rc_evt_drp *evt)
+static inline enum uwb_drp_yestif_reason uwb_rc_evt_drp_reason(struct uwb_rc_evt_drp *evt)
 {
 	return evt->reason & 0x0f;
 }
 
 
-/* DRP Availability Change notification. [WHCI] section 3.1.4.8. */
+/* DRP Availability Change yestification. [WHCI] section 3.1.4.8. */
 struct uwb_rc_evt_drp_avail {
 	struct uwb_rceb rceb;
 	DECLARE_BITMAP(bmp, UWB_NUM_MAS);
 } __attribute__((packed));
 
-/* BP switch status notification. [WHCI] section 3.1.4.10. */
+/* BP switch status yestification. [WHCI] section 3.1.4.10. */
 struct uwb_rc_evt_bp_switch_status {
 	struct uwb_rceb rceb;
 	u8 status;
@@ -723,7 +723,7 @@ struct uwb_rc_evt_bp_switch_status {
 	u8 move_countdown;
 } __attribute__((packed));
 
-/* Command Frame Received notification. [WHCI] section 3.1.4.11. */
+/* Command Frame Received yestification. [WHCI] section 3.1.4.11. */
 struct uwb_rc_evt_cmd_frame_rcv {
 	struct uwb_rceb rceb;
 	__le16 receive_time;
@@ -735,7 +735,7 @@ struct uwb_rc_evt_cmd_frame_rcv {
 	u8 data[];
 } __attribute__((packed));
 
-/* Channel Change IE Received notification. [WHCI] section 3.1.4.12. */
+/* Channel Change IE Received yestification. [WHCI] section 3.1.4.12. */
 struct uwb_rc_evt_channel_change_ie_rcv {
 	struct uwb_rceb rceb;
 	struct uwb_dev_addr wSrcAddr;
@@ -743,7 +743,7 @@ struct uwb_rc_evt_channel_change_ie_rcv {
 	u8 IEData[];
 } __attribute__((packed));
 
-/* DAA Energy Detected notification. [WHCI 0.96] section 3.1.4.14. */
+/* DAA Energy Detected yestification. [WHCI 0.96] section 3.1.4.14. */
 struct uwb_rc_evt_daa_energy_detected {
 	struct uwb_rceb rceb;
 	__le16 wLength;

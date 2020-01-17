@@ -252,8 +252,8 @@ struct cdns_pcie {
  * @cfg_base: IO mapped window to access the PCI configuration space of a
  *            single function at a time
  * @max_regions: maximum number of regions supported by the hardware
- * @no_bar_nbits: Number of bits to keep for inbound (PCIe -> CPU) address
- *                translation (nbits sets into the "no BAR match" register)
+ * @yes_bar_nbits: Number of bits to keep for inbound (PCIe -> CPU) address
+ *                translation (nbits sets into the "yes BAR match" register)
  * @vendor_id: PCI vendor ID
  * @device_id: PCI device ID
  */
@@ -263,7 +263,7 @@ struct cdns_pcie_rc {
 	struct resource		*bus_range;
 	void __iomem		*cfg_base;
 	u32			max_regions;
-	u32			no_bar_nbits;
+	u32			yes_bar_nbits;
 	u16			vendor_id;
 	u16			device_id;
 };
@@ -277,7 +277,7 @@ struct cdns_pcie_rc {
  * @irq_phys_addr: base address on the AXI bus where the MSI/legacy IRQ
  *		   dedicated outbound regions is mapped.
  * @irq_cpu_addr: base address in the CPU space where a write access triggers
- *		  the sending of a memory write (MSI) / normal message (legacy
+ *		  the sending of a memory write (MSI) / yesrmal message (legacy
  *		  IRQ) TLP through the PCIe bus.
  * @irq_pci_addr: used to save the current mapping of the MSI/legacy IRQ
  *		  dedicated outbound region.
@@ -387,7 +387,7 @@ void cdns_pcie_set_outbound_region(struct cdns_pcie *pcie, u8 fn,
 				   u32 r, bool is_io,
 				   u64 cpu_addr, u64 pci_addr, size_t size);
 
-void cdns_pcie_set_outbound_region_for_normal_msg(struct cdns_pcie *pcie, u8 fn,
+void cdns_pcie_set_outbound_region_for_yesrmal_msg(struct cdns_pcie *pcie, u8 fn,
 						  u32 r, u64 cpu_addr);
 
 void cdns_pcie_reset_outbound_region(struct cdns_pcie *pcie, u32 r);

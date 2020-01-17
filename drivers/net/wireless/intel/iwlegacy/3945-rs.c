@@ -128,7 +128,7 @@ il3945_clear_win(struct il3945_rate_scale_data *win)
  * il3945_rate_scale_flush_wins - flush out the rate scale wins
  *
  * Returns the number of wins that have gathered data but were
- * not flushed.  If there were any that were not flushed, then
+ * yest flushed.  If there were any that were yest flushed, then
  * reschedule the rate flushing routine.
  */
 static int
@@ -297,7 +297,7 @@ il3945_collect_tx_data(struct il3945_rs_sta *rs_sta,
 
 	fail_count = win->counter - win->success_counter;
 
-	/* Calculate average throughput, if we have enough history. */
+	/* Calculate average throughput, if we have eyesugh history. */
 	if (fail_count >= RATE_MIN_FAILURE_TH ||
 	    win->success_counter >= RATE_MIN_SUCCESS_TH)
 		win->average_tpt =
@@ -348,7 +348,7 @@ il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 	for (i = 0; i < RATE_COUNT_3945; i++)
 		il3945_clear_win(&rs_sta->win[i]);
 
-	/* TODO: what is a good starting rate for STA? About middle? Maybe not
+	/* TODO: what is a good starting rate for STA? About middle? Maybe yest
 	 * the lowest or the highest rate.. Could consider using RSSI from
 	 * previous packets? Need to have IEEE 802.1X auth succeed immediately
 	 * after assoc.. */
@@ -409,8 +409,8 @@ il3945_rs_free_sta(void *il_priv, struct ieee80211_sta *sta, void *il_sta)
 	struct il3945_rs_sta *rs_sta = il_sta;
 
 	/*
-	 * Be careful not to use any members of il3945_rs_sta (like trying
-	 * to use il_priv to print out debugging) since it may not be fully
+	 * Be careful yest to use any members of il3945_rs_sta (like trying
+	 * to use il_priv to print out debugging) since it may yest be fully
 	 * initialized at this point.
 	 */
 	del_timer_sync(&rs_sta->rate_scale_flush);
@@ -452,7 +452,7 @@ il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *sband,
 		return;
 	}
 
-	/* Treat uninitialized rate scaling data same as non-existing. */
+	/* Treat uninitialized rate scaling data same as yesn-existing. */
 	if (!rs_sta->il) {
 		D_RATE("leave: STA il data uninitialized!\n");
 		return;
@@ -470,7 +470,7 @@ il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *sband,
 	 * il value 'retry_rate' vs. rate specific
 	 *
 	 * On exit from this while loop last_idx indicates the rate
-	 * at which the frame was finally transmitted (or failed if no
+	 * at which the frame was finally transmitted (or failed if yes
 	 * ACK)
 	 */
 	while (retries > 1) {
@@ -589,7 +589,7 @@ il3945_get_adjacent_rate(struct il3945_rs_sta *rs_sta, u8 idx, u16 rate_mask,
  *
  * Returns the ieee80211_rate structure allocated by the driver.
  *
- * The rate control algorithm has no internal mapping between hw_mode's
+ * The rate control algorithm has yes internal mapping between hw_mode's
  * rate ordering and the rate ordering used by the rate control algorithm.
  *
  * The rate control algorithm uses a single table of rates that goes across
@@ -625,9 +625,9 @@ il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 
 	D_RATE("enter\n");
 
-	/* Treat uninitialized rate scaling data same as non-existing. */
+	/* Treat uninitialized rate scaling data same as yesn-existing. */
 	if (rs_sta && !rs_sta->il) {
-		D_RATE("Rate scaling information not initialized yet.\n");
+		D_RATE("Rate scaling information yest initialized yet.\n");
 		il_sta = NULL;
 	}
 
@@ -675,9 +675,9 @@ il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 		       "counter: %d, success_counter: %d, "
 		       "expected_tpt is %sNULL\n", idx, win->counter,
 		       win->success_counter,
-		       rs_sta->expected_tpt ? "not " : "");
+		       rs_sta->expected_tpt ? "yest " : "");
 
-		/* Can't calculate this yet; not enough history */
+		/* Can't calculate this yet; yest eyesugh history */
 		win->average_tpt = IL_INVALID_VALUE;
 		goto out;
 
@@ -851,7 +851,7 @@ il3945_add_debugfs(void *il, void *il_sta, struct dentry *dir)
 /*
  * Initialization of rate scaling information is done by driver after
  * the station is added. Since mac80211 calls this function before a
- * station is added we ignore it.
+ * station is added we igyesre it.
  */
 static void
 il3945_rs_rate_init_stub(void *il_r, struct ieee80211_supported_band *sband,
@@ -904,7 +904,7 @@ il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 	rs_sta->tgg = 0;
 	switch (il->band) {
 	case NL80211_BAND_2GHZ:
-		/* TODO: this always does G, not a regression */
+		/* TODO: this always does G, yest a regression */
 		if (il->active.flags & RXON_FLG_TGG_PROTECT_MSK) {
 			rs_sta->tgg = 1;
 			rs_sta->expected_tpt = il3945_expected_tpt_g_prot;

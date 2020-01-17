@@ -41,9 +41,9 @@
  * Data for PCI driver interface
  *
  * This data only exists for exporting the supported
- * PCI ids via MODULE_DEVICE_TABLE.  We do not actually
+ * PCI ids via MODULE_DEVICE_TABLE.  We do yest actually
  * register a pci_driver, because someone else might one day
- * want to register another driver on the same PCI id.
+ * want to register ayesther driver on the same PCI id.
  */
 static const struct pci_device_id pci_tbl[] = {
 	{ PCI_VDEVICE(AMD, 0x7443), 0, },
@@ -137,7 +137,7 @@ static int __init mod_init(void)
 		if (ent)
 			goto found;
 	}
-	/* Device not found. */
+	/* Device yest found. */
 	return -ENODEV;
 
 found:
@@ -162,7 +162,7 @@ found:
 
 	priv->iobase = ioport_map(pmbase + PMBASE_OFFSET, PMBASE_SIZE);
 	if (!priv->iobase) {
-		pr_err(DRV_NAME "Cannot map ioport\n");
+		pr_err(DRV_NAME "Canyest map ioport\n");
 		err = -EINVAL;
 		goto err_iomap;
 	}

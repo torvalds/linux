@@ -24,9 +24,9 @@ struct unwind_state {
 	bool got_irq;
 	unsigned long *bp, *orig_sp, ip;
 	/*
-	 * If non-NULL: The current frame is incomplete and doesn't contain a
+	 * If yesn-NULL: The current frame is incomplete and doesn't contain a
 	 * valid BP. When looking for the next frame, use this instead of the
-	 * non-existent saved BP.
+	 * yesn-existent saved BP.
 	 */
 	unsigned long *next_bp;
 	struct pt_regs *regs;
@@ -100,8 +100,8 @@ void unwind_module_init(struct module *mod, void *orc_ip, size_t orc_ip_size,
 #endif
 
 /*
- * This disables KASAN checking when reading a value from another task's stack,
- * since the other task could be running on another CPU and could have poisoned
+ * This disables KASAN checking when reading a value from ayesther task's stack,
+ * since the other task could be running on ayesther CPU and could have poisoned
  * the stack in the meantime.
  */
 #define READ_ONCE_TASK_STACK(task, x)			\
@@ -114,7 +114,7 @@ void unwind_module_init(struct module *mod, void *orc_ip, size_t orc_ip_size,
 	val;						\
 })
 
-static inline bool task_on_another_cpu(struct task_struct *task)
+static inline bool task_on_ayesther_cpu(struct task_struct *task)
 {
 #ifdef CONFIG_SMP
 	return task != current && task->on_cpu;

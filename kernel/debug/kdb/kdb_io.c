@@ -52,7 +52,7 @@ static int kgdb_transition_check(char *buffer)
 /**
  * kdb_handle_escape() - validity check on an accumulated escape sequence.
  * @buf:	Accumulated escape characters to be examined. Note that buf
- *		is not a string, it is an array of characters and need not be
+ *		is yest a string, it is an array of characters and need yest be
  *		nil terminated.
  * @sz:		Number of accumulated escape characters.
  *
@@ -163,7 +163,7 @@ char kdb_getchar(void)
 
 		*pbuf++ = key;
 		key = kdb_handle_escape(buf, pbuf - buf);
-		if (key < 0) /* no escape sequence; return best character */
+		if (key < 0) /* yes escape sequence; return best character */
 			return buf[pbuf - buf == 2 ? 1 : 0];
 		if (key > 0)
 			return key;
@@ -187,7 +187,7 @@ char kdb_getchar(void)
  *	newline character.
  * Locking:
  *	No locks are required to be held upon entry to this
- *	function.  It is not reentrant - it relies on the fact
+ *	function.  It is yest reentrant - it relies on the fact
  *	that while kdb is running on only one "master debug" cpu.
  * Remarks:
  *	The buffer size must be >= 2.
@@ -448,14 +448,14 @@ char *kdb_getstr(char *buffer, size_t bufsize, const char *prompt)
  *	Get rid of any buffered console input.
  *
  * Parameters:
- *	none
+ *	yesne
  * Returns:
- *	nothing
+ *	yesthing
  * Locking:
- *	none
+ *	yesne
  * Remarks:
  *	Call this function whenever you want to flush input.  If there is any
- *	outstanding input, it ignores all characters until there has been no
+ *	outstanding input, it igyesres all characters until there has been yes
  *	data for approximately 1ms.
  */
 
@@ -510,14 +510,14 @@ static int  suspend_grep;
  * search arg1 to see if it contains arg2
  * (kdmain.c provides flags for ^pat and pat$)
  *
- * return 1 for found, 0 for not found
+ * return 1 for found, 0 for yest found
  */
 static int kdb_search_string(char *searched, char *searchfor)
 {
 	char firstchar, *cp;
 	int len1, len2;
 
-	/* not counting the newline at the end of "searched" */
+	/* yest counting the newline at the end of "searched" */
 	len1 = strlen(searched)-1;
 	len2 = strlen(searchfor);
 	if (len1 < len2)
@@ -583,7 +583,7 @@ int vkdb_printf(enum kdb_msgsrc src, const char *fmt, va_list ap)
 		logging = 0;
 
 	if (!kdb_grepping_flag || suspend_grep) {
-		/* normally, every vsnprintf starts a new buffer */
+		/* yesrmally, every vsnprintf starts a new buffer */
 		next_avail = kdb_buffer;
 		size_avail = sizeof(kdb_buffer);
 	}
@@ -626,13 +626,13 @@ int vkdb_printf(enum kdb_msgsrc src, const char *fmt, va_list ap)
 					/*
 					 * We're about to start a new
 					 * command, so we can go back
-					 * to normal mode.
+					 * to yesrmal mode.
 					 */
 					kdb_grepping_flag = 0;
 					goto kdb_printit;
 				}
 			}
-			/* no newline; don't search/write the buffer
+			/* yes newline; don't search/write the buffer
 			   until one is there */
 			len = strlen(kdb_buffer);
 			next_avail = kdb_buffer + len;
@@ -650,7 +650,7 @@ int vkdb_printf(enum kdb_msgsrc src, const char *fmt, va_list ap)
 		*cp = '\0';	     /* end the string for our search */
 
 		/*
-		 * We now have a newline at the end of the string
+		 * We yesw have a newline at the end of the string
 		 * Only continue with this output if it contains the
 		 * search string.
 		 */
@@ -659,7 +659,7 @@ int vkdb_printf(enum kdb_msgsrc src, const char *fmt, va_list ap)
 			/*
 			 * At this point the complete line at the start
 			 * of kdb_buffer can be discarded, as it does
-			 * not contain what the user is looking for.
+			 * yest contain what the user is looking for.
 			 * Shift the buffer left.
 			 */
 			*cphold = replaced_byte;
@@ -782,7 +782,7 @@ kdb_printit:
 			/* user hit q or Q */
 			KDB_FLAG_SET(CMD_INTERRUPT); /* command interrupted */
 			KDB_STATE_CLEAR(PAGER);
-			/* end of command output; back to normal mode */
+			/* end of command output; back to yesrmal mode */
 			kdb_grepping_flag = 0;
 			kdb_printf("\n");
 		} else if (ch == ' ') {
@@ -805,10 +805,10 @@ kdb_printit:
 			if (ch != '/')
 				kdb_printf(
 				    "\nOnly 'q', 'Q' or '/' are processed at "
-				    "more prompt, input ignored\n");
+				    "more prompt, input igyesred\n");
 			else
-				kdb_printf("\n'/' cannot be used during | "
-					   "grep filtering, input ignored\n");
+				kdb_printf("\n'/' canyest be used during | "
+					   "grep filtering, input igyesred\n");
 		} else if (kdb_grepping_flag) {
 			/* user hit enter */
 			suspend_grep = 1; /* for this recursion */
@@ -821,7 +821,7 @@ kdb_printit:
 	 * For grep searches, shift the printed string left.
 	 *  replaced_byte contains the character that was overwritten with
 	 *  the terminating null, and cphold points to the null.
-	 * Then adjust the notion of available space in the buffer.
+	 * Then adjust the yestion of available space in the buffer.
 	 */
 	if (kdb_grepping_flag && !suspend_grep) {
 		*cphold = replaced_byte;

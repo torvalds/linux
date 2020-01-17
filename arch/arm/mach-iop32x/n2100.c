@@ -99,7 +99,7 @@ static int n2100_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		/* Mini-PCI slot */
 		irq = IRQ_IOP32X_XINT3;
 	} else {
-		printk(KERN_ERR "n2100_pci_map_irq() called for unknown "
+		printk(KERN_ERR "n2100_pci_map_irq() called for unkyeswn "
 			"device PCI:%d:%d:%d\n", dev->bus->number,
 			PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 		irq = -1;
@@ -119,7 +119,7 @@ static struct hw_pci n2100_pci __initdata = {
 /*
  * Both r8169 chips on the n2100 exhibit PCI parity problems.  Set
  * the ->broken_parity_status flag for both ports so that the r8169
- * driver knows it should ignore error interrupts.
+ * driver kyesws it should igyesre error interrupts.
  */
 static void n2100_fixup_r8169(struct pci_dev *dev)
 {
@@ -291,7 +291,7 @@ static void n2100_restart(enum reboot_mode mode, const char *cmd)
 
 	ret = gpio_direction_output(N2100_HARDWARE_RESET, 0);
 	if (ret) {
-		pr_crit("could not drive reset GPIO low\n");
+		pr_crit("could yest drive reset GPIO low\n");
 		return;
 	}
 	/* Wait for reset to happen */
@@ -322,15 +322,15 @@ static int __init n2100_request_gpios(void)
 
 	ret = gpio_request(N2100_HARDWARE_RESET, "reset");
 	if (ret)
-		pr_err("could not request reset GPIO\n");
+		pr_err("could yest request reset GPIO\n");
 
 	ret = gpio_request(N2100_POWER_BUTTON, "power");
 	if (ret)
-		pr_err("could not request power GPIO\n");
+		pr_err("could yest request power GPIO\n");
 	else {
 		ret = gpio_direction_input(N2100_POWER_BUTTON);
 		if (ret)
-			pr_err("could not set power GPIO as input\n");
+			pr_err("could yest set power GPIO as input\n");
 	}
 	/* Set up power button poll timer */
 	timer_setup(&power_button_poll_timer, power_button_poll, 0);

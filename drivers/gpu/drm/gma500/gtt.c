@@ -163,7 +163,7 @@ void psb_gtt_roll(struct drm_device *dev, struct gtt_range *r, int roll)
 
 	r->roll = roll;
 
-	/* Not currently in the GTT - no worry we will write the mapping at
+	/* Not currently in the GTT - yes worry we will write the mapping at
 	   the right position when it gets pinned */
 	if (!r->stolen && !r->in_gart)
 		return;
@@ -188,7 +188,7 @@ void psb_gtt_roll(struct drm_device *dev, struct gtt_range *r, int roll)
  *	@gt: the gtt range
  *
  *	Pin and build an in kernel list of the pages that back our GEM object.
- *	While we hold this the pages cannot be swapped out. This is protected
+ *	While we hold this the pages canyest be swapped out. This is protected
  *	via the gtt mutex which the caller must hold.
  */
 static int psb_gtt_attach_pages(struct gtt_range *gt)
@@ -212,7 +212,7 @@ static int psb_gtt_attach_pages(struct gtt_range *gt)
  *	@gt: the gtt range
  *
  *	Undo the effect of psb_gtt_attach_pages. At this point the pages
- *	must have been removed from the GTT as they could now be paged out
+ *	must have been removed from the GTT as they could yesw be paged out
  *	and move bus address. This is protected via the gtt mutex which the
  *	caller must hold.
  */
@@ -229,7 +229,7 @@ static void psb_gtt_detach_pages(struct gtt_range *gt)
  *	Pin a set of pages into the GTT. The pins are refcounted so that
  *	multiple pins need multiple unpins to undo.
  *
- *	Non GEM backed objects treat this as a no-op as they are always GTT
+ *	Non GEM backed objects treat this as a yes-op as they are always GTT
  *	backed objects.
  */
 int psb_gtt_pin(struct gtt_range *gt)
@@ -268,7 +268,7 @@ out:
  *	will be removed from the GTT which will also drop the page references
  *	and allow the VM to clean up or page stuff.
  *
- *	Non GEM backed objects treat this as a no-op as they are always GTT
+ *	Non GEM backed objects treat this as a yes-op as they are always GTT
  *	backed objects.
  */
 void psb_gtt_unpin(struct gtt_range *gt)
@@ -278,7 +278,7 @@ void psb_gtt_unpin(struct gtt_range *gt)
 	u32 gpu_base = dev_priv->gtt.gatt_start;
 	int ret;
 
-	/* While holding the gtt_mutex no new blits can be initiated */
+	/* While holding the gtt_mutex yes new blits can be initiated */
 	mutex_lock(&dev_priv->gtt_mutex);
 
 	/* Wait for any possible usage of the memory to be finished */
@@ -347,7 +347,7 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 	gt->stolen = backed;
 	gt->in_gart = backed;
 	gt->roll = 0;
-	/* Ensure this is set for non GEM objects */
+	/* Ensure this is set for yesn GEM objects */
 	gt->gem.dev = dev;
 	ret = allocate_resource(dev_priv->gtt_mem, &gt->resource,
 				len, start, end, align, NULL, NULL);
@@ -450,7 +450,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 								>> PAGE_SHIFT;
 	/* CDV doesn't report this. In which case the system has 64 gtt pages */
 	if (pg->gtt_start == 0 || gtt_pages == 0) {
-		dev_dbg(dev->dev, "GTT PCI BAR not initialized.\n");
+		dev_dbg(dev->dev, "GTT PCI BAR yest initialized.\n");
 		gtt_pages = 64;
 		pg->gtt_start = dev_priv->pge_ctl;
 	}
@@ -465,12 +465,12 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 		/* This can occur on CDV systems. Fudge it in this case.
 		   We really don't care what imaginary space is being allocated
 		   at this point */
-		dev_dbg(dev->dev, "GATT PCI BAR not initialized.\n");
+		dev_dbg(dev->dev, "GATT PCI BAR yest initialized.\n");
 		pg->gatt_start = 0x40000000;
 		pg->gatt_pages = (128 * 1024 * 1024) >> PAGE_SHIFT;
 		/* This is a little confusing but in fact the GTT is providing
-		   a view from the GPU into memory and not vice versa. As such
-		   this is really allocating space that is not the same as the
+		   a view from the GPU into memory and yest vice versa. As such
+		   this is really allocating space that is yest the same as the
 		   CPU address space on CDV */
 		fudge.start = 0x40000000;
 		fudge.end = 0x40000000 + 128 * 1024 * 1024 - 1;
@@ -503,7 +503,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	 *	Map the GTT and the stolen memory area
 	 */
 	if (!resume)
-		dev_priv->gtt_map = ioremap_nocache(pg->gtt_phys_start,
+		dev_priv->gtt_map = ioremap_yescache(pg->gtt_phys_start,
 						gtt_pages << PAGE_SHIFT);
 	if (!dev_priv->gtt_map) {
 		dev_err(dev->dev, "Failure to map gtt.\n");

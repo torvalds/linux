@@ -47,19 +47,19 @@ static const struct mtk_gate_regs ipu_conn_axi2_cg_regs = {
 
 #define GATE_IPU_CONN_APB(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &ipu_conn_apb_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr)
+		&mtk_clk_gate_ops_yes_setclr)
 
 #define GATE_IPU_CONN_AXI_I(_id, _name, _parent, _shift)		\
 	GATE_MTK(_id, _name, _parent, &ipu_conn_axi_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr_inv)
+		&mtk_clk_gate_ops_yes_setclr_inv)
 
 #define GATE_IPU_CONN_AXI1_I(_id, _name, _parent, _shift)		\
 	GATE_MTK(_id, _name, _parent, &ipu_conn_axi1_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr_inv)
+		&mtk_clk_gate_ops_yes_setclr_inv)
 
 #define GATE_IPU_CONN_AXI2_I(_id, _name, _parent, _shift)		\
 	GATE_MTK(_id, _name, _parent, &ipu_conn_axi2_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr_inv)
+		&mtk_clk_gate_ops_yes_setclr_inv)
 
 static const struct mtk_gate ipu_conn_clks[] = {
 	GATE_IPU_CONN(CLK_IPU_CONN_IPU,
@@ -97,14 +97,14 @@ static const struct mtk_gate ipu_conn_clks[] = {
 static int clk_mt8183_ipu_conn_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	clk_data = mtk_alloc_clk_data(CLK_IPU_CONN_NR_CLK);
 
-	mtk_clk_register_gates(node, ipu_conn_clks, ARRAY_SIZE(ipu_conn_clks),
+	mtk_clk_register_gates(yesde, ipu_conn_clks, ARRAY_SIZE(ipu_conn_clks),
 			clk_data);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	return of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 }
 
 static const struct of_device_id of_match_clk_mt8183_ipu_conn[] = {

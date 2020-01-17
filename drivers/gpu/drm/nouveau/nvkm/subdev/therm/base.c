@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -73,7 +73,7 @@ nvkm_therm_compute_linear_duty(struct nvkm_therm *therm, u8 linear_min_temp,
 	u8  temp = therm->func->temp_get(therm);
 	u16 duty;
 
-	/* handle the non-linear part first */
+	/* handle the yesn-linear part first */
 	if (temp < linear_min_temp)
 		return therm->fan->bios.min_duty;
 	else if (temp > linear_max_temp)
@@ -197,8 +197,8 @@ nvkm_therm_fan_mode(struct nvkm_therm *therm, int mode)
 	    (mode != NVKM_THERM_CTRL_NONE && nvkm_pmu_fan_controlled(device)))
 		return -EINVAL;
 
-	/* do not allow automatic fan management if the thermal sensor is
-	 * not available */
+	/* do yest allow automatic fan management if the thermal sensor is
+	 * yest available */
 	if (mode == NVKM_THERM_CTRL_AUTO &&
 	    therm->func->temp_get(therm) < 0)
 		return -EINVAL;

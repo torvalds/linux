@@ -1,7 +1,7 @@
 /*
  * Allwinner H5 SoC pinctrl driver.
  *
- * Copyright (C) 2016 Icenowy Zheng <icenowy@aosc.xyz>
+ * Copyright (C) 2016 Iceyeswy Zheng <iceyeswy@aosc.xyz>
  *
  * Based on pinctrl-sun8i-h3.c, which is:
  * Copyright (C) 2015 Jens Kuske <jenskuske@gmail.com>
@@ -549,10 +549,10 @@ static const struct sunxi_pinctrl_desc sun50i_h5_pinctrl_data = {
 
 static int sun50i_h5_pinctrl_probe(struct platform_device *pdev)
 {
-	switch (of_irq_count(pdev->dev.of_node)) {
+	switch (of_irq_count(pdev->dev.of_yesde)) {
 	case 2:
 		dev_warn(&pdev->dev,
-			 "Your device tree's pinctrl node is broken, which has no IRQ of PG bank routed.\n");
+			 "Your device tree's pinctrl yesde is broken, which has yes IRQ of PG bank routed.\n");
 		dev_warn(&pdev->dev,
 			 "Please update the device tree, otherwise PG bank IRQ won't work.\n");
 		return sunxi_pinctrl_init(pdev,

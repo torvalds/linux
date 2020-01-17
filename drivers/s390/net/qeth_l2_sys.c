@@ -41,7 +41,7 @@ static ssize_t qeth_bridge_port_role_state_show(struct device *dev,
 		else
 			switch (card->options.sbp.role) {
 			case QETH_SBP_ROLE_NONE:
-				word = "none"; break;
+				word = "yesne"; break;
 			case QETH_SBP_ROLE_PRIMARY:
 				word = "primary"; break;
 			case QETH_SBP_ROLE_SECONDARY:
@@ -82,7 +82,7 @@ static ssize_t qeth_bridge_port_role_store(struct device *dev,
 		role = QETH_SBP_ROLE_PRIMARY;
 	else if (sysfs_streq(buf, "secondary"))
 		role = QETH_SBP_ROLE_SECONDARY;
-	else if (sysfs_streq(buf, "none"))
+	else if (sysfs_streq(buf, "yesne"))
 		role = QETH_SBP_ROLE_NONE;
 	else
 		return -EINVAL;
@@ -125,7 +125,7 @@ static ssize_t qeth_bridge_port_state_show(struct device *dev,
 static DEVICE_ATTR(bridge_state, 0444, qeth_bridge_port_state_show,
 		   NULL);
 
-static ssize_t qeth_bridgeport_hostnotification_show(struct device *dev,
+static ssize_t qeth_bridgeport_hostyestification_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
@@ -134,12 +134,12 @@ static ssize_t qeth_bridgeport_hostnotification_show(struct device *dev,
 	if (qeth_l2_vnicc_is_in_use(card))
 		return sprintf(buf, "n/a (VNIC characteristics)\n");
 
-	enabled = card->options.sbp.hostnotification;
+	enabled = card->options.sbp.hostyestification;
 
 	return sprintf(buf, "%d\n", enabled);
 }
 
-static ssize_t qeth_bridgeport_hostnotification_store(struct device *dev,
+static ssize_t qeth_bridgeport_hostyestification_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
@@ -158,9 +158,9 @@ static ssize_t qeth_bridgeport_hostnotification_store(struct device *dev,
 	else if (qeth_card_hw_is_reachable(card)) {
 		rc = qeth_bridgeport_an_set(card, enable);
 		if (!rc)
-			card->options.sbp.hostnotification = enable;
+			card->options.sbp.hostyestification = enable;
 	} else
-		card->options.sbp.hostnotification = enable;
+		card->options.sbp.hostyestification = enable;
 
 	mutex_unlock(&card->sbp_lock);
 	mutex_unlock(&card->conf_mutex);
@@ -168,9 +168,9 @@ static ssize_t qeth_bridgeport_hostnotification_store(struct device *dev,
 	return rc ? rc : count;
 }
 
-static DEVICE_ATTR(bridge_hostnotify, 0644,
-			qeth_bridgeport_hostnotification_show,
-			qeth_bridgeport_hostnotification_store);
+static DEVICE_ATTR(bridge_hostyestify, 0644,
+			qeth_bridgeport_hostyestification_show,
+			qeth_bridgeport_hostyestification_store);
 
 static ssize_t qeth_bridgeport_reflect_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -187,7 +187,7 @@ static ssize_t qeth_bridgeport_reflect_show(struct device *dev,
 		else
 			state = "secondary";
 	} else
-		state = "none";
+		state = "yesne";
 
 	return sprintf(buf, "%s\n", state);
 }
@@ -199,7 +199,7 @@ static ssize_t qeth_bridgeport_reflect_store(struct device *dev,
 	int enable, primary;
 	int rc = 0;
 
-	if (sysfs_streq(buf, "none")) {
+	if (sysfs_streq(buf, "yesne")) {
 		enable = 0;
 		primary = 0;
 	} else if (sysfs_streq(buf, "primary")) {
@@ -237,7 +237,7 @@ static DEVICE_ATTR(bridge_reflect_promisc, 0644,
 static struct attribute *qeth_l2_bridgeport_attrs[] = {
 	&dev_attr_bridge_role.attr,
 	&dev_attr_bridge_state.attr,
-	&dev_attr_bridge_hostnotify.attr,
+	&dev_attr_bridge_hostyestify.attr,
 	&dev_attr_bridge_reflect_promisc.attr,
 	NULL,
 };
@@ -270,10 +270,10 @@ void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
 		qeth_bridgeport_query_ports(card,
 			&card->options.sbp.role, NULL);
 	}
-	if (card->options.sbp.hostnotification) {
+	if (card->options.sbp.hostyestification) {
 		rc = qeth_bridgeport_an_set(card, 1);
 		if (rc)
-			card->options.sbp.hostnotification = 0;
+			card->options.sbp.hostyestification = 0;
 	} else {
 		qeth_bridgeport_an_set(card, 0);
 	}

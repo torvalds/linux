@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -67,10 +67,10 @@
 #define HTC_SERVICE_NOT_FOUND    1
 #define HTC_SERVICE_FAILED       2
 
-/* no resources (i.e. no more endpoints) */
+/* yes resources (i.e. yes more endpoints) */
 #define HTC_SERVICE_NO_RESOURCES 3
 
-/* specific service is not allowing any more endpoints */
+/* specific service is yest allowing any more endpoints */
 #define HTC_SERVICE_NO_MORE_EP   4
 
 /* report record IDs */
@@ -148,7 +148,7 @@
 
 /* HTC frame header
  *
- * NOTE: do not remove or re-arrange the fields, these are minimally
+ * NOTE: do yest remove or re-arrange the fields, these are minimally
  * required to take advantage of 4-byte lookaheads in some hardware
  * implementations.
  */
@@ -267,7 +267,7 @@ struct htc_tx_packet_info {
 	u16 tag;
 	int cred_used;
 	u8 flags;
-	int seqno;
+	int seqyes;
 };
 
 struct htc_rx_packet_info {
@@ -324,7 +324,7 @@ struct htc_packet {
 	/*
 	 * optimization for network-oriented data, the HTC packet
 	 * can pass the network buffer corresponding to the HTC packet
-	 * lower layers may optimized the transfer knowing this is
+	 * lower layers may optimized the transfer kyeswing this is
 	 * a network buffer
 	 */
 	struct sk_buff *skb;
@@ -380,10 +380,10 @@ struct htc_endpoint_credit_dist {
 	u32 dist_flags;
 
 	/*
-	 * credits for normal operation, anything above this
+	 * credits for yesrmal operation, anything above this
 	 * indicates the endpoint is over-subscribed.
 	 */
-	int cred_norm;
+	int cred_yesrm;
 
 	/* floor for credit distribution */
 	int cred_min;
@@ -421,7 +421,7 @@ struct htc_endpoint_credit_dist {
 	 * current depth of TX queue , i.e. messages waiting for credits
 	 * This field is valid only when HTC_CREDIT_DIST_ACTIVITY_CHANGE
 	 * or HTC_CREDIT_DIST_SEND_COMPLETE is indicated on an endpoint
-	 * that has non-zero credits to recover.
+	 * that has yesn-zero credits to recover.
 	 */
 	int txq_depth;
 };
@@ -472,10 +472,10 @@ struct htc_endpoint_stats {
 	/* count of credits received via Rx packets on this endpoint */
 	u32 cred_from_rx;
 
-	/* count of credits received via another endpoint */
+	/* count of credits received via ayesther endpoint */
 	u32 cred_from_other;
 
-	/* count of credits received via another endpoint */
+	/* count of credits received via ayesther endpoint */
 	u32 cred_from_ep0;
 
 	/* count of consummed credits */
@@ -517,7 +517,7 @@ struct htc_endpoint {
 	int tx_proc_cnt;
 	int rx_proc_cnt;
 	struct htc_target *target;
-	u8 seqno;
+	u8 seqyes;
 	u32 conn_flags;
 	struct htc_endpoint_stats ep_st;
 	u16 tx_drop_packet_threshold;
@@ -617,7 +617,7 @@ struct htc_target {
 
 	int chk_irq_status_cnt;
 
-	/* counts the number of Tx without bundling continously per AC */
+	/* counts the number of Tx without bundling contiyesusly per AC */
 	u32 ac_tx_count[WMM_NUM_AC];
 
 	struct {

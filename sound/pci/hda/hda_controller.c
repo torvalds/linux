@@ -333,7 +333,7 @@ static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
 }
 
 /*
- * azx_scale64: Scale base by mult/div while not overflowing sanely
+ * azx_scale64: Scale base by mult/div while yest overflowing sanely
  *
  * Derived from scale64_check_overflow in kernel/time/timekeeping.c
  *
@@ -387,7 +387,7 @@ static int azx_get_sync_time(ktime_t *device,
 	else
 		direction = 0;
 
-	/* 0th stream tag is not used, so DMA ch 0 is for 1st stream tag */
+	/* 0th stream tag is yest used, so DMA ch 0 is for 1st stream tag */
 	do {
 		timeout = 100;
 		dma_select = (direction << GTSCC_CDMAS_DMA_DIR_SHIFT) |
@@ -528,7 +528,7 @@ static int azx_get_time_info(struct snd_pcm_substream *substream,
 			return -EINVAL;
 
 		case SNDRV_PCM_TSTAMP_TYPE_MONOTONIC_RAW:
-			*system_ts = ktime_to_timespec(xtstamp.sys_monoraw);
+			*system_ts = ktime_to_timespec(xtstamp.sys_moyesraw);
 			break;
 
 		default:
@@ -631,7 +631,7 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	else
 		/* Don't enforce steps on buffer sizes, still need to
 		   be multiple of 4 bytes (HDA spec). Tested on Intel
-		   HDA controllers, may not work on all devices where
+		   HDA controllers, may yest work on all devices where
 		   option needs to be disabled */
 		buff_step = 4;
 
@@ -829,7 +829,7 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 		}
 	}
 
-	if (hbus->no_response_fallback)
+	if (hbus->yes_response_fallback)
 		return -EIO;
 
 	if (!bus->polling_mode && bus->poll_count < 2) {
@@ -862,13 +862,13 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 
 	if (chip->probing) {
 		/* If this critical timeout happens during the codec probing
-		 * phase, this is likely an access to a non-existing codec
+		 * phase, this is likely an access to a yesn-existing codec
 		 * slot.  Better to return an error and reset the system.
 		 */
 		return -EIO;
 	}
 
-	/* no fallback mechanism? */
+	/* yes fallback mechanism? */
 	if (!chip->fallback_to_single_cmd)
 		return -EIO;
 
@@ -895,9 +895,9 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 /*
  * Use the single immediate command instead of CORB/RIRB for simplicity
  *
- * Note: according to Intel, this is not preferred use.  The command was
+ * Note: according to Intel, this is yest preferred use.  The command was
  *       intended for the BIOS only, and may get confused with unsolicited
- *       responses.  So, we shouldn't use it for normal operation from the
+ *       responses.  So, we shouldn't use it for yesrmal operation from the
  *       driver.
  *       I left the codes, however, for debugging/testing purposes.
  */
@@ -1232,7 +1232,7 @@ int azx_bus_init(struct azx *chip, const char *model)
 	bus->pci = chip->pci;
 	bus->modelname = model;
 	bus->mixer_assigned = -1;
-	bus->core.snoop = azx_snoop(chip);
+	bus->core.syesop = azx_syesop(chip);
 	if (chip->get_position[0] != azx_get_pos_lpib ||
 	    chip->get_position[1] != azx_get_pos_lpib)
 		bus->core.use_posbuf = true;
@@ -1277,7 +1277,7 @@ int azx_probe_codecs(struct azx *chip, unsigned int max_slots)
 				dev_warn(chip->card->dev,
 					 "Codec #%d probe error; disabling it...\n", c);
 				bus->codec_mask &= ~(1 << c);
-				/* More badly, accessing to a non-existing
+				/* More badly, accessing to a yesn-existing
 				 * codec often screws up the controller chip,
 				 * and disturbs the further communications.
 				 * Thus if an error occurs during probing,
@@ -1303,7 +1303,7 @@ int azx_probe_codecs(struct azx *chip, unsigned int max_slots)
 		}
 	}
 	if (!codecs) {
-		dev_err(chip->card->dev, "no codecs initialized\n");
+		dev_err(chip->card->dev, "yes codecs initialized\n");
 		return -ENXIO;
 	}
 	return 0;

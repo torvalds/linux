@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * haltpoll.c - haltpoll idle governor
+ * haltpoll.c - haltpoll idle goveryesr
  *
  * Copyright 2019 Red Hat, Inc. and/or its affiliates.
  *
@@ -43,13 +43,13 @@ module_param(guest_halt_poll_allow_shrink, bool, 0644);
  * haltpoll_select - selects the next idle state to enter
  * @drv: cpuidle driver containing state data
  * @dev: the CPU
- * @stop_tick: indication on whether or not to stop the tick
+ * @stop_tick: indication on whether or yest to stop the tick
  */
 static int haltpoll_select(struct cpuidle_driver *drv,
 			   struct cpuidle_device *dev,
 			   bool *stop_tick)
 {
-	s64 latency_req = cpuidle_governor_latency_req(dev->cpu);
+	s64 latency_req = cpuidle_goveryesr_latency_req(dev->cpu);
 
 	if (!drv->state_count || latency_req == 0) {
 		*stop_tick = false;
@@ -61,7 +61,7 @@ static int haltpoll_select(struct cpuidle_driver *drv,
 
 	/* Last state was poll? */
 	if (dev->last_state_idx == 0) {
-		/* Halt if no event occurred on poll window */
+		/* Halt if yes event occurred on poll window */
 		if (dev->poll_time_limit == true)
 			return 1;
 
@@ -130,7 +130,7 @@ static int haltpoll_enable_device(struct cpuidle_driver *drv,
 	return 0;
 }
 
-static struct cpuidle_governor haltpoll_governor = {
+static struct cpuidle_goveryesr haltpoll_goveryesr = {
 	.name =			"haltpoll",
 	.rating =		9,
 	.enable =		haltpoll_enable_device,
@@ -141,7 +141,7 @@ static struct cpuidle_governor haltpoll_governor = {
 static int __init init_haltpoll(void)
 {
 	if (kvm_para_available())
-		return cpuidle_register_governor(&haltpoll_governor);
+		return cpuidle_register_goveryesr(&haltpoll_goveryesr);
 
 	return 0;
 }

@@ -14,7 +14,7 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/unistd.h>
 #include <linux/stddef.h>
@@ -77,7 +77,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 	u32 tmp;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	get_user_try {
 		gs = GET_SEG(gs);
@@ -103,9 +103,9 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 
 	/*
 	 * Reload fs and gs if they have changed in the signal
-	 * handler.  This does not handle long fs/gs base changes in
-	 * the handler, but does not clobber them at least in the
-	 * normal case.
+	 * handler.  This does yest handle long fs/gs base changes in
+	 * the handler, but does yest clobber them at least in the
+	 * yesrmal case.
 	 */
 	RELOAD_SEG(gs);
 	RELOAD_SEG(fs);
@@ -197,7 +197,7 @@ static int ia32_setup_sigcontext(struct sigcontext_32 __user *sc,
 		put_user_ex(regs->dx, &sc->dx);
 		put_user_ex(regs->cx, &sc->cx);
 		put_user_ex(regs->ax, &sc->ax);
-		put_user_ex(current->thread.trap_nr, &sc->trapno);
+		put_user_ex(current->thread.trap_nr, &sc->trapyes);
 		put_user_ex(current->thread.error_code, &sc->err);
 		put_user_ex(regs->ip, &sc->ip);
 		put_user_ex(regs->cs, (unsigned int __user *)&sc->cs);
@@ -207,7 +207,7 @@ static int ia32_setup_sigcontext(struct sigcontext_32 __user *sc,
 
 		put_user_ex(ptr_to_compat(fpstate), &sc->fpstate);
 
-		/* non-iBCS2 extensions.. */
+		/* yesn-iBCS2 extensions.. */
 		put_user_ex(mask, &sc->oldmask);
 		put_user_ex(current->thread.cr2, &sc->cr2);
 	} put_user_catch(err);
@@ -224,7 +224,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 {
 	unsigned long sp, fx_aligned, math_size;
 
-	/* Default to using normal stack */
+	/* Default to using yesrmal stack */
 	sp = regs->sp;
 
 	/* This is the X/Open sanctioned signal stack switching.  */
@@ -300,7 +300,7 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 		put_user_ex(ptr_to_compat(restorer), &frame->pretcode);
 
 		/*
-		 * These are actually not used anymore, but left because some
+		 * These are actually yest used anymore, but left because some
 		 * gdb versions depend on them as a marker.
 		 */
 		put_user_ex(*((u64 *)&code), (u64 __user *)frame->retcode);

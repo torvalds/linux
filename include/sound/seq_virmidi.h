@@ -53,7 +53,7 @@ struct snd_virmidi_dev {
 
 /* sequencer mode:
  * ATTACH = input/output events from midi device are routed to the
- *          attached sequencer port.  sequencer port is not created
+ *          attached sequencer port.  sequencer port is yest created
  *          by virmidi itself.
  *          the input to rawmidi must be processed by passing the
  *          incoming events via snd_virmidi_receive()

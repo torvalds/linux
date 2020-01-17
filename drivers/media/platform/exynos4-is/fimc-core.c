@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/bug.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
@@ -748,10 +748,10 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 
 /**
  * fimc_find_format - lookup fimc color format by fourcc or media bus format
- * @pixelformat: fourcc to match, ignored if null
- * @mbus_code: media bus code to match, ignored if null
+ * @pixelformat: fourcc to match, igyesred if null
+ * @mbus_code: media bus code to match, igyesred if null
  * @mask: the color flags to match
- * @index: offset in the fimc_formats array, ignored if negative
+ * @index: offset in the fimc_formats array, igyesred if negative
  */
 struct fimc_fmt *fimc_find_format(const u32 *pixelformat, const u32 *mbus_code,
 				  unsigned int mask, int index)
@@ -864,25 +864,25 @@ static const struct of_device_id fimc_of_match[];
 static int fimc_parse_dt(struct fimc_dev *fimc, u32 *clk_freq)
 {
 	struct device *dev = &fimc->pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	const struct of_device_id *of_id;
 	struct fimc_variant *v;
 	struct fimc_pix_limit *lim;
 	u32 args[FIMC_PIX_LIMITS_MAX];
 	int ret;
 
-	if (of_property_read_bool(node, "samsung,lcd-wb"))
+	if (of_property_read_bool(yesde, "samsung,lcd-wb"))
 		return -ENODEV;
 
 	v = devm_kzalloc(dev, sizeof(*v) + sizeof(*lim), GFP_KERNEL);
 	if (!v)
 		return -ENOMEM;
 
-	of_id = of_match_node(fimc_of_match, node);
+	of_id = of_match_yesde(fimc_of_match, yesde);
 	if (!of_id)
 		return -EINVAL;
 	fimc->drv_data = of_id->data;
-	ret = of_property_read_u32_array(node, "samsung,pix-limits",
+	ret = of_property_read_u32_array(yesde, "samsung,pix-limits",
 					 args, FIMC_PIX_LIMITS_MAX);
 	if (ret < 0)
 		return ret;
@@ -895,25 +895,25 @@ static int fimc_parse_dt(struct fimc_dev *fimc, u32 *clk_freq)
 	lim->out_rot_dis_w = args[3];
 	v->pix_limit = lim;
 
-	ret = of_property_read_u32_array(node, "samsung,min-pix-sizes",
+	ret = of_property_read_u32_array(yesde, "samsung,min-pix-sizes",
 								args, 2);
 	v->min_inp_pixsize = ret ? FIMC_DEF_MIN_SIZE : args[0];
 	v->min_out_pixsize = ret ? FIMC_DEF_MIN_SIZE : args[1];
-	ret = of_property_read_u32_array(node, "samsung,min-pix-alignment",
+	ret = of_property_read_u32_array(yesde, "samsung,min-pix-alignment",
 								args, 2);
 	v->min_vsize_align = ret ? FIMC_DEF_HEIGHT_ALIGN : args[0];
 	v->hor_offs_align = ret ? FIMC_DEF_HOR_OFFS_ALIGN : args[1];
 
-	ret = of_property_read_u32(node, "samsung,rotators", &args[1]);
+	ret = of_property_read_u32(yesde, "samsung,rotators", &args[1]);
 	v->has_inp_rot = ret ? 1 : args[1] & 0x01;
 	v->has_out_rot = ret ? 1 : args[1] & 0x10;
-	v->has_mainscaler_ext = of_property_read_bool(node,
+	v->has_mainscaler_ext = of_property_read_bool(yesde,
 					"samsung,mainscaler-ext");
 
-	v->has_isp_wb = of_property_read_bool(node, "samsung,isp-wb");
-	v->has_cam_if = of_property_read_bool(node, "samsung,cam-if");
-	of_property_read_u32(node, "clock-frequency", clk_freq);
-	fimc->id = of_alias_get_id(node, "fimc");
+	v->has_isp_wb = of_property_read_bool(yesde, "samsung,isp-wb");
+	v->has_cam_if = of_property_read_bool(yesde, "samsung,cam-if");
+	of_property_read_u32(yesde, "clock-frequency", clk_freq);
+	fimc->id = of_alias_get_id(yesde, "fimc");
 
 	fimc->variant = v;
 	return 0;
@@ -933,7 +933,7 @@ static int fimc_probe(struct platform_device *pdev)
 
 	fimc->pdev = pdev;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		ret = fimc_parse_dt(fimc, &lclk_freq);
 		if (ret < 0)
 			return ret;
@@ -947,14 +947,14 @@ static int fimc_probe(struct platform_device *pdev)
 			fimc->id);
 		return -EINVAL;
 	}
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		fimc->variant = fimc->drv_data->variant[fimc->id];
 
 	init_waitqueue_head(&fimc->irq_queue);
 	spin_lock_init(&fimc->slock);
 	mutex_init(&fimc->lock);
 
-	fimc->sysreg = fimc_get_sysreg_regmap(dev->of_node);
+	fimc->sysreg = fimc_get_sysreg_regmap(dev->of_yesde);
 	if (IS_ERR(fimc->sysreg))
 		return PTR_ERR(fimc->sysreg);
 
@@ -1060,7 +1060,7 @@ static int fimc_resume(struct device *dev)
 
 	dbg("fimc%d: state: 0x%lx", fimc->id, fimc->state);
 
-	/* Do not resume if the device was idle before system suspend */
+	/* Do yest resume if the device was idle before system suspend */
 	spin_lock_irqsave(&fimc->slock, flags);
 	if (!test_and_clear_bit(ST_LPM, &fimc->state) ||
 	    (!fimc_m2m_active(fimc) && !fimc_capture_busy(fimc))) {
@@ -1178,7 +1178,7 @@ static const struct fimc_drvdata fimc_drvdata_s5pv210 = {
 };
 
 /* EXYNOS4210, S5PV310, S5PC210 */
-static const struct fimc_drvdata fimc_drvdata_exynos4210 = {
+static const struct fimc_drvdata fimc_drvdata_exyyess4210 = {
 	.num_entities	= 4,
 	.lclk_frequency = 166000000UL,
 	.dma_pix_hoff	= 1,
@@ -1188,7 +1188,7 @@ static const struct fimc_drvdata fimc_drvdata_exynos4210 = {
 };
 
 /* EXYNOS4412 */
-static const struct fimc_drvdata fimc_drvdata_exynos4x12 = {
+static const struct fimc_drvdata fimc_drvdata_exyyess4x12 = {
 	.num_entities	= 4,
 	.lclk_frequency	= 166000000UL,
 	.dma_pix_hoff	= 1,
@@ -1202,11 +1202,11 @@ static const struct of_device_id fimc_of_match[] = {
 		.compatible = "samsung,s5pv210-fimc",
 		.data = &fimc_drvdata_s5pv210,
 	}, {
-		.compatible = "samsung,exynos4210-fimc",
-		.data = &fimc_drvdata_exynos4210,
+		.compatible = "samsung,exyyess4210-fimc",
+		.data = &fimc_drvdata_exyyess4210,
 	}, {
-		.compatible = "samsung,exynos4212-fimc",
-		.data = &fimc_drvdata_exynos4x12,
+		.compatible = "samsung,exyyess4212-fimc",
+		.data = &fimc_drvdata_exyyess4x12,
 	},
 	{ /* sentinel */ },
 };

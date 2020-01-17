@@ -7,21 +7,21 @@
 /*
  *	jfs_txnmgr.c: transaction manager
  *
- * notes:
+ * yestes:
  * transaction starts with txBegin() and ends with txCommit()
  * or txAbort().
  *
  * tlock is acquired at the time of update;
  * (obviate scan at commit time for xtree and dtree)
  * tlock and mp points to each other;
- * (no hashlist for mp -> tlock).
+ * (yes hashlist for mp -> tlock).
  *
  * special cases:
- * tlock on in-memory inode:
- * in-place tlock in the in-memory inode itself;
+ * tlock on in-memory iyesde:
+ * in-place tlock in the in-memory iyesde itself;
  * converted to page lock by iWrite() at commit time.
  *
- * tlock during write()/mmap() under anonymous transaction (tid = 0):
+ * tlock during write()/mmap() under ayesnymous transaction (tid = 0):
  * transferred (?) to transaction at commit time.
  *
  * use the page itself to update allocation maps
@@ -38,10 +38,10 @@
 #include <linux/kthread.h>
 #include <linux/seq_file.h>
 #include "jfs_incore.h"
-#include "jfs_inode.h"
+#include "jfs_iyesde.h"
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
-#include "jfs_dinode.h"
+#include "jfs_diyesde.h"
 #include "jfs_imap.h"
 #include "jfs_dmap.h"
 #include "jfs_superblock.h"
@@ -60,8 +60,8 @@ static struct {
 	spinlock_t LazyLock;	/* synchronize sync_queue & unlock_queue */
 /*	struct tblock *sync_queue; * Transactions waiting for data sync */
 	struct list_head unlock_queue;	/* Txns waiting to be released */
-	struct list_head anon_list;	/* inodes having anonymous txns */
-	struct list_head anon_list2;	/* inodes having anonymous txns
+	struct list_head ayesn_list;	/* iyesdes having ayesnymous txns */
+	struct list_head ayesn_list2;	/* iyesdes having ayesnymous txns
 					   that couldn't be sync'ed */
 } TxAnchor;
 
@@ -73,9 +73,9 @@ static struct {
 	uint txBegin_barrier;
 	uint txBegin_lockslow;
 	uint txBegin_freetid;
-	uint txBeginAnon;
-	uint txBeginAnon_barrier;
-	uint txBeginAnon_lockslow;
+	uint txBeginAyesn;
+	uint txBeginAyesn_barrier;
+	uint txBeginAyesn_lockslow;
 	uint txLockAlloc;
 	uint txLockAlloc_freelock;
 } TxStat;
@@ -156,7 +156,7 @@ static void dtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		struct tlock * tlck);
 static void mapLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		struct tlock * tlck);
-static void txAllocPMap(struct inode *ip, struct maplock * maplock,
+static void txAllocPMap(struct iyesde *ip, struct maplock * maplock,
 		struct tblock * tblk);
 static void txForce(struct tblock * tblk);
 static int txLog(struct jfs_log * log, struct tblock * tblk,
@@ -175,7 +175,7 @@ static void LogSyncRelease(struct metapage * mp);
 /*
  * Get a transaction lock from the free list.  If the number in use is
  * greater than the high water mark, wake up the sync daemon.  This should
- * free some anonymous transaction locks.  (TXN_LOCK must be held.)
+ * free some ayesnymous transaction locks.  (TXN_LOCK must be held.)
  */
 static lid_t txLockAlloc(void)
 {
@@ -206,7 +206,7 @@ static void txLockFree(lid_t lid)
 	TxAnchor.freelock = lid;
 	TxAnchor.tlocksInUse--;
 	if (jfs_tlocks_low && (TxAnchor.tlocksInUse < TxLockLWM)) {
-		jfs_info("txLockFree jfs_tlocks_low no more");
+		jfs_info("txLockFree jfs_tlocks_low yes more");
 		jfs_tlocks_low = 0;
 		TXN_WAKEUP(&TxAnchor.lowlockwait);
 	}
@@ -308,8 +308,8 @@ int txInit(void)
 
 	TxAnchor.freelock = 1;
 	TxAnchor.tlocksInUse = 0;
-	INIT_LIST_HEAD(&TxAnchor.anon_list);
-	INIT_LIST_HEAD(&TxAnchor.anon_list2);
+	INIT_LIST_HEAD(&TxAnchor.ayesn_list);
+	INIT_LIST_HEAD(&TxAnchor.ayesn_list2);
 
 	LAZY_LOCK_INIT();
 	INIT_LIST_HEAD(&TxAnchor.unlock_queue);
@@ -342,7 +342,7 @@ void txExit(void)
  *
  * RETURN:	tid	- transaction id
  *
- * note: flag force allows to start tx for nested tx
+ * yeste: flag force allows to start tx for nested tx
  * to prevent deadlock on logsync barrier;
  */
 tid_t txBegin(struct super_block *sb, int flag)
@@ -396,7 +396,7 @@ tid_t txBegin(struct super_block *sb, int flag)
 	tblk = tid_to_tblock(t);
 
 	if ((tblk->next == 0) && !(flag & COMMIT_FORCE)) {
-		/* Don't let a non-forced transaction take the last tblk */
+		/* Don't let a yesn-forced transaction take the last tblk */
 		jfs_info("txBegin: waiting for free tid");
 		INCREMENT(TxStat.txBegin_freetid);
 		TXN_SLEEP(&TxAnchor.freewait);
@@ -410,7 +410,7 @@ tid_t txBegin(struct super_block *sb, int flag)
 	 */
 
 	/*
-	 * We can't zero the whole thing or we screw up another thread being
+	 * We can't zero the whole thing or we screw up ayesther thread being
 	 * awakened after sleeping on tblk->waitor
 	 *
 	 * memset(tblk, 0, sizeof(struct tblock));
@@ -434,24 +434,24 @@ tid_t txBegin(struct super_block *sb, int flag)
 }
 
 /*
- * NAME:	txBeginAnon()
+ * NAME:	txBeginAyesn()
  *
- * FUNCTION:	start an anonymous transaction.
+ * FUNCTION:	start an ayesnymous transaction.
  *		Blocks if logsync or available tlocks are low to prevent
- *		anonymous tlocks from depleting supply.
+ *		ayesnymous tlocks from depleting supply.
  *
  * PARAMETER:	sb	- superblock
  *
- * RETURN:	none
+ * RETURN:	yesne
  */
-void txBeginAnon(struct super_block *sb)
+void txBeginAyesn(struct super_block *sb)
 {
 	struct jfs_log *log;
 
 	log = JFS_SBI(sb)->log;
 
 	TXN_LOCK();
-	INCREMENT(TxStat.txBeginAnon);
+	INCREMENT(TxStat.txBeginAyesn);
 
       retry:
 	/*
@@ -459,7 +459,7 @@ void txBeginAnon(struct super_block *sb)
 	 */
 	if (test_bit(log_SYNCBARRIER, &log->flag) ||
 	    test_bit(log_QUIESCE, &log->flag)) {
-		INCREMENT(TxStat.txBeginAnon_barrier);
+		INCREMENT(TxStat.txBeginAyesn_barrier);
 		TXN_SLEEP(&log->syncwait);
 		goto retry;
 	}
@@ -468,7 +468,7 @@ void txBeginAnon(struct super_block *sb)
 	 * Don't begin transaction if we're getting starved for tlocks
 	 */
 	if (TxAnchor.tlocksInUse > TxLockVHWM) {
-		INCREMENT(TxStat.txBeginAnon_lockslow);
+		INCREMENT(TxStat.txBeginAyesn_lockslow);
 		TXN_SLEEP(&TxAnchor.lowlockwait);
 		goto retry;
 	}
@@ -529,7 +529,7 @@ void txEnd(tid_t tid)
 	TxAnchor.freetid = tid;
 
 	/*
-	 * mark the tblock not active
+	 * mark the tblock yest active
 	 */
 	if (--log->active == 0) {
 		clear_bit(log_FLUSH, &log->flag);
@@ -574,10 +574,10 @@ wakeup:
  *
  * serialization:
  */
-struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
+struct tlock *txLock(tid_t tid, struct iyesde *ip, struct metapage * mp,
 		     int type)
 {
-	struct jfs_inode_info *jfs_ip = JFS_IP(ip);
+	struct jfs_iyesde_info *jfs_ip = JFS_IP(ip);
 	int dir_xtree = 0;
 	lid_t lid;
 	tid_t xtid;
@@ -592,7 +592,7 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 	if (S_ISDIR(ip->i_mode) && (type & tlckXTREE) &&
 	    !(mp->xflag & COMMIT_PAGE)) {
 		/*
-		 * Directory inode is special.  It can have both an xtree tlock
+		 * Directory iyesde is special.  It can have both an xtree tlock
 		 * and a dtree tlock associated with it.
 		 */
 		dir_xtree = 1;
@@ -600,7 +600,7 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 	} else
 		lid = mp->lid;
 
-	/* is page not locked by a transaction ? */
+	/* is page yest locked by a transaction ? */
 	if (lid == 0)
 		goto allocateLock;
 
@@ -614,15 +614,15 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 	}
 
 	/*
-	 * is page locked by anonymous transaction/lock ?
+	 * is page locked by ayesnymous transaction/lock ?
 	 *
 	 * (page update without transaction (i.e., file write) is
-	 * locked under anonymous transaction tid = 0:
-	 * anonymous tlocks maintained on anonymous tlock list of
-	 * the inode of the page and available to all anonymous
+	 * locked under ayesnymous transaction tid = 0:
+	 * ayesnymous tlocks maintained on ayesnymous tlock list of
+	 * the iyesde of the page and available to all ayesnymous
 	 * transactions until txCommit() time at which point
 	 * they are transferred to the transaction tlock list of
-	 * the committing transaction of the inode)
+	 * the committing transaction of the iyesde)
 	 */
 	if (xtid == 0) {
 		tlck->tid = tid;
@@ -632,7 +632,7 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 		 * The order of the tlocks in the transaction is important
 		 * (during truncate, child xtree pages must be freed before
 		 * parent's tlocks change the working map).
-		 * Take tlock off anonymous list and add to tail of
+		 * Take tlock off ayesnymous list and add to tail of
 		 * transaction list
 		 *
 		 * Note:  We really need to get rid of the tid & lid and
@@ -640,11 +640,11 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 		 */
 		if (jfs_ip->atlhead == lid) {
 			if (jfs_ip->atltail == lid) {
-				/* only anonymous txn.
-				 * Remove from anon_list
+				/* only ayesnymous txn.
+				 * Remove from ayesn_list
 				 */
 				TXN_LOCK();
-				list_del_init(&jfs_ip->anon_inode_list);
+				list_del_init(&jfs_ip->ayesn_iyesde_list);
 				TXN_UNLOCK();
 			}
 			jfs_ip->atlhead = tlck->next;
@@ -693,21 +693,21 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 
 		tlck->flag = tlckPAGELOCK;
 
-		/* mark the page dirty and nohomeok */
-		metapage_nohomeok(mp);
+		/* mark the page dirty and yeshomeok */
+		metapage_yeshomeok(mp);
 
-		jfs_info("locking mp = 0x%p, nohomeok = %d tid = %d tlck = 0x%p",
-			 mp, mp->nohomeok, tid, tlck);
+		jfs_info("locking mp = 0x%p, yeshomeok = %d tid = %d tlck = 0x%p",
+			 mp, mp->yeshomeok, tid, tlck);
 
-		/* if anonymous transaction, and buffer is on the group
-		 * commit synclist, mark inode to show this.  This will
-		 * prevent the buffer from being marked nohomeok for too
+		/* if ayesnymous transaction, and buffer is on the group
+		 * commit synclist, mark iyesde to show this.  This will
+		 * prevent the buffer from being marked yeshomeok for too
 		 * long a time.
 		 */
 		if ((tid == 0) && mp->lsn)
 			set_cflag(COMMIT_Synclist, ip);
 	}
-	/* mark tlock for in-memory inode */
+	/* mark tlock for in-memory iyesde */
 	else
 		tlck->flag = tlckINODELOCK;
 
@@ -725,7 +725,7 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 		mp->lid = lid;
 
 	/*
-	 * enqueue transaction lock to transaction/inode
+	 * enqueue transaction lock to transaction/iyesde
 	 */
 	/* insert the tlock at tail of transaction tlock list */
 	if (tid) {
@@ -737,18 +737,18 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 		tlck->next = 0;
 		tblk->last = lid;
 	}
-	/* anonymous transaction:
-	 * insert the tlock at head of inode anonymous tlock list
+	/* ayesnymous transaction:
+	 * insert the tlock at head of iyesde ayesnymous tlock list
 	 */
 	else {
 		tlck->next = jfs_ip->atlhead;
 		jfs_ip->atlhead = lid;
 		if (tlck->next == 0) {
-			/* This inode's first anonymous transaction */
+			/* This iyesde's first ayesnymous transaction */
 			jfs_ip->atltail = lid;
 			TXN_LOCK();
-			list_add_tail(&jfs_ip->anon_inode_list,
-				      &TxAnchor.anon_list);
+			list_add_tail(&jfs_ip->ayesn_iyesde_list,
+				      &TxAnchor.ayesn_list);
 			TXN_UNLOCK();
 		}
 	}
@@ -810,7 +810,7 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 	return tlck;
 
 	/*
-	 * page is being locked by another transaction:
+	 * page is being locked by ayesther transaction:
 	 */
       waitLock:
 	/* Only locks on ipimap or ipaimap should reach here */
@@ -923,7 +923,7 @@ static void txUnlock(struct tblock * tblk)
 			 */
 			hold_metapage(mp);
 
-			assert(mp->nohomeok > 0);
+			assert(mp->yeshomeok > 0);
 			_metapage_homeok(mp);
 
 			/* inherit younger/larger clsn */
@@ -979,9 +979,9 @@ static void txUnlock(struct tblock * tblk)
  * function: allocate a transaction lock for freed page/entry;
  *	for freed page, maplock is used as xtlock/dtlock type;
  */
-struct tlock *txMaplock(tid_t tid, struct inode *ip, int type)
+struct tlock *txMaplock(tid_t tid, struct iyesde *ip, int type)
 {
-	struct jfs_inode_info *jfs_ip = JFS_IP(ip);
+	struct jfs_iyesde_info *jfs_ip = JFS_IP(ip);
 	lid_t lid;
 	struct tblock *tblk;
 	struct tlock *tlck;
@@ -1010,7 +1010,7 @@ struct tlock *txMaplock(tid_t tid, struct inode *ip, int type)
 	tlck->type = type;
 
 	/*
-	 * enqueue transaction lock to transaction/inode
+	 * enqueue transaction lock to transaction/iyesde
 	 */
 	/* insert the tlock at tail of transaction tlock list */
 	if (tid) {
@@ -1022,17 +1022,17 @@ struct tlock *txMaplock(tid_t tid, struct inode *ip, int type)
 		tlck->next = 0;
 		tblk->last = lid;
 	}
-	/* anonymous transaction:
-	 * insert the tlock at head of inode anonymous tlock list
+	/* ayesnymous transaction:
+	 * insert the tlock at head of iyesde ayesnymous tlock list
 	 */
 	else {
 		tlck->next = jfs_ip->atlhead;
 		jfs_ip->atlhead = lid;
 		if (tlck->next == 0) {
-			/* This inode's first anonymous transaction */
+			/* This iyesde's first ayesnymous transaction */
 			jfs_ip->atltail = lid;
-			list_add_tail(&jfs_ip->anon_inode_list,
-				      &TxAnchor.anon_list);
+			list_add_tail(&jfs_ip->ayesn_iyesde_list,
+				      &TxAnchor.ayesn_list);
 		}
 	}
 
@@ -1093,18 +1093,18 @@ struct linelock *txLinelock(struct linelock * tlock)
  * FUNCTION:	commit the changes to the objects specified in
  *		clist.  For journalled segments only the
  *		changes of the caller are committed, ie by tid.
- *		for non-journalled segments the data are flushed to
- *		disk and then the change to the disk inode and indirect
+ *		for yesn-journalled segments the data are flushed to
+ *		disk and then the change to the disk iyesde and indirect
  *		blocks committed (so blocks newly allocated to the
  *		segment will be made a part of the segment atomically).
  *
  *		all of the segments specified in clist must be in
- *		one file system. no more than 6 segments are needed
+ *		one file system. yes more than 6 segments are needed
  *		to handle all unix svcs.
  *
- *		if the i_nlink field (i.e. disk inode link count)
- *		is zero, and the type of inode is a regular file or
- *		directory, or symbolic link , the inode is truncated
+ *		if the i_nlink field (i.e. disk iyesde link count)
+ *		is zero, and the type of iyesde is a regular file or
+ *		directory, or symbolic link , the iyesde is truncated
  *		to zero length. the truncation is committed but the
  *		VM resources are unaffected until it is closed (see
  *		iput and iclose).
@@ -1114,14 +1114,14 @@ struct linelock *txLinelock(struct linelock * tlock)
  * RETURN:
  *
  * serialization:
- *		on entry the inode lock on each segment is assumed
+ *		on entry the iyesde lock on each segment is assumed
  *		to be held.
  *
  * i/o error:
  */
 int txCommit(tid_t tid,		/* transaction identifier */
-	     int nip,		/* number of inodes to commit */
-	     struct inode **iplist,	/* list of inode to commit */
+	     int nip,		/* number of iyesdes to commit */
+	     struct iyesde **iplist,	/* list of iyesde to commit */
 	     int flag)
 {
 	int rc = 0;
@@ -1129,10 +1129,10 @@ int txCommit(tid_t tid,		/* transaction identifier */
 	struct jfs_log *log;
 	struct tblock *tblk;
 	struct lrd *lrd;
-	struct inode *ip;
-	struct jfs_inode_info *jfs_ip;
+	struct iyesde *ip;
+	struct jfs_iyesde_info *jfs_ip;
 	int k, n;
-	ino_t top;
+	iyes_t top;
 	struct super_block *sb;
 
 	jfs_info("txCommit, tid = %d, flag = %d", tid, flag);
@@ -1165,10 +1165,10 @@ int txCommit(tid_t tid,		/* transaction identifier */
 	if ((flag & (COMMIT_FORCE | COMMIT_SYNC)) == 0)
 		tblk->xflag |= COMMIT_LAZY;
 	/*
-	 *	prepare non-journaled objects for commit
+	 *	prepare yesn-journaled objects for commit
 	 *
-	 * flush data pages of non-journaled file
-	 * to prevent the file getting non-initialized disk blocks
+	 * flush data pages of yesn-journaled file
+	 * to prevent the file getting yesn-initialized disk blocks
 	 * in case of crash.
 	 * (new blocks - )
 	 */
@@ -1176,23 +1176,23 @@ int txCommit(tid_t tid,		/* transaction identifier */
 	cd.nip = nip;
 
 	/*
-	 *	acquire transaction lock on (on-disk) inodes
+	 *	acquire transaction lock on (on-disk) iyesdes
 	 *
-	 * update on-disk inode from in-memory inode
+	 * update on-disk iyesde from in-memory iyesde
 	 * acquiring transaction locks for AFTER records
-	 * on the on-disk inode of file object
+	 * on the on-disk iyesde of file object
 	 *
-	 * sort the inodes array by inode number in descending order
+	 * sort the iyesdes array by iyesde number in descending order
 	 * to prevent deadlock when acquiring transaction lock
-	 * of on-disk inodes on multiple on-disk inode pages by
+	 * of on-disk iyesdes on multiple on-disk iyesde pages by
 	 * multiple concurrent transactions
 	 */
 	for (k = 0; k < cd.nip; k++) {
-		top = (cd.iplist[k])->i_ino;
+		top = (cd.iplist[k])->i_iyes;
 		for (n = k + 1; n < cd.nip; n++) {
 			ip = cd.iplist[n];
-			if (ip->i_ino > top) {
-				top = ip->i_ino;
+			if (ip->i_iyes > top) {
+				top = ip->i_iyes;
 				cd.iplist[n] = cd.iplist[k];
 				cd.iplist[k] = ip;
 			}
@@ -1207,10 +1207,10 @@ int txCommit(tid_t tid,		/* transaction identifier */
 		 * the metadata is committed to the journal.  This prevents
 		 * uninitialized data from appearing in a file after the
 		 * journal has been replayed.  (The uninitialized data
-		 * could be sensitive data removed by another user.)
+		 * could be sensitive data removed by ayesther user.)
 		 *
-		 * The problem now is that we are holding the IWRITELOCK
-		 * on the inode, and calling filemap_fdatawrite on an
+		 * The problem yesw is that we are holding the IWRITELOCK
+		 * on the iyesde, and calling filemap_fdatawrite on an
 		 * unmapped page will cause a deadlock in jfs_get_block.
 		 *
 		 * The long term solution is to pare down the use of
@@ -1225,13 +1225,13 @@ int txCommit(tid_t tid,		/* transaction identifier */
 		 */
 
 		/*
-		 * Mark inode as not dirty.  It will still be on the dirty
-		 * inode list, but we'll know not to commit it again unless
+		 * Mark iyesde as yest dirty.  It will still be on the dirty
+		 * iyesde list, but we'll kyesw yest to commit it again unless
 		 * it gets marked dirty again
 		 */
 		clear_cflag(COMMIT_Dirty, ip);
 
-		/* inherit anonymous tlock(s) of inode */
+		/* inherit ayesnymous tlock(s) of iyesde */
 		if (jfs_ip->atlhead) {
 			lid_to_tlock(jfs_ip->atltail)->next = tblk->next;
 			tblk->next = jfs_ip->atlhead;
@@ -1239,12 +1239,12 @@ int txCommit(tid_t tid,		/* transaction identifier */
 				tblk->last = jfs_ip->atltail;
 			jfs_ip->atlhead = jfs_ip->atltail = 0;
 			TXN_LOCK();
-			list_del_init(&jfs_ip->anon_inode_list);
+			list_del_init(&jfs_ip->ayesn_iyesde_list);
 			TXN_UNLOCK();
 		}
 
 		/*
-		 * acquire transaction lock on on-disk inode page
+		 * acquire transaction lock on on-disk iyesde page
 		 * (become first tlock of the tblk's tlock list)
 		 */
 		if (((rc = diWrite(tid, ip))))
@@ -1260,7 +1260,7 @@ int txCommit(tid_t tid,		/* transaction identifier */
 		goto TheEnd;
 
 	/*
-	 * Ensure that inode isn't reused before
+	 * Ensure that iyesde isn't reused before
 	 * lazy commit thread finishes processing
 	 */
 	if (tblk->xflag & COMMIT_DELETE) {
@@ -1268,15 +1268,15 @@ int txCommit(tid_t tid,		/* transaction identifier */
 		/*
 		 * Avoid a rare deadlock
 		 *
-		 * If the inode is locked, we may be blocked in
-		 * jfs_commit_inode.  If so, we don't want the
-		 * lazy_commit thread doing the last iput() on the inode
-		 * since that may block on the locked inode.  Instead,
-		 * commit the transaction synchronously, so the last iput
+		 * If the iyesde is locked, we may be blocked in
+		 * jfs_commit_iyesde.  If so, we don't want the
+		 * lazy_commit thread doing the last iput() on the iyesde
+		 * since that may block on the locked iyesde.  Instead,
+		 * commit the transaction synchroyesusly, so the last iput
 		 * will be done by the calling thread (or later)
 		 */
 		/*
-		 * I believe this code is no longer needed.  Splitting I_LOCK
+		 * I believe this code is yes longer needed.  Splitting I_LOCK
 		 * into two bits, I_NEW and I_SYNC should prevent this
 		 * deadlock as well.  But since I don't have a JFS testload
 		 * to verify this, only a trivial s/I_LOCK/I_SYNC/ was done.
@@ -1300,7 +1300,7 @@ int txCommit(tid_t tid,		/* transaction identifier */
 	lmGroupCommit(log, tblk);
 
 	/*
-	 *	- transaction is now committed -
+	 *	- transaction is yesw committed -
 	 */
 
 	/*
@@ -1313,8 +1313,8 @@ int txCommit(tid_t tid,		/* transaction identifier */
 	/*
 	 *	update allocation map.
 	 *
-	 * update inode allocation map and inode:
-	 * free pager lock on memory object of inode if any.
+	 * update iyesde allocation map and iyesde:
+	 * free pager lock on memory object of iyesde if any.
 	 * update block allocation map.
 	 *
 	 * txUpdateMap() resets XAD_NEW in XAD.
@@ -1339,7 +1339,7 @@ int txCommit(tid_t tid,		/* transaction identifier */
 		jfs_ip = JFS_IP(ip);
 
 		/*
-		 * reset in-memory inode state
+		 * reset in-memory iyesde state
 		 */
 		jfs_ip->bxflag = 0;
 		jfs_ip->blid = 0;
@@ -1358,7 +1358,7 @@ int txCommit(tid_t tid,		/* transaction identifier */
  * NAME:	txLog()
  *
  * FUNCTION:	Writes AFTER log records for all lines modified
- *		by tid for segments specified by inodes in comdata.
+ *		by tid for segments specified by iyesdes in comdata.
  *		Code assumes only WRITELOCKS are recorded in lockwords.
  *
  * PARAMETERS:
@@ -1368,7 +1368,7 @@ int txCommit(tid_t tid,		/* transaction identifier */
 static int txLog(struct jfs_log * log, struct tblock * tblk, struct commit * cd)
 {
 	int rc = 0;
-	struct inode *ip;
+	struct iyesde *ip;
 	lid_t lid;
 	struct tlock *tlck;
 	struct lrd *lrd = &cd->lrd;
@@ -1385,7 +1385,7 @@ static int txLog(struct jfs_log * log, struct tblock * tblk, struct commit * cd)
 		ip = tlck->ip;
 		lrd->aggregate = cpu_to_le32(JFS_SBI(ip->i_sb)->aggregate);
 		lrd->log.redopage.fileset = cpu_to_le32(JFS_IP(ip)->fileset);
-		lrd->log.redopage.inode = cpu_to_le32(ip->i_ino);
+		lrd->log.redopage.iyesde = cpu_to_le32(ip->i_iyes);
 
 		/* write log record of page from the tlock */
 		switch (tlck->type & tlckTYPE) {
@@ -1420,7 +1420,7 @@ static int txLog(struct jfs_log * log, struct tblock * tblk, struct commit * cd)
 /*
  *	diLog()
  *
- * function:	log inode tlock and format maplock to update bmap;
+ * function:	log iyesde tlock and format maplock to update bmap;
  */
 static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		 struct tlock * tlck, struct commit * cd)
@@ -1439,7 +1439,7 @@ static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	pxd = &lrd->log.redopage.pxd;
 
 	/*
-	 *	inode after image
+	 *	iyesde after image
 	 */
 	if (tlck->type & tlckENTRY) {
 		/* log after-image for logredo(): */
@@ -1453,33 +1453,33 @@ static int diLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		tlck->flag |= tlckWRITEPAGE;
 	} else if (tlck->type & tlckFREE) {
 		/*
-		 *	free inode extent
+		 *	free iyesde extent
 		 *
-		 * (pages of the freed inode extent have been invalidated and
+		 * (pages of the freed iyesde extent have been invalidated and
 		 * a maplock for free of the extent has been formatted at
 		 * txLock() time);
 		 *
-		 * the tlock had been acquired on the inode allocation map page
+		 * the tlock had been acquired on the iyesde allocation map page
 		 * (iag) that specifies the freed extent, even though the map
-		 * page is not itself logged, to prevent pageout of the map
+		 * page is yest itself logged, to prevent pageout of the map
 		 * page before the log;
 		 */
 
-		/* log LOG_NOREDOINOEXT of the freed inode extent for
+		/* log LOG_NOREDOINOEXT of the freed iyesde extent for
 		 * logredo() to start NoRedoPage filters, and to update
 		 * imap and bmap for free of the extent;
 		 */
 		lrd->type = cpu_to_le16(LOG_NOREDOINOEXT);
 		/*
 		 * For the LOG_NOREDOINOEXT record, we need
-		 * to pass the IAG number and inode extent
+		 * to pass the IAG number and iyesde extent
 		 * index (within that IAG) from which the
 		 * the extent being released.  These have been
 		 * passed to us in the iplist[1] and iplist[2].
 		 */
-		lrd->log.noredoinoext.iagnum =
+		lrd->log.yesredoiyesext.iagnum =
 		    cpu_to_le32((u32) (size_t) cd->iplist[1]);
-		lrd->log.noredoinoext.inoext_idx =
+		lrd->log.yesredoiyesext.iyesext_idx =
 		    cpu_to_le32((u32) (size_t) cd->iplist[2]);
 
 		pxdlock = (struct pxd_lock *) & tlck->lock;
@@ -1687,7 +1687,7 @@ static void dtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	   struct tlock * tlck)
 {
-	struct inode *ip;
+	struct iyesde *ip;
 	struct metapage *mp;
 	xtpage_t *p;
 	struct xtlock *xtlck;
@@ -1778,8 +1778,8 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 			}
 		} else {
 			/*
-			 * xdlist will point to into inode's xtree, ensure
-			 * that transaction is not committed lazily.
+			 * xdlist will point to into iyesde's xtree, ensure
+			 * that transaction is yest committed lazily.
 			 */
 			xadlock->flag = mlckALLOCXADLIST;
 			xadlock->xdlist = &p->xad[lwm];
@@ -1806,7 +1806,7 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	if (tlck->type & tlckFREE) {
 		/* LOG_NOREDOPAGE log for NoRedoPage filter:
 		 * if page free from file delete, NoRedoFile filter from
-		 * inode image of zero link count will subsume NoRedoPage
+		 * iyesde image of zero link count will subsume NoRedoPage
 		 * filters for each page;
 		 * if page free from file truncattion, write NoRedoPage
 		 * filter;
@@ -1881,8 +1881,8 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 			}
 		} else {
 			/*
-			 * xdlist will point to into inode's xtree, ensure
-			 * that transaction is not committed lazily.
+			 * xdlist will point to into iyesde's xtree, ensure
+			 * that transaction is yest committed lazily.
 			 */
 			xadlock->flag = mlckFREEXADLIST;
 			xadlock->xdlist = &p->xad[XTENTRYSTART];
@@ -1922,7 +1922,7 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		 * For truncation the entire linelock may be used, so it would
 		 * be difficult to store xad list in linelock itself.
 		 * Therefore, we'll just force transaction to be committed
-		 * synchronously, so that xtree pages won't be changed before
+		 * synchroyesusly, so that xtree pages won't be changed before
 		 * txUpdateMap runs.
 		 */
 		tblk->xflag &= ~COMMIT_LAZY;
@@ -2094,7 +2094,7 @@ static void mapLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		/* (N.B. currently, logredo() does NOT update bmap
 		 * for free of the page itself for (LOG_XTREE|LOG_NOREDOPAGE);
 		 * if page free from relocation, LOG_UPDATEMAP log is
-		 * specifically generated now for logredo()
+		 * specifically generated yesw for logredo()
 		 * to update bmap for free of src relocated page;
 		 * (new flag LOG_RELOCATE may be introduced which will
 		 * inform logredo() to start NORedoPage filter and also
@@ -2115,7 +2115,7 @@ static void mapLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	}
 	/*
 
-	 * Otherwise it's not a relocate request
+	 * Otherwise it's yest a relocate request
 	 *
 	 */
 	else {
@@ -2154,7 +2154,7 @@ static void mapLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
  * function:	acquire maplock for EA/ACL extents or
  *		set COMMIT_INLINE flag;
  */
-void txEA(tid_t tid, struct inode *ip, dxd_t * oldea, dxd_t * newea)
+void txEA(tid_t tid, struct iyesde *ip, dxd_t * oldea, dxd_t * newea)
 {
 	struct tlock *tlck = NULL;
 	struct pxd_lock *maplock = NULL, *pxdlock = NULL;
@@ -2203,7 +2203,7 @@ void txEA(tid_t tid, struct inode *ip, dxd_t * oldea, dxd_t * newea)
 /*
  *	txForce()
  *
- * function: synchronously write pages locked by transaction
+ * function: synchroyesusly write pages locked by transaction
  *	     after txLog() but before txUpdateMap();
  */
 static void txForce(struct tblock * tblk)
@@ -2229,7 +2229,7 @@ static void txForce(struct tblock * tblk)
 	}
 
 	/*
-	 * synchronously write the page, and
+	 * synchroyesusly write the page, and
 	 * hold the page for txUpdateMap();
 	 */
 	for (lid = tblk->next; lid; lid = next) {
@@ -2243,21 +2243,21 @@ static void txForce(struct tblock * tblk)
 			if (tlck->flag & tlckWRITEPAGE) {
 				tlck->flag &= ~tlckWRITEPAGE;
 
-				/* do not release page to freelist */
+				/* do yest release page to freelist */
 				force_metapage(mp);
 #if 0
 				/*
 				 * The "right" thing to do here is to
-				 * synchronously write the metadata.
+				 * synchroyesusly write the metadata.
 				 * With the current implementation this
 				 * is hard since write_metapage requires
 				 * us to kunmap & remap the page.  If we
 				 * have tlocks pointing into the metadata
 				 * pages, we don't want to do this.  I think
-				 * we can get by with synchronously writing
+				 * we can get by with synchroyesusly writing
 				 * the pages when they are released.
 				 */
-				assert(mp->nohomeok);
+				assert(mp->yeshomeok);
 				set_bit(META_dirty, &mp->flag);
 				set_bit(META_sync, &mp->flag);
 #endif
@@ -2276,8 +2276,8 @@ static void txForce(struct tblock * tblk)
  */
 static void txUpdateMap(struct tblock * tblk)
 {
-	struct inode *ip;
-	struct inode *ipimap;
+	struct iyesde *ip;
+	struct iyesde *ipimap;
 	lid_t lid;
 	struct tlock *tlck;
 	struct maplock *maplock;
@@ -2311,7 +2311,7 @@ static void txUpdateMap(struct tblock * tblk)
 
 		if (tlck->flag & tlckFREEPAGE) {
 			/*
-			 * Another thread may attempt to reuse freed space
+			 * Ayesther thread may attempt to reuse freed space
 			 * immediately, so we want to get rid of the metapage
 			 * before anyone else has a chance to get it.
 			 * Lock metapage, update maps, then invalidate
@@ -2369,25 +2369,25 @@ static void txUpdateMap(struct tblock * tblk)
 				ASSERT(mp->lid == lid);
 				tlck->mp->lid = 0;
 			}
-			assert(mp->nohomeok == 1);
+			assert(mp->yeshomeok == 1);
 			metapage_homeok(mp);
 			discard_metapage(mp);
 			tlck->mp = NULL;
 		}
 	}
 	/*
-	 *	update inode allocation map
+	 *	update iyesde allocation map
 	 *
 	 * update allocation state in pmap and
 	 * update lsn of the pmap page;
-	 * update in-memory inode flag/state
+	 * update in-memory iyesde flag/state
 	 *
 	 * unlock mapper/write lock
 	 */
 	if (tblk->xflag & COMMIT_CREATE) {
-		diUpdatePMap(ipimap, tblk->ino, false, tblk);
+		diUpdatePMap(ipimap, tblk->iyes, false, tblk);
 		/* update persistent block allocation map
-		 * for the allocation of inode extent;
+		 * for the allocation of iyesde extent;
 		 */
 		pxdlock.flag = mlckALLOCPXD;
 		pxdlock.pxd = tblk->u.ixpxd;
@@ -2395,7 +2395,7 @@ static void txUpdateMap(struct tblock * tblk)
 		txAllocPMap(ipimap, (struct maplock *) & pxdlock, tblk);
 	} else if (tblk->xflag & COMMIT_DELETE) {
 		ip = tblk->u.ip;
-		diUpdatePMap(ipimap, ip->i_ino, true, tblk);
+		diUpdatePMap(ipimap, ip->i_iyes, true, tblk);
 		iput(ip);
 	}
 }
@@ -2420,10 +2420,10 @@ static void txUpdateMap(struct tblock * tblk)
  *
  *	lsn	- log sequence number;
  */
-static void txAllocPMap(struct inode *ip, struct maplock * maplock,
+static void txAllocPMap(struct iyesde *ip, struct maplock * maplock,
 			struct tblock * tblk)
 {
-	struct inode *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
+	struct iyesde *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
 	struct xdlistlock *xadlistlock;
 	xad_t *xad;
 	s64 xaddr;
@@ -2478,10 +2478,10 @@ static void txAllocPMap(struct inode *ip, struct maplock * maplock,
  *
  * todo: optimization
  */
-void txFreeMap(struct inode *ip,
+void txFreeMap(struct iyesde *ip,
 	       struct maplock * maplock, struct tblock * tblk, int maptype)
 {
-	struct inode *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
+	struct iyesde *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
 	struct xdlistlock *xadlistlock;
 	xad_t *xad;
 	s64 xaddr;
@@ -2574,11 +2574,11 @@ void txFreeMap(struct inode *ip,
 /*
  *	txFreelock()
  *
- * function:	remove tlock from inode anonymous locklist
+ * function:	remove tlock from iyesde ayesnymous locklist
  */
-void txFreelock(struct inode *ip)
+void txFreelock(struct iyesde *ip)
 {
-	struct jfs_inode_info *jfs_ip = JFS_IP(ip);
+	struct jfs_iyesde_info *jfs_ip = JFS_IP(ip);
 	struct tlock *xtlck, *tlck;
 	lid_t xlid = 0, lid;
 
@@ -2604,9 +2604,9 @@ void txFreelock(struct inode *ip)
 	else {
 		jfs_ip->atltail = 0;
 		/*
-		 * If inode was on anon_list, remove it
+		 * If iyesde was on ayesn_list, remove it
 		 */
-		list_del_init(&jfs_ip->anon_inode_list);
+		list_del_init(&jfs_ip->ayesn_iyesde_list);
 	}
 	TXN_UNLOCK();
 }
@@ -2644,9 +2644,9 @@ void txAbort(tid_t tid, int dirty)
 			/*
 			 * reset lsn of page to avoid logwarap:
 			 *
-			 * (page may have been previously committed by another
-			 * transaction(s) but has not been paged, i.e.,
-			 * it may be on logsync list even though it has not
+			 * (page may have been previously committed by ayesther
+			 * transaction(s) but has yest been paged, i.e.,
+			 * it may be on logsync list even though it has yest
 			 * been logged for the current tx.)
 			 */
 			if (mp->xflag & COMMIT_PAGE && mp->lsn)
@@ -2675,8 +2675,8 @@ void txAbort(tid_t tid, int dirty)
  *	txLazyCommit(void)
  *
  *	All transactions except those changing ipimap (COMMIT_FORCE) are
- *	processed by this routine.  This insures that the inode and block
- *	allocation maps are updated in order.  For synchronous transactions,
+ *	processed by this routine.  This insures that the iyesde and block
+ *	allocation maps are updated in order.  For synchroyesus transactions,
  *	let the user thread finish processing after txUpdateMap() is called.
  */
 static void txLazyCommit(struct tblock * tblk)
@@ -2687,7 +2687,7 @@ static void txLazyCommit(struct tblock * tblk)
 	       ((tblk->flag & tblkGC_UNLOCKED) == 0)) {
 		/* We must have gotten ahead of the user thread
 		 */
-		jfs_info("jfs_lazycommit: tblk 0x%p not unlocked", tblk);
+		jfs_info("jfs_lazycommit: tblk 0x%p yest unlocked", tblk);
 		yield();
 	}
 
@@ -2724,7 +2724,7 @@ static void txLazyCommit(struct tblock * tblk)
  *	jfs_lazycommit(void)
  *
  *	To be run as a kernel daemon.  If lbmIODone is called in an interrupt
- *	context, or where blocking is not wanted, this routine will process
+ *	context, or where blocking is yest wanted, this routine will process
  *	committed transactions from the unlock queue.
  */
 int jfs_lazycommit(void *arg)
@@ -2736,7 +2736,7 @@ int jfs_lazycommit(void *arg)
 
 	do {
 		LAZY_LOCK(flags);
-		jfs_commit_thread_waking = 0;	/* OK to wake another thread */
+		jfs_commit_thread_waking = 0;	/* OK to wake ayesther thread */
 		while (!list_empty(&TxAnchor.unlock_queue)) {
 			WorkDone = 0;
 			list_for_each_entry(tblk, &TxAnchor.unlock_queue,
@@ -2745,7 +2745,7 @@ int jfs_lazycommit(void *arg)
 				sbi = JFS_SBI(tblk->sb);
 				/*
 				 * For each volume, the transactions must be
-				 * handled in order.  If another commit thread
+				 * handled in order.  If ayesther commit thread
 				 * is handling a tblk for this superblock,
 				 * skip it
 				 */
@@ -2773,7 +2773,7 @@ int jfs_lazycommit(void *arg)
 				break;
 			}
 
-			/* If there was nothing to do, don't continue */
+			/* If there was yesthing to do, don't continue */
 			if (!WorkDone)
 				break;
 		}
@@ -2824,7 +2824,7 @@ static void LogSyncRelease(struct metapage * mp)
 {
 	struct jfs_log *log = mp->log;
 
-	assert(mp->nohomeok);
+	assert(mp->yeshomeok);
 	assert(log);
 	metapage_homeok(mp);
 }
@@ -2832,7 +2832,7 @@ static void LogSyncRelease(struct metapage * mp)
 /*
  *	txQuiesce
  *
- *	Block all new transactions and push anonymous transactions to
+ *	Block all new transactions and push ayesnymous transactions to
  *	completion
  *
  *	This does almost the same thing as jfs_sync below.  We don't
@@ -2841,8 +2841,8 @@ static void LogSyncRelease(struct metapage * mp)
  */
 void txQuiesce(struct super_block *sb)
 {
-	struct inode *ip;
-	struct jfs_inode_info *jfs_ip;
+	struct iyesde *ip;
+	struct jfs_iyesde_info *jfs_ip;
 	struct jfs_log *log = JFS_SBI(sb)->log;
 	tid_t tid;
 
@@ -2850,14 +2850,14 @@ void txQuiesce(struct super_block *sb)
 
 	TXN_LOCK();
 restart:
-	while (!list_empty(&TxAnchor.anon_list)) {
-		jfs_ip = list_entry(TxAnchor.anon_list.next,
-				    struct jfs_inode_info,
-				    anon_inode_list);
-		ip = &jfs_ip->vfs_inode;
+	while (!list_empty(&TxAnchor.ayesn_list)) {
+		jfs_ip = list_entry(TxAnchor.ayesn_list.next,
+				    struct jfs_iyesde_info,
+				    ayesn_iyesde_list);
+		ip = &jfs_ip->vfs_iyesde;
 
 		/*
-		 * inode will be removed from anonymous list
+		 * iyesde will be removed from ayesnymous list
 		 * when it is committed
 		 */
 		TXN_UNLOCK();
@@ -2867,7 +2867,7 @@ restart:
 		txEnd(tid);
 		mutex_unlock(&jfs_ip->commit_mutex);
 		/*
-		 * Just to be safe.  I don't know how
+		 * Just to be safe.  I don't kyesw how
 		 * long we can run without blocking
 		 */
 		cond_resched();
@@ -2875,11 +2875,11 @@ restart:
 	}
 
 	/*
-	 * If jfs_sync is running in parallel, there could be some inodes
-	 * on anon_list2.  Let's check.
+	 * If jfs_sync is running in parallel, there could be some iyesdes
+	 * on ayesn_list2.  Let's check.
 	 */
-	if (!list_empty(&TxAnchor.anon_list2)) {
-		list_splice_init(&TxAnchor.anon_list2, &TxAnchor.anon_list);
+	if (!list_empty(&TxAnchor.ayesn_list2)) {
+		list_splice_init(&TxAnchor.ayesn_list2, &TxAnchor.ayesn_list);
 		goto restart;
 	}
 	TXN_UNLOCK();
@@ -2907,34 +2907,34 @@ void txResume(struct super_block *sb)
  *	jfs_sync(void)
  *
  *	To be run as a kernel daemon.  This is awakened when tlocks run low.
- *	We write any inodes that have anonymous tlocks so they will become
+ *	We write any iyesdes that have ayesnymous tlocks so they will become
  *	available.
  */
 int jfs_sync(void *arg)
 {
-	struct inode *ip;
-	struct jfs_inode_info *jfs_ip;
+	struct iyesde *ip;
+	struct jfs_iyesde_info *jfs_ip;
 	tid_t tid;
 
 	do {
 		/*
-		 * write each inode on the anonymous inode list
+		 * write each iyesde on the ayesnymous iyesde list
 		 */
 		TXN_LOCK();
-		while (jfs_tlocks_low && !list_empty(&TxAnchor.anon_list)) {
-			jfs_ip = list_entry(TxAnchor.anon_list.next,
-					    struct jfs_inode_info,
-					    anon_inode_list);
-			ip = &jfs_ip->vfs_inode;
+		while (jfs_tlocks_low && !list_empty(&TxAnchor.ayesn_list)) {
+			jfs_ip = list_entry(TxAnchor.ayesn_list.next,
+					    struct jfs_iyesde_info,
+					    ayesn_iyesde_list);
+			ip = &jfs_ip->vfs_iyesde;
 
 			if (! igrab(ip)) {
 				/*
-				 * Inode is being freed
+				 * Iyesde is being freed
 				 */
-				list_del_init(&jfs_ip->anon_inode_list);
+				list_del_init(&jfs_ip->ayesn_iyesde_list);
 			} else if (mutex_trylock(&jfs_ip->commit_mutex)) {
 				/*
-				 * inode will be removed from anonymous list
+				 * iyesde will be removed from ayesnymous list
 				 * when it is committed
 				 */
 				TXN_UNLOCK();
@@ -2945,7 +2945,7 @@ int jfs_sync(void *arg)
 
 				iput(ip);
 				/*
-				 * Just to be safe.  I don't know how
+				 * Just to be safe.  I don't kyesw how
 				 * long we can run without blocking
 				 */
 				cond_resched();
@@ -2953,21 +2953,21 @@ int jfs_sync(void *arg)
 			} else {
 				/* We can't get the commit mutex.  It may
 				 * be held by a thread waiting for tlock's
-				 * so let's not block here.  Save it to
-				 * put back on the anon_list.
+				 * so let's yest block here.  Save it to
+				 * put back on the ayesn_list.
 				 */
 
-				/* Move from anon_list to anon_list2 */
-				list_move(&jfs_ip->anon_inode_list,
-					  &TxAnchor.anon_list2);
+				/* Move from ayesn_list to ayesn_list2 */
+				list_move(&jfs_ip->ayesn_iyesde_list,
+					  &TxAnchor.ayesn_list2);
 
 				TXN_UNLOCK();
 				iput(ip);
 				TXN_LOCK();
 			}
 		}
-		/* Add anon_list2 back to anon_list */
-		list_splice_init(&TxAnchor.anon_list2, &TxAnchor.anon_list);
+		/* Add ayesn_list2 back to ayesn_list */
+		list_splice_init(&TxAnchor.ayesn_list2, &TxAnchor.ayesn_list);
 
 		if (freezing(current)) {
 			TXN_UNLOCK();
@@ -3015,7 +3015,7 @@ int jfs_txanchor_proc_show(struct seq_file *m, void *v)
 		       lowlockwait,
 		       TxAnchor.tlocksInUse,
 		       jfs_tlocks_low,
-		       list_empty(&TxAnchor.unlock_queue) ? "" : "not ");
+		       list_empty(&TxAnchor.unlock_queue) ? "" : "yest ");
 	return 0;
 }
 #endif
@@ -3029,19 +3029,19 @@ int jfs_txstats_proc_show(struct seq_file *m, void *v)
 		       "calls to txBegin = %d\n"
 		       "txBegin blocked by sync barrier = %d\n"
 		       "txBegin blocked by tlocks low = %d\n"
-		       "txBegin blocked by no free tid = %d\n"
-		       "calls to txBeginAnon = %d\n"
-		       "txBeginAnon blocked by sync barrier = %d\n"
-		       "txBeginAnon blocked by tlocks low = %d\n"
+		       "txBegin blocked by yes free tid = %d\n"
+		       "calls to txBeginAyesn = %d\n"
+		       "txBeginAyesn blocked by sync barrier = %d\n"
+		       "txBeginAyesn blocked by tlocks low = %d\n"
 		       "calls to txLockAlloc = %d\n"
-		       "tLockAlloc blocked by no free lock = %d\n",
+		       "tLockAlloc blocked by yes free lock = %d\n",
 		       TxStat.txBegin,
 		       TxStat.txBegin_barrier,
 		       TxStat.txBegin_lockslow,
 		       TxStat.txBegin_freetid,
-		       TxStat.txBeginAnon,
-		       TxStat.txBeginAnon_barrier,
-		       TxStat.txBeginAnon_lockslow,
+		       TxStat.txBeginAyesn,
+		       TxStat.txBeginAyesn_barrier,
+		       TxStat.txBeginAyesn_lockslow,
 		       TxStat.txLockAlloc,
 		       TxStat.txLockAlloc_freelock);
 	return 0;

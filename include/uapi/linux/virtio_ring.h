@@ -11,11 +11,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
+ * 3. Neither the name of IBM yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND
@@ -81,9 +81,9 @@
 #define VIRTIO_RING_F_INDIRECT_DESC	28
 
 /* The Guest publishes the used index for which it expects an interrupt
- * at the end of the avail ring. Host should ignore the avail->flags field. */
+ * at the end of the avail ring. Host should igyesre the avail->flags field. */
 /* The Host publishes the avail index for which it expects a kick
- * at the end of the used ring. Guest should ignore the used->flags field. */
+ * at the end of the used ring. Guest should igyesre the used->flags field. */
 #define VIRTIO_RING_F_EVENT_IDX		29
 
 /* Virtio ring descriptors: 16 bytes.  These can chain together via "next". */
@@ -187,7 +187,7 @@ static inline unsigned vring_size(unsigned int num, unsigned long align)
  * should we trigger an event? */
 static inline int vring_need_event(__u16 event_idx, __u16 new_idx, __u16 old)
 {
-	/* Note: Xen has similar logic for notification hold-off
+	/* Note: Xen has similar logic for yestification hold-off
 	 * in include/xen/interface/io/ring.h with req_event and req_prod
 	 * corresponding to event_idx + 1 and new_idx respectively.
 	 * Note also that req_event and req_prod in Xen start at 1,

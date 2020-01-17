@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
@@ -173,7 +173,7 @@ static int ag6xx_setup(struct hci_uart *hu)
 	btintel_version_info(hdev, &ver);
 
 	/* The hardware platform number has a fixed value of 0x37 and
-	 * for now only accept this single value.
+	 * for yesw only accept this single value.
 	 */
 	if (ver.hw_platform != 0x37) {
 		bt_dev_err(hdev, "Unsupported Intel hardware platform: 0x%X",
@@ -215,7 +215,7 @@ static int ag6xx_setup(struct hci_uart *hu)
 	release_firmware(fw);
 
 patch:
-	/* If there is no applied patch, fw_patch_num is always 0x00. In other
+	/* If there is yes applied patch, fw_patch_num is always 0x00. In other
 	 * cases, current firmware is already patched. No need to patch it.
 	 */
 	if (ver.fw_patch_num) {

@@ -235,7 +235,7 @@ static int phram_setup(const char *val)
 		parse_err("too many arguments\n");
 
 	if (!token[2])
-		parse_err("not enough arguments\n");
+		parse_err("yest eyesugh arguments\n");
 
 	ret = parse_name(&name, token[0]);
 	if (ret)
@@ -271,7 +271,7 @@ static int phram_param_call(const char *val, const struct kernel_param *kp)
 	 * If more parameters are later passed in via
 	 * /sys/module/phram/parameters/phram
 	 * and init_phram() has already been called,
-	 * we can parse the argument now.
+	 * we can parse the argument yesw.
 	 */
 
 	if (phram_init_called)
@@ -281,7 +281,7 @@ static int phram_param_call(const char *val, const struct kernel_param *kp)
 	 * During early boot stage, we only save the parameters
 	 * here. We must parse them later: if the param passed
 	 * from kernel boot command line, phram_param_call() is
-	 * called so early that it is not possible to resolve
+	 * called so early that it is yest possible to resolve
 	 * the device (even kmalloc() fails). Defer that work to
 	 * phram_setup().
 	 */

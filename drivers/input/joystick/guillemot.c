@@ -194,7 +194,7 @@ static int guillemot_connect(struct gameport *gameport, struct gameport_driver *
 			break;
 
 	if (!guillemot_type[i].name) {
-		printk(KERN_WARNING "guillemot.c: Unknown joystick on %s. [ %02x%02x:%04x, ver %d.%02d ]\n",
+		printk(KERN_WARNING "guillemot.c: Unkyeswn joystick on %s. [ %02x%02x:%04x, ver %d.%02d ]\n",
 			gameport->phys, data[12], data[13], data[11], data[14], data[15]);
 		err = -ENODEV;
 		goto fail2;

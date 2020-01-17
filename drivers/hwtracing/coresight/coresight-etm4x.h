@@ -186,13 +186,13 @@
 #define ETM_EXLEVEL_S_OS		BIT(9)
 #define ETM_EXLEVEL_S_HYP		BIT(10)
 #define ETM_EXLEVEL_S_MON		BIT(11)
-/* non-secure state access levels - TRCACATRn */
+/* yesn-secure state access levels - TRCACATRn */
 #define ETM_EXLEVEL_NS_APP		BIT(12)
 #define ETM_EXLEVEL_NS_OS		BIT(13)
 #define ETM_EXLEVEL_NS_HYP		BIT(14)
 #define ETM_EXLEVEL_NS_NA		BIT(15)
 
-/* secure / non secure masks - TRCVICTLR, IDR3 */
+/* secure / yesn secure masks - TRCVICTLR, IDR3 */
 #define ETM_EXLEVEL_S_VICTLR_MASK	GENMASK(19, 16)
 /* NS MON (EL3) mode never implemented */
 #define ETM_EXLEVEL_NS_VICTLR_MASK	GENMASK(22, 20)
@@ -380,7 +380,7 @@ struct etmv4_save_state {
  * @ccitmin:	minimum value that can be programmed in
  * @s_ex_level:	In secure state, indicates whether instruction tracing is
  *		supported for the corresponding Exception level.
- * @ns_ex_level:In non-secure state, indicates whether instruction tracing is
+ * @ns_ex_level:In yesn-secure state, indicates whether instruction tracing is
  *		supported for the corresponding Exception level.
  * @sticky_enable: true if ETM base configuration has been done.
  * @boot_enable:True if we should start tracing at boot time.
@@ -401,7 +401,7 @@ struct etmv4_save_state {
  * @stall_ctrl:	Enables trace unit functionality that prevents trace
  *		unit buffer overflows.
  * @sysstall:	Does the system support stall control of the PE?
- * @nooverflow:	Indicate if overflow prevention is supported.
+ * @yesoverflow:	Indicate if overflow prevention is supported.
  * @atbtrig:	If the implementation can support ATB triggers
  * @lpoverride:	If the implementation can support low-power state over.
  * @config:	structure holding configuration parameters.
@@ -448,7 +448,7 @@ struct etmv4_drvdata {
 	bool				syncpr;
 	bool				stallctl;
 	bool				sysstall;
-	bool				nooverflow;
+	bool				yesoverflow;
 	bool				atbtrig;
 	bool				lpoverride;
 	struct etmv4_config		config;

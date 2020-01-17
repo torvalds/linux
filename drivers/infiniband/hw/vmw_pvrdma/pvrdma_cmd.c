@@ -21,11 +21,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -71,7 +71,7 @@ static inline int pvrdma_cmd_recv(struct pvrdma_dev *dev,
 
 	if (resp->hdr.ack != resp_code) {
 		dev_warn(&dev->pdev->dev,
-			 "unknown response %#x expected %#x\n",
+			 "unkyeswn response %#x expected %#x\n",
 			 resp->hdr.ack, resp_code);
 		return -EFAULT;
 	}

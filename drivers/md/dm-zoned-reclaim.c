@@ -92,7 +92,7 @@ static int dmz_reclaim_align_wp(struct dmz_reclaim *zrc, struct dm_zone *zone,
 }
 
 /*
- * dm_kcopyd_copy end notification.
+ * dm_kcopyd_copy end yestification.
  */
 static void dmz_reclaim_kcopy_end(int read_err, unsigned long write_err,
 				  void *context)
@@ -434,7 +434,7 @@ static bool dmz_should_reclaim(struct dmz_reclaim *zrc)
 	if (dmz_target_idle(zrc) && nr_unmap_rnd < nr_rnd)
 		return true;
 
-	/* If there are still plenty of random zones, do not reclaim */
+	/* If there are still plenty of random zones, do yest reclaim */
 	if (p_unmap_rnd >= DMZ_RECLAIM_HIGH_UNMAP_RND)
 		return false;
 

@@ -88,7 +88,7 @@ static enum led_brightness pm8058_led_get(struct led_classdev *cled)
 static int pm8058_led_probe(struct platform_device *pdev)
 {
 	struct pm8058_led *led;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 	struct regmap *map;
 	const char *state;
@@ -109,11 +109,11 @@ static int pm8058_led_probe(struct platform_device *pdev)
 
 	ret = of_property_read_u32(np, "reg", &led->reg);
 	if (ret) {
-		dev_err(&pdev->dev, "no register offset specified\n");
+		dev_err(&pdev->dev, "yes register offset specified\n");
 		return -EINVAL;
 	}
 
-	/* Use label else node name */
+	/* Use label else yesde name */
 	led->cdev.name = of_get_property(np, "label", NULL) ? : np->name;
 	led->cdev.default_trigger =
 		of_get_property(np, "linux,default-trigger", NULL);

@@ -155,10 +155,10 @@ struct sgioc_regs {
 	u32 _unused4;
 	u8 _reset[3];
 	volatile u8 reset;
-#define SGIOC_RESET_PPORT	0x01	/* 0=parport reset, 1=nornal */
-#define SGIOC_RESET_KBDMOUSE	0x02	/* 0=kbdmouse reset, 1=normal */
-#define SGIOC_RESET_EISA	0x04	/* 0=eisa reset, 1=normal */
-#define SGIOC_RESET_ISDN	0x08	/* 0=isdn reset, 1=normal */
+#define SGIOC_RESET_PPORT	0x01	/* 0=parport reset, 1=yesrnal */
+#define SGIOC_RESET_KBDMOUSE	0x02	/* 0=kbdmouse reset, 1=yesrmal */
+#define SGIOC_RESET_EISA	0x04	/* 0=eisa reset, 1=yesrmal */
+#define SGIOC_RESET_ISDN	0x08	/* 0=isdn reset, 1=yesrmal */
 #define SGIOC_RESET_LC0OFF	0x10	/* guiness: turn led off (red, else green) */
 #define SGIOC_RESET_LC1OFF	0x20	/* guiness: turn led off (green, else amber) */
 	u32 _unused5;

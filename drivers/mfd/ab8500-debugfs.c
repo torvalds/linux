@@ -27,10 +27,10 @@
  * VALUE  decimal or 0x-prefixed hexadecimal
  *
  *
- * User Space notification on AB8500 IRQ
+ * User Space yestification on AB8500 IRQ
  * =====================================
  *
- * Allows user space entity to be notified when target AB8500 IRQ occurs.
+ * Allows user space entity to be yestified when target AB8500 IRQ occurs.
  * When subscribed, a sysfs entry is created in ab8500.i2c platform device.
  * One can pool this file to get target IRQ occurence information.
  *
@@ -141,8 +141,8 @@ struct hwreg_cfg {
 static struct hwreg_cfg hwreg_cfg = {
 	.addr = 0,			/* default: invalid phys addr */
 	.fmt = 0,			/* default: 32bit access, hex output */
-	.mask = 0xFFFFFFFF,	/* default: no mask */
-	.shift = 0,			/* default: no bit shift */
+	.mask = 0xFFFFFFFF,	/* default: yes mask */
+	.shift = 0,			/* default: yes bit shift */
 };
 
 #define AB8500_NAME_STRING "ab8500"
@@ -237,7 +237,7 @@ static struct ab8500_prcmu_ranges ab8500_debug_ranges[AB8500_NUM_BANKS] = {
 			},
 			/*
 			 * 0x80-0x8B are SIM registers and should
-			 * not be accessed from here
+			 * yest be accessed from here
 			 */
 		},
 	},
@@ -576,7 +576,7 @@ static struct ab8500_prcmu_ranges ab8505_debug_ranges[AB8500_NUM_BANKS] = {
 			},
 			/*
 			 * 0x80-0x8B are SIM registers and should
-			 * not be accessed from here
+			 * yest be accessed from here
 			 */
 		},
 	},
@@ -721,7 +721,7 @@ static struct ab8500_prcmu_ranges ab8505_debug_ranges[AB8500_NUM_BANKS] = {
 				.first = 0x18,
 				.last = 0x18,
 			},
-			/* Latch registers should not be read here */
+			/* Latch registers should yest be read here */
 			{
 				.first = 0x40,
 				.last = 0x44,
@@ -742,7 +742,7 @@ static struct ab8500_prcmu_ranges ab8505_debug_ranges[AB8500_NUM_BANKS] = {
 				.first = 0x58,
 				.last = 0x58,
 			},
-			/* LatchHier registers should not be read here */
+			/* LatchHier registers should yest be read here */
 		},
 	},
 	[AB8500_RTC] = {
@@ -1124,7 +1124,7 @@ static struct ab8500_prcmu_ranges ab8540_debug_ranges[AB8500_NUM_BANKS] = {
 				.first = 0x12,
 				.last = 0x20,
 			},
-			/* Latch registers should not be read here */
+			/* Latch registers should yest be read here */
 			{
 				.first = 0x40,
 				.last = 0x45,
@@ -1137,7 +1137,7 @@ static struct ab8500_prcmu_ranges ab8540_debug_ranges[AB8500_NUM_BANKS] = {
 				.first = 0x52,
 				.last = 0x60,
 			},
-			/* LatchHier registers should not be read here */
+			/* LatchHier registers should yest be read here */
 		},
 	},
 	[AB8500_RTC] = {
@@ -1264,7 +1264,7 @@ static irqreturn_t ab8500_debug_handler(int irq, void *data)
 	 * from userspace on sysfs file named <irq-nr>
 	 */
 	sprintf(buf, "%d", irq);
-	sysfs_notify(kobj, NULL, buf);
+	sysfs_yestify(kobj, NULL, buf);
 
 	return IRQ_HANDLED;
 }
@@ -1295,7 +1295,7 @@ static int ab8500_registers_print(struct device *dev, u32 bank,
 				seq_printf(s, "  [0x%02X/0x%02X]: 0x%02X\n",
 					   bank, reg, value);
 				/*
-				 * Error is not returned here since
+				 * Error is yest returned here since
 				 * the output is wanted in any case
 				 */
 				if (seq_has_overflowed(s))
@@ -1355,19 +1355,19 @@ void ab8500_dump_all_banks(struct device *dev)
 	}
 }
 
-static int ab8500_all_banks_open(struct inode *inode, struct file *file)
+static int ab8500_all_banks_open(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *s;
 	int err;
 
-	err = single_open(file, ab8500_print_all_banks, inode->i_private);
+	err = single_open(file, ab8500_print_all_banks, iyesde->i_private);
 	if (!err) {
-		/* Default buf size in seq_read is not enough */
+		/* Default buf size in seq_read is yest eyesugh */
 		s = (struct seq_file *)file->private_data;
 		s->size = (PAGE_SIZE * 2);
 		s->buf = kmalloc(s->size, GFP_KERNEL);
 		if (!s->buf) {
-			single_release(inode, file);
+			single_release(iyesde, file);
 			err = -ENOMEM;
 		}
 	}
@@ -1388,9 +1388,9 @@ static int ab8500_bank_print(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int ab8500_bank_open(struct inode *inode, struct file *file)
+static int ab8500_bank_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, ab8500_bank_print, inode->i_private);
+	return single_open(file, ab8500_bank_print, iyesde->i_private);
 }
 
 static ssize_t ab8500_bank_write(struct file *file,
@@ -1421,9 +1421,9 @@ static int ab8500_address_print(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int ab8500_address_open(struct inode *inode, struct file *file)
+static int ab8500_address_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, ab8500_address_print, inode->i_private);
+	return single_open(file, ab8500_address_print, iyesde->i_private);
 }
 
 static ssize_t ab8500_address_write(struct file *file,
@@ -1465,9 +1465,9 @@ static int ab8500_val_print(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int ab8500_val_open(struct inode *inode, struct file *file)
+static int ab8500_val_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, ab8500_val_print, inode->i_private);
+	return single_open(file, ab8500_val_print, iyesde->i_private);
 }
 
 static ssize_t ab8500_val_write(struct file *file,
@@ -1570,9 +1570,9 @@ static int ab8500_hwreg_print(struct seq_file *s, void *d)
 	return 0;
 }
 
-static int ab8500_hwreg_open(struct inode *inode, struct file *file)
+static int ab8500_hwreg_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, ab8500_hwreg_print, inode->i_private);
+	return single_open(file, ab8500_hwreg_print, iyesde->i_private);
 }
 
 #define AB8500_SUPPLY_CONTROL_CONFIG_1 0x01
@@ -1640,7 +1640,7 @@ report_write_failure:
 DEFINE_SHOW_ATTRIBUTE(ab8500_modem);
 
 /*
- * return length of an ASCII numerical value, 0 is string is not a
+ * return length of an ASCII numerical value, 0 is string is yest a
  * numerical value.
  * string shall start at value 1st char.
  * string can be tailed with \0 or space or newline chars only.
@@ -1681,8 +1681,8 @@ static ssize_t hwreg_common_write(char *b, struct hwreg_cfg *cfg,
 		.bank = 0,          /* default: invalid phys addr */
 		.addr = 0,          /* default: invalid phys addr */
 		.fmt = 0,           /* default: 32bit access, hex output */
-		.mask = 0xFFFFFFFF, /* default: no mask */
-		.shift = 0,         /* default: no bit shift */
+		.mask = 0xFFFFFFFF, /* default: yes mask */
+		.shift = 0,         /* default: yes bit shift */
 	};
 
 	/* read or write ? */
@@ -1821,11 +1821,11 @@ static int ab8500_subscribe_unsubscribe_print(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int ab8500_subscribe_unsubscribe_open(struct inode *inode,
+static int ab8500_subscribe_unsubscribe_open(struct iyesde *iyesde,
 					     struct file *file)
 {
 	return single_open(file, ab8500_subscribe_unsubscribe_print,
-		inode->i_private);
+		iyesde->i_private);
 }
 
 /*
@@ -1953,7 +1953,7 @@ static ssize_t ab8500_unsubscribe_write(struct file *file,
 }
 
 /*
- * - several debugfs nodes fops
+ * - several debugfs yesdes fops
  */
 
 static const struct file_operations ab8500_bank_fops = {
@@ -2039,7 +2039,7 @@ static int ab8500_debug_probe(struct platform_device *plf)
 
 	res = platform_get_resource_byname(plf, 0, "IRQ_AB8500");
 	if (!res) {
-		dev_err(&plf->dev, "AB8500 irq not found, err %d\n", irq_first);
+		dev_err(&plf->dev, "AB8500 irq yest found, err %d\n", irq_first);
 		return -ENXIO;
 	}
 	irq_ab8500 = res->start;

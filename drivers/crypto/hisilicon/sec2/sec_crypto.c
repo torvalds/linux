@@ -243,9 +243,9 @@ static int sec_skcipher_init(struct crypto_skcipher *tfm)
 
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct sec_req));
 
-	sec = sec_find_device(cpu_to_node(smp_processor_id()));
+	sec = sec_find_device(cpu_to_yesde(smp_processor_id()));
 	if (!sec) {
-		pr_err("find no Hisilicon SEC device!\n");
+		pr_err("find yes Hisilicon SEC device!\n");
 		return -ENODEV;
 	}
 	ctx->sec = sec;

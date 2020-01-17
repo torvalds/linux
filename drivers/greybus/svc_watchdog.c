@@ -16,16 +16,16 @@ struct gb_svc_watchdog {
 	struct delayed_work	work;
 	struct gb_svc		*svc;
 	bool			enabled;
-	struct notifier_block pm_notifier;
+	struct yestifier_block pm_yestifier;
 };
 
 static struct delayed_work reset_work;
 
-static int svc_watchdog_pm_notifier(struct notifier_block *notifier,
+static int svc_watchdog_pm_yestifier(struct yestifier_block *yestifier,
 				    unsigned long pm_event, void *unused)
 {
 	struct gb_svc_watchdog *watchdog =
-		container_of(notifier, struct gb_svc_watchdog, pm_notifier);
+		container_of(yestifier, struct gb_svc_watchdog, pm_yestifier);
 
 	switch (pm_event) {
 	case PM_SUSPEND_PREPARE:
@@ -77,14 +77,14 @@ static void do_work(struct work_struct *work)
 		 * pull the plug and reset the whole greybus network.
 		 * We need to do this outside of this workqueue as we will be
 		 * tearing down the svc device itself.  So queue up
-		 * yet-another-callback to do that.
+		 * yet-ayesther-callback to do that.
 		 */
 		dev_err(&svc->dev,
 			"SVC ping has returned %d, something is wrong!!!\n",
 			retval);
 
 		if (svc->action == GB_SVC_WATCHDOG_BITE_PANIC_KERNEL) {
-			panic("SVC is not responding\n");
+			panic("SVC is yest responding\n");
 		} else if (svc->action == GB_SVC_WATCHDOG_BITE_RESET_UNIPRO) {
 			dev_err(&svc->dev, "Resetting the greybus network, watch out!!!\n");
 
@@ -121,10 +121,10 @@ int gb_svc_watchdog_create(struct gb_svc *svc)
 	INIT_DELAYED_WORK(&watchdog->work, do_work);
 	svc->watchdog = watchdog;
 
-	watchdog->pm_notifier.notifier_call = svc_watchdog_pm_notifier;
-	retval = register_pm_notifier(&watchdog->pm_notifier);
+	watchdog->pm_yestifier.yestifier_call = svc_watchdog_pm_yestifier;
+	retval = register_pm_yestifier(&watchdog->pm_yestifier);
 	if (retval) {
-		dev_err(&svc->dev, "error registering pm notifier(%d)\n",
+		dev_err(&svc->dev, "error registering pm yestifier(%d)\n",
 			retval);
 		goto svc_watchdog_create_err;
 	}
@@ -132,7 +132,7 @@ int gb_svc_watchdog_create(struct gb_svc *svc)
 	retval = gb_svc_watchdog_enable(svc);
 	if (retval) {
 		dev_err(&svc->dev, "error enabling watchdog (%d)\n", retval);
-		unregister_pm_notifier(&watchdog->pm_notifier);
+		unregister_pm_yestifier(&watchdog->pm_yestifier);
 		goto svc_watchdog_create_err;
 	}
 	return retval;
@@ -151,7 +151,7 @@ void gb_svc_watchdog_destroy(struct gb_svc *svc)
 	if (!watchdog)
 		return;
 
-	unregister_pm_notifier(&watchdog->pm_notifier);
+	unregister_pm_yestifier(&watchdog->pm_yestifier);
 	gb_svc_watchdog_disable(svc);
 	svc->watchdog = NULL;
 	kfree(watchdog);

@@ -18,10 +18,10 @@ IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 (INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+Motorola assumes yes responsibility for the maintenance and support of the SOFTWARE.
 
 You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-so long as this entire notice is retained without alteration in any modified and/or
+so long as this entire yestice is retained without alteration in any modified and/or
 redistributed versions, and that such modified versions are clearly identified as such.
 No licenses are granted by implication, estoppel or otherwise under any patents
 or trademarks of Motorola, Inc.
@@ -114,7 +114,7 @@ _060TESTS_:
 
 	bsr.l		chk_test
 
-### ovfl non-maskable
+### ovfl yesn-maskable
 	clr.l		TESTCTR(%a6)
 	pea		ovfl_nm_str(%pc)
 	bsr.l		_print_str
@@ -122,7 +122,7 @@ _060TESTS_:
 
 	bsr.l		chk_test
 
-### unfl non-maskable
+### unfl yesn-maskable
 	clr.l		TESTCTR(%a6)
 	pea		unfl_nm_str(%pc)
 	bsr.l		_print_str
@@ -822,7 +822,7 @@ fmovmx_2:
 
 ###########################################################
 
-# This test will take a non-maskable overflow directly.
+# This test will take a yesn-maskable overflow directly.
 ovfl_nm_str:
 	string		"\tNon-maskable overflow..."
 
@@ -977,7 +977,7 @@ unfl_0_pc:
 
 #####################################################################
 
-# This test will take a non-maskable underflow directly.
+# This test will take a yesn-maskable underflow directly.
 unfl_nm_str:
 	string		"\tNon-maskable underflow..."
 
@@ -1235,7 +1235,7 @@ dz_0_pc:
 unsupp_str:
 	string		"\tUnimplemented data type/format..."
 
-# an unnormalized number
+# an unyesrmalized number
 	align		0x4
 unsupp_0:
 	addq.l		&0x1,TESTCTR(%a6)
@@ -1277,7 +1277,7 @@ unsupp_0_pc:
 	tst.b		%d0
 	bne.l		error
 
-# a denormalized number
+# a deyesrmalized number
 unsupp_1:
 	addq.l		&0x1,TESTCTR(%a6)
 

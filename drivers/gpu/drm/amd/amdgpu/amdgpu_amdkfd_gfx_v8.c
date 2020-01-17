@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -129,7 +129,7 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 
 	/*
-	 * We have to assume that there is no outstanding mapping.
+	 * We have to assume that there is yes outstanding mapping.
 	 * The ATC_VMID_PASID_MAPPING_UPDATE_STATUS bit could be 0 because
 	 * a mapping is in progress or because a mapping finished
 	 * and the SW cleared it.
@@ -230,7 +230,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 
 	/* Tonga errata: EOP RPTR/WPTR should be left unmodified.
 	 * This is safe since EOP RPTR==WPTR for any inactive HQD
-	 * on ASICs that do not support context-save.
+	 * on ASICs that do yest support context-save.
 	 * EOP writes/reads can start anywhere in the ring.
 	 */
 	if (get_amdgpu_device(kgd)->asic_type != CHIP_TONGA) {
@@ -323,7 +323,7 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC yest idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -467,7 +467,7 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
 	}
 
 	/* Workaround: If IQ timer is active and the wait time is close to or
-	 * equal to 0, dequeueing is not safe. Wait until either the wait time
+	 * equal to 0, dequeueing is yest safe. Wait until either the wait time
 	 * is larger or timer is cleared. Also, ensure that IQ_REQ_PEND is
 	 * cleared before continuing. Also, ensure wait times are set to at
 	 * least 0x3.
@@ -560,7 +560,7 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 		if (temp & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC yest idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -687,7 +687,7 @@ static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid)
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 
 	if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid)) {
-		pr_err("non kfd vmid %d\n", vmid);
+		pr_err("yesn kfd vmid %d\n", vmid);
 		return -EINVAL;
 	}
 

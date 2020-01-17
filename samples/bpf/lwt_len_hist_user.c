@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <arpa/inet.h>
 
 #include <bpf/bpf.h>
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 	map_fd = bpf_obj_get(map_filename);
 	if (map_fd < 0) {
 		fprintf(stderr, "bpf_obj_get(%s): %s(%d)\n",
-			map_filename, strerror(errno), errno);
+			map_filename, strerror(erryes), erryes);
 		return -1;
 	}
 

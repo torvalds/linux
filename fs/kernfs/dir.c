@@ -20,17 +20,17 @@
 DEFINE_MUTEX(kernfs_mutex);
 static DEFINE_SPINLOCK(kernfs_rename_lock);	/* kn->parent and ->name */
 static char kernfs_pr_cont_buf[PATH_MAX];	/* protected by rename_lock */
-static DEFINE_SPINLOCK(kernfs_idr_lock);	/* root->ino_idr */
+static DEFINE_SPINLOCK(kernfs_idr_lock);	/* root->iyes_idr */
 
-#define rb_to_kn(X) rb_entry((X), struct kernfs_node, rb)
+#define rb_to_kn(X) rb_entry((X), struct kernfs_yesde, rb)
 
-static bool kernfs_active(struct kernfs_node *kn)
+static bool kernfs_active(struct kernfs_yesde *kn)
 {
 	lockdep_assert_held(&kernfs_mutex);
 	return atomic_read(&kn->active) >= 0;
 }
 
-static bool kernfs_lockdep(struct kernfs_node *kn)
+static bool kernfs_lockdep(struct kernfs_yesde *kn)
 {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	return kn->flags & KERNFS_LOCKDEP;
@@ -39,7 +39,7 @@ static bool kernfs_lockdep(struct kernfs_node *kn)
 #endif
 }
 
-static int kernfs_name_locked(struct kernfs_node *kn, char *buf, size_t buflen)
+static int kernfs_name_locked(struct kernfs_yesde *kn, char *buf, size_t buflen)
 {
 	if (!kn)
 		return strlcpy(buf, "(null)", buflen);
@@ -47,8 +47,8 @@ static int kernfs_name_locked(struct kernfs_node *kn, char *buf, size_t buflen)
 	return strlcpy(buf, kn->parent ? kn->name : "/", buflen);
 }
 
-/* kernfs_node_depth - compute depth from @from to @to */
-static size_t kernfs_depth(struct kernfs_node *from, struct kernfs_node *to)
+/* kernfs_yesde_depth - compute depth from @from to @to */
+static size_t kernfs_depth(struct kernfs_yesde *from, struct kernfs_yesde *to)
 {
 	size_t depth = 0;
 
@@ -59,8 +59,8 @@ static size_t kernfs_depth(struct kernfs_node *from, struct kernfs_node *to)
 	return depth;
 }
 
-static struct kernfs_node *kernfs_common_ancestor(struct kernfs_node *a,
-						  struct kernfs_node *b)
+static struct kernfs_yesde *kernfs_common_ancestor(struct kernfs_yesde *a,
+						  struct kernfs_yesde *b)
 {
 	size_t da, db;
 	struct kernfs_root *ra = kernfs_root(a), *rb = kernfs_root(b);
@@ -90,10 +90,10 @@ static struct kernfs_node *kernfs_common_ancestor(struct kernfs_node *a,
 }
 
 /**
- * kernfs_path_from_node_locked - find a pseudo-absolute path to @kn_to,
+ * kernfs_path_from_yesde_locked - find a pseudo-absolute path to @kn_to,
  * where kn_from is treated as root of the path.
- * @kn_from: kernfs node which should be treated as root for the path
- * @kn_to: kernfs node to which path is needed
+ * @kn_from: kernfs yesde which should be treated as root for the path
+ * @kn_to: kernfs yesde to which path is needed
  * @buf: buffer to copy the path into
  * @buflen: size of @buf
  *
@@ -117,13 +117,13 @@ static struct kernfs_node *kernfs_common_ancestor(struct kernfs_node *a,
  *
  * Returns the length of the full path.  If the full length is equal to or
  * greater than @buflen, @buf contains the truncated path with the trailing
- * '\0'.  On error, -errno is returned.
+ * '\0'.  On error, -erryes is returned.
  */
-static int kernfs_path_from_node_locked(struct kernfs_node *kn_to,
-					struct kernfs_node *kn_from,
+static int kernfs_path_from_yesde_locked(struct kernfs_yesde *kn_to,
+					struct kernfs_yesde *kn_from,
 					char *buf, size_t buflen)
 {
-	struct kernfs_node *kn, *common;
+	struct kernfs_yesde *kn, *common;
 	const char parent_str[] = "/..";
 	size_t depth_from, depth_to, len = 0;
 	int i, j;
@@ -167,20 +167,20 @@ static int kernfs_path_from_node_locked(struct kernfs_node *kn_to,
 }
 
 /**
- * kernfs_name - obtain the name of a given node
- * @kn: kernfs_node of interest
+ * kernfs_name - obtain the name of a given yesde
+ * @kn: kernfs_yesde of interest
  * @buf: buffer to copy @kn's name into
  * @buflen: size of @buf
  *
  * Copies the name of @kn into @buf of @buflen bytes.  The behavior is
  * similar to strlcpy().  It returns the length of @kn's name and if @buf
- * isn't long enough, it's filled upto @buflen-1 and nul terminated.
+ * isn't long eyesugh, it's filled upto @buflen-1 and nul terminated.
  *
  * Fills buffer with "(null)" if @kn is NULL.
  *
  * This function can be called from any context.
  */
-int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
+int kernfs_name(struct kernfs_yesde *kn, char *buf, size_t buflen)
 {
 	unsigned long flags;
 	int ret;
@@ -192,41 +192,41 @@ int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
 }
 
 /**
- * kernfs_path_from_node - build path of node @to relative to @from.
- * @from: parent kernfs_node relative to which we need to build the path
- * @to: kernfs_node of interest
+ * kernfs_path_from_yesde - build path of yesde @to relative to @from.
+ * @from: parent kernfs_yesde relative to which we need to build the path
+ * @to: kernfs_yesde of interest
  * @buf: buffer to copy @to's path into
  * @buflen: size of @buf
  *
  * Builds @to's path relative to @from in @buf. @from and @to must
- * be on the same kernfs-root. If @from is not parent of @to, then a relative
+ * be on the same kernfs-root. If @from is yest parent of @to, then a relative
  * path (which includes '..'s) as needed to reach from @from to @to is
  * returned.
  *
  * Returns the length of the full path.  If the full length is equal to or
  * greater than @buflen, @buf contains the truncated path with the trailing
- * '\0'.  On error, -errno is returned.
+ * '\0'.  On error, -erryes is returned.
  */
-int kernfs_path_from_node(struct kernfs_node *to, struct kernfs_node *from,
+int kernfs_path_from_yesde(struct kernfs_yesde *to, struct kernfs_yesde *from,
 			  char *buf, size_t buflen)
 {
 	unsigned long flags;
 	int ret;
 
 	spin_lock_irqsave(&kernfs_rename_lock, flags);
-	ret = kernfs_path_from_node_locked(to, from, buf, buflen);
+	ret = kernfs_path_from_yesde_locked(to, from, buf, buflen);
 	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(kernfs_path_from_node);
+EXPORT_SYMBOL_GPL(kernfs_path_from_yesde);
 
 /**
- * pr_cont_kernfs_name - pr_cont name of a kernfs_node
- * @kn: kernfs_node of interest
+ * pr_cont_kernfs_name - pr_cont name of a kernfs_yesde
+ * @kn: kernfs_yesde of interest
  *
  * This function can be called from any context.
  */
-void pr_cont_kernfs_name(struct kernfs_node *kn)
+void pr_cont_kernfs_name(struct kernfs_yesde *kn)
 {
 	unsigned long flags;
 
@@ -239,19 +239,19 @@ void pr_cont_kernfs_name(struct kernfs_node *kn)
 }
 
 /**
- * pr_cont_kernfs_path - pr_cont path of a kernfs_node
- * @kn: kernfs_node of interest
+ * pr_cont_kernfs_path - pr_cont path of a kernfs_yesde
+ * @kn: kernfs_yesde of interest
  *
  * This function can be called from any context.
  */
-void pr_cont_kernfs_path(struct kernfs_node *kn)
+void pr_cont_kernfs_path(struct kernfs_yesde *kn)
 {
 	unsigned long flags;
 	int sz;
 
 	spin_lock_irqsave(&kernfs_rename_lock, flags);
 
-	sz = kernfs_path_from_node_locked(kn, NULL, kernfs_pr_cont_buf,
+	sz = kernfs_path_from_yesde_locked(kn, NULL, kernfs_pr_cont_buf,
 					  sizeof(kernfs_pr_cont_buf));
 	if (sz < 0) {
 		pr_cont("(error)");
@@ -270,15 +270,15 @@ out:
 }
 
 /**
- * kernfs_get_parent - determine the parent node and pin it
- * @kn: kernfs_node of interest
+ * kernfs_get_parent - determine the parent yesde and pin it
+ * @kn: kernfs_yesde of interest
  *
  * Determines @kn's parent, pins and returns it.  This function can be
  * called from any context.
  */
-struct kernfs_node *kernfs_get_parent(struct kernfs_node *kn)
+struct kernfs_yesde *kernfs_get_parent(struct kernfs_yesde *kn)
 {
-	struct kernfs_node *parent;
+	struct kernfs_yesde *parent;
 	unsigned long flags;
 
 	spin_lock_irqsave(&kernfs_rename_lock, flags);
@@ -313,7 +313,7 @@ static unsigned int kernfs_name_hash(const char *name, const void *ns)
 }
 
 static int kernfs_name_compare(unsigned int hash, const char *name,
-			       const void *ns, const struct kernfs_node *kn)
+			       const void *ns, const struct kernfs_yesde *kn)
 {
 	if (hash < kn->hash)
 		return -1;
@@ -326,15 +326,15 @@ static int kernfs_name_compare(unsigned int hash, const char *name,
 	return strcmp(name, kn->name);
 }
 
-static int kernfs_sd_compare(const struct kernfs_node *left,
-			     const struct kernfs_node *right)
+static int kernfs_sd_compare(const struct kernfs_yesde *left,
+			     const struct kernfs_yesde *right)
 {
 	return kernfs_name_compare(left->hash, left->name, left->ns, right);
 }
 
 /**
- *	kernfs_link_sibling - link kernfs_node into sibling rbtree
- *	@kn: kernfs_node of interest
+ *	kernfs_link_sibling - link kernfs_yesde into sibling rbtree
+ *	@kn: kernfs_yesde of interest
  *
  *	Link @kn into its sibling rbtree which starts from
  *	@kn->parent->dir.children.
@@ -345,28 +345,28 @@ static int kernfs_sd_compare(const struct kernfs_node *left,
  *	RETURNS:
  *	0 on susccess -EEXIST on failure.
  */
-static int kernfs_link_sibling(struct kernfs_node *kn)
+static int kernfs_link_sibling(struct kernfs_yesde *kn)
 {
-	struct rb_node **node = &kn->parent->dir.children.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **yesde = &kn->parent->dir.children.rb_yesde;
+	struct rb_yesde *parent = NULL;
 
-	while (*node) {
-		struct kernfs_node *pos;
+	while (*yesde) {
+		struct kernfs_yesde *pos;
 		int result;
 
-		pos = rb_to_kn(*node);
-		parent = *node;
+		pos = rb_to_kn(*yesde);
+		parent = *yesde;
 		result = kernfs_sd_compare(kn, pos);
 		if (result < 0)
-			node = &pos->rb.rb_left;
+			yesde = &pos->rb.rb_left;
 		else if (result > 0)
-			node = &pos->rb.rb_right;
+			yesde = &pos->rb.rb_right;
 		else
 			return -EEXIST;
 	}
 
-	/* add new node and rebalance the tree */
-	rb_link_node(&kn->rb, parent, node);
+	/* add new yesde and rebalance the tree */
+	rb_link_yesde(&kn->rb, parent, yesde);
 	rb_insert_color(&kn->rb, &kn->parent->dir.children);
 
 	/* successfully added, account subdir number */
@@ -377,8 +377,8 @@ static int kernfs_link_sibling(struct kernfs_node *kn)
 }
 
 /**
- *	kernfs_unlink_sibling - unlink kernfs_node from sibling rbtree
- *	@kn: kernfs_node of interest
+ *	kernfs_unlink_sibling - unlink kernfs_yesde from sibling rbtree
+ *	@kn: kernfs_yesde of interest
  *
  *	Try to unlink @kn from its sibling rbtree which starts from
  *	kn->parent->dir.children.  Returns %true if @kn was actually
@@ -387,7 +387,7 @@ static int kernfs_link_sibling(struct kernfs_node *kn)
  *	Locking:
  *	mutex_lock(kernfs_mutex)
  */
-static bool kernfs_unlink_sibling(struct kernfs_node *kn)
+static bool kernfs_unlink_sibling(struct kernfs_yesde *kn)
 {
 	if (RB_EMPTY_NODE(&kn->rb))
 		return false;
@@ -401,16 +401,16 @@ static bool kernfs_unlink_sibling(struct kernfs_node *kn)
 }
 
 /**
- *	kernfs_get_active - get an active reference to kernfs_node
- *	@kn: kernfs_node to get an active reference to
+ *	kernfs_get_active - get an active reference to kernfs_yesde
+ *	@kn: kernfs_yesde to get an active reference to
  *
- *	Get an active reference of @kn.  This function is noop if @kn
+ *	Get an active reference of @kn.  This function is yesop if @kn
  *	is NULL.
  *
  *	RETURNS:
  *	Pointer to @kn on success, NULL on failure.
  */
-struct kernfs_node *kernfs_get_active(struct kernfs_node *kn)
+struct kernfs_yesde *kernfs_get_active(struct kernfs_yesde *kn)
 {
 	if (unlikely(!kn))
 		return NULL;
@@ -424,13 +424,13 @@ struct kernfs_node *kernfs_get_active(struct kernfs_node *kn)
 }
 
 /**
- *	kernfs_put_active - put an active reference to kernfs_node
- *	@kn: kernfs_node to put an active reference to
+ *	kernfs_put_active - put an active reference to kernfs_yesde
+ *	@kn: kernfs_yesde to put an active reference to
  *
- *	Put an active reference to @kn.  This function is noop if @kn
+ *	Put an active reference to @kn.  This function is yesop if @kn
  *	is NULL.
  */
-void kernfs_put_active(struct kernfs_node *kn)
+void kernfs_put_active(struct kernfs_yesde *kn)
 {
 	int v;
 
@@ -447,14 +447,14 @@ void kernfs_put_active(struct kernfs_node *kn)
 }
 
 /**
- * kernfs_drain - drain kernfs_node
- * @kn: kernfs_node to drain
+ * kernfs_drain - drain kernfs_yesde
+ * @kn: kernfs_yesde to drain
  *
  * Drain existing usages and nuke all existing mmaps of @kn.  Mutiple
  * removers may invoke this function concurrently on @kn and all will
  * return after draining is complete.
  */
-static void kernfs_drain(struct kernfs_node *kn)
+static void kernfs_drain(struct kernfs_yesde *kn)
 	__releases(&kernfs_mutex) __acquires(&kernfs_mutex)
 {
 	struct kernfs_root *root = kernfs_root(kn);
@@ -485,10 +485,10 @@ static void kernfs_drain(struct kernfs_node *kn)
 }
 
 /**
- * kernfs_get - get a reference count on a kernfs_node
- * @kn: the target kernfs_node
+ * kernfs_get - get a reference count on a kernfs_yesde
+ * @kn: the target kernfs_yesde
  */
-void kernfs_get(struct kernfs_node *kn)
+void kernfs_get(struct kernfs_yesde *kn)
 {
 	if (kn) {
 		WARN_ON(!atomic_read(&kn->count));
@@ -498,14 +498,14 @@ void kernfs_get(struct kernfs_node *kn)
 EXPORT_SYMBOL_GPL(kernfs_get);
 
 /**
- * kernfs_put - put a reference count on a kernfs_node
- * @kn: the target kernfs_node
+ * kernfs_put - put a reference count on a kernfs_yesde
+ * @kn: the target kernfs_yesde
  *
  * Put a reference count of @kn and destroy it if it reached zero.
  */
-void kernfs_put(struct kernfs_node *kn)
+void kernfs_put(struct kernfs_yesde *kn)
 {
-	struct kernfs_node *parent;
+	struct kernfs_yesde *parent;
 	struct kernfs_root *root;
 
 	if (!kn || !atomic_dec_and_test(&kn->count))
@@ -532,9 +532,9 @@ void kernfs_put(struct kernfs_node *kn)
 		kmem_cache_free(kernfs_iattrs_cache, kn->iattr);
 	}
 	spin_lock(&kernfs_idr_lock);
-	idr_remove(&root->ino_idr, (u32)kernfs_ino(kn));
+	idr_remove(&root->iyes_idr, (u32)kernfs_iyes(kn));
 	spin_unlock(&kernfs_idr_lock);
-	kmem_cache_free(kernfs_node_cache, kn);
+	kmem_cache_free(kernfs_yesde_cache, kn);
 
 	kn = parent;
 	if (kn) {
@@ -542,7 +542,7 @@ void kernfs_put(struct kernfs_node *kn)
 			goto repeat;
 	} else {
 		/* just released the root kn, free @root too */
-		idr_destroy(&root->ino_idr);
+		idr_destroy(&root->iyes_idr);
 		kfree(root);
 	}
 }
@@ -550,7 +550,7 @@ EXPORT_SYMBOL_GPL(kernfs_put);
 
 static int kernfs_dop_revalidate(struct dentry *dentry, unsigned int flags)
 {
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
@@ -559,22 +559,22 @@ static int kernfs_dop_revalidate(struct dentry *dentry, unsigned int flags)
 	if (d_really_is_negative(dentry))
 		goto out_bad_unlocked;
 
-	kn = kernfs_dentry_node(dentry);
+	kn = kernfs_dentry_yesde(dentry);
 	mutex_lock(&kernfs_mutex);
 
-	/* The kernfs node has been deactivated */
+	/* The kernfs yesde has been deactivated */
 	if (!kernfs_active(kn))
 		goto out_bad;
 
-	/* The kernfs node has been moved? */
-	if (kernfs_dentry_node(dentry->d_parent) != kn->parent)
+	/* The kernfs yesde has been moved? */
+	if (kernfs_dentry_yesde(dentry->d_parent) != kn->parent)
 		goto out_bad;
 
-	/* The kernfs node has been renamed */
+	/* The kernfs yesde has been renamed */
 	if (strcmp(dentry->d_name.name, kn->name) != 0)
 		goto out_bad;
 
-	/* The kernfs node has been moved to a different namespace */
+	/* The kernfs yesde has been moved to a different namespace */
 	if (kn->parent && kernfs_ns_enabled(kn->parent) &&
 	    kernfs_info(dentry->d_sb)->ns != kn->ns)
 		goto out_bad;
@@ -592,31 +592,31 @@ const struct dentry_operations kernfs_dops = {
 };
 
 /**
- * kernfs_node_from_dentry - determine kernfs_node associated with a dentry
+ * kernfs_yesde_from_dentry - determine kernfs_yesde associated with a dentry
  * @dentry: the dentry in question
  *
- * Return the kernfs_node associated with @dentry.  If @dentry is not a
+ * Return the kernfs_yesde associated with @dentry.  If @dentry is yest a
  * kernfs one, %NULL is returned.
  *
- * While the returned kernfs_node will stay accessible as long as @dentry
- * is accessible, the returned node can be in any state and the caller is
+ * While the returned kernfs_yesde will stay accessible as long as @dentry
+ * is accessible, the returned yesde can be in any state and the caller is
  * fully responsible for determining what's accessible.
  */
-struct kernfs_node *kernfs_node_from_dentry(struct dentry *dentry)
+struct kernfs_yesde *kernfs_yesde_from_dentry(struct dentry *dentry)
 {
 	if (dentry->d_sb->s_op == &kernfs_sops &&
 	    !d_really_is_negative(dentry))
-		return kernfs_dentry_node(dentry);
+		return kernfs_dentry_yesde(dentry);
 	return NULL;
 }
 
-static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
-					     struct kernfs_node *parent,
+static struct kernfs_yesde *__kernfs_new_yesde(struct kernfs_root *root,
+					     struct kernfs_yesde *parent,
 					     const char *name, umode_t mode,
 					     kuid_t uid, kgid_t gid,
 					     unsigned flags)
 {
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 	u32 id_highbits;
 	int ret;
 
@@ -624,13 +624,13 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	if (!name)
 		return NULL;
 
-	kn = kmem_cache_zalloc(kernfs_node_cache, GFP_KERNEL);
+	kn = kmem_cache_zalloc(kernfs_yesde_cache, GFP_KERNEL);
 	if (!kn)
 		goto err_out1;
 
 	idr_preload(GFP_KERNEL);
 	spin_lock(&kernfs_idr_lock);
-	ret = idr_alloc_cyclic(&root->ino_idr, kn, 1, 0, GFP_ATOMIC);
+	ret = idr_alloc_cyclic(&root->iyes_idr, kn, 1, 0, GFP_ATOMIC);
 	if (ret >= 0 && ret < root->last_id_lowbits)
 		root->id_highbits++;
 	id_highbits = root->id_highbits;
@@ -671,22 +671,22 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	return kn;
 
  err_out3:
-	idr_remove(&root->ino_idr, (u32)kernfs_ino(kn));
+	idr_remove(&root->iyes_idr, (u32)kernfs_iyes(kn));
  err_out2:
-	kmem_cache_free(kernfs_node_cache, kn);
+	kmem_cache_free(kernfs_yesde_cache, kn);
  err_out1:
 	kfree_const(name);
 	return NULL;
 }
 
-struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
+struct kernfs_yesde *kernfs_new_yesde(struct kernfs_yesde *parent,
 				    const char *name, umode_t mode,
 				    kuid_t uid, kgid_t gid,
 				    unsigned flags)
 {
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 
-	kn = __kernfs_new_node(kernfs_root(parent), parent,
+	kn = __kernfs_new_yesde(kernfs_root(parent), parent,
 			       name, mode, uid, gid, flags);
 	if (kn) {
 		kernfs_get(parent);
@@ -696,32 +696,32 @@ struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
 }
 
 /*
- * kernfs_find_and_get_node_by_id - get kernfs_node from node id
+ * kernfs_find_and_get_yesde_by_id - get kernfs_yesde from yesde id
  * @root: the kernfs root
- * @id: the target node id
+ * @id: the target yesde id
  *
- * @id's lower 32bits encode ino and upper gen.  If the gen portion is
+ * @id's lower 32bits encode iyes and upper gen.  If the gen portion is
  * zero, all generations are matched.
  *
  * RETURNS:
- * NULL on failure. Return a kernfs node with reference counter incremented
+ * NULL on failure. Return a kernfs yesde with reference counter incremented
  */
-struct kernfs_node *kernfs_find_and_get_node_by_id(struct kernfs_root *root,
+struct kernfs_yesde *kernfs_find_and_get_yesde_by_id(struct kernfs_root *root,
 						   u64 id)
 {
-	struct kernfs_node *kn;
-	ino_t ino = kernfs_id_ino(id);
+	struct kernfs_yesde *kn;
+	iyes_t iyes = kernfs_id_iyes(id);
 	u32 gen = kernfs_id_gen(id);
 
 	spin_lock(&kernfs_idr_lock);
 
-	kn = idr_find(&root->ino_idr, (u32)ino);
+	kn = idr_find(&root->iyes_idr, (u32)iyes);
 	if (!kn)
 		goto err_unlock;
 
-	if (sizeof(ino_t) >= sizeof(u64)) {
+	if (sizeof(iyes_t) >= sizeof(u64)) {
 		/* we looked up with the low 32bits, compare the whole */
-		if (kernfs_ino(kn) != ino)
+		if (kernfs_iyes(kn) != iyes)
 			goto err_unlock;
 	} else {
 		/* 0 matches all generations */
@@ -735,7 +735,7 @@ struct kernfs_node *kernfs_find_and_get_node_by_id(struct kernfs_root *root,
 	 * grab kernfs_mutex.
 	 */
 	if (unlikely(!(kn->flags & KERNFS_ACTIVATED) ||
-		     !atomic_inc_not_zero(&kn->count)))
+		     !atomic_inc_yest_zero(&kn->count)))
 		goto err_unlock;
 
 	spin_unlock(&kernfs_idr_lock);
@@ -746,20 +746,20 @@ err_unlock:
 }
 
 /**
- *	kernfs_add_one - add kernfs_node to parent without warning
- *	@kn: kernfs_node to be added
+ *	kernfs_add_one - add kernfs_yesde to parent without warning
+ *	@kn: kernfs_yesde to be added
  *
  *	The caller must already have initialized @kn->parent.  This
- *	function increments nlink of the parent's inode if @kn is a
+ *	function increments nlink of the parent's iyesde if @kn is a
  *	directory and link into the children list of the parent.
  *
  *	RETURNS:
  *	0 on success, -EEXIST if entry with the given name already
  *	exists.
  */
-int kernfs_add_one(struct kernfs_node *kn)
+int kernfs_add_one(struct kernfs_yesde *kn)
 {
-	struct kernfs_node *parent = kn->parent;
+	struct kernfs_yesde *parent = kn->parent;
 	struct kernfs_iattrs *ps_iattr;
 	bool has_ns;
 	int ret;
@@ -798,10 +798,10 @@ int kernfs_add_one(struct kernfs_node *kn)
 	mutex_unlock(&kernfs_mutex);
 
 	/*
-	 * Activate the new node unless CREATE_DEACTIVATED is requested.
-	 * If not activated here, the kernfs user is responsible for
-	 * activating the node with kernfs_activate().  A node which hasn't
-	 * been activated is not visible to userland and its removal won't
+	 * Activate the new yesde unless CREATE_DEACTIVATED is requested.
+	 * If yest activated here, the kernfs user is responsible for
+	 * activating the yesde with kernfs_activate().  A yesde which hasn't
+	 * been activated is yest visible to userland and its removal won't
 	 * trigger deactivation.
 	 */
 	if (!(kernfs_root(kn)->flags & KERNFS_ROOT_CREATE_DEACTIVATED))
@@ -814,19 +814,19 @@ out_unlock:
 }
 
 /**
- * kernfs_find_ns - find kernfs_node with the given name
- * @parent: kernfs_node to search under
+ * kernfs_find_ns - find kernfs_yesde with the given name
+ * @parent: kernfs_yesde to search under
  * @name: name to look for
  * @ns: the namespace tag to use
  *
- * Look for kernfs_node with name @name under @parent.  Returns pointer to
- * the found kernfs_node on success, %NULL on failure.
+ * Look for kernfs_yesde with name @name under @parent.  Returns pointer to
+ * the found kernfs_yesde on success, %NULL on failure.
  */
-static struct kernfs_node *kernfs_find_ns(struct kernfs_node *parent,
+static struct kernfs_yesde *kernfs_find_ns(struct kernfs_yesde *parent,
 					  const unsigned char *name,
 					  const void *ns)
 {
-	struct rb_node *node = parent->dir.children.rb_node;
+	struct rb_yesde *yesde = parent->dir.children.rb_yesde;
 	bool has_ns = kernfs_ns_enabled(parent);
 	unsigned int hash;
 
@@ -839,23 +839,23 @@ static struct kernfs_node *kernfs_find_ns(struct kernfs_node *parent,
 	}
 
 	hash = kernfs_name_hash(name, ns);
-	while (node) {
-		struct kernfs_node *kn;
+	while (yesde) {
+		struct kernfs_yesde *kn;
 		int result;
 
-		kn = rb_to_kn(node);
+		kn = rb_to_kn(yesde);
 		result = kernfs_name_compare(hash, name, ns, kn);
 		if (result < 0)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (result > 0)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return kn;
 	}
 	return NULL;
 }
 
-static struct kernfs_node *kernfs_walk_ns(struct kernfs_node *parent,
+static struct kernfs_yesde *kernfs_walk_ns(struct kernfs_yesde *parent,
 					  const unsigned char *path,
 					  const void *ns)
 {
@@ -888,19 +888,19 @@ static struct kernfs_node *kernfs_walk_ns(struct kernfs_node *parent,
 }
 
 /**
- * kernfs_find_and_get_ns - find and get kernfs_node with the given name
- * @parent: kernfs_node to search under
+ * kernfs_find_and_get_ns - find and get kernfs_yesde with the given name
+ * @parent: kernfs_yesde to search under
  * @name: name to look for
  * @ns: the namespace tag to use
  *
- * Look for kernfs_node with name @name under @parent and get a reference
+ * Look for kernfs_yesde with name @name under @parent and get a reference
  * if found.  This function may sleep and returns pointer to the found
- * kernfs_node on success, %NULL on failure.
+ * kernfs_yesde on success, %NULL on failure.
  */
-struct kernfs_node *kernfs_find_and_get_ns(struct kernfs_node *parent,
+struct kernfs_yesde *kernfs_find_and_get_ns(struct kernfs_yesde *parent,
 					   const char *name, const void *ns)
 {
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 
 	mutex_lock(&kernfs_mutex);
 	kn = kernfs_find_ns(parent, name, ns);
@@ -912,19 +912,19 @@ struct kernfs_node *kernfs_find_and_get_ns(struct kernfs_node *parent,
 EXPORT_SYMBOL_GPL(kernfs_find_and_get_ns);
 
 /**
- * kernfs_walk_and_get_ns - find and get kernfs_node with the given path
- * @parent: kernfs_node to search under
+ * kernfs_walk_and_get_ns - find and get kernfs_yesde with the given path
+ * @parent: kernfs_yesde to search under
  * @path: path to look for
  * @ns: the namespace tag to use
  *
- * Look for kernfs_node with path @path under @parent and get a reference
+ * Look for kernfs_yesde with path @path under @parent and get a reference
  * if found.  This function may sleep and returns pointer to the found
- * kernfs_node on success, %NULL on failure.
+ * kernfs_yesde on success, %NULL on failure.
  */
-struct kernfs_node *kernfs_walk_and_get_ns(struct kernfs_node *parent,
+struct kernfs_yesde *kernfs_walk_and_get_ns(struct kernfs_yesde *parent,
 					   const char *path, const void *ns)
 {
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 
 	mutex_lock(&kernfs_mutex);
 	kn = kernfs_walk_ns(parent, path, ns);
@@ -947,31 +947,31 @@ struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
 				       unsigned int flags, void *priv)
 {
 	struct kernfs_root *root;
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 
 	root = kzalloc(sizeof(*root), GFP_KERNEL);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 
-	idr_init(&root->ino_idr);
+	idr_init(&root->iyes_idr);
 	INIT_LIST_HEAD(&root->supers);
 
 	/*
-	 * On 64bit ino setups, id is ino.  On 32bit, low 32bits are ino.
-	 * High bits generation.  The starting value for both ino and
+	 * On 64bit iyes setups, id is iyes.  On 32bit, low 32bits are iyes.
+	 * High bits generation.  The starting value for both iyes and
 	 * genenration is 1.  Initialize upper 32bit allocation
 	 * accordingly.
 	 */
-	if (sizeof(ino_t) >= sizeof(u64))
+	if (sizeof(iyes_t) >= sizeof(u64))
 		root->id_highbits = 0;
 	else
 		root->id_highbits = 1;
 
-	kn = __kernfs_new_node(root, NULL, "", S_IFDIR | S_IRUGO | S_IXUGO,
+	kn = __kernfs_new_yesde(root, NULL, "", S_IFDIR | S_IRUGO | S_IXUGO,
 			       GLOBAL_ROOT_UID, GLOBAL_ROOT_GID,
 			       KERNFS_DIR);
 	if (!kn) {
-		idr_destroy(&root->ino_idr);
+		idr_destroy(&root->iyes_idr);
 		kfree(root);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -1012,18 +1012,18 @@ void kernfs_destroy_root(struct kernfs_root *root)
  * @priv: opaque data associated with the new directory
  * @ns: optional namespace tag of the directory
  *
- * Returns the created node on success, ERR_PTR() value on failure.
+ * Returns the created yesde on success, ERR_PTR() value on failure.
  */
-struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
+struct kernfs_yesde *kernfs_create_dir_ns(struct kernfs_yesde *parent,
 					 const char *name, umode_t mode,
 					 kuid_t uid, kgid_t gid,
 					 void *priv, const void *ns)
 {
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 	int rc;
 
 	/* allocate */
-	kn = kernfs_new_node(parent, name, mode | S_IFDIR,
+	kn = kernfs_new_yesde(parent, name, mode | S_IFDIR,
 			     uid, gid, KERNFS_DIR);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
@@ -1046,16 +1046,16 @@ struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
  * @parent: parent in which to create a new directory
  * @name: name of the new directory
  *
- * Returns the created node on success, ERR_PTR() value on failure.
+ * Returns the created yesde on success, ERR_PTR() value on failure.
  */
-struct kernfs_node *kernfs_create_empty_dir(struct kernfs_node *parent,
+struct kernfs_yesde *kernfs_create_empty_dir(struct kernfs_yesde *parent,
 					    const char *name)
 {
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 	int rc;
 
 	/* allocate */
-	kn = kernfs_new_node(parent, name, S_IRUGO|S_IXUGO|S_IFDIR,
+	kn = kernfs_new_yesde(parent, name, S_IRUGO|S_IXUGO|S_IFDIR,
 			     GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, KERNFS_DIR);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
@@ -1074,14 +1074,14 @@ struct kernfs_node *kernfs_create_empty_dir(struct kernfs_node *parent,
 	return ERR_PTR(rc);
 }
 
-static struct dentry *kernfs_iop_lookup(struct inode *dir,
+static struct dentry *kernfs_iop_lookup(struct iyesde *dir,
 					struct dentry *dentry,
 					unsigned int flags)
 {
 	struct dentry *ret;
-	struct kernfs_node *parent = dir->i_private;
-	struct kernfs_node *kn;
-	struct inode *inode;
+	struct kernfs_yesde *parent = dir->i_private;
+	struct kernfs_yesde *kn;
+	struct iyesde *iyesde;
 	const void *ns = NULL;
 
 	mutex_lock(&kernfs_mutex);
@@ -1091,30 +1091,30 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 
 	kn = kernfs_find_ns(parent, dentry->d_name.name, ns);
 
-	/* no such entry */
+	/* yes such entry */
 	if (!kn || !kernfs_active(kn)) {
 		ret = NULL;
 		goto out_unlock;
 	}
 
-	/* attach dentry and inode */
-	inode = kernfs_get_inode(dir->i_sb, kn);
-	if (!inode) {
+	/* attach dentry and iyesde */
+	iyesde = kernfs_get_iyesde(dir->i_sb, kn);
+	if (!iyesde) {
 		ret = ERR_PTR(-ENOMEM);
 		goto out_unlock;
 	}
 
 	/* instantiate and hash dentry */
-	ret = d_splice_alias(inode, dentry);
+	ret = d_splice_alias(iyesde, dentry);
  out_unlock:
 	mutex_unlock(&kernfs_mutex);
 	return ret;
 }
 
-static int kernfs_iop_mkdir(struct inode *dir, struct dentry *dentry,
+static int kernfs_iop_mkdir(struct iyesde *dir, struct dentry *dentry,
 			    umode_t mode)
 {
-	struct kernfs_node *parent = dir->i_private;
+	struct kernfs_yesde *parent = dir->i_private;
 	struct kernfs_syscall_ops *scops = kernfs_root(parent)->syscall_ops;
 	int ret;
 
@@ -1130,9 +1130,9 @@ static int kernfs_iop_mkdir(struct inode *dir, struct dentry *dentry,
 	return ret;
 }
 
-static int kernfs_iop_rmdir(struct inode *dir, struct dentry *dentry)
+static int kernfs_iop_rmdir(struct iyesde *dir, struct dentry *dentry)
 {
-	struct kernfs_node *kn  = kernfs_dentry_node(dentry);
+	struct kernfs_yesde *kn  = kernfs_dentry_yesde(dentry);
 	struct kernfs_syscall_ops *scops = kernfs_root(kn)->syscall_ops;
 	int ret;
 
@@ -1148,12 +1148,12 @@ static int kernfs_iop_rmdir(struct inode *dir, struct dentry *dentry)
 	return ret;
 }
 
-static int kernfs_iop_rename(struct inode *old_dir, struct dentry *old_dentry,
-			     struct inode *new_dir, struct dentry *new_dentry,
+static int kernfs_iop_rename(struct iyesde *old_dir, struct dentry *old_dentry,
+			     struct iyesde *new_dir, struct dentry *new_dentry,
 			     unsigned int flags)
 {
-	struct kernfs_node *kn = kernfs_dentry_node(old_dentry);
-	struct kernfs_node *new_parent = new_dir->i_private;
+	struct kernfs_yesde *kn = kernfs_dentry_yesde(old_dentry);
+	struct kernfs_yesde *new_parent = new_dir->i_private;
 	struct kernfs_syscall_ops *scops = kernfs_root(kn)->syscall_ops;
 	int ret;
 
@@ -1178,7 +1178,7 @@ static int kernfs_iop_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return ret;
 }
 
-const struct inode_operations kernfs_dir_iops = {
+const struct iyesde_operations kernfs_dir_iops = {
 	.lookup		= kernfs_iop_lookup,
 	.permission	= kernfs_iop_permission,
 	.setattr	= kernfs_iop_setattr,
@@ -1190,12 +1190,12 @@ const struct inode_operations kernfs_dir_iops = {
 	.rename		= kernfs_iop_rename,
 };
 
-static struct kernfs_node *kernfs_leftmost_descendant(struct kernfs_node *pos)
+static struct kernfs_yesde *kernfs_leftmost_descendant(struct kernfs_yesde *pos)
 {
-	struct kernfs_node *last;
+	struct kernfs_yesde *last;
 
 	while (true) {
-		struct rb_node *rbn;
+		struct rb_yesde *rbn;
 
 		last = pos;
 
@@ -1215,16 +1215,16 @@ static struct kernfs_node *kernfs_leftmost_descendant(struct kernfs_node *pos)
 /**
  * kernfs_next_descendant_post - find the next descendant for post-order walk
  * @pos: the current position (%NULL to initiate traversal)
- * @root: kernfs_node whose descendants to walk
+ * @root: kernfs_yesde whose descendants to walk
  *
  * Find the next descendant to visit for post-order traversal of @root's
- * descendants.  @root is included in the iteration and the last node to be
+ * descendants.  @root is included in the iteration and the last yesde to be
  * visited.
  */
-static struct kernfs_node *kernfs_next_descendant_post(struct kernfs_node *pos,
-						       struct kernfs_node *root)
+static struct kernfs_yesde *kernfs_next_descendant_post(struct kernfs_yesde *pos,
+						       struct kernfs_yesde *root)
 {
-	struct rb_node *rbn;
+	struct rb_yesde *rbn;
 
 	lockdep_assert_held(&kernfs_mutex);
 
@@ -1241,26 +1241,26 @@ static struct kernfs_node *kernfs_next_descendant_post(struct kernfs_node *pos,
 	if (rbn)
 		return kernfs_leftmost_descendant(rb_to_kn(rbn));
 
-	/* no sibling left, visit parent */
+	/* yes sibling left, visit parent */
 	return pos->parent;
 }
 
 /**
- * kernfs_activate - activate a node which started deactivated
- * @kn: kernfs_node whose subtree is to be activated
+ * kernfs_activate - activate a yesde which started deactivated
+ * @kn: kernfs_yesde whose subtree is to be activated
  *
- * If the root has KERNFS_ROOT_CREATE_DEACTIVATED set, a newly created node
- * needs to be explicitly activated.  A node which hasn't been activated
+ * If the root has KERNFS_ROOT_CREATE_DEACTIVATED set, a newly created yesde
+ * needs to be explicitly activated.  A yesde which hasn't been activated
  * isn't visible to userland and deactivation is skipped during its
  * removal.  This is useful to construct atomic init sequences where
- * creation of multiple nodes should either succeed or fail atomically.
+ * creation of multiple yesdes should either succeed or fail atomically.
  *
- * The caller is responsible for ensuring that this function is not called
+ * The caller is responsible for ensuring that this function is yest called
  * after kernfs_remove*() is invoked on @kn.
  */
-void kernfs_activate(struct kernfs_node *kn)
+void kernfs_activate(struct kernfs_yesde *kn)
 {
-	struct kernfs_node *pos;
+	struct kernfs_yesde *pos;
 
 	mutex_lock(&kernfs_mutex);
 
@@ -1279,14 +1279,14 @@ void kernfs_activate(struct kernfs_node *kn)
 	mutex_unlock(&kernfs_mutex);
 }
 
-static void __kernfs_remove(struct kernfs_node *kn)
+static void __kernfs_remove(struct kernfs_yesde *kn)
 {
-	struct kernfs_node *pos;
+	struct kernfs_yesde *pos;
 
 	lockdep_assert_held(&kernfs_mutex);
 
 	/*
-	 * Short-circuit if non-root @kn has already finished removal.
+	 * Short-circuit if yesn-root @kn has already finished removal.
 	 * This is for kernfs_remove_self() which plays with active ref
 	 * after removal.
 	 */
@@ -1295,13 +1295,13 @@ static void __kernfs_remove(struct kernfs_node *kn)
 
 	pr_debug("kernfs %s: removing\n", kn->name);
 
-	/* prevent any new usage under @kn by deactivating all nodes */
+	/* prevent any new usage under @kn by deactivating all yesdes */
 	pos = NULL;
 	while ((pos = kernfs_next_descendant_post(pos, kn)))
 		if (kernfs_active(pos))
 			atomic_add(KN_DEACTIVATED_BIAS, &pos->active);
 
-	/* deactivate and unlink the subtree node-by-node */
+	/* deactivate and unlink the subtree yesde-by-yesde */
 	do {
 		pos = kernfs_leftmost_descendant(kn);
 
@@ -1315,7 +1315,7 @@ static void __kernfs_remove(struct kernfs_node *kn)
 
 		/*
 		 * Drain iff @kn was activated.  This avoids draining and
-		 * its lockdep annotations for nodes which have never been
+		 * its lockdep anyestations for yesdes which have never been
 		 * activated and allows embedding kernfs_remove() in create
 		 * error paths without worrying about draining.
 		 */
@@ -1325,7 +1325,7 @@ static void __kernfs_remove(struct kernfs_node *kn)
 			WARN_ON_ONCE(atomic_read(&kn->active) != KN_DEACTIVATED_BIAS);
 
 		/*
-		 * kernfs_unlink_sibling() succeeds once per node.  Use it
+		 * kernfs_unlink_sibling() succeeds once per yesde.  Use it
 		 * to decide who's responsible for cleanups.
 		 */
 		if (!pos->parent || kernfs_unlink_sibling(pos)) {
@@ -1346,12 +1346,12 @@ static void __kernfs_remove(struct kernfs_node *kn)
 }
 
 /**
- * kernfs_remove - remove a kernfs_node recursively
- * @kn: the kernfs_node to remove
+ * kernfs_remove - remove a kernfs_yesde recursively
+ * @kn: the kernfs_yesde to remove
  *
  * Remove @kn along with all its subdirectories and files.
  */
-void kernfs_remove(struct kernfs_node *kn)
+void kernfs_remove(struct kernfs_yesde *kn)
 {
 	mutex_lock(&kernfs_mutex);
 	__kernfs_remove(kn);
@@ -1360,7 +1360,7 @@ void kernfs_remove(struct kernfs_node *kn)
 
 /**
  * kernfs_break_active_protection - break out of active protection
- * @kn: the self kernfs_node
+ * @kn: the self kernfs_yesde
  *
  * The caller must be running off of a kernfs operation which is invoked
  * with an active reference - e.g. one of kernfs_ops.  Each invocation of
@@ -1372,7 +1372,7 @@ void kernfs_remove(struct kernfs_node *kn)
  * and the caller is solely responsible for ensuring that the objects it
  * dereferences are accessible.
  */
-void kernfs_break_active_protection(struct kernfs_node *kn)
+void kernfs_break_active_protection(struct kernfs_yesde *kn)
 {
 	/*
 	 * Take out ourself out of the active ref dependency chain.  If
@@ -1383,7 +1383,7 @@ void kernfs_break_active_protection(struct kernfs_node *kn)
 
 /**
  * kernfs_unbreak_active_protection - undo kernfs_break_active_protection()
- * @kn: the self kernfs_node
+ * @kn: the self kernfs_yesde
  *
  * If kernfs_break_active_protection() was called, this function must be
  * invoked before finishing the kernfs operation.  Note that while this
@@ -1396,13 +1396,13 @@ void kernfs_break_active_protection(struct kernfs_node *kn)
  * kernfs_break_active_protection() is invoked, its most useful location
  * would be right before the enclosing kernfs operation returns.
  */
-void kernfs_unbreak_active_protection(struct kernfs_node *kn)
+void kernfs_unbreak_active_protection(struct kernfs_yesde *kn)
 {
 	/*
 	 * @kn->active could be in any state; however, the increment we do
 	 * here will be undone as soon as the enclosing kernfs operation
 	 * finishes and this temporary bump can't break anything.  If @kn
-	 * is alive, nothing changes.  If @kn is being deactivated, the
+	 * is alive, yesthing changes.  If @kn is being deactivated, the
 	 * soon-to-follow put will either finish deactivation or restore
 	 * deactivated state.  If @kn is already removed, the temporary
 	 * bump is guaranteed to be gone before @kn is released.
@@ -1413,8 +1413,8 @@ void kernfs_unbreak_active_protection(struct kernfs_node *kn)
 }
 
 /**
- * kernfs_remove_self - remove a kernfs_node from its own method
- * @kn: the self kernfs_node to remove
+ * kernfs_remove_self - remove a kernfs_yesde from its own method
+ * @kn: the self kernfs_yesde to remove
  *
  * The caller must be running off of a kernfs operation which is invoked
  * with an active reference - e.g. one of kernfs_ops.  This can be used to
@@ -1426,19 +1426,19 @@ void kernfs_unbreak_active_protection(struct kernfs_node *kn)
  * deactivate self while holding an active ref itself.  It isn't necessary
  * to modify the usual removal path to use kernfs_remove_self().  The
  * "delete" implementation can simply invoke kernfs_remove_self() on self
- * before proceeding with the usual removal path.  kernfs will ignore later
+ * before proceeding with the usual removal path.  kernfs will igyesre later
  * kernfs_remove() on self.
  *
  * kernfs_remove_self() can be called multiple times concurrently on the
- * same kernfs_node.  Only the first one actually performs removal and
+ * same kernfs_yesde.  Only the first one actually performs removal and
  * returns %true.  All others will wait until the kernfs operation which
  * won self-removal finishes and return %false.  Note that the losers wait
- * for the completion of not only the winning kernfs_remove_self() but also
+ * for the completion of yest only the winning kernfs_remove_self() but also
  * the whole kernfs_ops which won the arbitration.  This can be used to
  * guarantee, for example, all concurrent writes to a "delete" file to
  * finish only after the whole operation is complete.
  */
-bool kernfs_remove_self(struct kernfs_node *kn)
+bool kernfs_remove_self(struct kernfs_yesde *kn)
 {
 	bool ret;
 
@@ -1490,21 +1490,21 @@ bool kernfs_remove_self(struct kernfs_node *kn)
 }
 
 /**
- * kernfs_remove_by_name_ns - find a kernfs_node by name and remove it
+ * kernfs_remove_by_name_ns - find a kernfs_yesde by name and remove it
  * @parent: parent of the target
- * @name: name of the kernfs_node to remove
- * @ns: namespace tag of the kernfs_node to remove
+ * @name: name of the kernfs_yesde to remove
+ * @ns: namespace tag of the kernfs_yesde to remove
  *
- * Look for the kernfs_node with @name and @ns under @parent and remove it.
+ * Look for the kernfs_yesde with @name and @ns under @parent and remove it.
  * Returns 0 on success, -ENOENT if such entry doesn't exist.
  */
-int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
+int kernfs_remove_by_name_ns(struct kernfs_yesde *parent, const char *name,
 			     const void *ns)
 {
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 
 	if (!parent) {
-		WARN(1, KERN_WARNING "kernfs: can not remove '%s', no directory\n",
+		WARN(1, KERN_WARNING "kernfs: can yest remove '%s', yes directory\n",
 			name);
 		return -ENOENT;
 	}
@@ -1524,16 +1524,16 @@ int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
 }
 
 /**
- * kernfs_rename_ns - move and rename a kernfs_node
- * @kn: target node
+ * kernfs_rename_ns - move and rename a kernfs_yesde
+ * @kn: target yesde
  * @new_parent: new parent to put @sd under
  * @new_name: new name
  * @new_ns: new namespace tag
  */
-int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
+int kernfs_rename_ns(struct kernfs_yesde *kn, struct kernfs_yesde *new_parent,
 		     const char *new_name, const void *new_ns)
 {
-	struct kernfs_node *old_parent;
+	struct kernfs_yesde *old_parent;
 	const char *old_name = NULL;
 	int error;
 
@@ -1551,13 +1551,13 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	error = 0;
 	if ((kn->parent == new_parent) && (kn->ns == new_ns) &&
 	    (strcmp(kn->name, new_name) == 0))
-		goto out;	/* nothing to rename */
+		goto out;	/* yesthing to rename */
 
 	error = -EEXIST;
 	if (kernfs_find_ns(new_parent, new_name, new_ns))
 		goto out;
 
-	/* rename kernfs_node */
+	/* rename kernfs_yesde */
 	if (strcmp(kn->name, new_name) != 0) {
 		error = -ENOMEM;
 		new_name = kstrdup_const(new_name, GFP_KERNEL);
@@ -1600,19 +1600,19 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 }
 
 /* Relationship between s_mode and the DT_xxx types */
-static inline unsigned char dt_type(struct kernfs_node *kn)
+static inline unsigned char dt_type(struct kernfs_yesde *kn)
 {
 	return (kn->mode >> 12) & 15;
 }
 
-static int kernfs_dir_fop_release(struct inode *inode, struct file *filp)
+static int kernfs_dir_fop_release(struct iyesde *iyesde, struct file *filp)
 {
 	kernfs_put(filp->private_data);
 	return 0;
 }
 
-static struct kernfs_node *kernfs_dir_pos(const void *ns,
-	struct kernfs_node *parent, loff_t hash, struct kernfs_node *pos)
+static struct kernfs_yesde *kernfs_dir_pos(const void *ns,
+	struct kernfs_yesde *parent, loff_t hash, struct kernfs_yesde *pos)
 {
 	if (pos) {
 		int valid = kernfs_active(pos) &&
@@ -1622,40 +1622,40 @@ static struct kernfs_node *kernfs_dir_pos(const void *ns,
 			pos = NULL;
 	}
 	if (!pos && (hash > 1) && (hash < INT_MAX)) {
-		struct rb_node *node = parent->dir.children.rb_node;
-		while (node) {
-			pos = rb_to_kn(node);
+		struct rb_yesde *yesde = parent->dir.children.rb_yesde;
+		while (yesde) {
+			pos = rb_to_kn(yesde);
 
 			if (hash < pos->hash)
-				node = node->rb_left;
+				yesde = yesde->rb_left;
 			else if (hash > pos->hash)
-				node = node->rb_right;
+				yesde = yesde->rb_right;
 			else
 				break;
 		}
 	}
 	/* Skip over entries which are dying/dead or in the wrong namespace */
 	while (pos && (!kernfs_active(pos) || pos->ns != ns)) {
-		struct rb_node *node = rb_next(&pos->rb);
-		if (!node)
+		struct rb_yesde *yesde = rb_next(&pos->rb);
+		if (!yesde)
 			pos = NULL;
 		else
-			pos = rb_to_kn(node);
+			pos = rb_to_kn(yesde);
 	}
 	return pos;
 }
 
-static struct kernfs_node *kernfs_dir_next_pos(const void *ns,
-	struct kernfs_node *parent, ino_t ino, struct kernfs_node *pos)
+static struct kernfs_yesde *kernfs_dir_next_pos(const void *ns,
+	struct kernfs_yesde *parent, iyes_t iyes, struct kernfs_yesde *pos)
 {
-	pos = kernfs_dir_pos(ns, parent, ino, pos);
+	pos = kernfs_dir_pos(ns, parent, iyes, pos);
 	if (pos) {
 		do {
-			struct rb_node *node = rb_next(&pos->rb);
-			if (!node)
+			struct rb_yesde *yesde = rb_next(&pos->rb);
+			if (!yesde)
 				pos = NULL;
 			else
-				pos = rb_to_kn(node);
+				pos = rb_to_kn(yesde);
 		} while (pos && (!kernfs_active(pos) || pos->ns != ns));
 	}
 	return pos;
@@ -1664,8 +1664,8 @@ static struct kernfs_node *kernfs_dir_next_pos(const void *ns,
 static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct dentry *dentry = file->f_path.dentry;
-	struct kernfs_node *parent = kernfs_dentry_node(dentry);
-	struct kernfs_node *pos = file->private_data;
+	struct kernfs_yesde *parent = kernfs_dentry_yesde(dentry);
+	struct kernfs_yesde *pos = file->private_data;
 	const void *ns = NULL;
 
 	if (!dir_emit_dots(file, ctx))
@@ -1681,14 +1681,14 @@ static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
 		const char *name = pos->name;
 		unsigned int type = dt_type(pos);
 		int len = strlen(name);
-		ino_t ino = kernfs_ino(pos);
+		iyes_t iyes = kernfs_iyes(pos);
 
 		ctx->pos = pos->hash;
 		file->private_data = pos;
 		kernfs_get(pos);
 
 		mutex_unlock(&kernfs_mutex);
-		if (!dir_emit(ctx, name, len, ino, type))
+		if (!dir_emit(ctx, name, len, iyes, type))
 			return 0;
 		mutex_lock(&kernfs_mutex);
 	}

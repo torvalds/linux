@@ -9,14 +9,14 @@
  *   Copyright (c) 2013 by Tobias Hoffmann
  *   Copyright (c) 2013 by Robin Gareus <robin at gareus.org>
  *   Copyright (c) 2002 by Takashi Iwai <tiwai at suse.de>
- *   Copyright (c) 2014 by Chris J Arges <chris.j.arges at canonical.com>
+ *   Copyright (c) 2014 by Chris J Arges <chris.j.arges at cayesnical.com>
  *
  *   Many codes borrowed from audio.c by
  *     Alan Cox (alan at lxorguk.ukuu.org.uk)
  *     Thomas Sailer (sailer at ife.ee.ethz.ch)
  *
  *   Code cleanup:
- *   David Henningsson <david.henningsson at canonical.com>
+ *   David Henningsson <david.henningsson at cayesnical.com>
  */
 
 /* Mixer Interface for the Focusrite Scarlett 6i6/18i8/18i20 Gen 2 audio
@@ -162,7 +162,7 @@ static const u16 scarlett2_mixer_values[173] = {
 #define SCARLETT2_NUM_METERS 56
 
 /* Hardware port types:
- * - None (no input to mux)
+ * - None (yes input to mux)
  * - Analogue I/O
  * - S/PDIF I/O
  * - ADAT I/O
@@ -495,7 +495,7 @@ struct scarlett2_usb_volume_status {
 
 	u8 pad3[6];
 
-	/* front panel volume knob */
+	/* front panel volume kyesb */
 	s16 master_vol;
 } __packed;
 
@@ -891,7 +891,7 @@ static int scarlett2_usb_set_mux(struct usb_mixer_interface *mixer)
 						) << 12
 					  );
 
-			/* skip private->mux[j] entries not output */
+			/* skip private->mux[j] entries yest output */
 			j += ports[port_type].num[SCARLETT2_PORT_OUT] -
 			     ports[port_type].num[port_dir_rate];
 		}
@@ -975,7 +975,7 @@ static int scarlett2_add_new_ctl(struct usb_mixer_interface *mixer,
 
 /*** Analogue Line Out Volume Controls ***/
 
-/* Update hardware volume controls after receiving notification that
+/* Update hardware volume controls after receiving yestification that
  * they have changed
  */
 static int scarlett2_update_volumes(struct usb_mixer_interface *mixer)
@@ -1175,7 +1175,7 @@ static int scarlett2_sw_hw_enum_ctl_put(struct snd_kcontrol *kctl,
 		goto unlock;
 
 	/* Notify of RO/RW change */
-	snd_ctl_notify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_INFO,
+	snd_ctl_yestify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_INFO,
 		       &private->vol_ctls[index]->id);
 
 	/* Send SW/HW switch change to the device */
@@ -1300,7 +1300,7 @@ unlock:
 static const struct snd_kcontrol_new scarlett2_pad_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "",
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moyes_info,
 	.get  = scarlett2_pad_ctl_get,
 	.put  = scarlett2_pad_ctl_put,
 };
@@ -1356,7 +1356,7 @@ unlock:
 static const struct snd_kcontrol_new scarlett2_button_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "",
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moyes_info,
 	.get  = scarlett2_button_ctl_get,
 	.put  = scarlett2_button_ctl_put
 };
@@ -1909,13 +1909,13 @@ static void scarlett2_mixer_interrupt_vol_change(
 
 	private->vol_updated = 1;
 
-	snd_ctl_notify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+	snd_ctl_yestify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 		       &private->master_vol_ctl->id);
 
 	for (i = 0; i < num_line_out; i++) {
 		if (!private->vol_sw_hw_switch[i])
 			continue;
-		snd_ctl_notify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &private->vol_ctls[i]->id);
 	}
 }
@@ -1930,7 +1930,7 @@ static void scarlett2_mixer_interrupt_button_change(
 	private->vol_updated = 1;
 
 	for (i = 0; i < private->info->button_count; i++)
-		snd_ctl_notify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &private->button_ctls[i]->id);
 }
 
@@ -2017,7 +2017,7 @@ int snd_scarlett_gen2_controls_create(struct usb_mixer_interface *mixer)
 	case USB_ID(0x1235, 0x8201):
 		info = &s18i20_gen2_info;
 		break;
-	default: /* device not (yet) supported */
+	default: /* device yest (yet) supported */
 		return -EINVAL;
 	}
 

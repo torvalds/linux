@@ -177,11 +177,11 @@ static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 					       DPI_FORMAT);
 			break;
 		default:
-			DRM_ERROR("Unknown media bus format %d\n", bus_format);
+			DRM_ERROR("Unkyeswn media bus format %d\n", bus_format);
 			break;
 		}
 	} else {
-		/* Default to 24bit if no connector found. */
+		/* Default to 24bit if yes connector found. */
 		dpi_c |= VC4_SET_FIELD(DPI_FORMAT_24BIT_888_RGB, DPI_FORMAT);
 	}
 
@@ -236,10 +236,10 @@ static int vc4_dpi_init_bridge(struct vc4_dpi *dpi)
 	struct drm_bridge *bridge;
 	int ret;
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
+	ret = drm_of_find_panel_or_bridge(dev->of_yesde, 0, 0,
 					  &panel, &bridge);
 	if (ret) {
-		/* If nothing was connected in the DT, that's not an
+		/* If yesthing was connected in the DT, that's yest an
 		 * error.
 		 */
 		if (ret == -ENODEV)
@@ -338,7 +338,7 @@ static void vc4_dpi_unbind(struct device *dev, struct device *master,
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_dpi *dpi = dev_get_drvdata(dev);
 
-	drm_of_panel_bridge_remove(dev->of_node, 0, 0);
+	drm_of_panel_bridge_remove(dev->of_yesde, 0, 0);
 
 	drm_encoder_cleanup(dpi->encoder);
 

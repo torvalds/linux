@@ -76,7 +76,7 @@ struct a6xx_crashdumper {
 };
 
 struct a6xx_state_memobj {
-	struct list_head node;
+	struct list_head yesde;
 	unsigned long long data[];
 };
 
@@ -88,7 +88,7 @@ void *state_kcalloc(struct a6xx_gpu_state *a6xx_state, int nr, size_t objsize)
 	if (!obj)
 		return NULL;
 
-	list_add_tail(&obj->node, &a6xx_state->objs);
+	list_add_tail(&obj->yesde, &a6xx_state->objs);
 	return &obj->data;
 }
 
@@ -125,8 +125,8 @@ static int a6xx_crashdumper_init(struct msm_gpu *gpu,
 static int a6xx_crashdumper_run(struct msm_gpu *gpu,
 		struct a6xx_crashdumper *dumper)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 	u32 val;
 	int ret;
 
@@ -719,8 +719,8 @@ static void _a6xx_get_gmu_registers(struct msm_gpu *gpu,
 		const struct a6xx_registers *regs,
 		struct a6xx_gpu_state_obj *obj)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 	int i, regcount = 0, index = 0;
 
@@ -745,8 +745,8 @@ static void _a6xx_get_gmu_registers(struct msm_gpu *gpu,
 static void a6xx_get_gmu_registers(struct msm_gpu *gpu,
 		struct a6xx_gpu_state *a6xx_state)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 
 	a6xx_state->gmu_registers = state_kcalloc(a6xx_state,
 		2, sizeof(*a6xx_state->gmu_registers));
@@ -865,8 +865,8 @@ static void a6xx_get_indexed_registers(struct msm_gpu *gpu,
 struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 {
 	struct a6xx_crashdumper dumper = { 0 };
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 	struct a6xx_gpu_state *a6xx_state = kzalloc(sizeof(*a6xx_state),
 		GFP_KERNEL);
 
@@ -875,8 +875,8 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 
 	INIT_LIST_HEAD(&a6xx_state->objs);
 
-	/* Get the generic state from the adreno core */
-	adreno_gpu_state_get(gpu, &a6xx_state->base);
+	/* Get the generic state from the adreyes core */
+	adreyes_gpu_state_get(gpu, &a6xx_state->base);
 
 	a6xx_get_gmu_registers(gpu, a6xx_state);
 
@@ -910,10 +910,10 @@ void a6xx_gpu_state_destroy(struct kref *kref)
 	struct a6xx_gpu_state *a6xx_state = container_of(state,
 			struct a6xx_gpu_state, base);
 
-	list_for_each_entry_safe(obj, tmp, &a6xx_state->objs, node)
+	list_for_each_entry_safe(obj, tmp, &a6xx_state->objs, yesde)
 		kfree(obj);
 
-	adreno_gpu_state_destroy(state);
+	adreyes_gpu_state_destroy(state);
 	kfree(a6xx_state);
 }
 
@@ -1121,7 +1121,7 @@ void a6xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 	if (IS_ERR_OR_NULL(state))
 		return;
 
-	adreno_show(gpu, state, p);
+	adreyes_show(gpu, state, p);
 
 	drm_puts(p, "registers:\n");
 	for (i = 0; i < a6xx_state->nr_registers; i++) {

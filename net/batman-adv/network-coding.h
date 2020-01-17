@@ -21,24 +21,24 @@ void batadv_nc_status_update(struct net_device *net_dev);
 int batadv_nc_init(void);
 int batadv_nc_mesh_init(struct batadv_priv *bat_priv);
 void batadv_nc_mesh_free(struct batadv_priv *bat_priv);
-void batadv_nc_update_nc_node(struct batadv_priv *bat_priv,
-			      struct batadv_orig_node *orig_node,
-			      struct batadv_orig_node *orig_neigh_node,
+void batadv_nc_update_nc_yesde(struct batadv_priv *bat_priv,
+			      struct batadv_orig_yesde *orig_yesde,
+			      struct batadv_orig_yesde *orig_neigh_yesde,
 			      struct batadv_ogm_packet *ogm_packet,
 			      int is_single_hop_neigh);
 void batadv_nc_purge_orig(struct batadv_priv *bat_priv,
-			  struct batadv_orig_node *orig_node,
+			  struct batadv_orig_yesde *orig_yesde,
 			  bool (*to_purge)(struct batadv_priv *,
-					   struct batadv_nc_node *));
+					   struct batadv_nc_yesde *));
 void batadv_nc_init_bat_priv(struct batadv_priv *bat_priv);
-void batadv_nc_init_orig(struct batadv_orig_node *orig_node);
+void batadv_nc_init_orig(struct batadv_orig_yesde *orig_yesde);
 bool batadv_nc_skb_forward(struct sk_buff *skb,
-			   struct batadv_neigh_node *neigh_node);
+			   struct batadv_neigh_yesde *neigh_yesde);
 void batadv_nc_skb_store_for_decoding(struct batadv_priv *bat_priv,
 				      struct sk_buff *skb);
 void batadv_nc_skb_store_sniffed_unicast(struct batadv_priv *bat_priv,
 					 struct sk_buff *skb);
-int batadv_nc_nodes_seq_print_text(struct seq_file *seq, void *offset);
+int batadv_nc_yesdes_seq_print_text(struct seq_file *seq, void *offset);
 void batadv_nc_init_debugfs(struct batadv_priv *bat_priv);
 
 #else /* ifdef CONFIG_BATMAN_ADV_NC */
@@ -62,9 +62,9 @@ static inline void batadv_nc_mesh_free(struct batadv_priv *bat_priv)
 }
 
 static inline void
-batadv_nc_update_nc_node(struct batadv_priv *bat_priv,
-			 struct batadv_orig_node *orig_node,
-			 struct batadv_orig_node *orig_neigh_node,
+batadv_nc_update_nc_yesde(struct batadv_priv *bat_priv,
+			 struct batadv_orig_yesde *orig_yesde,
+			 struct batadv_orig_yesde *orig_neigh_yesde,
 			 struct batadv_ogm_packet *ogm_packet,
 			 int is_single_hop_neigh)
 {
@@ -72,9 +72,9 @@ batadv_nc_update_nc_node(struct batadv_priv *bat_priv,
 
 static inline void
 batadv_nc_purge_orig(struct batadv_priv *bat_priv,
-		     struct batadv_orig_node *orig_node,
+		     struct batadv_orig_yesde *orig_yesde,
 		     bool (*to_purge)(struct batadv_priv *,
-				      struct batadv_nc_node *))
+				      struct batadv_nc_yesde *))
 {
 }
 
@@ -82,12 +82,12 @@ static inline void batadv_nc_init_bat_priv(struct batadv_priv *bat_priv)
 {
 }
 
-static inline void batadv_nc_init_orig(struct batadv_orig_node *orig_node)
+static inline void batadv_nc_init_orig(struct batadv_orig_yesde *orig_yesde)
 {
 }
 
 static inline bool batadv_nc_skb_forward(struct sk_buff *skb,
-					 struct batadv_neigh_node *neigh_node)
+					 struct batadv_neigh_yesde *neigh_yesde)
 {
 	return false;
 }
@@ -104,7 +104,7 @@ batadv_nc_skb_store_sniffed_unicast(struct batadv_priv *bat_priv,
 {
 }
 
-static inline int batadv_nc_nodes_seq_print_text(struct seq_file *seq,
+static inline int batadv_nc_yesdes_seq_print_text(struct seq_file *seq,
 						 void *offset)
 {
 	return 0;

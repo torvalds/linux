@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI__LINUX_KEYBOARD_H
 #define _UAPI__LINUX_KEYBOARD_H
 
@@ -70,8 +70,8 @@
 #define K_INSERT	K(KT_FN,21)
 #define K_REMOVE	K(KT_FN,22)
 #define K_SELECT	K(KT_FN,23)
-#define K_PGUP		K(KT_FN,24) /* PGUP is a synonym for PRIOR */
-#define K_PGDN		K(KT_FN,25) /* PGDN is a synonym for NEXT */
+#define K_PGUP		K(KT_FN,24) /* PGUP is a syyesnym for PRIOR */
+#define K_PGDN		K(KT_FN,25) /* PGDN is a syyesnym for NEXT */
 #define K_MACRO	 	K(KT_FN,26)
 #define K_HELP		K(KT_FN,27)
 #define K_DO		K(KT_FN,28)

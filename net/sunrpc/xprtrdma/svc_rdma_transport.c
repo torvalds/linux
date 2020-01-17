@@ -15,14 +15,14 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      yestice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright yestice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. yesr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
@@ -152,7 +152,7 @@ static struct svcxprt_rdma *svc_rdma_create_xprt(struct svc_serv *serv,
 	/*
 	 * Note that this implies that the underlying transport support
 	 * has some form of congestion control (see RFC 7530 section 3.1
-	 * paragraph 2). For now, we assume that all supported RDMA
+	 * paragraph 2). For yesw, we assume that all supported RDMA
 	 * transports are suitable here.
 	 */
 	set_bit(XPT_CONG_CTRL, &cma_xprt->sc_xprt.xpt_flags);
@@ -212,7 +212,7 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id,
 
 	sa = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.dst_addr;
 	svc_xprt_set_remote(&newxprt->sc_xprt, sa, svc_addr_len(sa));
-	/* The remote port is arbitrary and not under the control of the
+	/* The remote port is arbitrary and yest under the control of the
 	 * client ULP. Set it to a fixed value so that the DRC continues
 	 * to be effective after a reconnect.
 	 */
@@ -318,7 +318,7 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 
 	dprintk("svcrdma: Creating RDMA listener\n");
 	if ((sa->sa_family != AF_INET) && (sa->sa_family != AF_INET6)) {
-		dprintk("svcrdma: Address family %d is not supported.\n", sa->sa_family);
+		dprintk("svcrdma: Address family %d is yest supported.\n", sa->sa_family);
 		return ERR_PTR(-EAFNOSUPPORT);
 	}
 	cma_xprt = svc_rdma_create_xprt(serv, net);
@@ -606,7 +606,7 @@ static void __svc_rdma_free(struct work_struct *work)
 	svc_rdma_send_ctxts_destroy(rdma);
 	svc_rdma_recv_ctxts_destroy(rdma);
 
-	/* Destroy the QP if present (not a listener) */
+	/* Destroy the QP if present (yest a listener) */
 	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
 		ib_destroy_qp(rdma->sc_qp);
 

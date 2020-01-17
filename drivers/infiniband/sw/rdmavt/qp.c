@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -134,10 +134,10 @@ static void cacheless_memcpy(void *dst, void *src, size_t n)
 	/*
 	 * Use the only available X64 cacheless copy.  Add a __user cast
 	 * to quiet sparse.  The src agument is already in the kernel so
-	 * there are no security issues.  The extra fault recovery machinery
-	 * is not invoked.
+	 * there are yes security issues.  The extra fault recovery machinery
+	 * is yest invoked.
 	 */
-	__copy_user_nocache(dst, (void __user *)src, n, 0);
+	__copy_user_yescache(dst, (void __user *)src, n, 0);
 }
 
 void rvt_wss_exit(struct rvt_dev_info *rdi)
@@ -169,19 +169,19 @@ int rvt_wss_init(struct rvt_dev_info *rdi)
 	long table_size;
 	long table_bits;
 	struct rvt_wss *wss;
-	int node = rdi->dparms.node;
+	int yesde = rdi->dparms.yesde;
 
 	if (sge_copy_mode != RVT_SGE_COPY_ADAPTIVE) {
 		rdi->wss = NULL;
 		return 0;
 	}
 
-	rdi->wss = kzalloc_node(sizeof(*rdi->wss), GFP_KERNEL, node);
+	rdi->wss = kzalloc_yesde(sizeof(*rdi->wss), GFP_KERNEL, yesde);
 	if (!rdi->wss)
 		return -ENOMEM;
 	wss = rdi->wss;
 
-	/* check for a valid percent range - default to 80 if none or invalid */
+	/* check for a valid percent range - default to 80 if yesne or invalid */
 	if (wss_threshold < 1 || wss_threshold > 100)
 		wss_threshold = 80;
 
@@ -213,8 +213,8 @@ int rvt_wss_init(struct rvt_dev_info *rdi)
 	wss->clean_period = wss_clean_period;
 	atomic_set(&wss->clean_counter, wss_clean_period);
 
-	wss->entries = kcalloc_node(wss->num_entries, sizeof(*wss->entries),
-				    GFP_KERNEL, node);
+	wss->entries = kcalloc_yesde(wss->num_entries, sizeof(*wss->entries),
+				    GFP_KERNEL, yesde);
 	if (!wss->entries) {
 		rvt_wss_exit(rdi);
 		return -ENOMEM;
@@ -232,7 +232,7 @@ int rvt_wss_init(struct rvt_dev_info *rdi)
  * inaccurate information.  Since this is only a heuristic, this is
  * OK.  Any innaccuracies will clean themselves out as the counter
  * advances.  That said, it is unlikely the entry clean operation will
- * race - the next possible racer will not start until the next clean
+ * race - the next possible racer will yest start until the next clean
  * period.
  *
  * The clean counter is implemented as a decrement to zero.  When zero
@@ -247,7 +247,7 @@ static void wss_advance_clean_counter(struct rvt_wss *wss)
 	/* become the cleaner if we decrement the counter to zero */
 	if (atomic_dec_and_test(&wss->clean_counter)) {
 		/*
-		 * Set, not add, the clean period.  This avoids an issue
+		 * Set, yest add, the clean period.  This avoids an issue
 		 * where the counter could decrement below the clean period.
 		 * Doing a set can result in lost decrements, slowing the
 		 * clean advance.  Since this a heuristic, this possible
@@ -255,7 +255,7 @@ static void wss_advance_clean_counter(struct rvt_wss *wss)
 		 *
 		 * An alternative is to loop, advancing the counter by a
 		 * clean period until the result is > 0. However, this could
-		 * lead to several threads keeping another in the clean loop.
+		 * lead to several threads keeping ayesther in the clean loop.
 		 * This could be mitigated by limiting the number of times
 		 * we stay in the loop.
 		 */
@@ -353,7 +353,7 @@ static int init_qpn_table(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt)
 	/* Starting with the first reserved bit map */
 	map = &qpt->map[qpt->nmaps];
 
-	rvt_pr_info(rdi, "Reserving QPNs from 0x%x to 0x%x for non-verbs use\n",
+	rvt_pr_info(rdi, "Reserving QPNs from 0x%x to 0x%x for yesn-verbs use\n",
 		    rdi->dparms.qpn_res_start, rdi->dparms.qpn_res_end);
 	for (i = rdi->dparms.qpn_res_start; i <= rdi->dparms.qpn_res_end; i++) {
 		if (!map->page) {
@@ -402,19 +402,19 @@ int rvt_driver_qp_init(struct rvt_dev_info *rdi)
 		return -EINVAL;
 
 	/*
-	 * If driver is not doing any QP allocation then make sure it is
+	 * If driver is yest doing any QP allocation then make sure it is
 	 * providing the necessary QP functions.
 	 */
 	if (!rdi->driver_f.free_all_qps ||
 	    !rdi->driver_f.qp_priv_alloc ||
 	    !rdi->driver_f.qp_priv_free ||
-	    !rdi->driver_f.notify_qp_reset ||
-	    !rdi->driver_f.notify_restart_rc)
+	    !rdi->driver_f.yestify_qp_reset ||
+	    !rdi->driver_f.yestify_restart_rc)
 		return -EINVAL;
 
 	/* allocate parent object */
-	rdi->qp_dev = kzalloc_node(sizeof(*rdi->qp_dev), GFP_KERNEL,
-				   rdi->dparms.node);
+	rdi->qp_dev = kzalloc_yesde(sizeof(*rdi->qp_dev), GFP_KERNEL,
+				   rdi->dparms.yesde);
 	if (!rdi->qp_dev)
 		return -ENOMEM;
 
@@ -422,11 +422,11 @@ int rvt_driver_qp_init(struct rvt_dev_info *rdi)
 	rdi->qp_dev->qp_table_size = rdi->dparms.qp_table_size;
 	rdi->qp_dev->qp_table_bits = ilog2(rdi->dparms.qp_table_size);
 	rdi->qp_dev->qp_table =
-		kmalloc_array_node(rdi->qp_dev->qp_table_size,
+		kmalloc_array_yesde(rdi->qp_dev->qp_table_size,
 			     sizeof(*rdi->qp_dev->qp_table),
-			     GFP_KERNEL, rdi->dparms.node);
+			     GFP_KERNEL, rdi->dparms.yesde);
 	if (!rdi->qp_dev->qp_table)
-		goto no_qp_table;
+		goto yes_qp_table;
 
 	for (i = 0; i < rdi->qp_dev->qp_table_size; i++)
 		RCU_INIT_POINTER(rdi->qp_dev->qp_table[i], NULL);
@@ -445,7 +445,7 @@ fail_table:
 	kfree(rdi->qp_dev->qp_table);
 	free_qpn_table(&rdi->qp_dev->qpn_table);
 
-no_qp_table:
+yes_qp_table:
 	kfree(rdi->qp_dev);
 
 	return ret;
@@ -455,7 +455,7 @@ no_qp_table:
  * free_all_qps - check for QPs still in use
  * @rdi: rvt device info structure
  *
- * There should not be any QPs still in use.
+ * There should yest be any QPs still in use.
  * Free memory for table.
  */
 static unsigned rvt_free_all_qps(struct rvt_dev_info *rdi)
@@ -595,7 +595,7 @@ static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 			/* wrap to first map page, invert bit 0 */
 			offset = qpt->incr | ((offset & 1) ^ 1);
 		}
-		/* there can be no set bits in low-order QoS bits */
+		/* there can be yes set bits in low-order QoS bits */
 		WARN_ON(rdi->dparms.qos_shift > 1 &&
 			offset & ((BIT(rdi->dparms.qos_shift - 1) - 1) << 1));
 		qpn = mk_qpn(qpt, map, offset);
@@ -610,7 +610,7 @@ bail:
 /**
  * rvt_clear_mr_refs - Drop help mr refs
  * @qp: rvt qp data structure
- * @clr_sends: If shoudl clear send side or not
+ * @clr_sends: If shoudl clear send side or yest
  */
 static void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 {
@@ -759,7 +759,7 @@ check_lwqe:
  * @rdi: rvt dev struct
  * @qp: qp to remove
  *
- * Remove the QP from the table so it can't be found asynchronously by
+ * Remove the QP from the table so it can't be found asynchroyesusly by
  * the receive routine.
  */
 static void rvt_remove_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp)
@@ -808,30 +808,30 @@ static void rvt_remove_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp)
  * rvt_alloc_rq - allocate memory for user or kernel buffer
  * @rq: receive queue data structure
  * @size: number of request queue entries
- * @node: The NUMA node
- * @udata: True if user data is available or not false
+ * @yesde: The NUMA yesde
+ * @udata: True if user data is available or yest false
  *
  * Return: If memory allocation failed, return -ENONEM
  * This function is used by both shared receive
- * queues and non-shared receive queues to allocate
+ * queues and yesn-shared receive queues to allocate
  * memory.
  */
-int rvt_alloc_rq(struct rvt_rq *rq, u32 size, int node,
+int rvt_alloc_rq(struct rvt_rq *rq, u32 size, int yesde,
 		 struct ib_udata *udata)
 {
 	if (udata) {
 		rq->wq = vmalloc_user(sizeof(struct rvt_rwq) + size);
 		if (!rq->wq)
 			goto bail;
-		/* need kwq with no buffers */
-		rq->kwq = kzalloc_node(sizeof(*rq->kwq), GFP_KERNEL, node);
+		/* need kwq with yes buffers */
+		rq->kwq = kzalloc_yesde(sizeof(*rq->kwq), GFP_KERNEL, yesde);
 		if (!rq->kwq)
 			goto bail;
 		rq->kwq->curr_wq = rq->wq->wq;
 	} else {
 		/* need kwq with buffers */
 		rq->kwq =
-			vzalloc_node(sizeof(struct rvt_krwq) + size, node);
+			vzalloc_yesde(sizeof(struct rvt_krwq) + size, yesde);
 		if (!rq->kwq)
 			goto bail;
 		rq->kwq->curr_wq = rq->kwq->wq;
@@ -947,7 +947,7 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		 * Let the driver do any tear down or re-init it needs to for
 		 * a qp that has been reset
 		 */
-		rdi->driver_f.notify_qp_reset(qp);
+		rdi->driver_f.yestify_qp_reset(qp);
 	}
 	rvt_init_qp(rdi, qp, type);
 	lockdep_assert_held(&qp->r_lock);
@@ -1000,20 +1000,20 @@ static void free_ud_wq_attr(struct rvt_qp *qp)
 /**
  * alloc_ud_wq_attr - AH attribute cache for UD QPs
  * @qp: Valid QP with allowed_ops set
- * @node: Numa node for allocation
+ * @yesde: Numa yesde for allocation
  *
  * The rvt_swqe data structure being used is a union, so this is
  * only valid for UD QPs.
  */
-static int alloc_ud_wq_attr(struct rvt_qp *qp, int node)
+static int alloc_ud_wq_attr(struct rvt_qp *qp, int yesde)
 {
 	struct rvt_swqe *wqe;
 	int i;
 
 	for (i = 0; qp->allowed_ops == IB_OPCODE_UD && i < qp->s_size; i++) {
 		wqe = rvt_get_swqe_ptr(qp, i);
-		wqe->ud_wr.attr = kzalloc_node(sizeof(*wqe->ud_wr.attr),
-					       GFP_KERNEL, node);
+		wqe->ud_wr.attr = kzalloc_yesde(sizeof(*wqe->ud_wr.attr),
+					       GFP_KERNEL, yesde);
 		if (!wqe->ud_wr.attr) {
 			free_ud_wq_attr(qp);
 			return -ENOMEM;
@@ -1033,7 +1033,7 @@ static int alloc_ud_wq_attr(struct rvt_qp *qp, int node)
  * unique idea of what queue pair numbers mean. For instance there is a reserved
  * range for PSM.
  *
- * Return: the queue pair on success, otherwise returns an errno.
+ * Return: the queue pair on success, otherwise returns an erryes.
  *
  * Called by the ib_create_qp() core verbs function.
  */
@@ -1059,7 +1059,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	    init_attr->create_flags)
 		return ERR_PTR(-EINVAL);
 
-	/* Check receive queue parameters if no SRQ is specified. */
+	/* Check receive queue parameters if yes SRQ is specified. */
 	if (!init_attr->srq) {
 		if (init_attr->cap.max_recv_sge >
 		    rdi->dparms.props.max_recv_sge ||
@@ -1086,7 +1086,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	case IB_QPT_RC:
 	case IB_QPT_UD:
 		sz = struct_size(swq, sg_list, init_attr->cap.max_send_sge);
-		swq = vzalloc_node(array_size(sz, sqsize), rdi->dparms.node);
+		swq = vzalloc_yesde(array_size(sz, sqsize), rdi->dparms.yesde);
 		if (!swq)
 			return ERR_PTR(-ENOMEM);
 
@@ -1101,8 +1101,8 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		} else if (init_attr->cap.max_recv_sge > 1)
 			sg_list_sz = sizeof(*qp->r_sg_list) *
 				(init_attr->cap.max_recv_sge - 1);
-		qp = kzalloc_node(sz + sg_list_sz, GFP_KERNEL,
-				  rdi->dparms.node);
+		qp = kzalloc_yesde(sz + sg_list_sz, GFP_KERNEL,
+				  rdi->dparms.yesde);
 		if (!qp)
 			goto bail_swq;
 		qp->allowed_ops = get_allowed_ops(init_attr->qp_type);
@@ -1110,10 +1110,10 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		RCU_INIT_POINTER(qp->next, NULL);
 		if (init_attr->qp_type == IB_QPT_RC) {
 			qp->s_ack_queue =
-				kcalloc_node(rvt_max_atomic(rdi),
+				kcalloc_yesde(rvt_max_atomic(rdi),
 					     sizeof(*qp->s_ack_queue),
 					     GFP_KERNEL,
-					     rdi->dparms.node);
+					     rdi->dparms.yesde);
 			if (!qp->s_ack_queue)
 				goto bail_qp;
 		}
@@ -1144,7 +1144,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			sz = (sizeof(struct ib_sge) * qp->r_rq.max_sge) +
 				sizeof(struct rvt_rwqe);
 			err = rvt_alloc_rq(&qp->r_rq, qp->r_rq.size * sz,
-					   rdi->dparms.node, udata);
+					   rdi->dparms.yesde, udata);
 			if (err) {
 				ret = ERR_PTR(err);
 				goto bail_driver_priv;
@@ -1169,7 +1169,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		qp->s_max_sge = init_attr->cap.max_send_sge;
 		if (init_attr->sq_sig_type == IB_SIGNAL_REQ_WR)
 			qp->s_flags = RVT_S_SIGNAL_REQ_WR;
-		err = alloc_ud_wq_attr(qp, rdi->dparms.node);
+		err = alloc_ud_wq_attr(qp, rdi->dparms.yesde);
 		if (err) {
 			ret = (ERR_PTR(err));
 			goto bail_driver_priv;
@@ -1324,7 +1324,7 @@ int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 	if (qp->s_flags & RVT_S_ANY_WAIT_SEND)
 		qp->s_flags &= ~RVT_S_ANY_WAIT_SEND;
 
-	rdi->driver_f.notify_error_qp(qp);
+	rdi->driver_f.yestify_error_qp(qp);
 
 	/* Schedule the sending tasklet to drain the send work queue. */
 	if (READ_ONCE(qp->s_last) != qp->s_head)
@@ -1417,7 +1417,7 @@ static void rvt_insert_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp)
  * @attr_mask: the mask of attributes to modify
  * @udata: user data for libibverbs.so
  *
- * Return: 0 on success, otherwise returns an errno.
+ * Return: 0 on success, otherwise returns an erryes.
  */
 int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		  int attr_mask, struct ib_udata *udata)
@@ -1704,7 +1704,7 @@ int rvt_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	spin_unlock_irq(&qp->r_lock);
 
 	wait_event(qp->wait, !atomic_read(&qp->refcount));
-	/* qpn is now available for use again */
+	/* qpn is yesw available for use again */
 	rvt_free_qpn(&rdi->qp_dev->qpn_table, qp->ibqp.qp_num);
 
 	spin_lock(&rdi->n_qps_lock);
@@ -1732,7 +1732,7 @@ int rvt_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
  * rvt_query_qp - query an ipbq
  * @ibqp: IB qp to query
  * @attr: attr struct to fill in
- * @attr_mask: attr mask ignored
+ * @attr_mask: attr mask igyesred
  * @init_attr: struct to fill in
  *
  * Return: always 0
@@ -1762,7 +1762,7 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->alt_ah_attr = qp->alt_ah_attr;
 	attr->pkey_index = qp->s_pkey_index;
 	attr->alt_pkey_index = qp->s_alt_pkey_index;
-	attr->en_sqd_async_notify = 0;
+	attr->en_sqd_async_yestify = 0;
 	attr->sq_draining = qp->s_draining;
 	attr->max_rd_atomic = qp->s_max_rd_atomic;
 	attr->max_dest_rd_atomic = qp->r_max_rd_atomic;
@@ -1798,7 +1798,7 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
  *
  * This may be called from interrupt context.
  *
- * Return: 0 on success otherwise errno
+ * Return: 0 on success otherwise erryes
  */
 int rvt_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		  const struct ib_recv_wr **bad_wr)
@@ -1923,7 +1923,7 @@ static inline int rvt_qp_valid_operation(
  * This assumes the s_hlock is held but the s_last
  * qp variable is uncontrolled.
  *
- * For non reserved operations, the qp->s_avail
+ * For yesn reserved operations, the qp->s_avail
  * may be changed.
  *
  * The return value is zero or a -ENOMEM.
@@ -1946,7 +1946,7 @@ static inline int rvt_qp_is_avail(
 			return -ENOMEM;
 		return 0;
 	}
-	/* non-reserved operations */
+	/* yesn-reserved operations */
 	if (likely(qp->s_avail))
 		return 0;
 	/* See rvt_qp_complete_swqe() */
@@ -2013,7 +2013,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	 * registered lkey may be used by following work requests and the
 	 * lkey needs to be valid at the time those requests are posted.
 	 * Local invalidate can be processed immediately if fencing is
-	 * not required and no previous local invalidate ops are pending.
+	 * yest required and yes previous local invalidate ops are pending.
 	 * Signaled local operations that have been processed immediately
 	 * need to have requests with "completion only" flags set posted
 	 * to the send queue in order to generate completions.
@@ -2159,7 +2159,7 @@ bail_inval_free:
  *
  * This may be called from interrupt context.
  *
- * Return: 0 on success else errno
+ * Return: 0 on success else erryes
  */
 int rvt_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		  const struct ib_send_wr **bad_wr)
@@ -2174,8 +2174,8 @@ int rvt_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	spin_lock_irqsave(&qp->s_hlock, flags);
 
 	/*
-	 * Ensure QP state is such that we can send. If not bail out early,
-	 * there is no need to do this every time we post a send.
+	 * Ensure QP state is such that we can send. If yest bail out early,
+	 * there is yes need to do this every time we post a send.
 	 */
 	if (unlikely(!(ib_rvt_state_ops[qp->state] & RVT_POST_SEND_OK))) {
 		spin_unlock_irqrestore(&qp->s_hlock, flags);
@@ -2207,7 +2207,7 @@ bail:
 		if (nreq == 1 && call_send)
 			rdi->driver_f.do_send(qp);
 		else
-			rdi->driver_f.schedule_send_no_lock(qp);
+			rdi->driver_f.schedule_send_yes_lock(qp);
 	}
 	return err;
 }
@@ -2220,7 +2220,7 @@ bail:
  *
  * This may be called from interrupt context.
  *
- * Return: 0 on success else errno
+ * Return: 0 on success else erryes
  */
 int rvt_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		      const struct ib_recv_wr **bad_wr)
@@ -2266,8 +2266,8 @@ int rvt_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 }
 
 /*
- * rvt used the internal kernel struct as part of its ABI, for now make sure
- * the kernel struct does not change layout. FIXME: rvt should never cast the
+ * rvt used the internal kernel struct as part of its ABI, for yesw make sure
+ * the kernel struct does yest change layout. FIXME: rvt should never cast the
  * user struct to a kernel struct.
  */
 static struct ib_sge *rvt_cast_sge(struct rvt_wqe_sge *sge)
@@ -2379,9 +2379,9 @@ static inline u32 get_rvt_head(struct rvt_rq *rq, void *ip)
 /**
  * rvt_get_rwqe - copy the next RWQE into the QP's RWQE
  * @qp: the QP
- * @wr_id_only: update qp->r_wr_id only, not qp->r_sge
+ * @wr_id_only: update qp->r_wr_id only, yest qp->r_sge
  *
- * Return -1 if there is a local error, 0 if no RWQE is available,
+ * Return -1 if there is a local error, 0 if yes RWQE is available,
  * otherwise return 1.
  *
  * Can be called from interrupt level.
@@ -2442,7 +2442,7 @@ int rvt_get_rwqe(struct rvt_qp *qp, bool wr_id_only)
 	wqe = rvt_get_rwqe_ptr(rq, tail);
 	/*
 	 * Even though we update the tail index in memory, the verbs
-	 * consumer is not supposed to post more entries until a
+	 * consumer is yest supposed to post more entries until a
 	 * completion is generated.
 	 */
 	if (++tail >= rq->size)
@@ -2643,8 +2643,8 @@ static void rvt_rc_timeout(struct timer_list *t)
 		rvp->n_rc_timeouts++;
 		del_timer(&qp->s_timer);
 		trace_rvt_rc_timeout(qp, qp->s_last_psn + 1);
-		if (rdi->driver_f.notify_restart_rc)
-			rdi->driver_f.notify_restart_rc(qp,
+		if (rdi->driver_f.yestify_restart_rc)
+			rdi->driver_f.yestify_restart_rc(qp,
 							qp->s_last_psn + 1,
 							1);
 		rdi->driver_f.schedule_send(qp);
@@ -2683,7 +2683,7 @@ EXPORT_SYMBOL(rvt_rc_rnr_retry);
  * The @cb is a user-defined callback and @v is a 64-bit
  * value passed to and relevant for processing in the
  * @cb.  An example use case would be to alter QP processing
- * based on criteria not part of the rvt_qp.
+ * based on criteria yest part of the rvt_qp.
  *
  * Use cases that require memory allocation to succeed
  * must preallocate appropriately.
@@ -2720,7 +2720,7 @@ EXPORT_SYMBOL(rvt_qp_iter_init);
  * Updates iter->qp with the current QP when the return
  * value is 0.
  *
- * Return: 0 - iter->qp is valid 1 - no more QPs
+ * Return: 0 - iter->qp is valid 1 - yes more QPs
  */
 int rvt_qp_iter_next(struct rvt_qp_iter *iter)
 	__must_hold(RCU)
@@ -2784,10 +2784,10 @@ EXPORT_SYMBOL(rvt_qp_iter_next);
  * The @cb is a user-defined callback and @v is a 64-bit
  * value passed to and relevant for processing in the
  * cb.  An example use case would be to alter QP processing
- * based on criteria not part of the rvt_qp.
+ * based on criteria yest part of the rvt_qp.
  *
  * The code has an internal iterator to simplify
- * non seq_file use cases.
+ * yesn seq_file use cases.
  */
 void rvt_qp_iter(struct rvt_dev_info *rdi,
 		 u64 v,
@@ -2985,7 +2985,7 @@ again:
 		goto clr_busy;
 	wqe = rvt_get_swqe_ptr(sqp, sqp->s_last);
 
-	/* Return if it is not OK to start a new work request. */
+	/* Return if it is yest OK to start a new work request. */
 	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_NEXT_SEND_OK)) {
 		if (!(ib_rvt_state_ops[sqp->state] & RVT_FLUSH_SEND))
 			goto clr_busy;
@@ -2995,7 +2995,7 @@ again:
 	}
 
 	/*
-	 * We can rely on the entry not changing without the s_lock
+	 * We can rely on the entry yest changing without the s_lock
 	 * being held until we update s_last.
 	 * We increment s_cur to indicate s_last is in progress.
 	 */
@@ -3007,7 +3007,7 @@ again:
 
 	if (!qp) {
 		send_status = loopback_qp_drop(rvp, sqp);
-		goto serr_no_r_lock;
+		goto serr_yes_r_lock;
 	}
 	spin_lock_irqsave(&qp->r_lock, flags);
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) ||
@@ -3226,7 +3226,7 @@ err:
 
 serr:
 	spin_unlock_irqrestore(&qp->r_lock, flags);
-serr_no_r_lock:
+serr_yes_r_lock:
 	spin_lock_irqsave(&sqp->s_lock, flags);
 	rvt_send_complete(sqp, wqe, send_status);
 	if (sqp->ibqp.qp_type == IB_QPT_RC) {

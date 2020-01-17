@@ -211,10 +211,10 @@ static const struct of_device_id timer_of_match[] __initconst = {
 
 void __init spear_setup_of_timer(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int irq, ret;
 
-	np = of_find_matching_node(NULL, timer_of_match);
+	np = of_find_matching_yesde(NULL, timer_of_match);
 	if (!np) {
 		pr_err("%s: No timer passed via DT\n", __func__);
 		return;

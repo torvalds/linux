@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2008 Nokia Corporation.
  *
- * Authors: Sakari Ailus <sakari.ailus@nokia.com>
+ * Authors: Sakari Ailus <sakari.ailus@yeskia.com>
  *          Rémi Denis-Courmont
  */
 
@@ -103,7 +103,7 @@ static void phonet_device_destroy(struct net_device *dev)
 		u8 addr;
 
 		for_each_set_bit(addr, pnd->addrs, 64)
-			phonet_address_notify(RTM_DELADDR, dev, addr);
+			phonet_address_yestify(RTM_DELADDR, dev, addr);
 		kfree(pnd);
 	}
 }
@@ -193,7 +193,7 @@ u8 phonet_address_get(struct net_device *dev, u8 daddr)
 	rcu_read_unlock();
 
 	if (saddr == PN_NO_ADDR) {
-		/* Fallback to another device */
+		/* Fallback to ayesther device */
 		struct net_device *def_dev;
 
 		def_dev = phonet_device_get(dev_net(dev));
@@ -247,7 +247,7 @@ static int phonet_device_autoconf(struct net_device *dev)
 	ret = phonet_address_add(dev, req.ifr_phonet_autoconf.device);
 	if (ret)
 		return ret;
-	phonet_address_notify(RTM_NEWADDR, dev,
+	phonet_address_yestify(RTM_NEWADDR, dev,
 				req.ifr_phonet_autoconf.device);
 	return 0;
 }
@@ -272,16 +272,16 @@ static void phonet_route_autodel(struct net_device *dev)
 		return; /* short-circuit RCU */
 	synchronize_rcu();
 	for_each_set_bit(i, deleted, 64) {
-		rtm_phonet_notify(RTM_DELROUTE, dev, i);
+		rtm_phonet_yestify(RTM_DELROUTE, dev, i);
 		dev_put(dev);
 	}
 }
 
-/* notify Phonet of device events */
-static int phonet_device_notify(struct notifier_block *me, unsigned long what,
+/* yestify Phonet of device events */
+static int phonet_device_yestify(struct yestifier_block *me, unsigned long what,
 				void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	switch (what) {
 	case NETDEV_REGISTER:
@@ -297,8 +297,8 @@ static int phonet_device_notify(struct notifier_block *me, unsigned long what,
 
 }
 
-static struct notifier_block phonet_device_notifier = {
-	.notifier_call = phonet_device_notify,
+static struct yestifier_block phonet_device_yestifier = {
+	.yestifier_call = phonet_device_yestify,
 	.priority = 0,
 };
 
@@ -341,7 +341,7 @@ int __init phonet_device_init(void)
 
 	proc_create_net("pnresource", 0, init_net.proc_net, &pn_res_seq_ops,
 			sizeof(struct seq_net_private));
-	register_netdevice_notifier(&phonet_device_notifier);
+	register_netdevice_yestifier(&phonet_device_yestifier);
 	err = phonet_netlink_register();
 	if (err)
 		phonet_device_exit();
@@ -351,7 +351,7 @@ int __init phonet_device_init(void)
 void phonet_device_exit(void)
 {
 	rtnl_unregister_all(PF_PHONET);
-	unregister_netdevice_notifier(&phonet_device_notifier);
+	unregister_netdevice_yestifier(&phonet_device_yestifier);
 	unregister_pernet_subsys(&phonet_net_ops);
 	remove_proc_entry("pnresource", init_net.proc_net);
 }

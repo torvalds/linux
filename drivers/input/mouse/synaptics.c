@@ -55,9 +55,9 @@
  * These values should represent the absolute maximum value that will
  * be reported for a positive position value. Some Synaptics firmware
  * uses this value to indicate a finger near the edge of the touchpad
- * whose precise position cannot be determined.
+ * whose precise position canyest be determined.
  *
- * At least one touchpad is known to report positions in excess of this
+ * At least one touchpad is kyeswn to report positions in excess of this
  * value which are actually negative values truncated to the 13-bit
  * reporting range. These values have never been observed to be lower
  * than 8184 (i.e. -8), so we treat all values greater than 8176 as
@@ -70,7 +70,7 @@
 #define DMAX 10
 
 /*****************************************************************************
- *	Stuff we need even when we do not want native Synaptics support
+ *	Stuff we need even when we do yest want native Synaptics support
  ****************************************************************************/
 
 /*
@@ -273,7 +273,7 @@ static int synaptics_query_modes(struct psmouse *psmouse,
 	u8 bid[3];
 	int error;
 
-	/* firmwares prior 7.5 have no board_id encoded */
+	/* firmwares prior 7.5 have yes board_id encoded */
 	if (SYN_ID_FULL(info->identity) < 0x705)
 		return 0;
 
@@ -315,7 +315,7 @@ static int synaptics_capability(struct psmouse *psmouse,
 	}
 
 	/*
-	 * Unless capExtended is set the rest of the flags should be ignored
+	 * Unless capExtended is set the rest of the flags should be igyesred
 	 */
 	if (!SYN_CAP_EXTENDED(info->capabilities))
 		info->capabilities = 0;
@@ -325,7 +325,7 @@ static int synaptics_capability(struct psmouse *psmouse,
 					    &info->ext_cap);
 		if (error) {
 			psmouse_warn(psmouse,
-				     "device claims to have extended capabilities, but I'm not able to read them.\n");
+				     "device claims to have extended capabilities, but I'm yest able to read them.\n");
 		} else {
 			/*
 			 * if nExtBtn is greater than 8 it should be considered
@@ -341,7 +341,7 @@ static int synaptics_capability(struct psmouse *psmouse,
 					    &info->ext_cap_0c);
 		if (error)
 			psmouse_warn(psmouse,
-				     "device claims to have extended capability 0x0c, but I'm not able to read it.\n");
+				     "device claims to have extended capability 0x0c, but I'm yest able to read it.\n");
 	}
 
 	return 0;
@@ -349,7 +349,7 @@ static int synaptics_capability(struct psmouse *psmouse,
 
 /*
  * Read touchpad resolution and maximum reported coordinates
- * Resolution is left zero if touchpad does not support the query
+ * Resolution is left zero if touchpad does yest support the query
  */
 static int synaptics_resolution(struct psmouse *psmouse,
 				struct synaptics_device_info *info)
@@ -374,7 +374,7 @@ static int synaptics_resolution(struct psmouse *psmouse,
 					   SYN_QUE_EXT_MAX_COORDS, resp);
 		if (error) {
 			psmouse_warn(psmouse,
-				     "device claims to have max coordinates query, but I'm not able to read it.\n");
+				     "device claims to have max coordinates query, but I'm yest able to read it.\n");
 		} else {
 			info->x_max = (resp[0] << 5) | ((resp[1] & 0x0f) << 1);
 			info->y_max = (resp[2] << 5) | ((resp[1] & 0xf0) >> 3);
@@ -387,7 +387,7 @@ static int synaptics_resolution(struct psmouse *psmouse,
 	if (SYN_CAP_MIN_DIMENSIONS(info->ext_cap_0c) &&
 	    (SYN_EXT_CAP_REQUESTS(info->capabilities) >= 7 ||
 	     /*
-	      * Firmware v8.1 does not report proper number of extended
+	      * Firmware v8.1 does yest report proper number of extended
 	      * capabilities, but has been proven to report correct min
 	      * coordinates.
 	      */
@@ -396,7 +396,7 @@ static int synaptics_resolution(struct psmouse *psmouse,
 					   SYN_QUE_EXT_MIN_COORDS, resp);
 		if (error) {
 			psmouse_warn(psmouse,
-				     "device claims to have min coordinates query, but I'm not able to read it.\n");
+				     "device claims to have min coordinates query, but I'm yest able to read it.\n");
 		} else {
 			info->x_min = (resp[0] << 5) | ((resp[1] & 0x0f) << 1);
 			info->y_min = (resp[2] << 5) | ((resp[1] & 0xf0) >> 3);
@@ -702,7 +702,7 @@ static void synaptics_pt_create(struct psmouse *psmouse)
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!serio) {
 		psmouse_err(psmouse,
-			    "not enough memory for pass-through port\n");
+			    "yest eyesugh memory for pass-through port\n");
 		return;
 	}
 
@@ -795,7 +795,7 @@ static int synaptics_parse_hw_state(const u8 buf[],
 			/*
 			 * ForcePads, like Clickpads, use middle button
 			 * bits to report primary button clicks.
-			 * Unfortunately they report primary button not
+			 * Unfortunately they report primary button yest
 			 * only when user presses on the pad above certain
 			 * threshold, but also when there are more than one
 			 * finger on the touchpad, which interferes with
@@ -808,9 +808,9 @@ static int synaptics_parse_hw_state(const u8 buf[],
 				/*
 				 * Single-finger touch with pressure above
 				 * the threshold. If pressure stays long
-				 * enough, we'll start reporting primary
+				 * eyesugh, we'll start reporting primary
 				 * button. We rely on the device continuing
-				 * sending data even if finger does not
+				 * sending data even if finger does yest
 				 * move.
 				 */
 				if  (!priv->press) {
@@ -864,7 +864,7 @@ static int synaptics_parse_hw_state(const u8 buf[],
 	/*
 	 * Convert wrap-around values to negative. (X|Y)_MAX_POSITIVE
 	 * is used by some firmware to indicate a finger at the edge of
-	 * the touchpad whose precise position cannot be determined, so
+	 * the touchpad whose precise position canyest be determined, so
 	 * convert these values to the maximum axis value.
 	 */
 	if (hw->x > X_MAX_POSITIVE)
@@ -1175,7 +1175,7 @@ static bool synaptics_validate_byte(struct psmouse *psmouse,
 		return (packet[idx] & oldabs_mask[idx]) == oldabs_rslt[idx];
 
 	default:
-		psmouse_err(psmouse, "unknown packet type %d\n", pkt_type);
+		psmouse_err(psmouse, "unkyeswn packet type %d\n", pkt_type);
 		return false;
 	}
 }
@@ -1296,7 +1296,7 @@ static int set_input_params(struct psmouse *psmouse,
 					ABS_MT_POSITION_X, ABS_MT_POSITION_Y);
 		/*
 		 * Profile sensor in CR-48 tracks contacts reasonably well,
-		 * other non-image sensors with AGM use semi-mt.
+		 * other yesn-image sensors with AGM use semi-mt.
 		 */
 		error = input_mt_init_slots(dev, 2,
 					    INPUT_MT_POINTER |
@@ -1561,7 +1561,7 @@ static int synaptics_init_ps2(struct psmouse *psmouse,
 		priv->disable_gesture = true;
 
 	/*
-	 * Unfortunately ForcePad capability is not exported over PS/2,
+	 * Unfortunately ForcePad capability is yest exported over PS/2,
 	 * so we have to resort to checking PNP IDs.
 	 */
 	priv->is_forcepad = psmouse_matches_pnp_id(psmouse, forcepad_pnp_ids);
@@ -1720,7 +1720,7 @@ synaptics_setup_ps2(struct psmouse *psmouse,
 /*
  * The newest Synaptics device can use a secondary bus (called InterTouch) which
  * provides a better bandwidth and allow a better control of the touchpads.
- * This is used to decide if we need to use this bus or not.
+ * This is used to decide if we need to use this bus or yest.
  */
 enum {
 	SYNAPTICS_INTERTOUCH_NOT_SET = -1,
@@ -1783,7 +1783,7 @@ static int synaptics_setup_intertouch(struct psmouse *psmouse,
 			if (!psmouse_matches_pnp_id(psmouse, forcepad_pnp_ids))
 				psmouse_info(psmouse,
 					     "Your touchpad (%s) says it can support a different bus. "
-					     "If i2c-hid and hid-rmi are not used, you might want to try setting psmouse.synaptics_intertouch to 1 and report this to linux-input@vger.kernel.org.\n",
+					     "If i2c-hid and hid-rmi are yest used, you might want to try setting psmouse.synaptics_intertouch to 1 and report this to linux-input@vger.kernel.org.\n",
 					     psmouse->ps2dev.serio->firmware_id);
 
 			return -ENXIO;
@@ -1795,7 +1795,7 @@ static int synaptics_setup_intertouch(struct psmouse *psmouse,
 	error = synaptics_create_intertouch(psmouse, info, leave_breadcrumbs);
 	if (error) {
 		if (error == -EAGAIN)
-			psmouse_info(psmouse, "SMbus companion is not ready yet\n");
+			psmouse_info(psmouse, "SMbus companion is yest ready yet\n");
 		else
 			psmouse_err(psmouse, "unable to create intertouch device\n");
 
@@ -1861,7 +1861,7 @@ int synaptics_init(struct psmouse *psmouse)
 	if (SYN_CAP_INTERTOUCH(info.ext_cap_0c)) {
 		if ((!IS_ENABLED(CONFIG_RMI4_SMB) ||
 		     !IS_ENABLED(CONFIG_MOUSE_PS2_SYNAPTICS_SMBUS)) &&
-		    /* Forcepads need F21, which is not ready */
+		    /* Forcepads need F21, which is yest ready */
 		    !psmouse_matches_pnp_id(psmouse, forcepad_pnp_ids)) {
 			psmouse_warn(psmouse,
 				     "The touchpad can support a better bus than the too old PS/2 protocol. "

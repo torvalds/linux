@@ -51,7 +51,7 @@ void *kmap_atomic(struct page *page)
 		       DCACHE_ALIAS(page_to_phys(page)));
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 #ifdef CONFIG_DEBUG_HIGHMEM
-	BUG_ON(!pte_none(*(kmap_pte + idx)));
+	BUG_ON(!pte_yesne(*(kmap_pte + idx)));
 #endif
 	set_pte(kmap_pte + idx, mk_pte(page, PAGE_KERNEL_EXEC));
 

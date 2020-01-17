@@ -8,7 +8,7 @@
  *		IP/TCP/UDP checksumming routines
  *
  * Authors:	Jorge Cwik, <jorge@laser.satlink.net>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
+ *		Arnt Gulbrandsen, <agulbra@nvg.unit.yes>
  *		Tom May, <ftom@netcom.com>
  *		Andreas Schwab, <schwab@issan.informatik.uni-dortmund.de>
  *		Lots of code moved from tcp.c and ip.c; see those files
@@ -25,7 +25,7 @@
  *		choose these registers itself solves the problem.
  */
 
-/* Revised by Kenneth Albanowski for m68knommu. Basic problem: unaligned access
+/* Revised by Kenneth Albayeswski for m68kyesmmu. Basic problem: unaligned access
  kills, so most of the assembly has to go. */
 
 #include <linux/export.h>
@@ -176,7 +176,7 @@ csum_partial_copy(const void *src, void *dst, int len, __wsum sum)
 }
 EXPORT_SYMBOL(csum_partial_copy);
 
-#ifndef csum_tcpudp_nofold
+#ifndef csum_tcpudp_yesfold
 static inline u32 from64to32(u64 x)
 {
 	/* add up 32-bit and 32-bit for 32+c bit */
@@ -186,7 +186,7 @@ static inline u32 from64to32(u64 x)
 	return (u32)x;
 }
 
-__wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+__wsum csum_tcpudp_yesfold(__be32 saddr, __be32 daddr,
 			  __u32 len, __u8 proto, __wsum sum)
 {
 	unsigned long long s = (__force u32)sum;
@@ -200,5 +200,5 @@ __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 #endif
 	return (__force __wsum)from64to32(s);
 }
-EXPORT_SYMBOL(csum_tcpudp_nofold);
+EXPORT_SYMBOL(csum_tcpudp_yesfold);
 #endif

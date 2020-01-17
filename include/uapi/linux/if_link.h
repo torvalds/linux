@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_IF_LINK_H
 #define _UAPI_LINUX_IF_LINK_H
 
@@ -13,8 +13,8 @@ struct rtnl_link_stats {
 	__u32	tx_bytes;		/* total bytes transmitted	*/
 	__u32	rx_errors;		/* bad packets received		*/
 	__u32	tx_errors;		/* packet transmit problems	*/
-	__u32	rx_dropped;		/* no space in linux buffers	*/
-	__u32	tx_dropped;		/* no space available in linux	*/
+	__u32	rx_dropped;		/* yes space in linux buffers	*/
+	__u32	tx_dropped;		/* yes space available in linux	*/
 	__u32	multicast;		/* multicast packets received	*/
 	__u32	collisions;
 
@@ -37,7 +37,7 @@ struct rtnl_link_stats {
 	__u32	rx_compressed;
 	__u32	tx_compressed;
 
-	__u32	rx_nohandler;		/* dropped, no handler found	*/
+	__u32	rx_yeshandler;		/* dropped, yes handler found	*/
 };
 
 /* The main device statistics structure */
@@ -48,8 +48,8 @@ struct rtnl_link_stats64 {
 	__u64	tx_bytes;		/* total bytes transmitted	*/
 	__u64	rx_errors;		/* bad packets received		*/
 	__u64	tx_errors;		/* packet transmit problems	*/
-	__u64	rx_dropped;		/* no space in linux buffers	*/
-	__u64	tx_dropped;		/* no space available in linux	*/
+	__u64	rx_dropped;		/* yes space in linux buffers	*/
+	__u64	tx_dropped;		/* yes space available in linux	*/
 	__u64	multicast;		/* multicast packets received	*/
 	__u64	collisions;
 
@@ -72,7 +72,7 @@ struct rtnl_link_stats64 {
 	__u64	rx_compressed;
 	__u64	tx_compressed;
 
-	__u64	rx_nohandler;		/* dropped, no handler found	*/
+	__u64	rx_yeshandler;		/* dropped, yes handler found	*/
 };
 
 /* The struct should be in sync with struct ifmap */
@@ -195,7 +195,7 @@ enum {
 
    The only change is:
    IFF_LOOPBACK, IFF_BROADCAST and IFF_POINTOPOINT are
-   more not changeable by user. They describe link media
+   more yest changeable by user. They describe link media
    characteristics and set by device driver.
 
    Comments:
@@ -203,8 +203,8 @@ enum {
    - If neither of these three flags are set;
      the interface is NBMA.
 
-   - IFF_MULTICAST does not mean anything special:
-   multicasts can be used on all not-NBMA links.
+   - IFF_MULTICAST does yest mean anything special:
+   multicasts can be used on all yest-NBMA links.
    IFF_MULTICAST means that this media uses special encapsulation
    for multicast frames. Apparently, all IFF_POINTOPOINT and
    IFF_BROADCAST devices are able to use multicasts too.
@@ -214,7 +214,7 @@ enum {
    For usual devices it is equal ifi_index.
    If it is a "virtual interface" (f.e. tunnel), ifi_link
    can point to real physical interface (f.e. for bandwidth calculations),
-   or maybe 0, what means, that real media is unknown (usual
+   or maybe 0, what means, that real media is unkyeswn (usual
    for IPIP tunnels, when route to endpoint is allowed to change)
  */
 
@@ -694,7 +694,7 @@ enum {
 				 */
 	IFLA_VF_STATS,		/* network device statistics */
 	IFLA_VF_TRUST,		/* Trust VF */
-	IFLA_VF_IB_NODE_GUID,	/* VF Infiniband node GUID */
+	IFLA_VF_IB_NODE_GUID,	/* VF Infiniband yesde GUID */
 	IFLA_VF_IB_PORT_GUID,	/* VF Infiniband port GUID */
 	IFLA_VF_VLAN_LIST,	/* nested list of vlans, option for QinQ */
 	IFLA_VF_BROADCAST,	/* VF broadcast */

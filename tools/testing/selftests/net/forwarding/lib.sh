@@ -11,10 +11,10 @@ MZ=${MZ:=mausezahn}
 ARPING=${ARPING:=arping}
 TEAMD=${TEAMD:=teamd}
 WAIT_TIME=${WAIT_TIME:=5}
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
-PAUSE_ON_CLEANUP=${PAUSE_ON_CLEANUP:=no}
+PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=yes}
+PAUSE_ON_CLEANUP=${PAUSE_ON_CLEANUP:=yes}
 NETIF_TYPE=${NETIF_TYPE:=veth}
-NETIF_CREATE=${NETIF_CREATE:=yes}
+NETIF_CREATE=${NETIF_CREATE:=no}
 MCD=${MCD:=smcrouted}
 MC_CLI=${MC_CLI:=smcroutectl}
 PING_TIMEOUT=${PING_TIMEOUT:=5}
@@ -65,7 +65,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
 	exit 0
 fi
 
-if [[ "$CHECK_TC" = "yes" ]]; then
+if [[ "$CHECK_TC" = "no" ]]; then
 	check_tc_version
 fi
 
@@ -74,7 +74,7 @@ require_command()
 	local cmd=$1; shift
 
 	if [[ ! -x "$(command -v "$cmd")" ]]; then
-		echo "SKIP: $cmd not installed"
+		echo "SKIP: $cmd yest installed"
 		exit 1
 	fi
 }
@@ -83,7 +83,7 @@ require_command jq
 require_command $MZ
 
 if [[ ! -v NUM_NETIFS ]]; then
-	echo "SKIP: importer does not define \"NUM_NETIFS\""
+	echo "SKIP: importer does yest define \"NUM_NETIFS\""
 	exit 1
 fi
 
@@ -130,20 +130,20 @@ create_netif()
 	case "$NETIF_TYPE" in
 	veth) create_netif_veth
 	      ;;
-	*) echo "Can not create interfaces of type \'$NETIF_TYPE\'"
+	*) echo "Can yest create interfaces of type \'$NETIF_TYPE\'"
 	   exit 1
 	   ;;
 	esac
 }
 
-if [[ "$NETIF_CREATE" = "yes" ]]; then
+if [[ "$NETIF_CREATE" = "no" ]]; then
 	create_netif
 fi
 
 for ((i = 1; i <= NUM_NETIFS; ++i)); do
 	ip link show dev ${NETIFS[p$i]} &> /dev/null
 	if [[ $? -ne 0 ]]; then
-		echo "SKIP: could not find all required interfaces"
+		echo "SKIP: could yest find all required interfaces"
 		exit 1
 	fi
 done
@@ -206,7 +206,7 @@ log_test()
 		if [[ ! -z "$retmsg" ]]; then
 			printf "\t%s\n" "$retmsg"
 		fi
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "no" ]; then
 			echo "Hit enter to continue, 'q' to quit"
 			read a
 			[ "$a" = "q" ] && exit 1
@@ -234,7 +234,7 @@ setup_wait_dev()
 
 	if (($?)); then
 		check_err 1
-		log_test setup_wait_dev ": Interface $dev does not come up."
+		log_test setup_wait_dev ": Interface $dev does yest come up."
 		exit 1
 	fi
 }
@@ -293,7 +293,7 @@ cmd_jq()
 		return $ret
 	fi
 	echo $output
-	# return success only in case of non-empty output
+	# return success only in case of yesn-empty output
 	[ ! -z "$output" ]
 }
 
@@ -301,7 +301,7 @@ lldpad_app_wait_set()
 {
 	local dev=$1; shift
 
-	while lldptool -t -i $dev -V APP -c app | grep -Eq "pending|unknown"; do
+	while lldptool -t -i $dev -V APP -c app | grep -Eq "pending|unkyeswn"; do
 		echo "$dev: waiting for lldpad to push pending APP updates"
 		sleep 5
 	done
@@ -314,13 +314,13 @@ lldpad_app_wait_del()
 	# been struck off the lldpad's DB already, so we won't be able to tell
 	# they are pending. Then on next test iteration this would cause
 	# weirdness as newly-added APP rules conflict with the old ones,
-	# sometimes getting stuck in an "unknown" state.
+	# sometimes getting stuck in an "unkyeswn" state.
 	sleep 5
 }
 
 pre_cleanup()
 {
-	if [ "${PAUSE_ON_CLEANUP}" = "yes" ]; then
+	if [ "${PAUSE_ON_CLEANUP}" = "no" ]; then
 		echo "Pausing before cleanup, hit any key to continue"
 		read
 	fi
@@ -422,7 +422,7 @@ __simple_if_fini()
 	__addr_add_del $if_name del "${addrs[@]}"
 
 	ip link set dev $if_name down
-	ip link set dev $if_name nomaster
+	ip link set dev $if_name yesmaster
 }
 
 simple_if_init()
@@ -649,8 +649,8 @@ trap_install()
 	local dev=$1; shift
 	local direction=$1; shift
 
-	# Some devices may not support or need in-hardware trapping of traffic
-	# (e.g. the veth pairs that this library creates for non-existent
+	# Some devices may yest support or need in-hardware trapping of traffic
+	# (e.g. the veth pairs that this library creates for yesn-existent
 	# loopbacks). Use continue instead, so that there is a filter in there
 	# (some tests check counters), and so that other filters are still
 	# processed.
@@ -915,9 +915,9 @@ learning_test()
 
 	bridge -j fdb show br $bridge brport $br_port1 \
 		| jq -e ".[] | select(.mac == \"$mac\")" &> /dev/null
-	check_fail $? "Found FDB record when should not"
+	check_fail $? "Found FDB record when should yest"
 
-	# Disable unknown unicast flooding on `br_port1` to make sure
+	# Disable unkyeswn unicast flooding on `br_port1` to make sure
 	# packets are only forwarded through the port after a matching
 	# FDB entry was installed.
 	bridge link set dev $br_port1 flood off
@@ -932,14 +932,14 @@ learning_test()
 	tc -j -s filter show dev $host1_if ingress \
 		| jq -e ".[] | select(.options.handle == 101) \
 		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
-	check_fail $? "Packet reached second host when should not"
+	check_fail $? "Packet reached second host when should yest"
 
 	$MZ $host1_if -c 1 -p 64 -a $mac -t ip -q
 	sleep 1
 
 	bridge -j fdb show br $bridge brport $br_port1 \
 		| jq -e ".[] | select(.mac == \"$mac\")" &> /dev/null
-	check_err $? "Did not find FDB record when should"
+	check_err $? "Did yest find FDB record when should"
 
 	$MZ $host2_if -c 1 -p 64 -b $mac -t ip -q
 	sleep 1
@@ -947,7 +947,7 @@ learning_test()
 	tc -j -s filter show dev $host1_if ingress \
 		| jq -e ".[] | select(.options.handle == 101) \
 		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
-	check_err $? "Packet did not reach second host when should"
+	check_err $? "Packet did yest reach second host when should"
 
 	# Wait for 10 seconds after the ageing time to make sure FDB
 	# record was aged-out.
@@ -956,7 +956,7 @@ learning_test()
 
 	bridge -j fdb show br $bridge brport $br_port1 \
 		| jq -e ".[] | select(.mac == \"$mac\")" &> /dev/null
-	check_fail $? "Found FDB record when should not"
+	check_fail $? "Found FDB record when should yest"
 
 	bridge link set dev $br_port1 learning off
 
@@ -965,7 +965,7 @@ learning_test()
 
 	bridge -j fdb show br $bridge brport $br_port1 \
 		| jq -e ".[] | select(.mac == \"$mac\")" &> /dev/null
-	check_fail $? "Found FDB record when should not"
+	check_fail $? "Found FDB record when should yest"
 
 	bridge link set dev $br_port1 learning on
 
@@ -987,7 +987,7 @@ flood_test_do()
 	local err=0
 
 	# Add an ACL on `host2_if` which will tell us whether the packet
-	# was flooded to it or not.
+	# was flooded to it or yest.
 	tc qdisc add dev $host2_if ingress
 	tc filter add dev $host2_if ingress protocol ip pref 1 handle 101 \
 		flower dst_mac $mac action drop
@@ -1022,14 +1022,14 @@ flood_unicast_test()
 	bridge link set dev $br_port flood off
 
 	flood_test_do false $mac $ip $host1_if $host2_if
-	check_err $? "Packet flooded when should not"
+	check_err $? "Packet flooded when should yest"
 
 	bridge link set dev $br_port flood on
 
 	flood_test_do true $mac $ip $host1_if $host2_if
-	check_err $? "Packet was not flooded when should"
+	check_err $? "Packet was yest flooded when should"
 
-	log_test "Unknown unicast flood"
+	log_test "Unkyeswn unicast flood"
 }
 
 flood_multicast_test()
@@ -1045,12 +1045,12 @@ flood_multicast_test()
 	bridge link set dev $br_port mcast_flood off
 
 	flood_test_do false $mac $ip $host1_if $host2_if
-	check_err $? "Packet flooded when should not"
+	check_err $? "Packet flooded when should yest"
 
 	bridge link set dev $br_port mcast_flood on
 
 	flood_test_do true $mac $ip $host1_if $host2_if
-	check_err $? "Packet was not flooded when should"
+	check_err $? "Packet was yest flooded when should"
 
 	log_test "Unregistered multicast flood"
 }

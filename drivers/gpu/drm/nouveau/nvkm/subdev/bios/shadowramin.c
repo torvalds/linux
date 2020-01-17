@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -83,11 +83,11 @@ pramin_init(struct nvkm_bios *bios, const char *name)
 	else
 		addr = nvkm_rd32(device, 0x619f04);
 	if (!(addr & 0x00000008)) {
-		nvkm_debug(subdev, "... not enabled\n");
+		nvkm_debug(subdev, "... yest enabled\n");
 		return ERR_PTR(-ENODEV);
 	}
 	if ( (addr & 0x00000003) != 1) {
-		nvkm_debug(subdev, "... not in vram\n");
+		nvkm_debug(subdev, "... yest in vram\n");
 		return ERR_PTR(-ENODEV);
 	}
 

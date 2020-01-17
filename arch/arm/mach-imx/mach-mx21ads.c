@@ -133,7 +133,7 @@ static struct physmap_flash_data mx21ads_flash_data = {
 static struct resource mx21ads_flash_resource =
 	DEFINE_RES_MEM(MX21_CS0_BASE_ADDR, SZ_32M);
 
-static struct platform_device mx21ads_nor_mtd_device = {
+static struct platform_device mx21ads_yesr_mtd_device = {
 	.name = "physmap-flash",
 	.id = 0,
 	.dev = {
@@ -160,7 +160,7 @@ static const struct imxuart_platform_data uart_pdata_rts __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static const struct imxuart_platform_data uart_pdata_norts __initconst = {
+static const struct imxuart_platform_data uart_pdata_yesrts __initconst = {
 };
 
 static struct resource mx21ads_mmgpio_resource =
@@ -288,7 +288,7 @@ mx21ads_nand_board_info __initconst = {
 static struct platform_device *platform_devices[] __initdata = {
 	&mx21ads_mmgpio,
 	&mx21ads_lcd_regulator,
-	&mx21ads_nor_mtd_device,
+	&mx21ads_yesr_mtd_device,
 };
 
 static void __init mx21ads_board_init(void)
@@ -299,7 +299,7 @@ static void __init mx21ads_board_init(void)
 			"mx21ads");
 
 	imx21_add_imx_uart0(&uart_pdata_rts);
-	imx21_add_imx_uart2(&uart_pdata_norts);
+	imx21_add_imx_uart2(&uart_pdata_yesrts);
 	imx21_add_imx_uart3(&uart_pdata_rts);
 	imx21_add_mxc_nand(&mx21ads_nand_board_info);
 

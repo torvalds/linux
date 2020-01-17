@@ -110,7 +110,7 @@ static inline struct fc_ct_req *fc_ct_hdr_fill(const struct fc_frame *fp,
 /**
  * fc_ct_ns_fill() - Fill in a name service request frame
  * @lport: local port.
- * @fc_id: FC_ID of non-destination rport for GPN_ID and similar inquiries.
+ * @fc_id: FC_ID of yesn-destination rport for GPN_ID and similar inquiries.
  * @fp: frame to contain payload.
  * @op: CT opcode.
  * @r_ctl: pointer to FC header R_CTL.
@@ -194,7 +194,7 @@ static inline int fc_ct_ns_fill(struct fc_lport *lport,
 /**
  * fc_ct_ms_fill() - Fill in a mgmt service request frame
  * @lport: local port.
- * @fc_id: FC_ID of non-destination rport for GPN_ID and similar inquiries.
+ * @fc_id: FC_ID of yesn-destination rport for GPN_ID and similar inquiries.
  * @fp: frame to contain payload.
  * @op: CT opcode.
  * @r_ctl: pointer to FC header R_CTL.
@@ -459,7 +459,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 					FC_FDMI_PORT_ATTR_HOSTNAME_LEN));
 		else
 			strncpy((char *)&entry->value,
-				init_utsname()->nodename,
+				init_utsname()->yesdename,
 				FC_FDMI_PORT_ATTR_HOSTNAME_LEN);
 		break;
 	case FC_FDMI_DPRT:
@@ -488,7 +488,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 /**
  * fc_ct_fill() - Fill in a common transport service request frame
  * @lport: local port.
- * @fc_id: FC_ID of non-destination rport for GPN_ID and similar inquiries.
+ * @fc_id: FC_ID of yesn-destination rport for GPN_ID and similar inquiries.
  * @fp: frame to contain payload.
  * @op: CT opcode.
  * @r_ctl: pointer to FC header R_CTL.

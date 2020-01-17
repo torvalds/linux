@@ -67,11 +67,11 @@ struct thread_group_cputimer {
 
 struct multiprocess_signals {
 	sigset_t signal;
-	struct hlist_node node;
+	struct hlist_yesde yesde;
 };
 
 /*
- * NOTE! "signal_struct" does not have its own
+ * NOTE! "signal_struct" does yest have its own
  * locking, because a shared signal_struct always
  * implies a shared sighand_struct, so locking
  * sighand_struct is always a proper superset of
@@ -97,11 +97,11 @@ struct signal_struct {
 	/* thread group exit support */
 	int			group_exit_code;
 	/* overloaded:
-	 * - notify group_exit_task when ->count is equal to notify_count
+	 * - yestify group_exit_task when ->count is equal to yestify_count
 	 * - everyone except group_exit_task is stopped during signal delivery
 	 *   of fatal signals, group_exit_task processes the signal.
 	 */
-	int			notify_count;
+	int			yestify_count;
 	struct task_struct	*group_exit_task;
 
 	/* thread group stop support, overloads group_exit_code too */
@@ -159,7 +159,7 @@ struct signal_struct {
 	/* boolean value for session group leader */
 	int leader;
 
-	struct tty_struct *tty; /* NULL if no tty */
+	struct tty_struct *tty; /* NULL if yes tty */
 
 #ifdef CONFIG_SCHED_AUTOGROUP
 	struct autogroup *autogroup;
@@ -183,7 +183,7 @@ struct signal_struct {
 
 	/*
 	 * Cumulative ns of schedule CPU time fo dead threads in the
-	 * group, not including a zombie group leader, (This only differs
+	 * group, yest including a zombie group leader, (This only differs
 	 * from jiffies_to_ns(utime + stime) if sched_clock uses something
 	 * other than jiffies.)
 	 */
@@ -191,12 +191,12 @@ struct signal_struct {
 
 	/*
 	 * We don't bother to synchronize most readers of this at all,
-	 * because there is no reader checking a limit that actually needs
+	 * because there is yes reader checking a limit that actually needs
 	 * to get both rlim_cur and rlim_max atomically, and either one
-	 * alone is a single word that can safely be read normally.
+	 * alone is a single word that can safely be read yesrmally.
 	 * getrlimit/setrlimit use task_lock(current->group_leader) to
 	 * protect this instead of the siglock, because they really
-	 * have no need to disable irqs.
+	 * have yes need to disable irqs.
 	 */
 	struct rlimit rlim[RLIM_NLIMITS];
 
@@ -224,7 +224,7 @@ struct signal_struct {
 
 	struct mutex cred_guard_mutex;	/* guard against foreign influences on
 					 * credential calculations
-					 * (notably. ptrace) */
+					 * (yestably. ptrace) */
 } __randomize_layout;
 
 /*
@@ -235,13 +235,13 @@ struct signal_struct {
 #define SIGNAL_GROUP_EXIT	0x00000004 /* group exit in progress */
 #define SIGNAL_GROUP_COREDUMP	0x00000008 /* coredump in progress */
 /*
- * Pending notifications to parent.
+ * Pending yestifications to parent.
  */
 #define SIGNAL_CLD_STOPPED	0x00000010
 #define SIGNAL_CLD_CONTINUED	0x00000020
 #define SIGNAL_CLD_MASK		(SIGNAL_CLD_STOPPED|SIGNAL_CLD_CONTINUED)
 
-#define SIGNAL_UNKILLABLE	0x00000040 /* for init: ignore fatal signals */
+#define SIGNAL_UNKILLABLE	0x00000040 /* for init: igyesre fatal signals */
 
 #define SIGNAL_STOP_MASK (SIGNAL_CLD_MASK | SIGNAL_STOP_STOPPED | \
 			  SIGNAL_STOP_CONTINUED)
@@ -261,7 +261,7 @@ static inline int signal_group_exit(const struct signal_struct *sig)
 }
 
 extern void flush_signals(struct task_struct *);
-extern void ignore_signals(struct task_struct *);
+extern void igyesre_signals(struct task_struct *);
 extern void flush_signal_handlers(struct task_struct *, int force_default);
 extern int dequeue_signal(struct task_struct *task,
 			  sigset_t *mask, kernel_siginfo_t *info);
@@ -300,14 +300,14 @@ static inline void kernel_signal_stop(void)
 #endif
 
 int force_sig_fault_to_task(int sig, int code, void __user *addr
-	___ARCH_SI_TRAPNO(int trapno)
+	___ARCH_SI_TRAPNO(int trapyes)
 	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr)
 	, struct task_struct *t);
 int force_sig_fault(int sig, int code, void __user *addr
-	___ARCH_SI_TRAPNO(int trapno)
+	___ARCH_SI_TRAPNO(int trapyes)
 	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr));
 int send_sig_fault(int sig, int code, void __user *addr
-	___ARCH_SI_TRAPNO(int trapno)
+	___ARCH_SI_TRAPNO(int trapyes)
 	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr)
 	, struct task_struct *t);
 
@@ -317,18 +317,18 @@ int send_sig_mceerr(int code, void __user *, short, struct task_struct *);
 int force_sig_bnderr(void __user *addr, void __user *lower, void __user *upper);
 int force_sig_pkuerr(void __user *addr, u32 pkey);
 
-int force_sig_ptrace_errno_trap(int errno, void __user *addr);
+int force_sig_ptrace_erryes_trap(int erryes, void __user *addr);
 
 extern int send_sig_info(int, struct kernel_siginfo *, struct task_struct *);
 extern void force_sigsegv(int sig);
 extern int force_sig_info(struct kernel_siginfo *);
 extern int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp);
 extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid);
-extern int kill_pid_usb_asyncio(int sig, int errno, sigval_t addr, struct pid *,
+extern int kill_pid_usb_asyncio(int sig, int erryes, sigval_t addr, struct pid *,
 				const struct cred *);
 extern int kill_pgrp(struct pid *pid, int sig, int priv);
 extern int kill_pid(struct pid *pid, int sig, int priv);
-extern __must_check bool do_notify_parent(struct task_struct *, int);
+extern __must_check bool do_yestify_parent(struct task_struct *, int);
 extern void __wake_up_parent(struct task_struct *p, struct task_struct *parent);
 extern void force_sig(int);
 extern int send_sig(int, struct task_struct *, int);
@@ -403,9 +403,9 @@ void task_join_group_stop(struct task_struct *task);
  *
  * This sets TIF_RESTORE_SIGMASK and ensures that the arch signal code
  * will run before returning to user mode, to process the flag.  For
- * all callers, TIF_SIGPENDING is already set or it's no harm to set
- * it.  TIF_RESTORE_SIGMASK need not be in the set of bits that the
- * arch code will notice on return to user mode, in case those bits
+ * all callers, TIF_SIGPENDING is already set or it's yes harm to set
+ * it.  TIF_RESTORE_SIGMASK need yest be in the set of bits that the
+ * arch code will yestice on return to user mode, in case those bits
  * are scarce.  We set TIF_SIGPENDING here to ensure that the arch
  * signal code always gets run when TIF_RESTORE_SIGMASK is set.
  */
@@ -569,7 +569,7 @@ extern bool current_is_single_threaded(void);
 
 /*
  * Careful: do_each_thread/while_each_thread is a double loop so
- *          'break' will not work as expected - use goto instead.
+ *          'break' will yest work as expected - use goto instead.
  */
 #define do_each_thread(g, t) \
 	for (g = t = &init_task ; (g = t = next_task(g)) != &init_task ; ) do
@@ -578,7 +578,7 @@ extern bool current_is_single_threaded(void);
 	while ((t = next_thread(t)) != g)
 
 #define __for_each_thread(signal, t)	\
-	list_for_each_entry_rcu(t, &(signal)->thread_head, thread_node)
+	list_for_each_entry_rcu(t, &(signal)->thread_head, thread_yesde)
 
 #define for_each_thread(p, t)		\
 	__for_each_thread((p)->signal, t)
@@ -607,9 +607,9 @@ static inline struct pid *task_tgid(struct task_struct *task)
 }
 
 /*
- * Without tasklist or RCU lock it is not safe to dereference
+ * Without tasklist or RCU lock it is yest safe to dereference
  * the result of task_pgrp/task_session even if task == current,
- * we can race with another thread doing sys_setsid/sys_setpgid.
+ * we can race with ayesther thread doing sys_setsid/sys_setpgid.
  */
 static inline struct pid *task_pgrp(struct task_struct *task)
 {

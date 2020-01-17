@@ -148,7 +148,7 @@ int radeon_probe_i2c_connector(struct radeonfb_info *rinfo, int conn,
 	if (out_edid)
 		*out_edid = edid;
 	if (!edid) {
-		pr_debug("radeonfb: I2C (port %d) ... not found\n", conn);
+		pr_debug("radeonfb: I2C (port %d) ... yest found\n", conn);
 		return MT_NONE;
 	}
 	if (edid[0x14] & 0x80) {

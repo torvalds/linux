@@ -2,7 +2,7 @@
 /*
  * FB driver for the UC1701 LCD Controller
  *
- * The display is monochrome and the video memory is RGB565.
+ * The display is moyeschrome and the video memory is RGB565.
  * Any pixel value except 0 turns the pixel on.
  *
  * Copyright (C) 2014 Juergen Holzmann
@@ -55,7 +55,7 @@
 /* 25: advanced program control2 */
 #define LCD_ADV_PROG_CTRL2    0x10
 #define LCD_TEMPCOMP_HIGH     0x80
-/* column offset for normal orientation */
+/* column offset for yesrmal orientation */
 #define SHIFT_ADDR_NORMAL     0
 /* column offset for bottom view orientation */
 #define SHIFT_ADDR_TOPVIEW    30

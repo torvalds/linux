@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -74,10 +74,10 @@ static int __init ttm_init(void)
 	atomic_set(&device_released, 0);
 	ret = drm_class_device_register(&ttm_drm_class_device);
 	if (unlikely(ret != 0))
-		goto out_no_dev_reg;
+		goto out_yes_dev_reg;
 
 	return 0;
-out_no_dev_reg:
+out_yes_dev_reg:
 	atomic_set(&device_released, 1);
 	wake_up_all(&exit_q);
 	return ret;

@@ -10,10 +10,10 @@
  *
  * For each device probed, creates an 'struct whcrc' which contains
  * just the representation of the UWB Radio Controller, and the logic
- * for reading notifications and passing them to the UWB Core.
+ * for reading yestifications and passing them to the UWB Core.
  *
  * So we initialize all of those, register the UWB Radio Controller
- * and setup the notification/event handle to pipe the notifications
+ * and setup the yestification/event handle to pipe the yestifications
  * to the UWB management Daemon.
  *
  * Once uwb_rc_add() is called, the UWB stack takes control, resets
@@ -22,7 +22,7 @@
  *
  * Note this driver is just a transport driver; the commands are
  * formed at the UWB stack and given to this driver who will deliver
- * them to the hw and transfer the replies/notifications back to the
+ * them to the hw and transfer the replies/yestifications back to the
  * UWB stack through the UWB daemon (UWBD).
  */
 #include <linux/init.h>
@@ -101,7 +101,7 @@ static int whcrc_cmd(struct uwb_rc *uwb_rc,
 	result = wait_event_timeout(whcrc->cmd_wq,
 		!(le_readl(whcrc->rc_base + URCCMD) & URCCMD_ACTIVE), HZ/2);
 	if (result == 0) {
-		dev_err(dev, "device is not ready to execute commands\n");
+		dev_err(dev, "device is yest ready to execute commands\n");
 		return -ETIMEDOUT;
 	}
 
@@ -135,8 +135,8 @@ static int whcrc_reset(struct uwb_rc *rc)
  * has been retired.  This means we can be sure that event processing
  * is disabled and it's safe to update the URCEVTADDR register.
  *
- * There's no need to wait for the event processing to start as the
- * URC will not clear URCCMD_ACTIVE until (internal) event buffer
+ * There's yes need to wait for the event processing to start as the
+ * URC will yest clear URCCMD_ACTIVE until (internal) event buffer
  * space is available.
  */
 static
@@ -169,7 +169,7 @@ static void whcrc_event_work(struct work_struct *work)
  * Catch interrupts?
  *
  * We ack inmediately (and expect the hw to do the right thing and
- * raise another IRQ if things have changed :)
+ * raise ayesther IRQ if things have changed :)
  */
 static
 irqreturn_t whcrc_irq_cb(int irq, void *_whcrc)
@@ -216,11 +216,11 @@ int whcrc_setup_rc_umc(struct whcrc *whcrc)
 		goto error_request_region;
 	}
 
-	whcrc->rc_base = ioremap_nocache(whcrc->area, whcrc->rc_len);
+	whcrc->rc_base = ioremap_yescache(whcrc->area, whcrc->rc_len);
 	if (whcrc->rc_base == NULL) {
 		dev_err(dev, "can't ioremap registers (%zu bytes @ 0x%lx): %d\n",
 			whcrc->rc_len, whcrc->area, result);
-		goto error_ioremap_nocache;
+		goto error_ioremap_yescache;
 	}
 
 	result = request_irq(umc_dev->irq, whcrc_irq_cb, IRQF_SHARED,
@@ -254,7 +254,7 @@ error_cmd_buffer:
 	free_irq(umc_dev->irq, whcrc);
 error_request_irq:
 	iounmap(whcrc->rc_base);
-error_ioremap_nocache:
+error_ioremap_yescache:
 	release_mem_region(whcrc->area, whcrc->rc_len);
 error_request_region:
 	return result;
@@ -343,7 +343,7 @@ static void whcrc_init(struct whcrc *whcrc)
  * NOTE: we setup whcrc->uwb_rc before calling uwb_rc_add(); in the
  *       IRQ handler we use that to determine if the hw is ready to
  *       handle events. Looks like a race condition, but it really is
- *       not.
+ *       yest.
  */
 static
 int whcrc_probe(struct umc_dev *umc_dev)
@@ -402,8 +402,8 @@ error_rc_alloc:
  * When we up the command semaphore, everybody possibly held trying to
  * execute a command should be granted entry and then they'll see the
  * host is quiescing and up it (so it will chain to the next waiter).
- * This should not happen (in any case), as we can only remove when
- * there are no handles open...
+ * This should yest happen (in any case), as we can only remove when
+ * there are yes handles open...
  */
 static void whcrc_remove(struct umc_dev *umc_dev)
 {

@@ -29,7 +29,7 @@ int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh, bool auth_p
 	if (!(fsinfo.fattr->valid & NFS_ATTR_FATTR_TYPE)
 			|| !S_ISDIR(fsinfo.fattr->mode)) {
 		printk(KERN_ERR "nfs4_get_rootfh:"
-		       " getroot encountered non-directory\n");
+		       " getroot encountered yesn-directory\n");
 		ret = -ENOTDIR;
 		goto out;
 	}

@@ -12,7 +12,7 @@
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -40,7 +40,7 @@ enum {
 enum {
 	/* arrange for adjacent numbers after the public set */
 	MPC512x_CLK_START_PRIVATE = MPC512x_CLK_LAST_PUBLIC,
-	/* clocks which aren't announced to the public */
+	/* clocks which aren't anyesunced to the public */
 	MPC512x_CLK_DDR,
 	MPC512x_CLK_MEM,
 	MPC512x_CLK_IIM,
@@ -77,16 +77,16 @@ static DEFINE_SPINLOCK(clklock);
 /* SoC variants {{{ */
 
 /*
- * tell SoC variants apart as they are rather similar yet not identical,
- * cache the result in an enum to not repeatedly run the expensive OF test
+ * tell SoC variants apart as they are rather similar yet yest identical,
+ * cache the result in an enum to yest repeatedly run the expensive OF test
  *
  * MPC5123 is an MPC5121 without the MBX graphics accelerator
  *
- * MPC5125 has many more differences: no MBX, no AXE, no VIU, no SPDIF,
- * no PATA, no SATA, no PCI, two FECs (of different compatibility name),
+ * MPC5125 has many more differences: yes MBX, yes AXE, yes VIU, yes SPDIF,
+ * yes PATA, yes SATA, yes PCI, two FECs (of different compatibility name),
  * only 10 PSCs (of different compatibility name), two SDHCs, different
  * NFC IP block, output clocks, system PLL status query, different CPMF
- * interpretation, no CFM, different fourth PSC/CAN mux0 input -- yet
+ * interpretation, yes CFM, different fourth PSC/CAN mux0 input -- yet
  * those differences can get folded into this clock provider support
  * code and don't warrant a separate highly redundant implementation
  */
@@ -356,7 +356,7 @@ static int get_cpmf_mult_x2(void)
 }
 
 /*
- * some of the clock dividers do scale in a linear way, yet not all of
+ * some of the clock dividers do scale in a linear way, yet yest all of
  * their bit combinations are legal; use a divider table to get a
  * resulting set of applicable divider values
  */
@@ -381,17 +381,17 @@ static const struct clk_div_table divtab_1234[] = {
 
 static int get_freq_from_dt(char *propname)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const unsigned int *prop;
 	int val;
 
 	val = 0;
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-immr");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,mpc5121-immr");
 	if (np) {
 		prop = of_get_property(np, propname, NULL);
 		if (prop)
 			val = *prop;
-	    of_node_put(np);
+	    of_yesde_put(np);
 	}
 	return val;
 }
@@ -410,7 +410,7 @@ static void mpc512x_clk_preset_data(void)
  * - fetches the system PLL multiplier and divider values as well as the
  *   IPS divider value from hardware
  * - determines the REF clock rate either from the XTAL/OSC spec (if
- *   there is a device tree node describing the oscillator) or from the
+ *   there is a device tree yesde describing the oscillator) or from the
  *   IPS bus clock (supported for backwards compatibility, such that
  *   setups without XTAL/OSC specs keep working)
  * - creates the "ref" clock item in the clock tree, such that
@@ -418,7 +418,7 @@ static void mpc512x_clk_preset_data(void)
  *   SYS -> CSB -> IPS) from the REF clock rate and the returned mul/div
  *   values
  */
-static void mpc512x_clk_setup_ref_clock(struct device_node *np, int bus_freq,
+static void mpc512x_clk_setup_ref_clock(struct device_yesde *np, int bus_freq,
 					int *sys_mul, int *sys_div,
 					int *ips_div)
 {
@@ -470,12 +470,12 @@ static void mpc512x_clk_setup_ref_clock(struct device_node *np, int bus_freq,
  * the overview in section 5.2.4 of the MPC5121e Reference Manual rev4
  * suggests that all instances of the "PSC clock generation" are equal,
  * and that one might re-use the PSC setup for MSCAN clock generation
- * (section 5.2.5) as well, at least the logic if not the data for
+ * (section 5.2.5) as well, at least the logic if yest the data for
  * description
  *
  * the details (starting at page 5-20) show differences in the specific
  * inputs of the first mux stage ("can clk in", "spdif tx"), and the
- * factual non-availability of the second mux stage (it's present yet
+ * factual yesn-availability of the second mux stage (it's present yet
  * only one input is valid)
  *
  * the MSCAN clock related registers (starting at page 5-35) all
@@ -489,11 +489,11 @@ static void mpc512x_clk_setup_ref_clock(struct device_node *np, int bus_freq,
  * it turns out that the RM rev4 as of 2012-06 talks about "can" for the
  * PSCs while RM rev3 as of 2008-10 talks about "spdif", so I guess that
  * first a doc update is required which better reflects reality in the
- * SoC before the implementation should follow while no questions remain
+ * SoC before the implementation should follow while yes questions remain
  */
 
 /*
- * note that this declaration raises a checkpatch warning, but
+ * yeste that this declaration raises a checkpatch warning, but
  * it's the very data type dictated by <linux/clk-provider.h>,
  * "fixing" this warning will break compilation
  */
@@ -643,7 +643,7 @@ static void mpc512x_clk_setup_mclk(struct mclk_setup_data *entry, size_t idx)
 	 *
 	 * initial setup is:
 	 * - MCLK 0 from SYS
-	 * - MCLK DIV such to not exceed the IPS clock
+	 * - MCLK DIV such to yest exceed the IPS clock
 	 * - MCLK 0 enabled
 	 * - MCLK 1 from MCLK DIV
 	 */
@@ -656,7 +656,7 @@ static void mpc512x_clk_setup_mclk(struct mclk_setup_data *entry, size_t idx)
 	/*
 	 * create the 'struct clk' items of the MCLK's clock subtree
 	 *
-	 * note that by design we always create all nodes and won't take
+	 * yeste that by design we always create all yesdes and won't take
 	 * shortcuts here, because
 	 * - the "internal" MCLK_DIV and MCLK_OUT signal in turn are
 	 *   selectable inputs to the CFM while those who "actually use"
@@ -701,7 +701,7 @@ static void mpc512x_clk_setup_mclk(struct mclk_setup_data *entry, size_t idx)
 
 /* }}} MCLK helpers */
 
-static void mpc512x_clk_setup_clock_tree(struct device_node *np, int busfreq)
+static void mpc512x_clk_setup_clock_tree(struct device_yesde *np, int busfreq)
 {
 	int sys_mul, sys_div, ips_div;
 	int mul, div;
@@ -709,36 +709,36 @@ static void mpc512x_clk_setup_clock_tree(struct device_node *np, int busfreq)
 	int freq;
 
 	/*
-	 * developer's notes:
+	 * developer's yestes:
 	 * - consider whether to handle clocks which have both gates and
 	 *   dividers via intermediates or by means of composites
-	 * - fractional dividers appear to not map well to composites
+	 * - fractional dividers appear to yest map well to composites
 	 *   since they can be seen as a fixed multiplier and an
 	 *   adjustable divider, while composites can only combine at
 	 *   most one of a mux, div, and gate each into one 'struct clk'
 	 *   item
 	 * - PSC/MSCAN/SPDIF clock generation OTOH already is very
-	 *   specific and cannot get mapped to composites (at least not
+	 *   specific and canyest get mapped to composites (at least yest
 	 *   a single one, maybe two of them, but then some of these
 	 *   intermediate clock signals get referenced elsewhere (e.g.
 	 *   in the clock frequency measurement, CFM) and thus need
 	 *   publicly available names
 	 * - the current source layout appropriately reflects the
 	 *   hardware setup, and it works, so it's questionable whether
-	 *   further changes will result in big enough a benefit
+	 *   further changes will result in big eyesugh a benefit
 	 */
 
 	/* regardless of whether XTAL/OSC exists, have REF created */
 	mpc512x_clk_setup_ref_clock(np, busfreq, &sys_mul, &sys_div, &ips_div);
 
-	/* now setup the REF -> SYS -> CSB -> IPS hierarchy */
+	/* yesw setup the REF -> SYS -> CSB -> IPS hierarchy */
 	clks[MPC512x_CLK_SYS] = mpc512x_clk_factor("sys", "ref",
 						   sys_mul, sys_div);
 	clks[MPC512x_CLK_CSB] = mpc512x_clk_factor("csb", "sys", 1, 2);
 	clks[MPC512x_CLK_IPS] = mpc512x_clk_divtable("ips", "csb",
 						     &clkregs->scfr1, 23, 3,
 						     divtab_2346);
-	/* now setup anything below SYS and CSB and IPS */
+	/* yesw setup anything below SYS and CSB and IPS */
 
 	clks[MPC512x_CLK_DDR_UG] = mpc512x_clk_factor("ddr-ug", "sys", 1, 2);
 
@@ -771,8 +771,8 @@ static void mpc512x_clk_setup_clock_tree(struct device_node *np, int busfreq)
 	/*
 	 * the "power architecture PLL" was setup from data which was
 	 * sampled from the reset config word, at this point in time the
-	 * configuration can be considered fixed and read only (i.e. no
-	 * longer adjustable, or no longer in need of adjustment), which
+	 * configuration can be considered fixed and read only (i.e. yes
+	 * longer adjustable, or yes longer in need of adjustment), which
 	 * is why we don't register a PLL here but assume fixed factors
 	 */
 	mul = get_cpmf_mult_x2();
@@ -797,7 +797,7 @@ static void mpc512x_clk_setup_clock_tree(struct device_node *np, int busfreq)
 		/*
 		 * XXX TODO implement 5125 NFC clock setup logic,
 		 * with high/low period counters in clkregs->scfr3,
-		 * currently there are no users so it's ENOIMPL
+		 * currently there are yes users so it's ENOIMPL
 		 */
 		clks[MPC512x_CLK_NFC_UG] = ERR_PTR(-ENOTSUPP);
 	} else {
@@ -898,7 +898,7 @@ static void mpc512x_clk_setup_clock_tree(struct device_node *np, int busfreq)
 
 	/*
 	 * externally provided clocks (when implemented in hardware,
-	 * device tree may specify values which otherwise were unknown)
+	 * device tree may specify values which otherwise were unkyeswn)
 	 */
 	freq = get_freq_from_dt("psc_mclk_in");
 	if (!freq)
@@ -922,7 +922,7 @@ static void mpc512x_clk_setup_clock_tree(struct device_node *np, int busfreq)
 
 	/*
 	 * pre-enable those "internal" clock items which never get
-	 * claimed by any peripheral driver, to not have the clock
+	 * claimed by any peripheral driver, to yest have the clock
 	 * subsystem disable them late at startup
 	 */
 	clk_prepare_enable(clks[MPC512x_CLK_DUMMY]);
@@ -937,10 +937,10 @@ static void mpc512x_clk_setup_clock_tree(struct device_node *np, int busfreq)
  * registers the set of public clocks (those listed in the dt-bindings/
  * header file) for OF lookups, keeps the intermediates private to us
  */
-static void mpc5121_clk_register_of_provider(struct device_node *np)
+static void mpc5121_clk_register_of_provider(struct device_yesde *np)
 {
 	clk_data.clks = clks;
-	clk_data.clk_num = MPC512x_CLK_LAST_PUBLIC + 1;	/* _not_ ARRAY_SIZE() */
+	clk_data.clk_num = MPC512x_CLK_LAST_PUBLIC + 1;	/* _yest_ ARRAY_SIZE() */
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 }
 
@@ -952,48 +952,48 @@ static void mpc5121_clk_provide_migration_support(void)
 {
 
 	/*
-	 * pre-enable those clock items which are not yet appropriately
+	 * pre-enable those clock items which are yest yet appropriately
 	 * acquired by their peripheral driver
 	 *
-	 * the PCI clock cannot get acquired by its peripheral driver,
+	 * the PCI clock canyest get acquired by its peripheral driver,
 	 * because for this platform the driver won't probe(), instead
 	 * initialization is done from within the .setup_arch() routine
-	 * at a point in time where the clock provider has not been
+	 * at a point in time where the clock provider has yest been
 	 * setup yet and thus isn't available yet
 	 *
-	 * so we "pre-enable" the clock here, to not have the clock
+	 * so we "pre-enable" the clock here, to yest have the clock
 	 * subsystem automatically disable this item in a late init call
 	 *
 	 * this PCI clock pre-enable workaround only applies when there
-	 * are device tree nodes for PCI and thus the peripheral driver
+	 * are device tree yesdes for PCI and thus the peripheral driver
 	 * has attached to bridges, otherwise the PCI clock remains
 	 * unused and so it gets disabled
 	 */
 	clk_prepare_enable(clks[MPC512x_CLK_PSC3_MCLK]);/* serial console */
-	if (of_find_compatible_node(NULL, "pci", "fsl,mpc5121-pci"))
+	if (of_find_compatible_yesde(NULL, "pci", "fsl,mpc5121-pci"))
 		clk_prepare_enable(clks[MPC512x_CLK_PCI]);
 }
 
 /*
- * those macros are not exactly pretty, but they encapsulate a lot
+ * those macros are yest exactly pretty, but they encapsulate a lot
  * of copy'n'paste heavy code which is even more ugly, and reduce
  * the potential for inconsistencies in those many code copies
  */
 #define FOR_NODES(compatname) \
-	for_each_compatible_node(np, NULL, compatname)
+	for_each_compatible_yesde(np, NULL, compatname)
 
 #define NODE_PREP do { \
 	of_address_to_resource(np, 0, &res); \
 	snprintf(devname, sizeof(devname), "%08x.%s", res.start, np->name); \
 } while (0)
 
-#define NODE_CHK(clkname, clkitem, regnode, regflag) do { \
+#define NODE_CHK(clkname, clkitem, regyesde, regflag) do { \
 	struct clk *clk; \
 	clk = of_clk_get_by_name(np, clkname); \
 	if (IS_ERR(clk)) { \
 		clk = clkitem; \
 		clk_register_clkdev(clk, clkname, devname); \
-		if (regnode) \
+		if (regyesde) \
 			clk_register_clkdev(clk, clkname, np->name); \
 		did_register |= DID_REG_ ## regflag; \
 		pr_debug("clock alias name '%s' for dev '%s' pointer %p\n", \
@@ -1006,7 +1006,7 @@ static void mpc5121_clk_provide_migration_support(void)
 /*
  * register source code provided fallback results for clock lookups,
  * these get consulted when OF based clock lookup fails (that is in the
- * case of not yet adjusted device tree data, where clock related specs
+ * case of yest yet adjusted device tree data, where clock related specs
  * are missing)
  */
 static void mpc5121_clk_provide_backwards_compat(void)
@@ -1025,7 +1025,7 @@ static void mpc5121_clk_provide_backwards_compat(void)
 	};
 
 	int did_register;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource res;
 	int idx;
 	char devname[32];
@@ -1060,7 +1060,7 @@ static void mpc5121_clk_provide_backwards_compat(void)
 
 	/*
 	 * do register the 'ips', 'sys', and 'ref' names globally
-	 * instead of inside each individual CAN node, as there is no
+	 * instead of inside each individual CAN yesde, as there is yes
 	 * potential for a name conflict (in contrast to 'ipg' and 'mclk')
 	 */
 	if (did_register & DID_REG_CAN) {
@@ -1075,14 +1075,14 @@ static void mpc5121_clk_provide_backwards_compat(void)
 	}
 
 	/*
-	 * workaround for the fact that the I2C driver does an "anonymous"
+	 * workaround for the fact that the I2C driver does an "ayesnymous"
 	 * lookup (NULL name spec, which yields the first clock spec) for
-	 * which we cannot register an alias -- a _global_ 'ipg' alias that
-	 * is not bound to any device name and returns the I2C clock item
-	 * is not a good idea
+	 * which we canyest register an alias -- a _global_ 'ipg' alias that
+	 * is yest bound to any device name and returns the I2C clock item
+	 * is yest a good idea
 	 *
 	 * so we have the lookup in the peripheral driver fail, which is
-	 * silent and non-fatal, and pre-enable the clock item here such
+	 * silent and yesn-fatal, and pre-enable the clock item here such
 	 * that register access is possible
 	 *
 	 * see commit b3bfce2b "i2c: mpc: cleanup clock API use" for
@@ -1103,11 +1103,11 @@ static void mpc5121_clk_provide_backwards_compat(void)
 	}
 
 	/*
-	 * note that 2771399a "fs_enet: cleanup clock API use" did use the
+	 * yeste that 2771399a "fs_enet: cleanup clock API use" did use the
 	 * "per" string for the clock lookup in contrast to the "ipg" name
-	 * which most other nodes are using -- this is not a fatal thing
+	 * which most other yesdes are using -- this is yest a fatal thing
 	 * but just something to keep in mind when doing compatibility
-	 * registration, it's a non-issue with up-to-date device tree data
+	 * registration, it's a yesn-issue with up-to-date device tree data
 	 */
 	FOR_NODES("fsl,mpc5121-fec") {
 		NODE_PREP;
@@ -1120,7 +1120,7 @@ static void mpc5121_clk_provide_backwards_compat(void)
 	/*
 	 * MPC5125 has two FECs: FEC1 at 0x2800, FEC2 at 0x4800;
 	 * the clock items don't "form an array" since FEC2 was
-	 * added only later and was not allowed to shift all other
+	 * added only later and was yest allowed to shift all other
 	 * clock item indices, so the numbers aren't adjacent
 	 */
 	FOR_NODES("fsl,mpc5125-fec") {
@@ -1144,14 +1144,14 @@ static void mpc5121_clk_provide_backwards_compat(void)
 	}
 
 	/*
-	 * try to collapse diagnostics into a single line of output yet
-	 * provide a full list of what is missing, to avoid noise in the
+	 * try to collapse diagyesstics into a single line of output yet
+	 * provide a full list of what is missing, to avoid yesise in the
 	 * absence of up-to-date device tree data -- backwards
 	 * compatibility to old DTBs is a requirement, updates may be
-	 * desirable or preferrable but are not at all mandatory
+	 * desirable or preferrable but are yest at all mandatory
 	 */
 	if (did_register) {
-		pr_notice("device tree lacks clock specs, adding fallbacks (0x%x,%s%s%s%s%s%s%s%s%s%s)\n",
+		pr_yestice("device tree lacks clock specs, adding fallbacks (0x%x,%s%s%s%s%s%s%s%s%s%s)\n",
 			  did_register,
 			  (did_register & DID_REG_PSC) ? " PSC" : "",
 			  (did_register & DID_REG_PSCFIFO) ? " PSCFIFO" : "",
@@ -1164,22 +1164,22 @@ static void mpc5121_clk_provide_backwards_compat(void)
 			  (did_register & DID_REG_USB) ? " USB" : "",
 			  (did_register & DID_REG_PATA) ? " PATA" : "");
 	} else {
-		pr_debug("device tree has clock specs, no fallbacks added\n");
+		pr_debug("device tree has clock specs, yes fallbacks added\n");
 	}
 }
 
 /*
- * The "fixed-clock" nodes (which includes the oscillator node if the board's
+ * The "fixed-clock" yesdes (which includes the oscillator yesde if the board's
  * DT provides one) has already been scanned by the of_clk_init() in
  * time_init().
  */
 int __init mpc5121_clk_init(void)
 {
-	struct device_node *clk_np;
+	struct device_yesde *clk_np;
 	int busfreq;
 
 	/* map the clock control registers */
-	clk_np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-clock");
+	clk_np = of_find_compatible_yesde(NULL, NULL, "fsl,mpc5121-clock");
 	if (!clk_np)
 		return -ENODEV;
 	clkregs = of_iomap(clk_np, 0);
@@ -1188,18 +1188,18 @@ int __init mpc5121_clk_init(void)
 	/* determine the SoC variant we run on */
 	mpc512x_clk_determine_soc();
 
-	/* invalidate all not yet registered clock slots */
+	/* invalidate all yest yet registered clock slots */
 	mpc512x_clk_preset_data();
 
 	/*
 	 * add a dummy clock for those situations where a clock spec is
-	 * required yet no real clock is involved
+	 * required yet yes real clock is involved
 	 */
 	clks[MPC512x_CLK_DUMMY] = mpc512x_clk_fixed("dummy", 0);
 
 	/*
-	 * have all the real nodes in the clock tree populated from REF
-	 * down to all leaves, either starting from the OSC node or from
+	 * have all the real yesdes in the clock tree populated from REF
+	 * down to all leaves, either starting from the OSC yesde or from
 	 * a REF root that was created from the IPS bus clock input
 	 */
 	busfreq = get_freq_from_dt("bus-frequency");
@@ -1209,7 +1209,7 @@ int __init mpc5121_clk_init(void)
 	mpc5121_clk_register_of_provider(clk_np);
 
 	/*
-	 * unbreak not yet adjusted peripheral drivers during migration
+	 * unbreak yest yet adjusted peripheral drivers during migration
 	 * towards fully operational common clock support, and allow
 	 * operation in the absence of clock related device tree specs
 	 */

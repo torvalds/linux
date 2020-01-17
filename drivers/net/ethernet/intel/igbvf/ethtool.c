@@ -210,7 +210,7 @@ static int igbvf_set_ringparam(struct net_device *netdev,
 
 	if ((new_tx_count == adapter->tx_ring->count) &&
 	    (new_rx_count == adapter->rx_ring->count)) {
-		/* nothing to do */
+		/* yesthing to do */
 		return 0;
 	}
 

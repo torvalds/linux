@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* drivers/gpu/drm/exynos/regs-fimc.h
+/* drivers/gpu/drm/exyyess/regs-fimc.h
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/

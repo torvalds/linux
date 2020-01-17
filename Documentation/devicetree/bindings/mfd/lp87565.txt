@@ -3,12 +3,12 @@ TI LP87565 PMIC MFD driver
 Required properties:
   - compatible:	"ti,lp87565", "ti,lp87565-q1"
   - reg:		I2C slave address.
-  - gpio-controller:	Marks the device node as a GPIO Controller.
+  - gpio-controller:	Marks the device yesde as a GPIO Controller.
   - #gpio-cells:	Should be two.  The first cell is the pin number and
 			the second cell is used to specify flags.
 			See ../gpio/gpio.txt for more information.
-  - xxx-in-supply:	Phandle to parent supply node of each regulator
-			populated under regulators node. xxx should match
+  - xxx-in-supply:	Phandle to parent supply yesde of each regulator
+			populated under regulators yesde. xxx should match
 			the supply_name populated in driver.
 Example:
 
@@ -49,12 +49,12 @@ This is a single output 4-phase regulator configuration
 Required properties:
   - compatible:	"ti,lp87561-q1"
   - reg:		I2C slave address.
-  - gpio-controller:	Marks the device node as a GPIO Controller.
+  - gpio-controller:	Marks the device yesde as a GPIO Controller.
   - #gpio-cells:	Should be two.  The first cell is the pin number and
 			the second cell is used to specify flags.
 			See ../gpio/gpio.txt for more information.
-  - xxx-in-supply:	Phandle to parent supply node of each regulator
-			populated under regulators node. xxx should match
+  - xxx-in-supply:	Phandle to parent supply yesde of each regulator
+			populated under regulators yesde. xxx should match
 			the supply_name populated in driver.
 Example:
 

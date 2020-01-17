@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <asm/io.h>
@@ -160,7 +160,7 @@ void pnp_free_options(struct pnp_dev *dev)
 #define ranged_conflict(starta, enda, startb, endb) \
 	!((*(enda) < *(startb)) || (*(endb) < *(starta)))
 
-#define cannot_compare(flags) \
+#define canyest_compare(flags) \
 ((flags) & IORESOURCE_DISABLED)
 
 int pnp_check_port(struct pnp_dev *dev, struct resource *res)
@@ -174,7 +174,7 @@ int pnp_check_port(struct pnp_dev *dev, struct resource *res)
 	end = &res->end;
 
 	/* if the resource doesn't exist, don't complain about it */
-	if (cannot_compare(res->flags))
+	if (canyest_compare(res->flags))
 		return 1;
 
 	/* check if the resource is already in use, skip if the
@@ -211,7 +211,7 @@ int pnp_check_port(struct pnp_dev *dev, struct resource *res)
 		     (tres = pnp_get_resource(tdev, IORESOURCE_IO, i));
 		     i++) {
 			if (tres->flags & IORESOURCE_IO) {
-				if (cannot_compare(tres->flags))
+				if (canyest_compare(tres->flags))
 					continue;
 				if (tres->flags & IORESOURCE_WINDOW)
 					continue;
@@ -237,7 +237,7 @@ int pnp_check_mem(struct pnp_dev *dev, struct resource *res)
 	end = &res->end;
 
 	/* if the resource doesn't exist, don't complain about it */
-	if (cannot_compare(res->flags))
+	if (canyest_compare(res->flags))
 		return 1;
 
 	/* check if the resource is already in use, skip if the
@@ -274,7 +274,7 @@ int pnp_check_mem(struct pnp_dev *dev, struct resource *res)
 		     (tres = pnp_get_resource(tdev, IORESOURCE_MEM, i));
 		     i++) {
 			if (tres->flags & IORESOURCE_MEM) {
-				if (cannot_compare(tres->flags))
+				if (canyest_compare(tres->flags))
 					continue;
 				if (tres->flags & IORESOURCE_WINDOW)
 					continue;
@@ -359,7 +359,7 @@ int pnp_check_irq(struct pnp_dev *dev, struct resource *res)
 	irq = &res->start;
 
 	/* if the resource doesn't exist, don't complain about it */
-	if (cannot_compare(res->flags))
+	if (canyest_compare(res->flags))
 		return 1;
 
 	/* check if the resource is valid */
@@ -401,7 +401,7 @@ int pnp_check_irq(struct pnp_dev *dev, struct resource *res)
 		     (tres = pnp_get_resource(tdev, IORESOURCE_IRQ, i));
 		     i++) {
 			if (tres->flags & IORESOURCE_IRQ) {
-				if (cannot_compare(tres->flags))
+				if (canyest_compare(tres->flags))
 					continue;
 				if (tres->start == *irq)
 					return 0;
@@ -423,7 +423,7 @@ int pnp_check_dma(struct pnp_dev *dev, struct resource *res)
 	dma = &res->start;
 
 	/* if the resource doesn't exist, don't complain about it */
-	if (cannot_compare(res->flags))
+	if (canyest_compare(res->flags))
 		return 1;
 
 	/* check if the resource is valid */
@@ -460,7 +460,7 @@ int pnp_check_dma(struct pnp_dev *dev, struct resource *res)
 		     (tres = pnp_get_resource(tdev, IORESOURCE_DMA, i));
 		     i++) {
 			if (tres->flags & IORESOURCE_DMA) {
-				if (cannot_compare(tres->flags))
+				if (canyest_compare(tres->flags))
 					continue;
 				if (tres->start == *dma)
 					return 0;

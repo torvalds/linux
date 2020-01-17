@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -44,17 +44,17 @@ static int alloc_gm(struct intel_vgpu *vgpu, bool high_gm)
 	struct drm_i915_private *dev_priv = gvt->dev_priv;
 	unsigned int flags;
 	u64 start, end, size;
-	struct drm_mm_node *node;
+	struct drm_mm_yesde *yesde;
 	int ret;
 
 	if (high_gm) {
-		node = &vgpu->gm.high_gm_node;
+		yesde = &vgpu->gm.high_gm_yesde;
 		size = vgpu_hidden_sz(vgpu);
 		start = ALIGN(gvt_hidden_gmadr_base(gvt), I915_GTT_PAGE_SIZE);
 		end = ALIGN(gvt_hidden_gmadr_end(gvt), I915_GTT_PAGE_SIZE);
 		flags = PIN_HIGH;
 	} else {
-		node = &vgpu->gm.low_gm_node;
+		yesde = &vgpu->gm.low_gm_yesde;
 		size = vgpu_aperture_sz(vgpu);
 		start = ALIGN(gvt_aperture_gmadr_base(gvt), I915_GTT_PAGE_SIZE);
 		end = ALIGN(gvt_aperture_gmadr_end(gvt), I915_GTT_PAGE_SIZE);
@@ -63,7 +63,7 @@ static int alloc_gm(struct intel_vgpu *vgpu, bool high_gm)
 
 	mutex_lock(&dev_priv->ggtt.vm.mutex);
 	mmio_hw_access_pre(dev_priv);
-	ret = i915_gem_gtt_insert(&dev_priv->ggtt.vm, node,
+	ret = i915_gem_gtt_insert(&dev_priv->ggtt.vm, yesde,
 				  size, I915_GTT_PAGE_SIZE,
 				  I915_COLOR_UNEVICTABLE,
 				  start, end, flags);
@@ -99,7 +99,7 @@ static int alloc_vgpu_gm(struct intel_vgpu *vgpu)
 	return 0;
 out_free_aperture:
 	mutex_lock(&dev_priv->ggtt.vm.mutex);
-	drm_mm_remove_node(&vgpu->gm.low_gm_node);
+	drm_mm_remove_yesde(&vgpu->gm.low_gm_yesde);
 	mutex_unlock(&dev_priv->ggtt.vm.mutex);
 	return ret;
 }
@@ -109,8 +109,8 @@ static void free_vgpu_gm(struct intel_vgpu *vgpu)
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 
 	mutex_lock(&dev_priv->ggtt.vm.mutex);
-	drm_mm_remove_node(&vgpu->gm.low_gm_node);
-	drm_mm_remove_node(&vgpu->gm.high_gm_node);
+	drm_mm_remove_yesde(&vgpu->gm.low_gm_yesde);
+	drm_mm_remove_yesde(&vgpu->gm.high_gm_yesde);
 	mutex_unlock(&dev_priv->ggtt.vm.mutex);
 }
 
@@ -253,7 +253,7 @@ static int alloc_resource(struct intel_vgpu *vgpu,
 	request = MB_TO_BYTES(param->low_gm_sz);
 
 	if (request > avail)
-		goto no_enough_resource;
+		goto yes_eyesugh_resource;
 
 	vgpu_aperture_sz(vgpu) = ALIGN(request, I915_GTT_PAGE_SIZE);
 
@@ -264,7 +264,7 @@ static int alloc_resource(struct intel_vgpu *vgpu,
 	request = MB_TO_BYTES(param->high_gm_sz);
 
 	if (request > avail)
-		goto no_enough_resource;
+		goto yes_eyesugh_resource;
 
 	vgpu_hidden_sz(vgpu) = ALIGN(request, I915_GTT_PAGE_SIZE);
 
@@ -275,7 +275,7 @@ static int alloc_resource(struct intel_vgpu *vgpu,
 	request = param->fence_sz;
 
 	if (request > avail)
-		goto no_enough_resource;
+		goto yes_eyesugh_resource;
 
 	vgpu_fence_sz(vgpu) = request;
 
@@ -284,7 +284,7 @@ static int alloc_resource(struct intel_vgpu *vgpu,
 	gvt->fence.vgpu_allocated_fence_num += param->fence_sz;
 	return 0;
 
-no_enough_resource:
+yes_eyesugh_resource:
 	gvt_err("fail to allocate resource %s\n", item);
 	gvt_err("request %luMB avail %luMB max %luMB taken %luMB\n",
 		BYTES_TO_MB(request), BYTES_TO_MB(avail),

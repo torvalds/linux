@@ -30,9 +30,9 @@
  * Returns locked and up-to-date page (if ok), with increased
  * refcnt.
  */
-struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index)
+struct page *ecryptfs_get_locked_page(struct iyesde *iyesde, loff_t index)
 {
-	struct page *page = read_mapping_page(inode->i_mapping, index, NULL);
+	struct page *page = read_mapping_page(iyesde->i_mapping, index, NULL);
 	if (!IS_ERR(page))
 		lock_page(page);
 	return page;
@@ -42,7 +42,7 @@ struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index)
  * ecryptfs_writepage
  * @page: Page that is locked before this call is made
  *
- * Returns zero on success; non-zero otherwise
+ * Returns zero on success; yesn-zero otherwise
  *
  * This is where we encrypt the data and pass the encrypted data to
  * the lower filesystem.  In OpenPGP-compatible mode, we operate on
@@ -97,9 +97,9 @@ static void strip_xattr_flag(char *page_virt,
 /**
  * ecryptfs_copy_up_encrypted_with_header
  * @page: Sort of a ``virtual'' representation of the encrypted lower
- *        file. The actual lower file does not have the metadata in
+ *        file. The actual lower file does yest have the metadata in
  *        the header. This is locked.
- * @crypt_stat: The eCryptfs inode's cryptographic context
+ * @crypt_stat: The eCryptfs iyesde's cryptographic context
  *
  * The ``view'' is the version of the file that userspace winds up
  * seeing, with the header information inserted.
@@ -171,16 +171,16 @@ out:
 /**
  * ecryptfs_readpage
  * @file: An eCryptfs file
- * @page: Page from eCryptfs inode mapping into which to stick the read data
+ * @page: Page from eCryptfs iyesde mapping into which to stick the read data
  *
  * Read in a page, decrypting if necessary.
  *
- * Returns zero on success; non-zero on error.
+ * Returns zero on success; yesn-zero on error.
  */
 static int ecryptfs_readpage(struct file *file, struct page *page)
 {
 	struct ecryptfs_crypt_stat *crypt_stat =
-		&ecryptfs_inode_to_private(page->mapping->host)->crypt_stat;
+		&ecryptfs_iyesde_to_private(page->mapping->host)->crypt_stat;
 	int rc = 0;
 
 	if (!crypt_stat || !(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
@@ -230,16 +230,16 @@ out:
 }
 
 /**
- * Called with lower inode mutex held.
+ * Called with lower iyesde mutex held.
  */
 static int fill_zeros_to_end_of_page(struct page *page, unsigned int to)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	int end_byte_in_page;
 
-	if ((i_size_read(inode) / PAGE_SIZE) != page->index)
+	if ((i_size_read(iyesde) / PAGE_SIZE) != page->index)
 		goto out;
-	end_byte_in_page = i_size_read(inode) % PAGE_SIZE;
+	end_byte_in_page = i_size_read(iyesde) % PAGE_SIZE;
 	if (to > end_byte_in_page)
 		end_byte_in_page = to;
 	zero_user_segment(page, end_byte_in_page, PAGE_SIZE);
@@ -259,7 +259,7 @@ out:
  *
  * This function must zero any hole we create
  *
- * Returns zero on success; non-zero otherwise
+ * Returns zero on success; yesn-zero otherwise
  */
 static int ecryptfs_write_begin(struct file *file,
 			struct address_space *mapping,
@@ -279,7 +279,7 @@ static int ecryptfs_write_begin(struct file *file,
 	prev_page_end_size = ((loff_t)index << PAGE_SHIFT);
 	if (!PageUptodate(page)) {
 		struct ecryptfs_crypt_stat *crypt_stat =
-			&ecryptfs_inode_to_private(mapping->host)->crypt_stat;
+			&ecryptfs_iyesde_to_private(mapping->host)->crypt_stat;
 
 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
 			rc = ecryptfs_read_lower_page_segment(
@@ -369,13 +369,13 @@ out:
 }
 
 /**
- * ecryptfs_write_inode_size_to_header
+ * ecryptfs_write_iyesde_size_to_header
  *
  * Writes the lower file size to the first 8 bytes of the header.
  *
- * Returns zero on success; non-zero on error.
+ * Returns zero on success; yesn-zero on error.
  */
-static int ecryptfs_write_inode_size_to_header(struct inode *ecryptfs_inode)
+static int ecryptfs_write_iyesde_size_to_header(struct iyesde *ecryptfs_iyesde)
 {
 	char *file_size_virt;
 	int rc;
@@ -385,8 +385,8 @@ static int ecryptfs_write_inode_size_to_header(struct inode *ecryptfs_inode)
 		rc = -ENOMEM;
 		goto out;
 	}
-	put_unaligned_be64(i_size_read(ecryptfs_inode), file_size_virt);
-	rc = ecryptfs_write_lower(ecryptfs_inode, file_size_virt, 0,
+	put_unaligned_be64(i_size_read(ecryptfs_iyesde), file_size_virt);
+	rc = ecryptfs_write_lower(ecryptfs_iyesde, file_size_virt, 0,
 				  sizeof(u64));
 	kfree(file_size_virt);
 	if (rc < 0)
@@ -400,16 +400,16 @@ out:
 
 struct kmem_cache *ecryptfs_xattr_cache;
 
-static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
+static int ecryptfs_write_iyesde_size_to_xattr(struct iyesde *ecryptfs_iyesde)
 {
 	ssize_t size;
 	void *xattr_virt;
 	struct dentry *lower_dentry =
-		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_path.dentry;
-	struct inode *lower_inode = d_inode(lower_dentry);
+		ecryptfs_iyesde_to_private(ecryptfs_iyesde)->lower_file->f_path.dentry;
+	struct iyesde *lower_iyesde = d_iyesde(lower_dentry);
 	int rc;
 
-	if (!(lower_inode->i_opflags & IOP_XATTR)) {
+	if (!(lower_iyesde->i_opflags & IOP_XATTR)) {
 		printk(KERN_WARNING
 		       "No support for setting xattr in lower filesystem\n");
 		rc = -ENOSYS;
@@ -420,33 +420,33 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 		rc = -ENOMEM;
 		goto out;
 	}
-	inode_lock(lower_inode);
-	size = __vfs_getxattr(lower_dentry, lower_inode, ECRYPTFS_XATTR_NAME,
+	iyesde_lock(lower_iyesde);
+	size = __vfs_getxattr(lower_dentry, lower_iyesde, ECRYPTFS_XATTR_NAME,
 			      xattr_virt, PAGE_SIZE);
 	if (size < 0)
 		size = 8;
-	put_unaligned_be64(i_size_read(ecryptfs_inode), xattr_virt);
-	rc = __vfs_setxattr(lower_dentry, lower_inode, ECRYPTFS_XATTR_NAME,
+	put_unaligned_be64(i_size_read(ecryptfs_iyesde), xattr_virt);
+	rc = __vfs_setxattr(lower_dentry, lower_iyesde, ECRYPTFS_XATTR_NAME,
 			    xattr_virt, size, 0);
-	inode_unlock(lower_inode);
+	iyesde_unlock(lower_iyesde);
 	if (rc)
-		printk(KERN_ERR "Error whilst attempting to write inode size "
+		printk(KERN_ERR "Error whilst attempting to write iyesde size "
 		       "to lower file xattr; rc = [%d]\n", rc);
 	kmem_cache_free(ecryptfs_xattr_cache, xattr_virt);
 out:
 	return rc;
 }
 
-int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptfs_inode)
+int ecryptfs_write_iyesde_size_to_metadata(struct iyesde *ecryptfs_iyesde)
 {
 	struct ecryptfs_crypt_stat *crypt_stat;
 
-	crypt_stat = &ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
+	crypt_stat = &ecryptfs_iyesde_to_private(ecryptfs_iyesde)->crypt_stat;
 	BUG_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
-		return ecryptfs_write_inode_size_to_xattr(ecryptfs_inode);
+		return ecryptfs_write_iyesde_size_to_xattr(ecryptfs_iyesde);
 	else
-		return ecryptfs_write_inode_size_to_header(ecryptfs_inode);
+		return ecryptfs_write_iyesde_size_to_header(ecryptfs_iyesde);
 }
 
 /**
@@ -467,20 +467,20 @@ static int ecryptfs_write_end(struct file *file,
 	pgoff_t index = pos >> PAGE_SHIFT;
 	unsigned from = pos & (PAGE_SIZE - 1);
 	unsigned to = from + copied;
-	struct inode *ecryptfs_inode = mapping->host;
+	struct iyesde *ecryptfs_iyesde = mapping->host;
 	struct ecryptfs_crypt_stat *crypt_stat =
-		&ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
+		&ecryptfs_iyesde_to_private(ecryptfs_iyesde)->crypt_stat;
 	int rc;
 
 	ecryptfs_printk(KERN_DEBUG, "Calling fill_zeros_to_end_of_page"
 			"(page w/ index = [0x%.16lx], to = [%d])\n", index, to);
 	if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-		rc = ecryptfs_write_lower_page_segment(ecryptfs_inode, page, 0,
+		rc = ecryptfs_write_lower_page_segment(ecryptfs_iyesde, page, 0,
 						       to);
 		if (!rc) {
 			rc = copied;
-			fsstack_copy_inode_size(ecryptfs_inode,
-				ecryptfs_inode_to_lower(ecryptfs_inode));
+			fsstack_copy_iyesde_size(ecryptfs_iyesde,
+				ecryptfs_iyesde_to_lower(ecryptfs_iyesde));
 		}
 		goto out;
 	}
@@ -491,7 +491,7 @@ static int ecryptfs_write_end(struct file *file,
 		}
 		SetPageUptodate(page);
 	}
-	/* Fills in zeros if 'to' goes beyond inode size */
+	/* Fills in zeros if 'to' goes beyond iyesde size */
 	rc = fill_zeros_to_end_of_page(page, to);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "Error attempting to fill "
@@ -504,15 +504,15 @@ static int ecryptfs_write_end(struct file *file,
 				"index [0x%.16lx])\n", index);
 		goto out;
 	}
-	if (pos + copied > i_size_read(ecryptfs_inode)) {
-		i_size_write(ecryptfs_inode, pos + copied);
+	if (pos + copied > i_size_read(ecryptfs_iyesde)) {
+		i_size_write(ecryptfs_iyesde, pos + copied);
 		ecryptfs_printk(KERN_DEBUG, "Expanded file size to "
 			"[0x%.16llx]\n",
-			(unsigned long long)i_size_read(ecryptfs_inode));
+			(unsigned long long)i_size_read(ecryptfs_iyesde));
 	}
-	rc = ecryptfs_write_inode_size_to_metadata(ecryptfs_inode);
+	rc = ecryptfs_write_iyesde_size_to_metadata(ecryptfs_iyesde);
 	if (rc)
-		printk(KERN_ERR "Error writing inode size to metadata; "
+		printk(KERN_ERR "Error writing iyesde size to metadata; "
 		       "rc = [%d]\n", rc);
 	else
 		rc = copied;
@@ -525,13 +525,13 @@ out:
 static sector_t ecryptfs_bmap(struct address_space *mapping, sector_t block)
 {
 	int rc = 0;
-	struct inode *inode;
-	struct inode *lower_inode;
+	struct iyesde *iyesde;
+	struct iyesde *lower_iyesde;
 
-	inode = (struct inode *)mapping->host;
-	lower_inode = ecryptfs_inode_to_lower(inode);
-	if (lower_inode->i_mapping->a_ops->bmap)
-		rc = lower_inode->i_mapping->a_ops->bmap(lower_inode->i_mapping,
+	iyesde = (struct iyesde *)mapping->host;
+	lower_iyesde = ecryptfs_iyesde_to_lower(iyesde);
+	if (lower_iyesde->i_mapping->a_ops->bmap)
+		rc = lower_iyesde->i_mapping->a_ops->bmap(lower_iyesde->i_mapping,
 							 block);
 	return rc;
 }

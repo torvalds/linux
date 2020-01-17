@@ -19,7 +19,7 @@
  * Usually the full path for a script is:
  *	/home/username/libexec/perf-core/scripts/python/xxx.py
  *	/home/username/libexec/perf-core/scripts/perl/xxx.pl
- * So 256 should be long enough to contain the full path.
+ * So 256 should be long eyesugh to contain the full path.
  */
 #define SCRIPT_FULLPATH_LEN	256
 
@@ -158,7 +158,7 @@ void run_script(char *cmd)
 	pr_debug("Running %s\n", cmd);
 	SLang_reset_tty();
 	if (system(cmd) < 0)
-		pr_warning("Cannot run %s\n", cmd);
+		pr_warning("Canyest run %s\n", cmd);
 	/*
 	 * SLang doesn't seem to reset the whole terminal, so be more
 	 * forceful to get back to the original state.

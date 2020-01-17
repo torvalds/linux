@@ -71,7 +71,7 @@ config NF_DUP_IPV4
 	depends on !NF_CONNTRACK || NF_CONNTRACK
 	help
 	  This option enables the nf_dup_ipv4 core, which duplicates an IPv4
-	  packet to be rerouted to another destination.
+	  packet to be rerouted to ayesther destination.
 
 config NF_LOG_ARP
 	tristate "ARP packet logging"
@@ -125,7 +125,7 @@ config IP_NF_IPTABLES
 	help
 	  iptables is a general, extensible packet identification framework.
 	  The packet filtering and full NAT (masquerading, port forwarding,
-	  etc) subsystems now use this: say `Y' or `M' here if you want to use
+	  etc) subsystems yesw use this: say `Y' or `M' here if you want to use
 	  either of those.
 
 	  To compile it as a module, choose M here.  If unsure, say N.

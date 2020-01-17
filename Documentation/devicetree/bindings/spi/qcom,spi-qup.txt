@@ -30,7 +30,7 @@ Optional properties:
 - num-cs:	total number of chipselects
 - cs-gpios:	should specify GPIOs used for chipselects.
 		The gpios will be referred to as reg = <index> in the SPI child
-		nodes.  If unspecified, a single SPI device without a chip
+		yesdes.  If unspecified, a single SPI device without a chip
 		select can be used.
 
 - dmas:         Two DMA channel specifiers following the convention outlined
@@ -39,7 +39,7 @@ Optional properties:
                 least one channel named "tx" for transmit and named "rx" for
                 receive.
 
-SPI slave nodes must be children of the SPI master node and can contain
+SPI slave yesdes must be children of the SPI master yesde and can contain
 properties described in Documentation/devicetree/bindings/spi/spi-bus.txt
 
 Example:

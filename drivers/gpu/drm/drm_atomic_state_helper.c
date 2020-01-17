@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -171,10 +171,10 @@ void __drm_atomic_helper_crtc_destroy_state(struct drm_crtc_state *state)
 {
 	if (state->commit) {
 		/*
-		 * In the event that a non-blocking commit returns
+		 * In the event that a yesn-blocking commit returns
 		 * -ERESTARTSYS before the commit_tail work is queued, we will
 		 * have an extra reference to the commit object. Release it, if
-		 * the event has not been consumed by the worker.
+		 * the event has yest been consumed by the worker.
 		 *
 		 * state->event may be freed, so we can't directly look at
 		 * state->event->base.completion.
@@ -213,8 +213,8 @@ EXPORT_SYMBOL(drm_atomic_helper_crtc_destroy_state);
 
 /**
  * __drm_atomic_helper_plane_reset - resets planes state to default values
- * @plane: plane object, must not be NULL
- * @state: atomic plane state, must not be NULL
+ * @plane: plane object, must yest be NULL
+ * @state: atomic plane state, must yest be NULL
  *
  * Initializes plane state to default. This is useful for drivers that subclass
  * the plane state.

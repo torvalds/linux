@@ -146,7 +146,7 @@ static void shmob_drm_crtc_start_stop(struct shmob_drm_crtc *scrtc, bool start)
  * @scrtc: the SH Mobile CRTC
  *
  * Configure and start the LCDC device. External devices (clocks, MERAM, panels,
- * ...) are not touched by this function.
+ * ...) are yest touched by this function.
  */
 static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 {
@@ -186,7 +186,7 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 	value = sdev->lddckr;
 	if (idata->clk_div) {
 		/* FIXME: sh7724 can only use 42, 48, 54 and 60 for the divider
-		 * denominator.
+		 * deyesminator.
 		 */
 		lcdc_write(sdev, LDDCKPAT1R, 0);
 		lcdc_write(sdev, LDDCKPAT2R, (1 << (idata->clk_div / 2)) - 1);
@@ -206,7 +206,7 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 	/* Setup geometry, format, frame buffer memory and operation mode. */
 	shmob_drm_crtc_setup_geometry(scrtc);
 
-	/* TODO: Handle YUV colorspaces. Hardcode REC709 for now. */
+	/* TODO: Handle YUV colorspaces. Hardcode REC709 for yesw. */
 	lcdc_write(sdev, LDDFR, format->lddfr | LDDFR_CF1);
 	lcdc_write(sdev, LDMLSR, scrtc->line_size);
 	lcdc_write(sdev, LDSA1R, scrtc->dma[0]);
@@ -439,7 +439,7 @@ static void shmob_drm_crtc_enable_vblank(struct shmob_drm_device *sdev,
 	unsigned long flags;
 	u32 ldintr;
 
-	/* Be careful not to acknowledge any pending interrupt. */
+	/* Be careful yest to ackyeswledge any pending interrupt. */
 	spin_lock_irqsave(&sdev->irq_lock, flags);
 	ldintr = lcdc_read(sdev, LDINTR) | LDINTR_STATUS_MASK;
 	if (enable)

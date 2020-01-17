@@ -71,7 +71,7 @@ static int qcom_hfpll_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	if (of_property_read_string_index(dev->of_node, "clock-output-names",
+	if (of_property_read_string_index(dev->of_yesde, "clock-output-names",
 					  0, &init.name))
 		return -ENODEV;
 

@@ -13,7 +13,7 @@ static void kmsg_dumper_stdout(struct kmsg_dumper *dumper,
 	size_t len = 0;
 	bool con_available = false;
 
-	/* only dump kmsg when no console is available */
+	/* only dump kmsg when yes console is available */
 	if (!console_trylock())
 		return;
 

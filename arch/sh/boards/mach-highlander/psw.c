@@ -23,7 +23,7 @@ static irqreturn_t psw_irq_handler(int irq, void *arg)
 
 	l = __raw_readw(PA_DBSW);
 
-	/* Nothing to do if there's no state change */
+	/* Nothing to do if there's yes state change */
 	if (psw->state) {
 		ret = 1;
 		goto out;

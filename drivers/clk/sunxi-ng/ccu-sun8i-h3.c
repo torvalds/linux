@@ -40,9 +40,9 @@ static SUNXI_CCU_NKMP_WITH_GATE_LOCK(pll_cpux_clk, "pll-cpux",
  *
  * With sigma-delta modulation for fractional-N on the audio PLL,
  * we have to use specific dividers. This means the variable divider
- * can no longer be used, as the audio codec requests the exact clock
- * rates we support through this mechanism. So we now hard code the
- * variable divider to 1. This means the clock rates will no longer
+ * can yes longer be used, as the audio codec requests the exact clock
+ * rates we support through this mechanism. So we yesw hard code the
+ * variable divider to 1. This means the clock rates will yes longer
  * match the clock names.
  */
 #define SUN8I_H3_PLL_AUDIO_REG	0x008
@@ -721,7 +721,7 @@ static const struct clk_hw *clk_parent_pll_audio[] = {
 	&pll_audio_base_clk.common.hw
 };
 
-/* We hardcode the divider to 1 for now */
+/* We hardcode the divider to 1 for yesw */
 static CLK_FIXED_FACTOR_HWS(pll_audio_clk, "pll-audio",
 			    clk_parent_pll_audio,
 			    1, 1, CLK_SET_RATE_PARENT);
@@ -1136,15 +1136,15 @@ static struct ccu_mux_nb sun8i_h3_cpu_nb = {
 	.bypass_index	= 1, /* index of 24 MHz oscillator */
 };
 
-static void __init sunxi_h3_h5_ccu_init(struct device_node *node,
+static void __init sunxi_h3_h5_ccu_init(struct device_yesde *yesde,
 					const struct sunxi_ccu_desc *desc)
 {
 	void __iomem *reg;
 	u32 val;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(yesde, 0, of_yesde_full_name(yesde));
 	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
+		pr_err("%pOF: Could yest map the clock registers\n", yesde);
 		return;
 	}
 
@@ -1153,26 +1153,26 @@ static void __init sunxi_h3_h5_ccu_init(struct device_node *node,
 	val &= ~GENMASK(19, 16);
 	writel(val | (0 << 16), reg + SUN8I_H3_PLL_AUDIO_REG);
 
-	sunxi_ccu_probe(node, reg, desc);
+	sunxi_ccu_probe(yesde, reg, desc);
 
 	/* Gate then ungate PLL CPU after any rate changes */
-	ccu_pll_notifier_register(&sun8i_h3_pll_cpu_nb);
+	ccu_pll_yestifier_register(&sun8i_h3_pll_cpu_nb);
 
 	/* Reparent CPU during PLL CPU rate changes */
-	ccu_mux_notifier_register(pll_cpux_clk.common.hw.clk,
+	ccu_mux_yestifier_register(pll_cpux_clk.common.hw.clk,
 				  &sun8i_h3_cpu_nb);
 }
 
-static void __init sun8i_h3_ccu_setup(struct device_node *node)
+static void __init sun8i_h3_ccu_setup(struct device_yesde *yesde)
 {
-	sunxi_h3_h5_ccu_init(node, &sun8i_h3_ccu_desc);
+	sunxi_h3_h5_ccu_init(yesde, &sun8i_h3_ccu_desc);
 }
 CLK_OF_DECLARE(sun8i_h3_ccu, "allwinner,sun8i-h3-ccu",
 	       sun8i_h3_ccu_setup);
 
-static void __init sun50i_h5_ccu_setup(struct device_node *node)
+static void __init sun50i_h5_ccu_setup(struct device_yesde *yesde)
 {
-	sunxi_h3_h5_ccu_init(node, &sun50i_h5_ccu_desc);
+	sunxi_h3_h5_ccu_init(yesde, &sun50i_h5_ccu_desc);
 }
 CLK_OF_DECLARE(sun50i_h5_ccu, "allwinner,sun50i-h5-ccu",
 	       sun50i_h5_ccu_setup);

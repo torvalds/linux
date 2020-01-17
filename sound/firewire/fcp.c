@@ -57,8 +57,8 @@ int avc_general_set_sig_fmt(struct fw_unit *unit, unsigned int rate,
 	buf[3] = 0xff & pid;	/* plug id */
 	buf[4] = 0x90;		/* EOH_1, Form_1, FMT. AM824 */
 	buf[5] = 0x07 & sfc;	/* FDF-hi. AM824, frequency */
-	buf[6] = 0xff;		/* FDF-mid. AM824, SYT hi (not used)*/
-	buf[7] = 0xff;		/* FDF-low. AM824, SYT lo (not used) */
+	buf[6] = 0xff;		/* FDF-mid. AM824, SYT hi (yest used)*/
+	buf[7] = 0xff;		/* FDF-low. AM824, SYT lo (yest used) */
 
 	/* do transaction and check buf[1-5] are the same against command */
 	err = fcp_avc_transaction(unit, buf, 8, buf, 8,
@@ -102,8 +102,8 @@ int avc_general_get_sig_fmt(struct fw_unit *unit, unsigned int *rate,
 	buf[3] = 0xff & pid;	/* plug id */
 	buf[4] = 0x90;		/* EOH_1, Form_1, FMT. AM824 */
 	buf[5] = 0xff;		/* FDF-hi. AM824, frequency */
-	buf[6] = 0xff;		/* FDF-mid. AM824, SYT hi (not used) */
-	buf[7] = 0xff;		/* FDF-low. AM824, SYT lo (not used) */
+	buf[6] = 0xff;		/* FDF-mid. AM824, SYT hi (yest used) */
+	buf[7] = 0xff;		/* FDF-low. AM824, SYT lo (yest used) */
 
 	/* do transaction and check buf[1-4] are the same against command */
 	err = fcp_avc_transaction(unit, buf, 8, buf, 8,
@@ -143,7 +143,7 @@ int avc_general_get_plug_info(struct fw_unit *unit, unsigned int subunit_type,
 	u8 *buf;
 	int err;
 
-	/* extended subunit in spec.4.2 is not supported */
+	/* extended subunit in spec.4.2 is yest supported */
 	if ((subunit_type == 0x1E) || (subunit_id == 5))
 		return -EINVAL;
 
@@ -262,11 +262,11 @@ deferred:
 
 		if (t.state == STATE_DEFERRED) {
 			/*
-			 * 'AV/C General Specification' define no time limit
+			 * 'AV/C General Specification' define yes time limit
 			 * on command completion once an INTERIM response has
 			 * been sent. but we promise to finish this function
 			 * for a caller. Here we use FCP_TIMEOUT_MS for next
-			 * interval. This is not in the specification.
+			 * interval. This is yest in the specification.
 			 */
 			t.state = STATE_PENDING;
 			goto deferred;
@@ -354,8 +354,8 @@ static void fcp_response(struct fw_card *card, struct fw_request *request,
 		if (device->card != card ||
 		    device->generation != generation)
 			continue;
-		smp_rmb(); /* node_id vs. generation */
-		if (device->node_id != source)
+		smp_rmb(); /* yesde_id vs. generation */
+		if (device->yesde_id != source)
 			continue;
 
 		if (t->state == STATE_PENDING &&

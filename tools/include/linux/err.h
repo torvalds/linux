@@ -5,19 +5,19 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 /*
  * Original kernel header comment:
  *
  * Kernel pointers have redundant information, so we can use a
- * scheme where we can return either an error code or a normal
+ * scheme where we can return either an error code or a yesrmal
  * pointer with the same return value.
  *
  * This should be a per-architecture thing, to allow different
  * error and pointer decisions.
  *
- * Userspace note:
+ * Userspace yeste:
  * The same principle works for userspace, because 'error' pointers
  * fall down to the unused hole far from user space, as described
  * in Documentation/x86/x86_64/mm.rst for x86_64 arch:
@@ -61,10 +61,10 @@ static inline int __must_check PTR_ERR_OR_ZERO(__force const void *ptr)
 }
 
 /**
- * ERR_CAST - Explicitly cast an error-valued pointer to another pointer type
+ * ERR_CAST - Explicitly cast an error-valued pointer to ayesther pointer type
  * @ptr: The pointer to cast.
  *
- * Explicitly cast an error-valued pointer to another pointer type in such a
+ * Explicitly cast an error-valued pointer to ayesther pointer type in such a
  * way as to make it clear that's what's going on.
  */
 static inline void * __must_check ERR_CAST(__force const void *ptr)

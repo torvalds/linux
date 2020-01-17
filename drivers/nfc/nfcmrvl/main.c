@@ -230,7 +230,7 @@ int nfcmrvl_nci_recv_frame(struct nfcmrvl_private *priv, struct sk_buff *skb)
 	if (test_bit(NFCMRVL_NCI_RUNNING, &priv->flags))
 		nci_recv_frame(priv->ndev, skb);
 	else {
-		/* Drop this packet since nobody wants it */
+		/* Drop this packet since yesbody wants it */
 		kfree_skb(skb);
 		return 0;
 	}
@@ -250,7 +250,7 @@ void nfcmrvl_chip_reset(struct nfcmrvl_private *priv)
 		usleep_range(5000, 10000);
 		gpio_set_value(priv->config.reset_n_io, 1);
 	} else
-		nfc_info(priv->dev, "no reset available on this interface\n");
+		nfc_info(priv->dev, "yes reset available on this interface\n");
 }
 
 void nfcmrvl_chip_halt(struct nfcmrvl_private *priv)
@@ -259,21 +259,21 @@ void nfcmrvl_chip_halt(struct nfcmrvl_private *priv)
 		gpio_set_value(priv->config.reset_n_io, 0);
 }
 
-int nfcmrvl_parse_dt(struct device_node *node,
+int nfcmrvl_parse_dt(struct device_yesde *yesde,
 		     struct nfcmrvl_platform_data *pdata)
 {
 	int reset_n_io;
 
-	reset_n_io = of_get_named_gpio(node, "reset-n-io", 0);
+	reset_n_io = of_get_named_gpio(yesde, "reset-n-io", 0);
 	if (reset_n_io < 0) {
-		pr_info("no reset-n-io config\n");
+		pr_info("yes reset-n-io config\n");
 	} else if (!gpio_is_valid(reset_n_io)) {
 		pr_err("invalid reset-n-io GPIO\n");
 		return reset_n_io;
 	}
 	pdata->reset_n_io = reset_n_io;
 
-	if (of_find_property(node, "hci-muxed", NULL))
+	if (of_find_property(yesde, "hci-muxed", NULL))
 		pdata->hci_muxed = 1;
 	else
 		pdata->hci_muxed = 0;

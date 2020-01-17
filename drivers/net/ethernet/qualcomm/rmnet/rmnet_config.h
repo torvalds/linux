@@ -15,7 +15,7 @@
 struct rmnet_endpoint {
 	u8 mux_id;
 	struct net_device *egress_dev;
-	struct hlist_node hlnode;
+	struct hlist_yesde hlyesde;
 };
 
 /* One instance of this structure is instantiated for each real_dev associated

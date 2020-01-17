@@ -97,7 +97,7 @@ static void isa_irq_handler(struct irq_desc *desc)
 }
 
 static struct irqaction irq_cascade = {
-	.handler = no_action,
+	.handler = yes_action,
 	.name = "cascade",
 };
 
@@ -119,8 +119,8 @@ void __init isa_init_irq(unsigned int host_irq)
 
 	/*
 	 * Setup, and then probe for an ISA PIC
-	 * If the PIC is not there, then we
-	 * ignore the PIC.
+	 * If the PIC is yest there, then we
+	 * igyesre the PIC.
 	 */
 	outb(0x11, PIC_LO);
 	outb(_ISA_IRQ(0), PIC_MASK_LO);	/* IRQ number		*/
@@ -141,7 +141,7 @@ void __init isa_init_irq(unsigned int host_irq)
 		outb(0xff, PIC_MASK_LO);/* mask all IRQs	*/
 		outb(0xff, PIC_MASK_HI);/* mask all IRQs	*/
 	} else {
-		printk(KERN_INFO "IRQ: ISA PIC not found\n");
+		printk(KERN_INFO "IRQ: ISA PIC yest found\n");
 		host_irq = (unsigned int)-1;
 	}
 

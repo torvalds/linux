@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -185,7 +185,7 @@ nv50_fb_intr(struct nvkm_fb *base)
 		   (trap[5] & 0x00000100) ? "read" : "write",
 		   trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff,
 		   chan ? chan->chid : -1, inst,
-		   chan ? chan->object.client->name : "unknown",
+		   chan ? chan->object.client->name : "unkyeswn",
 		   st0, en ? en->name : "",
 		   st2, cl ? cl->name : "", st3, sc ? sc->name : "",
 		   st1, re ? re->name : "");

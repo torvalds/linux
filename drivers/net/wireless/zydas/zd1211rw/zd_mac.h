@@ -263,7 +263,7 @@ static inline u8 zd_cck_plcp_header_signal(const struct cck_plcp_header *header)
  * if technically wrong we use CCK here also for the 1 MBit/s and 2 MBit/s
  * rate to stay consistent with Zydas and our use of the term.
  *
- * Notify that these values are *not* used in the zd-rates.
+ * Notify that these values are *yest* used in the zd-rates.
  */
 #define ZD_CCK_PLCP_SIGNAL_1M	0x0a
 #define ZD_CCK_PLCP_SIGNAL_2M	0x14

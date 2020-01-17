@@ -32,7 +32,7 @@
 #define I40E_ITR_TX_DEF		(I40E_ITR_20K | I40E_ITR_DYNAMIC)
 
 /* 0x40 is the enable bit for interrupt rate limiting, and must be set if
- * the value of the rate limit is non-zero
+ * the value of the rate limit is yesn-zero
  */
 #define INTRL_ENA                  BIT(6)
 #define I40E_MAX_INTRL             0x3B    /* reg uses 4 usec resolution */
@@ -60,14 +60,14 @@ static inline u16 i40e_intrl_usec_to_reg(int intrl)
 
 /* this enum matches hardware bits and is meant to be used by DYN_CTLN
  * registers and QINT registers or more generally anywhere in the manual
- * mentioning ITR_INDX, ITR_NONE cannot be used as an index 'n' into any
+ * mentioning ITR_INDX, ITR_NONE canyest be used as an index 'n' into any
  * register but instead is a special value meaning "don't update" ITR0/1/2.
  */
 enum i40e_dyn_idx_t {
 	I40E_IDX_ITR0 = 0,
 	I40E_IDX_ITR1 = 1,
 	I40E_IDX_ITR2 = 2,
-	I40E_ITR_NONE = 3	/* ITR_NONE must not be used as an index */
+	I40E_ITR_NONE = 3	/* ITR_NONE must yest be used as an index */
 };
 
 /* these are indexes into ITRN registers */
@@ -150,10 +150,10 @@ static inline int i40e_skb_pad(void)
 {
 	int rx_buf_len;
 
-	/* If a 2K buffer cannot handle a standard Ethernet frame then
+	/* If a 2K buffer canyest handle a standard Ethernet frame then
 	 * optimize padding for a 3K buffer instead of a 1.5K buffer.
 	 *
-	 * For a 3K buffer we need to add enough padding to allow for
+	 * For a 3K buffer we need to add eyesugh padding to allow for
 	 * tailroom due to NET_IP_ALIGN possibly shifting us out of
 	 * cache-line alignment.
 	 */
@@ -232,7 +232,7 @@ static inline bool i40e_test_staterr(union i40e_rx_desc *rx_desc,
  * @size: transmit request size in bytes
  *
  * Due to hardware alignment restrictions (4K alignment), we need to
- * assume that we can have no more than 12K of data per descriptor, even
+ * assume that we can have yes more than 12K of data per descriptor, even
  * though each descriptor can take up to 16K - 1 bytes of aligned memory.
  * Thus, we need to divide by 12K. But division is slow! Instead,
  * we decompose the operation into shifts and one relatively cheap
@@ -324,7 +324,7 @@ struct i40e_tx_queue_stats {
 };
 
 struct i40e_rx_queue_stats {
-	u64 non_eop_descs;
+	u64 yesn_eop_descs;
 	u64 alloc_page_failed;
 	u64 alloc_buff_failed;
 	u64 page_reuse_count;
@@ -382,7 +382,7 @@ struct i40e_ring {
 	u8 atr_sample_rate;
 	u8 atr_count;
 
-	bool ring_active;		/* is ring online or not */
+	bool ring_active;		/* is ring online or yest */
 	bool arm_wb;		/* do something to arm write back */
 	u8 packet_stride;
 
@@ -420,7 +420,7 @@ struct i40e_ring {
 	struct xdp_rxq_info xdp_rxq;
 	struct xdp_umem *xsk_umem;
 	struct zero_copy_allocator zca; /* ZC allocator anchor */
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 static inline bool ring_uses_build_skb(struct i40e_ring *ring)
 {
@@ -516,7 +516,7 @@ static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
  * @tx_ring: ring to send buffer on
  *
  * Returns number of data descriptors needed for this skb. Returns 0 to indicate
- * there is not enough descriptors available in this ring since we need at least
+ * there is yest eyesugh descriptors available in this ring since we need at least
  * one descriptor.
  **/
 static inline int i40e_xmit_descriptor_count(struct sk_buff *skb)
@@ -542,7 +542,7 @@ static inline int i40e_xmit_descriptor_count(struct sk_buff *skb)
  * @tx_ring: the ring to be checked
  * @size:    the size buffer we want to assure is available
  *
- * Returns 0 if stop is not needed
+ * Returns 0 if stop is yest needed
  **/
 static inline int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 {

@@ -20,7 +20,7 @@ Required properties:
 			  the second cell is used to specify flags. See
 			  ../gpio/gpio.txt for more information.
  - #clock-cells		: Should be 0.
- - regulators:		: List of child nodes that specify the regulators.
+ - regulators:		: List of child yesdes that specify the regulators.
 			  Please see ../regulator/rohm,bd70528-regulator.txt
 
 Optional properties:

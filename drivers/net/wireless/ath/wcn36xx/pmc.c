@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -30,11 +30,11 @@ int wcn36xx_pmc_enter_bmps_state(struct wcn36xx *wcn,
 		vif_priv->pw_state = WCN36XX_BMPS;
 	} else {
 		/*
-		 * One of the reasons why HW will not enter BMPS is because
+		 * One of the reasons why HW will yest enter BMPS is because
 		 * driver is trying to enter bmps before first beacon was
 		 * received just after auth complete
 		 */
-		wcn36xx_err("Can not enter BMPS!\n");
+		wcn36xx_err("Can yest enter BMPS!\n");
 	}
 	return ret;
 }
@@ -47,7 +47,7 @@ int wcn36xx_pmc_exit_bmps_state(struct wcn36xx *wcn,
 	if (WCN36XX_BMPS != vif_priv->pw_state) {
 		/* Unbalanced call or last BMPS enter failed */
 		wcn36xx_dbg(WCN36XX_DBG_PMC,
-			    "Not in BMPS mode, no need to exit\n");
+			    "Not in BMPS mode, yes need to exit\n");
 		return -EALREADY;
 	}
 	wcn36xx_smd_exit_bmps(wcn, vif);

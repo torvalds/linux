@@ -70,37 +70,37 @@ static struct clk_ops clk_pll_ops = {
 	.get_parent = clk_pll_get_parent,
 };
 
-static __init struct clk *__socfpga_pll_init(struct device_node *node,
+static __init struct clk *__socfpga_pll_init(struct device_yesde *yesde,
 	const struct clk_ops *ops)
 {
 	u32 reg;
 	struct clk *clk;
 	struct socfpga_pll *pll_clk;
-	const char *clk_name = node->name;
+	const char *clk_name = yesde->name;
 	const char *parent_name[SOCFPGA_MAX_PARENTS];
 	struct clk_init_data init;
-	struct device_node *clkmgr_np;
+	struct device_yesde *clkmgr_np;
 	int rc;
 
-	of_property_read_u32(node, "reg", &reg);
+	of_property_read_u32(yesde, "reg", &reg);
 
 	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
 	if (WARN_ON(!pll_clk))
 		return NULL;
 
-	clkmgr_np = of_find_compatible_node(NULL, NULL, "altr,clk-mgr");
+	clkmgr_np = of_find_compatible_yesde(NULL, NULL, "altr,clk-mgr");
 	clk_mgr_base_addr = of_iomap(clkmgr_np, 0);
-	of_node_put(clkmgr_np);
+	of_yesde_put(clkmgr_np);
 	BUG_ON(!clk_mgr_base_addr);
 	pll_clk->hw.reg = clk_mgr_base_addr + reg;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(yesde, "clock-output-names", &clk_name);
 
 	init.name = clk_name;
 	init.ops = ops;
 	init.flags = 0;
 
-	init.num_parents = of_clk_parent_fill(node, parent_name, SOCFPGA_MAX_PARENTS);
+	init.num_parents = of_clk_parent_fill(yesde, parent_name, SOCFPGA_MAX_PARENTS);
 	init.parent_names = parent_name;
 	pll_clk->hw.hw.init = &init;
 
@@ -113,11 +113,11 @@ static __init struct clk *__socfpga_pll_init(struct device_node *node,
 		kfree(pll_clk);
 		return NULL;
 	}
-	rc = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	rc = of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 	return clk;
 }
 
-void __init socfpga_pll_init(struct device_node *node)
+void __init socfpga_pll_init(struct device_yesde *yesde)
 {
-	__socfpga_pll_init(node, &clk_pll_ops);
+	__socfpga_pll_init(yesde, &clk_pll_ops);
 }

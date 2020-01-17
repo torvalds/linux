@@ -179,7 +179,7 @@ struct myrs_ctlr_info {
 	unsigned char rsvd4[16];		/* Bytes 48-63 */
 	/* Firmware Release Information */
 	unsigned char fw_major_version;		/* Byte 64 */
-	unsigned char fw_minor_version;		/* Byte 65 */
+	unsigned char fw_miyesr_version;		/* Byte 65 */
 	unsigned char fw_turn_number;		/* Byte 66 */
 	unsigned char fw_build_number;		/* Byte 67 */
 	unsigned char fw_release_day;		/* Byte 68 */
@@ -372,7 +372,7 @@ enum myrs_raid_level {
 } __packed;
 
 enum myrs_stripe_size {
-	MYRS_STRIPE_SIZE_0	= 0x0,	/* no stripe (RAID 1, RAID 7, etc) */
+	MYRS_STRIPE_SIZE_0	= 0x0,	/* yes stripe (RAID 1, RAID 7, etc) */
 	MYRS_STRIPE_SIZE_512B	= 0x1,
 	MYRS_STRIPE_SIZE_1K	= 0x2,
 	MYRS_STRIPE_SIZE_2K	= 0x3,
@@ -388,7 +388,7 @@ enum myrs_stripe_size {
 } __packed;
 
 enum myrs_cacheline_size {
-	MYRS_CACHELINE_ZERO	= 0x0,	/* caching cannot be enabled */
+	MYRS_CACHELINE_ZERO	= 0x0,	/* caching canyest be enabled */
 	MYRS_CACHELINE_512B	= 0x1,
 	MYRS_CACHELINE_1K	= 0x2,
 	MYRS_CACHELINE_2K	= 0x3,
@@ -593,7 +593,7 @@ struct myrs_cmd_ctrl {
 	unsigned char add_sge_mem:1;		/* Byte 0 Bit 3 */
 	unsigned char dma_ctrl_to_host:1;	/* Byte 0 Bit 4 */
 	unsigned char rsvd2:1;			/* Byte 0 Bit 5 */
-	unsigned char no_autosense:1;		/* Byte 0 Bit 6 */
+	unsigned char yes_autosense:1;		/* Byte 0 Bit 6 */
 	unsigned char disc_prohibited:1;	/* Byte 0 Bit 7 */
 };
 

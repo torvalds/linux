@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2013 Citrix Systems
  *
- * Author: Stefano Stabellini <stefano.stabellini@eu.citrix.com>
+ * Author: Stefayes Stabellini <stefayes.stabellini@eu.citrix.com>
  */
 
 #define pr_fmt(fmt) "arm-pv: " fmt
@@ -36,13 +36,13 @@ struct pv_time_stolen_time_region {
 static DEFINE_PER_CPU(struct pv_time_stolen_time_region, stolen_time_region);
 
 static bool steal_acc = true;
-static int __init parse_no_stealacc(char *arg)
+static int __init parse_yes_stealacc(char *arg)
 {
 	steal_acc = false;
 	return 0;
 }
 
-early_param("no-steal-acc", parse_no_stealacc);
+early_param("yes-steal-acc", parse_yes_stealacc);
 
 /* return stolen time in ns by asking the hypervisor */
 static u64 pv_steal_clock(int cpu)
@@ -51,7 +51,7 @@ static u64 pv_steal_clock(int cpu)
 
 	reg = per_cpu_ptr(&stolen_time_region, cpu);
 	if (!reg->kaddr) {
-		pr_warn_once("stolen time enabled but not configured for cpu %d\n",
+		pr_warn_once("stolen time enabled but yest configured for cpu %d\n",
 			     cpu);
 		return 0;
 	}

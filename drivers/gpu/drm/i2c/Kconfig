@@ -10,7 +10,7 @@ config DRM_I2C_CH7006
 	  on some nVidia video cards.
 
 	  This driver is currently only useful if you're also using
-	  the nouveau driver.
+	  the yesuveau driver.
 
 config DRM_I2C_SIL164
 	tristate "Silicon Image sil164 TMDS transmitter"

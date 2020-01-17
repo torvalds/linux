@@ -294,7 +294,7 @@ static int sdhci_omap_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	u32 reg;
 	int i;
 
-	/* clock tuning is not needed for upto 52MHz */
+	/* clock tuning is yest needed for upto 52MHz */
 	if (ios->clock <= 52000000)
 		return 0;
 
@@ -330,7 +330,7 @@ static int sdhci_omap_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	omap_host->is_tuning = true;
 
 	/*
-	 * Stage 1: Search for a maximum pass window ignoring any
+	 * Stage 1: Search for a maximum pass window igyesring any
 	 * any single point failures. If the tuning value ends up
 	 * near it, move away from it in stage 2 below
 	 */
@@ -342,7 +342,7 @@ static int sdhci_omap_execute_tuning(struct mmc_host *mmc, u32 opcode)
 			if (prev_match) {
 				length++;
 			} else if (single_point_failure) {
-				/* ignore single point failure */
+				/* igyesre single point failure */
 				length++;
 			} else {
 				start_window = phase_delay;
@@ -799,7 +799,7 @@ static u32 sdhci_omap_irq(struct sdhci_host *host, u32 intmask)
 	    (intmask & CMD_ERR_MASK)) {
 
 		/*
-		 * Since we are not resetting data lines during tuning
+		 * Since we are yest resetting data lines during tuning
 		 * operation, data error or data complete interrupts
 		 * might still arrive. Mark this request as a failure
 		 * but still wait for the data interrupt
@@ -916,7 +916,7 @@ static struct pinctrl_state
 		pinctrl_state = pinctrl_lookup_state(omap_host->pinctrl, mode);
 
 	if (IS_ERR(pinctrl_state)) {
-		dev_err(dev, "no pinctrl state for %s mode", mode);
+		dev_err(dev, "yes pinctrl state for %s mode", mode);
 		*caps &= ~capmask;
 	}
 
@@ -947,13 +947,13 @@ static int sdhci_omap_config_iodelay_pinctrl_state(struct sdhci_omap_host
 
 	omap_host->pinctrl = devm_pinctrl_get(omap_host->dev);
 	if (IS_ERR(omap_host->pinctrl)) {
-		dev_err(dev, "Cannot get pinctrl\n");
+		dev_err(dev, "Canyest get pinctrl\n");
 		return PTR_ERR(omap_host->pinctrl);
 	}
 
 	state = pinctrl_lookup_state(omap_host->pinctrl, "default");
 	if (IS_ERR(state)) {
-		dev_err(dev, "no pinctrl state for default mode\n");
+		dev_err(dev, "yes pinctrl state for default mode\n");
 		return PTR_ERR(state);
 	}
 	pinctrl_state[MMC_TIMING_LEGACY] = state;
@@ -1044,7 +1044,7 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 
 	data = (struct sdhci_omap_data *)match->data;
 	if (!data) {
-		dev_err(dev, "no sdhci omap data\n");
+		dev_err(dev, "yes sdhci omap data\n");
 		return -EINVAL;
 	}
 	offset = data->offset;
@@ -1117,7 +1117,7 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
 		dev_err(dev, "pm_runtime_get_sync failed\n");
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		goto err_rpm_disable;
 	}
 

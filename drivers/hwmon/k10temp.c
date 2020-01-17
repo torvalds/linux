@@ -119,7 +119,7 @@ static void read_tempreg_nb_f15(struct pci_dev *pdev, u32 *regval)
 
 static void read_tempreg_nb_f17(struct pci_dev *pdev, u32 *regval)
 {
-	amd_smn_read(amd_pci_dev_to_node_id(pdev),
+	amd_smn_read(amd_pci_dev_to_yesde_id(pdev),
 		     F17H_M01H_REPORTED_TEMP_CTRL_OFFSET, regval);
 }
 

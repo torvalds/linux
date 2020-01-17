@@ -216,7 +216,7 @@ struct stm32f7_i2c_setup {
 
 /**
  * struct stm32f7_i2c_timings - private I2C output parameters
- * @node: List entry
+ * @yesde: List entry
  * @presc: Prescaler value
  * @scldel: Data setup time
  * @sdadel: Data hold time
@@ -224,7 +224,7 @@ struct stm32f7_i2c_setup {
  * @scll: SCL low period (master mode)
  */
 struct stm32f7_i2c_timings {
-	struct list_head node;
+	struct list_head yesde;
 	u8 presc;
 	u8 scldel;
 	u8 sdadel;
@@ -239,7 +239,7 @@ struct stm32f7_i2c_timings {
  * @buf: data buffer
  * @result: result of the transfer
  * @stop: last I2C msg to be sent, i.e. STOP to be generated
- * @smbus: boolean to know if the I2C IP is used in SMBus mode
+ * @smbus: boolean to kyesw if the I2C IP is used in SMBus mode
  * @size: type of SMBus protocol
  * @read_write: direction of SMBus protocol
  * SMBus block read and SMBus block write - block read process call protocols
@@ -277,10 +277,10 @@ struct stm32f7_i2c_msg {
  * @slave: list of slave devices registered on the I2C bus
  * @slave_running: slave device currently used
  * @slave_dir: transfer direction for the current slave device
- * @master_mode: boolean to know in which mode the I2C is running (master or
+ * @master_mode: boolean to kyesw in which mode the I2C is running (master or
  * slave)
  * @dma: dma data
- * @use_dma: boolean to know if dma is used in the current transfer
+ * @use_dma: boolean to kyesw if dma is used in the current transfer
  * @regmap: holds SYSCFG phandle for Fast Mode Plus bits
  */
 struct stm32f7_i2c_dev {
@@ -473,7 +473,7 @@ static int stm32f7_i2c_compute_timing(struct stm32f7_i2c_dev *i2c_dev,
 					v->sdadel = a;
 					p_prev = p;
 
-					list_add_tail(&v->node,
+					list_add_tail(&v->yesde,
 						      &solutions);
 					break;
 				}
@@ -485,7 +485,7 @@ static int stm32f7_i2c_compute_timing(struct stm32f7_i2c_dev *i2c_dev,
 	}
 
 	if (list_empty(&solutions)) {
-		dev_err(i2c_dev->dev, "no Prescaler solution\n");
+		dev_err(i2c_dev->dev, "yes Prescaler solution\n");
 		ret = -EPERM;
 		goto exit;
 	}
@@ -505,7 +505,7 @@ static int stm32f7_i2c_compute_timing(struct stm32f7_i2c_dev *i2c_dev,
 	 *   defined by I2C Specification
 	 * - I2C Clock has to be lower than SCL High Period
 	 */
-	list_for_each_entry(v, &solutions, node) {
+	list_for_each_entry(v, &solutions, yesde) {
 		u32 prescaler = (v->presc + 1) * i2cclk;
 
 		for (l = 0; l < STM32F7_SCLL_MAX; l++) {
@@ -542,7 +542,7 @@ static int stm32f7_i2c_compute_timing(struct stm32f7_i2c_dev *i2c_dev,
 	}
 
 	if (!s) {
-		dev_err(i2c_dev->dev, "no solution at all\n");
+		dev_err(i2c_dev->dev, "yes solution at all\n");
 		ret = -EPERM;
 		goto exit;
 	}
@@ -561,8 +561,8 @@ static int stm32f7_i2c_compute_timing(struct stm32f7_i2c_dev *i2c_dev,
 
 exit:
 	/* Release list and memory */
-	list_for_each_entry_safe(v, _v, &solutions, node) {
-		list_del(&v->node);
+	list_for_each_entry_safe(v, _v, &solutions, yesde) {
+		list_del(&v->yesde);
 		kfree(v);
 	}
 
@@ -681,7 +681,7 @@ static void stm32f7_i2c_read_rx_data(struct stm32f7_i2c_dev *i2c_dev)
 		*f7_msg->buf++ = readb_relaxed(base + STM32F7_I2C_RXDR);
 		f7_msg->count--;
 	} else {
-		/* Flush RX buffer has no data is expected */
+		/* Flush RX buffer has yes data is expected */
 		readb_relaxed(base + STM32F7_I2C_RXDR);
 	}
 }
@@ -1071,7 +1071,7 @@ static void stm32f7_i2c_smbus_rep_start(struct stm32f7_i2c_dev *i2c_dev)
 	/*
 	 * Configure DMA or enable RX/TX interrupt:
 	 * For I2C_SMBUS_BLOCK_DATA and I2C_SMBUS_BLOCK_PROC_CALL we don't use
-	 * dma as we don't know in advance how many data will be received
+	 * dma as we don't kyesw in advance how many data will be received
 	 */
 	cr1 &= ~(STM32F7_I2C_CR1_RXIE | STM32F7_I2C_CR1_TXIE |
 		 STM32F7_I2C_CR1_RXDMAEN | STM32F7_I2C_CR1_TXDMAEN);
@@ -1252,7 +1252,7 @@ static int stm32f7_i2c_get_slave_id(struct stm32f7_i2c_dev *i2c_dev,
 		}
 	}
 
-	dev_err(i2c_dev->dev, "Slave 0x%x not registered\n", slave->addr);
+	dev_err(i2c_dev->dev, "Slave 0x%x yest registered\n", slave->addr);
 
 	return -ENODEV;
 }
@@ -1276,7 +1276,7 @@ static int stm32f7_i2c_get_free_slave_id(struct stm32f7_i2c_dev *i2c_dev,
 		}
 	}
 
-	dev_err(dev, "Slave 0x%x could not be registered\n", slave->addr);
+	dev_err(dev, "Slave 0x%x could yest be registered\n", slave->addr);
 
 	return -EINVAL;
 }
@@ -1358,7 +1358,7 @@ static irqreturn_t stm32f7_i2c_slave_isr_event(struct stm32f7_i2c_dev *i2c_dev)
 
 		if (i2c_dev->slave_dir) {
 			/*
-			 * Flush TX buffer in order to not used the byte in
+			 * Flush TX buffer in order to yest used the byte in
 			 * TXDR for the next transfer
 			 */
 			mask = STM32F7_I2C_ISR_TXE;
@@ -1401,7 +1401,7 @@ static irqreturn_t stm32f7_i2c_isr_event(int irq, void *data)
 	if (status & STM32F7_I2C_ISR_TXIS)
 		stm32f7_i2c_write_tx_data(i2c_dev);
 
-	/* RX not empty */
+	/* RX yest empty */
 	if (status & STM32F7_I2C_ISR_RXNE)
 		stm32f7_i2c_read_rx_data(i2c_dev);
 
@@ -1468,7 +1468,7 @@ static irqreturn_t stm32f7_i2c_isr_event_thread(int irq, void *data)
 
 	/*
 	 * Wait for dma transfer completion before sending next message or
-	 * notity the end of xfer to the client
+	 * yestity the end of xfer to the client
 	 */
 	ret = wait_for_completion_timeout(&i2c_dev->dma->dma_complete, HZ);
 	if (!ret) {
@@ -1680,7 +1680,7 @@ static int stm32f7_i2c_reg_slave(struct i2c_client *slave)
 	int id, ret;
 
 	if (slave->flags & I2C_CLIENT_PEC) {
-		dev_err(dev, "SMBus PEC not supported in slave mode\n");
+		dev_err(dev, "SMBus PEC yest supported in slave mode\n");
 		return -EINVAL;
 	}
 
@@ -1783,7 +1783,7 @@ static int stm32f7_i2c_unreg_slave(struct i2c_client *slave)
 static int stm32f7_i2c_setup_fm_plus_bits(struct platform_device *pdev,
 					  struct stm32f7_i2c_dev *i2c_dev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 	u32 reg, mask;
 
@@ -1947,7 +1947,7 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 	adap->retries = 3;
 	adap->algo = &stm32f7_i2c_algo;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 
 	init_completion(&i2c_dev->complete);
 
@@ -1973,7 +1973,7 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 	pm_runtime_set_active(i2c_dev->dev);
 	pm_runtime_enable(i2c_dev->dev);
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 
 	stm32f7_i2c_hw_config(i2c_dev);
 
@@ -1989,7 +1989,7 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 	return 0;
 
 pm_disable:
-	pm_runtime_put_noidle(i2c_dev->dev);
+	pm_runtime_put_yesidle(i2c_dev->dev);
 	pm_runtime_disable(i2c_dev->dev);
 	pm_runtime_set_suspended(i2c_dev->dev);
 	pm_runtime_dont_use_autosuspend(i2c_dev->dev);
@@ -2012,7 +2012,7 @@ static int stm32f7_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&i2c_dev->adap);
 	pm_runtime_get_sync(i2c_dev->dev);
 
-	pm_runtime_put_noidle(i2c_dev->dev);
+	pm_runtime_put_yesidle(i2c_dev->dev);
 	pm_runtime_disable(i2c_dev->dev);
 	pm_runtime_set_suspended(i2c_dev->dev);
 	pm_runtime_dont_use_autosuspend(i2c_dev->dev);

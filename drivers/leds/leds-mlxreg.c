@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 //
-// Copyright (c) 2018 Mellanox Technologies. All rights reserved.
-// Copyright (c) 2018 Vadim Pasternak <vadimp@mellanox.com>
+// Copyright (c) 2018 Mellayesx Techyeslogies. All rights reserved.
+// Copyright (c) 2018 Vadim Pasternak <vadimp@mellayesx.com>
 
 #include <linux/bitops.h>
 #include <linux/device.h>
@@ -294,7 +294,7 @@ static struct platform_driver mlxreg_led_driver = {
 
 module_platform_driver(mlxreg_led_driver);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox LED regmap driver");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx LED regmap driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:leds-mlxreg");

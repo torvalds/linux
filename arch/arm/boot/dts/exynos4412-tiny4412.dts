@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * FriendlyARM's Exynos4412 based TINY4412 board device tree source
+ * FriendlyARM's Exyyess4412 based TINY4412 board device tree source
  *
  * Copyright (c) 2013 Alex Ling <kasimling@gmail.com>
  *
  * Device tree source file for FriendlyARM's TINY4412 board which is based on
- * Samsung's Exynos4412 SoC.
+ * Samsung's Exyyess4412 SoC.
  */
 
 /dts-v1/;
-#include "exynos4412.dtsi"
+#include "exyyess4412.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "FriendlyARM TINY4412 board based on Exynos4412";
-	compatible = "friendlyarm,tiny4412", "samsung,exynos4412", "samsung,exynos4";
+	model = "FriendlyARM TINY4412 board based on Exyyess4412";
+	compatible = "friendlyarm,tiny4412", "samsung,exyyess4412", "samsung,exyyess4";
 
 	chosen {
 		stdout-path = &serial_0;

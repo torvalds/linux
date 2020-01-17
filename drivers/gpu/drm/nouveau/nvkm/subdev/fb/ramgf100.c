@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -529,13 +529,13 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 
 	nvkm_mm_fini(&ram->vram);
 
-	/* Some GPUs are in what's known as a "mixed memory" configuration.
+	/* Some GPUs are in what's kyeswn as a "mixed memory" configuration.
 	 *
 	 * This is either where some FBPs have more memory than the others,
 	 * or where LTCs have been disabled on a FBP.
 	 */
 	if (lower != total) {
-		/* The common memory amount is addressed normally. */
+		/* The common memory amount is addressed yesrmally. */
 		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_NORMAL,
 				   rsvd_head >> NVKM_RAM_MM_SHIFT,
 				   (lower - rsvd_head) >> NVKM_RAM_MM_SHIFT, 1);
@@ -543,7 +543,7 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 			return ret;
 
 		/* And the rest is much higher in the physical address
-		 * space, and may not be usable for certain operations.
+		 * space, and may yest be usable for certain operations.
 		 */
 		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_MIXED,
 				   ubase >> NVKM_RAM_MM_SHIFT,
@@ -582,13 +582,13 @@ gf100_ram_new_(const struct nvkm_ram_func *func,
 
 	ret = nvbios_pll_parse(bios, 0x0c, &ram->refpll);
 	if (ret) {
-		nvkm_error(subdev, "mclk refpll data not found\n");
+		nvkm_error(subdev, "mclk refpll data yest found\n");
 		return ret;
 	}
 
 	ret = nvbios_pll_parse(bios, 0x04, &ram->mempll);
 	if (ret) {
-		nvkm_error(subdev, "mclk pll data not found\n");
+		nvkm_error(subdev, "mclk pll data yest found\n");
 		return ret;
 	}
 

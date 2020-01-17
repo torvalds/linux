@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef __ASM_NDS32_PROCESSOR_H
 #define __ASM_NDS32_PROCESSOR_H
@@ -33,7 +33,7 @@ struct thread_struct {
 	struct cpu_context cpu_context;	/* cpu context */
 	/* fault info     */
 	unsigned long address;
-	unsigned long trap_no;
+	unsigned long trap_yes;
 	unsigned long error_code;
 
 	struct fpu_struct fpu;

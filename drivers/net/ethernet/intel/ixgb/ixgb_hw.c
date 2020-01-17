@@ -129,7 +129,7 @@ ixgb_adapter_stop(struct ixgb_hw *hw)
 	msleep(IXGB_DELAY_BEFORE_RESET);
 
 	/* Issue a global reset to the MAC.  This will reset the chip's
-	 * transmit, receive, DMA, and link units.  It will not effect
+	 * transmit, receive, DMA, and link units.  It will yest effect
 	 * the current PCI configuration.  The global reset bit is self-
 	 * clearing, and should clear within a microsecond.
 	 */
@@ -241,8 +241,8 @@ ixgb_identify_phy(struct ixgb_hw *hw)
 		}
 		break;
 	default:
-		pr_debug("Unknown physical layer module\n");
-		phy_type = ixgb_phy_type_unknown;
+		pr_debug("Unkyeswn physical layer module\n");
+		phy_type = ixgb_phy_type_unkyeswn;
 		break;
 	}
 
@@ -280,7 +280,7 @@ ixgb_init_hw(struct ixgb_hw *hw)
 	ENTER();
 
 	/* Issue a global reset to the MAC.  This will reset the chip's
-	 * transmit, receive, DMA, and link units.  It will not effect
+	 * transmit, receive, DMA, and link units.  It will yest effect
 	 * the current PCI configuration.  The global reset bit is self-
 	 * clearing, and should clear within a microsecond.
 	 */
@@ -313,7 +313,7 @@ ixgb_init_hw(struct ixgb_hw *hw)
 
 	/*
 	 * Check that a valid MAC address has been set.
-	 * If it is not valid, we fail hardware init.
+	 * If it is yest valid, we fail hardware init.
 	 */
 	if (!mac_addr_valid(hw->curr_mac_addr)) {
 		pr_debug("MAC address invalid after ixgb_init_rx_addrs\n");
@@ -613,7 +613,7 @@ static bool
 ixgb_setup_fc(struct ixgb_hw *hw)
 {
 	u32 ctrl_reg;
-	u32 pap_reg = 0;   /* by default, assume no pause time */
+	u32 pap_reg = 0;   /* by default, assume yes pause time */
 	bool status = true;
 
 	ENTER();
@@ -627,14 +627,14 @@ ixgb_setup_fc(struct ixgb_hw *hw)
 	/* The possible values of the "flow_control" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause frames
-	 *          but not send pause frames).
+	 *          but yest send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames
-	 *          but we do not support receiving pause frames).
+	 *          but we do yest support receiving pause frames).
 	 *      3:  Both Rx and TX flow control (symmetric) are enabled.
 	 *  other:  Invalid.
 	 */
 	switch (hw->fc.type) {
-	case ixgb_fc_none:	/* 0 */
+	case ixgb_fc_yesne:	/* 0 */
 		/* Set CMDC bit to disable Rx Flow control */
 		ctrl_reg |= (IXGB_CTRL0_CMDC);
 		break;
@@ -674,7 +674,7 @@ ixgb_setup_fc(struct ixgb_hw *hw)
 	/* Set the flow control receive threshold registers.  Normally,
 	 * these registers will be set to a default threshold that may be
 	 * adjusted later by the driver's runtime code.  However, if the
-	 * ability to transmit pause frames in not enabled, then these
+	 * ability to transmit pause frames in yest enabled, then these
 	 * registers will be set to 0.
 	 */
 	if (!(hw->fc.type & ixgb_fc_tx_pause)) {
@@ -793,7 +793,7 @@ ixgb_read_phy_reg(struct ixgb_hw *hw,
  * hw          - Struct containing variables accessed by hw code
  * reg_address - Offset of device register being read.
  * phy_address - Address of device on MDI.
- * device_type - Also known as the Device ID or DID.
+ * device_type - Also kyeswn as the Device ID or DID.
  * data        - 16-bit value to be written
  *
  * Returns:  void.
@@ -1102,7 +1102,7 @@ mac_addr_valid(u8 *mac_addr)
 	bool is_valid = true;
 	ENTER();
 
-	/* Make sure it is not a multicast address */
+	/* Make sure it is yest a multicast address */
 	if (is_multicast_ether_addr(mac_addr)) {
 		pr_debug("MAC address is multicast\n");
 		is_valid = false;

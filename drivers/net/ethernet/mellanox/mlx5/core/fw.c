@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -282,7 +282,7 @@ int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev)
 	int ret;
 
 	if (!MLX5_CAP_GEN(dev, force_teardown)) {
-		mlx5_core_dbg(dev, "force teardown is not supported in the firmware\n");
+		mlx5_core_dbg(dev, "force teardown is yest supported in the firmware\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -295,7 +295,7 @@ int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev)
 
 	force_state = MLX5_GET(teardown_hca_out, out, state);
 	if (force_state == MLX5_TEARDOWN_HCA_OUT_FORCE_STATE_FAIL) {
-		mlx5_core_warn(dev, "teardown with force mode failed, doing normal teardown\n");
+		mlx5_core_warn(dev, "teardown with force mode failed, doing yesrmal teardown\n");
 		return -EIO;
 	}
 
@@ -312,7 +312,7 @@ int mlx5_cmd_fast_teardown_hca(struct mlx5_core_dev *dev)
 	int ret;
 
 	if (!MLX5_CAP_GEN(dev, fast_teardown)) {
-		mlx5_core_dbg(dev, "fast teardown is not supported in the firmware\n");
+		mlx5_core_dbg(dev, "fast teardown is yest supported in the firmware\n");
 		return -EOPNOTSUPP;
 	}
 

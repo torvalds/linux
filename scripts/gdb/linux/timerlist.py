@@ -10,41 +10,41 @@ from linux import cpus
 from linux import rbtree
 from linux import utils
 
-timerqueue_node_type = utils.CachedType("struct timerqueue_node").get_type()
+timerqueue_yesde_type = utils.CachedType("struct timerqueue_yesde").get_type()
 hrtimer_type = utils.CachedType("struct hrtimer").get_type()
 
 
 def ktime_get():
-    """Returns the current time, but not very accurately
+    """Returns the current time, but yest very accurately
 
-    We can't read the hardware timer itself to add any nanoseconds
+    We can't read the hardware timer itself to add any nayesseconds
     that need to be added since we last stored the time in the
-    timekeeper. But this is probably good enough for debug purposes."""
+    timekeeper. But this is probably good eyesugh for debug purposes."""
     tk_core = gdb.parse_and_eval("&tk_core")
 
-    return tk_core['timekeeper']['tkr_mono']['base']
+    return tk_core['timekeeper']['tkr_moyes']['base']
 
 
-def print_timer(rb_node, idx):
-    timerqueue = utils.container_of(rb_node, timerqueue_node_type.pointer(),
-                                    "node")
-    timer = utils.container_of(timerqueue, hrtimer_type.pointer(), "node")
+def print_timer(rb_yesde, idx):
+    timerqueue = utils.container_of(rb_yesde, timerqueue_yesde_type.pointer(),
+                                    "yesde")
+    timer = utils.container_of(timerqueue, hrtimer_type.pointer(), "yesde")
 
     function = str(timer['function']).split(" ")[1].strip("<>")
     softexpires = timer['_softexpires']
-    expires = timer['node']['expires']
-    now = ktime_get()
+    expires = timer['yesde']['expires']
+    yesw = ktime_get()
 
     text = " #{}: <{}>, {}, ".format(idx, timer, function)
     text += "S:{:02x}\n".format(int(timer['state']))
     text += " # expires at {}-{} nsecs [in {} to {} nsecs]\n".format(
-            softexpires, expires, softexpires - now, expires - now)
+            softexpires, expires, softexpires - yesw, expires - yesw)
     return text
 
 
 def print_active_timers(base):
-    curr = base['active']['next']['node']
-    curr = curr.address.cast(rbtree.rb_node_type.get_type().pointer())
+    curr = base['active']['next']['yesde']
+    curr = curr.address.cast(rbtree.rb_yesde_type.get_type().pointer())
     idx = 0
     while curr:
         yield print_timer(curr, idx)
@@ -88,7 +88,7 @@ def print_cpu(hrtimer_bases, cpu, max_clock_bases):
             text += "\n"
 
         if constants.LX_CONFIG_TICK_ONESHOT:
-            fmts = [("  .{}      : {}", 'nohz_mode'),
+            fmts = [("  .{}      : {}", 'yeshz_mode'),
                     ("  .{}      : {} nsecs", 'last_tick'),
                     ("  .{}   : {}", 'tick_stopped'),
                     ("  .{}   : {}", 'idle_jiffies'),
@@ -188,7 +188,7 @@ class LxTimerList(gdb.Command):
 
         text = "Timer List Version: gdb scripts\n"
         text += "HRTIMER_MAX_CLOCK_BASES: {}\n".format(max_clock_bases)
-        text += "now at {} nsecs\n".format(ktime_get())
+        text += "yesw at {} nsecs\n".format(ktime_get())
 
         for cpu in cpus.each_online_cpu():
             text += print_cpu(hrtimer_bases, cpu, max_clock_bases)

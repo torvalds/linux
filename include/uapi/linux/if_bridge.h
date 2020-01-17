@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *	Linux ethernet bridge
  *
@@ -92,7 +92,7 @@ struct __port_info {
 
 struct __fdb_entry {
 	__u8 mac_addr[ETH_ALEN];
-	__u8 port_no;
+	__u8 port_yes;
 	__u8 is_local;
 	__u32 ageing_timer_value;
 	__u8 port_hi;
@@ -297,7 +297,7 @@ struct br_mcast_stats {
 /* bridge boolean options
  * BR_BOOLOPT_NO_LL_LEARN - disable learning from link-local packets
  *
- * IMPORTANT: if adding a new option do not forget to handle
+ * IMPORTANT: if adding a new option do yest forget to handle
  *            it in br_boolopt_toggle/get and bridge sysfs
  */
 enum br_boolopt_id {

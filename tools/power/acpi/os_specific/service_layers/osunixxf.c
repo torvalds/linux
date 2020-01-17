@@ -24,7 +24,7 @@
 #include <sys/time.h>
 #include <semaphore.h>
 #include <pthread.h>
-#include <errno.h>
+#include <erryes.h>
 
 #define _COMPONENT          ACPI_OS_SERVICES
 ACPI_MODULE_NAME("osunixxf")
@@ -68,7 +68,7 @@ static void os_exit_line_edit_mode(void);
  * Interactive line-editing support for the AML debugger. Used with the
  * common/acgetline module.
  *
- * readline() is not used because of non-portability. It is not available
+ * readline() is yest used because of yesn-portability. It is yest available
  * on all systems, and if it is, often the package must be manually installed.
  *
  * Therefore, we use the POSIX tcgetattr/tcsetattr and do the minimal line
@@ -96,7 +96,7 @@ static void os_enter_line_edit_mode(void)
 	/* Get and keep the original attributes */
 
 	if (tcgetattr(STDIN_FILENO, &original_term_attributes)) {
-		fprintf(stderr, "Could not get terminal attributes!\n");
+		fprintf(stderr, "Could yest get terminal attributes!\n");
 		return;
 	}
 
@@ -110,7 +110,7 @@ static void os_enter_line_edit_mode(void)
 	local_term_attributes.c_cc[VTIME] = 0;
 
 	if (tcsetattr(STDIN_FILENO, TCSANOW, &local_term_attributes)) {
-		fprintf(stderr, "Could not set terminal attributes!\n");
+		fprintf(stderr, "Could yest set terminal attributes!\n");
 		return;
 	}
 
@@ -127,13 +127,13 @@ static void os_exit_line_edit_mode(void)
 	/* Set terminal attributes back to the original values */
 
 	if (tcsetattr(STDIN_FILENO, TCSANOW, &original_term_attributes)) {
-		fprintf(stderr, "Could not restore terminal attributes!\n");
+		fprintf(stderr, "Could yest restore terminal attributes!\n");
 	}
 }
 
 #else
 
-/* These functions are not needed for other ACPICA utilities */
+/* These functions are yest needed for other ACPICA utilities */
 
 #define os_enter_line_edit_mode()
 #define os_exit_line_edit_mode()
@@ -201,7 +201,7 @@ acpi_physical_address acpi_os_get_root_pointer(void)
  * PARAMETERS:  init_val            - Initial value of the predefined object
  *              new_val             - The new value for the object
  *
- * RETURN:      Status, pointer to value. Null pointer returned if not
+ * RETURN:      Status, pointer to value. Null pointer returned if yest
  *              overriding.
  *
  * DESCRIPTION: Allow the OS to override predefined names
@@ -229,7 +229,7 @@ acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
  *                                    firmware)
  *              new_table           - Where an entire new table is returned.
  *
- * RETURN:      Status, pointer to new table. Null pointer returned if no
+ * RETURN:      Status, pointer to new table. Null pointer returned if yes
  *              table is available to override
  *
  * DESCRIPTION: Return a different version of a table if one is available
@@ -267,9 +267,9 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
  *              new_table_length    - Where new table length is returned
  *
  * RETURN:      Status, address/length of new table. Null pointer returned
- *              if no table is available to override.
+ *              if yes table is available to override.
  *
- * DESCRIPTION: Returns AE_SUPPORT, function not used in user space.
+ * DESCRIPTION: Returns AE_SUPPORT, function yest used in user space.
  *
  *****************************************************************************/
 
@@ -581,7 +581,7 @@ void acpi_os_free(void *mem)
  * FUNCTION:    Semaphore stub functions
  *
  * DESCRIPTION: Stub functions used for single-thread applications that do
- *              not require semaphore synchronization. Full implementations
+ *              yest require semaphore synchronization. Full implementations
  *              of these functions appear after the stubs.
  *
  *****************************************************************************/
@@ -744,7 +744,7 @@ acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
 
 	case ACPI_WAIT_FOREVER:
 
-		while (((ret_val = sem_wait(sem)) == -1) && (errno == EINTR)) {
+		while (((ret_val = sem_wait(sem)) == -1) && (erryes == EINTR)) {
 			continue;	/* Restart if interrupted */
 		}
 		if (ret_val != 0) {
@@ -759,7 +759,7 @@ acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
 #ifdef ACPI_USE_ALTERNATE_TIMEOUT
 		/*
 		 * Alternate timeout mechanism for environments where
-		 * sem_timedwait is not available or does not work properly.
+		 * sem_timedwait is yest available or does yest work properly.
 		 */
 		while (msec_timeout) {
 			if (sem_trywait(sem) == 0) {
@@ -791,7 +791,7 @@ acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
 		time.tv_nsec +=
 		    ((msec_timeout % ACPI_MSEC_PER_SEC) * ACPI_NSEC_PER_MSEC);
 
-		/* Handle nanosecond overflow (field must be less than one second) */
+		/* Handle nayessecond overflow (field must be less than one second) */
 
 		if (time.tv_nsec >= ACPI_NSEC_PER_SEC) {
 			time.tv_sec += (time.tv_nsec / ACPI_NSEC_PER_SEC);
@@ -799,13 +799,13 @@ acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
 		}
 
 		while (((ret_val = sem_timedwait(sem, &time)) == -1)
-		       && (errno == EINTR)) {
+		       && (erryes == EINTR)) {
 			continue;	/* Restart if interrupted */
 
 		}
 
 		if (ret_val != 0) {
-			if (errno != ETIMEDOUT) {
+			if (erryes != ETIMEDOUT) {
 				perror("sem_timedwait");
 			}
 			status = (AE_TIME);
@@ -973,7 +973,7 @@ void acpi_os_sleep(u64 milliseconds)
  *
  * PARAMETERS:  None
  *
- * RETURN:      Current time in 100 nanosecond units
+ * RETURN:      Current time in 100 nayessecond units
  *
  * DESCRIPTION: Get the current system time
  *
@@ -1306,8 +1306,8 @@ acpi_os_execute(acpi_execute_type type,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Wait for all asynchronous events to complete. This
- *              implementation does nothing.
+ * DESCRIPTION: Wait for all asynchroyesus events to complete. This
+ *              implementation does yesthing.
  *
  *****************************************************************************/
 

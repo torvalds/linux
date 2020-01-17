@@ -28,7 +28,7 @@ ffff8000	ffffffff	copy_user_page / clear_user_page use.
 ffff4000	ffffffff	cache aliasing on ARMv6 and later CPUs.
 
 ffff1000	ffff7fff	Reserved.
-				Platforms must not use this address range.
+				Platforms must yest use this address range.
 
 ffff0000	ffff0fff	CPU vector page.
 				The CPU vectors are mapped here if the
@@ -37,7 +37,7 @@ ffff0000	ffff0fff	CPU vector page.
 
 fffe0000	fffeffff	XScale cache flush area.  This is used
 				in proc-xscale.S to flush the whole data
-				cache. (XScale does not have TCM.)
+				cache. (XScale does yest have TCM.)
 
 fffe8000	fffeffff	DTCM mapping area for platforms with
 				DTCM mounted inside the CPU.
@@ -77,17 +77,17 @@ MODULES_VADDR	MODULES_END-1	Kernel module space
 				the mmap() system call.
 
 00000000	00000fff	CPU vector page / null pointer trap
-				CPUs which do not support vector remapping
+				CPUs which do yest support vector remapping
 				place their vector page here.  NULL pointer
 				dereferences by both the kernel and user
 				space are also caught via this mapping.
 =============== =============== ===============================================
 
-Please note that mappings which collide with the above areas may result
-in a non-bootable kernel, or may cause the kernel to (eventually) panic
+Please yeste that mappings which collide with the above areas may result
+in a yesn-bootable kernel, or may cause the kernel to (eventually) panic
 at run time.
 
 Since future CPUs may impact the kernel mapping layout, user programs
-must not access any memory which is not mapped inside their 0x0001000
+must yest access any memory which is yest mapped inside their 0x0001000
 to TASK_SIZE address range.  If they wish to access these areas, they
 must set up their own mappings using open() and mmap().

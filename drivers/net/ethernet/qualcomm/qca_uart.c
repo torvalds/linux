@@ -4,7 +4,7 @@
  *
  *   Permission to use, copy, modify, and/or distribute this software
  *   for any purpose with or without fee is hereby granted, provided
- *   that the above copyright notice and this permission notice appear
+ *   that the above copyright yestice and this permission yestice appear
  *   in all copies.
  *
  *   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
@@ -23,7 +23,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
@@ -92,7 +92,7 @@ qca_tty_receive(struct serdev_device *serdev, const unsigned char *data,
 		case QCAFRM_NOHEAD:
 			break;
 		case QCAFRM_NOTAIL:
-			netdev_dbg(netdev, "recv: no RX tail\n");
+			netdev_dbg(netdev, "recv: yes RX tail\n");
 			n_stats->rx_errors++;
 			n_stats->rx_dropped++;
 			break;
@@ -140,7 +140,7 @@ static void qcauart_transmit(struct work_struct *work)
 
 	if (qca->tx_left <= 0)  {
 		/* Now serial buffer is almost free & we can start
-		 * transmission of another packet
+		 * transmission of ayesther packet
 		 */
 		n_stats->tx_packets++;
 		spin_unlock_bh(&qca->lock);
@@ -346,9 +346,9 @@ static int qca_uart_probe(struct serdev_device *serdev)
 	spin_lock_init(&qca->lock);
 	INIT_WORK(&qca->tx_work, qcauart_transmit);
 
-	of_property_read_u32(serdev->dev.of_node, "current-speed", &speed);
+	of_property_read_u32(serdev->dev.of_yesde, "current-speed", &speed);
 
-	mac = of_get_mac_address(serdev->dev.of_node);
+	mac = of_get_mac_address(serdev->dev.of_yesde);
 
 	if (!IS_ERR(mac))
 		ether_addr_copy(qca->net_dev->dev_addr, mac);

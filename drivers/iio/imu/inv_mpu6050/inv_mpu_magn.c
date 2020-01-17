@@ -125,13 +125,13 @@ static int inv_magn_init(struct inv_mpu6050_state *st)
  * Returns 0 on success, a negative error code otherwise
  *
  * It is probing the chip and setting up all needed i2c transfers.
- * Noop if there is no magnetometer in the chip.
+ * Noop if there is yes magnetometer in the chip.
  */
 int inv_mpu_magn_probe(struct inv_mpu6050_state *st)
 {
 	int ret;
 
-	/* quit if chip is not supported */
+	/* quit if chip is yest supported */
 	if (!inv_magn_supported(st))
 		return 0;
 
@@ -199,13 +199,13 @@ int inv_mpu_magn_probe(struct inv_mpu6050_state *st)
  *
  * Limit sampling frequency to the maximum value supported by the
  * magnetometer chip. Resulting in duplicated data for higher frequencies.
- * Noop if there is no magnetometer in the chip.
+ * Noop if there is yes magnetometer in the chip.
  */
 int inv_mpu_magn_set_rate(const struct inv_mpu6050_state *st, int fifo_rate)
 {
 	uint8_t d;
 
-	/* quit if chip is not supported */
+	/* quit if chip is yest supported */
 	if (!inv_magn_supported(st))
 		return 0;
 
@@ -291,7 +291,7 @@ int inv_mpu_magn_read(const struct inv_mpu6050_state *st, int axis, int *val)
 	unsigned int period_ms;
 	int ret;
 
-	/* quit if chip is not supported */
+	/* quit if chip is yest supported */
 	if (!inv_magn_supported(st))
 		return -ENODEV;
 

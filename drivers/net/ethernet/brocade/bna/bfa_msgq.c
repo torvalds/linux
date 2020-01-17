@@ -550,7 +550,7 @@ bfa_msgq_isr(void *cbarg, struct bfi_mbmsg *msg)
 }
 
 static void
-bfa_msgq_notify(void *cbarg, enum bfa_ioc_event event)
+bfa_msgq_yestify(void *cbarg, enum bfa_ioc_event event)
 {
 	struct bfa_msgq *msgq = (struct bfa_msgq *)cbarg;
 
@@ -608,8 +608,8 @@ bfa_msgq_attach(struct bfa_msgq *msgq, struct bfa_ioc *ioc)
 	bfa_msgq_rspq_attach(&msgq->rspq, msgq);
 
 	bfa_nw_ioc_mbox_regisr(msgq->ioc, BFI_MC_MSGQ, bfa_msgq_isr, msgq);
-	bfa_ioc_notify_init(&msgq->ioc_notify, bfa_msgq_notify, msgq);
-	bfa_nw_ioc_notify_register(msgq->ioc, &msgq->ioc_notify);
+	bfa_ioc_yestify_init(&msgq->ioc_yestify, bfa_msgq_yestify, msgq);
+	bfa_nw_ioc_yestify_register(msgq->ioc, &msgq->ioc_yestify);
 }
 
 void

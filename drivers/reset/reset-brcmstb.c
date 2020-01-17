@@ -26,7 +26,7 @@ struct brcmstb_reset {
 #define SW_INIT_BIT(id)		BIT((id) & 0x1f)
 #define SW_INIT_BANK(id)	((id) >> 5)
 
-/* A full bank contains extra registers that we are not utilizing but still
+/* A full bank contains extra registers that we are yest utilizing but still
  * qualify as a single bank.
  */
 #define SW_INIT_BANK_SIZE	0x18
@@ -101,7 +101,7 @@ static int brcmstb_reset_probe(struct platform_device *pdev)
 	priv->rcdev.nr_resets = DIV_ROUND_DOWN_ULL(resource_size(res),
 						   SW_INIT_BANK_SIZE) * 32;
 	priv->rcdev.ops = &brcmstb_reset_ops;
-	priv->rcdev.of_node = kdev->of_node;
+	priv->rcdev.of_yesde = kdev->of_yesde;
 	/* Use defaults: 1 cell and simple xlate function */
 
 	return devm_reset_controller_register(kdev, &priv->rcdev);

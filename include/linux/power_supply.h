@@ -16,7 +16,7 @@
 #include <linux/workqueue.h>
 #include <linux/leds.h>
 #include <linux/spinlock.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 /*
  * All voltages, currents, charges, energies, time and temperatures in uV,
@@ -28,7 +28,7 @@
 /*
  * For systems where the charger determines the maximum battery capacity
  * the min and max fields should be used to present these values to user
- * space. Unused/unknown fields will not appear in sysfs.
+ * space. Unused/unkyeswn fields will yest appear in sysfs.
  */
 
 enum {
@@ -45,7 +45,7 @@ enum {
 	POWER_SUPPLY_CHARGE_TYPE_NONE,
 	POWER_SUPPLY_CHARGE_TYPE_TRICKLE,	/* slow speed */
 	POWER_SUPPLY_CHARGE_TYPE_FAST,		/* fast speed */
-	POWER_SUPPLY_CHARGE_TYPE_STANDARD,	/* normal speed */
+	POWER_SUPPLY_CHARGE_TYPE_STANDARD,	/* yesrmal speed */
 	POWER_SUPPLY_CHARGE_TYPE_ADAPTIVE,	/* dynamically adjusted speed */
 	POWER_SUPPLY_CHARGE_TYPE_CUSTOM,	/* use CHARGE_CONTROL_* props */
 };
@@ -192,7 +192,7 @@ enum power_supply_usb_type {
 	POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID,	/* Apple Charging Method */
 };
 
-enum power_supply_notifier_events {
+enum power_supply_yestifier_events {
 	PSY_EVENT_PROP_CHANGED,
 };
 
@@ -201,13 +201,13 @@ union power_supply_propval {
 	const char *strval;
 };
 
-struct device_node;
+struct device_yesde;
 struct power_supply;
 
 /* Run-time specific power supply configuration */
 struct power_supply_config {
-	struct device_node *of_node;
-	struct fwnode_handle *fwnode;
+	struct device_yesde *of_yesde;
+	struct fwyesde_handle *fwyesde;
 
 	/* Driver private data */
 	void *drv_data;
@@ -243,7 +243,7 @@ struct power_supply_desc {
 	/*
 	 * property_is_writeable() will be called during registration
 	 * of power supply. If this happens during device probe then it must
-	 * not access internal data of device (because probe did not end).
+	 * yest access internal data of device (because probe did yest end).
 	 */
 	int (*property_is_writeable)(struct power_supply *psy,
 				     enum power_supply_property psp);
@@ -251,11 +251,11 @@ struct power_supply_desc {
 	void (*set_charged)(struct power_supply *psy);
 
 	/*
-	 * Set if thermal zone should not be created for this power supply.
+	 * Set if thermal zone should yest be created for this power supply.
 	 * For example for virtual supplies forwarding calls to actual
 	 * sensors or other supplies.
 	 */
-	bool no_thermal;
+	bool yes_thermal;
 	/* For APM emulation, think legacy userspace. */
 	int use_for_apm;
 };
@@ -268,7 +268,7 @@ struct power_supply {
 
 	char **supplied_from;
 	size_t num_supplies;
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 
 	/* Driver private data */
 	void *drv_data;
@@ -304,13 +304,13 @@ struct power_supply {
 /*
  * This is recommended structure to specify static power supply parameters.
  * Generic one, parametrizable for different power supplies. Power supply
- * class itself does not use it, but that's what implementing most platform
+ * class itself does yest use it, but that's what implementing most platform
  * drivers, should try reuse for consistency.
  */
 
 struct power_supply_info {
 	const char *name;
-	int technology;
+	int techyeslogy;
 	int voltage_max_design;
 	int voltage_min_design;
 	int charge_full_design;
@@ -351,19 +351,19 @@ struct power_supply_battery_info {
 	int ocv_table_size[POWER_SUPPLY_OCV_TEMP_MAX];
 };
 
-extern struct atomic_notifier_head power_supply_notifier;
-extern int power_supply_reg_notifier(struct notifier_block *nb);
-extern void power_supply_unreg_notifier(struct notifier_block *nb);
+extern struct atomic_yestifier_head power_supply_yestifier;
+extern int power_supply_reg_yestifier(struct yestifier_block *nb);
+extern void power_supply_unreg_yestifier(struct yestifier_block *nb);
 extern struct power_supply *power_supply_get_by_name(const char *name);
 extern void power_supply_put(struct power_supply *psy);
 #ifdef CONFIG_OF
-extern struct power_supply *power_supply_get_by_phandle(struct device_node *np,
+extern struct power_supply *power_supply_get_by_phandle(struct device_yesde *np,
 							const char *property);
 extern struct power_supply *devm_power_supply_get_by_phandle(
 				    struct device *dev, const char *property);
 #else /* !CONFIG_OF */
 static inline struct power_supply *
-power_supply_get_by_phandle(struct device_node *np, const char *property)
+power_supply_get_by_phandle(struct device_yesde *np, const char *property)
 { return NULL; }
 static inline struct power_supply *
 devm_power_supply_get_by_phandle(struct device *dev, const char *property)
@@ -408,7 +408,7 @@ power_supply_register(struct device *parent,
 				 const struct power_supply_desc *desc,
 				 const struct power_supply_config *cfg);
 extern struct power_supply *__must_check
-power_supply_register_no_ws(struct device *parent,
+power_supply_register_yes_ws(struct device *parent,
 				 const struct power_supply_desc *desc,
 				 const struct power_supply_config *cfg);
 extern struct power_supply *__must_check
@@ -416,7 +416,7 @@ devm_power_supply_register(struct device *parent,
 				 const struct power_supply_desc *desc,
 				 const struct power_supply_config *cfg);
 extern struct power_supply *__must_check
-devm_power_supply_register_no_ws(struct device *parent,
+devm_power_supply_register_yes_ws(struct device *parent,
 				 const struct power_supply_desc *desc,
 				 const struct power_supply_config *cfg);
 extern void power_supply_unregister(struct power_supply *psy);

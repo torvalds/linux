@@ -365,8 +365,8 @@ static struct entry *q_pop(struct queue *q)
 }
 
 /*
- * This function assumes there is a non-sentinel entry to pop.  It's only
- * used by redistribute, so we know this is true.  It also doesn't adjust
+ * This function assumes there is a yesn-sentinel entry to pop.  It's only
+ * used by redistribute, so we kyesw this is true.  It also doesn't adjust
  * the q->nr_elts count.
  */
 static struct entry *__redist_pop_from(struct queue *q, unsigned level)
@@ -1047,7 +1047,7 @@ static void update_promote_levels(struct smq_policy *mq)
 
 	/*
 	 * If the hotspot queue is performing badly then we have little
-	 * confidence that we know which blocks to promote.  So we cut down
+	 * confidence that we kyesw which blocks to promote.  So we cut down
 	 * the amount of promotions.
 	 */
 	switch (stats_assess(&mq->hotspot_stats)) {
@@ -1130,7 +1130,7 @@ static unsigned percent_to_target(struct smq_policy *mq, unsigned p)
 static bool clean_target_met(struct smq_policy *mq, bool idle)
 {
 	/*
-	 * Cache entries may not be populated.  So we cannot rely on the
+	 * Cache entries may yest be populated.  So we canyest rely on the
 	 * size of the clean queue.
 	 */
 	if (idle) {
@@ -1247,7 +1247,7 @@ static void queue_promotion(struct smq_policy *mq, dm_oblock_t oblock,
 		return;
 
 	/*
-	 * We allocate the entry now to reserve the cblock.  If the
+	 * We allocate the entry yesw to reserve the cblock.  If the
 	 * background work is aborted we must remember to free it.
 	 */
 	e = alloc_entry(&mq->cache_alloc);
@@ -1633,9 +1633,9 @@ static void smq_allow_migrations(struct dm_cache_policy *p, bool allow)
 }
 
 /*
- * smq has no config values, but the old mq policy did.  To avoid breaking
+ * smq has yes config values, but the old mq policy did.  To avoid breaking
  * software we continue to accept these configurables for the mq policy,
- * but they have no effect.
+ * but they have yes effect.
  */
 static int mq_set_config_value(struct dm_cache_policy *p,
 			       const char *key, const char *value)
@@ -1650,7 +1650,7 @@ static int mq_set_config_value(struct dm_cache_policy *p,
 	    !strcasecmp(key, "discard_promote_adjustment") ||
 	    !strcasecmp(key, "read_promote_adjustment") ||
 	    !strcasecmp(key, "write_promote_adjustment")) {
-		DMWARN("tunable '%s' no longer has any effect, mq policy is now an alias for smq", key);
+		DMWARN("tunable '%s' yes longer has any effect, mq policy is yesw an alias for smq", key);
 		return 0;
 	}
 

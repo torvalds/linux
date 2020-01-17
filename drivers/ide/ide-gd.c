@@ -3,7 +3,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/genhd.h>
 #include <linux/mutex.h>
 #include <linux/ide.h>
@@ -95,7 +95,7 @@ static void ide_disk_release(struct device *dev)
 /*
  * On HPA drives the capacity needs to be
  * reinitialized on resume otherwise the disk
- * can not be used and a hard reset is required
+ * can yest be used and a hard reset is required
  */
 static void ide_gd_resume(ide_drive_t *drive)
 {
@@ -121,7 +121,7 @@ static void ide_gd_shutdown(ide_drive_t *drive)
 #ifdef	CONFIG_ALPHA
 	/* On Alpha, halt(8) doesn't actually turn the machine off,
 	   it puts you into the sort of firmware monitor. Typically,
-	   it's used to boot another kernel image, so it's not much
+	   it's used to boot ayesther kernel image, so it's yest much
 	   different from reboot(8). Therefore, we don't need to
 	   spin down the disk in this case, especially since Alpha
 	   firmware doesn't handle disks in standby mode properly.
@@ -220,7 +220,7 @@ static int ide_gd_open(struct block_device *bdev, fmode_t mode)
 		}
 
 		/*
-		 * Ignore the return code from door_lock,
+		 * Igyesre the return code from door_lock,
 		 * since the open() has already succeeded,
 		 * and the door_lock is irrelevant at this point.
 		 */
@@ -291,7 +291,7 @@ static unsigned int ide_gd_check_events(struct gendisk *disk,
 	ide_drive_t *drive = idkp->drive;
 	bool ret;
 
-	/* do not scan partitions twice if this is a removable device */
+	/* do yest scan partitions twice if this is a removable device */
 	if (drive->dev_flags & IDE_DFLAG_ATTACH) {
 		drive->dev_flags &= ~IDE_DFLAG_ATTACH;
 		return 0;
@@ -358,7 +358,7 @@ static int ide_gd_probe(ide_drive_t *drive)
 	struct ide_disk_obj *idkp;
 	struct gendisk *g;
 
-	/* strstr("foo", "") is non-NULL */
+	/* strstr("foo", "") is yesn-NULL */
 	if (!strstr("ide-gd", drive->driver_req))
 		goto failed;
 
@@ -374,7 +374,7 @@ static int ide_gd_probe(ide_drive_t *drive)
 		goto failed;
 
 	if (disk_ops->check(drive, DRV_NAME) == 0) {
-		printk(KERN_ERR PFX "%s: not supported by this driver\n",
+		printk(KERN_ERR PFX "%s: yest supported by this driver\n",
 			drive->name);
 		goto failed;
 	}
@@ -386,7 +386,7 @@ static int ide_gd_probe(ide_drive_t *drive)
 		goto failed;
 	}
 
-	g = alloc_disk_node(IDE_DISK_MINORS, hwif_to_node(drive->hwif));
+	g = alloc_disk_yesde(IDE_DISK_MINORS, hwif_to_yesde(drive->hwif));
 	if (!g)
 		goto out_free_idkp;
 
@@ -413,7 +413,7 @@ static int ide_gd_probe(ide_drive_t *drive)
 
 	set_capacity(g, ide_gd_capacity(drive));
 
-	g->minors = IDE_DISK_MINORS;
+	g->miyesrs = IDE_DISK_MINORS;
 	g->flags |= GENHD_FL_EXT_DEVT;
 	if (drive->dev_flags & IDE_DFLAG_REMOVABLE)
 		g->flags = GENHD_FL_REMOVABLE;

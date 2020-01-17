@@ -259,7 +259,7 @@ static const struct soc_enum adc2_ng_delay_enum =
 			ARRAY_SIZE(cs53l30_ng_delay_text),
 			cs53l30_ng_delay_text);
 
-/* The noise gate threshold selected will depend on NG Boost */
+/* The yesise gate threshold selected will depend on NG Boost */
 static const char * const cs53l30_ng_thres_text[] = {
 	"-64dB/-34dB", "-66dB/-36dB", "-70dB/-40dB", "-73dB/-43dB",
 	"-76dB/-46dB", "-82dB/-52dB", "-58dB", "-64dB",
@@ -717,7 +717,7 @@ static int cs53l30_set_bias_level(struct snd_soc_component *component,
 					break;
 			}
 		}
-		/* PDN_DONE is set. We now can disable the MCLK */
+		/* PDN_DONE is set. We yesw can disable the MCLK */
 		regmap_update_bits(priv->regmap, CS53L30_INT_MASK,
 				   CS53L30_PDN_DONE, CS53L30_PDN_DONE);
 		regmap_update_bits(priv->regmap, CS53L30_MCLKCTL,
@@ -773,11 +773,11 @@ static int cs53l30_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	int i;
 
 	if (!rx_mask) {
-		dev_err(dai->dev, "rx masks must not be 0\n");
+		dev_err(dai->dev, "rx masks must yest be 0\n");
 		return -EINVAL;
 	}
 
-	/* Assuming slot_width is not supposed to be greater than 64 */
+	/* Assuming slot_width is yest supposed to be greater than 64 */
 	if (slots <= 0 || slot_width <= 0 || slot_width > 64) {
 		dev_err(dai->dev, "invalid slot number or slot width\n");
 		return -EINVAL;
@@ -898,7 +898,7 @@ static const struct snd_soc_component_driver cs53l30_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(cs53l30_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static struct regmap_config cs53l30_regmap = {
@@ -917,7 +917,7 @@ static struct regmap_config cs53l30_regmap = {
 static int cs53l30_i2c_probe(struct i2c_client *client,
 			     const struct i2c_device_id *id)
 {
-	const struct device_node *np = client->dev.of_node;
+	const struct device_yesde *np = client->dev.of_yesde;
 	struct device *dev = &client->dev;
 	struct cs53l30_private *cs53l30;
 	unsigned int devid = 0;

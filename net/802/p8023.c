@@ -5,7 +5,7 @@
  *	802.3 isn't really a protocol data link layer. Some old IPX stuff
  *	uses it however. Note that there is only one 802.3 protocol layer
  *	in the system. We don't currently support different protocols
- *	running raw 802.3 on different devices. Thankfully nobody else
+ *	running raw 802.3 on different devices. Thankfully yesbody else
  *	has done anything like the old IPX.
  */
 
@@ -24,11 +24,11 @@
  *	addresses, we just need to give it the buffer length.
  */
 static int p8023_request(struct datalink_proto *dl,
-			 struct sk_buff *skb, unsigned char *dest_node)
+			 struct sk_buff *skb, unsigned char *dest_yesde)
 {
 	struct net_device *dev = skb->dev;
 
-	dev_hard_header(skb, dev, ETH_P_802_3, dest_node, NULL, skb->len);
+	dev_hard_header(skb, dev, ETH_P_802_3, dest_yesde, NULL, skb->len);
 	return dev_queue_xmit(skb);
 }
 

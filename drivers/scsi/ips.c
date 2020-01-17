@@ -25,7 +25,7 @@
 /* MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is    */
 /* solely responsible for determining the appropriateness of using and       */
 /* distributing the Program and assumes all risks associated with its        */
-/* exercise of rights under this Agreement, including but not limited to     */
+/* exercise of rights under this Agreement, including but yest limited to     */
 /* the risks and costs of program errors, damage to or loss of data,         */
 /* programs or equipment, and unavailability or interruption of operations.  */
 /*                                                                           */
@@ -39,7 +39,7 @@
 /* HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES             */
 /*                                                                           */
 /* You should have received a copy of the GNU General Public License         */
-/* along with this program; if not, write to the Free Software               */
+/* along with this program; if yest, write to the Free Software               */
 /* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 /*                                                                           */
 /* Bugs/Comments/Suggestions about this driver should be mailed to:          */
@@ -56,7 +56,7 @@
 /*                                                                           */
 /* 0.99.02  - Breakup commands that are bigger than 8 * the stripe size      */
 /* 0.99.03  - Make interrupt routine handle all completed request on the     */
-/*            adapter not just the first one                                 */
+/*            adapter yest just the first one                                 */
 /*          - Make sure passthru commands get woken up if we run out of      */
 /*            SCBs                                                           */
 /*          - Send all of the commands on the queue at once rather than      */
@@ -74,7 +74,7 @@
 /*          - Only allow one DCDB command to a SCSI ID at a time             */
 /* 4.00.00  - Add support for ServeRAID 4                                    */
 /* 4.00.01  - Add support for First Failure Data Capture                     */
-/* 4.00.02  - Fix problem with PT DCDB with no buffer                        */
+/* 4.00.02  - Fix problem with PT DCDB with yes buffer                        */
 /* 4.00.03  - Add alternative passthru interface                             */
 /*          - Add ability to flash BIOS                                      */
 /* 4.00.04  - Rename structures/constants to be prefixed with IPS_           */
@@ -91,22 +91,22 @@
 /*            Fix truncation of /proc files with cat                         */
 /*            Merge in changes through kernel 2.4.0test1ac21                 */
 /* 4.20.13  - Fix some failure cases / reset code                            */
-/*          - Hook into the reboot_notifier to flush the controller cache    */
+/*          - Hook into the reboot_yestifier to flush the controller cache    */
 /* 4.50.01  - Fix problem when there is a hole in logical drive numbering    */
 /* 4.70.09  - Use a Common ( Large Buffer ) for Flashing from the JCRM CD    */
 /*          - Add IPSSEND Flash Support                                      */
-/*          - Set Sense Data for Unknown SCSI Command                        */
+/*          - Set Sense Data for Unkyeswn SCSI Command                        */
 /*          - Use Slot Number from NVRAM Page 5                              */
 /*          - Restore caller's DCDB Structure                                */
 /* 4.70.12  - Corrective actions for bad controller ( during initialization )*/
-/* 4.70.13  - Don't Send CDB's if we already know the device is not present  */
+/* 4.70.13  - Don't Send CDB's if we already kyesw the device is yest present  */
 /*          - Don't release HA Lock in ips_next() until SC taken off queue   */
 /*          - Unregister SCSI device in ips_release()                        */
-/* 4.70.15  - Fix Breakup for very large ( non-SG ) requests in ips_done()   */
-/* 4.71.00  - Change all memory allocations to not use GFP_DMA flag          */
+/* 4.70.15  - Fix Breakup for very large ( yesn-SG ) requests in ips_done()   */
+/* 4.71.00  - Change all memory allocations to yest use GFP_DMA flag          */
 /*            Code Clean-Up for 2.4.x kernel                                 */
 /* 4.72.00  - Allow for a Scatter-Gather Element to exceed MAX_XFER Size     */
-/* 4.72.01  - I/O Mapped Memory release ( so "insmod ips" does not Fail )    */
+/* 4.72.01  - I/O Mapped Memory release ( so "insmod ips" does yest Fail )    */
 /*          - Don't Issue Internal FFDC Command if there are Active Commands */
 /*          - Close Window for getting too many IOCTL's active               */
 /* 4.80.00  - Make ia64 Safe                                                 */
@@ -153,11 +153,11 @@
  *                        NOTE: only works when IPS_DEBUG compile directive is used.
  *       1              - Normal debug messages
  *       2              - Verbose debug messages
- *       11             - Method trace (non interrupt)
+ *       11             - Method trace (yesn interrupt)
  *       12             - Method trace (includes interrupt)
  *
- * noi2o                - Don't use I2O Queues (ServeRAID 4 only)
- * nommap               - Don't use memory mapped I/O
+ * yesi2o                - Don't use I2O Queues (ServeRAID 4 only)
+ * yesmmap               - Don't use memory mapped I/O
  * ioctlsize            - Initial size of the IOCTL buffer
  */
 
@@ -166,7 +166,7 @@
 #include <asm/page.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
@@ -365,7 +365,7 @@ static struct scsi_host_template ips_driver_template = {
 	.this_id		= -1,
 	.sg_tablesize		= IPS_MAX_SG,
 	.cmd_per_lun		= 3,
-	.no_write_same		= 1,
+	.yes_write_same		= 1,
 };
 
 
@@ -395,7 +395,7 @@ static struct pci_driver ips_pci_driver = {
 /*
  * Necessary forward function protoypes
  */
-static int ips_halt(struct notifier_block *nb, ulong event, void *buf);
+static int ips_halt(struct yestifier_block *nb, ulong event, void *buf);
 
 #define MAX_ADAPTER_NAME 15
 
@@ -420,7 +420,7 @@ static char ips_adapter_name[][30] = {
 	"ServeRAID 7M"
 };
 
-static struct notifier_block ips_notifier = {
+static struct yestifier_block ips_yestifier = {
 	ips_halt, NULL, 0
 };
 
@@ -499,8 +499,8 @@ ips_setup(char *ips_str)
 	char *key;
 	char *value;
 	static const IPS_OPTION options[] = {
-		{"noi2o", &ips_force_i2o, 0},
-		{"nommap", &ips_force_memio, 0},
+		{"yesi2o", &ips_force_i2o, 0},
+		{"yesmmap", &ips_force_memio, 0},
 		{"ioctlsize", &ips_ioctlsize, IPS_IOCTL_SIZE},
 		{"cdboot", &ips_cd_boot, 0},
 		{"maxcmds", &MaxLiteCmds, 32},
@@ -515,7 +515,7 @@ ips_setup(char *ips_str)
 		if (value)
 			*value++ = '\0';
 		/*
-		 * We now have key/value pairs.
+		 * We yesw have key/value pairs.
 		 * Update the variables
 		 */
 		for (i = 0; i < ARRAY_SIZE(options); i++) {
@@ -713,7 +713,7 @@ ips_release(struct Scsi_Host *sh)
 /*                                                                          */
 /****************************************************************************/
 static int
-ips_halt(struct notifier_block *nb, ulong event, void *buf)
+ips_halt(struct yestifier_block *nb, ulong event, void *buf)
 {
 	ips_scb_t *scb;
 	ips_ha_t *ha;
@@ -807,7 +807,7 @@ int ips_eh_abort(struct scsi_cmnd *SC)
 
 		/* See if the command is on the wait queue */
 	} else if (ips_removeq_wait(&ha->scb_waitlist, SC)) {
-		/* command not sent yet */
+		/* command yest sent yet */
 		ret = (SUCCESS);
 	} else {
 		/* command must have already been sent */
@@ -873,7 +873,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 
 	/* See if the command is on the wait queue */
 	if (ips_removeq_wait(&ha->scb_waitlist, SC)) {
-		/* command not sent yet */
+		/* command yest sent yet */
 		return (SUCCESS);
 	}
 
@@ -881,9 +881,9 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 	/* Part of the function of a RAID controller is automatic error         */
 	/* detection and recovery.  As such, the only problem that physically   */
 	/* resetting an adapter will ever fix is when, for some reason,         */
-	/* the driver is not successfully communicating with the adapter.       */
+	/* the driver is yest successfully communicating with the adapter.       */
 	/* Therefore, we will attempt to flush this adapter.  If that succeeds, */
-	/* then there's no real purpose in a physical reset. This will complete */
+	/* then there's yes real purpose in a physical reset. This will complete */
 	/* much faster and avoids any problems that might be caused by a        */
 	/* physical reset ( such as having to fail all the outstanding I/O's ). */
 
@@ -928,7 +928,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 		struct scsi_cmnd *scsi_cmd;
 
 		IPS_PRINTK(KERN_NOTICE, ha->pcidev,
-			   "Controller reset failed - controller now offline.\n");
+			   "Controller reset failed - controller yesw offline.\n");
 
 		/* Now fail all of the active commands */
 		DEBUG_VAR(1, "(%s%d) Failing active commands",
@@ -957,7 +957,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 		struct scsi_cmnd *scsi_cmd;
 
 		IPS_PRINTK(KERN_NOTICE, ha->pcidev,
-			   "Controller reset failed - controller now offline.\n");
+			   "Controller reset failed - controller yesw offline.\n");
 
 		/* Now fail all of the active commands */
 		DEBUG_VAR(1, "(%s%d) Failing active commands",
@@ -1367,7 +1367,7 @@ ips_intr_morpheus(ips_ha_t * ha)
 
 		if (cstatus.fields.command_id > (IPS_MAX_CMDS - 1)) {
 			IPS_PRINTK(KERN_WARNING, ha->pcidev,
-				   "Spurious interrupt; no ccb.\n");
+				   "Spurious interrupt; yes ccb.\n");
 
 			continue;
 		}
@@ -1516,7 +1516,7 @@ static int ips_is_passthru(struct scsi_cmnd *SC)
 /* Routine Name: ips_alloc_passthru_buffer                                  */
 /*                                                                          */
 /* Routine Description:                                                     */
-/*   allocate a buffer large enough for the ioctl data if the ioctl buffer  */
+/*   allocate a buffer large eyesugh for the ioctl data if the ioctl buffer  */
 /*   is too small or doesn't exist                                          */
 /****************************************************************************/
 static int
@@ -1527,7 +1527,7 @@ ips_alloc_passthru_buffer(ips_ha_t * ha, int length)
 
 	if (ha->ioctl_data && length <= ha->ioctl_len)
 		return 0;
-	/* there is no buffer or it's not big enough, allocate a new one */
+	/* there is yes buffer or it's yest big eyesugh, allocate a new one */
 	bigger_buf = dma_alloc_coherent(&ha->pcidev->dev, length, &dma_busaddr,
 			GFP_KERNEL);
 	if (bigger_buf) {
@@ -1590,7 +1590,7 @@ ips_make_passthru(ips_ha_t *ha, struct scsi_cmnd *SC, ips_scb_t *scb, int intr)
 	pt = (ips_passthru_t *) ha->ioctl_data;
 
 	/*
-	 * Some notes about the passthru interface used
+	 * Some yestes about the passthru interface used
 	 *
 	 * IF the scsi op_code == 0x0d then we assume
 	 * that the data came along with/goes with the
@@ -2033,7 +2033,7 @@ ips_host_info(ips_ha_t *ha, struct seq_file *m)
 		seq_printf(m, "\tController Type                   : %s\n",
 			  ips_adapter_name[ha->ad_type - 1]);
 	else
-		seq_puts(m, "\tController Type                   : Unknown\n");
+		seq_puts(m, "\tController Type                   : Unkyeswn\n");
 
 	if (ha->io_addr)
 		seq_printf(m,
@@ -2230,14 +2230,14 @@ ips_get_bios_version(ips_ha_t * ha, int intr)
 	ips_scb_t *scb;
 	int ret;
 	uint8_t major;
-	uint8_t minor;
-	uint8_t subminor;
+	uint8_t miyesr;
+	uint8_t submiyesr;
 	uint8_t *buffer;
 
 	METHOD_TRACE("ips_get_bios_version", 1);
 
 	major = 0;
-	minor = 0;
+	miyesr = 0;
 
 	strncpy(ha->bios_version, "       ?", 8);
 
@@ -2267,17 +2267,17 @@ ips_get_bios_version(ips_ha_t * ha, int intr)
 
 			major = readb(ha->mem_ptr + IPS_REG_FLDP);
 
-			/* Get Minor version */
+			/* Get Miyesr version */
 			writel(0x1FE, ha->mem_ptr + IPS_REG_FLAP);
 			if (ha->pcidev->revision == IPS_REVID_TROMBONE64)
 				udelay(25);	/* 25 us */
-			minor = readb(ha->mem_ptr + IPS_REG_FLDP);
+			miyesr = readb(ha->mem_ptr + IPS_REG_FLDP);
 
-			/* Get SubMinor version */
+			/* Get SubMiyesr version */
 			writel(0x1FD, ha->mem_ptr + IPS_REG_FLAP);
 			if (ha->pcidev->revision == IPS_REVID_TROMBONE64)
 				udelay(25);	/* 25 us */
-			subminor = readb(ha->mem_ptr + IPS_REG_FLDP);
+			submiyesr = readb(ha->mem_ptr + IPS_REG_FLDP);
 
 		} else {
 			/* Programmed I/O */
@@ -2304,19 +2304,19 @@ ips_get_bios_version(ips_ha_t * ha, int intr)
 
 			major = inb(ha->io_addr + IPS_REG_FLDP);
 
-			/* Get Minor version */
+			/* Get Miyesr version */
 			outl(0x1FE, ha->io_addr + IPS_REG_FLAP);
 			if (ha->pcidev->revision == IPS_REVID_TROMBONE64)
 				udelay(25);	/* 25 us */
 
-			minor = inb(ha->io_addr + IPS_REG_FLDP);
+			miyesr = inb(ha->io_addr + IPS_REG_FLDP);
 
-			/* Get SubMinor version */
+			/* Get SubMiyesr version */
 			outl(0x1FD, ha->io_addr + IPS_REG_FLAP);
 			if (ha->pcidev->revision == IPS_REVID_TROMBONE64)
 				udelay(25);	/* 25 us */
 
-			subminor = inb(ha->io_addr + IPS_REG_FLDP);
+			submiyesr = inb(ha->io_addr + IPS_REG_FLDP);
 
 		}
 	} else {
@@ -2356,8 +2356,8 @@ ips_get_bios_version(ips_ha_t * ha, int intr)
 
 		if ((buffer[0xC0] == 0x55) && (buffer[0xC1] == 0xAA)) {
 			major = buffer[0x1ff + 0xC0];	/* Offset 0x1ff after the header (0xc0) */
-			minor = buffer[0x1fe + 0xC0];	/* Offset 0x1fe after the header (0xc0) */
-			subminor = buffer[0x1fd + 0xC0];	/* Offset 0x1fd after the header (0xc0) */
+			miyesr = buffer[0x1fe + 0xC0];	/* Offset 0x1fe after the header (0xc0) */
+			submiyesr = buffer[0x1fd + 0xC0];	/* Offset 0x1fd after the header (0xc0) */
 		} else {
 			return;
 		}
@@ -2366,10 +2366,10 @@ ips_get_bios_version(ips_ha_t * ha, int intr)
 	ha->bios_version[0] = hex_asc_upper_hi(major);
 	ha->bios_version[1] = '.';
 	ha->bios_version[2] = hex_asc_upper_lo(major);
-	ha->bios_version[3] = hex_asc_upper_lo(subminor);
+	ha->bios_version[3] = hex_asc_upper_lo(submiyesr);
 	ha->bios_version[4] = '.';
-	ha->bios_version[5] = hex_asc_upper_hi(minor);
-	ha->bios_version[6] = hex_asc_upper_lo(minor);
+	ha->bios_version[5] = hex_asc_upper_hi(miyesr);
+	ha->bios_version[6] = hex_asc_upper_lo(miyesr);
 	ha->bios_version[7] = 0;
 }
 
@@ -2542,16 +2542,16 @@ ips_next(ips_ha_t * ha, int intr)
 
 	if ((ha->subsys->param[3] & 0x300000)
 	    && (ha->scb_activelist.count == 0)) {
-		time64_t now = ktime_get_real_seconds();
-		if (now - ha->last_ffdc > IPS_SECS_8HOURS) {
-			ha->last_ffdc = now;
+		time64_t yesw = ktime_get_real_seconds();
+		if (yesw - ha->last_ffdc > IPS_SECS_8HOURS) {
+			ha->last_ffdc = yesw;
 			ips_ffdc_time(ha);
 		}
 	}
 
 	/*
 	 * Send passthru commands
-	 * These have priority over normal I/O
+	 * These have priority over yesrmal I/O
 	 * but shouldn't affect performance too much
 	 * since we limit the number that can be active
 	 * on the card at any one time
@@ -2682,7 +2682,7 @@ ips_next(ips_ha_t * ha, int intr)
 		scb->dcdb.cmd_attribute =
 		    ips_command_direction[scb->scsi_cmd->cmnd[0]];
 
-		/* Allow a WRITE BUFFER Command to Have no Data */
+		/* Allow a WRITE BUFFER Command to Have yes Data */
 		/* This is Used by Tape Flash Utilites          */
 		if ((scb->scsi_cmd->cmnd[0] == WRITE_BUFFER) &&
 				(scb->data_len == 0))
@@ -3099,7 +3099,7 @@ ipsintr_blocking(ips_ha_t * ha, ips_scb_t * scb)
 /*                                                                          */
 /* Routine Description:                                                     */
 /*                                                                          */
-/*   Finalize an interrupt for non-internal commands                        */
+/*   Finalize an interrupt for yesn-internal commands                        */
 /*                                                                          */
 /****************************************************************************/
 static void
@@ -3117,7 +3117,7 @@ ipsintr_done(ips_ha_t * ha, ips_scb_t * scb)
 	if (scb->scsi_cmd == NULL) {
 		/* unexpected interrupt */
 		IPS_PRINTK(KERN_WARNING, ha->pcidev,
-			   "Spurious interrupt; scsi_cmd not set.\n");
+			   "Spurious interrupt; scsi_cmd yest set.\n");
 
 		return;
 	}
@@ -3302,7 +3302,7 @@ ips_map_status(ips_ha_t * ha, ips_scb_t * scb, ips_stat_t * sp)
 			}
 
 			if ((scb->bus) && (transfer_len < scb->data_len)) {
-				/* Underrun - set default to no error */
+				/* Underrun - set default to yes error */
 				errcode = DID_OK;
 
 				/* Restrict access to physical DASD */
@@ -3709,7 +3709,7 @@ ips_send_cmd(ips_ha_t * ha, ips_scb_t * scb)
 	/* setup DCDB */
 	if (scb->bus > 0) {
 
-		/* If we already know the Device is Not there, no need to attempt a Command   */
+		/* If we already kyesw the Device is Not there, yes need to attempt a Command   */
 		/* This also protects an NT FailOver Controller from getting CDB's sent to it */
 		if (ha->conf->dev[scb->bus - 1][scb->target_id].ucState == 0) {
 			scb->scsi_cmd->result = DID_NO_CONNECT << 16;
@@ -4448,7 +4448,7 @@ ips_freescb(ips_ha_t * ha, ips_scb_t * scb)
 		dma_unmap_single(&ha->pcidev->dev, scb->data_busaddr,
 				 scb->data_len, IPS_DMA_DIR(scb));
 
-	/* check to make sure this is not our "special" scb */
+	/* check to make sure this is yest our "special" scb */
 	if (IPS_COMMAND_ID(ha, scb) < (ha->max_cmds - 1)) {
 		scb->q_next = ha->scb_freelist;
 		ha->scb_freelist = scb;
@@ -4544,7 +4544,7 @@ ips_isinit_morpheus(ips_ha_t * ha)
 /*                                                                          */
 /* Routine Description:                                                     */
 /*                                                                          */
-/*   Perform cleanup ( FLUSH and RESET ) when the adapter is in an unknown  */
+/*   Perform cleanup ( FLUSH and RESET ) when the adapter is in an unkyeswn  */
 /*   state ( was trying to INIT and an interrupt was already pending ) ...  */
 /*                                                                          */
 /****************************************************************************/
@@ -4569,7 +4569,7 @@ ips_flush_and_reset(ips_ha_t *ha)
 	    scb->cdb[0] = IPS_CMD_FLUSH;
 
 	    scb->cmd.flush_cache.op_code = IPS_CMD_FLUSH;
-	    scb->cmd.flush_cache.command_id = IPS_MAX_CMDS;   /* Use an ID that would otherwise not exist */
+	    scb->cmd.flush_cache.command_id = IPS_MAX_CMDS;   /* Use an ID that would otherwise yest exist */
 	    scb->cmd.flush_cache.state = IPS_NORM_STATE;
 	    scb->cmd.flush_cache.reserved = 0;
 	    scb->cmd.flush_cache.reserved2 = 0;
@@ -4605,7 +4605,7 @@ ips_flush_and_reset(ips_ha_t *ha)
 /* Routine Description:                                                     */
 /*                                                                          */
 /*   Poll for the Flush Command issued by ips_flush_and_reset() to complete */
-/*   All other responses are just taken off the queue and ignored           */
+/*   All other responses are just taken off the queue and igyesred           */
 /*                                                                          */
 /****************************************************************************/
 static int
@@ -5553,7 +5553,7 @@ ips_wait(ips_ha_t * ha, int time, int intr)
 			if (ha->waitflag == FALSE) {
 				/*
 				 * controller generated an interrupt to
-				 * acknowledge completion of the command
+				 * ackyeswledge completion of the command
 				 * and ips_intr() has serviced the interrupt.
 				 */
 				ret = IPS_SUCCESS;
@@ -5629,7 +5629,7 @@ ips_write_driver_status(ips_ha_t * ha, int intr)
 
 	ha->nvram->versioning = 0;	/* Indicate the Driver Does Not Support Versioning */
 
-	/* now update the page */
+	/* yesw update the page */
 	if (!ips_readwrite_page5(ha, TRUE, intr)) {
 		IPS_PRINTK(KERN_WARNING, ha->pcidev,
 			   "unable to write NVRAM page 5.\n");
@@ -6626,7 +6626,7 @@ ips_order_controllers(void)
 			tmp = 1;
 		}
 	}
-	/* if there were no 5I cards, then don't do any extra ordering */
+	/* if there were yes 5I cards, then don't do any extra ordering */
 	if (!tmp)
 		return;
 	for (i = position; i < ips_num_controllers; i++) {
@@ -6743,7 +6743,7 @@ ips_module_init(void)
 		pci_unregister_driver(&ips_pci_driver);
 		return -ENODEV;
 	}
-	register_reboot_notifier(&ips_notifier);
+	register_reboot_yestifier(&ips_yestifier);
 	return 0;
 }
 
@@ -6758,7 +6758,7 @@ static void __exit
 ips_module_exit(void)
 {
 	pci_unregister_driver(&ips_pci_driver);
-	unregister_reboot_notifier(&ips_notifier);
+	unregister_reboot_yestifier(&ips_yestifier);
 }
 
 module_init(ips_module_init);
@@ -6771,7 +6771,7 @@ module_exit(ips_module_exit);
 /*     Add One Adapter ( Hot Plug )                                          */
 /*                                                                           */
 /*   Return Value:                                                           */
-/*     0 if Successful, else non-zero                                        */
+/*     0 if Successful, else yesn-zero                                        */
 /*---------------------------------------------------------------------------*/
 static int
 ips_insert_device(struct pci_dev *pci_dev, const struct pci_device_id *ent)
@@ -6825,7 +6825,7 @@ err_out:
 /*     Adapter Initialization                                                */
 /*                                                                           */
 /*   Return Value:                                                           */
-/*     0 if Successful, else non-zero                                        */
+/*     0 if Successful, else yesn-zero                                        */
 /*---------------------------------------------------------------------------*/
 static int
 ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
@@ -6993,8 +6993,8 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 		return ips_abort_init(ha, index);
 	}
 
-	/* the ioctl buffer is now used during adapter initialization, so its
-	 * successful allocation is now required */
+	/* the ioctl buffer is yesw used during adapter initialization, so its
+	 * successful allocation is yesw required */
 	if (ips_ioctlsize < PAGE_SIZE)
 		ips_ioctlsize = PAGE_SIZE;
 
@@ -7046,7 +7046,7 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 /*     Adapter Initialization Phase 2                                        */
 /*                                                                           */
 /*   Return Value:                                                           */
-/*     0 if Successful, else non-zero                                        */
+/*     0 if Successful, else yesn-zero                                        */
 /*---------------------------------------------------------------------------*/
 static int
 ips_init_phase2(int index)
@@ -7106,7 +7106,7 @@ MODULE_VERSION(IPS_VER_STRING);
 
 /*
  * Overrides for Emacs so that we almost follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
+ * Emacs will yestice this stuff at the end of the file and automatically
  * adjust the settings for this buffer only.  This must remain at the end
  * of the file.
  * ---------------------------------------------------------------------------

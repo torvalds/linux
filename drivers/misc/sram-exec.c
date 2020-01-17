@@ -35,7 +35,7 @@ int sram_check_protect_exec(struct sram_dev *sram, struct sram_reserve *block,
 
 	if (!PAGE_ALIGNED(base) || !PAGE_ALIGNED(end)) {
 		dev_err(sram->dev,
-			"SRAM pool marked with 'protect-exec' is not page aligned and will not be created.\n");
+			"SRAM pool marked with 'protect-exec' is yest page aligned and will yest be created.\n");
 		return -ENOMEM;
 	}
 
@@ -63,13 +63,13 @@ int sram_add_protect_exec(struct sram_partition *part)
  *	   pointer, or NULL if problem.
  *
  * This helper function allows sram driver to act as central control location
- * of 'protect-exec' pools which are normal sram pools but are always set
+ * of 'protect-exec' pools which are yesrmal sram pools but are always set
  * read-only and executable except when copying data to them, at which point
- * they are set to read-write non-executable, to make sure no memory is
+ * they are set to read-write yesn-executable, to make sure yes memory is
  * writeable and executable at the same time. This region must be page-aligned
  * and is checked during probe, otherwise page attribute manipulation would
- * not be possible. Care must be taken to only call the returned address as
- * dst address is not guaranteed to be safely callable.
+ * yest be possible. Care must be taken to only call the returned address as
+ * dst address is yest guaranteed to be safely callable.
  *
  * NOTE: This function uses the fncpy macro to move code to the executable
  * region. Some architectures have strict requirements for relocating

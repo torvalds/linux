@@ -535,7 +535,7 @@ static int corgi_lcd_probe(struct spi_device *spi)
 	int ret = 0;
 
 	if (pdata == NULL) {
-		dev_err(&spi->dev, "platform data not available\n");
+		dev_err(&spi->dev, "platform data yest available\n");
 		return -EINVAL;
 	}
 

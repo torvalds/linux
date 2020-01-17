@@ -41,11 +41,11 @@ static void _rtw_init_stainfo(struct sta_info *psta)
 
 	psta->bpairwise_key_installed = false;
 
-	psta->nonerp_set = 0;
-	psta->no_short_slot_time_set = 0;
-	psta->no_short_preamble_set = 0;
-	psta->no_ht_gf_set = 0;
-	psta->no_ht_set = 0;
+	psta->yesnerp_set = 0;
+	psta->yes_short_slot_time_set = 0;
+	psta->yes_short_preamble_set = 0;
+	psta->yes_ht_gf_set = 0;
+	psta->yes_ht_set = 0;
 	psta->ht_20mhz_set = 0;
 
 	psta->under_exist_checking = 0;
@@ -481,27 +481,27 @@ bool rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 	bool res = true;
 #ifdef CONFIG_88EU_AP_MODE
 	struct list_head *plist, *phead;
-	struct rtw_wlan_acl_node *paclnode;
+	struct rtw_wlan_acl_yesde *paclyesde;
 	bool match = false;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
-	struct __queue *pacl_node_q = &pacl_list->acl_node_q;
+	struct __queue *pacl_yesde_q = &pacl_list->acl_yesde_q;
 
-	spin_lock_bh(&pacl_node_q->lock);
-	phead = get_list_head(pacl_node_q);
+	spin_lock_bh(&pacl_yesde_q->lock);
+	phead = get_list_head(pacl_yesde_q);
 	plist = phead->next;
 	while (phead != plist) {
-		paclnode = container_of(plist, struct rtw_wlan_acl_node, list);
+		paclyesde = container_of(plist, struct rtw_wlan_acl_yesde, list);
 		plist = plist->next;
 
-		if (!memcmp(paclnode->addr, mac_addr, ETH_ALEN)) {
-			if (paclnode->valid) {
+		if (!memcmp(paclyesde->addr, mac_addr, ETH_ALEN)) {
+			if (paclyesde->valid) {
 				match = true;
 				break;
 			}
 		}
 	}
-	spin_unlock_bh(&pacl_node_q->lock);
+	spin_unlock_bh(&pacl_yesde_q->lock);
 
 	if (pacl_list->mode == 1)/* accept unless in deny list */
 		res = !match;

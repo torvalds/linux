@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
- * Copyright (C) 2004-2016 Synopsys, Inc.
+ * Copyright (C) 2004-2016 Syyespsys, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
+ * 3. The names of the above-listed copyright holders may yest be used
  *    to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -374,8 +374,8 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 		 * g_np_tx_fifo_size (1024) come from the legacy s3c
 		 * gadget driver. These defaults have been hard-coded
 		 * for some time so many platforms depend on these
-		 * values. Leave them as defaults for now and only
-		 * auto-detect if the hardware does not support the
+		 * values. Leave them as defaults for yesw and only
+		 * auto-detect if the hardware does yest support the
 		 * default.
 		 */
 		p->g_rx_fifo_size = 2048;
@@ -416,7 +416,7 @@ static void dwc2_get_device_properties(struct dwc2_hsotg *hsotg)
 		}
 	}
 
-	if (of_find_property(hsotg->dev->of_node, "disable-over-current", NULL))
+	if (of_find_property(hsotg->dev->of_yesde, "disable-over-current", NULL))
 		p->oc_disable = true;
 }
 
@@ -681,7 +681,7 @@ static void dwc2_check_params(struct dwc2_hsotg *hsotg)
 }
 
 /*
- * Gets host hardware parameters. Forces host mode if not currently in
+ * Gets host hardware parameters. Forces host mode if yest currently in
  * host mode. Should be called immediately after a core soft reset in
  * order to get the reset values.
  */
@@ -706,7 +706,7 @@ static void dwc2_get_host_hwparams(struct dwc2_hsotg *hsotg)
 }
 
 /*
- * Gets device hardware parameters. Forces device mode if not
+ * Gets device hardware parameters. Forces device mode if yest
  * currently in device mode. Should be called immediately after a core
  * soft reset in order to get the reset values.
  */

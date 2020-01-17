@@ -10,7 +10,7 @@
 #define ICE_VLAN_M			0xFFF
 #define ICE_PRIORITY_M			0x7000
 
-/* Restrict number of MAC Addr and VLAN that non-trusted VF can programmed */
+/* Restrict number of MAC Addr and VLAN that yesn-trusted VF can programmed */
 #define ICE_MAX_VLAN_PER_VF		8
 #define ICE_MAX_MACADDR_PER_VF		12
 
@@ -78,7 +78,7 @@ struct ice_vf {
 	u8 link_forced:1;
 	u8 link_up:1;			/* only valid if VF link is forced */
 	/* VSI indices - actual VSI pointers are maintained in the PF structure
-	 * When assigned, these will be non-zero, because VSI 0 is always
+	 * When assigned, these will be yesn-zero, because VSI 0 is always
 	 * the main LAN VSI for the PF.
 	 */
 	u16 lan_vsi_num;		/* ID as used by firmware */
@@ -105,8 +105,8 @@ ice_get_vf_cfg(struct net_device *netdev, int vf_id, struct ifla_vf_info *ivi);
 
 void ice_free_vfs(struct ice_pf *pf);
 void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event);
-void ice_vc_notify_link_state(struct ice_pf *pf);
-void ice_vc_notify_reset(struct ice_pf *pf);
+void ice_vc_yestify_link_state(struct ice_pf *pf);
+void ice_vc_yestify_reset(struct ice_pf *pf);
 bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr);
 
 int
@@ -129,8 +129,8 @@ ice_get_vf_stats(struct net_device *netdev, int vf_id,
 #define ice_process_vflr_event(pf) do {} while (0)
 #define ice_free_vfs(pf) do {} while (0)
 #define ice_vc_process_vf_msg(pf, event) do {} while (0)
-#define ice_vc_notify_link_state(pf) do {} while (0)
-#define ice_vc_notify_reset(pf) do {} while (0)
+#define ice_vc_yestify_link_state(pf) do {} while (0)
+#define ice_vc_yestify_reset(pf) do {} while (0)
 #define ice_set_vf_state_qs_dis(vf) do {} while (0)
 
 static inline bool

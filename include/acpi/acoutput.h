@@ -48,7 +48,7 @@
 #define ACPI_ALL_DRIVERS            0xFFFF0000
 
 /*
- * Raw debug output levels, do not use these in the ACPI_DEBUG_PRINT macros
+ * Raw debug output levels, do yest use these in the ACPI_DEBUG_PRINT macros
  */
 #define ACPI_LV_INIT                0x00000001
 #define ACPI_LV_DEBUG_OBJECT        0x00000002
@@ -148,7 +148,7 @@
 
 #define ACPI_DB_ALL                 ACPI_DEBUG_LEVEL (ACPI_LV_ALL)
 
-/* Defaults for debug_level, debug and normal */
+/* Defaults for debug_level, debug and yesrmal */
 
 #ifndef ACPI_DEBUG_DEFAULT
 #define ACPI_DEBUG_DEFAULT          (ACPI_LV_INIT | ACPI_LV_DEBUG_OBJECT | ACPI_LV_EVALUATION | ACPI_LV_REPAIR)
@@ -174,14 +174,14 @@
 #if defined (ACPI_DEBUG_OUTPUT) || !defined (ACPI_NO_ERROR_MESSAGES)
 /*
  * The module name is used primarily for error and debug messages.
- * The __FILE__ macro is not very useful for this, because it
+ * The __FILE__ macro is yest very useful for this, because it
  * usually includes the entire pathname to the module making the
  * debug output difficult to read.
  */
 #define ACPI_MODULE_NAME(name)          static const char ACPI_UNUSED_VAR _acpi_module_name[] = name;
 #else
 /*
- * For the no-debug and no-error-msg cases, we must at least define
+ * For the yes-debug and yes-error-msg cases, we must at least define
  * a null module name.
  */
 #define ACPI_MODULE_NAME(name)
@@ -197,7 +197,7 @@
 /*
  * Error reporting. Callers module and line number are inserted by AE_INFO,
  * the plist contains a set of parens to allow variable-length lists.
- * These macros are used for both the debug and non-debug versions of the code.
+ * These macros are used for both the debug and yesn-debug versions of the code.
  */
 #define ACPI_INFO(plist)                acpi_info plist
 #define ACPI_WARNING(plist)             acpi_warning plist
@@ -229,15 +229,15 @@
 #ifdef ACPI_DEBUG_OUTPUT
 
 /*
- * If ACPI_GET_FUNCTION_NAME was not defined in the compiler-dependent header,
- * define it now. This is the case where there the compiler does not support
+ * If ACPI_GET_FUNCTION_NAME was yest defined in the compiler-dependent header,
+ * define it yesw. This is the case where there the compiler does yest support
  * a __func__ macro or equivalent.
  */
 #ifndef ACPI_GET_FUNCTION_NAME
 #define ACPI_GET_FUNCTION_NAME          _acpi_function_name
 
 /*
- * The Name parameter should be the procedure name as a non-quoted string.
+ * The Name parameter should be the procedure name as a yesn-quoted string.
  * The function name is also used by the function exit macros below.
  * Note: (const char) is used to be compatible with the debug interfaces
  * and macros such as __func__.
@@ -245,7 +245,7 @@
 #define ACPI_FUNCTION_NAME(name)        static const char _acpi_function_name[] = #name;
 
 #else
-/* Compiler supports __func__ (or equivalent) -- Ignore this macro */
+/* Compiler supports __func__ (or equivalent) -- Igyesre this macro */
 
 #define ACPI_FUNCTION_NAME(name)
 #endif				/* ACPI_GET_FUNCTION_NAME */
@@ -358,7 +358,7 @@
  *
  * There are two versions of most of the return macros. The default version is
  * safer, since it avoids side-effects by guaranteeing that the argument will
- * not be evaluated twice.
+ * yest be evaluated twice.
  *
  * A less-safe version of the macros is provided for optional use if the
  * compiler uses excessive CPU stack (for example, this may happen in the
@@ -430,8 +430,8 @@
 
 #else				/* ACPI_DEBUG_OUTPUT */
 /*
- * This is the non-debug case -- make everything go away,
- * leaving no executable debug code!
+ * This is the yesn-debug case -- make everything go away,
+ * leaving yes executable debug code!
  */
 #define ACPI_DEBUG_PRINT(pl)
 #define ACPI_DEBUG_PRINT_RAW(pl)

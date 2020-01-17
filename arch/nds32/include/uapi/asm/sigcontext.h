@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef _ASMNDS32_SIGCONTEXT_H
 #define _ASMNDS32_SIGCONTEXT_H
@@ -14,8 +14,8 @@ struct fpu_struct {
 	unsigned long fpcsr;
 	/*
 	 * When CONFIG_SUPPORT_DENORMAL_ARITHMETIC is defined, kernel prevents
-	 * hardware from treating the denormalized output as an underflow case
-	 * and rounding it to a normal number. Hence kernel enables the UDF and
+	 * hardware from treating the deyesrmalized output as an underflow case
+	 * and rounding it to a yesrmal number. Hence kernel enables the UDF and
 	 * IEX trap in the fpcsr register to step in the calculation.
 	 * However, the UDF and IEX trap enable bit in $fpcsr also lose
 	 * their use.
@@ -40,7 +40,7 @@ struct zol_struct {
 };
 
 struct sigcontext {
-	unsigned long trap_no;
+	unsigned long trap_yes;
 	unsigned long error_code;
 	unsigned long oldmask;
 	unsigned long nds32_r0;

@@ -1,10 +1,10 @@
 OMAP Timer bindings
 
 Required properties:
-- compatible:		Should be set to one of the below. Please note that
+- compatible:		Should be set to one of the below. Please yeste that
 			OMAP44xx devices have timer instances that are 100%
 			register compatible with OMAP3xxx devices as well as
-			newer timers that are not 100% register compatible.
+			newer timers that are yest 100% register compatible.
 			So for OMAP44xx devices timer instances may use
 			different compatible strings.
 
@@ -30,7 +30,7 @@ Optional properties:
 			addition to the ARM CPU.
 - ti,timer-pwm: 	Indicates the timer can generate a PWM output.
 - ti,timer-secure: 	Indicates the timer is reserved on a secure OMAP device
-			and therefore cannot be used by the kernel.
+			and therefore canyest be used by the kernel.
 
 Example:
 

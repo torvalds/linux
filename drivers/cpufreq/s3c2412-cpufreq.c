@@ -75,7 +75,7 @@ static int s3c2412_cpufreq_calcdivs(struct s3c_cpufreq_config *cfg)
 
 	cfg->freq.hclk = hclk = armdiv_clk / hdiv;
 
-	/* set dvs depending on whether we reached armclk or not. */
+	/* set dvs depending on whether we reached armclk or yest. */
 	cfg->divs.dvs = dvs = armclk < armdiv_clk;
 
 	/* update the actual armclk we achieved. */
@@ -148,7 +148,7 @@ static void s3c2412_cpufreq_setrefresh(struct s3c_cpufreq_config *cfg)
 		     board->refresh, cfg->freq.hclk);
 
 	/* Reduce both the refresh time (in ns) and the frequency (in MHz)
-	 * by 10 each to ensure that we do not overflow 32 bit numbers. This
+	 * by 10 each to ensure that we do yest overflow 32 bit numbers. This
 	 * should work for HCLK up to 133MHz and refresh period up to 30usec.
 	 */
 
@@ -161,7 +161,7 @@ static void s3c2412_cpufreq_setrefresh(struct s3c_cpufreq_config *cfg)
 }
 
 /* set the default cpu frequency information, based on an 200MHz part
- * as we have no other way of detecting the speed rating in software.
+ * as we have yes other way of detecting the speed rating in software.
  */
 
 static struct s3c_cpufreq_info s3c2412_cpufreq_info = {
@@ -196,13 +196,13 @@ static int s3c2412_cpufreq_add(struct device *dev,
 
 	hclk = clk_get(NULL, "hclk");
 	if (IS_ERR(hclk)) {
-		pr_err("cannot find hclk clock\n");
+		pr_err("canyest find hclk clock\n");
 		return -ENOENT;
 	}
 
 	fclk = clk_get(NULL, "fclk");
 	if (IS_ERR(fclk)) {
-		pr_err("cannot find fclk clock\n");
+		pr_err("canyest find fclk clock\n");
 		goto err_fclk;
 	}
 
@@ -217,13 +217,13 @@ static int s3c2412_cpufreq_add(struct device *dev,
 
 	armclk = clk_get(NULL, "armclk");
 	if (IS_ERR(armclk)) {
-		pr_err("cannot find arm clock\n");
+		pr_err("canyest find arm clock\n");
 		goto err_armclk;
 	}
 
 	xtal = clk_get(NULL, "xtal");
 	if (IS_ERR(xtal)) {
-		pr_err("cannot find xtal clock\n");
+		pr_err("canyest find xtal clock\n");
 		goto err_xtal;
 	}
 

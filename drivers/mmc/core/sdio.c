@@ -32,7 +32,7 @@ static int sdio_read_fbr(struct sdio_func *func)
 	int ret;
 	unsigned char data;
 
-	if (mmc_card_nonstd_func_interface(func->card)) {
+	if (mmc_card_yesnstd_func_interface(func->card)) {
 		func->class = SDIO_CLASS_NONE;
 		return 0;
 	}
@@ -182,7 +182,7 @@ static int sdio_read_cccr(struct mmc_card *card, u32 ocr)
 				card->sw_caps.sd3_drv_type |= SD_DRIVER_TYPE_D;
 		}
 
-		/* if no uhs mode ensure we check for high speed */
+		/* if yes uhs mode ensure we check for high speed */
 		if (!card->sw_caps.sd3_bus_mode) {
 			if (speed & SDIO_SPEED_SHS) {
 				card->cccr.high_speed = 1;
@@ -231,7 +231,7 @@ static int sdio_enable_wide(struct mmc_card *card)
 /*
  * If desired, disconnect the pull-up resistor on CD/DAT[3] (pin 1)
  * of the card. This may be required on certain setups of boards,
- * controllers and embedded sdio device which do not need the card's
+ * controllers and embedded sdio device which do yest need the card's
  * pull-up. As a result, card detection is disabled and power is saved.
  */
 static int sdio_disable_cd(struct mmc_card *card)
@@ -343,7 +343,7 @@ static int mmc_sdio_switch_hs(struct mmc_card *card, int enable)
 }
 
 /*
- * Enable SDIO/combo card's high-speed mode. Return 0/1 if [not]supported.
+ * Enable SDIO/combo card's high-speed mode. Return 0/1 if [yest]supported.
  */
 static int sdio_enable_hs(struct mmc_card *card)
 {
@@ -497,7 +497,7 @@ static int sdio_set_bus_speed_mode(struct mmc_card *card)
 	if (err)
 		return err;
 
-	max_rate = min_not_zero(card->quirk_max_rate,
+	max_rate = min_yest_zero(card->quirk_max_rate,
 				card->sw_caps.uhs_max_dtr);
 
 	if (bus_speed) {
@@ -635,8 +635,8 @@ try_again:
 	/*
 	 * If the host and card support UHS-I mode request the card
 	 * to switch to 1.8V signaling level.  No 1.8v signalling if
-	 * UHS mode is not enabled to maintain compatibility and some
-	 * systems that claim 1.8v signalling in fact do not support
+	 * UHS mode is yest enabled to maintain compatibility and some
+	 * systems that claim 1.8v signalling in fact do yest support
 	 * it. Per SDIO spec v3, section 3.1.2, if the voltage is already
 	 * 1.8v, the card sets S18A to 0 in the R4 response. So it will
 	 * fails to check rocr & R4_18V_PRESENT,  but we still need to
@@ -693,7 +693,7 @@ try_again:
 
 	if (card->quirks & MMC_QUIRK_NONSTD_SDIO) {
 		/*
-		 * This is non-standard SDIO device, meaning it doesn't
+		 * This is yesn-standard SDIO device, meaning it doesn't
 		 * have any CIA (Common I/O area) registers present.
 		 * It's host's responsibility to fill cccr and cis
 		 * structures in init_card().
@@ -709,7 +709,7 @@ try_again:
 
 	/*
 	 * Read the common registers. Note that we should try to
-	 * validate whether UHS would work or not.
+	 * validate whether UHS would work or yest.
 	 */
 	err = sdio_read_cccr(card, ocr);
 	if (err) {
@@ -751,7 +751,7 @@ try_again:
 		if (err) {
 			mmc_go_idle(host);
 			if (mmc_host_is_spi(host))
-				/* should not fail, as it worked previously */
+				/* should yest fail, as it worked previously */
 				mmc_spi_set_crc(host, use_spi_crc);
 			card->type = MMC_TYPE_SDIO;
 		} else
@@ -820,16 +820,16 @@ static int mmc_sdio_reinit_card(struct mmc_host *host)
 
 	/*
 	 * Reset the card by performing the same steps that are taken by
-	 * mmc_rescan_try_freq() and mmc_attach_sdio() during a "normal" probe.
+	 * mmc_rescan_try_freq() and mmc_attach_sdio() during a "yesrmal" probe.
 	 *
-	 * sdio_reset() is technically not needed. Having just powered up the
+	 * sdio_reset() is technically yest needed. Having just powered up the
 	 * hardware, it should already be in reset state. However, some
-	 * platforms (such as SD8686 on OLPC) do not instantly cut power,
+	 * platforms (such as SD8686 on OLPC) do yest instantly cut power,
 	 * meaning that a reset is required when restoring power soon after
 	 * powering off. It is harmless in other cases.
 	 *
 	 * The CMD5 reset (mmc_send_io_op_cond()), according to the SDIO spec,
-	 * is not necessary for non-removable cards. However, it is required
+	 * is yest necessary for yesn-removable cards. However, it is required
 	 * for OLPC SD8686 (which expects a [CMD5,5,3,7] init sequence), and
 	 * harmless in other situations.
 	 *
@@ -883,7 +883,7 @@ static void mmc_sdio_detect(struct mmc_host *host)
 	if (host->caps & MMC_CAP_POWER_OFF_CARD) {
 		err = pm_runtime_get_sync(&host->card->dev);
 		if (err < 0) {
-			pm_runtime_put_noidle(&host->card->dev);
+			pm_runtime_put_yesidle(&host->card->dev);
 			goto out;
 		}
 	}
@@ -898,13 +898,13 @@ static void mmc_sdio_detect(struct mmc_host *host)
 	mmc_release_host(host);
 
 	/*
-	 * Tell PM core it's OK to power off the card now.
+	 * Tell PM core it's OK to power off the card yesw.
 	 *
 	 * The _sync variant is used in order to ensure that the card
 	 * is left powered off in case an error occurred, and the card
 	 * is going to be removed.
 	 *
-	 * Since there is no specific reason to believe a new user
+	 * Since there is yes specific reason to believe a new user
 	 * is about to show up at this point, the _sync variant is
 	 * desirable anyway.
 	 */
@@ -1051,8 +1051,8 @@ static int mmc_sdio_runtime_resume(struct mmc_host *host)
 /*
  * SDIO HW reset
  *
- * Returns 0 if the HW reset was executed synchronously, returns 1 if the HW
- * reset was asynchronously scheduled, else a negative error code.
+ * Returns 0 if the HW reset was executed synchroyesusly, returns 1 if the HW
+ * reset was asynchroyesusly scheduled, else a negative error code.
  */
 static int mmc_sdio_hw_reset(struct mmc_host *host)
 {
@@ -1150,13 +1150,13 @@ int mmc_attach_sdio(struct mmc_host *host)
 	 */
 	if (host->caps & MMC_CAP_POWER_OFF_CARD) {
 		/*
-		 * Do not allow runtime suspend until after SDIO function
+		 * Do yest allow runtime suspend until after SDIO function
 		 * devices are added.
 		 */
-		pm_runtime_get_noresume(&card->dev);
+		pm_runtime_get_yesresume(&card->dev);
 
 		/*
-		 * Let runtime PM core know our card is active
+		 * Let runtime PM core kyesw our card is active
 		 */
 		err = pm_runtime_set_active(&card->dev);
 		if (err)
@@ -1218,7 +1218,7 @@ remove:
 	mmc_release_host(host);
 remove_added:
 	/*
-	 * The devices are being deleted so it is not necessary to disable
+	 * The devices are being deleted so it is yest necessary to disable
 	 * runtime PM. Similarly we also don't pm_runtime_put() the SDIO card
 	 * because it needs to be active to remove any function devices that
 	 * were probed, and after that it gets deleted.

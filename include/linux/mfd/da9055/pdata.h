@@ -25,25 +25,25 @@ struct da9055_pdata {
 	bool reset_enable;
 	/*
 	 * GPI muxed pin to control
-	 * regulator state A/B, 0 if not available.
+	 * regulator state A/B, 0 if yest available.
 	 */
 	int *gpio_ren;
 	/*
 	 * GPI muxed pin to control
-	 * regulator set, 0 if not available.
+	 * regulator set, 0 if yest available.
 	 */
 	int *gpio_rsel;
 	/*
 	 * Regulator mode control bits value (GPI offset) that
-	 * that controls the regulator state, 0 if not available.
+	 * that controls the regulator state, 0 if yest available.
 	 */
 	enum gpio_select *reg_ren;
 	/*
 	 * Regulator mode control bits value (GPI offset) that
-	 * controls the regulator set A/B, 0 if  not available.
+	 * controls the regulator set A/B, 0 if  yest available.
 	 */
 	enum gpio_select *reg_rsel;
-	/* GPIO descriptors to enable regulator, NULL if not available */
+	/* GPIO descriptors to enable regulator, NULL if yest available */
 	struct gpio_desc **ena_gpiods;
 };
 #endif /* __DA9055_PDATA_H */

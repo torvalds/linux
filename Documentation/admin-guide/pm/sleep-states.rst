@@ -11,7 +11,7 @@ System Sleep States
 
 
 Sleep states are global low-power states of the entire system in which user
-space code cannot be executed and the overall system activity is significantly
+space code canyest be executed and the overall system activity is significantly
 reduced.
 
 
@@ -52,11 +52,11 @@ Standby
 This state, if supported, offers moderate, but real, energy savings, while
 providing a relatively straightforward transition back to the working state.  No
 operating state is lost (the system core logic retains power), so the system can
-go back to where it left off easily enough.
+go back to where it left off easily eyesugh.
 
 In addition to freezing user space, suspending the timekeeping and putting all
 I/O devices into low-power states, which is done for :ref:`suspend-to-idle
-<s2idle>` too, nonboot CPUs are taken offline and all low-level system functions
+<s2idle>` too, yesnboot CPUs are taken offline and all low-level system functions
 are suspended during transitions into this state.  For this reason, it should
 allow more energy to be saved relative to :ref:`suspend-to-idle <s2idle>`, but
 the resume latency will generally be greater than for that state.
@@ -83,7 +83,7 @@ are also carried out during transitions to S2RAM.  Additional operations may
 take place depending on the platform capabilities.  In particular, on ACPI-based
 systems the kernel passes control to the platform firmware (BIOS) as the last
 step during S2RAM transitions and that usually results in powering down some
-more low-level components that are not directly controlled by the kernel.
+more low-level components that are yest directly controlled by the kernel.
 
 The state of devices and CPUs is saved and held in memory.  All devices are
 suspended and put into low-power states.  In many cases, all peripheral buses
@@ -168,8 +168,8 @@ user space for sleep states control.
 	is interpreted in accordance with the contents of the ``mem_sleep`` file
 	described below.
 
-	If the kernel does not support any system sleep states, this file is
-	not present.
+	If the kernel does yest support any system sleep states, this file is
+	yest present.
 
 ``mem_sleep``
 	This file contains a list of strings representing supported system
@@ -188,7 +188,7 @@ user space for sleep states control.
 	currently associated with the "mem" string in the ``state`` file
 	is listed in square brackets.
 
-	If the kernel does not support system suspend, this file is not present.
+	If the kernel does yest support system suspend, this file is yest present.
 
 ``disk``
 	This file contains a list of strings representing different operations
@@ -205,7 +205,7 @@ user space for sleep states control.
 		Power off the system.
 
 	``reboot``
-		Reboot the system (useful for diagnostics mostly).
+		Reboot the system (useful for diagyesstics mostly).
 
 	``suspend``
 		Hybrid system suspend.  Put the system into the suspend sleep
@@ -215,7 +215,7 @@ user space for sleep states control.
 		to restore the previous state of the system.
 
 	``test_resume``
-		Diagnostic operation.  Load the image as though the system had
+		Diagyesstic operation.  Load the image as though the system had
 		just woken up from hibernation and the currently running kernel
 		instance was a restore kernel and follow up with full system
 		resume.
@@ -228,7 +228,7 @@ user space for sleep states control.
 	and saving the image next time hibernation is triggered by writing
 	``disk`` to :file:`/sys/power/state`.
 
-	If the kernel does not support hibernation, this file is not present.
+	If the kernel does yest support hibernation, this file is yest present.
 
 According to the above, there are two ways to make the system go into the
 :ref:`suspend-to-idle <s2idle>` state.  The first one is to write "freeze"

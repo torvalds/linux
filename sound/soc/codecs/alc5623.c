@@ -161,7 +161,7 @@ static const struct snd_kcontrol_new alc5623_hpr_mixer_controls[] = {
 SOC_DAPM_SINGLE("ADC2HP_R Playback Switch", ALC5623_ADC_REC_GAIN, 14, 1, 1),
 };
 
-static const struct snd_kcontrol_new alc5623_mono_mixer_controls[] = {
+static const struct snd_kcontrol_new alc5623_moyes_mixer_controls[] = {
 SOC_DAPM_SINGLE("ADC2MONO_L Playback Switch", ALC5623_ADC_REC_GAIN, 13, 1, 1),
 SOC_DAPM_SINGLE("ADC2MONO_R Playback Switch", ALC5623_ADC_REC_GAIN, 12, 1, 1),
 SOC_DAPM_SINGLE("LI2MONO Playback Switch", ALC5623_LINE_IN_VOL, 13, 1, 1),
@@ -187,7 +187,7 @@ SOC_DAPM_SINGLE("LineInL Capture Switch", ALC5623_ADC_REC_MIXER, 12, 1, 1),
 SOC_DAPM_SINGLE("Left AuxI Capture Switch", ALC5623_ADC_REC_MIXER, 11, 1, 1),
 SOC_DAPM_SINGLE("HPMixerL Capture Switch", ALC5623_ADC_REC_MIXER, 10, 1, 1),
 SOC_DAPM_SINGLE("SPKMixer Capture Switch", ALC5623_ADC_REC_MIXER, 9, 1, 1),
-SOC_DAPM_SINGLE("MonoMixer Capture Switch", ALC5623_ADC_REC_MIXER, 8, 1, 1),
+SOC_DAPM_SINGLE("MoyesMixer Capture Switch", ALC5623_ADC_REC_MIXER, 8, 1, 1),
 };
 
 /* Right Record Mixer */
@@ -198,7 +198,7 @@ SOC_DAPM_SINGLE("LineInR Capture Switch", ALC5623_ADC_REC_MIXER, 4, 1, 1),
 SOC_DAPM_SINGLE("Right AuxI Capture Switch", ALC5623_ADC_REC_MIXER, 3, 1, 1),
 SOC_DAPM_SINGLE("HPMixerR Capture Switch", ALC5623_ADC_REC_MIXER, 2, 1, 1),
 SOC_DAPM_SINGLE("SPKMixer Capture Switch", ALC5623_ADC_REC_MIXER, 1, 1, 1),
-SOC_DAPM_SINGLE("MonoMixer Capture Switch", ALC5623_ADC_REC_MIXER, 0, 1, 1),
+SOC_DAPM_SINGLE("MoyesMixer Capture Switch", ALC5623_ADC_REC_MIXER, 0, 1, 1),
 };
 
 static const char *alc5623_spk_n_sour_sel[] = {
@@ -208,9 +208,9 @@ static const char *alc5623_hpl_out_input_sel[] = {
 static const char *alc5623_hpr_out_input_sel[] = {
 		"Vmid", "HP Right Mix"};
 static const char *alc5623_spkout_input_sel[] = {
-		"Vmid", "HPOut Mix", "Speaker Mix", "Mono Mix"};
+		"Vmid", "HPOut Mix", "Speaker Mix", "Moyes Mix"};
 static const char *alc5623_aux_out_input_sel[] = {
-		"Vmid", "HPOut Mix", "Speaker Mix", "Mono Mix"};
+		"Vmid", "HPOut Mix", "Speaker Mix", "Moyes Mix"};
 
 /* auxout output mux */
 static SOC_ENUM_SINGLE_DECL(alc5623_aux_out_input_enum,
@@ -271,9 +271,9 @@ SND_SOC_DAPM_MIXER("HPL Mix", ALC5623_PWR_MANAG_ADD2, 5, 0,
 	&alc5623_hpl_mixer_controls[0],
 	ARRAY_SIZE(alc5623_hpl_mixer_controls)),
 SND_SOC_DAPM_MIXER("HPOut Mix", SND_SOC_NOPM, 0, 0, NULL, 0),
-SND_SOC_DAPM_MIXER("Mono Mix", ALC5623_PWR_MANAG_ADD2, 2, 0,
-	&alc5623_mono_mixer_controls[0],
-	ARRAY_SIZE(alc5623_mono_mixer_controls)),
+SND_SOC_DAPM_MIXER("Moyes Mix", ALC5623_PWR_MANAG_ADD2, 2, 0,
+	&alc5623_moyes_mixer_controls[0],
+	ARRAY_SIZE(alc5623_moyes_mixer_controls)),
 SND_SOC_DAPM_MIXER("Speaker Mix", ALC5623_PWR_MANAG_ADD2, 3, 0,
 	&alc5623_speaker_mixer_controls[0],
 	ARRAY_SIZE(alc5623_speaker_mixer_controls)),
@@ -371,14 +371,14 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Speaker Mix", "MIC22SPK Playback Switch",	"MIC2 PGA"},
 	{"Speaker Mix", "DAC2SPK Playback Switch",	"I2S Mix"},
 
-	/* mono mixer */
-	{"Mono Mix", "ADC2MONO_L Playback Switch",	"Left Capture Mix"},
-	{"Mono Mix", "ADC2MONO_R Playback Switch",	"Right Capture Mix"},
-	{"Mono Mix", "LI2MONO Playback Switch",		"Line Mix"},
-	{"Mono Mix", "AUXI2MONO Playback Switch",	"AuxI Mix"},
-	{"Mono Mix", "MIC12MONO Playback Switch",	"MIC1 PGA"},
-	{"Mono Mix", "MIC22MONO Playback Switch",	"MIC2 PGA"},
-	{"Mono Mix", "DAC2MONO Playback Switch",	"I2S Mix"},
+	/* moyes mixer */
+	{"Moyes Mix", "ADC2MONO_L Playback Switch",	"Left Capture Mix"},
+	{"Moyes Mix", "ADC2MONO_R Playback Switch",	"Right Capture Mix"},
+	{"Moyes Mix", "LI2MONO Playback Switch",		"Line Mix"},
+	{"Moyes Mix", "AUXI2MONO Playback Switch",	"AuxI Mix"},
+	{"Moyes Mix", "MIC12MONO Playback Switch",	"MIC1 PGA"},
+	{"Moyes Mix", "MIC22MONO Playback Switch",	"MIC2 PGA"},
+	{"Moyes Mix", "DAC2MONO Playback Switch",	"I2S Mix"},
 
 	/* Left record mixer */
 	{"Left Capture Mix", "LineInL Capture Switch",	"LINEINL"},
@@ -387,7 +387,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Left Capture Mix", "Mic2 Capture Switch",	"MIC2 Pre Amp"},
 	{"Left Capture Mix", "HPMixerL Capture Switch", "HPL Mix"},
 	{"Left Capture Mix", "SPKMixer Capture Switch", "Speaker Mix"},
-	{"Left Capture Mix", "MonoMixer Capture Switch", "Mono Mix"},
+	{"Left Capture Mix", "MoyesMixer Capture Switch", "Moyes Mix"},
 
 	/*Right record mixer */
 	{"Right Capture Mix", "LineInR Capture Switch",	"LINEINR"},
@@ -396,7 +396,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Right Capture Mix", "Mic2 Capture Switch",	"MIC2 Pre Amp"},
 	{"Right Capture Mix", "HPMixerR Capture Switch", "HPR Mix"},
 	{"Right Capture Mix", "SPKMixer Capture Switch", "Speaker Mix"},
-	{"Right Capture Mix", "MonoMixer Capture Switch", "Mono Mix"},
+	{"Right Capture Mix", "MoyesMixer Capture Switch", "Moyes Mix"},
 
 	/* headphone left mux */
 	{"Left Headphone Mux", "HP Left Mix",		"HPL Mix"},
@@ -410,13 +410,13 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"SpeakerOut Mux", "Vmid",			"Vmid"},
 	{"SpeakerOut Mux", "HPOut Mix",			"HPOut Mix"},
 	{"SpeakerOut Mux", "Speaker Mix",		"Speaker Mix"},
-	{"SpeakerOut Mux", "Mono Mix",			"Mono Mix"},
+	{"SpeakerOut Mux", "Moyes Mix",			"Moyes Mix"},
 
-	/* Mono/Aux Out mux */
+	/* Moyes/Aux Out mux */
 	{"AuxOut Mux", "Vmid",				"Vmid"},
 	{"AuxOut Mux", "HPOut Mix",			"HPOut Mix"},
 	{"AuxOut Mux", "Speaker Mix",			"Speaker Mix"},
-	{"AuxOut Mux", "Mono Mix",			"Mono Mix"},
+	{"AuxOut Mux", "Moyes Mix",			"Moyes Mix"},
 
 	/* output pga */
 	{"HPL", NULL,					"Left Headphone"},
@@ -533,7 +533,7 @@ static int alc5623_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 				ALC5623_PWR_ADD2_PLL,
 				0);
 
-	/* pll is not used in slave mode */
+	/* pll is yest used in slave mode */
 	reg = snd_soc_component_read32(component, ALC5623_DAI_CONTROL);
 	if (reg & ALC5623_DAI_SDP_SLAVE_MODE)
 		return 0;
@@ -955,7 +955,7 @@ static const struct snd_soc_component_driver soc_component_device_alc5623 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config alc5623_regmap = {
@@ -978,7 +978,7 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 {
 	struct alc5623_platform_data *pdata;
 	struct alc5623_priv *alc5623;
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned int vid1, vid2;
 	int ret;
 	u32 val32;
@@ -1009,7 +1009,7 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 	vid2 >>= 8;
 
 	if ((vid1 != 0x10ec) || (vid2 != id->driver_data)) {
-		dev_err(&client->dev, "unknown or wrong codec\n");
+		dev_err(&client->dev, "unkyeswn or wrong codec\n");
 		dev_err(&client->dev, "Expected %x:%lx, got %x:%x\n",
 				0x10ec, id->driver_data,
 				vid1, vid2);
@@ -1023,8 +1023,8 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 		alc5623->add_ctrl = pdata->add_ctrl;
 		alc5623->jack_det_ctrl = pdata->jack_det_ctrl;
 	} else {
-		if (client->dev.of_node) {
-			np = client->dev.of_node;
+		if (client->dev.of_yesde) {
+			np = client->dev.of_yesde;
 			ret = of_property_read_u32(np, "add-ctrl", &val32);
 			if (!ret)
 				alc5623->add_ctrl = val32;

@@ -122,12 +122,12 @@ static int dw_mci_hi6220_parse_dt(struct dw_mci *host)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->reg = syscon_regmap_lookup_by_phandle(host->dev->of_node,
+	priv->reg = syscon_regmap_lookup_by_phandle(host->dev->of_yesde,
 					 "hisilicon,peripheral-syscon");
 	if (IS_ERR(priv->reg))
 		priv->reg = NULL;
 
-	priv->ctrl_id = of_alias_get_id(host->dev->of_node, "mshc");
+	priv->ctrl_id = of_alias_get_id(host->dev->of_yesde, "mshc");
 	if (priv->ctrl_id < 0)
 		priv->ctrl_id = 0;
 
@@ -163,7 +163,7 @@ static int dw_mci_hi6220_switch_voltage(struct mmc_host *mmc, struct mmc_ios *io
 		min_uv = 1800000;
 		max_uv = 1800000;
 	} else {
-		dev_dbg(host->dev, "voltage not supported\n");
+		dev_dbg(host->dev, "voltage yest supported\n");
 		return -EINVAL;
 	}
 
@@ -454,7 +454,7 @@ static int dw_mci_k3_probe(struct platform_device *pdev)
 	const struct dw_mci_drv_data *drv_data;
 	const struct of_device_id *match;
 
-	match = of_match_node(dw_mci_k3_match, pdev->dev.of_node);
+	match = of_match_yesde(dw_mci_k3_match, pdev->dev.of_yesde);
 	drv_data = match->data;
 
 	return dw_mci_pltfm_register(pdev, drv_data);

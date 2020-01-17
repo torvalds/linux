@@ -21,7 +21,7 @@ struct resource_win {
  * ACPI, PNP and PCI host bridge etc.
  */
 struct resource_entry {
-	struct list_head	node;
+	struct list_head	yesde;
 	struct resource		*res;	/* In master (CPU) address space */
 	resource_size_t		offset;	/* Translation offset for bridge */
 	struct resource		__res;	/* Default storage for res */
@@ -34,18 +34,18 @@ extern void resource_list_free(struct list_head *head);
 static inline void resource_list_add(struct resource_entry *entry,
 				     struct list_head *head)
 {
-	list_add(&entry->node, head);
+	list_add(&entry->yesde, head);
 }
 
 static inline void resource_list_add_tail(struct resource_entry *entry,
 					  struct list_head *head)
 {
-	list_add_tail(&entry->node, head);
+	list_add_tail(&entry->yesde, head);
 }
 
 static inline void resource_list_del(struct resource_entry *entry)
 {
-	list_del(&entry->node);
+	list_del(&entry->yesde);
 }
 
 static inline void resource_list_free_entry(struct resource_entry *entry)
@@ -61,10 +61,10 @@ resource_list_destroy_entry(struct resource_entry *entry)
 }
 
 #define resource_list_for_each_entry(entry, list)	\
-	list_for_each_entry((entry), (list), node)
+	list_for_each_entry((entry), (list), yesde)
 
 #define resource_list_for_each_entry_safe(entry, tmp, list)	\
-	list_for_each_entry_safe((entry), (tmp), (list), node)
+	list_for_each_entry_safe((entry), (tmp), (list), yesde)
 
 static inline struct resource_entry *
 resource_list_first_type(struct list_head *list, unsigned long type)

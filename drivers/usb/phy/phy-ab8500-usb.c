@@ -12,7 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb/otg.h>
 #include <linux/slab.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
@@ -200,7 +200,7 @@ static void ab8500_usb_regulator_enable(struct ab8500_usb *ab)
 	if (ab->flags & AB8500_USB_FLAG_REGULATOR_SET_VOLTAGE) {
 		volt = regulator_get_voltage(ab->v_ulpi);
 		if ((volt != 1300000) && (volt != 1350000))
-			dev_err(ab->dev, "Vintcore is not set to 1.3V volt=%d\n",
+			dev_err(ab->dev, "Vintcore is yest set to 1.3V volt=%d\n",
 					volt);
 	}
 
@@ -217,7 +217,7 @@ static void ab8500_usb_regulator_disable(struct ab8500_usb *ab)
 
 	regulator_disable(ab->v_ulpi);
 
-	/* USB is not the only consumer of Vintcore, restore old settings */
+	/* USB is yest the only consumer of Vintcore, restore old settings */
 	if (ab->flags & AB8500_USB_FLAG_REGULATOR_SET_VOLTAGE) {
 		if (ab->saved_v_ulpi > 0) {
 			ret = regulator_set_voltage(ab->v_ulpi,
@@ -256,7 +256,7 @@ static void ab8500_usb_phy_enable(struct ab8500_usb *ab, bool sel_host)
 	/* mux and configure USB pins to DEFAULT state */
 	ab->pinctrl = pinctrl_get_select(ab->dev, PINCTRL_STATE_DEFAULT);
 	if (IS_ERR(ab->pinctrl))
-		dev_err(ab->dev, "could not get/set default pinstate\n");
+		dev_err(ab->dev, "could yest get/set default pinstate\n");
 
 	if (clk_prepare_enable(ab->sysclk))
 		dev_err(ab->dev, "can't prepare/enable clock\n");
@@ -293,9 +293,9 @@ static void ab8500_usb_phy_disable(struct ab8500_usb *ab, bool sel_host)
 				PINCTRL_STATE_SLEEP);
 
 		if (IS_ERR(ab->pins_sleep))
-			dev_dbg(ab->dev, "could not get sleep pinstate\n");
+			dev_dbg(ab->dev, "could yest get sleep pinstate\n");
 		else if (pinctrl_select_state(ab->pinctrl, ab->pins_sleep))
-			dev_err(ab->dev, "could not set pins to sleep state\n");
+			dev_err(ab->dev, "could yest set pins to sleep state\n");
 
 		/*
 		 * as USB pins are shared with iddet, release them to allow
@@ -342,7 +342,7 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 		if (event != UX500_MUSB_RIDB)
 			event = UX500_MUSB_NONE;
 		/*
-		 * Fallback to default B_IDLE as nothing
+		 * Fallback to default B_IDLE as yesthing
 		 * is connected
 		 */
 		ab->phy.otg->state = OTG_STATE_B_IDLE;
@@ -359,7 +359,7 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 		if (ab->mode == USB_IDLE) {
 			ab->mode = USB_PERIPHERAL;
 			ab8500_usb_peri_phy_en(ab);
-			atomic_notifier_call_chain(&ab->phy.notifier,
+			atomic_yestifier_call_chain(&ab->phy.yestifier,
 					UX500_MUSB_PREPARE, &ab->vbus_draw);
 			usb_phy_set_event(&ab->phy, USB_EVENT_ENUMERATED);
 		}
@@ -375,20 +375,20 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 		if (ab->mode == USB_IDLE) {
 			ab->mode = USB_HOST;
 			ab8500_usb_host_phy_en(ab);
-			atomic_notifier_call_chain(&ab->phy.notifier,
+			atomic_yestifier_call_chain(&ab->phy.yestifier,
 					UX500_MUSB_PREPARE, &ab->vbus_draw);
 		}
 		ab->phy.otg->default_a = true;
 		if (event != UX500_MUSB_RIDA)
 			event = UX500_MUSB_ID;
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_yestifier_call_chain(&ab->phy.yestifier,
 				event, &ab->vbus_draw);
 		break;
 
 	case USB_LINK_DEDICATED_CHG_8505:
 		ab->mode = USB_DEDICATED_CHG;
 		event = UX500_MUSB_CHARGER;
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_yestifier_call_chain(&ab->phy.yestifier,
 				event, &ab->vbus_draw);
 		usb_phy_set_event(&ab->phy, USB_EVENT_CHARGER);
 		break;
@@ -433,7 +433,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 		ab->vbus_draw = 0;
 		if (event != UX500_MUSB_RIDB)
 			event = UX500_MUSB_NONE;
-		/* Fallback to default B_IDLE as nothing is connected */
+		/* Fallback to default B_IDLE as yesthing is connected */
 		ab->phy.otg->state = OTG_STATE_B_IDLE;
 		usb_phy_set_event(&ab->phy, USB_EVENT_NONE);
 		break;
@@ -452,7 +452,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 		if (ab->mode == USB_IDLE) {
 			ab->mode = USB_PERIPHERAL;
 			ab8500_usb_peri_phy_en(ab);
-			atomic_notifier_call_chain(&ab->phy.notifier,
+			atomic_yestifier_call_chain(&ab->phy.yestifier,
 					UX500_MUSB_PREPARE, &ab->vbus_draw);
 			usb_phy_set_event(&ab->phy, USB_EVENT_ENUMERATED);
 		}
@@ -467,20 +467,20 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 		if (ab->mode == USB_IDLE) {
 			ab->mode = USB_HOST;
 			ab8500_usb_host_phy_en(ab);
-			atomic_notifier_call_chain(&ab->phy.notifier,
+			atomic_yestifier_call_chain(&ab->phy.yestifier,
 					UX500_MUSB_PREPARE, &ab->vbus_draw);
 		}
 		ab->phy.otg->default_a = true;
 		if (event != UX500_MUSB_RIDA)
 			event = UX500_MUSB_ID;
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_yestifier_call_chain(&ab->phy.yestifier,
 				event, &ab->vbus_draw);
 		break;
 
 	case USB_LINK_DEDICATED_CHG_8500:
 		ab->mode = USB_DEDICATED_CHG;
 		event = UX500_MUSB_CHARGER;
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_yestifier_call_chain(&ab->phy.yestifier,
 				event, &ab->vbus_draw);
 		usb_phy_set_event(&ab->phy, USB_EVENT_CHARGER);
 		break;
@@ -545,21 +545,21 @@ static irqreturn_t ab8500_usb_disconnect_irq(int irq, void *data)
 	struct ab8500_usb *ab = (struct ab8500_usb *) data;
 	enum usb_phy_events event = USB_EVENT_NONE;
 
-	/* Link status will not be updated till phy is disabled. */
+	/* Link status will yest be updated till phy is disabled. */
 	if (ab->mode == USB_HOST) {
 		ab->phy.otg->default_a = false;
 		ab->vbus_draw = 0;
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_yestifier_call_chain(&ab->phy.yestifier,
 				event, &ab->vbus_draw);
 		ab8500_usb_host_phy_dis(ab);
 		ab->mode = USB_IDLE;
 	}
 
 	if (ab->mode == USB_PERIPHERAL) {
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_yestifier_call_chain(&ab->phy.yestifier,
 				event, &ab->vbus_draw);
 		ab8500_usb_peri_phy_dis(ab);
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_yestifier_call_chain(&ab->phy.yestifier,
 				UX500_MUSB_CLEAN, &ab->vbus_draw);
 		ab->mode = USB_IDLE;
 		ab->phy.otg->default_a = false;
@@ -619,7 +619,7 @@ static int ab8500_usb_set_peripheral(struct usb_otg *otg,
 	ab->phy.otg->gadget = gadget;
 
 	/* Some drivers call this function in atomic context.
-	 * Do not update ab8500 registers directly till this
+	 * Do yest update ab8500 registers directly till this
 	 * is fixed.
 	 */
 
@@ -643,7 +643,7 @@ static int ab8500_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 	ab->phy.otg->host = host;
 
 	/* Some drivers call this function in atomic context.
-	 * Do not update ab8500 registers directly till this
+	 * Do yest update ab8500 registers directly till this
 	 * is fixed.
 	 */
 
@@ -688,21 +688,21 @@ static int ab8500_usb_regulator_get(struct ab8500_usb *ab)
 
 	ab->v_ape = devm_regulator_get(ab->dev, "v-ape");
 	if (IS_ERR(ab->v_ape)) {
-		dev_err(ab->dev, "Could not get v-ape supply\n");
+		dev_err(ab->dev, "Could yest get v-ape supply\n");
 		err = PTR_ERR(ab->v_ape);
 		return err;
 	}
 
 	ab->v_ulpi = devm_regulator_get(ab->dev, "vddulpivio18");
 	if (IS_ERR(ab->v_ulpi)) {
-		dev_err(ab->dev, "Could not get vddulpivio18 supply\n");
+		dev_err(ab->dev, "Could yest get vddulpivio18 supply\n");
 		err = PTR_ERR(ab->v_ulpi);
 		return err;
 	}
 
 	ab->v_musb = devm_regulator_get(ab->dev, "musb_1v8");
 	if (IS_ERR(ab->v_musb)) {
-		dev_err(ab->dev, "Could not get musb_1v8 supply\n");
+		dev_err(ab->dev, "Could yest get musb_1v8 supply\n");
 		err = PTR_ERR(ab->v_musb);
 		return err;
 	}
@@ -790,7 +790,7 @@ static void ab8500_usb_set_ab8500_tuning_values(struct ab8500_usb *ab)
 		dev_err(ab->dev, "Failed to set PHY_TUNE3 register err=%d\n",
 				err);
 
-	/* Switch to normal mode/disable Bank 0x12 access */
+	/* Switch to yesrmal mode/disable Bank 0x12 access */
 	err = abx500_set_register_interruptible(ab->dev,
 			AB8500_DEVELOPMENT, AB8500_BANK12_ACCESS, 0x00);
 	if (err < 0)
@@ -832,7 +832,7 @@ static void ab8500_usb_set_ab8505_tuning_values(struct ab8500_usb *ab)
 		dev_err(ab->dev, "Failed to set PHY_TUNE3 register err=%d\n",
 				err);
 
-	/* Switch to normal mode/disable Bank 0x12 access */
+	/* Switch to yesrmal mode/disable Bank 0x12 access */
 	err = abx500_mask_and_set_register_interruptible(ab->dev,
 			AB8500_DEVELOPMENT, AB8500_BANK12_ACCESS,
 			0x00, 0x00);
@@ -904,7 +904,7 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 
 	ab->sysclk = devm_clk_get(ab->dev, "sysclk");
 	if (IS_ERR(ab->sysclk)) {
-		dev_err(ab->dev, "Could not get sysclk.\n");
+		dev_err(ab->dev, "Could yest get sysclk.\n");
 		return PTR_ERR(ab->sysclk);
 	}
 

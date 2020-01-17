@@ -122,7 +122,7 @@
 /*
  * We configure the Stage-2 page tables to always restrict the IPA space to be
  * 40 bits wide (T0SZ = 24).  Systems with a PARange smaller than 40 bits are
- * not known to exist and will break with this configuration.
+ * yest kyeswn to exist and will break with this configuration.
  *
  * The VTCR_EL2 is configured per VM and is initialised in kvm_arm_setup_stage2().
  *
@@ -240,7 +240,7 @@
  *
  *  x = log2(Size_of_Entry_Level_Table)
  *
- * Since, we can resolve (PAGE_SHIFT - 3) bits at each level, and another
+ * Since, we can resolve (PAGE_SHIFT - 3) bits at each level, and ayesther
  * PAGE_SHIFT bits in the PTE, we have :
  *
  *  Bits_Entry_level = IPA_SHIFT - ((PAGE_SHIFT - 3) * (n - 1) + PAGE_SHIFT)
@@ -270,7 +270,7 @@
 #define CPTR_EL2_TTA	(1 << 20)
 #define CPTR_EL2_TFP	(1 << CPTR_EL2_TFP_SHIFT)
 #define CPTR_EL2_TZ	(1 << 8)
-#define CPTR_EL2_RES1	0x000032ff /* known RES1 bits in CPTR_EL2 */
+#define CPTR_EL2_RES1	0x000032ff /* kyeswn RES1 bits in CPTR_EL2 */
 #define CPTR_EL2_DEFAULT	CPTR_EL2_RES1
 
 /* Hyp Debug Configuration Register bits */

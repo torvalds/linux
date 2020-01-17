@@ -21,7 +21,7 @@ struct gpiod_data {
 	struct gpio_desc *desc;
 
 	struct mutex mutex;
-	struct kernfs_node *value_kn;
+	struct kernfs_yesde *value_kn;
 	int irq;
 	unsigned char irq_flags;
 
@@ -43,14 +43,14 @@ static DEFINE_MUTEX(sysfs_lock);
  *        output value as specified ("out" implies "low")
  *   /value
  *      * always readable, subject to hardware behavior
- *      * may be writable, as zero/nonzero
+ *      * may be writable, as zero/yesnzero
  *   /edge
  *      * configures behavior of poll(2) on /value
  *      * available only if pin can generate IRQs on input
- *      * is read/write as "none", "falling", "rising", or "both"
+ *      * is read/write as "yesne", "falling", "rising", or "both"
  *   /active_low
  *      * configures polarity of /value
- *      * is read/write as zero/nonzero
+ *      * is read/write as zero/yesnzero
  *      * also affects existing and subsequent "falling" and "rising"
  *        /edge configuration
  */
@@ -155,7 +155,7 @@ static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
 {
 	struct gpiod_data *data = priv;
 
-	sysfs_notify_dirent(data->value_kn);
+	sysfs_yestify_dirent(data->value_kn);
 
 	return IRQ_HANDLED;
 }
@@ -232,7 +232,7 @@ static const struct {
 	const char *name;
 	unsigned char flags;
 } trigger_types[] = {
-	{ "none",    0 },
+	{ "yesne",    0 },
 	{ "falling", GPIO_IRQF_TRIGGER_FALLING },
 	{ "rising",  GPIO_IRQF_TRIGGER_RISING },
 	{ "both",    GPIO_IRQF_TRIGGER_BOTH },
@@ -510,7 +510,7 @@ static ssize_t unexport_store(struct class *class,
 		goto done;
 
 	desc = gpio_to_desc(gpio);
-	/* reject bogus commands (gpio_unexport ignores them) */
+	/* reject bogus commands (gpio_unexport igyesres them) */
 	if (!desc) {
 		pr_warn("%s: invalid GPIO %ld\n", __func__, gpio);
 		return -EINVAL;
@@ -656,13 +656,13 @@ static int match_export(struct device *dev, const void *desc)
 }
 
 /**
- * gpiod_export_link - create a sysfs link to an exported GPIO node
+ * gpiod_export_link - create a sysfs link to an exported GPIO yesde
  * @dev: device under which to create symlink
  * @name: name of the symlink
  * @desc: GPIO to create symlink to, already exported
  *
  * Set up a symlink from /sys/.../dev/name to /sys/class/gpio/gpioN
- * node. Caller is responsible for unlinking.
+ * yesde. Caller is responsible for unlinking.
  *
  * Returns zero on success, else an error.
  */
@@ -761,7 +761,7 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 	else
 		parent = &gdev->dev;
 
-	/* use chip->base for the ID; it's already known to be unique */
+	/* use chip->base for the ID; it's already kyeswn to be unique */
 	dev = device_create_with_groups(&gpio_class, parent,
 					MKDEV(0, 0),
 					chip, gpiochip_groups,
@@ -813,7 +813,7 @@ static int __init gpiolib_sysfs_init(void)
 	/* Scan and register the gpio_chips which registered very
 	 * early (e.g. before the class_register above was called).
 	 *
-	 * We run before arch_initcall() so chip->dev nodes can have
+	 * We run before arch_initcall() so chip->dev yesdes can have
 	 * registered, and so arch_initcall() can always gpio_export().
 	 */
 	spin_lock_irqsave(&gpio_lock, flags);

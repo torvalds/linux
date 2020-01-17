@@ -4,7 +4,7 @@
 
 #include <asm/io.h>
 
-/* dummy for now */
+/* dummy for yesw */
 
 #define map_page_into_agp(page) 
 #define unmap_page_from_agp(page) 

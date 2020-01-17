@@ -875,7 +875,7 @@ static int stm32_hash_one_request(struct crypto_engine *engine, void *areq)
 		err = stm32_hash_final_req(hdev);
 
 	if (err != -EINPROGRESS)
-	/* done task will not finish it, so do it here */
+	/* done task will yest finish it, so do it here */
 		stm32_hash_finish_req(req, err);
 
 	return 0;
@@ -1414,13 +1414,13 @@ static int stm32_hash_get_of_match(struct stm32_hash_dev *hdev,
 {
 	hdev->pdata = of_device_get_match_data(dev);
 	if (!hdev->pdata) {
-		dev_err(dev, "no compatible OF match\n");
+		dev_err(dev, "yes compatible OF match\n");
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(dev->of_node, "dma-maxburst",
+	if (of_property_read_u32(dev->of_yesde, "dma-maxburst",
 				 &hdev->dma_maxburst)) {
-		dev_info(dev, "dma-maxburst not specified, using 0\n");
+		dev_info(dev, "dma-maxburst yest specified, using 0\n");
 		hdev->dma_maxburst = 0;
 	}
 
@@ -1457,7 +1457,7 @@ static int stm32_hash_probe(struct platform_device *pdev)
 					stm32_hash_irq_thread, IRQF_ONESHOT,
 					dev_name(dev), hdev);
 	if (ret) {
-		dev_err(dev, "Cannot grab IRQ\n");
+		dev_err(dev, "Canyest grab IRQ\n");
 		return ret;
 	}
 
@@ -1477,7 +1477,7 @@ static int stm32_hash_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(dev, HASH_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(dev);
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -1494,7 +1494,7 @@ static int stm32_hash_probe(struct platform_device *pdev)
 
 	ret = stm32_hash_dma_init(hdev);
 	if (ret)
-		dev_dbg(dev, "DMA mode not available\n");
+		dev_dbg(dev, "DMA mode yest available\n");
 
 	spin_lock(&stm32_hash.lock);
 	list_add_tail(&hdev->list, &stm32_hash.dev_list);
@@ -1537,7 +1537,7 @@ err_engine:
 		dma_release_channel(hdev->dma_lch);
 
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 
 	clk_disable_unprepare(hdev->clk);
 
@@ -1569,7 +1569,7 @@ static int stm32_hash_remove(struct platform_device *pdev)
 		dma_release_channel(hdev->dma_lch);
 
 	pm_runtime_disable(hdev->dev);
-	pm_runtime_put_noidle(hdev->dev);
+	pm_runtime_put_yesidle(hdev->dev);
 
 	clk_disable_unprepare(hdev->clk);
 

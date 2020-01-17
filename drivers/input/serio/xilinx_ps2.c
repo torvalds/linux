@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/serio.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/io.h>
@@ -125,7 +125,7 @@ static irqreturn_t xps2_interrupt(int irq, void *dev_id)
 	if (intr_sr & XPS2_IPIXR_RX_FULL) {
 		status = xps2_recv(drvdata, &c);
 
-		/* Error, if a byte is not received */
+		/* Error, if a byte is yest received */
 		if (status) {
 			dev_err(drvdata->dev,
 				"wrong rcvd byte count (%d)\n", status);
@@ -148,8 +148,8 @@ static irqreturn_t xps2_interrupt(int irq, void *dev_id)
  * @c:		data that needs to be written to the PS/2 port
  *
  * This function checks if the PS/2 transmitter is empty and sends a byte.
- * Otherwise it returns error. Transmission fails only when nothing is connected
- * to the PS/2 port. Thats why, we do not try to resend the data in case of a
+ * Otherwise it returns error. Transmission fails only when yesthing is connected
+ * to the PS/2 port. Thats why, we do yest try to resend the data in case of a
  * failure.
  */
 static int sxps2_write(struct serio *pserio, unsigned char c)
@@ -237,19 +237,19 @@ static int xps2_of_probe(struct platform_device *ofdev)
 	unsigned int irq;
 	int error;
 
-	dev_info(dev, "Device Tree Probing \'%pOFn\'\n", dev->of_node);
+	dev_info(dev, "Device Tree Probing \'%pOFn\'\n", dev->of_yesde);
 
 	/* Get iospace for the device */
-	error = of_address_to_resource(dev->of_node, 0, &r_mem);
+	error = of_address_to_resource(dev->of_yesde, 0, &r_mem);
 	if (error) {
 		dev_err(dev, "invalid address\n");
 		return error;
 	}
 
 	/* Get IRQ for the device */
-	irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_yesde, 0);
 	if (!irq) {
-		dev_err(dev, "no IRQ found\n");
+		dev_err(dev, "yes IRQ found\n");
 		return -ENODEV;
 	}
 
@@ -338,7 +338,7 @@ static int xps2_of_remove(struct platform_device *of_dev)
 	iounmap(drvdata->base_address);
 
 	/* Get iospace of the device */
-	if (of_address_to_resource(of_dev->dev.of_node, 0, &r_mem))
+	if (of_address_to_resource(of_dev->dev.of_yesde, 0, &r_mem))
 		dev_err(drvdata->dev, "invalid address\n");
 	else
 		release_mem_region(r_mem.start, resource_size(&r_mem));

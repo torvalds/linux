@@ -104,12 +104,12 @@ int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo, u32 version)
 	msg->monitor_page2 = virt_to_phys(vmbus_connection.monitor_pages[1]);
 	/*
 	 * We want all channel messages to be delivered on CPU 0.
-	 * This has been the behavior pre-win8. This is not
+	 * This has been the behavior pre-win8. This is yest
 	 * perf issue and having all channel messages delivered on CPU 0
 	 * would be ok.
 	 * For post win8 hosts, we support receiving channel messagges on
 	 * all the CPUs. This is needed for kexec to work correctly where
-	 * the CPU attempting to connect may not be CPU 0.
+	 * the CPU attempting to connect may yest be CPU 0.
 	 */
 	if (version >= VERSION_WIN8_1) {
 		cur_cpu = get_cpu();
@@ -220,7 +220,7 @@ int vmbus_connect(void)
 			(HV_HYP_PAGE_SIZE >> 1));
 
 	/*
-	 * Setup the monitor notification facility. The 1st page for
+	 * Setup the monitor yestification facility. The 1st page for
 	 * parent->child and the 2nd page for child->parent
 	 */
 	vmbus_connection.monitor_pages[0] = (void *)hv_alloc_hyperv_zeroed_page();
@@ -343,7 +343,7 @@ struct vmbus_channel *relid2channel(u32 relid)
 }
 
 /*
- * vmbus_on_event - Process a channel event notification
+ * vmbus_on_event - Process a channel event yestification
  *
  * For batched channels (default) optimize host to guest signaling
  * by ensuring:
@@ -368,7 +368,7 @@ void vmbus_on_event(unsigned long data)
 		void (*callback_fn)(void *);
 
 		/* A channel once created is persistent even when
-		 * there is no driver handling the device. An
+		 * there is yes driver handling the device. An
 		 * unloading driver sets the onchannel_callback to NULL.
 		 */
 		callback_fn = READ_ONCE(channel->onchannel_callback);
@@ -458,7 +458,7 @@ int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep)
 }
 
 /*
- * vmbus_set_event - Send an event notification to the parent
+ * vmbus_set_event - Send an event yestification to the parent
  */
 void vmbus_set_event(struct vmbus_channel *channel)
 {

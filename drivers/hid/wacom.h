@@ -44,14 +44,14 @@
  *    v1.21.1 (fl) - added Graphire2 support
  *    v1.21.2 (fl) - added Intuos2 support
  *                 - added all the PL ids
- *    v1.21.3 (fl) - added another eraser id from Neil Okamoto
+ *    v1.21.3 (fl) - added ayesther eraser id from Neil Okamoto
  *                 - added smooth filter for Graphire from Peri Hankey
  *                 - added PenPartner support from Olaf van Es
  *                 - new tool ids from Ole Martin Bjoerndalen
  *	v1.29 (pc) - Add support for more tablets
  *		   - Fix pressure reporting
  *	v1.30 (vp) - Merge 2.4 and 2.5 drivers
- *		   - Since 2.5 now has input_sync(), remove MSC_SERIAL abuse
+ *		   - Since 2.5 yesw has input_sync(), remove MSC_SERIAL abuse
  *		   - Cleanups here and there
  *    v1.30.1 (pi) - Added Graphire3 support
  *	v1.40 (pc) - Add support for several new devices, fix eraser reporting, ...
@@ -61,7 +61,7 @@
  *	v1.44 (pc) - Added support for Graphire4, Cintiq 710, Intuos3 6x11, etc.
  *		   - Report Device IDs
  *      v1.45 (pc) - Added support for DTF 521, Intuos3 12x12 and 12x19
- *                 - Minor data report fix
+ *                 - Miyesr data report fix
  *      v1.46 (pc) - Split wacom.c into wacom_sys.c and wacom_wac.c,
  *		   - where wacom_sys.c deals with system specific code,
  *		   - and wacom_wac.c deals with Wacom specific code
@@ -171,7 +171,7 @@ struct wacom {
 	struct wacom_leds {
 		struct wacom_group_leds *groups;
 		unsigned int count;
-		u8 llv;       /* status led brightness no button (1..127) */
+		u8 llv;       /* status led brightness yes button (1..127) */
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
 		u8 max_llv;   /* maximum brightness of LED (llv) */
@@ -204,7 +204,7 @@ static inline void wacom_schedule_work(struct wacom_wac *wacom_wac,
 
 /*
  * Convert a signed 32-bit integer to an unsigned n-bit integer. Undoes
- * the normally-helpful work of 'hid_snto32' for fields that use signed
+ * the yesrmally-helpful work of 'hid_snto32' for fields that use signed
  * ranges for questionable reasons.
  */
 static inline __u32 wacom_s32tou(s32 value, __u8 n)

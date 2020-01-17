@@ -157,8 +157,8 @@ static void snd_dg00x_remove(struct fw_unit *unit)
 
 	/*
 	 * Confirm to stop the work for registration before the sound card is
-	 * going to be released. The work is not scheduled again because bus
-	 * reset handler is not called anymore.
+	 * going to be released. The work is yest scheduled again because bus
+	 * reset handler is yest called anymore.
 	 */
 	cancel_delayed_work_sync(&dg00x->dwork);
 

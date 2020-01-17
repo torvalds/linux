@@ -41,7 +41,7 @@ static int set_addr(struct sk_buff *skb, unsigned int protoff,
 		if (!nf_nat_mangle_tcp_packet(skb, ct, ctinfo,
 					      protoff, addroff, sizeof(buf),
 					      (char *) &buf, sizeof(buf))) {
-			net_notice_ratelimited("nf_nat_h323: nf_nat_mangle_tcp_packet error\n");
+			net_yestice_ratelimited("nf_nat_h323: nf_nat_mangle_tcp_packet error\n");
 			return -1;
 		}
 
@@ -55,12 +55,12 @@ static int set_addr(struct sk_buff *skb, unsigned int protoff,
 		if (!nf_nat_mangle_udp_packet(skb, ct, ctinfo,
 					      protoff, addroff, sizeof(buf),
 					      (char *) &buf, sizeof(buf))) {
-			net_notice_ratelimited("nf_nat_h323: nf_nat_mangle_udp_packet error\n");
+			net_yestice_ratelimited("nf_nat_h323: nf_nat_mangle_udp_packet error\n");
 			return -1;
 		}
 		/* nf_nat_mangle_udp_packet uses skb_ensure_writable() to copy
 		 * or pull everything in a linear buffer, so we can safely
-		 * use the skb pointers now */
+		 * use the skb pointers yesw */
 		*data = skb->data + ip_hdrlen(skb) + sizeof(struct udphdr);
 	}
 
@@ -106,7 +106,7 @@ static int set_sig_addr(struct sk_buff *skb, struct nf_conn *ct,
 			    port == info->sig_port[dir]) {
 				/* GW->GK */
 
-				/* Fix for Gnomemeeting */
+				/* Fix for Gyesmemeeting */
 				if (i > 0 &&
 				    get_h225_addr(ct, *data, &taddr[0],
 						  &addr, &port) &&
@@ -211,7 +211,7 @@ static int nat_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 
 	/* Run out of expectations */
 	if (i >= H323_RTP_CHANNEL_MAX) {
-		net_notice_ratelimited("nf_nat_h323: out of expectations\n");
+		net_yestice_ratelimited("nf_nat_h323: out of expectations\n");
 		return 0;
 	}
 
@@ -243,7 +243,7 @@ static int nat_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 	}
 
 	if (nated_port == 0) {	/* No port available */
-		net_notice_ratelimited("nf_nat_h323: out of RTP ports\n");
+		net_yestice_ratelimited("nf_nat_h323: out of RTP ports\n");
 		return 0;
 	}
 
@@ -291,7 +291,7 @@ static int nat_t120(struct sk_buff *skb, struct nf_conn *ct,
 	exp->expectfn = nf_nat_follow_master;
 	exp->dir = !dir;
 
-	/* Try to get same port: if not, try to change it. */
+	/* Try to get same port: if yest, try to change it. */
 	for (; nated_port != 0; nated_port++) {
 		int ret;
 
@@ -306,7 +306,7 @@ static int nat_t120(struct sk_buff *skb, struct nf_conn *ct,
 	}
 
 	if (nated_port == 0) {	/* No port available */
-		net_notice_ratelimited("nf_nat_h323: out of TCP ports\n");
+		net_yestice_ratelimited("nf_nat_h323: out of TCP ports\n");
 		return 0;
 	}
 
@@ -347,7 +347,7 @@ static int nat_h245(struct sk_buff *skb, struct nf_conn *ct,
 	if (info->sig_port[dir] == port)
 		nated_port = ntohs(info->sig_port[!dir]);
 
-	/* Try to get same port: if not, try to change it. */
+	/* Try to get same port: if yest, try to change it. */
 	for (; nated_port != 0; nated_port++) {
 		int ret;
 
@@ -362,7 +362,7 @@ static int nat_h245(struct sk_buff *skb, struct nf_conn *ct,
 	}
 
 	if (nated_port == 0) {	/* No port available */
-		net_notice_ratelimited("nf_nat_q931: out of TCP ports\n");
+		net_yestice_ratelimited("nf_nat_q931: out of TCP ports\n");
 		return 0;
 	}
 
@@ -439,7 +439,7 @@ static int nat_q931(struct sk_buff *skb, struct nf_conn *ct,
 	if (info->sig_port[dir] == port)
 		nated_port = ntohs(info->sig_port[!dir]);
 
-	/* Try to get same port: if not, try to change it. */
+	/* Try to get same port: if yest, try to change it. */
 	for (; nated_port != 0; nated_port++) {
 		int ret;
 
@@ -454,7 +454,7 @@ static int nat_q931(struct sk_buff *skb, struct nf_conn *ct,
 	}
 
 	if (nated_port == 0) {	/* No port available */
-		net_notice_ratelimited("nf_nat_ras: out of TCP ports\n");
+		net_yestice_ratelimited("nf_nat_ras: out of TCP ports\n");
 		return 0;
 	}
 
@@ -470,7 +470,7 @@ static int nat_q931(struct sk_buff *skb, struct nf_conn *ct,
 	info->sig_port[dir] = port;
 	info->sig_port[!dir] = htons(nated_port);
 
-	/* Fix for Gnomemeeting */
+	/* Fix for Gyesmemeeting */
 	if (idx > 0 &&
 	    get_h225_addr(ct, *data, &taddr[0], &addr, &port) &&
 	    (ntohl(addr.ip) & 0xff000000) == 0x7f000000) {
@@ -532,7 +532,7 @@ static int nat_callforwarding(struct sk_buff *skb, struct nf_conn *ct,
 	exp->expectfn = ip_nat_callforwarding_expect;
 	exp->dir = !dir;
 
-	/* Try to get same port: if not, try to change it. */
+	/* Try to get same port: if yest, try to change it. */
 	for (nated_port = ntohs(port); nated_port != 0; nated_port++) {
 		int ret;
 
@@ -547,7 +547,7 @@ static int nat_callforwarding(struct sk_buff *skb, struct nf_conn *ct,
 	}
 
 	if (nated_port == 0) {	/* No port available */
-		net_notice_ratelimited("nf_nat_q931: out of TCP ports\n");
+		net_yestice_ratelimited("nf_nat_q931: out of TCP ports\n");
 		return 0;
 	}
 

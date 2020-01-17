@@ -20,7 +20,7 @@
  *
  * Request PCI regions and map them to kernel virtual addresses.
  *
- * Return: 0 on success, non-zero for failure.
+ * Return: 0 on success, yesn-zero for failure.
  */
 int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 			bool is_wc[3])
@@ -30,7 +30,7 @@ int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 
 	rc = pci_request_regions(pdev, HL_NAME);
 	if (rc) {
-		dev_err(hdev->dev, "Cannot obtain PCI resources\n");
+		dev_err(hdev->dev, "Canyest obtain PCI resources\n");
 		return rc;
 	}
 
@@ -308,7 +308,7 @@ int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
  * This function sets the DMA masks (regular and consistent) for a specified
  * value. If it doesn't succeed, it tries to set it to a fall-back value
  *
- * Return: 0 on success, non-zero for failure.
+ * Return: 0 on success, yesn-zero for failure.
  */
 int hl_pci_set_dma_mask(struct hl_device *hdev, u8 dma_mask)
 {
@@ -358,7 +358,7 @@ int hl_pci_set_dma_mask(struct hl_device *hdev, u8 dma_mask)
  *
  * Set DMA masks, initialize the PCI controller and map the PCI BARs.
  *
- * Return: 0 on success, non-zero for failure.
+ * Return: 0 on success, yesn-zero for failure.
  */
 int hl_pci_init(struct hl_device *hdev, u8 dma_mask)
 {

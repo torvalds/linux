@@ -23,7 +23,7 @@ typedef unsigned long long u64;
 #include "spu_utils.h"
 
 #define BR_INSTR		0x327fff80	/* br -4         */
-#define NOP_INSTR		0x40200000	/* nop           */
+#define NOP_INSTR		0x40200000	/* yesp           */
 #define HEQ_INSTR		0x7b000000	/* heq $0, $0    */
 #define STOP_INSTR		0x00000000	/* stop 0x0      */
 #define ILLEGAL_INSTR		0x00800000	/* illegal instr */
@@ -212,7 +212,7 @@ static inline void restore_complete(void)
 		exit_instrs[2] = STOP_INSTR | stopped_code;
 		break;
 	case SPU_STOPPED_STATUS_S_P:
-		/* SPU_Status[S,P]=1.  Add nop instruction
+		/* SPU_Status[S,P]=1.  Add yesp instruction
 		 * followed by 'br -4' after end of restore
 		 * code.
 		 */
@@ -240,7 +240,7 @@ static inline void restore_complete(void)
 		exit_instrs[3] = BR_INSTR;
 		break;
 	case SPU_STOPPED_STATUS_S:
-		/* SPU_Status[S]=1. Add two 'nop' instructions. */
+		/* SPU_Status[S]=1. Add two 'yesp' instructions. */
 		exit_instrs[0] = RESTORE_COMPLETE;
 		exit_instrs[1] = NOP_INSTR;
 		exit_instrs[2] = NOP_INSTR;
@@ -283,7 +283,7 @@ static inline void restore_complete(void)
  * following aspects:
  *
  *	1. The EA for LSCSA is passed from PPE in the
- *	   signal notification channels.
+ *	   signal yestification channels.
  *	2. The register spill area is pulled by SPU
  *	   into LS, rather than pushed by PPE.
  *	3. All 128 registers are restored by exit().

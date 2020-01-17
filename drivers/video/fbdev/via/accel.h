@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techyeslogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -114,13 +114,13 @@
 #define VIA_GEC_DST_FB          0x00000000
 #define VIA_GEC_DST_SYS         0x00000080
 
-/* source is mono */
+/* source is moyes */
 #define VIA_GEC_SRC_MONO        0x00000100
-/* pattern is mono */
+/* pattern is moyes */
 #define VIA_GEC_PAT_MONO        0x00000200
-/* mono src is opaque */
+/* moyes src is opaque */
 #define VIA_GEC_MSRC_OPAQUE     0x00000000
-/* mono src is transparent */
+/* moyes src is transparent */
 #define VIA_GEC_MSRC_TRANS      0x00000400
 /* pattern is in frame buffer */
 #define VIA_GEC_PAT_FB          0x00000000
@@ -136,9 +136,9 @@
 #define VIA_GEC_DECY            0x00004000
 #define VIA_GEC_INCY            0x00000000
 #define VIA_GEC_DECX            0x00008000
-/* mono pattern is opaque */
+/* moyes pattern is opaque */
 #define VIA_GEC_MPAT_OPAQUE     0x00000000
-/* mono pattern is transparent */
+/* moyes pattern is transparent */
 #define VIA_GEC_MPAT_TRANS      0x00010000
 
 #define VIA_GEC_MONO_UNPACK     0x00000000

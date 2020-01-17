@@ -198,7 +198,7 @@ void wfx_scan_work(struct work_struct *work)
 	}
 	scan.scan_req.band = first->band;
 
-	if (wvif->scan.req->no_cck)
+	if (wvif->scan.req->yes_cck)
 		scan.scan_req.max_transmit_rate = API_RATE_INDEX_G_6MBPS;
 	else
 		scan.scan_req.max_transmit_rate = API_RATE_INDEX_B_1MBPS;
@@ -284,7 +284,7 @@ void wfx_scan_timeout(struct work_struct *work)
 		if (wvif->scan.status > 0) {
 			wvif->scan.status = 0;
 		} else if (!wvif->scan.status) {
-			dev_warn(wvif->wdev->dev, "timeout waiting for scan complete notification\n");
+			dev_warn(wvif->wdev->dev, "timeout waiting for scan complete yestification\n");
 			wvif->scan.status = -ETIMEDOUT;
 			wvif->scan.curr = wvif->scan.end;
 			hif_stop_scan(wvif);

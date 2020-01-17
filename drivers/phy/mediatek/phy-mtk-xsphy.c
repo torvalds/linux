@@ -91,7 +91,7 @@
 struct xsphy_instance {
 	struct phy *phy;
 	void __iomem *port_base;
-	struct clk *ref_clk;	/* reference clock of anolog phy */
+	struct clk *ref_clk;	/* reference clock of ayeslog phy */
 	u32 index;
 	u32 type;
 	/* only for HQA test */
@@ -147,7 +147,7 @@ static void u2_phy_slew_rate_calibrate(struct mtk_xsphy *xsphy,
 	tmp |= P2F_RG_FREQDET_EN;
 	writel(tmp, pbase + XSP_U2FREQ_FMCR0);
 
-	/* ignore return value */
+	/* igyesre return value */
 	readl_poll_timeout(pbase + XSP_U2FREQ_FMMONR1, tmp,
 			   (tmp & P2F_USB_FM_VALID), 10, 200);
 
@@ -442,7 +442,7 @@ static struct phy *mtk_phy_xlate(struct device *dev,
 {
 	struct mtk_xsphy *xsphy = dev_get_drvdata(dev);
 	struct xsphy_instance *inst = NULL;
-	struct device_node *phy_np = args->np;
+	struct device_yesde *phy_np = args->np;
 	int index;
 
 	if (args->args_count != 1) {
@@ -451,7 +451,7 @@ static struct phy *mtk_phy_xlate(struct device *dev,
 	}
 
 	for (index = 0; index < xsphy->nphys; index++)
-		if (phy_np == xsphy->phys[index]->phy->dev.of_node) {
+		if (phy_np == xsphy->phys[index]->phy->dev.of_yesde) {
 			inst = xsphy->phys[index];
 			break;
 		}
@@ -491,8 +491,8 @@ MODULE_DEVICE_TABLE(of, mtk_xsphy_id_table);
 static int mtk_xsphy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child_np;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *child_np;
 	struct phy_provider *provider;
 	struct resource *glb_res;
 	struct mtk_xsphy *xsphy;
@@ -513,7 +513,7 @@ static int mtk_xsphy_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, xsphy);
 
 	glb_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	/* optional, may not exist if no u3 phys */
+	/* optional, may yest exist if yes u3 phys */
 	if (glb_res) {
 		/* get banks shared by multiple u3 phys */
 		xsphy->glb_base = devm_ioremap_resource(dev, glb_res);
@@ -531,7 +531,7 @@ static int mtk_xsphy_probe(struct platform_device *pdev)
 	device_property_read_u32(dev, "mediatek,src-coef", &xsphy->src_coef);
 
 	port = 0;
-	for_each_child_of_node(np, child_np) {
+	for_each_child_of_yesde(np, child_np) {
 		struct xsphy_instance *inst;
 		struct phy *phy;
 
@@ -581,7 +581,7 @@ static int mtk_xsphy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(provider);
 
 put_child:
-	of_node_put(child_np);
+	of_yesde_put(child_np);
 	return retval;
 }
 

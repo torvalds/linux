@@ -62,15 +62,15 @@ static bool ak4535_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-static const char *ak4535_mono_gain[] = {"+6dB", "-17dB"};
-static const char *ak4535_mono_out[] = {"(L + R)/2", "Hi-Z"};
-static const char *ak4535_hp_out[] = {"Stereo", "Mono"};
+static const char *ak4535_moyes_gain[] = {"+6dB", "-17dB"};
+static const char *ak4535_moyes_out[] = {"(L + R)/2", "Hi-Z"};
+static const char *ak4535_hp_out[] = {"Stereo", "Moyes"};
 static const char *ak4535_deemp[] = {"44.1kHz", "Off", "48kHz", "32kHz"};
 static const char *ak4535_mic_select[] = {"Internal", "External"};
 
 static const struct soc_enum ak4535_enum[] = {
-	SOC_ENUM_SINGLE(AK4535_SIG1, 7, 2, ak4535_mono_gain),
-	SOC_ENUM_SINGLE(AK4535_SIG1, 6, 2, ak4535_mono_out),
+	SOC_ENUM_SINGLE(AK4535_SIG1, 7, 2, ak4535_moyes_gain),
+	SOC_ENUM_SINGLE(AK4535_SIG1, 6, 2, ak4535_moyes_out),
 	SOC_ENUM_SINGLE(AK4535_MODE2, 2, 2, ak4535_hp_out),
 	SOC_ENUM_SINGLE(AK4535_DAC, 0, 4, ak4535_deemp),
 	SOC_ENUM_SINGLE(AK4535_MIC, 1, 2, ak4535_mic_select),
@@ -78,8 +78,8 @@ static const struct soc_enum ak4535_enum[] = {
 
 static const struct snd_kcontrol_new ak4535_snd_controls[] = {
 	SOC_SINGLE("ALC2 Switch", AK4535_SIG1, 1, 1, 0),
-	SOC_ENUM("Mono 1 Output", ak4535_enum[1]),
-	SOC_ENUM("Mono 1 Gain", ak4535_enum[0]),
+	SOC_ENUM("Moyes 1 Output", ak4535_enum[1]),
+	SOC_ENUM("Moyes 1 Gain", ak4535_enum[0]),
 	SOC_ENUM("Headphone Output", ak4535_enum[2]),
 	SOC_ENUM("Playback Deemphasis", ak4535_enum[3]),
 	SOC_SINGLE("Bass Volume", AK4535_DAC, 2, 3, 0),
@@ -98,10 +98,10 @@ static const struct snd_kcontrol_new ak4535_snd_controls[] = {
 	SOC_SINGLE("Mic Sidetone Volume", AK4535_VOL, 4, 7, 0),
 };
 
-/* Mono 1 Mixer */
-static const struct snd_kcontrol_new ak4535_mono1_mixer_controls[] = {
+/* Moyes 1 Mixer */
+static const struct snd_kcontrol_new ak4535_moyes1_mixer_controls[] = {
 	SOC_DAPM_SINGLE("Mic Sidetone Switch", AK4535_SIG1, 4, 1, 0),
-	SOC_DAPM_SINGLE("Mono Playback Switch", AK4535_SIG1, 5, 1, 0),
+	SOC_DAPM_SINGLE("Moyes Playback Switch", AK4535_SIG1, 5, 1, 0),
 };
 
 /* Stereo Mixer */
@@ -129,8 +129,8 @@ static const struct snd_kcontrol_new ak4535_hpl_control =
 static const struct snd_kcontrol_new ak4535_hpr_control =
 	SOC_DAPM_SINGLE("Switch", AK4535_SIG2, 0, 1, 1);
 
-/* mono 2 switch */
-static const struct snd_kcontrol_new ak4535_mono2_control =
+/* moyes 2 switch */
+static const struct snd_kcontrol_new ak4535_moyes2_control =
 	SOC_DAPM_SINGLE("Switch", AK4535_SIG1, 0, 1, 0);
 
 /* Line out switch */
@@ -142,17 +142,17 @@ static const struct snd_soc_dapm_widget ak4535_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("Stereo Mixer", SND_SOC_NOPM, 0, 0,
 		&ak4535_stereo_mixer_controls[0],
 		ARRAY_SIZE(ak4535_stereo_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Mono1 Mixer", SND_SOC_NOPM, 0, 0,
-		&ak4535_mono1_mixer_controls[0],
-		ARRAY_SIZE(ak4535_mono1_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Moyes1 Mixer", SND_SOC_NOPM, 0, 0,
+		&ak4535_moyes1_mixer_controls[0],
+		ARRAY_SIZE(ak4535_moyes1_mixer_controls)),
 	SND_SOC_DAPM_MIXER("Input Mixer", SND_SOC_NOPM, 0, 0,
 		&ak4535_input_mixer_controls[0],
 		ARRAY_SIZE(ak4535_input_mixer_controls)),
 	SND_SOC_DAPM_MUX("Input Mux", SND_SOC_NOPM, 0, 0,
 		&ak4535_input_mux_control),
 	SND_SOC_DAPM_DAC("DAC", "Playback", AK4535_PM2, 0, 0),
-	SND_SOC_DAPM_SWITCH("Mono 2 Enable", SND_SOC_NOPM, 0, 0,
-		&ak4535_mono2_control),
+	SND_SOC_DAPM_SWITCH("Moyes 2 Enable", SND_SOC_NOPM, 0, 0,
+		&ak4535_moyes2_control),
 	/* speaker powersave bit */
 	SND_SOC_DAPM_PGA("Speaker Enable", AK4535_MODE2, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SWITCH("Line Out Enable", SND_SOC_NOPM, 0, 0,
@@ -176,7 +176,7 @@ static const struct snd_soc_dapm_widget ak4535_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("HP L Amp", AK4535_PM2, 2, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Mic", AK4535_PM1, 1, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Line Out", AK4535_PM1, 4, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Mono Out", AK4535_PM1, 3, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Moyes Out", AK4535_PM1, 3, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("AUX In", AK4535_PM1, 2, 0, NULL, 0),
 
 	SND_SOC_DAPM_MICBIAS("Mic Int Bias", AK4535_MIC, 3, 0),
@@ -194,9 +194,9 @@ static const struct snd_soc_dapm_route ak4535_audio_map[] = {
 	{"Stereo Mixer", "Mic Sidetone Switch", "Mic"},
 	{"Stereo Mixer", "Aux Bypass Switch", "AUX In"},
 
-	/* mono1 mixer */
-	{"Mono1 Mixer", "Mic Sidetone Switch", "Mic"},
-	{"Mono1 Mixer", "Mono Playback Switch", "DAC"},
+	/* moyes1 mixer */
+	{"Moyes1 Mixer", "Mic Sidetone Switch", "Mic"},
+	{"Moyes1 Mixer", "Moyes Playback Switch", "DAC"},
 
 	/* Mic */
 	{"Mic", NULL, "AIN"},
@@ -212,9 +212,9 @@ static const struct snd_soc_dapm_route ak4535_audio_map[] = {
 	{"Line Out Enable", "Switch", "Line Out"},
 	{"Line Out", NULL, "Stereo Mixer"},
 
-	/* mono1 out */
-	{"MOUT1", NULL, "Mono Out"},
-	{"Mono Out", NULL, "Mono1 Mixer"},
+	/* moyes1 out */
+	{"MOUT1", NULL, "Moyes Out"},
+	{"Moyes Out", NULL, "Moyes1 Mixer"},
 
 	/* left HP */
 	{"HPL", NULL, "Left HP Enable"},
@@ -232,9 +232,9 @@ static const struct snd_soc_dapm_route ak4535_audio_map[] = {
 	{"Speaker Enable", "Switch", "Spk Amp"},
 	{"Spk Amp", NULL, "MIN"},
 
-	/* mono 2 */
-	{"MOUT2", NULL, "Mono 2 Enable"},
-	{"Mono 2 Enable", "Switch", "Stereo Mixer"},
+	/* moyes 2 */
+	{"MOUT2", NULL, "Moyes 2 Enable"},
+	{"Moyes 2 Enable", "Switch", "Stereo Mixer"},
 
 	/* Aux In */
 	{"Aux In", NULL, "AUX"},
@@ -400,7 +400,7 @@ static const struct snd_soc_component_driver soc_component_dev_ak4535 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int ak4535_i2c_probe(struct i2c_client *i2c,

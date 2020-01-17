@@ -274,7 +274,7 @@ static void update_cs43xx_center_lfe_mix(struct oxygen *chip, bool mixed)
 static const struct snd_kcontrol_new front_panel_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Front Panel Playback Switch",
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moyes_info,
 	.get = xonar_gpio_bit_switch_get,
 	.put = xonar_gpio_bit_switch_put,
 	.private_value = GPIO_D1_FRONT_PANEL,

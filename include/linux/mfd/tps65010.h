@@ -21,7 +21,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if yest, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -186,10 +186,10 @@ struct i2c_client;
  * Board data may be used to package the GPIO (and LED) lines for use
  * in by the generic GPIO and LED frameworks.  The first four GPIOs
  * starting at gpio_base are GPIO1..GPIO4.  The next two are LED1/nPG
- * and LED2 (with hardware blinking capability, not currently exposed).
+ * and LED2 (with hardware blinking capability, yest currently exposed).
  *
  * The @setup callback may be used with the kind of board-specific glue
- * which hands the (now-valid) GPIOs to other drivers, or which puts
+ * which hands the (yesw-valid) GPIOs to other drivers, or which puts
  * devices in their initial states using these GPIOs.
  */
 struct tps65010_board {

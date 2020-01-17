@@ -9,84 +9,84 @@
 #include "../bus/scif_bus.h"
 #include "scif_peer_bus.h"
 #include "scif_main.h"
-#include "scif_nodeqp.h"
+#include "scif_yesdeqp.h"
 #include "scif_map.h"
 
 /*
  ************************************************************************
- * SCIF node Queue Pair (QP) setup flow:
+ * SCIF yesde Queue Pair (QP) setup flow:
  *
  * 1) SCIF driver gets probed with a scif_hw_dev via the scif_hw_bus
  * 2) scif_setup_qp(..) allocates the local qp and calls
  *	scif_setup_qp_connect(..) which allocates and maps the local
  *	buffer for the inbound QP
- * 3) The local node updates the device page with the DMA address of the QP
+ * 3) The local yesde updates the device page with the DMA address of the QP
  * 4) A delayed work is scheduled (qp_dwork) which periodically reads if
- *	the peer node has updated its QP DMA address
- * 5) Once a valid non zero address is found in the QP DMA address field
- *	in the device page, the local node maps the remote node's QP,
+ *	the peer yesde has updated its QP DMA address
+ * 5) Once a valid yesn zero address is found in the QP DMA address field
+ *	in the device page, the local yesde maps the remote yesde's QP,
  *	updates its outbound QP and sends a SCIF_INIT message to the peer
- * 6) The SCIF_INIT message is received by the peer node QP interrupt bottom
+ * 6) The SCIF_INIT message is received by the peer yesde QP interrupt bottom
  *	half handler by calling scif_init(..)
- * 7) scif_init(..) registers a new SCIF peer node by calling
+ * 7) scif_init(..) registers a new SCIF peer yesde by calling
  *	scif_peer_register_device(..) which signifies the addition of a new
- *	SCIF node
- * 8) On the mgmt node, P2P network setup/teardown is initiated if all the
- *	remote nodes are online via scif_p2p_setup(..)
- * 9) For P2P setup, the host maps the remote nodes' aperture and memory
- *	bars and sends a SCIF_NODE_ADD message to both nodes
- * 10) As part of scif_nodeadd, both nodes set up their local inbound
- *	QPs and send a SCIF_NODE_ADD_ACK to the mgmt node
- * 11) As part of scif_node_add_ack(..) the mgmt node forwards the
- *	SCIF_NODE_ADD_ACK to the remote nodes
- * 12) As part of scif_node_add_ack(..) the remote nodes update their
- *	outbound QPs, make sure they can access memory on the remote node
- *	and then add a new SCIF peer node by calling
+ *	SCIF yesde
+ * 8) On the mgmt yesde, P2P network setup/teardown is initiated if all the
+ *	remote yesdes are online via scif_p2p_setup(..)
+ * 9) For P2P setup, the host maps the remote yesdes' aperture and memory
+ *	bars and sends a SCIF_NODE_ADD message to both yesdes
+ * 10) As part of scif_yesdeadd, both yesdes set up their local inbound
+ *	QPs and send a SCIF_NODE_ADD_ACK to the mgmt yesde
+ * 11) As part of scif_yesde_add_ack(..) the mgmt yesde forwards the
+ *	SCIF_NODE_ADD_ACK to the remote yesdes
+ * 12) As part of scif_yesde_add_ack(..) the remote yesdes update their
+ *	outbound QPs, make sure they can access memory on the remote yesde
+ *	and then add a new SCIF peer yesde by calling
  *	scif_peer_register_device(..) which signifies the addition of a new
- *	SCIF node.
- * 13) The SCIF network is now established across all nodes.
+ *	SCIF yesde.
+ * 13) The SCIF network is yesw established across all yesdes.
  *
  ************************************************************************
- * SCIF node QP teardown flow (initiated by non mgmt node):
+ * SCIF yesde QP teardown flow (initiated by yesn mgmt yesde):
  *
  * 1) SCIF driver gets a remove callback with a scif_hw_dev via the scif_hw_bus
  * 2) The device page QP DMA address field is updated with 0x0
- * 3) A non mgmt node now cleans up all local data structures and sends a
+ * 3) A yesn mgmt yesde yesw cleans up all local data structures and sends a
  *	SCIF_EXIT message to the peer and waits for a SCIF_EXIT_ACK
- * 4) As part of scif_exit(..) handling scif_disconnect_node(..) is called
- * 5) scif_disconnect_node(..) sends a SCIF_NODE_REMOVE message to all the
+ * 4) As part of scif_exit(..) handling scif_disconnect_yesde(..) is called
+ * 5) scif_disconnect_yesde(..) sends a SCIF_NODE_REMOVE message to all the
  *	peers and waits for a SCIF_NODE_REMOVE_ACK
- * 6) As part of scif_node_remove(..) a remote node unregisters the peer
- *	node from the SCIF network and sends a SCIF_NODE_REMOVE_ACK
- * 7) When the mgmt node has received all the SCIF_NODE_REMOVE_ACKs
- *	it sends itself a node remove message whose handling cleans up local
- *	data structures and unregisters the peer node from the SCIF network
- * 8) The mgmt node sends a SCIF_EXIT_ACK
- * 9) Upon receipt of the SCIF_EXIT_ACK the node initiating the teardown
+ * 6) As part of scif_yesde_remove(..) a remote yesde unregisters the peer
+ *	yesde from the SCIF network and sends a SCIF_NODE_REMOVE_ACK
+ * 7) When the mgmt yesde has received all the SCIF_NODE_REMOVE_ACKs
+ *	it sends itself a yesde remove message whose handling cleans up local
+ *	data structures and unregisters the peer yesde from the SCIF network
+ * 8) The mgmt yesde sends a SCIF_EXIT_ACK
+ * 9) Upon receipt of the SCIF_EXIT_ACK the yesde initiating the teardown
  *	completes the SCIF remove routine
- * 10) The SCIF network is now torn down for the node initiating the
+ * 10) The SCIF network is yesw torn down for the yesde initiating the
  *	teardown sequence
  *
  ************************************************************************
- * SCIF node QP teardown flow (initiated by mgmt node):
+ * SCIF yesde QP teardown flow (initiated by mgmt yesde):
  *
  * 1) SCIF driver gets a remove callback with a scif_hw_dev via the scif_hw_bus
  * 2) The device page QP DMA address field is updated with 0x0
- * 3) The mgmt node calls scif_disconnect_node(..)
- * 4) scif_disconnect_node(..) sends a SCIF_NODE_REMOVE message to all the peers
+ * 3) The mgmt yesde calls scif_disconnect_yesde(..)
+ * 4) scif_disconnect_yesde(..) sends a SCIF_NODE_REMOVE message to all the peers
  *	and waits for a SCIF_NODE_REMOVE_ACK
- * 5) As part of scif_node_remove(..) a remote node unregisters the peer
- *	node from the SCIF network and sends a SCIF_NODE_REMOVE_ACK
- * 6) When the mgmt node has received all the SCIF_NODE_REMOVE_ACKs
- *	it unregisters the peer node from the SCIF network
- * 7) The mgmt node sends a SCIF_EXIT message and waits for a SCIF_EXIT_ACK.
- * 8) A non mgmt node upon receipt of a SCIF_EXIT message calls scif_stop(..)
- *	which would clean up local data structures for all SCIF nodes and
- *	then send a SCIF_EXIT_ACK back to the mgmt node
- * 9) Upon receipt of the SCIF_EXIT_ACK the the mgmt node sends itself a node
+ * 5) As part of scif_yesde_remove(..) a remote yesde unregisters the peer
+ *	yesde from the SCIF network and sends a SCIF_NODE_REMOVE_ACK
+ * 6) When the mgmt yesde has received all the SCIF_NODE_REMOVE_ACKs
+ *	it unregisters the peer yesde from the SCIF network
+ * 7) The mgmt yesde sends a SCIF_EXIT message and waits for a SCIF_EXIT_ACK.
+ * 8) A yesn mgmt yesde upon receipt of a SCIF_EXIT message calls scif_stop(..)
+ *	which would clean up local data structures for all SCIF yesdes and
+ *	then send a SCIF_EXIT_ACK back to the mgmt yesde
+ * 9) Upon receipt of the SCIF_EXIT_ACK the the mgmt yesde sends itself a yesde
  *	remove message whose handling cleans up local data structures and
  *	destroys any P2P mappings.
- * 10) The SCIF hardware device for which a remove callback was received is now
+ * 10) The SCIF hardware device for which a remove callback was received is yesw
  *	disconnected from the SCIF network.
  */
 /*
@@ -103,7 +103,7 @@ int scif_setup_qp_connect(struct scif_qp *qp, dma_addr_t *qp_offset,
 	spin_lock_init(&qp->send_lock);
 	spin_lock_init(&qp->recv_lock);
 
-	/* Allocate rb only if not already allocated */
+	/* Allocate rb only if yest already allocated */
 	if (!local_q) {
 		local_q = kzalloc(local_size, GFP_KERNEL);
 		if (!local_q) {
@@ -236,7 +236,7 @@ int scif_setup_qp_connect_response(struct scif_dev *scifdev,
 	if (qp->remote_qp->magic != SCIFEP_MAGIC) {
 		dev_err(&scifdev->sdev->dev,
 			"SCIFEP_MAGIC mismatch between self %d remote %d\n",
-			scif_dev[scif_info.nodeid].node, scifdev->node);
+			scif_dev[scif_info.yesdeid].yesde, scifdev->yesde);
 		err = -ENODEV;
 		goto error;
 	}
@@ -255,12 +255,12 @@ int scif_setup_qp_connect_response(struct scif_dev *scifdev,
 		     r_buf,
 		     get_count_order(remote_size));
 	/*
-	 * Because the node QP may already be processing an INIT message, set
+	 * Because the yesde QP may already be processing an INIT message, set
 	 * the read pointer so the cached read offset isn't lost
 	 */
 	qp->remote_qp->local_read = qp->inbound_q.current_read_offset;
 	/*
-	 * resetup the inbound_q now that we know where the
+	 * resetup the inbound_q yesw that we kyesw where the
 	 * inbound_read really is.
 	 */
 	scif_rb_init(&qp->inbound_q,
@@ -295,8 +295,8 @@ int scif_qp_response(phys_addr_t phys, struct scif_dev *scifdev)
 		 * to tell the peer about our queue's location
 		 */
 		msg.uop = SCIF_INIT;
-		msg.dst.node = scifdev->node;
-		err = scif_nodeqp_send(scifdev, &msg);
+		msg.dst.yesde = scifdev->yesde;
+		err = scif_yesdeqp_send(scifdev, &msg);
 	}
 	return err;
 }
@@ -308,9 +308,9 @@ void scif_send_exit(struct scif_dev *scifdev)
 
 	scifdev->exit = OP_IN_PROGRESS;
 	msg.uop = SCIF_EXIT;
-	msg.src.node = scif_info.nodeid;
-	msg.dst.node = scifdev->node;
-	ret = scif_nodeqp_send(scifdev, &msg);
+	msg.src.yesde = scif_info.yesdeid;
+	msg.dst.yesde = scifdev->yesde;
+	ret = scif_yesdeqp_send(scifdev, &msg);
 	if (ret)
 		goto done;
 	/* Wait for a SCIF_EXIT_ACK message */
@@ -413,7 +413,7 @@ scif_init_p2p_info(struct scif_dev *scifdev, struct scif_dev *peerdev)
 	p2p->ppi_da[SCIF_PPI_APER] = sg_dma_address(p2p->ppi_sg[SCIF_PPI_APER]);
 	p2p->ppi_len[SCIF_PPI_MMIO] = num_mmio_pages;
 	p2p->ppi_len[SCIF_PPI_APER] = num_aper_pages;
-	p2p->ppi_peer_id = peerdev->node;
+	p2p->ppi_peer_id = peerdev->yesde;
 	return p2p;
 dma_unmap:
 	dma_unmap_sg(&sdev->dev, p2p->ppi_sg[SCIF_PPI_MMIO],
@@ -442,13 +442,13 @@ static void scif_deinit_p2p_info(struct scif_dev *scifdev,
 }
 
 /**
- * scif_node_connect: Respond to SCIF_NODE_CONNECT interrupt message
- * @dst: Destination node
+ * scif_yesde_connect: Respond to SCIF_NODE_CONNECT interrupt message
+ * @dst: Destination yesde
  *
- * Connect the src and dst node by setting up the p2p connection
- * between them. Management node here acts like a proxy.
+ * Connect the src and dst yesde by setting up the p2p connection
+ * between them. Management yesde here acts like a proxy.
  */
-static void scif_node_connect(struct scif_dev *scifdev, int dst)
+static void scif_yesde_connect(struct scif_dev *scifdev, int dst)
 {
 	struct scif_dev *dev_j = scifdev;
 	struct scif_dev *dev_i = NULL;
@@ -469,13 +469,13 @@ static void scif_node_connect(struct scif_dev *scifdev, int dst)
 		return;
 	/*
 	 * If the p2p connection is already setup or in the process of setting
-	 * up then just ignore this request. The requested node will get
+	 * up then just igyesre this request. The requested yesde will get
 	 * informed by SCIF_NODE_ADD_ACK or SCIF_NODE_ADD_NACK
 	 */
 	if (!list_empty(&dev_i->p2p)) {
 		list_for_each_safe(pos, tmp, &dev_i->p2p) {
 			p2p = list_entry(pos, struct scif_p2p_info, ppi_list);
-			if (p2p->ppi_peer_id == dev_j->node)
+			if (p2p->ppi_peer_id == dev_j->yesde)
 				return;
 		}
 	}
@@ -495,15 +495,15 @@ static void scif_node_connect(struct scif_dev *scifdev, int dst)
 	 * as seen from dev_j
 	 */
 	msg.uop = SCIF_NODE_ADD;
-	msg.src.node = dev_j->node;
-	msg.dst.node = dev_i->node;
+	msg.src.yesde = dev_j->yesde;
+	msg.dst.yesde = dev_i->yesde;
 
 	msg.payload[0] = p2p_ji->ppi_da[SCIF_PPI_APER];
 	msg.payload[1] = p2p_ij->ppi_da[SCIF_PPI_MMIO];
 	msg.payload[2] = p2p_ij->ppi_da[SCIF_PPI_APER];
 	msg.payload[3] = p2p_ij->ppi_len[SCIF_PPI_APER] << PAGE_SHIFT;
 
-	err = scif_nodeqp_send(dev_i,  &msg);
+	err = scif_yesdeqp_send(dev_i,  &msg);
 	if (err) {
 		dev_err(&scifdev->sdev->dev,
 			"%s %d error %d\n", __func__, __LINE__, err);
@@ -512,8 +512,8 @@ static void scif_node_connect(struct scif_dev *scifdev, int dst)
 
 	/* Same as above but to dev_j */
 	msg.uop = SCIF_NODE_ADD;
-	msg.src.node = dev_i->node;
-	msg.dst.node = dev_j->node;
+	msg.src.yesde = dev_i->yesde;
+	msg.dst.yesde = dev_j->yesde;
 
 	tmppayload = msg.payload[0];
 	msg.payload[0] = msg.payload[2];
@@ -521,7 +521,7 @@ static void scif_node_connect(struct scif_dev *scifdev, int dst)
 	msg.payload[1] = p2p_ji->ppi_da[SCIF_PPI_MMIO];
 	msg.payload[3] = p2p_ji->ppi_len[SCIF_PPI_APER] << PAGE_SHIFT;
 
-	scif_nodeqp_send(dev_j, &msg);
+	scif_yesdeqp_send(dev_j, &msg);
 }
 
 static void scif_p2p_setup(void)
@@ -541,7 +541,7 @@ static void scif_p2p_setup(void)
 
 			if (i == j)
 				continue;
-			scif_node_connect(scifdev, j);
+			scif_yesde_connect(scifdev, j);
 		}
 	}
 }
@@ -596,17 +596,17 @@ scif_display_message(struct scif_dev *scifdev, struct scifmsg *msg,
 		return;
 	if (msg->uop > SCIF_MAX_MSG) {
 		dev_err(&scifdev->sdev->dev,
-			"%s: unknown msg type %d\n", label, msg->uop);
+			"%s: unkyeswn msg type %d\n", label, msg->uop);
 		return;
 	}
 	dev_info(&scifdev->sdev->dev,
 		 "%s: msg type %s, src %d:%d, dest %d:%d payload 0x%llx:0x%llx:0x%llx:0x%llx\n",
-		 label, message_types[msg->uop], msg->src.node, msg->src.port,
-		 msg->dst.node, msg->dst.port, msg->payload[0], msg->payload[1],
+		 label, message_types[msg->uop], msg->src.yesde, msg->src.port,
+		 msg->dst.yesde, msg->dst.port, msg->payload[0], msg->payload[1],
 		 msg->payload[2], msg->payload[3]);
 }
 
-int _scif_nodeqp_send(struct scif_dev *scifdev, struct scifmsg *msg)
+int _scif_yesdeqp_send(struct scif_dev *scifdev, struct scifmsg *msg)
 {
 	struct scif_qp *qp = scifdev->qpairs;
 	int err = -ENOMEM, loop_cnt = 0;
@@ -634,7 +634,7 @@ int _scif_nodeqp_send(struct scif_dev *scifdev, struct scifmsg *msg)
 		if (scifdev_self(scifdev))
 			/*
 			 * For loopback we need to emulate an interrupt by
-			 * queuing work for the queue handling real node
+			 * queuing work for the queue handling real yesde
 			 * Qp interrupts.
 			 */
 			queue_work(scifdev->intr_wq, &scifdev->intr_bh);
@@ -650,11 +650,11 @@ error:
 }
 
 /**
- * scif_nodeqp_send - Send a message on the node queue pair
+ * scif_yesdeqp_send - Send a message on the yesde queue pair
  * @scifdev: Scif Device.
  * @msg: The message to be sent.
  */
-int scif_nodeqp_send(struct scif_dev *scifdev, struct scifmsg *msg)
+int scif_yesdeqp_send(struct scif_dev *scifdev, struct scifmsg *msg)
 {
 	int err;
 	struct device *spdev = NULL;
@@ -669,7 +669,7 @@ int scif_nodeqp_send(struct scif_dev *scifdev, struct scifmsg *msg)
 			return err;
 		}
 	}
-	err = _scif_nodeqp_send(scifdev, msg);
+	err = _scif_yesdeqp_send(scifdev, msg);
 	if (msg->uop > SCIF_EXIT_ACK)
 		scif_put_peer_dev(spdev);
 	return err;
@@ -695,7 +695,7 @@ void scif_misc_handler(struct work_struct *work)
 
 /**
  * scif_init() - Respond to SCIF_INIT interrupt message
- * @scifdev:    Remote SCIF device node
+ * @scifdev:    Remote SCIF device yesde
  * @msg:        Interrupt message
  */
 static __always_inline void
@@ -709,7 +709,7 @@ scif_init(struct scif_dev *scifdev, struct scifmsg *msg)
 
 	scif_peer_register_device(scifdev);
 
-	if (scif_is_mgmt_node()) {
+	if (scif_is_mgmt_yesde()) {
 		mutex_lock(&scif_info.conflock);
 		scif_p2p_setup();
 		mutex_unlock(&scif_info.conflock);
@@ -718,19 +718,19 @@ scif_init(struct scif_dev *scifdev, struct scifmsg *msg)
 
 /**
  * scif_exit() - Respond to SCIF_EXIT interrupt message
- * @scifdev:    Remote SCIF device node
+ * @scifdev:    Remote SCIF device yesde
  * @msg:        Interrupt message
  *
- * This function stops the SCIF interface for the node which sent
- * the SCIF_EXIT message and starts waiting for that node to
+ * This function stops the SCIF interface for the yesde which sent
+ * the SCIF_EXIT message and starts waiting for that yesde to
  * resetup the queue pair again.
  */
 static __always_inline void
 scif_exit(struct scif_dev *scifdev, struct scifmsg *unused)
 {
 	scifdev->exit_ack_pending = true;
-	if (scif_is_mgmt_node())
-		scif_disconnect_node(scifdev->node, false);
+	if (scif_is_mgmt_yesde())
+		scif_disconnect_yesde(scifdev->yesde, false);
 	else
 		scif_stop(scifdev);
 	schedule_delayed_work(&scifdev->qp_dwork,
@@ -739,7 +739,7 @@ scif_exit(struct scif_dev *scifdev, struct scifmsg *unused)
 
 /**
  * scif_exitack() - Respond to SCIF_EXIT_ACK interrupt message
- * @scifdev:    Remote SCIF device node
+ * @scifdev:    Remote SCIF device yesde
  * @msg:        Interrupt message
  *
  */
@@ -751,21 +751,21 @@ scif_exit_ack(struct scif_dev *scifdev, struct scifmsg *unused)
 }
 
 /**
- * scif_node_add() - Respond to SCIF_NODE_ADD interrupt message
- * @scifdev:    Remote SCIF device node
+ * scif_yesde_add() - Respond to SCIF_NODE_ADD interrupt message
+ * @scifdev:    Remote SCIF device yesde
  * @msg:        Interrupt message
  *
- * When the mgmt node driver has finished initializing a MIC node queue pair it
- * marks the node as online. It then looks for all currently online MIC cards
+ * When the mgmt yesde driver has finished initializing a MIC yesde queue pair it
+ * marks the yesde as online. It then looks for all currently online MIC cards
  * and send a SCIF_NODE_ADD message to identify the ID of the new card for
  * peer to peer initialization
  *
- * The local node allocates its incoming queue and sends its address in the
- * SCIF_NODE_ADD_ACK message back to the mgmt node, the mgmt node "reflects"
- * this message to the new node
+ * The local yesde allocates its incoming queue and sends its address in the
+ * SCIF_NODE_ADD_ACK message back to the mgmt yesde, the mgmt yesde "reflects"
+ * this message to the new yesde
  */
 static __always_inline void
-scif_node_add(struct scif_dev *scifdev, struct scifmsg *msg)
+scif_yesde_add(struct scif_dev *scifdev, struct scifmsg *msg)
 {
 	struct scif_dev *newdev;
 	dma_addr_t qp_offset;
@@ -773,32 +773,32 @@ scif_node_add(struct scif_dev *scifdev, struct scifmsg *msg)
 	struct scif_hw_dev *sdev;
 
 	dev_dbg(&scifdev->sdev->dev,
-		"Scifdev %d:%d received NODE_ADD msg for node %d\n",
-		scifdev->node, msg->dst.node, msg->src.node);
+		"Scifdev %d:%d received NODE_ADD msg for yesde %d\n",
+		scifdev->yesde, msg->dst.yesde, msg->src.yesde);
 	dev_dbg(&scifdev->sdev->dev,
-		"Remote address for this node's aperture %llx\n",
+		"Remote address for this yesde's aperture %llx\n",
 		msg->payload[0]);
-	newdev = &scif_dev[msg->src.node];
-	newdev->node = msg->src.node;
+	newdev = &scif_dev[msg->src.yesde];
+	newdev->yesde = msg->src.yesde;
 	newdev->sdev = scif_dev[SCIF_MGMT_NODE].sdev;
 	sdev = newdev->sdev;
 
 	if (scif_setup_intr_wq(newdev)) {
 		dev_err(&scifdev->sdev->dev,
-			"failed to setup interrupts for %d\n", msg->src.node);
+			"failed to setup interrupts for %d\n", msg->src.yesde);
 		goto interrupt_setup_error;
 	}
-	newdev->mmio.va = ioremap_nocache(msg->payload[1], sdev->mmio->len);
+	newdev->mmio.va = ioremap_yescache(msg->payload[1], sdev->mmio->len);
 	if (!newdev->mmio.va) {
 		dev_err(&scifdev->sdev->dev,
-			"failed to map mmio for %d\n", msg->src.node);
+			"failed to map mmio for %d\n", msg->src.yesde);
 		goto mmio_map_error;
 	}
 	newdev->qpairs = kzalloc(sizeof(*newdev->qpairs), GFP_KERNEL);
 	if (!newdev->qpairs)
 		goto qp_alloc_error;
 	/*
-	 * Set the base address of the remote node's memory since it gets
+	 * Set the base address of the remote yesde's memory since it gets
 	 * added to qp_offset
 	 */
 	newdev->base_addr = msg->payload[0];
@@ -821,11 +821,11 @@ scif_node_add(struct scif_dev *scifdev, struct scifmsg *msg)
 	newdev->qpairs->qp_state = SCIF_QP_OFFLINE;
 
 	msg->uop = SCIF_NODE_ADD_ACK;
-	msg->dst.node = msg->src.node;
-	msg->src.node = scif_info.nodeid;
+	msg->dst.yesde = msg->src.yesde;
+	msg->src.yesde = scif_info.yesdeid;
 	msg->payload[0] = qp_offset;
 	msg->payload[2] = newdev->db;
-	scif_nodeqp_send(&scif_dev[SCIF_MGMT_NODE], msg);
+	scif_yesdeqp_send(&scif_dev[SCIF_MGMT_NODE], msg);
 	return;
 qp_connect_error:
 	kfree(newdev->qpairs);
@@ -836,11 +836,11 @@ qp_alloc_error:
 mmio_map_error:
 interrupt_setup_error:
 	dev_err(&scifdev->sdev->dev,
-		"node add failed for node %d\n", msg->src.node);
+		"yesde add failed for yesde %d\n", msg->src.yesde);
 	msg->uop = SCIF_NODE_ADD_NACK;
-	msg->dst.node = msg->src.node;
-	msg->src.node = scif_info.nodeid;
-	scif_nodeqp_send(&scif_dev[SCIF_MGMT_NODE], msg);
+	msg->dst.yesde = msg->src.yesde;
+	msg->src.yesde = scif_info.yesdeid;
+	scif_yesdeqp_send(&scif_dev[SCIF_MGMT_NODE], msg);
 }
 
 void scif_poll_qp_state(struct work_struct *work)
@@ -866,51 +866,51 @@ void scif_poll_qp_state(struct work_struct *work)
 	return;
 timeout:
 	dev_err(&peerdev->sdev->dev,
-		"%s %d remote node %d offline,  state = 0x%x\n",
-		__func__, __LINE__, peerdev->node, qp->qp_state);
+		"%s %d remote yesde %d offline,  state = 0x%x\n",
+		__func__, __LINE__, peerdev->yesde, qp->qp_state);
 	qp->remote_qp->qp_state = SCIF_QP_OFFLINE;
 	scif_peer_unregister_device(peerdev);
 	scif_cleanup_scifdev(peerdev);
 }
 
 /**
- * scif_node_add_ack() - Respond to SCIF_NODE_ADD_ACK interrupt message
- * @scifdev:    Remote SCIF device node
+ * scif_yesde_add_ack() - Respond to SCIF_NODE_ADD_ACK interrupt message
+ * @scifdev:    Remote SCIF device yesde
  * @msg:        Interrupt message
  *
- * After a MIC node receives the SCIF_NODE_ADD_ACK message it send this
- * message to the mgmt node to confirm the sequence is finished.
+ * After a MIC yesde receives the SCIF_NODE_ADD_ACK message it send this
+ * message to the mgmt yesde to confirm the sequence is finished.
  *
  */
 static __always_inline void
-scif_node_add_ack(struct scif_dev *scifdev, struct scifmsg *msg)
+scif_yesde_add_ack(struct scif_dev *scifdev, struct scifmsg *msg)
 {
 	struct scif_dev *peerdev;
 	struct scif_qp *qp;
-	struct scif_dev *dst_dev = &scif_dev[msg->dst.node];
+	struct scif_dev *dst_dev = &scif_dev[msg->dst.yesde];
 
 	dev_dbg(&scifdev->sdev->dev,
 		"Scifdev %d received SCIF_NODE_ADD_ACK msg src %d dst %d\n",
-		scifdev->node, msg->src.node, msg->dst.node);
+		scifdev->yesde, msg->src.yesde, msg->dst.yesde);
 	dev_dbg(&scifdev->sdev->dev,
 		"payload %llx %llx %llx %llx\n", msg->payload[0],
 		msg->payload[1], msg->payload[2], msg->payload[3]);
-	if (scif_is_mgmt_node()) {
+	if (scif_is_mgmt_yesde()) {
 		/*
-		 * the lock serializes with scif_qp_response_ack. The mgmt node
+		 * the lock serializes with scif_qp_response_ack. The mgmt yesde
 		 * is forwarding the NODE_ADD_ACK message from src to dst we
 		 * need to make sure that the dst has already received a
 		 * NODE_ADD for src and setup its end of the qp to dst
 		 */
 		mutex_lock(&scif_info.conflock);
 		msg->payload[1] = scif_info.maxid;
-		scif_nodeqp_send(dst_dev, msg);
+		scif_yesdeqp_send(dst_dev, msg);
 		mutex_unlock(&scif_info.conflock);
 		return;
 	}
-	peerdev = &scif_dev[msg->src.node];
+	peerdev = &scif_dev[msg->src.yesde];
 	peerdev->sdev = scif_dev[SCIF_MGMT_NODE].sdev;
-	peerdev->node = msg->src.node;
+	peerdev->yesde = msg->src.yesde;
 
 	qp = &peerdev->qpairs[0];
 
@@ -929,47 +929,47 @@ local_error:
 }
 
 /**
- * scif_node_add_nack: Respond to SCIF_NODE_ADD_NACK interrupt message
+ * scif_yesde_add_nack: Respond to SCIF_NODE_ADD_NACK interrupt message
  * @msg:        Interrupt message
  *
  * SCIF_NODE_ADD failed, so inform the waiting wq.
  */
 static __always_inline void
-scif_node_add_nack(struct scif_dev *scifdev, struct scifmsg *msg)
+scif_yesde_add_nack(struct scif_dev *scifdev, struct scifmsg *msg)
 {
-	if (scif_is_mgmt_node()) {
-		struct scif_dev *dst_dev = &scif_dev[msg->dst.node];
+	if (scif_is_mgmt_yesde()) {
+		struct scif_dev *dst_dev = &scif_dev[msg->dst.yesde];
 
 		dev_dbg(&scifdev->sdev->dev,
-			"SCIF_NODE_ADD_NACK received from %d\n", scifdev->node);
-		scif_nodeqp_send(dst_dev, msg);
+			"SCIF_NODE_ADD_NACK received from %d\n", scifdev->yesde);
+		scif_yesdeqp_send(dst_dev, msg);
 	}
 }
 
 /*
- * scif_node_remove: Handle SCIF_NODE_REMOVE message
+ * scif_yesde_remove: Handle SCIF_NODE_REMOVE message
  * @msg: Interrupt message
  *
- * Handle node removal.
+ * Handle yesde removal.
  */
 static __always_inline void
-scif_node_remove(struct scif_dev *scifdev, struct scifmsg *msg)
+scif_yesde_remove(struct scif_dev *scifdev, struct scifmsg *msg)
 {
-	int node = msg->payload[0];
-	struct scif_dev *scdev = &scif_dev[node];
+	int yesde = msg->payload[0];
+	struct scif_dev *scdev = &scif_dev[yesde];
 
-	scdev->node_remove_ack_pending = true;
-	scif_handle_remove_node(node);
+	scdev->yesde_remove_ack_pending = true;
+	scif_handle_remove_yesde(yesde);
 }
 
 /*
- * scif_node_remove_ack: Handle SCIF_NODE_REMOVE_ACK message
+ * scif_yesde_remove_ack: Handle SCIF_NODE_REMOVE_ACK message
  * @msg: Interrupt message
  *
  * The peer has acked a SCIF_NODE_REMOVE message.
  */
 static __always_inline void
-scif_node_remove_ack(struct scif_dev *scifdev, struct scifmsg *msg)
+scif_yesde_remove_ack(struct scif_dev *scifdev, struct scifmsg *msg)
 {
 	struct scif_dev *sdev = &scif_dev[msg->payload[0]];
 
@@ -978,53 +978,53 @@ scif_node_remove_ack(struct scif_dev *scifdev, struct scifmsg *msg)
 }
 
 /**
- * scif_get_node_info: Respond to SCIF_GET_NODE_INFO interrupt message
+ * scif_get_yesde_info: Respond to SCIF_GET_NODE_INFO interrupt message
  * @msg:        Interrupt message
  *
- * Retrieve node info i.e maxid and total from the mgmt node.
+ * Retrieve yesde info i.e maxid and total from the mgmt yesde.
  */
 static __always_inline void
-scif_get_node_info_resp(struct scif_dev *scifdev, struct scifmsg *msg)
+scif_get_yesde_info_resp(struct scif_dev *scifdev, struct scifmsg *msg)
 {
-	if (scif_is_mgmt_node()) {
-		swap(msg->dst.node, msg->src.node);
+	if (scif_is_mgmt_yesde()) {
+		swap(msg->dst.yesde, msg->src.yesde);
 		mutex_lock(&scif_info.conflock);
 		msg->payload[1] = scif_info.maxid;
 		msg->payload[2] = scif_info.total;
 		mutex_unlock(&scif_info.conflock);
-		scif_nodeqp_send(scifdev, msg);
+		scif_yesdeqp_send(scifdev, msg);
 	} else {
-		struct completion *node_info =
+		struct completion *yesde_info =
 			(struct completion *)msg->payload[3];
 
 		mutex_lock(&scif_info.conflock);
 		scif_info.maxid = msg->payload[1];
 		scif_info.total = msg->payload[2];
-		complete_all(node_info);
+		complete_all(yesde_info);
 		mutex_unlock(&scif_info.conflock);
 	}
 }
 
 static void
-scif_msg_unknown(struct scif_dev *scifdev, struct scifmsg *msg)
+scif_msg_unkyeswn(struct scif_dev *scifdev, struct scifmsg *msg)
 {
 	/* Bogus Node Qp Message? */
 	dev_err(&scifdev->sdev->dev,
-		"Unknown message 0x%xn scifdev->node 0x%x\n",
-		msg->uop, scifdev->node);
+		"Unkyeswn message 0x%xn scifdev->yesde 0x%x\n",
+		msg->uop, scifdev->yesde);
 }
 
 static void (*scif_intr_func[SCIF_MAX_MSG + 1])
 	    (struct scif_dev *, struct scifmsg *msg) = {
-	scif_msg_unknown,	/* Error */
+	scif_msg_unkyeswn,	/* Error */
 	scif_init,		/* SCIF_INIT */
 	scif_exit,		/* SCIF_EXIT */
 	scif_exit_ack,		/* SCIF_EXIT_ACK */
-	scif_node_add,		/* SCIF_NODE_ADD */
-	scif_node_add_ack,	/* SCIF_NODE_ADD_ACK */
-	scif_node_add_nack,	/* SCIF_NODE_ADD_NACK */
-	scif_node_remove,	/* SCIF_NODE_REMOVE */
-	scif_node_remove_ack,	/* SCIF_NODE_REMOVE_ACK */
+	scif_yesde_add,		/* SCIF_NODE_ADD */
+	scif_yesde_add_ack,	/* SCIF_NODE_ADD_ACK */
+	scif_yesde_add_nack,	/* SCIF_NODE_ADD_NACK */
+	scif_yesde_remove,	/* SCIF_NODE_REMOVE */
+	scif_yesde_remove_ack,	/* SCIF_NODE_REMOVE_ACK */
 	scif_cnctreq,		/* SCIF_CNCT_REQ */
 	scif_cnctgnt,		/* SCIF_CNCT_GNT */
 	scif_cnctgnt_ack,	/* SCIF_CNCT_GNTACK */
@@ -1034,7 +1034,7 @@ static void (*scif_intr_func[SCIF_MAX_MSG + 1])
 	scif_discnt_ack,	/* SCIF_DISCNT_ACK */
 	scif_clientsend,	/* SCIF_CLIENT_SENT */
 	scif_clientrcvd,	/* SCIF_CLIENT_RCVD */
-	scif_get_node_info_resp,/* SCIF_GET_NODE_INFO */
+	scif_get_yesde_info_resp,/* SCIF_GET_NODE_INFO */
 	scif_recv_reg,		/* SCIF_REGISTER */
 	scif_recv_reg_ack,	/* SCIF_REGISTER_ACK */
 	scif_recv_reg_nack,	/* SCIF_REGISTER_NACK */
@@ -1059,7 +1059,7 @@ static void (*scif_intr_func[SCIF_MAX_MSG + 1])
 };
 
 /**
- * scif_nodeqp_msg_handler() - Common handler for node messages
+ * scif_yesdeqp_msg_handler() - Common handler for yesde messages
  * @scifdev: Remote device to respond to
  * @qp: Remote memory pointer
  * @msg: The message to be handled.
@@ -1070,7 +1070,7 @@ static void (*scif_intr_func[SCIF_MAX_MSG + 1])
 static int scif_max_msg_id = SCIF_MAX_MSG;
 
 static void
-scif_nodeqp_msg_handler(struct scif_dev *scifdev,
+scif_yesdeqp_msg_handler(struct scif_dev *scifdev,
 			struct scif_qp *qp, struct scifmsg *msg)
 {
 	scif_display_message(scifdev, msg, "Rcvd");
@@ -1078,8 +1078,8 @@ scif_nodeqp_msg_handler(struct scif_dev *scifdev,
 	if (msg->uop > (u32)scif_max_msg_id) {
 		/* Bogus Node Qp Message? */
 		dev_err(&scifdev->sdev->dev,
-			"Unknown message 0x%xn scifdev->node 0x%x\n",
-			msg->uop, scifdev->node);
+			"Unkyeswn message 0x%xn scifdev->yesde 0x%x\n",
+			msg->uop, scifdev->yesde);
 		return;
 	}
 
@@ -1087,15 +1087,15 @@ scif_nodeqp_msg_handler(struct scif_dev *scifdev,
 }
 
 /**
- * scif_nodeqp_intrhandler() - Interrupt handler for node messages
+ * scif_yesdeqp_intrhandler() - Interrupt handler for yesde messages
  * @scifdev:    Remote device to respond to
  * @qp:         Remote memory pointer
  *
  * This routine is triggered by the interrupt mechanism.  It reads
- * messages from the node queue RB and calls the Node QP Message handling
+ * messages from the yesde queue RB and calls the Node QP Message handling
  * routine.
  */
-void scif_nodeqp_intrhandler(struct scif_dev *scifdev, struct scif_qp *qp)
+void scif_yesdeqp_intrhandler(struct scif_dev *scifdev, struct scif_qp *qp)
 {
 	struct scifmsg msg;
 	int read_size;
@@ -1104,9 +1104,9 @@ void scif_nodeqp_intrhandler(struct scif_dev *scifdev, struct scif_qp *qp)
 		read_size = scif_rb_get_next(&qp->inbound_q, &msg, sizeof(msg));
 		if (!read_size)
 			break;
-		scif_nodeqp_msg_handler(scifdev, qp, &msg);
+		scif_yesdeqp_msg_handler(scifdev, qp, &msg);
 		/*
-		 * The node queue pair is unmapped so skip the read pointer
+		 * The yesde queue pair is unmapped so skip the read pointer
 		 * update after receipt of a SCIF_EXIT_ACK
 		 */
 		if (SCIF_EXIT_ACK == msg.uop)
@@ -1121,7 +1121,7 @@ void scif_nodeqp_intrhandler(struct scif_dev *scifdev, struct scif_qp *qp)
  *
  * This work queue routine is invoked by the loopback work queue handler.
  * It grabs the recv lock, dequeues any available messages from the head
- * of the loopback message list, calls the node QP message handler,
+ * of the loopback message list, calls the yesde QP message handler,
  * waits for it to return, then frees up this message and dequeues more
  * elements of the list if available.
  */
@@ -1143,7 +1143,7 @@ static void scif_loopb_wq_handler(struct work_struct *unused)
 		spin_unlock(&qp->recv_lock);
 
 		if (msg) {
-			scif_nodeqp_msg_handler(scifdev, qp, &msg->msg);
+			scif_yesdeqp_msg_handler(scifdev, qp, &msg->msg);
 			kfree(msg);
 		}
 	} while (msg);
@@ -1159,17 +1159,17 @@ static void scif_loopb_wq_handler(struct work_struct *unused)
  * We need special handling for receiving Node Qp messages on a loopback SCIF
  * device via two workqueues for receiving messages.
  *
- * The reason we need the extra workqueue which is not required with *normal*
- * non-loopback SCIF devices is the potential classic deadlock described below:
+ * The reason we need the extra workqueue which is yest required with *yesrmal*
+ * yesn-loopback SCIF devices is the potential classic deadlock described below:
  *
  * Thread A tries to send a message on a loopback SCIF device and blocks since
- * there is no space in the RB while it has the send_lock held or another
+ * there is yes space in the RB while it has the send_lock held or ayesther
  * lock called lock X for example.
  *
  * Thread B: The Loopback Node QP message receive workqueue receives the message
  * and tries to send a message (eg an ACK) to the loopback SCIF device. It tries
  * to grab the send lock again or lock X and deadlocks with Thread A. The RB
- * cannot be drained any further due to this classic deadlock.
+ * canyest be drained any further due to this classic deadlock.
  *
  * In order to avoid deadlocks as mentioned above we have an extra level of
  * indirection achieved by having two workqueues.
@@ -1224,7 +1224,7 @@ int scif_setup_loopback_qp(struct scif_dev *scifdev)
 		goto exit;
 	INIT_LIST_HEAD(&scif_info.loopb_recv_q);
 	snprintf(scif_info.loopb_wqname, sizeof(scif_info.loopb_wqname),
-		 "SCIF LOOPB %d", scifdev->node);
+		 "SCIF LOOPB %d", scifdev->yesde);
 	scif_info.loopb_wq =
 		alloc_ordered_workqueue(scif_info.loopb_wqname, 0);
 	if (!scif_info.loopb_wq) {
@@ -1263,7 +1263,7 @@ int scif_setup_loopback_qp(struct scif_dev *scifdev)
 		     &qp->local_read,
 		     &qp->local_write,
 		     local_q, get_count_order(SCIF_NODE_QP_SIZE));
-	scif_info.nodeid = scifdev->node;
+	scif_info.yesdeid = scifdev->yesde;
 
 	scif_peer_register_device(scifdev);
 
@@ -1305,7 +1305,7 @@ void scif_destroy_p2p(struct scif_dev *scifdev)
 	int bd;
 
 	mutex_lock(&scif_info.conflock);
-	/* Free P2P mappings in the given node for all its peer nodes */
+	/* Free P2P mappings in the given yesde for all its peer yesdes */
 	list_for_each_safe(pos, tmp, &scifdev->p2p) {
 		p2p = list_entry(pos, struct scif_p2p_info, ppi_list);
 		dma_unmap_sg(&scifdev->sdev->dev, p2p->ppi_sg[SCIF_PPI_MMIO],
@@ -1320,12 +1320,12 @@ void scif_destroy_p2p(struct scif_dev *scifdev)
 		kfree(p2p);
 	}
 
-	/* Free P2P mapping created in the peer nodes for the given node */
+	/* Free P2P mapping created in the peer yesdes for the given yesde */
 	for (bd = SCIF_MGMT_NODE + 1; bd <= scif_info.maxid; bd++) {
 		peer_dev = &scif_dev[bd];
 		list_for_each_safe(pos, tmp, &peer_dev->p2p) {
 			p2p = list_entry(pos, struct scif_p2p_info, ppi_list);
-			if (p2p->ppi_peer_id == scifdev->node) {
+			if (p2p->ppi_peer_id == scifdev->yesde) {
 				dma_unmap_sg(&peer_dev->sdev->dev,
 					     p2p->ppi_sg[SCIF_PPI_MMIO],
 					     p2p->sg_nentries[SCIF_PPI_MMIO],

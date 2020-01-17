@@ -17,7 +17,7 @@
  */
 
 static inline __wsum
-csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
+csum_tcpudp_yesfold(__be32 saddr, __be32 daddr, __u32 len,
 		   __u8 proto, __wsum sum)
 {
 	__asm__(
@@ -31,7 +31,7 @@ csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
 	: "cc");
 	return sum;
 }
-#define csum_tcpudp_nofold	csum_tcpudp_nofold
+#define csum_tcpudp_yesfold	csum_tcpudp_yesfold
 
 #include <asm-generic/checksum.h>
 

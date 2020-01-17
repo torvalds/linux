@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -86,7 +86,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 
 	switch (mthd) {
 	case NV50_DISP_SCANOUTPOS: {
-		return nvkm_head_mthd_scanoutpos(object, head, data, size);
+		return nvkm_head_mthd_scayesutpos(object, head, data, size);
 	}
 	default:
 		break;

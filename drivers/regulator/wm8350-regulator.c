@@ -657,7 +657,7 @@ int wm8350_dcdc25_set_mode(struct wm8350 *wm8350, int dcdc, u16 mode,
 	u16 val;
 
 	dev_dbg(wm8350->dev, "%s %d mode: %s %s\n", __func__, dcdc,
-		mode ? "normal" : "boost", ilim ? "low" : "normal");
+		mode ? "yesrmal" : "boost", ilim ? "low" : "yesrmal");
 
 	switch (dcdc) {
 	case WM8350_DCDC_2:
@@ -1091,11 +1091,11 @@ static irqreturn_t pmic_uv_handler(int irq, void *data)
 
 	regulator_lock(rdev);
 	if (irq == WM8350_IRQ_CS1 || irq == WM8350_IRQ_CS2)
-		regulator_notifier_call_chain(rdev,
+		regulator_yestifier_call_chain(rdev,
 					      REGULATOR_EVENT_REGULATION_OUT,
 					      NULL);
 	else
-		regulator_notifier_call_chain(rdev,
+		regulator_yestifier_call_chain(rdev,
 					      REGULATOR_EVENT_UNDER_VOLTAGE,
 					      NULL);
 	regulator_unlock(rdev);

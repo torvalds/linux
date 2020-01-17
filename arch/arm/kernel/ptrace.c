@@ -34,7 +34,7 @@
 #define REG_PC	15
 #define REG_PSR	16
 /*
- * does not yet catch signals sent when the child dies.
+ * does yest yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
 
@@ -126,7 +126,7 @@ const char *regs_query_register_name(unsigned int offset)
  * @addr:      address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If yest, returns false.
  */
 bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
 {
@@ -388,7 +388,7 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 
 	num = (i == ARM_MAX_HBP_SLOTS) ? 0 : ptrace_hbp_idx_to_num(i);
 
-	force_sig_ptrace_errno_trap((int)num, (void __user *)(bkpt->trigger));
+	force_sig_ptrace_erryes_trap((int)num, (void __user *)(bkpt->trigger));
 }
 
 /*
@@ -640,7 +640,7 @@ static int fpa_set(struct task_struct *target,
  *	the kernel doesn't have them all.
  *
  *	vfp_get() reads this chunk as zero where applicable
- *	vfp_set() ignores this chunk
+ *	vfp_set() igyesres this chunk
  *
  * 1 word for the FPSCR
  *
@@ -706,7 +706,7 @@ static int vfp_set(struct task_struct *target,
 	if (ret)
 		return ret;
 
-	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+	ret = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 				user_fpregs_offset + sizeof(new_vfp.fpregs),
 				user_fpscr_offset);
 	if (ret)
@@ -736,7 +736,7 @@ enum arm_regset {
 
 static const struct user_regset arm_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_yeste_type = NT_PRSTATUS,
 		.n = ELF_NGREG,
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -748,7 +748,7 @@ static const struct user_regset arm_regsets[] = {
 		 * For the FPA regs in fpstate, the real fields are a mixture
 		 * of sizes, so pretend that the registers are word-sized:
 		 */
-		.core_note_type = NT_PRFPREG,
+		.core_yeste_type = NT_PRFPREG,
 		.n = sizeof(struct user_fp) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -761,7 +761,7 @@ static const struct user_regset arm_regsets[] = {
 		 * Pretend that the VFP regs are word-sized, since the FPSCR is
 		 * a single word dangling at the end of struct user_vfp:
 		 */
-		.core_note_type = NT_ARM_VFP,
+		.core_yeste_type = NT_ARM_VFP,
 		.n = ARM_VFPREGS_SIZE / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -900,7 +900,7 @@ static void tracehook_report_syscall(struct pt_regs *regs,
 	unsigned long ip;
 
 	/*
-	 * IP is used to denote syscall entry/exit:
+	 * IP is used to deyeste syscall entry/exit:
 	 * IP = 0 -> entry, =1 -> exit
 	 */
 	ip = regs->ARM_ip;
@@ -914,9 +914,9 @@ static void tracehook_report_syscall(struct pt_regs *regs,
 	regs->ARM_ip = ip;
 }
 
-asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
+asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scyes)
 {
-	current_thread_info()->syscall = scno;
+	current_thread_info()->syscall = scyes;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
@@ -931,15 +931,15 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
 #endif
 
 	/* Tracer or seccomp may have changed syscall. */
-	scno = current_thread_info()->syscall;
+	scyes = current_thread_info()->syscall;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
-		trace_sys_enter(regs, scno);
+		trace_sys_enter(regs, scyes);
 
-	audit_syscall_entry(scno, regs->ARM_r0, regs->ARM_r1, regs->ARM_r2,
+	audit_syscall_entry(scyes, regs->ARM_r0, regs->ARM_r1, regs->ARM_r2,
 			    regs->ARM_r3);
 
-	return scno;
+	return scyes;
 }
 
 asmlinkage void syscall_trace_exit(struct pt_regs *regs)

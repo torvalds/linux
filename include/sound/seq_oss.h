@@ -24,7 +24,7 @@ struct snd_seq_oss_arg {
 	struct snd_seq_addr addr;	/* opened port address */
 	void *private_data;	/* private data for lowlevel drivers */
 
-	/* note-on event passing mode: initially given by OSS seq,
+	/* yeste-on event passing mode: initially given by OSS seq,
 	 * but configurable by drivers - see below
 	 */
 	int event_passing;

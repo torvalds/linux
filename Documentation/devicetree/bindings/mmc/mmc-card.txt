@@ -2,7 +2,7 @@ mmc-card / eMMC bindings
 ------------------------
 
 This documents describes the devicetree bindings for a mmc-host controller
-child node describing a mmc-card / an eMMC, see "Use of Function subnodes"
+child yesde describing a mmc-card / an eMMC, see "Use of Function subyesdes"
 in mmc.txt
 
 Required properties:
@@ -11,7 +11,7 @@ Required properties:
 
 Optional properties:
 -broken-hpi : Use this to indicate that the mmc-card has a broken hpi
-              implementation, and that hpi should not be used
+              implementation, and that hpi should yest be used
 
 Example:
 
@@ -20,7 +20,7 @@ Example:
 	pinctrl-0 = <&mmc2_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 
 	mmccard: mmccard@0 {
 		reg = <0>;

@@ -52,7 +52,7 @@ static int pvr2_dvb_feed_func(struct pvr2_dvb_adapter *adap)
 			ret = pvr2_buffer_queue(bp);
 			if (ret < 0) break;
 
-			/* Since we know we did something to a buffer,
+			/* Since we kyesw we did something to a buffer,
 			   just go back and try again.  No point in
 			   blocking unless we really ran out of
 			   buffers to process. */
@@ -61,7 +61,7 @@ static int pvr2_dvb_feed_func(struct pvr2_dvb_adapter *adap)
 
 
 		/* Wait until more buffers become available or we're
-		   told not to wait any longer. */
+		   told yest to wait any longer. */
 		ret = wait_event_interruptible(
 		    adap->buffer_wait_data,
 		    (pvr2_stream_get_ready_count(stream) > 0) ||
@@ -88,7 +88,7 @@ static int pvr2_dvb_feed_thread(void *data)
 	return stat;
 }
 
-static void pvr2_dvb_notify(struct pvr2_dvb_adapter *adap)
+static void pvr2_dvb_yestify(struct pvr2_dvb_adapter *adap)
 {
 	wake_up(&adap->buffer_wait_data);
 }
@@ -149,7 +149,7 @@ static int pvr2_dvb_stream_do_start(struct pvr2_dvb_adapter *adap)
 	}
 
 	pvr2_stream_set_callback(pvr->video_stream.stream,
-				 (pvr2_stream_callback) pvr2_dvb_notify, adap);
+				 (pvr2_stream_callback) pvr2_dvb_yestify, adap);
 
 	ret = pvr2_stream_set_buffer_count(stream, PVR2_DVB_BUFFER_COUNT);
 	if (ret < 0) return ret;
@@ -189,7 +189,7 @@ static int pvr2_dvb_stream_start(struct pvr2_dvb_adapter *adap)
 	return ret;
 }
 
-static int pvr2_dvb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
+static int pvr2_dvb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int oyesff)
 {
 	struct pvr2_dvb_adapter *adap = dvbdmxfeed->demux->priv;
 	int ret = 0;
@@ -198,7 +198,7 @@ static int pvr2_dvb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 
 	mutex_lock(&adap->lock);
 	do {
-		if (onoff) {
+		if (oyesff) {
 			if (!adap->feedcount) {
 				pvr2_trace(PVR2_TRACE_DVB_FEED,
 					   "start feeding demux");
@@ -313,7 +313,7 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 	int ret = 0;
 
 	if (dvb_props == NULL) {
-		pvr2_trace(PVR2_TRACE_ERROR_LEGS, "fe_props not defined!");
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS, "fe_props yest defined!");
 		return -EINVAL;
 	}
 
@@ -329,7 +329,7 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 
 	if (dvb_props->frontend_attach == NULL) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "frontend_attach not defined!");
+			   "frontend_attach yest defined!");
 		ret = -EINVAL;
 		goto done;
 	}
@@ -349,7 +349,7 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 		adap->fe[0]->ops.ts_bus_ctrl = pvr2_dvb_bus_ctrl;
 	} else {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "no frontend was attached!");
+			   "yes frontend was attached!");
 		ret = -ENODEV;
 		return ret;
 	}
@@ -448,7 +448,7 @@ struct pvr2_dvb_adapter *pvr2_dvb_create(struct pvr2_context *pvr)
 	struct pvr2_dvb_adapter *adap;
 	if (!pvr->hdw->hdw_desc->dvb_props) {
 		/* Device lacks a digital interface so don't set up
-		   the DVB side of the driver either.  For now. */
+		   the DVB side of the driver either.  For yesw. */
 		return NULL;
 	}
 	adap = kzalloc(sizeof(*adap), GFP_KERNEL);

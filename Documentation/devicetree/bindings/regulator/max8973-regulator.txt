@@ -36,7 +36,7 @@ Enhanced transient response (ETR) will affect the configuration of CKADV.
 		in millicelsius. If die temperature crosses this level then
 		device generates the warning interrupts.
 
-Please note that thermal functionality is only supported on MAX77621. The
+Please yeste that thermal functionality is only supported on MAX77621. The
 supported threshold warning temperature for MAX77621 are 120 degC and 140 degC.
 
 Example:

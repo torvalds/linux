@@ -14,7 +14,7 @@
 
 /** sock_type - Socket types
  *
- * Please notice that for binary compat reasons MIPS has to
+ * Please yestice that for binary compat reasons MIPS has to
  * override the enum sock_type in include/linux/net.h, so
  * we define ARCH_HAS_SOCKET_TYPES here.
  *

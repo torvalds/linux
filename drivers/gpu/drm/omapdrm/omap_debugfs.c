@@ -18,8 +18,8 @@
 
 static int gem_show(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct omap_drm_private *priv = dev->dev_private;
 
 	seq_printf(m, "All Objects:\n");
@@ -32,8 +32,8 @@ static int gem_show(struct seq_file *m, void *arg)
 
 static int mm_show(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	drm_mm_print(&dev->vma_offset_manager->vm_addr_space_mm, &p);
@@ -44,8 +44,8 @@ static int mm_show(struct seq_file *m, void *arg)
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 static int fb_show(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_framebuffer *fb;
 
@@ -80,27 +80,27 @@ static struct drm_info_list omap_dmm_debugfs_list[] = {
 	{"tiler_map", tiler_map_show, 0},
 };
 
-int omap_debugfs_init(struct drm_minor *minor)
+int omap_debugfs_init(struct drm_miyesr *miyesr)
 {
-	struct drm_device *dev = minor->dev;
+	struct drm_device *dev = miyesr->dev;
 	int ret;
 
 	ret = drm_debugfs_create_files(omap_debugfs_list,
 			ARRAY_SIZE(omap_debugfs_list),
-			minor->debugfs_root, minor);
+			miyesr->debugfs_root, miyesr);
 
 	if (ret) {
-		dev_err(dev->dev, "could not install omap_debugfs_list\n");
+		dev_err(dev->dev, "could yest install omap_debugfs_list\n");
 		return ret;
 	}
 
 	if (dmm_is_available())
 		ret = drm_debugfs_create_files(omap_dmm_debugfs_list,
 				ARRAY_SIZE(omap_dmm_debugfs_list),
-				minor->debugfs_root, minor);
+				miyesr->debugfs_root, miyesr);
 
 	if (ret) {
-		dev_err(dev->dev, "could not install omap_dmm_debugfs_list\n");
+		dev_err(dev->dev, "could yest install omap_dmm_debugfs_list\n");
 		return ret;
 	}
 

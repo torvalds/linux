@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/major.h>
 #include <linux/miscdevice.h>
 #include <linux/interrupt.h>
@@ -115,7 +115,7 @@ static struct cpwd *cpwd_device;
  *			'limit' value.
  * limit -	16-bit countdown value in 1/10th second increments.
  *			Writing this register begins countdown with input value.
- *			Reading from this register does not affect counter.
+ *			Reading from this register does yest affect counter.
  * NOTES:	After watchdog reset, dcntr and limit contain '1'
  *
  * status register (byte access):
@@ -200,7 +200,7 @@ static u8 cpwd_readb(void __iomem *addr)
  * called during initialzation or by wd_[start|stop]timer()
  *
  * index	- sub-device index, or -1 for 'all'
- * enable	- non-zero to enable interrupts, zero to disable
+ * enable	- yesn-zero to enable interrupts, zero to disable
  */
 static void cpwd_toggleintr(struct cpwd *p, int index, int enable)
 {
@@ -219,7 +219,7 @@ static void cpwd_toggleintr(struct cpwd *p, int index, int enable)
 }
 
 /* Restarts timer with maximum limit value and
- * does not unset 'brokenstop' value.
+ * does yest unset 'brokenstop' value.
  */
 static void cpwd_resetbrokentimer(struct cpwd *p, int index)
 {
@@ -228,7 +228,7 @@ static void cpwd_resetbrokentimer(struct cpwd *p, int index)
 }
 
 /* Timer method called to reset stopped watchdogs--
- * because of the PLD bug on CP1400, we cannot mask
+ * because of the PLD bug on CP1400, we canyest mask
  * interrupts within the PLD so me must continually
  * reset the timers ad infinitum.
  */
@@ -258,7 +258,7 @@ static void cpwd_brokentimer(struct timer_list *unused)
 }
 
 /* Reset countdown timer with 'limit' value and continue countdown.
- * This will not start a stopped timer.
+ * This will yest start a stopped timer.
  */
 static void cpwd_pingtimer(struct cpwd *p, int index)
 {
@@ -267,7 +267,7 @@ static void cpwd_pingtimer(struct cpwd *p, int index)
 }
 
 /* Stop a running watchdog timer-- the timer actually keeps
- * running, but the interrupt is masked so that no action is
+ * running, but the interrupt is masked so that yes action is
  * taken upon expiration.
  */
 static void cpwd_stoptimer(struct cpwd *p, int index)
@@ -325,7 +325,7 @@ static int cpwd_getstatus(struct cpwd *p, int index)
 			 *
 			 * IF timer is running
 			 *	AND brokenstop is set
-			 *	AND no interrupt has been serviced
+			 *	AND yes interrupt has been serviced
 			 * we are WD_FREERUN.
 			 */
 			if (p->broken &&
@@ -367,12 +367,12 @@ static irqreturn_t cpwd_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int cpwd_open(struct inode *inode, struct file *f)
+static int cpwd_open(struct iyesde *iyesde, struct file *f)
 {
 	struct cpwd *p = cpwd_device;
 
 	mutex_lock(&cpwd_mutex);
-	switch (iminor(inode)) {
+	switch (imiyesr(iyesde)) {
 	case WD0_MINOR:
 	case WD1_MINOR:
 	case WD2_MINOR:
@@ -387,7 +387,7 @@ static int cpwd_open(struct inode *inode, struct file *f)
 	if (!p->initialized) {
 		if (request_irq(p->irq, &cpwd_interrupt,
 				IRQF_SHARED, DRIVER_NAME, p)) {
-			pr_err("Cannot register IRQ %d\n", p->irq);
+			pr_err("Canyest register IRQ %d\n", p->irq);
 			mutex_unlock(&cpwd_mutex);
 			return -EBUSY;
 		}
@@ -396,10 +396,10 @@ static int cpwd_open(struct inode *inode, struct file *f)
 
 	mutex_unlock(&cpwd_mutex);
 
-	return stream_open(inode, f);
+	return stream_open(iyesde, f);
 }
 
-static int cpwd_release(struct inode *inode, struct file *file)
+static int cpwd_release(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
@@ -412,8 +412,8 @@ static long cpwd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		.identity		= DRIVER_NAME,
 	};
 	void __user *argp = (void __user *)arg;
-	struct inode *inode = file_inode(file);
-	int index = iminor(inode) - WD0_MINOR;
+	struct iyesde *iyesde = file_iyesde(file);
+	int index = imiyesr(iyesde) - WD0_MINOR;
 	struct cpwd *p = cpwd_device;
 	int setopt = 0;
 
@@ -482,9 +482,9 @@ static long cpwd_compat_ioctl(struct file *file, unsigned int cmd, unsigned long
 static ssize_t cpwd_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct cpwd *p = cpwd_device;
-	int index = iminor(inode);
+	int index = imiyesr(iyesde);
 
 	if (count) {
 		cpwd_pingtimer(p, index);
@@ -508,12 +508,12 @@ static const struct file_operations cpwd_fops = {
 	.write =		cpwd_write,
 	.read =			cpwd_read,
 	.release =		cpwd_release,
-	.llseek =		no_llseek,
+	.llseek =		yes_llseek,
 };
 
 static int cpwd_probe(struct platform_device *op)
 {
-	struct device_node *options;
+	struct device_yesde *options;
 	const char *str_prop;
 	const void *prop_val;
 	int i, err = -EINVAL;
@@ -537,10 +537,10 @@ static int cpwd_probe(struct platform_device *op)
 		return -ENOMEM;
 	}
 
-	options = of_find_node_by_path("/options");
+	options = of_find_yesde_by_path("/options");
 	if (!options) {
 		err = -ENODEV;
-		pr_err("Unable to find /options node\n");
+		pr_err("Unable to find /options yesde\n");
 		goto out_iounmap;
 	}
 
@@ -554,13 +554,13 @@ static int cpwd_probe(struct platform_device *op)
 	if (str_prop)
 		p->timeout = simple_strtoul(str_prop, NULL, 10);
 
-	of_node_put(options);
+	of_yesde_put(options);
 
 	/* CP1400s seem to have broken PLD implementations-- the
-	 * interrupt_mask register cannot be written, so no timer
+	 * interrupt_mask register canyest be written, so yes timer
 	 * interrupts can be masked within the PLD.
 	 */
-	str_prop = of_get_property(op->dev.of_node, "model", NULL);
+	str_prop = of_get_property(op->dev.of_yesde, "model", NULL);
 	p->broken = (str_prop && !strcmp(str_prop, WD_BADMODEL));
 
 	if (!p->enabled)
@@ -573,7 +573,7 @@ static int cpwd_probe(struct platform_device *op)
 					&wd2_timeout };
 		struct miscdevice *mp = &p->devs[i].misc;
 
-		mp->minor = WD0_MINOR + i;
+		mp->miyesr = WD0_MINOR + i;
 		mp->name = cpwd_names[i];
 		mp->fops = &cpwd_fops;
 
@@ -587,7 +587,7 @@ static int cpwd_probe(struct platform_device *op)
 
 		err = misc_register(&p->devs[i].misc);
 		if (err) {
-			pr_err("Could not register misc device for dev %d\n",
+			pr_err("Could yest register misc device for dev %d\n",
 			       i);
 			goto out_unregister;
 		}

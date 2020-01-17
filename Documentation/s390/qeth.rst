@@ -21,27 +21,27 @@ BRIDGEPORT=statechange
   indicates that the Bridge Port device changed
   its state.
 
-ROLE={primary|secondary|none}
+ROLE={primary|secondary|yesne}
   the role assigned to the port.
 
 STATE={active|standby|inactive}
   the newly assumed state of the port.
 
 When run on HiperSockets Bridge Capable Port hardware with host address
-notifications enabled, a udev event with ACTION=CHANGE is emitted.
+yestifications enabled, a udev event with ACTION=CHANGE is emitted.
 It is emitted on behalf of the corresponding ccwgroup device when a host
 or a VLAN is registered or unregistered on the network served by the device.
 The event has the following attributes:
 
 BRIDGEDHOST={reset|register|deregister|abort}
   host address
-  notifications are started afresh, a new host or VLAN is registered or
+  yestifications are started afresh, a new host or VLAN is registered or
   deregistered on the Bridge Port HiperSockets channel, or address
-  notifications are aborted.
+  yestifications are aborted.
 
 VLAN=numeric-vlan-id
   VLAN ID on which the event occurred. Not included
-  if no VLAN is involved in the event.
+  if yes VLAN is involved in the event.
 
 MAC=xx:xx:xx:xx:xx:xx
   MAC address of the host that is being registered

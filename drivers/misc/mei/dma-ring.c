@@ -15,7 +15,7 @@
  *
  * Return:
  * * 0       - on success or zero allocation request
- * * -EINVAL - if size is not power of 2
+ * * -EINVAL - if size is yest power of 2
  * * -ENOMEM - of allocation has failed
  */
 static int mei_dmam_dscr_alloc(struct mei_device *dev,

@@ -361,7 +361,7 @@ struct cio2_device {
 	struct mutex lock;
 
 	bool streaming;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_yestifier yestifier;
 	struct media_device media_dev;
 
 	/*
@@ -380,7 +380,7 @@ struct cio2_device {
 /**************** Virtual channel ****************/
 /*
  * This should come from sensor driver. No
- * driver interface nor requirement yet.
+ * driver interface yesr requirement yet.
  */
 #define SENSOR_VIR_CH_DFLT		0
 

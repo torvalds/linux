@@ -22,7 +22,7 @@
 #include "pcie/portdrv.h"
 
 struct pci_dynid {
-	struct list_head node;
+	struct list_head yesde;
 	struct pci_device_id id;
 };
 
@@ -45,7 +45,7 @@ struct pci_dynid {
  * Does GFP_KERNEL allocation.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -erryes on failure.
  */
 int pci_add_dynid(struct pci_driver *drv,
 		  unsigned int vendor, unsigned int device,
@@ -68,7 +68,7 @@ int pci_add_dynid(struct pci_driver *drv,
 	dynid->id.driver_data = driver_data;
 
 	spin_lock(&drv->dynids.lock);
-	list_add_tail(&dynid->node, &drv->dynids.list);
+	list_add_tail(&dynid->yesde, &drv->dynids.list);
 	spin_unlock(&drv->dynids.lock);
 
 	return driver_attach(&drv->driver);
@@ -80,8 +80,8 @@ static void pci_free_dynids(struct pci_driver *drv)
 	struct pci_dynid *dynid, *n;
 
 	spin_lock(&drv->dynids.lock);
-	list_for_each_entry_safe(dynid, n, &drv->dynids.list, node) {
-		list_del(&dynid->node);
+	list_for_each_entry_safe(dynid, n, &drv->dynids.list, yesde) {
+		list_del(&dynid->yesde);
 		kfree(dynid);
 	}
 	spin_unlock(&drv->dynids.lock);
@@ -180,14 +180,14 @@ static ssize_t remove_id_store(struct device_driver *driver, const char *buf,
 		return -EINVAL;
 
 	spin_lock(&pdrv->dynids.lock);
-	list_for_each_entry_safe(dynid, n, &pdrv->dynids.list, node) {
+	list_for_each_entry_safe(dynid, n, &pdrv->dynids.list, yesde) {
 		struct pci_device_id *id = &dynid->id;
 		if ((id->vendor == vendor) &&
 		    (id->device == device) &&
 		    (subvendor == PCI_ANY_ID || id->subvendor == subvendor) &&
 		    (subdevice == PCI_ANY_ID || id->subdevice == subdevice) &&
 		    !((id->class ^ class) & class_mask)) {
-			list_del(&dynid->node);
+			list_del(&dynid->yesde);
 			kfree(dynid);
 			retval = count;
 			break;
@@ -213,9 +213,9 @@ ATTRIBUTE_GROUPS(pci_drv);
  *
  * Used by a driver to check whether a PCI device present in the
  * system is in its list of supported devices.  Returns the matching
- * pci_device_id structure or %NULL if there is no match.
+ * pci_device_id structure or %NULL if there is yes match.
  *
- * Deprecated, don't use this as it will not catch any dynamic ids
+ * Deprecated, don't use this as it will yest catch any dynamic ids
  * that a driver might want to check for.
  */
 const struct pci_device_id *pci_match_id(const struct pci_device_id *ids,
@@ -246,7 +246,7 @@ static const struct pci_device_id pci_device_id_any = {
  *
  * Used by a driver to check whether a PCI device present in the
  * system is in its list of supported devices.  Returns the matching
- * pci_device_id structure or %NULL if there is no match.
+ * pci_device_id structure or %NULL if there is yes match.
  */
 static const struct pci_device_id *pci_match_device(struct pci_driver *drv,
 						    struct pci_dev *dev)
@@ -260,7 +260,7 @@ static const struct pci_device_id *pci_match_device(struct pci_driver *drv,
 
 	/* Look at the dynamic ids first, before the static ones */
 	spin_lock(&drv->dynids.lock);
-	list_for_each_entry(dynid, &drv->dynids.list, node) {
+	list_for_each_entry(dynid, &drv->dynids.list, yesde) {
 		if (pci_match_one_device(&dynid->id, dev)) {
 			found_id = &dynid->id;
 			break;
@@ -296,9 +296,9 @@ static long local_pci_probe(void *_ddi)
 	 * Unbound PCI devices are always put in D0, regardless of
 	 * runtime PM status.  During probe, the device is set to
 	 * active and the usage count is incremented.  If the driver
-	 * supports runtime PM, it should call pm_runtime_put_noidle(),
+	 * supports runtime PM, it should call pm_runtime_put_yesidle(),
 	 * or any other runtime PM helper function decrementing the usage
-	 * count, in its probe routine and pm_runtime_get_noresume() in
+	 * count, in its probe routine and pm_runtime_get_yesresume() in
 	 * its remove routine.
 	 */
 	pm_runtime_get_sync(dev);
@@ -332,15 +332,15 @@ static bool pci_physfn_is_probed(struct pci_dev *dev)
 static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 			  const struct pci_device_id *id)
 {
-	int error, node, cpu;
+	int error, yesde, cpu;
 	struct drv_dev_and_id ddi = { drv, dev, id };
 
 	/*
-	 * Execute driver initialization on node where the device is
+	 * Execute driver initialization on yesde where the device is
 	 * attached.  This way the driver likely allocates its local memory
-	 * on the right node.
+	 * on the right yesde.
 	 */
-	node = dev_to_node(&dev->dev);
+	yesde = dev_to_yesde(&dev->dev);
 	dev->is_probed = 1;
 
 	cpu_hotplug_disable();
@@ -349,11 +349,11 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 	 * Prevent nesting work_on_cpu() for the case where a Virtual Function
 	 * device is probed from work_on_cpu() of the Physical device.
 	 */
-	if (node < 0 || node >= MAX_NUMNODES || !node_online(node) ||
+	if (yesde < 0 || yesde >= MAX_NUMNODES || !yesde_online(yesde) ||
 	    pci_physfn_is_probed(dev))
 		cpu = nr_cpu_ids;
 	else
-		cpu = cpumask_any_and(cpumask_of_node(node), cpu_online_mask);
+		cpu = cpumask_any_and(cpumask_of_yesde(yesde), cpu_online_mask);
 
 	if (cpu < nr_cpu_ids)
 		error = work_on_cpu(cpu, local_pci_probe, &ddi);
@@ -444,7 +444,7 @@ static int pci_device_remove(struct device *dev)
 		if (drv->remove) {
 			pm_runtime_get_sync(dev);
 			drv->remove(pci_dev);
-			pm_runtime_put_noidle(dev);
+			pm_runtime_put_yesidle(dev);
 		}
 		pcibios_free_irq(pci_dev);
 		pci_dev->driver = NULL;
@@ -455,7 +455,7 @@ static int pci_device_remove(struct device *dev)
 	pm_runtime_put_sync(dev);
 
 	/*
-	 * If the device is still on, set the power state as "unknown",
+	 * If the device is still on, set the power state as "unkyeswn",
 	 * since it might change by the next time we load the driver.
 	 */
 	if (pci_dev->current_state == PCI_D0)
@@ -466,7 +466,7 @@ static int pci_device_remove(struct device *dev)
 	 * the driver should have called pci_disable_device(), but the
 	 * unfortunate fact is there are too many odd BIOS and bridge setups
 	 * that don't like drivers doing that all of the time.
-	 * Oh well, we can dream of sane hardware when we sleep, no matter how
+	 * Oh well, we can dream of sane hardware when we sleep, yes matter how
 	 * horrible the crap we have to deal with is when we are awake...
 	 */
 
@@ -486,9 +486,9 @@ static void pci_device_shutdown(struct device *dev)
 
 	/*
 	 * If this is a kexec reboot, turn off Bus Master bit on the
-	 * device to tell it to not continue to do DMA. Don't touch
-	 * devices in D3cold or unknown states.
-	 * If it is not a kexec reboot, firmware will hit the PCI
+	 * device to tell it to yest continue to do DMA. Don't touch
+	 * devices in D3cold or unkyeswn states.
+	 * If it is yest a kexec reboot, firmware will hit the PCI
 	 * devices with big hammer and stop their DMA any way.
 	 */
 	if (kexec_in_progress && (pci_dev->current_state <= PCI_D3hot))
@@ -537,13 +537,13 @@ static void pci_pm_default_resume_early(struct pci_dev *pci_dev)
 }
 
 /*
- * Default "suspend" method for devices that have no driver provided suspend,
- * or not even a driver at all (second part).
+ * Default "suspend" method for devices that have yes driver provided suspend,
+ * or yest even a driver at all (second part).
  */
-static void pci_pm_set_unknown_state(struct pci_dev *pci_dev)
+static void pci_pm_set_unkyeswn_state(struct pci_dev *pci_dev)
 {
 	/*
-	 * mark its power state as "unknown", since we don't know if
+	 * mark its power state as "unkyeswn", since we don't kyesw if
 	 * e.g. the BIOS will change its device state when we suspend.
 	 */
 	if (pci_dev->current_state == PCI_D0)
@@ -551,8 +551,8 @@ static void pci_pm_set_unknown_state(struct pci_dev *pci_dev)
 }
 
 /*
- * Default "resume" method for devices that have no driver provided resume,
- * or not even a driver at all (second part).
+ * Default "resume" method for devices that have yes driver provided resume,
+ * or yest even a driver at all (second part).
  */
 static int pci_pm_reenable_device(struct pci_dev *pci_dev)
 {
@@ -587,7 +587,7 @@ static int pci_legacy_suspend(struct device *dev, pm_message_t state)
 		if (!pci_dev->state_saved && pci_dev->current_state != PCI_D0
 		    && pci_dev->current_state != PCI_UNKNOWN) {
 			pci_WARN_ONCE(pci_dev, pci_dev->current_state != prev,
-				      "PCI PM: Device state not saved by %pS\n",
+				      "PCI PM: Device state yest saved by %pS\n",
 				      drv->suspend);
 		}
 	}
@@ -604,7 +604,7 @@ static int pci_legacy_suspend_late(struct device *dev, pm_message_t state)
 	if (!pci_dev->state_saved)
 		pci_save_state(pci_dev);
 
-	pci_pm_set_unknown_state(pci_dev);
+	pci_pm_set_unkyeswn_state(pci_dev);
 
 	pci_fixup_device(pci_fixup_suspend_late, pci_dev);
 
@@ -626,7 +626,7 @@ static int pci_legacy_resume(struct device *dev)
 
 static void pci_pm_default_suspend(struct pci_dev *pci_dev)
 {
-	/* Disable non-bridge devices without PM support */
+	/* Disable yesn-bridge devices without PM support */
 	if (!pci_has_subordinate(pci_dev))
 		pci_disable_enabled_device(pci_dev);
 }
@@ -639,7 +639,7 @@ static bool pci_has_legacy_pm_support(struct pci_dev *pci_dev)
 	/*
 	 * Legacy PM support is used by default, so warn if the new framework is
 	 * supported as well.  Drivers are supposed to support either the
-	 * former, or the latter, but not both at the same time.
+	 * former, or the latter, but yest both at the same time.
 	 */
 	pci_WARN(pci_dev, ret && drv->driver.pm, "device %04x:%04x\n",
 		 pci_dev->vendor, pci_dev->device);
@@ -689,7 +689,7 @@ static void pci_pm_complete(struct device *dev)
 		 * On platforms with ACPI this check may also trigger for
 		 * devices sharing power resources if one of those power
 		 * resources has been activated as a result of a change of the
-		 * power state of another device sharing it.  However, in that
+		 * power state of ayesther device sharing it.  However, in that
 		 * case it is also better to resume the device, in general.
 		 */
 		if (pci_dev->current_state < pre_sleep_state)
@@ -710,7 +710,7 @@ static void pcie_pme_root_status_cleanup(struct pci_dev *pci_dev)
 	/*
 	 * Some BIOSes forget to clear Root PME Status bits after system
 	 * wakeup, which breaks ACPI-based runtime wakeup on PCI Express.
-	 * Clear those bits now just in case (shouldn't hurt).
+	 * Clear those bits yesw just in case (shouldn't hurt).
 	 */
 	if (pci_is_pcie(pci_dev) &&
 	    (pci_pcie_type(pci_dev) == PCI_EXP_TYPE_ROOT_PORT ||
@@ -738,11 +738,11 @@ static int pci_pm_suspend(struct device *dev)
 	 * point, because in general it may be necessary to reconfigure them for
 	 * system suspend.  Namely, if the device is expected to wake up the
 	 * system from the sleep state, it may have to be reconfigured for this
-	 * purpose, or if the device is not expected to wake up the system from
+	 * purpose, or if the device is yest expected to wake up the system from
 	 * the sleep state, it should be prevented from signaling wakeup events
 	 * going forward.
 	 *
-	 * Also if the driver of the device does not indicate that its system
+	 * Also if the driver of the device does yest indicate that its system
 	 * suspend callbacks can cope with runtime-suspended devices, it is
 	 * better to resume the device from runtime suspend here.
 	 */
@@ -766,7 +766,7 @@ static int pci_pm_suspend(struct device *dev)
 		if (!pci_dev->state_saved && pci_dev->current_state != PCI_D0
 		    && pci_dev->current_state != PCI_UNKNOWN) {
 			pci_WARN_ONCE(pci_dev, pci_dev->current_state != prev,
-				      "PCI PM: State of device not saved by %pS\n",
+				      "PCI PM: State of device yest saved by %pS\n",
 				      pm->suspend);
 		}
 	}
@@ -784,7 +784,7 @@ static int pci_pm_suspend_late(struct device *dev)
 	return pm_generic_suspend_late(dev);
 }
 
-static int pci_pm_suspend_noirq(struct device *dev)
+static int pci_pm_suspend_yesirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
@@ -802,20 +802,20 @@ static int pci_pm_suspend_noirq(struct device *dev)
 		goto Fixup;
 	}
 
-	if (pm->suspend_noirq) {
+	if (pm->suspend_yesirq) {
 		pci_power_t prev = pci_dev->current_state;
 		int error;
 
-		error = pm->suspend_noirq(dev);
-		suspend_report_result(pm->suspend_noirq, error);
+		error = pm->suspend_yesirq(dev);
+		suspend_report_result(pm->suspend_yesirq, error);
 		if (error)
 			return error;
 
 		if (!pci_dev->state_saved && pci_dev->current_state != PCI_D0
 		    && pci_dev->current_state != PCI_UNKNOWN) {
 			pci_WARN_ONCE(pci_dev, pci_dev->current_state != prev,
-				      "PCI PM: State of device not saved by %pS\n",
-				      pm->suspend_noirq);
+				      "PCI PM: State of device yest saved by %pS\n",
+				      pm->suspend_yesirq);
 			goto Fixup;
 		}
 	}
@@ -851,12 +851,12 @@ static int pci_pm_suspend_noirq(struct device *dev)
 			pci_dev->bus->self->skip_bus_pm = true;
 	}
 
-	if (pci_dev->skip_bus_pm && pm_suspend_no_platform()) {
+	if (pci_dev->skip_bus_pm && pm_suspend_yes_platform()) {
 		pci_dbg(pci_dev, "PCI PM: Skipped\n");
 		goto Fixup;
 	}
 
-	pci_pm_set_unknown_state(pci_dev);
+	pci_pm_set_unkyeswn_state(pci_dev);
 
 	/*
 	 * Some BIOSes from ASUS have a bug: If a USB EHCI host controller's
@@ -875,7 +875,7 @@ Fixup:
 
 	/*
 	 * If the target system sleep state is suspend-to-idle, it is sufficient
-	 * to check whether or not the device's wakeup settings are good for
+	 * to check whether or yest the device's wakeup settings are good for
 	 * runtime PM.  Otherwise, the pm_resume_via_firmware() check will cause
 	 * pci_pm_complete() to take care of fixing up the device's state
 	 * anyway, if need be.
@@ -886,7 +886,7 @@ Fixup:
 	return 0;
 }
 
-static int pci_pm_resume_noirq(struct device *dev)
+static int pci_pm_resume_yesirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
@@ -906,11 +906,11 @@ static int pci_pm_resume_noirq(struct device *dev)
 
 	/*
 	 * In the suspend-to-idle case, devices left in D0 during suspend will
-	 * stay in D0, so it is not necessary to restore or update their
+	 * stay in D0, so it is yest necessary to restore or update their
 	 * configuration here and attempting to put them into D0 again is
 	 * pointless, so avoid doing that.
 	 */
-	if (!(skip_bus_pm && pm_suspend_no_platform()))
+	if (!(skip_bus_pm && pm_suspend_yes_platform()))
 		pci_pm_default_resume_early(pci_dev);
 
 	pci_fixup_device(pci_fixup_resume_early, pci_dev);
@@ -922,8 +922,8 @@ static int pci_pm_resume_noirq(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return 0;
 
-	if (pm && pm->resume_noirq)
-		return pm->resume_noirq(dev);
+	if (pm && pm->resume_yesirq)
+		return pm->resume_yesirq(dev);
 
 	return 0;
 }
@@ -959,9 +959,9 @@ static int pci_pm_resume(struct device *dev)
 
 #define pci_pm_suspend		NULL
 #define pci_pm_suspend_late	NULL
-#define pci_pm_suspend_noirq	NULL
+#define pci_pm_suspend_yesirq	NULL
 #define pci_pm_resume		NULL
-#define pci_pm_resume_noirq	NULL
+#define pci_pm_resume_yesirq	NULL
 
 #endif /* !CONFIG_SUSPEND */
 
@@ -988,7 +988,7 @@ static int pci_pm_freeze(struct device *dev)
 
 	/*
 	 * Resume all runtime-suspended devices before creating a snapshot
-	 * image of system memory, because the restore kernel generally cannot
+	 * image of system memory, because the restore kernel generally canyest
 	 * be expected to always handle them consistently and they need to be
 	 * put into the runtime-active metastate during system resume anyway,
 	 * so it is better to ensure that the state saved in the image will be
@@ -1009,7 +1009,7 @@ static int pci_pm_freeze(struct device *dev)
 	return 0;
 }
 
-static int pci_pm_freeze_noirq(struct device *dev)
+static int pci_pm_freeze_yesirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
@@ -1017,11 +1017,11 @@ static int pci_pm_freeze_noirq(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend_late(dev, PMSG_FREEZE);
 
-	if (pm && pm->freeze_noirq) {
+	if (pm && pm->freeze_yesirq) {
 		int error;
 
-		error = pm->freeze_noirq(dev);
-		suspend_report_result(pm->freeze_noirq, error);
+		error = pm->freeze_yesirq(dev);
+		suspend_report_result(pm->freeze_yesirq, error);
 		if (error)
 			return error;
 	}
@@ -1029,28 +1029,28 @@ static int pci_pm_freeze_noirq(struct device *dev)
 	if (!pci_dev->state_saved)
 		pci_save_state(pci_dev);
 
-	pci_pm_set_unknown_state(pci_dev);
+	pci_pm_set_unkyeswn_state(pci_dev);
 
-	if (pcibios_pm_ops.freeze_noirq)
-		return pcibios_pm_ops.freeze_noirq(dev);
+	if (pcibios_pm_ops.freeze_yesirq)
+		return pcibios_pm_ops.freeze_yesirq(dev);
 
 	return 0;
 }
 
-static int pci_pm_thaw_noirq(struct device *dev)
+static int pci_pm_thaw_yesirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int error;
 
-	if (pcibios_pm_ops.thaw_noirq) {
-		error = pcibios_pm_ops.thaw_noirq(dev);
+	if (pcibios_pm_ops.thaw_yesirq) {
+		error = pcibios_pm_ops.thaw_yesirq(dev);
 		if (error)
 			return error;
 	}
 
 	/*
-	 * The pm->thaw_noirq() callback assumes the device has been
+	 * The pm->thaw_yesirq() callback assumes the device has been
 	 * returned to D0 and its config state has been restored.
 	 *
 	 * In addition, pci_restore_state() restores MSI-X state in MMIO
@@ -1064,8 +1064,8 @@ static int pci_pm_thaw_noirq(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return 0;
 
-	if (pm && pm->thaw_noirq)
-		return pm->thaw_noirq(dev);
+	if (pm && pm->thaw_yesirq)
+		return pm->thaw_yesirq(dev);
 
 	return 0;
 }
@@ -1135,7 +1135,7 @@ static int pci_pm_poweroff_late(struct device *dev)
 	return pm_generic_poweroff_late(dev);
 }
 
-static int pci_pm_poweroff_noirq(struct device *dev)
+static int pci_pm_poweroff_yesirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
@@ -1151,11 +1151,11 @@ static int pci_pm_poweroff_noirq(struct device *dev)
 		return 0;
 	}
 
-	if (pm->poweroff_noirq) {
+	if (pm->poweroff_yesirq) {
 		int error;
 
-		error = pm->poweroff_noirq(dev);
-		suspend_report_result(pm->poweroff_noirq, error);
+		error = pm->poweroff_yesirq(dev);
+		suspend_report_result(pm->poweroff_yesirq, error);
 		if (error)
 			return error;
 	}
@@ -1165,27 +1165,27 @@ static int pci_pm_poweroff_noirq(struct device *dev)
 
 	/*
 	 * The reason for doing this here is the same as for the analogous code
-	 * in pci_pm_suspend_noirq().
+	 * in pci_pm_suspend_yesirq().
 	 */
 	if (pci_dev->class == PCI_CLASS_SERIAL_USB_EHCI)
 		pci_write_config_word(pci_dev, PCI_COMMAND, 0);
 
 	pci_fixup_device(pci_fixup_suspend_late, pci_dev);
 
-	if (pcibios_pm_ops.poweroff_noirq)
-		return pcibios_pm_ops.poweroff_noirq(dev);
+	if (pcibios_pm_ops.poweroff_yesirq)
+		return pcibios_pm_ops.poweroff_yesirq(dev);
 
 	return 0;
 }
 
-static int pci_pm_restore_noirq(struct device *dev)
+static int pci_pm_restore_yesirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int error;
 
-	if (pcibios_pm_ops.restore_noirq) {
-		error = pcibios_pm_ops.restore_noirq(dev);
+	if (pcibios_pm_ops.restore_yesirq) {
+		error = pcibios_pm_ops.restore_yesirq(dev);
 		if (error)
 			return error;
 	}
@@ -1196,8 +1196,8 @@ static int pci_pm_restore_noirq(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return 0;
 
-	if (pm && pm->restore_noirq)
-		return pm->restore_noirq(dev);
+	if (pm && pm->restore_yesirq)
+		return pm->restore_yesirq(dev);
 
 	return 0;
 }
@@ -1232,14 +1232,14 @@ static int pci_pm_restore(struct device *dev)
 #else /* !CONFIG_HIBERNATE_CALLBACKS */
 
 #define pci_pm_freeze		NULL
-#define pci_pm_freeze_noirq	NULL
+#define pci_pm_freeze_yesirq	NULL
 #define pci_pm_thaw		NULL
-#define pci_pm_thaw_noirq	NULL
+#define pci_pm_thaw_yesirq	NULL
 #define pci_pm_poweroff		NULL
 #define pci_pm_poweroff_late	NULL
-#define pci_pm_poweroff_noirq	NULL
+#define pci_pm_poweroff_yesirq	NULL
 #define pci_pm_restore		NULL
-#define pci_pm_restore_noirq	NULL
+#define pci_pm_restore_yesirq	NULL
 
 #endif /* !CONFIG_HIBERNATE_CALLBACKS */
 
@@ -1253,7 +1253,7 @@ static int pci_pm_runtime_suspend(struct device *dev)
 	int error;
 
 	/*
-	 * If pci_dev->driver is not set (unbound), we leave the device in D0,
+	 * If pci_dev->driver is yest set (unbound), we leave the device in D0,
 	 * but it may go to D3cold when the bridge above it runtime suspends.
 	 * Save its config space in case that happens.
 	 */
@@ -1271,7 +1271,7 @@ static int pci_pm_runtime_suspend(struct device *dev)
 		 * log level.
 		 */
 		if (error == -EBUSY || error == -EAGAIN) {
-			pci_dbg(pci_dev, "can't suspend now (%ps returned %d)\n",
+			pci_dbg(pci_dev, "can't suspend yesw (%ps returned %d)\n",
 				pm->runtime_suspend, error);
 			return error;
 		} else if (error) {
@@ -1287,7 +1287,7 @@ static int pci_pm_runtime_suspend(struct device *dev)
 	    && !pci_dev->state_saved && pci_dev->current_state != PCI_D0
 	    && pci_dev->current_state != PCI_UNKNOWN) {
 		pci_WARN_ONCE(pci_dev, pci_dev->current_state != prev,
-			      "PCI PM: State of device not saved by %pS\n",
+			      "PCI PM: State of device yest saved by %pS\n",
 			      pm->runtime_suspend);
 		return 0;
 	}
@@ -1308,7 +1308,7 @@ static int pci_pm_runtime_resume(struct device *dev)
 	int error = 0;
 
 	/*
-	 * Restoring config space is necessary even if the device is not bound
+	 * Restoring config space is necessary even if the device is yest bound
 	 * to a driver because although we left it in D0, it may have gone to
 	 * D3cold when the bridge above it runtime suspended.
 	 */
@@ -1337,7 +1337,7 @@ static int pci_pm_runtime_idle(struct device *dev)
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
 	/*
-	 * If pci_dev->driver is not set (unbound), the device should
+	 * If pci_dev->driver is yest set (unbound), the device should
 	 * always remain in D0 regardless of the runtime PM status
 	 */
 	if (!pci_dev->driver)
@@ -1363,12 +1363,12 @@ static const struct dev_pm_ops pci_dev_pm_ops = {
 	.poweroff = pci_pm_poweroff,
 	.poweroff_late = pci_pm_poweroff_late,
 	.restore = pci_pm_restore,
-	.suspend_noirq = pci_pm_suspend_noirq,
-	.resume_noirq = pci_pm_resume_noirq,
-	.freeze_noirq = pci_pm_freeze_noirq,
-	.thaw_noirq = pci_pm_thaw_noirq,
-	.poweroff_noirq = pci_pm_poweroff_noirq,
-	.restore_noirq = pci_pm_restore_noirq,
+	.suspend_yesirq = pci_pm_suspend_yesirq,
+	.resume_yesirq = pci_pm_resume_yesirq,
+	.freeze_yesirq = pci_pm_freeze_yesirq,
+	.thaw_yesirq = pci_pm_thaw_yesirq,
+	.poweroff_yesirq = pci_pm_poweroff_yesirq,
+	.restore_yesirq = pci_pm_restore_yesirq,
 	.runtime_suspend = pci_pm_runtime_suspend,
 	.runtime_resume = pci_pm_runtime_resume,
 	.runtime_idle = pci_pm_runtime_idle,
@@ -1394,8 +1394,8 @@ static const struct dev_pm_ops pci_dev_pm_ops = {
  *
  * Adds the driver structure to the list of registered drivers.
  * Returns a negative value on error, otherwise 0.
- * If no error occurred, the driver remains registered even if
- * no device was claimed during registration.
+ * If yes error occurred, the driver remains registered even if
+ * yes device was claimed during registration.
  */
 int __pci_register_driver(struct pci_driver *drv, struct module *owner,
 			  const char *mod_name)
@@ -1440,7 +1440,7 @@ static struct pci_driver pci_compat_driver = {
  * pci_dev_driver - get the pci_driver of a device
  * @dev: the device to query
  *
- * Returns the appropriate pci_driver structure or %NULL if there is no
+ * Returns the appropriate pci_driver structure or %NULL if there is yes
  * registered driver for the device.
  */
 struct pci_driver *pci_dev_driver(const struct pci_dev *dev)
@@ -1464,7 +1464,7 @@ EXPORT_SYMBOL(pci_dev_driver);
  *
  * Used by a driver to check whether a PCI device present in the
  * system is in its list of supported devices. Returns the matching
- * pci_device_id structure or %NULL if there is no match.
+ * pci_device_id structure or %NULL if there is yes match.
  */
 static int pci_bus_match(struct device *dev, struct device_driver *drv)
 {
@@ -1489,7 +1489,7 @@ static int pci_bus_match(struct device *dev, struct device_driver *drv)
  *
  * Each live reference to a device should be refcounted.
  *
- * Drivers for PCI devices should normally record such references in
+ * Drivers for PCI devices should yesrmally record such references in
  * their probe() methods, when they bind to a device, and release
  * them by calling pci_dev_put(), in their disconnect() methods.
  *
@@ -1595,7 +1595,7 @@ static int pci_bus_num_vf(struct device *dev)
  * @dev: ptr to dev structure
  *
  * Function to update PCI devices's DMA configuration using the same
- * info from the OF node or ACPI node of host bridge's parent (if any).
+ * info from the OF yesde or ACPI yesde of host bridge's parent (if any).
  */
 static int pci_dma_configure(struct device *dev)
 {
@@ -1605,10 +1605,10 @@ static int pci_dma_configure(struct device *dev)
 	bridge = pci_get_host_bridge_device(to_pci_dev(dev));
 
 	if (IS_ENABLED(CONFIG_OF) && bridge->parent &&
-	    bridge->parent->of_node) {
-		ret = of_dma_configure(dev, bridge->parent->of_node, true);
+	    bridge->parent->of_yesde) {
+		ret = of_dma_configure(dev, bridge->parent->of_yesde, true);
 	} else if (has_acpi_companion(bridge)) {
-		struct acpi_device *adev = to_acpi_device_node(bridge->fwnode);
+		struct acpi_device *adev = to_acpi_device_yesde(bridge->fwyesde);
 
 		ret = acpi_dma_configure(dev, acpi_get_dma_attr(adev));
 	}

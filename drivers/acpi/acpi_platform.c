@@ -39,7 +39,7 @@ static struct platform_device *acpi_platform_device_find_by_companion(struct acp
 	return dev ? to_platform_device(dev) : NULL;
 }
 
-static int acpi_platform_device_remove_notify(struct notifier_block *nb,
+static int acpi_platform_device_remove_yestify(struct yestifier_block *nb,
 					      unsigned long value, void *arg)
 {
 	struct acpi_device *adev = arg;
@@ -65,8 +65,8 @@ static int acpi_platform_device_remove_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block acpi_platform_notifier = {
-	.notifier_call = acpi_platform_device_remove_notify,
+static struct yestifier_block acpi_platform_yestifier = {
+	.yestifier_call = acpi_platform_device_remove_yestify,
 };
 
 static void acpi_platform_fill_resource(struct acpi_device *adev,
@@ -80,14 +80,14 @@ static void acpi_platform_fill_resource(struct acpi_device *adev,
 	 * If the device has parent we need to take its resources into
 	 * account as well because this device might consume part of those.
 	 */
-	parent = acpi_get_first_physical_node(adev->parent);
+	parent = acpi_get_first_physical_yesde(adev->parent);
 	if (parent && dev_is_pci(parent))
 		dest->parent = pci_find_resource(to_pci_dev(parent), dest);
 }
 
 /**
- * acpi_create_platform_device - Create platform device for ACPI device node
- * @adev: ACPI device node to create a platform device for.
+ * acpi_create_platform_device - Create platform device for ACPI device yesde
+ * @adev: ACPI device yesde to create a platform device for.
  * @properties: Optional collection of build-in properties.
  *
  * Check if the given @adev can be represented as a platform device and, if
@@ -106,8 +106,8 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	struct resource *resources = NULL;
 	int count;
 
-	/* If the ACPI node already has a physical device attached, skip it. */
-	if (adev->physical_node_count)
+	/* If the ACPI yesde already has a physical device attached, skip it. */
+	if (adev->physical_yesde_count)
 		return NULL;
 
 	if (!acpi_match_device_ids(adev, forbidden_id_list))
@@ -126,7 +126,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 			return ERR_PTR(-ENOMEM);
 		}
 		count = 0;
-		list_for_each_entry(rentry, &resource_list, node)
+		list_for_each_entry(rentry, &resource_list, yesde)
 			acpi_platform_fill_resource(adev, rentry->res,
 						    &resources[count++]);
 
@@ -135,17 +135,17 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
 	/*
-	 * If the ACPI node has a parent and that parent has a physical device
+	 * If the ACPI yesde has a parent and that parent has a physical device
 	 * attached to it, that physical device should be the parent of the
 	 * platform device we are about to create.
 	 */
 	pdevinfo.parent = adev->parent ?
-		acpi_get_first_physical_node(adev->parent) : NULL;
+		acpi_get_first_physical_yesde(adev->parent) : NULL;
 	pdevinfo.name = dev_name(&adev->dev);
 	pdevinfo.id = -1;
 	pdevinfo.res = resources;
 	pdevinfo.num_res = count;
-	pdevinfo.fwnode = acpi_fwnode_handle(adev);
+	pdevinfo.fwyesde = acpi_fwyesde_handle(adev);
 	pdevinfo.properties = properties;
 
 	if (acpi_dma_supported(adev))
@@ -158,7 +158,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 		dev_err(&adev->dev, "platform device creation failed: %ld\n",
 			PTR_ERR(pdev));
 	else {
-		set_dev_node(&pdev->dev, acpi_get_node(adev->handle));
+		set_dev_yesde(&pdev->dev, acpi_get_yesde(adev->handle));
 		dev_dbg(&adev->dev, "created platform device %s\n",
 			dev_name(&pdev->dev));
 	}
@@ -171,5 +171,5 @@ EXPORT_SYMBOL_GPL(acpi_create_platform_device);
 
 void __init acpi_platform_init(void)
 {
-	acpi_reconfig_notifier_register(&acpi_platform_notifier);
+	acpi_reconfig_yestifier_register(&acpi_platform_yestifier);
 }

@@ -121,7 +121,7 @@ static struct ieee80211_supported_band rtw_band_5ghz = {
 	.channels = rtw_channeltable_5g,
 	.n_channels = ARRAY_SIZE(rtw_channeltable_5g),
 
-	/* 5G has no CCK rates */
+	/* 5G has yes CCK rates */
 	.bitrates = rtw_ratetable + 4,
 	.n_bitrates = ARRAY_SIZE(rtw_ratetable) - 4,
 
@@ -197,7 +197,7 @@ static void rtw_watch_dog_work(struct work_struct *work)
 		clear_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
 
 	if (busy_traffic != test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags))
-		rtw_coex_wl_status_change_notify(rtwdev);
+		rtw_coex_wl_status_change_yestify(rtwdev);
 
 	if (stats->tx_cnt > RTW_LPS_THRESHOLD ||
 	    stats->rx_cnt > RTW_LPS_THRESHOLD)
@@ -231,8 +231,8 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	rtw_iterate_vifs_atomic(rtwdev, rtw_vif_watch_dog_iter, &data);
 
 	/* fw supports only one station associated to enter lps, if there are
-	 * more than two stations associated to the AP, then we can not enter
-	 * lps, because fw does not handle the overlapped beacon interval
+	 * more than two stations associated to the AP, then we can yest enter
+	 * lps, because fw does yest handle the overlapped beacon interval
 	 *
 	 * mac80211 should iterate vifs and determine if driver can enter
 	 * ps by passing IEEE80211_CONF_PS to us, all we need to do is to
@@ -400,12 +400,12 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 	chip->ops->set_channel(rtwdev, center_chan, bandwidth, primary_chan_idx);
 
 	if (hal->current_band_type == RTW_BAND_5G) {
-		rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_5G);
+		rtw_coex_switchband_yestify(rtwdev, COEX_SWITCH_TO_5G);
 	} else {
 		if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
-			rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_24G);
+			rtw_coex_switchband_yestify(rtwdev, COEX_SWITCH_TO_24G);
 		else
-			rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_24G_NOFORSCAN);
+			rtw_coex_switchband_yestify(rtwdev, COEX_SWITCH_TO_24G_NOFORSCAN);
 	}
 
 	rtw_phy_set_tx_power_level(rtwdev, center_chan);
@@ -746,7 +746,7 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 			wireless_set = WIRELESS_CCK | WIRELESS_OFDM;
 		}
 	} else {
-		rtw_err(rtwdev, "Unknown band type\n");
+		rtw_err(rtwdev, "Unkyeswn band type\n");
 		wireless_set = 0;
 	}
 
@@ -1050,7 +1050,7 @@ static int rtw_load_firmware(struct rtw_dev *rtwdev, const char *fw_name)
 
 	init_completion(&fw->completion);
 
-	ret = request_firmware_nowait(THIS_MODULE, true, fw_name, rtwdev->dev,
+	ret = request_firmware_yeswait(THIS_MODULE, true, fw_name, rtwdev->dev,
 				      GFP_KERNEL, rtwdev, rtw_load_firmware_cb);
 	if (ret) {
 		rtw_err(rtwdev, "async firmware request failed\n");
@@ -1374,7 +1374,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 
 	ret = rtw_load_firmware(rtwdev, rtwdev->chip->fw_name);
 	if (ret) {
-		rtw_warn(rtwdev, "no firmware loaded\n");
+		rtw_warn(rtwdev, "yes firmware loaded\n");
 		return ret;
 	}
 
@@ -1448,7 +1448,7 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 	rtw_set_supported_band(hw, rtwdev->chip);
 	SET_IEEE80211_PERM_ADDR(hw, rtwdev->efuse.addr);
 
-	rtw_regd_init(rtwdev, rtw_regd_notifier);
+	rtw_regd_init(rtwdev, rtw_regd_yestifier);
 
 	ret = ieee80211_register_hw(hw);
 	if (ret) {

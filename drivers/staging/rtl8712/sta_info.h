@@ -23,16 +23,16 @@
 
 
 /* if mode ==0, then the sta is allowed once the addr is hit.
- * if mode ==1, then the sta is rejected once the addr is non-hit.
+ * if mode ==1, then the sta is rejected once the addr is yesn-hit.
  */
-struct wlan_acl_node {
+struct wlan_acl_yesde {
 	struct list_head list;
 	u8       addr[ETH_ALEN];
 	u8       mode;
 };
 
 struct wlan_acl_pool {
-	struct wlan_acl_node aclnode[NUM_ACL];
+	struct wlan_acl_yesde aclyesde[NUM_ACL];
 };
 
 struct	stainfo_stats {

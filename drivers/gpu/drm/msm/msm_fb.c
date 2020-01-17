@@ -47,9 +47,9 @@ void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 }
 #endif
 
-/* prepare/pin all the fb's bo's for scanout.  Note that it is not valid
+/* prepare/pin all the fb's bo's for scayesut.  Note that it is yest valid
  * to prepare an fb more multiple different initiator 'id's.  But that
- * should be fine, since only the scanout (mdpN) side of things needs
+ * should be fine, since only the scayesut (mdpN) side of things needs
  * this, the gpu doesn't care about fb's.
  */
 int msm_framebuffer_prepare(struct drm_framebuffer *fb,
@@ -221,7 +221,7 @@ msm_alloc_stolen_fb(struct drm_device *dev, int w, int h, int p, uint32_t format
 	DBG("allocating %d bytes for fb %d", size, dev->primary->index);
 	bo = msm_gem_new(dev, size, MSM_BO_SCANOUT | MSM_BO_WC | MSM_BO_STOLEN);
 	if (IS_ERR(bo)) {
-		dev_warn(dev->dev, "could not allocate stolen bo\n");
+		dev_warn(dev->dev, "could yest allocate stolen bo\n");
 		/* try regular bo: */
 		bo = msm_gem_new(dev, size, MSM_BO_SCANOUT | MSM_BO_WC);
 	}
@@ -235,7 +235,7 @@ msm_alloc_stolen_fb(struct drm_device *dev, int w, int h, int p, uint32_t format
 	fb = msm_framebuffer_init(dev, &mode_cmd, &bo);
 	if (IS_ERR(fb)) {
 		DRM_DEV_ERROR(dev->dev, "failed to allocate fb\n");
-		/* note: if fb creation failed, we can't rely on fb destroy
+		/* yeste: if fb creation failed, we can't rely on fb destroy
 		 * to unref the bo:
 		 */
 		drm_gem_object_put_unlocked(bo);

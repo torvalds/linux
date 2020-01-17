@@ -65,7 +65,7 @@
 		/* 3 MiB reserved for ARM Trusted Firmware (BL31) */
 		secmon_reserved: secmon@5000000 {
 			reg = <0x0 0x05000000 0x0 0x300000>;
-			no-map;
+			yes-map;
 		};
 
 		linux,cma {
@@ -2239,7 +2239,7 @@
 			(GIC_CPU_MASK_RAW(0xff) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10
 			(GIC_CPU_MASK_RAW(0xff) | IRQ_TYPE_LEVEL_LOW)>;
-		arm,no-tick-in-suspend;
+		arm,yes-tick-in-suspend;
 	};
 
 	xtal: xtal-clk {

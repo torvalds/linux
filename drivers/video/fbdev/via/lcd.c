@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techyeslogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -118,7 +118,7 @@ static bool lvds_identify_integratedlvds(void)
 	} else {
 		viaparinfo->chip_info->lvds_chip_info.lvds_chip_name =
 			NON_LVDS_TRANSMITTER;
-		DEBUG_MSG(KERN_INFO "Do not support LVDS!\n");
+		DEBUG_MSG(KERN_INFO "Do yest support LVDS!\n");
 		return false;
 	}
 
@@ -584,7 +584,7 @@ void viafb_lcd_set_mode(const struct fb_var_screeninfo *var, u16 cxres,
 	    || (UNICHROME_K8M890 == viaparinfo->chip_info->gfx_chip_name))
 		viafb_write_reg_mask(CR6A, VIACR, 0x01, BIT0);
 
-	/* Patch for non 32bit alignment mode */
+	/* Patch for yesn 32bit alignment mode */
 	via_pitch_alignment_patch_lcd(plvds_setting_info->iga_path, set_hres,
 		var->bits_per_pixel);
 }
@@ -907,7 +907,7 @@ void viafb_init_lvds_output_interface(struct lvds_chip_information
 				*plvds_setting_info)
 {
 	if (INTERFACE_NONE != plvds_chip_info->output_interface) {
-		/*Do nothing, lcd port is specified by module parameter */
+		/*Do yesthing, lcd port is specified by module parameter */
 		return;
 	}
 

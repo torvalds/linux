@@ -12,11 +12,11 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 	/*
 	 * this can be optimized by doing gcc inline assemlby with
-	 * proper constraints (no need to save args registers...)
+	 * proper constraints (yes need to save args registers...)
 	 *
 	 */
 
@@ -56,7 +56,7 @@ __copy_tofrom_user:
 	.section .fixup, "ax"
 99:
 		l.j     1b
-		l.nop
+		l.yesp
 	.previous
 
 	.section __ex_table, "a"
@@ -93,7 +93,7 @@ __clear_user:
 	.section .fixup, "ax"
 99:
 		l.j     1b
-		l.nop
+		l.yesp
 	.previous
 
 	.section __ex_table, "a"

@@ -15,7 +15,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
+ * License along with this program; if yest, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 021110-1307, USA.
  *
@@ -271,7 +271,7 @@ static int tca8418_keypad_probe(struct i2c_client *client,
 
 	/* Check i2c driver capabilities */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE)) {
-		dev_err(dev, "%s adapter not supported\n",
+		dev_err(dev, "%s adapter yest supported\n",
 			dev_driver_string(&client->adapter->dev));
 		return -ENODEV;
 	}
@@ -300,7 +300,7 @@ static int tca8418_keypad_probe(struct i2c_client *client,
 	keypad_data->client = client;
 	keypad_data->row_shift = row_shift;
 
-	/* Read key lock register, if this fails assume device not present */
+	/* Read key lock register, if this fails assume device yest present */
 	error = tca8418_read_byte(keypad_data, REG_KEY_LCK_EC, &reg);
 	if (error)
 		return -ENODEV;

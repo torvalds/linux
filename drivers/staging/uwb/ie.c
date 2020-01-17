@@ -22,8 +22,8 @@
  * Both @ptr and @len are updated so subsequent calls to uwb_ie_next()
  * will get the next IE.
  *
- * NULL is returned (and @ptr and @len will not be updated) if there
- * are no more IEs in the buffer or the buffer is too short.
+ * NULL is returned (and @ptr and @len will yest be updated) if there
+ * are yes more IEs in the buffer or the buffer is too short.
  */
 struct uwb_ie_hdr *uwb_ie_next(void **ptr, size_t *len)
 {
@@ -116,12 +116,12 @@ ssize_t uwb_rc_get_ie(struct uwb_rc *uwb_rc, struct uwb_rc_evt_get_ie **pget_ie)
 
 	get_ie = container_of(reply, struct uwb_rc_evt_get_ie, rceb);
 	if (result < sizeof(*get_ie)) {
-		dev_err(dev, "not enough data returned for decoding GET IE "
+		dev_err(dev, "yest eyesugh data returned for decoding GET IE "
 			"(%zu bytes received vs %zu needed)\n",
 			result, sizeof(*get_ie));
 		return -EINVAL;
 	} else if (result < sizeof(*get_ie) + le16_to_cpu(get_ie->wIELength)) {
-		dev_err(dev, "not enough data returned for decoding GET IE "
+		dev_err(dev, "yest eyesugh data returned for decoding GET IE "
 			"payload (%zu bytes received vs %zu needed)\n", result,
 			sizeof(*get_ie) + le16_to_cpu(get_ie->wIELength));
 		return -EINVAL;
@@ -152,7 +152,7 @@ int uwb_rc_set_ie(struct uwb_rc *rc, struct uwb_rc_cmd_set_ie *cmd)
 	if (result < 0)
 		goto error_cmd;
 	else if (result != sizeof(reply)) {
-		dev_err(dev, "SET-IE: not enough data to decode reply "
+		dev_err(dev, "SET-IE: yest eyesugh data to decode reply "
 			"(%d bytes received vs %zu needed)\n",
 			result, sizeof(reply));
 		result = -EIO;
@@ -178,7 +178,7 @@ void uwb_rc_ie_init(struct uwb_rc *uwb_rc)
  * @uwb_rc: the radio controller.
  *
  * The current set of IEs are obtained from the hardware with a GET-IE
- * command (since the radio controller is not yet beaconing this will
+ * command (since the radio controller is yest yet beaconing this will
  * be just the hardware's MAC and PHY Capability IEs).
  *
  * Returns 0 on success; -ve on an error.
@@ -258,8 +258,8 @@ static int uwb_rc_ie_add_one(struct uwb_rc *rc, const struct uwb_ie_hdr *new_ie)
  *
  * According to WHCI 0.95 [4.13.6] the driver will only receive the RCEB
  * after the device sent the first beacon that includes the IEs specified
- * in the SET IE command. We thus cannot send this command if the device is
- * not beaconing. Instead, a SET IE command will be sent later right after
+ * in the SET IE command. We thus canyest send this command if the device is
+ * yest beaconing. Instead, a SET IE command will be sent later right after
  * we start beaconing.
  *
  * Setting an IE on the device will overwrite all current IEs in device. So
@@ -305,12 +305,12 @@ EXPORT_SYMBOL_GPL(uwb_rc_ie_add);
 /*
  * Remove an IE from internal cache
  *
- * We are dealing with our internal IE cache so no need to verify that the
+ * We are dealing with our internal IE cache so yes need to verify that the
  * IEs are valid (it has been done already).
  *
  * Should be called with ies_mutex held
  *
- * We do not break out once an IE is found in the cache. It is currently
+ * We do yest break out once an IE is found in the cache. It is currently
  * possible to have more than one IE with the same ID included in the
  * beacon. We don't reallocate, we just mark the size smaller.
  */

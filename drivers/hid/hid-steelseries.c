@@ -131,7 +131,7 @@ static void steelseries_srws1_set_leds(struct hid_device *hdev, __u16 leds)
 
 	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
 
-	/* Note: LED change does not show on device until the device is read/polled */
+	/* Note: LED change does yest show on device until the device is read/polled */
 }
 
 static void steelseries_srws1_led_all_set_brightness(struct led_classdev *led_cdev,
@@ -142,7 +142,7 @@ static void steelseries_srws1_led_all_set_brightness(struct led_classdev *led_cd
 	struct steelseries_srws1_data *drv_data = hid_get_drvdata(hid);
 
 	if (!drv_data) {
-		hid_err(hid, "Device data not found.");
+		hid_err(hid, "Device data yest found.");
 		return;
 	}
 
@@ -163,7 +163,7 @@ static enum led_brightness steelseries_srws1_led_all_get_brightness(struct led_c
 	drv_data = hid_get_drvdata(hid);
 
 	if (!drv_data) {
-		hid_err(hid, "Device data not found.");
+		hid_err(hid, "Device data yest found.");
 		return LED_OFF;
 	}
 
@@ -179,7 +179,7 @@ static void steelseries_srws1_led_set_brightness(struct led_classdev *led_cdev,
 	int i, state = 0;
 
 	if (!drv_data) {
-		hid_err(hid, "Device data not found.");
+		hid_err(hid, "Device data yest found.");
 		return;
 	}
 
@@ -209,7 +209,7 @@ static enum led_brightness steelseries_srws1_led_get_brightness(struct led_class
 	drv_data = hid_get_drvdata(hid);
 
 	if (!drv_data) {
-		hid_err(hid, "Device data not found.");
+		hid_err(hid, "Device data yest found.");
 		return LED_OFF;
 	}
 

@@ -24,7 +24,7 @@ SYM_FUNC_START(cmpxchg8b_emu)
 	cli
 
 	cmpl  (%esi), %eax
-	jne .Lnot_same
+	jne .Lyest_same
 	cmpl 4(%esi), %edx
 	jne .Lhalf_same
 
@@ -34,7 +34,7 @@ SYM_FUNC_START(cmpxchg8b_emu)
 	popfl
 	ret
 
-.Lnot_same:
+.Lyest_same:
 	movl  (%esi), %eax
 .Lhalf_same:
 	movl 4(%esi), %edx

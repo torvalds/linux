@@ -24,7 +24,7 @@
  * peripherals' DMA addresses to be different from the Zephyr-visible
  * physical addresses.  e.g. usb_dma_addr = zephyr_pa ^ 0x08000000
  *
- * If the "brcm,ubus" node has a "dma-ranges" property we will enable this
+ * If the "brcm,ubus" yesde has a "dma-ranges" property we will enable this
  * translation globally using the provided information.  This implements a
  * very limited subset of "dma-ranges" support and it will probably be
  * replaced by a more generic version later.
@@ -82,8 +82,8 @@ void arch_sync_dma_for_cpu_all(void)
 
 static int __init bmips_init_dma_ranges(void)
 {
-	struct device_node *np =
-		of_find_compatible_node(NULL, NULL, "brcm,ubus");
+	struct device_yesde *np =
+		of_find_compatible_yesde(NULL, NULL, "brcm,ubus");
 	const __be32 *data;
 	struct bmips_dma_range *r;
 	int len;
@@ -112,12 +112,12 @@ static int __init bmips_init_dma_ranges(void)
 	}
 
 out_good:
-	of_node_put(np);
+	of_yesde_put(np);
 	return 0;
 
 out_bad:
 	pr_err("error parsing dma-ranges property\n");
-	of_node_put(np);
+	of_yesde_put(np);
 	return -EINVAL;
 }
 arch_initcall(bmips_init_dma_ranges);

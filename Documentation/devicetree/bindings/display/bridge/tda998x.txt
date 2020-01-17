@@ -5,8 +5,8 @@ Required properties;
 
   - reg: I2C address
 
-Required node:
-  - port: Input port node with endpoint definition, as described
+Required yesde:
+  - port: Input port yesde with endpoint definition, as described
         in Documentation/devicetree/bindings/graph.txt
 
 Optional properties:

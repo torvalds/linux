@@ -3,7 +3,7 @@
 // siu_dai.c - ALSA SoC driver for Renesas SH7343, SH7722 SIU peripheral.
 //
 // Copyright (C) 2009-2010 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
-// Copyright (C) 2006 Carlos Munoz <carlos@kenati.com>
+// Copyright (C) 2006 Carlos Muyesz <carlos@kenati.com>
 
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -65,7 +65,7 @@ static struct port_flag siu_flags[SIU_PORT_NUM] = {
 		.playback = {
 			.i2s	= 0x50000000,
 			.pcm	= 0x40000000,
-			.spdif	= 0x80000000,	/* not on all SIU versions */
+			.spdif	= 0x80000000,	/* yest on all SIU versions */
 			.mask	= 0xd0000000,
 		},
 		.capture = {
@@ -113,7 +113,7 @@ static void siu_dai_start(struct siu_port *port_info)
 	/* portA=256fs, portB=256fs */
 	siu_write32(base + SIU_CKCTL, 0x40400000);
 
-	/* portA's BRG does not divide SIUCKA */
+	/* portA's BRG does yest divide SIUCKA */
 	siu_write32(base + SIU_BRGASEL, 0);
 	siu_write32(base + SIU_BRRA, 0);
 
@@ -526,7 +526,7 @@ static void siu_dai_shutdown(struct snd_pcm_substream *substream,
 	else
 		port_info->play_cap &= ~CAPTURE_ENABLED;
 
-	/* Stop the siu if the other stream is not using it */
+	/* Stop the siu if the other stream is yest using it */
 	if (!port_info->play_cap) {
 		/* during stmread or stmwrite ? */
 		if (WARN_ON(port_info->playback.rw_flg || port_info->capture.rw_flg))
@@ -558,7 +558,7 @@ static int siu_dai_prepare(struct snd_pcm_substream *substream,
 		siu_stream = &port_info->capture;
 	}
 
-	/* Set up the siu if not already done */
+	/* Set up the siu if yest already done */
 	if (!port_info->play_cap) {
 		siu_stream->rw_flg = 0;	/* stream-data transfer flag */
 
@@ -657,7 +657,7 @@ static int siu_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 	siu_clk = clk_get(dai->dev, siu_name);
 	if (IS_ERR(siu_clk)) {
-		dev_err(dai->dev, "%s: cannot get a SIU clock: %ld\n", __func__,
+		dev_err(dai->dev, "%s: canyest get a SIU clock: %ld\n", __func__,
 			PTR_ERR(siu_clk));
 		return PTR_ERR(siu_clk);
 	}
@@ -665,19 +665,19 @@ static int siu_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	parent_clk = clk_get(dai->dev, parent_name);
 	if (IS_ERR(parent_clk)) {
 		ret = PTR_ERR(parent_clk);
-		dev_err(dai->dev, "cannot get a SIU clock parent: %d\n", ret);
+		dev_err(dai->dev, "canyest get a SIU clock parent: %d\n", ret);
 		goto epclkget;
 	}
 
 	ret = clk_set_parent(siu_clk, parent_clk);
 	if (ret < 0) {
-		dev_err(dai->dev, "cannot reparent the SIU clock: %d\n", ret);
+		dev_err(dai->dev, "canyest reparent the SIU clock: %d\n", ret);
 		goto eclksetp;
 	}
 
 	ret = clk_set_rate(siu_clk, freq);
 	if (ret < 0)
-		dev_err(dai->dev, "cannot set SIU clock rate: %d\n", ret);
+		dev_err(dai->dev, "canyest set SIU clock rate: %d\n", ret);
 
 	/* TODO: when clkdev gets reference counting we'll move these to siu_dai_shutdown() */
 eclksetp:
@@ -794,6 +794,6 @@ static struct platform_driver siu_driver = {
 
 module_platform_driver(siu_driver);
 
-MODULE_AUTHOR("Carlos Munoz <carlos@kenati.com>");
+MODULE_AUTHOR("Carlos Muyesz <carlos@kenati.com>");
 MODULE_DESCRIPTION("ALSA SoC SH7722 SIU driver");
 MODULE_LICENSE("GPL");

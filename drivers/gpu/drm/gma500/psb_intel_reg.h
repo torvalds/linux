@@ -97,7 +97,7 @@
  * This is the number of cycles out of the backlight modulation cycle for which
  * the backlight is on.
  *
- * This field must be no greater than the number of cycles in the complete
+ * This field must be yes greater than the number of cycles in the complete
  * backlight modulation cycle.
  */
 #define BACKLIGHT_DUTY_CYCLE_SHIFT	(0)
@@ -253,7 +253,7 @@
 #define DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS	0x003f0000
 #define DPLL_FPA01_P1_POST_DIV_SHIFT	16
 #define PLL_P2_DIVIDE_BY_4		(1 << 23)	/* i830, required
-							 * in DVO non-gang */
+							 * in DVO yesn-gang */
 # define PLL_P1_DIVIDE_BY_TWO		(1 << 21)	/* i830 */
 #define PLL_REF_INPUT_DREFCLK		(0 << 13)
 #define PLL_REF_INPUT_TVCLKINA		(1 << 13)	/* i830 */
@@ -304,7 +304,7 @@
  * clock rate is 10 times the DPLL clock.  At low resolution/refresh rate
  * modes, the bus rate would be below the limits, so SDVO allows for stuffing
  * dummy bytes in the datastream at an increased clock rate, with both sides of
- * the link knowing how many bytes are fill.
+ * the link kyeswing how many bytes are fill.
  *
  * So, for a mode with a dotclock of 65Mhz, we would want to double the clock
  * rate to 130Mhz to get a bus rate of 1.30Ghz.  The DPLL clock rate would be
@@ -916,7 +916,7 @@ struct dpst_guardband {
 #define VIRTUAL_CHANNEL_NUMBER_3		0x03	/* Virtual channel 3 */
 
 #define DBI_NOT_SUPPORTED			0x00	/* command mode
-							 * is not supported
+							 * is yest supported
 							 */
 #define DBI_DATA_WIDTH_16BIT			0x01	/* 16 bit data */
 #define DBI_DATA_WIDTH_9BIT			0x02	/* 9 bit data */
@@ -1032,9 +1032,9 @@ struct dpst_guardband {
 /*
  *	The display module returns the Display Signal Mode.
  */
-#define get_diagnostic_result		0x0f
+#define get_diagyesstic_result		0x0f
 /*
- *	The display module returns the self-diagnostic results following
+ *	The display module returns the self-diagyesstic results following
  *	a Sleep Out command.
  */
 #define enter_sleep_mode		0x10
@@ -1055,7 +1055,7 @@ struct dpst_guardband {
  *	Mode. The Partial Display Mode window is described by the
  *	set_partial_area command.
  */
-#define enter_normal_mode		0x13
+#define enter_yesrmal_mode		0x13
 /*
  *	This command causes the display module to enter the Normal mode.
  *	Normal Mode is defined as Partial Display mode and Scroll mode are off
@@ -1162,7 +1162,7 @@ No status bits are changed.
  *	interface.
  *	Bits D[6:4]  DPI Pixel Format Definition
  *	Bits D[2:0]  DBI Pixel Format Definition
- *	Bits D7 and D3 are not used.
+ *	Bits D7 and D3 are yest used.
  */
 #define DCS_PIXEL_FORMAT_3bpp		0x1
 #define DCS_PIXEL_FORMAT_8bpp		0x2
@@ -1189,22 +1189,22 @@ No status bits are changed.
  *	The display module returns the current scanline, N, used to update the
  *	 display device. The total number of scanlines on a display device is
  *	defined as VSYNC + VBP + VACT + VFP.The first scanline is defined as
- *	the first line of V Sync and is denoted as Line 0.
+ *	the first line of V Sync and is deyested as Line 0.
  *	When in Sleep Mode, the value returned by get_scanline is undefined.
  */
 
 /* MCS or Generic COMMANDS */
 /* MCS/generic data type */
-#define GEN_SHORT_WRITE_0	0x03  /* generic short write, no parameters */
+#define GEN_SHORT_WRITE_0	0x03  /* generic short write, yes parameters */
 #define GEN_SHORT_WRITE_1	0x13  /* generic short write, 1 parameters */
 #define GEN_SHORT_WRITE_2	0x23  /* generic short write, 2 parameters */
-#define GEN_READ_0		0x04  /* generic read, no parameters */
+#define GEN_READ_0		0x04  /* generic read, yes parameters */
 #define GEN_READ_1		0x14  /* generic read, 1 parameters */
 #define GEN_READ_2		0x24  /* generic read, 2 parameters */
 #define GEN_LONG_WRITE		0x29  /* generic long write */
-#define MCS_SHORT_WRITE_0	0x05  /* MCS short write, no parameters */
+#define MCS_SHORT_WRITE_0	0x05  /* MCS short write, yes parameters */
 #define MCS_SHORT_WRITE_1	0x15  /* MCS short write, 1 parameters */
-#define MCS_READ		0x06  /* MCS read, no parameters */
+#define MCS_READ		0x06  /* MCS read, yes parameters */
 #define MCS_LONG_WRITE		0x39  /* MCS long write */
 /* MCS/generic commands */
 /* TPO MCS */

@@ -83,7 +83,7 @@ static void drm_mode_to_intf_timing_params(
 	timing->underflow_clr = 0xff;
 	timing->hsync_skew = mode->hskew;
 
-	/* DSI controller cannot handle active-low sync signals. */
+	/* DSI controller canyest handle active-low sync signals. */
 	if (phys_enc->hw_intf->cap->type == INTF_DSI) {
 		timing->hsync_polarity = 0;
 		timing->vsync_polarity = 0;
@@ -128,7 +128,7 @@ static u32 get_vertical_total(const struct intf_timing_params *timing)
  * Returns the number of fetch lines in vertical front porch at which mdp
  * can start fetching the next frame.
  *
- * Number of needed prefetch lines is anything that cannot be absorbed in the
+ * Number of needed prefetch lines is anything that canyest be absorbed in the
  * start of frame time (back porch + vsync pulse width).
  *
  * Some panels have very large VFP, however we only need a total number of
@@ -148,10 +148,10 @@ static u32 programmable_fetch_get_num_lines(
 	/* Fetch must be outside active lines, otherwise undefined. */
 	if (start_of_frame_lines >= worst_case_needed_lines) {
 		DPU_DEBUG_VIDENC(phys_enc,
-				"prog fetch is not needed, large vbp+vsw\n");
+				"prog fetch is yest needed, large vbp+vsw\n");
 		actual_vfp_lines = 0;
 	} else if (timing->v_front_porch < needed_vfp_lines) {
-		/* Warn fetch needed, but not enough porch in panel config */
+		/* Warn fetch needed, but yest eyesugh porch in panel config */
 		pr_warn_once
 			("low vbp+vfp may lead to perf issues in some cases\n");
 		DPU_DEBUG_VIDENC(phys_enc,
@@ -246,7 +246,7 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 
 	mode = phys_enc->cached_mode;
 	if (!phys_enc->hw_intf->ops.setup_timing_gen) {
-		DPU_ERROR("timing engine setup is not supported\n");
+		DPU_ERROR("timing engine setup is yest supported\n");
 		return;
 	}
 
@@ -355,7 +355,7 @@ static void _dpu_encoder_phys_vid_setup_irq_hw_idx(
 	struct dpu_encoder_irq *irq;
 
 	/*
-	 * Initialize irq->hw_idx only when irq is not registered.
+	 * Initialize irq->hw_idx only when irq is yest registered.
 	 * Prevent invalidating irq->irq_idx as modeset may be
 	 * called many times during dfps.
 	 */
@@ -595,12 +595,12 @@ static void dpu_encoder_phys_vid_disable(struct dpu_encoder_phys *phys_enc)
 	spin_unlock_irqrestore(phys_enc->enc_spinlock, lock_flags);
 
 	/*
-	 * Wait for a vsync so we know the ENABLE=0 latched before
+	 * Wait for a vsync so we kyesw the ENABLE=0 latched before
 	 * the (connector) source of the vsync's gets disabled,
 	 * otherwise we end up in a funny state if we re-enable
 	 * before the disable latches, which results that some of
 	 * the settings changes for the new modeset (like new
-	 * scanout buffer) don't latch properly..
+	 * scayesut buffer) don't latch properly..
 	 */
 	if (dpu_encoder_phys_vid_is_master(phys_enc)) {
 		ret = dpu_encoder_phys_vid_wait_for_vblank(phys_enc);
@@ -622,7 +622,7 @@ static void dpu_encoder_phys_vid_handle_post_kickoff(
 
 	/*
 	 * Video mode must flush CTL before enabling timing engine
-	 * Video encoders need to turn on their interfaces now
+	 * Video encoders need to turn on their interfaces yesw
 	 */
 	if (phys_enc->enable_state == DPU_ENC_ENABLING) {
 		trace_dpu_enc_phys_vid_post_kickoff(DRMID(phys_enc->parent),

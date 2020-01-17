@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Siano core API module
+ *  Siayes core API module
  *
  *  This file contains implementation for the interface to sms core component
  *
  *  author: Uri Shkolnik
  *
- *  Copyright (c), 2005-2008 Siano Mobile Silicon, Inc.
+ *  Copyright (c), 2005-2008 Siayes Mobile Silicon, Inc.
  */
 
 #include "smscoreapi.h"
@@ -27,7 +27,7 @@
 #include "sms-cards.h"
 #include "smsir.h"
 
-struct smscore_device_notifyee_t {
+struct smscore_device_yestifyee_t {
 	struct list_head entry;
 	hotplug_t hotplug;
 };
@@ -47,7 +47,7 @@ struct smscore_client_t {
 	onremove_t		onremove_handler;
 };
 
-static char *siano_msgs[] = {
+static char *siayes_msgs[] = {
 	[MSG_TYPE_BASE_VAL                           - MSG_TYPE_BASE_VAL] = "MSG_TYPE_BASE_VAL",
 	[MSG_SMS_GET_VERSION_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_VERSION_REQ",
 	[MSG_SMS_GET_VERSION_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_VERSION_RES",
@@ -374,13 +374,13 @@ char *smscore_translate_msg(enum msg_types msgtype)
 	int i = msgtype - MSG_TYPE_BASE_VAL;
 	char *msg;
 
-	if (i < 0 || i >= ARRAY_SIZE(siano_msgs))
-		return "Unknown msg type";
+	if (i < 0 || i >= ARRAY_SIZE(siayes_msgs))
+		return "Unkyeswn msg type";
 
-	msg = siano_msgs[i];
+	msg = siayes_msgs[i];
 
 	if (!*msg)
-		return "Unknown msg type";
+		return "Unkyeswn msg type";
 
 	return msg;
 }
@@ -412,7 +412,7 @@ struct smscore_registry_entry_t {
 	enum sms_device_type_st	type;
 };
 
-static struct list_head g_smscore_notifyees;
+static struct list_head g_smscore_yestifyees;
 static struct list_head g_smscore_devices;
 static struct mutex g_smscore_deviceslock;
 
@@ -523,14 +523,14 @@ static void list_add_locked(struct list_head *new, struct list_head *head,
  */
 int smscore_register_hotplug(hotplug_t hotplug)
 {
-	struct smscore_device_notifyee_t *notifyee;
+	struct smscore_device_yestifyee_t *yestifyee;
 	struct list_head *next, *first;
 	int rc = 0;
 
 	kmutex_lock(&g_smscore_deviceslock);
-	notifyee = kmalloc(sizeof(*notifyee), GFP_KERNEL);
-	if (notifyee) {
-		/* now notify callback about existing devices */
+	yestifyee = kmalloc(sizeof(*yestifyee), GFP_KERNEL);
+	if (yestifyee) {
+		/* yesw yestify callback about existing devices */
 		first = &g_smscore_devices;
 		for (next = first->next;
 		     next != first && !rc;
@@ -541,10 +541,10 @@ int smscore_register_hotplug(hotplug_t hotplug)
 		}
 
 		if (rc >= 0) {
-			notifyee->hotplug = hotplug;
-			list_add(&notifyee->entry, &g_smscore_notifyees);
+			yestifyee->hotplug = hotplug;
+			list_add(&yestifyee->entry, &g_smscore_yestifyees);
 		} else
-			kfree(notifyee);
+			kfree(yestifyee);
 	} else
 		rc = -ENOMEM;
 
@@ -566,16 +566,16 @@ void smscore_unregister_hotplug(hotplug_t hotplug)
 
 	kmutex_lock(&g_smscore_deviceslock);
 
-	first = &g_smscore_notifyees;
+	first = &g_smscore_yestifyees;
 
 	for (next = first->next; next != first;) {
-		struct smscore_device_notifyee_t *notifyee =
-			(struct smscore_device_notifyee_t *) next;
+		struct smscore_device_yestifyee_t *yestifyee =
+			(struct smscore_device_yestifyee_t *) next;
 		next = next->next;
 
-		if (notifyee->hotplug == hotplug) {
-			list_del(&notifyee->entry);
-			kfree(notifyee);
+		if (yestifyee->hotplug == hotplug) {
+			list_del(&yestifyee->entry);
+			kfree(yestifyee);
 		}
 	}
 
@@ -583,7 +583,7 @@ void smscore_unregister_hotplug(hotplug_t hotplug)
 }
 EXPORT_SYMBOL_GPL(smscore_unregister_hotplug);
 
-static void smscore_notify_clients(struct smscore_device_t *coredev)
+static void smscore_yestify_clients(struct smscore_device_t *coredev)
 {
 	struct smscore_client_t *client;
 
@@ -594,15 +594,15 @@ static void smscore_notify_clients(struct smscore_device_t *coredev)
 	}
 }
 
-static int smscore_notify_callbacks(struct smscore_device_t *coredev,
+static int smscore_yestify_callbacks(struct smscore_device_t *coredev,
 				    struct device *device, int arrival)
 {
-	struct smscore_device_notifyee_t *elem;
+	struct smscore_device_yestifyee_t *elem;
 	int rc = 0;
 
-	/* note: must be called under g_deviceslock */
+	/* yeste: must be called under g_deviceslock */
 
-	list_for_each_entry(elem, &g_smscore_notifyees, entry) {
+	list_for_each_entry(elem, &g_smscore_yestifyees, entry) {
 		rc = elem->hotplug(coredev, device, arrival);
 		if (rc < 0)
 			break;
@@ -631,7 +631,7 @@ smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
 
 /*
  * creates coredev object for a device, prepares buffers,
- * creates buffer mappings, notifies registered hotplugs about new device.
+ * creates buffer mappings, yestifies registered hotplugs about new device.
  *
  * @param params device pointer to struct with device specific parameters
  *               and handlers
@@ -807,7 +807,7 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
 				pr_err("Sending IR initialization message failed\n");
 		}
 	} else
-		pr_info("IR port has not been detected\n");
+		pr_info("IR port has yest been detected\n");
 
 	return 0;
 }
@@ -826,7 +826,7 @@ static int smscore_configure_board(struct smscore_device_t *coredev)
 
 	board = sms_get_board(coredev->board_id);
 	if (!board) {
-		pr_err("no board configuration exist.\n");
+		pr_err("yes board configuration exist.\n");
 		return -EINVAL;
 	}
 
@@ -862,7 +862,7 @@ static int smscore_configure_board(struct smscore_device_t *coredev)
 }
 
 /*
- * sets initial device mode and notifies client hotplugs that device is ready
+ * sets initial device mode and yestifies client hotplugs that device is ready
  *
  * @param coredev pointer to a coredev object returned by
  *		  smscore_register_device
@@ -892,7 +892,7 @@ int smscore_start_device(struct smscore_device_t *coredev)
 
 	kmutex_lock(&g_smscore_deviceslock);
 
-	rc = smscore_notify_callbacks(coredev, coredev->device, 1);
+	rc = smscore_yestify_callbacks(coredev, coredev->device, 1);
 	smscore_init_ir(coredev);
 
 	pr_debug("device %p started, rc %d\n", coredev, rc);
@@ -926,7 +926,7 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 			return rc;
 	}
 
-	/* PAGE_SIZE buffer shall be enough and dma aligned */
+	/* PAGE_SIZE buffer shall be eyesugh and dma aligned */
 	msg = kmalloc(PAGE_SIZE, GFP_KERNEL | coredev->gfp_buf_flags);
 	if (!msg)
 		return -ENOMEM;
@@ -1020,7 +1020,7 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 
 	/*
 	 * backward compatibility - wait to device_ready_done for
-	 * not more than 400 ms
+	 * yest more than 400 ms
 	 */
 	msleep(400);
 
@@ -1117,7 +1117,7 @@ static char *smscore_get_fw_filename(struct smscore_device_t *coredev,
 		  board_id, mode);
 	fw = sms_get_board(board_id)->fw;
 	if (!fw || !fw[mode]) {
-		pr_debug("cannot find fw name in sms_boards, getting from lookup table mode %d type %d\n",
+		pr_debug("canyest find fw name in sms_boards, getting from lookup table mode %d type %d\n",
 			  mode, type);
 		return smscore_fw_lkup[type][mode];
 	}
@@ -1146,7 +1146,7 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 
 	char *fw_filename = smscore_get_fw_filename(coredev, mode);
 	if (!fw_filename) {
-		pr_err("mode %d not supported on this device\n", mode);
+		pr_err("mode %d yest supported on this device\n", mode);
 		return -ENOENT;
 	}
 	pr_debug("Firmware name: %s\n", fw_filename);
@@ -1183,7 +1183,7 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 }
 
 /*
- * notifies all clients registered with the device, notifies hotplugs,
+ * yestifies all clients registered with the device, yestifies hotplugs,
  * frees all buffers and coredev object
  *
  * @param coredev pointer to a coredev object returned by
@@ -1202,11 +1202,11 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 	/* Release input device (IR) resources */
 	sms_ir_exit(coredev);
 
-	smscore_notify_clients(coredev);
-	smscore_notify_callbacks(coredev, NULL, 0);
+	smscore_yestify_clients(coredev);
+	smscore_yestify_callbacks(coredev, NULL, 0);
 
 	/* at this point all buffers should be back
-	 * onresponse must no longer be called */
+	 * onresponse must yes longer be called */
 
 	while (1) {
 		while (!list_empty(&coredev->buffers)) {
@@ -1218,7 +1218,7 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 		if (num_buffers == coredev->num_buffers)
 			break;
 		if (++retry > 10) {
-			pr_info("exiting although not all buffers released.\n");
+			pr_info("exiting although yest all buffers released.\n");
 			break;
 		}
 
@@ -1484,17 +1484,17 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 	int rc = -EBUSY;
 	static unsigned long last_sample_time; /* = 0; */
 	static int data_total; /* = 0; */
-	unsigned long time_now = jiffies_to_msecs(jiffies);
+	unsigned long time_yesw = jiffies_to_msecs(jiffies);
 
 	if (!last_sample_time)
-		last_sample_time = time_now;
+		last_sample_time = time_yesw;
 
-	if (time_now - last_sample_time > 10000) {
+	if (time_yesw - last_sample_time > 10000) {
 		pr_debug("data rate %d bytes/secs\n",
 			  (int)((data_total * 1000) /
-				(time_now - last_sample_time)));
+				(time_yesw - last_sample_time)));
 
-		last_sample_time = time_now;
+		last_sample_time = time_yesw;
 		data_total = 0;
 	}
 
@@ -1509,8 +1509,8 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 
 	client = smscore_find_client(coredev, phdr->msg_type, phdr->msg_dst_id);
 
-	/* If no client registered for type & id,
-	 * check for control client where type is not registered */
+	/* If yes client registered for type & id,
+	 * check for control client where type is yest registered */
 	if (client)
 		rc = client->onresponse_handler(client->context, cb);
 
@@ -1536,13 +1536,13 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 				(struct sms_version_res *) phdr;
 			pr_debug("Firmware id %d prots 0x%x ver %d.%d\n",
 				  ver->firmware_id, ver->supported_protocols,
-				  ver->rom_ver_major, ver->rom_ver_minor);
+				  ver->rom_ver_major, ver->rom_ver_miyesr);
 
 			coredev->mode = ver->firmware_id == 255 ?
 				DEVICE_MODE_NONE : ver->firmware_id;
 			coredev->modes_supported = ver->supported_protocols;
 			coredev->fw_version = ver->rom_ver_major << 8 |
-					      ver->rom_ver_minor;
+					      ver->rom_ver_miyesr;
 
 			complete(&coredev->version_ex_done);
 			break;
@@ -1610,7 +1610,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 			break;
 
 		default:
-			pr_debug("message %s(%d) not handled.\n",
+			pr_debug("message %s(%d) yest handled.\n",
 				  smscore_translate_msg(phdr->msg_type),
 				  phdr->msg_type);
 			break;
@@ -1684,7 +1684,7 @@ static int smscore_validate_client(struct smscore_device_t *coredev,
 		return 0;
 
 	if (registered_client) {
-		pr_err("The msg ID already registered to another client.\n");
+		pr_err("The msg ID already registered to ayesther client.\n");
 		return -EEXIST;
 	}
 	listentry = kzalloc(sizeof(*listentry), GFP_KERNEL);
@@ -1699,7 +1699,7 @@ static int smscore_validate_client(struct smscore_device_t *coredev,
 }
 
 /*
- * creates smsclient object, check that id is taken by another client
+ * creates smsclient object, check that id is taken by ayesther client
  *
  * @param coredev pointer to a coredev object from clients hotplug
  * @param initial_id all messages with this id would be sent to this client
@@ -1717,7 +1717,7 @@ int smscore_register_client(struct smscore_device_t *coredev,
 			    struct smscore_client_t **client)
 {
 	struct smscore_client_t *newclient;
-	/* check that no other channel with same parameters exists */
+	/* check that yes other channel with same parameters exists */
 	if (smscore_find_client(coredev, params->data_type,
 				params->initial_id)) {
 		pr_err("Client already exist.\n");
@@ -1777,7 +1777,7 @@ void smscore_unregister_client(struct smscore_client_t *client)
 EXPORT_SYMBOL_GPL(smscore_unregister_client);
 
 /*
- * verifies that source id is not taken by another client,
+ * verifies that source id is yest taken by ayesther client,
  * calls device handler to send requests to the device
  *
  * @param client pointer to smsclient object returned by
@@ -1801,7 +1801,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 
 	coredev = client->coredev;
 
-	/* check that no other channel with same id exists */
+	/* check that yes other channel with same id exists */
 	if (!coredev) {
 		pr_err("Got NULL coredev\n");
 		return -EINVAL;
@@ -2121,7 +2121,7 @@ int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 pin_num,
 
 static int __init smscore_module_init(void)
 {
-	INIT_LIST_HEAD(&g_smscore_notifyees);
+	INIT_LIST_HEAD(&g_smscore_yestifyees);
 	INIT_LIST_HEAD(&g_smscore_devices);
 	kmutex_init(&g_smscore_deviceslock);
 
@@ -2134,13 +2134,13 @@ static int __init smscore_module_init(void)
 static void __exit smscore_module_exit(void)
 {
 	kmutex_lock(&g_smscore_deviceslock);
-	while (!list_empty(&g_smscore_notifyees)) {
-		struct smscore_device_notifyee_t *notifyee =
-			(struct smscore_device_notifyee_t *)
-				g_smscore_notifyees.next;
+	while (!list_empty(&g_smscore_yestifyees)) {
+		struct smscore_device_yestifyee_t *yestifyee =
+			(struct smscore_device_yestifyee_t *)
+				g_smscore_yestifyees.next;
 
-		list_del(&notifyee->entry);
-		kfree(notifyee);
+		list_del(&yestifyee->entry);
+		kfree(yestifyee);
 	}
 	kmutex_unlock(&g_smscore_deviceslock);
 
@@ -2161,8 +2161,8 @@ static void __exit smscore_module_exit(void)
 module_init(smscore_module_init);
 module_exit(smscore_module_exit);
 
-MODULE_DESCRIPTION("Siano MDTV Core module");
-MODULE_AUTHOR("Siano Mobile Silicon, Inc. (uris@siano-ms.com)");
+MODULE_DESCRIPTION("Siayes MDTV Core module");
+MODULE_AUTHOR("Siayes Mobile Silicon, Inc. (uris@siayes-ms.com)");
 MODULE_LICENSE("GPL");
 
 /* This should match what's defined at smscoreapi.h */

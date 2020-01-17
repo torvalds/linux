@@ -3,7 +3,7 @@
  * lmp91000.c - Support for Texas Instruments digital potentiostats
  *
  * Copyright (C) 2016, 2018
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Rayesstay <matt.rayesstay@konsulko.com>
  *
  * TODO: bias voltage + polarity control, and multiple chip support
  */
@@ -147,7 +147,7 @@ static irqreturn_t lmp91000_buffer_handler(int irq, void *private)
 						   iio_get_time_ns(indio_dev));
 	}
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -205,14 +205,14 @@ static const struct iio_info lmp91000_info = {
 static int lmp91000_read_config(struct lmp91000_data *data)
 {
 	struct device *dev = data->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	unsigned int reg, val;
 	int i, ret;
 
 	ret = of_property_read_u32(np, "ti,tia-gain-ohm", &val);
 	if (ret) {
 		if (!of_property_read_bool(np, "ti,external-tia-resistor")) {
-			dev_err(dev, "no ti,tia-gain-ohm defined and external resistor not specified\n");
+			dev_err(dev, "yes ti,tia-gain-ohm defined and external resistor yest specified\n");
 			return ret;
 		}
 		val = 0;
@@ -235,7 +235,7 @@ static int lmp91000_read_config(struct lmp91000_data *data)
 	ret = of_property_read_u32(np, "ti,rload-ohm", &val);
 	if (ret) {
 		val = 100;
-		dev_info(dev, "no ti,rload-ohm defined, default to %d\n", val);
+		dev_info(dev, "yes ti,rload-ohm defined, default to %d\n", val);
 	}
 
 	ret = -EINVAL;
@@ -328,7 +328,7 @@ static int lmp91000_probe(struct i2c_client *client,
 	data->trig = devm_iio_trigger_alloc(data->dev, "%s-mux%d",
 					    indio_dev->name, indio_dev->id);
 	if (!data->trig) {
-		dev_err(dev, "cannot allocate iio trigger.\n");
+		dev_err(dev, "canyest allocate iio trigger.\n");
 		return -ENOMEM;
 	}
 
@@ -343,13 +343,13 @@ static int lmp91000_probe(struct i2c_client *client,
 	ret = iio_trigger_set_immutable(iio_channel_cb_get_iio_dev(data->cb_buffer),
 					data->trig);
 	if (ret) {
-		dev_err(dev, "cannot set immutable trigger.\n");
+		dev_err(dev, "canyest set immutable trigger.\n");
 		return ret;
 	}
 
 	ret = iio_trigger_register(data->trig);
 	if (ret) {
-		dev_err(dev, "cannot register iio trigger.\n");
+		dev_err(dev, "canyest register iio trigger.\n");
 		return ret;
 	}
 
@@ -432,6 +432,6 @@ static struct i2c_driver lmp91000_driver = {
 };
 module_i2c_driver(lmp91000_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Rayesstay <matt.rayesstay@konsulko.com>");
 MODULE_DESCRIPTION("LMP91000 digital potentiostat");
 MODULE_LICENSE("GPL");

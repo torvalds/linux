@@ -4,7 +4,7 @@
  *
  *   Permission to use, copy, modify, and/or distribute this software
  *   for any purpose with or without fee is hereby granted, provided
- *   that the above copyright notice and this permission notice appear
+ *   that the above copyright yestice and this permission yestice appear
  *   in all copies.
  *
  *   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
@@ -132,9 +132,9 @@ static inline void qcafrm_fsm_init_uart(struct qcafrm_handle *handle)
  *   by following a simple state machine.
  *
  * Return:   QCAFRM_GATHER       No Ethernet frame fully received yet.
- *           QCAFRM_NOHEAD       Header expected but not found.
+ *           QCAFRM_NOHEAD       Header expected but yest found.
  *           QCAFRM_INVLEN       QCA7K frame length is invalid
- *           QCAFRM_NOTAIL       Footer expected but not found.
+ *           QCAFRM_NOTAIL       Footer expected but yest found.
  *           > 0                 Number of byte in the fully received
  *                               Ethernet frame
  */

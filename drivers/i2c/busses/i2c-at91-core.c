@@ -221,9 +221,9 @@ MODULE_DEVICE_TABLE(of, atmel_twi_dt_ids);
 static struct at91_twi_pdata *at91_twi_get_driver_data(
 					struct platform_device *pdev)
 {
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		const struct of_device_id *match;
-		match = of_match_node(atmel_twi_dt_ids, pdev->dev.of_node);
+		match = of_match_yesde(atmel_twi_dt_ids, pdev->dev.of_yesde);
 		if (!match)
 			return NULL;
 		return (struct at91_twi_pdata *)match->data;
@@ -265,7 +265,7 @@ static int at91_twi_probe(struct platform_device *pdev)
 
 	dev->clk = devm_clk_get(dev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
-		dev_err(dev->dev, "no clock defined\n");
+		dev_err(dev->dev, "yes clock defined\n");
 		return -ENODEV;
 	}
 	clk_prepare_enable(dev->clk);
@@ -277,7 +277,7 @@ static int at91_twi_probe(struct platform_device *pdev)
 	dev->adapter.dev.parent = dev->dev;
 	dev->adapter.nr = pdev->id;
 	dev->adapter.timeout = AT91_I2C_TIMEOUT;
-	dev->adapter.dev.of_node = pdev->dev.of_node;
+	dev->adapter.dev.of_yesde = pdev->dev.of_yesde;
 
 	dev->slave_detected = i2c_detect_slave_mode(&pdev->dev);
 
@@ -345,7 +345,7 @@ static int at91_twi_runtime_resume(struct device *dev)
 	return clk_prepare_enable(twi_dev->clk);
 }
 
-static int at91_twi_suspend_noirq(struct device *dev)
+static int at91_twi_suspend_yesirq(struct device *dev)
 {
 	if (!pm_runtime_status_suspended(dev))
 		at91_twi_runtime_suspend(dev);
@@ -353,7 +353,7 @@ static int at91_twi_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int at91_twi_resume_noirq(struct device *dev)
+static int at91_twi_resume_yesirq(struct device *dev)
 {
 	struct at91_twi_dev *twi_dev = dev_get_drvdata(dev);
 	int ret;
@@ -373,8 +373,8 @@ static int at91_twi_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops at91_twi_pm = {
-	.suspend_noirq	= at91_twi_suspend_noirq,
-	.resume_noirq	= at91_twi_resume_noirq,
+	.suspend_yesirq	= at91_twi_suspend_yesirq,
+	.resume_yesirq	= at91_twi_resume_yesirq,
 	.runtime_suspend	= at91_twi_runtime_suspend,
 	.runtime_resume		= at91_twi_runtime_resume,
 };

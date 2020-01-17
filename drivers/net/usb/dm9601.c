@@ -326,7 +326,7 @@ static int dm9601_set_mac_address(struct net_device *net, void *p)
 	struct usbnet *dev = netdev_priv(net);
 
 	if (!is_valid_ether_addr(addr->sa_data)) {
-		dev_err(&net->dev, "not setting invalid mac address %pM\n",
+		dev_err(&net->dev, "yest setting invalid mac address %pM\n",
 								addr->sa_data);
 		return -EINVAL;
 	}

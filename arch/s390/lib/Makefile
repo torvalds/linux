@@ -13,4 +13,4 @@ lib-$(CONFIG_UPROBES) += probes.o
 KASAN_SANITIZE_uaccess.o := n
 
 obj-$(CONFIG_S390_UNWIND_SELFTEST) += test_unwind.o
-CFLAGS_test_unwind.o += -fno-optimize-sibling-calls
+CFLAGS_test_unwind.o += -fyes-optimize-sibling-calls

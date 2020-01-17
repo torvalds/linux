@@ -44,7 +44,7 @@ enum {
 };
 
 /*
- * List of workarounds for devices that required behavior not specified in
+ * List of workarounds for devices that required behavior yest specified in
  * the standard.
  */
 enum nvme_quirks {
@@ -73,12 +73,12 @@ enum nvme_quirks {
 	NVME_QUIRK_DELAY_BEFORE_CHK_RDY		= (1 << 3),
 
 	/*
-	 * APST should not be used.
+	 * APST should yest be used.
 	 */
 	NVME_QUIRK_NO_APST			= (1 << 4),
 
 	/*
-	 * The deepest sleep state should not be used.
+	 * The deepest sleep state should yest be used.
 	 */
 	NVME_QUIRK_NO_DEEPEST_PS		= (1 << 5),
 
@@ -93,7 +93,7 @@ enum nvme_quirks {
 	NVME_QUIRK_MEDIUM_PRIO_SQ		= (1 << 7),
 
 	/*
-	 * Ignore device provided subnqn.
+	 * Igyesre device provided subnqn.
 	 */
 	NVME_QUIRK_IGNORE_DEV_SUBNQN		= (1 << 8),
 
@@ -113,7 +113,7 @@ enum nvme_quirks {
 	NVME_QUIRK_SINGLE_VECTOR		= (1 << 11),
 
 	/*
-	 * Use non-standard 128 bytes SQEs.
+	 * Use yesn-standard 128 bytes SQEs.
 	 */
 	NVME_QUIRK_128_BYTES_SQES		= (1 << 12),
 
@@ -142,7 +142,7 @@ struct nvme_request {
 };
 
 /*
- * Mark a bio as coming in through the mpath node.
+ * Mark a bio as coming in through the mpath yesde.
  */
 #define REQ_NVME_MPATH		REQ_DRV
 
@@ -183,7 +183,7 @@ struct nvme_fault_inject {
 #ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
 	struct fault_attr attr;
 	struct dentry *parent;
-	bool dont_retry;	/* DNR, do not retry */
+	bool dont_retry;	/* DNR, do yest retry */
 	u16 status;		/* status code */
 #endif
 };
@@ -200,7 +200,7 @@ struct nvme_ctrl {
 	struct request_queue *fabrics_q;
 	struct device *dev;
 	int instance;
-	int numa_node;
+	int numa_yesde;
 	struct blk_mq_tag_set *tagset;
 	struct blk_mq_tag_set *admin_tagset;
 	struct list_head namespaces;
@@ -387,7 +387,7 @@ struct nvme_ns {
 #define NVME_NS_REMOVING	0
 #define NVME_NS_DEAD     	1
 #define NVME_NS_ANA_PENDING	2
-	u16 noiob;
+	u16 yesiob;
 
 	struct nvme_fault_inject fault_inject;
 
@@ -591,7 +591,7 @@ static inline bool nvme_ctrl_use_ana(struct nvme_ctrl *ctrl)
 }
 /*
  * Without the multipath code enabled, multiple controller per subsystems are
- * visible as devices and thus we cannot use the subsystem instance.
+ * visible as devices and thus we canyest use the subsystem instance.
  */
 static inline void nvme_set_disk_name(char *disk_name, struct nvme_ns *ns,
 				      struct nvme_ctrl *ctrl, int *flags)
@@ -657,13 +657,13 @@ static inline void nvme_mpath_start_freeze(struct nvme_subsystem *subsys)
 #endif /* CONFIG_NVME_MULTIPATH */
 
 #ifdef CONFIG_NVM
-int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node);
+int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int yesde);
 void nvme_nvm_unregister(struct nvme_ns *ns);
 extern const struct attribute_group nvme_nvm_attr_group;
 int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, unsigned long arg);
 #else
 static inline int nvme_nvm_register(struct nvme_ns *ns, char *disk_name,
-				    int node)
+				    int yesde)
 {
 	return 0;
 }

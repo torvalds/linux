@@ -22,7 +22,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -192,10 +192,10 @@ int __init rb532_gpio_init(void)
 	struct resource *r;
 
 	r = rb532_gpio_reg0_res;
-	rb532_gpio_chip->regbase = ioremap_nocache(r->start, resource_size(r));
+	rb532_gpio_chip->regbase = ioremap_yescache(r->start, resource_size(r));
 
 	if (!rb532_gpio_chip->regbase) {
-		printk(KERN_ERR "rb532: cannot remap GPIO register 0\n");
+		printk(KERN_ERR "rb532: canyest remap GPIO register 0\n");
 		return -ENXIO;
 	}
 

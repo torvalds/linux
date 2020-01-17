@@ -12,7 +12,7 @@
 #include <linux/sched.h>
 #include <linux/tty.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/cpufreq.h>
 #include <linux/platform_data/sa11x0-serial.h>
 #include <linux/serial_core.h>

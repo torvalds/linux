@@ -50,7 +50,7 @@ if (debug >= level)							\
  *
  *  When compiling the tuner driver, the preprocessor will
  *  check against this version number to make sure that
- *  it matches the version that the tuner driver knows about.
+ *  it matches the version that the tuner driver kyesws about.
  */
 
 /* DECT Frequency Avoidance */
@@ -63,7 +63,7 @@ if (debug >= level)							\
 #define MT2063_EXCLUDE_EURO_DECT_FREQUENCIES(s) (((s) & MT2063_DECT_AVOID_EURO_FREQS) != 0)
 
 enum MT2063_DECT_Avoid_Type {
-	MT2063_NO_DECT_AVOIDANCE = 0,				/* Do not create DECT exclusion zones.     */
+	MT2063_NO_DECT_AVOIDANCE = 0,				/* Do yest create DECT exclusion zones.     */
 	MT2063_AVOID_US_DECT = MT2063_DECT_AVOID_US_FREQS,	/* Avoid US DECT frequencies.              */
 	MT2063_AVOID_EURO_DECT = MT2063_DECT_AVOID_EURO_FREQS,	/* Avoid European DECT frequencies.        */
 	MT2063_AVOID_BOTH					/* Avoid both regions. Not typically used. */
@@ -142,7 +142,7 @@ enum MT2063_DNC_Output_Enable {
 
 /*
  *  Two-wire serial bus subaddresses of the tuner registers.
- *  Also known as the tuner's register addresses.
+ *  Also kyeswn as the tuner's register addresses.
  */
 enum MT2063_Register_Offsets {
 	MT2063_REG_PART_REV = 0,	/*  0x00: Part/Rev Code         */
@@ -367,13 +367,13 @@ static struct MT2063_ExclZone_t *InsertNode(struct MT2063_AvoidSpursData_t
 
 	dprintk(2, "\n");
 
-	/*  Check for a node in the free list  */
+	/*  Check for a yesde in the free list  */
 	if (pAS_Info->freeZones != NULL) {
 		/*  Use one from the free list  */
 		pNode = pAS_Info->freeZones;
 		pAS_Info->freeZones = pNode->next_;
 	} else {
-		/*  Grab a node from the array  */
+		/*  Grab a yesde from the array  */
 		pNode = &pAS_Info->MT2063_ExclZones[pAS_Info->nZones];
 	}
 
@@ -400,7 +400,7 @@ static struct MT2063_ExclZone_t *RemoveNode(struct MT2063_AvoidSpursData_t
 
 	dprintk(2, "\n");
 
-	/*  Make previous node point to the subsequent node  */
+	/*  Make previous yesde point to the subsequent yesde  */
 	if (pPrevNode != NULL)
 		pPrevNode->next_ = pNext;
 
@@ -408,7 +408,7 @@ static struct MT2063_ExclZone_t *RemoveNode(struct MT2063_AvoidSpursData_t
 	pNodeToRemove->next_ = pAS_Info->freeZones;
 	pAS_Info->freeZones = pNodeToRemove;
 
-	/*  Decrement node count  */
+	/*  Decrement yesde count  */
 	pAS_Info->nZones--;
 
 	return pNext;
@@ -419,8 +419,8 @@ static struct MT2063_ExclZone_t *RemoveNode(struct MT2063_AvoidSpursData_t
  *
  * Add (and merge) an exclusion zone into the list.
  * If the range (f_min, f_max) is totally outside the
- * 1st IF BW, ignore the entry.
- * If the range (f_min, f_max) is negative, ignore the entry.
+ * 1st IF BW, igyesre the entry.
+ * If the range (f_min, f_max) is negative, igyesre the entry.
  */
 static void MT2063_AddExclZone(struct MT2063_AvoidSpursData_t *pAS_Info,
 			       u32 f_min, u32 f_max)
@@ -543,9 +543,9 @@ static void MT2063_ResetExclZones(struct MT2063_AvoidSpursData_t *pAS_Info)
 
 /*
  * MT_ChooseFirstIF - Choose the best available 1st IF
- *                    If f_Desired is not excluded, choose that first.
+ *                    If f_Desired is yest excluded, choose that first.
  *                    Otherwise, return the value closest to f_Center that is
- *                    not excluded
+ *                    yest excluded
  */
 static u32 MT2063_ChooseFirstIF(struct MT2063_AvoidSpursData_t *pAS_Info)
 {
@@ -554,7 +554,7 @@ static u32 MT2063_ChooseFirstIF(struct MT2063_AvoidSpursData_t *pAS_Info)
 	 * "f_LO1_Step".
 	 * The resulting number, F_LO1 must be a multiple of f_LO1_Step.
 	 * And F_LO1 is the arithmetic sum of f_in + f_Center.
-	 * Neither f_in, nor f_Center must be a multiple of f_LO1_Step.
+	 * Neither f_in, yesr f_Center must be a multiple of f_LO1_Step.
 	 * However, the sum must be.
 	 */
 	const u32 f_Desired =
@@ -717,14 +717,14 @@ static u32 IsSpurInBand(struct MT2063_AvoidSpursData_t *pAS_Info,
 		md = (n * ((f_LO1 + hgds) / gd_Scale) -
 		      ((d + hgds) / gd_Scale)) / ((f_LO2 + hgds) / gd_Scale);
 
-		/*  If # fLO2 harmonics > m_maxLOSpurHarmonic, then no spurs present  */
+		/*  If # fLO2 harmonics > m_maxLOSpurHarmonic, then yes spurs present  */
 		if (md >= pAS_Info->maxH1)
 			break;
 
 		ma = (n * ((f_LO1 + hgds) / gd_Scale) +
 		      ((d + hgds) / gd_Scale)) / ((f_LO2 + hgds) / gd_Scale);
 
-		/*  If no spurs between +/- (f_out + f_IFBW/2), then try next harmonic  */
+		/*  If yes spurs between +/- (f_out + f_IFBW/2), then try next harmonic  */
 		if (md == ma)
 			continue;
 
@@ -799,13 +799,13 @@ static u32 MT2063_AvoidSpurs(struct MT2063_AvoidSpursData_t *pAS_Info)
 	/*
 	 * Avoid LO Generated Spurs
 	 *
-	 * Make sure that have no LO-related spurs within the IF output
+	 * Make sure that have yes LO-related spurs within the IF output
 	 * bandwidth.
 	 *
 	 * If there is an LO spur in this band, start at the current IF1 frequency
 	 * and work out until we find a spur-free frequency or run up against the
 	 * 1st IF SAW band edge.  Use temporary copies of fLO1 and fLO2 so that they
-	 * will be unchanged if a spur-free setting is not found.
+	 * will be unchanged if a spur-free setting is yest found.
 	 */
 	pAS_Info->bSpurPresent = IsSpurInBand(pAS_Info, &fm, &fp);
 	if (pAS_Info->bSpurPresent) {
@@ -903,7 +903,7 @@ static u32 MT2063_AvoidSpurs(struct MT2063_AvoidSpursData_t *pAS_Info)
  *
  * @state:	struct mt2063_state pointer
  *
- * This function returns 0, if no lock, 1 if locked and a value < 1 if error
+ * This function returns 0, if yes lock, 1 if locked and a value < 1 if error
  */
 static int mt2063_lockStatus(struct mt2063_state *state)
 {
@@ -936,7 +936,7 @@ static int mt2063_lockStatus(struct mt2063_state *state)
 	} while (++nDelays < nMaxLoops);
 
 	/*
-	 * Got no lock or partial lock
+	 * Got yes lock or partial lock
 	 */
 	return 0;
 }
@@ -1278,7 +1278,7 @@ static u32 MT2063_SetReceiverMode(struct mt2063_state *state,
 			status |= mt2063_setreg(state, MT2063_REG_PD2_TGT, val);
 	}
 
-	/* Ignore ATN Overload */
+	/* Igyesre ATN Overload */
 	if (status >= 0) {
 		val = (state->reg[MT2063_REG_LNA_TGT] & ~0x80) |
 		      (RFOVDIS[Mode] ? 0x80 : 0x00);
@@ -1286,7 +1286,7 @@ static u32 MT2063_SetReceiverMode(struct mt2063_state *state,
 			status |= mt2063_setreg(state, MT2063_REG_LNA_TGT, val);
 	}
 
-	/* Ignore FIF Overload */
+	/* Igyesre FIF Overload */
 	if (status >= 0) {
 		val = (state->reg[MT2063_REG_PD1_TGT] & ~0x80) |
 		      (FIFOVDIS[Mode] ? 0x80 : 0x00);
@@ -1383,30 +1383,30 @@ static u32 MT2063_Round_fLO(u32 f_LO, u32 f_LO_Step, u32 f_ref)
 }
 
 /**
- * fLO_FractionalTerm() - Calculates the portion contributed by FracN / denom.
+ * fLO_FractionalTerm() - Calculates the portion contributed by FracN / deyesm.
  *                        This function preserves maximum precision without
  *                        risk of overflow.  It accurately calculates
- *                        f_ref * num / denom to within 1 HZ with fixed math.
+ *                        f_ref * num / deyesm to within 1 HZ with fixed math.
  *
  * @f_ref:	SRO frequency.
  * @num:	Fractional portion of the multiplier
- * @denom:	denominator portion of the ratio
+ * @deyesm:	deyesminator portion of the ratio
  *
  * This calculation handles f_ref as two separate 14-bit fields.
  * Therefore, a maximum value of 2^28-1 may safely be used for f_ref.
  * This is the genesis of the magic number "14" and the magic mask value of
  * 0x03FFF.
  *
- * This routine successfully handles denom values up to and including 2^18.
- *  Returns:        f_ref * num / denom
+ * This routine successfully handles deyesm values up to and including 2^18.
+ *  Returns:        f_ref * num / deyesm
  */
-static u32 MT2063_fLO_FractionalTerm(u32 f_ref, u32 num, u32 denom)
+static u32 MT2063_fLO_FractionalTerm(u32 f_ref, u32 num, u32 deyesm)
 {
 	u32 t1 = (f_ref >> 14) * num;
-	u32 term1 = t1 / denom;
-	u32 loss = t1 % denom;
+	u32 term1 = t1 / deyesm;
+	u32 loss = t1 % deyesm;
 	u32 term2 =
-	    (((f_ref & 0x00003FFF) * num + (loss << 14)) + (denom / 2)) / denom;
+	    (((f_ref & 0x00003FFF) * num + (loss << 14)) + (deyesm / 2)) / deyesm;
 	return (term1 << 14) + term2;
 }
 
@@ -1808,7 +1808,7 @@ static int mt2063_init(struct dvb_frontend *fe)
 		step = "B3";
 		break;
 	default:
-		printk(KERN_ERR "mt2063: Unknown mt2063 device ID (0x%02x)\n",
+		printk(KERN_ERR "mt2063: Unkyeswn mt2063 device ID (0x%02x)\n",
 		       state->reg[MT2063_REG_PART_REV]);
 		return -ENODEV;	/*  Wrong tuner Part/Rev code */
 	}
@@ -1819,7 +1819,7 @@ static int mt2063_init(struct dvb_frontend *fe)
 
 	/* b7 != 0 ==> NOT MT2063 */
 	if (status < 0 || ((state->reg[MT2063_REG_RSVD_3B] & 0x80) != 0x00)) {
-		printk(KERN_ERR "mt2063: Unknown part ID (0x%02x%02x)\n",
+		printk(KERN_ERR "mt2063: Unkyeswn part ID (0x%02x%02x)\n",
 		       state->reg[MT2063_REG_PART_REV],
 		       state->reg[MT2063_REG_RSVD_3B]);
 		return -ENODEV;	/*  Wrong tuner Part/Rev code */

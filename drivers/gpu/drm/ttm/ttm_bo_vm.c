@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -52,7 +52,7 @@ static vm_fault_t ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 		goto out_unlock;
 
 	/*
-	 * Quick non-stalling check for idle.
+	 * Quick yesn-stalling check for idle.
 	 */
 	if (dma_fence_is_signaled(bo->moving))
 		goto out_clear;
@@ -115,7 +115,7 @@ static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
  * access to map(), unmap() completely unrelated buffer objects. TTM buffer
  * object reservations sometimes wait for GPU and should therefore be
  * considered long waits. This function reserves the buffer object interruptibly
- * taking this into account. Starvation is avoided by the vm system not
+ * taking this into account. Starvation is avoided by the vm system yest
  * allowing too many repeated restarts.
  * This function is intended to be used in customized fault() and _mkwrite()
  * handlers.
@@ -123,13 +123,13 @@ static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
  * Return:
  *    0 on success and the bo was reserved.
  *    VM_FAULT_RETRY if blocking wait.
- *    VM_FAULT_NOPAGE if blocking wait and retrying was not allowed.
+ *    VM_FAULT_NOPAGE if blocking wait and retrying was yest allowed.
  */
 vm_fault_t ttm_bo_vm_reserve(struct ttm_buffer_object *bo,
 			     struct vm_fault *vmf)
 {
 	/*
-	 * Work around locking order reversal in fault / nopfn
+	 * Work around locking order reversal in fault / yespfn
 	 * between mmap_sem and bo_reserve: Perform a trylock operation
 	 * for reserve, and if it fails, retry the fault after waiting
 	 * for the buffer to become unreserved.
@@ -203,10 +203,10 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 	if (bo->ttm && (bo->ttm->page_flags & TTM_PAGE_FLAG_SG))
 		return VM_FAULT_SIGBUS;
 
-	if (bdev->driver->fault_reserve_notify) {
+	if (bdev->driver->fault_reserve_yestify) {
 		struct dma_fence *moving = dma_fence_get(bo->moving);
 
-		err = bdev->driver->fault_reserve_notify(bo);
+		err = bdev->driver->fault_reserve_yestify(bo);
 		switch (err) {
 		case 0:
 			break;
@@ -243,9 +243,9 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 	}
 
 	page_offset = ((address - vma->vm_start) >> PAGE_SHIFT) +
-		vma->vm_pgoff - drm_vma_node_start(&bo->base.vma_node);
+		vma->vm_pgoff - drm_vma_yesde_start(&bo->base.vma_yesde);
 	page_last = vma_pages(vma) + vma->vm_pgoff -
-		drm_vma_node_start(&bo->base.vma_node);
+		drm_vma_yesde_start(&bo->base.vma_yesde);
 
 	if (unlikely(page_offset >= bo->num_pages)) {
 		ret = VM_FAULT_SIGBUS;
@@ -256,7 +256,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 	if (!bo->mem.bus.is_iomem) {
 		struct ttm_operation_ctx ctx = {
 			.interruptible = false,
-			.no_wait_gpu = false,
+			.yes_wait_gpu = false,
 			.flags = TTM_OPT_FLAG_FORCE_ALLOC
 
 		};
@@ -267,7 +267,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 			goto out_io_unlock;
 		}
 	} else {
-		/* Iomem should not be marked encrypted */
+		/* Iomem should yest be marked encrypted */
 		cvma.vm_page_prot = pgprot_decrypted(cvma.vm_page_prot);
 	}
 
@@ -286,7 +286,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 			} else if (unlikely(!page)) {
 				break;
 			}
-			page->index = drm_vma_node_start(&bo->base.vma_node) +
+			page->index = drm_vma_yesde_start(&bo->base.vma_yesde) +
 				page_offset;
 			pfn = page_to_pfn(page);
 		}
@@ -364,7 +364,7 @@ static int ttm_bo_vm_access_kmap(struct ttm_buffer_object *bo,
 	unsigned long bytes_left = len;
 	int ret;
 
-	/* Copy a page at a time, that way no extra virtual address
+	/* Copy a page at a time, that way yes extra virtual address
 	 * mapping is needed
 	 */
 	offset -= page << PAGE_SHIFT;
@@ -444,22 +444,22 @@ static struct ttm_buffer_object *ttm_bo_vm_lookup(struct ttm_bo_device *bdev,
 						  unsigned long offset,
 						  unsigned long pages)
 {
-	struct drm_vma_offset_node *node;
+	struct drm_vma_offset_yesde *yesde;
 	struct ttm_buffer_object *bo = NULL;
 
 	drm_vma_offset_lock_lookup(bdev->vma_manager);
 
-	node = drm_vma_offset_lookup_locked(bdev->vma_manager, offset, pages);
-	if (likely(node)) {
-		bo = container_of(node, struct ttm_buffer_object,
-				  base.vma_node);
+	yesde = drm_vma_offset_lookup_locked(bdev->vma_manager, offset, pages);
+	if (likely(yesde)) {
+		bo = container_of(yesde, struct ttm_buffer_object,
+				  base.vma_yesde);
 		bo = ttm_bo_get_unless_zero(bo);
 	}
 
 	drm_vma_offset_unlock_lookup(bdev->vma_manager);
 
 	if (!bo)
-		pr_err("Could not find buffer object to map\n");
+		pr_err("Could yest find buffer object to map\n");
 
 	return bo;
 }
@@ -525,7 +525,7 @@ int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 	 * FIXME: &drm_gem_object_funcs.mmap is called with the fake offset
 	 * removed. Add it back here until the rest of TTM works without it.
 	 */
-	vma->vm_pgoff += drm_vma_node_start(&bo->base.vma_node);
+	vma->vm_pgoff += drm_vma_yesde_start(&bo->base.vma_yesde);
 
 	ttm_bo_mmap_vma_setup(bo, vma);
 	return 0;

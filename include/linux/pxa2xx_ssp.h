@@ -47,10 +47,10 @@
 #define SSCR0_DataSize(x)  ((x) - 1)	/* Data Size Select [4..16] */
 #define SSCR0_FRF	(0x00000030)	/* FRame Format (mask) */
 #define SSCR0_Motorola	(0x0 << 4)	/* Motorola's Serial Peripheral Interface (SPI) */
-#define SSCR0_TI	(0x1 << 4)	/* Texas Instruments' Synchronous Serial Protocol (SSP) */
+#define SSCR0_TI	(0x1 << 4)	/* Texas Instruments' Synchroyesus Serial Protocol (SSP) */
 #define SSCR0_National	(0x2 << 4)	/* National Microwire */
 #define SSCR0_ECS	(1 << 6)	/* External clock select */
-#define SSCR0_SSE	(1 << 7)	/* Synchronous Serial Port Enable */
+#define SSCR0_SSE	(1 << 7)	/* Synchroyesus Serial Port Enable */
 #define SSCR0_SCR(x)	((x) << 8)	/* Serial Clock Rate (mask) */
 
 /* PXA27x, PXA3xx */
@@ -62,7 +62,7 @@
 #define SSCR0_SlotsPerFrm(x) (((x) - 1) << 24)	/* Time slots per frame [1..8] */
 #define SSCR0_FPCKE	(1 << 29)	/* FIFO packing enable */
 #define SSCR0_ACS	(1 << 30)	/* Audio clock select */
-#define SSCR0_MOD	(1 << 31)	/* Mode (normal or network) */
+#define SSCR0_MOD	(1 << 31)	/* Mode (yesrmal or network) */
 
 
 #define SSCR1_RIE	(1 << 0)	/* Receive FIFO Interrupt Enable */
@@ -207,7 +207,7 @@ enum pxa_ssp_type {
 
 struct ssp_device {
 	struct device	*dev;
-	struct list_head	node;
+	struct list_head	yesde;
 
 	struct clk	*clk;
 	void __iomem	*mmio_base;
@@ -219,7 +219,7 @@ struct ssp_device {
 	int		use_count;
 	int		irq;
 
-	struct device_node	*of_node;
+	struct device_yesde	*of_yesde;
 };
 
 /**
@@ -248,14 +248,14 @@ static inline u32 pxa_ssp_read_reg(struct ssp_device *dev, u32 reg)
 #if IS_ENABLED(CONFIG_PXA_SSP)
 struct ssp_device *pxa_ssp_request(int port, const char *label);
 void pxa_ssp_free(struct ssp_device *);
-struct ssp_device *pxa_ssp_request_of(const struct device_node *of_node,
+struct ssp_device *pxa_ssp_request_of(const struct device_yesde *of_yesde,
 				      const char *label);
 #else
 static inline struct ssp_device *pxa_ssp_request(int port, const char *label)
 {
 	return NULL;
 }
-static inline struct ssp_device *pxa_ssp_request_of(const struct device_node *n,
+static inline struct ssp_device *pxa_ssp_request_of(const struct device_yesde *n,
 						    const char *name)
 {
 	return NULL;

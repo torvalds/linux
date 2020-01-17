@@ -19,7 +19,7 @@ static void fence_work(struct work_struct *work)
 }
 
 static int __i915_sw_fence_call
-fence_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+fence_yestify(struct i915_sw_fence *fence, enum i915_sw_fence_yestify state)
 {
 	struct dma_fence_work *f = container_of(fence, typeof(*f), chain);
 
@@ -81,7 +81,7 @@ void dma_fence_work_init(struct dma_fence_work *f,
 	f->ops = ops;
 	spin_lock_init(&f->lock);
 	dma_fence_init(&f->dma, &fence_ops, &f->lock, 0, 0);
-	i915_sw_fence_init(&f->chain, fence_notify);
+	i915_sw_fence_init(&f->chain, fence_yestify);
 	INIT_WORK(&f->work, fence_work);
 }
 

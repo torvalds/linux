@@ -8,9 +8,9 @@ This documents and clarifies the main aspects of x86 topology modelling and
 representation in the kernel. Update/change when doing changes to the
 respective code.
 
-The architecture-agnostic topology definitions are in
+The architecture-agyesstic topology definitions are in
 Documentation/admin-guide/cputopology.rst. This file holds x86-specific
-differences/specialities which must not necessarily apply to the generic
+differences/specialities which must yest necessarily apply to the generic
 definitions. Thus, the way to read up on Linux topology on x86 is to start
 with the generic one and look at this one in parallel for the x86 specifics.
 
@@ -20,11 +20,11 @@ here to *document* the inner workings of x86 topology.
 Started by Thomas Gleixner <tglx@linutronix.de> and Borislav Petkov <bp@alien8.de>.
 
 The main aim of the topology facilities is to present adequate interfaces to
-code which needs to know/query/use the structure of the running system wrt
+code which needs to kyesw/query/use the structure of the running system wrt
 threads, cores, packages, etc.
 
-The kernel does not care about the concept of physical sockets because a
-socket has no relevance to software. It's an electromechanical component. In
+The kernel does yest care about the concept of physical sockets because a
+socket has yes relevance to software. It's an electromechanical component. In
 the past a socket always contained a single package (see below), but with the
 advent of Multi Chip Modules (MCM) a socket can hold more than one package. So
 there might be still references to sockets in the code, but they are of
@@ -41,7 +41,7 @@ Package
 Packages contain a number of cores plus shared resources, e.g. DRAM
 controller, shared caches etc.
 
-AMD nomenclature for package is 'Node'.
+AMD yesmenclature for package is 'Node'.
 
 Package-related topology information in the kernel:
 
@@ -60,7 +60,7 @@ Package-related topology information in the kernel:
 
   - cpuinfo_x86.logical_proc_id:
 
-    The logical ID of the package. As we do not trust BIOSes to enumerate the
+    The logical ID of the package. As we do yest trust BIOSes to enumerate the
     packages in a consistent way, we introduced the concept of logical package
     ID so we can sanely calculate the number of maximum possible packages in
     the system and have the packages enumerated linearly.
@@ -83,10 +83,10 @@ Package-related topology information in the kernel:
 
 Cores
 =====
-A core consists of 1 or more threads. It does not matter whether the threads
+A core consists of 1 or more threads. It does yest matter whether the threads
 are SMT- or CMT-type threads.
 
-AMDs nomenclature for a CMT core is "Compute Unit". The kernel always uses
+AMDs yesmenclature for a CMT core is "Compute Unit". The kernel always uses
 "core".
 
 Core-related topology information in the kernel:
@@ -104,7 +104,7 @@ Threads
 A thread is a single scheduling unit. It's the equivalent to a logical Linux
 CPU.
 
-AMDs nomenclature for CMT threads is "Compute Unit Core". The kernel always
+AMDs yesmenclature for CMT threads is "Compute Unit Core". The kernel always
 uses "thread".
 
 Thread-related topology information in the kernel:
@@ -139,12 +139,12 @@ Thread-related topology information in the kernel:
 System topology examples
 ========================
 
-.. note::
+.. yeste::
   The alternative Linux CPU enumeration depends on how the BIOS enumerates the
   threads. Many BIOSes enumerate all threads 0 first and then all threads 1.
   That has the "advantage" that the logical Linux CPU numbers of threads 0 stay
-  the same whether threads are enabled or not. That's merely an implementation
-  detail and has no practical impact.
+  the same whether threads are enabled or yest. That's merely an implementation
+  detail and has yes practical impact.
 
 1) Single Package, Single Core::
 
@@ -171,9 +171,9 @@ System topology examples
 		    -> [core 1] -> [thread 0] -> Linux CPU 1
 				-> [thread 1] -> Linux CPU 3
 
-      AMD nomenclature for CMT systems::
+      AMD yesmenclature for CMT systems::
 
-	[node 0] -> [Compute Unit 0] -> [Compute Unit Core 0] -> Linux CPU 0
+	[yesde 0] -> [Compute Unit 0] -> [Compute Unit Core 0] -> Linux CPU 0
 				     -> [Compute Unit Core 1] -> Linux CPU 1
 		 -> [Compute Unit 1] -> [Compute Unit Core 0] -> Linux CPU 2
 				     -> [Compute Unit Core 1] -> Linux CPU 3
@@ -212,14 +212,14 @@ System topology examples
 		    -> [core 1] -> [thread 0] -> Linux CPU 3
 				-> [thread 1] -> Linux CPU 7
 
-      AMD nomenclature for CMT systems::
+      AMD yesmenclature for CMT systems::
 
-	[node 0] -> [Compute Unit 0] -> [Compute Unit Core 0] -> Linux CPU 0
+	[yesde 0] -> [Compute Unit 0] -> [Compute Unit Core 0] -> Linux CPU 0
 				     -> [Compute Unit Core 1] -> Linux CPU 1
 		 -> [Compute Unit 1] -> [Compute Unit Core 0] -> Linux CPU 2
 				     -> [Compute Unit Core 1] -> Linux CPU 3
 
-	[node 1] -> [Compute Unit 0] -> [Compute Unit Core 0] -> Linux CPU 4
+	[yesde 1] -> [Compute Unit 0] -> [Compute Unit Core 0] -> Linux CPU 4
 				     -> [Compute Unit Core 1] -> Linux CPU 5
 		 -> [Compute Unit 1] -> [Compute Unit Core 0] -> Linux CPU 6
 				     -> [Compute Unit Core 1] -> Linux CPU 7

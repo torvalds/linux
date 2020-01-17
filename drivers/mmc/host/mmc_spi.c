@@ -32,7 +32,7 @@
 
 /* NOTES:
  *
- * - For now, we won't try to interoperate with a real mmc/sd/sdio
+ * - For yesw, we won't try to interoperate with a real mmc/sd/sdio
  *   controller, although some of them do have hardware support for
  *   SPI protocol.  The main reason for such configs would be mmc-ish
  *   cards like DataFlash, which don't support that "native" protocol.
@@ -47,7 +47,7 @@
  *   using the results of one message to decide the next one to issue.
  *
  *   Pending updates to the programming interface, this driver expects
- *   that it not share the bus with other drivers (precluding conflicts).
+ *   that it yest share the bus with other drivers (precluding conflicts).
  *
  * - We tell the controller to keep the chipselect active from the
  *   beginning of an mmc_host_ops.request until the end.  So beware
@@ -78,10 +78,10 @@
 #define MMC_SPI_BLOCKSIZE	512
 
 
-/* These fixed timeouts come from the latest SD specs, which say to ignore
+/* These fixed timeouts come from the latest SD specs, which say to igyesre
  * the CSD values.  The R1B value is for card erase (e.g. the "I forgot the
  * card's password" scenario); it's mostly applied to STOP_TRANSMISSION after
- * reads which takes nowhere near that long.  Older cards may be able to use
+ * reads which takes yeswhere near that long.  Older cards may be able to use
  * shorter timeouts ... but why bother?
  */
 #define r1b_timeout		(HZ * 3)
@@ -133,7 +133,7 @@ struct mmc_spi_host {
 	dma_addr_t		data_dma;
 
 	/* Specs say to write ones most of the time, even when the card
-	 * has no need to read its input data; and many cards won't care.
+	 * has yes need to read its input data; and many cards won't care.
 	 * This is our source of those ones.
 	 */
 	void			*ones;
@@ -225,7 +225,7 @@ static int mmc_spi_readtoken(struct mmc_spi_host *host, unsigned long timeout)
 
 
 /*
- * Note that for SPI, cmd->resp[0] is not the same data as "native" protocol
+ * Note that for SPI, cmd->resp[0] is yest the same data as "native" protocol
  * hosts return!  The low byte holds R1_SPI bits.  The next byte may hold
  * R2_SPI bits ... for SEND_STATUS, or after data read errors.
  *
@@ -244,7 +244,7 @@ static char *maptype(struct mmc_command *cmd)
 	}
 }
 
-/* return zero, else negative errno after setting cmd->error */
+/* return zero, else negative erryes after setting cmd->error */
 static int mmc_spi_response_get(struct mmc_spi_host *host,
 		struct mmc_command *cmd, int cs_on)
 {
@@ -262,7 +262,7 @@ static int mmc_spi_response_get(struct mmc_spi_host *host,
 
 	/* Except for data block reads, the whole response will already
 	 * be stored in the scratch buffer.  It's somewhere after the
-	 * command and the first byte we read after it.  We ignore that
+	 * command and the first byte we read after it.  We igyesre that
 	 * first byte.  After STOP_TRANSMISSION command it may include
 	 * two data bits, but otherwise it's all ones.
 	 */
@@ -328,7 +328,7 @@ checkstatus:
 				& cmd->resp[0])
 			value = -EFAULT; /* Bad address */
 		else if (R1_SPI_ILLEGAL_COMMAND & cmd->resp[0])
-			value = -ENOSYS; /* Function not implemented */
+			value = -ENOSYS; /* Function yest implemented */
 		else if (R1_SPI_COM_CRC & cmd->resp[0])
 			value = -EILSEQ; /* Illegal byte sequence */
 		else if ((R1_SPI_ERASE_SEQ | R1_SPI_ERASE_RESET)
@@ -461,11 +461,11 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 	 *  - N(CR) (== 1..8) bytes of all-ones
 	 *  - status byte (for all response types)
 	 *  - the rest of the response, either:
-	 *      + nothing, for R1 or R1B responses
+	 *      + yesthing, for R1 or R1B responses
 	 *	+ second status byte, for R2 responses
 	 *	+ four data bytes, for R3 and R7 responses
 	 *
-	 * Finally, read some more bytes ... in the nice cases we know in
+	 * Finally, read some more bytes ... in the nice cases we kyesw in
 	 * advance how many, and reading 1 more is always OK:
 	 *  - N(EC) (== 0..N) bytes of all-ones, before deselect/finish
 	 *  - N(RC) (== 1..N) bytes of all-ones, before next command
@@ -476,7 +476,7 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 	 * data block or new command.  We do that whenever we can, shaving
 	 * CPU and IRQ costs (especially when using DMA or FIFOs).
 	 *
-	 * There are two other cases, where it's not generally practical
+	 * There are two other cases, where it's yest generally practical
 	 * to rely on a single I/O:
 	 *
 	 *  - R1B responses need at least N(EC) bytes of all-zeroes.
@@ -538,7 +538,7 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 		return status;
 	}
 
-	/* after no-data commands and STOP_TRANSMISSION, chipselect off */
+	/* after yes-data commands and STOP_TRANSMISSION, chipselect off */
 	return mmc_spi_response_get(host, cmd, cs_on);
 }
 
@@ -551,7 +551,7 @@ mmc_spi_command_send(struct mmc_spi_host *host,
  * so we explicitly initialize it to all ones on RX paths.
  *
  * We also handle DMA mapping, so the underlying SPI controller does
- * not need to (re)do it for each message.
+ * yest need to (re)do it for each message.
  */
 static void
 mmc_spi_setup_data_message(
@@ -649,7 +649,7 @@ mmc_spi_setup_data_message(
  *  - an all-ones byte ... card writes a data-response byte
  *  - followed by N(EC) [0+] all-ones bytes, card writes zero/'busy'
  *
- * Return negative errno, else success.
+ * Return negative erryes, else success.
  */
 static int
 mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
@@ -699,7 +699,7 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
 	/* left-adjust to leading 0 bit */
 	while (pattern & 0x80000000)
 		pattern <<= 1;
-	/* right-adjust for pattern matching. Code is in bit 4..0 now. */
+	/* right-adjust for pattern matching. Code is in bit 4..0 yesw. */
 	pattern >>= 27;
 
 	switch (pattern) {
@@ -730,11 +730,11 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
 	if (host->dma_dev)
 		t->tx_dma += t->len;
 
-	/* Return when not busy.  If we didn't collect that status yet,
+	/* Return when yest busy.  If we didn't collect that status yet,
 	 * we'll need some more I/O.
 	 */
 	for (i = 4; i < sizeof(scratch->status); i++) {
-		/* card is non-busy if the most recent bit is 1 */
+		/* card is yesn-busy if the most recent bit is 1 */
 		if (scratch->status[i] & 0x01)
 			return 0;
 	}
@@ -747,7 +747,7 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
  *      + N(AC) [1..f(clock,CSD)] usually, else
  *      + N(CX) [0..8] when reading CSD or CID
  *  - data block
- *	+ token ... if error token, no data or crc
+ *	+ token ... if error token, yes data or crc
  *	+ data bytes
  *	+ crc16
  *
@@ -981,7 +981,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 		/* Tweak the per-block message we set up earlier by morphing
 		 * it to hold single buffer with the token followed by some
 		 * all-ones bytes ... skip N(BR) (0..1), scan the rest for
-		 * "not busy any longer" status, and leave chip selected.
+		 * "yest busy any longer" status, and leave chip selected.
 		 */
 		INIT_LIST_HEAD(&host->m.transfers);
 		list_add(&host->early_status.transfer_list,
@@ -1012,7 +1012,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 			return;
 		}
 
-		/* Ideally we collected "not busy" status with one I/O,
+		/* Ideally we collected "yest busy" status with one I/O,
 		 * avoiding wasteful byte-at-a-time scanning... but more
 		 * I/O is often needed.
 		 */
@@ -1077,7 +1077,7 @@ crc_recover:
 		mmc_spi_data_do(host, mrq->cmd, mrq->data, mrq->data->blksz);
 
 		/*
-		 * The SPI bus is not always reliable for large data transfers.
+		 * The SPI bus is yest always reliable for large data transfers.
 		 * If an occasional crc error is reported by the SD device with
 		 * data read/write over SPI, it may be recovered by repeating
 		 * the last SD command again. The retry count is set to 5 to
@@ -1107,8 +1107,8 @@ crc_recover:
 
 /* See Section 6.4.1, in SD "Simplified Physical Layer Specification 2.0"
  *
- * NOTE that here we can't know that the card has just been powered up;
- * not all MMC/SD sockets support power switching.
+ * NOTE that here we can't kyesw that the card has just been powered up;
+ * yest all MMC/SD sockets support power switching.
  *
  * FIXME when the card is still in SPI mode, e.g. from a previous kernel,
  * this doesn't seem to do the right thing at all...
@@ -1116,7 +1116,7 @@ crc_recover:
 static void mmc_spi_initsequence(struct mmc_spi_host *host)
 {
 	/* Try to be very sure any previous command has completed;
-	 * wait till not-busy, skip debris from any old commands.
+	 * wait till yest-busy, skip debris from any old commands.
 	 */
 	mmc_spi_wait_unbusy(host, r1b_timeout);
 	mmc_spi_readbytes(host, 10);
@@ -1131,7 +1131,7 @@ static void mmc_spi_initsequence(struct mmc_spi_host *host)
 	 * while most others don't seem to care.
 	 *
 	 * Note that this is one of the places MMC/SD plays games with the
-	 * SPI protocol.  Another is that when chipselect is released while
+	 * SPI protocol.  Ayesther is that when chipselect is released while
 	 * the card returns BUSY status, the clock must issue several cycles
 	 * with chipselect high before the card will stop driving its output.
 	 */
@@ -1222,9 +1222,9 @@ static void mmc_spi_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			 * Now clock should be low due to spi mode 0;
 			 * MOSI should be low because of written 0x00;
 			 * chipselect should be low (it is active low)
-			 * power supply is off, so now MMC is off too!
+			 * power supply is off, so yesw MMC is off too!
 			 *
-			 * FIXME no, chipselect can be high since the
+			 * FIXME yes, chipselect can be high since the
 			 * device is inactive and SPI_CS_HIGH is clear...
 			 */
 			msleep(10);
@@ -1293,7 +1293,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	 * rising edge ... meaning SPI modes 0 or 3.  So either SPI mode
 	 * should be legit.  We'll use mode 0 since the steady state is 0,
 	 * which is appropriate for hotplugging, unless the platform data
-	 * specify mode 3 (if hardware is not compatible to mode 0).
+	 * specify mode 3 (if hardware is yest compatible to mode 0).
 	 */
 	if (spi->mode != SPI_MODE_3)
 		spi->mode = SPI_MODE_0;
@@ -1316,12 +1316,12 @@ static int mmc_spi_probe(struct spi_device *spi)
 	status = -ENOMEM;
 	ones = kmalloc(MMC_SPI_BLOCKSIZE, GFP_KERNEL);
 	if (!ones)
-		goto nomem;
+		goto yesmem;
 	memset(ones, 0xff, MMC_SPI_BLOCKSIZE);
 
 	mmc = mmc_alloc_host(sizeof(*host), &spi->dev);
 	if (!mmc)
-		goto nomem;
+		goto yesmem;
 
 	mmc->ops = &mmc_spi_ops;
 	mmc->max_blk_size = MMC_SPI_BLOCKSIZE;
@@ -1335,8 +1335,8 @@ static int mmc_spi_probe(struct spi_device *spi)
 	 * MMC or SD cards, since it never comes up in open drain mode.
 	 * That's good; some SPI masters can't handle very low speeds!
 	 *
-	 * However, low speed SDIO cards need not handle over 400 KHz;
-	 * that's the only reason not to use a few MHz for f_min (until
+	 * However, low speed SDIO cards need yest handle over 400 KHz;
+	 * that's the only reason yest to use a few MHz for f_min (until
 	 * the upper layer reads the target frequency from the CSD).
 	 */
 	mmc->f_min = 400000;
@@ -1369,7 +1369,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	/* preallocate dma buffers */
 	host->data = kmalloc(sizeof(*host->data), GFP_KERNEL);
 	if (!host->data)
-		goto fail_nobuf1;
+		goto fail_yesbuf1;
 
 	if (spi->master->dev.parent->dma_mask) {
 		struct device	*dev = spi->master->dev.parent;
@@ -1428,7 +1428,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 		/*
 		 * The platform has a CD GPIO signal that may support
 		 * interrupts, so let mmc_gpiod_request_cd_irq() decide
-		 * if polling is needed or not.
+		 * if polling is needed or yest.
 		 */
 		mmc->caps &= ~MMC_CAP_NEEDS_POLL;
 		mmc_gpiod_request_cd_irq(mmc);
@@ -1444,10 +1444,10 @@ static int mmc_spi_probe(struct spi_device *spi)
 
 	dev_info(&spi->dev, "SD/MMC host %s%s%s%s%s\n",
 			dev_name(&mmc->class_dev),
-			host->dma_dev ? "" : ", no DMA",
-			has_ro ? "" : ", no WP",
+			host->dma_dev ? "" : ", yes DMA",
+			has_ro ? "" : ", yes WP",
 			(host->pdata && host->pdata->setpower)
-				? "" : ", no poweroff",
+				? "" : ", yes poweroff",
 			(mmc->caps & MMC_CAP_NEEDS_POLL)
 				? ", cd polling" : "");
 	return 0;
@@ -1465,11 +1465,11 @@ fail_data_dma:
 fail_ones_dma:
 	kfree(host->data);
 
-fail_nobuf1:
+fail_yesbuf1:
 	mmc_free_host(mmc);
 	mmc_spi_put_pdata(spi);
 
-nomem:
+yesmem:
 	kfree(ones);
 	return status;
 }

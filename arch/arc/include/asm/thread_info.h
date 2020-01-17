@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * Vineetg: Oct 2009
  *  No need for ARC specific thread_info allocator (kmalloc/free). This is
  *  anyways one page allocation, thus slab alloc can be short-circuited and
  *  the generic version (get_free_page) would be loads better.
  *
- * Sameer Dhavale: Codito Technologies 2004
+ * Sameer Dhavale: Codito Techyeslogies 2004
  */
 
 #ifndef _ASM_THREAD_INFO_H
@@ -75,7 +75,7 @@ static inline __attribute_const__ struct thread_info *current_thread_info(void)
  * - other flags in MSW
  */
 #define TIF_RESTORE_SIGMASK	0	/* restore sig mask in do_signal() */
-#define TIF_NOTIFY_RESUME	1	/* resumption notification requested */
+#define TIF_NOTIFY_RESUME	1	/* resumption yestification requested */
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_SYSCALL_AUDIT	4	/* syscall auditing active */

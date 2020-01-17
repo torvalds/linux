@@ -44,12 +44,12 @@ static void kunit_print_subtest_start(struct kunit_suite *suite)
 	pr_info("\t1..%zd\n", kunit_test_cases_len(suite->test_cases));
 }
 
-static void kunit_print_ok_not_ok(bool should_indent,
+static void kunit_print_ok_yest_ok(bool should_indent,
 				  bool is_ok,
 				  size_t test_number,
 				  const char *description)
 {
-	const char *indent, *ok_not_ok;
+	const char *indent, *ok_yest_ok;
 
 	if (should_indent)
 		indent = "\t";
@@ -57,11 +57,11 @@ static void kunit_print_ok_not_ok(bool should_indent,
 		indent = "";
 
 	if (is_ok)
-		ok_not_ok = "ok";
+		ok_yest_ok = "ok";
 	else
-		ok_not_ok = "not ok";
+		ok_yest_ok = "yest ok";
 
-	pr_info("%s%s %zd - %s\n", indent, ok_not_ok, test_number, description);
+	pr_info("%s%s %zd - %s\n", indent, ok_yest_ok, test_number, description);
 }
 
 static bool kunit_suite_has_succeeded(struct kunit_suite *suite)
@@ -79,16 +79,16 @@ static void kunit_print_subtest_end(struct kunit_suite *suite)
 {
 	static size_t kunit_suite_counter = 1;
 
-	kunit_print_ok_not_ok(false,
+	kunit_print_ok_yest_ok(false,
 			      kunit_suite_has_succeeded(suite),
 			      kunit_suite_counter++,
 			      suite->name);
 }
 
-static void kunit_print_test_case_ok_not_ok(struct kunit_case *test_case,
+static void kunit_print_test_case_ok_yest_ok(struct kunit_case *test_case,
 					    size_t test_number)
 {
-	kunit_print_ok_not_ok(true,
+	kunit_print_ok_yest_ok(true,
 			      test_case->success,
 			      test_number,
 			      test_case->name);
@@ -103,8 +103,8 @@ static void kunit_print_string_stream(struct kunit *test,
 	buf = string_stream_get_string(stream);
 	if (!buf) {
 		kunit_err(test,
-			  "Could not allocate buffer, dumping stream:\n");
-		list_for_each_entry(fragment, &stream->fragments, node) {
+			  "Could yest allocate buffer, dumping stream:\n");
+		list_for_each_entry(fragment, &stream->fragments, yesde) {
 			kunit_err(test, "%s", fragment->fragment);
 		}
 		kunit_err(test, "\n");
@@ -123,7 +123,7 @@ static void kunit_fail(struct kunit *test, struct kunit_assert *assert)
 	stream = alloc_string_stream(test, GFP_KERNEL);
 	if (!stream) {
 		WARN(true,
-		     "Could not allocate stream to print failed assertion in %s:%d\n",
+		     "Could yest allocate stream to print failed assertion in %s:%d\n",
 		     assert->file,
 		     assert->line);
 		return;
@@ -136,17 +136,17 @@ static void kunit_fail(struct kunit *test, struct kunit_assert *assert)
 	WARN_ON(string_stream_destroy(stream));
 }
 
-static void __noreturn kunit_abort(struct kunit *test)
+static void __yesreturn kunit_abort(struct kunit *test)
 {
-	kunit_try_catch_throw(&test->try_catch); /* Does not return. */
+	kunit_try_catch_throw(&test->try_catch); /* Does yest return. */
 
 	/*
-	 * Throw could not abort from test.
+	 * Throw could yest abort from test.
 	 *
 	 * XXX: we should never reach this line! As kunit_try_catch_throw is
-	 * marked __noreturn.
+	 * marked __yesreturn.
 	 */
-	WARN_ONCE(true, "Throw could not abort from test!\n");
+	WARN_ONCE(true, "Throw could yest abort from test!\n");
 }
 
 void kunit_do_assertion(struct kunit *test,
@@ -181,7 +181,7 @@ void kunit_init_test(struct kunit *test, const char *name)
 }
 
 /*
- * Initializes and runs test case. Does not clean up or do post validations.
+ * Initializes and runs test case. Does yest clean up or do post validations.
  */
 static void kunit_run_case_internal(struct kunit *test,
 				    struct kunit_suite *suite,
@@ -252,14 +252,14 @@ static void kunit_catch_run_case(void *data)
 	if (try_exit_code) {
 		kunit_set_failure(test);
 		/*
-		 * Test case could not finish, we have no idea what state it is
+		 * Test case could yest finish, we have yes idea what state it is
 		 * in, so don't do clean up.
 		 */
 		if (try_exit_code == -ETIMEDOUT) {
 			kunit_err(test, "test case timed out\n");
 		/*
-		 * Unknown internal error occurred preventing test case from
-		 * running, so there is nothing to clean up.
+		 * Unkyeswn internal error occurred preventing test case from
+		 * running, so there is yesthing to clean up.
 		 */
 		} else {
 			kunit_err(test, "internal error occurred preventing test case from running: %d\n",
@@ -270,7 +270,7 @@ static void kunit_catch_run_case(void *data)
 
 	/*
 	 * Test case was run, but aborted. It is the test case's business as to
-	 * whether it failed or not, we just need to clean up.
+	 * whether it failed or yest, we just need to clean up.
 	 */
 	kunit_run_case_cleanup(test, suite);
 }
@@ -310,7 +310,7 @@ int kunit_run_tests(struct kunit_suite *suite)
 
 	for (test_case = suite->test_cases; test_case->run_case; test_case++) {
 		kunit_run_case_catch_errors(suite, test_case);
-		kunit_print_test_case_ok_not_ok(test_case, test_case_count++);
+		kunit_print_test_case_ok_yest_ok(test_case, test_case_count++);
 	}
 
 	kunit_print_subtest_end(suite);
@@ -337,7 +337,7 @@ struct kunit_resource *kunit_alloc_and_get_resource(struct kunit *test,
 
 	res->free = free;
 	spin_lock(&test->lock);
-	list_add_tail(&res->node, &test->resources);
+	list_add_tail(&res->yesde, &test->resources);
 	spin_unlock(&test->lock);
 
 	return res;
@@ -358,7 +358,7 @@ static struct kunit_resource *kunit_resource_find(struct kunit *test,
 
 	lockdep_assert_held(&test->lock);
 
-	list_for_each_entry_reverse(resource, &test->resources, node) {
+	list_for_each_entry_reverse(resource, &test->resources, yesde) {
 		if (resource->free != free)
 			continue;
 		if (match(test, resource->allocation, match_data))
@@ -379,7 +379,7 @@ static struct kunit_resource *kunit_resource_remove(
 	spin_lock(&test->lock);
 	resource = kunit_resource_find(test, match, free, match_data);
 	if (resource)
-		list_del(&resource->node);
+		list_del(&resource->yesde);
 	spin_unlock(&test->lock);
 
 	return resource;
@@ -455,11 +455,11 @@ void kunit_cleanup(struct kunit *test)
 	/*
 	 * test->resources is a stack - each allocation must be freed in the
 	 * reverse order from which it was added since one resource may depend
-	 * on another for its entire lifetime.
-	 * Also, we cannot use the normal list_for_each constructs, even the
-	 * safe ones because *arbitrary* nodes may be deleted when
+	 * on ayesther for its entire lifetime.
+	 * Also, we canyest use the yesrmal list_for_each constructs, even the
+	 * safe ones because *arbitrary* yesdes may be deleted when
 	 * kunit_resource_free is called; the list_for_each_safe variants only
-	 * protect against the current node being deleted, not the next.
+	 * protect against the current yesde being deleted, yest the next.
 	 */
 	while (true) {
 		spin_lock(&test->lock);
@@ -469,8 +469,8 @@ void kunit_cleanup(struct kunit *test)
 		}
 		resource = list_last_entry(&test->resources,
 					   struct kunit_resource,
-					   node);
-		list_del(&resource->node);
+					   yesde);
+		list_del(&resource->yesde);
 		spin_unlock(&test->lock);
 
 		kunit_resource_free(test, resource);

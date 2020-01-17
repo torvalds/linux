@@ -8,17 +8,17 @@ Required properties:
                     FU540-C000 SoC. Please refer to sifive-blocks-ip-versioning.txt
                     for additional details.
 - reg             : bus address start and address range size of device
-- clocks          : handle to the controller clock; see the note below.
+- clocks          : handle to the controller clock; see the yeste below.
                     Mutually exclusive with opencores,ip-clock-frequency
 - opencores,ip-clock-frequency: frequency of the controller clock in Hz;
-                    see the note below. Mutually exclusive with clocks
+                    see the yeste below. Mutually exclusive with clocks
 - #address-cells  : should be <1>
 - #size-cells     : should be <0>
 
 Optional properties:
 - interrupts      : interrupt number.
-- clock-frequency : frequency of bus clock in Hz; see the note below.
-                    Defaults to 100 KHz when the property is not specified
+- clock-frequency : frequency of bus clock in Hz; see the yeste below.
+                    Defaults to 100 KHz when the property is yest specified
 - reg-shift       : device register offsets are shifted by this value
 - reg-io-width    : io register width in bytes (1, 2 or 4)
 - regstep         : deprecated, use reg-shift above
@@ -27,7 +27,7 @@ Note
 clock-frequency property is meant to control the bus frequency for i2c bus
 drivers, but it was incorrectly used to specify i2c controller input clock
 frequency. So the following rules are set to fix this situation:
-- if clock-frequency is present and neither opencores,ip-clock-frequency nor
+- if clock-frequency is present and neither opencores,ip-clock-frequency yesr
   clocks are, then clock-frequency specifies i2c controller clock frequency.
   This is to keep backwards compatibility with setups using old DTB. i2c bus
   frequency is fixed at 100 KHz.

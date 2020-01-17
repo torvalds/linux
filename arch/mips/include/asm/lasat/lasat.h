@@ -39,11 +39,11 @@ struct lasat_eeprom_struct {
 	unsigned int  version;
 	unsigned int  cfg[3];
 	unsigned char hwaddr[6];
-	unsigned char print_partno[12];
+	unsigned char print_partyes[12];
 	unsigned char term0;
 	unsigned char print_serial[14];
 	unsigned char term1;
-	unsigned char prod_partno[12];
+	unsigned char prod_partyes[12];
 	unsigned char term2;
 	unsigned char prod_serial[14];
 	unsigned char term3;
@@ -51,7 +51,7 @@ struct lasat_eeprom_struct {
 	unsigned char pwdnull;
 	unsigned char vendid;
 	unsigned char ts_ref;
-	unsigned char ts_signoff;
+	unsigned char ts_sigyesff;
 	unsigned char reserved[11];
 	unsigned char debugaccess;
 	unsigned short prid;
@@ -66,11 +66,11 @@ struct lasat_eeprom_struct_pre7 {
 	unsigned int  flags[3];
 	unsigned char hwaddr0[6];
 	unsigned char hwaddr1[6];
-	unsigned char print_partno[9];
+	unsigned char print_partyes[9];
 	unsigned char term0;
 	unsigned char print_serial[14];
 	unsigned char term1;
-	unsigned char prod_partno[9];
+	unsigned char prod_partyes[9];
 	unsigned char term2;
 	unsigned char prod_serial[14];
 	unsigned char term3;
@@ -78,7 +78,7 @@ struct lasat_eeprom_struct_pre7 {
 	unsigned char pwdnull;
 	unsigned char vendor;
 	unsigned char ts_ref;
-	unsigned char ts_signoff;
+	unsigned char ts_sigyesff;
 	unsigned char reserved[6];
 	unsigned int  writecount;
 	unsigned int  ipaddr;
@@ -127,7 +127,7 @@ struct lasat_eeprom_struct_pre7 {
 #define LASAT_BMID_SAFEPIPE7100		9
 #endif
 #define LASAT_BMID_UNKNOWN		0xf
-#define LASAT_MAX_BMID_NAMES		9   /* no larger than 15! */
+#define LASAT_MAX_BMID_NAMES		9   /* yes larger than 15! */
 
 #define LASAT_HAS_EDHAC			(1 << 0)
 #define LASAT_EDHAC_FAST		(1 << 1)
@@ -183,20 +183,20 @@ struct lasat_info {
 
 extern struct lasat_info lasat_board_info;
 
-static inline unsigned long lasat_flash_partition_start(int partno)
+static inline unsigned long lasat_flash_partition_start(int partyes)
 {
-	if (partno < 0 || partno >= LASAT_MTD_LAST)
+	if (partyes < 0 || partyes >= LASAT_MTD_LAST)
 		return 0;
 
-	return lasat_board_info.li_flashpart_base[partno];
+	return lasat_board_info.li_flashpart_base[partyes];
 }
 
-static inline unsigned long lasat_flash_partition_size(int partno)
+static inline unsigned long lasat_flash_partition_size(int partyes)
 {
-	if (partno < 0 || partno >= LASAT_MTD_LAST)
+	if (partyes < 0 || partyes >= LASAT_MTD_LAST)
 		return 0;
 
-	return lasat_board_info.li_flashpart_size[partno];
+	return lasat_board_info.li_flashpart_size[partyes];
 }
 
 /* Called from setup() to initialize the global board_info struct */
@@ -209,7 +209,7 @@ extern void lasat_write_eeprom_info(void);
 /* for calibration of delays */
 
 /* the lasat_ndelay function is necessary because it is used at an
- * early stage of the boot process where ndelay is not calibrated.
+ * early stage of the boot process where ndelay is yest calibrated.
  * It is used for the bit-banging rtc and eeprom drivers */
 
 #include <linux/delay.h>

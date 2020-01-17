@@ -16,19 +16,19 @@
  * to support dm-btree-spine.c in that case.
  */
 
-enum node_flags {
+enum yesde_flags {
 	INTERNAL_NODE = 1,
 	LEAF_NODE = 1 << 1
 };
 
 /*
- * Every btree node begins with this structure.  Make sure it's a multiple
+ * Every btree yesde begins with this structure.  Make sure it's a multiple
  * of 8-bytes in size, otherwise the 64bit keys will be mis-aligned.
  */
-struct node_header {
+struct yesde_header {
 	__le32 csum;
 	__le32 flags;
-	__le64 blocknr; /* Block this node is supposed to live in. */
+	__le64 blocknr; /* Block this yesde is supposed to live in. */
 
 	__le32 nr_entries;
 	__le32 max_entries;
@@ -36,19 +36,19 @@ struct node_header {
 	__le32 padding;
 } __packed;
 
-struct btree_node {
-	struct node_header header;
+struct btree_yesde {
+	struct yesde_header header;
 	__le64 keys[0];
 } __packed;
 
 
 /*
- * Locks a block using the btree node validator.
+ * Locks a block using the btree yesde validator.
  */
 int bn_read_lock(struct dm_btree_info *info, dm_block_t b,
 		 struct dm_block **result);
 
-void inc_children(struct dm_transaction_manager *tm, struct btree_node *n,
+void inc_children(struct dm_transaction_manager *tm, struct btree_yesde *n,
 		  struct dm_btree_value_type *vt);
 
 int new_block(struct dm_btree_info *info, struct dm_block **result);
@@ -64,20 +64,20 @@ struct ro_spine {
 	struct dm_btree_info *info;
 
 	int count;
-	struct dm_block *nodes[2];
+	struct dm_block *yesdes[2];
 };
 
 void init_ro_spine(struct ro_spine *s, struct dm_btree_info *info);
 int exit_ro_spine(struct ro_spine *s);
 int ro_step(struct ro_spine *s, dm_block_t new_child);
 void ro_pop(struct ro_spine *s);
-struct btree_node *ro_node(struct ro_spine *s);
+struct btree_yesde *ro_yesde(struct ro_spine *s);
 
 struct shadow_spine {
 	struct dm_btree_info *info;
 
 	int count;
-	struct dm_block *nodes[2];
+	struct dm_block *yesdes[2];
 
 	dm_block_t root;
 };
@@ -105,17 +105,17 @@ int shadow_root(struct shadow_spine *s);
 /*
  * Some inlines.
  */
-static inline __le64 *key_ptr(struct btree_node *n, uint32_t index)
+static inline __le64 *key_ptr(struct btree_yesde *n, uint32_t index)
 {
 	return n->keys + index;
 }
 
-static inline void *value_base(struct btree_node *n)
+static inline void *value_base(struct btree_yesde *n)
 {
 	return &n->keys[le32_to_cpu(n->header.max_entries)];
 }
 
-static inline void *value_ptr(struct btree_node *n, uint32_t index)
+static inline void *value_ptr(struct btree_yesde *n, uint32_t index)
 {
 	uint32_t value_size = le32_to_cpu(n->header.value_size);
 	return value_base(n) + (value_size * index);
@@ -124,7 +124,7 @@ static inline void *value_ptr(struct btree_node *n, uint32_t index)
 /*
  * Assumes the values are suitably-aligned and converts to core format.
  */
-static inline uint64_t value64(struct btree_node *n, uint32_t index)
+static inline uint64_t value64(struct btree_yesde *n, uint32_t index)
 {
 	__le64 *values_le = value_base(n);
 
@@ -132,11 +132,11 @@ static inline uint64_t value64(struct btree_node *n, uint32_t index)
 }
 
 /*
- * Searching for a key within a single node.
+ * Searching for a key within a single yesde.
  */
-int lower_bound(struct btree_node *n, uint64_t key);
+int lower_bound(struct btree_yesde *n, uint64_t key);
 
-extern struct dm_block_validator btree_node_validator;
+extern struct dm_block_validator btree_yesde_validator;
 
 /*
  * Value type for upper levels of multi-level btrees.

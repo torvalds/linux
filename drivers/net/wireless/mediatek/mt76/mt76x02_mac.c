@@ -827,7 +827,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 		status->ampdu_ref = dev->mt76.ampdu_ref;
 
 		/*
-		 * When receiving an A-MPDU subframe and RSSI info is not valid,
+		 * When receiving an A-MPDU subframe and RSSI info is yest valid,
 		 * we can assume that more subframes belonging to the same A-MPDU
 		 * are coming. The last one will have valid RSSI info
 		 */
@@ -857,7 +857,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 	status->band = dev->mt76.chandef.chan->band;
 
 	status->tid = FIELD_GET(MT_RXWI_TID, tid_sn);
-	status->seqno = FIELD_GET(MT_RXWI_SN, tid_sn);
+	status->seqyes = FIELD_GET(MT_RXWI_SN, tid_sn);
 
 	return mt76x02_mac_process_rate(dev, status, rate);
 }
@@ -934,7 +934,7 @@ void mt76x02_mac_set_tx_protection(struct mt76x02_dev *dev, bool legacy_prot,
 				   int ht_mode)
 {
 	int mode = ht_mode & IEEE80211_HT_OP_MODE_PROTECTION;
-	bool non_gf = !!(ht_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+	bool yesn_gf = !!(ht_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 	u32 prot[6];
 	u32 vht_prot[3];
 	int i;
@@ -1001,7 +1001,7 @@ void mt76x02_mac_set_tx_protection(struct mt76x02_dev *dev, bool legacy_prot,
 		break;
 	}
 
-	if (non_gf) {
+	if (yesn_gf) {
 		prot[4] |= MT_PROT_CTRL_RTS_CTS;
 		prot[5] |= MT_PROT_CTRL_RTS_CTS;
 	}

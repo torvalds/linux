@@ -28,7 +28,7 @@ struct erofs_map_blocks;
 
 TRACE_EVENT(erofs_lookup,
 
-	TP_PROTO(struct inode *dir, struct dentry *dentry, unsigned int flags),
+	TP_PROTO(struct iyesde *dir, struct dentry *dentry, unsigned int flags),
 
 	TP_ARGS(dir, dentry, flags),
 
@@ -52,9 +52,9 @@ TRACE_EVENT(erofs_lookup,
 		__entry->flags)
 );
 
-TRACE_EVENT(erofs_fill_inode,
-	TP_PROTO(struct inode *inode, int isdir),
-	TP_ARGS(inode, isdir),
+TRACE_EVENT(erofs_fill_iyesde,
+	TP_PROTO(struct iyesde *iyesde, int isdir),
+	TP_ARGS(iyesde, isdir),
 
 	TP_STRUCT__entry(
 		__field(dev_t,		dev	)
@@ -65,10 +65,10 @@ TRACE_EVENT(erofs_fill_inode,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= inode->i_sb->s_dev;
-		__entry->nid		= EROFS_I(inode)->nid;
-		__entry->blkaddr	= erofs_blknr(iloc(EROFS_I_SB(inode), __entry->nid));
-		__entry->ofs		= erofs_blkoff(iloc(EROFS_I_SB(inode), __entry->nid));
+		__entry->dev		= iyesde->i_sb->s_dev;
+		__entry->nid		= EROFS_I(iyesde)->nid;
+		__entry->blkaddr	= erofs_blknr(iloc(EROFS_I_SB(iyesde), __entry->nid));
+		__entry->ofs		= erofs_blkoff(iloc(EROFS_I_SB(iyesde), __entry->nid));
 		__entry->isdir		= isdir;
 	),
 
@@ -113,10 +113,10 @@ TRACE_EVENT(erofs_readpage,
 
 TRACE_EVENT(erofs_readpages,
 
-	TP_PROTO(struct inode *inode, struct page *page, unsigned int nrpage,
+	TP_PROTO(struct iyesde *iyesde, struct page *page, unsigned int nrpage,
 		bool raw),
 
-	TP_ARGS(inode, page, nrpage, raw),
+	TP_ARGS(iyesde, page, nrpage, raw),
 
 	TP_STRUCT__entry(
 		__field(dev_t,		dev	)
@@ -127,8 +127,8 @@ TRACE_EVENT(erofs_readpages,
 	),
 
 	TP_fast_assign(
-		__entry->dev	= inode->i_sb->s_dev;
-		__entry->nid	= EROFS_I(inode)->nid;
+		__entry->dev	= iyesde->i_sb->s_dev;
+		__entry->nid	= EROFS_I(iyesde)->nid;
 		__entry->start	= page->index;
 		__entry->nrpage	= nrpage;
 		__entry->raw	= raw;
@@ -142,10 +142,10 @@ TRACE_EVENT(erofs_readpages,
 );
 
 DECLARE_EVENT_CLASS(erofs__map_blocks_enter,
-	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
+	TP_PROTO(struct iyesde *iyesde, struct erofs_map_blocks *map,
 		 unsigned int flags),
 
-	TP_ARGS(inode, map, flags),
+	TP_ARGS(iyesde, map, flags),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,		dev		)
@@ -156,8 +156,8 @@ DECLARE_EVENT_CLASS(erofs__map_blocks_enter,
 	),
 
 	TP_fast_assign(
-		__entry->dev    = inode->i_sb->s_dev;
-		__entry->nid    = EROFS_I(inode)->nid;
+		__entry->dev    = iyesde->i_sb->s_dev;
+		__entry->nid    = EROFS_I(iyesde)->nid;
 		__entry->la	= map->m_la;
 		__entry->llen	= map->m_llen;
 		__entry->flags	= flags;
@@ -170,24 +170,24 @@ DECLARE_EVENT_CLASS(erofs__map_blocks_enter,
 );
 
 DEFINE_EVENT(erofs__map_blocks_enter, erofs_map_blocks_flatmode_enter,
-	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
+	TP_PROTO(struct iyesde *iyesde, struct erofs_map_blocks *map,
 		 unsigned flags),
 
-	TP_ARGS(inode, map, flags)
+	TP_ARGS(iyesde, map, flags)
 );
 
 DEFINE_EVENT(erofs__map_blocks_enter, z_erofs_map_blocks_iter_enter,
-	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
+	TP_PROTO(struct iyesde *iyesde, struct erofs_map_blocks *map,
 		 unsigned int flags),
 
-	TP_ARGS(inode, map, flags)
+	TP_ARGS(iyesde, map, flags)
 );
 
 DECLARE_EVENT_CLASS(erofs__map_blocks_exit,
-	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
+	TP_PROTO(struct iyesde *iyesde, struct erofs_map_blocks *map,
 		 unsigned int flags, int ret),
 
-	TP_ARGS(inode, map, flags, ret),
+	TP_ARGS(iyesde, map, flags, ret),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,		dev		)
@@ -202,8 +202,8 @@ DECLARE_EVENT_CLASS(erofs__map_blocks_exit,
 	),
 
 	TP_fast_assign(
-		__entry->dev    = inode->i_sb->s_dev;
-		__entry->nid    = EROFS_I(inode)->nid;
+		__entry->dev    = iyesde->i_sb->s_dev;
+		__entry->nid    = EROFS_I(iyesde)->nid;
 		__entry->flags	= flags;
 		__entry->la	= map->m_la;
 		__entry->pa	= map->m_pa;
@@ -222,23 +222,23 @@ DECLARE_EVENT_CLASS(erofs__map_blocks_exit,
 );
 
 DEFINE_EVENT(erofs__map_blocks_exit, erofs_map_blocks_flatmode_exit,
-	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
+	TP_PROTO(struct iyesde *iyesde, struct erofs_map_blocks *map,
 		 unsigned flags, int ret),
 
-	TP_ARGS(inode, map, flags, ret)
+	TP_ARGS(iyesde, map, flags, ret)
 );
 
 DEFINE_EVENT(erofs__map_blocks_exit, z_erofs_map_blocks_iter_exit,
-	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
+	TP_PROTO(struct iyesde *iyesde, struct erofs_map_blocks *map,
 		 unsigned int flags, int ret),
 
-	TP_ARGS(inode, map, flags, ret)
+	TP_ARGS(iyesde, map, flags, ret)
 );
 
-TRACE_EVENT(erofs_destroy_inode,
-	TP_PROTO(struct inode *inode),
+TRACE_EVENT(erofs_destroy_iyesde,
+	TP_PROTO(struct iyesde *iyesde),
 
-	TP_ARGS(inode),
+	TP_ARGS(iyesde),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,		dev		)
@@ -246,8 +246,8 @@ TRACE_EVENT(erofs_destroy_inode,
 	),
 
 	TP_fast_assign(
-		__entry->dev	= inode->i_sb->s_dev;
-		__entry->nid	= EROFS_I(inode)->nid;
+		__entry->dev	= iyesde->i_sb->s_dev;
+		__entry->nid	= EROFS_I(iyesde)->nid;
 	),
 
 	TP_printk("dev = (%d,%d), nid = %llu", show_dev_nid(__entry))

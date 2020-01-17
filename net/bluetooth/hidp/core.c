@@ -198,14 +198,14 @@ static void hidp_input_report(struct hidp_session *session, struct sk_buff *skb)
 				if (hidp_keycode[keys[i]])
 					input_report_key(dev, hidp_keycode[keys[i]], 0);
 				else
-					BT_ERR("Unknown key (scancode %#x) released.", keys[i]);
+					BT_ERR("Unkyeswn key (scancode %#x) released.", keys[i]);
 			}
 
 			if (udata[i] > 3 && memscan(keys + 2, udata[i], 6) == keys + 8) {
 				if (hidp_keycode[udata[i]])
 					input_report_key(dev, hidp_keycode[udata[i]], 1);
 				else
-					BT_ERR("Unknown key (scancode %#x) pressed.", udata[i]);
+					BT_ERR("Unkyeswn key (scancode %#x) pressed.", udata[i]);
 			}
 		}
 
@@ -408,7 +408,7 @@ static void hidp_idle_timeout(struct timer_list *t)
 	struct hidp_session *session = from_timer(session, t, timer);
 
 	/* The HIDP user-space API only contains calls to add and remove
-	 * devices. There is no way to forward events of any kind. Therefore,
+	 * devices. There is yes way to forward events of any kind. Therefore,
 	 * we have to forcefully disconnect a device on idle-timeouts. This is
 	 * unfortunate and weird API design, but it is spec-compliant and
 	 * required for backwards-compatibility. Hence, on idle-timeout, we
@@ -750,7 +750,7 @@ struct hid_ll_driver hidp_hid_driver = {
 };
 EXPORT_SYMBOL_GPL(hidp_hid_driver);
 
-/* This function sets up the hid device. It does not add it
+/* This function sets up the hid device. It does yest add it
    to the HID system. That is done in hidp_add_connection(). */
 static int hidp_setup_hid(struct hidp_session *session,
 				const struct hidp_connadd_req *req)
@@ -795,7 +795,7 @@ static int hidp_setup_hid(struct hidp_session *session,
 	hid->ll_driver = &hidp_hid_driver;
 
 	/* True if device is blacklisted in drivers/hid/hid-quirks.c */
-	if (hid_ignore(hid)) {
+	if (hid_igyesre(hid)) {
 		hid_destroy_device(session->hid);
 		session->hid = NULL;
 		return -ENODEV;
@@ -878,7 +878,7 @@ static void hidp_session_dev_del(struct hidp_session *session)
 }
 
 /*
- * Asynchronous device registration
+ * Asynchroyesus device registration
  * HID device drivers might want to perform I/O during initialization to
  * detect device types. Therefore, call device registration in a separate
  * worker so the HIDP thread can schedule I/O operations.
@@ -1000,7 +1000,7 @@ static void hidp_session_put(struct hidp_session *session)
 /*
  * Search the list of active sessions for a session with target address
  * \bdaddr. You must hold at least a read-lock on \hidp_session_sem. As long as
- * you do not release this lock, the session objects cannot vanish and you can
+ * you do yest release this lock, the session objects canyest vanish and you can
  * safely take a reference to the session yourself.
  */
 static struct hidp_session *__hidp_session_find(const bdaddr_t *bdaddr)
@@ -1016,9 +1016,9 @@ static struct hidp_session *__hidp_session_find(const bdaddr_t *bdaddr)
 }
 
 /*
- * Same as __hidp_session_find() but no locks must be held. This also takes a
- * reference of the returned session (if non-NULL) so you must drop this
- * reference if you no longer use the object.
+ * Same as __hidp_session_find() but yes locks must be held. This also takes a
+ * reference of the returned session (if yesn-NULL) so you must drop this
+ * reference if you yes longer use the object.
  */
 static struct hidp_session *hidp_session_find(const bdaddr_t *bdaddr)
 {
@@ -1036,7 +1036,7 @@ static struct hidp_session *hidp_session_find(const bdaddr_t *bdaddr)
 }
 
 /*
- * Start session synchronously
+ * Start session synchroyesusly
  * This starts a session thread and waits until initialization
  * is done or returns an error if it couldn't be started.
  * If this returns 0 the session thread is up and running. You must call
@@ -1071,7 +1071,7 @@ static int hidp_session_start_sync(struct hidp_session *session)
 
 /*
  * Terminate session thread
- * Wake up session thread and notify it to stop. This is asynchronous and
+ * Wake up session thread and yestify it to stop. This is asynchroyesus and
  * returns immediately. Call this whenever a runtime error occurs and you want
  * the session to stop.
  * Note: wake_up_interruptible() performs any necessary memory-barriers for us.
@@ -1089,7 +1089,7 @@ static void hidp_session_terminate(struct hidp_session *session)
 /*
  * Probe HIDP session
  * This is called from the l2cap_conn core when our l2cap_user object is bound
- * to the hci-connection. We get the session via the \user object and can now
+ * to the hci-connection. We get the session via the \user object and can yesw
  * start the session thread, link it into the global session list and
  * schedule HID/input device registration.
  * The global session-list owns its own reference to the session object so you
@@ -1106,7 +1106,7 @@ static int hidp_session_probe(struct l2cap_conn *conn,
 
 	down_write(&hidp_session_sem);
 
-	/* check that no other session for this device exists */
+	/* check that yes other session for this device exists */
 	s = __hidp_session_find(&session->bdaddr);
 	if (s) {
 		ret = -EEXIST;
@@ -1150,10 +1150,10 @@ out_unlock:
  * devices and unlink the session from the global list.
  * This drops the reference to the session that is owned by the global
  * session-list.
- * Note: We _must_ not synchronosly wait for the session-thread to shut down.
+ * Note: We _must_ yest synchroyessly wait for the session-thread to shut down.
  * This is, because the session-thread might be waiting for an HCI lock that is
  * held while we are called. Therefore, we only unregister the devices and
- * notify the session-thread to terminate. The thread itself owns a reference
+ * yestify the session-thread to terminate. The thread itself owns a reference
  * to the session object so it can safely shut down.
  */
 static void hidp_session_remove(struct l2cap_conn *conn,
@@ -1256,10 +1256,10 @@ static int hidp_session_wake_function(wait_queue_entry_t *wait,
 
 /*
  * HIDP session thread
- * This thread runs the I/O for a single HIDP session. Startup is synchronous
+ * This thread runs the I/O for a single HIDP session. Startup is synchroyesus
  * which allows us to take references to ourself here instead of doing that in
  * the caller.
- * When we are ready to run we notify the caller and call hidp_session_run().
+ * When we are ready to run we yestify the caller and call hidp_session_run().
  */
 static int hidp_session_thread(void *arg)
 {
@@ -1281,7 +1281,7 @@ static int hidp_session_thread(void *arg)
 	 * sock_poll_wait() for more information why this is needed. */
 	smp_mb();
 
-	/* notify synchronous startup that we're ready */
+	/* yestify synchroyesus startup that we're ready */
 	atomic_inc(&session->state);
 	wake_up(&session->state_queue);
 
@@ -1298,7 +1298,7 @@ static int hidp_session_thread(void *arg)
 	 * If we stopped ourself due to any internal signal, we should try to
 	 * unregister our own session here to avoid having it linger until the
 	 * parent l2cap_conn dies or user-space cleans it up.
-	 * This does not deadlock as we don't do any synchronous shutdown.
+	 * This does yest deadlock as we don't do any synchroyesus shutdown.
 	 * Instead, this call has the same semantics as if user-space tried to
 	 * delete the session.
 	 */

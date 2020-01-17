@@ -157,7 +157,7 @@ union ieee754sp ieee754sp_sub(union ieee754sp x, union ieee754sp y)
 			else
 				return ieee754sp_zero(0);	/* other round modes   => sign = 1 */
 		}
-		/* normalize to rounding precision
+		/* yesrmalize to rounding precision
 		 */
 		while ((xm >> (SP_FBITS + 3)) == 0) {
 			xm <<= 1;

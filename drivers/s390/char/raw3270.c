@@ -35,7 +35,7 @@ struct class *class3270;
 struct raw3270 {
 	struct list_head list;
 	struct ccw_device *cdev;
-	int minor;
+	int miyesr;
 
 	short model, rows, cols;
 	unsigned int state;
@@ -350,7 +350,7 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	}
 
 	if (test_bit(RAW3270_FLAGS_BUSY, &rp->flags))
-		/* Device busy, do not start I/O */
+		/* Device busy, do yest start I/O */
 		return;
 
 	if (rq && !list_empty(&rq->list)) {
@@ -433,11 +433,11 @@ raw3270_size_device_vm(struct raw3270 *rp)
 	struct diag210 diag_data;
 
 	ccw_device_get_id(rp->cdev, &dev_id);
-	diag_data.vrdcdvno = dev_id.devno;
+	diag_data.vrdcdvyes = dev_id.devyes;
 	diag_data.vrdclen = sizeof(struct diag210);
 	rc = diag210(&diag_data);
 	model = diag_data.vrdccrmd;
-	/* Use default model 2 if the size could not be detected */
+	/* Use default model 2 if the size could yest be detected */
 	if (rc || model < 2 || model > 5)
 		model = 2;
 	switch (model) {
@@ -471,7 +471,7 @@ raw3270_size_device(struct raw3270 *rp)
 
 	/* Got a Query Reply */
 	uap = (struct raw3270_ua *) (rp->init_data + 1);
-	/* Paranoia check. */
+	/* Parayesia check. */
 	if (rp->init_readmod.rc || rp->init_data[0] != 0x88 ||
 	    uap->uab.qcode != 0x81) {
 		/* Couldn't detect size. Use default model 2. */
@@ -515,7 +515,7 @@ raw3270_size_device_done(struct raw3270 *rp)
 	list_for_each_entry(view, &rp->view_list, list)
 		if (view->fn->resize)
 			view->fn->resize(view, rp->model, rp->rows, rp->cols);
-	/* Setup processing done, now activate a view */
+	/* Setup processing done, yesw activate a view */
 	list_for_each_entry(view, &rp->view_list, list) {
 		rp->view = view;
 		if (view->fn->activate(view) == 0)
@@ -694,7 +694,7 @@ raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
 {
 	struct list_head *l;
 	struct raw3270 *tmp;
-	int minor;
+	int miyesr;
 
 	memset(rp, 0, sizeof(struct raw3270));
 	/* Copy ebcdic -> ascii translation table. */
@@ -719,30 +719,30 @@ raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
 	rp->view = &rp->init_view;
 
 	/*
-	 * Add device to list and find the smallest unused minor
-	 * number for it. Note: there is no device with minor 0,
+	 * Add device to list and find the smallest unused miyesr
+	 * number for it. Note: there is yes device with miyesr 0,
 	 * see special case for fs3270.c:fs3270_open().
 	 */
 	mutex_lock(&raw3270_mutex);
 	/* Keep the list sorted. */
-	minor = RAW3270_FIRSTMINOR;
-	rp->minor = -1;
+	miyesr = RAW3270_FIRSTMINOR;
+	rp->miyesr = -1;
 	list_for_each(l, &raw3270_devices) {
 		tmp = list_entry(l, struct raw3270, list);
-		if (tmp->minor > minor) {
-			rp->minor = minor;
+		if (tmp->miyesr > miyesr) {
+			rp->miyesr = miyesr;
 			__list_add(&rp->list, l->prev, l);
 			break;
 		}
-		minor++;
+		miyesr++;
 	}
-	if (rp->minor == -1 && minor < RAW3270_MAXDEVS + RAW3270_FIRSTMINOR) {
-		rp->minor = minor;
+	if (rp->miyesr == -1 && miyesr < RAW3270_MAXDEVS + RAW3270_FIRSTMINOR) {
+		rp->miyesr = miyesr;
 		list_add_tail(&rp->list, &raw3270_devices);
 	}
 	mutex_unlock(&raw3270_mutex);
-	/* No free minor number? Then give up. */
-	if (rp->minor == -1)
+	/* No free miyesr number? Then give up. */
+	if (rp->miyesr == -1)
 		return -EUSERS;
 	rp->cdev = cdev;
 	dev_set_drvdata(&cdev->dev, rp);
@@ -902,7 +902,7 @@ raw3270_deactivate_view(struct raw3270_view *view)
 		/* Move deactivated view to end of list. */
 		list_del_init(&view->list);
 		list_add_tail(&view->list, &rp->view_list);
-		/* Try to activate another view. */
+		/* Try to activate ayesther view. */
 		if (raw3270_state_ready(rp) &&
 		    !test_bit(RAW3270_FLAGS_FROZEN, &rp->flags)) {
 			list_for_each_entry(view, &rp->view_list, list) {
@@ -917,21 +917,21 @@ raw3270_deactivate_view(struct raw3270_view *view)
 }
 
 /*
- * Add view to device with minor "minor".
+ * Add view to device with miyesr "miyesr".
  */
 int
-raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int minor, int subclass)
+raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int miyesr, int subclass)
 {
 	unsigned long flags;
 	struct raw3270 *rp;
 	int rc;
 
-	if (minor <= 0)
+	if (miyesr <= 0)
 		return -ENODEV;
 	mutex_lock(&raw3270_mutex);
 	rc = -ENODEV;
 	list_for_each_entry(rp, &raw3270_devices, list) {
-		if (rp->minor != minor)
+		if (rp->miyesr != miyesr)
 			continue;
 		spin_lock_irqsave(get_ccwdev_lock(rp->cdev), flags);
 		atomic_set(&view->ref_count, 2);
@@ -953,10 +953,10 @@ raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int minor, in
 }
 
 /*
- * Find specific view of device with minor "minor".
+ * Find specific view of device with miyesr "miyesr".
  */
 struct raw3270_view *
-raw3270_find_view(struct raw3270_fn *fn, int minor)
+raw3270_find_view(struct raw3270_fn *fn, int miyesr)
 {
 	struct raw3270 *rp;
 	struct raw3270_view *view, *tmp;
@@ -965,7 +965,7 @@ raw3270_find_view(struct raw3270_fn *fn, int minor)
 	mutex_lock(&raw3270_mutex);
 	view = ERR_PTR(-ENODEV);
 	list_for_each_entry(rp, &raw3270_devices, list) {
-		if (rp->minor != minor)
+		if (rp->miyesr != miyesr)
 			continue;
 		spin_lock_irqsave(get_ccwdev_lock(rp->cdev), flags);
 		list_for_each_entry(tmp, &rp->view_list, list) {
@@ -1001,7 +1001,7 @@ raw3270_del_view(struct raw3270_view *view)
 	list_del_init(&view->list);
 	if (!rp->view && raw3270_state_ready(rp) &&
 	    !test_bit(RAW3270_FLAGS_FROZEN, &rp->flags)) {
-		/* Try to activate another view. */
+		/* Try to activate ayesther view. */
 		list_for_each_entry(nv, &rp->view_list, list) {
 			if (nv->fn->activate(nv) == 0) {
 				rp->view = nv;
@@ -1096,28 +1096,28 @@ static int raw3270_create_attributes(struct raw3270 *rp)
 /*
  * Notifier for device addition/removal
  */
-static LIST_HEAD(raw3270_notifier);
+static LIST_HEAD(raw3270_yestifier);
 
-int raw3270_register_notifier(struct raw3270_notifier *notifier)
+int raw3270_register_yestifier(struct raw3270_yestifier *yestifier)
 {
 	struct raw3270 *rp;
 
 	mutex_lock(&raw3270_mutex);
-	list_add_tail(&notifier->list, &raw3270_notifier);
+	list_add_tail(&yestifier->list, &raw3270_yestifier);
 	list_for_each_entry(rp, &raw3270_devices, list)
-		notifier->create(rp->minor);
+		yestifier->create(rp->miyesr);
 	mutex_unlock(&raw3270_mutex);
 	return 0;
 }
 
-void raw3270_unregister_notifier(struct raw3270_notifier *notifier)
+void raw3270_unregister_yestifier(struct raw3270_yestifier *yestifier)
 {
 	struct raw3270 *rp;
 
 	mutex_lock(&raw3270_mutex);
 	list_for_each_entry(rp, &raw3270_devices, list)
-		notifier->destroy(rp->minor);
-	list_del(&notifier->list);
+		yestifier->destroy(rp->miyesr);
+	list_del(&yestifier->list);
 	mutex_unlock(&raw3270_mutex);
 }
 
@@ -1127,7 +1127,7 @@ void raw3270_unregister_notifier(struct raw3270_notifier *notifier)
 static int
 raw3270_set_online (struct ccw_device *cdev)
 {
-	struct raw3270_notifier *np;
+	struct raw3270_yestifier *np;
 	struct raw3270 *rp;
 	int rc;
 
@@ -1139,8 +1139,8 @@ raw3270_set_online (struct ccw_device *cdev)
 		goto failure;
 	raw3270_reset_device(rp);
 	mutex_lock(&raw3270_mutex);
-	list_for_each_entry(np, &raw3270_notifier, list)
-		np->create(rp->minor);
+	list_for_each_entry(np, &raw3270_yestifier, list)
+		np->create(rp->miyesr);
 	mutex_unlock(&raw3270_mutex);
 	return 0;
 
@@ -1158,7 +1158,7 @@ raw3270_remove (struct ccw_device *cdev)
 	unsigned long flags;
 	struct raw3270 *rp;
 	struct raw3270_view *v;
-	struct raw3270_notifier *np;
+	struct raw3270_yestifier *np;
 
 	rp = dev_get_drvdata(&cdev->dev);
 	/*
@@ -1190,8 +1190,8 @@ raw3270_remove (struct ccw_device *cdev)
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
 	mutex_lock(&raw3270_mutex);
-	list_for_each_entry(np, &raw3270_notifier, list)
-		np->destroy(rp->minor);
+	list_for_each_entry(np, &raw3270_yestifier, list)
+		np->destroy(rp->miyesr);
 	mutex_unlock(&raw3270_mutex);
 
 	/* Reset 3270 device. */
@@ -1229,7 +1229,7 @@ static int raw3270_pm_stop(struct ccw_device *cdev)
 		rp->view->fn->deactivate(rp->view);
 	if (!test_bit(RAW3270_FLAGS_CONSOLE, &rp->flags)) {
 		/*
-		 * Release tty and fullscreen for all non-console
+		 * Release tty and fullscreen for all yesn-console
 		 * devices.
 		 */
 		list_for_each_entry(view, &rp->view_list, list) {
@@ -1353,6 +1353,6 @@ EXPORT_SYMBOL(raw3270_start);
 EXPORT_SYMBOL(raw3270_start_locked);
 EXPORT_SYMBOL(raw3270_start_irq);
 EXPORT_SYMBOL(raw3270_reset);
-EXPORT_SYMBOL(raw3270_register_notifier);
-EXPORT_SYMBOL(raw3270_unregister_notifier);
+EXPORT_SYMBOL(raw3270_register_yestifier);
+EXPORT_SYMBOL(raw3270_unregister_yestifier);
 EXPORT_SYMBOL(raw3270_wait_queue);

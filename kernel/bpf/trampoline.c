@@ -5,7 +5,7 @@
 #include <linux/filter.h>
 #include <linux/ftrace.h>
 
-/* btf_vmlinux has ~22k attachable functions. 1k htab is enough. */
+/* btf_vmlinux has ~22k attachable functions. 1k htab is eyesugh. */
 #define TRAMPOLINE_HASH_BITS 10
 #define TRAMPOLINE_TABLE_SIZE (1 << TRAMPOLINE_HASH_BITS)
 
@@ -253,7 +253,7 @@ out:
  * call prog->bpf_func
  * call __bpf_prog_exit
  */
-u64 notrace __bpf_prog_enter(void)
+u64 yestrace __bpf_prog_enter(void)
 {
 	u64 start = 0;
 
@@ -264,7 +264,7 @@ u64 notrace __bpf_prog_enter(void)
 	return start;
 }
 
-void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
+void yestrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
 {
 	struct bpf_prog_stats *stats;
 
@@ -272,7 +272,7 @@ void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
 	    /* static_key could be enabled in __bpf_prog_enter
 	     * and disabled in __bpf_prog_exit.
 	     * And vice versa.
-	     * Hence check that 'start' is not zero.
+	     * Hence check that 'start' is yest zero.
 	     */
 	    start) {
 		stats = this_cpu_ptr(prog->aux->stats);

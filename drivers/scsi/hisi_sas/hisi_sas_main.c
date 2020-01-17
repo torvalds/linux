@@ -147,10 +147,10 @@ EXPORT_SYMBOL_GPL(to_hisi_sas_port);
 
 void hisi_sas_stop_phys(struct hisi_hba *hisi_hba)
 {
-	int phy_no;
+	int phy_yes;
 
-	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++)
-		hisi_sas_phy_enable(hisi_hba, phy_no, 0);
+	for (phy_yes = 0; phy_yes < hisi_hba->n_phy; phy_yes++)
+		hisi_sas_phy_enable(hisi_hba, phy_yes, 0);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_stop_phys);
 
@@ -427,10 +427,10 @@ static int hisi_sas_task_prep(struct sas_task *task,
 
 	if (DEV_IS_GONE(sas_dev)) {
 		if (sas_dev)
-			dev_info(dev, "task prep: device %d not ready\n",
+			dev_info(dev, "task prep: device %d yest ready\n",
 				 sas_dev->device_id);
 		else
-			dev_info(dev, "task prep: device %016llx not ready\n",
+			dev_info(dev, "task prep: device %016llx yest ready\n",
 				 SAS_ADDR(device->sas_addr));
 
 		return -ECOMM;
@@ -447,7 +447,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 
 	port = to_hisi_sas_port(sas_port);
 	if (port && !port->port_attached) {
-		dev_info(dev, "task prep: %s port%d not attach device\n",
+		dev_info(dev, "task prep: %s port%d yest attach device\n",
 			 (dev_is_sata(device)) ?
 			 "SATA/STP" : "SAS",
 			 device->port->id);
@@ -532,7 +532,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		hisi_sas_task_prep_ata(hisi_hba, slot);
 		break;
 	default:
-		dev_err(dev, "task prep: unknown/unsupported proto (0x%x)\n",
+		dev_err(dev, "task prep: unkyeswn/unsupported proto (0x%x)\n",
 			task->task_proto);
 		break;
 	}
@@ -576,7 +576,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 		ts->stat = SAS_PHY_DOWN;
 		/*
 		 * libsas will use dev->port, should
-		 * not call task_done for sata
+		 * yest call task_done for sata
 		 */
 		if (device->dev_type != SAS_SATA_DEV)
 			task->task_done(task);
@@ -614,9 +614,9 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	return rc;
 }
 
-static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
+static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_yes)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_yes];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct sas_ha_struct *sas_ha;
 
@@ -624,7 +624,7 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
 		return;
 
 	sas_ha = &hisi_hba->sha;
-	sas_ha->notify_phy_event(sas_phy, PHYE_OOB_DONE);
+	sas_ha->yestify_phy_event(sas_phy, PHYE_OOB_DONE);
 
 	if (sas_phy->phy) {
 		struct sas_phy *sphy = sas_phy->phy;
@@ -652,7 +652,7 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
 	}
 
 	sas_phy->frame_rcvd_size = phy->frame_rcvd_size;
-	sas_ha->notify_port_event(sas_phy, PORTE_BYTES_DMAED);
+	sas_ha->yestify_port_event(sas_phy, PORTE_BYTES_DMAED);
 }
 
 static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
@@ -778,19 +778,19 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	hisi_hba->hw->setup_itct(hisi_hba, sas_dev);
 
 	if (parent_dev && dev_is_expander(parent_dev->dev_type)) {
-		int phy_no;
+		int phy_yes;
 		u8 phy_num = parent_dev->ex_dev.num_phys;
 		struct ex_phy *phy;
 
-		for (phy_no = 0; phy_no < phy_num; phy_no++) {
-			phy = &parent_dev->ex_dev.ex_phy[phy_no];
+		for (phy_yes = 0; phy_yes < phy_num; phy_yes++) {
+			phy = &parent_dev->ex_dev.ex_phy[phy_yes];
 			if (SAS_ADDR(phy->attached_sas_addr) ==
 				SAS_ADDR(device->sas_addr))
 				break;
 		}
 
-		if (phy_no == phy_num) {
-			dev_info(dev, "dev found: no attached "
+		if (phy_yes == phy_num) {
+			dev_info(dev, "dev found: yes attached "
 				 "dev:%016llx at ex:%016llx\n",
 				 SAS_ADDR(device->sas_addr),
 				 SAS_ADDR(parent_dev->sas_addr));
@@ -855,11 +855,11 @@ static void hisi_sas_phyup_work(struct work_struct *work)
 		container_of(work, typeof(*phy), works[HISI_PHYE_PHY_UP]);
 	struct hisi_hba *hisi_hba = phy->hisi_hba;
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	int phy_no = sas_phy->id;
+	int phy_yes = sas_phy->id;
 
 	if (phy->identify.target_port_protocols == SAS_PROTOCOL_SSP)
-		hisi_hba->hw->sl_notify_ssp(hisi_hba, phy_no);
-	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
+		hisi_hba->hw->sl_yestify_ssp(hisi_hba, phy_yes);
+	hisi_sas_bytes_dmaed(hisi_hba, phy_yes);
 }
 
 static void hisi_sas_linkreset_work(struct work_struct *work)
@@ -876,7 +876,7 @@ static const work_func_t hisi_sas_phye_fns[HISI_PHYES_NUM] = {
 	[HISI_PHYE_LINK_RESET] = hisi_sas_linkreset_work,
 };
 
-bool hisi_sas_notify_phy_event(struct hisi_sas_phy *phy,
+bool hisi_sas_yestify_phy_event(struct hisi_sas_phy *phy,
 				enum hisi_sas_phy_event event)
 {
 	struct hisi_hba *hisi_hba = phy->hisi_hba;
@@ -886,35 +886,35 @@ bool hisi_sas_notify_phy_event(struct hisi_sas_phy *phy,
 
 	return queue_work(hisi_hba->wq, &phy->works[event]);
 }
-EXPORT_SYMBOL_GPL(hisi_sas_notify_phy_event);
+EXPORT_SYMBOL_GPL(hisi_sas_yestify_phy_event);
 
 static void hisi_sas_wait_phyup_timedout(struct timer_list *t)
 {
 	struct hisi_sas_phy *phy = from_timer(phy, t, timer);
 	struct hisi_hba *hisi_hba = phy->hisi_hba;
 	struct device *dev = hisi_hba->dev;
-	int phy_no = phy->sas_phy.id;
+	int phy_yes = phy->sas_phy.id;
 
-	dev_warn(dev, "phy%d wait phyup timeout, issuing link reset\n", phy_no);
-	hisi_sas_notify_phy_event(phy, HISI_PHYE_LINK_RESET);
+	dev_warn(dev, "phy%d wait phyup timeout, issuing link reset\n", phy_yes);
+	hisi_sas_yestify_phy_event(phy, HISI_PHYE_LINK_RESET);
 }
 
-void hisi_sas_phy_oob_ready(struct hisi_hba *hisi_hba, int phy_no)
+void hisi_sas_phy_oob_ready(struct hisi_hba *hisi_hba, int phy_yes)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_yes];
 	struct device *dev = hisi_hba->dev;
 
 	if (!timer_pending(&phy->timer)) {
-		dev_dbg(dev, "phy%d OOB ready\n", phy_no);
+		dev_dbg(dev, "phy%d OOB ready\n", phy_yes);
 		phy->timer.expires = jiffies + HISI_SAS_WAIT_PHYUP_TIMEOUT * HZ;
 		add_timer(&phy->timer);
 	}
 }
 EXPORT_SYMBOL_GPL(hisi_sas_phy_oob_ready);
 
-static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
+static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_yes)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_yes];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	int i;
 
@@ -922,7 +922,7 @@ static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
 	phy->port = NULL;
 	phy->minimum_linkrate = SAS_LINK_RATE_1_5_GBPS;
 	phy->maximum_linkrate = hisi_hba->hw->phy_get_max_linkrate();
-	sas_phy->enabled = (phy_no < hisi_hba->n_phy) ? 1 : 0;
+	sas_phy->enabled = (phy_yes < hisi_hba->n_phy) ? 1 : 0;
 	sas_phy->class = SAS;
 	sas_phy->iproto = SAS_PROTOCOL_ALL;
 	sas_phy->tproto = 0;
@@ -930,7 +930,7 @@ static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
 	sas_phy->role = PHY_ROLE_INITIATOR;
 	sas_phy->oob_mode = OOB_NOT_CONNECTED;
 	sas_phy->linkrate = SAS_LINK_RATE_UNKNOWN;
-	sas_phy->id = phy_no;
+	sas_phy->id = phy_yes;
 	sas_phy->sas_addr = &hisi_hba->sas_addr[0];
 	sas_phy->frame_rcvd = &phy->frame_rcvd[0];
 	sas_phy->ha = (struct sas_ha_struct *)hisi_hba->shost->hostdata;
@@ -945,9 +945,9 @@ static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
 }
 
 /* Wrapper to ensure we track hisi_sas_phy.enable properly */
-void hisi_sas_phy_enable(struct hisi_hba *hisi_hba, int phy_no, int enable)
+void hisi_sas_phy_enable(struct hisi_hba *hisi_hba, int phy_yes, int enable)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_yes];
 	struct asd_sas_phy *aphy = &phy->sas_phy;
 	struct sas_phy *sphy = aphy->phy;
 	unsigned long flags;
@@ -958,17 +958,17 @@ void hisi_sas_phy_enable(struct hisi_hba *hisi_hba, int phy_no, int enable)
 		/* We may have been enabled already; if so, don't touch */
 		if (!phy->enable)
 			sphy->negotiated_linkrate = SAS_LINK_RATE_UNKNOWN;
-		hisi_hba->hw->phy_start(hisi_hba, phy_no);
+		hisi_hba->hw->phy_start(hisi_hba, phy_yes);
 	} else {
 		sphy->negotiated_linkrate = SAS_PHY_DISABLED;
-		hisi_hba->hw->phy_disable(hisi_hba, phy_no);
+		hisi_hba->hw->phy_disable(hisi_hba, phy_yes);
 	}
 	phy->enable = enable;
 	spin_unlock_irqrestore(&phy->lock, flags);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_phy_enable);
 
-static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy)
+static void hisi_sas_port_yestify_formed(struct asd_sas_phy *sas_phy)
 {
 	struct sas_ha_struct *sas_ha = sas_phy->ha;
 	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
@@ -1083,12 +1083,12 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	return hisi_sas_task_exec(task, gfp_flags, 0, NULL);
 }
 
-static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_no,
+static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_yes,
 			struct sas_phy_linkrates *r)
 {
 	struct sas_phy_linkrates _r;
 
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_yes];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	enum sas_linkrate min, max;
 
@@ -1110,10 +1110,10 @@ static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_no,
 	sas_phy->phy->maximum_linkrate = max;
 	sas_phy->phy->minimum_linkrate = min;
 
-	hisi_sas_phy_enable(hisi_hba, phy_no, 0);
+	hisi_sas_phy_enable(hisi_hba, phy_yes, 0);
 	msleep(100);
-	hisi_hba->hw->phy_set_linkrate(hisi_hba, phy_no, &_r);
-	hisi_sas_phy_enable(hisi_hba, phy_no, 1);
+	hisi_hba->hw->phy_set_linkrate(hisi_hba, phy_yes, &_r);
+	hisi_sas_phy_enable(hisi_hba, phy_yes, 1);
 
 	return 0;
 }
@@ -1123,28 +1123,28 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 {
 	struct sas_ha_struct *sas_ha = sas_phy->ha;
 	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
-	int phy_no = sas_phy->id;
+	int phy_yes = sas_phy->id;
 
 	switch (func) {
 	case PHY_FUNC_HARD_RESET:
-		hisi_hba->hw->phy_hard_reset(hisi_hba, phy_no);
+		hisi_hba->hw->phy_hard_reset(hisi_hba, phy_yes);
 		break;
 
 	case PHY_FUNC_LINK_RESET:
-		hisi_sas_phy_enable(hisi_hba, phy_no, 0);
+		hisi_sas_phy_enable(hisi_hba, phy_yes, 0);
 		msleep(100);
-		hisi_sas_phy_enable(hisi_hba, phy_no, 1);
+		hisi_sas_phy_enable(hisi_hba, phy_yes, 1);
 		break;
 
 	case PHY_FUNC_DISABLE:
-		hisi_sas_phy_enable(hisi_hba, phy_no, 0);
+		hisi_sas_phy_enable(hisi_hba, phy_yes, 0);
 		break;
 
 	case PHY_FUNC_SET_LINK_RATE:
-		return hisi_sas_phy_set_linkrate(hisi_hba, phy_no, funcdata);
+		return hisi_sas_phy_set_linkrate(hisi_hba, phy_yes, funcdata);
 	case PHY_FUNC_GET_EVENTS:
 		if (hisi_hba->hw->get_events) {
-			hisi_hba->hw->get_events(hisi_hba, phy_no);
+			hisi_hba->hw->get_events(hisi_hba, phy_yes);
 			break;
 		}
 		/* fallthru */
@@ -1228,7 +1228,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 				struct hisi_sas_slot *slot = task->lldd_task;
 
-				dev_err(dev, "abort tmf: TMF task timeout and not done\n");
+				dev_err(dev, "abort tmf: TMF task timeout and yest done\n");
 				if (slot) {
 					struct hisi_sas_cq *cq =
 					       &hisi_hba->cq[slot->dlvry_queue];
@@ -1259,7 +1259,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
 		      task->task_status.stat == SAS_DATA_UNDERRUN) {
-			/* no error, but return the number of bytes of
+			/* yes error, but return the number of bytes of
 			 * underrun
 			 */
 			dev_warn(dev, "abort tmf: task to dev %016llx resp: 0x%x sts 0x%x underrun\n",
@@ -1407,10 +1407,10 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 {
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 	struct asd_sas_port *_sas_port = NULL;
-	int phy_no;
+	int phy_yes;
 
-	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
-		struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	for (phy_yes = 0; phy_yes < hisi_hba->n_phy; phy_yes++) {
+		struct hisi_sas_phy *phy = &hisi_hba->phy[phy_yes];
 		struct asd_sas_phy *sas_phy = &phy->sas_phy;
 		struct asd_sas_port *sas_port = sas_phy->port;
 		bool do_port_check = _sas_port != sas_port;
@@ -1419,18 +1419,18 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 			continue;
 
 		/* Report PHY state change to libsas */
-		if (state & BIT(phy_no)) {
+		if (state & BIT(phy_yes)) {
 			if (do_port_check && sas_port && sas_port->port_dev) {
 				struct domain_device *dev = sas_port->port_dev;
 
 				_sas_port = sas_port;
 
 				if (dev_is_expander(dev->dev_type))
-					sas_ha->notify_port_event(sas_phy,
+					sas_ha->yestify_port_event(sas_phy,
 							PORTE_BROADCAST_RCVD);
 			}
 		} else {
-			hisi_sas_phy_down(hisi_hba, phy_no, 0);
+			hisi_sas_phy_down(hisi_hba, phy_yes, 0);
 		}
 
 	}
@@ -1491,7 +1491,7 @@ static void hisi_sas_send_ata_reset_each_phy(struct hisi_hba *hisi_hba,
 static void hisi_sas_terminate_stp_reject(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
-	int port_no, rc, i;
+	int port_yes, rc, i;
 
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
 		struct hisi_sas_device *sas_dev = &hisi_hba->devices[i];
@@ -1506,8 +1506,8 @@ static void hisi_sas_terminate_stp_reject(struct hisi_hba *hisi_hba)
 			dev_err(dev, "STP reject: abort dev failed %d\n", rc);
 	}
 
-	for (port_no = 0; port_no < hisi_hba->n_phy; port_no++) {
-		struct hisi_sas_port *port = &hisi_hba->port[port_no];
+	for (port_yes = 0; port_yes < hisi_hba->n_phy; port_yes++) {
+		struct hisi_sas_port *port = &hisi_hba->port[port_yes];
 		struct asd_sas_port *sas_port = &port->sas_port;
 		struct domain_device *port_dev = sas_port->port_dev;
 		struct domain_device *device;
@@ -1517,7 +1517,7 @@ static void hisi_sas_terminate_stp_reject(struct hisi_hba *hisi_hba)
 
 		/* Try to find a SATA device */
 		list_for_each_entry(device, &sas_port->dev_list,
-				    dev_list_node) {
+				    dev_list_yesde) {
 			if (dev_is_sata(device)) {
 				hisi_sas_send_ata_reset_each_phy(hisi_hba,
 								 sas_port,
@@ -1660,8 +1660,8 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		}
 
 		/*
-		 * If the TMF finds that the IO is not in the device and also
-		 * the internal abort does not succeed, then it is safe to
+		 * If the TMF finds that the IO is yest in the device and also
+		 * the internal abort does yest succeed, then it is safe to
 		 * free the slot.
 		 * Note: if the internal abort succeeds then the slot
 		 * will have already been completed
@@ -1704,7 +1704,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 
 out:
 	if (rc != TMF_RESP_FUNC_COMPLETE)
-		dev_notice(dev, "abort task: rc=%d\n", rc);
+		dev_yestice(dev, "abort task: rc=%d\n", rc);
 	return rc;
 }
 
@@ -1921,7 +1921,7 @@ static int hisi_sas_query_task(struct sas_task *task)
 		switch (rc) {
 		/* The task is still in Lun, release it then */
 		case TMF_RESP_FUNC_SUCC:
-		/* The task is not in Lun or failed, reset the phy */
+		/* The task is yest in Lun or failed, reset the phy */
 		case TMF_RESP_FUNC_FAILED:
 		case TMF_RESP_FUNC_COMPLETE:
 			break;
@@ -2034,7 +2034,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	int res;
 
 	/*
-	 * The interface is not realized means this HW don't support internal
+	 * The interface is yest realized means this HW don't support internal
 	 * abort, or don't need to do internal abort. Then here, we return
 	 * TMF_RESP_FUNC_FAILED and let other steps go on, which depends that
 	 * the internal abort has been executed and returned CQ.
@@ -2082,7 +2082,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 				tasklet_kill(&cq->tasklet);
 				slot->task = NULL;
 			}
-			dev_err(dev, "internal task abort: timeout and not done.\n");
+			dev_err(dev, "internal task abort: timeout and yest done.\n");
 
 			res = -EIO;
 			goto exit;
@@ -2154,7 +2154,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 
 static void hisi_sas_port_formed(struct asd_sas_phy *sas_phy)
 {
-	hisi_sas_port_notify_formed(sas_phy);
+	hisi_sas_port_yestify_formed(sas_phy);
 }
 
 static int hisi_sas_write_gpio(struct sas_ha_struct *sha, u8 reg_type,
@@ -2187,27 +2187,27 @@ static void hisi_sas_phy_disconnected(struct hisi_sas_phy *phy)
 	spin_unlock_irqrestore(&phy->lock, flags);
 }
 
-void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
+void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_yes, int rdy)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_yes];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 	struct device *dev = hisi_hba->dev;
 
 	if (rdy) {
 		/* Phy down but ready */
-		hisi_sas_bytes_dmaed(hisi_hba, phy_no);
-		hisi_sas_port_notify_formed(sas_phy);
+		hisi_sas_bytes_dmaed(hisi_hba, phy_yes);
+		hisi_sas_port_yestify_formed(sas_phy);
 	} else {
 		struct hisi_sas_port *port  = phy->port;
 
 		if (test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags) ||
 		    phy->in_reset) {
-			dev_info(dev, "ignore flutter phy%d down\n", phy_no);
+			dev_info(dev, "igyesre flutter phy%d down\n", phy_yes);
 			return;
 		}
-		/* Phy down and not ready */
-		sas_ha->notify_phy_event(sas_phy, PHYE_LOSS_OF_SIGNAL);
+		/* Phy down and yest ready */
+		sas_ha->yestify_phy_event(sas_phy, PHYE_LOSS_OF_SIGNAL);
 		sas_phy_disconnected(sas_phy);
 
 		if (port) {
@@ -2490,12 +2490,12 @@ int hisi_sas_get_fw_info(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
 	struct platform_device *pdev = hisi_hba->platform_dev;
-	struct device_node *np = pdev ? pdev->dev.of_node : NULL;
+	struct device_yesde *np = pdev ? pdev->dev.of_yesde : NULL;
 	struct clk *refclk;
 
 	if (device_property_read_u8_array(dev, "sas-addr", hisi_hba->sas_addr,
 					  SAS_ADDR_SIZE)) {
-		dev_err(dev, "could not get property sas-addr\n");
+		dev_err(dev, "could yest get property sas-addr\n");
 		return -ENOENT;
 	}
 
@@ -2507,43 +2507,43 @@ int hisi_sas_get_fw_info(struct hisi_hba *hisi_hba)
 		hisi_hba->ctrl = syscon_regmap_lookup_by_phandle(np,
 					"hisilicon,sas-syscon");
 		if (IS_ERR(hisi_hba->ctrl)) {
-			dev_err(dev, "could not get syscon\n");
+			dev_err(dev, "could yest get syscon\n");
 			return -ENOENT;
 		}
 
 		if (device_property_read_u32(dev, "ctrl-reset-reg",
 					     &hisi_hba->ctrl_reset_reg)) {
-			dev_err(dev, "could not get property ctrl-reset-reg\n");
+			dev_err(dev, "could yest get property ctrl-reset-reg\n");
 			return -ENOENT;
 		}
 
 		if (device_property_read_u32(dev, "ctrl-reset-sts-reg",
 					     &hisi_hba->ctrl_reset_sts_reg)) {
-			dev_err(dev, "could not get property ctrl-reset-sts-reg\n");
+			dev_err(dev, "could yest get property ctrl-reset-sts-reg\n");
 			return -ENOENT;
 		}
 
 		if (device_property_read_u32(dev, "ctrl-clock-ena-reg",
 					     &hisi_hba->ctrl_clock_ena_reg)) {
-			dev_err(dev, "could not get property ctrl-clock-ena-reg\n");
+			dev_err(dev, "could yest get property ctrl-clock-ena-reg\n");
 			return -ENOENT;
 		}
 	}
 
 	refclk = devm_clk_get(dev, NULL);
 	if (IS_ERR(refclk))
-		dev_dbg(dev, "no ref clk property\n");
+		dev_dbg(dev, "yes ref clk property\n");
 	else
 		hisi_hba->refclk_frequency_mhz = clk_get_rate(refclk) / 1000000;
 
 	if (device_property_read_u32(dev, "phy-count", &hisi_hba->n_phy)) {
-		dev_err(dev, "could not get property phy-count\n");
+		dev_err(dev, "could yest get property phy-count\n");
 		return -ENOENT;
 	}
 
 	if (device_property_read_u32(dev, "queue-count",
 				     &hisi_hba->queue_count)) {
-		dev_err(dev, "could not get property queue-count\n");
+		dev_err(dev, "could yest get property queue-count\n");
 		return -ENOENT;
 	}
 
@@ -2873,10 +2873,10 @@ static int hisi_sas_debugfs_global_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int hisi_sas_debugfs_global_open(struct inode *inode, struct file *filp)
+static int hisi_sas_debugfs_global_open(struct iyesde *iyesde, struct file *filp)
 {
 	return single_open(filp, hisi_sas_debugfs_global_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_global_fops = {
@@ -2900,10 +2900,10 @@ static int hisi_sas_debugfs_axi_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int hisi_sas_debugfs_axi_open(struct inode *inode, struct file *filp)
+static int hisi_sas_debugfs_axi_open(struct iyesde *iyesde, struct file *filp)
 {
 	return single_open(filp, hisi_sas_debugfs_axi_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_axi_fops = {
@@ -2927,10 +2927,10 @@ static int hisi_sas_debugfs_ras_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int hisi_sas_debugfs_ras_open(struct inode *inode, struct file *filp)
+static int hisi_sas_debugfs_ras_open(struct iyesde *iyesde, struct file *filp)
 {
 	return single_open(filp, hisi_sas_debugfs_ras_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_ras_fops = {
@@ -2954,9 +2954,9 @@ static int hisi_sas_debugfs_port_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int hisi_sas_debugfs_port_open(struct inode *inode, struct file *filp)
+static int hisi_sas_debugfs_port_open(struct iyesde *iyesde, struct file *filp)
 {
-	return single_open(filp, hisi_sas_debugfs_port_show, inode->i_private);
+	return single_open(filp, hisi_sas_debugfs_port_show, iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_port_fops = {
@@ -2972,7 +2972,7 @@ static void hisi_sas_show_row_64(struct seq_file *s, int index,
 {
 	int i;
 
-	/* completion header size not fixed per HW version */
+	/* completion header size yest fixed per HW version */
 	seq_printf(s, "index %04d:\n\t", index);
 	for (i = 1; i <= sz / 8; i++, ptr++) {
 		seq_printf(s, " 0x%016llx", le64_to_cpu(*ptr));
@@ -2988,7 +2988,7 @@ static void hisi_sas_show_row_32(struct seq_file *s, int index,
 {
 	int i;
 
-	/* completion header size not fixed per HW version */
+	/* completion header size yest fixed per HW version */
 	seq_printf(s, "index %04d:\n\t", index);
 	for (i = 1; i <= sz / 4; i++, ptr++) {
 		seq_printf(s, " 0x%08x", le32_to_cpu(*ptr));
@@ -3022,9 +3022,9 @@ static int hisi_sas_debugfs_cq_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int hisi_sas_debugfs_cq_open(struct inode *inode, struct file *filp)
+static int hisi_sas_debugfs_cq_open(struct iyesde *iyesde, struct file *filp)
 {
-	return single_open(filp, hisi_sas_debugfs_cq_show, inode->i_private);
+	return single_open(filp, hisi_sas_debugfs_cq_show, iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_cq_fops = {
@@ -3055,9 +3055,9 @@ static int hisi_sas_debugfs_dq_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int hisi_sas_debugfs_dq_open(struct inode *inode, struct file *filp)
+static int hisi_sas_debugfs_dq_open(struct iyesde *iyesde, struct file *filp)
 {
-	return single_open(filp, hisi_sas_debugfs_dq_show, inode->i_private);
+	return single_open(filp, hisi_sas_debugfs_dq_show, iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_dq_fops = {
@@ -3083,9 +3083,9 @@ static int hisi_sas_debugfs_iost_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int hisi_sas_debugfs_iost_open(struct inode *inode, struct file *filp)
+static int hisi_sas_debugfs_iost_open(struct iyesde *iyesde, struct file *filp)
 {
-	return single_open(filp, hisi_sas_debugfs_iost_show, inode->i_private);
+	return single_open(filp, hisi_sas_debugfs_iost_show, iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_iost_fops = {
@@ -3120,11 +3120,11 @@ static int hisi_sas_debugfs_iost_cache_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int hisi_sas_debugfs_iost_cache_open(struct inode *inode,
+static int hisi_sas_debugfs_iost_cache_open(struct iyesde *iyesde,
 					    struct file *filp)
 {
 	return single_open(filp, hisi_sas_debugfs_iost_cache_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_iost_cache_fops = {
@@ -3150,9 +3150,9 @@ static int hisi_sas_debugfs_itct_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int hisi_sas_debugfs_itct_open(struct inode *inode, struct file *filp)
+static int hisi_sas_debugfs_itct_open(struct iyesde *iyesde, struct file *filp)
 {
-	return single_open(filp, hisi_sas_debugfs_itct_show, inode->i_private);
+	return single_open(filp, hisi_sas_debugfs_itct_show, iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_itct_fops = {
@@ -3187,11 +3187,11 @@ static int hisi_sas_debugfs_itct_cache_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int hisi_sas_debugfs_itct_cache_open(struct inode *inode,
+static int hisi_sas_debugfs_itct_cache_open(struct iyesde *iyesde,
 					    struct file *filp)
 {
 	return single_open(filp, hisi_sas_debugfs_itct_cache_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_itct_cache_fops = {
@@ -3305,7 +3305,7 @@ static ssize_t hisi_sas_debugfs_trigger_dump_write(struct file *file,
 						   const char __user *user_buf,
 						   size_t count, loff_t *ppos)
 {
-	struct hisi_hba *hisi_hba = file->f_inode->i_private;
+	struct hisi_hba *hisi_hba = file->f_iyesde->i_private;
 	char buf[8];
 
 	if (hisi_hba->debugfs_dump_index >= hisi_sas_debugfs_dump_count)
@@ -3416,11 +3416,11 @@ static ssize_t hisi_sas_debugfs_bist_linkrate_write(struct file *filp,
 	return count;
 }
 
-static int hisi_sas_debugfs_bist_linkrate_open(struct inode *inode,
+static int hisi_sas_debugfs_bist_linkrate_open(struct iyesde *iyesde,
 					       struct file *filp)
 {
 	return single_open(filp, hisi_sas_debugfs_bist_linkrate_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_bist_linkrate_ops = {
@@ -3506,11 +3506,11 @@ static ssize_t hisi_sas_debugfs_bist_code_mode_write(struct file *filp,
 	return count;
 }
 
-static int hisi_sas_debugfs_bist_code_mode_open(struct inode *inode,
+static int hisi_sas_debugfs_bist_code_mode_open(struct iyesde *iyesde,
 						struct file *filp)
 {
 	return single_open(filp, hisi_sas_debugfs_bist_code_mode_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_bist_code_mode_ops = {
@@ -3528,20 +3528,20 @@ static ssize_t hisi_sas_debugfs_bist_phy_write(struct file *filp,
 {
 	struct seq_file *m = filp->private_data;
 	struct hisi_hba *hisi_hba = m->private;
-	unsigned int phy_no;
+	unsigned int phy_yes;
 	int val;
 
 	if (hisi_hba->debugfs_bist_enable)
 		return -EPERM;
 
-	val = kstrtouint_from_user(buf, count, 0, &phy_no);
+	val = kstrtouint_from_user(buf, count, 0, &phy_yes);
 	if (val)
 		return val;
 
-	if (phy_no >= hisi_hba->n_phy)
+	if (phy_yes >= hisi_hba->n_phy)
 		return -EINVAL;
 
-	hisi_hba->debugfs_bist_phy_no = phy_no;
+	hisi_hba->debugfs_bist_phy_yes = phy_yes;
 
 	return count;
 }
@@ -3550,16 +3550,16 @@ static int hisi_sas_debugfs_bist_phy_show(struct seq_file *s, void *p)
 {
 	struct hisi_hba *hisi_hba = s->private;
 
-	seq_printf(s, "%d\n", hisi_hba->debugfs_bist_phy_no);
+	seq_printf(s, "%d\n", hisi_hba->debugfs_bist_phy_yes);
 
 	return 0;
 }
 
-static int hisi_sas_debugfs_bist_phy_open(struct inode *inode,
+static int hisi_sas_debugfs_bist_phy_open(struct iyesde *iyesde,
 					  struct file *filp)
 {
 	return single_open(filp, hisi_sas_debugfs_bist_phy_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_bist_phy_ops = {
@@ -3634,11 +3634,11 @@ static ssize_t hisi_sas_debugfs_bist_mode_write(struct file *filp,
 	return count;
 }
 
-static int hisi_sas_debugfs_bist_mode_open(struct inode *inode,
+static int hisi_sas_debugfs_bist_mode_open(struct iyesde *iyesde,
 					   struct file *filp)
 {
 	return single_open(filp, hisi_sas_debugfs_bist_mode_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_bist_mode_ops = {
@@ -3690,11 +3690,11 @@ static int hisi_sas_debugfs_bist_enable_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int hisi_sas_debugfs_bist_enable_open(struct inode *inode,
+static int hisi_sas_debugfs_bist_enable_open(struct iyesde *iyesde,
 					     struct file *filp)
 {
 	return single_open(filp, hisi_sas_debugfs_bist_enable_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_bist_enable_ops = {
@@ -3736,11 +3736,11 @@ static int hisi_sas_debugfs_phy_down_cnt_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int hisi_sas_debugfs_phy_down_cnt_open(struct inode *inode,
+static int hisi_sas_debugfs_phy_down_cnt_open(struct iyesde *iyesde,
 					      struct file *filp)
 {
 	return single_open(filp, hisi_sas_debugfs_phy_down_cnt_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static const struct file_operations hisi_sas_debugfs_phy_down_cnt_ops = {
@@ -3891,12 +3891,12 @@ static void hisi_sas_debugfs_phy_down_cnt_init(struct hisi_hba *hisi_hba)
 	struct dentry *dir = debugfs_create_dir("phy_down_cnt",
 						hisi_hba->debugfs_dir);
 	char name[16];
-	int phy_no;
+	int phy_yes;
 
-	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
-		snprintf(name, 16, "%d", phy_no);
+	for (phy_yes = 0; phy_yes < hisi_hba->n_phy; phy_yes++) {
+		snprintf(name, 16, "%d", phy_yes);
 		debugfs_create_file(name, 0600, dir,
-				    &hisi_hba->phy[phy_no],
+				    &hisi_hba->phy[phy_yes],
 				    &hisi_sas_debugfs_phy_down_cnt_ops);
 	}
 }

@@ -48,7 +48,7 @@
 
 /* Definitions of the predefined namespace names  */
 
-#define ACPI_UNKNOWN_NAME       (u32) 0x3F3F3F3F	/* Unknown name is "????" */
+#define ACPI_UNKNOWN_NAME       (u32) 0x3F3F3F3F	/* Unkyeswn name is "????" */
 #define ACPI_PREFIX_MIXED       (u32) 0x69706341	/* "Acpi" */
 #define ACPI_PREFIX_LOWER       (u32) 0x69706361	/* "acpi" */
 

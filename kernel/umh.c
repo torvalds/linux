@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/resource.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/suspend.h>
 #include <linux/rwsem.h>
 #include <linux/ptrace.h>
@@ -130,7 +130,7 @@ static void call_usermodehelper_exec_sync(struct subprocess_info *sub_info)
 {
 	pid_t pid;
 
-	/* If SIGCLD is ignored kernel_wait4 won't populate the status. */
+	/* If SIGCLD is igyesred kernel_wait4 won't populate the status. */
 	kernel_sigaction(SIGCHLD, SIG_DFL);
 	pid = kernel_thread(call_usermodehelper_exec_async, sub_info, SIGCHLD);
 	if (pid < 0) {
@@ -166,7 +166,7 @@ static void call_usermodehelper_exec_sync(struct subprocess_info *sub_info)
 
 /*
  * We need to create the usermodehelper kernel thread from a task that is affine
- * to an optimized set of CPUs (or nohz housekeeping ones) such that they
+ * to an optimized set of CPUs (or yeshz housekeeping ones) such that they
  * inherit a widest affinity irrespective of call_usermodehelper() callers with
  * possibly reduced affinity (eg: per-cpu workqueues). We don't want
  * usermodehelper targets to contend a busy CPU.
@@ -174,7 +174,7 @@ static void call_usermodehelper_exec_sync(struct subprocess_info *sub_info)
  * Unbound workqueues provide such wide affinity and allow to block on
  * UMH_WAIT_PROC requests without blocking pending request (up to some limit).
  *
- * Besides, workqueues provide the privilege level that caller might not have
+ * Besides, workqueues provide the privilege level that caller might yest have
  * to perform the usermodehelper request.
  *
  */
@@ -188,9 +188,9 @@ static void call_usermodehelper_exec_work(struct work_struct *work)
 	} else {
 		pid_t pid;
 		/*
-		 * Use CLONE_PARENT to reparent it to kthreadd; we do not
+		 * Use CLONE_PARENT to reparent it to kthreadd; we do yest
 		 * want to pollute current->children, and we need a parent
-		 * that always ignores SIGCHLD to ensure auto-reaping.
+		 * that always igyesres SIGCHLD to ensure auto-reaping.
 		 */
 		pid = kernel_thread(call_usermodehelper_exec_async, sub_info,
 				    CLONE_PARENT | SIGCHLD);
@@ -326,7 +326,7 @@ int __usermodehelper_disable(enum umh_disable_depth depth)
 	up_write(&umhelper_sem);
 
 	/*
-	 * From now on call_usermodehelper_exec() won't start any new
+	 * From yesw on call_usermodehelper_exec() won't start any new
 	 * helpers, so it is sufficient if running_helpers turns out to
 	 * be zero at one point (it may be increased later, but that
 	 * doesn't matter).
@@ -368,7 +368,7 @@ static void helper_unlock(void)
  * exec the process and free the structure.
  *
  * The init function is used to customize the helper process prior to
- * exec.  A non-zero return code causes the process to error out, exit,
+ * exec.  A yesn-zero return code causes the process to error out, exit,
  * and return the failure to the calling process
  *
  * The cleanup function is just before ethe subprocess_info is about to
@@ -424,7 +424,7 @@ struct subprocess_info *call_usermodehelper_setup_file(struct file *file,
 	}
 
 	INIT_WORK(&sub_info->work, call_usermodehelper_exec_work);
-	sub_info->path = "none";
+	sub_info->path = "yesne";
 	sub_info->file = file;
 	sub_info->init = init;
 	sub_info->cleanup = cleanup;
@@ -493,7 +493,7 @@ static void umh_clean_and_save_pid(struct subprocess_info *info)
  * case 'struct umh_info *info' is populated with two pipes
  * and a pid of the process. The caller is responsible for health
  * check of the user process, killing it via pid, and closing the
- * pipes when user process is no longer needed.
+ * pipes when user process is yes longer needed.
  */
 int fork_usermode_blob(void *data, size_t len, struct umh_info *info)
 {
@@ -537,12 +537,12 @@ EXPORT_SYMBOL_GPL(fork_usermode_blob);
  * call_usermodehelper_exec - start a usermode application
  * @sub_info: information about the subprocessa
  * @wait: wait for the application to finish and return status.
- *        when UMH_NO_WAIT don't wait at all, but you get no useful error back
+ *        when UMH_NO_WAIT don't wait at all, but you get yes useful error back
  *        when the program couldn't be exec'ed. This makes it safe to call
  *        from interrupt context.
  *
  * Runs a user-space application.  The application is started
- * asynchronously if wait is not set, and runs as a child of system workqueues.
+ * asynchroyesusly if wait is yest set, and runs as a child of system workqueues.
  * (ie. it runs with full root capabilities and optimized affinity).
  */
 int call_usermodehelper_exec(struct subprocess_info *sub_info, int wait)
@@ -561,7 +561,7 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info, int wait)
 	}
 
 	/*
-	 * If there is no binary for us to call, then just return and get out of
+	 * If there is yes binary for us to call, then just return and get out of
 	 * here.  This allows us to set STATIC_USERMODEHELPER_PATH to "" and
 	 * disable all call_usermodehelper() calls.
 	 */
@@ -608,7 +608,7 @@ EXPORT_SYMBOL(call_usermodehelper_exec);
  * @argv: arg vector for process
  * @envp: environment for process
  * @wait: wait for the application to finish and return status.
- *        when UMH_NO_WAIT don't wait at all, but you get no useful error back
+ *        when UMH_NO_WAIT don't wait at all, but you get yes useful error back
  *        when the program couldn't be exec'ed. This makes it safe to call
  *        from interrupt context.
  *
@@ -675,7 +675,7 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 		new_cap.cap[i] = cap_array[i];
 
 	/*
-	 * Drop everything not in the new_cap (but don't add things)
+	 * Drop everything yest in the new_cap (but don't add things)
 	 */
 	if (write) {
 		spin_lock(&umh_sysctl_lock);

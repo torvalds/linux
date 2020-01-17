@@ -3,7 +3,7 @@
  *
  * Author: Baruch Siach <baruch@tkos.co.il>
  *
- * Copyright (C) 2014 Paradox Innovation Ltd.
+ * Copyright (C) 2014 Paradox Inyesvation Ltd.
  *
  * Based on:
  *	Allwinner SoCs hstimer driver
@@ -144,12 +144,12 @@ static irqreturn_t digicolor_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static u64 notrace digicolor_timer_sched_read(void)
+static u64 yestrace digicolor_timer_sched_read(void)
 {
 	return ~readl(dc_timer_dev.base + COUNT(TIMER_B));
 }
 
-static int __init digicolor_timer_init(struct device_node *node)
+static int __init digicolor_timer_init(struct device_yesde *yesde)
 {
 	unsigned long rate;
 	struct clk *clk;
@@ -159,19 +159,19 @@ static int __init digicolor_timer_init(struct device_node *node)
 	 * timer registers are shared with the watchdog timer;
 	 * don't map exclusively
 	 */
-	dc_timer_dev.base = of_iomap(node, 0);
+	dc_timer_dev.base = of_iomap(yesde, 0);
 	if (!dc_timer_dev.base) {
 		pr_err("Can't map registers\n");
 		return -ENXIO;
 	}
 
-	irq = irq_of_parse_and_map(node, dc_timer_dev.timer_id);
+	irq = irq_of_parse_and_map(yesde, dc_timer_dev.timer_id);
 	if (irq <= 0) {
 		pr_err("Can't parse IRQ\n");
 		return -EINVAL;
 	}
 
-	clk = of_clk_get(node, 0);
+	clk = of_clk_get(yesde, 0);
 	if (IS_ERR(clk)) {
 		pr_err("Can't get timer clock\n");
 		return PTR_ERR(clk);
@@ -185,7 +185,7 @@ static int __init digicolor_timer_init(struct device_node *node)
 	writeb(CONTROL_ENABLE, dc_timer_dev.base + CONTROL(TIMER_B));
 
 	sched_clock_register(digicolor_timer_sched_read, 32, rate);
-	clocksource_mmio_init(dc_timer_dev.base + COUNT(TIMER_B), node->name,
+	clocksource_mmio_init(dc_timer_dev.base + COUNT(TIMER_B), yesde->name,
 			      rate, 340, 32, clocksource_mmio_readl_down);
 
 	ret = request_irq(irq, digicolor_timer_interrupt,

@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_acl.h"
 #include "xfs_quota.h"
 #include "xfs_attr.h"
@@ -36,17 +36,17 @@
  * block mapping. Hence we need a different class for the directory ilock so
  * that lockdep can tell them apart.
  */
-static struct lock_class_key xfs_nondir_ilock_class;
+static struct lock_class_key xfs_yesndir_ilock_class;
 static struct lock_class_key xfs_dir_ilock_class;
 
 static int
 xfs_initxattrs(
-	struct inode		*inode,
+	struct iyesde		*iyesde,
 	const struct xattr	*xattr_array,
 	void			*fs_info)
 {
 	const struct xattr	*xattr;
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	int			error = 0;
 
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
@@ -59,19 +59,19 @@ xfs_initxattrs(
 }
 
 /*
- * Hook in SELinux.  This is not quite correct yet, what we really need
+ * Hook in SELinux.  This is yest quite correct yet, what we really need
  * here (as we do for default ACLs) is a mechanism by which creation of
- * these attrs can be journalled at inode creation time (along with the
- * inode, of course, such that log replay can't cause these to be lost).
+ * these attrs can be journalled at iyesde creation time (along with the
+ * iyesde, of course, such that log replay can't cause these to be lost).
  */
 
 STATIC int
 xfs_init_security(
-	struct inode	*inode,
-	struct inode	*dir,
+	struct iyesde	*iyesde,
+	struct iyesde	*dir,
 	const struct qstr *qstr)
 {
-	return security_inode_init_security(inode, dir, qstr,
+	return security_iyesde_init_security(iyesde, dir, qstr,
 					     &xfs_initxattrs, NULL);
 }
 
@@ -102,9 +102,9 @@ xfs_dentry_mode_to_name(
 }
 
 STATIC void
-xfs_cleanup_inode(
-	struct inode	*dir,
-	struct inode	*inode,
+xfs_cleanup_iyesde(
+	struct iyesde	*dir,
+	struct iyesde	*iyesde,
 	struct dentry	*dentry)
 {
 	struct xfs_name	teardown;
@@ -116,19 +116,19 @@ xfs_cleanup_inode(
 	 */
 	xfs_dentry_to_name(&teardown, dentry);
 
-	xfs_remove(XFS_I(dir), &teardown, XFS_I(inode));
+	xfs_remove(XFS_I(dir), &teardown, XFS_I(iyesde));
 }
 
 STATIC int
 xfs_generic_create(
-	struct inode	*dir,
+	struct iyesde	*dir,
 	struct dentry	*dentry,
 	umode_t		mode,
 	dev_t		rdev,
 	bool		tmpfile)	/* unnamed file */
 {
-	struct inode	*inode;
-	struct xfs_inode *ip = NULL;
+	struct iyesde	*iyesde;
+	struct xfs_iyesde *ip = NULL;
 	struct posix_acl *default_acl, *acl;
 	struct xfs_name	name;
 	int		error;
@@ -161,22 +161,22 @@ xfs_generic_create(
 	if (unlikely(error))
 		goto out_free_acl;
 
-	inode = VFS_I(ip);
+	iyesde = VFS_I(ip);
 
-	error = xfs_init_security(inode, dir, &dentry->d_name);
+	error = xfs_init_security(iyesde, dir, &dentry->d_name);
 	if (unlikely(error))
-		goto out_cleanup_inode;
+		goto out_cleanup_iyesde;
 
 #ifdef CONFIG_XFS_POSIX_ACL
 	if (default_acl) {
-		error = __xfs_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+		error = __xfs_set_acl(iyesde, default_acl, ACL_TYPE_DEFAULT);
 		if (error)
-			goto out_cleanup_inode;
+			goto out_cleanup_iyesde;
 	}
 	if (acl) {
-		error = __xfs_set_acl(inode, acl, ACL_TYPE_ACCESS);
+		error = __xfs_set_acl(iyesde, acl, ACL_TYPE_ACCESS);
 		if (error)
-			goto out_cleanup_inode;
+			goto out_cleanup_iyesde;
 	}
 #endif
 
@@ -184,19 +184,19 @@ xfs_generic_create(
 
 	if (tmpfile) {
 		/*
-		 * The VFS requires that any inode fed to d_tmpfile must have
+		 * The VFS requires that any iyesde fed to d_tmpfile must have
 		 * nlink == 1 so that it can decrement the nlink in d_tmpfile.
 		 * However, we created the temp file with nlink == 0 because
-		 * we're not allowed to put an inode with nlink > 0 on the
+		 * we're yest allowed to put an iyesde with nlink > 0 on the
 		 * unlinked list.  Therefore we have to set nlink to 1 so that
 		 * d_tmpfile can immediately set it back to zero.
 		 */
-		set_nlink(inode, 1);
-		d_tmpfile(dentry, inode);
+		set_nlink(iyesde, 1);
+		d_tmpfile(dentry, iyesde);
 	} else
-		d_instantiate(dentry, inode);
+		d_instantiate(dentry, iyesde);
 
-	xfs_finish_inode_setup(ip);
+	xfs_finish_iyesde_setup(ip);
 
  out_free_acl:
 	if (default_acl)
@@ -205,17 +205,17 @@ xfs_generic_create(
 		posix_acl_release(acl);
 	return error;
 
- out_cleanup_inode:
-	xfs_finish_inode_setup(ip);
+ out_cleanup_iyesde:
+	xfs_finish_iyesde_setup(ip);
 	if (!tmpfile)
-		xfs_cleanup_inode(dir, inode, dentry);
+		xfs_cleanup_iyesde(dir, iyesde, dentry);
 	xfs_irele(ip);
 	goto out_free_acl;
 }
 
 STATIC int
-xfs_vn_mknod(
-	struct inode	*dir,
+xfs_vn_mkyesd(
+	struct iyesde	*dir,
 	struct dentry	*dentry,
 	umode_t		mode,
 	dev_t		rdev)
@@ -225,31 +225,31 @@ xfs_vn_mknod(
 
 STATIC int
 xfs_vn_create(
-	struct inode	*dir,
+	struct iyesde	*dir,
 	struct dentry	*dentry,
 	umode_t		mode,
 	bool		flags)
 {
-	return xfs_vn_mknod(dir, dentry, mode, 0);
+	return xfs_vn_mkyesd(dir, dentry, mode, 0);
 }
 
 STATIC int
 xfs_vn_mkdir(
-	struct inode	*dir,
+	struct iyesde	*dir,
 	struct dentry	*dentry,
 	umode_t		mode)
 {
-	return xfs_vn_mknod(dir, dentry, mode|S_IFDIR, 0);
+	return xfs_vn_mkyesd(dir, dentry, mode|S_IFDIR, 0);
 }
 
 STATIC struct dentry *
 xfs_vn_lookup(
-	struct inode	*dir,
+	struct iyesde	*dir,
 	struct dentry	*dentry,
 	unsigned int flags)
 {
-	struct inode *inode;
-	struct xfs_inode *cip;
+	struct iyesde *iyesde;
+	struct xfs_iyesde *cip;
 	struct xfs_name	name;
 	int		error;
 
@@ -259,21 +259,21 @@ xfs_vn_lookup(
 	xfs_dentry_to_name(&name, dentry);
 	error = xfs_lookup(XFS_I(dir), &name, &cip, NULL);
 	if (likely(!error))
-		inode = VFS_I(cip);
+		iyesde = VFS_I(cip);
 	else if (likely(error == -ENOENT))
-		inode = NULL;
+		iyesde = NULL;
 	else
-		inode = ERR_PTR(error);
-	return d_splice_alias(inode, dentry);
+		iyesde = ERR_PTR(error);
+	return d_splice_alias(iyesde, dentry);
 }
 
 STATIC struct dentry *
 xfs_vn_ci_lookup(
-	struct inode	*dir,
+	struct iyesde	*dir,
 	struct dentry	*dentry,
 	unsigned int flags)
 {
-	struct xfs_inode *ip;
+	struct xfs_iyesde *ip;
 	struct xfs_name	xname;
 	struct xfs_name ci_name;
 	struct qstr	dname;
@@ -289,7 +289,7 @@ xfs_vn_ci_lookup(
 			return ERR_PTR(error);
 		/*
 		 * call d_add(dentry, NULL) here when d_drop_negative_children
-		 * is called in xfs_vn_mknod (ie. allow negative dentries
+		 * is called in xfs_vn_mkyesd (ie. allow negative dentries
 		 * with CI filesystems).
 		 */
 		return NULL;
@@ -310,29 +310,29 @@ xfs_vn_ci_lookup(
 STATIC int
 xfs_vn_link(
 	struct dentry	*old_dentry,
-	struct inode	*dir,
+	struct iyesde	*dir,
 	struct dentry	*dentry)
 {
-	struct inode	*inode = d_inode(old_dentry);
+	struct iyesde	*iyesde = d_iyesde(old_dentry);
 	struct xfs_name	name;
 	int		error;
 
-	error = xfs_dentry_mode_to_name(&name, dentry, inode->i_mode);
+	error = xfs_dentry_mode_to_name(&name, dentry, iyesde->i_mode);
 	if (unlikely(error))
 		return error;
 
-	error = xfs_link(XFS_I(dir), XFS_I(inode), &name);
+	error = xfs_link(XFS_I(dir), XFS_I(iyesde), &name);
 	if (unlikely(error))
 		return error;
 
-	ihold(inode);
-	d_instantiate(dentry, inode);
+	ihold(iyesde);
+	d_instantiate(dentry, iyesde);
 	return 0;
 }
 
 STATIC int
 xfs_vn_unlink(
-	struct inode	*dir,
+	struct iyesde	*dir,
 	struct dentry	*dentry)
 {
 	struct xfs_name	name;
@@ -340,12 +340,12 @@ xfs_vn_unlink(
 
 	xfs_dentry_to_name(&name, dentry);
 
-	error = xfs_remove(XFS_I(dir), &name, XFS_I(d_inode(dentry)));
+	error = xfs_remove(XFS_I(dir), &name, XFS_I(d_iyesde(dentry)));
 	if (error)
 		return error;
 
 	/*
-	 * With unlink, the VFS makes the dentry "negative": no inode,
+	 * With unlink, the VFS makes the dentry "negative": yes iyesde,
 	 * but still hashed. This is incompatible with case-insensitive
 	 * mode, so invalidate (unhash) the dentry in CI-mode.
 	 */
@@ -356,12 +356,12 @@ xfs_vn_unlink(
 
 STATIC int
 xfs_vn_symlink(
-	struct inode	*dir,
+	struct iyesde	*dir,
 	struct dentry	*dentry,
 	const char	*symname)
 {
-	struct inode	*inode;
-	struct xfs_inode *cip = NULL;
+	struct iyesde	*iyesde;
+	struct xfs_iyesde *cip = NULL;
 	struct xfs_name	name;
 	int		error;
 	umode_t		mode;
@@ -376,21 +376,21 @@ xfs_vn_symlink(
 	if (unlikely(error))
 		goto out;
 
-	inode = VFS_I(cip);
+	iyesde = VFS_I(cip);
 
-	error = xfs_init_security(inode, dir, &dentry->d_name);
+	error = xfs_init_security(iyesde, dir, &dentry->d_name);
 	if (unlikely(error))
-		goto out_cleanup_inode;
+		goto out_cleanup_iyesde;
 
 	xfs_setup_iops(cip);
 
-	d_instantiate(dentry, inode);
-	xfs_finish_inode_setup(cip);
+	d_instantiate(dentry, iyesde);
+	xfs_finish_iyesde_setup(cip);
 	return 0;
 
- out_cleanup_inode:
-	xfs_finish_inode_setup(cip);
-	xfs_cleanup_inode(dir, inode, dentry);
+ out_cleanup_iyesde:
+	xfs_finish_iyesde_setup(cip);
+	xfs_cleanup_iyesde(dir, iyesde, dentry);
 	xfs_irele(cip);
  out:
 	return error;
@@ -398,13 +398,13 @@ xfs_vn_symlink(
 
 STATIC int
 xfs_vn_rename(
-	struct inode	*odir,
+	struct iyesde	*odir,
 	struct dentry	*odentry,
-	struct inode	*ndir,
+	struct iyesde	*ndir,
 	struct dentry	*ndentry,
 	unsigned int	flags)
 {
-	struct inode	*new_inode = d_inode(ndentry);
+	struct iyesde	*new_iyesde = d_iyesde(ndentry);
 	int		omode = 0;
 	int		error;
 	struct xfs_name	oname;
@@ -415,20 +415,20 @@ xfs_vn_rename(
 
 	/* if we are exchanging files, we need to set i_mode of both files */
 	if (flags & RENAME_EXCHANGE)
-		omode = d_inode(ndentry)->i_mode;
+		omode = d_iyesde(ndentry)->i_mode;
 
 	error = xfs_dentry_mode_to_name(&oname, odentry, omode);
 	if (omode && unlikely(error))
 		return error;
 
 	error = xfs_dentry_mode_to_name(&nname, ndentry,
-					d_inode(odentry)->i_mode);
+					d_iyesde(odentry)->i_mode);
 	if (unlikely(error))
 		return error;
 
-	return xfs_rename(XFS_I(odir), &oname, XFS_I(d_inode(odentry)),
+	return xfs_rename(XFS_I(odir), &oname, XFS_I(d_iyesde(odentry)),
 			  XFS_I(ndir), &nname,
-			  new_inode ? XFS_I(new_inode) : NULL, flags);
+			  new_iyesde ? XFS_I(new_iyesde) : NULL, flags);
 }
 
 /*
@@ -439,7 +439,7 @@ xfs_vn_rename(
 STATIC const char *
 xfs_vn_get_link(
 	struct dentry		*dentry,
-	struct inode		*inode,
+	struct iyesde		*iyesde,
 	struct delayed_call	*done)
 {
 	char			*link;
@@ -452,7 +452,7 @@ xfs_vn_get_link(
 	if (!link)
 		goto out_err;
 
-	error = xfs_readlink(XFS_I(d_inode(dentry)), link);
+	error = xfs_readlink(XFS_I(d_iyesde(dentry)), link);
 	if (unlikely(error))
 		goto out_kfree;
 
@@ -468,10 +468,10 @@ xfs_vn_get_link(
 STATIC const char *
 xfs_vn_get_link_inline(
 	struct dentry		*dentry,
-	struct inode		*inode,
+	struct iyesde		*iyesde,
 	struct delayed_call	*done)
 {
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	char			*link;
 
 	ASSERT(ip->i_df.if_flags & XFS_IFINLINE);
@@ -488,7 +488,7 @@ xfs_vn_get_link_inline(
 
 static uint32_t
 xfs_stat_blksize(
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 
@@ -508,7 +508,7 @@ xfs_stat_blksize(
 	 * user apps. Otherwise....
 	 *
 	 * If the underlying volume is a stripe, then return the stripe width in
-	 * bytes as the recommended I/O size. It is not a stripe and we've set a
+	 * bytes as the recommended I/O size. It is yest a stripe and we've set a
 	 * default buffered I/O size, return that, otherwise return the compat
 	 * default.
 	 */
@@ -529,8 +529,8 @@ xfs_vn_getattr(
 	u32			request_mask,
 	unsigned int		query_flags)
 {
-	struct inode		*inode = d_inode(path->dentry);
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct iyesde		*iyesde = d_iyesde(path->dentry);
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	struct xfs_mount	*mp = ip->i_mount;
 
 	trace_xfs_getattr(ip);
@@ -539,15 +539,15 @@ xfs_vn_getattr(
 		return -EIO;
 
 	stat->size = XFS_ISIZE(ip);
-	stat->dev = inode->i_sb->s_dev;
-	stat->mode = inode->i_mode;
-	stat->nlink = inode->i_nlink;
-	stat->uid = inode->i_uid;
-	stat->gid = inode->i_gid;
-	stat->ino = ip->i_ino;
-	stat->atime = inode->i_atime;
-	stat->mtime = inode->i_mtime;
-	stat->ctime = inode->i_ctime;
+	stat->dev = iyesde->i_sb->s_dev;
+	stat->mode = iyesde->i_mode;
+	stat->nlink = iyesde->i_nlink;
+	stat->uid = iyesde->i_uid;
+	stat->gid = iyesde->i_gid;
+	stat->iyes = ip->i_iyes;
+	stat->atime = iyesde->i_atime;
+	stat->mtime = iyesde->i_mtime;
+	stat->ctime = iyesde->i_ctime;
 	stat->blocks =
 		XFS_FSB_TO_BB(mp, ip->i_d.di_nblocks + ip->i_delayed_blks);
 
@@ -559,7 +559,7 @@ xfs_vn_getattr(
 	}
 
 	/*
-	 * Note: If you add another clause to set an attribute flag, please
+	 * Note: If you add ayesther clause to set an attribute flag, please
 	 * update attributes_mask below.
 	 */
 	if (ip->i_d.di_flags & XFS_DIFLAG_IMMUTABLE)
@@ -573,11 +573,11 @@ xfs_vn_getattr(
 				  STATX_ATTR_APPEND |
 				  STATX_ATTR_NODUMP);
 
-	switch (inode->i_mode & S_IFMT) {
+	switch (iyesde->i_mode & S_IFMT) {
 	case S_IFBLK:
 	case S_IFCHR:
 		stat->blksize = BLKDEV_IOSIZE;
-		stat->rdev = inode->i_rdev;
+		stat->rdev = iyesde->i_rdev;
 		break;
 	default:
 		stat->blksize = xfs_stat_blksize(ip);
@@ -590,33 +590,33 @@ xfs_vn_getattr(
 
 static void
 xfs_setattr_mode(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct iattr		*iattr)
 {
-	struct inode		*inode = VFS_I(ip);
+	struct iyesde		*iyesde = VFS_I(ip);
 	umode_t			mode = iattr->ia_mode;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
-	inode->i_mode &= S_IFMT;
-	inode->i_mode |= mode & ~S_IFMT;
+	iyesde->i_mode &= S_IFMT;
+	iyesde->i_mode |= mode & ~S_IFMT;
 }
 
 void
 xfs_setattr_time(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct iattr		*iattr)
 {
-	struct inode		*inode = VFS_I(ip);
+	struct iyesde		*iyesde = VFS_I(ip);
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	if (iattr->ia_valid & ATTR_ATIME)
-		inode->i_atime = iattr->ia_atime;
+		iyesde->i_atime = iattr->ia_atime;
 	if (iattr->ia_valid & ATTR_CTIME)
-		inode->i_ctime = iattr->ia_ctime;
+		iyesde->i_ctime = iattr->ia_ctime;
 	if (iattr->ia_valid & ATTR_MTIME)
-		inode->i_mtime = iattr->ia_mtime;
+		iyesde->i_mtime = iattr->ia_mtime;
 }
 
 static int
@@ -624,7 +624,7 @@ xfs_vn_change_ok(
 	struct dentry	*dentry,
 	struct iattr	*iattr)
 {
-	struct xfs_mount	*mp = XFS_I(d_inode(dentry))->i_mount;
+	struct xfs_mount	*mp = XFS_I(d_iyesde(dentry))->i_mount;
 
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return -EROFS;
@@ -636,19 +636,19 @@ xfs_vn_change_ok(
 }
 
 /*
- * Set non-size attributes of an inode.
+ * Set yesn-size attributes of an iyesde.
  *
  * Caution: The caller of this function is responsible for calling
  * setattr_prepare() or otherwise verifying the change is fine.
  */
 int
-xfs_setattr_nonsize(
-	struct xfs_inode	*ip,
+xfs_setattr_yesnsize(
+	struct xfs_iyesde	*ip,
 	struct iattr		*iattr,
 	int			flags)
 {
 	xfs_mount_t		*mp = ip->i_mount;
-	struct inode		*inode = VFS_I(ip);
+	struct iyesde		*iyesde = VFS_I(ip);
 	int			mask = iattr->ia_valid;
 	xfs_trans_t		*tp;
 	int			error;
@@ -663,7 +663,7 @@ xfs_setattr_nonsize(
 	 * If disk quotas is on, we make sure that the dquots do exist on disk,
 	 * before we start any other transactions. Trying to do this later
 	 * is messy. We don't care to take a readlock to look at the ids
-	 * in inode here, because we can't hold it across the trans_reserve.
+	 * in iyesde here, because we can't hold it across the trans_reserve.
 	 * If the IDs do change before we take the ilock, we're covered
 	 * because the i_*dquot fields will get updated anyway.
 	 */
@@ -674,13 +674,13 @@ xfs_setattr_nonsize(
 			uid = iattr->ia_uid;
 			qflags |= XFS_QMOPT_UQUOTA;
 		} else {
-			uid = inode->i_uid;
+			uid = iyesde->i_uid;
 		}
 		if ((mask & ATTR_GID) && XFS_IS_GQUOTA_ON(mp)) {
 			gid = iattr->ia_gid;
 			qflags |= XFS_QMOPT_GQUOTA;
 		}  else {
-			gid = inode->i_gid;
+			gid = iyesde->i_gid;
 		}
 
 		/*
@@ -712,11 +712,11 @@ xfs_setattr_nonsize(
 		/*
 		 * These IDs could have changed since we last looked at them.
 		 * But, we're assured that if the ownership did change
-		 * while we didn't have the inode locked, inode's dquot(s)
+		 * while we didn't have the iyesde locked, iyesde's dquot(s)
 		 * would have changed also.
 		 */
-		iuid = inode->i_uid;
-		igid = inode->i_gid;
+		iuid = iyesde->i_uid;
+		igid = iyesde->i_gid;
 		gid = (mask & ATTR_GID) ? iattr->ia_gid : igid;
 		uid = (mask & ATTR_UID) ? iattr->ia_uid : iuid;
 
@@ -746,9 +746,9 @@ xfs_setattr_nonsize(
 		 * The set-user-ID and set-group-ID bits of a file will be
 		 * cleared upon successful return from chown()
 		 */
-		if ((inode->i_mode & (S_ISUID|S_ISGID)) &&
+		if ((iyesde->i_mode & (S_ISUID|S_ISGID)) &&
 		    !capable(CAP_FSETID))
-			inode->i_mode &= ~(S_ISUID|S_ISGID);
+			iyesde->i_mode &= ~(S_ISUID|S_ISGID);
 
 		/*
 		 * Change the ownerships and register quota modifications
@@ -762,11 +762,11 @@ xfs_setattr_nonsize(
 							&ip->i_udquot, udqp);
 			}
 			ip->i_d.di_uid = xfs_kuid_to_uid(uid);
-			inode->i_uid = uid;
+			iyesde->i_uid = uid;
 		}
 		if (!gid_eq(igid, gid)) {
 			if (XFS_IS_QUOTA_RUNNING(mp) && XFS_IS_GQUOTA_ON(mp)) {
-				ASSERT(xfs_sb_version_has_pquotino(&mp->m_sb) ||
+				ASSERT(xfs_sb_version_has_pquotiyes(&mp->m_sb) ||
 				       !XFS_IS_PQUOTA_ON(mp));
 				ASSERT(mask & ATTR_GID);
 				ASSERT(gdqp);
@@ -774,7 +774,7 @@ xfs_setattr_nonsize(
 							&ip->i_gdquot, gdqp);
 			}
 			ip->i_d.di_gid = xfs_kgid_to_gid(gid);
-			inode->i_gid = gid;
+			iyesde->i_gid = gid;
 		}
 	}
 
@@ -783,7 +783,7 @@ xfs_setattr_nonsize(
 	if (mask & (ATTR_ATIME|ATTR_CTIME|ATTR_MTIME))
 		xfs_setattr_time(ip, iattr);
 
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_iyesde(tp, ip, XFS_ILOG_CORE);
 
 	XFS_STATS_INC(mp, xs_ig_attrchg);
 
@@ -794,7 +794,7 @@ xfs_setattr_nonsize(
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
 	/*
-	 * Release any dquot(s) the inode had kept before chown.
+	 * Release any dquot(s) the iyesde had kept before chown.
 	 */
 	xfs_qm_dqrele(olddquot1);
 	xfs_qm_dqrele(olddquot2);
@@ -805,14 +805,14 @@ xfs_setattr_nonsize(
 		return error;
 
 	/*
-	 * XXX(hch): Updating the ACL entries is not atomic vs the i_mode
+	 * XXX(hch): Updating the ACL entries is yest atomic vs the i_mode
 	 * 	     update.  We could avoid this with linked transactions
 	 * 	     and passing down the transaction pointer all the way
 	 *	     to attr_set.  No previous user of the generic
 	 * 	     Posix ACL code seems to care about this issue either.
 	 */
 	if ((mask & ATTR_MODE) && !(flags & XFS_ATTR_NOACL)) {
-		error = posix_acl_chmod(inode, inode->i_mode);
+		error = posix_acl_chmod(iyesde, iyesde->i_mode);
 		if (error)
 			return error;
 	}
@@ -829,11 +829,11 @@ out_dqrele:
 }
 
 int
-xfs_vn_setattr_nonsize(
+xfs_vn_setattr_yesnsize(
 	struct dentry		*dentry,
 	struct iattr		*iattr)
 {
-	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
+	struct xfs_iyesde	*ip = XFS_I(d_iyesde(dentry));
 	int error;
 
 	trace_xfs_setattr(ip);
@@ -841,22 +841,22 @@ xfs_vn_setattr_nonsize(
 	error = xfs_vn_change_ok(dentry, iattr);
 	if (error)
 		return error;
-	return xfs_setattr_nonsize(ip, iattr, 0);
+	return xfs_setattr_yesnsize(ip, iattr, 0);
 }
 
 /*
- * Truncate file.  Must have write permission and not be a directory.
+ * Truncate file.  Must have write permission and yest be a directory.
  *
  * Caution: The caller of this function is responsible for calling
  * setattr_prepare() or otherwise verifying the change is fine.
  */
 STATIC int
 xfs_setattr_size(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct iattr		*iattr)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct inode		*inode = VFS_I(ip);
+	struct iyesde		*iyesde = VFS_I(ip);
 	xfs_off_t		oldsize, newsize;
 	struct xfs_trans	*tp;
 	int			error;
@@ -865,11 +865,11 @@ xfs_setattr_size(
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	ASSERT(xfs_isilocked(ip, XFS_MMAPLOCK_EXCL));
-	ASSERT(S_ISREG(inode->i_mode));
+	ASSERT(S_ISREG(iyesde->i_mode));
 	ASSERT((iattr->ia_valid & (ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_ATIME_SET|
 		ATTR_MTIME_SET|ATTR_KILL_PRIV|ATTR_TIMES_SET)) == 0);
 
-	oldsize = inode->i_size;
+	oldsize = iyesde->i_size;
 	newsize = iattr->ia_size;
 
 	/*
@@ -883,11 +883,11 @@ xfs_setattr_size(
 		 * Use the regular setattr path to update the timestamps.
 		 */
 		iattr->ia_valid &= ~ATTR_SIZE;
-		return xfs_setattr_nonsize(ip, iattr, 0);
+		return xfs_setattr_yesnsize(ip, iattr, 0);
 	}
 
 	/*
-	 * Make sure that the dquots are attached to the inode.
+	 * Make sure that the dquots are attached to the iyesde.
 	 */
 	error = xfs_qm_dqattach(ip);
 	if (error)
@@ -896,12 +896,12 @@ xfs_setattr_size(
 	/*
 	 * Wait for all direct I/O to complete.
 	 */
-	inode_dio_wait(inode);
+	iyesde_dio_wait(iyesde);
 
 	/*
 	 * File data changes must be complete before we start the transaction to
-	 * modify the inode.  This needs to be done before joining the inode to
-	 * the transaction because the inode cannot be unlocked once it is a
+	 * modify the iyesde.  This needs to be done before joining the iyesde to
+	 * the transaction because the iyesde canyest be unlocked once it is a
 	 * part of the transaction.
 	 *
 	 * Start with zeroing any data beyond EOF that we may expose on file
@@ -910,10 +910,10 @@ xfs_setattr_size(
 	 */
 	if (newsize > oldsize) {
 		trace_xfs_zero_eof(ip, oldsize, newsize - oldsize);
-		error = iomap_zero_range(inode, oldsize, newsize - oldsize,
+		error = iomap_zero_range(iyesde, oldsize, newsize - oldsize,
 				&did_zeroing, &xfs_buffered_write_iomap_ops);
 	} else {
-		error = iomap_truncate_page(inode, newsize, &did_zeroing,
+		error = iomap_truncate_page(iyesde, newsize, &did_zeroing,
 				&xfs_buffered_write_iomap_ops);
 	}
 
@@ -921,8 +921,8 @@ xfs_setattr_size(
 		return error;
 
 	/*
-	 * We've already locked out new page faults, so now we can safely remove
-	 * pages from the page cache knowing they won't get refaulted until we
+	 * We've already locked out new page faults, so yesw we can safely remove
+	 * pages from the page cache kyeswing they won't get refaulted until we
 	 * drop the XFS_MMAP_EXCL lock after the extent manipulations are
 	 * complete. The truncate_setsize() call also cleans partial EOF page
 	 * PTEs on extending truncates and hence ensures sub-page block size
@@ -933,23 +933,23 @@ xfs_setattr_size(
 	 * reservation as defined by extent allocation in the writeback path.
 	 * Hence a truncate can fail with ENOMEM from xfs_trans_alloc(), but
 	 * having already truncated the in-memory version of the file (i.e. made
-	 * user visible changes). There's not much we can do about this, except
+	 * user visible changes). There's yest much we can do about this, except
 	 * to hope that the caller sees ENOMEM and retries the truncate
 	 * operation.
 	 *
 	 * And we update in-core i_size and truncate page cache beyond newsize
 	 * before writeback the [di_size, newsize] range, so we're guaranteed
-	 * not to write stale data past the new EOF on truncate down.
+	 * yest to write stale data past the new EOF on truncate down.
 	 */
-	truncate_setsize(inode, newsize);
+	truncate_setsize(iyesde, newsize);
 
 	/*
-	 * We are going to log the inode size change in this transaction so
+	 * We are going to log the iyesde size change in this transaction so
 	 * any previous writes that are beyond the on disk EOF and the new
-	 * EOF that have not been written out need to be written here.  If we
-	 * do not write the data out, we expose ourselves to the null files
+	 * EOF that have yest been written out need to be written here.  If we
+	 * do yest write the data out, we expose ourselves to the null files
 	 * problem. Note that this includes any block zeroing we did above;
-	 * otherwise those blocks may not be zeroed after a crash.
+	 * otherwise those blocks may yest be zeroed after a crash.
 	 */
 	if (did_zeroing ||
 	    (newsize > ip->i_d.di_size && oldsize != ip->i_d.di_size)) {
@@ -973,14 +973,14 @@ xfs_setattr_size(
 	 * between truncate() and ftruncate() as implemented in the VFS.
 	 *
 	 * The regular truncate() case without ATTR_CTIME and ATTR_MTIME is a
-	 * special case where we need to update the times despite not having
+	 * special case where we need to update the times despite yest having
 	 * these flags set.  For all other operations the VFS set these flags
 	 * explicitly if it wants a timestamp update.
 	 */
 	if (newsize != oldsize &&
 	    !(iattr->ia_valid & (ATTR_CTIME | ATTR_MTIME))) {
 		iattr->ia_ctime = iattr->ia_mtime =
-			current_time(inode);
+			current_time(iyesde);
 		iattr->ia_valid |= ATTR_CTIME | ATTR_MTIME;
 	}
 
@@ -989,7 +989,7 @@ xfs_setattr_size(
 	 * disk.  This way we don't have to worry about anyone ever being able
 	 * to look at the data being freed even in the face of a crash.
 	 * What we're getting around here is the case where we free a block, it
-	 * is allocated to another file, it is written to, and then we crash.
+	 * is allocated to ayesther file, it is written to, and then we crash.
 	 * If the new data gets written to the file but the log buffers
 	 * containing the free and reallocation don't, then we'd end up with
 	 * garbage in the blocks being freed.  As long as we make the new size
@@ -997,7 +997,7 @@ xfs_setattr_size(
 	 * they get written to.
 	 */
 	ip->i_d.di_size = newsize;
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_iyesde(tp, ip, XFS_ILOG_CORE);
 
 	if (newsize <= oldsize) {
 		error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK, newsize);
@@ -1007,14 +1007,14 @@ xfs_setattr_size(
 		/*
 		 * Truncated "down", so we're removing references to old data
 		 * here - if we delay flushing for a long time, we expose
-		 * ourselves unduly to the notorious NULL files problem.  So,
-		 * we mark this inode and flush it when the file is closed,
-		 * and do not wait the usual (long) time for writeout.
+		 * ourselves unduly to the yestorious NULL files problem.  So,
+		 * we mark this iyesde and flush it when the file is closed,
+		 * and do yest wait the usual (long) time for writeout.
 		 */
 		xfs_iflags_set(ip, XFS_ITRUNCATED);
 
 		/* A truncate down always removes post-EOF blocks. */
-		xfs_inode_clear_eofblocks_tag(ip);
+		xfs_iyesde_clear_eofblocks_tag(ip);
 	}
 
 	if (iattr->ia_valid & ATTR_MODE)
@@ -1022,7 +1022,7 @@ xfs_setattr_size(
 	if (iattr->ia_valid & (ATTR_ATIME|ATTR_CTIME|ATTR_MTIME))
 		xfs_setattr_time(ip, iattr);
 
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_iyesde(tp, ip, XFS_ILOG_CORE);
 
 	XFS_STATS_INC(mp, xs_ig_attrchg);
 
@@ -1045,7 +1045,7 @@ xfs_vn_setattr_size(
 	struct dentry		*dentry,
 	struct iattr		*iattr)
 {
-	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
+	struct xfs_iyesde	*ip = XFS_I(d_iyesde(dentry));
 	int error;
 
 	trace_xfs_setattr(ip);
@@ -1064,14 +1064,14 @@ xfs_vn_setattr(
 	int			error;
 
 	if (iattr->ia_valid & ATTR_SIZE) {
-		struct inode		*inode = d_inode(dentry);
-		struct xfs_inode	*ip = XFS_I(inode);
+		struct iyesde		*iyesde = d_iyesde(dentry);
+		struct xfs_iyesde	*ip = XFS_I(iyesde);
 		uint			iolock;
 
 		xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
 		iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
 
-		error = xfs_break_layouts(inode, &iolock, BREAK_UNMAP);
+		error = xfs_break_layouts(iyesde, &iolock, BREAK_UNMAP);
 		if (error) {
 			xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 			return error;
@@ -1080,7 +1080,7 @@ xfs_vn_setattr(
 		error = xfs_vn_setattr_size(dentry, iattr);
 		xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	} else {
-		error = xfs_vn_setattr_nonsize(dentry, iattr);
+		error = xfs_vn_setattr_yesnsize(dentry, iattr);
 	}
 
 	return error;
@@ -1088,11 +1088,11 @@ xfs_vn_setattr(
 
 STATIC int
 xfs_vn_update_time(
-	struct inode		*inode,
-	struct timespec64	*now,
+	struct iyesde		*iyesde,
+	struct timespec64	*yesw,
 	int			flags)
 {
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	struct xfs_mount	*mp = ip->i_mount;
 	int			log_flags = XFS_ILOG_TIMESTAMP;
 	struct xfs_trans	*tp;
@@ -1100,10 +1100,10 @@ xfs_vn_update_time(
 
 	trace_xfs_update_time(ip);
 
-	if (inode->i_sb->s_flags & SB_LAZYTIME) {
+	if (iyesde->i_sb->s_flags & SB_LAZYTIME) {
 		if (!((flags & S_VERSION) &&
-		      inode_maybe_inc_iversion(inode, false)))
-			return generic_update_time(inode, now, flags);
+		      iyesde_maybe_inc_iversion(iyesde, false)))
+			return generic_update_time(iyesde, yesw, flags);
 
 		/* Capture the iversion update that just occurred */
 		log_flags |= XFS_ILOG_CORE;
@@ -1115,50 +1115,50 @@ xfs_vn_update_time(
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	if (flags & S_CTIME)
-		inode->i_ctime = *now;
+		iyesde->i_ctime = *yesw;
 	if (flags & S_MTIME)
-		inode->i_mtime = *now;
+		iyesde->i_mtime = *yesw;
 	if (flags & S_ATIME)
-		inode->i_atime = *now;
+		iyesde->i_atime = *yesw;
 
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-	xfs_trans_log_inode(tp, ip, log_flags);
+	xfs_trans_log_iyesde(tp, ip, log_flags);
 	return xfs_trans_commit(tp);
 }
 
 STATIC int
 xfs_vn_fiemap(
-	struct inode		*inode,
+	struct iyesde		*iyesde,
 	struct fiemap_extent_info *fieinfo,
 	u64			start,
 	u64			length)
 {
 	int			error;
 
-	xfs_ilock(XFS_I(inode), XFS_IOLOCK_SHARED);
+	xfs_ilock(XFS_I(iyesde), XFS_IOLOCK_SHARED);
 	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR) {
 		fieinfo->fi_flags &= ~FIEMAP_FLAG_XATTR;
-		error = iomap_fiemap(inode, fieinfo, start, length,
+		error = iomap_fiemap(iyesde, fieinfo, start, length,
 				&xfs_xattr_iomap_ops);
 	} else {
-		error = iomap_fiemap(inode, fieinfo, start, length,
+		error = iomap_fiemap(iyesde, fieinfo, start, length,
 				&xfs_read_iomap_ops);
 	}
-	xfs_iunlock(XFS_I(inode), XFS_IOLOCK_SHARED);
+	xfs_iunlock(XFS_I(iyesde), XFS_IOLOCK_SHARED);
 
 	return error;
 }
 
 STATIC int
 xfs_vn_tmpfile(
-	struct inode	*dir,
+	struct iyesde	*dir,
 	struct dentry	*dentry,
 	umode_t		mode)
 {
 	return xfs_generic_create(dir, dentry, mode, 0, true);
 }
 
-static const struct inode_operations xfs_inode_operations = {
+static const struct iyesde_operations xfs_iyesde_operations = {
 	.get_acl		= xfs_get_acl,
 	.set_acl		= xfs_set_acl,
 	.getattr		= xfs_vn_getattr,
@@ -1168,7 +1168,7 @@ static const struct inode_operations xfs_inode_operations = {
 	.update_time		= xfs_vn_update_time,
 };
 
-static const struct inode_operations xfs_dir_inode_operations = {
+static const struct iyesde_operations xfs_dir_iyesde_operations = {
 	.create			= xfs_vn_create,
 	.lookup			= xfs_vn_lookup,
 	.link			= xfs_vn_link,
@@ -1182,7 +1182,7 @@ static const struct inode_operations xfs_dir_inode_operations = {
 	 * but we use S_ISDIR to check for those.
 	 */
 	.rmdir			= xfs_vn_unlink,
-	.mknod			= xfs_vn_mknod,
+	.mkyesd			= xfs_vn_mkyesd,
 	.rename			= xfs_vn_rename,
 	.get_acl		= xfs_get_acl,
 	.set_acl		= xfs_set_acl,
@@ -1193,7 +1193,7 @@ static const struct inode_operations xfs_dir_inode_operations = {
 	.tmpfile		= xfs_vn_tmpfile,
 };
 
-static const struct inode_operations xfs_dir_ci_inode_operations = {
+static const struct iyesde_operations xfs_dir_ci_iyesde_operations = {
 	.create			= xfs_vn_create,
 	.lookup			= xfs_vn_ci_lookup,
 	.link			= xfs_vn_link,
@@ -1207,7 +1207,7 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 	 * but we use S_ISDIR to check for those.
 	 */
 	.rmdir			= xfs_vn_unlink,
-	.mknod			= xfs_vn_mknod,
+	.mkyesd			= xfs_vn_mkyesd,
 	.rename			= xfs_vn_rename,
 	.get_acl		= xfs_get_acl,
 	.set_acl		= xfs_set_acl,
@@ -1218,7 +1218,7 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 	.tmpfile		= xfs_vn_tmpfile,
 };
 
-static const struct inode_operations xfs_symlink_inode_operations = {
+static const struct iyesde_operations xfs_symlink_iyesde_operations = {
 	.get_link		= xfs_vn_get_link,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
@@ -1226,7 +1226,7 @@ static const struct inode_operations xfs_symlink_inode_operations = {
 	.update_time		= xfs_vn_update_time,
 };
 
-static const struct inode_operations xfs_inline_symlink_inode_operations = {
+static const struct iyesde_operations xfs_inline_symlink_iyesde_operations = {
 	.get_link		= xfs_vn_get_link_inline,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
@@ -1236,13 +1236,13 @@ static const struct inode_operations xfs_inline_symlink_inode_operations = {
 
 /* Figure out if this file actually supports DAX. */
 static bool
-xfs_inode_supports_dax(
-	struct xfs_inode	*ip)
+xfs_iyesde_supports_dax(
+	struct xfs_iyesde	*ip)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 
-	/* Only supported on non-reflinked files. */
-	if (!S_ISREG(VFS_I(ip)->i_mode) || xfs_is_reflink_inode(ip))
+	/* Only supported on yesn-reflinked files. */
+	if (!S_ISREG(VFS_I(ip)->i_mode) || xfs_is_reflink_iyesde(ip))
 		return false;
 
 	/* DAX mount option or DAX iflag must be set. */
@@ -1255,71 +1255,71 @@ xfs_inode_supports_dax(
 		return false;
 
 	/* Device has to support DAX too. */
-	return xfs_inode_buftarg(ip)->bt_daxdev != NULL;
+	return xfs_iyesde_buftarg(ip)->bt_daxdev != NULL;
 }
 
 STATIC void
 xfs_diflags_to_iflags(
-	struct inode		*inode,
-	struct xfs_inode	*ip)
+	struct iyesde		*iyesde,
+	struct xfs_iyesde	*ip)
 {
 	uint16_t		flags = ip->i_d.di_flags;
 
-	inode->i_flags &= ~(S_IMMUTABLE | S_APPEND | S_SYNC |
+	iyesde->i_flags &= ~(S_IMMUTABLE | S_APPEND | S_SYNC |
 			    S_NOATIME | S_DAX);
 
 	if (flags & XFS_DIFLAG_IMMUTABLE)
-		inode->i_flags |= S_IMMUTABLE;
+		iyesde->i_flags |= S_IMMUTABLE;
 	if (flags & XFS_DIFLAG_APPEND)
-		inode->i_flags |= S_APPEND;
+		iyesde->i_flags |= S_APPEND;
 	if (flags & XFS_DIFLAG_SYNC)
-		inode->i_flags |= S_SYNC;
+		iyesde->i_flags |= S_SYNC;
 	if (flags & XFS_DIFLAG_NOATIME)
-		inode->i_flags |= S_NOATIME;
-	if (xfs_inode_supports_dax(ip))
-		inode->i_flags |= S_DAX;
+		iyesde->i_flags |= S_NOATIME;
+	if (xfs_iyesde_supports_dax(ip))
+		iyesde->i_flags |= S_DAX;
 }
 
 /*
- * Initialize the Linux inode.
+ * Initialize the Linux iyesde.
  *
- * When reading existing inodes from disk this is called directly from xfs_iget,
- * when creating a new inode it is called from xfs_ialloc after setting up the
- * inode. These callers have different criteria for clearing XFS_INEW, so leave
- * it up to the caller to deal with unlocking the inode appropriately.
+ * When reading existing iyesdes from disk this is called directly from xfs_iget,
+ * when creating a new iyesde it is called from xfs_ialloc after setting up the
+ * iyesde. These callers have different criteria for clearing XFS_INEW, so leave
+ * it up to the caller to deal with unlocking the iyesde appropriately.
  */
 void
-xfs_setup_inode(
-	struct xfs_inode	*ip)
+xfs_setup_iyesde(
+	struct xfs_iyesde	*ip)
 {
-	struct inode		*inode = &ip->i_vnode;
+	struct iyesde		*iyesde = &ip->i_vyesde;
 	gfp_t			gfp_mask;
 
-	inode->i_ino = ip->i_ino;
-	inode->i_state = I_NEW;
+	iyesde->i_iyes = ip->i_iyes;
+	iyesde->i_state = I_NEW;
 
-	inode_sb_list_add(inode);
-	/* make the inode look hashed for the writeback code */
-	inode_fake_hash(inode);
+	iyesde_sb_list_add(iyesde);
+	/* make the iyesde look hashed for the writeback code */
+	iyesde_fake_hash(iyesde);
 
-	inode->i_uid    = xfs_uid_to_kuid(ip->i_d.di_uid);
-	inode->i_gid    = xfs_gid_to_kgid(ip->i_d.di_gid);
+	iyesde->i_uid    = xfs_uid_to_kuid(ip->i_d.di_uid);
+	iyesde->i_gid    = xfs_gid_to_kgid(ip->i_d.di_gid);
 
-	i_size_write(inode, ip->i_d.di_size);
-	xfs_diflags_to_iflags(inode, ip);
+	i_size_write(iyesde, ip->i_d.di_size);
+	xfs_diflags_to_iflags(iyesde, ip);
 
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(iyesde->i_mode)) {
 		/*
 		 * We set the i_rwsem class here to avoid potential races with
-		 * lockdep_annotate_inode_mutex_key() reinitialising the lock
-		 * after a filehandle lookup has already found the inode in
-		 * cache before it has been unlocked via unlock_new_inode().
+		 * lockdep_anyestate_iyesde_mutex_key() reinitialising the lock
+		 * after a filehandle lookup has already found the iyesde in
+		 * cache before it has been unlocked via unlock_new_iyesde().
 		 */
-		lockdep_set_class(&inode->i_rwsem,
-				  &inode->i_sb->s_type->i_mutex_dir_key);
+		lockdep_set_class(&iyesde->i_rwsem,
+				  &iyesde->i_sb->s_type->i_mutex_dir_key);
 		lockdep_set_class(&ip->i_lock.mr_lock, &xfs_dir_ilock_class);
 	} else {
-		lockdep_set_class(&ip->i_lock.mr_lock, &xfs_nondir_ilock_class);
+		lockdep_set_class(&ip->i_lock.mr_lock, &xfs_yesndir_ilock_class);
 	}
 
 	/*
@@ -1327,50 +1327,50 @@ xfs_setup_inode(
 	 * prevent direct reclaim recursion back into the filesystem and blowing
 	 * stacks or deadlocking.
 	 */
-	gfp_mask = mapping_gfp_mask(inode->i_mapping);
-	mapping_set_gfp_mask(inode->i_mapping, (gfp_mask & ~(__GFP_FS)));
+	gfp_mask = mapping_gfp_mask(iyesde->i_mapping);
+	mapping_set_gfp_mask(iyesde->i_mapping, (gfp_mask & ~(__GFP_FS)));
 
 	/*
-	 * If there is no attribute fork no ACL can exist on this inode,
+	 * If there is yes attribute fork yes ACL can exist on this iyesde,
 	 * and it can't have any file capabilities attached to it either.
 	 */
 	if (!XFS_IFORK_Q(ip)) {
-		inode_has_no_xattr(inode);
-		cache_no_acl(inode);
+		iyesde_has_yes_xattr(iyesde);
+		cache_yes_acl(iyesde);
 	}
 }
 
 void
 xfs_setup_iops(
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
-	struct inode		*inode = &ip->i_vnode;
+	struct iyesde		*iyesde = &ip->i_vyesde;
 
-	switch (inode->i_mode & S_IFMT) {
+	switch (iyesde->i_mode & S_IFMT) {
 	case S_IFREG:
-		inode->i_op = &xfs_inode_operations;
-		inode->i_fop = &xfs_file_operations;
-		if (IS_DAX(inode))
-			inode->i_mapping->a_ops = &xfs_dax_aops;
+		iyesde->i_op = &xfs_iyesde_operations;
+		iyesde->i_fop = &xfs_file_operations;
+		if (IS_DAX(iyesde))
+			iyesde->i_mapping->a_ops = &xfs_dax_aops;
 		else
-			inode->i_mapping->a_ops = &xfs_address_space_operations;
+			iyesde->i_mapping->a_ops = &xfs_address_space_operations;
 		break;
 	case S_IFDIR:
-		if (xfs_sb_version_hasasciici(&XFS_M(inode->i_sb)->m_sb))
-			inode->i_op = &xfs_dir_ci_inode_operations;
+		if (xfs_sb_version_hasasciici(&XFS_M(iyesde->i_sb)->m_sb))
+			iyesde->i_op = &xfs_dir_ci_iyesde_operations;
 		else
-			inode->i_op = &xfs_dir_inode_operations;
-		inode->i_fop = &xfs_dir_file_operations;
+			iyesde->i_op = &xfs_dir_iyesde_operations;
+		iyesde->i_fop = &xfs_dir_file_operations;
 		break;
 	case S_IFLNK:
 		if (ip->i_df.if_flags & XFS_IFINLINE)
-			inode->i_op = &xfs_inline_symlink_inode_operations;
+			iyesde->i_op = &xfs_inline_symlink_iyesde_operations;
 		else
-			inode->i_op = &xfs_symlink_inode_operations;
+			iyesde->i_op = &xfs_symlink_iyesde_operations;
 		break;
 	default:
-		inode->i_op = &xfs_inode_operations;
-		init_special_inode(inode, inode->i_mode, inode->i_rdev);
+		iyesde->i_op = &xfs_iyesde_operations;
+		init_special_iyesde(iyesde, iyesde->i_mode, iyesde->i_rdev);
 		break;
 	}
 }

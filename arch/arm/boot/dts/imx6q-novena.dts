@@ -3,7 +3,7 @@
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -17,7 +17,7 @@
  *     GNU General Public License for more details.
  *
  *     You should have received a copy of the GNU General Public
- *     License along with this file; if not, write to the Free
+ *     License along with this file; if yest, write to the Free
  *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
  *     MA 02110-1301 USA
  *
@@ -32,7 +32,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -53,7 +53,7 @@
 
 / {
 	model = "Kosagi Novena Dual/Quad";
-	compatible = "kosagi,imx6q-novena", "fsl,imx6q";
+	compatible = "kosagi,imx6q-yesvena", "fsl,imx6q";
 
 	/* Will be filled by the bootloader */
 	memory@10000000 {
@@ -69,7 +69,7 @@
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 10000000>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_backlight_novena>;
+		pinctrl-0 = <&pinctrl_backlight_yesvena>;
 		power-supply = <&reg_lvds_lcd>;
 		brightness-levels = <0 3 6 12 16 24 32 48 64 96 128 192 255>;
 		default-brightness-level = <12>;
@@ -78,7 +78,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_gpio_keys_novena>;
+		pinctrl-0 = <&pinctrl_gpio_keys_yesvena>;
 
 		user-button {
 			label = "User Button";
@@ -97,17 +97,17 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_leds_novena>;
+		pinctrl-0 = <&pinctrl_leds_yesvena>;
 
 		heartbeat {
-			label = "novena:white:panel";
+			label = "yesvena:white:panel";
 			gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-on";
 		};
 	};
 
 	panel: panel {
-		compatible = "innolux,n133hse-ea1", "simple-panel";
+		compatible = "inyeslux,n133hse-ea1", "simple-panel";
 		backlight = <&backlight>;
 	};
 
@@ -208,19 +208,19 @@
 
 &audmux {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_audmux_novena>;
+	pinctrl-0 = <&pinctrl_audmux_yesvena>;
 	status = "okay";
 };
 
 &ecspi3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_ecspi3_novena>;
+	pinctrl-0 = <&pinctrl_ecspi3_yesvena>;
 	status = "okay";
 };
 
 &fec {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_enet_novena>;
+	pinctrl-0 = <&pinctrl_enet_yesvena>;
 	phy-mode = "rgmii";
 	phy-reset-gpios = <&gpio3 23 GPIO_ACTIVE_LOW>;
 	rxc-skew-ps = <3000>;
@@ -240,14 +240,14 @@
 
 &hdmi {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hdmi_novena>;
+	pinctrl-0 = <&pinctrl_hdmi_yesvena>;
 	ddc-i2c-bus = <&i2c2>;
 	status = "okay";
 };
 
 &i2c1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c1_novena>;
+	pinctrl-0 = <&pinctrl_i2c1_yesvena>;
 	status = "okay";
 
 	accel: mma8452@1c {
@@ -274,7 +274,7 @@
 		blocks = <0x5>;
 		irq-trigger = <0x1>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_stmpe_novena>;
+		pinctrl-0 = <&pinctrl_stmpe_yesvena>;
 		vio-supply = <&reg_3p3v>;
 		vcc-supply = <&reg_3p3v>;
 
@@ -295,7 +295,7 @@
 
 &i2c2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c2_novena>;
+	pinctrl-0 = <&pinctrl_i2c2_yesvena>;
 	status = "okay";
 
 	pmic: pfuze100@8 {
@@ -400,7 +400,7 @@
 
 &i2c3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c3_novena>;
+	pinctrl-0 = <&pinctrl_i2c3_yesvena>;
 	status = "okay";
 
 	codec: es8328@11 {
@@ -411,7 +411,7 @@
 		PVDD-supply = <&reg_audio_codec>;
 		HPVDD-supply = <&reg_audio_codec>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_sound_novena>;
+		pinctrl-0 = <&pinctrl_sound_yesvena>;
 		clocks = <&clks IMX6QDL_CLK_CKO1>;
 		assigned-clocks = <&clks IMX6QDL_CLK_CKO>,
 				  <&clks IMX6QDL_CLK_CKO1_SEL>,
@@ -427,7 +427,7 @@
 
 &kpp {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_kpp_novena>;
+	pinctrl-0 = <&pinctrl_kpp_yesvena>;
 	linux,keymap = <
 		MATRIX_KEY(1, 1, KEY_CONFIG)
 	>;
@@ -448,7 +448,7 @@
 
 &pcie {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pcie_novena>;
+	pinctrl-0 = <&pinctrl_pcie_yesvena>;
 	reset-gpio = <&gpio3 29 GPIO_ACTIVE_LOW>;
 	vpcie-supply = <&reg_pcie>;
 	status = "okay";
@@ -472,19 +472,19 @@
 
 &uart2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart2_novena>;
+	pinctrl-0 = <&pinctrl_uart2_yesvena>;
 	status = "okay";
 };
 
 &uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart3_novena>;
+	pinctrl-0 = <&pinctrl_uart3_yesvena>;
 	status = "okay";
 };
 
 &uart4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart4_novena>;
+	pinctrl-0 = <&pinctrl_uart4_yesvena>;
 	status = "okay";
 };
 
@@ -492,7 +492,7 @@
 	vbus-supply = <&reg_usb_otg_vbus>;
 	dr_mode = "otg";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usbotg_novena>;
+	pinctrl-0 = <&pinctrl_usbotg_yesvena>;
 	disable-over-current;
 	status = "okay";
 };
@@ -504,7 +504,7 @@
 
 &usdhc2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc2_novena>;
+	pinctrl-0 = <&pinctrl_usdhc2_yesvena>;
 	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
 	bus-width = <4>;
@@ -513,14 +513,14 @@
 
 &usdhc3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc3_novena>;
+	pinctrl-0 = <&pinctrl_usdhc3_yesvena>;
 	bus-width = <4>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 
 &iomuxc {
-	pinctrl_audmux_novena: audmuxgrp-novena {
+	pinctrl_audmux_yesvena: audmuxgrp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_CSI0_DAT7__AUD3_RXD		0x130b0
 			MX6QDL_PAD_CSI0_DAT4__AUD3_TXC		0x130b0
@@ -529,7 +529,7 @@
 		>;
 	};
 
-	pinctrl_backlight_novena: backlightgrp-novena {
+	pinctrl_backlight_yesvena: backlightgrp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_DISP0_DAT8__PWM1_OUT		0x1b0b0
 			MX6QDL_PAD_CSI0_DAT10__GPIO5_IO28	0x1b0b1
@@ -537,7 +537,7 @@
 		>;
 	};
 
-	pinctrl_ecspi3_novena: ecspi3grp-novena {
+	pinctrl_ecspi3_yesvena: ecspi3grp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_DISP0_DAT2__ECSPI3_MISO	0x100b1
 			MX6QDL_PAD_DISP0_DAT1__ECSPI3_MOSI	0x100b1
@@ -545,7 +545,7 @@
 		>;
 	};
 
-	pinctrl_enet_novena: enetgrp-novena {
+	pinctrl_enet_yesvena: enetgrp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b0b0
 			MX6QDL_PAD_ENET_MDC__ENET_MDC		0x1b0b0
@@ -568,7 +568,7 @@
 		>;
 	};
 
-	pinctrl_fpga_gpio: fpgagpiogrp-novena {
+	pinctrl_fpga_gpio: fpgagpiogrp-yesvena {
 		fsl,pins = <
 			/* FPGA power */
 			MX6QDL_PAD_SD1_DAT1__GPIO1_IO17		0x1b0b1
@@ -604,7 +604,7 @@
 		>;
 	};
 
-	pinctrl_fpga_eim: fpgaeimgrp-novena {
+	pinctrl_fpga_eim: fpgaeimgrp-yesvena {
 		fsl,pins = <
 			/* FPGA power */
 			MX6QDL_PAD_SD1_DAT1__GPIO1_IO17		0x1b0b1
@@ -640,7 +640,7 @@
 		>;
 	};
 
-	pinctrl_gpio_keys_novena: gpiokeysgrp-novena {
+	pinctrl_gpio_keys_yesvena: gpiokeysgrp-yesvena {
 		fsl,pins = <
 			/* User button */
 			MX6QDL_PAD_KEY_COL4__GPIO4_IO14		0x1b0b0
@@ -651,50 +651,50 @@
 		>;
 	};
 
-	pinctrl_hdmi_novena: hdmigrp-novena {
+	pinctrl_hdmi_yesvena: hdmigrp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_KEY_ROW2__HDMI_TX_CEC_LINE	0x1f8b0
 			MX6QDL_PAD_EIM_A24__GPIO5_IO04		0x1b0b1
 		>;
 	};
 
-	pinctrl_i2c1_novena: i2c1grp-novena {
+	pinctrl_i2c1_yesvena: i2c1grp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D21__I2C1_SCL		0x4001b8b1
 			MX6QDL_PAD_EIM_D28__I2C1_SDA		0x4001b8b1
 		>;
 	};
 
-	pinctrl_i2c2_novena: i2c2grp-novena {
+	pinctrl_i2c2_yesvena: i2c2grp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_EB2__I2C2_SCL		0x4001b8b1
 			MX6QDL_PAD_EIM_D16__I2C2_SDA		0x4001b8b1
 		>;
 	};
 
-	pinctrl_i2c3_novena: i2c3grp-novena {
+	pinctrl_i2c3_yesvena: i2c3grp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D17__I2C3_SCL		0x4001b8b1
 			MX6QDL_PAD_EIM_D18__I2C3_SDA		0x4001b8b1
 		>;
 	};
 
-	pinctrl_kpp_novena: kppgrp-novena {
+	pinctrl_kpp_yesvena: kppgrp-yesvena {
 		fsl,pins = <
 			/* Front panel button */
 			MX6QDL_PAD_KEY_ROW1__KEY_ROW1		0x1b0b1
-			/* Fake column driver, not connected */
+			/* Fake column driver, yest connected */
 			MX6QDL_PAD_KEY_COL1__KEY_COL1		0x1b0b1
 		>;
 	};
 
-	pinctrl_leds_novena: ledsgrp-novena {
+	pinctrl_leds_yesvena: ledsgrp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_SD1_DAT3__GPIO1_IO21		0x1b0b1
 		>;
 	};
 
-	pinctrl_pcie_novena: pciegrp-novena {
+	pinctrl_pcie_yesvena: pciegrp-yesvena {
 		fsl,pins = <
 			/* Reset */
 			MX6QDL_PAD_EIM_D29__GPIO3_IO29		0x1b0b1
@@ -705,22 +705,22 @@
 		>;
 	};
 
-	pinctrl_sata_novena: satagrp-novena {
+	pinctrl_sata_yesvena: satagrp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D30__GPIO3_IO30		0x1b0b1
 		>;
 	};
 
-	pinctrl_senoko_novena: senokogrp-novena {
+	pinctrl_seyesko_yesvena: seyeskogrp-yesvena {
 		fsl,pins = <
-			/* Senoko IRQ line */
+			/* Seyesko IRQ line */
 			MX6QDL_PAD_SD1_CLK__GPIO1_IO20		0x13048
-			/* Senoko reset line */
+			/* Seyesko reset line */
 			MX6QDL_PAD_CSI0_VSYNC__GPIO5_IO21	0x1b0b1
 		>;
 	};
 
-	pinctrl_sound_novena: soundgrp-novena {
+	pinctrl_sound_yesvena: soundgrp-yesvena {
 		fsl,pins = <
 			/* Audio power regulator */
 			MX6QDL_PAD_DISP0_DAT23__GPIO5_IO17	0x1b0b1
@@ -730,41 +730,41 @@
 		>;
 	};
 
-	pinctrl_stmpe_novena: stmpegrp-novena {
+	pinctrl_stmpe_yesvena: stmpegrp-yesvena {
 		fsl,pins = <
 			/* Touchscreen interrupt */
 			MX6QDL_PAD_DISP0_DAT19__GPIO5_IO13	0x1b0b1
 		>;
 	};
 
-	pinctrl_uart2_novena: uart2grp-novena {
+	pinctrl_uart2_yesvena: uart2grp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D26__UART2_TX_DATA	0x1b0b1
 			MX6QDL_PAD_EIM_D27__UART2_RX_DATA	0x1b0b1
 		>;
 	};
 
-	pinctrl_uart3_novena: uart3grp-novena {
+	pinctrl_uart3_yesvena: uart3grp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D24__UART3_TX_DATA	0x1b0b1
 			MX6QDL_PAD_EIM_D25__UART3_RX_DATA	0x1b0b1
 		>;
 	};
 
-	pinctrl_uart4_novena: uart4grp-novena {
+	pinctrl_uart4_yesvena: uart4grp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_CSI0_DAT12__UART4_TX_DATA	0x1b0b1
 			MX6QDL_PAD_CSI0_DAT13__UART4_RX_DATA	0x1b0b1
 		>;
 	};
 
-	pinctrl_usbotg_novena: usbotggrp-novena {
+	pinctrl_usbotg_yesvena: usbotggrp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_ENET_RX_ER__USB_OTG_ID	0x17059
 		>;
 	};
 
-	pinctrl_usdhc2_novena: usdhc2grp-novena {
+	pinctrl_usdhc2_yesvena: usdhc2grp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_SD2_CMD__SD2_CMD		0x170f9
 			MX6QDL_PAD_SD2_CLK__SD2_CLK		0x100f9
@@ -779,7 +779,7 @@
 		>;
 	};
 
-	pinctrl_usdhc3_novena: usdhc3grp-novena {
+	pinctrl_usdhc3_yesvena: usdhc3grp-yesvena {
 		fsl,pins = <
 			MX6QDL_PAD_SD3_CMD__SD3_CMD		0x170f9
 			MX6QDL_PAD_SD3_CLK__SD3_CLK		0x100f9

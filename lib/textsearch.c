@@ -13,12 +13,12 @@
  * INTRODUCTION
  *
  *   The textsearch infrastructure provides text searching facilities for
- *   both linear and non-linear data. Individual search algorithms are
+ *   both linear and yesn-linear data. Individual search algorithms are
  *   implemented in modules and chosen by the user.
  *
  * ARCHITECTURE
  *
- * .. code-block:: none
+ * .. code-block:: yesne
  *
  *     User
  *     +----------------+
@@ -49,7 +49,7 @@
  *   (6) Algorithm invokes finish() after the last call to get_next_block
  *       to clean up any leftovers from get_next_block. (Optional)
  *   (7) User destroys the configuration by calling textsearch_destroy().
- *   (8) Core notifies the algorithm to destroy algorithm specific
+ *   (8) Core yestifies the algorithm to destroy algorithm specific
  *       allocations. (Optional)
  *
  * USAGE
@@ -68,7 +68,7 @@
  *   an own get_next_block() implementation and
  *   calling textsearch_find(). Both functions return
  *   the position of the first occurrence of the pattern or UINT_MAX if
- *   no match was found. Subsequent occurrences can be found by calling
+ *   yes match was found. Subsequent occurrences can be found by calling
  *   textsearch_next() regardless of the linearity of the data.
  *
  *   Once you're done using a configuration it must be given back via
@@ -132,12 +132,12 @@ static inline struct ts_ops *lookup_ts_algo(const char *name)
  * textsearch_register - register a textsearch module
  * @ops: operations lookup table
  *
- * This function must be called by textsearch modules to announce
+ * This function must be called by textsearch modules to anyesunce
  * their presence. The specified &@ops must have %name set to a
  * unique identifier and the callbacks find(), init(), get_pattern(),
  * and get_pattern_len() must be implemented.
  *
- * Returns 0 or -EEXISTS if another module has already registered
+ * Returns 0 or -EEXISTS if ayesther module has already registered
  * with same name.
  */
 int textsearch_register(struct ts_ops *ops)
@@ -167,12 +167,12 @@ EXPORT_SYMBOL(textsearch_register);
  * textsearch_unregister - unregister a textsearch module
  * @ops: operations lookup table
  *
- * This function must be called by textsearch modules to announce
+ * This function must be called by textsearch modules to anyesunce
  * their disappearance for examples when the module gets unloaded.
  * The &ops parameter must be the same as the one during the
  * registration.
  *
- * Returns 0 on success or -ENOENT if no matching textsearch
+ * Returns 0 on success or -ENOENT if yes matching textsearch
  * registration was found.
  */
 int textsearch_unregister(struct ts_ops *ops)
@@ -226,7 +226,7 @@ static unsigned int get_linear_data(unsigned int consumed, const u8 **dst,
  * Call textsearch_next() to retrieve subsequent matches.
  *
  * Returns the position of first occurrence of the pattern or
- * %UINT_MAX if no occurrence was found.
+ * %UINT_MAX if yes occurrence was found.
  */
 unsigned int textsearch_find_continuous(struct ts_config *conf,
 					struct ts_state *state,
@@ -253,7 +253,7 @@ EXPORT_SYMBOL(textsearch_find_continuous);
  * Looks up the search algorithm module and creates a new textsearch
  * configuration for the specified pattern.
  *
- * Note: The format of the pattern may not be compatible between
+ * Note: The format of the pattern may yest be compatible between
  *       the various search algorithms.
  *
  * Returns a new textsearch configuration according to the specified
@@ -273,7 +273,7 @@ struct ts_config *textsearch_prepare(const char *algo, const void *pattern,
 	ops = lookup_ts_algo(algo);
 #ifdef CONFIG_MODULES
 	/*
-	 * Why not always autoload you may ask. Some users are
+	 * Why yest always autoload you may ask. Some users are
 	 * in a situation where requesting a module may deadlock,
 	 * especially when the module is located on a NFS mount.
 	 */

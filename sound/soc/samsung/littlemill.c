@@ -31,8 +31,8 @@ static int littlemill_set_bias_level(struct snd_soc_card *card,
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		/*
-		 * If we've not already clocked things via hw_params()
-		 * then do so now, otherwise these are noops.
+		 * If we've yest already clocked things via hw_params()
+		 * then do so yesw, otherwise these are yesops.
 		 */
 		if (dapm->bias_level == SND_SOC_BIAS_STANDBY) {
 			ret = snd_soc_dai_set_pll(aif1_dai, WM8994_FLL1,
@@ -166,7 +166,7 @@ static struct snd_soc_dai_link littlemill_dai[] = {
 		.stream_name = "Baseband",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		.params = &baseband_params,
 		SND_SOC_DAILINK_REG(baseband),
 	},

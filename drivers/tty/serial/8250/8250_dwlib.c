@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/* Synopsys DesignWare 8250 library. */
+/* Syyespsys DesignWare 8250 library. */
 
 #include <linux/bitops.h>
 #include <linux/device.h>
@@ -83,8 +83,8 @@ void dw8250_setup_port(struct uart_port *p)
 	u32 reg;
 
 	/*
-	 * If the Component Version Register returns zero, we know that
-	 * ADDITIONAL_FEATURES are not enabled. No need to go any further.
+	 * If the Component Version Register returns zero, we kyesw that
+	 * ADDITIONAL_FEATURES are yest enabled. No need to go any further.
 	 */
 	reg = dw8250_readl_ext(p, DW_UART_UCV);
 	if (!reg)

@@ -181,7 +181,7 @@ long sii164InitChip(unsigned char edge_select,
 		/*
 		 * De-skew enabled with default 111b value.
 		 * This fixes some artifacts problem in some mode on board 2.2.
-		 * Somehow this fix does not affect board 2.1.
+		 * Somehow this fix does yest affect board 2.1.
 		 */
 		if (deskew_enable == 0)
 			config = SII164_DESKEW_DISABLE;
@@ -245,7 +245,7 @@ long sii164InitChip(unsigned char edge_select,
 	return -1;
 }
 
-/* below sii164 function is not necessary */
+/* below sii164 function is yest necessary */
 
 #ifdef SII164_FULL_FUNCTIONS
 

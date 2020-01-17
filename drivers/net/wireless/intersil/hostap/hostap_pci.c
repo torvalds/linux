@@ -309,13 +309,13 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 	phymem = pci_resource_start(pdev, 0);
 
 	if (!request_mem_region(phymem, pci_resource_len(pdev, 0), "Prism2")) {
-		printk(KERN_ERR "prism2: Cannot reserve PCI memory region\n");
+		printk(KERN_ERR "prism2: Canyest reserve PCI memory region\n");
 		goto err_out_disable;
 	}
 
 	mem = pci_ioremap_bar(pdev, 0);
 	if (mem == NULL) {
-		printk(KERN_ERR "prism2: Cannot remap PCI memory region\n") ;
+		printk(KERN_ERR "prism2: Canyest remap PCI memory region\n") ;
 		goto fail;
 	}
 

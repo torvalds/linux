@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -83,7 +83,7 @@ bool kfd_dbgmgr_create(struct kfd_dbgmgr **ppmgr, struct kfd_dev *pdev)
 		return false;
 	}
 
-	/* get actual type of DBGDevice cpsch or not */
+	/* get actual type of DBGDevice cpsch or yest */
 	if (pdev->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS)
 		type = DBGDEV_TYPE_NODIQ;
 
@@ -117,7 +117,7 @@ long kfd_dbgmgr_unregister(struct kfd_dbgmgr *pmgr, struct kfd_process *p)
 {
 	/* Is the requests coming from the already registered process? */
 	if (pmgr->pasid != p->pasid) {
-		pr_debug("H/W debugger is not registered by calling pasid 0x%x\n",
+		pr_debug("H/W debugger is yest registered by calling pasid 0x%x\n",
 				p->pasid);
 		return -EINVAL;
 	}
@@ -134,7 +134,7 @@ long kfd_dbgmgr_wave_control(struct kfd_dbgmgr *pmgr,
 {
 	/* Is the requests coming from the already registered process? */
 	if (pmgr->pasid != wac_info->process->pasid) {
-		pr_debug("H/W debugger support was not registered for requester pasid 0x%x\n",
+		pr_debug("H/W debugger support was yest registered for requester pasid 0x%x\n",
 				wac_info->process->pasid);
 		return -EINVAL;
 	}
@@ -147,7 +147,7 @@ long kfd_dbgmgr_address_watch(struct kfd_dbgmgr *pmgr,
 {
 	/* Is the requests coming from the already registered process? */
 	if (pmgr->pasid != adw_info->process->pasid) {
-		pr_debug("H/W debugger support was not registered for requester pasid 0x%x\n",
+		pr_debug("H/W debugger support was yest registered for requester pasid 0x%x\n",
 				adw_info->process->pasid);
 		return -EINVAL;
 	}

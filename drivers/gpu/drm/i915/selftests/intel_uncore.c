@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -34,7 +34,7 @@ static int intel_fw_table_check(const struct intel_forcewake_range *ranges,
 	for (i = 0, prev = -1; i < num_ranges; i++, ranges++) {
 		/* Check that the table is watertight */
 		if (is_watertight && (prev + 1) != (s32)ranges->start) {
-			pr_err("%s: entry[%d]:(%x, %x) is not watertight to previous (%x)\n",
+			pr_err("%s: entry[%d]:(%x, %x) is yest watertight to previous (%x)\n",
 			       __func__, i, ranges->start, ranges->end, prev);
 			return -EINVAL;
 		}
@@ -173,7 +173,7 @@ static int live_forcewake_ops(void *arg)
 		if (r->platforms & INTEL_INFO(gt->i915)->gen_mask)
 			break;
 	if (!r->name) {
-		pr_debug("Forcewaked register not known for %s; skipping\n",
+		pr_debug("Forcewaked register yest kyeswn for %s; skipping\n",
 			 intel_platform_name(INTEL_INFO(gt->i915)->platform));
 		return 0;
 	}

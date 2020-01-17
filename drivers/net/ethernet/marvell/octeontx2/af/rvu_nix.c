@@ -56,14 +56,14 @@ enum nix_makr_fmt_indexes {
 	NIX_MARK_CFG_MAX,
 };
 
-/* For now considering MC resources needed for broadcast
+/* For yesw considering MC resources needed for broadcast
  * pkt replication only. i.e 256 HWVFs + 12 PFs.
  */
 #define MC_TBL_SIZE	MC_TBL_SZ_512
 #define MC_BUF_CNT	MC_BUF_CNT_128
 
 struct mce {
-	struct hlist_node	node;
+	struct hlist_yesde	yesde;
 	u16			pcifunc;
 };
 
@@ -197,7 +197,7 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 
 		/* Note that AF's VFs work in pairs and talk over consecutive
 		 * loopback channels.Therefore if odd number of AF VFs are
-		 * enabled then the last VF remains with no pair.
+		 * enabled then the last VF remains with yes pair.
 		 */
 		pfvf->rx_chan_base = NIX_CHAN_LBK_CHX(0, vf);
 		pfvf->tx_chan_base = vf & 0x1 ? NIX_CHAN_LBK_CHX(0, vf - 1) :
@@ -388,7 +388,7 @@ static int nixlf_rss_ctx_init(struct rvu *rvu, int blkaddr,
 {
 	int err, grp, num_indices;
 
-	/* RSS is not requested for this NIXLF */
+	/* RSS is yest requested for this NIXLF */
 	if (!rss_sz)
 		return 0;
 	num_indices = rss_sz * rss_grps;
@@ -471,7 +471,7 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 	block = &hw->block[blkaddr];
 	aq = block->aq;
 	if (!aq) {
-		dev_warn(rvu->dev, "%s: NIX AQ not initialized\n", __func__);
+		dev_warn(rvu->dev, "%s: NIX AQ yest initialized\n", __func__);
 		return NIX_AF_ERR_AQ_ENQUEUE;
 	}
 
@@ -486,7 +486,7 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 
 	switch (req->ctype) {
 	case NIX_AQ_CTYPE_RQ:
-		/* Check if index exceeds max no of queues */
+		/* Check if index exceeds max yes of queues */
 		if (!pfvf->rq_ctx || req->qidx >= pfvf->rq_ctx->qsize)
 			rc = NIX_AF_ERR_AQ_ENQUEUE;
 		break;
@@ -512,8 +512,8 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 		    (req->qidx >= (256UL << (cfg & 0xF))))
 			rc = NIX_AF_ERR_AQ_ENQUEUE;
 
-		/* Adding multicast lists for requests from PF/VFs is not
-		 * yet supported, so ignore this.
+		/* Adding multicast lists for requests from PF/VFs is yest
+		 * yet supported, so igyesre this.
 		 */
 		if (rsp)
 			rc = NIX_AF_ERR_AQ_ENQUEUE;
@@ -525,7 +525,7 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 	if (rc)
 		return rc;
 
-	/* Check if SQ pointed SMQ belongs to this PF/VF or not */
+	/* Check if SQ pointed SMQ belongs to this PF/VF or yest */
 	if (req->ctype == NIX_AQ_CTYPE_SQ &&
 	    ((req->op == NIX_AQ_INSTOP_INIT && req->sq.ena) ||
 	     (req->op == NIX_AQ_INSTOP_WRITE &&
@@ -540,7 +540,7 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 	inst.cindex = req->qidx;
 	inst.ctype = req->ctype;
 	inst.op = req->op;
-	/* Currently we are not supporting enqueuing multiple instructions,
+	/* Currently we are yest supporting enqueuing multiple instructions,
 	 * so always choose first entry in result memory.
 	 */
 	inst.res_addr = (u64)aq->res->iova;
@@ -966,7 +966,7 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 	if (err)
 		goto free_mem;
 
-	/* Disable NPC entries as NIXLF's contexts are not initialized yet */
+	/* Disable NPC entries as NIXLF's contexts are yest initialized yet */
 	rvu_npc_disable_default_entries(rvu, pcifunc, nixlf);
 
 	goto exit;
@@ -1080,7 +1080,7 @@ static void nix_reset_tx_shaping(struct rvu *rvu, int blkaddr,
 	switch (lvl) {
 	case NIX_TXSCH_LVL_TL1:
 		cir_reg = NIX_AF_TL1X_CIR(schq);
-		pir_reg = 0; /* PIR not available at TL1 */
+		pir_reg = 0; /* PIR yest available at TL1 */
 		break;
 	case NIX_TXSCH_LVL_TL2:
 		cir_reg = NIX_AF_TL2X_CIR(schq);
@@ -1182,7 +1182,7 @@ static int nix_check_txschq_alloc_req(struct rvu *rvu, int lvl, u16 pcifunc,
 
 	link = nix_get_tx_link(rvu, pcifunc);
 
-	/* For traffic aggregating scheduler level, one queue is enough */
+	/* For traffic aggregating scheduler level, one queue is eyesugh */
 	if (lvl >= hw->cap.nix_tx_aggr_lvl) {
 		if (req_schq != 1)
 			return NIX_AF_ERR_TLX_ALLOC_FAIL;
@@ -1231,7 +1231,7 @@ static void nix_txsch_alloc(struct rvu *rvu, struct nix_txsch *txsch,
 			rsp->schq_contig_list[lvl][0] = start;
 		}
 
-		/* Both contig and non-contig reqs doesn't make sense here */
+		/* Both contig and yesn-contig reqs doesn't make sense here */
 		if (rsp->schq_contig[lvl])
 			rsp->schq[lvl] = 0;
 
@@ -1281,7 +1281,7 @@ static void nix_txsch_alloc(struct rvu *rvu, struct nix_txsch *txsch,
 		}
 	}
 
-	/* Allocate non-contiguous queue indices */
+	/* Allocate yesn-contiguous queue indices */
 	if (rsp->schq[lvl]) {
 		idx = 0;
 		for (schq = start; schq < end; schq++) {
@@ -1567,7 +1567,7 @@ static bool is_txschq_hierarchy_valid(struct rvu *rvu, u16 pcifunc, int blkaddr,
 		return false;
 
 	schq = TXSCHQ_IDX(reg, TXSCHQ_IDX_SHIFT);
-	/* Check if this schq belongs to this PF/VF or not */
+	/* Check if this schq belongs to this PF/VF or yest */
 	if (!is_valid_txschq(rvu, blkaddr, lvl, pcifunc, schq))
 		return false;
 
@@ -1602,8 +1602,8 @@ static bool is_txschq_shaping_valid(struct rvu_hwinfo *hw, int lvl, u64 reg)
 	if (hw->cap.nix_shaping)
 		return true;
 
-	/* If shaping and coloring is not supported, then
-	 * *_CIR and *_PIR registers should not be configured.
+	/* If shaping and coloring is yest supported, then
+	 * *_CIR and *_PIR registers should yest be configured.
 	 */
 	regbase = reg & 0xFFFF;
 
@@ -1712,7 +1712,7 @@ int rvu_mbox_handler_nix_txschq_cfg(struct rvu *rvu,
 			regval |= ((u64)nixlf << 24);
 		}
 
-		/* Clear 'BP_ENA' config, if it's not allowed */
+		/* Clear 'BP_ENA' config, if it's yest allowed */
 		if (!hw->cap.nix_tx_link_bp) {
 			if (schq_regbase == NIX_AF_TL4X_SDP_LINK_CFG(0) ||
 			    (schq_regbase & 0xFF00) ==
@@ -1802,7 +1802,7 @@ static int nix_setup_mce(struct rvu *rvu, int mce, u8 op,
 	aq_req.op = op;
 	aq_req.qidx = mce;
 
-	/* Forward bcast pkts to RQ0, RSS not needed */
+	/* Forward bcast pkts to RQ0, RSS yest needed */
 	aq_req.mce.op = 0;
 	aq_req.mce.index = 0;
 	aq_req.mce.eol = eol;
@@ -1828,7 +1828,7 @@ static int nix_update_mce_list(struct nix_mce_list *mce_list,
 	bool delete = false;
 
 	/* Scan through the current list */
-	hlist_for_each_entry(mce, &mce_list->head, node) {
+	hlist_for_each_entry(mce, &mce_list->head, yesde) {
 		/* If already exists, then delete */
 		if (mce->pcifunc == pcifunc && !add) {
 			delete = true;
@@ -1838,7 +1838,7 @@ static int nix_update_mce_list(struct nix_mce_list *mce_list,
 	}
 
 	if (delete) {
-		hlist_del(&mce->node);
+		hlist_del(&mce->yesde);
 		kfree(mce);
 		mce_list->count--;
 		return 0;
@@ -1853,9 +1853,9 @@ static int nix_update_mce_list(struct nix_mce_list *mce_list,
 		return -ENOMEM;
 	mce->pcifunc = pcifunc;
 	if (!tail)
-		hlist_add_head(&mce->node, &mce_list->head);
+		hlist_add_head(&mce->yesde, &mce_list->head);
 	else
-		hlist_add_behind(&mce->node, &tail->node);
+		hlist_add_behind(&mce->yesde, &tail->yesde);
 	mce_list->count++;
 	return 0;
 }
@@ -1870,7 +1870,7 @@ static int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add)
 	struct mce *mce;
 	int blkaddr;
 
-	/* Broadcast pkt replication is not needed for AF's VFs, hence skip */
+	/* Broadcast pkt replication is yest needed for AF's VFs, hence skip */
 	if (is_afvf(pcifunc))
 		return 0;
 
@@ -1912,7 +1912,7 @@ static int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add)
 	/* Dump the updated list to HW */
 	idx = pfvf->bcast_mce_idx;
 	last_idx = idx + mce_list->count - 1;
-	hlist_for_each_entry(mce, &mce_list->head, node) {
+	hlist_for_each_entry(mce, &mce_list->head, yesde) {
 		if (idx > last_idx)
 			break;
 
@@ -1942,7 +1942,7 @@ static int nix_setup_bcast_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 	/* Skip PF0 (i.e AF) */
 	for (pf = 1; pf < (rvu->cgx_mapped_pfs + 1); pf++) {
 		cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf));
-		/* If PF is not enabled, nothing to do */
+		/* If PF is yest enabled, yesthing to do */
 		if (!((cfg >> 20) & 0x01))
 			continue;
 		/* Get numVFs attached to this PF */
@@ -1958,7 +1958,7 @@ static int nix_setup_bcast_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 			/* idx-0 is for PF, followed by VFs */
 			pcifunc = (pf << RVU_PFVF_PF_SHIFT);
 			pcifunc |= idx;
-			/* Add dummy entries now, so that we don't have to check
+			/* Add dummy entries yesw, so that we don't have to check
 			 * for whether AQ_OP should be INIT/WRITE later on.
 			 * Will be updated when a NIXLF is attached/detached to
 			 * these PF/VFs.
@@ -1991,7 +1991,7 @@ static int nix_setup_mcast(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 	rvu_write64(rvu, blkaddr, NIX_AF_RX_MCAST_BASE,
 		    (u64)mcast->mce_ctx->iova);
 
-	/* Set max list length equal to max no of VFs per PF  + PF itself */
+	/* Set max list length equal to max yes of VFs per PF  + PF itself */
 	rvu_write64(rvu, blkaddr, NIX_AF_RX_MCAST_CFG,
 		    BIT_ULL(36) | (hw->max_vfs_per_pf << 4) | MC_TBL_SIZE);
 
@@ -2177,7 +2177,7 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 
 	/* Each of the 32 possible flow key algorithm definitions should
 	 * fall into above incremental config (except ALG0). Otherwise a
-	 * single NPC MCAM entry is not sufficient for supporting RSS.
+	 * single NPC MCAM entry is yest sufficient for supporting RSS.
 	 *
 	 * If a different definition or combination needed then NPC MCAM
 	 * has to be programmed to filter such pkts and it's action should
@@ -2251,7 +2251,7 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 			field->bytesm1 = 3; /* Sport + Dport, 4 bytes */
 
 			/* Enum values for NPC_LID_LD and NPC_LID_LG are same,
-			 * so no need to change the ltype_match, just change
+			 * so yes need to change the ltype_match, just change
 			 * the lid for inner protocols
 			 */
 			BUILD_BUG_ON((int)NPC_LT_LD_TCP !=
@@ -2281,7 +2281,7 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 			if (key_type == NIX_FLOW_KEY_TYPE_SCTP ||
 			    key_type == NIX_FLOW_KEY_TYPE_INNR_SCTP) {
 				/* Handle the case where any of the group item
-				 * is enabled in the group but not the final one
+				 * is enabled in the group but yest the final one
 				 */
 				if (group_member) {
 					valid_key = true;
@@ -2725,7 +2725,7 @@ int rvu_mbox_handler_nix_rxvlan_alloc(struct rvu *rvu, struct msg_req *req,
 	int blkaddr, nixlf, err;
 	struct rvu_pfvf *pfvf;
 
-	/* LBK VFs do not have separate MCAM UCAST entry hence
+	/* LBK VFs do yest have separate MCAM UCAST entry hence
 	 * skip allocating rxvlan for them
 	 */
 	if (is_afvf(pcifunc))
@@ -2885,7 +2885,7 @@ static int nix_calibrate_x2p(struct rvu *rvu, int blkaddr)
 	status = rvu_read64(rvu, blkaddr, NIX_AF_STATUS);
 	/* Check if CGX devices are ready */
 	for (idx = 0; idx < rvu->cgx_cnt_max; idx++) {
-		/* Skip when cgx port is not available */
+		/* Skip when cgx port is yest available */
 		if (!rvu_cgx_pdata(idx, rvu) ||
 		    (status & (BIT_ULL(16 + idx))))
 			continue;
@@ -2927,7 +2927,7 @@ static int nix_aq_init(struct rvu *rvu, struct rvu_block *block)
 	rvu_write64(rvu, block->addr, NIX_AF_CFG, cfg);
 #endif
 
-	/* Do not bypass NDC cache */
+	/* Do yest bypass NDC cache */
 	cfg = rvu_read64(rvu, block->addr, NIX_AF_NDC_CFG);
 	cfg &= ~0x3FFEULL;
 #ifdef CONFIG_NDC_DIS_DYNAMIC_CACHING
@@ -2976,7 +2976,7 @@ int rvu_nix_init(struct rvu *rvu)
 		rvu_write64(rvu, blkaddr, NIX_AF_PSE_CHANNEL_LEVEL, 0x01);
 
 		/* Disable SQ manager's sticky mode operation (set TM6 = 0)
-		 * This sticky mode is known to cause SQ stalls when multiple
+		 * This sticky mode is kyeswn to cause SQ stalls when multiple
 		 * SQs are mapped to same SMQ and transmitting pkts at a time.
 		 */
 		cfg = rvu_read64(rvu, blkaddr, NIX_AF_SQM_DBG_CTL_STATUS);

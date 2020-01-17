@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
@@ -28,7 +28,7 @@
 
 static struct regmap *syscon;
 
-static int axxia_restart_handler(struct notifier_block *this,
+static int axxia_restart_handler(struct yestifier_block *this,
 				 unsigned long mode, void *cmd)
 {
 	/* Access Key (0xab) */
@@ -44,8 +44,8 @@ static int axxia_restart_handler(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block axxia_restart_nb = {
-	.notifier_call = axxia_restart_handler,
+static struct yestifier_block axxia_restart_nb = {
+	.yestifier_call = axxia_restart_handler,
 	.priority = 128,
 };
 
@@ -54,15 +54,15 @@ static int axxia_reset_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int err;
 
-	syscon = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
+	syscon = syscon_regmap_lookup_by_phandle(dev->of_yesde, "syscon");
 	if (IS_ERR(syscon)) {
-		pr_err("%pOFn: syscon lookup failed\n", dev->of_node);
+		pr_err("%pOFn: syscon lookup failed\n", dev->of_yesde);
 		return PTR_ERR(syscon);
 	}
 
 	err = register_restart_handler(&axxia_restart_nb);
 	if (err)
-		dev_err(dev, "cannot register restart handler (err=%d)\n", err);
+		dev_err(dev, "canyest register restart handler (err=%d)\n", err);
 
 	return err;
 }

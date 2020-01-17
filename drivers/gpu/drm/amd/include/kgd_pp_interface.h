@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -51,7 +51,7 @@ enum amd_dpm_forced_level {
 };
 
 enum amd_pm_state_type {
-	/* not used for dpm */
+	/* yest used for dpm */
 	POWER_STATE_TYPE_DEFAULT,
 	POWER_STATE_TYPE_POWERSAVE,
 	/* user selectable states */
@@ -308,7 +308,7 @@ struct amd_pm_funcs {
 				struct pp_display_clock_request *clock);
 	int (*get_display_mode_validation_clocks)(void *handle,
 		struct amd_pp_simple_clock_info *clocks);
-	int (*notify_smu_enable_pwe)(void *handle);
+	int (*yestify_smu_enable_pwe)(void *handle);
 	int (*enable_mgpu_fan_boost)(void *handle);
 	int (*set_active_display_count)(void *handle, uint32_t count);
 	int (*set_hard_min_dcefclk_by_freq)(void *handle, uint32_t clock);

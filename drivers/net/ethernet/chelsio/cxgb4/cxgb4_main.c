@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -162,12 +162,12 @@ MODULE_PARM_DESC(msi, "whether to use INTx (0), MSI (1) or MSI-X (2)");
  * offset by 2 bytes in order to have the IP headers line up on 4-byte
  * boundaries.  This is a requirement for many architectures which will throw
  * a machine check fault if an attempt is made to access one of the 4-byte IP
- * header fields on a non-4-byte boundary.  And it's a major performance issue
+ * header fields on a yesn-4-byte boundary.  And it's a major performance issue
  * even on some architectures which allow it like some implementations of the
  * x86 ISA.  However, some architectures don't mind this and for some very
  * edge-case performance sensitive applications (like forwarding large volumes
  * of small packets), setting this DMA offset to 0 will decrease the number of
- * PCI-E Bus transfers enough to measurably affect performance.
+ * PCI-E Bus transfers eyesugh to measurably affect performance.
  */
 static int rx_dma_offset = 2;
 
@@ -194,7 +194,7 @@ static void link_report(struct net_device *dev)
 	if (!netif_carrier_ok(dev))
 		netdev_info(dev, "link down\n");
 	else {
-		static const char *fc[] = { "no", "Rx", "Tx", "Tx/Rx" };
+		static const char *fc[] = { "yes", "Rx", "Tx", "Tx/Rx" };
 
 		const char *s;
 		const struct port_info *p = netdev_priv(dev);
@@ -322,12 +322,12 @@ void t4_os_portmod_changed(struct adapter *adap, int port_id)
 		netdev_info(dev, "%s: unsupported port module inserted\n",
 			    dev->name);
 	else if (pi->mod_type == FW_PORT_MOD_TYPE_UNKNOWN)
-		netdev_info(dev, "%s: unknown port module inserted\n",
+		netdev_info(dev, "%s: unkyeswn port module inserted\n",
 			    dev->name);
 	else if (pi->mod_type == FW_PORT_MOD_TYPE_ERROR)
 		netdev_info(dev, "%s: transceiver module error\n", dev->name);
 	else
-		netdev_info(dev, "%s: unknown module type %d inserted\n",
+		netdev_info(dev, "%s: unkyeswn module type %d inserted\n",
 			    dev->name, pi->mod_type);
 
 	/* If the interface is running, then we'll need any "sticky" Link
@@ -510,7 +510,7 @@ static int link_start(struct net_device *dev)
 	unsigned int mb = pi->adapter->pf;
 
 	/*
-	 * We do not set address filters and promiscuity here, the stack does
+	 * We do yest set address filters and promiscuity here, the stack does
 	 * that step explicitly.
 	 */
 	ret = t4_set_rxmode(pi->adapter, mb, pi->viid, dev->mtu, -1, -1, -1,
@@ -672,9 +672,9 @@ static void disable_msi(struct adapter *adapter)
 }
 
 /*
- * Interrupt handler for non-data events used with MSI-X.
+ * Interrupt handler for yesn-data events used with MSI-X.
  */
-static irqreturn_t t4_nondata_intr(int irq, void *cookie)
+static irqreturn_t t4_yesndata_intr(int irq, void *cookie)
 {
 	struct adapter *adap = cookie;
 	u32 v = t4_read_reg(adap, MYPF_REG(PL_PF_INT_CAUSE_A));
@@ -698,7 +698,7 @@ int cxgb4_set_msix_aff(struct adapter *adap, unsigned short vec,
 		return -ENOMEM;
 	}
 
-	cpumask_set_cpu(cpumask_local_spread(idx, dev_to_node(adap->pdev_dev)),
+	cpumask_set_cpu(cpumask_local_spread(idx, dev_to_yesde(adap->pdev_dev)),
 			*aff_mask);
 
 	rv = irq_set_affinity_hint(vec, *aff_mask);
@@ -776,7 +776,7 @@ static int setup_ppod_edram(struct adapter *adap)
 	int ret;
 
 	/* Driver sends FW_PARAMS_PARAM_DEV_PPOD_EDRAM read command to check
-	 * if firmware supports ppod edram feature or not. If firmware
+	 * if firmware supports ppod edram feature or yest. If firmware
 	 * returns 1, then driver can enable this feature by sending
 	 * FW_PARAMS_PARAM_DEV_PPOD_EDRAM write command with value 1 to
 	 * enable ppod edram feature.
@@ -950,7 +950,7 @@ static void enable_rx(struct adapter *adap)
 	}
 }
 
-static int setup_non_data_intr(struct adapter *adap)
+static int setup_yesn_data_intr(struct adapter *adap)
 {
 	int msix;
 
@@ -958,7 +958,7 @@ static int setup_non_data_intr(struct adapter *adap)
 	if (!(adap->flags & CXGB4_USING_MSIX))
 		return 0;
 
-	/* Request MSI-X vector for non-data interrupt */
+	/* Request MSI-X vector for yesn-data interrupt */
 	msix = cxgb4_get_msix_idx_from_bmap(adap);
 	if (msix < 0)
 		return -ENOMEM;
@@ -1142,7 +1142,7 @@ static u16 cxgb_select_queue(struct net_device *dev, struct sk_buff *skb,
 		proto = (ver == 6) ? ipv6_hdr(skb)->nexthdr :
 				     ip_hdr(skb)->protocol;
 
-		/* Send unsupported traffic pattern to normal NIC queues. */
+		/* Send unsupported traffic pattern to yesrmal NIC queues. */
 		txq = netdev_pick_tx(dev, skb, sb_dev);
 		if (xfrm_offload(skb) || is_ptp_enabled(skb, dev) ||
 		    skb->encapsulation ||
@@ -1698,7 +1698,7 @@ EXPORT_SYMBOL(cxgb4_remove_server);
  *	@idx: index of selected entry in the MTU table
  *
  *	Returns the index and the value in the HW MTU table that is closest to
- *	but does not exceed @mtu, unless @mtu is smaller than any value in the
+ *	but does yest exceed @mtu, unless @mtu is smaller than any value in the
  *	table, in which case that smallest available value is selected.
  */
 unsigned int cxgb4_best_mtu(const unsigned short *mtus, unsigned short mtu,
@@ -1754,7 +1754,7 @@ unsigned int cxgb4_best_aligned_mtu(const unsigned short *mtus,
 		if ((data_size & data_size_align_mask) == 0)
 			aligned_mtu_idx = mtu_idx;
 
-		/* If we're not at the end of the Hardware MTU Table and the
+		/* If we're yest at the end of the Hardware MTU Table and the
 		 * next element is larger than our Maximum MTU, drop out of
 		 * the loop.
 		 */
@@ -1769,7 +1769,7 @@ unsigned int cxgb4_best_aligned_mtu(const unsigned short *mtus,
 		mtu_idx--;
 
 	/* If we found an MTU which resulted in the requested Data Segment
-	 * Length alignment and that's "not far" from the largest MTU which is
+	 * Length alignment and that's "yest far" from the largest MTU which is
 	 * less than or equal to the maximum MTU, then use that.
 	 */
 	if (aligned_mtu_idx >= 0 &&
@@ -1948,8 +1948,8 @@ int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte)
 
 	/* Figure out where the offset lands in the Memory Type/Address scheme.
 	 * This code assumes that the memory is laid out starting at offset 0
-	 * with no breaks as: EDC0, EDC1, MC0, MC1. All cards have both EDC0
-	 * and EDC1.  Some cards will have neither MC0 nor MC1, most cards have
+	 * with yes breaks as: EDC0, EDC1, MC0, MC1. All cards have both EDC0
+	 * and EDC1.  Some cards will have neither MC0 yesr MC1, most cards have
 	 * MC0, and some have both MC0 and MC1.
 	 */
 	size = t4_read_reg(adap, MA_EDRAM0_BAR_A);
@@ -2054,7 +2054,7 @@ static void check_neigh_update(struct neighbour *neigh)
 		t4_l2t_update(dev_get_drvdata(parent), neigh);
 }
 
-static int netevent_cb(struct notifier_block *nb, unsigned long event,
+static int netevent_cb(struct yestifier_block *nb, unsigned long event,
 		       void *data)
 {
 	switch (event) {
@@ -2069,8 +2069,8 @@ static int netevent_cb(struct notifier_block *nb, unsigned long event,
 }
 
 static bool netevent_registered;
-static struct notifier_block cxgb4_netevent_nb = {
-	.notifier_call = netevent_cb
+static struct yestifier_block cxgb4_netevent_nb = {
+	.yestifier_call = netevent_cb
 };
 
 static void drain_db_fifo(struct adapter *adap, int usecs)
@@ -2164,7 +2164,7 @@ static void enable_dbs(struct adapter *adap)
 		enable_txq_db(adap, &adap->sge.ctrlq[i].q);
 }
 
-static void notify_rdma_uld(struct adapter *adap, enum cxgb4_control cmd)
+static void yestify_rdma_uld(struct adapter *adap, enum cxgb4_control cmd)
 {
 	enum cxgb4_uld type = CXGB4_ULD_RDMA;
 
@@ -2180,7 +2180,7 @@ static void process_db_full(struct work_struct *work)
 
 	drain_db_fifo(adap, dbfifo_drain_delay);
 	enable_dbs(adap);
-	notify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
+	yestify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
 	if (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5)
 		t4_set_reg_field(adap, SGE_INT_ENABLE3_A,
 				 DBFIFO_HP_INT_F | DBFIFO_LP_INT_F,
@@ -2253,12 +2253,12 @@ static void process_db_drop(struct work_struct *work)
 
 	if (is_t4(adap->params.chip)) {
 		drain_db_fifo(adap, dbfifo_drain_delay);
-		notify_rdma_uld(adap, CXGB4_CONTROL_DB_DROP);
+		yestify_rdma_uld(adap, CXGB4_CONTROL_DB_DROP);
 		drain_db_fifo(adap, dbfifo_drain_delay);
 		recover_all_queues(adap);
 		drain_db_fifo(adap, dbfifo_drain_delay);
 		enable_dbs(adap);
-		notify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
+		yestify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
 	} else if (is_t5(adap->params.chip)) {
 		u32 dropped_db = t4_read_reg(adap, 0x010ac);
 		u16 qid = (dropped_db >> 15) & 0x1ffff;
@@ -2288,7 +2288,7 @@ void t4_db_full(struct adapter *adap)
 {
 	if (is_t4(adap->params.chip)) {
 		disable_dbs(adap);
-		notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
+		yestify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
 		t4_set_reg_field(adap, SGE_INT_ENABLE3_A,
 				 DBFIFO_HP_INT_F | DBFIFO_LP_INT_F, 0);
 		queue_work(adap->workq, &adap->db_full_task);
@@ -2299,15 +2299,15 @@ void t4_db_dropped(struct adapter *adap)
 {
 	if (is_t4(adap->params.chip)) {
 		disable_dbs(adap);
-		notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
+		yestify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
 	}
 	queue_work(adap->workq, &adap->db_drop_task);
 }
 
-void t4_register_netevent_notifier(void)
+void t4_register_netevent_yestifier(void)
 {
 	if (!netevent_registered) {
-		register_netevent_notifier(&cxgb4_netevent_nb);
+		register_netevent_yestifier(&cxgb4_netevent_nb);
 		netevent_registered = true;
 	}
 }
@@ -2317,7 +2317,7 @@ static void detach_ulds(struct adapter *adap)
 	unsigned int i;
 
 	mutex_lock(&uld_mutex);
-	list_del(&adap->list_node);
+	list_del(&adap->list_yesde);
 
 	for (i = 0; i < CXGB4_ULD_MAX; i++)
 		if (adap->uld && adap->uld[i].handle)
@@ -2325,13 +2325,13 @@ static void detach_ulds(struct adapter *adap)
 					     CXGB4_STATE_DETACH);
 
 	if (netevent_registered && list_empty(&adapter_list)) {
-		unregister_netevent_notifier(&cxgb4_netevent_nb);
+		unregister_netevent_yestifier(&cxgb4_netevent_nb);
 		netevent_registered = false;
 	}
 	mutex_unlock(&uld_mutex);
 }
 
-static void notify_ulds(struct adapter *adap, enum cxgb4_state new_state)
+static void yestify_ulds(struct adapter *adap, enum cxgb4_state new_state)
 {
 	unsigned int i;
 
@@ -2344,7 +2344,7 @@ static void notify_ulds(struct adapter *adap, enum cxgb4_state new_state)
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static int cxgb4_inet6addr_handler(struct notifier_block *this,
+static int cxgb4_inet6addr_handler(struct yestifier_block *this,
 				   unsigned long event, void *data)
 {
 	struct inet6_ifaddr *ifa = data;
@@ -2357,7 +2357,7 @@ static int cxgb4_inet6addr_handler(struct notifier_block *this,
 		event_dev = vlan_dev_real_dev(event_dev);
 #if IS_ENABLED(CONFIG_BONDING)
 	if (event_dev->flags & IFF_MASTER) {
-		list_for_each_entry(adap, &adapter_list, list_node) {
+		list_for_each_entry(adap, &adapter_list, list_yesde) {
 			switch (event) {
 			case NETDEV_UP:
 				cxgb4_clip_get(adap->port[0],
@@ -2394,8 +2394,8 @@ static int cxgb4_inet6addr_handler(struct notifier_block *this,
 }
 
 static bool inet6addr_registered;
-static struct notifier_block cxgb4_inet6addr_notifier = {
-	.notifier_call = cxgb4_inet6addr_handler
+static struct yestifier_block cxgb4_inet6addr_yestifier = {
+	.yestifier_call = cxgb4_inet6addr_handler
 };
 
 static void update_clip(const struct adapter *adap)
@@ -2450,7 +2450,7 @@ static int cxgb_up(struct adapter *adap)
 		}
 
 		err = request_irq(adap->msix_info[s->nd_msix_idx].vec,
-				  t4_nondata_intr, 0,
+				  t4_yesndata_intr, 0,
 				  adap->msix_info[s->nd_msix_idx].desc, adap);
 		if (err)
 			goto irq_err;
@@ -2473,7 +2473,7 @@ static int cxgb_up(struct adapter *adap)
 	adap->flags |= CXGB4_FULL_INIT_DONE;
 	mutex_unlock(&uld_mutex);
 
-	notify_ulds(adap, CXGB4_STATE_UP);
+	yestify_ulds(adap, CXGB4_STATE_UP);
 #if IS_ENABLED(CONFIG_IPV6)
 	update_clip(adap);
 #endif
@@ -2858,7 +2858,7 @@ static void cxgb4_mgmt_fill_vf_station_mac_addr(struct adapter *adap)
 	b = (hw_addr[1] << 8) | hw_addr[2];
 	a ^= b;
 	a |= 0x0200;    /* locally assigned Ethernet MAC address */
-	a &= ~0x0100;   /* not a multicast Ethernet MAC address */
+	a &= ~0x0100;   /* yest a multicast Ethernet MAC address */
 	macaddr[0] = a >> 8;
 	macaddr[1] = a & 0xff;
 
@@ -3233,9 +3233,9 @@ static int cxgb_setup_tc_cls_u32(struct net_device *dev,
 	switch (cls_u32->command) {
 	case TC_CLSU32_NEW_KNODE:
 	case TC_CLSU32_REPLACE_KNODE:
-		return cxgb4_config_knode(dev, cls_u32);
+		return cxgb4_config_kyesde(dev, cls_u32);
 	case TC_CLSU32_DELETE_KNODE:
-		return cxgb4_delete_knode(dev, cls_u32);
+		return cxgb4_delete_kyesde(dev, cls_u32);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3444,7 +3444,7 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 	switch (ti->type) {
 	case UDP_TUNNEL_TYPE_VXLAN:
 		/* Callback for adding vxlan port can be called with the same
-		 * port for both IPv4 and IPv6. We should not disable the
+		 * port for both IPv4 and IPv6. We should yest disable the
 		 * offloading when the same port for both protocols is added
 		 * and later one of them is removed.
 		 */
@@ -3456,7 +3456,7 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 
 		/* We will support only one VxLAN port */
 		if (adapter->vxlan_port_cnt) {
-			netdev_info(netdev, "UDP port %d already offloaded, not adding port %d\n",
+			netdev_info(netdev, "UDP port %d already offloaded, yest adding port %d\n",
 				    be16_to_cpu(adapter->vxlan_port),
 				    be16_to_cpu(ti->port));
 			return;
@@ -3477,7 +3477,7 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 
 		/* We will support only one GENEVE port */
 		if (adapter->geneve_port_cnt) {
-			netdev_info(netdev, "UDP port %d already offloaded, not adding port %d\n",
+			netdev_info(netdev, "UDP port %d already offloaded, yest adding port %d\n",
 				    be16_to_cpu(adapter->geneve_port),
 				    be16_to_cpu(ti->port));
 			return;
@@ -3509,7 +3509,7 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 					    pi->port_id,
 					    1, pi->port_id, false);
 		if (ret < 0) {
-			netdev_info(netdev, "Failed to allocate a mac filter entry, not adding port %d\n",
+			netdev_info(netdev, "Failed to allocate a mac filter entry, yest adding port %d\n",
 				    be16_to_cpu(ti->port));
 			cxgb_del_udp_tunnel(netdev, ti);
 			return;
@@ -3531,7 +3531,7 @@ static netdev_features_t cxgb_features_check(struct sk_buff *skb,
 	if (!skb->encapsulation || cxgb_encap_offload_supported(skb))
 		return features;
 
-	/* Offload is not supported for this encapsulated packet */
+	/* Offload is yest supported for this encapsulated packet */
 	return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 }
 
@@ -3600,12 +3600,12 @@ static const struct ethtool_ops cxgb4_mgmt_ethtool_ops = {
 	.get_drvinfo       = cxgb4_mgmt_get_drvinfo,
 };
 
-static void notify_fatal_err(struct work_struct *work)
+static void yestify_fatal_err(struct work_struct *work)
 {
 	struct adapter *adap;
 
-	adap = container_of(work, struct adapter, fatal_err_notify_task);
-	notify_ulds(adap, CXGB4_STATE_FATAL_ERROR);
+	adap = container_of(work, struct adapter, fatal_err_yestify_task);
+	yestify_ulds(adap, CXGB4_STATE_FATAL_ERROR);
 }
 
 void t4_fatal_err(struct adapter *adap)
@@ -3623,7 +3623,7 @@ void t4_fatal_err(struct adapter *adap)
 		struct net_device *dev = adap->port[port];
 
 		/* If we get here in very early initialization the network
-		 * devices may not have been set up yet.
+		 * devices may yest have been set up yet.
 		 */
 		if (!dev)
 			continue;
@@ -3632,7 +3632,7 @@ void t4_fatal_err(struct adapter *adap)
 		netif_carrier_off(dev);
 	}
 	dev_alert(adap->pdev_dev, "encountered fatal error, adapter stopped\n");
-	queue_work(adap->workq, &adap->fatal_err_notify_task);
+	queue_work(adap->workq, &adap->fatal_err_yestify_task);
 }
 
 static void setup_memwin(struct adapter *adap)
@@ -3722,7 +3722,7 @@ static int adap_config_hma(struct adapter *adapter)
 	unsigned int ncmds;
 	size_t page_size;
 	u32 page_order;
-	int node, ret;
+	int yesde, ret;
 
 	/* HMA is supported only for T6+ cards.
 	 * Avoid initializing HMA in kdump kernels.
@@ -3736,7 +3736,7 @@ static int adap_config_hma(struct adapter *adapter)
 		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_HMA_SIZE));
 	ret = t4_query_params(adapter, adapter->mbox, adapter->pf, 0,
 			      1, &param, &hma_size);
-	/* An error means card has its own memory or HMA is not supported by
+	/* An error means card has its own memory or HMA is yest supported by
 	 * the firmware. Return without any errors.
 	 */
 	if (ret || !hma_size)
@@ -3769,13 +3769,13 @@ static int adap_config_hma(struct adapter *adapter)
 	}
 
 	sgl = adapter->hma.sgt->sgl;
-	node = dev_to_node(adapter->pdev_dev);
+	yesde = dev_to_yesde(adapter->pdev_dev);
 	for_each_sg(sgl, iter, sgt->orig_nents, i) {
-		newpage = alloc_pages_node(node, __GFP_NOWARN | GFP_KERNEL |
+		newpage = alloc_pages_yesde(yesde, __GFP_NOWARN | GFP_KERNEL |
 					   __GFP_ZERO, page_order);
 		if (!newpage) {
 			dev_err(adapter->pdev_dev,
-				"Not enough memory for HMA page allocation\n");
+				"Not eyesugh memory for HMA page allocation\n");
 			ret = -ENOMEM;
 			goto free_hma;
 		}
@@ -3786,7 +3786,7 @@ static int adap_config_hma(struct adapter *adapter)
 				DMA_BIDIRECTIONAL);
 	if (!sgt->nents) {
 		dev_err(adapter->pdev_dev,
-			"Not enough memory for HMA DMA mapping");
+			"Not eyesugh memory for HMA DMA mapping");
 		ret = -ENOMEM;
 		goto free_hma;
 	}
@@ -3982,7 +3982,7 @@ static int adap_init0_tweaks(struct adapter *adapter)
 	 */
 	if (rx_dma_offset != 2 && rx_dma_offset != 0) {
 		dev_err(&adapter->pdev->dev,
-			"Ignoring illegal rx_dma_offset=%d, using 2\n",
+			"Igyesring illegal rx_dma_offset=%d, using 2\n",
 			rx_dma_offset);
 		rx_dma_offset = 2;
 	}
@@ -4186,7 +4186,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		fw_config_file = FW6_CFNAME;
 		break;
 	default:
-		dev_err(adapter->pdev_dev, "Device %d is not supported\n",
+		dev_err(adapter->pdev_dev, "Device %d is yest supported\n",
 		       adapter->pdev->device);
 		ret = -EINVAL;
 		goto bye;
@@ -4266,12 +4266,12 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	ret = t4_set_params(adapter, adapter->mbox, adapter->pf, 0,
 			    1, &param, &val);
 
-	/* FW doesn't know about Hash filter + ofld support,
-	 * it's not a problem, don't return an error.
+	/* FW doesn't kyesw about Hash filter + ofld support,
+	 * it's yest a problem, don't return an error.
 	 */
 	if (ret < 0) {
 		dev_warn(adapter->pdev_dev,
-			 "Hash filter with ofld is not supported by FW\n");
+			 "Hash filter with ofld is yest supported by FW\n");
 	}
 
 	/*
@@ -4297,7 +4297,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 * Configuration File in FLASH), our last gasp effort is to use the
 	 * Firmware Configuration File which is embedded in the firmware.  A
 	 * very few early versions of the firmware didn't have one embedded
-	 * but we can ignore those.
+	 * but we can igyesre those.
 	 */
 	if (ret == -ENOENT) {
 		memset(&caps_cmd, 0, sizeof(caps_cmd));
@@ -4324,7 +4324,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 			 finicsum, cfcsum);
 
 	/*
-	 * And now tell the firmware to use the configuration we just loaded.
+	 * And yesw tell the firmware to use the configuration we just loaded.
 	 */
 	caps_cmd.op_to_write =
 		htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
@@ -4375,7 +4375,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 
 	/*
 	 * Something bad happened.  Return the error ...  (If the "error"
-	 * is that there's no Configuration File on the adapter we don't
+	 * is that there's yes Configuration File on the adapter we don't
 	 * want to issue a warning since this is fairly common.)
 	 */
 bye:
@@ -4466,7 +4466,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 	ret = t4_fw_hello(adap, adap->mbox, adap->mbox,
 			  is_kdump_kernel() ? MASTER_MUST : MASTER_MAY, &state);
 	if (ret < 0) {
-		dev_err(adap->pdev_dev, "could not connect to FW, error %d\n",
+		dev_err(adap->pdev_dev, "could yest connect to FW, error %d\n",
 			ret);
 		return ret;
 	}
@@ -4483,7 +4483,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 
 	t4_get_version_info(adap);
 	ret = t4_check_fw_version(adap);
-	/* If firmware is too old (not supported by driver) force an update. */
+	/* If firmware is too old (yest supported by driver) force an update. */
 	if (ret)
 		state = DEV_STATE_UNINIT;
 	if ((adap->flags & CXGB4_MASTER_PF) && state != DEV_STATE_INIT) {
@@ -4537,7 +4537,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 			goto bye;
 	}
 
-	/* If the firmware is initialized already, emit a simply note to that
+	/* If the firmware is initialized already, emit a simply yeste to that
 	 * effect. Otherwise, it's time to try initializing the adapter.
 	 */
 	if (state == DEV_STATE_INIT) {
@@ -4576,12 +4576,12 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 		 */
 		ret = adap_init0_config(adap, reset);
 		if (ret == -ENOENT) {
-			dev_err(adap->pdev_dev, "no Configuration File "
+			dev_err(adap->pdev_dev, "yes Configuration File "
 				"present on adapter.\n");
 			goto bye;
 		}
 		if (ret < 0) {
-			dev_err(adap->pdev_dev, "could not initialize "
+			dev_err(adap->pdev_dev, "could yest initialize "
 				"adapter, error %d\n", -ret);
 			goto bye;
 		}
@@ -4600,7 +4600,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 
 	/* Grab VPD parameters.  This should be done after we establish a
 	 * connection to the firmware since some of the VPD parameters
-	 * (notably the Core Clock frequency) are retrieved via requests to
+	 * (yestably the Core Clock frequency) are retrieved via requests to
 	 * the firmware.  On the other hand, we need these fairly early on
 	 * so we do this right after getting ahold of the firmware.
 	 *
@@ -4615,7 +4615,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 	}
 
 	/* Find out what ports are available to us.  Note that we need to do
-	 * this before calling adap_init0_no_config() since it needs nports
+	 * this before calling adap_init0_yes_config() since it needs nports
 	 * and portvec ...
 	 */
 	v =
@@ -4630,7 +4630,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 
 	/* Give the SGE code a chance to pull in anything that it needs ...
 	 * Note that this must be called after we retrieve our VPD parameters
-	 * in order to know how to convert core ticks to seconds, etc.
+	 * in order to kyesw how to convert core ticks to seconds, etc.
 	 */
 	ret = t4_sge_init(adap);
 	if (ret < 0)
@@ -4788,7 +4788,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 		adap->tids.aftid_end = val[1];
 	}
 
-	/* If we're running on newer firmware, let it know that we're
+	/* If we're running on newer firmware, let it kyesw that we're
 	 * prepared to deal with encapsulated CPL messages.  Older
 	 * firmware won't understand this and we'll just get
 	 * unencapsulated messages ...
@@ -4800,7 +4800,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 	/*
 	 * Find out whether we're allowed to use the T5+ ULPTX MEMWRITE DSGL
 	 * capability.  Earlier versions of the firmware didn't have the
-	 * ULPTX_MEMWRITE_DSGL so we'll interpret a query failure as no
+	 * ULPTX_MEMWRITE_DSGL so we'll interpret a query failure as yes
 	 * permission to use ULPTX MEMWRITE DSGL.
 	 */
 	if (is_t4(adap->params.chip)) {
@@ -4829,7 +4829,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 	}
 
 	/* Check if FW supports returning vin and smt index.
-	 * If this is not supported, driver will interpret
+	 * If this is yest supported, driver will interpret
 	 * these values from viid.
 	 */
 	params[0] = FW_PARAM_DEV(OPAQUE_VIID_SMT_EXTN);
@@ -4851,7 +4851,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 		goto bye;
 
 	/* hash filter has some mandatory register settings to be tested and for
-	 * that it needs to test whether offload is enabled or not, hence
+	 * that it needs to test whether offload is enabled or yest, hence
 	 * checking and setting it here.
 	 */
 	if (caps_cmd.ofldcaps)
@@ -4944,7 +4944,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 		if (adap->vres.srq.size) {
 			adap->srq = t4_init_srq(adap->vres.srq.size);
 			if (!adap->srq)
-				dev_warn(&adap->pdev->dev, "could not allocate SRQ, continuing\n");
+				dev_warn(&adap->pdev->dev, "could yest allocate SRQ, continuing\n");
 		}
 
 		params[0] = FW_PARAM_PFVF(SQRQ_START);
@@ -5053,7 +5053,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 #undef FW_PARAM_PFVF
 #undef FW_PARAM_DEV
 
-	/* The MTU/MSS Table is initialized by now, so load their values.  If
+	/* The MTU/MSS Table is initialized by yesw, so load their values.  If
 	 * we're initializing the adapter, then we'll make any modifications
 	 * we want to the MTU/MSS Table and also initialize the congestion
 	 * parameters.
@@ -5068,11 +5068,11 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 		 * This allows us to have a TCP Data Payload which is a
 		 * multiple of 8 regardless of what combination of TCP Options
 		 * are in use (always a multiple of 4 bytes) which is
-		 * important for performance reasons.  For instance, if no
+		 * important for performance reasons.  For instance, if yes
 		 * options are in use, then we have a 20-byte IP header and a
 		 * 20-byte TCP header.  In this case, a 1500-byte MSS would
 		 * result in a TCP Data Payload of 1500 - 40 == 1460 bytes
-		 * which is not a multiple of 8.  So using an MSS of 1488 in
+		 * which is yest a multiple of 8.  So using an MSS of 1488 in
 		 * this case results in a TCP Data Payload of 1448 bytes which
 		 * is a multiple of 8.  On the other hand, if 12-byte TCP Time
 		 * Stamps have been negotiated, then an MTU of 1500 bytes
@@ -5095,7 +5095,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 
 	/*
 	 * Something bad happened.  If a command timed out or failed with EIO
-	 * FW does not operate within its spec or something catastrophic
+	 * FW does yest operate within its spec or something catastrophic
 	 * happened to HW/FW, stop issuing commands.
 	 */
 bye:
@@ -5125,7 +5125,7 @@ static pci_ers_result_t eeh_err_detected(struct pci_dev *pdev,
 
 	rtnl_lock();
 	adap->flags &= ~CXGB4_FW_OK;
-	notify_ulds(adap, CXGB4_STATE_START_RECOVERY);
+	yestify_ulds(adap, CXGB4_STATE_START_RECOVERY);
 	spin_lock(&adap->stats_lock);
 	for_each_port(adap, i) {
 		struct net_device *dev = adap->port[i];
@@ -5161,7 +5161,7 @@ static pci_ers_result_t eeh_slot_reset(struct pci_dev *pdev)
 
 	if (!(adap->flags & CXGB4_DEV_ENABLED)) {
 		if (pci_enable_device(pdev)) {
-			dev_err(&pdev->dev, "Cannot reenable PCI "
+			dev_err(&pdev->dev, "Canyest reenable PCI "
 					    "device after reset\n");
 			return PCI_ERS_RESULT_DISCONNECT;
 		}
@@ -5243,7 +5243,7 @@ static void eeh_reset_prepare(struct pci_dev *pdev)
 
 	adapter->flags &= ~CXGB4_FW_OK;
 
-	notify_ulds(adapter, CXGB4_STATE_DOWN);
+	yestify_ulds(adapter, CXGB4_STATE_DOWN);
 
 	for_each_port(adapter, i)
 		if (adapter->port[i]->reg_state == NETREG_REGISTERED)
@@ -5269,7 +5269,7 @@ static void eeh_reset_done(struct pci_dev *pdev)
 	err = t4_wait_dev_ready(adapter->regs);
 	if (err < 0) {
 		dev_err(adapter->pdev_dev,
-			"Device not ready, err %d", err);
+			"Device yest ready, err %d", err);
 		return;
 	}
 
@@ -5358,7 +5358,7 @@ static int cfg_queues(struct adapter *adap)
 	}
 
 	/* Calculate the number of Ethernet Queue Sets available based on
-	 * resources provisioned for us.  We always have an Asynchronous
+	 * resources provisioned for us.  We always have an Asynchroyesus
 	 * Firmware Event Ingress Queue.  If we're operating in MSI or Legacy
 	 * IRQ Pin Interrupt mode, then we'll also have a Forwarded Interrupt
 	 * Ingress Queue.  Meanwhile, we need two Egress Queues for each
@@ -5405,7 +5405,7 @@ static int cfg_queues(struct adapter *adap)
 		qidx += pi->nqsets;
 	}
 #else /* !CONFIG_CHELSIO_T4_DCB */
-	/* We default to 1 queue per non-10G port and up to # of cores queues
+	/* We default to 1 queue per yesn-10G port and up to # of cores queues
 	 * per 10G port.
 	 */
 	if (n10g)
@@ -5451,7 +5451,7 @@ static int cfg_queues(struct adapter *adap)
 	}
 
 	/* ETHOFLD Queues used for QoS offload should follow same
-	 * allocation scheme as normal Ethernet Queues.
+	 * allocation scheme as yesrmal Ethernet Queues.
 	 */
 	if (is_ethofld(adap)) {
 		if (avail_qsets < s->max_ethqsets) {
@@ -5571,7 +5571,7 @@ void cxgb4_free_msix_idx_in_bmap(struct adapter *adap,
 	spin_unlock_irqrestore(&bmap->lock, flags);
 }
 
-/* 2 MSI-X vectors needed for the FW queue and non-data interrupts */
+/* 2 MSI-X vectors needed for the FW queue and yesn-data interrupts */
 #define EXTRA_VECS 2
 
 static int enable_msix(struct adapter *adap)
@@ -5765,7 +5765,7 @@ static void print_adapter_info(struct adapter *adapter)
 		 is_offload(adapter) ? "R" : "",
 		 ((adapter->flags & CXGB4_USING_MSIX) ? "MSI-X" :
 		  (adapter->flags & CXGB4_USING_MSI) ? "MSI" : ""),
-		 is_offload(adapter) ? "Offload" : "non-Offload");
+		 is_offload(adapter) ? "Offload" : "yesn-Offload");
 }
 
 static void print_port_info(const struct net_device *dev)
@@ -5893,26 +5893,26 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 	pcie_fw = readl(adap->regs + PCIE_FW_A);
 	/* Check if fw is initialized */
 	if (!(pcie_fw & PCIE_FW_INIT_F)) {
-		dev_warn(&pdev->dev, "Device not initialized\n");
+		dev_warn(&pdev->dev, "Device yest initialized\n");
 		return -EOPNOTSUPP;
 	}
 
 	/* If any of the VF's is already assigned to Guest OS, then
-	 * SRIOV for the same cannot be modified
+	 * SRIOV for the same canyest be modified
 	 */
 	if (current_vfs && pci_vfs_assigned(pdev)) {
 		dev_err(&pdev->dev,
-			"Cannot modify SR-IOV while VFs are assigned\n");
+			"Canyest modify SR-IOV while VFs are assigned\n");
 		return current_vfs;
 	}
 	/* Note that the upper-level code ensures that we're never called with
-	 * a non-zero "num_vfs" when we already have VFs instantiated.  But
+	 * a yesn-zero "num_vfs" when we already have VFs instantiated.  But
 	 * it never hurts to code defensively.
 	 */
 	if (num_vfs != 0 && current_vfs != 0)
 		return -EBUSY;
 
-	/* Nothing to do for no change. */
+	/* Nothing to do for yes change. */
 	if (num_vfs == current_vfs)
 		return num_vfs;
 
@@ -5952,7 +5952,7 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 
 		if ((flags & PCI_EXP_FLAGS_VERS) < 2 ||
 		    !(devcap2 & PCI_EXP_DEVCAP2_ARI)) {
-			/* Our parent bridge does not support ARI so issue a
+			/* Our parent bridge does yest support ARI so issue a
 			 * warning and skip instantiating the VFs.  They
 			 * won't be reachable.
 			 */
@@ -6048,19 +6048,19 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = pci_request_regions(pdev, KBUILD_MODNAME);
 	if (err) {
 		/* Just info, some other driver may have claimed the device. */
-		dev_info(&pdev->dev, "cannot obtain PCI resources\n");
+		dev_info(&pdev->dev, "canyest obtain PCI resources\n");
 		return err;
 	}
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "cannot enable PCI device\n");
+		dev_err(&pdev->dev, "canyest enable PCI device\n");
 		goto out_release_regions;
 	}
 
 	regs = pci_ioremap_bar(pdev, 0);
 	if (!regs) {
-		dev_err(&pdev->dev, "cannot map device registers\n");
+		dev_err(&pdev->dev, "canyest map device registers\n");
 		err = -ENOMEM;
 		goto out_disable_device;
 	}
@@ -6081,7 +6081,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_read_config_word(pdev, PCI_DEVICE_ID, &device_id);
 	chip = t4_get_chip_type(adapter, CHELSIO_PCI_ID_VER(device_id));
 	if ((int)chip < 0) {
-		dev_err(&pdev->dev, "Device %d is not supported\n", device_id);
+		dev_err(&pdev->dev, "Device %d is yest supported\n", device_id);
 		err = chip;
 		goto out_free_adapter;
 	}
@@ -6127,7 +6127,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
-			dev_err(&pdev->dev, "no usable DMA configuration\n");
+			dev_err(&pdev->dev, "yes usable DMA configuration\n");
 			goto out_free_adapter;
 		}
 	}
@@ -6150,7 +6150,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * Ingress Packet Data to Free List Buffers in order to allow for
 	 * chipset performance optimizations between the Root Complex and
 	 * Memory Controllers.  (Messages to the associated Ingress Queue
-	 * notifying new Packet Placement in the Free Lists Buffers will be
+	 * yestifying new Packet Placement in the Free Lists Buffers will be
 	 * send without the Relaxed Ordering Attribute thus guaranteeing that
 	 * all preceding PCIe Transaction Layer Packets will be processed
 	 * first.)  But some Root Complexes have various issues with Upstream
@@ -6170,7 +6170,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_WORK(&adapter->tid_release_task, process_tid_release_list);
 	INIT_WORK(&adapter->db_full_task, process_db_full);
 	INIT_WORK(&adapter->db_drop_task, process_db_drop);
-	INIT_WORK(&adapter->fatal_err_notify_task, notify_fatal_err);
+	INIT_WORK(&adapter->fatal_err_yestify_task, yestify_fatal_err);
 
 	err = t4_prep_adapter(adapter);
 	if (err)
@@ -6197,7 +6197,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		/* Each segment size is 128B. Write coalescing is enabled only
 		 * when SGE_EGRESS_QUEUES_PER_PAGE_PF reg value for the
-		 * queue is less no of segments that can be accommodated in
+		 * queue is less yes of segments that can be accommodated in
 		 * a page size.
 		 */
 		if (qpp > num_seg) {
@@ -6209,7 +6209,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->bar2 = ioremap_wc(pci_resource_start(pdev, 2),
 		pci_resource_len(pdev, 2));
 		if (!adapter->bar2) {
-			dev_err(&pdev->dev, "cannot map device bar2 region\n");
+			dev_err(&pdev->dev, "canyest map device bar2 region\n");
 			err = -ENOMEM;
 			goto out_free_adapter;
 		}
@@ -6236,9 +6236,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	for_each_port(adapter, i) {
 		/* For supporting MQPRIO Offload, need some extra
 		 * queues for each ETHOFLD TIDs. Keep it equal to
-		 * MAX_ATIDs for now. Once we connect to firmware
+		 * MAX_ATIDs for yesw. Once we connect to firmware
 		 * later and query the EOTID params, we'll come to
-		 * know the actual # of EOTIDs supported.
+		 * kyesw the actual # of EOTIDs supported.
 		 */
 		netdev = alloc_etherdev_mq(sizeof(struct port_info),
 					   MAX_ETH_QSETS + MAX_ATIDS);
@@ -6324,7 +6324,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!(adapter->flags & CXGB4_FW_OK))
 		goto fw_attach_fail;
 
-	/* Configure queues and allocate tables now, they can be needed as
+	/* Configure queues and allocate tables yesw, they can be needed as
 	 * soon as the first register_netdev completes.
 	 */
 	err = cfg_queues(adapter);
@@ -6334,24 +6334,24 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->smt = t4_init_smt();
 	if (!adapter->smt) {
 		/* We tolerate a lack of SMT, giving up some functionality */
-		dev_warn(&pdev->dev, "could not allocate SMT, continuing\n");
+		dev_warn(&pdev->dev, "could yest allocate SMT, continuing\n");
 	}
 
 	adapter->l2t = t4_init_l2t(adapter->l2t_start, adapter->l2t_end);
 	if (!adapter->l2t) {
 		/* We tolerate a lack of L2T, giving up some functionality */
-		dev_warn(&pdev->dev, "could not allocate L2T, continuing\n");
+		dev_warn(&pdev->dev, "could yest allocate L2T, continuing\n");
 		adapter->params.offload = 0;
 	}
 
 #if IS_ENABLED(CONFIG_IPV6)
 	if (chip_ver <= CHELSIO_T5 &&
 	    (!(t4_read_reg(adapter, LE_DB_CONFIG_A) & ASLIPCOMPEN_F))) {
-		/* CLIP functionality is not present in hardware,
+		/* CLIP functionality is yest present in hardware,
 		 * hence disable all offload features
 		 */
 		dev_warn(&pdev->dev,
-			 "CLIP not enabled in hardware, continuing\n");
+			 "CLIP yest enabled in hardware, continuing\n");
 		adapter->params.offload = 0;
 	} else {
 		adapter->clipt = t4_init_clip_tbl(adapter->clipt_start,
@@ -6361,7 +6361,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			 * some functionality
 			 */
 			dev_warn(&pdev->dev,
-				 "could not allocate Clip table, continuing\n");
+				 "could yest allocate Clip table, continuing\n");
 			adapter->params.offload = 0;
 		}
 	}
@@ -6372,31 +6372,31 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pi->sched_tbl = t4_init_sched(adapter->params.nsched_cls);
 		if (!pi->sched_tbl)
 			dev_warn(&pdev->dev,
-				 "could not activate scheduling on port %d\n",
+				 "could yest activate scheduling on port %d\n",
 				 i);
 	}
 
 	if (tid_init(&adapter->tids) < 0) {
-		dev_warn(&pdev->dev, "could not allocate TID table, "
+		dev_warn(&pdev->dev, "could yest allocate TID table, "
 			 "continuing\n");
 		adapter->params.offload = 0;
 	} else {
 		adapter->tc_u32 = cxgb4_init_tc_u32(adapter);
 		if (!adapter->tc_u32)
 			dev_warn(&pdev->dev,
-				 "could not offload tc u32, continuing\n");
+				 "could yest offload tc u32, continuing\n");
 
 		if (cxgb4_init_tc_flower(adapter))
 			dev_warn(&pdev->dev,
-				 "could not offload tc flower, continuing\n");
+				 "could yest offload tc flower, continuing\n");
 
 		if (cxgb4_init_tc_mqprio(adapter))
 			dev_warn(&pdev->dev,
-				 "could not offload tc mqprio, continuing\n");
+				 "could yest offload tc mqprio, continuing\n");
 
 		if (cxgb4_init_tc_matchall(adapter))
 			dev_warn(&pdev->dev,
-				 "could not offload tc matchall, continuing\n");
+				 "could yest offload tc matchall, continuing\n");
 	}
 
 	if (is_offload(adapter) || is_hashfilter(adapter)) {
@@ -6433,7 +6433,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto out_free_dev;
 
-	err = setup_non_data_intr(adapter);
+	err = setup_yesn_data_intr(adapter);
 	if (err) {
 		dev_err(adapter->pdev_dev,
 			"Non Data interrupt allocation failed, err: %d\n", err);
@@ -6449,8 +6449,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 fw_attach_fail:
 	/*
-	 * The card is now ready to go.  If any errors occur during device
-	 * registration we do not fail the whole card but rather proceed only
+	 * The card is yesw ready to go.  If any errors occur during device
+	 * registration we do yest fail the whole card but rather proceed only
 	 * with the ports we manage to register successfully.  However we must
 	 * register at least one net device.
 	 */
@@ -6469,7 +6469,7 @@ fw_attach_fail:
 		print_port_info(adapter->port[i]);
 	}
 	if (i == 0) {
-		dev_err(&pdev->dev, "could not register any net devices\n");
+		dev_err(&pdev->dev, "could yest register any net devices\n");
 		goto out_free_dev;
 	}
 	if (err) {
@@ -6488,7 +6488,7 @@ fw_attach_fail:
 
 	if (is_uld(adapter)) {
 		mutex_lock(&uld_mutex);
-		list_add_tail(&adapter->list_node, &adapter_list);
+		list_add_tail(&adapter->list_yesde, &adapter_list);
 		mutex_unlock(&uld_mutex);
 	}
 
@@ -6677,7 +6677,7 @@ static int __init cxgb4_init_module(void)
 
 #if IS_ENABLED(CONFIG_IPV6)
 	if (!inet6addr_registered) {
-		ret = register_inet6addr_notifier(&cxgb4_inet6addr_notifier);
+		ret = register_inet6addr_yestifier(&cxgb4_inet6addr_yestifier);
 		if (ret)
 			pci_unregister_driver(&cxgb4_driver);
 		else
@@ -6698,7 +6698,7 @@ static void __exit cxgb4_cleanup_module(void)
 {
 #if IS_ENABLED(CONFIG_IPV6)
 	if (inet6addr_registered) {
-		unregister_inet6addr_notifier(&cxgb4_inet6addr_notifier);
+		unregister_inet6addr_yestifier(&cxgb4_inet6addr_yestifier);
 		inet6addr_registered = false;
 	}
 #endif

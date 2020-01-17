@@ -63,8 +63,8 @@ then
 
 		{
 		if (!badseq && ($5 + 0 != $5 || $5 <= ver)) {
-			badseqno1 = ver;
-			badseqno2 = $5;
+			badseqyes1 = ver;
+			badseqyes2 = $5;
 			badseqnr = NR;
 			badseq = 1;
 		}
@@ -73,10 +73,10 @@ then
 
 	END	{
 		if (badseq) {
-			if (badseqno1 == badseqno2 && badseqno2 == ver)
+			if (badseqyes1 == badseqyes2 && badseqyes2 == ver)
 				print "GP HANG at " ver " torture stat " badseqnr;
 			else
-				print "BAD SEQ " badseqno1 ":" badseqno2 " last:" ver " version " badseqnr;
+				print "BAD SEQ " badseqyes1 ":" badseqyes2 " last:" ver " version " badseqnr;
 		}
 		}' > $T.seq
 
@@ -95,7 +95,7 @@ then
 			echo "   " $file
 			exit 3
 		fi
-		echo $title no success message, `grep --binary-files=text 'ver:' $file | wc -l` successful version messages
+		echo $title yes success message, `grep --binary-files=text 'ver:' $file | wc -l` successful version messages
 		if test -s $T.seq
 		then
 			print_warning $title `cat $T.seq`

@@ -36,7 +36,7 @@
 #include <linux/ns_common.h>
 #include <linux/idr.h>
 #include <linux/skbuff.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 struct user_namespace;
 struct proc_dir_entry;
@@ -54,7 +54,7 @@ struct bpf_prog;
 
 struct net {
 	/* First cache line can be often dirtied.
-	 * Do not place here read-mostly fields.
+	 * Do yest place here read-mostly fields.
 	 */
 	refcount_t		passive;	/* To decide when the network
 						 * namespace should be freed.
@@ -79,7 +79,7 @@ struct net {
 						 * or to unregister pernet ops
 						 * (pernet_ops_rwsem write locked).
 						 */
-	struct llist_node	cleanup_list;	/* namespaces on death row */
+	struct llist_yesde	cleanup_list;	/* namespaces on death row */
 
 #ifdef CONFIG_KEYS
 	struct key_tag		*key_domain;	/* Key domain of operation tag */
@@ -105,7 +105,7 @@ struct net {
 
 	struct hlist_head 	*dev_name_head;
 	struct hlist_head	*dev_index_head;
-	struct raw_notifier_head	netdev_chain;
+	struct raw_yestifier_head	netdev_chain;
 
 	/* Note that @hash_mix can be read millions times per second,
 	 * it is critical that it is on a read_mostly cache line.
@@ -244,12 +244,12 @@ static inline struct net *get_net(struct net *net)
 
 static inline struct net *maybe_get_net(struct net *net)
 {
-	/* Used when we know struct net exists but we
+	/* Used when we kyesw struct net exists but we
 	 * aren't guaranteed a previous reference count
 	 * exists.  If the reference count is zero this
 	 * function fails and returns NULL.
 	 */
-	if (!refcount_inc_not_zero(&net->count))
+	if (!refcount_inc_yest_zero(&net->count))
 		net = NULL;
 	return net;
 }
@@ -389,11 +389,11 @@ struct pernet_operations {
  * otherwise use pernet subsys operations.
  *
  * Network interfaces need to be removed from a dying netns _before_
- * subsys notifiers can be called, as most of the network code cleanup
- * (which is done from subsys notifiers) runs with the assumption that
- * dev_remove_pack has been called so no new packets will arrive during
+ * subsys yestifiers can be called, as most of the network code cleanup
+ * (which is done from subsys yestifiers) runs with the assumption that
+ * dev_remove_pack has been called so yes new packets will arrive during
  * and after the cleanup functions have been called.  dev_remove_pack
- * is not per namespace so instead the guarantee of no more packets
+ * is yest per namespace so instead the guarantee of yes more packets
  * arriving in a network namespace is provided by ensuring that all
  * network devices and all sockets have left the network namespace
  * before the cleanup methods are called.

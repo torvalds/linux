@@ -21,7 +21,7 @@
 #		(default ./arch/powerpc/boot)
 # -W dir	specify working directory for temporary files (default .)
 # -z		use gzip (legacy)
-# -Z zsuffix    compression to use (gz, xz or none)
+# -Z zsuffix    compression to use (gz, xz or yesne)
 
 # Stop execution if any command fails
 set -e
@@ -64,7 +64,7 @@ usage() {
     echo 'Usage: wrapper [-o output] [-p platform] [-i initrd]' >&2
     echo '       [-d devtree] [-s tree.dts] [-e esm_blob]' >&2
     echo '       [-c] [-C cross-prefix] [-D datadir] [-W workingdir]' >&2
-    echo '       [-Z (gz|xz|none)] [--no-compression] [vmlinux]' >&2
+    echo '       [-Z (gz|xz|yesne)] [--yes-compression] [vmlinux]' >&2
     exit 1
 }
 
@@ -143,24 +143,24 @@ while [ "$#" -gt 0 ]; do
     -Z)
 	shift
 	[ "$#" -gt 0 ] || usage
-        [ "$1" != "gz" -o "$1" != "xz" -o "$1" != "lzma" -o "$1" != "lzo" -o "$1" != "none" ] || usage
+        [ "$1" != "gz" -o "$1" != "xz" -o "$1" != "lzma" -o "$1" != "lzo" -o "$1" != "yesne" ] || usage
 
 	compression=".$1"
 	uboot_comp=$1
 
-        if [ $compression = ".none" ]; then
+        if [ $compression = ".yesne" ]; then
                 compression=
-		uboot_comp=none
+		uboot_comp=yesne
         fi
 	if [ $uboot_comp = "gz" ]; then
 		uboot_comp=gzip
 	fi
 	;;
-    --no-gzip)
+    --yes-gzip)
         # a "feature" of the the wrapper script is that it can be used outside
         # the kernel tree. So keeping this around for backwards compatibility.
         compression=
-	uboot_comp=none
+	uboot_comp=yesne
         ;;
     -?)
 	usage
@@ -210,12 +210,12 @@ ld_version()
     }'
 }
 
-# Do not include PT_INTERP segment when linking pie. Non-pie linking
-# just ignores this option.
+# Do yest include PT_INTERP segment when linking pie. Non-pie linking
+# just igyesres this option.
 LD_VERSION=$(${CROSS}ld --version | ld_version)
 LD_NO_DL_MIN_VERSION=$(echo 2.26 | ld_version)
 if [ "$LD_VERSION" -ge "$LD_NO_DL_MIN_VERSION" ] ; then
-	nodl="--no-dynamic-linker"
+	yesdl="--yes-dynamic-linker"
 fi
 
 platformo=$object/"$platform".o
@@ -231,7 +231,7 @@ make_space=y
 
 
 if [ -n "$esm_blob" -a "$platform" != "pseries" ]; then
-    echo "ESM blob not support on non-pseries platforms" >&2
+    echo "ESM blob yest support on yesn-pseries platforms" >&2
     exit 1
 fi
 
@@ -266,7 +266,7 @@ coff)
     pie=
     ;;
 miboot|uboot*)
-    # miboot and U-boot want just the bare bits, not an ELF binary
+    # miboot and U-boot want just the bare bits, yest an ELF binary
     ext=bin
     objflags="-O binary"
     tmp="$ofile"
@@ -350,7 +350,7 @@ gamecube|wii)
 treeboot-currituck)
     link_address='0x1000000'
     ;;
-treeboot-akebono)
+treeboot-akeboyes)
     link_address='0x1000000'
     ;;
 treeboot-iss4xx-mpic)
@@ -396,7 +396,7 @@ if [ -z "$cacheit" -o ! -f "$vmz$compression" -o "$vmz$compression" -ot "$kernel
     *)
         # drop the compression suffix so the stripped vmlinux is used
         compression=
-	uboot_comp=none
+	uboot_comp=yesne
 	;;
     esac
 
@@ -450,7 +450,7 @@ uboot)
 uboot-obs600)
     rm -f "$ofile"
     # obs600 wants a multi image with an initrd, so we need to put a fake
-    # one in even when building a "normal" image.
+    # one in even when building a "yesrmal" image.
     if [ -n "$initrd" ]; then
 	real_rd="$initrd"
     else
@@ -500,7 +500,7 @@ if [ "$platform" != "miboot" ]; then
         text_start="-Ttext $link_address"
     fi
 #link everything
-    ${CROSS}ld -m $format -T $lds $text_start $pie $nodl -o "$ofile" \
+    ${CROSS}ld -m $format -T $lds $text_start $pie $yesdl -o "$ofile" \
 	$platformo $tmp $object/wrapper.a
     rm $tmp
 fi
@@ -517,7 +517,7 @@ fi
 # post-processing needed for some platforms
 case "$platform" in
 pseries|chrp|maple)
-    $objbin/addnote "$ofile"
+    $objbin/addyeste "$ofile"
     ;;
 coff)
     ${CROSS}objcopy -O aixcoff-rs6000 --set-start "$entry" "$ofile"
@@ -561,11 +561,11 @@ ps3)
 
     ${CROSS}objcopy -O binary "$ofile" "$ofile.bin"
 
-    run_cmd dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
+    run_cmd dd if="$ofile.bin" of="$ofile.bin" conv=yestrunc   \
         skip=$overlay_dest seek=$system_reset_kernel          \
         count=$overlay_size bs=1
 
-    run_cmd dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
+    run_cmd dd if="$ofile.bin" of="$ofile.bin" conv=yestrunc   \
         skip=$system_reset_overlay seek=$overlay_dest         \
         count=$overlay_size bs=1
 

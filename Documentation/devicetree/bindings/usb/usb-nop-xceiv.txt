@@ -1,7 +1,7 @@
 USB NOP PHY
 
 Required properties:
-- compatible: should be usb-nop-xceiv
+- compatible: should be usb-yesp-xceiv
 - #phy-cells: Must be 0
 
 Optional properties:
@@ -26,7 +26,7 @@ Optional properties:
 Example:
 
 	hsusb1_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-yesp-xceiv";
 		clock-frequency = <19200000>;
 		clocks = <&osc 0>;
 		clock-names = "main_clk";
@@ -40,4 +40,4 @@ Example:
 hsusb1_phy is a NOP USB PHY device that gets its clock from an oscillator
 and expects that clock to be configured to 19.2MHz by the NOP PHY driver.
 hsusb1_vcc_regulator provides power to the PHY and GPIO 7 controls RESET.
-GPIO 13 detects VBus insertion, and accordingly notifies the vbus-regulator.
+GPIO 13 detects VBus insertion, and accordingly yestifies the vbus-regulator.

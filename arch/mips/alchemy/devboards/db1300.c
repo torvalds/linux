@@ -453,7 +453,7 @@ static struct platform_device db1300_ide_dev = {
 
 static irqreturn_t db1300_mmc_cd(int irq, void *ptr)
 {
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	return IRQ_WAKE_THREAD;
 }
 
@@ -578,7 +578,7 @@ static struct platform_device db1300_sd1_dev = {
 
 static int db1300_movinand_inserted(void *mmc_host)
 {
-	return 0; /* disable for now, it doesn't work yet */
+	return 0; /* disable for yesw, it doesn't work yet */
 }
 
 static int db1300_movinand_readonly(void *mmc_host)
@@ -736,7 +736,7 @@ static void db1300_wm97xx_irqen(struct wm97xx *wm, int enable)
 	if (enable)
 		enable_irq(DB1300_AC97_PEN_INT);
 	else
-		disable_irq_nosync(DB1300_AC97_PEN_INT);
+		disable_irq_yessync(DB1300_AC97_PEN_INT);
 }
 
 static struct wm97xx_mach_ops db1300_wm97xx_ops = {
@@ -852,7 +852,7 @@ int __init db1300_dev_setup(void)
 		DB1300_CF_INT, DB1300_CF_INSERT_INT, 0, DB1300_CF_EJECT_INT, 1);
 
 	swapped = bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1200_SWAPBOOT;
-	db1x_register_norflash(64 << 20, 2, swapped);
+	db1x_register_yesrflash(64 << 20, 2, swapped);
 
 	return platform_add_devices(db1300_dev, ARRAY_SIZE(db1300_dev));
 }

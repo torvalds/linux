@@ -78,14 +78,14 @@ code.  It is likely that some corrections will be made over time.
 General:
 
 	Unless otherwise specified, all ioctl calls return 0 on success
-	and -1 with errno set to an appropriate value on error.  (Some
-	ioctls return non-negative data values.)
+	and -1 with erryes set to an appropriate value on error.  (Some
+	ioctls return yesn-negative data values.)
 
 	Unless otherwise specified, all ioctl calls return -1 and set
-	errno to EFAULT on a failed attempt to copy data to or from user
+	erryes to EFAULT on a failed attempt to copy data to or from user
 	address space.
 
-	Individual drivers may return error codes not listed here.
+	Individual drivers may return error codes yest listed here.
 
 	Unless otherwise specified, all data structures and constants
 	are defined in <linux/cdrom.h>
@@ -103,15 +103,15 @@ CDROMPAUSE
 
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
-		none
+		yesne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - ENOSYS	cd drive yest audio-capable.
 
 
 CDROMRESUME
@@ -124,15 +124,15 @@ CDROMRESUME
 
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
-		none
+		yesne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - ENOSYS	cd drive yest audio-capable.
 
 
 CDROMPLAYMSF
@@ -152,13 +152,13 @@ CDROMPLAYMSF
 
 
 	outputs:
-		none
+		yesne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - ENOSYS	cd drive yest audio-capable.
 
-	notes:
+	yestes:
 		- MSF stands for minutes-seconds-frames
 		- LBA stands for logical block address
 		- Segment is described as start and end times, where each time
@@ -183,13 +183,13 @@ CDROMPLAYTRKIND
 
 
 	outputs:
-		none
+		yesne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - ENOSYS	cd drive yest audio-capable.
 
-	notes:
+	yestes:
 		- Segment is described as start and end times, where each time
 		  is described as a track and an index.
 
@@ -216,7 +216,7 @@ CDROMREADTOCHDR
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - ENOSYS	cd drive yest audio-capable.
 
 
 
@@ -241,12 +241,12 @@ CDROMREADTOCENTRY
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
-	  - EINVAL	entry.cdte_format not CDROM_MSF or CDROM_LBA
+	  - ENOSYS	cd drive yest audio-capable.
+	  - EINVAL	entry.cdte_format yest CDROM_MSF or CDROM_LBA
 	  - EINVAL	requested track out of bounds
 	  - EIO		I/O error reading TOC
 
-	notes:
+	yestes:
 		- TOC stands for Table Of Contents
 		- MSF stands for minutes-seconds-frames
 		- LBA stands for logical block address
@@ -263,17 +263,17 @@ CDROMSTOP
 
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
-		none
+		yesne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - ENOSYS	cd drive yest audio-capable.
 
-	notes:
+	yestes:
 	  - Exact interpretation of this ioctl depends on the device,
 	    but most seem to spin the drive down.
 
@@ -288,20 +288,20 @@ CDROMSTART
 
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
-		none
+		yesne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - ENOSYS	cd drive yest audio-capable.
 
-	notes:
+	yestes:
 	  - Exact interpretation of this ioctl depends on the device,
 	    but most seem to spin the drive up and/or close the tray.
-	    Other devices ignore the ioctl completely.
+	    Other devices igyesre the ioctl completely.
 
 
 CDROMEJECT
@@ -314,18 +314,18 @@ CDROMEJECT
 
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
-		none
+		yesne
 
 
 	error returns:
-	  - ENOSYS	cd drive not capable of ejecting
+	  - ENOSYS	cd drive yest capable of ejecting
 	  - EBUSY	other processes are accessing drive, or door is locked
 
-	notes:
+	yestes:
 		- See CDROM_LOCKDOOR, below.
 
 
@@ -341,18 +341,18 @@ CDROMCLOSETRAY
 
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
-		none
+		yesne
 
 
 	error returns:
-	  - ENOSYS	cd drive not capable of closing the tray
+	  - ENOSYS	cd drive yest capable of closing the tray
 	  - EBUSY	other processes are accessing drive, or door is locked
 
-	notes:
+	yestes:
 		- See CDROM_LOCKDOOR, below.
 
 
@@ -373,11 +373,11 @@ CDROMVOLCTRL
 		channels.
 
 	outputs:
-		none
+		yesne
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - ENOSYS	cd drive yest audio-capable.
 
 
 
@@ -394,7 +394,7 @@ CDROMVOLREAD
 	  ioctl(fd, CDROMVOLREAD, &volume);
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
@@ -402,7 +402,7 @@ CDROMVOLREAD
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
+	  - ENOSYS	cd drive yest audio-capable.
 
 
 
@@ -427,10 +427,10 @@ CDROMSUBCHNL
 
 
 	error return:
-	  - ENOSYS	cd drive not audio-capable.
-	  - EINVAL	format not CDROM_MSF or CDROM_LBA
+	  - ENOSYS	cd drive yest audio-capable.
+	  - EINVAL	format yest CDROM_MSF or CDROM_LBA
 
-	notes:
+	yestes:
 		- Format is converted to CDROM_MSF or CDROM_LBA
 		  as per user request on return
 
@@ -463,7 +463,7 @@ CDROMREADRAW
 	  - EINVAL	address less than 0, or msf less than 0:2:0
 	  - ENOMEM	out of memory
 
-	notes:
+	yestes:
 		- As of 2.6.8.1, comments in <linux/cdrom.h> indicate that this
 		  ioctl accepts a cdrom_read structure, but actual source code
 		  reads a cdrom_msf structure and writes a buffer of data to
@@ -481,7 +481,7 @@ CDROMREADMODE1
 
 	(struct cdrom_read)
 
-	notes:
+	yestes:
 		Identical to CDROMREADRAW except that block size is
 		CD_FRAMESIZE (2048) bytes
 
@@ -492,7 +492,7 @@ CDROMREADMODE2
 
 	(struct cdrom_read)
 
-	notes:
+	yestes:
 		Identical to CDROMREADRAW except that block size is
 		CD_FRAMESIZE_RAW0 (2336) bytes
 
@@ -516,9 +516,9 @@ CDROMREADAUDIO
 
 
 	error return:
-	  - EINVAL	format not CDROM_MSF or CDROM_LBA
-	  - EINVAL	nframes not in range [1 75]
-	  - ENXIO	drive has no queue (probably means invalid fd)
+	  - EINVAL	format yest CDROM_MSF or CDROM_LBA
+	  - EINVAL	nframes yest in range [1 75]
+	  - ENXIO	drive has yes queue (probably means invalid fd)
 	  - ENOMEM	out of memory
 
 
@@ -537,11 +537,11 @@ CDROMEJECT_SW
 
 
 	outputs:
-		none
+		yesne
 
 
 	error return:
-	  - ENOSYS	Drive is not capable of ejecting.
+	  - ENOSYS	Drive is yest capable of ejecting.
 	  - EBUSY	Door is locked
 
 
@@ -568,7 +568,7 @@ CDROMMULTISESSION
 		information.
 
 	error return:
-	  - EINVAL	format not CDROM_MSF or CDROM_LBA
+	  - EINVAL	format yest CDROM_MSF or CDROM_LBA
 
 
 CDROM_GET_MCN
@@ -585,7 +585,7 @@ CDROM_GET_MCN
 	  ioctl(fd, CDROM_GET_MCN, &mcn);
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
@@ -593,15 +593,15 @@ CDROM_GET_MCN
 
 
 	error return:
-	  - ENOSYS	Drive is not capable of reading MCN data.
+	  - ENOSYS	Drive is yest capable of reading MCN data.
 
-	notes:
+	yestes:
 		- Source code comments state::
 
 		    The following function is implemented, although very few
 		    audio discs give Universal Product Code information, which
 		    should just be the Medium Catalog Number on the box.  Note,
-		    that the way the code is written on the CD is /not/ uniform
+		    that the way the code is written on the CD is /yest/ uniform
 		    across all discs!
 
 
@@ -625,16 +625,16 @@ CDROMRESET
 
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
-		none
+		yesne
 
 
 	error return:
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
-	  - ENOSYS	Drive is not capable of resetting.
+	  - ENOSYS	Drive is yest capable of resetting.
 
 
 
@@ -650,14 +650,14 @@ CDROMREADCOOKED
 	  ioctl(fd, CDROMREADCOOKED, buffer);
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
 		2048 bytes of data, "cooked" mode.
 
 
-	notes:
+	yestes:
 		Not implemented on all drives.
 
 
@@ -687,7 +687,7 @@ CDROMSEEK
 
 
 	outputs:
-		none
+		yesne
 
 
 
@@ -709,7 +709,7 @@ CDROMPLAYBLK
 
 
 	outputs:
-		none
+		yesne
 
 
 
@@ -722,7 +722,7 @@ CDROMGETSPINDOWN
 	  ioctl(fd, CDROMGETSPINDOWN, &spindown);
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
@@ -744,7 +744,7 @@ CDROMSETSPINDOWN
 
 
 	outputs:
-		none
+		yesne
 
 
 
@@ -777,7 +777,7 @@ CDROM_SET_OPTIONS
 		ioctl return value.  Returns -1 on error.
 
 	error return:
-	  - ENOSYS	selected option(s) not supported by drive.
+	  - ENOSYS	selected option(s) yest supported by drive.
 
 
 
@@ -806,11 +806,11 @@ CDROM_SELECT_SPEED
 
 
 	outputs:
-		none
+		yesne
 
 
 	error return:
-	  - ENOSYS	speed selection not supported by drive.
+	  - ENOSYS	speed selection yest supported by drive.
 
 
 
@@ -829,7 +829,7 @@ CDROM_SELECT_DISC
 
 
 	outputs:
-		none
+		yesne
 
 
 	error return:
@@ -885,7 +885,7 @@ CDROM_DRIVE_STATUS
 	  from <linux/cdrom.h>:
 
 	    =================== ==========================
-	    CDS_NO_INFO		Information not available.
+	    CDS_NO_INFO		Information yest available.
 	    CDS_NO_DISC
 	    CDS_TRAY_OPEN
 	    CDS_DRIVE_NOT_READY
@@ -911,7 +911,7 @@ CDROM_DISC_STATUS
 
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
@@ -927,9 +927,9 @@ CDROM_DISC_STATUS
 	    - CDS_DATA_1
 
 	error returns:
-		none at present
+		yesne at present
 
-	notes:
+	yestes:
 	    - Source code comments state::
 
 
@@ -947,8 +947,8 @@ CDROM_DISC_STATUS
 		with the current interface.  Too bad this wasn't designed
 		to use bitmasks...	       -Erik
 
-		Well, now we have the option CDS_MIXED: a mixed-type CD.
-		User level programmers might feel the ioctl is not very
+		Well, yesw we have the option CDS_MIXED: a mixed-type CD.
+		User level programmers might feel the ioctl is yest very
 		useful.
 				---david
 
@@ -965,15 +965,15 @@ CDROM_CHANGER_NSLOTS
 
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
 		The ioctl return value will be the number of slots in a
-		CD changer.  Typically 1 for non-multi-disk devices.
+		CD changer.  Typically 1 for yesn-multi-disk devices.
 
 	error returns:
-		none
+		yesne
 
 
 
@@ -992,19 +992,19 @@ CDROM_LOCKDOOR
 
 
 	outputs:
-		none
+		yesne
 
 
 	error returns:
 	  - EDRIVE_CANT_DO_THIS
 
-				Door lock function not supported.
+				Door lock function yest supported.
 	  - EBUSY
 
 				Attempt to unlock when multiple users
-				have the drive open and not CAP_SYS_ADMIN
+				have the drive open and yest CAP_SYS_ADMIN
 
-	notes:
+	yestes:
 		As of 2.6.8.1, the lock flag is a global lock, meaning that
 		all CD drives will be locked or unlocked together.  This is
 		probably a bug.
@@ -1047,7 +1047,7 @@ CDROM_GET_CAPABILITY
 
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
@@ -1077,7 +1077,7 @@ CDROMAUDIOBUFSIZ
 	error return:
 	  - ENOSYS	Not supported by this driver.
 
-	notes:
+	yestes:
 		Not supported by all drivers.
 
 
@@ -1144,7 +1144,7 @@ DVD_AUTH			Authentication
 
 
 	error return:
-	  - ENOTTY	ai.type not recognized.
+	  - ENOTTY	ai.type yest recognized.
 
 
 
@@ -1163,7 +1163,7 @@ CDROM_SEND_PACKET
 
 
 	outputs:
-		none
+		yesne
 
 	  cdrom_generic_command structure containing results.
 
@@ -1173,13 +1173,13 @@ CDROM_SEND_PACKET
 			command failed.
 	  - EPERM
 
-			Operation not permitted, either because a
+			Operation yest permitted, either because a
 			write command was attempted on a drive which
 			is opened read-only, or because the command
 			requires CAP_SYS_RAWIO
 	  - EINVAL
 
-			cgc.data_direction not set
+			cgc.data_direction yest set
 
 
 
@@ -1194,15 +1194,15 @@ CDROM_NEXT_WRITABLE
 	  ioctl(fd, CDROM_NEXT_WRITABLE, &next);
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
 		The next writable block.
 
 
-	notes:
-		If the device does not support this ioctl directly, the
+	yestes:
+		If the device does yest support this ioctl directly, the
 
 	  ioctl will return CDROM_LAST_WRITTEN + 7.
 
@@ -1219,15 +1219,15 @@ CDROM_LAST_WRITTEN
 	  ioctl(fd, CDROM_LAST_WRITTEN, &last);
 
 	inputs:
-		none
+		yesne
 
 
 	outputs:
 		The last block written on disc
 
 
-	notes:
-		If the device does not support this ioctl directly, the
+	yestes:
+		If the device does yest support this ioctl directly, the
 		result is derived from the disc's table of contents.  If the
 		table of contents can't be read, this ioctl returns an
 		error.

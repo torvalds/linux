@@ -26,8 +26,8 @@ static void __hyp_text __tlb_switch_to_guest_vhe(struct kvm *kvm,
 	if (cpus_have_const_cap(ARM64_WORKAROUND_1165522)) {
 		/*
 		 * For CPUs that are affected by ARM erratum 1165522, we
-		 * cannot trust stage-1 to be in a correct state at that
-		 * point. Since we do not want to force a full load of the
+		 * canyest trust stage-1 to be in a correct state at that
+		 * point. Since we do yest want to force a full load of the
 		 * vcpu state, we prevent the EL1 page-table walker to
 		 * allocate new TLBs. This is done by setting the EPD bits
 		 * in the TCR_EL1 register. We also need to prevent it to
@@ -154,7 +154,7 @@ void __hyp_text __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 
 	/*
 	 * We have to ensure completion of the invalidation at Stage-2,
-	 * since a table walk on another CPU could refill a TLB with a
+	 * since a table walk on ayesther CPU could refill a TLB with a
 	 * complete (S1 + S2) walk based on the old Stage-2 mapping if
 	 * the Stage-1 invalidation happened first.
 	 */
@@ -166,7 +166,7 @@ void __hyp_text __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 	/*
 	 * If the host is running at EL1 and we have a VPIPT I-cache,
 	 * then we must perform I-cache maintenance at EL2 in order for
-	 * it to have an effect on the guest. Since the guest cannot hit
+	 * it to have an effect on the guest. Since the guest canyest hit
 	 * I-cache lines allocated with a different VMID, we don't need
 	 * to worry about junk out of guest reset (we nuke the I-cache on
 	 * VMID rollover), but we do need to be careful when remapping
@@ -226,7 +226,7 @@ void __hyp_text __kvm_flush_vm_context(void)
 	__tlbi(alle1is);
 
 	/*
-	 * VIPT and PIPT caches are not affected by VMID, so no maintenance
+	 * VIPT and PIPT caches are yest affected by VMID, so yes maintenance
 	 * is necessary across a VMID rollover.
 	 *
 	 * VPIPT caches constrain lookup and maintenance to the active VMID,

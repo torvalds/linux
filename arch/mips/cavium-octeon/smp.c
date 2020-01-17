@@ -128,7 +128,7 @@ static void octeon_smp_hotplug_setup(void)
 
 	labi = (struct linux_app_boot_info *)PHYS_TO_XKSEG_CACHED(LABI_ADDR_IN_BOOTLOADER);
 	if (labi->labi_signature != LABI_SIGNATURE) {
-		pr_info("The bootloader on this board does not support HOTPLUG_CPU.");
+		pr_info("The bootloader on this board does yest support HOTPLUG_CPU.");
 		return;
 	}
 
@@ -264,7 +264,7 @@ static void __init octeon_prepare_cpus(unsigned int max_cpus)
 	if (request_irq(OCTEON_IRQ_MBOX0, mailbox_interrupt,
 			IRQF_PERCPU | IRQF_NO_THREAD, "SMP-IPI",
 			mailbox_interrupt)) {
-		panic("Cannot request_irq(OCTEON_IRQ_MBOX0)");
+		panic("Canyest request_irq(OCTEON_IRQ_MBOX0)");
 	}
 }
 
@@ -387,7 +387,7 @@ static int octeon_update_boot_vector(unsigned int cpu)
 	}
 
 	if (!(avail_coremask & (1 << coreid))) {
-		/* core not available, assume, that caught by simple-executive */
+		/* core yest available, assume, that caught by simple-executive */
 		cvmx_write_csr(CVMX_CIU_PP_RST, 1 << coreid);
 		cvmx_write_csr(CVMX_CIU_PP_RST, 0);
 	}
@@ -403,13 +403,13 @@ static int octeon_update_boot_vector(unsigned int cpu)
 	return 0;
 }
 
-static int register_cavium_notifier(void)
+static int register_cavium_yestifier(void)
 {
-	return cpuhp_setup_state_nocalls(CPUHP_MIPS_SOC_PREPARE,
+	return cpuhp_setup_state_yescalls(CPUHP_MIPS_SOC_PREPARE,
 					 "mips/cavium:prepare",
 					 octeon_update_boot_vector, NULL);
 }
-late_initcall(register_cavium_notifier);
+late_initcall(register_cavium_yestifier);
 
 #endif	/* CONFIG_HOTPLUG_CPU */
 
@@ -426,7 +426,7 @@ static const struct plat_smp_ops octeon_smp_ops = {
 	.cpu_die		= octeon_cpu_die,
 #endif
 #ifdef CONFIG_KEXEC
-	.kexec_nonboot_cpu	= kexec_nonboot_cpu_jump,
+	.kexec_yesnboot_cpu	= kexec_yesnboot_cpu_jump,
 #endif
 };
 
@@ -457,19 +457,19 @@ static void octeon_78xx_prepare_cpus(unsigned int max_cpus)
 			octeon_78xx_reched_interrupt,
 			IRQF_PERCPU | IRQF_NO_THREAD, "Scheduler",
 			octeon_78xx_reched_interrupt)) {
-		panic("Cannot request_irq for SchedulerIPI");
+		panic("Canyest request_irq for SchedulerIPI");
 	}
 	if (request_irq(OCTEON_IRQ_MBOX0 + 1,
 			octeon_78xx_call_function_interrupt,
 			IRQF_PERCPU | IRQF_NO_THREAD, "SMP-Call",
 			octeon_78xx_call_function_interrupt)) {
-		panic("Cannot request_irq for SMP-Call");
+		panic("Canyest request_irq for SMP-Call");
 	}
 	if (request_irq(OCTEON_IRQ_MBOX0 + 2,
 			octeon_78xx_icache_flush_interrupt,
 			IRQF_PERCPU | IRQF_NO_THREAD, "ICache-Flush",
 			octeon_78xx_icache_flush_interrupt)) {
-		panic("Cannot request_irq for ICache-Flush");
+		panic("Canyest request_irq for ICache-Flush");
 	}
 }
 
@@ -506,7 +506,7 @@ static const struct plat_smp_ops octeon_78xx_smp_ops = {
 	.cpu_die		= octeon_cpu_die,
 #endif
 #ifdef CONFIG_KEXEC
-	.kexec_nonboot_cpu	= kexec_nonboot_cpu_jump,
+	.kexec_yesnboot_cpu	= kexec_yesnboot_cpu_jump,
 #endif
 };
 

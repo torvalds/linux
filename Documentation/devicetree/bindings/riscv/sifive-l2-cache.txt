@@ -30,7 +30,7 @@ Optional Properties:
 - next-level-cache: phandle to the next level cache if present.
 
 - memory-region: reference to the reserved-memory for the L2 Loosely Integrated
-  Memory region. The reserved memory node should be defined as per the bindings
+  Memory region. The reserved memory yesde should be defined as per the bindings
   in reserved-memory.txt
 
 

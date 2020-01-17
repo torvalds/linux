@@ -29,7 +29,7 @@
 
 #define DNV_COMMUNITY(b, s, e, g)			\
 	{						\
-		.barno = (b),				\
+		.baryes = (b),				\
 		.padown_offset = DNV_PAD_OWN,		\
 		.padcfglock_offset = DNV_PADCFGLOCK,	\
 		.hostown_offset = DNV_HOSTSW_OWN,	\
@@ -231,7 +231,7 @@ static const struct intel_function dnv_functions[] = {
 	FUNCTION("emmc", dnv_emmc_groups),
 };
 
-static const struct intel_padgroup dnv_north_gpps[] = {
+static const struct intel_padgroup dnv_yesrth_gpps[] = {
 	DNV_GPP(0, 0, 31),	/* North ALL_0 */
 	DNV_GPP(1, 32, 40),	/* North ALL_1 */
 };
@@ -245,7 +245,7 @@ static const struct intel_padgroup dnv_south_gpps[] = {
 };
 
 static const struct intel_community dnv_communities[] = {
-	DNV_COMMUNITY(0, 0, 40, dnv_north_gpps),
+	DNV_COMMUNITY(0, 0, 40, dnv_yesrth_gpps),
 	DNV_COMMUNITY(1, 41, 153, dnv_south_gpps),
 };
 

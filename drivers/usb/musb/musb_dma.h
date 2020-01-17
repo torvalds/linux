@@ -26,7 +26,7 @@ struct musb_hw_ep;
  *    the correct RX side treatment of short packets and buffer-full
  *    states (both of which terminate transfers).
  *
- *  - Knowing the correlation between dma channels and the
+ *  - Kyeswing the correlation between dma channels and the
  *    Inventra core's local endpoint resources and data direction.
  *
  *  - Maintaining a list of allocated/available channels.
@@ -87,7 +87,7 @@ struct musb_hw_ep;
 enum dma_channel_status {
 	/* unallocated */
 	MUSB_DMA_STATUS_UNKNOWN,
-	/* allocated ... but not busy, no errors */
+	/* allocated ... but yest busy, yes errors */
 	MUSB_DMA_STATUS_FREE,
 	/* busy ... transactions are active */
 	MUSB_DMA_STATUS_BUSY,
@@ -113,7 +113,7 @@ struct dma_controller;
  */
 struct dma_channel {
 	void			*private_data;
-	/* FIXME not void* private_data, but a dma_controller * */
+	/* FIXME yest void* private_data, but a dma_controller * */
 	size_t			max_len;
 	size_t			actual_len;
 	enum dma_channel_status	status;
@@ -139,15 +139,15 @@ dma_channel_status(struct dma_channel *c)
  * struct dma_controller - A DMA Controller.
  * @musb: the usb controller
  * @start: call this to start a DMA controller;
- *	return 0 on success, else negative errno
+ *	return 0 on success, else negative erryes
  * @stop: call this to stop a DMA controller
- *	return 0 on success, else negative errno
+ *	return 0 on success, else negative erryes
  * @channel_alloc: call this to allocate a DMA channel
  * @channel_release: call this to release a DMA channel
  * @channel_abort: call this to abort a pending DMA transaction,
  *	returning it to FREE (but allocated) state
  * @dma_callback: invoked on DMA completion, useful to run platform
- *	code such IRQ acknowledgment.
+ *	code such IRQ ackyeswledgment.
  *
  * Controllers manage dma channels.
  */

@@ -204,9 +204,9 @@ struct wmi_ops {
 					       u32 fw_feature_bitmap);
 	int (*get_vdev_subtype)(struct ath10k *ar,
 				enum wmi_vdev_subtype subtype);
-	struct sk_buff *(*gen_wow_config_pno)(struct ath10k *ar,
+	struct sk_buff *(*gen_wow_config_pyes)(struct ath10k *ar,
 					      u32 vdev_id,
-					      struct wmi_pno_scan_req *pno_scan);
+					      struct wmi_pyes_scan_req *pyes_scan);
 	struct sk_buff *(*gen_pdev_bss_chan_info_req)
 					(struct ath10k *ar,
 					 enum wmi_bss_survey_req_type type);
@@ -482,7 +482,7 @@ ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *msdu)
 	if (ret)
 		return ret;
 
-	/* FIXME There's no ACK event for Management Tx. This probably
+	/* FIXME There's yes ACK event for Management Tx. This probably
 	 * shouldn't be called here either.
 	 */
 	info->flags |= IEEE80211_TX_STAT_ACK;
@@ -1006,7 +1006,7 @@ ath10k_wmi_peer_assoc(struct ath10k *ar,
 }
 
 static inline int
-ath10k_wmi_beacon_send_ref_nowait(struct ath10k *ar, u32 vdev_id,
+ath10k_wmi_beacon_send_ref_yeswait(struct ath10k *ar, u32 vdev_id,
 				  const void *bcn, size_t bcn_len,
 				  u32 bcn_paddr, bool dtim_zero,
 				  bool deliver_cab)
@@ -1022,7 +1022,7 @@ ath10k_wmi_beacon_send_ref_nowait(struct ath10k *ar, u32 vdev_id,
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
-	ret = ath10k_wmi_cmd_send_nowait(ar, skb,
+	ret = ath10k_wmi_cmd_send_yeswait(ar, skb,
 					 ar->wmi.cmd->pdev_send_bcn_cmdid);
 	if (ret) {
 		dev_kfree_skb(skb);
@@ -1387,16 +1387,16 @@ ath10k_wmi_wow_del_pattern(struct ath10k *ar, u32 vdev_id, u32 pattern_id)
 }
 
 static inline int
-ath10k_wmi_wow_config_pno(struct ath10k *ar, u32 vdev_id,
-			  struct wmi_pno_scan_req  *pno_scan)
+ath10k_wmi_wow_config_pyes(struct ath10k *ar, u32 vdev_id,
+			  struct wmi_pyes_scan_req  *pyes_scan)
 {
 	struct sk_buff *skb;
 	u32 cmd_id;
 
-	if (!ar->wmi.ops->gen_wow_config_pno)
+	if (!ar->wmi.ops->gen_wow_config_pyes)
 		return -EOPNOTSUPP;
 
-	skb = ar->wmi.ops->gen_wow_config_pno(ar, vdev_id, pno_scan);
+	skb = ar->wmi.ops->gen_wow_config_pyes(ar, vdev_id, pyes_scan);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 

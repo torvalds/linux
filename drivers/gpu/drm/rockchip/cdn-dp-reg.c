@@ -125,7 +125,7 @@ static int cdn_dp_mailbox_validate_receive(struct cdn_dp_device *dp,
 	if (opcode != header[0] || module_id != header[1] ||
 	    req_size != mbox_size) {
 		/*
-		 * If the message in mailbox is not what we want, we need to
+		 * If the message in mailbox is yest what we want, we need to
 		 * clear the mailbox by reading its contents.
 		 */
 		for (i = 0; i < mbox_size; i++)
@@ -196,14 +196,14 @@ static int cdn_dp_reg_write(struct cdn_dp_device *dp, u16 addr, u32 val)
 }
 
 static int cdn_dp_reg_write_bit(struct cdn_dp_device *dp, u16 addr,
-				u8 start_bit, u8 bits_no, u32 val)
+				u8 start_bit, u8 bits_yes, u32 val)
 {
 	u8 field[8];
 
 	field[0] = (addr >> 8) & 0xff;
 	field[1] = addr & 0xff;
 	field[2] = start_bit;
-	field[3] = bits_no;
+	field[3] = bits_yes;
 	field[4] = (val >> 24) & 0xff;
 	field[5] = (val >> 16) & 0xff;
 	field[6] = (val >> 8) & 0xff;

@@ -13,9 +13,9 @@ struct dma_fence *v3d_fence_create(struct v3d_dev *v3d, enum v3d_queue queue)
 
 	fence->dev = &v3d->drm;
 	fence->queue = queue;
-	fence->seqno = ++v3d->queue[queue].emit_seqno;
+	fence->seqyes = ++v3d->queue[queue].emit_seqyes;
 	dma_fence_init(&fence->base, &v3d_fence_ops, &v3d->job_lock,
-		       v3d->queue[queue].fence_context, fence->seqno);
+		       v3d->queue[queue].fence_context, fence->seqyes);
 
 	return &fence->base;
 }

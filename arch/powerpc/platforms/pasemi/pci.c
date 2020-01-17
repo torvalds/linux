@@ -28,7 +28,7 @@ static inline int pa_pxp_offset_valid(u8 bus, u8 devfn, int offset)
 {
 	/* Device 0 Function 0 is special: It's config space spans function 1 as
 	 * well, so allow larger offset. It's really a two-function device but the
-	 * second function does not probe.
+	 * second function does yest probe.
 	 */
 	if (bus == 0 && devfn == 0)
 		return offset < 8192;
@@ -42,9 +42,9 @@ static void volatile __iomem *pa_pxp_cfg_addr(struct pci_controller *hose,
 	return hose->cfg_data + PA_PXP_CFA(bus, devfn, offset);
 }
 
-static inline int is_root_port(int busno, int devfn)
+static inline int is_root_port(int busyes, int devfn)
 {
-	return ((busno == 0) && (PCI_FUNC(devfn) < 4) &&
+	return ((busyes == 0) && (PCI_FUNC(devfn) < 4) &&
 		 ((PCI_SLOT(devfn) == 16) || (PCI_SLOT(devfn) == 17)));
 }
 
@@ -106,18 +106,18 @@ static void sb600_set_flag(int bus)
 {
 	static void __iomem *iob_mapbase = NULL;
 	struct resource res;
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int err;
 
 	if (iob_mapbase == NULL) {
-		dn = of_find_compatible_node(NULL, "isa", "pasemi,1682m-iob");
+		dn = of_find_compatible_yesde(NULL, "isa", "pasemi,1682m-iob");
 		if (!dn) {
-			pr_crit("NEMO SB600 missing iob node\n");
+			pr_crit("NEMO SB600 missing iob yesde\n");
 			return;
 		}
 
 		err = of_address_to_resource(dn, 0, &res);
-		of_node_put(dn);
+		of_yesde_put(dn);
 
 		if (err) {
 			pr_crit("NEMO SB600 missing resource\n");
@@ -133,7 +133,7 @@ static void sb600_set_flag(int bus)
 		if (bus == SB600_BUS) {
 			/*
 			 * This is the SB600's bus, tell the PCI-e root port
-			 * to allow non-zero devices to enumerate.
+			 * to allow yesn-zero devices to enumerate.
 			 */
 			out_le32(iob_mapbase + PXP_ERR_CFG_REG, in_le32(iob_mapbase + PXP_ERR_CFG_REG) | PXP_IGNORE_PCIE_ERRORS);
 		} else {
@@ -237,7 +237,7 @@ static void __init setup_pa_pxp(struct pci_controller *hose)
 	hose->cfg_data = ioremap(0xe0000000, 0x10000000);
 }
 
-static int __init pas_add_bridge(struct device_node *dev)
+static int __init pas_add_bridge(struct device_yesde *dev)
 {
 	struct pci_controller *hose;
 
@@ -247,8 +247,8 @@ static int __init pas_add_bridge(struct device_node *dev)
 	if (!hose)
 		return -ENOMEM;
 
-	hose->first_busno = 0;
-	hose->last_busno = 0xff;
+	hose->first_busyes = 0;
+	hose->last_busyes = 0xff;
 	hose->controller_ops = pasemi_pci_controller_ops;
 
 	setup_pa_pxp(hose);
@@ -260,7 +260,7 @@ static int __init pas_add_bridge(struct device_node *dev)
 
 	/*
 	 * Scan for an isa bridge. This is needed to find the SB600 on the nemo
-	 * and does nothing on machines without one.
+	 * and does yesthing on machines without one.
 	 */
 	isa_bridge_find_early(hose);
 
@@ -269,10 +269,10 @@ static int __init pas_add_bridge(struct device_node *dev)
 
 void __init pas_pci_init(void)
 {
-	struct device_node *np, *root;
+	struct device_yesde *np, *root;
 	int res;
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (!root) {
 		pr_crit("pas_pci_init: can't find root of device tree\n");
 		return;
@@ -280,10 +280,10 @@ void __init pas_pci_init(void)
 
 	pci_set_flags(PCI_SCAN_ALL_PCIE_DEVS);
 
-	np = of_find_compatible_node(root, NULL, "pasemi,rootbus");
+	np = of_find_compatible_yesde(root, NULL, "pasemi,rootbus");
 	if (np) {
 		res = pas_add_bridge(np);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 }
 

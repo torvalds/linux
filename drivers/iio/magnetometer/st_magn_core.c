@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -103,7 +103,7 @@ static const struct iio_chan_spec st_magn_3_16bit_channels[] = {
 
 static const struct st_sensor_settings st_magn_sensors_settings[] = {
 	{
-		.wai = 0, /* This sensor has no valid WhoAmI report 0 */
+		.wai = 0, /* This sensor has yes valid WhoAmI report 0 */
 		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LSM303DLH_MAGN_DEV_NAME,

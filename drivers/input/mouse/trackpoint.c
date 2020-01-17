@@ -26,7 +26,7 @@ static const char * const trackpoint_variants[] = {
 /*
  * Power-on Reset: Resets all trackpoint parameters, including RAM values,
  * to defaults.
- * Returns zero on success, non-zero on failure.
+ * Returns zero on success, yesn-zero on failure.
  */
 static int trackpoint_power_on_reset(struct ps2dev *ps2dev)
 {
@@ -317,8 +317,8 @@ static int trackpoint_sync(struct psmouse *psmouse, bool in_power_on_state)
 
 	/*
 	 * These properties can be changed in this driver. Only
-	 * configure them if the values are non-default or if the TP is in
-	 * an unknown state.
+	 * configure them if the values are yesn-default or if the TP is in
+	 * an unkyeswn state.
 	 */
 	TRACKPOINT_UPDATE(in_power_on_state, psmouse, tp, sensitivity);
 	TRACKPOINT_UPDATE(in_power_on_state, psmouse, tp, inertia);
@@ -422,7 +422,7 @@ int trackpoint_detect(struct psmouse *psmouse, bool set_properties)
 	psmouse->disconnect = trackpoint_disconnect;
 
 	if (variant_id != TP_VARIANT_IBM) {
-		/* Newer variants do not support extended button query. */
+		/* Newer variants do yest support extended button query. */
 		button_info = 0x33;
 	} else {
 		error = trackpoint_read(ps2dev, TP_EXT_BTN, &button_info);
@@ -446,7 +446,7 @@ int trackpoint_detect(struct psmouse *psmouse, bool set_properties)
 	if (variant_id != TP_VARIANT_IBM ||
 	    trackpoint_power_on_reset(ps2dev) != 0) {
 		/*
-		 * Write defaults to TP if we did not reset the trackpoint.
+		 * Write defaults to TP if we did yest reset the trackpoint.
 		 */
 		trackpoint_sync(psmouse, false);
 	}

@@ -11,7 +11,7 @@
 #include <irq_kern.h>
 
 #ifdef CONFIG_NOCONFIG_CHAN
-static void *not_configged_init(char *str, int device,
+static void *yest_configged_init(char *str, int device,
 				const struct chan_opts *opts)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
@@ -19,7 +19,7 @@ static void *not_configged_init(char *str, int device,
 	return NULL;
 }
 
-static int not_configged_open(int input, int output, int primary, void *data,
+static int yest_configged_open(int input, int output, int primary, void *data,
 			      char **dev_out)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
@@ -27,34 +27,34 @@ static int not_configged_open(int input, int output, int primary, void *data,
 	return -ENODEV;
 }
 
-static void not_configged_close(int fd, void *data)
+static void yest_configged_close(int fd, void *data)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 }
 
-static int not_configged_read(int fd, char *c_out, void *data)
-{
-	printk(KERN_ERR "Using a channel type which is configured out of "
-	       "UML\n");
-	return -EIO;
-}
-
-static int not_configged_write(int fd, const char *buf, int len, void *data)
+static int yest_configged_read(int fd, char *c_out, void *data)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 	return -EIO;
 }
 
-static int not_configged_console_write(int fd, const char *buf, int len)
+static int yest_configged_write(int fd, const char *buf, int len, void *data)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 	return -EIO;
 }
 
-static int not_configged_window_size(int fd, void *data, unsigned short *rows,
+static int yest_configged_console_write(int fd, const char *buf, int len)
+{
+	printk(KERN_ERR "Using a channel type which is configured out of "
+	       "UML\n");
+	return -EIO;
+}
+
+static int yest_configged_window_size(int fd, void *data, unsigned short *rows,
 				     unsigned short *cols)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
@@ -62,21 +62,21 @@ static int not_configged_window_size(int fd, void *data, unsigned short *rows,
 	return -ENODEV;
 }
 
-static void not_configged_free(void *data)
+static void yest_configged_free(void *data)
 {
 	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 }
 
-static const struct chan_ops not_configged_ops = {
-	.init		= not_configged_init,
-	.open		= not_configged_open,
-	.close		= not_configged_close,
-	.read		= not_configged_read,
-	.write		= not_configged_write,
-	.console_write	= not_configged_console_write,
-	.window_size	= not_configged_window_size,
-	.free		= not_configged_free,
+static const struct chan_ops yest_configged_ops = {
+	.init		= yest_configged_init,
+	.open		= yest_configged_open,
+	.close		= yest_configged_close,
+	.read		= yest_configged_read,
+	.write		= yest_configged_write,
+	.console_write	= yest_configged_console_write,
+	.window_size	= yest_configged_window_size,
+	.free		= yest_configged_free,
 	.winch		= 0,
 };
 #endif /* CONFIG_NOCONFIG_CHAN */
@@ -320,7 +320,7 @@ static void free_one_chan(struct chan *chan)
 		(*chan->ops->free)(chan->data);
 
 	if (chan->primary && chan->output)
-		ignore_sigio_fd(chan->fd);
+		igyesre_sigio_fd(chan->fd);
 	kfree(chan);
 }
 
@@ -341,7 +341,7 @@ static int one_chan_config_string(struct chan *chan, char *str, int size,
 	int n = 0;
 
 	if (chan == NULL) {
-		CONFIG_CHUNK(str, size, n, "none", 1);
+		CONFIG_CHUNK(str, size, n, "yesne", 1);
 		return n;
 	}
 
@@ -405,33 +405,33 @@ static const struct chan_type chan_table[] = {
 #ifdef CONFIG_NULL_CHAN
 	{ "null", &null_ops },
 #else
-	{ "null", &not_configged_ops },
+	{ "null", &yest_configged_ops },
 #endif
 
 #ifdef CONFIG_PORT_CHAN
 	{ "port", &port_ops },
 #else
-	{ "port", &not_configged_ops },
+	{ "port", &yest_configged_ops },
 #endif
 
 #ifdef CONFIG_PTY_CHAN
 	{ "pty", &pty_ops },
 	{ "pts", &pts_ops },
 #else
-	{ "pty", &not_configged_ops },
-	{ "pts", &not_configged_ops },
+	{ "pty", &yest_configged_ops },
+	{ "pts", &yest_configged_ops },
 #endif
 
 #ifdef CONFIG_TTY_CHAN
 	{ "tty", &tty_ops },
 #else
-	{ "tty", &not_configged_ops },
+	{ "tty", &yest_configged_ops },
 #endif
 
 #ifdef CONFIG_XTERM_CHAN
 	{ "xterm", &xterm_ops },
 #else
-	{ "xterm", &not_configged_ops },
+	{ "xterm", &yest_configged_ops },
 #endif
 };
 

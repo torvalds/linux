@@ -187,7 +187,7 @@ mwifiex_tdls_add_ht_oper(struct mwifiex_private *priv, const u8 *mac,
 			 u8 vht_enabled, struct sk_buff *skb)
 {
 	struct ieee80211_ht_operation *ht_oper;
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 	struct mwifiex_bssdescriptor *bss_desc =
 					&priv->curr_bss_params.bss_descriptor;
 	u8 *pos;
@@ -195,7 +195,7 @@ mwifiex_tdls_add_ht_oper(struct mwifiex_private *priv, const u8 *mac,
 	sta_ptr = mwifiex_get_sta_entry(priv, mac);
 	if (unlikely(!sta_ptr)) {
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "TDLS peer station not found in list\n");
+			    "TDLS peer station yest found in list\n");
 		return -1;
 	}
 
@@ -236,7 +236,7 @@ static int mwifiex_tdls_add_vht_oper(struct mwifiex_private *priv,
 	struct mwifiex_bssdescriptor *bss_desc;
 	struct ieee80211_vht_operation *vht_oper;
 	struct ieee80211_vht_cap *vht_cap, *ap_vht_cap = NULL;
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	u8 supp_chwd_set, peer_supp_chwd_set;
 	u8 *pos, ap_supp_chwd_set, chan_bw;
@@ -249,7 +249,7 @@ static int mwifiex_tdls_add_vht_oper(struct mwifiex_private *priv,
 	sta_ptr = mwifiex_get_sta_entry(priv, mac);
 	if (unlikely(!sta_ptr)) {
 		mwifiex_dbg(adapter, ERROR,
-			    "TDLS peer station not found in list\n");
+			    "TDLS peer station yest found in list\n");
 		return -1;
 	}
 
@@ -396,7 +396,7 @@ mwifiex_tdls_add_wmm_param_ie(struct mwifiex_private *priv, struct sk_buff *skb)
 	wmm->oui_type = 2; /* WME */
 	wmm->oui_subtype = 1; /* WME param */
 	wmm->version = 1; /* WME ver */
-	wmm->qos_info = 0; /* U-APSD not in use */
+	wmm->qos_info = 0; /* U-APSD yest in use */
 
 	/* use default WMM AC parameters for TDLS link*/
 	memcpy(&wmm->ac[0], ac_be, sizeof(ac_be));
@@ -422,7 +422,7 @@ mwifiex_add_wmm_info_ie(struct mwifiex_private *priv, struct sk_buff *skb,
 	*buf++ = 2; /* WME */
 	*buf++ = 0; /* WME info */
 	*buf++ = 1; /* WME ver */
-	*buf++ = qosinfo; /* U-APSD no in use */
+	*buf++ = qosinfo; /* U-APSD yes in use */
 }
 
 static void mwifiex_tdls_add_bss_co_2040(struct sk_buff *skb)
@@ -601,7 +601,7 @@ static int mwifiex_prep_tdls_encap_data(struct mwifiex_private *priv,
 		tf->u.discover_req.dialog_token = dialog_token;
 		break;
 	default:
-		mwifiex_dbg(priv->adapter, ERROR, "Unknown TDLS frame type.\n");
+		mwifiex_dbg(priv->adapter, ERROR, "Unkyeswn TDLS frame type.\n");
 		return -EINVAL;
 	}
 
@@ -799,7 +799,7 @@ mwifiex_construct_tdls_action_frame(struct mwifiex_private *priv,
 		mwifiex_tdls_add_oper_class(skb);
 		break;
 	default:
-		mwifiex_dbg(priv->adapter, ERROR, "Unknown TDLS action frame type\n");
+		mwifiex_dbg(priv->adapter, ERROR, "Unkyeswn TDLS action frame type\n");
 		return -EINVAL;
 	}
 
@@ -885,12 +885,12 @@ int mwifiex_send_tdls_action_frame(struct mwifiex_private *priv, const u8 *peer,
 }
 
 /* This function process tdls action frame from peer.
- * Peer capabilities are stored into station node structure.
+ * Peer capabilities are stored into station yesde structure.
  */
 void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 				       u8 *buf, int len)
 {
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 	u8 *peer, *pos, *end;
 	u8 i, action, basic;
 	u16 cap = 0;
@@ -937,7 +937,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 		ie_len = len - sizeof(struct ethhdr) - TDLS_CONFIRM_FIX_LEN;
 		break;
 	default:
-		mwifiex_dbg(priv->adapter, ERROR, "Unknown TDLS frame type.\n");
+		mwifiex_dbg(priv->adapter, ERROR, "Unkyeswn TDLS frame type.\n");
 		return;
 	}
 
@@ -1075,7 +1075,7 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 static int
 mwifiex_tdls_process_config_link(struct mwifiex_private *priv, const u8 *peer)
 {
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 	struct mwifiex_ds_tdls_oper tdls_oper;
 
 	memset(&tdls_oper, 0, sizeof(struct mwifiex_ds_tdls_oper));
@@ -1083,7 +1083,7 @@ mwifiex_tdls_process_config_link(struct mwifiex_private *priv, const u8 *peer)
 
 	if (!sta_ptr || sta_ptr->tdls_status == TDLS_SETUP_FAILURE) {
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "link absent for peer %pM; cannot config\n", peer);
+			    "link absent for peer %pM; canyest config\n", peer);
 		return -EINVAL;
 	}
 
@@ -1096,7 +1096,7 @@ mwifiex_tdls_process_config_link(struct mwifiex_private *priv, const u8 *peer)
 static int
 mwifiex_tdls_process_create_link(struct mwifiex_private *priv, const u8 *peer)
 {
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 	struct mwifiex_ds_tdls_oper tdls_oper;
 
 	memset(&tdls_oper, 0, sizeof(struct mwifiex_ds_tdls_oper));
@@ -1123,7 +1123,7 @@ mwifiex_tdls_process_create_link(struct mwifiex_private *priv, const u8 *peer)
 static int
 mwifiex_tdls_process_disable_link(struct mwifiex_private *priv, const u8 *peer)
 {
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 	struct mwifiex_ds_tdls_oper tdls_oper;
 
 	memset(&tdls_oper, 0, sizeof(struct mwifiex_ds_tdls_oper));
@@ -1150,7 +1150,7 @@ mwifiex_tdls_process_disable_link(struct mwifiex_private *priv, const u8 *peer)
 static int
 mwifiex_tdls_process_enable_link(struct mwifiex_private *priv, const u8 *peer)
 {
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 	struct ieee80211_mcs_info mcs;
 	int i;
 
@@ -1228,7 +1228,7 @@ int mwifiex_tdls_oper(struct mwifiex_private *priv, const u8 *peer, u8 action)
 
 int mwifiex_get_tdls_link_status(struct mwifiex_private *priv, const u8 *mac)
 {
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 
 	sta_ptr = mwifiex_get_sta_entry(priv, mac);
 	if (sta_ptr)
@@ -1240,7 +1240,7 @@ int mwifiex_get_tdls_link_status(struct mwifiex_private *priv, const u8 *mac)
 int mwifiex_get_tdls_list(struct mwifiex_private *priv,
 			  struct tdls_peer_info *buf)
 {
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 	struct tdls_peer_info *peer = buf;
 	int count = 0;
 
@@ -1268,7 +1268,7 @@ int mwifiex_get_tdls_list(struct mwifiex_private *priv,
 
 void mwifiex_disable_all_tdls_links(struct mwifiex_private *priv)
 {
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 	struct mwifiex_ds_tdls_oper tdls_oper;
 
 	if (list_empty(&priv->sta_list))
@@ -1341,10 +1341,10 @@ int mwifiex_tdls_check_tx(struct mwifiex_private *priv, struct sk_buff *skb)
 
 void mwifiex_flush_auto_tdls_list(struct mwifiex_private *priv)
 {
-	struct mwifiex_auto_tdls_peer *peer, *tmp_node;
+	struct mwifiex_auto_tdls_peer *peer, *tmp_yesde;
 
 	spin_lock_bh(&priv->auto_tdls_lock);
-	list_for_each_entry_safe(peer, tmp_node, &priv->auto_tdls_list, list) {
+	list_for_each_entry_safe(peer, tmp_yesde, &priv->auto_tdls_list, list) {
 		list_del(&peer->list);
 		kfree(peer);
 	}

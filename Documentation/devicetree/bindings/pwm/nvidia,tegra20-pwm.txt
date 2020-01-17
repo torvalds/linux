@@ -24,10 +24,10 @@ Optional properties:
 In some of the interface like PWM based regulator device, it is required
 to configure the pins differently in different states, especially in suspend
 state of the system. The configuration of pin is provided via the pinctrl
-DT node as detailed in the pinctrl DT binding document
+DT yesde as detailed in the pinctrl DT binding document
 	Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
-The PWM node will have following optional properties.
+The PWM yesde will have following optional properties.
 pinctrl-names:	Pin state names. Must be "default" and "sleep".
 pinctrl-0:	phandle for the default/active state of pin configurations.
 pinctrl-1:	phandle for the sleep state of pin configurations.

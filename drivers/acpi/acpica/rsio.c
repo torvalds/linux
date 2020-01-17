@@ -167,7 +167,7 @@ struct acpi_rsconvert_info acpi_rs_get_start_dpf[6] = {
 	 AML_OFFSET(start_dpf.descriptor_type),
 	 0},
 
-	/* All done if there is no flag byte present in the descriptor */
+	/* All done if there is yes flag byte present in the descriptor */
 
 	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_AML_LENGTH, 0, 1},
 
@@ -210,21 +210,21 @@ struct acpi_rsconvert_info acpi_rs_set_start_dpf[10] = {
 	 2},
 	/*
 	 * All done if the output descriptor length is required to be 1
-	 * (i.e., optimization to 0 bytes cannot be attempted)
+	 * (i.e., optimization to 0 bytes canyest be attempted)
 	 */
 	{ACPI_RSC_EXIT_EQ, ACPI_RSC_COMPARE_VALUE,
 	 ACPI_RS_OFFSET(data.start_dpf.descriptor_length),
 	 1},
 
-	/* Set length to 0 bytes (no flags byte) */
+	/* Set length to 0 bytes (yes flags byte) */
 
 	{ACPI_RSC_LENGTH, 0, 0,
-	 sizeof(struct aml_resource_start_dependent_noprio)},
+	 sizeof(struct aml_resource_start_dependent_yesprio)},
 
 	/*
 	 * All done if the output descriptor length is required to be 0.
 	 *
-	 * TBD: Perhaps we should check for error if input flags are not
+	 * TBD: Perhaps we should check for error if input flags are yest
 	 * compatible with a 0-byte descriptor.
 	 */
 	{ACPI_RSC_EXIT_EQ, ACPI_RSC_COMPARE_VALUE,
@@ -237,7 +237,7 @@ struct acpi_rsconvert_info acpi_rs_set_start_dpf[10] = {
 
 	/*
 	 * All done if flags byte is necessary -- if either priority value
-	 * is not ACPI_ACCEPTABLE_CONFIGURATION
+	 * is yest ACPI_ACCEPTABLE_CONFIGURATION
 	 */
 	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_VALUE,
 	 ACPI_RS_OFFSET(data.start_dpf.compatibility_priority),
@@ -247,8 +247,8 @@ struct acpi_rsconvert_info acpi_rs_set_start_dpf[10] = {
 	 ACPI_RS_OFFSET(data.start_dpf.performance_robustness),
 	 ACPI_ACCEPTABLE_CONFIGURATION},
 
-	/* Flag byte is not necessary */
+	/* Flag byte is yest necessary */
 
 	{ACPI_RSC_LENGTH, 0, 0,
-	 sizeof(struct aml_resource_start_dependent_noprio)}
+	 sizeof(struct aml_resource_start_dependent_yesprio)}
 };

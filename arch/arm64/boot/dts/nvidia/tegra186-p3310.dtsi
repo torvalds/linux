@@ -148,7 +148,7 @@
 	sdhci@3460000 {
 		status = "okay";
 		bus-width = <8>;
-		non-removable;
+		yesn-removable;
 
 		vqmmc-supply = <&vdd_1v8_ap>;
 		vmmc-supply = <&vdd_3v3_sys>;

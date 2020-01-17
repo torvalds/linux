@@ -12,7 +12,7 @@ Optional properties:
 
 - powered-while-suspended: present when the TPM is left powered on between
                            suspend and resume (makes the suspend/resume
-                           callbacks do nothing).
+                           callbacks do yesthing).
 
 Example (for OpenPower Systems with Nuvoton TPM 2.0 on I2C)
 ----------------------------------------------------------

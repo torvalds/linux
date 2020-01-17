@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -59,7 +59,7 @@
 #define XLP_MSIXVEC_TOTAL	(cpu_is_xlp9xx() ? 128 : 32)
 #define XLP_MSIXVEC_PER_LINK	(cpu_is_xlp9xx() ? 32 : 8)
 
-/* 128 MSI irqs per node, mapped starting at NLM_MSI_VEC_BASE */
+/* 128 MSI irqs per yesde, mapped starting at NLM_MSI_VEC_BASE */
 static inline int nlm_link_msiirq(int link, int msivec)
 {
 	return NLM_MSI_VEC_BASE + link * XLP_MSIVEC_PER_LINK + msivec;
@@ -86,7 +86,7 @@ static inline int nlm_irq_msilink(int irq)
  * and use 8 MSI-X vectors per link - this keeps the allocation and
  * lookup simple.
  * On XLP 9xx, there are 32 vectors per link, and the interrupts are
- * not routed thru PIC, so we can use all 128 MSI-X vectors.
+ * yest routed thru PIC, so we can use all 128 MSI-X vectors.
  */
 static inline int nlm_link_msixirq(int link, int bit)
 {
@@ -110,7 +110,7 @@ static inline int nlm_irq_msixlink(int msixvec)
  * MSI and MSI-X interrupts.
  */
 struct xlp_msi_data {
-	struct nlm_soc_info *node;
+	struct nlm_soc_info *yesde;
 	uint64_t	lnkbase;
 	uint32_t	msi_enabled_mask;
 	uint32_t	msi_alloc_mask;
@@ -197,8 +197,8 @@ static struct irq_chip xlp_msi_chip = {
  * We divide the MSI-X vectors to 8 per link and do a per-link allocation
  *
  * XLP9XX:
- * 32 MSI-X vectors are available per link, and the interrupts are not routed
- * thru the PIC. PIC ack not needed.
+ * 32 MSI-X vectors are available per link, and the interrupts are yest routed
+ * thru the PIC. PIC ack yest needed.
  *
  * Enable and disable done using standard MSI functions.
  */
@@ -224,7 +224,7 @@ static void xlp_msix_mask_ack(struct irq_data *d)
 	nlm_write_reg(md->lnkbase, status_reg, 1u << bit);
 
 	if (!cpu_is_xlp9xx())
-		nlm_pic_ack(md->node->picbase,
+		nlm_pic_ack(md->yesde->picbase,
 				PIC_IRT_PCIE_MSIX_INDEX(msixvec));
 }
 
@@ -290,7 +290,7 @@ static void xlp_config_link_msi(uint64_t lnkbase, int lirq, uint64_t msiaddr)
 /*
  * Allocate a MSI vector on a link
  */
-static int xlp_setup_msi(uint64_t lnkbase, int node, int link,
+static int xlp_setup_msi(uint64_t lnkbase, int yesde, int link,
 	struct msi_desc *desc)
 {
 	struct xlp_msi_data *md;
@@ -301,9 +301,9 @@ static int xlp_setup_msi(uint64_t lnkbase, int node, int link,
 
 	/* Get MSI data for the link */
 	lirq = PIC_PCIE_LINK_MSI_IRQ(link);
-	xirq = nlm_irq_to_xirq(node, nlm_link_msiirq(link, 0));
+	xirq = nlm_irq_to_xirq(yesde, nlm_link_msiirq(link, 0));
 	md = irq_get_chip_data(xirq);
-	msiaddr = MSI_LINK_ADDR(node, link);
+	msiaddr = MSI_LINK_ADDR(yesde, link);
 
 	spin_lock_irqsave(&md->msi_lock, flags);
 	if (md->msi_alloc_mask == 0) {
@@ -313,9 +313,9 @@ static int xlp_setup_msi(uint64_t lnkbase, int node, int link,
 			irt = PIC_9XX_IRT_PCIE_LINK_INDEX(link);
 		else
 			irt = PIC_IRT_PCIE_LINK_INDEX(link);
-		nlm_setup_pic_irq(node, lirq, lirq, irt);
-		nlm_pic_init_irt(nlm_get_node(node)->picbase, irt, lirq,
-				 node * nlm_threads_per_node(), 1 /*en */);
+		nlm_setup_pic_irq(yesde, lirq, lirq, irt);
+		nlm_pic_init_irt(nlm_get_yesde(yesde)->picbase, irt, lirq,
+				 yesde * nlm_threads_per_yesde(), 1 /*en */);
 	}
 
 	/* allocate a MSI vec, and tell the bridge about it */
@@ -397,7 +397,7 @@ static void xlp_config_link_msix(uint64_t lnkbase, int lirq, uint64_t msixaddr)
 /*
  *  Allocate a MSI-X vector
  */
-static int xlp_setup_msix(uint64_t lnkbase, int node, int link,
+static int xlp_setup_msix(uint64_t lnkbase, int yesde, int link,
 	struct msi_desc *desc)
 {
 	struct xlp_msi_data *md;
@@ -408,9 +408,9 @@ static int xlp_setup_msix(uint64_t lnkbase, int node, int link,
 
 	/* Get MSI data for the link */
 	lirq = PIC_PCIE_MSIX_IRQ(link);
-	xirq = nlm_irq_to_xirq(node, nlm_link_msixirq(link, 0));
+	xirq = nlm_irq_to_xirq(yesde, nlm_link_msixirq(link, 0));
 	md = irq_get_chip_data(xirq);
-	msixaddr = MSIX_LINK_ADDR(node, link);
+	msixaddr = MSIX_LINK_ADDR(yesde, link);
 
 	spin_lock_irqsave(&md->msi_lock, flags);
 	/* switch the PCIe link to MSI-X mode at the first alloc */
@@ -445,32 +445,32 @@ int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 {
 	struct pci_dev *lnkdev;
 	uint64_t lnkbase;
-	int node, link, slot;
+	int yesde, link, slot;
 
 	lnkdev = xlp_get_pcie_link(dev);
 	if (lnkdev == NULL) {
-		dev_err(&dev->dev, "Could not find bridge\n");
+		dev_err(&dev->dev, "Could yest find bridge\n");
 		return 1;
 	}
 	slot = PCI_SLOT(lnkdev->devfn);
 	link = PCI_FUNC(lnkdev->devfn);
-	node = slot / 8;
-	lnkbase = nlm_get_pcie_base(node, link);
+	yesde = slot / 8;
+	lnkbase = nlm_get_pcie_base(yesde, link);
 
 	if (desc->msi_attrib.is_msix)
-		return xlp_setup_msix(lnkbase, node, link, desc);
+		return xlp_setup_msix(lnkbase, yesde, link, desc);
 	else
-		return xlp_setup_msi(lnkbase, node, link, desc);
+		return xlp_setup_msi(lnkbase, yesde, link, desc);
 }
 
-void __init xlp_init_node_msi_irqs(int node, int link)
+void __init xlp_init_yesde_msi_irqs(int yesde, int link)
 {
-	struct nlm_soc_info *nodep;
+	struct nlm_soc_info *yesdep;
 	struct xlp_msi_data *md;
 	int irq, i, irt, msixvec, val;
 
-	pr_info("[%d %d] Init node PCI IRT\n", node, link);
-	nodep = nlm_get_node(node);
+	pr_info("[%d %d] Init yesde PCI IRT\n", yesde, link);
+	yesdep = nlm_get_yesde(yesde);
 
 	/* Alloc an MSI block for the link */
 	md = kzalloc(sizeof(*md), GFP_KERNEL);
@@ -478,11 +478,11 @@ void __init xlp_init_node_msi_irqs(int node, int link)
 	md->msi_enabled_mask = 0;
 	md->msi_alloc_mask = 0;
 	md->msix_alloc_mask = 0;
-	md->node = nodep;
-	md->lnkbase = nlm_get_pcie_base(node, link);
+	md->yesde = yesdep;
+	md->lnkbase = nlm_get_pcie_base(yesde, link);
 
 	/* extended space for MSI interrupts */
-	irq = nlm_irq_to_xirq(node, nlm_link_msiirq(link, 0));
+	irq = nlm_irq_to_xirq(yesde, nlm_link_msiirq(link, 0));
 	for (i = irq; i < irq + XLP_MSIVEC_PER_LINK; i++) {
 		irq_set_chip_and_handler(i, &xlp_msi_chip, handle_level_irq);
 		irq_set_chip_data(i, md);
@@ -490,7 +490,7 @@ void __init xlp_init_node_msi_irqs(int node, int link)
 
 	for (i = 0; i < XLP_MSIXVEC_PER_LINK ; i++) {
 		if (cpu_is_xlp9xx()) {
-			val = ((node * nlm_threads_per_node()) << 7 |
+			val = ((yesde * nlm_threads_per_yesde()) << 7 |
 				PIC_PCIE_MSIX_IRQ(link) << 1 | 0 << 0);
 			nlm_write_pcie_reg(md->lnkbase, PCIE_9XX_MSIX_VECX(i +
 					(link * XLP_MSIXVEC_PER_LINK)), val);
@@ -500,26 +500,26 @@ void __init xlp_init_node_msi_irqs(int node, int link)
 			 */
 			msixvec = link * XLP_MSIXVEC_PER_LINK + i;
 			irt = PIC_IRT_PCIE_MSIX_INDEX(msixvec);
-			nlm_pic_init_irt(nodep->picbase, irt,
+			nlm_pic_init_irt(yesdep->picbase, irt,
 					PIC_PCIE_MSIX_IRQ(link),
-					node * nlm_threads_per_node(), 1);
+					yesde * nlm_threads_per_yesde(), 1);
 		}
 
 		/* Initialize MSI-X extended irq space for the link  */
-		irq = nlm_irq_to_xirq(node, nlm_link_msixirq(link, i));
+		irq = nlm_irq_to_xirq(yesde, nlm_link_msixirq(link, i));
 		irq_set_chip_and_handler(irq, &xlp_msix_chip, handle_level_irq);
 		irq_set_chip_data(irq, md);
 	}
 }
 
-void nlm_dispatch_msi(int node, int lirq)
+void nlm_dispatch_msi(int yesde, int lirq)
 {
 	struct xlp_msi_data *md;
 	int link, i, irqbase;
 	u32 status;
 
 	link = lirq - PIC_PCIE_LINK_MSI_IRQ_BASE;
-	irqbase = nlm_irq_to_xirq(node, nlm_link_msiirq(link, 0));
+	irqbase = nlm_irq_to_xirq(yesde, nlm_link_msiirq(link, 0));
 	md = irq_get_chip_data(irqbase);
 	if (cpu_is_xlp9xx())
 		status = nlm_read_reg(md->lnkbase, PCIE_9XX_MSI_STATUS) &
@@ -536,20 +536,20 @@ void nlm_dispatch_msi(int node, int lirq)
 	/* Ack at eirr and PIC */
 	ack_c0_eirr(PIC_PCIE_LINK_MSI_IRQ(link));
 	if (cpu_is_xlp9xx())
-		nlm_pic_ack(md->node->picbase,
+		nlm_pic_ack(md->yesde->picbase,
 				PIC_9XX_IRT_PCIE_LINK_INDEX(link));
 	else
-		nlm_pic_ack(md->node->picbase, PIC_IRT_PCIE_LINK_INDEX(link));
+		nlm_pic_ack(md->yesde->picbase, PIC_IRT_PCIE_LINK_INDEX(link));
 }
 
-void nlm_dispatch_msix(int node, int lirq)
+void nlm_dispatch_msix(int yesde, int lirq)
 {
 	struct xlp_msi_data *md;
 	int link, i, irqbase;
 	u32 status;
 
 	link = lirq - PIC_PCIE_MSIX_IRQ_BASE;
-	irqbase = nlm_irq_to_xirq(node, nlm_link_msixirq(link, 0));
+	irqbase = nlm_irq_to_xirq(yesde, nlm_link_msixirq(link, 0));
 	md = irq_get_chip_data(irqbase);
 	if (cpu_is_xlp9xx())
 		status = nlm_read_reg(md->lnkbase, PCIE_9XX_MSIX_STATUSX(link));

@@ -91,7 +91,7 @@ static int ak7375_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	ret = pm_runtime_get_sync(sd->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(sd->dev);
+		pm_runtime_put_yesidle(sd->dev);
 		return ret;
 	}
 

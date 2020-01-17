@@ -16,21 +16,21 @@ read-write-erases) before erasing the commit record. Should the system
 crash during the second slow write, the journal can be replayed all the
 way to the latest commit record, guaranteeing the atomicity of whatever
 gets written through the journal to the disk. The effect of this is to
-guarantee that the filesystem does not become stuck midway through a
+guarantee that the filesystem does yest become stuck midway through a
 metadata update.
 
 For performance reasons, ext4 by default only writes filesystem metadata
-through the journal. This means that file data blocks are /not/
+through the journal. This means that file data blocks are /yest/
 guaranteed to be in any consistent state after a crash. If this default
-guarantee level (``data=ordered``) is not satisfactory, there is a mount
+guarantee level (``data=ordered``) is yest satisfactory, there is a mount
 option to control journal behavior. If ``data=journal``, all data and
 metadata are written to disk through the journal. This is slower but
-safest. If ``data=writeback``, dirty data blocks are not flushed to the
+safest. If ``data=writeback``, dirty data blocks are yest flushed to the
 disk before the metadata are written to disk through the journal.
 
-The journal inode is typically inode 8. The first 68 bytes of the
-journal inode are replicated in the ext4 superblock. The journal itself
-is normal (but hidden) file within the filesystem. The file usually
+The journal iyesde is typically iyesde 8. The first 68 bytes of the
+journal iyesde are replicated in the ext4 superblock. The journal itself
+is yesrmal (but hidden) file within the filesystem. The file usually
 consumes an entire block group, though mke2fs tries to put it in the
 middle of the disk.
 
@@ -40,7 +40,7 @@ opposite of ext4.
 NOTE: Both ext4 and ocfs2 use jbd2.
 
 The maximum size of a journal embedded in an ext4 filesystem is 2^32
-blocks. jbd2 itself does not seem to care.
+blocks. jbd2 itself does yest seem to care.
 
 Layout
 ~~~~~~
@@ -61,14 +61,14 @@ Generally speaking, the journal has this format:
 
 Notice that a transaction begins with either a descriptor and some data,
 or a block revocation list. A finished transaction always ends with a
-commit. If there is no commit record (or the checksums don't match), the
+commit. If there is yes commit record (or the checksums don't match), the
 transaction will be discarded during replay.
 
 External Journal
 ~~~~~~~~~~~~~~~~
 
 Optionally, an ext4 filesystem can be created with an external journal
-device (as opposed to an internal journal, which uses a reserved inode).
+device (as opposed to an internal journal, which uses a reserved iyesde).
 In this case, on the filesystem device, ``s_journal_inum`` should be
 zero and ``s_journal_uuid`` should be set. On the journal device there
 will be an ext4 super block in the usual place, with a matching UUID.
@@ -193,10 +193,10 @@ which is 1024 bytes long:
      - \_\_be32
      - s\_start
      - Block number of the start of log. Contrary to the comments, this field
-       being zero does not imply that the journal is clean!
+       being zero does yest imply that the journal is clean!
    * - 0x20
      - \_\_be32
-     - s\_errno
+     - s\_erryes
      - Error value, as set by jbd2\_journal\_abort().
    * -
      -
@@ -289,7 +289,7 @@ The journal incompat features are any combination of the following:
      - Journal can deal with 64-bit block numbers.
        (JBD2\_FEATURE\_INCOMPAT\_64BIT)
    * - 0x4
-     - Journal commits asynchronously. (JBD2\_FEATURE\_INCOMPAT\_ASYNC\_COMMIT)
+     - Journal commits asynchroyesusly. (JBD2\_FEATURE\_INCOMPAT\_ASYNC\_COMMIT)
    * - 0x8
      - This journal uses v2 of the checksum on-disk format. Each journal
        metadata block gets its own checksum, and the block tags in the
@@ -344,7 +344,7 @@ Descriptor blocks consume at least 36 bytes, but use a full block:
    * - 0xC
      - struct journal\_block\_tag\_s
      - open coded array[]
-     - Enough tags either to fill up the block or to describe all the data
+     - Eyesugh tags either to fill up the block or to describe all the data
        blocks that follow this descriptor block.
 
 Journal block tags have any of the following formats, depending on which
@@ -377,7 +377,7 @@ following. The size is 16 or 32 bytes.
      - t\_blocknr\_high
      - Upper 32-bits of the location of where the corresponding data block
        should end up on disk. This is zero if JBD2\_FEATURE\_INCOMPAT\_64BIT is
-       not enabled.
+       yest enabled.
    * - 0xC
      - \_\_be32
      - t\_checksum
@@ -386,7 +386,7 @@ following. The size is 16 or 32 bytes.
      -
      -
      - This field appears to be open coded. It always comes at the end of the
-       tag, after t_checksum. This field is not present if the "same UUID" flag
+       tag, after t_checksum. This field is yest present if the "same UUID" flag
        is set.
    * - 0x8 or 0xC
      - char
@@ -457,7 +457,7 @@ following. The size is 8, 12, 24, or 28 bytes:
      -
      -
      - This field appears to be open coded. It always comes at the end of the
-       tag, after t_flags or t_blocknr_high. This field is not present if the
+       tag, after t_flags or t_blocknr_high. This field is yest present if the
        "same UUID" flag is set.
    * - 0x8 or 0xC
      - char
@@ -498,7 +498,7 @@ Revocation Block
 
 A revocation block is used to prevent replay of a block in an earlier
 transaction. This is used to mark blocks that were journalled at one
-time but are no longer journalled. Typically this happens if a metadata
+time but are yes longer journalled. Typically this happens if a metadata
 block is freed and re-allocated as a file data block; in this case, a
 journal replay after the file block was written to disk will cause
 corruption.
@@ -607,5 +607,5 @@ bytes long (but uses a full block):
    * - 0x38
      - \_\_be32
      - h\_commit\_nsec
-     - Nanoseconds component of the above timestamp.
+     - Nayesseconds component of the above timestamp.
 

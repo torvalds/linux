@@ -6,7 +6,7 @@
  * Jaewon Kim <jaewon02.kim@samsung.com>
  * Krzysztof Kozlowski <krzk@kernel.org>
  *
- * This program is not provided / owned by Maxim Integrated Products.
+ * This program is yest provided / owned by Maxim Integrated Products.
  */
 
 #include <linux/err.h>
@@ -148,7 +148,7 @@ static int max77693_haptic_lowsys(struct max77693_haptic *haptic, bool enable)
 				   MAX77693_PMIC_LOW_SYS_MASK,
 				   enable << MAX77693_PMIC_LOW_SYS_SHIFT);
 	if (error) {
-		dev_err(haptic->dev, "cannot update pmic regmap: %d\n", error);
+		dev_err(haptic->dev, "canyest update pmic regmap: %d\n", error);
 		return error;
 	}
 

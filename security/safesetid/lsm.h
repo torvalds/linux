@@ -32,7 +32,7 @@ enum sid_policy_type {
  * can setuid to 'dst_uid'.
  */
 struct setuid_rule {
-	struct hlist_node next;
+	struct hlist_yesde next;
 	kuid_t src_uid;
 	kuid_t dst_uid;
 };

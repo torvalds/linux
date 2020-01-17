@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* DVB USB compliant linux driver for Technotrend DVB USB boxes and clones
+/* DVB USB compliant linux driver for Techyestrend DVB USB boxes and clones
  * (e.g. Pinnacle 400e DVB-S USB2.0).
  *
- * The Pinnacle 400e uses the same protocol as the Technotrend USB1.1 boxes.
+ * The Pinnacle 400e uses the same protocol as the Techyestrend USB1.1 boxes.
  *
  * TDA8263 + TDA10086
  *
@@ -230,7 +230,7 @@ static int tt3650_ci_set_video_port(struct dvb_ca_en50221 *ca, int slot, int ena
 		return ret;
 
 	if (enable != buf[0]) {
-		err("CI not %sabled.", enable ? "en" : "dis");
+		err("CI yest %sabled.", enable ? "en" : "dis");
 		return -EIO;
 	}
 
@@ -355,7 +355,7 @@ static int tt3650_ci_init(struct dvb_usb_adapter *a)
 				  /* flags */ 0,
 				  /* n_slots */ 1);
 	if (ret) {
-		err("Cannot initialize CI: Error %d.", ret);
+		err("Canyest initialize CI: Error %d.", ret);
 		memset(&state->ca, 0, sizeof(state->ca));
 		return ret;
 	}
@@ -375,7 +375,7 @@ static int ttusb2_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num
 		return -EAGAIN;
 
 	if (num > 2)
-		warn("more than 2 i2c messages at a time is not handled yet. TODO.");
+		warn("more than 2 i2c messages at a time is yest handled yet. TODO.");
 
 	for (i = 0; i < num; i++) {
 		write_read = i+1 < num && (msg[i+1].flags & I2C_M_RD);
@@ -475,9 +475,9 @@ static int ttusb2_identify_state (struct usb_device *udev, struct
 	return 0;
 }
 
-static int ttusb2_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int ttusb2_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
-	u8 b = onoff;
+	u8 b = oyesff;
 	ttusb2_msg(d, CMD_POWER, &b, 0, NULL, 0);
 	return ttusb2_msg(d, CMD_POWER, &b, 1, NULL, 0);
 }
@@ -508,7 +508,7 @@ static struct tda10048_config tda10048_config = {
 	.dtv7_if_freq_khz = TDA10048_IF_4500,
 	.dtv8_if_freq_khz = TDA10048_IF_5000,
 	.clk_freq_khz     = TDA10048_CLK_16000,
-	.no_firmware      = 1,
+	.yes_firmware      = 1,
 	.set_pll          = true ,
 	.pll_m            = 5,
 	.pll_n            = 3,
@@ -741,11 +741,11 @@ static struct dvb_usb_device_properties ttusb2_properties_s2400 = {
 
 	.num_device_descs = 2,
 	.devices = {
-		{   "Technotrend TT-connect S-2400",
+		{   "Techyestrend TT-connect S-2400",
 			{ &ttusb2_table[2], NULL },
 			{ NULL },
 		},
-		{   "Technotrend TT-connect S-2400 (8kB EEPROM)",
+		{   "Techyestrend TT-connect S-2400 (8kB EEPROM)",
 			{ &ttusb2_table[4], NULL },
 			{ NULL },
 		},
@@ -821,7 +821,7 @@ static struct dvb_usb_device_properties ttusb2_properties_ct3650 = {
 
 	.num_device_descs = 1,
 	.devices = {
-		{   "Technotrend TT-connect CT-3650",
+		{   "Techyestrend TT-connect CT-3650",
 			.warm_ids = { &ttusb2_table[3], NULL },
 		},
 	}

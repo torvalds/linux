@@ -194,11 +194,11 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 {
 	struct vt8500_chip *chip;
 	struct resource *r;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 
 	if (!np) {
-		dev_err(&pdev->dev, "invalid devicetree node\n");
+		dev_err(&pdev->dev, "invalid devicetree yesde\n");
 		return -EINVAL;
 	}
 
@@ -215,7 +215,7 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 
 	chip->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(chip->clk)) {
-		dev_err(&pdev->dev, "clock source not specified\n");
+		dev_err(&pdev->dev, "clock source yest specified\n");
 		return PTR_ERR(chip->clk);
 	}
 

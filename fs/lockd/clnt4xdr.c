@@ -20,11 +20,11 @@
 #define NLMDBG_FACILITY		NLMDBG_XDR
 
 #if (NLMCLNT_OHSIZE > XDR_MAX_NETOBJ)
-#  error "NLM host name cannot be larger than XDR_MAX_NETOBJ!"
+#  error "NLM host name canyest be larger than XDR_MAX_NETOBJ!"
 #endif
 
 #if (NLMCLNT_OHSIZE > NLM_MAXSTRLEN)
-#  error "NLM host name cannot be larger than NLM's maximum string length!"
+#  error "NLM host name canyest be larger than NLM's maximum string length!"
 #endif
 
 /*
@@ -46,7 +46,7 @@
 
 #define NLM4_testres_sz		(NLM4_cookie_sz+1+NLM4_holder_sz)
 #define NLM4_res_sz		(NLM4_cookie_sz+1)
-#define NLM4_norep_sz		(0)
+#define NLM4_yesrep_sz		(0)
 
 
 static s64 loff_t_to_s64(loff_t offset)
@@ -304,7 +304,7 @@ out_overflow:
  */
 static void encode_caller_name(struct xdr_stream *xdr, const char *name)
 {
-	/* NB: client-side does not set lock->len */
+	/* NB: client-side does yest set lock->len */
 	u32 length = strlen(name);
 	__be32 *p;
 
@@ -546,9 +546,9 @@ out:
 
 
 /*
- * For NLM, a void procedure really returns nothing
+ * For NLM, a void procedure really returns yesthing
  */
-#define nlm4_xdr_dec_norep	NULL
+#define nlm4_xdr_dec_yesrep	NULL
 
 #define PROC(proc, argtype, restype)					\
 [NLMPROC_##proc] = {							\
@@ -567,16 +567,16 @@ static const struct rpc_procinfo nlm4_procedures[] = {
 	PROC(CANCEL,		cancargs,	res),
 	PROC(UNLOCK,		unlockargs,	res),
 	PROC(GRANTED,		testargs,	res),
-	PROC(TEST_MSG,		testargs,	norep),
-	PROC(LOCK_MSG,		lockargs,	norep),
-	PROC(CANCEL_MSG,	cancargs,	norep),
-	PROC(UNLOCK_MSG,	unlockargs,	norep),
-	PROC(GRANTED_MSG,	testargs,	norep),
-	PROC(TEST_RES,		testres,	norep),
-	PROC(LOCK_RES,		res,		norep),
-	PROC(CANCEL_RES,	res,		norep),
-	PROC(UNLOCK_RES,	res,		norep),
-	PROC(GRANTED_RES,	res,		norep),
+	PROC(TEST_MSG,		testargs,	yesrep),
+	PROC(LOCK_MSG,		lockargs,	yesrep),
+	PROC(CANCEL_MSG,	cancargs,	yesrep),
+	PROC(UNLOCK_MSG,	unlockargs,	yesrep),
+	PROC(GRANTED_MSG,	testargs,	yesrep),
+	PROC(TEST_RES,		testres,	yesrep),
+	PROC(LOCK_RES,		res,		yesrep),
+	PROC(CANCEL_RES,	res,		yesrep),
+	PROC(UNLOCK_RES,	res,		yesrep),
+	PROC(GRANTED_RES,	res,		yesrep),
 };
 
 static unsigned int nlm_version4_counts[ARRAY_SIZE(nlm4_procedures)];

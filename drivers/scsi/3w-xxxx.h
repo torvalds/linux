@@ -27,7 +27,7 @@
    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is    
    solely responsible for determining the appropriateness of using and       
    distributing the Program and assumes all risks associated with its        
-   exercise of rights under this Agreement, including but not limited to     
+   exercise of rights under this Agreement, including but yest limited to     
    the risks and costs of program errors, damage to or loss of data,         
    programs or equipment, and unavailability or interruption of operations.  
 
@@ -41,7 +41,7 @@
    HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES             
 
    You should have received a copy of the GNU General Public License         
-   along with this program; if not, write to the Free Software               
+   along with this program; if yest, write to the Free Software               
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
 
    Bugs/Comments/Suggestions should be mailed to:                            
@@ -88,8 +88,8 @@ static char *tw_aen_string[] = {
 	[0x02C] = "WARNING: Overwrote bad sector during rebuild: Port #",
 	[0x02D] = "ERROR: Encountered bad sector during rebuild: Port #",
 	[0x02E] = "ERROR: Replacement drive is too small: Port #",
-	[0x02F] = "WARNING: Verify error: Unit not previously initialized: Unit #",
-	[0x030] = "ERROR: Drive not supported: Port #"
+	[0x02F] = "WARNING: Verify error: Unit yest previously initialized: Unit #",
+	[0x030] = "ERROR: Drive yest supported: Port #"
 };
 
 /*
@@ -100,9 +100,9 @@ static unsigned char tw_sense_table[][4] =
 {
   /* Codes for newer firmware */
                             // ATA Error                    SCSI Error
-  {0x01, 0x03, 0x13, 0x00}, // Address mark not found       Address mark not found for data field
+  {0x01, 0x03, 0x13, 0x00}, // Address mark yest found       Address mark yest found for data field
   {0x04, 0x0b, 0x00, 0x00}, // Aborted command              Aborted command
-  {0x10, 0x0b, 0x14, 0x00}, // ID not found                 Recorded entity not found
+  {0x10, 0x0b, 0x14, 0x00}, // ID yest found                 Recorded entity yest found
   {0x40, 0x03, 0x11, 0x00}, // Uncorrectable ECC error      Unrecovered read error
   {0x61, 0x04, 0x00, 0x00}, // Device fault                 Hardware error
   {0x84, 0x0b, 0x47, 0x00}, // Data CRC error               SCSI parity error
@@ -182,7 +182,7 @@ static unsigned char tw_sense_table[][4] =
 #define TW_CMD_PACKET         0x1d
 #define TW_CMD_PACKET_WITH_DATA 0x1f
 
-/* Asynchronous Event Notification (AEN) Codes */
+/* Asynchroyesus Event Notification (AEN) Codes */
 #define TW_AEN_QUEUE_EMPTY       0x0000
 #define TW_AEN_SOFT_RESET        0x0001
 #define TW_AEN_DEGRADED_MIRROR   0x0002

@@ -97,10 +97,10 @@ static void round_robin_cpu(unsigned int tsk_index)
 	cpumask_clear(tmp);
 	for_each_cpu(cpu, pad_busy_cpus)
 		cpumask_or(tmp, tmp, topology_sibling_cpumask(cpu));
-	cpumask_andnot(tmp, cpu_online_mask, tmp);
+	cpumask_andyest(tmp, cpu_online_mask, tmp);
 	/* avoid HT sibilings if possible */
 	if (cpumask_empty(tmp))
-		cpumask_andnot(tmp, cpu_online_mask, pad_busy_cpus);
+		cpumask_andyest(tmp, cpu_online_mask, pad_busy_cpus);
 	if (cpumask_empty(tmp)) {
 		mutex_unlock(&round_robin_lock);
 		free_cpumask_var(tmp);
@@ -159,7 +159,7 @@ static int power_saving_thread(void *data)
 
 		while (!need_resched()) {
 			if (tsc_detected_unstable && !tsc_marked_unstable) {
-				/* TSC could halt in idle, so notify users */
+				/* TSC could halt in idle, so yestify users */
 				mark_tsc_unstable("TSC halts in idle");
 				tsc_marked_unstable = 1;
 			}
@@ -183,7 +183,7 @@ static int power_saving_thread(void *data)
 		/*
 		 * current sched_rt has threshold for rt task running time.
 		 * When a rt task uses 95% CPU time, the rt thread will be
-		 * scheduled out for 5% CPU time to not starve other tasks. But
+		 * scheduled out for 5% CPU time to yest starve other tasks. But
 		 * the mechanism only works when all CPUs have RT task running,
 		 * as if one CPU hasn't RT task, RT task from other CPUs will
 		 * borrow CPU time from this CPU and cause RT task use > 95%
@@ -387,7 +387,7 @@ static int acpi_pad_pur(acpi_handle handle)
 	return num;
 }
 
-static void acpi_pad_handle_notify(acpi_handle handle)
+static void acpi_pad_handle_yestify(acpi_handle handle)
 {
 	int num_cpus;
 	uint32_t idle_cpus;
@@ -408,14 +408,14 @@ static void acpi_pad_handle_notify(acpi_handle handle)
 	mutex_unlock(&isolated_cpus_lock);
 }
 
-static void acpi_pad_notify(acpi_handle handle, u32 event,
+static void acpi_pad_yestify(acpi_handle handle, u32 event,
 	void *data)
 {
 	struct acpi_device *device = data;
 
 	switch (event) {
 	case ACPI_PROCESSOR_AGGREGATOR_NOTIFY:
-		acpi_pad_handle_notify(handle);
+		acpi_pad_handle_yestify(handle);
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
 			dev_name(&device->dev), event, 0);
 		break;
@@ -435,8 +435,8 @@ static int acpi_pad_add(struct acpi_device *device)
 	if (acpi_pad_add_sysfs(device))
 		return -ENODEV;
 
-	status = acpi_install_notify_handler(device->handle,
-		ACPI_DEVICE_NOTIFY, acpi_pad_notify, device);
+	status = acpi_install_yestify_handler(device->handle,
+		ACPI_DEVICE_NOTIFY, acpi_pad_yestify, device);
 	if (ACPI_FAILURE(status)) {
 		acpi_pad_remove_sysfs(device);
 		return -ENODEV;
@@ -451,8 +451,8 @@ static int acpi_pad_remove(struct acpi_device *device)
 	acpi_pad_idle_cpus(0);
 	mutex_unlock(&isolated_cpus_lock);
 
-	acpi_remove_notify_handler(device->handle,
-		ACPI_DEVICE_NOTIFY, acpi_pad_notify);
+	acpi_remove_yestify_handler(device->handle,
+		ACPI_DEVICE_NOTIFY, acpi_pad_yestify);
 	acpi_pad_remove_sysfs(device);
 	return 0;
 }

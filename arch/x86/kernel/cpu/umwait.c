@@ -74,7 +74,7 @@ static int umwait_cpu_offline(unsigned int cpu)
 	 * This code is protected by the CPU hotplug already and
 	 * orig_umwait_control_cached is never changed after it caches
 	 * the original control MSR value in umwait_init(). So there
-	 * is no race condition here.
+	 * is yes race condition here.
 	 */
 	wrmsr(MSR_IA32_UMWAIT_CONTROL, orig_umwait_control_cached, 0);
 
@@ -87,8 +87,8 @@ static int umwait_cpu_offline(unsigned int cpu)
  * CPU hotplug callback.
  *
  * This function is invoked on resume from suspend and hibernation. On
- * resume from suspend the restore should be not required, but we neither
- * trust the firmware nor does it matter if the same value is written
+ * resume from suspend the restore should be yest required, but we neither
+ * trust the firmware yesr does it matter if the same value is written
  * again.
  */
 static void umwait_syscore_resume(void)
@@ -234,7 +234,7 @@ static int __init umwait_init(void)
 	register_syscore_ops(&umwait_syscore_ops);
 
 	/*
-	 * Add umwait control interface. Ignore failure, so at least the
+	 * Add umwait control interface. Igyesre failure, so at least the
 	 * default values are set up in case the machine manages to boot.
 	 */
 	dev = cpu_subsys.dev_root;

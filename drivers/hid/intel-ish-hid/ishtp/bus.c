@@ -123,7 +123,7 @@ int ishtp_write_message(struct ishtp_device *dev, struct ishtp_msg_hdr *hdr,
  *
  * Search firmware client using UUID.
  *
- * Return: fw client index or -ENOENT if not found
+ * Return: fw client index or -ENOENT if yest found
  */
 int ishtp_fw_cl_by_uuid(struct ishtp_device *dev, const guid_t *uuid)
 {
@@ -231,7 +231,7 @@ static int ishtp_cl_device_probe(struct device *dev)
  *
  * This is a bus match callback, called when a new ishtp_cl_device is
  * registered during ishtp bus client enumeration. Use the guid_t in
- * drv and dev to decide whether they match or not.
+ * drv and dev to decide whether they match or yest.
  *
  * Return: 1 if dev & drv matches, 0 otherwise.
  */
@@ -321,7 +321,7 @@ static int ishtp_cl_device_resume(struct device *dev)
 		return 0;
 
 	/*
-	 * When ISH needs hard reset, it is done asynchrnously, hence bus
+	 * When ISH needs hard reset, it is done asynchryesusly, hence bus
 	 * resume will  be called before full ISH resume
 	 */
 	if (device->ishtp_dev->resume_flag)
@@ -497,7 +497,7 @@ static void ishtp_bus_remove_device(struct ishtp_cl_device *device)
  * Once a client driver is probed, it created a client
  * instance and registers with the bus.
  *
- * Return: Return value of driver_register or -ENODEV if not ready
+ * Return: Return value of driver_register or -ENODEV if yest ready
  */
 int ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
 			     struct module *owner)
@@ -731,7 +731,7 @@ int ishtp_cl_device_bind(struct ishtp_cl *cl)
  * This is part of reset/remove flow. This function the main processing
  * only targets error processing, if the FW has forced reset or
  * error to remove connected clients. When warm reset the client devices are
- * not removed.
+ * yest removed.
  */
 void ishtp_bus_remove_all_clients(struct ishtp_device *ishtp_dev,
 				  bool warm_reset)
@@ -746,7 +746,7 @@ void ishtp_bus_remove_all_clients(struct ishtp_device *ishtp_dev,
 
 		/*
 		 * Wake any pending process. The waiter would check dev->state
-		 * and determine that it's not enabled already,
+		 * and determine that it's yest enabled already,
 		 * and will return error to its caller
 		 */
 		wake_up_interruptible(&cl->wait_ctrl_res);
@@ -800,7 +800,7 @@ EXPORT_SYMBOL(ishtp_bus_remove_all_clients);
  * ishtp_reset_handler() - IPC reset handler
  * @dev:	ishtp device
  *
- * ISHTP Handler for IPC_RESET notification
+ * ISHTP Handler for IPC_RESET yestification
  */
 void ishtp_reset_handler(struct ishtp_device *dev)
 {
@@ -809,7 +809,7 @@ void ishtp_reset_handler(struct ishtp_device *dev)
 	/* Handle FW-initiated reset */
 	dev->dev_state = ISHTP_DEV_RESETTING;
 
-	/* Clear BH processing queue - no further HBMs */
+	/* Clear BH processing queue - yes further HBMs */
 	spin_lock_irqsave(&dev->rd_msg_spinlock, flags);
 	dev->rd_msg_fifo_head = dev->rd_msg_fifo_tail = 0;
 	spin_unlock_irqrestore(&dev->rd_msg_spinlock, flags);
@@ -839,7 +839,7 @@ EXPORT_SYMBOL(ishtp_reset_compl_handler);
  *
  * This interface is used to enable usage of DMA
  *
- * Return non zero if DMA can be enabled
+ * Return yesn zero if DMA can be enabled
  */
 int ishtp_use_dma_transfer(void)
 {

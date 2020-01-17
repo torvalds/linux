@@ -66,8 +66,8 @@ static const char *rcdev_name(struct reset_controller_dev *rcdev)
 	if (rcdev->dev)
 		return dev_name(rcdev->dev);
 
-	if (rcdev->of_node)
-		return rcdev->of_node->full_name;
+	if (rcdev->of_yesde)
+		return rcdev->of_yesde->full_name;
 
 	return NULL;
 }
@@ -78,7 +78,7 @@ static const char *rcdev_name(struct reset_controller_dev *rcdev)
  * @reset_spec: reset line specifier as found in the device tree
  *
  * This static translation function is used by default if of_xlate in
- * :c:type:`reset_controller_dev` is not set. It is useful for all reset
+ * :c:type:`reset_controller_dev` is yest set. It is useful for all reset
  * controllers with 1:1 mapping, where reset lines can be indexed by number
  * without gaps.
  */
@@ -281,8 +281,8 @@ static inline bool reset_control_is_array(struct reset_control *rstc)
  *
  * On a shared reset line the actual reset pulse is only triggered once for the
  * lifetime of the reset_control instance: for all but the first caller this is
- * a no-op.
- * Consumers must not use reset_control_(de)assert on shared reset lines when
+ * a yes-op.
+ * Consumers must yest use reset_control_(de)assert on shared reset lines when
  * reset_control_reset has been used.
  *
  * If rstc is NULL it is an optional reset and the function will just
@@ -331,9 +331,9 @@ EXPORT_SYMBOL_GPL(reset_control_reset);
  * will be asserted. When called on a shared reset controller the line may
  * still be deasserted, as long as other users keep it so.
  *
- * For shared reset controls a driver cannot expect the hw's registers and
+ * For shared reset controls a driver canyest expect the hw's registers and
  * internal state to be reset, but must be prepared for this to happen.
- * Consumers must not use reset_control_reset on shared reset lines when
+ * Consumers must yest use reset_control_reset on shared reset lines when
  * reset_control_(de)assert has been used.
  *
  * If rstc is NULL it is an optional reset and the function will just
@@ -362,21 +362,21 @@ int reset_control_assert(struct reset_control *rstc)
 
 		/*
 		 * Shared reset controls allow the reset line to be in any state
-		 * after this call, so doing nothing is a valid option.
+		 * after this call, so doing yesthing is a valid option.
 		 */
 		if (!rstc->rcdev->ops->assert)
 			return 0;
 	} else {
 		/*
-		 * If the reset controller does not implement .assert(), there
-		 * is no way to guarantee that the reset line is asserted after
+		 * If the reset controller does yest implement .assert(), there
+		 * is yes way to guarantee that the reset line is asserted after
 		 * this call.
 		 */
 		if (!rstc->rcdev->ops->assert)
 			return -ENOTSUPP;
 
 		if (!rstc->acquired) {
-			WARN(1, "reset %s (ID: %u) is not acquired\n",
+			WARN(1, "reset %s (ID: %u) is yest acquired\n",
 			     rcdev_name(rstc->rcdev), rstc->id);
 			return -EPERM;
 		}
@@ -391,7 +391,7 @@ EXPORT_SYMBOL_GPL(reset_control_assert);
  * @rstc: reset controller
  *
  * After calling this function, the reset is guaranteed to be deasserted.
- * Consumers must not use reset_control_reset on shared reset lines when
+ * Consumers must yest use reset_control_reset on shared reset lines when
  * reset_control_(de)assert has been used.
  *
  * If rstc is NULL it is an optional reset and the function will just
@@ -416,16 +416,16 @@ int reset_control_deassert(struct reset_control *rstc)
 			return 0;
 	} else {
 		if (!rstc->acquired) {
-			WARN(1, "reset %s (ID: %u) is not acquired\n",
+			WARN(1, "reset %s (ID: %u) is yest acquired\n",
 			     rcdev_name(rstc->rcdev), rstc->id);
 			return -EPERM;
 		}
 	}
 
 	/*
-	 * If the reset controller does not implement .deassert(), we assume
+	 * If the reset controller does yest implement .deassert(), we assume
 	 * that it handles self-deasserting reset lines via .reset(). In that
-	 * case, the reset lines are deasserted by default. If that is not the
+	 * case, the reset lines are deasserted by default. If that is yest the
 	 * case, the reset controller driver should implement .deassert() and
 	 * return -ENOTSUPP.
 	 */
@@ -437,9 +437,9 @@ int reset_control_deassert(struct reset_control *rstc)
 EXPORT_SYMBOL_GPL(reset_control_deassert);
 
 /**
- * reset_control_status - returns a negative errno if not supported, a
+ * reset_control_status - returns a negative erryes if yest supported, a
  * positive value if the reset line is asserted, or zero if the reset
- * line is not asserted or if the desc is NULL (optional reset).
+ * line is yest asserted or if the desc is NULL (optional reset).
  * @rstc: reset controller
  */
 int reset_control_status(struct reset_control *rstc)
@@ -466,14 +466,14 @@ EXPORT_SYMBOL_GPL(reset_control_status);
  * second consumer to be able to control the reset, the first consumer has to
  * release it first. Typically the easiest way to achieve this is to call the
  * reset_control_get_exclusive_released() to obtain an instance of the reset
- * control. Such reset controls are not acquired by default.
+ * control. Such reset controls are yest acquired by default.
  *
  * Consumers implementing shared access to an exclusive reset need to follow
  * a specific protocol in order to work together. Before consumers can change
  * a reset they must acquire exclusive access using reset_control_acquire().
  * After they are done operating the reset, they must release exclusive access
- * with a call to reset_control_release(). Consumers are not granted exclusive
- * access to the reset as long as another consumer hasn't released a reset.
+ * with a call to reset_control_release(). Consumers are yest granted exclusive
+ * access to the reset as long as ayesther consumer hasn't released a reset.
  *
  * See also: reset_control_release()
  */
@@ -518,7 +518,7 @@ EXPORT_SYMBOL_GPL(reset_control_acquire);
  * @rstc: reset control
  *
  * Releases exclusive access right to a reset control previously obtained by a
- * call to reset_control_acquire(). Until a consumer calls this function, no
+ * call to reset_control_acquire(). Until a consumer calls this function, yes
  * other consumers will be granted exclusive access.
  *
  * See also: reset_control_acquire()
@@ -547,7 +547,7 @@ static struct reset_control *__reset_control_get_internal(
 		if (rstc->id == index) {
 			/*
 			 * Allow creating a secondary exclusive reset_control
-			 * that is initially not acquired for an already
+			 * that is initially yest acquired for an already
 			 * controlled reset line.
 			 */
 			if (!rstc->shared && !shared && !acquired)
@@ -597,7 +597,7 @@ static void __reset_control_put_internal(struct reset_control *rstc)
 	kref_put(&rstc->refcnt, __reset_control_release);
 }
 
-struct reset_control *__of_reset_control_get(struct device_node *node,
+struct reset_control *__of_reset_control_get(struct device_yesde *yesde,
 				     const char *id, int index, bool shared,
 				     bool optional, bool acquired)
 {
@@ -607,11 +607,11 @@ struct reset_control *__of_reset_control_get(struct device_node *node,
 	int rstc_id;
 	int ret;
 
-	if (!node)
+	if (!yesde)
 		return ERR_PTR(-EINVAL);
 
 	if (id) {
-		index = of_property_match_string(node,
+		index = of_property_match_string(yesde,
 						 "reset-names", id);
 		if (index == -EILSEQ)
 			return ERR_PTR(index);
@@ -619,7 +619,7 @@ struct reset_control *__of_reset_control_get(struct device_node *node,
 			return optional ? NULL : ERR_PTR(-ENOENT);
 	}
 
-	ret = of_parse_phandle_with_args(node, "resets", "#reset-cells",
+	ret = of_parse_phandle_with_args(yesde, "resets", "#reset-cells",
 					 index, &args);
 	if (ret == -EINVAL)
 		return ERR_PTR(ret);
@@ -629,7 +629,7 @@ struct reset_control *__of_reset_control_get(struct device_node *node,
 	mutex_lock(&reset_list_mutex);
 	rcdev = NULL;
 	list_for_each_entry(r, &reset_controller_list, list) {
-		if (args.np == r->of_node) {
+		if (args.np == r->of_yesde) {
 			rcdev = r;
 			break;
 		}
@@ -656,7 +656,7 @@ struct reset_control *__of_reset_control_get(struct device_node *node,
 
 out:
 	mutex_unlock(&reset_list_mutex);
-	of_node_put(args.np);
+	of_yesde_put(args.np);
 
 	return rstc;
 }
@@ -703,7 +703,7 @@ __reset_control_get_from_lookup(struct device *dev, const char *con_id,
 			if (!rcdev) {
 				mutex_unlock(&reset_list_mutex);
 				mutex_unlock(&reset_lookup_mutex);
-				/* Reset provider may not be ready yet. */
+				/* Reset provider may yest be ready yet. */
 				return ERR_PTR(-EPROBE_DEFER);
 			}
 
@@ -730,8 +730,8 @@ struct reset_control *__reset_control_get(struct device *dev, const char *id,
 	if (WARN_ON(shared && acquired))
 		return ERR_PTR(-EINVAL);
 
-	if (dev->of_node)
-		return __of_reset_control_get(dev->of_node, id, index, shared,
+	if (dev->of_yesde)
+		return __of_reset_control_get(dev->of_yesde, id, index, shared,
 					      optional, acquired);
 
 	return __reset_control_get_from_lookup(dev, id, shared, optional,
@@ -832,19 +832,19 @@ EXPORT_SYMBOL_GPL(__device_reset);
 /**
  * of_reset_control_get_count - Count number of resets available with a device
  *
- * @node: device node that contains 'resets'.
+ * @yesde: device yesde that contains 'resets'.
  *
  * Returns positive reset count on success, or error number on failure and
  * on count being zero.
  */
-static int of_reset_control_get_count(struct device_node *node)
+static int of_reset_control_get_count(struct device_yesde *yesde)
 {
 	int count;
 
-	if (!node)
+	if (!yesde)
 		return -EINVAL;
 
-	count = of_count_phandle_with_args(node, "resets", "#reset-cells");
+	count = of_count_phandle_with_args(yesde, "resets", "#reset-cells");
 	if (count == 0)
 		count = -ENOENT;
 
@@ -853,10 +853,10 @@ static int of_reset_control_get_count(struct device_node *node)
 
 /**
  * of_reset_control_array_get - Get a list of reset controls using
- *				device node.
+ *				device yesde.
  *
- * @np: device node for the device that requests the reset controls array
- * @shared: whether reset controls are shared or not
+ * @np: device yesde for the device that requests the reset controls array
+ * @shared: whether reset controls are shared or yest
  * @optional: whether it is optional to get the reset controls
  * @acquired: only one reset control may be acquired for a given controller
  *            and ID
@@ -864,7 +864,7 @@ static int of_reset_control_get_count(struct device_node *node)
  * Returns pointer to allocated reset_control on success or error on failure
  */
 struct reset_control *
-of_reset_control_array_get(struct device_node *np, bool shared, bool optional,
+of_reset_control_array_get(struct device_yesde *np, bool shared, bool optional,
 			   bool acquired)
 {
 	struct reset_control_array *resets;
@@ -907,7 +907,7 @@ EXPORT_SYMBOL_GPL(of_reset_control_array_get);
  * devm_reset_control_array_get - Resource managed reset control array get
  *
  * @dev: device that requests the list of reset controls
- * @shared: whether reset controls are shared or not
+ * @shared: whether reset controls are shared or yest
  * @optional: whether it is optional to get the reset controls
  *
  * The reset control array APIs are intended for a list of resets
@@ -927,7 +927,7 @@ devm_reset_control_array_get(struct device *dev, bool shared, bool optional)
 	if (!devres)
 		return ERR_PTR(-ENOMEM);
 
-	rstc = of_reset_control_array_get(dev->of_node, shared, optional, true);
+	rstc = of_reset_control_array_get(dev->of_yesde, shared, optional, true);
 	if (IS_ERR_OR_NULL(rstc)) {
 		devres_free(devres);
 		return rstc;
@@ -975,8 +975,8 @@ static int reset_control_get_count_from_lookup(struct device *dev)
  */
 int reset_control_get_count(struct device *dev)
 {
-	if (dev->of_node)
-		return of_reset_control_get_count(dev->of_node);
+	if (dev->of_yesde)
+		return of_reset_control_get_count(dev->of_yesde);
 
 	return reset_control_get_count_from_lookup(dev);
 }

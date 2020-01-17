@@ -12,14 +12,14 @@
 # met:
 #
 # * Redistributions of source code must retain the above copyright
-#   notice, this list of conditions and the following disclaimer.
+#   yestice, this list of conditions and the following disclaimer.
 #
 # * Redistributions in binary form must reproduce the above copyright
-#   notice, this list of conditions and the following disclaimer in the
+#   yestice, this list of conditions and the following disclaimer in the
 #   documentation and/or other materials provided with the
 #   distribution.
 #
-# * Neither the name of the Intel Corporation nor the names of its
+# * Neither the name of the Intel Corporation yesr the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
 #
@@ -39,13 +39,13 @@
 ##
 ## Authors:
 ##	Erdinc Ozturk <erdinc.ozturk@intel.com>
-##	Vinodh Gopal <vinodh.gopal@intel.com>
+##	Viyesdh Gopal <viyesdh.gopal@intel.com>
 ##	James Guilford <james.guilford@intel.com>
 ##	Tim Chen <tim.c.chen@linux.intel.com>
 ##
 ## References:
 ##       This code was derived and highly optimized from the code described in paper:
-##               Vinodh Gopal et. al. Optimized Galois-Counter-Mode Implementation
+##               Viyesdh Gopal et. al. Optimized Galois-Counter-Mode Implementation
 ##			on Intel Architecture Processors. August, 2010
 ##       The details of the implementation is explained in:
 ##               Erdinc Ozturk et. al. Enabling High-Performance Galois-Counter-Mode
@@ -147,7 +147,7 @@ ONE:             .octa     0x00000000000000000000000000000001
 .align 16
 ONEf:            .octa     0x01000000000000000000000000000000
 
-# order of these constants should not change.
+# order of these constants should yest change.
 # more specifically, ALL_F should follow SHIFT_MASK, and zero should follow ALL_F
 .section	.rodata, "a", @progbits
 .align 16
@@ -235,7 +235,7 @@ reg_\r = %xmm\n
 .altmacro
 define_reg i %i
 define_reg j %j
-.noaltmacro
+.yesaltmacro
 .endm
 
 # need to push 4 registers into stack to maintain
@@ -439,7 +439,7 @@ _zero_cipher_left\@:
         vmovdqu %xmm9, PBlockEncKey(arg2)
 
         cmp $16, arg5
-        jge _large_enough_update\@
+        jge _large_eyesugh_update\@
 
         lea (arg4,%r11,1), %r10
         mov %r13, %r12
@@ -453,7 +453,7 @@ _zero_cipher_left\@:
 
         jmp _final_ghash_mul\@
 
-_large_enough_update\@:
+_large_eyesugh_update\@:
         sub $16, %r11
         add %r13, %r11
 
@@ -751,7 +751,7 @@ _done_read_partial_block_\@:
         AAD_HASH ENC_DEC
         mov 	PBlockLen(arg2), %r13
         cmp	$0, %r13
-        je	_partial_block_done_\@	# Leave Macro if no partial blocks
+        je	_partial_block_done_\@	# Leave Macro if yes partial blocks
         # Read in input data without over reading
         cmp	$16, \PLAIN_CYPH_LEN
         jl	_fewer_than_16_bytes_\@
@@ -786,11 +786,11 @@ _data_read_\@:				# Finished reading in data
         add	%r13, %r10
         # Set r10 to be the amount of data left in CYPH_PLAIN_IN after filling
         sub	$16, %r10
-        # Determine if if partial block is not being filled and
+        # Determine if if partial block is yest being filled and
         # shift mask accordingly
-        jge	_no_extra_mask_1_\@
+        jge	_yes_extra_mask_1_\@
         sub	%r10, %r12
-_no_extra_mask_1_\@:
+_yes_extra_mask_1_\@:
 
         vmovdqu	ALL_F-SHIFT_MASK(%r12), %xmm1
         # get the appropriate mask to mask out bottom r13 bytes of xmm9
@@ -822,11 +822,11 @@ _dec_done_\@:
         add	%r13, %r10
         # Set r10 to be the amount of data left in CYPH_PLAIN_IN after filling
         sub	$16, %r10
-        # Determine if if partial block is not being filled and
+        # Determine if if partial block is yest being filled and
         # shift mask accordingly
-        jge	_no_extra_mask_2_\@
+        jge	_yes_extra_mask_2_\@
         sub	%r10, %r12
-_no_extra_mask_2_\@:
+_yes_extra_mask_2_\@:
 
         vmovdqu	ALL_F-SHIFT_MASK(%r12), %xmm1
         # get the appropriate mask to mask out bottom r13 bytes of xmm9
@@ -998,7 +998,7 @@ _partial_block_done_\@:
 ## num_initial_blocks = b mod 4#
 ## encrypt the initial num_initial_blocks blocks and apply ghash on the ciphertext
 ## r10, r11, r12, rax are clobbered
-## arg1, arg3, arg4, r14 are used as a pointer only, not modified
+## arg1, arg3, arg4, r14 are used as a pointer only, yest modified
 
 .macro INITIAL_BLOCKS_AVX REP num_initial_blocks T1 T2 T3 T4 T5 CTR XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 T6 T_key ENC_DEC
 	i = (8-\num_initial_blocks)
@@ -1085,7 +1085,7 @@ _partial_block_done_\@:
         vmovdqa  \XMM8, \T3
 
         cmp     $128, %r13
-        jl      _initial_blocks_done\@                  # no need for precomputed constants
+        jl      _initial_blocks_done\@                  # yes need for precomputed constants
 
 ###############################################################################
 # Haskey_i_k holds XORed values of the low and high parts of the Haskey_i
@@ -1233,7 +1233,7 @@ _initial_blocks_done\@:
 
 # encrypt 8 blocks at a time
 # ghash the 8 previously encrypted ciphertext blocks
-# arg1, arg3, arg4 are used as pointers only, not modified
+# arg1, arg3, arg4 are used as pointers only, yest modified
 # r11 is the data offset value
 .macro GHASH_8_ENCRYPT_8_PARALLEL_AVX REP T1 T2 T3 T4 T5 T6 CTR XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 T7 loop_idx ENC_DEC
 
@@ -1908,7 +1908,7 @@ SYM_FUNC_END(aesni_gcm_finalize_avx_gen2)
         vpsrldq         $4, \T2, \T2           # shift-R T2 1 DW (Shift-R only 1-DW to obtain 2-DWs shift-R)
 
         vpclmulqdq      $0x10, \GH, \T3, \GH
-        vpslldq         $4, \GH, \GH           # shift-L GH 1 DW (Shift-L 1-DW to obtain result with no shifts)
+        vpslldq         $4, \GH, \GH           # shift-L GH 1 DW (Shift-L 1-DW to obtain result with yes shifts)
 
         vpxor           \T2, \GH, \GH          # second phase of the reduction complete
         #######################################################################
@@ -1949,7 +1949,7 @@ SYM_FUNC_END(aesni_gcm_finalize_avx_gen2)
 ## num_initial_blocks = b mod 4#
 ## encrypt the initial num_initial_blocks blocks and apply ghash on the ciphertext
 ## r10, r11, r12, rax are clobbered
-## arg1, arg3, arg4, r14 are used as a pointer only, not modified
+## arg1, arg3, arg4, r14 are used as a pointer only, yest modified
 
 .macro INITIAL_BLOCKS_AVX2 REP num_initial_blocks T1 T2 T3 T4 T5 CTR XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 T6 T_key ENC_DEC VER
 	i = (8-\num_initial_blocks)
@@ -2038,7 +2038,7 @@ SYM_FUNC_END(aesni_gcm_finalize_avx_gen2)
         vmovdqa  \XMM8, \T3
 
         cmp     $128, %r13
-        jl      _initial_blocks_done\@                  # no need for precomputed constants
+        jl      _initial_blocks_done\@                  # yes need for precomputed constants
 
 ###############################################################################
 # Haskey_i_k holds XORed values of the low and high parts of the Haskey_i
@@ -2191,7 +2191,7 @@ _initial_blocks_done\@:
 
 # encrypt 8 blocks at a time
 # ghash the 8 previously encrypted ciphertext blocks
-# arg1, arg3, arg4 are used as pointers only, not modified
+# arg1, arg3, arg4 are used as pointers only, yest modified
 # r11 is the data offset value
 .macro GHASH_8_ENCRYPT_8_PARALLEL_AVX2 REP T1 T2 T3 T4 T5 T6 CTR XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 T7 loop_idx ENC_DEC
 
@@ -2531,7 +2531,7 @@ _initial_blocks_done\@:
 	vpsrldq		$4, \T2, \T2			# shift-R xmm2 1 DW (Shift-R only 1-DW to obtain 2-DWs shift-R)
 
 	vpclmulqdq	$0x10, \T7, \T3, \T4
-	vpslldq		$4, \T4, \T4			# shift-L xmm0 1 DW (Shift-L 1-DW to obtain result with no shifts)
+	vpslldq		$4, \T4, \T4			# shift-L xmm0 1 DW (Shift-L 1-DW to obtain result with yes shifts)
 
 	vpxor		\T2, \T4, \T4			# second phase of the reduction complete
 	#######################################################################
@@ -2725,7 +2725,7 @@ _initial_blocks_done\@:
         vpsrldq         $4, \T2, \T2               # shift-R T2 1 DW (Shift-R only 1-DW to obtain 2-DWs shift-R)
 
         vpclmulqdq      $0x10, \T7, \T3, \T4
-        vpslldq         $4, \T4, \T4               # shift-L T4 1 DW (Shift-L 1-DW to obtain result with no shifts)
+        vpslldq         $4, \T4, \T4               # shift-L T4 1 DW (Shift-L 1-DW to obtain result with yes shifts)
 
         vpxor           \T2, \T4, \T4              # second phase of the reduction complete
         #######################################################################

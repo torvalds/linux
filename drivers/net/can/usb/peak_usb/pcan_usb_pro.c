@@ -45,7 +45,7 @@ MODULE_SUPPORTED_DEVICE("PEAK-System PCAN-USB Pro adapter");
 struct pcan_usb_pro_interface {
 	struct peak_usb_device *dev[PCAN_USBPRO_CHANNEL_COUNT];
 	struct peak_time_ref time_ref;
-	int cm_ignore_count;
+	int cm_igyesre_count;
 	int dev_opened_count;
 };
 
@@ -178,7 +178,7 @@ static int pcan_msg_add_rec(struct pcan_usb_pro_msg *pm, int id, ...)
 		break;
 
 	default:
-		pr_err("%s: %s(): unknown data type %02Xh (%d)\n",
+		pr_err("%s: %s(): unkyeswn data type %02Xh (%d)\n",
 			PCAN_USB_DRIVER_NAME, __func__, id, id);
 		pc--;
 		break;
@@ -199,7 +199,7 @@ static int pcan_msg_add_rec(struct pcan_usb_pro_msg *pm, int id, ...)
 }
 
 /*
- * send PCAN-USB Pro command synchronously
+ * send PCAN-USB Pro command synchroyesusly
  */
 static int pcan_usb_pro_send_cmd(struct peak_usb_device *dev,
 				 struct pcan_usb_pro_msg *pum)
@@ -261,7 +261,7 @@ static int pcan_usb_pro_wait_rsp(struct peak_usb_device *dev,
 		err = -EBADMSG;
 		if (actual_length < PCAN_USBPRO_MSG_HEADER_LEN) {
 			netdev_err(dev->netdev,
-				   "got abnormal too small rsp (len=%d)\n",
+				   "got abyesrmal too small rsp (len=%d)\n",
 				   actual_length);
 			break;
 		}
@@ -286,14 +286,14 @@ static int pcan_usb_pro_wait_rsp(struct peak_usb_device *dev,
 			/* check if response corresponds to request */
 			if (pr->data_type != req_data_type)
 				netdev_err(dev->netdev,
-					   "got unwanted rsp %xh: ignored\n",
+					   "got unwanted rsp %xh: igyesred\n",
 					   pr->data_type);
 
 			/* check if channel in response corresponds too */
 			else if ((req_channel != 0xff) && \
 				(pr->bus_act.channel != req_channel))
 				netdev_err(dev->netdev,
-					"got rsp %xh but on chan%u: ignored\n",
+					"got rsp %xh but on chan%u: igyesred\n",
 					req_data_type, pr->bus_act.channel);
 
 			/* got the response */
@@ -345,12 +345,12 @@ int pcan_usb_pro_send_req(struct peak_usb_device *dev, int req_id,
 	return 0;
 }
 
-static int pcan_usb_pro_set_ts(struct peak_usb_device *dev, u16 onoff)
+static int pcan_usb_pro_set_ts(struct peak_usb_device *dev, u16 oyesff)
 {
 	struct pcan_usb_pro_msg um;
 
 	pcan_msg_init_empty(&um, dev->cmd_buf, PCAN_USB_MAX_CMD_LEN);
-	pcan_msg_add_rec(&um, PCAN_USBPRO_SETTS, onoff);
+	pcan_msg_add_rec(&um, PCAN_USBPRO_SETTS, oyesff);
 
 	return pcan_usb_pro_send_cmd(dev, &um);
 }
@@ -370,12 +370,12 @@ static int pcan_usb_pro_set_bitrate(struct peak_usb_device *dev, u32 ccbt)
 	return pcan_usb_pro_send_cmd(dev, &um);
 }
 
-static int pcan_usb_pro_set_bus(struct peak_usb_device *dev, u8 onoff)
+static int pcan_usb_pro_set_bus(struct peak_usb_device *dev, u8 oyesff)
 {
 	struct pcan_usb_pro_msg um;
 
 	/* if bus=on, be sure the bitrate being set before! */
-	if (onoff) {
+	if (oyesff) {
 		struct pcan_usb_pro_device *pdev =
 			     container_of(dev, struct pcan_usb_pro_device, dev);
 
@@ -383,17 +383,17 @@ static int pcan_usb_pro_set_bus(struct peak_usb_device *dev, u8 onoff)
 	}
 
 	pcan_msg_init_empty(&um, dev->cmd_buf, PCAN_USB_MAX_CMD_LEN);
-	pcan_msg_add_rec(&um, PCAN_USBPRO_SETBUSACT, dev->ctrl_idx, onoff);
+	pcan_msg_add_rec(&um, PCAN_USBPRO_SETBUSACT, dev->ctrl_idx, oyesff);
 
 	return pcan_usb_pro_send_cmd(dev, &um);
 }
 
-static int pcan_usb_pro_set_silent(struct peak_usb_device *dev, u8 onoff)
+static int pcan_usb_pro_set_silent(struct peak_usb_device *dev, u8 oyesff)
 {
 	struct pcan_usb_pro_msg um;
 
 	pcan_msg_init_empty(&um, dev->cmd_buf, PCAN_USB_MAX_CMD_LEN);
-	pcan_msg_add_rec(&um, PCAN_USBPRO_SETSILENT, dev->ctrl_idx, onoff);
+	pcan_msg_add_rec(&um, PCAN_USBPRO_SETSILENT, dev->ctrl_idx, oyesff);
 
 	return pcan_usb_pro_send_cmd(dev, &um);
 }
@@ -466,12 +466,12 @@ void pcan_usb_pro_restart_complete(struct urb *urb)
 	/* can delete usb resources */
 	peak_usb_async_complete(urb);
 
-	/* notify candev and netdev */
+	/* yestify candev and netdev */
 	peak_usb_restart_complete(urb->context);
 }
 
 /*
- * handle restart but in asynchronously way
+ * handle restart but in asynchroyesusly way
  */
 static int pcan_usb_pro_restart_async(struct peak_usb_device *dev,
 				      struct urb *urb, u8 *buf)
@@ -566,12 +566,12 @@ static int pcan_usb_pro_handle_error(struct pcan_usb_pro_interface *usb_if,
 	struct sk_buff *skb;
 	struct skb_shared_hwtstamps *hwts;
 
-	/* nothing should be sent while in BUS_OFF state */
+	/* yesthing should be sent while in BUS_OFF state */
 	if (dev->can.state == CAN_STATE_BUS_OFF)
 		return 0;
 
 	if (!raw_status) {
-		/* no error bit (back to active state) */
+		/* yes error bit (back to active state) */
 		dev->can.state = CAN_STATE_ERROR_ACTIVE;
 		return 0;
 	}
@@ -606,7 +606,7 @@ static int pcan_usb_pro_handle_error(struct pcan_usb_pro_interface *usb_if,
 			new_state = CAN_STATE_ERROR_PASSIVE;
 	}
 
-	/* donot post any error if current state didn't change */
+	/* doyest post any error if current state didn't change */
 	if (dev->can.state == new_state)
 		return 0;
 
@@ -672,10 +672,10 @@ static void pcan_usb_pro_handle_ts(struct pcan_usb_pro_interface *usb_if,
 				   struct pcan_usb_pro_rxts *ts)
 {
 	/* should wait until clock is stabilized */
-	if (usb_if->cm_ignore_count > 0)
-		usb_if->cm_ignore_count--;
+	if (usb_if->cm_igyesre_count > 0)
+		usb_if->cm_igyesre_count--;
 	else
-		peak_usb_set_ts_now(&usb_if->time_ref,
+		peak_usb_set_ts_yesw(&usb_if->time_ref,
 				    le32_to_cpu(ts->ts64[1]));
 }
 
@@ -742,7 +742,7 @@ static int pcan_usb_pro_decode_buf(struct peak_usb_device *dev, struct urb *urb)
 
 		default:
 			netdev_err(netdev,
-				   "unhandled rec type 0x%02x (%d): ignored\n",
+				   "unhandled rec type 0x%02x (%d): igyesred\n",
 				   pr->data_type, pr->data_type);
 			break;
 		}
@@ -829,7 +829,7 @@ static int pcan_usb_pro_stop(struct peak_usb_device *dev)
 	struct pcan_usb_pro_device *pdev =
 			container_of(dev, struct pcan_usb_pro_device, dev);
 
-	/* turn off ts msgs for that interface if no other dev opened */
+	/* turn off ts msgs for that interface if yes other dev opened */
 	if (pdev->usb_if->dev_opened_count == 1)
 		pcan_usb_pro_set_ts(dev, 0);
 
@@ -862,12 +862,12 @@ static int pcan_usb_pro_init(struct peak_usb_device *dev)
 			goto err_out;
 		}
 
-		/* number of ts msgs to ignore before taking one into account */
-		usb_if->cm_ignore_count = 5;
+		/* number of ts msgs to igyesre before taking one into account */
+		usb_if->cm_igyesre_count = 5;
 
 		/*
 		 * explicit use of dev_xxx() instead of netdev_xxx() here:
-		 * information displayed are related to the device itself, not
+		 * information displayed are related to the device itself, yest
 		 * to the canx netdevices.
 		 */
 		err = pcan_usb_pro_send_req(dev, PCAN_USBPRO_REQ_INFO,
@@ -953,7 +953,7 @@ static void pcan_usb_pro_exit(struct peak_usb_device *dev)
  */
 static void pcan_usb_pro_free(struct peak_usb_device *dev)
 {
-	/* last device: can free pcan_usb_pro_interface object now */
+	/* last device: can free pcan_usb_pro_interface object yesw */
 	if (!dev->prev_siblings && !dev->next_siblings)
 		kfree(pcan_usb_pro_dev_if(dev));
 }
@@ -974,7 +974,7 @@ int pcan_usb_pro_probe(struct usb_interface *intf)
 
 		/*
 		 * below is the list of valid ep addreses. Any other ep address
-		 * is considered as not-CAN interface address => no dev created
+		 * is considered as yest-CAN interface address => yes dev created
 		 */
 		switch (ep->bEndpointAddress) {
 		case PCAN_USBPRO_EP_CMDOUT:

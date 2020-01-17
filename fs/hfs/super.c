@@ -2,12 +2,12 @@
  *  linux/fs/hfs/super.c
  *
  * Copyright (C) 1995-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techyeslogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  *
  * This file contains hfs_read_super(), some of the super_ops and
  * init_hfs_fs() and exit_hfs_fs().  The remaining super_ops are in
- * inode.c since they deal with inodes.
+ * iyesde.c since they deal with iyesdes.
  *
  * Based on the minix file system code, (C) 1991, 1992 by Linus Torvalds
  */
@@ -26,7 +26,7 @@
 #include "hfs_fs.h"
 #include "btree.h"
 
-static struct kmem_cache *hfs_inode_cachep;
+static struct kmem_cache *hfs_iyesde_cachep;
 
 MODULE_LICENSE("GPL");
 
@@ -119,7 +119,7 @@ static int hfs_remount(struct super_block *sb, int *flags, char *data)
 		return 0;
 	if (!(*flags & SB_RDONLY)) {
 		if (!(HFS_SB(sb)->mdb->drAtrb & cpu_to_be16(HFS_SB_ATTRIB_UNMNT))) {
-			pr_warn("filesystem was not cleanly unmounted, running fsck.hfs is recommended.  leaving read-only.\n");
+			pr_warn("filesystem was yest cleanly unmounted, running fsck.hfs is recommended.  leaving read-only.\n");
 			sb->s_flags |= SB_RDONLY;
 			*flags |= SB_RDONLY;
 		} else if (HFS_SB(sb)->mdb->drAtrb & cpu_to_be16(HFS_SB_ATTRIB_SLOCK)) {
@@ -159,24 +159,24 @@ static int hfs_show_options(struct seq_file *seq, struct dentry *root)
 	return 0;
 }
 
-static struct inode *hfs_alloc_inode(struct super_block *sb)
+static struct iyesde *hfs_alloc_iyesde(struct super_block *sb)
 {
-	struct hfs_inode_info *i;
+	struct hfs_iyesde_info *i;
 
-	i = kmem_cache_alloc(hfs_inode_cachep, GFP_KERNEL);
-	return i ? &i->vfs_inode : NULL;
+	i = kmem_cache_alloc(hfs_iyesde_cachep, GFP_KERNEL);
+	return i ? &i->vfs_iyesde : NULL;
 }
 
-static void hfs_free_inode(struct inode *inode)
+static void hfs_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(hfs_inode_cachep, HFS_I(inode));
+	kmem_cache_free(hfs_iyesde_cachep, HFS_I(iyesde));
 }
 
 static const struct super_operations hfs_super_operations = {
-	.alloc_inode	= hfs_alloc_inode,
-	.free_inode	= hfs_free_inode,
-	.write_inode	= hfs_write_inode,
-	.evict_inode	= hfs_evict_inode,
+	.alloc_iyesde	= hfs_alloc_iyesde,
+	.free_iyesde	= hfs_free_iyesde,
+	.write_iyesde	= hfs_write_iyesde,
+	.evict_iyesde	= hfs_evict_iyesde,
 	.put_super	= hfs_put_super,
 	.sync_fs	= hfs_sync_fs,
 	.statfs		= hfs_statfs,
@@ -218,7 +218,7 @@ static inline int match_fourchar(substring_t *arg, u32 *result)
 /*
  * parse_options()
  *
- * adapted from linux/fs/msdos/inode.c written 1992,93 by Werner Almesberger
+ * adapted from linux/fs/msdos/iyesde.c written 1992,93 by Werner Almesberger
  * This function is called by hfs_read_super() to parse the mount options.
  */
 static int parse_options(char *options, struct hfs_sb_info *hsb)
@@ -369,19 +369,19 @@ static int parse_options(char *options, struct hfs_sb_info *hsb)
  * hfs_read_super()
  *
  * This is the function that is responsible for mounting an HFS
- * filesystem.	It performs all the tasks necessary to get enough data
- * from the disk to read the root inode.  This includes parsing the
+ * filesystem.	It performs all the tasks necessary to get eyesugh data
+ * from the disk to read the root iyesde.  This includes parsing the
  * mount options, dealing with Macintosh partitions, reading the
  * superblock and the allocation bitmap blocks, calling
  * hfs_btree_init() to get the necessary data about the extents and
- * catalog B-trees and, finally, reading the root inode into memory.
+ * catalog B-trees and, finally, reading the root iyesde into memory.
  */
 static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct hfs_sb_info *sbi;
 	struct hfs_find_data fd;
 	hfs_cat_rec rec;
-	struct inode *root_inode;
+	struct iyesde *root_iyesde;
 	int res;
 
 	sbi = kzalloc(sizeof(struct hfs_sb_info), GFP_KERNEL);
@@ -413,39 +413,39 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto bail;
 	}
 
-	/* try to get the root inode */
+	/* try to get the root iyesde */
 	res = hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
 	if (res)
-		goto bail_no_root;
+		goto bail_yes_root;
 	res = hfs_cat_find_brec(sb, HFS_ROOT_CNID, &fd);
 	if (!res) {
 		if (fd.entrylength > sizeof(rec) || fd.entrylength < 0) {
 			res =  -EIO;
 			goto bail;
 		}
-		hfs_bnode_read(fd.bnode, &rec, fd.entryoffset, fd.entrylength);
+		hfs_byesde_read(fd.byesde, &rec, fd.entryoffset, fd.entrylength);
 	}
 	if (res) {
 		hfs_find_exit(&fd);
-		goto bail_no_root;
+		goto bail_yes_root;
 	}
 	res = -EINVAL;
-	root_inode = hfs_iget(sb, &fd.search_key->cat, &rec);
+	root_iyesde = hfs_iget(sb, &fd.search_key->cat, &rec);
 	hfs_find_exit(&fd);
-	if (!root_inode)
-		goto bail_no_root;
+	if (!root_iyesde)
+		goto bail_yes_root;
 
 	sb->s_d_op = &hfs_dentry_operations;
 	res = -ENOMEM;
-	sb->s_root = d_make_root(root_inode);
+	sb->s_root = d_make_root(root_iyesde);
 	if (!sb->s_root)
-		goto bail_no_root;
+		goto bail_yes_root;
 
 	/* everything's okay */
 	return 0;
 
-bail_no_root:
-	pr_err("get root inode failed\n");
+bail_yes_root:
+	pr_err("get root iyesde failed\n");
 bail:
 	hfs_mdb_put(sb);
 	return res;
@@ -468,23 +468,23 @@ MODULE_ALIAS_FS("hfs");
 
 static void hfs_init_once(void *p)
 {
-	struct hfs_inode_info *i = p;
+	struct hfs_iyesde_info *i = p;
 
-	inode_init_once(&i->vfs_inode);
+	iyesde_init_once(&i->vfs_iyesde);
 }
 
 static int __init init_hfs_fs(void)
 {
 	int err;
 
-	hfs_inode_cachep = kmem_cache_create("hfs_inode_cache",
-		sizeof(struct hfs_inode_info), 0,
+	hfs_iyesde_cachep = kmem_cache_create("hfs_iyesde_cache",
+		sizeof(struct hfs_iyesde_info), 0,
 		SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT, hfs_init_once);
-	if (!hfs_inode_cachep)
+	if (!hfs_iyesde_cachep)
 		return -ENOMEM;
 	err = register_filesystem(&hfs_fs_type);
 	if (err)
-		kmem_cache_destroy(hfs_inode_cachep);
+		kmem_cache_destroy(hfs_iyesde_cachep);
 	return err;
 }
 
@@ -493,11 +493,11 @@ static void __exit exit_hfs_fs(void)
 	unregister_filesystem(&hfs_fs_type);
 
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(hfs_inode_cachep);
+	kmem_cache_destroy(hfs_iyesde_cachep);
 }
 
 module_init(init_hfs_fs)

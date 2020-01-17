@@ -94,10 +94,10 @@ static int ipv6_mc_check_mld_query(struct sk_buff *skb)
 	mld = (struct mld_msg *)skb_transport_header(skb);
 
 	/* RFC2710+RFC3810 (MLDv1+MLDv2) require the multicast link layer
-	 * all-nodes destination address (ff02::1) for general queries
+	 * all-yesdes destination address (ff02::1) for general queries
 	 */
 	if (ipv6_addr_any(&mld->mld_mca) &&
-	    !ipv6_addr_is_ll_all_nodes(&ipv6_hdr(skb)->daddr))
+	    !ipv6_addr_is_ll_all_yesdes(&ipv6_hdr(skb)->daddr))
 		return -EINVAL;
 
 	return 0;
@@ -161,7 +161,7 @@ EXPORT_SYMBOL(ipv6_mc_check_icmpv6);
  *
  * -EINVAL: A broken packet was detected, i.e. it violates some internet
  *  standard
- * -ENOMSG: IP header validation succeeded but it is not an MLD packet.
+ * -ENOMSG: IP header validation succeeded but it is yest an MLD packet.
  * -ENOMEM: A memory allocation failure happened.
  *
  * Caller needs to set the skb network header and free any returned skb if it

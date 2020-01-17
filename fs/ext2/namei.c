@@ -7,12 +7,12 @@
  * viro@parcelfarce.linux.theplanet.co.uk
  *
  * Stuff here is basically a glue between the VFS and generic UNIXish
- * filesystem that keeps everything in pagecache. All knowledge of the
+ * filesystem that keeps everything in pagecache. All kyeswledge of the
  * directory layout is in fs/ext2/dir.c - it turned out to be easily separatable
  * and it's easier to debug that way. In principle we might want to
- * generalize that a bit and turn it into a library. Or not.
+ * generalize that a bit and turn it into a library. Or yest.
  *
- * The only non-static object here is ext2_dir_inode_operations.
+ * The only yesn-static object here is ext2_dir_iyesde_operations.
  *
  * TODO: get rid of kmap() use, add readahead.
  *
@@ -37,15 +37,15 @@
 #include "xattr.h"
 #include "acl.h"
 
-static inline int ext2_add_nondir(struct dentry *dentry, struct inode *inode)
+static inline int ext2_add_yesndir(struct dentry *dentry, struct iyesde *iyesde)
 {
-	int err = ext2_add_link(dentry, inode);
+	int err = ext2_add_link(dentry, iyesde);
 	if (!err) {
-		d_instantiate_new(dentry, inode);
+		d_instantiate_new(dentry, iyesde);
 		return 0;
 	}
-	inode_dec_link_count(inode);
-	discard_new_inode(inode);
+	iyesde_dec_link_count(iyesde);
+	discard_new_iyesde(iyesde);
 	return err;
 }
 
@@ -53,105 +53,105 @@ static inline int ext2_add_nondir(struct dentry *dentry, struct inode *inode)
  * Methods themselves.
  */
 
-static struct dentry *ext2_lookup(struct inode * dir, struct dentry *dentry, unsigned int flags)
+static struct dentry *ext2_lookup(struct iyesde * dir, struct dentry *dentry, unsigned int flags)
 {
-	struct inode * inode;
-	ino_t ino;
+	struct iyesde * iyesde;
+	iyes_t iyes;
 	
 	if (dentry->d_name.len > EXT2_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	ino = ext2_inode_by_name(dir, &dentry->d_name);
-	inode = NULL;
-	if (ino) {
-		inode = ext2_iget(dir->i_sb, ino);
-		if (inode == ERR_PTR(-ESTALE)) {
+	iyes = ext2_iyesde_by_name(dir, &dentry->d_name);
+	iyesde = NULL;
+	if (iyes) {
+		iyesde = ext2_iget(dir->i_sb, iyes);
+		if (iyesde == ERR_PTR(-ESTALE)) {
 			ext2_error(dir->i_sb, __func__,
-					"deleted inode referenced: %lu",
-					(unsigned long) ino);
+					"deleted iyesde referenced: %lu",
+					(unsigned long) iyes);
 			return ERR_PTR(-EIO);
 		}
 	}
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(iyesde, dentry);
 }
 
 struct dentry *ext2_get_parent(struct dentry *child)
 {
 	struct qstr dotdot = QSTR_INIT("..", 2);
-	unsigned long ino = ext2_inode_by_name(d_inode(child), &dotdot);
-	if (!ino)
+	unsigned long iyes = ext2_iyesde_by_name(d_iyesde(child), &dotdot);
+	if (!iyes)
 		return ERR_PTR(-ENOENT);
-	return d_obtain_alias(ext2_iget(child->d_sb, ino));
+	return d_obtain_alias(ext2_iget(child->d_sb, iyes));
 } 
 
 /*
  * By the time this is called, we already have created
  * the directory cache entry for the new file, but it
- * is so far negative - it has no inode.
+ * is so far negative - it has yes iyesde.
  *
- * If the create succeeds, we fill in the inode information
+ * If the create succeeds, we fill in the iyesde information
  * with d_instantiate(). 
  */
-static int ext2_create (struct inode * dir, struct dentry * dentry, umode_t mode, bool excl)
+static int ext2_create (struct iyesde * dir, struct dentry * dentry, umode_t mode, bool excl)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int err;
 
 	err = dquot_initialize(dir);
 	if (err)
 		return err;
 
-	inode = ext2_new_inode(dir, mode, &dentry->d_name);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	iyesde = ext2_new_iyesde(dir, mode, &dentry->d_name);
+	if (IS_ERR(iyesde))
+		return PTR_ERR(iyesde);
 
-	ext2_set_file_ops(inode);
-	mark_inode_dirty(inode);
-	return ext2_add_nondir(dentry, inode);
+	ext2_set_file_ops(iyesde);
+	mark_iyesde_dirty(iyesde);
+	return ext2_add_yesndir(dentry, iyesde);
 }
 
-static int ext2_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int ext2_tmpfile(struct iyesde *dir, struct dentry *dentry, umode_t mode)
 {
-	struct inode *inode = ext2_new_inode(dir, mode, NULL);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	struct iyesde *iyesde = ext2_new_iyesde(dir, mode, NULL);
+	if (IS_ERR(iyesde))
+		return PTR_ERR(iyesde);
 
-	ext2_set_file_ops(inode);
-	mark_inode_dirty(inode);
-	d_tmpfile(dentry, inode);
-	unlock_new_inode(inode);
+	ext2_set_file_ops(iyesde);
+	mark_iyesde_dirty(iyesde);
+	d_tmpfile(dentry, iyesde);
+	unlock_new_iyesde(iyesde);
 	return 0;
 }
 
-static int ext2_mknod (struct inode * dir, struct dentry *dentry, umode_t mode, dev_t rdev)
+static int ext2_mkyesd (struct iyesde * dir, struct dentry *dentry, umode_t mode, dev_t rdev)
 {
-	struct inode * inode;
+	struct iyesde * iyesde;
 	int err;
 
 	err = dquot_initialize(dir);
 	if (err)
 		return err;
 
-	inode = ext2_new_inode (dir, mode, &dentry->d_name);
-	err = PTR_ERR(inode);
-	if (!IS_ERR(inode)) {
-		init_special_inode(inode, inode->i_mode, rdev);
+	iyesde = ext2_new_iyesde (dir, mode, &dentry->d_name);
+	err = PTR_ERR(iyesde);
+	if (!IS_ERR(iyesde)) {
+		init_special_iyesde(iyesde, iyesde->i_mode, rdev);
 #ifdef CONFIG_EXT2_FS_XATTR
-		inode->i_op = &ext2_special_inode_operations;
+		iyesde->i_op = &ext2_special_iyesde_operations;
 #endif
-		mark_inode_dirty(inode);
-		err = ext2_add_nondir(dentry, inode);
+		mark_iyesde_dirty(iyesde);
+		err = ext2_add_yesndir(dentry, iyesde);
 	}
 	return err;
 }
 
-static int ext2_symlink (struct inode * dir, struct dentry * dentry,
+static int ext2_symlink (struct iyesde * dir, struct dentry * dentry,
 	const char * symname)
 {
 	struct super_block * sb = dir->i_sb;
 	int err = -ENAMETOOLONG;
 	unsigned l = strlen(symname)+1;
-	struct inode * inode;
+	struct iyesde * iyesde;
 
 	if (l > sb->s_blocksize)
 		goto out;
@@ -160,114 +160,114 @@ static int ext2_symlink (struct inode * dir, struct dentry * dentry,
 	if (err)
 		goto out;
 
-	inode = ext2_new_inode (dir, S_IFLNK | S_IRWXUGO, &dentry->d_name);
-	err = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	iyesde = ext2_new_iyesde (dir, S_IFLNK | S_IRWXUGO, &dentry->d_name);
+	err = PTR_ERR(iyesde);
+	if (IS_ERR(iyesde))
 		goto out;
 
-	if (l > sizeof (EXT2_I(inode)->i_data)) {
+	if (l > sizeof (EXT2_I(iyesde)->i_data)) {
 		/* slow symlink */
-		inode->i_op = &ext2_symlink_inode_operations;
-		inode_nohighmem(inode);
-		if (test_opt(inode->i_sb, NOBH))
-			inode->i_mapping->a_ops = &ext2_nobh_aops;
+		iyesde->i_op = &ext2_symlink_iyesde_operations;
+		iyesde_yeshighmem(iyesde);
+		if (test_opt(iyesde->i_sb, NOBH))
+			iyesde->i_mapping->a_ops = &ext2_yesbh_aops;
 		else
-			inode->i_mapping->a_ops = &ext2_aops;
-		err = page_symlink(inode, symname, l);
+			iyesde->i_mapping->a_ops = &ext2_aops;
+		err = page_symlink(iyesde, symname, l);
 		if (err)
 			goto out_fail;
 	} else {
 		/* fast symlink */
-		inode->i_op = &ext2_fast_symlink_inode_operations;
-		inode->i_link = (char*)EXT2_I(inode)->i_data;
-		memcpy(inode->i_link, symname, l);
-		inode->i_size = l-1;
+		iyesde->i_op = &ext2_fast_symlink_iyesde_operations;
+		iyesde->i_link = (char*)EXT2_I(iyesde)->i_data;
+		memcpy(iyesde->i_link, symname, l);
+		iyesde->i_size = l-1;
 	}
-	mark_inode_dirty(inode);
+	mark_iyesde_dirty(iyesde);
 
-	err = ext2_add_nondir(dentry, inode);
+	err = ext2_add_yesndir(dentry, iyesde);
 out:
 	return err;
 
 out_fail:
-	inode_dec_link_count(inode);
-	discard_new_inode(inode);
+	iyesde_dec_link_count(iyesde);
+	discard_new_iyesde(iyesde);
 	goto out;
 }
 
-static int ext2_link (struct dentry * old_dentry, struct inode * dir,
+static int ext2_link (struct dentry * old_dentry, struct iyesde * dir,
 	struct dentry *dentry)
 {
-	struct inode *inode = d_inode(old_dentry);
+	struct iyesde *iyesde = d_iyesde(old_dentry);
 	int err;
 
 	err = dquot_initialize(dir);
 	if (err)
 		return err;
 
-	inode->i_ctime = current_time(inode);
-	inode_inc_link_count(inode);
-	ihold(inode);
+	iyesde->i_ctime = current_time(iyesde);
+	iyesde_inc_link_count(iyesde);
+	ihold(iyesde);
 
-	err = ext2_add_link(dentry, inode);
+	err = ext2_add_link(dentry, iyesde);
 	if (!err) {
-		d_instantiate(dentry, inode);
+		d_instantiate(dentry, iyesde);
 		return 0;
 	}
-	inode_dec_link_count(inode);
-	iput(inode);
+	iyesde_dec_link_count(iyesde);
+	iput(iyesde);
 	return err;
 }
 
-static int ext2_mkdir(struct inode * dir, struct dentry * dentry, umode_t mode)
+static int ext2_mkdir(struct iyesde * dir, struct dentry * dentry, umode_t mode)
 {
-	struct inode * inode;
+	struct iyesde * iyesde;
 	int err;
 
 	err = dquot_initialize(dir);
 	if (err)
 		return err;
 
-	inode_inc_link_count(dir);
+	iyesde_inc_link_count(dir);
 
-	inode = ext2_new_inode(dir, S_IFDIR | mode, &dentry->d_name);
-	err = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	iyesde = ext2_new_iyesde(dir, S_IFDIR | mode, &dentry->d_name);
+	err = PTR_ERR(iyesde);
+	if (IS_ERR(iyesde))
 		goto out_dir;
 
-	inode->i_op = &ext2_dir_inode_operations;
-	inode->i_fop = &ext2_dir_operations;
-	if (test_opt(inode->i_sb, NOBH))
-		inode->i_mapping->a_ops = &ext2_nobh_aops;
+	iyesde->i_op = &ext2_dir_iyesde_operations;
+	iyesde->i_fop = &ext2_dir_operations;
+	if (test_opt(iyesde->i_sb, NOBH))
+		iyesde->i_mapping->a_ops = &ext2_yesbh_aops;
 	else
-		inode->i_mapping->a_ops = &ext2_aops;
+		iyesde->i_mapping->a_ops = &ext2_aops;
 
-	inode_inc_link_count(inode);
+	iyesde_inc_link_count(iyesde);
 
-	err = ext2_make_empty(inode, dir);
+	err = ext2_make_empty(iyesde, dir);
 	if (err)
 		goto out_fail;
 
-	err = ext2_add_link(dentry, inode);
+	err = ext2_add_link(dentry, iyesde);
 	if (err)
 		goto out_fail;
 
-	d_instantiate_new(dentry, inode);
+	d_instantiate_new(dentry, iyesde);
 out:
 	return err;
 
 out_fail:
-	inode_dec_link_count(inode);
-	inode_dec_link_count(inode);
-	discard_new_inode(inode);
+	iyesde_dec_link_count(iyesde);
+	iyesde_dec_link_count(iyesde);
+	discard_new_iyesde(iyesde);
 out_dir:
-	inode_dec_link_count(dir);
+	iyesde_dec_link_count(dir);
 	goto out;
 }
 
-static int ext2_unlink(struct inode * dir, struct dentry *dentry)
+static int ext2_unlink(struct iyesde * dir, struct dentry *dentry)
 {
-	struct inode * inode = d_inode(dentry);
+	struct iyesde * iyesde = d_iyesde(dentry);
 	struct ext2_dir_entry_2 * de;
 	struct page * page;
 	int err;
@@ -286,35 +286,35 @@ static int ext2_unlink(struct inode * dir, struct dentry *dentry)
 	if (err)
 		goto out;
 
-	inode->i_ctime = dir->i_ctime;
-	inode_dec_link_count(inode);
+	iyesde->i_ctime = dir->i_ctime;
+	iyesde_dec_link_count(iyesde);
 	err = 0;
 out:
 	return err;
 }
 
-static int ext2_rmdir (struct inode * dir, struct dentry *dentry)
+static int ext2_rmdir (struct iyesde * dir, struct dentry *dentry)
 {
-	struct inode * inode = d_inode(dentry);
+	struct iyesde * iyesde = d_iyesde(dentry);
 	int err = -ENOTEMPTY;
 
-	if (ext2_empty_dir(inode)) {
+	if (ext2_empty_dir(iyesde)) {
 		err = ext2_unlink(dir, dentry);
 		if (!err) {
-			inode->i_size = 0;
-			inode_dec_link_count(inode);
-			inode_dec_link_count(dir);
+			iyesde->i_size = 0;
+			iyesde_dec_link_count(iyesde);
+			iyesde_dec_link_count(dir);
 		}
 	}
 	return err;
 }
 
-static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
-			struct inode * new_dir,	struct dentry * new_dentry,
+static int ext2_rename (struct iyesde * old_dir, struct dentry * old_dentry,
+			struct iyesde * new_dir,	struct dentry * new_dentry,
 			unsigned int flags)
 {
-	struct inode * old_inode = d_inode(old_dentry);
-	struct inode * new_inode = d_inode(new_dentry);
+	struct iyesde * old_iyesde = d_iyesde(old_dentry);
+	struct iyesde * new_iyesde = d_iyesde(new_dentry);
 	struct page * dir_page = NULL;
 	struct ext2_dir_entry_2 * dir_de = NULL;
 	struct page * old_page;
@@ -338,55 +338,55 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 		goto out;
 	}
 
-	if (S_ISDIR(old_inode->i_mode)) {
+	if (S_ISDIR(old_iyesde->i_mode)) {
 		err = -EIO;
-		dir_de = ext2_dotdot(old_inode, &dir_page);
+		dir_de = ext2_dotdot(old_iyesde, &dir_page);
 		if (!dir_de)
 			goto out_old;
 	}
 
-	if (new_inode) {
+	if (new_iyesde) {
 		struct page *new_page;
 		struct ext2_dir_entry_2 *new_de;
 
 		err = -ENOTEMPTY;
-		if (dir_de && !ext2_empty_dir (new_inode))
+		if (dir_de && !ext2_empty_dir (new_iyesde))
 			goto out_dir;
 
 		err = -ENOENT;
 		new_de = ext2_find_entry (new_dir, &new_dentry->d_name, &new_page);
 		if (!new_de)
 			goto out_dir;
-		ext2_set_link(new_dir, new_de, new_page, old_inode, 1);
-		new_inode->i_ctime = current_time(new_inode);
+		ext2_set_link(new_dir, new_de, new_page, old_iyesde, 1);
+		new_iyesde->i_ctime = current_time(new_iyesde);
 		if (dir_de)
-			drop_nlink(new_inode);
-		inode_dec_link_count(new_inode);
+			drop_nlink(new_iyesde);
+		iyesde_dec_link_count(new_iyesde);
 	} else {
-		err = ext2_add_link(new_dentry, old_inode);
+		err = ext2_add_link(new_dentry, old_iyesde);
 		if (err)
 			goto out_dir;
 		if (dir_de)
-			inode_inc_link_count(new_dir);
+			iyesde_inc_link_count(new_dir);
 	}
 
 	/*
-	 * Like most other Unix systems, set the ctime for inodes on a
+	 * Like most other Unix systems, set the ctime for iyesdes on a
  	 * rename.
 	 */
-	old_inode->i_ctime = current_time(old_inode);
-	mark_inode_dirty(old_inode);
+	old_iyesde->i_ctime = current_time(old_iyesde);
+	mark_iyesde_dirty(old_iyesde);
 
 	ext2_delete_entry (old_de, old_page);
 
 	if (dir_de) {
 		if (old_dir != new_dir)
-			ext2_set_link(old_inode, dir_de, dir_page, new_dir, 0);
+			ext2_set_link(old_iyesde, dir_de, dir_page, new_dir, 0);
 		else {
 			kunmap(dir_page);
 			put_page(dir_page);
 		}
-		inode_dec_link_count(old_dir);
+		iyesde_dec_link_count(old_dir);
 	}
 	return 0;
 
@@ -403,7 +403,7 @@ out:
 	return err;
 }
 
-const struct inode_operations ext2_dir_inode_operations = {
+const struct iyesde_operations ext2_dir_iyesde_operations = {
 	.create		= ext2_create,
 	.lookup		= ext2_lookup,
 	.link		= ext2_link,
@@ -411,7 +411,7 @@ const struct inode_operations ext2_dir_inode_operations = {
 	.symlink	= ext2_symlink,
 	.mkdir		= ext2_mkdir,
 	.rmdir		= ext2_rmdir,
-	.mknod		= ext2_mknod,
+	.mkyesd		= ext2_mkyesd,
 	.rename		= ext2_rename,
 #ifdef CONFIG_EXT2_FS_XATTR
 	.listxattr	= ext2_listxattr,
@@ -423,7 +423,7 @@ const struct inode_operations ext2_dir_inode_operations = {
 	.tmpfile	= ext2_tmpfile,
 };
 
-const struct inode_operations ext2_special_inode_operations = {
+const struct iyesde_operations ext2_special_iyesde_operations = {
 #ifdef CONFIG_EXT2_FS_XATTR
 	.listxattr	= ext2_listxattr,
 #endif

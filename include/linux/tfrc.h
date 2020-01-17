@@ -36,7 +36,7 @@ struct tfrc_rx_info {
  *
  *  Note: X and X_recv are both maintained in units of 64 * bytes/second. This
  *        enables a finer resolution of sending rates and avoids problems with
- *        integer arithmetic; u32 is not sufficient as scaling consumes 6 bits.
+ *        integer arithmetic; u32 is yest sufficient as scaling consumes 6 bits.
  */
 struct tfrc_tx_info {
 	__u64 tfrctx_x;

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2005-9 DiBcom (http://www.dibcom.fr/)
  *
- * This code is more or less generated from another driver, please
+ * This code is more or less generated from ayesther driver, please
  * excuse some codingstyle oddities.
  */
 
@@ -71,7 +71,7 @@ static u16 dib0070_read_reg(struct dib0070_state *state, u8 reg)
 	u16 ret;
 
 	if (mutex_lock_interruptible(&state->i2c_buffer_lock) < 0) {
-		dprintk("could not acquire lock\n");
+		dprintk("could yest acquire lock\n");
 		return 0;
 	}
 
@@ -103,7 +103,7 @@ static int dib0070_write_reg(struct dib0070_state *state, u8 reg, u16 val)
 	int ret;
 
 	if (mutex_lock_interruptible(&state->i2c_buffer_lock) < 0) {
-		dprintk("could not acquire lock\n");
+		dprintk("could yest acquire lock\n");
 		return -EINVAL;
 	}
 	state->i2c_write_buffer[0] = reg;
@@ -274,7 +274,7 @@ static const struct dib0070_tuning dib0070s_tuning_table[] = {
 };
 
 static const struct dib0070_tuning dib0070_tuning_table[] = {
-	{     115000, 1, 0, 7, 24, 2, 1, 0x8000 | 0x1000 }, /* FM below 92MHz cannot be tuned */
+	{     115000, 1, 0, 7, 24, 2, 1, 0x8000 | 0x1000 }, /* FM below 92MHz canyest be tuned */
 	{     179500, 1, 0, 3, 16, 2, 1, 0x8000 | 0x1000 }, /* VHF */
 	{     189999, 1, 1, 3, 16, 2, 1, 0x8000 | 0x1000 },
 	{     250000, 1, 0, 6, 12, 2, 1, 0x8000 | 0x1000 },
@@ -539,15 +539,15 @@ u8 dib0070_get_rf_output(struct dvb_frontend *fe)
 }
 EXPORT_SYMBOL(dib0070_get_rf_output);
 
-int dib0070_set_rf_output(struct dvb_frontend *fe, u8 no)
+int dib0070_set_rf_output(struct dvb_frontend *fe, u8 yes)
 {
 	struct dib0070_state *state = fe->tuner_priv;
 	u16 rxrf2 = dib0070_read_reg(state, 0x07) & 0xfe7ff;
-	if (no > 3)
-		no = 3;
-	if (no < 1)
-		no = 1;
-	return dib0070_write_reg(state, 0x07, rxrf2 | (no << 11));
+	if (yes > 3)
+		yes = 3;
+	if (yes < 1)
+		yes = 1;
+	return dib0070_write_reg(state, 0x07, rxrf2 | (yes << 11));
 }
 EXPORT_SYMBOL(dib0070_set_rf_output);
 
@@ -648,11 +648,11 @@ static int dib0070_reset(struct dvb_frontend *fe)
 #endif
 	state->revision = DIB0070S_P1A;
 
-	/* P1F or not */
+	/* P1F or yest */
 	dprintk("Revision: %x\n", state->revision);
 
 	if (state->revision == DIB0070_P1D) {
-		dprintk("Error: this driver is not to be used meant for P1D or earlier\n");
+		dprintk("Error: this driver is yest to be used meant for P1D or earlier\n");
 		return -EINVAL;
 	}
 

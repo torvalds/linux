@@ -57,7 +57,7 @@ static void patched_work_func(struct work_struct *work)
 	pr_info("%s\n", __func__);
 }
 
-static struct klp_func no_funcs[] = {
+static struct klp_func yes_funcs[] = {
 	{}
 };
 
@@ -71,7 +71,7 @@ static struct klp_func busymod_funcs[] = {
 static struct klp_object objs[] = {
 	{
 		.name = NULL,	/* vmlinux */
-		.funcs = no_funcs,
+		.funcs = yes_funcs,
 		.callbacks = {
 			.pre_patch = pre_patch_callback,
 			.post_patch = post_patch_callback,
@@ -80,7 +80,7 @@ static struct klp_object objs[] = {
 		},
 	},	{
 		.name = "test_klp_callbacks_mod",
-		.funcs = no_funcs,
+		.funcs = yes_funcs,
 		.callbacks = {
 			.pre_patch = pre_patch_callback,
 			.post_patch = post_patch_callback,

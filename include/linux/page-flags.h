@@ -18,7 +18,7 @@
  * Various page->flags bits:
  *
  * PG_reserved is set for special pages. The "struct page" of such a page
- * should in general not be touched (e.g. set dirty) except by its owner.
+ * should in general yest be touched (e.g. set dirty) except by its owner.
  * Pages marked as PG_reserved include:
  * - Pages part of the kernel image (including vDSO) and similar (e.g. BIOS,
  *   initrd, HW tables)
@@ -27,30 +27,30 @@
  *   initial vmemmap, initial page tables, crashkernel, elfcorehdr, and much
  *   much more. Once (if ever) freed, PG_reserved is cleared and they will
  *   be given to the page allocator.
- * - Pages falling into physical memory gaps - not IORESOURCE_SYSRAM. Trying
+ * - Pages falling into physical memory gaps - yest IORESOURCE_SYSRAM. Trying
  *   to read/write these pages might end badly. Don't touch!
  * - The zero page(s)
- * - Pages not added to the page allocator when onlining a section because
+ * - Pages yest added to the page allocator when onlining a section because
  *   they were excluded via the online_page_callback() or because they are
  *   PG_hwpoison.
  * - Pages allocated in the context of kexec/kdump (loaded kernel image,
  *   control pages, vmcoreinfo)
  * - MMIO/DMA pages. Some architectures don't allow to ioremap pages that are
- *   not marked PG_reserved (as they might be in use by somebody else who does
- *   not respect the caching strategy).
+ *   yest marked PG_reserved (as they might be in use by somebody else who does
+ *   yest respect the caching strategy).
  * - Pages part of an offline section (struct pages of offline sections should
- *   not be trusted as they will be initialized when first onlined).
+ *   yest be trusted as they will be initialized when first onlined).
  * - MCA pages on ia64
- * - Pages holding CPU notes for POWER Firmware Assisted Dump
+ * - Pages holding CPU yestes for POWER Firmware Assisted Dump
  * - Device memory (e.g. PMEM, DAX, HMM)
  * Some PG_reserved pages will be excluded from the hibernation image.
- * PG_reserved does in general not hinder anybody from dumping or swapping
- * and is no longer required for remap_pfn_range(). ioremap might require it.
+ * PG_reserved does in general yest hinder anybody from dumping or swapping
+ * and is yes longer required for remap_pfn_range(). ioremap might require it.
  * Consequently, PG_reserved for a page mapped into user space can indicate
  * the zero page, the vDSO, MMIO pages or device memory.
  *
  * The PG_private bitflag is set on pagecache pages if they contain filesystem
- * specific data (which is normally at page->private). It can be used by
+ * specific data (which is yesrmally at page->private). It can be used by
  * private allocations for its own usage.
  *
  * During initiation of disk I/O, PG_locked is set. This bit is set before I/O
@@ -66,7 +66,7 @@
  * PG_uptodate tells whether the page's contents is valid.  When a read
  * completes, the page becomes uptodate, unless a disk I/O error happened.
  *
- * PG_referenced, PG_reclaim are used for page reclaim for anonymous and
+ * PG_referenced, PG_reclaim are used for page reclaim for ayesnymous and
  * file-backed pagecache (see mm/vmscan.c).
  *
  * PG_error is set to indicate that an I/O error occurred on this page.
@@ -77,7 +77,7 @@
  *
  * PG_hwpoison indicates that a page got corrupted in hardware and contains
  * data with incorrect ECC bits that triggered a machine check. Accessing is
- * not safe since it may cause another machine check. Don't touch!
+ * yest safe since it may cause ayesther machine check. Don't touch!
  */
 
 /*
@@ -92,7 +92,7 @@
  *  N-1           ^       0
  *               (NR_PAGEFLAGS)
  *
- * The fields area is reserved for fields mapping zone, node (for NUMA) and
+ * The fields area is reserved for fields mapping zone, yesde (for NUMA) and
  * SPARSEMEM section (for variants of SPARSEMEM that require section ids like
  * SPARSEMEM_EXTREME with !SPARSEMEM_VMEMMAP).
  */
@@ -140,8 +140,8 @@ enum pageflags {
 	PG_swapcache = PG_owner_priv_1,	/* Swap page: swp_entry_t in private */
 
 	/* Two page bits are conscripted by FS-Cache to maintain local caching
-	 * state.  These bits are set on pages belonging to the netfs's inodes
-	 * when those inodes are being locally cached.
+	 * state.  These bits are set on pages belonging to the netfs's iyesdes
+	 * when those iyesdes are being locally cached.
 	 */
 	PG_fscache = PG_private_2,	/* page backed by cache */
 
@@ -150,7 +150,7 @@ enum pageflags {
 	PG_pinned = PG_owner_priv_1,
 	/* Pinned as part of domain save (see xen_mm_pin_all()). */
 	PG_savepinned = PG_dirty,
-	/* Has a grant mapping of another (foreign) domain's page. */
+	/* Has a grant mapping of ayesther (foreign) domain's page. */
 	PG_foreign = PG_owner_priv_1,
 	/* Remapped by swiotlb-xen. */
 	PG_xen_remapped = PG_owner_priv_1,
@@ -161,7 +161,7 @@ enum pageflags {
 	/* Compound pages. Stored in first tail page's flags */
 	PG_double_map = PG_private_2,
 
-	/* non-lru isolated movable page */
+	/* yesn-lru isolated movable page */
 	PG_isolated = PG_reclaim,
 };
 
@@ -223,7 +223,7 @@ static inline void page_init_poison(struct page *page, size_t size)
  *     checks can be done on tail pages too.
  *
  * PF_NO_COMPOUND:
- *     the page flag is not relevant for compound pages.
+ *     the page flag is yest relevant for compound pages.
  */
 #define PF_POISONED_CHECK(page) ({					\
 		VM_BUG_ON_PGFLAGS(PagePoisoned(page), page);		\
@@ -368,7 +368,7 @@ PAGEFLAG(Readahead, reclaim, PF_NO_COMPOUND)
 
 #ifdef CONFIG_HIGHMEM
 /*
- * Must use a macro here due to header dependency issues. page_zone() is not
+ * Must use a macro here due to header dependency issues. page_zone() is yest
  * available at this point.
  */
 #define PageHighMem(__p) is_highmem_idx(page_zonenum(__p))
@@ -432,19 +432,19 @@ PAGEFLAG(Idle, idle, PF_ANY)
 #endif
 
 /*
- * On an anonymous page mapped into a user virtual memory area,
- * page->mapping points to its anon_vma, not to a struct address_space;
+ * On an ayesnymous page mapped into a user virtual memory area,
+ * page->mapping points to its ayesn_vma, yest to a struct address_space;
  * with the PAGE_MAPPING_ANON bit set to distinguish it.  See rmap.h.
  *
- * On an anonymous page in a VM_MERGEABLE area, if CONFIG_KSM is enabled,
+ * On an ayesnymous page in a VM_MERGEABLE area, if CONFIG_KSM is enabled,
  * the PAGE_MAPPING_MOVABLE bit may be set along with the PAGE_MAPPING_ANON
- * bit; and then page->mapping points, not to an anon_vma, but to a private
+ * bit; and then page->mapping points, yest to an ayesn_vma, but to a private
  * structure which KSM associates with that merged page.  See ksm.h.
  *
- * PAGE_MAPPING_KSM without PAGE_MAPPING_ANON is used for non-lru movable
+ * PAGE_MAPPING_KSM without PAGE_MAPPING_ANON is used for yesn-lru movable
  * page and then page->mapping points a struct address_space.
  *
- * Please note that, confusingly, "page_mapping" refers to the inode
+ * Please yeste that, confusingly, "page_mapping" refers to the iyesde
  * address_space which maps the page from disk; whereas "page_mapped"
  * refers to user virtual address space into which the page is mapped.
  */
@@ -458,7 +458,7 @@ static __always_inline int PageMappingFlags(struct page *page)
 	return ((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) != 0;
 }
 
-static __always_inline int PageAnon(struct page *page)
+static __always_inline int PageAyesn(struct page *page)
 {
 	page = compound_head(page);
 	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
@@ -473,9 +473,9 @@ static __always_inline int __PageMovable(struct page *page)
 #ifdef CONFIG_KSM
 /*
  * A KSM page is one of those write-protected "shared pages" or "merged pages"
- * which KSM maps into multiple mms, wherever identical anonymous page content
- * is found in VM_MERGEABLE vmas.  It's a PageAnon page, pointing not to any
- * anon_vma, but to that page's node of the stable tree.
+ * which KSM maps into multiple mms, wherever identical ayesnymous page content
+ * is found in VM_MERGEABLE vmas.  It's a PageAyesn page, pointing yest to any
+ * ayesn_vma, but to that page's yesde of the stable tree.
  */
 static __always_inline int PageKsm(struct page *page)
 {
@@ -497,7 +497,7 @@ static inline int PageUptodate(struct page *page)
 	/*
 	 * Must ensure that the data we read out of the page is loaded
 	 * _after_ we've loaded page->flags to check for PageUptodate.
-	 * We can skip the barrier if the page is not uptodate, because
+	 * We can skip the barrier if the page is yest uptodate, because
 	 * we wouldn't be reading anything from it.
 	 *
 	 * See SetPageUptodate() for the other side of the story.
@@ -586,11 +586,11 @@ static inline bool page_huge_active(struct page *page)
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 /*
- * PageHuge() only returns true for hugetlbfs pages, but not for
- * normal or transparent huge pages.
+ * PageHuge() only returns true for hugetlbfs pages, but yest for
+ * yesrmal or transparent huge pages.
  *
  * PageTransHuge() returns true for both transparent huge and
- * hugetlbfs pages, but not normal pages. PageTransHuge() can only be
+ * hugetlbfs pages, but yest yesrmal pages. PageTransHuge() can only be
  * called only in the core VM paths where hugetlbfs pages can't exist.
  */
 static inline int PageTransHuge(struct page *page)
@@ -601,7 +601,7 @@ static inline int PageTransHuge(struct page *page)
 
 /*
  * PageTransCompound returns true for both transparent huge pages
- * and hugetlbfs pages, so it should only be called when it's known
+ * and hugetlbfs pages, so it should only be called when it's kyeswn
  * that hugetlbfs pages aren't involved.
  */
 static inline int PageTransCompound(struct page *page)
@@ -617,12 +617,12 @@ static inline int PageTransCompound(struct page *page)
  * MMUs to call get_user_pages() only once for each compound page and
  * to immediately map the entire compound page with a single secondary
  * MMU fault. If there will be a pmd split later, the secondary MMUs
- * will get an update through the MMU notifier invalidation through
+ * will get an update through the MMU yestifier invalidation through
  * split_huge_pmd().
  *
  * Unlike PageTransCompound, this is safe to be called only while
- * split_huge_pmd() cannot run from under us, like if protected by the
- * MMU notifier, otherwise it may result in page->_mapcount check false
+ * split_huge_pmd() canyest run from under us, like if protected by the
+ * MMU yestifier, otherwise it may result in page->_mapcount check false
  * positives.
  *
  * We have to treat page cache THP differently since every subpage of it
@@ -637,18 +637,18 @@ static inline int PageTransCompoundMap(struct page *page)
 	if (!PageTransCompound(page))
 		return 0;
 
-	if (PageAnon(page))
+	if (PageAyesn(page))
 		return atomic_read(&page->_mapcount) < 0;
 
 	head = compound_head(page);
-	/* File THP is PMD mapped and not PTE mapped */
+	/* File THP is PMD mapped and yest PTE mapped */
 	return atomic_read(&page->_mapcount) ==
 	       atomic_read(compound_mapcount_ptr(head));
 }
 
 /*
  * PageTransTail returns true for both transparent huge pages
- * and hugetlbfs pages, so it should only be called when it's known
+ * and hugetlbfs pages, so it should only be called when it's kyeswn
  * that hugetlbfs pages aren't involved.
  */
 static inline int PageTransTail(struct page *page)
@@ -667,7 +667,7 @@ static inline int PageTransTail(struct page *page)
  * For the page PageDoubleMap means ->_mapcount in all sub-pages is offset up
  * by one. This reference will go away with last compound_mapcount.
  *
- * See also __split_huge_pmd_locked() and page_remove_anon_compound_rmap().
+ * See also __split_huge_pmd_locked() and page_remove_ayesn_compound_rmap().
  */
 static inline int PageDoubleMap(struct page *page)
 {
@@ -758,8 +758,8 @@ PAGE_TYPE_OPS(Buddy, buddy)
 /*
  * PageOffline() indicates that the page is logically offline although the
  * containing section is online. (e.g. inflated in a balloon driver or
- * not onlined when onlining the section).
- * The content of these pages is effectively stale. Such pages should not
+ * yest onlined when onlining the section).
+ * The content of these pages is effectively stale. Such pages should yest
  * be touched (read/write/dump/save) except by their owner.
  */
 PAGE_TYPE_OPS(Offline, offline)
@@ -819,7 +819,7 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
 #endif
 
 /*
- * Flags checked when a page is freed.  Pages being freed should not have
+ * Flags checked when a page is freed.  Pages being freed should yest have
  * these flags set.  It they are, there is a problem.
  */
 #define PAGE_FLAGS_CHECK_AT_FREE				\
@@ -831,7 +831,7 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
 
 /*
  * Flags checked when a page is prepped for return by the page allocator.
- * Pages being prepped should not have these flags set.  It they are set,
+ * Pages being prepped should yest have these flags set.  It they are set,
  * there has been a kernel bug or struct page corruption.
  *
  * __PG_HWPOISON is exceptional because it needs to be kept beyond page's

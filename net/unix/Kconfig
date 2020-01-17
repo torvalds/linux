@@ -10,7 +10,7 @@ config UNIX
 	  sockets are the standard Unix mechanism for establishing and
 	  accessing network connections.  Many commonly used programs such as
 	  the X Window system and syslog use these sockets even if your
-	  machine is not connected to any network.  Unless you are working on
+	  machine is yest connected to any network.  Unless you are working on
 	  an embedded system or something similar, you therefore definitely
 	  want to say Y here.
 
@@ -18,7 +18,7 @@ config UNIX
 	  called unix.  Note that several important services won't work
 	  correctly if you say M here and then neglect to load the module.
 
-	  Say Y unless you know what you are doing.
+	  Say Y unless you kyesw what you are doing.
 
 config UNIX_SCM
 	bool

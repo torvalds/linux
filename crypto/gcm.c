@@ -32,7 +32,7 @@ struct crypto_gcm_ctx {
 
 struct crypto_rfc4106_ctx {
 	struct crypto_aead *child;
-	u8 nonce[4];
+	u8 yesnce[4];
 };
 
 struct crypto_rfc4106_req_ctx {
@@ -48,7 +48,7 @@ struct crypto_rfc4543_instance_ctx {
 struct crypto_rfc4543_ctx {
 	struct crypto_aead *child;
 	struct crypto_sync_skcipher *null;
-	u8 nonce[4];
+	u8 yesnce[4];
 };
 
 struct crypto_rfc4543_req_ctx {
@@ -733,7 +733,7 @@ static int crypto_rfc4106_setkey(struct crypto_aead *parent, const u8 *key,
 		return -EINVAL;
 
 	keylen -= 4;
-	memcpy(ctx->nonce, key + keylen, 4);
+	memcpy(ctx->yesnce, key + keylen, 4);
 
 	crypto_aead_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_aead_set_flags(child, crypto_aead_get_flags(parent) &
@@ -771,7 +771,7 @@ static struct aead_request *crypto_rfc4106_crypt(struct aead_request *req)
 
 	scatterwalk_map_and_copy(iv + GCM_AES_IV_SIZE, req->src, 0, req->assoclen - 8, 0);
 
-	memcpy(iv, ctx->nonce, 4);
+	memcpy(iv, ctx->yesnce, 4);
 	memcpy(iv + 4, req->iv, 8);
 
 	sg_init_table(rctx->src, 3);
@@ -962,7 +962,7 @@ static int crypto_rfc4543_setkey(struct crypto_aead *parent, const u8 *key,
 		return -EINVAL;
 
 	keylen -= 4;
-	memcpy(ctx->nonce, key + keylen, 4);
+	memcpy(ctx->yesnce, key + keylen, 4);
 
 	crypto_aead_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_aead_set_flags(child, crypto_aead_get_flags(parent) &
@@ -1002,7 +1002,7 @@ static int crypto_rfc4543_crypt(struct aead_request *req, bool enc)
 			return err;
 	}
 
-	memcpy(iv, ctx->nonce, 4);
+	memcpy(iv, ctx->yesnce, 4);
 	memcpy(iv + 4, req->iv, 8);
 
 	aead_request_set_tfm(subreq, ctx->child);

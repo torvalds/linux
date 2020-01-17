@@ -1,4 +1,4 @@
-* NXP SC16IS7xx advanced Universal Asynchronous Receiver-Transmitter (UART)
+* NXP SC16IS7xx advanced Universal Asynchroyesus Receiver-Transmitter (UART)
 * i2c as bus
 
 Required properties:
@@ -12,11 +12,11 @@ Required properties:
 - reg: I2C address of the SC16IS7xx device.
 - interrupts: Should contain the UART interrupt
 - clocks: Reference to the IC source clock.
-	OR (when there is no clock provider visible to the platform)
+	OR (when there is yes clock provider visible to the platform)
 - clock-frequency: The source clock frequency for the IC.
 
 Optional properties:
-- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-controller: Marks the device yesde as a GPIO controller.
 - #gpio-cells: Should be two. The first cell is the GPIO number and
   the second cell is used to specify the GPIO polarity:
     0 = active high,
@@ -50,7 +50,7 @@ Required properties:
 - clocks: phandle to the IC source clock.
 
 Optional properties:
-- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-controller: Marks the device yesde as a GPIO controller.
 - #gpio-cells: Should be two. The first cell is the GPIO number and
   the second cell is used to specify the GPIO polarity:
     0 = active high,

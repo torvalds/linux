@@ -6,7 +6,7 @@
 #include <linux/nmi.h>
 #include <asm/io.h>
 #include <asm/hyperv-tlfs.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 typedef int (*hyperv_fill_flush_list_func)(
 		struct hv_guest_mapping_flush_list *flush,
@@ -58,7 +58,7 @@ void hyperv_vector_handler(struct pt_regs *regs);
 
 /*
  * Routines for stimer0 Direct Mode handling.
- * On x86/x64, there are no percpu actions to take.
+ * On x86/x64, there are yes percpu actions to take.
  */
 void hv_stimer0_vector_handler(struct pt_regs *regs);
 void hv_stimer0_callback_vector(void);
@@ -109,7 +109,7 @@ static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 	return hv_status;
 }
 
-/* Fast hypercall with 8 bytes of input and no output */
+/* Fast hypercall with 8 bytes of input and yes output */
 static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
 {
 	u64 hv_status, control = (u64)code | HV_HYPERCALL_FAST_BIT;

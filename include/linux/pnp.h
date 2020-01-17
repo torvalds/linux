@@ -11,7 +11,7 @@
 
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mod_devicetable.h>
 #include <linux/console.h>
 
@@ -202,8 +202,8 @@ static inline int pnp_dma_valid(struct pnp_dev *dev, unsigned int bar)
 struct pnp_card {
 	struct device dev;		/* Driver Model device interface */
 	unsigned char number;		/* used as an index, must be unique */
-	struct list_head global_list;	/* node in global list of cards */
-	struct list_head protocol_list;	/* node in protocol's list of cards */
+	struct list_head global_list;	/* yesde in global list of cards */
+	struct list_head protocol_list;	/* yesde in protocol's list of cards */
 	struct list_head devices;	/* devices attached to the card */
 
 	struct pnp_protocol *protocol;
@@ -248,13 +248,13 @@ struct pnp_dev {
 	unsigned int number;		/* used as an index, must be unique */
 	int status;
 
-	struct list_head global_list;	/* node in global list of devices */
-	struct list_head protocol_list;	/* node in list of device's protocol */
-	struct list_head card_list;	/* node in card's list of devices */
-	struct list_head rdev_list;	/* node in cards list of requested devices */
+	struct list_head global_list;	/* yesde in global list of devices */
+	struct list_head protocol_list;	/* yesde in list of device's protocol */
+	struct list_head card_list;	/* yesde in card's list of devices */
+	struct list_head rdev_list;	/* yesde in cards list of requested devices */
 
 	struct pnp_protocol *protocol;
-	struct pnp_card *card;	/* card the device is attached to, none if NULL */
+	struct pnp_card *card;	/* card the device is attached to, yesne if NULL */
 	struct pnp_driver *driver;
 	struct pnp_card_link *card_link;
 
@@ -408,7 +408,7 @@ struct pnp_card_driver {
 #define	to_pnp_card_driver(drv) container_of(drv, struct pnp_card_driver, link)
 
 /* pnp driver flags */
-#define PNP_DRIVER_RES_DO_NOT_CHANGE	0x0001	/* do not change the state of the device */
+#define PNP_DRIVER_RES_DO_NOT_CHANGE	0x0001	/* do yest change the state of the device */
 #define PNP_DRIVER_RES_DISABLE		0x0003	/* ensure the device is disabled */
 
 /*
@@ -517,7 +517,7 @@ static inline void pnp_unregister_driver(struct pnp_driver *drv) { }
  * module_pnp_driver() - Helper macro for registering a PnP driver
  * @__pnp_driver: pnp_driver struct
  *
- * Helper macro for PnP drivers which do not do anything special in module
+ * Helper macro for PnP drivers which do yest do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */

@@ -597,7 +597,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	tgi->gc.base			= 0;
 	tgi->gc.ngpio			= tgi->bank_count * 32;
 	tgi->gc.parent			= &pdev->dev;
-	tgi->gc.of_node			= pdev->dev.of_node;
+	tgi->gc.of_yesde			= pdev->dev.of_yesde;
 
 	tgi->ic.name			= "GPIO";
 	tgi->ic.irq_ack			= tegra_gpio_irq_ack;
@@ -619,7 +619,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	if (!tgi->bank_info)
 		return -ENOMEM;
 
-	tgi->irq_domain = irq_domain_add_linear(pdev->dev.of_node,
+	tgi->irq_domain = irq_domain_add_linear(pdev->dev.of_yesde,
 						tgi->gc.ngpio,
 						&irq_domain_simple_ops, NULL);
 	if (!tgi->irq_domain)

@@ -32,7 +32,7 @@ struct stmpe_gpio {
 	struct stmpe *stmpe;
 	struct device *dev;
 	struct mutex irq_lock;
-	u32 norequest_mask;
+	u32 yesrequest_mask;
 	/* Caches of interrupt control registers for bus_lock */
 	u8 regs[CACHE_NR_REGS][CACHE_NR_BANKS];
 	u8 oldregs[CACHE_NR_REGS][CACHE_NR_BANKS];
@@ -119,7 +119,7 @@ static int stmpe_gpio_request(struct gpio_chip *chip, unsigned offset)
 	struct stmpe_gpio *stmpe_gpio = gpiochip_get_data(chip);
 	struct stmpe *stmpe = stmpe_gpio->stmpe;
 
-	if (stmpe_gpio->norequest_mask & BIT(offset))
+	if (stmpe_gpio->yesrequest_mask & BIT(offset))
 		return -EINVAL;
 
 	return stmpe_set_altfunc(stmpe, BIT(offset), STMPE_BLOCK_GPIO);
@@ -268,7 +268,7 @@ static void stmpe_dbg_show_one(struct seq_file *s,
 
 	if (dir) {
 		seq_printf(s, " gpio-%-3d (%-20.20s) out %s",
-			   gpio, label ?: "(none)",
+			   gpio, label ?: "(yesne)",
 			   val ? "hi" : "lo");
 	} else {
 		u8 edge_det_reg;
@@ -279,17 +279,17 @@ static void stmpe_dbg_show_one(struct seq_file *s,
 		static const char * const edge_det_values[] = {
 			"edge-inactive",
 			"edge-asserted",
-			"not-supported"
+			"yest-supported"
 		};
 		static const char * const rise_values[] = {
-			"no-rising-edge-detection",
+			"yes-rising-edge-detection",
 			"rising-edge-detection",
-			"not-supported"
+			"yest-supported"
 		};
 		static const char * const fall_values[] = {
-			"no-falling-edge-detection",
+			"yes-falling-edge-detection",
 			"falling-edge-detection",
-			"not-supported"
+			"yest-supported"
 		};
 		#define NOT_SUPPORTED_IDX 2
 		u8 edge_det = NOT_SUPPORTED_IDX;
@@ -337,7 +337,7 @@ static void stmpe_dbg_show_one(struct seq_file *s,
 		irqen = !!(ret & mask);
 
 		seq_printf(s, " gpio-%-3d (%-20.20s) in  %s %13s %13s %25s %25s",
-			   gpio, label ?: "(none)",
+			   gpio, label ?: "(yesne)",
 			   val ? "hi" : "lo",
 			   edge_det_values[edge_det],
 			   irqen ? "IRQ-enabled" : "IRQ-disabled",
@@ -416,9 +416,9 @@ static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
 		}
 
 		/*
-		 * interrupt status register write has no effect on
+		 * interrupt status register write has yes effect on
 		 * 801/1801/1600, bits are cleared when read.
-		 * Edge detect register is not present on 801/1600/1801
+		 * Edge detect register is yest present on 801/1600/1801
 		 */
 		if (stmpe->partnum != STMPE801 && stmpe->partnum != STMPE1600 &&
 		    stmpe->partnum != STMPE1801) {
@@ -439,12 +439,12 @@ static void stmpe_init_irq_valid_mask(struct gpio_chip *gc,
 	struct stmpe_gpio *stmpe_gpio = gpiochip_get_data(gc);
 	int i;
 
-	if (!stmpe_gpio->norequest_mask)
+	if (!stmpe_gpio->yesrequest_mask)
 		return;
 
 	/* Forbid unused lines to be mapped as IRQs */
 	for (i = 0; i < sizeof(u32); i++) {
-		if (stmpe_gpio->norequest_mask & BIT(i))
+		if (stmpe_gpio->yesrequest_mask & BIT(i))
 			clear_bit(i, valid_mask);
 	}
 }
@@ -452,7 +452,7 @@ static void stmpe_init_irq_valid_mask(struct gpio_chip *gc,
 static int stmpe_gpio_probe(struct platform_device *pdev)
 {
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct stmpe_gpio *stmpe_gpio;
 	int ret, irq;
 
@@ -472,7 +472,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	stmpe_gpio->chip = template_chip;
 	stmpe_gpio->chip.ngpio = stmpe->num_gpios;
 	stmpe_gpio->chip.parent = &pdev->dev;
-	stmpe_gpio->chip.of_node = np;
+	stmpe_gpio->chip.of_yesde = np;
 	stmpe_gpio->chip.base = -1;
 	/*
 	 * REVISIT: this makes sure the valid mask gets allocated and
@@ -487,14 +487,14 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
                 stmpe_gpio->chip.dbg_show = stmpe_dbg_show;
 
-	of_property_read_u32(np, "st,norequest-mask",
-			&stmpe_gpio->norequest_mask);
+	of_property_read_u32(np, "st,yesrequest-mask",
+			&stmpe_gpio->yesrequest_mask);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		dev_info(&pdev->dev,
-			"device configured in no-irq mode: "
-			"irqs are not available\n");
+			"device configured in yes-irq mode: "
+			"irqs are yest available\n");
 
 	ret = stmpe_enable(stmpe, STMPE_BLOCK_GPIO);
 	if (ret)
@@ -521,7 +521,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 						   IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"could not connect irqchip to gpiochip\n");
+				"could yest connect irqchip to gpiochip\n");
 			goto out_disable;
 		}
 

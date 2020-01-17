@@ -79,7 +79,7 @@ static int stv0680_handle_error(struct gspca_dev *gspca_dev, int ret)
 
 static int stv0680_get_video_mode(struct gspca_dev *gspca_dev)
 {
-	/* Note not sure if this init of usb_buf is really necessary */
+	/* Note yest sure if this init of usb_buf is really necessary */
 	memset(gspca_dev->usb_buf, 0, 8);
 	gspca_dev->usb_buf[0] = 0x0f;
 
@@ -126,7 +126,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam = &gspca_dev->cam;
 
 	/* Give the camera some time to settle, otherwise initialization will
-	   fail on hotplug, and yes it really needs a full second. */
+	   fail on hotplug, and no it really needs a full second. */
 	msleep(1000);
 
 	/* ping camera to be sure STV0680 is present */
@@ -142,7 +142,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	if (stv_sndctrl(gspca_dev, 2, 0x06, 0x0200, 0x22) != 0x22 ||
 	    gspca_dev->usb_buf[7] != 0xa0 || gspca_dev->usb_buf[8] != 0x23) {
-		gspca_err(gspca_dev, "Could not get descriptor 0200\n");
+		gspca_err(gspca_dev, "Could yest get descriptor 0200\n");
 		return stv0680_handle_error(gspca_dev, -ENODEV);
 	}
 	if (stv_sndctrl(gspca_dev, 0, 0x8a, 0, 0x02) != 0x02)
@@ -153,7 +153,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		return stv0680_handle_error(gspca_dev, -ENODEV);
 
 	if (!(gspca_dev->usb_buf[7] & 0x09)) {
-		gspca_err(gspca_dev, "Camera supports neither CIF nor QVGA mode\n");
+		gspca_err(gspca_dev, "Camera supports neither CIF yesr QVGA mode\n");
 		return -ENODEV;
 	}
 	if (gspca_dev->usb_buf[7] & 0x01)
@@ -193,7 +193,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		return stv0680_handle_error(gspca_dev, -EIO);
 
 	cam->bulk = 1;
-	cam->bulk_nurbs = 1; /* The cam cannot handle more */
+	cam->bulk_nurbs = 1; /* The cam canyest handle more */
 	cam->bulk_size = (gspca_dev->usb_buf[0] << 24) |
 			 (gspca_dev->usb_buf[1] << 16) |
 			 (gspca_dev->usb_buf[2] << 8) |
@@ -220,7 +220,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	if (stv_sndctrl(gspca_dev, 2, 0x06, 0x0100, 0x12) != 0x12 ||
 	    gspca_dev->usb_buf[8] != 0x53 || gspca_dev->usb_buf[9] != 0x05) {
-		pr_err("Could not get descriptor 0100\n");
+		pr_err("Could yest get descriptor 0100\n");
 		return stv0680_handle_error(gspca_dev, -EIO);
 	}
 
@@ -279,8 +279,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	/* Every now and then the camera sends a 16 byte packet, no idea
-	   what it contains, but it is not image data, when this
+	/* Every yesw and then the camera sends a 16 byte packet, yes idea
+	   what it contains, but it is yest image data, when this
 	   happens the frame received before this packet is corrupt,
 	   so discard it. */
 	if (len != sd->mode.sizeimage) {

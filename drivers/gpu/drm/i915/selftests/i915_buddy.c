@@ -20,8 +20,8 @@ static void __igt_dump_block(struct i915_buddy_mm *mm,
 	       i915_buddy_block_order(block),
 	       i915_buddy_block_offset(block),
 	       i915_buddy_block_size(mm, block),
-	       yesno(!block->parent),
-	       yesno(buddy));
+	       noyes(!block->parent),
+	       noyes(buddy));
 }
 
 static void igt_dump_block(struct i915_buddy_mm *mm,
@@ -63,22 +63,22 @@ static int igt_check_block(struct i915_buddy_mm *mm,
 	}
 
 	if (!is_power_of_2(block_size)) {
-		pr_err("block size not power of two\n");
+		pr_err("block size yest power of two\n");
 		err = -EINVAL;
 	}
 
 	if (!IS_ALIGNED(block_size, mm->chunk_size)) {
-		pr_err("block size not aligned to min size\n");
+		pr_err("block size yest aligned to min size\n");
 		err = -EINVAL;
 	}
 
 	if (!IS_ALIGNED(offset, mm->chunk_size)) {
-		pr_err("block offset not aligned to min size\n");
+		pr_err("block offset yest aligned to min size\n");
 		err = -EINVAL;
 	}
 
 	if (!IS_ALIGNED(offset, block_size)) {
-		pr_err("block offset not aligned to block size\n");
+		pr_err("block offset yest aligned to block size\n");
 		err = -EINVAL;
 	}
 
@@ -128,7 +128,7 @@ static int igt_check_blocks(struct i915_buddy_mm *mm,
 		err = igt_check_block(mm, block);
 
 		if (!i915_buddy_block_is_allocated(block)) {
-			pr_err("block not allocated\n"),
+			pr_err("block yest allocated\n"),
 			err = -EINVAL;
 		}
 
@@ -213,7 +213,7 @@ static int igt_check_mm(struct i915_buddy_mm *mm)
 		err = igt_check_block(mm, root);
 
 		if (!i915_buddy_block_is_free(root)) {
-			pr_err("root not free\n");
+			pr_err("root yest free\n");
 			err = -EINVAL;
 		}
 
@@ -421,7 +421,7 @@ static int igt_buddy_alloc_pessimistic(void *arg)
 		list_add_tail(&block->link, &blocks);
 	}
 
-	/* And now the last remaining block available */
+	/* And yesw the last remaining block available */
 	block = i915_buddy_alloc(&mm, 0);
 	if (IS_ERR(block)) {
 		pr_info("buddy_alloc hit -ENOMEM on final alloc\n");
@@ -463,7 +463,7 @@ static int igt_buddy_alloc_pessimistic(void *arg)
 		order++;
 	}
 
-	/* To confirm, now the whole mm should be available */
+	/* To confirm, yesw the whole mm should be available */
 	block = i915_buddy_alloc(&mm, max_order);
 	if (IS_ERR(block)) {
 		pr_info("buddy_alloc (realloc) hit -ENOMEM with order=%d\n",
@@ -593,7 +593,7 @@ static int igt_buddy_alloc_pathological(void *arg)
 
 	i915_buddy_free_list(&mm, &holes);
 
-	/* Nothing larger than blocks of chunk_size now available */
+	/* Nothing larger than blocks of chunk_size yesw available */
 	for (order = 1; order <= max_order; order++) {
 		block = i915_buddy_alloc(&mm, order);
 		if (!IS_ERR(block)) {
@@ -665,7 +665,7 @@ static int igt_buddy_alloc_range(void *arg)
 						 struct i915_buddy_block,
 						 link);
 		if (!block) {
-			pr_err("alloc_range has no blocks\n");
+			pr_err("alloc_range has yes blocks\n");
 			err = -EINVAL;
 			break;
 		}

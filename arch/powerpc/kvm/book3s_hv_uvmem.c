@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Secure pages management: Migration of pages between normal and secure
+ * Secure pages management: Migration of pages between yesrmal and secure
  * memory of KVM guests.
  *
  * Copyright 2018 Bharata B Rao, IBM Corp. <bharata@linux.ibm.com>
@@ -9,7 +9,7 @@
 /*
  * A pseries guest can be run as secure guest on Ultravisor-enabled
  * POWER platforms. On such platforms, this driver will be used to manage
- * the movement of guest pages between the normal memory managed by
+ * the movement of guest pages between the yesrmal memory managed by
  * hypervisor (HV) and secure memory managed by Ultravisor (UV).
  *
  * The page-in or page-out requests from UV will come to HV as hcalls and
@@ -32,7 +32,7 @@
  * page-in and page-out requests for the same GPA. Concurrent accesses
  * can either come via UV (guest vCPUs requesting for same page)
  * or when HV and guest simultaneously access the same page.
- * This mutex serializes the migration of page from HV(normal) to
+ * This mutex serializes the migration of page from HV(yesrmal) to
  * UV(secure) and vice versa. So the serialization points are around
  * migrate_vma routines and page-in/out routines.
  *
@@ -40,7 +40,7 @@
  * fault path as page-out can occur when HV faults on accessing secure
  * guest pages. Currently UV issues page-in requests for all the guest
  * PFNs one at a time during early boot (UV_ESM uvcall), so this is
- * not a cause for concern. Also currently the number of page-outs caused
+ * yest a cause for concern. Also currently the number of page-outs caused
  * by HV touching secure pages is very very low. If an when UV supports
  * overcommitting, then we might see concurrent guest driven page-outs.
  *
@@ -71,7 +71,7 @@
  *
  * HV invalidating a page: When a regular page belonging to secure
  * guest gets unmapped, HV informs UV with UV_PAGE_INVAL of 64K
- * page size. Using 64K page size is correct here because any non-secure
+ * page size. Using 64K page size is correct here because any yesn-secure
  * page will essentially be of 64K page size. Splitting by UV during sharing
  * and page-out ensures this.
  *
@@ -82,7 +82,7 @@
  *
  * In summary, the current secure pages handling code in HV assumes
  * 64K page size and in fact fails any page-in/page-out requests of
- * non-64K size upfront. If and when UV starts supporting multiple
+ * yesn-64K size upfront. If and when UV starts supporting multiple
  * page-sizes, we need to break this assumption.
  */
 
@@ -255,7 +255,7 @@ unsigned long kvmppc_h_svm_init_done(struct kvm *kvm)
  * We first mark the pages to be skipped from UV_PAGE_OUT when there
  * is HV side fault on these pages. Next we *get* these pages, forcing
  * fault on them, do fault time migration to replace the device PTEs in
- * QEMU page table with normal PTEs from newly allocated pages.
+ * QEMU page table with yesrmal PTEs from newly allocated pages.
  */
 void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *free,
 			     struct kvm *kvm)
@@ -280,7 +280,7 @@ void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *free,
 		mutex_unlock(&kvm->arch.uvmem_lock);
 
 		pfn = gfn_to_pfn(kvm, gfn);
-		if (is_error_noslot_pfn(pfn))
+		if (is_error_yesslot_pfn(pfn))
 			continue;
 		kvm_release_pfn_clean(pfn);
 	}
@@ -289,7 +289,7 @@ void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *free,
 /*
  * Get a free device PFN from the pool
  *
- * Called when a normal page is moved to secure memory (UV_PAGE_IN). Device
+ * Called when a yesrmal page is moved to secure memory (UV_PAGE_IN). Device
  * PFN will be used to keep track of the secure page on HV side.
  *
  * Called with kvm->arch.uvmem_lock held
@@ -337,7 +337,7 @@ out:
 }
 
 /*
- * Alloc a PFN from private device memory pool and copy page from normal
+ * Alloc a PFN from private device memory pool and copy page from yesrmal
  * memory to secure memory using UV_PAGE_IN uvcall.
  */
 static int
@@ -400,10 +400,10 @@ out_finalize:
 }
 
 /*
- * Shares the page with HV, thus making it a normal page.
+ * Shares the page with HV, thus making it a yesrmal page.
  *
  * - If the page is already secure, then provision a new page and share
- * - If the page is a normal page, share the existing page
+ * - If the page is a yesrmal page, share the existing page
  *
  * In the former case, uses dev_pagemap_ops.migrate_to_ram handler
  * to unmap the device page from QEMU's page tables.
@@ -431,7 +431,7 @@ kvmppc_share_page(struct kvm *kvm, unsigned long gpa, unsigned long page_shift)
 retry:
 	mutex_unlock(&kvm->arch.uvmem_lock);
 	pfn = gfn_to_pfn(kvm, gfn);
-	if (is_error_noslot_pfn(pfn))
+	if (is_error_yesslot_pfn(pfn))
 		goto out;
 
 	mutex_lock(&kvm->arch.uvmem_lock);
@@ -453,7 +453,7 @@ out:
 }
 
 /*
- * H_SVM_PAGE_IN: Move page from normal memory to secure memory.
+ * H_SVM_PAGE_IN: Move page from yesrmal memory to secure memory.
  *
  * H_PAGE_IN_SHARED flag makes the page shared which means that the same
  * memory in is visible from both UV and HV.
@@ -537,7 +537,7 @@ kvmppc_svm_page_out(struct vm_area_struct *vma, unsigned long start,
 	mig.dst = &dst_pfn;
 
 	mutex_lock(&kvm->arch.uvmem_lock);
-	/* The requested page is already paged-out, nothing to do */
+	/* The requested page is already paged-out, yesthing to do */
 	if (!kvmppc_gfn_is_uvmem_pfn(gpa >> page_shift, kvm, NULL))
 		goto out;
 
@@ -612,7 +612,7 @@ static vm_fault_t kvmppc_uvmem_migrate_to_ram(struct vm_fault *vmf)
 /*
  * Release the device PFN back to the pool
  *
- * Gets called when secure page becomes a normal page during H_SVM_PAGE_OUT.
+ * Gets called when secure page becomes a yesrmal page during H_SVM_PAGE_OUT.
  * Gets called with kvm->arch.uvmem_lock held.
  */
 static void kvmppc_uvmem_page_free(struct page *page)
@@ -637,7 +637,7 @@ static const struct dev_pagemap_ops kvmppc_uvmem_ops = {
 };
 
 /*
- * H_SVM_PAGE_OUT: Move page from secure memory to normal memory.
+ * H_SVM_PAGE_OUT: Move page from secure memory to yesrmal memory.
  */
 unsigned long
 kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gpa,
@@ -684,7 +684,7 @@ int kvmppc_send_page_to_uv(struct kvm *kvm, unsigned long gfn)
 	int ret = U_SUCCESS;
 
 	pfn = gfn_to_pfn(kvm, gfn);
-	if (is_error_noslot_pfn(pfn))
+	if (is_error_yesslot_pfn(pfn))
 		return -EFAULT;
 
 	mutex_lock(&kvm->arch.uvmem_lock);
@@ -701,12 +701,12 @@ out:
 
 static u64 kvmppc_get_secmem_size(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int i, len;
 	const __be32 *prop;
 	u64 size = 0;
 
-	np = of_find_compatible_node(NULL, NULL, "ibm,uv-firmware");
+	np = of_find_compatible_yesde(NULL, NULL, "ibm,uv-firmware");
 	if (!np)
 		goto out;
 
@@ -718,7 +718,7 @@ static u64 kvmppc_get_secmem_size(void)
 		size += of_read_number(prop + (i * 4) + 2, 2);
 
 out_put:
-	of_node_put(np);
+	of_yesde_put(np);
 out:
 	return size;
 }
@@ -735,8 +735,8 @@ int kvmppc_uvmem_init(void)
 	if (!size) {
 		/*
 		 * Don't fail the initialization of kvm-hv module if
-		 * the platform doesn't export ibm,uv-firmware node.
-		 * Let normal guests run on such PEF-disabled platform.
+		 * the platform doesn't export ibm,uv-firmware yesde.
+		 * Let yesrmal guests run on such PEF-disabled platform.
 		 */
 		pr_info("KVMPPC-UVMEM: No support for secure guests\n");
 		goto out;

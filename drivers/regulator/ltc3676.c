@@ -106,7 +106,7 @@ static int ltc3676_set_suspend_mode(struct regulator_dev *rdev,
 		val = LTC3676_DVBxA_REF_SELECT; /* select DVBxB */
 		break;
 	default:
-		dev_warn(&rdev->dev, "%s: regulator mode: 0x%x not supported\n",
+		dev_warn(&rdev->dev, "%s: regulator mode: 0x%x yest supported\n",
 			 rdev->desc->name, mode);
 		return -EINVAL;
 	}
@@ -142,7 +142,7 @@ static inline unsigned int ltc3676_scale(unsigned int uV, u32 r1, u32 r2)
 	return uV + (unsigned int)tmp;
 }
 
-static int ltc3676_of_parse_cb(struct device_node *np,
+static int ltc3676_of_parse_cb(struct device_yesde *np,
 			       const struct regulator_desc *desc,
 			       struct regulator_config *config)
 {
@@ -196,7 +196,7 @@ static const struct regulator_ops ltc3676_fixed_regulator_ops = {
 	[LTC3676_ ## _id] = {                                        \
 		.name = #_name,                                \
 		.of_match = of_match_ptr(#_name),              \
-		.regulators_node = of_match_ptr("regulators"), \
+		.regulators_yesde = of_match_ptr("regulators"), \
 		.of_parse_cb = ltc3676_of_parse_cb,            \
 		.n_voltages = (dvb_mask) + 1,                  \
 		.min_uV = (dvba_reg) ? 412500 : 0,             \
@@ -278,7 +278,7 @@ static irqreturn_t ltc3676_isr(int irq, void *dev_id)
 		event = REGULATOR_EVENT_OVER_TEMP;
 		for (i = 0; i < LTC3676_NUM_REGULATORS; i++) {
 			regulator_lock(ltc3676->regulators[i]);
-			regulator_notifier_call_chain(ltc3676->regulators[i],
+			regulator_yestifier_call_chain(ltc3676->regulators[i],
 						      event, NULL);
 			regulator_unlock(ltc3676->regulators[i]);
 		}
@@ -289,7 +289,7 @@ static irqreturn_t ltc3676_isr(int irq, void *dev_id)
 		event = REGULATOR_EVENT_UNDER_VOLTAGE;
 		for (i = 0; i < LTC3676_NUM_REGULATORS; i++) {
 			regulator_lock(ltc3676->regulators[i]);
-			regulator_notifier_call_chain(ltc3676->regulators[i],
+			regulator_yestifier_call_chain(ltc3676->regulators[i],
 						      event, NULL);
 			regulator_unlock(ltc3676->regulators[i]);
 		}
@@ -386,5 +386,5 @@ static struct i2c_driver ltc3676_driver = {
 module_i2c_driver(ltc3676_driver);
 
 MODULE_AUTHOR("Tim Harvey <tharvey@gateworks.com>");
-MODULE_DESCRIPTION("Regulator driver for Linear Technology LTC3676");
+MODULE_DESCRIPTION("Regulator driver for Linear Techyeslogy LTC3676");
 MODULE_LICENSE("GPL v2");

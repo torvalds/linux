@@ -137,7 +137,7 @@
 
 &emmc {
 	cap-mmc-highspeed;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 
@@ -174,7 +174,7 @@
 
 	usb {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };

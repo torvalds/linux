@@ -4,8 +4,8 @@
    (C) 1999-2003 Nemosoft Unv.
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
 
-   NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
+   NOTE: this version of pwc is an uyesfficial (modified) release of pwc & pcwx
+   driver and thus may have bugs that are yest present in the original version.
    Please send bug reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
@@ -85,7 +85,7 @@ int pwc_decompress(struct pwc_device *pdev, struct pwc_frame_buf *fbuf)
 	if (DEVICE_USE_CODEC1(pdev->type)) {
 
 		/* TODO & FIXME */
-		PWC_ERROR("This chipset is not supported for now\n");
+		PWC_ERROR("This chipset is yest supported for yesw\n");
 		return -ENXIO; /* No such device or address: missing decompressor */
 
 	} else {

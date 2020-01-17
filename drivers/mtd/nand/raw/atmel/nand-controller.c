@@ -18,7 +18,7 @@
  *
  *
  *   Add Hardware ECC support for AT91SAM9260 / AT91SAM9263
- *	Richard Genoud (richard.genoud@gmail.com), Adeneo Copyright 2007
+ *	Richard Geyesud (richard.geyesud@gmail.com), Adeneo Copyright 2007
  *
  *   Derived from Das U-Boot source code
  *	(u-boot-1.1.5/board/atmel/at91sam9263ek/nand.c)
@@ -158,7 +158,7 @@ struct atmel_nand_cs {
 };
 
 struct atmel_nand {
-	struct list_head node;
+	struct list_head yesde;
 	struct device *dev;
 	struct nand_chip base;
 	struct atmel_nand_cs *activecs;
@@ -440,7 +440,7 @@ static void atmel_nand_read_buf(struct nand_chip *chip, u8 *buf, int len)
 
 	/*
 	 * If the controller supports DMA, the buffer address is DMA-able and
-	 * len is long enough to make DMA transfers profitable, let's trigger
+	 * len is long eyesugh to make DMA transfers profitable, let's trigger
 	 * a DMA transfer. If it fails, fallback to PIO mode.
 	 */
 	if (nc->dmac && virt_addr_valid(buf) &&
@@ -464,7 +464,7 @@ static void atmel_nand_write_buf(struct nand_chip *chip, const u8 *buf, int len)
 
 	/*
 	 * If the controller supports DMA, the buffer address is DMA-able and
-	 * len is long enough to make DMA transfers profitable, let's trigger
+	 * len is long eyesugh to make DMA transfers profitable, let's trigger
 	 * a DMA transfer. If it fails, fallback to PIO mode.
 	 */
 	if (nc->dmac && virt_addr_valid(buf) &&
@@ -985,8 +985,8 @@ static int atmel_hsmc_nand_pmecc_read_pg(struct nand_chip *chip, u8 *buf,
 
 	/*
 	 * Optimized read page accessors only work when the NAND R/B pin is
-	 * connected to a native SoC R/B pin. If that's not the case, fallback
-	 * to the non-optimized one.
+	 * connected to a native SoC R/B pin. If that's yest the case, fallback
+	 * to the yesn-optimized one.
 	 */
 	if (nand->activecs->rb.type != ATMEL_NAND_NATIVE_RB) {
 		nand_read_page_op(chip, page, 0, NULL, 0);
@@ -1051,18 +1051,18 @@ static int atmel_nand_pmecc_init(struct nand_chip *chip)
 	nc = to_nand_controller(chip->controller);
 
 	if (!nc->pmecc) {
-		dev_err(nc->dev, "HW ECC not supported\n");
+		dev_err(nc->dev, "HW ECC yest supported\n");
 		return -ENOTSUPP;
 	}
 
 	if (nc->caps->legacy_of_bindings) {
 		u32 val;
 
-		if (!of_property_read_u32(nc->dev->of_node, "atmel,pmecc-cap",
+		if (!of_property_read_u32(nc->dev->of_yesde, "atmel,pmecc-cap",
 					  &val))
 			chip->ecc.strength = val;
 
-		if (!of_property_read_u32(nc->dev->of_node,
+		if (!of_property_read_u32(nc->dev->of_yesde,
 					  "atmel,pmecc-sector-size",
 					  &val))
 			chip->ecc.size = val;
@@ -1138,7 +1138,7 @@ static int atmel_nand_ecc_init(struct nand_chip *chip)
 		break;
 
 	default:
-		/* Other modes are not supported. */
+		/* Other modes are yest supported. */
 		dev_err(nc->dev, "Unsupported ECC mode: %d\n",
 			chip->ecc.mode);
 		return -ENOTSUPP;
@@ -1177,12 +1177,12 @@ static int atmel_smc_nand_prepare_smcconf(struct atmel_nand *nand,
 
 	nc = to_nand_controller(nand->base.controller);
 
-	/* DDR interface not supported. */
+	/* DDR interface yest supported. */
 	if (conf->type != NAND_SDR_IFACE)
 		return -ENOTSUPP;
 
 	/*
-	 * tRC < 30ns implies EDO mode. This controller does not support this
+	 * tRC < 30ns implies EDO mode. This controller does yest support this
 	 * mode.
 	 */
 	if (conf->timings.sdr.tRC_min < 30000)
@@ -1210,7 +1210,7 @@ static int atmel_smc_nand_prepare_smcconf(struct atmel_nand *nand,
 	 * All operations goes through the same data bus, but the operation
 	 * type depends on the address we are writing to (ALE/CLE address
 	 * lines).
-	 * Since we have no way to differentiate the different operations at
+	 * Since we have yes way to differentiate the different operations at
 	 * the SMC level, we must consider the worst case (the biggest setup
 	 * time among all operation types):
 	 *
@@ -1284,7 +1284,7 @@ static int atmel_smc_nand_prepare_smcconf(struct atmel_nand *nand,
 
 	/*
 	 * In ONFI 4.0 specs, tRHZ has been increased to support EDO NANDs and
-	 * we might end up with a config that does not fit in the TDF field.
+	 * we might end up with a config that does yest fit in the TDF field.
 	 * Just take the max value in this case and hope that the NAND is more
 	 * tolerant than advertised.
 	 */
@@ -1350,12 +1350,12 @@ static int atmel_smc_nand_prepare_smcconf(struct atmel_nand *nand,
 					   ncycles);
 	/*
 	 * Version 4 of the ONFI spec mandates that tADL be at least 400
-	 * nanoseconds, but, depending on the master clock rate, 400 ns may not
+	 * nayesseconds, but, depending on the master clock rate, 400 ns may yest
 	 * fit in the tADL field of the SMC reg. We need to relax the check and
 	 * accept the -ERANGE return code.
 	 *
 	 * Note that previous versions of the ONFI spec had a lower tADL_min
-	 * (100 or 200 ns). It's not clear why this timing constraint got
+	 * (100 or 200 ns). It's yest clear why this timing constraint got
 	 * increased but it seems most NANDs are fine with values lower than
 	 * 400ns, so we should be safe.
 	 */
@@ -1490,7 +1490,7 @@ static void atmel_nand_init(struct atmel_nand_controller *nc,
 	chip->legacy.chip_delay = 40;
 
 	/*
-	 * Use a bounce buffer when the buffer passed by the MTD user is not
+	 * Use a bounce buffer when the buffer passed by the MTD user is yest
 	 * suitable for DMA.
 	 */
 	if (nc->dmac)
@@ -1550,13 +1550,13 @@ static int atmel_nand_controller_remove_nand(struct atmel_nand *nand)
 		return ret;
 
 	nand_cleanup(chip);
-	list_del(&nand->node);
+	list_del(&nand->yesde);
 
 	return 0;
 }
 
 static struct atmel_nand *atmel_nand_create(struct atmel_nand_controller *nc,
-					    struct device_node *np,
+					    struct device_yesde *np,
 					    int reg_cells)
 {
 	struct atmel_nand *nand;
@@ -1578,8 +1578,8 @@ static struct atmel_nand *atmel_nand_create(struct atmel_nand_controller *nc,
 
 	nand->numcs = numcs;
 
-	gpio = devm_fwnode_get_index_gpiod_from_child(nc->dev, "det", 0,
-						      &np->fwnode, GPIOD_IN,
+	gpio = devm_fwyesde_get_index_gpiod_from_child(nc->dev, "det", 0,
+						      &np->fwyesde, GPIOD_IN,
 						      "nand-det");
 	if (IS_ERR(gpio) && PTR_ERR(gpio) != -ENOENT) {
 		dev_err(nc->dev,
@@ -1624,8 +1624,8 @@ static struct atmel_nand *atmel_nand_create(struct atmel_nand_controller *nc,
 			nand->cs[i].rb.type = ATMEL_NAND_NATIVE_RB;
 			nand->cs[i].rb.id = val;
 		} else {
-			gpio = devm_fwnode_get_index_gpiod_from_child(nc->dev,
-							"rb", i, &np->fwnode,
+			gpio = devm_fwyesde_get_index_gpiod_from_child(nc->dev,
+							"rb", i, &np->fwyesde,
 							GPIOD_IN, "nand-rb");
 			if (IS_ERR(gpio) && PTR_ERR(gpio) != -ENOENT) {
 				dev_err(nc->dev,
@@ -1640,8 +1640,8 @@ static struct atmel_nand *atmel_nand_create(struct atmel_nand_controller *nc,
 			}
 		}
 
-		gpio = devm_fwnode_get_index_gpiod_from_child(nc->dev, "cs",
-							      i, &np->fwnode,
+		gpio = devm_fwyesde_get_index_gpiod_from_child(nc->dev, "cs",
+							      i, &np->fwyesde,
 							      GPIOD_OUT_HIGH,
 							      "nand-cs");
 		if (IS_ERR(gpio) && PTR_ERR(gpio) != -ENOENT) {
@@ -1655,7 +1655,7 @@ static struct atmel_nand *atmel_nand_create(struct atmel_nand_controller *nc,
 			nand->cs[i].csgpio = gpio;
 	}
 
-	nand_set_flash_node(&nand->base, np);
+	nand_set_flash_yesde(&nand->base, np);
 
 	return nand;
 }
@@ -1689,7 +1689,7 @@ atmel_nand_controller_add_nand(struct atmel_nand_controller *nc,
 		return ret;
 	}
 
-	list_add_tail(&nand->node, &nc->chips);
+	list_add_tail(&nand->yesde, &nc->chips);
 
 	return 0;
 }
@@ -1700,7 +1700,7 @@ atmel_nand_controller_remove_nands(struct atmel_nand_controller *nc)
 	struct atmel_nand *nand, *tmp;
 	int ret;
 
-	list_for_each_entry_safe(nand, tmp, &nc->chips, node) {
+	list_for_each_entry_safe(nand, tmp, &nc->chips, yesde) {
 		ret = atmel_nand_controller_remove_nand(nand);
 		if (ret)
 			return ret;
@@ -1739,7 +1739,7 @@ atmel_nand_controller_legacy_add_nands(struct atmel_nand_controller *nc)
 	/*
 	 * The old driver was hardcoding the CS id to 3 for all sama5
 	 * controllers. Since this id is only meaningful for the sama5
-	 * controller we can safely assign this id to 3 no matter the
+	 * controller we can safely assign this id to 3 yes matter the
 	 * controller.
 	 * If one wants to connect a NAND to a different CS line, he will
 	 * have to use the new bindings.
@@ -1780,23 +1780,23 @@ atmel_nand_controller_legacy_add_nands(struct atmel_nand_controller *nc)
 
 	nand->cdgpio = gpio;
 
-	nand_set_flash_node(&nand->base, nc->dev->of_node);
+	nand_set_flash_yesde(&nand->base, nc->dev->of_yesde);
 
 	return atmel_nand_controller_add_nand(nc, nand);
 }
 
 static int atmel_nand_controller_add_nands(struct atmel_nand_controller *nc)
 {
-	struct device_node *np, *nand_np;
+	struct device_yesde *np, *nand_np;
 	struct device *dev = nc->dev;
 	int ret, reg_cells;
 	u32 val;
 
-	/* We do not retrieve the SMC syscon when parsing old DTs. */
+	/* We do yest retrieve the SMC syscon when parsing old DTs. */
 	if (nc->caps->legacy_of_bindings)
 		return atmel_nand_controller_legacy_add_nands(nc);
 
-	np = dev->of_node;
+	np = dev->of_yesde;
 
 	ret = of_property_read_u32(np, "#address-cells", &val);
 	if (ret) {
@@ -1814,7 +1814,7 @@ static int atmel_nand_controller_add_nands(struct atmel_nand_controller *nc)
 
 	reg_cells += val;
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_yesde(np, nand_np) {
 		struct atmel_nand *nand;
 
 		nand = atmel_nand_create(nc, nand_np, reg_cells);
@@ -1924,23 +1924,23 @@ static int atmel_nand_attach_chip(struct nand_chip *chip)
 	if (ret)
 		return ret;
 
-	if (nc->caps->legacy_of_bindings || !nc->dev->of_node) {
+	if (nc->caps->legacy_of_bindings || !nc->dev->of_yesde) {
 		/*
 		 * We keep the MTD name unchanged to avoid breaking platforms
 		 * where the MTD cmdline parser is used and the bootloader
-		 * has not been updated to use the new naming scheme.
+		 * has yest been updated to use the new naming scheme.
 		 */
 		mtd->name = "atmel_nand";
 	} else if (!mtd->name) {
 		/*
-		 * If the new bindings are used and the bootloader has not been
+		 * If the new bindings are used and the bootloader has yest been
 		 * updated to pass a new mtdparts parameter on the cmdline, you
-		 * should define the following property in your nand node:
+		 * should define the following property in your nand yesde:
 		 *
 		 *	label = "atmel_nand";
 		 *
 		 * This way, mtd->name will be set by the core when
-		 * nand_set_flash_node() is called.
+		 * nand_set_flash_yesde() is called.
 		 */
 		mtd->name = devm_kasprintf(nc->dev, GFP_KERNEL,
 					   "%s:nand.%d", dev_name(nc->dev),
@@ -1964,7 +1964,7 @@ static int atmel_nand_controller_init(struct atmel_nand_controller *nc,
 				const struct atmel_nand_controller_caps *caps)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int ret;
 
 	nand_controller_init(&nc->base);
@@ -1979,7 +1979,7 @@ static int atmel_nand_controller_init(struct atmel_nand_controller *nc,
 	if (IS_ERR(nc->pmecc)) {
 		ret = PTR_ERR(nc->pmecc);
 		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Could not get PMECC object (err = %d)\n",
+			dev_err(dev, "Could yest get PMECC object (err = %d)\n",
 				ret);
 		return ret;
 	}
@@ -1995,27 +1995,27 @@ static int atmel_nand_controller_init(struct atmel_nand_controller *nc,
 			dev_err(nc->dev, "Failed to request DMA channel\n");
 	}
 
-	/* We do not retrieve the SMC syscon when parsing old DTs. */
+	/* We do yest retrieve the SMC syscon when parsing old DTs. */
 	if (nc->caps->legacy_of_bindings)
 		return 0;
 
-	nc->mck = of_clk_get(dev->parent->of_node, 0);
+	nc->mck = of_clk_get(dev->parent->of_yesde, 0);
 	if (IS_ERR(nc->mck)) {
 		dev_err(dev, "Failed to retrieve MCK clk\n");
 		return PTR_ERR(nc->mck);
 	}
 
-	np = of_parse_phandle(dev->parent->of_node, "atmel,smc", 0);
+	np = of_parse_phandle(dev->parent->of_yesde, "atmel,smc", 0);
 	if (!np) {
 		dev_err(dev, "Missing or invalid atmel,smc property\n");
 		return -EINVAL;
 	}
 
-	nc->smc = syscon_node_to_regmap(np);
-	of_node_put(np);
+	nc->smc = syscon_yesde_to_regmap(np);
+	of_yesde_put(np);
 	if (IS_ERR(nc->smc)) {
 		ret = PTR_ERR(nc->smc);
-		dev_err(dev, "Could not get SMC regmap (err = %d)\n", ret);
+		dev_err(dev, "Could yest get SMC regmap (err = %d)\n", ret);
 		return ret;
 	}
 
@@ -2027,29 +2027,29 @@ atmel_smc_nand_controller_init(struct atmel_smc_nand_controller *nc)
 {
 	struct device *dev = nc->base.dev;
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
-	/* We do not retrieve the EBICSA regmap when parsing old DTs. */
+	/* We do yest retrieve the EBICSA regmap when parsing old DTs. */
 	if (nc->base.caps->legacy_of_bindings)
 		return 0;
 
-	np = of_parse_phandle(dev->parent->of_node,
+	np = of_parse_phandle(dev->parent->of_yesde,
 			      nc->base.caps->ebi_csa_regmap_name, 0);
 	if (!np)
 		return 0;
 
-	match = of_match_node(atmel_ebi_csa_regmap_of_ids, np);
+	match = of_match_yesde(atmel_ebi_csa_regmap_of_ids, np);
 	if (!match) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return 0;
 	}
 
-	nc->ebi_csa_regmap = syscon_node_to_regmap(np);
-	of_node_put(np);
+	nc->ebi_csa_regmap = syscon_yesde_to_regmap(np);
+	of_yesde_put(np);
 	if (IS_ERR(nc->ebi_csa_regmap)) {
 		ret = PTR_ERR(nc->ebi_csa_regmap);
-		dev_err(dev, "Could not get EBICSA regmap (err = %d)\n", ret);
+		dev_err(dev, "Could yest get EBICSA regmap (err = %d)\n", ret);
 		return ret;
 	}
 
@@ -2059,7 +2059,7 @@ atmel_smc_nand_controller_init(struct atmel_smc_nand_controller *nc)
 	 * The at91sam9263 has 2 EBIs, if the NAND controller is under EBI1
 	 * add 4 to ->ebi_csa->offs.
 	 */
-	if (of_device_is_compatible(dev->parent->of_node,
+	if (of_device_is_compatible(dev->parent->of_yesde,
 				    "atmel,at91sam9263-ebi1"))
 		nc->ebi_csa->offs += 4;
 
@@ -2076,15 +2076,15 @@ atmel_hsmc_nand_controller_legacy_init(struct atmel_hsmc_nand_controller *nc)
 	};
 
 	struct device *dev = nc->base.dev;
-	struct device_node *nand_np, *nfc_np;
+	struct device_yesde *nand_np, *nfc_np;
 	void __iomem *iomem;
 	struct resource res;
 	int ret;
 
-	nand_np = dev->of_node;
-	nfc_np = of_get_compatible_child(dev->of_node, "atmel,sama5d3-nfc");
+	nand_np = dev->of_yesde;
+	nfc_np = of_get_compatible_child(dev->of_yesde, "atmel,sama5d3-nfc");
 	if (!nfc_np) {
-		dev_err(dev, "Could not find device node for sama5d3-nfc\n");
+		dev_err(dev, "Could yest find device yesde for sama5d3-nfc\n");
 		return -ENODEV;
 	}
 
@@ -2130,7 +2130,7 @@ atmel_hsmc_nand_controller_legacy_init(struct atmel_hsmc_nand_controller *nc)
 	nc->io = devm_regmap_init_mmio(dev, iomem, &regmap_conf);
 	if (IS_ERR(nc->io)) {
 		ret = PTR_ERR(nc->io);
-		dev_err(dev, "Could not create NFC IO regmap (err = %d)\n",
+		dev_err(dev, "Could yest create NFC IO regmap (err = %d)\n",
 			ret);
 		goto out;
 	}
@@ -2153,7 +2153,7 @@ atmel_hsmc_nand_controller_legacy_init(struct atmel_hsmc_nand_controller *nc)
 	nc->base.smc = devm_regmap_init_mmio(dev, iomem, &regmap_conf);
 	if (IS_ERR(nc->base.smc)) {
 		ret = PTR_ERR(nc->base.smc);
-		dev_err(dev, "Could not create NFC IO regmap (err = %d)\n",
+		dev_err(dev, "Could yest create NFC IO regmap (err = %d)\n",
 			ret);
 		goto out;
 	}
@@ -2174,7 +2174,7 @@ atmel_hsmc_nand_controller_legacy_init(struct atmel_hsmc_nand_controller *nc)
 	nc->sram.dma = res.start;
 
 out:
-	of_node_put(nfc_np);
+	of_yesde_put(nfc_np);
 
 	return ret;
 }
@@ -2183,10 +2183,10 @@ static int
 atmel_hsmc_nand_controller_init(struct atmel_hsmc_nand_controller *nc)
 {
 	struct device *dev = nc->base.dev;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
-	np = of_parse_phandle(dev->parent->of_node, "atmel,smc", 0);
+	np = of_parse_phandle(dev->parent->of_yesde, "atmel,smc", 0);
 	if (!np) {
 		dev_err(dev, "Missing or invalid atmel,smc property\n");
 		return -EINVAL;
@@ -2195,7 +2195,7 @@ atmel_hsmc_nand_controller_init(struct atmel_hsmc_nand_controller *nc)
 	nc->hsmc_layout = atmel_hsmc_get_reg_layout(np);
 
 	nc->irq = of_irq_get(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (nc->irq <= 0) {
 		ret = nc->irq ?: -ENXIO;
 		if (ret != -EPROBE_DEFER)
@@ -2204,21 +2204,21 @@ atmel_hsmc_nand_controller_init(struct atmel_hsmc_nand_controller *nc)
 		return ret;
 	}
 
-	np = of_parse_phandle(dev->of_node, "atmel,nfc-io", 0);
+	np = of_parse_phandle(dev->of_yesde, "atmel,nfc-io", 0);
 	if (!np) {
 		dev_err(dev, "Missing or invalid atmel,nfc-io property\n");
 		return -EINVAL;
 	}
 
-	nc->io = syscon_node_to_regmap(np);
-	of_node_put(np);
+	nc->io = syscon_yesde_to_regmap(np);
+	of_yesde_put(np);
 	if (IS_ERR(nc->io)) {
 		ret = PTR_ERR(nc->io);
-		dev_err(dev, "Could not get NFC IO regmap (err = %d)\n", ret);
+		dev_err(dev, "Could yest get NFC IO regmap (err = %d)\n", ret);
 		return ret;
 	}
 
-	nc->sram.pool = of_gen_pool_get(nc->base.dev->of_node,
+	nc->sram.pool = of_gen_pool_get(nc->base.dev->of_yesde,
 					 "atmel,nfc-sram", 0);
 	if (!nc->sram.pool) {
 		dev_err(nc->base.dev, "Missing SRAM\n");
@@ -2230,7 +2230,7 @@ atmel_hsmc_nand_controller_init(struct atmel_hsmc_nand_controller *nc)
 							   &nc->sram.dma);
 	if (!nc->sram.virt) {
 		dev_err(nc->base.dev,
-			"Could not allocate memory from the NFC SRAM pool\n");
+			"Could yest allocate memory from the NFC SRAM pool\n");
 		return -ENOMEM;
 	}
 
@@ -2292,7 +2292,7 @@ static int atmel_hsmc_nand_controller_probe(struct platform_device *pdev,
 			       IRQF_SHARED, "nfc", nc);
 	if (ret) {
 		dev_err(dev,
-			"Could not get register NFC interrupt handler (err = %d)\n",
+			"Could yest get register NFC interrupt handler (err = %d)\n",
 			ret);
 		goto err;
 	}
@@ -2377,7 +2377,7 @@ atmel_smc_nand_controller_remove(struct atmel_nand_controller *nc)
  * The SMC reg layout of at91rm9200 is completely different which prevents us
  * from re-using atmel_smc_nand_setup_data_interface() for the
  * ->setup_data_interface() hook.
- * At this point, there's no support for the at91rm9200 SMC IP, so we leave
+ * At this point, there's yes support for the at91rm9200 SMC IP, so we leave
  * ->setup_data_interface() unassigned.
  */
 static const struct atmel_nand_controller_ops at91rm9200_nc_ops = {
@@ -2507,23 +2507,23 @@ static int atmel_nand_controller_probe(struct platform_device *pdev)
 		caps = of_device_get_match_data(&pdev->dev);
 
 	if (!caps) {
-		dev_err(&pdev->dev, "Could not retrieve NFC caps\n");
+		dev_err(&pdev->dev, "Could yest retrieve NFC caps\n");
 		return -EINVAL;
 	}
 
 	if (caps->legacy_of_bindings) {
-		struct device_node *nfc_node;
+		struct device_yesde *nfc_yesde;
 		u32 ale_offs = 21;
 
 		/*
 		 * If we are parsing legacy DT props and the DT contains a
-		 * valid NFC node, forward the request to the sama5 logic.
+		 * valid NFC yesde, forward the request to the sama5 logic.
 		 */
-		nfc_node = of_get_compatible_child(pdev->dev.of_node,
+		nfc_yesde = of_get_compatible_child(pdev->dev.of_yesde,
 						   "atmel,sama5d3-nfc");
-		if (nfc_node) {
+		if (nfc_yesde) {
 			caps = &atmel_sama5_nand_caps;
-			of_node_put(nfc_node);
+			of_yesde_put(nfc_yesde);
 		}
 
 		/*
@@ -2533,7 +2533,7 @@ static int atmel_nand_controller_probe(struct platform_device *pdev)
 		 * dealing with an at91sam9g45+ controller.
 		 */
 		if (!caps->has_dma &&
-		    of_property_read_bool(pdev->dev.of_node,
+		    of_property_read_bool(pdev->dev.of_yesde,
 					  "atmel,nand-has-dma"))
 			caps = &atmel_sam9g45_nand_caps;
 
@@ -2542,7 +2542,7 @@ static int atmel_nand_controller_probe(struct platform_device *pdev)
 		 * CLE to A22. If atmel,nand-addr-offset != 21 this means we're
 		 * actually dealing with an at91sam9261 controller.
 		 */
-		of_property_read_u32(pdev->dev.of_node,
+		of_property_read_u32(pdev->dev.of_yesde,
 				     "atmel,nand-addr-offset", &ale_offs);
 		if (ale_offs != 21)
 			caps = &atmel_sam9261_nand_caps;
@@ -2566,7 +2566,7 @@ static __maybe_unused int atmel_nand_controller_resume(struct device *dev)
 	if (nc->pmecc)
 		atmel_pmecc_reset(nc->pmecc);
 
-	list_for_each_entry(nand, &nc->chips, node) {
+	list_for_each_entry(nand, &nc->chips, yesde) {
 		int i;
 
 		for (i = 0; i < nand->numcs; i++)

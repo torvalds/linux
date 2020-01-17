@@ -114,7 +114,7 @@ static void __idle_hwsp_free(struct intel_timeline_hwsp *hwsp, int cacheline)
 	GEM_BUG_ON(cacheline >= BITS_PER_TYPE(hwsp->free_bitmap));
 	hwsp->free_bitmap |= BIT_ULL(cacheline);
 
-	/* And if no one is left using it, give the page back to the system */
+	/* And if yes one is left using it, give the page back to the system */
 	if (hwsp->free_bitmap == ~0ull) {
 		i915_vma_put(hwsp->vma);
 		list_del(&hwsp->free_link);
@@ -244,7 +244,7 @@ int intel_timeline_init(struct intel_timeline *timeline,
 			return PTR_ERR(vaddr);
 	}
 
-	timeline->hwsp_seqno =
+	timeline->hwsp_seqyes =
 		memset(vaddr + timeline->hwsp_offset, 0, CACHELINE_BYTES);
 
 	timeline->hwsp_ggtt = i915_vma_get(hwsp);
@@ -351,8 +351,8 @@ void intel_timeline_enter(struct intel_timeline *tl)
 	 *
 	 * The rule is generally tl->mutex, otherwise engine->wakeref.mutex.
 	 *
-	 * However, intel_gt_retire_request() does not know which engine
-	 * it is retiring along and so cannot partake in the engine-pm
+	 * However, intel_gt_retire_request() does yest kyesw which engine
+	 * it is retiring along and so canyest partake in the engine-pm
 	 * barrier, and there we use the tl->active_count as a means to
 	 * pin the timeline in the active_list while the locks are dropped.
 	 * Ergo, as that is outside of the engine-pm barrier, we need to
@@ -398,20 +398,20 @@ void intel_timeline_exit(struct intel_timeline *tl)
 static u32 timeline_advance(struct intel_timeline *tl)
 {
 	GEM_BUG_ON(!atomic_read(&tl->pin_count));
-	GEM_BUG_ON(tl->seqno & tl->has_initial_breadcrumb);
+	GEM_BUG_ON(tl->seqyes & tl->has_initial_breadcrumb);
 
-	return tl->seqno += 1 + tl->has_initial_breadcrumb;
+	return tl->seqyes += 1 + tl->has_initial_breadcrumb;
 }
 
 static void timeline_rollback(struct intel_timeline *tl)
 {
-	tl->seqno -= 1 + tl->has_initial_breadcrumb;
+	tl->seqyes -= 1 + tl->has_initial_breadcrumb;
 }
 
-static noinline int
-__intel_timeline_get_seqno(struct intel_timeline *tl,
+static yesinline int
+__intel_timeline_get_seqyes(struct intel_timeline *tl,
 			   struct i915_request *rq,
-			   u32 *seqno)
+			   u32 *seqyes)
 {
 	struct intel_timeline_cacheline *cl;
 	unsigned int cacheline;
@@ -421,13 +421,13 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 
 	/*
 	 * If there is an outstanding GPU reference to this cacheline,
-	 * such as it being sampled by a HW semaphore on another timeline,
-	 * we cannot wraparound our seqno value (the HW semaphore does
-	 * a strict greater-than-or-equals compare, not i915_seqno_passed).
+	 * such as it being sampled by a HW semaphore on ayesther timeline,
+	 * we canyest wraparound our seqyes value (the HW semaphore does
+	 * a strict greater-than-or-equals compare, yest i915_seqyes_passed).
 	 * So if the cacheline is still busy, we must detach ourselves
 	 * from it and leave it inflight alongside its users.
 	 *
-	 * However, if nobody is watching and we can guarantee that nobody
+	 * However, if yesbody is watching and we can guarantee that yesbody
 	 * will, we could simply reuse the same cacheline.
 	 *
 	 * if (i915_active_request_is_signaled(&tl->last_request) &&
@@ -467,7 +467,7 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 	if (err)
 		goto err_cacheline;
 
-	cacheline_release(tl->hwsp_cacheline); /* ownership now xfered to rq */
+	cacheline_release(tl->hwsp_cacheline); /* ownership yesw xfered to rq */
 	cacheline_free(tl->hwsp_cacheline);
 
 	i915_vma_unpin(tl->hwsp_ggtt); /* binding kept alive by old cacheline */
@@ -477,7 +477,7 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 
 	vaddr = page_mask_bits(cl->vaddr);
 	tl->hwsp_offset = cacheline * CACHELINE_BYTES;
-	tl->hwsp_seqno =
+	tl->hwsp_seqyes =
 		memset(vaddr + tl->hwsp_offset, 0, CACHELINE_BYTES);
 
 	tl->hwsp_offset += i915_ggtt_offset(vma);
@@ -485,8 +485,8 @@ __intel_timeline_get_seqno(struct intel_timeline *tl,
 	cacheline_acquire(cl);
 	tl->hwsp_cacheline = cl;
 
-	*seqno = timeline_advance(tl);
-	GEM_BUG_ON(i915_seqno_passed(*tl->hwsp_seqno, *seqno));
+	*seqyes = timeline_advance(tl);
+	GEM_BUG_ON(i915_seqyes_passed(*tl->hwsp_seqyes, *seqyes));
 	return 0;
 
 err_cacheline:
@@ -498,15 +498,15 @@ err_rollback:
 	return err;
 }
 
-int intel_timeline_get_seqno(struct intel_timeline *tl,
+int intel_timeline_get_seqyes(struct intel_timeline *tl,
 			     struct i915_request *rq,
-			     u32 *seqno)
+			     u32 *seqyes)
 {
-	*seqno = timeline_advance(tl);
+	*seqyes = timeline_advance(tl);
 
 	/* Replace the HWSP on wraparound for HW semaphores */
-	if (unlikely(!*seqno && tl->hwsp_cacheline))
-		return __intel_timeline_get_seqno(tl, rq, seqno);
+	if (unlikely(!*seqyes && tl->hwsp_cacheline))
+		return __intel_timeline_get_seqyes(tl, rq, seqyes);
 
 	return 0;
 }
@@ -549,7 +549,7 @@ int intel_timeline_read_hwsp(struct i915_request *from,
 
 		if (likely(cl == tl->hwsp_cacheline)) {
 			*hwsp = tl->hwsp_offset;
-		} else { /* across a seqno wrap, recover the original offset */
+		} else { /* across a seqyes wrap, recover the original offset */
 			*hwsp = i915_ggtt_offset(cl->hwsp->vma) +
 				ptr_unmask_bits(cl->vaddr, CACHELINE_BITS) *
 				CACHELINE_BYTES;

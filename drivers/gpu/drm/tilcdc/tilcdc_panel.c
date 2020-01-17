@@ -71,7 +71,7 @@ static void panel_encoder_mode_set(struct drm_encoder *encoder,
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
 {
-	/* nothing needed */
+	/* yesthing needed */
 }
 
 static const struct drm_encoder_funcs panel_encoder_funcs = {
@@ -255,26 +255,26 @@ static const struct tilcdc_module_ops panel_module_ops = {
  */
 
 /* maybe move this somewhere common if it is needed by other outputs? */
-static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
+static struct tilcdc_panel_info *of_get_panel_info(struct device_yesde *np)
 {
-	struct device_node *info_np;
+	struct device_yesde *info_np;
 	struct tilcdc_panel_info *info;
 	int ret = 0;
 
 	if (!np) {
-		pr_err("%s: no devicenode given\n", __func__);
+		pr_err("%s: yes deviceyesde given\n", __func__);
 		return NULL;
 	}
 
 	info_np = of_get_child_by_name(np, "panel-info");
 	if (!info_np) {
-		pr_err("%s: could not find panel-info node\n", __func__);
+		pr_err("%s: could yest find panel-info yesde\n", __func__);
 		return NULL;
 	}
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		goto put_node;
+		goto put_yesde;
 
 	ret |= of_property_read_u32(info_np, "ac-bias", &info->ac_bias);
 	ret |= of_property_read_u32(info_np, "ac-bias-intrpt", &info->ac_bias_intrpt);
@@ -296,21 +296,21 @@ static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 		info = NULL;
 	}
 
-put_node:
-	of_node_put(info_np);
+put_yesde:
+	of_yesde_put(info_np);
 	return info;
 }
 
 static int panel_probe(struct platform_device *pdev)
 {
-	struct device_node *bl_node, *node = pdev->dev.of_node;
+	struct device_yesde *bl_yesde, *yesde = pdev->dev.of_yesde;
 	struct panel_module *panel_mod;
 	struct tilcdc_module *mod;
 	struct pinctrl *pinctrl;
 	int ret;
 
-	/* bail out early if no DT data: */
-	if (!node) {
+	/* bail out early if yes DT data: */
+	if (!yesde) {
 		dev_err(&pdev->dev, "device-tree data is missing\n");
 		return -ENXIO;
 	}
@@ -319,10 +319,10 @@ static int panel_probe(struct platform_device *pdev)
 	if (!panel_mod)
 		return -ENOMEM;
 
-	bl_node = of_parse_phandle(node, "backlight", 0);
-	if (bl_node) {
-		panel_mod->backlight = of_find_backlight_by_node(bl_node);
-		of_node_put(bl_node);
+	bl_yesde = of_parse_phandle(yesde, "backlight", 0);
+	if (bl_yesde) {
+		panel_mod->backlight = of_find_backlight_by_yesde(bl_yesde);
+		of_yesde_put(bl_yesde);
 
 		if (!panel_mod->backlight)
 			return -EPROBE_DEFER;
@@ -348,18 +348,18 @@ static int panel_probe(struct platform_device *pdev)
 
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev, "pins are not configured\n");
+		dev_warn(&pdev->dev, "pins are yest configured\n");
 
-	panel_mod->timings = of_get_display_timings(node);
+	panel_mod->timings = of_get_display_timings(yesde);
 	if (!panel_mod->timings) {
-		dev_err(&pdev->dev, "could not get panel timings\n");
+		dev_err(&pdev->dev, "could yest get panel timings\n");
 		ret = -EINVAL;
 		goto fail_free;
 	}
 
-	panel_mod->info = of_get_panel_info(node);
+	panel_mod->info = of_get_panel_info(yesde);
 	if (!panel_mod->info) {
-		dev_err(&pdev->dev, "could not get panel info\n");
+		dev_err(&pdev->dev, "could yest get panel info\n");
 		ret = -EINVAL;
 		goto fail_timings;
 	}

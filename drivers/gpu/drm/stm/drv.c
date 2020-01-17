@@ -59,7 +59,7 @@ static struct drm_driver drv_driver = {
 	.desc = "STMicroelectronics SoC DRM",
 	.date = "20170330",
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 	.patchlevel = 0,
 	.fops = &drv_driver_fops,
 	.dumb_create = stm_gem_cma_dumb_create,
@@ -72,8 +72,8 @@ static struct drm_driver drv_driver = {
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
-	.get_scanout_position = ltdc_crtc_scanoutpos,
-	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
+	.get_scayesut_position = ltdc_crtc_scayesutpos,
+	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scayesutpos,
 };
 
 static int drv_load(struct drm_device *ddev)
@@ -235,7 +235,7 @@ static int stm_drm_platform_remove(struct platform_device *pdev)
 
 static const struct of_device_id drv_dt_ids[] = {
 	{ .compatible = "st,stm32-ltdc"},
-	{ /* end node */ },
+	{ /* end yesde */ },
 };
 MODULE_DEVICE_TABLE(of, drv_dt_ids);
 

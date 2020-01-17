@@ -15,13 +15,13 @@ Required properties:
    * "iface" for the AHB clock
 
  - #address-cells: Should be <1> Address cells for i2c device address
- - #size-cells: Should be <0> as i2c addresses have no size component
+ - #size-cells: Should be <0> as i2c addresses have yes size component
 
 Optional properties:
  - clock-frequency: Should specify the desired i2c bus clock frequency in Hz,
                     defaults to 100kHz if omitted.
 
-Child nodes should conform to i2c bus binding.
+Child yesdes should conform to i2c bus binding.
 
 Example:
 

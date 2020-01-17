@@ -12,9 +12,9 @@
  *
  *   - when compiled as a module, after loading the module,
  *     it will refuse to unload, indicating it is in use,
- *     when it is not.
- *   - no s3 (suspend to ram) testing.
- *   - tested on the efficeon integrated nothbridge for tens
+ *     when it is yest.
+ *   - yes s3 (suspend to ram) testing.
+ *   - tested on the efficeon integrated yesthbridge for tens
  *     of iterations of starting x and glxgears.
  *   - tested with radeon 9000 and radeon mobility m9 cards
  *   - tested with c3/c4 enabled (with the mobility m9 card)
@@ -42,7 +42,7 @@
  *	   must match the PAT index for the
  *	   mapped pages (the 2nd level page table pages
  *	   themselves should be just regular WB-cacheable,
- *	   so this is normally zero.)
+ *	   so this is yesrmally zero.)
  *      8: Present
  *    7:6: reserved, write as zero
  *    5:0: GATT directory index: which 1st-level entry
@@ -369,7 +369,7 @@ static int agp_efficeon_probe(struct pci_dev *pdev,
 	bridge->capndx = cap_ptr;
 
 	/*
-	* If the device has not been properly setup, the following will catch
+	* If the device has yest been properly setup, the following will catch
 	* the problem and should stop the system from crashing.
 	* 20030610 - hamish@zot.org
 	*/
@@ -387,7 +387,7 @@ static int agp_efficeon_probe(struct pci_dev *pdev,
 	r = &pdev->resource[0];
 	if (!r->start && r->end) {
 		if (pci_assign_resource(pdev, 0)) {
-			printk(KERN_ERR PFX "could not assign resource 0\n");
+			printk(KERN_ERR PFX "could yest assign resource 0\n");
 			agp_put_bridge(bridge);
 			return -ENODEV;
 		}

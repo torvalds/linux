@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2016-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2016-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp_net_offload.c
- * Netronome network device driver: TC offload functions for PF and VF
+ * Netroyesme network device driver: TC offload functions for PF and VF
  */
 
 #define pr_fmt(fmt)	"NFP net bpf: " fmt
@@ -261,7 +261,7 @@ static void nfp_map_bpf_byte_swap(struct nfp_bpf_map *nfp_map, void *value)
 }
 
 /* Mark value as unsafely initialized in case it becomes atomic later
- * and we didn't byte swap something non-byte swap neutral.
+ * and we didn't byte swap something yesn-byte swap neutral.
  */
 static void
 nfp_map_bpf_byte_swap_record(struct nfp_bpf_map *nfp_map, void *value)
@@ -272,7 +272,7 @@ nfp_map_bpf_byte_swap_record(struct nfp_bpf_map *nfp_map, void *value)
 	for (i = 0; i < DIV_ROUND_UP(nfp_map->offmap->map.value_size, 4); i++)
 		if (nfp_map->use_map[i].type == NFP_MAP_UNUSED &&
 		    word[i] != (__force u32)cpu_to_be32(word[i]))
-			nfp_map->use_map[i].non_zero_update = 1;
+			nfp_map->use_map[i].yesn_zero_update = 1;
 }
 
 static int
@@ -333,13 +333,13 @@ nfp_bpf_map_alloc(struct nfp_app_bpf *bpf, struct bpf_offloaded_map *offmap)
 		return -EOPNOTSUPP;
 
 	if (offmap->map.map_flags ||
-	    offmap->map.numa_node != NUMA_NO_NODE) {
-		pr_info("map flags are not supported\n");
+	    offmap->map.numa_yesde != NUMA_NO_NODE) {
+		pr_info("map flags are yest supported\n");
 		return -EINVAL;
 	}
 
 	if (!(bpf->maps.types & 1 << offmap->map.map_type)) {
-		pr_info("map type not supported\n");
+		pr_info("map type yest supported\n");
 		return -EOPNOTSUPP;
 	}
 	if (bpf->maps.max_maps == bpf->maps_in_use) {
@@ -462,7 +462,7 @@ int nfp_bpf_event_output(struct nfp_app_bpf *bpf, const void *data,
 				   nfp_bpf_maps_neutral_params);
 	if (!record || map_id_full > U32_MAX) {
 		rcu_read_unlock();
-		cmsg_warn(bpf, "perf event: map id %lld (0x%llx) not recognized, dropping event\n",
+		cmsg_warn(bpf, "perf event: map id %lld (0x%llx) yest recognized, dropping event\n",
 			  map_id_full, map_id_full);
 		return -EINVAL;
 	}
@@ -488,7 +488,7 @@ nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog,
 	fw_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
 	pkt_off = min(prog->aux->max_pkt_offset, nn->dp.netdev->mtu);
 	if (fw_mtu < pkt_off) {
-		NL_SET_ERR_MSG_MOD(extack, "BPF offload not supported with potential packet access beyond HW packet split boundary");
+		NL_SET_ERR_MSG_MOD(extack, "BPF offload yest supported with potential packet access beyond HW packet split boundary");
 		return -EOPNOTSUPP;
 	}
 
@@ -571,7 +571,7 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 		cap = nn_readb(nn, NFP_NET_CFG_BPF_CAP);
 		if (!(cap & NFP_NET_BPF_CAP_RELO)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "FW does not support live reload");
+					   "FW does yest support live reload");
 			return -EBUSY;
 		}
 	}

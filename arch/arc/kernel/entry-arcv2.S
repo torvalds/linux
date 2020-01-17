@@ -1,19 +1,19 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * ARCv2 ISA based core Low Level Intr/Traps/Exceptions(non-TLB) Handling
+ * ARCv2 ISA based core Low Level Intr/Traps/Exceptions(yesn-TLB) Handling
  *
- * Copyright (C) 2013 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2013 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <linux/linkage.h>   /* ARC_{EXTRY,EXIT} */
 #include <asm/entry.h>       /* SAVE_ALL_{INT1,INT2,TRAP...} */
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/arcregs.h>
 #include <asm/irqflags.h>
 
 ; A maximum number of supported interrupts in the core interrupt controller.
-; This number is not equal to the maximum interrupt number (256) because
-; first 16 lines are reserved for exceptions and are not configurable.
+; This number is yest equal to the maximum interrupt number (256) because
+; first 16 lines are reserved for exceptions and are yest configurable.
 #define NR_CPU_IRQS	240
 
 	.cpu HS
@@ -79,7 +79,7 @@ ENTRY(handle_interrupt)
 	#
 	# Note this disable is only for consistent book-keeping as further interrupts
 	# will be disabled anyways even w/o this. Hardware tracks active interrupts
-	# seperately in AUX_IRQ_ACT.active and will not take new interrupts
+	# seperately in AUX_IRQ_ACT.active and will yest take new interrupts
 	# unless this one returns (or higher prio becomes pending in 2-prio scheme)
 
 	IRQ_DISABLE
@@ -186,7 +186,7 @@ END(EV_TLBProtV)
 ;############# Return from Intr/Excp/Trap (ARCv2 ISA Specifics) ##############
 ;
 ; Restore the saved sys context (common exit-path for EXCPN/IRQ/Trap)
-; IRQ shd definitely not happen between now and rtie
+; IRQ shd definitely yest happen between yesw and rtie
 ; All 2 entry points to here already disable interrupts
 
 .Lrestore_regs:
@@ -194,7 +194,7 @@ restore_regs:
 
 	# Interrpts are actually disabled from this point on, but will get
 	# reenabled after we return from interrupt/exception.
-	# But irq tracer needs to be told now...
+	# But irq tracer needs to be told yesw...
 	TRACE_ASM_IRQ_ENABLE
 
 	ld	r0, [sp, PT_status32]	; U/K mode at time of entry
@@ -215,7 +215,7 @@ debug_marker_l1:
 	; Handle special case #1: (Entry via Exception, Return via IRQ)
 	;
 	; Exception in U mode, preempted in kernel, Intr taken (K mode), orig
-	; task now returning to U mode (riding the Intr)
+	; task yesw returning to U mode (riding the Intr)
 	; AUX_IRQ_ACTIVE won't have U bit set (since intr in K mode), hence SP
 	; won't be switched to correct U mode value (from AUX_SP)
 	; So force AUX_IRQ_ACT.U for such a case

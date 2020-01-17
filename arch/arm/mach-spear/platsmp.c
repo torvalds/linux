@@ -25,7 +25,7 @@ volatile int spear_pen_release = -1;
  *
  * Write spear_pen_release in a way that is guaranteed to be visible to
  * all observers, irrespective of whether they're taking part in coherency
- * or not.  This is necessary for the hotplug code to work reliably.
+ * or yest.  This is necessary for the hotplug code to work reliably.
  */
 static void spear_write_pen_release(int val)
 {
@@ -41,7 +41,7 @@ static void __iomem *scu_base = IOMEM(VA_SCU_BASE);
 static void spear13xx_secondary_init(unsigned int cpu)
 {
 	/*
-	 * let the primary processor know we're out of the
+	 * let the primary processor kyesw we're out of the
 	 * pen, then head off into the C entry point
 	 */
 	spear_write_pen_release(-1);
@@ -83,7 +83,7 @@ static int spear13xx_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	}
 
 	/*
-	 * now the secondary core is starting up let it run its
+	 * yesw the secondary core is starting up let it run its
 	 * calibrations, then wait for it to finish
 	 */
 	spin_unlock(&boot_lock);

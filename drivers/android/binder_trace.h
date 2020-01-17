@@ -12,7 +12,7 @@
 #include <linux/tracepoint.h>
 
 struct binder_buffer;
-struct binder_node;
+struct binder_yesde;
 struct binder_proc;
 struct binder_alloc;
 struct binder_ref_data;
@@ -97,11 +97,11 @@ TRACE_EVENT(binder_wait_for_work,
 
 TRACE_EVENT(binder_transaction,
 	TP_PROTO(bool reply, struct binder_transaction *t,
-		 struct binder_node *target_node),
-	TP_ARGS(reply, t, target_node),
+		 struct binder_yesde *target_yesde),
+	TP_ARGS(reply, t, target_yesde),
 	TP_STRUCT__entry(
 		__field(int, debug_id)
-		__field(int, target_node)
+		__field(int, target_yesde)
 		__field(int, to_proc)
 		__field(int, to_thread)
 		__field(int, reply)
@@ -110,15 +110,15 @@ TRACE_EVENT(binder_transaction,
 	),
 	TP_fast_assign(
 		__entry->debug_id = t->debug_id;
-		__entry->target_node = target_node ? target_node->debug_id : 0;
+		__entry->target_yesde = target_yesde ? target_yesde->debug_id : 0;
 		__entry->to_proc = t->to_proc->pid;
 		__entry->to_thread = t->to_thread ? t->to_thread->pid : 0;
 		__entry->reply = reply;
 		__entry->code = t->code;
 		__entry->flags = t->flags;
 	),
-	TP_printk("transaction=%d dest_node=%d dest_proc=%d dest_thread=%d reply=%d flags=0x%x code=0x%x",
-		  __entry->debug_id, __entry->target_node,
+	TP_printk("transaction=%d dest_yesde=%d dest_proc=%d dest_thread=%d reply=%d flags=0x%x code=0x%x",
+		  __entry->debug_id, __entry->target_yesde,
 		  __entry->to_proc, __entry->to_thread,
 		  __entry->reply, __entry->flags, __entry->code)
 );
@@ -136,65 +136,65 @@ TRACE_EVENT(binder_transaction_received,
 	TP_printk("transaction=%d", __entry->debug_id)
 );
 
-TRACE_EVENT(binder_transaction_node_to_ref,
-	TP_PROTO(struct binder_transaction *t, struct binder_node *node,
+TRACE_EVENT(binder_transaction_yesde_to_ref,
+	TP_PROTO(struct binder_transaction *t, struct binder_yesde *yesde,
 		 struct binder_ref_data *rdata),
-	TP_ARGS(t, node, rdata),
+	TP_ARGS(t, yesde, rdata),
 
 	TP_STRUCT__entry(
 		__field(int, debug_id)
-		__field(int, node_debug_id)
-		__field(binder_uintptr_t, node_ptr)
+		__field(int, yesde_debug_id)
+		__field(binder_uintptr_t, yesde_ptr)
 		__field(int, ref_debug_id)
 		__field(uint32_t, ref_desc)
 	),
 	TP_fast_assign(
 		__entry->debug_id = t->debug_id;
-		__entry->node_debug_id = node->debug_id;
-		__entry->node_ptr = node->ptr;
+		__entry->yesde_debug_id = yesde->debug_id;
+		__entry->yesde_ptr = yesde->ptr;
 		__entry->ref_debug_id = rdata->debug_id;
 		__entry->ref_desc = rdata->desc;
 	),
-	TP_printk("transaction=%d node=%d src_ptr=0x%016llx ==> dest_ref=%d dest_desc=%d",
-		  __entry->debug_id, __entry->node_debug_id,
-		  (u64)__entry->node_ptr,
+	TP_printk("transaction=%d yesde=%d src_ptr=0x%016llx ==> dest_ref=%d dest_desc=%d",
+		  __entry->debug_id, __entry->yesde_debug_id,
+		  (u64)__entry->yesde_ptr,
 		  __entry->ref_debug_id, __entry->ref_desc)
 );
 
-TRACE_EVENT(binder_transaction_ref_to_node,
-	TP_PROTO(struct binder_transaction *t, struct binder_node *node,
+TRACE_EVENT(binder_transaction_ref_to_yesde,
+	TP_PROTO(struct binder_transaction *t, struct binder_yesde *yesde,
 		 struct binder_ref_data *rdata),
-	TP_ARGS(t, node, rdata),
+	TP_ARGS(t, yesde, rdata),
 
 	TP_STRUCT__entry(
 		__field(int, debug_id)
 		__field(int, ref_debug_id)
 		__field(uint32_t, ref_desc)
-		__field(int, node_debug_id)
-		__field(binder_uintptr_t, node_ptr)
+		__field(int, yesde_debug_id)
+		__field(binder_uintptr_t, yesde_ptr)
 	),
 	TP_fast_assign(
 		__entry->debug_id = t->debug_id;
 		__entry->ref_debug_id = rdata->debug_id;
 		__entry->ref_desc = rdata->desc;
-		__entry->node_debug_id = node->debug_id;
-		__entry->node_ptr = node->ptr;
+		__entry->yesde_debug_id = yesde->debug_id;
+		__entry->yesde_ptr = yesde->ptr;
 	),
-	TP_printk("transaction=%d node=%d src_ref=%d src_desc=%d ==> dest_ptr=0x%016llx",
-		  __entry->debug_id, __entry->node_debug_id,
+	TP_printk("transaction=%d yesde=%d src_ref=%d src_desc=%d ==> dest_ptr=0x%016llx",
+		  __entry->debug_id, __entry->yesde_debug_id,
 		  __entry->ref_debug_id, __entry->ref_desc,
-		  (u64)__entry->node_ptr)
+		  (u64)__entry->yesde_ptr)
 );
 
 TRACE_EVENT(binder_transaction_ref_to_ref,
-	TP_PROTO(struct binder_transaction *t, struct binder_node *node,
+	TP_PROTO(struct binder_transaction *t, struct binder_yesde *yesde,
 		 struct binder_ref_data *src_ref,
 		 struct binder_ref_data *dest_ref),
-	TP_ARGS(t, node, src_ref, dest_ref),
+	TP_ARGS(t, yesde, src_ref, dest_ref),
 
 	TP_STRUCT__entry(
 		__field(int, debug_id)
-		__field(int, node_debug_id)
+		__field(int, yesde_debug_id)
 		__field(int, src_ref_debug_id)
 		__field(uint32_t, src_ref_desc)
 		__field(int, dest_ref_debug_id)
@@ -202,14 +202,14 @@ TRACE_EVENT(binder_transaction_ref_to_ref,
 	),
 	TP_fast_assign(
 		__entry->debug_id = t->debug_id;
-		__entry->node_debug_id = node->debug_id;
+		__entry->yesde_debug_id = yesde->debug_id;
 		__entry->src_ref_debug_id = src_ref->debug_id;
 		__entry->src_ref_desc = src_ref->desc;
 		__entry->dest_ref_debug_id = dest_ref->debug_id;
 		__entry->dest_ref_desc = dest_ref->desc;
 	),
-	TP_printk("transaction=%d node=%d src_ref=%d src_desc=%d ==> dest_ref=%d dest_desc=%d",
-		  __entry->debug_id, __entry->node_debug_id,
+	TP_printk("transaction=%d yesde=%d src_ref=%d src_desc=%d ==> dest_ref=%d dest_desc=%d",
+		  __entry->debug_id, __entry->yesde_debug_id,
 		  __entry->src_ref_debug_id, __entry->src_ref_desc,
 		  __entry->dest_ref_debug_id, __entry->dest_ref_desc)
 );
@@ -371,7 +371,7 @@ TRACE_EVENT(binder_command,
 		  __entry->cmd,
 		  _IOC_NR(__entry->cmd) < ARRAY_SIZE(binder_command_strings) ?
 			  binder_command_strings[_IOC_NR(__entry->cmd)] :
-			  "unknown")
+			  "unkyeswn")
 );
 
 TRACE_EVENT(binder_return,
@@ -387,7 +387,7 @@ TRACE_EVENT(binder_return,
 		  __entry->cmd,
 		  _IOC_NR(__entry->cmd) < ARRAY_SIZE(binder_return_strings) ?
 			  binder_return_strings[_IOC_NR(__entry->cmd)] :
-			  "unknown")
+			  "unkyeswn")
 );
 
 #endif /* _BINDER_TRACE_H */

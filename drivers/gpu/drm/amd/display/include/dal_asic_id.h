@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -167,7 +167,7 @@ enum {
 #endif
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 #define RENOIR_A0 0x91
-#define DEVICE_ID_RENOIR_1636 0x1636   // Renoir
+#define DEVICE_ID_RENOIR_1636 0x1636   // Reyesir
 #define ASICREV_IS_RENOIR(eChipRev) ((eChipRev >= RENOIR_A0) && (eChipRev < 0xFF))
 #endif
 

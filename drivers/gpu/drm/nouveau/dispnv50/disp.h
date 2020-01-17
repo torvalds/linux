@@ -2,7 +2,7 @@
 #define __NV50_KMS_H__
 #include <nvif/mem.h>
 
-#include "nouveau_display.h"
+#include "yesuveau_display.h"
 
 struct nv50_disp {
 	struct nvif_disp *disp;
@@ -19,7 +19,7 @@ struct nv50_disp {
 #define NV50_DISP_OVLY_SEM0(c)                    NV50_DISP_WNDW_SEM0(4 + (c))
 #define NV50_DISP_OVLY_SEM1(c)                    NV50_DISP_WNDW_SEM1(4 + (c))
 #define NV50_DISP_OVLY_NTFY(c)                    NV50_DISP_WNDW_NTFY(4 + (c))
-	struct nouveau_bo *sync;
+	struct yesuveau_bo *sync;
 
 	struct mutex mutex;
 };
@@ -27,7 +27,7 @@ struct nv50_disp {
 static inline struct nv50_disp *
 nv50_disp(struct drm_device *dev)
 {
-	return nouveau_display(dev)->priv;
+	return yesuveau_display(dev)->priv;
 }
 
 struct nv50_disp_interlock {
@@ -44,7 +44,7 @@ struct nv50_disp_interlock {
 	u32 wimm;
 };
 
-void corec37d_ntfy_init(struct nouveau_bo *, u32);
+void corec37d_ntfy_init(struct yesuveau_bo *, u32);
 
 void head907d_olut_load(struct drm_color_lut *, int size, void __iomem *);
 

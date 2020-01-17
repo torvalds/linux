@@ -2,7 +2,7 @@
 /*
 	usa90msg.h
 
-	Copyright (c) 1998-2003 InnoSys Incorporated.  All Rights Reserved
+	Copyright (c) 1998-2003 InyesSys Incorporated.  All Rights Reserved
 	This file is available under a BSD-style copyright
 
 	Keyspan USB Async Message Formats for the USA19HS
@@ -13,14 +13,14 @@
 
 	1. Redistributions of source code must retain this licence text
    	without modification, this list of conditions, and the following
-   	disclaimer.  The following copyright notice must appear immediately at
+   	disclaimer.  The following copyright yestice must appear immediately at
    	the beginning of all source files:
 
-        	Copyright (c) 1998-2003 InnoSys Incorporated.  All Rights Reserved
+        	Copyright (c) 1998-2003 InyesSys Incorporated.  All Rights Reserved
 
         	This file is available under a BSD-style copyright
 
-	2. The name of InnoSys Incorporated may not be used to endorse or promote
+	2. The name of InyesSys Incorporated may yest be used to endorse or promote
    	products derived from this software without specific prior written
    	permission.
 
@@ -93,21 +93,21 @@ struct keyspan_usa90_portControlMessage
 
 	u8	rxForwardingLength,  // forward when this number of chars available
 		rxForwardingTimeout, // (1-31 in ms)
-		txAckSetting;	   // 0=don't ack, 1=normal, 2-255 TBD...
+		txAckSetting;	   // 0=don't ack, 1=yesrmal, 2-255 TBD...
 	/*
 		3.	Firmware states which cause actions if they change					
 		and must be specified correctly in every host message.
 	*/
 
 	u8	portEnabled,	// 0=disabled, 1=enabled
-		txFlush,		// 0=normal, 1=toss outbound data
+		txFlush,		// 0=yesrmal, 1=toss outbound data
 		txBreak,		// 0=break off, 1=break on
-		loopbackMode;	// 0=no loopback, 1=loopback enabled
+		loopbackMode;	// 0=yes loopback, 1=loopback enabled
 
 	/*
 		4.	commands which are flags only; these are processed in order
 			(so that, e.g., if rxFlush and rxForward flags are set, the
-			port will have no data to forward); any non-zero value 
+			port will have yes data to forward); any yesn-zero value 
 			is respected
 	*/
 
@@ -164,8 +164,8 @@ struct keyspan_usa90_portStatusMessage
 		rxParity,		// count of parity errors (since last reported)
 		rxFrame,		// count of frame errors (since last reported)
 		portState,		// PORTSTATE_xxx bits (useful for debugging)
-		messageAck,		// message acknowledgement
-		charAck,		// character acknowledgement
+		messageAck,		// message ackyeswledgement
+		charAck,		// character ackyeswledgement
 		controlResponse;	// (value = returnStatus) a control message has been processed 
 };
 

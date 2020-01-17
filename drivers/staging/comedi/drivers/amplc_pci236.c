@@ -17,9 +17,9 @@
  * Status: works
  *
  * Configuration options:
- *   none
+ *   yesne
  *
- * Manual configuration of PCI board (PCI236) is not supported; it is
+ * Manual configuration of PCI board (PCI236) is yest supported; it is
  * configured automatically.
  *
  * The PCI236 board has a single 8255 appearing as subdevice 0.
@@ -28,7 +28,7 @@
  * returns 0 when read. However, if you run a command with
  * scan_begin_src=TRIG_EXT, a rising edge on port C bit 3 acts as an
  * external trigger, which can be used to wake up tasks.  This is like
- * the comedi_parport device.  If no interrupt is connected, then
+ * the comedi_parport device.  If yes interrupt is connected, then
  * subdevice 1 is unused.
  */
 

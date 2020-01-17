@@ -133,7 +133,7 @@ static int sis_read_packet(struct i2c_client *client, u8 *buf,
 	if (report_id != SIS_ALL_IN_ONE_PACKAGE) {
 		if (SIS_PKT_IS_TOUCH(report_id)) {
 			/*
-			 * Calculate CRC ignoring packet length
+			 * Calculate CRC igyesring packet length
 			 * in the beginning and CRC transmitted
 			 * at the end of the packet.
 			 */
@@ -240,7 +240,7 @@ static void sis_ts_handle_packet(struct sis_ts_data *ts)
 			num_to_report = num_contacts;
 		} else if (num_contacts != 0) {
 			dev_err(&ts->client->dev,
-				"%s: nonzero (%d) point count in tail packet\n",
+				"%s: yesnzero (%d) point count in tail packet\n",
 				__func__, num_contacts);
 			break;
 		}

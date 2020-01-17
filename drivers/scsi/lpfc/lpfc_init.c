@@ -164,7 +164,7 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 			mempool_free(pmb, phba->mbox_mem_pool);
 			return -ERESTART;
 		}
-		memcpy(phba->wwnn, (char *)mb->un.varRDnvp.nodename,
+		memcpy(phba->wwnn, (char *)mb->un.varRDnvp.yesdename,
 		       sizeof(phba->wwnn));
 		memcpy(phba->wwpn, (char *)mb->un.varRDnvp.portname,
 		       sizeof(phba->wwpn));
@@ -246,7 +246,7 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 
 		if (rc != MBX_SUCCESS) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"0441 VPD not present on adapter, "
+					"0441 VPD yest present on adapter, "
 					"mbxCmd x%x DUMP VPD, mbxStatus x%x\n",
 					mb->mbxCommand, mb->mbxStatus);
 			mb->un.varDmp.word_cnt = 0;
@@ -276,7 +276,7 @@ out_free_mbox:
  * @phba: pointer to lpfc hba data structure.
  * @pmboxq: pointer to the driver internal queue element for mailbox command.
  *
- * This is the completion handler for driver's configuring asynchronous event
+ * This is the completion handler for driver's configuring asynchroyesus event
  * mailbox command to the device. If the mailbox command returns successfully,
  * it will set internal async event support flag to 1; otherwise, it will
  * set internal async event support flag to 0.
@@ -337,7 +337,7 @@ lpfc_dump_wakeup_param_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 }
 
 /**
- * lpfc_update_vport_wwn - Updates the fc_nodename, fc_portname,
+ * lpfc_update_vport_wwn - Updates the fc_yesdename, fc_portname,
  *	cfg_soft_wwnn, cfg_soft_wwpn
  * @vport: pointer to lpfc vport data structure.
  *
@@ -354,7 +354,7 @@ lpfc_update_vport_wwn(struct lpfc_vport *vport)
 	/* If the soft name exists then update it using the service params */
 	if (vport->phba->cfg_soft_wwnn)
 		u64_to_wwn(vport->phba->cfg_soft_wwnn,
-			   vport->fc_sparam.nodeName.u.wwn);
+			   vport->fc_sparam.yesdeName.u.wwn);
 	if (vport->phba->cfg_soft_wwpn)
 		u64_to_wwn(vport->phba->cfg_soft_wwpn,
 			   vport->fc_sparam.portName.u.wwn);
@@ -363,11 +363,11 @@ lpfc_update_vport_wwn(struct lpfc_vport *vport)
 	 * If the name is empty or there exists a soft name
 	 * then copy the service params name, otherwise use the fc name
 	 */
-	if (vport->fc_nodename.u.wwn[0] == 0 || vport->phba->cfg_soft_wwnn)
-		memcpy(&vport->fc_nodename, &vport->fc_sparam.nodeName,
+	if (vport->fc_yesdename.u.wwn[0] == 0 || vport->phba->cfg_soft_wwnn)
+		memcpy(&vport->fc_yesdename, &vport->fc_sparam.yesdeName,
 			sizeof(struct lpfc_name));
 	else
-		memcpy(&vport->fc_sparam.nodeName, &vport->fc_nodename,
+		memcpy(&vport->fc_sparam.yesdeName, &vport->fc_yesdename,
 			sizeof(struct lpfc_name));
 
 	/*
@@ -422,7 +422,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 
 	spin_lock_irq(&phba->hbalock);
 	/*
-	 * If the Config port completed correctly the HBA is not
+	 * If the Config port completed correctly the HBA is yest
 	 * over heated any more.
 	 */
 	if (phba->over_temp_state == HBA_OVER_TEMP)
@@ -466,16 +466,16 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	lpfc_update_vport_wwn(vport);
 
 	/* Update the fc_host data structures with new wwn. */
-	fc_host_node_name(shost) = wwn_to_u64(vport->fc_nodename.u.wwn);
+	fc_host_yesde_name(shost) = wwn_to_u64(vport->fc_yesdename.u.wwn);
 	fc_host_port_name(shost) = wwn_to_u64(vport->fc_portname.u.wwn);
 	fc_host_max_npiv_vports(shost) = phba->max_vpi;
 
-	/* If no serial number in VPD data, use low 6 bytes of WWNN */
+	/* If yes serial number in VPD data, use low 6 bytes of WWNN */
 	/* This should be consolidated into parse_vpd ? - mr */
 	if (phba->SerialNumber[0] == 0) {
 		uint8_t *outptr;
 
-		outptr = &vport->fc_nodename.u.s.IEEE[0];
+		outptr = &vport->fc_yesdename.u.s.IEEE[0];
 		for (i = 0; i < 12; i++) {
 			status = *outptr++;
 			j = ((status & 0xf0) >> 4);
@@ -1054,7 +1054,7 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 	lpfc_hba_clean_txcmplq(phba);
 
 	/* At this point in time the HBA is either reset or DOA. Either
-	 * way, nothing should be on lpfc_abts_els_sgl_list, it needs to be
+	 * way, yesthing should be on lpfc_abts_els_sgl_list, it needs to be
 	 * on the lpfc_els_sgl_list so that it can either be freed if the
 	 * driver is unloading or reposted if the driver is restarting
 	 * the port.
@@ -1140,7 +1140,7 @@ lpfc_hba_down_post(struct lpfc_hba *phba)
  *
  * This is the HBA-timer timeout handler registered to the lpfc driver. When
  * this timer fires, a HBA timeout event shall be posted to the lpfc driver
- * work-port-events bitmap and the worker thread is notified. This timeout
+ * work-port-events bitmap and the worker thread is yestified. This timeout
  * event will be used by the worker thread to invoke the actual timeout
  * handler routine, lpfc_hb_timeout_handler. Any periodical operations will
  * be performed in the timeout handler and the HBA timeout event bit shall
@@ -1174,7 +1174,7 @@ lpfc_hb_timeout(struct timer_list *t)
  *
  * This is the RRQ-timer timeout handler registered to the lpfc driver. When
  * this timer fires, a RRQ timeout event shall be posted to the lpfc driver
- * work-port-events bitmap and the worker thread is notified. This timeout
+ * work-port-events bitmap and the worker thread is yestified. This timeout
  * event will be used by the worker thread to invoke the actual timeout
  * handler routine, lpfc_rrq_handler. Any periodical operations will
  * be performed in the timeout handler and the RRQ timeout event bit shall
@@ -1209,7 +1209,7 @@ lpfc_rrq_timeout(struct timer_list *t)
  * heart-beat mailbox command is issued, the driver shall set up heart-beat
  * timeout timer to LPFC_HB_MBOX_TIMEOUT (current 30) seconds and marks
  * heart-beat outstanding state. Once the mailbox command comes back and
- * no error conditions detected, the heart-beat mailbox command timer is
+ * yes error conditions detected, the heart-beat mailbox command timer is
  * reset to LPFC_HB_MBOX_INTERVAL seconds and the heart-beat outstanding
  * state is cleared for the next heart-beat. If the timer expired with the
  * heart-beat outstanding state set, the driver will put the HBA offline.
@@ -1338,7 +1338,7 @@ static void lpfc_hb_mxp_handler(struct lpfc_hba *phba)
  * or by processing slow-ring or fast-ring events within the HBA-timer
  * timeout window (LPFC_HB_MBOX_INTERVAL), this handler just simply resets
  * the timer for the next timeout period. If lpfc heart-beat mailbox command
- * is configured and there is no heart-beat mailbox command outstanding, a
+ * is configured and there is yes heart-beat mailbox command outstanding, a
  * heart-beat mailbox is issued and timer set properly. Otherwise, if there
  * has been a heart-beat mailbox command outstanding, the HBA shall be put
  * to offline.
@@ -1406,7 +1406,7 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 	}
 	phba->elsbuf_prev_cnt = phba->elsbuf_cnt;
 
-	/* If there is no heart beat outstanding, issue a heartbeat command */
+	/* If there is yes heart beat outstanding, issue a heartbeat command */
 	if (phba->cfg_enable_hba_heartbeat) {
 		if (!phba->hb_outstanding) {
 			if ((!(psli->sli_flag & LPFC_SLI_MBOX_ACTIVE)) &&
@@ -1442,7 +1442,7 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 			} else if (time_before_eq(phba->last_completion_time,
 					phba->skipped_hb)) {
 				lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"2857 Last completion time not "
+					"2857 Last completion time yest "
 					" updated in %d ms\n",
 					jiffies_to_msecs(jiffies
 						 - phba->last_completion_time));
@@ -1531,7 +1531,7 @@ lpfc_sli4_offline_eratt(struct lpfc_hba *phba)
  *
  * This routine is invoked to handle the deferred HBA hardware error
  * conditions. This type of error is indicated by HBA by setting ER1
- * and another ER bit in the host status register. The driver will
+ * and ayesther ER bit in the host status register. The driver will
  * wait until the ER1 bit clears before handling the error condition.
  **/
 static void
@@ -1540,8 +1540,8 @@ lpfc_handle_deferred_eratt(struct lpfc_hba *phba)
 	uint32_t old_host_status = phba->work_hs;
 	struct lpfc_sli *psli = &phba->sli;
 
-	/* If the pci channel is offline, ignore possible errors,
-	 * since we cannot communicate with the pci card anyway.
+	/* If the pci channel is offline, igyesre possible errors,
+	 * since we canyest communicate with the pci card anyway.
 	 */
 	if (pci_channel_offline(phba->pcidev)) {
 		spin_lock_irq(&phba->hbalock);
@@ -1627,7 +1627,7 @@ lpfc_board_errevt_to_mgmt(struct lpfc_hba *phba)
  * conditions:
  * 1 - HBA error attention interrupt
  * 2 - DMA ring index out of range
- * 3 - Mailbox command came back as unknown
+ * 3 - Mailbox command came back as unkyeswn
  **/
 static void
 lpfc_handle_eratt_s3(struct lpfc_hba *phba)
@@ -1639,8 +1639,8 @@ lpfc_handle_eratt_s3(struct lpfc_hba *phba)
 	struct temp_event temp_event_data;
 	struct Scsi_Host  *shost;
 
-	/* If the pci channel is offline, ignore possible errors,
-	 * since we cannot communicate with the pci card anyway.
+	/* If the pci channel is offline, igyesre possible errors,
+	 * since we canyest communicate with the pci card anyway.
 	 */
 	if (pci_channel_offline(phba->pcidev)) {
 		spin_lock_irq(&phba->hbalock);
@@ -1726,7 +1726,7 @@ lpfc_handle_eratt_s3(struct lpfc_hba *phba)
 
 	} else {
 		/* The if clause above forces this code path when the status
-		 * failure is a value other than FFER6. Do not call the offline
+		 * failure is a value other than FFER6. Do yest call the offline
 		 * twice. This is the adapter hardware error path.
 		 */
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -1829,8 +1829,8 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	struct lpfc_register portsmphr_reg;
 	int rc, i;
 
-	/* If the pci channel is offline, ignore possible errors, since
-	 * we cannot communicate with the pci card anyway.
+	/* If the pci channel is offline, igyesre possible errors, since
+	 * we canyest communicate with the pci card anyway.
 	 */
 	if (pci_channel_offline(phba->pcidev)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -1899,7 +1899,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			}
 		}
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"7624 Firmware not ready: Failing UE recovery,"
+				"7624 Firmware yest ready: Failing UE recovery,"
 				" waited %dSec", i);
 		phba->link_state = LPFC_HBA_ERROR;
 		break;
@@ -1973,7 +1973,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			else
 				break;
 		}
-		/* fall through for not able to recover */
+		/* fall through for yest able to recover */
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3152 Unrecoverable error\n");
 		phba->link_state = LPFC_HBA_ERROR;
@@ -2093,7 +2093,7 @@ lpfc_handle_latt_err_exit:
 	phba->link_state = LPFC_HBA_ERROR;
 
 	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
-		     "0300 LATT: Cannot issue READ_LA: Data:%d\n", rc);
+		     "0300 LATT: Canyest issue READ_LA: Data:%d\n", rc);
 
 	return;
 }
@@ -2276,12 +2276,12 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 	uint16_t dev_id = phba->pcidev->device;
 	int max_speed;
 	int GE = 0;
-	int oneConnect = 0; /* default is not a oneConnect */
+	int oneConnect = 0; /* default is yest a oneConnect */
 	struct {
 		char *name;
 		char *bus;
 		char *function;
-	} m = {"<Unknown>", "", ""};
+	} m = {"<Unkyeswn>", "", ""};
 
 	if (mdp && mdp[0] != '\0'
 		&& descp && descp[0] != '\0')
@@ -2497,7 +2497,7 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		m = (typeof(m)){"OCe14000", "PCIe", "FCoE"};
 		break;
 	default:
-		m = (typeof(m)){"Unknown", "", ""};
+		m = (typeof(m)){"Unkyeswn", "", ""};
 		break;
 	}
 
@@ -2605,7 +2605,7 @@ lpfc_post_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring, int cnt)
 		icmd->ulpCommand = CMD_QUE_RING_BUF64_CN;
 		icmd->ulpLe = 1;
 
-		if (lpfc_sli_issue_iocb(phba, pring->ringno, iocb, 0) ==
+		if (lpfc_sli_issue_iocb(phba, pring->ringyes, iocb, 0) ==
 		    IOCB_ERROR) {
 			lpfc_mbuf_free(phba, mp1->virt, mp1->phys);
 			kfree(mp1);
@@ -2645,7 +2645,7 @@ lpfc_post_rcv_buf(struct lpfc_hba *phba)
 
 	/* Ring 0, ELS / CT buffers */
 	lpfc_post_buffer(phba, &psli->sli3_ring[LPFC_ELS_RING], LPFC_BUF_RING0);
-	/* Ring 2 - FCP no buffers needed */
+	/* Ring 2 - FCP yes buffers needed */
 
 	return 0;
 }
@@ -2784,15 +2784,15 @@ void
 lpfc_cleanup(struct lpfc_vport *vport)
 {
 	struct lpfc_hba   *phba = vport->phba;
-	struct lpfc_nodelist *ndlp, *next_ndlp;
+	struct lpfc_yesdelist *ndlp, *next_ndlp;
 	int i = 0;
 
 	if (phba->link_state > LPFC_LINK_DOWN)
 		lpfc_port_link_failure(vport);
 
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_yesdes, nlp_listp) {
 		if (!NLP_CHK_NODE_ACT(ndlp)) {
-			ndlp = lpfc_enable_node(vport, ndlp,
+			ndlp = lpfc_enable_yesde(vport, ndlp,
 						NLP_STE_UNUSED_NODE);
 			if (!ndlp)
 				continue;
@@ -2805,7 +2805,7 @@ lpfc_cleanup(struct lpfc_vport *vport)
 		}
 		spin_lock_irq(&phba->ndlp_lock);
 		if (NLP_CHK_FREE_REQ(ndlp)) {
-			/* The ndlp should not be in memory free mode already */
+			/* The ndlp should yest be in memory free mode already */
 			spin_unlock_irq(&phba->ndlp_lock);
 			continue;
 		} else
@@ -2820,7 +2820,7 @@ lpfc_cleanup(struct lpfc_vport *vport)
 			continue;
 		}
 
-		/* take care of nodes in unused state before the state
+		/* take care of yesdes in unused state before the state
 		 * machine taking action.
 		 */
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
@@ -2840,12 +2840,12 @@ lpfc_cleanup(struct lpfc_vport *vport)
 	 * because of the previous NLP_EVT_DEVICE_RM.
 	 * Lets wait for this to happen, if needed.
 	 */
-	while (!list_empty(&vport->fc_nodes)) {
+	while (!list_empty(&vport->fc_yesdes)) {
 		if (i++ > 3000) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
-				"0233 Nodelist not empty\n");
+				"0233 Nodelist yest empty\n");
 			list_for_each_entry_safe(ndlp, next_ndlp,
-						&vport->fc_nodes, nlp_listp) {
+						&vport->fc_yesdes, nlp_listp) {
 				lpfc_printf_vlog(ndlp->vport, KERN_ERR,
 						LOG_NODE,
 						"0282 did:x%x ndlp:x%px "
@@ -3011,17 +3011,17 @@ lpfc_block_mgmt_io(struct lpfc_hba *phba, int mbx_action)
 }
 
 /**
- * lpfc_sli4_node_prep - Assign RPIs for active nodes.
+ * lpfc_sli4_yesde_prep - Assign RPIs for active yesdes.
  * @phba: pointer to lpfc hba data structure.
  *
- * Allocate RPIs for all active remote nodes. This is needed whenever
- * an SLI4 adapter is reset and the driver is not unloading. Its purpose
+ * Allocate RPIs for all active remote yesdes. This is needed whenever
+ * an SLI4 adapter is reset and the driver is yest unloading. Its purpose
  * is to fixup the temporary rpi assignments.
  **/
 void
-lpfc_sli4_node_prep(struct lpfc_hba *phba)
+lpfc_sli4_yesde_prep(struct lpfc_hba *phba)
 {
-	struct lpfc_nodelist  *ndlp, *next_ndlp;
+	struct lpfc_yesdelist  *ndlp, *next_ndlp;
 	struct lpfc_vport **vports;
 	int i, rpi;
 	unsigned long flags;
@@ -3038,7 +3038,7 @@ lpfc_sli4_node_prep(struct lpfc_hba *phba)
 			continue;
 
 		list_for_each_entry_safe(ndlp, next_ndlp,
-					 &vports[i]->fc_nodes,
+					 &vports[i]->fc_yesdes,
 					 nlp_listp) {
 			if (!NLP_CHK_NODE_ACT(ndlp))
 				continue;
@@ -3392,11 +3392,11 @@ lpfc_online(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_unblock_mgmt_io - Mark a HBA's management interface to be not blocked
+ * lpfc_unblock_mgmt_io - Mark a HBA's management interface to be yest blocked
  * @phba: pointer to lpfc hba data structure.
  *
- * This routine marks a HBA's management interface as not blocked. Once the
- * HBA's management interface is marked as not blocked, all the user space
+ * This routine marks a HBA's management interface as yest blocked. Once the
+ * HBA's management interface is marked as yest blocked, all the user space
  * access to the HBA, whether they are from sysfs interface or libdfc
  * interface will be allowed. The HBA is set to block the management interface
  * when the driver prepares the HBA interface for online or offline and then
@@ -3417,14 +3417,14 @@ lpfc_unblock_mgmt_io(struct lpfc_hba * phba)
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to prepare a HBA to be brought offline. It performs
- * unregistration login to all the nodes on all vports and flushes the mailbox
+ * unregistration login to all the yesdes on all vports and flushes the mailbox
  * queue to make it ready to be brought offline.
  **/
 void
 lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 {
 	struct lpfc_vport *vport = phba->pport;
-	struct lpfc_nodelist  *ndlp, *next_ndlp;
+	struct lpfc_yesdelist  *ndlp, *next_ndlp;
 	struct lpfc_vport **vports;
 	struct Scsi_Host *shost;
 	int i;
@@ -3436,7 +3436,7 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 
 	lpfc_linkdown(phba);
 
-	/* Issue an unreg_login to all nodes on all vports */
+	/* Issue an unreg_login to all yesdes on all vports */
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL) {
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
@@ -3451,12 +3451,12 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 
 			shost =	lpfc_shost_from_vport(vports[i]);
 			list_for_each_entry_safe(ndlp, next_ndlp,
-						 &vports[i]->fc_nodes,
+						 &vports[i]->fc_yesdes,
 						 nlp_listp) {
 				if ((!NLP_CHK_NODE_ACT(ndlp)) ||
 				    ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
 					/* Driver must assume RPI is invalid for
-					 * any unused or inactive node.
+					 * any unused or inactive yesde.
 					 */
 					ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
 					continue;
@@ -3535,7 +3535,7 @@ lpfc_offline(struct lpfc_hba *phba)
 	lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 			"0460 Bring Adapter offline\n");
 	/* Bring down the SLI Layer and cleanup.  The HBA is offline
-	   now.  */
+	   yesw.  */
 	lpfc_sli_hba_down(phba);
 	spin_lock_irq(&phba->hbalock);
 	phba->work_ha = 0;
@@ -3662,7 +3662,7 @@ lpfc_io_free(struct lpfc_hba *phba)
  * current els and allocated scsi sgl lists are 0s.
  *
  * Return codes
- *   0 - successful (for now, it always returns 0)
+ *   0 - successful (for yesw, it always returns 0)
  **/
 int
 lpfc_sli4_els_sgl_update(struct lpfc_hba *phba)
@@ -3781,7 +3781,7 @@ out_free_mem:
  * current els and allocated scsi sgl lists are 0s.
  *
  * Return codes
- *   0 - successful (for now, it always returns 0)
+ *   0 - successful (for yesw, it always returns 0)
  **/
 int
 lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba)
@@ -3972,7 +3972,7 @@ lpfc_io_buf_replenish(struct lpfc_hba *phba, struct list_head *cbuf)
 				return cnt;
 			cnt++;
 			qp = &phba->sli4_hba.hdwq[idx];
-			lpfc_cmd->hdwq_no = idx;
+			lpfc_cmd->hdwq_yes = idx;
 			lpfc_cmd->hdwq = qp;
 			lpfc_cmd->cur_iocbq.wqe_cmpl = NULL;
 			lpfc_cmd->cur_iocbq.iocb_cmpl = NULL;
@@ -3997,7 +3997,7 @@ lpfc_io_buf_replenish(struct lpfc_hba *phba, struct list_head *cbuf)
  * current els and allocated scsi sgl lists are 0s.
  *
  * Return codes
- *   0 - successful (for now, it always returns 0)
+ *   0 - successful (for yesw, it always returns 0)
  **/
 int
 lpfc_sli4_io_sgl_update(struct lpfc_hba *phba)
@@ -4243,10 +4243,10 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	int error = 0;
 	int i;
 	uint64_t wwn;
-	bool use_no_reset_hba = false;
+	bool use_yes_reset_hba = false;
 	int rc;
 
-	if (lpfc_no_hba_reset_cnt) {
+	if (lpfc_yes_hba_reset_cnt) {
 		if (phba->sli_rev < LPFC_SLI_REV4 &&
 		    dev == &phba->pcidev->dev) {
 			/* Reset the port first */
@@ -4258,12 +4258,12 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 		wwn = lpfc_get_wwpn(phba);
 	}
 
-	for (i = 0; i < lpfc_no_hba_reset_cnt; i++) {
-		if (wwn == lpfc_no_hba_reset[i]) {
+	for (i = 0; i < lpfc_yes_hba_reset_cnt; i++) {
+		if (wwn == lpfc_yes_hba_reset[i]) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"6020 Setting use_no_reset port=%llx\n",
+					"6020 Setting use_yes_reset port=%llx\n",
 					wwn);
-			use_no_reset_hba = true;
+			use_yes_reset_hba = true;
 			break;
 		}
 	}
@@ -4273,11 +4273,11 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 			shost = scsi_host_alloc(&lpfc_vport_template,
 						sizeof(struct lpfc_vport));
 		} else {
-			if (!use_no_reset_hba)
+			if (!use_yes_reset_hba)
 				shost = scsi_host_alloc(&lpfc_template,
 						sizeof(struct lpfc_vport));
 			else
-				shost = scsi_host_alloc(&lpfc_template_no_hr,
+				shost = scsi_host_alloc(&lpfc_template_yes_hr,
 						sizeof(struct lpfc_vport));
 		}
 	} else if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
@@ -4308,7 +4308,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 		    phba->cfg_fcp_mq_threshold > phba->cfg_hdw_queue)
 			phba->cfg_fcp_mq_threshold = phba->cfg_hdw_queue;
 
-		shost->nr_hw_queues = min_t(int, 2 * num_possible_nodes(),
+		shost->nr_hw_queues = min_t(int, 2 * num_possible_yesdes(),
 					    phba->cfg_fcp_mq_threshold);
 
 		shost->dma_boundary =
@@ -4325,7 +4325,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 		shost->nr_hw_queues = 1;
 
 	/*
-	 * Set initial can_queue value since 0 is no longer supported and
+	 * Set initial can_queue value since 0 is yes longer supported and
 	 * scsi_add_host will fail. This will be adjusted later based on the
 	 * max xri value determined in hba setup.
 	 */
@@ -4339,7 +4339,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	}
 
 	/* Initialize all internally managed lists. */
-	INIT_LIST_HEAD(&vport->fc_nodes);
+	INIT_LIST_HEAD(&vport->fc_yesdes);
 	INIT_LIST_HEAD(&vport->rcv_buffer_list);
 	spin_lock_init(&vport->work_port_lock);
 
@@ -4419,11 +4419,11 @@ lpfc_get_instance(void)
  * This routine is called by the SCSI layer with a SCSI host to determine
  * whether the scan host is finished.
  *
- * Note: there is no scan_start function as adapter initialization will have
- * asynchronously kicked off the link initialization.
+ * Note: there is yes scan_start function as adapter initialization will have
+ * asynchroyesusly kicked off the link initialization.
  *
  * Return codes
- *   0 - SCSI host scan is not over yet.
+ *   0 - SCSI host scan is yest over yet.
  *   1 - SCSI host scan is over.
  **/
 int lpfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
@@ -4456,7 +4456,7 @@ int lpfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 
 	if (vport->port_state != LPFC_VPORT_READY)
 		goto finished;
-	if (vport->num_disc_nodes || vport->fc_prli_sent)
+	if (vport->num_disc_yesdes || vport->fc_prli_sent)
 		goto finished;
 	if (vport->fc_map_cnt == 0 && time < msecs_to_jiffies(2 * 1000))
 		goto finished;
@@ -4511,7 +4511,7 @@ void lpfc_host_attrib_init(struct Scsi_Host *shost)
 	 * Set fixed host attributes.  Must done after lpfc_sli_hba_setup().
 	 */
 
-	fc_host_node_name(shost) = wwn_to_u64(vport->fc_nodename.u.wwn);
+	fc_host_yesde_name(shost) = wwn_to_u64(vport->fc_yesdename.u.wwn);
 	fc_host_port_name(shost) = wwn_to_u64(vport->fc_portname.u.wwn);
 	fc_host_supported_classes(shost) = FC_COS_CLASS3;
 
@@ -4520,7 +4520,7 @@ void lpfc_host_attrib_init(struct Scsi_Host *shost)
 	fc_host_supported_fc4s(shost)[2] = 1;
 	fc_host_supported_fc4s(shost)[7] = 1;
 
-	lpfc_vport_symbolic_node_name(vport, fc_host_symbolic_name(shost),
+	lpfc_vport_symbolic_yesde_name(vport, fc_host_symbolic_name(shost),
 				 sizeof fc_host_symbolic_name(shost));
 
 	lpfc_host_supported_speeds_set(shost);
@@ -4614,7 +4614,7 @@ lpfc_fcf_redisc_wait_start_timer(struct lpfc_hba *phba)
 	/* Start fcf rediscovery wait period timer */
 	mod_timer(&phba->fcf.redisc_wait, fcf_redisc_wait_tmo);
 	spin_lock_irq(&phba->hbalock);
-	/* Allow action to new fcf asynchronous event */
+	/* Allow action to new fcf asynchroyesus event */
 	phba->fcf.fcf_flag &= ~(FCF_AVAILABLE | FCF_SCAN_DONE);
 	/* Mark the FCF rediscovery pending state */
 	phba->fcf.fcf_flag |= FCF_REDISC_PEND;
@@ -4672,7 +4672,7 @@ lpfc_sli4_parse_latt_fault(struct lpfc_hba *phba,
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0398 Unknown link fault code: x%x\n",
+				"0398 Unkyeswn link fault code: x%x\n",
 				bf_get(lpfc_acqe_link_fault, acqe_link));
 		break;
 	}
@@ -4700,7 +4700,7 @@ lpfc_sli4_parse_latt_type(struct lpfc_hba *phba,
 		att_type = LPFC_ATT_LINK_DOWN;
 		break;
 	case LPFC_ASYNC_LINK_STATUS_UP:
-		/* Ignore physical link up events - wait for logical link up */
+		/* Igyesre physical link up events - wait for logical link up */
 		att_type = LPFC_ATT_RESERVED;
 		break;
 	case LPFC_ASYNC_LINK_STATUS_LOGICAL_UP:
@@ -4768,8 +4768,8 @@ lpfc_sli_port_speed_get(struct lpfc_hba *phba)
 /**
  * lpfc_sli4_port_speed_parse - Parse async evt link speed code to link speed
  * @phba: pointer to lpfc hba data structure.
- * @evt_code: asynchronous event code.
- * @speed_code: asynchronous event link speed code.
+ * @evt_code: asynchroyesus event code.
+ * @speed_code: asynchroyesus event link speed code.
  *
  * This routine is to parse the giving SLI4 async event link speed code into
  * value of Mbps for the link speed.
@@ -4856,11 +4856,11 @@ lpfc_sli4_port_speed_parse(struct lpfc_hba *phba, uint32_t evt_code,
 }
 
 /**
- * lpfc_sli4_async_link_evt - Process the asynchronous FCoE link event
+ * lpfc_sli4_async_link_evt - Process the asynchroyesus FCoE link event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async link completion queue entry.
  *
- * This routine is to handle the SLI4 asynchronous FCoE link event.
+ * This routine is to handle the SLI4 asynchroyesus FCoE link event.
  **/
 static void
 lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
@@ -4940,7 +4940,7 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 			phba->sli4_hba.link_state.fault);
 	/*
 	 * For FC Mode: issue the READ_TOPOLOGY mailbox command to fetch
-	 * topology info. Note: Optional for non FC-AL ports.
+	 * topology info. Note: Optional for yesn FC-AL ports.
 	 */
 	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
@@ -4990,8 +4990,8 @@ out_free_pmb:
  * lpfc_async_link_speed_to_read_top - Parse async evt link speed code to read
  * topology.
  * @phba: pointer to lpfc hba data structure.
- * @evt_code: asynchronous event code.
- * @speed_code: asynchronous event link speed code.
+ * @evt_code: asynchroyesus event code.
+ * @speed_code: asynchroyesus event link speed code.
  *
  * This routine is to parse the giving SLI4 async event link speed code into
  * value of Read topology link speed.
@@ -5106,7 +5106,7 @@ lpfc_update_trunk_link_status(struct lpfc_hba *phba,
 				"3202 trunk error:0x%x (%s) seen on port0:%s "
 				/*
 				 * SLI-4: We have only 0xA error codes
-				 * defined as of now. print an appropriate
+				 * defined as of yesw. print an appropriate
 				 * message in case driver needs to be updated.
 				 */
 				"port1:%s port2:%s port3:%s\n", err, err > 0xA ?
@@ -5117,11 +5117,11 @@ lpfc_update_trunk_link_status(struct lpfc_hba *phba,
 
 
 /**
- * lpfc_sli4_async_fc_evt - Process the asynchronous FC link event
+ * lpfc_sli4_async_fc_evt - Process the asynchroyesus FC link event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_fc: pointer to the async fc completion queue entry.
  *
- * This routine is to handle the SLI4 asynchronous FC event. It will simply log
+ * This routine is to handle the SLI4 asynchroyesus FC event. It will simply log
  * that the event was received and then issue a read_topology mailbox command so
  * that the rest of the driver will treat it the same as SLI3.
  **/
@@ -5266,11 +5266,11 @@ out_free_pmb:
 }
 
 /**
- * lpfc_sli4_async_sli_evt - Process the asynchronous SLI link event
+ * lpfc_sli4_async_sli_evt - Process the asynchroyesus SLI link event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_fc: pointer to the async SLI completion queue entry.
  *
- * This routine is to handle the SLI4 asynchronous SLI events.
+ * This routine is to handle the SLI4 asynchroyesus SLI events.
  **/
 static void
 lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
@@ -5337,7 +5337,7 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 					&acqe_sli->event_data1;
 
 		/* fetch the status for this port */
-		switch (phba->sli4_hba.lnk_info.lnk_no) {
+		switch (phba->sli4_hba.lnk_info.lnk_yes) {
 		case LPFC_LINK_NUMBER_0:
 			status = bf_get(lpfc_sli_misconfigured_port0_state,
 					&misconfigured->theEvent);
@@ -5367,7 +5367,7 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 					"3296 "
 					"LPFC_SLI_EVENT_TYPE_MISCONFIGURED "
 					"event: Invalid link %d",
-					phba->sli4_hba.lnk_info.lnk_no);
+					phba->sli4_hba.lnk_info.lnk_yes);
 			return;
 		}
 
@@ -5381,8 +5381,8 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 			break;
 		case LPFC_SLI_EVENT_STATUS_NOT_PRESENT:
 			sprintf(message, "Optics faulted/incorrectly "
-				"installed/not installed - Reseat optics, "
-				"if issue not resolved, replace.");
+				"installed/yest installed - Reseat optics, "
+				"if issue yest resolved, replace.");
 			break;
 		case LPFC_SLI_EVENT_STATUS_WRONG_TYPE:
 			sprintf(message,
@@ -5397,17 +5397,17 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 			sprintf(message, "Unqualified optics - Replace with "
 				"Avago optics for Warranty and Technical "
 				"Support - Link is%s operational",
-				(operational) ? " not" : "");
+				(operational) ? " yest" : "");
 			break;
 		case LPFC_SLI_EVENT_STATUS_UNCERTIFIED:
 			sprintf(message, "Uncertified optics - Replace with "
 				"Avago-certified optics to enable link "
 				"operation - Link is%s operational",
-				(operational) ? " not" : "");
+				(operational) ? " yest" : "");
 			break;
 		default:
-			/* firmware is reporting a status we don't know about */
-			sprintf(message, "Unknown event status x%02x", status);
+			/* firmware is reporting a status we don't kyesw about */
+			sprintf(message, "Unkyeswn event status x%02x", status);
 			break;
 		}
 
@@ -5447,7 +5447,7 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 		 */
 		lpfc_log_msg(phba, KERN_WARNING, LOG_SLI,
 			     "2699 Misconfigured FA-WWN - Attached device does "
-			     "not support FA-WWN\n");
+			     "yest support FA-WWN\n");
 		break;
 	case LPFC_SLI_EVENT_TYPE_EEPROM_FAILURE:
 		/* EEPROM failure. No driver action is required */
@@ -5474,10 +5474,10 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
  * Return the pointer to the ndlp with the vport if successful, otherwise
  * return NULL.
  **/
-static struct lpfc_nodelist *
+static struct lpfc_yesdelist *
 lpfc_sli4_perform_vport_cvl(struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	struct Scsi_Host *shost;
 	struct lpfc_hba *phba;
 
@@ -5486,26 +5486,26 @@ lpfc_sli4_perform_vport_cvl(struct lpfc_vport *vport)
 	phba = vport->phba;
 	if (!phba)
 		return NULL;
-	ndlp = lpfc_findnode_did(vport, Fabric_DID);
+	ndlp = lpfc_findyesde_did(vport, Fabric_DID);
 	if (!ndlp) {
-		/* Cannot find existing Fabric ndlp, so allocate a new one */
+		/* Canyest find existing Fabric ndlp, so allocate a new one */
 		ndlp = lpfc_nlp_init(vport, Fabric_DID);
 		if (!ndlp)
 			return 0;
-		/* Set the node type */
+		/* Set the yesde type */
 		ndlp->nlp_type |= NLP_FABRIC;
-		/* Put ndlp onto node list */
-		lpfc_enqueue_node(vport, ndlp);
+		/* Put ndlp onto yesde list */
+		lpfc_enqueue_yesde(vport, ndlp);
 	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
-		/* re-setup ndlp without removing from node list */
-		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_UNUSED_NODE);
+		/* re-setup ndlp without removing from yesde list */
+		ndlp = lpfc_enable_yesde(vport, ndlp, NLP_STE_UNUSED_NODE);
 		if (!ndlp)
 			return 0;
 	}
 	if ((phba->pport->port_state < LPFC_FLOGI) &&
 		(phba->pport->port_state != LPFC_VPORT_FAILED))
 		return NULL;
-	/* If virtual link is not yet instantiated ignore CVL */
+	/* If virtual link is yest yet instantiated igyesre CVL */
 	if ((vport != phba->pport) && (vport->port_state < LPFC_FDISC)
 		&& (vport->port_state != LPFC_VPORT_FAILED))
 		return NULL;
@@ -5542,11 +5542,11 @@ lpfc_sli4_perform_all_vport_cvl(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_sli4_async_fip_evt - Process the asynchronous FCoE FIP event
+ * lpfc_sli4_async_fip_evt - Process the asynchroyesus FCoE FIP event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async fcoe completion queue entry.
  *
- * This routine is to handle the SLI4 asynchronous fcoe event.
+ * This routine is to handle the SLI4 asynchroyesus fcoe event.
  **/
 static void
 lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
@@ -5555,7 +5555,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 	uint8_t event_type = bf_get(lpfc_trailer_type, acqe_fip);
 	int rc;
 	struct lpfc_vport *vport;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	struct Scsi_Host  *shost;
 	int active_vlink_present;
 	struct lpfc_vport **vports;
@@ -5594,19 +5594,19 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			rc = lpfc_sli4_read_fcf_rec(phba, acqe_fip->index);
 		}
 
-		/* If the FCF discovery is in progress, do nothing. */
+		/* If the FCF discovery is in progress, do yesthing. */
 		spin_lock_irq(&phba->hbalock);
 		if (phba->hba_flag & FCF_TS_INPROG) {
 			spin_unlock_irq(&phba->hbalock);
 			break;
 		}
-		/* If fast FCF failover rescan event is pending, do nothing */
+		/* If fast FCF failover rescan event is pending, do yesthing */
 		if (phba->fcf.fcf_flag & (FCF_REDISC_EVT | FCF_REDISC_PEND)) {
 			spin_unlock_irq(&phba->hbalock);
 			break;
 		}
 
-		/* If the FCF has been in discovered state, do nothing. */
+		/* If the FCF has been in discovered state, do yesthing. */
 		if (phba->fcf.fcf_flag & FCF_SCAN_DONE) {
 			spin_unlock_irq(&phba->hbalock);
 			break;
@@ -5652,14 +5652,14 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		}
 		spin_unlock_irq(&phba->hbalock);
 
-		/* If the event is not for currently used fcf do nothing */
+		/* If the event is yest for currently used fcf do yesthing */
 		if (phba->fcf.current_rec.fcf_indx != acqe_fip->index)
 			break;
 
 		/*
 		 * Otherwise, request the port to rediscover the entire FCF
 		 * table for a fast recovery from case that the current FCF
-		 * is no longer valid as we are not in the middle of FCF
+		 * is yes longer valid as we are yest in the middle of FCF
 		 * failover process already.
 		 */
 		spin_lock_irq(&phba->hbalock);
@@ -5747,7 +5747,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			 * Otherwise, we request port to rediscover
 			 * the entire FCF table for a fast recovery
 			 * from possible case that the current FCF
-			 * is no longer valid if we are not already
+			 * is yes longer valid if we are yest already
 			 * in the FCF failover process.
 			 */
 			spin_lock_irq(&phba->hbalock);
@@ -5787,18 +5787,18 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"0288 Unknown FCoE event type 0x%x event tag "
+			"0288 Unkyeswn FCoE event type 0x%x event tag "
 			"0x%x\n", event_type, acqe_fip->event_tag);
 		break;
 	}
 }
 
 /**
- * lpfc_sli4_async_dcbx_evt - Process the asynchronous dcbx event
+ * lpfc_sli4_async_dcbx_evt - Process the asynchroyesus dcbx event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async dcbx completion queue entry.
  *
- * This routine is to handle the SLI4 asynchronous dcbx event.
+ * This routine is to handle the SLI4 asynchroyesus dcbx event.
  **/
 static void
 lpfc_sli4_async_dcbx_evt(struct lpfc_hba *phba,
@@ -5806,17 +5806,17 @@ lpfc_sli4_async_dcbx_evt(struct lpfc_hba *phba,
 {
 	phba->fc_eventTag = acqe_dcbx->event_tag;
 	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"0290 The SLI4 DCBX asynchronous event is not "
+			"0290 The SLI4 DCBX asynchroyesus event is yest "
 			"handled yet\n");
 }
 
 /**
- * lpfc_sli4_async_grp5_evt - Process the asynchronous group5 event
+ * lpfc_sli4_async_grp5_evt - Process the asynchroyesus group5 event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async grp5 completion queue entry.
  *
- * This routine is to handle the SLI4 asynchronous grp5 event. A grp5 event
- * is an asynchronous notified of a logical link speed change.  The Port
+ * This routine is to handle the SLI4 asynchroyesus grp5 event. A grp5 event
+ * is an asynchroyesus yestified of a logical link speed change.  The Port
  * reports the logical link speed in units of 10Mbps.
  **/
 static void
@@ -5837,11 +5837,11 @@ lpfc_sli4_async_grp5_evt(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_sli4_async_event_proc - Process all the pending asynchronous event
+ * lpfc_sli4_async_event_proc - Process all the pending asynchroyesus event
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked by the worker thread to process all the pending
- * SLI4 asynchronous events.
+ * SLI4 asynchroyesus events.
  **/
 void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 {
@@ -5858,7 +5858,7 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 		list_remove_head(&phba->sli4_hba.sp_asynce_work_queue,
 				 cq_event, struct lpfc_cq_event, list);
 		spin_unlock_irq(&phba->hbalock);
-		/* Process the asynchronous event */
+		/* Process the asynchroyesus event */
 		switch (bf_get(lpfc_trailer_code, &cq_event->cqe.mcqe_cmpl)) {
 		case LPFC_TRAILER_CODE_LINK:
 			lpfc_sli4_async_link_evt(phba,
@@ -5883,7 +5883,7 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 			break;
 		default:
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"1804 Invalid asynchronous event code: "
+					"1804 Invalid asynchroyesus event code: "
 					"x%x\n", bf_get(lpfc_trailer_code,
 					&cq_event->cqe.mcqe_cmpl));
 			break;
@@ -5997,25 +5997,25 @@ static void lpfc_log_intr_mode(struct lpfc_hba *phba, uint32_t intr_mode)
 }
 
 /**
- * lpfc_cpumask_of_node_init - initalizes cpumask of phba's NUMA node
+ * lpfc_cpumask_of_yesde_init - initalizes cpumask of phba's NUMA yesde
  * @phba: Pointer to HBA context object.
  *
  **/
 static void
-lpfc_cpumask_of_node_init(struct lpfc_hba *phba)
+lpfc_cpumask_of_yesde_init(struct lpfc_hba *phba)
 {
-	unsigned int cpu, numa_node;
+	unsigned int cpu, numa_yesde;
 	struct cpumask *numa_mask = &phba->sli4_hba.numa_mask;
 
 	cpumask_clear(numa_mask);
 
 	/* Check if we're a NUMA architecture */
-	numa_node = dev_to_node(&phba->pcidev->dev);
-	if (numa_node == NUMA_NO_NODE)
+	numa_yesde = dev_to_yesde(&phba->pcidev->dev);
+	if (numa_yesde == NUMA_NO_NODE)
 		return;
 
 	for_each_possible_cpu(cpu)
-		if (cpu_to_node(cpu) == numa_node)
+		if (cpu_to_yesde(cpu) == numa_yesde)
 			cpumask_set_cpu(cpu, numa_mask);
 }
 
@@ -6123,8 +6123,8 @@ lpfc_reset_hba(struct lpfc_hba *phba)
  * This function enables the PCI SR-IOV virtual functions to a physical
  * function. It invokes the PCI SR-IOV api with the @nr_vfn provided to
  * enable the number of virtual functions to the physical function. As
- * not all devices support SR-IOV, the return code from the pci_enable_sriov()
- * API call does not considered as an error condition for most of the device.
+ * yest all devices support SR-IOV, the return code from the pci_enable_sriov()
+ * API call does yest considered as an error condition for most of the device.
  **/
 uint16_t
 lpfc_sli_sriov_nr_virtfn_get(struct lpfc_hba *phba)
@@ -6149,8 +6149,8 @@ lpfc_sli_sriov_nr_virtfn_get(struct lpfc_hba *phba)
  * This function enables the PCI SR-IOV virtual functions to a physical
  * function. It invokes the PCI SR-IOV api with the @nr_vfn provided to
  * enable the number of virtual functions to the physical function. As
- * not all devices support SR-IOV, the return code from the pci_enable_sriov()
- * API call does not considered as an error condition for most of the device.
+ * yest all devices support SR-IOV, the return code from the pci_enable_sriov()
+ * API call does yest considered as an error condition for most of the device.
  **/
 int
 lpfc_sli_probe_sriov_nr_virtfn(struct lpfc_hba *phba, int nr_vfn)
@@ -6312,7 +6312,7 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 
 	/* Initialize the host templates the configured values. */
 	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template_no_hr.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_template_yes_hr.sg_tablesize = phba->cfg_sg_seg_cnt;
 	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
 
 	if (phba->sli_rev == LPFC_SLI_REV4)
@@ -6324,10 +6324,10 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	if (phba->cfg_enable_bg) {
 		/*
 		 * The scsi_buf for a T10-DIF I/O will hold the FCP cmnd,
-		 * the FCP rsp, and a BDE for each. Sice we have no control
+		 * the FCP rsp, and a BDE for each. Sice we have yes control
 		 * over how many protection data segments the SCSI Layer
 		 * will hand us (ie: there could be one for every block
-		 * in the IO), we just allocate enough BDEs to accomidate
+		 * in the IO), we just allocate eyesugh BDEs to accomidate
 		 * our max amount and we need to limit lpfc_sg_seg_cnt to
 		 * minimize the risk of running out.
 		 */
@@ -6401,7 +6401,7 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 		if (rc) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 					"2808 Requested number of SR-IOV "
-					"virtual functions (%d) is not "
+					"virtual functions (%d) is yest "
 					"supported\n",
 					phba->cfg_sriov_nr_virtfn);
 			phba->cfg_sriov_nr_virtfn = 0;
@@ -6462,7 +6462,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	phba->sli4_hba.num_present_cpu = lpfc_present_cpu;
 	phba->sli4_hba.num_possible_cpu = cpumask_last(cpu_possible_mask) + 1;
 	phba->sli4_hba.curr_disp_cpu = 0;
-	lpfc_cpumask_of_node_init(phba);
+	lpfc_cpumask_of_yesde_init(phba);
 
 	/* Get all the module params for configuring this host */
 	lpfc_get_cfgparam(phba);
@@ -6549,7 +6549,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_cqe_event_pool);
 	/* Response IOCB work queue list */
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_queue_event);
-	/* Asynchronous event CQ Event work queue list */
+	/* Asynchroyesus event CQ Event work queue list */
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_asynce_work_queue);
 	/* Fast-path XRI aborted CQ Event work queue list */
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_fcp_xri_aborted_work_queue);
@@ -6578,7 +6578,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	if (rc)
 		return -ENOMEM;
 
-	/* IF Type 2 ports get initialized now. */
+	/* IF Type 2 ports get initialized yesw. */
 	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
 	    LPFC_SLI_INTF_IF_TYPE_2) {
 		rc = lpfc_pci_function_reset(phba);
@@ -6607,7 +6607,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	if (unlikely(rc))
 		goto out_free_bsmbx;
 
-	/* IF Type 0 ports get initialized now. */
+	/* IF Type 0 ports get initialized yesw. */
 	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
 	    LPFC_SLI_INTF_IF_TYPE_0) {
 		rc = lpfc_pci_function_reset(phba);
@@ -6640,7 +6640,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 			goto out_free_bsmbx;
 		}
 		mb = &mboxq->u.mb;
-		memcpy(&wwn, (char *)mb->un.varRDnvp.nodename,
+		memcpy(&wwn, (char *)mb->un.varRDnvp.yesdename,
 		       sizeof(uint64_t));
 		wwn = cpu_to_be64(wwn);
 		phba->sli4_hba.wwnn.u.name = wwn;
@@ -6666,7 +6666,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"6021 Can't enable NVME Target."
 						" NVME_TARGET_FC infrastructure"
-						" is not in kernel\n");
+						" is yest in kernel\n");
 #endif
 				/* Not supported for NVMET */
 				phba->cfg_xri_rebalancing = 0;
@@ -6758,10 +6758,10 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 		/*
 		 * The scsi_buf for a T10-DIF I/O holds the FCP cmnd,
-		 * the FCP rsp, and a SGE. Sice we have no control
+		 * the FCP rsp, and a SGE. Sice we have yes control
 		 * over how many protection segments the SCSI Layer
 		 * will hand us (ie: there could be one for every block
-		 * in the IO), just allocate enough SGEs to accomidate
+		 * in the IO), just allocate eyesugh SGEs to accomidate
 		 * our max amount and we need to limit lpfc_sg_seg_cnt
 		 * to minimize the risk of running out.
 		 */
@@ -6828,7 +6828,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	/* Initialize the host templates with the updated values. */
 	lpfc_vport_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
 	lpfc_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
-	lpfc_template_no_hr.sg_tablesize = phba->cfg_scsi_seg_cnt;
+	lpfc_template_yes_hr.sg_tablesize = phba->cfg_scsi_seg_cnt;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
 			"9087 sg_seg_cnt:%d dmabuf_size:%d "
@@ -6945,7 +6945,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		if (rc) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 					"3020 Requested number of SR-IOV "
-					"virtual functions (%d) is not "
+					"virtual functions (%d) is yest "
 					"supported\n",
 					phba->cfg_sriov_nr_virtfn);
 			phba->cfg_sriov_nr_virtfn = 0;
@@ -7093,7 +7093,7 @@ lpfc_setup_driver_resource_phase2(struct lpfc_hba *phba)
 
 	/* Startup the kernel thread for this host adapter. */
 	phba->worker_thread = kthread_run(lpfc_do_work, phba,
-					  "lpfc_worker_%d", phba->brd_no);
+					  "lpfc_worker_%d", phba->brd_yes);
 	if (IS_ERR(phba->worker_thread)) {
 		error = PTR_ERR(phba->worker_thread);
 		return error;
@@ -7267,7 +7267,7 @@ lpfc_free_nvmet_sgl_list(struct lpfc_hba *phba)
 		kfree(sglq_entry);
 	}
 
-	/* Update the nvmet_xri_cnt to reflect no current sgls.
+	/* Update the nvmet_xri_cnt to reflect yes current sgls.
 	 * The next initialization cycle sets the count and allocates
 	 * the sgls over again.
 	 */
@@ -7301,7 +7301,7 @@ lpfc_init_active_sgl_array(struct lpfc_hba *phba)
  *
  * This routine is invoked to walk through the array of active sglq entries
  * and free all of the resources.
- * This is just a place holder for now.
+ * This is just a place holder for yesw.
  **/
 static void
 lpfc_free_active_sgl(struct lpfc_hba *phba)
@@ -7338,7 +7338,7 @@ lpfc_init_sgl_list(struct lpfc_hba *phba)
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to post rpi header templates to the
- * port for those SLI4 ports that do not support extents.  This routine
+ * port for those SLI4 ports that do yest support extents.  This routine
  * posts a PAGE_SIZE memory region to the port to hold up to
  * PAGE_SIZE modulo 64 rpi context headers.  This is an initialization routine
  * and should be called only when interrupts are disabled.
@@ -7406,7 +7406,7 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	/*
 	 * Establish the starting RPI in this header block.  The starting
-	 * rpi is normalized to a zero base because the physical rpi is
+	 * rpi is yesrmalized to a zero base because the physical rpi is
 	 * port based.
 	 */
 	curr_rpi_range = phba->sli4_hba.next_rpi;
@@ -7468,7 +7468,7 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to remove all memory resources allocated
- * to support rpis for SLI4 ports not supporting extents. This routine
+ * to support rpis for SLI4 ports yest supporting extents. This routine
  * presumes the caller has released all rpis consumed by fabric or port
  * logins and is prepared to have the header pages removed.
  **/
@@ -7489,7 +7489,7 @@ lpfc_sli4_remove_rpi_hdrs(struct lpfc_hba *phba)
 		kfree(rpi_hdr);
 	}
  exit:
-	/* There are no rpis available to the port now. */
+	/* There are yes rpis available to the port yesw. */
 	phba->sli4_hba.next_rpi = 0;
 }
 
@@ -7521,8 +7521,8 @@ lpfc_hba_alloc(struct pci_dev *pdev)
 	phba->pcidev = pdev;
 
 	/* Assign an unused board number */
-	phba->brd_no = lpfc_get_instance();
-	if (phba->brd_no < 0) {
+	phba->brd_yes = lpfc_get_instance();
+	if (phba->brd_yes < 0) {
 		kfree(phba);
 		return NULL;
 	}
@@ -7548,7 +7548,7 @@ lpfc_hba_free(struct lpfc_hba *phba)
 		kfree(phba->sli4_hba.hdwq);
 
 	/* Release the driver assigned board number */
-	idr_remove(&lpfc_hba_index, phba->brd_no);
+	idr_remove(&lpfc_hba_index, phba->brd_yes);
 
 	/* Free memory allocated with sli3 rings */
 	kfree(phba->sli.sli3_ring);
@@ -7582,7 +7582,7 @@ lpfc_create_shost(struct lpfc_hba *phba)
 	phba->fc_arbtov = FF_DEF_ARBTOV;
 
 	atomic_set(&phba->sdev_cnt, 0);
-	vport = lpfc_create_port(phba, phba->brd_no, &phba->pcidev->dev);
+	vport = lpfc_create_port(phba, phba->brd_yes, &phba->pcidev->dev);
 	if (!vport)
 		return -ENODEV;
 
@@ -7910,7 +7910,7 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 
 	/*
 	 * If there was a port error during POST, then don't proceed with
-	 * other register reads as the data may not be valid.  Just exit.
+	 * other register reads as the data may yest be valid.  Just exit.
 	 */
 	if (port_error) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -7945,7 +7945,7 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 				       &phba->sli4_hba.sli_intf));
 		/*
 		 * Check for other Port errors during the initialization
-		 * process.  Fail the load if the port did not come up
+		 * process.  Fail the load if the port did yest come up
 		 * correctly.
 		 */
 		if_type = bf_get(lpfc_sli_intf_if_type,
@@ -8188,7 +8188,7 @@ lpfc_sli4_bar2_register_memmap(struct lpfc_hba *phba, uint32_t vf)
  *
  * Return codes
  * 	0 - successful
- * 	-ENOMEM - could not allocated memory.
+ * 	-ENOMEM - could yest allocated memory.
  **/
 static int
 lpfc_create_bootstrap_mbox(struct lpfc_hba *phba)
@@ -8216,7 +8216,7 @@ lpfc_create_bootstrap_mbox(struct lpfc_hba *phba)
 	}
 
 	/*
-	 * Initialize the bootstrap mailbox pointers now so that the register
+	 * Initialize the bootstrap mailbox pointers yesw so that the register
 	 * operations are simple later.  The mailbox dma address is required
 	 * to be 16-byte aligned.  Also align the virtual memory as each
 	 * maibox is copied into the bmbx mailbox region before issuing the
@@ -8231,7 +8231,7 @@ lpfc_create_bootstrap_mbox(struct lpfc_hba *phba)
 					      LPFC_ALIGN_16_BYTE);
 
 	/*
-	 * Set the high and low physical addresses now.  The SLI4 alignment
+	 * Set the high and low physical addresses yesw.  The SLI4 alignment
 	 * requirement is 16 bytes and the mailbox is posted to the port
 	 * as two 30-bit addresses.  The other data is a bit marking whether
 	 * the 30-bit address is the high or low address.
@@ -8256,7 +8256,7 @@ lpfc_create_bootstrap_mbox(struct lpfc_hba *phba)
  *
  * This routine is invoked to teardown the bootstrap mailbox
  * region and release all host resources. This routine requires
- * the caller to ensure all mailbox commands recovered, no
+ * the caller to ensure all mailbox commands recovered, yes
  * additional mailbox comands are sent, and interrupts are disabled
  * before calling this routine.
  *
@@ -8311,7 +8311,7 @@ lpfc_map_topology(struct lpfc_hba *phba, struct lpfc_mbx_read_config *rd_config)
 			 ptv, tf, pt);
 	if (!ptv) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
-				"2019 FW does not support persistent topology "
+				"2019 FW does yest support persistent topology "
 				"Using driver parameter defined value [%s]",
 				lpfc_topo_to_str[phba->cfg_topology]);
 		return;
@@ -8413,12 +8413,12 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 			phba->sli4_hba.lnk_info.lnk_dv = LPFC_LNK_DAT_VAL;
 			phba->sli4_hba.lnk_info.lnk_tp =
 				bf_get(lpfc_mbx_rd_conf_lnk_type, rd_config);
-			phba->sli4_hba.lnk_info.lnk_no =
+			phba->sli4_hba.lnk_info.lnk_yes =
 				bf_get(lpfc_mbx_rd_conf_lnk_numb, rd_config);
 			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 					"3081 lnk_type:%d, lnk_numb:%d\n",
 					phba->sli4_hba.lnk_info.lnk_tp,
-					phba->sli4_hba.lnk_info.lnk_no);
+					phba->sli4_hba.lnk_info.lnk_yes);
 		} else
 			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
 					"3082 Mailbox (x%x) returned ldv:x0\n",
@@ -8508,11 +8508,11 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		 * Whats left after this can go toward NVME / FCP.
 		 * The minus 4 accounts for ELS, NVME LS, MBOX
 		 * plus one extra. When configured for
-		 * NVMET, FCP io channel WQs are not created.
+		 * NVMET, FCP io channel WQs are yest created.
 		 */
 		qmin -= 4;
 
-		/* Check to see if there is enough for NVME */
+		/* Check to see if there is eyesugh for NVME */
 		if ((phba->cfg_irq_chann > qmin) ||
 		    (phba->cfg_hdw_queue > qmin)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -8670,7 +8670,7 @@ read_cfg_out:
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to setup the port-side endian order when
- * the port if_type is 0.  This routine has no function for other
+ * the port if_type is 0.  This routine has yes function for other
  * if_types.
  *
  * Return codes
@@ -8701,7 +8701,7 @@ lpfc_setup_endian_order(struct lpfc_hba *phba)
 
 		/*
 		 * The SLI4_CONFIG_SPECIAL mailbox command requires the first
-		 * two words to contain special data values and no other data.
+		 * two words to contain special data values and yes other data.
 		 */
 		memset(mboxq, 0, sizeof(LPFC_MBOXQ_t));
 		memcpy(&mboxq->u.mqe, &endian_mb_data, sizeof(endian_mb_data));
@@ -8757,11 +8757,11 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 			phba->cfg_hdw_queue, phba->cfg_irq_chann,
 			phba->cfg_nvmet_mrq);
 
-	/* Get EQ depth from module parameter, fake the default for now */
+	/* Get EQ depth from module parameter, fake the default for yesw */
 	phba->sli4_hba.eq_esize = LPFC_EQE_SIZE_4B;
 	phba->sli4_hba.eq_ecount = LPFC_EQE_DEF_COUNT;
 
-	/* Get CQ depth from module parameter, fake the default for now */
+	/* Get CQ depth from module parameter, fake the default for yesw */
 	phba->sli4_hba.cq_esize = LPFC_CQE_SIZE;
 	phba->sli4_hba.cq_ecount = LPFC_CQE_DEF_COUNT;
 	return 0;
@@ -8828,7 +8828,7 @@ lpfc_alloc_io_wq_cq(struct lpfc_hba *phba, int idx)
  *
  * This routine is invoked to allocate all the SLI4 queues for the FCoE HBA
  * operation. For each SLI4 queue type, the parameters such as queue entry
- * count (queue depth) shall be taken from the module parameter. For now,
+ * count (queue depth) shall be taken from the module parameter. For yesw,
  * we just use some constant number as place holder.
  *
  * Return codes
@@ -9152,9 +9152,9 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 			phba->sli4_hba.nvmet_mrq_hdr[idx] = qdesc;
 
 			/* Only needed for header of RQ pair */
-			qdesc->rqbp = kzalloc_node(sizeof(*qdesc->rqbp),
+			qdesc->rqbp = kzalloc_yesde(sizeof(*qdesc->rqbp),
 						   GFP_KERNEL,
-						   cpu_to_node(cpu));
+						   cpu_to_yesde(cpu));
 			if (qdesc->rqbp == NULL) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"6131 Failed allocate "
@@ -9162,7 +9162,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				goto out_error;
 			}
 
-			/* Put list in known state in case driver load fails. */
+			/* Put list in kyeswn state in case driver load fails. */
 			INIT_LIST_HEAD(&qdesc->rqbp->rqb_buffer_list);
 
 			/* Create NVMET Receive Queue for data */
@@ -9275,7 +9275,7 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 {
 	/*
 	 * Set FREE_INIT before beginning to free the queues.
-	 * Wait until the users of queues to acknowledge to
+	 * Wait until the users of queues to ackyeswledge to
 	 * release queues by clearing FREE_WAIT.
 	 */
 	spin_lock_irq(&phba->hbalock);
@@ -9363,7 +9363,7 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 
 	if (!eq || !cq || !wq) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"6085 Fast-path %s (%d) not allocated\n",
+			"6085 Fast-path %s (%d) yest allocated\n",
 			((eq) ? ((cq) ? "WQ" : "CQ") : "EQ"), qidx);
 		return -ENOMEM;
 	}
@@ -9393,7 +9393,7 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"4618 Fail setup fastpath WQ (%d), rc = 0x%x\n",
 				qidx, (uint32_t)rc);
-			/* no need to tear down cq - caller will do so */
+			/* yes need to tear down cq - caller will do so */
 			return rc;
 		}
 
@@ -9411,7 +9411,7 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0539 Failed setup of slow-path MQ: "
 				"rc = 0x%x\n", rc);
-			/* no need to tear down cq - caller will do so */
+			/* yes need to tear down cq - caller will do so */
 			return rc;
 		}
 
@@ -9533,7 +9533,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	/* Set up HBA event queue */
 	if (!qp) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"3147 Fast-path EQs not allocated\n");
+				"3147 Fast-path EQs yest allocated\n");
 		rc = -ENOMEM;
 		goto out_error;
 	}
@@ -9604,7 +9604,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 
 	if (!phba->sli4_hba.mbx_cq || !phba->sli4_hba.mbx_wq) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0528 %s not allocated\n",
+				"0528 %s yest allocated\n",
 				phba->sli4_hba.mbx_cq ?
 				"Mailbox WQ" : "Mailbox CQ");
 		rc = -ENOMEM;
@@ -9625,7 +9625,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		if (!phba->sli4_hba.nvmet_cqset) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"3165 Fast-path NVME CQ Set "
-					"array not allocated\n");
+					"array yest allocated\n");
 			rc = -ENOMEM;
 			goto out_destroy;
 		}
@@ -9665,7 +9665,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	/* Set up slow-path ELS WQ/CQ */
 	if (!phba->sli4_hba.els_cq || !phba->sli4_hba.els_wq) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0530 ELS %s not allocated\n",
+				"0530 ELS %s yest allocated\n",
 				phba->sli4_hba.els_cq ? "WQ" : "CQ");
 		rc = -ENOMEM;
 		goto out_destroy;
@@ -9689,7 +9689,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		/* Set up NVME LS Complete Queue */
 		if (!phba->sli4_hba.nvmels_cq || !phba->sli4_hba.nvmels_wq) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"6091 LS %s not allocated\n",
+					"6091 LS %s yest allocated\n",
 					phba->sli4_hba.nvmels_cq ? "WQ" : "CQ");
 			rc = -ENOMEM;
 			goto out_destroy;
@@ -9720,7 +9720,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		    (!phba->sli4_hba.nvmet_mrq_hdr) ||
 		    (!phba->sli4_hba.nvmet_mrq_data)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"6130 MRQ CQ Queues not "
+					"6130 MRQ CQ Queues yest "
 					"allocated\n");
 			rc = -ENOMEM;
 			goto out_destroy;
@@ -9766,7 +9766,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 
 	if (!phba->sli4_hba.hdr_rq || !phba->sli4_hba.dat_rq) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0540 Receive Queue not allocated\n");
+				"0540 Receive Queue yest allocated\n");
 		rc = -ENOMEM;
 		goto out_destroy;
 	}
@@ -9912,9 +9912,9 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
  *
  * This routine is invoked to allocate and set up a pool of completion queue
  * events. The body of the completion queue event is a completion queue entry
- * CQE. For now, this pool is used for the interrupt service routine to queue
+ * CQE. For yesw, this pool is used for the interrupt service routine to queue
  * the following HBA completion queue events for the worker thread to process:
- *   - Mailbox asynchronous events
+ *   - Mailbox asynchroyesus events
  *   - Receive queue completion unsolicited events
  * Later, this can be used for all the slow-path events.
  *
@@ -10155,7 +10155,7 @@ wait:
 			phba->work_status[1] = readl(
 				phba->sli4_hba.u.if_type2.ERR2regaddr);
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2890 Port not ready, port status reg "
+					"2890 Port yest ready, port status reg "
 					"0x%x error 1=0x%x, error 2=0x%x\n",
 					reg_data.word0,
 					phba->work_status[0],
@@ -10166,7 +10166,7 @@ wait:
 
 		if (!port_reset) {
 			/*
-			 * Reset the port now
+			 * Reset the port yesw
 			 */
 			reg_data.word0 = 0;
 			bf_set(lpfc_sliport_ctrl_end, &reg_data,
@@ -10194,10 +10194,10 @@ wait:
 	}
 
 out:
-	/* Catch the not-ready port failure after a port reset. */
+	/* Catch the yest-ready port failure after a port reset. */
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"3317 HBA not functional: IP Reset Failed "
+				"3317 HBA yest functional: IP Reset Failed "
 				"try: echo fw_reset > board_mode\n");
 		rc = -ENODEV;
 	}
@@ -10243,7 +10243,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 		return -ENODEV;
 	}
 
-	/* There is no SLI3 failback for SLI4 devices. */
+	/* There is yes SLI3 failback for SLI4 devices. */
 	if (bf_get(lpfc_sli_intf_valid, &phba->sli4_hba.sli_intf) !=
 	    LPFC_SLI_INTF_VALID) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -10395,7 +10395,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 		phba->pci_bar4_memmap_p = phba->sli4_hba.dpp_regs_memmap_p;
 	}
 
-	/* Set up the EQ/CQ register handeling functions now */
+	/* Set up the EQ/CQ register handeling functions yesw */
 	switch (if_type) {
 	case LPFC_SLI_INTF_IF_TYPE_0:
 	case LPFC_SLI_INTF_IF_TYPE_2:
@@ -10874,7 +10874,7 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 	}
 
 	/* After looking at each irq vector assigned to this pcidev, its
-	 * possible to see that not ALL CPUs have been accounted for.
+	 * possible to see that yest ALL CPUs have been accounted for.
 	 * Next we will set any unassigned (unaffinitized) cpu map
 	 * entries to a IRQ on the same phys_id.
 	 */
@@ -10886,7 +10886,7 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 
 		/* Is this CPU entry unassigned */
 		if (cpup->eq == LPFC_VECTOR_MAP_EMPTY) {
-			/* Mark CPU as IRQ not assigned by the kernel */
+			/* Mark CPU as IRQ yest assigned by the kernel */
 			cpup->flag |= LPFC_CPU_MAP_UNASSIGN;
 
 			/* If so, find a new_cpup thats on the the SAME
@@ -10937,7 +10937,7 @@ found_same:
 
 		/* Is this entry unassigned */
 		if (cpup->eq == LPFC_VECTOR_MAP_EMPTY) {
-			/* Mark it as IRQ not assigned by the kernel */
+			/* Mark it as IRQ yest assigned by the kernel */
 			cpup->flag |= LPFC_CPU_MAP_UNASSIGN;
 
 			/* If so, find a new_cpup thats on ANY phys_id
@@ -11031,7 +11031,7 @@ found_any:
 		}
 
 		/* Not a First CPU and all hdw_queues are used.  Reuse a
-		 * Hardware Queue for another CPU, so be smart about it
+		 * Hardware Queue for ayesther CPU, so be smart about it
 		 * and pick one that has its IRQ/EQ mapped to the same phys_id
 		 * (CPU package) and core_id.
 		 */
@@ -11082,7 +11082,7 @@ found_any:
 	}
 
 	/*
-	 * Initialize the cpu_map slots for not-present cpus in case
+	 * Initialize the cpu_map slots for yest-present cpus in case
 	 * a cpu is hot-added. Perform a simple hdwq round robin assignment.
 	 */
 	idx = 0;
@@ -11093,7 +11093,7 @@ found_any:
 
 		cpup->hdwq = idx++ % phba->cfg_hdw_queue;
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"3340 Set Affinity: not present "
+				"3340 Set Affinity: yest present "
 				"CPU %d hdwq %d\n",
 				cpu, cpup->hdwq);
 	}
@@ -11125,7 +11125,7 @@ lpfc_cpuhp_get_eq(struct lpfc_hba *phba, unsigned int cpu,
 		if (!maskp)
 			continue;
 		/*
-		 * if irq is not affinitized to the cpu going
+		 * if irq is yest affinitized to the cpu going
 		 * then we don't need to poll the eq attached
 		 * to it.
 		 */
@@ -11133,8 +11133,8 @@ lpfc_cpuhp_get_eq(struct lpfc_hba *phba, unsigned int cpu,
 			continue;
 		/* get the cpus that are online and are affini-
 		 * tized to this irq vector.  If the count is
-		 * more than 1 then cpuhp is not going to shut-
-		 * down this vector.  Since this cpu has not
+		 * more than 1 then cpuhp is yest going to shut-
+		 * down this vector.  Since this cpu has yest
 		 * gone offline yet, we need >1.
 		 */
 		cpumask_and(&tmp, maskp, cpu_online_mask);
@@ -11156,7 +11156,7 @@ static void __lpfc_cpuhp_remove(struct lpfc_hba *phba)
 	if (phba->sli_rev != LPFC_SLI_REV4)
 		return;
 
-	cpuhp_state_remove_instance_nocalls(lpfc_cpuhp_state,
+	cpuhp_state_remove_instance_yescalls(lpfc_cpuhp_state,
 					    &phba->cpuhp);
 	/*
 	 * unregistering the instance doesn't stop the polling
@@ -11189,7 +11189,7 @@ static void lpfc_cpuhp_add(struct lpfc_hba *phba)
 
 	rcu_read_unlock();
 
-	cpuhp_state_add_instance_nocalls(lpfc_cpuhp_state,
+	cpuhp_state_add_instance_yescalls(lpfc_cpuhp_state,
 					 &phba->cpuhp);
 }
 
@@ -11244,7 +11244,7 @@ lpfc_irq_clear_aff(struct lpfc_hba_eq_hdl *eqhdl)
  * @offline: true, cpu is going offline. false, cpu is coming online.
  *
  * If cpu is going offline, we'll try our best effort to find the next
- * online cpu on the phba's NUMA node and migrate all offlining IRQ affinities.
+ * online cpu on the phba's NUMA yesde and migrate all offlining IRQ affinities.
  *
  * If cpu is coming online, reaffinitize the IRQ back to the onlineng cpu.
  *
@@ -11274,7 +11274,7 @@ lpfc_irq_rebalance(struct lpfc_hba *phba, unsigned int cpu, bool offline)
 		return;
 
 	if (offline) {
-		/* Find next online CPU on NUMA node */
+		/* Find next online CPU on NUMA yesde */
 		cpu_next = cpumask_next_wrap(cpu, numa_mask, cpu, true);
 		cpu_select = lpfc_next_online_numa_cpu(numa_mask, cpu_next);
 
@@ -11292,7 +11292,7 @@ lpfc_irq_rebalance(struct lpfc_hba *phba, unsigned int cpu, bool offline)
 							 cpu_select);
 			}
 		} else {
-			/* Rely on irqbalance if no online CPUs left on NUMA */
+			/* Rely on irqbalance if yes online CPUs left on NUMA */
 			for (idx = 0; idx < phba->cfg_irq_chann; idx++)
 				lpfc_irq_clear_aff(lpfc_get_eq_hdl(idx));
 		}
@@ -11302,9 +11302,9 @@ lpfc_irq_rebalance(struct lpfc_hba *phba, unsigned int cpu, bool offline)
 	}
 }
 
-static int lpfc_cpu_offline(unsigned int cpu, struct hlist_node *node)
+static int lpfc_cpu_offline(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct lpfc_hba *phba = hlist_entry_safe(node, struct lpfc_hba, cpuhp);
+	struct lpfc_hba *phba = hlist_entry_safe(yesde, struct lpfc_hba, cpuhp);
 	struct lpfc_queue *eq, *next;
 	LIST_HEAD(eqlist);
 	int retval;
@@ -11330,9 +11330,9 @@ static int lpfc_cpu_offline(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int lpfc_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int lpfc_cpu_online(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct lpfc_hba *phba = hlist_entry_safe(node, struct lpfc_hba, cpuhp);
+	struct lpfc_hba *phba = hlist_entry_safe(yesde, struct lpfc_hba, cpuhp);
 	struct lpfc_queue *eq, *next;
 	unsigned int n;
 	int retval;
@@ -11365,17 +11365,17 @@ static int lpfc_cpu_online(unsigned int cpu, struct hlist_node *node)
  * to cpus on the system.
  *
  * When cfg_irq_numa is enabled, the adapter will only allocate vectors for
- * the number of cpus on the same numa node as this adapter.  The vectors are
+ * the number of cpus on the same numa yesde as this adapter.  The vectors are
  * allocated without requesting OS affinity mapping.  A vector will be
  * allocated and assigned to each online and offline cpu.  If the cpu is
  * online, then affinity will be set to that cpu.  If the cpu is offline, then
- * affinity will be set to the nearest peer cpu within the numa node that is
- * online.  If there are no online cpus within the numa node, affinity is not
+ * affinity will be set to the nearest peer cpu within the numa yesde that is
+ * online.  If there are yes online cpus within the numa yesde, affinity is yest
  * assigned and the OS may do as it pleases. Note: cpu vector affinity mapping
  * is consistent with the way cpu online/offline is handled when cfg_irq_numa is
  * configured.
  *
- * If numa mode is not enabled and there is more than 1 vector allocated, then
+ * If numa mode is yest enabled and there is more than 1 vector allocated, then
  * the driver relies on the managed irq interface where the OS assigns vector to
  * cpu affinity.  The driver will then use that affinity mapping to setup its
  * cpu mapping table.
@@ -11801,7 +11801,7 @@ lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
  * @phba: Pointer to HBA context object.
  *
  * This function is called in the SLI4 code path to reset the HBA's FCoE
- * function. The caller is not required to hold any lock. This routine
+ * function. The caller is yest required to hold any lock. This routine
  * issues PCI function reset mailbox command to reset the FCoE function.
  * At the end of the function, it calls lpfc_hba_down_post function to
  * free any pending commands.
@@ -11818,7 +11818,7 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 		phba->sli4_hba.intr_enable = 0;
 
 	/*
-	 * Gracefully wait out the potential current outstanding asynchronous
+	 * Gracefully wait out the potential current outstanding asynchroyesus
 	 * mailbox command.
 	 */
 
@@ -12047,7 +12047,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		if (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_NVME,
 					"6133 Disabling NVME support: "
-					"FC4 type not supported: x%x\n",
+					"FC4 type yest supported: x%x\n",
 					phba->cfg_enable_fc4_type);
 			goto fcponly;
 		}
@@ -12067,7 +12067,7 @@ fcponly:
 			phba->cfg_nvmet_mrq = 0;
 			phba->cfg_nvme_seg_cnt = 0;
 
-			/* If no FC4 type support, move to just SCSI support */
+			/* If yes FC4 type support, move to just SCSI support */
 			if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
 				return -ENODEV;
 			phba->cfg_enable_fc4_type = LPFC_ENABLE_FCP;
@@ -12094,7 +12094,7 @@ fcponly:
 	 * (double negative).
 	 */
 	if (phba->cfg_suppress_rsp && bf_get(cfg_xib, mbx_sli4_parameters) &&
-	    !(bf_get(cfg_nosr, mbx_sli4_parameters)))
+	    !(bf_get(cfg_yessr, mbx_sli4_parameters)))
 		phba->sli.sli_flag |= LPFC_SLI_SUPPRESS_RSP;
 	else
 		phba->cfg_suppress_rsp = 0;
@@ -12137,7 +12137,7 @@ fcponly:
 	else
 		phba->enab_exp_wqcq_pages = 0;
 	/*
-	 * Check if the SLI port supports MDS Diagnostics
+	 * Check if the SLI port supports MDS Diagyesstics
 	 */
 	if (bf_get(cfg_mds_diags, mbx_sli4_parameters))
 		phba->mds_diags_support = 1;
@@ -12170,7 +12170,7 @@ fcponly:
  *
  * Return code
  * 	0 - driver can claim the device
- * 	negative value - driver can not claim the device
+ * 	negative value - driver can yest claim the device
  **/
 static int
 lpfc_pci_probe_one_s3(struct pci_dev *pdev, const struct pci_device_id *pid)
@@ -12253,7 +12253,7 @@ lpfc_pci_probe_one_s3(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Now, trying to enable interrupt and bring up the device */
 	cfg_mode = phba->cfg_use_msi;
 	while (true) {
-		/* Put device to a known state before enabling interrupt */
+		/* Put device to a kyeswn state before enabling interrupt */
 		lpfc_stop_port(phba);
 		/* Configure and enable interrupt */
 		intr_mode = lpfc_sli_enable_intr(phba, cfg_mode);
@@ -12511,7 +12511,7 @@ lpfc_pci_resume_one_s3(struct pci_dev *pdev)
 
 	/* Startup the kernel thread for this host adapter. */
 	phba->worker_thread = kthread_run(lpfc_do_work, phba,
-					"lpfc_worker_%d", phba->brd_no);
+					"lpfc_worker_%d", phba->brd_yes);
 	if (IS_ERR(phba->worker_thread)) {
 		error = PTR_ERR(phba->worker_thread);
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -12629,7 +12629,7 @@ lpfc_sli_prep_dev_for_perm_failure(struct lpfc_hba *phba)
  * Return codes
  * 	PCI_ERS_RESULT_CAN_RECOVER - can be recovered with reset_link
  * 	PCI_ERS_RESULT_NEED_RESET - need to reset before recovery
- * 	PCI_ERS_RESULT_DISCONNECT - device could not be recovered
+ * 	PCI_ERS_RESULT_DISCONNECT - device could yest be recovered
  **/
 static pci_ers_result_t
 lpfc_io_error_detected_s3(struct pci_dev *pdev, pci_channel_state_t state)
@@ -12638,7 +12638,7 @@ lpfc_io_error_detected_s3(struct pci_dev *pdev, pci_channel_state_t state)
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 
 	switch (state) {
-	case pci_channel_io_normal:
+	case pci_channel_io_yesrmal:
 		/* Non-fatal error, prepare for recovery */
 		lpfc_sli_prep_dev_for_recover(phba);
 		return PCI_ERS_RESULT_CAN_RECOVER;
@@ -12651,9 +12651,9 @@ lpfc_io_error_detected_s3(struct pci_dev *pdev, pci_channel_state_t state)
 		lpfc_sli_prep_dev_for_perm_failure(phba);
 		return PCI_ERS_RESULT_DISCONNECT;
 	default:
-		/* Unknown state, prepare and request slot reset */
+		/* Unkyeswn state, prepare and request slot reset */
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0472 Unknown PCI error state: x%x\n", state);
+				"0472 Unkyeswn PCI error state: x%x\n", state);
 		lpfc_sli_prep_dev_for_reset(phba);
 		return PCI_ERS_RESULT_NEED_RESET;
 	}
@@ -12675,7 +12675,7 @@ lpfc_io_error_detected_s3(struct pci_dev *pdev, pci_channel_state_t state)
  *
  * Return codes
  * 	PCI_ERS_RESULT_RECOVERED - the device has been recovered
- * 	PCI_ERS_RESULT_DISCONNECT - device could not be recovered
+ * 	PCI_ERS_RESULT_DISCONNECT - device could yest be recovered
  */
 static pci_ers_result_t
 lpfc_io_slot_reset_s3(struct pci_dev *pdev)
@@ -12687,7 +12687,7 @@ lpfc_io_slot_reset_s3(struct pci_dev *pdev)
 
 	dev_printk(KERN_INFO, &pdev->dev, "recovering from a slot reset.\n");
 	if (pci_enable_device_mem(pdev)) {
-		printk(KERN_ERR "lpfc: Cannot re-enable "
+		printk(KERN_ERR "lpfc: Canyest re-enable "
 			"PCI device after reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
@@ -12711,7 +12711,7 @@ lpfc_io_slot_reset_s3(struct pci_dev *pdev)
 	intr_mode = lpfc_sli_enable_intr(phba, phba->intr_mode);
 	if (intr_mode == LPFC_INTR_ERROR) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0427 Cannot re-enable interrupt after "
+				"0427 Canyest re-enable interrupt after "
 				"slot reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	} else
@@ -12734,7 +12734,7 @@ lpfc_io_slot_reset_s3(struct pci_dev *pdev)
  *
  * This routine is called from the PCI subsystem for error handling to device
  * with SLI-3 interface spec. It is called when kernel error recovery tells
- * the lpfc driver that it is ok to resume normal PCI operation after PCI bus
+ * the lpfc driver that it is ok to resume yesrmal PCI operation after PCI bus
  * error recovery. After this call, traffic can start to flow from this device
  * again.
  */
@@ -12744,7 +12744,7 @@ lpfc_io_resume_s3(struct pci_dev *pdev)
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 
-	/* Bring device online, it will be no-op for non-fatal error resume */
+	/* Bring device online, it will be yes-op for yesn-fatal error resume */
 	lpfc_online(phba);
 }
 
@@ -12802,11 +12802,11 @@ lpfc_log_write_firmware_error(struct lpfc_hba *phba, uint32_t offset,
 {
 	int rc;
 
-	/* Three cases:  (1) FW was not supported on the detected adapter.
+	/* Three cases:  (1) FW was yest supported on the detected adapter.
 	 * (2) FW update has been locked out administratively.
 	 * (3) Some other error during FW update.
 	 * In each case, an unmaskable message is written to the console
-	 * for admin diagnosis.
+	 * for admin diagyessis.
 	 */
 	if (offset == ADD_STATUS_FW_NOT_SUPPORTED ||
 	    (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC &&
@@ -12814,7 +12814,7 @@ lpfc_log_write_firmware_error(struct lpfc_hba *phba, uint32_t offset,
 	    (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G7_FC &&
 	     magic_number != MAGIC_NUMBER_G7)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"3030 This firmware version is not supported on"
+				"3030 This firmware version is yest supported on"
 				" this HBA model. Device:%x Magic:%x Type:%x "
 				"ID:%x Size %d %zd\n",
 				phba->pcidev->device, magic_number, ftype, fid,
@@ -12860,7 +12860,7 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 	uint32_t offset = 0, temp_offset = 0;
 	uint32_t magic_number, ftype, fid, fsize;
 
-	/* It can be null in no-wait mode, sanity check */
+	/* It can be null in yes-wait mode, sanity check */
 	if (!fw) {
 		rc = -ENXIO;
 		goto out;
@@ -12961,7 +12961,7 @@ lpfc_sli4_request_firmware_update(struct lpfc_hba *phba, uint8_t fw_upgrade)
 	int ret;
 	const struct firmware *fw;
 
-	/* Only supported on SLI4 interface type 2 for now */
+	/* Only supported on SLI4 interface type 2 for yesw */
 	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) <
 	    LPFC_SLI_INTF_IF_TYPE_2)
 		return -EPERM;
@@ -12969,7 +12969,7 @@ lpfc_sli4_request_firmware_update(struct lpfc_hba *phba, uint8_t fw_upgrade)
 	snprintf(file_name, ELX_MODEL_NAME_SIZE, "%s.grp", phba->ModelName);
 
 	if (fw_upgrade == INT_FW_UPGRADE) {
-		ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+		ret = request_firmware_yeswait(THIS_MODULE, FW_ACTION_HOTPLUG,
 					file_name, &phba->pcidev->dev,
 					GFP_KERNEL, (void *)phba,
 					lpfc_write_firmware);
@@ -13000,7 +13000,7 @@ lpfc_sli4_request_firmware_update(struct lpfc_hba *phba, uint8_t fw_upgrade)
  *
  * Return code
  * 	0 - driver can claim the device
- * 	negative value - driver can not claim the device
+ * 	negative value - driver can yest claim the device
  **/
 static int
 lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
@@ -13059,7 +13059,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Now, trying to enable interrupt and bring up the device */
 	cfg_mode = phba->cfg_use_msi;
 
-	/* Put device to a known state before enabling interrupt */
+	/* Put device to a kyeswn state before enabling interrupt */
 	phba->pport = NULL;
 	lpfc_stop_port(phba);
 
@@ -13077,7 +13077,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 		error = -ENODEV;
 		goto out_unset_driver_resource;
 	}
-	/* Default to single EQ for non-MSI-X */
+	/* Default to single EQ for yesn-MSI-X */
 	if (phba->intr_type != MSIX) {
 		phba->cfg_irq_chann = 1;
 		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
@@ -13127,7 +13127,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 			/* Create NVME binding with nvme_fc_transport. This
 			 * ensures the vport is initialized.  If the localport
-			 * create fails, it should not unload the driver to
+			 * create fails, it should yest unload the driver to
 			 * support field issues.
 			 */
 			error = lpfc_nvme_create_localport(vport);
@@ -13151,7 +13151,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	lpfc_sli4_ras_setup(phba);
 
 	INIT_LIST_HEAD(&phba->poll_list);
-	cpuhp_state_add_instance_nocalls(lpfc_cpuhp_state, &phba->cpuhp);
+	cpuhp_state_add_instance_yescalls(lpfc_cpuhp_state, &phba->cpuhp);
 
 	return 0;
 
@@ -13353,7 +13353,7 @@ lpfc_pci_resume_one_s4(struct pci_dev *pdev)
 
 	 /* Startup the kernel thread for this host adapter. */
 	phba->worker_thread = kthread_run(lpfc_do_work, phba,
-					"lpfc_worker_%d", phba->brd_no);
+					"lpfc_worker_%d", phba->brd_yes);
 	if (IS_ERR(phba->worker_thread)) {
 		error = PTR_ERR(phba->worker_thread);
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -13470,7 +13470,7 @@ lpfc_sli4_prep_dev_for_perm_failure(struct lpfc_hba *phba)
  *
  * Return codes
  * 	PCI_ERS_RESULT_NEED_RESET - need to reset before recovery
- * 	PCI_ERS_RESULT_DISCONNECT - device could not be recovered
+ * 	PCI_ERS_RESULT_DISCONNECT - device could yest be recovered
  **/
 static pci_ers_result_t
 lpfc_io_error_detected_s4(struct pci_dev *pdev, pci_channel_state_t state)
@@ -13479,7 +13479,7 @@ lpfc_io_error_detected_s4(struct pci_dev *pdev, pci_channel_state_t state)
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 
 	switch (state) {
-	case pci_channel_io_normal:
+	case pci_channel_io_yesrmal:
 		/* Non-fatal error, prepare for recovery */
 		lpfc_sli4_prep_dev_for_recover(phba);
 		return PCI_ERS_RESULT_CAN_RECOVER;
@@ -13492,9 +13492,9 @@ lpfc_io_error_detected_s4(struct pci_dev *pdev, pci_channel_state_t state)
 		lpfc_sli4_prep_dev_for_perm_failure(phba);
 		return PCI_ERS_RESULT_DISCONNECT;
 	default:
-		/* Unknown state, prepare and request slot reset */
+		/* Unkyeswn state, prepare and request slot reset */
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2825 Unknown PCI error state: x%x\n", state);
+				"2825 Unkyeswn PCI error state: x%x\n", state);
 		lpfc_sli4_prep_dev_for_reset(phba);
 		return PCI_ERS_RESULT_NEED_RESET;
 	}
@@ -13516,7 +13516,7 @@ lpfc_io_error_detected_s4(struct pci_dev *pdev, pci_channel_state_t state)
  *
  * Return codes
  * 	PCI_ERS_RESULT_RECOVERED - the device has been recovered
- * 	PCI_ERS_RESULT_DISCONNECT - device could not be recovered
+ * 	PCI_ERS_RESULT_DISCONNECT - device could yest be recovered
  */
 static pci_ers_result_t
 lpfc_io_slot_reset_s4(struct pci_dev *pdev)
@@ -13528,7 +13528,7 @@ lpfc_io_slot_reset_s4(struct pci_dev *pdev)
 
 	dev_printk(KERN_INFO, &pdev->dev, "recovering from a slot reset.\n");
 	if (pci_enable_device_mem(pdev)) {
-		printk(KERN_ERR "lpfc: Cannot re-enable "
+		printk(KERN_ERR "lpfc: Canyest re-enable "
 			"PCI device after reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
@@ -13552,7 +13552,7 @@ lpfc_io_slot_reset_s4(struct pci_dev *pdev)
 	intr_mode = lpfc_sli4_enable_intr(phba, phba->intr_mode);
 	if (intr_mode == LPFC_INTR_ERROR) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2824 Cannot re-enable interrupt after "
+				"2824 Canyest re-enable interrupt after "
 				"slot reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	} else
@@ -13570,7 +13570,7 @@ lpfc_io_slot_reset_s4(struct pci_dev *pdev)
  *
  * This routine is called from the PCI subsystem for error handling to device
  * with SLI-4 interface spec. It is called when kernel error recovery tells
- * the lpfc driver that it is ok to resume normal PCI operation after PCI bus
+ * the lpfc driver that it is ok to resume yesrmal PCI operation after PCI bus
  * error recovery. After this call, traffic can start to flow from this device
  * again.
  **/
@@ -13612,7 +13612,7 @@ lpfc_io_resume_s4(struct pci_dev *pdev)
  *
  * Return code
  * 	0 - driver can claim the device
- * 	negative value - driver can not claim the device
+ * 	negative value - driver can yest claim the device
  **/
 static int
 lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
@@ -13750,7 +13750,7 @@ lpfc_pci_resume_one(struct pci_dev *pdev)
  *
  * Return codes
  * 	PCI_ERS_RESULT_NEED_RESET - need to reset before recovery
- * 	PCI_ERS_RESULT_DISCONNECT - device could not be recovered
+ * 	PCI_ERS_RESULT_DISCONNECT - device could yest be recovered
  **/
 static pci_ers_result_t
 lpfc_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
@@ -13787,7 +13787,7 @@ lpfc_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
  *
  * Return codes
  * 	PCI_ERS_RESULT_RECOVERED - the device has been recovered
- * 	PCI_ERS_RESULT_DISCONNECT - device could not be recovered
+ * 	PCI_ERS_RESULT_DISCONNECT - device could yest be recovered
  **/
 static pci_ers_result_t
 lpfc_io_slot_reset(struct pci_dev *pdev)
@@ -13818,7 +13818,7 @@ lpfc_io_slot_reset(struct pci_dev *pdev)
  *
  * This routine is registered to the PCI subsystem for error handling. It
  * is called when kernel error recovery tells the lpfc driver that it is
- * OK to resume normal PCI operation after PCI bus error recovery. When
+ * OK to resume yesrmal PCI operation after PCI bus error recovery. When
  * this routine is invoked, it dispatches the action to the proper SLI-3
  * or SLI-4 device io_resume routine, which will resume the device operation.
  **/
@@ -13922,7 +13922,7 @@ static const struct file_operations lpfc_mgmt_fop = {
 };
 
 static struct miscdevice lpfc_mgmt_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "lpfcmgmt",
 	.fops = &lpfc_mgmt_fop,
 };
@@ -13949,7 +13949,7 @@ lpfc_init(void)
 
 	error = misc_register(&lpfc_mgmt_dev);
 	if (error)
-		printk(KERN_ERR "Could not register lpfcmgmt device, "
+		printk(KERN_ERR "Could yest register lpfcmgmt device, "
 			"misc_register returned with status %d", error);
 
 	lpfc_transport_functions.vport_create = lpfc_vport_create;

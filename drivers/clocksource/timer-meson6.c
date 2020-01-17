@@ -67,7 +67,7 @@ static struct delay_timer meson6_delay_timer = {
 };
 #endif
 
-static u64 notrace meson6_timer_sched_read(void)
+static u64 yestrace meson6_timer_sched_read(void)
 {
 	return (u64)readl(timer_base + MESON_ISA_TIMERE);
 }
@@ -157,18 +157,18 @@ static struct irqaction meson6_timer_irq = {
 	.dev_id		= &meson6_clockevent,
 };
 
-static int __init meson6_timer_init(struct device_node *node)
+static int __init meson6_timer_init(struct device_yesde *yesde)
 {
 	u32 val;
 	int ret, irq;
 
-	timer_base = of_io_request_and_map(node, 0, "meson6-timer");
+	timer_base = of_io_request_and_map(yesde, 0, "meson6-timer");
 	if (IS_ERR(timer_base)) {
 		pr_err("Can't map registers\n");
 		return -ENXIO;
 	}
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (irq <= 0) {
 		pr_err("Can't parse IRQ\n");
 		return -EINVAL;
@@ -182,7 +182,7 @@ static int __init meson6_timer_init(struct device_node *node)
 	writel(val, timer_base + MESON_ISA_TIMER_MUX);
 
 	sched_clock_register(meson6_timer_sched_read, 32, USEC_PER_SEC);
-	clocksource_mmio_init(timer_base + MESON_ISA_TIMERE, node->name,
+	clocksource_mmio_init(timer_base + MESON_ISA_TIMERE, yesde->name,
 			      1000 * 1000, 300, 32, clocksource_mmio_readl_up);
 
 	/* Timer A base 1us */

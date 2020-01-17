@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos5420 based Arndale Octa board device tree source
+ * Samsung's Exyyess5420 based Arndale Octa board device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  */
 
 /dts-v1/;
-#include "exynos5420.dtsi"
-#include "exynos5420-cpus.dtsi"
+#include "exyyess5420.dtsi"
+#include "exyyess5420-cpus.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
@@ -16,7 +16,7 @@
 
 / {
 	model = "Insignal Arndale Octa evaluation board based on EXYNOS5420";
-	compatible = "insignal,arndale-octa", "samsung,exynos5420", "samsung,exynos5";
+	compatible = "insignal,arndale-octa", "samsung,exyyess5420", "samsung,exyyess5";
 
 	memory@20000000 {
 		device_type = "memory";
@@ -34,7 +34,7 @@
 
 	fixed-rate-clocks {
 		oscclk {
-			compatible = "samsung,exynos5420-oscclk";
+			compatible = "samsung,exyyess5420-oscclk";
 			clock-frequency = <24000000>;
 		};
 	};
@@ -382,7 +382,7 @@
 				/*
 				 * Must be always on, even though there is
 				 * a consumer (mmc_0).  Otherwise the board
-				 * does not reboot with vendor U-Boot
+				 * does yest reboot with vendor U-Boot
 				 * (Linaro for Arndale Octa, v2012.07).
 				 */
 				regulator-always-on;
@@ -507,7 +507,7 @@
 				 * Must stay in "off" mode during shutdown for
 				 * proper eMMC reset.  The "off" mode is in
 				 * fact controlled by LDO18EN.  The eMMC does
-				 * not have reset pin connected so the reset
+				 * yest have reset pin connected so the reset
 				 * will be triggered by falling edge of
 				 * LDO18EN.
 				 */
@@ -750,7 +750,7 @@
 				 * Must stay in "off" mode during shutdown for
 				 * proper eMMC reset.  The "off" mode is in
 				 * fact controlled by BUCK10EN.  The eMMC does
-				 * not have reset pin connected so the reset
+				 * yest have reset pin connected so the reset
 				 * will be triggered by falling edge of
 				 * BUCK10EN.
 				 */
@@ -773,7 +773,7 @@
 
 &mmc_0 {
 	status = "okay";
-	non-removable;
+	yesn-removable;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <0 4>;

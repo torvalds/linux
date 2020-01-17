@@ -36,7 +36,7 @@ int rtw_init_mlme_priv(struct adapter *padapter)
 
 	pmlmepriv->pscanned = NULL;
 	pmlmepriv->fw_state = 0;
-	pmlmepriv->cur_network.network.InfrastructureMode = Ndis802_11AutoUnknown;
+	pmlmepriv->cur_network.network.InfrastructureMode = Ndis802_11AutoUnkyeswn;
 	pmlmepriv->scan_mode = SCAN_ACTIVE;/*  1: active, 0: pasive. Maybe someday we should rename this varable to "active_mode" (Jeff) */
 
 	spin_lock_init(&pmlmepriv->lock);
@@ -159,7 +159,7 @@ static void _rtw_free_network(struct mlme_priv *pmlmepriv, struct wlan_network *
 	spin_unlock_bh(&free_queue->lock);
 }
 
-static void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
+static void rtw_free_network_yeslock(struct mlme_priv *pmlmepriv,
 				    struct wlan_network *pnetwork)
 {
 	struct __queue *free_queue = &pmlmepriv->free_bss_pool;
@@ -361,7 +361,7 @@ void update_network(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 			sq_final = ((u32)(src->PhyInfo.SignalQuality)+(u32)(dst->PhyInfo.SignalQuality)*4)/5;
 			rssi_final = (src->Rssi+dst->Rssi*4)/5;
 		} else {
-			/* bss info not receiving from the right channel, use the original RX signal infos */
+			/* bss info yest receiving from the right channel, use the original RX signal infos */
 			ss_final = dst->PhyInfo.SignalStrength;
 			sq_final = dst->PhyInfo.SignalQuality;
 			rssi_final = dst->Rssi;
@@ -417,7 +417,7 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 	 */
 	if (phead == plist) {
 		if (list_empty(&pmlmepriv->free_bss_pool.queue)) {
-			/* If there are no more slots, expire the oldest */
+			/* If there are yes more slots, expire the oldest */
 			pnetwork = oldest;
 
 			rtw_hal_get_def_var(adapter, HAL_DEF_CURRENT_ANTENNA,
@@ -432,7 +432,7 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 			pnetwork->aid = 0;
 			pnetwork->join_res = 0;
 
-			/* bss info not receiving from the right channel */
+			/* bss info yest receiving from the right channel */
 			if (pnetwork->network.PhyInfo.SignalQuality == 101)
 				pnetwork->network.PhyInfo.SignalQuality = 0;
 		} else {
@@ -454,7 +454,7 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 
 			pnetwork->last_scanned = jiffies;
 
-			/* bss info not receiving from the right channel */
+			/* bss info yest receiving from the right channel */
 			if (pnetwork->network.PhyInfo.SignalQuality == 101)
 				pnetwork->network.PhyInfo.SignalQuality = 0;
 			list_add_tail(&pnetwork->list, &queue->queue);
@@ -647,7 +647,7 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 			if (s_ret == _SUCCESS) {
 				mod_timer(&pmlmepriv->assoc_timer,
 					jiffies + msecs_to_jiffies(MAX_JOIN_TIMEOUT));
-			} else if (s_ret == 2) { /* there is no need to wait for join */
+			} else if (s_ret == 2) { /* there is yes need to wait for join */
 				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 				rtw_indicate_connect(adapter);
 			} else {
@@ -688,7 +688,7 @@ static void free_scanqueue(struct	mlme_priv *pmlmepriv)
 	struct __queue *scan_queue = &pmlmepriv->scanned_queue;
 	struct list_head *plist, *phead, *ptemp;
 
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_, ("+%s\n", __func__));
+	RT_TRACE(_module_rtl871x_mlme_c_, _drv_yestice_, ("+%s\n", __func__));
 	spin_lock_bh(&scan_queue->lock);
 	spin_lock_bh(&free_queue->lock);
 
@@ -728,7 +728,7 @@ void rtw_free_assoc_resources_locked(struct adapter *adapter)
 	struct sta_priv *pstapriv = &adapter->stapriv;
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
 
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_, ("+rtw_free_assoc_resources\n"));
+	RT_TRACE(_module_rtl871x_mlme_c_, _drv_yestice_, ("+rtw_free_assoc_resources\n"));
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 		 ("tgt_network->network.MacAddress=%pM ssid=%s\n",
 		 tgt_network->network.MacAddress, tgt_network->network.ssid.ssid));
@@ -763,7 +763,7 @@ void rtw_free_assoc_resources_locked(struct adapter *adapter)
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("rtw_free_assoc_resources:pwlan==NULL\n\n"));
 
 	if ((check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) && (adapter->stapriv.asoc_sta_count == 1)))
-		rtw_free_network_nolock(pmlmepriv, pwlan);
+		rtw_free_network_yeslock(pmlmepriv, pwlan);
 
 	pmlmepriv->key_mask = 0;
 }
@@ -906,7 +906,7 @@ static void rtw_joinbss_update_network(struct adapter *padapter, struct wlan_net
 		 ("\nfw_state:%x, BSSID:%pM\n",
 		 get_fwstate(pmlmepriv), pnetwork->network.MacAddress));
 
-	/*  why not use ptarget_wlan?? */
+	/*  why yest use ptarget_wlan?? */
 	memcpy(&cur_network->network, &pnetwork->network, pnetwork->network.Length);
 	/*  some ies in pnetwork is wrong, so we should use ptarget_wlan ies */
 	cur_network->network.ie_length = ptarget_wlan->network.ie_length;
@@ -1021,7 +1021,7 @@ void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf)
 			} else {
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("Can't find ptarget_wlan when joinbss_event callback\n"));
 				spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
-				goto ignore_joinbss_callback;
+				goto igyesre_joinbss_callback;
 			}
 
 			/* s3. find ptarget_sta & update ptarget_sta after update cur_network only for station mode */
@@ -1030,7 +1030,7 @@ void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf)
 				if (!ptarget_sta) {
 					RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("Can't update stainfo when joinbss_event callback\n"));
 					spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
-					goto ignore_joinbss_callback;
+					goto igyesre_joinbss_callback;
 				}
 			}
 
@@ -1050,7 +1050,7 @@ void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf)
 		} else {
 			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("rtw_joinbss_event_callback err: fw_state:%x", get_fwstate(pmlmepriv)));
 			spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
-			goto ignore_joinbss_callback;
+			goto igyesre_joinbss_callback;
 		}
 
 		spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
@@ -1070,7 +1070,7 @@ void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf)
 		_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 	}
 
-ignore_joinbss_callback:
+igyesre_joinbss_callback:
 	spin_unlock_bh(&pmlmepriv->lock);
 }
 
@@ -1151,11 +1151,11 @@ void rtw_stassoc_event_callback(struct adapter *adapter, u8 *pbuf)
 	/* for AD-HOC mode */
 	psta = rtw_get_stainfo(&adapter->stapriv, pstassoc->macaddr);
 	if (psta) {
-		/* the sta have been in sta_info_queue => do nothing */
+		/* the sta have been in sta_info_queue => do yesthing */
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
 			 ("Error: %s: sta has been in sta_hash_queue\n",
 			  __func__));
-		return; /* between drv has received this event before and  fw have not yet to set key to CAM_ENTRY) */
+		return; /* between drv has received this event before and  fw have yest yet to set key to CAM_ENTRY) */
 	}
 	psta = rtw_alloc_stainfo(&adapter->stapriv, pstassoc->macaddr);
 	if (!psta) {
@@ -1182,7 +1182,7 @@ void rtw_stassoc_event_callback(struct adapter *adapter, u8 *pbuf)
 			if (ptarget_wlan)
 				ptarget_wlan->fixed = true;
 			spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
-			/*  a sta + bc/mc_stainfo (not Ibss_stainfo) */
+			/*  a sta + bc/mc_stainfo (yest Ibss_stainfo) */
 			rtw_indicate_connect(adapter);
 		}
 	}
@@ -1243,7 +1243,7 @@ void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf)
 		pwlan = rtw_find_network(&pmlmepriv->scanned_queue, tgt_network->network.MacAddress);
 		if (pwlan) {
 			pwlan->fixed = false;
-			rtw_free_network_nolock(pmlmepriv, pwlan);
+			rtw_free_network_yeslock(pmlmepriv, pwlan);
 		}
 		spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 		_rtw_roaming(adapter, tgt_network);
@@ -1254,13 +1254,13 @@ void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf)
 		rtw_free_stainfo(adapter,  psta);
 		spin_unlock_bh(&pstapriv->sta_hash_lock);
 
-		if (adapter->stapriv.asoc_sta_count == 1) { /* a sta + bc/mc_stainfo (not Ibss_stainfo) */
+		if (adapter->stapriv.asoc_sta_count == 1) { /* a sta + bc/mc_stainfo (yest Ibss_stainfo) */
 			spin_lock_bh(&pmlmepriv->scanned_queue.lock);
 			/* free old ibss network */
 			pwlan = rtw_find_network(&pmlmepriv->scanned_queue, tgt_network->network.MacAddress);
 			if (pwlan) {
 				pwlan->fixed = false;
-				rtw_free_network_nolock(pmlmepriv, pwlan);
+				rtw_free_network_yeslock(pmlmepriv, pwlan);
 			}
 			spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 			/* re-create ibss */
@@ -1312,8 +1312,8 @@ void _rtw_join_timeout_handler (struct timer_list *t)
 	if (pmlmepriv->to_roaming > 0) { /*  join timeout caused by roaming */
 		while (1) {
 			pmlmepriv->to_roaming--;
-			if (pmlmepriv->to_roaming != 0) { /* try another , */
-				DBG_88E("%s try another roaming\n", __func__);
+			if (pmlmepriv->to_roaming != 0) { /* try ayesther , */
+				DBG_88E("%s try ayesther roaming\n", __func__);
 				do_join_r = rtw_do_join(adapter);
 				if (do_join_r != _SUCCESS) {
 					DBG_88E("%s roaming do_join return %d\n", __func__, do_join_r);
@@ -1394,7 +1394,7 @@ exit:
 /*
  * Select a new join candidate from the original @param candidate and @param competitor
  * @return true: candidate is updated
- * @return false: candidate is not updated
+ * @return false: candidate is yest updated
  */
 static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 	, struct wlan_network **candidate, struct wlan_network *competitor)
@@ -1663,7 +1663,7 @@ int rtw_restruct_wmm_ie(struct adapter *adapter, u8 *in_ie, u8 *out_ie, uint in_
  * Added by Annie, 2006-05-07.
  * Search by BSSID,
  * Return Value:
- *		-1	:if there is no pre-auth key in the table
+ *		-1	:if there is yes pre-auth key in the table
  *		>= 0	:if there is pre-auth key, and return the entry id
  */
 static int SecIsInPMKIDList(struct adapter *Adapter, u8 *bssid)
@@ -1678,7 +1678,7 @@ static int SecIsInPMKIDList(struct adapter *Adapter, u8 *bssid)
 	} while (++i < NUM_PMKID_CACHE);
 
 	if (i == NUM_PMKID_CACHE)
-		i = -1;/*  Could not find. */
+		i = -1;/*  Could yest find. */
 
 	return i;
 }
@@ -1719,7 +1719,7 @@ int rtw_restruct_sec_ie(struct adapter *adapter, u8 *in_ie, u8 *out_ie, uint in_
 	uint ndisauthmode = psecuritypriv->ndisauthtype;
 	uint ndissecuritytype = psecuritypriv->ndisencryptstatus;
 
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
+	RT_TRACE(_module_rtl871x_mlme_c_, _drv_yestice_,
 		 ("+%s: ndisauthmode=%d ndissecuritytype=%d\n", __func__,
 		  ndisauthmode, ndissecuritytype));
 
@@ -1778,7 +1778,7 @@ void rtw_update_registrypriv_dev_network(struct adapter *adapter)
 	struct security_priv *psecuritypriv = &adapter->securitypriv;
 	struct wlan_network *cur_network = &adapter->mlmepriv.cur_network;
 
-	pdev_network->Privacy = psecuritypriv->dot11PrivacyAlgrthm > 0 ? 1 : 0; /*  adhoc no 802.1x */
+	pdev_network->Privacy = psecuritypriv->dot11PrivacyAlgrthm > 0 ? 1 : 0; /*  adhoc yes 802.1x */
 
 	pdev_network->Rssi = 0;
 
@@ -1815,7 +1815,7 @@ void rtw_update_registrypriv_dev_network(struct adapter *adapter)
 	pdev_network->ie_length = sz;
 	pdev_network->Length = get_wlan_bssid_ex_sz((struct wlan_bssid_ex  *)pdev_network);
 
-	/* notes: translate ie_length & Length after assign the Length to cmdsz in createbss_cmd(); */
+	/* yestes: translate ie_length & Length after assign the Length to cmdsz in createbss_cmd(); */
 	/* pdev_network->ie_length = cpu_to_le32(sz); */
 }
 
@@ -1833,7 +1833,7 @@ void rtw_joinbss_reset(struct adapter *padapter)
 	/* todo: if you want to do something io/reg/hw setting before join_bss, please add code here */
 	pmlmepriv->num_FortyMHzIntolerant = 0;
 
-	pmlmepriv->num_sta_no_ht = 0;
+	pmlmepriv->num_sta_yes_ht = 0;
 
 	phtpriv->ampdu_enable = false;/* reset to disabled */
 

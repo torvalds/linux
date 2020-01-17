@@ -8,7 +8,7 @@
  */
 #include <linux/init.h>
 #include <linux/irqflags.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/prefetch.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
@@ -20,7 +20,7 @@
 #include <asm/page.h>
 #include <asm/octeon/octeon.h>
 
-static int cnmips_cu2_call(struct notifier_block *nfb, unsigned long action,
+static int cnmips_cu2_call(struct yestifier_block *nfb, unsigned long action,
 	void *data)
 {
 	unsigned long flags;
@@ -37,14 +37,14 @@ static int cnmips_cu2_call(struct notifier_block *nfb, unsigned long action,
 		write_c0_status(status & ~ST0_CU2);
 		local_irq_restore(flags);
 
-		return NOTIFY_BAD;	/* Don't call default notifier */
+		return NOTIFY_BAD;	/* Don't call default yestifier */
 	}
 
-	return NOTIFY_OK;		/* Let default notifier send signals */
+	return NOTIFY_OK;		/* Let default yestifier send signals */
 }
 
 static int __init cnmips_cu2_setup(void)
 {
-	return cu2_notifier(cnmips_cu2_call, 0);
+	return cu2_yestifier(cnmips_cu2_call, 0);
 }
 early_initcall(cnmips_cu2_setup);

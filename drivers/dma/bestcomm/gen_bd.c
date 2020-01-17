@@ -3,7 +3,7 @@
  * Driver for MPC52xx processor BestComm General Buffer Descriptor
  *
  * Copyright (C) 2007 Sylvain Munaut <tnt@246tNt.com>
- * Copyright (C) 2006 AppSpec Computer Technologies Corp.
+ * Copyright (C) 2006 AppSpec Computer Techyeslogies Corp.
  *                    Jeff Gibbons <jeff.gibbons@appspec.com>
  */
 
@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/io.h>
 
 #include <asm/mpc52xx.h>

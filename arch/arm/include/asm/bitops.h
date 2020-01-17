@@ -8,10 +8,10 @@
  *
  * bit 0 is the LSB of an "unsigned long" quantity.
  *
- * Please note that the code in this file should never be included
- * from user space.  Many of these are not implemented in assembler
+ * Please yeste that the code in this file should never be included
+ * from user space.  Many of these are yest implemented in assembler
  * since they would be too costly.  Also, they require privileged
- * instructions (which are not available from user mode) to ensure
+ * instructions (which are yest available from user mode) to ensure
  * that they are atomic.
  */
 
@@ -120,10 +120,10 @@ ____atomic_test_and_change_bit(unsigned int bit, volatile unsigned long *p)
 	return (res & mask) != 0;
 }
 
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/yesn-atomic.h>
 
 /*
- *  A note about Endian-ness.
+ *  A yeste about Endian-ness.
  *  -------------------------
  *
  * When the ARM is put into big endian mode via CR15, the processor
@@ -144,7 +144,7 @@ ____atomic_test_and_change_bit(unsigned int bit, volatile unsigned long *p)
  * The following assumes that the data bus connectivity for big endian
  * mode has been followed.
  *
- * Note that bit 0 is defined to be 32-bit word bit 0, not byte 0 bit 0.
+ * Note that bit 0 is defined to be 32-bit word bit 0, yest byte 0 bit 0.
  */
 
 /*
@@ -175,7 +175,7 @@ extern int _find_next_bit_be(const unsigned long *p, int size, int offset);
 
 #ifndef CONFIG_SMP
 /*
- * The __* form of bitops are non-atomic and may be reordered.
+ * The __* form of bitops are yesn-atomic and may be reordered.
  */
 #define ATOMIC_BITOP(name,nr,p)			\
 	(__builtin_constant_p(nr) ? ____atomic_##name(nr, p) : _##name(nr,p))

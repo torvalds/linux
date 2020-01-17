@@ -1,12 +1,12 @@
-Qualcomm adreno/snapdragon GMU (Graphics management unit)
+Qualcomm adreyes/snapdragon GMU (Graphics management unit)
 
 The GMU is a programmable power controller for the GPU. the CPU controls the
 GMU which in turn handles power controls for the GPU.
 
 Required properties:
-- compatible: "qcom,adreno-gmu-XYZ.W", "qcom,adreno-gmu"
-    for example: "qcom,adreno-gmu-630.2", "qcom,adreno-gmu"
-  Note that you need to list the less specific "qcom,adreno-gmu"
+- compatible: "qcom,adreyes-gmu-XYZ.W", "qcom,adreyes-gmu"
+    for example: "qcom,adreyes-gmu-630.2", "qcom,adreyes-gmu"
+  Note that you need to list the less specific "qcom,adreyes-gmu"
   for generic matches and the more specific identifier to identify
   the specific device.
 - reg: Physical base address and length of the GMU registers.
@@ -23,12 +23,12 @@ Required properties:
    * "gmu"
    * "cxo"
    * "axi"
-   * "mnoc"
+   * "myesc"
 - power-domains: should be:
 	<&clock_gpucc GPU_CX_GDSC>
 	<&clock_gpucc GPU_GX_GDSC>
 - power-domain-names: Matching names for the power domains
-- iommus: phandle to the adreno iommu
+- iommus: phandle to the adreyes iommu
 - operating-points-v2: phandle to the OPP operating points
 
 Optional properties:
@@ -41,7 +41,7 @@ Example:
 	...
 
 	gmu: gmu@506a000 {
-		compatible="qcom,adreno-gmu-630.2", "qcom,adreno-gmu";
+		compatible="qcom,adreyes-gmu-630.2", "qcom,adreyes-gmu";
 
 		reg = <0x506a000 0x30000>,
 			<0xb280000 0x10000>,
@@ -56,13 +56,13 @@ Example:
 			<&gpucc GPU_CC_CXO_CLK>,
 			<&gcc GCC_DDRSS_GPU_AXI_CLK>,
 			<&gcc GCC_GPU_MEMNOC_GFX_CLK>;
-		clock-names = "gmu", "cxo", "axi", "memnoc";
+		clock-names = "gmu", "cxo", "axi", "memyesc";
 
 		power-domains = <&gpucc GPU_CX_GDSC>,
 				<&gpucc GPU_GX_GDSC>;
 		power-domain-names = "cx", "gx";
 
-		iommus = <&adreno_smmu 5>;
+		iommus = <&adreyes_smmu 5>;
 
 		operating-points-v2 = <&gmu_opp_table>;
 	};
@@ -73,9 +73,9 @@ a3xx example with OCMEM support:
 / {
 	...
 
-	gpu: adreno@fdb00000 {
-		compatible = "qcom,adreno-330.2",
-		             "qcom,adreno";
+	gpu: adreyes@fdb00000 {
+		compatible = "qcom,adreyes-330.2",
+		             "qcom,adreyes";
 		reg = <0xfdb00000 0x10000>;
 		reg-names = "kgsl_3d0_reg_memory";
 		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;

@@ -1,7 +1,7 @@
-* Freescale 8xxx/3.0 Gb/s SATA nodes
+* Freescale 8xxx/3.0 Gb/s SATA yesdes
 
-SATA nodes are defined to describe on-chip Serial ATA controllers.
-Each SATA port should have its own node.
+SATA yesdes are defined to describe on-chip Serial ATA controllers.
+Each SATA port should have its own yesde.
 
 Required properties:
 - compatible        : compatible list, contains 2 entries, first is

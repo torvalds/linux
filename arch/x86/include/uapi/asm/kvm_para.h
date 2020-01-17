@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_ASM_X86_KVM_PARA_H
 #define _UAPI_ASM_X86_KVM_PARA_H
 
@@ -35,7 +35,7 @@
 #define KVM_HINTS_REALTIME      0
 
 /* The last 8 bits are used to indicate how to interpret the flags field
- * in pvclock structure. If no bits are set, all flags are ignored.
+ * in pvclock structure. If yes bits are set, all flags are igyesred.
  */
 #define KVM_FEATURE_CLOCKSOURCE_STABLE_BIT	24
 

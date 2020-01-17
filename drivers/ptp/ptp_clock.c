@@ -204,12 +204,12 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	err = -ENOMEM;
 	ptp = kzalloc(sizeof(struct ptp_clock), GFP_KERNEL);
 	if (ptp == NULL)
-		goto no_memory;
+		goto yes_memory;
 
 	index = ida_simple_get(&ptp_clocks_map, 0, MINORMASK + 1, GFP_KERNEL);
 	if (index < 0) {
 		err = index;
-		goto no_slot;
+		goto yes_slot;
 	}
 
 	ptp->clock.ops = ptp_clock_ops;
@@ -233,7 +233,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 
 	err = ptp_populate_pin_groups(ptp);
 	if (err)
-		goto no_pin_groups;
+		goto yes_pin_groups;
 
 	/* Register a new PPS source. */
 	if (info->pps) {
@@ -246,7 +246,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 		if (IS_ERR(ptp->pps_source)) {
 			err = PTR_ERR(ptp->pps_source);
 			pr_err("failed to register pps source\n");
-			goto no_pps;
+			goto yes_pps;
 		}
 	}
 
@@ -264,26 +264,26 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	err = posix_clock_register(&ptp->clock, &ptp->dev);
 	if (err) {
 		pr_err("failed to create posix clock\n");
-		goto no_clock;
+		goto yes_clock;
 	}
 
 	return ptp;
 
-no_clock:
+yes_clock:
 	if (ptp->pps_source)
 		pps_unregister_source(ptp->pps_source);
-no_pps:
+yes_pps:
 	ptp_cleanup_pin_groups(ptp);
-no_pin_groups:
+yes_pin_groups:
 	if (ptp->kworker)
 		kthread_destroy_worker(ptp->kworker);
 kworker_err:
 	mutex_destroy(&ptp->tsevq_mux);
 	mutex_destroy(&ptp->pincfg_mux);
 	ida_simple_remove(&ptp_clocks_map, index);
-no_slot:
+yes_slot:
 	kfree(ptp);
-no_memory:
+yes_memory:
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(ptp_clock_register);
@@ -390,14 +390,14 @@ static int __init ptp_init(void)
 	err = alloc_chrdev_region(&ptp_devt, 0, MINORMASK + 1, "ptp");
 	if (err < 0) {
 		pr_err("ptp: failed to allocate device region\n");
-		goto no_region;
+		goto yes_region;
 	}
 
 	ptp_class->dev_groups = ptp_groups;
 	pr_info("PTP clock support registered\n");
 	return 0;
 
-no_region:
+yes_region:
 	class_destroy(ptp_class);
 	return err;
 }

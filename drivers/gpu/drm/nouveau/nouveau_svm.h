@@ -3,43 +3,43 @@
 #include <nvif/os.h>
 struct drm_device;
 struct drm_file;
-struct nouveau_drm;
+struct yesuveau_drm;
 
-struct nouveau_svmm;
+struct yesuveau_svmm;
 
 #if IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM)
-void nouveau_svm_init(struct nouveau_drm *);
-void nouveau_svm_fini(struct nouveau_drm *);
-void nouveau_svm_suspend(struct nouveau_drm *);
-void nouveau_svm_resume(struct nouveau_drm *);
+void yesuveau_svm_init(struct yesuveau_drm *);
+void yesuveau_svm_fini(struct yesuveau_drm *);
+void yesuveau_svm_suspend(struct yesuveau_drm *);
+void yesuveau_svm_resume(struct yesuveau_drm *);
 
-int nouveau_svmm_init(struct drm_device *, void *, struct drm_file *);
-void nouveau_svmm_fini(struct nouveau_svmm **);
-int nouveau_svmm_join(struct nouveau_svmm *, u64 inst);
-void nouveau_svmm_part(struct nouveau_svmm *, u64 inst);
-int nouveau_svmm_bind(struct drm_device *, void *, struct drm_file *);
+int yesuveau_svmm_init(struct drm_device *, void *, struct drm_file *);
+void yesuveau_svmm_fini(struct yesuveau_svmm **);
+int yesuveau_svmm_join(struct yesuveau_svmm *, u64 inst);
+void yesuveau_svmm_part(struct yesuveau_svmm *, u64 inst);
+int yesuveau_svmm_bind(struct drm_device *, void *, struct drm_file *);
 #else /* IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM) */
-static inline void nouveau_svm_init(struct nouveau_drm *drm) {}
-static inline void nouveau_svm_fini(struct nouveau_drm *drm) {}
-static inline void nouveau_svm_suspend(struct nouveau_drm *drm) {}
-static inline void nouveau_svm_resume(struct nouveau_drm *drm) {}
+static inline void yesuveau_svm_init(struct yesuveau_drm *drm) {}
+static inline void yesuveau_svm_fini(struct yesuveau_drm *drm) {}
+static inline void yesuveau_svm_suspend(struct yesuveau_drm *drm) {}
+static inline void yesuveau_svm_resume(struct yesuveau_drm *drm) {}
 
-static inline int nouveau_svmm_init(struct drm_device *device, void *p,
+static inline int yesuveau_svmm_init(struct drm_device *device, void *p,
 				    struct drm_file *file)
 {
 	return -ENOSYS;
 }
 
-static inline void nouveau_svmm_fini(struct nouveau_svmm **svmmp) {}
+static inline void yesuveau_svmm_fini(struct yesuveau_svmm **svmmp) {}
 
-static inline int nouveau_svmm_join(struct nouveau_svmm *svmm, u64 inst)
+static inline int yesuveau_svmm_join(struct yesuveau_svmm *svmm, u64 inst)
 {
 	return 0;
 }
 
-static inline void nouveau_svmm_part(struct nouveau_svmm *svmm, u64 inst) {}
+static inline void yesuveau_svmm_part(struct yesuveau_svmm *svmm, u64 inst) {}
 
-static inline int nouveau_svmm_bind(struct drm_device *device, void *p,
+static inline int yesuveau_svmm_bind(struct drm_device *device, void *p,
 				    struct drm_file *file)
 {
 	return -ENOSYS;

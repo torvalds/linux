@@ -75,7 +75,7 @@ static int sun8i_sid_register_readout(const struct sunxi_sid *sid,
 
 /*
  * On Allwinner H3, the value on the 0x200 offset of the SID controller seems
- * to be not reliable at all.
+ * to be yest reliable at all.
  * Read by the registers instead.
  */
 static int sun8i_sid_read_by_reg(void *context, unsigned int offset,

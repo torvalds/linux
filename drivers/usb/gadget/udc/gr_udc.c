@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
@@ -236,7 +236,7 @@ static struct gr_dma_desc *gr_alloc_dma_desc(struct gr_ep *ep, gfp_t gfp_flags)
 
 	dma_desc = dma_pool_zalloc(ep->dev->desc_pool, gfp_flags, &paddr);
 	if (!dma_desc) {
-		dev_err(ep->dev->dev, "Could not allocate from DMA pool\n");
+		dev_err(ep->dev->dev, "Could yest allocate from DMA pool\n");
 		return NULL;
 	}
 
@@ -302,7 +302,7 @@ static void gr_finish_request(struct gr_ep *ep, struct gr_request *req,
 		req->req.actual = req->req.length;
 	} else if (req->oddlen && req->req.actual > req->evenlen) {
 		/*
-		 * Copy to user buffer in this case where length was not evenly
+		 * Copy to user buffer in this case where length was yest evenly
 		 * divisible by ep->ep.maxpacket and the last descriptor was
 		 * actually used.
 		 */
@@ -333,7 +333,7 @@ static void gr_finish_request(struct gr_ep *ep, struct gr_request *req,
 			gr_ep0_setup(dev, req);
 		else
 			dev_err(dev->dev,
-				"Unexpected non setup packet on ep0in\n");
+				"Unexpected yesn setup packet on ep0in\n");
 	} else if (req->req.complete) {
 		spin_unlock(&dev->lock);
 
@@ -378,7 +378,7 @@ static void gr_start_dma(struct gr_ep *ep)
 	BUG_ON(!req->curr_desc);
 
 	/*
-	 * The DMA controller can not handle smaller OUT buffers than
+	 * The DMA controller can yest handle smaller OUT buffers than
 	 * ep->ep.maxpacket. It could lead to buffer overruns if an unexpectedly
 	 * long packet are received. Therefore an internal bounce buffer gets
 	 * used when such a request gets enabled.
@@ -391,7 +391,7 @@ static void gr_start_dma(struct gr_ep *ep)
 	/* Set the descriptor pointer in the hardware */
 	gr_write32(&ep->regs->dmaaddr, req->curr_desc->paddr);
 
-	/* Announce available descriptors */
+	/* Anyesunce available descriptors */
 	dmactrl = gr_read32(&ep->regs->dmactrl);
 	gr_write32(&ep->regs->dmactrl, dmactrl | GR_DMACTRL_DA);
 
@@ -431,7 +431,7 @@ static void gr_abort_dma(struct gr_ep *ep)
  * Allocates and sets up a struct gr_dma_desc and putting it on the descriptor
  * chain.
  *
- * Size is not used for OUT endpoints. Hardware can not be instructed to handle
+ * Size is yest used for OUT endpoints. Hardware can yest be instructed to handle
  * smaller buffer than MAXPL in the OUT direction.
  */
 static int gr_add_dma_desc(struct gr_ep *ep, struct gr_request *req,
@@ -480,7 +480,7 @@ static int gr_setup_out_desc_list(struct gr_ep *ep, struct gr_request *req,
 	u16 bytes_used; /* Bytes accommodated for */
 	int ret = 0;
 
-	req->first_desc = NULL; /* Signals that no allocation is done yet */
+	req->first_desc = NULL; /* Signals that yes allocation is done yet */
 	bytes_left = req->req.length;
 	bytes_used = 0;
 	while (bytes_left > 0) {
@@ -519,7 +519,7 @@ alloc_err:
  * When more data is provided than the maximum payload size, the hardware splits
  * this up into several payloads automatically. Moreover, ep->bytes_per_buffer
  * is always set to a multiple of the maximum payload (restricted to the valid
- * number of maximum payloads during high bandwidth isochronous or interrupt
+ * number of maximum payloads during high bandwidth isochroyesus or interrupt
  * transfers)
  *
  * All descriptors are enabled from the beginning and we only generate an
@@ -533,7 +533,7 @@ static int gr_setup_in_desc_list(struct gr_ep *ep, struct gr_request *req,
 	u16 bytes_used; /* Bytes in req accommodated for */
 	int ret = 0;
 
-	req->first_desc = NULL; /* Signals that no allocation is done yet */
+	req->first_desc = NULL; /* Signals that yes allocation is done yet */
 	bytes_left = req->req.length;
 	bytes_used = 0;
 	do { /* Allow for zero length packets */
@@ -549,7 +549,7 @@ static int gr_setup_in_desc_list(struct gr_ep *ep, struct gr_request *req,
 	} while (bytes_left > 0);
 
 	/*
-	 * Send an extra zero length packet to indicate that no more data is
+	 * Send an extra zero length packet to indicate that yes more data is
 	 * available when req->req.zero is set and the data length is even
 	 * multiples of ep->ep.maxpacket.
 	 */
@@ -560,8 +560,8 @@ static int gr_setup_in_desc_list(struct gr_ep *ep, struct gr_request *req,
 	}
 
 	/*
-	 * For IN packets we only want to know when the last packet has been
-	 * transmitted (not just put into internal buffers).
+	 * For IN packets we only want to kyesw when the last packet has been
+	 * transmitted (yest just put into internal buffers).
 	 */
 	req->last_desc->ctrl |= GR_DESC_IN_CTRL_PI;
 
@@ -620,7 +620,7 @@ static int gr_queue(struct gr_ep *ep, struct gr_request *req, gfp_t gfp_flags)
 	req->req.actual = 0;
 	list_add_tail(&req->queue, &ep->queue);
 
-	/* Start DMA if not started, otherwise interrupt handler handles it */
+	/* Start DMA if yest started, otherwise interrupt handler handles it */
 	if (!ep->dma_start && likely(!ep->stopped))
 		gr_start_dma(ep);
 
@@ -756,14 +756,14 @@ static inline void gr_set_ep0state(struct gr_udc *dev, enum gr_ep0state value)
 }
 
 /*
- * Should only be called when endpoints can not generate interrupts.
+ * Should only be called when endpoints can yest generate interrupts.
  *
  * Must be called with dev->lock held.
  */
 static void gr_disable_interrupts_and_pullup(struct gr_udc *dev)
 {
 	gr_write32(&dev->regs->control, 0);
-	wmb(); /* Make sure that we do not deny one of our interrupts */
+	wmb(); /* Make sure that we do yest deny one of our interrupts */
 	dev->irq_enabled = 0;
 }
 
@@ -833,7 +833,7 @@ static int gr_ep0_respond(struct gr_udc *dev, u8 *buf, int length,
 	status = gr_queue_int(&dev->epi[0], dev->ep0reqi, GFP_ATOMIC);
 	if (status < 0)
 		dev_err(dev->dev,
-			"Could not queue ep0in setup response: %d\n", status);
+			"Could yest queue ep0in setup response: %d\n", status);
 
 	return status;
 }
@@ -913,7 +913,7 @@ static int gr_device_request(struct gr_udc *dev, u8 type, u8 request,
 			return gr_ep0_respond_empty(dev);
 
 		case USB_DEVICE_TEST_MODE:
-			/* The hardware does not support TEST_FORCE_EN */
+			/* The hardware does yest support TEST_FORCE_EN */
 			test = index >> 8;
 			if (test >= TEST_J && test <= TEST_PACKET) {
 				dev->test_mode = test;
@@ -949,8 +949,8 @@ static int gr_interface_request(struct gr_udc *dev, u8 type, u8 request,
 		return -1;
 
 	/*
-	 * Should return STALL for invalid interfaces, but udc driver does not
-	 * know anything about that. However, many gadget drivers do not handle
+	 * Should return STALL for invalid interfaces, but udc driver does yest
+	 * kyesw anything about that. However, many gadget drivers do yest handle
 	 * GET_STATUS so we need to take care of that.
 	 */
 
@@ -1030,7 +1030,7 @@ static void gr_ep0out_requeue(struct gr_udc *dev)
 	int ret = gr_queue_int(&dev->epo[0], dev->ep0reqo, GFP_ATOMIC);
 
 	if (ret)
-		dev_err(dev->dev, "Could not queue ep0out setup request: %d\n",
+		dev_err(dev->dev, "Could yest queue ep0out setup request: %d\n",
 			ret);
 }
 
@@ -1185,7 +1185,7 @@ static void gr_enable_vbus_detect(struct gr_udc *dev)
 	u32 status;
 
 	dev->irq_enabled = 1;
-	wmb(); /* Make sure we do not ignore an interrupt */
+	wmb(); /* Make sure we do yest igyesre an interrupt */
 	gr_write32(&dev->regs->control, GR_CONTROL_VI);
 
 	/* Take care of the case we are already plugged in at this point */
@@ -1510,7 +1510,7 @@ static int gr_ep_enable(struct usb_ep *_ep,
 	} else if (usb_endpoint_xfer_int(desc)) {
 		mode = 3;
 	} else {
-		dev_err(dev->dev, "Unknown transfer type for %s\n",
+		dev_err(dev->dev, "Unkyeswn transfer type for %s\n",
 			ep->ep.name);
 		return -EINVAL;
 	}
@@ -1524,7 +1524,7 @@ static int gr_ep_enable(struct usb_ep *_ep,
 	buffer_size = GR_BUFFER_SIZE(epctrl);
 	if (nt && (mode == 0 || mode == 2)) {
 		dev_err(dev->dev,
-			"%s mode: multiple trans./microframe not valid\n",
+			"%s mode: multiple trans./microframe yest valid\n",
 			(mode == 2 ? "Bulk" : "Control"));
 		return -EINVAL;
 	} else if (nt == 0x3) {
@@ -1536,7 +1536,7 @@ static int gr_ep_enable(struct usb_ep *_ep,
 			buffer_size, (nt + 1), max);
 		return -EINVAL;
 	} else if (max == 0) {
-		dev_err(dev->dev, "Max payload cannot be set to 0\n");
+		dev_err(dev->dev, "Max payload canyest be set to 0\n");
 		return -EINVAL;
 	} else if (max > ep->ep.maxpacket_limit) {
 		dev_err(dev->dev, "Requested max payload %d > limit %d\n",
@@ -1630,7 +1630,7 @@ static int gr_ep_disable(struct usb_ep *_ep)
 }
 
 /*
- * Frees a request, but not any DMA buffers associated with it
+ * Frees a request, but yest any DMA buffers associated with it
  * (gr_finish_request should already have taken care of that).
  */
 static void gr_free_request(struct usb_ep *_ep, struct usb_request *_req)
@@ -1643,7 +1643,7 @@ static void gr_free_request(struct usb_ep *_ep, struct usb_request *_req)
 
 	/* Leads to memory leak */
 	WARN(!list_empty(&req->queue),
-	     "request not dequeued properly before freeing\n");
+	     "request yest dequeued properly before freeing\n");
 
 	kfree(req);
 }
@@ -1751,7 +1751,7 @@ static int gr_set_halt_wedge(struct usb_ep *_ep, int halt, int wedge)
 
 	spin_lock(&ep->dev->lock);
 
-	/* Halting an IN endpoint should fail if queue is not empty */
+	/* Halting an IN endpoint should fail if queue is yest empty */
 	if (halt && ep->is_in && !list_empty(&ep->queue)) {
 		ret = -EAGAIN;
 		goto out;
@@ -1859,7 +1859,7 @@ static int gr_wakeup(struct usb_gadget *_gadget)
 		return -ENODEV;
 	dev = container_of(_gadget, struct gr_udc, gadget);
 
-	/* Remote wakeup feature not enabled by host*/
+	/* Remote wakeup feature yest enabled by host*/
 	if (!dev->remote_wakeup)
 		return -EINVAL;
 
@@ -1936,7 +1936,7 @@ static const struct usb_gadget_ops gr_ops = {
 	.pullup         = gr_pullup,
 	.udc_start	= gr_udc_start,
 	.udc_stop	= gr_udc_stop,
-	/* Other operations not supported */
+	/* Other operations yest supported */
 };
 
 /* ---------------------------------------------------------------------- */
@@ -2026,7 +2026,7 @@ static int gr_ep_init(struct gr_udc *dev, int num, int is_in, u32 maxplimit)
 /* Must be called with dev->lock held */
 static int gr_udc_init(struct gr_udc *dev)
 {
-	struct device_node *np = dev->dev->of_node;
+	struct device_yesde *np = dev->dev->of_yesde;
 	u32 epctrl_val;
 	u32 dmactrl_val;
 	int i;
@@ -2161,7 +2161,7 @@ static int gr_probe(struct platform_device *pdev)
 	dev->nepo = ((status & GR_STATUS_NEPO_MASK) >> GR_STATUS_NEPO_POS) + 1;
 
 	if (!(status & GR_STATUS_DM)) {
-		dev_err(dev->dev, "Slave mode cores are not supported\n");
+		dev_err(dev->dev, "Slave mode cores are yest supported\n");
 		return -ENODEV;
 	}
 
@@ -2171,16 +2171,16 @@ static int gr_probe(struct platform_device *pdev)
 	dev->desc_pool = dma_pool_create("desc_pool", dev->dev,
 					 sizeof(struct gr_dma_desc), 4, 0);
 	if (!dev->desc_pool) {
-		dev_err(dev->dev, "Could not allocate DMA pool");
+		dev_err(dev->dev, "Could yest allocate DMA pool");
 		return -ENOMEM;
 	}
 
 	spin_lock(&dev->lock);
 
-	/* Inside lock so that no gadget can use this udc until probe is done */
+	/* Inside lock so that yes gadget can use this udc until probe is done */
 	retval = usb_add_gadget_udc(dev->dev, &dev->gadget);
 	if (retval) {
-		dev_err(dev->dev, "Could not add gadget udc");
+		dev_err(dev->dev, "Could yest add gadget udc");
 		goto out;
 	}
 	dev->added = 1;

@@ -57,7 +57,7 @@ struct perf_sf_sde_regs {
 #define PERF_EVENT_CPUM_SF_DIAG		0xBD000UL /* Event: Combined-sampling */
 #define PERF_EVENT_CPUM_CF_DIAG		0xBC000UL /* Event: Counter sets */
 #define PERF_CPUM_SF_BASIC_MODE		0x0001	  /* Basic-sampling flag */
-#define PERF_CPUM_SF_DIAG_MODE		0x0002	  /* Diagnostic-sampling flag */
+#define PERF_CPUM_SF_DIAG_MODE		0x0002	  /* Diagyesstic-sampling flag */
 #define PERF_CPUM_SF_MODE_MASK		(PERF_CPUM_SF_BASIC_MODE| \
 					 PERF_CPUM_SF_DIAG_MODE)
 #define PERF_CPUM_SF_FULL_BLOCKS	0x0004	  /* Process full SDBs only */

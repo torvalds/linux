@@ -11,26 +11,26 @@ Documentation/devicetree/bindings/arm/keystone/ti,sci.txt
 
 TI-SCI Reset Controller Node
 ============================
-This reset controller node uses the TI SCI protocol to perform the reset
+This reset controller yesde uses the TI SCI protocol to perform the reset
 management of various hardware modules present on the SoC. Must be a child
-node of the associated TI-SCI system controller node.
+yesde of the associated TI-SCI system controller yesde.
 
 Required properties:
 --------------------
  - compatible	: Should be "ti,sci-reset"
- - #reset-cells	: Should be 2. Please see the reset consumer node below for
+ - #reset-cells	: Should be 2. Please see the reset consumer yesde below for
 		  usage details.
 
 TI-SCI Reset Consumer Nodes
 ===========================
-Each of the reset consumer nodes should have the following properties,
+Each of the reset consumer yesdes should have the following properties,
 in addition to their own properties.
 
 Required properties:
 --------------------
  - resets	: A phandle and reset specifier pair, one pair for each reset
 		  signal that affects the device, or that the device manages.
-		  The phandle should point to the TI-SCI reset controller node,
+		  The phandle should point to the TI-SCI reset controller yesde,
 		  and the reset specifier should have 2 cell-values. The first
 		  cell should contain the device ID. The second cell should
 		  contain the reset mask value used by system controller.
@@ -43,7 +43,7 @@ common reset controller usage by consumers.
 
 Example:
 --------
-The following example demonstrates both a TI-SCI reset controller node and a
+The following example demonstrates both a TI-SCI reset controller yesde and a
 consumer (a DSP device) on the 66AK2G SoC.
 
 pmmc: pmmc {

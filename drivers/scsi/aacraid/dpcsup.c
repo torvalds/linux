@@ -27,16 +27,16 @@
 #include "aacraid.h"
 
 /**
- *	aac_response_normal	-	Handle command replies
+ *	aac_response_yesrmal	-	Handle command replies
  *	@q: Queue to read from
  *
  *	This DPC routine will be run when the adapter interrupts us to let us
- *	know there is a response on our normal priority queue. We will pull off
+ *	kyesw there is a response on our yesrmal priority queue. We will pull off
  *	all QE there are and wake up all the waiters before exiting. We will
  *	take a spinlock out on the queue before operating on it.
  */
 
-unsigned int aac_response_normal(struct aac_queue * q)
+unsigned int aac_response_yesrmal(struct aac_queue * q)
 {
 	struct aac_dev * dev = q->dev;
 	struct aac_entry *entry;
@@ -48,8 +48,8 @@ unsigned int aac_response_normal(struct aac_queue * q)
 	spin_lock_irqsave(q->lock, flags);
 	/*
 	 *	Keep pulling response QEs off the response queue and waking
-	 *	up the waiters until there are no more QEs. We then return
-	 *	back to the system. If no response was requested we just
+	 *	up the waiters until there are yes more QEs. We then return
+	 *	back to the system. If yes response was requested we just
 	 *	deallocate the Fib here and continue.
 	 */
 	while(aac_consumer_get(dev, q, &entry))
@@ -63,10 +63,10 @@ unsigned int aac_response_normal(struct aac_queue * q)
 		aac_consumer_free(dev, q, HostNormRespQueue);
 		/*
 		 *	Remove this fib from the Outstanding I/O queue.
-		 *	But only if it has not already been timed out.
+		 *	But only if it has yest already been timed out.
 		 *
 		 *	If the fib has been timed out already, then just 
-		 *	continue. The caller has already been notified that
+		 *	continue. The caller has already been yestified that
 		 *	the fib timed out.
 		 */
 		atomic_dec(&dev->queues->queue[AdapNormCmdQueue].numpending);
@@ -104,7 +104,7 @@ unsigned int aac_response_normal(struct aac_queue * q)
 			else 
 				FIB_COUNTER_INCREMENT(aac_config.AsyncRecved);
 			/*
-			 *	NOTE:  we cannot touch the fib after this
+			 *	NOTE:  we canyest touch the fib after this
 			 *	    call, because it may have been deallocated.
 			 */
 			fib->callback(fib->callback_data, fib);
@@ -145,16 +145,16 @@ unsigned int aac_response_normal(struct aac_queue * q)
 
 
 /**
- *	aac_command_normal	-	handle commands
+ *	aac_command_yesrmal	-	handle commands
  *	@q: queue to process
  *
  *	This DPC routine will be queued when the adapter interrupts us to 
- *	let us know there is a command on our normal priority queue. We will 
+ *	let us kyesw there is a command on our yesrmal priority queue. We will 
  *	pull off all QE there are and wake up all the waiters before exiting.
  *	We will take a spinlock out on the queue before operating on it.
  */
  
-unsigned int aac_command_normal(struct aac_queue *q)
+unsigned int aac_command_yesrmal(struct aac_queue *q)
 {
 	struct aac_dev * dev = q->dev;
 	struct aac_entry *entry;
@@ -164,7 +164,7 @@ unsigned int aac_command_normal(struct aac_queue *q)
 
 	/*
 	 *	Keep pulling response QEs off the response queue and waking
-	 *	up the waiters until there are no more QEs. We then return
+	 *	up the waiters until there are yes more QEs. We then return
 	 *	back to the system.
 	 */
 	while(aac_consumer_get(dev, q, &entry))
@@ -178,7 +178,7 @@ unsigned int aac_command_normal(struct aac_queue *q)
 		hw_fib = &dev->aif_base_va[index];
 		
 		/*
-		 *	Allocate a FIB at all costs. For non queued stuff
+		 *	Allocate a FIB at all costs. For yesn queued stuff
 		 *	we can just use the stack so we are happy. We need
 		 *	a fib object in order to manage the linked lists
 		 */
@@ -243,7 +243,7 @@ static void aac_aif_callback(void *context, struct fib * fibptr)
 		return;
 	}
 
-	aac_intr_normal(dev, 0, 1, 0, fibptr->hw_fib_va);
+	aac_intr_yesrmal(dev, 0, 1, 0, fibptr->hw_fib_va);
 
 	aac_fib_init(fibctx);
 	cmd = (struct aac_aifcmd *) fib_data(fibctx);
@@ -259,19 +259,19 @@ static void aac_aif_callback(void *context, struct fib * fibptr)
 
 
 /**
- *	aac_intr_normal	-	Handle command replies
+ *	aac_intr_yesrmal	-	Handle command replies
  *	@dev: Device
  *	@index: completion reference
  *
  *	This DPC routine will be run when the adapter interrupts us to let us
- *	know there is a response on our normal priority queue. We will pull off
+ *	kyesw there is a response on our yesrmal priority queue. We will pull off
  *	all QE there are and wake up all the waiters before exiting.
  */
-unsigned int aac_intr_normal(struct aac_dev *dev, u32 index, int isAif,
+unsigned int aac_intr_yesrmal(struct aac_dev *dev, u32 index, int isAif,
 	int isFastResponse, struct hw_fib *aif_fib)
 {
 	unsigned long mflags;
-	dprintk((KERN_INFO "aac_intr_normal(%p,%x)\n", dev, index));
+	dprintk((KERN_INFO "aac_intr_yesrmal(%p,%x)\n", dev, index));
 	if (isAif == 1) {	/* AIF - common */
 		struct hw_fib * hw_fib;
 		struct fib * fib;
@@ -279,7 +279,7 @@ unsigned int aac_intr_normal(struct aac_dev *dev, u32 index, int isAif,
 		unsigned long flags;
 
 		/*
-		 *	Allocate a FIB. For non queued stuff we can just use
+		 *	Allocate a FIB. For yesn queued stuff we can just use
 		 * the stack so we are happy. We need a fib object in order to
 		 * manage the linked lists.
 		 */
@@ -335,10 +335,10 @@ unsigned int aac_intr_normal(struct aac_dev *dev, u32 index, int isAif,
 
 		/*
 		 *	Remove this fib from the Outstanding I/O queue.
-		 *	But only if it has not already been timed out.
+		 *	But only if it has yest already been timed out.
 		 *
 		 *	If the fib has been timed out already, then just 
-		 *	continue. The caller has already been notified that
+		 *	continue. The caller has already been yestified that
 		 *	the fib timed out.
 		 */
 		atomic_dec(&dev->queues->queue[AdapNormCmdQueue].numpending);
@@ -439,7 +439,7 @@ unsigned int aac_intr_normal(struct aac_dev *dev, u32 index, int isAif,
 
 		if (start_callback) {
 			/*
-			 * NOTE:  we cannot touch the fib after this
+			 * NOTE:  we canyest touch the fib after this
 			 *  call, because it may have been deallocated.
 			 */
 			if (likely(fib->callback && fib->callback_data)) {

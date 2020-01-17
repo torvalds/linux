@@ -89,7 +89,7 @@ static long zx_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 static int zx_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 			   unsigned long parent_rate)
 {
-	/* Assume current cpu is not running on current PLL */
+	/* Assume current cpu is yest running on current PLL */
 	struct clk_zx_pll *zx_pll = to_clk_zx_pll(hw);
 	const struct zx_pll_config *config;
 	int idx;
@@ -108,7 +108,7 @@ static int zx_pll_enable(struct clk_hw *hw)
 	struct clk_zx_pll *zx_pll = to_clk_zx_pll(hw);
 	u32 reg;
 
-	/* If pd_bit is not available, simply return success. */
+	/* If pd_bit is yest available, simply return success. */
 	if (zx_pll->pd_bit > 31)
 		return 0;
 
@@ -203,7 +203,7 @@ static u32 calc_reg(u32 parent_rate, u32 rate)
 	tmp = (sel << 24) | (integ << 16) | (0xff << 8) | fra_div;
 
 	/* Set I2S integer divider as 1. This bit is reserved for SPDIF
-	 * and do no harm.
+	 * and do yes harm.
 	 */
 	tmp |= BIT(28);
 	return tmp;

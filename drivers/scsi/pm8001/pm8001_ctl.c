@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -218,7 +218,7 @@ static ssize_t pm8001_ctl_max_devices_show(struct device *cdev,
 }
 static DEVICE_ATTR(max_devices, S_IRUGO, pm8001_ctl_max_devices_show, NULL);
 /**
- * pm8001_ctl_max_sg_list_show - max sg list supported iff not 0.0 for no
+ * pm8001_ctl_max_sg_list_show - max sg list supported iff yest 0.0 for yes
  * hardware limitation
  * @cdev: pointer to embedded class device
  * @buf: the buffer returned
@@ -461,7 +461,7 @@ static ssize_t pm8001_ctl_bios_version_show(struct device *cdev,
 	struct pm8001_ioctl_payload payload;
 
 	pm8001_ha->nvmd_completion = &completion;
-	payload.minor_function = 7;
+	payload.miyesr_function = 7;
 	payload.offset = 0;
 	payload.length = 4096;
 	payload.func_specific = kzalloc(4096, GFP_KERNEL);
@@ -601,7 +601,7 @@ static struct error_fw flash_error_table[] =
      {"image CRC Error",		FLASH_UPDATE_CRC_ERR},
      {"image length Error.",		FLASH_UPDATE_LENGTH_ERR},
      {"Failed to program flash chip",	FLASH_UPDATE_HW_ERR},
-     {"Flash chip not supported.",	FLASH_UPDATE_DNLD_NOT_SUPPORTED},
+     {"Flash chip yest supported.",	FLASH_UPDATE_DNLD_NOT_SUPPORTED},
      {"Flash update disabled.",		FLASH_UPDATE_DISABLED},
      {"Flash in progress",		FLASH_IN_PROGRESS},
      {"Image file size Error",		FAIL_FILE_SIZE},
@@ -633,7 +633,7 @@ static int pm8001_set_nvmd(struct pm8001_hba_info *pm8001_ha)
 				pm8001_ha->fw_image->size);
 	payload->length = pm8001_ha->fw_image->size;
 	payload->id = 0;
-	payload->minor_function = 0x1;
+	payload->miyesr_function = 0x1;
 	pm8001_ha->nvmd_completion = &completion;
 	ret = PM8001_CHIP_DISP->set_nvmd_req(pm8001_ha, payload);
 	if (ret) {
@@ -686,7 +686,7 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 			fwControl->retcode = 0;/* OUT */
 			fwControl->offset = loopNumber * IOCTL_BUF_SIZE;/*OUT */
 
-		/* for the last chunk of data in case file size is not even with
+		/* for the last chunk of data in case file size is yest even with
 		4k, load only the rest*/
 		if (((loopcount-loopNumber) == 1) &&
 			((partitionSize + HEADER_LEN) % IOCTL_BUF_SIZE)) {

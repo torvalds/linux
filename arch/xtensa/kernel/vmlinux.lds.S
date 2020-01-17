@@ -34,10 +34,10 @@ jiffies = jiffies_64;
 
 /* Note: In the following macros, it would be nice to specify only the
    vector name and section kind and construct "sym" and "section" using
-   CPP concatenation, but that does not work reliably.  Concatenating a
-   string with "." produces an invalid token.  CPP will not print a
+   CPP concatenation, but that does yest work reliably.  Concatenating a
+   string with "." produces an invalid token.  CPP will yest print a
    warning because it thinks this is an assembly file, but it leaves
-   them as multiple tokens and there may or may not be whitespace
+   them as multiple tokens and there may or may yest be whitespace
    between them.  */
 
 /* Macro for a relocation entry */

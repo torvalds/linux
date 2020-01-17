@@ -176,7 +176,7 @@ static int zet6223_probe(struct i2c_client *client,
 	int error;
 
 	if (!client->irq) {
-		dev_err(dev, "no irq specified\n");
+		dev_err(dev, "yes irq specified\n");
 		return -EINVAL;
 	}
 

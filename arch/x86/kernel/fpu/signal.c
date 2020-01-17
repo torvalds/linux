@@ -90,7 +90,7 @@ static inline int save_xstate_epilog(void __user *buf, int ia32_frame)
 	u32 xfeatures;
 	int err;
 
-	/* Setup the bytes not touched by the [f]xsave and reserved for SW. */
+	/* Setup the bytes yest touched by the [f]xsave and reserved for SW. */
 	sw_bytes = ia32_frame ? &fx_sw_reserved_ia32 : &fx_sw_reserved;
 	err = __copy_to_user(&x->i387.sw_reserved, sw_bytes, sizeof(*sw_bytes));
 
@@ -180,9 +180,9 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 
 retry:
 	/*
-	 * Load the FPU registers if they are not valid for the current task.
+	 * Load the FPU registers if they are yest valid for the current task.
 	 * With a valid FPU state we can attempt to save the state directly to
-	 * userland's stack frame which will likely succeed. If it does not,
+	 * userland's stack frame which will likely succeed. If it does yest,
 	 * resolve the fault in the user memory and try again.
 	 */
 	fpregs_lock();
@@ -226,8 +226,8 @@ sanitize_restored_xstate(union fpregs_state *state,
 		 */
 
 		/*
-		 * Init the state that is not present in the memory
-		 * layout and not enabled by the OS.
+		 * Init the state that is yest present in the memory
+		 * layout and yest enabled by the OS.
 		 */
 		if (fx_only)
 			header->xfeatures = XFEATURE_MASK_FPSSE;
@@ -315,9 +315,9 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 	}
 
 	/*
-	 * The current state of the FPU registers does not matter. By setting
+	 * The current state of the FPU registers does yest matter. By setting
 	 * TIF_NEED_FPU_LOAD unconditionally it is ensured that the our xstate
-	 * is not modified on context switch and that the xstate is considered
+	 * is yest modified on context switch and that the xstate is considered
 	 * to be loaded again on return to userland (overriding last_cpu avoids
 	 * the optimisation).
 	 */
@@ -338,7 +338,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 	} else {
 		/*
 		 * Attempt to restore the FPU registers directly from user
-		 * memory. For that to succeed, the user access cannot cause
+		 * memory. For that to succeed, the user access canyest cause
 		 * page faults. If it does, fall back to the slow path below,
 		 * going through the kernel buffer with the enabled pagefault
 		 * handler.

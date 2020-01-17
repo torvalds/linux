@@ -144,7 +144,7 @@ static int hif_receive_indication(struct wfx_dev *wdev, struct hif_msg *hif,
 	struct hif_ind_rx *body = buf;
 
 	if (!wvif) {
-		dev_warn(wdev->dev, "ignore rx data for non-existent vif %d\n",
+		dev_warn(wdev->dev, "igyesre rx data for yesn-existent vif %d\n",
 			 hif->interface);
 		return 0;
 	}
@@ -238,30 +238,30 @@ static int hif_error_indication(struct wfx_dev *wdev, struct hif_msg *hif,
 	switch (body->type) {
 	case HIF_ERROR_FIRMWARE_ROLLBACK:
 		dev_err(wdev->dev,
-			"asynchronous error: firmware rollback error %d\n",
+			"asynchroyesus error: firmware rollback error %d\n",
 			*pRollback);
 		break;
 	case HIF_ERROR_FIRMWARE_DEBUG_ENABLED:
-		dev_err(wdev->dev, "asynchronous error: firmware debug feature enabled\n");
+		dev_err(wdev->dev, "asynchroyesus error: firmware debug feature enabled\n");
 		break;
 	case HIF_ERROR_OUTDATED_SESSION_KEY:
-		dev_err(wdev->dev, "asynchronous error: secure link outdated key: %#.8x\n",
+		dev_err(wdev->dev, "asynchroyesus error: secure link outdated key: %#.8x\n",
 			*pStatus);
 		break;
 	case HIF_ERROR_INVALID_SESSION_KEY:
-		dev_err(wdev->dev, "asynchronous error: invalid session key\n");
+		dev_err(wdev->dev, "asynchroyesus error: invalid session key\n");
 		break;
 	case HIF_ERROR_OOR_VOLTAGE:
-		dev_err(wdev->dev, "asynchronous error: out-of-range overvoltage: %#.8x\n",
+		dev_err(wdev->dev, "asynchroyesus error: out-of-range overvoltage: %#.8x\n",
 			*pStatus);
 		break;
 	case HIF_ERROR_PDS_VERSION:
 		dev_err(wdev->dev,
-			"asynchronous error: wrong PDS payload or version: %#.8x\n",
+			"asynchroyesus error: wrong PDS payload or version: %#.8x\n",
 			*pStatus);
 		break;
 	default:
-		dev_err(wdev->dev, "asynchronous error: unknown (%d)\n",
+		dev_err(wdev->dev, "asynchroyesus error: unkyeswn (%d)\n",
 			body->type);
 		break;
 	}
@@ -292,7 +292,7 @@ static int hif_generic_indication(struct wfx_dev *wdev, struct hif_msg *hif,
 		return 0;
 	default:
 		dev_err(wdev->dev,
-			"generic_indication: unknown indication type: %#.8x\n",
+			"generic_indication: unkyeswn indication type: %#.8x\n",
 			body->indication_type);
 		return -EIO;
 	}

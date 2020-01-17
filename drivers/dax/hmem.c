@@ -21,7 +21,7 @@ static int dax_hmem_probe(struct platform_device *pdev)
 	mri = dev->platform_data;
 	memcpy(&pgmap.res, res, sizeof(*res));
 
-	dax_region = alloc_dax_region(dev, pdev->id, res, mri->target_node,
+	dax_region = alloc_dax_region(dev, pdev->id, res, mri->target_yesde,
 			PMD_SIZE, PFN_DEV|PFN_MAP);
 	if (!dax_region)
 		return -ENOMEM;
@@ -30,7 +30,7 @@ static int dax_hmem_probe(struct platform_device *pdev)
 	if (IS_ERR(dev_dax))
 		return PTR_ERR(dev_dax);
 
-	/* child dev_dax instances now own the lifetime of the dax_region */
+	/* child dev_dax instances yesw own the lifetime of the dax_region */
 	dax_region_put(dax_region);
 	return 0;
 }

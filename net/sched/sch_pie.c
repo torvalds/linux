@@ -4,7 +4,7 @@
  * Author: Vijay Subramanian <vijaynsu@cisco.com>
  * Author: Mythili Prabhu <mysuryan@cisco.com>
  *
- * ECN support is added by Naeem Khademi <naeemk@ifi.uio.no>
+ * ECN support is added by Naeem Khademi <naeemk@ifi.uio.yes>
  * University of Oslo, Norway.
  *
  * References:
@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
@@ -300,19 +300,19 @@ static void pie_process_dequeue(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct pie_sched_data *q = qdisc_priv(sch);
 	int qlen = sch->qstats.backlog;	/* current queue size in bytes */
-	psched_time_t now = psched_get_time();
+	psched_time_t yesw = psched_get_time();
 	u32 dtime = 0;
 
 	/* If dq_rate_estimator is disabled, calculate qdelay using the
 	 * packet timestamp.
 	 */
 	if (!q->params.dq_rate_estimator) {
-		q->vars.qdelay = now - pie_get_enqueue_time(skb);
+		q->vars.qdelay = yesw - pie_get_enqueue_time(skb);
 
 		if (q->vars.dq_tstamp != DTIME_INVALID)
-			dtime = now - q->vars.dq_tstamp;
+			dtime = yesw - q->vars.dq_tstamp;
 
-		q->vars.dq_tstamp = now;
+		q->vars.dq_tstamp = yesw;
 
 		if (qlen == 0)
 			q->vars.qdelay = 0;
@@ -324,7 +324,7 @@ static void pie_process_dequeue(struct Qdisc *sch, struct sk_buff *skb)
 	}
 
 	/* If current queue is about 10 packets or more and dq_count is unset
-	 * we have enough packets to calculate the drain rate. Save
+	 * we have eyesugh packets to calculate the drain rate. Save
 	 * current time as dq_tstamp and start measurement cycle.
 	 */
 	if (qlen >= QUEUE_THRESHOLD && q->vars.dq_count == DQCOUNT_INVALID) {
@@ -334,7 +334,7 @@ static void pie_process_dequeue(struct Qdisc *sch, struct sk_buff *skb)
 
 	/* Calculate the average drain rate from this value.  If queue length
 	 * has receded to a small value viz., <= QUEUE_THRESHOLD bytes,reset
-	 * the dq_count to -1 as we don't have enough packets to calculate the
+	 * the dq_count to -1 as we don't have eyesugh packets to calculate the
 	 * drain rate anymore The following if block is entered only when we
 	 * have a substantial queue built up (QUEUE_THRESHOLD bytes or more)
 	 * and we calculate the drain rate for the threshold here.  dq_count is
@@ -347,7 +347,7 @@ static void pie_process_dequeue(struct Qdisc *sch, struct sk_buff *skb)
 		if (q->vars.dq_count >= QUEUE_THRESHOLD) {
 			u32 count = q->vars.dq_count << PIE_SCALE;
 
-			dtime = now - q->vars.dq_tstamp;
+			dtime = yesw - q->vars.dq_tstamp;
 
 			if (dtime == 0)
 				return;
@@ -413,8 +413,8 @@ static void calculate_probability(struct Qdisc *sch)
 		qdelay_old = q->vars.qdelay_old;
 	}
 
-	/* If qdelay is zero and qlen is not, it means qlen is very small, less
-	 * than dequeue_rate, so we do not update probabilty in this round
+	/* If qdelay is zero and qlen is yest, it means qlen is very small, less
+	 * than dequeue_rate, so we do yest update probabilty in this round
 	 */
 	if (qdelay == 0 && qlen != 0)
 		update_prob = false;
@@ -451,7 +451,7 @@ static void calculate_probability(struct Qdisc *sch)
 
 	oldprob = q->vars.prob;
 
-	/* to ensure we increase probability in steps of no more than 2% */
+	/* to ensure we increase probability in steps of yes more than 2% */
 	if (delta > (s64)(MAX_PROB / (100 / 2)) &&
 	    q->vars.prob >= MAX_PROB / 10)
 		delta = (MAX_PROB / 100) * 2;
@@ -470,9 +470,9 @@ static void calculate_probability(struct Qdisc *sch)
 		/* prevent overflow */
 		if (q->vars.prob < oldprob) {
 			q->vars.prob = MAX_PROB;
-			/* Prevent normalization error. If probability is at
-			 * maximum value already, we normalize it here, and
-			 * skip the check to do a non-linear drop in the next
+			/* Prevent yesrmalization error. If probability is at
+			 * maximum value already, we yesrmalize it here, and
+			 * skip the check to do a yesn-linear drop in the next
 			 * section.
 			 */
 			update_prob = false;
@@ -498,7 +498,7 @@ static void calculate_probability(struct Qdisc *sch)
 	 * 1. If the delay has been low for 2 consecutive Tupdate periods
 	 * 2. Calculated drop probability is zero
 	 * 3. If average dq_rate_estimator is enabled, we have atleast one
-	 *    estimate for the avg_dq_rate ie., is a non-zero value
+	 *    estimate for the avg_dq_rate ie., is a yesn-zero value
 	 */
 	if ((q->vars.qdelay < q->params.target / 2) &&
 	    (q->vars.qdelay_old < q->params.target / 2) &&
@@ -554,7 +554,7 @@ static int pie_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct pie_sched_data *q = qdisc_priv(sch);
 	struct nlattr *opts;
 
-	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	opts = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (!opts)
 		goto nla_put_failure;
 

@@ -10,14 +10,14 @@ when it is parsed by the OPP framework.
 
 Required properties:
 --------------------
-In 'cpus' nodes:
+In 'cpus' yesdes:
 - operating-points-v2: Phandle to the operating-points-v2 table to use.
 
 In 'operating-points-v2' table:
 - compatible: Should be
 	- 'operating-points-v2-ti-cpu' for am335x, am43xx, and dra7xx/am57xx,
 	  omap34xx, omap36xx and am3517 SoCs
-- syscon: A phandle pointing to a syscon node representing the control module
+- syscon: A phandle pointing to a syscon yesde representing the control module
 	  register space of the SoC.
 
 Optional properties:
@@ -56,15 +56,15 @@ cpus {
 
 /*
  * cpu0 has different OPPs depending on SoC revision and some on revisions
- * 0x2 and 0x4 have eFuse bits that indicate if they are available or not
+ * 0x2 and 0x4 have eFuse bits that indicate if they are available or yest
  */
 cpu0_opp_table: opp-table {
 	compatible = "operating-points-v2-ti-cpu";
 	syscon = <&scm_conf>;
 
 	/*
-	 * The three following nodes are marked with opp-suspend
-	 * because they can not be enabled simultaneously on a
+	 * The three following yesdes are marked with opp-suspend
+	 * because they can yest be enabled simultaneously on a
 	 * single SoC.
 	 */
 	opp50-300000000 {

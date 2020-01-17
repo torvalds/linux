@@ -2,7 +2,7 @@
 /*
  * RTC subsystem, sysfs interface
  *
- * Copyright (C) 2005 Tower Technologies
+ * Copyright (C) 2005 Tower Techyeslogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  */
 
@@ -15,7 +15,7 @@
 
 /*
  * NOTE:  RTC times displayed in sysfs use the RTC's timezone.  That's
- * ideally UTC.  However, PCs that also boot to MS-Windows normally use
+ * ideally UTC.  However, PCs that also boot to MS-Windows yesrmally use
  * the local time and change to match daylight savings time.  That affects
  * attributes including date, time, since_epoch, and wakealarm.
  */
@@ -152,7 +152,7 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	ssize_t retval;
-	time64_t now, alarm;
+	time64_t yesw, alarm;
 	time64_t push = 0;
 	struct rtc_wkalrm alm;
 	struct rtc_device *rtc = to_rtc_device(dev);
@@ -160,12 +160,12 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 	int adjust = 0;
 
 	/* Only request alarms that trigger in the future.  Disable them
-	 * by writing another time, e.g. 0 meaning Jan 1 1970 UTC.
+	 * by writing ayesther time, e.g. 0 meaning Jan 1 1970 UTC.
 	 */
 	retval = rtc_read_time(rtc, &alm.time);
 	if (retval < 0)
 		return retval;
-	now = rtc_tm_to_time64(&alm.time);
+	yesw = rtc_tm_to_time64(&alm.time);
 
 	buf_ptr = buf;
 	if (*buf_ptr == '+') {
@@ -181,8 +181,8 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 	if (retval)
 		return retval;
 	if (adjust)
-		alarm += now;
-	if (alarm > now || push) {
+		alarm += yesw;
+	if (alarm > yesw || push) {
 		/* Avoid accidentally clobbering active alarms; we can't
 		 * entirely prevent that here, without even the minimal
 		 * locking from the /dev/rtcN api.
@@ -203,9 +203,9 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 		alm.enabled = 0;
 
 		/* Provide a valid future alarm time.  Linux isn't EFI,
-		 * this time won't be ignored when disabling the alarm.
+		 * this time won't be igyesred when disabling the alarm.
 		 */
-		alarm = now + 300;
+		alarm = yesw + 300;
 	}
 	rtc_time64_to_tm(alarm, &alm.time);
 
@@ -263,9 +263,9 @@ static struct attribute *rtc_attrs[] = {
 	NULL,
 };
 
-/* The reason to trigger an alarm with no process watching it (via sysfs)
+/* The reason to trigger an alarm with yes process watching it (via sysfs)
  * is its side effect:  waking from a system state like suspend-to-RAM or
- * suspend-to-disk.  So: no attribute unless that side effect is possible.
+ * suspend-to-disk.  So: yes attribute unless that side effect is possible.
  * (Userspace may disable that mechanism later.)
  */
 static bool rtc_does_wakealarm(struct rtc_device *rtc)

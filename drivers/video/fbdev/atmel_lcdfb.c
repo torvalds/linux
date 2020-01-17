@@ -193,7 +193,7 @@ static void exit_backlight(struct atmel_lcdfb_info *sinfo)
 
 static void init_backlight(struct atmel_lcdfb_info *sinfo)
 {
-	dev_warn(&sinfo->pdev->dev, "backlight control is not available\n");
+	dev_warn(&sinfo->pdev->dev, "backlight control is yest available\n");
 }
 
 static void exit_backlight(struct atmel_lcdfb_info *sinfo)
@@ -276,7 +276,7 @@ static unsigned long compute_hozval(struct atmel_lcdfb_info *sinfo,
 	return value;
 }
 
-static void atmel_lcdfb_stop_nowait(struct atmel_lcdfb_info *sinfo)
+static void atmel_lcdfb_stop_yeswait(struct atmel_lcdfb_info *sinfo)
 {
 	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
 
@@ -293,7 +293,7 @@ static void atmel_lcdfb_stop_nowait(struct atmel_lcdfb_info *sinfo)
 
 static void atmel_lcdfb_stop(struct atmel_lcdfb_info *sinfo)
 {
-	atmel_lcdfb_stop_nowait(sinfo);
+	atmel_lcdfb_stop_yeswait(sinfo);
 
 	/* Wait for DMA engine to become idle... */
 	while (lcdc_readl(sinfo, ATMEL_LCDC_DMACON) & ATMEL_LCDC_DMABUSY)
@@ -339,7 +339,7 @@ static inline void atmel_lcdfb_free_video_memory(struct atmel_lcdfb_info *sinfo)
  *	@sinfo: the frame buffer to allocate memory for
  * 	
  * 	This function is called only from the atmel_lcdfb_probe()
- * 	so no locking by fb_info->mm_lock around smem_len setting is needed.
+ * 	so yes locking by fb_info->mm_lock around smem_len setting is needed.
  */
 static int atmel_lcdfb_alloc_video_memory(struct atmel_lcdfb_info *sinfo)
 {
@@ -384,22 +384,22 @@ static const struct fb_videomode *atmel_lcdfb_choose_mode(struct fb_var_screenin
  *      @info: frame buffer structure that represents a single frame buffer
  *
  *	Checks to see if the hardware supports the state requested by
- *	var passed in. This function does not alter the hardware
+ *	var passed in. This function does yest alter the hardware
  *	state!!!  This means the data stored in struct fb_info and
- *	struct atmel_lcdfb_info do not change. This includes the var
+ *	struct atmel_lcdfb_info do yest change. This includes the var
  *	inside of struct fb_info.  Do NOT change these. This function
  *	can be called on its own if we intent to only test a mode and
- *	not actually set it. The stuff in modedb.c is a example of
+ *	yest actually set it. The stuff in modedb.c is a example of
  *	this. If the var passed in is slightly off by what the
  *	hardware can support then we alter the var PASSED in to what
  *	we can do. If the hardware doesn't support mode change a
  *	-EINVAL will be returned by the upper layers. You don't need
  *	to implement this function then. If you hardware doesn't
- *	support changing the resolution then this function is not
+ *	support changing the resolution then this function is yest
  *	needed. In this case the driver would just provide a var that
  *	represents the static state the screen is in.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erryes on error, or zero on success.
  */
 static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 			     struct fb_info *info)
@@ -416,7 +416,7 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 	if (!(var->pixclock && var->bits_per_pixel)) {
 		/* choose a suitable mode if possible */
 		if (!atmel_lcdfb_choose_mode(var, info)) {
-			dev_err(dev, "needed value not specified\n");
+			dev_err(dev, "needed value yest specified\n");
 			return -EINVAL;
 		}
 	}
@@ -431,7 +431,7 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
-	/* Do not allow to have real resoulution larger than virtual */
+	/* Do yest allow to have real resoulution larger than virtual */
 	if (var->xres > var->xres_virtual)
 		var->xres_virtual = var->xres;
 
@@ -523,7 +523,7 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 		var->red.length = var->green.length = var->blue.length = 8;
 		break;
 	default:
-		dev_err(dev, "color depth %d not supported\n",
+		dev_err(dev, "color depth %d yest supported\n",
 					var->bits_per_pixel);
 		return -EINVAL;
 	}
@@ -549,7 +549,7 @@ static void atmel_lcdfb_reset(struct atmel_lcdfb_info *sinfo)
  *	Using the fb_var_screeninfo in fb_info we set the resolution
  *	of the this particular framebuffer. This function alters the
  *	par AND the fb_fix_screeninfo stored in fb_info. It doesn't
- *	not alter var in fb_info since we are using that data. This
+ *	yest alter var in fb_info since we are using that data. This
  *	means we depend on the data in var inside fb_info to be
  *	supported by the hardware.  atmel_lcdfb_check_var is always called
  *	before atmel_lcdfb_set_par to ensure this.  Again if you can't
@@ -573,7 +573,7 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 		 info->var.xres, info->var.yres,
 		 info->var.xres_virtual, info->var.yres_virtual);
 
-	atmel_lcdfb_stop_nowait(sinfo);
+	atmel_lcdfb_stop_yeswait(sinfo);
 
 	if (info->var.bits_per_pixel == 1)
 		info->fix.visual = FB_VISUAL_MONO01;
@@ -605,7 +605,7 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	value = DIV_ROUND_UP(clk_value_khz, PICOS2KHZ(info->var.pixclock));
 
 	if (value < pix_factor) {
-		dev_notice(info->device, "Bypassing pixel clock divider\n");
+		dev_yestice(info->device, "Bypassing pixel clock divider\n");
 		lcdc_writel(sinfo, ATMEL_LCDC_LCDCON1, ATMEL_LCDC_BYPASS);
 	} else {
 		value = (value / pix_factor) - 1;
@@ -697,7 +697,7 @@ static inline unsigned int chan_to_field(unsigned int chan, const struct fb_bitf
 
 /**
  *  	atmel_lcdfb_setcolreg - Optional function. Sets a color register.
- *      @regno: Which register in the CLUT we are programming
+ *      @regyes: Which register in the CLUT we are programming
  *      @red: The red value which can be up to 16 bits wide
  *	@green: The green value which can be up to 16 bits wide
  *	@blue:  The blue value which can be up to 16 bits wide.
@@ -708,19 +708,19 @@ static inline unsigned int chan_to_field(unsigned int chan, const struct fb_bitf
  *  	magnitude which needs to be scaled in this function for the hardware.
  *	Things to take into consideration are how many color registers, if
  *	any, are supported with the current color visual. With truecolor mode
- *	no color palettes are supported. Here a pseudo palette is created
+ *	yes color palettes are supported. Here a pseudo palette is created
  *	which we store the value in pseudo_palette in struct fb_info. For
  *	pseudocolor mode we have a limited color palette. To deal with this
  *	we can program what color is displayed for a particular pixel value.
  *	DirectColor is similar in that we can program each color field. If
  *	we have a static colormap we don't need to implement this function.
  *
- *	Returns negative errno on error, or zero on success. In an
+ *	Returns negative erryes on error, or zero on success. In an
  *	ideal world, this would have been the case, but as it turns
  *	out, the other drivers return 1 on failure, so that's what
  *	we're going to do.
  */
-static int atmel_lcdfb_setcolreg(unsigned int regno, unsigned int red,
+static int atmel_lcdfb_setcolreg(unsigned int regyes, unsigned int red,
 			     unsigned int green, unsigned int blue,
 			     unsigned int transp, struct fb_info *info)
 {
@@ -736,20 +736,20 @@ static int atmel_lcdfb_setcolreg(unsigned int regno, unsigned int red,
 
 	switch (info->fix.visual) {
 	case FB_VISUAL_TRUECOLOR:
-		if (regno < 16) {
+		if (regyes < 16) {
 			pal = info->pseudo_palette;
 
 			val  = chan_to_field(red, &info->var.red);
 			val |= chan_to_field(green, &info->var.green);
 			val |= chan_to_field(blue, &info->var.blue);
 
-			pal[regno] = val;
+			pal[regyes] = val;
 			ret = 0;
 		}
 		break;
 
 	case FB_VISUAL_PSEUDOCOLOR:
-		if (regno < 256) {
+		if (regyes < 256) {
 			if (sinfo->config->have_intensity_bit) {
 				/* old style I+BGR:555 */
 				val  = ((red   >> 11) & 0x001f);
@@ -773,15 +773,15 @@ static int atmel_lcdfb_setcolreg(unsigned int regno, unsigned int red,
 				val |= ((green >>  5) & 0x07e0);
 			}
 
-			lcdc_writel(sinfo, ATMEL_LCDC_LUT(regno), val);
+			lcdc_writel(sinfo, ATMEL_LCDC_LUT(regyes), val);
 			ret = 0;
 		}
 		break;
 
 	case FB_VISUAL_MONO01:
-		if (regno < 2) {
-			val = (regno == 0) ? 0x00 : 0x1F;
-			lcdc_writel(sinfo, ATMEL_LCDC_LUT(regno), val);
+		if (regyes < 2) {
+			val = (regyes == 0) ? 0x00 : 0x1F;
+			lcdc_writel(sinfo, ATMEL_LCDC_LUT(regyes), val);
 			ret = 0;
 		}
 		break;
@@ -913,7 +913,7 @@ static const char *atmel_lcdfb_wiring_modes[] = {
 	[ATMEL_LCDC_WIRING_RGB]	= "RGB",
 };
 
-static int atmel_lcdfb_get_of_wiring_modes(struct device_node *np)
+static int atmel_lcdfb_get_of_wiring_modes(struct device_yesde *np)
 {
 	const char *mode;
 	int err, i;
@@ -943,8 +943,8 @@ static int atmel_lcdfb_of_init(struct atmel_lcdfb_info *sinfo)
 	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
 	struct fb_var_screeninfo *var = &info->var;
 	struct device *dev = &sinfo->pdev->dev;
-	struct device_node *np =dev->of_node;
-	struct device_node *display_np;
+	struct device_yesde *np =dev->of_yesde;
+	struct device_yesde *display_np;
 	struct atmel_lcdfb_power_ctrl_gpio *og;
 	bool is_gpio_power = false;
 	struct fb_videomode fb_vm;
@@ -965,25 +965,25 @@ static int atmel_lcdfb_of_init(struct atmel_lcdfb_info *sinfo)
 	ret = of_property_read_u32(display_np, "bits-per-pixel", &var->bits_per_pixel);
 	if (ret < 0) {
 		dev_err(dev, "failed to get property bits-per-pixel\n");
-		goto put_display_node;
+		goto put_display_yesde;
 	}
 
 	ret = of_property_read_u32(display_np, "atmel,guard-time", &pdata->guard_time);
 	if (ret < 0) {
 		dev_err(dev, "failed to get property atmel,guard-time\n");
-		goto put_display_node;
+		goto put_display_yesde;
 	}
 
 	ret = of_property_read_u32(display_np, "atmel,lcdcon2", &pdata->default_lcdcon2);
 	if (ret < 0) {
 		dev_err(dev, "failed to get property atmel,lcdcon2\n");
-		goto put_display_node;
+		goto put_display_yesde;
 	}
 
 	ret = of_property_read_u32(display_np, "atmel,dmacon", &pdata->default_dmacon);
 	if (ret < 0) {
 		dev_err(dev, "failed to get property bits-per-pixel\n");
-		goto put_display_node;
+		goto put_display_yesde;
 	}
 
 	INIT_LIST_HEAD(&pdata->pwr_gpios);
@@ -996,7 +996,7 @@ static int atmel_lcdfb_of_init(struct atmel_lcdfb_info *sinfo)
 
 		og = devm_kzalloc(dev, sizeof(*og), GFP_KERNEL);
 		if (!og)
-			goto put_display_node;
+			goto put_display_yesde;
 
 		og->gpiod = gpiod;
 		is_gpio_power = true;
@@ -1004,7 +1004,7 @@ static int atmel_lcdfb_of_init(struct atmel_lcdfb_info *sinfo)
 		ret = gpiod_direction_output(gpiod, gpiod_is_active_low(gpiod));
 		if (ret) {
 			dev_err(dev, "set direction output gpio atmel,power-control[%d] failed\n", i);
-			goto put_display_node;
+			goto put_display_yesde;
 		}
 		list_add(&og->list, &pdata->pwr_gpios);
 	}
@@ -1015,7 +1015,7 @@ static int atmel_lcdfb_of_init(struct atmel_lcdfb_info *sinfo)
 	ret = atmel_lcdfb_get_of_wiring_modes(display_np);
 	if (ret < 0) {
 		dev_err(dev, "invalid atmel,lcd-wiring-mode\n");
-		goto put_display_node;
+		goto put_display_yesde;
 	}
 	pdata->lcd_wiring_mode = ret;
 
@@ -1025,17 +1025,17 @@ static int atmel_lcdfb_of_init(struct atmel_lcdfb_info *sinfo)
 	ret = of_get_videomode(display_np, &vm, OF_USE_NATIVE_MODE);
 	if (ret) {
 		dev_err(dev, "failed to get videomode from DT\n");
-		goto put_display_node;
+		goto put_display_yesde;
 	}
 
 	ret = fb_videomode_from_videomode(&vm, &fb_vm);
 	if (ret < 0)
-		goto put_display_node;
+		goto put_display_yesde;
 
 	fb_add_videomode(&fb_vm, &info->modelist);
 
-put_display_node:
-	of_node_put(display_np);
+put_display_yesde:
+	of_yesde_put(display_np);
 	return ret;
 }
 
@@ -1062,12 +1062,12 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&info->modelist);
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		ret = atmel_lcdfb_of_init(sinfo);
 		if (ret)
 			goto free_info;
 	} else {
-		dev_err(dev, "cannot get default configuration\n");
+		dev_err(dev, "canyest get default configuration\n");
 		goto free_info;
 	}
 
@@ -1146,7 +1146,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 		/* allocate memory buffer */
 		ret = atmel_lcdfb_alloc_video_memory(sinfo);
 		if (ret < 0) {
-			dev_err(dev, "cannot allocate framebuffer: %d\n", ret);
+			dev_err(dev, "canyest allocate framebuffer: %d\n", ret);
 			goto stop_clk;
 		}
 	}
@@ -1163,7 +1163,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 
 	sinfo->mmio = ioremap(info->fix.mmio_start, info->fix.mmio_len);
 	if (!sinfo->mmio) {
-		dev_err(dev, "cannot map LCDC registers\n");
+		dev_err(dev, "canyest map LCDC registers\n");
 		ret = -ENOMEM;
 		goto release_mem;
 	}
@@ -1209,7 +1209,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	atmel_lcdfb_power_control(sinfo, 1);
 
 	dev_info(dev, "fb%d: Atmel LCDC at 0x%08lx (mapped at %p), irq %d\n",
-		       info->node, info->fix.mmio_start, sinfo->mmio, sinfo->irq_base);
+		       info->yesde, info->fix.mmio_start, sinfo->mmio, sinfo->irq_base);
 
 	return 0;
 

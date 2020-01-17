@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Samsung Exynos4 SoC series FIMC-IS slave interface driver
+ * Samsung Exyyess4 SoC series FIMC-IS slave interface driver
  *
  * Error log interface functions
  *
@@ -10,7 +10,7 @@
  *          Sylwester Nawrocki <s.nawrocki@samsung.com>
  */
 
-#include "fimc-is-errno.h"
+#include "fimc-is-erryes.h"
 
 const char *fimc_is_param_strerr(unsigned int error)
 {
@@ -28,11 +28,11 @@ const char *fimc_is_param_strerr(unsigned int error)
 	case ERROR_COMMON_INPUT_PATH:
 		return "ERROR_COMMON_INPUT_PATH: Input path can be changed in ready state";
 	case ERROR_COMMON_INPUT_INIT:
-		return "ERROR_COMMON_INPUT_INIT: IP can not start if input path is not set";
+		return "ERROR_COMMON_INPUT_INIT: IP can yest start if input path is yest set";
 	case ERROR_COMMON_OUTPUT_PATH:
 		return "ERROR_COMMON_OUTPUT_PATH: Output path can be changed in ready state (stop)";
 	case ERROR_COMMON_OUTPUT_INIT:
-		return "ERROR_COMMON_OUTPUT_INIT: IP can not start if output path is not set";
+		return "ERROR_COMMON_OUTPUT_INIT: IP can yest start if output path is yest set";
 	case ERROR_CONTROL_BYPASS:
 		return "ERROR_CONTROL_BYPASS";
 	case ERROR_OTF_INPUT_FORMAT:
@@ -139,7 +139,7 @@ const char *fimc_is_param_strerr(unsigned int error)
 	case ERROR_FD_MODE:
 		return "ERROR_FD_MODE";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -264,6 +264,6 @@ const char *fimc_is_strerr(unsigned int error)
 	case IS_ERROR_LHFD_FRAME_END_TIME_OUT:
 		return "IS_ERROR_LHFD_FRAME_END_TIME_OUT";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }

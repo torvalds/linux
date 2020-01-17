@@ -17,10 +17,10 @@
 
 /* A `tuple' is a structure containing the information to uniquely
   identify a connection.  ie. if two packets have the same tuple, they
-  are in the same connection; if not, they are not.
+  are in the same connection; if yest, they are yest.
 
   We divide the structure along "manipulatable" and
-  "non-manipulatable" lines, for the benefit of the NAT code.
+  "yesn-manipulatable" lines, for the benefit of the NAT code.
 */
 
 #define NF_CT_TUPLE_L3SIZE	ARRAY_SIZE(((union nf_inet_addr *)NULL)->all)
@@ -117,7 +117,7 @@ static inline void nf_ct_dump_tuple(const struct nf_conntrack_tuple *t)
 
 /* Connections have two entries in the hash table: one for each way */
 struct nf_conntrack_tuple_hash {
-	struct hlist_nulls_node hnnode;
+	struct hlist_nulls_yesde hnyesde;
 	struct nf_conntrack_tuple tuple;
 };
 

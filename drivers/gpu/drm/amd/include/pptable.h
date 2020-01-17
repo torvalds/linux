@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -70,7 +70,7 @@ typedef struct _ATOM_PPLIB_THERMALCONTROLLER
 
 // Thermal controller 'combo type' to use an external controller for Fan control and an internal controller for thermal.
 // We probably should reserve the bit 0x80 for this use.
-// To keep the number of these types low we should also use the same code for all ASICs (i.e. do not distinguish RV6xx and RV7xx Internal here).
+// To keep the number of these types low we should also use the same code for all ASICs (i.e. do yest distinguish RV6xx and RV7xx Internal here).
 // The driver can pick the correct internal controller based on the ASIC.
 #define ATOM_PP_THERMALCONTROLLER_ADT7473_WITH_INTERNAL   0x89    // ADT7473 Fan Control + Internal Thermal Controller
 #define ATOM_PP_THERMALCONTROLLER_EMC2103_WITH_INTERNAL   0x8D    // EMC2103 Fan Control + Internal Thermal Controller
@@ -84,7 +84,7 @@ typedef struct _ATOM_PPLIB_STATE
 
 typedef struct _ATOM_PPLIB_FANTABLE
 {
-    UCHAR   ucFanTableFormat;                // Change this if the table format changes or version changes so that the other fields are not the same.
+    UCHAR   ucFanTableFormat;                // Change this if the table format changes or version changes so that the other fields are yest the same.
     UCHAR   ucTHyst;                         // Temperature hysteresis. Integer.
     USHORT  usTMin;                          // The temperature, in 0.01 centigrades, below which we just run at a minimal PWM.
     USHORT  usTMed;                          // The middle temperature where we change slopes.
@@ -369,7 +369,7 @@ typedef struct _ATOM_PPLIB_RS780_CLOCK_INFO
       UCHAR  ucLowEngineClockHigh;
       USHORT usHighEngineClockLow;        // High Engine clock in MHz.
       UCHAR  ucHighEngineClockHigh;
-      USHORT usMemoryClockLow;            // For now one of the ATOM_PPLIB_RS780_SPMCLK_XXXX constants.
+      USHORT usMemoryClockLow;            // For yesw one of the ATOM_PPLIB_RS780_SPMCLK_XXXX constants.
       UCHAR  ucMemoryClockHigh;           // Currentyl unused.
       UCHAR  ucPadding;                   // For proper alignment and size.
       USHORT usVDDC;                      // For the 780, use: None, Low, High, Variable
@@ -384,7 +384,7 @@ typedef struct _ATOM_PPLIB_RS780_CLOCK_INFO
 #define ATOM_PPLIB_RS780_VOLTAGE_HIGH       2 
 #define ATOM_PPLIB_RS780_VOLTAGE_VARIABLE   3 
 
-#define ATOM_PPLIB_RS780_SPMCLK_NONE        0   // We cannot change the side port memory clock, leave it as it is.
+#define ATOM_PPLIB_RS780_SPMCLK_NONE        0   // We canyest change the side port memory clock, leave it as it is.
 #define ATOM_PPLIB_RS780_SPMCLK_LOW         1
 #define ATOM_PPLIB_RS780_SPMCLK_HIGH        2
 
@@ -421,7 +421,7 @@ typedef struct _ATOM_PPLIB_SI_CLOCK_INFO
       UCHAR  ucPCIEGen;
       UCHAR  ucUnused1;
 
-      ULONG ulFlags; // ATOM_PPLIB_SI_FLAGS_*, no flag is necessary for now
+      ULONG ulFlags; // ATOM_PPLIB_SI_FLAGS_*, yes flag is necessary for yesw
 
 } ATOM_PPLIB_SI_CLOCK_INFO;
 
@@ -468,8 +468,8 @@ typedef struct _ATOM_PPLIB_STATE_V2
       //size of the state: sizeof(ATOM_PPLIB_STATE_V2) + (ucNumDPMLevels - 1) * sizeof(UCHAR)
       UCHAR ucNumDPMLevels;
       
-      //a index to the array of nonClockInfos
-      UCHAR nonClockInfoIndex;
+      //a index to the array of yesnClockInfos
+      UCHAR yesnClockInfoIndex;
       /**
       * Driver will read the first ucNumDPMLevels in this array
       */
@@ -496,12 +496,12 @@ typedef struct _ClockInfoArray{
 
 typedef struct _NonClockInfoArray{
 
-    //how many non-clock levels we have. normally should be same as number of states
+    //how many yesn-clock levels we have. yesrmally should be same as number of states
     UCHAR ucNumEntries;
     //sizeof(ATOM_PPLIB_NONCLOCK_INFO)
     UCHAR ucEntrySize;
     
-    ATOM_PPLIB_NONCLOCK_INFO nonClockInfo[1];
+    ATOM_PPLIB_NONCLOCK_INFO yesnClockInfo[1];
 }NonClockInfoArray;
 
 typedef struct _ATOM_PPLIB_Clock_Voltage_Dependency_Record

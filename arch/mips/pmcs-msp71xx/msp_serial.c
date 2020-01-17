@@ -20,7 +20,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -105,7 +105,7 @@ void __init msp_serial_setup(void)
 
 	/* Initialize first serial port */
 	up.mapbase	= MSP_UART0_BASE;
-	up.membase	= ioremap_nocache(up.mapbase, MSP_UART_REG_LEN);
+	up.membase	= ioremap_yescache(up.mapbase, MSP_UART_REG_LEN);
 	up.irq		= MSP_INT_UART0;
 	up.uartclk	= uartclk;
 	up.regshift	= 2;
@@ -143,7 +143,7 @@ void __init msp_serial_setup(void)
 	}
 
 	up.mapbase	= MSP_UART1_BASE;
-	up.membase	= ioremap_nocache(up.mapbase, MSP_UART_REG_LEN);
+	up.membase	= ioremap_yescache(up.mapbase, MSP_UART_REG_LEN);
 	up.irq		= MSP_INT_UART1;
 	up.line		= 1;
 	up.private_data		= (void*)UART1_STATUS_REG;

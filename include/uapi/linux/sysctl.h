@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * sysctl.h: General linux system control interface
  *
@@ -10,7 +10,7 @@
  **  WARNING:
  **  The values in this file are exported to user space via 
  **  the sysctl() binary interface.  Do *NOT* change the
- **  numbering of any existing values here, and do not change
+ **  numbering of any existing values here, and do yest change
  **  any numbers within any one set of values.  If you have to
  **  redefine an existing interface, use a new number for it.
  **  The kernel will then return -ENOTDIR to any application using
@@ -71,7 +71,7 @@ enum
 	CTL_BUS_ISA=1		/* ISA */
 };
 
-/* /proc/sys/fs/inotify/ */
+/* /proc/sys/fs/iyestify/ */
 enum
 {
 	INOTIFY_MAX_USER_INSTANCES=1,	/* max instances per user */
@@ -129,7 +129,7 @@ enum
 	KERN_S390_USER_DEBUG_LOGGING=51,  /* int: dumps of user faults */
 	KERN_CORE_USES_PID=52,		/* int: use core or core.%pid */
 	KERN_TAINTED=53,	/* int: various kernel tainted flags */
-	KERN_CADPID=54,		/* int: PID of the process to notify on CAD */
+	KERN_CADPID=54,		/* int: PID of the process to yestify on CAD */
 	KERN_PIDMAX=55,		/* int: PID # limit */
   	KERN_CORE_PATTERN=56,	/* string: pattern for core-file names */
 	KERN_PANIC_ON_OOPS=57,  /* int: whether we will panic on an oops */
@@ -141,7 +141,7 @@ enum
 	KERN_NGROUPS_MAX=63,	/* int: NGROUPS_MAX */
 	KERN_SPARC_SCONS_PWROFF=64, /* int: serial console power-off halt */
 	KERN_HZ_TIMER=65,	/* int: hz timer on or off */
-	KERN_UNKNOWN_NMI_PANIC=66, /* int: unknown nmi panic flag */
+	KERN_UNKNOWN_NMI_PANIC=66, /* int: unkyeswn nmi panic flag */
 	KERN_BOOTLOADER_TYPE=67, /* int: boot loader type */
 	KERN_RANDOMIZE=68, /* int: randomize virtual address space */
 	KERN_SETUID_DUMPABLE=69, /* int: behaviour of dumps for setuid core */
@@ -191,11 +191,11 @@ enum
 	VM_SWAP_TOKEN_TIMEOUT=28, /* default time for token time out */
 	VM_DROP_PAGECACHE=29,	/* int: nuke lots of pagecache */
 	VM_PERCPU_PAGELIST_FRACTION=30,/* int: fraction of pages in each percpu_pagelist */
-	VM_ZONE_RECLAIM_MODE=31, /* reclaim local zone memory before going off node */
+	VM_ZONE_RECLAIM_MODE=31, /* reclaim local zone memory before going off yesde */
 	VM_MIN_UNMAPPED=32,	/* Set min percent of unmapped pages */
 	VM_PANIC_ON_OOM=33,	/* panic at out-of-memory */
 	VM_VDSO_ENABLED=34,	/* map VDSO into new processes? */
-	VM_MIN_SLAB=35,		 /* Percent pages ignored by zone reclaim */
+	VM_MIN_SLAB=35,		 /* Percent pages igyesred by zone reclaim */
 };
 
 
@@ -786,9 +786,9 @@ enum {
 /* CTL_FS names: */
 enum
 {
-	FS_NRINODE=1,	/* int:current number of allocated inodes */
+	FS_NRINODE=1,	/* int:current number of allocated iyesdes */
 	FS_STATINODE=2,
-	FS_MAXINODE=3,	/* int:maximum number of inodes that can be allocated */
+	FS_MAXINODE=3,	/* int:maximum number of iyesdes that can be allocated */
 	FS_NRDQUOT=4,	/* int:current number of allocated dquots */
 	FS_MAXDQUOT=5,	/* int:maximum number of dquots that can be allocated */
 	FS_NRFILE=6,	/* int:current number of allocated filedescriptors */
@@ -799,13 +799,13 @@ enum
 	FS_OVERFLOWUID=11,	/* int: overflow UID */
 	FS_OVERFLOWGID=12,	/* int: overflow GID */
 	FS_LEASES=13,	/* int: leases enabled */
-	FS_DIR_NOTIFY=14,	/* int: directory notification enabled */
+	FS_DIR_NOTIFY=14,	/* int: directory yestification enabled */
 	FS_LEASE_TIME=15,	/* int: maximum time to wait for a lease break */
 	FS_DQSTATS=16,	/* disc quota usage statistics and control */
 	FS_XFS=17,	/* struct: control xfs parameters */
 	FS_AIO_NR=18,	/* current system-wide number of aio requests */
 	FS_AIO_MAX_NR=19,	/* system-wide maximum number of aio requests */
-	FS_INOTIFY=20,	/* inotify submenu */
+	FS_INOTIFY=20,	/* iyestify submenu */
 	FS_OCFS2=988,	/* ocfs2 */
 };
 

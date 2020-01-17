@@ -75,7 +75,7 @@ int3406_thermal_get_cur_state(struct thermal_cooling_device *cooling_dev,
 	acpi_level = RAW_TO_ACPI(d->raw_bd->props.brightness, d);
 
 	/*
-	 * There is no 1:1 mapping between the firmware interface level
+	 * There is yes 1:1 mapping between the firmware interface level
 	 * with the raw interface level, we will have to find one that is
 	 * right above it.
 	 */
@@ -125,7 +125,7 @@ static void int3406_thermal_get_limit(struct int3406_thermal_data *d)
 	d->upper_limit = d->upper_limit > 0 ? d->upper_limit : d->br->count - 1;
 }
 
-static void int3406_notify(acpi_handle handle, u32 event, void *data)
+static void int3406_yestify(acpi_handle handle, u32 event, void *data)
 {
 	if (event == INT3406_BRIGHTNESS_LIMITS_CHANGED)
 		int3406_thermal_get_limit(data);
@@ -162,8 +162,8 @@ static int int3406_thermal_probe(struct platform_device *pdev)
 	if (IS_ERR(d->cooling_dev))
 		goto err;
 
-	ret = acpi_install_notify_handler(adev->handle, ACPI_DEVICE_NOTIFY,
-					  int3406_notify, d);
+	ret = acpi_install_yestify_handler(adev->handle, ACPI_DEVICE_NOTIFY,
+					  int3406_yestify, d);
 	if (ret)
 		goto err_cdev;
 

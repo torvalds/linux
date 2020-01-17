@@ -257,7 +257,7 @@ void rtl92c_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id = rtl_cam_get_free_entry(hw,
 								 p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						pr_err("Can not find free hw security cam entry\n");
+						pr_err("Can yest find free hw security cam entry\n");
 						return;
 					}
 				} else {
@@ -403,7 +403,7 @@ int rtl92c_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 "Network type %d not supported!\n", type);
+			 "Network type %d yest supported!\n", type);
 		return -EOPNOTSUPP;
 	}
 	rtl_write_byte(rtlpriv, MSR, value);

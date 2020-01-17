@@ -3,7 +3,7 @@
  *	Declarations of X.25 Packet Layer type objects.
  *
  * 	History
- *	nov/17/96	Jonathan Naylor	  Initial version.		
+ *	yesv/17/96	Jonathan Naylor	  Initial version.		
  *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities 
  *					  negotiation.
  */
@@ -121,14 +121,14 @@ enum {
 
 /**
  *	struct x25_route - x25 routing entry
- *	@node - entry in x25_list_lock
+ *	@yesde - entry in x25_list_lock
  *	@address - Start of address range
  *	@sigdigits - Number of sig digits
  *	@dev - More than one for MLP
  *	@refcnt - reference counter
  */
 struct x25_route {
-	struct list_head	node;		
+	struct list_head	yesde;		
 	struct x25_address	address;
 	unsigned int		sigdigits;
 	struct net_device	*dev;
@@ -136,7 +136,7 @@ struct x25_route {
 };
 
 struct x25_neigh {
-	struct list_head	node;
+	struct list_head	yesde;
 	struct net_device	*dev;
 	unsigned int		state;
 	unsigned int		extended;
@@ -170,7 +170,7 @@ struct x25_sock {
 };
 
 struct x25_forward {
-	struct list_head	node;
+	struct list_head	yesde;
 	unsigned int		lci;
 	struct net_device	*dev1;
 	struct net_device	*dev2;

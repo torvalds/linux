@@ -703,14 +703,14 @@ static void rtl8225z2_b_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 
 	if (priv->hw_rev == RTL8187BvB) {
 		if (cck_power <= 6)
-			; /* do nothing */
+			; /* do yesthing */
 		else if (cck_power <= 11)
 			tmp += 8;
 		else
 			tmp += 16;
 	} else {
 		if (cck_power <= 5)
-			; /* do nothing */
+			; /* do yesthing */
 		else if (cck_power <= 11)
 			tmp += 8;
 		else if (cck_power <= 17)

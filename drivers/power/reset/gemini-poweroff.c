@@ -4,7 +4,7 @@
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  *
  * Inspired by code from the SL3516 board support by Jason Lee
- * Inspired by code from Janos Laube <janos.dev@gmail.com>
+ * Inspired by code from Jayess Laube <jayess.dev@gmail.com>
  */
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -48,11 +48,11 @@ static irqreturn_t gemini_powerbutton_interrupt(int irq, void *data)
 	switch (val) {
 	case GEMINI_STAT_CIR:
 		/*
-		 * We do not yet have a driver for the infrared
+		 * We do yest yet have a driver for the infrared
 		 * controller so it can cause spurious poweroff
-		 * events. Ignore those for now.
+		 * events. Igyesre those for yesw.
 		 */
-		dev_info(gpw->dev, "infrared poweroff - ignored\n");
+		dev_info(gpw->dev, "infrared poweroff - igyesred\n");
 		break;
 	case GEMINI_STAT_RTC:
 		dev_info(gpw->dev, "RTC poweroff\n");
@@ -122,7 +122,7 @@ static int gemini_poweroff_probe(struct platform_device *pdev)
 
 	/*
 	 * Enable the power controller. This is crucial on Gemini
-	 * systems: if this is not done, pressing the power button
+	 * systems: if this is yest done, pressing the power button
 	 * will result in unconditional poweroff without any warning.
 	 * This makes the kernel handle the poweroff.
 	 */

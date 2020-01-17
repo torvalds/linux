@@ -7,7 +7,7 @@
 /*
  * CPU model specific register (MSR) numbers.
  *
- * Do not add new entries to this file unless the definitions are shared
+ * Do yest add new entries to this file unless the definitions are shared
  * between multiple compilation units.
  */
 
@@ -85,7 +85,7 @@
 #define ARCH_CAP_SKIP_VMENTRY_L1DFLUSH	BIT(3)	/* Skip L1D flush on vmentry */
 #define ARCH_CAP_SSB_NO			BIT(4)	/*
 						 * Not susceptible to Speculative Store Bypass
-						 * attack, so no Speculative Store Bypass
+						 * attack, so yes Speculative Store Bypass
 						 * control required.
 						 */
 #define ARCH_CAP_MDS_NO			BIT(5)   /*
@@ -94,7 +94,7 @@
 						  * Sampling (MDS) vulnerabilities.
 						  */
 #define ARCH_CAP_PSCHANGE_MC_NO		BIT(6)	 /*
-						  * The processor is not susceptible to a
+						  * The processor is yest susceptible to a
 						  * machine check error due to modifying the
 						  * code page size along with either the
 						  * physical address or cache type
@@ -374,7 +374,7 @@
 
 #define MSR_AMD64_MCx_MASK(x)		(MSR_AMD64_MC0_MASK + (x))
 
-/* These are consecutive and not in the normal 4er MCE bank block */
+/* These are consecutive and yest in the yesrmal 4er MCE bank block */
 #define MSR_IA32_MC0_CTL2		0x00000280
 #define MSR_IA32_MCx_CTL2(x)		(MSR_IA32_MC0_CTL2 + (x))
 
@@ -698,7 +698,7 @@
 #define MSR_IA32_MISC_ENABLE_IP_PREF_DISABLE_BIT	39
 #define MSR_IA32_MISC_ENABLE_IP_PREF_DISABLE		(1ULL << MSR_IA32_MISC_ENABLE_IP_PREF_DISABLE_BIT)
 
-/* MISC_FEATURES_ENABLES non-architectural features */
+/* MISC_FEATURES_ENABLES yesn-architectural features */
 #define MSR_MISC_FEATURES_ENABLES	0x00000140
 
 #define MSR_MISC_FEATURES_ENABLES_CPUID_FAULT_BIT	0
@@ -802,7 +802,7 @@
 #define MSR_P4_SAAT_ESCR0		0x000003ae
 #define MSR_P4_SAAT_ESCR1		0x000003af
 #define MSR_P4_SSU_ESCR0		0x000003be
-#define MSR_P4_SSU_ESCR1		0x000003bf /* guess: not in manual */
+#define MSR_P4_SSU_ESCR1		0x000003bf /* guess: yest in manual */
 
 #define MSR_P4_TBPU_ESCR0		0x000003c2
 #define MSR_P4_TBPU_ESCR1		0x000003c3

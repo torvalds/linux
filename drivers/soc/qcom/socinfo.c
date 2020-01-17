@@ -16,7 +16,7 @@
 #include <linux/types.h>
 
 /*
- * SoC version type with major number in the upper 16 bits and minor
+ * SoC version type with major number in the upper 16 bits and miyesr
  * number in the lower 16 bits.
  */
 #define SOCINFO_MAJOR(ver) (((ver) >> 16) & 0xffff)
@@ -66,7 +66,7 @@ static const char *const socinfo_image_names[] = {
 };
 
 static const char *const pmic_models[] = {
-	[0]  = "Unknown PMIC model",
+	[0]  = "Unkyeswn PMIC model",
 	[9]  = "PM8994",
 	[11] = "PM8916",
 	[13] = "PM8058",
@@ -217,9 +217,9 @@ static const char *socinfo_machine(struct device *dev, unsigned int id)
 #ifdef CONFIG_DEBUG_FS
 
 #define QCOM_OPEN(name, _func)						\
-static int qcom_open_##name(struct inode *inode, struct file *file)	\
+static int qcom_open_##name(struct iyesde *iyesde, struct file *file)	\
 {									\
-	return single_open(file, _func, inode->i_private);		\
+	return single_open(file, _func, iyesde->i_private);		\
 }									\
 									\
 static const struct file_operations qcom_ ##name## _ops = {		\
@@ -280,9 +280,9 @@ static int show_image_##type(struct seq_file *seq, void *p)		  \
 	seq_puts(seq, "\n");					  \
 	return 0;						  \
 }								  \
-static int open_image_##type(struct inode *inode, struct file *file)	  \
+static int open_image_##type(struct iyesde *iyesde, struct file *file)	  \
 {									  \
-	return single_open(file, show_image_##type, inode->i_private); \
+	return single_open(file, show_image_##type, iyesde->i_private); \
 }									  \
 									  \
 static const struct file_operations qcom_image_##type##_ops = {	  \

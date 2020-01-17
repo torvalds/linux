@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -61,7 +61,7 @@ struct intctrlregs {
 struct pio2regs {
 	u16 fifocontrol;
 	u16 fifodata;
-	u16 fifofree;	/* only valid in xmt channel, not in rcv channel */
+	u16 fifofree;	/* only valid in xmt channel, yest in rcv channel */
 	u16 PAD;
 };
 
@@ -175,7 +175,7 @@ struct d11regs {
 	/* 0x200-0x37F dma/pio registers */
 	struct fifo64 fifo64regs[6];
 
-	/* FIFO diagnostic port access */
+	/* FIFO diagyesstic port access */
 	struct dma32diag dmafifo;	/* 0x380 - 0x38C */
 
 	u32 aggfifocnt;	/* 0x390 */
@@ -503,13 +503,13 @@ struct d11regs {
 #define	MI_ATIMWINEND		(1 <<  5)
 /* PMQ entries available */
 #define	MI_PMQ			(1 <<  6)
-/* non-specific gen-stat bits that are set by PSM */
+/* yesn-specific gen-stat bits that are set by PSM */
 #define	MI_NSPECGEN_0		(1 <<  7)
-/* non-specific gen-stat bits that are set by PSM */
+/* yesn-specific gen-stat bits that are set by PSM */
 #define	MI_NSPECGEN_1		(1 <<  8)
 /* MAC level Tx error */
 #define	MI_MACTXERR		(1 <<  9)
-/* non-specific gen-stat bits that are set by PSM */
+/* yesn-specific gen-stat bits that are set by PSM */
 #define	MI_NSPECGEN_3		(1 << 10)
 /* PHY Tx error */
 #define	MI_PHYTXERR		(1 << 11)
@@ -525,7 +525,7 @@ struct d11regs {
 #define	MI_TXSTOP		(1 << 16)
 /* MAC has completed a CCA measurement */
 #define	MI_CCA			(1 << 17)
-/* MAC has collected background noise samples */
+/* MAC has collected background yesise samples */
 #define	MI_BG_NOISE		(1 << 18)
 /* MBSS DTIM TBTT indication */
 #define	MI_DTIM_TBTT		(1 << 19)
@@ -560,7 +560,7 @@ struct d11regs {
 #define	PMQH_PMON		0x00020000
 /* Dis-associated or De-authenticated */
 #define	PMQH_DASAT		0x00040000
-/* ATIM not acknowledged */
+/* ATIM yest ackyeswledged */
 #define	PMQH_ATIMFAIL		0x00080000
 /* delete head entry */
 #define	PMQH_DEL_ENTRY		0x00000001
@@ -584,7 +584,7 @@ struct d11regs {
 #define	PDBG_RXF		(1 << 4)
 /* phy detected the end of a valid PLCP header */
 #define	PDBG_RXS		(1 << 5)
-/* rx start not asserted */
+/* rx start yest asserted */
 #define	PDBG_RXFRG		(1 << 6)
 /* mac is taking receive byte from phy this cycle */
 #define	PDBG_RXV		(1 << 7)
@@ -798,7 +798,7 @@ struct d11txh {
  * of MacTxControlLow
  */
 #define TXC_AMPDU_SHIFT		9	/* shift for ampdu settings */
-#define TXC_AMPDU_NONE		0	/* Regular MPDU, not an A-MPDU */
+#define TXC_AMPDU_NONE		0	/* Regular MPDU, yest an A-MPDU */
 #define TXC_AMPDU_FIRST		1	/* first MPDU of an A-MPDU */
 #define TXC_AMPDU_MIDDLE	2	/* intermediate MPDU of an A-MPDU */
 #define TXC_AMPDU_LAST		3	/* last (or single) MPDU of an A-MPDU */
@@ -1165,7 +1165,7 @@ struct tx_status {
 #define	M_A_TSSI_0		(0x034 * 2)
 #define	M_A_TSSI_1		(0x035 * 2)
 
-/* noise interference measurement */
+/* yesise interference measurement */
 #define M_NOISE_IF_COUNT	(0x034 * 2)
 #define M_NOISE_IF_TIMEOUT	(0x035 * 2)
 
@@ -1175,7 +1175,7 @@ struct tx_status {
 #define	M_G_TSSI_0		(0x038 * 2)
 #define	M_G_TSSI_1		(0x039 * 2)
 
-/* Background noise measure */
+/* Background yesise measure */
 #define	M_JSSI_0		(0x44 * 2)
 #define	M_JSSI_1		(0x45 * 2)
 #define	M_JSSI_AUX		(0x46 * 2)
@@ -1363,7 +1363,7 @@ struct shm_acparams {
 /* Radio power setting for ucode */
 #define	M_RADIO_PWR		(0x32 * 2)
 
-/* phy noise recorded by ucode right after tx */
+/* phy yesise recorded by ucode right after tx */
 #define	M_PHY_NOISE		(0x037 * 2)
 #define	PHY_NOISE_MASK		0x00ff
 
@@ -1371,7 +1371,7 @@ struct shm_acparams {
  * Receive Frame Data Header for 802.11b DCF-only frames
  *
  * RxFrameSize: Actual byte length of the frame data received
- * PAD: padding (not used)
+ * PAD: padding (yest used)
  * PhyRxStatus_0: PhyRxStatus 15:0
  * PhyRxStatus_1: PhyRxStatus 31:16
  * PhyRxStatus_2: PhyRxStatus 47:32
@@ -1464,7 +1464,7 @@ struct d11rxhdr {
 /* htphy PhyRxStatus_0: those bit are overlapped with PhyRxStatus_0 */
 #define PRXS0_BAND	        0x0400	/* 0 = 2.4G, 1 = 5G */
 #define PRXS0_RSVD	        0x0800	/* reserved; set to 0 */
-#define PRXS0_UNUSED	        0xF000	/* unused and not defined; set to 0 */
+#define PRXS0_UNUSED	        0xF000	/* unused and yest defined; set to 0 */
 
 /* htphy PhyRxStatus_1: */
 /* core enables for {3..0}, 0=disabled, 1=enabled */
@@ -1572,11 +1572,11 @@ struct d11rxhdr {
 #define M_RXSTATS_BLK_PTR	(M_PSM_SOFT_REGS + (0x65 * 2))
 
 /* ucode debug status codes */
-/* not valid really */
+/* yest valid really */
 #define	DBGST_INACTIVE		0
 /* after zeroing SHM, before suspending at init */
 #define	DBGST_INIT		1
-/* "normal" state */
+/* "yesrmal" state */
 #define	DBGST_ACTIVE		2
 /* suspended */
 #define	DBGST_SUSPENDED		3
@@ -1709,7 +1709,7 @@ struct macstat {
 	u16 rxcfrmmcast;	/* 0xcc */
 	u16 rxbeaconmbss;	/* 0xce */
 	u16 rxdfrmucastobss;	/* 0xd0 */
-	u16 rxbeaconobss;	/* 0xd2 */
+	u16 rxbeacoyesbss;	/* 0xd2 */
 	u16 rxrsptmout;	/* 0xd4 */
 	u16 bcntxcancl;	/* 0xd6 */
 	u16 PAD;
@@ -1890,8 +1890,8 @@ struct d11cnt {
 	u32 txretrie;
 	u32 rxdup;
 	u32 txrts;
-	u32 txnocts;
-	u32 txnoack;
+	u32 txyescts;
+	u32 txyesack;
 	u32 rxfrag;
 	u32 rxmulti;
 	u32 rxcrc;

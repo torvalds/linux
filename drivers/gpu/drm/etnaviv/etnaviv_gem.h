@@ -21,12 +21,12 @@ struct etnaviv_gem_userptr {
 };
 
 struct etnaviv_vram_mapping {
-	struct list_head obj_node;
-	struct list_head scan_node;
-	struct list_head mmu_node;
+	struct list_head obj_yesde;
+	struct list_head scan_yesde;
+	struct list_head mmu_yesde;
 	struct etnaviv_gem_object *object;
 	struct etnaviv_iommu_context *context;
-	struct drm_mm_node vram_node;
+	struct drm_mm_yesde vram_yesde;
 	unsigned int use;
 	u32 iova;
 };
@@ -38,8 +38,8 @@ struct etnaviv_gem_object {
 
 	u32 flags;
 
-	struct list_head gem_node;
-	struct etnaviv_gpu *gpu;     /* non-null if active */
+	struct list_head gem_yesde;
+	struct etnaviv_gpu *gpu;     /* yesn-null if active */
 	atomic_t gpu_active;
 	u32 access;
 
@@ -97,7 +97,7 @@ struct etnaviv_gem_submit {
 	struct etnaviv_iommu_context *mmu_context, *prev_mmu_context;
 	struct dma_fence *out_fence, *in_fence;
 	int out_fence_id;
-	struct list_head node; /* GPU active submit list */
+	struct list_head yesde; /* GPU active submit list */
 	struct etnaviv_cmdbuf cmdbuf;
 	bool runtime_resumed;
 	u32 exec_state;

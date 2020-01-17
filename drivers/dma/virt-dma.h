@@ -16,7 +16,7 @@ struct virt_dma_desc {
 	struct dma_async_tx_descriptor tx;
 	struct dmaengine_result tx_result;
 	/* protected by vc.lock */
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct virt_dma_chan {
@@ -67,7 +67,7 @@ static inline struct dma_async_tx_descriptor *vchan_tx_prep(struct virt_dma_chan
 	vd->tx_result.residue = 0;
 
 	spin_lock_irqsave(&vc->lock, flags);
-	list_add_tail(&vd->node, &vc->desc_allocated);
+	list_add_tail(&vd->yesde, &vc->desc_allocated);
 	spin_unlock_irqrestore(&vc->lock, flags);
 
 	return &vd->tx;
@@ -100,7 +100,7 @@ static inline void vchan_cookie_complete(struct virt_dma_desc *vd)
 	dma_cookie_complete(&vd->tx);
 	dev_vdbg(vc->chan.device->dev, "txd %p[%x]: marked complete\n",
 		 vd, cookie);
-	list_add_tail(&vd->node, &vc->desc_completed);
+	list_add_tail(&vd->yesde, &vc->desc_completed);
 
 	tasklet_schedule(&vc->task);
 }
@@ -114,7 +114,7 @@ static inline void vchan_vdesc_fini(struct virt_dma_desc *vd)
 	struct virt_dma_chan *vc = to_virt_chan(vd->tx.chan);
 
 	if (dmaengine_desc_test_reuse(&vd->tx))
-		list_add(&vd->node, &vc->desc_allocated);
+		list_add(&vd->yesde, &vc->desc_allocated);
 	else
 		vc->desc_free(vd);
 }
@@ -159,7 +159,7 @@ static inline void vchan_terminate_vdesc(struct virt_dma_desc *vd)
 static inline struct virt_dma_desc *vchan_next_desc(struct virt_dma_chan *vc)
 {
 	return list_first_entry_or_null(&vc->desc_issued,
-					struct virt_dma_desc, node);
+					struct virt_dma_desc, yesde);
 }
 
 /**
@@ -189,7 +189,7 @@ static inline void vchan_free_chan_resources(struct virt_dma_chan *vc)
 
 	spin_lock_irqsave(&vc->lock, flags);
 	vchan_get_all_descriptors(vc, &head);
-	list_for_each_entry(vd, &head, node)
+	list_for_each_entry(vd, &head, yesde)
 		dmaengine_desc_clear_reuse(&vd->tx);
 	spin_unlock_irqrestore(&vc->lock, flags);
 
@@ -201,7 +201,7 @@ static inline void vchan_free_chan_resources(struct virt_dma_chan *vc)
  * @vc: virtual channel to synchronize
  *
  * Makes sure that all scheduled or active callbacks have finished running. For
- * proper operation the caller has to ensure that no new callbacks are scheduled
+ * proper operation the caller has to ensure that yes new callbacks are scheduled
  * after the invocation of this function started.
  * Free up the terminated cyclic descriptor to prevent memory leakage.
  */

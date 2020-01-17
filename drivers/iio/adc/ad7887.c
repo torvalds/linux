@@ -62,7 +62,7 @@ struct ad7887_state {
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
-	 * Buffer needs to be large enough to hold two 16 bit samples and a
+	 * Buffer needs to be large eyesugh to hold two 16 bit samples and a
 	 * 64 bit aligned 64 bit timestamp.
 	 */
 	unsigned char data[ALIGN(4, sizeof(s64)) + sizeof(s64)]
@@ -77,7 +77,7 @@ static int ad7887_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7887_state *st = iio_priv(indio_dev);
 
-	/* We know this is a single long so can 'cheat' */
+	/* We kyesw this is a single long so can 'cheat' */
 	switch (*indio_dev->active_scan_mask) {
 	case (1 << 0):
 		st->ring_msg = &st->msg[AD7887_CH0];
@@ -106,7 +106,7 @@ static int ad7887_ring_postdisable(struct iio_dev *indio_dev)
 /**
  * ad7887_trigger_handler() bh of trigger launched polling to ring buffer
  *
- * Currently there is no option in this driver to disable the saving of
+ * Currently there is yes option in this driver to disable the saving of
  * timestamps within the ring.
  **/
 static irqreturn_t ad7887_trigger_handler(int irq, void *p)
@@ -123,7 +123,7 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, st->data,
 		iio_get_time_ns(indio_dev));
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -262,7 +262,7 @@ static int ad7887_probe(struct spi_device *spi)
 
 	/* Estabilish that the iio_dev is a child of the spi device */
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &ad7887_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

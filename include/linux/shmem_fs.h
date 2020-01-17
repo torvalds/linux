@@ -9,27 +9,27 @@
 #include <linux/percpu_counter.h>
 #include <linux/xattr.h>
 
-/* inode in-kernel data */
+/* iyesde in-kernel data */
 
-struct shmem_inode_info {
+struct shmem_iyesde_info {
 	spinlock_t		lock;
 	unsigned int		seals;		/* shmem seals */
 	unsigned long		flags;
 	unsigned long		alloced;	/* data pages alloced to file */
 	unsigned long		swapped;	/* subtotal assigned to swap */
-	struct list_head        shrinklist;     /* shrinkable hpage inodes */
+	struct list_head        shrinklist;     /* shrinkable hpage iyesdes */
 	struct list_head	swaplist;	/* chain of maybes on swap */
 	struct shared_policy	policy;		/* NUMA memory alloc policy */
 	struct simple_xattrs	xattrs;		/* list of xattrs */
-	atomic_t		stop_eviction;	/* hold when working on inode */
-	struct inode		vfs_inode;
+	atomic_t		stop_eviction;	/* hold when working on iyesde */
+	struct iyesde		vfs_iyesde;
 };
 
 struct shmem_sb_info {
 	unsigned long max_blocks;   /* How many blocks are allowed */
 	struct percpu_counter used_blocks;  /* How many are allocated */
-	unsigned long max_inodes;   /* How many inodes are allowed */
-	unsigned long free_inodes;  /* How many are left for allocation */
+	unsigned long max_iyesdes;   /* How many iyesdes are allowed */
+	unsigned long free_iyesdes;  /* How many are left for allocation */
 	spinlock_t stat_lock;	    /* Serialize shmem_sb_info changes */
 	umode_t mode;		    /* Mount mode for root directory */
 	unsigned char huge;	    /* Whether to try for hugepages */
@@ -37,13 +37,13 @@ struct shmem_sb_info {
 	kgid_t gid;		    /* Mount gid for root directory */
 	struct mempolicy *mpol;     /* default memory policy for mappings */
 	spinlock_t shrinklist_lock;   /* Protects shrinklist */
-	struct list_head shrinklist;  /* List of shinkable inodes */
+	struct list_head shrinklist;  /* List of shinkable iyesdes */
 	unsigned long shrinklist_len; /* Length of shrinklist */
 };
 
-static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
+static inline struct shmem_iyesde_info *SHMEM_I(struct iyesde *iyesde)
 {
-	return container_of(inode, struct shmem_inode_info, vfs_inode);
+	return container_of(iyesde, struct shmem_iyesde_info, vfs_iyesde);
 }
 
 /*
@@ -73,7 +73,7 @@ static inline bool shmem_mapping(struct address_space *mapping)
 extern void shmem_unlock_mapping(struct address_space *mapping);
 extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
 					pgoff_t index, gfp_t gfp_mask);
-extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
+extern void shmem_truncate_range(struct iyesde *iyesde, loff_t start, loff_t end);
 extern int shmem_unuse(unsigned int type, bool frontswap,
 		       unsigned long *fs_pages_to_unuse);
 
@@ -85,13 +85,13 @@ extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
 enum sgp_type {
 	SGP_READ,	/* don't exceed i_size, don't allocate page */
 	SGP_CACHE,	/* don't exceed i_size, may allocate page */
-	SGP_NOHUGE,	/* like SGP_CACHE, but no huge pages */
+	SGP_NOHUGE,	/* like SGP_CACHE, but yes huge pages */
 	SGP_HUGE,	/* like SGP_CACHE, huge pages preferred */
 	SGP_WRITE,	/* may exceed i_size, may allocate !Uptodate page */
 	SGP_FALLOC,	/* like SGP_WRITE, but make existing page Uptodate */
 };
 
-extern int shmem_getpage(struct inode *inode, pgoff_t index,
+extern int shmem_getpage(struct iyesde *iyesde, pgoff_t index,
 		struct page **pagep, enum sgp_type sgp);
 
 static inline struct page *shmem_read_mapping_page(
@@ -110,8 +110,8 @@ static inline bool shmem_file(struct file *file)
 	return shmem_mapping(file->f_mapping);
 }
 
-extern bool shmem_charge(struct inode *inode, long pages);
-extern void shmem_uncharge(struct inode *inode, long pages);
+extern bool shmem_charge(struct iyesde *iyesde, long pages);
+extern void shmem_uncharge(struct iyesde *iyesde, long pages);
 
 #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
 extern bool shmem_huge_enabled(struct vm_area_struct *vma);

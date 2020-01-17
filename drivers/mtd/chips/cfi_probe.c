@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 
@@ -126,7 +126,7 @@ static int __xipram cfi_probe_chip(struct map_info *map, __u32 base,
  	for (i=0; i < (base >> cfi->chipshift); i++) {
  		unsigned long start;
  		if(!test_bit(i, chip_map)) {
-			/* Skip location; no valid chip at this address */
+			/* Skip location; yes valid chip at this address */
  			continue;
  		}
  		start = i << cfi->chipshift;
@@ -159,7 +159,7 @@ static int __xipram cfi_probe_chip(struct map_info *map, __u32 base,
 		}
 	}
 
-	/* OK, if we got to here, then none of the previous chips appear to
+	/* OK, if we got to here, then yesne of the previous chips appear to
 	   be aliases for the current one. */
 	set_bit((base >> cfi->chipshift), chip_map); /* Update chip map */
 	cfi->numchips++;
@@ -255,9 +255,9 @@ static int __xipram cfi_chip_setup(struct map_info *map,
 	 * Note we put the device back into Read Mode BEFORE going into Auto
 	 * Select Mode, as some devices support nesting of modes, others
 	 * don't. This way should always work.
-	 * On cmdset 0001 the writes of 0xaa and 0x55 are not needed, and
-	 * so should be treated as nops or illegal (and so put the device
-	 * back into Read Mode, which is a nop in this case).
+	 * On cmdset 0001 the writes of 0xaa and 0x55 are yest needed, and
+	 * so should be treated as yesps or illegal (and so put the device
+	 * back into Read Mode, which is a yesp in this case).
 	 */
 	cfi_send_gen_cmd(0xf0,     0, base, map, cfi, cfi->device_type, NULL);
 	cfi_send_gen_cmd(0xaa, addr_unlock1, base, map, cfi, cfi->device_type, NULL);
@@ -331,7 +331,7 @@ static char *vendorname(__u16 vendor)
 		return "Not Allowed / Reserved for Future Use";
 
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -374,7 +374,7 @@ static void print_cfi_ident(struct cfi_ident *cfip)
 		printk("Maximum full buffer write timeout: %d µs\n", (1<<cfip->BufWriteTimeoutMax) * (1<<cfip->BufWriteTimeoutTyp));
 	}
 	else
-		printk("Full buffer write not supported\n");
+		printk("Full buffer write yest supported\n");
 
 	printk("Typical block erase timeout: %d ms\n", 1<<cfip->BlockEraseTimeoutTyp);
 	printk("Maximum block erase timeout: %d ms\n", (1<<cfip->BlockEraseTimeoutMax) * (1<<cfip->BlockEraseTimeoutTyp));
@@ -383,29 +383,29 @@ static void print_cfi_ident(struct cfi_ident *cfip)
 		printk("Maximum chip erase timeout: %d ms\n", (1<<cfip->ChipEraseTimeoutMax) * (1<<cfip->ChipEraseTimeoutTyp));
 	}
 	else
-		printk("Chip erase not supported\n");
+		printk("Chip erase yest supported\n");
 
 	printk("Device size: 0x%X bytes (%d MiB)\n", 1 << cfip->DevSize, 1<< (cfip->DevSize - 20));
 	printk("Flash Device Interface description: 0x%4.4X\n", cfip->InterfaceDesc);
 	switch(cfip->InterfaceDesc) {
 	case CFI_INTERFACE_X8_ASYNC:
-		printk("  - x8-only asynchronous interface\n");
+		printk("  - x8-only asynchroyesus interface\n");
 		break;
 
 	case CFI_INTERFACE_X16_ASYNC:
-		printk("  - x16-only asynchronous interface\n");
+		printk("  - x16-only asynchroyesus interface\n");
 		break;
 
 	case CFI_INTERFACE_X8_BY_X16_ASYNC:
-		printk("  - supports x8 and x16 via BYTE# with asynchronous interface\n");
+		printk("  - supports x8 and x16 via BYTE# with asynchroyesus interface\n");
 		break;
 
 	case CFI_INTERFACE_X32_ASYNC:
-		printk("  - x32-only asynchronous interface\n");
+		printk("  - x32-only asynchroyesus interface\n");
 		break;
 
 	case CFI_INTERFACE_X16_BY_X32_ASYNC:
-		printk("  - supports x16 and x32 via Word# with asynchronous interface\n");
+		printk("  - supports x16 and x32 via Word# with asynchroyesus interface\n");
 		break;
 
 	case CFI_INTERFACE_NOT_ALLOWED:
@@ -413,7 +413,7 @@ static void print_cfi_ident(struct cfi_ident *cfip)
 		break;
 
 	default:
-		printk("  - Unknown\n");
+		printk("  - Unkyeswn\n");
 		break;
 	}
 

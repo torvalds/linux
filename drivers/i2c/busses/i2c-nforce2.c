@@ -83,7 +83,7 @@ struct nforce2_smbus {
 							   the abort command */
 #define NVIDIA_SMB_CTRL		(smbus->base + 0x3e)	/* control register */
 
-#define NVIDIA_SMB_STATUS_ABRT_STS	0x01		/* Bit to notify that
+#define NVIDIA_SMB_STATUS_ABRT_STS	0x01		/* Bit to yestify that
 							   abort succeeded */
 #define NVIDIA_SMB_CTRL_ABORT	0x20
 #define NVIDIA_SMB_STS_DONE	0x80
@@ -174,7 +174,7 @@ static int nforce2_check_status(struct i2c_adapter *adap)
 	return 0;
 }
 
-/* Return negative errno on error */
+/* Return negative erryes on error */
 static s32 nforce2_access(struct i2c_adapter *adap, u16 addr,
 		unsigned short flags, char read_write,
 		u8 command, int size, union i2c_smbus_data *data)
@@ -280,7 +280,7 @@ static s32 nforce2_access(struct i2c_adapter *adap, u16 addr,
 
 static u32 nforce2_func(struct i2c_adapter *adapter)
 {
-	/* other functionality might be possible, but is not tested */
+	/* other functionality might be possible, but is yest tested */
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
 	       I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
 	       I2C_FUNC_SMBUS_PEC |
@@ -324,7 +324,7 @@ static int nforce2_probe_smb(struct pci_dev *dev, int bar, int alt_reg,
 	if (smbus->base) {
 		smbus->size = pci_resource_len(dev, bar);
 	} else {
-		/* Older incarnations of the device used non-standard BARs */
+		/* Older incarnations of the device used yesn-standard BARs */
 		u16 iobase;
 
 		if (pci_read_config_word(dev, alt_reg, &iobase)
@@ -406,7 +406,7 @@ static int nforce2_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	if ((res1 < 0) && (res2 < 0)) {
-		/* we did not find even one of the SMBuses, so we give up */
+		/* we did yest find even one of the SMBuses, so we give up */
 		kfree(smbuses);
 		return -ENODEV;
 	}

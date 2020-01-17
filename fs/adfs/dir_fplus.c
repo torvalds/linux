@@ -37,7 +37,7 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 	size = le32_to_cpu(h->bigdirsize);
 	if (size != sz) {
 		adfs_msg(sb, KERN_WARNING,
-			 "directory header size %X does not match directory size %X",
+			 "directory header size %X does yest match directory size %X",
 			 size, sz);
 	}
 
@@ -56,7 +56,7 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 				GFP_KERNEL);
 		if (!bh_fplus) {
 			adfs_msg(sb, KERN_ERR,
-				 "not enough memory for dir object %X (%d blocks)",
+				 "yest eyesugh memory for dir object %X (%d blocks)",
 				 id, size);
 			ret = -ENOMEM;
 			goto out;

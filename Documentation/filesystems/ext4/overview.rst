@@ -18,10 +18,10 @@ order.
 
 .. include:: blocks.rst
 .. include:: blockgroup.rst
-.. include:: special_inodes.rst
+.. include:: special_iyesdes.rst
 .. include:: allocators.rst
 .. include:: checksums.rst
 .. include:: bigalloc.rst
 .. include:: inlinedata.rst
-.. include:: eainode.rst
+.. include:: eaiyesde.rst
 .. include:: verity.rst

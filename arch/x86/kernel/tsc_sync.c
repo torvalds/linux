@@ -5,7 +5,7 @@
  * Copyright (C) 2006, Red Hat, Inc., Ingo Molnar
  *
  * We check whether all boot CPUs have their TSC's synchronized,
- * print a warning if not and turn off the TSC clock-source.
+ * print a warning if yest and turn off the TSC clock-source.
  *
  * The warp-check is point-to-point between two CPUs, the CPU
  * initiating the bootup is the 'source CPU', the freshly booting
@@ -32,7 +32,7 @@ struct tsc_adjust {
 static DEFINE_PER_CPU(struct tsc_adjust, tsc_adjust);
 
 /*
- * TSC's on different sockets may be reset asynchronously.
+ * TSC's on different sockets may be reset asynchroyesusly.
  * This may cause the TSC ADJUST value on socket 0 to be NOT 0.
  */
 bool __read_mostly tsc_async_resets;
@@ -83,18 +83,18 @@ static void tsc_sanitize_first_cpu(struct tsc_adjust *cur, s64 bootval,
 	/*
 	 * First online CPU in a package stores the boot value in the
 	 * adjustment value. This value might change later via the sync
-	 * mechanism. If that fails we still can yell about boot values not
+	 * mechanism. If that fails we still can yell about boot values yest
 	 * being consistent.
 	 *
 	 * On the boot cpu we just force set the ADJUST value to 0 if it's
-	 * non zero. We don't do that on non boot cpus because physical
+	 * yesn zero. We don't do that on yesn boot cpus because physical
 	 * hotplug should have set the ADJUST register to a value > 0 so
 	 * the TSC is in sync with the already running cpus.
 	 *
 	 * Also don't force the ADJUST value to zero if that is a valid value
 	 * for socket 0 as determined by the system arch.  This is required
-	 * when multiple sockets are reset asynchronously with each other
-	 * and socket 0 may not have an TSC ADJUST value of 0.
+	 * when multiple sockets are reset asynchroyesusly with each other
+	 * and socket 0 may yest have an TSC ADJUST value of 0.
 	 */
 	if (bootcpu && bootval != 0) {
 		if (likely(!tsc_async_resets)) {
@@ -151,18 +151,18 @@ bool tsc_store_and_check_tsc_adjust(bool bootcpu)
 	cur->warned = false;
 
 	/*
-	 * If a non-zero TSC value for socket 0 may be valid then the default
-	 * adjusted value cannot assumed to be zero either.
+	 * If a yesn-zero TSC value for socket 0 may be valid then the default
+	 * adjusted value canyest assumed to be zero either.
 	 */
 	if (tsc_async_resets)
 		cur->adjusted = bootval;
 
 	/*
 	 * Check whether this CPU is the first in a package to come up. In
-	 * this case do not check the boot value against another package
+	 * this case do yest check the boot value against ayesther package
 	 * because the new package might have been physically hotplugged,
 	 * where TSC_ADJUST is expected to be different. When called on the
-	 * boot CPU topology_core_cpumask() might not be available yet.
+	 * boot CPU topology_core_cpumask() might yest be available yet.
 	 */
 	mask = topology_core_cpumask(cpu);
 	refcpu = mask ? cpumask_any_but(mask, cpu) : nr_cpu_ids;
@@ -209,7 +209,7 @@ static atomic_t test_runs;
 
 /*
  * We use a raw spinlock in this exceptional case, because
- * we want to have the fastest, inlined, non-debug version
+ * we want to have the fastest, inlined, yesn-debug version
  * of a critical section, to be able to prove TSC time-warps:
  */
 static arch_spinlock_t sync_lock = __ARCH_SPIN_LOCK_UNLOCKED;
@@ -220,12 +220,12 @@ static int nr_warps;
 static int random_warps;
 
 /*
- * TSC-warp measurement loop running on both CPUs.  This is not called
- * if there is no TSC.
+ * TSC-warp measurement loop running on both CPUs.  This is yest called
+ * if there is yes TSC.
  */
 static cycles_t check_tsc_warp(unsigned int timeout)
 {
-	cycles_t start, now, prev, end, cur_max_warp = 0;
+	cycles_t start, yesw, prev, end, cur_max_warp = 0;
 	int i, cur_warps = 0;
 
 	start = rdtsc_ordered();
@@ -233,39 +233,39 @@ static cycles_t check_tsc_warp(unsigned int timeout)
 	 * The measurement runs for 'timeout' msecs:
 	 */
 	end = start + (cycles_t) tsc_khz * timeout;
-	now = start;
+	yesw = start;
 
 	for (i = 0; ; i++) {
 		/*
 		 * We take the global lock, measure TSC, save the
 		 * previous TSC that was measured (possibly on
-		 * another CPU) and update the previous TSC timestamp.
+		 * ayesther CPU) and update the previous TSC timestamp.
 		 */
 		arch_spin_lock(&sync_lock);
 		prev = last_tsc;
-		now = rdtsc_ordered();
-		last_tsc = now;
+		yesw = rdtsc_ordered();
+		last_tsc = yesw;
 		arch_spin_unlock(&sync_lock);
 
 		/*
-		 * Be nice every now and then (and also check whether
+		 * Be nice every yesw and then (and also check whether
 		 * measurement is done [we also insert a 10 million
 		 * loops safety exit, so we dont lock up in case the
 		 * TSC readout is totally broken]):
 		 */
 		if (unlikely(!(i & 7))) {
-			if (now > end || i > 10000000)
+			if (yesw > end || i > 10000000)
 				break;
 			cpu_relax();
 			touch_nmi_watchdog();
 		}
 		/*
-		 * Outside the critical section we can now see whether
+		 * Outside the critical section we can yesw see whether
 		 * we saw a time-warp of the TSC going backwards:
 		 */
-		if (unlikely(prev > now)) {
+		if (unlikely(prev > yesw)) {
 			arch_spin_lock(&sync_lock);
-			max_warp = max(max_warp, prev - now);
+			max_warp = max(max_warp, prev - yesw);
 			cur_max_warp = max_warp;
 			/*
 			 * Check whether this bounces back and forth. Only
@@ -278,9 +278,9 @@ static cycles_t check_tsc_warp(unsigned int timeout)
 			arch_spin_unlock(&sync_lock);
 		}
 	}
-	WARN(!(now-start),
+	WARN(!(yesw-start),
 		"Warning: zero tsc calibration delta: %Ld [max: %Ld]\n",
-			now-start, end-start);
+			yesw-start, end-start);
 	return cur_max_warp;
 }
 
@@ -312,15 +312,15 @@ void check_tsc_sync_source(int cpu)
 	int cpus = 2;
 
 	/*
-	 * No need to check if we already know that the TSC is not
-	 * synchronized or if we have no TSC.
+	 * No need to check if we already kyesw that the TSC is yest
+	 * synchronized or if we have yes TSC.
 	 */
 	if (unsynchronized_tsc())
 		return;
 
 	/*
 	 * Set the maximum number of test runs to
-	 *  1 if the CPU does not provide the TSC_ADJUST MSR
+	 *  1 if the CPU does yest provide the TSC_ADJUST MSR
 	 *  3 if the MSR is available, so the target can try to adjust
 	 */
 	if (!boot_cpu_has(X86_FEATURE_TSC_ADJUST))
@@ -351,8 +351,8 @@ retry:
 
 	/*
 	 * If the test was successful set the number of runs to zero and
-	 * stop. If not, decrement the number of runs an check if we can
-	 * retry. In case of random warps no retry is attempted.
+	 * stop. If yest, decrement the number of runs an check if we can
+	 * retry. In case of random warps yes retry is attempted.
 	 */
 	if (!nr_warps) {
 		atomic_set(&test_runs, 0);
@@ -374,7 +374,7 @@ retry:
 	}
 
 	/*
-	 * Reset it - just in case we boot another CPU later:
+	 * Reset it - just in case we boot ayesther CPU later:
 	 */
 	atomic_set(&start_count, 0);
 	random_warps = 0;
@@ -404,7 +404,7 @@ void check_tsc_sync_target(void)
 	cycles_t cur_max_warp, gbl_max_warp;
 	int cpus = 2;
 
-	/* Also aborts if there is no TSC. */
+	/* Also aborts if there is yes TSC. */
 	if (unsynchronized_tsc())
 		return;
 
@@ -413,7 +413,7 @@ void check_tsc_sync_target(void)
 	 * successful skip the test.
 	 *
 	 * The test is also skipped when the TSC is marked reliable. This
-	 * is true for SoCs which have no fallback clocksource. On these
+	 * is true for SoCs which have yes fallback clocksource. On these
 	 * SoCs the TSC is frequency synchronized, but still the TSC ADJUST
 	 * register might have been wreckaged by the BIOS..
 	 */
@@ -455,7 +455,7 @@ retry:
 	atomic_set(&stop_count, 0);
 
 	/*
-	 * Check the number of remaining test runs. If not zero, the test
+	 * Check the number of remaining test runs. If yest zero, the test
 	 * failed and a retry with adjusted TSC is possible. If zero the
 	 * test was either successful or failed terminally.
 	 */
@@ -475,9 +475,9 @@ retry:
 	 *
 	 * The adjustement value is slightly off by the overhead of the
 	 * sync mechanism (observed values are ~200 TSC cycles), but this
-	 * really depends on CPU, node distance and frequency. So
+	 * really depends on CPU, yesde distance and frequency. So
 	 * compensating for this is hard to get right. Experiments show
-	 * that the warp is not longer detectable when the observed warp
+	 * that the warp is yest longer detectable when the observed warp
 	 * value is used. In the worst case the adjustment needs to go
 	 * through a 3rd run for fine tuning.
 	 */

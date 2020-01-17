@@ -90,7 +90,7 @@ static struct i2c_board_info __initdata i2c_info[] =  {
 		.properties = eeprom_properties,
 	},
 	/* Other I2C devices:
-	 * MSP430,  addr 0x23 (not used)
+	 * MSP430,  addr 0x23 (yest used)
 	 * PCA9543, addr 0x70 (setup done by U-Boot)
 	 * ADS7828, addr 0x48 (ADC for voltage monitoring.)
 	 */

@@ -93,7 +93,7 @@ static int nf_br_ip_fragment(struct net *net, struct sock *sk,
 slow_path:
 	/* This is a linearized skbuff, the original geometry is lost for us.
 	 * This may also be a clone skbuff, we could preserve the geometry for
-	 * the copies but probably not worth the effort.
+	 * the copies but probably yest worth the effort.
 	 */
 	ip_frag_init(skb, hlen, ll_rs, frag_max_size, false, &state);
 
@@ -158,7 +158,7 @@ static unsigned int nf_ct_br_defrag4(struct sk_buff *skb,
 	local_bh_enable();
 	if (!err) {
 		br_skb_cb_restore(skb, &cb, IPCB(skb)->frag_max_size);
-		skb->ignore_df = 1;
+		skb->igyesre_df = 1;
 		return NF_ACCEPT;
 	}
 

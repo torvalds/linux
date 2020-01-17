@@ -18,13 +18,13 @@ typedef void (*vhost_work_fn_t)(struct vhost_work *work);
 
 #define VHOST_WORK_QUEUED 1
 struct vhost_work {
-	struct llist_node	  node;
+	struct llist_yesde	  yesde;
 	vhost_work_fn_t		  fn;
 	unsigned long		  flags;
 };
 
 /* Poll a file (eventfd or socket) */
-/* Note: there's nothing vhost specific about this structure. */
+/* Note: there's yesthing vhost specific about this structure. */
 struct vhost_poll {
 	poll_table                table;
 	wait_queue_head_t        *wqh;
@@ -52,11 +52,11 @@ struct vhost_log {
 	u64 len;
 };
 
-#define START(node) ((node)->start)
-#define LAST(node) ((node)->last)
+#define START(yesde) ((yesde)->start)
+#define LAST(yesde) ((yesde)->last)
 
-struct vhost_umem_node {
-	struct rb_node rb;
+struct vhost_umem_yesde {
+	struct rb_yesde rb;
 	struct list_head link;
 	__u64 start;
 	__u64 last;
@@ -90,7 +90,7 @@ struct vhost_virtqueue {
 	struct vring_desc __user *desc;
 	struct vring_avail __user *avail;
 	struct vring_used __user *used;
-	const struct vhost_umem_node *meta_iotlb[VHOST_NUM_ADDRS];
+	const struct vhost_umem_yesde *meta_iotlb[VHOST_NUM_ADDRS];
 	struct file *kick;
 	struct eventfd_ctx *call_ctx;
 	struct eventfd_ctx *error_ctx;
@@ -147,13 +147,13 @@ struct vhost_virtqueue {
 	u32 busyloop_timeout;
 };
 
-struct vhost_msg_node {
+struct vhost_msg_yesde {
   union {
 	  struct vhost_msg msg;
 	  struct vhost_msg_v2 msg_v2;
   };
   struct vhost_virtqueue *vq;
-  struct list_head node;
+  struct list_head yesde;
 };
 
 struct vhost_dev {
@@ -206,25 +206,25 @@ void vhost_add_used_and_signal(struct vhost_dev *, struct vhost_virtqueue *,
 void vhost_add_used_and_signal_n(struct vhost_dev *, struct vhost_virtqueue *,
 			       struct vring_used_elem *heads, unsigned count);
 void vhost_signal(struct vhost_dev *, struct vhost_virtqueue *);
-void vhost_disable_notify(struct vhost_dev *, struct vhost_virtqueue *);
+void vhost_disable_yestify(struct vhost_dev *, struct vhost_virtqueue *);
 bool vhost_vq_avail_empty(struct vhost_dev *, struct vhost_virtqueue *);
-bool vhost_enable_notify(struct vhost_dev *, struct vhost_virtqueue *);
+bool vhost_enable_yestify(struct vhost_dev *, struct vhost_virtqueue *);
 
 int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 		    unsigned int log_num, u64 len,
 		    struct iovec *iov, int count);
 int vq_meta_prefetch(struct vhost_virtqueue *vq);
 
-struct vhost_msg_node *vhost_new_msg(struct vhost_virtqueue *vq, int type);
+struct vhost_msg_yesde *vhost_new_msg(struct vhost_virtqueue *vq, int type);
 void vhost_enqueue_msg(struct vhost_dev *dev,
 		       struct list_head *head,
-		       struct vhost_msg_node *node);
-struct vhost_msg_node *vhost_dequeue_msg(struct vhost_dev *dev,
+		       struct vhost_msg_yesde *yesde);
+struct vhost_msg_yesde *vhost_dequeue_msg(struct vhost_dev *dev,
 					 struct list_head *head);
 __poll_t vhost_chr_poll(struct file *file, struct vhost_dev *dev,
 			    poll_table *wait);
 ssize_t vhost_chr_read_iter(struct vhost_dev *dev, struct iov_iter *to,
-			    int noblock);
+			    int yesblock);
 ssize_t vhost_chr_write_iter(struct vhost_dev *dev,
 			     struct iov_iter *from);
 int vhost_init_device_iotlb(struct vhost_dev *d, bool enabled);

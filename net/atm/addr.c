@@ -37,12 +37,12 @@ static int identical(const struct sockaddr_atmsvc *a, const struct sockaddr_atms
 	return !strcmp(a->sas_addr.pub, b->sas_addr.pub);
 }
 
-static void notify_sigd(const struct atm_dev *dev)
+static void yestify_sigd(const struct atm_dev *dev)
 {
 	struct sockaddr_atmpvc pvc;
 
 	pvc.sap_addr.itf = dev->number;
-	sigd_enq(NULL, as_itf_notify, NULL, &pvc, NULL);
+	sigd_enq(NULL, as_itf_yestify, NULL, &pvc, NULL);
 }
 
 void atm_reset_addr(struct atm_dev *dev, enum atm_addr_type_t atype)
@@ -62,7 +62,7 @@ void atm_reset_addr(struct atm_dev *dev, enum atm_addr_type_t atype)
 	}
 	spin_unlock_irqrestore(&dev->lock, flags);
 	if (head == &dev->local)
-		notify_sigd(dev);
+		yestify_sigd(dev);
 }
 
 int atm_add_addr(struct atm_dev *dev, const struct sockaddr_atmsvc *addr,
@@ -96,7 +96,7 @@ int atm_add_addr(struct atm_dev *dev, const struct sockaddr_atmsvc *addr,
 	list_add(&this->entry, head);
 	spin_unlock_irqrestore(&dev->lock, flags);
 	if (head == &dev->local)
-		notify_sigd(dev);
+		yestify_sigd(dev);
 	return 0;
 }
 
@@ -122,7 +122,7 @@ int atm_del_addr(struct atm_dev *dev, const struct sockaddr_atmsvc *addr,
 			spin_unlock_irqrestore(&dev->lock, flags);
 			kfree(this);
 			if (head == &dev->local)
-				notify_sigd(dev);
+				yestify_sigd(dev);
 			return 0;
 		}
 	}

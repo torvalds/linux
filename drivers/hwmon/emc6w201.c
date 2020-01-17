@@ -18,7 +18,7 @@
  * Addresses to scan
  */
 
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 /*
  * The EMC6W201 registers
@@ -174,7 +174,7 @@ static struct emc6w201_data *emc6w201_update_device(struct device *dev)
  * Sysfs callback functions
  */
 
-static const s16 nominal_mv[6] = { 2500, 1500, 3300, 5000, 1500, 1500 };
+static const s16 yesminal_mv[6] = { 2500, 1500, 3300, 5000, 1500, 1500 };
 
 static ssize_t in_show(struct device *dev, struct device_attribute *devattr,
 		       char *buf)
@@ -184,7 +184,7 @@ static ssize_t in_show(struct device *dev, struct device_attribute *devattr,
 	int nr = to_sensor_dev_attr_2(devattr)->nr;
 
 	return sprintf(buf, "%u\n",
-		       (unsigned)data->in[sf][nr] * nominal_mv[nr] / 0xC0);
+		       (unsigned)data->in[sf][nr] * yesminal_mv[nr] / 0xC0);
 }
 
 static ssize_t in_store(struct device *dev, struct device_attribute *devattr,
@@ -202,8 +202,8 @@ static ssize_t in_store(struct device *dev, struct device_attribute *devattr,
 	if (err < 0)
 		return err;
 
-	val = clamp_val(val, 0, 255 * nominal_mv[nr] / 192);
-	val = DIV_ROUND_CLOSEST(val * 192, nominal_mv[nr]);
+	val = clamp_val(val, 0, 255 * yesminal_mv[nr] / 192);
+	val = DIV_ROUND_CLOSEST(val * 192, yesminal_mv[nr]);
 	reg = (sf == min) ? EMC6W201_REG_IN_LOW(nr)
 			  : EMC6W201_REG_IN_HIGH(nr);
 
@@ -425,7 +425,7 @@ static int emc6w201_detect(struct i2c_client *client,
 	if (verstep < 0 || (verstep & 0xF0) != 0xB0)
 		return -ENODEV;
 	if ((verstep & 0x0F) > 2) {
-		dev_dbg(&client->dev, "Unknown EMC6W201 stepping %d\n",
+		dev_dbg(&client->dev, "Unkyeswn EMC6W201 stepping %d\n",
 			verstep & 0x0F);
 		return -ENODEV;
 	}
@@ -435,7 +435,7 @@ static int emc6w201_detect(struct i2c_client *client,
 	if (config < 0 || (config & 0xF4) != 0x04)
 		return -ENODEV;
 	if (!(config & 0x01)) {
-		dev_err(&client->dev, "Monitoring not enabled\n");
+		dev_err(&client->dev, "Monitoring yest enabled\n");
 		return -ENODEV;
 	}
 
@@ -478,7 +478,7 @@ static struct i2c_driver emc6w201_driver = {
 	.probe		= emc6w201_probe,
 	.id_table	= emc6w201_id,
 	.detect		= emc6w201_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(emc6w201_driver);

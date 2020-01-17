@@ -126,7 +126,7 @@ static struct irqaction efm32_clock_event_irq = {
 	.dev_id = &clock_event_ddata,
 };
 
-static int __init efm32_clocksource_init(struct device_node *np)
+static int __init efm32_clocksource_init(struct device_yesde *np)
 {
 	struct clk *clk;
 	void __iomem *base;
@@ -184,7 +184,7 @@ err_clk_get:
 	return ret;
 }
 
-static int __init efm32_clockevent_init(struct device_node *np)
+static int __init efm32_clockevent_init(struct device_yesde *np)
 {
 	struct clk *clk;
 	void __iomem *base;
@@ -257,7 +257,7 @@ err_clk_get:
  * This function asserts that we have exactly one clocksource and one
  * clock_event_device in the end.
  */
-static int __init efm32_timer_init(struct device_node *np)
+static int __init efm32_timer_init(struct device_yesde *np)
 {
 	static int has_clocksource, has_clockevent;
 	int ret = 0;

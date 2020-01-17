@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file holds the definitions of quirks found in USB devices.
- * Only quirks that affect the whole device, not an interface,
+ * Only quirks that affect the whole device, yest an interface,
  * belong here.
  */
 
 #ifndef __LINUX_USB_QUIRKS_H
 #define __LINUX_USB_QUIRKS_H
 
-/* string descriptors must not be fetched using a 255-byte read */
+/* string descriptors must yest be fetched using a 255-byte read */
 #define USB_QUIRK_STRING_FETCH_255		BIT(0)
 
 /* device can't resume correctly so reset it instead */
@@ -45,7 +45,7 @@
 /* device can't handle device_qualifier descriptor requests */
 #define USB_QUIRK_DEVICE_QUALIFIER		BIT(8)
 
-/* device generates spurious wakeup, ignore remote wakeup capability */
+/* device generates spurious wakeup, igyesre remote wakeup capability */
 #define USB_QUIRK_IGNORE_REMOTE_WAKEUP		BIT(9)
 
 /* device can't handle Link Power Management */

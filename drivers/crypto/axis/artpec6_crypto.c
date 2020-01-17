@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *   Driver for ARTPEC-6 crypto block using the kernel asynchronous crypto api.
+ *   Driver for ARTPEC-6 crypto block using the kernel asynchroyesus crypto api.
  *
  *    Copyright (C) 2014-2017  Axis Communications AB
  */
@@ -198,7 +198,7 @@ struct pdma_stat_descr {
  * It operates on a descriptor array with up to 64 descriptor entries.
  * The arrays must be 64 byte aligned in memory.
  *
- * The ciphering unit has no registers and is completely controlled by
+ * The ciphering unit has yes registers and is completely controlled by
  * a 4-byte metadata that is inserted at the beginning of each dma packet.
  *
  * A dma packet is a sequence of descriptors terminated by setting the .eop
@@ -240,7 +240,7 @@ struct artpec6_crypto_dma_descriptors {
 	struct pdma_descr in[PDMA_DESCR_COUNT] __aligned(64);
 	u32 stat[PDMA_DESCR_COUNT] __aligned(64);
 	struct list_head bounce_buffers;
-	/* Enough maps for all out/in buffers, and all three descr. arrays */
+	/* Eyesugh maps for all out/in buffers, and all three descr. arrays */
 	struct artpec6_crypto_dma_map maps[PDMA_DESCR_COUNT * 2 + 2];
 	dma_addr_t out_dma_addr;
 	dma_addr_t in_dma_addr;
@@ -538,7 +538,7 @@ static bool fault_inject_dma_descr(void)
  * @len:  The length of the data buffer
  * @eop:  True if this is the last buffer in the packet
  *
- * @return 0 on success or -ENOSPC if there are no more descriptors available
+ * @return 0 on success or -ENOSPC if there are yes more descriptors available
  */
 static int
 artpec6_crypto_setup_out_descr_phys(struct artpec6_crypto_req_common *common,
@@ -570,7 +570,7 @@ artpec6_crypto_setup_out_descr_phys(struct artpec6_crypto_req_common *common,
  * @eop: True if this is the last buffer in the packet
  *
  * @return 0 on success
- *	-ENOSPC if no more descriptors are available
+ *	-ENOSPC if yes more descriptors are available
  *	-EINVAL if the data length exceeds 7 bytes
  */
 static int
@@ -760,7 +760,7 @@ artpec6_crypto_setup_in_descr_phys(struct artpec6_crypto_req_common *common,
  * @last:   If this is the last data buffer in the request (i.e. an interrupt
  *	    is needed
  *
- * Short descriptors are not used for the in channel
+ * Short descriptors are yest used for the in channel
  */
 static int
 artpec6_crypto_setup_in_descr(struct artpec6_crypto_req_common *common,
@@ -831,7 +831,7 @@ artpec6_crypto_setup_sg_descrs_in(struct artpec6_crypto_req_common *common,
 		chunk = min(count, artpec6_crypto_walk_chunklen(walk));
 		addr = artpec6_crypto_walk_chunk_phys(walk);
 
-		/* When destination buffers are not aligned to the cache line
+		/* When destination buffers are yest aligned to the cache line
 		 * size we need bounce buffers. The DMA-API requires that the
 		 * entire line is owned by the DMA buffer and this holds also
 		 * for the case when coherent DMA is used.
@@ -941,7 +941,7 @@ artpec6_crypto_setup_sg_descrs_out(struct artpec6_crypto_req_common *common,
 
 /** artpec6_crypto_terminate_out_descrs - Set the EOP on the last out descriptor
  *
- * If the out descriptor list is non-empty, then the eop flag on the
+ * If the out descriptor list is yesn-empty, then the eop flag on the
  * last used out descriptor will be set.
  *
  * @return  0 on success
@@ -1500,7 +1500,7 @@ static int artpec6_crypto_prepare_hash(struct ahash_request *areq)
 		if (error)
 			return error;
 
-	} else { /* This is not the final operation for this request */
+	} else { /* This is yest the final operation for this request */
 		if (!run_hw)
 			return ARTPEC6_CRYPTO_PREPARE_HASH_NO_START;
 
@@ -2063,7 +2063,7 @@ static void artpec6_crypto_process_queue(struct artpec6_crypto *ac,
 	 * before actually updating the status, so we have an timer which will
 	 * recheck the status on timeout.  Since the cases are expected to be
 	 * very rare, we use a relatively large timeout value.  There should be
-	 * no noticeable negative effect if we timeout spuriously.
+	 * yes yesticeable negative effect if we timeout spuriously.
 	 */
 	if (ac->pending_count)
 		mod_timer(&ac->timer, jiffies + msecs_to_jiffies(100));
@@ -2111,7 +2111,7 @@ static void artpec6_crypto_task(unsigned long data)
 
 		stat = req->dma->stat[req->dma->in_cnt-1];
 
-		/* A non-zero final status descriptor indicates
+		/* A yesn-zero final status descriptor indicates
 		 * this job has finished.
 		 */
 		pr_debug("Request %p status is %X\n", req, stat);
@@ -2508,7 +2508,7 @@ static int init_crypto_hw(struct artpec6_crypto *ac)
 	 * The PDMA unit contains 1984 bytes of internal memory for the OUT
 	 * channels and 1024 bytes for the IN channel. This is an elastic
 	 * memory used to internally store the descriptors and data. The values
-	 * ares specified in 64 byte incremements.  Trustzone buffers are not
+	 * ares specified in 64 byte incremements.  Trustzone buffers are yest
 	 * used at this stage.
 	 */
 	out_data_buf_size = 16;  /* 1024 bytes for data */
@@ -2599,7 +2599,7 @@ static irqreturn_t artpec6_crypto_irq(int irq, void *dev_id)
 		ack_intr_reg = A7_PDMA_ACK_INTR;
 	}
 
-	/* We get two interrupt notifications from each job.
+	/* We get two interrupt yestifications from each job.
 	 * The in_data means all data was sent to memory and then
 	 * we request a status flush command to write the per-job
 	 * status to its status vector. This ensures that the
@@ -2860,7 +2860,7 @@ static int artpec6_crypto_probe(struct platform_device *pdev)
 	if (artpec6_crypto_dev)
 		return -ENODEV;
 
-	match = of_match_node(artpec6_crypto_of_match, dev->of_node);
+	match = of_match_yesde(artpec6_crypto_of_match, dev->of_yesde);
 	if (!match)
 		return -EINVAL;
 

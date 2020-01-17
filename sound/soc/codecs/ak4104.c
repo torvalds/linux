@@ -102,7 +102,7 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 	struct ak4104_private *ak4104 = snd_soc_component_get_drvdata(component);
 	int ret, val = 0;
 
-	/* set the IEC958 bits: consumer mode, no copyright bit */
+	/* set the IEC958 bits: consumer mode, yes copyright bit */
 	val |= IEC958_AES0_CON_NOT_COPYRIGHT;
 	regmap_write(ak4104->regmap, AK4104_REG_CHN_STATUS(0), val);
 
@@ -181,7 +181,7 @@ static int ak4104_probe(struct snd_soc_component *component)
 		return ret;
 	}
 
-	/* set power-up and non-reset bits */
+	/* set power-up and yesn-reset bits */
 	ret = regmap_update_bits(ak4104->regmap, AK4104_REG_CONTROL1,
 				 AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN,
 				 AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN);
@@ -248,7 +248,7 @@ static const struct snd_soc_component_driver soc_component_device_ak4104 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ak4104_regmap = {
@@ -301,7 +301,7 @@ static int ak4104_spi_probe(struct spi_device *spi)
 
 	/* read the 'reserved' register - according to the datasheet, it
 	 * should contain 0x5b. Not a good way to verify the presence of
-	 * the device, but there is no hardware ID register. */
+	 * the device, but there is yes hardware ID register. */
 	ret = regmap_read(ak4104->regmap, AK4104_REG_RESERVED, &val);
 	if (ret != 0)
 		return ret;

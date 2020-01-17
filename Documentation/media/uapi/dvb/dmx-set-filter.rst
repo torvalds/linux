@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _DMX_SET_FILTER:
 
@@ -19,7 +19,7 @@ Name
 DMX_SET_FILTER
 
 
-Synopsis
+Syyespsis
 --------
 
 .. c:function:: int ioctl( int fd, DMX_SET_FILTER, struct dmx_sct_filter_params *params)
@@ -41,7 +41,7 @@ Description
 
 This ioctl call sets up a filter according to the filter and mask
 parameters provided. A timeout may be defined stating number of seconds
-to wait for a section to be loaded. A value of 0 means that no timeout
+to wait for a section to be loaded. A value of 0 means that yes timeout
 should be applied. Finally there is a flag field where it is possible to
 state whether a section should be CRC-checked, whether the filter should
 be a ”one-shot” filter, i.e. if the filtering operation should be
@@ -57,7 +57,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erryes`` variable is set
 appropriately.
 
 The generic error codes are described at the

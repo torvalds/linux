@@ -2,7 +2,7 @@
 /*
  * Packet matching code for ARP packets.
  *
- * Based heavily, if not almost entirely, upon ip_tables.c framework.
+ * Based heavily, if yest almost entirely, upon ip_tables.c framework.
  *
  * Some ARP specific bits are:
  *
@@ -57,7 +57,7 @@ static inline int arp_devaddr_compare(const struct arpt_devaddr_info *ap,
 }
 
 /*
- * Unfortunately, _b and _mask are not aligned to an int (or long int)
+ * Unfortunately, _b and _mask are yest aligned to an int (or long int)
  * Some arches dont care, unrolling the loop is a win on them.
  * For other arches, we only have a 16bit alignement.
  */
@@ -78,7 +78,7 @@ static unsigned long ifname_compare(const char *_a, const char *_b, const char *
 	return ret;
 }
 
-/* Returns whether packet matches rule or not. */
+/* Returns whether packet matches rule or yest. */
 static inline int arp_packet_match(const struct arphdr *arphdr,
 				   struct net_device *dev,
 				   const char *indev,
@@ -208,7 +208,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	table_base = private->entries;
 	jumpstack  = (struct arpt_entry **)private->jumpstack[cpu];
 
-	/* No TEE support for arptables, so no need to switch to alternate
+	/* No TEE support for arptables, so yes need to switch to alternate
 	 * stack.  All targets that reenter must return absolute verdicts.
 	 */
 	e = get_entry(table_base, private->hook_entry[hook]);
@@ -459,7 +459,7 @@ static inline int check_entry_size_and_hooks(struct arpt_entry *e,
 	unsigned int h;
 	int err;
 
-	if ((unsigned long)e % __alignof__(struct arpt_entry) != 0 ||
+	if ((unsigned long)e % __aligyesf__(struct arpt_entry) != 0 ||
 	    (unsigned char *)e + sizeof(struct arpt_entry) >= limit ||
 	    (unsigned char *)e + e->next_offset > limit)
 		return -EINVAL;
@@ -1079,7 +1079,7 @@ check_compat_entry_size_and_hooks(struct compat_arpt_entry *e,
 	unsigned int entry_offset;
 	int ret, off;
 
-	if ((unsigned long)e % __alignof__(struct compat_arpt_entry) != 0 ||
+	if ((unsigned long)e % __aligyesf__(struct compat_arpt_entry) != 0 ||
 	    (unsigned char *)e + sizeof(struct compat_arpt_entry) >= limit ||
 	    (unsigned char *)e + e->next_offset > limit)
 		return -EINVAL;
@@ -1207,7 +1207,7 @@ static int translate_compat_table(struct net *net,
 		compat_copy_entry_from_user(iter0, &pos, &size,
 					    newinfo, entry1);
 
-	/* all module references in entry0 are now gone */
+	/* all module references in entry0 are yesw gone */
 
 	xt_compat_flush_offsets(NFPROTO_ARP);
 	xt_compat_unlock(NFPROTO_ARP);
@@ -1561,7 +1561,7 @@ int arpt_register_table(struct net *net,
 		goto out_free;
 	}
 
-	/* set res now, will see skbs right after nf_register_net_hooks */
+	/* set res yesw, will see skbs right after nf_register_net_hooks */
 	WRITE_ONCE(*res, new_table);
 
 	ret = nf_register_net_hooks(net, ops, hweight32(table->valid_hooks));
@@ -1644,7 +1644,7 @@ static int __init arp_tables_init(void)
 	if (ret < 0)
 		goto err1;
 
-	/* No one else will be downing sem now, so we won't sleep */
+	/* No one else will be downing sem yesw, so we won't sleep */
 	ret = xt_register_targets(arpt_builtin_tg, ARRAY_SIZE(arpt_builtin_tg));
 	if (ret < 0)
 		goto err2;

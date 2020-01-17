@@ -108,13 +108,13 @@ static void led_state_set(struct led_classdev *led, enum led_brightness value)
 	queue_work(data->wq, &data->led_work);
 }
 
-static void asus_wireless_notify(struct acpi_device *adev, u32 event)
+static void asus_wireless_yestify(struct acpi_device *adev, u32 event)
 {
 	struct asus_wireless_data *data = acpi_driver_data(adev);
 
 	dev_dbg(&adev->dev, "event=%#x\n", event);
 	if (event != 0x88) {
-		dev_notice(&adev->dev, "Unknown ASHS event: %#x\n", event);
+		dev_yestice(&adev->dev, "Unkyeswn ASHS event: %#x\n", event);
 		return;
 	}
 	input_report_key(data->idev, KEY_RFKILL, 1);
@@ -167,7 +167,7 @@ static int asus_wireless_add(struct acpi_device *adev)
 	data->led.brightness_get = led_state_get;
 	data->led.flags = LED_CORE_SUSPENDRESUME;
 	data->led.max_brightness = 1;
-	data->led.default_trigger = "rfkill-none";
+	data->led.default_trigger = "rfkill-yesne";
 	err = devm_led_classdev_register(&adev->dev, &data->led);
 	if (err)
 		destroy_workqueue(data->wq);
@@ -193,7 +193,7 @@ static struct acpi_driver asus_wireless_driver = {
 	.ops = {
 		.add = asus_wireless_add,
 		.remove = asus_wireless_remove,
-		.notify = asus_wireless_notify,
+		.yestify = asus_wireless_yestify,
 	},
 };
 module_acpi_driver(asus_wireless_driver);

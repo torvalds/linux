@@ -1,19 +1,19 @@
 /*	BSDI dptsig.h,v 1.7 1998/06/03 19:15:00 karels Exp	*/
 
 /*
- * Copyright (c) 1996-1999 Distributed Processing Technology Corporation
+ * Copyright (c) 1996-1999 Distributed Processing Techyeslogy Corporation
  * All rights reserved.
  *
  * Redistribution and use in source form, with or without modification, are
  * permitted provided that redistributions of source code must retain the
- * above copyright notice, this list of conditions and the following disclaimer.
+ * above copyright yestice, this list of conditions and the following disclaimer.
  *
- * This software is provided `as is' by Distributed Processing Technology and
- * any express or implied warranties, including, but not limited to, the
+ * This software is provided `as is' by Distributed Processing Techyeslogy and
+ * any express or implied warranties, including, but yest limited to, the
  * implied warranties of merchantability and fitness for a particular purpose,
- * are disclaimed. In no event shall Distributed Processing Technology be
+ * are disclaimed. In yes event shall Distributed Processing Techyeslogy be
  * liable for any direct, indirect, incidental, special, exemplary or
- * consequential damages (including, but not limited to, procurement of
+ * consequential damages (including, but yest limited to, procurement of
  * substitute goods or services; loss of use, data, or profits; or business
  * interruptions) however caused and on any theory of liability, whether in
  * contract, strict liability, or tort (including negligence or otherwise)
@@ -28,7 +28,7 @@
 #include "dpt.h"
 #endif
 /* DPT SIGNATURE SPEC AND HEADER FILE                           */
-/* Signature Version 1 (sorry no 'A')                           */
+/* Signature Version 1 (sorry yes 'A')                           */
 
 /* to make sure we are talking the same size under all OS's     */
 typedef unsigned char sigBYTE;
@@ -57,12 +57,12 @@ typedef unsigned int sigINT;
 # define sigLONGLittleEndian(x) (x)
 #endif
 
-/* must make sure the structure is not word or double-word aligned      */
+/* must make sure the structure is yest word or double-word aligned      */
 /* ---------------------------------------------------------------      */
-/* Borland will ignore the following pragma:                            */
+/* Borland will igyesre the following pragma:                            */
 /* Word alignment is OFF by default.  If in the, IDE make               */
 /* sure that Options | Compiler | Code Generation | Word Alignment      */
-/* is not checked.  If using BCC, do not use the -a option.             */
+/* is yest checked.  If using BCC, do yest use the -a option.             */
 
 #ifndef NO_PACK
 #if defined (_DPT_AIX)
@@ -84,7 +84,7 @@ typedef unsigned int sigINT;
 /* Processor Family - sigBYTE dsProcessorFamily;  DISTINCT VALUES */
 /* ------------------------------------------------------------------ */
 /* What type of processor the file is meant to run on. */
-/* This will let us know whether to read sigWORDs as high/low or low/high. */
+/* This will let us kyesw whether to read sigWORDs as high/low or low/high. */
 #define PROC_INTEL      0x00    /* Intel 80x86/ia64 */
 #define PROC_MOTOROLA   0x01    /* Motorola 68K */
 #define PROC_MIPS4000   0x02    /* MIPS RISC 4000 */
@@ -173,7 +173,7 @@ typedef unsigned int sigINT;
 #define OS_DOS          0x00000001 /* PC/MS-DOS				*/
 #define OS_WINDOWS      0x00000002 /* Microsoft Windows 3.x		*/
 #define OS_WINDOWS_NT   0x00000004 /* Microsoft Windows NT		*/
-#define OS_OS2M         0x00000008 /* OS/2 1.2.x,MS 1.3.0,IBM 1.3.x - Monolithic */
+#define OS_OS2M         0x00000008 /* OS/2 1.2.x,MS 1.3.0,IBM 1.3.x - Moyeslithic */
 #define OS_OS2L         0x00000010 /* Microsoft OS/2 1.301 - LADDR	*/
 #define OS_OS22x        0x00000020 /* IBM OS/2 2.x			*/
 #define OS_NW286        0x00000040 /* Novell NetWare 286		*/
@@ -312,7 +312,7 @@ typedef struct dpt_sig {
     /* description (NULL terminated) */
     char  dsDescription[dsDescription_size];
 } dpt_sig_S;
-/* 32 bytes minimum - with no description.  Put NULL at description[0] */
+/* 32 bytes minimum - with yes description.  Put NULL at description[0] */
 /* 81 bytes maximum - with 49 character description plus NULL. */
 
 /* This line added at Roycroft's request */

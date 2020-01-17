@@ -123,10 +123,10 @@ static int alpine_msix_gic_domain_alloc(struct irq_domain *domain,
 	struct irq_data *d;
 	int ret;
 
-	if (!is_of_node(domain->parent->fwnode))
+	if (!is_of_yesde(domain->parent->fwyesde))
 		return -EINVAL;
 
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwyesde = domain->parent->fwyesde;
 	fwspec.param_count = 3;
 	fwspec.param[0] = 0;
 	fwspec.param[1] = sgi;
@@ -188,18 +188,18 @@ static const struct irq_domain_ops alpine_msix_middle_domain_ops = {
 };
 
 static int alpine_msix_init_domains(struct alpine_msix_data *priv,
-				    struct device_node *node)
+				    struct device_yesde *yesde)
 {
 	struct irq_domain *middle_domain, *msi_domain, *gic_domain;
-	struct device_node *gic_node;
+	struct device_yesde *gic_yesde;
 
-	gic_node = of_irq_find_parent(node);
-	if (!gic_node) {
-		pr_err("Failed to find the GIC node\n");
+	gic_yesde = of_irq_find_parent(yesde);
+	if (!gic_yesde) {
+		pr_err("Failed to find the GIC yesde\n");
 		return -ENODEV;
 	}
 
-	gic_domain = irq_find_host(gic_node);
+	gic_domain = irq_find_host(gic_yesde);
 	if (!gic_domain) {
 		pr_err("Failed to find the GIC domain\n");
 		return -ENXIO;
@@ -215,7 +215,7 @@ static int alpine_msix_init_domains(struct alpine_msix_data *priv,
 
 	middle_domain->parent = gic_domain;
 
-	msi_domain = pci_msi_create_irq_domain(of_node_to_fwnode(node),
+	msi_domain = pci_msi_create_irq_domain(of_yesde_to_fwyesde(yesde),
 					       &alpine_msix_domain_info,
 					       middle_domain);
 	if (!msi_domain) {
@@ -227,8 +227,8 @@ static int alpine_msix_init_domains(struct alpine_msix_data *priv,
 	return 0;
 }
 
-static int alpine_msix_init(struct device_node *node,
-			    struct device_node *parent)
+static int alpine_msix_init(struct device_yesde *yesde,
+			    struct device_yesde *parent)
 {
 	struct alpine_msix_data *priv;
 	struct resource res;
@@ -240,7 +240,7 @@ static int alpine_msix_init(struct device_node *node,
 
 	spin_lock_init(&priv->msi_map_lock);
 
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(yesde, 0, &res);
 	if (ret) {
 		pr_err("Failed to allocate resource\n");
 		goto err_priv;
@@ -256,13 +256,13 @@ static int alpine_msix_init(struct device_node *node,
 	priv->addr = res.start & GENMASK_ULL(63,20);
 	priv->addr |= ALPINE_MSIX_SPI_TARGET_CLUSTER0;
 
-	if (of_property_read_u32(node, "al,msi-base-spi", &priv->spi_first)) {
+	if (of_property_read_u32(yesde, "al,msi-base-spi", &priv->spi_first)) {
 		pr_err("Unable to parse MSI base\n");
 		ret = -EINVAL;
 		goto err_priv;
 	}
 
-	if (of_property_read_u32(node, "al,msi-num-spis", &priv->num_spis)) {
+	if (of_property_read_u32(yesde, "al,msi-num-spis", &priv->num_spis)) {
 		pr_err("Unable to parse MSI numbers\n");
 		ret = -EINVAL;
 		goto err_priv;
@@ -279,7 +279,7 @@ static int alpine_msix_init(struct device_node *node,
 	pr_debug("Registering %d msixs, starting at %d\n",
 		 priv->num_spis, priv->spi_first);
 
-	ret = alpine_msix_init_domains(priv, node);
+	ret = alpine_msix_init_domains(priv, yesde);
 	if (ret)
 		goto err_map;
 

@@ -97,7 +97,7 @@ static __u8 df_rdesc_fixed[] = {
 0x81, 0x42,         /*          Input (Variable, Null State),   */
 0x75, 0x01,         /*          Report Size (1),                */
 0x95, 0x04,         /*          Report Count (4),               */
-0x65, 0x00,         /*          Unit (none),                    */
+0x65, 0x00,         /*          Unit (yesne),                    */
 0x06, 0x00, 0xFF,   /*          Usage Page (Vendor: 65280),     */
 0x09, 0x01,         /*          Usage (?: 1),                   */
 0x25, 0x01,         /*          Logical Maximum (1),            */
@@ -568,7 +568,7 @@ static int lg_ultrax_remote_mapping(struct hid_input *hi,
 	return 1;
 }
 
-static int lg_dinovo_mapping(struct hid_input *hi, struct hid_usage *usage,
+static int lg_diyesvo_mapping(struct hid_input *hi, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_LOGIVENDOR)
@@ -669,7 +669,7 @@ static int lg_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		return 1;
 
 	if (hdev->product == USB_DEVICE_ID_DINOVO_MINI &&
-			lg_dinovo_mapping(hi, usage, bit, max))
+			lg_diyesvo_mapping(hi, usage, bit, max))
 		return 1;
 
 	if ((drv_data->quirks & LG_WIRELESS) && lg_wireless_mapping(hi, usage, bit, max))
@@ -712,7 +712,7 @@ static int lg_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 			 usage->type == EV_REL || usage->type == EV_ABS))
 		clear_bit(usage->code, *bit);
 
-	/* Ensure that Logitech wheels are not given a default fuzz/flat value */
+	/* Ensure that Logitech wheels are yest given a default fuzz/flat value */
 	if (usage->type == EV_ABS && (usage->code == ABS_X ||
 			usage->code == ABS_Y || usage->code == ABS_Z ||
 			usage->code == ABS_RZ)) {
@@ -778,13 +778,13 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	/* G29 only work with the 1st interface */
 	if ((hdev->product == USB_DEVICE_ID_LOGITECH_G29_WHEEL) &&
 	    (iface_num != 0)) {
-		dbg_hid("%s: ignoring ifnum %d\n", __func__, iface_num);
+		dbg_hid("%s: igyesring ifnum %d\n", __func__, iface_num);
 		return -ENODEV;
 	}
 
 	drv_data = kzalloc(sizeof(struct lg_drv_data), GFP_KERNEL);
 	if (!drv_data) {
-		hid_err(hdev, "Insufficient memory, cannot allocate driver data\n");
+		hid_err(hdev, "Insufficient memory, canyest allocate driver data\n");
 		return -ENOMEM;
 	}
 	drv_data->quirks = id->driver_data;
@@ -955,9 +955,9 @@ static struct hid_driver lg_driver = {
 module_hid_driver(lg_driver);
 
 #ifdef CONFIG_LOGIWHEELS_FF
-int lg4ff_no_autoswitch = 0;
-module_param_named(lg4ff_no_autoswitch, lg4ff_no_autoswitch, int, S_IRUGO);
-MODULE_PARM_DESC(lg4ff_no_autoswitch, "Do not switch multimode wheels to their native mode automatically");
+int lg4ff_yes_autoswitch = 0;
+module_param_named(lg4ff_yes_autoswitch, lg4ff_yes_autoswitch, int, S_IRUGO);
+MODULE_PARM_DESC(lg4ff_yes_autoswitch, "Do yest switch multimode wheels to their native mode automatically");
 #endif
 
 MODULE_LICENSE("GPL");

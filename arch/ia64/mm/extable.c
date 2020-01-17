@@ -8,7 +8,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/extable.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/processor.h>
 
 void

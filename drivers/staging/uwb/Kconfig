@@ -9,7 +9,7 @@ menuconfig UWB
 	select GENERIC_NET_UTILS
 	help
 	  UWB is a high-bandwidth, low-power, point-to-point radio
-	  technology using a wide spectrum (3.1-10.6GHz). It is
+	  techyeslogy using a wide spectrum (3.1-10.6GHz). It is
 	  optimized for in-room use (480Mbps at 2 meters, 110Mbps at
 	  10m). It serves as the transport layer for other protocols,
 	  such as Wireless USB (WUSB).
@@ -20,7 +20,7 @@ menuconfig UWB
 
 	  Say Y here if your computer has UWB radio controllers (USB or PCI)
 	  based. You will need to enable the radio controllers
-	  below.  It is ok to select all of them, no harm done.
+	  below.  It is ok to select all of them, yes harm done.
 
 	  For more help check the UWB and WUSB related files in
 	  <file:Documentation/usb/>.
@@ -39,7 +39,7 @@ config UWB_HWA
 	  them come with a Wireless USB host controller also.
 
 	  To compile this driver select Y (built in) or M (module). It
-	  is safe to select any even if you do not have the hardware.
+	  is safe to select any even if you do yest have the hardware.
 
 config UWB_WHCI
         tristate "UWB Radio Control driver for WHCI-compliant cards"
@@ -48,14 +48,14 @@ config UWB_WHCI
           This driver enables the radio controller for WHCI cards.
 
           WHCI is a specification developed by Intel
-          (http://www.intel.com/technology/comms/wusb/whci.htm) much
+          (http://www.intel.com/techyeslogy/comms/wusb/whci.htm) much
           in the spirit of USB's EHCI, but for UWB and Wireless USB
           radio/host controllers connected via memory mapping (eg:
           PCI). Most of these cards come also with a Wireless USB host
           controller.
 
           To compile this driver select Y (built in) or M (module). It
-          is safe to select any even if you do not have the hardware.
+          is safe to select any even if you do yest have the hardware.
 
 config UWB_I1480U
         tristate "Support for Intel Wireless UWB Link 1480 HWA"
@@ -67,6 +67,6 @@ config UWB_I1480U
          to behave as an HWA device.
 
          To compile this driver select Y (built in) or M (module). It
-         is safe to select any even if you do not have the hardware.
+         is safe to select any even if you do yest have the hardware.
 
 endif # UWB

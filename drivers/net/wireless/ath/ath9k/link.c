@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -264,7 +264,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 
 		if (!ar9003_paprd_is_done(ah)) {
 			ath_dbg(common, CALIBRATE,
-				"PAPRD not yet done on chain %d\n", chain);
+				"PAPRD yest yet done on chain %d\n", chain);
 			break;
 		}
 
@@ -295,7 +295,7 @@ fail_paprd:
 }
 
 /*
- *  ANI performs periodic noise floor calibration
+ *  ANI performs periodic yesise floor calibration
  *  that is used to adjust and optimize the chip performance.  This
  *  takes environmental changes (location, temperature) into account.
  *  When the task is complete, it reschedules itself depending on the
@@ -462,7 +462,7 @@ void ath_check_ani(struct ath_softc *sc)
 	} else if (ah->opmode == NL80211_IFTYPE_AP) {
 		if (!cur_conf->enable_beacon) {
 			/*
-			 * Disable ANI only when there are no
+			 * Disable ANI only when there are yes
 			 * associated stations.
 			 */
 			if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags))
@@ -491,16 +491,16 @@ void ath_update_survey_nf(struct ath_softc *sc, int channel)
 	struct ath9k_channel *chan = &ah->channels[channel];
 	struct survey_info *survey = &sc->survey[channel];
 
-	if (chan->noisefloor) {
+	if (chan->yesisefloor) {
 		survey->filled |= SURVEY_INFO_NOISE_DBM;
-		survey->noise = ath9k_hw_getchan_noise(ah, chan,
-						       chan->noisefloor);
+		survey->yesise = ath9k_hw_getchan_yesise(ah, chan,
+						       chan->yesisefloor);
 	}
 }
 
 /*
  * Updates the survey statistics and returns the busy time since last
- * update in %, if the measurement duration was long enough for the
+ * update in %, if the measurement duration was long eyesugh for the
  * result to be useful, -1 otherwise.
  */
 int ath_update_survey_stats(struct ath_softc *sc)

@@ -1,7 +1,7 @@
 /*  linux/drivers/scsi/esas2r/atioctl.h
  *      ATTO IOCTL Handling
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techyeslogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -22,7 +22,7 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  *  solely responsible for determining the appropriateness of using and
  *  distributing the Program and assumes all risks associated with its
- *  exercise of rights under this Agreement, including but not limited to
+ *  exercise of rights under this Agreement, including but yest limited to
  *  the risks and costs of program errors, damage to or loss of data,
  *  programs or equipment, and unavailability or interruption of operations.
  *
@@ -36,7 +36,7 @@
  *  HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if yest, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -111,13 +111,13 @@ struct __packed atto_channel_list {
 
 struct __packed atto_channel_info {
 	u8 major_rev;
-	u8 minor_rev;
+	u8 miyesr_rev;
 	u8 IRQ;
 	u8 revision_id;
 	u8 pci_bus;
 	u8 pci_dev_func;
 	u8 core_rev;
-	u8 host_no;
+	u8 host_yes;
 	u16 device_id;
 	u16 vendor_id;
 	u16 ven_dev_id;
@@ -190,11 +190,11 @@ struct atto_csmi_get_driver_info {
 	char name[81];
 	char description[81];
 	u16 major_rev;
-	u16 minor_rev;
+	u16 miyesr_rev;
 	u16 build_rev;
 	u16 release_rev;
 	u16 csmi_major_rev;
-	u16 csmi_minor_rev;
+	u16 csmi_miyesr_rev;
 	#define CSMI_MAJOR_REV_0_81      0
 	#define CSMI_MINOR_REV_0_81      81
 
@@ -235,11 +235,11 @@ struct atto_csmi_get_cntlr_cfg {
 
 	char serial_num[81];
 	u16 major_rev;
-	u16 minor_rev;
+	u16 miyesr_rev;
 	u16 build_rev;
 	u16 release_rev;
 	u16 bios_major_rev;
-	u16 bios_minor_rev;
+	u16 bios_miyesr_rev;
 	u16 bios_build_rev;
 	u16 bios_release_rev;
 	u32 cntlr_flags;
@@ -254,11 +254,11 @@ struct atto_csmi_get_cntlr_cfg {
 	#define CSMI_CNTLRF_FWD_RROM     0x00100000
 
 	u16 rrom_major_rev;
-	u16 rrom_minor_rev;
+	u16 rrom_miyesr_rev;
 	u16 rrom_build_rev;
 	u16 rrom_release_rev;
 	u16 rrom_biosmajor_rev;
-	u16 rrom_biosminor_rev;
+	u16 rrom_biosmiyesr_rev;
 	u16 rrom_biosbuild_rev;
 	u16 rrom_biosrelease_rev;
 	u8 reserved2[7];
@@ -539,7 +539,7 @@ struct atto_csmi_task_mgmt {
 };
 
 struct atto_csmi_get_conn_info {
-	u32 pinout;
+	u32 piyesut;
 	#define CSMI_CON_UNKNOWN         0x00000001
 	#define CSMI_CON_SFF_8482        0x00000002
 	#define CSMI_CON_SFF_8470_LANE_1 0x00000100
@@ -661,10 +661,10 @@ struct atto_module_info {
 	void *adapter;
 	void *pci_dev;
 	void *scsi_host;
-	unsigned short host_no;
+	unsigned short host_yes;
 	union {
 		struct {
-			u64 node_name;
+			u64 yesde_name;
 			u64 port_name;
 		};
 		u64 sas_addr;
@@ -735,8 +735,8 @@ struct __packed atto_hba_get_adapter_info {
 	u8 num_ports;
 	u8 num_phys;
 	u8 drvr_rev_major;
-	u8 drvr_rev_minor;
-	u8 drvr_revsub_minor;
+	u8 drvr_rev_miyesr;
+	u8 drvr_revsub_miyesr;
 	u8 drvr_rev_build;
 	char drvr_rev_ascii[16];
 	char drvr_name[32];
@@ -888,7 +888,7 @@ struct __packed atto_hba_get_device_address {
 	u8 address[256];
 };
 
-/* The following functions are supported by firmware but do not have any
+/* The following functions are supported by firmware but do yest have any
  * associated driver structures
  */
 #define ATTO_FUNC_PHY_CTRL           0x06

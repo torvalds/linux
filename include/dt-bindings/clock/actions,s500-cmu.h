@@ -3,7 +3,7 @@
  * Device Tree binding constants for Actions Semi S500 Clock Management Unit
  *
  * Copyright (c) 2014 Actions Semi Inc.
- * Copyright (c) 2018 LSI-TEC - Caninos Loucos
+ * Copyright (c) 2018 LSI-TEC - Caniyess Loucos
  */
 
 #ifndef __DT_BINDINGS_CLOCK_S500_CMU_H

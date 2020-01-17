@@ -327,7 +327,7 @@ int mt7603_mcu_set_eeprom(struct mt7603_dev *dev)
 		MT_EE_XTAL_TRIM_3_COMP,
 		MT_EE_XTAL_WF_RFCAL,
 
-		/* unknown fields below */
+		/* unkyeswn fields below */
 		WORD(0x24),
 		0x34,
 		0x39,

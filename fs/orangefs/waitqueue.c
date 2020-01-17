@@ -28,7 +28,7 @@ static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s 
  * What we do in this function is to walk the list of operations that are
  * present in the request queue and mark them as purged.
  * NOTE: This is called from the device close after client-core has
- * guaranteed that no new operations could appear on the list since the
+ * guaranteed that yes new operations could appear on the list since the
  * client-core is anyway going to exit.
  */
 void purge_waiting_ops(void)
@@ -56,9 +56,9 @@ void purge_waiting_ops(void)
  * submits a ORANGEFS operation and waits for it to complete
  *
  * Note op->downcall.status will contain the status of the operation (in
- * errno format), whether provided by pvfs2-client or a result of failure to
+ * erryes format), whether provided by pvfs2-client or a result of failure to
  * service the operation.  If the caller wishes to distinguish, then
- * op->state can be checked to see if it was serviced or not.
+ * op->state can be checked to see if it was serviced or yest.
  *
  * Returns contents of op->downcall.status for convenience
  */
@@ -150,11 +150,11 @@ retry_servicing:
 		     ret,
 		     op);
 
-	/* got matching downcall; make sure status is in errno format */
+	/* got matching downcall; make sure status is in erryes format */
 	if (!ret) {
 		spin_unlock(&op->lock);
 		op->downcall.status =
-		    orangefs_normalize_to_errno(op->downcall.status);
+		    orangefs_yesrmalize_to_erryes(op->downcall.status);
 		ret = op->downcall.status;
 		goto out;
 	}
@@ -173,7 +173,7 @@ retry_servicing:
 	orangefs_clean_up_interrupted_operation(op);
 
 	op->downcall.status = ret;
-	/* retry if operation has not been serviced and if requested */
+	/* retry if operation has yest been serviced and if requested */
 	if (ret == -EAGAIN) {
 		op->attempts++;
 		timeout = op_timeout_secs * HZ;
@@ -220,7 +220,7 @@ bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op)
 	orangefs_new_tag(op);
 
 	spin_lock(&orangefs_request_list_lock);
-	/* orangefs_request_list_lock is enough of a barrier here */
+	/* orangefs_request_list_lock is eyesugh of a barrier here */
 	if (!__is_daemon_in_service()) {
 		spin_unlock(&orangefs_request_list_lock);
 		return false;
@@ -258,7 +258,7 @@ static void
 	 */
 
 	/*
-	 * List manipulation code elsewhere will ignore ops that
+	 * List manipulation code elsewhere will igyesre ops that
 	 * have been given up upon.
 	 */
 	op->op_state |= OP_VFS_STATE_GIVEN_UP;
@@ -303,10 +303,10 @@ static void
  * If client-core finishes servicing, then we are good to go.
  * else if client-core exits, we get woken up here, and retry with a timeout
  *
- * When this call returns to the caller, the specified op will no
+ * When this call returns to the caller, the specified op will yes
  * longer be in either the in_progress hash table or on the request list.
  *
- * Returns 0 on success and -errno on failure
+ * Returns 0 on success and -erryes on failure
  * Errors are:
  * EAGAIN in case we want the caller to requeue and try again..
  * EINTR/EIO/ETIMEDOUT indicating we are done trying to service this

@@ -27,7 +27,7 @@ static void __do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
 	setCx86(CX86_CCR3, ccr3 ^ 0x80);
 	getCx86(0xc0);   /* dummy to change bus */
 
-	if (getCx86(CX86_CCR3) == ccr3) {       /* no DEVID regs. */
+	if (getCx86(CX86_CCR3) == ccr3) {       /* yes DEVID regs. */
 		ccr2 = getCx86(CX86_CCR2);
 		setCx86(CX86_CCR2, ccr2 ^ 0x04);
 		getCx86(0xc0);  /* dummy */
@@ -66,7 +66,7 @@ static unsigned char Cx86_dir0_msb = 0;
 
 static const char Cx86_model[][9] = {
 	"Cx486", "Cx486", "5x86 ", "6x86", "MediaGX ", "6x86MX ",
-	"M II ", "Unknown"
+	"M II ", "Unkyeswn"
 };
 static const char Cx486_name[][5] = {
 	"SLC", "DLC", "SLC2", "DLC2", "SRx", "DRx",
@@ -195,7 +195,7 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 	const char *p = NULL;
 
 	/*
-	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
+	 * Bit 31 in yesrmal CPUID used for yesnstandard 3DNow ID;
 	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
 	 */
 	clear_cpu_cap(c, 0*32+31);
@@ -267,8 +267,8 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 		 * is wrong and ruins the audio.
 		 *
 		 *  Bug2: VSA1 has a wrap bug so that using maximum sized DMA
-		 *  causes bad things. According to NatSemi VSA2 has another
-		 *  bug to do with 'hlt'. I've not seen any boards using VSA2
+		 *  causes bad things. According to NatSemi VSA2 has ayesther
+		 *  bug to do with 'hlt'. I've yest seen any boards using VSA2
 		 *  and X doesn't seem to support it either so who cares 8).
 		 *  VSA1 we work around however.
 		 */
@@ -277,7 +277,7 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 		isa_dma_bridge_buggy = 2;
 
 		/* We do this before the PCI layer is running. However we
-		   are safe here as we know the bridge must be a Cyrix
+		   are safe here as we kyesw the bridge must be a Cyrix
 		   companion and must be present */
 		vendor = read_pci_config_16(0, 0, 0x12, PCI_VENDOR_ID);
 		device = read_pci_config_16(0, 0, 0x12, PCI_DEVICE_ID);
@@ -318,7 +318,7 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 	case 5: /* 6x86MX/M II */
 		if (dir1 > 7) {
 			dir0_msn++;  /* M II */
-			/* Enable MMX extensions (App note 108) */
+			/* Enable MMX extensions (App yeste 108) */
 			setCx86(CX86_CCR7, getCx86(CX86_CCR7)|1);
 		} else {
 			/* A 6x86MX - it has the bug. */
@@ -347,7 +347,7 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 		}
 		break;
 
-	default:  /* unknown (shouldn't happen, we know everyone ;-) */
+	default:  /* unkyeswn (shouldn't happen, we kyesw everyone ;-) */
 		dir0_msn = 7;
 		break;
 	}
@@ -364,7 +364,7 @@ static void init_nsc(struct cpuinfo_x86 *c)
 {
 	/*
 	 * There may be GX1 processors in the wild that are branded
-	 * NSC and not Cyrix.
+	 * NSC and yest Cyrix.
 	 *
 	 * This function only handles the GX processor, and kicks every
 	 * thing else to the Cyrix init function above - that should
@@ -375,7 +375,7 @@ static void init_nsc(struct cpuinfo_x86 *c)
 	 * info-linux@ldcmail.amd.com to tell us.
 	 */
 
-	/* Handle the GX (Formally known as the GX2) */
+	/* Handle the GX (Formally kyeswn as the GX2) */
 
 	if (c->x86 == 5 && c->x86_model == 5)
 		cpu_detect_cache_sizes(c);
@@ -384,7 +384,7 @@ static void init_nsc(struct cpuinfo_x86 *c)
 }
 
 /*
- * Cyrix CPUs without cpuid or with cpuid not yet enabled can be detected
+ * Cyrix CPUs without cpuid or with cpuid yest yet enabled can be detected
  * by the fact that they preserve the flags across the division of 5/2.
  * PII and PPro exhibit this behavior too, but they have cpuid available.
  */

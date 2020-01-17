@@ -74,7 +74,7 @@ static int tc58cxgxsx_ecc_get_status(struct spinand_device *spinand,
 		/*
 		 * Let's try to retrieve the real maximum number of bitflips
 		 * in order to avoid forcing the wear-leveling layer to move
-		 * data around if it's not necessary.
+		 * data around if it's yest necessary.
 		 */
 		if (spi_mem_exec_op(spinand->spimem, &op))
 			return nand->eccreq.strength;

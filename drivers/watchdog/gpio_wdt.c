@@ -13,10 +13,10 @@
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 #define SOFT_TIMEOUT_MIN	1
@@ -106,7 +106,7 @@ static const struct watchdog_ops gpio_wdt_ops = {
 static int gpio_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct gpio_wdt_priv *priv;
 	enum gpiod_flags gflags;
 	unsigned int hw_margin;
@@ -157,7 +157,7 @@ static int gpio_wdt_probe(struct platform_device *pdev)
 	priv->wdd.timeout	= SOFT_TIMEOUT_DEF;
 
 	watchdog_init_timeout(&priv->wdd, 0, dev);
-	watchdog_set_nowayout(&priv->wdd, nowayout);
+	watchdog_set_yeswayout(&priv->wdd, yeswayout);
 
 	watchdog_stop_on_reboot(&priv->wdd);
 

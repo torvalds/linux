@@ -27,7 +27,7 @@ ENTRY(v5tj_early_abort)
 	ldreq	r3, [r4]			@ read aborted ARM instruction
 	uaccess_disable ip			@ disable userspace access
 	teq_ldrd tmp=ip, insn=r3		@ insn was LDRD?
-	beq	do_DataAbort			@ yes
+	beq	do_DataAbort			@ no
 	tst	r3, #1 << 20			@ L = 0 -> write
-	orreq	r1, r1, #1 << 11		@ yes.
+	orreq	r1, r1, #1 << 11		@ no.
 	b	do_DataAbort

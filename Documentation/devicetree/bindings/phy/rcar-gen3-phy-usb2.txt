@@ -1,6 +1,6 @@
 * Renesas R-Car generation 3 USB 2.0 PHY
 
-This file provides information on what the device node for the R-Car generation
+This file provides information on what the device yesde for the R-Car generation
 3, RZ/G1C, RZ/G2 and RZ/A2 USB 2.0 PHY contain.
 
 Required properties:
@@ -27,7 +27,7 @@ Required properties:
 	      "renesas,rcar-gen3-usb2-phy" for a generic R-Car Gen3, RZ/G2 or
 	      RZ/A2 compatible device.
 
-	      When compatible with the generic version, nodes must list the
+	      When compatible with the generic version, yesdes must list the
 	      SoC-specific version corresponding to the platform first
 	      followed by the generic version.
 
@@ -43,15 +43,15 @@ The phandle's argument in the PHY specifier is the INT_STATUS bit of controller:
 
 Optional properties:
 To use a USB channel where USB 2.0 Host and HSUSB (USB 2.0 Peripheral) are
-combined, the device tree node should set interrupt properties to use the
+combined, the device tree yesde should set interrupt properties to use the
 channel as USB OTG:
 - interrupts: interrupt specifier for the PHY.
 - vbus-supply: Phandle to a regulator that provides power to the VBUS. This
 	       regulator will be managed during the PHY power on/off sequence.
-- renesas,no-otg-pins: boolean, specify when a board does not provide proper
+- renesas,yes-otg-pins: boolean, specify when a board does yest provide proper
 		       otg pins.
 - dr_mode: string, indicates the working mode for the PHY. Can be "host",
-           "peripheral", or "otg". Should be set if otg controller is not used.
+           "peripheral", or "otg". Should be set if otg controller is yest used.
 
 
 Example (R-Car H3):

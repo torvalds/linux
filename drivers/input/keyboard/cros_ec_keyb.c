@@ -8,7 +8,7 @@
 // to the AP over some bus (such as i2c, lpc, spi).  The EC does debouncing,
 // but everything else (including deghosting) is done here.  The main
 // motivation for this is to keep the EC firmware as simple as possible, since
-// it cannot be easily upgraded and EC flash/IRAM space is relatively
+// it canyest be easily upgraded and EC flash/IRAM space is relatively
 // expensive.
 
 #include <linux/module.h>
@@ -17,7 +17,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sysrq.h>
@@ -38,8 +38,8 @@
  * @dev: Device pointer
  * @ec: Top level ChromeOS device to use to talk to EC
  * @idev: The input device for the matrix keys.
- * @bs_idev: The input device for non-matrix buttons and switches (or NULL).
- * @notifier: interrupt event notifier for transport devices
+ * @bs_idev: The input device for yesn-matrix buttons and switches (or NULL).
+ * @yestifier: interrupt event yestifier for transport devices
  */
 struct cros_ec_keyb {
 	unsigned int rows;
@@ -55,7 +55,7 @@ struct cros_ec_keyb {
 
 	struct input_dev *idev;
 	struct input_dev *bs_idev;
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 };
 
 
@@ -163,8 +163,8 @@ static void cros_ec_keyb_process(struct cros_ec_keyb *ckdev,
 
 	if (ckdev->ghost_filter && cros_ec_keyb_has_ghosting(ckdev, kb_state)) {
 		/*
-		 * Simple-minded solution: ignore this state. The obvious
-		 * improvement is to only ignore changes to keys involved in
+		 * Simple-minded solution: igyesre this state. The obvious
+		 * improvement is to only igyesre changes to keys involved in
 		 * the ghosting, but process the other changes.
 		 */
 		dev_dbg(ckdev->dev, "ghosting found\n");
@@ -193,7 +193,7 @@ static void cros_ec_keyb_process(struct cros_ec_keyb *ckdev,
 }
 
 /**
- * cros_ec_keyb_report_bs - Report non-matrixed buttons or switches
+ * cros_ec_keyb_report_bs - Report yesn-matrixed buttons or switches
  *
  * This takes a bitmap of buttons or switches from the EC and reports events,
  * syncing at the end.
@@ -221,18 +221,18 @@ static void cros_ec_keyb_report_bs(struct cros_ec_keyb *ckdev,
 	input_sync(idev);
 }
 
-static int cros_ec_keyb_work(struct notifier_block *nb,
-			     unsigned long queued_during_suspend, void *_notify)
+static int cros_ec_keyb_work(struct yestifier_block *nb,
+			     unsigned long queued_during_suspend, void *_yestify)
 {
 	struct cros_ec_keyb *ckdev = container_of(nb, struct cros_ec_keyb,
-						  notifier);
+						  yestifier);
 	u32 val;
 	unsigned int ev_type;
 
 	/*
-	 * If not wake enabled, discard key state changes during
+	 * If yest wake enabled, discard key state changes during
 	 * suspend. Switches will be re-checked in
-	 * cros_ec_keyb_resume() to be sure nothing is lost.
+	 * cros_ec_keyb_resume() to be sure yesthing is lost.
 	 */
 	if (queued_during_suspend && !device_may_wakeup(ckdev->dev))
 		return NOTIFY_OK;
@@ -285,7 +285,7 @@ static int cros_ec_keyb_work(struct notifier_block *nb,
 
 /*
  * Walks keycodes flipping bit in buffer COLUMNS deep where bit is ROW.  Used by
- * ghosting logic to ignore NULL or virtual keys.
+ * ghosting logic to igyesre NULL or virtual keys.
  */
 static void cros_ec_keyb_compute_valid_keys(struct cros_ec_keyb *ckdev)
 {
@@ -311,7 +311,7 @@ static void cros_ec_keyb_compute_valid_keys(struct cros_ec_keyb *ckdev)
  * cros_ec_keyb_info - Wrap the EC command EC_CMD_MKBP_INFO
  *
  * This wraps the EC_CMD_MKBP_INFO, abstracting out all of the marshalling and
- * unmarshalling and different version nonsense into something simple.
+ * unmarshalling and different version yesnsense into something simple.
  *
  * @ec_dev: The EC device
  * @info_type: Either EC_MKBP_INFO_SUPPORTED or EC_MKBP_INFO_CURRENT.
@@ -322,7 +322,7 @@ static void cros_ec_keyb_compute_valid_keys(struct cros_ec_keyb *ckdev)
  * @result_size: The size of the result.  Expected to be the size of one of
  *               the elements in the union.
  *
- * Returns 0 if no error or -error upon error.
+ * Returns 0 if yes error or -error upon error.
  */
 static int cros_ec_keyb_info(struct cros_ec_device *ec_dev,
 			     enum ec_mkbp_info_type info_type,
@@ -383,7 +383,7 @@ static int cros_ec_keyb_info(struct cros_ec_device *ec_dev,
  *
  * @ckdev: The keyboard device
  *
- * Returns 0 if no error or -error upon error.
+ * Returns 0 if yes error or -error upon error.
  */
 static int cros_ec_keyb_query_switches(struct cros_ec_keyb *ckdev)
 {
@@ -406,11 +406,11 @@ static int cros_ec_keyb_query_switches(struct cros_ec_keyb *ckdev)
 /**
  * cros_ec_keyb_resume - Resume the keyboard
  *
- * We use the resume notification as a chance to query the EC for switches.
+ * We use the resume yestification as a chance to query the EC for switches.
  *
  * @dev: The keyboard device
  *
- * Returns 0 if no error or -error upon error.
+ * Returns 0 if yes error or -error upon error.
  */
 static __maybe_unused int cros_ec_keyb_resume(struct device *dev)
 {
@@ -423,18 +423,18 @@ static __maybe_unused int cros_ec_keyb_resume(struct device *dev)
 }
 
 /**
- * cros_ec_keyb_register_bs - Register non-matrix buttons/switches
+ * cros_ec_keyb_register_bs - Register yesn-matrix buttons/switches
  *
- * Handles all the bits of the keyboard driver related to non-matrix buttons
+ * Handles all the bits of the keyboard driver related to yesn-matrix buttons
  * and switches, including asking the EC about which are present and telling
  * the kernel to expect them.
  *
- * If this device has no support for buttons and switches we'll return no error
+ * If this device has yes support for buttons and switches we'll return yes error
  * but the ckdev->bs_idev will remain NULL when this function exits.
  *
  * @ckdev: The keyboard device
  *
- * Returns 0 if no error or -error upon error.
+ * Returns 0 if yes error or -error upon error.
  */
 static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev)
 {
@@ -466,7 +466,7 @@ static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev)
 		return 0;
 
 	/*
-	 * We call the non-matrix buttons/switches 'input1', if present.
+	 * We call the yesn-matrix buttons/switches 'input1', if present.
 	 * Allocate phys before input dev, to ensure correct tear-down
 	 * ordering.
 	 */
@@ -500,13 +500,13 @@ static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev)
 
 	ret = cros_ec_keyb_query_switches(ckdev);
 	if (ret) {
-		dev_err(dev, "cannot query switches\n");
+		dev_err(dev, "canyest query switches\n");
 		return ret;
 	}
 
 	ret = input_register_device(ckdev->bs_idev);
 	if (ret) {
-		dev_err(dev, "cannot register input device\n");
+		dev_err(dev, "canyest register input device\n");
 		return ret;
 	}
 
@@ -520,7 +520,7 @@ static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev)
  *
  * @ckdev: The keyboard device
  *
- * Returns 0 if no error or -error upon error.
+ * Returns 0 if yes error or -error upon error.
  */
 static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 {
@@ -563,13 +563,13 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	idev->id.product = 0;
 	idev->dev.parent = dev;
 
-	ckdev->ghost_filter = of_property_read_bool(dev->of_node,
+	ckdev->ghost_filter = of_property_read_bool(dev->of_yesde,
 					"google,needs-ghost-filter");
 
 	err = matrix_keypad_build_keymap(NULL, NULL, ckdev->rows, ckdev->cols,
 					 NULL, idev);
 	if (err) {
-		dev_err(dev, "cannot build key matrix\n");
+		dev_err(dev, "canyest build key matrix\n");
 		return err;
 	}
 
@@ -582,7 +582,7 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 
 	err = input_register_device(ckdev->idev);
 	if (err) {
-		dev_err(dev, "cannot register input device\n");
+		dev_err(dev, "canyest register input device\n");
 		return err;
 	}
 
@@ -596,7 +596,7 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	struct cros_ec_keyb *ckdev;
 	int err;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return -ENODEV;
 
 	ckdev = devm_kzalloc(dev, sizeof(*ckdev), GFP_KERNEL);
@@ -609,21 +609,21 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 
 	err = cros_ec_keyb_register_matrix(ckdev);
 	if (err) {
-		dev_err(dev, "cannot register matrix inputs: %d\n", err);
+		dev_err(dev, "canyest register matrix inputs: %d\n", err);
 		return err;
 	}
 
 	err = cros_ec_keyb_register_bs(ckdev);
 	if (err) {
-		dev_err(dev, "cannot register non-matrix inputs: %d\n", err);
+		dev_err(dev, "canyest register yesn-matrix inputs: %d\n", err);
 		return err;
 	}
 
-	ckdev->notifier.notifier_call = cros_ec_keyb_work;
-	err = blocking_notifier_chain_register(&ckdev->ec->event_notifier,
-					       &ckdev->notifier);
+	ckdev->yestifier.yestifier_call = cros_ec_keyb_work;
+	err = blocking_yestifier_chain_register(&ckdev->ec->event_yestifier,
+					       &ckdev->yestifier);
 	if (err) {
-		dev_err(dev, "cannot register notifier: %d\n", err);
+		dev_err(dev, "canyest register yestifier: %d\n", err);
 		return err;
 	}
 
@@ -635,8 +635,8 @@ static int cros_ec_keyb_remove(struct platform_device *pdev)
 {
 	struct cros_ec_keyb *ckdev = dev_get_drvdata(&pdev->dev);
 
-	blocking_notifier_chain_unregister(&ckdev->ec->event_notifier,
-					   &ckdev->notifier);
+	blocking_yestifier_chain_unregister(&ckdev->ec->event_yestifier,
+					   &ckdev->yestifier);
 
 	return 0;
 }

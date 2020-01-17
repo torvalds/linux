@@ -75,7 +75,7 @@ int main(void)
 
 	/*
 	 * Now try it again with TF set -- TF forces returns via IRET in all
-	 * cases except non-ptregs-using 64-bit full fast path syscalls.
+	 * cases except yesn-ptregs-using 64-bit full fast path syscalls.
 	 */
 
 	sethandler(SIGTRAP, sigtrap, 0);

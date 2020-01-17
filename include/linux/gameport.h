@@ -44,7 +44,7 @@ struct gameport {
 
 	struct device dev;
 
-	struct list_head node;
+	struct list_head yesde;
 };
 #define to_gameport_port(d)	container_of(d, struct gameport, dev)
 
@@ -57,7 +57,7 @@ struct gameport_driver {
 
 	struct device_driver driver;
 
-	bool ignore;
+	bool igyesre;
 };
 #define to_gameport_driver(d)	container_of(d, struct gameport_driver, driver)
 
@@ -153,7 +153,7 @@ void gameport_unregister_driver(struct gameport_driver *drv);
  * module_gameport_driver() - Helper macro for registering a gameport driver
  * @__gameport_driver: gameport_driver struct
  *
- * Helper macro for gameport drivers which do not do anything special in
+ * Helper macro for gameport drivers which do yest do anything special in
  * module init/exit. This eliminates a lot of boilerplate. Each module may
  * only use this macro once, and calling it replaces module_init() and
  * module_exit().

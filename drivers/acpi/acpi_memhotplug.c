@@ -7,7 +7,7 @@
  * All rights reserved.
  *
  * ACPI based HotPlug driver that supports Memory Hotplug
- * This driver fields notifications from firmware for memory add
+ * This driver fields yestifications from firmware for memory add
  * and remove operations and alerts the VM of the affected memory
  * ranges.
  */
@@ -42,7 +42,7 @@ static const struct acpi_device_id memory_device_ids[] = {
 #define MEMORY_POWER_OFF_STATE	2
 
 static int acpi_memory_device_add(struct acpi_device *device,
-				  const struct acpi_device_id *not_used);
+				  const struct acpi_device_id *yest_used);
 static void acpi_memory_device_remove(struct acpi_device *device);
 
 static struct acpi_scan_handler memory_device_handler = {
@@ -184,13 +184,13 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	acpi_handle handle = mem_device->device->handle;
 	int result, num_enabled = 0;
 	struct acpi_memory_info *info;
-	int node;
+	int yesde;
 
-	node = acpi_get_node(handle);
+	yesde = acpi_get_yesde(handle);
 	/*
 	 * Tell the VM there is more memory here...
 	 * Note: Assume that this function returns zero on success
-	 * We don't have memory-hot-add rollback function,now.
+	 * We don't have memory-hot-add rollback function,yesw.
 	 * (i.e. memory-hot-remove function)
 	 */
 	list_for_each_entry(info, &mem_device->res_list, list) {
@@ -199,20 +199,20 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 			continue;
 		}
 		/*
-		 * If the memory block size is zero, please ignore it.
+		 * If the memory block size is zero, please igyesre it.
 		 * Don't try to do the following memory hotplug flowchart.
 		 */
 		if (!info->length)
 			continue;
-		if (node < 0)
-			node = memory_add_physaddr_to_nid(info->start_addr);
+		if (yesde < 0)
+			yesde = memory_add_physaddr_to_nid(info->start_addr);
 
-		result = __add_memory(node, info->start_addr, info->length);
+		result = __add_memory(yesde, info->start_addr, info->length);
 
 		/*
 		 * If the memory block has been used by the kernel, add_memory()
 		 * returns -EEXIST. If add_memory() returns the other error, it
-		 * means that this memory block is not used by the kernel.
+		 * means that this memory block is yest used by the kernel.
 		 */
 		if (result && result != -EEXIST)
 			continue;
@@ -251,7 +251,7 @@ static void acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
 {
 	acpi_handle handle = mem_device->device->handle;
 	struct acpi_memory_info *info, *n;
-	int nid = acpi_get_node(handle);
+	int nid = acpi_get_yesde(handle);
 
 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
 		if (!info->enabled)
@@ -278,7 +278,7 @@ static void acpi_memory_device_free(struct acpi_memory_device *mem_device)
 }
 
 static int acpi_memory_device_add(struct acpi_device *device,
-				  const struct acpi_device_id *not_used)
+				  const struct acpi_device_id *yest_used)
 {
 	struct acpi_memory_device *mem_device;
 	int result;
@@ -336,11 +336,11 @@ static void acpi_memory_device_remove(struct acpi_device *device)
 	acpi_memory_device_free(mem_device);
 }
 
-static bool __initdata acpi_no_memhotplug;
+static bool __initdata acpi_yes_memhotplug;
 
 void __init acpi_memory_hotplug_init(void)
 {
-	if (acpi_no_memhotplug) {
+	if (acpi_yes_memhotplug) {
 		memory_device_handler.attach = NULL;
 		acpi_scan_add_handler(&memory_device_handler);
 		return;
@@ -350,10 +350,10 @@ void __init acpi_memory_hotplug_init(void)
 
 static int __init disable_acpi_memory_hotplug(char *str)
 {
-	acpi_no_memhotplug = true;
+	acpi_yes_memhotplug = true;
 	return 1;
 }
-__setup("acpi_no_memhotplug", disable_acpi_memory_hotplug);
+__setup("acpi_yes_memhotplug", disable_acpi_memory_hotplug);
 
 #else
 

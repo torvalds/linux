@@ -4,7 +4,7 @@
  * Copyright © 2009-2010, Intel Corporation and its suppliers.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -74,15 +74,15 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		return ret;
 	}
 
-	denali->reg = ioremap_nocache(csr_base, csr_len);
+	denali->reg = ioremap_yescache(csr_base, csr_len);
 	if (!denali->reg) {
 		dev_err(&dev->dev, "Spectra: Unable to remap memory region\n");
 		return -ENOMEM;
 	}
 
-	denali->host = ioremap_nocache(mem_base, mem_len);
+	denali->host = ioremap_yescache(mem_base, mem_len);
 	if (!denali->host) {
-		dev_err(&dev->dev, "Spectra: ioremap_nocache failed!");
+		dev_err(&dev->dev, "Spectra: ioremap_yescache failed!");
 		ret = -ENOMEM;
 		goto out_unmap_reg;
 	}

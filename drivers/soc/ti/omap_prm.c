@@ -297,7 +297,7 @@ static int omap_prm_reset_init(struct platform_device *pdev,
 	char buf[32];
 
 	/*
-	 * Check if we have controllable resets. If either rstctrl is non-zero
+	 * Check if we have controllable resets. If either rstctrl is yesn-zero
 	 * or OMAP_PRM_HAS_RSTCTRL flag is set, we have reset control register
 	 * for the domain.
 	 */
@@ -319,7 +319,7 @@ static int omap_prm_reset_init(struct platform_device *pdev,
 
 	reset->rcdev.owner = THIS_MODULE;
 	reset->rcdev.ops = &omap_reset_ops;
-	reset->rcdev.of_node = pdev->dev.of_node;
+	reset->rcdev.of_yesde = pdev->dev.of_yesde;
 	reset->rcdev.nr_resets = OMAP_MAX_RESETS;
 	reset->rcdev.of_xlate = omap_prm_reset_xlate;
 	reset->rcdev.of_reset_n_cells = 1;

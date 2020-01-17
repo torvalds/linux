@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef __ASM_ARC_CMPXCHG_H
@@ -34,7 +34,7 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 	: "r"(ptr),	/* Not "m": llock only supports reg direct addr mode */
 	  "ir"(expected),
 	  "r"(new)	/* can't be "ir". scond can't take LIMM for "b" */
-	: "cc", "memory"); /* so that gcc knows memory is being written here */
+	: "cc", "memory"); /* so that gcc kyesws memory is being written here */
 
 	smp_mb();
 
@@ -212,11 +212,11 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
  * Since xchg() doesn't always do that, it would seem that following defintion
  * is incorrect. But here's the rationale:
  *   SMP : Even xchg() takes the atomic_ops_lock, so OK.
- *   LLSC: atomic_ops_lock are not relevant at all (even if SMP, since LLSC
- *         is natively "SMP safe", no serialization required).
- *   UP  : other atomics disable IRQ, so no way a difft ctxt atomic_xchg()
+ *   LLSC: atomic_ops_lock are yest relevant at all (even if SMP, since LLSC
+ *         is natively "SMP safe", yes serialization required).
+ *   UP  : other atomics disable IRQ, so yes way a difft ctxt atomic_xchg()
  *         could clobber them. atomic_xchg() itself would be 1 insn, so it
- *         can't be clobbered by others. Thus no serialization required when
+ *         can't be clobbered by others. Thus yes serialization required when
  *         atomic_xchg is involved.
  */
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))

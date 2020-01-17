@@ -7,7 +7,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -256,15 +256,15 @@ void mpc2_update_blending(
 	struct mpcc_blnd_cfg *blnd_cfg,
 	int mpcc_id);
 
-void mpc2_set_denorm(
+void mpc2_set_deyesrm(
 	struct mpc *mpc,
 	int opp_id,
 	enum dc_color_depth output_depth);
 
-void mpc2_set_denorm_clamp(
+void mpc2_set_deyesrm_clamp(
 	struct mpc *mpc,
 	int opp_id,
-	struct mpc_denorm_clamp denorm_clamp);
+	struct mpc_deyesrm_clamp deyesrm_clamp);
 
 void mpc2_set_output_csc(
 	struct mpc *mpc,

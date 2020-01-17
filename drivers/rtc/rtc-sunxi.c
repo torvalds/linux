@@ -104,7 +104,7 @@
 
 /*
  * The year parameter passed to the driver is usually an offset relative to
- * the year 1900. This macro is used to convert this offset to another one
+ * the year 1900. This macro is used to convert this offset to ayesther one
  * relative to the minimum year allowed by the hardware.
  */
 #define SUNXI_YEAR_OFF(x)			((x)->min - 1900)
@@ -255,7 +255,7 @@ static int sunxi_rtc_setalarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 {
 	struct sunxi_rtc_dev *chip = dev_get_drvdata(dev);
 	struct rtc_time *alrm_tm = &wkalrm->time;
-	struct rtc_time tm_now;
+	struct rtc_time tm_yesw;
 	u32 alrm;
 	time64_t diff;
 	unsigned long time_gap;
@@ -264,13 +264,13 @@ static int sunxi_rtc_setalarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 	unsigned long time_gap_min;
 	int ret;
 
-	ret = sunxi_rtc_gettime(dev, &tm_now);
+	ret = sunxi_rtc_gettime(dev, &tm_yesw);
 	if (ret < 0) {
 		dev_err(dev, "Error in getting time\n");
 		return -EINVAL;
 	}
 
-	diff = rtc_tm_sub(alrm_tm, &tm_now);
+	diff = rtc_tm_sub(alrm_tm, &tm_yesw);
 	if (diff <= 0) {
 		dev_err(dev, "Date to set in the past\n");
 		return -EINVAL;
@@ -367,7 +367,7 @@ static int sunxi_rtc_settime(struct device *dev, struct rtc_time *rtc_tm)
 
 	/*
 	 * After writing the RTC HH-MM-SS register, the
-	 * SUNXI_LOSC_CTRL_RTC_HMS_ACC bit is set and it will not
+	 * SUNXI_LOSC_CTRL_RTC_HMS_ACC bit is set and it will yest
 	 * be cleared until the real writing operation is finished
 	 */
 
@@ -381,7 +381,7 @@ static int sunxi_rtc_settime(struct device *dev, struct rtc_time *rtc_tm)
 
 	/*
 	 * After writing the RTC YY-MM-DD register, the
-	 * SUNXI_LOSC_CTRL_RTC_YMD_ACC bit is set and it will not
+	 * SUNXI_LOSC_CTRL_RTC_YMD_ACC bit is set and it will yest
 	 * be cleared until the real writing operation is finished
 	 */
 
@@ -445,7 +445,7 @@ static int sunxi_rtc_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, chip->irq, sunxi_rtc_alarmirq,
 			0, dev_name(&pdev->dev), chip);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not request IRQ\n");
+		dev_err(&pdev->dev, "Could yest request IRQ\n");
 		return ret;
 	}
 
@@ -458,7 +458,7 @@ static int sunxi_rtc_probe(struct platform_device *pdev)
 	/* clear the alarm count value */
 	writel(0, chip->base + SUNXI_ALRM_DHMS);
 
-	/* disable alarm, not generate irq pending */
+	/* disable alarm, yest generate irq pending */
 	writel(0, chip->base + SUNXI_ALRM_EN);
 
 	/* disable alarm week/cnt irq, unset to cpu */

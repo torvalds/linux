@@ -58,7 +58,7 @@ static void restore_guest_debug_regs(struct kvm_vcpu *vcpu)
  *
  * Currently the sole task of this function is to retrieve the initial
  * value of mdcr_el2 so we can preserve MDCR_EL2.HPMN which has
- * presumably been set-up by some knowledgeable bootcode.
+ * presumably been set-up by some kyeswledgeable bootcode.
  *
  * It is called once per-cpu during CPU hyp initialisation.
  */
@@ -91,8 +91,8 @@ void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu)
  *  - Statistical profiler (MDCR_EL2_TPMS/MDCR_EL2_E2PB)
  *
  * Additionally, KVM only traps guest accesses to the debug registers if
- * the guest is not actively using them (see the KVM_ARM64_DEBUG_DIRTY
- * flag on vcpu->arch.flags).  Since the guest must not interfere
+ * the guest is yest actively using them (see the KVM_ARM64_DEBUG_DIRTY
+ * flag on vcpu->arch.flags).  Since the guest must yest interfere
  * with the hardware state when debugging the guest, we must ensure that
  * trapping is enabled whenever we are debugging the guest using the
  * debug registers.
@@ -141,7 +141,7 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 		 *
 		 * This confuses guest debuggers which use
 		 * single-step behind the scenes but everything
-		 * returns to normal once the host is no longer
+		 * returns to yesrmal once the host is yes longer
 		 * debugging the system.
 		 */
 		if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {

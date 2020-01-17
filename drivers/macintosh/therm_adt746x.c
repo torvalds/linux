@@ -12,7 +12,7 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -54,7 +54,7 @@ static int limit_adjust;
 static int fan_speed = -1;
 static bool verbose;
 
-MODULE_AUTHOR("Colin Leroy <colin@colino.net>");
+MODULE_AUTHOR("Colin Leroy <colin@coliyes.net>");
 MODULE_DESCRIPTION("Driver for ADT746x thermostat in iBook G4 and "
 		   "Powerbook G4 Alu");
 MODULE_LICENSE("GPL");
@@ -260,7 +260,7 @@ static void update_fans_speed (struct thermostat *th)
 			write_both_fan_speed(th, new_speed);
 			th->last_var[fan_number] = var;
 		} else if (var < -2) {
-			/* don't stop fan if sensor2 is cold and sensor1 is not
+			/* don't stop fan if sensor2 is cold and sensor1 is yest
 			 * so cold (lastvar >= -1) */
 			if (i == 2 && lastvar < -1) {
 				if (th->last_speed[fan_number] != 0)
@@ -275,7 +275,7 @@ static void update_fans_speed (struct thermostat *th)
 
 		if (started)
 			return; /* we don't want to re-stop the fan
-				* if sensor1 is heating and sensor2 is not */
+				* if sensor1 is heating and sensor2 is yest */
 	}
 }
 
@@ -313,7 +313,7 @@ static void set_limit(struct thermostat *th, int i)
 	th->limits[i] = default_limits_chip[i] + limit_adjust;
 	write_reg(th, LIMIT_REG[i], th->limits[i]);
 		
-	/* set our limits to normal */
+	/* set our limits to yesrmal */
 	th->limits[i] = default_limits_local[i] + limit_adjust;
 }
 
@@ -414,7 +414,7 @@ static DEVICE_ATTR(limit_adjust,	S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH,
 
 static void thermostat_create_files(struct thermostat *th)
 {
-	struct device_node *np = th->clt->dev.of_node;
+	struct device_yesde *np = th->clt->dev.of_yesde;
 	struct device *dev;
 	int err;
 
@@ -468,7 +468,7 @@ static void thermostat_remove_files(struct thermostat *th)
 static int probe_thermostat(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	struct thermostat* th;
 	const __be32 *prop;
 	int i, rc, vers, offset = 0;

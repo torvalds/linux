@@ -36,7 +36,7 @@ static int smt_possible(void)
 	if (f) {
 		if (fread(buf, sizeof(*buf), sizeof(buf), f) > 0) {
 			if (!strncmp(buf, "forceoff", 8) ||
-			    !strncmp(buf, "notsupported", 12))
+			    !strncmp(buf, "yestsupported", 12))
 				res = 0;
 		}
 		fclose(f);
@@ -79,9 +79,9 @@ static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
 			    !entry->padding[2], "padding should be zero");
 
 		if (entry->function == 0x40000004) {
-			int nononarchcs = !!(entry->eax & (1UL << 18));
+			int yesyesnarchcs = !!(entry->eax & (1UL << 18));
 
-			TEST_ASSERT(nononarchcs == !smt_possible(),
+			TEST_ASSERT(yesyesnarchcs == !smt_possible(),
 				    "NoNonArchitecturalCoreSharing bit"
 				    " doesn't reflect SMT setting");
 		}
@@ -104,15 +104,15 @@ void test_hv_cpuid_e2big(struct kvm_vm *vm)
 
 	ret = _vcpu_ioctl(vm, VCPU_ID, KVM_GET_SUPPORTED_HV_CPUID, &cpuid);
 
-	TEST_ASSERT(ret == -1 && errno == E2BIG,
+	TEST_ASSERT(ret == -1 && erryes == E2BIG,
 		    "KVM_GET_SUPPORTED_HV_CPUID didn't fail with -E2BIG when"
-		    " it should have: %d %d", ret, errno);
+		    " it should have: %d %d", ret, erryes);
 }
 
 
 struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(struct kvm_vm *vm)
 {
-	int nent = 20; /* should be enough */
+	int nent = 20; /* should be eyesugh */
 	static struct kvm_cpuid2 *cpuid;
 
 	cpuid = malloc(sizeof(*cpuid) + nent * sizeof(struct kvm_cpuid_entry2));
@@ -136,13 +136,13 @@ int main(int argc, char *argv[])
 	int rv;
 	struct kvm_cpuid2 *hv_cpuid_entries;
 
-	/* Tell stdout not to buffer its content */
+	/* Tell stdout yest to buffer its content */
 	setbuf(stdout, NULL);
 
 	rv = kvm_check_cap(KVM_CAP_HYPERV_CPUID);
 	if (!rv) {
 		fprintf(stderr,
-			"KVM_CAP_HYPERV_CPUID not supported, skip test\n");
+			"KVM_CAP_HYPERV_CPUID yest supported, skip test\n");
 		exit(KSFT_SKIP);
 	}
 

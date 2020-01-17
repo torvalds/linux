@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL");
 #define SHARK_IN_EP		0x83
 #define SHARK_OUT_EP		0x05
 
-#define TEA575X_BIT_MONO	(1<<22)		/* 0 = stereo, 1 = mono */
+#define TEA575X_BIT_MONO	(1<<22)		/* 0 = stereo, 1 = moyes */
 #define TEA575X_BIT_BAND_MASK	(3<<20)
 #define TEA575X_BIT_BAND_FM	(0<<20)
 
@@ -55,7 +55,7 @@ MODULE_LICENSE("GPL");
 
 #define v4l2_dev_to_shark(d) container_of(d, struct shark_device, v4l2_dev)
 
-/* Note BLUE_IS_PULSE comes after NO_LEDS as it is a status bit, not a LED */
+/* Note BLUE_IS_PULSE comes after NO_LEDS as it is a status bit, yest a LED */
 enum { BLUE_LED, BLUE_PULSE_LED, RED_LED, NO_LEDS, BLUE_IS_PULSE };
 
 struct shark_device {
@@ -133,8 +133,8 @@ static u32 shark_read_val(struct snd_tea575x *tea)
 	shark->last_val = val;
 
 	/*
-	 * The shark does not allow actually reading the stereo / mono pin :(
-	 * So assume that when we're tuned to an FM station and mono has not
+	 * The shark does yest allow actually reading the stereo / moyes pin :(
+	 * So assume that when we're tuned to an FM station and moyes has yest
 	 * been requested, that we're receiving stereo.
 	 */
 	if (((val & TEA575X_BIT_BAND_MASK) == TEA575X_BIT_BAND_FM) &&
@@ -280,7 +280,7 @@ static inline void shark_resume_leds(struct shark_device *shark)
 static int shark_register_leds(struct shark_device *shark, struct device *dev)
 {
 	v4l2_warn(&shark->v4l2_dev,
-		  "CONFIG_LEDS_CLASS not enabled, LED support disabled\n");
+		  "CONFIG_LEDS_CLASS yest enabled, LED support disabled\n");
 	return 0;
 }
 static inline void shark_unregister_leds(struct shark_device *shark) { }
@@ -343,7 +343,7 @@ static int usb_shark_probe(struct usb_interface *intf,
 	shark->tea.private_data = shark;
 	shark->tea.radio_nr = -1;
 	shark->tea.ops = &shark_tea_ops;
-	shark->tea.cannot_mute = true;
+	shark->tea.canyest_mute = true;
 	shark->tea.has_am = true;
 	strscpy(shark->tea.card, "Griffin radioSHARK",
 		sizeof(shark->tea.card));

@@ -69,7 +69,7 @@ static struct rc_map_table rc_map_haupp_table[] = {
 /* Firmware bug? sometimes, when a new key is pressed, the previous pressed key
  * is delivered. No workaround yet, maybe a new firmware.
  */
-static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static int yesva_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 *buf, data, toggle, custom;
 	u16 raw;
@@ -128,7 +128,7 @@ ret:
 	return ret;
 }
 
-static int nova_t_read_mac_address (struct dvb_usb_device *d, u8 mac[6])
+static int yesva_t_read_mac_address (struct dvb_usb_device *d, u8 mac[6])
 {
 	int i;
 	u8 b;
@@ -148,28 +148,28 @@ static int nova_t_read_mac_address (struct dvb_usb_device *d, u8 mac[6])
 }
 
 /* USB Driver stuff */
-static struct dvb_usb_device_properties nova_t_properties;
+static struct dvb_usb_device_properties yesva_t_properties;
 
-static int nova_t_probe(struct usb_interface *intf,
+static int yesva_t_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf, &nova_t_properties,
+	return dvb_usb_device_init(intf, &yesva_t_properties,
 				   THIS_MODULE, NULL, adapter_nr);
 }
 
-/* do not change the order of the ID table */
-static struct usb_device_id nova_t_table [] = {
+/* do yest change the order of the ID table */
+static struct usb_device_id yesva_t_table [] = {
 /* 00 */	{ USB_DEVICE(USB_VID_HAUPPAUGE,     USB_PID_WINTV_NOVA_T_USB2_COLD) },
 /* 01 */	{ USB_DEVICE(USB_VID_HAUPPAUGE,     USB_PID_WINTV_NOVA_T_USB2_WARM) },
 			{ }		/* Terminating entry */
 };
-MODULE_DEVICE_TABLE(usb, nova_t_table);
+MODULE_DEVICE_TABLE(usb, yesva_t_table);
 
-static struct dvb_usb_device_properties nova_t_properties = {
+static struct dvb_usb_device_properties yesva_t_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl = CYPRESS_FX2,
-	.firmware = "dvb-usb-nova-t-usb2-02.fw",
+	.firmware = "dvb-usb-yesva-t-usb2-02.fw",
 
 	.num_adapters     = 1,
 	.adapter          = {
@@ -203,13 +203,13 @@ static struct dvb_usb_device_properties nova_t_properties = {
 	.size_of_priv     = sizeof(struct dibusb_device_state),
 
 	.power_ctrl       = dibusb2_0_power_ctrl,
-	.read_mac_address = nova_t_read_mac_address,
+	.read_mac_address = yesva_t_read_mac_address,
 
 	.rc.legacy = {
 		.rc_interval      = 100,
 		.rc_map_table     = rc_map_haupp_table,
 		.rc_map_size      = ARRAY_SIZE(rc_map_haupp_table),
-		.rc_query         = nova_t_rc_query,
+		.rc_query         = yesva_t_rc_query,
 	},
 
 	.i2c_algo         = &dibusb_i2c_algo,
@@ -219,21 +219,21 @@ static struct dvb_usb_device_properties nova_t_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{   "Hauppauge WinTV-NOVA-T usb2",
-			{ &nova_t_table[0], NULL },
-			{ &nova_t_table[1], NULL },
+			{ &yesva_t_table[0], NULL },
+			{ &yesva_t_table[1], NULL },
 		},
 		{ NULL },
 	}
 };
 
-static struct usb_driver nova_t_driver = {
-	.name		= "dvb_usb_nova_t_usb2",
-	.probe		= nova_t_probe,
+static struct usb_driver yesva_t_driver = {
+	.name		= "dvb_usb_yesva_t_usb2",
+	.probe		= yesva_t_probe,
 	.disconnect = dvb_usb_device_exit,
-	.id_table	= nova_t_table,
+	.id_table	= yesva_t_table,
 };
 
-module_usb_driver(nova_t_driver);
+module_usb_driver(yesva_t_driver);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Hauppauge WinTV-NOVA-T usb2");

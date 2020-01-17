@@ -7,7 +7,7 @@
  *      Copyright (C) 1998 Frederic Rible F1OAT (frible@teaser.fr)
  *      Adapted from baycom.c driver written by Thomas Sailer (sailer@ife.ee.ethz.ch)
  *
- *  Please note that the GPL allows you to use the driver, NOT the radio.
+ *  Please yeste that the GPL allows you to use the driver, NOT the radio.
  *  In order to use the radio, you need a license from the communications
  *  authority of your country.
  *
@@ -33,7 +33,7 @@
 #include <linux/in.h>
 #include <linux/if.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/bitops.h>
 #include <linux/random.h>
 #include <asm/io.h>
@@ -180,7 +180,7 @@ static DEFINE_TIMER(yam_timer, NULL);
 /* Modem Control Register Bit Masks */
 #define MCR_DTR		0x01			/* DTR output */
 #define MCR_RTS		0x02			/* RTS output */
-#define MCR_OUT1	0x04			/* OUT1 output (not accessible in RS232) */
+#define MCR_OUT1	0x04			/* OUT1 output (yest accessible in RS232) */
 #define MCR_OUT2	0x08			/* Master Interrupt enable (must be set on PCs) */
 #define MCR_LOOP	0x10			/* Loopback enable */
 
@@ -484,19 +484,19 @@ static void yam_set_uart(struct net_device *dev)
 /* --------------------------------------------------------------------- */
 
 enum uart {
-	c_uart_unknown, c_uart_8250,
+	c_uart_unkyeswn, c_uart_8250,
 	c_uart_16450, c_uart_16550, c_uart_16550A
 };
 
 static const char *uart_str[] =
-{"unknown", "8250", "16450", "16550", "16550A"};
+{"unkyeswn", "8250", "16450", "16550", "16550A"};
 
 static enum uart yam_check_uart(unsigned int iobase)
 {
 	unsigned char b1, b2, b3;
 	enum uart u;
 	enum uart uart_tab[] =
-	{c_uart_16450, c_uart_unknown, c_uart_16550, c_uart_16550A};
+	{c_uart_16450, c_uart_unkyeswn, c_uart_16550, c_uart_16550A};
 
 	b1 = inb(MCR(iobase));
 	outb(b1 | 0x10, MCR(iobase));	/* loopback mode */
@@ -506,7 +506,7 @@ static enum uart yam_check_uart(unsigned int iobase)
 	outb(b1, MCR(iobase));		/* restore old values */
 	outb(b2, MSR(iobase));
 	if (b3 != 0x90)
-		return c_uart_unknown;
+		return c_uart_unkyeswn;
 	inb(RBR(iobase));
 	inb(RBR(iobase));
 	outb(0x01, FCR(iobase));	/* enable FIFOs */
@@ -848,16 +848,16 @@ static int yam_open(struct net_device *dev)
 	}
 	if (!request_region(dev->base_addr, YAM_EXTENT, dev->name))
 	{
-		printk(KERN_ERR "%s: cannot 0x%lx busy\n", dev->name, dev->base_addr);
+		printk(KERN_ERR "%s: canyest 0x%lx busy\n", dev->name, dev->base_addr);
 		return -EACCES;
 	}
-	if ((u = yam_check_uart(dev->base_addr)) == c_uart_unknown) {
-		printk(KERN_ERR "%s: cannot find uart type\n", dev->name);
+	if ((u = yam_check_uart(dev->base_addr)) == c_uart_unkyeswn) {
+		printk(KERN_ERR "%s: canyest find uart type\n", dev->name);
 		ret = -EIO;
 		goto out_release_base;
 	}
 	if (fpga_download(dev->base_addr, yp->bitrate)) {
-		printk(KERN_ERR "%s: cannot init FPGA\n", dev->name);
+		printk(KERN_ERR "%s: canyest init FPGA\n", dev->name);
 		ret = -EIO;
 		goto out_release_base;
 	}
@@ -946,7 +946,7 @@ static int yam_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	case SIOCYAMSMCS:
 		if (netif_running(dev))
-			return -EINVAL;		/* Cannot change this parameter when up */
+			return -EINVAL;		/* Canyest change this parameter when up */
 		ym = memdup_user(ifr->ifr_data,
 				 sizeof(struct yamdrv_ioctl_mcs));
 		if (IS_ERR(ym))
@@ -971,13 +971,13 @@ static int yam_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (yi.cmd != SIOCYAMSCFG)
 			return -EINVAL;
 		if ((yi.cfg.mask & YAM_IOBASE) && netif_running(dev))
-			return -EINVAL;		/* Cannot change this parameter when up */
+			return -EINVAL;		/* Canyest change this parameter when up */
 		if ((yi.cfg.mask & YAM_IRQ) && netif_running(dev))
-			return -EINVAL;		/* Cannot change this parameter when up */
+			return -EINVAL;		/* Canyest change this parameter when up */
 		if ((yi.cfg.mask & YAM_BITRATE) && netif_running(dev))
-			return -EINVAL;		/* Cannot change this parameter when up */
+			return -EINVAL;		/* Canyest change this parameter when up */
 		if ((yi.cfg.mask & YAM_BAUDRATE) && netif_running(dev))
-			return -EINVAL;		/* Cannot change this parameter when up */
+			return -EINVAL;		/* Canyest change this parameter when up */
 
 		if (yi.cfg.mask & YAM_IOBASE) {
 			yp->iobase = yi.cfg.iobase;
@@ -1125,14 +1125,14 @@ static int __init yam_init_driver(void)
 		dev = alloc_netdev(sizeof(struct yam_port), name,
 				   NET_NAME_UNKNOWN, yam_setup);
 		if (!dev) {
-			pr_err("yam: cannot allocate net device\n");
+			pr_err("yam: canyest allocate net device\n");
 			err = -ENOMEM;
 			goto error;
 		}
 		
 		err = register_netdev(dev);
 		if (err) {
-			printk(KERN_WARNING "yam: cannot register net device %s\n", dev->name);
+			printk(KERN_WARNING "yam: canyest register net device %s\n", dev->name);
 			goto error;
 		}
 		yam_devs[i] = dev;

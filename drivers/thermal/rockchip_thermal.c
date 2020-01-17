@@ -476,11 +476,11 @@ static u32 rk_tsadcv2_temp_to_code(const struct chip_tsadc_table *table,
 {
 	int high, low, mid;
 	unsigned long num;
-	unsigned int denom;
+	unsigned int deyesm;
 	u32 error = table->data_mask;
 
 	low = 0;
-	high = (table->length - 1) - 1; /* ignore the last check for table */
+	high = (table->length - 1) - 1; /* igyesre the last check for table */
 	mid = (high + low) / 2;
 
 	/* Return mask code data when the temp is over table range */
@@ -505,15 +505,15 @@ static u32 rk_tsadcv2_temp_to_code(const struct chip_tsadc_table *table,
 	 */
 	num = abs(table->id[mid + 1].code - table->id[mid].code);
 	num *= temp - table->id[mid].temp;
-	denom = table->id[mid + 1].temp - table->id[mid].temp;
+	deyesm = table->id[mid + 1].temp - table->id[mid].temp;
 
 	switch (table->mode) {
 	case ADC_DECREMENT:
-		return table->id[mid].code - (num / denom);
+		return table->id[mid].code - (num / deyesm);
 	case ADC_INCREMENT:
-		return table->id[mid].code + (num / denom);
+		return table->id[mid].code + (num / deyesm);
 	default:
-		pr_err("%s: unknown table mode: %d\n", __func__, table->mode);
+		pr_err("%s: unkyeswn table mode: %d\n", __func__, table->mode);
 		return error;
 	}
 
@@ -530,7 +530,7 @@ static int rk_tsadcv2_code_to_temp(const struct chip_tsadc_table *table,
 	unsigned int high = table->length - 1;
 	unsigned int mid = (low + high) / 2;
 	unsigned int num;
-	unsigned long denom;
+	unsigned long deyesm;
 
 	WARN_ON(table->length < 2);
 
@@ -570,7 +570,7 @@ static int rk_tsadcv2_code_to_temp(const struct chip_tsadc_table *table,
 		}
 		break;
 	default:
-		pr_err("%s: unknown table mode: %d\n", __func__, table->mode);
+		pr_err("%s: unkyeswn table mode: %d\n", __func__, table->mode);
 		return -EINVAL;
 	}
 
@@ -582,8 +582,8 @@ static int rk_tsadcv2_code_to_temp(const struct chip_tsadc_table *table,
 	 */
 	num = table->id[mid].temp - table->id[mid - 1].temp;
 	num *= abs(table->id[mid - 1].code - code);
-	denom = abs(table->id[mid - 1].code - table->id[mid].code);
-	*temp = table->id[mid - 1].temp + (num / denom);
+	deyesm = abs(table->id[mid - 1].code - table->id[mid].code);
+	*temp = table->id[mid - 1].temp + (num / deyesm);
 
 	return 0;
 }
@@ -593,7 +593,7 @@ static int rk_tsadcv2_code_to_temp(const struct chip_tsadc_table *table,
  *
  * (1) Set TSADC_V2_AUTO_PERIOD:
  *     Configure the interleave between every two accessing of
- *     TSADC in normal operation.
+ *     TSADC in yesrmal operation.
  *
  * (2) Set TSADCV2_AUTO_PERIOD_HT:
  *     Configure the interleave between every two accessing of
@@ -629,7 +629,7 @@ static void rk_tsadcv2_initialize(struct regmap *grf, void __iomem *regs,
  *
  * (2) Set TSADC_V2_AUTO_PERIOD:
  *     Configure the interleave between every two accessing of
- *     TSADC in normal operation.
+ *     TSADC in yesrmal operation.
  *
  * (2) Set TSADCV2_AUTO_PERIOD_HT:
  *     Configure the interleave between every two accessing of
@@ -662,10 +662,10 @@ static void rk_tsadcv3_initialize(struct regmap *grf, void __iomem *regs,
 		regmap_write(grf, GRF_TSADC_TESTBIT_L, GRF_TSADC_VCM_EN_L);
 		regmap_write(grf, GRF_TSADC_TESTBIT_H, GRF_TSADC_VCM_EN_H);
 
-		usleep_range(15, 100); /* The spec note says at least 15 us */
+		usleep_range(15, 100); /* The spec yeste says at least 15 us */
 		regmap_write(grf, GRF_SARADC_TESTBIT, GRF_SARADC_TESTBIT_ON);
 		regmap_write(grf, GRF_TSADC_TESTBIT_H, GRF_TSADC_TESTBIT_H_ON);
-		usleep_range(90, 200); /* The spec note says at least 90 us */
+		usleep_range(90, 200); /* The spec yeste says at least 90 us */
 
 		writel_relaxed(TSADCV3_AUTO_PERIOD_TIME,
 			       regs + TSADCV2_AUTO_PERIOD);
@@ -760,7 +760,7 @@ static int rk_tsadcv2_alarm_temp(const struct chip_tsadc_table *table,
 	/*
 	 * In some cases, some sensors didn't need the trip points, the
 	 * set_trips will pass {-INT_MAX, INT_MAX} to trigger tsadc alarm
-	 * in the end, ignore this case and disable the high temperature
+	 * in the end, igyesre this case and disable the high temperature
 	 * interrupt.
 	 */
 	if (temp == INT_MAX) {
@@ -1111,7 +1111,7 @@ static const struct thermal_zone_of_device_ops rockchip_of_thermal_ops = {
 };
 
 static int rockchip_configure_from_dt(struct device *dev,
-				      struct device_node *np,
+				      struct device_yesde *np,
 				      struct rockchip_thermal_data *thermal)
 {
 	u32 shut_temp, tshut_mode, tshut_polarity;
@@ -1216,7 +1216,7 @@ static void rockchip_thermal_reset_controller(struct reset_control *reset)
 
 static int rockchip_thermal_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct rockchip_thermal_data *thermal;
 	const struct of_device_id *match;
 	struct resource *res;
@@ -1224,13 +1224,13 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	int i;
 	int error;
 
-	match = of_match_node(of_rockchip_thermal_match, np);
+	match = of_match_yesde(of_rockchip_thermal_match, np);
 	if (!match)
 		return -ENXIO;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "no irq resource?\n");
+		dev_err(&pdev->dev, "yes irq resource?\n");
 		return -EINVAL;
 	}
 

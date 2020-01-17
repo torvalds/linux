@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -30,19 +30,19 @@
 #include <nvif/cla06f.h>
 #include <nvif/unpack.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_gem.h"
-#include "nouveau_chan.h"
-#include "nouveau_abi16.h"
-#include "nouveau_vmm.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_dma.h"
+#include "yesuveau_gem.h"
+#include "yesuveau_chan.h"
+#include "yesuveau_abi16.h"
+#include "yesuveau_vmm.h"
 
-static struct nouveau_abi16 *
-nouveau_abi16(struct drm_file *file_priv)
+static struct yesuveau_abi16 *
+yesuveau_abi16(struct drm_file *file_priv)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
+	struct yesuveau_cli *cli = yesuveau_cli(file_priv);
 	if (!cli->abi16) {
-		struct nouveau_abi16 *abi16;
+		struct yesuveau_abi16 *abi16;
 		cli->abi16 = abi16 = kzalloc(sizeof(*abi16), GFP_KERNEL);
 		if (cli->abi16) {
 			struct nv_device_v0 args = {
@@ -67,27 +67,27 @@ nouveau_abi16(struct drm_file *file_priv)
 	return cli->abi16;
 }
 
-struct nouveau_abi16 *
-nouveau_abi16_get(struct drm_file *file_priv)
+struct yesuveau_abi16 *
+yesuveau_abi16_get(struct drm_file *file_priv)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
+	struct yesuveau_cli *cli = yesuveau_cli(file_priv);
 	mutex_lock(&cli->mutex);
-	if (nouveau_abi16(file_priv))
+	if (yesuveau_abi16(file_priv))
 		return cli->abi16;
 	mutex_unlock(&cli->mutex);
 	return NULL;
 }
 
 int
-nouveau_abi16_put(struct nouveau_abi16 *abi16, int ret)
+yesuveau_abi16_put(struct yesuveau_abi16 *abi16, int ret)
 {
-	struct nouveau_cli *cli = (void *)abi16->device.object.client;
+	struct yesuveau_cli *cli = (void *)abi16->device.object.client;
 	mutex_unlock(&cli->mutex);
 	return ret;
 }
 
 s32
-nouveau_abi16_swclass(struct nouveau_drm *drm)
+yesuveau_abi16_swclass(struct yesuveau_drm *drm)
 {
 	switch (drm->client.device.info.family) {
 	case NV_DEVICE_INFO_V0_TNT:
@@ -111,34 +111,34 @@ nouveau_abi16_swclass(struct nouveau_drm *drm)
 }
 
 static void
-nouveau_abi16_ntfy_fini(struct nouveau_abi16_chan *chan,
-			struct nouveau_abi16_ntfy *ntfy)
+yesuveau_abi16_ntfy_fini(struct yesuveau_abi16_chan *chan,
+			struct yesuveau_abi16_ntfy *ntfy)
 {
 	nvif_object_fini(&ntfy->object);
-	nvkm_mm_free(&chan->heap, &ntfy->node);
+	nvkm_mm_free(&chan->heap, &ntfy->yesde);
 	list_del(&ntfy->head);
 	kfree(ntfy);
 }
 
 static void
-nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
-			struct nouveau_abi16_chan *chan)
+yesuveau_abi16_chan_fini(struct yesuveau_abi16 *abi16,
+			struct yesuveau_abi16_chan *chan)
 {
-	struct nouveau_abi16_ntfy *ntfy, *temp;
+	struct yesuveau_abi16_ntfy *ntfy, *temp;
 
-	/* wait for all activity to stop before releasing notify object, which
+	/* wait for all activity to stop before releasing yestify object, which
 	 * may be still in use */
 	if (chan->chan && chan->ntfy)
-		nouveau_channel_idle(chan->chan);
+		yesuveau_channel_idle(chan->chan);
 
-	/* cleanup notifier state */
-	list_for_each_entry_safe(ntfy, temp, &chan->notifiers, head) {
-		nouveau_abi16_ntfy_fini(chan, ntfy);
+	/* cleanup yestifier state */
+	list_for_each_entry_safe(ntfy, temp, &chan->yestifiers, head) {
+		yesuveau_abi16_ntfy_fini(chan, ntfy);
 	}
 
 	if (chan->ntfy) {
-		nouveau_vma_del(&chan->ntfy_vma);
-		nouveau_bo_unpin(chan->ntfy);
+		yesuveau_vma_del(&chan->ntfy_vma);
+		yesuveau_bo_unpin(chan->ntfy);
 		drm_gem_object_put_unlocked(&chan->ntfy->bo.base);
 	}
 
@@ -147,8 +147,8 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 
 	/* destroy channel object, all children will be killed too */
 	if (chan->chan) {
-		nouveau_channel_idle(chan->chan);
-		nouveau_channel_del(&chan->chan);
+		yesuveau_channel_idle(chan->chan);
+		yesuveau_channel_del(&chan->chan);
 	}
 
 	list_del(&chan->head);
@@ -156,14 +156,14 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 }
 
 void
-nouveau_abi16_fini(struct nouveau_abi16 *abi16)
+yesuveau_abi16_fini(struct yesuveau_abi16 *abi16)
 {
-	struct nouveau_cli *cli = (void *)abi16->device.object.client;
-	struct nouveau_abi16_chan *chan, *temp;
+	struct yesuveau_cli *cli = (void *)abi16->device.object.client;
+	struct yesuveau_abi16_chan *chan, *temp;
 
 	/* cleanup channels */
 	list_for_each_entry_safe(chan, temp, &abi16->channels, head) {
-		nouveau_abi16_chan_fini(abi16, chan);
+		yesuveau_abi16_chan_fini(abi16, chan);
 	}
 
 	/* destroy the device object */
@@ -174,13 +174,13 @@ nouveau_abi16_fini(struct nouveau_abi16 *abi16)
 }
 
 int
-nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
+yesuveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_cli *cli = yesuveau_cli(file_priv);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvif_device *device = &drm->client.device;
 	struct nvkm_gr *gr = nvxx_gr(device);
-	struct drm_nouveau_getparam *getparam = data;
+	struct drm_yesuveau_getparam *getparam = data;
 
 	switch (getparam->param) {
 	case NOUVEAU_GETPARAM_CHIPSET_ID:
@@ -237,7 +237,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = nvkm_gr_units(gr);
 		break;
 	default:
-		NV_PRINTK(dbg, cli, "unknown parameter %lld\n", getparam->param);
+		NV_PRINTK(dbg, cli, "unkyeswn parameter %lld\n", getparam->param);
 		return -EINVAL;
 	}
 
@@ -245,13 +245,13 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 }
 
 int
-nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
+yesuveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 {
-	struct drm_nouveau_channel_alloc *init = data;
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
-	struct nouveau_abi16_chan *chan;
+	struct drm_yesuveau_channel_alloc *init = data;
+	struct yesuveau_cli *cli = yesuveau_cli(file_priv);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
+	struct yesuveau_abi16 *abi16 = yesuveau_abi16_get(file_priv);
+	struct yesuveau_abi16_chan *chan;
 	struct nvif_device *device;
 	u64 engine;
 	int ret;
@@ -260,7 +260,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		return -ENOMEM;
 
 	if (!drm->channel)
-		return nouveau_abi16_put(abi16, -ENODEV);
+		return yesuveau_abi16_put(abi16, -ENODEV);
 
 	device = &abi16->device;
 
@@ -274,7 +274,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 			case 0x08: engine = NV_DEVICE_INFO_ENGINE_MSVLD ; break;
 			case 0x30: engine = NV_DEVICE_INFO_ENGINE_CE    ; break;
 			default:
-				return nouveau_abi16_put(abi16, -ENOSYS);
+				return yesuveau_abi16_put(abi16, -ENOSYS);
 			}
 		} else {
 			engine = NV_DEVICE_INFO_ENGINE_GR;
@@ -289,18 +289,18 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	}
 
 	if (init->fb_ctxdma_handle == ~0 || init->tt_ctxdma_handle == ~0)
-		return nouveau_abi16_put(abi16, -EINVAL);
+		return yesuveau_abi16_put(abi16, -EINVAL);
 
 	/* allocate "abi16 channel" data and make up a handle for it */
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
-		return nouveau_abi16_put(abi16, -ENOMEM);
+		return yesuveau_abi16_put(abi16, -ENOMEM);
 
-	INIT_LIST_HEAD(&chan->notifiers);
+	INIT_LIST_HEAD(&chan->yestifiers);
 	list_add(&chan->head, &abi16->channels);
 
 	/* create channel object and initialise dma and fence management */
-	ret = nouveau_channel_new(drm, device, init->fb_ctxdma_handle,
+	ret = yesuveau_channel_new(drm, device, init->fb_ctxdma_handle,
 				  init->tt_ctxdma_handle, false, &chan->chan);
 	if (ret)
 		goto done;
@@ -325,36 +325,36 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	}
 
 	/* Named memory object area */
-	ret = nouveau_gem_new(cli, PAGE_SIZE, 0, NOUVEAU_GEM_DOMAIN_GART,
+	ret = yesuveau_gem_new(cli, PAGE_SIZE, 0, NOUVEAU_GEM_DOMAIN_GART,
 			      0, 0, &chan->ntfy);
 	if (ret == 0)
-		ret = nouveau_bo_pin(chan->ntfy, TTM_PL_FLAG_TT, false);
+		ret = yesuveau_bo_pin(chan->ntfy, TTM_PL_FLAG_TT, false);
 	if (ret)
 		goto done;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_vma_new(chan->ntfy, chan->chan->vmm,
+		ret = yesuveau_vma_new(chan->ntfy, chan->chan->vmm,
 				      &chan->ntfy_vma);
 		if (ret)
 			goto done;
 	}
 
 	ret = drm_gem_handle_create(file_priv, &chan->ntfy->bo.base,
-				    &init->notifier_handle);
+				    &init->yestifier_handle);
 	if (ret)
 		goto done;
 
 	ret = nvkm_mm_init(&chan->heap, 0, 0, PAGE_SIZE, 1);
 done:
 	if (ret)
-		nouveau_abi16_chan_fini(abi16, chan);
-	return nouveau_abi16_put(abi16, ret);
+		yesuveau_abi16_chan_fini(abi16, chan);
+	return yesuveau_abi16_put(abi16, ret);
 }
 
-static struct nouveau_abi16_chan *
-nouveau_abi16_chan(struct nouveau_abi16 *abi16, int channel)
+static struct yesuveau_abi16_chan *
+yesuveau_abi16_chan(struct yesuveau_abi16 *abi16, int channel)
 {
-	struct nouveau_abi16_chan *chan;
+	struct yesuveau_abi16_chan *chan;
 
 	list_for_each_entry(chan, &abi16->channels, head) {
 		if (chan->chan->chid == channel)
@@ -365,13 +365,13 @@ nouveau_abi16_chan(struct nouveau_abi16 *abi16, int channel)
 }
 
 int
-nouveau_abi16_usif(struct drm_file *file_priv, void *data, u32 size)
+yesuveau_abi16_usif(struct drm_file *file_priv, void *data, u32 size)
 {
 	union {
 		struct nvif_ioctl_v0 v0;
 	} *args = data;
-	struct nouveau_abi16_chan *chan;
-	struct nouveau_abi16 *abi16;
+	struct yesuveau_abi16_chan *chan;
+	struct yesuveau_abi16 *abi16;
 	int ret = -ENOSYS;
 
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
@@ -386,11 +386,11 @@ nouveau_abi16_usif(struct drm_file *file_priv, void *data, u32 size)
 	} else
 		return ret;
 
-	if (!(abi16 = nouveau_abi16(file_priv)))
+	if (!(abi16 = yesuveau_abi16(file_priv)))
 		return -ENOMEM;
 
 	if (args->v0.token != ~0ULL) {
-		if (!(chan = nouveau_abi16_chan(abi16, args->v0.token)))
+		if (!(chan = yesuveau_abi16_chan(abi16, args->v0.token)))
 			return -EINVAL;
 		args->v0.object = nvif_handle(&chan->chan->user);
 		args->v0.owner  = NVIF_IOCTL_V0_OWNER_ANY;
@@ -403,29 +403,29 @@ nouveau_abi16_usif(struct drm_file *file_priv, void *data, u32 size)
 }
 
 int
-nouveau_abi16_ioctl_channel_free(ABI16_IOCTL_ARGS)
+yesuveau_abi16_ioctl_channel_free(ABI16_IOCTL_ARGS)
 {
-	struct drm_nouveau_channel_free *req = data;
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
-	struct nouveau_abi16_chan *chan;
+	struct drm_yesuveau_channel_free *req = data;
+	struct yesuveau_abi16 *abi16 = yesuveau_abi16_get(file_priv);
+	struct yesuveau_abi16_chan *chan;
 
 	if (unlikely(!abi16))
 		return -ENOMEM;
 
-	chan = nouveau_abi16_chan(abi16, req->channel);
+	chan = yesuveau_abi16_chan(abi16, req->channel);
 	if (!chan)
-		return nouveau_abi16_put(abi16, -ENOENT);
-	nouveau_abi16_chan_fini(abi16, chan);
-	return nouveau_abi16_put(abi16, 0);
+		return yesuveau_abi16_put(abi16, -ENOENT);
+	yesuveau_abi16_chan_fini(abi16, chan);
+	return yesuveau_abi16_put(abi16, 0);
 }
 
 int
-nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
+yesuveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 {
-	struct drm_nouveau_grobj_alloc *init = data;
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
-	struct nouveau_abi16_chan *chan;
-	struct nouveau_abi16_ntfy *ntfy;
+	struct drm_yesuveau_grobj_alloc *init = data;
+	struct yesuveau_abi16 *abi16 = yesuveau_abi16_get(file_priv);
+	struct yesuveau_abi16_chan *chan;
+	struct yesuveau_abi16_ntfy *ntfy;
 	struct nvif_client *client;
 	struct nvif_sclass *sclass;
 	s32 oclass = 0;
@@ -435,16 +435,16 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 		return -ENOMEM;
 
 	if (init->handle == ~0)
-		return nouveau_abi16_put(abi16, -EINVAL);
+		return yesuveau_abi16_put(abi16, -EINVAL);
 	client = abi16->device.object.client;
 
-	chan = nouveau_abi16_chan(abi16, init->channel);
+	chan = yesuveau_abi16_chan(abi16, init->channel);
 	if (!chan)
-		return nouveau_abi16_put(abi16, -ENOENT);
+		return yesuveau_abi16_put(abi16, -ENOENT);
 
 	ret = nvif_object_sclass_get(&chan->chan->user, &sclass);
 	if (ret < 0)
-		return nouveau_abi16_put(abi16, ret);
+		return yesuveau_abi16_put(abi16, ret);
 
 	if ((init->class & 0x00ff) == 0x006e) {
 		/* nvsw: compatibility with older 0x*6e class identifier */
@@ -493,13 +493,13 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 
 	nvif_object_sclass_put(&sclass);
 	if (!oclass)
-		return nouveau_abi16_put(abi16, -EINVAL);
+		return yesuveau_abi16_put(abi16, -EINVAL);
 
 	ntfy = kzalloc(sizeof(*ntfy), GFP_KERNEL);
 	if (!ntfy)
-		return nouveau_abi16_put(abi16, -ENOMEM);
+		return yesuveau_abi16_put(abi16, -ENOMEM);
 
-	list_add(&ntfy->head, &chan->notifiers);
+	list_add(&ntfy->head, &chan->yestifiers);
 
 	client->route = NVDRM_OBJECT_ABI16;
 	ret = nvif_object_init(&chan->chan->user, init->handle, oclass,
@@ -507,18 +507,18 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	client->route = NVDRM_OBJECT_NVIF;
 
 	if (ret)
-		nouveau_abi16_ntfy_fini(chan, ntfy);
-	return nouveau_abi16_put(abi16, ret);
+		yesuveau_abi16_ntfy_fini(chan, ntfy);
+	return yesuveau_abi16_put(abi16, ret);
 }
 
 int
-nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
+yesuveau_abi16_ioctl_yestifierobj_alloc(ABI16_IOCTL_ARGS)
 {
-	struct drm_nouveau_notifierobj_alloc *info = data;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
-	struct nouveau_abi16_chan *chan;
-	struct nouveau_abi16_ntfy *ntfy;
+	struct drm_yesuveau_yestifierobj_alloc *info = data;
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
+	struct yesuveau_abi16 *abi16 = yesuveau_abi16_get(file_priv);
+	struct yesuveau_abi16_chan *chan;
+	struct yesuveau_abi16_ntfy *ntfy;
 	struct nvif_device *device = &abi16->device;
 	struct nvif_client *client;
 	struct nv_dma_v0 args = {};
@@ -529,26 +529,26 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 
 	/* completely unnecessary for these chipsets... */
 	if (unlikely(device->info.family >= NV_DEVICE_INFO_V0_FERMI))
-		return nouveau_abi16_put(abi16, -EINVAL);
+		return yesuveau_abi16_put(abi16, -EINVAL);
 	client = abi16->device.object.client;
 
-	chan = nouveau_abi16_chan(abi16, info->channel);
+	chan = yesuveau_abi16_chan(abi16, info->channel);
 	if (!chan)
-		return nouveau_abi16_put(abi16, -ENOENT);
+		return yesuveau_abi16_put(abi16, -ENOENT);
 
 	ntfy = kzalloc(sizeof(*ntfy), GFP_KERNEL);
 	if (!ntfy)
-		return nouveau_abi16_put(abi16, -ENOMEM);
+		return yesuveau_abi16_put(abi16, -ENOMEM);
 
-	list_add(&ntfy->head, &chan->notifiers);
+	list_add(&ntfy->head, &chan->yestifiers);
 
 	ret = nvkm_mm_head(&chan->heap, 0, 1, info->size, info->size, 1,
-			   &ntfy->node);
+			   &ntfy->yesde);
 	if (ret)
 		goto done;
 
-	args.start = ntfy->node->offset;
-	args.limit = ntfy->node->offset + ntfy->node->length - 1;
+	args.start = ntfy->yesde->offset;
+	args.limit = ntfy->yesde->offset + ntfy->yesde->length - 1;
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		args.target = NV_DMA_V0_TARGET_VM;
 		args.access = NV_DMA_V0_ACCESS_VM;
@@ -577,39 +577,39 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	if (ret)
 		goto done;
 
-	info->offset = ntfy->node->offset;
+	info->offset = ntfy->yesde->offset;
 done:
 	if (ret)
-		nouveau_abi16_ntfy_fini(chan, ntfy);
-	return nouveau_abi16_put(abi16, ret);
+		yesuveau_abi16_ntfy_fini(chan, ntfy);
+	return yesuveau_abi16_put(abi16, ret);
 }
 
 int
-nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS)
+yesuveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS)
 {
-	struct drm_nouveau_gpuobj_free *fini = data;
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
-	struct nouveau_abi16_chan *chan;
-	struct nouveau_abi16_ntfy *ntfy;
+	struct drm_yesuveau_gpuobj_free *fini = data;
+	struct yesuveau_abi16 *abi16 = yesuveau_abi16_get(file_priv);
+	struct yesuveau_abi16_chan *chan;
+	struct yesuveau_abi16_ntfy *ntfy;
 	int ret = -ENOENT;
 
 	if (unlikely(!abi16))
 		return -ENOMEM;
 
-	chan = nouveau_abi16_chan(abi16, fini->channel);
+	chan = yesuveau_abi16_chan(abi16, fini->channel);
 	if (!chan)
-		return nouveau_abi16_put(abi16, -EINVAL);
+		return yesuveau_abi16_put(abi16, -EINVAL);
 
 	/* synchronize with the user channel and destroy the gpu object */
-	nouveau_channel_idle(chan->chan);
+	yesuveau_channel_idle(chan->chan);
 
-	list_for_each_entry(ntfy, &chan->notifiers, head) {
+	list_for_each_entry(ntfy, &chan->yestifiers, head) {
 		if (ntfy->object.handle == fini->handle) {
-			nouveau_abi16_ntfy_fini(chan, ntfy);
+			yesuveau_abi16_ntfy_fini(chan, ntfy);
 			ret = 0;
 			break;
 		}
 	}
 
-	return nouveau_abi16_put(abi16, ret);
+	return yesuveau_abi16_put(abi16, ret);
 }

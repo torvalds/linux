@@ -45,7 +45,7 @@ static int xilinx_spi_write_init(struct fpga_manager *mgr,
 	const size_t prog_pulse_1us = 1;
 
 	if (info->flags & FPGA_MGR_PARTIAL_RECONFIG) {
-		dev_err(&mgr->dev, "Partial reconfiguration not supported.\n");
+		dev_err(&mgr->dev, "Partial reconfiguration yest supported.\n");
 		return -EINVAL;
 	}
 

@@ -5,7 +5,7 @@
  *
  * KVM/MIPS: Hypercall handling.
  *
- * Copyright (C) 2015  Imagination Technologies Ltd.
+ * Copyright (C) 2015  Imagination Techyeslogies Ltd.
  */
 
 #include <linux/kernel.h>

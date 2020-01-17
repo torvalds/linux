@@ -85,7 +85,7 @@ on the Qualcomm ADSP Hexagon core.
 
 
 = SUBNODES
-The adsp node may have an subnode named either "smd-edge" or "glink-edge" that
+The adsp yesde may have an subyesde named either "smd-edge" or "glink-edge" that
 describes the communication edge, channels and devices related to the ADSP.
 See ../soc/qcom/qcom,smd.txt and ../soc/qcom/qcom,glink.txt for details on how
 to describe these.

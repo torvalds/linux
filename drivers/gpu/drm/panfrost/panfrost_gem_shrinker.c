@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2019 Arm Ltd.
  *
- * Based on msm_gem_freedreno.c:
+ * Based on msm_gem_freedreyes.c:
  * Copyright (C) 2016 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  */

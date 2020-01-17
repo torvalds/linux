@@ -2,7 +2,7 @@
 /*
  * Hi3519 Clock Driver
  *
- * Copyright (c) 2015-2016 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2015-2016 HiSilicon Techyeslogies Co., Ltd.
  */
 
 #include <dt-bindings/clock/hi3519-clock.h>
@@ -100,7 +100,7 @@ static struct hisi_clock_data *hi3519_clk_register(struct platform_device *pdev)
 	if (ret)
 		goto unregister_mux;
 
-	ret = of_clk_add_provider(pdev->dev.of_node,
+	ret = of_clk_add_provider(pdev->dev.of_yesde,
 			of_clk_src_onecell_get, &clk_data->clk_data);
 	if (ret)
 		goto unregister_gate;
@@ -127,7 +127,7 @@ static void hi3519_clk_unregister(struct platform_device *pdev)
 {
 	struct hi3519_crg_data *crg = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 
 	hisi_clk_unregister_gate(hi3519_gate_clks,
 				ARRAY_SIZE(hi3519_mux_clks),

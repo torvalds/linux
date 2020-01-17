@@ -90,7 +90,7 @@ ENDPROC(__cpu_suspend)
 cpu_suspend_abort:
 	ldmia	sp!, {r1 - r3}		@ pop phys pgd, virt SP, phys resume fn
 	teq	r0, #0
-	moveq	r0, #1			@ force non-zero value
+	moveq	r0, #1			@ force yesn-zero value
 	mov	sp, r2
 	ldmfd	sp!, {r4 - r11, pc}
 ENDPROC(cpu_suspend_abort)
@@ -123,9 +123,9 @@ ENDPROC(cpu_resume_after_mmu)
 #ifdef CONFIG_MCPM
 	.arm
 THUMB(	.thumb			)
-ENTRY(cpu_resume_no_hyp)
+ENTRY(cpu_resume_yes_hyp)
 ARM_BE8(setend be)			@ ensure we are in BE mode
-	b	no_hyp
+	b	yes_hyp
 #endif
 
 #ifdef CONFIG_MMU
@@ -133,7 +133,7 @@ ARM_BE8(setend be)			@ ensure we are in BE mode
 ENTRY(cpu_resume_arm)
  THUMB(	badr	r9, 1f		)	@ Kernel is entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
- THUMB(	.thumb			)	@ switch to Thumb now.
+ THUMB(	.thumb			)	@ switch to Thumb yesw.
  THUMB(1:			)
 #endif
 
@@ -143,7 +143,7 @@ ARM_BE8(setend be)			@ ensure we are in BE mode
 	bl	__hyp_stub_install_secondary
 #endif
 	safe_svcmode_maskall r1
-no_hyp:
+yes_hyp:
 	mov	r1, #0
 	ALT_SMP(mrc p15, 0, r0, c0, c0, 5)
 	ALT_UP_B(1f)
@@ -174,7 +174,7 @@ ENDPROC(cpu_resume)
 ENDPROC(cpu_resume_arm)
 #endif
 #ifdef CONFIG_MCPM
-ENDPROC(cpu_resume_no_hyp)
+ENDPROC(cpu_resume_yes_hyp)
 #endif
 
 	.align 2

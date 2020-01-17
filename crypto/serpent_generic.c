@@ -4,7 +4,7 @@
  *
  * Serpent Cipher Algorithm.
  *
- * Copyright (C) 2002 Dag Arne Osvik <osvik@ii.uib.no>
+ * Copyright (C) 2002 Dag Arne Osvik <osvik@ii.uib.yes>
  *               2003 Herbert Valerio Riedel <hvr@gnu.org>
  *
  * Added tnepres support:
@@ -14,7 +14,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/byteorder.h>
 #include <linux/crypto.h>
 #include <linux/types.h>
@@ -230,7 +230,7 @@
  * producing horrible object code from spilling temporary variables
  * on the stack. Forcing this part out of line avoids that.
  */
-static noinline void __serpent_setkey_sbox(u32 r0, u32 r1, u32 r2,
+static yesinline void __serpent_setkey_sbox(u32 r0, u32 r1, u32 r2,
 					   u32 r3, u32 r4, u32 *k)
 {
 	k += 100;
@@ -288,7 +288,7 @@ int __serpent_setkey(struct serpent_ctx *ctx, const u8 *key,
 	while (i < SERPENT_MAX_KEY_SIZE)
 		k8[i++] = 0;
 
-	/* Expand key using polynomial */
+	/* Expand key using polyyesmial */
 
 	r0 = le32_to_cpu(k[3]);
 	r1 = le32_to_cpu(k[4]);
@@ -672,7 +672,7 @@ module_exit(serpent_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Serpent and tnepres (kerneli compatible serpent reversed) Cipher Algorithm");
-MODULE_AUTHOR("Dag Arne Osvik <osvik@ii.uib.no>");
+MODULE_AUTHOR("Dag Arne Osvik <osvik@ii.uib.yes>");
 MODULE_ALIAS_CRYPTO("tnepres");
 MODULE_ALIAS_CRYPTO("serpent");
 MODULE_ALIAS_CRYPTO("serpent-generic");

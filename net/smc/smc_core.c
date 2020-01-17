@@ -91,13 +91,13 @@ void smc_lgr_schedule_free_work_fast(struct smc_link_group *lgr)
  */
 static void smc_lgr_add_alert_token(struct smc_connection *conn)
 {
-	struct rb_node **link, *parent = NULL;
+	struct rb_yesde **link, *parent = NULL;
 	u32 token = conn->alert_token_local;
 
-	link = &conn->lgr->conns_all.rb_node;
+	link = &conn->lgr->conns_all.rb_yesde;
 	while (*link) {
 		struct smc_connection *cur = rb_entry(*link,
-					struct smc_connection, alert_node);
+					struct smc_connection, alert_yesde);
 
 		parent = *link;
 		if (cur->alert_token_local > token)
@@ -105,22 +105,22 @@ static void smc_lgr_add_alert_token(struct smc_connection *conn)
 		else
 			link = &parent->rb_right;
 	}
-	/* Put the new node there */
-	rb_link_node(&conn->alert_node, parent, link);
-	rb_insert_color(&conn->alert_node, &conn->lgr->conns_all);
+	/* Put the new yesde there */
+	rb_link_yesde(&conn->alert_yesde, parent, link);
+	rb_insert_color(&conn->alert_yesde, &conn->lgr->conns_all);
 }
 
 /* Register connection in link group by assigning an alert token
  * registered in a search tree.
  * Requires @conns_lock
- * Note that '0' is a reserved value and not assigned.
+ * Note that '0' is a reserved value and yest assigned.
  */
 static void smc_lgr_register_conn(struct smc_connection *conn)
 {
 	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
 	static atomic_t nexttoken = ATOMIC_INIT(0);
 
-	/* find a new alert_token_local value not yet used by some connection
+	/* find a new alert_token_local value yest yet used by some connection
 	 * in this link group
 	 */
 	sock_hold(&smc->sk); /* sock_put in smc_lgr_unregister_conn() */
@@ -140,7 +140,7 @@ static void __smc_lgr_unregister_conn(struct smc_connection *conn)
 	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
 	struct smc_link_group *lgr = conn->lgr;
 
-	rb_erase(&conn->alert_node, &lgr->conns_all);
+	rb_erase(&conn->alert_yesde, &lgr->conns_all);
 	lgr->conns_num--;
 	conn->alert_token_local = 0;
 	sock_put(&smc->sk); /* sock_hold in smc_lgr_register_conn() */
@@ -196,7 +196,7 @@ static void smc_lgr_free_work(struct work_struct *work)
 	read_lock_bh(&lgr->conns_lock);
 	conns = RB_EMPTY_ROOT(&lgr->conns_all);
 	read_unlock_bh(&lgr->conns_lock);
-	if (!conns) { /* number of lgr connections is no longer zero */
+	if (!conns) { /* number of lgr connections is yes longer zero */
 		spin_unlock_bh(lgr_lock);
 		return;
 	}
@@ -213,7 +213,7 @@ static void smc_lgr_free_work(struct work_struct *work)
 			return;
 		}
 	}
-	lgr->freeing = 1; /* this instance does the freeing, no new schedule */
+	lgr->freeing = 1; /* this instance does the freeing, yes new schedule */
 	spin_unlock_bh(lgr_lock);
 	cancel_delayed_work(&lgr->free_work);
 
@@ -371,7 +371,7 @@ static void smc_buf_unuse(struct smc_connection *conn,
 			}
 			conn->rmb_desc->used = 0;
 		} else {
-			/* buf registration failed, reuse not possible */
+			/* buf registration failed, reuse yest possible */
 			write_lock_bh(&lgr->rmbs_lock);
 			list_del(&conn->rmb_desc->list);
 			write_unlock_bh(&lgr->rmbs_lock);
@@ -514,7 +514,7 @@ void smc_lgr_forget(struct smc_link_group *lgr)
 
 	lgr_list = smc_lgr_list_head(lgr, &lgr_lock);
 	spin_lock_bh(lgr_lock);
-	/* do not use this link group for new connections */
+	/* do yest use this link group for new connections */
 	if (!list_empty(lgr_list))
 		list_del_init(lgr_list);
 	spin_unlock_bh(lgr_lock);
@@ -589,7 +589,7 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
 {
 	struct smc_connection *conn;
 	struct smc_sock *smc;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	if (lgr->terminating)
 		return;	/* lgr already terminating */
@@ -601,10 +601,10 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
 
 	/* kill remaining link group connections */
 	read_lock_bh(&lgr->conns_lock);
-	node = rb_first(&lgr->conns_all);
-	while (node) {
+	yesde = rb_first(&lgr->conns_all);
+	while (yesde) {
 		read_unlock_bh(&lgr->conns_lock);
-		conn = rb_entry(node, struct smc_connection, alert_node);
+		conn = rb_entry(yesde, struct smc_connection, alert_yesde);
 		smc = container_of(conn, struct smc_sock, conn);
 		sock_hold(&smc->sk); /* sock_put below */
 		lock_sock(&smc->sk);
@@ -612,7 +612,7 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr, bool soft)
 		release_sock(&smc->sk);
 		sock_put(&smc->sk); /* sock_hold above */
 		read_lock_bh(&lgr->conns_lock);
-		node = rb_first(&lgr->conns_all);
+		yesde = rb_first(&lgr->conns_all);
 	}
 	read_unlock_bh(&lgr->conns_lock);
 	smc_lgr_cleanup(lgr);
@@ -666,7 +666,7 @@ void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport)
 	}
 }
 
-/* Called when peer lgr shutdown (regularly or abnormally) is received */
+/* Called when peer lgr shutdown (regularly or abyesrmally) is received */
 void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid, unsigned short vlan)
 {
 	struct smc_link_group *lgr, *l;
@@ -895,7 +895,7 @@ out:
 	return rc;
 }
 
-/* convert the RMB size into the compressed notation - minimum 16K.
+/* convert the RMB size into the compressed yestation - minimum 16K.
  * In contrast to plain ilog2, this rounds towards the next power of 2,
  * so the socket application gets at least its desired sndbuf / rcvbuf size.
  */
@@ -913,7 +913,7 @@ static u8 smc_compress_bufsize(int size)
 	return compressed;
 }
 
-/* convert the RMB size from compressed notation into integer */
+/* convert the RMB size from compressed yestation into integer */
 int smc_uncompress_bufsize(u8 compressed)
 {
 	u32 size;
@@ -923,7 +923,7 @@ int smc_uncompress_bufsize(u8 compressed)
 }
 
 /* try to reuse a sndbuf or rmb description slot for a certain
- * buffer size; if not available, return NULL
+ * buffer size; if yest available, return NULL
  */
 static struct smc_buf_desc *smc_buf_get_slot(int compressed_bufsize,
 					     rwlock_t *lock,
@@ -942,7 +942,7 @@ static struct smc_buf_desc *smc_buf_get_slot(int compressed_bufsize,
 	return NULL;
 }
 
-/* one of the conditions for announcing a receiver's current window size is
+/* one of the conditions for anyesuncing a receiver's current window size is
  * that it "results in a minimum increase in the window size of 10% of the
  * receive buffer space" [RFC7609]
  */
@@ -1283,7 +1283,7 @@ static void smc_lgrs_shutdown(void)
 	spin_unlock(&smcd_dev_list.lock);
 }
 
-static int smc_core_reboot_event(struct notifier_block *this,
+static int smc_core_reboot_event(struct yestifier_block *this,
 				 unsigned long event, void *ptr)
 {
 	smc_lgrs_shutdown();
@@ -1291,19 +1291,19 @@ static int smc_core_reboot_event(struct notifier_block *this,
 	return 0;
 }
 
-static struct notifier_block smc_reboot_notifier = {
-	.notifier_call = smc_core_reboot_event,
+static struct yestifier_block smc_reboot_yestifier = {
+	.yestifier_call = smc_core_reboot_event,
 };
 
 int __init smc_core_init(void)
 {
 	atomic_set(&lgr_cnt, 0);
-	return register_reboot_notifier(&smc_reboot_notifier);
+	return register_reboot_yestifier(&smc_reboot_yestifier);
 }
 
 /* Called (from smc_exit) when module is removed */
 void smc_core_exit(void)
 {
-	unregister_reboot_notifier(&smc_reboot_notifier);
+	unregister_reboot_yestifier(&smc_reboot_yestifier);
 	smc_lgrs_shutdown();
 }

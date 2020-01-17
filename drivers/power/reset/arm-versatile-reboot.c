@@ -69,7 +69,7 @@ static const struct of_device_id versatile_reboot_of_match[] = {
 	{},
 };
 
-static int versatile_reboot(struct notifier_block *this, unsigned long mode,
+static int versatile_reboot(struct yestifier_block *this, unsigned long mode,
 			    void *cmd)
 {
 	/* Unlock the reset register */
@@ -128,24 +128,24 @@ static int versatile_reboot(struct notifier_block *this, unsigned long mode,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block versatile_reboot_nb = {
-	.notifier_call = versatile_reboot,
+static struct yestifier_block versatile_reboot_nb = {
+	.yestifier_call = versatile_reboot,
 	.priority = 192,
 };
 
 static int __init versatile_reboot_probe(void)
 {
 	const struct of_device_id *reboot_id;
-	struct device_node *np;
+	struct device_yesde *np;
 	int err;
 
-	np = of_find_matching_node_and_match(NULL, versatile_reboot_of_match,
+	np = of_find_matching_yesde_and_match(NULL, versatile_reboot_of_match,
 						 &reboot_id);
 	if (!np)
 		return -ENODEV;
 	versatile_reboot_type = (enum versatile_reboot)reboot_id->data;
 
-	syscon_regmap = syscon_node_to_regmap(np);
+	syscon_regmap = syscon_yesde_to_regmap(np);
 	if (IS_ERR(syscon_regmap))
 		return PTR_ERR(syscon_regmap);
 

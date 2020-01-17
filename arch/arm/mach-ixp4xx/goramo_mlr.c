@@ -41,7 +41,7 @@
 #define GPIO_IRQ_MPCI		12
 #define GPIO_HSS1_RTS_N		13
 #define GPIO_HSS0_RTS_N		14
-/* GPIO15 is not connected */
+/* GPIO15 is yest connected */
 
 /* Control outputs from 74HC4094 */
 #define CONTROL_HSS0_CLK_INT	0
@@ -63,7 +63,7 @@
 #define CFG_SDRAM_REFRESH	0x5C /* u32 */
 
 #define CFG_HW_BITS		0x60 /* u32 */
-#define  CFG_HW_USB_PORTS	0x00000007 /* 0 = no NEC chip, 1-5 = ports # */
+#define  CFG_HW_USB_PORTS	0x00000007 /* 0 = yes NEC chip, 1-5 = ports # */
 #define  CFG_HW_HAS_PCI_SLOT	0x00000008
 #define  CFG_HW_HAS_ETH0	0x00000010
 #define  CFG_HW_HAS_ETH1	0x00000020
@@ -297,7 +297,7 @@ static struct platform_device device_eth_tab[] = {
 };
 
 
-/* IXP425 2 synchronous serial ports */
+/* IXP425 2 synchroyesus serial ports */
 static struct hss_plat_info hss_plat[] = {
 	{
 		.set_clock	= hss_set_clock,

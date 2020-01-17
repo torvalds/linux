@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #include <linux/etherdevice.h>
 #include <linux/inetdevice.h>
@@ -142,7 +142,7 @@ enum nfp_flower_mac_offload_cmd {
 
 /**
  * struct nfp_tun_offloaded_mac - hashtable entry for an offloaded MAC
- * @ht_node:		Hashtable entry
+ * @ht_yesde:		Hashtable entry
  * @addr:		Offloaded MAC address
  * @index:		Offloaded index for given MAC address
  * @ref_count:		Number of devs using this MAC address
@@ -150,7 +150,7 @@ enum nfp_flower_mac_offload_cmd {
  * @bridge_count:	Number of bridge/internal devs with MAC
  */
 struct nfp_tun_offloaded_mac {
-	struct rhash_head ht_node;
+	struct rhash_head ht_yesde;
 	u8 addr[ETH_ALEN];
 	u16 index;
 	int ref_count;
@@ -160,7 +160,7 @@ struct nfp_tun_offloaded_mac {
 
 static const struct rhashtable_params offloaded_macs_params = {
 	.key_offset	= offsetof(struct nfp_tun_offloaded_mac, addr),
-	.head_offset	= offsetof(struct nfp_tun_offloaded_mac, ht_node),
+	.head_offset	= offsetof(struct nfp_tun_offloaded_mac, ht_yesde),
 	.key_len	= ETH_ALEN,
 	.automatic_shrinking	= true,
 };
@@ -323,7 +323,7 @@ send_msg:
 }
 
 static int
-nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
+nfp_tun_neigh_event_handler(struct yestifier_block *nb, unsigned long event,
 			    void *ptr)
 {
 	struct nfp_flower_priv *app_priv;
@@ -418,7 +418,7 @@ void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb)
 
 fail_rcu_unlock:
 	rcu_read_unlock();
-	nfp_flower_cmsg_warn(app, "Requested route not found.\n");
+	nfp_flower_cmsg_warn(app, "Requested route yest found.\n");
 }
 
 static void nfp_tun_write_ipv4_list(struct nfp_app *app)
@@ -606,7 +606,7 @@ nfp_tunnel_add_shared_mac(struct nfp_app *app, struct net_device *netdev,
 	}
 
 	if (!nfp_mac_idx) {
-		/* Assign a global index if non-repr or MAC is now shared. */
+		/* Assign a global index if yesn-repr or MAC is yesw shared. */
 		if (entry || !port) {
 			ida_idx = ida_simple_get(&priv->tun.mac_off_ids, 0,
 						 NFP_MAX_MAC_INDEX, GFP_KERNEL);
@@ -636,7 +636,7 @@ nfp_tunnel_add_shared_mac(struct nfp_app *app, struct net_device *netdev,
 		INIT_LIST_HEAD(&entry->repr_list);
 
 		if (rhashtable_insert_fast(&priv->tun.offloaded_macs,
-					   &entry->ht_node,
+					   &entry->ht_yesde,
 					   offloaded_macs_params)) {
 			err = -ENOMEM;
 			goto err_free_entry;
@@ -646,7 +646,7 @@ nfp_tunnel_add_shared_mac(struct nfp_app *app, struct net_device *netdev,
 	err = __nfp_tunnel_offload_mac(app, netdev->dev_addr,
 				       nfp_mac_idx, false);
 	if (err) {
-		/* If not shared then free. */
+		/* If yest shared then free. */
 		if (!entry->ref_count)
 			goto err_remove_hash;
 		goto err_free_ida;
@@ -658,7 +658,7 @@ nfp_tunnel_add_shared_mac(struct nfp_app *app, struct net_device *netdev,
 	return 0;
 
 err_remove_hash:
-	rhashtable_remove_fast(&priv->tun.offloaded_macs, &entry->ht_node,
+	rhashtable_remove_fast(&priv->tun.offloaded_macs, &entry->ht_yesde,
 			       offloaded_macs_params);
 err_free_entry:
 	kfree(entry);
@@ -710,7 +710,7 @@ nfp_tunnel_del_shared_mac(struct nfp_app *app, struct net_device *netdev,
 		}
 	}
 
-	/* If MAC is now used by 1 repr set the offloaded MAC index to port. */
+	/* If MAC is yesw used by 1 repr set the offloaded MAC index to port. */
 	if (entry->ref_count == 1 && list_is_singular(&entry->repr_list)) {
 		u16 nfp_mac_idx;
 		int port, err;
@@ -738,7 +738,7 @@ nfp_tunnel_del_shared_mac(struct nfp_app *app, struct net_device *netdev,
 		return 0;
 
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->tun.offloaded_macs,
-					    &entry->ht_node,
+					    &entry->ht_yesde,
 					    offloaded_macs_params));
 	/* If MAC has global ID then extract and free the ida entry. */
 	if (nfp_tunnel_is_mac_idx_global(entry->index)) {
@@ -755,8 +755,8 @@ static int
 nfp_tunnel_offload_mac(struct nfp_app *app, struct net_device *netdev,
 		       enum nfp_flower_mac_offload_cmd cmd)
 {
-	struct nfp_flower_non_repr_priv *nr_priv = NULL;
-	bool non_repr = false, *mac_offloaded;
+	struct nfp_flower_yesn_repr_priv *nr_priv = NULL;
+	bool yesn_repr = false, *mac_offloaded;
 	u8 *off_mac = NULL;
 	int err, port = 0;
 
@@ -778,20 +778,20 @@ nfp_tunnel_offload_mac(struct nfp_app *app, struct net_device *netdev,
 		if (!nfp_tunnel_port_is_phy_repr(port))
 			return 0;
 	} else if (nfp_fl_is_netdev_to_offload(netdev)) {
-		nr_priv = nfp_flower_non_repr_priv_get(app, netdev);
+		nr_priv = nfp_flower_yesn_repr_priv_get(app, netdev);
 		if (!nr_priv)
 			return -ENOMEM;
 
 		mac_offloaded = &nr_priv->mac_offloaded;
 		off_mac = &nr_priv->offloaded_mac_addr[0];
-		non_repr = true;
+		yesn_repr = true;
 	} else {
 		return 0;
 	}
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		err = -EINVAL;
-		goto err_put_non_repr_priv;
+		goto err_put_yesn_repr_priv;
 	}
 
 	if (cmd == NFP_TUNNEL_MAC_OFFLOAD_MOD && !*mac_offloaded)
@@ -801,10 +801,10 @@ nfp_tunnel_offload_mac(struct nfp_app *app, struct net_device *netdev,
 	case NFP_TUNNEL_MAC_OFFLOAD_ADD:
 		err = nfp_tunnel_add_shared_mac(app, netdev, port, false);
 		if (err)
-			goto err_put_non_repr_priv;
+			goto err_put_yesn_repr_priv;
 
-		if (non_repr)
-			__nfp_flower_non_repr_priv_get(nr_priv);
+		if (yesn_repr)
+			__nfp_flower_yesn_repr_priv_get(nr_priv);
 
 		*mac_offloaded = true;
 		ether_addr_copy(off_mac, netdev->dev_addr);
@@ -814,25 +814,25 @@ nfp_tunnel_offload_mac(struct nfp_app *app, struct net_device *netdev,
 		if (!*mac_offloaded)
 			break;
 
-		if (non_repr)
-			__nfp_flower_non_repr_priv_put(nr_priv);
+		if (yesn_repr)
+			__nfp_flower_yesn_repr_priv_put(nr_priv);
 
 		*mac_offloaded = false;
 
 		err = nfp_tunnel_del_shared_mac(app, netdev, netdev->dev_addr,
 						false);
 		if (err)
-			goto err_put_non_repr_priv;
+			goto err_put_yesn_repr_priv;
 
 		break;
 	case NFP_TUNNEL_MAC_OFFLOAD_MOD:
-		/* Ignore if changing to the same address. */
+		/* Igyesre if changing to the same address. */
 		if (ether_addr_equal(netdev->dev_addr, off_mac))
 			break;
 
 		err = nfp_tunnel_add_shared_mac(app, netdev, port, true);
 		if (err)
-			goto err_put_non_repr_priv;
+			goto err_put_yesn_repr_priv;
 
 		/* Delete the previous MAC address. */
 		err = nfp_tunnel_del_shared_mac(app, netdev, off_mac, true);
@@ -844,17 +844,17 @@ nfp_tunnel_offload_mac(struct nfp_app *app, struct net_device *netdev,
 		break;
 	default:
 		err = -EINVAL;
-		goto err_put_non_repr_priv;
+		goto err_put_yesn_repr_priv;
 	}
 
-	if (non_repr)
-		__nfp_flower_non_repr_priv_put(nr_priv);
+	if (yesn_repr)
+		__nfp_flower_yesn_repr_priv_put(nr_priv);
 
 	return 0;
 
-err_put_non_repr_priv:
-	if (non_repr)
-		__nfp_flower_non_repr_priv_put(nr_priv);
+err_put_yesn_repr_priv:
+	if (yesn_repr)
+		__nfp_flower_yesn_repr_priv_put(nr_priv);
 
 	return err;
 }
@@ -890,11 +890,11 @@ int nfp_tunnel_mac_event_handler(struct nfp_app *app,
 	} else if (event == NETDEV_CHANGEUPPER) {
 		/* If a repr is attached to a bridge then tunnel packets
 		 * entering the physical port are directed through the bridge
-		 * datapath and cannot be directly detunneled. Therefore,
-		 * associated offloaded MACs and indexes should not be used
+		 * datapath and canyest be directly detunneled. Therefore,
+		 * associated offloaded MACs and indexes should yest be used
 		 * by fw for detunneling.
 		 */
-		struct netdev_notifier_changeupper_info *info = ptr;
+		struct netdev_yestifier_changeupper_info *info = ptr;
 		struct net_device *upper = info->upper_dev;
 		struct nfp_flower_repr_priv *repr_priv;
 		struct nfp_repr *repr;
@@ -950,7 +950,7 @@ int nfp_flower_xmit_pre_tun_flow(struct nfp_app *app,
 
 	/* Lookup MAC index for the pre-tunnel rule egress device.
 	 * Note that because the device is always an internal port, it will
-	 * have a constant global index so does not need to be tracked.
+	 * have a constant global index so does yest need to be tracked.
 	 */
 	mac_entry = nfp_tunnel_lookup_offloaded_macs(app,
 						     internal_dev->dev_addr);
@@ -959,7 +959,7 @@ int nfp_flower_xmit_pre_tun_flow(struct nfp_app *app,
 
 	payload.port_idx = cpu_to_be16(mac_entry->index);
 
-	/* Copy mac id and vlan to flow - dev may not exist at delete time. */
+	/* Copy mac id and vlan to flow - dev may yest exist at delete time. */
 	flow->pre_tun_rule.vlan_tci = payload.vlan_tci;
 	flow->pre_tun_rule.port_idx = payload.port_idx;
 
@@ -1020,9 +1020,9 @@ int nfp_tunnel_config_start(struct nfp_app *app)
 	/* Initialise priv data for neighbour offloading. */
 	spin_lock_init(&priv->tun.neigh_off_lock);
 	INIT_LIST_HEAD(&priv->tun.neigh_off_list);
-	priv->tun.neigh_nb.notifier_call = nfp_tun_neigh_event_handler;
+	priv->tun.neigh_nb.yestifier_call = nfp_tun_neigh_event_handler;
 
-	err = register_netevent_notifier(&priv->tun.neigh_nb);
+	err = register_netevent_yestifier(&priv->tun.neigh_nb);
 	if (err) {
 		rhashtable_free_and_destroy(&priv->tun.offloaded_macs,
 					    nfp_check_rhashtable_empty, NULL);
@@ -1039,7 +1039,7 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 	struct nfp_ipv4_addr_entry *ip_entry;
 	struct list_head *ptr, *storage;
 
-	unregister_netevent_notifier(&priv->tun.neigh_nb);
+	unregister_netevent_yestifier(&priv->tun.neigh_nb);
 
 	ida_destroy(&priv->tun.mac_off_ids);
 
@@ -1058,7 +1058,7 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 		kfree(route_entry);
 	}
 
-	/* Destroy rhash. Entries should be cleaned on netdev notifier unreg. */
+	/* Destroy rhash. Entries should be cleaned on netdev yestifier unreg. */
 	rhashtable_free_and_destroy(&priv->tun.offloaded_macs,
 				    nfp_check_rhashtable_empty, NULL);
 }

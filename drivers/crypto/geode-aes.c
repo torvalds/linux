@@ -120,13 +120,13 @@ static int geode_setkey_cip(struct crypto_tfm *tfm, const u8 *key,
 	}
 
 	if (len != AES_KEYSIZE_192 && len != AES_KEYSIZE_256) {
-		/* not supported at all */
+		/* yest supported at all */
 		tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
 	}
 
 	/*
-	 * The requested key size is not supported by HW, do a fallback
+	 * The requested key size is yest supported by HW, do a fallback
 	 */
 	tctx->fallback.cip->base.crt_flags &= ~CRYPTO_TFM_REQ_MASK;
 	tctx->fallback.cip->base.crt_flags |=
@@ -155,13 +155,13 @@ static int geode_setkey_skcipher(struct crypto_skcipher *tfm, const u8 *key,
 	}
 
 	if (len != AES_KEYSIZE_192 && len != AES_KEYSIZE_256) {
-		/* not supported at all */
+		/* yest supported at all */
 		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
 	/*
-	 * The requested key size is not supported by HW, do a fallback
+	 * The requested key size is yest supported by HW, do a fallback
 	 */
 	crypto_skcipher_clear_flags(tctx->fallback.skcipher,
 				    CRYPTO_TFM_REQ_MASK);
@@ -412,7 +412,7 @@ static int geode_aes_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (ret)
 		goto ealg;
 
-	dev_notice(&dev->dev, "GEODE AES engine enabled.\n");
+	dev_yestice(&dev->dev, "GEODE AES engine enabled.\n");
 	return 0;
 
  ealg:

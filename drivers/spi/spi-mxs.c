@@ -69,7 +69,7 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 	const unsigned int hz = min(dev->max_speed_hz, t->speed_hz);
 
 	if (hz == 0) {
-		dev_err(&dev->dev, "SPI clock rate of zero not allowed\n");
+		dev_err(&dev->dev, "SPI clock rate of zero yest allowed\n");
 		return -EINVAL;
 	}
 
@@ -78,12 +78,12 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 		/*
 		 * Save requested rate, hz, rather than the actual rate,
 		 * ssp->clk_rate.  Otherwise we would set the rate every transfer
-		 * when the actual rate is not quite the same as requested rate.
+		 * when the actual rate is yest quite the same as requested rate.
 		 */
 		spi->sck = hz;
 		/*
 		 * Perhaps we should return an error if the actual clock is
-		 * nowhere close to what was requested?
+		 * yeswhere close to what was requested?
 		 */
 	}
 
@@ -203,7 +203,7 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi,
 		min = min(len, desc_len);
 
 		/*
-		 * De-assert CS on last segment if flag is set (i.e., no more
+		 * De-assert CS on last segment if flag is set (i.e., yes more
 		 * transfers will follow)
 		 */
 		if ((sg_count + 1 == sgs) && (flags & TXRX_DEASSERT_CS))
@@ -528,7 +528,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(mxs_spi_dt_ids, &pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct spi_master *master;
 	struct mxs_spi *spi;
 	struct mxs_ssp *ssp;
@@ -572,7 +572,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
 	master->num_chipselect = 3;
-	master->dev.of_node = np;
+	master->dev.of_yesde = np;
 	master->flags = SPI_MASTER_HALF_DUPLEX;
 	master->auto_runtime_pm = true;
 
@@ -620,7 +620,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot register SPI master, %d\n", ret);
+		dev_err(&pdev->dev, "Canyest register SPI master, %d\n", ret);
 		goto out_pm_runtime_put;
 	}
 

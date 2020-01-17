@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef __ASM_IRQFLAGS_ARCV2_H
@@ -9,7 +9,7 @@
 #include <asm/arcregs.h>
 
 /* status32 Bits */
-#define STATUS_AD_BIT	19   /* Disable Align chk: core supports non-aligned */
+#define STATUS_AD_BIT	19   /* Disable Align chk: core supports yesn-aligned */
 #define STATUS_IE_BIT	31
 
 #define STATUS_AD_MASK		(1<<STATUS_AD_BIT)

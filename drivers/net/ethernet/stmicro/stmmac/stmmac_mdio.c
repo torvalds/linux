@@ -64,7 +64,7 @@ static int stmmac_xgmac2_c22_format(struct stmmac_priv *priv, int phyaddr,
 {
 	u32 tmp;
 
-	/* HW does not support C22 addr >= 4 */
+	/* HW does yest support C22 addr >= 4 */
 	if (phyaddr > MII_XGMAC_MAX_C22ADDR)
 		return -ENODEV;
 
@@ -184,7 +184,7 @@ static int stmmac_xgmac2_mdio_write(struct mii_bus *bus, int phyaddr,
  * Description: it reads data from the MII register from within the phy device.
  * For the 7111 GMAC, we must set the bit 0 in the MII address register while
  * accessing the PHY registers.
- * Fortunately, it seems this has no drawback for the 7109 MAC.
+ * Fortunately, it seems this has yes drawback for the 7109 MAC.
  */
 static int stmmac_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 {
@@ -300,7 +300,7 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 	unsigned int mii_address = priv->hw->mii.addr;
 
 #ifdef CONFIG_OF
-	if (priv->device->of_node) {
+	if (priv->device->of_yesde) {
 		struct gpio_desc *reset_gpio;
 		u32 delays[3] = { 0, 0, 0 };
 
@@ -349,7 +349,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	struct mii_bus *new_bus;
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct stmmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
-	struct device_node *mdio_node = priv->plat->mdio_node;
+	struct device_yesde *mdio_yesde = priv->plat->mdio_yesde;
 	struct device *dev = ndev->dev.parent;
 	int addr, found, max_addr;
 
@@ -369,7 +369,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		new_bus->read = &stmmac_xgmac2_mdio_read;
 		new_bus->write = &stmmac_xgmac2_mdio_write;
 
-		/* Right now only C22 phys are supported */
+		/* Right yesw only C22 phys are supported */
 		max_addr = MII_XGMAC_MAX_C22ADDR + 1;
 
 		/* Check if DT specified an unsupported phy addr */
@@ -391,9 +391,9 @@ int stmmac_mdio_register(struct net_device *ndev)
 	new_bus->phy_mask = mdio_bus_data->phy_mask;
 	new_bus->parent = priv->device;
 
-	err = of_mdiobus_register(new_bus, mdio_node);
+	err = of_mdiobus_register(new_bus, mdio_yesde);
 	if (err != 0) {
-		dev_err(dev, "Cannot register the MDIO bus\n");
+		dev_err(dev, "Canyest register the MDIO bus\n");
 		goto bus_register_fail;
 	}
 
@@ -401,7 +401,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	if (priv->plat->has_xgmac)
 		stmmac_xgmac2_mdio_read(new_bus, 0, MII_ADDR_C45);
 
-	if (priv->plat->phy_node || mdio_node)
+	if (priv->plat->phy_yesde || mdio_yesde)
 		goto bus_register_done;
 
 	found = 0;
@@ -423,7 +423,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 
 		/*
 		 * If we're going to bind the MAC to this PHY bus,
-		 * and no PHY number was provided to the MAC,
+		 * and yes PHY number was provided to the MAC,
 		 * use the one probed here.
 		 */
 		if (priv->plat->phy_addr == -1)
@@ -433,7 +433,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		found = 1;
 	}
 
-	if (!found && !mdio_node) {
+	if (!found && !mdio_yesde) {
 		dev_warn(dev, "No PHY found\n");
 		mdiobus_unregister(new_bus);
 		mdiobus_free(new_bus);

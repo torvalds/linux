@@ -18,8 +18,8 @@
 /*
  * Note:
  *  * vRTC only supports binary mode and 24H mode
- *  * vRTC only support PIE and AIE, no UIE, and its PIE only happens
- *    at 23:59:59pm everyday, no support for adjustable frequency
+ *  * vRTC only support PIE and AIE, yes UIE, and its PIE only happens
+ *    at 23:59:59pm everyday, yes support for adjustable frequency
  *  * Alarm function is also limited to hr/min/sec.
  */
 
@@ -74,11 +74,11 @@ static inline unsigned char vrtc_is_updating(void)
  * driver chose to use 1972 (1970 is UNIX time start point) as the base,
  * and does the translation at read/write time.
  *
- * Why not just use 1970 as the offset? it's because using 1972 will
+ * Why yest just use 1970 as the offset? it's because using 1972 will
  * make it consistent in leap year setting for both vrtc and low-level
- * physical rtc devices. Then why not use 1960 as the offset? If we use
+ * physical rtc devices. Then why yest use 1960 as the offset? If we use
  * 1960, for a device's first use, its YEAR register is 0 and the system
- * year will be parsed as 1960 which is not a valid UNIX time and will
+ * year will be parsed as 1960 which is yest a valid UNIX time and will
  * cause many applications to fail mysteriously.
  */
 static int mrst_read_time(struct device *dev, struct rtc_time *time)
@@ -178,7 +178,7 @@ static void mrst_irq_enable(struct mrst_rtc *mrst, unsigned char mask)
 	unsigned char	rtc_control;
 
 	/*
-	 * Flush any pending IRQ status, notably for update irqs,
+	 * Flush any pending IRQ status, yestably for update irqs,
 	 * before we enable new IRQs
 	 */
 	rtc_control = vrtc_cmos_read(RTC_CONTROL);
@@ -214,7 +214,7 @@ static int mrst_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	sec = t->time.tm_sec;
 
 	spin_lock_irq(&rtc_lock);
-	/* Next rtc irq must not be from previous alarm setting */
+	/* Next rtc irq must yest be from previous alarm setting */
 	mrst_irq_disable(mrst, RTC_AIE);
 
 	/* Update alarm */
@@ -266,8 +266,8 @@ static int mrst_procfs(struct device *dev, struct seq_file *seq)
 	seq_printf(seq,
 		   "periodic_IRQ\t: %s\n"
 		   "alarm\t\t: %s\n"
-		   "BCD\t\t: no\n"
-		   "periodic_freq\t: daily (not adjustable)\n",
+		   "BCD\t\t: yes\n"
+		   "periodic_freq\t: daily (yest adjustable)\n",
 		   (rtc_control & RTC_PIE) ? "on" : "off",
 		   (rtc_control & RTC_AIE) ? "on" : "off");
 
@@ -291,7 +291,7 @@ static struct mrst_rtc	mrst_rtc;
 
 /*
  * When vRTC IRQ is captured by SCU FW, FW will clear the AIE bit in
- * Reg B, so no need for this driver to clear it
+ * Reg B, so yes need for this driver to clear it
  */
 static irqreturn_t mrst_rtc_irq(int irq, void *p)
 {

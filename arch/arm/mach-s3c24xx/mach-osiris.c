@@ -179,7 +179,7 @@ static struct mtd_partition __initdata osiris_default_nand_part_large[] = {
 /* the Osiris has 3 selectable slots for nand-flash, the two
  * on-board chip areas, as well as the external slot.
  *
- * Note, there is no current hot-plug support for the External
+ * Note, there is yes current hot-plug support for the External
  * socket.
 */
 
@@ -222,7 +222,7 @@ static void osiris_nand_select(struct s3c2410_nand_set *set, int slot)
 	tmp &= ~OSIRIS_CTRL0_NANDSEL;
 	tmp |= slot;
 
-	pr_debug("osiris_nand: ctrl0 now %02x\n", tmp);
+	pr_debug("osiris_nand: ctrl0 yesw %02x\n", tmp);
 
 	__raw_writeb(tmp, OSIRIS_VA_CTRL0);
 }
@@ -269,7 +269,7 @@ static int osiris_pm_suspend(void)
 
 	__raw_writeb(tmp, OSIRIS_VA_CTRL0);
 
-	/* ensure that an nRESET is not generated on resume. */
+	/* ensure that an nRESET is yest generated on resume. */
 	gpio_request_one(S3C2410_GPA(21), GPIOF_OUT_INIT_HIGH, NULL);
 	gpio_free(S3C2410_GPA(21));
 
@@ -300,7 +300,7 @@ static struct syscore_ops osiris_pm_syscore_ops = {
 
 static void osiris_tps_release(struct device *dev)
 {
-	/* static device, do not need to release anything */
+	/* static device, do yest need to release anything */
 }
 
 static struct platform_device osiris_tps_device = {

@@ -67,7 +67,7 @@ static void __iomem *rtc2_base;
 #define rtc2_read(offset)		readw(rtc2_base + (offset))
 #define rtc2_write(offset, value)	writew((value), rtc2_base + (offset))
 
-/* 32-bit compat for ioctls that nobody else uses */
+/* 32-bit compat for ioctls that yesbody else uses */
 #define RTC_EPOCH_READ32	_IOR('p', 0x0d, __u32)
 
 static unsigned long epoch = 1970;	/* Jan 1 1970 00:00:00 */

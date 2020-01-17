@@ -132,7 +132,7 @@ int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask)
 					 HDA_DSP_ADSPCS_CSTALL_MASK(core_mask),
 					 0);
 
-	/* is core now running ? */
+	/* is core yesw running ? */
 	if (!hda_dsp_core_is_enabled(sdev, core_mask)) {
 		hda_dsp_core_stall_reset(sdev, core_mask);
 		dev_err(sdev->dev, "error: DSP start core failed: core_mask %x\n",
@@ -509,7 +509,7 @@ int hda_dsp_runtime_idle(struct snd_sof_dev *sdev)
 	struct hdac_bus *hbus = sof_to_bus(sdev);
 
 	if (hbus->codec_powered) {
-		dev_dbg(sdev->dev, "some codecs still powered (%08X), not idle\n",
+		dev_dbg(sdev->dev, "some codecs still powered (%08X), yest idle\n",
 			(unsigned int)hbus->codec_powered);
 		return -EBUSY;
 	}
@@ -572,7 +572,7 @@ int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 		/*
 		 * clear stream. This should already be taken care for running
 		 * streams when the SUSPEND trigger is called. But paused
-		 * streams do not get suspended, so this needs to be done
+		 * streams do yest get suspended, so this needs to be done
 		 * explicitly during suspend.
 		 */
 		if (stream->link_substream) {

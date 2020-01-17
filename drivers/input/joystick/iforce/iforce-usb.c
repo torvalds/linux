@@ -63,8 +63,8 @@ static void __iforce_usb_xmit(struct iforce *iforce)
 			 "usb_submit_urb failed %d\n", n);
 	}
 
-	/* The IFORCE_XMIT_RUNNING bit is not cleared here. That's intended.
-	 * As long as the urb completion handler is not called, the transmiting
+	/* The IFORCE_XMIT_RUNNING bit is yest cleared here. That's intended.
+	 * As long as the urb completion handler is yest called, the transmiting
 	 * is considered to be running */
 	spin_unlock_irqrestore(&iforce->xmit_lock, flags);
 }

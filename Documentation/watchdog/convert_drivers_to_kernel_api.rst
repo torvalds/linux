@@ -15,7 +15,7 @@ Remove the file_operations struct
 ---------------------------------
 
 Old drivers define their own file_operations for actions like open(), write(),
-etc... These are now handled by the framework and just call the driver when
+etc... These are yesw handled by the framework and just call the driver when
 needed. So, in general, the 'file_operations' struct and assorted functions can
 go. Only very few driver-specific details have to be moved to other functions.
 Here is a overview of the functions and probably needed actions:
@@ -66,7 +66,7 @@ Here is a overview of the functions and probably needed actions:
 		will return EOPNOTSUPP
 
   Other IOCTLs can be served using the ioctl-callback. Note that this is mainly
-  intended for porting old drivers; new drivers should not invent private IOCTLs.
+  intended for porting old drivers; new drivers should yest invent private IOCTLs.
   Private IOCTLs are processed first. When the callback returns with
   -ENOIOCTLCMD, the IOCTLs of the framework will be tried, too. Any other error
   is directly given to the user.
@@ -75,7 +75,7 @@ Example conversion::
 
   -static const struct file_operations s3c2410wdt_fops = {
   -       .owner          = THIS_MODULE,
-  -       .llseek         = no_llseek,
+  -       .llseek         = yes_llseek,
   -       .write          = s3c2410wdt_write,
   -       .unlocked_ioctl = s3c2410wdt_ioctl,
   -       .open           = s3c2410wdt_open,
@@ -89,12 +89,12 @@ refactoring. The rest can go.
 Remove the miscdevice
 ---------------------
 
-Since the file_operations are gone now, you can also remove the 'struct
+Since the file_operations are gone yesw, you can also remove the 'struct
 miscdevice'. The framework will create it on watchdog_dev_register() called by
 watchdog_register_device()::
 
   -static struct miscdevice s3c2410wdt_miscdev = {
-  -       .minor          = WATCHDOG_MINOR,
+  -       .miyesr          = WATCHDOG_MINOR,
   -       .name           = "watchdog",
   -       .fops           = &s3c2410wdt_fops,
   -};
@@ -103,12 +103,12 @@ watchdog_register_device()::
 Remove obsolete includes and defines
 ------------------------------------
 
-Because of the simplifications, a few defines are probably unused now. Remove
+Because of the simplifications, a few defines are probably unused yesw. Remove
 them. Includes can be removed, too. For example::
 
   - #include <linux/fs.h>
-  - #include <linux/miscdevice.h> (if MODULE_ALIAS_MISCDEV is not used)
-  - #include <linux/uaccess.h> (if no custom IOCTLs are used)
+  - #include <linux/miscdevice.h> (if MODULE_ALIAS_MISCDEV is yest used)
+  - #include <linux/uaccess.h> (if yes custom IOCTLs are used)
 
 
 Add the watchdog operations
@@ -117,9 +117,9 @@ Add the watchdog operations
 All possible callbacks are defined in 'struct watchdog_ops'. You can find it
 explained in 'watchdog-kernel-api.txt' in this directory. start(), stop() and
 owner must be set, the rest are optional. You will easily find corresponding
-functions in the old driver. Note that you will now get a pointer to the
+functions in the old driver. Note that you will yesw get a pointer to the
 watchdog_device as a parameter to these functions, so you probably have to
-change the function header. Other changes are most likely not needed, because
+change the function header. Other changes are most likely yest needed, because
 here simply happens the direct hardware access. If you have device-specific
 code left from the above steps, it should be refactored into these callbacks.
 
@@ -169,22 +169,22 @@ Here is a simple example for a watchdog device::
   +};
 
 
-Handle the 'nowayout' feature
+Handle the 'yeswayout' feature
 -----------------------------
 
-A few drivers use nowayout statically, i.e. there is no module parameter for it
+A few drivers use yeswayout statically, i.e. there is yes module parameter for it
 and only CONFIG_WATCHDOG_NOWAYOUT determines if the feature is going to be
 used. This needs to be converted by initializing the status variable of the
 watchdog_device like this::
 
         .status = WATCHDOG_NOWAYOUT_INIT_STATUS,
 
-Most drivers, however, also allow runtime configuration of nowayout, usually
+Most drivers, however, also allow runtime configuration of yeswayout, usually
 by adding a module parameter. The conversion for this would be something like::
 
-	watchdog_set_nowayout(&s3c2410_wdd, nowayout);
+	watchdog_set_yeswayout(&s3c2410_wdd, yeswayout);
 
-The module parameter itself needs to stay, everything else related to nowayout
+The module parameter itself needs to stay, everything else related to yeswayout
 can go, though. This will likely be some code in open(), close() or write().
 
 
@@ -207,7 +207,7 @@ still fits. Also convert the unregister case::
 Update the Kconfig-entry
 ------------------------
 
-The entry for the driver now needs to select WATCHDOG_CORE:
+The entry for the driver yesw needs to select WATCHDOG_CORE:
 
   +       select WATCHDOG_CORE
 

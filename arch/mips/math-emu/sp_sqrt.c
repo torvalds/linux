@@ -55,9 +55,9 @@ union ieee754sp ieee754sp_sqrt(union ieee754sp x)
 
 	ix = x.bits;
 
-	/* normalize x */
+	/* yesrmalize x */
 	m = (ix >> 23);
-	if (m == 0) {		/* subnormal x */
+	if (m == 0) {		/* subyesrmal x */
 		for (i = 0; (ix & 0x00800000) == 0; i++)
 			ix <<= 1;
 		m -= i - 1;

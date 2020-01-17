@@ -646,7 +646,7 @@ static void zx_overlay_init(struct drm_device *drm, struct zx_vou_hw *vou)
 
 	/*
 	 * VL0 has some quirks on scaling support which need special handling.
-	 * Let's leave it out for now.
+	 * Let's leave it out for yesw.
 	 */
 	for (i = 1; i < VL_NUM; i++) {
 		zplane = devm_kzalloc(dev, sizeof(*zplane), GFP_KERNEL);

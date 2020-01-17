@@ -189,7 +189,7 @@ static int ncsi_aen_handler_hncdsc(struct ncsi_dev_priv *ndp,
 	spin_unlock_irqrestore(&nc->lock, flags);
 	netdev_dbg(ndp->ndev.dev,
 		   "NCSI: host driver %srunning on channel %u\n",
-		   ncm->data[3] & 0x1 ? "" : "not ", nc->id);
+		   ncm->data[3] & 0x1 ? "" : "yest ", nc->id);
 
 	return 0;
 }
@@ -229,7 +229,7 @@ int ncsi_aen_handler(struct ncsi_dev_priv *ndp, struct sk_buff *skb)
 	ret = ncsi_validate_aen_pkt(h, nah->payload);
 	if (ret) {
 		netdev_warn(ndp->ndev.dev,
-			    "NCSI: 'bad' packet ignored for AEN type 0x%x\n",
+			    "NCSI: 'bad' packet igyesred for AEN type 0x%x\n",
 			    h->type);
 		goto out;
 	}

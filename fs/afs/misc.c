@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include "internal.h"
 #include "afs_fs.h"
 #include "protocol_uae.h"
@@ -18,7 +18,7 @@
 int afs_abort_to_error(u32 abort_code)
 {
 	switch (abort_code) {
-		/* Low errno codes inserted into abort namespace */
+		/* Low erryes codes inserted into abort namespace */
 	case 13:		return -EACCES;
 	case 27:		return -EFBIG;
 	case 30:		return -EROFS;

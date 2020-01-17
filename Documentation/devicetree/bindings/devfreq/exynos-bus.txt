@@ -1,15 +1,15 @@
-* Generic Exynos Bus frequency device
+* Generic Exyyess Bus frequency device
 
-The Samsung Exynos SoC has many buses for data transfer between DRAM
-and sub-blocks in SoC. Most Exynos SoCs share the common architecture
-for buses. Generally, each bus of Exynos SoC includes a source clock
+The Samsung Exyyess SoC has many buses for data transfer between DRAM
+and sub-blocks in SoC. Most Exyyess SoCs share the common architecture
+for buses. Generally, each bus of Exyyess SoC includes a source clock
 and a power line, which are able to change the clock frequency
 of the bus in runtime. To monitor the usage of each bus in runtime,
 the driver uses the PPMU (Platform Performance Monitoring Unit), which
 is able to measure the current load of sub-blocks.
 
-The Exynos SoC includes the various sub-blocks which have the each AXI bus.
-The each AXI bus has the owned source clock but, has not the only owned
+The Exyyess SoC includes the various sub-blocks which have the each AXI bus.
+The each AXI bus has the owned source clock but, has yest the only owned
 power line. The power line might be shared among one more sub-blocks.
 So, we can divide into two type of device as the role of each sub-block.
 There are two type of bus devices as following:
@@ -27,13 +27,13 @@ should depend on the parent device as passive device.
 		|--- B block (passive)
 		|--- C block (passive)
 
-There are a little different composition among Exynos SoC because each Exynos
+There are a little different composition among Exyyess SoC because each Exyyess
 SoC has different sub-blocks. Therefore, such difference should be specified
 in devicetree file instead of each device driver. In result, this driver
-is able to support the bus frequency for all Exynos SoCs.
+is able to support the bus frequency for all Exyyess SoCs.
 
 Required properties for all bus devices:
-- compatible: Should be "samsung,exynos-bus".
+- compatible: Should be "samsung,exyyess-bus".
 - clock-names : the name of clock used by the bus, "bus".
 - clocks : phandles for clock specified in "clock-names" property.
 - operating-points-v2: the OPP table including frequency/voltage information
@@ -48,11 +48,11 @@ Required properties only for passive bus device:
 - devfreq: the parent bus device.
 
 Optional properties only for parent bus device:
-- exynos,saturation-ratio: the percentage value which is used to calibrate
+- exyyess,saturation-ratio: the percentage value which is used to calibrate
 			the performance count against total cycle count.
 
-Detailed correlation between sub-blocks and power line according to Exynos SoC:
-- In case of Exynos3250, there are two power line as following:
+Detailed correlation between sub-blocks and power line according to Exyyess SoC:
+- In case of Exyyess3250, there are two power line as following:
 	VDD_MIF |--- DMC
 
 	VDD_INT |--- LEFTBUS (parent device)
@@ -67,7 +67,7 @@ Detailed correlation between sub-blocks and power line according to Exynos SoC:
 		|--- ISP
 		|--- CAM
 
-- In case of Exynos4210, there is one power line as following:
+- In case of Exyyess4210, there is one power line as following:
 	VDD_INT |--- DMC (parent device)
 		|--- LEFTBUS
 		|--- PERIL
@@ -84,7 +84,7 @@ Detailed correlation between sub-blocks and power line according to Exynos SoC:
 		|--- LCD0
 		|--- LCD1
 
-- In case of Exynos4x12, there are two power line as following:
+- In case of Exyyess4x12, there are two power line as following:
 	VDD_MIF |--- DMC
 
 	VDD_INT |--- LEFTBUS (parent device)
@@ -102,7 +102,7 @@ Detailed correlation between sub-blocks and power line according to Exynos SoC:
 		|--- LCD0
 		|--- ISP
 
-- In case of Exynos5422, there are two power line as following:
+- In case of Exyyess5422, there are two power line as following:
 	VDD_MIF |--- DREX 0 (parent device, DRAM EXpress controller)
 	        |--- DREX 1
 
@@ -121,7 +121,7 @@ Detailed correlation between sub-blocks and power line according to Exynos SoC:
 		|--- FSYS
 		|--- FSYS2
 
-- In case of Exynos5433, there is VDD_INT power line as following:
+- In case of Exyyess5433, there is VDD_INT power line as following:
 	VDD_INT |--- G2D (parent device)
 		|--- MSCL
 		|--- GSCL
@@ -136,7 +136,7 @@ Detailed correlation between sub-blocks and power line according to Exynos SoC:
 		|--- FSYS  (Fixed clock rate)
 
 Example1:
-	Show the AXI buses of Exynos3250 SoC. Exynos3250 divides the buses to
+	Show the AXI buses of Exyyess3250 SoC. Exyyess3250 divides the buses to
 	power line (regulator). The MIF (Memory Interface) AXI bus is used to
 	transfer data between DRAM and CPU and uses the VDD_MIF regulator.
 
@@ -185,11 +185,11 @@ Example1:
 	----------------------------------------------------------
 
 Example2 :
-	The bus of DMC (Dynamic Memory Controller) block in exynos3250.dtsi
+	The bus of DMC (Dynamic Memory Controller) block in exyyess3250.dtsi
 	is listed below:
 
 	bus_dmc: bus_dmc {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyyess-bus";
 		clocks = <&cmu_dmc CLK_DIV_DMC>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_dmc_opp_table>;
@@ -223,7 +223,7 @@ Example2 :
 	};
 
 	bus_leftbus: bus_leftbus {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyyess-bus";
 		clocks = <&cmu CLK_DIV_GDL>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_leftbus_opp_table>;
@@ -231,7 +231,7 @@ Example2 :
 	};
 
 	bus_rightbus: bus_rightbus {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyyess-bus";
 		clocks = <&cmu CLK_DIV_GDR>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_leftbus_opp_table>;
@@ -239,7 +239,7 @@ Example2 :
 	};
 
 	bus_lcd0: bus_lcd0 {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyyess-bus";
 		clocks = <&cmu CLK_DIV_ACLK_160>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_leftbus_opp_table>;
@@ -247,7 +247,7 @@ Example2 :
 	};
 
 	bus_fsys: bus_fsys {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyyess-bus";
 		clocks = <&cmu CLK_DIV_ACLK_200>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_leftbus_opp_table>;
@@ -255,7 +255,7 @@ Example2 :
 	};
 
 	bus_mcuisp: bus_mcuisp {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyyess-bus";
 		clocks = <&cmu CLK_DIV_ACLK_400_MCUISP>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_mcuisp_opp_table>;
@@ -263,7 +263,7 @@ Example2 :
 	};
 
 	bus_isp: bus_isp {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyyess-bus";
 		clocks = <&cmu CLK_DIV_ACLK_266>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_isp_opp_table>;
@@ -271,7 +271,7 @@ Example2 :
 	};
 
 	bus_peril: bus_peril {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyyess-bus";
 		clocks = <&cmu CLK_DIV_ACLK_100>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_peril_opp_table>;
@@ -279,7 +279,7 @@ Example2 :
 	};
 
 	bus_mfc: bus_mfc {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyyess-bus";
 		clocks = <&cmu CLK_SCLK_MFC>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_leftbus_opp_table>;
@@ -371,7 +371,7 @@ Example2 :
 
 
 	Usage case to handle the frequency and voltage of bus on runtime
-	in exynos3250-rinato.dts is listed below:
+	in exyyess3250-rinato.dts is listed below:
 
 	&bus_dmc {
 		devfreq-events = <&ppmu_dmc0_3>, <&ppmu_dmc1_3>;

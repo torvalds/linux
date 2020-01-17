@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -62,7 +62,7 @@ bool dm_pp_apply_display_requirements(
 
 		adev->pm.pm_display_cfg.num_display =
 				pp_display_cfg->display_count;
-		adev->pm.pm_display_cfg.num_path_including_non_display =
+		adev->pm.pm_display_cfg.num_path_including_yesn_display =
 				pp_display_cfg->display_count;
 
 		adev->pm.pm_display_cfg.min_core_set_clock =
@@ -387,13 +387,13 @@ bool dm_pp_get_clock_levels_by_type(
 	validation_clks.engine_max_clock *= 10;
 	validation_clks.memory_max_clock *= 10;
 
-	/* Determine the highest non-boosted level from the Validation Clocks */
+	/* Determine the highest yesn-boosted level from the Validation Clocks */
 	if (clk_type == DM_PP_CLOCK_TYPE_ENGINE_CLK) {
 		for (i = 0; i < dc_clks->num_levels; i++) {
 			if (dc_clks->clocks_in_khz[i] > validation_clks.engine_max_clock) {
 				/* This clock is higher the validation clock.
 				 * Than means the previous one is the highest
-				 * non-boosted one. */
+				 * yesn-boosted one. */
 				DRM_INFO("DM_PPLIB: reducing engine clock level from %d to %d\n",
 						dc_clks->num_levels, i);
 				dc_clks->num_levels = i > 0 ? i : 1;
@@ -473,7 +473,7 @@ bool dm_pp_get_clock_levels_by_type_with_voltage(
 	return true;
 }
 
-bool dm_pp_notify_wm_clock_changes(
+bool dm_pp_yestify_wm_clock_changes(
 	const struct dc_context *ctx,
 	struct dm_pp_wm_sets_with_clock_ranges *wm_with_clock_ranges)
 {
@@ -602,10 +602,10 @@ void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
 	void *pp_handle = adev->powerplay.pp_handle;
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
-	if (pp_funcs && pp_funcs->notify_smu_enable_pwe)
-		pp_funcs->notify_smu_enable_pwe(pp_handle);
+	if (pp_funcs && pp_funcs->yestify_smu_enable_pwe)
+		pp_funcs->yestify_smu_enable_pwe(pp_handle);
 	else if (adev->smu.ppt_funcs)
-		smu_notify_smu_enable_pwe(&adev->smu);
+		smu_yestify_smu_enable_pwe(&adev->smu);
 }
 
 void pp_rv_set_active_display_count(struct pp_smu *pp, int count)
@@ -1009,7 +1009,7 @@ void dm_pp_get_funcs(
 				pp_nv_set_voltage_by_freq;
 		funcs->nv_funcs.set_wm_ranges = pp_nv_set_wm_ranges;
 
-		/* todo set_pme_wa_enable cause 4k@6ohz display not light up */
+		/* todo set_pme_wa_enable cause 4k@6ohz display yest light up */
 		funcs->nv_funcs.set_pme_wa_enable = NULL;
 		/* todo debug waring message */
 		funcs->nv_funcs.set_hard_min_uclk_by_freq = pp_nv_set_hard_min_uclk_by_freq;
@@ -1030,7 +1030,7 @@ void dm_pp_get_funcs(
 		break;
 #endif
 	default:
-		DRM_ERROR("smu version is not supported !\n");
+		DRM_ERROR("smu version is yest supported !\n");
 		break;
 	}
 }

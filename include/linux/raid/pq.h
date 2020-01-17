@@ -25,7 +25,7 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #else /* ! __KERNEL__ */
 /* Used for testing in user space */
 
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <stddef.h>
@@ -51,7 +51,7 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #ifndef __attribute_const__
 # define __attribute_const__ __attribute__((const))
 #endif
-#define noinline __attribute__((noinline))
+#define yesinline __attribute__((yesinline))
 
 #define preempt_enable()
 #define preempt_disable()

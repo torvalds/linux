@@ -145,7 +145,7 @@ static void fsl_mqs_shutdown(struct snd_pcm_substream *substream,
 
 static const struct snd_soc_component_driver soc_codec_fsl_mqs = {
 	.idle_bias_on = 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_dai_ops fsl_mqs_dai_ops = {
@@ -177,8 +177,8 @@ static const struct regmap_config fsl_mqs_regmap_config = {
 
 static int fsl_mqs_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *gpr_np = NULL;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *gpr_np = NULL;
 	struct fsl_mqs *mqs_priv;
 	void __iomem *regs;
 	int ret;
@@ -199,11 +199,11 @@ static int fsl_mqs_probe(struct platform_device *pdev)
 	if (mqs_priv->use_gpr) {
 		gpr_np = of_parse_phandle(np, "gpr", 0);
 		if (!gpr_np) {
-			dev_err(&pdev->dev, "failed to get gpr node by phandle\n");
+			dev_err(&pdev->dev, "failed to get gpr yesde by phandle\n");
 			return -EINVAL;
 		}
 
-		mqs_priv->regmap = syscon_node_to_regmap(gpr_np);
+		mqs_priv->regmap = syscon_yesde_to_regmap(gpr_np);
 		if (IS_ERR(mqs_priv->regmap)) {
 			dev_err(&pdev->dev, "failed to get gpr regmap\n");
 			ret = PTR_ERR(mqs_priv->regmap);
@@ -250,7 +250,7 @@ static int fsl_mqs_probe(struct platform_device *pdev)
 	return 0;
 
 err_free_gpr_np:
-	of_node_put(gpr_np);
+	of_yesde_put(gpr_np);
 
 	return ret;
 }

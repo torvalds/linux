@@ -114,7 +114,7 @@ struct sprd_adi {
 	struct hwspinlock	*hwlock;
 	unsigned long		slave_vbase;
 	unsigned long		slave_pbase;
-	struct notifier_block	restart_handler;
+	struct yestifier_block	restart_handler;
 };
 
 static int sprd_adi_check_paddr(struct sprd_adi *sadi, u32 paddr)
@@ -310,7 +310,7 @@ static int sprd_adi_transfer_one(struct spi_controller *ctlr,
 		if (ret)
 			return ret;
 	} else {
-		dev_err(sadi->dev, "no buffer for transfer\n");
+		dev_err(sadi->dev, "yes buffer for transfer\n");
 		return -EINVAL;
 	}
 
@@ -329,7 +329,7 @@ static void sprd_adi_set_wdt_rst_mode(struct sprd_adi *sadi)
 #endif
 }
 
-static int sprd_adi_restart_handler(struct notifier_block *this,
+static int sprd_adi_restart_handler(struct yestifier_block *this,
 				    unsigned long mode, void *cmd)
 {
 	struct sprd_adi *sadi = container_of(this, struct sprd_adi,
@@ -388,7 +388,7 @@ static int sprd_adi_restart_handler(struct notifier_block *this,
 	val |= BIT_WDG_NEW;
 	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_CTRL, val);
 
-	/* Load the watchdog timeout value, 50ms is always enough. */
+	/* Load the watchdog timeout value, 50ms is always eyesugh. */
 	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOAD_LOW,
 		       WDG_LOAD_VAL & WDG_LOAD_MASK);
 	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOAD_HIGH, 0);
@@ -409,7 +409,7 @@ static int sprd_adi_restart_handler(struct notifier_block *this,
 
 static void sprd_adi_hw_init(struct sprd_adi *sadi)
 {
-	struct device_node *np = sadi->dev->of_node;
+	struct device_yesde *np = sadi->dev->of_yesde;
 	int i, size, chn_cnt;
 	const __be32 *list;
 	u32 tmp;
@@ -426,7 +426,7 @@ static void sprd_adi_hw_init(struct sprd_adi *sadi)
 	/* Set hardware channels setting */
 	list = of_get_property(np, "sprd,hw-channels", &size);
 	if (!list || !size) {
-		dev_info(sadi->dev, "no hw channels setting in node\n");
+		dev_info(sadi->dev, "yes hw channels setting in yesde\n");
 		return;
 	}
 
@@ -457,7 +457,7 @@ static void sprd_adi_hw_init(struct sprd_adi *sadi)
 
 static int sprd_adi_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct spi_controller *ctlr;
 	struct sprd_adi *sadi;
 	struct resource *res;
@@ -465,7 +465,7 @@ static int sprd_adi_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!np) {
-		dev_err(&pdev->dev, "can not find the adi bus node\n");
+		dev_err(&pdev->dev, "can yest find the adi bus yesde\n");
 		return -ENODEV;
 	}
 
@@ -501,7 +501,7 @@ static int sprd_adi_probe(struct platform_device *pdev)
 	} else {
 		switch (ret) {
 		case -ENOENT:
-			dev_info(&pdev->dev, "no hardware spinlock supplied\n");
+			dev_info(&pdev->dev, "yes hardware spinlock supplied\n");
 			break;
 		default:
 			dev_err(&pdev->dev,
@@ -515,7 +515,7 @@ static int sprd_adi_probe(struct platform_device *pdev)
 	sprd_adi_hw_init(sadi);
 	sprd_adi_set_wdt_rst_mode(sadi);
 
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_yesde = pdev->dev.of_yesde;
 	ctlr->bus_num = pdev->id;
 	ctlr->num_chipselect = num_chipselect;
 	ctlr->flags = SPI_MASTER_HALF_DUPLEX;
@@ -528,11 +528,11 @@ static int sprd_adi_probe(struct platform_device *pdev)
 		goto put_ctlr;
 	}
 
-	sadi->restart_handler.notifier_call = sprd_adi_restart_handler;
+	sadi->restart_handler.yestifier_call = sprd_adi_restart_handler;
 	sadi->restart_handler.priority = 128;
 	ret = register_restart_handler(&sadi->restart_handler);
 	if (ret) {
-		dev_err(&pdev->dev, "can not register restart handler\n");
+		dev_err(&pdev->dev, "can yest register restart handler\n");
 		goto put_ctlr;
 	}
 

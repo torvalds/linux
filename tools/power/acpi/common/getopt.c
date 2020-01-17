@@ -11,7 +11,7 @@
  * ACPICA getopt() implementation
  *
  * Option strings:
- *    "f"       - Option has no arguments
+ *    "f"       - Option has yes arguments
  *    "f:"      - Option requires an argument
  *    "f+"      - Option has an optional argument
  *    "f^"      - Option has optional single-char sub-options
@@ -190,7 +190,7 @@ int acpi_getopt(int argc, char **argv, char *opts)
 		current_char_ptr = 1;
 	}
 
-	/* Option with no arguments */
+	/* Option with yes arguments */
 
 	else {
 		if (argv[acpi_gbl_optind][++current_char_ptr] == '\0') {

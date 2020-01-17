@@ -100,7 +100,7 @@ sgl_to_sgl_fcnvfut (sgl_floating_point * srcptr, unsigned int *nullptr,
 		*dstptr = 0;
 
 		/* check for inexact */
-		if (Sgl_isnotzero_exponentmantissa(src)) {
+		if (Sgl_isyestzero_exponentmantissa(src)) {
 			if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 			else Set_inexactflag();
 		}
@@ -170,7 +170,7 @@ sgl_to_dbl_fcnvfut (sgl_floating_point * srcptr, unsigned int *nullptr,
 		Duint_copytoptr(resultp1,resultp2,dstptr);
 
 		/* check for inexact */
-		if (Sgl_isnotzero_exponentmantissa(src)) {
+		if (Sgl_isyestzero_exponentmantissa(src)) {
 			if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 			else Set_inexactflag();
 		}
@@ -239,7 +239,7 @@ dbl_to_sgl_fcnvfut (dbl_floating_point * srcptr, unsigned int *nullptr,
 		*dstptr = 0;
 
 		/* check for inexact */
-		if (Dbl_isnotzero_exponentmantissa(srcp1,srcp2)) {
+		if (Dbl_isyestzero_exponentmantissa(srcp1,srcp2)) {
 			if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 			else Set_inexactflag();
 		}
@@ -310,7 +310,7 @@ dbl_to_dbl_fcnvfut (dbl_floating_point * srcptr, unsigned int *nullptr,
 		Duint_copytoptr(resultp1,resultp2,dstptr);
 
 		/* check for inexact */
-		if (Dbl_isnotzero_exponentmantissa(srcp1,srcp2)) {
+		if (Dbl_isyestzero_exponentmantissa(srcp1,srcp2)) {
 			if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 			else Set_inexactflag();
 		}

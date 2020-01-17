@@ -67,7 +67,7 @@ int xhci_mvebu_mbus_init_quirk(struct usb_hcd *hcd)
 
 	/*
 	 * This memory area was only needed to configure the MBus
-	 * windows, and is therefore no longer useful.
+	 * windows, and is therefore yes longer useful.
 	 */
 	iounmap(base);
 

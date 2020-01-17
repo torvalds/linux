@@ -11,7 +11,7 @@
 
 #include <linux/completion.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/slab.h>
@@ -123,7 +123,7 @@ static int do_core_configure(sclp_cmdw_t cmd)
 	if (!SCLP_HAS_CPU_RECONFIG)
 		return -EOPNOTSUPP;
 	/*
-	 * This is not going to cross a page boundary since we force
+	 * This is yest going to cross a page boundary since we force
 	 * kmalloc to have a minimum alignment of 8 bytes on s390.
 	 */
 	sccb = kzalloc(sizeof(*sccb), GFP_KERNEL | GFP_DMA);
@@ -315,11 +315,11 @@ static bool contains_standby_increment(unsigned long start, unsigned long end)
 	return false;
 }
 
-static int sclp_mem_notifier(struct notifier_block *nb,
+static int sclp_mem_yestifier(struct yestifier_block *nb,
 			     unsigned long action, void *data)
 {
 	unsigned long start, size;
-	struct memory_notify *arg;
+	struct memory_yestify *arg;
 	unsigned char id;
 	int rc = 0;
 
@@ -332,7 +332,7 @@ static int sclp_mem_notifier(struct notifier_block *nb,
 	switch (action) {
 	case MEM_GOING_OFFLINE:
 		/*
-		 * We do not allow to set memory blocks offline that contain
+		 * We do yest allow to set memory blocks offline that contain
 		 * standby memory. This is done to simplify the "memory online"
 		 * case.
 		 */
@@ -361,8 +361,8 @@ static int sclp_mem_notifier(struct notifier_block *nb,
 	return rc ? NOTIFY_BAD : NOTIFY_OK;
 }
 
-static struct notifier_block sclp_mem_nb = {
-	.notifier_call = sclp_mem_notifier,
+static struct yestifier_block sclp_mem_nb = {
+	.yestifier_call = sclp_mem_yestifier,
 };
 
 static void __init align_to_block_size(unsigned long long *start,
@@ -523,7 +523,7 @@ static int __init sclp_detect_standby_memory(void)
 		goto out;
 	for (i = 1; i <= sclp.rnmax - assigned; i++)
 		insert_increment(0, 1, 0);
-	rc = register_memory_notifier(&sclp_mem_nb);
+	rc = register_memory_yestifier(&sclp_mem_nb);
 	if (rc)
 		goto out;
 	rc = platform_driver_register(&sclp_mem_pdrv);
@@ -597,7 +597,7 @@ out:
  * @chpid: channel-path ID
  *
  * Perform configure channel-path command sclp command for specified chpid.
- * Return 0 after command successfully finished, non-zero otherwise.
+ * Return 0 after command successfully finished, yesn-zero otherwise.
  */
 int sclp_chp_configure(struct chp_id chpid)
 {
@@ -609,7 +609,7 @@ int sclp_chp_configure(struct chp_id chpid)
  * @chpid: channel-path ID
  *
  * Perform deconfigure channel-path command sclp command for specified chpid
- * and wait for completion. On success return 0. Return non-zero otherwise.
+ * and wait for completion. On success return 0. Return yesn-zero otherwise.
  */
 int sclp_chp_deconfigure(struct chp_id chpid)
 {
@@ -632,7 +632,7 @@ struct chp_info_sccb {
  *
  * Perform read channel-path information sclp command and wait for completion.
  * On success, store channel-path information in @info and return 0. Return
- * non-zero otherwise.
+ * yesn-zero otherwise.
  */
 int sclp_chp_read_info(struct sclp_chp_info *info)
 {

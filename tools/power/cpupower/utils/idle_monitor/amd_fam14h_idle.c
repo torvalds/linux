@@ -174,7 +174,7 @@ static int amd_fam14h_disable(cstate_t *state, unsigned int cpu)
 
 		dprint("NBP1 was %sentered - 0x%x - enable_bit: "
 		       "%d - pci_offset: 0x%x\n",
-		       nbp1_entered ? "" : "not ",
+		       nbp1_entered ? "" : "yest ",
 		       val, enable_bit, pci_offset);
 		return ret;
 	}
@@ -289,7 +289,7 @@ struct cpuidle_monitor *amd_fam14h_register(void)
 	else
 		return NULL;
 
-	/* We do not alloc for nbp1 machine wide counter */
+	/* We do yest alloc for nbp1 machine wide counter */
 	for (num = 0; num < AMD_FAM14H_STATE_NUM - 1; num++) {
 		previous_count[num] = calloc(cpu_count,
 					      sizeof(unsigned long long));

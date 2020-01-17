@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -40,7 +40,7 @@ static struct fixed31_32 pq_table[MAX_HW_POINTS + 2];
 static struct fixed31_32 de_pq_table[MAX_HW_POINTS + 2];
 
 // these are helpers for calculations to reduce stack usage
-// do not depend on these being preserved across calls
+// do yest depend on these being preserved across calls
 static struct fixed31_32 scratch_1;
 static struct fixed31_32 scratch_2;
 static struct translate_from_linear_space_args scratch_gamma_args;
@@ -174,7 +174,7 @@ static void compute_de_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
 }
 
 
-/*de gamma, none linear to linear*/
+/*de gamma, yesne linear to linear*/
 static void compute_hlg_eotf(struct fixed31_32 in_x,
 		struct fixed31_32 *out_y,
 		uint32_t sdr_white_level, uint32_t max_luminance_nits)
@@ -206,7 +206,7 @@ static void compute_hlg_eotf(struct fixed31_32 in_x,
 
 }
 
-/*re gamma, linear to none linear*/
+/*re gamma, linear to yesne linear*/
 static void compute_hlg_oetf(struct fixed31_32 in_x, struct fixed31_32 *out_y,
 		uint32_t sdr_white_level, uint32_t max_luminance_nits)
 {
@@ -761,7 +761,7 @@ static void build_pq(struct pwl_float_data_ex *rgb_regamma,
 			compute_pq(x, &output);
 		}
 
-		/* should really not happen? */
+		/* should really yest happen? */
 		if (dc_fixpt_lt(output, dc_fixpt_zero))
 			output = dc_fixpt_zero;
 		else if (dc_fixpt_lt(dc_fixpt_one, output))
@@ -793,7 +793,7 @@ static void build_de_pq(struct pwl_float_data_ex *de_pq,
 
 	for (i = 0; i <= hw_points_num; i++) {
 		output = de_pq_table[i];
-		/* should really not happen? */
+		/* should really yest happen? */
 		if (dc_fixpt_lt(output, dc_fixpt_zero))
 			output = dc_fixpt_zero;
 		else if (dc_fixpt_lt(scaling_factor, output))
@@ -835,7 +835,7 @@ static bool build_regamma(struct pwl_float_data_ex *rgb_regamma,
 		++rgb;
 		++i;
 	}
-	pow_buffer_ptr = -1; // reset back to no optimize
+	pow_buffer_ptr = -1; // reset back to yes optimize
 	ret = true;
 release:
 	kfree(coeff);
@@ -1309,7 +1309,7 @@ static void scale_user_regamma_ramp(struct pwl_float_data *pwl_rgb,
  * First we find index for which:
  *	index/4095 < regamma_y < (index+1)/4095 =>
  *	index < 4095*regamma_y < index + 1
- * norm_y = 4095*regamma_y, and index is just truncating to nearest integer
+ * yesrm_y = 4095*regamma_y, and index is just truncating to nearest integer
  * lut1 = lut1D[index], lut2 = lut1D[index+1]
  *
  * adjustedY is then linearly interpolating regamma Y between lut1 and lut2
@@ -1324,7 +1324,7 @@ static void apply_lut_1d(
 	int i = 0;
 	int color = 0;
 	struct fixed31_32 *regamma_y;
-	struct fixed31_32 norm_y;
+	struct fixed31_32 yesrm_y;
 	struct fixed31_32 lut1;
 	struct fixed31_32 lut2;
 	const int max_lut_index = 4095;
@@ -1336,7 +1336,7 @@ static void apply_lut_1d(
 	struct fixed31_32 delta_index;
 
 	if (ramp->type != GAMMA_CS_TFM_1D && ramp->type != GAMMA_CUSTOM)
-		return; // this is not expected
+		return; // this is yest expected
 
 	for (i = 0; i < num_hw_points; i++) {
 		for (color = 0; color < 3; color++) {
@@ -1347,9 +1347,9 @@ static void apply_lut_1d(
 			else
 				regamma_y = &tf_pts->blue[i];
 
-			norm_y = dc_fixpt_mul(max_lut_index_f,
+			yesrm_y = dc_fixpt_mul(max_lut_index_f,
 						   *regamma_y);
-			index = dc_fixpt_floor(norm_y);
+			index = dc_fixpt_floor(yesrm_y);
 			index_f = dc_fixpt_from_int(index);
 
 			if (index < 0 || index > max_lut_index)
@@ -1368,9 +1368,9 @@ static void apply_lut_1d(
 				lut2 = ramp->entries.blue[index_next];
 			}
 
-			// we have everything now, so interpolate
+			// we have everything yesw, so interpolate
 			delta_lut = dc_fixpt_sub(lut2, lut1);
-			delta_index = dc_fixpt_sub(norm_y, index_f);
+			delta_index = dc_fixpt_sub(yesrm_y, index_f);
 
 			*regamma_y = dc_fixpt_add(lut1,
 				dc_fixpt_mul(delta_index, delta_lut));
@@ -1388,7 +1388,7 @@ static void build_evenly_distributed_points(
 
 	uint32_t i = 0;
 
-	// This function should not gets called with 0 as a parameter
+	// This function should yest gets called with 0 as a parameter
 	ASSERT(numberof_points > 0);
 	p_last = p + numberof_points - 1;
 
@@ -1484,22 +1484,22 @@ static bool calculate_interpolated_hardware_curve(
 }
 
 /* The "old" interpolation uses a complicated scheme to build an array of
- * coefficients while also using an array of 0-255 normalized to 0-1
- * Then there's another loop using both of the above + new scaled user ramp
+ * coefficients while also using an array of 0-255 yesrmalized to 0-1
+ * Then there's ayesther loop using both of the above + new scaled user ramp
  * and we concatenate them. It also searches for points of interpolation and
  * uses enums for positions.
  *
  * This function uses a different approach:
  * user ramp is always applied on X with 0/255, 1/255, 2/255, ..., 255/255
- * To find index for hwX , we notice the following:
+ * To find index for hwX , we yestice the following:
  * i/255 <= hwX < (i+1)/255  <=> i <= 255*hwX < i+1
  * See apply_lut_1d which is the same principle, but on 4K entry 1D LUT
  *
- * Once the index is known, combined Y is simply:
+ * Once the index is kyeswn, combined Y is simply:
  * user_ramp(index) + (hwX-index/255)*(user_ramp(index+1) - user_ramp(index)
  *
  * We should switch to this method in all cases, it's simpler and faster
- * ToDo one day - for now this only applies to ADL regamma to avoid regression
+ * ToDo one day - for yesw this only applies to ADL regamma to avoid regression
  * for regular use cases (sRGB and PQ)
  */
 static void interpolate_user_regamma(uint32_t hw_points_num,
@@ -1513,9 +1513,9 @@ static void interpolate_user_regamma(uint32_t hw_points_num,
 	int32_t index_next;
 	struct fixed31_32 *tf_point;
 	struct fixed31_32 hw_x;
-	struct fixed31_32 norm_factor =
+	struct fixed31_32 yesrm_factor =
 			dc_fixpt_from_int(255);
-	struct fixed31_32 norm_x;
+	struct fixed31_32 yesrm_x;
 	struct fixed31_32 index_f;
 	struct fixed31_32 lut1;
 	struct fixed31_32 lut2;
@@ -1549,8 +1549,8 @@ static void interpolate_user_regamma(uint32_t hw_points_num,
 			} else
 				hw_x = coordinates_x[i].x;
 
-			norm_x = dc_fixpt_mul(norm_factor, hw_x);
-			index = dc_fixpt_floor(norm_x);
+			yesrm_x = dc_fixpt_mul(yesrm_factor, hw_x);
+			index = dc_fixpt_floor(yesrm_x);
 			if (index < 0 || index > 255)
 				continue;
 
@@ -1568,9 +1568,9 @@ static void interpolate_user_regamma(uint32_t hw_points_num,
 				lut2 = rgb_user[index_next].b;
 			}
 
-			// we have everything now, so interpolate
+			// we have everything yesw, so interpolate
 			delta_lut = dc_fixpt_sub(lut2, lut1);
-			delta_index = dc_fixpt_sub(norm_x, index_f);
+			delta_index = dc_fixpt_sub(yesrm_x, index_f);
 
 			*tf_point = dc_fixpt_add(lut1,
 				dc_fixpt_mul(delta_index, delta_lut));
@@ -1884,7 +1884,7 @@ bool calculate_user_regamma_ramp(struct dc_transfer_func *output_tf,
 	interpolate_user_regamma(MAX_HW_POINTS, rgb_user,
 			regamma->flags.bits.applyDegamma, tf_pts);
 
-	// no custom HDR curves!
+	// yes custom HDR curves!
 	tf_pts->end_exponent = 0;
 	tf_pts->x_point_at_y1_red = 1;
 	tf_pts->x_point_at_y1_green = 1;

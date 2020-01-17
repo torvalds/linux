@@ -17,25 +17,25 @@
 #include "internal.h"
 
 
-static struct dentry *afs_mntpt_lookup(struct inode *dir,
+static struct dentry *afs_mntpt_lookup(struct iyesde *dir,
 				       struct dentry *dentry,
 				       unsigned int flags);
-static int afs_mntpt_open(struct inode *inode, struct file *file);
+static int afs_mntpt_open(struct iyesde *iyesde, struct file *file);
 static void afs_mntpt_expiry_timed_out(struct work_struct *work);
 
 const struct file_operations afs_mntpt_file_operations = {
 	.open		= afs_mntpt_open,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
-const struct inode_operations afs_mntpt_inode_operations = {
+const struct iyesde_operations afs_mntpt_iyesde_operations = {
 	.lookup		= afs_mntpt_lookup,
 	.readlink	= page_readlink,
 	.getattr	= afs_getattr,
 	.listxattr	= afs_listxattr,
 };
 
-const struct inode_operations afs_autocell_inode_operations = {
+const struct iyesde_operations afs_autocell_iyesde_operations = {
 	.getattr	= afs_getattr,
 };
 
@@ -47,9 +47,9 @@ static unsigned long afs_mntpt_expiry_timeout = 10 * 60;
 static const char afs_root_volume[] = "root.cell";
 
 /*
- * no valid lookup procedure on this sort of dir
+ * yes valid lookup procedure on this sort of dir
  */
-static struct dentry *afs_mntpt_lookup(struct inode *dir,
+static struct dentry *afs_mntpt_lookup(struct iyesde *dir,
 				       struct dentry *dentry,
 				       unsigned int flags)
 {
@@ -58,11 +58,11 @@ static struct dentry *afs_mntpt_lookup(struct inode *dir,
 }
 
 /*
- * no valid open procedure on this sort of dir
+ * yes valid open procedure on this sort of dir
  */
-static int afs_mntpt_open(struct inode *inode, struct file *file)
+static int afs_mntpt_open(struct iyesde *iyesde, struct file *file)
 {
-	_enter("%p,%p{%pD2}", inode, file, file);
+	_enter("%p,%p{%pD2}", iyesde, file, file);
 	return -EREMOTE;
 }
 
@@ -73,7 +73,7 @@ static int afs_mntpt_set_params(struct fs_context *fc, struct dentry *mntpt)
 {
 	struct afs_fs_context *ctx = fc->fs_private;
 	struct afs_super_info *src_as = AFS_FS_S(mntpt->d_sb);
-	struct afs_vnode *vnode = AFS_FS_I(d_inode(mntpt));
+	struct afs_vyesde *vyesde = AFS_FS_I(d_iyesde(mntpt));
 	struct afs_cell *cell;
 	const char *p;
 	int ret;
@@ -91,7 +91,7 @@ static int afs_mntpt_set_params(struct fs_context *fc, struct dentry *mntpt)
 		afs_put_cell(ctx->net, ctx->cell);
 		ctx->cell = NULL;
 	}
-	if (test_bit(AFS_VNODE_PSEUDODIR, &vnode->flags)) {
+	if (test_bit(AFS_VNODE_PSEUDODIR, &vyesde->flags)) {
 		/* if the directory is a pseudo directory, use the d_name */
 		unsigned size = mntpt->d_name.len;
 
@@ -120,7 +120,7 @@ static int afs_mntpt_set_params(struct fs_context *fc, struct dentry *mntpt)
 	} else {
 		/* read the contents of the AFS special symlink */
 		struct page *page;
-		loff_t size = i_size_read(d_inode(mntpt));
+		loff_t size = i_size_read(d_iyesde(mntpt));
 		char *buf;
 
 		if (src_as->cell)
@@ -129,12 +129,12 @@ static int afs_mntpt_set_params(struct fs_context *fc, struct dentry *mntpt)
 		if (size < 2 || size > PAGE_SIZE - 1)
 			return -EINVAL;
 
-		page = read_mapping_page(d_inode(mntpt)->i_mapping, 0, NULL);
+		page = read_mapping_page(d_iyesde(mntpt)->i_mapping, 0, NULL);
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
 		if (PageError(page)) {
-			ret = afs_bad(AFS_FS_I(d_inode(mntpt)), afs_file_error_mntpt);
+			ret = afs_bad(AFS_FS_I(d_iyesde(mntpt)), afs_file_error_mntpt);
 			put_page(page);
 			return ret;
 		}
@@ -161,7 +161,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	struct vfsmount *mnt;
 	int ret;
 
-	BUG_ON(!d_inode(mntpt));
+	BUG_ON(!d_iyesde(mntpt));
 
 	fc = fs_context_for_submount(&afs_fs_type, mntpt);
 	if (IS_ERR(fc))

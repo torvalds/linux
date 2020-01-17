@@ -22,7 +22,7 @@
  * contents of the array should already be in ascending sorted order
  * under the provided comparison function.
  *
- * Note that the key need not have the same type as the elements in
+ * Note that the key need yest have the same type as the elements in
  * the array, e.g. key could be a string and the comparison function
  * could compare the string with the struct's name field.  However, if
  * the key and elements in the array are of the same type, you can use

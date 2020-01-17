@@ -264,7 +264,7 @@ struct scsi_varlen_cdb_hdr {
 #define TYPE_RBC	    0x0e
 #define TYPE_OSD            0x11
 #define TYPE_ZBC            0x14
-#define TYPE_WLUN           0x1e    /* well-known logical unit */
+#define TYPE_WLUN           0x1e    /* well-kyeswn logical unit */
 #define TYPE_NO_LUN         0x7f
 
 /* SCSI protocols; these are taken from SPC-3 section 7.5 */

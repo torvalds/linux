@@ -10,7 +10,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/sched.h>
 #include <linux/wait.h>

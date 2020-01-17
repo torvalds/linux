@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -544,12 +544,12 @@ atombios_dvo_setup(struct drm_encoder *encoder, int action)
 			args.dvo_v4.ucBitPerColor = radeon_atom_get_bpc(encoder);
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 			break;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 		break;
 	}
 
@@ -662,12 +662,12 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 			}
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 			break;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 		break;
 	}
 
@@ -820,7 +820,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
  * - 3 DIG transmitter blocks UNIPHY0/1/2 (links A and B).
  * Supports up to 6 digital outputs
  * - 2 DIG encoder blocks.
- * llano
+ * llayes
  * DIG1/2 can drive UNIPHY0/1/2 link A or link B
  * ontario
  * DIG1 drives UNIPHY0/1/2 link A
@@ -867,7 +867,7 @@ atombios_dig_encoder_setup2(struct drm_encoder *encoder, int action, int panel_m
 		hpd_id = radeon_connector->hpd.hpd;
 	}
 
-	/* no dig encoder assigned */
+	/* yes dig encoder assigned */
 	if (dig->dig_encoder == -1)
 		return;
 
@@ -985,12 +985,12 @@ atombios_dig_encoder_setup2(struct drm_encoder *encoder, int action, int panel_m
 				args.v4.ucHPD_ID = hpd_id + 1;
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 			break;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 		break;
 	}
 
@@ -1059,7 +1059,7 @@ atombios_dig_transmitter_setup2(struct drm_encoder *encoder, int action, uint8_t
 		pll_id = radeon_crtc->pll_id;
 	}
 
-	/* no dig encoder assigned */
+	/* yes dig encoder assigned */
 	if (dig_encoder == -1)
 		return;
 
@@ -1367,12 +1367,12 @@ atombios_dig_transmitter_setup2(struct drm_encoder *encoder, int action, uint8_t
 			args.v5.ucDPLaneSet = lane_set;
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 			break;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 		break;
 	}
 
@@ -1475,7 +1475,7 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 
 	switch (frev) {
 	case 1:
-		/* no params on frev 1 */
+		/* yes params on frev 1 */
 		break;
 	case 2:
 		switch (crev) {
@@ -1526,12 +1526,12 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 			args.v3.sExtEncoder.ucBitPerColor = radeon_atom_get_bpc(encoder);
 			break;
 		default:
-			DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
+			DRM_ERROR("Unkyeswn table version: %d, %d\n", frev, crev);
 			return;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version: %d, %d\n", frev, crev);
 		return;
 	}
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
@@ -1999,7 +1999,7 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version: %d, %d\n", frev, crev);
 		return;
 	}
 
@@ -2025,7 +2025,7 @@ atombios_set_mst_encoder_crtc_source(struct drm_encoder *encoder, int fe)
 		return;
 
 	if (frev != 1 && crev != 2)
-		DRM_ERROR("Unknown table for MST %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table for MST %d, %d\n", frev, crev);
 
 	args.v2.ucCRTC = radeon_crtc->crtc_id;
 	args.v2.ucEncodeMode = ATOM_ENCODER_MODE_DP_MST;
@@ -2162,7 +2162,7 @@ int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder, int fe_idx)
 				else
 					enc_idx = 0;
 			} else
-				/* llano follows DCE3.2 */
+				/* llayes follows DCE3.2 */
 				enc_idx = radeon_crtc->crtc_id;
 		} else {
 			switch (radeon_encoder->encoder_id) {
@@ -2395,7 +2395,7 @@ radeon_atom_dac_detect(struct drm_encoder *encoder, struct drm_connector *connec
 
 	if (!atombios_dac_load_detect(encoder, connector)) {
 		DRM_DEBUG_KMS("detect returned false \n");
-		return connector_status_unknown;
+		return connector_status_unkyeswn;
 	}
 
 	if (rdev->family >= CHIP_R600)
@@ -2436,13 +2436,13 @@ radeon_atom_dig_detect(struct drm_encoder *encoder, struct drm_connector *connec
 	u32 bios_0_scratch;
 
 	if (!ASIC_IS_DCE4(rdev))
-		return connector_status_unknown;
+		return connector_status_unkyeswn;
 
 	if (!ext_encoder)
-		return connector_status_unknown;
+		return connector_status_unkyeswn;
 
 	if ((radeon_connector->devices & ATOM_DEVICE_CRT_SUPPORT) == 0)
-		return connector_status_unknown;
+		return connector_status_unkyeswn;
 
 	/* load detect on the dp bridge */
 	atombios_external_encoder_setup(encoder, ext_encoder,
@@ -2553,7 +2553,7 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 
 	/* check for pre-DCE3 cards with shared encoders;
 	 * can't really use the links individually, so don't disable
-	 * the encoder if it's in use by another connector
+	 * the encoder if it's in use by ayesther connector
 	 */
 	if (!ASIC_IS_DCE3(rdev)) {
 		struct drm_encoder *other_encoder;
@@ -2650,7 +2650,7 @@ static const struct drm_encoder_helper_funcs radeon_atom_ext_helper_funcs = {
 	.mode_set = radeon_atom_ext_mode_set,
 	.commit = radeon_atom_ext_commit,
 	.disable = radeon_atom_ext_disable,
-	/* no detect for TMDS/LVDS yet */
+	/* yes detect for TMDS/LVDS yet */
 };
 
 static const struct drm_encoder_helper_funcs radeon_atom_dig_helper_funcs = {

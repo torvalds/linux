@@ -29,7 +29,7 @@ static const struct field_t _TransportAddress_ipSourceRoute[] = {	/* SEQUENCE */
 };
 
 static const struct field_t _TransportAddress_ipxAddress[] = {	/* SEQUENCE */
-	{FNAME("node") OCTSTR, FIXD, 6, 0, SKIP, 0, NULL},
+	{FNAME("yesde") OCTSTR, FIXD, 6, 0, SKIP, 0, NULL},
 	{FNAME("netnum") OCTSTR, FIXD, 4, 0, SKIP, 0, NULL},
 	{FNAME("port") OCTSTR, FIXD, 2, 0, SKIP, 0, NULL},
 };
@@ -53,7 +53,7 @@ static const struct field_t _NonStandardIdentifier[] = {	/* CHOICE */
 };
 
 static const struct field_t _NonStandardParameter[] = {	/* SEQUENCE */
-	{FNAME("nonStandardIdentifier") CHOICE, 1, 2, 2, SKIP | EXT, 0,
+	{FNAME("yesnStandardIdentifier") CHOICE, 1, 2, 2, SKIP | EXT, 0,
 	 _NonStandardIdentifier},
 	{FNAME("data") OCTSTR, SEMI, 0, 0, SKIP, 0, NULL},
 };
@@ -70,7 +70,7 @@ static const struct field_t _TransportAddress[] = {	/* CHOICE */
 	 _TransportAddress_ip6Address},
 	{FNAME("netBios") OCTSTR, FIXD, 16, 0, SKIP, 0, NULL},
 	{FNAME("nsap") OCTSTR, 5, 1, 0, SKIP, 0, NULL},
-	{FNAME("nonStandardAddress") SEQ, 0, 2, 2, SKIP, 0,
+	{FNAME("yesnStandardAddress") SEQ, 0, 2, 2, SKIP, 0,
 	 _NonStandardParameter},
 };
 
@@ -95,68 +95,68 @@ static const struct field_t _VendorIdentifier[] = {	/* SEQUENCE */
 };
 
 static const struct field_t _GatekeeperInfo[] = {	/* SEQUENCE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 };
 
 static const struct field_t _H310Caps[] = {	/* SEQUENCE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("dataRatesSupported") SEQOF, SEMI, 0, 0, SKIP | OPT, 0, NULL},
 	{FNAME("supportedPrefixes") SEQOF, SEMI, 0, 0, SKIP, 0, NULL},
 };
 
 static const struct field_t _H320Caps[] = {	/* SEQUENCE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("dataRatesSupported") SEQOF, SEMI, 0, 0, SKIP | OPT, 0, NULL},
 	{FNAME("supportedPrefixes") SEQOF, SEMI, 0, 0, SKIP, 0, NULL},
 };
 
 static const struct field_t _H321Caps[] = {	/* SEQUENCE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("dataRatesSupported") SEQOF, SEMI, 0, 0, SKIP | OPT, 0, NULL},
 	{FNAME("supportedPrefixes") SEQOF, SEMI, 0, 0, SKIP, 0, NULL},
 };
 
 static const struct field_t _H322Caps[] = {	/* SEQUENCE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("dataRatesSupported") SEQOF, SEMI, 0, 0, SKIP | OPT, 0, NULL},
 	{FNAME("supportedPrefixes") SEQOF, SEMI, 0, 0, SKIP, 0, NULL},
 };
 
 static const struct field_t _H323Caps[] = {	/* SEQUENCE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("dataRatesSupported") SEQOF, SEMI, 0, 0, SKIP | OPT, 0, NULL},
 	{FNAME("supportedPrefixes") SEQOF, SEMI, 0, 0, SKIP, 0, NULL},
 };
 
 static const struct field_t _H324Caps[] = {	/* SEQUENCE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("dataRatesSupported") SEQOF, SEMI, 0, 0, SKIP | OPT, 0, NULL},
 	{FNAME("supportedPrefixes") SEQOF, SEMI, 0, 0, SKIP, 0, NULL},
 };
 
 static const struct field_t _VoiceCaps[] = {	/* SEQUENCE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("dataRatesSupported") SEQOF, SEMI, 0, 0, SKIP | OPT, 0, NULL},
 	{FNAME("supportedPrefixes") SEQOF, SEMI, 0, 0, SKIP, 0, NULL},
 };
 
 static const struct field_t _T120OnlyCaps[] = {	/* SEQUENCE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("dataRatesSupported") SEQOF, SEMI, 0, 0, SKIP | OPT, 0, NULL},
 	{FNAME("supportedPrefixes") SEQOF, SEMI, 0, 0, SKIP, 0, NULL},
 };
 
 static const struct field_t _SupportedProtocols[] = {	/* CHOICE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP, 0,
 	 _NonStandardParameter},
 	{FNAME("h310") SEQ, 1, 1, 3, SKIP | EXT, 0, _H310Caps},
 	{FNAME("h320") SEQ, 1, 1, 3, SKIP | EXT, 0, _H320Caps},
@@ -166,7 +166,7 @@ static const struct field_t _SupportedProtocols[] = {	/* CHOICE */
 	{FNAME("h324") SEQ, 1, 1, 3, SKIP | EXT, 0, _H324Caps},
 	{FNAME("voice") SEQ, 1, 1, 3, SKIP | EXT, 0, _VoiceCaps},
 	{FNAME("t120-only") SEQ, 1, 1, 3, SKIP | EXT, 0, _T120OnlyCaps},
-	{FNAME("nonStandardProtocol") SEQ, 2, 3, 3, SKIP | EXT, 0, NULL},
+	{FNAME("yesnStandardProtocol") SEQ, 2, 3, 3, SKIP | EXT, 0, NULL},
 	{FNAME("t38FaxAnnexbOnly") SEQ, 2, 5, 5, SKIP | EXT, 0, NULL},
 };
 
@@ -177,23 +177,23 @@ static const struct field_t _GatewayInfo_protocol[] = {	/* SEQUENCE OF */
 static const struct field_t _GatewayInfo[] = {	/* SEQUENCE */
 	{FNAME("protocol") SEQOF, SEMI, 0, 0, SKIP | OPT, 0,
 	 _GatewayInfo_protocol},
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 };
 
 static const struct field_t _McuInfo[] = {	/* SEQUENCE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("protocol") SEQOF, SEMI, 0, 0, SKIP | OPT, 0, NULL},
 };
 
 static const struct field_t _TerminalInfo[] = {	/* SEQUENCE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 };
 
 static const struct field_t _EndpointType[] = {	/* SEQUENCE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("vendor") SEQ, 2, 3, 3, SKIP | EXT | OPT, 0,
 	 _VendorIdentifier},
@@ -266,7 +266,7 @@ static const struct field_t _H245_NonStandardIdentifier[] = {	/* CHOICE */
 };
 
 static const struct field_t _H245_NonStandardParameter[] = {	/* SEQUENCE */
-	{FNAME("nonStandardIdentifier") CHOICE, 1, 2, 2, SKIP, 0,
+	{FNAME("yesnStandardIdentifier") CHOICE, 1, 2, 2, SKIP, 0,
 	 _H245_NonStandardIdentifier},
 	{FNAME("data") OCTSTR, SEMI, 0, 0, SKIP, 0, NULL},
 };
@@ -341,7 +341,7 @@ static const struct field_t _IS11172VideoCapability[] = {	/* SEQUENCE */
 };
 
 static const struct field_t _VideoCapability[] = {	/* CHOICE */
-	{FNAME("nonStandard") SEQ, 0, 2, 2, SKIP, 0,
+	{FNAME("yesnStandard") SEQ, 0, 2, 2, SKIP, 0,
 	 _H245_NonStandardParameter},
 	{FNAME("h261VideoCapability") SEQ, 2, 5, 6, SKIP | EXT, 0,
 	 _H261VideoCapability},
@@ -396,7 +396,7 @@ static const struct field_t _IS13818AudioCapability[] = {	/* SEQUENCE */
 };
 
 static const struct field_t _AudioCapability[] = {	/* CHOICE */
-	{FNAME("nonStandard") SEQ, 0, 2, 2, SKIP, 0,
+	{FNAME("yesnStandard") SEQ, 0, 2, 2, SKIP, 0,
 	 _H245_NonStandardParameter},
 	{FNAME("g711Alaw64k") INT, BYTE, 1, 0, SKIP, 0, NULL},
 	{FNAME("g711Alaw56k") INT, BYTE, 1, 0, SKIP, 0, NULL},
@@ -424,7 +424,7 @@ static const struct field_t _AudioCapability[] = {	/* CHOICE */
 };
 
 static const struct field_t _DataProtocolCapability[] = {	/* CHOICE */
-	{FNAME("nonStandard") SEQ, 0, 2, 2, SKIP, 0,
+	{FNAME("yesnStandard") SEQ, 0, 2, 2, SKIP, 0,
 	 _H245_NonStandardParameter},
 	{FNAME("v14buffered") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("v42lapm") NUL, FIXD, 0, 0, SKIP, 0, NULL},
@@ -482,7 +482,7 @@ static const struct field_t _DataApplicationCapability_application_nlpid[] = {	/
 };
 
 static const struct field_t _DataApplicationCapability_application[] = {	/* CHOICE */
-	{FNAME("nonStandard") SEQ, 0, 2, 2, SKIP, 0,
+	{FNAME("yesnStandard") SEQ, 0, 2, 2, SKIP, 0,
 	 _H245_NonStandardParameter},
 	{FNAME("t120") CHOICE, 3, 7, 14, DECODE | EXT,
 	 offsetof(DataApplicationCapability_application, t120),
@@ -516,13 +516,13 @@ static const struct field_t _DataApplicationCapability[] = {	/* SEQUENCE */
 };
 
 static const struct field_t _EncryptionMode[] = {	/* CHOICE */
-	{FNAME("nonStandard") SEQ, 0, 2, 2, SKIP, 0,
+	{FNAME("yesnStandard") SEQ, 0, 2, 2, SKIP, 0,
 	 _H245_NonStandardParameter},
 	{FNAME("h233Encryption") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 };
 
 static const struct field_t _DataType[] = {	/* CHOICE */
-	{FNAME("nonStandard") SEQ, 0, 2, 2, SKIP, 0,
+	{FNAME("yesnStandard") SEQ, 0, 2, 2, SKIP, 0,
 	 _H245_NonStandardParameter},
 	{FNAME("nullData") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("videoData") CHOICE, 3, 5, 6, SKIP | EXT, 0, _VideoCapability},
@@ -551,7 +551,7 @@ static const struct field_t _H223LogicalChannelParameters_adaptationLayerType_al
 };
 
 static const struct field_t _H223LogicalChannelParameters_adaptationLayerType[] = {	/* CHOICE */
-	{FNAME("nonStandard") SEQ, 0, 2, 2, SKIP, 0,
+	{FNAME("yesnStandard") SEQ, 0, 2, 2, SKIP, 0,
 	 _H245_NonStandardParameter},
 	{FNAME("al1Framed") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("al1NotFramed") NUL, FIXD, 0, 0, SKIP, 0, NULL},
@@ -583,7 +583,7 @@ static const struct field_t _V76HDLCParameters[] = {	/* SEQUENCE */
 };
 
 static const struct field_t _V76LogicalChannelParameters_suspendResume[] = {	/* CHOICE */
-	{FNAME("noSuspendResume") NUL, FIXD, 0, 0, SKIP, 0, NULL},
+	{FNAME("yesSuspendResume") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("suspendResumewAddress") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("suspendResumewoAddress") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 };
@@ -621,7 +621,7 @@ static const struct field_t _V76LogicalChannelParameters[] = {	/* SEQUENCE */
 	{FNAME("v75Parameters") SEQ, 0, 1, 1, SKIP | EXT, 0, _V75Parameters},
 };
 
-static const struct field_t _H2250LogicalChannelParameters_nonStandard[] = {	/* SEQUENCE OF */
+static const struct field_t _H2250LogicalChannelParameters_yesnStandard[] = {	/* SEQUENCE OF */
 	{FNAME("item") SEQ, 0, 2, 2, SKIP, 0, _H245_NonStandardParameter},
 };
 
@@ -632,7 +632,7 @@ static const struct field_t _UnicastAddress_iPAddress[] = {	/* SEQUENCE */
 };
 
 static const struct field_t _UnicastAddress_iPXAddress[] = {	/* SEQUENCE */
-	{FNAME("node") OCTSTR, FIXD, 6, 0, SKIP, 0, NULL},
+	{FNAME("yesde") OCTSTR, FIXD, 6, 0, SKIP, 0, NULL},
 	{FNAME("netnum") OCTSTR, FIXD, 4, 0, SKIP, 0, NULL},
 	{FNAME("tsapIdentifier") OCTSTR, FIXD, 2, 0, SKIP, 0, NULL},
 };
@@ -672,7 +672,7 @@ static const struct field_t _UnicastAddress[] = {	/* CHOICE */
 	{FNAME("iPSourceRouteAddress") SEQ, 0, 4, 4, SKIP | EXT, 0,
 	 _UnicastAddress_iPSourceRouteAddress},
 	{FNAME("nsap") OCTSTR, 5, 1, 0, SKIP, 0, NULL},
-	{FNAME("nonStandardAddress") SEQ, 0, 2, 2, SKIP, 0, NULL},
+	{FNAME("yesnStandardAddress") SEQ, 0, 2, 2, SKIP, 0, NULL},
 };
 
 static const struct field_t _MulticastAddress_iPAddress[] = {	/* SEQUENCE */
@@ -691,7 +691,7 @@ static const struct field_t _MulticastAddress[] = {	/* CHOICE */
 	{FNAME("iP6Address") SEQ, 0, 2, 2, SKIP | EXT, 0,
 	 _MulticastAddress_iP6Address},
 	{FNAME("nsap") OCTSTR, 5, 1, 0, SKIP, 0, NULL},
-	{FNAME("nonStandardAddress") SEQ, 0, 2, 2, SKIP, 0, NULL},
+	{FNAME("yesnStandardAddress") SEQ, 0, 2, 2, SKIP, 0, NULL},
 };
 
 static const struct field_t _H245_TransportAddress[] = {	/* CHOICE */
@@ -702,8 +702,8 @@ static const struct field_t _H245_TransportAddress[] = {	/* CHOICE */
 };
 
 static const struct field_t _H2250LogicalChannelParameters[] = {	/* SEQUENCE */
-	{FNAME("nonStandard") SEQOF, SEMI, 0, 0, SKIP | OPT, 0,
-	 _H2250LogicalChannelParameters_nonStandard},
+	{FNAME("yesnStandard") SEQOF, SEMI, 0, 0, SKIP | OPT, 0,
+	 _H2250LogicalChannelParameters_yesnStandard},
 	{FNAME("sessionID") INT, BYTE, 0, 0, SKIP, 0, NULL},
 	{FNAME("associatedSessionID") INT, 8, 1, 0, SKIP | OPT, 0, NULL},
 	{FNAME("mediaChannel") CHOICE, 1, 2, 2, DECODE | EXT | OPT,
@@ -738,7 +738,7 @@ static const struct field_t _OpenLogicalChannel_forwardLogicalChannelParameters_
 	 offsetof
 	 (OpenLogicalChannel_forwardLogicalChannelParameters_multiplexParameters,
 	  h2250LogicalChannelParameters), _H2250LogicalChannelParameters},
-	{FNAME("none") NUL, FIXD, 0, 0, SKIP, 0, NULL},
+	{FNAME("yesne") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 };
 
 static const struct field_t _OpenLogicalChannel_forwardLogicalChannelParameters[] = {	/* SEQUENCE */
@@ -996,12 +996,12 @@ static const struct field_t _Information_UUIE[] = {	/* SEQUENCE */
 };
 
 static const struct field_t _ReleaseCompleteReason[] = {	/* CHOICE */
-	{FNAME("noBandwidth") NUL, FIXD, 0, 0, SKIP, 0, NULL},
+	{FNAME("yesBandwidth") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("gatekeeperResources") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("unreachableDestination") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("destinationRejection") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("invalidRevision") NUL, FIXD, 0, 0, SKIP, 0, NULL},
-	{FNAME("noPermission") NUL, FIXD, 0, 0, SKIP, 0, NULL},
+	{FNAME("yesPermission") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("unreachableGatekeeper") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("gatewayResources") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("badFormatAddress") NUL, FIXD, 0, 0, SKIP, 0, NULL},
@@ -1013,7 +1013,7 @@ static const struct field_t _ReleaseCompleteReason[] = {	/* CHOICE */
 	{FNAME("calledPartyNotRegistered") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("callerNotRegistered") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("newConnectionNeeded") NUL, FIXD, 0, 0, SKIP, 0, NULL},
-	{FNAME("nonStandardReason") SEQ, 0, 2, 2, SKIP, 0, NULL},
+	{FNAME("yesnStandardReason") SEQ, 0, 2, 2, SKIP, 0, NULL},
 	{FNAME("replaceWithConferenceInvite") OCTSTR, FIXD, 16, 0, SKIP, 0,
 	 NULL},
 	{FNAME("genericDataReason") NUL, FIXD, 0, 0, SKIP, 0, NULL},
@@ -1049,7 +1049,7 @@ static const struct field_t _FacilityReason[] = {	/* CHOICE */
 	{FNAME("undefinedReason") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("conferenceListChoice") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("startH245") NUL, FIXD, 0, 0, SKIP, 0, NULL},
-	{FNAME("noH245") NUL, FIXD, 0, 0, SKIP, 0, NULL},
+	{FNAME("yesH245") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("newTokens") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("featureSetUpdate") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("forwardedElements") NUL, FIXD, 0, 0, SKIP, 0, NULL},
@@ -1098,13 +1098,13 @@ static const struct field_t _CallIdentifier[] = {	/* SEQUENCE */
 };
 
 static const struct field_t _SecurityServiceMode[] = {	/* CHOICE */
-	{FNAME("nonStandard") SEQ, 0, 2, 2, SKIP, 0, _NonStandardParameter},
-	{FNAME("none") NUL, FIXD, 0, 0, SKIP, 0, NULL},
+	{FNAME("yesnStandard") SEQ, 0, 2, 2, SKIP, 0, _NonStandardParameter},
+	{FNAME("yesne") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("default") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 };
 
 static const struct field_t _SecurityCapabilities[] = {	/* SEQUENCE */
-	{FNAME("nonStandard") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandard") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("encryption") CHOICE, 2, 3, 3, SKIP | EXT, 0,
 	 _SecurityServiceMode},
@@ -1115,8 +1115,8 @@ static const struct field_t _SecurityCapabilities[] = {	/* SEQUENCE */
 };
 
 static const struct field_t _H245Security[] = {	/* CHOICE */
-	{FNAME("nonStandard") SEQ, 0, 2, 2, SKIP, 0, _NonStandardParameter},
-	{FNAME("noSecurity") NUL, FIXD, 0, 0, SKIP, 0, NULL},
+	{FNAME("yesnStandard") SEQ, 0, 2, 2, SKIP, 0, _NonStandardParameter},
+	{FNAME("yesSecurity") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("tls") SEQ, 1, 4, 4, SKIP | EXT, 0, _SecurityCapabilities},
 	{FNAME("ipsec") SEQ, 1, 4, 4, SKIP | EXT, 0, _SecurityCapabilities},
 };
@@ -1133,7 +1133,7 @@ static const struct field_t _TypedCertificate[] = {	/* SEQUENCE */
 };
 
 static const struct field_t _H235_NonStandardParameter[] = {	/* SEQUENCE */
-	{FNAME("nonStandardIdentifier") OID, BYTE, 0, 0, SKIP, 0, NULL},
+	{FNAME("yesnStandardIdentifier") OID, BYTE, 0, 0, SKIP, 0, NULL},
 	{FNAME("data") OCTSTR, SEMI, 0, 0, SKIP, 0, NULL},
 };
 
@@ -1147,7 +1147,7 @@ static const struct field_t _ClearToken[] = {	/* SEQUENCE */
 	{FNAME("certificate") SEQ, 0, 2, 2, SKIP | EXT | OPT, 0,
 	 _TypedCertificate},
 	{FNAME("generalID") BMPSTR, 7, 1, 0, SKIP | OPT, 0, NULL},
-	{FNAME("nonStandard") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandard") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _H235_NonStandardParameter},
 	{FNAME("eckasdhkey") CHOICE, 1, 2, 2, SKIP | EXT | OPT, 0, NULL},
 	{FNAME("sendersID") BMPSTR, 7, 1, 0, SKIP | OPT, 0, NULL},
@@ -1347,12 +1347,12 @@ static const struct field_t _H323_UU_PDU_h323_message_body[] = {	/* CHOICE */
 	{FNAME("empty") NUL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("status") SEQ, 2, 4, 4, SKIP | EXT, 0, NULL},
 	{FNAME("statusInquiry") SEQ, 2, 4, 4, SKIP | EXT, 0, NULL},
-	{FNAME("setupAcknowledge") SEQ, 2, 4, 4, SKIP | EXT, 0, NULL},
-	{FNAME("notify") SEQ, 2, 4, 4, SKIP | EXT, 0, NULL},
+	{FNAME("setupAckyeswledge") SEQ, 2, 4, 4, SKIP | EXT, 0, NULL},
+	{FNAME("yestify") SEQ, 2, 4, 4, SKIP | EXT, 0, NULL},
 };
 
 static const struct field_t _RequestMessage[] = {	/* CHOICE */
-	{FNAME("nonStandard") SEQ, 0, 1, 1, STOP | EXT, 0, NULL},
+	{FNAME("yesnStandard") SEQ, 0, 1, 1, STOP | EXT, 0, NULL},
 	{FNAME("masterSlaveDetermination") SEQ, 0, 2, 2, STOP | EXT, 0, NULL},
 	{FNAME("terminalCapabilitySet") SEQ, 3, 5, 5, STOP | EXT, 0, NULL},
 	{FNAME("openLogicalChannel") SEQ, 1, 3, 5, DECODE | EXT,
@@ -1390,13 +1390,13 @@ static const struct field_t _OpenLogicalChannelAck_reverseLogicalChannelParamete
 	{FNAME("replacementFor") INT, WORD, 1, 0, SKIP | OPT, 0, NULL},
 };
 
-static const struct field_t _H2250LogicalChannelAckParameters_nonStandard[] = {	/* SEQUENCE OF */
+static const struct field_t _H2250LogicalChannelAckParameters_yesnStandard[] = {	/* SEQUENCE OF */
 	{FNAME("item") SEQ, 0, 2, 2, SKIP, 0, _H245_NonStandardParameter},
 };
 
 static const struct field_t _H2250LogicalChannelAckParameters[] = {	/* SEQUENCE */
-	{FNAME("nonStandard") SEQOF, SEMI, 0, 0, SKIP | OPT, 0,
-	 _H2250LogicalChannelAckParameters_nonStandard},
+	{FNAME("yesnStandard") SEQOF, SEMI, 0, 0, SKIP | OPT, 0,
+	 _H2250LogicalChannelAckParameters_yesnStandard},
 	{FNAME("sessionID") INT, 8, 1, 0, SKIP | OPT, 0, NULL},
 	{FNAME("mediaChannel") CHOICE, 1, 2, 2, DECODE | EXT | OPT,
 	 offsetof(H2250LogicalChannelAckParameters, mediaChannel),
@@ -1433,7 +1433,7 @@ static const struct field_t _OpenLogicalChannelAck[] = {	/* SEQUENCE */
 };
 
 static const struct field_t _ResponseMessage[] = {	/* CHOICE */
-	{FNAME("nonStandard") SEQ, 0, 1, 1, STOP | EXT, 0, NULL},
+	{FNAME("yesnStandard") SEQ, 0, 1, 1, STOP | EXT, 0, NULL},
 	{FNAME("masterSlaveDeterminationAck") SEQ, 0, 1, 1, STOP | EXT, 0,
 	 NULL},
 	{FNAME("masterSlaveDeterminationReject") SEQ, 0, 1, 1, STOP | EXT, 0,
@@ -1463,7 +1463,7 @@ static const struct field_t _ResponseMessage[] = {	/* CHOICE */
 	 NULL},
 	{FNAME("conferenceResponse") CHOICE, 3, 8, 16, STOP | EXT, 0, NULL},
 	{FNAME("multilinkResponse") CHOICE, 3, 5, 5, STOP | EXT, 0, NULL},
-	{FNAME("logicalChannelRateAcknowledge") SEQ, 0, 3, 3, STOP | EXT, 0,
+	{FNAME("logicalChannelRateAckyeswledge") SEQ, 0, 3, 3, STOP | EXT, 0,
 	 NULL},
 	{FNAME("logicalChannelRateReject") SEQ, 1, 4, 4, STOP | EXT, 0, NULL},
 };
@@ -1489,14 +1489,14 @@ static const struct field_t _H323_UU_PDU[] = {	/* SEQUENCE */
 	{FNAME("h323-message-body") CHOICE, 3, 7, 13, DECODE | EXT,
 	 offsetof(H323_UU_PDU, h323_message_body),
 	 _H323_UU_PDU_h323_message_body},
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("h4501SupplementaryService") SEQOF, SEMI, 0, 0, SKIP | OPT, 0,
 	 NULL},
 	{FNAME("h245Tunneling") BOOL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("h245Control") SEQOF, SEMI, 0, 4, DECODE | OPT,
 	 offsetof(H323_UU_PDU, h245Control), _H323_UU_PDU_h245Control},
-	{FNAME("nonStandardControl") SEQOF, SEMI, 0, 0, STOP | OPT, 0, NULL},
+	{FNAME("yesnStandardControl") SEQOF, SEMI, 0, 0, STOP | OPT, 0, NULL},
 	{FNAME("callLinkage") SEQ, 2, 2, 2, STOP | EXT | OPT, 0, NULL},
 	{FNAME("tunnelledSignallingMessage") SEQ, 2, 4, 4, STOP | EXT | OPT,
 	 0, NULL},
@@ -1515,7 +1515,7 @@ static const struct field_t _H323_UserInformation[] = {	/* SEQUENCE */
 static const struct field_t _GatekeeperRequest[] = {	/* SEQUENCE */
 	{FNAME("requestSeqNum") INT, WORD, 1, 0, SKIP, 0, NULL},
 	{FNAME("protocolIdentifier") OID, BYTE, 0, 0, SKIP, 0, NULL},
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("rasAddress") CHOICE, 3, 7, 7, DECODE | EXT,
 	 offsetof(GatekeeperRequest, rasAddress), _TransportAddress},
@@ -1539,7 +1539,7 @@ static const struct field_t _GatekeeperRequest[] = {	/* SEQUENCE */
 static const struct field_t _GatekeeperConfirm[] = {	/* SEQUENCE */
 	{FNAME("requestSeqNum") INT, WORD, 1, 0, SKIP, 0, NULL},
 	{FNAME("protocolIdentifier") OID, BYTE, 0, 0, SKIP, 0, NULL},
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("gatekeeperIdentifier") BMPSTR, 7, 1, 0, SKIP | OPT, 0, NULL},
 	{FNAME("rasAddress") CHOICE, 3, 7, 7, DECODE | EXT,
@@ -1575,7 +1575,7 @@ static const struct field_t _RegistrationRequest_terminalAlias[] = {	/* SEQUENCE
 static const struct field_t _RegistrationRequest[] = {	/* SEQUENCE */
 	{FNAME("requestSeqNum") INT, WORD, 1, 0, SKIP, 0, NULL},
 	{FNAME("protocolIdentifier") OID, BYTE, 0, 0, SKIP, 0, NULL},
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("discoveryComplete") BOOL, FIXD, 0, 0, SKIP, 0, NULL},
 	{FNAME("callSignalAddress") SEQOF, SEMI, 0, 10, DECODE,
@@ -1633,7 +1633,7 @@ static const struct field_t _RegistrationConfirm_terminalAlias[] = {	/* SEQUENCE
 static const struct field_t _RegistrationConfirm[] = {	/* SEQUENCE */
 	{FNAME("requestSeqNum") INT, WORD, 1, 0, SKIP, 0, NULL},
 	{FNAME("protocolIdentifier") OID, BYTE, 0, 0, SKIP, 0, NULL},
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("callSignalAddress") SEQOF, SEMI, 0, 10, DECODE,
 	 offsetof(RegistrationConfirm, callSignalAddress),
@@ -1678,7 +1678,7 @@ static const struct field_t _UnregistrationRequest[] = {	/* SEQUENCE */
 	 offsetof(UnregistrationRequest, callSignalAddress),
 	 _UnregistrationRequest_callSignalAddress},
 	{FNAME("endpointAlias") SEQOF, SEMI, 0, 0, STOP | OPT, 0, NULL},
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, STOP | OPT, 0, NULL},
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, STOP | OPT, 0, NULL},
 	{FNAME("endpointIdentifier") BMPSTR, 7, 1, 0, STOP | OPT, 0, NULL},
 	{FNAME("alternateEndpoints") SEQOF, SEMI, 0, 0, STOP | OPT, 0, NULL},
 	{FNAME("gatekeeperIdentifier") BMPSTR, 7, 1, 0, STOP | OPT, 0, NULL},
@@ -1728,7 +1728,7 @@ static const struct field_t _AdmissionRequest[] = {	/* SEQUENCE */
 	 offsetof(AdmissionRequest, srcCallSignalAddress), _TransportAddress},
 	{FNAME("bandWidth") INT, CONS, 0, 0, STOP, 0, NULL},
 	{FNAME("callReferenceValue") INT, WORD, 0, 0, STOP, 0, NULL},
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, STOP | OPT, 0, NULL},
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, STOP | OPT, 0, NULL},
 	{FNAME("callServices") SEQ, 0, 8, 8, STOP | EXT | OPT, 0, NULL},
 	{FNAME("conferenceID") OCTSTR, FIXD, 16, 0, STOP, 0, NULL},
 	{FNAME("activeMC") BOOL, FIXD, 0, 0, STOP, 0, NULL},
@@ -1762,7 +1762,7 @@ static const struct field_t _AdmissionConfirm[] = {	/* SEQUENCE */
 	 offsetof(AdmissionConfirm, destCallSignalAddress),
 	 _TransportAddress},
 	{FNAME("irrFrequency") INT, WORD, 1, 0, STOP | OPT, 0, NULL},
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, STOP | OPT, 0, NULL},
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, STOP | OPT, 0, NULL},
 	{FNAME("destinationInfo") SEQOF, SEMI, 0, 0, STOP | OPT, 0, NULL},
 	{FNAME("destExtraCallInfo") SEQOF, SEMI, 0, 0, STOP | OPT, 0, NULL},
 	{FNAME("destinationType") SEQ, 6, 8, 10, STOP | EXT | OPT, 0, NULL},
@@ -1798,7 +1798,7 @@ static const struct field_t _LocationRequest[] = {	/* SEQUENCE */
 	{FNAME("endpointIdentifier") BMPSTR, 7, 1, 0, SKIP | OPT, 0, NULL},
 	{FNAME("destinationInfo") SEQOF, SEMI, 0, 0, SKIP, 0,
 	 _LocationRequest_destinationInfo},
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("replyAddress") CHOICE, 3, 7, 7, DECODE | EXT,
 	 offsetof(LocationRequest, replyAddress), _TransportAddress},
@@ -1823,7 +1823,7 @@ static const struct field_t _LocationConfirm[] = {	/* SEQUENCE */
 	 offsetof(LocationConfirm, callSignalAddress), _TransportAddress},
 	{FNAME("rasAddress") CHOICE, 3, 7, 7, DECODE | EXT,
 	 offsetof(LocationConfirm, rasAddress), _TransportAddress},
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, STOP | OPT, 0, NULL},
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, STOP | OPT, 0, NULL},
 	{FNAME("destinationInfo") SEQOF, SEMI, 0, 0, STOP | OPT, 0, NULL},
 	{FNAME("destExtraCallInfo") SEQOF, SEMI, 0, 0, STOP | OPT, 0, NULL},
 	{FNAME("destinationType") SEQ, 6, 8, 10, STOP | EXT | OPT, 0, NULL},
@@ -1850,7 +1850,7 @@ static const struct field_t _InfoRequestResponse_callSignalAddress[] = {	/* SEQU
 };
 
 static const struct field_t _InfoRequestResponse[] = {	/* SEQUENCE */
-	{FNAME("nonStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
+	{FNAME("yesnStandardData") SEQ, 0, 2, 2, SKIP | OPT, 0,
 	 _NonStandardParameter},
 	{FNAME("requestSeqNum") INT, WORD, 1, 0, SKIP, 0, NULL},
 	{FNAME("endpointType") SEQ, 6, 8, 10, SKIP | EXT, 0, _EndpointType},
@@ -1906,8 +1906,8 @@ static const struct field_t _RasMessage[] = {	/* CHOICE */
 	{FNAME("infoRequest") SEQ, 2, 4, 15, STOP | EXT, 0, NULL},
 	{FNAME("infoRequestResponse") SEQ, 3, 8, 16, DECODE | EXT,
 	 offsetof(RasMessage, infoRequestResponse), _InfoRequestResponse},
-	{FNAME("nonStandardMessage") SEQ, 0, 2, 7, STOP | EXT, 0, NULL},
-	{FNAME("unknownMessageResponse") SEQ, 0, 1, 5, STOP | EXT, 0, NULL},
+	{FNAME("yesnStandardMessage") SEQ, 0, 2, 7, STOP | EXT, 0, NULL},
+	{FNAME("unkyeswnMessageResponse") SEQ, 0, 1, 5, STOP | EXT, 0, NULL},
 	{FNAME("requestInProgress") SEQ, 4, 6, 6, STOP | EXT, 0, NULL},
 	{FNAME("resourcesAvailableIndicate") SEQ, 4, 9, 11, STOP | EXT, 0,
 	 NULL},

@@ -13,9 +13,9 @@
 
 #include "mtk_eth_soc.h"
 
-int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *r, u32 ana_rgc3)
+int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_yesde *r, u32 ana_rgc3)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int i;
 
 	ss->ana_rgc3 = ana_rgc3;
@@ -25,7 +25,7 @@ int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *r, u32 ana_rgc3)
 		if (!np)
 			break;
 
-		ss->regmap[i] = syscon_node_to_regmap(np);
+		ss->regmap[i] = syscon_yesde_to_regmap(np);
 		if (IS_ERR(ss->regmap[i]))
 			return PTR_ERR(ss->regmap[i]);
 	}

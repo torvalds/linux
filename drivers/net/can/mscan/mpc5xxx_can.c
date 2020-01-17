@@ -42,7 +42,7 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 {
 	unsigned int pvr;
 	struct mpc52xx_cdm  __iomem *cdm;
-	struct device_node *np_cdm;
+	struct device_yesde *np_cdm;
 	unsigned int freq;
 	u32 val;
 
@@ -53,7 +53,7 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 	 * (IP_CLK) can be selected as MSCAN clock source. According to
 	 * the MPC5200 user's manual, the oscillator clock is the better
 	 * choice as it has less jitter. For this reason, it is selected
-	 * by default. Unfortunately, it can not be selected for the old
+	 * by default. Unfortunately, it can yest be selected for the old
 	 * MPC5200 Rev. A chips due to a hardware bug (check errata).
 	 */
 	if (clock_name && strcmp(clock_name, "ip") == 0)
@@ -61,7 +61,7 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 	else
 		*mscan_clksrc = MSCAN_CLKSRC_XTAL;
 
-	freq = mpc5xxx_get_bus_frequency(ofdev->dev.of_node);
+	freq = mpc5xxx_get_bus_frequency(ofdev->dev.of_yesde);
 	if (!freq)
 		return 0;
 
@@ -69,15 +69,15 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 		return freq;
 
 	/* Determine SYS_XTAL_IN frequency from the clock domain settings */
-	np_cdm = of_find_matching_node(NULL, mpc52xx_cdm_ids);
+	np_cdm = of_find_matching_yesde(NULL, mpc52xx_cdm_ids);
 	if (!np_cdm) {
-		dev_err(&ofdev->dev, "can't get clock node!\n");
+		dev_err(&ofdev->dev, "can't get clock yesde!\n");
 		return 0;
 	}
 	cdm = of_iomap(np_cdm, 0);
 	if (!cdm) {
-		of_node_put(np_cdm);
-		dev_err(&ofdev->dev, "can't map clock node!\n");
+		of_yesde_put(np_cdm);
+		dev_err(&ofdev->dev, "can't map clock yesde!\n");
 		return 0;
 	}
 
@@ -88,7 +88,7 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 	freq *= (val & (1 << 5)) ? 8 : 4;
 	freq /= (val & (1 << 6)) ? 12 : 16;
 
-	of_node_put(np_cdm);
+	of_yesde_put(np_cdm);
 	iounmap(cdm);
 
 	return freq;
@@ -105,7 +105,7 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 				 const char *clock_source, int *mscan_clksrc)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 clockdiv;
 	enum {
 		CLK_FROM_AUTO,
@@ -121,7 +121,7 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 	/* the caller passed in the clock source spec that was read from
 	 * the device tree, get the optional clock divider as well
 	 */
-	np = ofdev->dev.of_node;
+	np = ofdev->dev.of_yesde;
 	clockdiv = 1;
 	of_property_read_u32(np, "fsl,mscan-clock-divider", &clockdiv);
 	dev_dbg(&ofdev->dev, "device tree specs: clk src[%s] div[%d]\n",
@@ -154,13 +154,13 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 		dev_dbg(&ofdev->dev, "got a clk source spec[%d]\n", clk_from);
 	}
 	if (clk_from == CLK_FROM_AUTO) {
-		/* no spec so far, try the 'sys' clock; round to the
+		/* yes spec so far, try the 'sys' clock; round to the
 		 * next MHz and see if we can get a multiple of 16MHz
 		 */
-		dev_dbg(&ofdev->dev, "no clk source spec, trying SYS\n");
+		dev_dbg(&ofdev->dev, "yes clk source spec, trying SYS\n");
 		clk_in = devm_clk_get(&ofdev->dev, "sys");
 		if (IS_ERR(clk_in))
-			goto err_notavail;
+			goto err_yestavail;
 		freq_calc = clk_get_rate(clk_in);
 		freq_calc +=  499999;
 		freq_calc /= 1000000;
@@ -174,15 +174,15 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 		}
 	}
 	if (clk_from == CLK_FROM_AUTO) {
-		/* no spec so far, use the 'ref' clock */
-		dev_dbg(&ofdev->dev, "no clk source spec, trying REF\n");
+		/* yes spec so far, use the 'ref' clock */
+		dev_dbg(&ofdev->dev, "yes clk source spec, trying REF\n");
 		clk_in = devm_clk_get(&ofdev->dev, "ref");
 		if (IS_ERR(clk_in))
-			goto err_notavail;
+			goto err_yestavail;
 		clk_from = CLK_FROM_REF;
 		freq_calc = clk_get_rate(clk_in);
 		dev_dbg(&ofdev->dev,
-			"clk fit, ref[%lu] (no div) freq[%lu]\n",
+			"clk fit, ref[%lu] (yes div) freq[%lu]\n",
 			freq_calc, freq_calc);
 	}
 
@@ -195,7 +195,7 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 	case CLK_FROM_IPS:
 		clk_can = devm_clk_get(&ofdev->dev, "ips");
 		if (IS_ERR(clk_can))
-			goto err_notavail;
+			goto err_yestavail;
 		priv = netdev_priv(dev_get_drvdata(&ofdev->dev));
 		priv->clk_can = clk_can;
 		freq_calc = clk_get_rate(clk_can);
@@ -207,7 +207,7 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 	case CLK_FROM_REF:
 		clk_can = devm_clk_get(&ofdev->dev, "mclk");
 		if (IS_ERR(clk_can))
-			goto err_notavail;
+			goto err_yestavail;
 		priv = netdev_priv(dev_get_drvdata(&ofdev->dev));
 		priv->clk_can = clk_can;
 		if (clk_from == CLK_FROM_SYS)
@@ -215,7 +215,7 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 		if (clk_from == CLK_FROM_REF)
 			clk_in = devm_clk_get(&ofdev->dev, "ref");
 		if (IS_ERR(clk_in))
-			goto err_notavail;
+			goto err_yestavail;
 		clk_set_parent(clk_can, clk_in);
 		freq_calc = clk_get_rate(clk_in);
 		freq_calc /= clockdiv;
@@ -234,9 +234,9 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 	 */
 	clk_ipg = devm_clk_get(&ofdev->dev, "ipg");
 	if (IS_ERR(clk_ipg))
-		goto err_notavail_ipg;
+		goto err_yestavail_ipg;
 	if (clk_prepare_enable(clk_ipg))
-		goto err_notavail_ipg;
+		goto err_yestavail_ipg;
 	priv = netdev_priv(dev_get_drvdata(&ofdev->dev));
 	priv->clk_ipg = clk_ipg;
 
@@ -245,17 +245,17 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 
 err_invalid:
 	dev_err(&ofdev->dev, "invalid clock source specification\n");
-	/* clock source rate could not get determined */
+	/* clock source rate could yest get determined */
 	return 0;
 
-err_notavail:
-	dev_err(&ofdev->dev, "cannot acquire or setup bitrate clock source\n");
-	/* clock source rate could not get determined */
+err_yestavail:
+	dev_err(&ofdev->dev, "canyest acquire or setup bitrate clock source\n");
+	/* clock source rate could yest get determined */
 	return 0;
 
-err_notavail_ipg:
-	dev_err(&ofdev->dev, "cannot acquire or setup register clock\n");
-	/* clock source rate could not get determined */
+err_yestavail_ipg:
+	dev_err(&ofdev->dev, "canyest acquire or setup register clock\n");
+	/* clock source rate could yest get determined */
 	return 0;
 }
 
@@ -281,7 +281,7 @@ static int mpc5xxx_can_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
 	const struct mpc5xxx_can_data *data;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct net_device *dev;
 	struct mscan_priv *priv;
 	void __iomem *base;
@@ -302,7 +302,7 @@ static int mpc5xxx_can_probe(struct platform_device *ofdev)
 
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
-		dev_err(&ofdev->dev, "no irq found\n");
+		dev_err(&ofdev->dev, "yes irq found\n");
 		err = -ENODEV;
 		goto exit_unmap_mem;
 	}
@@ -415,7 +415,7 @@ static int mpc5xxx_can_resume(struct platform_device *ofdev)
 static const struct mpc5xxx_can_data mpc5200_can_data = {
 	.type = MSCAN_TYPE_MPC5200,
 	.get_clock = mpc52xx_can_get_clock,
-	/* .put_clock not applicable */
+	/* .put_clock yest applicable */
 };
 
 static const struct mpc5xxx_can_data mpc5121_can_data = {

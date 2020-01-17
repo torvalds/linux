@@ -9,9 +9,9 @@
 
 /*
  * This driver uses transaction version 1 or later to use extended hardware
- * information. Then too old devices are not available.
+ * information. Then too old devices are yest available.
  *
- * Each commands are not required to have continuous sequence numbers. This
+ * Each commands are yest required to have continuous sequence numbers. This
  * number is just used to match command and response.
  *
  * This module support a part of commands. Please see FFADO if you want to see
@@ -197,7 +197,7 @@ int snd_efw_command_set_resp_addr(struct snd_efw *efw,
 /*
  * This is for timestamp processing. In Windows mode, all 32bit fields of second
  * CIP header in AMDTP transmit packet is used for 'presentation timestamp'. In
- * 'no data' packet the value of this field is 0x90ffffff.
+ * 'yes data' packet the value of this field is 0x90ffffff.
  */
 int snd_efw_command_set_tx_mode(struct snd_efw *efw,
 				enum snd_efw_transport_mode mode)
@@ -288,7 +288,7 @@ command_get_clock(struct snd_efw *efw, struct efc_clock *clock)
 	return err;
 }
 
-/* give UINT_MAX if set nothing */
+/* give UINT_MAX if set yesthing */
 static int
 command_set_clock(struct snd_efw *efw,
 		  unsigned int source, unsigned int rate)
@@ -307,7 +307,7 @@ command_set_clock(struct snd_efw *efw,
 	if (err < 0)
 		goto end;
 
-	/* no need */
+	/* yes need */
 	if ((clock.source == source) && (clock.sampling_rate == rate))
 		goto end;
 
@@ -331,7 +331,7 @@ command_set_clock(struct snd_efw *efw,
 
 	/*
 	 * With firmware version 5.8, just after changing clock state, these
-	 * parameters are not immediately retrieved by get command. In my
+	 * parameters are yest immediately retrieved by get command. In my
 	 * trial, there needs to be 100msec to get changed parameters.
 	 */
 	msleep(150);

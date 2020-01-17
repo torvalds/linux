@@ -16,7 +16,7 @@ Required properties:
     - reg: Specifies the base physical address(s) and size(s) of this
       PIC's addressable register space.  The type shall be <prop-encoded-array>.
 
-    - interrupt-controller: The presence of this property identifies the node
+    - interrupt-controller: The presence of this property identifies the yesde
       as an Open PIC.  No property value shall be defined.
 
     - #interrupt-cells: Specifies the number of cells needed to encode an
@@ -24,12 +24,12 @@ Required properties:
 
     - #address-cells: Specifies the number of cells needed to encode an
       address.  The type shall be <u32> and the value shall be 0.  As such,
-      'interrupt-map' nodes do not have to specify a parent unit address.
+      'interrupt-map' yesdes do yest have to specify a parent unit address.
 
 Optional properties:
 
-    - pic-no-reset: The presence of this property indicates that the PIC
-      shall not be reset during runtime initialization.  No property value shall
+    - pic-yes-reset: The presence of this property indicates that the PIC
+      shall yest be reset during runtime initialization.  No property value shall
       be defined.  The presence of this property also mandates that any
       initialization related to interrupt sources shall be limited to sources
       explicitly referenced in the device tree.
@@ -55,11 +55,11 @@ Example 1:
 	 * An Open PIC interrupt controller
 	 */
 	mpic: pic@40000 {
-		// This is an interrupt controller node.
+		// This is an interrupt controller yesde.
 		interrupt-controller;
 
-		// No address cells so that 'interrupt-map' nodes which reference
-		// this Open PIC node do not need a parent address specifier.
+		// No address cells so that 'interrupt-map' yesdes which reference
+		// this Open PIC yesde do yest need a parent address specifier.
 		#address-cells = <0>;
 
 		// Two cells to encode interrupt sources.
@@ -71,8 +71,8 @@ Example 1:
 		// Compatible with Open PIC.
 		compatible = "open-pic";
 
-		// The PIC shall not be reset.
-		pic-no-reset;
+		// The PIC shall yest be reset.
+		pic-yes-reset;
 	};
 
 Example 2:

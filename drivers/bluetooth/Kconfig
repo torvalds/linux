@@ -136,7 +136,7 @@ config BT_HCIUART_BCSP
 	select BITREVERSE
 	help
 	  BCSP (BlueCore Serial Protocol) is serial protocol for communication
-	  between Bluetooth device and host. This protocol is required for non
+	  between Bluetooth device and host. This protocol is required for yesn
 	  USB Bluetooth devices based on CSR BlueCore chip, including PCMCIA and
 	  CF cards.
 

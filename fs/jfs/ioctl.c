@@ -19,8 +19,8 @@
 #include "jfs_filsys.h"
 #include "jfs_debug.h"
 #include "jfs_incore.h"
-#include "jfs_dinode.h"
-#include "jfs_inode.h"
+#include "jfs_diyesde.h"
+#include "jfs_iyesde.h"
 #include "jfs_dmap.h"
 #include "jfs_discard.h"
 
@@ -59,13 +59,13 @@ static long jfs_map_ext2(unsigned long flags, int from)
 
 long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
-	struct jfs_inode_info *jfs_inode = JFS_IP(inode);
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct jfs_iyesde_info *jfs_iyesde = JFS_IP(iyesde);
 	unsigned int flags;
 
 	switch (cmd) {
 	case JFS_IOC_GETFLAGS:
-		flags = jfs_inode->mode2 & JFS_FL_USER_VISIBLE;
+		flags = jfs_iyesde->mode2 & JFS_FL_USER_VISIBLE;
 		flags = jfs_map_ext2(flags, 0);
 		return put_user(flags, (int __user *) arg);
 	case JFS_IOC_SETFLAGS: {
@@ -76,7 +76,7 @@ long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (err)
 			return err;
 
-		if (!inode_owner_or_capable(inode)) {
+		if (!iyesde_owner_or_capable(iyesde)) {
 			err = -EACCES;
 			goto setflags_out;
 		}
@@ -86,34 +86,34 @@ long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 
 		flags = jfs_map_ext2(flags, 1);
-		if (!S_ISDIR(inode->i_mode))
+		if (!S_ISDIR(iyesde->i_mode))
 			flags &= ~JFS_DIRSYNC_FL;
 
-		/* Is it quota file? Do not allow user to mess with it */
-		if (IS_NOQUOTA(inode)) {
+		/* Is it quota file? Do yest allow user to mess with it */
+		if (IS_NOQUOTA(iyesde)) {
 			err = -EPERM;
 			goto setflags_out;
 		}
 
 		/* Lock against other parallel changes of flags */
-		inode_lock(inode);
+		iyesde_lock(iyesde);
 
-		oldflags = jfs_map_ext2(jfs_inode->mode2 & JFS_FL_USER_VISIBLE,
+		oldflags = jfs_map_ext2(jfs_iyesde->mode2 & JFS_FL_USER_VISIBLE,
 					0);
-		err = vfs_ioc_setflags_prepare(inode, oldflags, flags);
+		err = vfs_ioc_setflags_prepare(iyesde, oldflags, flags);
 		if (err) {
-			inode_unlock(inode);
+			iyesde_unlock(iyesde);
 			goto setflags_out;
 		}
 
 		flags = flags & JFS_FL_USER_MODIFIABLE;
-		flags |= jfs_inode->mode2 & ~JFS_FL_USER_MODIFIABLE;
-		jfs_inode->mode2 = flags;
+		flags |= jfs_iyesde->mode2 & ~JFS_FL_USER_MODIFIABLE;
+		jfs_iyesde->mode2 = flags;
 
-		jfs_set_inode_flags(inode);
-		inode_unlock(inode);
-		inode->i_ctime = current_time(inode);
-		mark_inode_dirty(inode);
+		jfs_set_iyesde_flags(iyesde);
+		iyesde_unlock(iyesde);
+		iyesde->i_ctime = current_time(iyesde);
+		mark_iyesde_dirty(iyesde);
 setflags_out:
 		mnt_drop_write_file(filp);
 		return err;
@@ -121,7 +121,7 @@ setflags_out:
 
 	case FITRIM:
 	{
-		struct super_block *sb = inode->i_sb;
+		struct super_block *sb = iyesde->i_sb;
 		struct request_queue *q = bdev_get_queue(sb->s_bdev);
 		struct fstrim_range range;
 		s64 ret = 0;
@@ -130,7 +130,7 @@ setflags_out:
 			return -EPERM;
 
 		if (!blk_queue_discard(q)) {
-			jfs_warn("FITRIM not supported on device");
+			jfs_warn("FITRIM yest supported on device");
 			return -EOPNOTSUPP;
 		}
 
@@ -141,7 +141,7 @@ setflags_out:
 		range.minlen = max_t(unsigned int, range.minlen,
 			q->limits.discard_granularity);
 
-		ret = jfs_ioc_trim(inode, &range);
+		ret = jfs_ioc_trim(iyesde, &range);
 		if (ret < 0)
 			return ret;
 

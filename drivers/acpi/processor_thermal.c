@@ -28,7 +28,7 @@ ACPI_MODULE_NAME("processor_thermal");
 /* If a passive cooling situation is detected, primarily CPUfreq is used, as it
  * offers (in most cases) voltage scaling in addition to frequency scaling, and
  * thus a cubic (instead of linear) reduction of energy. Also, we allow for
- * _any_ cpufreq driver and not only the acpi-cpufreq driver.
+ * _any_ cpufreq driver and yest only the acpi-cpufreq driver.
  */
 
 #define CPUFREQ_THERMAL_MIN_STEP 0
@@ -44,7 +44,7 @@ static DEFINE_PER_CPU(unsigned int, cpufreq_thermal_reduction_pctg);
  * provided elsewhere)
  *
  * Note we can lose a CPU on cpu hotunplug, in this case we forget the state
- * temporarily. Fortunately that's not a big issue here (I hope)
+ * temporarily. Fortunately that's yest a big issue here (I hope)
  */
 static int phys_package_first_cpu(int cpu)
 {

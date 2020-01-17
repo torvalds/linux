@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * linux/arch/arm/mach-sa1100/shannon.c
+ * linux/arch/arm/mach-sa1100/shanyesn.c
  */
 
 #include <linux/init.h>
@@ -24,12 +24,12 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <linux/platform_data/mfd-mcp-sa11x0.h>
-#include <mach/shannon.h>
+#include <mach/shanyesn.h>
 #include <mach/irqs.h>
 
 #include "generic.h"
 
-static struct mtd_partition shannon_partitions[] = {
+static struct mtd_partition shanyesn_partitions[] = {
 	{
 		.name		= "BLOB boot loader",
 		.offset		= 0,
@@ -47,21 +47,21 @@ static struct mtd_partition shannon_partitions[] = {
 	}
 };
 
-static struct flash_platform_data shannon_flash_data = {
+static struct flash_platform_data shanyesn_flash_data = {
 	.map_name	= "cfi_probe",
-	.parts		= shannon_partitions,
-	.nr_parts	= ARRAY_SIZE(shannon_partitions),
+	.parts		= shanyesn_partitions,
+	.nr_parts	= ARRAY_SIZE(shanyesn_partitions),
 };
 
-static struct resource shannon_flash_resource =
+static struct resource shanyesn_flash_resource =
 	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_4M);
 
-static struct mcp_plat_data shannon_mcp_data = {
+static struct mcp_plat_data shanyesn_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,
 };
 
-static struct sa1100fb_mach_info shannon_lcd_info = {
+static struct sa1100fb_mach_info shanyesn_lcd_info = {
 	.pixclock	= 152500,	.bpp		= 8,
 	.xres		= 640,		.yres		= 480,
 
@@ -75,7 +75,7 @@ static struct sa1100fb_mach_info shannon_lcd_info = {
 	.lccr3		= LCCR3_ACBsDiv(512),
 };
 
-static struct gpiod_lookup_table shannon_pcmcia0_gpio_table = {
+static struct gpiod_lookup_table shanyesn_pcmcia0_gpio_table = {
 	.dev_id = "sa11x0-pcmcia.0",
 	.table = {
 		GPIO_LOOKUP("gpio", 24, "detect", GPIO_ACTIVE_LOW),
@@ -84,7 +84,7 @@ static struct gpiod_lookup_table shannon_pcmcia0_gpio_table = {
 	},
 };
 
-static struct gpiod_lookup_table shannon_pcmcia1_gpio_table = {
+static struct gpiod_lookup_table shanyesn_pcmcia1_gpio_table = {
 	.dev_id = "sa11x0-pcmcia.1",
 	.table = {
 		GPIO_LOOKUP("gpio", 25, "detect", GPIO_ACTIVE_LOW),
@@ -93,32 +93,32 @@ static struct gpiod_lookup_table shannon_pcmcia1_gpio_table = {
 	},
 };
 
-static struct regulator_consumer_supply shannon_cf_vcc_consumers[] = {
+static struct regulator_consumer_supply shanyesn_cf_vcc_consumers[] = {
 	REGULATOR_SUPPLY("vcc", "sa11x0-pcmcia.0"),
 	REGULATOR_SUPPLY("vcc", "sa11x0-pcmcia.1"),
 };
 
-static struct fixed_voltage_config shannon_cf_vcc_pdata __initdata = {
+static struct fixed_voltage_config shanyesn_cf_vcc_pdata __initdata = {
 	.supply_name = "cf-power",
 	.microvolts = 3300000,
 	.enabled_at_boot = 1,
 };
 
-static void __init shannon_init(void)
+static void __init shanyesn_init(void)
 {
-	sa11x0_register_fixed_regulator(0, &shannon_cf_vcc_pdata,
-					shannon_cf_vcc_consumers,
-					ARRAY_SIZE(shannon_cf_vcc_consumers),
+	sa11x0_register_fixed_regulator(0, &shanyesn_cf_vcc_pdata,
+					shanyesn_cf_vcc_consumers,
+					ARRAY_SIZE(shanyesn_cf_vcc_consumers),
 					false);
-	sa11x0_register_pcmcia(0, &shannon_pcmcia0_gpio_table);
-	sa11x0_register_pcmcia(1, &shannon_pcmcia1_gpio_table);
+	sa11x0_register_pcmcia(0, &shanyesn_pcmcia0_gpio_table);
+	sa11x0_register_pcmcia(1, &shanyesn_pcmcia1_gpio_table);
 	sa11x0_ppc_configure_mcp();
-	sa11x0_register_lcd(&shannon_lcd_info);
-	sa11x0_register_mtd(&shannon_flash_data, &shannon_flash_resource, 1);
-	sa11x0_register_mcp(&shannon_mcp_data);
+	sa11x0_register_lcd(&shanyesn_lcd_info);
+	sa11x0_register_mtd(&shanyesn_flash_data, &shanyesn_flash_resource, 1);
+	sa11x0_register_mcp(&shanyesn_mcp_data);
 }
 
-static void __init shannon_map_io(void)
+static void __init shanyesn_map_io(void)
 {
 	sa1100_map_io();
 
@@ -136,13 +136,13 @@ static void __init shannon_map_io(void)
 	GPSR = SHANNON_GPIO_CODEC_RESET;
 }
 
-MACHINE_START(SHANNON, "Shannon (AKA: Tuxscreen)")
+MACHINE_START(SHANNON, "Shanyesn (AKA: Tuxscreen)")
 	.atag_offset	= 0x100,
-	.map_io		= shannon_map_io,
+	.map_io		= shanyesn_map_io,
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.init_time	= sa1100_timer_init,
-	.init_machine	= shannon_init,
+	.init_machine	= shanyesn_init,
 	.init_late	= sa11x0_init_late,
 	.restart	= sa11x0_restart,
 MACHINE_END

@@ -66,12 +66,12 @@ static void ioc_destroy_icq(struct io_cq *icq)
 	lockdep_assert_held(&ioc->lock);
 
 	radix_tree_delete(&ioc->icq_tree, icq->q->id);
-	hlist_del_init(&icq->ioc_node);
-	list_del_init(&icq->q_node);
+	hlist_del_init(&icq->ioc_yesde);
+	list_del_init(&icq->q_yesde);
 
 	/*
 	 * Both setting lookup hint to and clearing it from @icq are done
-	 * under queue_lock.  If it's not pointing to @icq now, it never
+	 * under queue_lock.  If it's yest pointing to @icq yesw, it never
 	 * will.  Hint assignment itself can race safely.
 	 */
 	if (rcu_access_pointer(ioc->icq_hint) == icq)
@@ -101,13 +101,13 @@ static void ioc_release_fn(struct work_struct *work)
 	 * Exiting icq may call into put_io_context() through elevator
 	 * which will trigger lockdep warning.  The ioc's are guaranteed to
 	 * be different, use a different locking subclass here.  Use
-	 * irqsave variant as there's no spin_lock_irq_nested().
+	 * irqsave variant as there's yes spin_lock_irq_nested().
 	 */
 	spin_lock_irqsave_nested(&ioc->lock, flags, 1);
 
 	while (!hlist_empty(&ioc->icq_list)) {
 		struct io_cq *icq = hlist_entry(ioc->icq_list.first,
-						struct io_cq, ioc_node);
+						struct io_cq, ioc_yesde);
 		struct request_queue *q = icq->q;
 
 		if (spin_trylock(&q->queue_lock)) {
@@ -144,7 +144,7 @@ void put_io_context(struct io_context *ioc)
 
 	/*
 	 * Releasing ioc requires reverse order double locking and we may
-	 * already be holding a queue_lock.  Do it asynchronously from wq.
+	 * already be holding a queue_lock.  Do it asynchroyesusly from wq.
 	 */
 	if (atomic_long_dec_and_test(&ioc->refcount)) {
 		spin_lock_irqsave(&ioc->lock, flags);
@@ -165,7 +165,7 @@ void put_io_context(struct io_context *ioc)
  * @ioc: ioc of interest
  *
  * Undo get_io_context_active().  If active reference reaches zero after
- * put, @ioc can never issue further IOs and ioscheds are notified.
+ * put, @ioc can never issue further IOs and ioscheds are yestified.
  */
 void put_io_context_active(struct io_context *ioc)
 {
@@ -180,10 +180,10 @@ void put_io_context_active(struct io_context *ioc)
 	/*
 	 * Need ioc lock to walk icq_list and q lock to exit icq.  Perform
 	 * reverse double locking.  Read comment in ioc_release_fn() for
-	 * explanation on the nested locking annotation.
+	 * explanation on the nested locking anyestation.
 	 */
 	spin_lock_irqsave_nested(&ioc->lock, flags, 1);
-	hlist_for_each_entry(icq, &ioc->icq_list, ioc_node) {
+	hlist_for_each_entry(icq, &ioc->icq_list, ioc_yesde) {
 		if (icq->flags & ICQ_EXITED)
 			continue;
 
@@ -214,7 +214,7 @@ static void __ioc_clear_queue(struct list_head *icq_list)
 
 	while (!list_empty(icq_list)) {
 		struct io_cq *icq = list_entry(icq_list->next,
-						struct io_cq, q_node);
+						struct io_cq, q_yesde);
 		struct io_context *ioc = icq->ioc;
 
 		spin_lock_irqsave(&ioc->lock, flags);
@@ -240,13 +240,13 @@ void ioc_clear_queue(struct request_queue *q)
 	__ioc_clear_queue(&icq_list);
 }
 
-int create_task_io_context(struct task_struct *task, gfp_t gfp_flags, int node)
+int create_task_io_context(struct task_struct *task, gfp_t gfp_flags, int yesde)
 {
 	struct io_context *ioc;
 	int ret;
 
-	ioc = kmem_cache_alloc_node(iocontext_cachep, gfp_flags | __GFP_ZERO,
-				    node);
+	ioc = kmem_cache_alloc_yesde(iocontext_cachep, gfp_flags | __GFP_ZERO,
+				    yesde);
 	if (unlikely(!ioc))
 		return -ENOMEM;
 
@@ -264,7 +264,7 @@ int create_task_io_context(struct task_struct *task, gfp_t gfp_flags, int node)
 	 * already did or @task, which isn't %current, is exiting.  Note
 	 * that we need to allow ioc creation on exiting %current as exit
 	 * path may issue IOs from e.g. exit_files().  The exit path is
-	 * responsible for not issuing IO after exit_io_context().
+	 * responsible for yest issuing IO after exit_io_context().
 	 */
 	task_lock(task);
 	if (!task->io_context &&
@@ -284,17 +284,17 @@ int create_task_io_context(struct task_struct *task, gfp_t gfp_flags, int node)
  * get_task_io_context - get io_context of a task
  * @task: task of interest
  * @gfp_flags: allocation flags, used if allocation is necessary
- * @node: allocation node, used if allocation is necessary
+ * @yesde: allocation yesde, used if allocation is necessary
  *
  * Return io_context of @task.  If it doesn't exist, it is created with
- * @gfp_flags and @node.  The returned io_context has its reference count
+ * @gfp_flags and @yesde.  The returned io_context has its reference count
  * incremented.
  *
  * This function always goes through task_lock() and it's better to use
  * %current->io_context + get_io_context() for %current.
  */
 struct io_context *get_task_io_context(struct task_struct *task,
-				       gfp_t gfp_flags, int node)
+				       gfp_t gfp_flags, int yesde)
 {
 	struct io_context *ioc;
 
@@ -309,7 +309,7 @@ struct io_context *get_task_io_context(struct task_struct *task,
 			return ioc;
 		}
 		task_unlock(task);
-	} while (!create_task_io_context(task, gfp_flags, node));
+	} while (!create_task_io_context(task, gfp_flags, yesde));
 
 	return NULL;
 }
@@ -369,8 +369,8 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
 	struct io_cq *icq;
 
 	/* allocate stuff */
-	icq = kmem_cache_alloc_node(et->icq_cache, gfp_mask | __GFP_ZERO,
-				    q->node);
+	icq = kmem_cache_alloc_yesde(et->icq_cache, gfp_mask | __GFP_ZERO,
+				    q->yesde);
 	if (!icq)
 		return NULL;
 
@@ -381,16 +381,16 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
 
 	icq->ioc = ioc;
 	icq->q = q;
-	INIT_LIST_HEAD(&icq->q_node);
-	INIT_HLIST_NODE(&icq->ioc_node);
+	INIT_LIST_HEAD(&icq->q_yesde);
+	INIT_HLIST_NODE(&icq->ioc_yesde);
 
 	/* lock both q and ioc and try to link @icq */
 	spin_lock_irq(&q->queue_lock);
 	spin_lock(&ioc->lock);
 
 	if (likely(!radix_tree_insert(&ioc->icq_tree, q->id, icq))) {
-		hlist_add_head(&icq->ioc_node, &ioc->icq_list);
-		list_add(&icq->q_node, &q->icq_list);
+		hlist_add_head(&icq->ioc_yesde, &ioc->icq_list);
+		list_add(&icq->q_yesde, &q->icq_list);
 		if (et->ops.init_icq)
 			et->ops.init_icq(icq);
 	} else {

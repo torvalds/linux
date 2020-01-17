@@ -1,11 +1,11 @@
-* Altera SOCFPGA specific extensions to the Synopsys Designware Mobile
+* Altera SOCFPGA specific extensions to the Syyespsys Designware Mobile
   Storage Host Controller
 
-The Synopsys designware mobile storage host controller is used to interface
+The Syyespsys designware mobile storage host controller is used to interface
 a SoC with storage medium such as eMMC or SD/MMC cards. This file documents
-differences between the core Synopsys dw mshc controller properties described
-by synopsys-dw-mshc.txt and the properties used by the Altera SOCFPGA specific
-extensions to the Synopsys Designware Mobile Storage Host Controller.
+differences between the core Syyespsys dw mshc controller properties described
+by syyespsys-dw-mshc.txt and the properties used by the Altera SOCFPGA specific
+extensions to the Syyespsys Designware Mobile Storage Host Controller.
 
 Required Properties:
 

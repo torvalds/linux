@@ -51,7 +51,7 @@ void scif_teardown_ep(void *endpt)
 
 /*
  * Enqueue the endpoint to the zombie list for cleanup.
- * The endpoint should not be accessed once this API returns.
+ * The endpoint should yest be accessed once this API returns.
  */
 void scif_add_epd_to_zombie_list(struct scif_endpt *ep, bool eplock_held)
 {
@@ -106,15 +106,15 @@ void scif_cleanup_zombie_epd(void)
  * scif_cnctreq() - Respond to SCIF_CNCT_REQ interrupt message
  * @msg:        Interrupt message
  *
- * This message is initiated by the remote node to request a connection
- * to the local node.  This function looks for an end point in the
+ * This message is initiated by the remote yesde to request a connection
+ * to the local yesde.  This function looks for an end point in the
  * listen state on the requested port id.
  *
  * If it finds a listening port it places the connect request on the
  * listening end points queue and wakes up any pending accept calls.
  *
- * If it does not find a listening end point it sends a connection
- * reject message to the remote node.
+ * If it does yest find a listening end point it sends a connection
+ * reject message to the remote yesde.
  */
 void scif_cnctreq(struct scif_dev *scifdev, struct scifmsg *msg)
 {
@@ -128,7 +128,7 @@ void scif_cnctreq(struct scif_dev *scifdev, struct scifmsg *msg)
 
 	ep = scif_find_listen_ep(msg->dst.port);
 	if (!ep)
-		/*  Send reject due to no listening ports */
+		/*  Send reject due to yes listening ports */
 		goto conreq_sendrej_free;
 	else
 		spin_lock(&ep->lock);
@@ -150,16 +150,16 @@ conreq_sendrej_free:
 	kfree(conreq);
 conreq_sendrej:
 	msg->uop = SCIF_CNCT_REJ;
-	scif_nodeqp_send(&scif_dev[msg->src.node], msg);
+	scif_yesdeqp_send(&scif_dev[msg->src.yesde], msg);
 }
 
 /**
  * scif_cnctgnt() - Respond to SCIF_CNCT_GNT interrupt message
  * @msg:        Interrupt message
  *
- * An accept() on the remote node has occurred and sent this message
+ * An accept() on the remote yesde has occurred and sent this message
  * to indicate success.  Place the end point in the MAPPING state and
- * save the remote nodes memory information.  Then wake up the connect
+ * save the remote yesdes memory information.  Then wake up the connect
  * request so it can finish.
  */
 void scif_cnctgnt(struct scif_dev *scifdev, struct scifmsg *msg)
@@ -168,7 +168,7 @@ void scif_cnctgnt(struct scif_dev *scifdev, struct scifmsg *msg)
 
 	spin_lock(&ep->lock);
 	if (SCIFEP_CONNECTING == ep->state) {
-		ep->peer.node = msg->src.node;
+		ep->peer.yesde = msg->src.yesde;
 		ep->peer.port = msg->src.port;
 		ep->qp_info.gnt_pld = msg->payload[1];
 		ep->remote_ep = msg->payload[2];
@@ -193,7 +193,7 @@ void scif_cnctgnt_ack(struct scif_dev *scifdev, struct scifmsg *msg)
 
 	mutex_lock(&scif_info.connlock);
 	spin_lock(&ep->lock);
-	/* New ep is now connected with all resources set. */
+	/* New ep is yesw connected with all resources set. */
 	ep->state = SCIFEP_CONNECTED;
 	list_add_tail(&ep->list, &scif_info.connected);
 	wake_up(&ep->conwq);
@@ -242,9 +242,9 @@ void scif_cnctrej(struct scif_dev *scifdev, struct scifmsg *msg)
  * scif_discnct() - Respond to SCIF_DISCNCT interrupt message
  * @msg:        Interrupt message
  *
- * The remote node has indicated close() has been called on its end
+ * The remote yesde has indicated close() has been called on its end
  * point.  Remove the local end point from the connected list, set its
- * state to disconnected and ensure accesses to the remote node are
+ * state to disconnected and ensure accesses to the remote yesde are
  * shutdown.
  *
  * When all accesses to the remote end have completed then send a
@@ -276,10 +276,10 @@ void scif_discnct(struct scif_dev *scifdev, struct scifmsg *msg)
 	}
 
 	/*
-	 * If the terminated end is not found then this side started closing
-	 * before the other side sent the disconnect.  If so the ep will no
+	 * If the terminated end is yest found then this side started closing
+	 * before the other side sent the disconnect.  If so the ep will yes
 	 * longer be on the connected list.  Regardless the other side
-	 * needs to be acked to let it know close is complete.
+	 * needs to be acked to let it kyesw close is complete.
 	 */
 	if (!ep) {
 		mutex_unlock(&scif_info.connlock);
@@ -296,14 +296,14 @@ void scif_discnct(struct scif_dev *scifdev, struct scifmsg *msg)
 
 discnct_ack:
 	msg->uop = SCIF_DISCNT_ACK;
-	scif_nodeqp_send(&scif_dev[msg->src.node], msg);
+	scif_yesdeqp_send(&scif_dev[msg->src.yesde], msg);
 }
 
 /**
  * scif_discnct_ack() - Respond to SCIF_DISCNT_ACK interrupt message
  * @msg:        Interrupt message
  *
- * Remote side has indicated it has not more references to local resources
+ * Remote side has indicated it has yest more references to local resources
  */
 void scif_discnt_ack(struct scif_dev *scifdev, struct scifmsg *msg)
 {

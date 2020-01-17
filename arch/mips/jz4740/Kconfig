@@ -5,7 +5,7 @@ choice
 	default JZ4740_QI_LB60
 
 config JZ4740_QI_LB60
-	bool "Qi Hardware Ben NanoNote"
+	bool "Qi Hardware Ben NayesNote"
 	select MACH_JZ4740
 
 config JZ4770_GCW0

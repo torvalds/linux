@@ -85,7 +85,7 @@ typedef struct {
 struct compat_stat {
 	compat_dev_t	st_dev;
 	u16		__pad1;
-	compat_ino_t	st_ino;
+	compat_iyes_t	st_iyes;
 	compat_mode_t	st_mode;
 	compat_nlink_t	st_nlink;
 	__compat_uid_t	st_uid;
@@ -167,7 +167,7 @@ typedef u32		compat_sigset_word;
 #define COMPAT_OFF_T_MAX	0x7fffffff
 
 /*
- * A pointer passed in from user mode. This should not
+ * A pointer passed in from user mode. This should yest
  * be used for syscall parameters, just declare them
  * as pointers because the syscall entry code will have
  * appropriately converted them already.

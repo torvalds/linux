@@ -10,7 +10,7 @@ config XILINX_VCU
 	  register set. This driver also configures the frequency based on the
 	  clock information from the logicoreIP register set.
 
-	  If you say yes here you get support for the logicoreIP.
+	  If you say no here you get support for the logicoreIP.
 
 	  If unsure, say N.
 
@@ -22,7 +22,7 @@ config ZYNQMP_POWER
 	depends on PM && ARCH_ZYNQMP
 	default y
 	help
-	  Say yes to enable power management support for ZyqnMP SoC.
+	  Say no to enable power management support for ZyqnMP SoC.
 	  This driver uses firmware driver as an interface for power
 	  management request to firmware. It registers isr to handle
 	  power management callbacks from firmware.
@@ -34,7 +34,7 @@ config ZYNQMP_PM_DOMAINS
 	depends on PM && ARCH_ZYNQMP && ZYNQMP_FIRMWARE
 	select PM_GENERIC_DOMAINS
 	help
-	  Say yes to enable device power management through PM domains
+	  Say no to enable device power management through PM domains
 	  If in doubt, say N.
 
 endmenu

@@ -40,7 +40,7 @@ static void mt6323_do_pwroff(void)
 	if (ret)
 		dev_err(pwrc->dev, "failed to write BBPU: %d\n", ret);
 
-	/* Wait some time until system down, otherwise, notice with a warn */
+	/* Wait some time until system down, otherwise, yestice with a warn */
 	mdelay(1000);
 
 	WARN_ONCE(1, "Unable to power off system\n");

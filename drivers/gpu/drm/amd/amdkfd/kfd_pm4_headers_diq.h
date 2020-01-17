@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -100,14 +100,14 @@ enum _RELEASE_MEM_dst_sel_enum {
 };
 
 enum _RELEASE_MEM_int_sel_enum {
-	int_sel___release_mem__none = 0,
+	int_sel___release_mem__yesne = 0,
 	int_sel___release_mem__send_interrupt_only = 1,
 	int_sel___release_mem__send_interrupt_after_write_confirm = 2,
 	int_sel___release_mem__send_data_after_write_confirm = 3
 };
 
 enum _RELEASE_MEM_data_sel_enum {
-	data_sel___release_mem__none = 0,
+	data_sel___release_mem__yesne = 0,
 	data_sel___release_mem__send_32_bit_low = 1,
 	data_sel___release_mem__send_64_bit_data = 2,
 	data_sel___release_mem__send_gpu_clock_counter = 3,
@@ -210,7 +210,7 @@ enum _WAIT_REG_MEM_function_enum {
 	function___wait_reg_mem__less_than_ref_value = 1,
 	function___wait_reg_mem__less_than_equal_to_the_ref_value = 2,
 	function___wait_reg_mem__equal_to_the_reference_value = 3,
-	function___wait_reg_mem__not_equal_reference_value = 4,
+	function___wait_reg_mem__yest_equal_reference_value = 4,
 	function___wait_reg_mem__greater_than_or_equal_reference_value = 5,
 	function___wait_reg_mem__greater_than_reference_value = 6,
 	function___wait_reg_mem__reserved = 7

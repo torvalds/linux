@@ -26,7 +26,7 @@ void test_reference_tracking(void)
 	bpf_object__for_each_program(prog, obj) {
 		const char *title;
 
-		/* Ignore .text sections */
+		/* Igyesre .text sections */
 		title = bpf_program__title(prog, false);
 		if (strstr(title, ".text") != NULL)
 			continue;

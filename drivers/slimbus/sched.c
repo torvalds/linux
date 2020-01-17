@@ -3,7 +3,7 @@
  * Copyright (c) 2011-2017, The Linux Foundation
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include "slimbus.h"
 
 /**
@@ -50,7 +50,7 @@ int slim_ctrl_clk_pause(struct slim_controller *ctrl, bool wakeup, u8 restart)
 				msecs_to_jiffies(100));
 		if (!ret) {
 			mutex_unlock(&sched->m_reconf);
-			pr_err("Previous clock pause did not finish");
+			pr_err("Previous clock pause did yest finish");
 			return -ETIMEDOUT;
 		}
 		ret = 0;

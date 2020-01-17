@@ -11,12 +11,12 @@ Optional properties:
   - wlf,hpdet-channel : Headphone detection channel.
     ARIZONA_ACCDET_MODE_HPL or 1 - Headphone detect mode is set to HPDETL
     ARIZONA_ACCDET_MODE_HPR or 2 - Headphone detect mode is set to HPDETR
-    If this node is not mentioned or if the value is unknown, then
+    If this yesde is yest mentioned or if the value is unkyeswn, then
     headphone detection mode is set to HPDETL.
 
   - wlf,use-jd2 : Use the additional JD input along with JD1 for dual pin jack
     detection.
-  - wlf,use-jd2-nopull : Internal pull on JD2 is disabled when used for
+  - wlf,use-jd2-yespull : Internal pull on JD2 is disabled when used for
     jack detection.
   - wlf,jd-invert : Invert the polarity of the jack detection switch
 
@@ -57,7 +57,7 @@ codec: wm8280@0 {
 	...
 
 	wlf,use-jd2;
-	wlf,use-jd2-nopull;
+	wlf,use-jd2-yespull;
 	wlf,jd-invert;
 
 	wlf,micd-software-compare;

@@ -35,7 +35,7 @@ struct mdiobb_ctrl {
 	const struct mdiobb_ops *ops;
 };
 
-/* The returned bus is not yet registered with the phy layer. */
+/* The returned bus is yest yet registered with the phy layer. */
 struct mii_bus *alloc_mdio_bitbang(struct mdiobb_ctrl *ctrl);
 
 /* The bus must already have been unregistered. */

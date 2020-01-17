@@ -96,7 +96,7 @@ static int mpc8xx_pic_host_map(struct irq_domain *h, unsigned int virq,
 }
 
 
-static int mpc8xx_pic_host_xlate(struct irq_domain *h, struct device_node *ct,
+static int mpc8xx_pic_host_xlate(struct irq_domain *h, struct device_yesde *ct,
 			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
@@ -128,14 +128,14 @@ static const struct irq_domain_ops mpc8xx_pic_host_ops = {
 int __init mpc8xx_pic_init(void)
 {
 	struct resource res;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,pq1-pic");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,pq1-pic");
 	if (np == NULL)
-		np = of_find_node_by_type(NULL, "mpc8xx-pic");
+		np = of_find_yesde_by_type(NULL, "mpc8xx-pic");
 	if (np == NULL) {
-		printk(KERN_ERR "Could not find fsl,pq1-pic node\n");
+		printk(KERN_ERR "Could yest find fsl,pq1-pic yesde\n");
 		return -ENOMEM;
 	}
 
@@ -157,6 +157,6 @@ int __init mpc8xx_pic_init(void)
 
 	ret = 0;
 out:
-	of_node_put(np);
+	of_yesde_put(np);
 	return ret;
 }

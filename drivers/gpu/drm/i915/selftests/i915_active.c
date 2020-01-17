@@ -125,7 +125,7 @@ __live_active_setup(struct drm_i915_private *i915)
 		err = -EINVAL;
 	}
 	if (atomic_read(&active->base.count) != count) {
-		pr_err("i915_active not tracking all requests, found %d, expected %d\n",
+		pr_err("i915_active yest tracking all requests, found %d, expected %d\n",
 		       atomic_read(&active->base.count), count);
 		err = -EINVAL;
 	}
@@ -155,7 +155,7 @@ static int live_active_wait(void *arg)
 
 	i915_active_wait(&active->base);
 	if (!READ_ONCE(active->retired)) {
-		pr_err("i915_active not retired after waiting!\n");
+		pr_err("i915_active yest retired after waiting!\n");
 		err = -EINVAL;
 	}
 
@@ -184,7 +184,7 @@ static int live_active_retire(void *arg)
 		err = -EIO;
 
 	if (!READ_ONCE(active->retired)) {
-		pr_err("i915_active not retired after flushing!\n");
+		pr_err("i915_active yest retired after flushing!\n");
 		err = -EINVAL;
 	}
 
@@ -206,7 +206,7 @@ int i915_active_live_selftests(struct drm_i915_private *i915)
 	return i915_subtests(tests, i915);
 }
 
-static struct intel_engine_cs *node_to_barrier(struct active_node *it)
+static struct intel_engine_cs *yesde_to_barrier(struct active_yesde *it)
 {
 	struct intel_engine_cs *engine;
 
@@ -226,15 +226,15 @@ void i915_active_print(struct i915_active *ref, struct drm_printer *m)
 	drm_printf(m, "active %pS:%pS\n", ref->active, ref->retire);
 	drm_printf(m, "\tcount: %d\n", atomic_read(&ref->count));
 	drm_printf(m, "\tpreallocated barriers? %s\n",
-		   yesno(!llist_empty(&ref->preallocated_barriers)));
+		   noyes(!llist_empty(&ref->preallocated_barriers)));
 
 	if (i915_active_acquire_if_busy(ref)) {
-		struct active_node *it, *n;
+		struct active_yesde *it, *n;
 
-		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
+		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, yesde) {
 			struct intel_engine_cs *engine;
 
-			engine = node_to_barrier(it);
+			engine = yesde_to_barrier(it);
 			if (engine) {
 				drm_printf(m, "\tbarrier: %s\n", engine->name);
 				continue;

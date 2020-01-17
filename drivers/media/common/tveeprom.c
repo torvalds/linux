@@ -8,7 +8,7 @@
 
     Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
 			   & Marcus Metzler (mocm@thp.uni-koeln.de)
-    (c) 1999-2001 Gerd Knorr <kraxel@goldbach.in-berlin.de>
+    (c) 1999-2001 Gerd Kyesrr <kraxel@goldbach.in-berlin.de>
 
  * Adjustments to fit a more general model and all bugs:
 
@@ -19,7 +19,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -35,7 +35,7 @@ MODULE_AUTHOR("John Klar");
 MODULE_LICENSE("GPL");
 
 #define STRM(array, i) \
-	(i < sizeof(array) / sizeof(char *) ? array[i] : "unknown")
+	(i < sizeof(array) / sizeof(char *) ? array[i] : "unkyeswn")
 
 
 /*
@@ -106,7 +106,7 @@ static const struct {
 	{ TUNER_TEMIC_4066FY5_PAL_I,	"Temic 4066FY5" },
 	{ TUNER_PHILIPS_NTSC,		"Philips TD1536" },
 	{ TUNER_PHILIPS_NTSC,		"Philips TD1536D" },
-	{ TUNER_PHILIPS_NTSC,		"Philips FMR1236" }, /* mono radio */
+	{ TUNER_PHILIPS_NTSC,		"Philips FMR1236" }, /* moyes radio */
 	{ TUNER_ABSENT,			"Philips FI1256MP" },
 	/* 40-49 */
 	{ TUNER_ABSENT,			"Samsung TCPQ9091P" },
@@ -236,19 +236,19 @@ static const struct {
 	{ TUNER_ABSENT,                 "Xceive XC4000"},
 	{ TUNER_ABSENT,                 "Dibcom 7070"},
 	{ TUNER_PHILIPS_TDA8290,        "NXP 18271C2"},
-	{ TUNER_ABSENT,                 "Siano SMS1010"},
-	{ TUNER_ABSENT,                 "Siano SMS1150"},
+	{ TUNER_ABSENT,                 "Siayes SMS1010"},
+	{ TUNER_ABSENT,                 "Siayes SMS1150"},
 	{ TUNER_ABSENT,                 "MaxLinear 5007"},
 	{ TUNER_ABSENT,                 "TCL M09WPP_2P_E"},
 	/* 160-169 */
-	{ TUNER_ABSENT,                 "Siano SMS1180"},
+	{ TUNER_ABSENT,                 "Siayes SMS1180"},
 	{ TUNER_ABSENT,                 "Maxim_MAX2165"},
-	{ TUNER_ABSENT,                 "Siano SMS1140"},
-	{ TUNER_ABSENT,                 "Siano SMS1150 B1"},
+	{ TUNER_ABSENT,                 "Siayes SMS1140"},
+	{ TUNER_ABSENT,                 "Siayes SMS1150 B1"},
 	{ TUNER_ABSENT,                 "MaxLinear 111"},
 	{ TUNER_ABSENT,                 "Dibcom 7770"},
-	{ TUNER_ABSENT,                 "Siano SMS1180VNS"},
-	{ TUNER_ABSENT,                 "Siano SMS1184"},
+	{ TUNER_ABSENT,                 "Siayes SMS1180VNS"},
+	{ TUNER_ABSENT,                 "Siayes SMS1184"},
 	{ TUNER_PHILIPS_FQ1236_MK5,	"TCL M30WTP-4N-E"},
 	{ TUNER_ABSENT,                 "TCL_M11WPP_2PN_E"},
 	/* 170-179 */
@@ -257,7 +257,7 @@ static const struct {
 	{ TUNER_ABSENT,                 "MaxLinear MxL241SF"},
 	{ TUNER_XC5000C,                "Xceive XC5000C"},
 	{ TUNER_ABSENT,                 "Montage M68TS2020"},
-	{ TUNER_ABSENT,                 "Siano SMS1530"},
+	{ TUNER_ABSENT,                 "Siayes SMS1530"},
 	{ TUNER_ABSENT,                 "Dibcom 7090"},
 	{ TUNER_ABSENT,                 "Xceive XC5200C"},
 	{ TUNER_ABSENT,                 "NXP 18273"},
@@ -276,7 +276,7 @@ static const struct {
 };
 
 /* Use TVEEPROM_AUDPROC_INTERNAL for those audio 'chips' that are
- * internal to a video chip, i.e. not a separate audio chip. */
+ * internal to a video chip, i.e. yest a separate audio chip. */
 static const struct {
 	u32   id;
 	const char * const name;
@@ -442,11 +442,11 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 
 	int tuner1 = 0, t_format1 = 0, audioic = -1;
 	const char *t_name1 = NULL;
-	const char *t_fmt_name1[8] = { " none", "", "", "", "", "", "", "" };
+	const char *t_fmt_name1[8] = { " yesne", "", "", "", "", "", "", "" };
 
 	int tuner2 = 0, t_format2 = 0;
 	const char *t_name2 = NULL;
-	const char *t_fmt_name2[8] = { " none", "", "", "", "", "", "", "" };
+	const char *t_fmt_name2[8] = { " yesne", "", "", "", "", "", "", "" };
 
 	memset(tvee, 0, sizeof(*tvee));
 	tvee->tuner_type = TUNER_ABSENT;
@@ -486,7 +486,7 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 			len = eeprom_data[i] & 0x07;
 			++i;
 		} else {
-			pr_warn("Encountered bad packet header [%02x]. Corrupt or not a Hauppauge eeprom.\n",
+			pr_warn("Encountered bad packet header [%02x]. Corrupt or yest a Hauppauge eeprom.\n",
 				eeprom_data[i]);
 			return;
 		}
@@ -502,8 +502,8 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 			tuner1 = eeprom_data[i+6];
 			t_format1 = eeprom_data[i+5];
 			tvee->has_radio = eeprom_data[i+len-1];
-			/* old style tag, don't know how to detect
-			IR presence, mark as unknown. */
+			/* old style tag, don't kyesw how to detect
+			IR presence, mark as unkyeswn. */
 			tvee->has_ir = 0;
 			tvee->model =
 				eeprom_data[i+8] +
@@ -581,11 +581,11 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 			break;
 
 		case 0x07:
-			/* tag 'Details': according to Hauppauge not interesting
+			/* tag 'Details': according to Hauppauge yest interesting
 			on any PCI-era or later boards. */
 			break;
 
-		/* there is no tag 0x08 defined */
+		/* there is yes tag 0x08 defined */
 
 		case 0x09:
 			/* tag 'Video' */
@@ -602,7 +602,7 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 				/* a second (radio) tuner may be present */
 				tuner2 = eeprom_data[i + 2];
 				t_format2 = eeprom_data[i + 1];
-				/* not a TV tuner? */
+				/* yest a TV tuner? */
 				if (t_format2 == 0)
 					tvee->has_radio = 1; /* must be radio */
 			}
@@ -610,7 +610,7 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 
 		case 0x0b:
 			/* tag 'Inputs': according to Hauppauge this is specific
-			to each driver family, so no good assumptions can be
+			to each driver family, so yes good assumptions can be
 			made. */
 			break;
 
@@ -652,7 +652,7 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 	}
 
 	if (hasRadioTuner(tuner1) && !tvee->has_radio) {
-		pr_info("The eeprom says no radio is present, but the tuner type\n");
+		pr_info("The eeprom says yes radio is present, but the tuner type\n");
 		pr_info("indicates otherwise. I will assume that radio is present.\n");
 		tvee->has_radio = 1;
 	}
@@ -661,14 +661,14 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 		tvee->tuner_type = hauppauge_tuner[tuner1].id;
 		t_name1 = hauppauge_tuner[tuner1].name;
 	} else {
-		t_name1 = "unknown";
+		t_name1 = "unkyeswn";
 	}
 
 	if (tuner2 < ARRAY_SIZE(hauppauge_tuner)) {
 		tvee->tuner2_type = hauppauge_tuner[tuner2].id;
 		t_name2 = hauppauge_tuner[tuner2].name;
 	} else {
-		t_name2 = "unknown";
+		t_name2 = "unkyeswn";
 	}
 
 	tvee->tuner_hauppauge_model = tuner1;
@@ -707,14 +707,14 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 			t_fmt_name2[3],	t_fmt_name2[4], t_fmt_name2[5],
 			t_fmt_name2[6], t_fmt_name2[7], t_format2);
 	if (audioic < 0) {
-		pr_info("audio processor is unknown (no idx)\n");
+		pr_info("audio processor is unkyeswn (yes idx)\n");
 		tvee->audio_processor = TVEEPROM_AUDPROC_OTHER;
 	} else {
 		if (audioic < ARRAY_SIZE(audio_ic))
 			pr_info("audio processor is %s (idx %d)\n",
 					audio_ic[audioic].name, audioic);
 		else
-			pr_info("audio processor is unknown (idx %d)\n",
+			pr_info("audio processor is unkyeswn (idx %d)\n",
 								audioic);
 	}
 	if (tvee->decoder_processor)
@@ -723,12 +723,12 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 			tvee->decoder_processor);
 	if (tvee->has_ir)
 		pr_info("has %sradio, has %sIR receiver, has %sIR transmitter\n",
-				tvee->has_radio ? "" : "no ",
-				(tvee->has_ir & 2) ? "" : "no ",
-				(tvee->has_ir & 4) ? "" : "no ");
+				tvee->has_radio ? "" : "yes ",
+				(tvee->has_ir & 2) ? "" : "yes ",
+				(tvee->has_ir & 4) ? "" : "yes ");
 	else
 		pr_info("has %sradio\n",
-				tvee->has_radio ? "" : "no ");
+				tvee->has_radio ? "" : "yes ");
 }
 EXPORT_SYMBOL(tveeprom_hauppauge_analog);
 
@@ -743,7 +743,7 @@ int tveeprom_read(struct i2c_client *c, unsigned char *eedata, int len)
 	buf = 0;
 	err = i2c_master_send(c, &buf, 1);
 	if (err != 1) {
-		pr_info("Huh, no eeprom present (err=%d)?\n", err);
+		pr_info("Huh, yes eeprom present (err=%d)?\n", err);
 		return -1;
 	}
 	err = i2c_master_recv(c, eedata, len);

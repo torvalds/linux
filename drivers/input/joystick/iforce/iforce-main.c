@@ -59,7 +59,7 @@ static struct iforce_device iforce_device[] = {
 	{ 0x06f8, 0x0004, "Guillemot Force Feedback Racing Wheel",	btn_wheel, abs_wheel, ff_iforce }, //?
 	{ 0x06f8, 0xa302, "Guillemot Jet Leader 3D",			btn_joystick, abs_joystick, ff_iforce }, //?
 	{ 0x06d6, 0x29bc, "Trust Force Feedback Race Master",		btn_wheel, abs_wheel, ff_iforce },
-	{ 0x0000, 0x0000, "Unknown I-Force Device [%04x:%04x]",		btn_joystick, abs_joystick, ff_iforce }
+	{ 0x0000, 0x0000, "Unkyeswn I-Force Device [%04x:%04x]",		btn_joystick, abs_joystick, ff_iforce }
 };
 
 static int iforce_playback(struct input_dev *dev, int effect_id, int value)
@@ -110,7 +110,7 @@ static int iforce_upload_effect(struct input_dev *dev, struct ff_effect *effect,
 	int ret;
 
 	if (__test_and_set_bit(FF_CORE_IS_USED, core_effect->flags)) {
-		/* Check the effect is not already being updated */
+		/* Check the effect is yest already being updated */
 		if (test_bit(FF_CORE_UPDATE, core_effect->flags))
 			return -EAGAIN;
 	}
@@ -137,7 +137,7 @@ static int iforce_upload_effect(struct input_dev *dev, struct ff_effect *effect,
 	}
 
 	if (ret == 0) {
-		/* A packet was sent, forbid new updates until we are notified
+		/* A packet was sent, forbid new updates until we are yestified
 		 * that the packet was updated
 		 */
 		set_bit(FF_CORE_UPDATE, core_effect->flags);
@@ -187,7 +187,7 @@ static void iforce_close(struct input_dev *dev)
 	int i;
 
 	if (test_bit(EV_FF, dev->evbit)) {
-		/* Check: no effects should be present in memory */
+		/* Check: yes effects should be present in memory */
 		for (i = 0; i < dev->ff->max_effects; i++) {
 			if (test_bit(FF_CORE_IS_USED, iforce->core_effects[i].flags)) {
 				dev_warn(&dev->dev,
@@ -237,7 +237,7 @@ int iforce_init_device(struct device *parent, u16 bustype,
 
 	input_set_drvdata(input_dev, iforce);
 
-	input_dev->name = "Unknown I-Force device";
+	input_dev->name = "Unkyeswn I-Force device";
 	input_dev->open = iforce_open;
 	input_dev->close = iforce_close;
 
@@ -275,22 +275,22 @@ int iforce_init_device(struct device *parent, u16 bustype,
 	if (!iforce_get_id_packet(iforce, 'M', buf, &len) || len < 3)
 		input_dev->id.vendor = get_unaligned_le16(buf + 1);
 	else
-		dev_warn(&iforce->dev->dev, "Device does not respond to id packet M\n");
+		dev_warn(&iforce->dev->dev, "Device does yest respond to id packet M\n");
 
 	if (!iforce_get_id_packet(iforce, 'P', buf, &len) || len < 3)
 		input_dev->id.product = get_unaligned_le16(buf + 1);
 	else
-		dev_warn(&iforce->dev->dev, "Device does not respond to id packet P\n");
+		dev_warn(&iforce->dev->dev, "Device does yest respond to id packet P\n");
 
 	if (!iforce_get_id_packet(iforce, 'B', buf, &len) || len < 3)
 		iforce->device_memory.end = get_unaligned_le16(buf + 1);
 	else
-		dev_warn(&iforce->dev->dev, "Device does not respond to id packet B\n");
+		dev_warn(&iforce->dev->dev, "Device does yest respond to id packet B\n");
 
 	if (!iforce_get_id_packet(iforce, 'N', buf, &len) || len < 2)
 		ff_effects = buf[1];
 	else
-		dev_warn(&iforce->dev->dev, "Device does not respond to id packet N\n");
+		dev_warn(&iforce->dev->dev, "Device does yest respond to id packet N\n");
 
 	/* Check if the device can store more effects than the driver can really handle */
 	if (ff_effects > IFORCE_EFFECTS_MAX) {

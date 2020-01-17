@@ -13,7 +13,7 @@ struct thread_info;
 /*
  * switch_to(prev, next) should switch from task `prev' to `next'
  * `prev' will never be the same as `next'.  schedule() itself
- * contains the memory barrier to tell GCC not to cache `current'.
+ * contains the memory barrier to tell GCC yest to cache `current'.
  */
 extern struct task_struct *__switch_to(struct task_struct *,
 		struct thread_info *, struct thread_info *);

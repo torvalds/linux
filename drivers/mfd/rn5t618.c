@@ -2,7 +2,7 @@
 /*
  * MFD core driver for Ricoh RN5T618 PMIC
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamiyes Galvani <b.galvani@gmail.com>
  * Copyright (C) 2016 Toradex AG
  */
 
@@ -46,7 +46,7 @@ static const struct regmap_config rn5t618_regmap_config = {
 };
 
 static struct rn5t618 *rn5t618_pm_power_off;
-static struct notifier_block rn5t618_restart_handler;
+static struct yestifier_block rn5t618_restart_handler;
 
 static void rn5t618_trigger_poweroff_sequence(bool repower)
 {
@@ -64,14 +64,14 @@ static void rn5t618_power_off(void)
 	rn5t618_trigger_poweroff_sequence(false);
 }
 
-static int rn5t618_restart(struct notifier_block *this,
+static int rn5t618_restart(struct yestifier_block *this,
 			    unsigned long mode, void *cmd)
 {
 	rn5t618_trigger_poweroff_sequence(true);
 
 	/*
-	 * Re-power factor detection on PMIC side is not instant. 1ms
-	 * proved to be enough time until reset takes effect.
+	 * Re-power factor detection on PMIC side is yest instant. 1ms
+	 * proved to be eyesugh time until reset takes effect.
 	 */
 	mdelay(1);
 
@@ -121,19 +121,19 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c,
 	}
 
 	rn5t618_pm_power_off = priv;
-	if (of_device_is_system_power_controller(i2c->dev.of_node)) {
+	if (of_device_is_system_power_controller(i2c->dev.of_yesde)) {
 		if (!pm_power_off)
 			pm_power_off = rn5t618_power_off;
 		else
 			dev_warn(&i2c->dev, "Poweroff callback already assigned\n");
 	}
 
-	rn5t618_restart_handler.notifier_call = rn5t618_restart;
+	rn5t618_restart_handler.yestifier_call = rn5t618_restart;
 	rn5t618_restart_handler.priority = 192;
 
 	ret = register_restart_handler(&rn5t618_restart_handler);
 	if (ret) {
-		dev_err(&i2c->dev, "cannot register restart handler, %d\n", ret);
+		dev_err(&i2c->dev, "canyest register restart handler, %d\n", ret);
 		return ret;
 	}
 
@@ -171,6 +171,6 @@ static struct i2c_driver rn5t618_i2c_driver = {
 
 module_i2c_driver(rn5t618_i2c_driver);
 
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_AUTHOR("Beniamiyes Galvani <b.galvani@gmail.com>");
 MODULE_DESCRIPTION("Ricoh RN5T567/618 MFD driver");
 MODULE_LICENSE("GPL v2");

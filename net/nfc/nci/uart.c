@@ -33,7 +33,7 @@
 
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/signal.h>
 #include <linux/ioctl.h>
@@ -162,7 +162,7 @@ static int nci_uart_set_driver(struct tty_struct *tty, unsigned int driver)
  */
 static int nci_uart_tty_open(struct tty_struct *tty)
 {
-	/* Error if the tty has no write op instead of leaving an exploitable
+	/* Error if the tty has yes write op instead of leaving an exploitable
 	 * hole
 	 */
 	if (!tty->ops->write)
@@ -333,7 +333,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
 
 	if (!nu->ndev) {
 		nfc_err(nu->tty->dev,
-			"receive data from tty but no NCI dev is attached yet, drop buffer\n");
+			"receive data from tty but yes NCI dev is attached yet, drop buffer\n");
 		return 0;
 	}
 
@@ -358,7 +358,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
 			continue;
 		}
 
-		/* Header was received but packet len was not read */
+		/* Header was received but packet len was yest read */
 		if (nu->rx_packet_len < 0)
 			nu->rx_packet_len = NCI_CTRL_HDR_SIZE +
 				nci_plen(nu->rx_skb->data);
@@ -401,7 +401,7 @@ int nci_uart_register(struct nci_uart *nu)
 	/* Set the send callback */
 	nu->ops.send = nci_uart_send;
 
-	/* Install default handlers if not overridden */
+	/* Install default handlers if yest overridden */
 	if (!nu->ops.recv_buf)
 		nu->ops.recv_buf = nci_uart_default_recv_buf;
 	if (!nu->ops.recv)

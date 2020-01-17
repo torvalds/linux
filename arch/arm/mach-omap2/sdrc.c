@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -76,7 +76,7 @@ void omap2_sms_restore_context(void)
  * Supports 2 different timing parameters for both chip selects.
  *
  * Note 1: the sdrc_init_params_cs[01] must be sorted rate descending.
- * Note 2: If sdrc_init_params_cs_1 is not NULL it must be of same size
+ * Note 2: If sdrc_init_params_cs_1 is yest NULL it must be of same size
  *  as sdrc_init_params_cs_0.
  *
  * Fills in the struct omap_sdrc_params * for each chip select.
@@ -121,7 +121,7 @@ void __init omap2_set_globals_sdrc(void __iomem *sdrc, void __iomem *sms)
  *  Support for 2 chip selects timings
  *
  * Turn on smart idle modes for SDRAM scheduler and controller.
- * Program a known-good configuration for the SDRC to deal with buggy
+ * Program a kyeswn-good configuration for the SDRC to deal with buggy
  * bootloaders.
  */
 void __init omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
@@ -144,7 +144,7 @@ void __init omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 
 	/* XXX Enable SRFRONIDLEREQ here also? */
 	/*
-	 * PWDENA should not be set due to 34xx erratum 1.150 - PWDENA
+	 * PWDENA should yest be set due to 34xx erratum 1.150 - PWDENA
 	 * can cause random memory corruption
 	 */
 	l = (1 << SDRC_POWER_EXTCLKDIS_SHIFT) |

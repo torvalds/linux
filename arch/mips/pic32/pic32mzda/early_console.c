@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Joshua Henderson <joshua.henderson@microchip.com>
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techyeslogy Inc.  All rights reserved.
  */
 #include <asm/mach-pic32/pic32.h>
 #include <asm/fw/fw.h>
@@ -72,7 +72,7 @@ static void __init setup_early_console(char port, int baud)
 static char * __init pic32_getcmdline(void)
 {
 	/*
-	 * arch_mem_init() has not been called yet, so we don't have a real
+	 * arch_mem_init() has yest been called yet, so we don't have a real
 	 * command line setup if using CONFIG_CMDLINE_BOOL.
 	 */
 #ifdef CONFIG_CMDLINE_OVERRIDE
@@ -135,7 +135,7 @@ void __init fw_init_early_console(char port)
 	char *arch_cmdline = pic32_getcmdline();
 	int baud = -1;
 
-	uart_base = ioremap_nocache(PIC32_BASE_UART, 0xc00);
+	uart_base = ioremap_yescache(PIC32_BASE_UART, 0xc00);
 
 	baud = get_baud_from_cmdline(arch_cmdline);
 	if (port == -1)

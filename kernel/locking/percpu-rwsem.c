@@ -6,7 +6,7 @@
 #include <linux/percpu-rwsem.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include "rwsem.h"
 
@@ -46,7 +46,7 @@ int __percpu_down_read(struct percpu_rw_semaphore *sem, int try)
 	/*
 	 * Due to having preemption disabled the decrement happens on
 	 * the same CPU as the increment, avoiding the
-	 * increment-on-one-CPU-and-decrement-on-another problem.
+	 * increment-on-one-CPU-and-decrement-on-ayesther problem.
 	 *
 	 * If the reader misses the writer's assignment of readers_block, then
 	 * the writer is guaranteed to see the reader's increment.
@@ -80,7 +80,7 @@ int __percpu_down_read(struct percpu_rw_semaphore *sem, int try)
 	 * We either call schedule() in the wait, or we'll fall through
 	 * and reschedule on the preempt_enable() in percpu_down_read().
 	 */
-	preempt_enable_no_resched();
+	preempt_enable_yes_resched();
 
 	/*
 	 * Avoid lockdep for the down/up_read() we already have them.
@@ -148,7 +148,7 @@ void percpu_down_write(struct percpu_rw_semaphore *sem)
 	down_write(&sem->rw_sem);
 
 	/*
-	 * Notify new readers to block; up until now, and thus throughout the
+	 * Notify new readers to block; up until yesw, and thus throughout the
 	 * longish rcu_sync_enter() above, new readers could still come in.
 	 */
 	WRITE_ONCE(sem->readers_block, 1);
@@ -161,7 +161,7 @@ void percpu_down_write(struct percpu_rw_semaphore *sem)
 	 * will wait for them.
 	 */
 
-	/* Wait for all now active readers to complete. */
+	/* Wait for all yesw active readers to complete. */
 	rcuwait_wait_event(&sem->writer, readers_active_check(sem));
 }
 EXPORT_SYMBOL_GPL(percpu_down_write);
@@ -169,9 +169,9 @@ EXPORT_SYMBOL_GPL(percpu_down_write);
 void percpu_up_write(struct percpu_rw_semaphore *sem)
 {
 	/*
-	 * Signal the writer is done, no fast path yet.
+	 * Signal the writer is done, yes fast path yet.
 	 *
-	 * One reason that we cannot just immediately flip to readers_fast is
+	 * One reason that we canyest just immediately flip to readers_fast is
 	 * that new readers might fail to see the results of this writer's
 	 * critical section.
 	 *

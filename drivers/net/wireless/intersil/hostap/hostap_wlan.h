@@ -41,7 +41,7 @@ struct linux_wlan_ng_prism_hdr {
 	u32 msgcode, msglen;
 	char devname[16];
 	struct linux_wlan_ng_val hosttime, mactime, channel, rssi, sq, signal,
-		noise, rate, istx, frmlen;
+		yesise, rate, istx, frmlen;
 } __packed;
 
 struct linux_wlan_ng_cap_hdr {
@@ -56,7 +56,7 @@ struct linux_wlan_ng_cap_hdr {
 	__be32 priority;
 	__be32 ssi_type;
 	__be32 ssi_signal;
-	__be32 ssi_noise;
+	__be32 ssi_yesise;
 	__be32 preamble;
 	__be32 encoding;
 } __packed;
@@ -69,7 +69,7 @@ struct hostap_radiotap_rx {
 	__le16 chan_freq;
 	__le16 chan_flags;
 	s8 dbm_antsignal;
-	s8 dbm_antnoise;
+	s8 dbm_antyesise;
 } __packed;
 
 #define LWNG_CAP_DID_BASE   (4 | (1 << 6)) /* section 4, group 1 */
@@ -110,12 +110,12 @@ struct hfa384x_tx_frame {
 	__le16 reserved1;
 	__le16 reserved2;
 	__le32 sw_support;
-	u8 retry_count; /* not yet implemented */
+	u8 retry_count; /* yest yet implemented */
 	u8 tx_rate; /* Host AP only; 0 = firmware, or 10, 20, 55, 110 */
 	__le16 tx_control; /* HFA384X_TX_CTRL_ flags */
 
 	/* 802.11 */
-	__le16 frame_control; /* parts not used */
+	__le16 frame_control; /* parts yest used */
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN]; /* filled by firmware */
@@ -185,7 +185,7 @@ struct hfa384x_comm_tallies {
 	__le16 rx_unicast_octets;
 	__le16 rx_multicast_octets;
 	__le16 rx_fcs_errors;
-	__le16 rx_discards_no_buffer;
+	__le16 rx_discards_yes_buffer;
 	__le16 tx_discards_wrong_sa;
 	__le16 rx_discards_wep_undecryptable;
 	__le16 rx_message_in_msg_fragments;
@@ -209,7 +209,7 @@ struct hfa384x_comm_tallies32 {
 	__le32 rx_unicast_octets;
 	__le32 rx_multicast_octets;
 	__le32 rx_fcs_errors;
-	__le32 rx_discards_no_buffer;
+	__le32 rx_discards_yes_buffer;
 	__le32 tx_discards_wrong_sa;
 	__le32 rx_discards_wep_undecryptable;
 	__le32 rx_message_in_msg_fragments;
@@ -219,7 +219,7 @@ struct hfa384x_comm_tallies32 {
 struct hfa384x_scan_result_hdr {
 	__le16 reserved;
 	__le16 scan_reason;
-#define HFA384X_SCAN_IN_PROGRESS 0 /* no results available yet */
+#define HFA384X_SCAN_IN_PROGRESS 0 /* yes results available yet */
 #define HFA384X_SCAN_HOST_INITIATED 1
 #define HFA384X_SCAN_FIRMWARE_INITIATED 2
 #define HFA384X_SCAN_INQUIRY_FROM_HOST 3
@@ -271,7 +271,7 @@ struct comm_tallies_sums {
 	unsigned int rx_unicast_octets;
 	unsigned int rx_multicast_octets;
 	unsigned int rx_fcs_errors;
-	unsigned int rx_discards_no_buffer;
+	unsigned int rx_discards_yes_buffer;
 	unsigned int tx_discards_wrong_sa;
 	unsigned int rx_discards_wep_undecryptable;
 	unsigned int rx_message_in_msg_fragments;
@@ -420,7 +420,7 @@ struct hfa384x_regs {
 #define PRISM2_PDA_SIZE 1024
 
 
-/* Events; EvStat, Interrupt mask (IntEn), and acknowledge bits (EvAck) */
+/* Events; EvStat, Interrupt mask (IntEn), and ackyeswledge bits (EvAck) */
 #define HFA384X_EV_TICK BIT(15)
 #define HFA384X_EV_WTERR BIT(14)
 #define HFA384X_EV_INFDROP BIT(13)
@@ -534,7 +534,7 @@ struct hostap_tx_callback_info {
 
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
- * concurrent frames, but it should be noted that each entry can consume about
+ * concurrent frames, but it should be yested that each entry can consume about
  * 2 kB of RAM and increasing cache size will slow down frame reassembly. */
 #define PRISM2_FRAG_CACHE_LEN 4
 
@@ -592,7 +592,7 @@ struct prism2_helper_functions {
 	int (*hw_enable)(struct net_device *dev, int initial);
 	int (*hw_config)(struct net_device *dev, int initial);
 	void (*hw_reset)(struct net_device *dev);
-	void (*hw_shutdown)(struct net_device *dev, int no_disable);
+	void (*hw_shutdown)(struct net_device *dev, int yes_disable);
 	int (*reset_port)(struct net_device *dev);
 	void (*schedule_reset)(local_info_t *local);
 	int (*download)(local_info_t *local,
@@ -706,8 +706,8 @@ struct local_info {
 	int hw_downloading;
 	int shutdown;
 	int pri_only;
-	int no_pri; /* no PRI f/w present */
-	int sram_type; /* 8 = x8 SRAM, 16 = x16 SRAM, -1 = unknown */
+	int yes_pri; /* yes PRI f/w present */
+	int sram_type; /* 8 = x8 SRAM, 16 = x16 SRAM, -1 = unkyeswn */
 
 	enum {
 		PRISM2_TXPOWER_AUTO = 0, PRISM2_TXPOWER_OFF,
@@ -771,7 +771,7 @@ struct local_info {
 	int open_wep; /* allow unencrypted frames */
 	int host_encrypt;
 	int host_decrypt;
-	int privacy_invoked; /* force privacy invoked flag even if no keys are
+	int privacy_invoked; /* force privacy invoked flag even if yes keys are
 			      * configured */
 	int fw_encrypt_ok; /* whether firmware-based WEP encrypt is working
 			    * in Host AP mode (STA f/w 1.4.9 or newer) */
@@ -788,15 +788,15 @@ struct local_info {
 	int fragm_threshold; /* dot11FragmentationThreshold */
 	int auth_algs; /* PRISM2_AUTH_ flags */
 
-	int enh_sec; /* cnfEnhSecurity options (broadcast SSID hide/ignore) */
+	int enh_sec; /* cnfEnhSecurity options (broadcast SSID hide/igyesre) */
 	int tallies32; /* 32-bit tallies in use */
 
 	struct prism2_helper_functions *func;
 
 	u8 *pda;
 	int fw_ap;
-#define PRISM2_FW_VER(major, minor, variant) \
-(((major) << 16) | ((minor) << 8) | variant)
+#define PRISM2_FW_VER(major, miyesr, variant) \
+(((major) << 16) | ((miyesr) << 8) | variant)
 	u32 sta_fw_ver;
 
 	/* Tasklets for handling hardware IRQ related operations outside hw IRQ
@@ -832,7 +832,7 @@ struct local_info {
 #ifdef PRISM2_CALLBACK
 	void *callback_data; /* Can be used in callbacks; e.g., allocate
 			      * on enable event and free on disable event.
-			      * Host AP driver code does not touch this. */
+			      * Host AP driver code does yest touch this. */
 #endif /* PRISM2_CALLBACK */
 
 	wait_queue_head_t hostscan_wq;
@@ -851,8 +851,8 @@ struct local_info {
 	 * valid for Managed and Ad-hoc modes */
 	unsigned long last_comms_qual_update;
 	int comms_qual; /* in some odd unit.. */
-	int avg_signal; /* in dB (note: negative) */
-	int avg_noise; /* in dB (note: negative) */
+	int avg_signal; /* in dB (yeste: negative) */
+	int avg_yesise; /* in dB (yeste: negative) */
 	struct work_struct comms_qual_update;
 
 	/* RSSI to dBm adjustment (for RX descriptor fields) */
@@ -917,7 +917,7 @@ struct hostap_interface {
 #define HOSTAP_SKB_TX_DATA_MAGIC 0xf08a36a2
 
 /*
- * TX meta data - stored in skb->cb buffer, so this must not be increased over
+ * TX meta data - stored in skb->cb buffer, so this must yest be increased over
  * the 48-byte limit.
  * THE PADDING THIS STARTS WITH IS A HORRIBLE HACK THAT SHOULD NOT LIVE
  * TO SEE THE DAY.

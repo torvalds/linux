@@ -103,7 +103,7 @@ struct komeda_component {
 	 * maximum number of inputs/outputs that can be active at the same time
 	 * Note:
 	 * the number isn't the bit number of @supported_inputs or
-	 * @supported_outputs, but may be less than it, since component may not
+	 * @supported_outputs, but may be less than it, since component may yest
 	 * support enabling all @supported_inputs/outputs at the same time.
 	 */
 	u8 max_active_inputs;
@@ -130,8 +130,8 @@ struct komeda_component {
 /**
  * struct komeda_component_output
  *
- * a component has multiple outputs, if want to know where the data
- * comes from, only know the component is not enough, we still need to know
+ * a component has multiple outputs, if want to kyesw where the data
+ * comes from, only kyesw the component is yest eyesugh, we still need to kyesw
  * its output port
  */
 struct komeda_component_output {
@@ -200,7 +200,7 @@ struct komeda_component_state {
 	 * @inputs:
 	 *
 	 * the specific inputs[i] only valid on BIT(i) has been set in
-	 * @active_inputs, if not the inputs[i] is undefined.
+	 * @active_inputs, if yest the inputs[i] is undefined.
 	 */
 	struct komeda_component_output inputs[KOMEDA_COMPONENT_N_INPUTS];
 };
@@ -233,7 +233,7 @@ struct komeda_layer {
 	/* komeda supports layer split which splits a whole image to two parts
 	 * left and right and handle them by two individual layer processors
 	 * Note: left/right are always according to the final display rect,
-	 * not the source buffer.
+	 * yest the source buffer.
 	 */
 	struct komeda_layer *right;
 };
@@ -339,7 +339,7 @@ struct komeda_timing_ctrlr_state {
 	struct komeda_component_state base;
 };
 
-/* Why define A separated structure but not use plane_state directly ?
+/* Why define A separated structure but yest use plane_state directly ?
  * 1. Komeda supports layer_split which means a plane_state can be split and
  *    handled by two layers, one layer only handle half of plane image.
  * 2. Fix up the user properties according to HW's capabilities, like user
@@ -395,7 +395,7 @@ struct komeda_pipeline {
 	/**
 	 * @standalone_disabled_comps:
 	 *
-	 * When disable the pipeline, some components can not be disabled
+	 * When disable the pipeline, some components can yest be disabled
 	 * together with others, but need a sparated and standalone disable.
 	 * The standalone_disabled_comps are the components which need to be
 	 * disabled standalone, and this concept also introduce concept of
@@ -427,12 +427,12 @@ struct komeda_pipeline {
 	/** @funcs: chip private pipeline functions */
 	const struct komeda_pipeline_funcs *funcs;
 
-	/** @of_node: pipeline dt node */
-	struct device_node *of_node;
+	/** @of_yesde: pipeline dt yesde */
+	struct device_yesde *of_yesde;
 	/** @of_output_port: pipeline output port */
-	struct device_node *of_output_port;
-	/** @of_output_links: output connector device nodes */
-	struct device_node *of_output_links[2];
+	struct device_yesde *of_output_port;
+	/** @of_output_links: output connector device yesdes */
+	struct device_yesde *of_output_links[2];
 	/** @dual_link: true if of_output_links[0] and [1] are both valid */
 	bool dual_link;
 };

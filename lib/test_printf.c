@@ -71,7 +71,7 @@ do_test(int bufsize, const char *expect, int elen,
 
 	written = min(bufsize-1, elen);
 	if (test_buffer[written]) {
-		pr_warn("vsnprintf(buf, %d, \"%s\", ...) did not nul-terminate buffer\n",
+		pr_warn("vsnprintf(buf, %d, \"%s\", ...) did yest nul-terminate buffer\n",
 			bufsize, fmt);
 		return 1;
 	}
@@ -108,8 +108,8 @@ __test(const char *expect, int elen, const char *fmt, ...)
 
 	/*
 	 * Every fmt+args is subjected to four tests: Three where we
-	 * tell vsnprintf varying buffer sizes (plenty, not quite
-	 * enough and 0), and then we also test that kvasprintf would
+	 * tell vsnprintf varying buffer sizes (plenty, yest quite
+	 * eyesugh and 0), and then we also test that kvasprintf would
 	 * be able to print it as expected.
 	 */
 	failed_tests += do_test(BUF_SIZE, expect, elen, fmt, ap);
@@ -137,7 +137,7 @@ __test(const char *expect, int elen, const char *fmt, ...)
 static void __init
 test_basic(void)
 {
-	/* Work around annoying "warning: zero-length gnu_printf format string". */
+	/* Work around anyesying "warning: zero-length gnu_printf format string". */
 	char nul = '\0';
 
 	test("", &nul);
@@ -157,7 +157,7 @@ test_number(void)
 	test("2015122420151225", "%ho%ho%#ho", 1037, 5282, -11627);
 	/*
 	 * POSIX/C99: »The result of converting zero with an explicit
-	 * precision of zero shall be no characters.« Hence the output
+	 * precision of zero shall be yes characters.« Hence the output
 	 * from the below test should really be "00|0||| ". However,
 	 * the kernel's printf also produces a single 0 in that
 	 * case. This test case simply documents the current
@@ -193,7 +193,7 @@ test_string(void)
 	 * omitted (as in %.s), the precision should be taken to be
 	 * 0. However, the kernel's printf behave exactly opposite,
 	 * treating a negative precision as 0 and treating an omitted
-	 * precision specifier as if no precision was given.
+	 * precision specifier as if yes precision was given.
 	 *
 	 * These test cases document the current behaviour; should
 	 * anyone ever feel the need to follow the standards more
@@ -227,7 +227,7 @@ plain_format(void)
 		return -1;
 
 	if (strncmp(buf, PTR_VAL_NO_CRNG, PTR_WIDTH) == 0) {
-		pr_warn("crng possibly not yet initialized. plain 'p' buffer contains \"%s\"",
+		pr_warn("crng possibly yest yet initialized. plain 'p' buffer contains \"%s\"",
 			PTR_VAL_NO_CRNG);
 		return 0;
 	}
@@ -266,7 +266,7 @@ plain_hash_to_buffer(const void *p, char *buf, size_t len)
 		return -1;
 
 	if (strncmp(buf, PTR_VAL_NO_CRNG, PTR_WIDTH) == 0) {
-		pr_warn("crng possibly not yet initialized. plain 'p' buffer contains \"%s\"",
+		pr_warn("crng possibly yest yet initialized. plain 'p' buffer contains \"%s\"",
 			PTR_VAL_NO_CRNG);
 		return 0;
 	}
@@ -291,7 +291,7 @@ plain_hash(void)
 }
 
 /*
- * We can't use test() to test %p because we don't know what output to expect
+ * We can't use test() to test %p because we don't kyesw what output to expect
  * after an address is hashed.
  */
 static void __init
@@ -301,7 +301,7 @@ plain(void)
 
 	err = plain_hash();
 	if (err) {
-		pr_warn("plain 'p' does not appear to be hashed\n");
+		pr_warn("plain 'p' does yest appear to be hashed\n");
 		failed_tests++;
 		return;
 	}
@@ -582,7 +582,7 @@ flags(void)
 	if (!cmp_buffer)
 		return;
 
-	/* Any flags not translated by the table should remain numeric */
+	/* Any flags yest translated by the table should remain numeric */
 	gfp = ~__GFP_BITS_MASK;
 	snprintf(cmp_buffer, BUF_SIZE, "%#lx", (unsigned long) gfp);
 	test(cmp_buffer, "%pGg", &gfp);
@@ -595,12 +595,12 @@ flags(void)
 	kfree(cmp_buffer);
 }
 
-static void __init fwnode_pointer(void)
+static void __init fwyesde_pointer(void)
 {
-	const struct software_node softnodes[] = {
+	const struct software_yesde softyesdes[] = {
 		{ .name = "first", },
-		{ .name = "second", .parent = &softnodes[0], },
-		{ .name = "third", .parent = &softnodes[1], },
+		{ .name = "second", .parent = &softyesdes[0], },
+		{ .name = "third", .parent = &softyesdes[1], },
 		{ NULL /* Guardian */ }
 	};
 	const char * const full_name = "first/second/third";
@@ -609,19 +609,19 @@ static void __init fwnode_pointer(void)
 	const char * const third_name = "third";
 	int rval;
 
-	rval = software_node_register_nodes(softnodes);
+	rval = software_yesde_register_yesdes(softyesdes);
 	if (rval) {
-		pr_warn("cannot register softnodes; rval %d\n", rval);
+		pr_warn("canyest register softyesdes; rval %d\n", rval);
 		return;
 	}
 
-	test(full_name_second, "%pfw", software_node_fwnode(&softnodes[1]));
-	test(full_name, "%pfw", software_node_fwnode(&softnodes[2]));
-	test(full_name, "%pfwf", software_node_fwnode(&softnodes[2]));
-	test(second_name, "%pfwP", software_node_fwnode(&softnodes[1]));
-	test(third_name, "%pfwP", software_node_fwnode(&softnodes[2]));
+	test(full_name_second, "%pfw", software_yesde_fwyesde(&softyesdes[1]));
+	test(full_name, "%pfw", software_yesde_fwyesde(&softyesdes[2]));
+	test(full_name, "%pfwf", software_yesde_fwyesde(&softyesdes[2]));
+	test(second_name, "%pfwP", software_yesde_fwyesde(&softyesdes[1]));
+	test(third_name, "%pfwP", software_yesde_fwyesde(&softyesdes[2]));
 
-	software_node_unregister_nodes(softnodes);
+	software_yesde_unregister_yesdes(softyesdes);
 }
 
 static void __init
@@ -629,7 +629,7 @@ errptr(void)
 {
 	test("-1234", "%pe", ERR_PTR(-1234));
 
-	/* Check that %pe with a non-ERR_PTR gets treated as ordinary %p. */
+	/* Check that %pe with a yesn-ERR_PTR gets treated as ordinary %p. */
 	BUILD_BUG_ON(IS_ERR(PTR));
 	test_hashed("%pe", PTR);
 
@@ -667,7 +667,7 @@ test_pointer(void)
 	netdev_features();
 	flags();
 	errptr();
-	fwnode_pointer();
+	fwyesde_pointer();
 }
 
 static void __init selftest(void)

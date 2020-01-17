@@ -24,7 +24,7 @@
 /*
  * Configure the MFPs appropriately for suspend/resume.
  * FIXME: this should probably depend on which system state we're
- * entering - for instance, we might not want to place MFP pins in
+ * entering - for instance, we might yest want to place MFP pins in
  * a pull-down mode if they're an active low chip select, and we're
  * just entering standby.
  */

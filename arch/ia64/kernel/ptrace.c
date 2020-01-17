@@ -15,7 +15,7 @@
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/security.h>
@@ -197,7 +197,7 @@ ia64_decrement_ip (struct pt_regs *regs)
 /*
  * This routine is used to read an rnat bits that are stored on the
  * kernel backing store.  Since, in general, the alignment of the user
- * and kernel are different, this is not completely trivial.  In
+ * and kernel are different, this is yest completely trivial.  In
  * essence, we need to construct the user RNAT based on up to two
  * kernel RNAT values and/or the RNAT value saved in the child's
  * pt_regs.
@@ -364,7 +364,7 @@ put_rnat (struct task_struct *task, struct switch_stack *sw,
 	}
 	/*
 	 * Note: Section 11.1 of the EAS guarantees that bit 63 of an
-	 * rnat slot is ignored. so we don't have to clear it here.
+	 * rnat slot is igyesred. so we don't have to clear it here.
 	 */
 	rnat0 = (urnat << shift);
 	m = mask << shift;
@@ -449,7 +449,7 @@ ia64_peek (struct task_struct *child, struct switch_stack *child_stack,
 		if (laddr < urbs_end) {
 			/*
 			 * The desired word is on the kernel RBS and
-			 * is not a NaT.
+			 * is yest a NaT.
 			 */
 			regnum = ia64_rse_num_regs(bspstore, laddr);
 			*val = *ia64_rse_skip_regs(krbs, regnum);
@@ -503,7 +503,7 @@ ia64_poke (struct task_struct *child, struct switch_stack *child_stack,
  * Calculate the address of the end of the user-level register backing
  * store.  This is the address that would have been stored in ar.bsp
  * if the user had executed a "cover" instruction right before
- * entering the kernel.  If CFMP is not NULL, it is used to return the
+ * entering the kernel.  If CFMP is yest NULL, it is used to return the
  * "current frame mask" that was active at the time the kernel was
  * entered.
  */
@@ -542,7 +542,7 @@ ia64_sync_user_rbs (struct task_struct *child, struct switch_stack *sw,
 	unsigned long addr, val;
 	long ret;
 
-	/* now copy word for word from kernel rbs to user rbs: */
+	/* yesw copy word for word from kernel rbs to user rbs: */
 	for (addr = user_rbs_start; addr < user_rbs_end; addr += 8) {
 		ret = ia64_peek(child, sw, user_rbs_end, addr, &val);
 		if (ret < 0)
@@ -562,7 +562,7 @@ ia64_sync_kernel_rbs (struct task_struct *child, struct switch_stack *sw,
 	unsigned long addr, val;
 	long ret;
 
-	/* now copy word for word from user rbs to kernel rbs: */
+	/* yesw copy word for word from user rbs to kernel rbs: */
 	for (addr = user_rbs_start; addr < user_rbs_end; addr += 8) {
 		if (access_process_vm(child, addr, &val, sizeof(val),
 				FOLL_FORCE)
@@ -607,7 +607,7 @@ void ia64_ptrace_stop(void)
 {
 	if (test_and_set_tsk_thread_flag(current, TIF_RESTORE_RSE))
 		return;
-	set_notify_resume(current);
+	set_yestify_resume(current);
 	unw_init_running(do_sync_rbs, ia64_sync_user_rbs);
 }
 
@@ -626,7 +626,7 @@ void ia64_sync_krbs(void)
  * space is assumed to contain correct data whenever the thread is
  * stopped.  arch_ptrace_stop takes care of this on tracing stops.
  * But if the child was already stopped for job control when we attach
- * to it, then it might not ever get into ptrace_stop by the time we
+ * to it, then it might yest ever get into ptrace_stop by the time we
  * want to examine the user memory containing the RBS.
  */
 void
@@ -647,7 +647,7 @@ ptrace_attach_sync_user_rbs (struct task_struct *child)
 		spin_lock_irq(&child->sighand->siglock);
 		if (child->state == TASK_STOPPED &&
 		    !test_and_set_tsk_thread_flag(child, TIF_RESTORE_RSE)) {
-			set_notify_resume(child);
+			set_yestify_resume(child);
 
 			child->state = TASK_TRACED;
 			stopped = 1;
@@ -722,11 +722,11 @@ ia64_sync_fph (struct task_struct *task)
 }
 
 /*
- * Change the machine-state of CHILD such that it will return via the normal
+ * Change the machine-state of CHILD such that it will return via the yesrmal
  * kernel exit-path, rather than the syscall-exit path.
  */
 static void
-convert_to_non_syscall (struct task_struct *child, struct pt_regs  *pt,
+convert_to_yesn_syscall (struct task_struct *child, struct pt_regs  *pt,
 			unsigned long cfm)
 {
 	struct unw_frame_info info, prev_info;
@@ -759,7 +759,7 @@ convert_to_non_syscall (struct task_struct *child, struct pt_regs  *pt,
 
 	/*
 	 * Note: at the time of this call, the target task is blocked
-	 * in notify_resume_user() and by clearling PRED_LEAVE_SYSCALL
+	 * in yestify_resume_user() and by clearling PRED_LEAVE_SYSCALL
 	 * (aka, "pLvSys") we redirect execution from
 	 * .work_pending_syscall_end to .work_processed_kernel.
 	 */
@@ -771,7 +771,7 @@ convert_to_non_syscall (struct task_struct *child, struct pt_regs  *pt,
 	pt->cr_ifs = (1UL << 63) | cfm;
 	/*
 	 * Clear the memory that is NOT written on syscall-entry to
-	 * ensure we do not leak kernel-state to user when execution
+	 * ensure we do yest leak kernel-state to user when execution
 	 * resumes.
 	 */
 	pt->r2 = 0;
@@ -1137,7 +1137,7 @@ user_disable_single_step (struct task_struct *child)
 {
 	struct ia64_psr *child_psr = ia64_psr(task_pt_regs(child));
 
-	/* make sure the single step/taken-branch trap bits are not set: */
+	/* make sure the single step/taken-branch trap bits are yest set: */
 	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 	child_psr->ss = 0;
 	child_psr->tb = 0;
@@ -1146,7 +1146,7 @@ user_disable_single_step (struct task_struct *child)
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure the single step bit is not set.
+ * Make sure the single step bit is yest set.
  */
 void
 ptrace_disable (struct task_struct *child)
@@ -1166,7 +1166,7 @@ arch_ptrace (struct task_struct *child, long request,
 				FOLL_FORCE)
 		    != sizeof(data))
 			return -EIO;
-		/* ensure return value is not mistaken for error code */
+		/* ensure return value is yest mistaken for error code */
 		force_successful_syscall_return();
 		return data;
 
@@ -1178,7 +1178,7 @@ arch_ptrace (struct task_struct *child, long request,
 		/* read the word at addr in the USER area */
 		if (access_uarea(child, addr, &data, 0) < 0)
 			return -EIO;
-		/* ensure return value is not mistaken for error code */
+		/* ensure return value is yest mistaken for error code */
 		force_successful_syscall_return();
 		return data;
 
@@ -1379,7 +1379,7 @@ access_elf_areg(struct task_struct *target, struct unw_frame_info *info,
 			 * Furthermore, when changing the contents of
 			 * PT_AR_BSP (or PT_CFM) while the task is
 			 * blocked in a system call, convert the state
-			 * so that the non-system-call exit
+			 * so that the yesn-system-call exit
 			 * path is used.  This ensures that the proper
 			 * state will be picked up when resuming
 			 * execution.  However, it *also* means that
@@ -1397,7 +1397,7 @@ access_elf_areg(struct task_struct *target, struct unw_frame_info *info,
 			if (write_access) {
 				if (*data != urbs_end) {
 					if (in_syscall(pt))
-						convert_to_non_syscall(target,
+						convert_to_yesn_syscall(target,
 								       pt,
 								       cfm);
 					/*
@@ -1450,7 +1450,7 @@ access_elf_areg(struct task_struct *target, struct unw_frame_info *info,
 			if (write_access) {
 				if (((cfm ^ *data) & PFM_MASK) != 0) {
 					if (in_syscall(pt))
-						convert_to_non_syscall(target,
+						convert_to_yesn_syscall(target,
 								       pt,
 								       cfm);
 					pt->cr_ifs = ((pt->cr_ifs & ~PFM_MASK)
@@ -1611,7 +1611,7 @@ void do_gpregs_set(struct unw_frame_info *info, void *arg)
 
 	/* Skip r0 */
 	if (dst->count > 0 && dst->pos < ELF_GR_OFFSET(1)) {
-		dst->ret = user_regset_copyin_ignore(&dst->pos, &dst->count,
+		dst->ret = user_regset_copyin_igyesre(&dst->pos, &dst->count,
 						       &dst->u.set.kbuf,
 						       &dst->u.set.ubuf,
 						       0, ELF_GR_OFFSET(1));
@@ -1758,7 +1758,7 @@ void do_fpregs_set(struct unw_frame_info *info, void *arg)
 
 	/* Skip pos 0 and 1 */
 	if (dst->count > 0 && dst->pos < ELF_FP_OFFSET(2)) {
-		dst->ret = user_regset_copyin_ignore(&dst->pos, &dst->count,
+		dst->ret = user_regset_copyin_igyesre(&dst->pos, &dst->count,
 						       &dst->u.set.kbuf,
 						       &dst->u.set.ubuf,
 						       0, ELF_FP_OFFSET(2));
@@ -1876,11 +1876,11 @@ static void do_gpregs_writeback(struct unw_frame_info *info, void *arg)
 static int
 gpregs_writeback(struct task_struct *target,
 		 const struct user_regset *regset,
-		 int now)
+		 int yesw)
 {
 	if (test_and_set_tsk_thread_flag(target, TIF_RESTORE_RSE))
 		return 0;
-	set_notify_resume(target);
+	set_yestify_resume(target);
 	return do_regset_call(do_gpregs_writeback, target, regset, 0, 0,
 		NULL, NULL);
 }
@@ -2067,7 +2067,7 @@ access_uarea(struct task_struct *child, unsigned long addr,
 #ifdef CONFIG_PERFMON
 	/*
 	 * Check if debug registers are used by perfmon. This
-	 * test must be done once we know that we can do the
+	 * test must be done once we kyesw that we can do the
 	 * operation, i.e. the arguments are all valid, but
 	 * before we start modifying the state.
 	 *
@@ -2078,7 +2078,7 @@ access_uarea(struct task_struct *child, unsigned long addr,
 	 * We also include read access here, because they may
 	 * cause the PMU-installed debug register state
 	 * (dbr[], ibr[]) to be reset. The two arrays are also
-	 * used by perfmon, but we do not use
+	 * used by perfmon, but we do yest use
 	 * IA64_THREAD_DBG_VALID. The registers are restored
 	 * by the PMU context switch code.
 	 */
@@ -2110,14 +2110,14 @@ access_uarea(struct task_struct *child, unsigned long addr,
 
 static const struct user_regset native_regsets[] = {
 	{
-		.core_note_type = NT_PRSTATUS,
+		.core_yeste_type = NT_PRSTATUS,
 		.n = ELF_NGREG,
 		.size = sizeof(elf_greg_t), .align = sizeof(elf_greg_t),
 		.get = gpregs_get, .set = gpregs_set,
 		.writeback = gpregs_writeback
 	},
 	{
-		.core_note_type = NT_PRFPREG,
+		.core_yeste_type = NT_PRFPREG,
 		.n = ELF_NFPREG,
 		.size = sizeof(elf_fpreg_t), .align = sizeof(elf_fpreg_t),
 		.get = fpregs_get, .set = fpregs_set, .active = fpregs_active

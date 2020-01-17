@@ -27,21 +27,21 @@ void test_flow_dissector_load_bytes(void)
 	};
 	int fd, err;
 
-	/* make sure bpf_skb_load_bytes is not allowed from skb-less context
+	/* make sure bpf_skb_load_bytes is yest allowed from skb-less context
 	 */
 	fd = bpf_load_program(BPF_PROG_TYPE_FLOW_DISSECTOR, prog,
 			      ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
 	CHECK(fd < 0,
 	      "flow_dissector-bpf_skb_load_bytes-load",
-	      "fd %d errno %d\n",
-	      fd, errno);
+	      "fd %d erryes %d\n",
+	      fd, erryes);
 
 	err = bpf_prog_test_run(fd, 1, &pkt_v4, sizeof(pkt_v4),
 				&flow_keys, &size, &retval, &duration);
 	CHECK(size != sizeof(flow_keys) || err || retval != 1,
 	      "flow_dissector-bpf_skb_load_bytes",
-	      "err %d errno %d retval %d duration %d size %u/%zu\n",
-	      err, errno, retval, duration, size, sizeof(flow_keys));
+	      "err %d erryes %d retval %d duration %d size %u/%zu\n",
+	      err, erryes, retval, duration, size, sizeof(flow_keys));
 
 	if (fd >= -1)
 		close(fd);

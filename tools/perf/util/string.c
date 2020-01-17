@@ -108,12 +108,12 @@ error:
 }
 
 /* Glob/lazy pattern matching */
-static bool __match_glob(const char *str, const char *pat, bool ignore_space,
+static bool __match_glob(const char *str, const char *pat, bool igyesre_space,
 			bool case_ins)
 {
 	while (*str && *pat && *pat != '*') {
-		if (ignore_space) {
-			/* Ignore spaces for lazy matching */
+		if (igyesre_space) {
+			/* Igyesre spaces for lazy matching */
 			if (isspace(*str)) {
 				str++;
 				continue;
@@ -133,7 +133,7 @@ static bool __match_glob(const char *str, const char *pat, bool ignore_space,
 				continue;
 			} else
 				return false;
-		else if (*pat == '\\') /* Escaped char match as normal char */
+		else if (*pat == '\\') /* Escaped char match as yesrmal char */
 			pat++;
 		if (case_ins) {
 			if (tolower(*str) != tolower(*pat))
@@ -150,7 +150,7 @@ static bool __match_glob(const char *str, const char *pat, bool ignore_space,
 		if (!*pat)	/* Tail wild card matches all */
 			return true;
 		while (*str)
-			if (__match_glob(str++, pat, ignore_space, case_ins))
+			if (__match_glob(str++, pat, igyesre_space, case_ins))
 				return true;
 	}
 	return !*str && !*pat;
@@ -164,7 +164,7 @@ static bool __match_glob(const char *str, const char *pat, bool ignore_space,
  * This returns true if the @str matches @pat. @pat can includes wildcards
  * ('*','?') and character classes ([CHARS], complementation and ranges are
  * also supported). Also, this supports escape character ('\') to use special
- * characters as normal character.
+ * characters as yesrmal character.
  *
  * Note: if @pat syntax is broken, this always returns false.
  */
@@ -173,7 +173,7 @@ bool strglobmatch(const char *str, const char *pat)
 	return __match_glob(str, pat, false, false);
 }
 
-bool strglobmatch_nocase(const char *str, const char *pat)
+bool strglobmatch_yescase(const char *str, const char *pat)
 {
 	return __match_glob(str, pat, false, true);
 }
@@ -183,7 +183,7 @@ bool strglobmatch_nocase(const char *str, const char *pat)
  * @str: the target string to match
  * @pat: the pattern string to match
  *
- * This is similar to strglobmatch, except this ignores spaces in
+ * This is similar to strglobmatch, except this igyesres spaces in
  * the target string.
  */
 bool strlazymatch(const char *str, const char *pat)
@@ -196,7 +196,7 @@ bool strlazymatch(const char *str, const char *pat)
  * @s1: 1st string to be compared
  * @s2: 2nd string to be compared
  *
- * Return 0 if whole of either string is same as another's tail part.
+ * Return 0 if whole of either string is same as ayesther's tail part.
  */
 int strtailcmp(const char *s1, const char *s2)
 {
@@ -209,7 +209,7 @@ int strtailcmp(const char *s1, const char *s2)
 	return 0;
 }
 
-char *asprintf_expr_inout_ints(const char *var, bool in, size_t nints, int *ints)
+char *asprintf_expr_iyesut_ints(const char *var, bool in, size_t nints, int *ints)
 {
 	/*
 	 * FIXME: replace this with an expression using log10() when we
@@ -248,7 +248,7 @@ out_err_overflow:
 	return NULL;
 }
 
-/* Like strpbrk(), but not break if it is right after a backslash (escaped) */
+/* Like strpbrk(), but yest break if it is right after a backslash (escaped) */
 char *strpbrk_esc(char *str, const char *stopset)
 {
 	char *ptr;
@@ -264,7 +264,7 @@ char *strpbrk_esc(char *str, const char *stopset)
 	return ptr;
 }
 
-/* Like strdup, but do not copy a single backslash */
+/* Like strdup, but do yest copy a single backslash */
 char *strdup_esc(const char *str)
 {
 	char *s, *d, *p, *ret = strdup(str);

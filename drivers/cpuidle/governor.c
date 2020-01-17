@@ -1,9 +1,9 @@
 /*
- * governor.c - governor support
+ * goveryesr.c - goveryesr support
  *
  * (C) 2006-2007 Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
  *               Shaohua Li <shaohua.li@intel.com>
- *               Adam Belay <abelay@novell.com>
+ *               Adam Belay <abelay@yesvell.com>
  *
  * This code is licenced under the GPL.
  */
@@ -16,23 +16,23 @@
 
 #include "cpuidle.h"
 
-char param_governor[CPUIDLE_NAME_LEN];
+char param_goveryesr[CPUIDLE_NAME_LEN];
 
-LIST_HEAD(cpuidle_governors);
-struct cpuidle_governor *cpuidle_curr_governor;
-struct cpuidle_governor *cpuidle_prev_governor;
+LIST_HEAD(cpuidle_goveryesrs);
+struct cpuidle_goveryesr *cpuidle_curr_goveryesr;
+struct cpuidle_goveryesr *cpuidle_prev_goveryesr;
 
 /**
- * cpuidle_find_governor - finds a governor of the specified name
+ * cpuidle_find_goveryesr - finds a goveryesr of the specified name
  * @str: the name
  *
  * Must be called with cpuidle_lock acquired.
  */
-struct cpuidle_governor *cpuidle_find_governor(const char *str)
+struct cpuidle_goveryesr *cpuidle_find_goveryesr(const char *str)
 {
-	struct cpuidle_governor *gov;
+	struct cpuidle_goveryesr *gov;
 
-	list_for_each_entry(gov, &cpuidle_governors, governor_list)
+	list_for_each_entry(gov, &cpuidle_goveryesrs, goveryesr_list)
 		if (!strncasecmp(str, gov->name, CPUIDLE_NAME_LEN))
 			return gov;
 
@@ -40,44 +40,44 @@ struct cpuidle_governor *cpuidle_find_governor(const char *str)
 }
 
 /**
- * cpuidle_switch_governor - changes the governor
- * @gov: the new target governor
+ * cpuidle_switch_goveryesr - changes the goveryesr
+ * @gov: the new target goveryesr
  * Must be called with cpuidle_lock acquired.
  */
-int cpuidle_switch_governor(struct cpuidle_governor *gov)
+int cpuidle_switch_goveryesr(struct cpuidle_goveryesr *gov)
 {
 	struct cpuidle_device *dev;
 
 	if (!gov)
 		return -EINVAL;
 
-	if (gov == cpuidle_curr_governor)
+	if (gov == cpuidle_curr_goveryesr)
 		return 0;
 
 	cpuidle_uninstall_idle_handler();
 
-	if (cpuidle_curr_governor) {
+	if (cpuidle_curr_goveryesr) {
 		list_for_each_entry(dev, &cpuidle_detected_devices, device_list)
 			cpuidle_disable_device(dev);
 	}
 
-	cpuidle_curr_governor = gov;
+	cpuidle_curr_goveryesr = gov;
 
 	if (gov) {
 		list_for_each_entry(dev, &cpuidle_detected_devices, device_list)
 			cpuidle_enable_device(dev);
 		cpuidle_install_idle_handler();
-		printk(KERN_INFO "cpuidle: using governor %s\n", gov->name);
+		printk(KERN_INFO "cpuidle: using goveryesr %s\n", gov->name);
 	}
 
 	return 0;
 }
 
 /**
- * cpuidle_register_governor - registers a governor
- * @gov: the governor
+ * cpuidle_register_goveryesr - registers a goveryesr
+ * @gov: the goveryesr
  */
-int cpuidle_register_governor(struct cpuidle_governor *gov)
+int cpuidle_register_goveryesr(struct cpuidle_goveryesr *gov)
 {
 	int ret = -EEXIST;
 
@@ -88,15 +88,15 @@ int cpuidle_register_governor(struct cpuidle_governor *gov)
 		return -ENODEV;
 
 	mutex_lock(&cpuidle_lock);
-	if (cpuidle_find_governor(gov->name) == NULL) {
+	if (cpuidle_find_goveryesr(gov->name) == NULL) {
 		ret = 0;
-		list_add_tail(&gov->governor_list, &cpuidle_governors);
-		if (!cpuidle_curr_governor ||
-		    !strncasecmp(param_governor, gov->name, CPUIDLE_NAME_LEN) ||
-		    (cpuidle_curr_governor->rating < gov->rating &&
-		     strncasecmp(param_governor, cpuidle_curr_governor->name,
+		list_add_tail(&gov->goveryesr_list, &cpuidle_goveryesrs);
+		if (!cpuidle_curr_goveryesr ||
+		    !strncasecmp(param_goveryesr, gov->name, CPUIDLE_NAME_LEN) ||
+		    (cpuidle_curr_goveryesr->rating < gov->rating &&
+		     strncasecmp(param_goveryesr, cpuidle_curr_goveryesr->name,
 				 CPUIDLE_NAME_LEN)))
-			cpuidle_switch_governor(gov);
+			cpuidle_switch_goveryesr(gov);
 	}
 	mutex_unlock(&cpuidle_lock);
 
@@ -104,10 +104,10 @@ int cpuidle_register_governor(struct cpuidle_governor *gov)
 }
 
 /**
- * cpuidle_governor_latency_req - Compute a latency constraint for CPU
+ * cpuidle_goveryesr_latency_req - Compute a latency constraint for CPU
  * @cpu: Target CPU
  */
-s64 cpuidle_governor_latency_req(unsigned int cpu)
+s64 cpuidle_goveryesr_latency_req(unsigned int cpu)
 {
 	int global_req = pm_qos_request(PM_QOS_CPU_DMA_LATENCY);
 	struct device *device = get_cpu_device(cpu);

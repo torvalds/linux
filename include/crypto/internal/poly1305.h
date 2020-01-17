@@ -12,7 +12,7 @@
 
 /*
  * Poly1305 core functions.  These implement the ε-almost-∆-universal hash
- * function underlying the Poly1305 MAC, i.e. they don't add an encrypted nonce
+ * function underlying the Poly1305 MAC, i.e. they don't add an encrypted yesnce
  * ("s key") at the end.  They also only support block-aligned inputs.
  */
 void poly1305_core_setkey(struct poly1305_key *key, const u8 *raw_key);

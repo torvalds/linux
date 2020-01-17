@@ -50,7 +50,7 @@ static inline unsigned int pll_freq_delta(unsigned int f1, unsigned int f2) {
 }
 
 #define NO_MORE_MNP	0x01FFFFFF
-#define G450_MNP_FREQBITS	(0xFFFFFF43)	/* do not mask high byte so we'll catch NO_MORE_MNP */
+#define G450_MNP_FREQBITS	(0xFFFFFF43)	/* do yest mask high byte so we'll catch NO_MORE_MNP */
 
 static unsigned int g450_nextpll(const struct matrox_fb_info *minfo,
 				 const struct matrox_pll_limits *pi,
@@ -468,7 +468,7 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 				   with < highest one wins */
 				if (delta <= deltaarray[idx-1]) {
 					/* all else being equal except VCO,
-					 * choose VCO not near (within 1/16th or so) VCOmin
+					 * choose VCO yest near (within 1/16th or so) VCOmin
 					 * (freqs near VCOmin aren't as stable)
 					 */
 					if (delta == deltaarray[idx-1]
@@ -487,7 +487,7 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 			mnpcount++;
 		}
 	}
-	/* VideoPLL and PixelPLL matched: do nothing... In all other cases we should get at least one frequency */
+	/* VideoPLL and PixelPLL matched: do yesthing... In all other cases we should get at least one frequency */
 	if (!mnpcount) {
 		return -EBUSY;
 	}

@@ -29,7 +29,7 @@ struct sd {
 #define Arowana300KCMOSCamera 0
 #define IntelCreateAndShare 1
 #define KodakDVC325 2
-#define MystFromOriUnknownCamera 3
+#define MystFromOriUnkyeswnCamera 3
 #define SmileIntlCamera 4
 #define ThreeComHomeConnectLite 5
 #define ViewQuestM318B 6
@@ -162,7 +162,7 @@ static const __u16 spca501_open_data[][3] = {
 
 	/*VERY strange manipulations with
 	 * select DMCLP or OBPX to be ADCLP output (0x0C)
-	 * OPB always toggle or not (0x0D) but they allow
+	 * OPB always toggle or yest (0x0D) but they allow
 	 * us to set up brightness
 	 */
 	{0x0, 0x01, 0x0c},
@@ -182,7 +182,7 @@ static const __u16 spca501_open_data[][3] = {
 #endif
 
 	{0x2, 0x204a, 0x07},/* Setting video compression & resolution 160x120 */
-	{0x2, 0x94, 0x06},	/* Setting video no compression */
+	{0x2, 0x94, 0x06},	/* Setting video yes compression */
 	{}
 };
 
@@ -577,7 +577,7 @@ static const __u16 spca501_3com_open_data[][3] = {
 
 /*
  * Data used to initialize a SPCA501C with HV7131B sensor.
- * From a capture file taken with USBSnoop v 1.5
+ * From a capture file taken with USBSyesop v 1.5
  * I have a "SPCA501C pc camera chipset" manual by sunplus, but some
  * of the value meanings are obscure or simply "reserved".
  * to do list:
@@ -1539,8 +1539,8 @@ static const __u16 spca501c_arowana_init_data[][3] = {
 	{}
 };
 
-/* Unknown camera from Ori Usbid 0x0000:0x0000 */
-/* Based on snoops from Ori Cohen */
+/* Unkyeswn camera from Ori Usbid 0x0000:0x0000 */
+/* Based on syesops from Ori Cohen */
 static const __u16 spca501c_mysterious_open_data[][3] = {
 	{0x02, 0x000f, 0x0005},
 	{0x02, 0xa048, 0x0000},
@@ -1591,7 +1591,7 @@ static const __u16 spca501c_mysterious_open_data[][3] = {
 	{}
 };
 
-/* Based on snoops from Ori Cohen */
+/* Based on syesops from Ori Cohen */
 static const __u16 spca501c_mysterious_init_data[][3] = {
 /* Part 3 */
 /* TG registers */
@@ -1831,8 +1831,8 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		if (write_vector(gspca_dev, spca501c_arowana_init_data))
 			goto error;
 		break;
-	case MystFromOriUnknownCamera:
-		/* Unknown Ori CMOS Camera data */
+	case MystFromOriUnkyeswnCamera:
+		/* Unkyeswn Ori CMOS Camera data */
 		if (write_vector(gspca_dev, spca501c_mysterious_open_data))
 			goto error;
 		break;
@@ -1863,8 +1863,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		/* Arowana 300k CMOS Camera data */
 		write_vector(gspca_dev, spca501c_arowana_open_data);
 		break;
-	case MystFromOriUnknownCamera:
-		/* Unknown CMOS Camera data */
+	case MystFromOriUnkyeswnCamera:
+		/* Unkyeswn CMOS Camera data */
 		write_vector(gspca_dev, spca501c_mysterious_init_data);
 		break;
 	default:
@@ -1982,7 +1982,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_RED_BALANCE, 0, 127, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;
@@ -2008,7 +2008,7 @@ static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0733, 0x0401), .driver_info = IntelCreateAndShare},
 	{USB_DEVICE(0x0733, 0x0402), .driver_info = ViewQuestM318B},
 	{USB_DEVICE(0x1776, 0x501c), .driver_info = Arowana300KCMOSCamera},
-	{USB_DEVICE(0x0000, 0x0000), .driver_info = MystFromOriUnknownCamera},
+	{USB_DEVICE(0x0000, 0x0000), .driver_info = MystFromOriUnkyeswnCamera},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

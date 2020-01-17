@@ -21,11 +21,11 @@ struct file {
 	struct file *next;
 	struct file *parent;
 	const char *name;
-	int lineno;
+	int lineyes;
 };
 
 typedef enum tristate {
-	no, mod, yes
+	yes, mod, no
 } tristate;
 
 enum expr_type {
@@ -107,7 +107,7 @@ struct symbol {
 	 * An upper bound on the tristate value the user can set for the symbol
 	 * if it is a boolean or tristate. Calculated from prompt dependencies,
 	 * which also inherit dependencies from enclosing menus, choices, and
-	 * ifs. If 'n', the user value will be ignored.
+	 * ifs. If 'n', the user value will be igyesred.
 	 *
 	 * Symbols lacking prompts always have visibility 'n'.
 	 */
@@ -142,7 +142,7 @@ struct symbol {
 #define SYMBOL_WRITE      0x0200  /* write symbol to file (KCONFIG_CONFIG) */
 #define SYMBOL_CHANGED    0x0400  /* ? */
 #define SYMBOL_WRITTEN    0x0800  /* track info to avoid double-write to .config */
-#define SYMBOL_NO_WRITE   0x1000  /* Symbol for internal use only; it will not be written */
+#define SYMBOL_NO_WRITE   0x1000  /* Symbol for internal use only; it will yest be written */
 #define SYMBOL_CHECKED    0x2000  /* used during dependency checking */
 #define SYMBOL_WARNED     0x8000  /* warning has been issued */
 
@@ -156,7 +156,7 @@ struct symbol {
 /* choice values need to be set before calculating this symbol value */
 #define SYMBOL_NEED_SET_CHOICE_VALUES  0x100000
 
-/* Set symbol to y if allnoconfig; used for symbols that hide others */
+/* Set symbol to y if allyesconfig; used for symbols that hide others */
 #define SYMBOL_ALLNOCONFIG_Y 0x200000
 
 #define SYMBOL_MAXLENGTH	256
@@ -200,7 +200,7 @@ struct property {
 	                            * valid for: P_SELECT, P_RANGE, P_CHOICE,
 	                            * P_PROMPT, P_DEFAULT, P_MENU, P_COMMENT */
 	struct file *file;         /* what file was this property defined */
-	int lineno;                /* what lineno was this property defined */
+	int lineyes;                /* what lineyes was this property defined */
 };
 
 #define for_all_properties(sym, st, tok) \
@@ -213,29 +213,29 @@ struct property {
 		if (st->text)
 
 /*
- * Represents a node in the menu tree, as seen in e.g. menuconfig (though used
+ * Represents a yesde in the menu tree, as seen in e.g. menuconfig (though used
  * for all front ends). Each symbol, menu, etc. defined in the Kconfig files
- * gets a node. A symbol defined in multiple locations gets one node at each
+ * gets a yesde. A symbol defined in multiple locations gets one yesde at each
  * location.
  */
 struct menu {
-	/* The next menu node at the same level */
+	/* The next menu yesde at the same level */
 	struct menu *next;
 
-	/* The parent menu node, corresponding to e.g. a menu or choice */
+	/* The parent menu yesde, corresponding to e.g. a menu or choice */
 	struct menu *parent;
 
-	/* The first child menu node, for e.g. menus and choices */
+	/* The first child menu yesde, for e.g. menus and choices */
 	struct menu *list;
 
 	/*
-	 * The symbol associated with the menu node. Choices are implemented as
+	 * The symbol associated with the menu yesde. Choices are implemented as
 	 * a special kind of symbol. NULL for menus, comments, and ifs.
 	 */
 	struct symbol *sym;
 
 	/*
-	 * The prompt associated with the node. This holds the prompt for a
+	 * The prompt associated with the yesde. This holds the prompt for a
 	 * symbol as well as the text for a menu or comment, along with the
 	 * type (P_PROMPT, P_MENU, etc.)
 	 */
@@ -256,19 +256,19 @@ struct menu {
 	/* MENU_* flags */
 	unsigned int flags;
 
-	/* Any help text associated with the node */
+	/* Any help text associated with the yesde */
 	char *help;
 
-	/* The location where the menu node appears in the Kconfig files */
+	/* The location where the menu yesde appears in the Kconfig files */
 	struct file *file;
-	int lineno;
+	int lineyes;
 
 	/* For use by front ends that need to store auxiliary data */
 	void *data;
 };
 
 /*
- * Set on a menu node when the corresponding symbol changes state in some way.
+ * Set on a menu yesde when the corresponding symbol changes state in some way.
  * Can be checked by front ends.
  */
 #define MENU_CHANGED		0x0001
@@ -288,7 +288,7 @@ extern struct file *file_list;
 extern struct file *current_file;
 struct file *lookup_file(const char *name);
 
-extern struct symbol symbol_yes, symbol_no, symbol_mod;
+extern struct symbol symbol_no, symbol_yes, symbol_mod;
 extern struct symbol *modules_sym;
 extern struct symbol *sym_defconfig_list;
 extern int cdebug;
@@ -315,14 +315,14 @@ void expr_gstr_print(struct expr *e, struct gstr *gs);
 void expr_gstr_print_revdep(struct expr *e, struct gstr *gs,
 			    tristate pr_type, const char *title);
 
-static inline int expr_is_yes(struct expr *e)
-{
-	return !e || (e->type == E_SYMBOL && e->left.sym == &symbol_yes);
-}
-
 static inline int expr_is_no(struct expr *e)
 {
-	return e && (e->type == E_SYMBOL && e->left.sym == &symbol_no);
+	return !e || (e->type == E_SYMBOL && e->left.sym == &symbol_no);
+}
+
+static inline int expr_is_yes(struct expr *e)
+{
+	return e && (e->type == E_SYMBOL && e->left.sym == &symbol_yes);
 }
 
 #ifdef __cplusplus

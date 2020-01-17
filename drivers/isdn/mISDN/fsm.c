@@ -2,11 +2,11 @@
 /*
  * finite state machine implementation
  *
- * Author       Karsten Keil <kkeil@novell.com>
+ * Author       Karsten Keil <kkeil@yesvell.com>
  *
  * Thanks to    Jan den Ouden
  *              Fritz Elfert
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@yesvell.com>
  */
 
 #include <linux/kernel.h>
@@ -74,7 +74,7 @@ mISDN_FsmEvent(struct FsmInst *fi, int event, void *arg)
 		return 0;
 	} else {
 		if (fi->debug)
-			fi->printdebug(fi, "State %s Event %s no action",
+			fi->printdebug(fi, "State %s Event %s yes action",
 				       fi->fsm->strState[fi->state],
 				       fi->fsm->strEvent[event]);
 		return 1;

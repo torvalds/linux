@@ -17,7 +17,7 @@
 /* cats host-specific stuff */
 static int irqmap_cats[] __initdata = { IRQ_PCI, IRQ_IN0, IRQ_IN1, IRQ_IN3 };
 
-static u8 cats_no_swizzle(struct pci_dev *dev, u8 *pin)
+static u8 cats_yes_swizzle(struct pci_dev *dev, u8 *pin)
 {
 	return 0;
 }
@@ -25,7 +25,7 @@ static u8 cats_no_swizzle(struct pci_dev *dev, u8 *pin)
 static int __init cats_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	if (dev->irq >= 255)
-		return -1;	/* not a valid interrupt. */
+		return -1;	/* yest a valid interrupt. */
 
 	if (dev->irq >= 128)
 		return dev->irq & 0x1f;
@@ -34,18 +34,18 @@ static int __init cats_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		return irqmap_cats[dev->irq - 1];
 
 	if (dev->irq != 0)
-		printk("PCI: device %02x:%02x has unknown irq line %x\n",
+		printk("PCI: device %02x:%02x has unkyeswn irq line %x\n",
 		       dev->bus->number, dev->devfn, dev->irq);
 
 	return -1;
 }
 
 /*
- * why not the standard PCI swizzle?  does this prevent 4-port tulip
+ * why yest the standard PCI swizzle?  does this prevent 4-port tulip
  * cards being used (ie, pci-pci bridge based cards)?
  */
 static struct hw_pci cats_pci __initdata = {
-	.swizzle		= cats_no_swizzle,
+	.swizzle		= cats_yes_swizzle,
 	.map_irq		= cats_map_irq,
 	.nr_controllers		= 1,
 	.ops			= &dc21285_ops,

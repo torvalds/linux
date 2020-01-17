@@ -41,7 +41,7 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct nec_dec *data = &dev->raw->nec;
 	u32 scancode;
 	enum rc_proto rc_proto;
-	u8 address, not_address, command, not_command;
+	u8 address, yest_address, command, yest_command;
 
 	if (!is_timing_event(ev)) {
 		if (ev.reset)
@@ -140,14 +140,14 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 		if (data->count == NEC_NBITS) {
 			address     = bitrev8((data->bits >> 24) & 0xff);
-			not_address = bitrev8((data->bits >> 16) & 0xff);
+			yest_address = bitrev8((data->bits >> 16) & 0xff);
 			command	    = bitrev8((data->bits >>  8) & 0xff);
-			not_command = bitrev8((data->bits >>  0) & 0xff);
+			yest_command = bitrev8((data->bits >>  0) & 0xff);
 
 			scancode = ir_nec_bytes_to_scancode(address,
-							    not_address,
+							    yest_address,
 							    command,
-							    not_command,
+							    yest_command,
 							    &rc_proto);
 
 			if (data->is_nec_x)
@@ -226,7 +226,7 @@ static const struct ir_raw_timings_pd ir_nec_timings = {
  * @max:	maximum size of @events
  *
  * Returns:	The number of events written.
- *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		-ENOBUFS if there isn't eyesugh space in the array to fit the
  *		encoding. In this case all @max events will have been written.
  */
 static int ir_nec_encode(enum rc_proto protocol, u32 scancode,

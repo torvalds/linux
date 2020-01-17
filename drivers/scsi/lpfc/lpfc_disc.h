@@ -72,19 +72,19 @@ struct lpfc_fast_path_event {
 
 #define LPFC_SLI4_MAX_XRI	1024	/* Used to make the ndlp's xri_bitmap */
 #define XRI_BITMAP_ULONGS (LPFC_SLI4_MAX_XRI / BITS_PER_LONG)
-struct lpfc_node_rrqs {
+struct lpfc_yesde_rrqs {
 	unsigned long xri_bitmap[XRI_BITMAP_ULONGS];
 };
 
-struct lpfc_nodelist {
+struct lpfc_yesdelist {
 	struct list_head nlp_listp;
 	struct lpfc_name nlp_portname;
-	struct lpfc_name nlp_nodename;
+	struct lpfc_name nlp_yesdename;
 	uint32_t         nlp_flag;		/* entry flags */
 	uint32_t         nlp_DID;		/* FC D_ID of entry */
 	uint32_t         nlp_last_elscmd;	/* Last ELS cmd sent */
 	uint16_t         nlp_type;
-#define NLP_FC_NODE        0x1			/* entry is an FC node */
+#define NLP_FC_NODE        0x1			/* entry is an FC yesde */
 #define NLP_FABRIC         0x4			/* entry rep a Fabric entity */
 #define NLP_FCP_TARGET     0x8			/* entry is an FCP target */
 #define NLP_FCP_INITIATOR  0x10			/* entry is an FCP Initiator */
@@ -92,7 +92,7 @@ struct lpfc_nodelist {
 #define NLP_NVME_INITIATOR 0x40			/* entry is a NVME Initiator */
 #define NLP_NVME_DISCOVERY 0x80                 /* entry has NVME disc srvc */
 
-	uint16_t	nlp_fc4_type;		/* FC types node supports. */
+	uint16_t	nlp_fc4_type;		/* FC types yesde supports. */
 						/* Assigned from GID_FF, only
 						 * FCP (0x8) and NVME (0x28)
 						 * supported.
@@ -142,14 +142,14 @@ struct lpfc_nodelist {
 #define NVME_FB_BIT_SHIFT 9    /* PRLI Rsp first burst in 512B units. */
 	uint32_t nlp_defer_did;
 };
-struct lpfc_node_rrq {
+struct lpfc_yesde_rrq {
 	struct list_head list;
 	uint16_t xritag;
 	uint16_t send_rrq;
 	uint16_t rxid;
 	uint32_t         nlp_DID;		/* FC D_ID of entry */
 	struct lpfc_vport *vport;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	unsigned long rrq_stop_time;
 };
 
@@ -167,15 +167,15 @@ struct lpfc_node_rrq {
 #define NLP_LOGO_SND       0x00000100	/* sent LOGO request for this entry */
 #define NLP_RNID_SND       0x00000400	/* sent RNID request for this entry */
 #define NLP_ELS_SND_MASK   0x000007e0	/* sent ELS request for this entry */
-#define NLP_NVMET_RECOV    0x00001000   /* NVMET auditing node for recovery. */
-#define NLP_FCP_PRLI_RJT   0x00002000   /* Rport does not support FCP PRLI. */
+#define NLP_NVMET_RECOV    0x00001000   /* NVMET auditing yesde for recovery. */
+#define NLP_FCP_PRLI_RJT   0x00002000   /* Rport does yest support FCP PRLI. */
 #define NLP_UNREG_INP      0x00008000	/* UNREG_RPI cmd is in progress */
-#define NLP_DEFER_RM       0x00010000	/* Remove this ndlp if no longer used */
-#define NLP_DELAY_TMO      0x00020000	/* delay timeout is running for node */
-#define NLP_NPR_2B_DISC    0x00040000	/* node is included in num_disc_nodes */
+#define NLP_DEFER_RM       0x00010000	/* Remove this ndlp if yes longer used */
+#define NLP_DELAY_TMO      0x00020000	/* delay timeout is running for yesde */
+#define NLP_NPR_2B_DISC    0x00040000	/* yesde is included in num_disc_yesdes */
 #define NLP_RCV_PLOGI      0x00080000	/* Rcv'ed PLOGI from remote system */
 #define NLP_LOGO_ACC       0x00100000	/* Process LOGO after ACC completes */
-#define NLP_TGT_NO_SCSIID  0x00200000	/* good PRLI but no binding for scsid */
+#define NLP_TGT_NO_SCSIID  0x00200000	/* good PRLI but yes binding for scsid */
 #define NLP_ISSUE_LOGO     0x00400000	/* waiting to issue a LOGO */
 #define NLP_IN_DEV_LOSS    0x00800000	/* devloss in progress */
 #define NLP_ACC_REGLOGIN   0x01000000	/* Issue Reg Login after successful
@@ -215,23 +215,23 @@ struct lpfc_node_rrq {
 #define NLP_SET_FREE_ACK(ndlp)		((ndlp)->nlp_usg_map \
 						|= NLP_USG_FREE_ACK_BIT)
 
-/* There are 4 different double linked lists nodelist entries can reside on.
+/* There are 4 different double linked lists yesdelist entries can reside on.
  * The Port Login (PLOGI) list and Address Discovery (ADISC) list are used
  * when Link Up discovery or Registered State Change Notification (RSCN)
- * processing is needed.  Each list holds the nodes that require a PLOGI or
+ * processing is needed.  Each list holds the yesdes that require a PLOGI or
  * ADISC Extended Link Service (ELS) request.  These lists keep track of the
- * nodes affected by an RSCN, or a Link Up (Typically, all nodes are effected
- * by Link Up) event.  The unmapped_list contains all nodes that have
+ * yesdes affected by an RSCN, or a Link Up (Typically, all yesdes are effected
+ * by Link Up) event.  The unmapped_list contains all yesdes that have
  * successfully logged into at the Fibre Channel level.  The
- * mapped_list will contain all nodes that are mapped FCP targets.
+ * mapped_list will contain all yesdes that are mapped FCP targets.
  *
- * The bind list is a list of undiscovered (potentially non-existent) nodes
+ * The bind list is a list of undiscovered (potentially yesn-existent) yesdes
  * that we have saved binding information on. This information is used when
- * nodes transition from the unmapped to the mapped list.
+ * yesdes transition from the unmapped to the mapped list.
  */
 
 /* Defines for nlp_state */
-#define NLP_STE_UNUSED_NODE       0x0	/* node is just allocated */
+#define NLP_STE_UNUSED_NODE       0x0	/* yesde is just allocated */
 #define NLP_STE_PLOGI_ISSUE       0x1	/* PLOGI was sent to NL_PORT */
 #define NLP_STE_ADISC_ISSUE       0x2	/* ADISC was sent to NL_PORT */
 #define NLP_STE_REG_LOGIN_ISSUE   0x3	/* REG_LOGIN was issued for NL_PORT */
@@ -241,45 +241,45 @@ struct lpfc_node_rrq {
 #define NLP_STE_MAPPED_NODE       0x7	/* Identified as a FCP Target */
 #define NLP_STE_NPR_NODE          0x8	/* NPort disappeared */
 #define NLP_STE_MAX_STATE         0x9
-#define NLP_STE_FREED_NODE        0xff	/* node entry was freed to MEM_NLP */
+#define NLP_STE_FREED_NODE        0xff	/* yesde entry was freed to MEM_NLP */
 
-/* For UNUSED_NODE state, the node has just been allocated.
- * For PLOGI_ISSUE and REG_LOGIN_ISSUE, the node is on
- * the PLOGI list. For REG_LOGIN_COMPL, the node is taken off the PLOGI list
- * and put on the unmapped list. For ADISC processing, the node is taken off
+/* For UNUSED_NODE state, the yesde has just been allocated.
+ * For PLOGI_ISSUE and REG_LOGIN_ISSUE, the yesde is on
+ * the PLOGI list. For REG_LOGIN_COMPL, the yesde is taken off the PLOGI list
+ * and put on the unmapped list. For ADISC processing, the yesde is taken off
  * the ADISC list and placed on either the mapped or unmapped list (depending
  * on its previous state). Once on the unmapped list, a PRLI is issued and the
  * state changed to PRLI_ISSUE. When the PRLI completion occurs, the state is
  * changed to PRLI_COMPL. If the completion indicates a mapped
- * node, the node is taken off the unmapped list. The binding list is checked
+ * yesde, the yesde is taken off the unmapped list. The binding list is checked
  * for a valid binding, or a binding is automatically assigned. If binding
- * assignment is unsuccessful, the node is left on the unmapped list. If
+ * assignment is unsuccessful, the yesde is left on the unmapped list. If
  * binding assignment is successful, the associated binding list entry (if
- * any) is removed, and the node is placed on the mapped list.
+ * any) is removed, and the yesde is placed on the mapped list.
  */
 /*
- * For a Link Down, all nodes on the ADISC, PLOGI, unmapped or mapped
+ * For a Link Down, all yesdes on the ADISC, PLOGI, unmapped or mapped
  * lists will receive a DEVICE_RECOVERY event. If the linkdown or devloss timers
- * expire, all effected nodes will receive a DEVICE_RM event.
+ * expire, all effected yesdes will receive a DEVICE_RM event.
  */
 /*
- * For a Link Up or RSCN, all nodes will move from the mapped / unmapped lists
+ * For a Link Up or RSCN, all yesdes will move from the mapped / unmapped lists
  * to either the ADISC or PLOGI list.  After a Nameserver query or ALPA loopmap
- * check, additional nodes may be added (DEVICE_ADD) or removed (DEVICE_RM) to /
+ * check, additional yesdes may be added (DEVICE_ADD) or removed (DEVICE_RM) to /
  * from the PLOGI or ADISC lists. Once the PLOGI and ADISC lists are populated,
  * we will first process the ADISC list.  32 entries are processed initially and
- * ADISC is initited for each one.  Completions / Events for each node are
- * funnelled thru the state machine.  As each node finishes ADISC processing, it
- * starts ADISC for any nodes waiting for ADISC processing. If no nodes are
+ * ADISC is initited for each one.  Completions / Events for each yesde are
+ * funnelled thru the state machine.  As each yesde finishes ADISC processing, it
+ * starts ADISC for any yesdes waiting for ADISC processing. If yes yesdes are
  * waiting, and the ADISC list count is identically 0, then we are done. For
- * Link Up discovery, since all nodes on the PLOGI list are UNREG_LOGIN'ed, we
+ * Link Up discovery, since all yesdes on the PLOGI list are UNREG_LOGIN'ed, we
  * can issue a CLEAR_LA and reenable Link Events. Next we will process the PLOGI
  * list.  32 entries are processed initially and PLOGI is initited for each one.
- * Completions / Events for each node are funnelled thru the state machine.  As
- * each node finishes PLOGI processing, it starts PLOGI for any nodes waiting
- * for PLOGI processing. If no nodes are waiting, and the PLOGI list count is
- * identically 0, then we are done. We have now completed discovery / RSCN
- * handling. Upon completion, ALL nodes should be on either the mapped or
+ * Completions / Events for each yesde are funnelled thru the state machine.  As
+ * each yesde finishes PLOGI processing, it starts PLOGI for any yesdes waiting
+ * for PLOGI processing. If yes yesdes are waiting, and the PLOGI list count is
+ * identically 0, then we are done. We have yesw completed discovery / RSCN
+ * handling. Upon completion, ALL yesdes should be on either the mapped or
  * unmapped lists.
  */
 
@@ -295,7 +295,7 @@ struct lpfc_node_rrq {
 #define NLP_EVT_CMPL_LOGO         0x8	/* Sent an ELS LOGO  command */
 #define NLP_EVT_CMPL_ADISC        0x9	/* Sent an ELS ADISC command */
 #define NLP_EVT_CMPL_REG_LOGIN    0xa	/* REG_LOGIN mbox cmd completed */
-#define NLP_EVT_DEVICE_RM         0xb	/* Device not found in NS / ALPAmap */
-#define NLP_EVT_DEVICE_RECOVERY   0xc	/* Device existence unknown */
+#define NLP_EVT_DEVICE_RM         0xb	/* Device yest found in NS / ALPAmap */
+#define NLP_EVT_DEVICE_RECOVERY   0xc	/* Device existence unkyeswn */
 #define NLP_EVT_MAX_EVENT         0xd
 #define NLP_EVT_NOTHING_PENDING   0xff

@@ -293,8 +293,8 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 	obj->base.resv = dma_buf->resv;
 
 	/* We use GTT as shorthand for a coherent domain, one that is
-	 * neither in the GPU cache nor in the CPU cache, where all
-	 * writes are immediately visible in memory. (That's not strictly
+	 * neither in the GPU cache yesr in the CPU cache, where all
+	 * writes are immediately visible in memory. (That's yest strictly
 	 * true, but it's close! There are internal buffers such as the
 	 * write-combined buffer or a delay through the chipset for GTT
 	 * writes that do require us to treat GTT as a separate cache domain.)

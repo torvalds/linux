@@ -38,7 +38,7 @@ __visible int plugin_is_GPL_compatible;
 
 static struct plugin_info structleak_plugin_info = {
 	.version	= "20190125vanilla",
-	.help		= "disable\tdo not activate plugin\n"
+	.help		= "disable\tdo yest activate plugin\n"
 			  "byref\tinit structs passed by reference\n"
 			  "byref-all\tinit anything passed by reference\n"
 			  "verbose\tprint all initialized variables\n",
@@ -50,15 +50,15 @@ static struct plugin_info structleak_plugin_info = {
 static bool verbose;
 static int byref;
 
-static tree handle_user_attribute(tree *node, tree name, tree args, int flags, bool *no_add_attrs)
+static tree handle_user_attribute(tree *yesde, tree name, tree args, int flags, bool *yes_add_attrs)
 {
-	*no_add_attrs = true;
+	*yes_add_attrs = true;
 
-	/* check for types? for now accept everything linux has to offer */
-	if (TREE_CODE(*node) != FIELD_DECL)
+	/* check for types? for yesw accept everything linux has to offer */
+	if (TREE_CODE(*yesde) != FIELD_DECL)
 		return NULL_TREE;
 
-	*no_add_attrs = false;
+	*yes_add_attrs = false;
 	return NULL_TREE;
 }
 
@@ -102,7 +102,7 @@ static void finish_type(void *event_data, void *data)
 {
 	tree type = (tree)event_data;
 
-	if (type == NULL_TREE || type == error_mark_node)
+	if (type == NULL_TREE || type == error_mark_yesde)
 		return;
 
 #if BUILDING_GCC_VERSION >= 5000
@@ -138,7 +138,7 @@ static void initialize(tree var)
 			continue;
 		rhs1 = gimple_assign_rhs1(stmt);
 #if BUILDING_GCC_VERSION >= 4007
-		/* ... of a non-clobbering expression... */
+		/* ... of a yesn-clobbering expression... */
 		if (TREE_CLOBBER_P(rhs1))
 			continue;
 #endif
@@ -162,7 +162,7 @@ static void initialize(tree var)
 	if (AGGREGATE_TYPE_P(type))
 		initializer = build_constructor(type, NULL);
 	else
-		initializer = fold_convert(type, integer_zero_node);
+		initializer = fold_convert(type, integer_zero_yesde);
 
 	/* build the initializer stmt */
 	init_stmt = gimple_build_assign(var, initializer);
@@ -229,7 +229,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 	}
 
 	if (strncmp(lang_hooks.name, "GNU C", 5) && !strncmp(lang_hooks.name, "GNU C+", 6)) {
-		inform(UNKNOWN_LOCATION, G_("%s supports C only, not %s"), plugin_name, lang_hooks.name);
+		inform(UNKNOWN_LOCATION, G_("%s supports C only, yest %s"), plugin_name, lang_hooks.name);
 		enable = false;
 	}
 
@@ -250,7 +250,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 			byref = BYREF_ALL;
 			continue;
 		}
-		error(G_("unknown option '-fplugin-arg-%s-%s'"), plugin_name, argv[i].key);
+		error(G_("unkyeswn option '-fplugin-arg-%s-%s'"), plugin_name, argv[i].key);
 	}
 
 	register_callback(plugin_name, PLUGIN_INFO, NULL, &structleak_plugin_info);

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -96,7 +96,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 * compose the right MSR for RETURN(). It will work for switch_to also
 	 * excepting for VM and UMS
 	 * don't touch UMS , CARRY and cache bits
-	 * right now MSR is a copy of parent one */
+	 * right yesw MSR is a copy of parent one */
 	childregs->msr &= ~MSR_EIP;
 	childregs->msr |= MSR_IE;
 	childregs->msr &= ~MSR_VM;
@@ -144,7 +144,7 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp)
  */
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpregs)
 {
-	return 0; /* MicroBlaze has no separate FPU registers */
+	return 0; /* MicroBlaze has yes separate FPU registers */
 }
 #endif /* CONFIG_MMU */
 

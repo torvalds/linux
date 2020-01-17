@@ -1,7 +1,7 @@
 Texas Instruments TCAN4x5x CAN Controller
 ================================================
 
-This file provides device node information for the TCAN4x5x interface contains.
+This file provides device yesde information for the TCAN4x5x interface contains.
 
 Required properties:
 	- compatible: "ti,tcan4x5x"
@@ -18,7 +18,7 @@ See Documentation/devicetree/bindings/net/can/m_can.txt for additional
 required property details.
 
 Optional properties:
-	- reset-gpios: Hardwired output GPIO. If not defined then software
+	- reset-gpios: Hardwired output GPIO. If yest defined then software
 		       reset.
 	- device-state-gpios: Input GPIO that indicates if the device is in
 			      a sleep state or if the device is active.

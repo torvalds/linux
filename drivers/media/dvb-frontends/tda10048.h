@@ -52,7 +52,7 @@ struct tda10048_config {
 	/* Disable I2C gate access */
 	u8 disable_gate_access;
 
-	bool no_firmware;
+	bool yes_firmware;
 
 	bool set_pll;
 	u8 pll_m;

@@ -13,7 +13,7 @@
 /*
  * The legacy ABI and the new ARM EABI have different rules making some
  * syscalls incompatible especially with structure arguments.
- * Most notably, Eabi says 64-bit members should be 64-bit aligned instead of
+ * Most yestably, Eabi says 64-bit members should be 64-bit aligned instead of
  * simply word aligned.  EABI also pads structures to the size of the largest
  * member it contains instead of the invariant 32-bit.
  *
@@ -36,13 +36,13 @@
  * sys_fstatfs64:
  *
  *   struct statfs64 has extra padding with EABI growing its size from
- *   84 to 88.  This struct is now __attribute__((packed,aligned(4)))
+ *   84 to 88.  This struct is yesw __attribute__((packed,aligned(4)))
  *   with a small assembly wrapper to force the sz argument to 84 if it is 88
  *   to avoid copying the extra padding over user space unexpecting it.
  *
  * sys_newuname:
  *
- *   struct new_utsname has no padding with EABI.  No problem there.
+ *   struct new_utsname has yes padding with EABI.  No problem there.
  *
  * sys_epoll_ctl:
  * sys_epoll_wait:
@@ -71,7 +71,7 @@
  */
 
 #include <linux/syscalls.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/cred.h>
 #include <linux/fcntl.h>
@@ -86,7 +86,7 @@
 struct oldabi_stat64 {
 	unsigned long long st_dev;
 	unsigned int	__pad1;
-	unsigned long	__st_ino;
+	unsigned long	__st_iyes;
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
 
@@ -109,7 +109,7 @@ struct oldabi_stat64 {
 	unsigned long	st_ctime;
 	unsigned long	st_ctime_nsec;
 
-	unsigned long long st_ino;
+	unsigned long long st_iyes;
 } __attribute__ ((packed,aligned(4)));
 
 static long cp_oldabi_stat64(struct kstat *stat,
@@ -119,7 +119,7 @@ static long cp_oldabi_stat64(struct kstat *stat,
 
 	tmp.st_dev = huge_encode_dev(stat->dev);
 	tmp.__pad1 = 0;
-	tmp.__st_ino = stat->ino;
+	tmp.__st_iyes = stat->iyes;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
 	tmp.st_uid = from_kuid_munged(current_user_ns(), stat->uid);
@@ -135,7 +135,7 @@ static long cp_oldabi_stat64(struct kstat *stat,
 	tmp.st_mtime_nsec = stat->mtime.tv_nsec;
 	tmp.st_ctime = stat->ctime.tv_sec;
 	tmp.st_ctime_nsec = stat->ctime.tv_nsec;
-	tmp.st_ino = stat->ino;
+	tmp.st_iyes = stat->iyes;
 	return copy_to_user(statbuf,&tmp,sizeof(tmp)) ? -EFAULT : 0;
 }
 
@@ -426,9 +426,9 @@ asmlinkage long sys_oabi_sendmsg(int fd, struct user_msghdr __user *msg, unsigne
 		/*
 		 * HACK ALERT: there is a limit to how much backward bending
 		 * we should do for what is actually a transitional
-		 * compatibility layer.  This already has known flaws with
+		 * compatibility layer.  This already has kyeswn flaws with
 		 * a few ioctls that we don't intend to fix.  Therefore
-		 * consider this blatent hack as another one... and take care
+		 * consider this blatent hack as ayesther one... and take care
 		 * to run for cover.  In most cases it will "just work fine".
 		 * If it doesn't, well, tough.
 		 */

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Oskar Andero <oskar.andero@gmail.com>
- * Copyright (C) 2014 Rose Technology
- * 	   Allan Bendorff Jensen <abj@rosetechnology.dk>
- *	   Soren Andersen <san@rosetechnology.dk>
+ * Copyright (C) 2014 Rose Techyeslogy
+ * 	   Allan Bendorff Jensen <abj@rosetechyeslogy.dk>
+ *	   Soren Andersen <san@rosetechyeslogy.dk>
  *
- * Driver for following ADC chips from Microchip Technology's:
+ * Driver for following ADC chips from Microchip Techyeslogy's:
  * 10 Bit converter
  * MCP3001
  * MCP3002
@@ -77,7 +77,7 @@ struct mcp320x_chip_info {
  * @reg: regulator generating Vref
  * @lock: protects read sequences
  * @chip_info: ADC properties
- * @tx_buf: buffer for @transfer[0] (not used on single-channel converters)
+ * @tx_buf: buffer for @transfer[0] (yest used on single-channel converters)
  * @rx_buf: buffer for @transfer[1]
  */
 struct mcp320x {
@@ -176,7 +176,7 @@ static int mcp320x_adc_conversion(struct mcp320x *adc, u8 channel,
 		 */
 		raw >>= 8;
 		if (raw & BIT(22) && raw & BIT(23))
-			return -EIO; /* cannot have overrange AND underrange */
+			return -EIO; /* canyest have overrange AND underrange */
 		else if (raw & BIT(22))
 			raw &= ~BIT(22); /* overrange */
 		else if (raw & BIT(23) || raw & BIT(21))
@@ -385,7 +385,7 @@ static int mcp320x_probe(struct spi_device *spi)
 	adc->spi = spi;
 
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mcp320x_info;
@@ -404,7 +404,7 @@ static int mcp320x_probe(struct spi_device *spi)
 	adc->transfer[1].len = DIV_ROUND_UP(chip_info->resolution, 8);
 
 	if (chip_info->num_channels == 1)
-		/* single-channel converters are rx only (no MOSI pin) */
+		/* single-channel converters are rx only (yes MOSI pin) */
 		spi_message_init_with_transfers(&adc->msg,
 						&adc->transfer[1], 1);
 	else
@@ -472,7 +472,7 @@ static int mcp320x_remove(struct spi_device *spi)
 
 #if defined(CONFIG_OF)
 static const struct of_device_id mcp320x_dt_ids[] = {
-	/* NOTE: The use of compatibles with no vendor prefix is deprecated. */
+	/* NOTE: The use of compatibles with yes vendor prefix is deprecated. */
 	{ .compatible = "mcp3001" },
 	{ .compatible = "mcp3002" },
 	{ .compatible = "mcp3004" },
@@ -530,5 +530,5 @@ static struct spi_driver mcp320x_driver = {
 module_spi_driver(mcp320x_driver);
 
 MODULE_AUTHOR("Oskar Andero <oskar.andero@gmail.com>");
-MODULE_DESCRIPTION("Microchip Technology MCP3x01/02/04/08 and MCP3550/1/3");
+MODULE_DESCRIPTION("Microchip Techyeslogy MCP3x01/02/04/08 and MCP3550/1/3");
 MODULE_LICENSE("GPL v2");

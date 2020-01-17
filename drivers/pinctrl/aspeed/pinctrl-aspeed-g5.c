@@ -2599,7 +2599,7 @@ static struct aspeed_pin_config aspeed_g5_configs[] = {
 	 * Debounce settings for GPIOs D and E passthrough mode are in
 	 * SCUA8[27:20] and so are managed by pinctrl. Normal GPIO debounce for
 	 * banks D and E is handled by the GPIO driver - GPIO passthrough is
-	 * treated like any other non-GPIO mux function. There is a catch
+	 * treated like any other yesn-GPIO mux function. There is a catch
 	 * however, in that the debounce period is configured in the GPIO
 	 * controller. Due to this tangle between GPIO and pinctrl we don't yet
 	 * fully support pass-through debounce.
@@ -2629,14 +2629,14 @@ static struct regmap *aspeed_g5_acquire_regmap(struct aspeed_pinmux_data *ctx,
 		return ctx->maps[ip];
 
 	if (ip == ASPEED_IP_GFX) {
-		struct device_node *node;
+		struct device_yesde *yesde;
 		struct regmap *map;
 
-		node = of_parse_phandle(ctx->dev->of_node,
-					"aspeed,external-nodes", 0);
-		if (node) {
-			map = syscon_node_to_regmap(node);
-			of_node_put(node);
+		yesde = of_parse_phandle(ctx->dev->of_yesde,
+					"aspeed,external-yesdes", 0);
+		if (yesde) {
+			map = syscon_yesde_to_regmap(yesde);
+			of_yesde_put(yesde);
 			if (IS_ERR(map))
 				return map;
 		} else
@@ -2648,14 +2648,14 @@ static struct regmap *aspeed_g5_acquire_regmap(struct aspeed_pinmux_data *ctx,
 	}
 
 	if (ip == ASPEED_IP_LPC) {
-		struct device_node *node;
+		struct device_yesde *yesde;
 		struct regmap *map;
 
-		node = of_parse_phandle(ctx->dev->of_node,
-					"aspeed,external-nodes", 1);
-		if (node) {
-			map = syscon_node_to_regmap(node->parent);
-			of_node_put(node);
+		yesde = of_parse_phandle(ctx->dev->of_yesde,
+					"aspeed,external-yesdes", 1);
+		if (yesde) {
+			map = syscon_yesde_to_regmap(yesde->parent);
+			of_yesde_put(yesde);
 			if (IS_ERR(map))
 				return map;
 		} else
@@ -2733,13 +2733,13 @@ static int aspeed_g5_sig_expr_set(struct aspeed_pinmux_data *ctx,
 		/*
 		 * Strap registers are configured in hardware or by early-boot
 		 * firmware. Treat them as read-only despite that we can write
-		 * them. This may mean that certain functions cannot be
+		 * them. This may mean that certain functions canyest be
 		 * deconfigured and is the reason we re-evaluate after writing
 		 * all descriptor bits.
 		 *
 		 * Port D and port E GPIO loopback modes are the only exception
 		 * as those are commonly used with front-panel buttons to allow
-		 * normal operation of the host when the BMC is powered off or
+		 * yesrmal operation of the host when the BMC is powered off or
 		 * fails to boot. Once the BMC has booted, the loopback mode
 		 * must be disabled for the BMC to control host power-on and
 		 * reset.
@@ -2813,7 +2813,7 @@ static const struct pinctrl_ops aspeed_g5_pinctrl_ops = {
 	.get_group_name = aspeed_pinctrl_get_group_name,
 	.get_group_pins = aspeed_pinctrl_get_group_pins,
 	.pin_dbg_show = aspeed_pinctrl_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 

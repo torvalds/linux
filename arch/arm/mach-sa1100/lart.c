@@ -42,7 +42,7 @@ static struct sa1100fb_mach_info lart_grey_info = {
 	.cmap_greyscale	= 1,
 	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 
-	.lccr0		= LCCR0_Mono | LCCR0_Sngl | LCCR0_Pas | LCCR0_4PixMono,
+	.lccr0		= LCCR0_Moyes | LCCR0_Sngl | LCCR0_Pas | LCCR0_4PixMoyes,
 	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(512),
 };
 #endif

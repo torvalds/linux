@@ -4,16 +4,16 @@
 Required properties:
 - compatible:
     - "marvell,armada-3700-uart" for the standard variant of the UART
-      (32 bytes FIFO, no DMA, level interrupts, 8-bit access to the
+      (32 bytes FIFO, yes DMA, level interrupts, 8-bit access to the
       FIFO, baudrate limited to 230400).
     - "marvell,armada-3700-uart-ext" for the extended variant of the
       UART (128 bytes FIFO, DMA, front interrupts, 8-bit or 32-bit
       accesses to the FIFO, baudrate unlimited by the dividers).
 - reg: offset and length of the register set for the device.
-- clocks: UART reference clock used to derive the baudrate. If no clock
+- clocks: UART reference clock used to derive the baudrate. If yes clock
       is provided (possible only with the "marvell,armada-3700-uart"
       compatible string for backward compatibility), it will only work
-      if the baudrate was initialized by the bootloader and no baudrate
+      if the baudrate was initialized by the bootloader and yes baudrate
       change will then be possible.
 - interrupts:
     - Must contain three elements for the standard variant of the IP
@@ -28,7 +28,7 @@ Required properties:
     - For backward compatibility reasons, a single element interrupts
       property is also supported for the standard variant of the IP,
       containing only the UART sum interrupt. This form is deprecated
-      and should no longer be used.
+      and should yes longer be used.
 
 Example:
 	uart0: serial@12000 {

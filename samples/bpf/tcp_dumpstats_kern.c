@@ -28,7 +28,7 @@ int _sockops(struct bpf_sock_ops *ctx)
 	struct bpf_tcp_sock *tcp_sk;
 	struct bpf_sock *sk;
 	__u64 *next_dump;
-	__u64 now;
+	__u64 yesw;
 
 	switch (ctx->op) {
 	case BPF_SOCK_OPS_TCP_CONNECT_CB:
@@ -49,15 +49,15 @@ int _sockops(struct bpf_sock_ops *ctx)
 	if (!next_dump)
 		return 1;
 
-	now = bpf_ktime_get_ns();
-	if (now < *next_dump)
+	yesw = bpf_ktime_get_ns();
+	if (yesw < *next_dump)
 		return 1;
 
 	tcp_sk = bpf_tcp_sock(sk);
 	if (!tcp_sk)
 		return 1;
 
-	*next_dump = now + INTERVAL;
+	*next_dump = yesw + INTERVAL;
 
 	bpf_printk("dsack_dups=%u delivered=%u\n",
 		   tcp_sk->dsack_dups, tcp_sk->delivered);

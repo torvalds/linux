@@ -8,7 +8,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/cpufreq.h>
 #include <linux/seq_file.h>
 #include <linux/io.h>
@@ -62,8 +62,8 @@ static inline void __iomem *bank_reg(unsigned int bank)
  * bank_is_io - test whether bank is used for IO
  * @bankcon: The bank control register.
  *
- * This is a simplistic test to see if any BANKCON[x] is not an IO
- * bank. It currently does not take into account whether BWSCON has
+ * This is a simplistic test to see if any BANKCON[x] is yest an IO
+ * bank. It currently does yest take into account whether BWSCON has
  * an illegal width-setting in it, or if the pin connected to nCS[x]
  * is actually being handled as a chip-select.
  */
@@ -74,8 +74,8 @@ static inline int bank_is_io(unsigned long bankcon)
 
 /**
  * to_div - convert cycle time to divisor
- * @cyc: The cycle time, in 10ths of nanoseconds.
- * @hclk_tns: The cycle time for HCLK, in 10ths of nanoseconds.
+ * @cyc: The cycle time, in 10ths of nayesseconds.
+ * @hclk_tns: The cycle time for HCLK, in 10ths of nayesseconds.
  *
  * Convert the given cycle time into the divisor to use to obtain it from
  * HCLK.
@@ -90,8 +90,8 @@ static inline unsigned int to_div(unsigned int cyc, unsigned int hclk_tns)
 
 /**
  * calc_0124 - calculate divisor control for divisors that do /0, /1. /2 and /4
- * @cyc: The cycle time, in 10ths of nanoseconds.
- * @hclk_tns: The cycle time for HCLK, in 10ths of nanoseconds.
+ * @cyc: The cycle time, in 10ths of nayesseconds.
+ * @hclk_tns: The cycle time for HCLK, in 10ths of nayesseconds.
  * @v: Pointer to register to alter.
  * @shift: The shift to get to the control bits.
  *
@@ -131,15 +131,15 @@ static unsigned int calc_0124(unsigned int cyc, unsigned long hclk_tns,
 
 int calc_tacp(unsigned int cyc, unsigned long hclk, unsigned long *v)
 {
-	/* Currently no support for Tacp calculations. */
+	/* Currently yes support for Tacp calculations. */
 	return 0;
 }
 
 /**
  * calc_tacc - calculate divisor control for tacc.
- * @cyc: The cycle time, in 10ths of nanoseconds.
+ * @cyc: The cycle time, in 10ths of nayesseconds.
  * @nwait_en: IS nWAIT enabled for this bank.
- * @hclk_tns: The cycle time for HCLK, in 10ths of nanoseconds.
+ * @hclk_tns: The cycle time for HCLK, in 10ths of nayesseconds.
  * @v: Pointer to register to alter.
  *
  * Calculate the divisor control for tACC, taking into account whether
@@ -258,7 +258,7 @@ static const unsigned int tacc_tab[] = {
 
 /**
  * get_tacc - turn tACC value into cycle time
- * @hclk_tns: The cycle time for HCLK, in 10ths of nanoseconds.
+ * @hclk_tns: The cycle time for HCLK, in 10ths of nayesseconds.
  * @val: The bank timing register value, shifed down.
  */
 static unsigned int get_tacc(unsigned long hclk_tns,
@@ -270,7 +270,7 @@ static unsigned int get_tacc(unsigned long hclk_tns,
 
 /**
  * get_0124 - turn 0/1/2/4 divider into cycle time
- * @hclk_tns: The cycle time for HCLK, in 10ths of nanoseconds.
+ * @hclk_tns: The cycle time for HCLK, in 10ths of nayesseconds.
  * @val: The bank timing register value, shifed down.
  */
 static unsigned int get_0124(unsigned long hclk_tns,
@@ -373,7 +373,7 @@ int s3c2410_iotiming_calc(struct s3c_cpufreq_config *cfg,
 
 		ret = s3c2410_calc_bank(cfg, bt);
 		if (ret) {
-			printk(KERN_ERR "%s: cannot calculate bank %d io\n",
+			printk(KERN_ERR "%s: canyest calculate bank %d io\n",
 			       __func__, bank);
 			goto err;
 		}
@@ -424,7 +424,7 @@ void s3c2410_iotiming_set(struct s3c_cpufreq_config *cfg,
  * as necessary.
  *
  * This is used at the moment on initialisation to get the current
- * configuration so that boards do not have to carry their own setup
+ * configuration so that boards do yest have to carry their own setup
  * if the timings are correct on initialisation.
  */
 

@@ -89,7 +89,7 @@ int sun_partition(struct parsed_partitions *state)
 		    (be32_to_cpu(label->vtoc.version) == 1) &&
 		    (be16_to_cpu(label->vtoc.nparts) <= 8));
 
-	/* Use 8 partition entries if not specified in validated VTOC */
+	/* Use 8 partition entries if yest specified in validated VTOC */
 	nparts = (use_vtoc) ? be16_to_cpu(label->vtoc.nparts) : 8;
 
 	/*

@@ -1,10 +1,10 @@
 /*
- * Management Module Support for MPT (Message Passing Technology) based
+ * Management Module Support for MPT (Message Passing Techyeslogy) based
  * controllers
  *
  * This code is based on drivers/scsi/mpt3sas/mpt3sas_ctl.h
  * Copyright (C) 2012-2014  LSI Corporation
- * Copyright (C) 2013-2014 Avago Technologies
+ * Copyright (C) 2013-2014 Avago Techyeslogies
  *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -24,7 +24,7 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but yest limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
 
@@ -38,7 +38,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -99,7 +99,7 @@
 #define MPT2DIAGBUFFUNIQUEID (0x07075900)
 #define MPT3DIAGBUFFUNIQUEID (0x4252434D)
 
-/* UID not found */
+/* UID yest found */
 #define MPT3_DIAG_UID_NOT_FOUND (0xFF)
 
 
@@ -116,7 +116,7 @@ struct mpt3_ioctl_header {
 };
 
 /**
- * struct mpt3_ioctl_diag_reset - diagnostic reset
+ * struct mpt3_ioctl_diag_reset - diagyesstic reset
  * @hdr - generic header
  */
 struct mpt3_ioctl_diag_reset {
@@ -331,7 +331,7 @@ struct mpt3_ioctl_btdh_mapping {
  * @reserved -
  * @buffer_type - specifies either TRACE, SNAPSHOT, or EXTENDED
  * @application_flags - misc flags
- * @diagnostic_flags - specifies flags affecting command processing
+ * @diagyesstic_flags - specifies flags affecting command processing
  * @product_specific - product specific information
  * @requested_buffer_size - buffers size in bytes
  * @unique_id - tag specified by application that is used to signal ownership
@@ -345,7 +345,7 @@ struct mpt3_diag_register {
 	uint8_t reserved;
 	uint8_t buffer_type;
 	uint16_t application_flags;
-	uint32_t diagnostic_flags;
+	uint32_t diagyesstic_flags;
 	uint32_t product_specific[MPT3_PRODUCT_SPECIFIC_DWORDS];
 	uint32_t requested_buffer_size;
 	uint32_t unique_id;
@@ -370,7 +370,7 @@ struct mpt3_diag_unregister {
  * @reserved -
  * @buffer_type - specifies either TRACE, SNAPSHOT, or EXTENDED
  * @application_flags - misc flags
- * @diagnostic_flags - specifies flags affecting command processing
+ * @diagyesstic_flags - specifies flags affecting command processing
  * @product_specific - product specific information
  * @total_buffer_size - diag buffer size in bytes
  * @driver_added_buffer_size - size of extra space appended to end of buffer
@@ -385,7 +385,7 @@ struct mpt3_diag_query {
 	uint8_t reserved;
 	uint8_t buffer_type;
 	uint16_t application_flags;
-	uint32_t diagnostic_flags;
+	uint32_t diagyesstic_flags;
 	uint32_t product_specific[MPT3_PRODUCT_SPECIFIC_DWORDS];
 	uint32_t total_buffer_size;
 	uint32_t driver_added_buffer_size;
@@ -417,7 +417,7 @@ struct mpt3_diag_release {
  * @bytes_to_read - number of bytes to copy from the drivers buffer into the
  *  application buffer starting at starting_offset.
  * @unique_id - unique id associated with this buffer.
- * @diagnostic_data - data payload
+ * @diagyesstic_data - data payload
  */
 struct mpt3_diag_read_buffer {
 	struct mpt3_ioctl_header hdr;
@@ -427,7 +427,7 @@ struct mpt3_diag_read_buffer {
 	uint32_t starting_offset;
 	uint32_t bytes_to_read;
 	uint32_t unique_id;
-	uint32_t diagnostic_data[1];
+	uint32_t diagyesstic_data[1];
 };
 
 #endif /* MPT3SAS_CTL_H_INCLUDED */

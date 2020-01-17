@@ -372,7 +372,7 @@ static int mvpp2_bm_pool_create(struct device *dev, struct mvpp2 *priv,
 			MVPP2_BM_POOL_PTR_ALIGN)) {
 		dma_free_coherent(dev, bm_pool->size_bytes,
 				  bm_pool->virt_addr, bm_pool->dma_addr);
-		dev_err(dev, "BM pool %d is not %d bytes aligned\n",
+		dev_err(dev, "BM pool %d is yest %d bytes aligned\n",
 			bm_pool->id, MVPP2_BM_POOL_PTR_ALIGN);
 		return -ENOMEM;
 	}
@@ -442,7 +442,7 @@ static void mvpp2_bm_bufs_free(struct device *dev, struct mvpp2 *priv,
 	int i;
 
 	if (buf_num > bm_pool->buf_num) {
-		WARN(1, "Pool does not have so many bufs pool(%d) bufs(%d)\n",
+		WARN(1, "Pool does yest have so many bufs pool(%d) bufs(%d)\n",
 		     bm_pool->id, buf_num);
 		buf_num = bm_pool->buf_num;
 	}
@@ -479,7 +479,7 @@ static int mvpp2_check_hw_buf_num(struct mvpp2 *priv, struct mvpp2_bm_pool *bm_p
 	buf_num += mvpp2_read(priv, MVPP2_BM_BPPI_PTRS_NUM_REG(bm_pool->id)) &
 				    MVPP2_BM_BPPI_PTR_NUM_MASK;
 
-	/* HW has one buffer ready which is not reflected in the counters */
+	/* HW has one buffer ready which is yest reflected in the counters */
 	if (buf_num)
 		buf_num += 1;
 
@@ -499,7 +499,7 @@ static int mvpp2_bm_pool_destroy(struct device *dev, struct mvpp2 *priv,
 	/* Check buffer counters after free */
 	buf_num = mvpp2_check_hw_buf_num(priv, bm_pool);
 	if (buf_num) {
-		WARN(1, "cannot free all buffers in pool %d, buf_num left %d\n",
+		WARN(1, "canyest free all buffers in pool %d, buf_num left %d\n",
 		     bm_pool->id, bm_pool->buf_num);
 		return 0;
 	}
@@ -680,7 +680,7 @@ static inline void mvpp2_bm_pool_put(struct mvpp2_port *port, int pool,
 					   MVPP22_BM_ADDR_HIGH_RLS_REG, val);
 	}
 
-	/* MVPP2_BM_VIRT_RLS_REG is not interpreted by HW, and simply
+	/* MVPP2_BM_VIRT_RLS_REG is yest interpreted by HW, and simply
 	 * returned in the "cookie" field of the RX
 	 * descriptor. Instead of storing the virtual address, we
 	 * store the physical address
@@ -718,7 +718,7 @@ static int mvpp2_bm_bufs_add(struct mvpp2_port *port,
 	if (buf_num < 0 ||
 	    (buf_num + bm_pool->buf_num > bm_pool->size)) {
 		netdev_err(port->dev,
-			   "cannot allocate %d buffers for pool %d\n",
+			   "canyest allocate %d buffers for pool %d\n",
 			   buf_num, bm_pool->id);
 		return 0;
 	}
@@ -768,7 +768,7 @@ mvpp2_bm_pool_use(struct mvpp2_port *port, unsigned pool, int pkt_size)
 		int pkts_num;
 
 		/* Set default buffer number or free all the buffers in case
-		 * the pool is not empty
+		 * the pool is yest empty
 		 */
 		pkts_num = new_pool->buf_num;
 		if (pkts_num == 0) {
@@ -824,7 +824,7 @@ mvpp2_bm_pool_use_percpu(struct mvpp2_port *port, int type,
 		int pkts_num;
 
 		/* Set default buffer number or free all the buffers in case
-		 * the pool is not empty
+		 * the pool is yest empty
 		 */
 		pkts_num = new_pool->buf_num;
 		if (pkts_num == 0)
@@ -1423,7 +1423,7 @@ static u32 mvpp2_read_index(struct mvpp2 *priv, u32 index, u32 reg)
  * multicast packets), and in the oppposite way, during transmission, FCS bytes
  * are added in between as well as TSO skb will be split and header bytes added.
  * Hence, statistics gathered from userspace with ifconfig (software) and
- * ethtool (hardware) cannot be compared.
+ * ethtool (hardware) canyest be compared.
  */
 static const struct mvpp2_ethtool_counter mvpp2_ethtool_mib_regs[] = {
 	{ MVPP2_MIB_GOOD_OCTETS_RCVD, "good_octets_received", true },
@@ -1544,7 +1544,7 @@ static void mvpp2_read_stats(struct mvpp2_port *port)
 						      MVPP22_CTRS_TX_CTR(port->id, i),
 						      mvpp2_ethtool_txq_regs[i].offset);
 
-	/* Rxqs are numbered from 0 from the user standpoint, but not from the
+	/* Rxqs are numbered from 0 from the user standpoint, but yest from the
 	 * driver's. We need to add the  port->first_rxq offset.
 	 */
 	for (q = 0; q < port->nrxqs; q++)
@@ -1565,7 +1565,7 @@ static void mvpp2_gather_hw_statistics(struct work_struct *work)
 	mvpp2_read_stats(port);
 
 	/* No need to read again the counters right after this function if it
-	 * was called asynchronously by the user (ie. use of ethtool).
+	 * was called asynchroyesusly by the user (ie. use of ethtool).
 	 */
 	cancel_delayed_work(&port->stats_work);
 	queue_delayed_work(port->priv->stats_queue, &port->stats_work,
@@ -1736,7 +1736,7 @@ static void mvpp2_defaults_set(struct mvpp2_port *port)
 		    MVPP2_RX_USE_PSEUDO_FOR_CSUM_MASK |
 		    MVPP2_RX_LOW_LATENCY_PKT_SIZE(256));
 
-	/* Enable Rx cache snoop */
+	/* Enable Rx cache syesop */
 	for (lrxq = 0; lrxq < port->nrxqs; lrxq++) {
 		queue = port->rxqs[lrxq]->id;
 		val = mvpp2_read(port->priv, MVPP2_RXQ_CONFIG_REG(queue));
@@ -1915,8 +1915,8 @@ static void mvpp2_aggr_txq_pend_desc_add(struct mvpp2_port *port, int pending)
 			   MVPP2_AGGR_TXQ_UPDATE_REG, pending);
 }
 
-/* Check if there are enough free descriptors in aggregated txq.
- * If not, update the number of occupied descriptors and repeat the check.
+/* Check if there are eyesugh free descriptors in aggregated txq.
+ * If yest, update the number of occupied descriptors and repeat the check.
  *
  * Called only from mvpp2_tx(), so migration is disabled, using
  * smp_processor_id() is OK.
@@ -1960,8 +1960,8 @@ static int mvpp2_txq_alloc_reserved_desc(struct mvpp2_port *port,
 	return val & MVPP2_TXQ_RSVD_RSLT_MASK;
 }
 
-/* Check if there are enough reserved descriptors for transmission.
- * If not, request chunk of reserved descriptors and check again.
+/* Check if there are eyesugh reserved descriptors for transmission.
+ * If yest, request chunk of reserved descriptors and check again.
  */
 static int mvpp2_txq_reserved_desc_num_proc(struct mvpp2_port *port,
 					    struct mvpp2_tx_queue *txq,
@@ -1974,7 +1974,7 @@ static int mvpp2_txq_reserved_desc_num_proc(struct mvpp2_port *port,
 	if (txq_pcpu->reserved_num >= num)
 		return 0;
 
-	/* Not enough descriptors reserved! Update the reserved descriptor
+	/* Not eyesugh descriptors reserved! Update the reserved descriptor
 	 * count and check again.
 	 */
 
@@ -2327,7 +2327,7 @@ static int mvpp2_aggr_txq_init(struct platform_device *pdev,
 
 	aggr_txq->last_desc = MVPP2_AGGR_TXQ_SIZE - 1;
 
-	/* Aggr TXQ no reset WA */
+	/* Aggr TXQ yes reset WA */
 	aggr_txq->next_desc_to_proc = mvpp2_read(priv,
 						 MVPP2_AGGR_TXQ_INDEX_REG(thread));
 
@@ -2366,7 +2366,7 @@ static int mvpp2_rxq_init(struct mvpp2_port *port,
 
 	rxq->last_desc = rxq->size - 1;
 
-	/* Zero occupied and non-occupied counters - direct access */
+	/* Zero occupied and yesn-occupied counters - direct access */
 	mvpp2_write(port->priv, MVPP2_RXQ_STATUS_REG(rxq->id), 0);
 
 	/* Set Rx descriptors queue starting address - indirect access */
@@ -2807,10 +2807,10 @@ static enum hrtimer_restart mvpp2_hr_timer_cb(struct hrtimer *timer)
 	tx_todo = mvpp2_tx_done(port, cause,
 				mvpp2_cpu_to_thread(port->priv, smp_processor_id()));
 
-	/* Set the timer in case not all the packets were processed */
+	/* Set the timer in case yest all the packets were processed */
 	if (tx_todo && !port_pcpu->timer_scheduled) {
 		port_pcpu->timer_scheduled = true;
-		hrtimer_forward_now(&port_pcpu->tx_done_timer,
+		hrtimer_forward_yesw(&port_pcpu->tx_done_timer,
 				    MVPP2_TXDONE_HRTIMER_PERIOD_NS);
 
 		return HRTIMER_RESTART;
@@ -3262,7 +3262,7 @@ static netdev_tx_t mvpp2_tx(struct sk_buff *skb, struct net_device *dev)
 		mvpp2_txdesc_cmd_set(port, tx_desc, tx_cmd);
 		mvpp2_txq_inc_put(port, txq_pcpu, skb, tx_desc);
 	} else {
-		/* First but not Last */
+		/* First but yest Last */
 		tx_cmd |= MVPP2_TXD_F_DESC | MVPP2_TXD_PADDING_DISABLE;
 		mvpp2_txdesc_cmd_set(port, tx_desc, tx_cmd);
 		mvpp2_txq_inc_put(port, txq_pcpu, NULL, tx_desc);
@@ -3303,7 +3303,7 @@ out:
 	if (!port->has_tx_irqs && txq_pcpu->count >= txq->done_pkts_coal)
 		mvpp2_txq_done(port, txq, txq_pcpu);
 
-	/* Set the timer in case not all frags were processed */
+	/* Set the timer in case yest all frags were processed */
 	if (!port->has_tx_irqs && txq_pcpu->count <= frags &&
 	    txq_pcpu->count > 0) {
 		struct mvpp2_port_pcpu *port_pcpu = per_cpu_ptr(port->pcpu, thread);
@@ -3465,7 +3465,7 @@ static void mvpp2_start_dev(struct mvpp2_port *port)
 	if (port->phylink) {
 		phylink_start(port->phylink);
 	} else {
-		/* Phylink isn't used as of now for ACPI, so the MAC has to be
+		/* Phylink isn't used as of yesw for ACPI, so the MAC has to be
 		 * configured manually when the interface is started. This will
 		 * be removed as soon as the phylink ACPI support lands in.
 		 */
@@ -3515,7 +3515,7 @@ static int mvpp2_check_ringparam_valid(struct net_device *dev,
 	else if (!IS_ALIGNED(ring->tx_pending, 32))
 		new_tx_pending = ALIGN(ring->tx_pending, 32);
 
-	/* The Tx ring size cannot be smaller than the minimum number of
+	/* The Tx ring size canyest be smaller than the minimum number of
 	 * descriptors needed for TSO.
 	 */
 	if (new_tx_pending < MVPP2_MAX_SKB_DESCS)
@@ -3652,27 +3652,27 @@ static int mvpp2_open(struct net_device *dev)
 	/* Allocate the Rx/Tx queues */
 	err = mvpp2_setup_rxqs(port);
 	if (err) {
-		netdev_err(port->dev, "cannot allocate Rx queues\n");
+		netdev_err(port->dev, "canyest allocate Rx queues\n");
 		return err;
 	}
 
 	err = mvpp2_setup_txqs(port);
 	if (err) {
-		netdev_err(port->dev, "cannot allocate Tx queues\n");
+		netdev_err(port->dev, "canyest allocate Tx queues\n");
 		goto err_cleanup_rxqs;
 	}
 
 	err = mvpp2_irqs_init(port);
 	if (err) {
-		netdev_err(port->dev, "cannot init IRQs\n");
+		netdev_err(port->dev, "canyest init IRQs\n");
 		goto err_cleanup_txqs;
 	}
 
 	/* Phylink isn't supported yet in ACPI mode */
-	if (port->of_node) {
-		err = phylink_of_phy_connect(port->phylink, port->of_node, 0);
+	if (port->of_yesde) {
+		err = phylink_of_phy_connect(port->phylink, port->of_yesde, 0);
 		if (err) {
-			netdev_err(port->dev, "could not attach PHY (%d)\n",
+			netdev_err(port->dev, "could yest attach PHY (%d)\n",
 				   err);
 			goto err_free_irq;
 		}
@@ -3684,7 +3684,7 @@ static int mvpp2_open(struct net_device *dev)
 		err = request_irq(port->link_irq, mvpp2_link_status_isr, 0,
 				  dev->name, port);
 		if (err) {
-			netdev_err(port->dev, "cannot request link IRQ %d\n",
+			netdev_err(port->dev, "canyest request link IRQ %d\n",
 				   port->link_irq);
 			goto err_free_irq;
 		}
@@ -3701,7 +3701,7 @@ static int mvpp2_open(struct net_device *dev)
 
 	if (!valid) {
 		netdev_err(port->dev,
-			   "invalid configuration: no dt or link IRQ");
+			   "invalid configuration: yes dt or link IRQ");
 		goto err_free_irq;
 	}
 
@@ -3987,7 +3987,7 @@ static int mvpp2_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 
 	ret = mvpp2_prs_vid_entry_add(port, vid);
 	if (ret)
-		netdev_err(dev, "rx-vlan-filter offloading cannot accept more than %d VIDs per port\n",
+		netdev_err(dev, "rx-vlan-filter offloading canyest accept more than %d VIDs per port\n",
 			   MVPP2_PRS_VLAN_FILT_MAX - 1);
 	return ret;
 }
@@ -4407,7 +4407,7 @@ static const struct ethtool_ops mvpp2_eth_tool_ops = {
  * had a single IRQ defined per-port.
  */
 static int mvpp2_simple_queue_vectors_init(struct mvpp2_port *port,
-					   struct device_node *port_node)
+					   struct device_yesde *port_yesde)
 {
 	struct mvpp2_queue_vector *v = &port->qvecs[0];
 
@@ -4417,7 +4417,7 @@ static int mvpp2_simple_queue_vectors_init(struct mvpp2_port *port,
 	v->sw_thread_id = 0;
 	v->sw_thread_mask = *cpumask_bits(cpu_online_mask);
 	v->port = port;
-	v->irq = irq_of_parse_and_map(port_node, 0);
+	v->irq = irq_of_parse_and_map(port_yesde, 0);
 	if (v->irq <= 0)
 		return -EINVAL;
 	netif_napi_add(port->dev, &v->napi, mvpp2_poll,
@@ -4429,7 +4429,7 @@ static int mvpp2_simple_queue_vectors_init(struct mvpp2_port *port,
 }
 
 static int mvpp2_multi_queue_vectors_init(struct mvpp2_port *port,
-					  struct device_node *port_node)
+					  struct device_yesde *port_yesde)
 {
 	struct mvpp2 *priv = port->priv;
 	struct mvpp2_queue_vector *v;
@@ -4472,10 +4472,10 @@ static int mvpp2_multi_queue_vectors_init(struct mvpp2_port *port,
 				strncpy(irqname, "rx-shared", sizeof(irqname));
 		}
 
-		if (port_node)
-			v->irq = of_irq_get_byname(port_node, irqname);
+		if (port_yesde)
+			v->irq = of_irq_get_byname(port_yesde, irqname);
 		else
-			v->irq = fwnode_irq_get(port->fwnode, i);
+			v->irq = fwyesde_irq_get(port->fwyesde, i);
 		if (v->irq <= 0) {
 			ret = -EINVAL;
 			goto err;
@@ -4494,12 +4494,12 @@ err:
 }
 
 static int mvpp2_queue_vectors_init(struct mvpp2_port *port,
-				    struct device_node *port_node)
+				    struct device_yesde *port_yesde)
 {
 	if (port->has_tx_irqs)
-		return mvpp2_multi_queue_vectors_init(port, port_node);
+		return mvpp2_multi_queue_vectors_init(port, port_yesde);
 	else
-		return mvpp2_simple_queue_vectors_init(port, port_node);
+		return mvpp2_simple_queue_vectors_init(port, port_yesde);
 }
 
 static void mvpp2_queue_vectors_deinit(struct mvpp2_port *port)
@@ -4670,7 +4670,7 @@ err_free_percpu:
 	return err;
 }
 
-static bool mvpp22_port_has_legacy_tx_irqs(struct device_node *port_node,
+static bool mvpp22_port_has_legacy_tx_irqs(struct device_yesde *port_yesde,
 					   unsigned long *flags)
 {
 	char *irqs[5] = { "rx-shared", "tx-cpu0", "tx-cpu1", "tx-cpu2",
@@ -4678,7 +4678,7 @@ static bool mvpp22_port_has_legacy_tx_irqs(struct device_node *port_node,
 	int i;
 
 	for (i = 0; i < 5; i++)
-		if (of_property_match_string(port_node, "interrupt-names",
+		if (of_property_match_string(port_yesde, "interrupt-names",
 					     irqs[i]) < 0)
 			return false;
 
@@ -4687,7 +4687,7 @@ static bool mvpp22_port_has_legacy_tx_irqs(struct device_node *port_node,
 }
 
 /* Checks if the port dt description has the required Tx interrupts:
- * - PPv2.1: there are no such interrupts.
+ * - PPv2.1: there are yes such interrupts.
  * - PPv2.2:
  *   - The old DTs have: "rx-shared", "tx-cpuX" with X in [0...3]
  *   - The new ones have: "hifX" with X in [0..8]
@@ -4695,25 +4695,25 @@ static bool mvpp22_port_has_legacy_tx_irqs(struct device_node *port_node,
  * All those variants are supported to keep the backward compatibility.
  */
 static bool mvpp2_port_has_irqs(struct mvpp2 *priv,
-				struct device_node *port_node,
+				struct device_yesde *port_yesde,
 				unsigned long *flags)
 {
 	char name[5];
 	int i;
 
 	/* ACPI */
-	if (!port_node)
+	if (!port_yesde)
 		return true;
 
 	if (priv->hw_version == MVPP21)
 		return false;
 
-	if (mvpp22_port_has_legacy_tx_irqs(port_node, flags))
+	if (mvpp22_port_has_legacy_tx_irqs(port_yesde, flags))
 		return true;
 
 	for (i = 0; i < MVPP2_MAX_THREADS; i++) {
 		snprintf(name, 5, "hif%d", i);
-		if (of_property_match_string(port_node, "interrupt-names",
+		if (of_property_match_string(port_yesde, "interrupt-names",
 					     name) < 0)
 			return false;
 	}
@@ -4722,15 +4722,15 @@ static bool mvpp2_port_has_irqs(struct mvpp2 *priv,
 }
 
 static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
-				     struct fwnode_handle *fwnode,
+				     struct fwyesde_handle *fwyesde,
 				     char **mac_from)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 	char hw_mac_addr[ETH_ALEN] = {0};
 	char fw_mac_addr[ETH_ALEN];
 
-	if (fwnode_get_mac_address(fwnode, fw_mac_addr, ETH_ALEN)) {
-		*mac_from = "firmware node";
+	if (fwyesde_get_mac_address(fwyesde, fw_mac_addr, ETH_ALEN)) {
+		*mac_from = "firmware yesde";
 		ether_addr_copy(dev->dev_addr, fw_mac_addr);
 		return;
 	}
@@ -4996,7 +4996,7 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 
 	/* Configure negotiation style */
 	if (!phylink_autoneg_inband(mode)) {
-		/* Phy or fixed speed - no in-band AN */
+		/* Phy or fixed speed - yes in-band AN */
 		if (state->duplex)
 			an |= MVPP2_GMAC_CONFIG_FULL_DUPLEX;
 
@@ -5011,7 +5011,7 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 			ctrl4 |= MVPP22_CTRL4_RX_FC_EN;
 	} else if (state->interface == PHY_INTERFACE_MODE_SGMII) {
 		/* SGMII in-band mode receives the speed and duplex from
-		 * the PHY. Flow control information is not received. */
+		 * the PHY. Flow control information is yest received. */
 		an &= ~(MVPP2_GMAC_FORCE_LINK_DOWN | MVPP2_GMAC_FORCE_LINK_PASS);
 		an |= MVPP2_GMAC_IN_BAND_AUTONEG |
 		      MVPP2_GMAC_AN_SPEED_EN |
@@ -5022,7 +5022,7 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 		if (state->pause & MLO_PAUSE_RX)
 			ctrl4 |= MVPP22_CTRL4_RX_FC_EN;
 	} else if (phy_interface_mode_is_8023z(state->interface)) {
-		/* 1000BaseX and 2500BaseX ports cannot negotiate speed nor can
+		/* 1000BaseX and 2500BaseX ports canyest negotiate speed yesr can
 		 * they negotiate duplex: they are always operating with a fixed
 		 * speed of 1000/2500Mbps in full duplex, so force 1000/2500
 		 * speed and full duplex here.
@@ -5194,13 +5194,13 @@ static const struct phylink_mac_ops mvpp2_phylink_ops = {
 
 /* Ports initialization */
 static int mvpp2_port_probe(struct platform_device *pdev,
-			    struct fwnode_handle *port_fwnode,
+			    struct fwyesde_handle *port_fwyesde,
 			    struct mvpp2 *priv)
 {
 	struct phy *comphy = NULL;
 	struct mvpp2_port *port;
 	struct mvpp2_port_pcpu *port_pcpu;
-	struct device_node *port_node = to_of_node(port_fwnode);
+	struct device_yesde *port_yesde = to_of_yesde(port_fwyesde);
 	netdev_features_t features;
 	struct net_device *dev;
 	struct phylink *phylink;
@@ -5212,10 +5212,10 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	int phy_mode;
 	int err, i;
 
-	has_tx_irqs = mvpp2_port_has_irqs(priv, port_node, &flags);
+	has_tx_irqs = mvpp2_port_has_irqs(priv, port_yesde, &flags);
 	if (!has_tx_irqs && queue_mode == MVPP2_QDIST_MULTI_MODE) {
 		dev_err(&pdev->dev,
-			"not enough IRQs to support multi queue mode\n");
+			"yest eyesugh IRQs to support multi queue mode\n");
 		return -EINVAL;
 	}
 
@@ -5226,15 +5226,15 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	if (!dev)
 		return -ENOMEM;
 
-	phy_mode = fwnode_get_phy_mode(port_fwnode);
+	phy_mode = fwyesde_get_phy_mode(port_fwyesde);
 	if (phy_mode < 0) {
 		dev_err(&pdev->dev, "incorrect phy mode\n");
 		err = phy_mode;
 		goto err_free_netdev;
 	}
 
-	if (port_node) {
-		comphy = devm_of_phy_get(&pdev->dev, port_node, NULL);
+	if (port_yesde) {
+		comphy = devm_of_phy_get(&pdev->dev, port_yesde, NULL);
 		if (IS_ERR(comphy)) {
 			if (PTR_ERR(comphy) == -EPROBE_DEFER) {
 				err = -EPROBE_DEFER;
@@ -5244,7 +5244,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		}
 	}
 
-	if (fwnode_property_read_u32(port_fwnode, "port-id", &id)) {
+	if (fwyesde_property_read_u32(port_fwyesde, "port-id", &id)) {
 		err = -EINVAL;
 		dev_err(&pdev->dev, "missing port-id value\n");
 		goto err_free_netdev;
@@ -5257,22 +5257,22 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 
 	port = netdev_priv(dev);
 	port->dev = dev;
-	port->fwnode = port_fwnode;
-	port->has_phy = !!of_find_property(port_node, "phy", NULL);
+	port->fwyesde = port_fwyesde;
+	port->has_phy = !!of_find_property(port_yesde, "phy", NULL);
 	port->ntxqs = ntxqs;
 	port->nrxqs = nrxqs;
 	port->priv = priv;
 	port->has_tx_irqs = has_tx_irqs;
 	port->flags = flags;
 
-	err = mvpp2_queue_vectors_init(port, port_node);
+	err = mvpp2_queue_vectors_init(port, port_yesde);
 	if (err)
 		goto err_free_netdev;
 
-	if (port_node)
-		port->link_irq = of_irq_get_byname(port_node, "link");
+	if (port_yesde)
+		port->link_irq = of_irq_get_byname(port_yesde, "link");
 	else
-		port->link_irq = fwnode_irq_get(port_fwnode, port->nqvecs + 1);
+		port->link_irq = fwyesde_irq_get(port_fwyesde, port->nqvecs + 1);
 	if (port->link_irq == -EPROBE_DEFER) {
 		err = -EPROBE_DEFER;
 		goto err_deinit_qvecs;
@@ -5281,7 +5281,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		/* the link irq is optional */
 		port->link_irq = 0;
 
-	if (fwnode_property_read_bool(port_fwnode, "marvell,loopback"))
+	if (fwyesde_property_read_bool(port_fwyesde, "marvell,loopback"))
 		port->flags |= MVPP2_F_LOOPBACK;
 
 	port->id = id;
@@ -5290,7 +5290,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	else
 		port->first_rxq = port->id * priv->max_port_rxqs;
 
-	port->of_node = port_node;
+	port->of_yesde = port_yesde;
 	port->phy_interface = phy_mode;
 	port->comphy = comphy;
 
@@ -5305,7 +5305,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 				   MVPP21_MIB_COUNTERS_OFFSET +
 				   port->gop_id * MVPP21_MIB_COUNTERS_PORT_SZ;
 	} else {
-		if (fwnode_property_read_u32(port_fwnode, "gop-port-id",
+		if (fwyesde_property_read_u32(port_fwyesde, "gop-port-id",
 					     &port->gop_id)) {
 			err = -EINVAL;
 			dev_err(&pdev->dev, "missing gop-port-id value\n");
@@ -5336,7 +5336,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	mutex_init(&port->gather_stats_lock);
 	INIT_DELAYED_WORK(&port->stats_work, mvpp2_gather_hw_statistics);
 
-	mvpp2_port_copy_mac_addr(dev, priv, port_fwnode, &mac_from);
+	mvpp2_port_copy_mac_addr(dev, priv, port_fwyesde, &mac_from);
 
 	port->tx_ring_size = MVPP2_MAX_TXD_DFLT;
 	port->rx_ring_size = MVPP2_MAX_RXD_DFLT;
@@ -5393,14 +5393,14 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	dev->min_mtu = ETH_MIN_MTU;
 	/* 9704 == 9728 - 20 and rounding to 8 */
 	dev->max_mtu = MVPP2_BM_JUMBO_PKT_SIZE;
-	dev->dev.of_node = port_node;
+	dev->dev.of_yesde = port_yesde;
 
-	/* Phylink isn't used w/ ACPI as of now */
-	if (port_node) {
+	/* Phylink isn't used w/ ACPI as of yesw */
+	if (port_yesde) {
 		port->phylink_config.dev = &dev->dev;
 		port->phylink_config.type = PHYLINK_NETDEV;
 
-		phylink = phylink_create(&port->phylink_config, port_fwnode,
+		phylink = phylink_create(&port->phylink_config, port_fwyesde,
 					 phy_mode, &mvpp2_phylink_ops);
 		if (IS_ERR(phylink)) {
 			err = PTR_ERR(phylink);
@@ -5671,7 +5671,7 @@ static int mvpp2_init(struct platform_device *pdev, struct mvpp2 *priv)
 		writel(MVPP2_EXT_GLOBAL_CTRL_DEFAULT,
 		       priv->lms_base + MVPP2_MNG_EXTENDED_GLOBAL_CTRL_REG);
 
-	/* Allow cache snoop when transmiting packets */
+	/* Allow cache syesop when transmiting packets */
 	mvpp2_write(priv, MVPP2_TX_SNOOP_REG, 0x1);
 
 	/* Buffer Manager initialization */
@@ -5693,8 +5693,8 @@ static int mvpp2_init(struct platform_device *pdev, struct mvpp2 *priv)
 static int mvpp2_probe(struct platform_device *pdev)
 {
 	const struct acpi_device_id *acpi_id;
-	struct fwnode_handle *fwnode = pdev->dev.fwnode;
-	struct fwnode_handle *port_fwnode;
+	struct fwyesde_handle *fwyesde = pdev->dev.fwyesde;
+	struct fwyesde_handle *port_fwyesde;
 	struct mvpp2 *priv;
 	struct resource *res;
 	void __iomem *base;
@@ -5748,13 +5748,13 @@ static int mvpp2_probe(struct platform_device *pdev)
 			return PTR_ERR(priv->iface_base);
 	}
 
-	if (priv->hw_version == MVPP22 && dev_of_node(&pdev->dev)) {
+	if (priv->hw_version == MVPP22 && dev_of_yesde(&pdev->dev)) {
 		priv->sysctrl_base =
-			syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+			syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 							"marvell,system-controller");
 		if (IS_ERR(priv->sysctrl_base))
 			/* The system controller regmap is optional for dt
-			 * compatibility reasons. When not provided, the
+			 * compatibility reasons. When yest provided, the
 			 * configuration of the GoP relies on the
 			 * firmware/bootloader.
 			 */
@@ -5789,7 +5789,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	else
 		priv->max_port_rxqs = 32;
 
-	if (dev_of_node(&pdev->dev)) {
+	if (dev_of_yesde(&pdev->dev)) {
 		priv->pp_clk = devm_clk_get(&pdev->dev, "pp_clk");
 		if (IS_ERR(priv->pp_clk))
 			return PTR_ERR(priv->pp_clk);
@@ -5869,14 +5869,14 @@ static int mvpp2_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize ports */
-	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
-		err = mvpp2_port_probe(pdev, port_fwnode, priv);
+	fwyesde_for_each_available_child_yesde(fwyesde, port_fwyesde) {
+		err = mvpp2_port_probe(pdev, port_fwyesde, priv);
 		if (err < 0)
 			goto err_port_probe;
 	}
 
 	if (priv->port_count == 0) {
-		dev_err(&pdev->dev, "no ports enabled\n");
+		dev_err(&pdev->dev, "yes ports enabled\n");
 		err = -ENODEV;
 		goto err_axi_clk;
 	}
@@ -5903,7 +5903,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 
 err_port_probe:
 	i = 0;
-	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
+	fwyesde_for_each_available_child_yesde(fwyesde, port_fwyesde) {
 		if (priv->port_list[i])
 			mvpp2_port_remove(priv->port_list[i]);
 		i++;
@@ -5927,13 +5927,13 @@ err_pp_clk:
 static int mvpp2_remove(struct platform_device *pdev)
 {
 	struct mvpp2 *priv = platform_get_drvdata(pdev);
-	struct fwnode_handle *fwnode = pdev->dev.fwnode;
-	struct fwnode_handle *port_fwnode;
+	struct fwyesde_handle *fwyesde = pdev->dev.fwyesde;
+	struct fwyesde_handle *port_fwyesde;
 	int i = 0;
 
 	mvpp2_dbgfs_cleanup(priv);
 
-	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
+	fwyesde_for_each_available_child_yesde(fwyesde, port_fwyesde) {
 		if (priv->port_list[i]) {
 			mutex_destroy(&priv->port_list[i]->gather_stats_lock);
 			mvpp2_port_remove(priv->port_list[i]);
@@ -5958,7 +5958,7 @@ static int mvpp2_remove(struct platform_device *pdev)
 				  aggr_txq->descs_dma);
 	}
 
-	if (is_acpi_node(port_fwnode))
+	if (is_acpi_yesde(port_fwyesde))
 		return 0;
 
 	clk_disable_unprepare(priv->axi_clk);

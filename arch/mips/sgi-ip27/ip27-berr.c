@@ -33,7 +33,7 @@ static void dump_hub_information(unsigned long errst0, unsigned long errst1)
 	int wrb = errst1 & PI_ERR_ST1_WRBRRB_MASK;
 
 	if (!(errst0 & PI_ERR_ST0_VALID_MASK)) {
-		printk("Hub does not contain valid error information\n");
+		printk("Hub does yest contain valid error information\n");
 		return;
 	}
 

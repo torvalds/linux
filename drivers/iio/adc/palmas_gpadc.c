@@ -346,7 +346,7 @@ static int palmas_gpadc_start_conversion(struct palmas_gpadc *adc, int adc_chan)
 	ret = wait_for_completion_timeout(&adc->conv_completion,
 				PALMAS_ADC_CONVERSION_TIMEOUT);
 	if (ret == 0) {
-		dev_err(adc->dev, "conversion not completed\n");
+		dev_err(adc->dev, "conversion yest completed\n");
 		return -ETIMEDOUT;
 	}
 
@@ -461,7 +461,7 @@ static const struct iio_chan_spec palmas_gpadc_iio_channel[] = {
 static int palmas_gpadc_get_adc_dt_data(struct platform_device *pdev,
 	struct palmas_gpadc_platform_data **gpadc_pdata)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct palmas_gpadc_platform_data *gp_data;
 	int ret;
 	u32 pval;
@@ -499,7 +499,7 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 	if (pdata && pdata->gpadc_pdata)
 		gpadc_pdata = pdata->gpadc_pdata;
 
-	if (!gpadc_pdata && pdev->dev.of_node) {
+	if (!gpadc_pdata && pdev->dev.of_yesde) {
 		ret = palmas_gpadc_get_adc_dt_data(pdev, &gpadc_pdata);
 		if (ret < 0)
 			return ret;

@@ -998,14 +998,14 @@ static const char *const px30_cru_critical_clocks[] __initconst = {
 	"pclk_usb_grf",
 };
 
-static void __init px30_clk_init(struct device_node *np)
+static void __init px30_clk_init(struct device_yesde *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
-		pr_err("%s: could not map cru region\n", __func__);
+		pr_err("%s: could yest map cru region\n", __func__);
 		return;
 	}
 
@@ -1033,20 +1033,20 @@ static void __init px30_clk_init(struct device_node *np)
 	rockchip_register_softrst(np, 12, reg_base + PX30_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(ctx, PX30_GLB_SRST_FST, NULL);
+	rockchip_register_restart_yestifier(ctx, PX30_GLB_SRST_FST, NULL);
 
 	rockchip_clk_of_add_provider(np, ctx);
 }
 CLK_OF_DECLARE(px30_cru, "rockchip,px30-cru", px30_clk_init);
 
-static void __init px30_pmu_clk_init(struct device_node *np)
+static void __init px30_pmu_clk_init(struct device_yesde *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
-		pr_err("%s: could not map cru pmu region\n", __func__);
+		pr_err("%s: could yest map cru pmu region\n", __func__);
 		return;
 	}
 

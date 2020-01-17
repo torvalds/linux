@@ -165,14 +165,14 @@ static void handle_rx(struct uart_port *port)
 		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 	}
 
-	/* and now the main RX loop */
+	/* and yesw the main RX loop */
 	while (vt8500_read(port, VT8500_URFIDX) & 0x1f00) {
 		unsigned int c;
 		char flag = TTY_NORMAL;
 
 		c = readw(port->membase + VT8500_RXFIFO) & 0x3ff;
 
-		/* Mask conditions we're ignorning. */
+		/* Mask conditions we're igyesrning. */
 		c &= ~port->read_status_mask;
 
 		if (c & FER) {
@@ -251,7 +251,7 @@ static irqreturn_t vt8500_irq(int irq, void *dev_id)
 	spin_lock(&port->lock);
 	isr = vt8500_read(port, VT8500_URISR);
 
-	/* Acknowledge active status bits */
+	/* Ackyeswledge active status bits */
 	vt8500_write(port, isr, VT8500_URISR);
 
 	if (isr & RX_FIFO_INTS)
@@ -412,7 +412,7 @@ static void vt8500_set_termios(struct uart_port *port,
 	/* set parity, bits per char, and stop bit */
 	vt8500_write(&vt8500_port->uart, lcr, VT8500_URLCR);
 
-	/* Configure status bits to ignore based on termio flags. */
+	/* Configure status bits to igyesre based on termio flags. */
 	port->read_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
 		port->read_status_mask = FER | PER;
@@ -615,7 +615,7 @@ static struct uart_driver vt8500_uart_driver = {
 	.cons		= VT8500_CONSOLE,
 };
 
-static unsigned int vt8500_flags; /* none required so far */
+static unsigned int vt8500_flags; /* yesne required so far */
 static unsigned int wm8880_flags = VT8500_HAS_SWRTSCTS_SWITCH;
 
 static const struct of_device_id wmt_dt_ids[] = {
@@ -628,7 +628,7 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 {
 	struct vt8500_port *vt8500_port;
 	struct resource *mmres, *irqres;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *match;
 	const unsigned int *flags;
 	int ret;
@@ -677,7 +677,7 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	if (IS_ERR(vt8500_port->uart.membase))
 		return PTR_ERR(vt8500_port->uart.membase);
 
-	vt8500_port->clk = of_clk_get(pdev->dev.of_node, 0);
+	vt8500_port->clk = of_clk_get(pdev->dev.of_yesde, 0);
 	if (IS_ERR(vt8500_port->clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		return  -EINVAL;

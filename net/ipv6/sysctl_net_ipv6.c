@@ -36,7 +36,7 @@ static int proc_rt6_multipath_hash_policy(struct ctl_table *table, int write,
 			   ipv6.sysctl.multipath_hash_policy);
 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		call_netevent_notifiers(NETEVENT_IPV6_MPATH_HASH_UPDATE, net);
+		call_netevent_yestifiers(NETEVENT_IPV6_MPATH_HASH_UPDATE, net);
 
 	return ret;
 }
@@ -101,8 +101,8 @@ static struct ctl_table ipv6_table_template[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "ip_nonlocal_bind",
-		.data		= &init_net.ipv6.sysctl.ip_nonlocal_bind,
+		.procname	= "ip_yesnlocal_bind",
+		.data		= &init_net.ipv6.sysctl.ip_yesnlocal_bind,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
@@ -218,7 +218,7 @@ static int __net_init ipv6_sysctl_net_init(struct net *net)
 	ipv6_table[5].data = &net->ipv6.sysctl.idgen_retries;
 	ipv6_table[6].data = &net->ipv6.sysctl.idgen_delay;
 	ipv6_table[7].data = &net->ipv6.sysctl.flowlabel_state_ranges;
-	ipv6_table[8].data = &net->ipv6.sysctl.ip_nonlocal_bind;
+	ipv6_table[8].data = &net->ipv6.sysctl.ip_yesnlocal_bind;
 	ipv6_table[9].data = &net->ipv6.sysctl.flowlabel_reflect;
 	ipv6_table[10].data = &net->ipv6.sysctl.max_dst_opts_cnt;
 	ipv6_table[11].data = &net->ipv6.sysctl.max_hbh_opts_cnt;

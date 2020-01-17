@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -288,7 +288,7 @@ static void ttm_shrink_work(struct work_struct *work)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	struct ttm_mem_global *glob =
 	    container_of(work, struct ttm_mem_global, work);
@@ -387,7 +387,7 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
 	}
 
 	/*
-	 * Limit max dma32 memory to 4GB for now
+	 * Limit max dma32 memory to 4GB for yesw
 	 * until we can figure out how big this
 	 * zone really is.
 	 */
@@ -436,15 +436,15 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 
 	ret = ttm_mem_init_kernel_zone(glob, &si);
 	if (unlikely(ret != 0))
-		goto out_no_zone;
+		goto out_yes_zone;
 #ifdef CONFIG_HIGHMEM
 	ret = ttm_mem_init_highmem_zone(glob, &si);
 	if (unlikely(ret != 0))
-		goto out_no_zone;
+		goto out_yes_zone;
 #else
 	ret = ttm_mem_init_dma32_zone(glob, &si);
 	if (unlikely(ret != 0))
-		goto out_no_zone;
+		goto out_yes_zone;
 #endif
 	for (i = 0; i < glob->num_zones; ++i) {
 		zone = glob->zones[i];
@@ -454,7 +454,7 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 	ttm_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
 	ttm_dma_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
 	return 0;
-out_no_zone:
+out_yes_zone:
 	ttm_mem_global_release(glob);
 	return ret;
 }
@@ -530,7 +530,7 @@ EXPORT_SYMBOL(ttm_mem_global_free);
 /*
  * check if the available mem is under lower memory limit
  *
- * a. if no swap disk at all or free swap space is under swap_mem_limit
+ * a. if yes swap disk at all or free swap space is under swap_mem_limit
  * but available system mem is bigger than sys_mem_limit, allow TTM
  * allocation;
  *
@@ -607,7 +607,7 @@ static int ttm_mem_global_alloc_zone(struct ttm_mem_global *glob,
 					       single_zone,
 					       memory, true)
 			!= 0)) {
-		if (ctx->no_wait_gpu)
+		if (ctx->yes_wait_gpu)
 			return -ENOMEM;
 		if (unlikely(count-- == 0))
 			return -ENOMEM;

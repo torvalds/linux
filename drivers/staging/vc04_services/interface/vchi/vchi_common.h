@@ -7,7 +7,7 @@
 //flags used when sending messages (must be bitmapped)
 enum vchi_flags {
 	VCHI_FLAGS_NONE                      = 0x0,
-	VCHI_FLAGS_BLOCK_UNTIL_OP_COMPLETE   = 0x1,   // waits for message to be received, or sent (NB. not the same as being seen on other side)
+	VCHI_FLAGS_BLOCK_UNTIL_OP_COMPLETE   = 0x1,   // waits for message to be received, or sent (NB. yest the same as being seen on other side)
 	VCHI_FLAGS_CALLBACK_WHEN_OP_COMPLETE = 0x2,   // run a callback when message sent
 	VCHI_FLAGS_BLOCK_UNTIL_QUEUED        = 0x4,   // return once the transfer is in a queue ready to go
 	VCHI_FLAGS_ALLOW_PARTIAL             = 0x8,
@@ -35,19 +35,19 @@ enum vchi_callback_reason {
 
 	//This indicates that there is data available
 	//handle is the msg id that was transmitted with the data
-	//    When a message is received and there was no FULL message available previously, send callback
+	//    When a message is received and there was yes FULL message available previously, send callback
 	//    Tasks get kicked by the callback, reset their event and try and read from the fifo until it fails
 	VCHI_CALLBACK_MSG_AVAILABLE,
 	VCHI_CALLBACK_MSG_SENT,
-	VCHI_CALLBACK_MSG_SPACE_AVAILABLE, // XXX not yet implemented
+	VCHI_CALLBACK_MSG_SPACE_AVAILABLE, // XXX yest yet implemented
 
 	// This indicates that a transfer from the other side has completed
 	VCHI_CALLBACK_BULK_RECEIVED,
-	//This indicates that data queued up to be sent has now gone
+	//This indicates that data queued up to be sent has yesw gone
 	//handle is the msg id that was used when sending the data
 	VCHI_CALLBACK_BULK_SENT,
-	VCHI_CALLBACK_BULK_RX_SPACE_AVAILABLE, // XXX not yet implemented
-	VCHI_CALLBACK_BULK_TX_SPACE_AVAILABLE, // XXX not yet implemented
+	VCHI_CALLBACK_BULK_RX_SPACE_AVAILABLE, // XXX yest yet implemented
+	VCHI_CALLBACK_BULK_TX_SPACE_AVAILABLE, // XXX yest yet implemented
 
 	VCHI_CALLBACK_SERVICE_CLOSED,
 
@@ -60,14 +60,14 @@ enum vchi_callback_reason {
 	// indicates that a bulk transfer has finished reading the source buffer
 	VCHI_CALLBACK_BULK_DATA_READ,
 
-	// power notification events (currently host side only)
+	// power yestification events (currently host side only)
 	VCHI_CALLBACK_PEER_OFF,
 	VCHI_CALLBACK_PEER_SUSPENDED,
 	VCHI_CALLBACK_PEER_ON,
 	VCHI_CALLBACK_PEER_RESUMED,
 	VCHI_CALLBACK_FORCED_POWER_OFF,
 
-	// some extra notifications provided by vchiq_arm
+	// some extra yestifications provided by vchiq_arm
 	VCHI_CALLBACK_SERVICE_OPENED,
 	VCHI_CALLBACK_BULK_RECEIVE_ABORTED,
 	VCHI_CALLBACK_BULK_TRANSMIT_ABORTED,
@@ -93,7 +93,7 @@ typedef void (*vchi_callback)(void *callback_param, //my service local param
 /*
  * Define vector struct for scatter-gather (vector) operations
  * Vectors can be nested - if a vector element has negative length, then
- * the data pointer is treated as pointing to another vector array, with
+ * the data pointer is treated as pointing to ayesther vector array, with
  * '-vec_len' elements. Thus to append a header onto an existing vector,
  * you can do this:
  *
@@ -115,7 +115,7 @@ struct vchi_msg_vector {
 // Iterator structure for reading ahead through received message queue. Allocated by client,
 // initialised by vchi_msg_look_ahead. Fields are for internal VCHI use only.
 // Iterates over messages in queue at the instant of the call to vchi_msg_lookahead -
-// will not proceed to messages received since. Behaviour is undefined if an iterator
+// will yest proceed to messages received since. Behaviour is undefined if an iterator
 // is used again after messages for that service are removed/dequeued by any
 // means other than vchi_msg_iter_... calls on the iterator itself.
 struct vchi_msg_iter {

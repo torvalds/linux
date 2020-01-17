@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -79,47 +79,47 @@ static const struct IP_BASE UVD_BASE			= { { { { 0x00007800, 0x00007E00, 0, 0, 0
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
-										{ { 0, 0, 0, 0, 0 } } } };  //note: GLN does not use the first segment
+										{ { 0, 0, 0, 0, 0 } } } };  //yeste: GLN does yest use the first segment
 static const struct IP_BASE VCN_BASE			= { { { { 0x00007800, 0x00007E00, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
-										{ { 0, 0, 0, 0, 0 } } } };  //note: GLN does not use the first segment
+										{ { 0, 0, 0, 0, 0 } } } };  //yeste: GLN does yest use the first segment
 static const struct IP_BASE DBGU_BASE			= { { { { 0x00000180, 0x000001A0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
-										{ { 0, 0, 0, 0, 0 } } } }; // not exist
+										{ { 0, 0, 0, 0, 0 } } } }; // yest exist
 static const struct IP_BASE DBGU_NBIO_BASE		= { { { { 0x000001C0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
-										{ { 0, 0, 0, 0, 0 } } } }; // not exist
+										{ { 0, 0, 0, 0, 0 } } } }; // yest exist
 static const struct IP_BASE DBGU_IO_BASE		= { { { { 0x000001E0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
-										{ { 0, 0, 0, 0, 0 } } } }; // not exist
+										{ { 0, 0, 0, 0, 0 } } } }; // yest exist
 static const struct IP_BASE DFX_DAP_BASE		= { { { { 0x000005A0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
-										{ { 0, 0, 0, 0, 0 } } } }; // not exist
+										{ { 0, 0, 0, 0, 0 } } } }; // yest exist
 static const struct IP_BASE DFX_BASE			= { { { { 0x00000580, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
-										{ { 0, 0, 0, 0, 0 } } } }; // this file does not contain registers
+										{ { 0, 0, 0, 0, 0 } } } }; // this file does yest contain registers
 static const struct IP_BASE ISP_BASE			= { { { { 0x00018000, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
-										{ { 0, 0, 0, 0, 0 } } } }; // not exist
+										{ { 0, 0, 0, 0, 0 } } } }; // yest exist
 static const struct IP_BASE SYSTEMHUB_BASE		= { { { { 0x00000EA0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
-										{ { 0, 0, 0, 0, 0 } } } }; // not exist
+										{ { 0, 0, 0, 0, 0 } } } }; // yest exist
 static const struct IP_BASE L2IMU_BASE			= { { { { 0x00007DC0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },
 										{ { 0, 0, 0, 0, 0 } },

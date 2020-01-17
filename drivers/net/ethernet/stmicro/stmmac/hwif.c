@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2018 Syyespsys, Inc. and/or its affiliates.
  * stmmac HW Interface Handling
  */
 
@@ -13,11 +13,11 @@ static u32 stmmac_get_id(struct stmmac_priv *priv, u32 id_reg)
 	u32 reg = readl(priv->ioaddr + id_reg);
 
 	if (!reg) {
-		dev_info(priv->device, "Version ID not available\n");
+		dev_info(priv->device, "Version ID yest available\n");
 		return 0x0;
 	}
 
-	dev_info(priv->device, "User ID: 0x%x, Synopsys ID: 0x%x\n",
+	dev_info(priv->device, "User ID: 0x%x, Syyespsys ID: 0x%x\n",
 			(unsigned int)(reg & GENMASK(15, 8)) >> 8,
 			(unsigned int)(reg & GENMASK(7, 0)));
 	return reg & GENMASK(7, 0);
@@ -45,12 +45,12 @@ static int stmmac_dwmac1_quirks(struct stmmac_priv *priv)
 	if (priv->plat->enh_desc) {
 		dev_info(priv->device, "Enhanced/Alternate descriptors\n");
 
-		/* GMAC older than 3.50 has no extended descriptors */
-		if (priv->synopsys_id >= DWMAC_CORE_3_50) {
+		/* GMAC older than 3.50 has yes extended descriptors */
+		if (priv->syyespsys_id >= DWMAC_CORE_3_50) {
 			dev_info(priv->device, "Enabled extended descriptors\n");
 			priv->extend_desc = 1;
 		} else {
-			dev_warn(priv->device, "Extended descriptors not supported\n");
+			dev_warn(priv->device, "Extended descriptors yest supported\n");
 		}
 
 		mac->desc = &enh_desc_ops;
@@ -235,7 +235,7 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 	}
 
 	/* Save ID for later use */
-	priv->synopsys_id = id;
+	priv->syyespsys_id = id;
 
 	/* Lets assume some safe values first */
 	priv->ptpaddr = priv->ioaddr +
@@ -264,8 +264,8 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 			continue;
 		if (needs_xgmac ^ entry->xgmac)
 			continue;
-		/* Use synopsys_id var because some setups can override this */
-		if (priv->synopsys_id < entry->min_id)
+		/* Use syyespsys_id var because some setups can override this */
+		if (priv->syyespsys_id < entry->min_id)
 			continue;
 
 		/* Only use generic HW helpers if needed */

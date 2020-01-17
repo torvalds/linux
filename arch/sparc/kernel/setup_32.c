@@ -6,7 +6,7 @@
  *  Copyright (C) 2000  Anton Blanchard (anton@samba.org)
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -66,7 +66,7 @@ struct screen_info screen_info = {
 
 /* Typing sync at the prom prompt calls the function pointed to by
  * romvec->pv_synchook which I set to the following function.
- * This should sync all filesystems and return, for now it just
+ * This should sync all filesystems and return, for yesw it just
  * prints out pretty messages and returns.
  */
 
@@ -79,9 +79,9 @@ static void prom_sync_me(void)
 	local_irq_save(flags);
 	__asm__ __volatile__("rd %%tbr, %0\n\t" : "=r" (prom_tbr));
 	__asm__ __volatile__("wr %0, 0x0, %%tbr\n\t"
-			     "nop\n\t"
-			     "nop\n\t"
-			     "nop\n\t" : : "r" (&trapbase));
+			     "yesp\n\t"
+			     "yesp\n\t"
+			     "yesp\n\t" : : "r" (&trapbase));
 
 	prom_printf("PROM SYNC COMMAND...\n");
 	show_free_areas(0, NULL);
@@ -93,9 +93,9 @@ static void prom_sync_me(void)
 	prom_printf("Returning to prom\n");
 
 	__asm__ __volatile__("wr %0, 0x0, %%tbr\n\t"
-			     "nop\n\t"
-			     "nop\n\t"
-			     "nop\n\t" : : "r" (prom_tbr));
+			     "yesp\n\t"
+			     "yesp\n\t"
+			     "yesp\n\t" : : "r" (prom_tbr));
 	local_irq_restore(flags);
 }
 
@@ -105,7 +105,7 @@ static unsigned int boot_flags __initdata = 0;
 /* Exported for mm/init.c:paging_init. */
 unsigned long cmdline_memory_size __initdata = 0;
 
-/* which CPU booted us (0xff = not set) */
+/* which CPU booted us (0xff = yest set) */
 unsigned char boot_cpu_id = 0xff; /* 0xff will make it into DATA section... */
 
 static void
@@ -141,7 +141,7 @@ static void __init process_switch(char c)
 		prom_early_console.flags &= ~CON_BOOT;
 		break;
 	default:
-		printk("Unknown boot switch (-%c)\n", c);
+		printk("Unkyeswn boot switch (-%c)\n", c);
 		break;
 	}
 }
@@ -225,7 +225,7 @@ static void __init per_cpu_patch(void)
 			insns = &p->leon[0];
 			break;
 		default:
-			prom_printf("Unknown cpu type, halting.\n");
+			prom_printf("Unkyeswn cpu type, halting.\n");
 			prom_halt();
 		}
 		*(unsigned int *) (addr + 0) = insns[0];
@@ -252,7 +252,7 @@ static __init void leon_patch(void)
 	struct leon_1insn_patch_entry *start = (void *)__leon_1insn_patch;
 	struct leon_1insn_patch_entry *end = (void *)__leon_1insn_patch_end;
 
-	/* Default instruction is leon - no patching */
+	/* Default instruction is leon - yes patching */
 	if (sparc_cpu_model == sparc_leon)
 		return;
 
@@ -277,7 +277,7 @@ void __init sparc32_start_kernel(struct linux_romvec *rp)
 	prom_init(rp);
 
 	/* Set sparc_cpu_model */
-	sparc_cpu_model = sun_unknown;
+	sparc_cpu_model = sun_unkyeswn;
 	if (!strcmp(&cputypval[0], "sun4m"))
 		sparc_cpu_model = sun4m;
 	if (!strcmp(&cputypval[0], "sun4s"))

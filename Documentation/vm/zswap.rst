@@ -14,9 +14,9 @@ for potentially reduced swap I/O.  This trade-off can also result in a
 significant performance improvement if reads from the compressed cache are
 faster than reads from a swap device.
 
-.. note::
+.. yeste::
    Zswap is a new feature as of v3.11 and interacts heavily with memory
-   reclaim.  This interaction has not been fully explored on the large set of
+   reclaim.  This interaction has yest been fully explored on the large set of
    potential configurations and workloads that exist.  For this reason, zswap
    is a work in progress and should be considered experimental.
 
@@ -44,7 +44,7 @@ at ``/sys``, is::
 	echo 1 > /sys/module/zswap/parameters/enabled
 
 When zswap is disabled at runtime it will stop storing pages that are
-being swapped out.  However, it will _not_ immediately write out or fault
+being swapped out.  However, it will _yest_ immediately write out or fault
 back into memory all of the pages stored in the compressed pool.  The
 pages stored in zswap will remain in the compressed pool until they are
 either invalidated or faulted back into memory.  In order to force all
@@ -60,10 +60,10 @@ evict pages from its own compressed pool on an LRU basis and write them back to
 the backing swap device in the case that the compressed pool is full.
 
 Zswap makes use of zpool for the managing the compressed memory pool.  Each
-allocation in zpool is not directly accessible by address.  Rather, a handle is
+allocation in zpool is yest directly accessible by address.  Rather, a handle is
 returned by the allocation routine and that handle must be mapped before being
 accessed.  The compressed memory pool grows on demand and shrinks as compressed
-pages are freed.  The pool is not preallocated.  By default, a zpool
+pages are freed.  The pool is yest preallocated.  By default, a zpool
 of type zbud is created, but it can be selected at boot time by
 setting the ``zpool`` attribute, e.g. ``zswap.zpool=zbud``. It can
 also be changed at runtime using the sysfs ``zpool`` attribute, e.g.::
@@ -74,20 +74,20 @@ The zbud type zpool allocates exactly 1 page to store 2 compressed pages, which
 means the compression ratio will always be 2:1 or worse (because of half-full
 zbud pages).  The zsmalloc type zpool has a more complex compressed page
 storage method, and it can achieve greater storage densities.  However,
-zsmalloc does not implement compressed page eviction, so once zswap fills it
-cannot evict the oldest page, it can only reject new pages.
+zsmalloc does yest implement compressed page eviction, so once zswap fills it
+canyest evict the oldest page, it can only reject new pages.
 
 When a swap page is passed from frontswap to zswap, zswap maintains a mapping
 of the swap entry, a combination of the swap type and swap offset, to the zpool
 handle that references that compressed swap page.  This mapping is achieved
 with a red-black tree per swap type.  The swap offset is the search key for the
-tree nodes.
+tree yesdes.
 
 During a page fault on a PTE that is a swap entry, frontswap calls the zswap
 load function to decompress the page into the page allocated by the page fault
 handler.
 
-Once there are no PTEs referencing a swap page stored in zswap (i.e. the count
+Once there are yes PTEs referencing a swap page stored in zswap (i.e. the count
 in the swap_map goes to 0) the swap code calls the zswap invalidate function,
 via frontswap, to free the compressed entry.
 
@@ -105,7 +105,7 @@ attribute, e.g.::
 	echo lzo > /sys/module/zswap/parameters/compressor
 
 When the zpool and/or compressor parameter is changed at runtime, any existing
-compressed pages are not modified; they are left in their own zpool.  When a
+compressed pages are yest modified; they are left in their own zpool.  When a
 request is made for a page in an old zpool, it is uncompressed using its
 original compressor.  Once all pages are removed from an old zpool, the zpool
 and its compressor are freed.

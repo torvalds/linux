@@ -33,7 +33,7 @@
 
 /*
  * When running on Xen PV, the actual privilege level of the kernel is 1,
- * not 0. Testing the Requested Privilege Level in a segment selector to
+ * yest 0. Testing the Requested Privilege Level in a segment selector to
  * determine whether the context is user mode or kernel mode with
  * SEGMENT_RPL_MASK is wrong because the PV kernel's privilege level
  * matches the 0x3 mask.
@@ -149,7 +149,7 @@
 #define PNP_DS				(GDT_ENTRY_PNPBIOS_DS*8)
 /* transfer data segment: */
 #define PNP_TS1				(GDT_ENTRY_PNPBIOS_TS1*8)
-/* another data segment: */
+/* ayesther data segment: */
 #define PNP_TS2				(GDT_ENTRY_PNPBIOS_TS2*8)
 
 #ifdef CONFIG_SMP
@@ -173,8 +173,8 @@
 #define GDT_ENTRY_KERNEL_DS		3
 
 /*
- * We cannot use the same code segment descriptor for user and kernel mode,
- * not even in long flat mode, because of different DPL.
+ * We canyest use the same code segment descriptor for user and kernel mode,
+ * yest even in long flat mode, because of different DPL.
  *
  * GDT layout to get 64-bit SYSCALL/SYSRET support right. SYSRET hardcodes
  * selectors:
@@ -244,19 +244,19 @@
 
 #ifndef __ASSEMBLY__
 
-/* Helper functions to store/load CPU and node numbers */
+/* Helper functions to store/load CPU and yesde numbers */
 
-static inline unsigned long vdso_encode_cpunode(int cpu, unsigned long node)
+static inline unsigned long vdso_encode_cpuyesde(int cpu, unsigned long yesde)
 {
-	return (node << VDSO_CPUNODE_BITS) | cpu;
+	return (yesde << VDSO_CPUNODE_BITS) | cpu;
 }
 
-static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
+static inline void vdso_read_cpuyesde(unsigned *cpu, unsigned *yesde)
 {
 	unsigned int p;
 
 	/*
-	 * Load CPU and node number from the GDT.  LSL is faster than RDTSCP
+	 * Load CPU and yesde number from the GDT.  LSL is faster than RDTSCP
 	 * and works on all CPUs.  This is volatile so that it orders
 	 * correctly with respect to barrier() and to keep GCC from cleverly
 	 * hoisting it out of the calling function.
@@ -270,8 +270,8 @@ static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
 
 	if (cpu)
 		*cpu = (p & VDSO_CPUNODE_MASK);
-	if (node)
-		*node = (p >> VDSO_CPUNODE_BITS);
+	if (yesde)
+		*yesde = (p >> VDSO_CPUNODE_BITS);
 }
 
 #endif /* !__ASSEMBLY__ */
@@ -283,7 +283,7 @@ static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
  * early_idt_handler_array is an array of entry points referenced in the
  * early IDT.  For simplicity, it's a real array with one entry point
  * every nine bytes.  That leaves room for an optional 'push $0' if the
- * vector has no error code (two bytes), a 'push $vector_number' (two
+ * vector has yes error code (two bytes), a 'push $vector_number' (two
  * bytes), and a jump to the common entry code (up to five bytes).
  */
 #define EARLY_IDT_HANDLER_SIZE 9
@@ -299,7 +299,7 @@ static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
 #ifndef __ASSEMBLY__
 
 extern const char early_idt_handler_array[NUM_EXCEPTION_VECTORS][EARLY_IDT_HANDLER_SIZE];
-extern void early_ignore_irq(void);
+extern void early_igyesre_irq(void);
 
 #if defined(CONFIG_X86_64) && defined(CONFIG_XEN_PV)
 extern const char xen_early_idt_handler_array[NUM_EXCEPTION_VECTORS][XEN_EARLY_IDT_HANDLER_SIZE];
@@ -336,8 +336,8 @@ do {									\
 #ifdef CONFIG_X86_32
 
 /*
- * On 32-bit systems, the hidden parts of FS and GS are unobservable if
- * the selector is NULL, so there's no funny business here.
+ * On 32-bit systems, the hidden parts of FS and GS are uyesbservable if
+ * the selector is NULL, so there's yes funny business here.
  */
 #define __loadsegment_fs(value) __loadsegment_simple(fs, (value))
 #define __loadsegment_gs(value) __loadsegment_simple(gs, (value))

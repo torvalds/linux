@@ -47,7 +47,7 @@ static int cdv_output_init(struct drm_device *dev)
 	cdv_intel_crt_init(dev, &dev_priv->mode_dev);
 	cdv_intel_lvds_init(dev, &dev_priv->mode_dev);
 
-	/* These bits indicate HDMI not SDVO on CDV */
+	/* These bits indicate HDMI yest SDVO on CDV */
 	if (REG_READ(SDVOB) & SDVO_DETECTED) {
 		cdv_hdmi_init(dev, &dev_priv->mode_dev, SDVOB);
 		if (REG_READ(DP_B) & DP_DETECTED)
@@ -81,7 +81,7 @@ static u32 cdv_get_max_backlight(struct drm_device *dev)
 
 	if (max == 0) {
 		DRM_DEBUG_KMS("LVDS Panel PWM value is 0!\n");
-		/* i915 does this, I believe which means that we should not
+		/* i915 does this, I believe which means that we should yest
 		 * smash PWM control as firmware will take control of it. */
 		return 1;
 	}
@@ -534,7 +534,7 @@ static const struct psb_offset cdv_regmap[2] = {
 		.surf = DSPASURF,
 		.addr = DSPABASE,
 		.status = PIPEASTAT,
-		.linoff = DSPALINOFF,
+		.liyesff = DSPALINOFF,
 		.tileoff = DSPATILEOFF,
 		.palette = PALETTE_A,
 	},
@@ -559,7 +559,7 @@ static const struct psb_offset cdv_regmap[2] = {
 		.surf = DSPBSURF,
 		.addr = DSPBBASE,
 		.status = PIPEBSTAT,
-		.linoff = DSPBLINOFF,
+		.liyesff = DSPBLINOFF,
 		.tileoff = DSPBTILEOFF,
 		.palette = PALETTE_B,
 	}

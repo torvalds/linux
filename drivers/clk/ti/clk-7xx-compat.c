@@ -816,5 +816,5 @@ struct ti_dt_clk dra7xx_compat_clks[] = {
 	DT_CLK(NULL, "uart9_gfclk_mux", "l4per_cm:01e8:24"),
 	DT_CLK(NULL, "usb_otg_ss1_refclk960m", "l3init_cm:00d0:8"),
 	DT_CLK(NULL, "usb_otg_ss2_refclk960m", "l3init_cm:0020:8"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };

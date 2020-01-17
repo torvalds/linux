@@ -6,13 +6,13 @@ More information can be found in bindings/mfd/sec-core.txt file.
 
 The S5M8767 device provide buck and LDO regulators.
 
-To register these with regulator framework instantiate under main device node
-a sub-node named "regulators" with more sub-nodes for each regulator using the
+To register these with regulator framework instantiate under main device yesde
+a sub-yesde named "regulators" with more sub-yesdes for each regulator using the
 common regulator binding documented in:
  - Documentation/devicetree/bindings/regulator/regulator.txt
 
 
-Required properties of the main device node (the parent!):
+Required properties of the main device yesde (the parent!):
  - s5m8767,pmic-buck2-dvs-voltage: A set of 8 voltage values in micro-volt (uV)
    units for buck2 when changing voltage using gpio dvs. Refer to [1] below
    for additional information.
@@ -28,7 +28,7 @@ Required properties of the main device node (the parent!):
  - s5m8767,pmic-buck-ds-gpios: GPIO specifiers for three host gpio's used
    for selecting GPIO DVS lines. It is one-to-one mapped to dvs gpio lines.
 
- [1] If none of the 's5m8767,pmic-buck[2/3/4]-uses-gpio-dvs' optional
+ [1] If yesne of the 's5m8767,pmic-buck[2/3/4]-uses-gpio-dvs' optional
      property is specified, the 's5m8767,pmic-buck[2/3/4]-dvs-voltage'
      property should specify atleast one voltage level (which would be a
      safe operating voltage).
@@ -37,7 +37,7 @@ Required properties of the main device node (the parent!):
      property is specified, then all the eight voltage values for the
      's5m8767,pmic-buck[2/3/4]-dvs-voltage' should be specified.
 
-Optional properties of the main device node (the parent!):
+Optional properties of the main device yesde (the parent!):
  - s5m8767,pmic-buck2-uses-gpio-dvs: 'buck2' can be controlled by gpio dvs.
  - s5m8767,pmic-buck3-uses-gpio-dvs: 'buck3' can be controlled by gpio dvs.
  - s5m8767,pmic-buck4-uses-gpio-dvs: 'buck4' can be controlled by gpio dvs.
@@ -46,7 +46,7 @@ Additional properties required if either of the optional properties are used:
 
  - s5m8767,pmic-buck234-default-dvs-idx: Default voltage setting selected from
    the possible 8 options selectable by the dvs gpios. The value of this
-   property should be between 0 and 7. If not specified or if out of range, the
+   property should be between 0 and 7. If yest specified or if out of range, the
    default value of this property is set to 0.
 
  - s5m8767,pmic-buck-dvs-gpios: GPIO specifiers for three host gpio's used
@@ -64,11 +64,11 @@ Note: The 'n' in LDOn and BUCKn represents the LDO or BUCK number
 as per the datasheet of device.
 
 
-Optional properties of the nodes under "regulators" sub-node:
+Optional properties of the yesdes under "regulators" sub-yesde:
  - op_mode: describes the different operating modes of the LDO's with
             power mode change in SOC. The different possible values are,
              0 - always off mode
-             1 - on in normal mode
+             1 - on in yesrmal mode
              2 - low power mode
              3 - suspend mode
  - s5m8767,pmic-ext-control-gpios: (optional) GPIO specifier for one

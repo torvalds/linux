@@ -131,29 +131,29 @@ static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
 	void *page;
 
 	BUG_ON(max > KVM_NR_MEM_OBJS);
-	if (cache->nobjs >= min)
+	if (cache->yesbjs >= min)
 		return 0;
-	while (cache->nobjs < max) {
+	while (cache->yesbjs < max) {
 		page = (void *)__get_free_page(GFP_PGTABLE_USER);
 		if (!page)
 			return -ENOMEM;
-		cache->objects[cache->nobjs++] = page;
+		cache->objects[cache->yesbjs++] = page;
 	}
 	return 0;
 }
 
 static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc)
 {
-	while (mc->nobjs)
-		free_page((unsigned long)mc->objects[--mc->nobjs]);
+	while (mc->yesbjs)
+		free_page((unsigned long)mc->objects[--mc->yesbjs]);
 }
 
 static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc)
 {
 	void *p;
 
-	BUG_ON(!mc || !mc->nobjs);
-	p = mc->objects[--mc->nobjs];
+	BUG_ON(!mc || !mc->yesbjs);
+	p = mc->objects[--mc->yesbjs];
 	return p;
 }
 
@@ -220,12 +220,12 @@ static inline void kvm_pgd_populate(pgd_t *pgdp, pud_t *pudp)
  *
  * If a guest maps certain memory pages as uncached, all writes will
  * bypass the data cache and go directly to RAM.  However, the CPUs
- * can still speculate reads (not writes) and fill cache lines with
+ * can still speculate reads (yest writes) and fill cache lines with
  * data.
  *
  * Those cache lines will be *clean* cache lines though, so a
  * clean+invalidate operation is equivalent to an invalidate
- * operation, because no cache lines are marked dirty.
+ * operation, because yes cache lines are marked dirty.
  *
  * Those clean cache lines could be filled prior to an uncached write
  * by the guest, and the cache coherent IO subsystem would therefore
@@ -236,7 +236,7 @@ static inline void kvm_pgd_populate(pgd_t *pgdp, pud_t *pudp)
  * the IO subsystem will never hit in the cache.
  *
  * This is all avoided on systems that have ARM64_HAS_STAGE2_FWB, as
- * we then fully enforce cacheability of RAM, no matter what the guest
+ * we then fully enforce cacheability of RAM, yes matter what the guest
  * does.
  */
 static void unmap_stage2_ptes(struct kvm *kvm, pmd_t *pmd,
@@ -247,7 +247,7 @@ static void unmap_stage2_ptes(struct kvm *kvm, pmd_t *pmd,
 
 	start_pte = pte = pte_offset_kernel(pmd, addr);
 	do {
-		if (!pte_none(*pte)) {
+		if (!pte_yesne(*pte)) {
 			pte_t old_pte = *pte;
 
 			kvm_set_pte(pte, __pte(0));
@@ -274,7 +274,7 @@ static void unmap_stage2_pmds(struct kvm *kvm, pud_t *pud,
 	start_pmd = pmd = stage2_pmd_offset(kvm, pud, addr);
 	do {
 		next = stage2_pmd_addr_end(kvm, addr, end);
-		if (!pmd_none(*pmd)) {
+		if (!pmd_yesne(*pmd)) {
 			if (pmd_thp_or_huge(*pmd)) {
 				pmd_t old_pmd = *pmd;
 
@@ -303,7 +303,7 @@ static void unmap_stage2_puds(struct kvm *kvm, pgd_t *pgd,
 	start_pud = pud = stage2_pud_offset(kvm, pgd, addr);
 	do {
 		next = stage2_pud_addr_end(kvm, addr, end);
-		if (!stage2_pud_none(kvm, *pud)) {
+		if (!stage2_pud_yesne(kvm, *pud)) {
 			if (stage2_pud_huge(kvm, *pud)) {
 				pud_t old_pud = *pud;
 
@@ -329,7 +329,7 @@ static void unmap_stage2_puds(struct kvm *kvm, pgd_t *pgd,
  *
  * Clear a range of stage-2 mappings, lowering the various ref-counts.  Must
  * be called while holding mmu_lock (unless for freeing the stage2 pgd before
- * destroying the VM), otherwise another faulting VCPU may come in and mess
+ * destroying the VM), otherwise ayesther faulting VCPU may come in and mess
  * with things behind our backs.
  */
 static void unmap_stage2_range(struct kvm *kvm, phys_addr_t start, u64 size)
@@ -344,14 +344,14 @@ static void unmap_stage2_range(struct kvm *kvm, phys_addr_t start, u64 size)
 	pgd = kvm->arch.pgd + stage2_pgd_index(kvm, addr);
 	do {
 		/*
-		 * Make sure the page table is still active, as another thread
+		 * Make sure the page table is still active, as ayesther thread
 		 * could have possibly freed the page table, while we released
 		 * the lock.
 		 */
 		if (!READ_ONCE(kvm->arch.pgd))
 			break;
 		next = stage2_pgd_addr_end(kvm, addr, end);
-		if (!stage2_pgd_none(kvm, *pgd))
+		if (!stage2_pgd_yesne(kvm, *pgd))
 			unmap_stage2_puds(kvm, pgd, addr, next);
 		/*
 		 * If the range is too large, release the kvm->mmu_lock
@@ -369,7 +369,7 @@ static void stage2_flush_ptes(struct kvm *kvm, pmd_t *pmd,
 
 	pte = pte_offset_kernel(pmd, addr);
 	do {
-		if (!pte_none(*pte) && !kvm_is_device_pfn(pte_pfn(*pte)))
+		if (!pte_yesne(*pte) && !kvm_is_device_pfn(pte_pfn(*pte)))
 			kvm_flush_dcache_pte(*pte);
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 }
@@ -383,7 +383,7 @@ static void stage2_flush_pmds(struct kvm *kvm, pud_t *pud,
 	pmd = stage2_pmd_offset(kvm, pud, addr);
 	do {
 		next = stage2_pmd_addr_end(kvm, addr, end);
-		if (!pmd_none(*pmd)) {
+		if (!pmd_yesne(*pmd)) {
 			if (pmd_thp_or_huge(*pmd))
 				kvm_flush_dcache_pmd(*pmd);
 			else
@@ -401,7 +401,7 @@ static void stage2_flush_puds(struct kvm *kvm, pgd_t *pgd,
 	pud = stage2_pud_offset(kvm, pgd, addr);
 	do {
 		next = stage2_pud_addr_end(kvm, addr, end);
-		if (!stage2_pud_none(kvm, *pud)) {
+		if (!stage2_pud_yesne(kvm, *pud)) {
 			if (stage2_pud_huge(kvm, *pud))
 				kvm_flush_dcache_pud(*pud);
 			else
@@ -421,7 +421,7 @@ static void stage2_flush_memslot(struct kvm *kvm,
 	pgd = kvm->arch.pgd + stage2_pgd_index(kvm, addr);
 	do {
 		next = stage2_pgd_addr_end(kvm, addr, end);
-		if (!stage2_pgd_none(kvm, *pgd))
+		if (!stage2_pgd_yesne(kvm, *pgd))
 			stage2_flush_puds(kvm, pgd, addr, next);
 	} while (pgd++, addr = next, addr != end);
 }
@@ -482,7 +482,7 @@ static void unmap_hyp_ptes(pmd_t *pmd, phys_addr_t addr, phys_addr_t end)
 
 	start_pte = pte = pte_offset_kernel(pmd, addr);
 	do {
-		if (!pte_none(*pte)) {
+		if (!pte_yesne(*pte)) {
 			kvm_set_pte(pte, __pte(0));
 			put_page(virt_to_page(pte));
 		}
@@ -501,7 +501,7 @@ static void unmap_hyp_pmds(pud_t *pud, phys_addr_t addr, phys_addr_t end)
 	do {
 		next = pmd_addr_end(addr, end);
 		/* Hyp doesn't use huge pmds */
-		if (!pmd_none(*pmd))
+		if (!pmd_yesne(*pmd))
 			unmap_hyp_ptes(pmd, addr, next);
 	} while (pmd++, addr = next, addr != end);
 
@@ -518,7 +518,7 @@ static void unmap_hyp_puds(pgd_t *pgd, phys_addr_t addr, phys_addr_t end)
 	do {
 		next = pud_addr_end(addr, end);
 		/* Hyp doesn't use huge puds */
-		if (!pud_none(*pud))
+		if (!pud_yesne(*pud))
 			unmap_hyp_pmds(pud, addr, next);
 	} while (pud++, addr = next, addr != end);
 
@@ -545,7 +545,7 @@ static void __unmap_hyp_range(pgd_t *pgdp, unsigned long ptrs_per_pgd,
 	pgd = pgdp + kvm_pgd_index(addr, ptrs_per_pgd);
 	do {
 		next = pgd_addr_end(addr, end);
-		if (!pgd_none(*pgd))
+		if (!pgd_yesne(*pgd))
 			unmap_hyp_puds(pgd, addr, next);
 	} while (pgd++, addr = next, addr != end);
 }
@@ -637,10 +637,10 @@ static int create_hyp_pmd_mappings(pud_t *pud, unsigned long start,
 
 		BUG_ON(pmd_sect(*pmd));
 
-		if (pmd_none(*pmd)) {
+		if (pmd_yesne(*pmd)) {
 			pte = pte_alloc_one_kernel(NULL);
 			if (!pte) {
-				kvm_err("Cannot allocate Hyp pte\n");
+				kvm_err("Canyest allocate Hyp pte\n");
 				return -ENOMEM;
 			}
 			kvm_pmd_populate(pmd, pte);
@@ -669,10 +669,10 @@ static int create_hyp_pud_mappings(pgd_t *pgd, unsigned long start,
 	do {
 		pud = pud_offset(pgd, addr);
 
-		if (pud_none_or_clear_bad(pud)) {
+		if (pud_yesne_or_clear_bad(pud)) {
 			pmd = pmd_alloc_one(NULL, addr);
 			if (!pmd) {
-				kvm_err("Cannot allocate Hyp pmd\n");
+				kvm_err("Canyest allocate Hyp pmd\n");
 				return -ENOMEM;
 			}
 			kvm_pud_populate(pud, pmd);
@@ -704,10 +704,10 @@ static int __create_hyp_mappings(pgd_t *pgdp, unsigned long ptrs_per_pgd,
 	do {
 		pgd = pgdp + kvm_pgd_index(addr, ptrs_per_pgd);
 
-		if (pgd_none(*pgd)) {
+		if (pgd_yesne(*pgd)) {
 			pud = pud_alloc_one(NULL, addr);
 			if (!pud) {
-				kvm_err("Cannot allocate Hyp pud\n");
+				kvm_err("Canyest allocate Hyp pud\n");
 				err = -ENOMEM;
 				goto out;
 			}
@@ -785,8 +785,8 @@ static int __create_hyp_private_mapping(phys_addr_t phys_addr, size_t size,
 	mutex_lock(&kvm_hyp_pgd_mutex);
 
 	/*
-	 * This assumes that we we have enough space below the idmap
-	 * page to allocate our VAs. If not, the check below will
+	 * This assumes that we we have eyesugh space below the idmap
+	 * page to allocate our VAs. If yest, the check below will
 	 * kick. A potential alternative would be to detect that
 	 * overflow and switch to an allocation above the idmap.
 	 *
@@ -1020,7 +1020,7 @@ static pud_t *stage2_get_pud(struct kvm *kvm, struct kvm_mmu_memory_cache *cache
 	pud_t *pud;
 
 	pgd = kvm->arch.pgd + stage2_pgd_index(kvm, addr);
-	if (stage2_pgd_none(kvm, *pgd)) {
+	if (stage2_pgd_yesne(kvm, *pgd)) {
 		if (!cache)
 			return NULL;
 		pud = mmu_memory_cache_alloc(cache);
@@ -1041,7 +1041,7 @@ static pmd_t *stage2_get_pmd(struct kvm *kvm, struct kvm_mmu_memory_cache *cache
 	if (!pud || stage2_pud_huge(kvm, *pud))
 		return NULL;
 
-	if (stage2_pud_none(kvm, *pud)) {
+	if (stage2_pud_yesne(kvm, *pud)) {
 		if (!cache)
 			return NULL;
 		pmd = mmu_memory_cache_alloc(cache);
@@ -1087,7 +1087,7 @@ retry:
 		 * block and retry, as we could have released the upper level
 		 * table in the process.
 		 *
-		 * Normal THP split/merge follows mmu_notifier callbacks and do
+		 * Normal THP split/merge follows mmu_yestifier callbacks and do
 		 * get handled accordingly.
 		 */
 		if (!pmd_thp_or_huge(old_pmd)) {
@@ -1098,10 +1098,10 @@ retry:
 		 * Mapping in huge pages should only happen through a
 		 * fault.  If a page is merged into a transparent huge
 		 * page, the individual subpages of that huge page
-		 * should be unmapped through MMU notifiers before we
+		 * should be unmapped through MMU yestifiers before we
 		 * get here.
 		 *
-		 * Merging of CompoundPages is not supported; they
+		 * Merging of CompoundPages is yest supported; they
 		 * should become splitting first, unmapped, merged,
 		 * and mapped back in on-demand.
 		 */
@@ -1130,7 +1130,7 @@ retry:
 	/*
 	 * A large number of vcpus faulting on the same stage 2 entry,
 	 * can lead to a refault due to the stage2_pud_clear()/tlb_flush().
-	 * Skip updating the page tables if there is no change.
+	 * Skip updating the page tables if there is yes change.
 	 */
 	if (pud_val(old_pud) == pud_val(*new_pudp))
 		return 0;
@@ -1174,7 +1174,7 @@ static bool stage2_get_leaf_entry(struct kvm *kvm, phys_addr_t addr,
 	*ptepp = NULL;
 
 	pudp = stage2_get_pud(kvm, NULL, addr);
-	if (!pudp || stage2_pud_none(kvm, *pudp) || !stage2_pud_present(kvm, *pudp))
+	if (!pudp || stage2_pud_yesne(kvm, *pudp) || !stage2_pud_present(kvm, *pudp))
 		return false;
 
 	if (stage2_pud_huge(kvm, *pudp)) {
@@ -1183,7 +1183,7 @@ static bool stage2_get_leaf_entry(struct kvm *kvm, phys_addr_t addr,
 	}
 
 	pmdp = stage2_pmd_offset(kvm, pudp, addr);
-	if (!pmdp || pmd_none(*pmdp) || !pmd_present(*pmdp))
+	if (!pmdp || pmd_yesne(*pmdp) || !pmd_present(*pmdp))
 		return false;
 
 	if (pmd_thp_or_huge(*pmdp)) {
@@ -1192,7 +1192,7 @@ static bool stage2_get_leaf_entry(struct kvm *kvm, phys_addr_t addr,
 	}
 
 	ptep = pte_offset_kernel(pmdp, addr);
-	if (!ptep || pte_none(*ptep) || !pte_present(*ptep))
+	if (!ptep || pte_yesne(*ptep) || !pte_present(*ptep))
 		return false;
 
 	*ptepp = ptep;
@@ -1234,7 +1234,7 @@ static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 	pud = stage2_get_pud(kvm, cache, addr);
 	if (!pud) {
 		/*
-		 * Ignore calls from kvm_set_spte_hva for unallocated
+		 * Igyesre calls from kvm_set_spte_hva for unallocated
 		 * address ranges.
 		 */
 		return 0;
@@ -1247,9 +1247,9 @@ static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 	if (logging_active)
 		stage2_dissolve_pud(kvm, addr, pud);
 
-	if (stage2_pud_none(kvm, *pud)) {
+	if (stage2_pud_yesne(kvm, *pud)) {
 		if (!cache)
-			return 0; /* ignore calls from kvm_set_spte_hva */
+			return 0; /* igyesre calls from kvm_set_spte_hva */
 		pmd = mmu_memory_cache_alloc(cache);
 		stage2_pud_populate(kvm, pud, pmd);
 		get_page(virt_to_page(pud));
@@ -1258,7 +1258,7 @@ static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 	pmd = stage2_pmd_offset(kvm, pud, addr);
 	if (!pmd) {
 		/*
-		 * Ignore calls from kvm_set_spte_hva for unallocated
+		 * Igyesre calls from kvm_set_spte_hva for unallocated
 		 * address ranges.
 		 */
 		return 0;
@@ -1272,9 +1272,9 @@ static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 		stage2_dissolve_pmd(kvm, addr, pmd);
 
 	/* Create stage-2 page mappings - Level 2 */
-	if (pmd_none(*pmd)) {
+	if (pmd_yesne(*pmd)) {
 		if (!cache)
-			return 0; /* ignore calls from kvm_set_spte_hva */
+			return 0; /* igyesre calls from kvm_set_spte_hva */
 		pte = mmu_memory_cache_alloc(cache);
 		kvm_pmd_populate(pmd, pte);
 		get_page(virt_to_page(pmd));
@@ -1288,7 +1288,7 @@ static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 	/* Create 2nd stage page table mapping - Level 3 */
 	old_pte = *pte;
 	if (pte_present(old_pte)) {
-		/* Skip page table update if there is no change */
+		/* Skip page table update if there is yes change */
 		if (pte_val(old_pte) == pte_val(*new_pte))
 			return 0;
 
@@ -1389,15 +1389,15 @@ static bool transparent_hugepage_adjust(kvm_pfn_t *pfnp, phys_addr_t *ipap)
 		/*
 		 * The address we faulted on is backed by a transparent huge
 		 * page.  However, because we map the compound huge page and
-		 * not the individual tail page, we need to transfer the
+		 * yest the individual tail page, we need to transfer the
 		 * refcount to the head page.  We have to be careful that the
 		 * THP doesn't start to split while we are adjusting the
 		 * refcounts.
 		 *
-		 * We are sure this doesn't happen, because mmu_notifier_retry
+		 * We are sure this doesn't happen, because mmu_yestifier_retry
 		 * was successful and we are holding the mmu_lock, so if this
 		 * THP is trying to split, it will be blocked in the mmu
-		 * notifier before touching any of the pages, specifically
+		 * yestifier before touching any of the pages, specifically
 		 * before being able to call __split_huge_page_refcount().
 		 *
 		 * We can therefore safely transfer the refcount from PG_tail
@@ -1432,7 +1432,7 @@ static void stage2_wp_ptes(pmd_t *pmd, phys_addr_t addr, phys_addr_t end)
 
 	pte = pte_offset_kernel(pmd, addr);
 	do {
-		if (!pte_none(*pte)) {
+		if (!pte_yesne(*pte)) {
 			if (!kvm_s2pte_readonly(pte))
 				kvm_set_s2pte_readonly(pte);
 		}
@@ -1456,7 +1456,7 @@ static void stage2_wp_pmds(struct kvm *kvm, pud_t *pud,
 
 	do {
 		next = stage2_pmd_addr_end(kvm, addr, end);
-		if (!pmd_none(*pmd)) {
+		if (!pmd_yesne(*pmd)) {
 			if (pmd_thp_or_huge(*pmd)) {
 				if (!kvm_s2pmd_readonly(pmd))
 					kvm_set_s2pmd_readonly(pmd);
@@ -1482,7 +1482,7 @@ static void  stage2_wp_puds(struct kvm *kvm, pgd_t *pgd,
 	pud = stage2_pud_offset(kvm, pgd, addr);
 	do {
 		next = stage2_pud_addr_end(kvm, addr, end);
-		if (!stage2_pud_none(kvm, *pud)) {
+		if (!stage2_pud_yesne(kvm, *pud)) {
 			if (stage2_pud_huge(kvm, *pud)) {
 				if (!kvm_s2pud_readonly(pud))
 					kvm_set_s2pud_readonly(pud);
@@ -1512,7 +1512,7 @@ static void stage2_wp_range(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
 		 * CONFIG_DETECT_HUNG_TASK, CONFIG_LOCKUP_DETECTOR,
 		 * CONFIG_LOCKDEP. Additionally, holding the lock too long
 		 * will also starve other vCPUs. We have to also make sure
-		 * that the page tables are not freed while we released
+		 * that the page tables are yest freed while we released
 		 * the lock.
 		 */
 		cond_resched_lock(&kvm->mmu_lock);
@@ -1626,7 +1626,7 @@ static bool fault_supports_stage2_huge_mapping(struct kvm_memory_slot *memslot,
 
 	/*
 	 * Pages belonging to memslots that don't have the same alignment
-	 * within a PMD/PUD for userspace and IPA cannot be mapped with stage-2
+	 * within a PMD/PUD for userspace and IPA canyest be mapped with stage-2
 	 * PMD/PUD entries, because we'll end up mapping the wrong pages.
 	 *
 	 * Consider a layout like the following:
@@ -1651,9 +1651,9 @@ static bool fault_supports_stage2_huge_mapping(struct kvm_memory_slot *memslot,
 		return false;
 
 	/*
-	 * Next, let's make sure we're not trying to map anything not covered
+	 * Next, let's make sure we're yest trying to map anything yest covered
 	 * by the memslot. This means we have to prohibit block size mappings
-	 * for the beginning and end of a non-block aligned and non-block sized
+	 * for the beginning and end of a yesn-block aligned and yesn-block sized
 	 * memory slot (illustrated by the head and tail parts of the
 	 * userspace view above containing pages 'abcde' and 'xyz',
 	 * respectively).
@@ -1714,7 +1714,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	 * kvm_arm_setup_stage2()). Hence, we are guaranteed that we can
 	 * use PMD_SIZE huge mappings (even when the PMD is folded into PGD).
 	 * As for PUD huge maps, we must make sure that we have at least
-	 * 3 levels, i.e, PMD is not folded.
+	 * 3 levels, i.e, PMD is yest folded.
 	 */
 	if (vma_pagesize == PMD_SIZE ||
 	    (vma_pagesize == PUD_SIZE && kvm_stage2_has_pmd(kvm)))
@@ -1727,15 +1727,15 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	if (ret)
 		return ret;
 
-	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+	mmu_seq = vcpu->kvm->mmu_yestifier_seq;
 	/*
-	 * Ensure the read of mmu_notifier_seq happens before we call
+	 * Ensure the read of mmu_yestifier_seq happens before we call
 	 * gfn_to_pfn_prot (which calls get_user_pages), so that we don't risk
 	 * the page we just got a reference to gets unmapped before we have a
 	 * chance to grab the mmu_lock, which ensure that if the page gets
 	 * unmapped afterwards, the call to kvm_unmap_hva will take it away
 	 * from us again properly. This smp_rmb() interacts with the smp_wmb()
-	 * in kvm_mmu_notifier_invalidate_<page|range_end>.
+	 * in kvm_mmu_yestifier_invalidate_<page|range_end>.
 	 */
 	smp_rmb();
 
@@ -1744,7 +1744,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		kvm_send_hwpoison_signal(hva, vma);
 		return 0;
 	}
-	if (is_error_noslot_pfn(pfn))
+	if (is_error_yesslot_pfn(pfn))
 		return -EFAULT;
 
 	if (kvm_is_device_pfn(pfn)) {
@@ -1753,7 +1753,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	} else if (logging_active) {
 		/*
 		 * Faults on pages in a memslot with logging enabled
-		 * should not be mapped with huge pages (it introduces churn
+		 * should yest be mapped with huge pages (it introduces churn
 		 * and performance degradation), so force a pte mapping.
 		 */
 		flags |= KVM_S2_FLAG_LOGGING_ACTIVE;
@@ -1770,7 +1770,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		return -ENOEXEC;
 
 	spin_lock(&kvm->mmu_lock);
-	if (mmu_notifier_retry(kvm, mmu_seq))
+	if (mmu_yestifier_retry(kvm, mmu_seq))
 		goto out_unlock;
 
 	if (vma_pagesize == PAGE_SIZE && !force_pte) {
@@ -1798,7 +1798,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 
 	/*
 	 * If we took an execution fault we have made the
-	 * icache/dcache coherent above and should now let the s2
+	 * icache/dcache coherent above and should yesw let the s2
 	 * mapping be executable.
 	 *
 	 * Write faults (!exec_fault && FSC_PERM) are orthogonal to
@@ -1853,10 +1853,10 @@ out_unlock:
 
 /*
  * Resolve the access fault by making the page young again.
- * Note that because the faulting entry is guaranteed not to be
+ * Note that because the faulting entry is guaranteed yest to be
  * cached in the TLB, we don't need to invalidate anything.
- * Only the HW Access Flag updates are supported for Stage 2 (no DBM),
- * so there is no need for atomic (pte|pmd)_mkyoung operations.
+ * Only the HW Access Flag updates are supported for Stage 2 (yes DBM),
+ * so there is yes need for atomic (pte|pmd)_mkyoung operations.
  */
 static void handle_access_fault(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
 {
@@ -1920,11 +1920,11 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
 	is_iabt = kvm_vcpu_trap_is_iabt(vcpu);
 
-	/* Synchronous External Abort? */
+	/* Synchroyesus External Abort? */
 	if (kvm_vcpu_dabt_isextabt(vcpu)) {
 		/*
 		 * For RAS the host kernel may handle this abort.
-		 * There is no need to pass the error into the guest.
+		 * There is yes need to pass the error into the guest.
 		 */
 		if (!kvm_handle_guest_sea(fault_ipa, kvm_vcpu_get_hsr(vcpu)))
 			return 1;
@@ -1963,10 +1963,10 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 		/*
 		 * Check for a cache maintenance operation. Since we
-		 * ended-up here, we know it is outside of any memory
+		 * ended-up here, we kyesw it is outside of any memory
 		 * slot. But we can't find out if that is for a device,
 		 * or if the guest is just being stupid. The only thing
-		 * we know for sure is that this range cannot be cached.
+		 * we kyesw for sure is that this range canyest be cached.
 		 *
 		 * So let's assume that the guest is just being
 		 * cautious, and skip the instruction.
@@ -1988,7 +1988,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		goto out_unlock;
 	}
 
-	/* Userspace should not be able to register out-of-bounds IPAs */
+	/* Userspace should yest be able to register out-of-bounds IPAs */
 	VM_BUG_ON(fault_ipa >= kvm_phys_size(vcpu->kvm));
 
 	if (fault_status == FSC_ACCESS) {
@@ -2066,7 +2066,7 @@ static int kvm_set_spte_handler(struct kvm *kvm, gpa_t gpa, u64 size, void *data
 	WARN_ON(size != PAGE_SIZE);
 	/*
 	 * We can always call stage2_set_pte with KVM_S2PTE_FLAG_LOGGING_ACTIVE
-	 * flag clear because MMU notifiers will have unmapped a huge PMD before
+	 * flag clear because MMU yestifiers will have unmapped a huge PMD before
 	 * calling ->change_pte() (which in turn calls kvm_set_spte_hva()) and
 	 * therefore stage2_set_pte() never needs to clear out a huge PMD
 	 * through this calling path.
@@ -2196,7 +2196,7 @@ int kvm_mmu_init(void)
 
 	/*
 	 * We rely on the linker script to ensure at build time that the HYP
-	 * init code does not cross a page boundary.
+	 * init code does yest cross a page boundary.
 	 */
 	BUG_ON((hyp_idmap_start ^ (hyp_idmap_end - 1)) & PAGE_MASK);
 
@@ -2210,7 +2210,7 @@ int kvm_mmu_init(void)
 	    hyp_idmap_start != (unsigned long)__hyp_idmap_text_start) {
 		/*
 		 * The idmap page is intersecting with the VA space,
-		 * it is not safe to continue further.
+		 * it is yest safe to continue further.
 		 */
 		kvm_err("IDMAP intersecting with HYP VA, unable to continue\n");
 		err = -EINVAL;
@@ -2219,7 +2219,7 @@ int kvm_mmu_init(void)
 
 	hyp_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, hyp_pgd_order);
 	if (!hyp_pgd) {
-		kvm_err("Hyp mode PGD not allocated\n");
+		kvm_err("Hyp mode PGD yest allocated\n");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -2228,7 +2228,7 @@ int kvm_mmu_init(void)
 		boot_hyp_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 							 hyp_pgd_order);
 		if (!boot_hyp_pgd) {
-			kvm_err("Hyp boot PGD not allocated\n");
+			kvm_err("Hyp boot PGD yest allocated\n");
 			err = -ENOMEM;
 			goto out;
 		}
@@ -2298,7 +2298,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 	/*
 	 * A memory region could potentially cover multiple VMAs, and any holes
 	 * between them, so iterate over all of them to find out if we can map
-	 * any of them right now.
+	 * any of them right yesw.
 	 *
 	 *     +--------------------------------------------+
 	 * +---------------+----------------+   +----------------+
@@ -2328,7 +2328,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 			pa = (phys_addr_t)vma->vm_pgoff << PAGE_SHIFT;
 			pa += vm_start - vma->vm_start;
 
-			/* IO region dirty page logging not allowed */
+			/* IO region dirty page logging yest allowed */
 			if (memslot->flags & KVM_MEM_LOG_DIRTY_PAGES) {
 				ret = -EINVAL;
 				goto out;
@@ -2389,15 +2389,15 @@ void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 }
 
 /*
- * See note at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are not easily virtualized).
+ * See yeste at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are yest easily virtualized).
  *
  * Main problems:
- * - S/W ops are local to a CPU (not broadcast)
+ * - S/W ops are local to a CPU (yest broadcast)
  * - We have line migration behind our back (speculation)
  * - System caches don't support S/W at all (damn!)
  *
  * In the face of the above, the best we can do is to try and convert
- * S/W ops to VA ops. Because the guest is not allowed to infer the
+ * S/W ops to VA ops. Because the guest is yest allowed to infer the
  * S/W to PA mapping, it can only use S/W to nuke the whole cache,
  * which is a rather good thing for us.
  *
@@ -2422,7 +2422,7 @@ void kvm_set_way_flush(struct kvm_vcpu *vcpu)
 
 	/*
 	 * If this is the first time we do a S/W operation
-	 * (i.e. HCR_TVM not set) flush the whole memory, and set the
+	 * (i.e. HCR_TVM yest set) flush the whole memory, and set the
 	 * VM trapping.
 	 *
 	 * Otherwise, rely on the VM trapping to wait for the MMU +
@@ -2439,19 +2439,19 @@ void kvm_set_way_flush(struct kvm_vcpu *vcpu)
 
 void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled)
 {
-	bool now_enabled = vcpu_has_cache_enabled(vcpu);
+	bool yesw_enabled = vcpu_has_cache_enabled(vcpu);
 
 	/*
 	 * If switching the MMU+caches on, need to invalidate the caches.
 	 * If switching it off, need to clean the caches.
 	 * Clean + invalidate does the trick always.
 	 */
-	if (now_enabled != was_enabled)
+	if (yesw_enabled != was_enabled)
 		stage2_flush_vm(vcpu->kvm);
 
-	/* Caches are now on, stop trapping VM ops (until a S/W op) */
-	if (now_enabled)
+	/* Caches are yesw on, stop trapping VM ops (until a S/W op) */
+	if (yesw_enabled)
 		*vcpu_hcr(vcpu) &= ~HCR_TVM;
 
-	trace_kvm_toggle_cache(*vcpu_pc(vcpu), was_enabled, now_enabled);
+	trace_kvm_toggle_cache(*vcpu_pc(vcpu), was_enabled, yesw_enabled);
 }

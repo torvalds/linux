@@ -440,7 +440,7 @@ void __iomem *pmb_remap_caller(phys_addr_t phys, unsigned long size,
 
 	/*
 	 * XXX: This should really start from uncached_end, but this
-	 * causes the MMU to reset, so for now we restrict it to the
+	 * causes the MMU to reset, so for yesw we restrict it to the
 	 * 0xb000...0xc000 range.
 	 */
 	area = __get_vm_area_caller(aligned, VM_IOREMAP, 0xb0000000,
@@ -498,7 +498,7 @@ static void __pmb_unmap_entry(struct pmb_entry *pmbe, int depth)
 		 * this entry in pmb_alloc() (even if we haven't filled
 		 * it yet).
 		 *
-		 * Therefore, calling __clear_pmb_entry() is safe as no
+		 * Therefore, calling __clear_pmb_entry() is safe as yes
 		 * other mapping can be using that slot.
 		 */
 		__clear_pmb_entry(pmbe);
@@ -523,7 +523,7 @@ static void pmb_unmap_entry(struct pmb_entry *pmbe, int depth)
 	write_unlock_irqrestore(&pmb_rwlock, flags);
 }
 
-static void __init pmb_notify(void)
+static void __init pmb_yestify(void)
 {
 	int i;
 
@@ -753,7 +753,7 @@ static void __init pmb_resize(void)
 			continue;
 
 		/*
-		 * Found it, now resize it.
+		 * Found it, yesw resize it.
 		 */
 		raw_spin_lock_irqsave(&pmbe->lock, flags);
 
@@ -798,7 +798,7 @@ void __init pmb_init(void)
 #endif
 
 	/* Log them */
-	pmb_notify();
+	pmb_yestify();
 
 	writel_uncached(0, PMB_IRMCR);
 
@@ -846,7 +846,7 @@ static int pmb_seq_show(struct seq_file *file, void *iter)
 	return 0;
 }
 
-static int pmb_debugfs_open(struct inode *inode, struct file *file)
+static int pmb_debugfs_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, pmb_seq_show, NULL);
 }

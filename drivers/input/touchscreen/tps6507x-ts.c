@@ -213,7 +213,7 @@ static int tps6507x_ts_probe(struct platform_device *pdev)
 	tps_board = dev_get_platdata(tps6507x_dev->dev);
 	if (!tps_board) {
 		dev_err(tps6507x_dev->dev,
-			"Could not find tps6507x platform data\n");
+			"Could yest find tps6507x platform data\n");
 		return -ENODEV;
 	}
 

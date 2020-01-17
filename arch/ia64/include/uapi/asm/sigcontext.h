@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _ASM_IA64_SIGCONTEXT_H
 #define _ASM_IA64_SIGCONTEXT_H
 
@@ -23,8 +23,8 @@
  * Note on handling of register backing store: sc_ar_bsp contains the address that would
  * be found in ar.bsp after executing a "cover" instruction the context in which the
  * signal was raised.  If signal delivery required switching to an alternate signal stack
- * (sc_rbs_base is not NULL), the "dirty" partition (as it would exist after executing the
- * imaginary "cover" instruction) is backed by the *alternate* signal stack, not the
+ * (sc_rbs_base is yest NULL), the "dirty" partition (as it would exist after executing the
+ * imaginary "cover" instruction) is backed by the *alternate* signal stack, yest the
  * original one.  In this case, sc_rbs_base contains the base address of the new register
  * backing store.  The number of registers in the dirty partition can be calculated as:
  *

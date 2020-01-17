@@ -67,7 +67,7 @@ int ide_cdrom_drive_status(struct cdrom_device_info *cdi, int slot_nr)
 		return CDS_DISC_OK;
 
 	/*
-	 * If not using Mt Fuji extended media tray reports,
+	 * If yest using Mt Fuji extended media tray reports,
 	 * just return TRAY_OPEN since ATAPI doesn't provide
 	 * any other way to detect this...
 	 */
@@ -132,14 +132,14 @@ int cdrom_eject(ide_drive_t *drive, int ejectflag)
 	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, NULL, 0, 0);
 }
 
-/* Lock the door if LOCKFLAG is nonzero; unlock it otherwise. */
+/* Lock the door if LOCKFLAG is yesnzero; unlock it otherwise. */
 static
 int ide_cd_lockdoor(ide_drive_t *drive, int lockflag)
 {
 	struct scsi_sense_hdr sshdr;
 	int stat;
 
-	/* If the drive cannot lock the door, just pretend. */
+	/* If the drive canyest lock the door, just pretend. */
 	if ((drive->dev_flags & IDE_DFLAG_DOORLOCKING) == 0) {
 		stat = 0;
 	} else {
@@ -155,17 +155,17 @@ int ide_cd_lockdoor(ide_drive_t *drive, int lockflag)
 	}
 
 	/* If we got an illegal field error, the drive
-	   probably cannot lock the door. */
+	   probably canyest lock the door. */
 	if (stat != 0 &&
 	    sshdr.sense_key == ILLEGAL_REQUEST &&
 	    (sshdr.asc == 0x24 || sshdr.asc == 0x20)) {
-		printk(KERN_ERR "%s: door locking not supported\n",
+		printk(KERN_ERR "%s: door locking yest supported\n",
 			drive->name);
 		drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;
 		stat = 0;
 	}
 
-	/* no medium, that's alright. */
+	/* yes medium, that's alright. */
 	if (stat != 0 && sshdr.sense_key == NOT_READY && sshdr.asc == 0x3a)
 		stat = 0;
 
@@ -202,7 +202,7 @@ int ide_cdrom_lock_door(struct cdrom_device_info *cdi, int lock)
 
 /*
  * ATAPI devices are free to select the speed you request or any slower
- * rate. :-(  Requesting too fast a speed will _not_ produce an error.
+ * rate. :-(  Requesting too fast a speed will _yest_ produce an error.
  */
 int ide_cdrom_select_speed(struct cdrom_device_info *cdi, int speed)
 {
@@ -449,7 +449,7 @@ int ide_cdrom_packet(struct cdrom_device_info *cdi,
 		cgc->timeout = ATAPI_WAIT_PC;
 
 	/* here we queue the commands from the uniform CD-ROM
-	   layer. the packet must be complete, as we do not
+	   layer. the packet must be complete, as we do yest
 	   touch it at all. */
 
 	if (cgc->sshdr)

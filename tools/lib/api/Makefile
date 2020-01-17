@@ -13,7 +13,7 @@ CC ?= $(CROSS_COMPILE)gcc
 AR ?= $(CROSS_COMPILE)ar
 LD ?= $(CROSS_COMPILE)ld
 
-MAKEFLAGS += --no-print-directory
+MAKEFLAGS += --yes-print-directory
 
 LIBFILE = $(OUTPUT)libapi.a
 
@@ -32,7 +32,7 @@ ifeq ($(DEBUG),0)
   CFLAGS += -D_FORTIFY_SOURCE
 endif
 
-# Treat warnings as errors unless directed not to
+# Treat warnings as errors unless directed yest to
 ifneq ($(WERROR),0)
   CFLAGS += -Werror
 endif

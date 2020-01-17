@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/sched_clock.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <asm/smp.h>
 #include <asm/sbi.h>
 
@@ -56,7 +56,7 @@ static unsigned long long riscv_clocksource_rdtime(struct clocksource *cs)
 	return get_cycles64();
 }
 
-static u64 notrace riscv_sched_clock(void)
+static u64 yestrace riscv_sched_clock(void)
 {
 	return get_cycles64();
 }
@@ -95,13 +95,13 @@ void riscv_timer_interrupt(void)
 	evdev->event_handler(evdev);
 }
 
-static int __init riscv_timer_init_dt(struct device_node *n)
+static int __init riscv_timer_init_dt(struct device_yesde *n)
 {
 	int cpuid, hartid, error;
 
 	hartid = riscv_of_processor_hartid(n);
 	if (hartid < 0) {
-		pr_warn("Not valid hartid for node [%pOF] error = [%d]\n",
+		pr_warn("Not valid hartid for yesde [%pOF] error = [%d]\n",
 			n, hartid);
 		return hartid;
 	}

@@ -3,7 +3,7 @@
  * SPEAr thermal driver.
  *
  * Copyright (C) 2011-2012 ST Microelectronics
- * Author: Vincenzo Frascino <vincenzo.frascino@st.com>
+ * Author: Vincenzo Frasciyes <vincenzo.frasciyes@st.com>
  */
 
 #include <linux/clk.h>
@@ -90,12 +90,12 @@ static int spear_thermal_probe(struct platform_device *pdev)
 {
 	struct thermal_zone_device *spear_thermal = NULL;
 	struct spear_thermal_dev *stdev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct resource *res;
 	int ret = 0, val;
 
 	if (!np || !of_property_read_u32(np, "st,thermal-flags", &val)) {
-		dev_err(&pdev->dev, "Failed: DT Pdata not passed\n");
+		dev_err(&pdev->dev, "Failed: DT Pdata yest passed\n");
 		return -EINVAL;
 	}
 
@@ -180,6 +180,6 @@ static struct platform_driver spear_thermal_driver = {
 
 module_platform_driver(spear_thermal_driver);
 
-MODULE_AUTHOR("Vincenzo Frascino <vincenzo.frascino@st.com>");
+MODULE_AUTHOR("Vincenzo Frasciyes <vincenzo.frasciyes@st.com>");
 MODULE_DESCRIPTION("SPEAr thermal driver");
 MODULE_LICENSE("GPL");

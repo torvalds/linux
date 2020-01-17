@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -160,13 +160,13 @@ gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 	u32 tag_size, tag_margin, tag_align;
 	int ret;
 
-	/* No VRAM, no tags for now. */
+	/* No VRAM, yes tags for yesw. */
 	if (!ram) {
 		ltc->num_tags = 0;
 		goto mm_init;
 	}
 
-	/* tags for 1/4 of VRAM should be enough (8192/4 per GiB of VRAM) */
+	/* tags for 1/4 of VRAM should be eyesugh (8192/4 per GiB of VRAM) */
 	ltc->num_tags = (ram->size >> 17) / 4;
 	if (ltc->num_tags > (1 << bits))
 		ltc->num_tags = 1 << bits; /* we have 16/17 bits in PTE */

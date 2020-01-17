@@ -266,7 +266,7 @@ static int tcf_csum_ipv4_udp(struct sk_buff *skb, unsigned int ihl,
 	/*
 	 * Support both UDP and UDPLITE checksum algorithms, Don't use
 	 * udph->len to get the real length without any protocol check,
-	 * UDPLITE uses udph->len for another thing,
+	 * UDPLITE uses udph->len for ayesther thing,
 	 * Use iph->tot_len, or just ipl.
 	 */
 
@@ -287,10 +287,10 @@ static int tcf_csum_ipv4_udp(struct sk_buff *skb, unsigned int ihl,
 			else if ((ul >= sizeof(*udph)) && (ul <= ipl - ihl))
 				skb->csum = csum_partial(udph, ul, 0);
 			else
-				goto ignore_obscure_skb;
+				goto igyesre_obscure_skb;
 		} else {
 			if (ul != ipl - ihl)
-				goto ignore_obscure_skb;
+				goto igyesre_obscure_skb;
 
 			skb->csum = csum_partial(udph, ul, 0);
 		}
@@ -305,7 +305,7 @@ static int tcf_csum_ipv4_udp(struct sk_buff *skb, unsigned int ihl,
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-ignore_obscure_skb:
+igyesre_obscure_skb:
 	return 1;
 }
 
@@ -322,7 +322,7 @@ static int tcf_csum_ipv6_udp(struct sk_buff *skb, unsigned int ihl,
 	/*
 	 * Support both UDP and UDPLITE checksum algorithms, Don't use
 	 * udph->len to get the real length without any protocol check,
-	 * UDPLITE uses udph->len for another thing,
+	 * UDPLITE uses udph->len for ayesther thing,
 	 * Use ip6h->payload_len + sizeof(*ip6h) ... , or just ipl.
 	 */
 
@@ -343,10 +343,10 @@ static int tcf_csum_ipv6_udp(struct sk_buff *skb, unsigned int ihl,
 			skb->csum = csum_partial(udph, ul, 0);
 
 		else
-			goto ignore_obscure_skb;
+			goto igyesre_obscure_skb;
 	} else {
 		if (ul != ipl - ihl)
-			goto ignore_obscure_skb;
+			goto igyesre_obscure_skb;
 
 		skb->csum = csum_partial(udph, ul, 0);
 	}
@@ -360,7 +360,7 @@ static int tcf_csum_ipv6_udp(struct sk_buff *skb, unsigned int ihl,
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-ignore_obscure_skb:
+igyesre_obscure_skb:
 	return 1;
 }
 
@@ -379,7 +379,7 @@ static int tcf_csum_sctp(struct sk_buff *skb, unsigned int ihl,
 	sctph->checksum = sctp_compute_cksum(skb,
 					     skb_network_offset(skb) + ihl);
 	skb->ip_summed = CHECKSUM_NONE;
-	skb->csum_not_inet = 0;
+	skb->csum_yest_inet = 0;
 
 	return 1;
 }
@@ -471,7 +471,7 @@ static int tcf_csum_ipv6_hopopts(struct ipv6_opt_hdr *ip6xh, unsigned int ixhl,
 		default:
 			optlen = xh[off + 1] + 2;
 			if (optlen > len)
-				/* ignore obscure options */
+				/* igyesre obscure options */
 				goto done;
 			break;
 		}
@@ -507,7 +507,7 @@ static int tcf_csum_ipv6(struct sk_buff *skb, u32 update_flags)
 	do {
 		switch (nexthdr) {
 		case NEXTHDR_FRAGMENT:
-			goto ignore_skb;
+			goto igyesre_skb;
 		case NEXTHDR_ROUTING:
 		case NEXTHDR_HOP:
 		case NEXTHDR_DEST:
@@ -554,12 +554,12 @@ static int tcf_csum_ipv6(struct sk_buff *skb, u32 update_flags)
 				goto fail;
 			goto done;
 		default:
-			goto ignore_skb;
+			goto igyesre_skb;
 		}
 	} while (pskb_may_pull(skb, hl + 1 + ntkoff));
 
 done:
-ignore_skb:
+igyesre_skb:
 	return 1;
 
 fail:

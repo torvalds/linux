@@ -14,7 +14,7 @@
 
 /*
  * Maximum values for blocksize and alignmask, used to allocate
- * static buffers that are big enough for any combination of
+ * static buffers that are big eyesugh for any combination of
  * algs and architectures. Ciphers have a lower maximum size.
  */
 #define MAX_ALGAPI_BLOCKSIZE		160
@@ -47,7 +47,7 @@ struct crypto_instance {
 	struct crypto_alg alg;
 
 	struct crypto_template *tmpl;
-	struct hlist_node list;
+	struct hlist_yesde list;
 
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
@@ -241,14 +241,14 @@ static inline int crypto_requires_sync(u32 type, u32 mask)
 	return crypto_requires_off(type, mask, CRYPTO_ALG_ASYNC);
 }
 
-noinline unsigned long __crypto_memneq(const void *a, const void *b, size_t size);
+yesinline unsigned long __crypto_memneq(const void *a, const void *b, size_t size);
 
 /**
  * crypto_memneq - Compare two areas of memory without leaking
  *		   timing information.
  *
  * @a: One area of memory
- * @b: Another area of memory
+ * @b: Ayesther area of memory
  * @size: The size of the area.
  *
  * Returns 0 when data is equal, 1 otherwise.
@@ -264,10 +264,10 @@ static inline void crypto_yield(u32 flags)
 		cond_resched();
 }
 
-int crypto_register_notifier(struct notifier_block *nb);
-int crypto_unregister_notifier(struct notifier_block *nb);
+int crypto_register_yestifier(struct yestifier_block *nb);
+int crypto_unregister_yestifier(struct yestifier_block *nb);
 
-/* Crypto notification events. */
+/* Crypto yestification events. */
 enum {
 	CRYPTO_MSG_ALG_REQUEST,
 	CRYPTO_MSG_ALG_REGISTER,

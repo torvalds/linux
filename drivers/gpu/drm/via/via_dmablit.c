@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -90,7 +90,7 @@ via_unmap_blit_from_device(struct pci_dev *pdev, drm_via_sg_info_t *vsg)
 /*
  * If mode = 0, count how many descriptors are needed.
  * If mode = 1, Map the DMA pages for the device, put together and map also the descriptors.
- * Descriptors are run in reverse order by the hardware because we are not allowed to update the
+ * Descriptors are run in reverse order by the hardware because we are yest allowed to update the
  * 'next' field without syncing calls when the descriptor is already mapped.
  */
 
@@ -225,7 +225,7 @@ via_fire_dmablit(struct drm_device *dev, drm_via_sg_info_t *vsg, int engine)
 
 /*
  * Obtain a page pointer array and lock all pages into system memory. A segmentation violation will
- * occur here if the calling user does not have access to the submitted address.
+ * occur here if the calling user does yest have access to the submitted address.
  */
 
 static int
@@ -485,7 +485,7 @@ via_dmablit_timer(struct timer_list *t)
 /*
  * Workqueue task that frees data and mappings associated with a blit.
  * Also wakes up waiting processes. Each of these tasks handles one
- * blit engine only and may not be called on each interrupt.
+ * blit engine only and may yest be called on each interrupt.
  */
 
 
@@ -587,9 +587,9 @@ via_build_sg_info(struct drm_device *dev, drm_via_sg_info_t *vsg, drm_via_dmabli
 	}
 
 	/*
-	 * Below check is a driver limitation, not a hardware one. We
+	 * Below check is a driver limitation, yest a hardware one. We
 	 * don't want to lock unused pages, and don't want to incoporate the
-	 * extra logic of avoiding them. Make sure there are no.
+	 * extra logic of avoiding them. Make sure there are yes.
 	 * (Not a big limitation anyway.)
 	 */
 
@@ -651,14 +651,14 @@ via_build_sg_info(struct drm_device *dev, drm_via_sg_info_t *vsg, drm_via_dmabli
 #endif
 
 	if (0 != (ret = via_lock_all_dma_pages(vsg, xfer))) {
-		DRM_ERROR("Could not lock DMA pages.\n");
+		DRM_ERROR("Could yest lock DMA pages.\n");
 		via_free_sg_info(dev->pdev, vsg);
 		return ret;
 	}
 
 	via_map_blit_for_device(dev->pdev, xfer, vsg, 0);
 	if (0 != (ret = via_alloc_desc_pages(vsg))) {
-		DRM_ERROR("Could not allocate DMA descriptor pages.\n");
+		DRM_ERROR("Could yest allocate DMA descriptor pages.\n");
 		via_free_sg_info(dev->pdev, vsg);
 		return ret;
 	}

@@ -88,21 +88,21 @@ static inline bool ceph_has_room(void **p, void *end, size_t n)
 	} while (0)
 
 /*
- * Allocate a buffer big enough to hold the wire-encoded string, and
+ * Allocate a buffer big eyesugh to hold the wire-encoded string, and
  * decode the string into it.  The resulting string will always be
  * terminated with '\0'.  If successful, *p will be advanced
- * past the decoded data.  Also, if lenp is not a null pointer, the
- * length (not including the terminating '\0') will be recorded in
+ * past the decoded data.  Also, if lenp is yest a null pointer, the
+ * length (yest including the terminating '\0') will be recorded in
  * *lenp.  Note that a zero-length string is a valid return value.
  *
  * Returns a pointer to the newly-allocated string buffer, or a
- * pointer-coded errno if an error occurs.  Neither *p nor *lenp
+ * pointer-coded erryes if an error occurs.  Neither *p yesr *lenp
  * will have been updated if an error is returned.
  *
  * There are two possible failures:
  *   - converting the string would require accessing memory at or
  *     beyond the "end" pointer provided (-ERANGE)
- *   - memory could not be allocated for the result (-ENOMEM)
+ *   - memory could yest be allocated for the result (-ENOMEM)
  */
 static inline char *ceph_extract_encoded_string(void **p, void *end,
 						size_t *lenp, gfp_t gfp)
@@ -272,12 +272,12 @@ static inline void ceph_encode_copy(void **p, const void *s, int len)
  * filepath, string encoders
  */
 static inline void ceph_encode_filepath(void **p, void *end,
-					u64 ino, const char *path)
+					u64 iyes, const char *path)
 {
 	u32 len = path ? strlen(path) : 0;
-	BUG_ON(*p + 1 + sizeof(ino) + sizeof(len) + len > end);
+	BUG_ON(*p + 1 + sizeof(iyes) + sizeof(len) + len > end);
 	ceph_encode_8(p, 1);
-	ceph_encode_64(p, ino);
+	ceph_encode_64(p, iyes);
 	ceph_encode_32(p, len);
 	if (len)
 		memcpy(*p, path, len);

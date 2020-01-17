@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Yoshinori Sato <ysato@users.sourceforge.jp>
+ * Copyright (C) 2015 Yoshiyesri Sato <ysato@users.sourceforge.jp>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -24,7 +24,7 @@ enum regnames {
 #if defined(CONFIG_CPU_H8S)
 	GDB_MACH, GDB_MACL,
 #endif
-	/* do not change the last entry or anything below! */
+	/* do yest change the last entry or anything below! */
 	GDB_NUMREGBYTES,		/* number of registers */
 };
 

@@ -49,14 +49,14 @@ static int bpf_array_alloc_percpu(struct bpf_array *array)
 int array_map_alloc_check(union bpf_attr *attr)
 {
 	bool percpu = attr->map_type == BPF_MAP_TYPE_PERCPU_ARRAY;
-	int numa_node = bpf_map_attr_numa_node(attr);
+	int numa_yesde = bpf_map_attr_numa_yesde(attr);
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
 	    attr->value_size == 0 ||
 	    attr->map_flags & ~ARRAY_CREATE_FLAG_MASK ||
 	    !bpf_map_flags_access_ok(attr->map_flags) ||
-	    (percpu && numa_node != NUMA_NO_NODE))
+	    (percpu && numa_yesde != NUMA_NO_NODE))
 		return -EINVAL;
 
 	if (attr->map_type != BPF_MAP_TYPE_ARRAY &&
@@ -75,7 +75,7 @@ int array_map_alloc_check(union bpf_attr *attr)
 static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 {
 	bool percpu = attr->map_type == BPF_MAP_TYPE_PERCPU_ARRAY;
-	int ret, numa_node = bpf_map_attr_numa_node(attr);
+	int ret, numa_yesde = bpf_map_attr_numa_yesde(attr);
 	u32 elem_size, index_mask, max_entries;
 	bool unpriv = !capable(CAP_SYS_ADMIN);
 	u64 cost, array_size, mask64;
@@ -120,7 +120,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 		}
 	}
 
-	/* make sure there is no u32 overflow later in round_up() */
+	/* make sure there is yes u32 overflow later in round_up() */
 	cost = array_size;
 	if (percpu)
 		cost += (u64)attr->max_entries * elem_size * num_possible_cpus();
@@ -134,7 +134,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 		void *data;
 
 		/* kmalloc'ed memory can't be mmap'ed, use explicit vmalloc */
-		data = bpf_map_area_mmapable_alloc(array_size, numa_node);
+		data = bpf_map_area_mmapable_alloc(array_size, numa_yesde);
 		if (!data) {
 			bpf_map_charge_finish(&mem);
 			return ERR_PTR(-ENOMEM);
@@ -142,7 +142,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 		array = data + PAGE_ALIGN(sizeof(struct bpf_array))
 			- offsetof(struct bpf_array, value);
 	} else {
-		array = bpf_map_area_alloc(array_size, numa_node);
+		array = bpf_map_area_alloc(array_size, numa_yesde);
 	}
 	if (!array) {
 		bpf_map_charge_finish(&mem);
@@ -262,7 +262,7 @@ int bpf_percpu_array_copy(struct bpf_map *map, void *key, void *value)
 
 	/* per_cpu areas are zero-filled and bpf programs can only
 	 * access 'value_size' of them, so copying rounded areas
-	 * will not leak any kernel data
+	 * will yest leak any kernel data
 	 */
 	size = round_up(map->value_size, 8);
 	rcu_read_lock();
@@ -303,11 +303,11 @@ static int array_map_update_elem(struct bpf_map *map, void *key, void *value,
 	char *val;
 
 	if (unlikely((map_flags & ~BPF_F_LOCK) > BPF_EXIST))
-		/* unknown flags */
+		/* unkyeswn flags */
 		return -EINVAL;
 
 	if (unlikely(index >= array->map.max_entries))
-		/* all elements were pre-allocated, cannot insert a new one */
+		/* all elements were pre-allocated, canyest insert a new one */
 		return -E2BIG;
 
 	if (unlikely(map_flags & BPF_NOEXIST))
@@ -342,11 +342,11 @@ int bpf_percpu_array_update(struct bpf_map *map, void *key, void *value,
 	u32 size;
 
 	if (unlikely(map_flags > BPF_EXIST))
-		/* unknown flags */
+		/* unkyeswn flags */
 		return -EINVAL;
 
 	if (unlikely(index >= array->map.max_entries))
-		/* all elements were pre-allocated, cannot insert a new one */
+		/* all elements were pre-allocated, canyest insert a new one */
 		return -E2BIG;
 
 	if (unlikely(map_flags == BPF_NOEXIST))
@@ -357,7 +357,7 @@ int bpf_percpu_array_update(struct bpf_map *map, void *key, void *value,
 	 * will be copied into per-cpu area. bpf programs can only access
 	 * value_size of it. During lookup the same extra bytes will be
 	 * returned or zeros which were zero-filled by percpu_alloc,
-	 * so no kernel data leaks possible
+	 * so yes kernel data leaks possible
 	 */
 	size = round_up(map->value_size, 8);
 	rcu_read_lock();
@@ -522,7 +522,7 @@ static int fd_array_map_alloc_check(union bpf_attr *attr)
 	/* only file descriptors can be stored in this type of map */
 	if (attr->value_size != sizeof(u32))
 		return -EINVAL;
-	/* Program read-only/write-only not supported for special maps yet. */
+	/* Program read-only/write-only yest supported for special maps yet. */
 	if (attr->map_flags & (BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG))
 		return -EINVAL;
 	return array_map_alloc_check(attr);
@@ -713,7 +713,7 @@ static int prog_array_map_poke_track(struct bpf_map *map,
 
 	INIT_LIST_HEAD(&elem->list);
 	/* We must track the program's aux info at this point in time
-	 * since the program pointer itself may not be stable yet, see
+	 * since the program pointer itself may yest be stable yet, see
 	 * also comment in prog_array_map_poke_run().
 	 */
 	elem->aux = prog_aux;
@@ -762,20 +762,20 @@ static void prog_array_map_poke_run(struct bpf_map *map, u32 key,
 			/* Few things to be aware of:
 			 *
 			 * 1) We can only ever access aux in this context, but
-			 *    not aux->prog since it might not be stable yet and
+			 *    yest aux->prog since it might yest be stable yet and
 			 *    there could be danger of use after free otherwise.
 			 * 2) Initially when we start tracking aux, the program
-			 *    is not JITed yet and also does not have a kallsyms
-			 *    entry. We skip these as poke->ip_stable is not
+			 *    is yest JITed yet and also does yest have a kallsyms
+			 *    entry. We skip these as poke->ip_stable is yest
 			 *    active yet. The JIT will do the final fixup before
 			 *    setting it stable. The various poke->ip_stable are
 			 *    successively activated, so tail call updates can
 			 *    arrive from here while JIT is still finishing its
-			 *    final fixup for non-activated poke entries.
+			 *    final fixup for yesn-activated poke entries.
 			 * 3) On program teardown, the program's kallsym entry gets
 			 *    removed out of RCU callback, but we can only untrack
 			 *    from sleepable context, therefore bpf_arch_text_poke()
-			 *    might not see that this is in BPF text section and
+			 *    might yest see that this is in BPF text section and
 			 *    bails out with -EINVAL. As these are unreachable since
 			 *    RCU grace period already passed, we simply skip them.
 			 * 4) Also programs reaching refcount of zero while patching
@@ -964,12 +964,12 @@ const struct bpf_map_ops perf_event_array_map_ops = {
 	.map_fd_get_ptr = perf_event_fd_array_get_ptr,
 	.map_fd_put_ptr = perf_event_fd_array_put_ptr,
 	.map_release = perf_event_fd_array_release,
-	.map_check_btf = map_check_no_btf,
+	.map_check_btf = map_check_yes_btf,
 };
 
 #ifdef CONFIG_CGROUPS
 static void *cgroup_fd_array_get_ptr(struct bpf_map *map,
-				     struct file *map_file /* not used */,
+				     struct file *map_file /* yest used */,
 				     int fd)
 {
 	return cgroup_get_from_fd(fd);
@@ -996,7 +996,7 @@ const struct bpf_map_ops cgroup_array_map_ops = {
 	.map_delete_elem = fd_array_map_delete_elem,
 	.map_fd_get_ptr = cgroup_fd_array_get_ptr,
 	.map_fd_put_ptr = cgroup_fd_array_put_ptr,
-	.map_check_btf = map_check_no_btf,
+	.map_check_btf = map_check_yes_btf,
 };
 #endif
 
@@ -1081,5 +1081,5 @@ const struct bpf_map_ops array_of_maps_map_ops = {
 	.map_fd_put_ptr = bpf_map_fd_put_ptr,
 	.map_fd_sys_lookup_elem = bpf_map_fd_sys_lookup_elem,
 	.map_gen_lookup = array_of_map_gen_lookup,
-	.map_check_btf = map_check_no_btf,
+	.map_check_btf = map_check_yes_btf,
 };

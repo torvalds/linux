@@ -305,7 +305,7 @@ static int rpmhpd_update_level_mapping(struct rpmhpd *rpmhpd)
 
 		/*
 		 * The AUX data may be zero padded.  These 0 valued entries at
-		 * the end of the map must be ignored.
+		 * the end of the map must be igyesred.
 		 */
 		if (i > 0 && rpmhpd->level[i] == 0) {
 			rpmhpd->level_count = i;
@@ -354,7 +354,7 @@ static int rpmhpd_probe(struct platform_device *pdev)
 		rpmhpds[i]->dev = dev;
 		rpmhpds[i]->addr = cmd_db_read_addr(rpmhpds[i]->res_name);
 		if (!rpmhpds[i]->addr) {
-			dev_err(dev, "Could not find RPMh address for resource %s\n",
+			dev_err(dev, "Could yest find RPMh address for resource %s\n",
 				rpmhpds[i]->res_name);
 			return -ENODEV;
 		}
@@ -387,7 +387,7 @@ static int rpmhpd_probe(struct platform_device *pdev)
 					       &rpmhpds[i]->pd);
 	}
 
-	return of_genpd_add_provider_onecell(pdev->dev.of_node, data);
+	return of_genpd_add_provider_onecell(pdev->dev.of_yesde, data);
 }
 
 static struct platform_driver rpmhpd_driver = {

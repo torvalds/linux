@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 PathScale, Inc. All rights reserved.
  *
@@ -16,11 +16,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -78,19 +78,19 @@ ib_uverbs_init_udata_buf_or_null(struct ib_udata *udata,
  * Our lifetime rules for these structs are the following:
  *
  * struct ib_uverbs_device: One reference is held by the module and
- * released in ib_uverbs_remove_one().  Another reference is taken by
+ * released in ib_uverbs_remove_one().  Ayesther reference is taken by
  * ib_uverbs_open() each time the character special file is opened,
  * and released in ib_uverbs_release_file() when the file is released.
  *
  * struct ib_uverbs_file: One reference is held by the VFS and
- * released when the file is closed.  Another reference is taken when
- * an asynchronous event queue file is created and released when the
+ * released when the file is closed.  Ayesther reference is taken when
+ * an asynchroyesus event queue file is created and released when the
  * event file is closed.
  *
  * struct ib_uverbs_event_queue: Base structure for
  * struct ib_uverbs_async_event_file and struct ib_uverbs_completion_event_file.
  * One reference is held by the VFS and released when the file is closed.
- * For asynchronous event files, another reference is held by the corresponding
+ * For asynchroyesus event files, ayesther reference is held by the corresponding
  * main context file and released when that file is closed.  For completion
  * event files, a reference is taken when a CQ is created that uses the file,
  * and released when the CQ is destroyed.

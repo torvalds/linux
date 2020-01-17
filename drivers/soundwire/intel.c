@@ -480,7 +480,7 @@ intel_pdi_shim_configure(struct sdw_intel *sdw, struct sdw_cdns_pdi *pdi)
 	unsigned int link_id = sdw->instance;
 	int pdi_conf = 0;
 
-	/* the Bulk and PCM streams are not contiguous */
+	/* the Bulk and PCM streams are yest contiguous */
 	pdi->intel_alh_id = (link_id * 16) + pdi->num + 3;
 	if (pdi->num >= 2)
 		pdi->intel_alh_id += 2;
@@ -512,7 +512,7 @@ intel_pdi_alh_configure(struct sdw_intel *sdw, struct sdw_cdns_pdi *pdi)
 	unsigned int link_id = sdw->instance;
 	unsigned int conf;
 
-	/* the Bulk and PCM streams are not contiguous */
+	/* the Bulk and PCM streams are yest contiguous */
 	pdi->intel_alh_id = (link_id * 16) + pdi->num + 3;
 	if (pdi->num >= 2)
 		pdi->intel_alh_id += 2;
@@ -584,7 +584,7 @@ static int intel_post_bank_switch(struct sdw_bus *bus)
 	 * post_bank_switch() ops is called from the bus in loop for
 	 * all the Masters in the steam with the expectation that
 	 * we trigger the bankswitch for the only first Master in the list
-	 * and do nothing for the other Masters
+	 * and do yesthing for the other Masters
 	 *
 	 * So, set the SYNCGO bit only if CMDSYNC bit is set for any Master.
 	 */
@@ -592,7 +592,7 @@ static int intel_post_bank_switch(struct sdw_bus *bus)
 		return 0;
 
 	/*
-	 * Set SyncGO bit to synchronously trigger a bank switch for
+	 * Set SyncGO bit to synchroyesusly trigger a bank switch for
 	 * all the masters. A write to SYNCGO bit clears CMDSYNC bit for all
 	 * the Masters.
 	 */
@@ -854,7 +854,7 @@ static int intel_register_dai(struct sdw_intel *sdw)
 static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 {
 	struct sdw_master_prop *prop = &bus->prop;
-	struct fwnode_handle *link;
+	struct fwyesde_handle *link;
 	char name[32];
 	u32 quirk_mask;
 
@@ -862,17 +862,17 @@ static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 	snprintf(name, sizeof(name),
 		 "mipi-sdw-link-%d-subproperties", bus->link_id);
 
-	link = device_get_named_child_node(bus->dev, name);
+	link = device_get_named_child_yesde(bus->dev, name);
 	if (!link) {
-		dev_err(bus->dev, "Master node %s not found\n", name);
+		dev_err(bus->dev, "Master yesde %s yest found\n", name);
 		return -EIO;
 	}
 
-	fwnode_property_read_u32(link,
+	fwyesde_property_read_u32(link,
 				 "intel-sdw-ip-clock",
 				 &prop->mclk_freq);
 
-	fwnode_property_read_u32(link,
+	fwyesde_property_read_u32(link,
 				 "intel-quirk-mask",
 				 &quirk_mask);
 
@@ -949,7 +949,7 @@ static int intel_probe(struct platform_device *pdev)
 	}
 
 	if (sdw->cdns.bus.prop.hw_disabled) {
-		dev_info(&pdev->dev, "SoundWire master %d is disabled, ignoring\n",
+		dev_info(&pdev->dev, "SoundWire master %d is disabled, igyesring\n",
 			 sdw->cdns.bus.link_id);
 		return 0;
 	}
@@ -978,7 +978,7 @@ static int intel_probe(struct platform_device *pdev)
 
 	ret = sdw_cdns_enable_interrupt(&sdw->cdns, true);
 	if (ret < 0) {
-		dev_err(sdw->cdns.dev, "cannot enable interrupts\n");
+		dev_err(sdw->cdns.dev, "canyest enable interrupts\n");
 		goto err_init;
 	}
 

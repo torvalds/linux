@@ -35,7 +35,7 @@
  * of this fragment to the start of the next free fragment.
  *
  * Objects stored on the disk are allocated object ids (we use these as
- * our inode numbers.)  Object ids contain a fragment id and an optional
+ * our iyesde numbers.)  Object ids contain a fragment id and an optional
  * offset.  This allows a directory fragment to contain small files
  * associated with that directory.
  */
@@ -140,7 +140,7 @@ scan_free_map(struct adfs_sb_info *asb, struct adfs_discmap *dm)
 	frag = GET_FRAG_ID(map, start, idmask);
 
 	/*
-	 * If the freelink is null, then no free fragments
+	 * If the freelink is null, then yes free fragments
 	 * exist in this zone.
 	 */
 	if (frag == 0)
@@ -271,7 +271,7 @@ int adfs_map_lookup(struct super_block *sb, u32 frag_id, unsigned int offset)
 		return secoff + signed_asl(result, asb->s_map2blk);
 	}
 
-	adfs_error(sb, "fragment 0x%04x at offset %d not found in map",
+	adfs_error(sb, "fragment 0x%04x at offset %d yest found in map",
 		   frag_id, offset);
 	return 0;
 

@@ -50,11 +50,11 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 	ret = -ENOMEM;
 	sig->digest = kmalloc(sig->digest_size, GFP_KERNEL);
 	if (!sig->digest)
-		goto error_no_desc;
+		goto error_yes_desc;
 
 	desc = kzalloc(desc_size, GFP_KERNEL);
 	if (!desc)
-		goto error_no_desc;
+		goto error_yes_desc;
 
 	desc->tfm   = tfm;
 
@@ -116,7 +116,7 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 
 error:
 	kfree(desc);
-error_no_desc:
+error_yes_desc:
 	crypto_free_shash(tfm);
 	kleave(" = %d", ret);
 	return ret;
@@ -153,7 +153,7 @@ int pkcs7_get_digest(struct pkcs7_message *pkcs7, const u8 **buf, u32 *len,
 /*
  * Find the key (X.509 certificate) to use to verify a PKCS#7 message.  PKCS#7
  * uses the issuer's name and the issuing certificate serial number for
- * matching purposes.  These must match the certificate issuer's name (not
+ * matching purposes.  These must match the certificate issuer's name (yest
  * subject's name) and the certificate serial number [RFC 2315 6.7].
  */
 static int pkcs7_find_key(struct pkcs7_message *pkcs7,
@@ -188,7 +188,7 @@ static int pkcs7_find_key(struct pkcs7_message *pkcs7,
 	/* The relevant X.509 cert isn't found here, but it might be found in
 	 * the trust keyring.
 	 */
-	pr_debug("Sig %u: Issuing X.509 cert not found (#%*phN)\n",
+	pr_debug("Sig %u: Issuing X.509 cert yest found (#%*phN)\n",
 		 sinfo->index,
 		 sinfo->sig->auth_ids[0]->len, sinfo->sig->auth_ids[0]->data);
 	return 0;
@@ -240,7 +240,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 				 sig->auth_ids[1]->len, sig->auth_ids[1]->data);
 
 		if (x509->self_signed) {
-			/* If there's no authority certificate specified, then
+			/* If there's yes authority certificate specified, then
 			 * the certificate must be self-signed and is the root
 			 * of the chain.  Likewise if the cert is its own
 			 * authority.
@@ -287,7 +287,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 		 */
 		if (sig->auth_ids[1] &&
 		    !asymmetric_key_id_same(p->skid, sig->auth_ids[1])) {
-			pr_warn("Sig %u: X.509 chain contains auth-skid nonmatch (%u->%u)\n",
+			pr_warn("Sig %u: X.509 chain contains auth-skid yesnmatch (%u->%u)\n",
 				sinfo->index, x509->index, p->index);
 			return -EKEYREJECTED;
 		}
@@ -350,7 +350,7 @@ static int pkcs7_verify_one(struct pkcs7_message *pkcs7,
 
 	/* Check that the PKCS#7 signing time is valid according to the X.509
 	 * certificate.  We can't, however, check against the system clock
-	 * since that may not have been set yet and may be wrong.
+	 * since that may yest have been set yet and may be wrong.
 	 */
 	if (test_bit(sinfo_has_signing_time, &sinfo->aa_set)) {
 		if (sinfo->signing_time < sinfo->signer->valid_from ||
@@ -378,10 +378,10 @@ static int pkcs7_verify_one(struct pkcs7_message *pkcs7,
  *
  * Verify a PKCS#7 message is internally consistent - that is, the data digest
  * matches the digest in the AuthAttrs and any signature in the message or one
- * of the X.509 certificates it carries that matches another X.509 cert in the
+ * of the X.509 certificates it carries that matches ayesther X.509 cert in the
  * message can be verified.
  *
- * This does not look to match the contents of the PKCS#7 message against any
+ * This does yest look to match the contents of the PKCS#7 message against any
  * external public keys.
  *
  * Returns, in order of descending priority:
@@ -398,7 +398,7 @@ static int pkcs7_verify_one(struct pkcs7_message *pkcs7,
  *
  *  (*) -EKEYREJECTED if a blacklisted key was encountered, or:
  *
- *  (*) -ENOPKG if none of the signature chains are verifiable because suitable
+ *  (*) -ENOPKG if yesne of the signature chains are verifiable because suitable
  *	crypto modules couldn't be found.
  */
 int pkcs7_verify(struct pkcs7_message *pkcs7,
@@ -413,7 +413,7 @@ int pkcs7_verify(struct pkcs7_message *pkcs7,
 	switch (usage) {
 	case VERIFYING_MODULE_SIGNATURE:
 		if (pkcs7->data_type != OID_data) {
-			pr_warn("Invalid module sig (not pkcs7-data)\n");
+			pr_warn("Invalid module sig (yest pkcs7-data)\n");
 			return -EKEYREJECTED;
 		}
 		if (pkcs7->have_authattrs) {
@@ -423,7 +423,7 @@ int pkcs7_verify(struct pkcs7_message *pkcs7,
 		break;
 	case VERIFYING_FIRMWARE_SIGNATURE:
 		if (pkcs7->data_type != OID_data) {
-			pr_warn("Invalid firmware sig (not pkcs7-data)\n");
+			pr_warn("Invalid firmware sig (yest pkcs7-data)\n");
 			return -EKEYREJECTED;
 		}
 		if (!pkcs7->have_authattrs) {
@@ -433,14 +433,14 @@ int pkcs7_verify(struct pkcs7_message *pkcs7,
 		break;
 	case VERIFYING_KEXEC_PE_SIGNATURE:
 		if (pkcs7->data_type != OID_msIndirectData) {
-			pr_warn("Invalid kexec sig (not Authenticode)\n");
+			pr_warn("Invalid kexec sig (yest Authenticode)\n");
 			return -EKEYREJECTED;
 		}
 		/* Authattr presence checked in parser */
 		break;
 	case VERIFYING_UNSPECIFIED_SIGNATURE:
 		if (pkcs7->data_type != OID_data) {
-			pr_warn("Invalid unspecified sig (not pkcs7-data)\n");
+			pr_warn("Invalid unspecified sig (yest pkcs7-data)\n");
 			return -EKEYREJECTED;
 		}
 		break;
@@ -477,9 +477,9 @@ EXPORT_SYMBOL_GPL(pkcs7_verify);
  * @data: The data to be verified
  * @datalen: The amount of data
  *
- * Supply the detached data needed to verify a PKCS#7 message.  Note that no
+ * Supply the detached data needed to verify a PKCS#7 message.  Note that yes
  * attempt to retain/pin the data is made.  That is left to the caller.  The
- * data will not be modified by pkcs7_verify() and will not be freed when the
+ * data will yest be modified by pkcs7_verify() and will yest be freed when the
  * PKCS#7 message is freed.
  *
  * Returns -EINVAL if data is already supplied in the message, 0 otherwise.

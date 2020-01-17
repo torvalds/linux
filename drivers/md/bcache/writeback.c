@@ -39,7 +39,7 @@ static uint64_t __calc_target_rate(struct cached_dev *dc)
 				atomic_long_read(&c->flash_dev_dirty_sectors);
 
 	/*
-	 * Unfortunately there is no control of global dirty data.  If the
+	 * Unfortunately there is yes control of global dirty data.  If the
 	 * user states that they want 10% dirty data in the cache, and has,
 	 * e.g., 5 backing volumes of equal size, we try and ensure each
 	 * backing volume uses about 2% of the cache for dirty data.
@@ -77,7 +77,7 @@ static void __update_writeback_rate(struct cached_dev *dc)
 	 *
 	 * The writeback_rate_i_inverse value of 10000 means that 1/10000th
 	 * of the error is accumulated in the integral term per second.
-	 * This acts as a slow, long-term average that is not subject to
+	 * This acts as a slow, long-term average that is yest subject to
 	 * variations in usage like the p term.
 	 */
 	int64_t target = __calc_target_rate(dc);
@@ -138,7 +138,7 @@ static bool set_at_max_writeback_rate(struct cache_set *c,
 	 * to each dc->writeback_rate.rate.
 	 * In order to avoid extra locking cost for counting exact dirty cached
 	 * devices number, c->attached_dev_nr is used to calculate the idle
-	 * throushold. It might be bigger if not all cached device are in write-
+	 * throushold. It might be bigger if yest all cached device are in write-
 	 * back mode, but it still works well with limited extra rounds of
 	 * update_writeback_rate().
 	 */
@@ -351,7 +351,7 @@ static void write_dirty(struct closure *cl)
 
 	/*
 	 * IO errors are signalled using the dirty bit on the key.
-	 * If we failed to read, we should not attempt to write to the
+	 * If we failed to read, we should yest attempt to write to the
 	 * backing device.  Instead, immediately go to write_dirty_finish
 	 * to clean up.
 	 */
@@ -443,7 +443,7 @@ static void read_dirty(struct cached_dev *dc)
 			 * if they are contiguous.
 			 *
 			 * TODO: add a heuristic willing to fire a
-			 * certain amount of non-contiguous IO per pass,
+			 * certain amount of yesn-contiguous IO per pass,
 			 * so that we can benefit from backing device
 			 * command queueing.
 			 */
@@ -488,7 +488,7 @@ static void read_dirty(struct cached_dev *dc)
 			/*
 			 * We've acquired a semaphore for the maximum
 			 * simultaneous number of writebacks; from here
-			 * everything happens asynchronously.
+			 * everything happens asynchroyesusly.
 			 */
 			closure_call(&io->cl, read_dirty_submit, NULL, &cl);
 		}
@@ -519,16 +519,16 @@ err:
 
 /* Scan for dirty data */
 
-void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned int inode,
+void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned int iyesde,
 				  uint64_t offset, int nr_sectors)
 {
-	struct bcache_device *d = c->devices[inode];
+	struct bcache_device *d = c->devices[iyesde];
 	unsigned int stripe_offset, stripe, sectors_dirty;
 
 	if (!d)
 		return;
 
-	if (UUID_FLASH_ONLY(&c->uuids[inode]))
+	if (UUID_FLASH_ONLY(&c->uuids[iyesde]))
 		atomic_long_add(nr_sectors, &c->flash_dev_dirty_sectors);
 
 	stripe = offset_to_stripe(d, offset);
@@ -626,7 +626,7 @@ static bool refill_dirty(struct cached_dev *dc)
 
 	/*
 	 * make sure keybuf pos is inside the range for this disk - at bringup
-	 * we might not be attached yet so this disk's inode nr isn't
+	 * we might yest be attached yet so this disk's iyesde nr isn't
 	 * initialized then
 	 */
 	if (bkey_cmp(&buf->last_scanned, &start) < 0 ||
@@ -669,7 +669,7 @@ static int bch_writeback_thread(void *arg)
 		set_current_state(TASK_INTERRUPTIBLE);
 		/*
 		 * If the bache device is detaching, skip here and continue
-		 * to perform writeback. Otherwise, if no dirty data on cache,
+		 * to perform writeback. Otherwise, if yes dirty data on cache,
 		 * or there is dirty data on cache but writeback is disabled,
 		 * the writeback thread should sleep here and wait for others
 		 * to wake up it.
@@ -698,7 +698,7 @@ static int bch_writeback_thread(void *arg)
 			bch_write_bdev_super(dc, NULL);
 			/*
 			 * If bcache device is detaching via sysfs interface,
-			 * writeback thread should stop after there is no dirty
+			 * writeback thread should stop after there is yes dirty
 			 * data on cache. BCACHE_DEV_DETACHING flag is set in
 			 * bch_cached_dev_detach().
 			 */
@@ -758,7 +758,7 @@ static int bch_writeback_thread(void *arg)
 
 struct sectors_dirty_init {
 	struct btree_op	op;
-	unsigned int	inode;
+	unsigned int	iyesde;
 	size_t		count;
 	struct bkey	start;
 };
@@ -768,7 +768,7 @@ static int sectors_dirty_init_fn(struct btree_op *_op, struct btree *b,
 {
 	struct sectors_dirty_init *op = container_of(_op,
 						struct sectors_dirty_init, op);
-	if (KEY_INODE(k) > op->inode)
+	if (KEY_INODE(k) > op->iyesde)
 		return MAP_DONE;
 
 	if (KEY_DIRTY(k))
@@ -791,9 +791,9 @@ void bch_sectors_dirty_init(struct bcache_device *d)
 	int ret;
 
 	bch_btree_op_init(&op.op, -1);
-	op.inode = d->id;
+	op.iyesde = d->id;
 	op.count = 0;
-	op.start = KEY(op.inode, 0, 0);
+	op.start = KEY(op.iyesde, 0, 0);
 
 	do {
 		ret = bch_btree_map_keys(&op.op, d->c, &op.start,

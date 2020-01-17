@@ -8,7 +8,7 @@
  * Based on fakelb, original Written by:
  * Sergey Lapin <slapin@ossfans.org>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiryesv <alex.bluesman.smiryesv@gmail.com>
  */
 
 #include <linux/module.h>
@@ -219,7 +219,7 @@ static int append_radio_msg(struct sk_buff *skb, struct hwsim_phy *phy)
 		return 0;
 	}
 
-	nl_edges = nla_nest_start_noflag(skb,
+	nl_edges = nla_nest_start_yesflag(skb,
 					 MAC802154_HWSIM_ATTR_RADIO_EDGES);
 	if (!nl_edges) {
 		rcu_read_unlock();
@@ -227,7 +227,7 @@ static int append_radio_msg(struct sk_buff *skb, struct hwsim_phy *phy)
 	}
 
 	list_for_each_entry_rcu(e, &phy->edges, list) {
-		nl_edge = nla_nest_start_noflag(skb,
+		nl_edge = nla_nest_start_yesflag(skb,
 						MAC802154_HWSIM_ATTR_RADIO_EDGE);
 		if (!nl_edge) {
 			rcu_read_unlock();
@@ -465,7 +465,7 @@ static int hwsim_new_edge_nl(struct sk_buff *msg, struct genl_info *info)
 	list_add_rcu(&e->list, &phy_v0->edges);
 	/* wait until changes are done under hwsim_phys_lock lock
 	 * should prevent of calling this function twice while
-	 * edges list has not the changes yet.
+	 * edges list has yest the changes yet.
 	 */
 	synchronize_rcu();
 	mutex_unlock(&hwsim_phys_lock);
@@ -638,7 +638,7 @@ static void hwsim_mcast_config_msg(struct sk_buff *mcast_skb,
 				   struct genl_info *info)
 {
 	if (info)
-		genl_notify(&hwsim_genl_family, mcast_skb, info,
+		genl_yestify(&hwsim_genl_family, mcast_skb, info,
 			    HWSIM_MCGRP_CONFIG, GFP_KERNEL);
 	else
 		genlmsg_multicast(&hwsim_genl_family, mcast_skb, 0,

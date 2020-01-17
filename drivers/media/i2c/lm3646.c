@@ -349,14 +349,14 @@ static int lm3646_probe(struct i2c_client *client,
 	if (IS_ERR(flash->regmap))
 		return PTR_ERR(flash->regmap);
 
-	/* check device tree if there is no platform data */
+	/* check device tree if there is yes platform data */
 	if (pdata == NULL) {
 		pdata = devm_kzalloc(&client->dev,
 				     sizeof(struct lm3646_platform_data),
 				     GFP_KERNEL);
 		if (pdata == NULL)
 			return -ENOMEM;
-		/* use default data in case of no platform data */
+		/* use default data in case of yes platform data */
 		pdata->flash_timeout = LM3646_FLASH_TOUT_MAX;
 		pdata->led1_torch_brt = LM3646_LED1_TORCH_BRT_MAX;
 		pdata->led1_flash_brt = LM3646_LED1_FLASH_BRT_MAX;

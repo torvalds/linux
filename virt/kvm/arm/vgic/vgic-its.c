@@ -31,7 +31,7 @@ static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
 
 /*
  * Creates a new (reference to a) struct vgic_irq for a given LPI.
- * If this LPI is already mapped on another ITS, we increase its refcount
+ * If this LPI is already mapped on ayesther ITS, we increase its refcount
  * and return a pointer to the existing structure.
  * If this is a "new" LPI, we allocate and initialize a new struct vgic_irq.
  * This function returns a pointer to the _unlocked_ structure.
@@ -44,7 +44,7 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 	unsigned long flags;
 	int ret;
 
-	/* In this case there is no put, since we keep the reference. */
+	/* In this case there is yes put, since we keep the reference. */
 	if (irq)
 		return irq;
 
@@ -65,7 +65,7 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 	raw_spin_lock_irqsave(&dist->lpi_list_lock, flags);
 
 	/*
-	 * There could be a race with another vgic_add_lpi(), so we need to
+	 * There could be a race with ayesther vgic_add_lpi(), so we need to
 	 * check that we don't add a second list entry with the same LPI.
 	 */
 	list_for_each_entry(oldirq, &dist->lpi_list_head, lpi_list) {
@@ -267,7 +267,7 @@ static struct its_collection *find_collection(struct vgic_its *its, int coll_id)
 /*
  * Reads the configuration data for a given LPI from guest memory and
  * updates the fields in struct vgic_irq.
- * If filter_vcpu is not NULL, applies only if the IRQ is targeting this
+ * If filter_vcpu is yest NULL, applies only if the IRQ is targeting this
  * VCPU. Unconditionally applies if filter_vcpu is NULL.
  */
 static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
@@ -320,9 +320,9 @@ int vgic_copy_lpi_list(struct kvm *kvm, struct kvm_vcpu *vcpu, u32 **intid_ptr)
 	/*
 	 * There is an obvious race between allocating the array and LPIs
 	 * being mapped/unmapped. If we ended up here as a result of a
-	 * command, we're safe (locks are held, preventing another
-	 * command). If coming from another path (such as enabling LPIs),
-	 * we must be careful not to overrun the array.
+	 * command, we're safe (locks are held, preventing ayesther
+	 * command). If coming from ayesther path (such as enabling LPIs),
+	 * we must be careful yest to overrun the array.
 	 */
 	irq_count = READ_ONCE(dist->lpi_list_count);
 	intids = kmalloc_array(irq_count, sizeof(intids[0]), GFP_KERNEL);
@@ -546,7 +546,7 @@ static struct vgic_irq *__vgic_its_check_cache(struct vgic_dist *dist,
 
 	list_for_each_entry(cte, &dist->lpi_translation_cache, entry) {
 		/*
-		 * If we hit a NULL entry, there is nothing after this
+		 * If we hit a NULL entry, there is yesthing after this
 		 * point.
 		 */
 		if (!cte->irq)
@@ -592,7 +592,7 @@ static void vgic_its_cache_translation(struct kvm *kvm, struct vgic_its *its,
 	unsigned long flags;
 	phys_addr_t db;
 
-	/* Do not cache a directly injected interrupt */
+	/* Do yest cache a directly injected interrupt */
 	if (irq->hw)
 		return;
 
@@ -602,8 +602,8 @@ static void vgic_its_cache_translation(struct kvm *kvm, struct vgic_its *its,
 		goto out;
 
 	/*
-	 * We could have raced with another CPU caching the same
-	 * translation behind our back, so let's check it is not in
+	 * We could have raced with ayesther CPU caching the same
+	 * translation behind our back, so let's check it is yest in
 	 * already
 	 */
 	db = its->vgic_its_base + GITS_TRANSLATER;
@@ -646,7 +646,7 @@ void vgic_its_invalidate_cache(struct kvm *kvm)
 
 	list_for_each_entry(cte, &dist->lpi_translation_cache, entry) {
 		/*
-		 * If we hit a NULL entry, there is nothing after this
+		 * If we hit a NULL entry, there is yesthing after this
 		 * point.
 		 */
 		if (!cte->irq)
@@ -1109,7 +1109,7 @@ static void vgic_its_free_device(struct kvm *kvm, struct its_device *device)
 	/*
 	 * The spec says that unmapping a device with still valid
 	 * ITTEs associated is UNPREDICTABLE. We remove all ITTEs,
-	 * since we cannot leave the memory unreferenced.
+	 * since we canyest leave the memory unreferenced.
 	 */
 	list_for_each_entry_safe(ite, temp, &device->itt_head, ite_list)
 		its_free_ite(kvm, ite);
@@ -1188,7 +1188,7 @@ static int vgic_its_cmd_handle_mapd(struct kvm *kvm, struct vgic_its *its,
 		vgic_its_free_device(kvm, device);
 
 	/*
-	 * The spec does not say whether unmapping a not-mapped device
+	 * The spec does yest say whether unmapping a yest-mapped device
 	 * is an error, so we are done in any case.
 	 */
 	if (!valid)
@@ -1332,10 +1332,10 @@ static int vgic_its_cmd_handle_invall(struct kvm *kvm, struct vgic_its *its,
 
 /*
  * The MOVALL command moves the pending state of all IRQs targeting one
- * redistributor to another. We don't hold the pending state in the VCPUs,
- * but in the IRQs instead, so there is really not much to do for us here.
- * However the spec says that no IRQ must target the old redistributor
- * afterwards, so we make sure that no LPI is using the associated target_vcpu.
+ * redistributor to ayesther. We don't hold the pending state in the VCPUs,
+ * but in the IRQs instead, so there is really yest much to do for us here.
+ * However the spec says that yes IRQ must target the old redistributor
+ * afterwards, so we make sure that yes LPI is using the associated target_vcpu.
  * This command affects all LPIs in the system that target that redistributor.
  */
 static int vgic_its_cmd_handle_movall(struct kvm *kvm, struct vgic_its *its,
@@ -1434,7 +1434,7 @@ static int vgic_its_handle_command(struct kvm *kvm, struct vgic_its *its,
 		ret = vgic_its_cmd_handle_invall(kvm, its, its_cmd);
 		break;
 	case GITS_CMD_SYNC:
-		/* we ignore this command: we are in sync all of the time */
+		/* we igyesre this command: we are in sync all of the time */
 		ret = 0;
 		break;
 	}
@@ -1528,9 +1528,9 @@ static void vgic_its_process_commands(struct kvm *kvm, struct vgic_its *its)
 		/*
 		 * If kvm_read_guest() fails, this could be due to the guest
 		 * programming a bogus value in CBASER or something else going
-		 * wrong from which we cannot easily recover.
+		 * wrong from which we canyest easily recover.
 		 * According to section 6.3.2 in the GICv3 spec we can just
-		 * ignore that command then.
+		 * igyesre that command then.
 		 */
 		if (!ret)
 			vgic_its_handle_command(kvm, its, cmd_buf);
@@ -1542,7 +1542,7 @@ static void vgic_its_process_commands(struct kvm *kvm, struct vgic_its *its)
 }
 
 /*
- * By writing to CWRITER the guest announces new commands to be processed.
+ * By writing to CWRITER the guest anyesunces new commands to be processed.
  * To avoid any races in the first place, we take the its_cmd lock, which
  * protects our ring buffer variables, so that there is only one user
  * per ITS handling commands at a given time.
@@ -1644,7 +1644,7 @@ static void vgic_mmio_write_its_baser(struct kvm *kvm,
 	u64 entry_size, table_type;
 	u64 reg, *regptr, clearbits = 0;
 
-	/* When GITS_CTLR.Enable is 1, we ignore write accesses. */
+	/* When GITS_CTLR.Enable is 1, we igyesre write accesses. */
 	if (its->enabled)
 		return;
 
@@ -1727,7 +1727,7 @@ static void vgic_mmio_write_its_ctlr(struct kvm *kvm, struct vgic_its *its,
 
 	/*
 	 * Try to process any pending commands. This function bails out early
-	 * if the ITS is disabled or no commands have been queued.
+	 * if the ITS is disabled or yes commands have been queued.
 	 */
 	vgic_its_process_commands(kvm, its);
 
@@ -1757,7 +1757,7 @@ out:
 static void its_mmio_write_wi(struct kvm *kvm, struct vgic_its *its,
 			      gpa_t addr, unsigned int len, unsigned long val)
 {
-	/* Ignore */
+	/* Igyesre */
 }
 
 static struct vgic_register_region its_registers[] = {
@@ -1841,7 +1841,7 @@ void vgic_lpi_translation_cache_init(struct kvm *kvm)
 	for (i = 0; i < sz; i++) {
 		struct vgic_translation_cache_entry *cte;
 
-		/* An allocation failure is not fatal */
+		/* An allocation failure is yest fatal */
 		cte = kzalloc(sizeof(*cte), GFP_KERNEL);
 		if (WARN_ON(!cte))
 			break;
@@ -2073,11 +2073,11 @@ typedef int (*entry_fn_t)(struct vgic_its *its, u32 id, void *entry,
  * @size: size of the table in bytes
  * @esz: entry size in bytes
  * @start_id: the ID of the first entry in the table
- * (non zero for 2d level tables)
+ * (yesn zero for 2d level tables)
  * @fn: function to apply on each entry
  *
  * Return: < 0 on error, 0 if last element was identified, 1 otherwise
- * (the last element may not be found on second level tables)
+ * (the last element may yest be found on second level tables)
  */
 static int scan_its_table(struct vgic_its *its, gpa_t base, int size, u32 esz,
 			  int start_id, entry_fn_t fn, void *opaque)
@@ -2157,7 +2157,7 @@ static int vgic_its_restore_ite(struct vgic_its *its, u32 event_id,
 	lpi_id = (val & KVM_ITS_ITE_PINTID_MASK) >> KVM_ITS_ITE_PINTID_SHIFT;
 
 	if (!lpi_id)
-		return 1; /* invalid entry, no choice but to scan next entry */
+		return 1; /* invalid entry, yes choice but to scan next entry */
 
 	if (lpi_id < VGIC_MIN_LPI)
 		return -EINVAL;
@@ -2212,7 +2212,7 @@ static int vgic_its_save_itt(struct vgic_its *its, struct its_device *device)
 
 		/*
 		 * If an LPI carries the HW bit, this means that this
-		 * interrupt is controlled by GICv4, and we do not
+		 * interrupt is controlled by GICv4, and we do yest
 		 * have direct access to that state. Let's simply fail
 		 * the save operation...
 		 */
@@ -2519,7 +2519,7 @@ static int vgic_its_save_collection_table(struct vgic_its *its)
 		return 0;
 
 	/*
-	 * table is not fully filled, add a last dummy element
+	 * table is yest fully filled, add a last dummy element
 	 * with valid bit unset
 	 */
 	val = 0;

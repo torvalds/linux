@@ -61,7 +61,7 @@ struct snd_motu {
 	struct fw_iso_resources rx_resources;
 	unsigned int substreams_counter;
 
-	/* For notification. */
+	/* For yestification. */
 	struct fw_address_handler async_handler;
 	u32 msg;
 

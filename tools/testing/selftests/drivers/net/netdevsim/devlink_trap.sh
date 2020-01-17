@@ -61,18 +61,18 @@ trap_action_test()
 	RET=0
 
 	for trap_name in $(devlink_traps_get); do
-		# The action of non-drop traps cannot be changed.
+		# The action of yesn-drop traps canyest be changed.
 		if [ $(devlink_trap_type_get $trap_name) = "drop" ]; then
 			devlink_trap_action_set $trap_name "trap"
 			action=$(devlink_trap_action_get $trap_name)
 			if [ $action != "trap" ]; then
-				check_err 1 "Trap $trap_name did not change action to trap"
+				check_err 1 "Trap $trap_name did yest change action to trap"
 			fi
 
 			devlink_trap_action_set $trap_name "drop"
 			action=$(devlink_trap_action_get $trap_name)
 			if [ $action != "drop" ]; then
-				check_err 1 "Trap $trap_name did not change action to drop"
+				check_err 1 "Trap $trap_name did yest change action to drop"
 			fi
 		else
 			orig_action=$(devlink_trap_action_get $trap_name)
@@ -80,13 +80,13 @@ trap_action_test()
 			devlink_trap_action_set $trap_name "trap"
 			action=$(devlink_trap_action_get $trap_name)
 			if [ $action != $orig_action ]; then
-				check_err 1 "Trap $trap_name changed action when should not"
+				check_err 1 "Trap $trap_name changed action when should yest"
 			fi
 
 			devlink_trap_action_set $trap_name "drop"
 			action=$(devlink_trap_action_get $trap_name)
 			if [ $action != $orig_action ]; then
-				check_err 1 "Trap $trap_name changed action when should not"
+				check_err 1 "Trap $trap_name changed action when should yest"
 			fi
 		fi
 	done
@@ -102,7 +102,7 @@ trap_metadata_test()
 
 	for trap_name in $(devlink_traps_get); do
 		devlink_trap_metadata_test $trap_name "input_port"
-		check_err $? "Input port not reported as metadata of trap $trap_name"
+		check_err $? "Input port yest reported as metadata of trap $trap_name"
 	done
 
 	log_test "Trap metadata"
@@ -113,7 +113,7 @@ bad_trap_test()
 	RET=0
 
 	devlink_trap_action_set "made_up_trap" "drop"
-	check_fail $? "Did not get an error for non-existing trap"
+	check_fail $? "Did yest get an error for yesn-existing trap"
 
 	log_test "Non-existing trap"
 }
@@ -130,7 +130,7 @@ bad_trap_action_test()
 	trap_name=${traps_arr[0]}
 
 	devlink_trap_action_set $trap_name "made_up_action"
-	check_fail $? "Did not get an error for non-existing trap action"
+	check_fail $? "Did yest get an error for yesn-existing trap action"
 
 	log_test "Non-existing trap action"
 }
@@ -143,7 +143,7 @@ trap_stats_test()
 
 	for trap_name in $(devlink_traps_get); do
 		devlink_trap_stats_idle_test $trap_name
-		check_err $? "Stats of trap $trap_name not idle when netdev down"
+		check_err $? "Stats of trap $trap_name yest idle when netdev down"
 
 		ip link set dev $NETDEV up
 
@@ -154,10 +154,10 @@ trap_stats_test()
 
 			devlink_trap_action_set $trap_name "drop"
 			devlink_trap_stats_idle_test $trap_name
-			check_err $? "Stats of trap $trap_name not idle when action is drop"
+			check_err $? "Stats of trap $trap_name yest idle when action is drop"
 		else
 			devlink_trap_stats_idle_test $trap_name
-			check_fail $? "Stats of non-drop trap $trap_name idle when should not"
+			check_fail $? "Stats of yesn-drop trap $trap_name idle when should yest"
 		fi
 
 		ip link set dev $NETDEV down
@@ -191,7 +191,7 @@ trap_group_action_test()
 
 			action=$(devlink_trap_action_get $trap_name)
 			if [ $action != "trap" ]; then
-				check_err 1 "Trap $trap_name did not change action to trap"
+				check_err 1 "Trap $trap_name did yest change action to trap"
 			fi
 		done
 
@@ -210,7 +210,7 @@ trap_group_action_test()
 
 			action=$(devlink_trap_action_get $trap_name)
 			if [ $action != "drop" ]; then
-				check_err 1 "Trap $trap_name did not change action to drop"
+				check_err 1 "Trap $trap_name did yest change action to drop"
 			fi
 		done
 	done
@@ -223,7 +223,7 @@ bad_trap_group_test()
 	RET=0
 
 	devlink_trap_group_action_set "made_up_trap_group" "drop"
-	check_fail $? "Did not get an error for non-existing trap group"
+	check_fail $? "Did yest get an error for yesn-existing trap group"
 
 	log_test "Non-existing trap group"
 }
@@ -236,7 +236,7 @@ trap_group_stats_test()
 
 	for group_name in $(devlink_trap_groups_get); do
 		devlink_trap_group_stats_idle_test $group_name
-		check_err $? "Stats of trap group $group_name not idle when netdev down"
+		check_err $? "Stats of trap group $group_name yest idle when netdev down"
 
 		ip link set dev $NETDEV up
 

@@ -68,7 +68,7 @@ static int b1isa_probe(struct pci_dev *pdev)
 
 	card = b1_alloc_card(1);
 	if (!card) {
-		printk(KERN_WARNING "b1isa: no memory.\n");
+		printk(KERN_WARNING "b1isa: yes memory.\n");
 		retval = -ENOMEM;
 		goto err;
 	}
@@ -87,7 +87,7 @@ static int b1isa_probe(struct pci_dev *pdev)
 		goto err_free;
 	}
 	if (b1_irq_table[card->irq & 0xf] == 0) {
-		printk(KERN_WARNING "b1isa: irq %d not valid.\n", card->irq);
+		printk(KERN_WARNING "b1isa: irq %d yest valid.\n", card->irq);
 		retval = -EINVAL;
 		goto err_free;
 	}

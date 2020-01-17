@@ -243,7 +243,7 @@ static int ti_dac_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*ti_dac));
 	if (!indio_dev) {
-		dev_err(dev, "can not allocate iio device\n");
+		dev_err(dev, "can yest allocate iio device\n");
 		return -ENOMEM;
 	}
 
@@ -252,7 +252,7 @@ static int ti_dac_probe(struct spi_device *spi)
 	spi_setup(spi);
 
 	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->info = &ti_dac_info;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -275,7 +275,7 @@ static int ti_dac_probe(struct spi_device *spi)
 
 	ret = regulator_enable(ti_dac->vref);
 	if (ret < 0) {
-		dev_err(dev, "can not enable regulator\n");
+		dev_err(dev, "can yest enable regulator\n");
 		return ret;
 	}
 

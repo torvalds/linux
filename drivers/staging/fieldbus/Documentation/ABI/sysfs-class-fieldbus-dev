@@ -10,7 +10,7 @@ Contact:	Sven Van Asbroeck <TheSven73@gmail.com>
 Description:
 		The type of fieldbus implemented by this device.
 		Possible values:
-			'unknown'
+			'unkyeswn'
 			'profinet'
 
 What:		/sys/class/fieldbus_dev/fieldbus_devX/fieldbus_id

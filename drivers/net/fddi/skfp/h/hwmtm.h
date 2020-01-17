@@ -63,7 +63,7 @@
 #define	FIRST_FRAG	0x10	/* first TxD of the frame */
 #define	LAN_TX		0x20	/* send frame to network if set */
 #define RING_DOWN	0x40	/* error: unable to send, ring down */
-#define OUT_OF_TXD	0x80	/* error: not enough TxDs available */
+#define OUT_OF_TXD	0x80	/* error: yest eyesugh TxDs available */
 
 
 #ifndef NULL
@@ -180,9 +180,9 @@ do {									\
 		printf(fmt "\n", ##__VA_ARGS__);			\
 } while (0)
 #else	/* DEBUG */
-#define DB_RX(lev, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
-#define DB_TX(lev, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
-#define DB_GEN(lev, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
+#define DB_RX(lev, fmt, ...)	yes_printk(fmt "\n", ##__VA_ARGS__)
+#define DB_TX(lev, fmt, ...)	yes_printk(fmt "\n", ##__VA_ARGS__)
+#define DB_GEN(lev, fmt, ...)	yes_printk(fmt "\n", ##__VA_ARGS__)
 #endif	/* DEBUG */
 
 #ifndef	SK_BREAK

@@ -38,11 +38,11 @@ static int icl_nhi_force_power(struct tb_nhi *nhi, bool power)
 
 	/*
 	 * The Thunderbolt host controller is present always in Ice Lake
-	 * but the firmware may not be loaded and running (depending
+	 * but the firmware may yest be loaded and running (depending
 	 * whether there is device connected and so on). Each time the
 	 * controller is used we need to "Force Power" it first and wait
 	 * for the firmware to indicate it is up and running. This "Force
-	 * Power" is really not about actually powering on/off the
+	 * Power" is really yest about actually powering on/off the
 	 * controller so it is accessible even if "Force Power" is off.
 	 *
 	 * The actual power management happens inside shared ACPI power
@@ -114,7 +114,7 @@ static void icl_nhi_set_ltr(struct tb_nhi *nhi)
 
 	pci_read_config_dword(nhi->pdev, VS_CAP_16, &max_ltr);
 	max_ltr &= 0xffff;
-	/* Program the same value for both snoop and no-snoop */
+	/* Program the same value for both syesop and yes-syesop */
 	ltr = max_ltr << 16 | max_ltr;
 	pci_write_config_dword(nhi->pdev, VS_CAP_15, ltr);
 }
@@ -127,7 +127,7 @@ static int icl_nhi_suspend(struct tb_nhi *nhi)
 		return 0;
 
 	/*
-	 * If there is no device connected we need to perform both: a
+	 * If there is yes device connected we need to perform both: a
 	 * handshake through LC mailbox and force power down before
 	 * entering D3.
 	 */
@@ -139,7 +139,7 @@ static int icl_nhi_suspend(struct tb_nhi *nhi)
 	return icl_nhi_force_power(nhi, false);
 }
 
-static int icl_nhi_suspend_noirq(struct tb_nhi *nhi, bool wakeup)
+static int icl_nhi_suspend_yesirq(struct tb_nhi *nhi, bool wakeup)
 {
 	enum icl_lc_mailbox_cmd cmd;
 
@@ -170,8 +170,8 @@ static void icl_nhi_shutdown(struct tb_nhi *nhi)
 
 const struct tb_nhi_ops icl_nhi_ops = {
 	.init = icl_nhi_resume,
-	.suspend_noirq = icl_nhi_suspend_noirq,
-	.resume_noirq = icl_nhi_resume,
+	.suspend_yesirq = icl_nhi_suspend_yesirq,
+	.resume_yesirq = icl_nhi_resume,
 	.runtime_suspend = icl_nhi_suspend,
 	.runtime_resume = icl_nhi_resume,
 	.shutdown = icl_nhi_shutdown,

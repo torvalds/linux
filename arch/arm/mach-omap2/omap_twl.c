@@ -5,7 +5,7 @@
  * Copyright (C) 2010 Texas Instruments Incorporated.
  * Thara Gopinath
  * Copyright (C) 2009 Texas Instruments Incorporated.
- * Nishanth Menon
+ * Nishanth Meyesn
  * Copyright (C) 2009 Nokia Corporation
  * Paul Walmsley
  */
@@ -70,7 +70,7 @@ static unsigned long twl6030_vsel_to_uv(const u8 vsel)
 	if (!vsel)
 		return 0;
 	/*
-	 * There is no specific formula for voltage to vsel
+	 * There is yes specific formula for voltage to vsel
 	 * conversion above 1.3V. There are special hardcoded
 	 * values for voltages above 1.3V. Currently we are
 	 * hardcoding only for 1.35 V which is used for 1GH OPP for
@@ -104,7 +104,7 @@ static u8 twl6030_uv_to_vsel(unsigned long uv)
 	if (!uv)
 		return 0x00;
 	/*
-	 * There is no specific formula for voltage to vsel
+	 * There is yes specific formula for voltage to vsel
 	 * conversion above 1.3V. There are special hardcoded
 	 * values for voltages above 1.3V. Currently we are
 	 * hardcoding only for 1.35 V which is used for 1GH OPP for
@@ -113,7 +113,7 @@ static u8 twl6030_uv_to_vsel(unsigned long uv)
 	if (uv > twl6030_vsel_to_uv(0x39)) {
 		if (uv == 1350000)
 			return 0x3A;
-		pr_err("%s:OUT OF RANGE! non mapped vsel for %ld Vs max %ld\n",
+		pr_err("%s:OUT OF RANGE! yesn mapped vsel for %ld Vs max %ld\n",
 			__func__, uv, twl6030_vsel_to_uv(0x39));
 		return 0x3A;
 	}
@@ -215,7 +215,7 @@ int __init omap4_twl_init(void)
 	struct voltagedomain *voltdm;
 
 	if (!cpu_is_omap44xx() ||
-	    of_find_compatible_node(NULL, NULL, "motorola,cpcap"))
+	    of_find_compatible_yesde(NULL, NULL, "motorola,cpcap"))
 		return -ENODEV;
 
 	voltdm = voltdm_lookup("mpu");

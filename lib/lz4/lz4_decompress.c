@@ -6,9 +6,9 @@
  * modification, are permitted provided that the following conditions are
  * met:
  *	* Redistributions of source code must retain the above copyright
- *	  notice, this list of conditions and the following disclaimer.
+ *	  yestice, this list of conditions and the following disclaimer.
  *	* Redistributions in binary form must reproduce the above
- * copyright notice, this list of conditions and the following disclaimer
+ * copyright yestice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -70,13 +70,13 @@ static FORCE_INLINE int LZ4_decompress_generic(
 	 endCondition_directive endOnInput,
 	 /* full, partial */
 	 earlyEnd_directive partialDecoding,
-	 /* noDict, withPrefix64k, usingExtDict */
+	 /* yesDict, withPrefix64k, usingExtDict */
 	 dict_directive dict,
-	 /* always <= dst, == dst when no prefix */
+	 /* always <= dst, == dst when yes prefix */
 	 const BYTE * const lowPrefix,
 	 /* only if dict == usingExtDict */
 	 const BYTE * const dictStart,
-	 /* note : = 0 if noDict */
+	 /* yeste : = 0 if yesDict */
 	 const size_t dictSize
 	 )
 {
@@ -132,12 +132,12 @@ static FORCE_INLINE int LZ4_decompress_generic(
 
 		/*
 		 * A two-stage shortcut for the most common case:
-		 * 1) If the literal length is 0..14, and there is enough
+		 * 1) If the literal length is 0..14, and there is eyesugh
 		 * space, enter the shortcut and copy 16 bytes on behalf
 		 * of the literals (in the fast mode, only 8 bytes can be
 		 * safely copied this way).
 		 * 2) Further if the match length is 4..18, copy 18 bytes
-		 * in a similar manner; but we ensure that there's enough
+		 * in a similar manner; but we ensure that there's eyesugh
 		 * space in the output for those 18 bytes earlier, upon
 		 * entering the shortcut (in other words, there is a
 		 * combined check for both stages).
@@ -164,7 +164,7 @@ static FORCE_INLINE int LZ4_decompress_generic(
 			match = op - offset;
 			assert(match <= op); /* check overflow */
 
-			/* Do not deal with overlapping matches. */
+			/* Do yest deal with overlapping matches. */
 			if ((length != ML_MASK) &&
 			    (offset >= 8) &&
 			    (dict == withPrefix64k || match >= lowPrefix)) {
@@ -290,7 +290,7 @@ _copy_match:
 
 		/* costs ~1%; silence an msan warning when offset == 0 */
 		/*
-		 * note : when partialDecoding, there is no guarantee that
+		 * yeste : when partialDecoding, there is yes guarantee that
 		 * at least 4 bytes remain available in output buffer
 		 */
 		if (!partialDecoding) {
@@ -369,7 +369,7 @@ _copy_match:
 
 		/*
 		 * partialDecoding :
-		 * may not respect endBlock parsing restrictions
+		 * may yest respect endBlock parsing restrictions
 		 */
 		assert(op <= oend);
 		if (partialDecoding &&
@@ -452,7 +452,7 @@ int LZ4_decompress_safe(const char *source, char *dest,
 	return LZ4_decompress_generic(source, dest,
 				      compressedSize, maxDecompressedSize,
 				      endOnInputSize, decode_full_block,
-				      noDict, (BYTE *)dest, NULL, 0);
+				      yesDict, (BYTE *)dest, NULL, 0);
 }
 
 int LZ4_decompress_safe_partial(const char *src, char *dst,
@@ -461,7 +461,7 @@ int LZ4_decompress_safe_partial(const char *src, char *dst,
 	dstCapacity = min(targetOutputSize, dstCapacity);
 	return LZ4_decompress_generic(src, dst, compressedSize, dstCapacity,
 				      endOnInputSize, partial_decode,
-				      noDict, (BYTE *)dst, NULL, 0);
+				      yesDict, (BYTE *)dst, NULL, 0);
 }
 
 int LZ4_decompress_fast(const char *source, char *dest, int originalSize)
@@ -492,7 +492,7 @@ static int LZ4_decompress_safe_withSmallPrefix(const char *source, char *dest,
 	return LZ4_decompress_generic(source, dest,
 				      compressedSize, maxOutputSize,
 				      endOnInputSize, decode_full_block,
-				      noDict,
+				      yesDict,
 				      (BYTE *)dest - prefixSize, NULL, 0);
 }
 
@@ -554,7 +554,7 @@ int LZ4_setStreamDecode(LZ4_streamDecode_t *LZ4_streamDecode,
 	const char *dictionary, int dictSize)
 {
 	LZ4_streamDecode_t_internal *lz4sd =
-		&LZ4_streamDecode->internal_donotuse;
+		&LZ4_streamDecode->internal_doyestuse;
 
 	lz4sd->prefixSize = (size_t) dictSize;
 	lz4sd->prefixEnd = (const BYTE *) dictionary + dictSize;
@@ -569,7 +569,7 @@ int LZ4_setStreamDecode(LZ4_streamDecode_t *LZ4_streamDecode,
  * in "streaming" mode.
  * Previously decoded blocks must still be available at the memory
  * position where they were decoded.
- * If it's not possible, save the relevant part of
+ * If it's yest possible, save the relevant part of
  * decoded data into a safe buffer,
  * and indicate where it stands using LZ4_setStreamDecode()
  */
@@ -577,11 +577,11 @@ int LZ4_decompress_safe_continue(LZ4_streamDecode_t *LZ4_streamDecode,
 	const char *source, char *dest, int compressedSize, int maxOutputSize)
 {
 	LZ4_streamDecode_t_internal *lz4sd =
-		&LZ4_streamDecode->internal_donotuse;
+		&LZ4_streamDecode->internal_doyestuse;
 	int result;
 
 	if (lz4sd->prefixSize == 0) {
-		/* The first call, no dictionary yet. */
+		/* The first call, yes dictionary yet. */
 		assert(lz4sd->extDictSize == 0);
 		result = LZ4_decompress_safe(source, dest,
 			compressedSize, maxOutputSize);
@@ -610,7 +610,7 @@ int LZ4_decompress_safe_continue(LZ4_streamDecode_t *LZ4_streamDecode,
 	} else {
 		/*
 		 * The buffer wraps around, or they're
-		 * switching to another buffer.
+		 * switching to ayesther buffer.
 		 */
 		lz4sd->extDictSize = lz4sd->prefixSize;
 		lz4sd->externalDict = lz4sd->prefixEnd - lz4sd->extDictSize;
@@ -629,7 +629,7 @@ int LZ4_decompress_safe_continue(LZ4_streamDecode_t *LZ4_streamDecode,
 int LZ4_decompress_fast_continue(LZ4_streamDecode_t *LZ4_streamDecode,
 	const char *source, char *dest, int originalSize)
 {
-	LZ4_streamDecode_t_internal *lz4sd = &LZ4_streamDecode->internal_donotuse;
+	LZ4_streamDecode_t_internal *lz4sd = &LZ4_streamDecode->internal_doyestuse;
 	int result;
 
 	if (lz4sd->prefixSize == 0) {

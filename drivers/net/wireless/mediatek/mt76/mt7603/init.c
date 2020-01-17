@@ -440,7 +440,7 @@ static u32 mt7603_rmw(struct mt76_dev *mdev, u32 offset, u32 mask, u32 val)
 }
 
 static void
-mt7603_regd_notifier(struct wiphy *wiphy,
+mt7603_regd_yestifier(struct wiphy *wiphy,
 		     struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
@@ -565,7 +565,7 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	}
 
 	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
-	wiphy->reg_notifier = mt7603_regd_notifier;
+	wiphy->reg_yestifier = mt7603_regd_yestifier;
 
 	ret = mt76_register_device(&dev->mt76, true, mt7603_rates,
 				   ARRAY_SIZE(mt7603_rates));

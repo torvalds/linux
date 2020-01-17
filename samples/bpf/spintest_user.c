@@ -39,7 +39,7 @@ int main(int ac, char **argv)
 			sym = ksym_search(value);
 			key = next_key;
 			if (!sym) {
-				printf("ksym not found. Is kallsyms loaded?\n");
+				printf("ksym yest found. Is kallsyms loaded?\n");
 				continue;
 			}
 

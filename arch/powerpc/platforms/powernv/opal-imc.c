@@ -45,11 +45,11 @@ static struct dentry *imc_debugfs_create_x64(const char *name, umode_t mode,
 /*
  * export_imc_mode_and_cmd: Create a debugfs interface
  *                     for imc_cmd and imc_mode
- *                     for each node in the system.
+ *                     for each yesde in the system.
  *  imc_mode and imc_cmd can be changed by echo into
  *  this interface.
  */
-static void export_imc_mode_and_cmd(struct device_node *node,
+static void export_imc_mode_and_cmd(struct device_yesde *yesde,
 				    struct imc_pmu *pmu_ptr)
 {
 	static u64 loc, *imc_mode_addr, *imc_cmd_addr;
@@ -62,7 +62,7 @@ static void export_imc_mode_and_cmd(struct device_node *node,
 	if (!imc_debugfs_parent)
 		return;
 
-	if (of_property_read_u32(node, "cb_offset", &cb_offset))
+	if (of_property_read_u32(yesde, "cb_offset", &cb_offset))
 		cb_offset = IMC_CNTL_BLK_OFFSET;
 
 	while (ptr->vbase != NULL) {
@@ -90,7 +90,7 @@ err:
  * imc_get_mem_addr_nest: Function to get nest counter memory region
  * for each chip
  */
-static int imc_get_mem_addr_nest(struct device_node *node,
+static int imc_get_mem_addr_nest(struct device_yesde *yesde,
 				 struct imc_pmu *pmu_ptr,
 				 u32 offset)
 {
@@ -98,7 +98,7 @@ static int imc_get_mem_addr_nest(struct device_node *node,
 	u64 *base_addr_arr, baddr;
 	u32 *chipid_arr;
 
-	nr_chips = of_property_count_u32_elems(node, "chip-id");
+	nr_chips = of_property_count_u32_elems(yesde, "chip-id");
 	if (nr_chips <= 0)
 		return -ENODEV;
 
@@ -112,10 +112,10 @@ static int imc_get_mem_addr_nest(struct device_node *node,
 		return -ENOMEM;
 	}
 
-	if (of_property_read_u32_array(node, "chip-id", chipid_arr, nr_chips))
+	if (of_property_read_u32_array(yesde, "chip-id", chipid_arr, nr_chips))
 		goto error;
 
-	if (of_property_read_u64_array(node, "base-addr", base_addr_arr,
+	if (of_property_read_u64_array(yesde, "base-addr", base_addr_arr,
 								nr_chips))
 		goto error;
 
@@ -146,13 +146,13 @@ error:
  *		    and domain as the inputs.
  * Allocates memory for the struct imc_pmu, sets up its domain, size and offsets
  */
-static struct imc_pmu *imc_pmu_create(struct device_node *parent, int pmu_index, int domain)
+static struct imc_pmu *imc_pmu_create(struct device_yesde *parent, int pmu_index, int domain)
 {
 	int ret = 0;
 	struct imc_pmu *pmu_ptr;
 	u32 offset;
 
-	/* Return for unknown domain */
+	/* Return for unkyeswn domain */
 	if (domain < 0)
 		return NULL;
 
@@ -197,8 +197,8 @@ static void disable_nest_pmu_counters(void)
 	const struct cpumask *l_cpumask;
 
 	get_online_cpus();
-	for_each_node_with_cpus(nid) {
-		l_cpumask = cpumask_of_node(nid);
+	for_each_yesde_with_cpus(nid) {
+		l_cpumask = cpumask_of_yesde(nid);
 		cpu = cpumask_first_and(l_cpumask, cpu_online_mask);
 		if (cpu >= nr_cpu_ids)
 			continue;
@@ -228,11 +228,11 @@ static void disable_core_pmu_counters(void)
 
 int get_max_nest_dev(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	u32 pmu_units = 0, type;
 
-	for_each_compatible_node(node, NULL, IMC_DTB_UNIT_COMPAT) {
-		if (of_property_read_u32(node, "type", &type))
+	for_each_compatible_yesde(yesde, NULL, IMC_DTB_UNIT_COMPAT) {
+		if (of_property_read_u32(yesde, "type", &type))
 			continue;
 
 		if (type == IMC_TYPE_CHIP)
@@ -244,14 +244,14 @@ int get_max_nest_dev(void)
 
 static int opal_imc_counters_probe(struct platform_device *pdev)
 {
-	struct device_node *imc_dev = pdev->dev.of_node;
+	struct device_yesde *imc_dev = pdev->dev.of_yesde;
 	struct imc_pmu *pmu;
 	int pmu_count = 0, domain;
 	bool core_imc_reg = false, thread_imc_reg = false;
 	u32 type;
 
 	/*
-	 * Check whether this is kdump kernel. If yes, force the engines to
+	 * Check whether this is kdump kernel. If no, force the engines to
 	 * stop and return.
 	 */
 	if (is_kdump_kernel()) {
@@ -260,7 +260,7 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	for_each_compatible_node(imc_dev, NULL, IMC_DTB_UNIT_COMPAT) {
+	for_each_compatible_yesde(imc_dev, NULL, IMC_DTB_UNIT_COMPAT) {
 		pmu = NULL;
 		if (of_property_read_u32(imc_dev, "type", &type)) {
 			pr_warn("IMC Device without type property\n");
@@ -282,13 +282,13 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 			 * FIXME. Using trace_imc events to monitor application
 			 * or KVM thread performance can cause a checkstop
 			 * (system crash).
-			 * Disable it for now.
+			 * Disable it for yesw.
 			 */
 			pr_info_once("IMC: disabling trace_imc PMU\n");
 			domain = -1;
 			break;
 		default:
-			pr_warn("IMC Unknown Device type \n");
+			pr_warn("IMC Unkyeswn Device type \n");
 			domain = -1;
 			break;
 		}
@@ -307,7 +307,7 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* If core imc is not registered, unregister thread-imc */
+	/* If core imc is yest registered, unregister thread-imc */
 	if (!core_imc_reg && thread_imc_reg)
 		unregister_thread_imc();
 

@@ -242,7 +242,7 @@ static int telemetry_check_evtid(enum telemetry_unit telem_unit,
 		break;
 
 	default:
-		pr_err("Unknown Telemetry action specified %d\n", action);
+		pr_err("Unkyeswn Telemetry action specified %d\n", action);
 		return -EINVAL;
 	}
 
@@ -942,7 +942,7 @@ static int telemetry_plt_raw_read_eventlog(enum telemetry_unit telem_unit,
 		break;
 
 	default:
-		pr_err("Unknown Telemetry Unit Specified %d\n", telem_unit);
+		pr_err("Unkyeswn Telemetry Unit Specified %d\n", telem_unit);
 		return -EINVAL;
 	}
 
@@ -1028,7 +1028,7 @@ static int telemetry_plt_get_trace_verbosity(enum telemetry_unit telem_unit,
 		break;
 
 	default:
-		pr_err("Unknown Telemetry Unit Specified %d\n", telem_unit);
+		pr_err("Unkyeswn Telemetry Unit Specified %d\n", telem_unit);
 		ret = -EINVAL;
 		break;
 	}
@@ -1092,7 +1092,7 @@ static int telemetry_plt_set_trace_verbosity(enum telemetry_unit telem_unit,
 		break;
 
 	default:
-		pr_err("Unknown Telemetry Unit Specified %d\n", telem_unit);
+		pr_err("Unkyeswn Telemetry Unit Specified %d\n", telem_unit);
 		ret = -EINVAL;
 		break;
 	}
@@ -1156,7 +1156,7 @@ static int telemetry_pltdrv_probe(struct platform_device *pdev)
 	telm_conf->ioss_config.ssram_base_addr = res1->start;
 	telm_conf->ioss_config.ssram_size = size;
 
-	telm_conf->pss_config.regmap = ioremap_nocache(
+	telm_conf->pss_config.regmap = ioremap_yescache(
 					telm_conf->pss_config.ssram_base_addr,
 					telm_conf->pss_config.ssram_size);
 	if (!telm_conf->pss_config.regmap) {
@@ -1164,7 +1164,7 @@ static int telemetry_pltdrv_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	telm_conf->ioss_config.regmap = ioremap_nocache(
+	telm_conf->ioss_config.regmap = ioremap_yescache(
 				telm_conf->ioss_config.ssram_base_addr,
 				telm_conf->ioss_config.ssram_size);
 	if (!telm_conf->ioss_config.regmap) {

@@ -101,7 +101,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 	 */
 	hdr = (struct ieee80211_hdr *)skb->data;
 	if (ieee80211_is_ctl(hdr->frame_control)) {
-		/* TODO: These control frames are not currently sent by
+		/* TODO: These control frames are yest currently sent by
 		 * mac80211, but should they be implemented, this function
 		 * needs to be updated to support duration field calculation.
 		 *
@@ -122,7 +122,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 	if (0 /* FIX: data/mgmt during CFP */)
 		return cpu_to_le16(32768);
 
-	if (group_addr) /* Group address as the destination - no ACK */
+	if (group_addr) /* Group address as the destination - yes ACK */
 		return 0;
 
 	/* Individual destination address:
@@ -130,7 +130,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 	 * CTS and ACK frames shall be transmitted using the highest rate in
 	 * basic rate set that is less than or equal to the rate of the
 	 * immediately previous frame and that is using the same modulation
-	 * (CCK or OFDM). If no basic rate set matches with these requirements,
+	 * (CCK or OFDM). If yes basic rate set matches with these requirements,
 	 * the highest mandatory rate of the PHY that is less than or equal to
 	 * the rate of the previous frame is used.
 	 * Mandatory rates for IEEE 802.11g PHY: 1, 2, 5.5, 11, 6, 12, 24 Mbps
@@ -167,7 +167,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 				mrate = r->bitrate;
 			break;
 		case NL80211_BAND_60GHZ:
-			/* TODO, for now fall through */
+			/* TODO, for yesw fall through */
 		case NUM_NL80211_BANDS:
 			WARN_ON(1);
 			break;
@@ -206,7 +206,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 }
 
 /* tx handlers */
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result debug_yesinline
 ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_local *local = tx->local;
@@ -250,7 +250,7 @@ ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 	 * u-apsd enabled and the frame is in voip class. This effectively
 	 * means that even if all access categories have u-apsd enabled, in
 	 * practise u-apsd is only used with the voip ac. This is a
-	 * workaround for the case when received voip class packets do not
+	 * workaround for the case when received voip class packets do yest
 	 * have correct qos tag for some reason, due the network or the
 	 * peer application.
 	 *
@@ -273,7 +273,7 @@ ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 				     &local->dynamic_ps_disable_work);
 	}
 
-	/* Don't restart the timer if we're not disassociated */
+	/* Don't restart the timer if we're yest disassociated */
 	if (!ifmgd->associated)
 		return TX_CONTINUE;
 
@@ -283,7 +283,7 @@ ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result debug_yesinline
 ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 {
 
@@ -299,11 +299,11 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 	    !ieee80211_is_probe_req(hdr->frame_control) &&
 	    !ieee80211_is_nullfunc(hdr->frame_control))
 		/*
-		 * When software scanning only nullfunc frames (to notify
+		 * When software scanning only nullfunc frames (to yestify
 		 * the sleep state to the AP) and probe requests (for the
-		 * active scan) are allowed, all other frames should not be
-		 * sent and we should not get here, but if we do
-		 * nonetheless, drop them to avoid sending them
+		 * active scan) are allowed, all other frames should yest be
+		 * sent and we should yest get here, but if we do
+		 * yesnetheless, drop them to avoid sending them
 		 * off-channel. See the link below and
 		 * ieee80211_start_scan() for more.
 		 *
@@ -328,16 +328,16 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 			     ieee80211_is_data(hdr->frame_control))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 			sdata_info(tx->sdata,
-				   "dropped data frame to not associated station %pM\n",
+				   "dropped data frame to yest associated station %pM\n",
 				   hdr->addr1);
 #endif
-			I802_DEBUG_INC(tx->local->tx_handlers_drop_not_assoc);
+			I802_DEBUG_INC(tx->local->tx_handlers_drop_yest_assoc);
 			return TX_DROP;
 		}
 	} else if (unlikely(ieee80211_is_data(hdr->frame_control) &&
 			    ieee80211_vif_get_num_mcast_if(tx->sdata) == 0)) {
 		/*
-		 * No associated STAs - no need to send multicast
+		 * No associated STAs - yes need to send multicast
 		 * frames.
 		 */
 		return TX_DROP;
@@ -347,8 +347,8 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 }
 
 /* This function is called whenever the AP is about to exceed the maximum limit
- * of buffered frames for power saving STAs. This situation should not really
- * happen often during normal operation, so dropping the oldest buffered packet
+ * of buffered frames for power saving STAs. This situation should yest really
+ * happen often during yesrmal operation, so dropping the oldest buffered packet
  * from each queue should be OK to make some room for new frames. */
 static void purge_old_ps_buffers(struct ieee80211_local *local)
 {
@@ -426,7 +426,7 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 	}
 
 
-	/* no buffering for ordered frames */
+	/* yes buffering for ordered frames */
 	if (ieee80211_has_order(hdr->frame_control))
 		return TX_CONTINUE;
 
@@ -436,7 +436,7 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 	if (ieee80211_hw_check(&tx->local->hw, QUEUE_CONTROL))
 		info->hw_queue = tx->sdata->vif.cab_queue;
 
-	/* no stations in PS mode and no buffered packets */
+	/* yes stations in PS mode and yes buffered packets */
 	if (!atomic_read(&ps->num_sta_ps) && skb_queue_empty(&ps->bc_buf))
 		return TX_CONTINUE;
 
@@ -556,7 +556,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result debug_yesinline
 ieee80211_tx_h_ps_buf(struct ieee80211_tx_data *tx)
 {
 	if (unlikely(tx->flags & IEEE80211_TX_PS_BUFFERED))
@@ -568,13 +568,13 @@ ieee80211_tx_h_ps_buf(struct ieee80211_tx_data *tx)
 		return ieee80211_tx_h_multicast_ps_buf(tx);
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result debug_yesinline
 ieee80211_tx_h_check_control_port_protocol(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 
 	if (unlikely(tx->sdata->control_port_protocol == tx->skb->protocol)) {
-		if (tx->sdata->control_port_no_encrypt)
+		if (tx->sdata->control_port_yes_encrypt)
 			info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 		info->control.flags |= IEEE80211_TX_CTRL_PORT_CTRL_PROTO;
 		info->flags |= IEEE80211_TX_CTL_USE_MINRATE;
@@ -583,7 +583,7 @@ ieee80211_tx_h_check_control_port_protocol(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result debug_yesinline
 ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_key *key;
@@ -659,7 +659,7 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result debug_yesinline
 ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
@@ -703,8 +703,8 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	info->control.use_cts_prot = tx->sdata->vif.bss_conf.use_cts_prot;
 
 	/*
-	 * Use short preamble if the BSS can handle it, but not for
-	 * management frames unless we know the receiver can handle
+	 * Use short preamble if the BSS can handle it, but yest for
+	 * management frames unless we kyesw the receiver can handle
 	 * that -- the management frame might be to a station that
 	 * just wants a probe response.
 	 */
@@ -723,12 +723,12 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 		assoc = test_sta_flag(tx->sta, WLAN_STA_ASSOC);
 
 	/*
-	 * Lets not bother rate control if we're associated and cannot
-	 * talk to the sta. This should not happen.
+	 * Lets yest bother rate control if we're associated and canyest
+	 * talk to the sta. This should yest happen.
 	 */
 	if (WARN(test_bit(SCAN_SW_SCANNING, &tx->local->scanning) && assoc &&
 		 !rate_usable_index_exists(sband, &tx->sta->sta),
-		 "%s: Dropped data frame as no usable bitrate found while "
+		 "%s: Dropped data frame as yes usable bitrate found while "
 		 "scanning and associated. Target station: "
 		 "%pM on %d GHz band\n",
 		 tx->sdata->name, hdr->addr1,
@@ -736,7 +736,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 		return TX_DROP;
 
 	/*
-	 * If we're associated with the sta at this point we know we can at
+	 * If we're associated with the sta at this point we kyesw we can at
 	 * least send the frame at the lowest bit rate.
 	 */
 	rate_control_get_rate(tx->sdata, tx->sta, &txrc);
@@ -794,7 +794,7 @@ static __le16 ieee80211_tx_next_seq(struct sta_info *sta, int tid)
 	return ret;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result debug_yesinline
 ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
@@ -803,8 +803,8 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 
 	/*
 	 * Packet injection may want to control the sequence
-	 * number, if we have no matching interface then we
-	 * neither assign one ourselves nor ask the driver to.
+	 * number, if we have yes matching interface then we
+	 * neither assign one ourselves yesr ask the driver to.
 	 */
 	if (unlikely(info->control.vif->type == NL80211_IFTYPE_MONITOR))
 		return TX_CONTINUE;
@@ -820,7 +820,7 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 
 	/*
 	 * Anything but QoS data that has a sequence number field
-	 * (is long enough) gets a sequence number from the global
+	 * (is long eyesugh) gets a sequence number from the global
 	 * counter.  QoS data frames with a multicast destination
 	 * also use the global counter (802.11-2012 9.3.2.10).
 	 */
@@ -841,7 +841,7 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 	/*
 	 * This should be true for injected/management frames only, for
 	 * management frames we have set the IEEE80211_TX_CTL_ASSIGN_SEQ
-	 * above since they are not QoS-data frames.
+	 * above since they are yest QoS-data frames.
 	 */
 	if (!tx->sta)
 		return TX_CONTINUE;
@@ -915,7 +915,7 @@ static int ieee80211_fragment(struct ieee80211_tx_data *tx,
 	return 0;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result debug_yesinline
 ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb = tx->skb;
@@ -925,7 +925,7 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	int hdrlen;
 	int fragnum;
 
-	/* no matter what happens, tx->skb moves to tx->skbs */
+	/* yes matter what happens, tx->skb moves to tx->skbs */
 	__skb_queue_tail(&tx->skbs, skb);
 	tx->skb = NULL;
 
@@ -990,7 +990,7 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result debug_yesinline
 ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb;
@@ -1009,7 +1009,7 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result debug_yesinline
 ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 {
 	if (!tx->key)
@@ -1044,7 +1044,7 @@ ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 	return TX_DROP;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result debug_yesinline
 ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb;
@@ -1055,7 +1055,7 @@ ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
 	skb_queue_walk(&tx->skbs, skb) {
 		hdr = (void *) skb->data;
 		if (unlikely(ieee80211_is_pspoll(hdr->frame_control)))
-			break; /* must not overwrite AID */
+			break; /* must yest overwrite AID */
 		if (!skb_queue_is_last(&tx->skbs, skb)) {
 			struct sk_buff *next = skb_queue_next(&tx->skbs, skb);
 			next_len = next->len;
@@ -1087,16 +1087,16 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 		reset_agg_timer = true;
 	} else if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state)) {
 		/*
-		 * nothing -- this aggregation session is being started
+		 * yesthing -- this aggregation session is being started
 		 * but that might still fail with the driver
 		 */
 	} else if (!tx->sta->sta.txq[tid]) {
 		spin_lock(&tx->sta->lock);
 		/*
-		 * Need to re-check now, because we may get here
+		 * Need to re-check yesw, because we may get here
 		 *
 		 *  1) in the window during which the setup is actually
-		 *     already done, but not marked yet because not all
+		 *     already done, but yest marked yet because yest all
 		 *     packets are spliced over to the driver pending
 		 *     queue yet -- if this happened we acquire the lock
 		 *     either before or after the splice happens, but
@@ -1106,14 +1106,14 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 		 *     was cleared due to the teardown but the pointer
 		 *     hasn't been assigned NULL yet (or we loaded it
 		 *     before it was assigned) -- in this case it may
-		 *     now be NULL which means we should just let the
+		 *     yesw be NULL which means we should just let the
 		 *     packet pass through because splicing the frames
 		 *     back is already done.
 		 */
 		tid_tx = rcu_dereference_protected_tid_tx(tx->sta, tid);
 
 		if (!tid_tx) {
-			/* do nothing, let packet pass through */
+			/* do yesthing, let packet pass through */
 		} else if (test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state)) {
 			info->flags |= IEEE80211_TX_CTL_AMPDU;
 			reset_agg_timer = true;
@@ -1147,8 +1147,8 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 
 /*
  * initialises @tx
- * pass %NULL for the station if unknown, a valid pointer if known
- * or an ERR_PTR() if the station is known not to exist
+ * pass %NULL for the station if unkyeswn, a valid pointer if kyeswn
+ * or an ERR_PTR() if the station is kyeswn yest to exist
  */
 static ieee80211_tx_result
 ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
@@ -1169,7 +1169,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	/*
 	 * If this flag is set to true anywhere, and we get here,
 	 * we are doing the needed processing, so remove the flag
-	 * now.
+	 * yesw.
 	 */
 	info->flags &= ~IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 
@@ -1748,7 +1748,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 }
 
 /*
- * Invoke TX handlers, return 0 on success and non-zero if the
+ * Invoke TX handlers, return 0 on success and yesn-zero if the
  * frame was dropped or queued.
  *
  * The handlers are split into an early and late part. The latter is everything
@@ -2025,8 +2025,8 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 	bool rate_found = false;
 	u8 rate_retries = 0;
 	u16 rate_flags = 0;
-	u8 mcs_known, mcs_flags, mcs_bw;
-	u16 vht_known;
+	u8 mcs_kyeswn, mcs_flags, mcs_bw;
+	u16 vht_kyeswn;
 	u8 vht_mcs = 0, vht_nss = 0;
 	int i;
 
@@ -2035,7 +2035,7 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 
 	/*
 	 * for every radiotap entry that is present
-	 * (ieee80211_radiotap_iterator_next returns -ENOENT when no more
+	 * (ieee80211_radiotap_iterator_next returns -ENOENT when yes more
 	 * entries present, or -EINVAL on error)
 	 */
 
@@ -2049,7 +2049,7 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 		switch (iterator.this_arg_index) {
 		/*
 		 * You must take care when dereferencing iterator.this_arg
-		 * for multibyte types... the pointer is not aligned.  Use
+		 * for multibyte types... the pointer is yest aligned.  Use
 		 * get_unaligned((type *)iterator.this_arg) to dereference
 		 * iterator.this_arg for type "type" safely on all arches.
 		*/
@@ -2090,35 +2090,35 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 			break;
 
 		case IEEE80211_RADIOTAP_MCS:
-			mcs_known = iterator.this_arg[0];
+			mcs_kyeswn = iterator.this_arg[0];
 			mcs_flags = iterator.this_arg[1];
-			if (!(mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_MCS))
+			if (!(mcs_kyeswn & IEEE80211_RADIOTAP_MCS_HAVE_MCS))
 				break;
 
 			rate_found = true;
 			rate = iterator.this_arg[2];
 			rate_flags = IEEE80211_TX_RC_MCS;
 
-			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_GI &&
+			if (mcs_kyeswn & IEEE80211_RADIOTAP_MCS_HAVE_GI &&
 			    mcs_flags & IEEE80211_RADIOTAP_MCS_SGI)
 				rate_flags |= IEEE80211_TX_RC_SHORT_GI;
 
 			mcs_bw = mcs_flags & IEEE80211_RADIOTAP_MCS_BW_MASK;
-			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_BW &&
+			if (mcs_kyeswn & IEEE80211_RADIOTAP_MCS_HAVE_BW &&
 			    mcs_bw == IEEE80211_RADIOTAP_MCS_BW_40)
 				rate_flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
 			break;
 
 		case IEEE80211_RADIOTAP_VHT:
-			vht_known = get_unaligned_le16(iterator.this_arg);
+			vht_kyeswn = get_unaligned_le16(iterator.this_arg);
 			rate_found = true;
 
 			rate_flags = IEEE80211_TX_RC_VHT_MCS;
-			if ((vht_known & IEEE80211_RADIOTAP_VHT_KNOWN_GI) &&
+			if ((vht_kyeswn & IEEE80211_RADIOTAP_VHT_KNOWN_GI) &&
 			    (iterator.this_arg[2] &
 			     IEEE80211_RADIOTAP_VHT_FLAG_SGI))
 				rate_flags |= IEEE80211_TX_RC_SHORT_GI;
-			if (vht_known &
+			if (vht_kyeswn &
 			    IEEE80211_RADIOTAP_VHT_KNOWN_BANDWIDTH) {
 				if (iterator.this_arg[3] == 1)
 					rate_flags |=
@@ -2205,7 +2205,7 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	u16 len_rthdr;
 	int hdrlen;
 
-	/* check for not even having the fixed radiotap header part */
+	/* check for yest even having the fixed radiotap header part */
 	if (unlikely(skb->len < sizeof(struct ieee80211_radiotap_header)))
 		goto fail; /* too short to be possibly valid */
 
@@ -2216,20 +2216,20 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	/* then there must be a radiotap header with a length we can use */
 	len_rthdr = ieee80211_get_radiotap_len(skb->data);
 
-	/* does the skb contain enough to deliver on the alleged length? */
+	/* does the skb contain eyesugh to deliver on the alleged length? */
 	if (unlikely(skb->len < len_rthdr))
 		goto fail; /* skb too short for claimed rt header extent */
 
 	/*
 	 * fix up the pointers accounting for the radiotap
 	 * header still being in there.  We are being given
-	 * a precooked IEEE80211 header so no need for
-	 * normal processing
+	 * a precooked IEEE80211 header so yes need for
+	 * yesrmal processing
 	 */
 	skb_set_mac_header(skb, len_rthdr);
 	/*
 	 * these are just fixed to the end of the rt area since we
-	 * don't have any better information and at this point, nobody cares
+	 * don't have any better information and at this point, yesbody cares
 	 */
 	skb_set_network_header(skb, len_rthdr);
 	skb_set_transport_header(skb, len_rthdr);
@@ -2274,9 +2274,9 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 
 	/*
 	 * We process outgoing injected frames that have a local address
-	 * we handle as though they are non-injected frames.
+	 * we handle as though they are yesn-injected frames.
 	 * This code here isn't entirely correct, the local MAC address
-	 * isn't always enough to find the interface to use; for proper
+	 * isn't always eyesugh to find the interface to use; for proper
 	 * VLAN/WDS support we will need a different mechanism (which
 	 * likely isn't going to be monitor interfaces).
 	 *
@@ -2314,13 +2314,13 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 		goto fail_rcu;
 
 	/*
-	 * Frame injection is not allowed if beaconing is not allowed
-	 * or if we need radar detection. Beaconing is usually not allowed when
-	 * the mode or operation (Adhoc, AP, Mesh) does not support DFS.
+	 * Frame injection is yest allowed if beaconing is yest allowed
+	 * or if we need radar detection. Beaconing is usually yest allowed when
+	 * the mode or operation (Adhoc, AP, Mesh) does yest support DFS.
 	 * Passive scan is also used in world regulatory domains where
-	 * your country is not known and as such it should be treated as
+	 * your country is yest kyeswn and as such it should be treated as
 	 * NO TX unless the channel is explicitly allowed in which case
-	 * your current regulatory domain would not have the passive scan
+	 * your current regulatory domain would yest have the passive scan
 	 * flag.
 	 *
 	 * Since AP mode uses monitor interfaces to inject/TX management
@@ -2592,7 +2592,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 
 		/*
 		 * Use address extension if it is a packet from
-		 * another interface or if we know the destination
+		 * ayesther interface or if we kyesw the destination
 		 * is being proxied by a portal (i.e. portal address
 		 * differs from proxied address)
 		 */
@@ -2604,9 +2604,9 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 							       NULL, NULL);
 		} else {
 			/* DS -> MBSS (802.11-2012 13.11.3.3).
-			 * For unicast with unknown forwarding information,
+			 * For unicast with unkyeswn forwarding information,
 			 * destination might be in the MBSS or if that fails
-			 * forwarded to another mesh gate. In either case
+			 * forwarded to ayesther mesh gate. In either case
 			 * resolution will be handled in ieee80211_xmit(), so
 			 * leave the original DA. This also works for mcast */
 			const u8 *mesh_da = skb->data;
@@ -2795,12 +2795,12 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	 * So we need to modify the skb header and hence need a copy of
 	 * that. The head_need variable above doesn't, so far, include
 	 * the needed header space that we don't need right away. If we
-	 * can, then we don't reallocate right now but only after the
+	 * can, then we don't reallocate right yesw but only after the
 	 * frame arrives at the master device (if it does...)
 	 *
-	 * If we cannot, however, then we will reallocate to include all
+	 * If we canyest, however, then we will reallocate to include all
 	 * the ever needed space. Also, if we need to reallocate it anyway,
-	 * make it big enough for everything we may ever need.
+	 * make it big eyesugh for everything we may ever need.
 	 */
 
 	if (head_need > 0 || skb_cloned(skb)) {
@@ -2828,8 +2828,8 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 		qos_control = skb_push(skb, 2);
 		memcpy(skb_push(skb, hdrlen - 2), &hdr, hdrlen - 2);
 		/*
-		 * Maybe we could actually set some fields here, for now just
-		 * initialise to zero to indicate no special operation.
+		 * Maybe we could actually set some fields here, for yesw just
+		 * initialise to zero to indicate yes special operation.
 		 */
 		*qos_control = 0;
 	} else
@@ -2858,7 +2858,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
  * them out of band. ieee80211_check_fast_xmit() implements the out-of-band
  * checks that are needed to get the sta->fast_tx pointer assigned, after which
  * much less work can be done per packet. For example, fragmentation must be
- * disabled or the fast_tx pointer will not be set. All the conditions are seen
+ * disabled or the fast_tx pointer will yest be set. All the conditions are seen
  * in the code here.
  *
  * Once assigned, the fast_tx data structure also caches the per-packet 802.11
@@ -2867,7 +2867,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
  * The most difficult part of this is that when any of these assumptions
  * change, an external trigger (i.e. a call to ieee80211_clear_fast_xmit(),
  * ieee80211_check_fast_xmit() or friends) is required to reset the data,
- * since the per-packet code no longer checks the conditions. This is reflected
+ * since the per-packet code yes longer checks the conditions. This is reflected
  * by the calls to these functions throughout the rest of the code, and must be
  * maintained if any of the TX path checks change.
  */
@@ -2888,10 +2888,10 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 	 * invocations winning data access races to, e.g., the key pointer that
 	 * is used.
 	 * Without it, the invocation of this function right after the key
-	 * pointer changes wouldn't be sufficient, as another CPU could access
+	 * pointer changes wouldn't be sufficient, as ayesther CPU could access
 	 * the pointer, then stall, and then do the cache update after the CPU
 	 * that invalidated the key.
-	 * With the locking, such scenarios cannot happen as the check for the
+	 * With the locking, such scenarios canyest happen as the check for the
 	 * key and the fast-tx assignment are done atomically, so the CPU that
 	 * modifies the key will either wait or other one will see the key
 	 * cleared/changed already.
@@ -2911,7 +2911,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 	    test_sta_flag(sta, WLAN_STA_CLEAR_PS_FILT))
 		goto out;
 
-	if (sdata->noack_map)
+	if (sdata->yesack_map)
 		goto out;
 
 	/* fast-xmit doesn't handle fragmentation at all */
@@ -2949,7 +2949,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 		}
 
 		if (sdata->u.mgd.use_4addr) {
-			/* non-regular ethertype cannot use the fastpath */
+			/* yesn-regular ethertype canyest use the fastpath */
 			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS |
 					  IEEE80211_FCTL_TODS);
 			/* RA TA DA SA */
@@ -2989,7 +2989,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 		build.hdr_len = 24;
 		break;
 	default:
-		/* not handled on fast-xmit */
+		/* yest handled on fast-xmit */
 		goto out;
 	}
 
@@ -2998,9 +2998,9 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 		fc |= cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
 	}
 
-	/* We store the key here so there's no point in using rcu_dereference()
+	/* We store the key here so there's yes point in using rcu_dereference()
 	 * but that's fine because the code that changes the pointers will call
-	 * this function after doing so. For a single CPU that would be enough,
+	 * this function after doing so. For a single CPU that would be eyesugh,
 	 * for multiple see the comment above.
 	 */
 	build.key = rcu_access_pointer(sta->ptk[sta->ptk_idx]);
@@ -3039,7 +3039,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 				build.hdr_len += IEEE80211_GCMP_HDR_LEN;
 			break;
 		case WLAN_CIPHER_SUITE_TKIP:
-			/* cannot handle MMIC or IV generation in xmit-fast */
+			/* canyest handle MMIC or IV generation in xmit-fast */
 			if (mmic || gen_iv)
 				goto out;
 			if (iv_spc)
@@ -3047,7 +3047,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 			break;
 		case WLAN_CIPHER_SUITE_WEP40:
 		case WLAN_CIPHER_SUITE_WEP104:
-			/* cannot handle IV generation in fast-xmit */
+			/* canyest handle IV generation in fast-xmit */
 			if (gen_iv)
 				goto out;
 			if (iv_spc)
@@ -3062,7 +3062,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 			     build.key->conf.cipher);
 			goto out;
 		default:
-			/* we don't know how to generate IVs for this at all */
+			/* we don't kyesw how to generate IVs for this at all */
 			if (WARN_ON(gen_iv))
 				goto out;
 			/* pure hardware keys are OK, of course */
@@ -3091,7 +3091,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 		goto out;
 
  out:
-	/* we might have raced against another call to this function */
+	/* we might have raced against ayesther call to this function */
 	old = rcu_dereference_protected(sta->fast_tx,
 					lockdep_is_held(&sta->lock));
 	rcu_assign_pointer(sta->fast_tx, fast_tx);
@@ -3316,7 +3316,7 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 	 * padding to the next one, that's being added. Note that head->len
 	 * is the length of the full A-MSDU, but that works since each time
 	 * we add a new subframe we pad out the previous one to a multiple
-	 * of 4 and thus it no longer matters in the next round.
+	 * of 4 and thus it yes longer matters in the next round.
 	 */
 	hdrlen = fast_tx->hdr_len - sizeof(rfc1042_header);
 	if ((head->len - hdrlen) & 3)
@@ -3390,7 +3390,7 @@ static void ieee80211_xmit_fast_finish(struct ieee80211_sub_if_data *sdata,
 
 	info->hw_queue = sdata->vif.hw_queue[skb_get_queue_mapping(skb)];
 
-	/* statistics normally done by ieee80211_tx_h_stats (but that
+	/* statistics yesrmally done by ieee80211_tx_h_stats (but that
 	 * has to consider fragmentation, so is more complex)
 	 */
 	sta->tx_stats.bytes[skb_get_queue_mapping(skb)] += skb->len;
@@ -3458,7 +3458,7 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	/* after this point (skb is modified) we cannot return false */
+	/* after this point (skb is modified) we canyest return false */
 
 	if (skb_shared(skb)) {
 		struct sk_buff *tmp_skb = skb;
@@ -3474,8 +3474,8 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	    ieee80211_amsdu_aggregate(sdata, sta, fast_tx, skb))
 		return true;
 
-	/* will not be crypto-handled beyond what we do here, so use false
-	 * as the may-encrypt argument for the resize to not account for
+	/* will yest be crypto-handled beyond what we do here, so use false
+	 * as the may-encrypt argument for the resize to yest account for
 	 * more room than we already have in 'extra_head'
 	 */
 	if (unlikely(ieee80211_skb_resize(sdata, skb,
@@ -3931,14 +3931,14 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 			skb = segs;
 		}
 	} else {
-		/* we cannot process non-linear frames on this path */
+		/* we canyest process yesn-linear frames on this path */
 		if (skb_linearize(skb)) {
 			kfree_skb(skb);
 			goto out;
 		}
 
 		/* the frame could be fragmented, software-encrypted, and other
-		 * things so we cannot really handle checksum offload with it -
+		 * things so we canyest really handle checksum offload with it -
 		 * fix it up in software before we handle anything else.
 		 */
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -4048,7 +4048,7 @@ ieee80211_convert_to_unicast(struct sk_buff *skb, struct net_device *dev,
 			/* AP-VLAN mismatch */
 			continue;
 		if (unlikely(ether_addr_equal(eth->h_source, sta->sta.addr)))
-			/* do not send back to source */
+			/* do yest send back to source */
 			continue;
 		if (!first) {
 			first = sta;
@@ -4069,7 +4069,7 @@ ieee80211_convert_to_unicast(struct sk_buff *skb, struct net_device *dev,
 			goto multicast;
 		__skb_queue_tail(queue, skb);
 	} else {
-		/* no STA connected, drop */
+		/* yes STA connected, drop */
 		kfree_skb(skb);
 		skb = NULL;
 	}
@@ -4145,7 +4145,7 @@ out:
 }
 
 /*
- * ieee80211_clear_tx_pending may not be called in a context where
+ * ieee80211_clear_tx_pending may yest be called in a context where
  * it is possible that it packets could come in again.
  */
 void ieee80211_clear_tx_pending(struct ieee80211_local *local)
@@ -4215,7 +4215,7 @@ void ieee80211_tx_pending(unsigned long data)
 	for (i = 0; i < local->hw.queues; i++) {
 		/*
 		 * If queue is stopped by something other than due to pending
-		 * frames, or we have no pending frames, proceed to next queue.
+		 * frames, or we have yes pending frames, proceed to next queue.
 		 */
 		if (local->queue_stop_reasons[i] ||
 		    skb_queue_empty(&local->pending[i]))
@@ -4609,7 +4609,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 			if (!is_template)
 				/* TODO: For mesh csa_counter is in TU, so
 				 * decrementing it by one isn't correct, but
-				 * for now we leave it consistent with overall
+				 * for yesw we leave it consistent with overall
 				 * mac80211's behavior.
 				 */
 				__ieee80211_csa_update_counter(beacon);
@@ -5017,7 +5017,7 @@ int ieee80211_reserve_tid(struct ieee80211_sta *pubsta, u8 tid)
 
 	lockdep_assert_held(&local->sta_mtx);
 
-	/* only some cases are supported right now */
+	/* only some cases are supported right yesw */
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_AP:
@@ -5078,7 +5078,7 @@ void ieee80211_unreserve_tid(struct ieee80211_sta *pubsta, u8 tid)
 
 	lockdep_assert_held(&sdata->local->sta_mtx);
 
-	/* only some cases are supported right now */
+	/* only some cases are supported right yesw */
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_AP:
@@ -5113,7 +5113,7 @@ void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 	/*
 	 * The other path calling ieee80211_xmit is from the tasklet,
 	 * and while we can handle concurrent transmissions locking
-	 * requirements are that we do not come into tx with bhs on.
+	 * requirements are that we do yest come into tx with bhs on.
 	 */
 	local_bh_disable();
 	IEEE80211_SKB_CB(skb)->band = band;

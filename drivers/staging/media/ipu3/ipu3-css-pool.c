@@ -83,7 +83,7 @@ void imgu_css_pool_put(struct imgu_css_pool *pool)
  * @n: the distance to the last index.
  *
  * Returns:
- *  The nth entry from last or null map to indicate no frame stored.
+ *  The nth entry from last or null map to indicate yes frame stored.
  */
 const struct imgu_css_map *
 imgu_css_pool_last(struct imgu_css_pool *pool, unsigned int n)

@@ -235,7 +235,7 @@ static int sd_config_video(struct gspca_dev *gspca_dev,
 	gspca_dev->xfer_ep = 0x81;
 
 #if 0
-	/* Setting those values is not needed for video stream */
+	/* Setting those values is yest needed for video stream */
 	cam->npkt = 15;
 	gspca_dev->pkt_size = 960 * 2;
 #endif
@@ -407,7 +407,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, u8 *__data, int len)
 		gspca_frame_add(gspca_dev, LAST_PACKET, data, datalen);
 
 	else
-		pr_warn("Packet type not recognized...\n");
+		pr_warn("Packet type yest recognized...\n");
 }
 
 /* sub-driver description */

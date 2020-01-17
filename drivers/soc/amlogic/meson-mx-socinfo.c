@@ -29,11 +29,11 @@ static const char *meson_mx_socinfo_revision(unsigned int major_ver,
 					     unsigned int misc_ver,
 					     unsigned int metal_rev)
 {
-	unsigned int minor_ver;
+	unsigned int miyesr_ver;
 
 	switch (major_ver) {
 	case MESON_SOCINFO_MAJOR_VER_MESON6:
-		minor_ver = 0xa;
+		miyesr_ver = 0xa;
 		break;
 
 	case MESON_SOCINFO_MAJOR_VER_MESON8:
@@ -41,30 +41,30 @@ static const char *meson_mx_socinfo_revision(unsigned int major_ver,
 			major_ver = 0x1d;
 
 		if (metal_rev == 0x11111111 || metal_rev == 0x11111112)
-			minor_ver = 0xa;
+			miyesr_ver = 0xa;
 		else if (metal_rev == 0x11111113)
-			minor_ver = 0xb;
+			miyesr_ver = 0xb;
 		else if (metal_rev == 0x11111133)
-			minor_ver = 0xc;
+			miyesr_ver = 0xc;
 		else
-			minor_ver = 0xd;
+			miyesr_ver = 0xd;
 
 		break;
 
 	case MESON_SOCINFO_MAJOR_VER_MESON8B:
 		if (metal_rev == 0x11111111)
-			minor_ver = 0xa;
+			miyesr_ver = 0xa;
 		else
-			minor_ver = 0xb;
+			miyesr_ver = 0xb;
 
 		break;
 
 	default:
-		minor_ver = 0x0;
+		miyesr_ver = 0x0;
 		break;
 	}
 
-	return kasprintf(GFP_KERNEL, "Rev%X (%x - 0:%X)", minor_ver, major_ver,
+	return kasprintf(GFP_KERNEL, "Rev%X (%x - 0:%X)", miyesr_ver, major_ver,
 			 misc_ver);
 }
 
@@ -91,7 +91,7 @@ static const char *meson_mx_socinfo_soc_id(unsigned int major_ver,
 		break;
 
 	default:
-		soc_id = "Unknown";
+		soc_id = "Unkyeswn";
 		break;
 	}
 
@@ -108,7 +108,7 @@ static int __init meson_mx_socinfo_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
 	struct soc_device *soc_dev;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct regmap *assist_regmap, *bootrom_regmap, *analog_top_regmap;
 	unsigned int major_ver, misc_ver, metal_rev = 0;
 	int ret;
@@ -123,9 +123,9 @@ static int __init meson_mx_socinfo_init(void)
 	if (IS_ERR(bootrom_regmap))
 		return PTR_ERR(bootrom_regmap);
 
-	np = of_find_matching_node(NULL, meson_mx_socinfo_analog_top_ids);
+	np = of_find_matching_yesde(NULL, meson_mx_socinfo_analog_top_ids);
 	if (np) {
-		analog_top_regmap = syscon_node_to_regmap(np);
+		analog_top_regmap = syscon_yesde_to_regmap(np);
 		if (IS_ERR(analog_top_regmap))
 			return PTR_ERR(analog_top_regmap);
 
@@ -151,9 +151,9 @@ static int __init meson_mx_socinfo_init(void)
 
 	soc_dev_attr->family = "Amlogic Meson";
 
-	np = of_find_node_by_path("/");
+	np = of_find_yesde_by_path("/");
 	of_property_read_string(np, "model", &soc_dev_attr->machine);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	soc_dev_attr->revision = meson_mx_socinfo_revision(major_ver, misc_ver,
 							   metal_rev);

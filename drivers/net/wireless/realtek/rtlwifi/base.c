@@ -410,7 +410,7 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	/* hw->max_rates = 1; */
 	hw->sta_data_size = sizeof(struct rtl_sta_info);
 
-/* wowlan is not supported by kernel if CONFIG_PM is not defined */
+/* wowlan is yest supported by kernel if CONFIG_PM is yest defined */
 #ifdef CONFIG_PM
 	if (rtlpriv->psc.wo_wlan_mode) {
 		if (rtlpriv->psc.wo_wlan_mode & WAKE_ON_MAGIC_PACKET)
@@ -497,7 +497,7 @@ void rtl_init_rfkill(struct ieee80211_hw *hw)
 	rtlpriv->rfkill.rfkill_state = true;
 	wiphy_rfkill_set_hw_state(hw->wiphy, 0);
 
-	radio_state = rtlpriv->cfg->ops->radio_onoff_checking(hw, &valid);
+	radio_state = rtlpriv->cfg->ops->radio_oyesff_checking(hw, &valid);
 
 	if (valid) {
 		pr_info("rtlwifi: wireless switch is %s\n",
@@ -535,7 +535,7 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	 * <3> init CRDA must come after init
 	 * mac80211 hw  in _rtl_init_mac80211.
 	 */
-	if (rtl_regd_init(hw, rtl_reg_notifier)) {
+	if (rtl_regd_init(hw, rtl_reg_yestifier)) {
 		pr_err("REGD init failed\n");
 		return 1;
 	}
@@ -1453,7 +1453,7 @@ static void setup_special_tx(struct rtl_priv *rtlpriv, struct rtl_ps_ctl *ppsc,
 
 	rtlpriv->ra.is_special_data = true;
 	if (rtlpriv->cfg->ops->get_btc_status())
-		rtlpriv->btcoexist.btc_ops->btc_special_packet_notify(
+		rtlpriv->btcoexist.btc_ops->btc_special_packet_yestify(
 					rtlpriv, type);
 	rtl_lps_leave(hw);
 	ppsc->last_delaylps_stamp_jiffies = jiffies;
@@ -1554,7 +1554,7 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx,
 		return true;
 	} else if (ETH_P_IPV6 == ether_type) {
 		/* TODO: Handle any IPv6 cases that need special handling.
-		 * For now, always return false
+		 * For yesw, always return false
 		 */
 		goto end;
 	}
@@ -1588,7 +1588,7 @@ static void rtl_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 		info->flags |= IEEE80211_TX_STAT_ACK;
 	} else {
 		RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_LOUD,
-			 "tx report: not ack\n");
+			 "tx report: yest ack\n");
 		info->flags &= ~IEEE80211_TX_STAT_ACK;
 	}
 	ieee80211_tx_status_irqsafe(hw, skb);
@@ -2198,7 +2198,7 @@ label_lps_done:
 			 * we should reconnect this AP
 			 */
 			if (rtlpriv->link_info.roam_times >= 5) {
-				pr_err("AP off, try to reconnect now\n");
+				pr_err("AP off, try to reconnect yesw\n");
 				rtlpriv->link_info.roam_times = 0;
 				ieee80211_connection_loss(
 					rtlpriv->mac80211.vif);
@@ -2321,17 +2321,17 @@ static void rtl_c2h_content_parsing(struct ieee80211_hw *hw,
 		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
 			 "[C2H], C2H_BT_INFO!!\n");
 		if (rtlpriv->cfg->ops->get_btc_status())
-			btc_ops->btc_btinfo_notify(rtlpriv, cmd_buf, cmd_len);
+			btc_ops->btc_btinfo_yestify(rtlpriv, cmd_buf, cmd_len);
 		break;
 	case C2H_BT_MP:
 		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
 			 "[C2H], C2H_BT_MP!!\n");
 		if (rtlpriv->cfg->ops->get_btc_status())
-			btc_ops->btc_btmpinfo_notify(rtlpriv, cmd_buf, cmd_len);
+			btc_ops->btc_btmpinfo_yestify(rtlpriv, cmd_buf, cmd_len);
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-			 "[C2H], Unknown packet!! cmd_id(%#X)!\n", cmd_id);
+			 "[C2H], Unkyeswn packet!! cmd_id(%#X)!\n", cmd_id);
 		break;
 	}
 }
@@ -2532,7 +2532,7 @@ void rtl_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
 						      (u8 *)&iotype);
 			break;
 		default:
-			pr_err("Unknown Scan Backup operation.\n");
+			pr_err("Unkyeswn Scan Backup operation.\n");
 			break;
 		}
 	}

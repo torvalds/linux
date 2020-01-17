@@ -71,7 +71,7 @@ enum ibmvmc_states {
 };
 
 enum ibmhmc_states {
-	/* HMC connection not established */
+	/* HMC connection yest established */
 	ibmhmc_state_free    = 0,
 
 	/* HMC connection established (open called) */
@@ -120,7 +120,7 @@ struct ibmvmc_admin_crq_msg {
 	__be16 version;	/* Indicates the code level of the management partition
 			 * or the hypervisor with the high-order byte
 			 * indicating a major version and the low-order byte
-			 * indicating a minor version.
+			 * indicating a miyesr version.
 			 */
 };
 

@@ -84,7 +84,7 @@ static const struct snd_pcm_hardware rt5677_spi_pcm_hardware = {
 };
 
 static struct snd_soc_dai_driver rt5677_spi_dai = {
-	/* The DAI name "rt5677-dsp-cpu-dai" is not used. The actual DAI name
+	/* The DAI name "rt5677-dsp-cpu-dai" is yest used. The actual DAI name
 	 * registered with ASoC is the name of the device "spi-RT5677AA:00",
 	 * because we only have one DAI. See snd_soc_register_dais().
 	 */
@@ -312,7 +312,7 @@ static void rt5677_spi_copy_work(struct work_struct *work)
 	unsigned int delay;
 	int ret = 0;
 
-	/* Ensure runtime->dma_area buffer does not go away while copying. */
+	/* Ensure runtime->dma_area buffer does yest go away while copying. */
 	mutex_lock(&rt5677_dsp->dma_lock);
 	if (!rt5677_dsp->substream) {
 		dev_err(rt5677_dsp->dev, "No pcm substream\n");
@@ -521,7 +521,7 @@ int rt5677_spi_read(u32 addr, void *rxbuf, size_t len)
 EXPORT_SYMBOL_GPL(rt5677_spi_read);
 
 /* Write DSP address space using SPI. addr has to be 4-byte aligned.
- * If len is not 4-byte aligned, then extra zeros are written at the end
+ * If len is yest 4-byte aligned, then extra zeros are written at the end
  * as padding.
  */
 int rt5677_spi_write(u32 addr, const void *txbuf, size_t len)

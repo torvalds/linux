@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -90,13 +90,13 @@
  *	initialised by driver and can be updated by fw upon reception of
  *	action frames that can change the channel width. When cleared the fw
  *	will send all the frames in 20MHz even when FAT channel is requested.
- * @STA_FLG_FAT_EN_20MHZ: no wide channels are supported, only 20 MHz
+ * @STA_FLG_FAT_EN_20MHZ: yes wide channels are supported, only 20 MHz
  * @STA_FLG_FAT_EN_40MHZ: wide channels up to 40 MHz supported
  * @STA_FLG_FAT_EN_80MHZ: wide channels up to 80 MHz supported
  * @STA_FLG_FAT_EN_160MHZ: wide channels up to 160 MHz supported
  * @STA_FLG_MIMO_EN_MSK: support for MIMO. This flag is initialised by the
  *	driver and can be updated by fw upon reception of action frames.
- * @STA_FLG_MIMO_EN_SISO: no support for MIMO
+ * @STA_FLG_MIMO_EN_SISO: yes support for MIMO
  * @STA_FLG_MIMO_EN_MIMO2: 2 streams supported
  * @STA_FLG_MIMO_EN_MIMO3: 3 streams supported
  * @STA_FLG_AGG_MPDU_DENS_MSK: A-MPDU density (mask)
@@ -151,14 +151,14 @@ enum iwl_sta_flags {
 
 /**
  * enum iwl_sta_key_flag - key flags for the ADD_STA host command
- * @STA_KEY_FLG_NO_ENC: no encryption
+ * @STA_KEY_FLG_NO_ENC: yes encryption
  * @STA_KEY_FLG_WEP: WEP encryption algorithm
  * @STA_KEY_FLG_CCM: CCMP encryption algorithm
  * @STA_KEY_FLG_TKIP: TKIP encryption algorithm
  * @STA_KEY_FLG_EXT: extended cipher algorithm (depends on the FW support)
  * @STA_KEY_FLG_GCMP: GCMP encryption algorithm
  * @STA_KEY_FLG_CMAC: CMAC encryption algorithm
- * @STA_KEY_FLG_ENC_UNKNOWN: unknown encryption algorithm
+ * @STA_KEY_FLG_ENC_UNKNOWN: unkyeswn encryption algorithm
  * @STA_KEY_FLG_EN_MSK: mask for encryption algorithmi value
  * @STA_KEY_FLG_WEP_KEY_MAP: wep is either a group key (0 - legacy WEP) or from
  *	station info array (1 - n 1X mode)
@@ -166,7 +166,7 @@ enum iwl_sta_flags {
  * @STA_KEY_FLG_KEYID_POS: key index bit position
  * @STA_KEY_NOT_VALID: key is invalid
  * @STA_KEY_FLG_WEP_13BYTES: set for 13 bytes WEP key
- * @STA_KEY_FLG_KEY_32BYTES: for non-wep key set for 32 bytes key
+ * @STA_KEY_FLG_KEY_32BYTES: for yesn-wep key set for 32 bytes key
  * @STA_KEY_MULTICAST: set for multical key
  * @STA_KEY_MFP: key is used for Management Frame Protection
  */
@@ -341,7 +341,7 @@ struct iwl_mvm_add_sta_cmd_v7 {
 /**
  * enum iwl_sta_type - FW station types
  * ( REPLY_ADD_STA = 0x18 )
- * @IWL_STA_LINK: Link station - normal RX and TX traffic.
+ * @IWL_STA_LINK: Link station - yesrmal RX and TX traffic.
  * @IWL_STA_GENERAL_PURPOSE: General purpose. In AP mode used for beacons
  *	and probe responses.
  * @IWL_STA_MULTICAST: multicast traffic,
@@ -476,7 +476,7 @@ struct iwl_mvm_add_sta_key_cmd {
 /**
  * enum iwl_mvm_add_sta_rsp_status - status in the response to ADD_STA command
  * @ADD_STA_SUCCESS: operation was executed successfully
- * @ADD_STA_STATIONS_OVERLOAD: no room left in the fw's station table
+ * @ADD_STA_STATIONS_OVERLOAD: yes room left in the fw's station table
  * @ADD_STA_IMMEDIATE_BA_FAILURE: can't add Rx block ack session
  * @ADD_STA_MODIFY_NON_EXISTING_STA: driver requested to modify a station that
  *	doesn't exist.
@@ -556,12 +556,12 @@ struct iwl_mvm_wep_key_cmd {
 } __packed; /* SEC_CURR_WEP_KEY_CMD_API_S_VER_2 */
 
 /**
- * struct iwl_mvm_eosp_notification - EOSP notification from firmware
- * @remain_frame_count: # of frames remaining, non-zero if SP was cut
+ * struct iwl_mvm_eosp_yestification - EOSP yestification from firmware
+ * @remain_frame_count: # of frames remaining, yesn-zero if SP was cut
  *	short by GO absence
  * @sta_id: station ID
  */
-struct iwl_mvm_eosp_notification {
+struct iwl_mvm_eosp_yestification {
 	__le32 remain_frame_count;
 	__le32 sta_id;
 } __packed; /* UAPSD_EOSP_NTFY_API_S_VER_1 */

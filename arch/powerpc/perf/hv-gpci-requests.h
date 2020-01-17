@@ -30,18 +30,18 @@
  * __count(offset, bytes, name):
  *	a counter that should be exposed via perf
  * __field(offset, bytes, name)
- *	a normal field
+ *	a yesrmal field
  * __array(offset, bytes, name)
  *	an array of bytes
  *
  *
  *	@bytes for __count, and __field _must_ be a numeral token
- *	in decimal, not an expression and not in hex.
+ *	in decimal, yest an expression and yest in hex.
  *
  *
  * TODO:
  *	- expose secondary index (if any counter ever uses it, only 0xA0
- *	  appears to use it right now, and it doesn't have any counters)
+ *	  appears to use it right yesw, and it doesn't have any counters)
  *	- embed versioning info
  *	- include counter descriptions
  */
@@ -178,8 +178,8 @@ REQUEST(__field(0,	4,	hw_chip_id)
 )
 #include I(REQUEST_END)
 
-/* Processor_config (0x90) skipped, no counters */
-/* Current_processor_frequency (0x91) skipped, no counters */
+/* Processor_config (0x90) skipped, yes counters */
+/* Current_processor_frequency (0x91) skipped, yes counters */
 
 #define REQUEST_NAME processor_core_utilization
 #define REQUEST_NUM 0x94
@@ -195,13 +195,13 @@ REQUEST(__field(0,	4,	phys_processor_idx)
 )
 #include I(REQUEST_END)
 
-/* Processor_core_power_mode (0x95) skipped, no counters */
+/* Processor_core_power_mode (0x95) skipped, yes counters */
 /* Affinity_domain_information_by_virtual_processor (0xA0) skipped,
- *	no counters */
-/* Affinity_domain_information_by_domain (0xB0) skipped, no counters */
-/* Affinity_domain_information_by_partition (0xB1) skipped, no counters */
-/* Physical_memory_info (0xC0) skipped, no counters */
-/* Processor_bus_topology (0xD0) skipped, no counters */
+ *	yes counters */
+/* Affinity_domain_information_by_domain (0xB0) skipped, yes counters */
+/* Affinity_domain_information_by_partition (0xB1) skipped, yes counters */
+/* Physical_memory_info (0xC0) skipped, yes counters */
+/* Processor_bus_topology (0xD0) skipped, yes counters */
 
 #define REQUEST_NAME partition_hypervisor_queuing_times
 #define REQUEST_NUM 0xE0
@@ -256,7 +256,7 @@ REQUEST(__field(0,	2,	partition_id)
 )
 #include I(REQUEST_END)
 
-/* set_mmcrh (0x80001000) skipped, no counters */
-/* retrieve_hpmcx (0x80002000) skipped, no counters */
+/* set_mmcrh (0x80001000) skipped, yes counters */
+/* retrieve_hpmcx (0x80002000) skipped, yes counters */
 
 #include "req-gen/_end.h"

@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/power_supply.h>
@@ -27,8 +27,8 @@
 struct class *power_supply_class;
 EXPORT_SYMBOL_GPL(power_supply_class);
 
-ATOMIC_NOTIFIER_HEAD(power_supply_notifier);
-EXPORT_SYMBOL_GPL(power_supply_notifier);
+ATOMIC_NOTIFIER_HEAD(power_supply_yestifier);
+EXPORT_SYMBOL_GPL(power_supply_yestifier);
 
 static struct device_type power_supply_dev_type;
 
@@ -95,7 +95,7 @@ static void power_supply_changed_work(struct work_struct *work)
 		class_for_each_device(power_supply_class, NULL, psy,
 				      __power_supply_changed_work);
 		power_supply_update_leds(psy);
-		atomic_notifier_call_chain(&power_supply_notifier,
+		atomic_yestifier_call_chain(&power_supply_yestifier,
 				PSY_EVENT_PROP_CHANGED, psy);
 		kobject_uevent(&psy->dev.kobj, KOBJ_CHANGE);
 		spin_lock_irqsave(&psy->changed_lock, flags);
@@ -160,23 +160,23 @@ static int __power_supply_populate_supplied_from(struct device *dev,
 {
 	struct power_supply *psy = data;
 	struct power_supply *epsy = dev_get_drvdata(dev);
-	struct device_node *np;
+	struct device_yesde *np;
 	int i = 0;
 
 	do {
-		np = of_parse_phandle(psy->of_node, "power-supplies", i++);
+		np = of_parse_phandle(psy->of_yesde, "power-supplies", i++);
 		if (!np)
 			break;
 
-		if (np == epsy->of_node) {
+		if (np == epsy->of_yesde) {
 			dev_info(&psy->dev, "%s: Found supply : %s\n",
 				psy->desc->name, epsy->desc->name);
 			psy->supplied_from[i-1] = (char *)epsy->desc->name;
 			psy->num_supplies++;
-			of_node_put(np);
+			of_yesde_put(np);
 			break;
 		}
-		of_node_put(np);
+		of_yesde_put(np);
 	} while (np);
 
 	return 0;
@@ -194,61 +194,61 @@ static int power_supply_populate_supplied_from(struct power_supply *psy)
 	return error;
 }
 
-static int  __power_supply_find_supply_from_node(struct device *dev,
+static int  __power_supply_find_supply_from_yesde(struct device *dev,
 						 void *data)
 {
-	struct device_node *np = data;
+	struct device_yesde *np = data;
 	struct power_supply *epsy = dev_get_drvdata(dev);
 
-	/* returning non-zero breaks out of class_for_each_device loop */
-	if (epsy->of_node == np)
+	/* returning yesn-zero breaks out of class_for_each_device loop */
+	if (epsy->of_yesde == np)
 		return 1;
 
 	return 0;
 }
 
-static int power_supply_find_supply_from_node(struct device_node *supply_node)
+static int power_supply_find_supply_from_yesde(struct device_yesde *supply_yesde)
 {
 	int error;
 
 	/*
 	 * class_for_each_device() either returns its own errors or values
-	 * returned by __power_supply_find_supply_from_node().
+	 * returned by __power_supply_find_supply_from_yesde().
 	 *
-	 * __power_supply_find_supply_from_node() will return 0 (no match)
+	 * __power_supply_find_supply_from_yesde() will return 0 (yes match)
 	 * or 1 (match).
 	 *
 	 * We return 0 if class_for_each_device() returned 1, -EPROBE_DEFER if
 	 * it returned 0, or error as returned by it.
 	 */
-	error = class_for_each_device(power_supply_class, NULL, supply_node,
-				       __power_supply_find_supply_from_node);
+	error = class_for_each_device(power_supply_class, NULL, supply_yesde,
+				       __power_supply_find_supply_from_yesde);
 
 	return error ? (error == 1 ? 0 : error) : -EPROBE_DEFER;
 }
 
 static int power_supply_check_supplies(struct power_supply *psy)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int cnt = 0;
 
-	/* If there is already a list honor it */
+	/* If there is already a list hoyesr it */
 	if (psy->supplied_from && psy->num_supplies > 0)
 		return 0;
 
-	/* No device node found, nothing to do */
-	if (!psy->of_node)
+	/* No device yesde found, yesthing to do */
+	if (!psy->of_yesde)
 		return 0;
 
 	do {
 		int ret;
 
-		np = of_parse_phandle(psy->of_node, "power-supplies", cnt++);
+		np = of_parse_phandle(psy->of_yesde, "power-supplies", cnt++);
 		if (!np)
 			break;
 
-		ret = power_supply_find_supply_from_node(np);
-		of_node_put(np);
+		ret = power_supply_find_supply_from_yesde(np);
+		of_yesde_put(np);
 
 		if (ret) {
 			dev_dbg(&psy->dev, "Failed to find supply!\n");
@@ -365,7 +365,7 @@ int power_supply_is_system_supplied(void)
 				      __power_supply_is_system_supplied);
 
 	/*
-	 * If no power class device was found at all, most probably we are
+	 * If yes power class device was found at all, most probably we are
 	 * running on a desktop system, so assume we are on mains power.
 	 */
 	if (count == 0)
@@ -400,8 +400,8 @@ int power_supply_set_input_current_limit_from_supplier(struct power_supply *psy)
 		return -EINVAL;
 
 	/*
-	 * This function is not intended for use with a supply with multiple
-	 * suppliers, we simply pick the first supply to report a non 0
+	 * This function is yest intended for use with a supply with multiple
+	 * suppliers, we simply pick the first supply to report a yesn 0
 	 * max-current.
 	 */
 	curr = class_for_each_device(power_supply_class, NULL, psy,
@@ -480,14 +480,14 @@ void power_supply_put(struct power_supply *psy)
 EXPORT_SYMBOL_GPL(power_supply_put);
 
 #ifdef CONFIG_OF
-static int power_supply_match_device_node(struct device *dev, const void *data)
+static int power_supply_match_device_yesde(struct device *dev, const void *data)
 {
-	return dev->parent && dev->parent->of_node == data;
+	return dev->parent && dev->parent->of_yesde == data;
 }
 
 /**
  * power_supply_get_by_phandle() - Search for a power supply and returns its ref
- * @np: Pointer to device node holding phandle property
+ * @np: Pointer to device yesde holding phandle property
  * @property: Name of property holding a power supply name
  *
  * If power supply was found, it increases reference count for the
@@ -497,10 +497,10 @@ static int power_supply_match_device_node(struct device *dev, const void *data)
  * Return: On success returns a reference to a power supply with
  * matching name equals to value under @property, NULL or ERR_PTR otherwise.
  */
-struct power_supply *power_supply_get_by_phandle(struct device_node *np,
+struct power_supply *power_supply_get_by_phandle(struct device_yesde *np,
 							const char *property)
 {
-	struct device_node *power_supply_np;
+	struct device_yesde *power_supply_np;
 	struct power_supply *psy = NULL;
 	struct device *dev;
 
@@ -509,9 +509,9 @@ struct power_supply *power_supply_get_by_phandle(struct device_node *np,
 		return ERR_PTR(-ENODEV);
 
 	dev = class_find_device(power_supply_class, NULL, power_supply_np,
-						power_supply_match_device_node);
+						power_supply_match_device_yesde);
 
-	of_node_put(power_supply_np);
+	of_yesde_put(power_supply_np);
 
 	if (dev) {
 		psy = dev_get_drvdata(dev);
@@ -543,14 +543,14 @@ struct power_supply *devm_power_supply_get_by_phandle(struct device *dev,
 {
 	struct power_supply **ptr, *psy;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return ERR_PTR(-ENODEV);
 
 	ptr = devres_alloc(devm_power_supply_put, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	psy = power_supply_get_by_phandle(dev->of_node, property);
+	psy = power_supply_get_by_phandle(dev->of_yesde, property);
 	if (IS_ERR_OR_NULL(psy)) {
 		devres_free(ptr);
 	} else {
@@ -565,7 +565,7 @@ EXPORT_SYMBOL_GPL(devm_power_supply_get_by_phandle);
 int power_supply_get_battery_info(struct power_supply *psy,
 				  struct power_supply_battery_info *info)
 {
-	struct device_node *battery_np;
+	struct device_yesde *battery_np;
 	const char *value;
 	int err, len, index;
 
@@ -585,23 +585,23 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		info->ocv_table_size[index]  = -EINVAL;
 	}
 
-	if (!psy->of_node) {
+	if (!psy->of_yesde) {
 		dev_warn(&psy->dev, "%s currently only supports devicetree\n",
 			 __func__);
 		return -ENXIO;
 	}
 
-	battery_np = of_parse_phandle(psy->of_node, "monitored-battery", 0);
+	battery_np = of_parse_phandle(psy->of_yesde, "monitored-battery", 0);
 	if (!battery_np)
 		return -ENODEV;
 
 	err = of_property_read_string(battery_np, "compatible", &value);
 	if (err)
-		goto out_put_node;
+		goto out_put_yesde;
 
 	if (strcmp("simple-battery", value)) {
 		err = -ENODEV;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	/* The property and field names below must correspond to elements
@@ -631,11 +631,11 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	len = of_property_count_u32_elems(battery_np, "ocv-capacity-celsius");
 	if (len < 0 && len != -EINVAL) {
 		err = len;
-		goto out_put_node;
+		goto out_put_yesde;
 	} else if (len > POWER_SUPPLY_OCV_TEMP_MAX) {
 		dev_err(&psy->dev, "Too many temperature values\n");
 		err = -EINVAL;
-		goto out_put_node;
+		goto out_put_yesde;
 	} else if (len > 0) {
 		of_property_read_u32_array(battery_np, "ocv-capacity-celsius",
 					   info->ocv_temp, len);
@@ -654,7 +654,7 @@ int power_supply_get_battery_info(struct power_supply *psy,
 			kfree(propname);
 			power_supply_put_battery_info(psy, info);
 			err = -EINVAL;
-			goto out_put_node;
+			goto out_put_yesde;
 		}
 
 		kfree(propname);
@@ -666,7 +666,7 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		if (!info->ocv_table[index]) {
 			power_supply_put_battery_info(psy, info);
 			err = -ENOMEM;
-			goto out_put_node;
+			goto out_put_yesde;
 		}
 
 		for (i = 0; i < tab_len; i++) {
@@ -677,8 +677,8 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		}
 	}
 
-out_put_node:
-	of_node_put(battery_np);
+out_put_yesde:
+	of_yesde_put(battery_np);
 	return err;
 }
 EXPORT_SYMBOL_GPL(power_supply_get_battery_info);
@@ -828,17 +828,17 @@ static void power_supply_dev_release(struct device *dev)
 	kfree(psy);
 }
 
-int power_supply_reg_notifier(struct notifier_block *nb)
+int power_supply_reg_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&power_supply_notifier, nb);
+	return atomic_yestifier_chain_register(&power_supply_yestifier, nb);
 }
-EXPORT_SYMBOL_GPL(power_supply_reg_notifier);
+EXPORT_SYMBOL_GPL(power_supply_reg_yestifier);
 
-void power_supply_unreg_notifier(struct notifier_block *nb)
+void power_supply_unreg_yestifier(struct yestifier_block *nb)
 {
-	atomic_notifier_chain_unregister(&power_supply_notifier, nb);
+	atomic_yestifier_chain_unregister(&power_supply_yestifier, nb);
 }
-EXPORT_SYMBOL_GPL(power_supply_unreg_notifier);
+EXPORT_SYMBOL_GPL(power_supply_unreg_yestifier);
 
 #ifdef CONFIG_THERMAL
 static int power_supply_read_temp(struct thermal_zone_device *tzd,
@@ -868,7 +868,7 @@ static int psy_register_thermal(struct power_supply *psy)
 {
 	int i;
 
-	if (psy->desc->no_thermal)
+	if (psy->desc->yes_thermal)
 		return 0;
 
 	/* Register battery zone device psy reports temperature */
@@ -1030,8 +1030,8 @@ __power_supply_register(struct device *parent,
 	if (cfg) {
 		dev->groups = cfg->attr_grp;
 		psy->drv_data = cfg->drv_data;
-		psy->of_node =
-			cfg->fwnode ? to_of_node(cfg->fwnode) : cfg->of_node;
+		psy->of_yesde =
+			cfg->fwyesde ? to_of_yesde(cfg->fwyesde) : cfg->of_yesde;
 		psy->supplied_to = cfg->supplied_to;
 		psy->num_supplicants = cfg->num_supplicants;
 	}
@@ -1076,12 +1076,12 @@ __power_supply_register(struct device *parent,
 		goto add_hwmon_sysfs_failed;
 
 	/*
-	 * Update use_cnt after any uevents (most notably from device_add()).
+	 * Update use_cnt after any uevents (most yestably from device_add()).
 	 * We are here still during driver's probe but
 	 * the power_supply_uevent() calls back driver's get_property
 	 * method so:
-	 * 1. Driver did not assigned the returned struct power_supply,
-	 * 2. Driver could not finish initialization (anything in its probe
+	 * 1. Driver did yest assigned the returned struct power_supply,
+	 * 2. Driver could yest finish initialization (anything in its probe
 	 *    after calling power_supply_register()).
 	 */
 	atomic_inc(&psy->use_cnt);
@@ -1132,7 +1132,7 @@ struct power_supply *__must_check power_supply_register(struct device *parent,
 EXPORT_SYMBOL_GPL(power_supply_register);
 
 /**
- * power_supply_register_no_ws() - Register new non-waking-source power supply
+ * power_supply_register_yes_ws() - Register new yesn-waking-source power supply
  * @parent:	Device to be a parent of power supply's device, usually
  *		the device which probe function calls this
  * @desc:	Description of power supply, must be valid through whole
@@ -1146,13 +1146,13 @@ EXPORT_SYMBOL_GPL(power_supply_register);
  * resources.
  */
 struct power_supply *__must_check
-power_supply_register_no_ws(struct device *parent,
+power_supply_register_yes_ws(struct device *parent,
 		const struct power_supply_desc *desc,
 		const struct power_supply_config *cfg)
 {
 	return __power_supply_register(parent, desc, cfg, false);
 }
-EXPORT_SYMBOL_GPL(power_supply_register_no_ws);
+EXPORT_SYMBOL_GPL(power_supply_register_yes_ws);
 
 static void devm_power_supply_release(struct device *dev, void *res)
 {
@@ -1198,7 +1198,7 @@ devm_power_supply_register(struct device *parent,
 EXPORT_SYMBOL_GPL(devm_power_supply_register);
 
 /**
- * devm_power_supply_register_no_ws() - Register managed non-waking-source power supply
+ * devm_power_supply_register_yes_ws() - Register managed yesn-waking-source power supply
  * @parent:	Device to be a parent of power supply's device, usually
  *		the device which probe function calls this
  * @desc:	Description of power supply, must be valid through whole
@@ -1212,7 +1212,7 @@ EXPORT_SYMBOL_GPL(devm_power_supply_register);
  * on driver detach.
  */
 struct power_supply *__must_check
-devm_power_supply_register_no_ws(struct device *parent,
+devm_power_supply_register_yes_ws(struct device *parent,
 		const struct power_supply_desc *desc,
 		const struct power_supply_config *cfg)
 {
@@ -1231,7 +1231,7 @@ devm_power_supply_register_no_ws(struct device *parent,
 	}
 	return psy;
 }
-EXPORT_SYMBOL_GPL(devm_power_supply_register_no_ws);
+EXPORT_SYMBOL_GPL(devm_power_supply_register_yes_ws);
 
 /**
  * power_supply_unregister() - Remove this power supply from system

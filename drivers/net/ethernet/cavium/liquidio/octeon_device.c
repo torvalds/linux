@@ -83,7 +83,7 @@ static struct octeon_config default_cn66xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need yest change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
@@ -112,7 +112,7 @@ static struct octeon_config default_cn66xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need yest change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
@@ -191,7 +191,7 @@ static struct octeon_config default_cn68xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need yest change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
@@ -220,7 +220,7 @@ static struct octeon_config default_cn68xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need yest change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
@@ -249,7 +249,7 @@ static struct octeon_config default_cn68xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need yest change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
@@ -278,7 +278,7 @@ static struct octeon_config default_cn68xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need yest change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
@@ -357,7 +357,7 @@ static struct octeon_config default_cn68xx_210nv_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need yest change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
@@ -386,7 +386,7 @@ static struct octeon_config default_cn68xx_210nv_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN6XXX_MAX_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need yest change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN6XXX_OQ_BUF_SIZE,
@@ -460,7 +460,7 @@ static struct octeon_config default_cn23xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN23XX_DEFAULT_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need yest change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN23XX_OQ_BUF_SIZE,
@@ -489,7 +489,7 @@ static struct octeon_config default_cn23xx_conf = {
 		/* Num of desc for tx rings */
 		.num_tx_descs			= CN23XX_DEFAULT_IQ_DESCRIPTORS,
 
-		/* SKB size, We need not change buf size even for Jumbo frames.
+		/* SKB size, We need yest change buf size even for Jumbo frames.
 		 * Octeon can send jumbo frames in 4 consecutive descriptors,
 		 */
 		.rx_buf_size			= CN23XX_OQ_BUF_SIZE,
@@ -683,7 +683,7 @@ static struct octeon_device *octeon_allocate_device_mem(u32 pci_id,
 		configsize = sizeof(struct octeon_cn23xx_vf);
 		break;
 	default:
-		pr_err("%s: Unknown PCI Device: 0x%x\n",
+		pr_err("%s: Unkyeswn PCI Device: 0x%x\n",
 		       __func__,
 		       pci_id);
 		return NULL;
@@ -783,7 +783,7 @@ int octeon_register_device(struct octeon_device *oct,
 			atomic_inc(oct->adapter_refcount);
 			return 1; /* here, refcount is guaranteed to be 1 */
 		}
-		/* If another device is at same bus/dev, use its refcounter
+		/* If ayesther device is at same bus/dev, use its refcounter
 		 * (and f/w state variable).
 		 */
 		if ((octeon_device[idx]->loc.bus == bus) &&
@@ -865,9 +865,9 @@ octeon_free_ioq_vector(struct octeon_device *oct)
 int octeon_setup_instr_queues(struct octeon_device *oct)
 {
 	u32 num_descs = 0;
-	u32 iq_no = 0;
+	u32 iq_yes = 0;
 	union oct_txpciq txpciq;
-	int numa_node = dev_to_node(&oct->pci_dev->dev);
+	int numa_yesde = dev_to_yesde(&oct->pci_dev->dev);
 
 	if (OCTEON_CN6XXX(oct))
 		num_descs =
@@ -879,8 +879,8 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 
 	oct->num_iqs = 0;
 
-	oct->instr_queue[0] = vzalloc_node(sizeof(*oct->instr_queue[0]),
-				numa_node);
+	oct->instr_queue[0] = vzalloc_yesde(sizeof(*oct->instr_queue[0]),
+				numa_yesde);
 	if (!oct->instr_queue[0])
 		oct->instr_queue[0] =
 			vzalloc(sizeof(struct octeon_instr_queue));
@@ -891,7 +891,7 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 	oct->instr_queue[0]->app_ctx = (void *)(size_t)0;
 	oct->instr_queue[0]->ifidx = 0;
 	txpciq.u64 = 0;
-	txpciq.s.q_no = iq_no;
+	txpciq.s.q_yes = iq_yes;
 	txpciq.s.pkind = oct->pfvf_hsword.pkind;
 	txpciq.s.use_qpg = 0;
 	txpciq.s.qpg = 0;
@@ -910,8 +910,8 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 {
 	u32 num_descs = 0;
 	u32 desc_size = 0;
-	u32 oq_no = 0;
-	int numa_node = dev_to_node(&oct->pci_dev->dev);
+	u32 oq_yes = 0;
+	int numa_yesde = dev_to_yesde(&oct->pci_dev->dev);
 
 	if (OCTEON_CN6XXX(oct)) {
 		num_descs =
@@ -926,15 +926,15 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 		desc_size = CFG_GET_DEF_RX_BUF_SIZE(CHIP_CONF(oct, cn23xx_vf));
 	}
 	oct->num_oqs = 0;
-	oct->droq[0] = vzalloc_node(sizeof(*oct->droq[0]), numa_node);
+	oct->droq[0] = vzalloc_yesde(sizeof(*oct->droq[0]), numa_yesde);
 	if (!oct->droq[0])
 		oct->droq[0] = vzalloc(sizeof(*oct->droq[0]));
 	if (!oct->droq[0])
 		return 1;
 
-	if (octeon_init_droq(oct, oq_no, num_descs, desc_size, NULL)) {
-		vfree(oct->droq[oq_no]);
-		oct->droq[oq_no] = NULL;
+	if (octeon_init_droq(oct, oq_yes, num_descs, desc_size, NULL)) {
+		vfree(oct->droq[oq_yes]);
+		oct->droq[oq_yes] = NULL;
 		return 1;
 	}
 	oct->num_oqs++;
@@ -950,40 +950,40 @@ int octeon_set_io_queues_off(struct octeon_device *oct)
 		octeon_write_csr(oct, CN6XXX_SLI_PKT_INSTR_ENB, 0);
 		octeon_write_csr(oct, CN6XXX_SLI_PKT_OUT_ENB, 0);
 	} else if (oct->chip_id == OCTEON_CN23XX_VF_VID) {
-		u32 q_no;
+		u32 q_yes;
 
 		/* IOQs will already be in reset.
 		 * If RST bit is set, wait for quiet bit to be set.
 		 * Once quiet bit is set, clear the RST bit.
 		 */
-		for (q_no = 0; q_no < oct->sriov_info.rings_per_vf; q_no++) {
+		for (q_yes = 0; q_yes < oct->sriov_info.rings_per_vf; q_yes++) {
 			u64 reg_val = octeon_read_csr64(
-				oct, CN23XX_VF_SLI_IQ_PKT_CONTROL64(q_no));
+				oct, CN23XX_VF_SLI_IQ_PKT_CONTROL64(q_yes));
 
 			while ((reg_val & CN23XX_PKT_INPUT_CTL_RST) &&
 			       !(reg_val &  CN23XX_PKT_INPUT_CTL_QUIET) &&
 			       loop) {
 				reg_val = octeon_read_csr64(
-					oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+					oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes));
 				loop--;
 			}
 			if (!loop) {
 				dev_err(&oct->pci_dev->dev,
-					"clearing the reset reg failed or setting the quiet reg failed for qno: %u\n",
-					q_no);
+					"clearing the reset reg failed or setting the quiet reg failed for qyes: %u\n",
+					q_yes);
 				return -1;
 			}
 
 			reg_val = reg_val & ~CN23XX_PKT_INPUT_CTL_RST;
 			octeon_write_csr64(oct,
-					   CN23XX_SLI_IQ_PKT_CONTROL64(q_no),
+					   CN23XX_SLI_IQ_PKT_CONTROL64(q_yes),
 					   reg_val);
 
 			reg_val = octeon_read_csr64(
-					oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+					oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes));
 			if (reg_val & CN23XX_PKT_INPUT_CTL_RST) {
 				dev_err(&oct->pci_dev->dev,
-					"unable to reset qno %u\n", q_no);
+					"unable to reset qyes %u\n", q_yes);
 				return -1;
 			}
 		}
@@ -992,7 +992,7 @@ int octeon_set_io_queues_off(struct octeon_device *oct)
 }
 
 void octeon_set_droq_pkt_op(struct octeon_device *oct,
-			    u32 q_no,
+			    u32 q_yes,
 			    u32 enable)
 {
 	u32 reg_val = 0;
@@ -1002,9 +1002,9 @@ void octeon_set_droq_pkt_op(struct octeon_device *oct,
 		reg_val = octeon_read_csr(oct, CN6XXX_SLI_PKT_OUT_ENB);
 
 		if (enable)
-			reg_val = reg_val | (1 << q_no);
+			reg_val = reg_val | (1 << q_yes);
 		else
-			reg_val = reg_val & (~(1 << q_no));
+			reg_val = reg_val & (~(1 << q_yes));
 
 		octeon_write_csr(oct, CN6XXX_SLI_PKT_OUT_ENB, reg_val);
 	}
@@ -1254,7 +1254,7 @@ int octeon_core_drv_init(struct octeon_recv_info *recv_info, void *buf)
 	octeon_swap_8B_data((u64 *)cs, (sizeof(*cs) >> 3));
 
 	oct->boardinfo.major = cs->board_rev_major;
-	oct->boardinfo.minor = cs->board_rev_minor;
+	oct->boardinfo.miyesr = cs->board_rev_miyesr;
 
 	dev_info(&oct->pci_dev->dev,
 		 "Running %s (%llu Hz)\n",
@@ -1267,21 +1267,21 @@ core_drv_init_err:
 	return 0;
 }
 
-int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no)
+int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_yes)
 
 {
-	if (oct && (q_no < MAX_OCTEON_INSTR_QUEUES(oct)) &&
-	    (oct->io_qmask.iq & BIT_ULL(q_no)))
-		return oct->instr_queue[q_no]->max_count;
+	if (oct && (q_yes < MAX_OCTEON_INSTR_QUEUES(oct)) &&
+	    (oct->io_qmask.iq & BIT_ULL(q_yes)))
+		return oct->instr_queue[q_yes]->max_count;
 
 	return -1;
 }
 
-int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_no)
+int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_yes)
 {
-	if (oct && (q_no < MAX_OCTEON_OUTPUT_QUEUES(oct)) &&
-	    (oct->io_qmask.oq & BIT_ULL(q_no)))
-		return oct->droq[q_no]->max_count;
+	if (oct && (q_yes < MAX_OCTEON_OUTPUT_QUEUES(oct)) &&
+	    (oct->io_qmask.oq & BIT_ULL(q_yes)))
+		return oct->droq[q_yes]->max_count;
 	return -1;
 }
 
@@ -1452,7 +1452,7 @@ void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
 		spin_unlock_bh(&iq->lock);
 		oct = iq->oct_dev;
 	}
-	/*write resend. Writing RESEND in SLI_PKTX_CNTS should be enough
+	/*write resend. Writing RESEND in SLI_PKTX_CNTS should be eyesugh
 	 *to trigger tx interrupts as well, if they are pending.
 	 */
 	if (oct && (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct))) {

@@ -1098,7 +1098,7 @@ struct bnx2i_logout_response {
 /*
  * iSCSI Nop-In CQE
  */
-struct bnx2i_nop_in_msg {
+struct bnx2i_yesp_in_msg {
 #if defined(__BIG_ENDIAN)
 	u8 op_code;
 	u8 reserved1;
@@ -1147,7 +1147,7 @@ struct bnx2i_nop_in_msg {
 /*
  * iSCSI NOP-OUT SQ WQE
  */
-struct bnx2i_nop_out_request {
+struct bnx2i_yesp_out_request {
 #if defined(__BIG_ENDIAN)
 	u8 op_code;
 	u8 op_attr;
@@ -1393,7 +1393,7 @@ struct bnx2i_text_request {
 union iscsi_request {
 	struct bnx2i_cmd_request cmd;
 	struct bnx2i_tmf_request tmf;
-	struct bnx2i_nop_out_request nop_out;
+	struct bnx2i_yesp_out_request yesp_out;
 	struct bnx2i_login_request login_req;
 	struct bnx2i_text_request text;
 	struct bnx2i_logout_request logout_req;
@@ -1520,7 +1520,7 @@ union iscsi_response {
 	struct bnx2i_cleanup_response cleanup;
 	struct bnx2i_reject_msg reject;
 	struct bnx2i_async_msg async;
-	struct bnx2i_nop_in_msg nop_in;
+	struct bnx2i_yesp_in_msg yesp_in;
 };
 
 #endif /* __57XX_ISCSI_HSI_LINUX_LE__ */

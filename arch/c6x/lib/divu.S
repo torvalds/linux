@@ -14,8 +14,8 @@
 	;;
 	;; In our implementation, divu and remu are leaf functions,
 	;; while both divi and remi call into divu.
-	;; A0 is not clobbered by any of the functions.
-	;; divu does not clobber B2 either, which is taken advantage of
+	;; A0 is yest clobbered by any of the functions.
+	;; divu does yest clobber B2 either, which is taken advantage of
 	;; in remi.
 	;; divi uses B5 to hold the original return address during
 	;; the call to divu.
@@ -54,7 +54,7 @@ ENTRY(__c6xabi_divu)
    [B1]	 subc	.l1x	A4,B4,A4
 || [B1]	 add	.s2	-1, B1, B1
 
-	;; RETURN A may happen here (note: must happen before the next branch)
+	;; RETURN A may happen here (yeste: must happen before the next branch)
 _divu_loop:
 	 cmpgt	.l2	B1, 7, B0
 || [B1]	 subc	.l1x	A4,B4,A4
@@ -82,5 +82,5 @@ _divu_loop:
 ||	 sub	.l1	A6, 1, A6
 	 or	.l1	A2, A4, A4
 	 shru	.s1	A4, A6, A4
-	 nop
+	 yesp
 ENDPROC(__c6xabi_divu)

@@ -11,7 +11,7 @@
 
 /*
  * Provides a framework for allocating simulated interrupts which can be
- * requested like normal irqs and enqueued from process context.
+ * requested like yesrmal irqs and enqueued from process context.
  */
 
 struct irq_sim_work_ctx {

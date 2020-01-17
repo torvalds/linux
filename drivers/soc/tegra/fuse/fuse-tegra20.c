@@ -87,7 +87,7 @@ out:
 
 static bool dma_filter(struct dma_chan *chan, void *filter_param)
 {
-	struct device_node *np = chan->device->dev->of_node;
+	struct device_yesde *np = chan->device->dev->of_yesde;
 
 	return of_device_is_compatible(np, "nvidia,tegra20-apbdma");
 }

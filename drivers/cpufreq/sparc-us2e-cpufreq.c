@@ -62,7 +62,7 @@ static void write_hbreg(unsigned long addr, unsigned long val)
 {
 	__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
 			     "membar	#Sync"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (val), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E)
 			     : "memory");
 	if (addr == HBIRD_ESTAR_MODE_ADDR) {

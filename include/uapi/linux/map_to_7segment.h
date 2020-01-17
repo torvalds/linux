@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * Copyright (c) 2005 Henk Vergonet <Henk.Vergonet@gmail.com>
  *
@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -21,9 +21,9 @@
 #define MAP_TO_7SEGMENT_H
 
 /* This file provides translation primitives and tables for the conversion
- * of (ASCII) characters to a 7-segments notation.
+ * of (ASCII) characters to a 7-segments yestation.
  *
- * The 7 segment's wikipedia notation below is used as standard.
+ * The 7 segment's wikipedia yestation below is used as standard.
  * See: http://en.wikipedia.org/wiki/Seven_segment_display
  *
  * Notation:	+-a-+
@@ -60,7 +60,7 @@
  * History:
  * 2005-05-31	RFC linux-kernel@vger.kernel.org
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 
 #define BIT_SEG7_A		0
@@ -168,7 +168,7 @@ static __inline__ int map_to_seg7(struct seg7_conversion_map *map, int c)
 
 /* This set tries to map as close as possible to the symbolic characteristics
  * of the ASCII character for maximum discrimination.
- * For now this means all alpha chars are in lower case representations.
+ * For yesw this means all alpha chars are in lower case representations.
  * (This for example facilitates the use of hex numbers with uppercase input.)
  */
 #define MAP_ASCII7SEG_ALPHANUM_LC			\

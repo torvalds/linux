@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
+/* vim: set ts=8 sw=8 yeset tw=80 yeswrap: */
 /*
  *  comedi/drivers/ni_routing/ni_route_values.c
  *  Route information for NI boards.
@@ -20,9 +20,9 @@
 
 /*
  * This file includes the tables that are a list of all the values of various
- * signals routes available on NI hardware.  In many cases, one does not
+ * signals routes available on NI hardware.  In many cases, one does yest
  * explicitly make these routes, rather one might indicate that something is
- * used as the source of one particular trigger or another (using
+ * used as the source of one particular trigger or ayesther (using
  * *_src=TRIG_EXT).
  *
  * The contents of this file are generated using the tools in

@@ -23,7 +23,7 @@
 # HWADDR=macaddr
 # DEVICE=interface name
 # BOOTPROTO=<protocol> (where <protocol> is "dhcp" if DHCP is configured
-#                       or "none" if no boot-time protocol should be used)
+#                       or "yesne" if yes boot-time protocol should be used)
 #
 # IPADDR0=ipaddr1
 # IPADDR1=ipaddr2
@@ -50,10 +50,10 @@
 
 
 
-echo "IPV6INIT=yes" >> $1
-echo "NM_CONTROLLED=no" >> $1
-echo "PEERDNS=yes" >> $1
-echo "ONBOOT=yes" >> $1
+echo "IPV6INIT=no" >> $1
+echo "NM_CONTROLLED=yes" >> $1
+echo "PEERDNS=no" >> $1
+echo "ONBOOT=no" >> $1
 
 
 cp $1 /etc/sysconfig/network-scripts/

@@ -8,7 +8,7 @@
 #include <linux/string.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/file.h>
 #include <linux/debugfs.h>
 
@@ -37,9 +37,9 @@ unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 	unsigned long quadrant, ret = n;
 	bool is_load = !!to;
 
-	/* Can't access quadrants 1 or 2 in non-HV mode, call the HV to do it */
+	/* Can't access quadrants 1 or 2 in yesn-HV mode, call the HV to do it */
 	if (kvmhv_on_pseries())
-		return plpar_hcall_norets(H_COPY_TOFROM_GUEST, lpid, pid, eaddr,
+		return plpar_hcall_yesrets(H_COPY_TOFROM_GUEST, lpid, pid, eaddr,
 					  __pa(to), __pa(from), n);
 
 	quadrant = 1;
@@ -179,12 +179,12 @@ int kvmppc_mmu_walk_radix_tree(struct kvm_vcpu *vcpu, gva_t eaddr,
 		bits = pte & RPDS_MASK;
 	}
 
-	/* Need a leaf at lowest level; 512GB pages not supported */
+	/* Need a leaf at lowest level; 512GB pages yest supported */
 	if (level < 0 || level == 3)
 		return -EINVAL;
 
 	/* We found a valid leaf PTE */
-	/* Offset is now log base 2 of the page size */
+	/* Offset is yesw log base 2 of the page size */
 	gpa = pte & 0x01fffffffffff000ul;
 	if (gpa & ((1ul << offset) - 1))
 		return -EINVAL;
@@ -232,7 +232,7 @@ int kvmppc_mmu_radix_translate_table(struct kvm_vcpu *vcpu, gva_t eaddr,
 		return -EINVAL;
 	size = 1ul << ((table & PRTS_MASK) + 12);
 
-	/* Is the table big enough to contain this entry? */
+	/* Is the table big eyesugh to contain this entry? */
 	if ((table_index * sizeof(entry)) >= size)
 		return -EINVAL;
 
@@ -316,7 +316,7 @@ void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
 
 	psi = shift_to_mmu_psize(pshift);
 	rb = addr | (mmu_get_ap(psi) << PPC_BITLSHIFT(58));
-	rc = plpar_hcall_norets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(0, 0, 1),
+	rc = plpar_hcall_yesrets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(0, 0, 1),
 				lpid, rb);
 	if (rc)
 		pr_err("KVM: TLB page invalidation hcall failed, rc=%ld\n", rc);
@@ -331,7 +331,7 @@ static void kvmppc_radix_flush_pwc(struct kvm *kvm, unsigned int lpid)
 		return;
 	}
 
-	rc = plpar_hcall_norets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(1, 0, 1),
+	rc = plpar_hcall_yesrets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(1, 0, 1),
 				lpid, TLBIEL_INVAL_SET_LPID);
 	if (rc)
 		pr_err("KVM: TLB PWC invalidation hcall failed, rc=%ld\n", rc);
@@ -419,7 +419,7 @@ void kvmppc_unmap_pte(struct kvm *kvm, pte_t *pte, unsigned long gpa,
  * Callers are responsible for flushing the PWC.
  *
  * When page tables are being unmapped/freed as part of page fault path
- * (full == false), ptes are not expected. There is code to unmap them
+ * (full == false), ptes are yest expected. There is code to unmap them
  * and emit a warning if encountered, but there may already be data
  * corruption due to the unexpected mappings.
  */
@@ -528,7 +528,7 @@ static void kvmppc_unmap_free_pmd_entry_table(struct kvm *kvm, pmd_t *pmd,
 
 	/*
 	 * Clearing the pmd entry then flushing the PWC ensures that the pte
-	 * page no longer be cached by the MMU, so can be freed without
+	 * page yes longer be cached by the MMU, so can be freed without
 	 * flushing the PWC again.
 	 */
 	pmd_clear(pmd);
@@ -544,7 +544,7 @@ static void kvmppc_unmap_free_pud_entry_table(struct kvm *kvm, pud_t *pud,
 
 	/*
 	 * Clearing the pud entry then flushing the PWC ensures that the pmd
-	 * page and any children pte pages will no longer be cached by the MMU,
+	 * page and any children pte pages will yes longer be cached by the MMU,
 	 * so can be freed without flushing the PWC again.
 	 */
 	pud_clear(pud);
@@ -593,12 +593,12 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 	/* Check if we might have been invalidated; let the guest retry if so */
 	spin_lock(&kvm->mmu_lock);
 	ret = -EAGAIN;
-	if (mmu_notifier_retry(kvm, mmu_seq))
+	if (mmu_yestifier_retry(kvm, mmu_seq))
 		goto out_unlock;
 
 	/* Now traverse again under the lock and change the tree */
 	ret = -ENOMEM;
-	if (pgd_none(*pgd)) {
+	if (pgd_yesne(*pgd)) {
 		if (!new_pud)
 			goto out_unlock;
 		pgd_populate(kvm->mm, pgd, new_pud);
@@ -623,7 +623,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 			goto out_unlock;
 		}
 		/*
-		 * If we raced with another CPU which has just put
+		 * If we raced with ayesther CPU which has just put
 		 * a 1GB pte in after we saw a pmd page, try again.
 		 */
 		if (!new_pmd) {
@@ -635,7 +635,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 				 lpid);
 	}
 	if (level == 2) {
-		if (!pud_none(*pud)) {
+		if (!pud_yesne(*pud)) {
 			/*
 			 * There's a page table page here, but we wanted to
 			 * install a large page, so remove and free the page
@@ -649,7 +649,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 		ret = 0;
 		goto out_unlock;
 	}
-	if (pud_none(*pud)) {
+	if (pud_yesne(*pud)) {
 		if (!new_pmd)
 			goto out_unlock;
 		pud_populate(kvm->mm, pud, new_pmd);
@@ -675,7 +675,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 		}
 
 		/*
-		 * If we raced with another CPU which has just put
+		 * If we raced with ayesther CPU which has just put
 		 * a 2MB pte in after we saw a pte page, try again.
 		 */
 		if (!new_ptep) {
@@ -687,7 +687,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 				 lpid);
 	}
 	if (level == 1) {
-		if (!pmd_none(*pmd)) {
+		if (!pmd_yesne(*pmd)) {
 			/*
 			 * There's a page table page here, but we wanted to
 			 * install a large page, so remove and free the page
@@ -701,7 +701,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 		ret = 0;
 		goto out_unlock;
 	}
-	if (pmd_none(*pmd)) {
+	if (pmd_yesne(*pmd)) {
 		if (!new_ptep)
 			goto out_unlock;
 		pmd_populate(kvm->mm, pmd, new_ptep);
@@ -783,7 +783,7 @@ int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 	bool large_enable;
 
 	/* used to check for invalidations in progress */
-	mmu_seq = kvm->mmu_notifier_seq;
+	mmu_seq = kvm->mmu_yestifier_seq;
 	smp_rmb();
 
 	/*
@@ -801,7 +801,7 @@ int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 		/* Call KVM generic code to do the slow-path check */
 		pfn = __gfn_to_pfn_memslot(memslot, gfn, false, NULL,
 					   writing, upgrade_p);
-		if (is_error_noslot_pfn(pfn))
+		if (is_error_yesslot_pfn(pfn))
 			return -EFAULT;
 		page = NULL;
 		if (pfn_valid(pfn)) {
@@ -1185,9 +1185,9 @@ struct debugfs_radix_state {
 	u8		hdr;
 };
 
-static int debugfs_radix_open(struct inode *inode, struct file *file)
+static int debugfs_radix_open(struct iyesde *iyesde, struct file *file)
 {
-	struct kvm *kvm = inode->i_private;
+	struct kvm *kvm = iyesde->i_private;
 	struct debugfs_radix_state *p;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
@@ -1199,10 +1199,10 @@ static int debugfs_radix_open(struct inode *inode, struct file *file)
 	mutex_init(&p->mutex);
 	file->private_data = p;
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
-static int debugfs_radix_release(struct inode *inode, struct file *file)
+static int debugfs_radix_release(struct iyesde *iyesde, struct file *file)
 {
 	struct debugfs_radix_state *p = file->private_data;
 

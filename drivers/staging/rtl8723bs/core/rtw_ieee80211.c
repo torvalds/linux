@@ -175,8 +175,8 @@ u8 *rtw_get_ie(u8 *pbuf, sint index, sint *len, sint limit)
  * @eid: Element ID to match
  * @oui: OUI to match
  * @oui_len: OUI length
- * @ie: If not NULL and the specific IE is found, the IE will be copied to the buf starting from the specific IE
- * @ielen: If not NULL and the specific IE is found, will set to the length of the entire IE
+ * @ie: If yest NULL and the specific IE is found, the IE will be copied to the buf starting from the specific IE
+ * @ielen: If yest NULL and the specific IE is found, will set to the length of the entire IE
  *
  * Returns: The address of the specific IE found, or NULL
  */
@@ -222,7 +222,7 @@ u8 *rtw_get_ie_ex(u8 *in_ie, uint in_len, u8 eid, u8 *oui, u8 oui_len, u8 *ie, u
  * @oui: OUI to match
  * @oui_len: OUI length
  *
- * Returns: _SUCCESS: ies is updated, _FAIL: not updated
+ * Returns: _SUCCESS: ies is updated, _FAIL: yest updated
  */
 int rtw_ies_remove_ie(u8 *ies, uint *ies_len, uint offset, u8 eid, u8 *oui, u8 oui_len)
 {
@@ -272,7 +272,7 @@ void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 	case WIRELESS_11G:
 	case WIRELESS_11A:
 	case WIRELESS_11_5N:
-	case WIRELESS_11A_5N:/* Todo: no basic rate for ofdm ? */
+	case WIRELESS_11A_5N:/* Todo: yes basic rate for ofdm ? */
 	case WIRELESS_11_5AC:
 		memcpy(SupportedRates, WIFI_OFDMRATES, IEEE80211_NUM_OFDM_RATESLEN);
 		break;
@@ -729,8 +729,8 @@ u8 rtw_is_wps_ie(u8 *ie_ptr, uint *wps_ielen)
  * rtw_get_wps_ie - Search WPS IE from a series of IEs
  * @in_ie: Address of IEs to search
  * @in_len: Length limit from in_ie
- * @wps_ie: If not NULL and WPS IE is found, WPS IE will be copied to the buf starting from wps_ie
- * @wps_ielen: If not NULL and WPS IE is found, will set to the length of the entire WPS IE
+ * @wps_ie: If yest NULL and WPS IE is found, WPS IE will be copied to the buf starting from wps_ie
+ * @wps_ielen: If yest NULL and WPS IE is found, will set to the length of the entire WPS IE
  *
  * Returns: The address of the WPS IE found, or NULL
  */
@@ -776,8 +776,8 @@ u8 *rtw_get_wps_ie(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen)
  * @wps_ie: Address of WPS IE to search
  * @wps_ielen: Length limit from wps_ie
  * @target_attr_id: The attribute ID of WPS attribute to search
- * @buf_attr: If not NULL and the WPS attribute is found, WPS attribute will be copied to the buf starting from buf_attr
- * @len_attr: If not NULL and the WPS attribute is found, will set to the length of the entire WPS attribute
+ * @buf_attr: If yest NULL and the WPS attribute is found, WPS attribute will be copied to the buf starting from buf_attr
+ * @len_attr: If yest NULL and the WPS attribute is found, will set to the length of the entire WPS attribute
  *
  * Returns: the address of the specific WPS attribute found, or NULL
  */
@@ -828,8 +828,8 @@ u8 *rtw_get_wps_attr(u8 *wps_ie, uint wps_ielen, u16 target_attr_id, u8 *buf_att
  * @wps_ie: Address of WPS IE to search
  * @wps_ielen: Length limit from wps_ie
  * @target_attr_id: The attribute ID of WPS attribute to search
- * @buf_content: If not NULL and the WPS attribute is found, WPS attribute content will be copied to the buf starting from buf_content
- * @len_content: If not NULL and the WPS attribute is found, will set to the length of the WPS attribute content
+ * @buf_content: If yest NULL and the WPS attribute is found, WPS attribute content will be copied to the buf starting from buf_content
+ * @len_content: If yest NULL and the WPS attribute is found, will set to the length of the WPS attribute content
  *
  * Returns: the address of the specific WPS attribute content found, or NULL
  */
@@ -868,7 +868,7 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 	if (elen < 4) {
 		if (show_errors) {
 			DBG_871X("short vendor specific "
-				   "information element ignored (len =%lu)\n",
+				   "information element igyesred (len =%lu)\n",
 				   (unsigned long) elen);
 		}
 		return -1;
@@ -889,7 +889,7 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 		case WME_OUI_TYPE: /* this is a Wi-Fi WME info. element */
 			if (elen < 5) {
 				DBG_871X("short WME "
-					   "information element ignored "
+					   "information element igyesred "
 					   "(len =%lu)\n",
 					   (unsigned long) elen);
 				return -1;
@@ -905,8 +905,8 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 				elems->wme_tspec_len = elen;
 				break;
 			default:
-				DBG_871X("unknown WME "
-					   "information element ignored "
+				DBG_871X("unkyeswn WME "
+					   "information element igyesred "
 					   "(subtype =%d len =%lu)\n",
 					   pos[4], (unsigned long) elen);
 				return -1;
@@ -918,8 +918,8 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 			elems->wps_ie_len = elen;
 			break;
 		default:
-			DBG_871X("Unknown Microsoft "
-				   "information element ignored "
+			DBG_871X("Unkyeswn Microsoft "
+				   "information element igyesred "
 				   "(type =%d len =%lu)\n",
 				   pos[3], (unsigned long) elen);
 			return -1;
@@ -933,8 +933,8 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 			elems->vendor_ht_cap_len = elen;
 			break;
 		default:
-			DBG_871X("Unknown Broadcom "
-				   "information element ignored "
+			DBG_871X("Unkyeswn Broadcom "
+				   "information element igyesred "
 				   "(type =%d len =%lu)\n",
 				   pos[3], (unsigned long) elen);
 			return -1;
@@ -942,8 +942,8 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 		break;
 
 	default:
-		DBG_871X("unknown vendor specific information "
-			   "element ignored (vendor OUI %02x:%02x:%02x "
+		DBG_871X("unkyeswn vendor specific information "
+			   "element igyesred (vendor OUI %02x:%02x:%02x "
 			   "len =%lu)\n",
 			   pos[0], pos[1], pos[2], (unsigned long) elen);
 		return -1;
@@ -966,7 +966,7 @@ ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 {
 	uint left = len;
 	u8 *pos = start;
-	int unknown = 0;
+	int unkyeswn = 0;
 
 	memset(elems, 0, sizeof(*elems));
 
@@ -1032,7 +1032,7 @@ ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 			if (rtw_ieee802_11_parse_vendor_specific(pos, elen,
 							     elems,
 							     show_errors))
-				unknown++;
+				unkyeswn++;
 			break;
 		case WLAN_EID_RSN:
 			elems->rsn_ie = pos;
@@ -1075,15 +1075,15 @@ ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 			elems->vht_operation_len = elen;
 			break;
 		case WLAN_EID_VHT_OP_MODE_NOTIFY:
-			elems->vht_op_mode_notify = pos;
-			elems->vht_op_mode_notify_len = elen;
+			elems->vht_op_mode_yestify = pos;
+			elems->vht_op_mode_yestify_len = elen;
 			break;
 		default:
-			unknown++;
+			unkyeswn++;
 			if (!show_errors)
 				break;
 			DBG_871X("IEEE 802.11 element parse "
-				   "ignored unknown element (id =%d elen =%d)\n",
+				   "igyesred unkyeswn element (id =%d elen =%d)\n",
 				   id, elen);
 			break;
 		}
@@ -1095,13 +1095,13 @@ ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 	if (left)
 		return ParseFailed;
 
-	return unknown ? ParseUnknown : ParseOK;
+	return unkyeswn ? ParseUnkyeswn : ParseOK;
 }
 
 void rtw_macaddr_cfg(struct device *dev, u8 *mac_addr)
 {
 	u8 mac[ETH_ALEN];
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const unsigned char *addr;
 	int len;
 

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -318,7 +318,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 		hub = &adev->vmhub[AMDGPU_GFXHUB_0];
 	}
 
-	/* If it's the first fault for this address, process it normally */
+	/* If it's the first fault for this address, process it yesrmally */
 	if (retry_fault && !in_interrupt() &&
 	    amdgpu_vm_handle_fault(adev, entry->pasid, addr))
 		return 1; /* This also prevents sending it to KFD */
@@ -345,7 +345,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 		dev_err(adev->dev,
 			"[%s] %s page fault (src_id:%u ring:%u vmid:%u "
 			"pasid:%u, for process %s pid %d thread %s pid %d)\n",
-			hub_name, retry_fault ? "retry" : "no-retry",
+			hub_name, retry_fault ? "retry" : "yes-retry",
 			entry->src_id, entry->ring_id, entry->vmid,
 			entry->pasid, task_info.process_name, task_info.tgid,
 			task_info.task_name, task_info.pid);
@@ -480,7 +480,7 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	spin_lock(&adev->gmc.invalidate_lock);
 
 	/*
-	 * It may lose gpuvm invalidate acknowldege state across power-gating
+	 * It may lose gpuvm invalidate ackyeswldege state across power-gating
 	 * off cycle, add semaphore acquire before invalidation and semaphore
 	 * release after invalidation to avoid entering power gated state
 	 * to WA the Issue
@@ -542,7 +542,7 @@ static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 	unsigned eng = ring->vm_inv_eng;
 
 	/*
-	 * It may lose gpuvm invalidate acknowldege state across power-gating
+	 * It may lose gpuvm invalidate ackyeswldege state across power-gating
 	 * off cycle, add semaphore acquire before invalidation and semaphore
 	 * release after invalidation to avoid entering power gated state
 	 * to WA the Issue
@@ -581,7 +581,7 @@ static void gmc_v9_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid,
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t reg;
 
-	/* Do nothing because there's no lut register for mmhub1. */
+	/* Do yesthing because there's yes lut register for mmhub1. */
 	if (ring->funcs->vmhub == AMDGPU_MMHUB_1)
 		return;
 
@@ -609,7 +609,7 @@ static void gmc_v9_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid,
  * 5 read
  * 4 exe
  * 3 Z
- * 2 snooped
+ * 2 syesoped
  * 1 system
  * 0 valid
  *
@@ -763,7 +763,7 @@ static bool gmc_v9_0_keep_stolen_memory(struct amdgpu_device *adev)
 	 * of the driver writes to first 8M of VRAM on S3 resume,
 	 * this overrides GART which by default gets placed in first 8M and
 	 * causes VM_FAULTS once GTT is accessed.
-	 * Keep the stolen memory reservation until the while this is not solved.
+	 * Keep the stolen memory reservation until the while this is yest solved.
 	 * Also check code in gmc_v9_0_get_vbios_fb_size and gmc_v9_0_late_init
 	 */
 	switch (adev->asic_type) {
@@ -794,7 +794,7 @@ static int gmc_v9_0_allocate_vm_inv_eng(struct amdgpu_device *adev)
 
 		inv_eng = ffs(vm_inv_engs[vmhub]);
 		if (!inv_eng) {
-			dev_err(adev->dev, "no VM inv eng for ring %s\n",
+			dev_err(adev->dev, "yes VM inv eng for ring %s\n",
 				ring->name);
 			return -EINVAL;
 		}
@@ -827,7 +827,7 @@ static int gmc_v9_0_late_init(void *handle)
 		case CHIP_VEGA20:
 			r = amdgpu_atomfirmware_mem_ecc_supported(adev);
 			if (!r) {
-				DRM_INFO("ECC is not present.\n");
+				DRM_INFO("ECC is yest present.\n");
 				if (adev->df_funcs->enable_ecc_force_par_wr_rmw)
 					adev->df_funcs->enable_ecc_force_par_wr_rmw(adev, false);
 			} else {
@@ -836,7 +836,7 @@ static int gmc_v9_0_late_init(void *handle)
 
 			r = amdgpu_atomfirmware_sram_ecc_supported(adev);
 			if (!r) {
-				DRM_INFO("SRAM ECC is not present.\n");
+				DRM_INFO("SRAM ECC is yest present.\n");
 			} else {
 				DRM_INFO("SRAM ECC is active.\n");
 			}
@@ -863,17 +863,17 @@ static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 	else if (!amdgpu_sriov_vf(adev))
 		base = mmhub_v1_0_get_fb_location(adev);
 
-	/* add the xgmi offset of the physical node */
-	base += adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
+	/* add the xgmi offset of the physical yesde */
+	base += adev->gmc.xgmi.physical_yesde_id * adev->gmc.xgmi.yesde_segment_size;
 	amdgpu_gmc_vram_location(adev, mc, base);
 	amdgpu_gmc_gart_location(adev, mc);
 	amdgpu_gmc_agp_location(adev, mc);
 	/* base offset of vram pages */
 	adev->vm_manager.vram_base_offset = gfxhub_v1_0_get_mc_fb_offset(adev);
 
-	/* XXX: add the xgmi offset of the physical node? */
+	/* XXX: add the xgmi offset of the physical yesde? */
 	adev->vm_manager.vram_base_offset +=
-		adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
+		adev->gmc.xgmi.physical_yesde_id * adev->gmc.xgmi.yesde_segment_size;
 }
 
 /**
@@ -1018,7 +1018,7 @@ static int gmc_v9_0_sw_init(void *handle)
 		&vram_width, &vram_type, &vram_vendor);
 	if (amdgpu_sriov_vf(adev))
 		/* For Vega10 SR-IOV, vram_width can't be read from ATOM as RAVEN,
-		 * and DF related registers is not readable, seems hardcord is the
+		 * and DF related registers is yest readable, seems hardcord is the
 		 * only way to set the correct vram_width
 		 */
 		adev->gmc.vram_width = 2048;
@@ -1193,7 +1193,7 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_VEGA12:
 		break;
 	case CHIP_RAVEN:
-		/* TODO for renoir */
+		/* TODO for reyesir */
 		soc15_program_register_sequence(adev,
 						golden_settings_athub_1_0_0,
 						ARRAY_SIZE(golden_settings_athub_1_0_0));
@@ -1264,7 +1264,7 @@ static int gmc_v9_0_hw_init(void *handle)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
-		/* TODO for renoir */
+		/* TODO for reyesir */
 		mmhub_v1_0_update_power_gating(adev, true);
 		break;
 	case CHIP_ARCTURUS:
@@ -1370,7 +1370,7 @@ static bool gmc_v9_0_is_idle(void *handle)
 
 static int gmc_v9_0_wait_for_idle(void *handle)
 {
-	/* There is no need to wait for MC idle in GMC v9.*/
+	/* There is yes need to wait for MC idle in GMC v9.*/
 	return 0;
 }
 
@@ -1435,7 +1435,7 @@ const struct amdgpu_ip_block_version gmc_v9_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_GMC,
 	.major = 9,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &gmc_v9_0_ip_funcs,
 };

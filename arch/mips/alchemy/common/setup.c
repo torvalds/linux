@@ -21,7 +21,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -56,7 +56,7 @@ void __init plat_mem_setup(void)
 		coherentio = IO_COHERENCE_DISABLED;
 		break;
 	case ALCHEMY_CPU_AU1200:
-		/* Au1200 AB USB does not support coherent memory */
+		/* Au1200 AB USB does yest support coherent memory */
 		if (0 == (read_c0_prid() & PRID_REV_MASK))
 			coherentio = IO_COHERENCE_DISABLED;
 		break;
@@ -87,7 +87,7 @@ phys_addr_t __fixup_bigphys_addr(phys_addr_t phys_addr, phys_addr_t size)
 	if (phys_addr >= start && (phys_addr + size - 1) <= end)
 		return (phys_addr_t)(AU1500_PCI_MEM_PHYS_ADDR + phys_addr);
 
-	/* default nop */
+	/* default yesp */
 	return phys_addr;
 }
 EXPORT_SYMBOL(__fixup_bigphys_addr);

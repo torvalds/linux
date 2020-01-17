@@ -24,7 +24,7 @@ random numbers, either using get_random_bytes or get_random_once::
 	siphash_key_t key;
 	get_random_bytes(&key, sizeof(key));
 
-If you're not deriving your key from here, you're doing it wrong.
+If you're yest deriving your key from here, you're doing it wrong.
 
 Using the functions
 ===================
@@ -81,9 +81,9 @@ Linux implements the "2-4" variant of SipHash.
 Struct-passing Pitfalls
 =======================
 
-Often times the XuY functions will not be large enough, and instead you'll
+Often times the XuY functions will yest be large eyesugh, and instead you'll
 want to pass a pre-filled struct to siphash. When doing this, it's important
-to always ensure the struct has no padding holes. The easiest way to do this
+to always ensure the struct has yes padding holes. The easiest way to do this
 is to simply arrange the members of the struct in descending order of size,
 and to use offsetendof() instead of sizeof() for getting the size. For
 performance reasons, if possible, it's probably a good thing to align the
@@ -114,7 +114,7 @@ HalfSipHash - SipHash's insecure younger cousin
 
 :Author: Written by Jason A. Donenfeld <jason@zx2c4.com>
 
-On the off-chance that SipHash is not fast enough for your needs, you might be
+On the off-chance that SipHash is yest fast eyesugh for your needs, you might be
 able to justify using HalfSipHash, a terrifying but potentially useful
 possibility. HalfSipHash cuts SipHash's rounds down from "2-4" to "1-3" and,
 even scarier, uses an easily brute-forcable 64-bit key (with a 32-bit output)
@@ -123,7 +123,7 @@ high-performance `jhash` users.
 
 Danger!
 
-Do not ever use HalfSipHash except for as a hashtable key function, and only
+Do yest ever use HalfSipHash except for as a hashtable key function, and only
 then when you can be absolutely certain that the outputs will never be
 transmitted out of the kernel. This is only remotely useful over `jhash` as a
 means of mitigating hashtable flooding denial of service attacks.
@@ -137,7 +137,7 @@ random numbers, either using get_random_bytes or get_random_once:
 hsiphash_key_t key;
 get_random_bytes(&key, sizeof(key));
 
-If you're not deriving your key from here, you're doing it wrong.
+If you're yest deriving your key from here, you're doing it wrong.
 
 Using the functions
 ===================
@@ -184,6 +184,6 @@ Performance
 ===========
 
 HalfSipHash is roughly 3 times slower than JenkinsHash. For many replacements,
-this will not be a problem, as the hashtable lookup isn't the bottleneck. And
+this will yest be a problem, as the hashtable lookup isn't the bottleneck. And
 in general, this is probably a good sacrifice to make for the security and DoS
 resistance of HalfSipHash.

@@ -129,7 +129,7 @@ static int mock_hwsp_freelist(void *arg)
 	state.gt = &i915->gt;
 
 	/*
-	 * Create a bunch of timelines and check that their HWSP do not overlap.
+	 * Create a bunch of timelines and check that their HWSP do yest overlap.
 	 * Free some, and try again.
 	 */
 
@@ -161,7 +161,7 @@ err_put:
 
 struct __igt_sync {
 	const char *name;
-	u32 seqno;
+	u32 seqyes;
 	bool expected;
 	bool set;
 };
@@ -173,14 +173,14 @@ static int __igt_sync(struct intel_timeline *tl,
 {
 	int ret;
 
-	if (__intel_timeline_sync_is_later(tl, ctx, p->seqno) != p->expected) {
-		pr_err("%s: %s(ctx=%llu, seqno=%u) expected passed %s but failed\n",
-		       name, p->name, ctx, p->seqno, yesno(p->expected));
+	if (__intel_timeline_sync_is_later(tl, ctx, p->seqyes) != p->expected) {
+		pr_err("%s: %s(ctx=%llu, seqyes=%u) expected passed %s but failed\n",
+		       name, p->name, ctx, p->seqyes, noyes(p->expected));
 		return -EINVAL;
 	}
 
 	if (p->set) {
-		ret = __intel_timeline_sync_set(tl, ctx, p->seqno);
+		ret = __intel_timeline_sync_set(tl, ctx, p->seqyes);
 		if (ret)
 			return ret;
 	}
@@ -358,10 +358,10 @@ static int bench_sync(void *arg)
 	end_time = jiffies + HZ/10;
 	do {
 		u32 id = random_engine(&prng);
-		u32 seqno = prandom_u32_state(&prng);
+		u32 seqyes = prandom_u32_state(&prng);
 
-		if (!__intel_timeline_sync_is_later(&tl, id, seqno))
-			__intel_timeline_sync_set(&tl, id, seqno);
+		if (!__intel_timeline_sync_is_later(&tl, id, seqyes))
+			__intel_timeline_sync_set(&tl, id, seqyes);
 
 		count++;
 	} while (!time_after(jiffies, end_time));
@@ -372,7 +372,7 @@ static int bench_sync(void *arg)
 	mock_timeline_fini(&tl);
 	cond_resched();
 
-	/* Benchmark searching for a known context id and changing the seqno */
+	/* Benchmark searching for a kyeswn context id and changing the seqyes */
 	for (last_order = 1, order = 1; order < 32;
 	     ({ int tmp = last_order; last_order = order; order += tmp; })) {
 		unsigned int mask = BIT(order) - 1;
@@ -488,9 +488,9 @@ checked_intel_timeline_create(struct intel_gt *gt)
 	if (IS_ERR(tl))
 		return tl;
 
-	if (*tl->hwsp_seqno != tl->seqno) {
+	if (*tl->hwsp_seqyes != tl->seqyes) {
 		pr_err("Timeline created with incorrect breadcrumb, found %x, expected %x\n",
-		       *tl->hwsp_seqno, tl->seqno);
+		       *tl->hwsp_seqyes, tl->seqyes);
 		intel_timeline_put(tl);
 		return ERR_PTR(-EINVAL);
 	}
@@ -558,9 +558,9 @@ static int live_hwsp_engine(void *arg)
 	for (n = 0; n < count; n++) {
 		struct intel_timeline *tl = timelines[n];
 
-		if (!err && *tl->hwsp_seqno != n) {
-			pr_err("Invalid seqno stored in timeline %lu, found 0x%x\n",
-			       n, *tl->hwsp_seqno);
+		if (!err && *tl->hwsp_seqyes != n) {
+			pr_err("Invalid seqyes stored in timeline %lu, found 0x%x\n",
+			       n, *tl->hwsp_seqyes);
 			err = -EINVAL;
 		}
 		intel_timeline_put(tl);
@@ -630,9 +630,9 @@ out:
 	for (n = 0; n < count; n++) {
 		struct intel_timeline *tl = timelines[n];
 
-		if (!err && *tl->hwsp_seqno != n) {
-			pr_err("Invalid seqno stored in timeline %lu, found 0x%x\n",
-			       n, *tl->hwsp_seqno);
+		if (!err && *tl->hwsp_seqyes != n) {
+			pr_err("Invalid seqyes stored in timeline %lu, found 0x%x\n",
+			       n, *tl->hwsp_seqyes);
 			err = -EINVAL;
 		}
 		intel_timeline_put(tl);
@@ -652,7 +652,7 @@ static int live_hwsp_wrap(void *arg)
 	int err = 0;
 
 	/*
-	 * Across a seqno wrap, we need to keep the old cacheline alive for
+	 * Across a seqyes wrap, we need to keep the old cacheline alive for
 	 * foreign GPU references.
 	 */
 
@@ -668,9 +668,9 @@ static int live_hwsp_wrap(void *arg)
 		goto out_free;
 
 	for_each_engine(engine, gt, id) {
-		const u32 *hwsp_seqno[2];
+		const u32 *hwsp_seqyes[2];
 		struct i915_request *rq;
-		u32 seqno[2];
+		u32 seqyes[2];
 
 		if (!intel_engine_can_store_dword(engine))
 			continue;
@@ -683,45 +683,45 @@ static int live_hwsp_wrap(void *arg)
 			goto out;
 		}
 
-		tl->seqno = -4u;
+		tl->seqyes = -4u;
 
 		mutex_lock_nested(&tl->mutex, SINGLE_DEPTH_NESTING);
-		err = intel_timeline_get_seqno(tl, rq, &seqno[0]);
+		err = intel_timeline_get_seqyes(tl, rq, &seqyes[0]);
 		mutex_unlock(&tl->mutex);
 		if (err) {
 			i915_request_add(rq);
 			goto out;
 		}
-		pr_debug("seqno[0]:%08x, hwsp_offset:%08x\n",
-			 seqno[0], tl->hwsp_offset);
+		pr_debug("seqyes[0]:%08x, hwsp_offset:%08x\n",
+			 seqyes[0], tl->hwsp_offset);
 
-		err = emit_ggtt_store_dw(rq, tl->hwsp_offset, seqno[0]);
+		err = emit_ggtt_store_dw(rq, tl->hwsp_offset, seqyes[0]);
 		if (err) {
 			i915_request_add(rq);
 			goto out;
 		}
-		hwsp_seqno[0] = tl->hwsp_seqno;
+		hwsp_seqyes[0] = tl->hwsp_seqyes;
 
 		mutex_lock_nested(&tl->mutex, SINGLE_DEPTH_NESTING);
-		err = intel_timeline_get_seqno(tl, rq, &seqno[1]);
+		err = intel_timeline_get_seqyes(tl, rq, &seqyes[1]);
 		mutex_unlock(&tl->mutex);
 		if (err) {
 			i915_request_add(rq);
 			goto out;
 		}
-		pr_debug("seqno[1]:%08x, hwsp_offset:%08x\n",
-			 seqno[1], tl->hwsp_offset);
+		pr_debug("seqyes[1]:%08x, hwsp_offset:%08x\n",
+			 seqyes[1], tl->hwsp_offset);
 
-		err = emit_ggtt_store_dw(rq, tl->hwsp_offset, seqno[1]);
+		err = emit_ggtt_store_dw(rq, tl->hwsp_offset, seqyes[1]);
 		if (err) {
 			i915_request_add(rq);
 			goto out;
 		}
-		hwsp_seqno[1] = tl->hwsp_seqno;
+		hwsp_seqyes[1] = tl->hwsp_seqyes;
 
 		/* With wrap should come a new hwsp */
-		GEM_BUG_ON(seqno[1] >= seqno[0]);
-		GEM_BUG_ON(hwsp_seqno[0] == hwsp_seqno[1]);
+		GEM_BUG_ON(seqyes[1] >= seqyes[0]);
+		GEM_BUG_ON(hwsp_seqyes[0] == hwsp_seqyes[1]);
 
 		i915_request_add(rq);
 
@@ -731,10 +731,10 @@ static int live_hwsp_wrap(void *arg)
 			goto out;
 		}
 
-		if (*hwsp_seqno[0] != seqno[0] || *hwsp_seqno[1] != seqno[1]) {
+		if (*hwsp_seqyes[0] != seqyes[0] || *hwsp_seqyes[1] != seqyes[1]) {
 			pr_err("Bad timeline values: found (%x, %x), expected (%x, %x)\n",
-			       *hwsp_seqno[0], *hwsp_seqno[1],
-			       seqno[0], seqno[1]);
+			       *hwsp_seqyes[0], *hwsp_seqyes[1],
+			       seqyes[0], seqyes[1]);
 			err = -EINVAL;
 			goto out;
 		}
@@ -761,7 +761,7 @@ static int live_hwsp_recycle(void *arg)
 	int err = 0;
 
 	/*
-	 * Check seqno writes into one timeline at a time. We expect to
+	 * Check seqyes writes into one timeline at a time. We expect to
 	 * recycle the breadcrumb slot between iterations and neither
 	 * want to confuse ourselves or the GPU.
 	 */
@@ -800,9 +800,9 @@ static int live_hwsp_recycle(void *arg)
 				break;
 			}
 
-			if (*tl->hwsp_seqno != count) {
-				pr_err("Invalid seqno stored in timeline %lu, found 0x%x\n",
-				       count, *tl->hwsp_seqno);
+			if (*tl->hwsp_seqyes != count) {
+				pr_err("Invalid seqyes stored in timeline %lu, found 0x%x\n",
+				       count, *tl->hwsp_seqyes);
 				err = -EINVAL;
 			}
 

@@ -100,7 +100,7 @@ static int tmio_mmc_suspend(struct device *dev)
 
 	ret = pm_runtime_force_suspend(dev);
 
-	/* Tell MFD core it can disable us now.*/
+	/* Tell MFD core it can disable us yesw.*/
 	if (!ret && cell->disable)
 		cell->disable(pdev);
 

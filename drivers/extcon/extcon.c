@@ -288,12 +288,12 @@ static bool is_extcon_property_supported(unsigned int id, unsigned int prop)
 {
 	int type;
 
-	/* Check whether the property is supported or not. */
+	/* Check whether the property is supported or yest. */
 	type = get_extcon_type(prop);
 	if (type < 0)
 		return false;
 
-	/* Check whether a specific extcon id supports the property or not. */
+	/* Check whether a specific extcon id supports the property or yest. */
 	return !!(extcon_info[id].type & type);
 }
 
@@ -303,7 +303,7 @@ static int is_extcon_property_capability(struct extcon_dev *edev,
 	struct extcon_cable *cable;
 	int type, ret;
 
-	/* Check whether the property is supported or not. */
+	/* Check whether the property is supported or yest. */
 	type = get_extcon_type(prop);
 	if (type < 0)
 		return type;
@@ -400,7 +400,7 @@ static ssize_t cable_state_show(struct device *dev,
  * extcon_sync() - Synchronize the state for an external connector.
  * @edev:	the extcon device
  *
- * Note that this function send a notification in order to synchronize
+ * Note that this function send a yestification in order to synchronize
  * the state and property of an external connector.
  *
  * Returns 0 if success or error number if fail.
@@ -429,16 +429,16 @@ int extcon_sync(struct extcon_dev *edev, unsigned int id)
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	/*
-	 * Call functions in a raw notifier chain for the specific one
+	 * Call functions in a raw yestifier chain for the specific one
 	 * external connector.
 	 */
-	raw_notifier_call_chain(&edev->nh[index], state, edev);
+	raw_yestifier_call_chain(&edev->nh[index], state, edev);
 
 	/*
-	 * Call functions in a raw notifier chain for the all supported
+	 * Call functions in a raw yestifier chain for the all supported
 	 * external connectors.
 	 */
-	raw_notifier_call_chain(&edev->nh_all, state, edev);
+	raw_yestifier_call_chain(&edev->nh_all, state, edev);
 
 	spin_lock_irqsave(&edev->lock, flags);
 	/* This could be in interrupt handler */
@@ -514,7 +514,7 @@ EXPORT_SYMBOL_GPL(extcon_get_state);
  *		the default semantics is true: attached / false: detached.
  *
  * Note that this function set the state of an external connector without
- * a notification. To synchronize the state of an external connector,
+ * a yestification. To synchronize the state of an external connector,
  * have to use extcon_set_state_sync() and extcon_sync().
  *
  * Returns 0 if success or error number if fail.
@@ -570,7 +570,7 @@ EXPORT_SYMBOL_GPL(extcon_set_state);
  *		the default semantics is true: attached / false: detached.
  *
  * Note that this function set the state of external connector
- * and synchronize the state by sending a notification.
+ * and synchronize the state by sending a yestification.
  *
  * Returns 0 if success or error number if fail.
  */
@@ -625,7 +625,7 @@ int extcon_get_property(struct extcon_dev *edev, unsigned int id,
 	if (!edev)
 		return -EINVAL;
 
-	/* Check whether the property is supported or not */
+	/* Check whether the property is supported or yest */
 	if (!is_extcon_property_supported(id, prop))
 		return -EINVAL;
 
@@ -636,7 +636,7 @@ int extcon_get_property(struct extcon_dev *edev, unsigned int id,
 
 	spin_lock_irqsave(&edev->lock, flags);
 
-	/* Check whether the property is available or not. */
+	/* Check whether the property is available or yest. */
 	if (!is_extcon_property_capability(edev, id, index, prop)) {
 		spin_unlock_irqrestore(&edev->lock, flags);
 		return -EPERM;
@@ -644,7 +644,7 @@ int extcon_get_property(struct extcon_dev *edev, unsigned int id,
 
 	/*
 	 * Check whether the external connector is attached.
-	 * If external connector is detached, the user can not
+	 * If external connector is detached, the user can yest
 	 * get the property value.
 	 */
 	if (!is_extcon_attached(edev, index)) {
@@ -702,7 +702,7 @@ int extcon_set_property(struct extcon_dev *edev, unsigned int id,
 	if (!edev)
 		return -EINVAL;
 
-	/* Check whether the property is supported or not */
+	/* Check whether the property is supported or yest */
 	if (!is_extcon_property_supported(id, prop))
 		return -EINVAL;
 
@@ -713,7 +713,7 @@ int extcon_set_property(struct extcon_dev *edev, unsigned int id,
 
 	spin_lock_irqsave(&edev->lock, flags);
 
-	/* Check whether the property is available or not. */
+	/* Check whether the property is available or yest. */
 	if (!is_extcon_property_capability(edev, id, index, prop)) {
 		spin_unlock_irqrestore(&edev->lock, flags);
 		return -EPERM;
@@ -777,7 +777,7 @@ EXPORT_SYMBOL_GPL(extcon_set_property_sync);
  * @id:		the unique id indicating an external connector
  * @prop:	the property id indicating an extcon property
  *
- * Returns 1 if the property is available or 0 if not available.
+ * Returns 1 if the property is available or 0 if yest available.
  */
 int extcon_get_property_capability(struct extcon_dev *edev, unsigned int id,
 					unsigned int prop)
@@ -787,7 +787,7 @@ int extcon_get_property_capability(struct extcon_dev *edev, unsigned int id,
 	if (!edev)
 		return -EINVAL;
 
-	/* Check whether the property is supported or not */
+	/* Check whether the property is supported or yest */
 	if (!is_extcon_property_supported(id, prop))
 		return -EINVAL;
 
@@ -822,7 +822,7 @@ int extcon_set_property_capability(struct extcon_dev *edev, unsigned int id,
 	if (!edev)
 		return -EINVAL;
 
-	/* Check whether the property is supported or not. */
+	/* Check whether the property is supported or yest. */
 	if (!is_extcon_property_supported(id, prop))
 		return -EINVAL;
 
@@ -884,11 +884,11 @@ out:
 EXPORT_SYMBOL_GPL(extcon_get_extcon_dev);
 
 /**
- * extcon_register_notifier() - Register a notifier block to get notified by
+ * extcon_register_yestifier() - Register a yestifier block to get yestified by
  *				any state changes from the extcon.
  * @edev:	the extcon device
  * @id:		the unique id indicating an external connector
- * @nb:		a notifier block to be registered
+ * @nb:		a yestifier block to be registered
  *
  * Note that the second parameter given to the callback of nb (val) is
  * the current state of an external connector and the third pameter
@@ -896,8 +896,8 @@ EXPORT_SYMBOL_GPL(extcon_get_extcon_dev);
  *
  * Returns 0 if success or error number if fail.
  */
-int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
-			     struct notifier_block *nb)
+int extcon_register_yestifier(struct extcon_dev *edev, unsigned int id,
+			     struct yestifier_block *nb)
 {
 	unsigned long flags;
 	int ret, idx = -EINVAL;
@@ -910,23 +910,23 @@ int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 		return idx;
 
 	spin_lock_irqsave(&edev->lock, flags);
-	ret = raw_notifier_chain_register(&edev->nh[idx], nb);
+	ret = raw_yestifier_chain_register(&edev->nh[idx], nb);
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(extcon_register_notifier);
+EXPORT_SYMBOL_GPL(extcon_register_yestifier);
 
 /**
- * extcon_unregister_notifier() - Unregister a notifier block from the extcon.
+ * extcon_unregister_yestifier() - Unregister a yestifier block from the extcon.
  * @edev:	the extcon device
  * @id:		the unique id indicating an external connector
- * @nb:		a notifier block to be registered
+ * @nb:		a yestifier block to be registered
  *
  * Returns 0 if success or error number if fail.
  */
-int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb)
+int extcon_unregister_yestifier(struct extcon_dev *edev, unsigned int id,
+				struct yestifier_block *nb)
 {
 	unsigned long flags;
 	int ret, idx;
@@ -939,27 +939,27 @@ int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
 		return idx;
 
 	spin_lock_irqsave(&edev->lock, flags);
-	ret = raw_notifier_chain_unregister(&edev->nh[idx], nb);
+	ret = raw_yestifier_chain_unregister(&edev->nh[idx], nb);
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(extcon_unregister_notifier);
+EXPORT_SYMBOL_GPL(extcon_unregister_yestifier);
 
 /**
- * extcon_register_notifier_all() - Register a notifier block for all connectors.
+ * extcon_register_yestifier_all() - Register a yestifier block for all connectors.
  * @edev:	the extcon device
- * @nb:		a notifier block to be registered
+ * @nb:		a yestifier block to be registered
  *
- * Note that this function registers a notifier block in order to receive
+ * Note that this function registers a yestifier block in order to receive
  * the state change of all supported external connectors from extcon device.
  * And the second parameter given to the callback of nb (val) is
  * the current state and the third pameter is the pointer of extcon device.
  *
  * Returns 0 if success or error number if fail.
  */
-int extcon_register_notifier_all(struct extcon_dev *edev,
-				struct notifier_block *nb)
+int extcon_register_yestifier_all(struct extcon_dev *edev,
+				struct yestifier_block *nb)
 {
 	unsigned long flags;
 	int ret;
@@ -968,22 +968,22 @@ int extcon_register_notifier_all(struct extcon_dev *edev,
 		return -EINVAL;
 
 	spin_lock_irqsave(&edev->lock, flags);
-	ret = raw_notifier_chain_register(&edev->nh_all, nb);
+	ret = raw_yestifier_chain_register(&edev->nh_all, nb);
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(extcon_register_notifier_all);
+EXPORT_SYMBOL_GPL(extcon_register_yestifier_all);
 
 /**
- * extcon_unregister_notifier_all() - Unregister a notifier block from extcon.
+ * extcon_unregister_yestifier_all() - Unregister a yestifier block from extcon.
  * @edev:	the extcon device
- * @nb:		a notifier block to be registered
+ * @nb:		a yestifier block to be registered
  *
  * Returns 0 if success or error number if fail.
  */
-int extcon_unregister_notifier_all(struct extcon_dev *edev,
-				struct notifier_block *nb)
+int extcon_unregister_yestifier_all(struct extcon_dev *edev,
+				struct yestifier_block *nb)
 {
 	unsigned long flags;
 	int ret;
@@ -992,12 +992,12 @@ int extcon_unregister_notifier_all(struct extcon_dev *edev,
 		return -EINVAL;
 
 	spin_lock_irqsave(&edev->lock, flags);
-	ret = raw_notifier_chain_unregister(&edev->nh_all, nb);
+	ret = raw_yestifier_chain_unregister(&edev->nh_all, nb);
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(extcon_unregister_notifier_all);
+EXPORT_SYMBOL_GPL(extcon_unregister_yestifier_all);
 
 static struct attribute *extcon_attrs[] = {
 	&dev_attr_state.attr,
@@ -1070,7 +1070,7 @@ EXPORT_SYMBOL_GPL(extcon_dev_free);
  * @edev:	the extcon device to be registered
  *
  * Among the members of edev struct, please set the "user initializing data"
- * do not set the values of "internal data", which are initialized by
+ * do yest set the values of "internal data", which are initialized by
  * this function.
  *
  * Note that before calling this funciton, have to allocate the memory
@@ -1082,7 +1082,7 @@ EXPORT_SYMBOL_GPL(extcon_dev_free);
 int extcon_dev_register(struct extcon_dev *edev)
 {
 	int ret, index = 0;
-	static atomic_t edev_no = ATOMIC_INIT(-1);
+	static atomic_t edev_yes = ATOMIC_INIT(-1);
 
 	if (!extcon_class) {
 		ret = create_extcon_class();
@@ -1112,7 +1112,7 @@ int extcon_dev_register(struct extcon_dev *edev)
 		return -EINVAL;
 	}
 	dev_set_name(&edev->dev, "extcon%lu",
-			(unsigned long)atomic_inc_return(&edev_no));
+			(unsigned long)atomic_inc_return(&edev_yes));
 
 	if (edev->max_supported) {
 		char *str;
@@ -1283,7 +1283,7 @@ EXPORT_SYMBOL_GPL(extcon_dev_register);
  * extcon_dev_unregister() - Unregister the extcon device.
  * @edev:	the extcon device to be unregistered.
  *
- * Note that this does not call kfree(edev) because edev was not allocated
+ * Note that this does yest call kfree(edev) because edev was yest allocated
  * by this class.
  */
 void extcon_dev_unregister(struct extcon_dev *edev)
@@ -1328,18 +1328,18 @@ EXPORT_SYMBOL_GPL(extcon_dev_unregister);
 #ifdef CONFIG_OF
 
 /*
- * extcon_find_edev_by_node - Find the extcon device from devicetree.
- * @node	: OF node identifying edev
+ * extcon_find_edev_by_yesde - Find the extcon device from devicetree.
+ * @yesde	: OF yesde identifying edev
  *
  * Return the pointer of extcon device if success or ERR_PTR(err) if fail.
  */
-struct extcon_dev *extcon_find_edev_by_node(struct device_node *node)
+struct extcon_dev *extcon_find_edev_by_yesde(struct device_yesde *yesde)
 {
 	struct extcon_dev *edev;
 
 	mutex_lock(&extcon_dev_list_lock);
 	list_for_each_entry(edev, &extcon_dev_list, entry)
-		if (edev->dev.parent && edev->dev.parent->of_node == node)
+		if (edev->dev.parent && edev->dev.parent->of_yesde == yesde)
 			goto out;
 	edev = ERR_PTR(-EPROBE_DEFER);
 out:
@@ -1357,33 +1357,33 @@ out:
  */
 struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct extcon_dev *edev;
 
 	if (!dev)
 		return ERR_PTR(-EINVAL);
 
-	if (!dev->of_node) {
-		dev_dbg(dev, "device does not have a device node entry\n");
+	if (!dev->of_yesde) {
+		dev_dbg(dev, "device does yest have a device yesde entry\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	node = of_parse_phandle(dev->of_node, "extcon", index);
-	if (!node) {
-		dev_dbg(dev, "failed to get phandle in %pOF node\n",
-			dev->of_node);
+	yesde = of_parse_phandle(dev->of_yesde, "extcon", index);
+	if (!yesde) {
+		dev_dbg(dev, "failed to get phandle in %pOF yesde\n",
+			dev->of_yesde);
 		return ERR_PTR(-ENODEV);
 	}
 
-	edev = extcon_find_edev_by_node(node);
-	of_node_put(node);
+	edev = extcon_find_edev_by_yesde(yesde);
+	of_yesde_put(yesde);
 
 	return edev;
 }
 
 #else
 
-struct extcon_dev *extcon_find_edev_by_node(struct device_node *node)
+struct extcon_dev *extcon_find_edev_by_yesde(struct device_yesde *yesde)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -1395,7 +1395,7 @@ struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
 
 #endif /* CONFIG_OF */
 
-EXPORT_SYMBOL_GPL(extcon_find_edev_by_node);
+EXPORT_SYMBOL_GPL(extcon_find_edev_by_yesde);
 EXPORT_SYMBOL_GPL(extcon_get_edev_by_phandle);
 
 /**

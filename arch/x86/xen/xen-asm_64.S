@@ -6,7 +6,7 @@
  * operations here; the indirect forms are better handled in C.
  */
 
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/percpu.h>
 #include <asm/processor-flags.h>
 #include <asm/segment.h>
@@ -36,11 +36,11 @@ xen_pv_trap xennmi
 xen_pv_trap overflow
 xen_pv_trap bounds
 xen_pv_trap invalid_op
-xen_pv_trap device_not_available
+xen_pv_trap device_yest_available
 xen_pv_trap double_fault
 xen_pv_trap coprocessor_segment_overrun
 xen_pv_trap invalid_TSS
-xen_pv_trap segment_not_present
+xen_pv_trap segment_yest_present
 xen_pv_trap stack_segment
 xen_pv_trap general_protection
 xen_pv_trap page_fault
@@ -131,7 +131,7 @@ SYM_FUNC_START(xen_syscall_target)
 	popq %r11
 
 	/*
-	 * Neither Xen nor the kernel really knows what the old SS and
+	 * Neither Xen yesr the kernel really kyesws what the old SS and
 	 * CS were.  The kernel expects __USER_DS and __USER_CS, so
 	 * report those values even though Xen will guess its own values.
 	 */
@@ -149,7 +149,7 @@ SYM_FUNC_START(xen_syscall32_target)
 	popq %r11
 
 	/*
-	 * Neither Xen nor the kernel really knows what the old SS and
+	 * Neither Xen yesr the kernel really kyesws what the old SS and
 	 * CS were.  The kernel expects __USER32_DS and __USER32_CS, so
 	 * report those values even though Xen will guess its own values.
 	 */

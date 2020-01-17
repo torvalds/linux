@@ -6,7 +6,7 @@
  *  Based upon reverse engineered information, and on Intel documentation
  *  for chipsets ICH2-M and ICH3-M.
  *
- *  Many thanks to Ducrot Bruno for finding and fixing the last
+ *  Many thanks to Ducrot Bruyes for finding and fixing the last
  *  "missing link" for ICH2-M/ICH3-M support, and to Thomas Winkler
  *  for extensive testing.
  *
@@ -33,7 +33,7 @@
 
 
 /* speedstep_chipset:
- *   It is necessary to know which chipset is used. As accesses to
+ *   It is necessary to kyesw which chipset is used. As accesses to
  * this device occur at various places in this module, we need a
  * static struct pci_dev * pointing to that device.
  */
@@ -60,7 +60,7 @@ static struct cpufreq_frequency_table speedstep_freqs[] = {
 /**
  * speedstep_find_register - read the PMBASE address
  *
- * Returns: -ENODEV if no register could be found
+ * Returns: -ENODEV if yes register could be found
  */
 static int speedstep_find_register(void)
 {
@@ -70,13 +70,13 @@ static int speedstep_find_register(void)
 	/* get PMBASE */
 	pci_read_config_dword(speedstep_chipset_dev, 0x40, &pmbase);
 	if (!(pmbase & 0x01)) {
-		pr_err("could not find speedstep register\n");
+		pr_err("could yest find speedstep register\n");
 		return -ENODEV;
 	}
 
 	pmbase &= 0xFFFFFFFE;
 	if (!pmbase) {
-		pr_err("could not find speedstep register\n");
+		pr_err("could yest find speedstep register\n");
 		return -ENODEV;
 	}
 
@@ -218,7 +218,7 @@ static unsigned int speedstep_detect_chipset(void)
 			return 2; /* 2-M */
 
 		if (hostbridge->revision < 5) {
-			pr_debug("hostbridge does not support speedstep\n");
+			pr_debug("hostbridge does yest support speedstep\n");
 			speedstep_chipset_dev = NULL;
 			pci_dev_put(hostbridge);
 			return 0;
@@ -325,7 +325,7 @@ static const struct x86_cpu_id ss_smi_ids[] = {
 	{}
 };
 #if 0
-/* Autoload or not? Do not for now. */
+/* Autoload or yest? Do yest for yesw. */
 MODULE_DEVICE_TABLE(x86cpu, ss_smi_ids);
 #endif
 
@@ -345,13 +345,13 @@ static int __init speedstep_init(void)
 	speedstep_processor = speedstep_detect_processor();
 	if (!speedstep_processor) {
 		pr_debug("Intel(R) SpeedStep(TM) capable processor "
-				"not found\n");
+				"yest found\n");
 		return -ENODEV;
 	}
 
 	/* detect chipset */
 	if (!speedstep_detect_chipset()) {
-		pr_debug("Intel(R) SpeedStep(TM) for this chipset not "
+		pr_debug("Intel(R) SpeedStep(TM) for this chipset yest "
 				"(yet) available.\n");
 		return -ENODEV;
 	}

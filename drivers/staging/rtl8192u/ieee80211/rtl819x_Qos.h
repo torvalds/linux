@@ -52,7 +52,7 @@ struct qos_tsinfo {
  */
 struct tspec_body {
 	struct qos_tsinfo	ts_info;	//u8	TSInfo[3];
-	u16	nominal_msd_usize;
+	u16	yesminal_msd_usize;
 	u16	max_msd_usize;
 	u32	min_service_itv;
 	u32	max_service_itv;

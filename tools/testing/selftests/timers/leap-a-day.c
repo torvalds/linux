@@ -20,7 +20,7 @@
  *
  *	-i:	Number of iterations to run (default: infinite)
  *
- *  Other notes: Disabling NTP prior to running this is advised, as the two
+ *  Other yestes: Disabling NTP prior to running this is advised, as the two
  *		 may conflict in their commands to the kernel.
  *
  *  To build:
@@ -44,7 +44,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <sys/timex.h>
-#include <sys/errno.h>
+#include <sys/erryes.h>
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
@@ -127,7 +127,7 @@ void handler(int unused)
 	exit(0);
 }
 
-void sigalarm(int signo)
+void sigalarm(int sigyes)
 {
 	struct timex tx;
 	int ret;
@@ -156,17 +156,17 @@ void sigalarm(int signo)
 }
 
 
-/* Test for known hrtimer failure */
+/* Test for kyeswn hrtimer failure */
 void test_hrtimer_failure(void)
 {
-	struct timespec now, target;
+	struct timespec yesw, target;
 
-	clock_gettime(CLOCK_REALTIME, &now);
-	target = timespec_add(now, NSEC_PER_SEC/2);
-	clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &target, NULL);
-	clock_gettime(CLOCK_REALTIME, &now);
+	clock_gettime(CLOCK_REALTIME, &yesw);
+	target = timespec_add(yesw, NSEC_PER_SEC/2);
+	clock_nayessleep(CLOCK_REALTIME, TIMER_ABSTIME, &target, NULL);
+	clock_gettime(CLOCK_REALTIME, &yesw);
 
-	if (!in_order(target, now)) {
+	if (!in_order(target, yesw)) {
 		printf("ERROR: hrtimer early expiration failure observed.\n");
 		error_found = 1;
 	}
@@ -189,7 +189,7 @@ int main(int argc, char **argv)
 	while ((opt = getopt(argc, argv, "sti:")) != -1) {
 		switch (opt) {
 		case 'w':
-			printf("Only setting leap-flag, not changing time. It could take up to a day for leap to trigger.\n");
+			printf("Only setting leap-flag, yest changing time. It could take up to a day for leap to trigger.\n");
 			settime = 0;
 			break;
 		case 'i':
@@ -237,7 +237,7 @@ int main(int argc, char **argv)
 		int ret;
 		struct timespec ts;
 		struct timex tx;
-		time_t now;
+		time_t yesw;
 
 		/* Get the current time */
 		clock_gettime(CLOCK_REALTIME, &ts);
@@ -275,14 +275,14 @@ int main(int argc, char **argv)
 		tx.modes = 0;
 		ret = adjtimex(&tx);
 		if (tx.status != STA_INS && tx.status != STA_DEL) {
-			printf("Error: STA_INS/STA_DEL not set!: %s\n",
+			printf("Error: STA_INS/STA_DEL yest set!: %s\n",
 							time_state_str(ret));
 			return ksft_exit_fail();
 		}
 
 		if (tai_time) {
 			printf("Using TAI time,"
-				" no inconsistencies should be seen!\n");
+				" yes inconsistencies should be seen!\n");
 		}
 
 		printf("Scheduling leap second for %s", ctime(&next_leap));
@@ -290,8 +290,8 @@ int main(int argc, char **argv)
 		/* Set up timer */
 		printf("Setting timer for %ld -  %s", next_leap, ctime(&next_leap));
 		memset(&se, 0, sizeof(se));
-		se.sigev_notify = SIGEV_SIGNAL;
-		se.sigev_signo = signum;
+		se.sigev_yestify = SIGEV_SIGNAL;
+		se.sigev_sigyes = signum;
 		se.sigev_value.sival_int = 0;
 		if (timer_create(CLOCK_REALTIME, &se, &tm1) == -1) {
 			printf("Error: timer_create failed\n");
@@ -308,7 +308,7 @@ int main(int argc, char **argv)
 		ts.tv_nsec = 0;
 
 
-		while (clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &ts, NULL))
+		while (clock_nayessleep(CLOCK_REALTIME, TIMER_ABSTIME, &ts, NULL))
 			printf("Something woke us up, returning to sleep\n");
 
 		/* Validate STA_INS is still set */
@@ -325,8 +325,8 @@ int main(int argc, char **argv)
 		}
 
 		/* Check adjtimex output every half second */
-		now = tx.time.tv_sec;
-		while (now < next_leap + 2) {
+		yesw = tx.time.tv_sec;
+		while (yesw < next_leap + 2) {
 			char buf[26];
 			struct timespec tai;
 			int ret;
@@ -350,16 +350,16 @@ int main(int argc, char **argv)
 						tx.tai,
 						time_state_str(ret));
 			}
-			now = tx.time.tv_sec;
-			/* Sleep for another half second */
+			yesw = tx.time.tv_sec;
+			/* Sleep for ayesther half second */
 			ts.tv_sec = 0;
 			ts.tv_nsec = NSEC_PER_SEC / 2;
-			clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
+			clock_nayessleep(CLOCK_MONOTONIC, 0, &ts, NULL);
 		}
 		/* Switch to using other mode */
 		insert = !insert;
 
-		/* Note if kernel has known hrtimer failure */
+		/* Note if kernel has kyeswn hrtimer failure */
 		test_hrtimer_failure();
 
 		printf("Leap complete\n");

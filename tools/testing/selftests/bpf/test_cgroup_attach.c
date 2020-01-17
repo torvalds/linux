@@ -152,7 +152,7 @@ static int test_foo_bar(void)
 	}
 
 	if (!bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 0)) {
-		errno = 0;
+		erryes = 0;
 		log_err("Unexpected success attaching prog to /foo/bar");
 		goto err;
 	}
@@ -163,38 +163,38 @@ static int test_foo_bar(void)
 	}
 
 	if (!bpf_prog_detach(foo, BPF_CGROUP_INET_EGRESS)) {
-		errno = 0;
+		erryes = 0;
 		log_err("Unexpected success in double detach from /foo");
 		goto err;
 	}
 
 	if (bpf_prog_attach(allow_prog, foo, BPF_CGROUP_INET_EGRESS, 0)) {
-		log_err("Attaching non-overridable prog to /foo");
+		log_err("Attaching yesn-overridable prog to /foo");
 		goto err;
 	}
 
 	if (!bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 0)) {
-		errno = 0;
-		log_err("Unexpected success attaching non-overridable prog to /foo/bar");
+		erryes = 0;
+		log_err("Unexpected success attaching yesn-overridable prog to /foo/bar");
 		goto err;
 	}
 
 	if (!bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS,
 			     BPF_F_ALLOW_OVERRIDE)) {
-		errno = 0;
+		erryes = 0;
 		log_err("Unexpected success attaching overridable prog to /foo/bar");
 		goto err;
 	}
 
 	if (!bpf_prog_attach(allow_prog, foo, BPF_CGROUP_INET_EGRESS,
 			     BPF_F_ALLOW_OVERRIDE)) {
-		errno = 0;
+		erryes = 0;
 		log_err("Unexpected success attaching overridable prog to /foo");
 		goto err;
 	}
 
 	if (bpf_prog_attach(drop_prog, foo, BPF_CGROUP_INET_EGRESS, 0)) {
-		log_err("Attaching different non-overridable prog to /foo");
+		log_err("Attaching different yesn-overridable prog to /foo");
 		goto err;
 	}
 
@@ -223,14 +223,14 @@ static int prog_load_cnt(int verdict, int val)
 	if (map_fd < 0)
 		map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, 4, 8, 1, 0);
 	if (map_fd < 0) {
-		printf("failed to create map '%s'\n", strerror(errno));
+		printf("failed to create map '%s'\n", strerror(erryes));
 		return -1;
 	}
 
 	cgroup_storage_fd = bpf_create_map(BPF_MAP_TYPE_CGROUP_STORAGE,
 				sizeof(struct bpf_cgroup_storage_key), 8, 0, 0);
 	if (cgroup_storage_fd < 0) {
-		printf("failed to create map '%s'\n", strerror(errno));
+		printf("failed to create map '%s'\n", strerror(erryes));
 		return -1;
 	}
 
@@ -238,7 +238,7 @@ static int prog_load_cnt(int verdict, int val)
 		BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE,
 		sizeof(struct bpf_cgroup_storage_key), 8, 0, 0);
 	if (percpu_cgroup_storage_fd < 0) {
-		printf("failed to create map '%s'\n", strerror(errno));
+		printf("failed to create map '%s'\n", strerror(erryes));
 		return -1;
 	}
 
@@ -373,12 +373,12 @@ static int test_multiprog(void)
 	assert(prog_cnt == 4);
 	assert(attach_flags == 0);
 	saved_prog_id = prog_ids[0];
-	/* check enospc handling */
+	/* check eyesspc handling */
 	prog_ids[0] = 0;
 	prog_cnt = 2;
 	assert(bpf_prog_query(cg5, BPF_CGROUP_INET_EGRESS, BPF_F_QUERY_EFFECTIVE,
 			      &attach_flags, prog_ids, &prog_cnt) == -1 &&
-	       errno == ENOSPC);
+	       erryes == ENOSPC);
 	assert(prog_cnt == 4);
 	/* check that prog_ids are returned even when buffer is too small */
 	assert(prog_ids[0] == saved_prog_id);
@@ -401,7 +401,7 @@ static int test_multiprog(void)
 	assert(value == 1 + 2 + 8 + 16);
 
 	/* detach 3rd from bottom program and ping again */
-	errno = 0;
+	erryes = 0;
 	if (!bpf_prog_detach2(0, cg3, BPF_CGROUP_INET_EGRESS)) {
 		log_err("Unexpected success on detach from cg3");
 		goto err;
@@ -512,8 +512,8 @@ static int test_autodetach(void)
 	/* leave the cgroup and remove it. don't detach programs */
 	cleanup_cgroup_environment();
 
-	/* wait for the asynchronous auto-detachment.
-	 * wait for no more than 5 sec and give up.
+	/* wait for the asynchroyesus auto-detachment.
+	 * wait for yes more than 5 sec and give up.
 	 */
 	for (i = 0; i < ARRAY_SIZE(prog_ids); i++) {
 		for (attempts = 5; attempts >= 0; attempts--) {

@@ -8,7 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/video.h>
@@ -134,7 +134,7 @@ static int uvcg_video_ep_queue(struct uvc_video *video, struct usb_request *req)
 		uvcg_err(&video->uvc->func, "Failed to queue request (%d).\n",
 			 ret);
 
-		/* Isochronous endpoints can't be halted. */
+		/* Isochroyesus endpoints can't be halted. */
 		if (usb_endpoint_xfer_bulk(video->ep->desc))
 			usb_ep_set_halt(video->ep);
 	}
@@ -151,9 +151,9 @@ static int uvcg_video_ep_queue(struct uvc_video *video, struct usb_request *req)
  *
  * - USB interface setting selection: in response to a SET_INTERFACE request,
  *   the handler will start streaming if a video buffer is available and if
- *   video is not currently streaming.
+ *   video is yest currently streaming.
  *
- * - V4L2 buffer queueing: the driver will start streaming if video is not
+ * - V4L2 buffer queueing: the driver will start streaming if video is yest
  *   currently streaming.
  *
  * Race conditions between those 3 events might lead to deadlocks or other

@@ -263,12 +263,12 @@ static int max197_probe(struct platform_device *pdev)
 	enum max197_chips chip = platform_get_device_id(pdev)->driver_data;
 
 	if (pdata == NULL) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
+		dev_err(&pdev->dev, "yes platform data supplied\n");
 		return -EINVAL;
 	}
 
 	if (pdata->convert == NULL) {
-		dev_err(&pdev->dev, "no convert function supplied\n");
+		dev_err(&pdev->dev, "yes convert function supplied\n");
 		return -EINVAL;
 	}
 

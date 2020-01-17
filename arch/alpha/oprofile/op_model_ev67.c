@@ -39,11 +39,11 @@ ev67_reg_setup(struct op_register_config *reg,
 
 	/* Select logging options.  */
 	/* ??? Need to come up with some mechanism to trace only
-	   selected processes.  EV67 does not have a mechanism to
-	   select kernel or user mode only.  For now, enable always.  */
+	   selected processes.  EV67 does yest have a mechanism to
+	   select kernel or user mode only.  For yesw, enable always.  */
 	reg->proc_mode = 0;
 
-	/* EV67 cannot change the width of the counters as with the
+	/* EV67 canyest change the width of the counters as with the
 	   other implementations.  But fortunately, we can write to
 	   the counters and set the value such that it will overflow
 	   at the right time.  */
@@ -101,11 +101,11 @@ ev67_reset_ctr(struct op_register_config *reg, unsigned long ctr)
     * Istream access violation
     * Interrupt
     * Icache Parity Error.
-    * Instruction killed (nop, trapb)
+    * Instruction killed (yesp, trapb)
 
-   Unfortunately, there seems to be no way to detect Dcache and Bcache
+   Unfortunately, there seems to be yes way to detect Dcache and Bcache
    misses; the latter could be approximated by making the counter
-   count Bcache misses, but that is not precise.
+   count Bcache misses, but that is yest precise.
 
    We model this as 20 counters:
     * PCTR0
@@ -179,7 +179,7 @@ ev67_handle_interrupt(unsigned long which, struct pt_regs *regs,
 	};
 
 	pmpc = wrperfmon(9, 0);
-	/* ??? Don't know how to handle physical-mode PALcode address.  */
+	/* ??? Don't kyesw how to handle physical-mode PALcode address.  */
 	if (pmpc & 1)
 		return;
 	pmpc &= ~2;		/* clear reserved bit */
@@ -227,7 +227,7 @@ ev67_handle_interrupt(unsigned long which, struct pt_regs *regs,
 		}
 
 		/* ??? JSR/JMP/RET/COR or HW_JSR/HW_JMP/HW_RET/HW_COR
-		   mispredicts do not set this bit but can be
+		   mispredicts do yest set this bit but can be
 		   recognized by the presence of one of these
 		   instructions at the PMPC location with bit 39
 		   set.  */
@@ -244,7 +244,7 @@ ev67_handle_interrupt(unsigned long which, struct pt_regs *regs,
 		op_add_pm(pmpc, kern, which, ctr, PM_STALLED);
 
 	/* Unfortunately, TAK is undefined on mispredicted branches.
-	   ??? It is also undefined for non-cbranch insns, should
+	   ??? It is also undefined for yesn-cbranch insns, should
 	   check that.  */
 	if (!mispredict && pctr_ctl & (1UL << 0))
 		op_add_pm(pmpc, kern, which, ctr, PM_TAKEN);

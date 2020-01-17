@@ -60,7 +60,7 @@ static int ctr3686_aes_nx_set_key(struct crypto_skcipher *tfm,
 	if (key_len < CTR_RFC3686_NONCE_SIZE)
 		return -EINVAL;
 
-	memcpy(nx_ctx->priv.ctr.nonce,
+	memcpy(nx_ctx->priv.ctr.yesnce,
 	       in_key + key_len - CTR_RFC3686_NONCE_SIZE,
 	       CTR_RFC3686_NONCE_SIZE);
 
@@ -118,7 +118,7 @@ static int ctr3686_aes_nx_crypt(struct skcipher_request *req)
 	struct nx_crypto_ctx *nx_ctx = crypto_skcipher_ctx(tfm);
 	u8 iv[16];
 
-	memcpy(iv, nx_ctx->priv.ctr.nonce, CTR_RFC3686_IV_SIZE);
+	memcpy(iv, nx_ctx->priv.ctr.yesnce, CTR_RFC3686_IV_SIZE);
 	memcpy(iv + CTR_RFC3686_NONCE_SIZE, req->iv, CTR_RFC3686_IV_SIZE);
 	iv[12] = iv[13] = iv[14] = 0;
 	iv[15] = 1;

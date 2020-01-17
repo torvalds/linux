@@ -194,8 +194,8 @@ enum {
 #define MHL_INT_DC_EDID_CHG			0x02
 
 enum {
-	MHL_ACK = 0x33, /* Command or Data byte acknowledge */
-	MHL_NACK = 0x34, /* Command or Data byte not acknowledge */
+	MHL_ACK = 0x33, /* Command or Data byte ackyeswledge */
+	MHL_NACK = 0x34, /* Command or Data byte yest ackyeswledge */
 	MHL_ABORT = 0x35, /* Transaction abort */
 	MHL_WRITE_STAT = 0xe0, /* Write one status register */
 	MHL_SET_INT = 0x60, /* Write one interrupt register */
@@ -224,22 +224,22 @@ enum {
 /* MSC message types */
 enum {
 	MHL_MSC_MSG_RCP = 0x10, /* RCP sub-command */
-	MHL_MSC_MSG_RCPK = 0x11, /* RCP Acknowledge sub-command */
+	MHL_MSC_MSG_RCPK = 0x11, /* RCP Ackyeswledge sub-command */
 	MHL_MSC_MSG_RCPE = 0x12, /* RCP Error sub-command */
 	MHL_MSC_MSG_RAP = 0x20, /* Mode Change Warning sub-command */
-	MHL_MSC_MSG_RAPK = 0x21, /* MCW Acknowledge sub-command */
+	MHL_MSC_MSG_RAPK = 0x21, /* MCW Ackyeswledge sub-command */
 	MHL_MSC_MSG_RBP = 0x22, /* Remote Button Protocol sub-command */
-	MHL_MSC_MSG_RBPK = 0x23, /* RBP Acknowledge sub-command */
+	MHL_MSC_MSG_RBPK = 0x23, /* RBP Ackyeswledge sub-command */
 	MHL_MSC_MSG_RBPE = 0x24, /* RBP Error sub-command */
 	MHL_MSC_MSG_UCP = 0x30, /* UCP sub-command */
-	MHL_MSC_MSG_UCPK = 0x31, /* UCP Acknowledge sub-command */
+	MHL_MSC_MSG_UCPK = 0x31, /* UCP Ackyeswledge sub-command */
 	MHL_MSC_MSG_UCPE = 0x32, /* UCP Error sub-command */
 	MHL_MSC_MSG_RUSB = 0x40, /* Request USB host role */
-	MHL_MSC_MSG_RUSBK = 0x41, /* Acknowledge request for USB host role */
+	MHL_MSC_MSG_RUSBK = 0x41, /* Ackyeswledge request for USB host role */
 	MHL_MSC_MSG_RHID = 0x42, /* Request HID host role */
-	MHL_MSC_MSG_RHIDK = 0x43, /* Acknowledge request for HID host role */
+	MHL_MSC_MSG_RHIDK = 0x43, /* Ackyeswledge request for HID host role */
 	MHL_MSC_MSG_ATT = 0x50, /* Request attention sub-command */
-	MHL_MSC_MSG_ATTK = 0x51, /* ATT Acknowledge sub-command */
+	MHL_MSC_MSG_ATTK = 0x51, /* ATT Ackyeswledge sub-command */
 	MHL_MSC_MSG_BIST_TRIGGER = 0x60,
 	MHL_MSC_MSG_BIST_REQUEST_STAT = 0x61,
 	MHL_MSC_MSG_BIST_READY = 0x62,
@@ -255,8 +255,8 @@ enum {
 
 /* RAPK status codes */
 #define MHL_RAPK_NO_ERR		0x00	/* RAP action recognized & supported */
-#define MHL_RAPK_UNRECOGNIZED	0x01	/* Unknown RAP action code received */
-#define MHL_RAPK_UNSUPPORTED	0x02	/* Rcvd RAP action code not supported */
+#define MHL_RAPK_UNRECOGNIZED	0x01	/* Unkyeswn RAP action code received */
+#define MHL_RAPK_UNSUPPORTED	0x02	/* Rcvd RAP action code yest supported */
 #define MHL_RAPK_BUSY		0x03	/* Responder too busy to respond */
 
 /* Bit masks for RCP messages */

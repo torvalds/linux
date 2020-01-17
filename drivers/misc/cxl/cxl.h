@@ -29,7 +29,7 @@ extern uint cxl_verbose;
 
 /*
  * Bump version each time a user API change is made, whether it is
- * backwards compatible ot not.
+ * backwards compatible ot yest.
  */
 #define CXL_API_VERSION 3
 #define CXL_API_VERSION_COMPATIBLE 1
@@ -37,7 +37,7 @@ extern uint cxl_verbose;
 /*
  * Opaque types to avoid accidentally passing registers for the wrong MMIO
  *
- * At the end of the day, I'm not married to using typedef here, but it might
+ * At the end of the day, I'm yest married to using typedef here, but it might
  * (and has!) help avoid bugs like mixing up CXL_PSL_CtxTime and
  * CXL_PSL_CtxTime_An, or calling cxl_p1n_write instead of cxl_p1_write.
  *
@@ -201,7 +201,7 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL_SR_An_XLAT_ror (3ull << (63-6))/* Radix on Radix mode */
 #define CXL_PSL_SR_An_BOT (1ull << (63-10)) /* Use the in-memory segment table */
 #define CXL_PSL_SR_An_PR  MSR_PR            /* Problem state, GA1: 1 */
-#define CXL_PSL_SR_An_ISL (1ull << (63-53)) /* Ignore Segment Large Page */
+#define CXL_PSL_SR_An_ISL (1ull << (63-53)) /* Igyesre Segment Large Page */
 #define CXL_PSL_SR_An_TC  (1ull << (63-54)) /* Page Table secondary hash */
 #define CXL_PSL_SR_An_US  (1ull << (63-56)) /* User state,    GA1: X */
 #define CXL_PSL_SR_An_SC  (1ull << (63-58)) /* Segment Table secondary hash */
@@ -318,21 +318,21 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL_AFUSEL_A (1ull << (63-55)) /* Adapter wide invalidates affect all AFUs */
 
 /****** CXL_PSL_DSISR_An - CAIA 1 ****************************************************/
-#define CXL_PSL_DSISR_An_DS (1ull << (63-0))  /* Segment not found */
-#define CXL_PSL_DSISR_An_DM (1ull << (63-1))  /* PTE not found (See also: M) or protection fault */
-#define CXL_PSL_DSISR_An_ST (1ull << (63-2))  /* Segment Table PTE not found */
-#define CXL_PSL_DSISR_An_UR (1ull << (63-3))  /* AURP PTE not found */
+#define CXL_PSL_DSISR_An_DS (1ull << (63-0))  /* Segment yest found */
+#define CXL_PSL_DSISR_An_DM (1ull << (63-1))  /* PTE yest found (See also: M) or protection fault */
+#define CXL_PSL_DSISR_An_ST (1ull << (63-2))  /* Segment Table PTE yest found */
+#define CXL_PSL_DSISR_An_UR (1ull << (63-3))  /* AURP PTE yest found */
 #define CXL_PSL_DSISR_TRANS (CXL_PSL_DSISR_An_DS | CXL_PSL_DSISR_An_DM | CXL_PSL_DSISR_An_ST | CXL_PSL_DSISR_An_UR)
 #define CXL_PSL_DSISR_An_PE (1ull << (63-4))  /* PSL Error (implementation specific) */
 #define CXL_PSL_DSISR_An_AE (1ull << (63-5))  /* AFU Error */
 #define CXL_PSL_DSISR_An_OC (1ull << (63-6))  /* OS Context Warning */
 #define CXL_PSL_DSISR_PENDING (CXL_PSL_DSISR_TRANS | CXL_PSL_DSISR_An_PE | CXL_PSL_DSISR_An_AE | CXL_PSL_DSISR_An_OC)
 /* NOTE: Bits 32:63 are undefined if DSISR[DS] = 1 */
-#define CXL_PSL_DSISR_An_M  DSISR_NOHPTE      /* PTE not found */
+#define CXL_PSL_DSISR_An_M  DSISR_NOHPTE      /* PTE yest found */
 #define CXL_PSL_DSISR_An_P  DSISR_PROTFAULT   /* Storage protection violation */
 #define CXL_PSL_DSISR_An_A  (1ull << (63-37)) /* AFU lock access to write through or cache inhibited storage */
 #define CXL_PSL_DSISR_An_S  DSISR_ISSTORE     /* Access was afu_wr or afu_zero */
-#define CXL_PSL_DSISR_An_K  DSISR_KEYFAULT    /* Access not permitted by virtual page class key protection */
+#define CXL_PSL_DSISR_An_K  DSISR_KEYFAULT    /* Access yest permitted by virtual page class key protection */
 
 /****** CXL_PSL_DSISR_An - CAIA 2 ****************************************************/
 #define CXL_PSL9_DSISR_An_TF (1ull << (63-3))  /* Translation fault */
@@ -347,15 +347,15 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
  */
 #define CXL_PSL9_DSISR_An_CO_MASK 0x00000000000000ffULL
 #define CXL_PSL9_DSISR_An_SF      0x0000000000000080ULL  /* Segment Fault                        0b10000000 */
-#define CXL_PSL9_DSISR_An_PF_SLR  0x0000000000000088ULL  /* PTE not found (Single Level Radix)   0b10001000 */
-#define CXL_PSL9_DSISR_An_PF_RGC  0x000000000000008CULL  /* PTE not found (Radix Guest (child))  0b10001100 */
-#define CXL_PSL9_DSISR_An_PF_RGP  0x0000000000000090ULL  /* PTE not found (Radix Guest (parent)) 0b10010000 */
-#define CXL_PSL9_DSISR_An_PF_HRH  0x0000000000000094ULL  /* PTE not found (HPT/Radix Host)       0b10010100 */
-#define CXL_PSL9_DSISR_An_PF_STEG 0x000000000000009CULL  /* PTE not found (STEG VA)              0b10011100 */
+#define CXL_PSL9_DSISR_An_PF_SLR  0x0000000000000088ULL  /* PTE yest found (Single Level Radix)   0b10001000 */
+#define CXL_PSL9_DSISR_An_PF_RGC  0x000000000000008CULL  /* PTE yest found (Radix Guest (child))  0b10001100 */
+#define CXL_PSL9_DSISR_An_PF_RGP  0x0000000000000090ULL  /* PTE yest found (Radix Guest (parent)) 0b10010000 */
+#define CXL_PSL9_DSISR_An_PF_HRH  0x0000000000000094ULL  /* PTE yest found (HPT/Radix Host)       0b10010100 */
+#define CXL_PSL9_DSISR_An_PF_STEG 0x000000000000009CULL  /* PTE yest found (STEG VA)              0b10011100 */
 #define CXL_PSL9_DSISR_An_URTCH   0x00000000000000B4ULL  /* Unsupported Radix Tree Configuration 0b10110100 */
 
 /****** CXL_PSL_TFC_An ******************************************************/
-#define CXL_PSL_TFC_An_A  (1ull << (63-28)) /* Acknowledge non-translation fault */
+#define CXL_PSL_TFC_An_A  (1ull << (63-28)) /* Ackyeswledge yesn-translation fault */
 #define CXL_PSL_TFC_An_C  (1ull << (63-29)) /* Continue (abort transaction) */
 #define CXL_PSL_TFC_An_AE (1ull << (63-30)) /* Restart PSL with address error */
 #define CXL_PSL_TFC_An_R  (1ull << (63-31)) /* Restart PSL transaction */
@@ -654,7 +654,7 @@ struct cxl_native {
 	irq_hw_number_t err_hwirq;
 	unsigned int err_virq;
 	u64 ps_off;
-	bool no_data_cache; /* set if no data cache on the card */
+	bool yes_data_cache; /* set if yes data cache on the card */
 	const struct cxl_service_layer_ops *sl_ops;
 };
 
@@ -691,7 +691,7 @@ struct cxl {
 	u16 base_image;
 	u8 vsec_status;
 	u8 caia_major;
-	u8 caia_minor;
+	u8 caia_miyesr;
 	u8 slices;
 	bool user_image_loaded;
 	bool perst_loads_image;
@@ -704,7 +704,7 @@ struct cxl {
 	 * number of contexts mapped on to this card. Possible values are:
 	 * >0: Number of contexts mapped and new one can be mapped.
 	 *  0: No active contexts and new ones can be mapped.
-	 * -1: No contexts mapped and new ones cannot be mapped.
+	 * -1: No contexts mapped and new ones canyest be mapped.
 	 */
 	atomic_t contexts_num;
 };
@@ -856,7 +856,7 @@ struct cxl_calls {
 };
 int register_cxl_calls(struct cxl_calls *calls);
 void unregister_cxl_calls(struct cxl_calls *calls);
-int cxl_update_properties(struct device_node *dn, struct property *new_prop);
+int cxl_update_properties(struct device_yesde *dn, struct property *new_prop);
 
 void cxl_remove_adapter_nr(struct cxl *adapter);
 
@@ -989,7 +989,7 @@ int __detach_context(struct cxl_context *ctx);
 /*
  * This must match the layout of the H_COLLECT_CA_INT_INFO retbuf defined
  * in PAPR.
- * Field pid_tid is now 'reserved' because it's no more used on bare-metal.
+ * Field pid_tid is yesw 'reserved' because it's yes more used on bare-metal.
  * On a guest environment, PSL_PID_An is located on the upper 32 bits and
  * PSL_TID_An register in the lower 32 bits.
  */
@@ -1037,24 +1037,24 @@ extern struct pci_driver cxl_pci_driver;
 extern struct platform_driver cxl_of_driver;
 int afu_allocate_irqs(struct cxl_context *ctx, u32 count);
 
-int afu_open(struct inode *inode, struct file *file);
-int afu_release(struct inode *inode, struct file *file);
+int afu_open(struct iyesde *iyesde, struct file *file);
+int afu_release(struct iyesde *iyesde, struct file *file);
 long afu_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 int afu_mmap(struct file *file, struct vm_area_struct *vm);
 __poll_t afu_poll(struct file *file, struct poll_table_struct *poll);
 ssize_t afu_read(struct file *file, char __user *buf, size_t count, loff_t *off);
 extern const struct file_operations afu_fops;
 
-struct cxl *cxl_guest_init_adapter(struct device_node *np, struct platform_device *dev);
+struct cxl *cxl_guest_init_adapter(struct device_yesde *np, struct platform_device *dev);
 void cxl_guest_remove_adapter(struct cxl *adapter);
-int cxl_of_read_adapter_handle(struct cxl *adapter, struct device_node *np);
-int cxl_of_read_adapter_properties(struct cxl *adapter, struct device_node *np);
+int cxl_of_read_adapter_handle(struct cxl *adapter, struct device_yesde *np);
+int cxl_of_read_adapter_properties(struct cxl *adapter, struct device_yesde *np);
 ssize_t cxl_guest_read_adapter_vpd(struct cxl *adapter, void *buf, size_t len);
 ssize_t cxl_guest_read_afu_vpd(struct cxl_afu *afu, void *buf, size_t len);
-int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_np);
+int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_yesde *afu_np);
 void cxl_guest_remove_afu(struct cxl_afu *afu);
-int cxl_of_read_afu_handle(struct cxl_afu *afu, struct device_node *afu_np);
-int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *afu_np);
+int cxl_of_read_afu_handle(struct cxl_afu *afu, struct device_yesde *afu_np);
+int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_yesde *afu_np);
 int cxl_guest_add_chardev(struct cxl *adapter);
 void cxl_guest_remove_chardev(struct cxl *adapter);
 void cxl_guest_reload_module(struct cxl *adapter);
@@ -1117,7 +1117,7 @@ int cxl_adapter_context_get(struct cxl *adapter);
 /* Decrements the number of attached contexts on an adapter */
 void cxl_adapter_context_put(struct cxl *adapter);
 
-/* If no active contexts then prevents contexts from being attached */
+/* If yes active contexts then prevents contexts from being attached */
 int cxl_adapter_context_lock(struct cxl *adapter);
 
 /* Unlock the contexts-lock if taken. Warn and force unlock otherwise */

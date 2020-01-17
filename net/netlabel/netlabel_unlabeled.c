@@ -25,7 +25,7 @@
 #include <linux/in6.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/netdevice.h>
 #include <linux/security.h>
 #include <linux/slab.h>
@@ -54,7 +54,7 @@
  * LSM.  The hash table is used to lookup the network interface entry
  * (struct netlbl_unlhsh_iface) and then the interface entry is used to
  * lookup an IP address match from an ordered list.  If a network interface
- * match can not be found in the hash table then the default entry
+ * match can yest be found in the hash table then the default entry
  * (netlbl_unlhsh_def) is used.  The IP address entry list
  * (struct netlbl_unlhsh_addr) is ordered such that the entries with a
  * larger netmask come first.
@@ -138,7 +138,7 @@ static const struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1
  * Description:
  * This function is designed to be used as a callback to the call_rcu()
  * function so that memory allocated to a hash table interface entry can be
- * released safely.  It is important to note that this function does not free
+ * released safely.  It is important to yeste that this function does yest free
  * the IPv4 and IPv6 address lists contained as part of an interface entry.  It
  * is up to the rest of the code to make sure an interface entry is only freed
  * once it's address lists are empty.
@@ -156,7 +156,7 @@ static void netlbl_unlhsh_free_iface(struct rcu_head *entry)
 
 	iface = container_of(entry, struct netlbl_unlhsh_iface, rcu);
 
-	/* no need for locks here since we are the only one with access to this
+	/* yes need for locks here since we are the only one with access to this
 	 * structure */
 
 	netlbl_af4list_foreach_safe(iter4, tmp4, &iface->addr4_list) {
@@ -578,7 +578,7 @@ static int netlbl_unlhsh_remove_addr6(struct net *net,
  *
  * Description:
  * Remove an interface entry from the unlabeled connection hash table if it is
- * empty.  An interface entry is considered to be empty if there are no
+ * empty.  An interface entry is considered to be empty if there are yes
  * address entries assigned to it.
  *
  */
@@ -684,10 +684,10 @@ unlhsh_remove_return:
  */
 
 /**
- * netlbl_unlhsh_netdev_handler - Network device notification handler
- * @this: notifier block
+ * netlbl_unlhsh_netdev_handler - Network device yestification handler
+ * @this: yestifier block
  * @event: the event
- * @ptr: the netdevice notifier info (cast to void)
+ * @ptr: the netdevice yestifier info (cast to void)
  *
  * Description:
  * Handle network device events, although at present all we care about is a
@@ -695,10 +695,10 @@ unlhsh_remove_return:
  * related entries from the unlabeled connection hash table.
  *
  */
-static int netlbl_unlhsh_netdev_handler(struct notifier_block *this,
+static int netlbl_unlhsh_netdev_handler(struct yestifier_block *this,
 					unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct netlbl_unlhsh_iface *iface = NULL;
 
 	if (!net_eq(dev_net(dev), &init_net))
@@ -984,7 +984,7 @@ static int netlbl_unlabel_staticremove(struct sk_buff *skb,
 	u32 addr_len;
 	struct netlbl_audit audit_info;
 
-	/* See the note in netlbl_unlabel_staticadd() about not allowing both
+	/* See the yeste in netlbl_unlabel_staticadd() about yest allowing both
 	 * IPv4 and IPv6 in the same entry. */
 	if (!info->attrs[NLBL_UNLABEL_A_IFACE] ||
 	    !((!info->attrs[NLBL_UNLABEL_A_IPV4ADDR] ||
@@ -1025,7 +1025,7 @@ static int netlbl_unlabel_staticremovedef(struct sk_buff *skb,
 	u32 addr_len;
 	struct netlbl_audit audit_info;
 
-	/* See the note in netlbl_unlabel_staticadd() about not allowing both
+	/* See the yeste in netlbl_unlabel_staticadd() about yest allowing both
 	 * IPv4 and IPv6 in the same entry. */
 	if (!((!info->attrs[NLBL_UNLABEL_A_IPV4ADDR] ||
 	       !info->attrs[NLBL_UNLABEL_A_IPV4MASK]) ^
@@ -1056,7 +1056,7 @@ static int netlbl_unlabel_staticremovedef(struct sk_buff *skb,
  * Description:
  * This function is designed to be used to generate a response for a
  * STATICLIST or STATICLISTDEF message.  When called either @addr4 or @addr6
- * can be specified, not both, the other unspecified entry should be set to
+ * can be specified, yest both, the other unspecified entry should be set to
  * NULL by the caller.  Returns the size of the message on success, negative
  * values on failure.
  *
@@ -1391,8 +1391,8 @@ int __init netlbl_unlabel_genl_init(void)
  * NetLabel KAPI Hooks
  */
 
-static struct notifier_block netlbl_unlhsh_netdev_notifier = {
-	.notifier_call = netlbl_unlhsh_netdev_handler,
+static struct yestifier_block netlbl_unlhsh_netdev_yestifier = {
+	.yestifier_call = netlbl_unlhsh_netdev_handler,
 };
 
 /**
@@ -1401,9 +1401,9 @@ static struct notifier_block netlbl_unlhsh_netdev_notifier = {
  *
  * Description:
  * Initializes the unlabeled connection hash table and registers a network
- * device notification handler.  This function should only be called by the
+ * device yestification handler.  This function should only be called by the
  * NetLabel subsystem itself during initialization.  Returns zero on success,
- * non-zero values on error.
+ * yesn-zero values on error.
  *
  */
 int __init netlbl_unlabel_init(u32 size)
@@ -1432,7 +1432,7 @@ int __init netlbl_unlabel_init(u32 size)
 	rcu_assign_pointer(netlbl_unlhsh, hsh_tbl);
 	spin_unlock(&netlbl_unlhsh_lock);
 
-	register_netdevice_notifier(&netlbl_unlhsh_netdev_notifier);
+	register_netdevice_yestifier(&netlbl_unlhsh_netdev_yestifier);
 
 	return 0;
 }
@@ -1459,7 +1459,7 @@ int netlbl_unlabel_getattr(const struct sk_buff *skb,
 	if (iface == NULL)
 		iface = rcu_dereference(netlbl_unlhsh_def);
 	if (iface == NULL || !iface->valid)
-		goto unlabel_getattr_nolabel;
+		goto unlabel_getattr_yeslabel;
 
 #if IS_ENABLED(CONFIG_IPV6)
 	/* When resolving a fallback label, check the sk_buff version as
@@ -1479,7 +1479,7 @@ int netlbl_unlabel_getattr(const struct sk_buff *skb,
 		addr4 = netlbl_af4list_search(hdr4->saddr,
 					      &iface->addr4_list);
 		if (addr4 == NULL)
-			goto unlabel_getattr_nolabel;
+			goto unlabel_getattr_yeslabel;
 		secattr->attr.secid = netlbl_unlhsh_addr4_entry(addr4)->secid;
 		break;
 	}
@@ -1492,13 +1492,13 @@ int netlbl_unlabel_getattr(const struct sk_buff *skb,
 		addr6 = netlbl_af6list_search(&hdr6->saddr,
 					      &iface->addr6_list);
 		if (addr6 == NULL)
-			goto unlabel_getattr_nolabel;
+			goto unlabel_getattr_yeslabel;
 		secattr->attr.secid = netlbl_unlhsh_addr6_entry(addr6)->secid;
 		break;
 	}
 #endif /* IPv6 */
 	default:
-		goto unlabel_getattr_nolabel;
+		goto unlabel_getattr_yeslabel;
 	}
 	rcu_read_unlock();
 
@@ -1506,7 +1506,7 @@ int netlbl_unlabel_getattr(const struct sk_buff *skb,
 	secattr->type = NETLBL_NLTYPE_UNLABELED;
 	return 0;
 
-unlabel_getattr_nolabel:
+unlabel_getattr_yeslabel:
 	rcu_read_unlock();
 	if (netlabel_unlabel_acceptflg == 0)
 		return -ENOMSG;

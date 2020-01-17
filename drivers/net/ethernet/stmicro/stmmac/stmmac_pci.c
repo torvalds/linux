@@ -18,7 +18,7 @@
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,
  * discovered via DMI, with the address of PHY connected to the MAC. The
- * negative value of the address means that MAC controller is not connected
+ * negative value of the address means that MAC controller is yest connected
  * with PHY.
  */
 struct stmmac_pci_func_data {
@@ -343,7 +343,7 @@ static int quark_default_data(struct pci_dev *pdev,
 
 	/*
 	 * Refuse to load the driver and register net device if MAC controller
-	 * does not connect to any PHY interface.
+	 * does yest connect to any PHY interface.
 	 */
 	ret = stmmac_pci_find_phy_addr(pdev, quark_pci_dmi);
 	if (ret < 0) {
@@ -451,10 +451,10 @@ static const struct stmmac_pci_info snps_gmac5_pci_info = {
  * @id: pointer to table of device id/id's.
  *
  * Description: This probing function gets called for all PCI devices which
- * match the ID table and are not "owned" by other driver yet. This function
+ * match the ID table and are yest "owned" by other driver yet. This function
  * gets passed a "struct pci_dev *" for each device whose entry in the ID table
  * matches the device. The probe functions returns zero when the driver choose
- * to take "ownership" of the device or an error code(-ve no) otherwise.
+ * to take "ownership" of the device or an error code(-ve yes) otherwise.
  */
 static int stmmac_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
@@ -579,7 +579,7 @@ static int __maybe_unused stmmac_pci_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(stmmac_pm_ops, stmmac_pci_suspend, stmmac_pci_resume);
 
-/* synthetic ID, no official vendor */
+/* synthetic ID, yes official vendor */
 #define PCI_VENDOR_ID_STMMAC 0x700
 
 #define STMMAC_QUARK_ID  0x0937

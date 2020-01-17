@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/mmzone.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/spinlock.h>
 #include <linux/smp.h>
 #include <linux/atomic.h>
@@ -47,7 +47,7 @@ void install_cpu_nmi_handler(int slice)
 
 /*
  * Copy the cpu registers which have been saved in the IP27prom format
- * into the eframe format for the node under consideration.
+ * into the eframe format for the yesde under consideration.
  */
 
 void nmi_cpu_eframe_save(nasid_t nasid, int slice)
@@ -148,9 +148,9 @@ void nmi_dump_hub_irq(nasid_t nasid, int slice)
 
 /*
  * Copy the cpu registers which have been saved in the IP27prom format
- * into the eframe format for the node under consideration.
+ * into the eframe format for the yesde under consideration.
  */
-void nmi_node_eframe_save(nasid_t nasid)
+void nmi_yesde_eframe_save(nasid_t nasid)
 {
 	int slice;
 
@@ -172,8 +172,8 @@ nmi_eframes_save(void)
 {
 	nasid_t nasid;
 
-	for_each_online_node(nasid)
-		nmi_node_eframe_save(nasid);
+	for_each_online_yesde(nasid)
+		nmi_yesde_eframe_save(nasid);
 }
 
 void
@@ -192,27 +192,27 @@ cont_nmi_dump(void)
 #ifdef REAL_NMI_SIGNAL
 	/*
 	 * Wait up to 15 seconds for the other cpus to respond to the NMI.
-	 * If a cpu has not responded after 10 sec, send it 1 additional NMI.
+	 * If a cpu has yest responded after 10 sec, send it 1 additional NMI.
 	 * This is for 2 reasons:
 	 *	- sometimes a MMSC fail to NMI all cpus.
 	 *	- on 512p SN0 system, the MMSC will only send NMIs to
-	 *	  half the cpus. Unfortunately, we don't know which cpus may be
+	 *	  half the cpus. Unfortunately, we don't kyesw which cpus may be
 	 *	  NMIed - it depends on how the site chooses to configure.
 	 *
 	 * Note: it has been measure that it takes the MMSC up to 2.3 secs to
 	 * send NMIs to all cpus on a 256p system.
 	 */
 	for (i=0; i < 1500; i++) {
-		for_each_online_node(node)
-			if (NODEPDA(node)->dump_count == 0)
+		for_each_online_yesde(yesde)
+			if (NODEPDA(yesde)->dump_count == 0)
 				break;
-		if (node == MAX_NUMNODES)
+		if (yesde == MAX_NUMNODES)
 			break;
 		if (i == 1000) {
-			for_each_online_node(node)
-				if (NODEPDA(node)->dump_count == 0) {
-					cpu = cpumask_first(cpumask_of_node(node));
-					for (n=0; n < CNODE_NUM_CPUS(node); cpu++, n++) {
+			for_each_online_yesde(yesde)
+				if (NODEPDA(yesde)->dump_count == 0) {
+					cpu = cpumask_first(cpumask_of_yesde(yesde));
+					for (n=0; n < CNODE_NUM_CPUS(yesde); cpu++, n++) {
 						CPUMASK_SETB(nmied_cpus, cpu);
 						/*
 						 * cputonasid, cputoslice

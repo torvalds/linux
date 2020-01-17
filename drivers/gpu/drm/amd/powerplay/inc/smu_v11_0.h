@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -172,7 +172,7 @@ int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu);
 
 int smu_v11_0_set_tool_table_location(struct smu_context *smu);
 
-int smu_v11_0_notify_memory_pool_location(struct smu_context *smu);
+int smu_v11_0_yestify_memory_pool_location(struct smu_context *smu);
 
 int smu_v11_0_system_features_control(struct smu_context *smu,
 					     bool en);
@@ -191,7 +191,7 @@ int smu_v11_0_set_allowed_mask(struct smu_context *smu);
 int smu_v11_0_get_enabled_mask(struct smu_context *smu,
 				      uint32_t *feature_mask, uint32_t num);
 
-int smu_v11_0_notify_display_change(struct smu_context *smu);
+int smu_v11_0_yestify_display_change(struct smu_context *smu);
 
 int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n);
 

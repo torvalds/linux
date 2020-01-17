@@ -192,7 +192,7 @@ def powerpc__hcall_exit(name, context, cpu, sec, nsec, pid, comm, callchain,
 
 		del d_enter[cpu][opcode]
 #	else:
-#		print("Can't find matching hcall_enter event. Ignoring sample")
+#		print("Can't find matching hcall_enter event. Igyesring sample")
 
 def powerpc__hcall_entry(event_name, context, cpu, sec, nsec, pid, comm,
 			 callchain, opcode):

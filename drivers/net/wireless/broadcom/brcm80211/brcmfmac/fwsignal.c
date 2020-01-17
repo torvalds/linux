@@ -194,7 +194,7 @@ enum brcmf_fws_skb_state {
  * @mac: descriptor related to destination for this packet.
  *
  * This information is stored in control buffer struct sk_buff::cb, which
- * provides 48 bytes of storage so this structure should not exceed that.
+ * provides 48 bytes of storage so this structure should yest exceed that.
  */
 struct brcmf_skbuff_cb {
 	u16 bus_flags;
@@ -368,7 +368,7 @@ enum brcmf_fws_mac_desc_state {
 };
 
 /**
- * struct brcmf_fws_mac_descriptor - firmware signalling data per node/interface
+ * struct brcmf_fws_mac_descriptor - firmware signalling data per yesde/interface
  *
  * @occupied: slot is in use.
  * @mac_handle: handle for mac entry determined by firmware.
@@ -379,7 +379,7 @@ enum brcmf_fws_mac_desc_state {
  * @ac_bitmap: ac queue bitmap.
  * @requested_credit: credits requested by firmware.
  * @ea: ethernet address.
- * @seq: per-node free-running sequence.
+ * @seq: per-yesde free-running sequence.
  * @psq: power-save queue.
  * @transit_count: packet in transit to firmware.
  */
@@ -436,8 +436,8 @@ struct brcmf_fws_hanger_item {
  *
  * @pushed: packets pushed to await txstatus.
  * @popped: packets popped upon handling txstatus.
- * @failed_to_push: packets that could not be pushed.
- * @failed_to_pop: packets that could not be popped.
+ * @failed_to_push: packets that could yest be pushed.
+ * @failed_to_pop: packets that could yest be popped.
  * @failed_slotfind: packets for which failed to find an entry.
  * @slot_pos: last returned item index for a free entry.
  * @items: array of hanger items.
@@ -453,7 +453,7 @@ struct brcmf_fws_hanger {
 };
 
 struct brcmf_fws_macdesc_table {
-	struct brcmf_fws_mac_descriptor nodes[BRCMF_FWS_MAC_DESC_TABLE_SIZE];
+	struct brcmf_fws_mac_descriptor yesdes[BRCMF_FWS_MAC_DESC_TABLE_SIZE];
 	struct brcmf_fws_mac_descriptor iface[BRCMF_MAX_IFS];
 	struct brcmf_fws_mac_descriptor other;
 };
@@ -502,7 +502,7 @@ struct brcmf_fws_info {
 	int fifo_credit[BRCMF_FWS_FIFO_COUNT];
 	int init_fifo_credit[BRCMF_FWS_FIFO_COUNT];
 	int credits_borrowed[BRCMF_FWS_FIFO_AC_VO + 1];
-	int deq_node_pos[BRCMF_FWS_FIFO_COUNT];
+	int deq_yesde_pos[BRCMF_FWS_FIFO_COUNT];
 	u32 fifo_credit_map;
 	u32 fifo_delay_map;
 	unsigned long borrow_defer_timestamp;
@@ -607,7 +607,7 @@ static int brcmf_fws_hanger_pushpkt(struct brcmf_fws_hanger *h,
 		return -ENOENT;
 
 	if (h->items[slot_id].state != BRCMF_FWS_HANGER_ITEM_STATE_FREE) {
-		brcmf_err("slot is not free\n");
+		brcmf_err("slot is yest free\n");
 		h->failed_to_push++;
 		return -EINVAL;
 	}
@@ -626,7 +626,7 @@ static inline int brcmf_fws_hanger_poppkt(struct brcmf_fws_hanger *h,
 		return -ENOENT;
 
 	if (h->items[slot_id].state == BRCMF_FWS_HANGER_ITEM_STATE_FREE) {
-		brcmf_err("entry not in use\n");
+		brcmf_err("entry yest in use\n");
 		h->failed_to_pop++;
 		return -EINVAL;
 	}
@@ -669,7 +669,7 @@ static int brcmf_fws_hanger_mark_suppressed(struct brcmf_fws_hanger *h,
 		return -ENOENT;
 
 	if (h->items[slot_id].state == BRCMF_FWS_HANGER_ITEM_STATE_FREE) {
-		brcmf_err("entry not in use\n");
+		brcmf_err("entry yest in use\n");
 		return -EINVAL;
 	}
 
@@ -751,8 +751,8 @@ brcmf_fws_macdesc_lookup(struct brcmf_fws_info *fws, u8 *ea)
 	if (ea == NULL)
 		return ERR_PTR(-EINVAL);
 
-	entry = &fws->desc.nodes[0];
-	for (i = 0; i < ARRAY_SIZE(fws->desc.nodes); i++) {
+	entry = &fws->desc.yesdes[0];
+	for (i = 0; i < ARRAY_SIZE(fws->desc.yesdes); i++) {
 		if (entry->occupied && !memcmp(entry->ea, ea, ETH_ALEN))
 			return entry;
 		entry++;
@@ -802,12 +802,12 @@ static bool brcmf_fws_macdesc_closed(struct brcmf_fws_info *fws,
 			return true;
 	}
 	/* an entry is closed when the state is closed and
-	 * the firmware did not request anything.
+	 * the firmware did yest request anything.
 	 */
 	closed = entry->state == BRCMF_FWS_STATE_CLOSE &&
 		 !entry->requested_credit && !entry->requested_packet;
 
-	/* Or firmware does not allow traffic for given fifo */
+	/* Or firmware does yest allow traffic for given fifo */
 	return closed || !(entry->ac_bitmap & BIT(fifo));
 }
 
@@ -833,7 +833,7 @@ static void brcmf_fws_bus_txq_cleanup(struct brcmf_fws_info *fws,
 
 	txq = brcmf_bus_gettxq(fws->drvr->bus_if);
 	if (IS_ERR(txq)) {
-		brcmf_dbg(TRACE, "no txq to clean up\n");
+		brcmf_dbg(TRACE, "yes txq to clean up\n");
 		return;
 	}
 
@@ -862,9 +862,9 @@ static void brcmf_fws_cleanup(struct brcmf_fws_info *fws, int ifidx)
 	if (ifidx != -1)
 		matchfn = brcmf_fws_ifidx_match;
 
-	/* cleanup individual nodes */
-	table = &fws->desc.nodes[0];
-	for (i = 0; i < ARRAY_SIZE(fws->desc.nodes); i++)
+	/* cleanup individual yesdes */
+	table = &fws->desc.yesdes[0];
+	for (i = 0; i < ARRAY_SIZE(fws->desc.yesdes); i++)
 		brcmf_fws_macdesc_cleanup(fws, &table[i], ifidx);
 
 	brcmf_fws_macdesc_cleanup(fws, &fws->desc.other, ifidx);
@@ -1012,7 +1012,7 @@ int brcmf_fws_macdesc_indicate(struct brcmf_fws_info *fws, u8 type, u8 *data)
 	ifidx = *data++;
 	addr = data;
 
-	entry = &fws->desc.nodes[mac_handle & 0x1F];
+	entry = &fws->desc.yesdes[mac_handle & 0x1F];
 	if (type == BRCMF_FWS_TYPE_MACDESC_DEL) {
 		if (entry->occupied) {
 			brcmf_dbg(TRACE, "deleting %s mac %pM\n",
@@ -1069,7 +1069,7 @@ static int brcmf_fws_macdesc_state_indicate(struct brcmf_fws_info *fws,
 	int ret;
 
 	mac_handle = data[0];
-	entry = &fws->desc.nodes[mac_handle & 0x1F];
+	entry = &fws->desc.yesdes[mac_handle & 0x1F];
 	if (!entry->occupied) {
 		fws->stats.mac_ps_update_failed++;
 		return -ESRCH;
@@ -1143,7 +1143,7 @@ static int brcmf_fws_request_indicate(struct brcmf_fws_info *fws, u8 type,
 {
 	struct brcmf_fws_mac_descriptor *entry;
 
-	entry = &fws->desc.nodes[data[1] & 0x1F];
+	entry = &fws->desc.yesdes[data[1] & 0x1F];
 	if (!entry->occupied) {
 		if (type == BRCMF_FWS_TYPE_MAC_REQUEST_CREDIT)
 			fws->stats.credit_request_failed++;
@@ -1175,13 +1175,13 @@ brcmf_fws_macdesc_use_req_credit(struct brcmf_fws_mac_descriptor *entry,
 		brcmf_skb_if_flags_set_field(skb, REQUESTED, 1);
 		brcmf_skb_if_flags_set_field(skb, REQ_CREDIT, 1);
 		if (entry->state != BRCMF_FWS_STATE_CLOSE)
-			brcmf_err("requested credit set while mac not closed!\n");
+			brcmf_err("requested credit set while mac yest closed!\n");
 	} else if (entry->requested_packet > 0) {
 		entry->requested_packet--;
 		brcmf_skb_if_flags_set_field(skb, REQUESTED, 1);
 		brcmf_skb_if_flags_set_field(skb, REQ_CREDIT, 0);
 		if (entry->state != BRCMF_FWS_STATE_CLOSE)
-			brcmf_err("requested packet set while mac not closed!\n");
+			brcmf_err("requested packet set while mac yest closed!\n");
 	} else {
 		brcmf_skb_if_flags_set_field(skb, REQUESTED, 0);
 		brcmf_skb_if_flags_set_field(skb, REQ_CREDIT, 0);
@@ -1261,7 +1261,7 @@ static int brcmf_fws_enq(struct brcmf_fws_info *fws,
 
 	entry = brcmf_skbcb(p)->mac;
 	if (entry == NULL) {
-		bphy_err(drvr, "no mac descriptor found for skb %p\n", p);
+		bphy_err(drvr, "yes mac descriptor found for skb %p\n", p);
 		return -ENOENT;
 	}
 
@@ -1344,18 +1344,18 @@ static struct sk_buff *brcmf_fws_deq(struct brcmf_fws_info *fws, int fifo)
 	struct brcmf_fws_mac_descriptor *table;
 	struct brcmf_fws_mac_descriptor *entry;
 	struct sk_buff *p;
-	int num_nodes;
-	int node_pos;
+	int num_yesdes;
+	int yesde_pos;
 	int prec_out;
 	int pmsk;
 	int i;
 
 	table = (struct brcmf_fws_mac_descriptor *)&fws->desc;
-	num_nodes = sizeof(fws->desc) / sizeof(struct brcmf_fws_mac_descriptor);
-	node_pos = fws->deq_node_pos[fifo];
+	num_yesdes = sizeof(fws->desc) / sizeof(struct brcmf_fws_mac_descriptor);
+	yesde_pos = fws->deq_yesde_pos[fifo];
 
-	for (i = 0; i < num_nodes; i++) {
-		entry = &table[(node_pos + i) % num_nodes];
+	for (i = 0; i < num_yesdes; i++) {
+		entry = &table[(yesde_pos + i) % num_yesdes];
 		if (!entry->occupied ||
 		    brcmf_fws_macdesc_closed(fws, entry, fifo))
 			continue;
@@ -1380,7 +1380,7 @@ static struct sk_buff *brcmf_fws_deq(struct brcmf_fws_info *fws, int fifo)
 		brcmf_fws_macdesc_use_req_credit(entry, p);
 
 		/* move dequeue position to ensure fair round-robin */
-		fws->deq_node_pos[fifo] = (node_pos + i + 1) % num_nodes;
+		fws->deq_yesde_pos[fifo] = (yesde_pos + i + 1) % num_yesdes;
 		brcmf_fws_flow_control_check(fws, &entry->psq,
 					     brcmf_skb_if_flags_get_field(p,
 									  INDEX)
@@ -1482,7 +1482,7 @@ brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
 		ret = brcmf_fws_hanger_poppkt(&fws->hanger, hslot, &skb,
 					      remove_from_hanger);
 		if (ret != 0) {
-			bphy_err(drvr, "no packet in hanger slot: hslot=%d\n",
+			bphy_err(drvr, "yes packet in hanger slot: hslot=%d\n",
 				 hslot);
 			goto cont;
 		}
@@ -1539,7 +1539,7 @@ static int brcmf_fws_fifocreditback_indicate(struct brcmf_fws_info *fws,
 	int i;
 
 	if (fws->fcmode != BRCMF_FWS_FCMODE_EXPLICIT_CREDIT) {
-		brcmf_dbg(INFO, "ignored\n");
+		brcmf_dbg(INFO, "igyesred\n");
 		return BRCMF_FWS_RET_OK_NOSCHEDULE;
 	}
 
@@ -1603,7 +1603,7 @@ static int brcmf_fws_dbg_seqnum_check(struct brcmf_fws_info *fws, u8 *data)
 	return 0;
 }
 
-static int brcmf_fws_notify_credit_map(struct brcmf_if *ifp,
+static int brcmf_fws_yestify_credit_map(struct brcmf_if *ifp,
 				       const struct brcmf_event_msg *e,
 				       void *data)
 {
@@ -1637,7 +1637,7 @@ static int brcmf_fws_notify_credit_map(struct brcmf_if *ifp,
 	return 0;
 }
 
-static int brcmf_fws_notify_bcmc_credit_support(struct brcmf_if *ifp,
+static int brcmf_fws_yestify_bcmc_credit_support(struct brcmf_if *ifp,
 						const struct brcmf_event_msg *e,
 						void *data)
 {
@@ -1659,7 +1659,7 @@ static void brcmf_rxreorder_get_skb_list(struct brcmf_ampdu_rx_reorder *rfi,
 	__skb_queue_head_init(skb_list);
 
 	if (rfi->pend_pkts == 0) {
-		brcmf_dbg(INFO, "no packets in reorder queue\n");
+		brcmf_dbg(INFO, "yes packets in reorder queue\n");
 		return;
 	}
 
@@ -1692,7 +1692,7 @@ void brcmf_fws_rxreorder(struct brcmf_if *ifp, struct sk_buff *pkt)
 
 	/* validate flags and flow id */
 	if (flags == 0xFF) {
-		bphy_err(drvr, "invalid flags...so ignore this packet\n");
+		bphy_err(drvr, "invalid flags...so igyesre this packet\n");
 		brcmf_netif_rx(ifp, pkt);
 		return;
 	}
@@ -1703,7 +1703,7 @@ void brcmf_fws_rxreorder(struct brcmf_if *ifp, struct sk_buff *pkt)
 			  flow_id);
 
 		if (rfi == NULL) {
-			brcmf_dbg(INFO, "received flags to cleanup, but no flow (%d) yet\n",
+			brcmf_dbg(INFO, "received flags to cleanup, but yes flow (%d) yet\n",
 				  flow_id);
 			brcmf_netif_rx(ifp, pkt);
 			return;
@@ -1772,7 +1772,7 @@ void brcmf_fws_rxreorder(struct brcmf_if *ifp, struct sk_buff *pkt)
 			brcmf_dbg(DATA, "flow-%d: store pkt %d (%d), pending %d\n",
 				  flow_id, cur_idx, exp_idx, rfi->pend_pkts);
 
-			/* can return now as there is no reorder
+			/* can return yesw as there is yes reorder
 			 * list to process.
 			 */
 			return;
@@ -1882,7 +1882,7 @@ void brcmf_fws_hdrpull(struct brcmf_if *ifp, s16 siglen, struct sk_buff *skb)
 		/* extract tlv info */
 		type = signal_data[0];
 
-		/* FILLER type is actually not a TLV, but
+		/* FILLER type is actually yest a TLV, but
 		 * a single byte that can be skipped.
 		 */
 		if (type == BRCMF_FWS_TYPE_FILLER) {
@@ -1959,7 +1959,7 @@ void brcmf_fws_hdrpull(struct brcmf_if *ifp, s16 siglen, struct sk_buff *skb)
 		brcmf_fws_schedule_deq(fws);
 
 	/* signalling processing result does
-	 * not affect the actual ethernet packet.
+	 * yest affect the actual ethernet packet.
 	 */
 	skb_pull(skb, siglen);
 
@@ -2145,7 +2145,7 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 		brcmf_fws_enq(fws, BRCMF_FWS_SKBSTATE_DELAYED, fifo, skb);
 		brcmf_fws_schedule_deq(fws);
 	} else {
-		bphy_err(drvr, "drop skb: no hanger slot\n");
+		bphy_err(drvr, "drop skb: yes hanger slot\n");
 		brcmf_txfinalize(ifp, skb, false);
 		rc = -ENOMEM;
 	}
@@ -2380,13 +2380,13 @@ struct brcmf_fws_info *brcmf_fws_attach(struct brcmf_pub *drvr)
 		       BRCMF_FWS_FLAGS_HOST_RXREORDER_ACTIVE;
 
 	rc = brcmf_fweh_register(drvr, BRCMF_E_FIFO_CREDIT_MAP,
-				 brcmf_fws_notify_credit_map);
+				 brcmf_fws_yestify_credit_map);
 	if (rc < 0) {
 		bphy_err(drvr, "register credit map handler failed\n");
 		goto fail;
 	}
 	rc = brcmf_fweh_register(drvr, BRCMF_E_BCMC_CREDIT_SUPPORT,
-				 brcmf_fws_notify_bcmc_credit_support);
+				 brcmf_fws_yestify_bcmc_credit_support);
 	if (rc < 0) {
 		bphy_err(drvr, "register bcmc credit handler failed\n");
 		brcmf_fweh_unregister(drvr, BRCMF_E_FIFO_CREDIT_MAP);
@@ -2395,7 +2395,7 @@ struct brcmf_fws_info *brcmf_fws_attach(struct brcmf_pub *drvr)
 
 	/* Setting the iovar may fail if feature is unsupported
 	 * so leave the rc as is so driver initialization can
-	 * continue. Set mode back to none indicating not enabled.
+	 * continue. Set mode back to yesne indicating yest enabled.
 	 */
 	fws->fw_signals = true;
 	ifp = brcmf_get_ifp(drvr, 0);

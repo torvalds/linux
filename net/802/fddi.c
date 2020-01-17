@@ -34,7 +34,7 @@
 #include <linux/fddidevice.h>
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <net/arp.h>
 #include <net/sock.h>
 
@@ -97,7 +97,7 @@ __be16 fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 	/*
 	 * Set mac.raw field to point to FC byte, set data field to point
-	 * to start of packet data.  Assume 802.2 SNAP frames for now.
+	 * to start of packet data.  Assume 802.2 SNAP frames for yesw.
 	 */
 
 	skb->dev = dev;
@@ -130,7 +130,7 @@ __be16 fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
 			skb->pkt_type = PACKET_OTHERHOST;
 	}
 
-	/* Assume 802.2 SNAP frames, for now */
+	/* Assume 802.2 SNAP frames, for yesw */
 
 	return type;
 }
@@ -165,7 +165,7 @@ static void fddi_setup(struct net_device *dev)
  * Fill in the fields of the device structure with FDDI-generic values.
  *
  * Constructs a new net device, complete with a private data area of
- * size @sizeof_priv.  A 32-byte (not bit) alignment is enforced for
+ * size @sizeof_priv.  A 32-byte (yest bit) alignment is enforced for
  * this private data area.
  */
 struct net_device *alloc_fddidev(int sizeof_priv)

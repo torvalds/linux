@@ -1,17 +1,17 @@
 == MediaTek MT7622 pinctrl controller ==
 
-Required properties for the root node:
+Required properties for the root yesde:
  - compatible: Should be one of the following
 	       "mediatek,mt7622-pinctrl" for MT7622 SoC
 	       "mediatek,mt7629-pinctrl" for MT7629 SoC
  - reg: offset and length of the pinctrl space
 
- - gpio-controller: Marks the device node as a GPIO controller.
+ - gpio-controller: Marks the device yesde as a GPIO controller.
  - #gpio-cells: Should be two. The first cell is the pin number and the
    second is the GPIO flags.
 
 Optional properties:
-- interrupt-controller  : Marks the device node as an interrupt controller
+- interrupt-controller  : Marks the device yesde as an interrupt controller
 
 If the property interrupt-controller is defined, following property is required
 - reg-names: A string describing the "reg" entries. Must contain "eint".
@@ -20,25 +20,25 @@ If the property interrupt-controller is defined, following property is required
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration yesde".
 
-MT7622 pin configuration nodes act as a container for an arbitrary number of
-subnodes. Each of these subnodes represents some desired configuration for a
+MT7622 pin configuration yesdes act as a container for an arbitrary number of
+subyesdes. Each of these subyesdes represents some desired configuration for a
 pin, a group, or a list of pins or groups. This configuration can include the
 mux function to select on those pin(s)/group(s), and various pin configuration
 parameters, such as pull-up, slew rate, etc.
 
-We support 2 types of configuration nodes. Those nodes can be either pinmux
-nodes or pinconf nodes. Each configuration node can consist of multiple nodes
+We support 2 types of configuration yesdes. Those yesdes can be either pinmux
+yesdes or pinconf yesdes. Each configuration yesde can consist of multiple yesdes
 describing the pinmux and pinconf options.
 
-The name of each subnode doesn't matter as long as it is unique; all subnodes
+The name of each subyesde doesn't matter as long as it is unique; all subyesdes
 should be enumerated and processed purely based on their content.
 
-== pinmux nodes content ==
+== pinmux yesdes content ==
 
 The following generic properties as defined in pinctrl-bindings.txt are valid
-to specify in a pinmux subnode:
+to specify in a pinmux subyesde:
 
 Required properties are:
  - groups: An array of strings. Each string contains the name of a group.
@@ -46,10 +46,10 @@ Required properties are:
  - function: A string containing the name of the function to mux to the
   group. Valid values for function names are listed below.
 
-== pinconf nodes content ==
+== pinconf yesdes content ==
 
 The following generic properties as defined in pinctrl-bindings.txt are valid
-to specify in a pinconf subnode:
+to specify in a pinconf subyesde:
 
 Required properties are:
  - pins: An array of strings. Each string contains the name of a pin.
@@ -62,12 +62,12 @@ Optional properies are:
  input-schmitt-enable, input-schmitt-disable, output-enable
  output-low, output-high, drive-strength, slew-rate
 
- Valid arguments for 'slew-rate' are '0' for no slew rate controlled and '1' for
+ Valid arguments for 'slew-rate' are '0' for yes slew rate controlled and '1' for
  slower slew rate respectively.
  Valid arguments for 'drive-strength', 4, 8, 12, or 16 in mA.
 
 The following specific properties as defined are valid to specify in a pinconf
-subnode:
+subyesde:
 
 Optional properties are:
  - mediatek,tdsel: An integer describing the steps for output level shifter duty
@@ -82,7 +82,7 @@ Optional properties are:
 Valid values for pins are:
 pins can be referenced via the pin names as the below table shown and the
 related physical number is also put ahead of those names which helps cross
-references to pins between groups to know whether pins assignment conflict
+references to pins between groups to kyesw whether pins assignment conflict
 happens among devices try to acquire those available pins.
 
 	Pin #:  Valid values for pins
@@ -196,7 +196,7 @@ Valid values for function are:
 	"pmic", "pwm", "sd", "spi", "tdm", "uart", "watchdog"
 
 Valid values for groups are:
-additional data is put followingly with valid value allowing us to know which
+additional data is put followingly with valid value allowing us to kyesw which
 applicable function and which relevant pins (in pin#) are able applied for that
 group.
 
@@ -254,7 +254,7 @@ group.
 							43, 44, 45, 46, 47, 48,
 							49, 50
 	"snfi"				"flash"		8, 9, 10, 11, 12, 13
-	"spi_nor"			"flash"		8, 9, 10, 11, 12, 13
+	"spi_yesr"			"flash"		8, 9, 10, 11, 12, 13
 	"pcie0_0_waken"			"pcie"		14
 	"pcie0_1_waken"			"pcie"		79
 	"pcie1_0_waken"			"pcie"		14
@@ -430,7 +430,7 @@ Valid values for groups are:
 	"wf2g_led"			"led"		17
 	"wf5g_led"			"led"		18
 	"snfi"				"flash"		62, 63, 64, 65, 66, 67
-	"spi_nor"			"flash"		62, 63, 64, 65, 66, 67
+	"spi_yesr"			"flash"		62, 63, 64, 65, 66, 67
 	"pcie_pereset"			"pcie"		51
 	"pcie_wake"			"pcie"		55
 	"pcie_clkreq"			"pcie"		56

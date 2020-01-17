@@ -27,7 +27,7 @@ How to program an FPGA using a region
 -------------------------------------
 
 When the FPGA region driver probed, it was given a pointer to an FPGA manager
-driver so it knows which manager to use.  The region also either has a list of
+driver so it kyesws which manager to use.  The region also either has a list of
 bridges to control during programming or it has a pointer to a function that
 will generate that list.  Here's some sample code of what to do next::
 

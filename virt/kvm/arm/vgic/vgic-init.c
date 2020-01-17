@@ -15,7 +15,7 @@
 /*
  * Initialization rules: there are multiple stages to the vgic
  * initialization, both for the distributor and the CPU interfaces.  The basic
- * idea is that even though the VGIC is not functional or not requested from
+ * idea is that even though the VGIC is yest functional or yest requested from
  * user space, the critical path of the run loop can still call VGIC functions
  * that just won't do anything, without them having to check additional
  * initialization flags to ensure they don't look at uninitialized data
@@ -64,7 +64,7 @@ void kvm_vgic_early_init(struct kvm *kvm)
  * kvm_vgic_create: triggered by the instantiation of the VGIC device by
  * user space, either through the legacy KVM_CREATE_IRQCHIP ioctl (v2 only)
  * or through the generic KVM_CREATE_DEVICE API ioctl.
- * irqchip_in_kernel() tells you if this function succeeded or not.
+ * irqchip_in_kernel() tells you if this function succeeded or yest.
  * @kvm: kvm struct pointer
  * @type: KVM_DEV_TYPE_ARM_VGIC_V[23]
  */
@@ -78,7 +78,7 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 
 	/*
 	 * This function is also called by the KVM_CREATE_IRQCHIP handler,
-	 * which had no chance yet to check the availability of the GICv2
+	 * which had yes chance yet to check the availability of the GICv2
 	 * emulation. So check this here again. KVM_CREATE_DEVICE does
 	 * the proper checks already.
 	 */
@@ -139,9 +139,9 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 		return  -ENOMEM;
 
 	/*
-	 * In the following code we do not take the irq struct lock since
-	 * no other action on irq structs can happen while the VGIC is
-	 * not initialized yet:
+	 * In the following code we do yest take the irq struct lock since
+	 * yes other action on irq structs can happen while the VGIC is
+	 * yest initialized yet:
 	 * If someone wants to inject an interrupt or does a MMIO access, we
 	 * require prior initialization in case of a virtual GICv3 or trigger
 	 * initialization when using a virtual GICv2.
@@ -179,7 +179,7 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
  *
  * @vcpu: pointer to the VCPU being created and initialized
  *
- * Only do initialization, but do not actually enable the
+ * Only do initialization, but do yest actually enable the
  * VGIC CPU interface
  */
 int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
@@ -247,7 +247,7 @@ static void kvm_vgic_vcpu_enable(struct kvm_vcpu *vcpu)
  * - the number of spis
  * - the number of vcpus
  * The function is generally called when nr_spis has been explicitly set
- * by the guest through the KVM DEVICE API. If not nr_spis is set to 256.
+ * by the guest through the KVM DEVICE API. If yest nr_spis is set to 256.
  * vgic_initialized() returns true when this function has succeeded.
  * Must be called with kvm->lock held!
  */
@@ -272,7 +272,7 @@ int vgic_init(struct kvm *kvm)
 	if (ret)
 		goto out;
 
-	/* Initialize groups on CPUs created before the VGIC type was known */
+	/* Initialize groups on CPUs created before the VGIC type was kyeswn */
 	kvm_for_each_vcpu(idx, vcpu, kvm) {
 		struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 
@@ -406,7 +406,7 @@ int vgic_lazy_init(struct kvm *kvm)
  * Map the MMIO regions depending on the VGIC model exposed to the guest
  * called on the first VCPU run.
  * Also map the virtual CPU interface into the VM.
- * v2/v3 derivatives call vgic_init if not already done.
+ * v2/v3 derivatives call vgic_init if yest already done.
  * vgic_ready() returns true if this function has succeeded.
  * @kvm: kvm struct pointer
  */
@@ -450,8 +450,8 @@ static int vgic_init_cpu_dying(unsigned int cpu)
 static irqreturn_t vgic_maintenance_handler(int irq, void *data)
 {
 	/*
-	 * We cannot rely on the vgic maintenance interrupt to be
-	 * delivered synchronously. This means we can only use it to
+	 * We canyest rely on the vgic maintenance interrupt to be
+	 * delivered synchroyesusly. This means we can only use it to
 	 * exit the VM, and we perform the handling of EOIed
 	 * interrupts on the exit path (see vgic_fold_lr_state).
 	 */
@@ -520,7 +520,7 @@ int kvm_vgic_hyp_init(void)
 				 vgic_maintenance_handler,
 				 "vgic", kvm_get_running_vcpus());
 	if (ret) {
-		kvm_err("Cannot register interrupt %d\n",
+		kvm_err("Canyest register interrupt %d\n",
 			kvm_vgic_global_state.maint_irq);
 		return ret;
 	}
@@ -529,7 +529,7 @@ int kvm_vgic_hyp_init(void)
 				"kvm/arm/vgic:starting",
 				vgic_init_cpu_starting, vgic_init_cpu_dying);
 	if (ret) {
-		kvm_err("Cannot register vgic CPU notifier\n");
+		kvm_err("Canyest register vgic CPU yestifier\n");
 		goto out_free_irq;
 	}
 

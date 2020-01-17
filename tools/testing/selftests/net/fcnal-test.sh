@@ -6,11 +6,11 @@
 # IPv4 and IPv6 functional tests focusing on VRF and routing lookups
 # for various permutations:
 #   1. icmp, tcp, udp and netfilter
-#   2. client, server, no-server
+#   2. client, server, yes-server
 #   3. global address on interface
 #   4. global address on 'lo'
 #   5. remote and local traffic
-#   6. VRF and non-VRF permutations
+#   6. VRF and yesn-VRF permutations
 #
 # Setup:
 #                     ns-A     |     ns-B
@@ -32,7 +32,7 @@
 #      lo2: 127.0.0.1/8, ::1/128
 #           172.16.2.2/32, 2001:db8:2::2/128
 #
-# server / client nomenclature relative to ns-A
+# server / client yesmenclature relative to ns-A
 
 VERBOSE=0
 
@@ -86,7 +86,7 @@ log_test()
 	else
 		nfail=$((nfail+1))
 		printf "TEST: %-70s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "no" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -94,7 +94,7 @@ log_test()
 		fi
 	fi
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "no" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
 		read a
@@ -135,7 +135,7 @@ log_subsection()
 
 log_start()
 {
-	# make sure we have no test instances running
+	# make sure we have yes test instances running
 	kill_procs
 
 	if [ "${VERBOSE}" = "1" ]; then
@@ -203,12 +203,12 @@ setup_cmd()
 	run_cmd ${cmd}
 	rc=$?
 	if [ $rc -ne 0 ]; then
-		# show user the command if not done so already
+		# show user the command if yest done so already
 		if [ "$VERBOSE" = "0" ]; then
 			echo "setup command: $cmd"
 		fi
 		echo "failed. stopping tests"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "no" ]; then
 			echo
 			echo "hit enter to continue"
 			read a
@@ -225,12 +225,12 @@ setup_cmd_nsb()
 	run_cmd_nsb ${cmd}
 	rc=$?
 	if [ $rc -ne 0 ]; then
-		# show user the command if not done so already
+		# show user the command if yest done so already
 		if [ "$VERBOSE" = "0" ]; then
 			echo "setup command: $cmd"
 		fi
 		echo "failed. stopping tests"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "no" ]; then
 			echo
 			echo "hit enter to continue"
 			read a
@@ -273,7 +273,7 @@ addr2str()
 
 	${MCAST}%*)	echo "multicast IP";;
 
-	*) echo "unknown";;
+	*) echo "unkyeswn";;
 	esac
 }
 
@@ -317,7 +317,7 @@ create_vrf()
 	ip -netns ${ns} -6 route add vrf ${vrf} unreachable default metric 8192
 
 	ip -netns ${ns} addr add 127.0.0.1/8 dev ${vrf}
-	ip -netns ${ns} -6 addr add ::1 dev ${vrf} nodad
+	ip -netns ${ns} -6 addr add ::1 dev ${vrf} yesdad
 	if [ "${addr}" != "-" ]; then
 		ip -netns ${ns} addr add dev ${vrf} ${addr}
 	fi
@@ -423,7 +423,7 @@ setup()
 	NSB_LINKIP6=$(get_linklocal ${NSB} ${NSB_DEV})
 
 	# tell ns-A how to get to remote addresses of ns-B
-	if [ "${with_vrf}" = "yes" ]; then
+	if [ "${with_vrf}" = "no" ]; then
 		create_vrf ${NSA} ${VRF} ${VRF_TABLE} ${VRF_IP} ${VRF_IP6}
 
 		ip -netns ${NSA} link set dev ${NSA_DEV} vrf ${VRF}
@@ -450,7 +450,7 @@ setup()
 ################################################################################
 # IPv4
 
-ipv4_ping_novrf()
+ipv4_ping_yesvrf()
 {
 	local a
 
@@ -501,7 +501,7 @@ ipv4_ping_novrf()
 	run_cmd ping -c1 -w1 -I ${NSA_DEV} ${a}
 	log_test_addr ${a} $? 0 "ping local, device bind"
 
-	# loopback addresses not reachable from device bind
+	# loopback addresses yest reachable from device bind
 	# fails in a really weird way though because ipv4 special cases
 	# route lookups with oif set.
 	for a in ${NSA_LO_IP} 127.0.0.1
@@ -532,7 +532,7 @@ ipv4_ping_novrf()
 
 	a=${NSA_LO_IP}
 	log_start
-	show_hint "Response generates ICMP (or arp request is ignored) due to ip rule"
+	show_hint "Response generates ICMP (or arp request is igyesred) due to ip rule"
 	run_cmd_nsb ping -c1 -w1 ${a}
 	log_test_addr ${a} $? 1 "ping in, blocked by rule"
 
@@ -555,12 +555,12 @@ ipv4_ping_novrf()
 
 	# NOTE: ipv4 actually allows the lookup to fail and yet still create
 	# a viable rtable if the oif (e.g., bind to device) is set, so this
-	# case succeeds despite not having a route for the address
+	# case succeeds despite yest having a route for the address
 	# run_cmd ping -c1 -w1 -I ${NSA_DEV} ${a}
 
 	a=${NSA_LO_IP}
 	log_start
-	show_hint "Response is dropped (or arp request is ignored) due to ip route"
+	show_hint "Response is dropped (or arp request is igyesred) due to ip route"
 	run_cmd_nsb ping -c1 -w1 ${a}
 	log_test_addr ${a} $? 1 "ping in, blocked by route"
 
@@ -576,7 +576,7 @@ ipv4_ping_novrf()
 
 	# NOTE: ipv4 actually allows the lookup to fail and yet still create
 	# a viable rtable if the oif (e.g., bind to device) is set, so this
-	# case succeeds despite not having a route for the address
+	# case succeeds despite yest having a route for the address
 	# run_cmd ping -c1 -w1 -I ${NSA_DEV} ${a}
 }
 
@@ -584,7 +584,7 @@ ipv4_ping_vrf()
 {
 	local a
 
-	# should default on; does not exist on older kernels
+	# should default on; does yest exist on older kernels
 	set_sysctl net.ipv4.raw_l3mdev_accept=1 2>/dev/null
 
 	#
@@ -701,20 +701,20 @@ ipv4_ping()
 	log_subsection "No VRF"
 	setup
 	set_sysctl net.ipv4.raw_l3mdev_accept=0 2>/dev/null
-	ipv4_ping_novrf
+	ipv4_ping_yesvrf
 	setup
 	set_sysctl net.ipv4.raw_l3mdev_accept=1 2>/dev/null
-	ipv4_ping_novrf
+	ipv4_ping_yesvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "no"
 	ipv4_ping_vrf
 }
 
 ################################################################################
 # IPv4 TCP
 
-ipv4_tcp_novrf()
+ipv4_tcp_yesvrf()
 {
 	local a
 
@@ -741,7 +741,7 @@ ipv4_tcp_novrf()
 	for a in ${NSA_IP} ${NSA_LO_IP}
 	do
 		log_start
-		show_hint "Should fail 'Connection refused' since there is no server"
+		show_hint "Should fail 'Connection refused' since there is yes server"
 		run_cmd_nsb nettest -r ${a}
 		log_test_addr ${a} $? 1 "No server"
 	done
@@ -868,7 +868,7 @@ ipv4_tcp_vrf()
 
 		# verify TCP reset received
 		log_start
-		show_hint "Should fail 'Connection refused' since there is no server"
+		show_hint "Should fail 'Connection refused' since there is yes server"
 		run_cmd_nsb nettest -r ${a}
 		log_test_addr ${a} $? 1 "No server"
 	done
@@ -924,7 +924,7 @@ ipv4_tcp_vrf()
 	for a in ${NSA_IP} ${VRF_IP}
 	do
 		log_start
-		show_hint "Should fail 'No route to host' since client is not bound to VRF"
+		show_hint "Should fail 'No route to host' since client is yest bound to VRF"
 		run_cmd nettest -s -2 ${VRF} &
 		sleep 1
 		run_cmd nettest -r ${a}
@@ -1001,24 +1001,24 @@ ipv4_tcp()
 	log_subsection "No VRF"
 	setup
 
-	# tcp_l3mdev_accept should have no affect without VRF;
+	# tcp_l3mdev_accept should have yes affect without VRF;
 	# run tests with it enabled and disabled to verify
 	log_subsection "tcp_l3mdev_accept disabled"
 	set_sysctl net.ipv4.tcp_l3mdev_accept=0
-	ipv4_tcp_novrf
+	ipv4_tcp_yesvrf
 	log_subsection "tcp_l3mdev_accept enabled"
 	set_sysctl net.ipv4.tcp_l3mdev_accept=1
-	ipv4_tcp_novrf
+	ipv4_tcp_yesvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "no"
 	ipv4_tcp_vrf
 }
 
 ################################################################################
 # IPv4 UDP
 
-ipv4_udp_novrf()
+ipv4_udp_yesvrf()
 {
 	local a
 
@@ -1034,7 +1034,7 @@ ipv4_udp_novrf()
 		log_test_addr ${a} $? 0 "Global server"
 
 		log_start
-		show_hint "Should fail 'Connection refused' since there is no server"
+		show_hint "Should fail 'Connection refused' since there is yes server"
 		run_cmd_nsb nettest -D -r ${a}
 		log_test_addr ${a} $? 1 "No server"
 	done
@@ -1206,7 +1206,7 @@ ipv4_udp_vrf()
 		log_test_addr ${a} $? 0 "Enslaved device server"
 
 		log_start
-		show_hint "Should fail 'Connection refused' since there is no server"
+		show_hint "Should fail 'Connection refused' since there is yes server"
 		run_cmd_nsb nettest -D -r ${a}
 		log_test_addr ${a} $? 1 "No server"
 
@@ -1373,17 +1373,17 @@ ipv4_udp()
 
 	setup
 
-	# udp_l3mdev_accept should have no affect without VRF;
+	# udp_l3mdev_accept should have yes affect without VRF;
 	# run tests with it enabled and disabled to verify
 	log_subsection "udp_l3mdev_accept disabled"
 	set_sysctl net.ipv4.udp_l3mdev_accept=0
-	ipv4_udp_novrf
+	ipv4_udp_yesvrf
 	log_subsection "udp_l3mdev_accept enabled"
 	set_sysctl net.ipv4.udp_l3mdev_accept=1
-	ipv4_udp_novrf
+	ipv4_udp_yesvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "no"
 	ipv4_udp_vrf
 }
 
@@ -1392,7 +1392,7 @@ ipv4_udp()
 #
 # verifies ability or inability to bind to an address / device
 
-ipv4_addr_bind_novrf()
+ipv4_addr_bind_yesvrf()
 {
 	#
 	# raw socket
@@ -1421,12 +1421,12 @@ ipv4_addr_bind_novrf()
 	log_test_addr ${a} $? 0 "TCP socket bind to local address after device bind"
 
 	# Sadly, the kernel allows binding a socket to a device and then
-	# binding to an address not on the device. The only restriction
+	# binding to an address yest on the device. The only restriction
 	# is that the address is valid in the L3 domain. So this test
-	# passes when it really should not
+	# passes when it really should yest
 	#a=${NSA_LO_IP}
 	#log_start
-	#show_hint "Should fail with 'Cannot assign requested address'"
+	#show_hint "Should fail with 'Canyest assign requested address'"
 	#run_cmd nettest -s -l ${a} -d ${NSA_DEV} -t1 -b
 	#log_test_addr ${a} $? 1 "TCP socket bind to out of scope local address"
 }
@@ -1488,10 +1488,10 @@ ipv4_addr_bind()
 
 	log_subsection "No VRF"
 	setup
-	ipv4_addr_bind_novrf
+	ipv4_addr_bind_yesvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "no"
 	ipv4_addr_bind_vrf
 }
 
@@ -1502,7 +1502,7 @@ ipv4_rt()
 {
 	local desc="$1"
 	local varg="$2"
-	local with_vrf="yes"
+	local with_vrf="no"
 	local a
 
 	#
@@ -1639,7 +1639,7 @@ ipv4_rt()
 
 ipv4_ping_rt()
 {
-	local with_vrf="yes"
+	local with_vrf="no"
 	local a
 
 	for a in ${NSA_IP} ${VRF_IP}
@@ -1667,24 +1667,24 @@ ipv4_runtime()
 {
 	log_section "Run time tests - ipv4"
 
-	setup "yes"
+	setup "no"
 	ipv4_ping_rt
 
-	setup "yes"
+	setup "no"
 	ipv4_rt "TCP active socket"  "-n -1"
 
-	setup "yes"
+	setup "no"
 	ipv4_rt "TCP passive socket" "-i"
 }
 
 ################################################################################
 # IPv6
 
-ipv6_ping_novrf()
+ipv6_ping_yesvrf()
 {
 	local a
 
-	# should not have an impact, but make a known state
+	# should yest have an impact, but make a kyeswn state
 	set_sysctl net.ipv4.raw_l3mdev_accept=0 2>/dev/null
 
 	#
@@ -1725,7 +1725,7 @@ ipv6_ping_novrf()
 	do
 		log_start
 		run_cmd ${ping6} -c1 -w1 ${a}
-		log_test_addr ${a} $? 0 "ping local, no bind"
+		log_test_addr ${a} $? 0 "ping local, yes bind"
 	done
 
 	for a in ${NSA_IP6} ${NSA_LINKIP6}%${NSA_DEV} ${MCAST}%${NSA_DEV}
@@ -1814,7 +1814,7 @@ ipv6_ping_vrf()
 {
 	local a
 
-	# should default on; does not exist on older kernels
+	# should default on; does yest exist on older kernels
 	set_sysctl net.ipv4.raw_l3mdev_accept=1 2>/dev/null
 
 	#
@@ -1830,7 +1830,7 @@ ipv6_ping_vrf()
 	for a in ${NSB_LINKIP6}%${VRF} ${MCAST}%${VRF}
 	do
 		log_start
-		show_hint "Fails since VRF device does not support linklocal or multicast"
+		show_hint "Fails since VRF device does yest support linklocal or multicast"
 		run_cmd ${ping6} -c1 -w1 ${a}
 		log_test_addr ${a} $? 2 "ping out, VRF bind"
 	done
@@ -1951,17 +1951,17 @@ ipv6_ping()
 
 	log_subsection "No VRF"
 	setup
-	ipv6_ping_novrf
+	ipv6_ping_yesvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "no"
 	ipv6_ping_vrf
 }
 
 ################################################################################
 # IPv6 TCP
 
-ipv6_tcp_novrf()
+ipv6_tcp_yesvrf()
 {
 	local a
 
@@ -2205,7 +2205,7 @@ ipv6_tcp_vrf()
 	for a in ${NSA_IP6} ${VRF_IP6}
 	do
 		log_start
-		show_hint "Fails 'No route to host' since client is not in VRF"
+		show_hint "Fails 'No route to host' since client is yest in VRF"
 		run_cmd nettest -6 -s -2 ${VRF} &
 		sleep 1
 		run_cmd nettest -6 -r ${a}
@@ -2227,7 +2227,7 @@ ipv6_tcp_vrf()
 
 	a=${NSB_LINKIP6}
 	log_start
-	show_hint "Fails since VRF device does not allow linklocal addresses"
+	show_hint "Fails since VRF device does yest allow linklocal addresses"
 	run_cmd_nsb nettest -6 -s &
 	sleep 1
 	run_cmd nettest -6 -r ${a} -d ${VRF}
@@ -2304,24 +2304,24 @@ ipv6_tcp()
 	log_subsection "No VRF"
 	setup
 
-	# tcp_l3mdev_accept should have no affect without VRF;
+	# tcp_l3mdev_accept should have yes affect without VRF;
 	# run tests with it enabled and disabled to verify
 	log_subsection "tcp_l3mdev_accept disabled"
 	set_sysctl net.ipv4.tcp_l3mdev_accept=0
-	ipv6_tcp_novrf
+	ipv6_tcp_yesvrf
 	log_subsection "tcp_l3mdev_accept enabled"
 	set_sysctl net.ipv4.tcp_l3mdev_accept=1
-	ipv6_tcp_novrf
+	ipv6_tcp_yesvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "no"
 	ipv6_tcp_vrf
 }
 
 ################################################################################
 # IPv6 UDP
 
-ipv6_udp_novrf()
+ipv6_udp_yesvrf()
 {
 	local a
 
@@ -2351,7 +2351,7 @@ ipv6_udp_novrf()
 	log_test_addr ${a} $? 0 "Global server"
 
 	# should fail since loopback address is out of scope for a device
-	# bound server, but it does not - hence this is more documenting
+	# bound server, but it does yest - hence this is more documenting
 	# behavior.
 	#log_start
 	#show_hint "Should fail since loopback address is out of scope"
@@ -2364,7 +2364,7 @@ ipv6_udp_novrf()
 	for a in ${NSA_IP6} ${NSA_LO_IP6} ${NSA_LINKIP6}%${NSB_DEV}
 	do
 		log_start
-		show_hint "Should fail 'Connection refused' since there is no server"
+		show_hint "Should fail 'Connection refused' since there is yes server"
 		run_cmd_nsb nettest -6 -D -r ${a}
 		log_test_addr ${a} $? 1 "No server"
 	done
@@ -2503,7 +2503,7 @@ ipv6_udp_novrf()
 	log_test $? 0 "UDP in - LLA to GUA"
 
 	run_cmd_nsb ip -6 ro del ${NSA_IP6}/128 dev ${NSB_DEV}
-	run_cmd_nsb ip -6 addr add ${NSB_IP6}/64 dev ${NSB_DEV} nodad
+	run_cmd_nsb ip -6 addr add ${NSB_IP6}/64 dev ${NSB_DEV} yesdad
 }
 
 ipv6_udp_vrf()
@@ -2549,7 +2549,7 @@ ipv6_udp_vrf()
 	for a in ${NSA_IP6} ${VRF_IP6}
 	do
 		log_start
-		show_hint "Should fail 'Connection refused' since there is no server"
+		show_hint "Should fail 'Connection refused' since there is yes server"
 		run_cmd_nsb nettest -6 -D -r ${a}
 		log_test_addr ${a} $? 1 "No server"
 	done
@@ -2781,36 +2781,36 @@ ipv6_udp_vrf()
 	log_test $? 0 "UDP in - LLA to GUA"
 
 	run_cmd_nsb ip -6 ro del ${NSA_IP6}/128 dev ${NSB_DEV}
-	run_cmd_nsb ip -6 addr add ${NSB_IP6}/64 dev ${NSB_DEV} nodad
+	run_cmd_nsb ip -6 addr add ${NSB_IP6}/64 dev ${NSB_DEV} yesdad
 }
 
 ipv6_udp()
 {
-        # should not matter, but set to known state
+        # should yest matter, but set to kyeswn state
         set_sysctl net.ipv4.udp_early_demux=1
 
         log_section "IPv6/UDP"
         log_subsection "No VRF"
         setup
 
-        # udp_l3mdev_accept should have no affect without VRF;
+        # udp_l3mdev_accept should have yes affect without VRF;
         # run tests with it enabled and disabled to verify
         log_subsection "udp_l3mdev_accept disabled"
         set_sysctl net.ipv4.udp_l3mdev_accept=0
-        ipv6_udp_novrf
+        ipv6_udp_yesvrf
         log_subsection "udp_l3mdev_accept enabled"
         set_sysctl net.ipv4.udp_l3mdev_accept=1
-        ipv6_udp_novrf
+        ipv6_udp_yesvrf
 
         log_subsection "With VRF"
-        setup "yes"
+        setup "no"
         ipv6_udp_vrf
 }
 
 ################################################################################
 # IPv6 address bind
 
-ipv6_addr_bind_novrf()
+ipv6_addr_bind_yesvrf()
 {
 	#
 	# raw socket
@@ -2840,7 +2840,7 @@ ipv6_addr_bind_novrf()
 
 	a=${NSA_LO_IP6}
 	log_start
-	show_hint "Should fail with 'Cannot assign requested address'"
+	show_hint "Should fail with 'Canyest assign requested address'"
 	run_cmd nettest -6 -s -l ${a} -d ${NSA_DEV} -t1 -b
 	log_test_addr ${a} $? 1 "TCP socket bind to out of scope local address"
 }
@@ -2907,10 +2907,10 @@ ipv6_addr_bind()
 
 	log_subsection "No VRF"
 	setup
-	ipv6_addr_bind_novrf
+	ipv6_addr_bind_yesvrf
 
 	log_subsection "With VRF"
-	setup "yes"
+	setup "no"
 	ipv6_addr_bind_vrf
 }
 
@@ -2921,7 +2921,7 @@ ipv6_rt()
 {
 	local desc="$1"
 	local varg="-6 $2"
-	local with_vrf="yes"
+	local with_vrf="no"
 	local a
 
 	#
@@ -3061,7 +3061,7 @@ ipv6_rt()
 
 ipv6_ping_rt()
 {
-	local with_vrf="yes"
+	local with_vrf="no"
 	local a
 
 	a=${NSA_IP6}
@@ -3086,16 +3086,16 @@ ipv6_runtime()
 {
 	log_section "Run time tests - ipv6"
 
-	setup "yes"
+	setup "no"
 	ipv6_ping_rt
 
-	setup "yes"
+	setup "no"
 	ipv6_rt "TCP active socket"  "-n -1"
 
-	setup "yes"
+	setup "no"
 	ipv6_rt "TCP passive socket" "-i"
 
-	setup "yes"
+	setup "no"
 	ipv6_rt "UDP active socket"  "-D -n -1"
 }
 
@@ -3139,7 +3139,7 @@ ipv4_netfilter()
 	log_section "IPv4 Netfilter"
 	log_subsection "TCP reset"
 
-	setup "yes"
+	setup "no"
 	run_cmd iptables -A INPUT -p tcp --dport 12345 -j REJECT --reject-with tcp-reset
 
 	netfilter_tcp_reset
@@ -3196,7 +3196,7 @@ ipv6_netfilter()
 	log_section "IPv6 Netfilter"
 	log_subsection "TCP reset"
 
-	setup "yes"
+	setup "no"
 	run_cmd ip6tables -A INPUT -p tcp --dport 12345 -j REJECT --reject-with tcp-reset
 
 	netfilter_tcp6_reset
@@ -3223,7 +3223,7 @@ ipv6_netfilter()
 # br_netfilter module loaded. Repeat with SVI on bridge.
 use_case_br()
 {
-	setup "yes"
+	setup "no"
 
 	setup_cmd ip link set ${NSA_DEV} down
 	setup_cmd ip addr del dev ${NSA_DEV} ${NSA_IP}/24
@@ -3231,7 +3231,7 @@ use_case_br()
 
 	setup_cmd ip link add br0 type bridge
 	setup_cmd ip addr add dev br0 ${NSA_IP}/24
-	setup_cmd ip -6 addr add dev br0 ${NSA_IP6}/64 nodad
+	setup_cmd ip -6 addr add dev br0 ${NSA_IP6}/64 yesdad
 
 	setup_cmd ip li set ${NSA_DEV} master br0
 	setup_cmd ip li set ${NSA_DEV} up
@@ -3276,15 +3276,15 @@ use_case_br()
 		log_test $? 0 "Bridge into VRF with br_netfilter - IPv6 ping in"
 	fi
 
-	setup_cmd ip li set br0 nomaster
+	setup_cmd ip li set br0 yesmaster
 	setup_cmd ip li add br0.100 link br0 type vlan id 100
 	setup_cmd ip li set br0.100 vrf ${VRF} up
 	setup_cmd ip    addr add dev br0.100 172.16.101.1/24
-	setup_cmd ip -6 addr add dev br0.100 2001:db8:101::1/64 nodad
+	setup_cmd ip -6 addr add dev br0.100 2001:db8:101::1/64 yesdad
 
 	setup_cmd_nsb ip li add vlan100 link ${NSB_DEV} type vlan id 100
 	setup_cmd_nsb ip addr add dev vlan100 172.16.101.2/24
-	setup_cmd_nsb ip -6 addr add dev vlan100 2001:db8:101::2/64 nodad
+	setup_cmd_nsb ip -6 addr add dev vlan100 2001:db8:101::2/64 yesdad
 	setup_cmd_nsb ip li set vlan100 up
 	sleep 1
 
@@ -3359,8 +3359,8 @@ TESTS_IPV4="ipv4_ping ipv4_tcp ipv4_udp ipv4_addr_bind ipv4_runtime ipv4_netfilt
 TESTS_IPV6="ipv6_ping ipv6_tcp ipv6_udp ipv6_addr_bind ipv6_runtime ipv6_netfilter"
 TESTS_OTHER="use_cases"
 
-PAUSE_ON_FAIL=no
-PAUSE=no
+PAUSE_ON_FAIL=yes
+PAUSE=yes
 
 while getopts :46t:pPvh o
 do
@@ -3368,8 +3368,8 @@ do
 		4) TESTS=ipv4;;
 		6) TESTS=ipv6;;
 		t) TESTS=$OPTARG;;
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=no;;
+		P) PAUSE=no;;
 		v) VERBOSE=1;;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -3377,7 +3377,7 @@ do
 done
 
 # make sure we don't pause twice
-[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+[ "${PAUSE}" = "no" ] && PAUSE_ON_FAIL=yes
 
 #
 # show user test config
@@ -3392,7 +3392,7 @@ fi
 
 which nettest >/dev/null
 if [ $? -ne 0 ]; then
-	echo "'nettest' command not found; skipping tests"
+	echo "'nettest' command yest found; skipping tests"
 	exit 0
 fi
 
@@ -3418,9 +3418,9 @@ do
 
 	use_cases)       use_cases;;
 
-	# setup namespaces and config, but do not run any tests
+	# setup namespaces and config, but do yest run any tests
 	setup)		 setup; exit 0;;
-	vrf_setup)	 setup "yes"; exit 0;;
+	vrf_setup)	 setup "no"; exit 0;;
 
 	help)            echo "Test names: $TESTS"; exit 0;;
 	esac

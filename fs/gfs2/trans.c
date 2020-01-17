@@ -17,7 +17,7 @@
 #include "gfs2.h"
 #include "incore.h"
 #include "glock.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "log.h"
 #include "lops.h"
 #include "meta_io.h"
@@ -135,7 +135,7 @@ static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
 
 /**
  * gfs2_trans_add_data - Add a databuf to the transaction.
- * @gl: The inode glock associated with the buffer
+ * @gl: The iyesde glock associated with the buffer
  * @bh: The buffer to add
  *
  * This is used in journaled data mode.
@@ -143,9 +143,9 @@ static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
  * the functions above. The difference is that here we have a tag
  * which is two __be64's being the block number (as per meta data)
  * and a flag which says whether the data block needs escaping or
- * not. This means we need a new log entry for each 251 or so data
- * blocks, which isn't an enormous overhead but twice as much as
- * for normal metadata blocks.
+ * yest. This means we need a new log entry for each 251 or so data
+ * blocks, which isn't an eyesrmous overhead but twice as much as
+ * for yesrmal metadata blocks.
  */
 void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 {
@@ -250,7 +250,7 @@ void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	tr->tr_num_revoke++;
 }
 
-void gfs2_trans_remove_revoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)
+void gfs2_trans_remove_revoke(struct gfs2_sbd *sdp, u64 blkyes, unsigned int len)
 {
 	struct gfs2_bufdata *bd, *tmp;
 	struct gfs2_trans *tr = current->journal_info;
@@ -258,7 +258,7 @@ void gfs2_trans_remove_revoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)
 
 	gfs2_log_lock(sdp);
 	list_for_each_entry_safe(bd, tmp, &sdp->sd_log_revokes, bd_list) {
-		if ((bd->bd_blkno >= blkno) && (bd->bd_blkno < (blkno + len))) {
+		if ((bd->bd_blkyes >= blkyes) && (bd->bd_blkyes < (blkyes + len))) {
 			list_del_init(&bd->bd_list);
 			gfs2_assert_withdraw(sdp, sdp->sd_log_num_revoke);
 			sdp->sd_log_num_revoke--;

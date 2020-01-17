@@ -4,8 +4,8 @@
  * Copyright (c) 2006, Rik Snel <rsnel@cube.dyndns.org>
  *
  * Based on Dr Brian Gladman's (GPL'd) work published at
- * http://gladman.plushost.co.uk/oldsite/cryptography_technology/index.php
- * See the original copyright notice below.
+ * http://gladman.plushost.co.uk/oldsite/cryptography_techyeslogy/index.php
+ * See the original copyright yestice below.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -23,23 +23,23 @@
  form is allowed (with or without changes) provided that:
 
    1. distributions of this source code include the above copyright
-      notice, this list of conditions and the following disclaimer;
+      yestice, this list of conditions and the following disclaimer;
 
    2. distributions in binary form include the above copyright
-      notice, this list of conditions and the following disclaimer
+      yestice, this list of conditions and the following disclaimer
       in the documentation and/or other associated materials;
 
-   3. the copyright holder's name is not used to endorse products
+   3. the copyright holder's name is yest used to endorse products
       built using this software without specific written permission.
 
- ALTERNATIVELY, provided that this notice is retained in full, this product
+ ALTERNATIVELY, provided that this yestice is retained in full, this product
  may be distributed under the terms of the GNU General Public License (GPL),
  in which case the provisions of the GPL apply INSTEAD OF those given above.
 
  DISCLAIMER
 
- This software is provided 'as is' with no explicit or implied warranties
- in respect of its properties, including, but not limited to, correctness
+ This software is provided 'as is' with yes explicit or implied warranties
+ in respect of its properties, including, but yest limited to, correctness
  and/or fitness for purpose.
  ---------------------------------------------------------------------------
  Issue 31/01/2006
@@ -92,13 +92,13 @@
  * Given a value i in 0..255 as the byte overflow when a field element
  * in GF(2^128) is multiplied by x^8, the following macro returns the
  * 16-bit value that must be XOR-ed into the low-degree end of the
- * product to reduce it modulo the polynomial x^128 + x^7 + x^2 + x + 1.
+ * product to reduce it modulo the polyyesmial x^128 + x^7 + x^2 + x + 1.
  *
  * There are two versions of the macro, and hence two tables: one for
  * the "be" convention where the highest-order bit is the coefficient of
- * the highest-degree polynomial term, and one for the "le" convention
+ * the highest-degree polyyesmial term, and one for the "le" convention
  * where the highest-order bit is the coefficient of the lowest-degree
- * polynomial term.  In both cases the values are stored in CPU byte
+ * polyyesmial term.  In both cases the values are stored in CPU byte
  * endianness such that the coefficients are ordered consistently across
  * bytes, i.e. in the "be" table bits 15..0 of the stored value
  * correspond to the coefficients of x^15..x^0, and in the "le" table
@@ -131,7 +131,7 @@ static const u16 gf128mul_table_be[256] = gf128mul_dat(xda_be);
 
 /*
  * The following functions multiply a field element by x^8 in
- * the polynomial field representation.  They use 64-bit word operations
+ * the polyyesmial field representation.  They use 64-bit word operations
  * to gain speed but compensate for machine endianness and hence work
  * correctly on both styles of machine.
  */

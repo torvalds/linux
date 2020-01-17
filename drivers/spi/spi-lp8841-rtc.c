@@ -2,7 +2,7 @@
 /*
  * SPI master driver for ICP DAS LP-8841 RTC
  *
- * Copyright (C) 2016 Sergei Ianovich
+ * Copyright (C) 2016 Sergei Iayesvich
  *
  * based on
  *
@@ -201,7 +201,7 @@ spi_lp8841_rtc_probe(struct platform_device *pdev)
 	master->transfer_one = spi_lp8841_rtc_transfer_one;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 #ifdef CONFIG_OF
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 #endif
 
 	data = spi_master_get_devdata(master);
@@ -216,7 +216,7 @@ spi_lp8841_rtc_probe(struct platform_device *pdev)
 	/* register with the SPI framework */
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot register spi master\n");
+		dev_err(&pdev->dev, "canyest register spi master\n");
 		goto err_put_master;
 	}
 
@@ -241,5 +241,5 @@ static struct platform_driver spi_lp8841_rtc_driver = {
 module_platform_driver(spi_lp8841_rtc_driver);
 
 MODULE_DESCRIPTION("SPI master driver for ICP DAS LP-8841 RTC");
-MODULE_AUTHOR("Sergei Ianovich");
+MODULE_AUTHOR("Sergei Iayesvich");
 MODULE_LICENSE("GPL");

@@ -72,7 +72,7 @@ static int rx_copybreak = 100;
 
 /*
   Set the bus performance register.
-	Typical: Set 16 longword cache alignment, no burst limit.
+	Typical: Set 16 longword cache alignment, yes burst limit.
 	Cache alignment bits 15:14	     Burst length 13:8
 		0000	No alignment  0x00000000 unlimited		0800 8 longwords
 		4000	8  longwords		0100 1 longword		1000 16 longwords
@@ -89,7 +89,7 @@ static int csr0 = 0x01A00000 | 0xE000;
 static int csr0 = 0x01A00000 | 0x8000;
 #elif defined(CONFIG_SPARC) || defined(__hppa__)
 /* The UltraSparc PCI controllers will disconnect at every 64-byte
- * crossing anyways so it makes no sense to tell Tulip to burst
+ * crossing anyways so it makes yes sense to tell Tulip to burst
  * any more than that.
  */
 static int csr0 = 0x01A00000 | 0x9000;
@@ -101,7 +101,7 @@ static int csr0 = 0x00200000 | 0x4000;
 static int csr0;
 #endif
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are yest changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (4*HZ)
 
@@ -273,16 +273,16 @@ static void poll_tulip(struct net_device *dev);
 #endif
 
 static void tulip_set_power_state (struct tulip_private *tp,
-				   int sleep, int snooze)
+				   int sleep, int syesoze)
 {
 	if (tp->flags & HAS_ACPI) {
 		u32 tmp, newtmp;
 		pci_read_config_dword (tp->pdev, CFDD, &tmp);
-		newtmp = tmp & ~(CFDD_Sleep | CFDD_Snooze);
+		newtmp = tmp & ~(CFDD_Sleep | CFDD_Syesoze);
 		if (sleep)
 			newtmp |= CFDD_Sleep;
-		else if (snooze)
-			newtmp |= CFDD_Snooze;
+		else if (syesoze)
+			newtmp |= CFDD_Syesoze;
 		if (tmp != newtmp)
 			pci_write_config_dword (tp->pdev, CFDD, newtmp);
 	}
@@ -302,7 +302,7 @@ static void tulip_up(struct net_device *dev)
 	napi_enable(&tp->napi);
 #endif
 
-	/* Wake the chip from sleep/snooze mode. */
+	/* Wake the chip from sleep/syesoze mode. */
 	tulip_set_power_state (tp, 0, 0);
 
 	/* Disable all WOL events */
@@ -404,7 +404,7 @@ static void tulip_up(struct net_device *dev)
 				goto media_picked;
 			}
 	}
-	/* Start sensing first non-full-duplex media. */
+	/* Start sensing first yesn-full-duplex media. */
 	for (i = tp->mtable->leafcount - 1;
 		 (tulip_media_cap[tp->mtable->mleaf[i].media] & MediaAlwaysFD) && i > 0; i--)
 		;
@@ -543,7 +543,7 @@ static void tulip_tx_timeout(struct net_device *dev)
 	spin_lock_irqsave (&tp->lock, flags);
 
 	if (tulip_media_cap[dev->if_port] & MediaIsMII) {
-		/* Do nothing -- the media monitor should handle this. */
+		/* Do yesthing -- the media monitor should handle this. */
 		if (tulip_debug > 1)
 			dev_warn(&dev->dev,
 				 "Transmit timeout using MII device\n");
@@ -635,7 +635,7 @@ static void tulip_init_ring(struct net_device *dev)
 		dma_addr_t mapping;
 
 		/* Note the receive buffer must be longword aligned.
-		   netdev_alloc_skb() provides 16 byte alignment.  But do *not*
+		   netdev_alloc_skb() provides 16 byte alignment.  But do *yest*
 		   use skb_reserve() to align the IP header! */
 		struct sk_buff *skb = netdev_alloc_skb(dev, PKT_BUF_SZ);
 		tp->rx_buffers[i].skb = skb;
@@ -725,7 +725,7 @@ static void tulip_clean_tx_ring(struct tulip_private *tp)
 
 		/* Check for Tx filter setup frames. */
 		if (tp->tx_buffers[entry].skb == NULL) {
-			/* test because dummy frames not mapped */
+			/* test because dummy frames yest mapped */
 			if (tp->tx_buffers[entry].mapping)
 				pci_unmap_single(tp->pdev,
 					tp->tx_buffers[entry].mapping,
@@ -784,7 +784,7 @@ static void tulip_down (struct net_device *dev)
 
 	dev->if_port = tp->saved_if_port;
 
-	/* Leave the driver in snooze, not sleep, mode. */
+	/* Leave the driver in syesoze, yest sleep, mode. */
 	tulip_set_power_state (tp, 0, 1);
 }
 
@@ -1003,7 +1003,7 @@ static int private_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 
 /* Set or clear the multicast filter for this adaptor.
    Note that we only use exclusion around actually queueing the
-   new frame, not around filling tp->setup_frame.  This is non-deterministic
+   new frame, yest around filling tp->setup_frame.  This is yesn-deterministic
    when re-entered but still correct. */
 
 static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
@@ -1083,7 +1083,7 @@ static void set_rx_mode(struct net_device *dev)
 		/* Should verify correctness on big-endian/__powerpc__ */
 		struct netdev_hw_addr *ha;
 		if (netdev_mc_count(dev) > 64) {
-			/* Arbitrary non-effective limit. */
+			/* Arbitrary yesn-effective limit. */
 			tp->csr6 |= AcceptAllMulticast;
 			csr6 |= AcceptAllMulticast;
 		} else {
@@ -1137,7 +1137,7 @@ static void set_rx_mode(struct net_device *dev)
 		spin_lock_irqsave(&tp->lock, flags);
 
 		if (tp->cur_tx - tp->dirty_tx > TX_RING_SIZE - 2) {
-			/* Same setup recently queued, we need not add it. */
+			/* Same setup recently queued, we need yest add it. */
 		} else {
 			unsigned int entry;
 			int dummy = -1;
@@ -1203,7 +1203,7 @@ static void tulip_mwi_config(struct pci_dev *pdev, struct net_device *dev)
 	csr0 |= MRM | MWI;
 
 	/* Enable MWI in the standard PCI command bit.
-	 * Check for the case where MWI is desired but not available
+	 * Check for the case where MWI is desired but yest available
 	 */
 	pci_try_set_mwi(pdev);
 
@@ -1212,7 +1212,7 @@ static void tulip_mwi_config(struct pci_dev *pdev, struct net_device *dev)
 	if ((csr0 & MWI) && (!(pci_command & PCI_COMMAND_INVALIDATE)))
 		csr0 &= ~MWI;
 
-	/* if cache line size hardwired to zero, no MWI */
+	/* if cache line size hardwired to zero, yes MWI */
 	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &cache);
 	if ((csr0 & MWI) && (cache == 0)) {
 		csr0 &= ~MWI;
@@ -1237,7 +1237,7 @@ static void tulip_mwi_config(struct pci_dev *pdev, struct net_device *dev)
 		break;
 	}
 
-	/* if we have a good cache line size, we by now have a good
+	/* if we have a good cache line size, we by yesw have a good
 	 * csr0, so save it and exit
 	 */
 	if (cache)
@@ -1298,7 +1298,7 @@ const struct pci_device_id early_486_chipsets[] = {
 static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct tulip_private *tp;
-	/* See note below on the multiport cards. */
+	/* See yeste below on the multiport cards. */
 	static unsigned char last_phys_addr[ETH_ALEN] = {
 		0x00, 'L', 'i', 'n', 'u', 'x'
 	};
@@ -1345,7 +1345,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #ifdef CONFIG_TULIP_DM910X
 	if (chip_idx == DM910X) {
-		struct device_node *dp;
+		struct device_yesde *dp;
 
 		if (pdev->vendor == 0x1282 && pdev->device == 0x9100 &&
 		    pdev->revision < 0x30) {
@@ -1353,7 +1353,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			return -ENODEV;
 		}
 
-		dp = pci_device_to_OF_node(pdev);
+		dp = pci_device_to_OF_yesde(pdev);
 		if (!(dp && of_get_property(dp, "local-mac-address", NULL))) {
 			pr_info("skipping DM910x expansion card (use dmfe)\n");
 			return -ENODEV;
@@ -1367,7 +1367,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 
 	/* 1. Intel Saturn. Switch to 8 long words burst, 8 long word cache
-	      aligned.  Aries might need this too. The Saturn errata are not
+	      aligned.  Aries might need this too. The Saturn errata are yest
 	      pretty reading but thankfully it's an old 486 chipset.
 
 	   2. The dreaded SiS496 486 chipset. Same workaround as Intel
@@ -1402,7 +1402,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	i = pci_enable_device(pdev);
 	if (i) {
-		pr_err("Cannot enable tulip board #%d, aborting\n", board_idx);
+		pr_err("Canyest enable tulip board #%d, aborting\n", board_idx);
 		return i;
 	}
 
@@ -1528,7 +1528,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		for (i = 0; i < 6; i ++)
 			sum += dev->dev_addr[i];
 	} else {
-		/* A serial EEPROM interface, we read now and sort it out later. */
+		/* A serial EEPROM interface, we read yesw and sort it out later. */
 		int sa_offset = 0;
 		int ee_addr_size = tulip_read_eeprom(dev, 0xff, 8) & 0x40000 ? 8 : 6;
 		int ee_max_addr = ((1 << ee_addr_size) - 1) * sizeof(u16);
@@ -1542,7 +1542,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			ee_data[i + 1] = data >> 8;
 		}
 
-		/* DEC now has a specification (see Notes) but early board makers
+		/* DEC yesw has a specification (see Notes) but early board makers
 		   just put the address in the first EEPROM locations. */
 		/* This does  memcmp(ee_data, ee_data+16, 8) */
 		for (i = 0; i < 8; i ++)
@@ -1610,7 +1610,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	   that here as well. */
 	if (sum == 0  || sum == 6*0xff) {
 #if defined(CONFIG_SPARC)
-		struct device_node *dp = pci_device_to_OF_node(pdev);
+		struct device_yesde *dp = pci_device_to_OF_yesde(pdev);
 		const unsigned char *addr;
 		int len;
 #endif
@@ -1709,7 +1709,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 		 chip_name, pdev->revision,
 		 (unsigned long long)pci_resource_start(pdev, TULIP_BAR),
-		 eeprom_missing ? " EEPROM not present," : "",
+		 eeprom_missing ? " EEPROM yest present," : "",
 		 dev->dev_addr, irq);
 
         if (tp->chip_id == PNIC2)
@@ -1768,7 +1768,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
-	/* put the chip in snooze mode until opened */
+	/* put the chip in syesoze mode until opened */
 	tulip_set_power_state (tp, 0, 1);
 
 	return 0;
@@ -1938,7 +1938,7 @@ static void tulip_remove_one(struct pci_dev *pdev)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
+ * without having to re-enable interrupts. It's yest called while
  * the interrupt routine is executing.
  */
 
@@ -1947,8 +1947,8 @@ static void poll_tulip (struct net_device *dev)
 	struct tulip_private *tp = netdev_priv(dev);
 	const int irq = tp->pdev->irq;
 
-	/* disable_irq here is not very nice, but with the lockless
-	   interrupt handler we have no other choice. */
+	/* disable_irq here is yest very nice, but with the lockless
+	   interrupt handler we have yes other choice. */
 	disable_irq(irq);
 	tulip_interrupt (irq, dev);
 	enable_irq(irq);
@@ -1974,7 +1974,7 @@ static int __init tulip_init (void)
 #endif
 
 	if (!csr0) {
-		pr_warn("tulip: unknown CPU architecture, using default csr0\n");
+		pr_warn("tulip: unkyeswn CPU architecture, using default csr0\n");
 		/* default to 8 longword cache line alignment */
 		csr0 = 0x00A00000 | 0x4800;
 	}

@@ -11,7 +11,7 @@
 #include <asm/kvm_arm.h>
 
 /*
- * This is annoying. The mmio code requires this, even if we don't
+ * This is anyesying. The mmio code requires this, even if we don't
  * need any decoding. To be fixed.
  */
 struct kvm_decode {

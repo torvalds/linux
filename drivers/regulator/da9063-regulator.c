@@ -41,7 +41,7 @@ enum {
 	DA9063_ID_BCORES_MERGED,
 	/* BMEM and BIO in merged mode */
 	DA9063_ID_BMEM_BIO_MERGED,
-	/* When two BUCKs are merged, they cannot be reused separately */
+	/* When two BUCKs are merged, they canyest be reused separately */
 
 	/* LDOs on both DA9063 and DA9063L */
 	DA9063_ID_LDO3,
@@ -216,7 +216,7 @@ static int da9063_buck_set_mode(struct regulator_dev *rdev, unsigned mode)
 }
 
 /*
- * Bucks use single mode register field for normal operation
+ * Bucks use single mode register field for yesrmal operation
  * and suspend state.
  * There are 3 modes to map to: FAST, NORMAL, and STANDBY.
  */
@@ -267,7 +267,7 @@ static unsigned da9063_buck_get_mode(struct regulator_dev *rdev)
 }
 
 /*
- * LDOs use sleep flags - one for normal and one for suspend state.
+ * LDOs use sleep flags - one for yesrmal and one for suspend state.
  * There are 2 modes to map to: NORMAL and STANDBY (sleep) for each state.
  */
 
@@ -543,7 +543,7 @@ static const struct da9063_regulator_info da9063_regulator_info[] = {
 		.oc_event = BFIELD(DA9063_REG_STATUS_D, DA9063_LDO11_LIM),
 	},
 
-	/* The following LDOs are present only on DA9063, not on DA9063L */
+	/* The following LDOs are present only on DA9063, yest on DA9063L */
 	{
 		DA9063_LDO(DA9063, LDO1, 600, 20, 1860),
 		.suspend = BFIELD(DA9063_REG_DVC_1, DA9063_VLDO1_SEL),
@@ -606,7 +606,7 @@ static irqreturn_t da9063_ldo_lim_event(int irq, void *data)
 
 		if (BIT(regl->info->oc_event.lsb) & bits) {
 		        regulator_lock(regl->rdev);
-			regulator_notifier_call_chain(regl->rdev,
+			regulator_yestifier_call_chain(regl->rdev,
 					REGULATOR_EVENT_OVER_CURRENT, NULL);
 		        regulator_unlock(regl->rdev);
 		}
@@ -645,7 +645,7 @@ static struct of_regulator_match da9063_matches[] = {
 	[DA9063_ID_LDO8]             = { .name = "ldo8",            },
 	[DA9063_ID_LDO9]             = { .name = "ldo9",            },
 	[DA9063_ID_LDO11]            = { .name = "ldo11",           },
-	/* The following LDOs are present only on DA9063, not on DA9063L */
+	/* The following LDOs are present only on DA9063, yest on DA9063L */
 	[DA9063_ID_LDO1]             = { .name = "ldo1",            },
 	[DA9063_ID_LDO2]             = { .name = "ldo2",            },
 	[DA9063_ID_LDO4]             = { .name = "ldo4",            },
@@ -661,22 +661,22 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 	struct da9063 *da9063 = dev_get_drvdata(pdev->dev.parent);
 	struct da9063_regulators_pdata *pdata;
 	struct da9063_regulator_data *rdata;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int da9063_matches_len = ARRAY_SIZE(da9063_matches);
 	int i, n, num;
 
 	if (da9063->type == PMIC_TYPE_DA9063L)
 		da9063_matches_len -= 6;
 
-	node = of_get_child_by_name(pdev->dev.parent->of_node, "regulators");
-	if (!node) {
-		dev_err(&pdev->dev, "Regulators device node not found\n");
+	yesde = of_get_child_by_name(pdev->dev.parent->of_yesde, "regulators");
+	if (!yesde) {
+		dev_err(&pdev->dev, "Regulators device yesde yest found\n");
 		return ERR_PTR(-ENODEV);
 	}
 
-	num = of_regulator_match(&pdev->dev, node, da9063_matches,
+	num = of_regulator_match(&pdev->dev, yesde, da9063_matches,
 				 da9063_matches_len);
-	of_node_put(node);
+	of_yesde_put(yesde);
 	if (num < 0) {
 		dev_err(&pdev->dev, "Failed to match regulators\n");
 		return ERR_PTR(-EINVAL);
@@ -735,7 +735,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 			break;
 	}
 	if (!model->regulator_info) {
-		dev_err(&pdev->dev, "Chip model not recognised (%u)\n",
+		dev_err(&pdev->dev, "Chip model yest recognised (%u)\n",
 			da9063->type);
 		return -ENODEV;
 	}
@@ -844,7 +844,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 		config.init_data = da9063_get_regulator_initdata(regl_pdata, id);
 		config.driver_data = regl;
 		if (da9063_reg_matches)
-			config.of_node = da9063_reg_matches[id].of_node;
+			config.of_yesde = da9063_reg_matches[id].of_yesde;
 		config.regmap = da9063->regmap;
 		regl->rdev = devm_regulator_register(&pdev->dev, &regl->desc,
 						     &config);

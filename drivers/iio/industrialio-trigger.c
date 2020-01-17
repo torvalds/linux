@@ -24,7 +24,7 @@
  * is added.
  *
  * Complex simultaneous start requires use of 'hold' functionality
- * of the trigger. (not implemented)
+ * of the trigger. (yest implemented)
  *
  * Any other suggestions?
  */
@@ -170,7 +170,7 @@ void iio_trigger_poll(struct iio_trigger *trig)
 			if (trig->subirqs[i].enabled)
 				generic_handle_irq(trig->subirq_base + i);
 			else
-				iio_trigger_notify_done(trig);
+				iio_trigger_yestify_done(trig);
 		}
 	}
 }
@@ -194,21 +194,21 @@ void iio_trigger_poll_chained(struct iio_trigger *trig)
 			if (trig->subirqs[i].enabled)
 				handle_nested_irq(trig->subirq_base + i);
 			else
-				iio_trigger_notify_done(trig);
+				iio_trigger_yestify_done(trig);
 		}
 	}
 }
 EXPORT_SYMBOL(iio_trigger_poll_chained);
 
-void iio_trigger_notify_done(struct iio_trigger *trig)
+void iio_trigger_yestify_done(struct iio_trigger *trig)
 {
 	if (atomic_dec_and_test(&trig->use_count) && trig->ops &&
 	    trig->ops->try_reenable)
 		if (trig->ops->try_reenable(trig))
-			/* Missed an interrupt so launch new poll now */
+			/* Missed an interrupt so launch new poll yesw */
 			iio_trigger_poll(trig);
 }
-EXPORT_SYMBOL(iio_trigger_notify_done);
+EXPORT_SYMBOL(iio_trigger_yestify_done);
 
 /* Trigger Consumer related functions */
 static int iio_trigger_get_irq(struct iio_trigger *trig)
@@ -232,10 +232,10 @@ static void iio_trigger_put_irq(struct iio_trigger *trig, int irq)
 	mutex_unlock(&trig->pool_lock);
 }
 
-/* Complexity in here.  With certain triggers (datardy) an acknowledgement
- * may be needed if the pollfuncs do not include the data read for the
+/* Complexity in here.  With certain triggers (datardy) an ackyeswledgement
+ * may be needed if the pollfuncs do yest include the data read for the
  * triggering device.
- * This is not currently handled.  Alternative of not enabling trigger unless
+ * This is yest currently handled.  Alternative of yest enabling trigger unless
  * the relevant function is in there may be the best option.
  */
 /* Worth protecting against double additions? */
@@ -243,7 +243,7 @@ static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 					struct iio_poll_func *pf)
 {
 	int ret = 0;
-	bool notinuse
+	bool yestinuse
 		= bitmap_empty(trig->pool, CONFIG_IIO_CONSUMERS_PER_TRIGGER);
 
 	/* Prevent the module from being removed whilst attached to a trigger */
@@ -252,7 +252,7 @@ static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 	/* Get irq number */
 	pf->irq = iio_trigger_get_irq(trig);
 	if (pf->irq < 0) {
-		pr_err("Could not find an available irq for trigger %s, CONFIG_IIO_CONSUMERS_PER_TRIGGER=%d limit might be exceeded\n",
+		pr_err("Could yest find an available irq for trigger %s, CONFIG_IIO_CONSUMERS_PER_TRIGGER=%d limit might be exceeded\n",
 			trig->name, CONFIG_IIO_CONSUMERS_PER_TRIGGER);
 		goto out_put_module;
 	}
@@ -265,7 +265,7 @@ static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 		goto out_put_irq;
 
 	/* Enable trigger in driver */
-	if (trig->ops && trig->ops->set_trigger_state && notinuse) {
+	if (trig->ops && trig->ops->set_trigger_state && yestinuse) {
 		ret = trig->ops->set_trigger_state(trig, true);
 		if (ret < 0)
 			goto out_free_irq;
@@ -294,11 +294,11 @@ static int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 					 struct iio_poll_func *pf)
 {
 	int ret = 0;
-	bool no_other_users
+	bool yes_other_users
 		= (bitmap_weight(trig->pool,
 				 CONFIG_IIO_CONSUMERS_PER_TRIGGER)
 		   == 1);
-	if (trig->ops && trig->ops->set_trigger_state && no_other_users) {
+	if (trig->ops && trig->ops->set_trigger_state && yes_other_users) {
 		ret = trig->ops->set_trigger_state(trig, false);
 		if (ret)
 			return ret;
@@ -368,7 +368,7 @@ EXPORT_SYMBOL_GPL(iio_dealloc_pollfunc);
  * used by the device to be queried.
  *
  * Return: a negative number on failure, the number of characters written
- *	   on success or 0 if no trigger is available
+ *	   on success or 0 if yes trigger is available
  */
 static ssize_t iio_trigger_read_current(struct device *dev,
 					struct device_attribute *attr,
@@ -754,7 +754,7 @@ void iio_device_register_trigger_consumer(struct iio_dev *indio_dev)
 
 void iio_device_unregister_trigger_consumer(struct iio_dev *indio_dev)
 {
-	/* Clean up an associated but not attached trigger reference */
+	/* Clean up an associated but yest attached trigger reference */
 	if (indio_dev->trig)
 		iio_trigger_put(indio_dev->trig);
 }

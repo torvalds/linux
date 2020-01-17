@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_G_FREQUENCY:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_G_FREQUENCY - VIDIOC_S_FREQUENCY - Get or set tuner or modulator radio frequency
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_G_FREQUENCY, struct v4l2_frequency *argp )
@@ -54,9 +54,9 @@ To change the current tuner or modulator radio frequency applications
 initialize the ``tuner``, ``type`` and ``frequency`` fields, and the
 ``reserved`` array of a struct :c:type:`v4l2_frequency`
 and call the :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl with a pointer to this
-structure. When the requested frequency is not possible the driver
+structure. When the requested frequency is yest possible the driver
 assumes the closest possible value. However :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` is a
-write-only ioctl, it does not return the actual new frequency.
+write-only ioctl, it does yest return the actual new frequency.
 
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -80,7 +80,7 @@ write-only ioctl, it does not return the actual new frequency.
       - ``type``
       - The tuner type. This is the same value as in the struct
 	:c:type:`v4l2_tuner` ``type`` field. The type must be
-	set to ``V4L2_TUNER_RADIO`` for ``/dev/radioX`` device nodes, and
+	set to ``V4L2_TUNER_RADIO`` for ``/dev/radioX`` device yesdes, and
 	to ``V4L2_TUNER_ANALOG_TV`` for all others. Set this field to
 	``V4L2_TUNER_RADIO`` for modulators (currently only radio
 	modulators are supported). See :c:type:`v4l2_tuner_type`
@@ -100,7 +100,7 @@ write-only ioctl, it does not return the actual new frequency.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

@@ -16,7 +16,7 @@
 
 /*
  * maximum HDAC capablities we should parse to avoid endless looping:
- * currently we have 4 extended caps, so this is future proof for now.
+ * currently we have 4 extended caps, so this is future proof for yesw.
  * extend when this limit is seen meeting in real HW
  */
 #define HDAC_MAX_CAPS 10
@@ -307,7 +307,7 @@ int snd_hdac_ext_bus_link_put(struct hdac_bus *bus,
 		ret = snd_hdac_ext_bus_link_power_down(link);
 
 		/*
-		 * now check if all links are off, if so turn off
+		 * yesw check if all links are off, if so turn off
 		 * cmd dma as well
 		 */
 		list_for_each_entry(hlink, &bus->hlink_list, list) {

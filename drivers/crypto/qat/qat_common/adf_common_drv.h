@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -93,7 +93,7 @@ struct service_hndl {
 	struct list_head list;
 };
 
-static inline int get_current_node(void)
+static inline int get_current_yesde(void)
 {
 	return topology_physical_package_id(raw_smp_processor_id());
 }
@@ -107,7 +107,7 @@ void adf_dev_stop(struct adf_accel_dev *accel_dev);
 void adf_dev_shutdown(struct adf_accel_dev *accel_dev);
 
 int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr);
-void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev);
+void adf_pf2vf_yestify_restarting(struct adf_accel_dev *accel_dev);
 int adf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev);
 void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info);
 void adf_devmgr_update_class_index(struct adf_hw_device_data *hw_data);
@@ -130,8 +130,8 @@ int adf_devmgr_verify_id(uint32_t id);
 void adf_devmgr_get_num_dev(uint32_t *num);
 int adf_devmgr_in_reset(struct adf_accel_dev *accel_dev);
 int adf_dev_started(struct adf_accel_dev *accel_dev);
-int adf_dev_restarting_notify(struct adf_accel_dev *accel_dev);
-int adf_dev_restarted_notify(struct adf_accel_dev *accel_dev);
+int adf_dev_restarting_yestify(struct adf_accel_dev *accel_dev);
+int adf_dev_restarted_yestify(struct adf_accel_dev *accel_dev);
 int adf_ae_init(struct adf_accel_dev *accel_dev);
 int adf_ae_shutdown(struct adf_accel_dev *accel_dev);
 int adf_ae_fw_load(struct adf_accel_dev *accel_dev);
@@ -161,7 +161,7 @@ void adf_cleanup_etr_data(struct adf_accel_dev *accel_dev);
 int qat_crypto_register(void);
 int qat_crypto_unregister(void);
 int qat_crypto_dev_config(struct adf_accel_dev *accel_dev);
-struct qat_crypto_instance *qat_crypto_get_instance_node(int node);
+struct qat_crypto_instance *qat_crypto_get_instance_yesde(int yesde);
 void qat_crypto_put_instance(struct qat_crypto_instance *inst);
 void qat_alg_callback(void *resp);
 void qat_alg_asym_callback(void *resp);

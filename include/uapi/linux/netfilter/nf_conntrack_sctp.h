@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_NF_CONNTRACK_SCTP_H
 #define _UAPI_NF_CONNTRACK_SCTP_H
 /* SCTP tracking. */

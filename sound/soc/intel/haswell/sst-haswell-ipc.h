@@ -136,7 +136,7 @@ enum sst_hsw_channel_index {
 
 /* List of supported channel maps. */
 enum sst_hsw_channel_config {
-	SST_HSW_CHANNEL_CONFIG_MONO      = 0, /* mono only. */
+	SST_HSW_CHANNEL_CONFIG_MONO      = 0, /* moyes only. */
 	SST_HSW_CHANNEL_CONFIG_STEREO    = 1, /* L & R. */
 	SST_HSW_CHANNEL_CONFIG_2_POINT_1 = 2, /* L, R & LFE; PCM only. */
 	SST_HSW_CHANNEL_CONFIG_3_POINT_0 = 3, /* L, C & R; MP3 & AAC only. */
@@ -257,7 +257,7 @@ struct sst_hsw_perf_data {
 /* FW version */
 struct sst_hsw_ipc_fw_version {
 	u8 build;
-	u8 minor;
+	u8 miyesr;
 	u8 major;
 	u8 type;
 	u8 fw_build_hash[SST_HSW_BUILD_HASH_LENGTH];
@@ -351,7 +351,7 @@ struct sst_hsw_ipc_stream_alloc_req {
 	struct sst_hsw_module_map map;
 	struct sst_hsw_memory_info persistent_mem;
 	struct sst_hsw_memory_info scratch_mem;
-	u32 number_of_notifications;
+	u32 number_of_yestifications;
 } __attribute__((packed));
 
 /* Stream Allocate Reply */
@@ -386,7 +386,7 @@ struct sst_hsw_ipc_dx_memory_item {
 
 /* DX State Reply */
 struct sst_hsw_ipc_dx_reply {
-	u32 entries_no;
+	u32 entries_yes;
 	struct sst_hsw_ipc_dx_memory_item mem_info[SST_HSW_MAX_DX_REGIONS];
 } __attribute__((packed));
 

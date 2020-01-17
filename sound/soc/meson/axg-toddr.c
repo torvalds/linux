@@ -97,7 +97,7 @@ static int axg_toddr_dai_startup(struct snd_pcm_substream *substream,
 	if (ret)
 		return ret;
 
-	/* Select orginal data - resampling not supported ATM */
+	/* Select orginal data - resampling yest supported ATM */
 	regmap_update_bits(fifo->map, FIFO_CTRL0, CTRL0_TODDR_SEL_RESAMPLE, 0);
 
 	/* Only signed format are supported ATM */
@@ -107,7 +107,7 @@ static int axg_toddr_dai_startup(struct snd_pcm_substream *substream,
 	/* Apply single buffer mode to the interface */
 	regmap_update_bits(fifo->map, FIFO_CTRL0, CTRL0_TODDR_PP_MODE, 0);
 
-	/* TODDR does not have a configurable fifo depth */
+	/* TODDR does yest have a configurable fifo depth */
 	fifo_threshold = AXG_FIFO_MIN_CNT - 1;
 	regmap_update_bits(fifo->map, FIFO_CTRL1, CTRL1_THRESHOLD_MASK,
 			   CTRL1_THRESHOLD(fifo_threshold));

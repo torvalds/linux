@@ -5,7 +5,7 @@
  */
 
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -27,7 +27,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/stat.h>
@@ -109,7 +109,7 @@ int ax25_uid_ioctl(int cmd, struct sockaddr_ax25 *sax)
 		ax25_uid->call = sax->sax25_call;
 
 		write_lock(&ax25_uid_lock);
-		hlist_add_head(&ax25_uid->uid_node, &ax25_uid_list);
+		hlist_add_head(&ax25_uid->uid_yesde, &ax25_uid_list);
 		write_unlock(&ax25_uid_lock);
 
 		return 0;
@@ -128,7 +128,7 @@ int ax25_uid_ioctl(int cmd, struct sockaddr_ax25 *sax)
 			write_unlock(&ax25_uid_lock);
 			return -ENOENT;
 		}
-		hlist_del_init(&ax25_uid->uid_node);
+		hlist_del_init(&ax25_uid->uid_yesde);
 		ax25_uid_put(ax25_uid);
 		write_unlock(&ax25_uid_lock);
 
@@ -170,7 +170,7 @@ static int ax25_uid_seq_show(struct seq_file *seq, void *v)
 	else {
 		struct ax25_uid_assoc *pt;
 
-		pt = hlist_entry(v, struct ax25_uid_assoc, uid_node);
+		pt = hlist_entry(v, struct ax25_uid_assoc, uid_yesde);
 		seq_printf(seq, "%6d %s\n",
 			from_kuid_munged(seq_user_ns(seq), pt->uid),
 			ax2asc(buf, &pt->call));
@@ -196,7 +196,7 @@ void __exit ax25_uid_free(void)
 	write_lock(&ax25_uid_lock);
 again:
 	ax25_uid_for_each(ax25_uid, &ax25_uid_list) {
-		hlist_del_init(&ax25_uid->uid_node);
+		hlist_del_init(&ax25_uid->uid_yesde);
 		ax25_uid_put(ax25_uid);
 		goto again;
 	}

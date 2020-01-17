@@ -15,7 +15,7 @@
 #include <linux/mutex.h>
 
 /* Addresses scanned */
-static const unsigned short normal_i2c[] = { 0x2E, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2E, I2C_CLIENT_END };
 
 static const u8 REG_TEMP[4] = { 0x00, 0x02, 0x04, 0x06 };
 static const u8 REG_TEMP_MIN[4] = { 0x3c, 0x38, 0x39, 0x3a };
@@ -61,8 +61,8 @@ struct emc2103_data {
 	int			temp_count;	/* num of temp sensors */
 	unsigned long		last_updated;	/* in jiffies */
 	struct temperature	temp[4];	/* internal + 3 external */
-	s8			temp_min[4];	/* no fractional part */
-	s8			temp_max[4];    /* no fractional part */
+	s8			temp_min[4];	/* yes fractional part */
+	s8			temp_max[4];    /* yes fractional part */
 	u8			temp_min_alarm;
 	u8			temp_max_alarm;
 	u8			fan_multiplier;
@@ -343,7 +343,7 @@ static ssize_t fan1_div_store(struct device *dev, struct device_attribute *da,
 
 	data->fan_multiplier = 8 / new_div;
 
-	/* update fan target if high byte is not disabled */
+	/* update fan target if high byte is yest disabled */
 	if ((data->fan_target & 0x1fe0) != 0x1fe0) {
 		u16 new_target = (data->fan_target * old_div) / new_div;
 		data->fan_target = min(new_target, (u16)0x1fff);
@@ -656,7 +656,7 @@ static struct i2c_driver emc2103_driver = {
 	.probe		= emc2103_probe,
 	.id_table	= emc2103_ids,
 	.detect		= emc2103_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(emc2103_driver);

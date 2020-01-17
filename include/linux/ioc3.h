@@ -46,7 +46,7 @@ struct ioc3_driver_data {
 	/* is_ir_lock must be held while
 	 * modifying sio_ie values, so
 	 * we can be sure that sio_ie is
-	 * not changing when we read it
+	 * yest changing when we read it
 	 * along with sio_ir.
 	 */
 	spinlock_t ir_lock;	/* SIO_IE[SC] mod lock */
@@ -62,7 +62,7 @@ struct ioc3_submodule {
 	int id;			/* assigned by IOC3, index for the "data" array */
 	/* IRQ stuff */
 	unsigned int irq_mask;	/* IOC3 IRQ mask, leave clear for Ethernet */
-	int reset_mask;		/* non-zero if you want the ioc3.c module to reset interrupts */
+	int reset_mask;		/* yesn-zero if you want the ioc3.c module to reset interrupts */
 	int (*intr) (struct ioc3_submodule *, struct ioc3_driver_data *, unsigned int);
 	/* private submodule data */
 	void *data;		/* assigned by submodule */

@@ -293,7 +293,7 @@ void qla2x00_build_scsi_iocbs_64(srb_t *sp, cmd_entry_t *cmd_pkt,
 }
 
 /*
- * Find the first handle that is not in use, starting from
+ * Find the first handle that is yest in use, starting from
  * req->current_outstanding_cmd + 1. The caller must hold the lock that is
  * associated with @req.
  */
@@ -316,7 +316,7 @@ uint32_t qla2xxx_get_next_handle(struct req_que *req)
  * qla2x00_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns yesn-zero if a failure occurred, else zero.
  */
 int
 qla2x00_start_scsi(srb_t *sp)
@@ -343,7 +343,7 @@ qla2x00_start_scsi(srb_t *sp)
 	cmd = GET_CMD_SP(sp);
 	req = ha->req_q_map[0];
 	rsp = ha->rsp_q_map[0];
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kyesw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
@@ -382,7 +382,7 @@ qla2x00_start_scsi(srb_t *sp)
 		else
 			req->cnt = req->length -
 			    (req->ring_index - cnt);
-		/* If still no head room then bail out */
+		/* If still yes head room then bail out */
 		if (req->cnt < (req_cnt + 2))
 			goto queuing_error;
 	}
@@ -499,9 +499,9 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
  * @lun: LUN
  * @type: marker modifier
  *
- * Can be called from both normal and interrupt context.
+ * Can be called from both yesrmal and interrupt context.
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns yesn-zero if a failure occurred, else zero.
  */
 static int
 __qla2x00_marker(struct scsi_qla_host *vha, struct qla_qpair *qpair,
@@ -775,7 +775,7 @@ qla24xx_set_t10dif_tags(srb_t *sp, struct fw_dif_context *pkt,
 	case SCSI_PROT_DIF_TYPE0:
 		/*
 		 * No check for ql2xenablehba_err_chk, as it would be an
-		 * I/O error if hba tag generation is not done.
+		 * I/O error if hba tag generation is yest done.
 		 */
 		pkt->ref_tag = cpu_to_le32((uint32_t)
 		    (0xffffffff & scsi_get_lba(cmd)));
@@ -884,7 +884,7 @@ qla24xx_get_one_block_sg(uint32_t blk_sz, struct qla2_sgx *sgx,
 }
 
 int
-qla24xx_walk_and_build_sglist_no_difb(struct qla_hw_data *ha, srb_t *sp,
+qla24xx_walk_and_build_sglist_yes_difb(struct qla_hw_data *ha, srb_t *sp,
 	struct dsd64 *dsd, uint16_t tot_dsds, struct qla_tc_param *tc)
 {
 	void *next_dsd;
@@ -986,7 +986,7 @@ alloc_and_fill:
 				sg_prot = sg_next(sg_prot);
 			}
 
-			partial = 1; /* So as to not re-enter this block */
+			partial = 1; /* So as to yest re-enter this block */
 			goto alloc_and_fill;
 		}
 	}
@@ -1151,7 +1151,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 		u32 ldma_sg_len = 0;
 		u8 ldma_needed = 1;
 
-		difctx->no_dif_bundl = 0;
+		difctx->yes_dif_bundl = 0;
 		difctx->dif_bundl_len = 0;
 
 		/* Track DSD buffers */
@@ -1204,7 +1204,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 					}
 					ha->dif_bundle_dma_allocs++;
 					ldma_needed = 0;
-					difctx->no_dif_bundl++;
+					difctx->yes_dif_bundl++;
 					list_add_tail(&dsd_ptr->list,
 					    &difctx->ldif_dma_hndl_list);
 				}
@@ -1230,10 +1230,10 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 			}
 		}
 
-		track_difbundl_buf = used_dsds = difctx->no_dif_bundl;
+		track_difbundl_buf = used_dsds = difctx->yes_dif_bundl;
 		ql_dbg(ql_dbg_tgt + ql_dbg_verbose, vha, 0xe025,
-		    "dif_bundl_len=%x, no_dif_bundl=%x track_difbundl_buf: %x\n",
-		    difctx->dif_bundl_len, difctx->no_dif_bundl,
+		    "dif_bundl_len=%x, yes_dif_bundl=%x track_difbundl_buf: %x\n",
+		    difctx->dif_bundl_len, difctx->yes_dif_bundl,
 		    track_difbundl_buf);
 
 		if (sp)
@@ -1270,7 +1270,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 				}
 				ha->dif_bundle_kallocs++;
 
-				difctx->no_ldif_dsd++;
+				difctx->yes_ldif_dsd++;
 				/* allocate new list */
 				dsd_ptr->dsd_addr =
 				    dma_pool_alloc(ha->dl_dma_pool, GFP_ATOMIC,
@@ -1315,8 +1315,8 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 		}
 
 		ql_dbg(ql_dbg_tgt + ql_dbg_verbose, vha, 0xe026,
-		    "%s: no_ldif_dsd:%x, no_dif_bundl:%x\n", __func__,
-			difctx->no_ldif_dsd, difctx->no_dif_bundl);
+		    "%s: yes_ldif_dsd:%x, yes_dif_bundl:%x\n", __func__,
+			difctx->yes_ldif_dsd, difctx->yes_dif_bundl);
 	} else {
 		for_each_sg(sgl, sg, tot_dsds, i) {
 			/* Allocate additional continuation packets? */
@@ -1525,7 +1525,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	}
 
 	if (!bundling) {
-		cur_dsd = &crc_ctx_pkt->u.nobundling.data_dsd[0];
+		cur_dsd = &crc_ctx_pkt->u.yesbundling.data_dsd[0];
 	} else {
 		/*
 		 * Configure Bundling if we need to fetch interlaving
@@ -1558,7 +1558,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	cmd_pkt->control_flags |= cpu_to_le16(CF_DATA_SEG_DESCR_ENABLE);
 
 	if (!bundling && tot_prot_dsds) {
-		if (qla24xx_walk_and_build_sglist_no_difb(ha, sp,
+		if (qla24xx_walk_and_build_sglist_yes_difb(ha, sp,
 			cur_dsd, tot_dsds, NULL))
 			goto crc_queuing_error;
 	} else if (qla24xx_walk_and_build_sglist(ha, sp, cur_dsd,
@@ -1585,7 +1585,7 @@ crc_queuing_error:
  * qla24xx_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns yesn-zero if a failure occurred, else zero.
  */
 int
 qla24xx_start_scsi(srb_t *sp)
@@ -1606,7 +1606,7 @@ qla24xx_start_scsi(srb_t *sp)
 	/* Setup device pointers. */
 	req = vha->req;
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kyesw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
@@ -1716,7 +1716,7 @@ queuing_error:
  * qla24xx_dif_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns yesn-zero if a failure occurred, else zero.
  */
 int
 qla24xx_dif_start_scsi(srb_t *sp)
@@ -1750,7 +1750,7 @@ qla24xx_dif_start_scsi(srb_t *sp)
 	req = vha->req;
 	rsp = req->rsp;
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kyesw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
@@ -1902,7 +1902,7 @@ queuing_error:
  * qla2xxx_start_scsi_mq() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns yesn-zero if a failure occurred, else zero.
  */
 static int
 qla2xxx_start_scsi_mq(srb_t *sp)
@@ -1927,7 +1927,7 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 	/* Setup qpair pointers */
 	req = qpair->req;
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kyesw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
@@ -2037,7 +2037,7 @@ queuing_error:
  * qla2xxx_dif_start_scsi_mq() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns yesn-zero if a failure occurred, else zero.
  */
 int
 qla2xxx_dif_start_scsi_mq(srb_t *sp)
@@ -2086,7 +2086,7 @@ qla2xxx_dif_start_scsi_mq(srb_t *sp)
 	rsp = qpair->rsp;
 	req = qpair->req;
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kyesw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
@@ -2791,7 +2791,7 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 				    fcport->d_id, lid, &conflict_fcport);
 				if (conflict_fcport) {
 					/*
-					 * Another fcport shares the same
+					 * Ayesther fcport shares the same
 					 * loop_id & nport id; conflict
 					 * fcport needs to finish cleanup
 					 * before this fcport can proceed
@@ -3172,7 +3172,7 @@ qla24xx_ct_iocb(srb_t *sp, struct ct_entry_24xx *ct_iocb)
  * qla82xx_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns yesn-zero if a failure occurred, else zero.
  */
 int
 qla82xx_start_scsi(srb_t *sp)
@@ -3201,7 +3201,7 @@ qla82xx_start_scsi(srb_t *sp)
 	req = vha->req;
 	rsp = ha->rsp_q_map[0];
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kyesw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	dbval = 0x04 | (ha->portnum << 5);
@@ -3320,7 +3320,7 @@ sufficient_dsds:
 				 * multiple of 4
 				 */
 				ql_log(ql_log_warn, vha, 0x3012,
-				    "scsi cmd len %d not multiple of 4 "
+				    "scsi cmd len %d yest multiple of 4 "
 				    "for cmd=%p.\n", cmd->cmd_len, cmd);
 				goto queuing_error_fcp_cmnd;
 			}
@@ -3515,10 +3515,10 @@ qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 		abt_iocb->port_id[2] = sp->fcport->d_id.b.domain;
 	}
 	abt_iocb->handle_to_abort =
-	    cpu_to_le32(MAKE_HANDLE(aio->u.abt.req_que_no,
+	    cpu_to_le32(MAKE_HANDLE(aio->u.abt.req_que_yes,
 				    aio->u.abt.cmd_hndl));
 	abt_iocb->vp_index = vha->vp_idx;
-	abt_iocb->req_que_no = cpu_to_le16(aio->u.abt.req_que_no);
+	abt_iocb->req_que_yes = cpu_to_le16(aio->u.abt.req_que_yes);
 	/* Send the command to the firmware */
 	wmb();
 }
@@ -3544,7 +3544,7 @@ qla2x00_ctpthru_cmd_iocb(srb_t *sp, struct ct_entry_24xx *ct_pkt)
 	ct_pkt->handle = sp->handle;
 }
 
-static void qla2x00_send_notify_ack_iocb(srb_t *sp,
+static void qla2x00_send_yestify_ack_iocb(srb_t *sp,
 	struct nack_to_isp *nack)
 {
 	struct imm_ntfy_from_isp *ntfy = sp->u.iocb_cmd.u.nack.ntfy;
@@ -3713,7 +3713,7 @@ qla2x00_start_sp(srb_t *sp)
 	case SRB_NACK_PLOGI:
 	case SRB_NACK_PRLI:
 	case SRB_NACK_LOGO:
-		qla2x00_send_notify_ack_iocb(sp, pkt);
+		qla2x00_send_yestify_ack_iocb(sp, pkt);
 		break;
 	case SRB_CTRL_VP:
 		qla25xx_ctrlvp_iocb(sp, pkt);

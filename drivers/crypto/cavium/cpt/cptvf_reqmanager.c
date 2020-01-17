@@ -9,7 +9,7 @@
 /**
  * get_free_pending_entry - get free entry from pending queue
  * @param pqinfo: pending_qinfo structure
- * @param qno: queue number
+ * @param qyes: queue number
  */
 static struct pending_entry *get_free_pending_entry(struct pending_queue *q,
 						    int qlen)
@@ -19,21 +19,21 @@ static struct pending_entry *get_free_pending_entry(struct pending_queue *q,
 	ent = &q->head[q->rear];
 	if (unlikely(ent->busy)) {
 		ent = NULL;
-		goto no_free_entry;
+		goto yes_free_entry;
 	}
 
 	q->rear++;
 	if (unlikely(q->rear == qlen))
 		q->rear = 0;
 
-no_free_entry:
+yes_free_entry:
 	return ent;
 }
 
 static inline void pending_queue_inc_front(struct pending_qinfo *pqinfo,
-					   int qno)
+					   int qyes)
 {
-	struct pending_queue *queue = &pqinfo->queue[qno];
+	struct pending_queue *queue = &pqinfo->queue[qyes];
 
 	queue->front++;
 	if (unlikely(queue->front == pqinfo->qlen))
@@ -221,7 +221,7 @@ scatter_gather_clean:
 }
 
 static int send_cpt_command(struct cpt_vf *cptvf, union cpt_inst_s *cmd,
-		     u32 qno)
+		     u32 qyes)
 {
 	struct pci_dev *pdev = cptvf->pdev;
 	struct command_qinfo *qinfo = NULL;
@@ -230,24 +230,24 @@ static int send_cpt_command(struct cpt_vf *cptvf, union cpt_inst_s *cmd,
 	u8 *ent;
 	int ret = 0;
 
-	if (unlikely(qno >= cptvf->nr_queues)) {
-		dev_err(&pdev->dev, "Invalid queue (qno: %d, nr_queues: %d)\n",
-			qno, cptvf->nr_queues);
+	if (unlikely(qyes >= cptvf->nr_queues)) {
+		dev_err(&pdev->dev, "Invalid queue (qyes: %d, nr_queues: %d)\n",
+			qyes, cptvf->nr_queues);
 		return -EINVAL;
 	}
 
 	qinfo = &cptvf->cqinfo;
-	queue = &qinfo->queue[qno];
+	queue = &qinfo->queue[qyes];
 	/* lock commad queue */
 	spin_lock(&queue->lock);
 	ent = &queue->qhead->head[queue->idx * qinfo->cmd_size];
 	memcpy(ent, (void *)cmd, qinfo->cmd_size);
 
 	if (++queue->idx >= queue->qhead->size / 64) {
-		struct hlist_node *node;
+		struct hlist_yesde *yesde;
 
-		hlist_for_each(node, &queue->chead) {
-			chunk = hlist_entry(node, struct command_chunk,
+		hlist_for_each(yesde, &queue->chead) {
+			chunk = hlist_entry(yesde, struct command_chunk,
 					    nextchunk);
 			if (chunk == queue->qhead) {
 				continue;
@@ -327,10 +327,10 @@ static void do_post_process(struct cpt_vf *cptvf, struct cpt_info_buffer *info)
 
 static inline void process_pending_queue(struct cpt_vf *cptvf,
 					 struct pending_qinfo *pqinfo,
-					 int qno)
+					 int qyes)
 {
 	struct pci_dev *pdev = cptvf->pdev;
-	struct pending_queue *pqueue = &pqinfo->queue[qno];
+	struct pending_queue *pqueue = &pqinfo->queue[qyes];
 	struct pending_entry *pentry = NULL;
 	struct cpt_info_buffer *info = NULL;
 	union cpt_res_s *status = NULL;
@@ -347,7 +347,7 @@ static inline void process_pending_queue(struct cpt_vf *cptvf,
 		info = (struct cpt_info_buffer *)pentry->post_arg;
 		if (unlikely(!info)) {
 			dev_err(&pdev->dev, "Pending Entry post arg NULL\n");
-			pending_queue_inc_front(pqinfo, qno);
+			pending_queue_inc_front(pqinfo, qyes);
 			spin_unlock_bh(&pqueue->lock);
 			continue;
 		}
@@ -363,7 +363,7 @@ static inline void process_pending_queue(struct cpt_vf *cptvf,
 			pentry->busy = false;
 			atomic64_dec((&pqueue->pending_count));
 			pentry->post_arg = NULL;
-			pending_queue_inc_front(pqinfo, qno);
+			pending_queue_inc_front(pqinfo, qyes);
 			do_request_cleanup(cptvf, info);
 			spin_unlock_bh(&pqueue->lock);
 			break;
@@ -377,7 +377,7 @@ static inline void process_pending_queue(struct cpt_vf *cptvf,
 				pentry->busy = false;
 				atomic64_dec((&pqueue->pending_count));
 				pentry->post_arg = NULL;
-				pending_queue_inc_front(pqinfo, qno);
+				pending_queue_inc_front(pqinfo, qyes);
 				do_request_cleanup(cptvf, info);
 				spin_unlock_bh(&pqueue->lock);
 				break;
@@ -395,7 +395,7 @@ static inline void process_pending_queue(struct cpt_vf *cptvf,
 		pentry->busy = false;
 		pentry->post_arg = NULL;
 		atomic64_dec((&pqueue->pending_count));
-		pending_queue_inc_front(pqinfo, qno);
+		pending_queue_inc_front(pqinfo, qyes);
 		spin_unlock_bh(&pqueue->lock);
 
 		do_post_process(info->cptvf, info);
@@ -470,7 +470,7 @@ int process_request(struct cpt_vf *cptvf, struct cpt_request_info *req)
 	vq_cmd.cmd.s.param2 = cpu_to_be16(cpt_req->param2);
 	vq_cmd.cmd.s.dlen   = cpu_to_be16(cpt_req->dlen);
 
-	/* 64-bit swap for microcode data reads, not needed for addresses*/
+	/* 64-bit swap for microcode data reads, yest needed for addresses*/
 	vq_cmd.cmd.u64 = cpu_to_be64(vq_cmd.cmd.u64);
 	vq_cmd.dptr = info->dptr_baddr;
 	vq_cmd.rptr = info->rptr_baddr;
@@ -544,17 +544,17 @@ request_cleanup:
 	return ret;
 }
 
-void vq_post_process(struct cpt_vf *cptvf, u32 qno)
+void vq_post_process(struct cpt_vf *cptvf, u32 qyes)
 {
 	struct pci_dev *pdev = cptvf->pdev;
 
-	if (unlikely(qno > cptvf->nr_queues)) {
+	if (unlikely(qyes > cptvf->nr_queues)) {
 		dev_err(&pdev->dev, "Request for post processing on invalid pending queue: %u\n",
-			qno);
+			qyes);
 		return;
 	}
 
-	process_pending_queue(cptvf, &cptvf->pqinfo, qno);
+	process_pending_queue(cptvf, &cptvf->pqinfo, qyes);
 }
 
 int cptvf_do_request(void *vfdev, struct cpt_request_info *req)
@@ -563,7 +563,7 @@ int cptvf_do_request(void *vfdev, struct cpt_request_info *req)
 	struct pci_dev *pdev = cptvf->pdev;
 
 	if (!cpt_device_ready(cptvf)) {
-		dev_err(&pdev->dev, "CPT Device is not ready");
+		dev_err(&pdev->dev, "CPT Device is yest ready");
 		return -ENODEV;
 	}
 

@@ -23,9 +23,9 @@ int iw_handler_get_private(struct net_device *		dev,
 	   (dev->wireless_handlers->private_args == NULL))
 		return -EOPNOTSUPP;
 
-	/* Check if there is enough buffer up there */
+	/* Check if there is eyesugh buffer up there */
 	if (wrqu->data.length < dev->wireless_handlers->num_private_args) {
-		/* User space can't know in advance how large the buffer
+		/* User space can't kyesw in advance how large the buffer
 		 * needs to be. Give it a hint, so that we can support
 		 * any size buffer we want somewhat efficiently... */
 		wrqu->data.length = dev->wireless_handlers->num_private_args;
@@ -79,8 +79,8 @@ static int adjust_priv_size(__u16 args, struct iw_point *iwp)
  * Wrapper to call a private Wireless Extension handler.
  * We do various checks and also take care of moving data between
  * user space and kernel space.
- * It's not as nice and slimline as the standard wrapper. The cause
- * is struct iw_priv_args, which was not really designed for the
+ * It's yest as nice and slimline as the standard wrapper. The cause
+ * is struct iw_priv_args, which was yest really designed for the
  * job we are going here.
  *
  * IMPORTANT : This function prevent to set and get data on the same
@@ -193,7 +193,7 @@ int ioctl_private_call(struct net_device *dev, struct iwreq *iwr,
 
 	extra_size = get_priv_descr_and_size(dev, cmd, &descr);
 
-	/* Check if we have a pointer to user space data or not. */
+	/* Check if we have a pointer to user space data or yest. */
 	if (extra_size == 0) {
 		/* No extra arguments. Trivial to handle */
 		ret = handler(dev, info, &(iwr->u), (char *) &(iwr->u));
@@ -219,7 +219,7 @@ int compat_private_call(struct net_device *dev, struct iwreq *iwr,
 
 	extra_size = get_priv_descr_and_size(dev, cmd, &descr);
 
-	/* Check if we have a pointer to user space data or not. */
+	/* Check if we have a pointer to user space data or yest. */
 	if (extra_size == 0) {
 		/* No extra arguments. Trivial to handle */
 		ret = handler(dev, info, &(iwr->u), (char *) &(iwr->u));

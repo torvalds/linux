@@ -43,20 +43,20 @@ isl38xx_handle_sleep_request(isl38xx_control_block *control_block,
 	/* device requests to go into sleep mode
 	 * check whether the transmit queues for data and management are empty */
 	if (isl38xx_in_queue(control_block, ISL38XX_CB_TX_DATA_LQ))
-		/* data tx queue not empty */
+		/* data tx queue yest empty */
 		return;
 
 	if (isl38xx_in_queue(control_block, ISL38XX_CB_TX_MGMTQ))
-		/* management tx queue not empty */
+		/* management tx queue yest empty */
 		return;
 
 	/* check also whether received frames are pending */
 	if (isl38xx_in_queue(control_block, ISL38XX_CB_RX_DATA_LQ))
-		/* data rx queue not empty */
+		/* data rx queue yest empty */
 		return;
 
 	if (isl38xx_in_queue(control_block, ISL38XX_CB_RX_MGMTQ))
-		/* management rx queue not empty */
+		/* management rx queue yest empty */
 		return;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
@@ -79,7 +79,7 @@ isl38xx_handle_wakeup(isl38xx_control_block *control_block,
 	/* device is in active state, update the powerstate flag */
 	*powerstate = ISL38XX_PSM_ACTIVE_STATE;
 
-	/* now check whether there are frames pending for the card */
+	/* yesw check whether there are frames pending for the card */
 	if (!isl38xx_in_queue(control_block, ISL38XX_CB_TX_DATA_LQ)
 	    && !isl38xx_in_queue(control_block, ISL38XX_CB_TX_MGMTQ))
 		return;
@@ -155,7 +155,7 @@ isl38xx_trigger_device(int asleep, void __iomem *device_base)
 #if VERBOSE > SHOW_ERROR_MESSAGES
 		udelay(ISL38XX_WRITEIO_DELAY);
 
-		/* perform another read on the Device Status Register */
+		/* perform ayesther read on the Device Status Register */
 		reg = readl(device_base + ISL38XX_CTRL_STAT_REG);
 		ktime_get_real_ts64(&current_ts64);
 		DEBUG(SHOW_TRACING, "%lld.%00ld Device register read %08x\n",
@@ -190,7 +190,7 @@ isl38xx_interface_reset(void __iomem *device_base, dma_addr_t host_address)
 
 	/* enable the interrupt for detecting initialization */
 
-	/* Note: Do not enable other interrupts here. We want the
+	/* Note: Do yest enable other interrupts here. We want the
 	 * device to have come up first 100% before allowing any other
 	 * interrupts. */
 	isl38xx_w32_flush(device_base, ISL38XX_INT_IDENT_INIT, ISL38XX_INT_EN_REG);

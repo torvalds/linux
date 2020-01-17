@@ -79,40 +79,40 @@ void __init housekeeping_init(void)
 
 static int __init housekeeping_setup(char *str, enum hk_flags flags)
 {
-	cpumask_var_t non_housekeeping_mask;
+	cpumask_var_t yesn_housekeeping_mask;
 	cpumask_var_t tmp;
 	int err;
 
-	alloc_bootmem_cpumask_var(&non_housekeeping_mask);
-	err = cpulist_parse(str, non_housekeeping_mask);
-	if (err < 0 || cpumask_last(non_housekeeping_mask) >= nr_cpu_ids) {
-		pr_warn("Housekeeping: nohz_full= or isolcpus= incorrect CPU range\n");
-		free_bootmem_cpumask_var(non_housekeeping_mask);
+	alloc_bootmem_cpumask_var(&yesn_housekeeping_mask);
+	err = cpulist_parse(str, yesn_housekeeping_mask);
+	if (err < 0 || cpumask_last(yesn_housekeeping_mask) >= nr_cpu_ids) {
+		pr_warn("Housekeeping: yeshz_full= or isolcpus= incorrect CPU range\n");
+		free_bootmem_cpumask_var(yesn_housekeeping_mask);
 		return 0;
 	}
 
 	alloc_bootmem_cpumask_var(&tmp);
 	if (!housekeeping_flags) {
 		alloc_bootmem_cpumask_var(&housekeeping_mask);
-		cpumask_andnot(housekeeping_mask,
-			       cpu_possible_mask, non_housekeeping_mask);
+		cpumask_andyest(housekeeping_mask,
+			       cpu_possible_mask, yesn_housekeeping_mask);
 
-		cpumask_andnot(tmp, cpu_present_mask, non_housekeeping_mask);
+		cpumask_andyest(tmp, cpu_present_mask, yesn_housekeeping_mask);
 		if (cpumask_empty(tmp)) {
 			pr_warn("Housekeeping: must include one present CPU, "
 				"using boot CPU:%d\n", smp_processor_id());
 			__cpumask_set_cpu(smp_processor_id(), housekeeping_mask);
-			__cpumask_clear_cpu(smp_processor_id(), non_housekeeping_mask);
+			__cpumask_clear_cpu(smp_processor_id(), yesn_housekeeping_mask);
 		}
 	} else {
-		cpumask_andnot(tmp, cpu_present_mask, non_housekeeping_mask);
+		cpumask_andyest(tmp, cpu_present_mask, yesn_housekeeping_mask);
 		if (cpumask_empty(tmp))
-			__cpumask_clear_cpu(smp_processor_id(), non_housekeeping_mask);
-		cpumask_andnot(tmp, cpu_possible_mask, non_housekeeping_mask);
+			__cpumask_clear_cpu(smp_processor_id(), yesn_housekeeping_mask);
+		cpumask_andyest(tmp, cpu_possible_mask, yesn_housekeeping_mask);
 		if (!cpumask_equal(tmp, housekeeping_mask)) {
-			pr_warn("Housekeeping: nohz_full= must match isolcpus=\n");
+			pr_warn("Housekeeping: yeshz_full= must match isolcpus=\n");
 			free_bootmem_cpumask_var(tmp);
-			free_bootmem_cpumask_var(non_housekeeping_mask);
+			free_bootmem_cpumask_var(yesn_housekeeping_mask);
 			return 0;
 		}
 	}
@@ -120,23 +120,23 @@ static int __init housekeeping_setup(char *str, enum hk_flags flags)
 
 	if ((flags & HK_FLAG_TICK) && !(housekeeping_flags & HK_FLAG_TICK)) {
 		if (IS_ENABLED(CONFIG_NO_HZ_FULL)) {
-			tick_nohz_full_setup(non_housekeeping_mask);
+			tick_yeshz_full_setup(yesn_housekeeping_mask);
 		} else {
-			pr_warn("Housekeeping: nohz unsupported."
+			pr_warn("Housekeeping: yeshz unsupported."
 				" Build with CONFIG_NO_HZ_FULL\n");
-			free_bootmem_cpumask_var(non_housekeeping_mask);
+			free_bootmem_cpumask_var(yesn_housekeeping_mask);
 			return 0;
 		}
 	}
 
 	housekeeping_flags |= flags;
 
-	free_bootmem_cpumask_var(non_housekeeping_mask);
+	free_bootmem_cpumask_var(yesn_housekeeping_mask);
 
 	return 1;
 }
 
-static int __init housekeeping_nohz_full_setup(char *str)
+static int __init housekeeping_yeshz_full_setup(char *str)
 {
 	unsigned int flags;
 
@@ -144,14 +144,14 @@ static int __init housekeeping_nohz_full_setup(char *str)
 
 	return housekeeping_setup(str, flags);
 }
-__setup("nohz_full=", housekeeping_nohz_full_setup);
+__setup("yeshz_full=", housekeeping_yeshz_full_setup);
 
 static int __init housekeeping_isolcpus_setup(char *str)
 {
 	unsigned int flags = 0;
 
 	while (isalpha(*str)) {
-		if (!strncmp(str, "nohz,", 5)) {
+		if (!strncmp(str, "yeshz,", 5)) {
 			str += 5;
 			flags |= HK_FLAG_TICK;
 			continue;
@@ -163,7 +163,7 @@ static int __init housekeeping_isolcpus_setup(char *str)
 			continue;
 		}
 
-		pr_warn("isolcpus: Error, unknown flag\n");
+		pr_warn("isolcpus: Error, unkyeswn flag\n");
 		return 0;
 	}
 

@@ -99,9 +99,9 @@ enum zynq_pinmux_functions {
 	ZYNQ_PMUX_sdio1_pc,
 	ZYNQ_PMUX_sdio1_cd,
 	ZYNQ_PMUX_sdio1_wp,
-	ZYNQ_PMUX_smc0_nor,
-	ZYNQ_PMUX_smc0_nor_cs1,
-	ZYNQ_PMUX_smc0_nor_addr25,
+	ZYNQ_PMUX_smc0_yesr,
+	ZYNQ_PMUX_smc0_yesr_cs1,
+	ZYNQ_PMUX_smc0_yesr_addr25,
 	ZYNQ_PMUX_smc0_nand,
 	ZYNQ_PMUX_ttc0,
 	ZYNQ_PMUX_ttc1,
@@ -226,12 +226,12 @@ static const unsigned int sdio0_emio_wp_pins[] = {54};
 static const unsigned int sdio0_emio_cd_pins[] = {55};
 static const unsigned int sdio1_emio_wp_pins[] = {56};
 static const unsigned int sdio1_emio_cd_pins[] = {57};
-static const unsigned int smc0_nor_pins[] = {0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13,
+static const unsigned int smc0_yesr_pins[] = {0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13,
 					     15, 16, 17, 18, 19, 20, 21, 22, 23,
 					     24, 25, 26, 27, 28, 29, 30, 31, 32,
 					     33, 34, 35, 36, 37, 38, 39};
-static const unsigned int smc0_nor_cs1_pins[] = {1};
-static const unsigned int smc0_nor_addr25_pins[] = {1};
+static const unsigned int smc0_yesr_cs1_pins[] = {1};
+static const unsigned int smc0_yesr_addr25_pins[] = {1};
 static const unsigned int smc0_nand_pins[] = {0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 					      12, 13, 14, 16, 17, 18, 19, 20,
 					      21, 22, 23};
@@ -431,9 +431,9 @@ static const struct zynq_pctrl_group zynq_pctrl_groups[] = {
 	DEFINE_ZYNQ_PINCTRL_GRP(sdio0_emio_cd),
 	DEFINE_ZYNQ_PINCTRL_GRP(sdio1_emio_wp),
 	DEFINE_ZYNQ_PINCTRL_GRP(sdio1_emio_cd),
-	DEFINE_ZYNQ_PINCTRL_GRP(smc0_nor),
-	DEFINE_ZYNQ_PINCTRL_GRP(smc0_nor_cs1),
-	DEFINE_ZYNQ_PINCTRL_GRP(smc0_nor_addr25),
+	DEFINE_ZYNQ_PINCTRL_GRP(smc0_yesr),
+	DEFINE_ZYNQ_PINCTRL_GRP(smc0_yesr_cs1),
+	DEFINE_ZYNQ_PINCTRL_GRP(smc0_yesr_addr25),
 	DEFINE_ZYNQ_PINCTRL_GRP(smc0_nand),
 	DEFINE_ZYNQ_PINCTRL_GRP(smc0_nand8),
 	DEFINE_ZYNQ_PINCTRL_GRP(can0_0),
@@ -697,9 +697,9 @@ static const char * const sdio1_wp_groups[] = {"gpio0_0_grp",
 		"gpio0_39_grp", "gpio0_41_grp", "gpio0_43_grp",
 		"gpio0_45_grp", "gpio0_47_grp", "gpio0_49_grp",
 		"gpio0_51_grp", "gpio0_53_grp", "sdio1_emio_wp_grp"};
-static const char * const smc0_nor_groups[] = {"smc0_nor_grp"};
-static const char * const smc0_nor_cs1_groups[] = {"smc0_nor_cs1_grp"};
-static const char * const smc0_nor_addr25_groups[] = {"smc0_nor_addr25_grp"};
+static const char * const smc0_yesr_groups[] = {"smc0_yesr_grp"};
+static const char * const smc0_yesr_cs1_groups[] = {"smc0_yesr_cs1_grp"};
+static const char * const smc0_yesr_addr25_groups[] = {"smc0_yesr_addr25_grp"};
 static const char * const smc0_nand_groups[] = {"smc0_nand_grp",
 		"smc0_nand8_grp"};
 static const char * const can0_groups[] = {"can0_0_grp", "can0_1_grp",
@@ -803,9 +803,9 @@ static const struct zynq_pinmux_function zynq_pmux_functions[] = {
 					ZYNQ_SDIO_WP_SHIFT),
 	DEFINE_ZYNQ_PINMUX_FUNCTION_MUX(sdio1_cd, 0, 0x134, ZYNQ_SDIO_CD_MASK,
 					ZYNQ_SDIO_CD_SHIFT),
-	DEFINE_ZYNQ_PINMUX_FUNCTION(smc0_nor, 4),
-	DEFINE_ZYNQ_PINMUX_FUNCTION(smc0_nor_cs1, 8),
-	DEFINE_ZYNQ_PINMUX_FUNCTION(smc0_nor_addr25, 4),
+	DEFINE_ZYNQ_PINMUX_FUNCTION(smc0_yesr, 4),
+	DEFINE_ZYNQ_PINMUX_FUNCTION(smc0_yesr_cs1, 8),
+	DEFINE_ZYNQ_PINMUX_FUNCTION(smc0_yesr_addr25, 4),
 	DEFINE_ZYNQ_PINMUX_FUNCTION(smc0_nand, 8),
 	DEFINE_ZYNQ_PINMUX_FUNCTION(can0, 0x10),
 	DEFINE_ZYNQ_PINMUX_FUNCTION(can1, 0x10),
@@ -853,7 +853,7 @@ static const struct pinctrl_ops zynq_pctrl_ops = {
 	.get_groups_count = zynq_pctrl_get_groups_count,
 	.get_group_name = zynq_pctrl_get_group_name,
 	.get_group_pins = zynq_pctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -1165,7 +1165,7 @@ static int zynq_pinctrl_probe(struct platform_device *pdev)
 	if (!pctrl)
 		return -ENOMEM;
 
-	pctrl->syscon = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	pctrl->syscon = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 							"syscon");
 	if (IS_ERR(pctrl->syscon)) {
 		dev_err(&pdev->dev, "unable to get syscon\n");

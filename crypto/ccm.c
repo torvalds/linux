@@ -29,7 +29,7 @@ struct crypto_ccm_ctx {
 
 struct crypto_rfc4309_ctx {
 	struct crypto_aead *child;
-	u8 nonce[3];
+	u8 yesnce[3];
 };
 
 struct crypto_rfc4309_req_ctx {
@@ -610,7 +610,7 @@ static int crypto_rfc4309_setkey(struct crypto_aead *parent, const u8 *key,
 		return -EINVAL;
 
 	keylen -= 3;
-	memcpy(ctx->nonce, key + keylen, 3);
+	memcpy(ctx->yesnce, key + keylen, 3);
 
 	crypto_aead_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_aead_set_flags(child, crypto_aead_get_flags(parent) &
@@ -653,7 +653,7 @@ static struct aead_request *crypto_rfc4309_crypt(struct aead_request *req)
 	/* L' */
 	iv[0] = 3;
 
-	memcpy(iv + 1, ctx->nonce, 3);
+	memcpy(iv + 1, ctx->yesnce, 3);
 	memcpy(iv + 4, req->iv, 8);
 
 	scatterwalk_map_and_copy(iv + 16, req->src, 0, req->assoclen - 8, 0);

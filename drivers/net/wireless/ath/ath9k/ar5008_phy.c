@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -126,9 +126,9 @@ static void ar5008_hw_phy_modify_rx_buffer(u32 *rfBuf, u32 reg32,
  *      else if forceBias > 0
  *         bias = forceBias & 7
  *      else
- *         no change, use value from ini file
+ *         yes change, use value from ini file
  *   else
- *      no change, invalid band
+ *      yes change, invalid band
  *
  *  1st Mod:
  *    2422 also uses value of 2
@@ -406,7 +406,7 @@ void ar5008_hw_cmn_spur_mitigate(struct ath_hw *ah,
  * @ah: atheros hardware structure
  * @chan:
  *
- * For non single-chip solutions. Converts to baseband spur frequency given the
+ * For yesn single-chip solutions. Converts to baseband spur frequency given the
  * input channel frequency and compute register settings below.
  */
 static void ar5008_hw_spur_mitigate(struct ath_hw *ah,
@@ -416,7 +416,7 @@ static void ar5008_hw_spur_mitigate(struct ath_hw *ah,
 	int bin;
 	int spur_freq_sd;
 	int spur_delta_phase;
-	int denominator;
+	int deyesminator;
 	int tmp, new;
 	int i;
 
@@ -457,8 +457,8 @@ static void ar5008_hw_spur_mitigate(struct ath_hw *ah,
 	spur_delta_phase = ((bb_spur * 524288) / 100) &
 		AR_PHY_TIMING11_SPUR_DELTA_PHASE;
 
-	denominator = IS_CHAN_2GHZ(chan) ? 440 : 400;
-	spur_freq_sd = ((bb_spur * 2048) / denominator) & 0x3ff;
+	deyesminator = IS_CHAN_2GHZ(chan) ? 440 : 400;
+	spur_freq_sd = ((bb_spur * 2048) / deyesminator) & 0x3ff;
 
 	new = (AR_PHY_TIMING11_USE_SPUR_IN_AGC |
 	       SM(spur_freq_sd, AR_PHY_TIMING11_SPUR_FREQ_SD) |
@@ -499,20 +499,20 @@ static int ar5008_hw_rf_alloc_ext_banks(struct ath_hw *ah)
  *
  * Reads the EEPROM header info from the device structure and programs
  * all rf registers. This routine requires access to the analog
- * rf device. This is not required for single-chip devices.
+ * rf device. This is yest required for single-chip devices.
  */
 static bool ar5008_hw_set_rf_regs(struct ath_hw *ah,
 				  struct ath9k_channel *chan,
 				  u16 modesIndex)
 {
-	u32 eepMinorRev;
+	u32 eepMiyesrRev;
 	u32 ob5GHz = 0, db5GHz = 0;
 	u32 ob2GHz = 0, db2GHz = 0;
 	int regWrites = 0;
 	int i;
 
 	/*
-	 * Software does not need to program bank data
+	 * Software does yest need to program bank data
 	 * for single chip devices, that is AR9280 or anything
 	 * after that.
 	 */
@@ -520,13 +520,13 @@ static bool ar5008_hw_set_rf_regs(struct ath_hw *ah,
 		return true;
 
 	/* Setup rf parameters */
-	eepMinorRev = ah->eep_ops->get_eeprom_rev(ah);
+	eepMiyesrRev = ah->eep_ops->get_eeprom_rev(ah);
 
 	for (i = 0; i < ah->iniBank6.ia_rows; i++)
 		ah->analogBank6Data[i] = INI_RA(&ah->iniBank6, i, modesIndex);
 
 	/* Only the 5 or 2 GHz OB/DB need to be set for a mode */
-	if (eepMinorRev >= 2) {
+	if (eepMiyesrRev >= 2) {
 		if (IS_CHAN_2GHZ(chan)) {
 			ob2GHz = ah->eep_ops->get_eeprom(ah, EEP_OB_2);
 			db2GHz = ah->eep_ops->get_eeprom(ah, EEP_DB_2);
@@ -629,7 +629,7 @@ static void ar5008_hw_override_ini(struct ath_hw *ah,
 		 * For AR9280 and above, there is a new feature that allows
 		 * Multicast search based on both MAC Address and Key ID.
 		 * By default, this feature is enabled. But since the driver
-		 * is not using this feature, we switch it off; otherwise
+		 * is yest using this feature, we switch it off; otherwise
 		 * multicast search based on MAC addr only will fail.
 		 */
 		val = REG_READ(ah, AR_PCU_MISC_MODE2) &
@@ -943,10 +943,10 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 	case ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION:{
 		/*
 		 * on == 1 means ofdm weak signal detection is ON
-		 * on == 1 is the default, for less noise immunity
+		 * on == 1 is the default, for less yesise immunity
 		 *
 		 * on == 0 means ofdm weak signal detection is OFF
-		 * on == 0 means more noise imm
+		 * on == 0 means more yesise imm
 		 */
 		u32 on = param ? 1 : 0;
 		/*
@@ -1092,8 +1092,8 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 	}
 	case ATH9K_ANI_MRC_CCK:
 		/*
-		 * You should not see this as AR5008, AR9001, AR9002
-		 * does not have hardware support for MRC CCK.
+		 * You should yest see this as AR5008, AR9001, AR9002
+		 * does yest have hardware support for MRC CCK.
 		 */
 		WARN_ON(1);
 		break;
@@ -1194,17 +1194,17 @@ static void ar5008_hw_ani_cache_ini_regs(struct ath_hw *ah)
 	aniState->spurImmunityLevel = ATH9K_ANI_SPUR_IMMUNE_LVL;
 	aniState->firstepLevel = ATH9K_ANI_FIRSTEP_LVL;
 	aniState->ofdmWeakSigDetect = true;
-	aniState->mrcCCK = false; /* not available on pre AR9003 */
+	aniState->mrcCCK = false; /* yest available on pre AR9003 */
 }
 
 static void ar5008_hw_set_nf_limits(struct ath_hw *ah)
 {
 	ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_5416_2GHZ;
 	ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_5416_2GHZ;
-	ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_5416_2GHZ;
+	ah->nf_2g.yesminal = AR_PHY_CCA_NOM_VAL_5416_2GHZ;
 	ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_5416_5GHZ;
 	ah->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_5416_5GHZ;
-	ah->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_5416_5GHZ;
+	ah->nf_5g.yesminal = AR_PHY_CCA_NOM_VAL_5416_5GHZ;
 }
 
 static void ar5008_hw_set_radar_params(struct ath_hw *ah,

@@ -21,8 +21,8 @@ static unsigned long romfs_get_unmapped_area(struct file *file,
 					     unsigned long pgoff,
 					     unsigned long flags)
 {
-	struct inode *inode = file->f_mapping->host;
-	struct mtd_info *mtd = inode->i_sb->s_mtd;
+	struct iyesde *iyesde = file->f_mapping->host;
+	struct mtd_info *mtd = iyesde->i_sb->s_mtd;
 	unsigned long isize, offset, maxpages, lpages;
 	int ret;
 
@@ -31,7 +31,7 @@ static unsigned long romfs_get_unmapped_area(struct file *file,
 
 	/* the mapping mustn't extend beyond the EOF */
 	lpages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	isize = i_size_read(inode);
+	isize = i_size_read(iyesde);
 	offset = pgoff << PAGE_SHIFT;
 
 	maxpages = (isize + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -44,7 +44,7 @@ static unsigned long romfs_get_unmapped_area(struct file *file,
 	if (len > mtd->size || pgoff >= (mtd->size >> PAGE_SHIFT))
 		return (unsigned long) -EINVAL;
 
-	offset += ROMFS_I(inode)->i_dataoffset;
+	offset += ROMFS_I(iyesde)->i_dataoffset;
 	if (offset >= mtd->size)
 		return (unsigned long) -EINVAL;
 	/* the mapping mustn't extend beyond the EOF */
@@ -68,7 +68,7 @@ static int romfs_mmap(struct file *file, struct vm_area_struct *vma)
 
 static unsigned romfs_mmap_capabilities(struct file *file)
 {
-	struct mtd_info *mtd = file_inode(file)->i_sb->s_mtd;
+	struct mtd_info *mtd = file_iyesde(file)->i_sb->s_mtd;
 
 	if (!mtd)
 		return NOMMU_MAP_COPY;

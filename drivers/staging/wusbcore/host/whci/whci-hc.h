@@ -56,9 +56,9 @@ struct whc_qtd {
 #define QTD_OPT_SMALL    (1 << 0) /* interrupt on complete */
 
 /**
- * struct whc_itd - Isochronous Queue Element Transfer Descriptors (iTD)
+ * struct whc_itd - Isochroyesus Queue Element Transfer Descriptors (iTD)
  *
- * This describes the data and other parameters for an isochronous
+ * This describes the data and other parameters for an isochroyesus
  * transfer.
  *
  * [WHCI] section 3.2.5
@@ -134,7 +134,7 @@ struct whc_qhead {
 
 #define QH_LINK_PTR_MASK (~0x03Full)
 #define QH_LINK_PTR(ptr) ((ptr) & QH_LINK_PTR_MASK)
-#define QH_LINK_IQS      (1 << 4) /* isochronous queue set */
+#define QH_LINK_IQS      (1 << 4) /* isochroyesus queue set */
 #define QH_LINK_NTDS(n)  (((n) - 1) << 1) /* number of TDs in queue set */
 #define QH_LINK_T        (1 << 0) /* last queue set in periodic schedule list */
 
@@ -142,7 +142,7 @@ struct whc_qhead {
 #define QH_INFO1_DIR_IN          (1 << 4)    /* IN transfer */
 #define QH_INFO1_DIR_OUT         (0 << 4)    /* OUT transfer */
 #define QH_INFO1_TR_TYPE_CTRL    (0x0 << 5)  /* control transfer */
-#define QH_INFO1_TR_TYPE_ISOC    (0x1 << 5)  /* isochronous transfer */
+#define QH_INFO1_TR_TYPE_ISOC    (0x1 << 5)  /* isochroyesus transfer */
 #define QH_INFO1_TR_TYPE_BULK    (0x2 << 5)  /* bulk transfer */
 #define QH_INFO1_TR_TYPE_INT     (0x3 << 5)  /* interrupt */
 #define QH_INFO1_TR_TYPE_LP_INT  (0x7 << 5)  /* low power interrupt */
@@ -193,18 +193,18 @@ static inline unsigned usb_pipe_to_qh_type(unsigned pipe)
  * @qh: the QHead of this qset
  * @qtd: up to 8 qTDs (for qsets for control, bulk and interrupt
  * transfers)
- * @itd: up to 8 iTDs (for qsets for isochronous transfers)
+ * @itd: up to 8 iTDs (for qsets for isochroyesus transfers)
  * @qset_dma: DMA address for this qset
  * @whc: WHCI HC this qset is for
  * @ep: endpoint
  * @stds: list of sTDs queued to this qset
- * @ntds: number of qTDs queued (not necessarily the same as nTDs
+ * @ntds: number of qTDs queued (yest necessarily the same as nTDs
  * field in the QH)
  * @td_start: index of the first qTD in the list
  * @td_end: index of next free qTD in the list (provided
  *          ntds < WHCI_QSET_TD_MAX)
  *
- * Queue Sets (qsets) are added to the asynchronous schedule list
+ * Queue Sets (qsets) are added to the asynchroyesus schedule list
  * (ASL) or the periodic zone list (PZL).
  *
  * qsets may contain up to 8 TDs (either qTDs or iTDs as appropriate).
@@ -240,7 +240,7 @@ struct whc_qset {
 	int ntds;
 	int td_start;
 	int td_end;
-	struct list_head list_node;
+	struct list_head list_yesde;
 	unsigned in_sw_list:1;
 	unsigned in_hw_list:1;
 	unsigned remove:1;
@@ -293,7 +293,7 @@ struct dn_buf_entry {
 } __attribute__((packed));
 
 #define WHC_DN_STATUS_VALID  (1 << 7) /* buffer entry is valid */
-#define WHC_DN_STATUS_SECURE (1 << 6) /* notification received using secure frame */
+#define WHC_DN_STATUS_SECURE (1 << 6) /* yestification received using secure frame */
 
 #define WHC_N_DN_ENTRIES (4096 / sizeof(struct dn_buf_entry))
 

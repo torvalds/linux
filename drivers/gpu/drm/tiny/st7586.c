@@ -2,7 +2,7 @@
 /*
  * DRM driver for Sitronix ST7586 panels
  *
- * Copyright 2017 David Lechner <david@lechnology.com>
+ * Copyright 2017 David Lechner <david@lechyeslogy.com>
  */
 
 #include <linux/delay.h>
@@ -258,7 +258,7 @@ static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
 
 	/*
-	 * This callback is not protected by drm_dev_enter/exit since we want to
+	 * This callback is yest protected by drm_dev_enter/exit since we want to
 	 * turn off the display on regular driver unload. It's highly unlikely
 	 * that the underlying SPI controller is gone should this be called after
 	 * unplug.
@@ -300,7 +300,7 @@ static struct drm_driver st7586_driver = {
 	.desc			= "Sitronix ST7586",
 	.date			= "20170801",
 	.major			= 1,
-	.minor			= 0,
+	.miyesr			= 0,
 };
 
 static const struct of_device_id st7586_of_match[] = {
@@ -360,7 +360,7 @@ static int st7586_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	/* Cannot read from this controller via SPI */
+	/* Canyest read from this controller via SPI */
 	dbi->read_commands = NULL;
 
 	ret = mipi_dbi_dev_init_with_formats(dbidev, &st7586_pipe_funcs,
@@ -370,9 +370,9 @@ static int st7586_probe(struct spi_device *spi)
 		return ret;
 
 	/*
-	 * we are using 8-bit data, so we are not actually swapping anything,
+	 * we are using 8-bit data, so we are yest actually swapping anything,
 	 * but setting mipi->swap_bytes makes mipi_dbi_typec3_command() do the
-	 * right thing and not use 16-bit transfers (which results in swapped
+	 * right thing and yest use 16-bit transfers (which results in swapped
 	 * bytes on little-endian systems and causes out of order data to be
 	 * sent to the display).
 	 */
@@ -420,5 +420,5 @@ static struct spi_driver st7586_spi_driver = {
 module_spi_driver(st7586_spi_driver);
 
 MODULE_DESCRIPTION("Sitronix ST7586 DRM driver");
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechyeslogy.com>");
 MODULE_LICENSE("GPL");

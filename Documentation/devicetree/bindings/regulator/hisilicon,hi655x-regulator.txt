@@ -2,8 +2,8 @@ Hisilicon Hi655x Voltage regulators
 
 Note:
 The Hi655x regulator control is managed by Hi655x PMIC.
-So the node of this regulator must be child node of Hi655x
-PMIC node.
+So the yesde of this regulator must be child yesde of Hi655x
+PMIC yesde.
 
 The driver uses the regulator core framework, so please also
 take the bindings of regulator.txt for reference.

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -35,7 +35,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
@@ -120,7 +120,7 @@ static bool qed_db_rec_sanity(struct qed_dev *cdev,
 		return false;
 	}
 
-	/* ake sure doorbell data pointer is not null */
+	/* ake sure doorbell data pointer is yest null */
 	if (!db_data) {
 		WARN(true, "Illegal doorbell data pointer: %p", db_data);
 		return false;
@@ -155,7 +155,7 @@ int qed_db_recovery_add(struct qed_dev *cdev,
 	struct qed_db_recovery_entry *db_entry;
 	struct qed_hwfn *p_hwfn;
 
-	/* Shortcircuit VFs, for now */
+	/* Shortcircuit VFs, for yesw */
 	if (IS_VF(cdev)) {
 		DP_VERBOSE(cdev,
 			   QED_MSG_IOV, "db recovery - skipping VF doorbell\n");
@@ -202,7 +202,7 @@ int qed_db_recovery_del(struct qed_dev *cdev,
 	struct qed_hwfn *p_hwfn;
 	int rc = -EINVAL;
 
-	/* Shortcircuit VFs, for now */
+	/* Shortcircuit VFs, for yesw */
 	if (IS_VF(cdev)) {
 		DP_VERBOSE(cdev,
 			   QED_MSG_IOV, "db recovery - skipping VF doorbell\n");
@@ -216,7 +216,7 @@ int qed_db_recovery_del(struct qed_dev *cdev,
 	spin_lock_bh(&p_hwfn->db_recovery_info.lock);
 	list_for_each_entry(db_entry,
 			    &p_hwfn->db_recovery_info.list, list_entry) {
-		/* search according to db_data addr since db_addr is not unique (roce) */
+		/* search according to db_data addr since db_addr is yest unique (roce) */
 		if (db_entry->db_data == db_data) {
 			qed_db_recovery_dp_entry(p_hwfn, db_entry, "Deleting");
 			list_del(&db_entry->list_entry);
@@ -245,7 +245,7 @@ static int qed_db_recovery_setup(struct qed_hwfn *p_hwfn)
 
 	/* Make sure db_size was set in cdev */
 	if (!p_hwfn->cdev->db_size) {
-		DP_ERR(p_hwfn->cdev, "db_size not set\n");
+		DP_ERR(p_hwfn->cdev, "db_size yest set\n");
 		return -EINVAL;
 	}
 
@@ -265,7 +265,7 @@ static void qed_db_recovery_teardown(struct qed_hwfn *p_hwfn)
 	if (!list_empty(&p_hwfn->db_recovery_info.list)) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_SPQ,
-			   "Doorbell Recovery teardown found the doorbell recovery list was not empty (Expected in disorderly driver unload (e.g. recovery) otherwise this probably means some flow forgot to db_recovery_del). Prepare to purge doorbell recovery list...\n");
+			   "Doorbell Recovery teardown found the doorbell recovery list was yest empty (Expected in disorderly driver unload (e.g. recovery) otherwise this probably means some flow forgot to db_recovery_del). Prepare to purge doorbell recovery list...\n");
 		while (!list_empty(&p_hwfn->db_recovery_info.list)) {
 			db_entry =
 			    list_first_entry(&p_hwfn->db_recovery_info.list,
@@ -650,7 +650,7 @@ static int qed_llh_abs_ppfid(struct qed_dev *cdev, u8 ppfid, u8 *p_abs_ppfid)
 
 	if (ppfid >= p_llh_info->num_ppfid) {
 		DP_NOTICE(cdev,
-			  "ppfid %d is not valid, available indices are 0..%hhd\n",
+			  "ppfid %d is yest valid, available indices are 0..%hhd\n",
 			  ppfid, p_llh_info->num_ppfid - 1);
 		*p_abs_ppfid = 0;
 		return -EINVAL;
@@ -709,7 +709,7 @@ qed_llh_set_engine_affin(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	}
 
 	DP_VERBOSE(cdev, QED_MSG_SP,
-		   "LLH: Set the engine affinity of non-RoCE packets as %d\n",
+		   "LLH: Set the engine affinity of yesn-RoCE packets as %d\n",
 		   eng);
 
 	return 0;
@@ -880,7 +880,7 @@ qed_llh_access_filter(struct qed_hwfn *p_hwfn,
 	/* The NIG/LLH registers that are accessed in this function have only 16
 	 * rows which are exposed to a PF. I.e. only the 16 filters of its
 	 * default ppfid. Accessing filters of other ppfids requires pretending
-	 * to another PFs.
+	 * to ayesther PFs.
 	 * The calculation of PPFID->PFID in AH is based on the relative index
 	 * of a PF on its port.
 	 * For BB the pfid is actually the abs_ppfid.
@@ -1200,7 +1200,7 @@ void qed_llh_remove_mac_filter(struct qed_dev *cdev,
 	if (rc)
 		goto err;
 
-	/* Remove from the LLH in case the filter is not in use */
+	/* Remove from the LLH in case the filter is yest in use */
 	if (!ref_cnt) {
 		rc = qed_llh_remove_filter(p_hwfn, p_ptt, abs_ppfid,
 					   filter_idx);
@@ -1258,7 +1258,7 @@ void qed_llh_remove_protocol_filter(struct qed_dev *cdev,
 	if (rc)
 		goto err;
 
-	/* Remove from the LLH in case the filter is not in use */
+	/* Remove from the LLH in case the filter is yest in use */
 	if (!ref_cnt) {
 		rc = qed_llh_remove_filter(p_hwfn, p_ptt, abs_ppfid,
 					   filter_idx);
@@ -1302,11 +1302,11 @@ static u32 qed_hw_bar_size(struct qed_hwfn *p_hwfn,
 	/* Old MFW initialized above registered only conditionally */
 	if (p_hwfn->cdev->num_hwfns > 1) {
 		DP_INFO(p_hwfn,
-			"BAR size not configured. Assuming BAR size of 256kB for GRC and 512kB for DB\n");
+			"BAR size yest configured. Assuming BAR size of 256kB for GRC and 512kB for DB\n");
 			return BAR_ID_0 ? 256 * 1024 : 512 * 1024;
 	} else {
 		DP_INFO(p_hwfn,
-			"BAR size not configured. Assuming BAR size of 512kB for GRC and 512kB for DB\n");
+			"BAR size yest configured. Assuming BAR size of 512kB for GRC and 512kB for DB\n");
 			return 512 * 1024;
 	}
 }
@@ -1456,7 +1456,7 @@ static u32 qed_get_pq_flags(struct qed_hwfn *p_hwfn)
 		break;
 	default:
 		DP_ERR(p_hwfn,
-		       "unknown personality %d\n", p_hwfn->hw_info.personality);
+		       "unkyeswn personality %d\n", p_hwfn->hw_info.personality);
 		return 0;
 	}
 
@@ -1599,7 +1599,7 @@ static void qed_init_qm_port_params(struct qed_hwfn *p_hwfn)
 /* Reset the params which must be reset for qm init. QM init may be called as
  * a result of flows other than driver load (e.g. dcbx renegotiation). Other
  * params may be affected by the init but would simply recalculate to the same
- * values. The allocations made for QM init, ports, vports, pqs and vfqs are not
+ * values. The allocations made for QM init, ports, vports, pqs and vfqs are yest
  * affected as these amounts stay the same.
  */
 static void qed_init_qm_reset_params(struct qed_hwfn *p_hwfn)
@@ -1629,7 +1629,7 @@ static void qed_init_qm_advance_vport(struct qed_hwfn *p_hwfn)
 
 /* initialize a single pq and manage qm_info resources accounting.
  * The pq_init_flags param determines whether the PQ is rate limited
- * (for VF or PF) and whether a new vport is allocated to the pq or not
+ * (for VF or PF) and whether a new vport is allocated to the pq or yest
  * (i.e. vport will be shared).
  */
 
@@ -1713,7 +1713,7 @@ static u16 *qed_init_qm_get_idx_from_flags(struct qed_hwfn *p_hwfn,
 	}
 
 	if (!(qed_get_pq_flags(p_hwfn) & pq_flags)) {
-		DP_ERR(p_hwfn, "pq flag 0x%lx is not set\n", pq_flags);
+		DP_ERR(p_hwfn, "pq flag 0x%lx is yest set\n", pq_flags);
 		goto err;
 	}
 
@@ -1764,7 +1764,7 @@ u16 qed_get_cm_pq_idx_mcos(struct qed_hwfn *p_hwfn, u8 tc)
 	u8 max_tc = qed_init_qm_get_num_tcs(p_hwfn);
 
 	if (max_tc == 0) {
-		DP_ERR(p_hwfn, "pq with flag 0x%lx do not exist\n",
+		DP_ERR(p_hwfn, "pq with flag 0x%lx do yest exist\n",
 		       PQ_FLAGS_MCOS);
 		return p_hwfn->qm_info.start_pq;
 	}
@@ -1780,7 +1780,7 @@ u16 qed_get_cm_pq_idx_vf(struct qed_hwfn *p_hwfn, u16 vf)
 	u16 max_vf = qed_init_qm_get_num_vfs(p_hwfn);
 
 	if (max_vf == 0) {
-		DP_ERR(p_hwfn, "pq with flag 0x%lx do not exist\n",
+		DP_ERR(p_hwfn, "pq with flag 0x%lx do yest exist\n",
 		       PQ_FLAGS_VFS);
 		return p_hwfn->qm_info.start_pq;
 	}
@@ -2219,7 +2219,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		if (rc) {
 			DP_NOTICE(p_hwfn,
 				  "too many ILT lines; re-computing with less lines\n");
-			/* In case there are not enough ILT lines we reduce the
+			/* In case there are yest eyesugh ILT lines we reduce the
 			 * number of RDMA tasks and re-compute.
 			 */
 			excess_tasks =
@@ -2290,9 +2290,9 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 		if (n_eqes > 0xFFFF) {
 			DP_ERR(p_hwfn,
-			       "Cannot allocate 0x%x EQ elements. The maximum of a u16 chain is 0x%x\n",
+			       "Canyest allocate 0x%x EQ elements. The maximum of a u16 chain is 0x%x\n",
 			       n_eqes, 0xFFFF);
-			goto alloc_no_mem;
+			goto alloc_yes_mem;
 		}
 
 		rc = qed_eq_alloc(p_hwfn, (u16) n_eqes);
@@ -2360,11 +2360,11 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 	cdev->reset_stats = kzalloc(sizeof(*cdev->reset_stats), GFP_KERNEL);
 	if (!cdev->reset_stats)
-		goto alloc_no_mem;
+		goto alloc_yes_mem;
 
 	return 0;
 
-alloc_no_mem:
+alloc_yes_mem:
 	rc = -ENOMEM;
 alloc_err:
 	qed_resc_free(cdev);
@@ -2433,10 +2433,10 @@ int qed_final_cleanup(struct qed_hwfn *p_hwfn,
 	command |= id << SDM_AGG_INT_COMP_PARAMS_AGG_VECTOR_BIT_SHIFT;
 	command |= SDM_COMP_TYPE_AGG_INT << SDM_OP_GEN_COMP_TYPE_SHIFT;
 
-	/* Make sure notification is not set before initiating final cleanup */
+	/* Make sure yestification is yest set before initiating final cleanup */
 	if (REG_RD(p_hwfn, addr)) {
 		DP_NOTICE(p_hwfn,
-			  "Unexpected; Found final cleanup notification before initiating final cleanup\n");
+			  "Unexpected; Found final cleanup yestification before initiating final cleanup\n");
 		REG_WR(p_hwfn, addr, 0);
 	}
 
@@ -2454,7 +2454,7 @@ int qed_final_cleanup(struct qed_hwfn *p_hwfn,
 		rc = 0;
 	else
 		DP_NOTICE(p_hwfn,
-			  "Failed to receive FW final cleanup notification\n");
+			  "Failed to receive FW final cleanup yestification\n");
 
 	/* Cleanup afterwards */
 	REG_WR(p_hwfn, addr, 0);
@@ -2471,7 +2471,7 @@ static int qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 	} else if (QED_IS_AH(p_hwfn->cdev)) {
 		hw_mode |= 1 << MODE_K2;
 	} else {
-		DP_NOTICE(p_hwfn, "Unknown chip type %#x\n",
+		DP_NOTICE(p_hwfn, "Unkyeswn chip type %#x\n",
 			  p_hwfn->cdev->type);
 		return -EINVAL;
 	}
@@ -2487,7 +2487,7 @@ static int qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 		hw_mode |= 1 << MODE_PORTS_PER_ENG_4;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "num_ports_in_engine = %d not supported\n",
+		DP_NOTICE(p_hwfn, "num_ports_in_engine = %d yest supported\n",
 			  p_hwfn->cdev->num_ports_in_engine);
 		return -EINVAL;
 	}
@@ -2703,7 +2703,7 @@ enum QED_ROCE_EDPM_MODE {
 
 bool qed_edpm_enabled(struct qed_hwfn *p_hwfn)
 {
-	if (p_hwfn->dcbx_no_edpm || p_hwfn->db_bar_no_edpm)
+	if (p_hwfn->dcbx_yes_edpm || p_hwfn->db_bar_yes_edpm)
 		return false;
 
 	return true;
@@ -2712,8 +2712,8 @@ bool qed_edpm_enabled(struct qed_hwfn *p_hwfn)
 static int
 qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 pwm_regsize, norm_regsize;
-	u32 non_pwm_conn, min_addr_reg1;
+	u32 pwm_regsize, yesrm_regsize;
+	u32 yesn_pwm_conn, min_addr_reg1;
 	u32 db_bar_size, n_cpus = 1;
 	u32 roce_edpm_mode;
 	u32 pf_dems_shift;
@@ -2725,28 +2725,28 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		db_bar_size /= 2;
 
 	/* Calculate doorbell regions */
-	non_pwm_conn = qed_cxt_get_proto_cid_start(p_hwfn, PROTOCOLID_CORE) +
+	yesn_pwm_conn = qed_cxt_get_proto_cid_start(p_hwfn, PROTOCOLID_CORE) +
 		       qed_cxt_get_proto_cid_count(p_hwfn, PROTOCOLID_CORE,
 						   NULL) +
 		       qed_cxt_get_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
 						   NULL);
-	norm_regsize = roundup(QED_PF_DEMS_SIZE * non_pwm_conn, PAGE_SIZE);
-	min_addr_reg1 = norm_regsize / 4096;
-	pwm_regsize = db_bar_size - norm_regsize;
+	yesrm_regsize = roundup(QED_PF_DEMS_SIZE * yesn_pwm_conn, PAGE_SIZE);
+	min_addr_reg1 = yesrm_regsize / 4096;
+	pwm_regsize = db_bar_size - yesrm_regsize;
 
-	/* Check that the normal and PWM sizes are valid */
-	if (db_bar_size < norm_regsize) {
+	/* Check that the yesrmal and PWM sizes are valid */
+	if (db_bar_size < yesrm_regsize) {
 		DP_ERR(p_hwfn->cdev,
-		       "Doorbell BAR size 0x%x is too small (normal region is 0x%0x )\n",
-		       db_bar_size, norm_regsize);
+		       "Doorbell BAR size 0x%x is too small (yesrmal region is 0x%0x )\n",
+		       db_bar_size, yesrm_regsize);
 		return -EINVAL;
 	}
 
 	if (pwm_regsize < QED_MIN_PWM_REGION) {
 		DP_ERR(p_hwfn->cdev,
-		       "PWM region size 0x%0x is too small. Should be at least 0x%0x (Doorbell BAR size is 0x%x and normal region size is 0x%0x)\n",
+		       "PWM region size 0x%0x is too small. Should be at least 0x%0x (Doorbell BAR size is 0x%x and yesrmal region size is 0x%0x)\n",
 		       pwm_regsize,
-		       QED_MIN_PWM_REGION, db_bar_size, norm_regsize);
+		       QED_MIN_PWM_REGION, db_bar_size, yesrm_regsize);
 		return -EINVAL;
 	}
 
@@ -2763,9 +2763,9 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	cond = (rc && (roce_edpm_mode == QED_ROCE_EDPM_MODE_ENABLE)) ||
 	       (roce_edpm_mode == QED_ROCE_EDPM_MODE_DISABLE);
-	if (cond || p_hwfn->dcbx_no_edpm) {
+	if (cond || p_hwfn->dcbx_yes_edpm) {
 		/* Either EDPM is disabled from user configuration, or it is
-		 * disabled via DCBx, or it is not mandatory and we failed to
+		 * disabled via DCBx, or it is yest mandatory and we failed to
 		 * allocated a WID per CPU.
 		 */
 		n_cpus = 1;
@@ -2778,8 +2778,8 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	p_hwfn->wid_count = (u16) n_cpus;
 
 	DP_INFO(p_hwfn,
-		"doorbell bar: normal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s, page_size=%lu\n",
-		norm_regsize,
+		"doorbell bar: yesrmal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s, page_size=%lu\n",
+		yesrm_regsize,
 		pwm_regsize,
 		p_hwfn->dpi_size,
 		p_hwfn->dpi_count,
@@ -2788,13 +2788,13 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	if (rc) {
 		DP_ERR(p_hwfn,
-		       "Failed to allocate enough DPIs. Allocated %d but the current minimum is %d.\n",
+		       "Failed to allocate eyesugh DPIs. Allocated %d but the current minimum is %d.\n",
 		       p_hwfn->dpi_count,
 		       p_hwfn->pf_params.rdma_pf_params.min_dpis);
 		return -EINVAL;
 	}
 
-	p_hwfn->dpi_start_offset = norm_regsize;
+	p_hwfn->dpi_start_offset = yesrm_regsize;
 
 	/* DEMS size is configured log2 of DWORDs, hence the division by 4 */
 	pf_dems_shift = ilog2(QED_PF_DEMS_SIZE / 4);
@@ -3004,7 +3004,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 	u16 ether_type;
 
 	if ((p_params->int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
-		DP_NOTICE(cdev, "MSI mode is not supported for CMT devices\n");
+		DP_NOTICE(cdev, "MSI mode is yest supported for CMT devices\n");
 		return -EINVAL;
 	}
 
@@ -3074,7 +3074,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 		qed_reset_mb_shadow(p_hwfn, p_hwfn->p_main_ptt);
 
 		/* Clean up chip from previous driver if such remains exist.
-		 * This is not needed when the PF is the first one on the
+		 * This is yest needed when the PF is the first one on the
 		 * engine, since afterwards we are going to init the FW.
 		 */
 		if (load_code != FW_MSG_CODE_DRV_LOAD_ENGINE) {
@@ -3239,7 +3239,7 @@ static void qed_hw_timers_stop(struct qed_dev *cdev,
 		return;
 
 	DP_NOTICE(p_hwfn,
-		  "Timers linear scans are not over [Connection %02x Tasks %02x]\n",
+		  "Timers linear scans are yest over [Connection %02x Tasks %02x]\n",
 		  (u8)qed_rd(p_hwfn, p_ptt, TM_REG_PF_SCAN_ACTIVE_CONN),
 		  (u8)qed_rd(p_hwfn, p_ptt, TM_REG_PF_SCAN_ACTIVE_TASK));
 }
@@ -3297,7 +3297,7 @@ int qed_hw_stop(struct qed_dev *cdev)
 
 		qed_slowpath_irq_sync(p_hwfn);
 
-		/* After this point no MFW attentions are expected, e.g. prevent
+		/* After this point yes MFW attentions are expected, e.g. prevent
 		 * race between pf stop and dcbx pf update.
 		 */
 		rc = qed_sp_pf_stop(p_hwfn);
@@ -3495,7 +3495,7 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 {
 	u32 *feat_num = p_hwfn->hw_info.feat_num;
 	struct qed_sb_cnt_info sb_cnt;
-	u32 non_l2_sbs = 0;
+	u32 yesn_l2_sbs = 0;
 
 	memset(&sb_cnt, 0, sizeof(sb_cnt));
 	qed_int_get_num_sbs(p_hwfn, &sb_cnt);
@@ -3510,7 +3510,7 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 			min_t(u32, sb_cnt.cnt / 2,
 			      RESC_NUM(p_hwfn, QED_RDMA_CNQ_RAM));
 
-		non_l2_sbs = feat_num[QED_RDMA_CNQ];
+		yesn_l2_sbs = feat_num[QED_RDMA_CNQ];
 	}
 	if (QED_IS_L2_PERSONALITY(p_hwfn)) {
 		/* Start by allocating VF queues, then PF's */
@@ -3518,7 +3518,7 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 						RESC_NUM(p_hwfn, QED_L2_QUEUE),
 						sb_cnt.iov_cnt);
 		feat_num[QED_PF_L2_QUE] = min_t(u32,
-						sb_cnt.cnt - non_l2_sbs,
+						sb_cnt.cnt - yesn_l2_sbs,
 						RESC_NUM(p_hwfn,
 							 QED_L2_QUEUE) -
 						FEAT_NUM(p_hwfn,
@@ -3641,10 +3641,10 @@ qed_hw_set_soft_resc_size(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		if (rc)
 			return rc;
 
-		/* There's no point to continue to the next resource if the
-		 * command is not supported by the MFW.
+		/* There's yes point to continue to the next resource if the
+		 * command is yest supported by the MFW.
 		 * We do continue if the command is supported but the resource
-		 * is unknown to the MFW. Such a resource will be later
+		 * is unkyeswn to the MFW. Such a resource will be later
 		 * configured with the default allocation values.
 		 */
 		if (mcp_resp == FW_MSG_CODE_UNSUPPORTED)
@@ -3769,9 +3769,9 @@ static int __qed_hw_set_resc_info(struct qed_hwfn *p_hwfn,
 	}
 
 	/* Default driver values are applied in the following cases:
-	 * - The resource allocation MB command is not supported by the MFW
+	 * - The resource allocation MB command is yest supported by the MFW
 	 * - There is an internal error in the MFW while processing the request
-	 * - The resource ID is unknown to the MFW
+	 * - The resource ID is unkyeswn to the MFW
 	 */
 	if (mcp_resp != FW_MSG_CODE_RESOURCE_ALLOC_OK) {
 		DP_INFO(p_hwfn,
@@ -3856,7 +3856,7 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	/* Setting the max values of the soft resources and the following
 	 * resources allocation queries should be atomic. Since several PFs can
 	 * run in parallel - a resource lock is needed.
-	 * If either the resource lock or resource set value commands are not
+	 * If either the resource lock or resource set value commands are yest
 	 * supported - skip the the max values setting, release the lock if
 	 * needed, and proceed to the queries. Other failures, including a
 	 * failure to acquire the lock, will cause this function to fail.
@@ -3869,7 +3869,7 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		return rc;
 	} else if (rc == -EINVAL) {
 		DP_INFO(p_hwfn,
-			"Skip the max values setting of the soft resources since the resource lock is not supported by the MFW\n");
+			"Skip the max values setting of the soft resources since the resource lock is yest supported by the MFW\n");
 	} else if (!rc && !resc_lock_params.b_granted) {
 		DP_NOTICE(p_hwfn,
 			  "Failed to acquire the resource lock for the resource allocation commands\n");
@@ -3882,7 +3882,7 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 			goto unlock_and_exit;
 		} else if (rc == -EINVAL) {
 			DP_INFO(p_hwfn,
-				"Skip the max values setting of the soft resources since it is not supported by the MFW\n");
+				"Skip the max values setting of the soft resources since it is yest supported by the MFW\n");
 			rc = qed_mcp_resc_unlock(p_hwfn, p_ptt,
 						 &resc_unlock_params);
 			if (rc)
@@ -3950,11 +3950,11 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	/* Verify MCP has initialized it */
 	if (!nvm_cfg_addr) {
-		DP_NOTICE(p_hwfn, "Shared memory not initialized\n");
+		DP_NOTICE(p_hwfn, "Shared memory yest initialized\n");
 		return -EINVAL;
 	}
 
-	/* Read nvm_cfg1  (Notice this is just offset, and not offsize (TBD) */
+	/* Read nvm_cfg1  (Notice this is just offset, and yest offsize (TBD) */
 	nvm_cfg1_offset = qed_rd(p_hwfn, p_ptt, nvm_cfg_addr + 4);
 
 	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
@@ -3999,7 +3999,7 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X25G;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown port mode in 0x%08x\n", core_cfg);
+		DP_NOTICE(p_hwfn, "Unkyeswn port mode in 0x%08x\n", core_cfg);
 		break;
 	}
 
@@ -4047,7 +4047,7 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		link->speed.forced_speed = 100000;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown Speed in 0x%08x\n", link_temp);
+		DP_NOTICE(p_hwfn, "Unkyeswn Speed in 0x%08x\n", link_temp);
 	}
 
 	p_hwfn->mcp_info->link_capabilities.default_speed_autoneg =
@@ -4263,7 +4263,7 @@ static void qed_hw_info_port_num(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		cdev->num_ports_in_engine = 4;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown port mode 0x%08x\n", port_mode);
+		DP_NOTICE(p_hwfn, "Unkyeswn port mode 0x%08x\n", port_mode);
 		cdev->num_ports_in_engine = 1;	/* Default to something */
 		break;
 	}
@@ -4382,7 +4382,7 @@ static int qed_get_dev_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		cdev->type = QED_DEV_TYPE_AH;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown device id 0x%x\n", cdev->device_id);
+		DP_NOTICE(p_hwfn, "Unkyeswn device id 0x%x\n", cdev->device_id);
 		return -EBUSY;
 	}
 
@@ -4854,7 +4854,7 @@ int qed_chain_alloc(struct qed_dev *cdev,
 	rc = qed_chain_alloc_sanity_check(cdev, cnt_type, elem_size, page_cnt);
 	if (rc) {
 		DP_NOTICE(cdev,
-			  "Cannot allocate a chain with the given arguments:\n");
+			  "Canyest allocate a chain with the given arguments:\n");
 		DP_NOTICE(cdev,
 			  "[use_mode %d, mode %d, cnt_type %d, num_elems %d, elem_size %zu]\n",
 			  intended_use, mode, cnt_type, num_elems, elem_size);
@@ -4876,11 +4876,11 @@ int qed_chain_alloc(struct qed_dev *cdev,
 		break;
 	}
 	if (rc)
-		goto nomem;
+		goto yesmem;
 
 	return 0;
 
-nomem:
+yesmem:
 	qed_chain_free(cdev, p_chain);
 	return rc;
 }
@@ -4893,7 +4893,7 @@ int qed_fw_l2_queue(struct qed_hwfn *p_hwfn, u16 src_id, u16 *dst_id)
 		min = (u16) RESC_START(p_hwfn, QED_L2_QUEUE);
 		max = min + RESC_NUM(p_hwfn, QED_L2_QUEUE);
 		DP_NOTICE(p_hwfn,
-			  "l2_queue id [%d] is not valid, available indices [%d - %d]\n",
+			  "l2_queue id [%d] is yest valid, available indices [%d - %d]\n",
 			  src_id, min, max);
 
 		return -EINVAL;
@@ -4912,7 +4912,7 @@ int qed_fw_vport(struct qed_hwfn *p_hwfn, u8 src_id, u8 *dst_id)
 		min = (u8)RESC_START(p_hwfn, QED_VPORT);
 		max = min + RESC_NUM(p_hwfn, QED_VPORT);
 		DP_NOTICE(p_hwfn,
-			  "vport id [%d] is not valid, available indices [%d - %d]\n",
+			  "vport id [%d] is yest valid, available indices [%d - %d]\n",
 			  src_id, min, max);
 
 		return -EINVAL;
@@ -4931,7 +4931,7 @@ int qed_fw_rss_eng(struct qed_hwfn *p_hwfn, u8 src_id, u8 *dst_id)
 		min = (u8)RESC_START(p_hwfn, QED_RSS_ENG);
 		max = min + RESC_NUM(p_hwfn, QED_RSS_ENG);
 		DP_NOTICE(p_hwfn,
-			  "rss_eng id [%d] is not valid, available indices [%d - %d]\n",
+			  "rss_eng id [%d] is yest valid, available indices [%d - %d]\n",
 			  src_id, min, max);
 
 		return -EINVAL;
@@ -4949,7 +4949,7 @@ static int qed_set_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	struct coalescing_timeset *p_coal_timeset;
 
 	if (p_hwfn->cdev->int_coalescing_mode != QED_COAL_MODE_ENABLE) {
-		DP_NOTICE(p_hwfn, "Coalescing configuration not enabled\n");
+		DP_NOTICE(p_hwfn, "Coalescing configuration yest enabled\n");
 		return -EINVAL;
 	}
 
@@ -5125,7 +5125,7 @@ static void qed_disable_wfq_for_all_vports(struct qed_hwfn *p_hwfn,
 /* This function performs several validations for WFQ
  * configuration and required min rate for a given vport
  * 1. req_rate must be greater than one percent of min_pf_rate.
- * 2. req_rate should not cause other vports [not configured for WFQ explicitly]
+ * 2. req_rate should yest cause other vports [yest configured for WFQ explicitly]
  *    rates to get less than one percent of min_pf_rate.
  * 3. total_req_min_rate [all vports min rate sum] shouldn't exceed min_pf_rate.
  */
@@ -5133,7 +5133,7 @@ static int qed_init_wfq_param(struct qed_hwfn *p_hwfn,
 			      u16 vport_id, u32 req_rate, u32 min_pf_rate)
 {
 	u32 total_req_min_rate = 0, total_left_rate = 0, left_rate_per_vp = 0;
-	int non_requested_count = 0, req_count = 0, i, num_vports;
+	int yesn_requested_count = 0, req_count = 0, i, num_vports;
 
 	num_vports = p_hwfn->qm_info.num_vports;
 
@@ -5152,7 +5152,7 @@ static int qed_init_wfq_param(struct qed_hwfn *p_hwfn,
 	/* Include current vport data as well */
 	req_count++;
 	total_req_min_rate += req_rate;
-	non_requested_count = num_vports - req_count;
+	yesn_requested_count = num_vports - req_count;
 
 	if (req_rate < min_pf_rate / QED_WFQ_UNIT) {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
@@ -5177,7 +5177,7 @@ static int qed_init_wfq_param(struct qed_hwfn *p_hwfn,
 
 	total_left_rate	= min_pf_rate - total_req_min_rate;
 
-	left_rate_per_vp = total_left_rate / non_requested_count;
+	left_rate_per_vp = total_left_rate / yesn_requested_count;
 	if (left_rate_per_vp <  min_pf_rate / QED_WFQ_UNIT) {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
 			   "Non WFQ configured vports rate [%d Mbps] is less than one percent of configured PF min rate[%d Mbps]\n",
@@ -5266,10 +5266,10 @@ int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate)
 {
 	int i, rc = -EINVAL;
 
-	/* Currently not supported; Might change in future */
+	/* Currently yest supported; Might change in future */
 	if (cdev->num_hwfns > 1) {
 		DP_NOTICE(cdev,
-			  "WFQ configuration is not supported for this device\n");
+			  "WFQ configuration is yest supported for this device\n");
 		return rc;
 	}
 
@@ -5303,7 +5303,7 @@ void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,
 	if (cdev->num_hwfns > 1) {
 		DP_VERBOSE(cdev,
 			   NETIF_MSG_LINK,
-			   "WFQ configuration is not supported for this device\n");
+			   "WFQ configuration is yest supported for this device\n");
 		return;
 	}
 
@@ -5331,7 +5331,7 @@ int __qed_configure_pf_max_bandwidth(struct qed_hwfn *p_hwfn,
 	p_hwfn->qm_info.pf_rl = p_link->speed;
 
 	/* Since the limiter also affects Tx-switched traffic, we don't want it
-	 * to limit such traffic in case there's no actual limit.
+	 * to limit such traffic in case there's yes actual limit.
 	 * In that case, set limit to imaginary high boundary.
 	 */
 	if (max_bw == 100)

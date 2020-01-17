@@ -7,13 +7,13 @@ Video data pipelines usually consist of external devices, e.g. camera sensors,
 controlled over an I2C, SPI or UART bus, and SoC internal IP blocks, including
 video DMA engines and video data processors.
 
-SoC internal blocks are described by DT nodes, placed similarly to other SoC
-blocks.  External devices are represented as child nodes of their respective
-bus controller nodes, e.g. I2C.
+SoC internal blocks are described by DT yesdes, placed similarly to other SoC
+blocks.  External devices are represented as child yesdes of their respective
+bus controller yesdes, e.g. I2C.
 
-Data interfaces on all video devices are described by their child 'port' nodes.
+Data interfaces on all video devices are described by their child 'port' yesdes.
 Configuration of a port depends on other devices participating in the data
-transfer and is described by 'endpoint' subnodes.
+transfer and is described by 'endpoint' subyesdes.
 
 device {
 	...
@@ -31,20 +31,20 @@ device {
 };
 
 If a port can be configured to work with more than one remote device on the same
-bus, an 'endpoint' child node must be provided for each of them.  If more than
-one port is present in a device node or there is more than one endpoint at a
-port, or port node needs to be associated with a selected hardware interface,
+bus, an 'endpoint' child yesde must be provided for each of them.  If more than
+one port is present in a device yesde or there is more than one endpoint at a
+port, or port yesde needs to be associated with a selected hardware interface,
 a common scheme using '#address-cells', '#size-cells' and 'reg' properties is
 used.
 
-All 'port' nodes can be grouped under optional 'ports' node, which allows to
+All 'port' yesdes can be grouped under optional 'ports' yesde, which allows to
 specify #address-cells, #size-cells properties independently for the 'port'
-and 'endpoint' nodes and any child device nodes a device might have.
+and 'endpoint' yesdes and any child device yesdes a device might have.
 
-Two 'endpoint' nodes are linked with each other through their 'remote-endpoint'
-phandles.  An endpoint subnode of a device contains all properties needed for
+Two 'endpoint' yesdes are linked with each other through their 'remote-endpoint'
+phandles.  An endpoint subyesde of a device contains all properties needed for
 configuration of this device for data exchange with other device.  In most
-cases properties at the peer 'endpoint' nodes will be identical, however they
+cases properties at the peer 'endpoint' yesdes will be identical, however they
 might need to be different when there is any signal modifications on the bus
 between two devices, e.g. there are logic signal inverters on the lines.
 
@@ -53,14 +53,14 @@ where supported by a device.  For example, in case where a data interface of
 a device is partitioned into multiple data busses, e.g. 16-bit input port
 divided into two separate ITU-R BT.656 8-bit busses.  In such case bus-width
 and data-shift properties can be used to assign physical data lines to each
-endpoint node (logical bus).
+endpoint yesde (logical bus).
 
 Documenting bindings for devices
 --------------------------------
 
 All required and optional bindings the device supports shall be explicitly
 documented in device DT binding documentation. This also includes port and
-endpoint nodes for the device, including unit-addresses and reg properties where
+endpoint yesdes for the device, including unit-addresses and reg properties where
 relevant.
 
 Please also see Documentation/devicetree/bindings/graph.txt .
@@ -68,9 +68,9 @@ Please also see Documentation/devicetree/bindings/graph.txt .
 Required properties
 -------------------
 
-If there is more than one 'port' or more than one 'endpoint' node or 'reg'
-property is present in port and/or endpoint nodes the following properties
-are required in a relevant parent node:
+If there is more than one 'port' or more than one 'endpoint' yesde or 'reg'
+property is present in port and/or endpoint yesdes the following properties
+are required in a relevant parent yesde:
 
  - #address-cells : number of cells required to define port/endpoint
 		    identifier, should be 1.
@@ -80,12 +80,12 @@ are required in a relevant parent node:
 Optional properties
 -------------------
 
-- flash-leds: An array of phandles, each referring to a flash LED, a sub-node
-  of the LED driver device node.
+- flash-leds: An array of phandles, each referring to a flash LED, a sub-yesde
+  of the LED driver device yesde.
 
-- lens-focus: A phandle to the node of the focus lens controller.
+- lens-focus: A phandle to the yesde of the focus lens controller.
 
-- rotation: The device, typically an image sensor, is not mounted upright,
+- rotation: The device, typically an image sensor, is yest mounted upright,
   but a number of degrees counter clockwise. Typical values are 0 and 180
   (upside down).
 
@@ -93,9 +93,9 @@ Optional properties
 Optional endpoint properties
 ----------------------------
 
-- remote-endpoint: phandle to an 'endpoint' subnode of a remote device node.
+- remote-endpoint: phandle to an 'endpoint' subyesde of a remote device yesde.
 - slave-mode: a boolean property indicating that the link is run in slave mode.
-  The default when this property is not specified is master mode. In the slave
+  The default when this property is yest specified is master mode. In the slave
   mode horizontal and vertical synchronization signals are provided to the
   slave device (data source) by the master device (data sink). In the master
   mode the data source device is also the source of the synchronization signals.
@@ -112,7 +112,7 @@ Optional endpoint properties
   used, e.g. "bus-width=<8>; data-shift=<2>;" means, that lines 9:2 are used.
 - hsync-active: active state of the HSYNC signal, 0/1 for LOW/HIGH respectively.
 - vsync-active: active state of the VSYNC signal, 0/1 for LOW/HIGH respectively.
-  Note, that if HSYNC and VSYNC polarities are not specified, embedded
+  Note, that if HSYNC and VSYNC polarities are yest specified, embedded
   synchronization may be required, where supported.
 - data-active: similar to HSYNC and VSYNC, specifies data line polarity.
 - data-enable-active: similar to HSYNC and VSYNC, specifies the data enable
@@ -126,9 +126,9 @@ Optional endpoint properties
   determines the logical lane number, while the value of an entry indicates
   physical lane, e.g. for 2-lane MIPI CSI-2 bus we could have
   "data-lanes = <1 2>;", assuming the clock lane is on hardware lane 0.
-  If the hardware does not support lane reordering, monotonically
+  If the hardware does yest support lane reordering, moyestonically
   incremented values shall be used from 0 or 1 onwards, depending on
-  whether or not there is also a clock lane. This property is valid for
+  whether or yest there is also a clock lane. This property is valid for
   serial busses only (e.g. MIPI CSI-2).
 - clock-lanes: an array of physical clock lane indexes. Position of an entry
   determines the logical lane number, while the value of an entry indicates
@@ -136,17 +136,17 @@ Optional endpoint properties
   which places the clock lane on hardware lane 0. This property is valid for
   serial busses only (e.g. MIPI CSI-2). Note that for the MIPI CSI-2 bus this
   array contains only one entry.
-- clock-noncontinuous: a boolean property to allow MIPI CSI-2 non-continuous
+- clock-yesncontinuous: a boolean property to allow MIPI CSI-2 yesn-continuous
   clock mode.
 - link-frequencies: Allowed data bus frequencies. For MIPI CSI-2, for
-  instance, this is the actual frequency of the bus, not bits per clock per
+  instance, this is the actual frequency of the bus, yest bits per clock per
   lane value. An array of 64-bit unsigned integers.
 - lane-polarities: an array of polarities of the lanes starting from the clock
   lane and followed by the data lanes in the same order as in data-lanes.
-  Valid values are 0 (normal) and 1 (inverted). The length of the array
+  Valid values are 0 (yesrmal) and 1 (inverted). The length of the array
   should be the combined length of data-lanes and clock-lanes properties.
   If the lane-polarities property is omitted, the value must be interpreted
-  as 0 (normal). This property is valid for serial busses only.
+  as 0 (yesrmal). This property is valid for serial busses only.
 - strobe: Whether the clock signal is used as clock (0) or strobe (1). Used
   with CCP2, for instance.
 
@@ -156,10 +156,10 @@ Example
 The example snippet below describes two data pipelines.  ov772x and imx074 are
 camera sensors with a parallel and serial (MIPI CSI-2) video bus respectively.
 Both sensors are on the I2C control bus corresponding to the i2c0 controller
-node.  ov772x sensor is linked directly to the ceu0 video host interface.
+yesde.  ov772x sensor is linked directly to the ceu0 video host interface.
 imx074 is linked to ceu0 through the MIPI CSI-2 receiver (csi2). ceu0 has a
-(single) DMA engine writing captured data to memory.  ceu0 node has a single
-'port' node which may indicate that at any time only one of the following data
+(single) DMA engine writing captured data to memory.  ceu0 yesde has a single
+'port' yesde which may indicate that at any time only one of the following data
 pipelines can be active: ov772x -> ceu0 or imx074 -> csi2 -> ceu0.
 
 	ceu0: ceu@fe910000 {
@@ -214,7 +214,7 @@ pipelines can be active: ov772x -> ceu0 or imx074 -> csi2 -> ceu0.
 			clock-names = "xclk";
 
 			port {
-				/* With 1 endpoint per port no need for addresses. */
+				/* With 1 endpoint per port yes need for addresses. */
 				ov772x_1_1: endpoint {
 					bus-width = <8>;
 					remote-endpoint = <&ceu0_1>;

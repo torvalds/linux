@@ -4,13 +4,13 @@
 /*
  *  Legacy OMAP DMA handling defines and functions
  *
- *  NOTE: Do not use these any longer.
+ *  NOTE: Do yest use these any longer.
  *
  *  Use the generic dmaengine functions as defined in
  *  include/linux/dmaengine.h.
  *
  *  Copyright (C) 2003 Nokia Corporation
- *  Author: Juha Yrjölä <juha.yrjola@nokia.com>
+ *  Author: Juha Yrjölä <juha.yrjola@yeskia.com>
  *
  */
 

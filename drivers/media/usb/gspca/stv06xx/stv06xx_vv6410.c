@@ -88,7 +88,7 @@ static int vv6410_init_controls(struct sd *sd)
 	v4l2_ctrl_handler_init(hdl, 2);
 	/* Disable the hardware VFLIP and HFLIP as we currently lack a
 	   mechanism to adjust the image offset in such a way that
-	   we don't need to renegotiate the announced format */
+	   we don't need to renegotiate the anyesunced format */
 	/* v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops, */
 	/*		V4L2_CID_HFLIP, 0, 1, 1, 0); */
 	/* v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops, */

@@ -10,14 +10,14 @@
 #include <dt-bindings/input/input.h>
 
 /*
- * Default secure signed bootloader (Nokia X-Loader) does not enable L3 firewall
+ * Default secure signed bootloader (Nokia X-Loader) does yest enable L3 firewall
  * for omap AES HW crypto support. When linux kernel try to access memory of AES
- * blocks then kernel receive "Unhandled fault: external abort on non-linefetch"
- * and crash. Until somebody fix omap-aes.c and omap_hwmod_3xxx_data.c code (no
+ * blocks then kernel receive "Unhandled fault: external abort on yesn-linefetch"
+ * and crash. Until somebody fix omap-aes.c and omap_hwmod_3xxx_data.c code (yes
  * crash anymore) omap AES support will be disabled for all Nokia N900 devices.
- * There is "unofficial" version of bootloader which enables AES in L3 firewall
- * but it is not widely used and to prevent kernel crash rather AES is disabled.
- * There is also no runtime detection code if AES is disabled in L3 firewall...
+ * There is "uyesfficial" version of bootloader which enables AES in L3 firewall
+ * but it is yest widely used and to prevent kernel crash rather AES is disabled.
+ * There is also yes runtime detection code if AES is disabled in L3 firewall...
  */
 &aes {
 	status = "disabled";
@@ -25,7 +25,7 @@
 
 / {
 	model = "Nokia N900";
-	compatible = "nokia,omap3-n900", "ti,omap3430", "ti,omap3";
+	compatible = "yeskia,omap3-n900", "ti,omap3430", "ti,omap3";
 
 	aliases {
 		i2c0;
@@ -125,11 +125,11 @@
 	};
 
 	sound: n900-audio {
-		compatible = "nokia,n900-audio";
+		compatible = "yeskia,n900-audio";
 
-		nokia,cpu-dai = <&mcbsp2>;
-		nokia,audio-codec = <&tlv320aic3x>, <&tlv320aic3x_aux>;
-		nokia,headphone-amplifier = <&tpa6130a2>;
+		yeskia,cpu-dai = <&mcbsp2>;
+		yeskia,audio-codec = <&tlv320aic3x>, <&tlv320aic3x_aux>;
+		yeskia,headphone-amplifier = <&tpa6130a2>;
 
 		tvout-selection-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>; /* 40 */
 		jack-detection-gpios = <&gpio6 17 GPIO_ACTIVE_HIGH>; /* 177 */
@@ -138,7 +138,7 @@
 	};
 
 	battery: n900-battery {
-		compatible = "nokia,n900-battery";
+		compatible = "yeskia,n900-battery";
 		io-channels = <&twl_madc 0>, <&twl_madc 4>, <&twl_madc 12>;
 		io-channel-names = "temp", "bsi", "vbat";
 	};
@@ -151,12 +151,12 @@
 	};
 
 	ir: n900-ir {
-		compatible = "nokia,n900-ir";
+		compatible = "yeskia,n900-ir";
 		pwms = <&pwm9 0 26316 0>; /* 38000 Hz */
 	};
 
 	rom_rng: rng {
-		compatible = "nokia,n900-rom-rng";
+		compatible = "yeskia,n900-rom-rng";
 		clocks = <&rng_ick>;
 		clock-names = "ick";
 	};
@@ -227,7 +227,7 @@
                         OMAP3_CORE1_IOPAD(0x207c, PIN_OUTPUT | MUX_MODE0)       /* gpmc_a2.gpmc_a2 */
                         OMAP3_CORE1_IOPAD(0x207e, PIN_OUTPUT | MUX_MODE0)       /* gpmc_a3.gpmc_a3 */
 
-			/* data lines, gpmc_d0..d7 not muxable according to TRM */
+			/* data lines, gpmc_d0..d7 yest muxable according to TRM */
                         OMAP3_CORE1_IOPAD(0x209e, PIN_INPUT | MUX_MODE0)        /* gpmc_d8.gpmc_d8 */
                         OMAP3_CORE1_IOPAD(0x20a0, PIN_INPUT | MUX_MODE0)        /* gpmc_d9.gpmc_d9 */
                         OMAP3_CORE1_IOPAD(0x20a2, PIN_INPUT | MUX_MODE0)        /* gpmc_d10.gpmc_d10 */
@@ -238,7 +238,7 @@
                         OMAP3_CORE1_IOPAD(0x20ac, PIN_INPUT | MUX_MODE0)        /* gpmc_d15.gpmc_d15 */
 
 			/*
-			 * gpmc_ncs0, gpmc_nadv_ale, gpmc_noe, gpmc_nwe, gpmc_wait0 not muxable
+			 * gpmc_ncs0, gpmc_nadv_ale, gpmc_yese, gpmc_nwe, gpmc_wait0 yest muxable
 			 * according to TRM. OneNAND seems to require PIN_INPUT on clock.
 			 */
                         OMAP3_CORE1_IOPAD(0x20b0, PIN_OUTPUT | MUX_MODE0)       /* gpmc_ncs1.gpmc_ncs1 */
@@ -827,9 +827,9 @@
 	vmmc-supply = <&vaux3>;
 	vqmmc-supply = <&vsim>;
 	bus-width = <8>;
-	non-removable;
-	no-sdio;
-	no-sd;
+	yesn-removable;
+	yes-sdio;
+	yes-sd;
 };
 
 &mmc3 {
@@ -842,7 +842,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&gpmc_pins>;
 
-	/* sys_ndmareq1 could be used by the driver, not as gpio65 though */
+	/* sys_ndmareq1 could be used by the driver, yest as gpio65 though */
 	onenand@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -1019,7 +1019,7 @@
 	};
 };
 
-/* RNG not directly accessible on n900, see omap3-rom-rng instead */
+/* RNG yest directly accessible on n900, see omap3-rom-rng instead */
 &rng_target {
 	status = "disabled";
 };
@@ -1042,7 +1042,7 @@
 	pinctrl-0 = <&uart2_pins>;
 
 	bcm2048: bluetooth {
-		compatible = "brcm,bcm2048-nokia", "nokia,h4p-bluetooth";
+		compatible = "brcm,bcm2048-yeskia", "yeskia,h4p-bluetooth";
 		reset-gpios = <&gpio3 27 GPIO_ACTIVE_LOW>; /* 91 */
 		host-wakeup-gpios = <&gpio4 5 GPIO_ACTIVE_HIGH>; /* 101 */
 		bluetooth-wakeup-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>; /* 37 */
@@ -1104,7 +1104,7 @@
 	ti,ssi-cawake-gpio = <&gpio5 23 GPIO_ACTIVE_HIGH>; /* 151 */
 
 	modem: hsi-client {
-		compatible = "nokia,n900-modem";
+		compatible = "yeskia,n900-modem";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&modem_pins>;

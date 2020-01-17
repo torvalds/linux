@@ -16,11 +16,11 @@
 
 /*
  * If possible, pack the following structures to byte alignment, since we
- * don't care about performance for debug output. Two cases where we cannot
+ * don't care about performance for debug output. Two cases where we canyest
  * pack the structures:
  *
- * 1) Hardware does not support misaligned memory transfers
- * 2) Compiler does not support pointers within packed structures
+ * 1) Hardware does yest support misaligned memory transfers
+ * 2) Compiler does yest support pointers within packed structures
  */
 #if (!defined(ACPI_MISALIGNMENT_NOT_SUPPORTED) && !defined(ACPI_PACKED_POINTERS_NOT_SUPPORTED))
 #pragma pack(1)
@@ -165,15 +165,15 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
  */
 
 acpi_status
-acpi_rs_get_prt_method_data(struct acpi_namespace_node *node,
+acpi_rs_get_prt_method_data(struct acpi_namespace_yesde *yesde,
 			    struct acpi_buffer *ret_buffer);
 
 acpi_status
-acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
+acpi_rs_get_crs_method_data(struct acpi_namespace_yesde *yesde,
 			    struct acpi_buffer *ret_buffer);
 
 acpi_status
-acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
+acpi_rs_get_prs_method_data(struct acpi_namespace_yesde *yesde,
 			    struct acpi_buffer *ret_buffer);
 
 acpi_status
@@ -181,11 +181,11 @@ acpi_rs_get_method_data(acpi_handle handle,
 			const char *path, struct acpi_buffer *ret_buffer);
 
 acpi_status
-acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
+acpi_rs_set_srs_method_data(struct acpi_namespace_yesde *yesde,
 			    struct acpi_buffer *ret_buffer);
 
 acpi_status
-acpi_rs_get_aei_method_data(struct acpi_namespace_node *node,
+acpi_rs_get_aei_method_data(struct acpi_namespace_yesde *yesde,
 			    struct acpi_buffer *ret_buffer);
 
 /*

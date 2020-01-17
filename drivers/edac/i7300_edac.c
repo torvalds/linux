@@ -51,7 +51,7 @@
  * Slots should generally be filled in pairs
  *	Except on Single Channel mode of operation
  *		just slot 0/channel0 filled on this mode
- *	On normal operation mode, the two channels on a branch should be
+ *	On yesrmal operation mode, the two channels on a branch should be
  *		filled together for the same SLOT#
  * When in mirrored mode, Branch 1 replicate memory at Branch 0, so, the four
  *		channels on both branches should be filled
@@ -84,7 +84,7 @@ static const struct i7300_dev_info i7300_devs[] = {
 };
 
 struct i7300_dimm_info {
-	int megabytes;		/* size, 0 means not present  */
+	int megabytes;		/* size, 0 means yest present  */
 };
 
 /* driver private data structure */
@@ -121,7 +121,7 @@ static struct edac_pci_ctl_info *i7300_pci;
 
 /*
  * Device 16,
- * Function 0: System Address (not documented)
+ * Function 0: System Address (yest documented)
  * Function 1: Memory Branch Map, Control, Errors Register
  */
 
@@ -148,13 +148,13 @@ static struct edac_pci_ctl_info *i7300_pci;
 
 /*
  * Note: Other Intel EDAC drivers use AMBPRESENT to identify if the available
- * memory. From datasheet item 7.3.1 (FB-DIMM technology & organization), it
- * seems that we cannot use this information directly for the same usage.
- * Each memory slot may have up to 2 AMB interfaces, one for income and another
+ * memory. From datasheet item 7.3.1 (FB-DIMM techyeslogy & organization), it
+ * seems that we canyest use this information directly for the same usage.
+ * Each memory slot may have up to 2 AMB interfaces, one for income and ayesther
  * for outcome interface to the next slot.
- * For now, the driver just stores the AMB present registers, but rely only at
+ * For yesw, the driver just stores the AMB present registers, but rely only at
  * the MTR info to detect memory.
- * Datasheet is also not clear about how to map each AMBPRESENT registers to
+ * Datasheet is also yest clear about how to map each AMBPRESENT registers to
  * one of the 4 available channels.
  */
 #define AMBPRESENT_0	0x64
@@ -167,7 +167,7 @@ static const u16 mtr_regs[MAX_SLOTS] = {
 
 /*
  * Defines to extract the vaious fields from the
- *	MTRx - Memory Technology Registers
+ *	MTRx - Memory Techyeslogy Registers
  */
 #define MTR_DIMMS_PRESENT(mtr)		((mtr) & (1 << 8))
 #define MTR_DIMMS_ETHROTTLE(mtr)	((mtr) & (1 << 7))
@@ -192,7 +192,7 @@ static const char *ferr_fat_fbd_name[] = {
 	[22] = "Non-Redundant Fast Reset Timeout",
 	[2]  = ">Tmid Thermal event with intelligent throttling disabled",
 	[1]  = "Memory or FBD configuration CRC read error",
-	[0]  = "Memory Write error on non-redundant retry or "
+	[0]  = "Memory Write error on yesn-redundant retry or "
 	       "FBD configuration Write error on retry",
 };
 #define GET_FBD_FAT_IDX(fbderr)	(((fbderr) >> 28) & 3)
@@ -251,12 +251,12 @@ static const char *ferr_global_hi_name[] = {
 	[1] = "FSB 1 Fatal Error",
 	[0] = "FSB 0 Fatal Error",
 };
-#define ferr_global_hi_is_fatal(errno)	1
+#define ferr_global_hi_is_fatal(erryes)	1
 
 #define FERR_GLOBAL_LO	0x40
 static const char *ferr_global_lo_name[] = {
 	[31] = "Internal MCH Fatal Error",
-	[30] = "Intel QuickData Technology Device Fatal Error",
+	[30] = "Intel QuickData Techyeslogy Device Fatal Error",
 	[29] = "FSB1 Fatal Error",
 	[28] = "FSB0 Fatal Error",
 	[27] = "FBD Channel 3 Fatal Error",
@@ -272,7 +272,7 @@ static const char *ferr_global_lo_name[] = {
 	[17] = "PCI Express Device 1 Fatal Error",
 	[16] = "ESI Fatal Error",
 	[15] = "Internal MCH Non-Fatal Error",
-	[14] = "Intel QuickData Technology Device Non Fatal Error",
+	[14] = "Intel QuickData Techyeslogy Device Non Fatal Error",
 	[13] = "FSB1 Non-Fatal Error",
 	[12] = "FSB 0 Non-Fatal Error",
 	[11] = "FBD Channel 3 Non-Fatal Error",
@@ -288,7 +288,7 @@ static const char *ferr_global_lo_name[] = {
 	[1]  = "PCI Express Device 1 Non-Fatal Error",
 	[0]  = "ESI Non-Fatal Error",
 };
-#define ferr_global_lo_is_fatal(errno)	((errno < 16) ? 0 : 1)
+#define ferr_global_lo_is_fatal(erryes)	((erryes < 16) ? 0 : 1)
 
 #define NRECMEMA	0xbe
   #define NRECMEMA_BANK(v)	(((v) >> 12) & 7)
@@ -641,7 +641,7 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	 * The type of error detection actually depends of the
 	 * mode of operation. When it is just one single memory chip, at
 	 * socket 0, channel 0, it uses 8-byte-over-32-byte SECDED+ code.
-	 * In normal or mirrored mode, it uses Lockstep mode,
+	 * In yesrmal or mirrored mode, it uses Lockstep mode,
 	 * with the possibility of using an extended algorithm for x8 memories
 	 * See datasheet Sections 7.3.6 to 7.3.8
 	 */
@@ -664,7 +664,7 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	if (MTR_DRAM_WIDTH(mtr) == 8) {
 		edac_dbg(2, "\t\tScrub algorithm for x8 is on %s mode\n",
 			 IS_SCRBALGO_ENHANCED(pvt->mc_settings) ?
-			 "enhanced" : "normal");
+			 "enhanced" : "yesrmal");
 
 		dimm->dtype = DEV_X8;
 	} else
@@ -677,7 +677,7 @@ static int decode_mtr(struct i7300_pvt *pvt,
  * print_dimm_size() - Prints dump of the memory organization
  * @pvt: pointer to the private data struct used by i7300 driver
  *
- * Useful for debug. If debug is disabled, this routine do nothing
+ * Useful for debug. If debug is disabled, this routine do yesthing
  */
 static void print_dimm_size(struct i7300_pvt *pvt)
 {
@@ -753,7 +753,7 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 
 	pvt = mci->pvt_info;
 
-	edac_dbg(2, "Memory Technology Registers:\n");
+	edac_dbg(2, "Memory Techyeslogy Registers:\n");
 
 	if (IS_SINGLE_MODE(pvt->mc_settings_a)) {
 		max_branch = 1;
@@ -801,7 +801,7 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 				mtr = decode_mtr(pvt, slot, ch, branch,
 						 dinfo, dimm);
 
-				/* if no DIMMS on this row, continue */
+				/* if yes DIMMS on this row, continue */
 				if (!MTR_DIMMS_PRESENT(mtr))
 					continue;
 
@@ -816,17 +816,17 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 
 /**
  * decode_mir() - Decodes Memory Interleave Register (MIR) info
- * @mir_no: number of the MIR register to decode
+ * @mir_yes: number of the MIR register to decode
  * @mir: array with the MIR data cached on the driver
  */
-static void decode_mir(int mir_no, u16 mir[MAX_MIR])
+static void decode_mir(int mir_yes, u16 mir[MAX_MIR])
 {
-	if (mir[mir_no] & 3)
+	if (mir[mir_yes] & 3)
 		edac_dbg(2, "MIR%d: limit= 0x%x Branch(es) that participate: %s %s\n",
-			 mir_no,
-			 (mir[mir_no] >> 4) & 0xfff,
-			 (mir[mir_no] & 1) ? "B0" : "",
-			 (mir[mir_no] & 2) ? "B1" : "");
+			 mir_yes,
+			 (mir[mir_yes] >> 4) & 0xfff,
+			 (mir[mir_yes] & 1) ? "B0" : "",
+			 (mir[mir_yes] & 2) ? "B1" : "");
 }
 
 /**
@@ -868,7 +868,7 @@ static int i7300_get_mc_regs(struct mem_ctl_info *mci)
 		edac_dbg(0, "Memory controller operating on single mode\n");
 	else
 		edac_dbg(0, "Memory controller operating on %smirrored mode\n",
-			 IS_MIRRORED(pvt->mc_settings) ? "" : "non-");
+			 IS_MIRRORED(pvt->mc_settings) ? "" : "yesn-");
 
 	edac_dbg(0, "Error detection is %s\n",
 		 IS_ECC_ENABLED(pvt->mc_settings) ? "enabled" : "disabled");
@@ -960,9 +960,9 @@ static int i7300_get_devices(struct mem_ctl_info *mci)
 
 	if (!pvt->pci_dev_16_1_fsb_addr_map ||
 	    !pvt->pci_dev_16_2_fsb_err_regs) {
-		/* At least one device was not found */
+		/* At least one device was yest found */
 		i7300_printk(KERN_ERR,
-			"'system address,Process Bus' device not found:"
+			"'system address,Process Bus' device yest found:"
 			"vendor 0x%x device 0x%x ERR funcs (broken BIOS?)\n",
 			PCI_VENDOR_ID_INTEL,
 			PCI_DEVICE_ID_INTEL_I7300_MCH_ERR);
@@ -987,7 +987,7 @@ static int i7300_get_devices(struct mem_ctl_info *mci)
 					    NULL);
 	if (!pvt->pci_dev_2x_0_fbd_branch[0]) {
 		i7300_printk(KERN_ERR,
-			"MC: 'BRANCH 0' device not found:"
+			"MC: 'BRANCH 0' device yest found:"
 			"vendor 0x%x device 0x%x Func 0 (broken BIOS?)\n",
 			PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_I7300_MCH_FB0);
 		goto error;
@@ -998,7 +998,7 @@ static int i7300_get_devices(struct mem_ctl_info *mci)
 					    NULL);
 	if (!pvt->pci_dev_2x_0_fbd_branch[1]) {
 		i7300_printk(KERN_ERR,
-			"MC: 'BRANCH 1' device not found:"
+			"MC: 'BRANCH 1' device yest found:"
 			"vendor 0x%x device 0x%x Func 0 "
 			"(broken BIOS?)\n",
 			PCI_VENDOR_ID_INTEL,
@@ -1084,10 +1084,10 @@ static int i7300_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* initialize the MC control structure 'csrows' table
 	 * with the mapping and control information */
 	if (i7300_get_mc_regs(mci)) {
-		edac_dbg(0, "MC: Setting mci->edac_cap to EDAC_FLAG_NONE because i7300_init_csrows() returned nonzero value\n");
-		mci->edac_cap = EDAC_FLAG_NONE;	/* no csrows found */
+		edac_dbg(0, "MC: Setting mci->edac_cap to EDAC_FLAG_NONE because i7300_init_csrows() returned yesnzero value\n");
+		mci->edac_cap = EDAC_FLAG_NONE;	/* yes csrows found */
 	} else {
-		edac_dbg(1, "MC: Enable error reporting now\n");
+		edac_dbg(1, "MC: Enable error reporting yesw\n");
 		i7300_enable_error_reporting(mci);
 	}
 
@@ -1109,7 +1109,7 @@ static int i7300_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC yest setup\n",
 			__func__);
 	}
 

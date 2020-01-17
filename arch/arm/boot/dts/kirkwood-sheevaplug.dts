@@ -2,7 +2,7 @@
 /*
  * kirkwood-sheevaplug.dts - Device tree file for Sheevaplug
  *
- * Copyright (C) 2013 Simon Baatz <gmbnomis@gmail.com>
+ * Copyright (C) 2013 Simon Baatz <gmbyesmis@gmail.com>
  */
 
 /dts-v1/;
@@ -10,7 +10,7 @@
 #include "kirkwood-sheevaplug-common.dtsi"
 
 / {
-	model = "Globalscale Technologies SheevaPlug";
+	model = "Globalscale Techyeslogies SheevaPlug";
 	compatible = "globalscale,sheevaplug", "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
 	ocp@f1000000 {

@@ -9,9 +9,9 @@
  * met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following disclaimer
+ *     copyright yestice, this list of conditions and the following disclaimer
  *     in the documentation and/or other materials provided with the
  *     distribution.
  *
@@ -113,7 +113,7 @@ uint64_t xxh64(const void *input, size_t length, uint64_t seed);
  * @length: The length of the data to hash.
  * @seed:   The seed can be used to alter the result predictably.
  *
- * If the hash does not need to be comparable between machines with
+ * If the hash does yest need to be comparable between machines with
  * different word sizes, this function will call whichever of xxh32()
  * or xxh64() is faster.
  *
@@ -137,11 +137,11 @@ static inline unsigned long xxhash(const void *input, size_t length,
 /*
  * These definitions are only meant to allow allocation of XXH state
  * statically, on stack, or in a struct for example.
- * Do not use members directly.
+ * Do yest use members directly.
  */
 
 /**
- * struct xxh32_state - private xxh32 state, do not use members directly
+ * struct xxh32_state - private xxh32 state, do yest use members directly
  */
 struct xxh32_state {
 	uint32_t total_len_32;
@@ -155,7 +155,7 @@ struct xxh32_state {
 };
 
 /**
- * struct xxh32_state - private xxh64 state, do not use members directly
+ * struct xxh32_state - private xxh64 state, do yest use members directly
  */
 struct xxh64_state {
 	uint64_t total_len;

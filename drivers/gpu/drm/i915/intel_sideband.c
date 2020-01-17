@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -32,13 +32,13 @@
  * VLV_VLV2_PUNIT_HAS_0.8.docx
  */
 
-/* Standard MMIO read, non-posted */
+/* Standard MMIO read, yesn-posted */
 #define SB_MRD_NP	0x00
-/* Standard MMIO write, non-posted */
+/* Standard MMIO write, yesn-posted */
 #define SB_MWR_NP	0x01
-/* Private register read, double-word addressing, non-posted */
+/* Private register read, double-word addressing, yesn-posted */
 #define SB_CRRDDA_NP	0x06
-/* Private register write, double-word addressing, non-posted */
+/* Private register write, double-word addressing, yesn-posted */
 #define SB_CRWRDA_NP	0x07
 
 static void ping(void *info)
@@ -57,7 +57,7 @@ static void __vlv_punit_get(struct drm_i915_private *i915)
 	 * reliably on 4-core Baytail systems suggesting the issue is in the
 	 * power delivery mechanism and likely to be be board/function
 	 * specific. Hence we presume the workaround needs only be applied
-	 * to the Valleyview P-unit and not all sideband communications.
+	 * to the Valleyview P-unit and yest all sideband communications.
 	 */
 	if (IS_VALLEYVIEW(i915)) {
 		pm_qos_update_request(&i915->sb_qos, 0);
@@ -466,19 +466,19 @@ static bool skl_pcode_try_request(struct drm_i915_private *i915, u32 mbox,
 }
 
 /**
- * skl_pcode_request - send PCODE request until acknowledgment
+ * skl_pcode_request - send PCODE request until ackyeswledgment
  * @i915: device private
  * @mbox: PCODE mailbox ID the request is targeted for
  * @request: request ID
- * @reply_mask: mask used to check for request acknowledgment
- * @reply: value used to check for request acknowledgment
+ * @reply_mask: mask used to check for request ackyeswledgment
+ * @reply: value used to check for request ackyeswledgment
  * @timeout_base_ms: timeout for polling with preemption enabled
  *
- * Keep resending the @request to @mbox until PCODE acknowledges it, PCODE
+ * Keep resending the @request to @mbox until PCODE ackyeswledges it, PCODE
  * reports an error or an overall timeout of @timeout_base_ms+50 ms expires.
- * The request is acknowledged once the PCODE reply dword equals @reply after
+ * The request is ackyeswledged once the PCODE reply dword equals @reply after
  * applying @reply_mask. Polling is first attempted with preemption enabled
- * for @timeout_base_ms and if this times out for another 50 ms with
+ * for @timeout_base_ms and if this times out for ayesther 50 ms with
  * preemption disabled.
  *
  * Returns 0 on success, %-ETIMEDOUT in case of a timeout, <0 in case of some

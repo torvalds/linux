@@ -126,7 +126,7 @@ static void opp_list_debug_create_link(struct opp_device *opp_dev,
 }
 
 /**
- * opp_debug_register - add a device opp node to the debugfs 'opp' directory
+ * opp_debug_register - add a device opp yesde to the debugfs 'opp' directory
  * @opp_dev: opp-dev pointer for device
  * @opp_table: the device-opp being added
  *
@@ -150,7 +150,7 @@ static void opp_migrate_dentry(struct opp_device *opp_dev,
 	struct dentry *dentry;
 
 	/* Look for next opp-dev */
-	list_for_each_entry(new_dev, &opp_table->dev_list, node)
+	list_for_each_entry(new_dev, &opp_table->dev_list, yesde)
 		if (new_dev != opp_dev)
 			break;
 
@@ -173,7 +173,7 @@ static void opp_migrate_dentry(struct opp_device *opp_dev,
 }
 
 /**
- * opp_debug_unregister - remove a device opp node from debugfs opp directory
+ * opp_debug_unregister - remove a device opp yesde from debugfs opp directory
  * @opp_dev: opp-dev pointer for device
  * @opp_table: the device-opp being removed
  *
@@ -183,7 +183,7 @@ void opp_debug_unregister(struct opp_device *opp_dev,
 			  struct opp_table *opp_table)
 {
 	if (opp_dev->dentry == opp_table->dentry) {
-		/* Move the real dentry object under another device */
+		/* Move the real dentry object under ayesther device */
 		if (!list_is_singular(&opp_table->dev_list)) {
 			opp_migrate_dentry(opp_dev, opp_table);
 			goto out;

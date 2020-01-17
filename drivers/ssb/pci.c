@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2005-2006 Michael Buesch <m@bues.ch>
  * Copyright (C) 2005 Martin Langer <martin-langer@gmx.de>
- * Copyright (C) 2005 Stefano Brivio <st3@riseup.net>
+ * Copyright (C) 2005 Stefayes Brivio <st3@riseup.net>
  * Copyright (C) 2005 Danny van Dyk <kugelfang@gentoo.org>
  * Copyright (C) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
  *
@@ -160,7 +160,7 @@ out:
 	return err;
 
 err_pci:
-	pr_err("Error: ssb_pci_xtal() could not access PCI config space!\n");
+	pr_err("Error: ssb_pci_xtal() could yest access PCI config space!\n");
 	err = -EBUSY;
 	goto out;
 }
@@ -191,7 +191,7 @@ err_pci:
 
 static inline u8 ssb_crc8(u8 crc, u8 data)
 {
-	/* Polynomial:   x^8 + x^7 + x^6 + x^4 + x^2 + 1   */
+	/* Polyyesmial:   x^8 + x^7 + x^6 + x^4 + x^2 + 1   */
 	static const u8 t[] = {
 		0x00, 0xF7, 0xB9, 0x4E, 0x25, 0xD2, 0x9C, 0x6B,
 		0x4A, 0xBD, 0xF3, 0x04, 0x6F, 0x98, 0xD6, 0x21,
@@ -285,7 +285,7 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 	u32 spromctl;
 	u16 size = bus->sprom_size;
 
-	pr_notice("Writing SPROM. Do NOT turn off the power! Please stand by...\n");
+	pr_yestice("Writing SPROM. Do NOT turn off the power! Please stand by...\n");
 	err = pci_read_config_dword(pdev, SSB_SPROMCTL, &spromctl);
 	if (err)
 		goto err_ctlreg;
@@ -293,7 +293,7 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 	err = pci_write_config_dword(pdev, SSB_SPROMCTL, spromctl);
 	if (err)
 		goto err_ctlreg;
-	pr_notice("[ 0%%");
+	pr_yestice("[ 0%%");
 	msleep(500);
 	for (i = 0; i < size; i++) {
 		if (i == size / 4)
@@ -316,11 +316,11 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 		goto err_ctlreg;
 	msleep(500);
 	pr_cont("100%% ]\n");
-	pr_notice("SPROM written\n");
+	pr_yestice("SPROM written\n");
 
 	return 0;
 err_ctlreg:
-	pr_err("Could not access SPROM control register.\n");
+	pr_err("Could yest access SPROM control register.\n");
 	return err;
 }
 
@@ -900,7 +900,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 		err = sprom_check_crc(buf, bus->sprom_size);
 		if (err) {
 			/* All CRC attempts failed.
-			 * Maybe there is no SPROM on the device?
+			 * Maybe there is yes SPROM on the device?
 			 * Now we ask the arch code if there is some sprom
 			 * available for this device in some other storage */
 			err = ssb_fill_sprom_with_fallback(bus, sprom);

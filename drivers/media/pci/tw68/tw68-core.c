@@ -5,9 +5,9 @@
  *
  *  Much of this code is derived from the cx88 and sa7134 drivers, which
  *  were in turn derived from the bt87x driver.  The original work was by
- *  Gerd Knorr; more recently the code was enhanced by Mauro Carvalho Chehab,
+ *  Gerd Kyesrr; more recently the code was enhanced by Mauro Carvalho Chehab,
  *  Hans Verkuil, Andy Walls and many others.  Their work is gratefully
- *  acknowledged.  Full credit goes to them - any problems within this code
+ *  ackyeswledged.  Full credit goes to them - any problems within this code
  *  are mine.
  *
  *  Copyright (C) 2009  William M. Brack
@@ -118,7 +118,7 @@ static int tw68_hw_init1(struct tw68_dev *dev)
 	tw_writeb(TW68_SAT_V, 0x80);	/* 250 */
 	tw_writeb(TW68_HUE, 0x00);	/* 254 */
 
-	/* TODO - Check that none of these are set by control defaults */
+	/* TODO - Check that yesne of these are set by control defaults */
 	tw_writeb(TW68_SHARP2, 0x53);	/* 258	Mfg specified reset val */
 	tw_writeb(TW68_VSHARP, 0x80);	/* 25C	Sharpness Coring val 8 */
 	tw_writeb(TW68_CORING, 0x44);	/* 260	CTI and Vert Peak coring */
@@ -150,8 +150,8 @@ static int tw68_hw_init1(struct tw68_dev *dev)
 					 *	but doesn't change the
 					 *	sensitivity (which has a reset
 					 *	value of 1E).  Since we are
-					 *	not doing auto-detection, it
-					 *	has no real effect */
+					 *	yest doing auto-detection, it
+					 *	has yes real effect */
 	tw_writeb(TW68_CLCNTL1, 0);	/* 2D4 */
 	tw_writel(TW68_VBIC, 0x03);	/* 010 */
 	tw_writel(TW68_CAP_CTL, 0x03);	/* 040	Enable both even & odd flds */
@@ -162,7 +162,7 @@ static int tw68_hw_init1(struct tw68_dev *dev)
 	 * Some common boards, especially inexpensive single-chip models,
 	 * use the GPIO bits 0-3 to control an on-board video-output mux.
 	 * For these boards, we need to set up the GPIO register into
-	 * "normal" mode, set bits 0-3 as output, and then set those bits
+	 * "yesrmal" mode, set bits 0-3 as output, and then set those bits
 	 * zero.
 	 *
 	 * Eventually, it would be nice if we could identify these boards
@@ -170,7 +170,7 @@ static int tw68_hw_init1(struct tw68_dev *dev)
 	 * identify.  For the moment, however, it shouldn't hurt anything
 	 * to do these steps.
 	 */
-	tw_writel(TW68_GPIOC, 0);	/* Set the GPIO to "normal", no ints */
+	tw_writel(TW68_GPIOC, 0);	/* Set the GPIO to "yesrmal", yes ints */
 	tw_writel(TW68_GPOE, 0x0f);	/* Set bits 0-3 to "output" */
 	tw_writel(TW68_GPDATA, 0);	/* Set all bits to low state */
 
@@ -250,7 +250,7 @@ static int tw68_initdev(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 	err = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
 	if (err) {
-		pr_info("%s: Oops: no 32bit PCI DMA ???\n", dev->name);
+		pr_info("%s: Oops: yes 32bit PCI DMA ???\n", dev->name);
 		goto fail1;
 	}
 
@@ -268,7 +268,7 @@ static int tw68_initdev(struct pci_dev *pci_dev,
 		dev->board_virqmask = TW68_VID_INTS | TW68_VID_INTSX;
 		break;
 	default:
-		dev->vdecoder = TWXXXX;	/* To be announced */
+		dev->vdecoder = TWXXXX;	/* To be anyesunced */
 		dev->board_virqmask = TW68_VID_INTS | TW68_VID_INTSX;
 		break;
 	}
@@ -321,7 +321,7 @@ static int tw68_initdev(struct pci_dev *pci_dev,
 	tw_setl(TW68_INTMASK, dev->pci_irqmask);
 
 	pr_info("%s: registered device %s\n",
-	       dev->name, video_device_node_name(&dev->vdev));
+	       dev->name, video_device_yesde_name(&dev->vdev));
 
 	return 0;
 
@@ -396,7 +396,7 @@ static int tw68_resume(struct pci_dev *pci_dev)
 
 	msleep(100);
 
-	tw68_set_tvnorm_hw(dev);
+	tw68_set_tvyesrm_hw(dev);
 
 	/*resume unfinished buffer(s)*/
 	spin_lock_irqsave(&dev->slock, flags);

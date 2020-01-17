@@ -2,7 +2,7 @@
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -16,11 +16,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -175,7 +175,7 @@ struct mlx4_vhcr {
 	u64	in_param;
 	u64	out_param;
 	u32	in_modifier;
-	u32	errno;
+	u32	erryes;
 	u16	op;
 	u16	token;
 	u8	op_modifier;
@@ -352,7 +352,7 @@ struct mlx4_cq_context {
 	u8			reserved3[2];
 	u8			mtt_base_addr_h;
 	__be32			mtt_base_addr_l;
-	__be32			last_notified_index;
+	__be32			last_yestified_index;
 	__be32			solicit_producer_index;
 	__be32			consumer_index;
 	__be32			producer_index;
@@ -791,7 +791,7 @@ struct mlx4_set_port_general_context {
 	u8 flags2;
 	u8 flags;
 	union {
-		u8 ignore_fcs;
+		u8 igyesre_fcs;
 		u8 roce_mode;
 	};
 	u8 reserved2;
@@ -818,12 +818,12 @@ struct mlx4_set_port_rqp_calc_context {
 	u8 n_prio;
 	u8 reserved2[3];
 	u8 mac_miss;
-	u8 intra_no_vlan;
-	u8 no_vlan;
+	u8 intra_yes_vlan;
+	u8 yes_vlan;
 	u8 intra_vlan_miss;
 	u8 vlan_miss;
 	u8 reserved3[3];
-	u8 no_vlan_prio;
+	u8 yes_vlan_prio;
 	__be32 promisc;
 	__be32 mcast;
 };
@@ -920,7 +920,7 @@ struct mlx4_priv {
 	u8 virt2phys_pkey[MLX4_MFUNC_MAX][MLX4_MAX_PORTS][MLX4_MAX_PORT_PKEYS];
 	struct mlx4_port_map	v2p; /* cached port mapping configuration */
 	struct mutex		bond_mutex; /* for bond mode */
-	__be64			slave_node_guids[MLX4_MFUNC_MAX];
+	__be64			slave_yesde_guids[MLX4_MFUNC_MAX];
 
 	atomic_t		opreq_count;
 	struct work_struct	opreq_task;

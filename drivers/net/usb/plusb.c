@@ -100,8 +100,8 @@ static const struct driver_info	prolific_info = {
 /*-------------------------------------------------------------------------*/
 
 /*
- * Proilific's name won't normally be on the cables, and
- * may not be on the device.
+ * Proilific's name won't yesrmally be on the cables, and
+ * may yest be on the device.
  */
 
 static const struct usb_device_id	products [] = {
@@ -117,7 +117,7 @@ static const struct usb_device_id	products [] = {
 
 /* high speed cables */
 {
-	USB_DEVICE(0x067b, 0x25a1),     /* PL-25A1, no eeprom */
+	USB_DEVICE(0x067b, 0x25a1),     /* PL-25A1, yes eeprom */
 	.driver_info =  (unsigned long) &prolific_info,
 }, {
 	USB_DEVICE(0x050d, 0x258a),     /* Belkin F5U258/F5U279 (PL-25A1) */
@@ -132,7 +132,7 @@ static const struct usb_device_id	products [] = {
 
 /* super speed cables */
 {
-	USB_DEVICE(0x067b, 0x27a1),     /* PL-27A1, no eeprom
+	USB_DEVICE(0x067b, 0x27a1),     /* PL-27A1, yes eeprom
 					 * also: goobay Active USB 3.0
 					 * Data Link,
 					 * Unitek Y-3501

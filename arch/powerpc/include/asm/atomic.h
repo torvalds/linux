@@ -16,7 +16,7 @@
 
 /*
  * Since *_return_relaxed and {cmp}xchg_relaxed are implemented with
- * a "bne-" instruction at the end, so an isync is enough as a acquire barrier
+ * a "bne-" instruction at the end, so an isync is eyesugh as a acquire barrier
  * on the platform without lwsync.
  */
 #define __atomic_acquire_fence()					\
@@ -207,7 +207,7 @@ static __inline__ int atomic_dec_return_relaxed(atomic_t *v)
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @v, so long as it was not @u.
+ * Atomically adds @a to @v, so long as it was yest @u.
  * Returns the old value of @v.
  */
 static __inline__ int atomic_fetch_add_unless(atomic_t *v, int a, int u)
@@ -235,19 +235,19 @@ static __inline__ int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 #define atomic_fetch_add_unless atomic_fetch_add_unless
 
 /**
- * atomic_inc_not_zero - increment unless the number is zero
+ * atomic_inc_yest_zero - increment unless the number is zero
  * @v: pointer of type atomic_t
  *
- * Atomically increments @v by 1, so long as @v is non-zero.
- * Returns non-zero if @v was non-zero, and zero otherwise.
+ * Atomically increments @v by 1, so long as @v is yesn-zero.
+ * Returns yesn-zero if @v was yesn-zero, and zero otherwise.
  */
-static __inline__ int atomic_inc_not_zero(atomic_t *v)
+static __inline__ int atomic_inc_yest_zero(atomic_t *v)
 {
 	int t1, t2;
 
 	__asm__ __volatile__ (
 	PPC_ATOMIC_ENTRY_BARRIER
-"1:	lwarx	%0,0,%2		# atomic_inc_not_zero\n\
+"1:	lwarx	%0,0,%2		# atomic_inc_yest_zero\n\
 	cmpwi	0,%0,0\n\
 	beq-	2f\n\
 	addic	%1,%0,1\n"
@@ -263,12 +263,12 @@ static __inline__ int atomic_inc_not_zero(atomic_t *v)
 
 	return t1;
 }
-#define atomic_inc_not_zero(v) atomic_inc_not_zero((v))
+#define atomic_inc_yest_zero(v) atomic_inc_yest_zero((v))
 
 /*
  * Atomically test *v and decrement if it is greater than 0.
  * The function returns the old value of *v minus 1, even if
- * the atomic variable, v, was not decremented.
+ * the atomic variable, v, was yest decremented.
  */
 static __inline__ int atomic_dec_if_positive(atomic_t *v)
 {
@@ -499,7 +499,7 @@ static __inline__ s64 atomic64_dec_if_positive(atomic64_t *v)
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @v, so long as it was not @u.
+ * Atomically adds @a to @v, so long as it was yest @u.
  * Returns the old value of @v.
  */
 static __inline__ s64 atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
@@ -526,19 +526,19 @@ static __inline__ s64 atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
 #define atomic64_fetch_add_unless atomic64_fetch_add_unless
 
 /**
- * atomic_inc64_not_zero - increment unless the number is zero
+ * atomic_inc64_yest_zero - increment unless the number is zero
  * @v: pointer of type atomic64_t
  *
- * Atomically increments @v by 1, so long as @v is non-zero.
- * Returns non-zero if @v was non-zero, and zero otherwise.
+ * Atomically increments @v by 1, so long as @v is yesn-zero.
+ * Returns yesn-zero if @v was yesn-zero, and zero otherwise.
  */
-static __inline__ int atomic64_inc_not_zero(atomic64_t *v)
+static __inline__ int atomic64_inc_yest_zero(atomic64_t *v)
 {
 	s64 t1, t2;
 
 	__asm__ __volatile__ (
 	PPC_ATOMIC_ENTRY_BARRIER
-"1:	ldarx	%0,0,%2		# atomic64_inc_not_zero\n\
+"1:	ldarx	%0,0,%2		# atomic64_inc_yest_zero\n\
 	cmpdi	0,%0,0\n\
 	beq-	2f\n\
 	addic	%1,%0,1\n\
@@ -553,7 +553,7 @@ static __inline__ int atomic64_inc_not_zero(atomic64_t *v)
 
 	return t1 != 0;
 }
-#define atomic64_inc_not_zero(v) atomic64_inc_not_zero((v))
+#define atomic64_inc_yest_zero(v) atomic64_inc_yest_zero((v))
 
 #endif /* __powerpc64__ */
 

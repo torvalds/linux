@@ -55,7 +55,7 @@ struct dn_scp                                   /* Session Control Port */
 	__u16		segsize_rem;
 	__u16		segsize_loc;
 
-	__u8		nonagle;
+	__u8		yesnagle;
 	__u8		multi_ireq;
 	__u8		accept_mode;
 	unsigned long		seg_total; /* Running total of current segment */
@@ -70,9 +70,9 @@ struct dn_scp                                   /* Session Control Port */
 	struct sockaddr_dn peer; /* Remote address */
 
 	/*
-	 * In this case the RTT estimation is not specified in the
-	 * docs, nor is any back off algorithm. Here we follow well
-	 * known tcp algorithms with a few small variations.
+	 * In this case the RTT estimation is yest specified in the
+	 * docs, yesr is any back off algorithm. Here we follow well
+	 * kyeswn tcp algorithms with a few small variations.
 	 *
 	 * snd_window: Max number of packets we send before we wait for
 	 *             an ack to come back. This will become part of a
@@ -83,10 +83,10 @@ struct dn_scp                                   /* Session Control Port */
 	 *             average.
 	 * nsp_rttvar: Round-Trip-Time-Varience (x4) in jiffies. This is the
 	 *             varience of the smoothed average (but calculated in
-	 *             a simpler way than for normal statistical varience
+	 *             a simpler way than for yesrmal statistical varience
 	 *             calculations).
 	 *
-	 * nsp_rxtshift: Backoff counter. Value is zero normally, each time
+	 * nsp_rxtshift: Backoff counter. Value is zero yesrmally, each time
 	 *               a packet is lost is increases by one until an ack
 	 *               is received. Its used to index an array of backoff
 	 *               multipliers.
@@ -173,7 +173,7 @@ static inline __le16 dn_eth2dn(unsigned char *ethaddr)
 
 static inline __le16 dn_saddr2dn(struct sockaddr_dn *saddr)
 {
-	return *(__le16 *)saddr->sdn_nodeaddr;
+	return *(__le16 *)saddr->sdn_yesdeaddr;
 }
 
 static inline void dn_dn2eth(unsigned char *ethaddr, __le16 addr)
@@ -222,7 +222,7 @@ extern int decnet_time_wait;
 extern int decnet_dn_count;
 extern int decnet_di_count;
 extern int decnet_dr_count;
-extern int decnet_no_fc_max_cwnd;
+extern int decnet_yes_fc_max_cwnd;
 
 extern long sysctl_decnet_mem[3];
 extern int sysctl_decnet_wmem[3];

@@ -27,20 +27,20 @@
 
 static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 {
-	char *errmsg = "Unknown";
+	char *errmsg = "Unkyeswn";
 
 	switch (status) {
 	case -ENOENT:
-		errmsg = "unlinked synchronously";
+		errmsg = "unlinked synchroyesusly";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronously";
+		errmsg = "unlinked asynchroyesusly";
 		break;
 	case -ENOSR:
 		errmsg = "Buffer error (overrun)";
 		break;
 	case -EPIPE:
-		errmsg = "Stalled (device not responding)";
+		errmsg = "Stalled (device yest responding)";
 		break;
 	case -EOVERFLOW:
 		errmsg = "Babble (bad cable?)";
@@ -52,7 +52,7 @@ static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 		errmsg = "CRC/Timeout (could be anything)";
 		break;
 	case -ETIME:
-		errmsg = "Device does not respond";
+		errmsg = "Device does yest respond";
 		break;
 	}
 	if (packet < 0) {
@@ -160,7 +160,7 @@ static int vbi_queue_setup(struct vb2_queue *vq,
 	struct cx231xx *dev = vb2_get_drv_priv(vq);
 	u32 height = 0;
 
-	height = ((dev->norm & V4L2_STD_625_50) ?
+	height = ((dev->yesrm & V4L2_STD_625_50) ?
 		  PAL_VBI_LINES : NTSC_VBI_LINES);
 
 	*nplanes = 1;
@@ -175,7 +175,7 @@ static int vbi_buf_prepare(struct vb2_buffer *vb)
 	u32 height = 0;
 	u32 size;
 
-	height = ((dev->norm & V4L2_STD_625_50) ?
+	height = ((dev->yesrm & V4L2_STD_625_50) ?
 		  PAL_VBI_LINES : NTSC_VBI_LINES);
 	size = ((dev->width << 1) * height * 2);
 
@@ -202,12 +202,12 @@ static void return_all_buffers(struct cx231xx *dev,
 			       enum vb2_buffer_state state)
 {
 	struct cx231xx_dmaqueue *vidq = &dev->vbi_mode.vidq;
-	struct cx231xx_buffer *buf, *node;
+	struct cx231xx_buffer *buf, *yesde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->vbi_mode.slock, flags);
 	dev->vbi_mode.bulk_ctl.buf = NULL;
-	list_for_each_entry_safe(buf, node, &vidq->active, list) {
+	list_for_each_entry_safe(buf, yesde, &vidq->active, list) {
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 	}
@@ -365,7 +365,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 	dma_q->last_sav = 0;
 	dma_q->current_field = -1;
 	dma_q->bytes_left_in_line = dev->width << 1;
-	dma_q->lines_per_field = ((dev->norm & V4L2_STD_625_50) ?
+	dma_q->lines_per_field = ((dev->yesrm & V4L2_STD_625_50) ?
 				  PAL_VBI_LINES : NTSC_VBI_LINES);
 	dma_q->lines_completed = 0;
 	for (i = 0; i < 8; i++)
@@ -375,7 +375,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 					     GFP_KERNEL);
 	if (!dev->vbi_mode.bulk_ctl.urb) {
 		dev_err(dev->dev,
-			"cannot alloc memory for usb buffers\n");
+			"canyest alloc memory for usb buffers\n");
 		return -ENOMEM;
 	}
 
@@ -383,7 +383,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->vbi_mode.bulk_ctl.transfer_buffer) {
 		dev_err(dev->dev,
-			"cannot allocate memory for usbtransfer\n");
+			"canyest allocate memory for usbtransfer\n");
 		kfree(dev->vbi_mode.bulk_ctl.urb);
 		return -ENOMEM;
 	}
@@ -472,7 +472,7 @@ u32 cx231xx_get_vbi_line(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
 }
 
 /*
- * Announces that a buffer were filled and request the next
+ * Anyesunces that a buffer were filled and request the next
  */
 static inline void vbi_buffer_filled(struct cx231xx *dev,
 				     struct cx231xx_dmaqueue *dma_q,
@@ -653,7 +653,7 @@ u8 cx231xx_is_vbi_buffer_done(struct cx231xx *dev,
 {
 	u32 height = 0;
 
-	height = ((dev->norm & V4L2_STD_625_50) ?
+	height = ((dev->yesrm & V4L2_STD_625_50) ?
 		  PAL_VBI_LINES : NTSC_VBI_LINES);
 	if (dma_q->lines_completed == height && dma_q->current_field == 2)
 		return 1;

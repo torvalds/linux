@@ -90,7 +90,7 @@ int apei_exec_write_register(struct apei_exec_context *ctx,
 			     struct acpi_whea_header *entry);
 int apei_exec_write_register_value(struct apei_exec_context *ctx,
 				   struct acpi_whea_header *entry);
-int apei_exec_noop(struct apei_exec_context *ctx,
+int apei_exec_yesop(struct apei_exec_context *ctx,
 		   struct acpi_whea_header *entry);
 int apei_exec_pre_map_gars(struct apei_exec_context *ctx);
 int apei_exec_post_unmap_gars(struct apei_exec_context *ctx);

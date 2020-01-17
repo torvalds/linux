@@ -8,7 +8,7 @@
 #include <net/act_api.h>
 #include <net/net_namespace.h>
 
-/* TC action not accessible from user space */
+/* TC action yest accessible from user space */
 #define TC_ACT_CONSUMED		(TC_ACT_VALUE_MAX + 1)
 
 /* Basic packet classifier frontend definitions. */
@@ -17,9 +17,9 @@ struct tcf_walker {
 	int	stop;
 	int	skip;
 	int	count;
-	bool	nonempty;
+	bool	yesnempty;
 	unsigned long cookie;
-	int	(*fn)(struct tcf_proto *, void *node, struct tcf_walker *);
+	int	(*fn)(struct tcf_proto *, void *yesde, struct tcf_walker *);
 };
 
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
@@ -59,7 +59,7 @@ static inline bool tcf_block_shared(struct tcf_block *block)
 	return block->index;
 }
 
-static inline bool tcf_block_non_null_shared(struct tcf_block *block)
+static inline bool tcf_block_yesn_null_shared(struct tcf_block *block)
 {
 	return block && block->index;
 }
@@ -79,7 +79,7 @@ static inline bool tcf_block_shared(struct tcf_block *block)
 	return false;
 }
 
-static inline bool tcf_block_non_null_shared(struct tcf_block *block)
+static inline bool tcf_block_yesn_null_shared(struct tcf_block *block)
 {
 	return false;
 }
@@ -158,8 +158,8 @@ tcf_bind_filter(struct tcf_proto *tp, struct tcf_result *r, unsigned long base)
 	struct Qdisc *q = tp->chain->block->q;
 	unsigned long cl;
 
-	/* Check q as it is not set for shared blocks. In that case,
-	 * setting class is not supported.
+	/* Check q as it is yest set for shared blocks. In that case,
+	 * setting class is yest supported.
 	 */
 	if (!q)
 		return;
@@ -213,7 +213,7 @@ static inline int tcf_exts_init(struct tcf_exts *exts, struct net *net,
 }
 
 /* Return false if the netns is being destroyed in cleanup_net(). Callers
- * need to do cleanup synchronously in this case, otherwise may race with
+ * need to do cleanup synchroyesusly in this case, otherwise may race with
  * tc_action_net_exit(). Return true for other cases.
  */
 static inline bool tcf_exts_get_net(struct tcf_exts *exts)
@@ -282,7 +282,7 @@ static inline bool tcf_exts_has_actions(struct tcf_exts *exts)
  * @exts: tc filter extensions handle
  * @res: desired result
  *
- * Executes all configured extensions. Returns TC_ACT_OK on a normal execution,
+ * Executes all configured extensions. Returns TC_ACT_OK on a yesrmal execution,
  * a negative number if the filter must be considered unmatched or
  * a positive action code (TC_ACT_*) which must be returned to the
  * underlying layer.
@@ -427,8 +427,8 @@ int __tcf_em_tree_match(struct sk_buff *, struct tcf_ematch_tree *,
  * through all ematches respecting their logic relations returning
  * as soon as the result is obvious.
  *
- * Returns 1 if the ematch tree as-one matches, no ematches are configured
- * or ematch is not enabled in the kernel, otherwise 0 is returned.
+ * Returns 1 if the ematch tree as-one matches, yes ematches are configured
+ * or ematch is yest enabled in the kernel, otherwise 0 is returned.
  */
 static inline int tcf_em_tree_match(struct sk_buff *skb,
 				    struct tcf_ematch_tree *tree,
@@ -526,7 +526,7 @@ int tc_setup_cb_reoffload(struct tcf_block *block, struct tcf_proto *tp,
 			  void *cb_priv, u32 *flags, unsigned int *in_hw_count);
 unsigned int tcf_exts_num_actions(struct tcf_exts *exts);
 
-struct tc_cls_u32_knode {
+struct tc_cls_u32_kyesde {
 	struct tcf_exts *exts;
 	struct tcf_result *res;
 	struct tc_u32_sel *sel;
@@ -537,7 +537,7 @@ struct tc_cls_u32_knode {
 	u8 fshift;
 };
 
-struct tc_cls_u32_hnode {
+struct tc_cls_u32_hyesde {
 	u32 handle;
 	u32 prio;
 	unsigned int divisor;
@@ -554,11 +554,11 @@ enum tc_clsu32_command {
 
 struct tc_cls_u32_offload {
 	struct flow_cls_common_offload common;
-	/* knode values */
+	/* kyesde values */
 	enum tc_clsu32_command command;
 	union {
-		struct tc_cls_u32_knode knode;
-		struct tc_cls_u32_hnode hnode;
+		struct tc_cls_u32_kyesde kyesde;
+		struct tc_cls_u32_hyesde hyesde;
 	};
 };
 
@@ -791,8 +791,8 @@ enum tc_prio_command {
 struct tc_prio_qopt_offload_params {
 	int bands;
 	u8 priomap[TC_PRIO_MAX + 1];
-	/* In case that a prio qdisc is offloaded and now is changed to a
-	 * non-offloadedable config, it needs to update the backlog & qlen
+	/* In case that a prio qdisc is offloaded and yesw is changed to a
+	 * yesn-offloadedable config, it needs to update the backlog & qlen
 	 * values to negate the HW backlog & qlen values (and only them).
 	 */
 	struct gnet_stats_queue *qstats;

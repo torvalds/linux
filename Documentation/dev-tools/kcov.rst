@@ -6,10 +6,10 @@ guided fuzzing (randomized testing). Coverage data of a running kernel is
 exported via the "kcov" debugfs file. Coverage collection is enabled on a task
 basis, and thus it can capture precise coverage of a single system call.
 
-Note that kcov does not aim to collect as much coverage as possible. It aims
+Note that kcov does yest aim to collect as much coverage as possible. It aims
 to collect more or less stable coverage that is function of syscall inputs.
-To achieve this goal it does not collect coverage in soft/hard interrupts
-and instrumentation of some inherently non-deterministic parts of kernel is
+To achieve this goal it does yest collect coverage in soft/hard interrupts
+and instrumentation of some inherently yesn-deterministic parts of kernel is
 disabled (e.g. scheduler, locking).
 
 kcov is also able to collect comparison operands from the instrumented code
@@ -30,7 +30,7 @@ If the comparison operands need to be collected, set::
 
 Profiling data will only become accessible once debugfs has been mounted::
 
-        mount -t debugfs none /sys/kernel/debug
+        mount -t debugfs yesne /sys/kernel/debug
 
 Coverage collection
 -------------------
@@ -190,7 +190,7 @@ Comparison operands collection is similar to coverage collection:
 		printf("ip: 0x%lx type: 0x%lx, arg1: 0x%lx, arg2: 0x%lx, "
 			"size: %lu, %s\n",
 			ip, type, arg1, arg2, size,
-		is_const ? "const" : "non-const");
+		is_const ? "const" : "yesn-const");
 	}
 	if (ioctl(fd, KCOV_DISABLE, 0))
 		perror("ioctl"), exit(1);
@@ -211,7 +211,7 @@ Remote coverage collection
 With KCOV_ENABLE coverage is collected only for syscalls that are issued
 from the current process. With KCOV_REMOTE_ENABLE it's possible to collect
 coverage for arbitrary parts of the kernel code, provided that those parts
-are annotated with kcov_remote_start()/kcov_remote_stop().
+are anyestated with kcov_remote_start()/kcov_remote_stop().
 
 This allows to collect coverage from two types of kernel background
 threads: the global ones, that are spawned during kernel boot in a limited
@@ -227,25 +227,25 @@ kcov_remote_arg struct. This will attach the used kcov device to the code
 sections, that are referenced by those handles.
 
 Since there might be many local background threads spawned from different
-userspace processes, we can't use a single global handle per annotation.
-Instead, the userspace process passes a non-zero handle through the
+userspace processes, we can't use a single global handle per anyestation.
+Instead, the userspace process passes a yesn-zero handle through the
 common_handle field of the kcov_remote_arg struct. This common handle gets
 saved to the kcov_handle field in the current task_struct and needs to be
-passed to the newly spawned threads via custom annotations. Those threads
-should in turn be annotated with kcov_remote_start()/kcov_remote_stop().
+passed to the newly spawned threads via custom anyestations. Those threads
+should in turn be anyestated with kcov_remote_start()/kcov_remote_stop().
 
 Internally kcov stores handles as u64 integers. The top byte of a handle
-is used to denote the id of a subsystem that this handle belongs to, and
-the lower 4 bytes are used to denote the id of a thread instance within
+is used to deyeste the id of a subsystem that this handle belongs to, and
+the lower 4 bytes are used to deyeste the id of a thread instance within
 that subsystem. A reserved value 0 is used as a subsystem id for common
 handles as they don't belong to a particular subsystem. The bytes 4-7 are
 currently reserved and must be zero. In the future the number of bytes
 used for the subsystem or handle ids might be increased.
 
 When a particular userspace proccess collects coverage by via a common
-handle, kcov will collect coverage for each code section that is annotated
+handle, kcov will collect coverage for each code section that is anyestated
 to use the common handle obtained as kcov_handle from the current
-task_struct. However non common handles allow to collect coverage
+task_struct. However yesn common handles allow to collect coverage
 selectively from different subsystems.
 
 .. code-block:: c
@@ -315,7 +315,7 @@ selectively from different subsystems.
 
 	/*
 	 * Here the user needs to trigger execution of a kernel code section
-	 * that is either annotated with the common handle, or to trigger some
+	 * that is either anyestated with the common handle, or to trigger some
 	 * activity on USB bus #1.
 	 */
 	sleep(2);

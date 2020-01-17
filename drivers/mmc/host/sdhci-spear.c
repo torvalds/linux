@@ -52,7 +52,7 @@ static int sdhci_probe(struct platform_device *pdev)
 	host = sdhci_alloc_host(dev, sizeof(*sdhci));
 	if (IS_ERR(host)) {
 		ret = PTR_ERR(host);
-		dev_dbg(&pdev->dev, "cannot allocate memory for sdhci\n");
+		dev_dbg(&pdev->dev, "canyest allocate memory for sdhci\n");
 		goto err;
 	}
 

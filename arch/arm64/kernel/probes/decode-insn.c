@@ -20,7 +20,7 @@ static bool __kprobes aarch64_insn_is_steppable(u32 insn)
 	/*
 	 * Branch instructions will write a new value into the PC which is
 	 * likely to be relative to the XOL address and therefore invalid.
-	 * Deliberate generation of an exception during stepping is also not
+	 * Deliberate generation of an exception during stepping is also yest
 	 * currently safe. Lastly, MSR instructions can do any number of nasty
 	 * things we can't handle during single-stepping.
 	 */
@@ -33,7 +33,7 @@ static bool __kprobes aarch64_insn_is_steppable(u32 insn)
 			return false;
 
 		/*
-		 * The MRS instruction may not return a correct value when
+		 * The MRS instruction may yest return a correct value when
 		 * executing in the single-stepping environment. We do make one
 		 * exception, for reading the DAIF bits.
 		 */
@@ -46,15 +46,15 @@ static bool __kprobes aarch64_insn_is_steppable(u32 insn)
 		 * except for the NOP case.
 		 */
 		if (aarch64_insn_is_hint(insn))
-			return aarch64_insn_is_nop(insn);
+			return aarch64_insn_is_yesp(insn);
 
 		return true;
 	}
 
 	/*
-	 * Instructions which load PC relative literals are not going to work
+	 * Instructions which load PC relative literals are yest going to work
 	 * when executed from an XOL slot. Instructions doing an exclusive
-	 * load/store are not going to complete successfully when single-step
+	 * load/store are yest going to complete successfully when single-step
 	 * exception handling happens in the middle of the sequence.
 	 */
 	if (aarch64_insn_uses_literal(insn) ||
@@ -65,7 +65,7 @@ static bool __kprobes aarch64_insn_is_steppable(u32 insn)
 }
 
 /* Return:
- *   INSN_REJECTED     If instruction is one not allowed to kprobe,
+ *   INSN_REJECTED     If instruction is one yest allowed to kprobe,
  *   INSN_GOOD         If instruction is supported and uses instruction slot,
  *   INSN_GOOD_NO_SLOT If instruction is supported but doesn't use its slot.
  */
@@ -102,7 +102,7 @@ arm_probe_decode_insn(probe_opcode_t insn, struct arch_probe_insn *api)
 		api->handler = simulate_ldrsw_literal;
 	} else {
 		/*
-		 * Instruction cannot be stepped out-of-line and we don't
+		 * Instruction canyest be stepped out-of-line and we don't
 		 * (yet) simulate it.
 		 */
 		return INSN_REJECTED;
@@ -139,11 +139,11 @@ arm_kprobe_decode_insn(kprobe_opcode_t *addr, struct arch_specific_insn *asi)
 	unsigned long size = 0, offset = 0;
 
 	/*
-	 * If there's a symbol defined in front of and near enough to
+	 * If there's a symbol defined in front of and near eyesugh to
 	 * the probe address assume it is the entry point to this
 	 * code and use it to further limit how far back we search
 	 * when determining if we're in an atomic sequence. If we could
-	 * not find any symbol skip the atomic test altogether as we
+	 * yest find any symbol skip the atomic test altogether as we
 	 * could otherwise end up searching irrelevant text/literals.
 	 * KPROBES depends on KALLSYMS so this last case should never
 	 * happen.

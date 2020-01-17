@@ -16,4 +16,4 @@ config SND_SOC_CYGNUS
 	  Say Y if you want to add support for ASoC audio on Broadcom
 	  Cygnus chips (bcm958300, bcm958305, bcm911360)
 
-	  If you don't know what to do here, say N.
+	  If you don't kyesw what to do here, say N.

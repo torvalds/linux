@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -232,7 +232,7 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 
 		bpp = bpp * 3;
 
-		/* TODO need to know link rate */
+		/* TODO need to kyesw link rate */
 
 		pbn = drm_dp_calc_pbn_mode(clock, bpp);
 
@@ -248,7 +248,7 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 
 	ret = drm_dp_update_payload_part1(mst_mgr);
 
-	/* mst_mgr->->payloads are VC payload notify MST branch using DPCD or
+	/* mst_mgr->->payloads are VC payload yestify MST branch using DPCD or
 	 * AUX message. The sequence is slot 1-63 allocated sequence for each
 	 * stream. AMD ASIC stream slot allocation should follow the same
 	 * sequence. copy DRM MST allocation to dc */

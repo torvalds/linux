@@ -2,7 +2,7 @@
 /*
  * CXL Flash Device Driver
  *
- * Written by: Manoj N. Kumar <manoj@linux.vnet.ibm.com>, IBM Corporation
+ * Written by: Mayesj N. Kumar <mayesj@linux.vnet.ibm.com>, IBM Corporation
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
@@ -174,7 +174,7 @@ struct afu_cmd {
 
 static inline struct afu_cmd *sc_to_afuc(struct scsi_cmnd *sc)
 {
-	return PTR_ALIGN(scsi_cmd_priv(sc), __alignof__(struct afu_cmd));
+	return PTR_ALIGN(scsi_cmd_priv(sc), __aligyesf__(struct afu_cmd));
 }
 
 static inline struct afu_cmd *sc_to_afuci(struct scsi_cmnd *sc)

@@ -33,7 +33,7 @@ Support
 Peripherals
 -----------
 
-  There is no current support for any of the extra peripherals on the
+  There is yes current support for any of the extra peripherals on the
   base-board itself.
 
 

@@ -17,7 +17,7 @@
  * 3. No memory allocation. It uses a static object. No need to initialize or
  *    cleanup.
  * 4. Thread safe.
- * 5. Support embedded architectures that has no misaligned memory access
+ * 5. Support embedded architectures that has yes misaligned memory access
  *    support.
  *
  * Limitations:
@@ -25,8 +25,8 @@
  * 1. At most 30 faststart entries. Actually this is limited by ethernet's MTU.
  *    If a Setup signal contains more than 30 faststart, the packet size will
  *    very likely exceed the MTU size, then the TPKT will be fragmented. I
- *    don't know how to handle this in a Netfilter module. Anybody can help?
- *    Although I think 30 is enough for most of the cases.
+ *    don't kyesw how to handle this in a Netfilter module. Anybody can help?
+ *    Although I think 30 is eyesugh for most of the cases.
  * 2. IPv4 addresses only.
  *
  ****************************************************************************/
@@ -79,7 +79,7 @@ typedef struct {
  ****************************************************************************/
 
 #define H323_ERROR_NONE 0	/* Decoded successfully */
-#define H323_ERROR_STOP 1	/* Decoding stopped, not really an error */
+#define H323_ERROR_STOP 1	/* Decoding stopped, yest really an error */
 #define H323_ERROR_BOUND -1
 #define H323_ERROR_RANGE -2
 

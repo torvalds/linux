@@ -10,11 +10,11 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
-#include "exynos5250.dtsi"
+#include "exyyess5250.dtsi"
 
 / {
 	model = "Google Spring";
-	compatible = "google,spring", "samsung,exynos5250", "samsung,exynos5";
+	compatible = "google,spring", "samsung,exyyess5250", "samsung,exyyess5";
 
 	memory@40000000 {
 		device_type = "memory";
@@ -122,8 +122,8 @@
 		                             <&gpx2 5 GPIO_ACTIVE_LOW>; /* SET3 */
 
 		/*
-		 * The following arrays of DVS voltages are not used, since we are
-		 * not using GPIOs to control PMIC bucks, but they must be defined
+		 * The following arrays of DVS voltages are yest used, since we are
+		 * yest using GPIOs to control PMIC bucks, but they must be defined
 		 * to please the driver.
 		 */
 		s5m8767,pmic-buck2-dvs-voltage = <1350000>, <1300000>,

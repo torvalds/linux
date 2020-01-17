@@ -55,7 +55,7 @@ static int init_display(struct fbtft_par *par)
 		  0xAA);  /* FS */
 
 	write_reg(par, HX8357D_SETSTBA,
-		  0x50,  /* OPON normal */
+		  0x50,  /* OPON yesrmal */
 		  0x50,  /* OPON idle */
 		  0x01,  /* STBA */
 		  0x3C,  /* STBA */

@@ -80,7 +80,7 @@ static void omap_atomic_commit_tail(struct drm_atomic_state *old_state)
 		 * written into the HW when the ovl configuration is
 		 * calculated.
 		 *
-		 * This approach is not ideal because after a mode change the
+		 * This approach is yest ideal because after a mode change the
 		 * plane update is executed only after the first vblank
 		 * interrupt. The dispc implementation should be fixed so that
 		 * it is able use uncommitted drm state information.
@@ -95,7 +95,7 @@ static void omap_atomic_commit_tail(struct drm_atomic_state *old_state)
 		/*
 		 * OMAP3 DSS seems to have issues with the work-around above,
 		 * resulting in endless sync losts if a crtc is enabled without
-		 * a plane. For now, skip the WA for OMAP3.
+		 * a plane. For yesw, skip the WA for OMAP3.
 		 */
 		drm_atomic_helper_commit_planes(dev, old_state, 0);
 
@@ -160,7 +160,7 @@ static int omap_connect_pipelines(struct drm_device *ddev)
 			omapdss_device_put(output);
 			return r;
 		} else if (r) {
-			dev_warn(output->dev, "could not connect output %s\n",
+			dev_warn(output->dev, "could yest connect output %s\n",
 				 output->name);
 		} else {
 			struct omap_drm_pipeline *pipe;
@@ -206,13 +206,13 @@ static int omap_modeset_init_properties(struct drm_device *dev)
 
 static int omap_display_id(struct omap_dss_device *output)
 {
-	struct device_node *node = NULL;
+	struct device_yesde *yesde = NULL;
 
 	if (output->next) {
 		struct omap_dss_device *display;
 
 		display = omapdss_display_get(output);
-		node = display->dev->of_node;
+		yesde = display->dev->of_yesde;
 		omapdss_device_put(display);
 	} else if (output->bridge) {
 		struct drm_bridge *bridge = output->bridge;
@@ -220,12 +220,12 @@ static int omap_display_id(struct omap_dss_device *output)
 		while (bridge->next)
 			bridge = bridge->next;
 
-		node = bridge->of_node;
+		yesde = bridge->of_yesde;
 	} else if (output->panel) {
-		node = output->panel->dev->of_node;
+		yesde = output->panel->dev->of_yesde;
 	}
 
-	return node ? of_alias_get_id(node, "display") : -ENODEV;
+	return yesde ? of_alias_get_id(yesde, "display") : -ENODEV;
 }
 
 static int omap_modeset_init(struct drm_device *dev)
@@ -251,7 +251,7 @@ static int omap_modeset_init(struct drm_device *dev)
 	 * and primary plane per each connected dss-device. Each
 	 * connector->encoder->crtc chain is expected to be separate
 	 * and each crtc is connect to a single dss-channel. If the
-	 * configuration does not match the expectations or exceeds
+	 * configuration does yest match the expectations or exceeds
 	 * the available resources, the configuration is rejected.
 	 */
 	ret = omap_connect_pipelines(dev);
@@ -363,14 +363,14 @@ static int omap_modeset_init(struct drm_device *dev)
 	/*
 	 * Note: these values are used for multiple independent things:
 	 * connector mode filtering, buffer sizes, crtc sizes...
-	 * Use big enough values here to cover all use cases, and do more
+	 * Use big eyesugh values here to cover all use cases, and do more
 	 * specific checking in the respective code paths.
 	 */
 	dev->mode_config.max_width = 8192;
 	dev->mode_config.max_height = 8192;
 
-	/* We want the zpos to be normalized */
-	dev->mode_config.normalize_zpos = true;
+	/* We want the zpos to be yesrmalized */
+	dev->mode_config.yesrmalize_zpos = true;
 
 	dev->mode_config.funcs = &omap_mode_config_funcs;
 	dev->mode_config.helper_private = &omap_mode_config_helper_funcs;
@@ -428,7 +428,7 @@ static int ioctl_get_param(struct drm_device *dev, void *data,
 		args->value = priv->omaprev;
 		break;
 	default:
-		DBG("unknown parameter %lld", args->param);
+		DBG("unkyeswn parameter %lld", args->param);
 		return -EINVAL;
 	}
 
@@ -479,10 +479,10 @@ static const struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = 
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_NEW, ioctl_gem_new,
 			  DRM_RENDER_ALLOW),
 	/* Deprecated, to be removed. */
-	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_PREP, drm_noop,
+	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_PREP, drm_yesop,
 			  DRM_RENDER_ALLOW),
 	/* Deprecated, to be removed. */
-	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_FINI, drm_noop,
+	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_FINI, drm_yesop,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_INFO, ioctl_gem_info,
 			  DRM_RENDER_ALLOW),
@@ -516,7 +516,7 @@ static const struct file_operations omapdriver_fops = {
 	.mmap = omap_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static struct drm_driver omap_drm_driver = {
@@ -542,7 +542,7 @@ static struct drm_driver omap_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.miyesr = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
@@ -601,7 +601,7 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 	/* Initialize vblank handling, start with all CRTCs disabled. */
 	ret = drm_vblank_init(ddev, priv->num_pipes);
 	if (ret) {
-		dev_err(priv->dev, "could not init vblank\n");
+		dev_err(priv->dev, "could yest init vblank\n");
 		goto err_cleanup_modeset;
 	}
 

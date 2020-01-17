@@ -184,7 +184,7 @@ static void iguanair_irq_out(struct urb *urb)
 	if (urb->status)
 		dev_dbg(ir->dev, "Error: out urb status = %d\n", urb->status);
 
-	/* if we sent an nop packet, do not expect a response */
+	/* if we sent an yesp packet, do yest expect a response */
 	if (urb->status == 0 && ir->packet->header.cmd == CMD_NOP)
 		complete(&ir->completion);
 }
@@ -212,7 +212,7 @@ static int iguanair_get_features(struct iguanair *ir)
 
 	/*
 	 * On cold boot, the iguanair initializes on the first packet
-	 * received but does not process that packet. Send an empty
+	 * received but does yest process that packet. Send an empty
 	 * packet.
 	 */
 	ir->packet->header.start = 0;

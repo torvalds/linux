@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -269,7 +269,7 @@ static int map_frag_to_bd(struct qede_tx_queue *txq,
 {
 	dma_addr_t mapping;
 
-	/* Map skb non-linear frag data for DMA */
+	/* Map skb yesn-linear frag data for DMA */
 	mapping = skb_frag_dma_map(txq->dev, frag, 0,
 				   skb_frag_size(frag), DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(txq->dev, mapping)))
@@ -320,7 +320,7 @@ static inline void qede_update_tx_producer(struct qede_tx_queue *txq)
 	barrier();
 	writel(txq->tx_db.raw, txq->doorbell_addr);
 
-	/* Fence required to flush the write combined buffer, since another
+	/* Fence required to flush the write combined buffer, since ayesther
 	 * CPU may write to the same doorbell address and data may be lost
 	 * due to relaxed order nature of write combined bar.
 	 */
@@ -352,7 +352,7 @@ static int qede_xdp_xmit(struct qede_dev *edev, struct qede_fastpath *fp,
 	first_bd->data.bitfields |= cpu_to_le16(val);
 	first_bd->data.nbds = 1;
 
-	/* We can safely ignore the offset, as it's 0 for XDP */
+	/* We can safely igyesre the offset, as it's 0 for XDP */
 	BD_SET_UNMAP_ADDR_LEN(first_bd, metadata->mapping + padding, length);
 
 	/* Synchronize the buffer back to device, as program [probably]
@@ -600,7 +600,7 @@ static void qede_get_rxhash(struct sk_buff *skb, u8 bitfields, __le32 rss_hash)
 
 static void qede_set_skb_csum(struct sk_buff *skb, u8 csum_flag)
 {
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 
 	if (csum_flag & QEDE_CSUM_UNNECESSARY)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -822,7 +822,7 @@ static void qede_tpa_start(struct qede_dev *edev,
 	if (unlikely(!tpa_info->skb)) {
 		DP_NOTICE(edev, "Failed to allocate SKB for gro\n");
 
-		/* Consume from ring but do not produce since
+		/* Consume from ring but do yest produce since
 		 * this might be used by FW still, it will be re-used
 		 * at TPA end.
 		 */
@@ -895,8 +895,8 @@ static void qede_gro_receive(struct qede_dev *edev,
 {
 	/* FW can send a single MTU sized packet from gro flow
 	 * due to aggregation timeout/last segment etc. which
-	 * is not expected to be a gro packet. If a skb has zero
-	 * frags then simply push it in the stack as non gso skb.
+	 * is yest expected to be a gro packet. If a skb has zero
+	 * frags then simply push it in the stack as yesn gso skb.
 	 */
 	if (unlikely(!skb->data_len)) {
 		skb_shinfo(skb)->gso_type = 0;
@@ -917,7 +917,7 @@ static void qede_gro_receive(struct qede_dev *edev,
 			break;
 		default:
 			DP_ERR(edev,
-			       "Error: FW GRO supports only IPv4/IPv6, not 0x%04x\n",
+			       "Error: FW GRO supports only IPv4/IPv6, yest 0x%04x\n",
 			       ntohs(skb->protocol));
 		}
 	}
@@ -1006,7 +1006,7 @@ err:
 	return 0;
 }
 
-static u8 qede_check_notunn_csum(u16 flag)
+static u8 qede_check_yestunn_csum(u16 flag)
 {
 	u16 csum_flag = 0;
 	u8 csum = 0;
@@ -1030,7 +1030,7 @@ static u8 qede_check_notunn_csum(u16 flag)
 static u8 qede_check_csum(u16 flag)
 {
 	if (!qede_tunn_exist(flag))
-		return qede_check_notunn_csum(flag);
+		return qede_check_yestunn_csum(flag);
 	else
 		return qede_check_tunn_csum(flag);
 }
@@ -1082,8 +1082,8 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 	if (act == XDP_PASS)
 		return true;
 
-	/* Count number of packets not to be passed to stack */
-	rxq->xdp_no_pass++;
+	/* Count number of packets yest to be passed to stack */
+	rxq->xdp_yes_pass++;
 
 	switch (act) {
 	case XDP_TX:
@@ -1340,10 +1340,10 @@ static bool qede_poll_is_more_work(struct qede_fastpath *fp)
 	 * status block indices have been actually read (qed_sb_update_sb_idx)
 	 * prior to this check (*_has_*_work) so that we won't write the
 	 * "newer" value of the status block to HW (if there was a DMA right
-	 * after qede_has_rx_work and if there is no rmb, the memory reading
+	 * after qede_has_rx_work and if there is yes rmb, the memory reading
 	 * (qed_sb_update_sb_idx) may be postponed to right before *_ack_sb).
-	 * In this case there will never be another interrupt until there is
-	 * another update of the status block, while there is still unhandled
+	 * In this case there will never be ayesther interrupt until there is
+	 * ayesther update of the status block, while there is still unhandled
 	 * work.
 	 */
 	rmb();
@@ -1419,7 +1419,7 @@ irqreturn_t qede_msix_fp_int(int irq, void *fp_cookie)
 {
 	struct qede_fastpath *fp = fp_cookie;
 
-	qed_sb_ack(fp->sb_info, IGU_INT_DISABLE, 0 /*do not update*/);
+	qed_sb_ack(fp->sb_info, IGU_INT_DISABLE, 0 /*do yest update*/);
 
 	napi_schedule_irqoff(&fp->napi);
 	return IRQ_HANDLED;
@@ -1565,7 +1565,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			hlen = qede_get_skb_hlen(skb, false);
 		}
 
-		/* @@@TBD - if will not be removed need to check */
+		/* @@@TBD - if will yest be removed need to check */
 		third_bd->data.bitfields |=
 			cpu_to_le16(1 << ETH_TX_DATA_3RD_BD_HDR_NBD_SHIFT);
 
@@ -1586,7 +1586,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 					      le16_to_cpu(first_bd->nbytes) -
 					      hlen);
 
-			/* this marks the BD as one that has no
+			/* this marks the BD as one that has yes
 			 * individual mapping
 			 */
 			txq->sw_tx_ring.skbs[idx].flags |= QEDE_TSO_SPLIT_BD;
@@ -1721,7 +1721,7 @@ netdev_features_t qede_features_check(struct sk_buff *skb,
 
 		/* Disable offloads for geneve tunnels, as HW can't parse
 		 * the geneve header which has option length greater than 32b
-		 * and disable offloads for the ports which are not offloaded.
+		 * and disable offloads for the ports which are yest offloaded.
 		 */
 		if (l4_proto == IPPROTO_UDP) {
 			struct qede_dev *edev = netdev_priv(dev);

@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _DMX_QBUF:
 
@@ -21,7 +21,7 @@ DMX_QBUF - DMX_DQBUF - Exchange a buffer with the driver
 .. warning:: this API is still experimental
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, DMX_QBUF, struct dmx_buffer *argp )
@@ -55,7 +55,7 @@ one. The contents of the struct :c:type:`dmx_buffer` returned
 by a :ref:`DMX_QUERYBUF` ioctl will do as well.
 
 When ``DMX_QBUF`` is called with a pointer to this structure, it locks the
-memory pages of the buffer in physical memory, so they cannot be swapped
+memory pages of the buffer in physical memory, so they canyest be swapped
 out to disk. Buffers remain locked until dequeued, until the
 the device is closed.
 
@@ -65,10 +65,10 @@ They just set the ``index`` field with the buffer ID to be queued.
 When ``DMX_DQBUF`` is called with a pointer to struct :c:type:`dmx_buffer`,
 the driver fills the remaining fields or returns an error code.
 
-By default ``DMX_DQBUF`` blocks when no buffer is in the outgoing
+By default ``DMX_DQBUF`` blocks when yes buffer is in the outgoing
 queue. When the ``O_NONBLOCK`` flag was given to the
 :ref:`open() <dmx_fopen>` function, ``DMX_DQBUF`` returns
-immediately with an ``EAGAIN`` error code when no buffer is available.
+immediately with an ``EAGAIN`` error code when yes buffer is available.
 
 The struct :c:type:`dmx_buffer` structure is specified in
 :ref:`buffer`.
@@ -77,16 +77,16 @@ The struct :c:type:`dmx_buffer` structure is specified in
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EAGAIN
-    Non-blocking I/O has been selected using ``O_NONBLOCK`` and no
+    Non-blocking I/O has been selected using ``O_NONBLOCK`` and yes
     buffer was in the outgoing queue.
 
 EINVAL
-    The ``index`` is out of bounds, or no buffers have been allocated yet.
+    The ``index`` is out of bounds, or yes buffers have been allocated yet.
 
 EIO
     ``DMX_DQBUF`` failed due to an internal error. Can also indicate

@@ -4,11 +4,11 @@
  * Copyright (C) 2019 Sunil Mohan Adapa <sunil@medhas.org>
  */
 
-#include "sun50i-a64-olinuxino.dts"
+#include "sun50i-a64-olinuxiyes.dts"
 
 / {
-	model = "Olimex A64-Olinuxino-eMMC";
-	compatible = "olimex,a64-olinuxino-emmc", "allwinner,sun50i-a64";
+	model = "Olimex A64-Olinuxiyes-eMMC";
+	compatible = "olimex,a64-olinuxiyes-emmc", "allwinner,sun50i-a64";
 };
 
 &mmc2 {
@@ -17,7 +17,7 @@
 	vmmc-supply = <&reg_dcdc1>;
 	vqmmc-supply = <&reg_dcdc1>;
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 	cap-mmc-hw-reset;
 	status = "okay";
 };

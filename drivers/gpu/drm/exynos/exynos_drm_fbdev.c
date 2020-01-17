@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* exynos_drm_fbdev.c
+/* exyyess_drm_fbdev.c
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  * Authors:
@@ -16,29 +16,29 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/exynos_drm.h>
+#include <drm/exyyess_drm.h>
 
-#include "exynos_drm_drv.h"
-#include "exynos_drm_fb.h"
-#include "exynos_drm_fbdev.h"
+#include "exyyess_drm_drv.h"
+#include "exyyess_drm_fb.h"
+#include "exyyess_drm_fbdev.h"
 
 #define MAX_CONNECTOR		4
 #define PREFERRED_BPP		32
 
-#define to_exynos_fbdev(x)	container_of(x, struct exynos_drm_fbdev,\
+#define to_exyyess_fbdev(x)	container_of(x, struct exyyess_drm_fbdev,\
 				drm_fb_helper)
 
-struct exynos_drm_fbdev {
+struct exyyess_drm_fbdev {
 	struct drm_fb_helper	drm_fb_helper;
-	struct exynos_drm_gem	*exynos_gem;
+	struct exyyess_drm_gem	*exyyess_gem;
 };
 
-static int exynos_drm_fb_mmap(struct fb_info *info,
+static int exyyess_drm_fb_mmap(struct fb_info *info,
 			struct vm_area_struct *vma)
 {
 	struct drm_fb_helper *helper = info->par;
-	struct exynos_drm_fbdev *exynos_fbd = to_exynos_fbdev(helper);
-	struct exynos_drm_gem *exynos_gem = exynos_fbd->exynos_gem;
+	struct exyyess_drm_fbdev *exyyess_fbd = to_exyyess_fbdev(helper);
+	struct exyyess_drm_gem *exyyess_gem = exyyess_fbd->exyyess_gem;
 	unsigned long vm_size;
 	int ret;
 
@@ -46,12 +46,12 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 
 	vm_size = vma->vm_end - vma->vm_start;
 
-	if (vm_size > exynos_gem->size)
+	if (vm_size > exyyess_gem->size)
 		return -EINVAL;
 
-	ret = dma_mmap_attrs(to_dma_dev(helper->dev), vma, exynos_gem->cookie,
-			     exynos_gem->dma_addr, exynos_gem->size,
-			     exynos_gem->dma_attrs);
+	ret = dma_mmap_attrs(to_dma_dev(helper->dev), vma, exyyess_gem->cookie,
+			     exyyess_gem->dma_addr, exyyess_gem->size,
+			     exyyess_gem->dma_attrs);
 	if (ret < 0) {
 		DRM_DEV_ERROR(to_dma_dev(helper->dev), "failed to mmap.\n");
 		return ret;
@@ -60,18 +60,18 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 	return 0;
 }
 
-static struct fb_ops exynos_drm_fb_ops = {
+static struct fb_ops exyyess_drm_fb_ops = {
 	.owner		= THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
-	.fb_mmap        = exynos_drm_fb_mmap,
+	.fb_mmap        = exyyess_drm_fb_mmap,
 	.fb_fillrect	= drm_fb_helper_cfb_fillrect,
 	.fb_copyarea	= drm_fb_helper_cfb_copyarea,
 	.fb_imageblit	= drm_fb_helper_cfb_imageblit,
 };
 
-static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
+static int exyyess_drm_fbdev_update(struct drm_fb_helper *helper,
 				   struct drm_fb_helper_surface_size *sizes,
-				   struct exynos_drm_gem *exynos_gem)
+				   struct exyyess_drm_gem *exyyess_gem)
 {
 	struct fb_info *fbi;
 	struct drm_framebuffer *fb = helper->fb;
@@ -86,15 +86,15 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 		return PTR_ERR(fbi);
 	}
 
-	fbi->fbops = &exynos_drm_fb_ops;
+	fbi->fbops = &exyyess_drm_fb_ops;
 
 	drm_fb_helper_fill_info(fbi, helper, sizes);
 
-	nr_pages = exynos_gem->size >> PAGE_SHIFT;
+	nr_pages = exyyess_gem->size >> PAGE_SHIFT;
 
-	exynos_gem->kvaddr = (void __iomem *) vmap(exynos_gem->pages, nr_pages,
+	exyyess_gem->kvaddr = (void __iomem *) vmap(exyyess_gem->pages, nr_pages,
 				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
-	if (!exynos_gem->kvaddr) {
+	if (!exyyess_gem->kvaddr) {
 		DRM_DEV_ERROR(to_dma_dev(helper->dev),
 			      "failed to map pages to kernel space.\n");
 		return -EIO;
@@ -103,18 +103,18 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	offset = fbi->var.xoffset * fb->format->cpp[0];
 	offset += fbi->var.yoffset * fb->pitches[0];
 
-	fbi->screen_base = exynos_gem->kvaddr + offset;
+	fbi->screen_base = exyyess_gem->kvaddr + offset;
 	fbi->screen_size = size;
 	fbi->fix.smem_len = size;
 
 	return 0;
 }
 
-static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
+static int exyyess_drm_fbdev_create(struct drm_fb_helper *helper,
 				    struct drm_fb_helper_surface_size *sizes)
 {
-	struct exynos_drm_fbdev *exynos_fbdev = to_exynos_fbdev(helper);
-	struct exynos_drm_gem *exynos_gem;
+	struct exyyess_drm_fbdev *exyyess_fbdev = to_exyyess_fbdev(helper);
+	struct exyyess_drm_gem *exyyess_gem;
 	struct drm_device *dev = helper->dev;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 	unsigned long size;
@@ -133,32 +133,32 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 
-	exynos_gem = exynos_drm_gem_create(dev, EXYNOS_BO_CONTIG, size);
+	exyyess_gem = exyyess_drm_gem_create(dev, EXYNOS_BO_CONTIG, size);
 	/*
 	 * If physically contiguous memory allocation fails and if IOMMU is
-	 * supported then try to get buffer from non physically contiguous
+	 * supported then try to get buffer from yesn physically contiguous
 	 * memory area.
 	 */
-	if (IS_ERR(exynos_gem) && is_drm_iommu_supported(dev)) {
-		dev_warn(dev->dev, "contiguous FB allocation failed, falling back to non-contiguous\n");
-		exynos_gem = exynos_drm_gem_create(dev, EXYNOS_BO_NONCONTIG,
+	if (IS_ERR(exyyess_gem) && is_drm_iommu_supported(dev)) {
+		dev_warn(dev->dev, "contiguous FB allocation failed, falling back to yesn-contiguous\n");
+		exyyess_gem = exyyess_drm_gem_create(dev, EXYNOS_BO_NONCONTIG,
 						   size);
 	}
 
-	if (IS_ERR(exynos_gem))
-		return PTR_ERR(exynos_gem);
+	if (IS_ERR(exyyess_gem))
+		return PTR_ERR(exyyess_gem);
 
-	exynos_fbdev->exynos_gem = exynos_gem;
+	exyyess_fbdev->exyyess_gem = exyyess_gem;
 
 	helper->fb =
-		exynos_drm_framebuffer_init(dev, &mode_cmd, &exynos_gem, 1);
+		exyyess_drm_framebuffer_init(dev, &mode_cmd, &exyyess_gem, 1);
 	if (IS_ERR(helper->fb)) {
 		DRM_DEV_ERROR(dev->dev, "failed to create drm framebuffer.\n");
 		ret = PTR_ERR(helper->fb);
 		goto err_destroy_gem;
 	}
 
-	ret = exynos_drm_fbdev_update(helper, sizes, exynos_gem);
+	ret = exyyess_drm_fbdev_update(helper, sizes, exyyess_gem);
 	if (ret < 0)
 		goto err_destroy_framebuffer;
 
@@ -167,7 +167,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 err_destroy_framebuffer:
 	drm_framebuffer_cleanup(helper->fb);
 err_destroy_gem:
-	exynos_drm_gem_destroy(exynos_gem);
+	exyyess_drm_gem_destroy(exyyess_gem);
 
 	/*
 	 * if failed, all resources allocated above would be released by
@@ -178,14 +178,14 @@ err_destroy_gem:
 	return ret;
 }
 
-static const struct drm_fb_helper_funcs exynos_drm_fb_helper_funcs = {
-	.fb_probe =	exynos_drm_fbdev_create,
+static const struct drm_fb_helper_funcs exyyess_drm_fb_helper_funcs = {
+	.fb_probe =	exyyess_drm_fbdev_create,
 };
 
-int exynos_drm_fbdev_init(struct drm_device *dev)
+int exyyess_drm_fbdev_init(struct drm_device *dev)
 {
-	struct exynos_drm_fbdev *fbdev;
-	struct exynos_drm_private *private = dev->dev_private;
+	struct exyyess_drm_fbdev *fbdev;
+	struct exyyess_drm_private *private = dev->dev_private;
 	struct drm_fb_helper *helper;
 	int ret;
 
@@ -198,7 +198,7 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 
 	private->fb_helper = helper = &fbdev->drm_fb_helper;
 
-	drm_fb_helper_prepare(dev, helper, &exynos_drm_fb_helper_funcs);
+	drm_fb_helper_prepare(dev, helper, &exyyess_drm_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, helper, MAX_CONNECTOR);
 	if (ret < 0) {
@@ -234,14 +234,14 @@ err_init:
 	return ret;
 }
 
-static void exynos_drm_fbdev_destroy(struct drm_device *dev,
+static void exyyess_drm_fbdev_destroy(struct drm_device *dev,
 				      struct drm_fb_helper *fb_helper)
 {
-	struct exynos_drm_fbdev *exynos_fbd = to_exynos_fbdev(fb_helper);
-	struct exynos_drm_gem *exynos_gem = exynos_fbd->exynos_gem;
+	struct exyyess_drm_fbdev *exyyess_fbd = to_exyyess_fbdev(fb_helper);
+	struct exyyess_drm_gem *exyyess_gem = exyyess_fbd->exyyess_gem;
 	struct drm_framebuffer *fb;
 
-	vunmap(exynos_gem->kvaddr);
+	vunmap(exyyess_gem->kvaddr);
 
 	/* release drm framebuffer and real buffer */
 	if (fb_helper->fb && fb_helper->fb->funcs) {
@@ -255,17 +255,17 @@ static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 	drm_fb_helper_fini(fb_helper);
 }
 
-void exynos_drm_fbdev_fini(struct drm_device *dev)
+void exyyess_drm_fbdev_fini(struct drm_device *dev)
 {
-	struct exynos_drm_private *private = dev->dev_private;
-	struct exynos_drm_fbdev *fbdev;
+	struct exyyess_drm_private *private = dev->dev_private;
+	struct exyyess_drm_fbdev *fbdev;
 
 	if (!private || !private->fb_helper)
 		return;
 
-	fbdev = to_exynos_fbdev(private->fb_helper);
+	fbdev = to_exyyess_fbdev(private->fb_helper);
 
-	exynos_drm_fbdev_destroy(dev, private->fb_helper);
+	exyyess_drm_fbdev_destroy(dev, private->fb_helper);
 	kfree(fbdev);
 	private->fb_helper = NULL;
 }

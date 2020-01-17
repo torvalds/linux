@@ -29,7 +29,7 @@ int __init read_initrd(void)
 
 	/*
 	 * This is necessary because alloc_bootmem craps out if you
-	 * ask for no memory.
+	 * ask for yes memory.
 	 */
 	if (size == 0) {
 		printk(KERN_ERR "\"%s\" is a zero-size initrd\n", initrd);

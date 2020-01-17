@@ -2,7 +2,7 @@
 /*
  * Intel ACPI functions
  *
- * _DSM related code stolen from nouveau_acpi.c.
+ * _DSM related code stolen from yesuveau_acpi.c.
  */
 
 #include <linux/pci.h>
@@ -58,7 +58,7 @@ static char *intel_dsm_mux_type(u8 type)
 {
 	switch (type) {
 	case 0:
-		return "unknown";
+		return "unkyeswn";
 	case 1:
 		return "No MUX, iGPU only";
 	case 2:
@@ -115,7 +115,7 @@ static acpi_handle intel_dsm_pci_probe(struct pci_dev *pdev)
 
 	if (!acpi_check_dsm(dhandle, &intel_dsm_guid, INTEL_DSM_REVISION_ID,
 			    1 << INTEL_DSM_FN_PLATFORM_MUX_INFO)) {
-		DRM_DEBUG_KMS("no _DSM method for intel device\n");
+		DRM_DEBUG_KMS("yes _DSM method for intel device\n");
 		return NULL;
 	}
 

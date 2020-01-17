@@ -92,7 +92,7 @@ static void opal_event_unmask(struct irq_data *d)
 static int opal_event_set_type(struct irq_data *d, unsigned int flow_type)
 {
 	/*
-	 * For now we only support level triggered events. The irq
+	 * For yesw we only support level triggered events. The irq
 	 * handler will be called continuously until the event has
 	 * been cleared in OPAL.
 	 */
@@ -134,13 +134,13 @@ static irqreturn_t opal_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int opal_event_match(struct irq_domain *h, struct device_node *node,
+static int opal_event_match(struct irq_domain *h, struct device_yesde *yesde,
 			    enum irq_domain_bus_token bus_token)
 {
-	return irq_domain_get_of_node(h) == node;
+	return irq_domain_get_of_yesde(h) == yesde;
 }
 
-static int opal_event_xlate(struct irq_domain *h, struct device_node *np,
+static int opal_event_xlate(struct irq_domain *h, struct device_yesde *np,
 			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
@@ -166,7 +166,7 @@ void opal_event_shutdown(void)
 			continue;
 
 		if (in_interrupt() || irqs_disabled())
-			disable_irq_nosync(opal_irqs[i].start);
+			disable_irq_yessync(opal_irqs[i].start);
 		else
 			free_irq(opal_irqs[i].start, NULL);
 
@@ -176,27 +176,27 @@ void opal_event_shutdown(void)
 
 int __init opal_event_init(void)
 {
-	struct device_node *dn, *opal_node;
+	struct device_yesde *dn, *opal_yesde;
 	bool old_style = false;
 	int i, rc = 0;
 
-	opal_node = of_find_node_by_path("/ibm,opal");
-	if (!opal_node) {
-		pr_warn("opal: Node not found\n");
+	opal_yesde = of_find_yesde_by_path("/ibm,opal");
+	if (!opal_yesde) {
+		pr_warn("opal: Node yest found\n");
 		return -ENODEV;
 	}
 
 	/* If dn is NULL it means the domain won't be linked to a DT
-	 * node so therefore irq_of_parse_and_map(...) wont work. But
+	 * yesde so therefore irq_of_parse_and_map(...) wont work. But
 	 * that shouldn't be problem because if we're running a
 	 * version of skiboot that doesn't have the dn then the
 	 * devices won't have the correct properties and will have to
 	 * fall back to the legacy method (opal_event_request(...))
 	 * anyway. */
-	dn = of_find_compatible_node(NULL, NULL, "ibm,opal-event");
+	dn = of_find_compatible_yesde(NULL, NULL, "ibm,opal-event");
 	opal_event_irqchip.domain = irq_domain_add_linear(dn, MAX_NUM_EVENTS,
 				&opal_event_domain_ops, &opal_event_irqchip);
-	of_node_put(dn);
+	of_yesde_put(dn);
 	if (!opal_event_irqchip.domain) {
 		pr_warn("opal: Unable to create irq domain\n");
 		rc = -ENOMEM;
@@ -204,12 +204,12 @@ int __init opal_event_init(void)
 	}
 
 	/* Look for new-style (standard) "interrupts" property */
-	opal_irq_count = of_irq_count(opal_node);
+	opal_irq_count = of_irq_count(opal_yesde);
 
 	/* Absent ? Look for the old one */
 	if (opal_irq_count < 1) {
 		/* Get opal-interrupts property and names if present */
-		rc = of_property_count_u32_elems(opal_node, "opal-interrupts");
+		rc = of_property_count_u32_elems(opal_yesde, "opal-interrupts");
 		if (rc > 0)
 			opal_irq_count = rc;
 		old_style = true;
@@ -238,13 +238,13 @@ int __init opal_event_init(void)
 			u32 hw_irq;
 			int virq;
 
-			rc = of_property_read_u32_index(opal_node, "opal-interrupts",
+			rc = of_property_read_u32_index(opal_yesde, "opal-interrupts",
 							i, &hw_irq);
 			if (WARN_ON(rc < 0)) {
 				opal_irq_count = i;
 				break;
 			}
-			of_property_read_string_index(opal_node, "opal-interrupts-names",
+			of_property_read_string_index(opal_yesde, "opal-interrupts-names",
 						      i, &name);
 			virq = irq_create_mapping(NULL, hw_irq);
 			if (!virq) {
@@ -257,7 +257,7 @@ int __init opal_event_init(void)
 		}
 	} else {
 		/* new style standard "interrupts" property */
-		rc = of_irq_to_resource_table(opal_node, opal_irqs, opal_irq_count);
+		rc = of_irq_to_resource_table(opal_yesde, opal_irqs, opal_irq_count);
 		if (WARN_ON(rc < 0)) {
 			opal_irq_count = 0;
 			kfree(opal_irqs);
@@ -288,7 +288,7 @@ int __init opal_event_init(void)
 	}
 	rc = 0;
  out:
-	of_node_put(opal_node);
+	of_yesde_put(opal_yesde);
 	return rc;
 }
 machine_arch_initcall(powernv, opal_event_init);

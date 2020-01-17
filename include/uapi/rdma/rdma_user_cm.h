@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2005-2006 Intel Corporation.  All rights reserved.
  *
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -157,7 +157,7 @@ struct rdma_ucm_query {
 };
 
 struct rdma_ucm_query_route_resp {
-	__aligned_u64 node_guid;
+	__aligned_u64 yesde_guid;
 	struct ib_user_path_rec ib_route[2];
 	struct sockaddr_in6 src_addr;
 	struct sockaddr_in6 dst_addr;
@@ -167,7 +167,7 @@ struct rdma_ucm_query_route_resp {
 };
 
 struct rdma_ucm_query_addr_resp {
-	__aligned_u64 node_guid;
+	__aligned_u64 yesde_guid;
 	__u8  port_num;
 	__u8  reserved;
 	__u16 pkey;
@@ -241,7 +241,7 @@ struct rdma_ucm_init_qp_attr {
 	__u32 qp_state;
 };
 
-struct rdma_ucm_notify {
+struct rdma_ucm_yestify {
 	__u32 id;
 	__u32 event;
 };
@@ -279,7 +279,7 @@ struct rdma_ucm_event_resp {
 	__u32 event;
 	__u32 status;
 	/*
-	 * NOTE: This union is not aligned to 8 bytes so none of the union
+	 * NOTE: This union is yest aligned to 8 bytes so yesne of the union
 	 * members may contain a u64 or anything with higher alignment than 4.
 	 */
 	union {

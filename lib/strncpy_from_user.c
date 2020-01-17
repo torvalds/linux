@@ -5,7 +5,7 @@
 #include <linux/thread_info.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 
 #include <asm/byteorder.h>
@@ -92,7 +92,7 @@ efault:
  *
  * Copies a NUL-terminated string from userspace to kernel space.
  *
- * On success, returns the length of the string (not including the trailing
+ * On success, returns the length of the string (yest including the trailing
  * NUL).
  *
  * If access to userspace fails, returns -EFAULT (some data may have been

@@ -24,7 +24,7 @@ are as follows:
 	HDIO_OBSOLETE_IDENTITY	OBSOLETE, DO NOT USE
 	HDIO_GET_KEEPSETTINGS	get keep-settings-on-reset flag
 	HDIO_GET_32BIT		get current io_32bit setting
-	HDIO_GET_NOWERR		get ignore-write-error flag
+	HDIO_GET_NOWERR		get igyesre-write-error flag
 	HDIO_GET_DMA		get use-dma flag
 	HDIO_GET_NICE		get nice flags
 	HDIO_GET_IDENTITY	get IDE identification info
@@ -40,14 +40,14 @@ are as follows:
 	HDIO_DRIVE_CMD_AEB	HDIO_DRIVE_TASK
 	=======================	=======================================
 
-    ioctls that pass non-pointer values:
+    ioctls that pass yesn-pointer values:
 
 	=======================	=======================================
 	HDIO_SET_MULTCOUNT	change IDE blockmode
 	HDIO_SET_UNMASKINTR	permit other irqs during I/O
 	HDIO_SET_KEEPSETTINGS	keep ioctl settings on reset
 	HDIO_SET_32BIT		change io_32bit flags
-	HDIO_SET_NOWERR		change ignore-write-error flag
+	HDIO_SET_NOWERR		change igyesre-write-error flag
 	HDIO_SET_DMA		change use-dma flag
 	HDIO_SET_PIO_MODE	reconfig interface to new speed
 	HDIO_SCAN_HWIF		register and (re)scan interface
@@ -60,7 +60,7 @@ are as follows:
 	HDIO_SET_ADDRESS	change lba addressing modes
 
 	HDIO_SET_IDE_SCSI	Set scsi emulation mode on/off
-	HDIO_SET_SCSI_IDE	not implemented yet
+	HDIO_SET_SCSI_IDE	yest implemented yet
 	=======================	=======================================
 
 
@@ -72,10 +72,10 @@ code.  It is likely that some corrections will be made over time.
 General:
 
 	Unless otherwise specified, all ioctl calls return 0 on success
-	and -1 with errno set to an appropriate value on error.
+	and -1 with erryes set to an appropriate value on error.
 
 	Unless otherwise specified, all ioctl calls return -1 and set
-	errno to EFAULT on a failed attempt to copy data to or from user
+	erryes to EFAULT on a failed attempt to copy data to or from user
 	address space.
 
 	Unless otherwise specified, all data structures and constants
@@ -95,7 +95,7 @@ HDIO_GETGEO
 
 
 	inputs:
-		none
+		yesne
 
 
 
@@ -114,14 +114,14 @@ HDIO_GETGEO
 	error returns:
 	  - EINVAL
 
-			if the device is not a disk drive or floppy drive,
+			if the device is yest a disk drive or floppy drive,
 			or if the user passes a null pointer
 
 
-	notes:
+	yestes:
 		Not particularly useful with modern disk drives, whose geometry
 		is a polite fiction anyway.  Modern drives are addressed
-		purely by sector number nowadays (lba addressing), and the
+		purely by sector number yeswadays (lba addressing), and the
 		drive geometry is an abstraction which is actually subject
 		to change.  Currently (as of Nov 2004), the geometry values
 		are the "bios" values -- presumably the values the drive had
@@ -129,10 +129,10 @@ HDIO_GETGEO
 
 		In addition, the cylinders field of the hd_geometry is an
 		unsigned short, meaning that on most architectures, this
-		ioctl will not return a meaningful value on drives with more
+		ioctl will yest return a meaningful value on drives with more
 		than 65535 tracks.
 
-		The start field is unsigned long, meaning that it will not
+		The start field is unsigned long, meaning that it will yest
 		contain a meaningful value for disks over 219 Gb in size.
 
 
@@ -149,7 +149,7 @@ HDIO_GET_UNMASKINTR
 	  ioctl(fd, HDIO_GET_UNMASKINTR, &val);
 
 	inputs:
-		none
+		yesne
 
 
 
@@ -176,12 +176,12 @@ HDIO_SET_UNMASKINTR
 
 
 	outputs:
-		none
+		yesne
 
 
 
 	error return:
-	  - EINVAL	(bdev != bdev->bd_contains) (not sure what this means)
+	  - EINVAL	(bdev != bdev->bd_contains) (yest sure what this means)
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
 	  - EINVAL	value out of range [0 1]
 	  - EBUSY	Controller busy
@@ -200,7 +200,7 @@ HDIO_GET_MULTCOUNT
 	  ioctl(fd, HDIO_GET_MULTCOUNT, &val);
 
 	inputs:
-		none
+		yesne
 
 
 
@@ -226,21 +226,21 @@ HDIO_SET_MULTCOUNT
 		sectors the drive will transfer per interrupt.
 
 	outputs:
-		none
+		yesne
 
 
 
 	error return:
-	  - EINVAL	(bdev != bdev->bd_contains) (not sure what this means)
+	  - EINVAL	(bdev != bdev->bd_contains) (yest sure what this means)
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
 	  - EINVAL	value out of range supported by disk.
 	  - EBUSY	Controller busy or blockmode already set.
-	  - EIO		Drive did not accept new block mode.
+	  - EIO		Drive did yest accept new block mode.
 
-	notes:
+	yestes:
 	  Source code comments read::
 
-	    This is tightly woven into the driver->do_special cannot
+	    This is tightly woven into the driver->do_special canyest
 	    touch.  DON'T do it again until a total personality rewrite
 	    is committed.
 
@@ -285,7 +285,7 @@ HDIO_GET_IDENTITY
 	  ioctl(fd, HDIO_GET_IDENTITY, identity);
 
 	inputs:
-		none
+		yesne
 
 
 
@@ -295,13 +295,13 @@ HDIO_GET_IDENTITY
 		the ATA specification.
 
 	error returns:
-	  - EINVAL	(bdev != bdev->bd_contains) (not sure what this means)
-	  - ENOMSG	IDENTIFY DEVICE information not available
+	  - EINVAL	(bdev != bdev->bd_contains) (yest sure what this means)
+	  - ENOMSG	IDENTIFY DEVICE information yest available
 
-	notes:
+	yestes:
 		Returns information that was obtained when the drive was
 		probed.  Some of this information is subject to change, and
-		this ioctl does not re-probe the drive to update the
+		this ioctl does yest re-probe the drive to update the
 		information.
 
 		This information is also available from /proc/ide/hdX/identify
@@ -319,7 +319,7 @@ HDIO_GET_KEEPSETTINGS
 	  ioctl(fd, HDIO_GET_KEEPSETTINGS, &val);
 
 	inputs:
-		none
+		yesne
 
 
 
@@ -328,7 +328,7 @@ HDIO_GET_KEEPSETTINGS
 
 
 
-	notes:
+	yestes:
 		When set, indicates that kernel should restore settings
 		after a drive reset.
 
@@ -350,12 +350,12 @@ HDIO_SET_KEEPSETTINGS
 
 
 	outputs:
-		none
+		yesne
 
 
 
 	error return:
-	  - EINVAL	(bdev != bdev->bd_contains) (not sure what this means)
+	  - EINVAL	(bdev != bdev->bd_contains) (yest sure what this means)
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
 	  - EINVAL	value out of range [0 1]
 	  - EBUSY		Controller busy
@@ -373,7 +373,7 @@ HDIO_GET_32BIT
 	  ioctl(fd, HDIO_GET_32BIT, &val);
 
 	inputs:
-		none
+		yesne
 
 
 
@@ -382,7 +382,7 @@ HDIO_GET_32BIT
 
 
 
-	notes:
+	yestes:
 		0=16-bit, 1=32-bit, 2,3 = 32bit+sync
 
 
@@ -390,7 +390,7 @@ HDIO_GET_32BIT
 
 
 HDIO_GET_NOWERR
-	get ignore-write-error flag
+	get igyesre-write-error flag
 
 
 	usage::
@@ -400,12 +400,12 @@ HDIO_GET_NOWERR
 	  ioctl(fd, HDIO_GET_NOWERR, &val);
 
 	inputs:
-		none
+		yesne
 
 
 
 	outputs:
-		The value of the current ignore-write-error flag
+		The value of the current igyesre-write-error flag
 
 
 
@@ -422,7 +422,7 @@ HDIO_GET_DMA
 	  ioctl(fd, HDIO_GET_DMA, &val);
 
 	inputs:
-		none
+		yesne
 
 
 
@@ -444,7 +444,7 @@ HDIO_GET_NICE
 	  ioctl(fd, HDIO_GET_NICE, &nice);
 
 	inputs:
-		none
+		yesne
 
 
 
@@ -453,7 +453,7 @@ HDIO_GET_NICE
 
 
 
-	notes:
+	yestes:
 		Per-drive flags which determine when the system will give more
 		bandwidth to other devices sharing the same IDE bus.
 
@@ -479,16 +479,16 @@ HDIO_SET_NICE
 
 
 	outputs:
-		none
+		yesne
 
 
 
 	error returns:
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
 	  - EPERM	Flags other than DSC_OVERLAP and NICE_1 set.
-	  - EPERM	DSC_OVERLAP specified but not supported by drive
+	  - EPERM	DSC_OVERLAP specified but yest supported by drive
 
-	notes:
+	yestes:
 		This ioctl sets the DSC_OVERLAP and NICE_1 flags from values
 		provided by the user.
 
@@ -510,7 +510,7 @@ HDIO_GET_WCACHE
 	  ioctl(fd, HDIO_GET_WCACHE, &val);
 
 	inputs:
-		none
+		yesne
 
 
 
@@ -532,7 +532,7 @@ HDIO_GET_ACOUSTIC
 	  ioctl(fd, HDIO_GET_ACOUSTIC, &val);
 
 	inputs:
-		none
+		yesne
 
 
 
@@ -541,7 +541,7 @@ HDIO_GET_ACOUSTIC
 
 
 
-	notes:
+	yestes:
 		See HDIO_SET_ACOUSTIC
 
 
@@ -557,7 +557,7 @@ HDIO_GET_ADDRESS
 	  ioctl(fd, HDIO_GET_ADDRESS, &val);
 
 	inputs:
-		none
+		yesne
 
 
 
@@ -584,7 +584,7 @@ HDIO_GET_BUSSTATE
 	  ioctl(fd, HDIO_SCAN_HWIF, &state);
 
 	inputs:
-		none
+		yesne
 
 
 
@@ -614,13 +614,13 @@ HDIO_SET_BUSSTATE
 		or BUSSTATE_TRISTATE
 
 	outputs:
-		none
+		yesne
 
 
 
 	error returns:
 	  - EACCES	Access denied:  requires CAP_SYS_RAWIO
-	  - EOPNOTSUPP	Hardware interface does not support bus power control
+	  - EOPNOTSUPP	Hardware interface does yest support bus power control
 
 
 
@@ -645,12 +645,12 @@ HDIO_DRIVE_RESET
 	  ioctl(fd, HDIO_DRIVE_RESET, args);
 
 	inputs:
-		none
+		yesne
 
 
 
 	outputs:
-		none
+		yesne
 
 
 
@@ -659,7 +659,7 @@ HDIO_DRIVE_RESET
 	  - ENXIO	No such device:	phy dead or ctl_addr == 0
 	  - EIO		I/O error:	reset timed out or hardware error
 
-	notes:
+	yestes:
 
 	  - Execute a reset on the device as soon as the current IO
 	    operation has completed.
@@ -675,7 +675,7 @@ HDIO_DRIVE_TASKFILE
 
 	Note:
 		If you don't have a copy of the ANSI ATA specification
-		handy, you should probably ignore this ioctl.
+		handy, you should probably igyesre this ioctl.
 
 	- Execute an ATA disk command directly by writing the "taskfile"
 	  registers of the drive.  Requires ADMIN and RAWIO access
@@ -724,17 +724,17 @@ HDIO_DRIVE_TASKFILE
 	  ===========	====================================================
 
 	error returns:
-	  - EACCES	CAP_SYS_ADMIN or CAP_SYS_RAWIO privilege not set.
-	  - ENOMSG	Device is not a disk drive.
+	  - EACCES	CAP_SYS_ADMIN or CAP_SYS_RAWIO privilege yest set.
+	  - ENOMSG	Device is yest a disk drive.
 	  - ENOMEM	Unable to allocate memory for task
-	  - EFAULT	req_cmd == TASKFILE_IN_OUT (not implemented as of 2.6.8)
+	  - EFAULT	req_cmd == TASKFILE_IN_OUT (yest implemented as of 2.6.8)
 	  - EPERM
 
 			req_cmd == TASKFILE_MULTI_OUT and drive
-			multi-count not yet set.
+			multi-count yest yet set.
 	  - EIO		Drive failed the command.
 
-	notes:
+	yestes:
 
 	  [1] READ THE FOLLOWING NOTES *CAREFULLY*.  THIS IOCTL IS
 	  FULL OF GOTCHAS.  Extreme caution should be used with using
@@ -742,7 +742,7 @@ HDIO_DRIVE_TASKFILE
 	  system.
 
 	  [2] Both the input and output buffers are copied from the
-	  user and written back to the user, even when not used.
+	  user and written back to the user, even when yest used.
 
 	  [3] If one or more bits are set in out_flags and in_flags is
 	  zero, the following values are used for in_flags.all and
@@ -755,8 +755,8 @@ HDIO_DRIVE_TASKFILE
 
 	  The association between in_flags.all and each enable
 	  bitfield flips depending on endianness; fortunately, TASKFILE
-	  only uses inflags.b.data bit and ignores all other bits.
-	  The end result is that, on any endian machines, it has no
+	  only uses inflags.b.data bit and igyesres all other bits.
+	  The end result is that, on any endian machines, it has yes
 	  effect other than modifying in_flags on completion.
 
 	  [4] The default value of SELECT is (0xa0|DEV_bit|LBA_bit)
@@ -866,9 +866,9 @@ HDIO_DRIVE_TASKFILE
 	    TASKFILE_MULTI_OUT
 	    TASKFILE_IN_OUT
 	    TASKFILE_IN_DMA
-	    TASKFILE_IN_DMAQ		== IN_DMA (queueing not supported)
+	    TASKFILE_IN_DMAQ		== IN_DMA (queueing yest supported)
 	    TASKFILE_OUT_DMA
-	    TASKFILE_OUT_DMAQ		== OUT_DMA (queueing not supported)
+	    TASKFILE_OUT_DMAQ		== OUT_DMA (queueing yest supported)
 	    TASKFILE_P_IN		unimplemented
 	    TASKFILE_P_IN_DMA		unimplemented
 	    TASKFILE_P_IN_DMAQ		unimplemented
@@ -888,10 +888,10 @@ HDIO_DRIVE_TASKFILE
 	    IDE_DRIVE_TASK_RAW_WRITE
 	    ========================    =======================================
 
-	  [6] Do not access {in|out}_flags->all except for resetting
+	  [6] Do yest access {in|out}_flags->all except for resetting
 	  all the bits.  Always access individual bit fields.  ->all
 	  value will flip depending on endianness.  For the same
-	  reason, do not use IDE_{TASKFILE|HOB}_STD_{OUT|IN}_FLAGS
+	  reason, do yest use IDE_{TASKFILE|HOB}_STD_{OUT|IN}_FLAGS
 	  constants defined in hdreg.h.
 
 
@@ -901,7 +901,7 @@ HDIO_DRIVE_CMD
 
 
 	Note:  If you don't have a copy of the ANSI ATA specification
-	handy, you should probably ignore this ioctl.
+	handy, you should probably igyesre this ioctl.
 
 	usage::
 
@@ -948,14 +948,14 @@ HDIO_DRIVE_CMD
 	  - ENOMEM	Unable to allocate memory for task
 	  - EIO		Drive reports error
 
-	notes:
+	yestes:
 
 	  [1] For commands other than WIN_SMART, args[1] should equal
 	  args[3].  SECTOR, LCYL and HCYL are undefined.  For
 	  WIN_SMART, 0x4f and 0xc2 are loaded into LCYL and HCYL
 	  respectively.  In both cases SELECT will contain the default
 	  value for the drive.  Please refer to HDIO_DRIVE_TASKFILE
-	  notes for the default value of SELECT.
+	  yestes for the default value of SELECT.
 
 	  [2] If NSECTOR value is greater than zero and the drive sets
 	  DRQ when interrupting for the command, NSECTOR * 512 bytes
@@ -976,7 +976,7 @@ HDIO_DRIVE_TASK
 
 
 	Note:  If you don't have a copy of the ANSI ATA specification
-	handy, you should probably ignore this ioctl.
+	handy, you should probably igyesre this ioctl.
 
 	usage::
 
@@ -1015,12 +1015,12 @@ HDIO_DRIVE_TASK
 	error returns:
 	  - EACCES	Access denied:  requires CAP_SYS_RAWIO
 	  - ENOMEM	Unable to allocate memory for task
-	  - ENOMSG	Device is not a disk drive.
+	  - ENOMSG	Device is yest a disk drive.
 	  - EIO		Drive failed the command.
 
-	notes:
+	yestes:
 
-	  [1] DEV bit (0x10) of SELECT register is ignored and the
+	  [1] DEV bit (0x10) of SELECT register is igyesred and the
 	  appropriate value for the drive is used.  All other bits
 	  are used unaltered.
 
@@ -1050,12 +1050,12 @@ HDIO_SET_32BIT
 
 
 	outputs:
-		none
+		yesne
 
 
 
 	error return:
-	  - EINVAL	(bdev != bdev->bd_contains) (not sure what this means)
+	  - EINVAL	(bdev != bdev->bd_contains) (yest sure what this means)
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
 	  - EINVAL	value out of range [0 3]
 	  - EBUSY	Controller busy
@@ -1064,7 +1064,7 @@ HDIO_SET_32BIT
 
 
 HDIO_SET_NOWERR
-	change ignore-write-error flag
+	change igyesre-write-error flag
 
 
 	usage::
@@ -1074,18 +1074,18 @@ HDIO_SET_NOWERR
 	  ioctl(fd, HDIO_SET_NOWERR, val);
 
 	inputs:
-		New value for ignore-write-error flag.  Used for ignoring
+		New value for igyesre-write-error flag.  Used for igyesring
 
 
 	  WRERR_STAT
 
 	outputs:
-		none
+		yesne
 
 
 
 	error return:
-	  - EINVAL	(bdev != bdev->bd_contains) (not sure what this means)
+	  - EINVAL	(bdev != bdev->bd_contains) (yest sure what this means)
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
 	  - EINVAL	value out of range [0 1]
 	  - EBUSY		Controller busy
@@ -1108,12 +1108,12 @@ HDIO_SET_DMA
 
 
 	outputs:
-		none
+		yesne
 
 
 
 	error return:
-	  - EINVAL	(bdev != bdev->bd_contains) (not sure what this means)
+	  - EINVAL	(bdev != bdev->bd_contains) (yest sure what this means)
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
 	  - EINVAL	value out of range [0 1]
 	  - EBUSY	Controller busy
@@ -1136,12 +1136,12 @@ HDIO_SET_PIO_MODE
 
 
 	outputs:
-		none
+		yesne
 
 
 
 	error return:
-	  - EINVAL	(bdev != bdev->bd_contains) (not sure what this means)
+	  - EINVAL	(bdev != bdev->bd_contains) (yest sure what this means)
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
 	  - EINVAL	value out of range [0 255]
 	  - EBUSY	Controller busy
@@ -1170,7 +1170,7 @@ HDIO_SCAN_HWIF
 	  =======	=========================
 
 	outputs:
-		none
+		yesne
 
 
 
@@ -1178,7 +1178,7 @@ HDIO_SCAN_HWIF
 	  - EACCES	Access denied:  requires CAP_SYS_RAWIO
 	  - EIO		Probe failed.
 
-	notes:
+	yestes:
 		This ioctl initializes the addresses and irq for a disk
 		controller, probes for drives, and creates /proc/ide
 		interfaces as appropriate.
@@ -1201,14 +1201,14 @@ HDIO_UNREGISTER_HWIF
 
 
 	outputs:
-		none
+		yesne
 
 
 
 	error returns:
 	  - EACCES	Access denied:  requires CAP_SYS_RAWIO
 
-	notes:
+	yestes:
 		This ioctl removes a hardware interface from the kernel.
 
 		Currently (2.6.8) this ioctl silently fails if any drive on
@@ -1232,12 +1232,12 @@ HDIO_SET_WCACHE
 
 
 	outputs:
-		none
+		yesne
 
 
 
 	error return:
-	  - EINVAL	(bdev != bdev->bd_contains) (not sure what this means)
+	  - EINVAL	(bdev != bdev->bd_contains) (yest sure what this means)
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
 	  - EINVAL	value out of range [0 1]
 	  - EBUSY	Controller busy
@@ -1260,12 +1260,12 @@ HDIO_SET_ACOUSTIC
 
 
 	outputs:
-		none
+		yesne
 
 
 
 	error return:
-	  - EINVAL	(bdev != bdev->bd_contains) (not sure what this means)
+	  - EINVAL	(bdev != bdev->bd_contains) (yest sure what this means)
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
 	  - EINVAL	value out of range [0 254]
 	  - EBUSY	Controller busy
@@ -1300,16 +1300,16 @@ HDIO_SET_ADDRESS
 	    =   ===================
 
 	outputs:
-		none
+		yesne
 
 
 
 	error return:
-	  - EINVAL	(bdev != bdev->bd_contains) (not sure what this means)
+	  - EINVAL	(bdev != bdev->bd_contains) (yest sure what this means)
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
 	  - EINVAL	value out of range [0 2]
 	  - EBUSY		Controller busy
-	  - EIO		Drive does not support lba48 mode.
+	  - EIO		Drive does yest support lba48 mode.
 
 
 HDIO_SET_IDE_SCSI
@@ -1326,12 +1326,12 @@ HDIO_SET_IDE_SCSI
 
 
 	outputs:
-		none
+		yesne
 
 
 
 	error return:
-	  - EINVAL	(bdev != bdev->bd_contains) (not sure what this means)
+	  - EINVAL	(bdev != bdev->bd_contains) (yest sure what this means)
 	  - EACCES	Access denied:  requires CAP_SYS_ADMIN
 	  - EINVAL	value out of range [0 1]
 	  - EBUSY	Controller busy

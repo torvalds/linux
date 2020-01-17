@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -24,7 +24,7 @@
 
 /* Linux-specific socket ioctls */
 #define SIOCINQ		FIONREAD
-#define SIOCOUTQ	TIOCOUTQ        /* output queue size (not sent + not acked) */
+#define SIOCOUTQ	TIOCOUTQ        /* output queue size (yest sent + yest acked) */
 
 #define SOCK_IOC_TYPE	0x89
 
@@ -107,7 +107,7 @@
 
 #define SIOCWANDEV	0x894A		/* get/set netdev parameters	*/
 
-#define SIOCOUTQNSD	0x894B		/* output queue size (not sent only) */
+#define SIOCOUTQNSD	0x894B		/* output queue size (yest sent only) */
 #define SIOCGSKNS	0x894C		/* get socket network namespace */
 
 /* ARP cache control calls. */

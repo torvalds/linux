@@ -29,11 +29,11 @@ ENTRY(__cpuc_flush_kern_all)
 ENTRY(__cpuc_flush_user_all)
 	mov	r0, #0
 	movc	p0.c5, r0, #14			@ Dcache flush all
-	nop8
+	yesp8
 
 	mov	r0, #0
 	movc	p0.c5, r0, #20			@ Icache invalidate all
-	nop8
+	yesp8
 
 	mov	pc, lr
 
@@ -42,8 +42,8 @@ ENTRY(__cpuc_flush_user_all)
  *
  *	Flush a range of TLB entries in the specified address space.
  *
- *	- start - start address (may not be aligned)
- *	- end   - end address (exclusive, may not be aligned)
+ *	- start - start address (may yest be aligned)
+ *	- end   - end address (exclusive, may yest be aligned)
  *	- flags	- vm_area_struct flags describing address space
  */
 ENTRY(__cpuc_flush_user_range)
@@ -68,11 +68,11 @@ ENTRY(__cpuc_flush_user_range)
 #endif
 2:	mov	ip, #0
 	movc	p0.c5, ip, #14			@ Dcache flush all
-	nop8
+	yesp8
 
 3:	mov	ip, #0
 	movc	p0.c5, ip, #20			@ Icache invalidate all
-	nop8
+	yesp8
 
 	mov	pc, lr
 
@@ -108,7 +108,7 @@ ENTRY(__cpuc_coherent_user_range)
 	beq	101b
 
 103:	movc	p0.c5, r10, #11			@ Dcache clean line of R10
-	nop8
+	yesp8
 
 	add	r0, r0, #CACHE_LINESIZE
 	add	r10, r10, #CACHE_LINESIZE
@@ -118,11 +118,11 @@ ENTRY(__cpuc_coherent_user_range)
 #endif
 2:	mov	ip, #0
 	movc	p0.c5, ip, #10			@ Dcache clean all
-	nop8
+	yesp8
 
 3:	mov	ip, #0
 	movc	p0.c5, ip, #20			@ Icache invalidate all
-	nop8
+	yesp8
 
 	mov	pc, lr
 
@@ -135,7 +135,7 @@ ENTRY(__cpuc_coherent_user_range)
 ENTRY(__cpuc_flush_kern_dcache_area)
 	mov	ip, #0
 	movc	p0.c5, ip, #14			@ Dcache flush all
-	nop8
+	yesp8
 	mov	pc, lr
 
 /*
@@ -162,7 +162,7 @@ ENTRY(__cpuc_dma_clean_range)
 	beq	101b
 
 1:	movc	p0.c5, r10, #11			@ Dcache clean line of R10
-	nop8
+	yesp8
 	add	r0, r0, #CACHE_LINESIZE
 	add	r10, r10, #CACHE_LINESIZE
 	sub.a	r1, r1, #CACHE_LINESIZE
@@ -171,7 +171,7 @@ ENTRY(__cpuc_dma_clean_range)
 #endif
 2:	mov	ip, #0
 	movc	p0.c5, ip, #10			@ Dcache clean all
-	nop8
+	yesp8
 
 	mov	pc, lr
 
@@ -203,7 +203,7 @@ ENTRY(__cpuc_dma_flush_range)
 #endif
 2:	mov	ip, #0
 	movc	p0.c5, ip, #14			@ Dcache flush all
-	nop8
+	yesp8
 
 	mov	pc, lr
 

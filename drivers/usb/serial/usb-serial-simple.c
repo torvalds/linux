@@ -75,8 +75,8 @@ DEVICE(vivopay, VIVOPAY_IDS);
 
 /* Motorola USB Phone driver */
 #define MOTO_IDS()			\
-	{ USB_DEVICE(0x05c6, 0x3197) },	/* unknown Motorola phone */	\
-	{ USB_DEVICE(0x0c44, 0x0022) },	/* unknown Motorola phone */	\
+	{ USB_DEVICE(0x05c6, 0x3197) },	/* unkyeswn Motorola phone */	\
+	{ USB_DEVICE(0x0c44, 0x0022) },	/* unkyeswn Motorola phone */	\
 	{ USB_DEVICE(0x22b8, 0x2a64) },	/* Motorola KRZR K1m */		\
 	{ USB_DEVICE(0x22b8, 0x2c84) },	/* Motorola VE240 phone */	\
 	{ USB_DEVICE(0x22b8, 0x2c64) }	/* Motorola V950 phone */
@@ -92,7 +92,7 @@ DEVICE(motorola_tetra, MOTOROLA_TETRA_IDS);
 /* Novatel Wireless GPS driver */
 #define NOVATEL_IDS()			\
 	{ USB_DEVICE(0x09d7, 0x0100) }	/* NovAtel FlexPack GPS */
-DEVICE_N(novatel_gps, NOVATEL_IDS, 3);
+DEVICE_N(yesvatel_gps, NOVATEL_IDS, 3);
 
 /* HP4x (48/49) Generic Serial driver */
 #define HP4X_IDS()			\
@@ -121,7 +121,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&vivopay_device,
 	&moto_modem_device,
 	&motorola_tetra_device,
-	&novatel_gps_device,
+	&yesvatel_gps_device,
 	&hp4x_device,
 	&suunto_device,
 	&siemens_mpi_device,

@@ -1,7 +1,7 @@
 /*
  * adv7343 - ADV7343 Video Encoder Driver
  *
- * The encoder hardware does not support SECAM.
+ * The encoder hardware does yest support SECAM.
  *
  * Copyright (C) 2009 Texas Instruments Incorporated - http://www.ti.com/
  *
@@ -149,7 +149,7 @@ static int adv7343_setstd(struct v4l2_subdev *sd, v4l2_std_id std)
 
 	if (i == num_std) {
 		v4l2_dbg(1, debug, sd,
-				"Invalid std or std is not supported: %llx\n",
+				"Invalid std or std is yest supported: %llx\n",
 						(unsigned long long)std);
 		return -EINVAL;
 	}
@@ -210,7 +210,7 @@ static int adv7343_setoutput(struct v4l2_subdev *sd, u32 output_type)
 
 	if (output_type > ADV7343_SVIDEO_ID) {
 		v4l2_dbg(1, debug, sd,
-			"Invalid output type or output type not supported:%d\n",
+			"Invalid output type or output type yest supported:%d\n",
 								output_type);
 		return -EINVAL;
 	}
@@ -398,12 +398,12 @@ static struct adv7343_platform_data *
 adv7343_get_pdata(struct i2c_client *client)
 {
 	struct adv7343_platform_data *pdata;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_yesde)
 		return client->dev.platform_data;
 
-	np = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	np = of_graph_get_next_endpoint(client->dev.of_yesde, NULL);
 	if (!np)
 		return NULL;
 
@@ -424,7 +424,7 @@ adv7343_get_pdata(struct i2c_client *client)
 				   pdata->sd_config.sd_dac_out, 2);
 
 done:
-	of_node_put(np);
+	of_yesde_put(np);
 	return pdata;
 }
 

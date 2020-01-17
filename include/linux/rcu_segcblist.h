@@ -44,19 +44,19 @@ struct rcu_cblist {
  * [*tails[RCU_NEXT_READY_TAIL], *tails[RCU_NEXT_TAIL]):
  *	Callbacks that might have arrived after the next GP started.
  *	There is some uncertainty as to when a given GP starts and
- *	ends, but a CPU knows the exact times if it is the one starting
- *	or ending the GP.  Other CPUs know that the previous GP ends
+ *	ends, but a CPU kyesws the exact times if it is the one starting
+ *	or ending the GP.  Other CPUs kyesw that the previous GP ends
  *	before the next one starts.
  *
- * Note that RCU_WAIT_TAIL cannot be empty unless RCU_NEXT_READY_TAIL is also
+ * Note that RCU_WAIT_TAIL canyest be empty unless RCU_NEXT_READY_TAIL is also
  * empty.
  *
  * The ->gp_seq[] array contains the grace-period number at which the
  * corresponding segment of callbacks will be ready to invoke.  A given
  * element of this array is meaningful only when the corresponding segment
- * is non-empty, and it is never valid for RCU_DONE_TAIL (whose callbacks
+ * is yesn-empty, and it is never valid for RCU_DONE_TAIL (whose callbacks
  * are already ready to invoke) or for RCU_NEXT_TAIL (whose callbacks have
- * not yet been assigned a grace-period number).
+ * yest yet been assigned a grace-period number).
  */
 #define RCU_DONE_TAIL		0	/* Also RCU_WAIT head. */
 #define RCU_WAIT_TAIL		1	/* Also RCU_NEXT_READY head. */

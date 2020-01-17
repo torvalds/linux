@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -133,7 +133,7 @@ static ssize_t amdgpu_mem_info_vram_vendor(struct device *dev,
 	case MICRON:
 		return snprintf(buf, PAGE_SIZE, "micron\n");
 	default:
-		return snprintf(buf, PAGE_SIZE, "unknown\n");
+		return snprintf(buf, PAGE_SIZE, "unkyeswn\n");
 	}
 }
 
@@ -228,18 +228,18 @@ static int amdgpu_vram_mgr_fini(struct ttm_mem_type_manager *man)
 }
 
 /**
- * amdgpu_vram_mgr_vis_size - Calculate visible node size
+ * amdgpu_vram_mgr_vis_size - Calculate visible yesde size
  *
  * @adev: amdgpu device structure
- * @node: MM node structure
+ * @yesde: MM yesde structure
  *
- * Calculate how many bytes of the MM node are inside visible VRAM
+ * Calculate how many bytes of the MM yesde are inside visible VRAM
  */
 static u64 amdgpu_vram_mgr_vis_size(struct amdgpu_device *adev,
-				    struct drm_mm_node *node)
+				    struct drm_mm_yesde *yesde)
 {
-	uint64_t start = node->start << PAGE_SHIFT;
-	uint64_t end = (node->size + node->start) << PAGE_SHIFT;
+	uint64_t start = yesde->start << PAGE_SHIFT;
+	uint64_t end = (yesde->size + yesde->start) << PAGE_SHIFT;
 
 	if (start >= adev->gmc.visible_vram_size)
 		return 0;
@@ -260,7 +260,7 @@ u64 amdgpu_vram_mgr_bo_visible_size(struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct ttm_mem_reg *mem = &bo->tbo.mem;
-	struct drm_mm_node *nodes = mem->mm_node;
+	struct drm_mm_yesde *yesdes = mem->mm_yesde;
 	unsigned pages = mem->num_pages;
 	u64 usage;
 
@@ -270,8 +270,8 @@ u64 amdgpu_vram_mgr_bo_visible_size(struct amdgpu_bo *bo)
 	if (mem->start >= adev->gmc.visible_vram_size >> PAGE_SHIFT)
 		return 0;
 
-	for (usage = 0; nodes && pages; pages -= nodes->size, nodes++)
-		usage += amdgpu_vram_mgr_vis_size(adev, nodes);
+	for (usage = 0; yesdes && pages; pages -= yesdes->size, yesdes++)
+		usage += amdgpu_vram_mgr_vis_size(adev, yesdes);
 
 	return usage;
 }
@@ -280,17 +280,17 @@ u64 amdgpu_vram_mgr_bo_visible_size(struct amdgpu_bo *bo)
  * amdgpu_vram_mgr_virt_start - update virtual start address
  *
  * @mem: ttm_mem_reg to update
- * @node: just allocated node
+ * @yesde: just allocated yesde
  *
  * Calculate a virtual BO start address to easily check if everything is CPU
  * accessible.
  */
 static void amdgpu_vram_mgr_virt_start(struct ttm_mem_reg *mem,
-				       struct drm_mm_node *node)
+				       struct drm_mm_yesde *yesde)
 {
 	unsigned long start;
 
-	start = node->start + node->size;
+	start = yesde->start + yesde->size;
 	if (start > mem->num_pages)
 		start -= mem->num_pages;
 	else
@@ -316,9 +316,9 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
 	struct amdgpu_vram_mgr *mgr = man->priv;
 	struct drm_mm *mm = &mgr->mm;
-	struct drm_mm_node *nodes;
+	struct drm_mm_yesde *yesdes;
 	enum drm_mm_insert_mode mode;
-	unsigned long lpfn, num_nodes, pages_per_node, pages_left;
+	unsigned long lpfn, num_yesdes, pages_per_yesde, pages_left;
 	uint64_t vis_usage = 0, mem_bytes, max_bytes;
 	unsigned i;
 	int r;
@@ -331,31 +331,31 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	if (tbo->type != ttm_bo_type_kernel)
 		max_bytes -= AMDGPU_VM_RESERVED_VRAM;
 
-	/* bail out quickly if there's likely not enough VRAM for this BO */
+	/* bail out quickly if there's likely yest eyesugh VRAM for this BO */
 	mem_bytes = (u64)mem->num_pages << PAGE_SHIFT;
 	if (atomic64_add_return(mem_bytes, &mgr->usage) > max_bytes) {
 		atomic64_sub(mem_bytes, &mgr->usage);
-		mem->mm_node = NULL;
+		mem->mm_yesde = NULL;
 		return 0;
 	}
 
 	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
-		pages_per_node = ~0ul;
-		num_nodes = 1;
+		pages_per_yesde = ~0ul;
+		num_yesdes = 1;
 	} else {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-		pages_per_node = HPAGE_PMD_NR;
+		pages_per_yesde = HPAGE_PMD_NR;
 #else
 		/* default to 2MB */
-		pages_per_node = (2UL << (20UL - PAGE_SHIFT));
+		pages_per_yesde = (2UL << (20UL - PAGE_SHIFT));
 #endif
-		pages_per_node = max((uint32_t)pages_per_node, mem->page_alignment);
-		num_nodes = DIV_ROUND_UP(mem->num_pages, pages_per_node);
+		pages_per_yesde = max((uint32_t)pages_per_yesde, mem->page_alignment);
+		num_yesdes = DIV_ROUND_UP(mem->num_pages, pages_per_yesde);
 	}
 
-	nodes = kvmalloc_array((uint32_t)num_nodes, sizeof(*nodes),
+	yesdes = kvmalloc_array((uint32_t)num_yesdes, sizeof(*yesdes),
 			       GFP_KERNEL | __GFP_ZERO);
-	if (!nodes) {
+	if (!yesdes) {
 		atomic64_sub(mem_bytes, &mgr->usage);
 		return -ENOMEM;
 	}
@@ -368,54 +368,54 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	pages_left = mem->num_pages;
 
 	spin_lock(&mgr->lock);
-	for (i = 0; pages_left >= pages_per_node; ++i) {
+	for (i = 0; pages_left >= pages_per_yesde; ++i) {
 		unsigned long pages = rounddown_pow_of_two(pages_left);
 
-		r = drm_mm_insert_node_in_range(mm, &nodes[i], pages,
-						pages_per_node, 0,
+		r = drm_mm_insert_yesde_in_range(mm, &yesdes[i], pages,
+						pages_per_yesde, 0,
 						place->fpfn, lpfn,
 						mode);
 		if (unlikely(r))
 			break;
 
-		vis_usage += amdgpu_vram_mgr_vis_size(adev, &nodes[i]);
-		amdgpu_vram_mgr_virt_start(mem, &nodes[i]);
+		vis_usage += amdgpu_vram_mgr_vis_size(adev, &yesdes[i]);
+		amdgpu_vram_mgr_virt_start(mem, &yesdes[i]);
 		pages_left -= pages;
 	}
 
 	for (; pages_left; ++i) {
-		unsigned long pages = min(pages_left, pages_per_node);
+		unsigned long pages = min(pages_left, pages_per_yesde);
 		uint32_t alignment = mem->page_alignment;
 
-		if (pages == pages_per_node)
-			alignment = pages_per_node;
+		if (pages == pages_per_yesde)
+			alignment = pages_per_yesde;
 
-		r = drm_mm_insert_node_in_range(mm, &nodes[i],
+		r = drm_mm_insert_yesde_in_range(mm, &yesdes[i],
 						pages, alignment, 0,
 						place->fpfn, lpfn,
 						mode);
 		if (unlikely(r))
 			goto error;
 
-		vis_usage += amdgpu_vram_mgr_vis_size(adev, &nodes[i]);
-		amdgpu_vram_mgr_virt_start(mem, &nodes[i]);
+		vis_usage += amdgpu_vram_mgr_vis_size(adev, &yesdes[i]);
+		amdgpu_vram_mgr_virt_start(mem, &yesdes[i]);
 		pages_left -= pages;
 	}
 	spin_unlock(&mgr->lock);
 
 	atomic64_add(vis_usage, &mgr->vis_usage);
 
-	mem->mm_node = nodes;
+	mem->mm_yesde = yesdes;
 
 	return 0;
 
 error:
 	while (i--)
-		drm_mm_remove_node(&nodes[i]);
+		drm_mm_remove_yesde(&yesdes[i]);
 	spin_unlock(&mgr->lock);
 	atomic64_sub(mem->num_pages << PAGE_SHIFT, &mgr->usage);
 
-	kvfree(nodes);
+	kvfree(yesdes);
 	return r == -ENOSPC ? 0 : r;
 }
 
@@ -434,28 +434,28 @@ static void amdgpu_vram_mgr_del(struct ttm_mem_type_manager *man,
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
 	struct amdgpu_vram_mgr *mgr = man->priv;
-	struct drm_mm_node *nodes = mem->mm_node;
+	struct drm_mm_yesde *yesdes = mem->mm_yesde;
 	uint64_t usage = 0, vis_usage = 0;
 	unsigned pages = mem->num_pages;
 
-	if (!mem->mm_node)
+	if (!mem->mm_yesde)
 		return;
 
 	spin_lock(&mgr->lock);
 	while (pages) {
-		pages -= nodes->size;
-		drm_mm_remove_node(nodes);
-		usage += nodes->size << PAGE_SHIFT;
-		vis_usage += amdgpu_vram_mgr_vis_size(adev, nodes);
-		++nodes;
+		pages -= yesdes->size;
+		drm_mm_remove_yesde(yesdes);
+		usage += yesdes->size << PAGE_SHIFT;
+		vis_usage += amdgpu_vram_mgr_vis_size(adev, yesdes);
+		++yesdes;
 	}
 	spin_unlock(&mgr->lock);
 
 	atomic64_sub(usage, &mgr->usage);
 	atomic64_sub(vis_usage, &mgr->vis_usage);
 
-	kvfree(mem->mm_node);
-	mem->mm_node = NULL;
+	kvfree(mem->mm_yesde);
+	mem->mm_yesde = NULL;
 }
 
 /**
@@ -511,7 +511,7 @@ static void amdgpu_vram_mgr_debug(struct ttm_mem_type_manager *man,
 const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func = {
 	.init		= amdgpu_vram_mgr_init,
 	.takedown	= amdgpu_vram_mgr_fini,
-	.get_node	= amdgpu_vram_mgr_new,
-	.put_node	= amdgpu_vram_mgr_del,
+	.get_yesde	= amdgpu_vram_mgr_new,
+	.put_yesde	= amdgpu_vram_mgr_del,
 	.debug		= amdgpu_vram_mgr_debug
 };

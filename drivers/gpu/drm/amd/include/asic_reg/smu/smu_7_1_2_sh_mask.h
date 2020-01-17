@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -460,8 +460,8 @@
 #define SMC_SYSCON_CLOCK_CNTL_1__auto_ck_disable__SHIFT 0x0
 #define SMC_SYSCON_CLOCK_CNTL_2__wake_on_irq_MASK 0xffffffff
 #define SMC_SYSCON_CLOCK_CNTL_2__wake_on_irq__SHIFT 0x0
-#define SMC_SYSCON_MISC_CNTL__dma_no_outstanding_MASK 0x2
-#define SMC_SYSCON_MISC_CNTL__dma_no_outstanding__SHIFT 0x1
+#define SMC_SYSCON_MISC_CNTL__dma_yes_outstanding_MASK 0x2
+#define SMC_SYSCON_MISC_CNTL__dma_yes_outstanding__SHIFT 0x1
 #define SMC_SYSCON_MSG_ARG_0__smc_msg_arg_MASK 0xffffffff
 #define SMC_SYSCON_MSG_ARG_0__smc_msg_arg__SHIFT 0x0
 #define SMC_PC_C__smc_pc_c_MASK 0xffffffff

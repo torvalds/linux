@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /// If list_for_each_entry, etc complete a traversal of the list, the iterator
 /// variable ends up pointing to an address at an offset from the list head,
-/// and not a meaningful structure.  Thus this value should not be used after
+/// and yest a meaningful structure.  Thus this value should yest be used after
 /// the end of the iterator.
 //#False positives arise when there is a goto in the iterator and the
 //#reported reference is at the label of this goto.  Some flag tests
@@ -12,7 +12,7 @@
 // Copyright: (C) 2012 Gilles Muller, INRIA/LIP6.
 // URL: http://coccinelle.lip6.fr/
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --yes-includes --include-headers
 
 virtual context
 virtual org

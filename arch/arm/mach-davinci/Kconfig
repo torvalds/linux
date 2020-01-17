@@ -151,7 +151,7 @@ config DA830_UI_LCD
 config DA830_UI_NAND
 	bool "NAND flash"
 	help
-	  Say Y here to use the NAND flash. Do not forget to setup
+	  Say Y here to use the NAND flash. Do yest forget to setup
 	  the switch correctly.
 endchoice
 
@@ -174,7 +174,7 @@ choice
 config DA850_UI_NONE
 	bool "No peripheral is enabled"
 	help
-	  Say Y if you do not want to enable any of the peripherals connected
+	  Say Y if you do yest want to enable any of the peripherals connected
 	  to TCA6416 expander on DA850/OMAP-L138/AM18x EVM UI card
 
 config DA850_UI_RMII
@@ -184,7 +184,7 @@ config DA850_UI_RMII
 	  EVM. This PHY is found on the UI daughter card that is supplied with
 	  the EVM.
 	  NOTE: Please take care while choosing this option, MII PHY will
-	  not be functional if RMII mode is selected.
+	  yest be functional if RMII mode is selected.
 
 config DA850_UI_SD_VIDEO_PORT
 	bool "Video Port Interface"
@@ -233,7 +233,7 @@ config DAVINCI_MUX_WARNINGS
 	depends on DAVINCI_MUX
 	help
 	  Choose Y here to warn whenever driver initialization logic needs
-	  to change the pin multiplexing setup. When there are no warnings
+	  to change the pin multiplexing setup. When there are yes warnings
 	  printed, it's safe to deselect DAVINCI_MUX for your product.
 
 endif

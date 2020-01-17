@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -49,7 +49,7 @@
 #define VMW_MIN_INITIAL_HEIGHT 600
 
 #ifndef VMWGFX_GIT_VERSION
-#define VMWGFX_GIT_VERSION "Unknown"
+#define VMWGFX_GIT_VERSION "Unkyeswn"
 #endif
 
 #define VMWGFX_REPO "In Tree"
@@ -259,7 +259,7 @@ static int vmw_restrict_dma_mask;
 static int vmw_assume_16bpp;
 
 static int vmw_probe(struct pci_dev *, const struct pci_device_id *);
-static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
+static int vmwgfx_pm_yestifier(struct yestifier_block *nb, unsigned long val,
 			      void *ptr);
 
 MODULE_PARM_DESC(enable_fbdev, "Enable vmwgfx fbdev");
@@ -447,15 +447,15 @@ static int vmw_request_device(struct vmw_private *dev_priv)
 
 	ret = vmw_request_device_late(dev_priv);
 	if (ret)
-		goto out_no_mob;
+		goto out_yes_mob;
 
 	ret = vmw_dummy_query_bo_create(dev_priv);
 	if (unlikely(ret != 0))
-		goto out_no_query_bo;
+		goto out_yes_query_bo;
 
 	return 0;
 
-out_no_query_bo:
+out_yes_query_bo:
 	if (dev_priv->cman)
 		vmw_cmdbuf_remove_pool(dev_priv->cman);
 	if (dev_priv->has_mob) {
@@ -464,7 +464,7 @@ out_no_query_bo:
 	}
 	if (dev_priv->cman)
 		vmw_cmdbuf_man_destroy(dev_priv->cman);
-out_no_mob:
+out_yes_mob:
 	vmw_fence_fifo_down(dev_priv->fman);
 	vmw_fifo_release(dev_priv, &dev_priv->fifo);
 	return ret;
@@ -503,7 +503,7 @@ static void vmw_release_device_early(struct vmw_private *dev_priv)
  * @dev_priv: Pointer to device private struct.
  *
  * This is the last part of the command submission takedown, to be called when
- * command submission is no longer needed. It may wait on pending fences.
+ * command submission is yes longer needed. It may wait on pending fences.
  */
 static void vmw_release_device_late(struct vmw_private *dev_priv)
 {
@@ -557,7 +557,7 @@ static void vmw_get_initial_size(struct vmw_private *dev_priv)
  *
  * This functions tries to determine what actions need to be taken by the
  * driver to make system pages visible to the device.
- * If this function decides that DMA is not possible, it returns -EINVAL.
+ * If this function decides that DMA is yest possible, it returns -EINVAL.
  * The driver may then try to disable features of the device that require
  * DMA.
  */
@@ -626,7 +626,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv->dev = dev;
 	dev_priv->vmw_chipset = chipset;
-	dev_priv->last_read_seqno = (uint32_t) -100;
+	dev_priv->last_read_seqyes = (uint32_t) -100;
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	mutex_init(&dev_priv->release_mutex);
 	mutex_init(&dev_priv->binding_mutex);
@@ -781,7 +781,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	    !(dev_priv->capabilities & SVGA_CAP_PITCHLOCK) &&
 	    !vmw_fifo_have_pitchlock(dev_priv)) {
 		ret = -ENOSYS;
-		DRM_ERROR("Hardware has no pitchlock\n");
+		DRM_ERROR("Hardware has yes pitchlock\n");
 		goto out_err4;
 	}
 
@@ -804,11 +804,11 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		 */
 
 		DRM_INFO("It appears like vesafb is loaded. "
-			 "Ignore above error if any.\n");
+			 "Igyesre above error if any.\n");
 		ret = pci_request_region(dev->pdev, 2, "vmwgfx stealth probe");
 		if (unlikely(ret != 0)) {
 			DRM_ERROR("Failed reserving the SVGA MMIO resource.\n");
-			goto out_no_device;
+			goto out_yes_device;
 		}
 	}
 
@@ -816,14 +816,14 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		ret = vmw_irq_install(dev, dev->pdev->irq);
 		if (ret != 0) {
 			DRM_ERROR("Failed installing irq: %d\n", ret);
-			goto out_no_irq;
+			goto out_yes_irq;
 		}
 	}
 
 	dev_priv->fman = vmw_fence_manager_init(dev_priv);
 	if (unlikely(dev_priv->fman == NULL)) {
 		ret = -ENOMEM;
-		goto out_no_fman;
+		goto out_yes_fman;
 	}
 
 	drm_vma_offset_manager_init(&dev_priv->vma_manager,
@@ -831,12 +831,12 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 				    DRM_FILE_PAGE_OFFSET_SIZE);
 	ret = ttm_bo_device_init(&dev_priv->bdev,
 				 &vmw_bo_driver,
-				 dev->anon_inode->i_mapping,
+				 dev->ayesn_iyesde->i_mapping,
 				 &dev_priv->vma_manager,
 				 false);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed initializing TTM buffer object driver.\n");
-		goto out_no_bdev;
+		goto out_yes_bdev;
 	}
 
 	/*
@@ -847,7 +847,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 			     (dev_priv->vram_size >> PAGE_SHIFT));
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed initializing memory manager for VRAM.\n");
-		goto out_no_vram;
+		goto out_yes_vram;
 	}
 	dev_priv->bdev.man[TTM_PL_VRAM].use_type = false;
 
@@ -880,12 +880,12 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	vmw_validation_mem_init_ttm(dev_priv, VMWGFX_VALIDATION_MEM_GRAN);
 	ret = vmw_kms_init(dev_priv);
 	if (unlikely(ret != 0))
-		goto out_no_kms;
+		goto out_yes_kms;
 	vmw_overlay_init(dev_priv);
 
 	ret = vmw_request_device(dev_priv);
 	if (ret)
-		goto out_no_fifo;
+		goto out_yes_fifo;
 
 	if (dev_priv->has_dx) {
 		/*
@@ -900,10 +900,10 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		}
 	}
 
-	DRM_INFO("DX: %s\n", dev_priv->has_dx ? "yes." : "no.");
+	DRM_INFO("DX: %s\n", dev_priv->has_dx ? "no." : "yes.");
 	DRM_INFO("Atomic: %s\n", (dev->driver->driver_features & DRIVER_ATOMIC)
-		 ? "yes." : "no.");
-	DRM_INFO("SM4_1: %s\n", dev_priv->has_sm4_1 ? "yes." : "no.");
+		 ? "no." : "yes.");
+	DRM_INFO("SM4_1: %s\n", dev_priv->has_sm4_1 ? "no." : "yes.");
 
 	snprintf(host_log, sizeof(host_log), "vmwgfx: %s-%s",
 		VMWGFX_REPO, VMWGFX_GIT_VERSION);
@@ -921,33 +921,33 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		vmw_fb_init(dev_priv);
 	}
 
-	dev_priv->pm_nb.notifier_call = vmwgfx_pm_notifier;
-	register_pm_notifier(&dev_priv->pm_nb);
+	dev_priv->pm_nb.yestifier_call = vmwgfx_pm_yestifier;
+	register_pm_yestifier(&dev_priv->pm_nb);
 
 	return 0;
 
-out_no_fifo:
+out_yes_fifo:
 	vmw_overlay_close(dev_priv);
 	vmw_kms_close(dev_priv);
-out_no_kms:
+out_yes_kms:
 	if (dev_priv->has_mob)
 		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_MOB);
 	if (dev_priv->has_gmr)
 		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_GMR);
 	(void)ttm_bo_clean_mm(&dev_priv->bdev, TTM_PL_VRAM);
-out_no_vram:
+out_yes_vram:
 	(void)ttm_bo_device_release(&dev_priv->bdev);
-out_no_bdev:
+out_yes_bdev:
 	vmw_fence_manager_takedown(dev_priv->fman);
-out_no_fman:
+out_yes_fman:
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
 		vmw_irq_uninstall(dev_priv->dev);
-out_no_irq:
+out_yes_irq:
 	if (dev_priv->stealth)
 		pci_release_region(dev->pdev, 2);
 	else
 		pci_release_regions(dev->pdev);
-out_no_device:
+out_yes_device:
 	ttm_object_device_release(&dev_priv->tdev);
 out_err4:
 	memunmap(dev_priv->mmio_virt);
@@ -966,7 +966,7 @@ static void vmw_driver_unload(struct drm_device *dev)
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	enum vmw_res_type i;
 
-	unregister_pm_notifier(&dev_priv->pm_nb);
+	unregister_pm_yestifier(&dev_priv->pm_nb);
 
 	if (dev_priv->ctx.res_ht_initialized)
 		drm_ht_remove(&dev_priv->ctx.res_ht);
@@ -1031,13 +1031,13 @@ static int vmw_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 
 	vmw_fp->tfile = ttm_object_file_init(dev_priv->tdev, 10);
 	if (unlikely(vmw_fp->tfile == NULL))
-		goto out_no_tfile;
+		goto out_yes_tfile;
 
 	file_priv->driver_priv = vmw_fp;
 
 	return 0;
 
-out_no_tfile:
+out_yes_tfile:
 	kfree(vmw_fp);
 	return ret;
 }
@@ -1048,7 +1048,7 @@ static long vmw_generic_ioctl(struct file *filp, unsigned int cmd,
 						 unsigned long))
 {
 	struct drm_file *file_priv = filp->private_data;
-	struct drm_device *dev = file_priv->minor->dev;
+	struct drm_device *dev = file_priv->miyesr->dev;
 	unsigned int nr = DRM_IOCTL_NR(cmd);
 	unsigned int flags;
 
@@ -1127,7 +1127,7 @@ static void vmw_master_drop(struct drm_device *dev,
  * __vmw_svga_enable - Enable SVGA mode, FIFO and use of VRAM.
  *
  * @dev_priv: Pointer to device private struct.
- * Needs the reservation sem to be held in non-exclusive mode.
+ * Needs the reservation sem to be held in yesn-exclusive mode.
  */
 static void __vmw_svga_enable(struct vmw_private *dev_priv)
 {
@@ -1156,7 +1156,7 @@ void vmw_svga_enable(struct vmw_private *dev_priv)
  *
  * @dev_priv: Pointer to device private struct.
  * Needs the reservation sem to be held in exclusive mode.
- * Will not empty VRAM. VRAM must be emptied by caller.
+ * Will yest empty VRAM. VRAM must be emptied by caller.
  */
 static void __vmw_svga_disable(struct vmw_private *dev_priv)
 {
@@ -1181,7 +1181,7 @@ void vmw_svga_disable(struct vmw_private *dev_priv)
 {
 	/*
 	 * Disabling SVGA will turn off device modesetting capabilities, so
-	 * notify KMS about that so that it doesn't cache atomic state that
+	 * yestify KMS about that so that it doesn't cache atomic state that
 	 * isn't valid anymore, for example crtcs turned on.
 	 * Strictly we'd want to do this under the SVGA lock (or an SVGA mutex),
 	 * but vmw_kms_lost_device() takes the reservation sem and thus we'll
@@ -1215,7 +1215,7 @@ static void vmw_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
-static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
+static int vmwgfx_pm_yestifier(struct yestifier_block *nb, unsigned long val,
 			      void *ptr)
 {
 	struct vmw_private *dev_priv =
@@ -1225,7 +1225,7 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 	case PM_HIBERNATION_PREPARE:
 		/*
 		 * Take the reservation sem in write mode, which will make sure
-		 * there are no other processes holding a buffer object
+		 * there are yes other processes holding a buffer object
 		 * reservation, meaning we should be able to evict all buffer
 		 * objects if needed.
 		 * Once user-space processes have been frozen, we can release
@@ -1294,7 +1294,7 @@ static int vmw_pm_freeze(struct device *kdev)
 
 	/*
 	 * Unlock for vmw_kms_suspend.
-	 * No user-space processes should be running now.
+	 * No user-space processes should be running yesw.
 	 */
 	ttm_suspend_unlock(&dev_priv->reservation_sem);
 	ret = vmw_kms_suspend(dev_priv->dev);
@@ -1385,7 +1385,7 @@ static const struct file_operations vmwgfx_driver_fops = {
 #if defined(CONFIG_COMPAT)
 	.compat_ioctl = vmw_compat_ioctl,
 #endif
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static struct drm_driver driver = {
@@ -1415,7 +1415,7 @@ static struct drm_driver driver = {
 	.desc = VMWGFX_DRIVER_DESC,
 	.date = VMWGFX_DRIVER_DATE,
 	.major = VMWGFX_DRIVER_MAJOR,
-	.minor = VMWGFX_DRIVER_MINOR,
+	.miyesr = VMWGFX_DRIVER_MINOR,
 	.patchlevel = VMWGFX_DRIVER_PATCHLEVEL
 };
 

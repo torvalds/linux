@@ -119,7 +119,7 @@ struct ocelot_ace_frame_arp {
 	struct ocelot_vcap_u48 smac;
 	enum ocelot_vcap_bit arp;	/* Opcode ARP/RARP */
 	enum ocelot_vcap_bit req;	/* Opcode request/reply */
-	enum ocelot_vcap_bit unknown;    /* Opcode unknown */
+	enum ocelot_vcap_bit unkyeswn;    /* Opcode unkyeswn */
 	enum ocelot_vcap_bit smac_match; /* Sender MAC matches SMAC */
 	enum ocelot_vcap_bit dmac_match; /* Target MAC matches DMAC */
 
@@ -156,7 +156,7 @@ struct ocelot_ace_frame_ipv4 {
 
 struct ocelot_ace_frame_ipv6 {
 	struct ocelot_vcap_u8 proto; /* IPv6 protocol */
-	struct ocelot_vcap_u128 sip; /* IPv6 source (byte 0-7 ignored) */
+	struct ocelot_vcap_u128 sip; /* IPv6 source (byte 0-7 igyesred) */
 	enum ocelot_vcap_bit ttl;  /* TTL zero */
 	struct ocelot_vcap_u8 ds;
 	struct ocelot_vcap_u48 data; /* Not UDP/TCP: IP data */

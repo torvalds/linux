@@ -22,13 +22,13 @@
  * - drivers/pwm/pwm-sifive.c
  *
  * See the following sources for further documentation:
- * - Chapter 19 "Universal Asynchronous Receiver/Transmitter (UART)" of
+ * - Chapter 19 "Universal Asynchroyesus Receiver/Transmitter (UART)" of
  *   SiFive FE310-G000 v2p3
  * - The tree/master/src/main/scala/devices/uart directory of
  *   https://github.com/sifive/sifive-blocks/
  *
- * The SiFive UART design is not 8250-compatible.  The following common
- * features are not supported:
+ * The SiFive UART design is yest 8250-compatible.  The following common
+ * features are yest supported:
  * - Word lengths other than 8 bits
  * - Break handling
  * - Parity
@@ -136,7 +136,7 @@
 #define SIFIVE_RX_FIFO_DEPTH			8
 
 #if (SIFIVE_TX_FIFO_DEPTH != SIFIVE_RX_FIFO_DEPTH)
-#error Driver does not support configurations with different TX, RX FIFO sizes
+#error Driver does yest support configurations with different TX, RX FIFO sizes
 #endif
 
 /*
@@ -150,7 +150,7 @@
  * @ier: shadowed copy of the interrupt enable register
  * @clkin_rate: input clock to the UART IP block.
  * @baud_rate: UART serial line rate (e.g., 115200 baud)
- * @clk_notifier: clock rate change notifier for upstream clock changes
+ * @clk_yestifier: clock rate change yestifier for upstream clock changes
  *
  * Configuration data specific to this SiFive UART.
  */
@@ -161,7 +161,7 @@ struct sifive_serial_port {
 	unsigned long		clkin_rate;
 	unsigned long		baud_rate;
 	struct clk		*clk;
-	struct notifier_block	clk_notifier;
+	struct yestifier_block	clk_yestifier;
 };
 
 /*
@@ -172,9 +172,9 @@ struct sifive_serial_port {
 						    struct sifive_serial_port, \
 						    port))
 
-#define notifier_to_sifive_serial_port(nb) (container_of((nb), \
+#define yestifier_to_sifive_serial_port(nb) (container_of((nb), \
 							 struct sifive_serial_port, \
-							 clk_notifier))
+							 clk_yestifier))
 
 /*
  * Forward declarations
@@ -259,11 +259,11 @@ static u32 __ssp_readl(struct sifive_serial_port *ssp, u16 offs)
  * sifive_serial_is_txfifo_full() - is the TXFIFO full?
  * @ssp: pointer to a struct sifive_serial_port
  *
- * Read the transmit FIFO "full" bit, returning a non-zero value if the
+ * Read the transmit FIFO "full" bit, returning a yesn-zero value if the
  * TX FIFO is full, or zero if space remains.  Intended to be used to prevent
  * writes to the TX FIFO when it's full.
  *
- * Returns: SIFIVE_SERIAL_TXDATA_FULL_MASK (non-zero) if the transmit FIFO
+ * Returns: SIFIVE_SERIAL_TXDATA_FULL_MASK (yesn-zero) if the transmit FIFO
  * is full, or 0 if space remains.
  */
 static int sifive_serial_is_txfifo_full(struct sifive_serial_port *ssp)
@@ -585,12 +585,12 @@ static unsigned int sifive_serial_get_mctrl(struct uart_port *port)
 
 static void sifive_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* IP block does not support these signals */
+	/* IP block does yest support these signals */
 }
 
 static void sifive_serial_break_ctl(struct uart_port *port, int break_state)
 {
-	/* IP block does not support sending a break */
+	/* IP block does yest support sending a break */
 }
 
 static int sifive_serial_startup(struct uart_port *port)
@@ -611,23 +611,23 @@ static void sifive_serial_shutdown(struct uart_port *port)
 }
 
 /**
- * sifive_serial_clk_notifier() - clock post-rate-change notifier
- * @nb: pointer to the struct notifier_block, from the notifier code
- * @event: event mask from the notifier code
- * @data: pointer to the struct clk_notifier_data from the notifier code
+ * sifive_serial_clk_yestifier() - clock post-rate-change yestifier
+ * @nb: pointer to the struct yestifier_block, from the yestifier code
+ * @event: event mask from the yestifier code
+ * @data: pointer to the struct clk_yestifier_data from the yestifier code
  *
  * On the V0 SoC, the UART IP block is derived from the CPU clock source
- * after a synchronous divide-by-two divider, so any CPU clock rate change
+ * after a synchroyesus divide-by-two divider, so any CPU clock rate change
  * requires the UART baud rate to be updated.  This presumably could corrupt any
  * serial word currently being transmitted or received.  It would probably
  * be better to stop receives and transmits, then complete the baud rate
  * change, then re-enable them.
  */
-static int sifive_serial_clk_notifier(struct notifier_block *nb,
+static int sifive_serial_clk_yestifier(struct yestifier_block *nb,
 				      unsigned long event, void *data)
 {
-	struct clk_notifier_data *cnd = data;
-	struct sifive_serial_port *ssp = notifier_to_sifive_serial_port(nb);
+	struct clk_yestifier_data *cnd = data;
+	struct sifive_serial_port *ssp = yestifier_to_sifive_serial_port(nb);
 
 	if (event == POST_RATE_CHANGE && ssp->clkin_rate != cnd->new_rate) {
 		ssp->clkin_rate = cnd->new_rate;
@@ -650,9 +650,9 @@ static void sifive_serial_set_termios(struct uart_port *port,
 	if ((termios->c_cflag & CSIZE) != CS8)
 		dev_err_once(ssp->port.dev, "only 8-bit words supported\n");
 	if (termios->c_iflag & (INPCK | PARMRK))
-		dev_err_once(ssp->port.dev, "parity checking not supported\n");
+		dev_err_once(ssp->port.dev, "parity checking yest supported\n");
 	if (termios->c_iflag & BRKINT)
-		dev_err_once(ssp->port.dev, "BREAK detection not supported\n");
+		dev_err_once(ssp->port.dev, "BREAK detection yest supported\n");
 
 	/* Set number of stop bits */
 	nstop = (termios->c_cflag & CSTOPB) ? 2 : 1;
@@ -669,7 +669,7 @@ static void sifive_serial_set_termios(struct uart_port *port,
 
 	ssp->port.read_status_mask = 0;
 
-	/* Ignore all characters if CREAD is not set */
+	/* Igyesre all characters if CREAD is yest set */
 	v = __ssp_readl(ssp, SIFIVE_SERIAL_RXCTRL_OFFS);
 	old_v = v;
 	if ((termios->c_cflag & CREAD) == 0)
@@ -902,7 +902,7 @@ static int sifive_serial_probe(struct platform_device *pdev)
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(base)) {
-		dev_err(&pdev->dev, "could not acquire device memory\n");
+		dev_err(&pdev->dev, "could yest acquire device memory\n");
 		return PTR_ERR(base);
 	}
 
@@ -912,7 +912,7 @@ static int sifive_serial_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 	}
 
-	id = of_alias_get_id(pdev->dev.of_node, "serial");
+	id = of_alias_get_id(pdev->dev.of_yesde, "serial");
 	if (id < 0) {
 		dev_err(&pdev->dev, "missing aliases entry\n");
 		return id;
@@ -940,11 +940,11 @@ static int sifive_serial_probe(struct platform_device *pdev)
 	ssp->port.membase = base;
 	ssp->dev = &pdev->dev;
 	ssp->clk = clk;
-	ssp->clk_notifier.notifier_call = sifive_serial_clk_notifier;
+	ssp->clk_yestifier.yestifier_call = sifive_serial_clk_yestifier;
 
-	r = clk_notifier_register(ssp->clk, &ssp->clk_notifier);
+	r = clk_yestifier_register(ssp->clk, &ssp->clk_yestifier);
 	if (r) {
-		dev_err(&pdev->dev, "could not register clock notifier: %d\n",
+		dev_err(&pdev->dev, "could yest register clock yestifier: %d\n",
 			r);
 		goto probe_out1;
 	}
@@ -969,7 +969,7 @@ static int sifive_serial_probe(struct platform_device *pdev)
 	r = request_irq(ssp->port.irq, sifive_serial_irq, ssp->port.irqflags,
 			dev_name(&pdev->dev), ssp);
 	if (r) {
-		dev_err(&pdev->dev, "could not attach interrupt: %d\n", r);
+		dev_err(&pdev->dev, "could yest attach interrupt: %d\n", r);
 		goto probe_out2;
 	}
 
@@ -977,7 +977,7 @@ static int sifive_serial_probe(struct platform_device *pdev)
 
 	r = uart_add_one_port(&sifive_serial_uart_driver, &ssp->port);
 	if (r != 0) {
-		dev_err(&pdev->dev, "could not add uart: %d\n", r);
+		dev_err(&pdev->dev, "could yest add uart: %d\n", r);
 		goto probe_out3;
 	}
 
@@ -987,7 +987,7 @@ probe_out3:
 	__ssp_remove_console_port(ssp);
 	free_irq(ssp->port.irq, ssp);
 probe_out2:
-	clk_notifier_unregister(ssp->clk, &ssp->clk_notifier);
+	clk_yestifier_unregister(ssp->clk, &ssp->clk_yestifier);
 probe_out1:
 	return r;
 }
@@ -999,7 +999,7 @@ static int sifive_serial_remove(struct platform_device *dev)
 	__ssp_remove_console_port(ssp);
 	uart_remove_one_port(&sifive_serial_uart_driver, &ssp->port);
 	free_irq(ssp->port.irq, ssp);
-	clk_notifier_unregister(ssp->clk, &ssp->clk_notifier);
+	clk_yestifier_unregister(ssp->clk, &ssp->clk_yestifier);
 
 	return 0;
 }

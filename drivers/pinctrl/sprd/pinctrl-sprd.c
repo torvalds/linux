@@ -239,8 +239,8 @@ static int sprd_pctrl_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int sprd_dt_node_to_map(struct pinctrl_dev *pctldev,
-			       struct device_node *np,
+static int sprd_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+			       struct device_yesde *np,
 			       struct pinctrl_map **map,
 			       unsigned int *num_maps)
 {
@@ -256,8 +256,8 @@ static int sprd_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	grp = sprd_pinctrl_find_group_by_name(pctl, np->name);
 	if (!grp) {
-		dev_err(pctl->dev, "unable to find group for node %s\n",
-			of_node_full_name(np));
+		dev_err(pctl->dev, "unable to find group for yesde %s\n",
+			of_yesde_full_name(np));
 		return -EINVAL;
 	}
 
@@ -274,16 +274,16 @@ static int sprd_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (ret < 0) {
 		if (ret != -EINVAL)
 			dev_err(pctl->dev,
-				"%s: could not parse property function\n",
-				of_node_full_name(np));
+				"%s: could yest parse property function\n",
+				of_yesde_full_name(np));
 		function = NULL;
 	}
 
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &configs,
 					      &num_configs);
 	if (ret < 0) {
-		dev_err(pctl->dev, "%s: could not parse node property\n",
-			of_node_full_name(np));
+		dev_err(pctl->dev, "%s: could yest parse yesde property\n",
+			of_yesde_full_name(np));
 		return ret;
 	}
 
@@ -341,7 +341,7 @@ static const struct pinctrl_ops sprd_pctrl_ops = {
 	.get_group_name = sprd_pctrl_group_name,
 	.get_group_pins = sprd_pctrl_group_pins,
 	.pin_dbg_show = sprd_pctrl_dbg_show,
-	.dt_node_to_map = sprd_dt_node_to_map,
+	.dt_yesde_to_map = sprd_dt_yesde_to_map,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -861,7 +861,7 @@ static struct pinctrl_desc sprd_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-static int sprd_pinctrl_parse_groups(struct device_node *np,
+static int sprd_pinctrl_parse_groups(struct device_yesde *np,
 				     struct sprd_pinctrl *sprd_pctl,
 				     struct sprd_pin_group *grp)
 {
@@ -896,14 +896,14 @@ static int sprd_pinctrl_parse_groups(struct device_node *np,
 	return 0;
 }
 
-static unsigned int sprd_pinctrl_get_groups(struct device_node *np)
+static unsigned int sprd_pinctrl_get_groups(struct device_yesde *np)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	unsigned int group_cnt, cnt;
 
 	group_cnt = of_get_child_count(np);
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		cnt = of_get_child_count(child);
 		if (cnt > 0)
 			group_cnt += cnt;
@@ -915,8 +915,8 @@ static unsigned int sprd_pinctrl_get_groups(struct device_node *np)
 static int sprd_pinctrl_parse_dt(struct sprd_pinctrl *sprd_pctl)
 {
 	struct sprd_pinctrl_soc_info *info = sprd_pctl->info;
-	struct device_node *np = sprd_pctl->dev->of_node;
-	struct device_node *child, *sub_child;
+	struct device_yesde *np = sprd_pctl->dev->of_yesde;
+	struct device_yesde *child, *sub_child;
 	struct sprd_pin_group *grp;
 	const char **temp;
 	int ret;
@@ -944,10 +944,10 @@ static int sprd_pinctrl_parse_dt(struct sprd_pinctrl *sprd_pctl)
 	temp = info->grp_names;
 	grp = info->groups;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		ret = sprd_pinctrl_parse_groups(child, sprd_pctl, grp);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 
@@ -955,12 +955,12 @@ static int sprd_pinctrl_parse_dt(struct sprd_pinctrl *sprd_pctl)
 		grp++;
 
 		if (of_get_child_count(child) > 0) {
-			for_each_child_of_node(child, sub_child) {
+			for_each_child_of_yesde(child, sub_child) {
 				ret = sprd_pinctrl_parse_groups(sub_child,
 								sprd_pctl, grp);
 				if (ret) {
-					of_node_put(sub_child);
-					of_node_put(child);
+					of_yesde_put(sub_child);
+					of_yesde_put(child);
 					return ret;
 				}
 
@@ -1084,7 +1084,7 @@ int sprd_pinctrl_core_probe(struct platform_device *pdev,
 	sprd_pctl->pctl = pinctrl_register(&sprd_pinctrl_desc,
 					   &pdev->dev, (void *)sprd_pctl);
 	if (IS_ERR(sprd_pctl->pctl)) {
-		dev_err(&pdev->dev, "could not register pinctrl driver\n");
+		dev_err(&pdev->dev, "could yest register pinctrl driver\n");
 		return PTR_ERR(sprd_pctl->pctl);
 	}
 

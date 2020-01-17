@@ -1,4 +1,4 @@
-* Synopsys DesignWare Cores Mobile Storage Host Controller
+* Syyespsys DesignWare Cores Mobile Storage Host Controller
 
 Required properties:
 - compatible: should be one of the following:

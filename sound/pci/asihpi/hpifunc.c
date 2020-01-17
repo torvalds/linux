@@ -1229,8 +1229,8 @@ u16 hpi_mixer_close(u32 h_mixer)
 	return hr.error;
 }
 
-u16 hpi_mixer_get_control(u32 h_mixer, u16 src_node_type,
-	u16 src_node_type_index, u16 dst_node_type, u16 dst_node_type_index,
+u16 hpi_mixer_get_control(u32 h_mixer, u16 src_yesde_type,
+	u16 src_yesde_type_index, u16 dst_yesde_type, u16 dst_yesde_type_index,
 	u16 control_type, u32 *ph_control)
 {
 	struct hpi_message hm;
@@ -1239,10 +1239,10 @@ u16 hpi_mixer_get_control(u32 h_mixer, u16 src_node_type,
 		HPI_MIXER_GET_CONTROL);
 	if (hpi_handle_indexes(h_mixer, &hm.adapter_index, NULL))
 		return HPI_ERROR_INVALID_HANDLE;
-	hm.u.m.node_type1 = src_node_type;
-	hm.u.m.node_index1 = src_node_type_index;
-	hm.u.m.node_type2 = dst_node_type;
-	hm.u.m.node_index2 = dst_node_type_index;
+	hm.u.m.yesde_type1 = src_yesde_type;
+	hm.u.m.yesde_index1 = src_yesde_type_index;
+	hm.u.m.yesde_type2 = dst_yesde_type;
+	hm.u.m.yesde_index2 = dst_yesde_type_index;
 	hm.u.m.control_type = control_type;
 
 	hpi_send_recv(&hm, &hr);
@@ -1257,8 +1257,8 @@ u16 hpi_mixer_get_control(u32 h_mixer, u16 src_node_type,
 }
 
 u16 hpi_mixer_get_control_by_index(u32 h_mixer, u16 control_index,
-	u16 *pw_src_node_type, u16 *pw_src_node_index, u16 *pw_dst_node_type,
-	u16 *pw_dst_node_index, u16 *pw_control_type, u32 *ph_control)
+	u16 *pw_src_yesde_type, u16 *pw_src_yesde_index, u16 *pw_dst_yesde_type,
+	u16 *pw_dst_yesde_index, u16 *pw_control_type, u32 *ph_control)
 {
 	struct hpi_message hm;
 	struct hpi_response hr;
@@ -1269,12 +1269,12 @@ u16 hpi_mixer_get_control_by_index(u32 h_mixer, u16 control_index,
 	hm.u.m.control_index = control_index;
 	hpi_send_recv(&hm, &hr);
 
-	if (pw_src_node_type) {
-		*pw_src_node_type =
-			hr.u.m.src_node_type + HPI_SOURCENODE_NONE;
-		*pw_src_node_index = hr.u.m.src_node_index;
-		*pw_dst_node_type = hr.u.m.dst_node_type + HPI_DESTNODE_NONE;
-		*pw_dst_node_index = hr.u.m.dst_node_index;
+	if (pw_src_yesde_type) {
+		*pw_src_yesde_type =
+			hr.u.m.src_yesde_type + HPI_SOURCENODE_NONE;
+		*pw_src_yesde_index = hr.u.m.src_yesde_index;
+		*pw_dst_yesde_type = hr.u.m.dst_yesde_type + HPI_DESTNODE_NONE;
+		*pw_dst_yesde_index = hr.u.m.dst_yesde_index;
 	}
 	if (pw_control_type)
 		*pw_control_type = hr.u.m.control_index;
@@ -2124,29 +2124,29 @@ u16 hpi_microphone_get_phantom_power(u32 h_control, u16 *pw_on_off)
 	return error;
 }
 
-u16 hpi_multiplexer_set_source(u32 h_control, u16 source_node_type,
-	u16 source_node_index)
+u16 hpi_multiplexer_set_source(u32 h_control, u16 source_yesde_type,
+	u16 source_yesde_index)
 {
 	return hpi_control_param_set(h_control, HPI_MULTIPLEXER_SOURCE,
-		source_node_type, source_node_index);
+		source_yesde_type, source_yesde_index);
 }
 
-u16 hpi_multiplexer_get_source(u32 h_control, u16 *source_node_type,
-	u16 *source_node_index)
+u16 hpi_multiplexer_get_source(u32 h_control, u16 *source_yesde_type,
+	u16 *source_yesde_index)
 {
-	u32 node, index;
+	u32 yesde, index;
 	u16 err = hpi_control_param2_get(h_control,
-		HPI_MULTIPLEXER_SOURCE, &node,
+		HPI_MULTIPLEXER_SOURCE, &yesde,
 		&index);
-	if (source_node_type)
-		*source_node_type = (u16)node;
-	if (source_node_index)
-		*source_node_index = (u16)index;
+	if (source_yesde_type)
+		*source_yesde_type = (u16)yesde;
+	if (source_yesde_index)
+		*source_yesde_index = (u16)index;
 	return err;
 }
 
 u16 hpi_multiplexer_query_source(u32 h_control, u16 index,
-	u16 *source_node_type, u16 *source_node_index)
+	u16 *source_yesde_type, u16 *source_yesde_index)
 {
 	struct hpi_message hm;
 	struct hpi_response hr;
@@ -2159,10 +2159,10 @@ u16 hpi_multiplexer_query_source(u32 h_control, u16 index,
 
 	hpi_send_recv(&hm, &hr);
 
-	if (source_node_type)
-		*source_node_type = (u16)hr.u.c.param1;
-	if (source_node_index)
-		*source_node_index = (u16)hr.u.c.param2;
+	if (source_yesde_type)
+		*source_yesde_type = (u16)hr.u.c.param1;
+	if (source_yesde_index)
+		*source_yesde_index = (u16)hr.u.c.param2;
 	return hr.error;
 }
 

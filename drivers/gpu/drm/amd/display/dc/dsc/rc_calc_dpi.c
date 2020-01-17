@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -69,7 +69,7 @@ static void copy_pps_fields(struct drm_dsc_config *to, const struct drm_dsc_conf
 	to->vbr_enable               = from->vbr_enable;
 	to->slice_chunk_size         = from->slice_chunk_size;
 	to->second_line_offset_adj   = from->second_line_offset_adj;
-	to->dsc_version_minor        = from->dsc_version_minor;
+	to->dsc_version_miyesr        = from->dsc_version_miyesr;
 }
 
 static void copy_rc_to_cfg(struct drm_dsc_config *dsc_cfg, const struct rc_params *rc)
@@ -128,7 +128,7 @@ int dscc_compute_dsc_parameters(const struct drm_dsc_config *pps, struct dsc_par
 	if (pps->native_422 || pps->native_420)
 		bpp /= 2.0;
 
-	calc_rc_params(&rc, mode, bpc, bpp, slice_width, slice_height, pps->dsc_version_minor);
+	calc_rc_params(&rc, mode, bpc, bpp, slice_width, slice_height, pps->dsc_version_miyesr);
 	dsc_params->pps = *pps;
 	dsc_params->pps.initial_scale_value = 8 * rc.rc_model_size / (rc.rc_model_size - rc.initial_fullness_offset);
 

@@ -230,17 +230,17 @@ unlock:
 	mutex_unlock(&kvm->irq_lock);
 }
 
-void kvm_register_irq_mask_notifier(struct kvm *kvm, int irq,
-				    struct kvm_irq_mask_notifier *kimn)
+void kvm_register_irq_mask_yestifier(struct kvm *kvm, int irq,
+				    struct kvm_irq_mask_yestifier *kimn)
 {
 	mutex_lock(&kvm->irq_lock);
 	kimn->irq = irq;
-	hlist_add_head_rcu(&kimn->link, &kvm->arch.mask_notifier_list);
+	hlist_add_head_rcu(&kimn->link, &kvm->arch.mask_yestifier_list);
 	mutex_unlock(&kvm->irq_lock);
 }
 
-void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
-				      struct kvm_irq_mask_notifier *kimn)
+void kvm_unregister_irq_mask_yestifier(struct kvm *kvm, int irq,
+				      struct kvm_irq_mask_yestifier *kimn)
 {
 	mutex_lock(&kvm->irq_lock);
 	hlist_del_rcu(&kimn->link);
@@ -248,16 +248,16 @@ void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
 	synchronize_srcu(&kvm->irq_srcu);
 }
 
-void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
+void kvm_fire_mask_yestifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 			     bool mask)
 {
-	struct kvm_irq_mask_notifier *kimn;
+	struct kvm_irq_mask_yestifier *kimn;
 	int idx, gsi;
 
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	gsi = kvm_irq_map_chip_pin(kvm, irqchip, pin);
 	if (gsi != -1)
-		hlist_for_each_entry_rcu(kimn, &kvm->arch.mask_notifier_list, link)
+		hlist_for_each_entry_rcu(kimn, &kvm->arch.mask_yestifier_list, link)
 			if (kimn->irq == gsi)
 				kimn->func(kimn, mask);
 	srcu_read_unlock(&kvm->irq_srcu, idx);

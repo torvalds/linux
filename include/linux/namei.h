@@ -5,7 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/path.h>
 #include <linux/fcntl.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 enum { MAX_NESTED_LINKS = 8 };
 
@@ -23,7 +23,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_EMPTY		0x4000	/* accept empty path [user_... only] */
 #define LOOKUP_DOWN		0x8000	/* follow mounts in the starting point */
 
-#define LOOKUP_REVAL		0x0020	/* tell ->d_revalidate() to trust no cache */
+#define LOOKUP_REVAL		0x0020	/* tell ->d_revalidate() to trust yes cache */
 #define LOOKUP_RCU		0x0040	/* RCU pathwalk mode; semi-internal */
 
 /* These tell filesystem methods that we are dealing with the final component... */

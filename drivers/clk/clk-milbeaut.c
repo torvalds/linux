@@ -562,7 +562,7 @@ static int m10v_clk_probe(struct platform_device *pdev)
 	int id;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	void __iomem *base;
 	const char *parent_name;
 
@@ -607,7 +607,7 @@ static struct platform_driver m10v_clk_driver = {
 };
 builtin_platform_driver(m10v_clk_driver);
 
-static void __init m10v_cc_init(struct device_node *np)
+static void __init m10v_cc_init(struct device_yesde *np)
 {
 	int id;
 	void __iomem *base;

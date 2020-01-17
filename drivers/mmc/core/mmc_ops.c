@@ -139,9 +139,9 @@ int mmc_go_idle(struct mmc_host *host)
 	 * GO_IDLE; that would put chips into SPI mode.  Remind them of
 	 * that in case of hardware that won't pull up DAT3/nCS otherwise.
 	 *
-	 * SPI hosts ignore ios.chip_select; it's managed according to
-	 * rules that must accommodate non-MMC slaves which this layer
-	 * won't even know about.
+	 * SPI hosts igyesre ios.chip_select; it's managed according to
+	 * rules that must accommodate yesn-MMC slaves which this layer
+	 * won't even kyesw about.
 	 */
 	if (!mmc_host_is_spi(host)) {
 		mmc_set_chip_select(host, MMC_CS_HIGH);
@@ -262,7 +262,7 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 	/* NOTE HACK:  the MMC_RSP_SPI_R1 is always correct here, but we
 	 * rely on callers to never use this with "native" calls for reading
 	 * CSD or CID.  Native versions of those commands use the R2 type,
-	 * not R1 plus a data block.
+	 * yest R1 plus a data block.
 	 */
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
 
@@ -463,7 +463,7 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 		timeout_ms = MMC_OPS_TIMEOUT_MS;
 
 	/*
-	 * In cases when not allowed to poll by using CMD13 or because we aren't
+	 * In cases when yest allowed to poll by using CMD13 or because we aren't
 	 * capable of polling by using ->card_busy(), then rely on waiting the
 	 * stated timeout to be sufficient.
 	 */
@@ -642,7 +642,7 @@ int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error)
 
 	/*
 	 * According to the tuning specs, Tuning process
-	 * is normally shorter 40 executions of CMD19,
+	 * is yesrmally shorter 40 executions of CMD19,
 	 * and timeout value should be shorter than 150 ms
 	 */
 	data.timeout_ns = 150 * NSEC_PER_MSEC;
@@ -681,7 +681,7 @@ int mmc_abort_tuning(struct mmc_host *host, u32 opcode)
 
 	/*
 	 * eMMC specification specifies that CMD12 can be used to stop a tuning
-	 * command, but SD specification does not, so do nothing unless it is
+	 * command, but SD specification does yest, so do yesthing unless it is
 	 * eMMC.
 	 */
 	if (opcode != MMC_SEND_TUNING_BLOCK_HS200)
@@ -714,8 +714,8 @@ mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 	static u8 testdata_8bit[8] = { 0x55, 0xaa, 0, 0, 0, 0, 0, 0 };
 	static u8 testdata_4bit[4] = { 0x5a, 0, 0, 0 };
 
-	/* dma onto stack is unsafe/nonportable, but callers to this
-	 * routine normally provide temporary on-stack buffers ...
+	/* dma onto stack is unsafe/yesnportable, but callers to this
+	 * routine yesrmally provide temporary on-stack buffers ...
 	 */
 	data_buf = kmalloc(len, GFP_KERNEL);
 	if (!data_buf)
@@ -743,7 +743,7 @@ mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 	/* NOTE HACK:  the MMC_RSP_SPI_R1 is always correct here, but we
 	 * rely on callers to never use this with "native" calls for reading
 	 * CSD or CID.  Native versions of those commands use the R2 type,
-	 * not R1 plus a data block.
+	 * yest R1 plus a data block.
 	 */
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
 
@@ -786,12 +786,12 @@ int mmc_bus_test(struct mmc_card *card, u8 bus_width)
 	else if (bus_width == MMC_BUS_WIDTH_4)
 		width = 4;
 	else if (bus_width == MMC_BUS_WIDTH_1)
-		return 0; /* no need for test */
+		return 0; /* yes need for test */
 	else
 		return -EINVAL;
 
 	/*
-	 * Ignore errors from BUS_TEST_W.  BUS_TEST_R will fail if there
+	 * Igyesre errors from BUS_TEST_W.  BUS_TEST_R will fail if there
 	 * is a problem.  This improves chances that the test will work.
 	 */
 	mmc_send_bus_test(card, card->host, MMC_BUS_TEST_W, width);
@@ -856,7 +856,7 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 	case R1_STATE_STBY:
 	case R1_STATE_TRAN:
 		/*
-		 * In idle and transfer states, HPI is not needed and the caller
+		 * In idle and transfer states, HPI is yest needed and the caller
 		 * can issue the next intended command immediately
 		 */
 		goto out;
@@ -864,7 +864,7 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 		break;
 	default:
 		/* In all other states, it's illegal to issue HPI */
-		pr_debug("%s: HPI cannot be sent. Card state=%d\n",
+		pr_debug("%s: HPI canyest be sent. Card state=%d\n",
 			mmc_hostname(card->host), R1_CURRENT_STATE(status));
 		err = -EINVAL;
 		goto out;
@@ -912,7 +912,7 @@ static int mmc_read_bkops_status(struct mmc_card *card)
  *	mmc_run_bkops - Run BKOPS for supported cards
  *	@card: MMC card to run BKOPS for
  *
- *	Run background operations synchronously for cards having manual BKOPS
+ *	Run background operations synchroyesusly for cards having manual BKOPS
  *	enabled and in case it reports urgent BKOPS level.
 */
 void mmc_run_bkops(struct mmc_card *card)
@@ -937,8 +937,8 @@ void mmc_run_bkops(struct mmc_card *card)
 
 	/*
 	 * For urgent BKOPS status, LEVEL_2 and higher, let's execute
-	 * synchronously. Future wise, we may consider to start BKOPS, for less
-	 * urgent levels by using an asynchronous background task, when idle.
+	 * synchroyesusly. Future wise, we may consider to start BKOPS, for less
+	 * urgent levels by using an asynchroyesus background task, when idle.
 	 */
 	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 			EXT_CSD_BKOPS_START, 1, MMC_OPS_TIMEOUT_MS);
@@ -951,7 +951,7 @@ void mmc_run_bkops(struct mmc_card *card)
 EXPORT_SYMBOL(mmc_run_bkops);
 
 /*
- * Flush the cache to the non-volatile storage.
+ * Flush the cache to the yesn-volatile storage.
  */
 int mmc_flush_cache(struct mmc_card *card)
 {

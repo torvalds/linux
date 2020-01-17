@@ -28,7 +28,7 @@
 	cap-mmc-highspeed;
 	mmc-ddr-1_8v;
 	disable-wp;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 

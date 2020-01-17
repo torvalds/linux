@@ -162,7 +162,7 @@ static int acpi_memory_get_device(acpi_handle handle,
 		goto end;
 
 	/*
-	 * Now add the notified device.  This creates the acpi_device
+	 * Now add the yestified device.  This creates the acpi_device
 	 * and invokes .add function
 	 */
 	result = acpi_bus_scan(handle);
@@ -182,7 +182,7 @@ static int acpi_memory_get_device(acpi_handle handle,
 end:
 	*mem_device = acpi_driver_data(device);
 	if (!(*mem_device)) {
-		pr_err(PREFIX "driver data not found\n");
+		pr_err(PREFIX "driver data yest found\n");
 		result = -ENODEV;
 		goto out;
 	}
@@ -214,12 +214,12 @@ static int acpi_memory_check_device(struct acpi_memory_device *mem_device)
 
 static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
 {
-	pr_debug(PREFIX "Xen does not support memory hotremove\n");
+	pr_debug(PREFIX "Xen does yest support memory hotremove\n");
 
 	return -ENOSYS;
 }
 
-static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_memory_device_yestify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_memory_device *mem_device;
 	struct acpi_device *device;
@@ -228,15 +228,15 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 	switch (event) {
 	case ACPI_NOTIFY_BUS_CHECK:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"\nReceived BUS CHECK notification for device\n"));
+			"\nReceived BUS CHECK yestification for device\n"));
 		/* Fall Through */
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		if (event == ACPI_NOTIFY_DEVICE_CHECK)
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"\nReceived DEVICE CHECK notification for device\n"));
+			"\nReceived DEVICE CHECK yestification for device\n"));
 
 		if (acpi_memory_get_device(handle, &mem_device)) {
-			pr_err(PREFIX "Cannot find driver data\n");
+			pr_err(PREFIX "Canyest find driver data\n");
 			break;
 		}
 
@@ -245,7 +245,7 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"\nReceived EJECT REQUEST notification for device\n"));
+			"\nReceived EJECT REQUEST yestification for device\n"));
 
 		acpi_scan_lock_acquire();
 		if (acpi_bus_get_device(handle, &device)) {
@@ -271,7 +271,7 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
-		/* non-hotplug event; possibly handled by other handler */
+		/* yesn-hotplug event; possibly handled by other handler */
 		return;
 	}
 
@@ -308,7 +308,7 @@ static int xen_acpi_memory_device_add(struct acpi_device *device)
 	/*
 	 * For booting existed memory devices, early boot code has recognized
 	 * memory area by EFI/E820. If DSDT shows these memory devices on boot,
-	 * hotplug is not necessary for them.
+	 * hotplug is yest necessary for them.
 	 * For hot-added memory devices during runtime, it need hypercall to
 	 * Xen hypervisor to add memory.
 	 */
@@ -362,7 +362,7 @@ static acpi_status is_memory_device(acpi_handle handle)
 }
 
 static acpi_status
-acpi_memory_register_notify_handler(acpi_handle handle,
+acpi_memory_register_yestify_handler(acpi_handle handle,
 				    u32 level, void *ctxt, void **retv)
 {
 	acpi_status status;
@@ -371,14 +371,14 @@ acpi_memory_register_notify_handler(acpi_handle handle,
 	if (ACPI_FAILURE(status))
 		return AE_OK;	/* continue */
 
-	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-					     acpi_memory_device_notify, NULL);
+	status = acpi_install_yestify_handler(handle, ACPI_SYSTEM_NOTIFY,
+					     acpi_memory_device_yestify, NULL);
 	/* continue */
 	return AE_OK;
 }
 
 static acpi_status
-acpi_memory_deregister_notify_handler(acpi_handle handle,
+acpi_memory_deregister_yestify_handler(acpi_handle handle,
 				      u32 level, void *ctxt, void **retv)
 {
 	acpi_status status;
@@ -387,9 +387,9 @@ acpi_memory_deregister_notify_handler(acpi_handle handle,
 	if (ACPI_FAILURE(status))
 		return AE_OK;	/* continue */
 
-	status = acpi_remove_notify_handler(handle,
+	status = acpi_remove_yestify_handler(handle,
 					    ACPI_SYSTEM_NOTIFY,
-					    acpi_memory_device_notify);
+					    acpi_memory_device_yestify);
 
 	return AE_OK;	/* continue */
 }
@@ -429,7 +429,7 @@ static int __init xen_acpi_memory_device_init(void)
 
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 				     ACPI_UINT32_MAX,
-				     acpi_memory_register_notify_handler,
+				     acpi_memory_register_yestify_handler,
 				     NULL, NULL, NULL);
 
 	if (ACPI_FAILURE(status)) {
@@ -452,7 +452,7 @@ static void __exit xen_acpi_memory_device_exit(void)
 
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 				     ACPI_UINT32_MAX,
-				     acpi_memory_deregister_notify_handler,
+				     acpi_memory_deregister_yestify_handler,
 				     NULL, NULL, NULL);
 	if (ACPI_FAILURE(status))
 		pr_warn(PREFIX "walk_namespace failed\n");

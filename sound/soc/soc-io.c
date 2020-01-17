@@ -103,7 +103,7 @@ out_unlock:
  * @val: New value for the bits specified by mask
  *
  * Return: 1 if the operation was successful and the value of the register
- * changed, 0 if the operation was successful, but the value did not change.
+ * changed, 0 if the operation was successful, but the value did yest change.
  * Returns a negative error code otherwise.
  */
 int snd_soc_component_update_bits(struct snd_soc_component *component,
@@ -126,7 +126,7 @@ int snd_soc_component_update_bits(struct snd_soc_component *component,
 EXPORT_SYMBOL_GPL(snd_soc_component_update_bits);
 
 /**
- * snd_soc_component_update_bits_async() - Perform asynchronous
+ * snd_soc_component_update_bits_async() - Perform asynchroyesus
  *  read/modify/write cycle
  * @component: Component to update
  * @reg: Register to update
@@ -134,12 +134,12 @@ EXPORT_SYMBOL_GPL(snd_soc_component_update_bits);
  * @val: New value for the bits specified by mask
  *
  * This function is similar to snd_soc_component_update_bits(), but the update
- * operation is scheduled asynchronously. This means it may not be completed
+ * operation is scheduled asynchroyesusly. This means it may yest be completed
  * when the function returns. To make sure that all scheduled updates have been
  * completed snd_soc_component_async_complete() must be called.
  *
  * Return: 1 if the operation was successful and the value of the register
- * changed, 0 if the operation was successful, but the value did not change.
+ * changed, 0 if the operation was successful, but the value did yest change.
  * Returns a negative error code otherwise.
  */
 int snd_soc_component_update_bits_async(struct snd_soc_component *component,
@@ -162,10 +162,10 @@ int snd_soc_component_update_bits_async(struct snd_soc_component *component,
 EXPORT_SYMBOL_GPL(snd_soc_component_update_bits_async);
 
 /**
- * snd_soc_component_async_complete() - Ensure asynchronous I/O has completed
+ * snd_soc_component_async_complete() - Ensure asynchroyesus I/O has completed
  * @component: Component for which to wait
  *
- * This function blocks until all asynchronous I/O which has previously been
+ * This function blocks until all asynchroyesus I/O which has previously been
  * scheduled using snd_soc_component_update_bits_async() has completed.
  */
 void snd_soc_component_async_complete(struct snd_soc_component *component)

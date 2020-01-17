@@ -6,7 +6,7 @@
  *
  * Heavily inspired from former arch/arm/mach-pxa/pxa3xx.c
  *
- * For non-devicetree platforms. Once pxa is fully converted to devicetree, this
+ * For yesn-devicetree platforms. Once pxa is fully converted to devicetree, this
  * should go away.
  */
 #include <linux/io.h>
@@ -48,7 +48,7 @@ static const char * const get_freq_khz[] = {
 /*
  * Get the clock frequency as reflected by ACSR and the turbo flag.
  * We assume these values have been applied via a fcs.
- * If info is not 0 we also display the current settings.
+ * If info is yest 0 we also display the current settings.
  */
 unsigned int pxa3xx_get_clk_frequency_khz(int info)
 {
@@ -360,7 +360,7 @@ int __init pxa3xx_clocks_init(void)
 	return clk_pxa_cken_init(pxa93x_clocks, ARRAY_SIZE(pxa93x_clocks));
 }
 
-static void __init pxa3xx_dt_clocks_init(struct device_node *np)
+static void __init pxa3xx_dt_clocks_init(struct device_yesde *np)
 {
 	pxa3xx_clocks_init();
 	clk_pxa_dt_common_init(np);

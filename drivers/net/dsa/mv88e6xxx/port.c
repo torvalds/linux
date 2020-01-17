@@ -100,8 +100,8 @@ static int mv88e6xxx_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
 		return err;
 
 	dev_dbg(chip->dev, "p%d: delay RXCLK %s, TXCLK %s\n", port,
-		reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK ? "yes" : "no",
-		reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK ? "yes" : "no");
+		reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_RXCLK ? "no" : "yes",
+		reg & MV88E6XXX_PORT_MAC_CTL_RGMII_DELAY_TXCLK ? "no" : "yes");
 
 	return 0;
 }
@@ -145,7 +145,7 @@ int mv88e6xxx_port_set_link(struct mv88e6xxx_chip *chip, int port, int link)
 			MV88E6XXX_PORT_MAC_CTL_LINK_UP;
 		break;
 	case LINK_UNFORCED:
-		/* normal link detection */
+		/* yesrmal link detection */
 		break;
 	default:
 		return -EINVAL;
@@ -183,7 +183,7 @@ int mv88e6xxx_port_set_duplex(struct mv88e6xxx_chip *chip, int port, int dup)
 			MV88E6XXX_PORT_MAC_CTL_DUPLEX_FULL;
 		break;
 	case DUPLEX_UNFORCED:
-		/* normal duplex detection */
+		/* yesrmal duplex detection */
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -427,7 +427,7 @@ static int mv88e6xxx_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		cmode = 0;
 	}
 
-	/* cmode doesn't change, nothing to do for us unless forced */
+	/* cmode doesn't change, yesthing to do for us unless forced */
 	if (cmode == chip->ports[port].cmode && !force)
 		return 0;
 
@@ -691,7 +691,7 @@ int mv88e6352_port_link_state(struct mv88e6xxx_chip *chip, int port,
 		state->interface = PHY_INTERFACE_MODE_RXAUI;
 		break;
 	default:
-		/* we do not support other cmode values here */
+		/* we do yest support other cmode values here */
 		state->interface = PHY_INTERFACE_MODE_NA;
 	}
 
@@ -734,7 +734,7 @@ int mv88e6185_port_link_state(struct mv88e6xxx_chip *chip, int port,
 		u8 cmode = chip->ports[port].cmode;
 
 		/* When a port is in "Cross-chip serdes" mode, it uses
-		 * 1000Base-X full duplex mode, but there is no automatic
+		 * 1000Base-X full duplex mode, but there is yes automatic
 		 * link detection. Use the sync OK status for link (as it
 		 * would do for 1000Base-X mode.)
 		 */
@@ -765,7 +765,7 @@ int mv88e6185_port_link_state(struct mv88e6xxx_chip *chip, int port,
 
 /* Offset 0x02: Jamming Control
  *
- * Do not limit the period of time that this port can be paused for by
+ * Do yest limit the period of time that this port can be paused for by
  * the remote end or the period of time that this port can pause the
  * remote end.
  */
@@ -932,7 +932,7 @@ int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
-static int mv88e6185_port_set_forward_unknown(struct mv88e6xxx_chip *chip,
+static int mv88e6185_port_set_forward_unkyeswn(struct mv88e6xxx_chip *chip,
 					      int port, bool unicast)
 {
 	int err;
@@ -1158,7 +1158,7 @@ int mv88e6185_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
 {
 	int err;
 
-	err = mv88e6185_port_set_forward_unknown(chip, port, unicast);
+	err = mv88e6185_port_set_forward_unkyeswn(chip, port, unicast);
 	if (err)
 		return err;
 

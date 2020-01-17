@@ -36,8 +36,8 @@ static const struct bpf_func_proto rc_repeat_proto = {
 };
 
 /*
- * Currently rc-core does not support 64-bit scancodes, but there are many
- * known protocols with more than 32 bits. So, define the interface as u64
+ * Currently rc-core does yest support 64-bit scancodes, but there are many
+ * kyeswn protocols with more than 32 bits. So, define the interface as u64
  * as a future-proof.
  */
 BPF_CALL_4(bpf_rc_keydown, u32*, sample, u32, protocol, u64, scancode,
@@ -198,7 +198,7 @@ static int lirc_bpf_detach(struct rc_dev *rcdev, struct bpf_prog *prog)
 	old_array = lirc_rcu_dereference(raw->progs);
 	ret = bpf_prog_array_copy(old_array, prog, NULL, &new_array);
 	/*
-	 * Do not use bpf_prog_array_delete_safe() as we would end up
+	 * Do yest use bpf_prog_array_delete_safe() as we would end up
 	 * with a dummy entry in the array, and the we would free the
 	 * dummy in lirc_bpf_free()
 	 */
@@ -225,7 +225,7 @@ void lirc_bpf_run(struct rc_dev *rcdev, u32 sample)
 
 /*
  * This should be called once the rc thread has been stopped, so there can be
- * no concurrent bpf execution.
+ * yes concurrent bpf execution.
  *
  * Should be called with the ir_raw_handler_lock held.
  */

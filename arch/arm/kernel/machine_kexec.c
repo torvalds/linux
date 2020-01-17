@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * machine_kexec.c - handle transition of Linux booting another kernel
+ * machine_kexec.c - handle transition of Linux booting ayesther kernel
  */
 
 #include <linux/mm.h>
@@ -32,8 +32,8 @@ extern unsigned long kexec_boot_atags;
 static atomic_t waiting_for_crash_ipi;
 
 /*
- * Provide a dummy crash_notes definition while crash dump arrives to arm.
- * This prevents breakage of crash_notes attribute in kernel/ksysfs.c.
+ * Provide a dummy crash_yestes definition while crash dump arrives to arm.
+ * This prevents breakage of crash_yestes attribute in kernel/ksysfs.c.
  */
 
 int machine_kexec_prepare(struct kimage *image)
@@ -47,7 +47,7 @@ int machine_kexec_prepare(struct kimage *image)
 
 	/*
 	 * Validate that if the current HW supports SMP, then the SW supports
-	 * and implements CPU hotplug for the current HW. If not, we won't be
+	 * and implements CPU hotplug for the current HW. If yest, we won't be
 	 * able to kexec reliably, so fail the prepare operation.
 	 */
 	if (num_possible_cpus() > 1 && platform_can_secondary_boot() &&
@@ -79,12 +79,12 @@ void machine_kexec_cleanup(struct kimage *image)
 {
 }
 
-void machine_crash_nonpanic_core(void *unused)
+void machine_crash_yesnpanic_core(void *unused)
 {
 	struct pt_regs regs;
 
 	crash_setup_regs(&regs, get_irq_regs());
-	printk(KERN_DEBUG "CPU %u will stop doing anything useful since another CPU has crashed\n",
+	printk(KERN_DEBUG "CPU %u will stop doing anything useful since ayesther CPU has crashed\n",
 	       smp_processor_id());
 	crash_save_cpu(&regs, smp_processor_id());
 	flush_cache_all();
@@ -107,14 +107,14 @@ void crash_smp_send_stop(void)
 		return;
 
 	atomic_set(&waiting_for_crash_ipi, num_online_cpus() - 1);
-	smp_call_function(machine_crash_nonpanic_core, NULL, false);
+	smp_call_function(machine_crash_yesnpanic_core, NULL, false);
 	msecs = 1000; /* Wait at most a second for the other cpus to stop */
 	while ((atomic_read(&waiting_for_crash_ipi) > 0) && msecs) {
 		mdelay(1);
 		msecs--;
 	}
 	if (atomic_read(&waiting_for_crash_ipi) > 0)
-		pr_warn("Non-crashing CPUs did not react to IPI\n");
+		pr_warn("Non-crashing CPUs did yest react to IPI\n");
 
 	cpus_stopped = 1;
 }
@@ -167,7 +167,7 @@ void machine_kexec(struct kimage *image)
 	/*
 	 * This can only happen if machine_shutdown() failed to disable some
 	 * CPU, and that can only happen if the checks in
-	 * machine_kexec_prepare() were not correct. If this fails, we can't
+	 * machine_kexec_prepare() were yest correct. If this fails, we can't
 	 * reliably kexec anyway, so BUG_ON is appropriate.
 	 */
 	BUG_ON(num_online_cpus() > 1);

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * builtin-annotate.c
+ * builtin-anyestate.c
  *
- * Builtin annotate command: Analyze the perf.data input file,
+ * Builtin anyestate command: Analyze the perf.data input file,
  * look up and read DSOs and symbol information and display
  * a histogram of results, along various sorting keys.
  */
@@ -20,7 +20,7 @@
 
 #include "util/evlist.h"
 #include "util/evsel.h"
-#include "util/annotate.h"
+#include "util/anyestate.h"
 #include "util/event.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
@@ -38,14 +38,14 @@
 #include "util/branch.h"
 
 #include <dlfcn.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/bitmap.h>
 #include <linux/err.h>
 
-struct perf_annotate {
+struct perf_anyestate {
 	struct perf_tool tool;
 	struct perf_session *session;
-	struct annotation_options opts;
+	struct anyestation_options opts;
 	bool	   use_tui, use_stdio, use_stdio2, use_gtk;
 	bool	   skip_missing;
 	bool	   has_br_stack;
@@ -72,8 +72,8 @@ struct perf_annotate {
  * We count, for each 'instruction', the number of blocks that covered it as
  * well as count the ratio each branch is taken.
  *
- * We can do this without knowing the actual instruction stream by keeping
- * track of the address ranges. We break down ranges such that there is no
+ * We can do this without kyeswing the actual instruction stream by keeping
+ * track of the address ranges. We break down ranges such that there is yes
  * overlap and iterate from the start until the end.
  *
  * @acme: once we parse the objdump output _before_ processing the samples,
@@ -84,12 +84,12 @@ static void process_basic_block(struct addr_map_symbol *start,
 				struct branch_flags *flags)
 {
 	struct symbol *sym = start->ms.sym;
-	struct annotation *notes = sym ? symbol__annotation(sym) : NULL;
+	struct anyestation *yestes = sym ? symbol__anyestation(sym) : NULL;
 	struct block_range_iter iter;
 	struct block_range *entry;
 
 	/*
-	 * Sanity; NULL isn't executable and the CPU cannot execute backwards
+	 * Sanity; NULL isn't executable and the CPU canyest execute backwards
 	 */
 	if (!start->addr || start->addr > end->addr)
 		return;
@@ -111,8 +111,8 @@ static void process_basic_block(struct addr_map_symbol *start,
 		entry->coverage++;
 		entry->sym = sym;
 
-		if (notes)
-			notes->max_coverage = max(notes->max_coverage, entry->coverage);
+		if (yestes)
+			yestes->max_coverage = max(yestes->max_coverage, entry->coverage);
 
 	} while (block_range_iter__next(&iter));
 
@@ -178,7 +178,7 @@ out:
 static int process_branch_callback(struct evsel *evsel,
 				   struct perf_sample *sample,
 				   struct addr_location *al __maybe_unused,
-				   struct perf_annotate *ann,
+				   struct perf_anyestate *ann,
 				   struct machine *machine)
 {
 	struct hist_entry_iter iter = {
@@ -207,22 +207,22 @@ static int process_branch_callback(struct evsel *evsel,
 	return ret;
 }
 
-static bool has_annotation(struct perf_annotate *ann)
+static bool has_anyestation(struct perf_anyestate *ann)
 {
-	return ui__has_annotation() || ann->use_stdio2;
+	return ui__has_anyestation() || ann->use_stdio2;
 }
 
 static int perf_evsel__add_sample(struct evsel *evsel,
 				  struct perf_sample *sample,
 				  struct addr_location *al,
-				  struct perf_annotate *ann,
+				  struct perf_anyestate *ann,
 				  struct machine *machine)
 {
 	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he;
 	int ret;
 
-	if ((!ann->has_br_stack || !has_annotation(ann)) &&
+	if ((!ann->has_br_stack || !has_anyestation(ann)) &&
 	    ann->sym_hist_filter != NULL &&
 	    (al->sym == NULL ||
 	     strcmp(ann->sym_hist_filter, al->sym->name) != 0)) {
@@ -232,7 +232,7 @@ static int perf_evsel__add_sample(struct evsel *evsel,
 		 * the DSO?
 		 */
 		if (al->sym != NULL) {
-			rb_erase_cached(&al->sym->rb_node,
+			rb_erase_cached(&al->sym->rb_yesde,
 				 &al->map->dso->symbols);
 			symbol__delete(al->sym);
 			dso__reset_find_symbol_cache(al->map->dso);
@@ -246,7 +246,7 @@ static int perf_evsel__add_sample(struct evsel *evsel,
 	 */
 	process_branch_stack(sample->branch_stack, al, sample);
 
-	if (ann->has_br_stack && has_annotation(ann))
+	if (ann->has_br_stack && has_anyestation(ann))
 		return process_branch_callback(evsel, sample, al, ann, machine);
 
 	he = hists__add_entry(hists, al, NULL, NULL, NULL, sample, true);
@@ -264,7 +264,7 @@ static int process_sample_event(struct perf_tool *tool,
 				struct evsel *evsel,
 				struct machine *machine)
 {
-	struct perf_annotate *ann = container_of(tool, struct perf_annotate, tool);
+	struct perf_anyestate *ann = container_of(tool, struct perf_anyestate, tool);
 	struct addr_location al;
 	int ret = 0;
 
@@ -296,36 +296,36 @@ static int process_feature_event(struct perf_session *session,
 	return 0;
 }
 
-static int hist_entry__tty_annotate(struct hist_entry *he,
+static int hist_entry__tty_anyestate(struct hist_entry *he,
 				    struct evsel *evsel,
-				    struct perf_annotate *ann)
+				    struct perf_anyestate *ann)
 {
 	if (!ann->use_stdio2)
-		return symbol__tty_annotate(&he->ms, evsel, &ann->opts);
+		return symbol__tty_anyestate(&he->ms, evsel, &ann->opts);
 
-	return symbol__tty_annotate2(&he->ms, evsel, &ann->opts);
+	return symbol__tty_anyestate2(&he->ms, evsel, &ann->opts);
 }
 
-static void hists__find_annotations(struct hists *hists,
+static void hists__find_anyestations(struct hists *hists,
 				    struct evsel *evsel,
-				    struct perf_annotate *ann)
+				    struct perf_anyestate *ann)
 {
-	struct rb_node *nd = rb_first_cached(&hists->entries), *next;
+	struct rb_yesde *nd = rb_first_cached(&hists->entries), *next;
 	int key = K_RIGHT;
 
 	while (nd) {
-		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
-		struct annotation *notes;
+		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_yesde);
+		struct anyestation *yestes;
 
-		if (he->ms.sym == NULL || he->ms.map->dso->annotate_warned)
+		if (he->ms.sym == NULL || he->ms.map->dso->anyestate_warned)
 			goto find_next;
 
 		if (ann->sym_hist_filter &&
 		    (strcmp(he->ms.sym->name, ann->sym_hist_filter) != 0))
 			goto find_next;
 
-		notes = symbol__annotation(he->ms.sym);
-		if (notes->src == NULL) {
+		yestes = symbol__anyestation(he->ms.sym);
+		if (yestes->src == NULL) {
 find_next:
 			if (key == K_LEFT)
 				nd = rb_prev(nd);
@@ -336,25 +336,25 @@ find_next:
 
 		if (use_browser == 2) {
 			int ret;
-			int (*annotate)(struct hist_entry *he,
+			int (*anyestate)(struct hist_entry *he,
 					struct evsel *evsel,
 					struct hist_browser_timer *hbt);
 
-			annotate = dlsym(perf_gtk_handle,
-					 "hist_entry__gtk_annotate");
-			if (annotate == NULL) {
-				ui__error("GTK browser not found!\n");
+			anyestate = dlsym(perf_gtk_handle,
+					 "hist_entry__gtk_anyestate");
+			if (anyestate == NULL) {
+				ui__error("GTK browser yest found!\n");
 				return;
 			}
 
-			ret = annotate(he, evsel, NULL);
+			ret = anyestate(he, evsel, NULL);
 			if (!ret || !ann->skip_missing)
 				return;
 
 			/* skip missing symbols */
 			nd = rb_next(nd);
 		} else if (use_browser == 1) {
-			key = hist_entry__tui_annotate(he, evsel, NULL, &ann->opts);
+			key = hist_entry__tui_anyestate(he, evsel, NULL, &ann->opts);
 
 			switch (key) {
 			case -1:
@@ -374,20 +374,20 @@ find_next:
 			if (next != NULL)
 				nd = next;
 		} else {
-			hist_entry__tty_annotate(he, evsel, ann);
+			hist_entry__tty_anyestate(he, evsel, ann);
 			nd = rb_next(nd);
 			/*
 			 * Since we have a hist_entry per IP for the same
 			 * symbol, free he->ms.sym->src to signal we already
 			 * processed this symbol.
 			 */
-			zfree(&notes->src->cycles_hist);
-			zfree(&notes->src);
+			zfree(&yestes->src->cycles_hist);
+			zfree(&yestes->src);
 		}
 	}
 }
 
-static int __cmd_annotate(struct perf_annotate *ann)
+static int __cmd_anyestate(struct perf_anyestate *ann)
 {
 	int ret;
 	struct perf_session *session = ann->session;
@@ -440,39 +440,39 @@ static int __cmd_annotate(struct perf_annotate *ann)
 			    !perf_evsel__is_group_leader(pos))
 				continue;
 
-			hists__find_annotations(hists, pos, ann);
+			hists__find_anyestations(hists, pos, ann);
 		}
 	}
 
 	if (total_nr_samples == 0) {
-		ui__error("The %s data has no samples!\n", session->data->path);
+		ui__error("The %s data has yes samples!\n", session->data->path);
 		goto out;
 	}
 
 	if (use_browser == 2) {
-		void (*show_annotations)(void);
+		void (*show_anyestations)(void);
 
-		show_annotations = dlsym(perf_gtk_handle,
-					 "perf_gtk__show_annotations");
-		if (show_annotations == NULL) {
-			ui__error("GTK browser not found!\n");
+		show_anyestations = dlsym(perf_gtk_handle,
+					 "perf_gtk__show_anyestations");
+		if (show_anyestations == NULL) {
+			ui__error("GTK browser yest found!\n");
 			goto out;
 		}
-		show_annotations();
+		show_anyestations();
 	}
 
 out:
 	return ret;
 }
 
-static const char * const annotate_usage[] = {
-	"perf annotate [<options>]",
+static const char * const anyestate_usage[] = {
+	"perf anyestate [<options>]",
 	NULL
 };
 
-int cmd_annotate(int argc, const char **argv)
+int cmd_anyestate(int argc, const char **argv)
 {
-	struct perf_annotate annotate = {
+	struct perf_anyestate anyestate = {
 		.tool = {
 			.sample	= process_sample_event,
 			.mmap	= perf_event__process_mmap,
@@ -488,7 +488,7 @@ int cmd_annotate(int argc, const char **argv)
 			.ordered_events = true,
 			.ordering_requires_timestamps = true,
 		},
-		.opts = annotation__default_options,
+		.opts = anyestation__default_options,
 	};
 	struct perf_data data = {
 		.mode  = PERF_DATA_MODE_READ,
@@ -498,45 +498,45 @@ int cmd_annotate(int argc, const char **argv)
 		    "input file name"),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
-	OPT_STRING('s', "symbol", &annotate.sym_hist_filter, "symbol",
-		    "symbol to annotate"),
+	OPT_STRING('s', "symbol", &anyestate.sym_hist_filter, "symbol",
+		    "symbol to anyestate"),
 	OPT_BOOLEAN('f', "force", &data.force, "don't complain, do it"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
-	OPT_BOOLEAN('q', "quiet", &quiet, "do now show any message"),
+	OPT_BOOLEAN('q', "quiet", &quiet, "do yesw show any message"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
-	OPT_BOOLEAN(0, "gtk", &annotate.use_gtk, "Use the GTK interface"),
-	OPT_BOOLEAN(0, "tui", &annotate.use_tui, "Use the TUI interface"),
-	OPT_BOOLEAN(0, "stdio", &annotate.use_stdio, "Use the stdio interface"),
-	OPT_BOOLEAN(0, "stdio2", &annotate.use_stdio2, "Use the stdio interface"),
-	OPT_BOOLEAN(0, "ignore-vmlinux", &symbol_conf.ignore_vmlinux,
+	OPT_BOOLEAN(0, "gtk", &anyestate.use_gtk, "Use the GTK interface"),
+	OPT_BOOLEAN(0, "tui", &anyestate.use_tui, "Use the TUI interface"),
+	OPT_BOOLEAN(0, "stdio", &anyestate.use_stdio, "Use the stdio interface"),
+	OPT_BOOLEAN(0, "stdio2", &anyestate.use_stdio2, "Use the stdio interface"),
+	OPT_BOOLEAN(0, "igyesre-vmlinux", &symbol_conf.igyesre_vmlinux,
                     "don't load vmlinux even if found"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
-	OPT_BOOLEAN('l', "print-line", &annotate.opts.print_lines,
+	OPT_BOOLEAN('l', "print-line", &anyestate.opts.print_lines,
 		    "print matching source lines (may be slow)"),
-	OPT_BOOLEAN('P', "full-paths", &annotate.opts.full_path,
+	OPT_BOOLEAN('P', "full-paths", &anyestate.opts.full_path,
 		    "Don't shorten the displayed pathnames"),
-	OPT_BOOLEAN(0, "skip-missing", &annotate.skip_missing,
-		    "Skip symbols that cannot be annotated"),
+	OPT_BOOLEAN(0, "skip-missing", &anyestate.skip_missing,
+		    "Skip symbols that canyest be anyestated"),
 	OPT_BOOLEAN_SET(0, "group", &symbol_conf.event_group,
-			&annotate.group_set,
+			&anyestate.group_set,
 			"Show event group information together"),
-	OPT_STRING('C', "cpu", &annotate.cpu_list, "cpu", "list of cpus to profile"),
+	OPT_STRING('C', "cpu", &anyestate.cpu_list, "cpu", "list of cpus to profile"),
 	OPT_CALLBACK(0, "symfs", NULL, "directory",
 		     "Look for files with symbols relative to this directory",
 		     symbol__config_symfs),
-	OPT_BOOLEAN(0, "source", &annotate.opts.annotate_src,
+	OPT_BOOLEAN(0, "source", &anyestate.opts.anyestate_src,
 		    "Interleave source code with assembly code (default)"),
-	OPT_BOOLEAN(0, "asm-raw", &annotate.opts.show_asm_raw,
+	OPT_BOOLEAN(0, "asm-raw", &anyestate.opts.show_asm_raw,
 		    "Display raw encoding of assembly instructions (default)"),
-	OPT_STRING('M', "disassembler-style", &annotate.opts.disassembler_style, "disassembler style",
+	OPT_STRING('M', "disassembler-style", &anyestate.opts.disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
-	OPT_STRING(0, "objdump", &annotate.opts.objdump_path, "path",
-		   "objdump binary to use for disassembly and annotations"),
+	OPT_STRING(0, "objdump", &anyestate.opts.objdump_path, "path",
+		   "objdump binary to use for disassembly and anyestations"),
 	OPT_BOOLEAN(0, "group", &symbol_conf.event_group,
 		    "Show event group information together"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
@@ -546,9 +546,9 @@ int cmd_annotate(int argc, const char **argv)
 	OPT_CALLBACK_DEFAULT(0, "stdio-color", NULL, "mode",
 			     "'always' (default), 'never' or 'auto' only applicable to --stdio mode",
 			     stdio__config_color, "always"),
-	OPT_CALLBACK(0, "percent-type", &annotate.opts, "local-period",
+	OPT_CALLBACK(0, "percent-type", &anyestate.opts, "local-period",
 		     "Set percent type local/global-period/hits",
-		     annotate_parse_percent_type),
+		     anyestate_parse_percent_type),
 
 	OPT_END()
 	};
@@ -562,20 +562,20 @@ int cmd_annotate(int argc, const char **argv)
 	if (ret < 0)
 		return ret;
 
-	argc = parse_options(argc, argv, options, annotate_usage, 0);
+	argc = parse_options(argc, argv, options, anyestate_usage, 0);
 	if (argc) {
 		/*
 		 * Special case: if there's an argument left then assume that
 		 * it's a symbol filter:
 		 */
 		if (argc > 1)
-			usage_with_options(annotate_usage, options);
+			usage_with_options(anyestate_usage, options);
 
-		annotate.sym_hist_filter = argv[0];
+		anyestate.sym_hist_filter = argv[0];
 	}
 
-	if (symbol_conf.show_nr_samples && annotate.use_gtk) {
-		pr_err("--show-nr-samples is not available in --gtk mode at this time\n");
+	if (symbol_conf.show_nr_samples && anyestate.use_gtk) {
+		pr_err("--show-nr-samples is yest available in --gtk mode at this time\n");
 		return ret;
 	}
 
@@ -584,47 +584,47 @@ int cmd_annotate(int argc, const char **argv)
 
 	data.path = input_name;
 
-	annotate.session = perf_session__new(&data, false, &annotate.tool);
-	if (IS_ERR(annotate.session))
-		return PTR_ERR(annotate.session);
+	anyestate.session = perf_session__new(&data, false, &anyestate.tool);
+	if (IS_ERR(anyestate.session))
+		return PTR_ERR(anyestate.session);
 
-	annotate.has_br_stack = perf_header__has_feat(&annotate.session->header,
+	anyestate.has_br_stack = perf_header__has_feat(&anyestate.session->header,
 						      HEADER_BRANCH_STACK);
 
-	if (annotate.group_set)
-		perf_evlist__force_leader(annotate.session->evlist);
+	if (anyestate.group_set)
+		perf_evlist__force_leader(anyestate.session->evlist);
 
-	ret = symbol__annotation_init();
+	ret = symbol__anyestation_init();
 	if (ret < 0)
 		goto out_delete;
 
-	annotation_config__init();
+	anyestation_config__init();
 
 	symbol_conf.try_vmlinux_path = true;
 
-	ret = symbol__init(&annotate.session->header.env);
+	ret = symbol__init(&anyestate.session->header.env);
 	if (ret < 0)
 		goto out_delete;
 
-	if (annotate.use_stdio || annotate.use_stdio2)
+	if (anyestate.use_stdio || anyestate.use_stdio2)
 		use_browser = 0;
-	else if (annotate.use_tui)
+	else if (anyestate.use_tui)
 		use_browser = 1;
-	else if (annotate.use_gtk)
+	else if (anyestate.use_gtk)
 		use_browser = 2;
 
 	setup_browser(true);
 
-	if ((use_browser == 1 || annotate.use_stdio2) && annotate.has_br_stack) {
+	if ((use_browser == 1 || anyestate.use_stdio2) && anyestate.has_br_stack) {
 		sort__mode = SORT_MODE__BRANCH;
-		if (setup_sorting(annotate.session->evlist) < 0)
-			usage_with_options(annotate_usage, options);
+		if (setup_sorting(anyestate.session->evlist) < 0)
+			usage_with_options(anyestate_usage, options);
 	} else {
 		if (setup_sorting(NULL) < 0)
-			usage_with_options(annotate_usage, options);
+			usage_with_options(anyestate_usage, options);
 	}
 
-	ret = __cmd_annotate(&annotate);
+	ret = __cmd_anyestate(&anyestate);
 
 out_delete:
 	/*

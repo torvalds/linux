@@ -12,7 +12,7 @@ Introduction
 fs-verity (``fs/verity/``) is a support layer that filesystems can
 hook into to support transparent integrity and authenticity protection
 of read-only files.  Currently, it is supported by the ext4 and f2fs
-filesystems.  Like fscrypt, not too much filesystem-specific code is
+filesystems.  Like fscrypt, yest too much filesystem-specific code is
 needed to support fs-verity.
 
 fs-verity is similar to `dm-verity
@@ -26,7 +26,7 @@ After this, the file is made readonly, and all reads from the file are
 automatically verified against the file's Merkle tree.  Reads of any
 corrupted data, including mmap reads, will fail.
 
-Userspace can use another ioctl to retrieve the root hash (actually
+Userspace can use ayesther ioctl to retrieve the root hash (actually
 the "file measurement", which is a hash that includes the root hash)
 that fs-verity is enforcing for the file.  This ioctl executes in
 constant time, regardless of the file size.
@@ -39,7 +39,7 @@ Use cases
 =========
 
 By itself, the base fs-verity feature only provides integrity
-protection, i.e. detection of accidental (non-malicious) corruption.
+protection, i.e. detection of accidental (yesn-malicious) corruption.
 
 However, because fs-verity makes retrieving the file hash extremely
 efficient, it's primarily meant to be used as a tool to support
@@ -64,10 +64,10 @@ Unlike an ahead-of-time hash, fs-verity also re-verifies data each
 time it's paged in.  This ensures that malicious disk firmware can't
 undetectably change the contents of the file at runtime.
 
-fs-verity does not replace or obsolete dm-verity.  dm-verity should
+fs-verity does yest replace or obsolete dm-verity.  dm-verity should
 still be used on read-only filesystems.  fs-verity is for files that
 must live on a read-write filesystem because they are independently
-updated and potentially user-installed, so dm-verity cannot be used.
+updated and potentially user-installed, so dm-verity canyest be used.
 
 The base fs-verity feature is a hashing mechanism only; actually
 authenticating the files is up to userspace.  However, to meet some
@@ -109,19 +109,19 @@ as follows:
   ``include/uapi/linux/fsverity.h`` for the list of possible values.
 - ``block_size`` must be the Merkle tree block size.  Currently, this
   must be equal to the system page size, which is usually 4096 bytes.
-  Other sizes may be supported in the future.  This value is not
+  Other sizes may be supported in the future.  This value is yest
   necessarily the same as the filesystem block size.
-- ``salt_size`` is the size of the salt in bytes, or 0 if no salt is
+- ``salt_size`` is the size of the salt in bytes, or 0 if yes salt is
   provided.  The salt is a value that is prepended to every hashed
   block; it can be used to personalize the hashing for a particular
   file or device.  Currently the maximum salt size is 32 bytes.
-- ``salt_ptr`` is the pointer to the salt, or NULL if no salt is
+- ``salt_ptr`` is the pointer to the salt, or NULL if yes salt is
   provided.
-- ``sig_size`` is the size of the signature in bytes, or 0 if no
+- ``sig_size`` is the size of the signature in bytes, or 0 if yes
   signature is provided.  Currently the signature is (somewhat
   arbitrarily) limited to 16128 bytes.  See `Built-in signature
   verification`_ for more information.
-- ``sig_ptr``  is the pointer to the signature, or NULL if no
+- ``sig_ptr``  is the pointer to the signature, or NULL if yes
   signature is provided.
 - All reserved fields must be zeroed.
 
@@ -131,21 +131,21 @@ with the file, then mark the file as a verity file.  This ioctl may
 take a long time to execute on large files, and it is interruptible by
 fatal signals.
 
-FS_IOC_ENABLE_VERITY checks for write access to the inode.  However,
-it must be executed on an O_RDONLY file descriptor and no processes
+FS_IOC_ENABLE_VERITY checks for write access to the iyesde.  However,
+it must be executed on an O_RDONLY file descriptor and yes processes
 can have the file open for writing.  Attempts to open the file for
 writing while this ioctl is executing will fail with ETXTBSY.  (This
-is necessary to guarantee that no writable file descriptors will exist
+is necessary to guarantee that yes writable file descriptors will exist
 after verity is enabled, and to guarantee that the file's contents are
 stable while the Merkle tree is being built over it.)
 
 On success, FS_IOC_ENABLE_VERITY returns 0, and the file becomes a
 verity file.  On failure (including the case of interruption by a
-fatal signal), no changes are made to the file.
+fatal signal), yes changes are made to the file.
 
 FS_IOC_ENABLE_VERITY can fail with the following errors:
 
-- ``EACCES``: the process does not have write access to the file
+- ``EACCES``: the process does yest have write access to the file
 - ``EBADMSG``: the signature is malformed
 - ``EBUSY``: this ioctl is already running on the file
 - ``EEXIST``: the file already has verity enabled
@@ -153,25 +153,25 @@ FS_IOC_ENABLE_VERITY can fail with the following errors:
 - ``EINTR``: the operation was interrupted by a fatal signal
 - ``EINVAL``: unsupported version, hash algorithm, or block size; or
   reserved bits are set; or the file descriptor refers to neither a
-  regular file nor a directory.
+  regular file yesr a directory.
 - ``EISDIR``: the file descriptor refers to a directory
 - ``EKEYREJECTED``: the signature doesn't match the file
 - ``EMSGSIZE``: the salt or signature is too long
 - ``ENOKEY``: the fs-verity keyring doesn't contain the certificate
   needed to verify the signature
-- ``ENOPKG``: fs-verity recognizes the hash algorithm, but it's not
+- ``ENOPKG``: fs-verity recognizes the hash algorithm, but it's yest
   available in the kernel's crypto API as currently configured (e.g.
   for SHA-512, missing CONFIG_CRYPTO_SHA512).
-- ``ENOTTY``: this type of filesystem does not implement fs-verity
-- ``EOPNOTSUPP``: the kernel was not configured with fs-verity
-  support; or the filesystem superblock has not had the 'verity'
-  feature enabled on it; or the filesystem does not support fs-verity
+- ``ENOTTY``: this type of filesystem does yest implement fs-verity
+- ``EOPNOTSUPP``: the kernel was yest configured with fs-verity
+  support; or the filesystem superblock has yest had the 'verity'
+  feature enabled on it; or the filesystem does yest support fs-verity
   on this file.  (See `Filesystem support`_.)
 - ``EPERM``: the file is append-only; or, a signature is required and
-  one was not provided.
+  one was yest provided.
 - ``EROFS``: the filesystem is read-only
 - ``ETXTBSY``: someone has the file open for writing.  This can be the
-  caller's file descriptor, another open file descriptor, or the file
+  caller's file descriptor, ayesther open file descriptor, or the file
   reference held by a writable memory map.
 
 FS_IOC_MEASURE_VERITY
@@ -208,10 +208,10 @@ regardless of the size of the file.
 FS_IOC_MEASURE_VERITY can fail with the following errors:
 
 - ``EFAULT``: the caller provided inaccessible memory
-- ``ENODATA``: the file is not a verity file
-- ``ENOTTY``: this type of filesystem does not implement fs-verity
-- ``EOPNOTSUPP``: the kernel was not configured with fs-verity
-  support, or the filesystem superblock has not had the 'verity'
+- ``ENODATA``: the file is yest a verity file
+- ``ENOTTY``: this type of filesystem does yest implement fs-verity
+- ``EOPNOTSUPP``: the kernel was yest configured with fs-verity
+  support, or the filesystem superblock has yest had the 'verity'
   feature enabled on it.  (See `Filesystem support`_.)
 - ``EOVERFLOW``: the digest is longer than the specified
   ``digest_size`` bytes.  Try providing a larger buffer.
@@ -220,10 +220,10 @@ FS_IOC_GETFLAGS
 ---------------
 
 The existing ioctl FS_IOC_GETFLAGS (which isn't specific to fs-verity)
-can also be used to check whether a file has fs-verity enabled or not.
+can also be used to check whether a file has fs-verity enabled or yest.
 To do so, check for FS_VERITY_FL (0x00100000) in the returned flags.
 
-The verity flag is not settable via FS_IOC_SETFLAGS.  You must use
+The verity flag is yest settable via FS_IOC_SETFLAGS.  You must use
 FS_IOC_ENABLE_VERITY instead, since parameters must be provided.
 
 statx
@@ -238,30 +238,30 @@ Accessing verity files
 ======================
 
 Applications can transparently access a verity file just like a
-non-verity one, with the following exceptions:
+yesn-verity one, with the following exceptions:
 
-- Verity files are readonly.  They cannot be opened for writing or
+- Verity files are readonly.  They canyest be opened for writing or
   truncate()d, even if the file mode bits allow it.  Attempts to do
   one of these things will fail with EPERM.  However, changes to
   metadata such as owner, mode, timestamps, and xattrs are still
-  allowed, since these are not measured by fs-verity.  Verity files
+  allowed, since these are yest measured by fs-verity.  Verity files
   can also still be renamed, deleted, and linked to.
 
-- Direct I/O is not supported on verity files.  Attempts to use direct
+- Direct I/O is yest supported on verity files.  Attempts to use direct
   I/O on such files will fall back to buffered I/O.
 
-- DAX (Direct Access) is not supported on verity files, because this
+- DAX (Direct Access) is yest supported on verity files, because this
   would circumvent the data verification.
 
 - Reads of data that doesn't match the verity Merkle tree will fail
   with EIO (for read()) or SIGBUS (for mmap() reads).
 
 - If the sysctl "fs.verity.require_signatures" is set to 1 and the
-  file's verity measurement is not signed by a key in the fs-verity
+  file's verity measurement is yest signed by a key in the fs-verity
   keyring, then opening the file will fail.  See `Built-in signature
   verification`_.
 
-Direct access to the Merkle tree is not supported.  Therefore, if a
+Direct access to the Merkle tree is yest supported.  Therefore, if a
 verity file is copied, or is backed up and restored, then it will lose
 its "verity"-ness.  fs-verity is primarily meant for files like
 executables that are managed by a package manager.
@@ -291,11 +291,11 @@ these blocks are hashed, producing the second level of hashes.  This
 proceeds up the tree until only a single block remains.  The hash of
 this block is the "Merkle tree root hash".
 
-If the file fits in one block and is nonempty, then the "Merkle tree
+If the file fits in one block and is yesnempty, then the "Merkle tree
 root hash" is simply the hash of the single data block.  If the file
 is empty, then the "Merkle tree root hash" is all zeroes.
 
-The "blocks" here are not necessarily the same as "filesystem blocks".
+The "blocks" here are yest necessarily the same as "filesystem blocks".
 
 If a salt was specified, then it's zero-padded to the closest multiple
 of the input size of the hash algorithm's compression function, e.g.
@@ -333,7 +333,7 @@ Merkle tree root hash as well as other fields such as the file size::
             __u8 version;           /* must be 1 */
             __u8 hash_algorithm;    /* Merkle tree hash algorithm */
             __u8 log_blocksize;     /* log2 of size of data and tree blocks */
-            __u8 salt_size;         /* size of salt in bytes; 0 if none */
+            __u8 salt_size;         /* size of salt in bytes; 0 if yesne */
             __le32 sig_size;        /* must be 0 */
             __le64 data_size;       /* size of file the Merkle tree is built over */
             __u8 root_hash[64];     /* Merkle tree root hash */
@@ -384,7 +384,7 @@ relatively simple mechanism that can be used to provide some level of
 authenticity protection for verity files, as an alternative to doing
 the signature verification in userspace or using IMA-appraisal.
 However, with this mechanism, userspace programs still need to check
-that the verity bit is set, and there is no protection against verity
+that the verity bit is set, and there is yes protection against verity
 files being swapped around.
 
 Filesystem support
@@ -416,8 +416,8 @@ versions of e2fsck will be unable to check the filesystem.  Moreover,
 currently ext4 only supports mounting a filesystem with the "verity"
 feature when its block size is equal to PAGE_SIZE (often 4096 bytes).
 
-ext4 sets the EXT4_VERITY_FL on-disk inode flag on verity files.  It
-can only be set by `FS_IOC_ENABLE_VERITY`_, and it cannot be cleared.
+ext4 sets the EXT4_VERITY_FL on-disk iyesde flag on verity files.  It
+can only be set by `FS_IOC_ENABLE_VERITY`_, and it canyest be cleared.
 
 ext4 also supports encryption, which can be used simultaneously with
 fs-verity.  In this case, the plaintext data is verified rather than
@@ -447,15 +447,15 @@ f2fs supports fs-verity since Linux v5.4 and f2fs-tools v1.11.0.
 To create verity files on an f2fs filesystem, the filesystem must have
 been formatted with ``-O verity``.
 
-f2fs sets the FADVISE_VERITY_BIT on-disk inode flag on verity files.
-It can only be set by `FS_IOC_ENABLE_VERITY`_, and it cannot be
+f2fs sets the FADVISE_VERITY_BIT on-disk iyesde flag on verity files.
+It can only be set by `FS_IOC_ENABLE_VERITY`_, and it canyest be
 cleared.
 
 Like ext4, f2fs stores the verity metadata (Merkle tree and
 fsverity_descriptor) past the end of the file, starting at the first
 64K boundary beyond i_size.  See explanation for ext4 above.
-Moreover, f2fs supports at most 4096 bytes of xattr entries per inode
-which wouldn't be enough for even a single Merkle tree block.
+Moreover, f2fs supports at most 4096 bytes of xattr entries per iyesde
+which wouldn't be eyesugh for even a single Merkle tree block.
 
 Currently, f2fs verity only supports a Merkle tree block size of 4096.
 Also, f2fs doesn't support enabling verity on files that currently
@@ -479,17 +479,17 @@ Pagecache
 For filesystems using Linux's pagecache, the ``->readpage()`` and
 ``->readpages()`` methods must be modified to verify pages before they
 are marked Uptodate.  Merely hooking ``->read_iter()`` would be
-insufficient, since ``->read_iter()`` is not used for memory maps.
+insufficient, since ``->read_iter()`` is yest used for memory maps.
 
 Therefore, fs/verity/ provides a function fsverity_verify_page() which
 verifies a page that has been read into the pagecache of a verity
-inode, but is still locked and not Uptodate, so it's not yet readable
+iyesde, but is still locked and yest Uptodate, so it's yest yet readable
 by userspace.  As needed to do the verification,
 fsverity_verify_page() will call back into the filesystem to read
 Merkle tree pages via fsverity_operations::read_merkle_tree_page().
 
 fsverity_verify_page() returns false if verification failed; in this
-case, the filesystem must not set the page Uptodate.  Following this,
+case, the filesystem must yest set the page Uptodate.  Following this,
 as per the usual Linux pagecache behavior, attempts by userspace to
 read() from the part of the file containing the page will fail with
 EIO, and accesses to the page within a memory map will raise SIGBUS.
@@ -536,11 +536,11 @@ each bio and store it in ``->bi_private``::
 verity, or both is enabled.  After the bio completes, for each needed
 postprocessing step the filesystem enqueues the bio_post_read_ctx on a
 workqueue, and then the workqueue work does the decryption or
-verification.  Finally, pages where no decryption or verity error
+verification.  Finally, pages where yes decryption or verity error
 occurred are marked Uptodate, and the pages are unlocked.
 
 Files on ext4 and f2fs may contain holes.  Normally, ``->readpages()``
-simply zeroes holes and sets the corresponding pages Uptodate; no bios
+simply zeroes holes and sets the corresponding pages Uptodate; yes bios
 are issued.  To prevent this case from bypassing fs-verity, these
 filesystems use fsverity_verify_page() to verify hole pages.
 
@@ -596,21 +596,21 @@ weren't already directly answered in other parts of this document.
     root hash of the Merkle tree.  See `Use cases`_.
 
 :Q: Isn't fs-verity useless because the attacker can just replace a
-    verity file with a non-verity one?
+    verity file with a yesn-verity one?
 :A: See `Use cases`_.  In the initial use case, it's really trusted
     userspace code that authenticates the files; fs-verity is just a
     tool to do this job efficiently and securely.  The trusted
-    userspace code will consider non-verity files to be inauthentic.
+    userspace code will consider yesn-verity files to be inauthentic.
 
 :Q: Why does the Merkle tree need to be stored on-disk?  Couldn't you
     store just the root hash?
 :A: If the Merkle tree wasn't stored on-disk, then you'd have to
     compute the entire tree when the file is first accessed, even if
     just one byte is being read.  This is a fundamental consequence of
-    how Merkle tree hashing works.  To verify a leaf node, you need to
-    verify the whole path to the root hash, including the root node
+    how Merkle tree hashing works.  To verify a leaf yesde, you need to
+    verify the whole path to the root hash, including the root yesde
     (the thing which the root hash is a hash of).  But if the root
-    node isn't stored on-disk, you have to compute it by hashing its
+    yesde isn't stored on-disk, you have to compute it by hashing its
     children, and so on until you've actually hashed the entire file.
 
     That defeats most of the point of doing a Merkle tree-based hash,
@@ -627,15 +627,15 @@ weren't already directly answered in other parts of this document.
     defeats most of the point of doing a Merkle tree-based hash, since
     a single block read could trigger re-hashing gigabytes of data.
 
-:Q: But couldn't you store just the leaf nodes and compute the rest?
+:Q: But couldn't you store just the leaf yesdes and compute the rest?
 :A: See previous answer; this really just moves up one level, since
     one could alternatively interpret the data blocks as being the
-    leaf nodes of the Merkle tree.  It's true that the tree can be
+    leaf yesdes of the Merkle tree.  It's true that the tree can be
     computed much faster if the leaf level is stored rather than just
     the data, but that's only because each level is less than 1% the
     size of the level below (assuming the recommended settings of
     SHA-256 and 4K blocks).  For the exact same reason, by storing
-    "just the leaf nodes" you'd already be storing over 99% of the
+    "just the leaf yesdes" you'd already be storing over 99% of the
     tree, so you might as well simply store the whole tree.
 
 :Q: Can the Merkle tree be built ahead of time, e.g. distributed as
@@ -669,13 +669,13 @@ weren't already directly answered in other parts of this document.
     read-only Merkle tree.  In contrast, dm-integrity supports writes
     but is slow, is much more complex, and doesn't actually support
     full-device authentication since it authenticates each sector
-    independently, i.e. there is no "root hash".  It doesn't really
+    independently, i.e. there is yes "root hash".  It doesn't really
     make sense for the same device-mapper target to support these two
     very different cases; the same applies to fs-verity.
 
 :Q: Since verity files are immutable, why isn't the immutable bit set?
 :A: The existing "immutable" bit (FS_IMMUTABLE_FL) already has a
-    specific set of semantics which not only make the file contents
+    specific set of semantics which yest only make the file contents
     read-only, but also prevent the file from being deleted, renamed,
     linked to, or having its owner or mode changed.  These extra
     properties are unwanted for fs-verity, so reusing the immutable
@@ -684,7 +684,7 @@ weren't already directly answered in other parts of this document.
 :Q: Why does the API use ioctls instead of setxattr() and getxattr()?
 :A: Abusing the xattr interface for basically arbitrary syscalls is
     heavily frowned upon by most of the Linux filesystem developers.
-    An xattr should really just be an xattr on-disk, not an API to
+    An xattr should really just be an xattr on-disk, yest an API to
     e.g. magically trigger construction of a Merkle tree.
 
 :Q: Does fs-verity support remote filesystems?
@@ -696,17 +696,17 @@ weren't already directly answered in other parts of this document.
     the file and "hide" it from userspace by manipulating i_size.  The
     data verification functions provided by ``fs/verity/`` also assume
     that the filesystem uses the Linux pagecache, but both local and
-    remote filesystems normally do so.
+    remote filesystems yesrmally do so.
 
 :Q: Why is anything filesystem-specific at all?  Shouldn't fs-verity
     be implemented entirely at the VFS level?
-:A: There are many reasons why this is not possible or would be very
+:A: There are many reasons why this is yest possible or would be very
     difficult, including the following:
 
-    - To prevent bypassing verification, pages must not be marked
+    - To prevent bypassing verification, pages must yest be marked
       Uptodate until they've been verified.  Currently, each
       filesystem is responsible for marking pages Uptodate via
-      ``->readpages()``.  Therefore, currently it's not possible for
+      ``->readpages()``.  Therefore, currently it's yest possible for
       the VFS to do the verification on its own.  Changing this would
       require significant changes to the VFS and all filesystems.
 
@@ -723,12 +723,12 @@ weren't already directly answered in other parts of this document.
       file.  Using a separate file would be very ugly, since the
       metadata is fundamentally part of the file to be protected, and
       it could cause problems where users could delete the real file
-      but not the metadata file or vice versa.  On the other hand,
+      but yest the metadata file or vice versa.  On the other hand,
       having it be in the same file would break applications unless
-      filesystems' notion of i_size were divorced from the VFS's,
+      filesystems' yestion of i_size were divorced from the VFS's,
       which would be complex and require changes to all filesystems.
 
     - It's desirable that FS_IOC_ENABLE_VERITY uses the filesystem's
       transaction mechanism so that either the file ends up with
-      verity enabled, or no changes were made.  Allowing intermediate
+      verity enabled, or yes changes were made.  Allowing intermediate
       states to occur after a crash may cause problems.

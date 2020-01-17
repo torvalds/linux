@@ -72,7 +72,7 @@ isl38xx_w32_flush(void __iomem *base, u32 val, unsigned long offset)
 #define ISL38XX_DEV_INT_WAKEUP                  0x0008
 #define ISL38XX_DEV_INT_SLEEP                   0x0010
 
-/* Interrupt Identification/Acknowledge/Enable register bits */
+/* Interrupt Identification/Ackyeswledge/Enable register bits */
 #define ISL38XX_INT_IDENT_UPDATE                0x0002
 #define ISL38XX_INT_IDENT_INIT                  0x0004
 #define ISL38XX_INT_IDENT_WAKEUP                0x0008
@@ -81,7 +81,7 @@ isl38xx_w32_flush(void __iomem *base, u32 val, unsigned long offset)
 
 /* Control/Status register bits */
 /* Looks like there are other meaningful bits
-    0x20004400 seen in normal operation,
+    0x20004400 seen in yesrmal operation,
     0x200044db at 'timeout waiting for mgmt response'
 */
 #define ISL38XX_CTRL_STAT_SLEEPMODE             0x00000200
@@ -107,7 +107,7 @@ isl38xx_w32_flush(void __iomem *base, u32 val, unsigned long offset)
 #define MGMT_TX_FRAME_COUNT                     24	/* max 4 + spare 4 + 8 init */
 #define MGMT_RX_FRAME_COUNT                     24	/* 4*4 + spare 8 */
 #define MGMT_FRAME_COUNT                        (MGMT_TX_FRAME_COUNT + MGMT_RX_FRAME_COUNT)
-#define CONTROL_BLOCK_SIZE                      1024	/* should be enough */
+#define CONTROL_BLOCK_SIZE                      1024	/* should be eyesugh */
 #define PSM_FRAME_SIZE                          1536
 #define PSM_MINIMAL_STATION_COUNT               64
 #define PSM_FRAME_COUNT                         PSM_MINIMAL_STATION_COUNT
@@ -119,7 +119,7 @@ isl38xx_w32_flush(void __iomem *base, u32 val, unsigned long offset)
 #define FRAGMENT_FLAG_MF                        0x0001
 #define MAX_FRAGMENT_SIZE                       1536
 
-/* In monitor mode frames have a header. I don't know exactly how big those
+/* In monitor mode frames have a header. I don't kyesw exactly how big those
  * frame can be but I've never seen any frame bigger than 1584... :
  */
 #define MAX_FRAGMENT_SIZE_RX	                1600

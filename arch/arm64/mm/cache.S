@@ -6,7 +6,7 @@
  * Copyright (C) 2012 ARM Ltd.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
@@ -42,7 +42,7 @@ ENTRY(__flush_cache_user_range)
 alternative_if ARM64_HAS_CACHE_IDC
 	dsb	ishst
 	b	7f
-alternative_else_nop_endif
+alternative_else_yesp_endif
 	dcache_line_size x2, x3
 	sub	x3, x2, #1
 	bic	x4, x0, x3
@@ -57,7 +57,7 @@ user_alt 9f, "dc cvau, x4",  "dc civac, x4",  ARM64_WORKAROUND_CLEAN_CACHE
 alternative_if ARM64_HAS_CACHE_DIC
 	isb
 	b	8f
-alternative_else_nop_endif
+alternative_else_yesp_endif
 	invalidate_icache_by_line x0, x1, x2, x3, 9f
 8:	mov	x0, #0
 1:
@@ -82,7 +82,7 @@ alternative_if ARM64_HAS_CACHE_DIC
 	mov	x0, xzr
 	isb
 	ret
-alternative_else_nop_endif
+alternative_else_yesp_endif
 
 	uaccess_ttbr0_enable x2, x3, x4
 
@@ -123,7 +123,7 @@ ENTRY(__clean_dcache_area_pou)
 alternative_if ARM64_HAS_CACHE_IDC
 	dsb	ishst
 	ret
-alternative_else_nop_endif
+alternative_else_yesp_endif
 	dcache_by_line_op cvau, ish, x0, x1, x2, x3
 	ret
 ENDPROC(__clean_dcache_area_pou)
@@ -201,9 +201,9 @@ ENDPROC(__dma_clean_area)
  *	- size    - size in question
  */
 ENTRY(__clean_dcache_area_pop)
-	alternative_if_not ARM64_HAS_DCPOP
+	alternative_if_yest ARM64_HAS_DCPOP
 	b	__clean_dcache_area_poc
-	alternative_else_nop_endif
+	alternative_else_yesp_endif
 	dcache_by_line_op cvap, sy, x0, x1, x2, x3
 	ret
 ENDPIPROC(__clean_dcache_area_pop)

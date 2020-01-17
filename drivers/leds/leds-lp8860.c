@@ -214,21 +214,21 @@ static int lp8860_brightness_set(struct led_classdev *led_cdev,
 
 	ret = lp8860_fault_check(led);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot read/clear faults\n");
+		dev_err(&led->client->dev, "Canyest read/clear faults\n");
 		goto out;
 	}
 
 	ret = regmap_write(led->regmap, LP8860_DISP_CL1_BRT_MSB,
 			(disp_brightness & 0xff00) >> 8);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot write CL1 MSB\n");
+		dev_err(&led->client->dev, "Canyest write CL1 MSB\n");
 		goto out;
 	}
 
 	ret = regmap_write(led->regmap, LP8860_DISP_CL1_BRT_LSB,
 			disp_brightness & 0xff);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot write CL1 LSB\n");
+		dev_err(&led->client->dev, "Canyest write CL1 LSB\n");
 		goto out;
 	}
 out:
@@ -380,19 +380,19 @@ static int lp8860_probe(struct i2c_client *client,
 {
 	int ret;
 	struct lp8860_led *led;
-	struct device_node *np = client->dev.of_node;
-	struct device_node *child_node;
+	struct device_yesde *np = client->dev.of_yesde;
+	struct device_yesde *child_yesde;
 	struct led_init_data init_data = {};
 
 	led = devm_kzalloc(&client->dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
 		return -ENOMEM;
 
-	child_node = of_get_next_available_child(np, NULL);
-	if (!child_node)
+	child_yesde = of_get_next_available_child(np, NULL);
+	if (!child_yesde)
 		return -EINVAL;
 
-	led->led_dev.default_trigger = of_get_property(child_node,
+	led->led_dev.default_trigger = of_get_property(child_yesde,
 					    "linux,default-trigger",
 					    NULL);
 
@@ -435,7 +435,7 @@ static int lp8860_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	init_data.fwnode = of_fwnode_handle(child_node);
+	init_data.fwyesde = of_fwyesde_handle(child_yesde);
 	init_data.devicename = LP8860_NAME;
 	init_data.default_label = ":display_cluster";
 

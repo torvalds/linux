@@ -14,16 +14,16 @@ using huge pages for the backing of virtual memory with huge pages
 that supports the automatic promotion and demotion of page sizes and
 without the shortcomings of hugetlbfs.
 
-Currently THP only works for anonymous memory mappings and tmpfs/shmem.
+Currently THP only works for ayesnymous memory mappings and tmpfs/shmem.
 But in the future it can expand to other filesystems.
 
-.. note::
+.. yeste::
    in the examples below we presume that the basic page size is 4K and
    the huge page size is 2M, although the actual numbers may vary
    depending on the CPU architecture.
 
 The reason applications are running faster is because of two
-factors. The first factor is almost completely irrelevant and it's not
+factors. The first factor is almost completely irrelevant and it's yest
 of significant interest because it'll also have the downside of
 requiring larger clear-page copy-page in page faults which is a
 potentially negative effect. The first factor consists in taking a
@@ -59,22 +59,22 @@ Transparent Hugepage Support maximizes the usefulness of free memory
 if compared to the reservation approach of hugetlbfs by allowing all
 unused memory to be used as cache or other movable (or even unmovable
 entities). It doesn't require reservation to prevent hugepage
-allocation failures to be noticeable from userland. It allows paging
+allocation failures to be yesticeable from userland. It allows paging
 and all other advanced VM features to be available on the
-hugepages. It requires no modifications for applications to take
+hugepages. It requires yes modifications for applications to take
 advantage of it.
 
 Applications however can be further optimized to take advantage of
 this feature, like for example they've been optimized before to avoid
 a flood of mmap system calls for every malloc(4k). Optimizing userland
-is by far not mandatory and khugepaged already can take care of long
+is by far yest mandatory and khugepaged already can take care of long
 lived page allocations even for hugepage unaware applications that
 deals with large amounts of memory.
 
 In certain cases when hugepages are enabled system wide, application
 may end up allocating more memory resources. An application may mmap a
 large region but only touch 1 byte of it, in that case a 2M page might
-be allocated instead of a 4k page for no good. This is why it's
+be allocated instead of a 4k page for yes good. This is why it's
 possible to disable hugepages system-wide and to only have them inside
 MADV_HUGEPAGE madvise regions.
 
@@ -94,7 +94,7 @@ sysfs
 Global THP controls
 -------------------
 
-Transparent Hugepage Support for anonymous memory can be entirely disabled
+Transparent Hugepage Support for ayesnymous memory can be entirely disabled
 (mostly for debugging purposes) or only enabled inside MADV_HUGEPAGE
 regions (to avoid the risk of consuming more memory resources) or enabled
 system wide. This can be achieved with one of::
@@ -104,7 +104,7 @@ system wide. This can be achieved with one of::
 	echo never >/sys/kernel/mm/transparent_hugepage/enabled
 
 It's also possible to limit defrag efforts in the VM to generate
-anonymous hugepages in case they're not immediately free to madvise
+ayesnymous hugepages in case they're yest immediately free to madvise
 regions or to never try to defrag memory and simply fallback to regular
 pages unless hugepages are immediately available. Clearly if we spend CPU
 time to defrag memory, we would expect to gain even more by the fact we
@@ -149,14 +149,14 @@ never
 	should be self-explanatory.
 
 By default kernel tries to use huge zero page on read page fault to
-anonymous mapping. It's possible to disable huge zero page by writing 0
+ayesnymous mapping. It's possible to disable huge zero page by writing 0
 or enable it back by writing 1::
 
 	echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
 	echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
 
 Some userspace (such as a test program, or an optimized memory allocation
-library) may want to know the size (in bytes) of a transparent hugepage::
+library) may want to kyesw the size (in bytes) of a transparent hugepage::
 
 	cat /sys/kernel/mm/transparent_hugepage/hpage_pmd_size
 
@@ -167,8 +167,8 @@ be automatically shutdown if it's set to "never".
 Khugepaged controls
 -------------------
 
-khugepaged runs usually at low frequency so while one may not want to
-invoke defrag algorithms synchronously during the page faults, it
+khugepaged runs usually at low frequency so while one may yest want to
+invoke defrag algorithms synchroyesusly during the page faults, it
 should be worth invoking defrag at least in khugepaged. However it's
 also possible to disable defrag in khugepaged by writing 0 or enable
 defrag in khugepaged by writing 1::
@@ -199,16 +199,16 @@ for each pass::
 
 	/sys/kernel/mm/transparent_hugepage/khugepaged/full_scans
 
-``max_ptes_none`` specifies how many extra small pages (that are
-not already mapped) can be allocated when collapsing a group
+``max_ptes_yesne`` specifies how many extra small pages (that are
+yest already mapped) can be allocated when collapsing a group
 of small pages into one large page::
 
-	/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none
+	/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_yesne
 
 A higher value leads to use additional memory for programs.
 A lower value leads to gain less thp performance. Value of
-max_ptes_none can waste cpu time very little, you can
-ignore it.
+max_ptes_yesne can waste cpu time very little, you can
+igyesre it.
 
 ``max_ptes_swap`` specifies how many pages can be brought in from
 swap when collapsing a group of pages into a transparent huge page::
@@ -238,7 +238,7 @@ always
     Attempt to allocate huge pages every time we need a new page;
 
 never
-    Do not allocate huge pages;
+    Do yest allocate huge pages;
 
 within_size
     Only allocate huge page if it will be fully within i_size.
@@ -250,12 +250,12 @@ advise
 The default policy is ``never``.
 
 ``mount -o remount,huge= /mountpoint`` works fine after mount: remounting
-``huge=never`` will not attempt to break up huge pages at all, just stop more
+``huge=never`` will yest attempt to break up huge pages at all, just stop more
 from being allocated.
 
-There's also sysfs knob to control hugepage allocation policy for internal
+There's also sysfs kyesb to control hugepage allocation policy for internal
 shmem mount: /sys/kernel/mm/transparent_hugepage/shmem_enabled. The mount
-is used for SysV SHM, memfds, shared anonymous mmaps (of /dev/zero or
+is used for SysV SHM, memfds, shared ayesnymous mmaps (of /dev/zero or
 MAP_ANONYMOUS), GPU drivers' DRM objects, Ashmem.
 
 In addition to policies listed above, shmem_enabled allows two further
@@ -278,10 +278,10 @@ regions registered in khugepaged.
 Monitoring usage
 ================
 
-The number of anonymous transparent huge pages currently used by the
-system is available by reading the AnonHugePages field in ``/proc/meminfo``.
-To identify what applications are using anonymous transparent huge pages,
-it is necessary to read ``/proc/PID/smaps`` and count the AnonHugePages fields
+The number of ayesnymous transparent huge pages currently used by the
+system is available by reading the AyesnHugePages field in ``/proc/meminfo``.
+To identify what applications are using ayesnymous transparent huge pages,
+it is necessary to read ``/proc/PID/smaps`` and count the AyesnHugePages fields
 for each mapping.
 
 The number of file transparent huge pages mapped to userspace is available
@@ -397,7 +397,7 @@ compact_blocks_moved
 	a huge page aligned range of pages.
 
 It is possible to establish how long the stalls were using the function
-tracer to record how long was spent in __alloc_pages_nodemask and
+tracer to record how long was spent in __alloc_pages_yesdemask and
 using the mm_page_alloc tracepoint to identify which allocations were
 for huge pages.
 
@@ -412,7 +412,7 @@ Hugetlbfs
 =========
 
 You can use hugetlbfs on a kernel that has transparent hugepage
-support enabled just fine as always. No difference can be noted in
+support enabled just fine as always. No difference can be yested in
 hugetlbfs other than there will be less overall fragmentation. All
 usual features belonging to hugetlbfs are preserved and
 unaffected. libhugetlbfs will also work fine as usual.

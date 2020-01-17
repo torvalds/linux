@@ -81,7 +81,7 @@ struct k3_dma_chan {
 	u32			ccfg;
 	struct virt_dma_chan	vc;
 	struct k3_dma_phy	*phy;
-	struct list_head	node;
+	struct list_head	yesde;
 	dma_addr_t		dev_addr;
 	enum dma_status		status;
 	bool			cyclic;
@@ -284,7 +284,7 @@ static int k3_dma_start_txd(struct k3_dma_chan *c)
 		 * fetch and remove request from vc->desc_issued
 		 * so vc->desc_issued only contains desc pending
 		 */
-		list_del(&ds->vd.node);
+		list_del(&ds->vd.yesde);
 
 		c->phy->ds_run = ds;
 		c->phy->ds_done = NULL;
@@ -305,7 +305,7 @@ static void k3_dma_tasklet(unsigned long arg)
 	unsigned pch, pch_alloc = 0;
 
 	/* check new dma request of running channel in vc->desc_issued */
-	list_for_each_entry_safe(c, cn, &d->slave.channels, vc.chan.device_node) {
+	list_for_each_entry_safe(c, cn, &d->slave.channels, vc.chan.device_yesde) {
 		spin_lock_irq(&c->vc.lock);
 		p = c->phy;
 		if (p && p->ds_done) {
@@ -330,9 +330,9 @@ static void k3_dma_tasklet(unsigned long arg)
 
 		if (p->vchan == NULL && !list_empty(&d->chan_pending)) {
 			c = list_first_entry(&d->chan_pending,
-				struct k3_dma_chan, node);
+				struct k3_dma_chan, yesde);
 			/* remove from d->chan_pending */
-			list_del_init(&c->node);
+			list_del_init(&c->yesde);
 			pch_alloc |= 1 << pch;
 			/* Mark this channel allocated */
 			p->vchan = c;
@@ -365,7 +365,7 @@ static void k3_dma_free_chan_resources(struct dma_chan *chan)
 	unsigned long flags;
 
 	spin_lock_irqsave(&d->lock, flags);
-	list_del_init(&c->node);
+	list_del_init(&c->yesde);
 	spin_unlock_irqrestore(&d->lock, flags);
 
 	vchan_free_chan_resources(&c->vc);
@@ -431,9 +431,9 @@ static void k3_dma_issue_pending(struct dma_chan *chan)
 	if (vchan_issue_pending(&c->vc)) {
 		spin_lock(&d->lock);
 		if (!c->phy) {
-			if (list_empty(&c->node)) {
+			if (list_empty(&c->yesde)) {
 				/* if new channel, add chan_pending */
-				list_add_tail(&c->node, &d->chan_pending);
+				list_add_tail(&c->yesde, &d->chan_pending);
 				/* check in tasklet */
 				tasklet_schedule(&d->task);
 				dev_dbg(d->slave.dev, "vchan %p: issued\n", &c->vc);
@@ -441,7 +441,7 @@ static void k3_dma_issue_pending(struct dma_chan *chan)
 		}
 		spin_unlock(&d->lock);
 	} else
-		dev_dbg(d->slave.dev, "vchan %p: nothing to issue\n", &c->vc);
+		dev_dbg(d->slave.dev, "vchan %p: yesthing to issue\n", &c->vc);
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 }
 
@@ -730,7 +730,7 @@ static int k3_dma_terminate_all(struct dma_chan *chan)
 
 	/* Prevent this channel being scheduled */
 	spin_lock(&d->lock);
-	list_del_init(&c->node);
+	list_del_init(&c->yesde);
 	spin_unlock(&d->lock);
 
 	/* Clear the tx descriptor lists */
@@ -773,7 +773,7 @@ static int k3_dma_transfer_pause(struct dma_chan *chan)
 			k3_dma_pause_dma(p, false);
 		} else {
 			spin_lock(&d->lock);
-			list_del_init(&c->node);
+			list_del_init(&c->yesde);
 			spin_unlock(&d->lock);
 		}
 	}
@@ -796,7 +796,7 @@ static int k3_dma_transfer_resume(struct dma_chan *chan)
 			k3_dma_pause_dma(p, true);
 		} else if (!list_empty(&c->vc.desc_issued)) {
 			spin_lock(&d->lock);
-			list_add_tail(&c->node, &d->chan_pending);
+			list_add_tail(&c->yesde, &d->chan_pending);
 			spin_unlock(&d->lock);
 		}
 	}
@@ -857,11 +857,11 @@ static int k3_dma_probe(struct platform_device *op)
 
 	of_id = of_match_device(k3_pdma_dt_ids, &op->dev);
 	if (of_id) {
-		of_property_read_u32((&op->dev)->of_node,
+		of_property_read_u32((&op->dev)->of_yesde,
 				"dma-channels", &d->dma_channels);
-		of_property_read_u32((&op->dev)->of_node,
+		of_property_read_u32((&op->dev)->of_yesde,
 				"dma-requests", &d->dma_requests);
-		ret = of_property_read_u32((&op->dev)->of_node,
+		ret = of_property_read_u32((&op->dev)->of_yesde,
 				"dma-channel-mask", &d->dma_channel_mask);
 		if (ret) {
 			dev_warn(&op->dev,
@@ -873,7 +873,7 @@ static int k3_dma_probe(struct platform_device *op)
 	if (!(soc_data->flags & K3_FLAG_NOCLK)) {
 		d->clk = devm_clk_get(&op->dev, NULL);
 		if (IS_ERR(d->clk)) {
-			dev_err(&op->dev, "no dma clk\n");
+			dev_err(&op->dev, "yes dma clk\n");
 			return PTR_ERR(d->clk);
 		}
 	}
@@ -937,7 +937,7 @@ static int k3_dma_probe(struct platform_device *op)
 		struct k3_dma_chan *c = &d->chans[i];
 
 		c->status = DMA_IN_PROGRESS;
-		INIT_LIST_HEAD(&c->node);
+		INIT_LIST_HEAD(&c->yesde);
 		c->vc.desc_free = k3_dma_free_desc;
 		vchan_init(&c->vc, &d->slave);
 	}
@@ -955,7 +955,7 @@ static int k3_dma_probe(struct platform_device *op)
 	if (ret)
 		goto dma_async_register_fail;
 
-	ret = of_dma_controller_register((&op->dev)->of_node,
+	ret = of_dma_controller_register((&op->dev)->of_yesde,
 					k3_of_dma_simple_xlate, d);
 	if (ret)
 		goto of_dma_register_fail;
@@ -981,12 +981,12 @@ static int k3_dma_remove(struct platform_device *op)
 	struct k3_dma_dev *d = platform_get_drvdata(op);
 
 	dma_async_device_unregister(&d->slave);
-	of_dma_controller_free((&op->dev)->of_node);
+	of_dma_controller_free((&op->dev)->of_yesde);
 
 	devm_free_irq(&op->dev, d->irq, d);
 
-	list_for_each_entry_safe(c, cn, &d->slave.channels, vc.chan.device_node) {
-		list_del(&c->vc.chan.device_node);
+	list_for_each_entry_safe(c, cn, &d->slave.channels, vc.chan.device_yesde) {
+		list_del(&c->vc.chan.device_yesde);
 		tasklet_kill(&c->vc.task);
 	}
 	tasklet_kill(&d->task);

@@ -7,7 +7,7 @@
 #define pr_fmt(fmt) "nuvoton-kcs-bmc: " fmt
 
 #include <linux/atomic.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
@@ -140,9 +140,9 @@ static int npcm7xx_kcs_probe(struct platform_device *pdev)
 	u32 chan;
 	int rc;
 
-	rc = of_property_read_u32(dev->of_node, "kcs_chan", &chan);
+	rc = of_property_read_u32(dev->of_yesde, "kcs_chan", &chan);
 	if (rc != 0 || chan == 0 || chan > KCS_CHANNEL_MAX) {
-		dev_err(dev, "no valid 'kcs_chan' configured\n");
+		dev_err(dev, "yes valid 'kcs_chan' configured\n");
 		return -ENODEV;
 	}
 
@@ -151,7 +151,7 @@ static int npcm7xx_kcs_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv = kcs_bmc_priv(kcs_bmc);
-	priv->map = syscon_node_to_regmap(dev->parent->of_node);
+	priv->map = syscon_yesde_to_regmap(dev->parent->of_yesde);
 	if (IS_ERR(priv->map)) {
 		dev_err(dev, "Couldn't get regmap\n");
 		return -ENODEV;

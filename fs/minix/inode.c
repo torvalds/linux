@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/minix/inode.c
+ *  linux/fs/minix/iyesde.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -20,22 +20,22 @@
 #include <linux/vfs.h>
 #include <linux/writeback.h>
 
-static int minix_write_inode(struct inode *inode,
+static int minix_write_iyesde(struct iyesde *iyesde,
 		struct writeback_control *wbc);
 static int minix_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int minix_remount (struct super_block * sb, int * flags, char * data);
 
-static void minix_evict_inode(struct inode *inode)
+static void minix_evict_iyesde(struct iyesde *iyesde)
 {
-	truncate_inode_pages_final(&inode->i_data);
-	if (!inode->i_nlink) {
-		inode->i_size = 0;
-		minix_truncate(inode);
+	truncate_iyesde_pages_final(&iyesde->i_data);
+	if (!iyesde->i_nlink) {
+		iyesde->i_size = 0;
+		minix_truncate(iyesde);
 	}
-	invalidate_inode_buffers(inode);
-	clear_inode(inode);
-	if (!inode->i_nlink)
-		minix_free_inode(inode);
+	invalidate_iyesde_buffers(iyesde);
+	clear_iyesde(iyesde);
+	if (!iyesde->i_nlink)
+		minix_free_iyesde(iyesde);
 }
 
 static void minix_put_super(struct super_block *sb)
@@ -44,7 +44,7 @@ static void minix_put_super(struct super_block *sb)
 	struct minix_sb_info *sbi = minix_sb(sb);
 
 	if (!sb_rdonly(sb)) {
-		if (sbi->s_version != MINIX_V3)	 /* s_state is now out from V3 sb */
+		if (sbi->s_version != MINIX_V3)	 /* s_state is yesw out from V3 sb */
 			sbi->s_ms->s_state = sbi->s_mount_state;
 		mark_buffer_dirty(sbi->s_sbh);
 	}
@@ -58,56 +58,56 @@ static void minix_put_super(struct super_block *sb)
 	kfree(sbi);
 }
 
-static struct kmem_cache * minix_inode_cachep;
+static struct kmem_cache * minix_iyesde_cachep;
 
-static struct inode *minix_alloc_inode(struct super_block *sb)
+static struct iyesde *minix_alloc_iyesde(struct super_block *sb)
 {
-	struct minix_inode_info *ei;
-	ei = kmem_cache_alloc(minix_inode_cachep, GFP_KERNEL);
+	struct minix_iyesde_info *ei;
+	ei = kmem_cache_alloc(minix_iyesde_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
-	return &ei->vfs_inode;
+	return &ei->vfs_iyesde;
 }
 
-static void minix_free_in_core_inode(struct inode *inode)
+static void minix_free_in_core_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(minix_inode_cachep, minix_i(inode));
+	kmem_cache_free(minix_iyesde_cachep, minix_i(iyesde));
 }
 
 static void init_once(void *foo)
 {
-	struct minix_inode_info *ei = (struct minix_inode_info *) foo;
+	struct minix_iyesde_info *ei = (struct minix_iyesde_info *) foo;
 
-	inode_init_once(&ei->vfs_inode);
+	iyesde_init_once(&ei->vfs_iyesde);
 }
 
-static int __init init_inodecache(void)
+static int __init init_iyesdecache(void)
 {
-	minix_inode_cachep = kmem_cache_create("minix_inode_cache",
-					     sizeof(struct minix_inode_info),
+	minix_iyesde_cachep = kmem_cache_create("minix_iyesde_cache",
+					     sizeof(struct minix_iyesde_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
-	if (minix_inode_cachep == NULL)
+	if (minix_iyesde_cachep == NULL)
 		return -ENOMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_iyesdecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(minix_inode_cachep);
+	kmem_cache_destroy(minix_iyesde_cachep);
 }
 
 static const struct super_operations minix_sops = {
-	.alloc_inode	= minix_alloc_inode,
-	.free_inode	= minix_free_in_core_inode,
-	.write_inode	= minix_write_inode,
-	.evict_inode	= minix_evict_inode,
+	.alloc_iyesde	= minix_alloc_iyesde,
+	.free_iyesde	= minix_free_in_core_iyesde,
+	.write_iyesde	= minix_write_iyesde,
+	.evict_iyesde	= minix_evict_iyesde,
 	.put_super	= minix_put_super,
 	.statfs		= minix_statfs,
 	.remount_fs	= minix_remount,
@@ -157,7 +157,7 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	struct minix_super_block *ms;
 	struct minix3_super_block *m3s = NULL;
 	unsigned long i, block;
-	struct inode *root_inode;
+	struct iyesde *root_iyesde;
 	struct minix_sb_info *sbi;
 	int ret = -EINVAL;
 
@@ -166,8 +166,8 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 		return -ENOMEM;
 	s->s_fs_info = sbi;
 
-	BUILD_BUG_ON(32 != sizeof (struct minix_inode));
-	BUILD_BUG_ON(64 != sizeof(struct minix2_inode));
+	BUILD_BUG_ON(32 != sizeof (struct minix_iyesde));
+	BUILD_BUG_ON(64 != sizeof(struct minix2_iyesde));
 
 	if (!sb_set_blocksize(s, BLOCK_SIZE))
 		goto out_bad_hblock;
@@ -179,7 +179,7 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	sbi->s_ms = ms;
 	sbi->s_sbh = bh;
 	sbi->s_mount_state = ms->s_state;
-	sbi->s_ninodes = ms->s_ninodes;
+	sbi->s_niyesdes = ms->s_niyesdes;
 	sbi->s_nzones = ms->s_nzones;
 	sbi->s_imap_blocks = ms->s_imap_blocks;
 	sbi->s_zmap_blocks = ms->s_zmap_blocks;
@@ -217,7 +217,7 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 		sbi->s_firstdatazone = m3s->s_firstdatazone;
 		sbi->s_log_zone_size = m3s->s_log_zone_size;
 		sbi->s_max_size = m3s->s_max_size;
-		sbi->s_ninodes = m3s->s_ninodes;
+		sbi->s_niyesdes = m3s->s_niyesdes;
 		sbi->s_nzones = m3s->s_zones;
 		sbi->s_dirsize = 64;
 		sbi->s_namelen = 60;
@@ -226,7 +226,7 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 		sb_set_blocksize(s, m3s->s_blocksize);
 		s->s_max_links = MINIX2_LINK_MAX;
 	} else
-		goto out_no_fs;
+		goto out_yes_fs;
 
 	/*
 	 * Allocate the buffer map to keep the superblock small.
@@ -236,19 +236,19 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	i = (sbi->s_imap_blocks + sbi->s_zmap_blocks) * sizeof(bh);
 	map = kzalloc(i, GFP_KERNEL);
 	if (!map)
-		goto out_no_map;
+		goto out_yes_map;
 	sbi->s_imap = &map[0];
 	sbi->s_zmap = &map[sbi->s_imap_blocks];
 
 	block=2;
 	for (i=0 ; i < sbi->s_imap_blocks ; i++) {
 		if (!(sbi->s_imap[i]=sb_bread(s, block)))
-			goto out_no_bitmap;
+			goto out_yes_bitmap;
 		block++;
 	}
 	for (i=0 ; i < sbi->s_zmap_blocks ; i++) {
 		if (!(sbi->s_zmap[i]=sb_bread(s, block)))
-			goto out_no_bitmap;
+			goto out_yes_bitmap;
 		block++;
 	}
 
@@ -256,42 +256,42 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	minix_set_bit(0,sbi->s_zmap[0]->b_data);
 
 	/* Apparently minix can create filesystems that allocate more blocks for
-	 * the bitmaps than needed.  We simply ignore that, but verify it didn't
-	 * create one with not enough blocks and bail out if so.
+	 * the bitmaps than needed.  We simply igyesre that, but verify it didn't
+	 * create one with yest eyesugh blocks and bail out if so.
 	 */
-	block = minix_blocks_needed(sbi->s_ninodes, s->s_blocksize);
+	block = minix_blocks_needed(sbi->s_niyesdes, s->s_blocksize);
 	if (sbi->s_imap_blocks < block) {
-		printk("MINIX-fs: file system does not have enough "
+		printk("MINIX-fs: file system does yest have eyesugh "
 				"imap blocks allocated.  Refusing to mount.\n");
-		goto out_no_bitmap;
+		goto out_yes_bitmap;
 	}
 
 	block = minix_blocks_needed(
 			(sbi->s_nzones - sbi->s_firstdatazone + 1),
 			s->s_blocksize);
 	if (sbi->s_zmap_blocks < block) {
-		printk("MINIX-fs: file system does not have enough "
+		printk("MINIX-fs: file system does yest have eyesugh "
 				"zmap blocks allocated.  Refusing to mount.\n");
-		goto out_no_bitmap;
+		goto out_yes_bitmap;
 	}
 
-	/* set up enough so that it can read an inode */
+	/* set up eyesugh so that it can read an iyesde */
 	s->s_op = &minix_sops;
 	s->s_time_min = 0;
 	s->s_time_max = U32_MAX;
-	root_inode = minix_iget(s, MINIX_ROOT_INO);
-	if (IS_ERR(root_inode)) {
-		ret = PTR_ERR(root_inode);
-		goto out_no_root;
+	root_iyesde = minix_iget(s, MINIX_ROOT_INO);
+	if (IS_ERR(root_iyesde)) {
+		ret = PTR_ERR(root_iyesde);
+		goto out_yes_root;
 	}
 
 	ret = -ENOMEM;
-	s->s_root = d_make_root(root_inode);
+	s->s_root = d_make_root(root_iyesde);
 	if (!s->s_root)
-		goto out_no_root;
+		goto out_yes_root;
 
 	if (!sb_rdonly(s)) {
-		if (sbi->s_version != MINIX_V3) /* s_state is now out from V3 sb */
+		if (sbi->s_version != MINIX_V3) /* s_state is yesw out from V3 sb */
 			ms->s_state &= ~MINIX_VALID_FS;
 		mark_buffer_dirty(bh);
 	}
@@ -304,12 +304,12 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 
 	return 0;
 
-out_no_root:
+out_yes_root:
 	if (!silent)
-		printk("MINIX-fs: get root inode failed\n");
+		printk("MINIX-fs: get root iyesde failed\n");
 	goto out_freemap;
 
-out_no_bitmap:
+out_yes_bitmap:
 	printk("MINIX-fs: bad superblock or unable to read bitmaps\n");
 out_freemap:
 	for (i = 0; i < sbi->s_imap_blocks; i++)
@@ -319,7 +319,7 @@ out_freemap:
 	kfree(sbi->s_imap);
 	goto out_release;
 
-out_no_map:
+out_yes_map:
 	ret = -ENOMEM;
 	if (!silent)
 		printk("MINIX-fs: can't allocate map\n");
@@ -330,7 +330,7 @@ out_illegal_sb:
 		printk("MINIX-fs: bad superblock\n");
 	goto out_release;
 
-out_no_fs:
+out_yes_fs:
 	if (!silent)
 		printk("VFS: Can't find a Minix filesystem V1 | V2 | V3 "
 		       "on device %s.\n", s->s_id);
@@ -360,8 +360,8 @@ static int minix_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks = (sbi->s_nzones - sbi->s_firstdatazone) << sbi->s_log_zone_size;
 	buf->f_bfree = minix_count_free_blocks(sb);
 	buf->f_bavail = buf->f_bfree;
-	buf->f_files = sbi->s_ninodes;
-	buf->f_ffree = minix_count_free_inodes(sb);
+	buf->f_files = sbi->s_niyesdes;
+	buf->f_ffree = minix_count_free_iyesdes(sb);
 	buf->f_namelen = sbi->s_namelen;
 	buf->f_fsid.val[0] = (u32)id;
 	buf->f_fsid.val[1] = (u32)(id >> 32);
@@ -369,13 +369,13 @@ static int minix_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int minix_get_block(struct inode *inode, sector_t block,
+static int minix_get_block(struct iyesde *iyesde, sector_t block,
 		    struct buffer_head *bh_result, int create)
 {
-	if (INODE_VERSION(inode) == MINIX_V1)
-		return V1_minix_get_block(inode, block, bh_result, create);
+	if (INODE_VERSION(iyesde) == MINIX_V1)
+		return V1_minix_get_block(iyesde, block, bh_result, create);
 	else
-		return V2_minix_get_block(inode, block, bh_result, create);
+		return V2_minix_get_block(iyesde, block, bh_result, create);
 }
 
 static int minix_writepage(struct page *page, struct writeback_control *wbc)
@@ -395,11 +395,11 @@ int minix_prepare_chunk(struct page *page, loff_t pos, unsigned len)
 
 static void minix_write_failed(struct address_space *mapping, loff_t to)
 {
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 
-	if (to > inode->i_size) {
-		truncate_pagecache(inode, inode->i_size);
-		minix_truncate(inode);
+	if (to > iyesde->i_size) {
+		truncate_pagecache(iyesde, iyesde->i_size);
+		minix_truncate(iyesde);
 	}
 }
 
@@ -430,188 +430,188 @@ static const struct address_space_operations minix_aops = {
 	.bmap = minix_bmap
 };
 
-static const struct inode_operations minix_symlink_inode_operations = {
+static const struct iyesde_operations minix_symlink_iyesde_operations = {
 	.get_link	= page_get_link,
 	.getattr	= minix_getattr,
 };
 
-void minix_set_inode(struct inode *inode, dev_t rdev)
+void minix_set_iyesde(struct iyesde *iyesde, dev_t rdev)
 {
-	if (S_ISREG(inode->i_mode)) {
-		inode->i_op = &minix_file_inode_operations;
-		inode->i_fop = &minix_file_operations;
-		inode->i_mapping->a_ops = &minix_aops;
-	} else if (S_ISDIR(inode->i_mode)) {
-		inode->i_op = &minix_dir_inode_operations;
-		inode->i_fop = &minix_dir_operations;
-		inode->i_mapping->a_ops = &minix_aops;
-	} else if (S_ISLNK(inode->i_mode)) {
-		inode->i_op = &minix_symlink_inode_operations;
-		inode_nohighmem(inode);
-		inode->i_mapping->a_ops = &minix_aops;
+	if (S_ISREG(iyesde->i_mode)) {
+		iyesde->i_op = &minix_file_iyesde_operations;
+		iyesde->i_fop = &minix_file_operations;
+		iyesde->i_mapping->a_ops = &minix_aops;
+	} else if (S_ISDIR(iyesde->i_mode)) {
+		iyesde->i_op = &minix_dir_iyesde_operations;
+		iyesde->i_fop = &minix_dir_operations;
+		iyesde->i_mapping->a_ops = &minix_aops;
+	} else if (S_ISLNK(iyesde->i_mode)) {
+		iyesde->i_op = &minix_symlink_iyesde_operations;
+		iyesde_yeshighmem(iyesde);
+		iyesde->i_mapping->a_ops = &minix_aops;
 	} else
-		init_special_inode(inode, inode->i_mode, rdev);
+		init_special_iyesde(iyesde, iyesde->i_mode, rdev);
 }
 
 /*
- * The minix V1 function to read an inode.
+ * The minix V1 function to read an iyesde.
  */
-static struct inode *V1_minix_iget(struct inode *inode)
+static struct iyesde *V1_minix_iget(struct iyesde *iyesde)
 {
 	struct buffer_head * bh;
-	struct minix_inode * raw_inode;
-	struct minix_inode_info *minix_inode = minix_i(inode);
+	struct minix_iyesde * raw_iyesde;
+	struct minix_iyesde_info *minix_iyesde = minix_i(iyesde);
 	int i;
 
-	raw_inode = minix_V1_raw_inode(inode->i_sb, inode->i_ino, &bh);
-	if (!raw_inode) {
-		iget_failed(inode);
+	raw_iyesde = minix_V1_raw_iyesde(iyesde->i_sb, iyesde->i_iyes, &bh);
+	if (!raw_iyesde) {
+		iget_failed(iyesde);
 		return ERR_PTR(-EIO);
 	}
-	inode->i_mode = raw_inode->i_mode;
-	i_uid_write(inode, raw_inode->i_uid);
-	i_gid_write(inode, raw_inode->i_gid);
-	set_nlink(inode, raw_inode->i_nlinks);
-	inode->i_size = raw_inode->i_size;
-	inode->i_mtime.tv_sec = inode->i_atime.tv_sec = inode->i_ctime.tv_sec = raw_inode->i_time;
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_atime.tv_nsec = 0;
-	inode->i_ctime.tv_nsec = 0;
-	inode->i_blocks = 0;
+	iyesde->i_mode = raw_iyesde->i_mode;
+	i_uid_write(iyesde, raw_iyesde->i_uid);
+	i_gid_write(iyesde, raw_iyesde->i_gid);
+	set_nlink(iyesde, raw_iyesde->i_nlinks);
+	iyesde->i_size = raw_iyesde->i_size;
+	iyesde->i_mtime.tv_sec = iyesde->i_atime.tv_sec = iyesde->i_ctime.tv_sec = raw_iyesde->i_time;
+	iyesde->i_mtime.tv_nsec = 0;
+	iyesde->i_atime.tv_nsec = 0;
+	iyesde->i_ctime.tv_nsec = 0;
+	iyesde->i_blocks = 0;
 	for (i = 0; i < 9; i++)
-		minix_inode->u.i1_data[i] = raw_inode->i_zone[i];
-	minix_set_inode(inode, old_decode_dev(raw_inode->i_zone[0]));
+		minix_iyesde->u.i1_data[i] = raw_iyesde->i_zone[i];
+	minix_set_iyesde(iyesde, old_decode_dev(raw_iyesde->i_zone[0]));
 	brelse(bh);
-	unlock_new_inode(inode);
-	return inode;
+	unlock_new_iyesde(iyesde);
+	return iyesde;
 }
 
 /*
- * The minix V2 function to read an inode.
+ * The minix V2 function to read an iyesde.
  */
-static struct inode *V2_minix_iget(struct inode *inode)
+static struct iyesde *V2_minix_iget(struct iyesde *iyesde)
 {
 	struct buffer_head * bh;
-	struct minix2_inode * raw_inode;
-	struct minix_inode_info *minix_inode = minix_i(inode);
+	struct minix2_iyesde * raw_iyesde;
+	struct minix_iyesde_info *minix_iyesde = minix_i(iyesde);
 	int i;
 
-	raw_inode = minix_V2_raw_inode(inode->i_sb, inode->i_ino, &bh);
-	if (!raw_inode) {
-		iget_failed(inode);
+	raw_iyesde = minix_V2_raw_iyesde(iyesde->i_sb, iyesde->i_iyes, &bh);
+	if (!raw_iyesde) {
+		iget_failed(iyesde);
 		return ERR_PTR(-EIO);
 	}
-	inode->i_mode = raw_inode->i_mode;
-	i_uid_write(inode, raw_inode->i_uid);
-	i_gid_write(inode, raw_inode->i_gid);
-	set_nlink(inode, raw_inode->i_nlinks);
-	inode->i_size = raw_inode->i_size;
-	inode->i_mtime.tv_sec = raw_inode->i_mtime;
-	inode->i_atime.tv_sec = raw_inode->i_atime;
-	inode->i_ctime.tv_sec = raw_inode->i_ctime;
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_atime.tv_nsec = 0;
-	inode->i_ctime.tv_nsec = 0;
-	inode->i_blocks = 0;
+	iyesde->i_mode = raw_iyesde->i_mode;
+	i_uid_write(iyesde, raw_iyesde->i_uid);
+	i_gid_write(iyesde, raw_iyesde->i_gid);
+	set_nlink(iyesde, raw_iyesde->i_nlinks);
+	iyesde->i_size = raw_iyesde->i_size;
+	iyesde->i_mtime.tv_sec = raw_iyesde->i_mtime;
+	iyesde->i_atime.tv_sec = raw_iyesde->i_atime;
+	iyesde->i_ctime.tv_sec = raw_iyesde->i_ctime;
+	iyesde->i_mtime.tv_nsec = 0;
+	iyesde->i_atime.tv_nsec = 0;
+	iyesde->i_ctime.tv_nsec = 0;
+	iyesde->i_blocks = 0;
 	for (i = 0; i < 10; i++)
-		minix_inode->u.i2_data[i] = raw_inode->i_zone[i];
-	minix_set_inode(inode, old_decode_dev(raw_inode->i_zone[0]));
+		minix_iyesde->u.i2_data[i] = raw_iyesde->i_zone[i];
+	minix_set_iyesde(iyesde, old_decode_dev(raw_iyesde->i_zone[0]));
 	brelse(bh);
-	unlock_new_inode(inode);
-	return inode;
+	unlock_new_iyesde(iyesde);
+	return iyesde;
 }
 
 /*
- * The global function to read an inode.
+ * The global function to read an iyesde.
  */
-struct inode *minix_iget(struct super_block *sb, unsigned long ino)
+struct iyesde *minix_iget(struct super_block *sb, unsigned long iyes)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 
-	inode = iget_locked(sb, ino);
-	if (!inode)
+	iyesde = iget_locked(sb, iyes);
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(iyesde->i_state & I_NEW))
+		return iyesde;
 
-	if (INODE_VERSION(inode) == MINIX_V1)
-		return V1_minix_iget(inode);
+	if (INODE_VERSION(iyesde) == MINIX_V1)
+		return V1_minix_iget(iyesde);
 	else
-		return V2_minix_iget(inode);
+		return V2_minix_iget(iyesde);
 }
 
 /*
- * The minix V1 function to synchronize an inode.
+ * The minix V1 function to synchronize an iyesde.
  */
-static struct buffer_head * V1_minix_update_inode(struct inode * inode)
+static struct buffer_head * V1_minix_update_iyesde(struct iyesde * iyesde)
 {
 	struct buffer_head * bh;
-	struct minix_inode * raw_inode;
-	struct minix_inode_info *minix_inode = minix_i(inode);
+	struct minix_iyesde * raw_iyesde;
+	struct minix_iyesde_info *minix_iyesde = minix_i(iyesde);
 	int i;
 
-	raw_inode = minix_V1_raw_inode(inode->i_sb, inode->i_ino, &bh);
-	if (!raw_inode)
+	raw_iyesde = minix_V1_raw_iyesde(iyesde->i_sb, iyesde->i_iyes, &bh);
+	if (!raw_iyesde)
 		return NULL;
-	raw_inode->i_mode = inode->i_mode;
-	raw_inode->i_uid = fs_high2lowuid(i_uid_read(inode));
-	raw_inode->i_gid = fs_high2lowgid(i_gid_read(inode));
-	raw_inode->i_nlinks = inode->i_nlink;
-	raw_inode->i_size = inode->i_size;
-	raw_inode->i_time = inode->i_mtime.tv_sec;
-	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
-		raw_inode->i_zone[0] = old_encode_dev(inode->i_rdev);
+	raw_iyesde->i_mode = iyesde->i_mode;
+	raw_iyesde->i_uid = fs_high2lowuid(i_uid_read(iyesde));
+	raw_iyesde->i_gid = fs_high2lowgid(i_gid_read(iyesde));
+	raw_iyesde->i_nlinks = iyesde->i_nlink;
+	raw_iyesde->i_size = iyesde->i_size;
+	raw_iyesde->i_time = iyesde->i_mtime.tv_sec;
+	if (S_ISCHR(iyesde->i_mode) || S_ISBLK(iyesde->i_mode))
+		raw_iyesde->i_zone[0] = old_encode_dev(iyesde->i_rdev);
 	else for (i = 0; i < 9; i++)
-		raw_inode->i_zone[i] = minix_inode->u.i1_data[i];
+		raw_iyesde->i_zone[i] = minix_iyesde->u.i1_data[i];
 	mark_buffer_dirty(bh);
 	return bh;
 }
 
 /*
- * The minix V2 function to synchronize an inode.
+ * The minix V2 function to synchronize an iyesde.
  */
-static struct buffer_head * V2_minix_update_inode(struct inode * inode)
+static struct buffer_head * V2_minix_update_iyesde(struct iyesde * iyesde)
 {
 	struct buffer_head * bh;
-	struct minix2_inode * raw_inode;
-	struct minix_inode_info *minix_inode = minix_i(inode);
+	struct minix2_iyesde * raw_iyesde;
+	struct minix_iyesde_info *minix_iyesde = minix_i(iyesde);
 	int i;
 
-	raw_inode = minix_V2_raw_inode(inode->i_sb, inode->i_ino, &bh);
-	if (!raw_inode)
+	raw_iyesde = minix_V2_raw_iyesde(iyesde->i_sb, iyesde->i_iyes, &bh);
+	if (!raw_iyesde)
 		return NULL;
-	raw_inode->i_mode = inode->i_mode;
-	raw_inode->i_uid = fs_high2lowuid(i_uid_read(inode));
-	raw_inode->i_gid = fs_high2lowgid(i_gid_read(inode));
-	raw_inode->i_nlinks = inode->i_nlink;
-	raw_inode->i_size = inode->i_size;
-	raw_inode->i_mtime = inode->i_mtime.tv_sec;
-	raw_inode->i_atime = inode->i_atime.tv_sec;
-	raw_inode->i_ctime = inode->i_ctime.tv_sec;
-	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
-		raw_inode->i_zone[0] = old_encode_dev(inode->i_rdev);
+	raw_iyesde->i_mode = iyesde->i_mode;
+	raw_iyesde->i_uid = fs_high2lowuid(i_uid_read(iyesde));
+	raw_iyesde->i_gid = fs_high2lowgid(i_gid_read(iyesde));
+	raw_iyesde->i_nlinks = iyesde->i_nlink;
+	raw_iyesde->i_size = iyesde->i_size;
+	raw_iyesde->i_mtime = iyesde->i_mtime.tv_sec;
+	raw_iyesde->i_atime = iyesde->i_atime.tv_sec;
+	raw_iyesde->i_ctime = iyesde->i_ctime.tv_sec;
+	if (S_ISCHR(iyesde->i_mode) || S_ISBLK(iyesde->i_mode))
+		raw_iyesde->i_zone[0] = old_encode_dev(iyesde->i_rdev);
 	else for (i = 0; i < 10; i++)
-		raw_inode->i_zone[i] = minix_inode->u.i2_data[i];
+		raw_iyesde->i_zone[i] = minix_iyesde->u.i2_data[i];
 	mark_buffer_dirty(bh);
 	return bh;
 }
 
-static int minix_write_inode(struct inode *inode, struct writeback_control *wbc)
+static int minix_write_iyesde(struct iyesde *iyesde, struct writeback_control *wbc)
 {
 	int err = 0;
 	struct buffer_head *bh;
 
-	if (INODE_VERSION(inode) == MINIX_V1)
-		bh = V1_minix_update_inode(inode);
+	if (INODE_VERSION(iyesde) == MINIX_V1)
+		bh = V1_minix_update_iyesde(iyesde);
 	else
-		bh = V2_minix_update_inode(inode);
+		bh = V2_minix_update_iyesde(iyesde);
 	if (!bh)
 		return -EIO;
 	if (wbc->sync_mode == WB_SYNC_ALL && buffer_dirty(bh)) {
 		sync_dirty_buffer(bh);
 		if (buffer_req(bh) && !buffer_uptodate(bh)) {
-			printk("IO error syncing minix inode [%s:%08lx]\n",
-				inode->i_sb->s_id, inode->i_ino);
+			printk("IO error syncing minix iyesde [%s:%08lx]\n",
+				iyesde->i_sb->s_id, iyesde->i_iyes);
 			err = -EIO;
 		}
 	}
@@ -623,10 +623,10 @@ int minix_getattr(const struct path *path, struct kstat *stat,
 		  u32 request_mask, unsigned int flags)
 {
 	struct super_block *sb = path->dentry->d_sb;
-	struct inode *inode = d_inode(path->dentry);
+	struct iyesde *iyesde = d_iyesde(path->dentry);
 
-	generic_fillattr(inode, stat);
-	if (INODE_VERSION(inode) == MINIX_V1)
+	generic_fillattr(iyesde, stat);
+	if (INODE_VERSION(iyesde) == MINIX_V1)
 		stat->blocks = (BLOCK_SIZE / 512) * V1_minix_blocks(stat->size, sb);
 	else
 		stat->blocks = (sb->s_blocksize / 512) * V2_minix_blocks(stat->size, sb);
@@ -637,14 +637,14 @@ int minix_getattr(const struct path *path, struct kstat *stat,
 /*
  * The function that is called for file truncation.
  */
-void minix_truncate(struct inode * inode)
+void minix_truncate(struct iyesde * iyesde)
 {
-	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode)))
+	if (!(S_ISREG(iyesde->i_mode) || S_ISDIR(iyesde->i_mode) || S_ISLNK(iyesde->i_mode)))
 		return;
-	if (INODE_VERSION(inode) == MINIX_V1)
-		V1_minix_truncate(inode);
+	if (INODE_VERSION(iyesde) == MINIX_V1)
+		V1_minix_truncate(iyesde);
 	else
-		V2_minix_truncate(inode);
+		V2_minix_truncate(iyesde);
 }
 
 static struct dentry *minix_mount(struct file_system_type *fs_type,
@@ -664,7 +664,7 @@ MODULE_ALIAS_FS("minix");
 
 static int __init init_minix_fs(void)
 {
-	int err = init_inodecache();
+	int err = init_iyesdecache();
 	if (err)
 		goto out1;
 	err = register_filesystem(&minix_fs_type);
@@ -672,7 +672,7 @@ static int __init init_minix_fs(void)
 		goto out;
 	return 0;
 out:
-	destroy_inodecache();
+	destroy_iyesdecache();
 out1:
 	return err;
 }
@@ -680,7 +680,7 @@ out1:
 static void __exit exit_minix_fs(void)
 {
         unregister_filesystem(&minix_fs_type);
-	destroy_inodecache();
+	destroy_iyesdecache();
 }
 
 module_init(init_minix_fs)

@@ -151,7 +151,7 @@ void __init puv3_pci_adjust_zones(unsigned long *zone_size,
 }
 
 /*
- * If the bus contains any of these devices, then we must not turn on
+ * If the bus contains any of these devices, then we must yest turn on
  * parity checking of any kind.
  */
 static inline int pdev_bad_for_parity(struct pci_dev *dev)
@@ -183,8 +183,8 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 		pci_read_config_word(dev, PCI_STATUS, &status);
 
 		/*
-		 * If any device on this bus does not support fast back
-		 * to back transfers, then the bus as a whole is not able
+		 * If any device on this bus does yest support fast back
+		 * to back transfers, then the bus as a whole is yest able
 		 * to support them.  Having fast back to back transfers
 		 * on saves us one PCI cycle per transaction.
 		 */
@@ -356,7 +356,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 
 		r = dev->resource + idx;
 		if (!r->start && r->end) {
-			printk(KERN_ERR "PCI: Device %s not available because"
+			printk(KERN_ERR "PCI: Device %s yest available because"
 			       " of resource collisions\n", pci_name(dev));
 			return -EINVAL;
 		}

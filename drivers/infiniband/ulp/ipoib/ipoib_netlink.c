@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Mellanox Technologies. -  All rights reserved.
+ * Copyright (c) 2012 Mellayesx Techyeslogies. -  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -117,7 +117,7 @@ static int ipoib_new_child_link(struct net *src_net, struct net_device *dev,
 	}
 
 	if (!data || !data[IFLA_IPOIB_PKEY]) {
-		ipoib_dbg(ppriv, "no pkey specified, using parent pkey\n");
+		ipoib_dbg(ppriv, "yes pkey specified, using parent pkey\n");
 		child_pkey  = ppriv->pkey;
 	} else
 		child_pkey  = nla_get_u16(data[IFLA_IPOIB_PKEY]);

@@ -433,7 +433,7 @@ static irqreturn_t snd_vt1724_interrupt(int irq, void *dev_id)
 				enable_midi_irq(ice, VT1724_IRQ_MPU_TX, 0);
 			/* Due to mysterical reasons, MPU_TX is always
 			 * generated (and can't be cleared) when a PCM
-			 * playback is going.  So let's ignore at the
+			 * playback is going.  So let's igyesre at the
 			 * next loop.
 			 */
 			status_mask &= ~VT1724_IRQ_MPU_TX;
@@ -637,7 +637,7 @@ static unsigned char stdclock_set_mclk(struct snd_ice1712 *ice,
 			return 1;
 		}
 	}
-	/* no change in master clock */
+	/* yes change in master clock */
 	return 0;
 }
 
@@ -655,7 +655,7 @@ static int snd_vt1724_set_pro_rate(struct snd_ice1712 *ice, unsigned int rate,
 	spin_lock_irqsave(&ice->reg_lock, flags);
 	if ((inb(ICEMT1724(ice, DMA_CONTROL)) & DMA_STARTS) ||
 	    (inb(ICEMT1724(ice, DMA_PAUSE)) & DMA_PAUSES)) {
-		/* running? we cannot change the rate now... */
+		/* running? we canyest change the rate yesw... */
 		spin_unlock_irqrestore(&ice->reg_lock, flags);
 		return ((rate == ice->cur_rate) && !force) ? 0 : -EBUSY;
 	}
@@ -1322,7 +1322,7 @@ static int snd_vt1724_pcm_spdif(struct snd_ice1712 *ice, int device)
 	} else
 		capt = 0;
 	if (!play && !capt)
-		return 0; /* no spdif device */
+		return 0; /* yes spdif device */
 
 	if (ice->force_pdma4 || ice->force_rdma1)
 		name = "ICE1724 Secondary";
@@ -1496,7 +1496,7 @@ static int snd_vt1724_ac97_mixer(struct snd_ice1712 *ice)
 		err = snd_ac97_mixer(pbus, &ac97, &ice->ac97);
 		if (err < 0)
 			dev_warn(ice->card->dev,
-				 "cannot initialize pro ac97, skipped\n");
+				 "canyest initialize pro ac97, skipped\n");
 		else
 			return 0;
 	}
@@ -1606,7 +1606,7 @@ static unsigned int encode_spdif_bits(struct snd_aes_iec958 *diga)
 {
 	unsigned int val, rbits;
 
-	val = diga->status[0] & 0x03; /* professional, non-audio */
+	val = diga->status[0] & 0x03; /* professional, yesn-audio */
 	if (val & 0x01) {
 		/* professional */
 		if ((diga->status[0] & IEC958_AES0_PRO_EMPHASIS) ==
@@ -1647,7 +1647,7 @@ static unsigned int encode_spdif_bits(struct snd_aes_iec958 *diga)
 static void decode_spdif_bits(struct snd_aes_iec958 *diga, unsigned int val)
 {
 	memset(diga->status, 0, sizeof(diga->status));
-	diga->status[0] = val & 0x03; /* professional, non-audio */
+	diga->status[0] = val & 0x03; /* professional, yesn-audio */
 	if (val & 0x01) {
 		/* professional */
 		if (val & (1U << 3))
@@ -1747,7 +1747,7 @@ static const struct snd_kcontrol_new snd_vt1724_spdif_maskp =
 	.get =		snd_vt1724_spdif_maskp_get,
 };
 
-#define snd_vt1724_spdif_sw_info		snd_ctl_boolean_mono_info
+#define snd_vt1724_spdif_sw_info		snd_ctl_boolean_moyes_info
 
 static int snd_vt1724_spdif_sw_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
@@ -1792,7 +1792,7 @@ static const struct snd_kcontrol_new snd_vt1724_spdif_switch =
  * GPIO access from extern
  */
 
-#define snd_vt1724_gpio_info		snd_ctl_boolean_mono_info
+#define snd_vt1724_gpio_info		snd_ctl_boolean_moyes_info
 
 int snd_vt1724_gpio_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
@@ -1938,7 +1938,7 @@ static int snd_vt1724_pro_internal_clock_put(struct snd_kcontrol *kcontrol,
 
 	/* the first switch to the ext. clock mode? */
 	if (old_rate != new_rate && !new_rate) {
-		/* notify akm chips as well */
+		/* yestify akm chips as well */
 		unsigned int i;
 		if (ice->gpio.set_pro_rate)
 			ice->gpio.set_pro_rate(ice, 0);
@@ -1958,7 +1958,7 @@ static const struct snd_kcontrol_new snd_vt1724_pro_internal_clock = {
 	.put = snd_vt1724_pro_internal_clock_put
 };
 
-#define snd_vt1724_pro_rate_locking_info	snd_ctl_boolean_mono_info
+#define snd_vt1724_pro_rate_locking_info	snd_ctl_boolean_moyes_info
 
 static int snd_vt1724_pro_rate_locking_get(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_value *ucontrol)
@@ -1989,7 +1989,7 @@ static const struct snd_kcontrol_new snd_vt1724_pro_rate_locking = {
 	.put = snd_vt1724_pro_rate_locking_put
 };
 
-#define snd_vt1724_pro_rate_reset_info		snd_ctl_boolean_mono_info
+#define snd_vt1724_pro_rate_reset_info		snd_ctl_boolean_moyes_info
 
 static int snd_vt1724_pro_rate_reset_get(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
@@ -2056,7 +2056,7 @@ int snd_ice1724_get_route_val(struct snd_ice1712 *ice, int shift)
 
 	val = inl(ICEMT1724(ice, ROUTE_PLAYBACK));
 	val >>= shift;
-	val &= 7; /* we now have 3 bits per output */
+	val &= 7; /* we yesw have 3 bits per output */
 	eitem = xlate[val];
 	if (eitem == 255) {
 		snd_BUG();
@@ -2185,19 +2185,19 @@ static const struct snd_kcontrol_new snd_vt1724_mixer_pro_peak = {
  *
  */
 
-static struct snd_ice1712_card_info no_matched;
+static struct snd_ice1712_card_info yes_matched;
 
 
 /*
-  ooAoo cards with no controls
+  ooAoo cards with yes controls
 */
 static unsigned char ooaoo_sq210_eeprom[] = {
-	[ICE_EEP2_SYSCONF]     = 0x4c,	/* 49MHz crystal, no mpu401, no ADC,
+	[ICE_EEP2_SYSCONF]     = 0x4c,	/* 49MHz crystal, yes mpu401, yes ADC,
 					   1xDACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
-	[ICE_EEP2_I2S]         = 0x78,	/* no volume, 96k, 24bit, 192k */
+	[ICE_EEP2_I2S]         = 0x78,	/* yes volume, 96k, 24bit, 192k */
 	[ICE_EEP2_SPDIF]       = 0xc1,	/* out-en, out-int, out-ext */
-	[ICE_EEP2_GPIO_DIR]    = 0x00,	/* no GPIOs are used */
+	[ICE_EEP2_GPIO_DIR]    = 0x00,	/* yes GPIOs are used */
 	[ICE_EEP2_GPIO_DIR1]   = 0x00,
 	[ICE_EEP2_GPIO_DIR2]   = 0x00,
 	[ICE_EEP2_GPIO_MASK]   = 0xff,
@@ -2650,7 +2650,7 @@ static int snd_vt1724_probe(struct pci_dev *pci,
 			}
 		}
 	}
-	c = &no_matched;
+	c = &yes_matched;
 __found:
 	/*
 	* VT1724 has separate DMAs for the analog and the SPDIF streams while
@@ -2727,7 +2727,7 @@ __found:
 		}
 	}
 
-	if (!c->no_mpu401) {
+	if (!c->yes_mpu401) {
 		if (ice->eeprom.data[ICE_EEP2_SYSCONF] & VT1724_CFG_MPU401) {
 			struct snd_rawmidi *rmidi;
 

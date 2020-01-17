@@ -9,9 +9,9 @@ Required Properties:
 - ym-gpios: FET gate driver for input of Y-
 - interrupts: pen irq interrupt for touch detection
 - pinctrl-names: "idle", "default", "gpios"
-- pinctrl-0: pinctrl node for pen/touch detection state pinmux
-- pinctrl-1: pinctrl node for X/Y and pressure measurement (ADC) state pinmux
-- pinctrl-2: pinctrl node for gpios functioning as FET gate drivers
+- pinctrl-0: pinctrl yesde for pen/touch detection state pinmux
+- pinctrl-1: pinctrl yesde for X/Y and pressure measurement (ADC) state pinmux
+- pinctrl-2: pinctrl yesde for gpios functioning as FET gate drivers
 - vf50-ts-min-pressure: pressure level at which to stop measuring X/Y values
 
 Example:

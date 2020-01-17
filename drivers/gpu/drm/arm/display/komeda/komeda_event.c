@@ -14,7 +14,7 @@ struct komeda_str {
 	u32 len;
 };
 
-/* return 0 on success,  < 0 on no space.
+/* return 0 on success,  < 0 on yes space.
  */
 static int komeda_sprintf(struct komeda_str *str, const char *fmt, ...)
 {

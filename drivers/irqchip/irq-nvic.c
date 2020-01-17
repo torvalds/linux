@@ -80,8 +80,8 @@ static const struct irq_domain_ops nvic_irq_domain_ops = {
 	.free = irq_domain_free_irqs_top,
 };
 
-static int __init nvic_of_init(struct device_node *node,
-			       struct device_node *parent)
+static int __init nvic_of_init(struct device_yesde *yesde,
+			       struct device_yesde *parent)
 {
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 	unsigned int irqs, i, ret, numbanks;
@@ -90,7 +90,7 @@ static int __init nvic_of_init(struct device_node *node,
 	numbanks = (readl_relaxed(V7M_SCS_ICTR) &
 		    V7M_SCS_ICTR_INTLINESNUM_MASK) + 1;
 
-	nvic_base = of_iomap(node, 0);
+	nvic_base = of_iomap(yesde, 0);
 	if (!nvic_base) {
 		pr_warn("unable to map nvic registers\n");
 		return -ENOMEM;
@@ -101,7 +101,7 @@ static int __init nvic_of_init(struct device_node *node,
 		irqs = NVIC_MAX_IRQ;
 
 	nvic_irq_domain =
-		irq_domain_add_linear(node, irqs, &nvic_irq_domain_ops, NULL);
+		irq_domain_add_linear(yesde, irqs, &nvic_irq_domain_ops, NULL);
 
 	if (!nvic_irq_domain) {
 		pr_warn("Failed to allocate irq domain\n");
@@ -126,10 +126,10 @@ static int __init nvic_of_init(struct device_node *node,
 		gc->chip_types[0].regs.disable = NVIC_ICER;
 		gc->chip_types[0].chip.irq_mask = irq_gc_mask_disable_reg;
 		gc->chip_types[0].chip.irq_unmask = irq_gc_unmask_enable_reg;
-		/* This is a no-op as end of interrupt is signaled by the
+		/* This is a yes-op as end of interrupt is signaled by the
 		 * exception return sequence.
 		 */
-		gc->chip_types[0].chip.irq_eoi = irq_gc_noop;
+		gc->chip_types[0].chip.irq_eoi = irq_gc_yesop;
 
 		/* disable interrupts */
 		writel_relaxed(~0, gc->reg_base + NVIC_ICER);

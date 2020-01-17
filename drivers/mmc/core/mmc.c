@@ -109,7 +109,7 @@ static int mmc_decode_cid(struct mmc_card *card)
 		break;
 
 	default:
-		pr_err("%s: card has unknown MMCA version %d\n",
+		pr_err("%s: card has unkyeswn MMCA version %d\n",
 			mmc_hostname(card->host), card->csd.mmca_vsn);
 		return -EINVAL;
 	}
@@ -362,7 +362,7 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 {
 	int err = 0, idx;
 	u64 part_size;
-	struct device_node *np;
+	struct device_yesde *np;
 	bool broken_hpi = false;
 
 	/* Version is coded in the CSD_STRUCTURE byte in the EXT_CSD register */
@@ -380,11 +380,11 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 	np = mmc_of_find_child_device(card->host, 0);
 	if (np && of_device_is_compatible(np, "mmc-card"))
 		broken_hpi = of_property_read_bool(np, "broken-hpi");
-	of_node_put(np);
+	of_yesde_put(np);
 
 	/*
 	 * The EXT_CSD format is meant to be forward compatible. As long
-	 * as CSD_STRUCTURE does not change, all values for EXT_CSD_REV
+	 * as CSD_STRUCTURE does yest change, all values for EXT_CSD_REV
 	 * are authorized, see JEDEC JESD84-B50 section B.8.
 	 */
 	card->ext_csd.rev = ext_csd[EXT_CSD_REV];
@@ -674,7 +674,7 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 		 * stored in their CSD.
 		 */
 		if (card->csd.capacity == (4096 * 512)) {
-			pr_err("%s: unable to read EXT_CSD on a possible high capacity card. Card will be ignored.\n",
+			pr_err("%s: unable to read EXT_CSD on a possible high capacity card. Card will be igyesred.\n",
 				mmc_hostname(card->host));
 		} else {
 			pr_warn("%s: unable to read EXT_CSD, performance might suffer\n",
@@ -902,7 +902,7 @@ static int __mmc_select_powerclass(struct mmc_card *card,
 				ext_csd->raw_pwr_cl_200_360;
 		break;
 	default:
-		pr_warn("%s: Voltage range not supported for power class\n",
+		pr_warn("%s: Voltage range yest supported for power class\n",
 			mmc_hostname(host));
 		return -EINVAL;
 	}
@@ -977,7 +977,7 @@ static void mmc_set_bus_speed(struct mmc_card *card)
 /*
  * Select the bus width amoung 4-bit and 8-bit(SDR).
  * If the bus width is changed successfully, return the selected width value.
- * Zero is returned instead of error value if the wide width is not supported.
+ * Zero is returned instead of error value if the wide width is yest supported.
  */
 static int mmc_select_bus_width(struct mmc_card *card)
 {
@@ -1000,7 +1000,7 @@ static int mmc_select_bus_width(struct mmc_card *card)
 	idx = (host->caps & MMC_CAP_8_BIT_DATA) ? 0 : 1;
 
 	/*
-	 * Unlike SD, MMC cards dont have a configuration register to notify
+	 * Unlike SD, MMC cards dont have a configuration register to yestify
 	 * supported bus width. So bus test command should be run to identify
 	 * the supported bus width or compare the ext csd values of current
 	 * bus width and ext csd values of 1 bit mode read earlier.
@@ -1100,10 +1100,10 @@ static int mmc_select_hs_ddr(struct mmc_card *card)
 	 *
 	 * EXT_CSD_CARD_TYPE_DDR_1_8V means 3.3V or 1.8V vccq.
 	 *
-	 * 1.8V vccq at 3.3V core voltage (vcc) is not required
+	 * 1.8V vccq at 3.3V core voltage (vcc) is yest required
 	 * in the JEDEC spec for DDR.
 	 *
-	 * Even (e)MMC card can support 3.3v to 1.2v vccq, but not all
+	 * Even (e)MMC card can support 3.3v to 1.2v vccq, but yest all
 	 * host controller can support this, like some of the SDHCI
 	 * controller which connect to an eMMC device. Some of these
 	 * host controller still needs to use 1.8v vccq for supporting
@@ -1281,7 +1281,7 @@ int mmc_hs400_to_hs200(struct mmc_card *card)
 	mmc_set_timing(host, MMC_TIMING_MMC_HS200);
 
 	/*
-	 * For HS200, CRC errors are not a reliable way to know the switch
+	 * For HS200, CRC errors are yest a reliable way to kyesw the switch
 	 * failed. If there really is a problem, we would expect tuning will
 	 * fail and the result ends up the same.
 	 */
@@ -1422,7 +1422,7 @@ out_err:
 /*
  * For device supporting HS200 mode, the following sequence
  * should be done before executing the tuning process.
- * 1. set the desired bus width(4-bit or 8-bit, 1-bit is not supported)
+ * 1. set the desired bus width(4-bit or 8-bit, 1-bit is yest supported)
  * 2. switch to HS200 mode
  * 3. set the clock to > 52Mhz and <=200MHz
  */
@@ -1464,14 +1464,14 @@ static int mmc_select_hs200(struct mmc_card *card)
 		mmc_set_timing(host, MMC_TIMING_MMC_HS200);
 
 		/*
-		 * For HS200, CRC errors are not a reliable way to know the
+		 * For HS200, CRC errors are yest a reliable way to kyesw the
 		 * switch failed. If there really is a problem, we would expect
 		 * tuning will fail and the result ends up the same.
 		 */
 		err = __mmc_switch_status(card, false);
 
 		/*
-		 * mmc_select_timing() assumes timing has not changed if
+		 * mmc_select_timing() assumes timing has yest changed if
 		 * it is a switch error.
 		 */
 		if (err == -EBADMSG)
@@ -1512,7 +1512,7 @@ static int mmc_select_timing(struct mmc_card *card)
 bus_speed:
 	/*
 	 * Set the bus speed to the selected bus timing.
-	 * If timing is not selected, backward compatible is the default.
+	 * If timing is yest selected, backward compatible is the default.
 	 */
 	mmc_set_bus_speed(card);
 	return 0;
@@ -1723,7 +1723,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	}
 
 	/*
-	 * Enable power_off_notification byte in the ext_csd register
+	 * Enable power_off_yestification byte in the ext_csd register
 	 */
 	if (card->ext_csd.rev >= 6) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
@@ -1738,7 +1738,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		 * so check for success and update the flag
 		 */
 		if (!err)
-			card->ext_csd.power_off_notification = EXT_CSD_POWER_ON;
+			card->ext_csd.power_off_yestification = EXT_CSD_POWER_ON;
 	}
 
 	/* set erase_arg */
@@ -1815,7 +1815,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			goto free_card;
 
 		/*
-		 * Only if no error, cache is turned on successfully.
+		 * Only if yes error, cache is turned on successfully.
 		 */
 		if (err) {
 			pr_warn("%s: Cache is supported, but failed to turn on (%d)\n",
@@ -1828,7 +1828,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	}
 
 	/*
-	 * Enable Command Queue if supported. Note that Packed Commands cannot
+	 * Enable Command Queue if supported. Note that Packed Commands canyest
 	 * be used with Command Queue.
 	 */
 	card->ext_csd.cmdq_en = false;
@@ -1924,8 +1924,8 @@ static int mmc_sleep(struct mmc_host *host)
 		goto out_release;
 
 	/*
-	 * If the host does not wait while the card signals busy, then we will
-	 * will have to wait the sleep/awake timeout.  Note, we cannot use the
+	 * If the host does yest wait while the card signals busy, then we will
+	 * will have to wait the sleep/awake timeout.  Note, we canyest use the
 	 * SEND_STATUS command to poll the status because that command (and most
 	 * others) is invalid while the card sleeps.
 	 */
@@ -1937,31 +1937,31 @@ out_release:
 	return err;
 }
 
-static int mmc_can_poweroff_notify(const struct mmc_card *card)
+static int mmc_can_poweroff_yestify(const struct mmc_card *card)
 {
 	return card &&
 		mmc_card_mmc(card) &&
-		(card->ext_csd.power_off_notification == EXT_CSD_POWER_ON);
+		(card->ext_csd.power_off_yestification == EXT_CSD_POWER_ON);
 }
 
-static int mmc_poweroff_notify(struct mmc_card *card, unsigned int notify_type)
+static int mmc_poweroff_yestify(struct mmc_card *card, unsigned int yestify_type)
 {
 	unsigned int timeout = card->ext_csd.generic_cmd6_time;
 	int err;
 
-	/* Use EXT_CSD_POWER_OFF_SHORT as default notification type. */
-	if (notify_type == EXT_CSD_POWER_OFF_LONG)
+	/* Use EXT_CSD_POWER_OFF_SHORT as default yestification type. */
+	if (yestify_type == EXT_CSD_POWER_OFF_LONG)
 		timeout = card->ext_csd.power_off_longtime;
 
 	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 			EXT_CSD_POWER_OFF_NOTIFICATION,
-			notify_type, timeout, 0, true, false, false);
+			yestify_type, timeout, 0, true, false, false);
 	if (err)
 		pr_err("%s: Power Off Notification timed out, %u\n",
 		       mmc_hostname(card->host), timeout);
 
-	/* Disable the power off notification after the switch operation. */
-	card->ext_csd.power_off_notification = EXT_CSD_NO_POWER_NOTIFICATION;
+	/* Disable the power off yestification after the switch operation. */
+	card->ext_csd.power_off_yestification = EXT_CSD_NO_POWER_NOTIFICATION;
 
 	return err;
 }
@@ -2012,7 +2012,7 @@ static void mmc_detect(struct mmc_host *host)
 static int _mmc_suspend(struct mmc_host *host, bool is_suspend)
 {
 	int err = 0;
-	unsigned int notify_type = is_suspend ? EXT_CSD_POWER_OFF_SHORT :
+	unsigned int yestify_type = is_suspend ? EXT_CSD_POWER_OFF_SHORT :
 					EXT_CSD_POWER_OFF_LONG;
 
 	mmc_claim_host(host);
@@ -2024,9 +2024,9 @@ static int _mmc_suspend(struct mmc_host *host, bool is_suspend)
 	if (err)
 		goto out;
 
-	if (mmc_can_poweroff_notify(host->card) &&
+	if (mmc_can_poweroff_yestify(host->card) &&
 		((host->caps2 & MMC_CAP2_FULL_PWR_CYCLE) || !is_suspend))
-		err = mmc_poweroff_notify(host->card, notify_type);
+		err = mmc_poweroff_yestify(host->card, yestify_type);
 	else if (mmc_can_sleep(host->card))
 		err = mmc_sleep(host);
 	else if (!mmc_host_is_spi(host))
@@ -2087,10 +2087,10 @@ static int mmc_shutdown(struct mmc_host *host)
 	int err = 0;
 
 	/*
-	 * In a specific case for poweroff notify, we need to resume the card
+	 * In a specific case for poweroff yestify, we need to resume the card
 	 * before we can shutdown it properly.
 	 */
-	if (mmc_can_poweroff_notify(host->card) &&
+	if (mmc_can_poweroff_yestify(host->card) &&
 		!(host->caps2 & MMC_CAP2_FULL_PWR_CYCLE))
 		err = _mmc_resume(host);
 
@@ -2158,7 +2158,7 @@ static int _mmc_hw_reset(struct mmc_host *host)
 
 	/*
 	 * In the case of recovery, we can't expect flushing the cache to work
-	 * always, but we have a go and ignore errors.
+	 * always, but we have a go and igyesre errors.
 	 */
 	mmc_flush_cache(host->card);
 

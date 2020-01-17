@@ -420,7 +420,7 @@
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
 {
-	"helper access to adjusted map (via variable): no max check",
+	"helper access to adjusted map (via variable): yes max check",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
@@ -909,7 +909,7 @@
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
 {
-	"map helper access to adjusted map (via variable): no max check",
+	"map helper access to adjusted map (via variable): yes max check",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),

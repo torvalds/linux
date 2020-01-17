@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #ifndef __INI_H__
@@ -74,7 +74,7 @@ struct wl1271_ini_fem_params_2 {
 	__le16 tx_bip_ref_pd_voltage;
 	u8 tx_bip_ref_power;
 	u8 tx_bip_ref_offset;
-	u8 tx_per_rate_pwr_limits_normal[WL1271_INI_RATE_GROUP_COUNT];
+	u8 tx_per_rate_pwr_limits_yesrmal[WL1271_INI_RATE_GROUP_COUNT];
 	u8 tx_per_rate_pwr_limits_degraded[WL1271_INI_RATE_GROUP_COUNT];
 	u8 tx_per_rate_pwr_limits_extreme[WL1271_INI_RATE_GROUP_COUNT];
 	u8 tx_per_chan_pwr_limits_11b[WL1271_INI_CHANNEL_COUNT_2];
@@ -82,8 +82,8 @@ struct wl1271_ini_fem_params_2 {
 	u8 tx_pd_vs_rate_offsets[WL1271_INI_RATE_GROUP_COUNT];
 	u8 tx_ibias[WL1271_INI_RATE_GROUP_COUNT];
 	u8 rx_fem_insertion_loss;
-	u8 degraded_low_to_normal_thr;
-	u8 normal_to_degraded_high_thr;
+	u8 degraded_low_to_yesrmal_thr;
+	u8 yesrmal_to_degraded_high_thr;
 } __packed;
 
 #define WL128X_INI_RATE_GROUP_COUNT 7
@@ -94,7 +94,7 @@ struct wl128x_ini_fem_params_2 {
 	__le16 tx_bip_ref_pd_voltage;
 	u8 tx_bip_ref_power;
 	u8 tx_bip_ref_offset;
-	u8 tx_per_rate_pwr_limits_normal[WL128X_INI_RATE_GROUP_COUNT];
+	u8 tx_per_rate_pwr_limits_yesrmal[WL128X_INI_RATE_GROUP_COUNT];
 	u8 tx_per_rate_pwr_limits_degraded[WL128X_INI_RATE_GROUP_COUNT];
 	u8 tx_per_rate_pwr_limits_extreme[WL128X_INI_RATE_GROUP_COUNT];
 	u8 tx_per_chan_pwr_limits_11b[WL1271_INI_CHANNEL_COUNT_2];
@@ -104,8 +104,8 @@ struct wl128x_ini_fem_params_2 {
 	u8 tx_pd_vs_chan_offsets[WL1271_INI_CHANNEL_COUNT_2];
 	u8 tx_pd_vs_temperature[WL128X_INI_PD_VS_TEMPERATURE_RANGES];
 	u8 rx_fem_insertion_loss;
-	u8 degraded_low_to_normal_thr;
-	u8 normal_to_degraded_high_thr;
+	u8 degraded_low_to_yesrmal_thr;
+	u8 yesrmal_to_degraded_high_thr;
 } __packed;
 
 #define WL1271_INI_CHANNEL_COUNT_5 35
@@ -127,22 +127,22 @@ struct wl1271_ini_fem_params_5 {
 	__le16 tx_bip_ref_pd_voltage[WL1271_INI_SUB_BAND_COUNT_5];
 	u8 tx_bip_ref_power[WL1271_INI_SUB_BAND_COUNT_5];
 	u8 tx_bip_ref_offset[WL1271_INI_SUB_BAND_COUNT_5];
-	u8 tx_per_rate_pwr_limits_normal[WL1271_INI_RATE_GROUP_COUNT];
+	u8 tx_per_rate_pwr_limits_yesrmal[WL1271_INI_RATE_GROUP_COUNT];
 	u8 tx_per_rate_pwr_limits_degraded[WL1271_INI_RATE_GROUP_COUNT];
 	u8 tx_per_rate_pwr_limits_extreme[WL1271_INI_RATE_GROUP_COUNT];
 	u8 tx_per_chan_pwr_limits_ofdm[WL1271_INI_CHANNEL_COUNT_5];
 	u8 tx_pd_vs_rate_offsets[WL1271_INI_RATE_GROUP_COUNT];
 	u8 tx_ibias[WL1271_INI_RATE_GROUP_COUNT];
 	u8 rx_fem_insertion_loss[WL1271_INI_SUB_BAND_COUNT_5];
-	u8 degraded_low_to_normal_thr;
-	u8 normal_to_degraded_high_thr;
+	u8 degraded_low_to_yesrmal_thr;
+	u8 yesrmal_to_degraded_high_thr;
 } __packed;
 
 struct wl128x_ini_fem_params_5 {
 	__le16 tx_bip_ref_pd_voltage[WL1271_INI_SUB_BAND_COUNT_5];
 	u8 tx_bip_ref_power[WL1271_INI_SUB_BAND_COUNT_5];
 	u8 tx_bip_ref_offset[WL1271_INI_SUB_BAND_COUNT_5];
-	u8 tx_per_rate_pwr_limits_normal[WL128X_INI_RATE_GROUP_COUNT];
+	u8 tx_per_rate_pwr_limits_yesrmal[WL128X_INI_RATE_GROUP_COUNT];
 	u8 tx_per_rate_pwr_limits_degraded[WL128X_INI_RATE_GROUP_COUNT];
 	u8 tx_per_rate_pwr_limits_extreme[WL128X_INI_RATE_GROUP_COUNT];
 	u8 tx_per_chan_pwr_limits_ofdm[WL1271_INI_CHANNEL_COUNT_5];
@@ -152,8 +152,8 @@ struct wl128x_ini_fem_params_5 {
 	u8 tx_pd_vs_temperature[WL1271_INI_SUB_BAND_COUNT_5 *
 		WL128X_INI_PD_VS_TEMPERATURE_RANGES];
 	u8 rx_fem_insertion_loss[WL1271_INI_SUB_BAND_COUNT_5];
-	u8 degraded_low_to_normal_thr;
-	u8 normal_to_degraded_high_thr;
+	u8 degraded_low_to_yesrmal_thr;
+	u8 yesrmal_to_degraded_high_thr;
 } __packed;
 
 /* NVS data structure */

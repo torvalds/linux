@@ -47,8 +47,8 @@ OPTIONS
 		  Print version number (similar to **bpftool version**).
 
 	-j, --json
-		  Generate JSON output. For commands that cannot produce JSON, this
-		  option has no effect.
+		  Generate JSON output. For commands that canyest produce JSON, this
+		  option has yes effect.
 
 	-p, --pretty
 		  Generate human-readable JSON output. Implies **-j**.
@@ -65,8 +65,8 @@ EXAMPLES
 ::
 
       pid 21711  fd 5: prog_id 5  kprobe  func __x64_sys_write  offset 0
-      pid 21765  fd 5: prog_id 7  kretprobe  func __x64_sys_nanosleep  offset 0
-      pid 21767  fd 5: prog_id 8  tracepoint  sys_enter_nanosleep
+      pid 21765  fd 5: prog_id 7  kretprobe  func __x64_sys_nayessleep  offset 0
+      pid 21767  fd 5: prog_id 8  tracepoint  sys_enter_nayessleep
       pid 21800  fd 5: prog_id 9  uprobe  filename /home/yhs/a.out  offset 1159
 
 |
@@ -75,8 +75,8 @@ EXAMPLES
 ::
 
     [{"pid":21711,"fd":5,"prog_id":5,"fd_type":"kprobe","func":"__x64_sys_write","offset":0}, \
-     {"pid":21765,"fd":5,"prog_id":7,"fd_type":"kretprobe","func":"__x64_sys_nanosleep","offset":0}, \
-     {"pid":21767,"fd":5,"prog_id":8,"fd_type":"tracepoint","tracepoint":"sys_enter_nanosleep"}, \
+     {"pid":21765,"fd":5,"prog_id":7,"fd_type":"kretprobe","func":"__x64_sys_nayessleep","offset":0}, \
+     {"pid":21767,"fd":5,"prog_id":8,"fd_type":"tracepoint","tracepoint":"sys_enter_nayessleep"}, \
      {"pid":21800,"fd":5,"prog_id":9,"fd_type":"uprobe","filename":"/home/yhs/a.out","offset":1159}]
 
 

@@ -135,7 +135,7 @@ struct sja1105_general_params_entry {
 	u64 vlmarker;
 	u64 vlmask;
 	u64 tpid;
-	u64 ignore2stf;
+	u64 igyesre2stf;
 	u64 tpid2;
 	/* P/Q/R/S only */
 	u64 queue_ts;
@@ -197,7 +197,7 @@ struct sja1105_l2_lookup_entry {
 struct sja1105_l2_lookup_params_entry {
 	u64 maxaddrp[5];     /* P/Q/R/S only */
 	u64 start_dynspc;    /* P/Q/R/S only */
-	u64 drpnolearn;      /* P/Q/R/S only */
+	u64 drpyeslearn;      /* P/Q/R/S only */
 	u64 use_static;      /* P/Q/R/S only */
 	u64 owr_dyn;         /* P/Q/R/S only */
 	u64 learn_once;      /* P/Q/R/S only */
@@ -205,8 +205,8 @@ struct sja1105_l2_lookup_params_entry {
 	u64 dyn_tbsz;        /* E/T only */
 	u64 poly;            /* E/T only */
 	u64 shared_learn;    /* Shared */
-	u64 no_enf_hostprt;  /* Shared */
-	u64 no_mgmt_learn;   /* Shared */
+	u64 yes_enf_hostprt;  /* Shared */
+	u64 yes_mgmt_learn;   /* Shared */
 };
 
 struct sja1105_l2_forwarding_entry {
@@ -247,7 +247,7 @@ struct sja1105_mac_config_entry {
 	u64 vlanid;
 	u64 ing_mirr;
 	u64 egr_mirr;
-	u64 drpnona664;
+	u64 drpyesna664;
 	u64 drpdtag;
 	u64 drpuntag;
 	u64 retag;

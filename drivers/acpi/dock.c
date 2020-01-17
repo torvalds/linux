@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/platform_device.h>
 #include <linux/jiffies.h>
 #include <linux/stddef.h>
@@ -115,12 +115,12 @@ static void dock_hotplug_event(struct dock_dependent_device *dd, u32 event,
 			return;
 		}
 	} else {
-		int (*notify)(struct acpi_device *, u32);
+		int (*yestify)(struct acpi_device *, u32);
 
-		notify = adev->hp->notify;
-		if (notify) {
+		yestify = adev->hp->yestify;
+		if (yestify) {
 			acpi_unlock_hp_context();
-			notify(adev, event);
+			yestify(adev, event);
 			return;
 		}
 	}
@@ -203,7 +203,7 @@ EXPORT_SYMBOL_GPL(is_dock_device);
  * dock_present - see if the dock station is present.
  * @ds: the dock station
  *
- * execute the _STA method.  note that present does not
+ * execute the _STA method.  yeste that present does yest
  * imply that we are docked.
  */
 static int dock_present(struct dock_station *ds)
@@ -262,7 +262,7 @@ static void hotplug_dock_devices(struct dock_station *ds, u32 event)
 		dock_hotplug_event(dd, event, DOCK_CALL_HANDLER);
 
 	/*
-	 * Check if all devices have been enumerated already.  If not, run
+	 * Check if all devices have been enumerated already.  If yest, run
 	 * acpi_bus_scan() for them and that will cause scan handlers to be
 	 * attached to device objects or acpi_drivers to be stopped/started if
 	 * they are present.
@@ -367,7 +367,7 @@ static inline void complete_undock(struct dock_station *ds)
  * @ds: the dock station
  *
  * Sometimes while docking, false dock events can be sent to the driver
- * because good connections aren't made or some other reason.  Ignore these
+ * because good connections aren't made or some other reason.  Igyesre these
  * if we are in the middle of doing something.
  */
 static int dock_in_progress(struct dock_station *ds)
@@ -394,7 +394,7 @@ static int handle_eject_request(struct dock_station *ds, u32 event)
 	 * event prior to actually doing the undock
 	 * so that the device struct still exists.
 	 * Also, even send the dock event if the
-	 * device is not present anymore
+	 * device is yest present anymore
 	 */
 	dock_event(ds, event, UNDOCK_EVENT);
 
@@ -411,15 +411,15 @@ static int handle_eject_request(struct dock_station *ds, u32 event)
 }
 
 /**
- * dock_notify - Handle ACPI dock notification.
+ * dock_yestify - Handle ACPI dock yestification.
  * @adev: Dock station's ACPI device object.
  * @event: Event code.
  *
- * If we are notified to dock, then check to see if the dock is
+ * If we are yestified to dock, then check to see if the dock is
  * present and then dock.  Notify all drivers of the dock event,
  * and then hotplug and devices that may need hotplugging.
  */
-int dock_notify(struct acpi_device *adev, u32 event)
+int dock_yestify(struct acpi_device *adev, u32 event)
 {
 	acpi_handle handle = adev->handle;
 	struct dock_station *ds = find_dock_station(handle);
@@ -429,7 +429,7 @@ int dock_notify(struct acpi_device *adev, u32 event)
 		return -ENODEV;
 
 	/*
-	 * According to acpi spec 3.0a, if a DEVICE_CHECK notification
+	 * According to acpi spec 3.0a, if a DEVICE_CHECK yestification
 	 * is sent and _DCK is present, it is assumed to mean an undock
 	 * request.
 	 */
@@ -558,7 +558,7 @@ static ssize_t show_dock_type(struct device *dev,
 	else if (dock_station->flags & DOCK_IS_BAT)
 		type = "battery_bay";
 	else
-		type = "unknown";
+		type = "unkyeswn";
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", type);
 }
@@ -594,7 +594,7 @@ void acpi_dock_add(struct acpi_device *adev)
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
 	pdevinfo.name = "dock";
 	pdevinfo.id = dock_station_count;
-	pdevinfo.fwnode = acpi_fwnode_handle(adev);
+	pdevinfo.fwyesde = acpi_fwyesde_handle(adev);
 	pdevinfo.data = &ds;
 	pdevinfo.size_data = sizeof(ds);
 	dd = platform_device_register_full(&pdevinfo);

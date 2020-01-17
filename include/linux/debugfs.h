@@ -40,10 +40,10 @@ struct debugfs_regset32 {
 extern struct dentry *arch_debugfs_dir;
 
 #define DEFINE_DEBUGFS_ATTRIBUTE(__fops, __get, __set, __fmt)		\
-static int __fops ## _open(struct inode *inode, struct file *file)	\
+static int __fops ## _open(struct iyesde *iyesde, struct file *file)	\
 {									\
 	__simple_attr_check_format(__fmt, 0ull);			\
-	return simple_attr_open(inode, file, __get, __set, __fmt);	\
+	return simple_attr_open(iyesde, file, __get, __set, __fmt);	\
 }									\
 static const struct file_operations __fops = {				\
 	.owner	 = THIS_MODULE,						\
@@ -51,7 +51,7 @@ static const struct file_operations __fops = {				\
 	.release = simple_attr_release,					\
 	.read	 = debugfs_attr_read,					\
 	.write	 = debugfs_attr_write,					\
-	.llseek  = no_llseek,						\
+	.llseek  = yes_llseek,						\
 }
 
 typedef struct vfsmount *(*debugfs_automount_t)(struct dentry *, void *);
@@ -155,8 +155,8 @@ ssize_t debugfs_write_file_bool(struct file *file, const char __user *user_buf,
 #include <linux/err.h>
 
 /*
- * We do not return NULL from these functions if CONFIG_DEBUG_FS is not enabled
- * so users have a chance to detect if there was a real error or not.  We don't
+ * We do yest return NULL from these functions if CONFIG_DEBUG_FS is yest enabled
+ * so users have a chance to detect if there was a real error or yest.  We don't
  * want to duplicate the design decision mistakes of procfs and devfs again.
  */
 

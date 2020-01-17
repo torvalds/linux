@@ -65,7 +65,7 @@
 			label = "pwm:blue:user";
 			pwms = <&pwm0 2 10000000 0>;
 			max-brightness = <255>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "yesne";
 		};
 
 		green {

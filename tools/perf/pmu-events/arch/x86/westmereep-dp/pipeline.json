@@ -104,7 +104,7 @@
         "UMask": "0x4",
         "EventName": "BR_INST_EXEC.INDIRECT_NON_CALL",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Indirect non call branches executed"
+        "BriefDescription": "Indirect yesn call branches executed"
     },
     {
         "EventCode": "0x88",
@@ -120,7 +120,7 @@
         "UMask": "0x7",
         "EventName": "BR_INST_EXEC.NON_CALLS",
         "SampleAfterValue": "200000",
-        "BriefDescription": "All non call branches executed"
+        "BriefDescription": "All yesn call branches executed"
     },
     {
         "EventCode": "0x88",
@@ -195,7 +195,7 @@
         "UMask": "0x10",
         "EventName": "BR_MISP_EXEC.DIRECT_NEAR_CALL",
         "SampleAfterValue": "2000",
-        "BriefDescription": "Mispredicted non call branches executed"
+        "BriefDescription": "Mispredicted yesn call branches executed"
     },
     {
         "EventCode": "0x89",
@@ -211,7 +211,7 @@
         "UMask": "0x4",
         "EventName": "BR_MISP_EXEC.INDIRECT_NON_CALL",
         "SampleAfterValue": "2000",
-        "BriefDescription": "Mispredicted indirect non call branches executed"
+        "BriefDescription": "Mispredicted indirect yesn call branches executed"
     },
     {
         "EventCode": "0x89",
@@ -227,7 +227,7 @@
         "UMask": "0x7",
         "EventName": "BR_MISP_EXEC.NON_CALLS",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Mispredicted non call branches executed"
+        "BriefDescription": "Mispredicted yesn call branches executed"
     },
     {
         "EventCode": "0x89",
@@ -278,7 +278,7 @@
         "UMask": "0x0",
         "EventName": "CPU_CLK_UNHALTED.REF",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Reference cycles when thread is not halted (fixed counter)"
+        "BriefDescription": "Reference cycles when thread is yest halted (fixed counter)"
     },
     {
         "EventCode": "0x3C",
@@ -286,7 +286,7 @@
         "UMask": "0x1",
         "EventName": "CPU_CLK_UNHALTED.REF_P",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Reference base clock (133 Mhz) cycles when thread is not halted (programmable counter)"
+        "BriefDescription": "Reference base clock (133 Mhz) cycles when thread is yest halted (programmable counter)"
     },
     {
         "EventCode": "0x0",
@@ -294,7 +294,7 @@
         "UMask": "0x0",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles when thread is not halted (fixed counter)"
+        "BriefDescription": "Cycles when thread is yest halted (fixed counter)"
     },
     {
         "EventCode": "0x3C",
@@ -302,7 +302,7 @@
         "UMask": "0x0",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles when thread is not halted (programmable counter)"
+        "BriefDescription": "Cycles when thread is yest halted (programmable counter)"
     },
     {
         "EventCode": "0x3C",
@@ -448,7 +448,7 @@
         "UMask": "0x1",
         "EventName": "LSD.INACTIVE",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles no uops were delivered by the LSD",
+        "BriefDescription": "Cycles yes uops were delivered by the LSD",
         "CounterMask": "1"
     },
     {
@@ -632,7 +632,7 @@
         "UMask": "0x1",
         "EventName": "UOPS_DECODED.STALL_CYCLES",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles no Uops are decoded",
+        "BriefDescription": "Cycles yes Uops are decoded",
         "CounterMask": "1"
     },
     {
@@ -687,7 +687,7 @@
         "AnyThread": "1",
         "EventName": "UOPS_EXECUTED.CORE_STALL_CYCLES",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles no Uops issued on any port (core count)",
+        "BriefDescription": "Cycles yes Uops issued on any port (core count)",
         "CounterMask": "1"
     },
     {
@@ -698,7 +698,7 @@
         "AnyThread": "1",
         "EventName": "UOPS_EXECUTED.CORE_STALL_CYCLES_NO_PORT5",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles no Uops issued on ports 0-4 (core count)",
+        "BriefDescription": "Cycles yes Uops issued on ports 0-4 (core count)",
         "CounterMask": "1"
     },
     {
@@ -724,7 +724,7 @@
         "UMask": "0x40",
         "EventName": "UOPS_EXECUTED.PORT015_STALL_CYCLES",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles no Uops issued on ports 0, 1 or 5",
+        "BriefDescription": "Cycles yes Uops issued on ports 0, 1 or 5",
         "CounterMask": "1"
     },
     {
@@ -795,7 +795,7 @@
         "AnyThread": "1",
         "EventName": "UOPS_ISSUED.CORE_STALL_CYCLES",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles no Uops were issued on any thread",
+        "BriefDescription": "Cycles yes Uops were issued on any thread",
         "CounterMask": "1"
     },
     {
@@ -823,7 +823,7 @@
         "UMask": "0x1",
         "EventName": "UOPS_ISSUED.STALL_CYCLES",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles no Uops were issued",
+        "BriefDescription": "Cycles yes Uops were issued",
         "CounterMask": "1"
     },
     {
@@ -871,7 +871,7 @@
         "UMask": "0x1",
         "EventName": "UOPS_RETIRED.STALL_CYCLES",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles Uops are not retiring (Precise Event)",
+        "BriefDescription": "Cycles Uops are yest retiring (Precise Event)",
         "CounterMask": "1"
     },
     {

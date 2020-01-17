@@ -30,7 +30,7 @@
 #define SKL_IN_DIR_BIT_MASK		BIT(0)
 #define SKL_PIN_COUNT_MASK		GENMASK(7, 4)
 
-static const int mic_mono_list[] = {
+static const int mic_moyes_list[] = {
 0, 1, 2, 3,
 };
 static const int mic_stereo_list[][SKL_CH_STEREO] = {
@@ -52,7 +52,7 @@ void skl_tplg_d0i3_get(struct skl_dev *skl, enum d0i3_capability caps)
 
 	switch (caps) {
 	case SKL_D0I3_NONE:
-		d0i3->non_d0i3++;
+		d0i3->yesn_d0i3++;
 		break;
 
 	case SKL_D0I3_STREAMING:
@@ -60,7 +60,7 @@ void skl_tplg_d0i3_get(struct skl_dev *skl, enum d0i3_capability caps)
 		break;
 
 	case SKL_D0I3_NON_STREAMING:
-		d0i3->non_streaming++;
+		d0i3->yesn_streaming++;
 		break;
 	}
 }
@@ -71,7 +71,7 @@ void skl_tplg_d0i3_put(struct skl_dev *skl, enum d0i3_capability caps)
 
 	switch (caps) {
 	case SKL_D0I3_NONE:
-		d0i3->non_d0i3--;
+		d0i3->yesn_d0i3--;
 		break;
 
 	case SKL_D0I3_STREAMING:
@@ -79,14 +79,14 @@ void skl_tplg_d0i3_put(struct skl_dev *skl, enum d0i3_capability caps)
 		break;
 
 	case SKL_D0I3_NON_STREAMING:
-		d0i3->non_streaming--;
+		d0i3->yesn_streaming--;
 		break;
 	}
 }
 
 /*
  * SKL DSP driver modelling uses only few DAPM widgets so for rest we will
- * ignore. This helpers checks if the SKL driver handles this widget type
+ * igyesre. This helpers checks if the SKL driver handles this widget type
  */
 static int is_skl_dsp_widget_type(struct snd_soc_dapm_widget *w,
 				  struct device *dev)
@@ -417,7 +417,7 @@ static int skl_tplg_set_module_params(struct snd_soc_dapm_widget *w,
 /*
  * some module param can set from user control and this is required as
  * when module is initailzed. if module param is required in init it is
- * identifed by set_param flag. if set_param flag is not set, then this
+ * identifed by set_param flag. if set_param flag is yest set, then this
  * parameter needs to set as part of module init.
  */
 static int skl_tplg_set_module_init_data(struct snd_soc_dapm_widget *w)
@@ -475,7 +475,7 @@ skl_tplg_init_pipe_modules(struct skl_dev *skl, struct skl_pipe *pipe)
 	u8 cfg_idx;
 	int ret = 0;
 
-	list_for_each_entry(w_module, &pipe->w_list, node) {
+	list_for_each_entry(w_module, &pipe->w_list, yesde) {
 		guid_t *uuid_mod;
 		w = w_module->w;
 		mconfig = w->priv;
@@ -483,7 +483,7 @@ skl_tplg_init_pipe_modules(struct skl_dev *skl, struct skl_pipe *pipe)
 		/* check if module ids are populated */
 		if (mconfig->id.module_id < 0) {
 			dev_err(skl->dev,
-					"module %pUL id not populated\n",
+					"module %pUL id yest populated\n",
 					(guid_t *)mconfig->guid);
 			return -EIO;
 		}
@@ -552,7 +552,7 @@ static int skl_tplg_unload_pipe_modules(struct skl_dev *skl,
 	struct skl_pipe_module *w_module = NULL;
 	struct skl_module_cfg *mconfig = NULL;
 
-	list_for_each_entry(w_module, &pipe->w_list, node) {
+	list_for_each_entry(w_module, &pipe->w_list, yesde) {
 		guid_t *uuid_mod;
 		mconfig  = w_module->w->priv;
 		uuid_mod = (guid_t *)mconfig->guid;
@@ -574,7 +574,7 @@ static int skl_tplg_unload_pipe_modules(struct skl_dev *skl,
 		}
 	}
 
-	/* no modules to unload in this path, so return */
+	/* yes modules to unload in this path, so return */
 	return ret;
 }
 
@@ -671,7 +671,7 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 		return ret;
 
 	/* Bind modules from source to sink */
-	list_for_each_entry(w_module, &s_pipe->w_list, node) {
+	list_for_each_entry(w_module, &s_pipe->w_list, yesde) {
 		dst_module = w_module->w->priv;
 
 		if (src_module == NULL) {
@@ -690,11 +690,11 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	 * When the destination module is initialized, check for these modules
 	 * in deferred bind list. If found, bind them.
 	 */
-	list_for_each_entry(w_module, &s_pipe->w_list, node) {
+	list_for_each_entry(w_module, &s_pipe->w_list, yesde) {
 		if (list_empty(&skl->bind_list))
 			break;
 
-		list_for_each_entry(modules, &skl->bind_list, node) {
+		list_for_each_entry(modules, &skl->bind_list, yesde) {
 			module = w_module->w->priv;
 			if (modules->dst == module)
 				skl_bind_modules(skl, modules->src,
@@ -894,7 +894,7 @@ static int skl_tplg_module_add_deferred_bind(struct skl_dev *skl,
 			(pin->id.instance_id  == src->id.instance_id)) {
 
 			if (!list_empty(&skl->bind_list)) {
-				list_for_each_entry(modules, &skl->bind_list, node) {
+				list_for_each_entry(modules, &skl->bind_list, yesde) {
 					if (modules->src == src && modules->dst == dst)
 						return 0;
 				}
@@ -907,7 +907,7 @@ static int skl_tplg_module_add_deferred_bind(struct skl_dev *skl,
 			m_list->src = src;
 			m_list->dst = dst;
 
-			list_add(&m_list->node, &skl->bind_list);
+			list_add(&m_list->yesde, &skl->bind_list);
 		}
 	}
 
@@ -951,11 +951,11 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 
 			/*
 			 * Modules other than PGA leaf can be connected
-			 * directly or via switch to a module in another
+			 * directly or via switch to a module in ayesther
 			 * pipeline. EX: reference path
 			 * when the path is enabled, the dst module that needs
-			 * to be bound may not be initialized. if the module is
-			 * not initialized, add these modules in the deferred
+			 * to be bound may yest be initialized. if the module is
+			 * yest initialized, add these modules in the deferred
 			 * bind list and when the dst module is initialised,
 			 * bind this module to the dst_module in deferred list.
 			 */
@@ -1011,7 +1011,7 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
  *      Since the sink pipes can be running and we don't get mixer event on
  *      connect for already running mixer, we need to find the sink pipes
  *      here and bind to them. This way dynamic connect works.
- *   - Start sink pipeline, if not running
+ *   - Start sink pipeline, if yest running
  *   - Then run current pipe
  */
 static int skl_tplg_pga_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
@@ -1024,7 +1024,7 @@ static int skl_tplg_pga_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 
 	/*
 	 * find which sink it is connected to, bind with the sink,
-	 * if sink is not started, start sink pipe first, then start
+	 * if sink is yest started, start sink pipe first, then start
 	 * this pipe
 	 */
 	ret = skl_tplg_bind_sinks(w, skl, w, src_mconfig);
@@ -1072,7 +1072,7 @@ static struct snd_soc_dapm_widget *skl_get_src_dsp_widget(
 /*
  * in the Post-PMU event of mixer we need to do following:
  *   - Check if this pipe is running
- *   - if not, then
+ *   - if yest, then
  *	- bind this pipeline to its source pipeline
  *	  if source pipe is already running, this means it is a dynamic
  *	  connection and we need to bind only to that pipe
@@ -1101,7 +1101,7 @@ static int skl_tplg_mixer_dapm_post_pmu_event(struct snd_soc_dapm_widget *w,
 		src_pipe_started = 1;
 
 		/*
-		 * check pipe state, then no need to bind or start the
+		 * check pipe state, then yes need to bind or start the
 		 * pipe
 		 */
 		if (src_mconfig->pipe->state != SKL_PIPE_STARTED)
@@ -1160,8 +1160,8 @@ static int skl_tplg_mixer_dapm_pre_pmd_event(struct snd_soc_dapm_widget *w,
 /*
  * in the Post-PMD event of mixer we need to do following:
  *   - Unbind the modules within the pipeline
- *   - Delete the pipeline (modules are not required to be explicitly
- *     deleted, pipeline delete is enough here
+ *   - Delete the pipeline (modules are yest required to be explicitly
+ *     deleted, pipeline delete is eyesugh here
  */
 static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 							struct skl_dev *skl)
@@ -1175,13 +1175,13 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	if (s_pipe->state == SKL_PIPE_INVALID)
 		return -EINVAL;
 
-	list_for_each_entry(w_module, &s_pipe->w_list, node) {
+	list_for_each_entry(w_module, &s_pipe->w_list, yesde) {
 		if (list_empty(&skl->bind_list))
 			break;
 
 		src_module = w_module->w->priv;
 
-		list_for_each_entry_safe(modules, tmp, &skl->bind_list, node) {
+		list_for_each_entry_safe(modules, tmp, &skl->bind_list, yesde) {
 			/*
 			 * When the destination module is deleted, Unbind the
 			 * modules from deferred bind list.
@@ -1196,7 +1196,7 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 			 * from the deferred bind list.
 			 */
 			if (modules->src == src_module) {
-				list_del(&modules->node);
+				list_del(&modules->yesde);
 				modules->src = NULL;
 				modules->dst = NULL;
 				kfree(modules);
@@ -1204,7 +1204,7 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 		}
 	}
 
-	list_for_each_entry(w_module, &s_pipe->w_list, node) {
+	list_for_each_entry(w_module, &s_pipe->w_list, yesde) {
 		dst_module = w_module->w->priv;
 
 		if (src_module == NULL) {
@@ -1218,7 +1218,7 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 
 	skl_delete_pipe(skl, mconfig->pipe);
 
-	list_for_each_entry(w_module, &s_pipe->w_list, node) {
+	list_for_each_entry(w_module, &s_pipe->w_list, yesde) {
 		src_module = w_module->w->priv;
 		src_module->m_state = SKL_MODULE_UNINIT;
 	}
@@ -1251,7 +1251,7 @@ static int skl_tplg_pga_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 				continue;
 			/*
 			 * This is a connecter and if path is found that means
-			 * unbind between source and sink has not happened yet
+			 * unbind between source and sink has yest happened yet
 			 */
 			ret = skl_unbind_modules(skl, src_mconfig,
 							sink_mconfig);
@@ -1263,7 +1263,7 @@ static int skl_tplg_pga_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 
 /*
  * In modelling, we assume there will be ONLY one mixer in a pipeline. If a
- * second one is required that is created as another pipe entity.
+ * second one is required that is created as ayesther pipe entity.
  * The mixer is responsible for pipe management and represent a pipeline
  * instance
  */
@@ -1434,7 +1434,7 @@ static int skl_tplg_mic_control_set(struct snd_kcontrol *kcontrol,
 	mconfig->dmic_ch_type = ch_type;
 	mconfig->dmic_ch_combo_index = ucontrol->value.enumerated.item[0];
 
-	/* enum control index 0 is INVALID, so no channels to be set */
+	/* enum control index 0 is INVALID, so yes channels to be set */
 	if (mconfig->dmic_ch_combo_index == 0)
 		return 0;
 
@@ -1443,10 +1443,10 @@ static int skl_tplg_mic_control_set(struct snd_kcontrol *kcontrol,
 
 	switch (ch_type) {
 	case SKL_CH_MONO:
-		if (mconfig->dmic_ch_combo_index > ARRAY_SIZE(mic_mono_list))
+		if (mconfig->dmic_ch_combo_index > ARRAY_SIZE(mic_moyes_list))
 			return -EINVAL;
 
-		list = &mic_mono_list[index];
+		list = &mic_moyes_list[index];
 		break;
 
 	case SKL_CH_STEREO:
@@ -1934,7 +1934,7 @@ static int skl_tplg_fill_pipe_tkn(struct device *dev,
 		break;
 
 	default:
-		dev_err(dev, "Token not handled %d\n", tkn);
+		dev_err(dev, "Token yest handled %d\n", tkn);
 		return -EINVAL;
 	}
 
@@ -1953,7 +1953,7 @@ static int skl_tplg_add_pipe(struct device *dev,
 	struct skl_pipe *pipe;
 	struct skl_pipe_params *params;
 
-	list_for_each_entry(ppl, &skl->ppl_list, node) {
+	list_for_each_entry(ppl, &skl->ppl_list, yesde) {
 		if (ppl->pipe->ppl_id == tkn_elem->value) {
 			mconfig->pipe = ppl->pipe;
 			return -EEXIST;
@@ -1977,7 +1977,7 @@ static int skl_tplg_add_pipe(struct device *dev,
 	INIT_LIST_HEAD(&pipe->w_list);
 
 	ppl->pipe = pipe;
-	list_add(&ppl->node, &skl->ppl_list);
+	list_add(&ppl->yesde, &skl->ppl_list);
 
 	mconfig->pipe = pipe;
 	mconfig->pipe->state = SKL_PIPE_INVALID;
@@ -2236,7 +2236,7 @@ static int skl_tplg_fill_res_tkn(struct device *dev,
 
 	case SKL_TKN_MM_U32_CPS:
 	case SKL_TKN_U32_MAX_MCPS:
-		/* ignore unused tokens */
+		/* igyesre unused tokens */
 		break;
 
 	default:
@@ -2266,7 +2266,7 @@ static int skl_tplg_get_token(struct device *dev,
 	int fmt_idx = mconfig->fmt_idx;
 
 	/*
-	 * If the manifest structure contains no modules, fill all
+	 * If the manifest structure contains yes modules, fill all
 	 * the module data to 0th index.
 	 * res_idx and fmt_idx are default set to 0.
 	 */
@@ -2489,7 +2489,7 @@ static int skl_tplg_get_token(struct device *dev,
 		break;
 
 	default:
-		dev_err(dev, "Token %d not handled\n",
+		dev_err(dev, "Token %d yest handled\n",
 				tkn_elem->token);
 		return -EINVAL;
 	}
@@ -2523,7 +2523,7 @@ static int skl_tplg_get_tokens(struct device *dev,
 
 		switch (array->type) {
 		case SND_SOC_TPLG_TUPLE_TYPE_STRING:
-			dev_warn(dev, "no string tokens expected for skl tplg\n");
+			dev_warn(dev, "yes string tokens expected for skl tplg\n");
 			continue;
 
 		case SND_SOC_TPLG_TUPLE_TYPE_UUID:
@@ -2607,7 +2607,7 @@ static int skl_tplg_add_pipe_v4(struct device *dev,
 	struct skl_pipe *pipe;
 	struct skl_pipe_params *params;
 
-	list_for_each_entry(ppl, &skl->ppl_list, node) {
+	list_for_each_entry(ppl, &skl->ppl_list, yesde) {
 		if (ppl->pipe->ppl_id == dfw_pipe->pipe_id) {
 			mconfig->pipe = ppl->pipe;
 			return 0;
@@ -2635,7 +2635,7 @@ static int skl_tplg_add_pipe_v4(struct device *dev,
 	INIT_LIST_HEAD(&pipe->w_list);
 
 	ppl->pipe = pipe;
-	list_add(&ppl->node, &skl->ppl_list);
+	list_add(&ppl->yesde, &skl->ppl_list);
 
 	mconfig->pipe = pipe;
 
@@ -3022,7 +3022,7 @@ static int skl_tplg_control_load(struct snd_soc_component *cmpnt,
 		break;
 
 	default:
-		dev_dbg(bus->dev, "Control load not supported %d:%d:%d\n",
+		dev_dbg(bus->dev, "Control load yest supported %d:%d:%d\n",
 			hdr->ops.get, hdr->ops.put, hdr->ops.info);
 		break;
 	}
@@ -3523,7 +3523,7 @@ static int skl_tplg_create_pipe_widget_list(struct snd_soc_component *component)
 				return -ENOMEM;
 
 			p_module->w = w;
-			list_add_tail(&p_module->node, &pipe->w_list);
+			list_add_tail(&p_module->yesde, &pipe->w_list);
 		}
 	}
 
@@ -3537,7 +3537,7 @@ static void skl_tplg_set_pipe_type(struct skl_dev *skl, struct skl_pipe *pipe)
 	struct skl_module_cfg *mconfig;
 	bool host_found = false, link_found = false;
 
-	list_for_each_entry(w_module, &pipe->w_list, node) {
+	list_for_each_entry(w_module, &pipe->w_list, yesde) {
 		w = w_module->w;
 		mconfig = w->priv;
 
@@ -3592,7 +3592,7 @@ int skl_tplg_init(struct snd_soc_component *component, struct hdac_bus *bus)
 		goto err;
 	}
 
-	list_for_each_entry(ppl, &skl->ppl_list, node)
+	list_for_each_entry(ppl, &skl->ppl_list, yesde)
 		skl_tplg_set_pipe_type(skl, ppl->pipe);
 
 err:
@@ -3606,8 +3606,8 @@ void skl_tplg_exit(struct snd_soc_component *component, struct hdac_bus *bus)
 	struct skl_pipeline *ppl, *tmp;
 
 	if (!list_empty(&skl->ppl_list))
-		list_for_each_entry_safe(ppl, tmp, &skl->ppl_list, node)
-			list_del(&ppl->node);
+		list_for_each_entry_safe(ppl, tmp, &skl->ppl_list, yesde)
+			list_del(&ppl->yesde);
 
 	/* clean up topology */
 	snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);

@@ -5,7 +5,7 @@
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
 #include <linux/mutex.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 
 #include "dpu_hw_mdss.h"
@@ -42,7 +42,7 @@ void dpu_hw_blk_init(struct dpu_hw_blk *hw_blk, u32 type, int id,
 /**
  * dpu_hw_blk_destroy - destroy hw block object.
  * @hw_blk:  pointer to hw block object
- * return: none
+ * return: yesne
  */
 void dpu_hw_blk_destroy(struct dpu_hw_blk *hw_blk)
 {
@@ -63,7 +63,7 @@ void dpu_hw_blk_destroy(struct dpu_hw_blk *hw_blk)
 /**
  * dpu_hw_blk_get - get hw_blk from free pool
  * @hw_blk: if specified, increment reference count only
- * @type: if hw_blk is not specified, allocate the next available of this type
+ * @type: if hw_blk is yest specified, allocate the next available of this type
  * @id: if specified (>= 0), allocate the given instance of the above type
  * return: pointer to hw block object
  */
@@ -88,7 +88,7 @@ struct dpu_hw_blk *dpu_hw_blk_get(struct dpu_hw_blk *hw_blk, u32 type, int id)
 	}
 
 	if (!hw_blk) {
-		pr_debug("no hw_blk:%d\n", type);
+		pr_debug("yes hw_blk:%d\n", type);
 		return NULL;
 	}
 

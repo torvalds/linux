@@ -39,10 +39,10 @@ static ssize_t connect_type_show(struct device *dev,
 		result = "hardwired";
 		break;
 	case USB_PORT_NOT_USED:
-		result = "not used";
+		result = "yest used";
 		break;
 	default:
-		result = "unknown";
+		result = "unkyeswn";
 		break;
 	}
 
@@ -224,7 +224,7 @@ static int usb_port_runtime_resume(struct device *dev)
 		 * the host port and the device port getting out of sync causing
 		 * a link training live lock.  Upon timeout, flag the port as
 		 * needing warm reset recovery (to be performed later by
-		 * usb_port_resume() as requested via usb_wakeup_notification())
+		 * usb_port_resume() as requested via usb_wakeup_yestification())
 		 */
 		if (hub_port_debounce_be_connected(hub, port1) < 0) {
 			dev_dbg(&port_dev->dev, "reconnect timeout\n");
@@ -234,7 +234,7 @@ static int usb_port_runtime_resume(struct device *dev)
 
 		/* Force the child awake to revalidate after the power loss. */
 		if (!test_and_set_bit(port1, hub->child_usage_bits)) {
-			pm_runtime_get_noresume(&port_dev->dev);
+			pm_runtime_get_yesresume(&port_dev->dev);
 			pm_request_resume(&udev->dev);
 		}
 	}
@@ -274,9 +274,9 @@ static int usb_port_runtime_suspend(struct device *dev)
 	usb_autopm_put_interface(intf);
 
 	/*
-	 * Our peer usb3 port may now be able to suspend, so
-	 * asynchronously queue a suspend request to observe that this
-	 * usb2 port is now off.
+	 * Our peer usb3 port may yesw be able to suspend, so
+	 * asynchroyesusly queue a suspend request to observe that this
+	 * usb2 port is yesw off.
 	 */
 	if (!port_dev->is_superspeed && peer)
 		pm_runtime_put(&peer->dev);
@@ -333,9 +333,9 @@ static int link_peers(struct usb_port *left, struct usb_port *right)
 		pr_debug("usb: failed to peer %s and %s by %s (%s:%s) (%s:%s)\n",
 			dev_name(&left->dev), dev_name(&right->dev), method,
 			dev_name(&left->dev),
-			lpeer ? dev_name(&lpeer->dev) : "none",
+			lpeer ? dev_name(&lpeer->dev) : "yesne",
 			dev_name(&right->dev),
-			rpeer ? dev_name(&rpeer->dev) : "none");
+			rpeer ? dev_name(&rpeer->dev) : "yesne");
 		return -EBUSY;
 	}
 
@@ -370,7 +370,7 @@ static int link_peers(struct usb_port *left, struct usb_port *right)
 	/*
 	 * The SuperSpeed reference is dropped when the HiSpeed port in
 	 * this relationship suspends, i.e. when it is safe to allow a
-	 * SuperSpeed connection to drop since there is no risk of a
+	 * SuperSpeed connection to drop since there is yes risk of a
 	 * device degrading to its powered-off HiSpeed connection.
 	 *
 	 * Also, drop the HiSpeed ref taken above.
@@ -401,7 +401,7 @@ static void unlink_peers(struct usb_port *left, struct usb_port *right)
 	struct usb_port *ss_port, *hs_port;
 
 	WARN(right->peer != left || left->peer != right,
-			"%s and %s are not peers?\n",
+			"%s and %s are yest peers?\n",
 			dev_name(&left->dev), dev_name(&right->dev));
 
 	/*
@@ -449,7 +449,7 @@ static int match_location(struct usb_device *peer_hdev, void *p)
 
 	hcd = bus_to_hcd(hdev->bus);
 	peer_hcd = bus_to_hcd(peer_hdev->bus);
-	/* peer_hcd is provisional until we verify it against the known peer */
+	/* peer_hcd is provisional until we verify it against the kyeswn peer */
 	if (peer_hcd != hcd->shared_hcd)
 		return 0;
 
@@ -478,7 +478,7 @@ static void find_and_link_peer(struct usb_hub *hub, int port1)
 
 	/*
 	 * If location data is available then we can only peer this port
-	 * by a location match, not the default peer (lest we create a
+	 * by a location match, yest the default peer (lest we create a
 	 * situation where we need to go back and undo a default peering
 	 * when the port is later peered by location data)
 	 */
@@ -515,7 +515,7 @@ static void find_and_link_peer(struct usb_hub *hub, int port1)
 
 	/*
 	 * we found a valid default peer, last check is to make sure it
-	 * does not have location data
+	 * does yest have location data
 	 */
 	peer = peer_hub->ports[port1 - 1];
 	if (peer && peer->location == 0)
@@ -577,13 +577,13 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 	 * and the hub has been fully registered (hdev->maxchild set).
 	 */
 	pm_runtime_set_active(&port_dev->dev);
-	pm_runtime_get_noresume(&port_dev->dev);
+	pm_runtime_get_yesresume(&port_dev->dev);
 	pm_runtime_enable(&port_dev->dev);
 	device_enable_async_suspend(&port_dev->dev);
 
 	/*
 	 * Keep hidden the ability to enable port-poweroff if the hub
-	 * does not support power switching.
+	 * does yest support power switching.
 	 */
 	if (!hub_is_port_power_switchable(hub))
 		return 0;
@@ -592,11 +592,11 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 	retval = dev_pm_qos_expose_flags(&port_dev->dev,
 			PM_QOS_FLAG_NO_POWER_OFF);
 	if (retval < 0) {
-		dev_warn(&port_dev->dev, "failed to expose pm_qos_no_poweroff\n");
+		dev_warn(&port_dev->dev, "failed to expose pm_qos_yes_poweroff\n");
 		return 0;
 	}
 
-	/* Userspace owns the policy, drop the kernel 'no_poweroff' request. */
+	/* Userspace owns the policy, drop the kernel 'yes_poweroff' request. */
 	retval = dev_pm_qos_remove_request(port_dev->req);
 	if (retval >= 0) {
 		kfree(port_dev->req);

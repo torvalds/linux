@@ -161,7 +161,7 @@
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
 {
-	"helper access to variable memory: stack, JMP, no max check",
+	"helper access to variable memory: stack, JMP, yes max check",
 	.insns = {
 	BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_1, 8),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
@@ -181,7 +181,7 @@
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
 {
-	"helper access to variable memory: stack, JMP, no min check",
+	"helper access to variable memory: stack, JMP, yes min check",
 	.insns = {
 	BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_1, 8),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
@@ -199,7 +199,7 @@
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
 {
-	"helper access to variable memory: stack, JMP (signed), no min check",
+	"helper access to variable memory: stack, JMP (signed), yes min check",
 	.insns = {
 	BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_1, 8),
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
@@ -337,7 +337,7 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {
-	"helper access to variable memory: size > 0 not allowed on NULL (ARG_PTR_TO_MEM_OR_NULL)",
+	"helper access to variable memory: size > 0 yest allowed on NULL (ARG_PTR_TO_MEM_OR_NULL)",
 	.insns = {
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 0),
 	BPF_MOV64_IMM(BPF_REG_1, 0),
@@ -463,7 +463,7 @@
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
-	"helper access to variable memory: size = 0 not allowed on NULL (!ARG_PTR_TO_MEM_OR_NULL)",
+	"helper access to variable memory: size = 0 yest allowed on NULL (!ARG_PTR_TO_MEM_OR_NULL)",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_1, 0),
 	BPF_MOV64_IMM(BPF_REG_2, 0),
@@ -476,7 +476,7 @@
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
 {
-	"helper access to variable memory: size > 0 not allowed on NULL (!ARG_PTR_TO_MEM_OR_NULL)",
+	"helper access to variable memory: size > 0 yest allowed on NULL (!ARG_PTR_TO_MEM_OR_NULL)",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_1, 0),
 	BPF_MOV64_IMM(BPF_REG_2, 1),
@@ -589,7 +589,7 @@
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
 {
-	"helper access to variable memory: 8 bytes no leak (init memory)",
+	"helper access to variable memory: 8 bytes yes leak (init memory)",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
 	BPF_MOV64_IMM(BPF_REG_0, 0),

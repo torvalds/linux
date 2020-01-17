@@ -16,7 +16,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -50,7 +50,7 @@ int ife_encode_meta_u16(u16 metaval, void *skbdata, struct tcf_meta_info *mi)
 	else if (metaval)
 		edata = metaval;
 
-	if (!edata) /* will not encode */
+	if (!edata) /* will yest encode */
 		return 0;
 
 	edata = htons(edata);
@@ -94,7 +94,7 @@ int ife_encode_meta_u32(u32 metaval, void *skbdata, struct tcf_meta_info *mi)
 	else if (metaval)
 		edata = metaval;
 
-	if (!edata) /* will not encode */
+	if (!edata) /* will yest encode */
 		return 0;
 
 	edata = htonl(edata);
@@ -148,7 +148,7 @@ EXPORT_SYMBOL_GPL(ife_validate_meta_u32);
 
 int ife_validate_meta_u16(void *val, int len)
 {
-	/* length will not include padding */
+	/* length will yest include padding */
 	if (len == sizeof(u16))
 		return 0;
 
@@ -255,7 +255,7 @@ static const char *ife_meta_id2name(u32 metaid)
 	case IFE_META_TCINDEX:
 		return "tcindex";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 #endif
@@ -382,7 +382,7 @@ static int dump_metalist(struct sk_buff *skb, struct tcf_ife_info *ife)
 	if (list_empty(&ife->metalist))
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, TCA_IFE_METALST);
+	nest = nla_nest_start_yesflag(skb, TCA_IFE_METALST);
 	if (!nest)
 		goto out_nlmsg_trim;
 
@@ -499,8 +499,8 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	parm = nla_data(tb[TCA_IFE_PARMS]);
 
 	/* IFE_DECODE is 0 and indicates the opposite of IFE_ENCODE because
-	 * they cannot run as the same time. Check on all other values which
-	 * are not supported right now.
+	 * they canyest run as the same time. Check on all other values which
+	 * are yest supported right yesw.
 	 */
 	if (parm->flags & ~IFE_ENCODE)
 		return -EINVAL;
@@ -581,7 +581,7 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 			goto metadata_parse_err;
 
 	} else {
-		/* if no passed metadata allow list or passed allow-all
+		/* if yes passed metadata allow list or passed allow-all
 		 * then here we process by adding as many supported metadatum
 		 * as we can. You better have at least one else we are
 		 * going to bail out
@@ -657,7 +657,7 @@ static int tcf_ife_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 		goto nla_put_failure;
 
 	if (dump_metalist(skb, ife)) {
-		/*ignore failure to dump metalist */
+		/*igyesre failure to dump metalist */
 		pr_info("Failed to dump metalist\n");
 	}
 
@@ -726,7 +726,7 @@ static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 			/* abuse overlimits to count when we receive metadata
 			 * but dont have an ops for it
 			 */
-			pr_info_ratelimited("Unknown metaid %d dlen %d\n",
+			pr_info_ratelimited("Unkyeswn metaid %d dlen %d\n",
 					    mtype, dlen);
 			qstats_overlimit_inc(this_cpu_ptr(ife->common.cpu_qstats));
 		}
@@ -788,9 +788,9 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 	bstats_cpu_update(this_cpu_ptr(ife->common.cpu_bstats), skb);
 	tcf_lastuse_update(&ife->tcf_tm);
 
-	if (!metalen) {		/* no metadata to send */
+	if (!metalen) {		/* yes metadata to send */
 		/* abuse overlimits to count when we allow packet
-		 * with no metadata
+		 * with yes metadata
 		 */
 		qstats_overlimit_inc(this_cpu_ptr(ife->common.cpu_qstats));
 		return action;
@@ -810,7 +810,7 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 	spin_lock(&ife->tcf_lock);
 
 	/* XXX: we dont have a clever way of telling encode to
-	 * not repeat some of the computations that are done by
+	 * yest repeat some of the computations that are done by
 	 * ops->presence_check...
 	 */
 	list_for_each_entry(e, &ife->metalist, metalist) {

@@ -8,7 +8,7 @@ Optional properties:
 - label: a symbolic name for the panel
 - reset-gpios: panel reset gpio
 
-Required nodes:
+Required yesdes:
 - Video port for SDI input
 
 Example

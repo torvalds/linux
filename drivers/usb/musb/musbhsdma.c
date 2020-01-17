@@ -200,8 +200,8 @@ static int dma_channel_program(struct dma_channel *channel,
 		channel->status == MUSB_DMA_STATUS_BUSY);
 
 	/*
-	 * The DMA engine in RTL1.8 and above cannot handle
-	 * DMA addresses that are not aligned to a 4 byte boundary.
+	 * The DMA engine in RTL1.8 and above canyest handle
+	 * DMA addresses that are yest aligned to a 4 byte boundary.
 	 * It ends up masking the last two bits of the address
 	 * programmed in DMA_ADDR.
 	 *

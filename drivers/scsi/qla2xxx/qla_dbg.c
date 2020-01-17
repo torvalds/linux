@@ -80,8 +80,8 @@ static inline void
 qla2xxx_prep_dump(struct qla_hw_data *ha, struct qla2xxx_fw_dump *fw_dump)
 {
 	fw_dump->fw_major_version = htonl(ha->fw_major_version);
-	fw_dump->fw_minor_version = htonl(ha->fw_minor_version);
-	fw_dump->fw_subminor_version = htonl(ha->fw_subminor_version);
+	fw_dump->fw_miyesr_version = htonl(ha->fw_miyesr_version);
+	fw_dump->fw_submiyesr_version = htonl(ha->fw_submiyesr_version);
 	fw_dump->fw_attributes = htonl(ha->fw_attributes);
 
 	fw_dump->vendor = htonl(ha->pdev->vendor);
@@ -168,7 +168,7 @@ qla27xx_dump_mpi_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 		*nxt = ram + i;
 
 		if (!test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
-			/* no interrupt, timed out*/
+			/* yes interrupt, timed out*/
 			return rval;
 		}
 		if (rval) {
@@ -244,7 +244,7 @@ qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 		*nxt = ram + i;
 
 		if (!test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
-			/* no interrupt, timed out*/
+			/* yes interrupt, timed out*/
 			return rval;
 		}
 		if (rval) {
@@ -303,7 +303,7 @@ qla24xx_pause_risc(struct device_reg_24xx __iomem *reg, struct qla_hw_data *ha)
 {
 	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_PAUSE);
 
-	/* 100 usec delay is sufficient enough for hardware to pause RISC */
+	/* 100 usec delay is sufficient eyesugh for hardware to pause RISC */
 	udelay(100);
 	if (RD_REG_DWORD(&reg->host_status) & HSRX_RISC_PAUSED)
 		set_bit(RISC_PAUSE_CMPL, &ha->fw_dump_cap_flags);
@@ -708,7 +708,7 @@ qla2xxx_dump_post_process(scsi_qla_host_t *vha, int rval)
 	} else {
 		ql_log(ql_log_info, vha, 0xd001,
 		    "Firmware dump saved to temp buffer (%ld/%p), dump status flags (0x%lx).\n",
-		    vha->host_no, ha->fw_dump, ha->fw_dump_cap_flags);
+		    vha->host_yes, ha->fw_dump, ha->fw_dump_cap_flags);
 		ha->fw_dumped = 1;
 		qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
 	}
@@ -748,7 +748,7 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	if (ha->fw_dumped) {
 		ql_log(ql_log_warn, vha, 0xd003,
 		    "Firmware has been previously dumped (%p) "
-		    "-- ignoring request.\n",
+		    "-- igyesring request.\n",
 		    ha->fw_dump);
 		goto qla2300_fw_dump_failed;
 	}
@@ -921,7 +921,7 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	if (ha->fw_dumped) {
 		ql_log(ql_log_warn, vha, 0xd005,
 		    "Firmware has been previously dumped (%p) "
-		    "-- ignoring request.\n",
+		    "-- igyesring request.\n",
 		    ha->fw_dump);
 		goto qla2100_fw_dump_failed;
 	}
@@ -1125,7 +1125,7 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	if (ha->fw_dumped) {
 		ql_log(ql_log_warn, vha, 0xd007,
 		    "Firmware has been previously dumped (%p) "
-		    "-- ignoring request.\n",
+		    "-- igyesring request.\n",
 		    ha->fw_dump);
 		goto qla24xx_fw_dump_failed;
 	}
@@ -1380,7 +1380,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	if (ha->fw_dumped) {
 		ql_log(ql_log_warn, vha, 0xd009,
 		    "Firmware has been previously dumped (%p) "
-		    "-- ignoring request.\n",
+		    "-- igyesring request.\n",
 		    ha->fw_dump);
 		goto qla25xx_fw_dump_failed;
 	}
@@ -1706,7 +1706,7 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	if (ha->fw_dumped) {
 		ql_log(ql_log_warn, vha, 0xd00b,
 		    "Firmware has been previously dumped (%p) "
-		    "-- ignoring request.\n",
+		    "-- igyesring request.\n",
 		    ha->fw_dump);
 		goto qla81xx_fw_dump_failed;
 	}
@@ -2033,7 +2033,7 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	if (ha->fw_dumped) {
 		ql_log(ql_log_warn, vha, 0xd00d,
-		    "Firmware has been previously dumped (%p) -- ignoring "
+		    "Firmware has been previously dumped (%p) -- igyesring "
 		    "request...\n", ha->fw_dump);
 		goto qla83xx_fw_dump_failed;
 	}
@@ -2557,7 +2557,7 @@ ql_dbg(uint level, scsi_qla_host_t *vha, uint id, const char *fmt, ...)
 		/* <module-name> <pci-name> <msg-id>:<host> Message */
 		pr_warn("%s [%s]-%04x:%ld: %pV",
 			QL_MSGHDR, dev_name(&(pdev->dev)), id + ql_dbg_offset,
-			vha->host_no, &vaf);
+			vha->host_yes, &vaf);
 	} else {
 		pr_warn("%s [%s]-%04x: : %pV",
 			QL_MSGHDR, "0000:00:00.0", id + ql_dbg_offset, &vaf);
@@ -2569,7 +2569,7 @@ ql_dbg(uint level, scsi_qla_host_t *vha, uint id, const char *fmt, ...)
 
 /*
  * This function is for formatting and logging debug information.
- * It is to be used when vha is not available and pci is available,
+ * It is to be used when vha is yest available and pci is available,
  * i.e., before host allocation. It formats the message and logs it
  * to the messages file.
  * parameters:
@@ -2631,7 +2631,7 @@ ql_log(uint level, scsi_qla_host_t *vha, uint id, const char *fmt, ...)
 		const struct pci_dev *pdev = vha->hw->pdev;
 		/* <module-name> <msg-id>:<host> Message */
 		snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x:%ld: ",
-			QL_MSGHDR, dev_name(&(pdev->dev)), id, vha->host_no);
+			QL_MSGHDR, dev_name(&(pdev->dev)), id, vha->host_yes);
 	} else {
 		snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x: : ",
 			QL_MSGHDR, "0000:00:00.0", id);
@@ -2663,7 +2663,7 @@ ql_log(uint level, scsi_qla_host_t *vha, uint id, const char *fmt, ...)
 
 /*
  * This function is for formatting and logging log messages.
- * It is to be used when vha is not available and pci is available,
+ * It is to be used when vha is yest available and pci is available,
  * i.e., before host allocation. It formats the message and logs
  * it to the messages file. All the messages are logged irrespective
  * of the value of ql2xextended_error_logging.

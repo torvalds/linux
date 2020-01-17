@@ -3,9 +3,9 @@
  *
  * general timer device for using in ISDN stacks
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@yesvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@yesvell.com>
  */
 
 #include <linux/poll.h>
@@ -41,12 +41,12 @@ struct mISDNtimer {
 };
 
 static int
-mISDN_open(struct inode *ino, struct file *filep)
+mISDN_open(struct iyesde *iyes, struct file *filep)
 {
 	struct mISDNtimerdev	*dev;
 
 	if (*debug & DEBUG_TIMER)
-		printk(KERN_DEBUG "%s(%p,%p)\n", __func__, ino, filep);
+		printk(KERN_DEBUG "%s(%p,%p)\n", __func__, iyes, filep);
 	dev = kmalloc(sizeof(struct mISDNtimerdev) , GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
@@ -57,18 +57,18 @@ mISDN_open(struct inode *ino, struct file *filep)
 	dev->work = 0;
 	init_waitqueue_head(&dev->wait);
 	filep->private_data = dev;
-	return nonseekable_open(ino, filep);
+	return yesnseekable_open(iyes, filep);
 }
 
 static int
-mISDN_close(struct inode *ino, struct file *filep)
+mISDN_close(struct iyesde *iyes, struct file *filep)
 {
 	struct mISDNtimerdev	*dev = filep->private_data;
 	struct list_head	*list = &dev->pending;
 	struct mISDNtimer	*timer, *next;
 
 	if (*debug & DEBUG_TIMER)
-		printk(KERN_DEBUG "%s(%p,%p)\n", __func__, ino, filep);
+		printk(KERN_DEBUG "%s(%p,%p)\n", __func__, iyes, filep);
 
 	spin_lock_irq(&dev->lock);
 	while (!list_empty(list)) {
@@ -266,11 +266,11 @@ static const struct file_operations mISDN_fops = {
 	.unlocked_ioctl	= mISDN_ioctl,
 	.open		= mISDN_open,
 	.release	= mISDN_close,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice mISDNtimer = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.miyesr	= MISC_DYNAMIC_MINOR,
 	.name	= "mISDNtimer",
 	.fops	= &mISDN_fops,
 };
@@ -283,7 +283,7 @@ mISDN_inittimer(u_int *deb)
 	debug = deb;
 	err = misc_register(&mISDNtimer);
 	if (err)
-		printk(KERN_WARNING "mISDN: Could not register timer device\n");
+		printk(KERN_WARNING "mISDN: Could yest register timer device\n");
 	return err;
 }
 

@@ -22,7 +22,7 @@
  * Current version of this protocol
  *
  * TODO(crosbug.com/p/11223): This is effectively useless; protocol is
- * determined in other ways.  Remove this once the kernel code no longer
+ * determined in other ways.  Remove this once the kernel code yes longer
  * depends on it.
  */
 #define EC_PROTO_VERSION          0x00000002
@@ -61,7 +61,7 @@
 #define EC_LPC_CMDR_PENDING	BIT(1)  /* Write pending to EC */
 #define EC_LPC_CMDR_BUSY	BIT(2)  /* EC is busy processing a command */
 #define EC_LPC_CMDR_CMD		BIT(3)  /* Last host write was a command */
-#define EC_LPC_CMDR_ACPI_BRST	BIT(4)  /* Burst mode (not used) */
+#define EC_LPC_CMDR_ACPI_BRST	BIT(4)  /* Burst mode (yest used) */
 #define EC_LPC_CMDR_SCI		BIT(5)  /* SCI event is pending */
 #define EC_LPC_CMDR_SMI		BIT(6)  /* SMI event is pending */
 
@@ -84,7 +84,7 @@
 #define EC_MEMMAP_SWITCHES         0x30	/* 8 bits */
 /* Unused 0x31 - 0x33 */
 #define EC_MEMMAP_HOST_EVENTS      0x34 /* 64 bits */
-/* Battery values are all 32 bits, unless otherwise noted. */
+/* Battery values are all 32 bits, unless otherwise yested. */
 #define EC_MEMMAP_BATT_VOLT        0x40 /* Battery Present Voltage */
 #define EC_MEMMAP_BATT_RATE        0x44 /* Battery Present Rate */
 #define EC_MEMMAP_BATT_CAP         0x48 /* Battery Remaining Capacity */
@@ -114,7 +114,7 @@
 
 /*
  * ACPI is unable to access memory mapped data at or above this offset due to
- * limitations of the ACPI protocol. Do not place data in the range 0xe0 - 0xfe
+ * limitations of the ACPI protocol. Do yest place data in the range 0xe0 - 0xfe
  * which might be needed by ACPI.
  */
 #define EC_MEMMAP_NO_ACPI 0xe0
@@ -151,13 +151,13 @@
 
 /*
  * The default value a temperature sensor will return when it is present but
- * has not been read this boot.  This is a reasonable number to avoid
+ * has yest been read this boot.  This is a reasonable number to avoid
  * triggering alarms on the host.
  */
 #define EC_TEMP_SENSOR_DEFAULT     (296 - EC_TEMP_SENSOR_OFFSET)
 
 #define EC_FAN_SPEED_ENTRIES       4       /* Number of fans at EC_MEMMAP_FAN */
-#define EC_FAN_SPEED_NOT_PRESENT   0xffff  /* Entry not present */
+#define EC_FAN_SPEED_NOT_PRESENT   0xffff  /* Entry yest present */
 #define EC_FAN_SPEED_STALLED       0xfffe  /* Fan stalled */
 
 /* Battery bit flags at EC_MEMMAP_BATT_FLAG. */
@@ -173,11 +173,11 @@
 #define EC_SWITCH_LID_OPEN               0x01
 #define EC_SWITCH_POWER_BUTTON_PRESSED   0x02
 #define EC_SWITCH_WRITE_PROTECT_DISABLED 0x04
-/* Was recovery requested via keyboard; now unused. */
+/* Was recovery requested via keyboard; yesw unused. */
 #define EC_SWITCH_IGNORE1		 0x08
 /* Recovery requested via dedicated signal (from servo board) */
 #define EC_SWITCH_DEDICATED_RECOVERY     0x10
-/* Was fake developer mode switch; now unused.  Remove in next refactor. */
+/* Was fake developer mode switch; yesw unused.  Remove in next refactor. */
 #define EC_SWITCH_IGNORE0                0x20
 
 /* Host command interface flags */
@@ -252,7 +252,7 @@
  *
  * This clears the lowest-order bit in the currently pending host events, and
  * sets the result code to the 1-based index of the bit (event 0x00000001 = 1,
- * event 0x80000000 = 32), or 0 if no event was pending.
+ * event 0x80000000 = 32), or 0 if yes event was pending.
  */
 #define EC_CMD_ACPI_QUERY_EVENT 0x0084
 
@@ -265,12 +265,12 @@
  * value).
  */
 #define EC_ACPI_MEM_TEST               0x01
-/* Test compliment; writes here are ignored. */
+/* Test compliment; writes here are igyesred. */
 #define EC_ACPI_MEM_TEST_COMPLIMENT    0x02
 
 /* Keyboard backlight brightness percent (0 - 100) */
 #define EC_ACPI_MEM_KEYBOARD_BACKLIGHT 0x03
-/* DPTF Target Fan Duty (0-100, 0xff for auto/none) */
+/* DPTF Target Fan Duty (0-100, 0xff for auto/yesne) */
 #define EC_ACPI_MEM_FAN_DUTY           0x04
 
 /*
@@ -280,11 +280,11 @@
  * registers. The THRESHOLD register uses the same EC_TEMP_SENSOR_OFFSET scheme
  * as the memory-mapped sensors. The COMMIT register applies those settings.
  *
- * The spec does not mandate any way to read back the threshold settings
+ * The spec does yest mandate any way to read back the threshold settings
  * themselves, but when a threshold is crossed the AP needs a way to determine
  * which sensor(s) are responsible. Each reading of the ID register clears and
  * returns one sensor ID that has crossed one of its threshold (in either
- * direction) since the last read. A value of 0xFF means "no new thresholds
+ * direction) since the last read. A value of 0xFF means "yes new thresholds
  * have tripped". Setting or enabling the thresholds for a sensor will clear
  * the unread event count for that sensor.
  */
@@ -326,7 +326,7 @@
  * Report device orientation
  *  Bits       Definition
  *  3:1        Device DPTF Profile Number (DDPN)
- *               0   = Reserved for backward compatibility (indicates no valid
+ *               0   = Reserved for backward compatibility (indicates yes valid
  *                     profile number. Host should fall back to using TBMD).
  *              1..7 = DPTF Profile number to indicate to host which table needs
  *                     to be loaded.
@@ -343,10 +343,10 @@
  *
  * bit 0 (EC_FEATURE_LIMITED) changes meaning from "EC code has a limited set
  * of features", which is of limited interest when the system is already
- * interpreting ACPI bytecode, to "EC_FEATURES[0-7] is not supported". Since
+ * interpreting ACPI bytecode, to "EC_FEATURES[0-7] is yest supported". Since
  * these are supported, it defaults to 0.
  * This allows detecting the presence of this field since older versions of
- * the EC codebase would simply return 0xff to that unknown address. Check
+ * the EC codebase would simply return 0xff to that unkyeswn address. Check
  * FEATURES0 != 0xff (or FEATURES0[0] == 0) to make sure that the other bits
  * are valid.
  */
@@ -399,25 +399,25 @@
  * Also be very careful to make that if a structure is included in some other
  * parent structure that the alignment will still be true given the packing of
  * the parent structure.  This is particularly important if the sub-structure
- * will be passed as a pointer to another function, since that function will
- * not know about the misaligment caused by the parent structure's packing.
+ * will be passed as a pointer to ayesther function, since that function will
+ * yest kyesw about the misaligment caused by the parent structure's packing.
  *
- * Also be very careful using __packed - particularly when nesting non-packed
+ * Also be very careful using __packed - particularly when nesting yesn-packed
  * structures inside packed ones.  In fact, DO NOT use __packed directly;
  * always use one of these attributes.
  *
- * Once everything is annotated properly, the following search strings should
- * not return ANY matches in this file other than right here:
+ * Once everything is anyestated properly, the following search strings should
+ * yest return ANY matches in this file other than right here:
  *
  * "__packed" - generates inefficient code; all sub-structs must also be packed
  *
- * "struct [^_]" - all structs should be annotated, except for structs that are
+ * "struct [^_]" - all structs should be anyestated, except for structs that are
  * members of other structs/unions (and their original declarations should be
- * annotated).
+ * anyestated).
  */
 
 /*
- * Packed structures make no assumption about alignment, so they do inefficient
+ * Packed structures make yes assumption about alignment, so they do inefficient
  * byte-wise reads.
  */
 #define __ec_align1 __packed
@@ -437,7 +437,7 @@
 #define EC_LPC_STATUS_FROM_HOST   0x02
 /* EC is processing a command */
 #define EC_LPC_STATUS_PROCESSING  0x04
-/* Last write to EC was a command, not data */
+/* Last write to EC was a command, yest data */
 #define EC_LPC_STATUS_LAST_CMD    0x08
 /* EC is in burst mode */
 #define EC_LPC_STATUS_BURST_MODE  0x10
@@ -484,10 +484,10 @@ enum ec_status {
 };
 
 /*
- * Host event codes.  Note these are 1-based, not 0-based, because ACPI query
- * EC command uses code 0 to mean "no event pending".  We explicitly specify
+ * Host event codes.  Note these are 1-based, yest 0-based, because ACPI query
+ * EC command uses code 0 to mean "yes event pending".  We explicitly specify
  * each value in the enum listing so they won't change if we delete/insert an
- * item or rearrange the list (it needs to be stable across platforms, not
+ * item or rearrange the list (it needs to be stable across platforms, yest
  * just within a single compiled instance).
  */
 enum host_event_code {
@@ -521,7 +521,7 @@ enum host_event_code {
 
 	/* Suggest that the AP throttle itself */
 	EC_HOST_EVENT_THROTTLE_START = 18,
-	/* Suggest that the AP resume normal speed */
+	/* Suggest that the AP resume yesrmal speed */
 	EC_HOST_EVENT_THROTTLE_STOP = 19,
 
 	/* Hang detect logic detected a hang and host event timeout expired */
@@ -560,11 +560,11 @@ enum host_event_code {
 	EC_HOST_EVENT_WOV = 31,
 
 	/*
-	 * The high bit of the event mask is not used as a host event code.  If
+	 * The high bit of the event mask is yest used as a host event code.  If
 	 * it reads back as set, then the entire event mask should be
 	 * considered invalid by the host.  This can happen when reading the
 	 * raw event status via EC_MEMMAP_HOST_EVENTS but the LPC interface is
-	 * not initialized on the EC, or improperly configured on the host.
+	 * yest initialized on the EC, or improperly configured on the host.
 	 */
 	EC_HOST_EVENT_INVALID = 32
 };
@@ -591,18 +591,18 @@ struct ec_lpc_host_args {
  * Args are from host.  Data area at EC_LPC_ADDR_HOST_PARAM contains command
  * params.
  *
- * If EC gets a command and this flag is not set, this is an old-style command.
+ * If EC gets a command and this flag is yest set, this is an old-style command.
  * Command version is 0 and params from host are at EC_LPC_ADDR_OLD_PARAM with
- * unknown length.  EC must respond with an old-style response (that is,
+ * unkyeswn length.  EC must respond with an old-style response (that is,
  * without setting EC_HOST_ARGS_FLAG_TO_HOST).
  */
 #define EC_HOST_ARGS_FLAG_FROM_HOST 0x01
 /*
  * Args are from EC.  Data area at EC_LPC_ADDR_HOST_PARAM contains response.
  *
- * If EC responds to a command and this flag is not set, this is an old-style
+ * If EC responds to a command and this flag is yest set, this is an old-style
  * response.  Command version is 0 and response data from EC is at
- * EC_LPC_ADDR_OLD_PARAM with unknown length.
+ * EC_LPC_ADDR_OLD_PARAM with unkyeswn length.
  */
 #define EC_HOST_ARGS_FLAG_TO_HOST   0x02
 
@@ -611,7 +611,7 @@ struct ec_lpc_host_args {
  * Byte codes returned by EC over SPI interface.
  *
  * These can be used by the AP to debug the EC interface, and to determine
- * when the EC is not in a state where it will ever get around to responding
+ * when the EC is yest in a state where it will ever get around to responding
  * to the AP.
  *
  * Example of sequence of bytes read from EC for a current good transfer:
@@ -636,7 +636,7 @@ struct ec_lpc_host_args {
  *   EC_SPI_RECEIVING
  *   EC_SPI_PROCESSING
  *
- * Then the EC found an error in the request, or was not ready for the request
+ * Then the EC found an error in the request, or was yest ready for the request
  * and lost data.  The AP should give up waiting for EC_SPI_FRAME_START,
  * because the EC is unable to tell when the AP is done sending its request.
  */
@@ -654,7 +654,7 @@ struct ec_lpc_host_args {
 #define EC_SPI_PAST_END       0xed
 
 /*
- * EC is ready to receive, and has ignored the byte sent by the AP.  EC expects
+ * EC is ready to receive, and has igyesred the byte sent by the AP.  EC expects
  * that the AP will send a valid packet header (starting with
  * EC_COMMAND_PROTOCOL_3) in the next 32 bytes.
  */
@@ -671,21 +671,21 @@ struct ec_lpc_host_args {
 
 /*
  * EC received bad data from the AP, such as a packet header with an invalid
- * length.  EC will ignore all data until chip select deasserts.
+ * length.  EC will igyesre all data until chip select deasserts.
  */
 #define EC_SPI_RX_BAD_DATA    0xfb
 
 /*
  * EC received data from the AP before it was ready.  That is, the AP asserted
  * chip select and started clocking data before the EC was ready to receive it.
- * EC will ignore all data until chip select deasserts.
+ * EC will igyesre all data until chip select deasserts.
  */
 #define EC_SPI_NOT_READY      0xfc
 
 /*
  * EC was ready to receive a request from the AP.  EC has treated the byte sent
  * by the AP as part of a request packet, or (for old-style ECs) is processing
- * a fully received packet but is not ready to respond yet.
+ * a fully received packet but is yest ready to respond yet.
  */
 #define EC_SPI_OLD_READY      0xfd
 
@@ -739,7 +739,7 @@ struct ec_lpc_host_args {
 /**
  * struct ec_host_request - Version 3 request from host.
  * @struct_version: Should be 3. The EC will return EC_RES_INVALID_HEADER if it
- *                  receives a header with a version it doesn't know how to
+ *                  receives a header with a version it doesn't kyesw how to
  *                  parse.
  * @checksum: Checksum of request and data; sum of all bytes including checksum
  *            should total to 0.
@@ -784,7 +784,7 @@ struct ec_host_response {
  * Packets always start with a request or response header.  They are followed
  * by data_len bytes of data.  If the data_crc_present flag is set, the data
  * bytes are followed by a CRC-8 of that data, using using x^8 + x^2 + x + 1
- * polynomial.
+ * polyyesmial.
  *
  * Host algorithm when sending a request q:
  *
@@ -826,7 +826,7 @@ struct ec_host_response {
  * 202) r.seq_num = q.seq_num
  * 203) r.seq_dup = q.seq_dup
  * 204) Calculate r.header_crc
- * 205) If r.data_len > 0 and data is no longer available, set e.result =
+ * 205) If r.data_len > 0 and data is yes longer available, set e.result =
  *      EC_RES_DUP_UNAVAILABLE and go to 301.
  * 206) Send response r.
  *
@@ -848,7 +848,7 @@ struct ec_host_request4 {
 
 	/*
 	 * bits 0-4: command_version: Command version
-	 * bits 5-6: Reserved (set 0, ignore on read)
+	 * bits 5-6: Reserved (set 0, igyesre on read)
 	 * bit    7: data_crc_present: Is data CRC present after data
 	 */
 	uint8_t fields1;
@@ -856,13 +856,13 @@ struct ec_host_request4 {
 	/* Command code (EC_CMD_*) */
 	uint16_t command;
 
-	/* Length of data which follows this header (not including data CRC) */
+	/* Length of data which follows this header (yest including data CRC) */
 	uint16_t data_len;
 
-	/* Reserved (set 0, ignore on read) */
+	/* Reserved (set 0, igyesre on read) */
 	uint8_t reserved;
 
-	/* CRC-8 of above fields, using x^8 + x^2 + x + 1 polynomial */
+	/* CRC-8 of above fields, using x^8 + x^2 + x + 1 polyyesmial */
 	uint8_t header_crc;
 } __ec_align4;
 
@@ -877,7 +877,7 @@ struct ec_host_response4 {
 	uint8_t fields0;
 
 	/*
-	 * bits 0-6: Reserved (set 0, ignore on read)
+	 * bits 0-6: Reserved (set 0, igyesre on read)
 	 * bit    7: data_crc_present: Is data CRC present after data
 	 */
 	uint8_t fields1;
@@ -885,13 +885,13 @@ struct ec_host_response4 {
 	/* Result code (EC_RES_*) */
 	uint16_t result;
 
-	/* Length of data which follows this header (not including data CRC) */
+	/* Length of data which follows this header (yest including data CRC) */
 	uint16_t data_len;
 
-	/* Reserved (set 0, ignore on read) */
+	/* Reserved (set 0, igyesre on read) */
 	uint8_t reserved;
 
-	/* CRC-8 of above fields, using x^8 + x^2 + x + 1 polynomial */
+	/* CRC-8 of above fields, using x^8 + x^2 + x + 1 polyyesmial */
 	uint8_t header_crc;
 } __ec_align4;
 
@@ -911,21 +911,21 @@ struct ec_host_response4 {
  * Notes on commands:
  *
  * Each command is an 16-bit command value.  Commands which take params or
- * return response data specify structures for that data.  If no structure is
- * specified, the command does not input or output data, respectively.
+ * return response data specify structures for that data.  If yes structure is
+ * specified, the command does yest input or output data, respectively.
  * Parameter/response length is implicit in the structs.  Some underlying
  * communication protocols (I2C, SPI) may add length or checksum headers, but
- * those are implementation-dependent and not defined here.
+ * those are implementation-dependent and yest defined here.
  *
  * All commands MUST be #defined to be 4-digit UPPER CASE hex values
- * (e.g., 0x00AB, not 0xab) for CONFIG_HOSTCMD_SECTION_SORTED to work.
+ * (e.g., 0x00AB, yest 0xab) for CONFIG_HOSTCMD_SECTION_SORTED to work.
  */
 
 /*****************************************************************************/
 /* General / test commands */
 
 /*
- * Get protocol version, used to deal with non-backward compatible protocol
+ * Get protocol version, used to deal with yesn-backward compatible protocol
  * changes.
  */
 #define EC_CMD_PROTO_VERSION 0x0000
@@ -1031,7 +1031,7 @@ struct ec_response_get_chip_info {
 
 /**
  * struct ec_response_board_version - Response to the board version command.
- * @board_version: A monotonously incrementing number.
+ * @board_version: A moyestoyesusly incrementing number.
  */
 struct ec_response_board_version {
 	uint16_t board_version;
@@ -1087,7 +1087,7 @@ struct ec_response_get_cmd_versions {
 } __ec_align4;
 
 /*
- * Check EC communications status (busy). This is needed on i2c/spi but not
+ * Check EC communications status (busy). This is needed on i2c/spi but yest
  * on lpc since it has its own out-of-band busy indicator.
  *
  * lpc must read the status from the command register. Attempting this on
@@ -1151,7 +1151,7 @@ struct ec_response_get_protocol_info {
 /*****************************************************************************/
 /* Get/Set miscellaneous values */
 
-/* The upper byte of .flags tells what to do (nothing means "get") */
+/* The upper byte of .flags tells what to do (yesthing means "get") */
 #define EC_GSV_SET        0x80000000
 
 /*
@@ -1180,7 +1180,7 @@ struct ec_response_get_set_value {
 /* Supported features */
 enum ec_feature_code {
 	/*
-	 * This image contains a limited set of features. Another image
+	 * This image contains a limited set of features. Ayesther image
 	 * in RW partition may support more features.
 	 */
 	EC_FEATURE_LIMITED = 0,
@@ -1242,7 +1242,7 @@ enum ec_feature_code {
 	EC_FEATURE_HANG_DETECT = 19,
 	/* Report power information, for pit only */
 	EC_FEATURE_PMU = 20,
-	/* Another Cros EC device is present downstream of this one */
+	/* Ayesther Cros EC device is present downstream of this one */
 	EC_FEATURE_SUB_MCU = 21,
 	/* Support USB Power delivery (PD) commands */
 	EC_FEATURE_USB_PD = 22,
@@ -1268,7 +1268,7 @@ enum ec_feature_code {
 	EC_FEATURE_UNIFIED_WAKE_MASKS = 32,
 	/* EC supports 64-bit host events */
 	EC_FEATURE_HOST_EVENT64 = 33,
-	/* EC runs code in RAM (not in place, a.k.a. XIP) */
+	/* EC runs code in RAM (yest in place, a.k.a. XIP) */
 	EC_FEATURE_EXEC_IN_RAM = 34,
 	/* EC supports CEC commands */
 	EC_FEATURE_CEC = 35,
@@ -1364,7 +1364,7 @@ struct ec_response_flash_info {
  * Version 1 returns the same initial fields as version 0, with additional
  * fields following.
  *
- * gcc anonymous structs don't seem to get along with the __packed directive;
+ * gcc ayesnymous structs don't seem to get along with the __packed directive;
  * if they did we'd define the version 0 structure as a sub-structure of this
  * one.
  *
@@ -1389,7 +1389,7 @@ struct ec_response_flash_info_1 {
 struct ec_params_flash_info_2 {
 	/* Number of banks to describe */
 	uint16_t num_banks_desc;
-	/* Reserved; set 0; ignore on read */
+	/* Reserved; set 0; igyesre on read */
 	uint8_t reserved[2];
 } __ec_align4;
 
@@ -1404,7 +1404,7 @@ struct ec_flash_bank {
 	uint8_t erase_size_exp;
 	/* Size for write protection, usually identical to erase size. */
 	uint8_t protect_size_exp;
-	/* Reserved; set 0; ignore on read */
+	/* Reserved; set 0; igyesre on read */
 	uint8_t reserved[2];
 };
 
@@ -1474,7 +1474,7 @@ struct ec_params_flash_erase {
  * v1 add async erase:
  * subcommands can returns:
  * EC_RES_SUCCESS : erased (see ERASE_SECTOR_ASYNC case below).
- * EC_RES_INVALID_PARAM : offset/size are not aligned on a erase boundary.
+ * EC_RES_INVALID_PARAM : offset/size are yest aligned on a erase boundary.
  * EC_RES_ERROR : other errors.
  * EC_RES_BUSY : an existing erase operation is in progress.
  * EC_RES_ACCESS_DENIED: Trying to erase running image.
@@ -1484,7 +1484,7 @@ struct ec_params_flash_erase {
  * the proper result.
  * When ERASE_GET_RESULT returns EC_RES_BUSY, the caller must wait and send
  * ERASE_GET_RESULT again to get the result of ERASE_SECTOR_ASYNC.
- * ERASE_GET_RESULT command may timeout on EC where flash access is not
+ * ERASE_GET_RESULT command may timeout on EC where flash access is yest
  * permitted while erasing. (For instance, STM32F4).
  */
 enum ec_flash_erase_cmd {
@@ -1511,7 +1511,7 @@ struct ec_params_flash_erase_v1 {
  * Get/set flash protection.
  *
  * If mask!=0, sets/clear the requested bits of flags.  Depending on the
- * firmware write protect GPIO, not all flags will take effect immediately;
+ * firmware write protect GPIO, yest all flags will take effect immediately;
  * some flags require a subsequent hard reset to take effect.  Check the
  * returned flags bits to see what actually happened.
  *
@@ -1524,19 +1524,19 @@ struct ec_params_flash_erase_v1 {
 /* RO flash code protected when the EC boots */
 #define EC_FLASH_PROTECT_RO_AT_BOOT         BIT(0)
 /*
- * RO flash code protected now.  If this bit is set, at-boot status cannot
+ * RO flash code protected yesw.  If this bit is set, at-boot status canyest
  * be changed.
  */
 #define EC_FLASH_PROTECT_RO_NOW             BIT(1)
-/* Entire flash code protected now, until reboot. */
+/* Entire flash code protected yesw, until reboot. */
 #define EC_FLASH_PROTECT_ALL_NOW            BIT(2)
-/* Flash write protect GPIO is asserted now */
+/* Flash write protect GPIO is asserted yesw */
 #define EC_FLASH_PROTECT_GPIO_ASSERTED      BIT(3)
-/* Error - at least one bank of flash is stuck locked, and cannot be unlocked */
+/* Error - at least one bank of flash is stuck locked, and canyest be unlocked */
 #define EC_FLASH_PROTECT_ERROR_STUCK        BIT(4)
 /*
  * Error - flash protection is in inconsistent state.  At least one bank of
- * flash which should be protected is not protected.  Usually fixed by
+ * flash which should be protected is yest protected.  Usually fixed by
  * re-requesting the desired flags, or by a hard reset if that fails.
  */
 #define EC_FLASH_PROTECT_ERROR_INCONSISTENT BIT(5)
@@ -1544,11 +1544,11 @@ struct ec_params_flash_erase_v1 {
 #define EC_FLASH_PROTECT_ALL_AT_BOOT        BIT(6)
 /* RW flash code protected when the EC boots */
 #define EC_FLASH_PROTECT_RW_AT_BOOT         BIT(7)
-/* RW flash code protected now. */
+/* RW flash code protected yesw. */
 #define EC_FLASH_PROTECT_RW_NOW             BIT(8)
 /* Rollback information flash region protected when the EC boots */
 #define EC_FLASH_PROTECT_ROLLBACK_AT_BOOT   BIT(9)
-/* Rollback information flash region protected now */
+/* Rollback information flash region protected yesw */
 #define EC_FLASH_PROTECT_ROLLBACK_NOW       BIT(10)
 
 
@@ -1592,7 +1592,7 @@ enum ec_flash_region {
 	/*
 	 * Region which holds active RW image. 'Active' is different from
 	 * 'running'. Active means 'scheduled-to-run'. Since RO image always
-	 * scheduled to run, active/non-active applies only to RW images (for
+	 * scheduled to run, active/yesn-active applies only to RW images (for
 	 * the same reason 'update' applies only to RW images. It's a state of
 	 * an image on a flash. Running image can be RO, RW_A, RW_B but active
 	 * image can only be RW_A or RW_B. In recovery mode, an active RW image
@@ -1604,7 +1604,7 @@ enum ec_flash_region {
 	 * EC_FLASH_REGION_RO)
 	 */
 	EC_FLASH_REGION_WP_RO,
-	/* Region which holds updatable (non-active) RW image */
+	/* Region which holds updatable (yesn-active) RW image */
 	EC_FLASH_REGION_UPDATE,
 	/* Number of regions */
 	EC_FLASH_REGION_COUNT,
@@ -1770,7 +1770,7 @@ struct ec_response_pwm_get_duty {
  * Lightbar commands. This looks worse than it is. Since we only use one HOST
  * command to say "talk to the lightbar", we put the "and tell it to do X" part
  * into a subcommand. We'll make separate structs for subcommands with
- * different input args, so that we know how much to expect.
+ * different input args, so that we kyesw how much to expect.
  */
 #define EC_CMD_LIGHTBAR_CMD 0x0028
 
@@ -1946,7 +1946,7 @@ struct ec_params_lightbar {
 	uint8_t cmd;		      /* Command (see enum lightbar_command) */
 	union {
 		/*
-		 * The following commands have no args:
+		 * The following commands have yes args:
 		 *
 		 * dump, off, on, init, get_seq, get_params_v0, get_params_v1,
 		 * version, get_brightness, get_demo, suspend, resume,
@@ -2026,7 +2026,7 @@ struct ec_response_lightbar {
 		} get_rgb;
 
 		/*
-		 * The following commands have no response:
+		 * The following commands have yes response:
 		 *
 		 * off, on, init, set_brightness, seq, reg, set_rgb, demo,
 		 * set_params_v0, set_params_v1, set_program,
@@ -2129,7 +2129,7 @@ struct ec_response_led_control {
 	/*
 	 * Available brightness value range.
 	 *
-	 * Range 0 means color channel not present.
+	 * Range 0 means color channel yest present.
 	 * Range 1 means on/off control.
 	 * Other values means the LED is control by PWM.
 	 */
@@ -2150,18 +2150,18 @@ struct ec_response_led_control {
 struct ec_params_vboot_hash {
 	uint8_t cmd;             /* enum ec_vboot_hash_cmd */
 	uint8_t hash_type;       /* enum ec_vboot_hash_type */
-	uint8_t nonce_size;      /* Nonce size; may be 0 */
+	uint8_t yesnce_size;      /* Nonce size; may be 0 */
 	uint8_t reserved0;       /* Reserved; set 0 */
 	uint32_t offset;         /* Offset in flash to hash */
 	uint32_t size;           /* Number of bytes to hash */
-	uint8_t nonce_data[64];  /* Nonce data; ignored if nonce_size=0 */
+	uint8_t yesnce_data[64];  /* Nonce data; igyesred if yesnce_size=0 */
 } __ec_align4;
 
 struct ec_response_vboot_hash {
 	uint8_t status;          /* enum ec_vboot_hash_status */
 	uint8_t hash_type;       /* enum ec_vboot_hash_type */
 	uint8_t digest_size;     /* Size of hash digest in bytes */
-	uint8_t reserved0;       /* Ignore; will be 0 */
+	uint8_t reserved0;       /* Igyesre; will be 0 */
 	uint32_t offset;         /* Offset in flash which was hashed */
 	uint32_t size;           /* Number of bytes hashed */
 	uint8_t hash_digest[64]; /* Hash digest data */
@@ -2171,7 +2171,7 @@ enum ec_vboot_hash_cmd {
 	EC_VBOOT_HASH_GET = 0,       /* Get current hash status */
 	EC_VBOOT_HASH_ABORT = 1,     /* Abort calculating current hash */
 	EC_VBOOT_HASH_START = 2,     /* Start computing a new hash */
-	EC_VBOOT_HASH_RECALC = 3,    /* Synchronously compute a new hash */
+	EC_VBOOT_HASH_RECALC = 3,    /* Synchroyesusly compute a new hash */
 };
 
 enum ec_vboot_hash_type {
@@ -2179,7 +2179,7 @@ enum ec_vboot_hash_type {
 };
 
 enum ec_vboot_hash_status {
-	EC_VBOOT_HASH_STATUS_NONE = 0, /* No hash (not started, or aborted) */
+	EC_VBOOT_HASH_STATUS_NONE = 0, /* No hash (yest started, or aborted) */
 	EC_VBOOT_HASH_STATUS_DONE = 1, /* Finished computing a hash */
 	EC_VBOOT_HASH_STATUS_BUSY = 2, /* Busy computing a hash */
 };
@@ -2202,7 +2202,7 @@ enum ec_vboot_hash_status {
 /*****************************************************************************/
 /*
  * Motion sense commands. We'll make separate structs for sub-commands with
- * different input args, so that we know how much to expect.
+ * different input args, so that we kyesw how much to expect.
  */
 #define EC_CMD_MOTION_SENSE_CMD 0x002B
 
@@ -2308,7 +2308,7 @@ enum motionsense_command {
 
 	/*
 	 * Allow the FIFO to trigger interrupt via MKBP events.
-	 * By default the FIFO does not send interrupt to process the FIFO
+	 * By default the FIFO does yest send interrupt to process the FIFO
 	 * until the AP is ready or it is coming from a wakeup sensor.
 	 */
 	MOTIONSENSE_CMD_FIFO_INT_ENABLE = 15,
@@ -2553,7 +2553,7 @@ struct ec_params_motion_sense {
 
 			/*
 			 * Temperature at calibration, in units of 0.01 C
-			 * 0x8000: invalid / unknown.
+			 * 0x8000: invalid / unkyeswn.
 			 * 0x0: 0C
 			 * 0x7fff: +327.67C
 			 */
@@ -2582,7 +2582,7 @@ struct ec_params_motion_sense {
 
 			/*
 			 * Temperature at calibration, in units of 0.01 C
-			 * 0x8000: invalid / unknown.
+			 * 0x8000: invalid / unkyeswn.
 			 * 0x0: 0C
 			 * 0x7fff: +327.67C
 			 */
@@ -2600,13 +2600,13 @@ struct ec_params_motion_sense {
 
 
 		/* Used for MOTIONSENSE_CMD_FIFO_INFO */
-		/* (no params) */
+		/* (yes params) */
 
 		/* Used for MOTIONSENSE_CMD_FIFO_READ */
 		struct __ec_todo_unpacked {
 			/*
 			 * Number of expected vector to return.
-			 * EC may return less or 0 if none available.
+			 * EC may return less or 0 if yesne available.
 			 */
 			uint32_t max_data_vector;
 		} fifo_read;
@@ -2614,7 +2614,7 @@ struct ec_params_motion_sense {
 		struct ec_motion_sense_activity set_activity;
 
 		/* Used for MOTIONSENSE_CMD_LID_ANGLE */
-		/* (no params) */
+		/* (yes params) */
 
 		/* Used for MOTIONSENSE_CMD_FIFO_INT_ENABLE */
 		struct __ec_todo_unpacked {
@@ -2632,7 +2632,7 @@ struct ec_params_motion_sense {
 			/* See enum motionsense_spoof_mode. */
 			uint8_t spoof_enable;
 
-			/* Ignored, used for alignment. */
+			/* Igyesred, used for alignment. */
 			uint8_t reserved;
 
 			/* Individual component values to spoof. */
@@ -2967,7 +2967,7 @@ struct ec_params_vstore_write {
 #define EC_CMD_THERMAL_SET_THRESHOLD 0x0050
 #define EC_CMD_THERMAL_GET_THRESHOLD 0x0051
 
-/* The version 0 structs are opaque. You have to know what they are for
+/* The version 0 structs are opaque. You have to kyesw what they are for
  * the get/set commands to make any sense.
  */
 
@@ -3000,7 +3000,7 @@ enum ec_temp_thresholds {
 
 /*
  * Thermal configuration for one temperature sensor. Temps are in degrees K.
- * Zero values will be silently ignored by the thermal task.
+ * Zero values will be silently igyesred by the thermal task.
  *
  * Set 'temp_host' value allows thermal task to trigger some event with 1 degree
  * hysteresis.
@@ -3023,7 +3023,7 @@ enum ec_temp_thresholds {
 struct ec_thermal_config {
 	uint32_t temp_host[EC_TEMP_THRESH_COUNT]; /* levels of hotness */
 	uint32_t temp_host_release[EC_TEMP_THRESH_COUNT]; /* release levels */
-	uint32_t temp_fan_off;		/* no active cooling needed */
+	uint32_t temp_fan_off;		/* yes active cooling needed */
 	uint32_t temp_fan_max;		/* max active cooling needed */
 } __ec_align4;
 
@@ -3041,7 +3041,7 @@ struct ec_params_thermal_set_threshold_v1 {
 	uint32_t sensor_num;
 	struct ec_thermal_config cfg;
 } __ec_align4;
-/* This returns no data */
+/* This returns yes data */
 
 /****************************************************************************/
 
@@ -3058,8 +3058,8 @@ struct ec_params_auto_fan_ctrl_v1 {
 #define EC_CMD_TMP006_SET_CALIBRATION 0x0054
 
 /*
- * The original TMP006 calibration only needed four params, but now we need
- * more. Since the algorithm is nothing but magic numbers anyway, we'll leave
+ * The original TMP006 calibration only needed four params, but yesw we need
+ * more. Since the algorithm is yesthing but magic numbers anyway, we'll leave
  * the params opaque. The v1 "get" response will include the algorithm number
  * and how many params it requires. That way we can change the EC code without
  * needing to update this file. We can also use a different algorithm on each
@@ -3238,7 +3238,7 @@ struct ec_mkbp_config {
 	uint8_t flags;		/* some flags (enum mkbp_config_flags) */
 	uint8_t valid_flags;		/* which flags are valid */
 	uint16_t scan_period_us;	/* period between start of scans */
-	/* revert to interrupt mode after no activity for this long */
+	/* revert to interrupt mode after yes activity for this long */
 	uint32_t poll_timeout_us;
 	/*
 	 * minimum post-scan relax time. Once we finish a scan we check
@@ -3250,7 +3250,7 @@ struct ec_mkbp_config {
 	uint16_t output_settle_us;
 	uint16_t debounce_down_us;	/* time for debounce on key down */
 	uint16_t debounce_up_us;	/* time for debounce on key up */
-	/* maximum depth to allow for fifo (0 = no keyscan output) */
+	/* maximum depth to allow for fifo (0 = yes keyscan output) */
 	uint8_t fifo_max_depth;
 } __ec_align_size1;
 
@@ -3322,7 +3322,7 @@ struct ec_result_keyscan_seq_ctrl {
 /*
  * Get the next pending MKBP event.
  *
- * Returns EC_RES_UNAVAILABLE if there is no event pending.
+ * Returns EC_RES_UNAVAILABLE if there is yes event pending.
  */
 #define EC_CMD_GET_NEXT_EVENT 0x0067
 
@@ -3347,7 +3347,7 @@ enum ec_mkbp_event {
 	/* New Sensor FIFO data. The event data is fifo_info structure. */
 	EC_MKBP_EVENT_SENSOR_FIFO = 2,
 
-	/* The state of the non-matrixed buttons have changed. */
+	/* The state of the yesn-matrixed buttons have changed. */
 	EC_MKBP_EVENT_BUTTON = 3,
 
 	/* The state of the switches have changed. */
@@ -3484,7 +3484,7 @@ struct ec_response_keyboard_factory_test {
 #define EC_MKBP_FP_ERR_ENROLL_IMMOBILE         2
 #define EC_MKBP_FP_ERR_ENROLL_LOW_COVERAGE     3
 #define EC_MKBP_FP_ERR_ENROLL_INTERNAL         5
-/* Can be used to detect if image was usable for enrollment or not. */
+/* Can be used to detect if image was usable for enrollment or yest. */
 #define EC_MKBP_FP_ERR_ENROLL_PROBLEM_MASK     1
 /* code given by EC_MKBP_FP_ERRCODE() when EC_MKBP_FP_MATCH is set */
 #define EC_MKBP_FP_ERR_MATCH_NO                0
@@ -3566,7 +3566,7 @@ struct ec_params_host_event {
 	 */
 	uint8_t mask_type;
 
-	/* Set to 0, ignore on read */
+	/* Set to 0, igyesre on read */
 	uint16_t reserved;
 
 	/* Value to be used in case of set operations. */
@@ -3586,7 +3586,7 @@ struct ec_response_host_event {
 
 enum ec_host_event_action {
 	/*
-	 * params.value is ignored. Value of mask_type populated
+	 * params.value is igyesred. Value of mask_type populated
 	 * in response.value
 	 */
 	EC_HOST_EVENT_GET,
@@ -3644,18 +3644,18 @@ struct ec_params_switch_enable_backlight {
 #define EC_CMD_SWITCH_ENABLE_WIRELESS 0x0091
 #define EC_VER_SWITCH_ENABLE_WIRELESS 1
 
-/* Version 0 params; no response */
+/* Version 0 params; yes response */
 struct ec_params_switch_enable_wireless_v0 {
 	uint8_t enabled;
 } __ec_align1;
 
 /* Version 1 params */
 struct ec_params_switch_enable_wireless_v1 {
-	/* Flags to enable now */
-	uint8_t now_flags;
+	/* Flags to enable yesw */
+	uint8_t yesw_flags;
 
-	/* Which flags to copy from now_flags */
-	uint8_t now_mask;
+	/* Which flags to copy from yesw_flags */
+	uint8_t yesw_mask;
 
 	/*
 	 * Flags to leave enabled in S3, if they're on at the S0->S3
@@ -3670,8 +3670,8 @@ struct ec_params_switch_enable_wireless_v1 {
 
 /* Version 1 response */
 struct ec_response_switch_enable_wireless_v1 {
-	/* Flags to enable now */
-	uint8_t now_flags;
+	/* Flags to enable yesw */
+	uint8_t yesw_flags;
 
 	/* Flags to leave enabled in S3 */
 	uint8_t suspend_flags;
@@ -3736,7 +3736,7 @@ enum gpio_get_subcmd {
 /* I2C commands. Only available when flash write protect is unlocked. */
 
 /*
- * CAUTION: These commands are deprecated, and are not supported anymore in EC
+ * CAUTION: These commands are deprecated, and are yest supported anymore in EC
  * builds >= 8398.0.0 (see crosbug.com/p/23570).
  *
  * Use EC_CMD_I2C_PASSTHRU instead.
@@ -3800,7 +3800,7 @@ struct ec_params_charge_control {
  * The params are only looked at in version >= 1 of this command. Prior
  * versions will just default to CONSOLE_READ_NEXT behavior.
  *
- * Response is null-terminated string.  Empty string, if there is no more
+ * Response is null-terminated string.  Empty string, if there is yes more
  * remaining output.
  */
 #define EC_CMD_CONSOLE_READ 0x0098
@@ -3895,13 +3895,13 @@ struct ec_response_power_info {
 
 #define EC_CMD_I2C_PASSTHRU 0x009E
 
-/* Read data; if not present, message is a write */
+/* Read data; if yest present, message is a write */
 #define EC_I2C_FLAG_READ	BIT(15)
 
 /* Mask for address */
 #define EC_I2C_ADDR_MASK	0x3ff
 
-#define EC_I2C_STATUS_NAK	BIT(0) /* Transfer was not acknowledged */
+#define EC_I2C_STATUS_NAK	BIT(0) /* Transfer was yest ackyeswledged */
 #define EC_I2C_STATUS_TIMEOUT	BIT(1) /* Timeout during transfer */
 
 /* Any error */
@@ -3955,7 +3955,7 @@ struct ec_response_i2c_passthru {
 #define EC_HANG_STOP_ON_SUSPEND       BIT(10)
 
 /*
- * If this flag is set, all the other fields are ignored, and the hang detect
+ * If this flag is set, all the other fields are igyesred, and the hang detect
  * timer is started.  This provides the AP a way to start the hang timer
  * without reconfiguring any of the other hang detect settings.  Note that
  * you must previously have configured the timeouts.
@@ -3963,7 +3963,7 @@ struct ec_response_i2c_passthru {
 #define EC_HANG_START_NOW             BIT(30)
 
 /*
- * If this flag is set, all the other fields are ignored (including
+ * If this flag is set, all the other fields are igyesred (including
  * EC_HANG_START_NOW).  This provides the AP a way to stop the hang timer
  * without reconfiguring any of the other hang detect settings.
  */
@@ -3998,7 +3998,7 @@ enum charge_state_command {
 };
 
 /*
- * Known param numbers are defined here. Ranges are reserved for board-specific
+ * Kyeswn param numbers are defined here. Ranges are reserved for board-specific
  * params, which are handled by the particular implementations.
  */
 enum charge_state_params {
@@ -4036,7 +4036,7 @@ enum charge_state_params {
 struct ec_params_charge_state {
 	uint8_t cmd;				/* enum charge_state_command */
 	union {
-		/* get_state has no args */
+		/* get_state has yes args */
 
 		struct __ec_todo_unpacked {
 			uint32_t param;		/* enum charge_state_param */
@@ -4063,7 +4063,7 @@ struct ec_response_charge_state {
 			uint32_t value;
 		} get_param;
 
-		/* set_param returns no args */
+		/* set_param returns yes args */
 	};
 } __ec_align4;
 
@@ -4171,13 +4171,13 @@ struct ec_params_host_sleep_event_v1 {
 			/*
 			 * The timeout in milliseconds between when this message
 			 * is received and when the EC will declare sleep
-			 * transition failure if the sleep signal is not
+			 * transition failure if the sleep signal is yest
 			 * asserted.
 			 */
 			uint16_t sleep_timeout_ms;
 		} suspend_params;
 
-		/* No parameters for non-suspend messages. */
+		/* No parameters for yesn-suspend messages. */
 	};
 } __ec_align2;
 
@@ -4203,7 +4203,7 @@ struct ec_response_host_sleep_event_v1 {
 			uint32_t sleep_transitions;
 		} resume_response;
 
-		/* No response fields for non-resume messages. */
+		/* No response fields for yesn-resume messages. */
 	};
 } __ec_align4;
 
@@ -4333,7 +4333,7 @@ struct ec_params_sb_fw_update {
 		/* EC_SB_FW_UPDATE_END      = 0x4 */
 		/* EC_SB_FW_UPDATE_STATUS   = 0x5 */
 		/* EC_SB_FW_UPDATE_PROTECT  = 0x6 */
-		/* Those have no args */
+		/* Those have yes args */
 
 		/* EC_SB_FW_UPDATE_WRITE    = 0x3 */
 		struct __ec_align4 {
@@ -4358,8 +4358,8 @@ struct ec_response_sb_fw_update {
 
 /*
  * Entering Verified Boot Mode Command
- * Default mode is VBOOT_MODE_NORMAL if EC did not receive this command.
- * Valid Modes are: normal, developer, and recovery.
+ * Default mode is VBOOT_MODE_NORMAL if EC did yest receive this command.
+ * Valid Modes are: yesrmal, developer, and recovery.
  */
 #define EC_CMD_ENTERING_MODE 0x00B6
 
@@ -4461,9 +4461,9 @@ enum cec_command {
 
 /* Events from CEC to AP */
 enum mkbp_cec_event {
-	/* Outgoing message was acknowledged by a follower */
+	/* Outgoing message was ackyeswledged by a follower */
 	EC_MKBP_CEC_SEND_OK			= BIT(0),
-	/* Outgoing message was not acknowledged */
+	/* Outgoing message was yest ackyeswledged */
 	EC_MKBP_CEC_SEND_FAILED			= BIT(1),
 };
 
@@ -4669,7 +4669,7 @@ enum ec_codec_wov_subcmd {
  * @total_len indicates the length of whole language model.
  * @offset is the cursor from the beginning of the model.
  * @buf is the packet buffer.
- * @len denotes how many bytes in the buf.
+ * @len deyestes how many bytes in the buf.
  */
 struct __ec_align4 ec_param_ec_codec_wov_set_lang {
 	uint8_t hash[32];
@@ -4753,7 +4753,7 @@ struct ec_params_reboot_ec {
 /*
  * Special commands
  *
- * These do not follow the normal rules for commands.  See each command for
+ * These do yest follow the yesrmal rules for commands.  See each command for
  * details.
  */
 
@@ -4762,17 +4762,17 @@ struct ec_params_reboot_ec {
  *
  * This command will work even when the EC LPC interface is busy, because the
  * reboot command is processed at interrupt level.  Note that when the EC
- * reboots, the host will reboot too, so there is no response to this command.
+ * reboots, the host will reboot too, so there is yes response to this command.
  *
  * Use EC_CMD_REBOOT_EC to reboot the EC more politely.
  */
 #define EC_CMD_REBOOT 0x00D1  /* Think "die" */
 
 /*
- * Resend last response (not supported on LPC).
+ * Resend last response (yest supported on LPC).
  *
- * Returns EC_RES_UNAVAILABLE if there is no response available - for example,
- * there was no previous command, or the previous command's response was too
+ * Returns EC_RES_UNAVAILABLE if there is yes response available - for example,
+ * there was yes previous command, or the previous command's response was too
  * big to save.
  */
 #define EC_CMD_RESEND_RESPONSE 0x00DB
@@ -4785,7 +4785,7 @@ struct ec_params_reboot_ec {
  * Header bytes greater than this indicate a later version. For example,
  * EC_CMD_VERSION0 + 1 means we are using version 1.
  *
- * The old EC interface must not use commands 0xdc or higher.
+ * The old EC interface must yest use commands 0xdc or higher.
  */
 #define EC_CMD_VERSION0 0x00DC
 
@@ -4966,7 +4966,7 @@ enum usb_power_roles {
 
 struct usb_chg_measures {
 	uint16_t voltage_max;
-	uint16_t voltage_now;
+	uint16_t voltage_yesw;
 	uint16_t current_max;
 	uint16_t current_lim;
 } __ec_align2;
@@ -5018,7 +5018,7 @@ struct ec_params_usb_pd_rw_hash_entry {
 	uint8_t dev_rw_hash[PD_RW_HASH_SIZE];
 	uint8_t reserved;        /*
 				  * For alignment of current_image
-				  * TODO(rspangler) but it's not aligned!
+				  * TODO(rspangler) but it's yest aligned!
 				  * Should have been reserved[2].
 				  */
 	uint32_t current_image;  /* One of ec_current_image */
@@ -5056,7 +5056,7 @@ struct ec_params_charge_port_override {
 /*
  * Read (and delete) one entry of PD event log.
  * TODO(crbug.com/751742): Make this host command more generic to accommodate
- * future non-PD logs that use the same internal EC event_log.
+ * future yesn-PD logs that use the same internal EC event_log.
  */
 #define EC_CMD_PD_GET_LOG_ENTRY 0x0115
 
@@ -5097,7 +5097,7 @@ struct ec_response_pd_log {
 #define PD_EVENT_VIDEO_BASE     0x60
 #define PD_EVENT_VIDEO_DP_MODE (PD_EVENT_VIDEO_BASE+0)
 #define PD_EVENT_VIDEO_CODEC   (PD_EVENT_VIDEO_BASE+1)
-/* Returned in the "type" field, when there is no entry available */
+/* Returned in the "type" field, when there is yes entry available */
 #define PD_EVENT_NO_ENTRY       0xff
 
 /*
@@ -5130,7 +5130,7 @@ struct ec_response_pd_log {
  */
 struct mcdp_version {
 	uint8_t major;
-	uint8_t minor;
+	uint8_t miyesr;
 	uint16_t build;
 } __ec_align4;
 
@@ -5335,7 +5335,7 @@ struct ec_params_set_cbi {
 struct ec_response_uptime_info {
 	/*
 	 * Number of milliseconds since the last EC boot. Sysjump resets
-	 * typically do not restart the EC's time_since_boot epoch.
+	 * typically do yest restart the EC's time_since_boot epoch.
 	 *
 	 * WARNING: The EC's sense of time is much less accurate than the AP's
 	 * sense of time, in both phase and frequency.  This timebase is similar
@@ -5381,7 +5381,7 @@ struct ec_response_uptime_info {
  * Add entropy to the device secret (stored in the rollback region).
  *
  * Depending on the chip, the operation may take a long time (e.g. to erase
- * flash), so the commands are asynchronous.
+ * flash), so the commands are asynchroyesus.
  */
 #define EC_CMD_ADD_ENTROPY	0x0122
 
@@ -5525,7 +5525,7 @@ struct ec_response_fp_mode {
 
 /* Number of dead pixels detected on the last maintenance */
 #define FP_ERROR_DEAD_PIXELS(errors) ((errors) & 0x3FF)
-/* Unknown number of dead pixels detected on the last maintenance */
+/* Unkyeswn number of dead pixels detected on the last maintenance */
 #define FP_ERROR_DEAD_PIXELS_UNKNOWN (0x3FF)
 /* No interrupt from the sensor */
 #define FP_ERROR_NO_IRQ    BIT(12)
@@ -5602,10 +5602,10 @@ struct ec_fp_template_encryption_metadata {
 	/* Reserved bytes, set to 0. */
 	uint16_t reserved;
 	/*
-	 * The salt is *only* ever used for key derivation. The nonce is unique,
+	 * The salt is *only* ever used for key derivation. The yesnce is unique,
 	 * a different one is used for every message.
 	 */
-	uint8_t nonce[FP_CONTEXT_NONCE_BYTES];
+	uint8_t yesnce[FP_CONTEXT_NONCE_BYTES];
 	uint8_t salt[FP_CONTEXT_SALT_BYTES];
 	uint8_t tag[FP_CONTEXT_TAG_BYTES];
 };
@@ -5670,7 +5670,7 @@ struct ec_params_fp_seed {
 
 #define EC_CMD_FP_ENC_STATUS 0x0409
 
-/* FP TPM seed has been set or not */
+/* FP TPM seed has been set or yest */
 #define FP_ENC_STATUS_SEED_SET BIT(0)
 
 struct ec_response_fp_encryption_status {
@@ -5790,7 +5790,7 @@ struct ec_response_battery_dynamic_info {
  * @max_current: Charger current (mA). Positive to allow base to draw up to
  *     max_current and (possibly) charge battery, negative to request current
  *     from base (OTG).
- * @otg_voltage: Voltage (mV) to use in OTG mode, ignored if max_current is
+ * @otg_voltage: Voltage (mV) to use in OTG mode, igyesred if max_current is
  *     >= 0.
  * @allow_charging: Allow base battery charging (only makes sense if
  *     max_current > 0).
@@ -5810,7 +5810,7 @@ struct ec_params_charger_control {
  * their EC commands for easier development, testing, debugging, and support.
  *
  * All commands MUST be #defined to be 4-digit UPPER CASE hex values
- * (e.g., 0x00AB, not 0xab) for CONFIG_HOSTCMD_SECTION_SORTED to work.
+ * (e.g., 0x00AB, yest 0xab) for CONFIG_HOSTCMD_SECTION_SORTED to work.
  *
  * In your experimental code, you may want to do something like this:
  *
@@ -5867,8 +5867,8 @@ struct ec_params_charger_control {
 /*****************************************************************************/
 /*
  * Deprecated constants. These constants have been renamed for clarity. The
- * meaning and size has not changed. Programs that use the old names should
- * switch to the new names soon, as the old names may not be carried forward
+ * meaning and size has yest changed. Programs that use the old names should
+ * switch to the new names soon, as the old names may yest be carried forward
  * forever.
  */
 #define EC_HOST_PARAM_SIZE      EC_PROTO2_MAX_PARAM_SIZE

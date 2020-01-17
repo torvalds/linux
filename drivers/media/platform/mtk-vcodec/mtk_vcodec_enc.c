@@ -230,8 +230,8 @@ static int vidioc_venc_s_parm(struct file *file, void *priv,
 		return -EINVAL;
 
 	ctx->enc_params.framerate_num =
-			a->parm.output.timeperframe.denominator;
-	ctx->enc_params.framerate_denom =
+			a->parm.output.timeperframe.deyesminator;
+	ctx->enc_params.framerate_deyesm =
 			a->parm.output.timeperframe.numerator;
 	ctx->param_change |= MTK_ENCODE_PARAM_FRAMERATE;
 
@@ -249,10 +249,10 @@ static int vidioc_venc_g_parm(struct file *file, void *priv,
 		return -EINVAL;
 
 	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
-	a->parm.output.timeperframe.denominator =
+	a->parm.output.timeperframe.deyesminator =
 			ctx->enc_params.framerate_num;
 	a->parm.output.timeperframe.numerator =
-			ctx->enc_params.framerate_denom;
+			ctx->enc_params.framerate_deyesm;
 
 	return 0;
 }
@@ -399,7 +399,7 @@ static void mtk_venc_set_param(struct mtk_vcodec_ctx *ctx,
 	param->buf_width = q_data_src->coded_width;
 	param->buf_height = q_data_src->coded_height;
 	param->frm_rate = enc_params->framerate_num /
-			enc_params->framerate_denom;
+			enc_params->framerate_deyesm;
 	param->intra_period = enc_params->intra_period;
 	param->gop_size = enc_params->gop_size;
 	param->bitrate = enc_params->bitrate;
@@ -781,7 +781,7 @@ static int vb2ops_venc_buf_prepare(struct vb2_buffer *vb)
 
 	for (i = 0; i < q_data->fmt->num_planes; i++) {
 		if (vb2_plane_size(vb, i) < q_data->sizeimage[i]) {
-			mtk_v4l2_err("data will not fit into plane %d (%lu < %d)",
+			mtk_v4l2_err("data will yest fit into plane %d (%lu < %d)",
 				i, vb2_plane_size(vb, i),
 				q_data->sizeimage[i]);
 			return -EINVAL;
@@ -868,7 +868,7 @@ err_set_param:
 		struct vb2_buffer *buf = vb2_get_buffer(q, i);
 
 		/*
-		 * FIXME: This check is not needed as only active buffers
+		 * FIXME: This check is yest needed as only active buffers
 		 * can be marked as done.
 		 */
 		if (buf->state == VB2_BUF_STATE_ACTIVE) {
@@ -1006,7 +1006,7 @@ static int mtk_venc_param_change(struct mtk_vcodec_ctx *ctx)
 	}
 	if (!ret && mtk_buf->param_change & MTK_ENCODE_PARAM_FRAMERATE) {
 		enc_prm.frm_rate = mtk_buf->enc_params.framerate_num /
-				   mtk_buf->enc_params.framerate_denom;
+				   mtk_buf->enc_params.framerate_deyesm;
 		mtk_v4l2_debug(1, "[%d] id=%d, change param fr=%d",
 			       ctx->id,
 			       mtk_buf->vb.vb2_buf.index,
@@ -1050,7 +1050,7 @@ static int mtk_venc_param_change(struct mtk_vcodec_ctx *ctx)
  * v4l2_m2m_streamoff() holds dev_mutex and waits mtk_venc_worker()
  * to call v4l2_m2m_job_finish().
  * If mtk_venc_worker() tries to acquire dev_mutex, it will deadlock.
- * So this function must not try to acquire dev->dev_mutex.
+ * So this function must yest try to acquire dev->dev_mutex.
  * This means v4l2 ioctls and mtk_venc_worker() can run at the same time.
  * mtk_venc_worker() should be carefully implemented to avoid bugs.
  */

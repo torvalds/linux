@@ -15,7 +15,7 @@ description: |+
   generated interrupts (SGI).
 
   Primary GIC is attached directly to the CPU and typically has PPIs and SGIs.
-  Secondary GICs are cascaded into the upward interrupt controller and do not
+  Secondary GICs are cascaded into the upward interrupt controller and do yest
   have PPIs or SGIs.
 
 allOf:
@@ -73,9 +73,9 @@ properties:
         bits[15:8] PPI interrupt cpu mask.  Each bit corresponds to each of
         the 8 possible cpus attached to the GIC.  A bit set to '1' indicated
         the interrupt is wired to that CPU.  Only valid for PPI interrupts.
-        Also note that the configurability of PPI interrupts is IMPLEMENTATION
-        DEFINED and as such not guaranteed to be present (most SoC available
-        in 2014 seem to ignore the setting of this flag and use the hardware
+        Also yeste that the configurability of PPI interrupts is IMPLEMENTATION
+        DEFINED and as such yest guaranteed to be present (most SoC available
+        in 2014 seem to igyesre the setting of this flag and use the hardware
         default value).
 
   reg:
@@ -136,7 +136,7 @@ patternProperties:
       * GICv2m extension for MSI/MSI-x support (Optional)
 
       Certain revisions of GIC-400 supports MSI/MSI-x via V2M register frame(s).
-      This is enabled by specifying v2m sub-node(s).
+      This is enabled by specifying v2m sub-yesde(s).
 
     properties:
       compatible:

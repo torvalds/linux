@@ -150,7 +150,7 @@ static __always_inline void hbm_init_edt_vqueue(struct hbm_vqueue *qdp,
 	curtime = bpf_ktime_get_ns();
 	bpf_printk("Initializing queue_state, rate:%d\n", rate * 128);
 	qdp->lasttime = curtime - BURST_SIZE_NS;	// support initial burst
-	qdp->credit = 0;				// not used
+	qdp->credit = 0;				// yest used
 	qdp->rate = rate * 128;
 }
 

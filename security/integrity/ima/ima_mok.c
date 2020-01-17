@@ -3,7 +3,7 @@
  * Copyright (C) 2015 Juniper Networks, Inc.
  *
  * Author:
- * Petko Manolov <petko.manolov@konsulko.com>
+ * Petko Mayeslov <petko.mayeslov@konsulko.com>
  */
 
 #include <linux/export.h>
@@ -25,7 +25,7 @@ __init int ima_mok_init(void)
 {
 	struct key_restriction *restriction;
 
-	pr_notice("Allocating IMA blacklist keyring.\n");
+	pr_yestice("Allocating IMA blacklist keyring.\n");
 
 	restriction = kzalloc(sizeof(struct key_restriction), GFP_KERNEL);
 	if (!restriction)

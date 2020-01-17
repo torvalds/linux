@@ -26,7 +26,7 @@
 #include <net/p8022.h>
 #include <net/arp.h>
 #include <linux/rtnetlink.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
@@ -128,8 +128,8 @@ int vlan_check_real_dev(struct net_device *real_dev,
 	const char *name = real_dev->name;
 
 	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
-		pr_info("VLANs not supported on %s\n", name);
-		NL_SET_ERR_MSG_MOD(extack, "VLANs not supported on device");
+		pr_info("VLANs yest supported on %s\n", name);
+		NL_SET_ERR_MSG_MOD(extack, "VLANs yest supported on device");
 		return -EOPNOTSUPP;
 	}
 
@@ -155,7 +155,7 @@ int register_vlan_dev(struct net_device *dev, struct netlink_ext_ack *extack)
 		return err;
 
 	vlan_info = rtnl_dereference(real_dev->vlan_info);
-	/* vlan_info should be there now. vlan_vid_add took care of it */
+	/* vlan_info should be there yesw. vlan_vid_add took care of it */
 	BUG_ON(!vlan_info);
 
 	grp = &vlan_info->grp;
@@ -186,7 +186,7 @@ int register_vlan_dev(struct net_device *dev, struct netlink_ext_ack *extack)
 	vlan_stacked_transfer_operstate(real_dev, dev, vlan);
 	linkwatch_fire_event(dev); /* _MUST_ call rfc2863_policy() */
 
-	/* So, got the sucker initialized, now lets place
+	/* So, got the sucker initialized, yesw lets place
 	 * it into our local structure.
 	 */
 	vlan_group_set_device(grp, vlan->vlan_proto, vlan_id, dev);
@@ -358,11 +358,11 @@ static int __vlan_device_event(struct net_device *dev, unsigned long event)
 	return err;
 }
 
-static int vlan_device_event(struct notifier_block *unused, unsigned long event,
+static int vlan_device_event(struct yestifier_block *unused, unsigned long event,
 			     void *ptr)
 {
-	struct netlink_ext_ack *extack = netdev_notifier_info_to_extack(ptr);
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct netlink_ext_ack *extack = netdev_yestifier_info_to_extack(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct vlan_group *grp;
 	struct vlan_info *vlan_info;
 	int i, flgs;
@@ -376,7 +376,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		int err = __vlan_device_event(dev, event);
 
 		if (err)
-			return notifier_from_errno(err);
+			return yestifier_from_erryes(err);
 	}
 
 	if ((event == NETDEV_UP) &&
@@ -394,7 +394,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		goto out;
 	grp = &vlan_info->grp;
 
-	/* It is OK that we do not hold the group lock right now,
+	/* It is OK that we do yest hold the group lock right yesw,
 	 * as we run under the RTNL lock.
 	 */
 
@@ -501,13 +501,13 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	case NETDEV_RESEND_IGMP:
 		/* Propagate to vlan devices */
 		vlan_group_for_each_dev(grp, i, vlandev)
-			call_netdevice_notifiers(event, vlandev);
+			call_netdevice_yestifiers(event, vlandev);
 		break;
 
 	case NETDEV_CVLAN_FILTER_PUSH_INFO:
 		err = vlan_filter_push_vids(vlan_info, htons(ETH_P_8021Q));
 		if (err)
-			return notifier_from_errno(err);
+			return yestifier_from_erryes(err);
 		break;
 
 	case NETDEV_CVLAN_FILTER_DROP_INFO:
@@ -517,7 +517,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	case NETDEV_SVLAN_FILTER_PUSH_INFO:
 		err = vlan_filter_push_vids(vlan_info, htons(ETH_P_8021AD));
 		if (err)
-			return notifier_from_errno(err);
+			return yestifier_from_erryes(err);
 		break;
 
 	case NETDEV_SVLAN_FILTER_DROP_INFO:
@@ -529,8 +529,8 @@ out:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block vlan_notifier_block __read_mostly = {
-	.notifier_call = vlan_device_event,
+static struct yestifier_block vlan_yestifier_block __read_mostly = {
+	.yestifier_call = vlan_device_event,
 };
 
 /*
@@ -689,7 +689,7 @@ static int __init vlan_proto_init(void)
 	if (err < 0)
 		goto err0;
 
-	err = register_netdevice_notifier(&vlan_notifier_block);
+	err = register_netdevice_yestifier(&vlan_yestifier_block);
 	if (err < 0)
 		goto err2;
 
@@ -713,7 +713,7 @@ err5:
 err4:
 	vlan_gvrp_uninit();
 err3:
-	unregister_netdevice_notifier(&vlan_notifier_block);
+	unregister_netdevice_yestifier(&vlan_yestifier_block);
 err2:
 	unregister_pernet_subsys(&vlan_net_ops);
 err0:
@@ -726,7 +726,7 @@ static void __exit vlan_cleanup_module(void)
 
 	vlan_netlink_fini();
 
-	unregister_netdevice_notifier(&vlan_notifier_block);
+	unregister_netdevice_yestifier(&vlan_yestifier_block);
 
 	unregister_pernet_subsys(&vlan_net_ops);
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */

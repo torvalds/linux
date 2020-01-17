@@ -86,7 +86,7 @@ static void samsung_nand_decode_id(struct nand_chip *chip)
 				chip->base.eccreq.strength = 60;
 				break;
 			default:
-				WARN(1, "Could not decode ECC info");
+				WARN(1, "Could yest decode ECC info");
 				chip->base.eccreq.step_size = 0;
 			}
 		}
@@ -101,7 +101,7 @@ static void samsung_nand_decode_id(struct nand_chip *chip)
 				chip->base.eccreq.strength = 1;
 				break;
 
-			/* K9F1G08U0E 21nm chips do not support subpage write */
+			/* K9F1G08U0E 21nm chips do yest support subpage write */
 			case 0xF1:
 				if (chip->id.len > 4 &&
 				    (chip->id.data[4] & GENMASK(1, 0)) == 0x1)

@@ -45,7 +45,7 @@ static int gve_tx_fifo_init(struct gve_priv *priv, struct gve_tx_fifo *fifo)
 static void gve_tx_fifo_release(struct gve_priv *priv, struct gve_tx_fifo *fifo)
 {
 	WARN(atomic_read(&fifo->available) != fifo->size,
-	     "Releasing non-empty fifo");
+	     "Releasing yesn-empty fifo");
 
 	vunmap(fifo->base);
 }
@@ -81,14 +81,14 @@ static int gve_tx_alloc_fifo(struct gve_tx_fifo *fifo, size_t bytes,
 	if (!bytes)
 		return 0;
 
-	/* This check happens before we know how much padding is needed to
+	/* This check happens before we kyesw how much padding is needed to
 	 * align to a cacheline boundary for the payload, but that is fine,
 	 * because the FIFO head always start aligned, and the FIFO's boundaries
 	 * are aligned, so if there is space for the data, there is space for
 	 * the padding to the next alignment.
 	 */
 	WARN(!gve_tx_fifo_can_alloc(fifo, bytes),
-	     "Reached %s when there's not enough space in the fifo", __func__);
+	     "Reached %s when there's yest eyesugh space in the fifo", __func__);
 
 	nfrags++;
 
@@ -97,7 +97,7 @@ static int gve_tx_alloc_fifo(struct gve_tx_fifo *fifo, size_t bytes,
 	fifo->head += bytes;
 
 	if (fifo->head > fifo->size) {
-		/* If the allocation did not fit in the tail fragment of the
+		/* If the allocation did yest fit in the tail fragment of the
 		 * FIFO, also use the head fragment.
 		 */
 		nfrags++;
@@ -133,7 +133,7 @@ static void gve_tx_free_fifo(struct gve_tx_fifo *fifo, size_t bytes)
 
 static void gve_tx_remove_from_block(struct gve_priv *priv, int queue_idx)
 {
-	struct gve_notify_block *block =
+	struct gve_yestify_block *block =
 			&priv->ntfy_blocks[gve_tx_idx_to_ntfy(priv, queue_idx)];
 
 	block->tx = NULL;
@@ -175,7 +175,7 @@ static void gve_tx_free_ring(struct gve_priv *priv, int idx)
 static void gve_tx_add_to_block(struct gve_priv *priv, int queue_idx)
 {
 	int ntfy_idx = gve_tx_idx_to_ntfy(priv, queue_idx);
-	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+	struct gve_yestify_block *block = &priv->ntfy_blocks[ntfy_idx];
 	struct gve_tx_ring *tx = &priv->tx[queue_idx];
 
 	block->tx = tx;
@@ -316,7 +316,7 @@ static inline bool gve_can_tx(struct gve_tx_ring *tx, int bytes_required)
 		gve_tx_fifo_can_alloc(&tx->tx_fifo, bytes_required));
 }
 
-/* Stops the queue if the skb cannot be transmitted. */
+/* Stops the queue if the skb canyest be transmitted. */
 static int gve_maybe_stop_tx(struct gve_tx_ring *tx, struct sk_buff *skb)
 {
 	int bytes_required;
@@ -571,7 +571,7 @@ __be32 gve_tx_load_event_counter(struct gve_priv *priv,
 	return READ_ONCE(priv->counter_array[counter_index]);
 }
 
-bool gve_tx_poll(struct gve_notify_block *block, int budget)
+bool gve_tx_poll(struct gve_yestify_block *block, int budget)
 {
 	struct gve_priv *priv = block->priv;
 	struct gve_tx_ring *tx = block->tx;

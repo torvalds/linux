@@ -22,7 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/reset.h>
 #include <media/cec.h>
-#include <media/cec-notifier.h>
+#include <media/cec-yestifier.h>
 
 /* CEC Registers */
 
@@ -220,7 +220,7 @@ struct meson_ao_cec_device {
 	void __iomem			*base;
 	struct clk			*core;
 	spinlock_t			cec_reg_lock;
-	struct cec_notifier		*notify;
+	struct cec_yestifier		*yestify;
 	struct cec_adapter		*adap;
 	struct cec_msg			rx_msg;
 };
@@ -605,7 +605,7 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq;
 
-	hdmi_dev = cec_notifier_parse_hdmi_phandle(&pdev->dev);
+	hdmi_dev = cec_yestifier_parse_hdmi_phandle(&pdev->dev);
 
 	if (IS_ERR(hdmi_dev))
 		return PTR_ERR(hdmi_dev);
@@ -620,7 +620,7 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 					    "meson_ao_cec",
 					    CEC_CAP_DEFAULTS |
 					    CEC_CAP_CONNECTOR_INFO,
-					    1); /* Use 1 for now */
+					    1); /* Use 1 for yesw */
 	if (IS_ERR(ao_cec->adap))
 		return PTR_ERR(ao_cec->adap);
 
@@ -667,16 +667,16 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 	ao_cec->pdev = pdev;
 	platform_set_drvdata(pdev, ao_cec);
 
-	ao_cec->notify = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+	ao_cec->yestify = cec_yestifier_cec_adap_register(hdmi_dev, NULL,
 							ao_cec->adap);
-	if (!ao_cec->notify) {
+	if (!ao_cec->yestify) {
 		ret = -ENOMEM;
 		goto out_probe_clk;
 	}
 
 	ret = cec_register_adapter(ao_cec->adap, &pdev->dev);
 	if (ret < 0)
-		goto out_probe_notify;
+		goto out_probe_yestify;
 
 	/* Setup Hardware */
 	writel_relaxed(CEC_GEN_CNTL_RESET,
@@ -684,8 +684,8 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 
 	return 0;
 
-out_probe_notify:
-	cec_notifier_cec_adap_unregister(ao_cec->notify, ao_cec->adap);
+out_probe_yestify:
+	cec_yestifier_cec_adap_unregister(ao_cec->yestify, ao_cec->adap);
 
 out_probe_clk:
 	clk_disable_unprepare(ao_cec->core);
@@ -704,7 +704,7 @@ static int meson_ao_cec_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(ao_cec->core);
 
-	cec_notifier_cec_adap_unregister(ao_cec->notify, ao_cec->adap);
+	cec_yestifier_cec_adap_unregister(ao_cec->yestify, ao_cec->adap);
 	cec_unregister_adapter(ao_cec->adap);
 
 	return 0;

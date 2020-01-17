@@ -31,11 +31,11 @@ Optional properties:
   controller.
 - max8998,pmic-buck1-default-dvs-idx: Default voltage setting selected from
   the possible 4 options selectable by the dvs gpios. The value of this
-  property should be 0, 1, 2 or 3. If not specified or out of range,
+  property should be 0, 1, 2 or 3. If yest specified or out of range,
   a default value of 0 is taken.
 - max8998,pmic-buck2-default-dvs-idx: Default voltage setting selected from
   the possible 2 options selectable by the dvs gpios. The value of this
-  property should be 0 or 1. If not specified or out of range, a default
+  property should be 0 or 1. If yest specified or out of range, a default
   value of 0 is taken.
 - max8998,pmic-buck-voltage-lock: If present, disallows changing of
   preprogrammed buck dvfs voltages.
@@ -49,8 +49,8 @@ Additional properties required if max8998,pmic-buck2-dvs-gpio is defined:
   for buck2 regulator that can be selected using dvs gpio.
 
 Regulators: All the regulators of MAX8998 to be instantiated shall be
-listed in a child node named 'regulators'. Each regulator is represented
-by a child node of the 'regulators' node.
+listed in a child yesde named 'regulators'. Each regulator is represented
+by a child yesde of the 'regulators' yesde.
 
 	regulator-name {
 		/* standard regulator bindings here */
@@ -73,7 +73,7 @@ number as described in MAX8998 datasheet.
 	- ESAFEOUT1: (ldo19)
 	- ESAFEOUT2: (ld020)
 
-Standard regulator bindings are used inside regulator subnodes. Check
+Standard regulator bindings are used inside regulator subyesdes. Check
   Documentation/devicetree/bindings/regulator/regulator.txt
 for more details.
 

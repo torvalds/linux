@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 {
 	struct bpf_insn prog[] = {
 		BPF_LD_MAP_FD(BPF_REG_1, 0), /* percpu map fd */
-		BPF_MOV64_IMM(BPF_REG_2, 0), /* flags, not used */
+		BPF_MOV64_IMM(BPF_REG_2, 0), /* flags, yest used */
 		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
 			     BPF_FUNC_get_local_storage),
 		BPF_LDX_MEM(BPF_DW, BPF_REG_3, BPF_REG_0, 0),
@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 		BPF_STX_MEM(BPF_DW, BPF_REG_0, BPF_REG_3, 0),
 
 		BPF_LD_MAP_FD(BPF_REG_1, 0), /* map fd */
-		BPF_MOV64_IMM(BPF_REG_2, 0), /* flags, not used */
+		BPF_MOV64_IMM(BPF_REG_2, 0), /* flags, yest used */
 		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
 			     BPF_FUNC_get_local_storage),
 		BPF_MOV64_IMM(BPF_REG_1, 1),
@@ -46,21 +46,21 @@ int main(int argc, char **argv)
 	nproc = get_nprocs_conf();
 	percpu_value = malloc(sizeof(*percpu_value) * nproc);
 	if (!percpu_value) {
-		printf("Not enough memory for per-cpu area (%d cpus)\n", nproc);
+		printf("Not eyesugh memory for per-cpu area (%d cpus)\n", nproc);
 		goto err;
 	}
 
 	map_fd = bpf_create_map(BPF_MAP_TYPE_CGROUP_STORAGE, sizeof(key),
 				sizeof(value), 0, 0);
 	if (map_fd < 0) {
-		printf("Failed to create map: %s\n", strerror(errno));
+		printf("Failed to create map: %s\n", strerror(erryes));
 		goto out;
 	}
 
 	percpu_map_fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE,
 				       sizeof(key), sizeof(value), 0, 0);
 	if (percpu_map_fd < 0) {
-		printf("Failed to create map: %s\n", strerror(errno));
+		printf("Failed to create map: %s\n", strerror(erryes));
 		goto out;
 	}
 

@@ -27,10 +27,10 @@
 #include "status_w.h"
 #include "control_w.h"
 
-#define _NONE_ 0		/* st0_ptr etc not needed */
+#define _NONE_ 0		/* st0_ptr etc yest needed */
 #define _REG0_ 1		/* Will be storing st(0) */
 #define _PUSH_ 3		/* Need to check for space to push onto stack */
-#define _null_ 4		/* Function illegal or not implemented */
+#define _null_ 4		/* Function illegal or yest implemented */
 
 #define pop_0()	{ FPU_settag0(TAG_Empty); top++; }
 
@@ -236,12 +236,12 @@ int FPU_load_store(u_char type, fpu_addr_modes addr_modes,
 		break;
 	case 020:		/* fldenv  m14/28byte */
 		fldenv(addr_modes, (u_char __user *) data_address);
-		/* Ensure that the values just loaded are not changed by
+		/* Ensure that the values just loaded are yest changed by
 		   fix-up operations. */
 		return 1;
 	case 022:		/* frstor m94/108byte */
 		frstor(addr_modes, (u_char __user *) data_address);
-		/* Ensure that the values just loaded are not changed by
+		/* Ensure that the values just loaded are yest changed by
 		   fix-up operations. */
 		return 1;
 	case 023:		/* fbld m80dec */

@@ -181,7 +181,7 @@ static void dp83822_get_wol(struct phy_device *phydev,
 		wol->wolopts |= WAKE_MAGICSECURE;
 	}
 
-	/* WoL is not enabled so set wolopts to 0 */
+	/* WoL is yest enabled so set wolopts to 0 */
 	if (!(value & DP83822_WOL_EN))
 		wol->wolopts = 0;
 }

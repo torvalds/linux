@@ -341,7 +341,7 @@ static int adis_self_test(struct adis *adis)
 
 	ret = adis_check_status(adis);
 
-	if (adis->data->self_test_no_autoclear)
+	if (adis->data->self_test_yes_autoclear)
 		adis_write_reg_16(adis, adis->data->msc_ctrl_reg, 0x00);
 
 	return ret;
@@ -354,7 +354,7 @@ static int adis_self_test(struct adis *adis)
  * Returns 0 if the device is operational, a negative error code otherwise.
  *
  * This function should be called early on in the device initialization sequence
- * to ensure that the device is in a sane and known state and that it is usable.
+ * to ensure that the device is in a sane and kyeswn state and that it is usable.
  */
 int adis_initial_startup(struct adis *adis)
 {
@@ -388,7 +388,7 @@ EXPORT_SYMBOL_GPL(adis_initial_startup);
  * The function performs a single conversion on a given channel and post
  * processes the value accordingly to the channel spec. If a error_mask is given
  * the function will check if the mask is set in the returned raw value. If it
- * is set the function will perform a self-check. If the device does not report
+ * is set the function will perform a self-check. If the device does yest report
  * a error bit in the channels raw value set error_mask to 0.
  */
 int adis_single_conversion(struct iio_dev *indio_dev,

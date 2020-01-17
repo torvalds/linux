@@ -9,7 +9,7 @@
  *
  * Based on ov772x camera driver:
  * Copyright (C) 2008 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
  *
  * Based on ov7670 and soc_camera_platform driver,
  * Copyright 2006-7 Jonathan Corbet <corbet@lwn.net>
@@ -632,7 +632,7 @@ static int ov6650_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 		coma_set |= COMA_RAW_RGB | COMA_RGB;
 		break;
 	default:
-		dev_err(&client->dev, "Pixel format not handled: 0x%x\n", code);
+		dev_err(&client->dev, "Pixel format yest handled: 0x%x\n", code);
 		return -EINVAL;
 	}
 
@@ -747,7 +747,7 @@ static int ov6650_g_frame_interval(struct v4l2_subdev *sd,
 	ival->interval = priv->tpf;
 
 	dev_dbg(&client->dev, "Frame interval: %u/%u s\n",
-		ival->interval.numerator, ival->interval.denominator);
+		ival->interval.numerator, ival->interval.deyesminator);
 
 	return 0;
 }
@@ -760,10 +760,10 @@ static int ov6650_s_frame_interval(struct v4l2_subdev *sd,
 	struct v4l2_fract *tpf = &ival->interval;
 	int div, ret;
 
-	if (tpf->numerator == 0 || tpf->denominator == 0)
+	if (tpf->numerator == 0 || tpf->deyesminator == 0)
 		div = 1;  /* Reset to full rate */
 	else
-		div = (tpf->numerator * FRAME_RATE_MAX) / tpf->denominator;
+		div = (tpf->numerator * FRAME_RATE_MAX) / tpf->deyesminator;
 
 	if (div == 0)
 		div = 1;
@@ -773,7 +773,7 @@ static int ov6650_s_frame_interval(struct v4l2_subdev *sd,
 	ret = ov6650_reg_rmw(client, REG_CLKRC, to_clkrc(div), CLKRC_DIV_MASK);
 	if (!ret) {
 		priv->tpf.numerator = div;
-		priv->tpf.denominator = FRAME_RATE_MAX;
+		priv->tpf.deyesminator = FRAME_RATE_MAX;
 
 		*tpf = priv->tpf;
 	}
@@ -781,7 +781,7 @@ static int ov6650_s_frame_interval(struct v4l2_subdev *sd,
 	return ret;
 }
 
-/* Soft reset the camera. This has nothing to do with the RESET pin! */
+/* Soft reset the camera. This has yesthing to do with the RESET pin! */
 static int ov6650_reset(struct i2c_client *client)
 {
 	int ret;
@@ -1051,7 +1051,7 @@ static int ov6650_probe(struct i2c_client *client,
 
 	/* Hardware default frame interval */
 	priv->tpf.numerator   = GET_CLKRC_DIV(DEF_CLKRC);
-	priv->tpf.denominator = FRAME_RATE_MAX;
+	priv->tpf.deyesminator = FRAME_RATE_MAX;
 
 	priv->subdev.internal_ops = &ov6650_internal_ops;
 

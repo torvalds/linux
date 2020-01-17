@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -198,7 +198,7 @@ static int tps65218_gpio_probe(struct platform_device *pdev)
 	tps65218_gpio->gpio_chip = template_chip;
 	tps65218_gpio->gpio_chip.parent = &pdev->dev;
 #ifdef CONFIG_OF_GPIO
-	tps65218_gpio->gpio_chip.of_node = pdev->dev.of_node;
+	tps65218_gpio->gpio_chip.of_yesde = pdev->dev.of_yesde;
 #endif
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &tps65218_gpio->gpio_chip,

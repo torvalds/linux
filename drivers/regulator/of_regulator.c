@@ -22,13 +22,13 @@ static const char *const regulator_states[PM_SUSPEND_MAX + 1] = {
 };
 
 static int of_get_regulation_constraints(struct device *dev,
-					struct device_node *np,
+					struct device_yesde *np,
 					struct regulator_init_data **init_data,
 					const struct regulator_desc *desc)
 {
 	struct regulation_constraints *constraints = &(*init_data)->constraints;
 	struct regulator_state *suspend_state;
-	struct device_node *suspend_np;
+	struct device_yesde *suspend_np;
 	unsigned int mode;
 	int ret, i, len;
 	int n_phandles;
@@ -98,7 +98,7 @@ static int of_get_regulation_constraints(struct device *dev,
 	if (!ret)
 		constraints->settling_time_up = pval;
 	if (constraints->settling_time_up && constraints->settling_time) {
-		pr_warn("%pOFn: ambiguous configuration for settling time, ignoring 'regulator-settling-time-up-us'\n",
+		pr_warn("%pOFn: ambiguous configuration for settling time, igyesring 'regulator-settling-time-up-us'\n",
 			np);
 		constraints->settling_time_up = 0;
 	}
@@ -108,7 +108,7 @@ static int of_get_regulation_constraints(struct device *dev,
 	if (!ret)
 		constraints->settling_time_down = pval;
 	if (constraints->settling_time_down && constraints->settling_time) {
-		pr_warn("%pOFn: ambiguous configuration for settling time, ignoring 'regulator-settling-time-down-us'\n",
+		pr_warn("%pOFn: ambiguous configuration for settling time, igyesring 'regulator-settling-time-down-us'\n",
 			np);
 		constraints->settling_time_down = 0;
 	}
@@ -134,7 +134,7 @@ static int of_get_regulation_constraints(struct device *dev,
 			else
 				constraints->initial_mode = mode;
 		} else {
-			pr_warn("%pOFn: mapping for mode %d not defined\n",
+			pr_warn("%pOFn: mapping for mode %d yest defined\n",
 				np, pval);
 		}
 	}
@@ -162,7 +162,7 @@ static int of_get_regulation_constraints(struct device *dev,
 				constraints->valid_ops_mask
 					|= REGULATOR_CHANGE_MODE;
 		} else {
-			pr_warn("%pOFn: mode mapping not defined\n", np);
+			pr_warn("%pOFn: mode mapping yest defined\n", np);
 		}
 	}
 
@@ -219,7 +219,7 @@ static int of_get_regulation_constraints(struct device *dev,
 				else
 					suspend_state->mode = mode;
 			} else {
-				pr_warn("%pOFn: mapping for mode %d not defined\n",
+				pr_warn("%pOFn: mapping for mode %d yest defined\n",
 					np, pval);
 			}
 		}
@@ -252,7 +252,7 @@ static int of_get_regulation_constraints(struct device *dev,
 		if (i == PM_SUSPEND_MEM)
 			constraints->initial_state = PM_SUSPEND_MEM;
 
-		of_node_put(suspend_np);
+		of_yesde_put(suspend_np);
 		suspend_state = NULL;
 		suspend_np = NULL;
 	}
@@ -263,27 +263,27 @@ static int of_get_regulation_constraints(struct device *dev,
 /**
  * of_get_regulator_init_data - extract regulator_init_data structure info
  * @dev: device requesting for regulator_init_data
- * @node: regulator device node
+ * @yesde: regulator device yesde
  * @desc: regulator description
  *
  * Populates regulator_init_data structure by extracting data from device
- * tree node, returns a pointer to the populated structure or NULL if memory
+ * tree yesde, returns a pointer to the populated structure or NULL if memory
  * alloc fails.
  */
 struct regulator_init_data *of_get_regulator_init_data(struct device *dev,
-					  struct device_node *node,
+					  struct device_yesde *yesde,
 					  const struct regulator_desc *desc)
 {
 	struct regulator_init_data *init_data;
 
-	if (!node)
+	if (!yesde)
 		return NULL;
 
 	init_data = devm_kzalloc(dev, sizeof(*init_data), GFP_KERNEL);
 	if (!init_data)
 		return NULL; /* Out of memory? */
 
-	if (of_get_regulation_constraints(dev, node, &init_data, desc))
+	if (of_get_regulation_constraints(dev, yesde, &init_data, desc))
 		return NULL;
 
 	return init_data;
@@ -301,38 +301,38 @@ static void devm_of_regulator_put_matches(struct device *dev, void *res)
 	int i;
 
 	for (i = 0; i < devm_matches->num_matches; i++)
-		of_node_put(devm_matches->matches[i].of_node);
+		of_yesde_put(devm_matches->matches[i].of_yesde);
 }
 
 /**
  * of_regulator_match - extract multiple regulator init data from device tree.
  * @dev: device requesting the data
- * @node: parent device node of the regulators
+ * @yesde: parent device yesde of the regulators
  * @matches: match table for the regulators
  * @num_matches: number of entries in match table
  *
  * This function uses a match table specified by the regulator driver to
- * parse regulator init data from the device tree. @node is expected to
- * contain a set of child nodes, each providing the init data for one
- * regulator. The data parsed from a child node will be matched to a regulator
+ * parse regulator init data from the device tree. @yesde is expected to
+ * contain a set of child yesdes, each providing the init data for one
+ * regulator. The data parsed from a child yesde will be matched to a regulator
  * based on either the deprecated property regulator-compatible if present,
- * or otherwise the child node's name. Note that the match table is modified
- * in place and an additional of_node reference is taken for each matched
+ * or otherwise the child yesde's name. Note that the match table is modified
+ * in place and an additional of_yesde reference is taken for each matched
  * regulator.
  *
  * Returns the number of matches found or a negative error code on failure.
  */
-int of_regulator_match(struct device *dev, struct device_node *node,
+int of_regulator_match(struct device *dev, struct device_yesde *yesde,
 		       struct of_regulator_match *matches,
 		       unsigned int num_matches)
 {
 	unsigned int count = 0;
 	unsigned int i;
 	const char *name;
-	struct device_node *child;
+	struct device_yesde *child;
 	struct devm_of_regulator_matches *devm_matches;
 
-	if (!dev || !node)
+	if (!dev || !yesde)
 		return -EINVAL;
 
 	devm_matches = devres_alloc(devm_of_regulator_put_matches,
@@ -349,17 +349,17 @@ int of_regulator_match(struct device *dev, struct device_node *node,
 	for (i = 0; i < num_matches; i++) {
 		struct of_regulator_match *match = &matches[i];
 		match->init_data = NULL;
-		match->of_node = NULL;
+		match->of_yesde = NULL;
 	}
 
-	for_each_child_of_node(node, child) {
+	for_each_child_of_yesde(yesde, child) {
 		name = of_get_property(child,
 					"regulator-compatible", NULL);
 		if (!name)
 			name = child->name;
 		for (i = 0; i < num_matches; i++) {
 			struct of_regulator_match *match = &matches[i];
-			if (match->of_node)
+			if (match->of_yesde)
 				continue;
 
 			if (strcmp(match->name, name))
@@ -372,10 +372,10 @@ int of_regulator_match(struct device *dev, struct device_node *node,
 				dev_err(dev,
 					"failed to parse DT for regulator %pOFn\n",
 					child);
-				of_node_put(child);
+				of_yesde_put(child);
 				return -EINVAL;
 			}
-			match->of_node = of_node_get(child);
+			match->of_yesde = of_yesde_get(child);
 			count++;
 			break;
 		}
@@ -386,43 +386,43 @@ int of_regulator_match(struct device *dev, struct device_node *node,
 EXPORT_SYMBOL_GPL(of_regulator_match);
 
 static struct
-device_node *regulator_of_get_init_node(struct device *dev,
+device_yesde *regulator_of_get_init_yesde(struct device *dev,
 					const struct regulator_desc *desc)
 {
-	struct device_node *search, *child;
+	struct device_yesde *search, *child;
 	const char *name;
 
-	if (!dev->of_node || !desc->of_match)
+	if (!dev->of_yesde || !desc->of_match)
 		return NULL;
 
-	if (desc->regulators_node) {
-		search = of_get_child_by_name(dev->of_node,
-					      desc->regulators_node);
+	if (desc->regulators_yesde) {
+		search = of_get_child_by_name(dev->of_yesde,
+					      desc->regulators_yesde);
 	} else {
-		search = of_node_get(dev->of_node);
+		search = of_yesde_get(dev->of_yesde);
 
 		if (!strcmp(desc->of_match, search->name))
 			return search;
 	}
 
 	if (!search) {
-		dev_dbg(dev, "Failed to find regulator container node '%s'\n",
-			desc->regulators_node);
+		dev_dbg(dev, "Failed to find regulator container yesde '%s'\n",
+			desc->regulators_yesde);
 		return NULL;
 	}
 
-	for_each_available_child_of_node(search, child) {
+	for_each_available_child_of_yesde(search, child) {
 		name = of_get_property(child, "regulator-compatible", NULL);
 		if (!name)
 			name = child->name;
 
 		if (!strcmp(desc->of_match, name)) {
-			of_node_put(search);
-			return of_node_get(child);
+			of_yesde_put(search);
+			return of_yesde_get(child);
 		}
 	}
 
-	of_node_put(search);
+	of_yesde_put(search);
 
 	return NULL;
 }
@@ -430,12 +430,12 @@ device_node *regulator_of_get_init_node(struct device *dev,
 struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 					    const struct regulator_desc *desc,
 					    struct regulator_config *config,
-					    struct device_node **node)
+					    struct device_yesde **yesde)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	struct regulator_init_data *init_data = NULL;
 
-	child = regulator_of_get_init_node(dev, desc);
+	child = regulator_of_get_init_yesde(dev, desc);
 	if (!child)
 		return NULL;
 
@@ -451,7 +451,7 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 		ret = desc->of_parse_cb(child, desc, config);
 		if (ret) {
 			if (ret == -EPROBE_DEFER) {
-				of_node_put(child);
+				of_yesde_put(child);
 				return ERR_PTR(-EPROBE_DEFER);
 			}
 			dev_err(dev,
@@ -461,21 +461,21 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 		}
 	}
 
-	*node = child;
+	*yesde = child;
 
 	return init_data;
 
 error:
-	of_node_put(child);
+	of_yesde_put(child);
 
 	return NULL;
 }
 
-struct regulator_dev *of_find_regulator_by_node(struct device_node *np)
+struct regulator_dev *of_find_regulator_by_yesde(struct device_yesde *np)
 {
 	struct device *dev;
 
-	dev = class_find_device_by_of_node(&regulator_class, np);
+	dev = class_find_device_by_of_yesde(&regulator_class, np);
 
 	return dev ? dev_to_rdev(dev) : NULL;
 }
@@ -485,19 +485,19 @@ struct regulator_dev *of_find_regulator_by_node(struct device_node *np)
  */
 int of_get_n_coupled(struct regulator_dev *rdev)
 {
-	struct device_node *node = rdev->dev.of_node;
+	struct device_yesde *yesde = rdev->dev.of_yesde;
 	int n_phandles;
 
-	n_phandles = of_count_phandle_with_args(node,
+	n_phandles = of_count_phandle_with_args(yesde,
 						"regulator-coupled-with",
 						NULL);
 
 	return (n_phandles > 0) ? n_phandles : 0;
 }
 
-/* Looks for "to_find" device_node in src's "regulator-coupled-with" property */
-static bool of_coupling_find_node(struct device_node *src,
-				  struct device_node *to_find,
+/* Looks for "to_find" device_yesde in src's "regulator-coupled-with" property */
+static bool of_coupling_find_yesde(struct device_yesde *src,
+				  struct device_yesde *to_find,
 				  int *index)
 {
 	int n_phandles, i;
@@ -508,7 +508,7 @@ static bool of_coupling_find_node(struct device_node *src,
 						NULL);
 
 	for (i = 0; i < n_phandles; i++) {
-		struct device_node *tmp = of_parse_phandle(src,
+		struct device_yesde *tmp = of_parse_phandle(src,
 					   "regulator-coupled-with", i);
 
 		if (!tmp)
@@ -518,7 +518,7 @@ static bool of_coupling_find_node(struct device_node *src,
 		if (tmp == to_find)
 			found = true;
 
-		of_node_put(tmp);
+		of_yesde_put(tmp);
 
 		if (found) {
 			*index = i;
@@ -544,9 +544,9 @@ static bool of_coupling_find_node(struct device_node *src,
  */
 bool of_check_coupling_data(struct regulator_dev *rdev)
 {
-	struct device_node *node = rdev->dev.of_node;
+	struct device_yesde *yesde = rdev->dev.of_yesde;
 	int n_phandles = of_get_n_coupled(rdev);
-	struct device_node *c_node;
+	struct device_yesde *c_yesde;
 	int index;
 	int i;
 	bool ret = true;
@@ -561,13 +561,13 @@ bool of_check_coupling_data(struct regulator_dev *rdev)
 			return false;
 		}
 
-		c_node = of_parse_phandle(node,
+		c_yesde = of_parse_phandle(yesde,
 					  "regulator-coupled-with", i);
 
-		if (!c_node)
+		if (!c_yesde)
 			ret = false;
 
-		c_n_phandles = of_count_phandle_with_args(c_node,
+		c_n_phandles = of_count_phandle_with_args(c_yesde,
 							  "regulator-coupled-with",
 							  NULL);
 
@@ -577,13 +577,13 @@ bool of_check_coupling_data(struct regulator_dev *rdev)
 			goto clean;
 		}
 
-		if (!of_coupling_find_node(c_node, node, &index)) {
+		if (!of_coupling_find_yesde(c_yesde, yesde, &index)) {
 			dev_err(&rdev->dev, "missing 2-way linking for coupled regulators\n");
 			ret = false;
 			goto clean;
 		}
 
-		if (of_property_read_u32_index(c_node, "regulator-coupled-max-spread",
+		if (of_property_read_u32_index(c_yesde, "regulator-coupled-max-spread",
 					       index, &c_max_spread)) {
 			ret = false;
 			goto clean;
@@ -597,7 +597,7 @@ bool of_check_coupling_data(struct regulator_dev *rdev)
 		}
 
 clean:
-		of_node_put(c_node);
+		of_yesde_put(c_yesde);
 		if (!ret)
 			break;
 	}
@@ -611,23 +611,23 @@ clean:
  *	  "regulator-coupled-with" property
  * @index: Index in phandles array
  *
- * Returns the regulator_dev pointer parsed from DTS. If it has not been yet
+ * Returns the regulator_dev pointer parsed from DTS. If it has yest been yet
  * registered, returns NULL
  */
 struct regulator_dev *of_parse_coupled_regulator(struct regulator_dev *rdev,
 						 int index)
 {
-	struct device_node *node = rdev->dev.of_node;
-	struct device_node *c_node;
+	struct device_yesde *yesde = rdev->dev.of_yesde;
+	struct device_yesde *c_yesde;
 	struct regulator_dev *c_rdev;
 
-	c_node = of_parse_phandle(node, "regulator-coupled-with", index);
-	if (!c_node)
+	c_yesde = of_parse_phandle(yesde, "regulator-coupled-with", index);
+	if (!c_yesde)
 		return NULL;
 
-	c_rdev = of_find_regulator_by_node(c_node);
+	c_rdev = of_find_regulator_by_yesde(c_yesde);
 
-	of_node_put(c_node);
+	of_yesde_put(c_yesde);
 
 	return c_rdev;
 }

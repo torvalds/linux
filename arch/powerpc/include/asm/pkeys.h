@@ -119,7 +119,7 @@ static inline int mm_pkey_alloc(struct mm_struct *mm)
 
 	/*
 	 * Are we out of pkeys? We must handle this specially because ffz()
-	 * behavior is undefined if there are no zeros.
+	 * behavior is undefined if there are yes zeros.
 	 */
 	if (mm_pkey_allocation_map(mm) == all_pkeys_mask)
 		return -1;
@@ -183,10 +183,10 @@ static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 		return -EINVAL;
 
 	/*
-	 * userspace should not change pkey-0 permissions.
+	 * userspace should yest change pkey-0 permissions.
 	 * pkey-0 is associated with every page in the kernel.
 	 * If userspace denies any permission on pkey-0, the
-	 * kernel cannot operate.
+	 * kernel canyest operate.
 	 */
 	if (pkey == 0)
 		return init_val ? -EINVAL : 0;

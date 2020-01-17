@@ -4,7 +4,7 @@
  *
  * This file contains AppArmor label definitions
  *
- * Copyright 2017 Canonical Ltd.
+ * Copyright 2017 Cayesnical Ltd.
  */
 
 #include <linux/audit.h>
@@ -29,10 +29,10 @@
  *   profiles - each profile is a label
  *   secids - a pinned secid will keep a refcount of the label it is
  *          referencing
- *   objects - inode, files, sockets, ...
+ *   objects - iyesde, files, sockets, ...
  *
- * Labels are not ref counted by the label set, so they maybe removed and
- * freed when no longer in use.
+ * Labels are yest ref counted by the label set, so they maybe removed and
+ * freed when yes longer in use.
  *
  */
 
@@ -42,7 +42,7 @@
 static void free_proxy(struct aa_proxy *proxy)
 {
 	if (proxy) {
-		/* p->label will not updated any more as p is dead */
+		/* p->label will yest updated any more as p is dead */
 		aa_put_label(rcu_dereference_protected(proxy->label, true));
 		memset(proxy, 0, sizeof(*proxy));
 		RCU_INIT_POINTER(proxy->label, (struct aa_label *)PROXY_POISON);
@@ -232,7 +232,7 @@ static inline int unique(struct aa_profile **vec, int n)
 	for (i = 1; i < n; i++) {
 		int res = profile_cmp(vec[pos], vec[i]);
 
-		AA_BUG(res > 0, "vec not sorted");
+		AA_BUG(res > 0, "vec yest sorted");
 		if (res == 0) {
 			/* drop duplicate */
 			aa_put_profile(vec[i]);
@@ -250,7 +250,7 @@ static inline int unique(struct aa_profile **vec, int n)
 }
 
 /**
- * aa_vec_unique - canonical sort and unique a list of profiles
+ * aa_vec_unique - cayesnical sort and unique a list of profiles
  * @n: number of refcounted profiles in the list (@n > 0)
  * @vec: list of profiles to sort and merge
  *
@@ -266,7 +266,7 @@ int aa_vec_unique(struct aa_profile **vec, int n, int flags)
 	AA_BUG(n < 1);
 	AA_BUG(!vec);
 
-	/* vecs are usually small and inorder, have a fallback for larger */
+	/* vecs are usually small and iyesrder, have a fallback for larger */
 	if (n > 8) {
 		sort(vec, n, sizeof(struct aa_profile *), sort_cmp, NULL);
 		dups = unique(vec, n);
@@ -375,7 +375,7 @@ void aa_label_kref(struct kref *kref)
 	struct aa_ns *ns = labels_ns(label);
 
 	if (!ns) {
-		/* never live, no rcu callback needed, just using the fn */
+		/* never live, yes rcu callback needed, just using the fn */
 		label_free_switch(label);
 		return;
 	}
@@ -385,7 +385,7 @@ void aa_label_kref(struct kref *kref)
 	AA_BUG(label_isprofile(label) &&
 	       on_list_rcu(&label->vec[0]->base.list));
 
-	/* TODO: if compound label and not stale add to reclaim cache */
+	/* TODO: if compound label and yest stale add to reclaim cache */
 	call_rcu(&label->rcu, label_free_rcu);
 }
 
@@ -409,7 +409,7 @@ bool aa_label_init(struct aa_label *label, int size, gfp_t gfp)
 	label->size = size;			/* doesn't include null */
 	label->vec[size] = NULL;		/* null terminate */
 	kref_init(&label->count);
-	RB_CLEAR_NODE(&label->node);
+	RB_CLEAR_NODE(&label->yesde);
 
 	return true;
 }
@@ -491,15 +491,15 @@ int aa_label_next_confined(struct aa_label *label, int i)
 }
 
 /**
- * aa_label_next_not_in_set - return the next profile of @sub not in @set
+ * aa_label_next_yest_in_set - return the next profile of @sub yest in @set
  * @I: label iterator
  * @set: label to test against
  * @sub: label to if is subset of @set
  *
- * Returns: profile in @sub that is not in @set, with iterator set pos after
+ * Returns: profile in @sub that is yest in @set, with iterator set pos after
  *     else NULL if @sub is a subset of @set
  */
-struct aa_profile *__aa_label_next_not_in_set(struct label_it *I,
+struct aa_profile *__aa_label_next_yest_in_set(struct label_it *I,
 					      struct aa_label *set,
 					      struct aa_label *sub)
 {
@@ -547,7 +547,7 @@ bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub)
 	if (sub == set)
 		return true;
 
-	return __aa_label_next_not_in_set(&i, set, sub) == NULL;
+	return __aa_label_next_yest_in_set(&i, set, sub) == NULL;
 }
 
 
@@ -575,7 +575,7 @@ static bool __label_remove(struct aa_label *label, struct aa_label *new)
 		__label_make_stale(label);
 
 	if (label->flags & FLAG_IN_TREE) {
-		rb_erase(&label->node, &ls->root);
+		rb_erase(&label->yesde, &ls->root);
 		label->flags &= ~FLAG_IN_TREE;
 		return true;
 	}
@@ -594,7 +594,7 @@ static bool __label_remove(struct aa_label *label, struct aa_label *new)
  *
  * Note: current implementation requires label set be order in such a way
  *       that @new directly replaces @old position in the set (ie.
- *       using pointer comparison of the label address would not work)
+ *       using pointer comparison of the label address would yest work)
  */
 static bool __label_replace(struct aa_label *old, struct aa_label *new)
 {
@@ -610,7 +610,7 @@ static bool __label_replace(struct aa_label *old, struct aa_label *new)
 		__label_make_stale(old);
 
 	if (old->flags & FLAG_IN_TREE) {
-		rb_replace_node(&old->node, &new->node, &ls->root);
+		rb_replace_yesde(&old->yesde, &new->yesde, &ls->root);
 		old->flags &= ~FLAG_IN_TREE;
 		new->flags |= FLAG_IN_TREE;
 		return true;
@@ -623,7 +623,7 @@ static bool __label_replace(struct aa_label *old, struct aa_label *new)
  * __label_insert - attempt to insert @l into a label set
  * @ls: set of labels to insert @l into (NOT NULL)
  * @label: new label to insert (NOT NULL)
- * @replace: whether insertion should replace existing entry that is not stale
+ * @replace: whether insertion should replace existing entry that is yest stale
  *
  * Requires: @ls->lock
  *           caller to hold a valid ref on l
@@ -635,7 +635,7 @@ static bool __label_replace(struct aa_label *old, struct aa_label *new)
 static struct aa_label *__label_insert(struct aa_labelset *ls,
 				       struct aa_label *label, bool replace)
 {
-	struct rb_node **new, *parent = NULL;
+	struct rb_yesde **new, *parent = NULL;
 
 	AA_BUG(!ls);
 	AA_BUG(!label);
@@ -643,17 +643,17 @@ static struct aa_label *__label_insert(struct aa_labelset *ls,
 	lockdep_assert_held_write(&ls->lock);
 	AA_BUG(label->flags & FLAG_IN_TREE);
 
-	/* Figure out where to put new node */
-	new = &ls->root.rb_node;
+	/* Figure out where to put new yesde */
+	new = &ls->root.rb_yesde;
 	while (*new) {
-		struct aa_label *this = rb_entry(*new, struct aa_label, node);
+		struct aa_label *this = rb_entry(*new, struct aa_label, yesde);
 		int result = label_cmp(label, this);
 
 		parent = *new;
 		if (result == 0) {
 			/* !__aa_get_label means queued for destruction,
 			 * so replace in place, however the label has
-			 * died before the replacement so do not share
+			 * died before the replacement so do yest share
 			 * the proxy
 			 */
 			if (!replace && !label_is_stale(this)) {
@@ -669,9 +669,9 @@ static struct aa_label *__label_insert(struct aa_labelset *ls,
 			new = &((*new)->rb_right);
 	}
 
-	/* Add new node and rebalance tree. */
-	rb_link_node(&label->node, parent, new);
-	rb_insert_color(&label->node, &ls->root);
+	/* Add new yesde and rebalance tree. */
+	rb_link_yesde(&label->yesde, parent, new);
+	rb_insert_color(&label->yesde, &ls->root);
 	label->flags |= FLAG_IN_TREE;
 
 	return aa_get_label(label);
@@ -687,25 +687,25 @@ static struct aa_label *__label_insert(struct aa_labelset *ls,
  *
  * Returns: ref counted @label if matching label is in tree
  *          ref counted label that is equiv to @l in tree
- *     else NULL if @vec equiv is not in tree
+ *     else NULL if @vec equiv is yest in tree
  */
 static struct aa_label *__vec_find(struct aa_profile **vec, int n)
 {
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	AA_BUG(!vec);
 	AA_BUG(!*vec);
 	AA_BUG(n <= 0);
 
-	node = vec_labelset(vec, n)->root.rb_node;
-	while (node) {
-		struct aa_label *this = rb_entry(node, struct aa_label, node);
+	yesde = vec_labelset(vec, n)->root.rb_yesde;
+	while (yesde) {
+		struct aa_label *this = rb_entry(yesde, struct aa_label, yesde);
 		int result = vec_cmp(this->vec, this->size, vec, n);
 
 		if (result > 0)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (result < 0)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return __aa_get_label(this);
 	}
@@ -722,7 +722,7 @@ static struct aa_label *__vec_find(struct aa_profile **vec, int n)
  *
  * Returns: ref counted @label if @label is in tree OR
  *          ref counted label that is equiv to @label in tree
- *     else NULL if @label or equiv is not in tree
+ *     else NULL if @label or equiv is yest in tree
  */
 static struct aa_label *__label_find(struct aa_label *label)
 {
@@ -737,7 +737,7 @@ static struct aa_label *__label_find(struct aa_label *label)
  * @label: label to remove
  *
  * Returns: true if @label was removed from the tree
- *     else @label was not in tree so it could not be removed
+ *     else @label was yest in tree so it could yest be removed
  */
 bool aa_label_remove(struct aa_label *label)
 {
@@ -760,7 +760,7 @@ bool aa_label_remove(struct aa_label *label)
  * @new: label replacing @old
  *
  * Returns: true if @old was in tree and replaced
- *     else @old was not in tree, and @new was not inserted
+ *     else @old was yest in tree, and @new was yest inserted
  */
 bool aa_label_replace(struct aa_label *old, struct aa_label *new)
 {
@@ -801,7 +801,7 @@ bool aa_label_replace(struct aa_label *old, struct aa_label *new)
  * @n: length of @vec
  *
  * Returns: refcounted label if @vec equiv is in tree
- *     else NULL if @vec equiv is not in tree
+ *     else NULL if @vec equiv is yest in tree
  */
 static struct aa_label *vec_find(struct aa_profile **vec, int n)
 {
@@ -875,7 +875,7 @@ struct aa_label *aa_vec_find_or_create_label(struct aa_profile **vec, int len,
  *
  * Returns: refcounted @label if @label is in tree
  *          refcounted label that is equiv to @label in tree
- *     else NULL if @label or equiv is not in tree
+ *     else NULL if @label or equiv is yest in tree
  */
 struct aa_label *aa_label_find(struct aa_label *label)
 {
@@ -927,7 +927,7 @@ struct aa_label *aa_label_insert(struct aa_labelset *ls, struct aa_label *label)
  * @b: label to merge
  *
  * Returns: next profile
- *     else null if no more profiles
+ *     else null if yes more profiles
  */
 struct aa_profile *aa_label_next_in_merge(struct label_it *I,
 					  struct aa_label *a,
@@ -1011,7 +1011,7 @@ static int label_merge_cmp(struct aa_label *a, struct aa_label *b,
  *          @a if @b is a subset of @a
  *          @b if @a is a subset of @b
  *
- * NOTE: will not use @new if the merge results in @new == @a or @b
+ * NOTE: will yest use @new if the merge results in @new == @a or @b
  *
  *       Must be used within labelset write lock to avoid racing with
  *       setting labels stale.
@@ -1062,7 +1062,7 @@ static struct aa_label *label_merge_insert(struct aa_label *new,
 		}
 	} else if (!stale) {
 		/*
-		 * merge could be same as a || b, note: it is not possible
+		 * merge could be same as a || b, yeste: it is yest possible
 		 * for new->size == a->size == b->size unless a == b
 		 */
 		if (k == a->size)
@@ -1107,13 +1107,13 @@ static struct aa_labelset *labelset_of_merge(struct aa_label *a,
  * Requires: ls->lock read_lock held
  *
  * Returns: ref counted label that is equiv to merge of @a and @b
- *     else NULL if merge of @a and @b is not in set
+ *     else NULL if merge of @a and @b is yest in set
  */
 static struct aa_label *__label_find_merge(struct aa_labelset *ls,
 					   struct aa_label *a,
 					   struct aa_label *b)
 {
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	AA_BUG(!ls);
 	AA_BUG(!a);
@@ -1122,16 +1122,16 @@ static struct aa_label *__label_find_merge(struct aa_labelset *ls,
 	if (a == b)
 		return __label_find(a);
 
-	node  = ls->root.rb_node;
-	while (node) {
-		struct aa_label *this = container_of(node, struct aa_label,
-						     node);
+	yesde  = ls->root.rb_yesde;
+	while (yesde) {
+		struct aa_label *this = container_of(yesde, struct aa_label,
+						     yesde);
 		int result = label_merge_cmp(a, b, this);
 
 		if (result < 0)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (result > 0)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return __aa_get_label(this);
 	}
@@ -1148,7 +1148,7 @@ static struct aa_label *__label_find_merge(struct aa_labelset *ls,
  * Requires: labels be fully constructed with a valid ns
  *
  * Returns: ref counted label that is equiv to merge of @a and @b
- *     else NULL if merge of @a and @b is not in set
+ *     else NULL if merge of @a and @b is yest in set
  */
 struct aa_label *aa_label_find_merge(struct aa_label *a, struct aa_label *b)
 {
@@ -1185,7 +1185,7 @@ struct aa_label *aa_label_find_merge(struct aa_label *a, struct aa_label *b)
  *
  * Returns: ref counted new label if successful in inserting merge of a & b
  *     else ref counted equivalent label that is already in the set.
- *     else NULL if could not create label (-ENOMEM)
+ *     else NULL if could yest create label (-ENOMEM)
  */
 struct aa_label *aa_label_merge(struct aa_label *a, struct aa_label *b,
 				gfp_t gfp)
@@ -1235,7 +1235,7 @@ static inline bool label_is_visible(struct aa_profile *profile,
 
 /* match a profile and its associated ns component if needed
  * Assumes visibility test has already been done.
- * If a subns profile is not to be matched should be prescreened with
+ * If a subns profile is yest to be matched should be prescreened with
  * visibility test.
  */
 static inline unsigned int match_component(struct aa_profile *profile,
@@ -1288,7 +1288,7 @@ static int label_compound_match(struct aa_profile *profile,
 		goto next;
 	}
 
-	/* no component visible */
+	/* yes component visible */
 	*perms = allperms;
 	return 0;
 
@@ -1348,7 +1348,7 @@ static int label_components_match(struct aa_profile *profile,
 		goto next;
 	}
 
-	/* no subcomponents visible - no change in perms */
+	/* yes subcomponents visible - yes change in perms */
 	return 0;
 
 next:
@@ -1385,7 +1385,7 @@ fail:
  * @request: permission request
  * @perms: Returns computed perms (NOT NULL)
  *
- * Returns: the state the match finished in, may be the none matching state
+ * Returns: the state the match finished in, may be the yesne matching state
  */
 int aa_label_match(struct aa_profile *profile, struct aa_label *label,
 		   unsigned int state, bool subns, u32 request,
@@ -1408,9 +1408,9 @@ int aa_label_match(struct aa_profile *profile, struct aa_label *label,
  * @label: label to update (NOT NULL)
  * @gfp: type of memory allocation
  *
- * Requires: labels_set(label) not locked in caller
+ * Requires: labels_set(label) yest locked in caller
  *
- * note: only updates the label name if it does not have a name already
+ * yeste: only updates the label name if it does yest have a name already
  *       and if it is in the labelset
  */
 bool aa_update_label_name(struct aa_ns *ns, struct aa_label *label, gfp_t gfp)
@@ -1479,7 +1479,7 @@ do {					\
  * Returns: size of name written or would be written if larger than
  *          available buffer
  *
- * Note: will not print anything if the profile is not visible
+ * Note: will yest print anything if the profile is yest visible
  */
 static int aa_profile_snxprint(char *str, size_t size, struct aa_ns *view,
 			       struct aa_profile *profile, int flags,
@@ -1554,7 +1554,7 @@ static const char *label_modename(struct aa_ns *ns, struct aa_label *label,
 	return aa_profile_mode_names[mode];
 }
 
-/* if any visible label is not unconfined the display_mode returns true */
+/* if any visible label is yest unconfined the display_mode returns true */
 static inline bool display_mode(struct aa_ns *ns, struct aa_label *label,
 				int flags)
 {
@@ -1586,10 +1586,10 @@ static inline bool display_mode(struct aa_ns *ns, struct aa_label *label,
  * Returns: size of name written or would be written if larger than
  *          available buffer
  *
- * Note: labels do not have to be strictly hierarchical to the ns as
+ * Note: labels do yest have to be strictly hierarchical to the ns as
  *       objects may be shared across different namespaces and thus
  *       pickup labeling from each ns.  If a particular part of the
- *       label is not visible it will just be excluded.  And if none
+ *       label is yest visible it will just be excluded.  And if yesne
  *       of the label is visible "---" will be used.
  */
 int aa_label_snxprint(char *str, size_t size, struct aa_ns *ns,
@@ -1633,7 +1633,7 @@ int aa_label_snxprint(char *str, size_t size, struct aa_ns *ns,
 	}
 
 	/* count == 1 && ... is for backwards compat where the mode
-	 * is not displayed for 'unconfined' in the current ns
+	 * is yest displayed for 'unconfined' in the current ns
 	 */
 	if (display_mode(ns, label, flags)) {
 		len = snprintf(str, size, " (%s)",
@@ -1849,7 +1849,7 @@ static struct aa_profile *fqlookupn_profile(struct aa_label *base,
  * @n: length of str to parse, will stop at \0 if encountered before n
  * @gfp: allocation type
  * @create: true if should create compound labels if they don't exist
- * @force_stack: true if should stack even if no leading &
+ * @force_stack: true if should stack even if yes leading &
  *
  * Returns: the matching refcounted label if present
  *     else ERRPTR
@@ -1908,7 +1908,7 @@ struct aa_label *aa_label_strn_parse(struct aa_label *base, const char *str,
 			goto fail;
 	}
 	if (len == 1)
-		/* no need to free vec as len < LOCAL_VEC_ENTRIES */
+		/* yes need to free vec as len < LOCAL_VEC_ENTRIES */
 		return &vec[0]->label;
 
 	len -= aa_vec_unique(vec, len, VEC_FLAG_TERMINATE);
@@ -1926,7 +1926,7 @@ struct aa_label *aa_label_strn_parse(struct aa_label *base, const char *str,
 		goto fail;
 
 out:
-	/* use adjusted len from after vec_unique, not original */
+	/* use adjusted len from after vec_unique, yest original */
 	vec_cleanup(profile, vec, len);
 	return label;
 
@@ -1951,14 +1951,14 @@ struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
  */
 void aa_labelset_destroy(struct aa_labelset *ls)
 {
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	unsigned long flags;
 
 	AA_BUG(!ls);
 
 	write_lock_irqsave(&ls->lock, flags);
-	for (node = rb_first(&ls->root); node; node = rb_first(&ls->root)) {
-		struct aa_label *this = rb_entry(node, struct aa_label, node);
+	for (yesde = rb_first(&ls->root); yesde; yesde = rb_first(&ls->root)) {
+		struct aa_label *this = rb_entry(yesde, struct aa_label, yesde);
 
 		if (labels_ns(this) != root_ns)
 			__label_remove(this,
@@ -1983,15 +1983,15 @@ void aa_labelset_init(struct aa_labelset *ls)
 static struct aa_label *labelset_next_stale(struct aa_labelset *ls)
 {
 	struct aa_label *label;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	unsigned long flags;
 
 	AA_BUG(!ls);
 
 	read_lock_irqsave(&ls->lock, flags);
 
-	__labelset_for_each(ls, node) {
-		label = rb_entry(node, struct aa_label, node);
+	__labelset_for_each(ls, yesde) {
+		label = rb_entry(yesde, struct aa_label, yesde);
 		if ((label_is_stale(label) ||
 		     vec_is_stale(label->vec, label->size)) &&
 		    __aa_get_label(label))
@@ -2015,7 +2015,7 @@ out:
  *
  * Requires: @ns lock be held
  *
- * Note: worst case is the stale @label does not get updated and has
+ * Note: worst case is the stale @label does yest get updated and has
  *       to be updated at a later time.
  */
 static struct aa_label *__label_update(struct aa_label *label)

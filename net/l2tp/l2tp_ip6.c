@@ -91,7 +91,7 @@ found:
 }
 
 /* When processing receive frames, there are two cases to
- * consider. Data frames consist of a non-zero session-id and an
+ * consider. Data frames consist of a yesn-zero session-id and an
  * optional cookie. Control frames consist of a regular L2TP header
  * preceded by 32-bits of zeros.
  *
@@ -228,7 +228,7 @@ static int l2tp_ip6_open(struct sock *sk)
 	inet_sk(sk)->inet_num = IPPROTO_L2TP;
 
 	write_lock_bh(&l2tp_ip6_lock);
-	sk_add_node(sk, &l2tp_ip6_table);
+	sk_add_yesde(sk, &l2tp_ip6_table);
 	write_unlock_bh(&l2tp_ip6_lock);
 
 	return 0;
@@ -237,8 +237,8 @@ static int l2tp_ip6_open(struct sock *sk)
 static void l2tp_ip6_close(struct sock *sk, long timeout)
 {
 	write_lock_bh(&l2tp_ip6_lock);
-	hlist_del_init(&sk->sk_bind_node);
-	sk_del_node_init(sk);
+	hlist_del_init(&sk->sk_bind_yesde);
+	sk_del_yesde_init(sk);
 	write_unlock_bh(&l2tp_ip6_lock);
 
 	sk_common_release(sk);
@@ -280,7 +280,7 @@ static int l2tp_ip6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (addr_type == IPV6_ADDR_MAPPED)
 		return -EADDRNOTAVAIL;
 
-	/* L2TP is point-point, not multicast */
+	/* L2TP is point-point, yest multicast */
 	if (addr_type & IPV6_ADDR_MULTICAST)
 		return -EADDRNOTAVAIL;
 
@@ -342,8 +342,8 @@ static int l2tp_ip6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	l2tp_ip6_sk(sk)->conn_id = addr->l2tp_conn_id;
 
-	sk_add_bind_node(sk, &l2tp_ip6_bind_table);
-	sk_del_node_init(sk);
+	sk_add_bind_yesde(sk, &l2tp_ip6_bind_table);
+	sk_del_yesde_init(sk);
 	write_unlock_bh(&l2tp_ip6_lock);
 
 	sock_reset_flag(sk, SOCK_ZAPPED);
@@ -385,7 +385,7 @@ static int l2tp_ip6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	lock_sock(sk);
 
-	 /* Must bind first - autobinding does not work */
+	 /* Must bind first - autobinding does yest work */
 	if (sock_flag(sk, SOCK_ZAPPED)) {
 		rc = -EINVAL;
 		goto out_sk;
@@ -398,8 +398,8 @@ static int l2tp_ip6_connect(struct sock *sk, struct sockaddr *uaddr,
 	l2tp_ip6_sk(sk)->peer_conn_id = lsa->l2tp_conn_id;
 
 	write_lock_bh(&l2tp_ip6_lock);
-	hlist_del_init(&sk->sk_bind_node);
-	sk_add_bind_node(sk, &l2tp_ip6_bind_table);
+	hlist_del_init(&sk->sk_bind_yesde);
+	sk_add_bind_yesde(sk, &l2tp_ip6_bind_table);
 	write_unlock_bh(&l2tp_ip6_lock);
 
 out_sk:
@@ -659,7 +659,7 @@ do_confirm:
 }
 
 static int l2tp_ip6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-			    int noblock, int flags, int *addr_len)
+			    int yesblock, int flags, int *addr_len)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	DECLARE_SOCKADDR(struct sockaddr_l2tpip6 *, lsa, msg->msg_name);
@@ -673,7 +673,7 @@ static int l2tp_ip6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	if (flags & MSG_ERRQUEUE)
 		return ipv6_recv_error(sk, msg, len, addr_len);
 
-	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	skb = skb_recv_datagram(sk, flags, yesblock, &err);
 	if (!skb)
 		goto out;
 
@@ -743,20 +743,20 @@ static const struct proto_ops l2tp_ip6_ops = {
 	.release	   = inet6_release,
 	.bind		   = inet6_bind,
 	.connect	   = inet_dgram_connect,
-	.socketpair	   = sock_no_socketpair,
-	.accept		   = sock_no_accept,
+	.socketpair	   = sock_yes_socketpair,
+	.accept		   = sock_yes_accept,
 	.getname	   = l2tp_ip6_getname,
 	.poll		   = datagram_poll,
 	.ioctl		   = inet6_ioctl,
 	.gettstamp	   = sock_gettstamp,
-	.listen		   = sock_no_listen,
+	.listen		   = sock_yes_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.recvmsg	   = sock_common_recvmsg,
-	.mmap		   = sock_no_mmap,
-	.sendpage	   = sock_no_sendpage,
+	.mmap		   = sock_yes_mmap,
+	.sendpage	   = sock_yes_sendpage,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,

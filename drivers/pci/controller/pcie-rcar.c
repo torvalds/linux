@@ -484,7 +484,7 @@ static int rcar_pcie_enable(struct rcar_pcie *pcie)
 	pci_bus_size_bridges(bus);
 	pci_bus_assign_resources(bus);
 
-	list_for_each_entry(child, &bus->children, node)
+	list_for_each_entry(child, &bus->children, yesde)
 		pcie_bus_configure_settings(child);
 
 	pci_bus_add_devices(bus);
@@ -524,14 +524,14 @@ static void phy_write_reg(struct rcar_pcie *pcie,
 	rcar_pci_write_reg(pcie, data, H1_PCIEPHYDOUTR);
 	rcar_pci_write_reg(pcie, phyaddr, H1_PCIEPHYADRR);
 
-	/* Ignore errors as they will be dealt with if the data link is down */
+	/* Igyesre errors as they will be dealt with if the data link is down */
 	phy_wait_for_ack(pcie);
 
 	/* Clear command */
 	rcar_pci_write_reg(pcie, 0, H1_PCIEPHYDOUTR);
 	rcar_pci_write_reg(pcie, 0, H1_PCIEPHYADRR);
 
-	/* Ignore errors as they will be dealt with if the data link is down */
+	/* Igyesre errors as they will be dealt with if the data link is down */
 	phy_wait_for_ack(pcie);
 }
 
@@ -581,7 +581,7 @@ static int rcar_pcie_hw_init(struct rcar_pcie *pcie)
 	/*
 	 * Initial header for port config space is type 1, set the device
 	 * class to match. Hardware takes care of propagating the IDSETR
-	 * settings, so there is no need to bother with a quirk.
+	 * settings, so there is yes need to bother with a quirk.
 	 */
 	rcar_pci_write_reg(pcie, PCI_CLASS_BRIDGE_PCI << 16, IDSETR1);
 
@@ -669,7 +669,7 @@ static int rcar_pcie_phy_init_gen2(struct rcar_pcie *pcie)
 	rcar_pci_write_reg(pcie, 0x00000006, GEN2_PCIEPHYCTRL);
 
 	rcar_pci_write_reg(pcie, 0x000f0054, GEN2_PCIEPHYADDR);
-	/* The following value is for DC connection, no termination resistor */
+	/* The following value is for DC connection, yes termination resistor */
 	rcar_pci_write_reg(pcie, 0x13802007, GEN2_PCIEPHYDATA);
 	rcar_pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
 	rcar_pci_write_reg(pcie, 0x00000006, GEN2_PCIEPHYCTRL);
@@ -709,13 +709,13 @@ static int rcar_msi_alloc(struct rcar_msi *chip)
 	return msi;
 }
 
-static int rcar_msi_alloc_region(struct rcar_msi *chip, int no_irqs)
+static int rcar_msi_alloc_region(struct rcar_msi *chip, int yes_irqs)
 {
 	int msi;
 
 	mutex_lock(&chip->lock);
 	msi = bitmap_find_free_region(chip->used, INT_PCI_MSI_NR,
-				      order_base_2(no_irqs));
+				      order_base_2(yes_irqs));
 	mutex_unlock(&chip->lock);
 
 	return msi;
@@ -755,7 +755,7 @@ static irqreturn_t rcar_pcie_msi_irq(int irq, void *data)
 			else
 				dev_info(dev, "unhandled MSI\n");
 		} else {
-			/* Unknown MSI, just clear it */
+			/* Unkyeswn MSI, just clear it */
 			dev_dbg(dev, "unexpected MSI\n");
 		}
 
@@ -807,7 +807,7 @@ static int rcar_msi_setup_irqs(struct msi_controller *chip,
 	int hwirq;
 	int i;
 
-	/* MSI-X interrupts are not supported */
+	/* MSI-X interrupts are yest supported */
 	if (type == PCI_CAP_ID_MSIX)
 		return -EINVAL;
 
@@ -825,9 +825,9 @@ static int rcar_msi_setup_irqs(struct msi_controller *chip,
 	for (i = 0; i < nvec; i++) {
 		/*
 		 * irq_create_mapping() called from rcar_pcie_probe() pre-
-		 * allocates descs,  so there is no need to allocate descs here.
+		 * allocates descs,  so there is yes need to allocate descs here.
 		 * We can therefore assume that if irq_find_mapping() above
-		 * returns non-zero, then the descs are also successfully
+		 * returns yesn-zero, then the descs are also successfully
 		 * allocated.
 		 */
 		if (irq_set_msi_desc_off(irq, i, desc)) {
@@ -905,7 +905,7 @@ static int rcar_pcie_enable_msi(struct rcar_pcie *pcie)
 	msi->chip.setup_irqs = rcar_msi_setup_irqs;
 	msi->chip.teardown_irq = rcar_msi_teardown_irq;
 
-	msi->domain = irq_domain_add_linear(dev->of_node, INT_PCI_MSI_NR,
+	msi->domain = irq_domain_add_linear(dev->of_yesde, INT_PCI_MSI_NR,
 					    &msi_domain_ops, &msi->chip);
 	if (!msi->domain) {
 		dev_err(dev, "failed to create IRQ domain\n");
@@ -915,7 +915,7 @@ static int rcar_pcie_enable_msi(struct rcar_pcie *pcie)
 	for (i = 0; i < INT_PCI_MSI_NR; i++)
 		irq_create_mapping(msi->domain, i);
 
-	/* Two irqs are for MSI, but they are also used for non-MSI irqs */
+	/* Two irqs are for MSI, but they are also used for yesn-MSI irqs */
 	err = devm_request_irq(dev, msi->irq1, rcar_pcie_msi_irq,
 			       IRQF_SHARED | IRQF_NO_THREAD,
 			       rcar_msi_irq_chip.name, pcie);
@@ -978,7 +978,7 @@ static int rcar_pcie_get_resources(struct rcar_pcie *pcie)
 	if (IS_ERR(pcie->phy))
 		return PTR_ERR(pcie->phy);
 
-	err = of_address_to_resource(dev->of_node, 0, &res);
+	err = of_address_to_resource(dev->of_yesde, 0, &res);
 	if (err)
 		return err;
 
@@ -988,21 +988,21 @@ static int rcar_pcie_get_resources(struct rcar_pcie *pcie)
 
 	pcie->bus_clk = devm_clk_get(dev, "pcie_bus");
 	if (IS_ERR(pcie->bus_clk)) {
-		dev_err(dev, "cannot get pcie bus clock\n");
+		dev_err(dev, "canyest get pcie bus clock\n");
 		return PTR_ERR(pcie->bus_clk);
 	}
 
-	i = irq_of_parse_and_map(dev->of_node, 0);
+	i = irq_of_parse_and_map(dev->of_yesde, 0);
 	if (!i) {
-		dev_err(dev, "cannot get platform resources for msi interrupt\n");
+		dev_err(dev, "canyest get platform resources for msi interrupt\n");
 		err = -ENOENT;
 		goto err_irq1;
 	}
 	pcie->msi.irq1 = i;
 
-	i = irq_of_parse_and_map(dev->of_node, 1);
+	i = irq_of_parse_and_map(dev->of_yesde, 1);
 	if (!i) {
-		dev_err(dev, "cannot get platform resources for msi interrupt\n");
+		dev_err(dev, "canyest get platform resources for msi interrupt\n");
 		err = -ENOENT;
 		goto err_irq2;
 	}
@@ -1163,7 +1163,7 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 	}
 
-	/* Failure to get a link might just be that no cards are inserted */
+	/* Failure to get a link might just be that yes cards are inserted */
 	if (rcar_pcie_hw_init(pcie)) {
 		dev_info(dev, "PCIe link down\n");
 		err = -ENODEV;
@@ -1219,7 +1219,7 @@ err_free_bridge:
 	return err;
 }
 
-static int rcar_pcie_resume_noirq(struct device *dev)
+static int rcar_pcie_resume_yesirq(struct device *dev)
 {
 	struct rcar_pcie *pcie = dev_get_drvdata(dev);
 
@@ -1234,7 +1234,7 @@ static int rcar_pcie_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops rcar_pcie_pm_ops = {
-	.resume_noirq = rcar_pcie_resume_noirq,
+	.resume_yesirq = rcar_pcie_resume_yesirq,
 };
 
 static struct platform_driver rcar_pcie_driver = {

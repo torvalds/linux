@@ -76,7 +76,7 @@ extern void bcom_enable(struct bcom_task *tsk);
  * bcom_disable - Disable a BestComm task
  * @tsk: The BestComm task structure
  *
- * This function disable a given task, making sure it's not executed
+ * This function disable a given task, making sure it's yest executed
  * by the BestComm engine.
  */
 extern void bcom_disable(struct bcom_task *tsk);
@@ -100,7 +100,7 @@ bcom_get_task_irq(struct bcom_task *tsk) {
 /** _bcom_next_index - Get next input index.
  * @tsk: pointer to task structure
  *
- * Support function; Device drivers should not call this
+ * Support function; Device drivers should yest call this
  */
 static inline int
 _bcom_next_index(struct bcom_task *tsk)
@@ -111,7 +111,7 @@ _bcom_next_index(struct bcom_task *tsk)
 /** _bcom_next_outdex - Get next output index.
  * @tsk: pointer to task structure
  *
- * Support function; Device drivers should not call this
+ * Support function; Device drivers should yest call this
  */
 static inline int
 _bcom_next_outdex(struct bcom_task *tsk)

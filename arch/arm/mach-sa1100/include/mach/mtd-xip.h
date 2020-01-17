@@ -2,7 +2,7 @@
 /*
  * MTD primitives for XIP support. Architecture specific functions
  *
- * Do not include this file directly. It's included from linux/mtd/xip.h
+ * Do yest include this file directly. It's included from linux/mtd/xip.h
  * 
  * Author:	Nicolas Pitre
  * Created:	Nov 2, 2004

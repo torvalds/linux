@@ -28,11 +28,11 @@ static int armada510_crtc_init(struct armada_crtc *dcrtc, struct device *dev)
 
 	dcrtc->variant_data = v;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		struct property *prop;
 		const char *s;
 
-		of_property_for_each_string(dev->of_node, "clock-names", prop,
+		of_property_for_each_string(dev->of_yesde, "clock-names", prop,
 					    s) {
 			if (!strcmp(s, "ext_ref_clk0"))
 				idx = 0;
@@ -95,7 +95,7 @@ static const struct armada_clocking_params armada510_clocking = {
  * This gets called with sclk = NULL to test whether the mode is
  * supportable, and again with sclk != NULL to set the clocks up for
  * that.  The former can return an error, but the latter is expected
- * not to.
+ * yest to.
  */
 static int armada510_crtc_compute_clock(struct armada_crtc *dcrtc,
 	const struct drm_display_mode *mode, uint32_t *sclk)
@@ -120,7 +120,7 @@ static int armada510_crtc_compute_clock(struct armada_crtc *dcrtc,
 
 		*sclk = res.div | armada510_clk_sels[idx];
 
-		/* We are now using this clock */
+		/* We are yesw using this clock */
 		v->sel_clk = res.clk;
 		swap(dcrtc->clk, res.clk);
 	}

@@ -8,7 +8,7 @@
  *   - configuration space is memory mapped (as defined by MCFG)
  *   - Lincroft devices also have a real, type 1 configuration space
  *   - Early Lincroft silicon has a type 1 access bug that will cause
- *     a hang if non-existent devices are accessed
+ *     a hang if yesn-existent devices are accessed
  *   - some devices have the "fixed BAR" capability, which means
  *     they can't be relocated or modified; check for that during
  *     BAR sizing
@@ -140,7 +140,7 @@ static int pci_device_update_fixed(struct pci_bus *bus, unsigned int devfn,
  * @bus: bus number
  * @devfn: device & function in question
  *
- * If the bus is on a Lincroft chip and it exists, or is not on a Lincroft at
+ * If the bus is on a Lincroft chip and it exists, or is yest on a Lincroft at
  * all, the we can go ahead with any reads & writes.  If it's on a Lincroft,
  * but doesn't exist, avoid the access altogether to keep the chip from
  * hanging.
@@ -149,7 +149,7 @@ static bool type1_access_ok(unsigned int bus, unsigned int devfn, int reg)
 {
 	/*
 	 * This is a workaround for A0 LNC bug where PCI status register does
-	 * not have new CAP bit set. can not be written by SW either.
+	 * yest have new CAP bit set. can yest be written by SW either.
 	 *
 	 * PCI header type in real LNC indicates a single function device, this
 	 * will prevent probing other devices under the same function in PCI
@@ -180,8 +180,8 @@ static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 	int offset;
 
 	/*
-	 * On MRST, there is no PCI ROM BAR, this will cause a subsequent read
-	 * to ROM BAR return 0 then being ignored.
+	 * On MRST, there is yes PCI ROM BAR, this will cause a subsequent read
+	 * to ROM BAR return 0 then being igyesred.
 	 */
 	if (where == PCI_ROM_ADDRESS)
 		return 0;
@@ -202,7 +202,7 @@ static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 	/*
 	 * On Moorestown update both real & mmconfig space
 	 * Note: early Lincroft silicon can't handle type 1 accesses to
-	 *       non-existent devices, so just eat the write in that case.
+	 *       yesn-existent devices, so just eat the write in that case.
 	 */
 	if (type1_access_ok(bus->number, devfn, where))
 		return pci_direct_conf1.write(pci_domain_nr(bus), bus->number,
@@ -235,7 +235,7 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 		if (gsi == 0) {
 			/*
 			 * Skip HS UART common registers device since it has
-			 * IRQ0 assigned and not used by the kernel.
+			 * IRQ0 assigned and yest used by the kernel.
 			 */
 			if (dev->device == PCI_DEVICE_ID_INTEL_MRFLD_HSU)
 				return -EBUSY;
@@ -255,7 +255,7 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 		break;
 	}
 
-	ioapic_set_alloc_attr(&info, dev_to_node(&dev->dev), 1, polarity);
+	ioapic_set_alloc_attr(&info, dev_to_yesde(&dev->dev), 1, polarity);
 
 	/*
 	 * MRST only have IOAPIC, the PCI irq lines are 1:1 mapped to
@@ -300,19 +300,19 @@ int __init intel_mid_pci_init(void)
 	pci_root_ops = intel_mid_pci_ops;
 	pci_soc_mode = 1;
 	/* Continue with standard init */
-	acpi_noirq_set();
+	acpi_yesirq_set();
 	return 1;
 }
 
 /*
- * Langwell devices are not true PCI devices; they are not subject to 10 ms
+ * Langwell devices are yest true PCI devices; they are yest subject to 10 ms
  * d3 to d0 delay required by PCI spec.
  */
 static void pci_d3delay_fixup(struct pci_dev *dev)
 {
 	/*
 	 * PCI fixups are effectively decided compile time. If we have a dual
-	 * SoC/non-SoC kernel we don't want to mangle d3 on non-SoC devices.
+	 * SoC/yesn-SoC kernel we don't want to mangle d3 on yesn-SoC devices.
 	 */
 	if (!pci_soc_mode)
 		return;

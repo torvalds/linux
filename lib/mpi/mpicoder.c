@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
@@ -136,7 +136,7 @@ static int count_lzeros(MPI a)
  * @nbytes:	receives the actual length of the data written on success and
  *		the data to-be-written on -EOVERFLOW in case buf_len was too
  *		small.
- * @sign:	if not NULL, it will be set to the sign of a.
+ * @sign:	if yest NULL, it will be set to the sign of a.
  *
  * Return:	0 on success or error code in case of error
  */
@@ -196,7 +196,7 @@ EXPORT_SYMBOL_GPL(mpi_read_buffer);
  *
  * @a:		a multi precision integer.
  * @nbytes:	receives the length of this buffer.
- * @sign:	if not NULL, it will be set to the sign of the a.
+ * @sign:	if yest NULL, it will be set to the sign of the a.
  *
  * Return:	Pointer to MPI buffer or NULL on error
  */
@@ -240,7 +240,7 @@ EXPORT_SYMBOL_GPL(mpi_get_buffer);
  *		mpi_get_size(a) long.
  * @nbytes:	the number of bytes to write.  Leading bytes will be
  *		filled with zero.
- * @sign:	if not NULL, it will be set to the sign of a.
+ * @sign:	if yest NULL, it will be set to the sign of a.
  *
  * Return:	0 on success or error code in case of error
  */

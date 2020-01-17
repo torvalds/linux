@@ -148,8 +148,8 @@ int cgx_get_cgxid(void *cgxd)
 	return cgx->cgx_id;
 }
 
-/* Ensure the required lock for event queue(where asynchronous events are
- * posted) is acquired before calling this API. Else an asynchronous event(with
+/* Ensure the required lock for event queue(where asynchroyesus events are
+ * posted) is acquired before calling this API. Else an asynchroyesus event(with
  * latest link status) can reach the destination before this function returns
  * and could make the link status appear wrong.
  */
@@ -389,7 +389,7 @@ static int cgx_fwi_cmd_send(u64 req, u64 *resp, struct lmac *lmac)
 	int err = 0;
 	u64 cmd;
 
-	/* Ensure no other command is in progress */
+	/* Ensure yes other command is in progress */
 	err = mutex_lock_interruptible(&lmac->cmd_lock);
 	if (err)
 		return err;
@@ -519,7 +519,7 @@ static inline void cgx_link_change_handler(u64 lstat,
 	/* Ensure callback doesn't get unregistered until we finish it */
 	spin_lock(&lmac->event_cb_lock);
 
-	if (!lmac->event_cb.notify_link_chg) {
+	if (!lmac->event_cb.yestify_link_chg) {
 		dev_dbg(dev, "cgx port %d:%d Link change handler null",
 			cgx->cgx_id, lmac->lmac_id);
 		if (err_type != CGX_ERR_NONE) {
@@ -532,8 +532,8 @@ static inline void cgx_link_change_handler(u64 lstat,
 		goto err;
 	}
 
-	if (lmac->event_cb.notify_link_chg(&event, lmac->event_cb.data))
-		dev_err(dev, "event notification failure\n");
+	if (lmac->event_cb.yestify_link_chg(&event, lmac->event_cb.data))
+		dev_err(dev, "event yestification failure\n");
 err:
 	spin_unlock(&lmac->event_cb_lock);
 }
@@ -628,7 +628,7 @@ static irqreturn_t cgx_fwi_event_handler(int irq, void *data)
 	switch (FIELD_GET(EVTREG_EVT_TYPE, event)) {
 	case CGX_EVT_CMD_RESP:
 		/* Copy the response. Since only one command is active at a
-		 * time, there is no way a response can get overwritten
+		 * time, there is yes way a response can get overwritten
 		 */
 		lmac->resp = event;
 		/* Ensure response is updated before thread context starts */
@@ -689,7 +689,7 @@ int cgx_lmac_evh_unregister(void *cgxd, int lmac_id)
 		return -ENODEV;
 
 	spin_lock_irqsave(&lmac->event_cb_lock, flags);
-	lmac->event_cb.notify_link_chg = NULL;
+	lmac->event_cb.yestify_link_chg = NULL;
 	lmac->event_cb.data = NULL;
 	spin_unlock_irqrestore(&lmac->event_cb_lock, flags);
 
@@ -721,7 +721,7 @@ static inline int cgx_fwi_read_version(u64 *resp, struct cgx *cgx)
 static int cgx_lmac_verify_fwi_version(struct cgx *cgx)
 {
 	struct device *dev = &cgx->pdev->dev;
-	int major_ver, minor_ver;
+	int major_ver, miyesr_ver;
 	u64 resp;
 	int err;
 
@@ -733,11 +733,11 @@ static int cgx_lmac_verify_fwi_version(struct cgx *cgx)
 		return err;
 
 	major_ver = FIELD_GET(RESP_MAJOR_VER, resp);
-	minor_ver = FIELD_GET(RESP_MINOR_VER, resp);
+	miyesr_ver = FIELD_GET(RESP_MINOR_VER, resp);
 	dev_dbg(dev, "Firmware command interface version = %d.%d\n",
-		major_ver, minor_ver);
+		major_ver, miyesr_ver);
 	if (major_ver != CGX_FIRMWARE_MAJOR_VER ||
-	    minor_ver != CGX_FIRMWARE_MINOR_VER)
+	    miyesr_ver != CGX_FIRMWARE_MINOR_VER)
 		return -EIO;
 	else
 		return 0;
@@ -863,7 +863,7 @@ static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* MAP configuration registers */
 	cgx->reg_base = pcim_iomap(pdev, PCI_CFG_REG_BAR_NUM, 0);
 	if (!cgx->reg_base) {
-		dev_err(dev, "CGX: Cannot map CSR memory space, aborting\n");
+		dev_err(dev, "CGX: Canyest map CSR memory space, aborting\n");
 		err = -ENOMEM;
 		goto err_release_regions;
 	}

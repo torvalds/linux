@@ -19,7 +19,7 @@
 			.supply_name		= _of "-in",		\
 			.id			= _id,			\
 			.of_match		= of_match_ptr(_of),	\
-			.regulators_node	= of_match_ptr("regulators"),\
+			.regulators_yesde	= of_match_ptr("regulators"),\
 			.ops			= &_ops,		\
 			.n_voltages		= _n,			\
 			.type			= REGULATOR_VOLTAGE,	\
@@ -167,7 +167,7 @@ static int lp87565_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, lp87565);
 
 	config.dev = &pdev->dev;
-	config.dev->of_node = lp87565->dev->of_node;
+	config.dev->of_yesde = lp87565->dev->of_yesde;
 	config.driver_data = lp87565;
 	config.regmap = lp87565->regmap;
 

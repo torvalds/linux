@@ -80,7 +80,7 @@ struct mmp_pdma_desc_hw {
 
 struct mmp_pdma_desc_sw {
 	struct mmp_pdma_desc_hw desc;
-	struct list_head node;
+	struct list_head yesde;
 	struct list_head tx_list;
 	struct dma_async_tx_descriptor async_tx;
 };
@@ -132,7 +132,7 @@ struct mmp_pdma_device {
 #define tx_to_mmp_pdma_desc(tx)					\
 	container_of(tx, struct mmp_pdma_desc_sw, async_tx)
 #define to_mmp_pdma_desc(lh)					\
-	container_of(lh, struct mmp_pdma_desc_sw, node)
+	container_of(lh, struct mmp_pdma_desc_sw, yesde)
 #define to_mmp_pdma_chan(dchan)					\
 	container_of(dchan, struct mmp_pdma_chan, chan)
 #define to_mmp_pdma_dev(dmadev)					\
@@ -307,14 +307,14 @@ static void start_pending_queue(struct mmp_pdma_chan *chan)
 	if (list_empty(&chan->chain_pending)) {
 		/* chance to re-fetch phy channel with higher prio */
 		mmp_pdma_free_phy(chan);
-		dev_dbg(chan->dev, "no pending list\n");
+		dev_dbg(chan->dev, "yes pending list\n");
 		return;
 	}
 
 	if (!chan->phy) {
 		chan->phy = lookup_phy(chan);
 		if (!chan->phy) {
-			dev_dbg(chan->dev, "no free dma channel\n");
+			dev_dbg(chan->dev, "yes free dma channel\n");
 			return;
 		}
 	}
@@ -324,7 +324,7 @@ static void start_pending_queue(struct mmp_pdma_chan *chan)
 	 * reintilize pending list
 	 */
 	desc = list_first_entry(&chan->chain_pending,
-				struct mmp_pdma_desc_sw, node);
+				struct mmp_pdma_desc_sw, yesde);
 	list_splice_tail_init(&chan->chain_pending, &chan->chain_running);
 
 	/*
@@ -348,7 +348,7 @@ static dma_cookie_t mmp_pdma_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_lock_irqsave(&chan->desc_lock, flags);
 
-	list_for_each_entry(child, &desc->tx_list, node) {
+	list_for_each_entry(child, &desc->tx_list, yesde) {
 		cookie = dma_cookie_assign(&child->async_tx);
 	}
 
@@ -399,7 +399,7 @@ static int mmp_pdma_alloc_chan_resources(struct dma_chan *dchan)
 	chan->desc_pool = dma_pool_create(dev_name(&dchan->dev->device),
 					  chan->dev,
 					  sizeof(struct mmp_pdma_desc_sw),
-					  __alignof__(struct mmp_pdma_desc_sw),
+					  __aligyesf__(struct mmp_pdma_desc_sw),
 					  0);
 	if (!chan->desc_pool) {
 		dev_err(chan->dev, "unable to allocate descriptor pool\n");
@@ -417,8 +417,8 @@ static void mmp_pdma_free_desc_list(struct mmp_pdma_chan *chan,
 {
 	struct mmp_pdma_desc_sw *desc, *_desc;
 
-	list_for_each_entry_safe(desc, _desc, list, node) {
-		list_del(&desc->node);
+	list_for_each_entry_safe(desc, _desc, list, yesde) {
+		list_del(&desc->yesde);
 		dma_pool_free(chan->desc_pool, desc, desc->async_tx.phys);
 	}
 }
@@ -469,7 +469,7 @@ mmp_pdma_prep_memcpy(struct dma_chan *dchan,
 		/* Allocate the link descriptor from DMA pool */
 		new = mmp_pdma_alloc_descriptor(chan);
 		if (!new) {
-			dev_err(chan->dev, "no memory for desc\n");
+			dev_err(chan->dev, "yes memory for desc\n");
 			goto fail;
 		}
 
@@ -502,7 +502,7 @@ mmp_pdma_prep_memcpy(struct dma_chan *dchan,
 		}
 
 		/* Insert the link descriptor to the LD ring */
-		list_add_tail(&new->node, &first->tx_list);
+		list_add_tail(&new->yesde, &first->tx_list);
 	} while (len);
 
 	first->async_tx.flags = flags; /* client is in control of this ack */
@@ -553,7 +553,7 @@ mmp_pdma_prep_slave_sg(struct dma_chan *dchan, struct scatterlist *sgl,
 			/* allocate and populate the descriptor */
 			new = mmp_pdma_alloc_descriptor(chan);
 			if (!new) {
-				dev_err(chan->dev, "no memory for desc\n");
+				dev_err(chan->dev, "yes memory for desc\n");
 				goto fail;
 			}
 
@@ -576,7 +576,7 @@ mmp_pdma_prep_slave_sg(struct dma_chan *dchan, struct scatterlist *sgl,
 			prev = new;
 
 			/* Insert the link descriptor to the LD ring */
-			list_add_tail(&new->node, &first->tx_list);
+			list_add_tail(&new->yesde, &first->tx_list);
 
 			/* update metadata */
 			addr += len;
@@ -645,7 +645,7 @@ mmp_pdma_prep_dma_cyclic(struct dma_chan *dchan,
 		/* Allocate the link descriptor from DMA pool */
 		new = mmp_pdma_alloc_descriptor(chan);
 		if (!new) {
-			dev_err(chan->dev, "no memory for desc\n");
+			dev_err(chan->dev, "yes memory for desc\n");
 			goto fail;
 		}
 
@@ -671,7 +671,7 @@ mmp_pdma_prep_dma_cyclic(struct dma_chan *dchan,
 			dma_dst += period_len;
 
 		/* Insert the link descriptor to the LD ring */
-		list_add_tail(&new->node, &first->tx_list);
+		list_add_tail(&new->yesde, &first->tx_list);
 	} while (len);
 
 	first->async_tx.flags = flags; /* client is in control of this ack */
@@ -775,7 +775,7 @@ static unsigned int mmp_pdma_residue(struct mmp_pdma_chan *chan,
 	bool cyclic = chan->cyclic_first != NULL;
 
 	/*
-	 * If the channel does not have a phy pointer anymore, it has already
+	 * If the channel does yest have a phy pointer anymore, it has already
 	 * been completed. Therefore, its residue is 0.
 	 */
 	if (!chan->phy)
@@ -786,7 +786,7 @@ static unsigned int mmp_pdma_residue(struct mmp_pdma_chan *chan,
 	else
 		curr = readl(chan->phy->base + DSADR(chan->phy->idx));
 
-	list_for_each_entry(sw, &chan->chain_running, node) {
+	list_for_each_entry(sw, &chan->chain_running, yesde) {
 		u32 start, end, len;
 
 		if (chan->dir == DMA_DEV_TO_MEM)
@@ -818,10 +818,10 @@ static unsigned int mmp_pdma_residue(struct mmp_pdma_chan *chan,
 		 * returned previously from mmp_pdma_tx_submit().
 		 *
 		 * In case we have multiple transactions in the running chain,
-		 * and the cookie does not match the one the user asked us
+		 * and the cookie does yest match the one the user asked us
 		 * about, reset the state variables and start over.
 		 *
-		 * This logic does not apply to cyclic transactions, where all
+		 * This logic does yest apply to cyclic transactions, where all
 		 * descriptors have the ENDIRQEN bit set, and for which we
 		 * can't have multiple transactions on one channel anyway.
 		 */
@@ -895,12 +895,12 @@ static void dma_do_tasklet(unsigned long data)
 	/* submit pending list; callback for each desc; free desc */
 	spin_lock_irqsave(&chan->desc_lock, flags);
 
-	list_for_each_entry_safe(desc, _desc, &chan->chain_running, node) {
+	list_for_each_entry_safe(desc, _desc, &chan->chain_running, yesde) {
 		/*
 		 * move the descriptors to a temporary list so we can drop
 		 * the lock during the entire cleanup operation
 		 */
-		list_move(&desc->node, &chain_cleanup);
+		list_move(&desc->yesde, &chain_cleanup);
 
 		/*
 		 * Look for the first list entry which has the ENDIRQEN flag
@@ -926,11 +926,11 @@ static void dma_do_tasklet(unsigned long data)
 	spin_unlock_irqrestore(&chan->desc_lock, flags);
 
 	/* Run the callback for each descriptor, in order */
-	list_for_each_entry_safe(desc, _desc, &chain_cleanup, node) {
+	list_for_each_entry_safe(desc, _desc, &chain_cleanup, yesde) {
 		struct dma_async_tx_descriptor *txd = &desc->async_tx;
 
 		/* Remove from the list of transactions */
-		list_del(&desc->node);
+		list_del(&desc->yesde);
 		/* Run the link descriptor callback function */
 		dmaengine_desc_get_callback(txd, &cb);
 		dmaengine_desc_callback_invoke(&cb, NULL);
@@ -945,8 +945,8 @@ static int mmp_pdma_remove(struct platform_device *op)
 	struct mmp_pdma_phy *phy;
 	int i, irq = 0, irq_num = 0;
 
-	if (op->dev.of_node)
-		of_dma_controller_free(op->dev.of_node);
+	if (op->dev.of_yesde)
+		of_dma_controller_free(op->dev.of_yesde);
 
 	for (i = 0; i < pdev->dma_channels; i++) {
 		if (platform_get_irq(op, i) > 0)
@@ -998,7 +998,7 @@ static int mmp_pdma_chan_init(struct mmp_pdma_device *pdev, int idx, int irq)
 	INIT_LIST_HEAD(&chan->chain_running);
 
 	/* register virt channel to dma engine */
-	list_add_tail(&chan->chan.device_node, &pdev->device.channels);
+	list_add_tail(&chan->chan.device_yesde, &pdev->device.channels);
 
 	return 0;
 }
@@ -1051,7 +1051,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 
 	of_id = of_match_device(mmp_pdma_dt_ids, pdev->dev);
 	if (of_id)
-		of_property_read_u32(pdev->dev->of_node, "#dma-channels",
+		of_property_read_u32(pdev->dev->of_yesde, "#dma-channels",
 				     &dma_channels);
 	else if (pdata && pdata->dma_channels)
 		dma_channels = pdata->dma_channels;
@@ -1118,9 +1118,9 @@ static int mmp_pdma_probe(struct platform_device *op)
 		return ret;
 	}
 
-	if (op->dev.of_node) {
+	if (op->dev.of_yesde) {
 		/* Device-tree DMA controller registration */
-		ret = of_dma_controller_register(op->dev.of_node,
+		ret = of_dma_controller_register(op->dev.of_yesde,
 						 mmp_pdma_dma_xlate, pdev);
 		if (ret < 0) {
 			dev_err(&op->dev, "of_dma_controller_register failed\n");

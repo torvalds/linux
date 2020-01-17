@@ -46,7 +46,7 @@ struct lochnagar_clk_priv {
 #define LN_PARENT(NAME) { .name = NAME, .fw_name = NAME }
 
 static const struct clk_parent_data lochnagar1_clk_parents[] = {
-	LN_PARENT("ln-none"),
+	LN_PARENT("ln-yesne"),
 	LN_PARENT("ln-spdif-mclk"),
 	LN_PARENT("ln-psia1-mclk"),
 	LN_PARENT("ln-psia2-mclk"),
@@ -60,7 +60,7 @@ static const struct clk_parent_data lochnagar1_clk_parents[] = {
 };
 
 static const struct clk_parent_data lochnagar2_clk_parents[] = {
-	LN_PARENT("ln-none"),
+	LN_PARENT("ln-yesne"),
 	LN_PARENT("ln-cdc-clkout"),
 	LN_PARENT("ln-dsp-clkout"),
 	LN_PARENT("ln-pmic-32k"),

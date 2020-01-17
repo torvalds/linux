@@ -7,7 +7,7 @@
  */
 
 #include <linux/gpio/driver.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -121,7 +121,7 @@ davinci_direction_out(struct gpio_chip *chip, unsigned offset, int value)
 
 /*
  * Read the pin's value (works even if it's set up as output);
- * returns zero/nonzero.
+ * returns zero/yesnzero.
  *
  * Note that changes are synched to the GPIO clock, so reading values back
  * right after you've set them may give old values.
@@ -156,12 +156,12 @@ davinci_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 static struct davinci_gpio_platform_data *
 davinci_gpio_get_pdata(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	struct davinci_gpio_platform_data *pdata;
 	int ret;
 	u32 val;
 
-	if (!IS_ENABLED(CONFIG_OF) || !pdev->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !pdev->dev.of_yesde)
 		return dev_get_platdata(&pdev->dev);
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
@@ -239,7 +239,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 		chips->irqs[i] = platform_get_irq(pdev, i);
 		if (chips->irqs[i] < 0) {
 			if (chips->irqs[i] != -EPROBE_DEFER)
-				dev_info(dev, "IRQ not populated, err = %d\n",
+				dev_info(dev, "IRQ yest populated, err = %d\n",
 					 chips->irqs[i]);
 			return chips->irqs[i];
 		}
@@ -253,14 +253,14 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	chips->chip.set = davinci_gpio_set;
 
 	chips->chip.ngpio = ngpio;
-	chips->chip.base = pdata->no_auto_base ? pdata->base : -1;
+	chips->chip.base = pdata->yes_auto_base ? pdata->base : -1;
 
 #ifdef CONFIG_OF_GPIO
 	chips->chip.of_gpio_n_cells = 2;
 	chips->chip.parent = dev;
-	chips->chip.of_node = dev->of_node;
+	chips->chip.of_yesde = dev->of_yesde;
 
-	if (of_property_read_bool(dev->of_node, "gpio-ranges")) {
+	if (of_property_read_bool(dev->of_yesde, "gpio-ranges")) {
 		chips->chip.request = gpiochip_generic_request;
 		chips->chip.free = gpiochip_generic_free;
 	}
@@ -285,7 +285,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 
 /*--------------------------------------------------------------------------*/
 /*
- * We expect irqs will normally be set up as input pins, but they can also be
+ * We expect irqs will yesrmally be set up as input pins, but they can also be
  * used as output pins ... which is convenient for testing.
  *
  * NOTE:  The first few GPIOs also have direct INTC hookups in addition
@@ -366,7 +366,7 @@ static void gpio_irq_handler(struct irq_desc *desc)
 			break;
 		writel_relaxed(status, &g->intstat);
 
-		/* now demux them to the right lowlevel handler */
+		/* yesw demux them to the right lowlevel handler */
 
 		while (status) {
 			bit = __ffs(status);
@@ -381,7 +381,7 @@ static void gpio_irq_handler(struct irq_desc *desc)
 		}
 	}
 	chained_irq_exit(irq_desc_get_chip(desc), desc);
-	/* now it may re-trigger */
+	/* yesw it may re-trigger */
 }
 
 static int gpio_to_irq_banked(struct gpio_chip *chip, unsigned offset)
@@ -399,7 +399,7 @@ static int gpio_to_irq_unbanked(struct gpio_chip *chip, unsigned offset)
 	struct davinci_gpio_controller *d = gpiochip_get_data(chip);
 
 	/*
-	 * NOTE:  we assume for now that only irqs in the first gpio_chip
+	 * NOTE:  we assume for yesw that only irqs in the first gpio_chip
 	 * can provide direct-mapped IRQs to AINTC (up to 32 GPIOs).
 	 */
 	if (offset < d->gpio_unbanked)
@@ -480,7 +480,7 @@ static const struct of_device_id davinci_gpio_ids[];
 /*
  * NOTE:  for suspend/resume, probably best to make a platform_device with
  * suspend_late/resume_resume calls hooking into results of the set_wake()
- * calls ... so if no gpios are wakeup events the clock can be disabled,
+ * calls ... so if yes gpios are wakeup events the clock can be disabled,
  * with outputs left at previously set levels, and so that VDD3P3V.IOPWDN0
  * (dm6446) can be set appropriately for GPIOV33 pins.
  */
@@ -504,7 +504,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 	gpio_get_irq_chip_cb_t gpio_get_irq_chip;
 
 	/*
-	 * Use davinci_gpio_get_irq_chip by default to handle non DT cases
+	 * Use davinci_gpio_get_irq_chip by default to handle yesn DT cases
 	 */
 	gpio_get_irq_chip = davinci_gpio_get_irq_chip;
 	match = of_match_device(of_match_ptr(davinci_gpio_ids),
@@ -532,7 +532,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 			return irq;
 		}
 
-		irq_domain = irq_domain_add_legacy(dev->of_node, ngpio, irq, 0,
+		irq_domain = irq_domain_add_legacy(dev->of_yesde, ngpio, irq, 0,
 							&davinci_gpio_irq_ops,
 							chips);
 		if (!irq_domain) {
@@ -553,7 +553,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 
 	/*
 	 * AINTC can handle direct/unbanked IRQs for GPIOs, with the GPIO
-	 * controller only handling trigger modes.  We currently assume no
+	 * controller only handling trigger modes.  We currently assume yes
 	 * IRQ mux conflicts; gpio_irq_type_unbanked() is only for GPIOs.
 	 */
 	if (pdata->gpio_unbanked) {

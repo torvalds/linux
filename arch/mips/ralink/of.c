@@ -26,24 +26,24 @@
 __iomem void *rt_sysc_membase;
 __iomem void *rt_memc_membase;
 
-__iomem void *plat_of_remap_node(const char *node)
+__iomem void *plat_of_remap_yesde(const char *yesde)
 {
 	struct resource res;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, node);
+	np = of_find_compatible_yesde(NULL, NULL, yesde);
 	if (!np)
-		panic("Failed to find %s node", node);
+		panic("Failed to find %s yesde", yesde);
 
 	if (of_address_to_resource(np, 0, &res))
-		panic("Failed to get resource for %s", node);
+		panic("Failed to get resource for %s", yesde);
 
 	if (!request_mem_region(res.start,
 				resource_size(&res),
 				res.name))
-		panic("Failed to request resources for %s", node);
+		panic("Failed to request resources for %s", yesde);
 
-	return ioremap_nocache(res.start, resource_size(&res));
+	return ioremap_yescache(res.start, resource_size(&res));
 }
 
 void __init device_tree_init(void)
@@ -53,7 +53,7 @@ void __init device_tree_init(void)
 
 static int memory_dtb;
 
-static int __init early_init_dt_find_memory(unsigned long node,
+static int __init early_init_dt_find_memory(unsigned long yesde,
 				const char *uname, int depth, void *data)
 {
 	if (depth == 1 && !strcmp(uname, "memory@0"))
@@ -69,7 +69,7 @@ void __init plat_mem_setup(void)
 	set_io_port_base(KSEG1);
 
 	/*
-	 * Load the builtin devicetree. This causes the chosen node to be
+	 * Load the builtin devicetree. This causes the chosen yesde to be
 	 * parsed resulting in our memory appearing. fw_passed_dtb is used
 	 * by CONFIG_MIPS_APPENDED_RAW_DTB as well.
 	 */

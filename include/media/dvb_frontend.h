@@ -10,7 +10,7 @@
  *
  * Written by Ralph Metzler
  * Overhauled by Holger Waechtler
- * Kernel I2C stuff by Michael Hunold <hunold@convergence.de>
+ * Kernel I2C stuff by Michael Huyesld <huyesld@convergence.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -24,7 +24,7 @@
  *
 
  * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */
@@ -37,7 +37,7 @@
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -123,7 +123,7 @@ struct analog_parameters {
  *
  * @DVBFE_ALGO_HW: Hardware Algorithm -
  *	Devices that support this algorithm do everything in hardware
- *	and no software support is needed to handle them.
+ *	and yes software support is needed to handle them.
  *	Requesting these devices to LOCK is the only thing required,
  *	device is supposed to do everything in the hardware.
  *
@@ -354,7 +354,7 @@ struct dvb_frontend_internal_info {
  * @info:		embedded &struct dvb_tuner_info with tuner properties
  * @delsys:		Delivery systems supported by the frontend
  * @detach:		callback function called when frontend is detached.
- *			drivers should clean up, but not yet free the &struct
+ *			drivers should clean up, but yest yet free the &struct
  *			dvb_frontend allocation.
  * @release:		callback function called when frontend is ready to be
  *			freed.
@@ -366,7 +366,7 @@ struct dvb_frontend_internal_info {
  * @sleep:		callback function used to put the tuner to sleep.
  * @write:		callback function used by some demod legacy drivers to
  *			allow other drivers to write data into their registers.
- *			Should not be used on new drivers.
+ *			Should yest be used on new drivers.
  * @tune:		callback function used by demod drivers that use
  *			@DVBFE_ALGO_HW to tune into a frequency.
  * @get_frontend_algo:	returns the desired hardware algorithm.
@@ -380,9 +380,9 @@ struct dvb_frontend_internal_info {
  * @get_frontend:	callback function used to inform the parameters
  *			actuall in use. The properties to be used are stored at
  *			&struct dvb_frontend.dtv_property_cache and update
- *			statistics. Please notice that it should not return
- *			an error code if the statistics are not available
- *			because the demog is not locked.
+ *			statistics. Please yestice that it should yest return
+ *			an error code if the statistics are yest available
+ *			because the demog is yest locked.
  * @read_status:	returns the locking status of the frontend.
  * @read_ber:		legacy callback function to return the bit error rate.
  *			Newer drivers should provide such info via DVBv5 API,
@@ -419,7 +419,7 @@ struct dvb_frontend_internal_info {
  *			FE_ENABLE_HIGH_LNB_VOLTAGE() ioctl (only Satellite).
  * @dishnetwork_send_legacy_command: callback function to implement the
  *			FE_DISHNETWORK_SEND_LEGACY_CMD() ioctl (only Satellite).
- *			Drivers should not use this, except when the DVB
+ *			Drivers should yest use this, except when the DVB
  *			core emulation fails to provide proper support (e.g.
  *			if @set_voltage takes more than 8ms to work), and
  *			when backward compatibility with this legacy API is
@@ -548,9 +548,9 @@ struct dvb_fe_events {
  * @atscmh_fic_ver:	Version number of the FIC (Fast Information Channel)
  *			signaling data (only ATSC-M/H)
  * @atscmh_parade_id:	Parade identification number (only ATSC-M/H)
- * @atscmh_nog:		Number of MH groups per MH subframe for a designated
+ * @atscmh_yesg:		Number of MH groups per MH subframe for a designated
  *			parade (only ATSC-M/H)
- * @atscmh_tnog:	Total number of MH groups including all MH groups
+ * @atscmh_tyesg:	Total number of MH groups including all MH groups
  *			belonging to all MH parades in one MH subframe
  *			(only ATSC-M/H)
  * @atscmh_sgn:		Start group number (only ATSC-M/H)
@@ -565,7 +565,7 @@ struct dvb_fe_events {
  * @atscmh_sccc_code_mode_b:	SCCC code mode B (only ATSC-M/H)
  * @atscmh_sccc_code_mode_c:	SCCC code mode C (only ATSC-M/H)
  * @atscmh_sccc_code_mode_d:	SCCC code mode D (only ATSC-M/H)
- * @lna:		Power ON/OFF/AUTO the Linear Now-noise Amplifier (LNA)
+ * @lna:		Power ON/OFF/AUTO the Linear Now-yesise Amplifier (LNA)
  * @strength:		DVBv5 API statistics: Signal Strength
  * @cnr:		DVBv5 API statistics: Signal to Noise ratio of the
  *			(main) carrier
@@ -629,8 +629,8 @@ struct dtv_frontend_properties {
 	/* ATSC-MH specifics */
 	u8			atscmh_fic_ver;
 	u8			atscmh_parade_id;
-	u8			atscmh_nog;
-	u8			atscmh_tnog;
+	u8			atscmh_yesg;
+	u8			atscmh_tyesg;
 	u8			atscmh_sgn;
 	u8			atscmh_prc;
 
@@ -813,7 +813,7 @@ void dvb_frontend_reinitialise(struct dvb_frontend *fe);
  * FE_DISHNETWORK_SEND_LEGACY_CMD() using the &dvb_frontend_ops.set_voltage\(\)
  * callback.
  *
- * NOTE: it should not be used at the drivers, as the emulation for the
+ * NOTE: it should yest be used at the drivers, as the emulation for the
  * legacy callback is provided by the Kernel. The only situation where this
  * should be at the drivers is when there are some bugs at the hardware that
  * would prevent the core emulation to work. On such cases, the driver would

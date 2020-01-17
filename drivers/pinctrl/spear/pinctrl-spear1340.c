@@ -326,11 +326,11 @@ static struct spear_pingroup fsmc_16bit_pingroup = {
 	.nmodemuxs = ARRAY_SIZE(fsmc_16bit_modemux),
 };
 
-/* pad multiplexing for fsmc_pnor device */
-static const unsigned fsmc_pnor_pins[] = { 192, 193, 194, 195, 196, 197, 198,
+/* pad multiplexing for fsmc_pyesr device */
+static const unsigned fsmc_pyesr_pins[] = { 192, 193, 194, 195, 196, 197, 198,
 	199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212,
 	215, 216, 217 };
-static struct spear_muxreg fsmc_pnor_muxreg[] = {
+static struct spear_muxreg fsmc_pyesr_muxreg[] = {
 	{
 		.reg = PAD_SHARED_IP_EN_1,
 		.mask = MCIF_MASK,
@@ -342,23 +342,23 @@ static struct spear_muxreg fsmc_pnor_muxreg[] = {
 	},
 };
 
-static struct spear_modemux fsmc_pnor_modemux[] = {
+static struct spear_modemux fsmc_pyesr_modemux[] = {
 	{
-		.muxregs = fsmc_pnor_muxreg,
-		.nmuxregs = ARRAY_SIZE(fsmc_pnor_muxreg),
+		.muxregs = fsmc_pyesr_muxreg,
+		.nmuxregs = ARRAY_SIZE(fsmc_pyesr_muxreg),
 	},
 };
 
-static struct spear_pingroup fsmc_pnor_pingroup = {
-	.name = "fsmc_pnor_grp",
-	.pins = fsmc_pnor_pins,
-	.npins = ARRAY_SIZE(fsmc_pnor_pins),
-	.modemuxs = fsmc_pnor_modemux,
-	.nmodemuxs = ARRAY_SIZE(fsmc_pnor_modemux),
+static struct spear_pingroup fsmc_pyesr_pingroup = {
+	.name = "fsmc_pyesr_grp",
+	.pins = fsmc_pyesr_pins,
+	.npins = ARRAY_SIZE(fsmc_pyesr_pins),
+	.modemuxs = fsmc_pyesr_modemux,
+	.nmodemuxs = ARRAY_SIZE(fsmc_pyesr_modemux),
 };
 
 static const char *const fsmc_grps[] = { "fsmc_8bit_grp", "fsmc_16bit_grp",
-	"fsmc_pnor_grp" };
+	"fsmc_pyesr_grp" };
 static struct spear_function fsmc_function = {
 	.name = "fsmc",
 	.groups = fsmc_grps,
@@ -1888,7 +1888,7 @@ static struct spear_pingroup *spear1340_pingroups[] = {
 	&pads_as_gpio_pingroup,
 	&fsmc_8bit_pingroup,
 	&fsmc_16bit_pingroup,
-	&fsmc_pnor_pingroup,
+	&fsmc_pyesr_pingroup,
 	&keyboard_row_col_pingroup,
 	&keyboard_col5_pingroup,
 	&spdif_in_pingroup,

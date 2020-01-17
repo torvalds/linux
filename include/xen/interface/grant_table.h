@@ -11,7 +11,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -38,7 +38,7 @@
  * in a concurrency-safe manner. For more information, Linux contains a
  * reference implementation for guest OSes (arch/xen/kernel/grant_table.c).
  *
- * NB. WMB is a no-op on current-generation x86 processors. However, a
+ * NB. WMB is a yes-op on current-generation x86 processors. However, a
  *     compiler barrier will still be required.
  *
  * Introducing a valid entry into the grant table:
@@ -46,7 +46,7 @@
  *  2. Write ent->frame:
  *      GTF_permit_access:   Frame to which access is permitted.
  *      GTF_accept_transfer: Pseudo-phys frame slot being filled by new
- *                           frame, or zero if none.
+ *                           frame, or zero if yesne.
  *  3. Write memory barrier (WMB).
  *  4. Write ent->flags, inc. valid type.
  *
@@ -58,9 +58,9 @@
  *      step 3, and all architectures guarantee ordering of ctrl-dep writes.
  *
  * Invalidating an in-use GTF_permit_access entry:
- *  This cannot be done directly. Request assistance from the domain controller
+ *  This canyest be done directly. Request assistance from the domain controller
  *  which can set a timeout on the use of a grant entry and take necessary
- *  action. (NB. This is not yet implemented!).
+ *  action. (NB. This is yest yet implemented!).
  *
  * Invalidating an unused GTF_accept_transfer entry:
  *  1. flags = ent->flags.
@@ -69,7 +69,7 @@
  *  NB. No need for WMB as reuse of entry is control-dependent on success of
  *      step 3, and all architectures guarantee ordering of ctrl-dep writes.
  *  [*] If GTF_transfer_committed is set then the grant entry is 'committed'.
- *      The guest must /not/ modify the grant entry until the address of the
+ *      The guest must /yest/ modify the grant entry until the address of the
  *      transferred frame is written. It is safe for the guest to spin waiting
  *      for this to occur (detect by observing GTF_transfer_completed in
  *      ent->flags).
@@ -114,7 +114,7 @@ struct grant_entry_v1 {
 
 /*
  * Type of grant entry.
- *  GTF_invalid: This grant entry grants no privileges.
+ *  GTF_invalid: This grant entry grants yes privileges.
  *  GTF_permit_access: Allow @domid to map/access @frame.
  *  GTF_accept_transfer: Allow @domid to transfer ownership of one page frame
  *                       to this guest. Xen writes the page number to @frame.
@@ -133,7 +133,7 @@ struct grant_entry_v1 {
  *  GTF_reading: Grant entry is currently mapped for reading by @domid. [XEN]
  *  GTF_writing: Grant entry is currently mapped for writing by @domid. [XEN]
  *  GTF_sub_page: Grant access to only a subrange of the page.  @domid
- *                will only be allowed to copy from the grant, and not
+ *                will only be allowed to copy from the grant, and yest
  *                map it. [GST]
  */
 #define _GTF_readonly       (2)
@@ -149,7 +149,7 @@ struct grant_entry_v1 {
  * Subflags for GTF_accept_transfer:
  *  GTF_transfer_committed: Xen sets this flag to indicate that it is committed
  *      to transferring ownership of a page frame. When a guest sees this flag
- *      it must /not/ modify the grant entry until GTF_transfer_completed is
+ *      it must /yest/ modify the grant entry until GTF_transfer_completed is
  *      set by Xen.
  *  GTF_transfer_completed: It is safe for the guest to spin-wait on this flag
  *      after reading GTF_transfer_committed. Xen will always write the frame
@@ -166,7 +166,7 @@ struct grant_entry_v1 {
  * Any given domain will have either a version 1 or a version 2 table,
  * and every entry in the table will be the same version.
  *
- * The interface by which domains use grant references does not depend
+ * The interface by which domains use grant references does yest depend
  * on the grant table version in use by the other domain.
  */
 
@@ -191,7 +191,7 @@ union grant_entry_v2 {
      * This member is used for V1-style full page grants, where either:
      *
      * -- hdr.type is GTF_accept_transfer, or
-     * -- hdr.type is GTF_permit_access and GTF_sub_page is not set.
+     * -- hdr.type is GTF_permit_access and GTF_sub_page is yest set.
      *
      * In that case, the frame field has the same semantics as the
      * field of the same name in the V1 entry structure.
@@ -275,12 +275,12 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_map_grant_ref);
 /*
  * GNTTABOP_unmap_grant_ref: Destroy one or more grant-reference mappings
  * tracked by <handle>. If <host_addr> or <dev_bus_addr> is zero, that
- * field is ignored. If non-zero, they must refer to a device/host mapping
+ * field is igyesred. If yesn-zero, they must refer to a device/host mapping
  * that is tracked by <handle>
  * NOTES:
- *  1. The call may fail in an undefined manner if either mapping is not
+ *  1. The call may fail in an undefined manner if either mapping is yest
  *     tracked by <handle>.
- *  3. After executing a batch of unmaps, it is guaranteed that no stale
+ *  3. After executing a batch of unmaps, it is guaranteed that yes stale
  *     mappings will remain in the device or host TLBs.
  */
 #define GNTTABOP_unmap_grant_ref      1
@@ -301,7 +301,7 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_unmap_grant_ref);
  * NOTES:
  *  1. <dom> may be specified as DOMID_SELF.
  *  2. Only a sufficiently-privileged domain may specify <dom> != DOMID_SELF.
- *  3. Xen may not support more than a single grant-table page per domain.
+ *  3. Xen may yest support more than a single grant-table page per domain.
  */
 #define GNTTABOP_setup_table          2
 struct gnttab_setup_table {
@@ -332,7 +332,7 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_dump_table);
  * foreign domain has previously registered its interest in the transfer via
  * <domid, ref>.
  *
- * Note that, even if the transfer fails, the specified page no longer belongs
+ * Note that, even if the transfer fails, the specified page yes longer belongs
  * to the calling domain *unless* the error is GNTST_bad_page.
  */
 #define GNTTABOP_transfer                4
@@ -411,9 +411,9 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_query_size);
  * pointing to the machine address under <new_addr>.  <new_addr> will be
  * redirected to the null entry.
  * NOTES:
- *  1. The call may fail in an undefined manner if either mapping is not
+ *  1. The call may fail in an undefined manner if either mapping is yest
  *     tracked by <handle>.
- *  2. After executing a batch of unmaps, it is guaranteed that no stale
+ *  2. After executing a batch of unmaps, it is guaranteed that yes stale
  *     mappings will remain in the device or host TLBs.
  */
 #define GNTTABOP_unmap_and_replace    7
@@ -542,12 +542,12 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_cache_flush);
 #define GNTST_bad_handle       (-4) /* Unrecognised or inappropriate handle. */
 #define GNTST_bad_virt_addr    (-5) /* Inappropriate virtual address to map. */
 #define GNTST_bad_dev_addr     (-6) /* Inappropriate device address to unmap.*/
-#define GNTST_no_device_space  (-7) /* Out of space in I/O MMU.              */
-#define GNTST_permission_denied (-8) /* Not enough privilege for operation.  */
+#define GNTST_yes_device_space  (-7) /* Out of space in I/O MMU.              */
+#define GNTST_permission_denied (-8) /* Not eyesugh privilege for operation.  */
 #define GNTST_bad_page         (-9) /* Specified page was invalid for op.    */
 #define GNTST_bad_copy_arg    (-10) /* copy arguments cross page boundary.   */
 #define GNTST_address_too_big (-11) /* transfer page address too large.      */
-#define GNTST_eagain          (-12) /* Operation not done; try again.        */
+#define GNTST_eagain          (-12) /* Operation yest done; try again.        */
 
 #define GNTTABOP_error_msgs {                   \
     "okay",                                     \
@@ -557,12 +557,12 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_cache_flush);
     "invalid mapping handle",                   \
     "invalid virtual address",                  \
     "invalid device address",                   \
-    "no spare translation slot in the I/O MMU", \
+    "yes spare translation slot in the I/O MMU", \
     "permission denied",                        \
     "bad page",                                 \
     "copy arguments cross page boundary",       \
     "page address size too large",              \
-    "operation not done; try again"             \
+    "operation yest done; try again"             \
 }
 
 #endif /* __XEN_PUBLIC_GRANT_TABLE_H__ */

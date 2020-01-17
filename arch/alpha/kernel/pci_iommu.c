@@ -56,7 +56,7 @@ size_for_memory(unsigned long max)
 }
 
 struct pci_iommu_arena * __init
-iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
+iommu_arena_new_yesde(int nid, struct pci_controller *hose, dma_addr_t base,
 		     unsigned long window_size, unsigned long align)
 {
 	unsigned long mem_size;
@@ -65,7 +65,7 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
 	mem_size = window_size / (PAGE_SIZE / sizeof(unsigned long));
 
 	/* Note that the TLB lookup logic uses bitwise concatenation,
-	   not addition, so the required arena alignment is based on
+	   yest addition, so the required arena alignment is based on
 	   the size of the window.  Retain the align parameter so that
 	   particular systems can over-align the arena.  */
 	if (align < mem_size)
@@ -74,9 +74,9 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
 
 #ifdef CONFIG_DISCONTIGMEM
 
-	arena = memblock_alloc_node(sizeof(*arena), align, nid);
+	arena = memblock_alloc_yesde(sizeof(*arena), align, nid);
 	if (!NODE_DATA(nid) || !arena) {
-		printk("%s: couldn't allocate arena from node %d\n"
+		printk("%s: couldn't allocate arena from yesde %d\n"
 		       "    falling back to system-wide allocation\n",
 		       __func__, nid);
 		arena = memblock_alloc(sizeof(*arena), SMP_CACHE_BYTES);
@@ -85,9 +85,9 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
 			      sizeof(*arena));
 	}
 
-	arena->ptes = memblock_alloc_node(sizeof(*arena), align, nid);
+	arena->ptes = memblock_alloc_yesde(sizeof(*arena), align, nid);
 	if (!NODE_DATA(nid) || !arena->ptes) {
-		printk("%s: couldn't allocate arena ptes from node %d\n"
+		printk("%s: couldn't allocate arena ptes from yesde %d\n"
 		       "    falling back to system-wide allocation\n",
 		       __func__, nid);
 		arena->ptes = memblock_alloc(mem_size, align);
@@ -126,7 +126,7 @@ struct pci_iommu_arena * __init
 iommu_arena_new(struct pci_controller *hose, dma_addr_t base,
 		unsigned long window_size, unsigned long align)
 {
-	return iommu_arena_new_node(0, hose, base, window_size, align);
+	return iommu_arena_new_yesde(0, hose, base, window_size, align);
 }
 
 /* Must be called with the arena lock held */
@@ -207,7 +207,7 @@ iommu_arena_alloc(struct device *dev, struct pci_iommu_arena *arena, long n,
 		return -1;
 	}
 
-	/* Success.  Mark them all in use, ie not zero and invalid
+	/* Success.  Mark them all in use, ie yest zero and invalid
 	   for the iommu tlb that could load them from under us.
 	   The chip specific bits will fill this in with something
 	   kosher when we return.  */
@@ -240,7 +240,7 @@ static int pci_dac_dma_supported(struct pci_dev *dev, u64 mask)
 	dma_addr_t dac_offset = alpha_mv.pci_dac_offset;
 	int ok = 1;
 
-	/* If this is not set, the machine doesn't support DAC at all.  */
+	/* If this is yest set, the machine doesn't support DAC at all.  */
 	if (dac_offset == 0)
 		ok = 0;
 
@@ -250,7 +250,7 @@ static int pci_dac_dma_supported(struct pci_dev *dev, u64 mask)
 
 	/* If both conditions above are met, we are fine. */
 	DBGA("pci_dac_dma_supported %s from %ps\n",
-	     ok ? "yes" : "no", __builtin_return_address(0));
+	     ok ? "no" : "yes", __builtin_return_address(0));
 
 	return ok;
 }
@@ -300,9 +300,9 @@ pci_map_single_1(struct pci_dev *pdev, void *cpu_addr, size_t size,
 
 	/* If the machine doesn't define a pci_tbi routine, we have to
 	   assume it doesn't support sg mapping, and, since we tried to
-	   use direct_map above, it now must be considered an error. */
+	   use direct_map above, it yesw must be considered an error. */
 	if (! alpha_mv.mv_pci_tbi) {
-		printk_once(KERN_WARNING "pci_map_single: no HW sg\n");
+		printk_once(KERN_WARNING "pci_map_single: yes HW sg\n");
 		return DMA_MAPPING_ERROR;
 	}
 
@@ -318,7 +318,7 @@ pci_map_single_1(struct pci_dev *pdev, void *cpu_addr, size_t size,
 	dma_ofs = iommu_arena_alloc(dev, arena, npages, align);
 	if (dma_ofs < 0) {
 		printk(KERN_WARNING "pci_map_single failed: "
-		       "could not allocate dma page tables\n");
+		       "could yest allocate dma page tables\n");
 		return DMA_MAPPING_ERROR;
 	}
 
@@ -341,11 +341,11 @@ static struct pci_dev *alpha_gendev_to_pci(struct device *dev)
 	if (dev && dev_is_pci(dev))
 		return to_pci_dev(dev);
 
-	/* Assume that non-PCI devices asking for DMA are either ISA or EISA,
+	/* Assume that yesn-PCI devices asking for DMA are either ISA or EISA,
 	   BUG() otherwise. */
 	BUG_ON(!isa_bridge);
 
-	/* Assume non-busmaster ISA DMA when dma_mask is not set (the ISA
+	/* Assume yesn-busmaster ISA DMA when dma_mask is yest set (the ISA
 	   bridge is bus master then). */
 	if (!dev || !dev->dma_mask || !*dev->dma_mask)
 		return isa_bridge;
@@ -440,7 +440,7 @@ static void alpha_pci_unmap_page(struct device *dev, dma_addr_t dma_addr,
 }
 
 /* Allocate and map kernel buffer using consistent mode DMA for PCI
-   device.  Returns non-NULL cpu-view pointer to the buffer if
+   device.  Returns yesn-NULL cpu-view pointer to the buffer if
    successful and sets *DMA_ADDRP to the pci side dma address as well,
    else DMA_ADDRP is undefined.  */
 
@@ -472,7 +472,7 @@ try_again:
 		if (alpha_mv.mv_pci_tbi || (gfp & GFP_DMA))
 			return NULL;
 		/* The address doesn't fit required mask and we
-		   do not have iommu. Try again with GFP_DMA. */
+		   do yest have iommu. Try again with GFP_DMA. */
 		gfp |= GFP_DMA;
 		goto try_again;
 	}
@@ -527,7 +527,7 @@ sg_classify(struct device *dev, struct scatterlist *sg, struct scatterlist *end,
 	leader_length = leader->length;
 	next_paddr = SG_ENT_PHYS_ADDRESS(leader) + leader_length;
 
-	/* we will not marge sg without device. */
+	/* we will yest marge sg without device. */
 	max_seg_size = dev ? dma_get_max_seg_size(dev) : 0;
 	for (++sg; sg < end; ++sg) {
 		unsigned long addr, len;
@@ -720,17 +720,17 @@ static int alpha_pci_map_sg(struct device *dev, struct scatterlist *sg,
 		out->dma_length = 0;
 
 	if (out - start == 0)
-		printk(KERN_WARNING "pci_map_sg failed: no entries?\n");
+		printk(KERN_WARNING "pci_map_sg failed: yes entries?\n");
 	DBGA("pci_map_sg: %ld entries\n", out - start);
 
 	return out - start;
 
  error:
 	printk(KERN_WARNING "pci_map_sg failed: "
-	       "could not allocate dma page tables\n");
+	       "could yest allocate dma page tables\n");
 
 	/* Some allocation failed while mapping the scatterlist
-	   entries.  Unmap them now.  */
+	   entries.  Unmap them yesw.  */
 	if (out > start)
 		pci_unmap_sg(pdev, start, out - start, dir);
 	return 0;
@@ -779,7 +779,7 @@ static void alpha_pci_unmap_sg(struct device *dev, struct scatterlist *sg,
 			break;
 
 		if (addr > 0xffffffff) {
-			/* It's a DAC address -- nothing to do.  */
+			/* It's a DAC address -- yesthing to do.  */
 			DBGA("    (%ld) DAC [%llx,%zx]\n",
 			      sg - end + nents, addr, size);
 			continue;
@@ -872,7 +872,7 @@ iommu_reserve(struct pci_iommu_arena *arena, long pg_count, long align_mask)
 		return -1;
 	}
 
-	/* Success.  Mark them all reserved (ie not zero and invalid)
+	/* Success.  Mark them all reserved (ie yest zero and invalid)
 	   for the iommu tlb that could load them from under us.
 	   They will be filled in with valid bits by _bind() */
 	for (i = 0; i < pg_count; ++i)

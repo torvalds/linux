@@ -5,7 +5,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license yestice.  This file is yest
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -19,7 +19,7 @@
 
 	Support and updates available at
 	http://www.scyld.com/network/yellowfin.html
-	[link no longer provides useful info -jgarzik]
+	[link yes longer provides useful info -jgarzik]
 
 */
 
@@ -32,7 +32,7 @@
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
 
-static int debug = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
+static int debug = 1;			/* 1 yesrmal messages, 0 quiet .. 7 verbose. */
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
 static int max_interrupt_work = 20;
 static int mtu;
@@ -69,7 +69,7 @@ static int gx_fix;
 /* Keep the ring sizes a power of two for efficiency.
    Making the Tx ring too long decreases the effectiveness of channel
    bonding and packet priority.
-   There are no ill effects from too-large receive rings. */
+   There are yes ill effects from too-large receive rings. */
 #define TX_RING_SIZE	16
 #define TX_QUEUE_SIZE	12		/* Must be > 4 && <= TX_RING_SIZE */
 #define RX_RING_SIZE	64
@@ -77,7 +77,7 @@ static int gx_fix;
 #define TX_TOTAL_SIZE		2*TX_RING_SIZE*sizeof(struct yellowfin_desc)
 #define RX_TOTAL_SIZE		RX_RING_SIZE*sizeof(struct yellowfin_desc)
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are yest changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (2*HZ)
 #define PKT_BUF_SZ		1536			/* Size of each temporary Rx buffer.*/
@@ -88,7 +88,7 @@ static int gx_fix;
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -105,10 +105,10 @@ static int gx_fix;
 #include <asm/unaligned.h>
 #include <asm/io.h>
 
-/* These identify the driver base version and may not be removed. */
+/* These identify the driver base version and may yest be removed. */
 static const char version[] =
   KERN_INFO DRV_NAME ".c:v1.05  1/09/2001  Written by Donald Becker <becker@scyld.com>\n"
-  "  (unofficial 2.4.x port, " DRV_VERSION ", " DRV_RELDATE ")\n";
+  "  (uyesfficial 2.4.x port, " DRV_VERSION ", " DRV_RELDATE ")\n";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("Packet Engines Yellowfin G-NIC Gigabit Ethernet driver");
@@ -140,10 +140,10 @@ Symbios 53C885E dual function chip.
 
 II. Board-specific settings
 
-PCI bus devices are configured by the system at boot time, so no jumpers
+PCI bus devices are configured by the system at boot time, so yes jumpers
 need to be set on the board.  The system BIOS preferably should assign the
 PCI INTA signal to an otherwise unused system IRQ line.
-Note: Kernel versions earlier than 1.3.73 do not support shared PCI
+Note: Kernel versions earlier than 1.3.73 do yest support shared PCI
 interrupt lines.
 
 III. Driver operation
@@ -167,7 +167,7 @@ The RX_COPYBREAK value is chosen to trade-off the memory wasted by
 using a full-sized skbuff for small frames vs. the copying costs of larger
 frames.  For small frames the copying cost is negligible (esp. considering
 that we are pre-loading the cache with immediately useful header
-information).  For large frames the copying cost is non-trivial, and the
+information).  For large frames the copying cost is yesn-trivial, and the
 larger copy might flush the cache of useful data.
 
 IIIC. Synchronization
@@ -328,7 +328,7 @@ struct yellowfin_private {
 	unsigned int tx_full:1;				/* The Tx queue is full. */
 	unsigned int full_duplex:1;			/* Full-duplex operation requested. */
 	unsigned int duplex_lock:1;
-	unsigned int medialock:1;			/* Do not sense media. */
+	unsigned int medialock:1;			/* Do yest sense media. */
 	unsigned int default_port:4;		/* Last dev->if_port value. */
 	/* MII transceiver section. */
 	int mii_cnt;						/* MII device addresses. */
@@ -532,7 +532,7 @@ static int read_eeprom(void __iomem *ioaddr, int location)
 }
 
 /* MII Managemen Data I/O accesses.
-   These routines assume the MDIO controller is idle, and do not exit until
+   These routines assume the MDIO controller is idle, and do yest exit until
    the command is finished. */
 
 static int mdio_read(void __iomem *ioaddr, int phy_id, int location)
@@ -586,7 +586,7 @@ static int yellowfin_open(struct net_device *dev)
 		iowrite8(dev->dev_addr[i], ioaddr + StnAddr + i);
 
 	/* Set up various condition 'select' registers.
-	   There are no options here. */
+	   There are yes options here. */
 	iowrite32(0x00800080, ioaddr + TxIntrSel); 	/* Interrupt on Tx abort */
 	iowrite32(0x00800080, ioaddr + TxBranchSel);	/* Branch on Tx abort */
 	iowrite32(0x00400040, ioaddr + TxWaitSel); 	/* Wait on Tx status */
@@ -615,7 +615,7 @@ static int yellowfin_open(struct net_device *dev)
 		yp->full_duplex = 1;
 		iowrite16(0x01CF, ioaddr + Cnfg);
 	} else {
-		iowrite16(0x0018, ioaddr + FrameGap0); /* 0060/4060 for non-MII 10baseT */
+		iowrite16(0x0018, ioaddr + FrameGap0); /* 0060/4060 for yesn-MII 10baseT */
 		iowrite16(0x1018, ioaddr + FrameGap1);
 		iowrite16(0x101C | (yp->full_duplex ? 2 : 0), ioaddr + Cnfg);
 	}
@@ -623,7 +623,7 @@ static int yellowfin_open(struct net_device *dev)
 
 	/* Enable interrupts by setting the interrupt mask. */
 	iowrite16(0x81ff, ioaddr + IntrEnb);			/* See enum intr_status_bits */
-	iowrite16(0x0000, ioaddr + EventStatus);		/* Clear non-interrupting events */
+	iowrite16(0x0000, ioaddr + EventStatus);		/* Clear yesn-interrupting events */
 	iowrite32(0x80008000, ioaddr + RxCtrl);		/* Start Rx and Tx channels. */
 	iowrite32(0x80008000, ioaddr + TxCtrl);
 
@@ -930,7 +930,7 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 		}
 		if (yp->tx_full &&
 		    yp->cur_tx - yp->dirty_tx < TX_QUEUE_SIZE - 4) {
-			/* The ring is no longer full, clear tbusy. */
+			/* The ring is yes longer full, clear tbusy. */
 			yp->tx_full = 0;
 			netif_wake_queue(dev);
 		}
@@ -999,7 +999,7 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 
 			if (yp->tx_full &&
 			    yp->cur_tx - dirty_tx < TX_QUEUE_SIZE - 2) {
-				/* The ring is no longer full, clear tbusy. */
+				/* The ring is yes longer full, clear tbusy. */
 				yp->tx_full = 0;
 				netif_wake_queue(dev);
 			}
@@ -1010,7 +1010,7 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 #endif
 
 		/* Log errors and other uncommon events. */
-		if (intr_status & 0x2ee)	/* Abnormal error summary. */
+		if (intr_status & 0x2ee)	/* Abyesrmal error summary. */
 			yellowfin_error(dev, intr_status);
 
 		if (--boguscnt < 0) {
@@ -1114,10 +1114,10 @@ static int yellowfin_rx(struct net_device *dev)
 
 #ifndef final_version
 			if (yellowfin_debug > 4)
-				printk(KERN_DEBUG "  %s() normal Rx pkt length %d of %d, bogus_cnt %d\n",
+				printk(KERN_DEBUG "  %s() yesrmal Rx pkt length %d of %d, bogus_cnt %d\n",
 				       __func__, pkt_len, data_size, boguscnt);
 #endif
-			/* Check if the packet is long enough to just pass up the skbuff
+			/* Check if the packet is long eyesugh to just pass up the skbuff
 			   without copying to a properly sized skbuff. */
 			if (pkt_len > rx_copybreak) {
 				skb_put(skb = rx_skb, pkt_len);
@@ -1175,7 +1175,7 @@ static int yellowfin_rx(struct net_device *dev)
 static void yellowfin_error(struct net_device *dev, int intr_status)
 {
 	netdev_err(dev, "Something Wicked happened! %04x\n", intr_status);
-	/* Hmmmmm, it's not clear what to do here. */
+	/* Hmmmmm, it's yest clear what to do here. */
 	if (intr_status & (IntrTxPCIErr | IntrTxPCIFault))
 		dev->stats.tx_errors++;
 	if (intr_status & (IntrRxPCIErr | IntrRxPCIFault))
@@ -1264,7 +1264,7 @@ static int yellowfin_close(struct net_device *dev)
 
 #ifdef YF_PROTOTYPE			/* Support for prototype hardware errata. */
 	if (yellowfin_debug > 0) {
-		netdev_printk(KERN_DEBUG, dev, "Received %d frames that we should not have\n",
+		netdev_printk(KERN_DEBUG, dev, "Received %d frames that we should yest have\n",
 			      bogus_rx);
 	}
 #endif
@@ -1403,7 +1403,7 @@ static struct pci_driver yellowfin_driver = {
 
 static int __init yellowfin_init (void)
 {
-/* when a module, this is printed whether or not devices are found in probe */
+/* when a module, this is printed whether or yest devices are found in probe */
 #ifdef MODULE
 	printk(version);
 #endif

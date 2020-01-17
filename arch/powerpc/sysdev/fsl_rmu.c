@@ -6,7 +6,7 @@
  * Thomas Moll <thomas.moll@sysgo.com>
  * - fixed maintenance access routines, check for aligned access
  *
- * Copyright 2009 Integrated Device Technology, Inc.
+ * Copyright 2009 Integrated Device Techyeslogy, Inc.
  * Alex Bounine <alexandre.bounine@idt.com>
  * - Added Port-Write message handling
  * - Added Machine Check exception handling
@@ -266,7 +266,7 @@ fsl_rio_rx_handler(int irq, void *dev_instance)
 		/*
 		* Can receive messages for any mailbox/letter to that
 		* mailbox destination. So, make the callback with an
-		* unknown/invalid mailbox number argument.
+		* unkyeswn/invalid mailbox number argument.
 		*/
 		if (port->inb_msg[0].mcback != NULL)
 			port->inb_msg[0].mcback(port, rmu->msg_rx_ring.dev_id,
@@ -325,7 +325,7 @@ fsl_rio_dbell_handler(int irq, void *dev_instance)
 		for (i = 0; i < MAX_PORT_NUM; i++) {
 			if (fsl_dbell->mport[i]) {
 				list_for_each_entry(dbell,
-					&fsl_dbell->mport[i]->dbells, node) {
+					&fsl_dbell->mport[i]->dbells, yesde) {
 					if ((dbell->res->start
 						<= dmsg->info)
 						&& (dbell->res->end
@@ -362,7 +362,7 @@ out:
 void msg_unit_error_handler(void)
 {
 
-	/*XXX: Error recovery is not implemented, we just clear errors */
+	/*XXX: Error recovery is yest implemented, we just clear errors */
 	out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR), 0);
 
 	out_be32((u32 *)(rmu_regs_win + RIO_IM0SR), IMSR_CLEAR);
@@ -427,7 +427,7 @@ fsl_rio_port_write_handler(int irq, void *dev_instance)
 				 pw->port_write_msg.discard_count);
 		}
 		/* Clear interrupt and issue Clear Queue command. This allows
-		 * another port-write to be received.
+		 * ayesther port-write to be received.
 		 */
 		out_be32(&pw->pw_regs->pwsr,	RIO_IPWSR_QFI);
 		out_be32(&pw->pw_regs->pwmr, ipwmr | RIO_IPWMR_CQ);
@@ -572,7 +572,7 @@ int fsl_rio_port_write_init(struct fsl_rio_pw *pw)
 	out_be32(&pw->pw_regs->pwsr,
 		 (RIO_IPWSR_TE | RIO_IPWSR_QFI | RIO_IPWSR_PWD));
 
-	/* Configure port write controller for snooping enable all reporting,
+	/* Configure port write controller for syesoping enable all reporting,
 	   clear queue full */
 	out_be32(&pw->pw_regs->pwmr,
 		 RIO_IPWMR_SEN | RIO_IPWMR_QFIE | RIO_IPWMR_EIE | RIO_IPWMR_CQ);
@@ -689,7 +689,7 @@ fsl_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
 	/* Set transfer size aligned to next power of 2 (in double words) */
 	desc->dwcnt = is_power_of_2(len) ? len : 1 << get_bitmask_order(len);
 
-	/* Set snooping and source buffer address */
+	/* Set syesoping and source buffer address */
 	desc->saddr = 0x00000004
 		| rmu->msg_tx_ring.phys_buffer[rmu->msg_tx_ring.tx_slot];
 
@@ -766,7 +766,7 @@ fsl_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 	out_be32(&rmu->msg_regs->odqdpar, rmu->msg_tx_ring.phys);
 	out_be32(&rmu->msg_regs->odqepar, rmu->msg_tx_ring.phys);
 
-	/* Configure for snooping */
+	/* Configure for syesoping */
 	out_be32(&rmu->msg_regs->osar, 0x00000004);
 
 	/* Clear interrupt status */
@@ -780,7 +780,7 @@ fsl_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 
 	/*
 	 * Configure outbound message unit
-	 *      Snooping
+	 *      Syesoping
 	 *      Interrupts (all enabled, except QEIE)
 	 *      Chaining mode
 	 *      Disable
@@ -896,7 +896,7 @@ fsl_open_inb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 
 	/*
 	 * Configure inbound message unit:
-	 *      Snooping
+	 *      Syesoping
 	 *      4KB max message size
 	 *      Unmask all interrupt sources
 	 *      Disable
@@ -988,7 +988,7 @@ void *fsl_get_inb_message(struct rio_mport *mport, int mbox)
 
 	phys_buf = in_be32(&rmu->msg_regs->ifqdpar);
 
-	/* If no more messages, then bail out */
+	/* If yes more messages, then bail out */
 	if (phys_buf == in_be32(&rmu->msg_regs->ifqepar))
 		goto out2;
 
@@ -999,7 +999,7 @@ void *fsl_get_inb_message(struct rio_mport *mport, int mbox)
 
 	if (!buf) {
 		printk(KERN_ERR
-			"RIO: inbound message copy failed, no buffers\n");
+			"RIO: inbound message copy failed, yes buffers\n");
 		goto out1;
 	}
 
@@ -1055,14 +1055,14 @@ int fsl_rio_doorbell_init(struct fsl_rio_dbell *dbell)
 		goto out;
 	}
 
-	/* Configure doorbells for snooping, 512 entries, and enable */
+	/* Configure doorbells for syesoping, 512 entries, and enable */
 	out_be32(&dbell->dbell_regs->dmr, 0x00108161);
 
 out:
 	return rc;
 }
 
-int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
+int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_yesde *yesde)
 {
 	struct rio_priv *priv;
 	struct fsl_rmu *rmu;
@@ -1076,9 +1076,9 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 
 	priv = mport->priv;
 
-	if (!node) {
+	if (!yesde) {
 		dev_warn(priv->dev, "Can't get %pOF property 'fsl,rmu'\n",
-			priv->dev->of_node);
+			priv->dev->of_yesde);
 		return -EINVAL;
 	}
 
@@ -1086,11 +1086,11 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 	if (!rmu)
 		return -ENOMEM;
 
-	aw = of_n_addr_cells(node);
-	msg_addr = of_get_property(node, "reg", &mlen);
+	aw = of_n_addr_cells(yesde);
+	msg_addr = of_get_property(yesde, "reg", &mlen);
 	if (!msg_addr) {
 		pr_err("%pOF: unable to find 'reg' property of message-unit\n",
-			node);
+			yesde);
 		kfree(rmu);
 		return -ENOMEM;
 	}
@@ -1099,10 +1099,10 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 	rmu->msg_regs = (struct rio_msg_regs *)
 			(rmu_regs_win + (u32)msg_start);
 
-	rmu->txirq = irq_of_parse_and_map(node, 0);
-	rmu->rxirq = irq_of_parse_and_map(node, 1);
+	rmu->txirq = irq_of_parse_and_map(yesde, 0);
+	rmu->rxirq = irq_of_parse_and_map(yesde, 1);
 	printk(KERN_INFO "%pOF: txirq: %d, rxirq %d\n",
-		node, rmu->txirq, rmu->rxirq);
+		yesde, rmu->txirq, rmu->rxirq);
 
 	priv->rmm_handle = rmu;
 

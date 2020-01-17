@@ -29,7 +29,7 @@
 #include <linux/leds.h>
 
 #include <asm/processor.h>
-#include <asm/thread_notify.h>
+#include <asm/thread_yestify.h>
 #include <asm/stacktrace.h>
 #include <asm/system_misc.h>
 #include <asm/mach/time.h>
@@ -148,7 +148,7 @@ void __show_regs(struct pt_regs *regs)
 
 		if ((domain & domain_mask(DOMAIN_USER)) ==
 		    domain_val(DOMAIN_USER, DOMAIN_NOACCESS))
-			segment = "none";
+			segment = "yesne";
 		else if (fs == KERNEL_DS)
 			segment = "kernel";
 		else
@@ -191,16 +191,16 @@ void show_regs(struct pt_regs * regs)
 	dump_stack();
 }
 
-ATOMIC_NOTIFIER_HEAD(thread_notify_head);
+ATOMIC_NOTIFIER_HEAD(thread_yestify_head);
 
-EXPORT_SYMBOL_GPL(thread_notify_head);
+EXPORT_SYMBOL_GPL(thread_yestify_head);
 
 /*
  * Free current thread data structures etc..
  */
 void exit_thread(struct task_struct *tsk)
 {
-	thread_notify(THREAD_NOTIFY_EXIT, task_thread_info(tsk));
+	thread_yestify(THREAD_NOTIFY_EXIT, task_thread_info(tsk));
 }
 
 void flush_thread(void)
@@ -216,7 +216,7 @@ void flush_thread(void)
 
 	flush_tls();
 
-	thread_notify(THREAD_NOTIFY_FLUSH, thread);
+	thread_yestify(THREAD_NOTIFY_FLUSH, thread);
 }
 
 void release_thread(struct task_struct *dead_task)
@@ -264,7 +264,7 @@ copy_thread_tls(unsigned long clone_flags, unsigned long stack_start,
 		thread->tp_value[0] = tls;
 	thread->tp_value[1] = get_tpuser();
 
-	thread_notify(THREAD_NOTIFY_COPY, thread);
+	thread_yestify(THREAD_NOTIFY_COPY, thread);
 
 #ifdef CONFIG_STACKPROTECTOR_PER_TASK
 	thread->stack_canary = p->stack_canary;
@@ -351,7 +351,7 @@ int in_gate_area(struct mm_struct *mm, unsigned long addr)
 	return (addr >= gate_vma.vm_start) && (addr < gate_vma.vm_end);
 }
 
-int in_gate_area_no_mm(unsigned long addr)
+int in_gate_area_yes_mm(unsigned long addr)
 {
 	return in_gate_area(NULL, addr);
 }
@@ -385,7 +385,7 @@ static unsigned long sigpage_addr(const struct mm_struct *mm,
 	if (first > last)
 		return 0;
 
-	/* Just enough room? */
+	/* Just eyesugh room? */
 	if (first == last)
 		return first;
 
@@ -452,7 +452,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	mm->context.sigpage = addr;
 
 	/* Unlike the sigpage, failure to install the vdso is unlikely
-	 * to be fatal to the process, so no error check needed
+	 * to be fatal to the process, so yes error check needed
 	 * here.
 	 */
 	arm_install_vdso(mm, addr + PAGE_SIZE);

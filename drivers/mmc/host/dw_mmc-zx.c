@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * ZX Specific Extensions for Synopsys DW Multimedia Card Interface driver
+ * ZX Specific Extensions for Syyespsys DW Multimedia Card Interface driver
  *
  * Copyright (C) 2016, Linaro Ltd.
  * Copyright (C) 2016, ZTE Corp.
@@ -151,17 +151,17 @@ static int dw_mci_zx_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 
 static int dw_mci_zx_parse_dt(struct dw_mci *host)
 {
-	struct device_node *np = host->dev->of_node;
-	struct device_node *node;
+	struct device_yesde *np = host->dev->of_yesde;
+	struct device_yesde *yesde;
 	struct dw_mci_zx_priv_data *priv;
 	struct regmap *sysc_base;
 	int ret;
 
 	/* syscon is needed only by emmc */
-	node = of_parse_phandle(np, "zte,aon-syscon", 0);
-	if (node) {
-		sysc_base = syscon_node_to_regmap(node);
-		of_node_put(node);
+	yesde = of_parse_phandle(np, "zte,aon-syscon", 0);
+	if (yesde) {
+		sysc_base = syscon_yesde_to_regmap(yesde);
+		of_yesde_put(yesde);
 
 		if (IS_ERR(sysc_base)) {
 			ret = PTR_ERR(sysc_base);
@@ -208,7 +208,7 @@ static int dw_mci_zx_probe(struct platform_device *pdev)
 	const struct dw_mci_drv_data *drv_data;
 	const struct of_device_id *match;
 
-	match = of_match_node(dw_mci_zx_match, pdev->dev.of_node);
+	match = of_match_yesde(dw_mci_zx_match, pdev->dev.of_yesde);
 	drv_data = match->data;
 
 	return dw_mci_pltfm_register(pdev, drv_data);

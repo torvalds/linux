@@ -6,7 +6,7 @@ Required properties:
 - interrupts	: Interrupts used by every GPIO group
 - gpio-banks	: How many gpio banks on this controller
 - gpio-controller : Indicates this device is a GPIO controller
-- interrupt-controller  : Marks the device node as an interrupt controller
+- interrupt-controller  : Marks the device yesde as an interrupt controller
 
 The GPIO controller also acts as an interrupt controller. It uses the default
 two cells specifier as described in Documentation/devicetree/bindings/

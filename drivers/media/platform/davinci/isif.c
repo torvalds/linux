@@ -180,7 +180,7 @@ static void isif_enable(int en)
 		isif_disable_all_modules();
 		/*
 		 * wait for next VD. Assume lowest scan rate is 12 Hz. So
-		 * 100 msec delay is good enough
+		 * 100 msec delay is good eyesugh
 		 */
 		msleep(100);
 	}
@@ -511,7 +511,7 @@ static void isif_config_csc(struct isif_df_csc *df_csc)
 	 * one extra pixel as required for CSC. Actually number of
 	 * pixel - 1 should be configured in this register. So we
 	 * need to subtract 1 before writing to FMTSPH, but we will
-	 * not do this since csc requires one extra pixel
+	 * yest do this since csc requires one extra pixel
 	 */
 	regw(df_csc->num_pixels, FMTLNH);
 	regw(df_csc->start_line, FMTSLV);
@@ -633,7 +633,7 @@ static int isif_config_raw(void)
 			regw(0x4B6D, SDOFST);
 			dev_dbg(isif_cfg.dev, "Writing 0x4B6D to SDOFST...\n");
 		} else {
-			/* For interlace non inverse mode */
+			/* For interlace yesn inverse mode */
 			regw(0x0B6D, SDOFST);
 			dev_dbg(isif_cfg.dev, "Writing 0x0B6D to SDOFST...\n");
 		}
@@ -643,7 +643,7 @@ static int isif_config_raw(void)
 			regw(0x4000, SDOFST);
 			dev_dbg(isif_cfg.dev, "Writing 0x4000 to SDOFST...\n");
 		} else {
-			/* For progressive non inverse mode */
+			/* For progressive yesn inverse mode */
 			regw(0x0000, SDOFST);
 			dev_dbg(isif_cfg.dev, "Writing 0x0000 to SDOFST...\n");
 		}
@@ -1017,7 +1017,7 @@ static int isif_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/*
-	 * first try to register with vpfe. If not correct platform, then we
+	 * first try to register with vpfe. If yest correct platform, then we
 	 * don't have to iomap
 	 */
 	status = vpfe_register_ccdc_device(&isif_hw_dev);
@@ -1037,15 +1037,15 @@ static int isif_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res) {
 			status = -ENODEV;
-			goto fail_nobase_res;
+			goto fail_yesbase_res;
 		}
 		res = request_mem_region(res->start, resource_size(res),
 					 res->name);
 		if (!res) {
 			status = -EBUSY;
-			goto fail_nobase_res;
+			goto fail_yesbase_res;
 		}
-		addr = ioremap_nocache(res->start, resource_size(res));
+		addr = ioremap_yescache(res->start, resource_size(res));
 		if (!addr) {
 			status = -ENOMEM;
 			goto fail_base_iomap;
@@ -1074,7 +1074,7 @@ static int isif_probe(struct platform_device *pdev)
 fail_base_iomap:
 	release_mem_region(res->start, resource_size(res));
 	i--;
-fail_nobase_res:
+fail_yesbase_res:
 	if (isif_cfg.base_addr)
 		iounmap(isif_cfg.base_addr);
 	if (isif_cfg.linear_tbl0_addr)

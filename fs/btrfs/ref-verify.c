@@ -13,13 +13,13 @@
 
 /*
  * Used to keep track the roots and number of refs each root has for a given
- * bytenr.  This just tracks the number of direct references, no shared
+ * bytenr.  This just tracks the number of direct references, yes shared
  * references.
  */
 struct root_entry {
 	u64 root_objectid;
 	u64 num_refs;
-	struct rb_node node;
+	struct rb_yesde yesde;
 };
 
 /*
@@ -33,7 +33,7 @@ struct ref_entry {
 	u64 owner;
 	u64 offset;
 	u64 num_refs;
-	struct rb_node node;
+	struct rb_yesde yesde;
 };
 
 #define MAX_TRACE	16
@@ -68,20 +68,20 @@ struct block_entry {
 	int from_disk;
 	struct rb_root roots;
 	struct rb_root refs;
-	struct rb_node node;
+	struct rb_yesde yesde;
 	struct list_head actions;
 };
 
 static struct block_entry *insert_block_entry(struct rb_root *root,
 					      struct block_entry *be)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent_node = NULL;
+	struct rb_yesde **p = &root->rb_yesde;
+	struct rb_yesde *parent_yesde = NULL;
 	struct block_entry *entry;
 
 	while (*p) {
-		parent_node = *p;
-		entry = rb_entry(parent_node, struct block_entry, node);
+		parent_yesde = *p;
+		entry = rb_entry(parent_yesde, struct block_entry, yesde);
 		if (entry->bytenr > be->bytenr)
 			p = &(*p)->rb_left;
 		else if (entry->bytenr < be->bytenr)
@@ -90,19 +90,19 @@ static struct block_entry *insert_block_entry(struct rb_root *root,
 			return entry;
 	}
 
-	rb_link_node(&be->node, parent_node, p);
-	rb_insert_color(&be->node, root);
+	rb_link_yesde(&be->yesde, parent_yesde, p);
+	rb_insert_color(&be->yesde, root);
 	return NULL;
 }
 
 static struct block_entry *lookup_block_entry(struct rb_root *root, u64 bytenr)
 {
-	struct rb_node *n;
+	struct rb_yesde *n;
 	struct block_entry *entry = NULL;
 
-	n = root->rb_node;
+	n = root->rb_yesde;
 	while (n) {
-		entry = rb_entry(n, struct block_entry, node);
+		entry = rb_entry(n, struct block_entry, yesde);
 		if (entry->bytenr < bytenr)
 			n = n->rb_right;
 		else if (entry->bytenr > bytenr)
@@ -116,13 +116,13 @@ static struct block_entry *lookup_block_entry(struct rb_root *root, u64 bytenr)
 static struct root_entry *insert_root_entry(struct rb_root *root,
 					    struct root_entry *re)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent_node = NULL;
+	struct rb_yesde **p = &root->rb_yesde;
+	struct rb_yesde *parent_yesde = NULL;
 	struct root_entry *entry;
 
 	while (*p) {
-		parent_node = *p;
-		entry = rb_entry(parent_node, struct root_entry, node);
+		parent_yesde = *p;
+		entry = rb_entry(parent_yesde, struct root_entry, yesde);
 		if (entry->root_objectid > re->root_objectid)
 			p = &(*p)->rb_left;
 		else if (entry->root_objectid < re->root_objectid)
@@ -131,8 +131,8 @@ static struct root_entry *insert_root_entry(struct rb_root *root,
 			return entry;
 	}
 
-	rb_link_node(&re->node, parent_node, p);
-	rb_insert_color(&re->node, root);
+	rb_link_yesde(&re->yesde, parent_yesde, p);
+	rb_insert_color(&re->yesde, root);
 	return NULL;
 
 }
@@ -161,14 +161,14 @@ static int comp_refs(struct ref_entry *ref1, struct ref_entry *ref2)
 static struct ref_entry *insert_ref_entry(struct rb_root *root,
 					  struct ref_entry *ref)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent_node = NULL;
+	struct rb_yesde **p = &root->rb_yesde;
+	struct rb_yesde *parent_yesde = NULL;
 	struct ref_entry *entry;
 	int cmp;
 
 	while (*p) {
-		parent_node = *p;
-		entry = rb_entry(parent_node, struct ref_entry, node);
+		parent_yesde = *p;
+		entry = rb_entry(parent_yesde, struct ref_entry, yesde);
 		cmp = comp_refs(entry, ref);
 		if (cmp > 0)
 			p = &(*p)->rb_left;
@@ -178,20 +178,20 @@ static struct ref_entry *insert_ref_entry(struct rb_root *root,
 			return entry;
 	}
 
-	rb_link_node(&ref->node, parent_node, p);
-	rb_insert_color(&ref->node, root);
+	rb_link_yesde(&ref->yesde, parent_yesde, p);
+	rb_insert_color(&ref->yesde, root);
 	return NULL;
 
 }
 
 static struct root_entry *lookup_root_entry(struct rb_root *root, u64 objectid)
 {
-	struct rb_node *n;
+	struct rb_yesde *n;
 	struct root_entry *entry = NULL;
 
-	n = root->rb_node;
+	n = root->rb_yesde;
 	while (n) {
-		entry = rb_entry(n, struct root_entry, node);
+		entry = rb_entry(n, struct root_entry, yesde);
 		if (entry->root_objectid < objectid)
 			n = n->rb_right;
 		else if (entry->root_objectid > objectid)
@@ -212,7 +212,7 @@ static void __print_stack_trace(struct btrfs_fs_info *fs_info,
 				struct ref_action *ra)
 {
 	if (ra->trace_len == 0) {
-		btrfs_err(fs_info, "  ref-verify: no stacktrace");
+		btrfs_err(fs_info, "  ref-verify: yes stacktrace");
 		return;
 	}
 	stack_trace_print(ra->trace, ra->trace_len, 2);
@@ -225,7 +225,7 @@ static void inline __save_stack_trace(struct ref_action *ra)
 static void inline __print_stack_trace(struct btrfs_fs_info *fs_info,
 				       struct ref_action *ra)
 {
-	btrfs_err(fs_info, "  ref-verify: no stacktrace support");
+	btrfs_err(fs_info, "  ref-verify: yes stacktrace support");
 }
 #endif
 
@@ -234,17 +234,17 @@ static void free_block_entry(struct block_entry *be)
 	struct root_entry *re;
 	struct ref_entry *ref;
 	struct ref_action *ra;
-	struct rb_node *n;
+	struct rb_yesde *n;
 
 	while ((n = rb_first(&be->roots))) {
-		re = rb_entry(n, struct root_entry, node);
-		rb_erase(&re->node, &be->roots);
+		re = rb_entry(n, struct root_entry, yesde);
+		rb_erase(&re->yesde, &be->roots);
 		kfree(re);
 	}
 
 	while((n = rb_first(&be->refs))) {
-		ref = rb_entry(n, struct ref_entry, node);
-		rb_erase(&ref->node, &be->refs);
+		ref = rb_entry(n, struct ref_entry, yesde);
+		rb_erase(&ref->yesde, &be->refs);
 		kfree(ref);
 	}
 
@@ -324,7 +324,7 @@ static int add_tree_block(struct btrfs_fs_info *fs_info, u64 ref_root,
 	ref->offset = 0;
 	ref->num_refs = 1;
 
-	be = add_block_entry(fs_info, bytenr, fs_info->nodesize, ref_root);
+	be = add_block_entry(fs_info, bytenr, fs_info->yesdesize, ref_root);
 	if (IS_ERR(be)) {
 		kfree(ref);
 		return PTR_ERR(be);
@@ -432,7 +432,7 @@ static int process_extent_item(struct btrfs_fs_info *fs_info,
 	struct btrfs_extent_inline_ref *iref;
 	struct btrfs_extent_data_ref *dref;
 	struct btrfs_shared_data_ref *sref;
-	struct extent_buffer *leaf = path->nodes[0];
+	struct extent_buffer *leaf = path->yesdes[0];
 	u32 item_size = btrfs_item_size_nr(leaf, slot);
 	unsigned long end, ptr;
 	u64 offset, flags, count;
@@ -496,7 +496,7 @@ static int process_leaf(struct btrfs_root *root,
 			struct btrfs_path *path, u64 *bytenr, u64 *num_bytes)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct extent_buffer *leaf = path->nodes[0];
+	struct extent_buffer *leaf = path->yesdes[0];
 	struct btrfs_extent_data_ref *dref;
 	struct btrfs_shared_data_ref *sref;
 	u32 count;
@@ -558,11 +558,11 @@ static int walk_down_tree(struct btrfs_root *root, struct btrfs_path *path,
 		if (level) {
 			struct btrfs_key first_key;
 
-			block_bytenr = btrfs_node_blockptr(path->nodes[level],
+			block_bytenr = btrfs_yesde_blockptr(path->yesdes[level],
 							   path->slots[level]);
-			gen = btrfs_node_ptr_generation(path->nodes[level],
+			gen = btrfs_yesde_ptr_generation(path->yesdes[level],
 							path->slots[level]);
-			btrfs_node_key_to_cpu(path->nodes[level], &first_key,
+			btrfs_yesde_key_to_cpu(path->yesdes[level], &first_key,
 					      path->slots[level]);
 			eb = read_tree_block(fs_info, block_bytenr, gen,
 					     level - 1, &first_key);
@@ -574,7 +574,7 @@ static int walk_down_tree(struct btrfs_root *root, struct btrfs_path *path,
 			}
 			btrfs_tree_read_lock(eb);
 			btrfs_set_lock_blocking_read(eb);
-			path->nodes[level-1] = eb;
+			path->yesdes[level-1] = eb;
 			path->slots[level-1] = 0;
 			path->locks[level-1] = BTRFS_READ_LOCK_BLOCKING;
 		} else {
@@ -587,25 +587,25 @@ static int walk_down_tree(struct btrfs_root *root, struct btrfs_path *path,
 	return ret;
 }
 
-/* Walk up to the next node that needs to be processed */
+/* Walk up to the next yesde that needs to be processed */
 static int walk_up_tree(struct btrfs_path *path, int *level)
 {
 	int l;
 
 	for (l = 0; l < BTRFS_MAX_LEVEL; l++) {
-		if (!path->nodes[l])
+		if (!path->yesdes[l])
 			continue;
 		if (l) {
 			path->slots[l]++;
 			if (path->slots[l] <
-			    btrfs_header_nritems(path->nodes[l])) {
+			    btrfs_header_nritems(path->yesdes[l])) {
 				*level = l;
 				return 0;
 			}
 		}
-		btrfs_tree_unlock_rw(path->nodes[l], path->locks[l]);
-		free_extent_buffer(path->nodes[l]);
-		path->nodes[l] = NULL;
+		btrfs_tree_unlock_rw(path->yesdes[l], path->locks[l]);
+		free_extent_buffer(path->yesdes[l]);
+		path->yesdes[l] = NULL;
 		path->slots[l] = 0;
 		path->locks[l] = 0;
 	}
@@ -633,7 +633,7 @@ static void dump_block_entry(struct btrfs_fs_info *fs_info,
 	struct ref_entry *ref;
 	struct root_entry *re;
 	struct ref_action *ra;
-	struct rb_node *n;
+	struct rb_yesde *n;
 
 	btrfs_err(fs_info,
 "dumping block entry [%llu %llu], num_refs %llu, metadata %d, from disk %d",
@@ -641,7 +641,7 @@ static void dump_block_entry(struct btrfs_fs_info *fs_info,
 		  be->from_disk);
 
 	for (n = rb_first(&be->refs); n; n = rb_next(n)) {
-		ref = rb_entry(n, struct ref_entry, node);
+		ref = rb_entry(n, struct ref_entry, yesde);
 		btrfs_err(fs_info,
 "  ref root %llu, parent %llu, owner %llu, offset %llu, num_refs %llu",
 			  ref->root_objectid, ref->parent, ref->owner,
@@ -649,7 +649,7 @@ static void dump_block_entry(struct btrfs_fs_info *fs_info,
 	}
 
 	for (n = rb_first(&be->roots); n; n = rb_next(n)) {
-		re = rb_entry(n, struct root_entry, node);
+		re = rb_entry(n, struct root_entry, yesde);
 		btrfs_err(fs_info, "  root entry %llu, num_refs %llu",
 			  re->root_objectid, re->num_refs);
 	}
@@ -664,7 +664,7 @@ static void dump_block_entry(struct btrfs_fs_info *fs_info,
  * This will add an action item to the given bytenr and do sanity checks to make
  * sure we haven't messed something up.  If we are making a new allocation and
  * this block entry has history we will delete all previous actions as long as
- * our sanity checks pass as they are no longer needed.
+ * our sanity checks pass as they are yes longer needed.
  */
 int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 		       struct btrfs_ref *generic_ref)
@@ -692,7 +692,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 		offset = 0;
 	} else {
 		ref_root = generic_ref->data_ref.ref_root;
-		owner = generic_ref->data_ref.ino;
+		owner = generic_ref->data_ref.iyes;
 		offset = generic_ref->data_ref.offset;
 	}
 	metadata = owner < BTRFS_FIRST_FREE_OBJECTID;
@@ -739,7 +739,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 	if (action == BTRFS_ADD_DELAYED_EXTENT) {
 		/*
 		 * For subvol_create we'll just pass in whatever the parent root
-		 * is and the new root objectid, so let's not treat the passed
+		 * is and the new root objectid, so let's yest treat the passed
 		 * in root as if it really has a ref for this bytenr.
 		 */
 		be = add_block_entry(fs_info, bytenr, num_bytes, ref_root);
@@ -793,7 +793,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 		be = lookup_block_entry(&fs_info->block_tree, bytenr);
 		if (!be) {
 			btrfs_err(fs_info,
-"trying to do action %d to bytenr %llu num_bytes %llu but there is no existing entry!",
+"trying to do action %d to bytenr %llu num_bytes %llu but there is yes existing entry!",
 				  action, (unsigned long long)bytenr,
 				  (unsigned long long)num_bytes);
 			dump_ref_action(fs_info, ra);
@@ -824,14 +824,14 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 			}
 			exist->num_refs--;
 			if (exist->num_refs == 0) {
-				rb_erase(&exist->node, &be->refs);
+				rb_erase(&exist->yesde, &be->refs);
 				kfree(exist);
 			}
 		} else if (!be->metadata) {
 			exist->num_refs++;
 		} else {
 			btrfs_err(fs_info,
-"attempting to add another ref for an existing ref on a tree block");
+"attempting to add ayesther ref for an existing ref on a tree block");
 			dump_block_entry(fs_info, be);
 			dump_ref_action(fs_info, ra);
 			kfree(ra);
@@ -889,15 +889,15 @@ out:
 void btrfs_free_ref_cache(struct btrfs_fs_info *fs_info)
 {
 	struct block_entry *be;
-	struct rb_node *n;
+	struct rb_yesde *n;
 
 	if (!btrfs_test_opt(fs_info, REF_VERIFY))
 		return;
 
 	spin_lock(&fs_info->ref_verify_lock);
 	while ((n = rb_first(&fs_info->block_tree))) {
-		be = rb_entry(n, struct block_entry, node);
-		rb_erase(&be->node, &fs_info->block_tree);
+		be = rb_entry(n, struct block_entry, yesde);
+		rb_erase(&be->yesde, &fs_info->block_tree);
 		free_block_entry(be);
 		cond_resched_lock(&fs_info->ref_verify_lock);
 	}
@@ -908,15 +908,15 @@ void btrfs_free_ref_tree_range(struct btrfs_fs_info *fs_info, u64 start,
 			       u64 len)
 {
 	struct block_entry *be = NULL, *entry;
-	struct rb_node *n;
+	struct rb_yesde *n;
 
 	if (!btrfs_test_opt(fs_info, REF_VERIFY))
 		return;
 
 	spin_lock(&fs_info->ref_verify_lock);
-	n = fs_info->block_tree.rb_node;
+	n = fs_info->block_tree.rb_yesde;
 	while (n) {
-		entry = rb_entry(n, struct block_entry, node);
+		entry = rb_entry(n, struct block_entry, yesde);
 		if (entry->bytenr < start) {
 			n = n->rb_right;
 		} else if (entry->bytenr > start) {
@@ -941,9 +941,9 @@ void btrfs_free_ref_tree_range(struct btrfs_fs_info *fs_info, u64 start,
 		return;
 	}
 
-	n = &be->node;
+	n = &be->yesde;
 	while (n) {
-		be = rb_entry(n, struct block_entry, node);
+		be = rb_entry(n, struct block_entry, yesde);
 		n = rb_next(n);
 		if (be->bytenr < start && be->bytenr + be->len > start) {
 			btrfs_err(fs_info,
@@ -962,7 +962,7 @@ void btrfs_free_ref_tree_range(struct btrfs_fs_info *fs_info, u64 start,
 				start, len);
 			dump_block_entry(fs_info, be);
 		}
-		rb_erase(&be->node, &fs_info->block_tree);
+		rb_erase(&be->yesde, &fs_info->block_tree);
 		free_block_entry(be);
 	}
 	spin_unlock(&fs_info->ref_verify_lock);
@@ -983,10 +983,10 @@ int btrfs_build_ref_tree(struct btrfs_fs_info *fs_info)
 	if (!path)
 		return -ENOMEM;
 
-	eb = btrfs_read_lock_root_node(fs_info->extent_root);
+	eb = btrfs_read_lock_root_yesde(fs_info->extent_root);
 	btrfs_set_lock_blocking_read(eb);
 	level = btrfs_header_level(eb);
-	path->nodes[level] = eb;
+	path->yesdes[level] = eb;
 	path->slots[level] = 0;
 	path->locks[level] = BTRFS_READ_LOCK_BLOCKING;
 

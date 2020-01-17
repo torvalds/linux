@@ -69,7 +69,7 @@ typedef struct _MPT_CONTEXT
 	bool		MptBtC2hEvent;
 	bool		bMPh2c_timeout;
 
-	/* 8190 PCI does not support NDIS_WORK_ITEM. */
+	/* 8190 PCI does yest support NDIS_WORK_ITEM. */
 	/*  Work Item for Mass Production Test. */
 	/* NDIS_WORK_ITEM	MptWorkItem; */
 /* 	RT_WORK_ITEM		MptWorkItem; */
@@ -77,7 +77,7 @@ typedef struct _MPT_CONTEXT
 /* 	NDIS_EVENT		MptWorkItemEvent; */
 	/*  To protect the following variables. */
 /* 	NDIS_SPIN_LOCK		MptWorkItemSpinLock; */
-	/*  Indicate a MptWorkItem is scheduled and not yet finished. */
+	/*  Indicate a MptWorkItem is scheduled and yest yet finished. */
 	bool			bMptWorkItemInProgress;
 	/*  An instance which implements function and context of MptWorkItem. */
 	MPT_WORK_ITEM_HANDLER	CurrMptAct;
@@ -210,7 +210,7 @@ struct mp_priv
 	struct adapter *papdater;
 
 	/* Testing Flag */
-	u32 mode;/* 0 for normal type packet, 1 for loopback packet (16bytes TXCMD) */
+	u32 mode;/* 0 for yesrmal type packet, 1 for loopback packet (16bytes TXCMD) */
 
 	u32 prev_fw_state;
 

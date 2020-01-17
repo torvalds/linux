@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI__ASM_ALPHA_FPU_H
 #define _UAPI__ASM_ALPHA_FPU_H
 
@@ -6,8 +6,8 @@
 /*
  * Alpha floating-point control register defines:
  */
-#define FPCR_DNOD	(1UL<<47)	/* denorm INV trap disable */
-#define FPCR_DNZ	(1UL<<48)	/* denorms to zero */
+#define FPCR_DNOD	(1UL<<47)	/* deyesrm INV trap disable */
+#define FPCR_DNZ	(1UL<<48)	/* deyesrms to zero */
 #define FPCR_INVD	(1UL<<49)	/* invalid op disable (opt.) */
 #define FPCR_DZED	(1UL<<50)	/* division by zero disable (opt.) */
 #define FPCR_OVFD	(1UL<<51)	/* overflow disable (optional) */
@@ -34,7 +34,7 @@
 /*
  * IEEE trap enables are implemented in software.  These per-thread
  * bits are stored in the "ieee_state" field of "struct thread_info".
- * Thus, the bits are defined so as not to conflict with the
+ * Thus, the bits are defined so as yest to conflict with the
  * floating-point enable bit (which is architected).  On top of that,
  * we want to make these bits compatible with OSF/1 so
  * ieee_set_fp_control() etc. can be implemented easily and
@@ -46,13 +46,13 @@
 #define IEEE_TRAP_ENABLE_OVF	(1UL<<3)	/* overflow */
 #define IEEE_TRAP_ENABLE_UNF	(1UL<<4)	/* underflow */
 #define IEEE_TRAP_ENABLE_INE	(1UL<<5)	/* inexact */
-#define IEEE_TRAP_ENABLE_DNO	(1UL<<6)	/* denorm */
+#define IEEE_TRAP_ENABLE_DNO	(1UL<<6)	/* deyesrm */
 #define IEEE_TRAP_ENABLE_MASK	(IEEE_TRAP_ENABLE_INV | IEEE_TRAP_ENABLE_DZE |\
 				 IEEE_TRAP_ENABLE_OVF | IEEE_TRAP_ENABLE_UNF |\
 				 IEEE_TRAP_ENABLE_INE | IEEE_TRAP_ENABLE_DNO)
 
-/* Denorm and Underflow flushing */
-#define IEEE_MAP_DMZ		(1UL<<12)	/* Map denorm inputs to zero */
+/* Deyesrm and Underflow flushing */
+#define IEEE_MAP_DMZ		(1UL<<12)	/* Map deyesrm inputs to zero */
 #define IEEE_MAP_UMZ		(1UL<<13)	/* Map underflowed outputs to zero */
 
 #define IEEE_MAP_MASK		(IEEE_MAP_DMZ | IEEE_MAP_UMZ)
@@ -83,9 +83,9 @@
  * Convert the software IEEE trap enable and status bits into the
  * hardware fpcr format. 
  *
- * Digital Unix engineers receive my thanks for not defining the
+ * Digital Unix engineers receive my thanks for yest defining the
  * software bits identical to the hardware bits.  The chip designers
- * receive my thanks for making all the not-implemented fpcr bits
+ * receive my thanks for making all the yest-implemented fpcr bits
  * RAZ forcing us to use system calls to read/write this value.
  */
 

@@ -4,7 +4,7 @@
  * implementations.
  *
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- * Author: Arnaud Ebalard <arno@natisbad.org>
+ * Author: Arnaud Ebalard <aryes@natisbad.org>
  *
  * This work is based on an initial version written by
  * Sebastian Andrzej Siewior < sebastian at breakpoint dot cc >
@@ -176,7 +176,7 @@ int mv_cesa_tdma_process(struct mv_cesa_engine *engine, u32 status)
 	}
 
 	/* Save the last request in error to engine->req, so that the core
-	 * knows which request was fautly */
+	 * kyesws which request was fautly */
 	if (res) {
 		spin_lock_bh(&engine->lock);
 		engine->req = req;

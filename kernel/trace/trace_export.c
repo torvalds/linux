@@ -34,7 +34,7 @@ static int ftrace_event_register(struct trace_event_call *call,
 	FTRACE_ENTRY(name, struct_name, id, PARAMS(tstruct), PARAMS(print), \
 		     filter)
 
-/* not needed for this file */
+/* yest needed for this file */
 #undef __field_struct
 #define __field_struct(type, item)
 

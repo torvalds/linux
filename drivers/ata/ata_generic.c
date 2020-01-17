@@ -10,7 +10,7 @@
  *
  *  Driver for PCI IDE interfaces implementing the standard bus mastering
  *  interface functionality. This assumes the BIOS did the drive set up and
- *  tuning for us. By default we do not grab all IDE class devices as they
+ *  tuning for us. By default we do yest grab all IDE class devices as they
  *  may have other drivers or need fixups to avoid problems. Instead we keep
  *  a default list of stuff without documentation/driver that appears to
  *  work.
@@ -42,8 +42,8 @@ enum {
  *	@link: link to set up
  *	@unused: returned device on error
  *
- *	Use a non standard set_mode function. We don't want to be tuned.
- *	The BIOS configured everything. Our job is not to fiddle. We
+ *	Use a yesn standard set_mode function. We don't want to be tuned.
+ *	The BIOS configured everything. Our job is yest to fiddle. We
  *	read the dma enabled bits from the PCI configuration of the device
  *	and respect them.
  */
@@ -68,7 +68,7 @@ static int generic_set_mode(struct ata_link *link, struct ata_device **unused)
 		dev->dma_mode = XFER_MW_DMA_0;
 		/* We do need the right mode information for DMA or PIO
 		   and this comes from the current configuration flags */
-		if (dma_enabled & (1 << (5 + dev->devno))) {
+		if (dma_enabled & (1 << (5 + dev->devyes))) {
 			unsigned int xfer_mask = ata_id_xfermask(dev->id);
 			const char *name;
 
@@ -101,7 +101,7 @@ static struct scsi_host_template generic_sht = {
 
 static struct ata_port_operations generic_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkyeswn,
 	.set_mode	= generic_set_mode,
 };
 
@@ -112,13 +112,13 @@ static int all_generic_ide;		/* Set to claim all devices */
  *	@dev: PCI device
  *
  *	Distinguish Intel IDE-R controller devices from other Intel IDE
- *	devices. IDE-R devices have no timing registers and are in
+ *	devices. IDE-R devices have yes timing registers and are in
  *	most respects virtual. They should be driven by the ata_generic
  *	driver.
  *
  *	IDE-R devices have PCI offset 0xF8.L as zero, later Intel ATA has
- *	it non zero. All Intel ATA has 0x40 writable (timing), but it is
- *	not writable on IDE-R devices (this is guaranteed).
+ *	it yesn zero. All Intel ATA has 0x40 writable (timing), but it is
+ *	yest writable on IDE-R devices (this is guaranteed).
  */
 
 static int is_intel_ider(struct pci_dev *dev)

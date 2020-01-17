@@ -135,11 +135,11 @@ static struct hfcusb_symbolic_list urb_errlist[] = {
 	{-ENXIO, "URB already queued"},
 	{-EFBIG, "Too much ISO frames requested"},
 	{-ENOSR, "Buffer error (overrun)"},
-	{-EPIPE, "Specified endpoint is stalled (device not responding)"},
+	{-EPIPE, "Specified endpoint is stalled (device yest responding)"},
 	{-EOVERFLOW, "Babble (bad cable?)"},
 	{-EPROTO, "Bit-stuff error (bad cable?)"},
 	{-EILSEQ, "CRC/Timeout"},
-	{-ETIMEDOUT, "NAK (device does not respond)"},
+	{-ETIMEDOUT, "NAK (device does yest respond)"},
 	{-ESHUTDOWN, "Device unplugged"},
 	{-1, NULL}
 };
@@ -151,7 +151,7 @@ symbolic(struct hfcusb_symbolic_list list[], const int num)
 	for (i = 0; list[i].name != NULL; i++)
 		if (list[i].num == num)
 			return list[i].name;
-	return "<unknown USB Error>";
+	return "<unkyeswn USB Error>";
 }
 
 /* USB descriptor need to contain one of the following EndPoint combination: */
@@ -160,7 +160,7 @@ symbolic(struct hfcusb_symbolic_list list[], const int num)
 #define CNF_4ISO3ISO	3	/* 4 ISO IN, 3 ISO OUT */
 #define CNF_3ISO3ISO	4	/* 3 ISO IN, 3 ISO OUT */
 
-#define EP_NUL 1	/* Endpoint at this position not allowed */
+#define EP_NUL 1	/* Endpoint at this position yest allowed */
 #define EP_NOP 2	/* all type of endpoints allowed at this position */
 #define EP_ISO 3	/* Isochron endpoint mandatory at this position */
 #define EP_BLK 4	/* Bulk endpoint mandatory at this position */
@@ -207,9 +207,9 @@ static char *conf_str[] = {
 };
 
 
-#define LED_OFF		0	/* no LED support */
+#define LED_OFF		0	/* yes LED support */
 #define LED_SCHEME1	1	/* LED standard scheme */
-#define LED_SCHEME2	2	/* not used yet... */
+#define LED_SCHEME2	2	/* yest used yet... */
 
 #define LED_POWER_ON	1
 #define LED_POWER_OFF	2
@@ -222,7 +222,7 @@ static char *conf_str[] = {
 #define LED_B2_OFF	9
 #define LED_B2_DATA	10
 
-#define LED_NORMAL	0	/* LEDs are normal */
+#define LED_NORMAL	0	/* LEDs are yesrmal */
 #define LED_INVERTED	1	/* LEDs are inverted */
 
 /* time in ms to perform a Flashing LED when B-Channel has traffic */

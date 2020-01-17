@@ -61,7 +61,7 @@ TRACE_EVENT(timer_start,
 		__field( void *,	timer		)
 		__field( void *,	function	)
 		__field( unsigned long,	expires		)
-		__field( unsigned long,	now		)
+		__field( unsigned long,	yesw		)
 		__field( unsigned int,	flags		)
 	),
 
@@ -69,13 +69,13 @@ TRACE_EVENT(timer_start,
 		__entry->timer		= timer;
 		__entry->function	= timer->function;
 		__entry->expires	= expires;
-		__entry->now		= jiffies;
+		__entry->yesw		= jiffies;
 		__entry->flags		= flags;
 	),
 
 	TP_printk("timer=%p function=%ps expires=%lu [timeout=%ld] cpu=%u idx=%u flags=%s",
 		  __entry->timer, __entry->function, __entry->expires,
-		  (long)__entry->expires - __entry->now,
+		  (long)__entry->expires - __entry->yesw,
 		  __entry->flags & TIMER_CPUMASK,
 		  __entry->flags >> TIMER_ARRAYSHIFT,
 		  decode_timer_flags(__entry->flags & TIMER_TRACE_FLAGMASK))
@@ -95,20 +95,20 @@ TRACE_EVENT(timer_expire_entry,
 
 	TP_STRUCT__entry(
 		__field( void *,	timer	)
-		__field( unsigned long,	now	)
+		__field( unsigned long,	yesw	)
 		__field( void *,	function)
 		__field( unsigned long,	baseclk	)
 	),
 
 	TP_fast_assign(
 		__entry->timer		= timer;
-		__entry->now		= jiffies;
+		__entry->yesw		= jiffies;
 		__entry->function	= timer->function;
 		__entry->baseclk	= baseclk;
 	),
 
-	TP_printk("timer=%p function=%ps now=%lu baseclk=%lu",
-		  __entry->timer, __entry->function, __entry->now,
+	TP_printk("timer=%p function=%ps yesw=%lu baseclk=%lu",
+		  __entry->timer, __entry->function, __entry->yesw,
 		  __entry->baseclk)
 );
 
@@ -224,32 +224,32 @@ TRACE_EVENT(hrtimer_start,
 /**
  * hrtimer_expire_entry - called immediately before the hrtimer callback
  * @hrtimer:	pointer to struct hrtimer
- * @now:	pointer to variable which contains current time of the
+ * @yesw:	pointer to variable which contains current time of the
  *		timers base.
  *
  * Allows to determine the timer latency.
  */
 TRACE_EVENT(hrtimer_expire_entry,
 
-	TP_PROTO(struct hrtimer *hrtimer, ktime_t *now),
+	TP_PROTO(struct hrtimer *hrtimer, ktime_t *yesw),
 
-	TP_ARGS(hrtimer, now),
+	TP_ARGS(hrtimer, yesw),
 
 	TP_STRUCT__entry(
 		__field( void *,	hrtimer	)
-		__field( s64,		now	)
+		__field( s64,		yesw	)
 		__field( void *,	function)
 	),
 
 	TP_fast_assign(
 		__entry->hrtimer	= hrtimer;
-		__entry->now		= *now;
+		__entry->yesw		= *yesw;
 		__entry->function	= hrtimer->function;
 	),
 
-	TP_printk("hrtimer=%p function=%ps now=%llu",
+	TP_printk("hrtimer=%p function=%ps yesw=%llu",
 		  __entry->hrtimer, __entry->function,
-		  (unsigned long long) __entry->now)
+		  (unsigned long long) __entry->yesw)
 );
 
 DECLARE_EVENT_CLASS(hrtimer_class,
@@ -336,28 +336,28 @@ TRACE_EVENT(itimer_state,
  * itimer_expire - called when itimer expires
  * @which:	type of the interval timer
  * @pid:	pid of the process which owns the timer
- * @now:	current time, used to calculate the latency of itimer
+ * @yesw:	current time, used to calculate the latency of itimer
  */
 TRACE_EVENT(itimer_expire,
 
-	TP_PROTO(int which, struct pid *pid, unsigned long long now),
+	TP_PROTO(int which, struct pid *pid, unsigned long long yesw),
 
-	TP_ARGS(which, pid, now),
+	TP_ARGS(which, pid, yesw),
 
 	TP_STRUCT__entry(
 		__field( int ,			which	)
 		__field( pid_t,			pid	)
-		__field( unsigned long long,	now	)
+		__field( unsigned long long,	yesw	)
 	),
 
 	TP_fast_assign(
 		__entry->which	= which;
-		__entry->now	= now;
+		__entry->yesw	= yesw;
 		__entry->pid	= pid_nr(pid);
 	),
 
-	TP_printk("which=%d pid=%d now=%llu", __entry->which,
-		  (int) __entry->pid, __entry->now)
+	TP_printk("which=%d pid=%d yesw=%llu", __entry->which,
+		  (int) __entry->pid, __entry->yesw)
 );
 
 #ifdef CONFIG_NO_HZ_COMMON

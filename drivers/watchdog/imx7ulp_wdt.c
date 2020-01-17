@@ -38,9 +38,9 @@
 #define MAX_TIMEOUT	128
 #define WDOG_CLOCK_RATE	1000
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0000);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0000);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 struct imx7ulp_wdt_device {

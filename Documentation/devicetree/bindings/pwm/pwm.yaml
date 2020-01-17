@@ -10,7 +10,7 @@ maintainers:
   - Thierry Reding <thierry.reding@gmail.com>
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^pwm(@.*|-[0-9a-f])*$"
 
   "#pwm-cells":

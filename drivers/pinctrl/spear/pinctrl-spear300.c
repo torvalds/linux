@@ -44,8 +44,8 @@ static struct spear_pmx_mode pmx_mode_nand = {
 	.val = 0x00,
 };
 
-static struct spear_pmx_mode pmx_mode_nor = {
-	.name = "nor",
+static struct spear_pmx_mode pmx_mode_yesr = {
+	.name = "yesr",
 	.mode = NOR_MODE,
 	.reg = MODE_CONFIG_REG,
 	.mask = 0x0000000F,
@@ -142,7 +142,7 @@ static struct spear_pmx_mode pmx_mode_caml_lcd = {
 
 static struct spear_pmx_mode *spear300_pmx_modes[] = {
 	&pmx_mode_nand,
-	&pmx_mode_nor,
+	&pmx_mode_yesr,
 	&pmx_mode_photo_frame,
 	&pmx_mode_lend_ip_phone,
 	&pmx_mode_hend_ip_phone,

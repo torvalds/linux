@@ -75,11 +75,11 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 };
 
 static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
-			unsigned long pending_now, unsigned long old_pending)
+			unsigned long pending_yesw, unsigned long old_pending)
 {
 	if (is_kvmppc_hv_enabled(vcpu->kvm))
 		return;
-	if (pending_now)
+	if (pending_yesw)
 		kvmppc_set_int_pending(vcpu, 1);
 	else if (old_pending)
 		kvmppc_set_int_pending(vcpu, 0);
@@ -224,11 +224,11 @@ void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
 	 * This case (KVM_INTERRUPT_SET) should never actually arise for
 	 * a pseries guest (because pseries guests expect their interrupt
 	 * controllers to continue asserting an external interrupt request
-	 * until it is acknowledged at the interrupt controller), but is
+	 * until it is ackyeswledged at the interrupt controller), but is
 	 * included to avoid ABI breakage and potentially for other
 	 * sorts of guest.
 	 *
-	 * There is a subtlety here: HV KVM does not test the
+	 * There is a subtlety here: HV KVM does yest test the
 	 * external_oneshot flag in the code that synthesizes
 	 * external interrupts for the guest just before entering
 	 * the guest.  That is OK even if userspace did do a
@@ -329,7 +329,7 @@ static int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu,
 		break;
 	default:
 		deliver = 0;
-		printk(KERN_ERR "KVM: Unknown interrupt: 0x%x\n", priority);
+		printk(KERN_ERR "KVM: Unkyeswn interrupt: 0x%x\n", priority);
 		break;
 	}
 
@@ -356,7 +356,7 @@ static bool clear_irqprio(struct kvm_vcpu *vcpu, unsigned int priority)
 			/*
 			 * External interrupts get cleared by userspace
 			 * except when set by the KVM_INTERRUPT ioctl with
-			 * KVM_INTERRUPT_SET (not KVM_INTERRUPT_SET_LEVEL).
+			 * KVM_INTERRUPT_SET (yest KVM_INTERRUPT_SET_LEVEL).
 			 */
 			if (vcpu->arch.external_oneshot) {
 				vcpu->arch.external_oneshot = 0;
@@ -891,7 +891,7 @@ void kvmppc_core_destroy_vm(struct kvm *kvm)
 
 #ifdef CONFIG_KVM_XICS
 	/*
-	 * Free the XIVE devices which are not directly freed by the
+	 * Free the XIVE devices which are yest directly freed by the
 	 * device 'release' method
 	 */
 	kfree(kvm->arch.xive_devices.native);

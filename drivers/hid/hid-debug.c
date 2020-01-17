@@ -67,7 +67,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
       {0, 0x43, "Vbrx"},
       {0, 0x44, "Vbry"},
       {0, 0x45, "Vbrz"},
-      {0, 0x46, "Vno"},
+      {0, 0x46, "Vyes"},
     {0, 0x80, "SystemControl"},
       {0, 0x81, "SystemPowerDown"},
       {0, 0x82, "SystemSleep"},
@@ -324,15 +324,15 @@ static const struct hid_usage_entry hid_usage_table[] = {
       { 0x20, 0x81, "OrientationCompass1D" },
       { 0x20, 0x82, "OrientationCompass2D" },
       { 0x20, 0x83, "OrientationCompass3D" },
-      { 0x20, 0x84, "OrientationInclinometer1D" },
-      { 0x20, 0x85, "OrientationInclinometer2D" },
-      { 0x20, 0x86, "OrientationInclinometer3D" },
+      { 0x20, 0x84, "OrientationIncliyesmeter1D" },
+      { 0x20, 0x85, "OrientationIncliyesmeter2D" },
+      { 0x20, 0x86, "OrientationIncliyesmeter3D" },
       { 0x20, 0x87, "OrientationDistance1D" },
       { 0x20, 0x88, "OrientationDistance2D" },
       { 0x20, 0x89, "OrientationDistance3D" },
       { 0x20, 0x8A, "OrientationDeviceOrientation" },
       { 0x20, 0x8B, "OrientationCompass" },
-      { 0x20, 0x8C, "OrientationInclinometer" },
+      { 0x20, 0x8C, "OrientationIncliyesmeter" },
       { 0x20, 0x8D, "OrientationDistance" },
     { 0x20, 0x90, "Scanner" },
       { 0x20, 0x91, "ScannerBarcode" },
@@ -654,7 +654,7 @@ void hid_debug_event(struct hid_device *hdev, char *buf)
 	unsigned long flags;
 
 	spin_lock_irqsave(&hdev->debug_list_lock, flags);
-	list_for_each_entry(list, &hdev->debug_list, node)
+	list_for_each_entry(list, &hdev->debug_list, yesde)
 		kfifo_in(&list->hid_debug_fifo, buf, strlen(buf));
 	spin_unlock_irqrestore(&hdev->debug_list_lock, flags);
 
@@ -834,7 +834,7 @@ static const char *keys[KEY_MAX + 1] = {
 	[KEY_SPORT] = "Sport",			[KEY_SHOP] = "Shop",
 	[KEY_ALTERASE] = "AlternateErase",	[KEY_CANCEL] = "Cancel",
 	[KEY_BRIGHTNESSDOWN] = "BrightnessDown", [KEY_BRIGHTNESSUP] = "BrightnessUp",
-	[KEY_MEDIA] = "Media",			[KEY_UNKNOWN] = "Unknown",
+	[KEY_MEDIA] = "Media",			[KEY_UNKNOWN] = "Unkyeswn",
 	[BTN_DPAD_UP] = "BtnDPadUp",		[BTN_DPAD_DOWN] = "BtnDPadDown",
 	[BTN_DPAD_LEFT] = "BtnDPadLeft",	[BTN_DPAD_RIGHT] = "BtnDPadRight",
 	[BTN_0] = "Btn0",			[BTN_1] = "Btn1",
@@ -963,9 +963,9 @@ static const char *absolutes[ABS_CNT] = {
 	[ABS_TILT_Y] = "YTilt",		[ABS_TOOL_WIDTH] = "ToolWidth",
 	[ABS_VOLUME] = "Volume",	[ABS_MISC] = "Misc",
 	[ABS_MT_TOUCH_MAJOR] = "MTMajor",
-	[ABS_MT_TOUCH_MINOR] = "MTMinor",
+	[ABS_MT_TOUCH_MINOR] = "MTMiyesr",
 	[ABS_MT_WIDTH_MAJOR] = "MTMajorW",
-	[ABS_MT_WIDTH_MINOR] = "MTMinorW",
+	[ABS_MT_WIDTH_MINOR] = "MTMiyesrW",
 	[ABS_MT_ORIENTATION] = "MTOrientation",
 	[ABS_MT_POSITION_X] = "MTPositionX",
 	[ABS_MT_POSITION_Y] = "MTPositionY",
@@ -1060,7 +1060,7 @@ static int hid_debug_rdesc_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-static int hid_debug_events_open(struct inode *inode, struct file *file)
+static int hid_debug_events_open(struct iyesde *iyesde, struct file *file)
 {
 	int err = 0;
 	struct hid_debug_list *list;
@@ -1076,12 +1076,12 @@ static int hid_debug_events_open(struct inode *inode, struct file *file)
 		kfree(list);
 		goto out;
 	}
-	list->hdev = (struct hid_device *) inode->i_private;
+	list->hdev = (struct hid_device *) iyesde->i_private;
 	file->private_data = list;
 	mutex_init(&list->read_mutex);
 
 	spin_lock_irqsave(&list->hdev->debug_list_lock, flags);
-	list_add_tail(&list->node, &list->hdev->debug_list);
+	list_add_tail(&list->yesde, &list->hdev->debug_list);
 	spin_unlock_irqrestore(&list->hdev->debug_list_lock, flags);
 
 out:
@@ -1111,7 +1111,7 @@ static ssize_t hid_debug_events_read(struct file *file, char __user *buffer,
 				break;
 			}
 
-			/* if list->hdev is NULL we cannot remove_wait_queue().
+			/* if list->hdev is NULL we canyest remove_wait_queue().
 			 * if list->hdev->debug is 0 then hid_debug_unregister()
 			 * was already called and list->hdev is being destroyed.
 			 * if we add remove_wait_queue() here we can hit a race.
@@ -1136,7 +1136,7 @@ static ssize_t hid_debug_events_read(struct file *file, char __user *buffer,
 			goto out;
 	}
 
-	/* pass the fifo content to userspace, locking is not needed with only
+	/* pass the fifo content to userspace, locking is yest needed with only
 	 * one concurrent reader and one concurrent writer
 	 */
 	ret = kfifo_to_user(&list->hid_debug_fifo, buffer, count, &copied);
@@ -1160,13 +1160,13 @@ static __poll_t hid_debug_events_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
-static int hid_debug_events_release(struct inode *inode, struct file *file)
+static int hid_debug_events_release(struct iyesde *iyesde, struct file *file)
 {
 	struct hid_debug_list *list = file->private_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&list->hdev->debug_list_lock, flags);
-	list_del(&list->node);
+	list_del(&list->yesde);
 	spin_unlock_irqrestore(&list->hdev->debug_list_lock, flags);
 	kfifo_free(&list->hid_debug_fifo);
 	kfree(list);
@@ -1182,7 +1182,7 @@ static const struct file_operations hid_debug_events_fops = {
 	.read           = hid_debug_events_read,
 	.poll		= hid_debug_events_poll,
 	.release        = hid_debug_events_release,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 

@@ -32,7 +32,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/socket.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fcntl.h>
 #include <linux/in.h>
 
@@ -56,13 +56,13 @@
 #include <linux/u64_stats_sync.h>
 
 /* blackhole_netdev - a device used for dsts that are marked expired!
- * This is global device (instead of per-net-ns) since it's not needed
+ * This is global device (instead of per-net-ns) since it's yest needed
  * to be per-ns and gets initialized at boot time.
  */
 struct net_device *blackhole_netdev;
 EXPORT_SYMBOL(blackhole_netdev);
 
-/* The higher levels take care of making this non-reentrant (it's
+/* The higher levels take care of making this yesn-reentrant (it's
  * called with bh's disabled).
  */
 static netdev_tx_t loopback_xmit(struct sk_buff *skb,
@@ -72,7 +72,7 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 
 	skb_tx_timestamp(skb);
 
-	/* do not fool net_timestamp_check() with various clock bases */
+	/* do yest fool net_timestamp_check() with various clock bases */
 	skb->tstamp = 0;
 
 	skb_orphan(skb);
@@ -248,7 +248,7 @@ static const struct net_device_ops blackhole_netdev_ops = {
 };
 
 /* This is a dst-dummy device used specifically for invalidated
- * DSTs and unlike loopback, this is not per-ns.
+ * DSTs and unlike loopback, this is yest per-ns.
  */
 static void blackhole_netdev_setup(struct net_device *dev)
 {

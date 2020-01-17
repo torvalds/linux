@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_ENUM_FRAMEINTERVALS:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_ENUM_FRAMEINTERVALS - Enumerate frame intervals
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_ENUM_FRAMEINTERVALS, struct v4l2_frmivalenum *argp )
@@ -77,18 +77,18 @@ the device supports. Only for the ``V4L2_FRMIVAL_TYPE_DISCRETE`` type
 does it make sense to increase the index value to receive more frame
 intervals.
 
-.. note::
+.. yeste::
 
-   The order in which the frame intervals are returned has no
-   special meaning. In particular does it not say anything about potential
+   The order in which the frame intervals are returned has yes
+   special meaning. In particular does it yest say anything about potential
    default frame intervals.
 
-Applications can assume that the enumeration data does not change
+Applications can assume that the enumeration data does yest change
 without any interaction from the application itself. This means that the
-enumeration data is consistent if the application does not perform any
+enumeration data is consistent if the application does yest perform any
 other ioctl calls while it runs the frame interval enumeration.
 
-.. note::
+.. yeste::
 
    **Frame intervals and frame rates:** The V4L2 API uses frame
    intervals instead of frame rates. Given the frame interval the frame
@@ -102,8 +102,8 @@ other ioctl calls while it runs the frame interval enumeration.
 Structs
 =======
 
-In the structs below, *IN* denotes a value that has to be filled in by
-the application, *OUT* denotes values that the driver fills in. The
+In the structs below, *IN* deyestes a value that has to be filled in by
+the application, *OUT* deyestes values that the driver fills in. The
 application should zero out all members except for the *IN* fields.
 
 
@@ -203,6 +203,6 @@ Enums
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

@@ -8,8 +8,8 @@
  *
  *  Based on the ia64, i386, and alpha versions.
  *
- *  Like the IA-64, we are a recent enough port (we are *starting*
- *  with glibc2.2) that we do not need to support the old non-realtime
+ *  Like the IA-64, we are a recent eyesugh port (we are *starting*
+ *  with glibc2.2) that we do yest need to support the old yesn-realtime
  *  Linux signals.  Therefore we don't.
  */
 
@@ -19,7 +19,7 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/tracehook.h>
@@ -98,14 +98,14 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 		sigframe_size = PARISC_RT_SIGFRAME_SIZE32;
 #endif
 
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	/* Unwind the user stack to get the rt_sigframe structure. */
 	frame = (struct rt_sigframe __user *)
 		(usp - sigframe_size);
 	DBG(2,"sys_rt_sigreturn: frame is %p\n", frame);
 
-	regs->orig_r28 = 1; /* no restarts for sigreturn */
+	regs->orig_r28 = 1; /* yes restarts for sigreturn */
 
 #ifdef CONFIG_64BIT
 	compat_frame = (struct compat_rt_sigframe __user *)frame;
@@ -151,8 +151,8 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 		
 
 
-	/* If we are on the syscall path IAOQ will not be restored, and
-	 * if we are on the interrupt path we must not corrupt gr31.
+	/* If we are on the syscall path IAOQ will yest be restored, and
+	 * if we are on the interrupt path we must yest corrupt gr31.
 	 */
 	if (in_syscall)
 		regs->gr[31] = regs->iaoq[0];
@@ -211,7 +211,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, int in_sysc
 	} else {
 		err |= __copy_to_user(sc->sc_iaoq, regs->iaoq, sizeof(regs->iaoq));
 		err |= __copy_to_user(sc->sc_iasq, regs->iasq, sizeof(regs->iasq));
-		DBG(1,"setup_sigcontext: iaoq %#lx / %#lx (not in syscall)\n", 
+		DBG(1,"setup_sigcontext: iaoq %#lx / %#lx (yest in syscall)\n", 
 			regs->iaoq[0], regs->iaoq[1]);
 	}
 
@@ -439,7 +439,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs, int in_syscall)
  * the delay branch in userspace and adjust as needed.
  */
 
-static void check_syscallno_in_delay_branch(struct pt_regs *regs)
+static void check_syscallyes_in_delay_branch(struct pt_regs *regs)
 {
 	u32 opcode, source_reg;
 	u32 __user *uaddr;
@@ -468,7 +468,7 @@ static void check_syscallno_in_delay_branch(struct pt_regs *regs)
 	if ((opcode & 0xffff0000) == 0x34140000)
 		return;	/* everything ok, just return */
 
-	/* Check if delay branch uses "nop" */
+	/* Check if delay branch uses "yesp" */
 	if (opcode == INSN_NOP)
 		return;
 
@@ -488,7 +488,7 @@ syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 {
 	if (regs->orig_r28)
 		return;
-	regs->orig_r28 = 1; /* no more restarts */
+	regs->orig_r28 = 1; /* yes more restarts */
 	/* Check the return code */
 	switch (regs->gr[28]) {
 	case -ERESTART_RESTARTBLOCK:
@@ -505,7 +505,7 @@ syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 		}
 		/* fallthrough */
 	case -ERESTARTNOINTR:
-		check_syscallno_in_delay_branch(regs);
+		check_syscallyes_in_delay_branch(regs);
 		break;
 	}
 }
@@ -515,10 +515,10 @@ insert_restart_trampoline(struct pt_regs *regs)
 {
 	if (regs->orig_r28)
 		return;
-	regs->orig_r28 = 1; /* no more restarts */
+	regs->orig_r28 = 1; /* yes more restarts */
 	switch(regs->gr[28]) {
 	case -ERESTART_RESTARTBLOCK: {
-		/* Restart the system call - no handlers present */
+		/* Restart the system call - yes handlers present */
 		unsigned int *usp = (unsigned int *)regs->gr[30];
 		unsigned long start = (unsigned long) &usp[2];
 		unsigned long end  = (unsigned long) &usp[5];
@@ -556,7 +556,7 @@ insert_restart_trampoline(struct pt_regs *regs)
 	case -ERESTARTNOHAND:
 	case -ERESTARTSYS:
 	case -ERESTARTNOINTR:
-		check_syscallno_in_delay_branch(regs);
+		check_syscallyes_in_delay_branch(regs);
 		return;
 	default:
 		break;
@@ -565,13 +565,13 @@ insert_restart_trampoline(struct pt_regs *regs)
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  *
  * We need to be able to restore the syscall arguments (r21-r26) to
  * restart syscalls.  Thus, the syscall path should save them in the
  * pt_regs structure (it's okay to do so since they are caller-save
- * registers).  As noted below, the syscall number gets restored for
+ * registers).  As yested below, the syscall number gets restored for
  * us due to the magic of delayed branching.
  */
 asmlinkage void
@@ -596,19 +596,19 @@ do_signal(struct pt_regs *regs, long in_syscall)
 	if (in_syscall)
 		insert_restart_trampoline(regs);
 	
-	DBG(1,"do_signal: Exit (not delivered), regs->gr[28] = %ld\n", 
+	DBG(1,"do_signal: Exit (yest delivered), regs->gr[28] = %ld\n", 
 		regs->gr[28]);
 
 	restore_saved_sigmask();
 }
 
-void do_notify_resume(struct pt_regs *regs, long in_syscall)
+void do_yestify_resume(struct pt_regs *regs, long in_syscall)
 {
 	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal(regs, in_syscall);
 
 	if (test_thread_flag(TIF_NOTIFY_RESUME)) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 	}
 }

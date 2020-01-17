@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp_net_ctrl.h
- * Netronome network device driver: Control BAR layout
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
- *          Brad Petrus <brad.petrus@netronome.com>
+ * Netroyesme network device driver: Control BAR layout
+ * Authors: Jakub Kicinski <jakub.kicinski@netroyesme.com>
+ *          Jason McMullan <jason.mcmullan@netroyesme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroyesme.com>
+ *          Brad Petrus <brad.petrus@netroyesme.com>
  */
 
 #ifndef _NFP_NET_CTRL_H_
@@ -319,8 +319,8 @@
 
 /**
  * Interrupt Control/Cause registers (0x0c00 - 0x0d00)
- * These registers are only used when MSI-X auto-masking is not
- * enabled (%NFP_NET_CFG_CTRL_MSIXAUTO not set).  The array is index
+ * These registers are only used when MSI-X auto-masking is yest
+ * enabled (%NFP_NET_CFG_CTRL_MSIXAUTO yest set).  The array is index
  * by MSI-X entry and are 1B in size.  If an entry is zero, the
  * corresponding entry is enabled.  If the FW generates an interrupt,
  * it writes a cause into the corresponding field.  This also masks
@@ -420,12 +420,12 @@
  *
  * List of simple TLV structures, first one starts at %NFP_NET_CFG_TLV_BASE.
  * Last structure must be of type %NFP_NET_CFG_TLV_TYPE_END.  Presence of TLVs
- * is indicated by %NFP_NET_CFG_TLV_BASE being non-zero.  TLV structures may
+ * is indicated by %NFP_NET_CFG_TLV_BASE being yesn-zero.  TLV structures may
  * fill the entire remainder of the BAR or be shorter.  FW must make sure TLVs
  * don't conflict with other features which allocate space beyond
  * %NFP_NET_CFG_TLV_BASE.  %NFP_NET_CFG_TLV_TYPE_RESERVED should be used to wrap
  * space used by such features.
- * Note that the 4 byte TLV header is not counted in %NFP_NET_CFG_TLV_LENGTH.
+ * Note that the 4 byte TLV header is yest counted in %NFP_NET_CFG_TLV_LENGTH.
  */
 #define NFP_NET_CFG_TLV_TYPE		0x00
 #define   NFP_NET_CFG_TLV_TYPE_REQUIRED   0x8000

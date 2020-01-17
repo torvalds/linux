@@ -2,7 +2,7 @@
 /*
  * Thunderbolt driver - bus logic (NHI independent)
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
@@ -21,10 +21,10 @@
 /**
  * struct tb_switch_nvm - Structure holding switch NVM information
  * @major: Major version number of the active NVM portion
- * @minor: Minor version number of the active NVM portion
+ * @miyesr: Miyesr version number of the active NVM portion
  * @id: Identifier used with both NVM portions
  * @active: Active portion NVMem device
- * @non_active: Non-active portion NVMem device
+ * @yesn_active: Non-active portion NVMem device
  * @buf: Buffer where the NVM image is stored before it is written to
  *	 the actual NVM flash device
  * @buf_data_size: Number of bytes actually consumed by the new NVM
@@ -33,10 +33,10 @@
  */
 struct tb_switch_nvm {
 	u8 major;
-	u8 minor;
+	u8 miyesr;
 	int id;
 	struct nvmem_device *active;
-	struct nvmem_device *non_active;
+	struct nvmem_device *yesn_active;
 	void *buf;
 	size_t buf_data_size;
 	bool authenticating;
@@ -56,26 +56,26 @@ struct tb_switch_nvm {
  *	      upgradeable NVM.
  * @tb: Pointer to the domain the switch belongs to
  * @uid: Unique ID of the switch
- * @uuid: UUID of the switch (or %NULL if not supported)
+ * @uuid: UUID of the switch (or %NULL if yest supported)
  * @vendor: Vendor ID of the switch
  * @device: Device ID of the switch
- * @vendor_name: Name of the vendor (or %NULL if not known)
- * @device_name: Name of the device (or %NULL if not known)
+ * @vendor_name: Name of the vendor (or %NULL if yest kyeswn)
+ * @device_name: Name of the device (or %NULL if yest kyeswn)
  * @link_speed: Speed of the link in Gb/s
  * @link_width: Width of the link (1 or 2)
  * @generation: Switch Thunderbolt generation
- * @cap_plug_events: Offset to the plug events capability (%0 if not found)
- * @cap_lc: Offset to the link controller capability (%0 if not found)
+ * @cap_plug_events: Offset to the plug events capability (%0 if yest found)
+ * @cap_lc: Offset to the link controller capability (%0 if yest found)
  * @is_unplugged: The switch is going away
- * @drom: DROM of the switch (%NULL if not found)
+ * @drom: DROM of the switch (%NULL if yest found)
  * @nvm: Pointer to the NVM if the switch has one (%NULL otherwise)
- * @no_nvm_upgrade: Prevent NVM upgrade of this switch
+ * @yes_nvm_upgrade: Prevent NVM upgrade of this switch
  * @safe_mode: The switch is in safe-mode
- * @boot: Whether the switch was already authorized on boot or not
+ * @boot: Whether the switch was already authorized on boot or yest
  * @rpm: The switch supports runtime PM
  * @authorized: Whether the switch is authorized by user or policy
  * @security_level: Switch supported security level
- * @key: Contains the key used to challenge the device or %NULL if not
+ * @key: Contains the key used to challenge the device or %NULL if yest
  *	 supported. Size of the key is %TB_SWITCH_KEY_SIZE.
  * @connection_id: Connection ID used with ICM messaging
  * @connection_key: Connection key used with ICM messaging
@@ -107,7 +107,7 @@ struct tb_switch {
 	bool is_unplugged;
 	u8 *drom;
 	struct tb_switch_nvm *nvm;
-	bool no_nvm_upgrade;
+	bool yes_nvm_upgrade;
 	bool safe_mode;
 	bool boot;
 	bool rpm;
@@ -125,10 +125,10 @@ struct tb_switch {
  * struct tb_port - a thunderbolt port, part of a tb_switch
  * @config: Cached port configuration read from registers
  * @sw: Switch the port belongs to
- * @remote: Remote port (%NULL if not connected)
- * @xdomain: Remote host (%NULL if not connected)
- * @cap_phy: Offset, zero if not found
- * @cap_adap: Offset of the adapter specific capability (%0 if not present)
+ * @remote: Remote port (%NULL if yest connected)
+ * @xdomain: Remote host (%NULL if yest connected)
+ * @cap_phy: Offset, zero if yest found
+ * @cap_adap: Offset of the adapter specific capability (%0 if yest present)
  * @port: Port number on switch
  * @disabled: Disabled by eeprom
  * @bonded: true if the port is bonded (two lanes combined as one)
@@ -163,7 +163,7 @@ struct tb_port {
  *	      (must be on the same switch than @in_port)
  * @in_hop_index: HopID where the path configuration entry is placed in
  *		  the path config space of @in_port.
- * @in_counter_index: Used counter index (not used in the driver
+ * @in_counter_index: Used counter index (yest used in the driver
  *		      currently, %-1 to disable)
  * @next_hop_index: HopID of the packet when it is routed out from @out_port
  * @initial_credits: Number of initial flow control credits allocated for
@@ -173,7 +173,7 @@ struct tb_port {
  * in_port and out_port have to be on the same switch. Packets arriving on
  * in_port with "hop" = in_hop_index will get routed to through out_port. The
  * next hop to take (on out_port->remote) is determined by
- * next_hop_index. When routing packet to another switch (out->remote is
+ * next_hop_index. When routing packet to ayesther switch (out->remote is
  * set) the @next_hop_index must match the @in_hop_index of that next
  * hop to make routing possible.
  *
@@ -191,9 +191,9 @@ struct tb_path_hop {
 
 /**
  * enum tb_path_port - path options mask
- * @TB_PATH_NONE: Do not activate on any hop on path
+ * @TB_PATH_NONE: Do yest activate on any hop on path
  * @TB_PATH_SOURCE: Activate on the first hop (out of src)
- * @TB_PATH_INTERNAL: Activate on the intermediate hops (not the first/last)
+ * @TB_PATH_INTERNAL: Activate on the intermediate hops (yest the first/last)
  * @TB_PATH_DESTINATION: Activate on the last hop (into dst)
  * @TB_PATH_ALL: Activate on all hops on the path
  */
@@ -209,7 +209,7 @@ enum tb_path_port {
  * struct tb_path - a unidirectional path between two ports
  * @tb: Pointer to the domain structure
  * @name: Name of the path (used for debugging)
- * @nfc_credits: Number of non flow controlled credits allocated for the path
+ * @nfc_credits: Number of yesn flow controlled credits allocated for the path
  * @ingress_shared_buffer: Shared buffering used for ingress ports on the path
  * @egress_shared_buffer: Shared buffering used for egress ports on the path
  * @ingress_fc_enable: Flow control for ingress ports on the path
@@ -255,8 +255,8 @@ struct tb_path {
  *		  ICM to send driver ready message to the firmware.
  * @start: Starts the domain
  * @stop: Stops the domain
- * @suspend_noirq: Connection manager specific suspend_noirq
- * @resume_noirq: Connection manager specific resume_noirq
+ * @suspend_yesirq: Connection manager specific suspend_yesirq
+ * @resume_yesirq: Connection manager specific resume_yesirq
  * @suspend: Connection manager specific suspend
  * @complete: Connection manager specific complete
  * @runtime_suspend: Connection manager specific runtime_suspend
@@ -277,8 +277,8 @@ struct tb_cm_ops {
 	int (*driver_ready)(struct tb *tb);
 	int (*start)(struct tb *tb);
 	void (*stop)(struct tb *tb);
-	int (*suspend_noirq)(struct tb *tb);
-	int (*resume_noirq)(struct tb *tb);
+	int (*suspend_yesirq)(struct tb *tb);
+	int (*resume_yesirq)(struct tb *tb);
 	int (*suspend)(struct tb *tb);
 	void (*complete)(struct tb *tb);
 	int (*runtime_suspend)(struct tb *tb);
@@ -313,7 +313,7 @@ static inline void *tb_priv(struct tb *tb)
  * Every switch has an upstream port (for the root switch it is the NHI).
  *
  * During switch alloc/init tb_upstream_port()->remote may be NULL, even for
- * non root switches (on the NHI port remote is always NULL).
+ * yesn root switches (on the NHI port remote is always NULL).
  *
  * Return: Returns the upstream port of the switch.
  */
@@ -496,8 +496,8 @@ void tb_xdomain_exit(void);
 struct tb *tb_domain_alloc(struct tb_nhi *nhi, size_t privsize);
 int tb_domain_add(struct tb *tb);
 void tb_domain_remove(struct tb *tb);
-int tb_domain_suspend_noirq(struct tb *tb);
-int tb_domain_resume_noirq(struct tb *tb);
+int tb_domain_suspend_yesirq(struct tb *tb);
+int tb_domain_resume_yesirq(struct tb *tb);
 int tb_domain_suspend(struct tb *tb);
 void tb_domain_complete(struct tb *tb);
 int tb_domain_runtime_suspend(struct tb *tb);
@@ -714,7 +714,7 @@ static inline int tb_route_length(u64 route)
 /**
  * tb_downstream_route() - get route to downstream switch
  *
- * Port must not be the upstream port (otherwise a loop is created).
+ * Port must yest be the upstream port (otherwise a loop is created).
  *
  * Return: Returns a route to the switch behind @port.
  */

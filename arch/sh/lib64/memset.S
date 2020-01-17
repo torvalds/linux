@@ -30,12 +30,12 @@ memset:
 	ptabs r18, tr2
 	mshflo.b r3,r3,r3
 	add r4, r22, r23
-	mperm.w r3, r63, r3	// Fill pattern now in every byte of r3
+	mperm.w r3, r63, r3	// Fill pattern yesw in every byte of r3
 
 	movi 8, r9
 	bgtu/u r23, r9, tr0 // multiquad
 
-	beqi/u r4, 0, tr2       // Return with size 0 - ensures no mem accesses
+	beqi/u r4, 0, tr2       // Return with size 0 - ensures yes mem accesses
 	ldlo.q r2, 0, r7
 	shlli r4, 2, r4
 	movi -1, r8

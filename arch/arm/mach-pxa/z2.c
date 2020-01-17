@@ -186,12 +186,12 @@ static struct platform_device z2_flash = {
 	},
 };
 
-static void __init z2_nor_init(void)
+static void __init z2_yesr_init(void)
 {
 	platform_device_register(&z2_flash);
 }
 #else
-static inline void z2_nor_init(void) {}
+static inline void z2_yesr_init(void) {}
 #endif
 
 /******************************************************************************
@@ -316,7 +316,7 @@ static inline void z2_mmc_init(void) {}
 struct gpio_led z2_gpio_leds[] = {
 {
 	.name			= "z2:green:wifi",
-	.default_trigger	= "none",
+	.default_trigger	= "yesne",
 	.gpio			= GPIO10_ZIPITZ2_LED_WIFI,
 	.active_low		= 1,
 }, {
@@ -721,7 +721,7 @@ static void __init z2_init(void)
 	z2_mkp_init();
 	z2_i2c_init();
 	z2_spi_init();
-	z2_nor_init();
+	z2_yesr_init();
 	z2_pwm_init();
 	z2_leds_init();
 	z2_keys_init();

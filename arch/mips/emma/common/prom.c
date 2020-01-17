@@ -20,7 +20,7 @@ const char *get_system_type(void)
 #ifdef CONFIG_NEC_MARKEINS
 	return "NEC EMMA2RH Mark-eins";
 #else
-#error  Unknown NEC board
+#error  Unkyeswn NEC board
 #endif
 }
 
@@ -31,7 +31,7 @@ void __init prom_init(void)
 	char **arg = (char **)fw_arg1;
 	int i;
 
-	/* if user passes kernel args, ignore the default one */
+	/* if user passes kernel args, igyesre the default one */
 	if (argc > 1)
 		arcs_cmdline[0] = '\0';
 
@@ -47,7 +47,7 @@ void __init prom_init(void)
 #ifdef CONFIG_NEC_MARKEINS
 	add_memory_region(0, EMMA2RH_RAM_SIZE, BOOT_MEM_RAM);
 #else
-#error  Unknown NEC board
+#error  Unkyeswn NEC board
 #endif
 }
 

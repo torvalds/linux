@@ -67,9 +67,9 @@ struct imx2_wdt_device {
 	bool ext_reset;
 };
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static unsigned timeout;
@@ -94,17 +94,17 @@ static int imx2_wdt_restart(struct watchdog_device *wdog, unsigned long action,
 	struct imx2_wdt_device *wdev = watchdog_get_drvdata(wdog);
 	unsigned int wcr_enable = IMX2_WDT_WCR_WDE;
 
-	/* Use internal reset or external - not both */
+	/* Use internal reset or external - yest both */
 	if (wdev->ext_reset)
-		wcr_enable |= IMX2_WDT_WCR_SRS; /* do not assert int reset */
+		wcr_enable |= IMX2_WDT_WCR_SRS; /* do yest assert int reset */
 	else
-		wcr_enable |= IMX2_WDT_WCR_WDA; /* do not assert ext-reset */
+		wcr_enable |= IMX2_WDT_WCR_WDA; /* do yest assert ext-reset */
 
 	/* Assert SRS signal */
 	regmap_write(wdev->regmap, IMX2_WDT_WCR, wcr_enable);
 	/*
 	 * Due to imx6q errata ERR004346 (WDOG: WDOG SRS bit requires to be
-	 * written twice), we add another two writes to ensure there must be at
+	 * written twice), we add ayesther two writes to ensure there must be at
 	 * least two writes happen in the same one 32kHz clock period.  We save
 	 * the target check here, since the writes shouldn't be a huge burden
 	 * for other platforms.
@@ -209,7 +209,7 @@ static irqreturn_t imx2_wdt_isr(int irq, void *wdog_arg)
 	regmap_write_bits(wdev->regmap, IMX2_WDT_WICR,
 			  IMX2_WDT_WICR_WTIS, IMX2_WDT_WICR_WTIS);
 
-	watchdog_notify_pretimeout(wdog);
+	watchdog_yestify_pretimeout(wdog);
 
 	return IRQ_HANDLED;
 }
@@ -295,11 +295,11 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 	regmap_read(wdev->regmap, IMX2_WDT_WRSR, &val);
 	wdog->bootstatus = val & IMX2_WDT_WRSR_TOUT ? WDIOF_CARDRESET : 0;
 
-	wdev->ext_reset = of_property_read_bool(dev->of_node,
+	wdev->ext_reset = of_property_read_bool(dev->of_yesde,
 						"fsl,ext-reset-output");
 	platform_set_drvdata(pdev, wdog);
 	watchdog_set_drvdata(wdog, wdev);
-	watchdog_set_nowayout(wdog, nowayout);
+	watchdog_set_yeswayout(wdog, yeswayout);
 	watchdog_set_restart_priority(wdog, 128);
 	watchdog_init_timeout(wdog, timeout, dev);
 
@@ -319,8 +319,8 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_clk;
 
-	dev_info(dev, "timeout %d sec (nowayout=%d)\n",
-		 wdog->timeout, nowayout);
+	dev_info(dev, "timeout %d sec (yeswayout=%d)\n",
+		 wdog->timeout, yeswayout);
 
 	return 0;
 
@@ -359,7 +359,7 @@ static void imx2_wdt_shutdown(struct platform_device *pdev)
 	}
 }
 
-/* Disable watchdog if it is active or non-active but still running */
+/* Disable watchdog if it is active or yesn-active but still running */
 static int __maybe_unused imx2_wdt_suspend(struct device *dev)
 {
 	struct watchdog_device *wdog = dev_get_drvdata(dev);

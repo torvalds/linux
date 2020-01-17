@@ -175,7 +175,7 @@ ld_flags       = $(KBUILD_LDFLAGS) $(ldflags-y) $(LDFLAGS_$(@F))
 
 DTC_INCLUDE    := $(srctree)/scripts/dtc/include-prefixes
 
-dtc_cpp_flags  = -Wp,-MD,$(depfile).pre.tmp -nostdinc                    \
+dtc_cpp_flags  = -Wp,-MD,$(depfile).pre.tmp -yesstdinc                    \
 		 $(addprefix -I,$(DTC_INCLUDE))                          \
 		 -undef -D__DTS__
 
@@ -183,7 +183,7 @@ dtc_cpp_flags  = -Wp,-MD,$(depfile).pre.tmp -nostdinc                    \
 # Usage:
 #   $(call multi_depend, multi_used_targets, suffix_to_remove, suffix_to_add)
 define multi_depend
-$(foreach m, $(notdir $1), \
+$(foreach m, $(yestdir $1), \
 	$(eval $(obj)/$m: \
 	$(addprefix $(obj)/, $(foreach s, $3, $($(m:%$(strip $2)=%$(s)))))))
 endef
@@ -205,7 +205,7 @@ $(obj)/%: $(src)/%_shipped
 #	target: source(s) FORCE
 #		$(if_changed,ld/objcopy/gzip)
 #
-#	and add target to extra-y so that we know we have to
+#	and add target to extra-y so that we kyesw we have to
 #	read in the saved command line
 
 # Linking
@@ -236,20 +236,20 @@ quiet_cmd_gzip = GZIP    $@
 # ---------------------------------------------------------------------------
 DTC ?= $(objtree)/scripts/dtc/dtc
 
-# Disable noisy checks by default
+# Disable yesisy checks by default
 ifeq ($(findstring 1,$(KBUILD_EXTRA_WARN)),)
-DTC_FLAGS += -Wno-unit_address_vs_reg \
-	-Wno-unit_address_format \
-	-Wno-avoid_unnecessary_addr_size \
-	-Wno-alias_paths \
-	-Wno-graph_child_address \
-	-Wno-simple_bus_reg \
-	-Wno-unique_unit_address \
-	-Wno-pci_device_reg
+DTC_FLAGS += -Wyes-unit_address_vs_reg \
+	-Wyes-unit_address_format \
+	-Wyes-avoid_unnecessary_addr_size \
+	-Wyes-alias_paths \
+	-Wyes-graph_child_address \
+	-Wyes-simple_bus_reg \
+	-Wyes-unique_unit_address \
+	-Wyes-pci_device_reg
 endif
 
 ifneq ($(findstring 2,$(KBUILD_EXTRA_WARN)),)
-DTC_FLAGS += -Wnode_name_chars_strict \
+DTC_FLAGS += -Wyesde_name_chars_strict \
 	-Wproperty_name_chars_strict
 endif
 
@@ -304,7 +304,7 @@ dtc-tmp = $(subst $(comma),_,$(dot-target).dts.tmp)
 # Bzip2
 # ---------------------------------------------------------------------------
 
-# Bzip2 and LZMA do not include size in file... so we have to fake that;
+# Bzip2 and LZMA do yest include size in file... so we have to fake that;
 # append the size as a 32-bit littleendian number as gzip does.
 size_append = printf $(shell						\
 dec_size=0;								\
@@ -345,7 +345,7 @@ MKIMAGE := $(srctree)/scripts/mkuboot.sh
 # SRCARCH just happens to match slightly more than ARCH (on sparc), so reduces
 # the number of overrides in arch makefiles
 UIMAGE_ARCH ?= $(SRCARCH)
-UIMAGE_COMPRESSION ?= $(if $(2),$(2),none)
+UIMAGE_COMPRESSION ?= $(if $(2),$(2),yesne)
 UIMAGE_OPTS-y ?=
 UIMAGE_TYPE ?= kernel
 UIMAGE_LOADADDR ?= arch_must_set_this
@@ -372,7 +372,7 @@ quiet_cmd_uimage = UIMAGE  $@
 # Note that the bytes added by size_append will make the xz tool think that
 # the file is corrupt. This is expected.
 #
-# xzmisc doesn't use size_append, so it can be used to create normal .xz
+# xzmisc doesn't use size_append, so it can be used to create yesrmal .xz
 # files. xzmisc uses smaller LZMA2 dictionary than xzkern, because a very
 # big dictionary would increase the memory usage too much in the multi-call
 # decompression mode. A BCJ filter isn't used either.
@@ -398,7 +398,7 @@ define sed-offsets
 endef
 
 # Use filechk to avoid rebuilds when a header changes, but the resulting file
-# does not
+# does yest
 define filechk_offsets
 	 echo "#ifndef $2"; \
 	 echo "#define $2"; \

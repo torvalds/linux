@@ -19,7 +19,7 @@
 #include <linux/compiler.h>
 #include <linux/linkage.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/smp.h>
 #include <linux/bug.h>
 #include <linux/percpu.h>
@@ -58,7 +58,7 @@ typedef int (*kretprobe_handler_t) (struct kretprobe_instance *,
 				    struct pt_regs *);
 
 struct kprobe {
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 
 	/* list of kprobes for multi-handler support */
 	struct list_head list;
@@ -141,7 +141,7 @@ static inline int kprobe_ftrace(struct kprobe *p)
  * maxactive - The maximum number of instances of the probed function that
  * can be active concurrently.
  * nmissed - tracks the number of times the probed function's return was
- * ignored, due to maxactive being too low.
+ * igyesred, due to maxactive being too low.
  *
  */
 struct kretprobe {
@@ -156,7 +156,7 @@ struct kretprobe {
 };
 
 struct kretprobe_instance {
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 	struct kretprobe *rp;
 	kprobe_opcode_t *ret_addr;
 	struct task_struct *task;
@@ -299,9 +299,9 @@ extern int arch_prepare_optimized_kprobe(struct optimized_kprobe *op,
 					 struct kprobe *orig);
 extern void arch_remove_optimized_kprobe(struct optimized_kprobe *op);
 extern void arch_optimize_kprobes(struct list_head *oplist);
-extern void arch_unoptimize_kprobes(struct list_head *oplist,
+extern void arch_uyesptimize_kprobes(struct list_head *oplist,
 				    struct list_head *done_list);
-extern void arch_unoptimize_kprobe(struct optimized_kprobe *op);
+extern void arch_uyesptimize_kprobe(struct optimized_kprobe *op);
 extern int arch_within_optimized_kprobe(struct optimized_kprobe *op,
 					unsigned long addr);
 
@@ -459,7 +459,7 @@ static inline bool is_kprobe_optinsn_slot(unsigned long addr)
 #endif
 
 /* Returns true if kprobes handled the fault */
-static nokprobe_inline bool kprobe_page_fault(struct pt_regs *regs,
+static yeskprobe_inline bool kprobe_page_fault(struct pt_regs *regs,
 					      unsigned int trap)
 {
 	if (!kprobes_built_in())
@@ -468,7 +468,7 @@ static nokprobe_inline bool kprobe_page_fault(struct pt_regs *regs,
 		return false;
 	/*
 	 * To be potentially processing a kprobe fault and to be allowed
-	 * to call kprobe_running(), we have to be non-preemptible.
+	 * to call kprobe_running(), we have to be yesn-preemptible.
 	 */
 	if (preemptible())
 		return false;

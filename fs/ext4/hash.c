@@ -186,22 +186,22 @@ static void str2hashbuf_unsigned(const char *msg, int len, __u32 *buf, int num)
 
 /*
  * Returns the hash of a filename.  If len is 0 and name is NULL, then
- * this function can be used to test whether or not a hash version is
+ * this function can be used to test whether or yest a hash version is
  * supported.
  *
  * The seed is an 4 longword (32 bits) "secret" which can be used to
  * uniquify a hash.  If the seed is all zero's, then some default seed
  * may be used.
  *
- * A particular hash version specifies whether or not the seed is
- * represented, and whether or not the returned hash is 32 bits or 64
- * bits.  32 bit hashes will return 0 for the minor hash.
+ * A particular hash version specifies whether or yest the seed is
+ * represented, and whether or yest the returned hash is 32 bits or 64
+ * bits.  32 bit hashes will return 0 for the miyesr hash.
  */
 static int __ext4fs_dirhash(const char *name, int len,
 			    struct dx_hash_info *hinfo)
 {
 	__u32	hash;
-	__u32	minor_hash = 0;
+	__u32	miyesr_hash = 0;
 	const char	*p;
 	int		i;
 	__u32		in[8], buf[4];
@@ -242,7 +242,7 @@ static int __ext4fs_dirhash(const char *name, int len,
 			len -= 32;
 			p += 32;
 		}
-		minor_hash = buf[2];
+		miyesr_hash = buf[2];
 		hash = buf[1];
 		break;
 	case DX_HASH_TEA_UNSIGNED:
@@ -257,7 +257,7 @@ static int __ext4fs_dirhash(const char *name, int len,
 			p += 16;
 		}
 		hash = buf[0];
-		minor_hash = buf[1];
+		miyesr_hash = buf[1];
 		break;
 	default:
 		hinfo->hash = 0;
@@ -267,11 +267,11 @@ static int __ext4fs_dirhash(const char *name, int len,
 	if (hash == (EXT4_HTREE_EOF_32BIT << 1))
 		hash = (EXT4_HTREE_EOF_32BIT - 1) << 1;
 	hinfo->hash = hash;
-	hinfo->minor_hash = minor_hash;
+	hinfo->miyesr_hash = miyesr_hash;
 	return 0;
 }
 
-int ext4fs_dirhash(const struct inode *dir, const char *name, int len,
+int ext4fs_dirhash(const struct iyesde *dir, const char *name, int len,
 		   struct dx_hash_info *hinfo)
 {
 #ifdef CONFIG_UNICODE

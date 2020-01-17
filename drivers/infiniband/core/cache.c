@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -34,7 +34,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/netdevice.h>
@@ -147,7 +147,7 @@ const char *ib_cache_gid_type_str(enum ib_gid_type gid_type)
 }
 EXPORT_SYMBOL(ib_cache_gid_type_str);
 
-/** rdma_is_zero_gid - Check if given GID is zero or not.
+/** rdma_is_zero_gid - Check if given GID is zero or yest.
  * @gid:	GID to check
  * Returns true if given GID is zero, returns false otherwise.
  */
@@ -158,7 +158,7 @@ bool rdma_is_zero_gid(const union ib_gid *gid)
 EXPORT_SYMBOL(rdma_is_zero_gid);
 
 /** is_gid_index_default - Check if a given index belongs to
- * reserved default GIDs or not.
+ * reserved default GIDs or yest.
  * @table:	GID table pointer
  * @index:	Index to check in GID table
  * Returns true if index is one of the reserved default GID index otherwise
@@ -244,7 +244,7 @@ static void free_gid_entry_locked(struct ib_gid_table_entry *entry)
 
 	/*
 	 * The only way to avoid overwriting NULL in table is
-	 * by comparing if it is same entry in table or not!
+	 * by comparing if it is same entry in table or yest!
 	 * If new entry in table is added by the time we free here,
 	 * don't overwrite the table entry.
 	 */
@@ -391,7 +391,7 @@ static void del_gid(struct ib_device *ib_dev, u8 port,
 	entry = table->data_vec[ix];
 	entry->state = GID_TABLE_ENTRY_PENDING_DEL;
 	/*
-	 * For non RoCE protocol, GID entry slot is ready to use.
+	 * For yesn RoCE protocol, GID entry slot is ready to use.
 	 */
 	if (!rdma_protocol_roce(ib_dev, port))
 		table->data_vec[ix] = NULL;
@@ -417,8 +417,8 @@ static void del_gid(struct ib_device *ib_dev, u8 port,
  * @attr:	Attributes of the GID
  *
  * Returns 0 on success or appropriate error code. It accepts zero
- * GID addition for non RoCE ports for HCA's who report them as valid
- * GID. However such zero GIDs are not added to the cache.
+ * GID addition for yesn RoCE ports for HCA's who report them as valid
+ * GID. However such zero GIDs are yest added to the cache.
  */
 static int add_modify_gid(struct ib_gid_table *table,
 			  const struct ib_gid_attr *attr)
@@ -476,7 +476,7 @@ static int find_gid(struct ib_gid_table *table, const union ib_gid *gid,
 		i++;
 
 		/* find_gid() is used during GID addition where it is expected
-		 * to return a free entry slot which is not duplicate.
+		 * to return a free entry slot which is yest duplicate.
 		 * Free entry slot is requested and returned if pempty is set,
 		 * so lookup free slot only if requested.
 		 */
@@ -498,7 +498,7 @@ static int find_gid(struct ib_gid_table *table, const union ib_gid *gid,
 
 		/*
 		 * Additionally find_gid() is used to find valid entry during
-		 * lookup operation; so ignore the entries which are marked as
+		 * lookup operation; so igyesre the entries which are marked as
 		 * pending for removal and the entries which are marked as
 		 * invalid.
 		 */
@@ -549,7 +549,7 @@ static int __ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
 	int empty;
 	int ix;
 
-	/* Do not allow adding zero GID in support of
+	/* Do yest allow adding zero GID in support of
 	 * IB spec version 1.3 section 4.1.1 point (6) and
 	 * section 12.7.10 and section 12.7.20
 	 */
@@ -671,7 +671,7 @@ int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u8 port,
  * @gid_type: The GID type to search for.
  * @port_num: The port number of the device where the GID value should be
  *   searched.
- * @ndev: In RoCE, the net device of the device. NULL means ignore.
+ * @ndev: In RoCE, the net device of the device. NULL means igyesre.
  *
  * Returns sgid attributes if the GID is found with valid reference or
  * returns ERR_PTR for the error.
@@ -724,7 +724,7 @@ EXPORT_SYMBOL(rdma_find_gid_by_port);
  *   If the filter function returns true, the corresponding index is returned,
  *   otherwise, we continue searching the GID table. It's guaranteed that
  *   while filter is executed, ndev field is valid and the structure won't
- *   change. filter is executed in an atomic context. filter must not be NULL.
+ *   change. filter is executed in an atomic context. filter must yest be NULL.
  *
  * rdma_find_gid_by_filter() searches for the specified GID value
  * of which the filter function returns true in the port's GID table.
@@ -978,7 +978,7 @@ EXPORT_SYMBOL(rdma_query_gid);
  * @device: The device to query.
  * @gid: The GID value to search for.
  * @gid_type: The GID type to search for.
- * @ndev: In RoCE, the net device of the device. NULL means ignore.
+ * @ndev: In RoCE, the net device of the device. NULL means igyesre.
  *
  * rdma_find_gid() searches for the specified GID value in the software cache.
  *
@@ -1350,7 +1350,7 @@ int rdma_read_gid_l2_fields(const struct ib_gid_attr *attr,
 }
 EXPORT_SYMBOL(rdma_read_gid_l2_fields);
 
-static int config_non_roce_gid_cache(struct ib_device *device,
+static int config_yesn_roce_gid_cache(struct ib_device *device,
 				     u8 port, int gid_tbl_len)
 {
 	struct ib_gid_attr gid_attr = {};
@@ -1404,7 +1404,7 @@ static void ib_cache_update(struct ib_device *device,
 	}
 
 	if (!rdma_protocol_roce(device, port)) {
-		ret = config_non_roce_gid_cache(device, port,
+		ret = config_yesn_roce_gid_cache(device, port,
 						tprops->gid_tbl_len);
 		if (ret)
 			goto err;
@@ -1518,7 +1518,7 @@ void ib_cache_release_one(struct ib_device *device)
 	/*
 	 * The release function frees all the cache elements.
 	 * This function should be called as part of freeing
-	 * all the device's resources when the cache could no
+	 * all the device's resources when the cache could yes
 	 * longer be accessed.
 	 */
 	rdma_for_each_port (device, p)
@@ -1534,7 +1534,7 @@ void ib_cache_cleanup_one(struct ib_device *device)
 	 * up the GID cache. This function should be called after
 	 * the device was removed from the devices list and all
 	 * clients were removed, so the cache exists but is
-	 * non-functional and shouldn't be updated anymore.
+	 * yesn-functional and shouldn't be updated anymore.
 	 */
 	ib_unregister_event_handler(&device->cache.event_handler);
 	flush_workqueue(ib_wq);

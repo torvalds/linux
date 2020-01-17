@@ -74,7 +74,7 @@ int __init txx9_pci66_check(struct pci_controller *hose, int top_bus,
 			early_read_config_word(hose, top_bus, current_bus,
 					       pci_devfn, PCI_STATUS, &stat);
 			if (!(stat & PCI_STATUS_66MHZ)) {
-				pr_debug("PCI: %02x:%02x not 66MHz capable.\n",
+				pr_debug("PCI: %02x:%02x yest 66MHz capable.\n",
 					 current_bus, pci_devfn);
 				cap66 = 0;
 				break;
@@ -320,8 +320,8 @@ static void quirk_slc90e66_ide(struct pci_dev *dev)
 	 * !!! DO NOT REMOVE THIS COMMENT IT IS REQUIRED BY SMSC !!!
 	 *
 	 * This line of code is intended to provide the user with a work
-	 * around solution to the anomalies cited in SMSC's anomaly sheet
-	 * entitled, "SLC90E66 Functional Rev.J_0.1 Anomalies"".
+	 * around solution to the ayesmalies cited in SMSC's ayesmaly sheet
+	 * entitled, "SLC90E66 Functional Rev.J_0.1 Ayesmalies"".
 	 *
 	 * !!! DO NOT REMOVE THIS COMMENT IT IS REQUIRED BY SMSC !!!
 	 */
@@ -334,7 +334,7 @@ static void quirk_slc90e66_ide(struct pci_dev *dev)
 
 static void tc35815_fixup(struct pci_dev *dev)
 {
-	/* This device may have PM registers but not they are not supported. */
+	/* This device may have PM registers but yest they are yest supported. */
 	if (dev->pm_cap) {
 		dev_info(&dev->dev, "PM disabled\n");
 		dev->pm_cap = 0;
@@ -403,8 +403,8 @@ char *__init txx9_pcibios_setup(char *str)
 		   (5V or 3.3V), JMB-PICMG-L2 (5V only), etc.) */
 		txx9_pci_option |= TXX9_PCI_OPT_PICMG;
 		return NULL;
-	} else if (!strcmp(str, "nopicmg")) {
-		/* non-PICMG compliant backplane (TOSHIBA
+	} else if (!strcmp(str, "yespicmg")) {
+		/* yesn-PICMG compliant backplane (TOSHIBA
 		   RBHBK4100,RBHBK4200, Interface PCM-PCM05, etc.) */
 		txx9_pci_option &= ~TXX9_PCI_OPT_PICMG;
 		return NULL;
@@ -421,7 +421,7 @@ char *__init txx9_pcibios_setup(char *str)
 	} else if (!strncmp(str, "err=", 4)) {
 		if (!strcmp(str + 4, "panic"))
 			txx9_pci_err_action = TXX9_PCI_ERR_PANIC;
-		else if (!strcmp(str + 4, "ignore"))
+		else if (!strcmp(str + 4, "igyesre"))
 			txx9_pci_err_action = TXX9_PCI_ERR_IGNORE;
 		return NULL;
 	}

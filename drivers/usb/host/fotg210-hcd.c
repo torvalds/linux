@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Faraday FOTG210 EHCI-like driver
  *
- * Copyright (c) 2013 Faraday Technology Corporation
+ * Copyright (c) 2013 Faraday Techyeslogy Corporation
  *
  * Author: Yuan-Hsin Chen <yhchen@faraday-tech.com>
  *	   Feng-Hsin Chiang <john453@faraday-tech.com>
@@ -18,7 +18,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/hrtimer.h>
 #include <linux/list.h>
@@ -52,7 +52,7 @@ static const char hcd_name[] = "fotg210_hcd";
 #define FOTG210_TUNE_MULT_HS	1 /* 1-3 transactions/uframe; 4.10.3 */
 #define FOTG210_TUNE_MULT_TT	1
 
-/* Some drivers think it's safe to schedule isochronous transfers more than 256
+/* Some drivers think it's safe to schedule isochroyesus transfers more than 256
  * ms into the future (partly as a result of an old bug in the scheduling
  * code).  In an attempt to avoid trouble, we will use a minimum scheduling
  * length of 512 frames instead of 256.
@@ -278,13 +278,13 @@ static char *dbg_port_buf(char *buf, unsigned len, const char *label, int port,
 }
 
 /* troubleshooting help: expose state in debugfs */
-static int debug_async_open(struct inode *, struct file *);
-static int debug_periodic_open(struct inode *, struct file *);
-static int debug_registers_open(struct inode *, struct file *);
-static int debug_async_open(struct inode *, struct file *);
+static int debug_async_open(struct iyesde *, struct file *);
+static int debug_periodic_open(struct iyesde *, struct file *);
+static int debug_registers_open(struct iyesde *, struct file *);
+static int debug_async_open(struct iyesde *, struct file *);
 
 static ssize_t debug_output(struct file*, char __user*, size_t, loff_t*);
-static int debug_close(struct inode *, struct file *);
+static int debug_close(struct iyesde *, struct file *);
 
 static const struct file_operations debug_async_fops = {
 	.owner		= THIS_MODULE,
@@ -462,7 +462,7 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 
 	/* dumps a snapshot of the async schedule.
 	 * usually empty except for long-term bulk reads, or head.
-	 * one QH per line, and TDs we know about
+	 * one QH per line, and TDs we kyesw about
 	 */
 	spin_lock_irqsave(&fotg210->lock, flags);
 	for (qh = fotg210->async->qh_next.qh; size > 0 && qh;
@@ -657,7 +657,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		size = scnprintf(next, size,
 				"bus %s, device %s\n"
 				"%s\n"
-				"SUSPENDED(no register access)\n",
+				"SUSPENDED(yes register access)\n",
 				hcd->self.controller->bus->name,
 				dev_name(hcd->self.controller),
 				hcd->product_desc);
@@ -722,8 +722,8 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 #ifdef FOTG210_STATS
 	temp = scnprintf(next, size,
-			"irq normal %ld err %ld iaa %ld(lost %ld)\n",
-			fotg210->stats.normal, fotg210->stats.error,
+			"irq yesrmal %ld err %ld iaa %ld(lost %ld)\n",
+			fotg210->stats.yesrmal, fotg210->stats.error,
 			fotg210->stats.iaa, fotg210->stats.lost_iaa);
 	size -= temp;
 	next += temp;
@@ -804,7 +804,7 @@ out:
 
 }
 
-static int debug_close(struct inode *inode, struct file *file)
+static int debug_close(struct iyesde *iyesde, struct file *file)
 {
 	struct debug_buffer *buf = file->private_data;
 
@@ -815,18 +815,18 @@ static int debug_close(struct inode *inode, struct file *file)
 
 	return 0;
 }
-static int debug_async_open(struct inode *inode, struct file *file)
+static int debug_async_open(struct iyesde *iyesde, struct file *file)
 {
-	file->private_data = alloc_buffer(inode->i_private, fill_async_buffer);
+	file->private_data = alloc_buffer(iyesde->i_private, fill_async_buffer);
 
 	return file->private_data ? 0 : -ENOMEM;
 }
 
-static int debug_periodic_open(struct inode *inode, struct file *file)
+static int debug_periodic_open(struct iyesde *iyesde, struct file *file)
 {
 	struct debug_buffer *buf;
 
-	buf = alloc_buffer(inode->i_private, fill_periodic_buffer);
+	buf = alloc_buffer(iyesde->i_private, fill_periodic_buffer);
 	if (!buf)
 		return -ENOMEM;
 
@@ -835,9 +835,9 @@ static int debug_periodic_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int debug_registers_open(struct inode *inode, struct file *file)
+static int debug_registers_open(struct iyesde *iyesde, struct file *file)
 {
-	file->private_data = alloc_buffer(inode->i_private,
+	file->private_data = alloc_buffer(iyesde->i_private,
 			fill_registers_buffer);
 
 	return file->private_data ? 0 : -ENOMEM;
@@ -869,7 +869,7 @@ static inline void remove_debug_files(struct fotg210_hcd *fotg210)
  * @done: value of those bits when handshake succeeds
  * @usec: timeout in microseconds
  *
- * Returns negative errno, or zero on success
+ * Returns negative erryes, or zero on success
  *
  * Success happens when the "mask" bits have the specified value (hardware
  * handshake done).  There are two failure modes:  "usec" have passed (major
@@ -897,8 +897,8 @@ static int handshake(struct fotg210_hcd *fotg210, void __iomem *ptr,
 	return -ETIMEDOUT;
 }
 
-/* Force HC to halt state from unknown (EHCI spec section 2.3).
- * Must be called with interrupts enabled and the lock not held.
+/* Force HC to halt state from unkyeswn (EHCI spec section 2.3).
+ * Must be called with interrupts enabled and the lock yest held.
  */
 static int fotg210_halt(struct fotg210_hcd *fotg210)
 {
@@ -925,8 +925,8 @@ static int fotg210_halt(struct fotg210_hcd *fotg210)
 			STS_HALT, STS_HALT, 16 * 125);
 }
 
-/* Reset a non-running (STS_HALT == 1) controller.
- * Must be called with interrupts enabled and the lock not held.
+/* Reset a yesn-running (STS_HALT == 1) controller.
+ * Must be called with interrupts enabled and the lock yest held.
  */
 static int fotg210_reset(struct fotg210_hcd *fotg210)
 {
@@ -959,7 +959,7 @@ static int fotg210_reset(struct fotg210_hcd *fotg210)
 }
 
 /* Idle the controller (turn off the schedules).
- * Must be called with interrupts enabled and the lock not held.
+ * Must be called with interrupts enabled and the lock yest held.
  */
 static void fotg210_quiesce(struct fotg210_hcd *fotg210)
 {
@@ -1025,9 +1025,9 @@ static void fotg210_clear_command_bit(struct fotg210_hcd *fotg210, u32 bit)
  * fotg210->next_hrtimer_event.  Whenever fotg210->hrtimer gets restarted, its
  * expiration time is set to the timeout value for this event.
  *
- * As a result, events might not get handled right away; the actual delay
+ * As a result, events might yest get handled right away; the actual delay
  * could be anywhere up to twice the requested delay.  This doesn't
- * matter, because none of the events are especially time-critical.  The
+ * matter, because yesne of the events are especially time-critical.  The
  * ones that matter most all have a delay of 1 ms, so they will be
  * handled after 2 ms at most, which is okay.  In addition to this, we
  * allow for an expiration range of 1 ms.
@@ -1223,7 +1223,7 @@ static void fotg210_handle_intr_unlinks(struct fotg210_hcd *fotg210)
 }
 
 
-/* Start another free-iTDs/siTDs cycle */
+/* Start ayesther free-iTDs/siTDs cycle */
 static void start_free_itds(struct fotg210_hcd *fotg210)
 {
 	if (!(fotg210->enabled_hrtimer_events &
@@ -1309,7 +1309,7 @@ static void turn_on_io_watchdog(struct fotg210_hcd *fotg210)
 		return;
 
 	/*
-	 * Isochronous transfers always need the watchdog.
+	 * Isochroyesus transfers always need the watchdog.
 	 * For other sorts we use it only if the flag is set.
 	 */
 	if (fotg210->isoc_count > 0 || (fotg210->need_io_watchdog &&
@@ -1340,7 +1340,7 @@ static enum hrtimer_restart fotg210_hrtimer_func(struct hrtimer *t)
 {
 	struct fotg210_hcd *fotg210 =
 			container_of(t, struct fotg210_hcd, hrtimer);
-	ktime_t now;
+	ktime_t yesw;
 	unsigned long events;
 	unsigned long flags;
 	unsigned e;
@@ -1355,9 +1355,9 @@ static enum hrtimer_restart fotg210_hrtimer_func(struct hrtimer *t)
 	 * Check each pending event.  If its time has expired, handle
 	 * the event; otherwise re-enable it.
 	 */
-	now = ktime_get();
+	yesw = ktime_get();
 	for_each_set_bit(e, &events, FOTG210_HRTIMER_NUM_EVENTS) {
-		if (ktime_compare(now, fotg210->hr_timeouts[e]) >= 0)
+		if (ktime_compare(yesw, fotg210->hr_timeouts[e]) >= 0)
 			event_handlers[e](fotg210);
 		else
 			fotg210_enable_event(fotg210, e, false);
@@ -1376,9 +1376,9 @@ static int check_reset_complete(struct fotg210_hcd *fotg210, int index,
 	if (!(port_status & PORT_CONNECT))
 		return port_status;
 
-	/* if reset finished and it's still not enabled -- handoff */
+	/* if reset finished and it's still yest enabled -- handoff */
 	if (!(port_status & PORT_PE))
-		/* with integrated TT, there's nobody to hand it to! */
+		/* with integrated TT, there's yesbody to hand it to! */
 		fotg210_dbg(fotg210, "Failed to enable port %d on root hub TT\n",
 				index + 1);
 	else
@@ -1399,18 +1399,18 @@ static int fotg210_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int retval = 1;
 	unsigned long flags;
 
-	/* init status to no-changes */
+	/* init status to yes-changes */
 	buf[0] = 0;
 
 	/* Inform the core about resumes-in-progress by returning
-	 * a non-zero value even if there are no status changes.
+	 * a yesn-zero value even if there are yes status changes.
 	 */
 	status = fotg210->resuming_ports;
 
 	mask = PORT_CSC | PORT_PEC;
 	/* PORT_RESUME from hardware ~= PORT_STAT_C_SUSPEND */
 
-	/* no hub change reports (bit 0) for now (power, ...) */
+	/* yes hub change reports (bit 0) for yesw (power, ...) */
 
 	/* port N changes (bit N)? */
 	spin_lock_irqsave(&fotg210->lock, flags);
@@ -1454,7 +1454,7 @@ static void fotg210_hub_descriptor(struct fotg210_hcd *fotg210,
 	memset(&desc->u.hs.DeviceRemovable[temp], 0xff, temp);
 
 	temp = HUB_CHAR_INDV_PORT_OCPM;	/* per-port overcurrent reporting */
-	temp |= HUB_CHAR_NO_LPSM;	/* no power switching */
+	temp |= HUB_CHAR_NO_LPSM;	/* yes power switching */
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 }
 
@@ -1472,7 +1472,7 @@ static int fotg210_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	/*
 	 * FIXME:  support SetPortFeatures USB_PORT_FEAT_INDICATOR.
 	 * HCS_INDICATOR may say we can change LEDs to off/amber/green.
-	 * (track current state ourselves) ... blink for diagnostics,
+	 * (track current state ourselves) ... blink for diagyesstics,
 	 * power, "this is the one", etc.  EHCI spec supports this.
 	 */
 
@@ -1482,7 +1482,7 @@ static int fotg210_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		switch (wValue) {
 		case C_HUB_LOCAL_POWER:
 		case C_HUB_OVER_CURRENT:
-			/* no hub-wide feature/status flags */
+			/* yes hub-wide feature/status flags */
 			break;
 		default:
 			goto error;
@@ -1545,7 +1545,7 @@ static int fotg210_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				buf);
 		break;
 	case GetHubStatus:
-		/* no hub-wide feature/status flags */
+		/* yes hub-wide feature/status flags */
 		memset(buf, 0, 4);
 		/*cpu_to_le32s ((u32 *) buf); */
 		break;
@@ -1651,7 +1651,7 @@ static int fotg210_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		}
 
 		/*
-		 * Even if OWNER is set, there's no harm letting hub_wq
+		 * Even if OWNER is set, there's yes harm letting hub_wq
 		 * see the wPortStatus values (they should all be 0 except
 		 * for PORT_POWER anyway).
 		 */
@@ -1663,7 +1663,7 @@ static int fotg210_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		if (temp & PORT_PE)
 			status |= USB_PORT_STAT_ENABLE;
 
-		/* maybe the port was unsuspended without our knowledge */
+		/* maybe the port was unsuspended without our kyeswledge */
 		if (temp & (PORT_SUSPEND|PORT_RESUME)) {
 			status |= USB_PORT_STAT_SUSPEND;
 		} else if (test_bit(wIndex, &fotg210->suspended_ports)) {
@@ -1690,7 +1690,7 @@ static int fotg210_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		switch (wValue) {
 		case C_HUB_LOCAL_POWER:
 		case C_HUB_OVER_CURRENT:
-			/* no hub-wide feature/status flags */
+			/* yes hub-wide feature/status flags */
 			break;
 		default:
 			goto error;
@@ -1741,7 +1741,7 @@ static int fotg210_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 		/* For downstream facing ports (these):  one hub port is put
 		 * into test mode according to USB2 11.24.2.13, then the hub
-		 * must be reset (which for root hub now means rmmod+modprobe,
+		 * must be reset (which for root hub yesw means rmmod+modprobe,
 		 * or else system reboot).  See EHCI 2.3.9 and 4.14 for info
 		 * about the EHCI-specific stuff.
 		 */
@@ -1839,9 +1839,9 @@ static inline void fotg210_qtd_free(struct fotg210_hcd *fotg210,
 
 static void qh_destroy(struct fotg210_hcd *fotg210, struct fotg210_qh *qh)
 {
-	/* clean qtds first, and know this is not linked */
+	/* clean qtds first, and kyesw this is yest linked */
 	if (!list_empty(&qh->qtd_list) || qh->qh_next.ptr) {
-		fotg210_dbg(fotg210, "unused qh not empty!\n");
+		fotg210_dbg(fotg210, "unused qh yest empty!\n");
 		BUG();
 	}
 	if (qh->dummy)
@@ -1868,7 +1868,7 @@ static struct fotg210_qh *fotg210_qh_alloc(struct fotg210_hcd *fotg210,
 	/* dummy td enables safe urb queuing */
 	qh->dummy = fotg210_qtd_alloc(fotg210, flags);
 	if (qh->dummy == NULL) {
-		fotg210_dbg(fotg210, "no dummy td\n");
+		fotg210_dbg(fotg210, "yes dummy td\n");
 		goto fail1;
 	}
 done:
@@ -2116,7 +2116,7 @@ static void fotg210_clear_tt_buffer(struct fotg210_hcd *fotg210,
 	 * the TT buffer may be left in an indeterminate state.  We
 	 * have to clear the TT buffer.
 	 *
-	 * Note: this routine is never called for Isochronous transfers.
+	 * Note: this routine is never called for Isochroyesus transfers.
 	 */
 	if (urb->dev->tt && !usb_pipeint(urb->pipe) && !qh->clearing_tt) {
 		struct usb_device *tt = urb->dev->tt->hub;
@@ -2139,7 +2139,7 @@ static int qtd_copy_status(struct fotg210_hcd *fotg210, struct urb *urb,
 {
 	int status = -EINPROGRESS;
 
-	/* count IN/OUT bytes, not SETUP (even short packets) */
+	/* count IN/OUT bytes, yest SETUP (even short packets) */
 	if (likely(QTD_PID(token) != 2))
 		urb->actual_length += length - QTD_LENGTH(token);
 
@@ -2147,7 +2147,7 @@ static int qtd_copy_status(struct fotg210_hcd *fotg210, struct urb *urb,
 	if (unlikely(urb->unlinked))
 		return status;
 
-	/* force cleanup after short read; not always an error */
+	/* force cleanup after short read; yest always an error */
 	if (unlikely(IS_SHORT_READ(token)))
 		status = -EREMOTEIO;
 
@@ -2156,7 +2156,7 @@ static int qtd_copy_status(struct fotg210_hcd *fotg210, struct urb *urb,
 		if (token & QTD_STS_BABBLE) {
 			/* FIXME "must" disable babbling device's port too */
 			status = -EOVERFLOW;
-		/* CERR nonzero + halt --> stall */
+		/* CERR yesnzero + halt --> stall */
 		} else if (QTD_CERR(token)) {
 			status = -EPIPE;
 
@@ -2178,7 +2178,7 @@ static int qtd_copy_status(struct fotg210_hcd *fotg210, struct urb *urb,
 					usb_pipeendpoint(urb->pipe),
 					usb_pipein(urb->pipe) ? "in" : "out");
 			status = -EPROTO;
-		} else {	/* unknown */
+		} else {	/* unkyeswn */
 			status = -EPROTO;
 		}
 
@@ -2212,7 +2212,7 @@ __acquires(fotg210->lock)
 	if (unlikely(urb->unlinked)) {
 		INCR(fotg210->stats.unlink);
 	} else {
-		/* report non-error and short read status as zero */
+		/* report yesn-error and short read status as zero */
 		if (status == -EINPROGRESS || status == -EREMOTEIO)
 			status = 0;
 		INCR(fotg210->stats.complete);
@@ -2297,7 +2297,7 @@ rescan:
 			last = NULL;
 		}
 
-		/* ignore urbs submitted during completions we reported */
+		/* igyesre urbs submitted during completions we reported */
 		if (qtd == end)
 			break;
 
@@ -2309,7 +2309,7 @@ rescan:
 retry_xacterr:
 		if ((token & QTD_STS_ACTIVE) == 0) {
 
-			/* Report Data Buffer Error: non-fatal but useful */
+			/* Report Data Buffer Error: yesn-fatal but useful */
 			if (token & QTD_STS_DBE)
 				fotg210_dbg(fotg210,
 					"detected DataBufferErr for urb %p ep%d%s len %d, qtd %p [qh %p]\n",
@@ -2402,7 +2402,7 @@ retry_xacterr:
 			}
 		}
 
-		/* unless we already know the urb's status, collect qtd status
+		/* unless we already kyesw the urb's status, collect qtd status
 		 * and update count of bytes transferred.  in common short read
 		 * cases with only one data qtd (including control transfers),
 		 * queue processing won't halt.  but with two or more qtds (for
@@ -2424,7 +2424,7 @@ retry_xacterr:
 					last_status != -EREMOTEIO)) {
 				/* The TT's in some hubs malfunction when they
 				 * receive this request following a STALL (they
-				 * stop sending isochronous packets).  Since a
+				 * stop sending isochroyesus packets).  Since a
 				 * STALL can't leave the TT buffer in a busy
 				 * state (if you believe Figures 11-48 - 11-51
 				 * in the USB 2.0 spec), we won't clear the TT
@@ -2437,7 +2437,7 @@ retry_xacterr:
 			}
 		}
 
-		/* if we're removing something not at the queue head,
+		/* if we're removing something yest at the queue head,
 		 * patch the hardware queue pointer.
 		 */
 		if (stopped && qtd->qtd_list.prev != &qh->qtd_list) {
@@ -2463,13 +2463,13 @@ retry_xacterr:
 
 	/* Do we need to rescan for URBs dequeued during a giveback? */
 	if (unlikely(qh->needs_rescan)) {
-		/* If the QH is already unlinked, do the rescan now. */
+		/* If the QH is already unlinked, do the rescan yesw. */
 		if (state == QH_STATE_IDLE)
 			goto rescan;
 
 		/* Otherwise we have to wait until the QH is fully unlinked.
 		 * Our caller will start an unlink if qh->needs_rescan is
-		 * set.  But if an unlink has already started, nothing needs
+		 * set.  But if an unlink has already started, yesthing needs
 		 * to be done.
 		 */
 		if (state != QH_STATE_LINKED)
@@ -2824,7 +2824,7 @@ static struct fotg210_qh *qh_make(struct fotg210_hcd *fotg210, struct urb *urb,
 		/* Some Freescale processors have an erratum in which the
 		 * port number in the queue head was 0..N-1 instead of 1..N.
 		 */
-		if (fotg210_has_fsl_portno_bug(fotg210))
+		if (fotg210_has_fsl_portyes_bug(fotg210))
 			info2 |= (urb->dev->ttport-1) << 23;
 		else
 			info2 |= urb->dev->ttport << 23;
@@ -2839,7 +2839,7 @@ static struct fotg210_qh *qh_make(struct fotg210_hcd *fotg210, struct urb *urb,
 
 		break;
 
-	case USB_SPEED_HIGH:		/* no TT involved */
+	case USB_SPEED_HIGH:		/* yes TT involved */
 		info1 |= QH_HIGH_SPEED;
 		if (type == PIPE_CONTROL) {
 			info1 |= (FOTG210_TUNE_RL_HS << 28);
@@ -2850,9 +2850,9 @@ static struct fotg210_qh *qh_make(struct fotg210_hcd *fotg210, struct urb *urb,
 			info1 |= (FOTG210_TUNE_RL_HS << 28);
 			/* The USB spec says that high speed bulk endpoints
 			 * always use 512 byte maxpacket.  But some device
-			 * vendors decided to ignore that, and MSFT is happy
-			 * to help them do so.  So now people expect to use
-			 * such nonconformant devices with Linux too; sigh.
+			 * vendors decided to igyesre that, and MSFT is happy
+			 * to help them do so.  So yesw people expect to use
+			 * such yesnconformant devices with Linux too; sigh.
 			 */
 			info1 |= max_packet(maxp) << 16;
 			info2 |= (FOTG210_TUNE_MULT_HS << 30);
@@ -3098,7 +3098,7 @@ static void single_unlink_async(struct fotg210_hcd *fotg210,
 static void start_iaa_cycle(struct fotg210_hcd *fotg210, bool nested)
 {
 	/*
-	 * Do nothing if an IAA cycle is already running or
+	 * Do yesthing if an IAA cycle is already running or
 	 * if one will be started shortly.
 	 */
 	if (fotg210->async_iaa || fotg210->async_unlinking)
@@ -3126,7 +3126,7 @@ static void start_iaa_cycle(struct fotg210_hcd *fotg210, bool nested)
 	}
 }
 
-/* the async qh for the qtds being unlinked are now gone from the HC */
+/* the async qh for the qtds being unlinked are yesw gone from the HC */
 
 static void end_unlink_async(struct fotg210_hcd *fotg210)
 {
@@ -3185,7 +3185,7 @@ static void unlink_empty_async(struct fotg210_hcd *fotg210)
 	if (fotg210->async_unlink)
 		start_iaa_cycle(fotg210, false);
 
-	/* QHs that haven't been empty for long enough will be handled later */
+	/* QHs that haven't been empty for long eyesugh will be handled later */
 	if (check_unlinks_later) {
 		fotg210_enable_event(fotg210, FOTG210_HRTIMER_ASYNC_UNLINKS,
 				true);
@@ -3200,7 +3200,7 @@ static void start_unlink_async(struct fotg210_hcd *fotg210,
 		struct fotg210_qh *qh)
 {
 	/*
-	 * If the QH isn't linked then there's nothing we can do
+	 * If the QH isn't linked then there's yesthing we can do
 	 * unless we were called during a giveback, in which case
 	 * qh_completions() has to deal with it.
 	 */
@@ -3250,7 +3250,7 @@ rescan:
 	/*
 	 * Unlink empty entries, reducing DMA usage as well
 	 * as HCD schedule-scanning costs.  Delay for any qh
-	 * we just scanned, there's a not-unusual case that it
+	 * we just scanned, there's a yest-unusual case that it
 	 * doesn't stay idle for long.
 	 */
 	if (check_unlinks_later && fotg210->rh_state == FOTG210_RH_RUNNING &&
@@ -3265,11 +3265,11 @@ rescan:
  * These are called "periodic" transactions in the EHCI spec.
  *
  * Note that for interrupt transfers, the QH/QTD manipulation is shared
- * with the "asynchronous" transaction support (control/bulk transfers).
+ * with the "asynchroyesus" transaction support (control/bulk transfers).
  * The only real difference is in how interrupt transfers are scheduled.
  *
  * For ISO, we make an "iso_stream" head to serve the same role as a QH.
- * It keeps track of every ITD (or SITD) that's linked, and holds enough
+ * It keeps track of every ITD (or SITD) that's linked, and holds eyesugh
  * pre-calculated schedule data to make appending to the queue be quick.
  */
 static int fotg210_get_frame(struct usb_hcd *hcd);
@@ -3363,7 +3363,7 @@ static unsigned short periodic_usecs(struct fotg210_hcd *fotg210,
 			 * bandwidth from the previous frame
 			 */
 			if (q->fstn->hw_prev != FOTG210_LIST_END(fotg210))
-				fotg210_dbg(fotg210, "ignoring FSTN cost ...\n");
+				fotg210_dbg(fotg210, "igyesring FSTN cost ...\n");
 
 			hw_p = &q->fstn->hw_next;
 			q = &q->fstn->fstn_next;
@@ -3398,13 +3398,13 @@ static int same_tt(struct usb_device *dev1, struct usb_device *dev2)
  * for a periodic transfer starting at the specified frame, using
  * all the uframes in the mask.
  */
-static int tt_no_collision(struct fotg210_hcd *fotg210, unsigned period,
+static int tt_yes_collision(struct fotg210_hcd *fotg210, unsigned period,
 		struct usb_device *dev, unsigned frame, u32 uf_mask)
 {
 	if (period == 0)	/* error */
 		return 0;
 
-	/* note bandwidth wastage:  split never follows csplit
+	/* yeste bandwidth wastage:  split never follows csplit
 	 * (different dev or endpoint) until the next uframe.
 	 * calling convention doesn't make that distinction.
 	 */
@@ -3428,7 +3428,7 @@ static int tt_no_collision(struct fotg210_hcd *fotg210, unsigned period,
 
 					mask = hc32_to_cpu(fotg210,
 							hw->hw_info2);
-					/* "knows" no gap is needed */
+					/* "kyesws" yes gap is needed */
 					mask |= mask >> 8;
 					if (mask & uf_mask)
 						break;
@@ -3448,7 +3448,7 @@ static int tt_no_collision(struct fotg210_hcd *fotg210, unsigned period,
 		}
 	}
 
-	/* no collision */
+	/* yes collision */
 	return 1;
 }
 
@@ -3475,11 +3475,11 @@ static void disable_periodic(struct fotg210_hcd *fotg210)
 	fotg210_poll_PSS(fotg210);
 }
 
-/* periodic schedule slots have iso tds (normal or split) first, then a
+/* periodic schedule slots have iso tds (yesrmal or split) first, then a
  * sparse tree for active interrupt transfers.
  *
  * this just links in a qh; caller guarantees uframe masks are set right.
- * no FSTN support (yet; fotg210 0.96+)
+ * yes FSTN support (yet; fotg210 0.96+)
  */
 static void qh_link_periodic(struct fotg210_hcd *fotg210, struct fotg210_qh *qh)
 {
@@ -3502,7 +3502,7 @@ static void qh_link_periodic(struct fotg210_hcd *fotg210, struct fotg210_qh *qh)
 		union fotg210_shadow here = *prev;
 		__hc32 type = 0;
 
-		/* skip the iso nodes at list head */
+		/* skip the iso yesdes at list head */
 		while (here.ptr) {
 			type = Q_NEXT_TYPE(fotg210, *hw_p);
 			if (type == cpu_to_hc32(fotg210, Q_TYPE_QH))
@@ -3513,7 +3513,7 @@ static void qh_link_periodic(struct fotg210_hcd *fotg210, struct fotg210_qh *qh)
 		}
 
 		/* sorting each branch by period (slow-->fast)
-		 * enables sharing interior tree nodes
+		 * enables sharing interior tree yesdes
 		 */
 		while (here.ptr && qh != here.qh) {
 			if (qh->period > here.qh->period)
@@ -3540,7 +3540,7 @@ static void qh_link_periodic(struct fotg210_hcd *fotg210, struct fotg210_qh *qh)
 		? ((qh->usecs + qh->c_usecs) / qh->period)
 		: (qh->usecs * 8);
 
-	list_add(&qh->intr_node, &fotg210->intr_qh_list);
+	list_add(&qh->intr_yesde, &fotg210->intr_qh_list);
 
 	/* maybe enable periodic schedule processing */
 	++fotg210->intr_count;
@@ -3565,7 +3565,7 @@ static void qh_unlink_periodic(struct fotg210_hcd *fotg210,
 	 * endpoint queue).
 	 *
 	 * If rebalancing the periodic schedule is ever implemented, this
-	 * approach will no longer be valid.
+	 * approach will yes longer be valid.
 	 */
 
 	/* high bandwidth, or otherwise part of every microframe */
@@ -3592,15 +3592,15 @@ static void qh_unlink_periodic(struct fotg210_hcd *fotg210,
 	qh->qh_next.ptr = NULL;
 
 	if (fotg210->qh_scan_next == qh)
-		fotg210->qh_scan_next = list_entry(qh->intr_node.next,
-				struct fotg210_qh, intr_node);
-	list_del(&qh->intr_node);
+		fotg210->qh_scan_next = list_entry(qh->intr_yesde.next,
+				struct fotg210_qh, intr_yesde);
+	list_del(&qh->intr_yesde);
 }
 
 static void start_unlink_intr(struct fotg210_hcd *fotg210,
 		struct fotg210_qh *qh)
 {
-	/* If the QH isn't linked then there's nothing we can do
+	/* If the QH isn't linked then there's yesthing we can do
 	 * unless we were called during a giveback, in which case
 	 * qh_completions() has to deal with it.
 	 */
@@ -3618,7 +3618,7 @@ static void start_unlink_intr(struct fotg210_hcd *fotg210,
 	/*
 	 * The EHCI spec doesn't say how long it takes the controller to
 	 * stop accessing an unlinked interrupt QH.  The timer delay is
-	 * 9 uframes; presumably that will be long enough.
+	 * 9 uframes; presumably that will be long eyesugh.
 	 */
 	qh->unlink_cycle = fotg210->intr_unlink_cycle;
 
@@ -3650,16 +3650,16 @@ static void end_unlink_intr(struct fotg210_hcd *fotg210, struct fotg210_qh *qh)
 
 	qh_completions(fotg210, qh);
 
-	/* reschedule QH iff another request is queued */
+	/* reschedule QH iff ayesther request is queued */
 	if (!list_empty(&qh->qtd_list) &&
 			fotg210->rh_state == FOTG210_RH_RUNNING) {
 		rc = qh_schedule(fotg210, qh);
 
 		/* An error here likely indicates handshake failure
-		 * or no space left in the schedule.  Neither fault
+		 * or yes space left in the schedule.  Neither fault
 		 * should happen often ...
 		 *
-		 * FIXME kill the now-dysfunctional queued urbs
+		 * FIXME kill the yesw-dysfunctional queued urbs
 		 */
 		if (rc != 0)
 			fotg210_err(fotg210, "can't reschedule qh %p, err %d\n",
@@ -3685,7 +3685,7 @@ static int check_period(struct fotg210_hcd *fotg210, unsigned frame,
 	/* convert "usecs we need" to "max already claimed" */
 	usecs = fotg210->uframe_periodic_max - usecs;
 
-	/* we "know" 2 and 4 uframe intervals were rejected; so
+	/* we "kyesw" 2 and 4 uframe intervals were rejected; so
 	 * for period 0, check _every_ microframe in the schedule.
 	 */
 	if (unlikely(period == 0)) {
@@ -3739,7 +3739,7 @@ static int check_intr_schedule(struct fotg210_hcd *fotg210, unsigned frame,
 	*c_maskp = cpu_to_hc32(fotg210, mask << 8);
 
 	mask |= 1 << uframe;
-	if (tt_no_collision(fotg210, qh->period, qh->dev, frame, mask)) {
+	if (tt_yes_collision(fotg210, qh->period, qh->dev, frame, mask)) {
 		if (!check_period(fotg210, frame, uframe + qh->gap_uf + 1,
 				qh->period, qh->c_usecs))
 			goto done;
@@ -3779,10 +3779,10 @@ static int qh_schedule(struct fotg210_hcd *fotg210, struct fotg210_qh *qh)
 	}
 
 	/* else scan the schedule to find a group of slots such that all
-	 * uframes have enough periodic bandwidth available.
+	 * uframes have eyesugh periodic bandwidth available.
 	 */
 	if (status) {
-		/* "normal" case, uframing flexible except with splits */
+		/* "yesrmal" case, uframing flexible except with splits */
 		if (qh->period) {
 			int i;
 
@@ -3838,11 +3838,11 @@ static int intr_submit(struct fotg210_hcd *fotg210, struct urb *urb,
 
 	if (unlikely(!HCD_HW_ACCESSIBLE(fotg210_to_hcd(fotg210)))) {
 		status = -ESHUTDOWN;
-		goto done_not_linked;
+		goto done_yest_linked;
 	}
 	status = usb_hcd_link_urb_to_ep(fotg210_to_hcd(fotg210), urb);
 	if (unlikely(status))
-		goto done_not_linked;
+		goto done_yest_linked;
 
 	/* get qh and force any scheduling errors */
 	INIT_LIST_HEAD(&empty);
@@ -3867,7 +3867,7 @@ static int intr_submit(struct fotg210_hcd *fotg210, struct urb *urb,
 done:
 	if (unlikely(status))
 		usb_hcd_unlink_urb_from_ep(fotg210_to_hcd(fotg210), urb);
-done_not_linked:
+done_yest_linked:
 	spin_unlock_irqrestore(&fotg210->lock, flags);
 	if (status)
 		qtd_list_free(fotg210, urb, qtd_list);
@@ -3880,7 +3880,7 @@ static void scan_intr(struct fotg210_hcd *fotg210)
 	struct fotg210_qh *qh;
 
 	list_for_each_entry_safe(qh, fotg210->qh_scan_next,
-			&fotg210->intr_qh_list, intr_node) {
+			&fotg210->intr_qh_list, intr_yesde) {
 rescan:
 		/* clean any finished work for this qh */
 		if (!list_empty(&qh->qtd_list)) {
@@ -4000,7 +4000,7 @@ static struct fotg210_iso_stream *iso_stream_find(struct fotg210_hcd *fotg210,
 
 	/* if dev->ep[epnum] is a QH, hw is set */
 	} else if (unlikely(stream->hw != NULL)) {
-		fotg210_dbg(fotg210, "dev %s ep%d%s, not iso??\n",
+		fotg210_dbg(fotg210, "dev %s ep%d%s, yest iso??\n",
 				urb->dev->devpath, epnum,
 				usb_pipein(urb->pipe) ? "in" : "out");
 		stream = NULL;
@@ -4100,13 +4100,13 @@ static int itd_urb_transaction(struct fotg210_iso_stream *stream,
 	for (i = 0; i < num_itds; i++) {
 
 		/*
-		 * Use iTDs from the free list, but not iTDs that may
+		 * Use iTDs from the free list, but yest iTDs that may
 		 * still be in use by the hardware.
 		 */
 		if (likely(!list_empty(&stream->free_list))) {
 			itd = list_first_entry(&stream->free_list,
 					struct fotg210_itd, itd_list);
-			if (itd->frame == fotg210->now_frame)
+			if (itd->frame == fotg210->yesw_frame)
 				goto alloc_itd;
 			list_del(&itd->itd_list);
 			itd_dma = itd->itd_dma;
@@ -4144,7 +4144,7 @@ static inline int itd_slot_ok(struct fotg210_hcd *fotg210, u32 mod, u32 uframe,
 				> (fotg210->uframe_periodic_max - usecs))
 			return 0;
 
-		/* we know urb->interval is 2^N uframes */
+		/* we kyesw urb->interval is 2^N uframes */
 		uframe += period;
 	} while (uframe < mod);
 	return 1;
@@ -4165,7 +4165,7 @@ static inline int itd_slot_ok(struct fotg210_hcd *fotg210, u32 mod, u32 uframe,
 static int iso_stream_schedule(struct fotg210_hcd *fotg210, struct urb *urb,
 		struct fotg210_iso_stream *stream)
 {
-	u32 now, next, start, period, span;
+	u32 yesw, next, start, period, span;
 	int status;
 	unsigned mod = fotg210->periodic_size << 3;
 	struct fotg210_iso_sched *sched = urb->hcpriv;
@@ -4179,10 +4179,10 @@ static int iso_stream_schedule(struct fotg210_hcd *fotg210, struct urb *urb,
 		goto fail;
 	}
 
-	now = fotg210_read_frame_index(fotg210) & (mod - 1);
+	yesw = fotg210_read_frame_index(fotg210) & (mod - 1);
 
 	/* Typical case: reuse current schedule, stream is still active.
-	 * Hopefully there are no gaps from the host falling behind
+	 * Hopefully there are yes gaps from the host falling behind
 	 * (irq delays etc), but if there are we'll take the next
 	 * slot in the schedule, implicitly assuming URB_ISO_ASAP.
 	 */
@@ -4190,18 +4190,18 @@ static int iso_stream_schedule(struct fotg210_hcd *fotg210, struct urb *urb,
 		u32 excess;
 
 		/* For high speed devices, allow scheduling within the
-		 * isochronous scheduling threshold.  For full speed devices
+		 * isochroyesus scheduling threshold.  For full speed devices
 		 * and Intel PCI-based controllers, don't (work around for
 		 * Intel ICH9 bug).
 		 */
 		if (!stream->highspeed && fotg210->fs_i_thresh)
-			next = now + fotg210->i_thresh;
+			next = yesw + fotg210->i_thresh;
 		else
-			next = now;
+			next = yesw;
 
 		/* Fell behind (by up to twice the slop amount)?
 		 * We decide based on the time of the last currently-scheduled
-		 * slot, not the time of the next available slot.
+		 * slot, yest the time of the next available slot.
 		 */
 		excess = (stream->next_uframe - period - next) & (mod - 1);
 		if (excess >= mod - 2 * SCHEDULE_SLOP)
@@ -4209,9 +4209,9 @@ static int iso_stream_schedule(struct fotg210_hcd *fotg210, struct urb *urb,
 					DIV_ROUND_UP(mod - excess, period);
 		else
 			start = next + excess + period;
-		if (start - now >= mod) {
+		if (start - yesw >= mod) {
 			fotg210_dbg(fotg210, "request %p would overflow (%d+%d >= %d)\n",
-					urb, start - now - period, period,
+					urb, start - yesw - period, period,
 					mod);
 			status = -EFBIG;
 			goto fail;
@@ -4227,11 +4227,11 @@ static int iso_stream_schedule(struct fotg210_hcd *fotg210, struct urb *urb,
 	else {
 		int done = 0;
 
-		start = SCHEDULE_SLOP + (now & ~0x07);
+		start = SCHEDULE_SLOP + (yesw & ~0x07);
 
 		/* NOTE:  assumes URB_ISO_ASAP, to limit complexity/bugs */
 
-		/* find a uframe slot with enough bandwidth.
+		/* find a uframe slot with eyesugh bandwidth.
 		 * Early uframes are more precious because full-speed
 		 * iso IN transfers can't use late uframes,
 		 * and therefore they should be allocated last.
@@ -4240,26 +4240,26 @@ static int iso_stream_schedule(struct fotg210_hcd *fotg210, struct urb *urb,
 		start += period;
 		do {
 			start--;
-			/* check schedule: enough space? */
+			/* check schedule: eyesugh space? */
 			if (itd_slot_ok(fotg210, mod, start,
 					stream->usecs, period))
 				done = 1;
 		} while (start > next && !done);
 
-		/* no room in the schedule */
+		/* yes room in the schedule */
 		if (!done) {
-			fotg210_dbg(fotg210, "iso resched full %p (now %d max %d)\n",
-					urb, now, now + mod);
+			fotg210_dbg(fotg210, "iso resched full %p (yesw %d max %d)\n",
+					urb, yesw, yesw + mod);
 			status = -ENOSPC;
 			goto fail;
 		}
 	}
 
 	/* Tried to schedule too far into the future? */
-	if (unlikely(start - now + span - period >=
+	if (unlikely(start - yesw + span - period >=
 			mod - 2 * SCHEDULE_SLOP)) {
 		fotg210_dbg(fotg210, "request %p would overflow (%d+%d >= %d)\n",
-				urb, start - now, span - period,
+				urb, start - yesw, span - period,
 				mod - 2 * SCHEDULE_SLOP);
 		status = -EFBIG;
 		goto fail;
@@ -4274,7 +4274,7 @@ static int iso_stream_schedule(struct fotg210_hcd *fotg210, struct urb *urb,
 
 	/* Make sure scan_isoc() sees these */
 	if (fotg210->isoc_count == 0)
-		fotg210->next_frame = now >> 3;
+		fotg210->next_frame = yesw >> 3;
 	return 0;
 
 fail:
@@ -4333,7 +4333,7 @@ static inline void itd_link(struct fotg210_hcd *fotg210, unsigned frame,
 	union fotg210_shadow here = *prev;
 	__hc32 type = 0;
 
-	/* skip any iso nodes which might belong to previous microframes */
+	/* skip any iso yesdes which might belong to previous microframes */
 	while (here.ptr) {
 		type = Q_NEXT_TYPE(fotg210, *hw_p);
 		if (type == cpu_to_hc32(fotg210, Q_TYPE_QH))
@@ -4378,7 +4378,7 @@ static void itd_link_urb(struct fotg210_hcd *fotg210, struct urb *urb,
 		if (itd == NULL) {
 			/* ASSERT:  we have all necessary itds */
 
-			/* ASSERT:  no itds for this endpoint in this uframe */
+			/* ASSERT:  yes itds for this endpoint in this uframe */
 
 			itd = list_entry(iso_sched->td_list.next,
 					struct fotg210_itd, itd_list);
@@ -4424,7 +4424,7 @@ static void itd_link_urb(struct fotg210_hcd *fotg210, struct urb *urb,
  *
  * Note that we carefully avoid recycling this descriptor until after any
  * completion callback runs, so that it won't be reused quickly.  That is,
- * assuming (a) no more than two urbs per frame on this endpoint, and also
+ * assuming (a) yes more than two urbs per frame on this endpoint, and also
  * (b) only this endpoint's completions submit URBs.  It seems some silicon
  * corrupts things if you reuse completed descriptors very quickly...
  */
@@ -4461,7 +4461,7 @@ static bool itd_complete(struct fotg210_hcd *fotg210, struct fotg210_itd *itd)
 			else /* (t & FOTG210_ISOC_XACTERR) */
 				desc->status = -EPROTO;
 
-			/* HC need not update length with this error */
+			/* HC need yest update length with this error */
 			if (!(t & FOTG210_ISOC_BABBLE)) {
 				desc->actual_length =
 					fotg210_itdlen(urb, desc, t);
@@ -4477,7 +4477,7 @@ static bool itd_complete(struct fotg210_hcd *fotg210, struct fotg210_itd *itd)
 		}
 	}
 
-	/* handle completion now? */
+	/* handle completion yesw? */
 	if (likely((urb_index + 1) != urb->number_of_packets))
 		goto done;
 
@@ -4510,7 +4510,7 @@ done:
 	/* Add to the end of the free list for later reuse */
 	list_move_tail(&itd->itd_list, &stream->free_list);
 
-	/* Recycle the iTDs when the pipeline is empty (ep no longer in use) */
+	/* Recycle the iTDs when the pipeline is empty (ep yes longer in use) */
 	if (list_empty(&stream->td_list)) {
 		list_splice_tail_init(&stream->free_list,
 				&fotg210->cached_itd_list);
@@ -4563,24 +4563,24 @@ static int itd_submit(struct fotg210_hcd *fotg210, struct urb *urb,
 	spin_lock_irqsave(&fotg210->lock, flags);
 	if (unlikely(!HCD_HW_ACCESSIBLE(fotg210_to_hcd(fotg210)))) {
 		status = -ESHUTDOWN;
-		goto done_not_linked;
+		goto done_yest_linked;
 	}
 	status = usb_hcd_link_urb_to_ep(fotg210_to_hcd(fotg210), urb);
 	if (unlikely(status))
-		goto done_not_linked;
+		goto done_yest_linked;
 	status = iso_stream_schedule(fotg210, urb, stream);
 	if (likely(status == 0))
 		itd_link_urb(fotg210, urb, fotg210->periodic_size << 3, stream);
 	else
 		usb_hcd_unlink_urb_from_ep(fotg210_to_hcd(fotg210), urb);
-done_not_linked:
+done_yest_linked:
 	spin_unlock_irqrestore(&fotg210->lock, flags);
 done:
 	return status;
 }
 
 static inline int scan_frame_queue(struct fotg210_hcd *fotg210, unsigned frame,
-		unsigned now_frame, bool live)
+		unsigned yesw_frame, bool live)
 {
 	unsigned uf;
 	bool modified;
@@ -4602,7 +4602,7 @@ static inline int scan_frame_queue(struct fotg210_hcd *fotg210, unsigned frame,
 			 * No need to check for activity unless the
 			 * frame is current.
 			 */
-			if (frame == now_frame && live) {
+			if (frame == yesw_frame && live) {
 				rmb();
 				for (uf = 0; uf < 8; uf++) {
 					if (q.itd->hw_transaction[uf] &
@@ -4651,38 +4651,38 @@ static inline int scan_frame_queue(struct fotg210_hcd *fotg210, unsigned frame,
 
 static void scan_isoc(struct fotg210_hcd *fotg210)
 {
-	unsigned uf, now_frame, frame, ret;
+	unsigned uf, yesw_frame, frame, ret;
 	unsigned fmask = fotg210->periodic_size - 1;
 	bool live;
 
 	/*
-	 * When running, scan from last scan point up to "now"
+	 * When running, scan from last scan point up to "yesw"
 	 * else clean up by scanning everything that's left.
 	 * Touches as few pages as possible:  cache-friendly.
 	 */
 	if (fotg210->rh_state >= FOTG210_RH_RUNNING) {
 		uf = fotg210_read_frame_index(fotg210);
-		now_frame = (uf >> 3) & fmask;
+		yesw_frame = (uf >> 3) & fmask;
 		live = true;
 	} else  {
-		now_frame = (fotg210->next_frame - 1) & fmask;
+		yesw_frame = (fotg210->next_frame - 1) & fmask;
 		live = false;
 	}
-	fotg210->now_frame = now_frame;
+	fotg210->yesw_frame = yesw_frame;
 
 	frame = fotg210->next_frame;
 	for (;;) {
 		ret = 1;
 		while (ret != 0)
 			ret = scan_frame_queue(fotg210, frame,
-					now_frame, live);
+					yesw_frame, live);
 
 		/* Stop when we have reached the current frame */
-		if (frame == now_frame)
+		if (frame == yesw_frame)
 			break;
 		frame = (frame + 1) & fmask;
 	}
-	fotg210->next_frame = now_frame;
+	fotg210->next_frame = yesw_frame;
 }
 
 /* Display / Set uframe_periodic_max
@@ -4722,7 +4722,7 @@ static ssize_t uframe_periodic_max_store(struct device *dev,
 	ret = -EINVAL;
 
 	/*
-	 * lock, so that our checking does not race with possible periodic
+	 * lock, so that our checking does yest race with possible periodic
 	 * bandwidth allocation through submitting new urbs.
 	 */
 	spin_lock_irqsave(&fotg210->lock, flags);
@@ -4743,7 +4743,7 @@ static ssize_t uframe_periodic_max_store(struct device *dev,
 
 		if (allocated_max > uframe_periodic_max) {
 			fotg210_info(fotg210,
-					"cannot decrease uframe_periodic_max because periodic bandwidth is already allocated (%u > %u)\n",
+					"canyest decrease uframe_periodic_max because periodic bandwidth is already allocated (%u > %u)\n",
 					allocated_max, uframe_periodic_max);
 			goto out_unlock;
 		}
@@ -4756,7 +4756,7 @@ static ssize_t uframe_periodic_max_store(struct device *dev,
 			100 * uframe_periodic_max/125, uframe_periodic_max);
 
 	if (uframe_periodic_max != 100)
-		fotg210_warn(fotg210, "max periodic bandwidth set is non-standard\n");
+		fotg210_warn(fotg210, "max periodic bandwidth set is yesn-standard\n");
 
 	fotg210->uframe_periodic_max = uframe_periodic_max;
 	ret = count;
@@ -4793,7 +4793,7 @@ static void fotg210_turn_off_all_ports(struct fotg210_hcd *fotg210)
 }
 
 /* Halt HC, turn off all ports, and let the BIOS use the companion controllers.
- * Must be called with interrupts enabled and the lock not held.
+ * Must be called with interrupts enabled and the lock yest held.
  */
 static void fotg210_silence_controller(struct fotg210_hcd *fotg210)
 {
@@ -4805,7 +4805,7 @@ static void fotg210_silence_controller(struct fotg210_hcd *fotg210)
 	spin_unlock_irq(&fotg210->lock);
 }
 
-/* fotg210_shutdown kick in for silicon on any bus (not just pci, etc).
+/* fotg210_shutdown kick in for silicon on any bus (yest just pci, etc).
  * This forcibly disables dma and IRQs, helping kexec and other cases
  * where the next system software may expect clean state.
  */
@@ -4829,7 +4829,7 @@ static void fotg210_shutdown(struct usb_hcd *hcd)
  */
 static void fotg210_work(struct fotg210_hcd *fotg210)
 {
-	/* another CPU may drop fotg210->lock during a schedule scan while
+	/* ayesther CPU may drop fotg210->lock during a schedule scan while
 	 * it reports urb completions.  this flag guards against bogus
 	 * attempts at re-entrant schedule scanning.
 	 */
@@ -4866,7 +4866,7 @@ static void fotg210_stop(struct usb_hcd *hcd)
 
 	fotg210_dbg(fotg210, "stop\n");
 
-	/* no more interrupts ... */
+	/* yes more interrupts ... */
 
 	spin_lock_irq(&fotg210->lock);
 	fotg210->enabled_hrtimer_events = 0;
@@ -4887,8 +4887,8 @@ static void fotg210_stop(struct usb_hcd *hcd)
 	fotg210_mem_cleanup(fotg210);
 
 #ifdef FOTG210_STATS
-	fotg210_dbg(fotg210, "irq normal %ld err %ld iaa %ld (lost %ld)\n",
-			fotg210->stats.normal, fotg210->stats.error,
+	fotg210_dbg(fotg210, "irq yesrmal %ld err %ld iaa %ld (lost %ld)\n",
+			fotg210->stats.yesrmal, fotg210->stats.error,
 			fotg210->stats.iaa, fotg210->stats.lost_iaa);
 	fotg210_dbg(fotg210, "complete %ld unlink %ld\n",
 			fotg210->stats.complete, fotg210->stats.unlink);
@@ -5046,15 +5046,15 @@ static int fotg210_run(struct usb_hcd *hcd)
 
 	/*
 	 * Start, enabling full USB 2.0 functionality ... usb 1.1 devices
-	 * are explicitly handed to companion controller(s), so no TT is
+	 * are explicitly handed to companion controller(s), so yes TT is
 	 * involved with the root hub.  (Except where one is integrated,
-	 * and there's no companion controller unless maybe for USB OTG.)
+	 * and there's yes companion controller unless maybe for USB OTG.)
 	 *
 	 * Turning on the CF flag will transfer ownership of all ports
 	 * from the companions to the EHCI controller.  If any of the
 	 * companions are in the middle of a port reset at the time, it
 	 * could cause trouble.  Write-locking ehci_cf_port_reset_rwsem
-	 * guarantees that no resets are in progress.  After we set CF,
+	 * guarantees that yes resets are in progress.  After we set CF,
 	 * a short delay lets the hardware catch up; new resets shouldn't
 	 * be started before the port switching actions could complete.
 	 */
@@ -5151,15 +5151,15 @@ static irqreturn_t fotg210_irq(struct usb_hcd *hcd)
 	cmd = fotg210_readl(fotg210, &fotg210->regs->command);
 	bh = 0;
 
-	/* unrequested/ignored: Frame List Rollover */
+	/* unrequested/igyesred: Frame List Rollover */
 	dbg_status(fotg210, "irq", status);
 
 	/* INT, ERR, and IAA interrupt rates can be throttled */
 
-	/* normal [4.15.1.2] or error [4.15.1.1] completion */
+	/* yesrmal [4.15.1.2] or error [4.15.1.1] completion */
 	if (likely((status & (STS_INT|STS_ERR)) != 0)) {
 		if (likely((status & STS_ERR) == 0))
-			INCR(fotg210->stats.normal);
+			INCR(fotg210->stats.yesrmal);
 		else
 			INCR(fotg210->stats.error);
 		bh = 1;
@@ -5173,7 +5173,7 @@ static irqreturn_t fotg210_irq(struct usb_hcd *hcd)
 			~BIT(FOTG210_HRTIMER_IAA_WATCHDOG);
 
 		/*
-		 * Mild optimization: Allow another IAAD to reset the
+		 * Mild optimization: Allow ayesther IAAD to reset the
 		 * hrtimer, if one occurs before the next expiration.
 		 * In theory we could always cancel the hrtimer, but
 		 * tests show that about half the time it will be reset
@@ -5189,7 +5189,7 @@ static irqreturn_t fotg210_irq(struct usb_hcd *hcd)
 			INCR(fotg210->stats.iaa);
 			end_unlink_async(fotg210);
 		} else
-			fotg210_dbg(fotg210, "IAA with nothing unlinked?\n");
+			fotg210_dbg(fotg210, "IAA with yesthing unlinked?\n");
 	}
 
 	/* remote wakeup [4.3.1] */
@@ -5253,7 +5253,7 @@ dead:
 	return IRQ_HANDLED;
 }
 
-/* non-error returns are a promise to giveback() the urb later
+/* yesn-error returns are a promise to giveback() the urb later
  * we drop ownership so next owner (or urb unlink) can get it
  *
  * urb + dev is in hcd.self.controller.urb_list
@@ -5297,7 +5297,7 @@ static int fotg210_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 }
 
 /* remove from hardware lists
- * completions normally happen asynchronously
+ * completions yesrmally happen asynchroyesusly
  */
 
 static int fotg210_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
@@ -5376,7 +5376,7 @@ static void fotg210_endpoint_disable(struct usb_hcd *hcd,
 	struct fotg210_qh *qh, *tmp;
 
 	/* ASSERT:  any requests/urbs are being unlinked */
-	/* ASSERT:  nobody can be submitting urbs for this any more */
+	/* ASSERT:  yesbody can be submitting urbs for this any more */
 
 rescan:
 	spin_lock_irqsave(&fotg210->lock, flags);
@@ -5384,7 +5384,7 @@ rescan:
 	if (!qh)
 		goto done;
 
-	/* endpoints can be iso streams.  for now, we don't
+	/* endpoints can be iso streams.  for yesw, we don't
 	 * accelerate iso completions ... so spin a while.
 	 */
 	if (qh->hw == NULL) {
@@ -5429,7 +5429,7 @@ idle_timeout:
 		/* fall through */
 	default:
 		/* caller was supposed to have unlinked any requests;
-		 * that's not our job.  just leak this memory.
+		 * that's yest our job.  just leak this memory.
 		 */
 		fotg210_err(fotg210, "qh %p (#%02x) state %d%s\n",
 				qh, ep->desc.bEndpointAddress, qh->qh_state,
@@ -5470,7 +5470,7 @@ static void fotg210_endpoint_reset(struct usb_hcd *hcd,
 				qh->qh_state == QH_STATE_COMPLETING) {
 
 			/* The toggle value in the QH can't be updated
-			 * while the QH is active.  Unlink it now;
+			 * while the QH is active.  Unlink it yesw;
 			 * re-linking will call qh_refresh().
 			 */
 			if (eptype == USB_ENDPOINT_XFER_BULK)
@@ -5490,9 +5490,9 @@ static int fotg210_get_frame(struct usb_hcd *hcd)
 		fotg210->periodic_size;
 }
 
-/* The EHCI in ChipIdea HDRC cannot be a separate module or device,
+/* The EHCI in ChipIdea HDRC canyest be a separate module or device,
  * because its registers (and irq) are shared between host/gadget/otg
- * functions  and in order to facilitate role switching we cannot
+ * functions  and in order to facilitate role switching we canyest
  * give the fotg210 driver exclusive access to those.
  */
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -5581,7 +5581,7 @@ static int fotg210_hcd_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
-		dev_err(dev, "Found HC with no IRQ. Check %s setup!\n",
+		dev_err(dev, "Found HC with yes IRQ. Check %s setup!\n",
 				dev_name(dev));
 		return -ENODEV;
 	}
@@ -5612,7 +5612,7 @@ static int fotg210_hcd_probe(struct platform_device *pdev)
 
 	fotg210->caps = hcd->regs;
 
-	/* It's OK not to supply this clock */
+	/* It's OK yest to supply this clock */
 	fotg210->pclk = clk_get(dev, "PCLK");
 	if (!IS_ERR(fotg210->pclk)) {
 		retval = clk_prepare_enable(fotg210->pclk);
@@ -5706,7 +5706,7 @@ static int __init fotg210_hcd_init(void)
 	set_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 	if (test_bit(USB_UHCI_LOADED, &usb_hcds_loaded) ||
 			test_bit(USB_OHCI_LOADED, &usb_hcds_loaded))
-		pr_warn("Warning! fotg210_hcd should always be loaded before uhci_hcd and ohci_hcd, not after\n");
+		pr_warn("Warning! fotg210_hcd should always be loaded before uhci_hcd and ohci_hcd, yest after\n");
 
 	pr_debug("%s: block sizes: qh %zd qtd %zd itd %zd\n",
 			hcd_name, sizeof(struct fotg210_qh),

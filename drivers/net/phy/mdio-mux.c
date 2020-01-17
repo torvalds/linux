@@ -83,36 +83,36 @@ out:
 static int parent_count;
 
 int mdio_mux_init(struct device *dev,
-		  struct device_node *mux_node,
+		  struct device_yesde *mux_yesde,
 		  int (*switch_fn)(int cur, int desired, void *data),
 		  void **mux_handle,
 		  void *data,
 		  struct mii_bus *mux_bus)
 {
-	struct device_node *parent_bus_node;
-	struct device_node *child_bus_node;
+	struct device_yesde *parent_bus_yesde;
+	struct device_yesde *child_bus_yesde;
 	int r, ret_val;
 	struct mii_bus *parent_bus;
 	struct mdio_mux_parent_bus *pb;
 	struct mdio_mux_child_bus *cb;
 
-	if (!mux_node)
+	if (!mux_yesde)
 		return -ENODEV;
 
 	if (!mux_bus) {
-		parent_bus_node = of_parse_phandle(mux_node,
+		parent_bus_yesde = of_parse_phandle(mux_yesde,
 						   "mdio-parent-bus", 0);
 
-		if (!parent_bus_node)
+		if (!parent_bus_yesde)
 			return -ENODEV;
 
-		parent_bus = of_mdio_find_bus(parent_bus_node);
+		parent_bus = of_mdio_find_bus(parent_bus_yesde);
 		if (!parent_bus) {
 			ret_val = -EPROBE_DEFER;
 			goto err_parent_bus;
 		}
 	} else {
-		parent_bus_node = NULL;
+		parent_bus_yesde = NULL;
 		parent_bus = mux_bus;
 		get_device(&parent_bus->dev);
 	}
@@ -130,14 +130,14 @@ int mdio_mux_init(struct device *dev,
 	pb->mii_bus = parent_bus;
 
 	ret_val = -ENODEV;
-	for_each_available_child_of_node(mux_node, child_bus_node) {
+	for_each_available_child_of_yesde(mux_yesde, child_bus_yesde) {
 		int v;
 
-		r = of_property_read_u32(child_bus_node, "reg", &v);
+		r = of_property_read_u32(child_bus_yesde, "reg", &v);
 		if (r) {
 			dev_err(dev,
 				"Error: Failed to find reg for child %pOF\n",
-				child_bus_node);
+				child_bus_yesde);
 			continue;
 		}
 
@@ -163,11 +163,11 @@ int mdio_mux_init(struct device *dev,
 		cb->mii_bus->parent = dev;
 		cb->mii_bus->read = mdio_mux_read;
 		cb->mii_bus->write = mdio_mux_write;
-		r = of_mdiobus_register(cb->mii_bus, child_bus_node);
+		r = of_mdiobus_register(cb->mii_bus, child_bus_yesde);
 		if (r) {
 			dev_err(dev,
 				"Error: Failed to register MDIO bus for child %pOF\n",
-				child_bus_node);
+				child_bus_yesde);
 			mdiobus_free(cb->mii_bus);
 			devm_kfree(dev, cb);
 		} else {
@@ -185,7 +185,7 @@ int mdio_mux_init(struct device *dev,
 err_pb_kz:
 	put_device(&parent_bus->dev);
 err_parent_bus:
-	of_node_put(parent_bus_node);
+	of_yesde_put(parent_bus_yesde);
 	return ret_val;
 }
 EXPORT_SYMBOL_GPL(mdio_mux_init);

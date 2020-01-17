@@ -6,7 +6,7 @@
  */
 
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
@@ -181,7 +181,7 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 	controller->chip.gc = zevio_gpio_chip;
 	controller->chip.gc.parent = &pdev->dev;
 
-	status = of_mm_gpiochip_add_data(pdev->dev.of_node,
+	status = of_mm_gpiochip_add_data(pdev->dev.of_yesde,
 					 &(controller->chip),
 					 controller);
 	if (status) {

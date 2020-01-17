@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -47,7 +47,7 @@
 	DIV_ROUND_UP(MLX5E_XDP_INLINE_WQE_SZ_THRSD, MLX5_SEND_WQE_DS)
 
 /* The mult of MLX5_SEND_WQE_MAX_WQEBBS * MLX5_SEND_WQEBB_NUM_DS
- * (16 * 4 == 64) does not fit in the 6-bit DS field of Ctrl Segment.
+ * (16 * 4 == 64) does yest fit in the 6-bit DS field of Ctrl Segment.
  * We use a bound lower that MLX5_SEND_WQE_MAX_WQEBBS to let a
  * full-session WQE be cache-aligned.
  */
@@ -103,7 +103,7 @@ static inline bool mlx5e_xdp_is_active(struct mlx5e_priv *priv)
 static inline void mlx5e_xmit_xdp_doorbell(struct mlx5e_xdpsq *sq)
 {
 	if (sq->doorbell_cseg) {
-		mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, sq->doorbell_cseg);
+		mlx5e_yestify_hw(&sq->wq, sq->pc, sq->uar_map, sq->doorbell_cseg);
 		sq->doorbell_cseg = NULL;
 	}
 }
@@ -131,7 +131,7 @@ static inline void mlx5e_xdp_update_inline_state(struct mlx5e_xdpsq *sq)
 }
 
 static inline bool
-mlx5e_xdp_no_room_for_inline_pkt(struct mlx5e_xdp_mpwqe *session)
+mlx5e_xdp_yes_room_for_inline_pkt(struct mlx5e_xdp_mpwqe *session)
 {
 	return session->inline_on &&
 	       session->ds_count + MLX5E_XDP_INLINE_WQE_MAX_DS_CNT > MLX5E_XDP_MPW_MAX_NUM_DS;
@@ -139,19 +139,19 @@ mlx5e_xdp_no_room_for_inline_pkt(struct mlx5e_xdp_mpwqe *session)
 
 static inline void
 mlx5e_fill_xdpsq_frag_edge(struct mlx5e_xdpsq *sq, struct mlx5_wq_cyc *wq,
-			   u16 pi, u16 nnops)
+			   u16 pi, u16 nyesps)
 {
 	struct mlx5e_xdp_wqe_info *edge_wi, *wi = &sq->db.wqe_info[pi];
 
-	edge_wi = wi + nnops;
-	/* fill sq frag edge with nops to avoid wqe wrapping two pages */
+	edge_wi = wi + nyesps;
+	/* fill sq frag edge with yesps to avoid wqe wrapping two pages */
 	for (; wi < edge_wi; wi++) {
 		wi->num_wqebbs = 1;
 		wi->num_pkts   = 0;
-		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+		mlx5e_post_yesp(wq, sq->sqn, &sq->pc);
 	}
 
-	sq->stats->nops += nnops;
+	sq->stats->yesps += nyesps;
 }
 
 static inline void

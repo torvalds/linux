@@ -6,7 +6,7 @@
 
 /**
  * struct cc_sram_ctx -Internal RAM context manager
- * @sram_free_offset:   the offset to the non-allocated area
+ * @sram_free_offset:   the offset to the yesn-allocated area
  */
 struct cc_sram_ctx {
 	cc_sram_addr_t sram_free_offset;
@@ -61,7 +61,7 @@ int cc_sram_mgr_init(struct cc_drvdata *drvdata)
 /*!
  * Allocated buffer from SRAM pool.
  * Note: Caller is responsible to free the LAST allocated buffer.
- * This function does not taking care of any fragmentation may occur
+ * This function does yest taking care of any fragmentation may occur
  * by the order of calls to alloc/free.
  *
  * \param drvdata
@@ -74,12 +74,12 @@ cc_sram_addr_t cc_sram_alloc(struct cc_drvdata *drvdata, u32 size)
 	cc_sram_addr_t p;
 
 	if ((size & 0x3)) {
-		dev_err(dev, "Requested buffer size (%u) is not multiple of 4",
+		dev_err(dev, "Requested buffer size (%u) is yest multiple of 4",
 			size);
 		return NULL_SRAM_ADDR;
 	}
 	if (size > (CC_CC_SRAM_SIZE - smgr_ctx->sram_free_offset)) {
-		dev_err(dev, "Not enough space to allocate %u B (at offset %llu)\n",
+		dev_err(dev, "Not eyesugh space to allocate %u B (at offset %llu)\n",
 			size, smgr_ctx->sram_free_offset);
 		return NULL_SRAM_ADDR;
 	}

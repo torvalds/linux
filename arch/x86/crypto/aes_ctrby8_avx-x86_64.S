@@ -39,12 +39,12 @@
  * are met:
  *
  * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
+ * yestice, this list of conditions and the following disclaimer.
  * Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in
+ * yestice, this list of conditions and the following disclaimer in
  * the documentation and/or other materials provided with the
  * distribution.
- * Neither the name of Intel Corporation nor the names of its
+ * Neither the name of Intel Corporation yesr the names of its
  * contributors may be used to endorse or promote products derived
  * from this software without specific prior written permission.
  *
@@ -145,12 +145,12 @@ ddq_add_8:
 	.elseif \name == XDATA
 		setxdata %\id
 	.endif
-.noaltmacro
+.yesaltmacro
 .endm
 
 /*
  * do_aes num_in_par load_keys key_len
- * This increments p_in, but not p_out
+ * This increments p_in, but yest p_out
  */
 .macro do_aes b, k, key_len
 	.set by, \b
@@ -427,7 +427,7 @@ ddq_add_8:
 	do_aes \val, 1, \key_len
 .endm
 
-.macro do_aes_noload val, key_len
+.macro do_aes_yesload val, key_len
 	do_aes \val, 0, \key_len
 .endm
 
@@ -525,7 +525,7 @@ ddq_add_8:
 .align 16
 .Lmain_loop2\key_len:
 	/* num_bytes is a multiple of 8 and >0 */
-	do_aes_noload	8, \key_len
+	do_aes_yesload	8, \key_len
 	add	$(8*16), p_out
 	sub	$(8*16), num_bytes
 	jne	.Lmain_loop2\key_len

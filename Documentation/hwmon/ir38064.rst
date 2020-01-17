@@ -18,12 +18,12 @@ Authors:
 Description
 -----------
 
-IR38064 is a Single-input Voltage, Synchronous Buck Regulator, DC-DC Converter.
+IR38064 is a Single-input Voltage, Synchroyesus Buck Regulator, DC-DC Converter.
 
 Usage Notes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does yest probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Sysfs attributes

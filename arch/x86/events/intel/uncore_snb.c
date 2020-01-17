@@ -456,16 +456,16 @@ static int snb_uncore_imc_event_init(struct perf_event *event)
 		return -ENOENT;
 
 	pmu = uncore_event_to_pmu(event);
-	/* no device found for this pmu */
+	/* yes device found for this pmu */
 	if (pmu->func_id < 0)
 		return -ENOENT;
 
-	/* Sampling not supported yet */
+	/* Sampling yest supported yet */
 	if (hwc->sample_period)
 		return -EINVAL;
 
 	/* unsupported modes and filters */
-	if (event->attr.sample_period) /* no sampling */
+	if (event->attr.sample_period) /* yes sampling */
 		return -EINVAL;
 
 	/*
@@ -493,7 +493,7 @@ static int snb_uncore_imc_event_init(struct perf_event *event)
 	event->hw.extra_reg.idx = EXTRA_REG_NONE;
 	event->hw.branch_reg.idx = EXTRA_REG_NONE;
 	/*
-	 * check event is known (whitelist, determines counter)
+	 * check event is kyeswn (whitelist, determines counter)
 	 */
 	switch (cfg) {
 	case SNB_UNCORE_PCI_IMC_DATA_READS:
@@ -515,7 +515,7 @@ static int snb_uncore_imc_event_init(struct perf_event *event)
 	/* Convert to standard encoding format for freerunning counters */
 	event->hw.config = ((cfg - 1) << 8) | 0x10ff;
 
-	/* no group validation needed, we have free running counters */
+	/* yes group validation needed, we have free running counters */
 
 	return 0;
 }
@@ -951,7 +951,7 @@ static const struct attribute_group nhm_uncore_format_group = {
 static struct uncore_event_desc nhm_uncore_events[] = {
 	INTEL_UNCORE_EVENT_DESC(clockticks,                "event=0xff,umask=0x00"),
 	INTEL_UNCORE_EVENT_DESC(qmc_writes_full_any,       "event=0x2f,umask=0x0f"),
-	INTEL_UNCORE_EVENT_DESC(qmc_normal_reads_any,      "event=0x2c,umask=0x0f"),
+	INTEL_UNCORE_EVENT_DESC(qmc_yesrmal_reads_any,      "event=0x2c,umask=0x0f"),
 	INTEL_UNCORE_EVENT_DESC(qhl_request_ioh_reads,     "event=0x20,umask=0x01"),
 	INTEL_UNCORE_EVENT_DESC(qhl_request_ioh_writes,    "event=0x20,umask=0x02"),
 	INTEL_UNCORE_EVENT_DESC(qhl_request_remote_reads,  "event=0x20,umask=0x04"),

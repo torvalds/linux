@@ -10,7 +10,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_log_format.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_icache.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
@@ -21,38 +21,38 @@
 int
 xchk_setup_parent(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
-	return xchk_setup_inode_contents(sc, ip, 0);
+	return xchk_setup_iyesde_contents(sc, ip, 0);
 }
 
 /* Parent pointers */
 
-/* Look for an entry in a parent pointing to this inode. */
+/* Look for an entry in a parent pointing to this iyesde. */
 
 struct xchk_parent_ctx {
 	struct dir_context	dc;
 	struct xfs_scrub	*sc;
-	xfs_ino_t		ino;
+	xfs_iyes_t		iyes;
 	xfs_nlink_t		nlink;
 	bool			cancelled;
 };
 
-/* Look for a single entry in a directory pointing to an inode. */
+/* Look for a single entry in a directory pointing to an iyesde. */
 STATIC int
 xchk_parent_actor(
 	struct dir_context	*dc,
 	const char		*name,
 	int			namelen,
 	loff_t			pos,
-	u64			ino,
+	u64			iyes,
 	unsigned		type)
 {
 	struct xchk_parent_ctx	*spc;
 	int			error = 0;
 
 	spc = container_of(dc, struct xchk_parent_ctx, dc);
-	if (spc->ino == ino)
+	if (spc->iyes == iyes)
 		spc->nlink++;
 
 	/*
@@ -66,16 +66,16 @@ xchk_parent_actor(
 	return error;
 }
 
-/* Count the number of dentries in the parent dir that point to this inode. */
+/* Count the number of dentries in the parent dir that point to this iyesde. */
 STATIC int
 xchk_parent_count_parent_dentries(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*parent,
+	struct xfs_iyesde	*parent,
 	xfs_nlink_t		*nlink)
 {
 	struct xchk_parent_ctx	spc = {
 		.dc.actor	= xchk_parent_actor,
-		.ino		= sc->ip->i_ino,
+		.iyes		= sc->ip->i_iyes,
 		.sc		= sc,
 	};
 	size_t			bufsize;
@@ -98,7 +98,7 @@ xchk_parent_count_parent_dentries(
 
 	/*
 	 * Iterate the parent dir to confirm that there is
-	 * exactly one entry pointing back to the inode being
+	 * exactly one entry pointing back to the iyesde being
 	 * scanned.
 	 */
 	bufsize = (size_t)min_t(loff_t, XFS_READDIR_BUFSIZE,
@@ -122,18 +122,18 @@ out:
 }
 
 /*
- * Given the inode number of the alleged parent of the inode being
+ * Given the iyesde number of the alleged parent of the iyesde being
  * scrubbed, try to validate that the parent has exactly one directory
- * entry pointing back to the inode being scrubbed.
+ * entry pointing back to the iyesde being scrubbed.
  */
 STATIC int
 xchk_parent_validate(
 	struct xfs_scrub	*sc,
-	xfs_ino_t		dnum,
+	xfs_iyes_t		dnum,
 	bool			*try_again)
 {
 	struct xfs_mount	*mp = sc->mp;
-	struct xfs_inode	*dp = NULL;
+	struct xfs_iyesde	*dp = NULL;
 	xfs_nlink_t		expected_nlink;
 	xfs_nlink_t		nlink;
 	int			error = 0;
@@ -143,8 +143,8 @@ xchk_parent_validate(
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		goto out;
 
-	/* '..' must not point to ourselves. */
-	if (sc->ip->i_ino == dnum) {
+	/* '..' must yest point to ourselves. */
+	if (sc->ip->i_iyes == dnum) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out;
 	}
@@ -156,15 +156,15 @@ xchk_parent_validate(
 	expected_nlink = VFS_I(sc->ip)->i_nlink == 0 ? 0 : 1;
 
 	/*
-	 * Grab this parent inode.  We release the inode before we
-	 * cancel the scrub transaction.  Since we're don't know a
-	 * priori that releasing the inode won't trigger eofblocks
+	 * Grab this parent iyesde.  We release the iyesde before we
+	 * cancel the scrub transaction.  Since we're don't kyesw a
+	 * priori that releasing the iyesde won't trigger eofblocks
 	 * cleanup (which allocates what would be a nested transaction)
 	 * if the parent pointer erroneously points to a file, we
-	 * can't use DONTCACHE here because DONTCACHE inodes can trigger
-	 * immediate inactive cleanup of the inode.
+	 * can't use DONTCACHE here because DONTCACHE iyesdes can trigger
+	 * immediate inactive cleanup of the iyesde.
 	 *
-	 * If _iget returns -EINVAL then the parent inode number is garbage
+	 * If _iget returns -EINVAL then the parent iyesde number is garbage
 	 * and the directory is corrupt.  If the _iget returns -EFSCORRUPTED
 	 * or -EFSBADCRC then the parent is corrupt which is a cross
 	 * referencing error.  Any other error is an operational error.
@@ -183,13 +183,13 @@ xchk_parent_validate(
 	}
 
 	/*
-	 * We prefer to keep the inode locked while we lock and search
+	 * We prefer to keep the iyesde locked while we lock and search
 	 * its alleged parent for a forward reference.  If we can grab
 	 * the iolock, validate the pointers and we're done.  We must
-	 * use nowait here to avoid an ABBA deadlock on the parent and
-	 * the child inodes.
+	 * use yeswait here to avoid an ABBA deadlock on the parent and
+	 * the child iyesdes.
 	 */
-	if (xfs_ilock_nowait(dp, XFS_IOLOCK_SHARED)) {
+	if (xfs_ilock_yeswait(dp, XFS_IOLOCK_SHARED)) {
 		error = xchk_parent_count_parent_dentries(sc, dp, &nlink);
 		if (!xchk_fblock_xref_process_error(sc, XFS_DATA_FORK, 0,
 				&error))
@@ -216,7 +216,7 @@ xchk_parent_validate(
 	if (!xchk_fblock_xref_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out_unlock;
 
-	/* Drop the parent lock, relock this inode. */
+	/* Drop the parent lock, relock this iyesde. */
 	xfs_iunlock(dp, XFS_IOLOCK_SHARED);
 	error = xchk_ilock_inverted(sc->ip, XFS_IOLOCK_EXCL);
 	if (error)
@@ -230,13 +230,13 @@ xchk_parent_validate(
 	 */
 	expected_nlink = VFS_I(sc->ip)->i_nlink == 0 ? 0 : 1;
 
-	/* Look up '..' to see if the inode changed. */
+	/* Look up '..' to see if the iyesde changed. */
 	error = xfs_dir_lookup(sc->tp, sc->ip, &xfs_name_dotdot, &dnum, NULL);
 	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out_rele;
 
 	/* Drat, parent changed.  Try again! */
-	if (dnum != dp->i_ino) {
+	if (dnum != dp->i_iyes) {
 		xfs_irele(dp);
 		*try_again = true;
 		return 0;
@@ -265,7 +265,7 @@ xchk_parent(
 	struct xfs_scrub	*sc)
 {
 	struct xfs_mount	*mp = sc->mp;
-	xfs_ino_t		dnum;
+	xfs_iyes_t		dnum;
 	bool			try_again;
 	int			tries = 0;
 	int			error = 0;
@@ -277,8 +277,8 @@ xchk_parent(
 	if (!S_ISDIR(VFS_I(sc->ip)->i_mode))
 		return -ENOENT;
 
-	/* We're not a special inode, are we? */
-	if (!xfs_verify_dir_ino(mp, sc->ip->i_ino)) {
+	/* We're yest a special iyesde, are we? */
+	if (!xfs_verify_dir_iyes(mp, sc->ip->i_iyes)) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out;
 	}
@@ -297,15 +297,15 @@ xchk_parent(
 	error = xfs_dir_lookup(sc->tp, sc->ip, &xfs_name_dotdot, &dnum, NULL);
 	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out;
-	if (!xfs_verify_dir_ino(mp, dnum)) {
+	if (!xfs_verify_dir_iyes(mp, dnum)) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out;
 	}
 
 	/* Is this the root dir?  Then '..' must point to itself. */
 	if (sc->ip == mp->m_rootip) {
-		if (sc->ip->i_ino != mp->m_sb.sb_rootino ||
-		    sc->ip->i_ino != dnum)
+		if (sc->ip->i_iyes != mp->m_sb.sb_rootiyes ||
+		    sc->ip->i_iyes != dnum)
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out;
 	}
@@ -324,7 +324,7 @@ xchk_parent(
 		xchk_set_incomplete(sc);
 out:
 	/*
-	 * If we failed to lock the parent inode even after a retry, just mark
+	 * If we failed to lock the parent iyesde even after a retry, just mark
 	 * this scrub incomplete and return.
 	 */
 	if ((sc->flags & XCHK_TRY_HARDER) && error == -EDEADLOCK) {

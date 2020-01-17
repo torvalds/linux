@@ -180,7 +180,7 @@ static unsigned char myrs_get_ctlr_info(struct myrs_hba *cs)
 	mbox->ctlr_info.id = MYRS_DCMD_TAG;
 	mbox->ctlr_info.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->ctlr_info.control.dma_ctrl_to_host = true;
-	mbox->ctlr_info.control.no_autosense = true;
+	mbox->ctlr_info.control.yes_autosense = true;
 	mbox->ctlr_info.dma_size = sizeof(struct myrs_ctlr_info);
 	mbox->ctlr_info.ctlr_num = 0;
 	mbox->ctlr_info.ioctl_opcode = MYRS_IOCTL_GET_CTLR_INFO;
@@ -239,7 +239,7 @@ static unsigned char myrs_get_ldev_info(struct myrs_hba *cs,
 	mbox->ldev_info.id = MYRS_DCMD_TAG;
 	mbox->ldev_info.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->ldev_info.control.dma_ctrl_to_host = true;
-	mbox->ldev_info.control.no_autosense = true;
+	mbox->ldev_info.control.yes_autosense = true;
 	mbox->ldev_info.dma_size = sizeof(struct myrs_ldev_info);
 	mbox->ldev_info.ldev.ldev_num = ldev_num;
 	mbox->ldev_info.ioctl_opcode = MYRS_IOCTL_GET_LDEV_INFO_VALID;
@@ -264,7 +264,7 @@ static unsigned char myrs_get_ldev_info(struct myrs_hba *cs,
 
 			name = myrs_devstate_name(new->dev_state);
 			shost_printk(KERN_INFO, cs->host,
-				     "Logical Drive %d is now %s\n",
+				     "Logical Drive %d is yesw %s\n",
 				     ldev_num, name ? name : "Invalid");
 		}
 		if ((new->soft_errs != old->soft_errs) ||
@@ -325,7 +325,7 @@ static unsigned char myrs_get_pdev_info(struct myrs_hba *cs,
 	mbox->pdev_info.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->pdev_info.id = MYRS_DCMD_TAG;
 	mbox->pdev_info.control.dma_ctrl_to_host = true;
-	mbox->pdev_info.control.no_autosense = true;
+	mbox->pdev_info.control.yes_autosense = true;
 	mbox->pdev_info.dma_size = sizeof(struct myrs_pdev_info);
 	mbox->pdev_info.pdev.lun = lun;
 	mbox->pdev_info.pdev.target = target;
@@ -360,7 +360,7 @@ static unsigned char myrs_dev_op(struct myrs_hba *cs,
 	mbox->dev_op.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->dev_op.id = MYRS_DCMD_TAG;
 	mbox->dev_op.control.dma_ctrl_to_host = true;
-	mbox->dev_op.control.no_autosense = true;
+	mbox->dev_op.control.yes_autosense = true;
 	mbox->dev_op.ioctl_opcode = opcode;
 	mbox->dev_op.opdev = opdev;
 	myrs_exec_cmd(cs, cmd_blk);
@@ -396,7 +396,7 @@ static unsigned char myrs_translate_pdev(struct myrs_hba *cs,
 	mbox = &cmd_blk->mbox;
 	mbox->pdev_info.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->pdev_info.control.dma_ctrl_to_host = true;
-	mbox->pdev_info.control.no_autosense = true;
+	mbox->pdev_info.control.yes_autosense = true;
 	mbox->pdev_info.dma_size = sizeof(struct myrs_devmap);
 	mbox->pdev_info.pdev.target = target;
 	mbox->pdev_info.pdev.channel = channel;
@@ -463,7 +463,7 @@ static unsigned char myrs_get_fwstatus(struct myrs_hba *cs)
 	mbox->common.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->common.id = MYRS_MCMD_TAG;
 	mbox->common.control.dma_ctrl_to_host = true;
-	mbox->common.control.no_autosense = true;
+	mbox->common.control.yes_autosense = true;
 	mbox->common.dma_size = sizeof(struct myrs_fwstat);
 	mbox->common.ioctl_opcode = MYRS_IOCTL_GET_HEALTH_STATUS;
 	sgl = &mbox->common.dma_addr;
@@ -553,7 +553,7 @@ static bool myrs_enable_mmio_mbox(struct myrs_hba *cs,
 	memset(mbox, 0, sizeof(union myrs_cmd_mbox));
 	mbox->set_mbox.id = 1;
 	mbox->set_mbox.opcode = MYRS_CMD_OP_IOCTL;
-	mbox->set_mbox.control.no_autosense = true;
+	mbox->set_mbox.control.yes_autosense = true;
 	mbox->set_mbox.first_cmd_mbox_size_kb =
 		(MYRS_MAX_CMD_MBOX * sizeof(union myrs_cmd_mbox)) >> 10;
 	mbox->set_mbox.first_stat_mbox_size_kb =
@@ -612,10 +612,10 @@ static int myrs_get_config(struct myrs_hba *cs)
 	strcat(cs->model_name, model);
 	/* Initialize the Controller Firmware Version field. */
 	sprintf(fw_version, "%d.%02d-%02d",
-		info->fw_major_version, info->fw_minor_version,
+		info->fw_major_version, info->fw_miyesr_version,
 		info->fw_turn_number);
 	if (info->fw_major_version == 6 &&
-	    info->fw_minor_version == 0 &&
+	    info->fw_miyesr_version == 0 &&
 	    info->fw_turn_number < 1) {
 		shost_printk(KERN_WARNING, shost,
 			"FIRMWARE VERSION %s DOES NOT PROVIDE THE CONTROLLER\n"
@@ -696,7 +696,7 @@ static struct {
 	{ 0x0006, "P Manual Rebuild Started" },
 	{ 0x0007, "P Rebuild Completed" },
 	{ 0x0008, "P Rebuild Cancelled" },
-	{ 0x0009, "P Rebuild Failed for Unknown Reasons" },
+	{ 0x0009, "P Rebuild Failed for Unkyeswn Reasons" },
 	{ 0x000A, "P Rebuild Failed due to New Physical Device" },
 	{ 0x000B, "P Rebuild Failed due to Logical Drive Failure" },
 	{ 0x000C, "S Offline" },
@@ -723,7 +723,7 @@ static struct {
 	{ 0x0021, "P Failed because Write Recovery Failed" },
 	{ 0x0022, "P Failed because SCSI Bus Reset Failed" },
 	{ 0x0023, "P Failed because of Double Check Condition" },
-	{ 0x0024, "P Failed because Device Cannot Be Accessed" },
+	{ 0x0024, "P Failed because Device Canyest Be Accessed" },
 	{ 0x0025, "P Failed because of Gross Error on SCSI Processor" },
 	{ 0x0026, "P Failed because of Bad Tag from Device" },
 	{ 0x0027, "P Failed because of Command Timeout" },
@@ -732,7 +732,7 @@ static struct {
 	{ 0x002A, "P Failed because Host Set Device to Failed State" },
 	{ 0x002B, "P Failed because of Selection Timeout" },
 	{ 0x002C, "P Failed because of SCSI Bus Phase Error" },
-	{ 0x002D, "P Failed because Device Returned Unknown Status" },
+	{ 0x002D, "P Failed because Device Returned Unkyeswn Status" },
 	{ 0x002E, "P Failed because Device Not Ready" },
 	{ 0x002F, "P Failed because Device Not Found at Startup" },
 	{ 0x0030, "P Failed because COD Write Operation Failed" },
@@ -755,7 +755,7 @@ static struct {
 	{ 0x008A, "M Manual Rebuild Started" },
 	{ 0x008B, "M Rebuild Completed" },
 	{ 0x008C, "M Rebuild Cancelled" },
-	{ 0x008D, "M Rebuild Failed for Unknown Reasons" },
+	{ 0x008D, "M Rebuild Failed for Unkyeswn Reasons" },
 	{ 0x008E, "M Rebuild Failed due to New Physical Device" },
 	{ 0x008F, "M Rebuild Failed due to Logical Drive Failure" },
 	{ 0x0090, "M Initialization Started" },
@@ -823,7 +823,7 @@ static void myrs_log_event(struct myrs_hba *cs, struct myrs_event *ev)
 	unsigned char cmd_specific[4];
 
 	if (ev->ev_code == 0x1C) {
-		if (!scsi_normalize_sense(ev->sense_data, 40, &sshdr)) {
+		if (!scsi_yesrmalize_sense(ev->sense_data, 40, &sshdr)) {
 			memset(&sshdr, 0x0, sizeof(sshdr));
 			memset(sense_info, 0x0, sizeof(sense_info));
 			memset(cmd_specific, 0x0, sizeof(cmd_specific));
@@ -845,7 +845,7 @@ static void myrs_log_event(struct myrs_hba *cs, struct myrs_event *ev)
 	ev_msg = &myrs_ev_list[ev_idx].ev_msg[2];
 	if (ev_code == 0) {
 		shost_printk(KERN_WARNING, shost,
-			     "Unknown Controller Event Code %04X\n",
+			     "Unkyeswn Controller Event Code %04X\n",
 			     ev->ev_code);
 		return;
 	}
@@ -925,7 +925,7 @@ static void myrs_log_event(struct myrs_hba *cs, struct myrs_event *ev)
 		break;
 	default:
 		shost_printk(KERN_INFO, shost,
-			     "event %d: Unknown Event Code %04X\n",
+			     "event %d: Unkyeswn Event Code %04X\n",
 			     ev->ev_seq, ev->ev_code);
 		break;
 	}
@@ -942,7 +942,7 @@ static ssize_t raid_state_show(struct device *dev,
 	int ret;
 
 	if (!sdev->hostdata)
-		return snprintf(buf, 16, "Unknown\n");
+		return snprintf(buf, 16, "Unkyeswn\n");
 
 	if (sdev->channel >= cs->ctlr_info->physchan_present) {
 		struct myrs_ldev_info *ldev_info = sdev->hostdata;
@@ -1024,7 +1024,7 @@ static ssize_t raid_state_store(struct device *dev,
 	mbox->common.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->common.id = MYRS_DCMD_TAG;
 	mbox->common.control.dma_ctrl_to_host = true;
-	mbox->common.control.no_autosense = true;
+	mbox->common.control.yes_autosense = true;
 	mbox->set_devstate.ioctl_opcode = MYRS_IOCTL_SET_DEVICE_STATE;
 	mbox->set_devstate.state = new_state;
 	mbox->set_devstate.ldev.ldev_num = ldev_num;
@@ -1061,7 +1061,7 @@ static ssize_t raid_level_show(struct device *dev,
 	const char *name = NULL;
 
 	if (!sdev->hostdata)
-		return snprintf(buf, 16, "Unknown\n");
+		return snprintf(buf, 16, "Unkyeswn\n");
 
 	if (sdev->channel >= cs->ctlr_info->physchan_present) {
 		struct myrs_ldev_info *ldev_info;
@@ -1089,7 +1089,7 @@ static ssize_t rebuild_show(struct device *dev,
 	unsigned char status;
 
 	if (sdev->channel < cs->ctlr_info->physchan_present)
-		return snprintf(buf, 32, "physical device - not rebuilding\n");
+		return snprintf(buf, 32, "physical device - yest rebuilding\n");
 
 	ldev_info = sdev->hostdata;
 	ldev_num = ldev_info->ldev_num;
@@ -1105,7 +1105,7 @@ static ssize_t rebuild_show(struct device *dev,
 				(size_t)ldev_info->rbld_lba,
 				(size_t)ldev_info->cfg_devsize);
 	} else
-		return snprintf(buf, 32, "not rebuilding\n");
+		return snprintf(buf, 32, "yest rebuilding\n");
 }
 
 static ssize_t rebuild_store(struct device *dev,
@@ -1147,7 +1147,7 @@ static ssize_t rebuild_store(struct device *dev,
 	}
 	if (!rebuild && !ldev_info->rbld_active) {
 		sdev_printk(KERN_INFO, sdev,
-			    "Rebuild Not Cancelled; no rebuild in progress\n");
+			    "Rebuild Not Cancelled; yes rebuild in progress\n");
 		return count;
 	}
 
@@ -1158,7 +1158,7 @@ static ssize_t rebuild_store(struct device *dev,
 	mbox->common.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->common.id = MYRS_DCMD_TAG;
 	mbox->common.control.dma_ctrl_to_host = true;
-	mbox->common.control.no_autosense = true;
+	mbox->common.control.yes_autosense = true;
 	if (rebuild) {
 		mbox->ldev_info.ldev.ldev_num = ldev_num;
 		mbox->ldev_info.ioctl_opcode = MYRS_IOCTL_RBLD_DEVICE_START;
@@ -1194,7 +1194,7 @@ static ssize_t consistency_check_show(struct device *dev,
 	unsigned char status;
 
 	if (sdev->channel < cs->ctlr_info->physchan_present)
-		return snprintf(buf, 32, "physical device - not checking\n");
+		return snprintf(buf, 32, "physical device - yest checking\n");
 
 	ldev_info = sdev->hostdata;
 	if (!ldev_info)
@@ -1206,7 +1206,7 @@ static ssize_t consistency_check_show(struct device *dev,
 				(size_t)ldev_info->cc_lba,
 				(size_t)ldev_info->cfg_devsize);
 	else
-		return snprintf(buf, 32, "not checking\n");
+		return snprintf(buf, 32, "yest checking\n");
 }
 
 static ssize_t consistency_check_store(struct device *dev,
@@ -1249,7 +1249,7 @@ static ssize_t consistency_check_store(struct device *dev,
 	if (!check && !ldev_info->cc_active) {
 		sdev_printk(KERN_INFO, sdev,
 			    "Consistency Check Not Cancelled; "
-			    "check not in progress\n");
+			    "check yest in progress\n");
 		return count;
 	}
 
@@ -1260,7 +1260,7 @@ static ssize_t consistency_check_store(struct device *dev,
 	mbox->common.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->common.id = MYRS_DCMD_TAG;
 	mbox->common.control.dma_ctrl_to_host = true;
-	mbox->common.control.no_autosense = true;
+	mbox->common.control.yes_autosense = true;
 	if (check) {
 		mbox->cc.ldev.ldev_num = ldev_num;
 		mbox->cc.ioctl_opcode = MYRS_IOCTL_CC_START;
@@ -1315,7 +1315,7 @@ static ssize_t ctlr_num_show(struct device *dev,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct myrs_hba *cs = shost_priv(shost);
 
-	return snprintf(buf, 20, "%d\n", cs->host->host_no);
+	return snprintf(buf, 20, "%d\n", cs->host->host_yes);
 }
 static DEVICE_ATTR_RO(ctlr_num);
 
@@ -1422,7 +1422,7 @@ static ssize_t firmware_show(struct device *dev,
 
 	return snprintf(buf, 16, "%d.%02d-%02d\n",
 			cs->ctlr_info->fw_major_version,
-			cs->ctlr_info->fw_minor_version,
+			cs->ctlr_info->fw_miyesr_version,
 			cs->ctlr_info->fw_turn_number);
 }
 static DEVICE_ATTR_RO(firmware);
@@ -1443,7 +1443,7 @@ static ssize_t discovery_store(struct device *dev,
 	mbox->common.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->common.id = MYRS_DCMD_TAG;
 	mbox->common.control.dma_ctrl_to_host = true;
-	mbox->common.control.no_autosense = true;
+	mbox->common.control.yes_autosense = true;
 	mbox->common.ioctl_opcode = MYRS_IOCTL_START_DISCOVERY;
 	myrs_exec_cmd(cs, cmd_blk);
 	status = cmd_blk->status;
@@ -1898,7 +1898,7 @@ static int myrs_slave_configure(struct scsi_device *sdev)
 		/* Skip HBA device */
 		if (sdev->type == TYPE_RAID)
 			return -ENXIO;
-		sdev->no_uld_attach = 1;
+		sdev->yes_uld_attach = 1;
 		return 0;
 	}
 	if (sdev->lun != 0)
@@ -2212,7 +2212,7 @@ static bool myrs_create_mempools(struct pci_dev *pdev, struct myrs_hba *cs)
 	}
 
 	snprintf(cs->work_q_name, sizeof(cs->work_q_name),
-		 "myrs_wq_%d", shost->host_no);
+		 "myrs_wq_%d", shost->host_yes);
 	cs->work_q = create_singlethread_workqueue(cs->work_q_name);
 	if (!cs->work_q) {
 		dma_pool_destroy(cs->dcdb_pool);
@@ -2311,7 +2311,7 @@ static struct myrs_hba *myrs_detect(struct pci_dev *pdev,
 	/* Map the Controller Register Window. */
 	if (mmio_size < PAGE_SIZE)
 		mmio_size = PAGE_SIZE;
-	cs->mmio_base = ioremap_nocache(cs->pci_addr & PAGE_MASK, mmio_size);
+	cs->mmio_base = ioremap_yescache(cs->pci_addr & PAGE_MASK, mmio_size);
 	if (cs->mmio_base == NULL) {
 		dev_err(&pdev->dev,
 			"Unable to map Controller Register Window\n");
@@ -2356,35 +2356,35 @@ static bool myrs_err_status(struct myrs_hba *cs, unsigned char status,
 			 parm1, parm0);
 		break;
 	case 0x08:
-		dev_notice(&pdev->dev, "Spinning Up Drives\n");
+		dev_yestice(&pdev->dev, "Spinning Up Drives\n");
 		break;
 	case 0x30:
-		dev_notice(&pdev->dev, "Configuration Checksum Error\n");
+		dev_yestice(&pdev->dev, "Configuration Checksum Error\n");
 		break;
 	case 0x60:
-		dev_notice(&pdev->dev, "Mirror Race Recovery Failed\n");
+		dev_yestice(&pdev->dev, "Mirror Race Recovery Failed\n");
 		break;
 	case 0x70:
-		dev_notice(&pdev->dev, "Mirror Race Recovery In Progress\n");
+		dev_yestice(&pdev->dev, "Mirror Race Recovery In Progress\n");
 		break;
 	case 0x90:
-		dev_notice(&pdev->dev, "Physical Device %d:%d COD Mismatch\n",
+		dev_yestice(&pdev->dev, "Physical Device %d:%d COD Mismatch\n",
 			   parm1, parm0);
 		break;
 	case 0xA0:
-		dev_notice(&pdev->dev, "Logical Drive Installation Aborted\n");
+		dev_yestice(&pdev->dev, "Logical Drive Installation Aborted\n");
 		break;
 	case 0xB0:
-		dev_notice(&pdev->dev, "Mirror Race On A Critical Logical Drive\n");
+		dev_yestice(&pdev->dev, "Mirror Race On A Critical Logical Drive\n");
 		break;
 	case 0xD0:
-		dev_notice(&pdev->dev, "New Controller Configuration Found\n");
+		dev_yestice(&pdev->dev, "New Controller Configuration Found\n");
 		break;
 	case 0xF0:
 		dev_err(&pdev->dev, "Fatal Memory Parity Error\n");
 		return true;
 	default:
-		dev_err(&pdev->dev, "Unknown Initialization Error %02X\n",
+		dev_err(&pdev->dev, "Unkyeswn Initialization Error %02X\n",
 			status);
 		return true;
 	}

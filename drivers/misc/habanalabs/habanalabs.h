@@ -53,7 +53,7 @@
 
 /**
  * struct pgt_info - MMU hop page info.
- * @node: hash linked-list node for the pgts shadow hash of pgts.
+ * @yesde: hash linked-list yesde for the pgts shadow hash of pgts.
  * @phys_addr: physical address of the pgt.
  * @shadow_addr: shadow hop in the host.
  * @ctx: pointer to the owner ctx.
@@ -61,11 +61,11 @@
  *
  * The MMU page tables hierarchy is placed on the DRAM. When a new level (hop)
  * is needed during mapping, a new page is allocated and this structure holds
- * its essential information. During unmapping, if no valid PTEs remained in the
+ * its essential information. During unmapping, if yes valid PTEs remained in the
  * page, it is freed with its pgt_info structure.
  */
 struct pgt_info {
-	struct hlist_node	node;
+	struct hlist_yesde	yesde;
 	u64			phys_addr;
 	u64			shadow_addr;
 	struct hl_ctx		*ctx;
@@ -77,14 +77,14 @@ struct hl_fpriv;
 
 /**
  * enum hl_queue_type - Supported QUEUE types.
- * @QUEUE_TYPE_NA: queue is not available.
+ * @QUEUE_TYPE_NA: queue is yest available.
  * @QUEUE_TYPE_EXT: external queue which is a DMA channel that may access the
  *                  host.
  * @QUEUE_TYPE_INT: internal queue that performs DMA inside the device's
  *			memories and/or operates the compute engines.
  * @QUEUE_TYPE_CPU: S/W queue for communication with the device's CPU.
  * @QUEUE_TYPE_HW: queue of DMA and compute engines jobs, for which completion
- *                 notifications are sent by H/W.
+ *                 yestifications are sent by H/W.
  */
 enum hl_queue_type {
 	QUEUE_TYPE_NA,
@@ -120,7 +120,7 @@ enum vm_type_t {
 
 /**
  * enum hl_device_hw_state - H/W device state. use this to understand whether
- *                           to do reset before hw_init or not
+ *                           to do reset before hw_init or yest
  * @HL_DEVICE_HW_STATE_CLEAN: H/W state is clean. i.e. after hard reset
  * @HL_DEVICE_HW_STATE_DIRTY: H/W state is dirty. i.e. we started to execute
  *                            hw_init
@@ -289,8 +289,8 @@ struct hl_cb_mgr {
  * @refcount: reference counter for usage of the CB.
  * @hdev: pointer to device this CB belongs to.
  * @lock: spinlock to protect mmap/cs flows.
- * @debugfs_list: node in debugfs list of command buffers.
- * @pool_list: node in pool list of command buffers.
+ * @debugfs_list: yesde in debugfs list of command buffers.
+ * @pool_list: yesde in pool list of command buffers.
  * @kernel_address: Holds the CB's kernel virtual address.
  * @bus_address: Holds the CB's DMA address.
  * @mmap_size: Holds the CB's size that was mmaped.
@@ -370,10 +370,10 @@ struct hl_cs_job;
  * @kernel_address: holds the queue's kernel virtual address.
  * @bus_address: holds the queue's DMA address.
  * @pi: holds the queue's pi value.
- * @ci: holds the queue's ci value, AS CALCULATED BY THE DRIVER (not real ci).
+ * @ci: holds the queue's ci value, AS CALCULATED BY THE DRIVER (yest real ci).
  * @hw_queue_id: the id of the H/W queue.
  * @int_queue_len: length of internal queue (number of entries).
- * @valid: is the queue valid (we have array of 32 queues, not all of them
+ * @valid: is the queue valid (we have array of 32 queues, yest all of them
  *		exists).
  */
 struct hl_hw_queue {
@@ -470,8 +470,8 @@ enum hl_pll_frequency {
  * @early_fini: tears down what was done in early_init.
  * @late_init: sets up late driver/hw state (post hw_init) - Optional.
  * @late_fini: tears down what was done in late_init (pre hw_fini) - Optional.
- * @sw_init: sets up driver state, does not configure H/W.
- * @sw_fini: tears down driver state, does not configure H/W.
+ * @sw_init: sets up driver state, does yest configure H/W.
+ * @sw_fini: tears down driver state, does yest configure H/W.
  * @hw_init: sets up the H/W state.
  * @hw_fini: tears down the H/W state.
  * @halt_engines: halt engines, needed for reset sequence. This also disables
@@ -488,12 +488,12 @@ enum hl_pll_frequency {
  *             properties.
  * @asic_dma_alloc_coherent: Allocate coherent DMA memory by calling
  *                           dma_alloc_coherent(). This is ASIC function because
- *                           its implementation is not trivial when the driver
- *                           is loaded in simulation mode (not upstreamed).
+ *                           its implementation is yest trivial when the driver
+ *                           is loaded in simulation mode (yest upstreamed).
  * @asic_dma_free_coherent:  Free coherent DMA memory by calling
  *                           dma_free_coherent(). This is ASIC function because
- *                           its implementation is not trivial when the driver
- *                           is loaded in simulation mode (not upstreamed).
+ *                           its implementation is yest trivial when the driver
+ *                           is loaded in simulation mode (yest upstreamed).
  * @get_int_queue_base: get the internal queue base address.
  * @test_queues: run simple test on all queues for sanity check.
  * @asic_dma_pool_zalloc: small DMA allocation of coherent memory from DMA pool.
@@ -662,7 +662,7 @@ struct hl_va_range {
  * @mem_hash_lock: protects the mem_hash.
  * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifing the
  *            MMU hash or walking the PGT requires talking this lock
- * @debugfs_list: node in debugfs list of contexts.
+ * @debugfs_list: yesde in debugfs list of contexts.
  * @cs_sequence: sequence number for CS. Value is assigned to a CS and passed
  *			to user so user could inquire about CS. It is used as
  *			index to cs_pending array.
@@ -722,18 +722,18 @@ struct hl_ctx_mgr {
 /**
  * struct hl_userptr - memory mapping chunk information
  * @vm_type: type of the VM.
- * @job_node: linked-list node for hanging the object on the Job's list.
+ * @job_yesde: linked-list yesde for hanging the object on the Job's list.
  * @vec: pointer to the frame vector.
  * @sgt: pointer to the scatter-gather table that holds the pages.
  * @dir: for DMA unmapping, the direction must be supplied, so save it.
- * @debugfs_list: node in debugfs list of command submissions.
+ * @debugfs_list: yesde in debugfs list of command submissions.
  * @addr: user-space virtual address of the start of the memory area.
  * @size: size of the memory area to pin & map.
  * @dma_mapped: true if the SG was mapped to DMA addresses, false otherwise.
  */
 struct hl_userptr {
 	enum vm_type_t		vm_type; /* must be first */
-	struct list_head	job_node;
+	struct list_head	job_yesde;
 	struct frame_vector	*vec;
 	struct sg_table		*sgt;
 	enum dma_data_direction dir;
@@ -751,9 +751,9 @@ struct hl_userptr {
  * @job_lock: spinlock for the CS's jobs list. Needed for free_job.
  * @refcount: reference counter for usage of the CS.
  * @fence: pointer to the fence object of this CS.
- * @work_tdr: delayed work node for TDR.
- * @mirror_node : node in device mirror list of command submissions.
- * @debugfs_list: node in debugfs list of command submissions.
+ * @work_tdr: delayed work yesde for TDR.
+ * @mirror_yesde : yesde in device mirror list of command submissions.
+ * @debugfs_list: yesde in debugfs list of command submissions.
  * @sequence: the sequence number of this CS.
  * @submitted: true if CS was submitted to H/W.
  * @completed: true if CS was completed by device.
@@ -770,7 +770,7 @@ struct hl_cs {
 	struct kref		refcount;
 	struct dma_fence	*fence;
 	struct delayed_work	work_tdr;
-	struct list_head	mirror_node;
+	struct list_head	mirror_yesde;
 	struct list_head	debugfs_list;
 	u64			sequence;
 	u8			submitted;
@@ -782,7 +782,7 @@ struct hl_cs {
 
 /**
  * struct hl_cs_job - command submission job.
- * @cs_node: the node to hang on the CS jobs list.
+ * @cs_yesde: the yesde to hang on the CS jobs list.
  * @cs: the CS this job belongs to.
  * @user_cb: the CB we got from the user.
  * @patched_cb: in case of patching, this is internal CB which is submitted on
@@ -790,7 +790,7 @@ struct hl_cs {
  * @finish_work: workqueue object to run when job is completed.
  * @userptr_list: linked-list of userptr mappings that belong to this job and
  *			wait for completion.
- * @debugfs_list: node in debugfs list of command submission jobs.
+ * @debugfs_list: yesde in debugfs list of command submission jobs.
  * @queue_type: the type of the H/W queue this job is submitted to.
  * @id: the id of this job inside a CS.
  * @hw_queue_id: the id of the H/W queue this job is submitted to.
@@ -801,7 +801,7 @@ struct hl_cs {
  *                          otherwise (SRAM/DRAM/host address).
  */
 struct hl_cs_job {
-	struct list_head	cs_node;
+	struct list_head	cs_yesde;
 	struct hl_cs		*cs;
 	struct hl_cb		*user_cb;
 	struct hl_cb		*patched_cb;
@@ -854,15 +854,15 @@ struct hl_cs_parser {
  */
 
 /**
- * struct hl_vm_hash_node - hash element from virtual address to virtual
+ * struct hl_vm_hash_yesde - hash element from virtual address to virtual
  *				memory area descriptor (hl_vm_phys_pg_list or
  *				hl_userptr).
- * @node: node to hang on the hash table in context object.
+ * @yesde: yesde to hang on the hash table in context object.
  * @vaddr: key virtual address.
  * @ptr: value pointer (hl_vm_phys_pg_list or hl_userptr).
  */
-struct hl_vm_hash_node {
-	struct hlist_node	node;
+struct hl_vm_hash_yesde {
+	struct hlist_yesde	yesde;
 	u64			vaddr;
 	void			*ptr;
 };
@@ -899,13 +899,13 @@ struct hl_vm_phys_pg_pack {
 
 /**
  * struct hl_vm_va_block - virtual range block information.
- * @node: node to hang on the virtual range list in context object.
+ * @yesde: yesde to hang on the virtual range list in context object.
  * @start: virtual range start address.
  * @end: virtual range end address.
  * @size: virtual range size.
  */
 struct hl_vm_va_block {
-	struct list_head	node;
+	struct list_head	yesde;
 	u64			start;
 	u64			end;
 	u64			size;
@@ -964,7 +964,7 @@ struct hl_debug_params {
  * @ctx_mgr: context manager to handle multiple context for this FD.
  * @cb_mgr: command buffer manager to handle multiple buffers for this FD.
  * @debugfs_list: list of relevant ASIC debugfs.
- * @dev_node: node in the device list of file private data
+ * @dev_yesde: yesde in the device list of file private data
  * @refcount: number of related contexts.
  * @restore_phase_mutex: lock for context switch and restore phase.
  * @is_control: true for control device, false otherwise
@@ -977,7 +977,7 @@ struct hl_fpriv {
 	struct hl_ctx_mgr	ctx_mgr;
 	struct hl_cb_mgr	cb_mgr;
 	struct list_head	debugfs_list;
-	struct list_head	dev_node;
+	struct list_head	dev_yesde;
 	struct kref		refcount;
 	struct mutex		restore_phase_mutex;
 	u8			is_control;
@@ -1129,14 +1129,14 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 
 /*
  * address in this macro points always to a memory location in the
- * host's (server's) memory. That location is updated asynchronously
- * either by the direct access of the device or by another core.
+ * host's (server's) memory. That location is updated asynchroyesusly
+ * either by the direct access of the device or by ayesther core.
  *
  * To work both in LE and BE architectures, we need to distinguish between the
- * two states (device or another core updates the memory location). Therefore,
+ * two states (device or ayesther core updates the memory location). Therefore,
  * if mem_written_by_device is true, the host memory being polled will be
  * updated directly by the device. If false, the host memory being polled will
- * be updated by host CPU. Required so host knows whether or not the memory
+ * be updated by host CPU. Required so host kyesws whether or yest the memory
  * might need to be byte-swapped before returning value to caller.
  */
 #define hl_poll_timeout_memory(hdev, addr, val, cond, sleep_us, timeout_us, \
@@ -1280,8 +1280,8 @@ struct hl_device_idle_busy_ts {
  * @soft_reset_cnt: number of soft reset since the driver was loaded.
  * @hard_reset_cnt: number of hard reset since the driver was loaded.
  * @idle_busy_ts_idx: index of current entry in idle_busy_ts_arr
- * @id: device minor.
- * @id_control: minor of the control device
+ * @id: device miyesr.
+ * @id_control: miyesr of the control device
  * @disabled: is device disabled.
  * @late_init_done: is late init stage was done during initialization.
  * @hwmon_initialized: is H/W monitor sensors was initialized.
@@ -1297,7 +1297,7 @@ struct hl_device_idle_busy_ts {
  * @dma_mask: the dma mask that was set for this device
  * @in_debug: is device under debug. This, together with fpriv_list, enforces
  *            that only a single user is configuring the debug infrastructure.
- * @cdev_sysfs_created: were char devices and sysfs nodes created.
+ * @cdev_sysfs_created: were char devices and sysfs yesdes created.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -1469,17 +1469,17 @@ static inline bool hl_mem_area_crosses_range(u64 address, u32 size,
 	return false;
 }
 
-int hl_device_open(struct inode *inode, struct file *filp);
-int hl_device_open_ctrl(struct inode *inode, struct file *filp);
+int hl_device_open(struct iyesde *iyesde, struct file *filp);
+int hl_device_open_ctrl(struct iyesde *iyesde, struct file *filp);
 bool hl_device_disabled_or_in_reset(struct hl_device *hdev);
 enum hl_device_status hl_device_status(struct hl_device *hdev);
 int hl_device_set_debug_mode(struct hl_device *hdev, bool enable);
 int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
-		enum hl_asic_type asic_type, int minor);
+		enum hl_asic_type asic_type, int miyesr);
 void destroy_hdev(struct hl_device *hdev);
 int hl_hw_queues_create(struct hl_device *hdev);
 void hl_hw_queues_destroy(struct hl_device *hdev);
-int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,
+int hl_hw_queue_send_cb_yes_cmpl(struct hl_device *hdev, u32 hw_queue_id,
 				u32 cb_size, u64 cb_ptr);
 int hl_hw_queue_schedule_cs(struct hl_cs *cs);
 u32 hl_hw_queue_add_ptr(u32 ptr, u16 val);

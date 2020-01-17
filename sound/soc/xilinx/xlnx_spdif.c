@@ -242,7 +242,7 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 	struct spdif_dev_data *ctx;
 
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -265,9 +265,9 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 		ret = PTR_ERR(ctx->base);
 		goto clk_err;
 	}
-	ret = of_property_read_u32(node, "xlnx,spdif-mode", &ctx->mode);
+	ret = of_property_read_u32(yesde, "xlnx,spdif-mode", &ctx->mode);
 	if (ret < 0) {
-		dev_err(dev, "cannot get SPDIF mode\n");
+		dev_err(dev, "canyest get SPDIF mode\n");
 		goto clk_err;
 	}
 	if (ctx->mode) {
@@ -292,9 +292,9 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 		dai_drv = &xlnx_spdif_rx_dai;
 	}
 
-	ret = of_property_read_u32(node, "xlnx,aud_clk_i", &ctx->aclk);
+	ret = of_property_read_u32(yesde, "xlnx,aud_clk_i", &ctx->aclk);
 	if (ret < 0) {
-		dev_err(dev, "cannot get aud_clk_i value\n");
+		dev_err(dev, "canyest get aud_clk_i value\n");
 		goto clk_err;
 	}
 

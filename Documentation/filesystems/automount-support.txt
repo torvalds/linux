@@ -62,8 +62,8 @@ will only happen on the second expiration request after the last time the
 mountpoint was accessed.
 
 If a mountpoint is moved, it gets removed from the expiration list. If a bind
-mount is made on an expirable mount, the new vfsmount will not be on the
-expiration list and will not expire.
+mount is made on an expirable mount, the new vfsmount will yest be on the
+expiration list and will yest expire.
 
 If a namespace is copied, all mountpoints contained therein will be copied,
 and the copies of those that are on an expiration list will be added to the
@@ -81,9 +81,9 @@ umount(). This flag is considered incompatible with MNT_FORCE and MNT_DETACH.
 
 If the mountpoint in question is in referenced by something other than
 umount() or its parent mountpoint, an EBUSY error will be returned and the
-mountpoint will not be marked for expiration or unmounted.
+mountpoint will yest be marked for expiration or unmounted.
 
-If the mountpoint was not already marked for expiry at that time, an EAGAIN
+If the mountpoint was yest already marked for expiry at that time, an EAGAIN
 error will be given and it won't be unmounted.
 
 Otherwise if it was already marked and it wasn't referenced, unmounting will

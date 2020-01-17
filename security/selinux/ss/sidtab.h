@@ -20,15 +20,15 @@ struct sidtab_entry_leaf {
 	struct context context;
 };
 
-struct sidtab_node_inner;
-struct sidtab_node_leaf;
+struct sidtab_yesde_inner;
+struct sidtab_yesde_leaf;
 
 union sidtab_entry_inner {
-	struct sidtab_node_inner *ptr_inner;
-	struct sidtab_node_leaf  *ptr_leaf;
+	struct sidtab_yesde_inner *ptr_inner;
+	struct sidtab_yesde_leaf  *ptr_leaf;
 };
 
-/* align node size to page boundary */
+/* align yesde size to page boundary */
 #define SIDTAB_NODE_ALLOC_SHIFT PAGE_SHIFT
 #define SIDTAB_NODE_ALLOC_SIZE  PAGE_SIZE
 
@@ -42,16 +42,16 @@ union sidtab_entry_inner {
 
 #define SIDTAB_MAX_BITS 32
 #define SIDTAB_MAX U32_MAX
-/* ensure enough tree levels for SIDTAB_MAX entries */
+/* ensure eyesugh tree levels for SIDTAB_MAX entries */
 #define SIDTAB_MAX_LEVEL \
 	DIV_ROUND_UP(SIDTAB_MAX_BITS - size_to_shift(SIDTAB_LEAF_ENTRIES), \
 		     SIDTAB_INNER_SHIFT)
 
-struct sidtab_node_leaf {
+struct sidtab_yesde_leaf {
 	struct sidtab_entry_leaf entries[SIDTAB_LEAF_ENTRIES];
 };
 
-struct sidtab_node_inner {
+struct sidtab_yesde_inner {
 	union sidtab_entry_inner entries[SIDTAB_INNER_ENTRIES];
 };
 
@@ -86,7 +86,7 @@ struct sidtab {
 	/* reverse lookup cache - access atomically via {READ|WRITE}_ONCE() */
 	u32 rcache[SIDTAB_RCACHE_SIZE];
 
-	/* index == SID - 1 (no entry for SECSID_NULL) */
+	/* index == SID - 1 (yes entry for SECSID_NULL) */
 	struct sidtab_isid_entry isids[SECINITSID_NUM];
 };
 

@@ -27,11 +27,11 @@ If support for SEV is present, MSR 0xc001_0010 (MSR_K8_SYSCFG) and MSR 0xc001_00
 
 	0xc001_0010:
 		Bit[23]	   1 = memory encryption can be enabled
-			   0 = memory encryption can not be enabled
+			   0 = memory encryption can yest be enabled
 
 	0xc001_0015:
 		Bit[0]	   1 = memory encryption can be enabled
-			   0 = memory encryption can not be enabled
+			   0 = memory encryption can yest be enabled
 
 When SEV support is available, it can be enabled in a specific VM by
 setting the SEV bit before executing VMRUN.::
@@ -119,7 +119,7 @@ For more details, see SEV spec Section 6.3.
 The KVM_SEV_LAUNCH_MEASURE command is used to retrieve the measurement of the
 data encrypted by the KVM_SEV_LAUNCH_UPDATE_DATA command. The guest owner may
 wait to provide the guest with confidential information until it can verify the
-measurement. Since the guest owner knows the initial contents of the guest at
+measurement. Since the guest owner kyesws the initial contents of the guest at
 boot, the measurement can be verified by comparing it to what the guest owner
 expects.
 
@@ -171,8 +171,8 @@ SEV guest state:
         SEV_STATE_LAUNCHING,    /* guest is currently being launched */
         SEV_STATE_SECRET,       /* guest is being launched and ready to accept the ciphertext data */
         SEV_STATE_RUNNING,      /* guest is fully launched and running */
-        SEV_STATE_RECEIVING,    /* guest is being migrated in from another SEV machine */
-        SEV_STATE_SENDING       /* guest is getting migrated out to another SEV machine */
+        SEV_STATE_RECEIVING,    /* guest is being migrated in from ayesther SEV machine */
+        SEV_STATE_SENDING       /* guest is getting migrated out to ayesther SEV machine */
         };
 
 7. KVM_SEV_DBG_DECRYPT
@@ -193,7 +193,7 @@ Returns: 0 on success, -negative on error
                 __u32 len;              /* length of memory region to decrypt */
         };
 
-The command returns an error if the guest policy does not allow debugging.
+The command returns an error if the guest policy does yest allow debugging.
 
 8. KVM_SEV_DBG_ENCRYPT
 ----------------------
@@ -213,7 +213,7 @@ Returns: 0 on success, -negative on error
                 __u32 len;              /* length of memory region to encrypt */
         };
 
-The command returns an error if the guest policy does not allow debugging.
+The command returns an error if the guest policy does yest allow debugging.
 
 9. KVM_SEV_LAUNCH_SECRET
 ------------------------
@@ -247,4 +247,4 @@ See [white-paper]_, [api-spec]_, [amd-apm]_ and [kvm-forum]_ for more info.
 .. [white-paper] http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2013/12/AMD_Memory_Encryption_Whitepaper_v7-Public.pdf
 .. [api-spec] http://support.amd.com/TechDocs/55766_SEV-KM_API_Specification.pdf
 .. [amd-apm] http://support.amd.com/TechDocs/24593.pdf (section 15.34)
-.. [kvm-forum]  http://www.linux-kvm.org/images/7/74/02x08A-Thomas_Lendacky-AMDs_Virtualizatoin_Memory_Encryption_Technology.pdf
+.. [kvm-forum]  http://www.linux-kvm.org/images/7/74/02x08A-Thomas_Lendacky-AMDs_Virtualizatoin_Memory_Encryption_Techyeslogy.pdf

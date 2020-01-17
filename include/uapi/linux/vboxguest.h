@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR CDDL-1.0) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR CDDL-1.0) */
 /*
  * VBoxGuest - VirtualBox Guest Additions Driver Interface.
  *
@@ -15,7 +15,7 @@
 
 /* Version of vbg_ioctl_hdr structure. */
 #define VBG_IOCTL_HDR_VERSION		0x10001
-/* Default request type.  Use this for non-VMMDev requests. */
+/* Default request type.  Use this for yesn-VMMDev requests. */
 #define VBG_IOCTL_HDR_TYPE_DEFAULT		0
 
 /**
@@ -50,7 +50,7 @@ VMMDEV_ASSERT_SIZE(vbg_ioctl_hdr, 24);
  * As usual, the high word contains the major version and changes to it
  * signifies incompatible changes.
  *
- * The lower word is the minor version number, it is increased when new
+ * The lower word is the miyesr version number, it is increased when new
  * functions are added or existing changed in a backwards compatible manner.
  */
 #define VBG_IOC_VERSION		0x00010000u
@@ -152,7 +152,7 @@ struct vbg_ioctl_hgcm_call {
 	 * cancelling the call. Set to -1 to wait indefinitely.
 	 */
 	__u32 timeout_ms;
-	/** Interruptable flag, ignored for userspace calls. */
+	/** Interruptable flag, igyesred for userspace calls. */
 	__u8 interruptible;
 	/** Explicit padding, MBZ. */
 	__u8 reserved;
@@ -190,7 +190,7 @@ struct vbg_ioctl_log {
 		struct {
 			/**
 			 * The log message, this may be zero terminated. If it
-			 * is not zero terminated then the length is determined
+			 * is yest zero terminated then the length is determined
 			 * from the input size.
 			 */
 			char msg[1];
@@ -228,8 +228,8 @@ VMMDEV_ASSERT_SIZE(vbg_ioctl_wait_for_events, 24 + 8);
  * IOCTL to VBoxGuest to interrupt (cancel) any pending
  * VBG_IOCTL_WAIT_FOR_EVENTS and return.
  *
- * Handled inside the vboxguest driver and not seen by the host at all.
- * After calling this, VBG_IOCTL_WAIT_FOR_EVENTS should no longer be called in
+ * Handled inside the vboxguest driver and yest seen by the host at all.
+ * After calling this, VBG_IOCTL_WAIT_FOR_EVENTS should yes longer be called in
  * the same session. Any VBOXGUEST_IOCTL_WAITEVENT calls in the same session
  * done after calling this will directly exit with -EINTR.
  */
@@ -246,7 +246,7 @@ struct vbg_ioctl_change_filter {
 			/** Flags to set. */
 			__u32 or_mask;
 			/** Flags to remove. */
-			__u32 not_mask;
+			__u32 yest_mask;
 		} in;
 	} u;
 };
@@ -266,7 +266,7 @@ struct vbg_ioctl_set_guest_caps {
 			/** Capabilities to set (VMMDEV_GUEST_SUPPORTS_XXX). */
 			__u32 or_mask;
 			/** Capabilities to drop (VMMDEV_GUEST_SUPPORTS_XXX). */
-			__u32 not_mask;
+			__u32 yest_mask;
 		} in;
 		struct {
 			/** Capabilities held by the session after the call. */
@@ -291,7 +291,7 @@ struct vbg_ioctl_check_balloon {
 			/** The size of the balloon in chunks of 1MB. */
 			__u32 balloon_chunks;
 			/**
-			 * false = handled in R0, no further action required.
+			 * false = handled in R0, yes further action required.
 			 *  true = allocate balloon memory in R3.
 			 */
 			__u8 handle_in_r3;

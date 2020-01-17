@@ -127,7 +127,7 @@ struct tx_msg {
 	u8 cmd;
 	u8 net;
 	u8 dlc;
-	u32 hnd;	/* opaque handle, not used by device */
+	u32 hnd;	/* opaque handle, yest used by device */
 	__le32 id; /* upper 3 bits contain flags */
 	u8 data[8];
 };
@@ -137,7 +137,7 @@ struct tx_done_msg {
 	u8 cmd;
 	u8 net;
 	u8 status;
-	u32 hnd;	/* opaque handle, not used by device */
+	u32 hnd;	/* opaque handle, yest used by device */
 	__le32 ts;
 };
 
@@ -720,7 +720,7 @@ static netdev_tx_t esd_usb2_start_xmit(struct sk_buff *skb,
 	if (!urb) {
 		stats->tx_dropped++;
 		dev_kfree_skb(skb);
-		goto nourbmem;
+		goto yesurbmem;
 	}
 
 	buf = usb_alloc_coherent(dev->udev, size, GFP_ATOMIC,
@@ -729,7 +729,7 @@ static netdev_tx_t esd_usb2_start_xmit(struct sk_buff *skb,
 		netdev_err(netdev, "No memory left for USB buffer\n");
 		stats->tx_dropped++;
 		dev_kfree_skb(skb);
-		goto nobufmem;
+		goto yesbufmem;
 	}
 
 	msg = (struct esd_usb2_msg *)buf;
@@ -771,7 +771,7 @@ static netdev_tx_t esd_usb2_start_xmit(struct sk_buff *skb,
 	context->echo_index = i;
 	context->dlc = cf->can_dlc;
 
-	/* hnd must not be 0 - MSB is stripped in txdone handling */
+	/* hnd must yest be 0 - MSB is stripped in txdone handling */
 	msg->msg.tx.hnd = 0x80000000 | i; /* returned in TX done message */
 
 	usb_fill_bulk_urb(urb, dev->udev, usb_sndbulkpipe(dev->udev, 2), buf,
@@ -820,10 +820,10 @@ static netdev_tx_t esd_usb2_start_xmit(struct sk_buff *skb,
 releasebuf:
 	usb_free_coherent(dev->udev, size, buf, urb->transfer_dma);
 
-nobufmem:
+yesbufmem:
 	usb_free_urb(urb);
 
-nourbmem:
+yesurbmem:
 	return ret;
 }
 
@@ -1071,7 +1071,7 @@ static int esd_usb2_probe(struct usb_interface *intf,
 
 	err = esd_usb2_wait_msg(dev, msg);
 	if (err < 0) {
-		dev_err(&intf->dev, "no version message answer\n");
+		dev_err(&intf->dev, "yes version message answer\n");
 		goto free_msg;
 	}
 

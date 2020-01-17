@@ -182,7 +182,7 @@ static int airspy_ctrl_msg(struct airspy *s, u8 request, u16 value, u16 index,
 		requesttype = (USB_TYPE_VENDOR | USB_DIR_IN);
 		break;
 	default:
-		dev_err(s->dev, "Unknown command %02x\n", request);
+		dev_err(s->dev, "Unkyeswn command %02x\n", request);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -262,7 +262,7 @@ static unsigned int airspy_convert_stream(struct airspy *s,
 
 /*
  * This gets called for the bulk stream pipe. This is done in interrupt
- * time, so it has to be fast, not crash, and not stall. Neat.
+ * time, so it has to be fast, yest crash, and yest stall. Neat.
  */
 static void airspy_urb_complete(struct urb *urb)
 {
@@ -293,7 +293,7 @@ static void airspy_urb_complete(struct urb *urb)
 		fbuf = airspy_get_next_fill_buf(s);
 		if (unlikely(fbuf == NULL)) {
 			s->vb_full++;
-			dev_notice_ratelimited(s->dev,
+			dev_yestice_ratelimited(s->dev,
 					"videobuf is full, %d packets dropped\n",
 					s->vb_full);
 			goto skip;
@@ -334,7 +334,7 @@ static int airspy_submit_urbs(struct airspy *s)
 		dev_dbg(s->dev, "submit urb=%d\n", i);
 		ret = usb_submit_urb(s->urb_list[i], GFP_ATOMIC);
 		if (ret) {
-			dev_err(s->dev, "Could not submit URB no. %d - get them all back\n",
+			dev_err(s->dev, "Could yest submit URB yes. %d - get them all back\n",
 					i);
 			airspy_kill_urbs(s);
 			return ret;
@@ -500,7 +500,7 @@ static void airspy_buf_queue(struct vb2_buffer *vb)
 			container_of(vbuf, struct airspy_frame_buf, vb);
 	unsigned long flags;
 
-	/* Check the device has not disconnected between prep and queuing */
+	/* Check the device has yest disconnected between prep and queuing */
 	if (unlikely(!s->udev)) {
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		return;
@@ -946,7 +946,7 @@ static int airspy_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = airspy_set_if_gain(s);
 		break;
 	default:
-		dev_dbg(s->dev, "unknown ctrl: id=%d name=%s\n",
+		dev_dbg(s->dev, "unkyeswn ctrl: id=%d name=%s\n",
 				ctrl->id, ctrl->name);
 		ret = -EINVAL;
 	}
@@ -967,7 +967,7 @@ static int airspy_probe(struct usb_interface *intf,
 
 	s = kzalloc(sizeof(struct airspy), GFP_KERNEL);
 	if (s == NULL) {
-		dev_err(&intf->dev, "Could not allocate memory for state\n");
+		dev_err(&intf->dev, "Could yest allocate memory for state\n");
 		return -ENOMEM;
 	}
 
@@ -988,7 +988,7 @@ static int airspy_probe(struct usb_interface *intf,
 		ret = airspy_ctrl_msg(s, CMD_VERSION_STRING_READ, 0, 0,
 				buf, BUF_SIZE);
 	if (ret) {
-		dev_err(s->dev, "Could not detect board\n");
+		dev_err(s->dev, "Could yest detect board\n");
 		goto err_free_mem;
 	}
 
@@ -1007,7 +1007,7 @@ static int airspy_probe(struct usb_interface *intf,
 	s->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	ret = vb2_queue_init(&s->vb_queue);
 	if (ret) {
-		dev_err(s->dev, "Could not initialize vb2 queue\n");
+		dev_err(s->dev, "Could yest initialize vb2 queue\n");
 		goto err_free_mem;
 	}
 
@@ -1041,7 +1041,7 @@ static int airspy_probe(struct usb_interface *intf,
 			V4L2_CID_RF_TUNER_IF_GAIN, 0, 15, 1, 0);
 	if (s->hdl.error) {
 		ret = s->hdl.error;
-		dev_err(s->dev, "Could not initialize controls\n");
+		dev_err(s->dev, "Could yest initialize controls\n");
 		goto err_free_controls;
 	}
 
@@ -1060,8 +1060,8 @@ static int airspy_probe(struct usb_interface *intf,
 		goto err_free_controls;
 	}
 	dev_info(s->dev, "Registered as %s\n",
-			video_device_node_name(&s->vdev));
-	dev_notice(s->dev, "SDR API is still slightly experimental and functionality changes may follow\n");
+			video_device_yesde_name(&s->vdev));
+	dev_yestice(s->dev, "SDR API is still slightly experimental and functionality changes may follow\n");
 	return 0;
 
 err_free_controls:

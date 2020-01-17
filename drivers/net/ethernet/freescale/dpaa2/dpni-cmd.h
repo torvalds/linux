@@ -201,7 +201,7 @@ struct dpni_rsp_get_attr {
 
 struct dpni_cmd_set_errors_behavior {
 	__le32 errors;
-	/* from least significant bit: error_action:4, set_frame_annotation:1 */
+	/* from least significant bit: error_action:4, set_frame_anyestation:1 */
 	u8 flags;
 };
 
@@ -516,7 +516,7 @@ struct dpni_rsp_get_taildrop {
 
 struct dpni_rsp_get_api_version {
 	__le16 major;
-	__le16 minor;
+	__le16 miyesr;
 };
 
 #define DPNI_RX_FS_DIST_ENABLE_SHIFT	0

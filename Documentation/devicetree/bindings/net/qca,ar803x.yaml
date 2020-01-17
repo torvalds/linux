@@ -32,7 +32,7 @@ properties:
 
   qca,keep-pll-enabled:
     description: |
-      If set, keep the PLL enabled even if there is no link. Useful if you
+      If set, keep the PLL enabled even if there is yes link. Useful if you
       want to use the clock output without an ethernet link.
 
       Only supported on the AR8031.
@@ -58,7 +58,7 @@ properties:
   vddh-regulator:
     type: object
     description:
-      Dummy subnode to model the external connection of the PHY VDDH
+      Dummy subyesde to model the external connection of the PHY VDDH
       regulator to VDDIO.
     allOf:
       - $ref: /schemas/regulator/regulator.yaml

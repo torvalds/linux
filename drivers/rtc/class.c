@@ -2,7 +2,7 @@
 /*
  * RTC subsystem, base class
  *
- * Copyright (C) 2005 Tower Technologies
+ * Copyright (C) 2005 Tower Techyeslogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * class skeleton from drivers/hwmon/hwmon.c
@@ -124,7 +124,7 @@ static int rtc_resume(struct device *dev)
 	sleep_time = timespec64_sub(new_rtc, old_rtc);
 
 	/*
-	 * Since these RTC suspend/resume handlers are not called
+	 * Since these RTC suspend/resume handlers are yest called
 	 * at the very end of suspend or the start of resume,
 	 * some run-time may pass on either sides of the sleep time
 	 * so subtract kernel run-time between rtc_suspend to rtc_resume
@@ -188,15 +188,15 @@ static int rtc_device_get_id(struct device *dev)
 {
 	int of_id = -1, id = -1;
 
-	if (dev->of_node)
-		of_id = of_alias_get_id(dev->of_node, "rtc");
-	else if (dev->parent && dev->parent->of_node)
-		of_id = of_alias_get_id(dev->parent->of_node, "rtc");
+	if (dev->of_yesde)
+		of_id = of_alias_get_id(dev->of_yesde, "rtc");
+	else if (dev->parent && dev->parent->of_yesde)
+		of_id = of_alias_get_id(dev->parent->of_yesde, "rtc");
 
 	if (of_id >= 0) {
 		id = ida_simple_get(&rtc_ida, of_id, of_id + 1, GFP_KERNEL);
 		if (id < 0)
-			dev_warn(dev, "/aliases ID %d not available\n", of_id);
+			dev_warn(dev, "/aliases ID %d yest available\n", of_id);
 	}
 
 	if (id < 0)
@@ -212,8 +212,8 @@ static void rtc_device_get_offset(struct rtc_device *rtc)
 	int ret;
 
 	/*
-	 * If RTC driver did not implement the range of RTC hardware device,
-	 * then we can not expand the RTC range by adding or subtracting one
+	 * If RTC driver did yest implement the range of RTC hardware device,
+	 * then we can yest expand the RTC range by adding or subtracting one
 	 * offset.
 	 */
 	if (rtc->range_min == rtc->range_max)
@@ -227,7 +227,7 @@ static void rtc_device_get_offset(struct rtc_device *rtc)
 	}
 
 	/*
-	 * If user did not implement the start time for RTC driver, then no
+	 * If user did yest implement the start time for RTC driver, then yes
 	 * need to expand the RTC range.
 	 */
 	if (!rtc->set_start_time)
@@ -247,7 +247,7 @@ static void rtc_device_get_offset(struct rtc_device *rtc)
 	 * If the start_secs is larger than the minimum seconds (rtc->range_min)
 	 * supported by RTC hardware, then there is one region is overlapped
 	 * between the original RTC hardware range and the new expanded range,
-	 * and this overlapped region do not need to be mapped into the new
+	 * and this overlapped region do yest need to be mapped into the new
 	 * expanded range due to it is valid for RTC device. So the minimum
 	 * seconds of RTC hardware (rtc->range_min) should be mapped to
 	 * rtc->range_max + 1, then the offset seconds formula should be:
@@ -347,7 +347,7 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 	int err;
 
 	if (!rtc->ops) {
-		dev_dbg(&rtc->dev, "no ops set\n");
+		dev_dbg(&rtc->dev, "yes ops set\n");
 		return -EINVAL;
 	}
 

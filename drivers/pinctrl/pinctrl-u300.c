@@ -487,7 +487,7 @@ static const struct pinctrl_pin_desc u300_pads[] = {
 	PINCTRL_PIN(296, "P PAD VSSIO 38"),
 	PINCTRL_PIN(297, "PO EMIF 1 CLK"),
 	PINCTRL_PIN(298, "PIO EMIF 1 SD CLK"),
-	PINCTRL_PIN(299, "P PAD VSSIO 45 (not bonded)"),
+	PINCTRL_PIN(299, "P PAD VSSIO 45 (yest bonded)"),
 	PINCTRL_PIN(300, "P PAD VDDIO 42"),
 	PINCTRL_PIN(301, "P PAD VSSIO 42"),
 	PINCTRL_PIN(302, "P PAD GND 31"),
@@ -962,7 +962,7 @@ static int u300_pmx_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 {
 	struct u300_pmx *upmx;
 
-	/* There is nothing to do with the power pins */
+	/* There is yesthing to do with the power pins */
 	if (selector == 0)
 		return 0;
 
@@ -1025,7 +1025,7 @@ static int u300_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 		return -EINVAL;
 
 	for (i = 0; i < num_configs; i++) {
-		/* Note: none of these configurations take any argument */
+		/* Note: yesne of these configurations take any argument */
 		ret = u300_gpio_config_set(range->gc,
 			(pin - range->pin_base + range->base),
 			pinconf_to_config_param(configs[i]));
@@ -1069,7 +1069,7 @@ static int u300_pmx_probe(struct platform_device *pdev)
 
 	upmx->pctl = devm_pinctrl_register(&pdev->dev, &u300_pmx_desc, upmx);
 	if (IS_ERR(upmx->pctl)) {
-		dev_err(&pdev->dev, "could not register U300 pinmux driver\n");
+		dev_err(&pdev->dev, "could yest register U300 pinmux driver\n");
 		return PTR_ERR(upmx->pctl);
 	}
 

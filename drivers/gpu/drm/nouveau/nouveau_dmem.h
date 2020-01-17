@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -24,26 +24,26 @@
 #include <nvif/os.h>
 struct drm_device;
 struct drm_file;
-struct nouveau_drm;
+struct yesuveau_drm;
 struct hmm_range;
 
 #if IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM)
-void nouveau_dmem_init(struct nouveau_drm *);
-void nouveau_dmem_fini(struct nouveau_drm *);
-void nouveau_dmem_suspend(struct nouveau_drm *);
-void nouveau_dmem_resume(struct nouveau_drm *);
+void yesuveau_dmem_init(struct yesuveau_drm *);
+void yesuveau_dmem_fini(struct yesuveau_drm *);
+void yesuveau_dmem_suspend(struct yesuveau_drm *);
+void yesuveau_dmem_resume(struct yesuveau_drm *);
 
-int nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
+int yesuveau_dmem_migrate_vma(struct yesuveau_drm *drm,
 			     struct vm_area_struct *vma,
 			     unsigned long start,
 			     unsigned long end);
 
-void nouveau_dmem_convert_pfn(struct nouveau_drm *drm,
+void yesuveau_dmem_convert_pfn(struct yesuveau_drm *drm,
 			      struct hmm_range *range);
 #else /* IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM) */
-static inline void nouveau_dmem_init(struct nouveau_drm *drm) {}
-static inline void nouveau_dmem_fini(struct nouveau_drm *drm) {}
-static inline void nouveau_dmem_suspend(struct nouveau_drm *drm) {}
-static inline void nouveau_dmem_resume(struct nouveau_drm *drm) {}
+static inline void yesuveau_dmem_init(struct yesuveau_drm *drm) {}
+static inline void yesuveau_dmem_fini(struct yesuveau_drm *drm) {}
+static inline void yesuveau_dmem_suspend(struct yesuveau_drm *drm) {}
+static inline void yesuveau_dmem_resume(struct yesuveau_drm *drm) {}
 #endif /* IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM) */
 #endif

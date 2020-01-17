@@ -46,7 +46,7 @@ static void __init iounit_iommu_init(struct platform_device *op)
 
 	iounit = kzalloc(sizeof(struct iounit_struct), GFP_ATOMIC);
 	if (!iounit) {
-		prom_printf("SUN4D: Cannot alloc iounit, halting.\n");
+		prom_printf("SUN4D: Canyest alloc iounit, halting.\n");
 		prom_halt();
 	}
 
@@ -59,7 +59,7 @@ static void __init iounit_iommu_init(struct platform_device *op)
 
 	xpt = of_ioremap(&op->resource[2], 0, PAGE_SIZE * 16, "XPT");
 	if (!xpt) {
-		prom_printf("SUN4D: Cannot map External Page Table.");
+		prom_printf("SUN4D: Canyest map External Page Table.");
 		prom_halt();
 	}
 	
@@ -75,10 +75,10 @@ static void __init iounit_iommu_init(struct platform_device *op)
 static int __init iounit_init(void)
 {
 	extern void sun4d_init_sbi_irq(void);
-	struct device_node *dp;
+	struct device_yesde *dp;
 
-	for_each_node_by_name(dp, "sbi") {
-		struct platform_device *op = of_find_device_by_node(dp);
+	for_each_yesde_by_name(dp, "sbi") {
+		struct platform_device *op = of_find_device_by_yesde(dp);
 
 		iounit_iommu_init(op);
 		of_propagate_archdata(op);
@@ -148,7 +148,7 @@ static dma_addr_t iounit_map_page(struct device *dev, struct page *page,
 	struct iounit_struct *iounit = dev->archdata.iommu;
 	unsigned long ret, flags;
 	
-	/* XXX So what is maxphys for us and how do drivers know it? */
+	/* XXX So what is maxphys for us and how do drivers kyesw it? */
 	if (!len || len > 256 * 1024)
 		return DMA_MAPPING_ERROR;
 
@@ -219,7 +219,7 @@ static void *iounit_alloc(struct device *dev, size_t len,
 	pgprot_t dvma_prot;
 	iopte_t __iomem *iopte;
 
-	/* XXX So what is maxphys for us and how do drivers know it? */
+	/* XXX So what is maxphys for us and how do drivers kyesw it? */
 	if (!len || len > 256 * 1024)
 		return NULL;
 

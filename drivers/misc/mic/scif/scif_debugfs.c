@@ -17,20 +17,20 @@ static struct dentry *scif_dbg;
 
 static int scif_dev_show(struct seq_file *s, void *unused)
 {
-	int node;
+	int yesde;
 
 	seq_printf(s, "Total Nodes %d Self Node Id %d Maxid %d\n",
-		   scif_info.total, scif_info.nodeid,
+		   scif_info.total, scif_info.yesdeid,
 		   scif_info.maxid);
 
 	if (!scif_dev)
 		return 0;
 
-	seq_printf(s, "%-16s\t%-16s\n", "node_id", "state");
+	seq_printf(s, "%-16s\t%-16s\n", "yesde_id", "state");
 
-	for (node = 0; node <= scif_info.maxid; node++)
-		seq_printf(s, "%-16d\t%-16s\n", scif_dev[node].node,
-			   _scifdev_alive(&scif_dev[node]) ?
+	for (yesde = 0; yesde <= scif_info.maxid; yesde++)
+		seq_printf(s, "%-16d\t%-16s\n", scif_dev[yesde].yesde,
+			   _scifdev_alive(&scif_dev[yesde]) ?
 			   "Running" : "Offline");
 	return 0;
 }

@@ -18,14 +18,14 @@
 
 
 /*
- * Addressing Terminology
+ * Addressing Termiyeslogy
  *
  *	M       - The low M bits of a physical address represent the offset
  *		  into the blade local memory. RAM memory on a blade is physically
  *		  contiguous (although various IO spaces may punch holes in
  *		  it)..
  *
- * 	N	- Number of bits in the node portion of a socket physical
+ * 	N	- Number of bits in the yesde portion of a socket physical
  * 		  address.
  *
  * 	NASID   - network ID of a router, Mbrick or Cbrick. Nasid values of
@@ -34,7 +34,7 @@
  * 		  right shift the NASID by 1 to exclude the always-zero bit.
  * 		  NASIDs contain up to 15 bits.
  *
- *	GNODE   - NASID right shifted by 1 bit. Most mmrs contain gnodes instead
+ *	GNODE   - NASID right shifted by 1 bit. Most mmrs contain gyesdes instead
  *		  of nasids.
  *
  * 	PNODE   - the low N bits of the GNODE. The PNODE is the most useful variant
@@ -47,7 +47,7 @@
  *  +--------------------------------+---------------------+
  *          |<-------53 - M bits --->|<--------M bits ----->
  *
- *	M - number of node offset bits (35 .. 40)
+ *	M - number of yesde offset bits (35 .. 40)
  *
  *
  *  Memory/UV-HUB Processor Socket Address Format:
@@ -56,10 +56,10 @@
  *  +----------------+---------------+---------------------+
  *                   <--- N bits --->|<--------M bits ----->
  *
- *	M - number of node offset bits (35 .. 40)
+ *	M - number of yesde offset bits (35 .. 40)
  *	N - number of PNODE bits (0 .. 10)
  *
- *		Note: M + N cannot currently exceed 44 (x86_64) or 46 (IA64).
+ *		Note: M + N canyest currently exceed 44 (x86_64) or 46 (IA64).
  *		The actual values are configuration dependent and are set at
  *		boot time. M & N values are set by the hardware/BIOS at boot.
  */
@@ -70,10 +70,10 @@
  * This is the total number of bricks accessible in the numalink fabric. It
  * includes all C & M bricks. Routers are NOT included.
  *
- * This value is also the value of the maximum number of non-router NASIDs
+ * This value is also the value of the maximum number of yesn-router NASIDs
  * in the numalink fabric.
  *
- * NOTE: a brick may contain 1 or 2 OS nodes. Don't get these confused.
+ * NOTE: a brick may contain 1 or 2 OS yesdes. Don't get these confused.
  */
 #define UV_MAX_NUMALINK_BLADES	16384
 
@@ -96,11 +96,11 @@
 struct uv_hub_info_s {
 	unsigned long	global_mmr_base;
 	unsigned long	gpa_mask;
-	unsigned long	gnode_upper;
+	unsigned long	gyesde_upper;
 	unsigned long	lowmem_remap_top;
 	unsigned long	lowmem_remap_base;
-	unsigned short	pnode;
-	unsigned short	pnode_mask;
+	unsigned short	pyesde;
+	unsigned short	pyesde_mask;
 	unsigned short	coherency_domain_number;
 	unsigned short	numa_blade_id;
 	unsigned char	blade_processor_id;
@@ -114,13 +114,13 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 /*
  * Local & Global MMR space macros.
  * 	Note: macros are intended to be used ONLY by inline functions
- * 	in this file - not by other kernel code.
+ * 	in this file - yest by other kernel code.
  * 		n -  NASID (full 15-bit global nasid)
  * 		g -  GNODE (full 15-bit global nasid, right shifted 1)
  * 		p -  PNODE (local part of nsids, right shifted 1)
  */
-#define UV_NASID_TO_PNODE(n)		(((n) >> 1) & uv_hub_info->pnode_mask)
-#define UV_PNODE_TO_NASID(p)		(((p) << 1) | uv_hub_info->gnode_upper)
+#define UV_NASID_TO_PNODE(n)		(((n) >> 1) & uv_hub_info->pyesde_mask)
+#define UV_PNODE_TO_NASID(p)		(((p) << 1) | uv_hub_info->gyesde_upper)
 
 #define UV_LOCAL_MMR_BASE		0xf4000000UL
 #define UV_GLOBAL_MMR32_BASE		0xf8000000UL
@@ -146,14 +146,14 @@ static inline unsigned long uv_soc_phys_ram_to_gpa(unsigned long paddr)
 {
 	if (paddr < uv_hub_info->lowmem_remap_top)
 		paddr += uv_hub_info->lowmem_remap_base;
-	return paddr | uv_hub_info->gnode_upper;
+	return paddr | uv_hub_info->gyesde_upper;
 }
 
 
 /* socket virtual --> UV global physical address */
 static inline unsigned long uv_gpa(void *v)
 {
-	return __pa(v) | uv_hub_info->gnode_upper;
+	return __pa(v) | uv_hub_info->gyesde_upper;
 }
 
 /* socket virtual --> UV global physical address */
@@ -168,57 +168,57 @@ static inline void *uv_va(unsigned long gpa)
 	return __va(gpa & uv_hub_info->gpa_mask);
 }
 
-/* pnode, offset --> socket virtual */
-static inline void *uv_pnode_offset_to_vaddr(int pnode, unsigned long offset)
+/* pyesde, offset --> socket virtual */
+static inline void *uv_pyesde_offset_to_vaddr(int pyesde, unsigned long offset)
 {
-	return __va(((unsigned long)pnode << uv_hub_info->m_val) | offset);
+	return __va(((unsigned long)pyesde << uv_hub_info->m_val) | offset);
 }
 
 
 /*
  * Access global MMRs using the low memory MMR32 space. This region supports
- * faster MMR access but not all MMRs are accessible in this space.
+ * faster MMR access but yest all MMRs are accessible in this space.
  */
-static inline unsigned long *uv_global_mmr32_address(int pnode,
+static inline unsigned long *uv_global_mmr32_address(int pyesde,
 				unsigned long offset)
 {
 	return __va(UV_GLOBAL_MMR32_BASE |
-		       UV_GLOBAL_MMR32_PNODE_BITS(pnode) | offset);
+		       UV_GLOBAL_MMR32_PNODE_BITS(pyesde) | offset);
 }
 
-static inline void uv_write_global_mmr32(int pnode, unsigned long offset,
+static inline void uv_write_global_mmr32(int pyesde, unsigned long offset,
 				 unsigned long val)
 {
-	*uv_global_mmr32_address(pnode, offset) = val;
+	*uv_global_mmr32_address(pyesde, offset) = val;
 }
 
-static inline unsigned long uv_read_global_mmr32(int pnode,
+static inline unsigned long uv_read_global_mmr32(int pyesde,
 						 unsigned long offset)
 {
-	return *uv_global_mmr32_address(pnode, offset);
+	return *uv_global_mmr32_address(pyesde, offset);
 }
 
 /*
  * Access Global MMR space using the MMR space located at the top of physical
  * memory.
  */
-static inline unsigned long *uv_global_mmr64_address(int pnode,
+static inline unsigned long *uv_global_mmr64_address(int pyesde,
 				unsigned long offset)
 {
 	return __va(UV_GLOBAL_MMR64_BASE |
-		    UV_GLOBAL_MMR64_PNODE_BITS(pnode) | offset);
+		    UV_GLOBAL_MMR64_PNODE_BITS(pyesde) | offset);
 }
 
-static inline void uv_write_global_mmr64(int pnode, unsigned long offset,
+static inline void uv_write_global_mmr64(int pyesde, unsigned long offset,
 				unsigned long val)
 {
-	*uv_global_mmr64_address(pnode, offset) = val;
+	*uv_global_mmr64_address(pyesde, offset) = val;
 }
 
-static inline unsigned long uv_read_global_mmr64(int pnode,
+static inline unsigned long uv_read_global_mmr64(int pyesde,
 						 unsigned long offset)
 {
-	return *uv_global_mmr64_address(pnode, offset);
+	return *uv_global_mmr64_address(pyesde, offset);
 }
 
 /*
@@ -241,7 +241,7 @@ static inline void uv_write_local_mmr(unsigned long offset, unsigned long val)
 }
 
 /*
- * Structures and definitions for converting between cpu, node, pnode, and blade
+ * Structures and definitions for converting between cpu, yesde, pyesde, and blade
  * numbers.
  */
 
@@ -263,14 +263,14 @@ static inline int uv_cpu_to_blade_id(int cpu)
 	return 0;
 }
 
-/* Convert linux node number to the UV blade number */
-static inline int uv_node_to_blade_id(int nid)
+/* Convert linux yesde number to the UV blade number */
+static inline int uv_yesde_to_blade_id(int nid)
 {
 	return 0;
 }
 
 /* Convert a blade id to the PNODE of the blade */
-static inline int uv_blade_to_pnode(int bid)
+static inline int uv_blade_to_pyesde(int bid)
 {
 	return 0;
 }
@@ -288,13 +288,13 @@ static inline int uv_blade_nr_online_cpus(int bid)
 }
 
 /* Convert a cpu id to the PNODE of the blade containing the cpu */
-static inline int uv_cpu_to_pnode(int cpu)
+static inline int uv_cpu_to_pyesde(int cpu)
 {
 	return 0;
 }
 
-/* Convert a linux node number to the PNODE of the blade */
-static inline int uv_node_to_pnode(int nid)
+/* Convert a linux yesde number to the PNODE of the blade */
+static inline int uv_yesde_to_pyesde(int nid)
 {
 	return 0;
 }
@@ -305,9 +305,9 @@ static inline int uv_num_possible_blades(void)
 	return 1;
 }
 
-static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
+static inline void uv_hub_send_ipi(int pyesde, int apicid, int vector)
 {
-	/* not currently needed on ia64 */
+	/* yest currently needed on ia64 */
 }
 
 

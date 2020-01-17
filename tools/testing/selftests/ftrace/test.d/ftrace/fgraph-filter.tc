@@ -5,7 +5,7 @@
 # Make sure that function graph filtering works
 
 if ! grep -q function_graph available_tracers; then
-    echo "no function graph tracer configured"
+    echo "yes function graph tracer configured"
     exit_unsupported
 fi
 
@@ -21,7 +21,7 @@ clear_trace
 if ! echo "schedule" > set_ftrace_filter; then
     # test for powerpc 64
     if ! echo ".schedule" > set_ftrace_filter; then
-	fail "can not enable schedule filter"
+	fail "can yest enable schedule filter"
     fi
 fi
 
@@ -32,7 +32,7 @@ sleep 1
 # that only the schedule function was found
 count=`cat trace | grep '()' | grep -v schedule | wc -l`
 if [ $count -ne 0 ]; then
-    fail "Graph filtering not working by itself?"
+    fail "Graph filtering yest working by itself?"
 fi
 
 # Make sure we did find something

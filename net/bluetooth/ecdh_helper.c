@@ -111,10 +111,10 @@ free_tmp:
 /* set_ecdh_privkey() - set or generate ecc private key.
  *
  * Function generates an ecc private key in the crypto subsystem when receiving
- * a NULL private key or sets the received key when not NULL.
+ * a NULL private key or sets the received key when yest NULL.
  *
  * @tfm:           KPP tfm handle allocated with crypto_alloc_kpp().
- * @private_key:   user's ecc private key. When not NULL, the key is expected
+ * @private_key:   user's ecc private key. When yest NULL, the key is expected
  *                 in little endian format.
  *
  * Return: zero on success; error code in case of error.

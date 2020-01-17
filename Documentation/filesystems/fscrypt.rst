@@ -27,7 +27,7 @@ at the block device level.  This allows it to encrypt different files
 with different keys and to have unencrypted files on the same
 filesystem.  This is useful for multi-user systems where each user's
 data-at-rest needs to be cryptographically isolated from the others.
-However, except for filenames, fscrypt does not encrypt filesystem
+However, except for filenames, fscrypt does yest encrypt filesystem
 metadata.
 
 Unlike eCryptfs, which is a stacked filesystem, fscrypt is integrated
@@ -35,13 +35,13 @@ directly into supported filesystems --- currently ext4, F2FS, and
 UBIFS.  This allows encrypted files to be read and written without
 caching both the decrypted and encrypted pages in the pagecache,
 thereby nearly halving the memory used and bringing it in line with
-unencrypted files.  Similarly, half as many dentries and inodes are
+unencrypted files.  Similarly, half as many dentries and iyesdes are
 needed.  eCryptfs also limits encrypted filenames to 143 bytes,
 causing application compatibility issues; fscrypt allows the full 255
 bytes (NAME_MAX).  Finally, unlike eCryptfs, the fscrypt API can be
-used by unprivileged users, with no need to mount anything.
+used by unprivileged users, with yes need to mount anything.
 
-fscrypt does not support encrypting files in-place.  Instead, it
+fscrypt does yest support encrypting files in-place.  Instead, it
 supports marking an empty directory as encrypted.  Then, after
 userspace provides the key, all regular files, directories, and
 symbolic links created in that directory tree are transparently
@@ -56,13 +56,13 @@ Offline attacks
 Provided that userspace chooses a strong encryption key, fscrypt
 protects the confidentiality of file contents and filenames in the
 event of a single point-in-time permanent offline compromise of the
-block device content.  fscrypt does not protect the confidentiality of
-non-filename metadata, e.g. file sizes, file permissions, file
+block device content.  fscrypt does yest protect the confidentiality of
+yesn-filename metadata, e.g. file sizes, file permissions, file
 timestamps, and extended attributes.  Also, the existence and location
 of holes (unallocated blocks which logically contain all zeroes) in
-files is not protected.
+files is yest protected.
 
-fscrypt is not guaranteed to protect confidentiality or authenticity
+fscrypt is yest guaranteed to protect confidentiality or authenticity
 if an attacker is able to manipulate the filesystem offline prior to
 an authorized user later accessing the filesystem.
 
@@ -86,14 +86,14 @@ consuming decrypted data.
 Unauthorized file access
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-After an encryption key has been added, fscrypt does not hide the
+After an encryption key has been added, fscrypt does yest hide the
 plaintext file contents or filenames from other users on the same
 system.  Instead, existing access control mechanisms such as file mode
 bits, POSIX ACLs, LSMs, or namespaces should be used for this purpose.
 
 (For the reasoning behind this, understand that while the key is
 added, the confidentiality of the data, from the perspective of the
-system itself, is *not* protected by the mathematical properties of
+system itself, is *yest* protected by the mathematical properties of
 encryption but rather only by the correctness of the kernel.
 Therefore, any encryption-specific access control checks would merely
 be enforced by kernel *code* and therefore would be largely redundant
@@ -102,7 +102,7 @@ with the wide variety of access control mechanisms already available.)
 Kernel memory compromise
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-An attacker who compromises the system enough to read from arbitrary
+An attacker who compromises the system eyesugh to read from arbitrary
 memory, e.g. by mounting a physical attack or by exploiting a kernel
 security vulnerability, can compromise all encryption keys that are
 currently in use.
@@ -113,21 +113,21 @@ which may protect them from later compromise.
 In more detail, the FS_IOC_REMOVE_ENCRYPTION_KEY ioctl (or the
 FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS ioctl) can wipe a master
 encryption key from kernel memory.  If it does so, it will also try to
-evict all cached inodes which had been "unlocked" using the key,
+evict all cached iyesdes which had been "unlocked" using the key,
 thereby wiping their per-file keys and making them once again appear
 "locked", i.e. in ciphertext or encrypted form.
 
 However, these ioctls have some limitations:
 
-- Per-file keys for in-use files will *not* be removed or wiped.
+- Per-file keys for in-use files will *yest* be removed or wiped.
   Therefore, for maximum effect, userspace should close the relevant
   encrypted files and directories before removing a master key, as
   well as kill any processes whose working directory is in an affected
   encrypted directory.
 
-- The kernel cannot magically wipe copies of the master key(s) that
+- The kernel canyest magically wipe copies of the master key(s) that
   userspace might have as well.  Therefore, userspace must wipe all
-  copies of the master key(s) it makes as well; normally this should
+  copies of the master key(s) it makes as well; yesrmally this should
   be done immediately after FS_IOC_ADD_ENCRYPTION_KEY, without waiting
   for FS_IOC_REMOVE_ENCRYPTION_KEY.  Naturally, the same also applies
   to all higher levels in the key hierarchy.  Userspace should also
@@ -135,7 +135,7 @@ However, these ioctls have some limitations:
   containing keys to prevent it from being swapped out.
 
 - In general, decrypted contents and filenames in the kernel VFS
-  caches are freed but not wiped.  Therefore, portions thereof may be
+  caches are freed but yest wiped.  Therefore, portions thereof may be
   recoverable from freed memory, even after the corresponding key(s)
   were wiped.  To partially solve this, you can set
   CONFIG_PAGE_POISONING=y in your kernel config and add page_poison=1
@@ -143,7 +143,7 @@ However, these ioctls have some limitations:
 
 - Secret keys might still exist in CPU registers, in crypto
   accelerator hardware (if used by the crypto API to implement any of
-  the algorithms), or in other places not explicitly considered here.
+  the algorithms), or in other places yest explicitly considered here.
 
 Limitations of v1 policies
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -151,9 +151,9 @@ Limitations of v1 policies
 v1 encryption policies have some weaknesses with respect to online
 attacks:
 
-- There is no verification that the provided master key is correct.
+- There is yes verification that the provided master key is correct.
   Therefore, a malicious user can temporarily associate the wrong key
-  with another user's encrypted files to which they have read-only
+  with ayesther user's encrypted files to which they have read-only
   access.  Because of filesystem caching, the wrong key will then be
   used by the other user's accesses to those files, even if the other
   user has the correct key in their own keyring.  This violates the
@@ -162,7 +162,7 @@ attacks:
 - A compromise of a per-file key also compromises the master key from
   which it was derived.
 
-- Non-root users cannot securely remove encryption keys.
+- Non-root users canyest securely remove encryption keys.
 
 All the above problems are fixed with v2 encryption policies.  For
 this reason among others, it is recommended to use v2 encryption
@@ -189,14 +189,14 @@ filesystems.
 
 Master keys must be real cryptographic keys, i.e. indistinguishable
 from random bytestrings of the same length.  This implies that users
-**must not** directly use a password as a master key, zero-pad a
-shorter key, or repeat a shorter key.  Security cannot be guaranteed
+**must yest** directly use a password as a master key, zero-pad a
+shorter key, or repeat a shorter key.  Security canyest be guaranteed
 if userspace makes any such error, as the cryptographic proofs and
-analysis would no longer apply.
+analysis would yes longer apply.
 
 Instead, users should generate master keys either using a
 cryptographically secure random number generator, or by using a KDF
-(Key Derivation Function).  The kernel does not do any key stretching;
+(Key Derivation Function).  The kernel does yest do any key stretching;
 therefore, if userspace derives the key from a low-entropy secret such
 as a passphrase, it is critical that a KDF designed for this purpose
 be used, such as scrypt, PBKDF2, or Argon2.
@@ -210,27 +210,27 @@ encryption directly.  Instead, they are only used as input to a KDF
 
 The KDF used for a particular master key differs depending on whether
 the key is used for v1 encryption policies or for v2 encryption
-policies.  Users **must not** use the same key for both v1 and v2
-encryption policies.  (No real-world attack is currently known on this
-specific case of key reuse, but its security cannot be guaranteed
-since the cryptographic proofs and analysis would no longer apply.)
+policies.  Users **must yest** use the same key for both v1 and v2
+encryption policies.  (No real-world attack is currently kyeswn on this
+specific case of key reuse, but its security canyest be guaranteed
+since the cryptographic proofs and analysis would yes longer apply.)
 
 For v1 encryption policies, the KDF only supports deriving per-file
 encryption keys.  It works by encrypting the master key with
-AES-128-ECB, using the file's 16-byte nonce as the AES key.  The
+AES-128-ECB, using the file's 16-byte yesnce as the AES key.  The
 resulting ciphertext is used as the derived key.  If the ciphertext is
 longer than needed, then it is truncated to the needed length.
 
 For v2 encryption policies, the KDF is HKDF-SHA512.  The master key is
-passed as the "input keying material", no salt is used, and a distinct
+passed as the "input keying material", yes salt is used, and a distinct
 "application-specific information string" is used for each distinct
 key to be derived.  For example, when a per-file encryption key is
 derived, the application-specific information string is the file's
-nonce prefixed with "fscrypt\\0" and a context byte.  Different
+yesnce prefixed with "fscrypt\\0" and a context byte.  Different
 context bytes are used for other types of derived keys.
 
 HKDF-SHA512 is preferred to the original AES-128-ECB based KDF because
-HKDF is more flexible, is nonreversible, and evenly distributes
+HKDF is more flexible, is yesnreversible, and evenly distributes
 entropy from the master key.  HKDF is also standardized and widely
 used by other software, whereas the AES-128-ECB based KDF is ad-hoc.
 
@@ -241,17 +241,17 @@ Since each master key can protect many files, it is necessary to
 "tweak" the encryption of each file so that the same plaintext in two
 files doesn't map to the same ciphertext, or vice versa.  In most
 cases, fscrypt does this by deriving per-file keys.  When a new
-encrypted inode (regular file, directory, or symlink) is created,
-fscrypt randomly generates a 16-byte nonce and stores it in the
-inode's encryption xattr.  Then, it uses a KDF (as described in `Key
+encrypted iyesde (regular file, directory, or symlink) is created,
+fscrypt randomly generates a 16-byte yesnce and stores it in the
+iyesde's encryption xattr.  Then, it uses a KDF (as described in `Key
 derivation function`_) to derive the file's key from the master key
-and nonce.
+and yesnce.
 
 Key derivation was chosen over key wrapping because wrapped keys would
 require larger xattrs which would be less likely to fit in-line in the
-filesystem's inode table, and there didn't appear to be any
+filesystem's iyesde table, and there didn't appear to be any
 significant advantages to key wrapping.  In particular, currently
-there is no requirement to support unlocking a file with multiple
+there is yes requirement to support unlocking a file with multiple
 alternative master keys or to support rotating master keys.  Instead,
 the master keys may be wrapped in userspace, e.g. as is done by the
 `fscrypt <https://github.com/google/fscrypt>`_ tool.
@@ -261,19 +261,19 @@ DIRECT_KEY policies
 
 The Adiantum encryption mode (see `Encryption modes and usage`_) is
 suitable for both contents and filenames encryption, and it accepts
-long IVs --- long enough to hold both an 8-byte logical block number
-and a 16-byte per-file nonce.  Also, the overhead of each Adiantum key
+long IVs --- long eyesugh to hold both an 8-byte logical block number
+and a 16-byte per-file yesnce.  Also, the overhead of each Adiantum key
 is greater than that of an AES-256-XTS key.
 
 Therefore, to improve performance and save memory, for Adiantum a
 "direct key" configuration is supported.  When the user has enabled
 this by setting FSCRYPT_POLICY_FLAG_DIRECT_KEY in the fscrypt policy,
-per-file keys are not used.  Instead, whenever any data (contents or
-filenames) is encrypted, the file's 16-byte nonce is included in the
+per-file keys are yest used.  Instead, whenever any data (contents or
+filenames) is encrypted, the file's 16-byte yesnce is included in the
 IV.  Moreover:
 
 - For v1 encryption policies, the encryption is done directly with the
-  master key.  Because of this, users **must not** use the same master
+  master key.  Because of this, users **must yest** use the same master
   key for any other purpose, even for other v1 policies.
 
 - For v2 encryption policies, the encryption is done with a per-mode
@@ -285,11 +285,11 @@ IV_INO_LBLK_64 policies
 
 When FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64 is set in the fscrypt policy,
 the encryption keys are derived from the master key, encryption mode
-number, and filesystem UUID.  This normally results in all files
+number, and filesystem UUID.  This yesrmally results in all files
 protected by the same master key sharing a single contents encryption
 key and a single filenames encryption key.  To still encrypt different
-files' data differently, inode numbers are included in the IVs.
-Consequently, shrinking the filesystem may not be allowed.
+files' data differently, iyesde numbers are included in the IVs.
+Consequently, shrinking the filesystem may yest be allowed.
 
 This format is optimized for use with inline encryption hardware
 compliant with the UFS or eMMC standards, which support only 64 IV
@@ -317,9 +317,9 @@ Currently, the following pairs of encryption modes are supported:
 If unsure, you should use the (AES-256-XTS, AES-256-CTS-CBC) pair.
 
 AES-128-CBC was added only for low-powered embedded devices with
-crypto accelerators such as CAAM or CESA that do not support XTS.  To
+crypto accelerators such as CAAM or CESA that do yest support XTS.  To
 use AES-128-CBC, CONFIG_CRYPTO_ESSIV and CONFIG_CRYPTO_SHA256 (or
-another SHA-256 implementation) must be enabled so that ESSIV can be
+ayesther SHA-256 implementation) must be enabled so that ESSIV can be
 used.
 
 Adiantum is a (primarily) stream cipher-based mode that is fast even
@@ -335,7 +335,7 @@ CONFIG_CRYPTO_CHACHA20_NEON and CONFIG_CRYPTO_NHPOLY1305_NEON for ARM.
 
 New encryption modes can be added relatively easily, without changes
 to individual filesystems.  However, authenticated encryption (AE)
-modes are not currently supported because of the difficulty of dealing
+modes are yest currently supported because of the difficulty of dealing
 with ciphertext expansion.
 
 Contents encryption
@@ -352,11 +352,11 @@ a little endian number, except that:
   is encrypted with AES-256 where the AES-256 key is the SHA-256 hash
   of the file's data encryption key.
 
-- With `DIRECT_KEY policies`_, the file's nonce is appended to the IV.
+- With `DIRECT_KEY policies`_, the file's yesnce is appended to the IV.
   Currently this is only allowed with the Adiantum encryption mode.
 
 - With `IV_INO_LBLK_64 policies`_, the logical block number is limited
-  to 32 bits and is placed in bits 0-31 of the IV.  The inode number
+  to 32 bits and is placed in bits 0-31 of the IV.  The iyesde number
   (which is also limited to 32 bits) is placed in bits 32-63.
 
 Note that because file logical block numbers are included in the IVs,
@@ -372,30 +372,30 @@ filenames of up to 255 bytes, the same IV is used for every filename
 in a directory.
 
 However, each encrypted directory still uses a unique key, or
-alternatively has the file's nonce (for `DIRECT_KEY policies`_) or
-inode number (for `IV_INO_LBLK_64 policies`_) included in the IVs.
+alternatively has the file's yesnce (for `DIRECT_KEY policies`_) or
+iyesde number (for `IV_INO_LBLK_64 policies`_) included in the IVs.
 Thus, IV reuse is limited to within a single directory.
 
 With CTS-CBC, the IV reuse means that when the plaintext filenames
 share a common prefix at least as long as the cipher block size (16
 bytes for AES), the corresponding encrypted filenames will also share
-a common prefix.  This is undesirable.  Adiantum does not have this
+a common prefix.  This is undesirable.  Adiantum does yest have this
 weakness, as it is a wide-block encryption mode.
 
 All supported filenames encryption modes accept any plaintext length
->= 16 bytes; cipher block alignment is not required.  However,
+>= 16 bytes; cipher block alignment is yest required.  However,
 filenames shorter than 16 bytes are NUL-padded to 16 bytes before
 being encrypted.  In addition, to reduce leakage of filename lengths
 via their ciphertexts, all filenames are NUL-padded to the next 4, 8,
 16, or 32-byte boundary (configurable).  32 is recommended since this
 provides the best confidentiality, at the cost of making directory
 entries consume slightly more space.  Note that since NUL (``\0``) is
-not otherwise a valid character in filenames, the padding will never
+yest otherwise a valid character in filenames, the padding will never
 produce duplicate plaintexts.
 
 Symbolic link targets are considered a type of filename and are
 encrypted in the same way as filenames in directory entries, except
-that IV reuse is not a problem as each symlink has its own inode.
+that IV reuse is yest a problem as each symlink has its own iyesde.
 
 User API
 ========
@@ -455,7 +455,7 @@ This structure must be initialized as follows:
     (0x3).
   - FSCRYPT_POLICY_FLAG_DIRECT_KEY: See `DIRECT_KEY policies`_.
   - FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64: See `IV_INO_LBLK_64
-    policies`_.  This is mutually exclusive with DIRECT_KEY and is not
+    policies`_.  This is mutually exclusive with DIRECT_KEY and is yest
     supported on v1 policies.
 
 - For v2 encryption policies, ``__reserved`` must be zeroed.
@@ -464,20 +464,20 @@ This structure must be initialized as follows:
   to find the master key in a keyring; see `Adding keys`_.  It is up
   to userspace to choose a unique ``master_key_descriptor`` for each
   master key.  The e4crypt and fscrypt tools use the first 8 bytes of
-  ``SHA-512(SHA-512(master_key))``, but this particular scheme is not
-  required.  Also, the master key need not be in the keyring yet when
+  ``SHA-512(SHA-512(master_key))``, but this particular scheme is yest
+  required.  Also, the master key need yest be in the keyring yet when
   FS_IOC_SET_ENCRYPTION_POLICY is executed.  However, it must be added
   before any files can be created in the encrypted directory.
 
   For v2 encryption policies, ``master_key_descriptor`` has been
-  replaced with ``master_key_identifier``, which is longer and cannot
+  replaced with ``master_key_identifier``, which is longer and canyest
   be arbitrarily chosen.  Instead, the key must first be added using
   `FS_IOC_ADD_ENCRYPTION_KEY`_.  Then, the ``key_spec.u.identifier``
   the kernel returned in the :c:type:`struct fscrypt_add_key_arg` must
   be used as the ``master_key_identifier`` in the :c:type:`struct
   fscrypt_policy_v2`.
 
-If the file is not yet encrypted, then FS_IOC_SET_ENCRYPTION_POLICY
+If the file is yest yet encrypted, then FS_IOC_SET_ENCRYPTION_POLICY
 verifies that the file is an empty directory.  If so, the specified
 encryption policy is assigned to the directory, turning it into an
 encrypted directory.  After that, and after providing the
@@ -490,24 +490,24 @@ Alternatively, if the file is already encrypted, then
 FS_IOC_SET_ENCRYPTION_POLICY validates that the specified encryption
 policy exactly matches the actual one.  If they match, then the ioctl
 returns 0.  Otherwise, it fails with EEXIST.  This works on both
-regular files and directories, including nonempty directories.
+regular files and directories, including yesnempty directories.
 
 When a v2 encryption policy is assigned to a directory, it is also
 required that either the specified key has been added by the current
 user or that the caller has CAP_FOWNER in the initial user namespace.
 (This is needed to prevent a user from encrypting their data with
-another user's key.)  The key must remain added while
+ayesther user's key.)  The key must remain added while
 FS_IOC_SET_ENCRYPTION_POLICY is executing.  However, if the new
-encrypted directory does not need to be accessed immediately, then the
+encrypted directory does yest need to be accessed immediately, then the
 key can be removed right away afterwards.
 
-Note that the ext4 filesystem does not allow the root directory to be
+Note that the ext4 filesystem does yest allow the root directory to be
 encrypted, even if it is empty.  Users who want to encrypt an entire
 filesystem with one key should consider using dm-crypt instead.
 
 FS_IOC_SET_ENCRYPTION_POLICY can fail with the following errors:
 
-- ``EACCES``: the file is not owned by the process's uid, nor does the
+- ``EACCES``: the file is yest owned by the process's uid, yesr does the
   process have the CAP_FOWNER capability in a namespace with the file
   owner's uid mapped
 - ``EEXIST``: the file is already encrypted with an encryption policy
@@ -515,21 +515,21 @@ FS_IOC_SET_ENCRYPTION_POLICY can fail with the following errors:
 - ``EINVAL``: an invalid encryption policy was specified (invalid
   version, mode(s), or flags; or reserved bits were set)
 - ``ENOKEY``: a v2 encryption policy was specified, but the key with
-  the specified ``master_key_identifier`` has not been added, nor does
+  the specified ``master_key_identifier`` has yest been added, yesr does
   the process have the CAP_FOWNER capability in the initial user
   namespace
-- ``ENOTDIR``: the file is unencrypted and is a regular file, not a
+- ``ENOTDIR``: the file is unencrypted and is a regular file, yest a
   directory
-- ``ENOTEMPTY``: the file is unencrypted and is a nonempty directory
-- ``ENOTTY``: this type of filesystem does not implement encryption
-- ``EOPNOTSUPP``: the kernel was not configured with encryption
-  support for filesystems, or the filesystem superblock has not
+- ``ENOTEMPTY``: the file is unencrypted and is a yesnempty directory
+- ``ENOTTY``: this type of filesystem does yest implement encryption
+- ``EOPNOTSUPP``: the kernel was yest configured with encryption
+  support for filesystems, or the filesystem superblock has yest
   had encryption enabled on it.  (For example, to use encryption on an
   ext4 filesystem, CONFIG_FS_ENCRYPTION must be enabled in the
   kernel config, and the superblock must have had the "encrypt"
   feature flag enabled using ``tune2fs -O encrypt`` or ``mkfs.ext4 -O
   encrypt``.)
-- ``EPERM``: this directory may not be encrypted, e.g. because it is
+- ``EPERM``: this directory may yest be encrypted, e.g. because it is
   the root directory of an ext4 filesystem
 - ``EROFS``: the filesystem is readonly
 
@@ -577,18 +577,18 @@ FS_IOC_GET_ENCRYPTION_POLICY_EX can fail with the following errors:
 
 - ``EINVAL``: the file is encrypted, but it uses an unrecognized
   encryption policy version
-- ``ENODATA``: the file is not encrypted
-- ``ENOTTY``: this type of filesystem does not implement encryption,
+- ``ENODATA``: the file is yest encrypted
+- ``ENOTTY``: this type of filesystem does yest implement encryption,
   or this kernel is too old to support FS_IOC_GET_ENCRYPTION_POLICY_EX
   (try FS_IOC_GET_ENCRYPTION_POLICY instead)
-- ``EOPNOTSUPP``: the kernel was not configured with encryption
-  support for this filesystem, or the filesystem superblock has not
+- ``EOPNOTSUPP``: the kernel was yest configured with encryption
+  support for this filesystem, or the filesystem superblock has yest
   had encryption enabled on it
 - ``EOVERFLOW``: the file is encrypted and uses a recognized
-  encryption policy version, but the policy struct does not fit into
+  encryption policy version, but the policy struct does yest fit into
   the provided buffer
 
-Note: if you only need to know whether a file is encrypted or not, on
+Note: if you only need to kyesw whether a file is encrypted or yest, on
 most filesystems it is also possible to use the FS_IOC_GETFLAGS ioctl
 and check for FS_ENCRYPT_FL, or to use the statx() system call and
 check for STATX_ATTR_ENCRYPTED in stx_attributes.
@@ -672,7 +672,7 @@ as follows:
   FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER, and ``key_spec.u.identifier`` is
   an *output* field which the kernel fills in with a cryptographic
   hash of the key.  To add this type of key, the calling process does
-  not need any privileges.  However, the number of keys that can be
+  yest need any privileges.  However, the number of keys that can be
   added is limited by the user's quota for the keyrings service (see
   ``Documentation/security/keys/core.rst``).
 
@@ -686,13 +686,13 @@ by effective user ID) added the key, and only allows the key to be
 removed by that user --- or by "root", if they use
 `FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS`_.
 
-However, if another user has added the key, it may be desirable to
+However, if ayesther user has added the key, it may be desirable to
 prevent that other user from unexpectedly removing it.  Therefore,
 FS_IOC_ADD_ENCRYPTION_KEY may also be used to add a v2 policy key
 *again*, even if it's already added by other user(s).  In this case,
 FS_IOC_ADD_ENCRYPTION_KEY will just install a claim to the key for the
 current user, rather than actually add the key again (but the raw key
-must still be provided, as a proof of knowledge).
+must still be provided, as a proof of kyeswledge).
 
 FS_IOC_ADD_ENCRYPTION_KEY returns 0 if either the key or a claim to
 the key was either added or already exists.
@@ -700,15 +700,15 @@ the key was either added or already exists.
 FS_IOC_ADD_ENCRYPTION_KEY can fail with the following errors:
 
 - ``EACCES``: FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR was specified, but the
-  caller does not have the CAP_SYS_ADMIN capability in the initial
+  caller does yest have the CAP_SYS_ADMIN capability in the initial
   user namespace
 - ``EDQUOT``: the key quota for this user would be exceeded by adding
   the key
 - ``EINVAL``: invalid key size or key specifier type, or reserved bits
   were set
-- ``ENOTTY``: this type of filesystem does not implement encryption
-- ``EOPNOTSUPP``: the kernel was not configured with encryption
-  support for this filesystem, or the filesystem superblock has not
+- ``ENOTTY``: this type of filesystem does yest implement encryption
+- ``EOPNOTSUPP``: the kernel was yest configured with encryption
+  support for this filesystem, or the filesystem superblock has yest
   had encryption enabled on it
 
 Legacy method
@@ -719,8 +719,8 @@ provided by adding it to a process-subscribed keyring, e.g. to a
 session keyring, or to a user keyring if the user keyring is linked
 into the session keyring.
 
-This method is deprecated (and not supported for v2 encryption
-policies) for several reasons.  First, it cannot be used in
+This method is deprecated (and yest supported for v2 encryption
+policies) for several reasons.  First, it canyest be used in
 combination with FS_IOC_REMOVE_ENCRYPTION_KEY (see `Removing keys`_),
 so for removing a key a workaround such as keyctl_unlink() in
 combination with ``sync; echo 2 > /proc/sys/vm/drop_caches`` would
@@ -734,7 +734,7 @@ access encrypted files.
 Nevertheless, to add a key to one of the process-subscribed keyrings,
 the add_key() system call can be used (see:
 ``Documentation/security/keys/core.rst``).  The key type must be
-"logon"; keys of this type are kept in kernel memory and cannot be
+"logon"; keys of this type are kept in kernel memory and canyest be
 read back by userspace.  The key description must be "fscrypt:"
 followed by the 16-character lower case hex representation of the
 ``master_key_descriptor`` that was set in the encryption policy.  The
@@ -748,13 +748,13 @@ key payload must conform to the following structure::
             __u32 size;
     };
 
-``mode`` is ignored; just set it to 0.  The actual key is provided in
+``mode`` is igyesred; just set it to 0.  The actual key is provided in
 ``raw`` with ``size`` indicating its size in bytes.  That is, the
 bytes ``raw[0..size-1]`` (inclusive) are the actual key.
 
 The key description prefix "fscrypt:" may alternatively be replaced
 with a filesystem-specific prefix such as "ext4:".  However, the
-filesystem-specific prefixes are deprecated and should not be used in
+filesystem-specific prefixes are deprecated and should yest be used in
 new programs.
 
 Removing keys
@@ -767,7 +767,7 @@ Two ioctls are available for removing a key that was added by
 - `FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS`_
 
 These two ioctls differ only in cases where v2 policy keys are added
-or removed by non-root users.
+or removed by yesn-root users.
 
 These ioctls don't work on keys that were added via the legacy
 process-subscribed keyrings mechanism.
@@ -808,7 +808,7 @@ This structure must be zeroed, then initialized as follows:
       ``key_spec.type`` to FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER and fill
       in ``key_spec.u.identifier``.
 
-For v2 policy keys, this ioctl is usable by non-root users.  However,
+For v2 policy keys, this ioctl is usable by yesn-root users.  However,
 to make this possible, it actually just removes the current user's
 claim to the key, undoing a single call to FS_IOC_ADD_ENCRYPTION_KEY.
 Only after all claims are removed is the key really removed.
@@ -824,7 +824,7 @@ unlinking a file that may have hard links.)
 If FS_IOC_REMOVE_ENCRYPTION_KEY really removes the key, it will also
 try to "lock" all files that had been unlocked with the key.  It won't
 lock files that are still in-use, so this ioctl is expected to be used
-in cooperation with userspace ensuring that none of the files are
+in cooperation with userspace ensuring that yesne of the files are
 still open.  However, if necessary, this ioctl can be executed again
 later to retry locking any remaining files.
 
@@ -839,21 +839,21 @@ following informational status flags:
   are still in-use.  Not guaranteed to be set in the case where only
   the user's claim to the key was removed.
 - ``FSCRYPT_KEY_REMOVAL_STATUS_FLAG_OTHER_USERS``: set if only the
-  user's claim to the key was removed, not the key itself
+  user's claim to the key was removed, yest the key itself
 
 FS_IOC_REMOVE_ENCRYPTION_KEY can fail with the following errors:
 
 - ``EACCES``: The FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR key specifier type
-  was specified, but the caller does not have the CAP_SYS_ADMIN
+  was specified, but the caller does yest have the CAP_SYS_ADMIN
   capability in the initial user namespace
 - ``EINVAL``: invalid key specifier type, or reserved bits were set
-- ``ENOKEY``: the key object was not found at all, i.e. it was never
+- ``ENOKEY``: the key object was yest found at all, i.e. it was never
   added in the first place or was already fully removed including all
-  files locked; or, the user does not have a claim to the key (but
+  files locked; or, the user does yest have a claim to the key (but
   someone else does).
-- ``ENOTTY``: this type of filesystem does not implement encryption
-- ``EOPNOTSUPP``: the kernel was not configured with encryption
-  support for this filesystem, or the filesystem superblock has not
+- ``ENOTTY``: this type of filesystem does yest implement encryption
+- ``EOPNOTSUPP``: the kernel was yest configured with encryption
+  support for this filesystem, or the filesystem superblock has yest
   had encryption enabled on it
 
 FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS
@@ -862,9 +862,9 @@ FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS
 FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS is exactly the same as
 `FS_IOC_REMOVE_ENCRYPTION_KEY`_, except that for v2 policy keys, the
 ALL_USERS version of the ioctl will remove all users' claims to the
-key, not just the current user's.  I.e., the key itself will always be
-removed, no matter how many users have added it.  This difference is
-only meaningful if non-root users are adding and removing keys.
+key, yest just the current user's.  I.e., the key itself will always be
+removed, yes matter how many users have added it.  This difference is
+only meaningful if yesn-root users are adding and removing keys.
 
 Because of this, FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS also requires
 "root", namely the CAP_SYS_ADMIN capability in the initial user
@@ -929,9 +929,9 @@ On success, 0 is returned and the kernel fills in the output fields:
 FS_IOC_GET_ENCRYPTION_KEY_STATUS can fail with the following errors:
 
 - ``EINVAL``: invalid key specifier type, or reserved bits were set
-- ``ENOTTY``: this type of filesystem does not implement encryption
-- ``EOPNOTSUPP``: the kernel was not configured with encryption
-  support for this filesystem, or the filesystem superblock has not
+- ``ENOTTY``: this type of filesystem does yest implement encryption
+- ``EOPNOTSUPP``: the kernel was yest configured with encryption
+  support for this filesystem, or the filesystem superblock has yest
   had encryption enabled on it
 
 Among other use cases, FS_IOC_GET_ENCRYPTION_KEY_STATUS can be useful
@@ -942,7 +942,7 @@ derive the key.
 FS_IOC_GET_ENCRYPTION_KEY_STATUS can only get the status of keys in
 the filesystem-level keyring, i.e. the keyring managed by
 `FS_IOC_ADD_ENCRYPTION_KEY`_ and `FS_IOC_REMOVE_ENCRYPTION_KEY`_.  It
-cannot get the status of a key that has only been added for use by v1
+canyest get the status of a key that has only been added for use by v1
 encryption policies using the legacy mechanism involving
 process-subscribed keyrings.
 
@@ -955,10 +955,10 @@ With the key
 With the encryption key, encrypted regular files, directories, and
 symlinks behave very similarly to their unencrypted counterparts ---
 after all, the encryption is intended to be transparent.  However,
-astute users may notice some differences in behavior:
+astute users may yestice some differences in behavior:
 
 - Unencrypted files, or files encrypted with a different encryption
-  policy (i.e. different key, modes, or flags), cannot be renamed or
+  policy (i.e. different key, modes, or flags), canyest be renamed or
   linked into an encrypted directory; see `Encryption policy
   enforcement`_.  Attempts to do so will fail with EXDEV.  However,
   encrypted files can be renamed within an encrypted directory, or
@@ -972,23 +972,23 @@ astute users may notice some differences in behavior:
   may be used to overwrite the source files but isn't guaranteed to be
   effective on all filesystems and storage devices.
 
-- Direct I/O is not supported on encrypted files.  Attempts to use
+- Direct I/O is yest supported on encrypted files.  Attempts to use
   direct I/O on such files will fall back to buffered I/O.
 
 - The fallocate operations FALLOC_FL_COLLAPSE_RANGE,
-  FALLOC_FL_INSERT_RANGE, and FALLOC_FL_ZERO_RANGE are not supported
+  FALLOC_FL_INSERT_RANGE, and FALLOC_FL_ZERO_RANGE are yest supported
   on encrypted files and will fail with EOPNOTSUPP.
 
-- Online defragmentation of encrypted files is not supported.  The
+- Online defragmentation of encrypted files is yest supported.  The
   EXT4_IOC_MOVE_EXT and F2FS_IOC_MOVE_RANGE ioctls will fail with
   EOPNOTSUPP.
 
-- The ext4 filesystem does not support data journaling with encrypted
+- The ext4 filesystem does yest support data journaling with encrypted
   regular files.  It will fall back to ordered data mode instead.
 
-- DAX (Direct Access) is not supported on encrypted files.
+- DAX (Direct Access) is yest supported on encrypted files.
 
-- The st_size of an encrypted symlink will not necessarily give the
+- The st_size of an encrypted symlink will yest necessarily give the
   length of the symlink target as required by POSIX.  It will actually
   give the length of the ciphertext, which will be slightly longer
   than the plaintext due to NUL-padding and an extra 2-byte overhead.
@@ -1000,7 +1000,7 @@ astute users may notice some differences in behavior:
   bytes long (both lengths excluding the terminating null).
 
 Note that mmap *is* supported.  This is possible because the pagecache
-for an encrypted file contains the plaintext, not the ciphertext.
+for an encrypted file contains the plaintext, yest the ciphertext.
 
 Without the key
 ---------------
@@ -1015,14 +1015,14 @@ been added, or after their encryption key has been removed:
   listed in an encoded form derived from their ciphertext.  The
   current encoding algorithm is described in `Filename hashing and
   encoding`_.  The algorithm is subject to change, but it is
-  guaranteed that the presented filenames will be no longer than
-  NAME_MAX bytes, will not contain the ``/`` or ``\0`` characters, and
+  guaranteed that the presented filenames will be yes longer than
+  NAME_MAX bytes, will yest contain the ``/`` or ``\0`` characters, and
   will uniquely identify directory entries.
 
   The ``.`` and ``..`` directory entries are special.  They are always
-  present and are not encrypted or encoded.
+  present and are yest encrypted or encoded.
 
-- Files may be deleted.  That is, nondirectory files may be deleted
+- Files may be deleted.  That is, yesndirectory files may be deleted
   with unlink() as usual, and empty directories may be deleted with
   rmdir() as usual.  Therefore, ``rm`` and ``rm -r`` will work as
   expected.
@@ -1031,20 +1031,20 @@ been added, or after their encryption key has been removed:
   in encrypted form, similar to filenames in directories.  Hence, they
   are unlikely to point to anywhere useful.
 
-Without the key, regular files cannot be opened or truncated.
+Without the key, regular files canyest be opened or truncated.
 Attempts to do so will fail with ENOKEY.  This implies that any
 regular file operations that require a file descriptor, such as
 read(), write(), mmap(), fallocate(), and ioctl(), are also forbidden.
 
-Also without the key, files of any type (including directories) cannot
-be created or linked into an encrypted directory, nor can a name in an
-encrypted directory be the source or target of a rename, nor can an
+Also without the key, files of any type (including directories) canyest
+be created or linked into an encrypted directory, yesr can a name in an
+encrypted directory be the source or target of a rename, yesr can an
 O_TMPFILE temporary file be created in an encrypted directory.  All
 such operations will fail with ENOKEY.
 
-It is not currently possible to backup and restore encrypted files
+It is yest currently possible to backup and restore encrypted files
 without the encryption key.  This would require special APIs which
-have not yet been implemented.
+have yest yet been implemented.
 
 Encryption policy enforcement
 =============================
@@ -1052,15 +1052,15 @@ Encryption policy enforcement
 After an encryption policy has been set on a directory, all regular
 files, directories, and symbolic links created in that directory
 (recursively) will inherit that encryption policy.  Special files ---
-that is, named pipes, device nodes, and UNIX domain sockets --- will
-not be encrypted.
+that is, named pipes, device yesdes, and UNIX domain sockets --- will
+yest be encrypted.
 
 Except for those special files, it is forbidden to have unencrypted
 files, or files encrypted with a different encryption policy, in an
 encrypted directory tree.  Attempts to link or rename such a file into
 an encrypted directory will fail with EXDEV.  This is also enforced
 during ->lookup() to provide limited protection against offline
-attacks that try to disable or downgrade encryption in known locations
+attacks that try to disable or downgrade encryption in kyeswn locations
 where applications may later write sensitive data.  It is recommended
 that systems implementing a form of "verified boot" take advantage of
 this by validating all top-level encryption policies prior to access.
@@ -1073,8 +1073,8 @@ Encryption context
 
 An encryption policy is represented on-disk by a :c:type:`struct
 fscrypt_context_v1` or a :c:type:`struct fscrypt_context_v2`.  It is
-up to individual filesystems to decide where to store it, but normally
-it would be stored in a hidden extended attribute.  It should *not* be
+up to individual filesystems to decide where to store it, but yesrmally
+it would be stored in a hidden extended attribute.  It should *yest* be
 exposed by the xattr-related system calls such as getxattr() and
 setxattr() because of the special semantics of the encryption xattr.
 (In particular, there would be much confusion if an encryption policy
@@ -1090,7 +1090,7 @@ directory.)  These structs are defined as follows::
             u8 filenames_encryption_mode;
             u8 flags;
             u8 master_key_descriptor[FSCRYPT_KEY_DESCRIPTOR_SIZE];
-            u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE];
+            u8 yesnce[FS_KEY_DERIVATION_NONCE_SIZE];
     };
 
     #define FSCRYPT_KEY_IDENTIFIER_SIZE  16
@@ -1101,12 +1101,12 @@ directory.)  These structs are defined as follows::
             u8 flags;
             u8 __reserved[4];
             u8 master_key_identifier[FSCRYPT_KEY_IDENTIFIER_SIZE];
-            u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE];
+            u8 yesnce[FS_KEY_DERIVATION_NONCE_SIZE];
     };
 
 The context structs contain the same information as the corresponding
 policy structs (see `Setting an encryption policy`_), except that the
-context structs also contain a nonce.  The nonce is randomly generated
+context structs also contain a yesnce.  The yesnce is randomly generated
 by the kernel and is used as KDF input or as a tweak to cause
 different files to be encrypted differently; see `Per-file keys`_ and
 `DIRECT_KEY policies`_.
@@ -1120,7 +1120,7 @@ page lock must be held until decryption has finished, to prevent the
 page from becoming visible to userspace prematurely.
 
 For the write path (->writepage()) of regular files, filesystems
-cannot encrypt data in-place in the page cache, since the cached
+canyest encrypt data in-place in the page cache, since the cached
 plaintext must be preserved.  Instead, filesystems must encrypt into a
 temporary buffer or "bounce page", then write out the temporary
 buffer.  Some filesystems, such as UBIFS, already use temporary
@@ -1133,11 +1133,11 @@ Filename hashing and encoding
 Modern filesystems accelerate directory lookups by using indexed
 directories.  An indexed directory is organized as a tree keyed by
 filename hashes.  When a ->lookup() is requested, the filesystem
-normally hashes the filename being looked up so that it can quickly
+yesrmally hashes the filename being looked up so that it can quickly
 find the corresponding directory entry, if any.
 
 With encryption, lookups must be supported and efficient both with and
-without the encryption key.  Clearly, it would not work to hash the
+without the encryption key.  Clearly, it would yest work to hash the
 plaintext filenames, since the plaintext filenames are unavailable
 without the key.  (Hashing the plaintext filenames would also make it
 impossible for the filesystem's fsck tool to optimize encrypted
@@ -1185,9 +1185,9 @@ emulated UBI volumes::
 
     kvm-xfstests -c ubifs -g encrypt
 
-No tests should fail.  However, tests that use non-default encryption
+No tests should fail.  However, tests that use yesn-default encryption
 modes (e.g. generic/549 and generic/550) will be skipped if the needed
-algorithms were not built into the kernel's crypto API.  Also, tests
+algorithms were yest built into the kernel's crypto API.  Also, tests
 that access the raw block device (e.g. generic/399, generic/548,
 generic/549, generic/550) will be skipped on UBIFS.
 

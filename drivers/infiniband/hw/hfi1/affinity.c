@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -55,9 +55,9 @@
 #include "sdma.h"
 #include "trace.h"
 
-struct hfi1_affinity_node_list node_affinity = {
-	.list = LIST_HEAD_INIT(node_affinity.list),
-	.lock = __MUTEX_INITIALIZER(node_affinity.lock)
+struct hfi1_affinity_yesde_list yesde_affinity = {
+	.list = LIST_HEAD_INIT(yesde_affinity.list),
+	.lock = __MUTEX_INITIALIZER(yesde_affinity.lock)
 };
 
 /* Name of IRQ types, indexed by enum irq_type */
@@ -68,8 +68,8 @@ static const char * const irq_type_names[] = {
 	"OTHER",
 };
 
-/* Per NUMA node count of HFI devices */
-static unsigned int *hfi1_per_node_cntr;
+/* Per NUMA yesde count of HFI devices */
+static unsigned int *hfi1_per_yesde_cntr;
 
 static inline void init_cpu_mask_set(struct cpu_mask_set *set)
 {
@@ -110,7 +110,7 @@ static int cpu_mask_set_get_first(struct cpu_mask_set *set, cpumask_var_t diff)
 	_cpu_mask_set_gen_inc(set);
 
 	/* Find out CPUs left in CPU mask */
-	cpumask_andnot(diff, &set->mask, &set->used);
+	cpumask_andyest(diff, &set->mask, &set->used);
 
 	cpu = cpumask_first(diff);
 	if (cpu >= nr_cpu_ids) /* empty */
@@ -130,57 +130,57 @@ static void cpu_mask_set_put(struct cpu_mask_set *set, int cpu)
 	_cpu_mask_set_gen_dec(set);
 }
 
-/* Initialize non-HT cpu cores mask */
+/* Initialize yesn-HT cpu cores mask */
 void init_real_cpu_mask(void)
 {
 	int possible, curr_cpu, i, ht;
 
-	cpumask_clear(&node_affinity.real_cpu_mask);
+	cpumask_clear(&yesde_affinity.real_cpu_mask);
 
 	/* Start with cpu online mask as the real cpu mask */
-	cpumask_copy(&node_affinity.real_cpu_mask, cpu_online_mask);
+	cpumask_copy(&yesde_affinity.real_cpu_mask, cpu_online_mask);
 
 	/*
 	 * Remove HT cores from the real cpu mask.  Do this in two steps below.
 	 */
-	possible = cpumask_weight(&node_affinity.real_cpu_mask);
+	possible = cpumask_weight(&yesde_affinity.real_cpu_mask);
 	ht = cpumask_weight(topology_sibling_cpumask(
-				cpumask_first(&node_affinity.real_cpu_mask)));
+				cpumask_first(&yesde_affinity.real_cpu_mask)));
 	/*
 	 * Step 1.  Skip over the first N HT siblings and use them as the
-	 * "real" cores.  Assumes that HT cores are not enumerated in
+	 * "real" cores.  Assumes that HT cores are yest enumerated in
 	 * succession (except in the single core case).
 	 */
-	curr_cpu = cpumask_first(&node_affinity.real_cpu_mask);
+	curr_cpu = cpumask_first(&yesde_affinity.real_cpu_mask);
 	for (i = 0; i < possible / ht; i++)
-		curr_cpu = cpumask_next(curr_cpu, &node_affinity.real_cpu_mask);
+		curr_cpu = cpumask_next(curr_cpu, &yesde_affinity.real_cpu_mask);
 	/*
 	 * Step 2.  Remove the remaining HT siblings.  Use cpumask_next() to
 	 * skip any gaps.
 	 */
 	for (; i < possible; i++) {
-		cpumask_clear_cpu(curr_cpu, &node_affinity.real_cpu_mask);
-		curr_cpu = cpumask_next(curr_cpu, &node_affinity.real_cpu_mask);
+		cpumask_clear_cpu(curr_cpu, &yesde_affinity.real_cpu_mask);
+		curr_cpu = cpumask_next(curr_cpu, &yesde_affinity.real_cpu_mask);
 	}
 }
 
-int node_affinity_init(void)
+int yesde_affinity_init(void)
 {
-	int node;
+	int yesde;
 	struct pci_dev *dev = NULL;
 	const struct pci_device_id *ids = hfi1_pci_tbl;
 
-	cpumask_clear(&node_affinity.proc.used);
-	cpumask_copy(&node_affinity.proc.mask, cpu_online_mask);
+	cpumask_clear(&yesde_affinity.proc.used);
+	cpumask_copy(&yesde_affinity.proc.mask, cpu_online_mask);
 
-	node_affinity.proc.gen = 0;
-	node_affinity.num_core_siblings =
+	yesde_affinity.proc.gen = 0;
+	yesde_affinity.num_core_siblings =
 				cpumask_weight(topology_sibling_cpumask(
-					cpumask_first(&node_affinity.proc.mask)
+					cpumask_first(&yesde_affinity.proc.mask)
 					));
-	node_affinity.num_possible_nodes = num_possible_nodes();
-	node_affinity.num_online_nodes = num_online_nodes();
-	node_affinity.num_online_cpus = num_online_cpus();
+	yesde_affinity.num_possible_yesdes = num_possible_yesdes();
+	yesde_affinity.num_online_yesdes = num_online_yesdes();
+	yesde_affinity.num_online_cpus = num_online_cpus();
 
 	/*
 	 * The real cpu mask is part of the affinity struct but it has to be
@@ -189,19 +189,19 @@ int node_affinity_init(void)
 	 */
 	init_real_cpu_mask();
 
-	hfi1_per_node_cntr = kcalloc(node_affinity.num_possible_nodes,
-				     sizeof(*hfi1_per_node_cntr), GFP_KERNEL);
-	if (!hfi1_per_node_cntr)
+	hfi1_per_yesde_cntr = kcalloc(yesde_affinity.num_possible_yesdes,
+				     sizeof(*hfi1_per_yesde_cntr), GFP_KERNEL);
+	if (!hfi1_per_yesde_cntr)
 		return -ENOMEM;
 
 	while (ids->vendor) {
 		dev = NULL;
 		while ((dev = pci_get_device(ids->vendor, ids->device, dev))) {
-			node = pcibus_to_node(dev->bus);
-			if (node < 0)
+			yesde = pcibus_to_yesde(dev->bus);
+			if (yesde < 0)
 				goto out;
 
-			hfi1_per_node_cntr[node]++;
+			hfi1_per_yesde_cntr[yesde]++;
 		}
 		ids++;
 	}
@@ -210,47 +210,47 @@ int node_affinity_init(void)
 
 out:
 	/*
-	 * Invalid PCI NUMA node information found, note it, and populate
+	 * Invalid PCI NUMA yesde information found, yeste it, and populate
 	 * our database 1:1.
 	 */
-	pr_err("HFI: Invalid PCI NUMA node. Performance may be affected\n");
+	pr_err("HFI: Invalid PCI NUMA yesde. Performance may be affected\n");
 	pr_err("HFI: System BIOS may need to be upgraded\n");
-	for (node = 0; node < node_affinity.num_possible_nodes; node++)
-		hfi1_per_node_cntr[node] = 1;
+	for (yesde = 0; yesde < yesde_affinity.num_possible_yesdes; yesde++)
+		hfi1_per_yesde_cntr[yesde] = 1;
 
 	return 0;
 }
 
-static void node_affinity_destroy(struct hfi1_affinity_node *entry)
+static void yesde_affinity_destroy(struct hfi1_affinity_yesde *entry)
 {
 	free_percpu(entry->comp_vect_affinity);
 	kfree(entry);
 }
 
-void node_affinity_destroy_all(void)
+void yesde_affinity_destroy_all(void)
 {
 	struct list_head *pos, *q;
-	struct hfi1_affinity_node *entry;
+	struct hfi1_affinity_yesde *entry;
 
-	mutex_lock(&node_affinity.lock);
-	list_for_each_safe(pos, q, &node_affinity.list) {
-		entry = list_entry(pos, struct hfi1_affinity_node,
+	mutex_lock(&yesde_affinity.lock);
+	list_for_each_safe(pos, q, &yesde_affinity.list) {
+		entry = list_entry(pos, struct hfi1_affinity_yesde,
 				   list);
 		list_del(pos);
-		node_affinity_destroy(entry);
+		yesde_affinity_destroy(entry);
 	}
-	mutex_unlock(&node_affinity.lock);
-	kfree(hfi1_per_node_cntr);
+	mutex_unlock(&yesde_affinity.lock);
+	kfree(hfi1_per_yesde_cntr);
 }
 
-static struct hfi1_affinity_node *node_affinity_allocate(int node)
+static struct hfi1_affinity_yesde *yesde_affinity_allocate(int yesde)
 {
-	struct hfi1_affinity_node *entry;
+	struct hfi1_affinity_yesde *entry;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return NULL;
-	entry->node = node;
+	entry->yesde = yesde;
 	entry->comp_vect_affinity = alloc_percpu(u16);
 	INIT_LIST_HEAD(&entry->list);
 
@@ -259,22 +259,22 @@ static struct hfi1_affinity_node *node_affinity_allocate(int node)
 
 /*
  * It appends an entry to the list.
- * It *must* be called with node_affinity.lock held.
+ * It *must* be called with yesde_affinity.lock held.
  */
-static void node_affinity_add_tail(struct hfi1_affinity_node *entry)
+static void yesde_affinity_add_tail(struct hfi1_affinity_yesde *entry)
 {
-	list_add_tail(&entry->list, &node_affinity.list);
+	list_add_tail(&entry->list, &yesde_affinity.list);
 }
 
-/* It must be called with node_affinity.lock held */
-static struct hfi1_affinity_node *node_affinity_lookup(int node)
+/* It must be called with yesde_affinity.lock held */
+static struct hfi1_affinity_yesde *yesde_affinity_lookup(int yesde)
 {
 	struct list_head *pos;
-	struct hfi1_affinity_node *entry;
+	struct hfi1_affinity_yesde *entry;
 
-	list_for_each(pos, &node_affinity.list) {
-		entry = list_entry(pos, struct hfi1_affinity_node, list);
-		if (entry->node == node)
+	list_for_each(pos, &yesde_affinity.list) {
+		entry = list_entry(pos, struct hfi1_affinity_yesde, list);
+		if (entry->yesde == yesde)
 			return entry;
 	}
 
@@ -359,16 +359,16 @@ static int per_cpu_affinity_put_max(cpumask_var_t possible_cpumask,
  * Two already allocated cpu masks must be passed.
  */
 static int _dev_comp_vect_cpu_get(struct hfi1_devdata *dd,
-				  struct hfi1_affinity_node *entry,
-				  cpumask_var_t non_intr_cpus,
+				  struct hfi1_affinity_yesde *entry,
+				  cpumask_var_t yesn_intr_cpus,
 				  cpumask_var_t available_cpus)
-	__must_hold(&node_affinity.lock)
+	__must_hold(&yesde_affinity.lock)
 {
 	int cpu;
 	struct cpu_mask_set *set = dd->comp_vect;
 
-	lockdep_assert_held(&node_affinity.lock);
-	if (!non_intr_cpus) {
+	lockdep_assert_held(&yesde_affinity.lock);
+	if (!yesn_intr_cpus) {
 		cpu = -1;
 		goto fail;
 	}
@@ -380,15 +380,15 @@ static int _dev_comp_vect_cpu_get(struct hfi1_devdata *dd,
 
 	/* Available CPUs for pinning completion vectors */
 	_cpu_mask_set_gen_inc(set);
-	cpumask_andnot(available_cpus, &set->mask, &set->used);
+	cpumask_andyest(available_cpus, &set->mask, &set->used);
 
 	/* Available CPUs without SDMA engine interrupts */
-	cpumask_andnot(non_intr_cpus, available_cpus,
+	cpumask_andyest(yesn_intr_cpus, available_cpus,
 		       &entry->def_intr.used);
 
-	/* If there are non-interrupt CPUs available, use them first */
-	if (!cpumask_empty(non_intr_cpus))
-		cpu = cpumask_first(non_intr_cpus);
+	/* If there are yesn-interrupt CPUs available, use them first */
+	if (!cpumask_empty(yesn_intr_cpus))
+		cpu = cpumask_first(yesn_intr_cpus);
 	else /* Otherwise, use interrupt CPUs */
 		cpu = cpumask_first(available_cpus);
 
@@ -438,20 +438,20 @@ static void _dev_comp_vect_mappings_destroy(struct hfi1_devdata *dd)
  * num_comp_vectors needs to have been initilized before calling this function.
  */
 static int _dev_comp_vect_mappings_create(struct hfi1_devdata *dd,
-					  struct hfi1_affinity_node *entry)
-	__must_hold(&node_affinity.lock)
+					  struct hfi1_affinity_yesde *entry)
+	__must_hold(&yesde_affinity.lock)
 {
 	int i, cpu, ret;
-	cpumask_var_t non_intr_cpus;
+	cpumask_var_t yesn_intr_cpus;
 	cpumask_var_t available_cpus;
 
-	lockdep_assert_held(&node_affinity.lock);
+	lockdep_assert_held(&yesde_affinity.lock);
 
-	if (!zalloc_cpumask_var(&non_intr_cpus, GFP_KERNEL))
+	if (!zalloc_cpumask_var(&yesn_intr_cpus, GFP_KERNEL))
 		return -ENOMEM;
 
 	if (!zalloc_cpumask_var(&available_cpus, GFP_KERNEL)) {
-		free_cpumask_var(non_intr_cpus);
+		free_cpumask_var(yesn_intr_cpus);
 		return -ENOMEM;
 	}
 
@@ -466,7 +466,7 @@ static int _dev_comp_vect_mappings_create(struct hfi1_devdata *dd,
 		dd->comp_vect_mappings[i] = -1;
 
 	for (i = 0; i < dd->comp_vect_possible_cpus; i++) {
-		cpu = _dev_comp_vect_cpu_get(dd, entry, non_intr_cpus,
+		cpu = _dev_comp_vect_cpu_get(dd, entry, yesn_intr_cpus,
 					     available_cpus);
 		if (cpu < 0) {
 			ret = -EINVAL;
@@ -483,7 +483,7 @@ static int _dev_comp_vect_mappings_create(struct hfi1_devdata *dd,
 
 fail:
 	free_cpumask_var(available_cpus);
-	free_cpumask_var(non_intr_cpus);
+	free_cpumask_var(yesn_intr_cpus);
 	_dev_comp_vect_mappings_destroy(dd);
 
 	return ret;
@@ -492,17 +492,17 @@ fail:
 int hfi1_comp_vectors_set_up(struct hfi1_devdata *dd)
 {
 	int ret;
-	struct hfi1_affinity_node *entry;
+	struct hfi1_affinity_yesde *entry;
 
-	mutex_lock(&node_affinity.lock);
-	entry = node_affinity_lookup(dd->node);
+	mutex_lock(&yesde_affinity.lock);
+	entry = yesde_affinity_lookup(dd->yesde);
 	if (!entry) {
 		ret = -EINVAL;
 		goto unlock;
 	}
 	ret = _dev_comp_vect_mappings_create(dd, entry);
 unlock:
-	mutex_unlock(&node_affinity.lock);
+	mutex_unlock(&yesde_affinity.lock);
 
 	return ret;
 }
@@ -529,21 +529,21 @@ int hfi1_comp_vect_mappings_lookup(struct rvt_dev_info *rdi, int comp_vect)
  * It assumes dd->comp_vect_possible_cpus is available.
  */
 static int _dev_comp_vect_cpu_mask_init(struct hfi1_devdata *dd,
-					struct hfi1_affinity_node *entry,
+					struct hfi1_affinity_yesde *entry,
 					bool first_dev_init)
-	__must_hold(&node_affinity.lock)
+	__must_hold(&yesde_affinity.lock)
 {
 	int i, j, curr_cpu;
 	int possible_cpus_comp_vect = 0;
 	struct cpumask *dev_comp_vect_mask = &dd->comp_vect->mask;
 
-	lockdep_assert_held(&node_affinity.lock);
+	lockdep_assert_held(&yesde_affinity.lock);
 	/*
 	 * If there's only one CPU available for completion vectors, then
 	 * there will only be one completion vector available. Othewise,
 	 * the number of completion vector available will be the number of
 	 * available CPUs divide it by the number of devices in the
-	 * local NUMA node.
+	 * local NUMA yesde.
 	 */
 	if (cpumask_weight(&entry->comp_vect_mask) == 1) {
 		possible_cpus_comp_vect = 1;
@@ -552,7 +552,7 @@ static int _dev_comp_vect_cpu_mask_init(struct hfi1_devdata *dd,
 	} else {
 		possible_cpus_comp_vect +=
 			cpumask_weight(&entry->comp_vect_mask) /
-				       hfi1_per_node_cntr[dd->node];
+				       hfi1_per_yesde_cntr[dd->yesde];
 
 		/*
 		 * If the completion vector CPUs available doesn't divide
@@ -561,7 +561,7 @@ static int _dev_comp_vect_cpu_mask_init(struct hfi1_devdata *dd,
 		 */
 		if (first_dev_init &&
 		    cpumask_weight(&entry->comp_vect_mask) %
-		    hfi1_per_node_cntr[dd->node] != 0)
+		    hfi1_per_yesde_cntr[dd->yesde] != 0)
 			possible_cpus_comp_vect++;
 	}
 
@@ -596,12 +596,12 @@ fail:
  * It assumes dd->comp_vect_possible_cpus is available.
  */
 static void _dev_comp_vect_cpu_mask_clean_up(struct hfi1_devdata *dd,
-					     struct hfi1_affinity_node *entry)
-	__must_hold(&node_affinity.lock)
+					     struct hfi1_affinity_yesde *entry)
+	__must_hold(&yesde_affinity.lock)
 {
 	int i, cpu;
 
-	lockdep_assert_held(&node_affinity.lock);
+	lockdep_assert_held(&yesde_affinity.lock);
 	if (!dd->comp_vect_possible_cpus)
 		return;
 
@@ -619,48 +619,48 @@ static void _dev_comp_vect_cpu_mask_clean_up(struct hfi1_devdata *dd,
 /*
  * Interrupt affinity.
  *
- * non-rcv avail gets a default mask that
+ * yesn-rcv avail gets a default mask that
  * starts as possible cpus with threads reset
  * and each rcv avail reset.
  *
- * rcv avail gets node relative 1 wrapping back
- * to the node relative 1 as necessary.
+ * rcv avail gets yesde relative 1 wrapping back
+ * to the yesde relative 1 as necessary.
  *
  */
 int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 {
-	int node = pcibus_to_node(dd->pcidev->bus);
-	struct hfi1_affinity_node *entry;
+	int yesde = pcibus_to_yesde(dd->pcidev->bus);
+	struct hfi1_affinity_yesde *entry;
 	const struct cpumask *local_mask;
 	int curr_cpu, possible, i, ret;
 	bool new_entry = false;
 
 	/*
-	 * If the BIOS does not have the NUMA node information set, select
+	 * If the BIOS does yest have the NUMA yesde information set, select
 	 * NUMA 0 so we get consistent performance.
 	 */
-	if (node < 0) {
-		dd_dev_err(dd, "Invalid PCI NUMA node. Performance may be affected\n");
-		node = 0;
+	if (yesde < 0) {
+		dd_dev_err(dd, "Invalid PCI NUMA yesde. Performance may be affected\n");
+		yesde = 0;
 	}
-	dd->node = node;
+	dd->yesde = yesde;
 
-	local_mask = cpumask_of_node(dd->node);
+	local_mask = cpumask_of_yesde(dd->yesde);
 	if (cpumask_first(local_mask) >= nr_cpu_ids)
 		local_mask = topology_core_cpumask(0);
 
-	mutex_lock(&node_affinity.lock);
-	entry = node_affinity_lookup(dd->node);
+	mutex_lock(&yesde_affinity.lock);
+	entry = yesde_affinity_lookup(dd->yesde);
 
 	/*
-	 * If this is the first time this NUMA node's affinity is used,
+	 * If this is the first time this NUMA yesde's affinity is used,
 	 * create an entry in the global affinity structure and initialize it.
 	 */
 	if (!entry) {
-		entry = node_affinity_allocate(node);
+		entry = yesde_affinity_allocate(yesde);
 		if (!entry) {
 			dd_dev_err(dd,
-				   "Unable to allocate global affinity node\n");
+				   "Unable to allocate global affinity yesde\n");
 			ret = -ENOMEM;
 			goto fail;
 		}
@@ -670,8 +670,8 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 		init_cpu_mask_set(&entry->rcv_intr);
 		cpumask_clear(&entry->comp_vect_mask);
 		cpumask_clear(&entry->general_intr_mask);
-		/* Use the "real" cpu mask of this node as the default */
-		cpumask_and(&entry->def_intr.mask, &node_affinity.real_cpu_mask,
+		/* Use the "real" cpu mask of this yesde as the default */
+		cpumask_and(&entry->def_intr.mask, &yesde_affinity.real_cpu_mask,
 			    local_mask);
 
 		/* fill in the receive list */
@@ -699,7 +699,7 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 			 */
 			for (i = 0;
 			     i < (dd->n_krcv_queues - 1) *
-				  hfi1_per_node_cntr[dd->node];
+				  hfi1_per_yesde_cntr[dd->yesde];
 			     i++) {
 				cpumask_clear_cpu(curr_cpu,
 						  &entry->def_intr.mask);
@@ -721,13 +721,13 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 					     &entry->general_intr_mask);
 		}
 
-		/* Determine completion vector CPUs for the entire node */
+		/* Determine completion vector CPUs for the entire yesde */
 		cpumask_and(&entry->comp_vect_mask,
-			    &node_affinity.real_cpu_mask, local_mask);
-		cpumask_andnot(&entry->comp_vect_mask,
+			    &yesde_affinity.real_cpu_mask, local_mask);
+		cpumask_andyest(&entry->comp_vect_mask,
 			       &entry->comp_vect_mask,
 			       &entry->rcv_intr.mask);
-		cpumask_andnot(&entry->comp_vect_mask,
+		cpumask_andyest(&entry->comp_vect_mask,
 			       &entry->comp_vect_mask,
 			       &entry->general_intr_mask);
 
@@ -746,28 +746,28 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 		goto fail;
 
 	if (new_entry)
-		node_affinity_add_tail(entry);
+		yesde_affinity_add_tail(entry);
 
-	mutex_unlock(&node_affinity.lock);
+	mutex_unlock(&yesde_affinity.lock);
 
 	return 0;
 
 fail:
 	if (new_entry)
-		node_affinity_destroy(entry);
-	mutex_unlock(&node_affinity.lock);
+		yesde_affinity_destroy(entry);
+	mutex_unlock(&yesde_affinity.lock);
 	return ret;
 }
 
 void hfi1_dev_affinity_clean_up(struct hfi1_devdata *dd)
 {
-	struct hfi1_affinity_node *entry;
+	struct hfi1_affinity_yesde *entry;
 
-	if (dd->node < 0)
+	if (dd->yesde < 0)
 		return;
 
-	mutex_lock(&node_affinity.lock);
-	entry = node_affinity_lookup(dd->node);
+	mutex_lock(&yesde_affinity.lock);
+	entry = yesde_affinity_lookup(dd->yesde);
 	if (!entry)
 		goto unlock;
 
@@ -777,8 +777,8 @@ void hfi1_dev_affinity_clean_up(struct hfi1_devdata *dd)
 	 */
 	_dev_comp_vect_cpu_mask_clean_up(dd, entry);
 unlock:
-	mutex_unlock(&node_affinity.lock);
-	dd->node = NUMA_NO_NODE;
+	mutex_unlock(&yesde_affinity.lock);
+	dd->yesde = NUMA_NO_NODE;
 }
 
 /*
@@ -790,15 +790,15 @@ static void hfi1_update_sdma_affinity(struct hfi1_msix_entry *msix, int cpu)
 {
 	struct sdma_engine *sde = msix->arg;
 	struct hfi1_devdata *dd = sde->dd;
-	struct hfi1_affinity_node *entry;
+	struct hfi1_affinity_yesde *entry;
 	struct cpu_mask_set *set;
 	int i, old_cpu;
 
 	if (cpu > num_online_cpus() || cpu == sde->cpu)
 		return;
 
-	mutex_lock(&node_affinity.lock);
-	entry = node_affinity_lookup(dd->node);
+	mutex_lock(&yesde_affinity.lock);
+	entry = yesde_affinity_lookup(dd->yesde);
 	if (!entry)
 		goto unlock;
 
@@ -812,8 +812,8 @@ static void hfi1_update_sdma_affinity(struct hfi1_msix_entry *msix, int cpu)
 	irq_set_affinity_hint(msix->irq, &msix->mask);
 
 	/*
-	 * Set the new cpu in the hfi1_affinity_node and clean
-	 * the old cpu if it is not used by any other IRQ
+	 * Set the new cpu in the hfi1_affinity_yesde and clean
+	 * the old cpu if it is yest used by any other IRQ
 	 */
 	set = &entry->def_intr;
 	cpumask_set_cpu(cpu, &set->mask);
@@ -831,60 +831,60 @@ static void hfi1_update_sdma_affinity(struct hfi1_msix_entry *msix, int cpu)
 	cpumask_clear_cpu(old_cpu, &set->mask);
 	cpumask_clear_cpu(old_cpu, &set->used);
 unlock:
-	mutex_unlock(&node_affinity.lock);
+	mutex_unlock(&yesde_affinity.lock);
 }
 
-static void hfi1_irq_notifier_notify(struct irq_affinity_notify *notify,
+static void hfi1_irq_yestifier_yestify(struct irq_affinity_yestify *yestify,
 				     const cpumask_t *mask)
 {
 	int cpu = cpumask_first(mask);
-	struct hfi1_msix_entry *msix = container_of(notify,
+	struct hfi1_msix_entry *msix = container_of(yestify,
 						    struct hfi1_msix_entry,
-						    notify);
+						    yestify);
 
 	/* Only one CPU configuration supported currently */
 	hfi1_update_sdma_affinity(msix, cpu);
 }
 
-static void hfi1_irq_notifier_release(struct kref *ref)
+static void hfi1_irq_yestifier_release(struct kref *ref)
 {
 	/*
-	 * This is required by affinity notifier. We don't have anything to
+	 * This is required by affinity yestifier. We don't have anything to
 	 * free here.
 	 */
 }
 
-static void hfi1_setup_sdma_notifier(struct hfi1_msix_entry *msix)
+static void hfi1_setup_sdma_yestifier(struct hfi1_msix_entry *msix)
 {
-	struct irq_affinity_notify *notify = &msix->notify;
+	struct irq_affinity_yestify *yestify = &msix->yestify;
 
-	notify->irq = msix->irq;
-	notify->notify = hfi1_irq_notifier_notify;
-	notify->release = hfi1_irq_notifier_release;
+	yestify->irq = msix->irq;
+	yestify->yestify = hfi1_irq_yestifier_yestify;
+	yestify->release = hfi1_irq_yestifier_release;
 
-	if (irq_set_affinity_notifier(notify->irq, notify))
-		pr_err("Failed to register sdma irq affinity notifier for irq %d\n",
-		       notify->irq);
+	if (irq_set_affinity_yestifier(yestify->irq, yestify))
+		pr_err("Failed to register sdma irq affinity yestifier for irq %d\n",
+		       yestify->irq);
 }
 
-static void hfi1_cleanup_sdma_notifier(struct hfi1_msix_entry *msix)
+static void hfi1_cleanup_sdma_yestifier(struct hfi1_msix_entry *msix)
 {
-	struct irq_affinity_notify *notify = &msix->notify;
+	struct irq_affinity_yestify *yestify = &msix->yestify;
 
-	if (irq_set_affinity_notifier(notify->irq, NULL))
-		pr_err("Failed to cleanup sdma irq affinity notifier for irq %d\n",
-		       notify->irq);
+	if (irq_set_affinity_yestifier(yestify->irq, NULL))
+		pr_err("Failed to cleanup sdma irq affinity yestifier for irq %d\n",
+		       yestify->irq);
 }
 
 /*
  * Function sets the irq affinity for msix.
- * It *must* be called with node_affinity.lock held.
+ * It *must* be called with yesde_affinity.lock held.
  */
 static int get_irq_affinity(struct hfi1_devdata *dd,
 			    struct hfi1_msix_entry *msix)
 {
 	cpumask_var_t diff;
-	struct hfi1_affinity_node *entry;
+	struct hfi1_affinity_yesde *entry;
 	struct cpu_mask_set *set = NULL;
 	struct sdma_engine *sde = NULL;
 	struct hfi1_ctxtdata *rcd = NULL;
@@ -894,7 +894,7 @@ static int get_irq_affinity(struct hfi1_devdata *dd,
 	extra[0] = '\0';
 	cpumask_clear(&msix->mask);
 
-	entry = node_affinity_lookup(dd->node);
+	entry = yesde_affinity_lookup(dd->yesde);
 
 	switch (msix->type) {
 	case IRQ_SDMA:
@@ -945,7 +945,7 @@ static int get_irq_affinity(struct hfi1_devdata *dd,
 
 	if (msix->type == IRQ_SDMA) {
 		sde->cpu = cpu;
-		hfi1_setup_sdma_notifier(msix);
+		hfi1_setup_sdma_yestifier(msix);
 	}
 
 	return 0;
@@ -955,9 +955,9 @@ int hfi1_get_irq_affinity(struct hfi1_devdata *dd, struct hfi1_msix_entry *msix)
 {
 	int ret;
 
-	mutex_lock(&node_affinity.lock);
+	mutex_lock(&yesde_affinity.lock);
 	ret = get_irq_affinity(dd, msix);
-	mutex_unlock(&node_affinity.lock);
+	mutex_unlock(&yesde_affinity.lock);
 	return ret;
 }
 
@@ -966,15 +966,15 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 {
 	struct cpu_mask_set *set = NULL;
 	struct hfi1_ctxtdata *rcd;
-	struct hfi1_affinity_node *entry;
+	struct hfi1_affinity_yesde *entry;
 
-	mutex_lock(&node_affinity.lock);
-	entry = node_affinity_lookup(dd->node);
+	mutex_lock(&yesde_affinity.lock);
+	entry = yesde_affinity_lookup(dd->yesde);
 
 	switch (msix->type) {
 	case IRQ_SDMA:
 		set = &entry->def_intr;
-		hfi1_cleanup_sdma_notifier(msix);
+		hfi1_cleanup_sdma_yestifier(msix);
 		break;
 	case IRQ_GENERAL:
 		/* Don't do accounting for general contexts */
@@ -986,36 +986,36 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 			set = &entry->rcv_intr;
 		break;
 	default:
-		mutex_unlock(&node_affinity.lock);
+		mutex_unlock(&yesde_affinity.lock);
 		return;
 	}
 
 	if (set) {
-		cpumask_andnot(&set->used, &set->used, &msix->mask);
+		cpumask_andyest(&set->used, &set->used, &msix->mask);
 		_cpu_mask_set_gen_dec(set);
 	}
 
 	irq_set_affinity_hint(msix->irq, NULL);
 	cpumask_clear(&msix->mask);
-	mutex_unlock(&node_affinity.lock);
+	mutex_unlock(&yesde_affinity.lock);
 }
 
-/* This should be called with node_affinity.lock held */
-static void find_hw_thread_mask(uint hw_thread_no, cpumask_var_t hw_thread_mask,
-				struct hfi1_affinity_node_list *affinity)
+/* This should be called with yesde_affinity.lock held */
+static void find_hw_thread_mask(uint hw_thread_yes, cpumask_var_t hw_thread_mask,
+				struct hfi1_affinity_yesde_list *affinity)
 {
 	int possible, curr_cpu, i;
-	uint num_cores_per_socket = node_affinity.num_online_cpus /
+	uint num_cores_per_socket = yesde_affinity.num_online_cpus /
 					affinity->num_core_siblings /
-						node_affinity.num_online_nodes;
+						yesde_affinity.num_online_yesdes;
 
 	cpumask_copy(hw_thread_mask, &affinity->proc.mask);
 	if (affinity->num_core_siblings > 0) {
-		/* Removing other siblings not needed for now */
+		/* Removing other siblings yest needed for yesw */
 		possible = cpumask_weight(hw_thread_mask);
 		curr_cpu = cpumask_first(hw_thread_mask);
 		for (i = 0;
-		     i < num_cores_per_socket * node_affinity.num_online_nodes;
+		     i < num_cores_per_socket * yesde_affinity.num_online_yesdes;
 		     i++)
 			curr_cpu = cpumask_next(curr_cpu, hw_thread_mask);
 
@@ -1027,19 +1027,19 @@ static void find_hw_thread_mask(uint hw_thread_no, cpumask_var_t hw_thread_mask,
 		/* Identifying correct HW threads within physical cores */
 		cpumask_shift_left(hw_thread_mask, hw_thread_mask,
 				   num_cores_per_socket *
-				   node_affinity.num_online_nodes *
-				   hw_thread_no);
+				   yesde_affinity.num_online_yesdes *
+				   hw_thread_yes);
 	}
 }
 
-int hfi1_get_proc_affinity(int node)
+int hfi1_get_proc_affinity(int yesde)
 {
 	int cpu = -1, ret, i;
-	struct hfi1_affinity_node *entry;
+	struct hfi1_affinity_yesde *entry;
 	cpumask_var_t diff, hw_thread_mask, available_mask, intrs_mask;
-	const struct cpumask *node_mask,
+	const struct cpumask *yesde_mask,
 		*proc_mask = current->cpus_ptr;
-	struct hfi1_affinity_node_list *affinity = &node_affinity;
+	struct hfi1_affinity_yesde_list *affinity = &yesde_affinity;
 	struct cpu_mask_set *set = &affinity->proc;
 
 	/*
@@ -1065,7 +1065,7 @@ int hfi1_get_proc_affinity(int node)
 	}
 
 	/*
-	 * The process does not have a preset CPU affinity so find one to
+	 * The process does yest have a preset CPU affinity so find one to
 	 * recommend using the following algorithm:
 	 *
 	 * For each user process that is opening a context on HFI Y:
@@ -1074,12 +1074,12 @@ int hfi1_get_proc_affinity(int node)
 	 *     cores on all physical cores, then second set of HT core,
 	 *     and, so on) in the following order:
 	 *
-	 *     1. Same NUMA node as HFI Y and not running an IRQ
+	 *     1. Same NUMA yesde as HFI Y and yest running an IRQ
 	 *        handler
-	 *     2. Same NUMA node as HFI Y and running an IRQ handler
-	 *     3. Different NUMA node to HFI Y and not running an IRQ
+	 *     2. Same NUMA yesde as HFI Y and running an IRQ handler
+	 *     3. Different NUMA yesde to HFI Y and yest running an IRQ
 	 *        handler
-	 *     4. Different NUMA node to HFI Y and running an IRQ
+	 *     4. Different NUMA yesde to HFI Y and running an IRQ
 	 *        handler
 	 *  c) Mark core as filled in the bitmask. As user processes are
 	 *     done, clear cores from the bitmask.
@@ -1106,10 +1106,10 @@ int hfi1_get_proc_affinity(int node)
 	_cpu_mask_set_gen_inc(set);
 
 	/*
-	 * If NUMA node has CPUs used by interrupt handlers, include them in the
+	 * If NUMA yesde has CPUs used by interrupt handlers, include them in the
 	 * interrupt handler mask.
 	 */
-	entry = node_affinity_lookup(node);
+	entry = yesde_affinity_lookup(yesde);
 	if (entry) {
 		cpumask_copy(intrs_mask, (entry->def_intr.gen ?
 					  &entry->def_intr.mask :
@@ -1136,11 +1136,11 @@ int hfi1_get_proc_affinity(int node)
 			 * If there's at least one available core for this HW
 			 * thread number, stop looking for a core.
 			 *
-			 * diff will always be not empty at least once in this
+			 * diff will always be yest empty at least once in this
 			 * loop as the used mask gets reset when
 			 * (set->mask == set->used) before this loop.
 			 */
-			cpumask_andnot(diff, hw_thread_mask, &set->used);
+			cpumask_andyest(diff, hw_thread_mask, &set->used);
 			if (!cpumask_empty(diff))
 				break;
 		}
@@ -1148,14 +1148,14 @@ int hfi1_get_proc_affinity(int node)
 	hfi1_cdbg(PROC, "Same available HW thread on all physical CPUs: %*pbl",
 		  cpumask_pr_args(hw_thread_mask));
 
-	node_mask = cpumask_of_node(node);
-	hfi1_cdbg(PROC, "Device on NUMA %u, CPUs %*pbl", node,
-		  cpumask_pr_args(node_mask));
+	yesde_mask = cpumask_of_yesde(yesde);
+	hfi1_cdbg(PROC, "Device on NUMA %u, CPUs %*pbl", yesde,
+		  cpumask_pr_args(yesde_mask));
 
 	/* Get cpumask of available CPUs on preferred NUMA */
-	cpumask_and(available_mask, hw_thread_mask, node_mask);
-	cpumask_andnot(available_mask, available_mask, &set->used);
-	hfi1_cdbg(PROC, "Available CPUs on NUMA %u: %*pbl", node,
+	cpumask_and(available_mask, hw_thread_mask, yesde_mask);
+	cpumask_andyest(available_mask, available_mask, &set->used);
+	hfi1_cdbg(PROC, "Available CPUs on NUMA %u: %*pbl", yesde,
 		  cpumask_pr_args(available_mask));
 
 	/*
@@ -1163,35 +1163,35 @@ int hfi1_get_proc_affinity(int node)
 	 * CPUs as interrupt handlers. Then, CPUs running interrupt
 	 * handlers are used.
 	 *
-	 * 1) If diff is not empty, then there are CPUs not running
-	 *    non-interrupt handlers available, so diff gets copied
+	 * 1) If diff is yest empty, then there are CPUs yest running
+	 *    yesn-interrupt handlers available, so diff gets copied
 	 *    over to available_mask.
-	 * 2) If diff is empty, then all CPUs not running interrupt
+	 * 2) If diff is empty, then all CPUs yest running interrupt
 	 *    handlers are taken, so available_mask contains all
 	 *    available CPUs running interrupt handlers.
 	 * 3) If available_mask is empty, then all CPUs on the
-	 *    preferred NUMA node are taken, so other NUMA nodes are
+	 *    preferred NUMA yesde are taken, so other NUMA yesdes are
 	 *    used for process assignments using the same method as
-	 *    the preferred NUMA node.
+	 *    the preferred NUMA yesde.
 	 */
-	cpumask_andnot(diff, available_mask, intrs_mask);
+	cpumask_andyest(diff, available_mask, intrs_mask);
 	if (!cpumask_empty(diff))
 		cpumask_copy(available_mask, diff);
 
-	/* If we don't have CPUs on the preferred node, use other NUMA nodes */
+	/* If we don't have CPUs on the preferred yesde, use other NUMA yesdes */
 	if (cpumask_empty(available_mask)) {
-		cpumask_andnot(available_mask, hw_thread_mask, &set->used);
+		cpumask_andyest(available_mask, hw_thread_mask, &set->used);
 		/* Excluding preferred NUMA cores */
-		cpumask_andnot(available_mask, available_mask, node_mask);
+		cpumask_andyest(available_mask, available_mask, yesde_mask);
 		hfi1_cdbg(PROC,
-			  "Preferred NUMA node cores are taken, cores available in other NUMA nodes: %*pbl",
+			  "Preferred NUMA yesde cores are taken, cores available in other NUMA yesdes: %*pbl",
 			  cpumask_pr_args(available_mask));
 
 		/*
 		 * At first, we don't want to place processes on the same
 		 * CPUs as interrupt handlers.
 		 */
-		cpumask_andnot(diff, available_mask, intrs_mask);
+		cpumask_andyest(diff, available_mask, intrs_mask);
 		if (!cpumask_empty(diff))
 			cpumask_copy(available_mask, diff);
 	}
@@ -1220,7 +1220,7 @@ done:
 
 void hfi1_put_proc_affinity(int cpu)
 {
-	struct hfi1_affinity_node_list *affinity = &node_affinity;
+	struct hfi1_affinity_yesde_list *affinity = &yesde_affinity;
 	struct cpu_mask_set *set = &affinity->proc;
 
 	if (cpu < 0)

@@ -15,7 +15,7 @@
 /*
  * DISC LOCKING
  *
- * The disc mutex is can be locked when acquiring rport locks, but may not
+ * The disc mutex is can be locked when acquiring rport locks, but may yest
  * be held when acquiring the lport lock. Refer to fc_lport.c for more
  * details.
  */
@@ -140,7 +140,7 @@ static void fc_disc_recv_rscn_req(struct fc_disc *disc, struct fc_frame *fp)
 	fc_seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
 
 	/*
-	 * If not doing a complete rediscovery, do GPN_ID on
+	 * If yest doing a complete rediscovery, do GPN_ID on
 	 * the individual ports mentioned in the list.
 	 * If any of these get an error, do a full rediscovery.
 	 * In any case, go through the list and free the entries.
@@ -155,7 +155,7 @@ static void fc_disc_recv_rscn_req(struct fc_disc *disc, struct fc_frame *fp)
 		FC_DISC_DBG(disc, "RSCN received: rediscovering\n");
 		fc_disc_restart(disc);
 	} else {
-		FC_DISC_DBG(disc, "RSCN received: not rediscovering. "
+		FC_DISC_DBG(disc, "RSCN received: yest rediscovering. "
 			    "redisc %d state %d in_prog %d\n",
 			    redisc, lport->state, disc->pending);
 	}
@@ -216,7 +216,7 @@ static void fc_disc_restart(struct fc_disc *disc)
 		return;
 
 	/*
-	 * Advance disc_id.  This is an arbitrary non-zero number that will
+	 * Advance disc_id.  This is an arbitrary yesn-zero number that will
 	 * match the value in the fc_rport_priv after discovery for all
 	 * freshly-discovered remote ports.  Avoid wrapping to zero.
 	 */
@@ -424,8 +424,8 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 	 * Handle full name records, including the one filled from above.
 	 * Normally, np == bp and plen == len, but from the partial case above,
 	 * bp, len describe the overall buffer, and np, plen describe the
-	 * partial buffer, which if would usually be full now.
-	 * After the first time through the loop, things return to "normal".
+	 * partial buffer, which if would usually be full yesw.
+	 * After the first time through the loop, things return to "yesrmal".
 	 */
 	while (plen >= sizeof(*np)) {
 		ids.port_id = ntoh24(np->fp_fid);

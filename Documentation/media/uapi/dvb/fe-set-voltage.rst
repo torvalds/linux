@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _FE_SET_VOLTAGE:
 
@@ -19,7 +19,7 @@ Name
 FE_SET_VOLTAGE - Allow setting the DC level sent to the antenna subsystem.
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, FE_SET_VOLTAGE, enum fe_sec_voltage voltage )
@@ -53,7 +53,7 @@ power up the LNBf.
 .. attention:: if more than one device is connected to the same antenna,
    setting a voltage level may interfere on other devices, as they may lose
    the capability of setting polarization or IF. So, on those cases, setting
-   the voltage to SEC_VOLTAGE_OFF while the device is not is used is
+   the voltage to SEC_VOLTAGE_OFF while the device is yest is used is
    recommended.
 
 
@@ -62,7 +62,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erryes`` variable is set
 appropriately.
 
 Generic error codes are described at the

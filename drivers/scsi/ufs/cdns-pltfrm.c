@@ -24,7 +24,7 @@
  * Sets HCLKDIV register value based on the core_clk
  * @hba: host controller instance
  *
- * Return zero for success and non-zero for failure
+ * Return zero for success and yesn-zero for failure
  */
 static int cdns_ufs_set_hclkdiv(struct ufs_hba *hba)
 {
@@ -54,7 +54,7 @@ static int cdns_ufs_set_hclkdiv(struct ufs_hba *hba)
 	ufshcd_writel(hba, core_clk_div, CDNS_UFS_REG_HCLKDIV);
 	/**
 	 * Make sure the register was updated,
-	 * UniPro layer will not work with an incorrect value.
+	 * UniPro layer will yest work with an incorrect value.
 	 */
 	mb();
 
@@ -64,12 +64,12 @@ static int cdns_ufs_set_hclkdiv(struct ufs_hba *hba)
 /**
  * Called before and after HCE enable bit is set.
  * @hba: host controller instance
- * @status: notify stage (pre, post change)
+ * @status: yestify stage (pre, post change)
  *
- * Return zero for success and non-zero for failure
+ * Return zero for success and yesn-zero for failure
  */
-static int cdns_ufs_hce_enable_notify(struct ufs_hba *hba,
-				      enum ufs_notify_change_status status)
+static int cdns_ufs_hce_enable_yestify(struct ufs_hba *hba,
+				      enum ufs_yestify_change_status status)
 {
 	if (status != PRE_CHANGE)
 		return 0;
@@ -80,12 +80,12 @@ static int cdns_ufs_hce_enable_notify(struct ufs_hba *hba,
 /**
  * Called before and after Link startup is carried out.
  * @hba: host controller instance
- * @status: notify stage (pre, post change)
+ * @status: yestify stage (pre, post change)
  *
- * Return zero for success and non-zero for failure
+ * Return zero for success and yesn-zero for failure
  */
-static int cdns_ufs_link_startup_notify(struct ufs_hba *hba,
-					enum ufs_notify_change_status status)
+static int cdns_ufs_link_startup_yestify(struct ufs_hba *hba,
+					enum ufs_yestify_change_status status)
 {
 	if (status != PRE_CHANGE)
 		return 0;
@@ -144,15 +144,15 @@ static int cdns_ufs_m31_16nm_phy_initialization(struct ufs_hba *hba)
 
 static const struct ufs_hba_variant_ops cdns_ufs_pltfm_hba_vops = {
 	.name = "cdns-ufs-pltfm",
-	.hce_enable_notify = cdns_ufs_hce_enable_notify,
-	.link_startup_notify = cdns_ufs_link_startup_notify,
+	.hce_enable_yestify = cdns_ufs_hce_enable_yestify,
+	.link_startup_yestify = cdns_ufs_link_startup_yestify,
 };
 
 static const struct ufs_hba_variant_ops cdns_ufs_m31_16nm_pltfm_hba_vops = {
 	.name = "cdns-ufs-pltfm",
 	.init = cdns_ufs_init,
-	.hce_enable_notify = cdns_ufs_hce_enable_notify,
-	.link_startup_notify = cdns_ufs_link_startup_notify,
+	.hce_enable_yestify = cdns_ufs_hce_enable_yestify,
+	.link_startup_yestify = cdns_ufs_link_startup_yestify,
 	.phy_initialization = cdns_ufs_m31_16nm_phy_initialization,
 };
 
@@ -174,7 +174,7 @@ MODULE_DEVICE_TABLE(of, cdns_ufs_of_match);
  * cdns_ufs_pltfrm_probe - probe routine of the driver
  * @pdev: pointer to platform device handle
  *
- * Return zero for success and non-zero for failure
+ * Return zero for success and yesn-zero for failure
  */
 static int cdns_ufs_pltfrm_probe(struct platform_device *pdev)
 {
@@ -183,7 +183,7 @@ static int cdns_ufs_pltfrm_probe(struct platform_device *pdev)
 	struct ufs_hba_variant_ops *vops;
 	struct device *dev = &pdev->dev;
 
-	of_id = of_match_node(cdns_ufs_of_match, dev->of_node);
+	of_id = of_match_yesde(cdns_ufs_of_match, dev->of_yesde);
 	vops = (struct ufs_hba_variant_ops *)of_id->data;
 
 	/* Perform generic probe */

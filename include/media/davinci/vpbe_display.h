@@ -34,7 +34,7 @@ enum vpbe_display_device_id {
 #define VPBE_DISPLAY_VALID_FIELD(field)   ((V4L2_FIELD_NONE == field) || \
 	 (V4L2_FIELD_ANY == field) || (V4L2_FIELD_INTERLACED == field))
 
-/* Exp ratio numerator and denominator constants */
+/* Exp ratio numerator and deyesminator constants */
 #define VPBE_DISPLAY_H_EXP_RATIO_N	9
 #define VPBE_DISPLAY_H_EXP_RATIO_D	8
 #define VPBE_DISPLAY_V_EXP_RATIO_N	6

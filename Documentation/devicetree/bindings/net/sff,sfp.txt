@@ -14,7 +14,7 @@ Optional Properties:
 
 - mod-def0-gpios : GPIO phandle and a specifier of the MOD-DEF0 (AKA Mod_ABS)
   module presence input gpio signal, active (module absent) high. Must
-  not be present for SFF modules
+  yest be present for SFF modules
 
 - los-gpios : GPIO phandle and a specifier of the Receiver Loss of Signal
   Indication input gpio signal, active (signal lost) high
@@ -27,11 +27,11 @@ Optional Properties:
 
 - rate-select0-gpios : GPIO phandle and a specifier of the Rx Signaling Rate
   Select (AKA RS0) output gpio signal, low: low Rx rate, high: high Rx rate
-  Must not be present for SFF modules
+  Must yest be present for SFF modules
 
 - rate-select1-gpios : GPIO phandle and a specifier of the Tx Signaling Rate
   Select (AKA RS1) output gpio signal (SFP+ only), low: low Tx rate, high:
-  high Tx rate. Must not be present for SFF modules
+  high Tx rate. Must yest be present for SFF modules
 
 - maximum-power-milliwatt : Maximum module power consumption
   Specifies the maximum power consumption allowable by a module in the

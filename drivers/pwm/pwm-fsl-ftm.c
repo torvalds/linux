@@ -246,12 +246,12 @@ static int fsl_pwm_apply_config(struct fsl_pwm_chip *fpc,
 	 * The Freescale FTM controller supports only a single period for
 	 * all PWM channels, therefore verify if the newly computed period
 	 * is different than the current period being used. In such case
-	 * we allow to change the period only if no other pwm is running.
+	 * we allow to change the period only if yes other pwm is running.
 	 */
 	else if (!fsl_pwm_periodcfg_are_equal(&fpc->period, &periodcfg)) {
 		if (fsl_pwm_is_other_pwm_enabled(fpc, pwm)) {
 			dev_err(fpc->chip.dev,
-				"Cannot change period for PWM %u, disable other PWMs first\n",
+				"Canyest change period for PWM %u, disable other PWMs first\n",
 				pwm->hwpwm);
 			return -EBUSY;
 		}
@@ -307,7 +307,7 @@ static int fsl_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	/*
 	 * oldstate to newstate : action
 	 *
-	 * disabled to disabled : ignore
+	 * disabled to disabled : igyesre
 	 * enabled to disabled : disable
 	 * enabled to enabled : update settings
 	 * disabled to enabled : update settings + enable
@@ -444,7 +444,7 @@ static int fsl_pwm_probe(struct platform_device *pdev)
 		return PTR_ERR(fpc->clk[FSL_PWM_CLK_CNTEN]);
 
 	/*
-	 * ipg_clk is the interface clock for the IP. If not provided, use the
+	 * ipg_clk is the interface clock for the IP. If yest provided, use the
 	 * ftm_sys clock as the default.
 	 */
 	fpc->ipg_clk = devm_clk_get(&pdev->dev, "ipg");

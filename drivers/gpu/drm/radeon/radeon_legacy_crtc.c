@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -216,7 +216,7 @@ static void radeon_pll_wait_for_read_update_complete(struct drm_device *dev)
 	int i = 0;
 
 	/* FIXME: Certain revisions of R300 can't recover here.  Not sure of
-	   the cause yet, but this workaround will mask the problem for now.
+	   the cause yet, but this workaround will mask the problem for yesw.
 	   Other chips usually will pass at the very first test, so the
 	   workaround shouldn't have any effect on them. */
 	for (i = 0;
@@ -243,7 +243,7 @@ static void radeon_pll2_wait_for_read_update_complete(struct drm_device *dev)
 
 
 	/* FIXME: Certain revisions of R300 can't recover here.  Not sure of
-	   the cause yet, but this workaround will mask the problem for now.
+	   the cause yet, but this workaround will mask the problem for yesw.
 	   Other chips usually will pass at the very first test, so the
 	   workaround shouldn't have any effect on them. */
 	for (i = 0;
@@ -316,7 +316,7 @@ static void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 	 * On all dual CRTC GPUs this bit controls the CRTC of the primary DAC.
 	 * Therefore it is set in the DAC DMPS function.
 	 * This is different for GPU's with a single CRTC but a primary and a
-	 * TV DAC: here it controls the single CRTC no matter where it is
+	 * TV DAC: here it controls the single CRTC yes matter where it is
 	 * routed. Therefore we set it here.
 	 */
 	if (rdev->flags & RADEON_SINGLE_CRTC)
@@ -389,7 +389,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 	int r;
 
 	DRM_DEBUG_KMS("\n");
-	/* no fb bound */
+	/* yes fb bound */
 	if (!atomic && !crtc->primary->fb) {
 		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
@@ -464,10 +464,10 @@ retry:
 	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
 	radeon_bo_unreserve(rbo);
 	if (tiling_flags & RADEON_TILING_MICRO)
-		DRM_ERROR("trying to scanout microtiled buffer\n");
+		DRM_ERROR("trying to scayesut microtiled buffer\n");
 
-	/* if scanout was in GTT this really wouldn't work */
-	/* crtc offset is from display base addr not FB location */
+	/* if scayesut was in GTT this really wouldn't work */
+	/* crtc offset is from display base addr yest FB location */
 	radeon_crtc->legacy_display_base_addr = rdev->mc.vram_start;
 
 	base -= radeon_crtc->legacy_display_base_addr;
@@ -651,7 +651,7 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 		uint32_t crtc2_gen_cntl;
 		uint32_t disp2_merge_cntl;
 
-		/* if TV DAC is enabled for another crtc and keep it enabled */
+		/* if TV DAC is enabled for ayesther crtc and keep it enabled */
 		crtc2_gen_cntl = RREG32(RADEON_CRTC2_GEN_CNTL) & 0x00718080;
 		crtc2_gen_cntl |= ((format << 8)
 				   | RADEON_CRTC2_VSYNC_DIS
@@ -1065,7 +1065,7 @@ static void radeon_crtc_prepare(struct drm_crtc *crtc)
 
 	/*
 	* The hardware wedges sometimes if you reconfigure one CRTC
-	* whilst another is running (see fdo bug #24611).
+	* whilst ayesther is running (see fdo bug #24611).
 	*/
 	list_for_each_entry(crtci, &dev->mode_config.crtc_list, head)
 		radeon_crtc_dpms(crtci, DRM_MODE_DPMS_OFF);

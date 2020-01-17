@@ -89,7 +89,7 @@ static int walk_pte_level(pmd_t *pmdp, unsigned long addr, unsigned long end,
 	ptep = pte_offset(pmdp, addr);
 	do {
 		new = *ptep;
-		if (pte_none(new))
+		if (pte_yesne(new))
 			return -EINVAL;
 		if (flags & SET_MEMORY_RO)
 			new = pte_wrprotect(new);
@@ -161,7 +161,7 @@ static int walk_pmd_level(pud_t *pudp, unsigned long addr, unsigned long end,
 
 	pmdp = pmd_offset(pudp, addr);
 	do {
-		if (pmd_none(*pmdp))
+		if (pmd_yesne(*pmdp))
 			return -EINVAL;
 		next = pmd_addr_end(addr, end);
 		if (pmd_large(*pmdp)) {
@@ -238,7 +238,7 @@ static int walk_pud_level(p4d_t *p4d, unsigned long addr, unsigned long end,
 
 	pudp = pud_offset(p4d, addr);
 	do {
-		if (pud_none(*pudp))
+		if (pud_yesne(*pudp))
 			return -EINVAL;
 		next = pud_addr_end(addr, end);
 		if (pud_large(*pudp)) {
@@ -268,7 +268,7 @@ static int walk_p4d_level(pgd_t *pgd, unsigned long addr, unsigned long end,
 
 	p4dp = p4d_offset(pgd, addr);
 	do {
-		if (p4d_none(*p4dp))
+		if (p4d_yesne(*p4dp))
 			return -EINVAL;
 		next = p4d_addr_end(addr, end);
 		rc = walk_pud_level(p4dp, addr, next, flags);
@@ -295,7 +295,7 @@ static int change_page_attr(unsigned long addr, unsigned long end,
 	mutex_lock(&cpa_mutex);
 	pgdp = pgd_offset_k(addr);
 	do {
-		if (pgd_none(*pgdp))
+		if (pgd_yesne(*pgdp))
 			break;
 		next = pgd_addr_end(addr, end);
 		rc = walk_p4d_level(pgdp, addr, next, flags);

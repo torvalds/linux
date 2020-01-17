@@ -53,8 +53,8 @@ static int i2c_mux_gpio_deselect(struct i2c_mux_core *muxc, u32 chan)
 static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 					struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *adapter_np, *child;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *adapter_np, *child;
 	struct i2c_adapter *adapter;
 	unsigned *values;
 	int i = 0;
@@ -64,11 +64,11 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 
 	adapter_np = of_parse_phandle(np, "i2c-parent", 0);
 	if (!adapter_np) {
-		dev_err(&pdev->dev, "Cannot parse i2c-parent\n");
+		dev_err(&pdev->dev, "Canyest parse i2c-parent\n");
 		return -ENODEV;
 	}
-	adapter = of_find_i2c_adapter_by_node(adapter_np);
-	of_node_put(adapter_np);
+	adapter = of_find_i2c_adapter_by_yesde(adapter_np);
+	of_yesde_put(adapter_np);
 	if (!adapter)
 		return -EPROBE_DEFER;
 
@@ -81,11 +81,11 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 			      mux->data.n_values, sizeof(*mux->data.values),
 			      GFP_KERNEL);
 	if (!values) {
-		dev_err(&pdev->dev, "Cannot allocate values array");
+		dev_err(&pdev->dev, "Canyest allocate values array");
 		return -ENOMEM;
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		of_property_read_u32(child, "reg", values + i);
 		i++;
 	}
@@ -128,7 +128,7 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 
 	ngpios = gpiod_count(&pdev->dev, "mux");
 	if (ngpios <= 0) {
-		dev_err(&pdev->dev, "no valid gpios provided\n");
+		dev_err(&pdev->dev, "yes valid gpios provided\n");
 		return ngpios ?: -EINVAL;
 	}
 	mux->ngpios = ngpios;

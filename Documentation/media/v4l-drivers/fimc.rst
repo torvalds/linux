@@ -14,7 +14,7 @@ data from LCD controller (FIMD) through the SoC internal writeback data
 path.  There are multiple FIMC instances in the SoCs (up to 4), having
 slightly different capabilities, like pixel alignment constraints, rotator
 availability, LCD writeback support, etc. The driver is located at
-drivers/media/platform/exynos4-is directory.
+drivers/media/platform/exyyess4-is directory.
 
 Supported SoCs
 --------------
@@ -42,21 +42,21 @@ Files partitioning
 ------------------
 
 - media device driver
-  drivers/media/platform/exynos4-is/media-dev.[ch]
+  drivers/media/platform/exyyess4-is/media-dev.[ch]
 
 - camera capture video device driver
-  drivers/media/platform/exynos4-is/fimc-capture.c
+  drivers/media/platform/exyyess4-is/fimc-capture.c
 
 - MIPI-CSI2 receiver subdev
-  drivers/media/platform/exynos4-is/mipi-csis.[ch]
+  drivers/media/platform/exyyess4-is/mipi-csis.[ch]
 
 - video post-processor (mem-to-mem)
-  drivers/media/platform/exynos4-is/fimc-core.c
+  drivers/media/platform/exyyess4-is/fimc-core.c
 
 - common files
-  drivers/media/platform/exynos4-is/fimc-core.h
-  drivers/media/platform/exynos4-is/fimc-reg.h
-  drivers/media/platform/exynos4-is/regs-fimc.h
+  drivers/media/platform/exyyess4-is/fimc-core.h
+  drivers/media/platform/exyyess4-is/fimc-reg.h
+  drivers/media/platform/exyyess4-is/regs-fimc.h
 
 User space interfaces
 ---------------------
@@ -78,29 +78,29 @@ Reconfiguration is done by enabling/disabling media links created by the driver
 during initialization. The internal device topology can be easily discovered
 through media entity and links enumeration.
 
-Memory-to-memory video node
+Memory-to-memory video yesde
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-V4L2 memory-to-memory interface at /dev/video? device node.  This is standalone
-video device, it has no media pads. However please note the mem-to-mem and
-capture video node operation on same FIMC instance is not allowed.  The driver
+V4L2 memory-to-memory interface at /dev/video? device yesde.  This is standalone
+video device, it has yes media pads. However please yeste the mem-to-mem and
+capture video yesde operation on same FIMC instance is yest allowed.  The driver
 detects such cases but the applications should prevent them to avoid an
 undefined behaviour.
 
-Capture video node
+Capture video yesde
 ~~~~~~~~~~~~~~~~~~
 
 The driver supports V4L2 Video Capture Interface as defined at
 :ref:`devices`.
 
-At the capture and mem-to-mem video nodes only the multi-planar API is
+At the capture and mem-to-mem video yesdes only the multi-planar API is
 supported. For more details see: :ref:`planar-apis`.
 
 Camera capture subdevs
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Each FIMC instance exports a sub-device node (/dev/v4l-subdev?), a sub-device
-node is also created per each available and enabled at the platform level
+Each FIMC instance exports a sub-device yesde (/dev/v4l-subdev?), a sub-device
+yesde is also created per each available and enabled at the platform level
 MIPI-CSI receiver device (currently up to two).
 
 sysfs
@@ -111,55 +111,55 @@ API the driver creates a sysfs entry associated with "s5p-fimc-md" platform
 device. The entry path is: /sys/platform/devices/s5p-fimc-md/subdev_conf_mode.
 
 In typical use case there could be a following capture pipeline configuration:
-sensor subdev -> mipi-csi subdev -> fimc subdev -> video node
+sensor subdev -> mipi-csi subdev -> fimc subdev -> video yesde
 
 When we configure these devices through sub-device API at user space, the
-configuration flow must be from left to right, and the video node is
+configuration flow must be from left to right, and the video yesde is
 configured as last one.
 When we don't use sub-device user space API the whole configuration of all
-devices belonging to the pipeline is done at the video node driver.
-The sysfs entry allows to instruct the capture node driver not to configure
+devices belonging to the pipeline is done at the video yesde driver.
+The sysfs entry allows to instruct the capture yesde driver yest to configure
 the sub-devices (format, crop), to avoid resetting the subdevs' configuration
-when the last configuration steps at the video node is performed.
+when the last configuration steps at the video yesde is performed.
 
 For full sub-device control support (subdevs configured at user space before
 starting streaming):
 
-.. code-block:: none
+.. code-block:: yesne
 
 	# echo "sub-dev" > /sys/platform/devices/s5p-fimc-md/subdev_conf_mode
 
-For V4L2 video node control only (subdevs configured internally by the host
+For V4L2 video yesde control only (subdevs configured internally by the host
 driver):
 
-.. code-block:: none
+.. code-block:: yesne
 
 	# echo "vid-dev" > /sys/platform/devices/s5p-fimc-md/subdev_conf_mode
 
 This is a default option.
 
-5. Device mapping to video and subdev device nodes
+5. Device mapping to video and subdev device yesdes
 --------------------------------------------------
 
-There are associated two video device nodes with each device instance in
-hardware - video capture and mem-to-mem and additionally a subdev node for
+There are associated two video device yesdes with each device instance in
+hardware - video capture and mem-to-mem and additionally a subdev yesde for
 more precise FIMC capture subsystem control. In addition a separate v4l2
-sub-device node is created per each MIPI-CSIS device.
+sub-device yesde is created per each MIPI-CSIS device.
 
 How to find out which /dev/video? or /dev/v4l-subdev? is assigned to which
 device?
 
 You can either grep through the kernel log to find relevant information, i.e.
 
-.. code-block:: none
+.. code-block:: yesne
 
 	# dmesg | grep -i fimc
 
-(note that udev, if present, might still have rearranged the video nodes),
+(yeste that udev, if present, might still have rearranged the video yesdes),
 
 or retrieve the information from /dev/media? with help of the media-ctl tool:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	# media-ctl -p
 

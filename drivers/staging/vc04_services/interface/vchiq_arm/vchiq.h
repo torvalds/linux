@@ -7,7 +7,7 @@
 #include "vchiq_if.h"
 #include "vchiq_util.h"
 
-/* Do this so that we can test-build the code on non-rpi systems */
+/* Do this so that we can test-build the code on yesn-rpi systems */
 #if IS_ENABLED(CONFIG_RASPBERRYPI_FIRMWARE)
 
 #else

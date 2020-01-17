@@ -15,7 +15,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -124,12 +124,12 @@ struct ehci_regs {
 /* 23:16 is r/w intr rate, in microframes; default "8" == 1/msec */
 #define CMD_PARK	(1<<11)		/* enable "park" on async qh */
 #define CMD_PARK_CNT(c)	(((c)>>8)&3)	/* how many transfers to park for */
-#define CMD_LRESET	(1<<7)		/* partial reset (no ports, etc) */
+#define CMD_LRESET	(1<<7)		/* partial reset (yes ports, etc) */
 #define CMD_IAAD	(1<<6)		/* "doorbell" interrupt async advance */
 #define CMD_ASE		(1<<5)		/* async schedule enable */
 #define CMD_PSE		(1<<4)		/* periodic schedule enable */
 /* 3:2 is periodic frame list size */
-#define CMD_RESET	(1<<1)		/* reset HC not bus */
+#define CMD_RESET	(1<<1)		/* reset HC yest bus */
 #define CMD_RUN		(1<<0)		/* start/stop HC */
 
 	/* USBSTS: offset 0x04 */
@@ -145,7 +145,7 @@ struct ehci_regs {
 #define STS_FLR		(1<<3)		/* frame list rolled over */
 #define STS_PCD		(1<<2)		/* port change detect */
 #define STS_ERR		(1<<1)		/* "error" completion (overflow, ...) */
-#define STS_INT		(1<<0)		/* "normal" completion (short, ...) */
+#define STS_INT		(1<<0)		/* "yesrmal" completion (short, ...) */
 
 #define INTR_MASK (STS_IAA | STS_FATAL | STS_PCD | STS_ERR | STS_INT)
 
@@ -196,7 +196,7 @@ struct ehci_regs {
 } __packed;
 
 /* Appendix C, Debug port ... intended for use with special "debug devices"
- * that can help if there's no serial console.  (nonstandard enumeration.)
+ * that can help if there's yes serial console.  (yesnstandard enumeration.)
  */
 struct ehci_dbg_port {
 	u32	control;
@@ -453,7 +453,7 @@ struct oxu_hcd {				/* one per controller */
 
 	/* SILICON QUIRKS */
 	struct list_head	urb_list;	/* this is the head to urb
-						 * queue that didn't get enough
+						 * queue that didn't get eyesugh
 						 * resources
 						 */
 	struct oxu_murb		*murb_pool;	/* murb per split big urb */
@@ -660,10 +660,10 @@ static unsigned park;
 module_param(park, uint, S_IRUGO);
 MODULE_PARM_DESC(park, "park setting; 1-3 back-to-back async packets");
 
-/* For flakey hardware, ignore overcurrent indicators */
-static bool ignore_oc;
-module_param(ignore_oc, bool, S_IRUGO);
-MODULE_PARM_DESC(ignore_oc, "ignore bogus hardware overcurrent indications");
+/* For flakey hardware, igyesre overcurrent indicators */
+static bool igyesre_oc;
+module_param(igyesre_oc, bool, S_IRUGO);
+MODULE_PARM_DESC(igyesre_oc, "igyesre bogus hardware overcurrent indications");
 
 
 static void ehci_work(struct oxu_hcd *oxu);
@@ -734,7 +734,7 @@ static inline void timer_action(struct oxu_hcd *oxu,
  * @done: value of those bits when handshake succeeds
  * @usec: timeout in microseconds
  *
- * Returns negative errno, or zero on success
+ * Returns negative erryes, or zero on success
  *
  * Success happens when the "mask" bits have the specified value (hardware
  * handshake done).  There are two failure modes:  "usec" have passed (major
@@ -762,7 +762,7 @@ static int handshake(struct oxu_hcd *oxu, void __iomem *ptr,
 	return -ETIMEDOUT;
 }
 
-/* Force HC to halt state from unknown (EHCI spec section 2.3) */
+/* Force HC to halt state from unkyeswn (EHCI spec section 2.3) */
 static int ehci_halt(struct oxu_hcd *oxu)
 {
 	u32	temp = readl(&oxu->regs->status);
@@ -792,7 +792,7 @@ static void tdi_reset(struct oxu_hcd *oxu)
 	writel(tmp, reg_ptr);
 }
 
-/* Reset a non-running (STS_HALT == 1) controller */
+/* Reset a yesn-running (STS_HALT == 1) controller */
 static int ehci_reset(struct oxu_hcd *oxu)
 {
 	int	retval;
@@ -853,7 +853,7 @@ static int check_reset_complete(struct oxu_hcd *oxu, int index,
 		return port_status;
 	}
 
-	/* if reset finished and it's still not enabled -- handoff */
+	/* if reset finished and it's still yest enabled -- handoff */
 	if (!(port_status & PORT_PE)) {
 		oxu_dbg(oxu, "Failed to enable port %d on root hub TT\n",
 				index+1);
@@ -886,7 +886,7 @@ static void ehci_hub_descriptor(struct oxu_hcd *oxu,
 	if (HCS_PPC(oxu->hcs_params))
 		temp |= HUB_CHAR_INDV_PORT_LPSM; /* per-port power control */
 	else
-		temp |= HUB_CHAR_NO_LPSM; /* no power switching */
+		temp |= HUB_CHAR_NO_LPSM; /* yes power switching */
 	desc->wHubCharacteristics = (__force __u16)cpu_to_le16(temp);
 }
 
@@ -903,7 +903,7 @@ static void ehci_hub_descriptor(struct oxu_hcd *oxu,
  *
  * FIXME: callers of this function require a buffer to be allocated for
  * len=0. This is a waste of on-chip memory and should be fix. Then this
- * function should be changed to not allocate a buffer for len=0.
+ * function should be changed to yest allocate a buffer for len=0.
  */
 static int oxu_buf_alloc(struct oxu_hcd *oxu, struct ehci_qtd *qtd, int len)
 {
@@ -1045,9 +1045,9 @@ static void qh_destroy(struct kref *kref)
 	struct ehci_qh *qh = container_of(kref, struct ehci_qh, kref);
 	struct oxu_hcd *oxu = qh->oxu;
 
-	/* clean qtds first, and know this is not linked */
+	/* clean qtds first, and kyesw this is yest linked */
 	if (!list_empty(&qh->qtd_list) || qh->qh_next.ptr) {
-		oxu_dbg(oxu, "unused qh not empty!\n");
+		oxu_dbg(oxu, "unused qh yest empty!\n");
 		BUG();
 	}
 	if (qh->dummy)
@@ -1078,7 +1078,7 @@ static struct ehci_qh *oxu_qh_alloc(struct oxu_hcd *oxu)
 		/* dummy td enables safe urb queuing */
 		qh->dummy = ehci_qtd_alloc(oxu);
 		if (qh->dummy == NULL) {
-			oxu_dbg(oxu, "no dummy td\n");
+			oxu_dbg(oxu, "yes dummy td\n");
 			oxu->qh_used[i] = 0;
 			qh = NULL;
 			goto unlock;
@@ -1297,7 +1297,7 @@ static void qh_refresh(struct oxu_hcd *oxu, struct ehci_qh *qh)
 static void qtd_copy_status(struct oxu_hcd *oxu, struct urb *urb,
 				size_t length, u32 token)
 {
-	/* count IN/OUT bytes, not SETUP (even short packets) */
+	/* count IN/OUT bytes, yest SETUP (even short packets) */
 	if (likely(QTD_PID(token) != 2))
 		urb->actual_length += length - QTD_LENGTH(token);
 
@@ -1305,7 +1305,7 @@ static void qtd_copy_status(struct oxu_hcd *oxu, struct urb *urb,
 	if (unlikely(urb->status != -EINPROGRESS))
 		return;
 
-	/* force cleanup after short read; not always an error */
+	/* force cleanup after short read; yest always an error */
 	if (unlikely(IS_SHORT_READ(token)))
 		urb->status = -EREMOTEIO;
 
@@ -1332,10 +1332,10 @@ static void qtd_copy_status(struct oxu_hcd *oxu, struct urb *urb,
 					usb_pipein(urb->pipe) ? "in" : "out");
 				urb->status = -EPROTO;
 			}
-		/* CERR nonzero + no errors + halt --> stall */
+		/* CERR yesnzero + yes errors + halt --> stall */
 		} else if (QTD_CERR(token))
 			urb->status = -EPIPE;
-		else	/* unknown */
+		else	/* unkyeswn */
 			urb->status = -EPROTO;
 
 		oxu_vdbg(oxu, "dev%d ep%d%s qtd token %08x --> status %d\n",
@@ -1368,7 +1368,7 @@ __acquires(oxu->lock)
 		urb->status = 0;
 	default:			/* fault */
 		break;
-	case -EREMOTEIO:		/* fault or normal */
+	case -EREMOTEIO:		/* fault or yesrmal */
 		if (!(urb->transfer_flags & URB_SHORT_NOT_OK))
 			urb->status = 0;
 		break;
@@ -1458,7 +1458,7 @@ static unsigned qh_completions(struct oxu_hcd *oxu, struct ehci_qh *qh)
 			last = NULL;
 		}
 
-		/* ignore urbs submitted during completions we reported */
+		/* igyesre urbs submitted during completions we reported */
 		if (qtd == end)
 			break;
 
@@ -1492,7 +1492,7 @@ static unsigned qh_completions(struct oxu_hcd *oxu, struct ehci_qh *qh)
 			if (unlikely(!HC_IS_RUNNING(oxu_to_hcd(oxu)->state)))
 				urb->status = -ESHUTDOWN;
 
-			/* ignore active urbs unless some previous qtd
+			/* igyesre active urbs unless some previous qtd
 			 * for the urb faulted (including short read) or
 			 * its urb was canceled.  we may patch qh or qtds.
 			 */
@@ -1514,7 +1514,7 @@ static unsigned qh_completions(struct oxu_hcd *oxu, struct ehci_qh *qh)
 
 			/* force halt for unlinked or blocked qh, so we'll
 			 * patch the qh later and so that completions can't
-			 * activate it while we "know" it's stopped.
+			 * activate it while we "kyesw" it's stopped.
 			 */
 			if ((HALT_BIT & qh->hw_token) == 0) {
 halt:
@@ -1877,7 +1877,7 @@ static struct ehci_qh *qh_make(struct oxu_hcd *oxu,
 
 		break;
 
-	case USB_SPEED_HIGH:		/* no TT involved */
+	case USB_SPEED_HIGH:		/* yes TT involved */
 		info1 |= (2 << 12);	/* EPS "high" */
 		if (type == PIPE_CONTROL) {
 			info1 |= (EHCI_TUNE_RL_HS << 28);
@@ -1931,7 +1931,7 @@ static void qh_link_async(struct oxu_hcd *oxu, struct ehci_qh *qh)
 			cmd |= CMD_ASE | CMD_RUN;
 			writel(cmd, &oxu->regs->command);
 			oxu_to_hcd(oxu)->state = HC_STATE_RUNNING;
-			/* posted write need not be known to HC yet ... */
+			/* posted write need yest be kyeswn to HC yet ... */
 		}
 	}
 
@@ -2078,7 +2078,7 @@ done:
 	return rc;
 }
 
-/* The async qh for the qtds being reclaimed are now unlinked from the HC */
+/* The async qh for the qtds being reclaimed are yesw unlinked from the HC */
 
 static void end_unlink_async(struct oxu_hcd *oxu)
 {
@@ -2105,7 +2105,7 @@ static void end_unlink_async(struct oxu_hcd *oxu)
 	else {
 		qh_put(qh);		/* refcount from async list */
 
-		/* it's not free to turn the async schedule on/off; leave it
+		/* it's yest free to turn the async schedule on/off; leave it
 		 * active but idle for a while once it empties.
 		 */
 		if (HC_IS_RUNNING(oxu_to_hcd(oxu)->state)
@@ -2133,7 +2133,7 @@ static void start_unlink_async(struct oxu_hcd *oxu, struct ehci_qh *qh)
 				&& qh->qh_state != QH_STATE_UNLINK_WAIT));
 #endif
 
-	/* stop async schedule right now? */
+	/* stop async schedule right yesw? */
 	if (unlikely(qh == oxu->async)) {
 		/* can't get here without STS_ASS set */
 		if (oxu_to_hcd(oxu)->state != HC_STATE_HALT
@@ -2160,7 +2160,7 @@ static void start_unlink_async(struct oxu_hcd *oxu, struct ehci_qh *qh)
 
 	if (unlikely(oxu_to_hcd(oxu)->state == HC_STATE_HALT)) {
 		/* if (unlikely(qh->reclaim != 0))
-		 *	this will recurse, probably not much
+		 *	this will recurse, probably yest much
 		 */
 		end_unlink_async(oxu);
 		return;
@@ -2193,7 +2193,7 @@ rescan:
 				/* unlinks could happen here; completion
 				 * reporting drops the lock.  rescan using
 				 * the latest schedule, but don't rescan
-				 * qhs we already finished (no looping).
+				 * qhs we already finished (yes looping).
 				 */
 				qh = qh_get(qh);
 				qh->stamp = oxu->stamp;
@@ -2205,7 +2205,7 @@ rescan:
 
 			/* unlink idle entries, reducing HC PCI usage as well
 			 * as HCD schedule-scanning costs.  delay for any qh
-			 * we just scanned, there's a not-unusual case that it
+			 * we just scanned, there's a yest-unusual case that it
 			 * doesn't stay idle for long.
 			 * (plus, avoids some kind of re-activation race.)
 			 */
@@ -2325,7 +2325,7 @@ static int disable_periodic(struct oxu_hcd *oxu)
 	u32 cmd;
 	int status;
 
-	/* did setting PSE not take effect yet?
+	/* did setting PSE yest take effect yet?
 	 * takes effect only at frame boundaries...
 	 */
 	status = handshake(oxu, &oxu->regs->status, STS_PSS, STS_PSS, 9 * 125);
@@ -2343,11 +2343,11 @@ static int disable_periodic(struct oxu_hcd *oxu)
 	return 0;
 }
 
-/* periodic schedule slots have iso tds (normal or split) first, then a
+/* periodic schedule slots have iso tds (yesrmal or split) first, then a
  * sparse tree for active interrupt transfers.
  *
  * this just links in a qh; caller guarantees uframe masks are set right.
- * no FSTN support (yet; oxu 0.96+)
+ * yes FSTN support (yet; oxu 0.96+)
  */
 static int qh_link_periodic(struct oxu_hcd *oxu, struct ehci_qh *qh)
 {
@@ -2369,7 +2369,7 @@ static int qh_link_periodic(struct oxu_hcd *oxu, struct ehci_qh *qh)
 		union ehci_shadow	here = *prev;
 		__le32			type = 0;
 
-		/* skip the iso nodes at list head */
+		/* skip the iso yesdes at list head */
 		while (here.ptr) {
 			type = Q_NEXT_TYPE(*hw_p);
 			if (type == Q_TYPE_QH)
@@ -2380,7 +2380,7 @@ static int qh_link_periodic(struct oxu_hcd *oxu, struct ehci_qh *qh)
 		}
 
 		/* sorting each branch by period (slow-->fast)
-		 * enables sharing interior tree nodes
+		 * enables sharing interior tree yesdes
 		 */
 		while (here.ptr && qh != here.qh) {
 			if (qh->period > here.qh->period)
@@ -2424,7 +2424,7 @@ static void qh_unlink_periodic(struct oxu_hcd *oxu, struct ehci_qh *qh)
 	 *   and this qh is active in the current uframe
 	 *   (and overlay token SplitXstate is false?)
 	 * THEN
-	 *   qh->hw_info1 |= cpu_to_le32(1 << 7 "ignore");
+	 *   qh->hw_info1 |= cpu_to_le32(1 << 7 "igyesre");
 	 */
 
 	/* high bandwidth, or otherwise part of every microframe */
@@ -2463,7 +2463,7 @@ static void intr_deschedule(struct oxu_hcd *oxu, struct ehci_qh *qh)
 
 	qh_unlink_periodic(oxu, qh);
 
-	/* simple/paranoid:  always delay, expecting the HC needs to read
+	/* simple/parayesid:  always delay, expecting the HC needs to read
 	 * qh->hw_next or finish a writeback after SPLIT/CSPLIT ... and
 	 * expect hub_wq to clean up after any CSPLITs we won't issue.
 	 * active high speed queues may need bigger delays...
@@ -2498,7 +2498,7 @@ static int check_period(struct oxu_hcd *oxu,
 	 */
 	usecs = 100 - usecs;
 
-	/* we "know" 2 and 4 uframe intervals were rejected; so
+	/* we "kyesw" 2 and 4 uframe intervals were rejected; so
 	 * for period 0, check _every_ microframe in the schedule.
 	 */
 	if (unlikely(period == 0)) {
@@ -2569,10 +2569,10 @@ static int qh_schedule(struct oxu_hcd *oxu, struct ehci_qh *qh)
 	}
 
 	/* else scan the schedule to find a group of slots such that all
-	 * uframes have enough periodic bandwidth available.
+	 * uframes have eyesugh periodic bandwidth available.
 	 */
 	if (status) {
-		/* "normal" case, uframing flexible except with splits */
+		/* "yesrmal" case, uframing flexible except with splits */
 		if (qh->period) {
 			frame = qh->period - 1;
 			do {
@@ -2672,21 +2672,21 @@ static inline int sitd_submit(struct oxu_hcd *oxu, struct urb *urb,
 
 static void scan_periodic(struct oxu_hcd *oxu)
 {
-	unsigned frame, clock, now_uframe, mod;
+	unsigned frame, clock, yesw_uframe, mod;
 	unsigned modified;
 
 	mod = oxu->periodic_size << 3;
 
 	/*
-	 * When running, scan from last scan point up to "now"
+	 * When running, scan from last scan point up to "yesw"
 	 * else clean up by scanning everything that's left.
 	 * Touches as few pages as possible:  cache-friendly.
 	 */
-	now_uframe = oxu->next_uframe;
+	yesw_uframe = oxu->next_uframe;
 	if (HC_IS_RUNNING(oxu_to_hcd(oxu)->state))
 		clock = readl(&oxu->regs->frame_index);
 	else
-		clock = now_uframe + mod - 1;
+		clock = yesw_uframe + mod - 1;
 	clock %= mod;
 
 	for (;;) {
@@ -2694,10 +2694,10 @@ static void scan_periodic(struct oxu_hcd *oxu)
 		__le32			type, *hw_p;
 
 		/* don't scan past the live uframe */
-		frame = now_uframe >> 3;
+		frame = yesw_uframe >> 3;
 		if (frame != (clock >> 3)) {
 			/* safe to scan the whole frame at once */
-			now_uframe |= 0x07;
+			yesw_uframe |= 0x07;
 		}
 
 restart:
@@ -2744,21 +2744,21 @@ restart:
 
 		/* FIXME: likewise assumes HC doesn't halt mid-scan */
 
-		if (now_uframe == clock) {
-			unsigned	now;
+		if (yesw_uframe == clock) {
+			unsigned	yesw;
 
 			if (!HC_IS_RUNNING(oxu_to_hcd(oxu)->state))
 				break;
-			oxu->next_uframe = now_uframe;
-			now = readl(&oxu->regs->frame_index) % mod;
-			if (now_uframe == now)
+			oxu->next_uframe = yesw_uframe;
+			yesw = readl(&oxu->regs->frame_index) % mod;
+			if (yesw_uframe == yesw)
 				break;
 
 			/* rescan the rest of this frame, then ... */
-			clock = now;
+			clock = yesw;
 		} else {
-			now_uframe++;
-			now_uframe %= mod;
+			yesw_uframe++;
+			yesw_uframe %= mod;
 		}
 	}
 }
@@ -2800,7 +2800,7 @@ static void ehci_work(struct oxu_hcd *oxu)
 	if (oxu->reclaim_ready)
 		end_unlink_async(oxu);
 
-	/* another CPU may drop oxu->lock during a schedule scan while
+	/* ayesther CPU may drop oxu->lock during a schedule scan while
 	 * it reports urb completions.  this flag guards against bogus
 	 * attempts at re-entrant schedule scanning.
 	 */
@@ -2841,7 +2841,7 @@ static void unlink_async(struct oxu_hcd *oxu, struct ehci_qh *qh)
 	} else if (!HC_IS_RUNNING(oxu_to_hcd(oxu)->state) && oxu->reclaim)
 		end_unlink_async(oxu);
 
-	/* something else might have unlinked the qh by now */
+	/* something else might have unlinked the qh by yesw */
 	if (qh->qh_state == QH_STATE_LINKED)
 		start_unlink_async(oxu, qh);
 }
@@ -2879,13 +2879,13 @@ static irqreturn_t oxu210_hcd_irq(struct usb_hcd *hcd)
 	bh = 0;
 
 #ifdef OXU_VERBOSE_DEBUG
-	/* unrequested/ignored: Frame List Rollover */
+	/* unrequested/igyesred: Frame List Rollover */
 	dbg_status(oxu, "irq", status);
 #endif
 
 	/* INT, ERR, and IAA interrupt rates can be throttled */
 
-	/* normal [4.15.1.2] or error [4.15.1.1] completion */
+	/* yesrmal [4.15.1.2] or error [4.15.1.1] completion */
 	if (likely((status & (STS_INT|STS_ERR)) != 0))
 		bh = 1;
 
@@ -3148,9 +3148,9 @@ static int oxu_run(struct usb_hcd *hcd)
 
 	/*
 	 * Start, enabling full USB 2.0 functionality ... usb 1.1 devices
-	 * are explicitly handed to companion controller(s), so no TT is
+	 * are explicitly handed to companion controller(s), so yes TT is
 	 * involved with the root hub.  (Except where one is integrated,
-	 * and there's no companion controller unless maybe for USB OTG.)
+	 * and there's yes companion controller unless maybe for USB OTG.)
 	 */
 	hcd->state = HC_STATE_RUNNING;
 	writel(FLAG_CF, &oxu->regs->configured_flag);
@@ -3160,7 +3160,7 @@ static int oxu_run(struct usb_hcd *hcd)
 	oxu_info(oxu, "USB %x.%x started, quasi-EHCI %x.%02x, driver %s%s\n",
 		((oxu->sbrn & 0xf0)>>4), (oxu->sbrn & 0x0f),
 		temp >> 8, temp & 0xff, DRIVER_VERSION,
-		ignore_oc ? ", overcurrent ignored" : "");
+		igyesre_oc ? ", overcurrent igyesred" : "");
 
 	writel(INTR_MASK, &oxu->regs->intr_enable); /* Turn On Interrupts */
 
@@ -3174,7 +3174,7 @@ static void oxu_stop(struct usb_hcd *hcd)
 	/* Turn off port power on all root hub ports. */
 	ehci_port_power(oxu, 0);
 
-	/* no more interrupts ... */
+	/* yes more interrupts ... */
 	del_timer_sync(&oxu->watchdog);
 
 	spin_lock_irq(&oxu->lock);
@@ -3198,7 +3198,7 @@ static void oxu_stop(struct usb_hcd *hcd)
 	dbg_status(oxu, "oxu_stop completed", readl(&oxu->regs->status));
 }
 
-/* Kick in for silicon on any bus (not just pci, etc).
+/* Kick in for silicon on any bus (yest just pci, etc).
  * This forcibly disables dma and IRQs, helping kexec and other cases
  * where the next system software may expect clean state.
  */
@@ -3268,7 +3268,7 @@ static int oxu_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	struct urb *murb;
 	int i, ret;
 
-	/* If not bulk pipe just enqueue the URB */
+	/* If yest bulk pipe just enqueue the URB */
 	if (!usb_pipebulk(urb->pipe))
 		return __oxu_urb_enqueue(hcd, urb, mem_flags);
 
@@ -3308,7 +3308,7 @@ static int oxu_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		((struct oxu_murb *) murb)->last = 0;
 
 		/* This loop is to guarantee urb to be processed when there's
-		 * not enough resources at a particular time by retrying.
+		 * yest eyesugh resources at a particular time by retrying.
 		 */
 		do {
 			ret  = __oxu_urb_enqueue(hcd, murb, mem_flags);
@@ -3348,7 +3348,7 @@ static int oxu_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 }
 
 /* Remove from hardware lists.
- * Completions normally happen asynchronously
+ * Completions yesrmally happen asynchroyesusly
  */
 static int oxu_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
@@ -3384,7 +3384,7 @@ static int oxu_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			goto done;
 		}
 
-		/* reschedule QH iff another request is queued */
+		/* reschedule QH iff ayesther request is queued */
 		if (!list_empty(&qh->qtd_list)
 				&& HC_IS_RUNNING(hcd->state)) {
 			int status;
@@ -3418,7 +3418,7 @@ static void oxu_endpoint_disable(struct usb_hcd *hcd,
 	struct ehci_qh		*qh, *tmp;
 
 	/* ASSERT:  any requests/urbs are being unlinked */
-	/* ASSERT:  nobody can be submitting urbs for this any more */
+	/* ASSERT:  yesbody can be submitting urbs for this any more */
 
 rescan:
 	spin_lock_irqsave(&oxu->lock, flags);
@@ -3426,7 +3426,7 @@ rescan:
 	if (!qh)
 		goto done;
 
-	/* endpoints can be iso streams.  for now, we don't
+	/* endpoints can be iso streams.  for yesw, we don't
 	 * accelerate iso completions ... so spin a while.
 	 */
 	if (qh->hw_info1 == 0) {
@@ -3444,7 +3444,7 @@ rescan:
 			continue;
 		/* periodic qh self-unlinks on empty */
 		if (!tmp)
-			goto nogood;
+			goto yesgood;
 		unlink_async(oxu, qh);
 		/* FALL THROUGH */
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
@@ -3459,9 +3459,9 @@ idle_timeout:
 		}
 		/* fall through */
 	default:
-nogood:
+yesgood:
 		/* caller was supposed to have unlinked any requests;
-		 * that's not our job.  just leak this memory.
+		 * that's yest our job.  just leak this memory.
 		 */
 		oxu_err(oxu, "qh %p (#%02x) state %d%s\n",
 			qh, ep->desc.bEndpointAddress, qh->qh_state,
@@ -3493,7 +3493,7 @@ static int oxu_hub_status_data(struct usb_hcd *hcd, char *buf)
 	if (!HC_IS_RUNNING(hcd->state))
 		return 0;
 
-	/* init status to no-changes */
+	/* init status to yes-changes */
 	buf[0] = 0;
 	ports = HCS_N_PORTS(oxu->hcs_params);
 	if (ports > 7) {
@@ -3502,17 +3502,17 @@ static int oxu_hub_status_data(struct usb_hcd *hcd, char *buf)
 	}
 
 	/* Some boards (mostly VIA?) report bogus overcurrent indications,
-	 * causing massive log spam unless we completely ignore them.  It
+	 * causing massive log spam unless we completely igyesre them.  It
 	 * may be relevant that VIA VT8235 controllers, where PORT_POWER is
 	 * always set, seem to clear PORT_OCC and PORT_CSC when writing to
 	 * PORT_POWER; that's surprising, but maybe within-spec.
 	 */
-	if (!ignore_oc)
+	if (!igyesre_oc)
 		mask = PORT_CSC | PORT_PEC | PORT_OCC;
 	else
 		mask = PORT_CSC | PORT_PEC;
 
-	/* no hub change reports (bit 0) for now (power, ...) */
+	/* yes hub change reports (bit 0) for yesw (power, ...) */
 
 	/* port N changes (bit N)? */
 	spin_lock_irqsave(&oxu->lock, flags);
@@ -3572,7 +3572,7 @@ static int oxu_hub_control(struct usb_hcd *hcd, u16 typeReq,
 	/*
 	 * FIXME:  support SetPortFeatures USB_PORT_FEAT_INDICATOR.
 	 * HCS_INDICATOR may say we can change LEDs to off/amber/green.
-	 * (track current state ourselves) ... blink for diagnostics,
+	 * (track current state ourselves) ... blink for diagyesstics,
 	 * power, "this is the one", etc.  EHCI spec supports this.
 	 */
 
@@ -3582,7 +3582,7 @@ static int oxu_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		switch (wValue) {
 		case C_HUB_LOCAL_POWER:
 		case C_HUB_OVER_CURRENT:
-			/* no hub-wide feature/status flags */
+			/* yes hub-wide feature/status flags */
 			break;
 		default:
 			goto error;
@@ -3648,7 +3648,7 @@ static int oxu_hub_control(struct usb_hcd *hcd, u16 typeReq,
 			buf);
 		break;
 	case GetHubStatus:
-		/* no hub-wide feature/status flags */
+		/* yes hub-wide feature/status flags */
 		memset(buf, 0, 4);
 		break;
 	case GetPortStatus:
@@ -3663,7 +3663,7 @@ static int oxu_hub_control(struct usb_hcd *hcd, u16 typeReq,
 			status |= USB_PORT_STAT_C_CONNECTION << 16;
 		if (temp & PORT_PEC)
 			status |= USB_PORT_STAT_C_ENABLE << 16;
-		if ((temp & PORT_OCC) && !ignore_oc)
+		if ((temp & PORT_OCC) && !igyesre_oc)
 			status |= USB_PORT_STAT_C_OVERCURRENT << 16;
 
 		/* whoever resumes must GetPortStatus to complete it!! */
@@ -3738,7 +3738,7 @@ static int oxu_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		}
 
 		/*
-		 * Even if OWNER is set, there's no harm letting hub_wq
+		 * Even if OWNER is set, there's yes harm letting hub_wq
 		 * see the wPortStatus values (they should all be 0 except
 		 * for PORT_POWER anyway).
 		 */
@@ -3769,7 +3769,7 @@ static int oxu_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		switch (wValue) {
 		case C_HUB_LOCAL_POWER:
 		case C_HUB_OVER_CURRENT:
-			/* no hub-wide feature/status flags */
+			/* yes hub-wide feature/status flags */
 			break;
 		default:
 			goto error;
@@ -3821,7 +3821,7 @@ static int oxu_hub_control(struct usb_hcd *hcd, u16 typeReq,
 
 		/* For downstream facing ports (these):  one hub port is put
 		 * into test mode according to USB2 11.24.2.13, then the hub
-		 * must be reset (which for root hub now means rmmod+modprobe,
+		 * must be reset (which for root hub yesw means rmmod+modprobe,
 		 * or else system reboot).  See EHCI 2.3.9 and 4.14 for info
 		 * about the EHCI-specific stuff.
 		 */
@@ -3876,7 +3876,7 @@ static int oxu_bus_suspend(struct usb_hcd *hcd)
 	ehci_work(oxu);
 
 	/* Unlike other USB host controller types, EHCI doesn't have
-	 * any notion of "global" or bus-wide suspend.  The driver has
+	 * any yestion of "global" or bus-wide suspend.  The driver has
 	 * to manually suspend all the active unsuspended ports, and
 	 * then manually resume them in the bus_resume() routine.
 	 */
@@ -3906,7 +3906,7 @@ static int oxu_bus_suspend(struct usb_hcd *hcd)
 		}
 	}
 
-	/* turn off now-idle HC */
+	/* turn off yesw-idle HC */
 	del_timer_sync(&oxu->watchdog);
 	ehci_halt(oxu);
 	hcd->state = HC_STATE_SUSPENDED;
@@ -3934,10 +3934,10 @@ static int oxu_bus_resume(struct usb_hcd *hcd)
 		msleep(5);
 	spin_lock_irq(&oxu->lock);
 
-	/* Ideally and we've got a real resume here, and no port's power
+	/* Ideally and we've got a real resume here, and yes port's power
 	 * was lost.  (For PCI, that means Vaux was maintained.)  But we
 	 * could instead be restoring a swsusp snapshot -- so that BIOS was
-	 * the last user of the controller, not reset/pm hardware keeping
+	 * the last user of the controller, yest reset/pm hardware keeping
 	 * state we gave to it.
 	 */
 	temp = readl(&oxu->regs->intr_enable);
@@ -4169,14 +4169,14 @@ static int oxu_init(struct platform_device *pdev,
 
 	ret = oxu_verify_id(pdev, base);
 	if (ret) {
-		dev_err(&pdev->dev, "no devices found!\n");
+		dev_err(&pdev->dev, "yes devices found!\n");
 		return -ENODEV;
 	}
 
 	/* Create the OTG controller */
 	hcd = oxu_create(pdev, memstart, memlen, base, irq, 1);
 	if (IS_ERR(hcd)) {
-		dev_err(&pdev->dev, "cannot create OTG controller!\n");
+		dev_err(&pdev->dev, "canyest create OTG controller!\n");
 		ret = PTR_ERR(hcd);
 		goto error_create_otg;
 	}
@@ -4185,7 +4185,7 @@ static int oxu_init(struct platform_device *pdev,
 	/* Create the SPH host controller */
 	hcd = oxu_create(pdev, memstart, memlen, base, irq, 0);
 	if (IS_ERR(hcd)) {
-		dev_err(&pdev->dev, "cannot create SPH controller!\n");
+		dev_err(&pdev->dev, "canyest create SPH controller!\n");
 		ret = PTR_ERR(hcd);
 		goto error_create_sph;
 	}
@@ -4221,7 +4221,7 @@ static int oxu_drv_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(&pdev->dev,
-			"no IRQ! Check %s setup!\n", dev_name(&pdev->dev));
+			"yes IRQ! Check %s setup!\n", dev_name(&pdev->dev));
 		return -ENODEV;
 	}
 	irq = res->start;
@@ -4255,7 +4255,7 @@ static int oxu_drv_probe(struct platform_device *pdev)
 
 	ret = oxu_init(pdev, memstart, memlen, base, irq);
 	if (ret < 0) {
-		dev_dbg(&pdev->dev, "cannot init USB devices\n");
+		dev_dbg(&pdev->dev, "canyest init USB devices\n");
 		goto error;
 	}
 

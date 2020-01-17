@@ -213,7 +213,7 @@ static struct tb_property_dir *__tb_property_parse_dir(const u32 *block,
  * can be traversed using the helper functions provided by this module.
  * Upon success returns the parsed directory. In case of error returns
  * %NULL. The resulting &struct tb_property_dir needs to be released by
- * calling tb_property_free_dir() when not needed anymore.
+ * calling tb_property_free_dir() when yest needed anymore.
  *
  * The @block is expected to be root directory.
  */
@@ -288,7 +288,7 @@ static void tb_property_free(struct tb_property *property)
  *
  * This will release all the memory the directory occupies including all
  * descendants. It is OK to pass %NULL @dir, then the function does
- * nothing.
+ * yesthing.
  */
 void tb_property_free_dir(struct tb_property_dir *dir)
 {
@@ -482,7 +482,7 @@ static ssize_t __tb_property_format_dir(const struct tb_property_dir *dir,
  *
  * This function formats the directory to the packed format that can be
  * then send over the thunderbolt fabric to receiving host. Returns %0 in
- * case of success and negative errno on faulure. Passing %NULL in @block
+ * case of success and negative erryes on faulure. Passing %NULL in @block
  * returns number of entries the block takes.
  */
 ssize_t tb_property_format_dir(const struct tb_property_dir *dir, u32 *block,
@@ -629,7 +629,7 @@ EXPORT_SYMBOL_GPL(tb_property_add_dir);
  * tb_property_remove() - Removes property from a parent directory
  * @property: Property to remove
  *
- * Note memory for @property is released as well so it is not allowed to
+ * Note memory for @property is released as well so it is yest allowed to
  * touch the object after call to this function.
  */
 void tb_property_remove(struct tb_property *property)
@@ -645,8 +645,8 @@ EXPORT_SYMBOL_GPL(tb_property_remove);
  * @key: Key to look for
  * @type: Type of the property
  *
- * Finds and returns property from the given directory. Does not recurse
- * into sub-directories. Returns %NULL if the property was not found.
+ * Finds and returns property from the given directory. Does yest recurse
+ * into sub-directories. Returns %NULL if the property was yest found.
  */
 struct tb_property *tb_property_find(struct tb_property_dir *dir,
 	const char *key, enum tb_property_type type)

@@ -14,14 +14,14 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      yestice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright yestice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. yesr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
@@ -62,7 +62,7 @@ enum {
 };
 
 /*
- * Smallest RPC/RDMA header: rm_xid through rm_type, then rm_nochunks
+ * Smallest RPC/RDMA header: rm_xid through rm_type, then rm_yeschunks
  */
 #define RPCRDMA_HDRLEN_MIN	(sizeof(__be32) * 7)
 #define RPCRDMA_HDRLEN_ERR	(sizeof(__be32) * 5)
@@ -81,7 +81,7 @@ enum rpcrdma_proc {
 };
 
 #define rdma_msg	cpu_to_be32(RDMA_MSG)
-#define rdma_nomsg	cpu_to_be32(RDMA_NOMSG)
+#define rdma_yesmsg	cpu_to_be32(RDMA_NOMSG)
 #define rdma_msgp	cpu_to_be32(RDMA_MSGP)
 #define rdma_done	cpu_to_be32(RDMA_DONE)
 #define rdma_error	cpu_to_be32(RDMA_ERROR)

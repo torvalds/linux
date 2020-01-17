@@ -164,7 +164,7 @@ static void artpec6_pcie_wait_for_phy_a6(struct artpec6_pcie *artpec6_pcie)
 	} while (retries &&
 		(val & (NOCCFG_POWER_PCIE_IDLEACK | NOCCFG_POWER_PCIE_IDLE)));
 	if (!retries)
-		dev_err(dev, "PCIe clock manager did not leave idle state\n");
+		dev_err(dev, "PCIe clock manager did yest leave idle state\n");
 
 	retries = 50;
 	do {
@@ -173,7 +173,7 @@ static void artpec6_pcie_wait_for_phy_a6(struct artpec6_pcie *artpec6_pcie)
 		retries--;
 	} while (retries && !(val & PHY_COSPLLLOCK));
 	if (!retries)
-		dev_err(dev, "PHY PLL did not lock\n");
+		dev_err(dev, "PHY PLL did yest lock\n");
 }
 
 static void artpec6_pcie_wait_for_phy_a7(struct artpec6_pcie *artpec6_pcie)
@@ -192,7 +192,7 @@ static void artpec6_pcie_wait_for_phy_a7(struct artpec6_pcie *artpec6_pcie)
 	} while (retries &&
 		(val & (NOCCFG_POWER_PCIE_IDLEACK | NOCCFG_POWER_PCIE_IDLE)));
 	if (!retries)
-		dev_err(dev, "PCIe clock manager did not leave idle state\n");
+		dev_err(dev, "PCIe clock manager did yest leave idle state\n");
 
 	retries = 50;
 	do {
@@ -203,7 +203,7 @@ static void artpec6_pcie_wait_for_phy_a7(struct artpec6_pcie *artpec6_pcie)
 	} while (retries && ((phy_status_tx & PHY_TX_ASIC_OUT_TX_ACK) ||
 				(phy_status_rx & PHY_RX_ASIC_OUT_ACK)));
 	if (!retries)
-		dev_err(dev, "PHY did not enter Pn state\n");
+		dev_err(dev, "PHY did yest enter Pn state\n");
 }
 
 static void artpec6_pcie_wait_for_phy(struct artpec6_pcie *artpec6_pcie)
@@ -414,7 +414,7 @@ static void artpec6_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pci);
-	enum pci_barno bar;
+	enum pci_baryes bar;
 
 	artpec6_pcie_assert_core_reset(artpec6_pcie);
 	artpec6_pcie_init_phy(artpec6_pcie);
@@ -426,17 +426,17 @@ static void artpec6_pcie_ep_init(struct dw_pcie_ep *ep)
 		dw_pcie_ep_reset_bar(pci, bar);
 }
 
-static int artpec6_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int artpec6_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_yes,
 				  enum pci_epc_irq_type type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
 	switch (type) {
 	case PCI_EPC_IRQ_LEGACY:
-		dev_err(pci->dev, "EP cannot trigger legacy IRQs\n");
+		dev_err(pci->dev, "EP canyest trigger legacy IRQs\n");
 		return -EINVAL;
 	case PCI_EPC_IRQ_MSI:
-		return dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
+		return dw_pcie_ep_raise_msi_irq(ep, func_yes, interrupt_num);
 	default:
 		dev_err(pci->dev, "UNKNOWN IRQ type\n");
 	}
@@ -529,7 +529,7 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 		return PTR_ERR(artpec6_pcie->phy_base);
 
 	artpec6_pcie->regmap =
-		syscon_regmap_lookup_by_phandle(dev->of_node,
+		syscon_regmap_lookup_by_phandle(dev->of_yesde,
 						"axis,syscon-pcie");
 	if (IS_ERR(artpec6_pcie->regmap))
 		return PTR_ERR(artpec6_pcie->regmap);

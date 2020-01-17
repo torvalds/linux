@@ -112,12 +112,12 @@ static const u16 srcr[] = {
  * @dev: CPG/MSSR device
  * @base: CPG/MSSR register block base address
  * @rmw_lock: protects RMW register accesses
- * @np: Device node in DT for this CPG/MSSR module
+ * @np: Device yesde in DT for this CPG/MSSR module
  * @num_core_clks: Number of Core Clocks in clks[]
  * @num_mod_clks: Number of Module Clocks in clks[]
  * @last_dt_core_clk: ID of the last Core Clock exported to DT
  * @stbyctrl: This device has Standby Control Registers
- * @notifiers: Notifier chain to save/restore clock state for system resume
+ * @yestifiers: Notifier chain to save/restore clock state for system resume
  * @smstpcr_saved[].mask: Mask of SMSTPCR[] bits under our control
  * @smstpcr_saved[].val: Saved values of SMSTPCR[]
  * @clks: Array containing all Core and Module Clocks
@@ -129,14 +129,14 @@ struct cpg_mssr_priv {
 	struct device *dev;
 	void __iomem *base;
 	spinlock_t rmw_lock;
-	struct device_node *np;
+	struct device_yesde *np;
 
 	unsigned int num_core_clks;
 	unsigned int num_mod_clks;
 	unsigned int last_dt_core_clk;
 	bool stbyctrl;
 
-	struct raw_notifier_head notifiers;
+	struct raw_yestifier_head yestifiers;
 	struct {
 		u32 mask;
 		u32 val;
@@ -293,7 +293,7 @@ struct clk *cpg_mssr_clk_src_twocell_get(struct of_phandle_args *clkspec,
 	}
 
 	if (IS_ERR(clk))
-		dev_err(dev, "Cannot get %s clock %u: %ld", type, clkidx,
+		dev_err(dev, "Canyest get %s clock %u: %ld", type, clkidx,
 		       PTR_ERR(clk));
 	else
 		dev_dbg(dev, "clock (%u, %u) is %pC at %lu Hz\n",
@@ -343,7 +343,7 @@ static void __init cpg_mssr_register_core_clk(const struct cpg_core_clk *core,
 		if (core->type == CLK_TYPE_DIV6P1) {
 			clk = cpg_div6_register(core->name, 1, &parent_name,
 						priv->base + core->offset,
-						&priv->notifiers);
+						&priv->yestifiers);
 		} else {
 			clk = clk_register_fixed_factor(NULL, core->name,
 							parent_name, 0,
@@ -360,7 +360,7 @@ static void __init cpg_mssr_register_core_clk(const struct cpg_core_clk *core,
 		if (info->cpg_clk_register)
 			clk = info->cpg_clk_register(dev, core, info,
 						     priv->clks, priv->base,
-						     &priv->notifiers);
+						     &priv->yestifiers);
 		else
 			dev_err(dev, "%s has unsupported core clock type %u\n",
 				core->name, core->type);
@@ -460,7 +460,7 @@ static bool cpg_mssr_is_pm_clk(const struct of_phandle_args *clkspec,
 {
 	unsigned int i;
 
-	if (clkspec->np != pd->genpd.dev.of_node || clkspec->args_count != 2)
+	if (clkspec->np != pd->genpd.dev.of_yesde || clkspec->args_count != 2)
 		return false;
 
 	switch (clkspec->args[0]) {
@@ -481,14 +481,14 @@ static bool cpg_mssr_is_pm_clk(const struct of_phandle_args *clkspec,
 int cpg_mssr_attach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
 	struct cpg_mssr_clk_domain *pd = cpg_mssr_clk_domain;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct of_phandle_args clkspec;
 	struct clk *clk;
 	int i = 0;
 	int error;
 
 	if (!pd) {
-		dev_dbg(dev, "CPG/MSSR clock domain not yet available\n");
+		dev_dbg(dev, "CPG/MSSR clock domain yest yet available\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -497,7 +497,7 @@ int cpg_mssr_attach_dev(struct generic_pm_domain *unused, struct device *dev)
 		if (cpg_mssr_is_pm_clk(&clkspec, pd))
 			goto found;
 
-		of_node_put(clkspec.np);
+		of_yesde_put(clkspec.np);
 		i++;
 	}
 
@@ -505,7 +505,7 @@ int cpg_mssr_attach_dev(struct generic_pm_domain *unused, struct device *dev)
 
 found:
 	clk = of_clk_get_from_provider(&clkspec);
-	of_node_put(clkspec.np);
+	of_yesde_put(clkspec.np);
 
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
@@ -529,7 +529,7 @@ fail_put:
 
 void cpg_mssr_detach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
-	if (!pm_clk_no_clocks(dev))
+	if (!pm_clk_yes_clocks(dev))
 		pm_clk_destroy(dev);
 }
 
@@ -537,7 +537,7 @@ static int __init cpg_mssr_add_clk_domain(struct device *dev,
 					  const unsigned int *core_pm_clks,
 					  unsigned int num_core_pm_clks)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct generic_pm_domain *genpd;
 	struct cpg_mssr_clk_domain *pd;
 	size_t pm_size = num_core_pm_clks * sizeof(core_pm_clks[0]);
@@ -651,7 +651,7 @@ static int cpg_mssr_reset_xlate(struct reset_controller_dev *rcdev,
 static int cpg_mssr_reset_controller_register(struct cpg_mssr_priv *priv)
 {
 	priv->rcdev.ops = &cpg_mssr_reset_ops;
-	priv->rcdev.of_node = priv->dev->of_node;
+	priv->rcdev.of_yesde = priv->dev->of_yesde;
 	priv->rcdev.of_reset_n_cells = 1;
 	priv->rcdev.of_xlate = cpg_mssr_reset_xlate;
 	priv->rcdev.nr_resets = priv->num_mod_clks;
@@ -800,7 +800,7 @@ static void cpg_mssr_del_clk_provider(void *data)
 }
 
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_ARM_PSCI_FW)
-static int cpg_mssr_suspend_noirq(struct device *dev)
+static int cpg_mssr_suspend_yesirq(struct device *dev)
 {
 	struct cpg_mssr_priv *priv = dev_get_drvdata(dev);
 	unsigned int reg;
@@ -817,12 +817,12 @@ static int cpg_mssr_suspend_noirq(struct device *dev)
 	}
 
 	/* Save core clocks */
-	raw_notifier_call_chain(&priv->notifiers, PM_EVENT_SUSPEND, NULL);
+	raw_yestifier_call_chain(&priv->yestifiers, PM_EVENT_SUSPEND, NULL);
 
 	return 0;
 }
 
-static int cpg_mssr_resume_noirq(struct device *dev)
+static int cpg_mssr_resume_yesirq(struct device *dev)
 {
 	struct cpg_mssr_priv *priv = dev_get_drvdata(dev);
 	unsigned int reg, i;
@@ -833,7 +833,7 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 		return 0;
 
 	/* Restore core clocks */
-	raw_notifier_call_chain(&priv->notifiers, PM_EVENT_RESUME, NULL);
+	raw_yestifier_call_chain(&priv->yestifiers, PM_EVENT_RESUME, NULL);
 
 	/* Restore module clocks */
 	for (reg = 0; reg < ARRAY_SIZE(priv->smstpcr_saved); reg++) {
@@ -880,8 +880,8 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops cpg_mssr_pm = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(cpg_mssr_suspend_noirq,
-				      cpg_mssr_resume_noirq)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(cpg_mssr_suspend_yesirq,
+				      cpg_mssr_resume_yesirq)
 };
 #define DEV_PM_OPS	&cpg_mssr_pm
 #else
@@ -889,7 +889,7 @@ static const struct dev_pm_ops cpg_mssr_pm = {
 #endif /* CONFIG_PM_SLEEP && CONFIG_ARM_PSCI_FW */
 
 static int __init cpg_mssr_common_init(struct device *dev,
-				       struct device_node *np,
+				       struct device_yesde *np,
 				       const struct cpg_mssr_info *info)
 {
 	struct cpg_mssr_priv *priv;
@@ -921,7 +921,7 @@ static int __init cpg_mssr_common_init(struct device *dev,
 	priv->num_core_clks = info->num_total_core_clks;
 	priv->num_mod_clks = info->num_hw_mod_clks;
 	priv->last_dt_core_clk = info->last_dt_core_clk;
-	RAW_INIT_NOTIFIER_HEAD(&priv->notifiers);
+	RAW_INIT_NOTIFIER_HEAD(&priv->yestifiers);
 	priv->stbyctrl = info->stbyctrl;
 
 	for (i = 0; i < nclks; i++)
@@ -941,7 +941,7 @@ out_err:
 	return error;
 }
 
-void __init cpg_mssr_early_init(struct device_node *np,
+void __init cpg_mssr_early_init(struct device_yesde *np,
 				const struct cpg_mssr_info *info)
 {
 	int error;
@@ -964,7 +964,7 @@ void __init cpg_mssr_early_init(struct device_node *np,
 static int __init cpg_mssr_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const struct cpg_mssr_info *info;
 	struct cpg_mssr_priv *priv;
 	unsigned int i;
@@ -973,7 +973,7 @@ static int __init cpg_mssr_probe(struct platform_device *pdev)
 	info = of_device_get_match_data(dev);
 
 	if (!cpg_mssr_priv) {
-		error = cpg_mssr_common_init(dev, dev->of_node, info);
+		error = cpg_mssr_common_init(dev, dev->of_yesde, info);
 		if (error)
 			return error;
 	}
@@ -999,7 +999,7 @@ static int __init cpg_mssr_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	/* Reset Controller not supported for Standby Control SoCs */
+	/* Reset Controller yest supported for Standby Control SoCs */
 	if (info->stbyctrl)
 		return 0;
 

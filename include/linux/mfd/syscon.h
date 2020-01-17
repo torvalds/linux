@@ -12,24 +12,24 @@
 #define __LINUX_MFD_SYSCON_H__
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
-struct device_node;
+struct device_yesde;
 
 #ifdef CONFIG_MFD_SYSCON
-extern struct regmap *device_node_to_regmap(struct device_node *np);
-extern struct regmap *syscon_node_to_regmap(struct device_node *np);
+extern struct regmap *device_yesde_to_regmap(struct device_yesde *np);
+extern struct regmap *syscon_yesde_to_regmap(struct device_yesde *np);
 extern struct regmap *syscon_regmap_lookup_by_compatible(const char *s);
 extern struct regmap *syscon_regmap_lookup_by_phandle(
-					struct device_node *np,
+					struct device_yesde *np,
 					const char *property);
 #else
-static inline struct regmap *device_node_to_regmap(struct device_node *np)
+static inline struct regmap *device_yesde_to_regmap(struct device_yesde *np)
 {
 	return ERR_PTR(-ENOTSUPP);
 }
 
-static inline struct regmap *syscon_node_to_regmap(struct device_node *np)
+static inline struct regmap *syscon_yesde_to_regmap(struct device_yesde *np)
 {
 	return ERR_PTR(-ENOTSUPP);
 }
@@ -40,7 +40,7 @@ static inline struct regmap *syscon_regmap_lookup_by_compatible(const char *s)
 }
 
 static inline struct regmap *syscon_regmap_lookup_by_phandle(
-					struct device_node *np,
+					struct device_yesde *np,
 					const char *property)
 {
 	return ERR_PTR(-ENOTSUPP);

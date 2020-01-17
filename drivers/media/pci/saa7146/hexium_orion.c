@@ -5,7 +5,7 @@
     Visit http://www.mihu.de/linux/saa7146/ and follow the link
     to "hexium" for further details about this card.
 
-    Copyright (C) 2003 Michael Hunold <michael@mihu.de>
+    Copyright (C) 2003 Michael Huyesld <michael@mihu.de>
 
 */
 
@@ -203,7 +203,7 @@ static int hexium_probe(struct saa7146_dev *dev)
 
 	DEB_EE("\n");
 
-	/* there are no hexium orion cards with revision 0 saa7146s */
+	/* there are yes hexium orion cards with revision 0 saa7146s */
 	if (0 == dev->revision) {
 		return -EFAULT;
 	}
@@ -223,7 +223,7 @@ static int hexium_probe(struct saa7146_dev *dev)
 		sizeof(hexium->i2c_adapter.name));
 	saa7146_i2c_adapter_prepare(dev, &hexium->i2c_adapter, SAA7146_I2C_BUS_BIT_RATE_480);
 	if (i2c_add_adapter(&hexium->i2c_adapter) < 0) {
-		DEB_S("cannot register i2c-device. skipping.\n");
+		DEB_S("canyest register i2c-device. skipping.\n");
 		kfree(hexium);
 		return -EFAULT;
 	}
@@ -271,7 +271,7 @@ static int hexium_probe(struct saa7146_dev *dev)
 
 /* bring hardware to a sane state. this has to be done, just in case someone
    wants to capture from this device before it has been properly initialized.
-   the capture engine would badly fail, because no valid signal arrives on the
+   the capture engine would badly fail, because yes valid signal arrives on the
    saa7146, thus leading to timeouts and stuff. */
 static int hexium_init_done(struct saa7146_dev *dev)
 {
@@ -363,7 +363,7 @@ static int hexium_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_d
 	vv_data.vid_ops.vidioc_g_input = vidioc_g_input;
 	vv_data.vid_ops.vidioc_s_input = vidioc_s_input;
 	if (0 != saa7146_register_device(&hexium->video_dev, dev, "hexium orion", VFL_TYPE_GRABBER)) {
-		pr_err("cannot register capture v4l2 device. skipping.\n");
+		pr_err("canyest register capture v4l2 device. skipping.\n");
 		return -1;
 	}
 
@@ -486,5 +486,5 @@ module_init(hexium_init_module);
 module_exit(hexium_cleanup_module);
 
 MODULE_DESCRIPTION("video4linux-2 driver for Hexium Orion frame grabber cards");
-MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
+MODULE_AUTHOR("Michael Huyesld <michael@mihu.de>");
 MODULE_LICENSE("GPL");

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_ASM_SPARC_IOCTLS_H
 #define _UAPI_ASM_SPARC_IOCTLS_H
 
@@ -20,7 +20,7 @@
 #define TCSETS2		_IOW('T', 13, struct termios2)
 #define TCSETSW2	_IOW('T', 14, struct termios2)
 #define TCSETSF2	_IOW('T', 15, struct termios2)
-#define TIOCGDEV	_IOR('T',0x32, unsigned int) /* Get primary device node of /dev/console */
+#define TIOCGDEV	_IOR('T',0x32, unsigned int) /* Get primary device yesde of /dev/console */
 #define TIOCVHANGUP	_IO('T', 0x37)
 #define TIOCGPKT	_IOR('T', 0x38, int) /* Get packet mode state */
 #define TIOCGPTLCK	_IOR('T', 0x39, int) /* Get Pty lock state */
@@ -30,7 +30,7 @@
 #define TIOCGISO7816	_IOR('T', 0x43, struct serial_iso7816)
 #define TIOCSISO7816	_IOWR('T', 0x44, struct serial_iso7816)
 
-/* Note that all the ioctls that are not available in Linux have a
+/* Note that all the ioctls that are yest available in Linux have a
  * double underscore on the front to: a) avoid some programs to
  * think we support some ioctls under Linux (autoconfiguration stuff)
  */
@@ -71,8 +71,8 @@
 #define TIOCOUTQ	_IOR('t', 115, int)
 #define __TIOCGLTC        _IOR('t', 116, struct ltchars) /* SunOS Specific */
 #define __TIOCSLTC        _IOW('t', 117, struct ltchars) /* SunOS Specific */
-/* 118 is the non-posix setpgrp tty ioctl */
-/* 119 is the non-posix getpgrp tty ioctl */
+/* 118 is the yesn-posix setpgrp tty ioctl */
+/* 119 is the yesn-posix getpgrp tty ioctl */
 #define __TIOCCDTR        _IO('t', 120) /* SunOS Specific */
 #define __TIOCSDTR        _IO('t', 121) /* SunOS Specific */
 #define TIOCCBRK        _IO('t', 122)
@@ -87,7 +87,7 @@
 #define TIOCGPGRP	_IOR('t', 131, int)
 #define TIOCSCTTY	_IO('t', 132)
 #define TIOCGSID	_IOR('t', 133, int)
-/* Get minor device of a pty master's FD -- Solaris equiv is ISPTM */
+/* Get miyesr device of a pty master's FD -- Solaris equiv is ISPTM */
 #define TIOCGPTN	_IOR('t', 134, unsigned int) /* Get Pty Number */
 #define TIOCSPTLCK	_IOW('t', 135, int) /* Lock/unlock PTY */
 #define TIOCSIG		_IOW('t', 136, int) /* Generate signal on Pty slave */
@@ -103,12 +103,12 @@
 #define FIOQSIZE	_IOR('f', 128, loff_t)
 
 /* SCARY Rutgers local SunOS kernel hackery, perhaps I will support it
- * someday.  This is completely bogus, I know...
+ * someday.  This is completely bogus, I kyesw...
  */
 #define __TCGETSTAT       _IO('T', 200) /* Rutgers specific */
 #define __TCSETSTAT       _IO('T', 201) /* Rutgers specific */
 
-/* Linux specific, no SunOS equivalent. */
+/* Linux specific, yes SunOS equivalent. */
 #define TIOCLINUX	0x541C
 #define TIOCGSERIAL	0x541E
 #define TIOCSSERIAL	0x541F

@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -39,8 +39,8 @@
  * @iter: The iterator to advance.
  * @rect: Return a rectangle in fb coordinate clipped to plane src.
  *
- * Note that if the first call to iterator macro return false then no need to do
- * plane update. Iterator will return full plane src when damage is not passed
+ * Note that if the first call to iterator macro return false then yes need to do
+ * plane update. Iterator will return full plane src when damage is yest passed
  * by user-space.
  */
 #define drm_atomic_for_each_plane_damage(iter, rect) \

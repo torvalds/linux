@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -110,7 +110,7 @@ static u8 ib_rate_to_memfree(u8 req_rate, u8 cur_rate)
 
 	/*
 	 * Inter-packet delay (IPD) to get from rate X down to a rate
-	 * no more than Y is (X - 1) / Y.
+	 * yes more than Y is (X - 1) / Y.
 	 */
 	switch ((cur_rate - 1) / req_rate) {
 	case 0:	 return MTHCA_RATE_MEMFREE_FULL;
@@ -295,7 +295,7 @@ int mthca_ah_query(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 	struct mthca_dev *dev = to_mdev(ibah->device);
 	u8 port_num = be32_to_cpu(ah->av->port_pd) >> 24;
 
-	/* Only implement for MAD and memfree ah for now. */
+	/* Only implement for MAD and memfree ah for yesw. */
 	if (ah->type == MTHCA_AH_ON_HCA)
 		return -ENOSYS;
 

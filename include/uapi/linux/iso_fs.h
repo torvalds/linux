@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _ISOFS_FS_H
 #define _ISOFS_FS_H
 
@@ -131,7 +131,7 @@ struct hs_primary_descriptor {
 	__u8 root_directory_record	[ISODCL (181, 214)]; /* 9.1 */
 };
 
-/* We use this to help us look up the parent inode numbers. */
+/* We use this to help us look up the parent iyesde numbers. */
 
 struct iso_path_table{
 	__u8  name_len[2];	/* 721 */

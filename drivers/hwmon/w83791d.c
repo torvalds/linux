@@ -10,7 +10,7 @@
  * Supports following chips:
  *
  * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
- * w83791d	10	5	5	3	0x71	0x5ca3	yes	no
+ * w83791d	10	5	5	3	0x71	0x5ca3	no	yes
  *
  * The w83791d chip appears to be part way between the 83781d and the
  * 83792d. Thus, this file is derived from both the w83792d.c and
@@ -36,7 +36,7 @@
 #define NUMBER_OF_PWM		5
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 						I2C_CLIENT_END };
 
 /* Insmod parameters */
@@ -346,7 +346,7 @@ static struct i2c_driver w83791d_driver = {
 	.remove		= w83791d_remove,
 	.id_table	= w83791d_id,
 	.detect		= w83791d_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 /* following are the sysfs callback functions */
@@ -1159,7 +1159,7 @@ static ssize_t vrm_store(struct device *dev, struct device_attribute *attr,
 
 	/*
 	 * No lock needed as vrm is internal to the driver
-	 * (not read from a chip register) and so is not
+	 * (yest read from a chip register) and so is yest
 	 * updated in w83791d_update_device()
 	 */
 
@@ -1240,7 +1240,7 @@ static const struct attribute_group w83791d_group = {
 
 /*
  * Separate group of attributes for fan/pwm 4-5. Their pins can also be
- * in use for GPIO in which case their sysfs-interface should not be made
+ * in use for GPIO in which case their sysfs-interface should yest be made
  * available
  */
 static struct attribute *w83791d_attributes_fanpwm45[] = {
@@ -1397,7 +1397,7 @@ static int w83791d_probe(struct i2c_client *client,
 			goto error4;
 	}
 
-	/* Everything is ready, now register the working device */
+	/* Everything is ready, yesw register the working device */
 	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
@@ -1436,13 +1436,13 @@ static void w83791d_init_client(struct i2c_client *client)
 	 * but init simply forces certain registers to have "sane"
 	 * values. The hope is that the BIOS has done the right
 	 * thing (which is why the default is reset=0, init=0),
-	 * but if not, reset is the hard hammer and init
+	 * but if yest, reset is the hard hammer and init
 	 * is the soft mallet both of which are trying to whack
 	 * things into place...
 	 * NOTE: The data sheet makes a distinction between
 	 * "power on defaults" and "reset by MR". As far as I can tell,
 	 * the hard reset puts everything into a power-on state so I'm
-	 * not sure what "reset by MR" means or how it can happen.
+	 * yest sure what "reset by MR" means or how it can happen.
 	 */
 	if (reset || init) {
 		/* keep some BIOS settings when we... */
@@ -1453,10 +1453,10 @@ static void w83791d_init_client(struct i2c_client *client)
 			w83791d_write(client, W83791D_REG_CONFIG, 0x80);
 		}
 
-		/* ... disable power-on abnormal beep */
+		/* ... disable power-on abyesrmal beep */
 		w83791d_write(client, W83791D_REG_BEEP_CONFIG, old_beep | 0x80);
 
-		/* disable the global beep (not done by hard reset) */
+		/* disable the global beep (yest done by hard reset) */
 		tmp = w83791d_read(client, W83791D_REG_BEEP_CTRL[1]);
 		w83791d_write(client, W83791D_REG_BEEP_CTRL[1], tmp & 0xef);
 

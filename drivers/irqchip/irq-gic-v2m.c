@@ -56,12 +56,12 @@
 #define GICV2M_NEEDS_SPI_OFFSET		0x00000001
 #define GICV2M_GRAVITON_ADDRESS_ONLY	0x00000002
 
-static LIST_HEAD(v2m_nodes);
+static LIST_HEAD(v2m_yesdes);
 static DEFINE_SPINLOCK(v2m_lock);
 
 struct v2m_data {
 	struct list_head entry;
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	struct resource res;	/* GICv2m resource */
 	void __iomem *base;	/* GICv2m virt address */
 	u32 spi_start;		/* The SPI number that MSIs start */
@@ -140,14 +140,14 @@ static int gicv2m_irq_gic_domain_alloc(struct irq_domain *domain,
 	struct irq_data *d;
 	int err;
 
-	if (is_of_node(domain->parent->fwnode)) {
-		fwspec.fwnode = domain->parent->fwnode;
+	if (is_of_yesde(domain->parent->fwyesde)) {
+		fwspec.fwyesde = domain->parent->fwyesde;
 		fwspec.param_count = 3;
 		fwspec.param[0] = 0;
 		fwspec.param[1] = hwirq - 32;
 		fwspec.param[2] = IRQ_TYPE_EDGE_RISING;
-	} else if (is_fwnode_irqchip(domain->parent->fwnode)) {
-		fwspec.fwnode = domain->parent->fwnode;
+	} else if (is_fwyesde_irqchip(domain->parent->fwyesde)) {
+		fwspec.fwyesde = domain->parent->fwyesde;
 		fwspec.param_count = 2;
 		fwspec.param[0] = hwirq;
 		fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
@@ -182,7 +182,7 @@ static int gicv2m_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	int hwirq, offset, i, err = 0;
 
 	spin_lock(&v2m_lock);
-	list_for_each_entry(tmp, &v2m_nodes, entry) {
+	list_for_each_entry(tmp, &v2m_yesdes, entry) {
 		offset = bitmap_find_free_region(tmp->bm, tmp->nr_spis,
 						 get_count_order(nr_irqs));
 		if (offset >= 0) {
@@ -267,13 +267,13 @@ static void gicv2m_teardown(void)
 {
 	struct v2m_data *v2m, *tmp;
 
-	list_for_each_entry_safe(v2m, tmp, &v2m_nodes, entry) {
+	list_for_each_entry_safe(v2m, tmp, &v2m_yesdes, entry) {
 		list_del(&v2m->entry);
 		kfree(v2m->bm);
 		iounmap(v2m->base);
-		of_node_put(to_of_node(v2m->fwnode));
-		if (is_fwnode_irqchip(v2m->fwnode))
-			irq_domain_free_fwnode(v2m->fwnode);
+		of_yesde_put(to_of_yesde(v2m->fwyesde));
+		if (is_fwyesde_irqchip(v2m->fwyesde))
+			irq_domain_free_fwyesde(v2m->fwyesde);
 		kfree(v2m);
 	}
 }
@@ -283,11 +283,11 @@ static int gicv2m_allocate_domains(struct irq_domain *parent)
 	struct irq_domain *inner_domain, *pci_domain, *plat_domain;
 	struct v2m_data *v2m;
 
-	v2m = list_first_entry_or_null(&v2m_nodes, struct v2m_data, entry);
+	v2m = list_first_entry_or_null(&v2m_yesdes, struct v2m_data, entry);
 	if (!v2m)
 		return 0;
 
-	inner_domain = irq_domain_create_tree(v2m->fwnode,
+	inner_domain = irq_domain_create_tree(v2m->fwyesde,
 					      &gicv2m_domain_ops, v2m);
 	if (!inner_domain) {
 		pr_err("Failed to create GICv2m domain\n");
@@ -296,10 +296,10 @@ static int gicv2m_allocate_domains(struct irq_domain *parent)
 
 	irq_domain_update_bus_token(inner_domain, DOMAIN_BUS_NEXUS);
 	inner_domain->parent = parent;
-	pci_domain = pci_msi_create_irq_domain(v2m->fwnode,
+	pci_domain = pci_msi_create_irq_domain(v2m->fwyesde,
 					       &gicv2m_msi_domain_info,
 					       inner_domain);
-	plat_domain = platform_msi_create_irq_domain(v2m->fwnode,
+	plat_domain = platform_msi_create_irq_domain(v2m->fwyesde,
 						     &gicv2m_pmsi_domain_info,
 						     inner_domain);
 	if (!pci_domain || !plat_domain) {
@@ -315,7 +315,7 @@ static int gicv2m_allocate_domains(struct irq_domain *parent)
 	return 0;
 }
 
-static int __init gicv2m_init_one(struct fwnode_handle *fwnode,
+static int __init gicv2m_init_one(struct fwyesde_handle *fwyesde,
 				  u32 spi_start, u32 nr_spis,
 				  struct resource *res, u32 flags)
 {
@@ -329,7 +329,7 @@ static int __init gicv2m_init_one(struct fwnode_handle *fwnode,
 	}
 
 	INIT_LIST_HEAD(&v2m->entry);
-	v2m->fwnode = fwnode;
+	v2m->fwyesde = fwyesde;
 	v2m->flags = flags;
 
 	memcpy(&v2m->res, res, sizeof(struct resource));
@@ -395,7 +395,7 @@ static int __init gicv2m_init_one(struct fwnode_handle *fwnode,
 		goto err_iounmap;
 	}
 
-	list_add_tail(&v2m->entry, &v2m_nodes);
+	list_add_tail(&v2m->entry, &v2m_yesdes);
 
 	pr_info("range%pR, SPI[%d:%d]\n", res,
 		v2m->spi_start, (v2m->spi_start + v2m->nr_spis - 1));
@@ -413,15 +413,15 @@ static struct of_device_id gicv2m_device_id[] = {
 	{},
 };
 
-static int __init gicv2m_of_init(struct fwnode_handle *parent_handle,
+static int __init gicv2m_of_init(struct fwyesde_handle *parent_handle,
 				 struct irq_domain *parent)
 {
 	int ret = 0;
-	struct device_node *node = to_of_node(parent_handle);
-	struct device_node *child;
+	struct device_yesde *yesde = to_of_yesde(parent_handle);
+	struct device_yesde *child;
 
-	for (child = of_find_matching_node(node, gicv2m_device_id); child;
-	     child = of_find_matching_node(child, gicv2m_device_id)) {
+	for (child = of_find_matching_yesde(yesde, gicv2m_device_id); child;
+	     child = of_find_matching_yesde(child, gicv2m_device_id)) {
 		u32 spi_start = 0, nr_spis = 0;
 		struct resource res;
 
@@ -440,10 +440,10 @@ static int __init gicv2m_of_init(struct fwnode_handle *parent_handle,
 			pr_info("DT overriding V2M MSI_TYPER (base:%u, num:%u)\n",
 				spi_start, nr_spis);
 
-		ret = gicv2m_init_one(&child->fwnode, spi_start, nr_spis,
+		ret = gicv2m_init_one(&child->fwyesde, spi_start, nr_spis,
 				      &res, 0);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			break;
 		}
 	}
@@ -458,19 +458,19 @@ static int __init gicv2m_of_init(struct fwnode_handle *parent_handle,
 #ifdef CONFIG_ACPI
 static int acpi_num_msi;
 
-static struct fwnode_handle *gicv2m_get_fwnode(struct device *dev)
+static struct fwyesde_handle *gicv2m_get_fwyesde(struct device *dev)
 {
 	struct v2m_data *data;
 
 	if (WARN_ON(acpi_num_msi <= 0))
 		return NULL;
 
-	/* We only return the fwnode of the first MSI frame. */
-	data = list_first_entry_or_null(&v2m_nodes, struct v2m_data, entry);
+	/* We only return the fwyesde of the first MSI frame. */
+	data = list_first_entry_or_null(&v2m_yesdes, struct v2m_data, entry);
 	if (!data)
 		return NULL;
 
-	return data->fwnode;
+	return data->fwyesde;
 }
 
 static bool acpi_check_amazon_graviton_quirks(void)
@@ -500,7 +500,7 @@ acpi_parse_madt_msi(union acpi_subtable_headers *header,
 	struct resource res;
 	u32 spi_start = 0, nr_spis = 0;
 	struct acpi_madt_generic_msi_frame *m;
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	u32 flags = 0;
 
 	m = (struct acpi_madt_generic_msi_frame *)header;
@@ -526,15 +526,15 @@ acpi_parse_madt_msi(union acpi_subtable_headers *header,
 			spi_start, nr_spis);
 	}
 
-	fwnode = irq_domain_alloc_fwnode(&res.start);
-	if (!fwnode) {
+	fwyesde = irq_domain_alloc_fwyesde(&res.start);
+	if (!fwyesde) {
 		pr_err("Unable to allocate GICv2m domain token\n");
 		return -EINVAL;
 	}
 
-	ret = gicv2m_init_one(fwnode, spi_start, nr_spis, &res, flags);
+	ret = gicv2m_init_one(fwyesde, spi_start, nr_spis, &res, flags);
 	if (ret)
-		irq_domain_free_fwnode(fwnode);
+		irq_domain_free_fwyesde(fwyesde);
 
 	return ret;
 }
@@ -556,7 +556,7 @@ static int __init gicv2m_acpi_init(struct irq_domain *parent)
 	if (ret)
 		goto err_out;
 
-	pci_msi_register_fwnode_provider(&gicv2m_get_fwnode);
+	pci_msi_register_fwyesde_provider(&gicv2m_get_fwyesde);
 
 	return 0;
 
@@ -571,10 +571,10 @@ static int __init gicv2m_acpi_init(struct irq_domain *parent)
 }
 #endif /* CONFIG_ACPI */
 
-int __init gicv2m_init(struct fwnode_handle *parent_handle,
+int __init gicv2m_init(struct fwyesde_handle *parent_handle,
 		       struct irq_domain *parent)
 {
-	if (is_of_node(parent_handle))
+	if (is_of_yesde(parent_handle))
 		return gicv2m_of_init(parent_handle, parent);
 
 	return gicv2m_acpi_init(parent);

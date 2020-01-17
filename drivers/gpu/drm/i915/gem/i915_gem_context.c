@@ -14,9 +14,9 @@
  *
  * In software, there is a distinction between contexts created by the user,
  * and the default HW context. The default HW context is used by GPU clients
- * that do not request setup of their own hardware context. The default
+ * that do yest request setup of their own hardware context. The default
  * context's state is never restored to help prevent programming errors. This
- * would happen if a client ran and piggy-backed off another clients GPU state.
+ * would happen if a client ran and piggy-backed off ayesther clients GPU state.
  * The default context only exists to give the GPU some offset to load as the
  * current to invoke a save of the context we actually care about. In fact, the
  * code could likely be constructed, albeit in a more complicated fashion, to
@@ -24,7 +24,7 @@
  * swap out, and/or destroy other contexts.
  *
  * All other contexts are created as a request by the GPU client. These contexts
- * store GPU state, and thus allow GPU clients to not re-emit state (and
+ * store GPU state, and thus allow GPU clients to yest re-emit state (and
  * potentially query certain state) at any time. The kernel driver makes
  * certain that the appropriate commands are inserted.
  *
@@ -36,16 +36,16 @@
  * S0: initial state                          0            0           0
  * S1: context created                        1            0           0
  * S2: context is currently running           2            1           X
- * S3: GPU referenced, but not current        2            0           1
+ * S3: GPU referenced, but yest current        2            0           1
  * S4: context is current, but destroyed      1            1           0
  * S5: like S3, but destroyed                 1            0           1
  *
- * The most common (but not all) transitions:
+ * The most common (but yest all) transitions:
  * S0->S1: client creates a context
  * S1->S2: client submits execbuf with context
  * S2->S3: other clients submits execbuf with context
  * S3->S1: context object was retired
- * S3->S2: clients submits another execbuf
+ * S3->S2: clients submits ayesther execbuf
  * S2->S4: context destroy called with current context
  * S3->S5->S0: destroy path
  * S4->S5->S0: destroy path on current context
@@ -53,7 +53,7 @@
  * There are two confusing terms used above:
  *  The "current context" means the context which is currently running on the
  *  GPU. The GPU has loaded its state already and has stored away the gtt
- *  offset of the BO. The GPU is not actively referencing the data at this
+ *  offset of the BO. The GPU is yest actively referencing the data at this
  *  offset, but it will on the next context switch. The only way to avoid this
  *  is to do a GPU reset.
  *
@@ -65,7 +65,7 @@
  */
 
 #include <linux/log2.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include <drm/i915_drm.h>
 
@@ -249,7 +249,7 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	kfree_rcu(ctx, rcu);
 }
 
-static void contexts_free_all(struct llist_node *list)
+static void contexts_free_all(struct llist_yesde *list)
 {
 	struct i915_gem_context *ctx, *cn;
 
@@ -320,8 +320,8 @@ static bool __cancel_engine(struct intel_engine_cs *engine)
 	 * as banned, any incomplete request, including any running, will
 	 * be skipped following the preemption.
 	 *
-	 * If there is no hangchecking (one of the reasons why we try to
-	 * cancel the context) and no forced preemption, there may be no
+	 * If there is yes hangchecking (one of the reasons why we try to
+	 * cancel the context) and yes forced preemption, there may be yes
 	 * means by which we reset the GPU and evict the persistent hog.
 	 * Ergo if we are unable to inject a preemptive pulse that can
 	 * kill the banned context, we fallback to doing a local reset
@@ -341,7 +341,7 @@ static struct intel_engine_cs *__active_engine(struct i915_request *rq)
 
 	/*
 	 * Serialise with __i915_request_submit() so that it sees
-	 * is-banned?, or we know the request is already inflight.
+	 * is-banned?, or we kyesw the request is already inflight.
 	 */
 	locked = READ_ONCE(rq->engine);
 	spin_lock_irq(&locked->active.lock);
@@ -412,7 +412,7 @@ static void kill_context(struct i915_gem_context *ctx)
 		 * are currently executing on the GPU we need to evict
 		 * ourselves. On the other hand, if we haven't yet been
 		 * submitted to the GPU or if everything is complete,
-		 * we have nothing to do.
+		 * we have yesthing to do.
 		 */
 		engine = active_engine(ce);
 
@@ -451,7 +451,7 @@ static void context_close(struct i915_gem_context *ctx)
 	mutex_unlock(&ctx->mutex);
 
 	/*
-	 * If the user has disabled hangchecking, we can not be sure that
+	 * If the user has disabled hangchecking, we can yest be sure that
 	 * the batches will ever complete after the context is closed,
 	 * keeping the context and all resources pinned forever. So in this
 	 * case we opt to forcibly kill off all remaining requests on
@@ -519,7 +519,7 @@ __create_context(struct drm_i915_private *i915)
 
 	/* NB: Mark all slices as needing a remap so that when the context first
 	 * loads it will restore whatever remap state already exists. If there
-	 * is no remap info, it will be a NOP. */
+	 * is yes remap info, it will be a NOP. */
 	ctx->remap_slice = ALL_L3_SLICES(i915);
 
 	i915_gem_context_set_bannable(ctx);
@@ -1097,7 +1097,7 @@ static int emit_ppgtt_update(struct i915_request *rq, void *data)
 		*cs++ = MI_NOOP;
 		intel_ring_advance(rq, cs);
 	} else {
-		/* ppGTT is not part of the legacy context image */
+		/* ppGTT is yest part of the legacy context image */
 		gen6_ppgtt_pin(i915_vm_to_ppgtt(vm));
 	}
 
@@ -1155,7 +1155,7 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 
 	/*
 	 * We need to flush any requests using the current ppgtt before
-	 * we release it as the requests do not hold a reference themselves,
+	 * we release it as the requests do yest hold a reference themselves,
 	 * only indirectly through the context.
 	 */
 	err = context_barrier_task(ctx, ALL_ENGINES,
@@ -1209,9 +1209,9 @@ gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 	lockdep_assert_held(&ce->pin_mutex);
 
 	/*
-	 * If the context is not idle, we have to submit an ordered request to
+	 * If the context is yest idle, we have to submit an ordered request to
 	 * modify its context image via the kernel context (writing to our own
-	 * image, or into the registers directory, does not stick). Pristine
+	 * image, or into the registers directory, does yest stick). Pristine
 	 * and idle contexts will be configured on pinning.
 	 */
 	if (!intel_context_is_pinned(ce))
@@ -1429,7 +1429,7 @@ set_engines__load_balance(struct i915_user_extension __user *base, void *data)
 		return -ENODEV;
 
 	if (USES_GUC_SUBMISSION(set->ctx->i915))
-		return -ENODEV; /* not implement yet */
+		return -ENODEV; /* yest implement yet */
 
 	if (get_user(idx, &ext->engine_index))
 		return -EFAULT;
@@ -1440,7 +1440,7 @@ set_engines__load_balance(struct i915_user_extension __user *base, void *data)
 		return -EINVAL;
 	}
 
-	idx = array_index_nospec(idx, set->engines->num_engines);
+	idx = array_index_yesspec(idx, set->engines->num_engines);
 	if (set->engines->engines[idx]) {
 		DRM_DEBUG("Invalid placement[%d], already occupied\n", idx);
 		return -EEXIST;
@@ -1525,7 +1525,7 @@ set_engines__bond(struct i915_user_extension __user *base, void *data)
 		return -EINVAL;
 	}
 
-	idx = array_index_nospec(idx, set->engines->num_engines);
+	idx = array_index_yesspec(idx, set->engines->num_engines);
 	if (!set->engines->engines[idx]) {
 		DRM_DEBUG("Invalid engine at %d\n", idx);
 		return -EINVAL;
@@ -1572,7 +1572,7 @@ set_engines__bond(struct i915_user_extension __user *base, void *data)
 		}
 
 		/*
-		 * A non-virtual engine has no siblings to choose between; and
+		 * A yesn-virtual engine has yes siblings to choose between; and
 		 * a submit fence will always be directed to the one engine.
 		 */
 		if (intel_engine_is_virtual(virtual)) {
@@ -1741,7 +1741,7 @@ get_engines(struct i915_gem_context *ctx,
 
 	count = e->num_engines;
 
-	/* Be paranoid in case we have an impedance mismatch */
+	/* Be parayesid in case we have an impedance mismatch */
 	if (!check_struct_size(user, engines, count, &size)) {
 		err = -EINVAL;
 		goto err_free;
@@ -1826,9 +1826,9 @@ static int ctx_setparam(struct drm_i915_file_private *fpriv,
 		if (args->size)
 			ret = -EINVAL;
 		else if (args->value)
-			i915_gem_context_set_no_error_capture(ctx);
+			i915_gem_context_set_yes_error_capture(ctx);
 		else
-			i915_gem_context_clear_no_error_capture(ctx);
+			i915_gem_context_clear_yes_error_capture(ctx);
 		break;
 
 	case I915_CONTEXT_PARAM_BANNABLE:
@@ -1996,7 +1996,7 @@ static int clone_sseu(struct i915_gem_context *dst,
 	unsigned long n;
 	int err;
 
-	clone = dst->engines; /* no locking required; sole access */
+	clone = dst->engines; /* yes locking required; sole access */
 	if (e->num_engines != clone->num_engines) {
 		err = -EINVAL;
 		goto unlock;
@@ -2054,15 +2054,15 @@ static int clone_vm(struct i915_gem_context *dst,
 		 * This ppgtt may have be reallocated between
 		 * the read and the kref, and reassigned to a third
 		 * context. In order to avoid inadvertent sharing
-		 * of this ppgtt with that third context (and not
+		 * of this ppgtt with that third context (and yest
 		 * src), we have to confirm that we have the same
 		 * ppgtt after passing through the strong memory
 		 * barrier implied by a successful
 		 * kref_get_unless_zero().
 		 *
 		 * Once we have acquired the current ppgtt of src,
-		 * we no longer care if it is released from src, as
-		 * it cannot be reallocated elsewhere.
+		 * we yes longer care if it is released from src, as
+		 * it canyest be reallocated elsewhere.
 		 */
 
 		if (vm == rcu_access_pointer(src->vm))
@@ -2308,7 +2308,7 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 
 	case I915_CONTEXT_PARAM_NO_ERROR_CAPTURE:
 		args->size = 0;
-		args->value = i915_gem_context_no_error_capture(ctx);
+		args->value = i915_gem_context_yes_error_capture(ctx);
 		break;
 
 	case I915_CONTEXT_PARAM_BANNABLE:

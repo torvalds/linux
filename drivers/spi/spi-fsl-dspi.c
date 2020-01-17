@@ -398,14 +398,14 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 
 	dma->chan_rx = dma_request_slave_channel(dev, "rx");
 	if (!dma->chan_rx) {
-		dev_err(dev, "rx dma channel not available\n");
+		dev_err(dev, "rx dma channel yest available\n");
 		ret = -ENODEV;
 		return ret;
 	}
 
 	dma->chan_tx = dma_request_slave_channel(dev, "tx");
 	if (!dma->chan_tx) {
-		dev_err(dev, "tx dma channel not available\n");
+		dev_err(dev, "tx dma channel yest available\n");
 		ret = -ENODEV;
 		goto err_tx_channel;
 	}
@@ -521,7 +521,7 @@ static void hz_to_spi_baud(char *pbr, char *br, int speed_hz,
 		}
 
 	if (minscale == INT_MAX) {
-		pr_warn("Can not find valid baud rate,speed_hz is %d,clkrate is %ld, we use the max prescaler value.\n",
+		pr_warn("Can yest find valid baud rate,speed_hz is %d,clkrate is %ld, we use the max prescaler value.\n",
 			speed_hz, clkrate);
 		*pbr = ARRAY_SIZE(pbr_tbl) - 1;
 		*br =  ARRAY_SIZE(brs) - 1;
@@ -555,7 +555,7 @@ static void ns_delay_scale(char *psc, char *sc, int delay_ns,
 		}
 
 	if (minscale == INT_MAX) {
-		pr_warn("Cannot find correct scale values for %dns delay at clkrate %ld, using max prescaler value",
+		pr_warn("Canyest find correct scale values for %dns delay at clkrate %ld, using max prescaler value",
 			delay_ns, clkrate);
 		*psc = ARRAY_SIZE(pscale_tbl) - 1;
 		*sc = SPI_CTAR_SCALE_BITS;
@@ -749,7 +749,7 @@ static int dspi_transfer_one_message(struct spi_controller *ctlr,
 				dspi->tx_cmd |= SPI_PUSHR_CMD_CONT;
 		} else {
 			/* Keep PCS active between transfers in same message
-			 * when cs_change is not set, and de-activate PCS
+			 * when cs_change is yest set, and de-activate PCS
 			 * between transfers in the same message when
 			 * cs_change is set.
 			 */
@@ -854,10 +854,10 @@ static int dspi_setup(struct spi_device *spi)
 	pdata = dev_get_platdata(&dspi->pdev->dev);
 
 	if (!pdata) {
-		of_property_read_u32(spi->dev.of_node, "fsl,spi-cs-sck-delay",
+		of_property_read_u32(spi->dev.of_yesde, "fsl,spi-cs-sck-delay",
 				     &cs_sck_delay);
 
-		of_property_read_u32(spi->dev.of_node, "fsl,spi-sck-cs-delay",
+		of_property_read_u32(spi->dev.of_yesde, "fsl,spi-sck-cs-delay",
 				     &sck_cs_delay);
 	} else {
 		cs_sck_delay = pdata->cs_sck_delay;
@@ -956,8 +956,8 @@ static const struct regmap_range dspi_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table dspi_volatile_table = {
-	.yes_ranges	= dspi_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(dspi_volatile_ranges),
+	.no_ranges	= dspi_volatile_ranges,
+	.n_no_ranges	= ARRAY_SIZE(dspi_volatile_ranges),
 };
 
 static const struct regmap_config dspi_regmap_config = {
@@ -976,8 +976,8 @@ static const struct regmap_range dspi_xspi_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table dspi_xspi_volatile_table = {
-	.yes_ranges	= dspi_xspi_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(dspi_xspi_volatile_ranges),
+	.no_ranges	= dspi_xspi_volatile_ranges,
+	.n_no_ranges	= ARRAY_SIZE(dspi_xspi_volatile_ranges),
 };
 
 static const struct regmap_config dspi_xspi_regmap_config[] = {
@@ -1034,7 +1034,7 @@ static int dspi_slave_abort(struct spi_master *master)
 
 static int dspi_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct regmap_config *regmap_config;
 	struct fsl_dspi_platform_data *pdata;
 	struct spi_controller *ctlr;
@@ -1053,7 +1053,7 @@ static int dspi_probe(struct platform_device *pdev)
 
 	ctlr->setup = dspi_setup;
 	ctlr->transfer_one_message = dspi_transfer_one_message;
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_yesde = pdev->dev.of_yesde;
 
 	ctlr->cleanup = dspi_cleanup;
 	ctlr->slave_abort = dspi_slave_abort;

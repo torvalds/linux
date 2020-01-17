@@ -10,9 +10,9 @@
 #include <linux/time.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <sound/core.h>
-#include <sound/minors.h>
+#include <sound/miyesrs.h>
 #include <sound/pcm.h>
 #include <sound/timer.h>
 #include <sound/control.h>
@@ -27,7 +27,7 @@ MODULE_LICENSE("GPL");
 static LIST_HEAD(snd_pcm_devices);
 static DEFINE_MUTEX(register_mutex);
 #if IS_ENABLED(CONFIG_SND_PCM_OSS)
-static LIST_HEAD(snd_pcm_notify_list);
+static LIST_HEAD(snd_pcm_yestify_list);
 #endif
 
 static int snd_pcm_free(struct snd_pcm *pcm);
@@ -115,7 +115,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 				return -EFAULT;
 			if (stream < 0 || stream > 1)
 				return -EINVAL;
-			stream = array_index_nospec(stream, 2);
+			stream = array_index_yesspec(stream, 2);
 			if (get_user(subdevice, &info->subdevice))
 				return -EFAULT;
 			mutex_lock(&register_mutex);
@@ -220,7 +220,7 @@ static char *snd_pcm_format_names[] = {
 const char *snd_pcm_format_name(snd_pcm_format_t format)
 {
 	if ((__force unsigned int)format >= ARRAY_SIZE(snd_pcm_format_names))
-		return "Unknown";
+		return "Unkyeswn";
 	return snd_pcm_format_names[(__force unsigned int)format];
 }
 EXPORT_SYMBOL_GPL(snd_pcm_format_name);
@@ -322,7 +322,7 @@ static const char *snd_pcm_oss_format_name(int format)
 	case AFMT_MPEG:
 		return "MPEG";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 #endif
@@ -386,7 +386,7 @@ static void snd_pcm_substream_proc_hw_params_read(struct snd_info_entry *entry,
 		goto unlock;
 	}
 	if (runtime->status->state == SNDRV_PCM_STATE_OPEN) {
-		snd_iprintf(buffer, "no setup\n");
+		snd_iprintf(buffer, "yes setup\n");
 		goto unlock;
 	}
 	snd_iprintf(buffer, "access: %s\n", snd_pcm_access_name(runtime->access));
@@ -423,7 +423,7 @@ static void snd_pcm_substream_proc_sw_params_read(struct snd_info_entry *entry,
 		goto unlock;
 	}
 	if (runtime->status->state == SNDRV_PCM_STATE_OPEN) {
-		snd_iprintf(buffer, "no setup\n");
+		snd_iprintf(buffer, "yes setup\n");
 		goto unlock;
 	}
 	snd_iprintf(buffer, "tstamp_mode: %s\n", snd_pcm_tstamp_mode_name(runtime->tstamp_mode));
@@ -604,7 +604,7 @@ static int do_pcm_suspend(struct device *dev)
 {
 	struct snd_pcm_str *pstr = container_of(dev, struct snd_pcm_str, dev);
 
-	if (!pstr->pcm->no_device_suspend)
+	if (!pstr->pcm->yes_device_suspend)
 		snd_pcm_suspend_all(pstr->pcm);
 	return 0;
 }
@@ -782,14 +782,14 @@ EXPORT_SYMBOL(snd_pcm_new);
  * snd_pcm_new_internal - create a new internal PCM instance
  * @card: the card instance
  * @id: the id string
- * @device: the device index (zero based - shared with normal PCMs)
+ * @device: the device index (zero based - shared with yesrmal PCMs)
  * @playback_count: the number of substreams for playback
  * @capture_count: the number of substreams for capture
  * @rpcm: the pointer to store the new pcm instance
  *
- * Creates a new internal PCM instance with no userspace device or procfs
+ * Creates a new internal PCM instance with yes userspace device or procfs
  * entries. This is used by ASoC Back End PCMs in order to create a PCM that
- * will only be used internally by kernel drivers. i.e. it cannot be opened
+ * will only be used internally by kernel drivers. i.e. it canyest be opened
  * by userspace. It provides existing ASoC components drivers with a substream
  * and access to any private data.
  *
@@ -845,14 +845,14 @@ static void snd_pcm_free_stream(struct snd_pcm_str * pstr)
 }
 
 #if IS_ENABLED(CONFIG_SND_PCM_OSS)
-#define pcm_call_notify(pcm, call)					\
+#define pcm_call_yestify(pcm, call)					\
 	do {								\
-		struct snd_pcm_notify *_notify;				\
-		list_for_each_entry(_notify, &snd_pcm_notify_list, list) \
-			_notify->call(pcm);				\
+		struct snd_pcm_yestify *_yestify;				\
+		list_for_each_entry(_yestify, &snd_pcm_yestify_list, list) \
+			_yestify->call(pcm);				\
 	} while (0)
 #else
-#define pcm_call_notify(pcm, call) do {} while (0)
+#define pcm_call_yestify(pcm, call) do {} while (0)
 #endif
 
 static int snd_pcm_free(struct snd_pcm *pcm)
@@ -860,7 +860,7 @@ static int snd_pcm_free(struct snd_pcm *pcm)
 	if (!pcm)
 		return 0;
 	if (!pcm->internal)
-		pcm_call_notify(pcm, n_unregister);
+		pcm_call_yestify(pcm, n_unregister);
 	if (pcm->private_free)
 		pcm->private_free(pcm);
 	snd_pcm_lib_preallocate_free_for_all(pcm);
@@ -1016,7 +1016,7 @@ static ssize_t show_pcm_class(struct device *dev,
 	};
 
 	if (pcm->dev_class > SNDRV_PCM_CLASS_LAST)
-		str = "none";
+		str = "yesne";
 	else
 		str = strs[pcm->dev_class];
         return snprintf(buf, PAGE_SIZE, "%s\n", str);
@@ -1076,7 +1076,7 @@ static int snd_pcm_dev_register(struct snd_device *device)
 			snd_pcm_timer_init(substream);
 	}
 
-	pcm_call_notify(pcm, n_register);
+	pcm_call_yestify(pcm, n_register);
 
  unlock:
 	mutex_unlock(&register_mutex);
@@ -1109,7 +1109,7 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 		}
 	}
 
-	pcm_call_notify(pcm, n_disconnect);
+	pcm_call_yestify(pcm, n_disconnect);
 	for (cidx = 0; cidx < 2; cidx++) {
 		snd_unregister_device(&pcm->streams[cidx].dev);
 		free_chmap(&pcm->streams[cidx]);
@@ -1121,37 +1121,37 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 
 #if IS_ENABLED(CONFIG_SND_PCM_OSS)
 /**
- * snd_pcm_notify - Add/remove the notify list
- * @notify: PCM notify list
+ * snd_pcm_yestify - Add/remove the yestify list
+ * @yestify: PCM yestify list
  * @nfree: 0 = register, 1 = unregister
  *
- * This adds the given notifier to the global list so that the callback is
+ * This adds the given yestifier to the global list so that the callback is
  * called for each registered PCM devices.  This exists only for PCM OSS
  * emulation, so far.
  */
-int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
+int snd_pcm_yestify(struct snd_pcm_yestify *yestify, int nfree)
 {
 	struct snd_pcm *pcm;
 
-	if (snd_BUG_ON(!notify ||
-		       !notify->n_register ||
-		       !notify->n_unregister ||
-		       !notify->n_disconnect))
+	if (snd_BUG_ON(!yestify ||
+		       !yestify->n_register ||
+		       !yestify->n_unregister ||
+		       !yestify->n_disconnect))
 		return -EINVAL;
 	mutex_lock(&register_mutex);
 	if (nfree) {
-		list_del(&notify->list);
+		list_del(&yestify->list);
 		list_for_each_entry(pcm, &snd_pcm_devices, list)
-			notify->n_unregister(pcm);
+			yestify->n_unregister(pcm);
 	} else {
-		list_add_tail(&notify->list, &snd_pcm_notify_list);
+		list_add_tail(&yestify->list, &snd_pcm_yestify_list);
 		list_for_each_entry(pcm, &snd_pcm_devices, list)
-			notify->n_register(pcm);
+			yestify->n_register(pcm);
 	}
 	mutex_unlock(&register_mutex);
 	return 0;
 }
-EXPORT_SYMBOL(snd_pcm_notify);
+EXPORT_SYMBOL(snd_pcm_yestify);
 #endif /* CONFIG_SND_PCM_OSS */
 
 #ifdef CONFIG_SND_PROC_FS

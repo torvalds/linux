@@ -17,7 +17,7 @@ static struct pgt_info *get_pgt_info(struct hl_ctx *ctx, u64 hop_addr)
 {
 	struct pgt_info *pgt_info = NULL;
 
-	hash_for_each_possible(ctx->mmu_shadow_hash, pgt_info, node,
+	hash_for_each_possible(ctx->mmu_shadow_hash, pgt_info, yesde,
 				(unsigned long) hop_addr)
 		if (hop_addr == pgt_info->shadow_addr)
 			break;
@@ -31,7 +31,7 @@ static void _free_hop(struct hl_ctx *ctx, struct pgt_info *pgt_info)
 
 	gen_pool_free(hdev->mmu_pgt_pool, pgt_info->phys_addr,
 			hdev->asic_prop.mmu_hop_table_size);
-	hash_del(&pgt_info->node);
+	hash_del(&pgt_info->yesde);
 	kfree((u64 *) (uintptr_t) pgt_info->shadow_addr);
 	kfree(pgt_info);
 }
@@ -70,7 +70,7 @@ static u64 alloc_hop(struct hl_ctx *ctx)
 	pgt_info->shadow_addr = shadow_addr;
 	pgt_info->ctx = ctx;
 	pgt_info->num_of_ptes = 0;
-	hash_add(ctx->mmu_shadow_hash, &pgt_info->node, shadow_addr);
+	hash_add(ctx->mmu_shadow_hash, &pgt_info->yesde, shadow_addr);
 
 	return shadow_addr;
 
@@ -121,7 +121,7 @@ static inline void write_pte(struct hl_ctx *ctx, u64 shadow_pte_addr, u64 val)
 	*(u64 *) (uintptr_t) shadow_pte_addr = val;
 }
 
-/* do not transform the value to physical address when writing to H/W */
+/* do yest transform the value to physical address when writing to H/W */
 static inline void write_final_pte(struct hl_ctx *ctx, u64 shadow_pte_addr,
 					u64 val)
 {
@@ -134,7 +134,7 @@ static inline void write_final_pte(struct hl_ctx *ctx, u64 shadow_pte_addr,
 /* clear the last and present bits */
 static inline void clear_pte(struct hl_ctx *ctx, u64 pte_addr)
 {
-	/* no need to transform the value to physical address */
+	/* yes need to transform the value to physical address */
 	write_final_pte(ctx, pte_addr, 0);
 }
 
@@ -411,7 +411,7 @@ static void dram_default_mapping_fini(struct hl_ctx *ctx)
  * - Create a pool of pages for pgt_infos.
  * - Create a shadow table for pgt
  *
- * Return: 0 for success, non-zero for failure.
+ * Return: 0 for success, yesn-zero for failure.
  */
 int hl_mmu_init(struct hl_device *hdev)
 {
@@ -483,7 +483,7 @@ void hl_mmu_fini(struct hl_device *hdev)
  *
  * Initialize a mutex to protect the concurrent mapping flow, a hash to hold all
  * page tables hops related to this context.
- * Return: 0 on success, non-zero otherwise.
+ * Return: 0 on success, yesn-zero otherwise.
  */
 int hl_mmu_ctx_init(struct hl_ctx *ctx)
 {
@@ -505,7 +505,7 @@ int hl_mmu_ctx_init(struct hl_ctx *ctx)
  * @ctx: pointer to the context structure
  *
  * This function does the following:
- * - Free any pgts which were not freed yet
+ * - Free any pgts which were yest freed yet
  * - Free the mutex
  * - Free DRAM default page mapping hops
  */
@@ -513,7 +513,7 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
 	struct pgt_info *pgt_info;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	int i;
 
 	if (!hdev->mmu_enable)
@@ -525,9 +525,9 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
 		dev_err(hdev->dev, "ctx %d is freed while it has pgts in use\n",
 			ctx->asid);
 
-	hash_for_each_safe(ctx->mmu_shadow_hash, i, tmp, pgt_info, node) {
+	hash_for_each_safe(ctx->mmu_shadow_hash, i, tmp, pgt_info, yesde) {
 		dev_err_ratelimited(hdev->dev,
-			"pgt_info of addr 0x%llx of asid %d was not destroyed, num_ptes: %d\n",
+			"pgt_info of addr 0x%llx of asid %d was yest destroyed, num_ptes: %d\n",
 			pgt_info->phys_addr, ctx->asid, pgt_info->num_of_ptes);
 		_free_hop(ctx, pgt_info);
 	}
@@ -558,7 +558,7 @@ static int _hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, bool is_dram_addr)
 	hop1_addr = get_next_hop_addr(ctx, curr_pte);
 
 	if (hop1_addr == ULLONG_MAX)
-		goto not_mapped;
+		goto yest_mapped;
 
 	hop1_pte_addr = get_hop1_pte_addr(ctx, mmu_prop, hop1_addr, virt_addr);
 
@@ -567,7 +567,7 @@ static int _hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, bool is_dram_addr)
 	hop2_addr = get_next_hop_addr(ctx, curr_pte);
 
 	if (hop2_addr == ULLONG_MAX)
-		goto not_mapped;
+		goto yest_mapped;
 
 	hop2_pte_addr = get_hop2_pte_addr(ctx, mmu_prop, hop2_addr, virt_addr);
 
@@ -576,7 +576,7 @@ static int _hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, bool is_dram_addr)
 	hop3_addr = get_next_hop_addr(ctx, curr_pte);
 
 	if (hop3_addr == ULLONG_MAX)
-		goto not_mapped;
+		goto yest_mapped;
 
 	hop3_pte_addr = get_hop3_pte_addr(ctx, mmu_prop, hop3_addr, virt_addr);
 
@@ -594,7 +594,7 @@ static int _hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, bool is_dram_addr)
 		hop4_addr = get_next_hop_addr(ctx, curr_pte);
 
 		if (hop4_addr == ULLONG_MAX)
-			goto not_mapped;
+			goto yest_mapped;
 
 		hop4_pte_addr = get_hop4_pte_addr(ctx, mmu_prop, hop4_addr,
 							virt_addr);
@@ -612,21 +612,21 @@ static int _hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, bool is_dram_addr)
 			dev_err(hdev->dev,
 				"DRAM: hop3 PTE points to zero page, can't unmap, va: 0x%llx\n",
 					virt_addr);
-			goto not_mapped;
+			goto yest_mapped;
 		}
 
 		if (!(curr_pte & PAGE_PRESENT_MASK)) {
 			dev_err(hdev->dev,
 				"DRAM: hop3 PTE is cleared! can't unmap, va: 0x%llx\n",
 					virt_addr);
-			goto not_mapped;
+			goto yest_mapped;
 		}
 
 		write_final_pte(ctx, hop3_pte_addr, default_pte);
 		put_pte(ctx, hop3_addr);
 	} else {
 		if (!(curr_pte & PAGE_PRESENT_MASK))
-			goto not_mapped;
+			goto yest_mapped;
 
 		if (hop4_addr)
 			clear_pte(ctx, hop4_pte_addr);
@@ -662,8 +662,8 @@ flush:
 
 	return 0;
 
-not_mapped:
-	dev_err(hdev->dev, "virt addr 0x%llx is not mapped to phys addr\n",
+yest_mapped:
+	dev_err(hdev->dev, "virt addr 0x%llx is yest mapped to phys addr\n",
 		virt_addr);
 
 	return -EINVAL;
@@ -679,7 +679,7 @@ not_mapped:
  * This function does the following:
  * - Check that the virt addr is mapped
  * - Unmap the virt addr and frees pgts if possible
- * - Returns 0 on success, -EINVAL if the given addr is not mapped
+ * - Returns 0 on success, -EINVAL if the given addr is yest mapped
  *
  * Because this function changes the page tables in the device and because it
  * changes the MMU hash, it must be protected by a lock.
@@ -715,7 +715,7 @@ int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size)
 		real_page_size = mmu_prop->page_size;
 	} else {
 		dev_err(hdev->dev,
-			"page size of %u is not %uKB nor %uMB aligned, can't unmap\n",
+			"page size of %u is yest %uKB yesr %uMB aligned, can't unmap\n",
 			page_size,
 			mmu_prop->page_size >> 10,
 			mmu_prop->huge_page_size >> 20);
@@ -819,7 +819,7 @@ static int _hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 
 		if (hop1_new || hop2_new || hop3_new || hop4_new) {
 			dev_err(hdev->dev,
-				"DRAM mapping should not allocate more hops\n");
+				"DRAM mapping should yest allocate more hops\n");
 			rc = -EFAULT;
 			goto err;
 		}
@@ -911,7 +911,7 @@ err:
  * @page_size: physical page size
  *
  * This function does the following:
- * - Check that the virt addr is not mapped
+ * - Check that the virt addr is yest mapped
  * - Allocate pgts as necessary in order to map the virt addr to the phys
  * - Returns 0 on success, -EINVAL if addr is already mapped, or -ENOMEM.
  *
@@ -949,7 +949,7 @@ int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size)
 		real_page_size = mmu_prop->page_size;
 	} else {
 		dev_err(hdev->dev,
-			"page size of %u is not %dKB nor %dMB aligned, can't unmap\n",
+			"page size of %u is yest %dKB yesr %dMB aligned, can't unmap\n",
 			page_size,
 			mmu_prop->page_size >> 10,
 			mmu_prop->huge_page_size >> 20);

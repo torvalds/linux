@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _media_ioc_g_topology:
 
@@ -19,7 +19,7 @@ Name
 MEDIA_IOC_G_TOPOLOGY - Enumerate the graph topology and graph element properties
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, MEDIA_IOC_G_TOPOLOGY, struct media_v2_topology *argp )
@@ -42,7 +42,7 @@ Description
 The typical usage of this ioctl is to call it twice. On the first call,
 the structure defined at struct
 :c:type:`media_v2_topology` should be zeroed. At
-return, if no errors happen, this ioctl will return the
+return, if yes errors happen, this ioctl will return the
 ``topology_version`` and the total number of entities, interfaces, pads
 and links.
 
@@ -139,9 +139,9 @@ desired arrays with the media graph elements.
 
     *  -  __u32
        -  ``id``
-       -  Unique ID for the entity. Do not expect that the ID will
+       -  Unique ID for the entity. Do yest expect that the ID will
 	  always be the same for each instance of the device. In other words,
-	  do not hardcode entity IDs in an application.
+	  do yest hardcode entity IDs in an application.
 
     *  -  char
        -  ``name``\ [64]
@@ -177,9 +177,9 @@ desired arrays with the media graph elements.
 
     *  -  __u32
        -  ``id``
-       -  Unique ID for the interface. Do not expect that the ID will
+       -  Unique ID for the interface. Do yest expect that the ID will
 	  always be the same for each instance of the device. In other words,
-	  do not hardcode interface IDs in an application.
+	  do yest hardcode interface IDs in an application.
 
     *  -  __u32
        -  ``intf_type``
@@ -194,28 +194,28 @@ desired arrays with the media graph elements.
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.
 
-    *  -  struct media_v2_intf_devnode
-       -  ``devnode``
-       -  Used only for device node interfaces. See
-	  :c:type:`media_v2_intf_devnode` for details.
+    *  -  struct media_v2_intf_devyesde
+       -  ``devyesde``
+       -  Used only for device yesde interfaces. See
+	  :c:type:`media_v2_intf_devyesde` for details.
 
 
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
-.. c:type:: media_v2_intf_devnode
+.. c:type:: media_v2_intf_devyesde
 
-.. flat-table:: struct media_v2_intf_devnode
+.. flat-table:: struct media_v2_intf_devyesde
     :header-rows:  0
     :stub-columns: 0
     :widths: 1 2 8
 
     *  -  __u32
        -  ``major``
-       -  Device node major number.
+       -  Device yesde major number.
 
     *  -  __u32
-       -  ``minor``
-       -  Device node minor number.
+       -  ``miyesr``
+       -  Device yesde miyesr number.
 
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
@@ -228,9 +228,9 @@ desired arrays with the media graph elements.
 
     *  -  __u32
        -  ``id``
-       -  Unique ID for the pad. Do not expect that the ID will
+       -  Unique ID for the pad. Do yest expect that the ID will
 	  always be the same for each instance of the device. In other words,
-	  do not hardcode pad IDs in an application.
+	  do yest hardcode pad IDs in an application.
 
     *  -  __u32
        -  ``entity_id``
@@ -264,9 +264,9 @@ desired arrays with the media graph elements.
 
     *  -  __u32
        -  ``id``
-       -  Unique ID for the link. Do not expect that the ID will
+       -  Unique ID for the link. Do yest expect that the ID will
 	  always be the same for each instance of the device. In other words,
-	  do not hardcode link IDs in an application.
+	  do yest hardcode link IDs in an application.
 
     *  -  __u32
        -  ``source_id``
@@ -293,13 +293,13 @@ desired arrays with the media graph elements.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 ENOSPC
     This is returned when either one or more of the num_entities,
-    num_interfaces, num_links or num_pads are non-zero and are
+    num_interfaces, num_links or num_pads are yesn-zero and are
     smaller than the actual number of elements inside the graph. This
     may happen if the ``topology_version`` changed when compared to the
     last time this ioctl was called. Userspace should usually free the

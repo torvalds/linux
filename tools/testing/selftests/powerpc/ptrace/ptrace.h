@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <malloc.h>
-#include <errno.h>
+#include <erryes.h>
 #include <time.h>
 #include <sys/ptrace.h>
 #include <sys/ioctl.h>

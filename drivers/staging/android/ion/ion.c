@@ -247,7 +247,7 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	int ret = 0;
 
 	if (!buffer->heap->ops->map_user) {
-		pr_err("%s: this heap does not define a method for mapping to userspace\n",
+		pr_err("%s: this heap does yest define a method for mapping to userspace\n",
 		       __func__);
 		return -EINVAL;
 	}
@@ -256,7 +256,7 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
 	mutex_lock(&buffer->lock);
-	/* now map it to userspace */
+	/* yesw map it to userspace */
 	ret = buffer->heap->ops->map_user(buffer->heap, buffer, vma);
 	mutex_unlock(&buffer->lock);
 
@@ -376,7 +376,7 @@ static int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 		return -EINVAL;
 
 	down_read(&dev->lock);
-	plist_for_each_entry(heap, &dev->heaps, node) {
+	plist_for_each_entry(heap, &dev->heaps, yesde) {
 		/* if the caller didn't specify this heap id */
 		if (!((1 << heap->id) & heap_id_mask))
 			continue;
@@ -432,7 +432,7 @@ static int ion_query_heaps(struct ion_heap_query *query)
 
 	max_cnt = query->cnt;
 
-	plist_for_each_entry(heap, &dev->heaps, node) {
+	plist_for_each_entry(heap, &dev->heaps, yesde) {
 		strncpy(hdata.name, heap->name, MAX_HEAP_NAME);
 		hdata.name[sizeof(hdata.name) - 1] = '\0';
 		hdata.type = heap->type;
@@ -486,7 +486,7 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	/*
 	 * The copy_from_user is unconditional here for both read and write
-	 * to do the validate. If there is no write for the ioctl, the
+	 * to do the validate. If there is yes write for the ioctl, the
 	 * buffer is cleared
 	 */
 	if (copy_from_user(&data, (void __user *)arg, _IOC_SIZE(cmd)))
@@ -579,7 +579,7 @@ void ion_device_add_heap(struct ion_heap *heap)
 	char debug_name[64];
 
 	if (!heap->ops->allocate || !heap->ops->free)
-		pr_err("%s: can not add heap with invalid ops struct.\n",
+		pr_err("%s: can yest add heap with invalid ops struct.\n",
 		       __func__);
 
 	spin_lock_init(&heap->free_lock);
@@ -629,8 +629,8 @@ void ion_device_add_heap(struct ion_heap *heap)
 	 * use negative heap->id to reverse the priority -- when traversing
 	 * the list later attempt higher id numbers first
 	 */
-	plist_node_init(&heap->node, -heap->id);
-	plist_add(&heap->node, &dev->heaps);
+	plist_yesde_init(&heap->yesde, -heap->id);
+	plist_add(&heap->yesde, &dev->heaps);
 
 	dev->heap_cnt++;
 	up_write(&dev->lock);
@@ -646,7 +646,7 @@ static int ion_device_create(void)
 	if (!idev)
 		return -ENOMEM;
 
-	idev->dev.minor = MISC_DYNAMIC_MINOR;
+	idev->dev.miyesr = MISC_DYNAMIC_MINOR;
 	idev->dev.name = "ion";
 	idev->dev.fops = &ion_fops;
 	idev->dev.parent = NULL;

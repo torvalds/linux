@@ -12,14 +12,14 @@
  *      @(#)	pa/fp/fpu.h		$Revision: 1.1 $
  * 
  *  Purpose:
- *      <<please update with a synopis of the functionality provided by this file>>
+ *      <<please update with a syyespis of the functionality provided by this file>>
  * 
  * 
  * END_DESC  
 */
 
 #ifdef __NO_PA_HDRS
-    PA header file -- do not include this header file for non-PA builds.
+    PA header file -- do yest include this header file for yesn-PA builds.
 #endif
 
 

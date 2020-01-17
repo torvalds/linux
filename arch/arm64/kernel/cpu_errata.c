@@ -69,7 +69,7 @@ has_mismatched_cache_type(const struct arm64_cpu_capabilities *entry,
 	 * a consistent CTR_EL0 to make sure that applications behaves
 	 * correctly with migration.
 	 *
-	 * If a CPU has CTR_EL0.IDC but does not advertise it via CTR_EL0 :
+	 * If a CPU has CTR_EL0.IDC but does yest advertise it via CTR_EL0 :
 	 *
 	 * 1) It is safe if the system doesn't support IDC, as CPU anyway
 	 *    reports IDC = 0, consistent with the rest.
@@ -198,13 +198,13 @@ static void qcom_link_stack_sanitization(void)
 		     : "=&r" (tmp));
 }
 
-static bool __nospectre_v2;
-static int __init parse_nospectre_v2(char *str)
+static bool __yesspectre_v2;
+static int __init parse_yesspectre_v2(char *str)
 {
-	__nospectre_v2 = true;
+	__yesspectre_v2 = true;
 	return 0;
 }
-early_param("nospectre_v2", parse_nospectre_v2);
+early_param("yesspectre_v2", parse_yesspectre_v2);
 
 /*
  * -1: No workaround
@@ -234,7 +234,7 @@ static int detect_harden_bp_fw(void)
 	switch (arm_smccc_1_1_get_conduit()) {
 	case SMCCC_CONDUIT_HVC:
 		cb = call_hvc_arch_workaround_1;
-		/* This is a guest, no need to patch KVM vectors */
+		/* This is a guest, yes need to patch KVM vectors */
 		smccc_start = NULL;
 		smccc_end = NULL;
 		break;
@@ -327,7 +327,7 @@ void __init arm64_enable_wa2_handling(struct alt_instr *alt,
 	 * be flipped.
 	 */
 	if (arm64_get_ssbd_state() == ARM64_SSBD_KERNEL)
-		*updptr = cpu_to_le32(aarch64_insn_gen_nop());
+		*updptr = cpu_to_le32(aarch64_insn_gen_yesp());
 }
 
 void arm64_set_ssbd_mitigation(bool state)
@@ -397,9 +397,9 @@ static bool has_ssbd_mitigation(const struct arm64_cpu_capabilities *entry,
 			__ssb_safe = false;
 		return false;
 
-	/* machines with mixed mitigation requirements must not return this */
+	/* machines with mixed mitigation requirements must yest return this */
 	case SMCCC_RET_NOT_REQUIRED:
-		pr_info_once("%s mitigation not required\n", entry->desc);
+		pr_info_once("%s mitigation yest required\n", entry->desc);
 		ssbd_state = ARM64_SSBD_MITIGATED;
 		return false;
 
@@ -408,7 +408,7 @@ static bool has_ssbd_mitigation(const struct arm64_cpu_capabilities *entry,
 		required = true;
 		break;
 
-	case 1:	/* Mitigation not required on this CPU */
+	case 1:	/* Mitigation yest required on this CPU */
 		required = false;
 		break;
 
@@ -456,7 +456,7 @@ out_printmsg:
 	return required;
 }
 
-/* known invulnerable cores */
+/* kyeswn invulnerable cores */
 static const struct midr_range arm64_ssb_cpus[] = {
 	MIDR_ALL_VERSIONS(MIDR_CORTEX_A35),
 	MIDR_ALL_VERSIONS(MIDR_CORTEX_A53),
@@ -540,7 +540,7 @@ int get_spectre_v2_workaround_state(void)
 }
 
 /*
- * List of CPUs that do not need any Spectre-v2 mitigation at all.
+ * List of CPUs that do yest need any Spectre-v2 mitigation at all.
  */
 static const struct midr_range spectre_v2_safe_list[] = {
 	MIDR_ALL_VERSIONS(MIDR_CORTEX_A35),
@@ -553,7 +553,7 @@ static const struct midr_range spectre_v2_safe_list[] = {
 
 /*
  * Track overall bp hardening for all heterogeneous cores in the machine.
- * We are only considered "safe" if all booted cores are known safe.
+ * We are only considered "safe" if all booted cores are kyeswn safe.
  */
 static bool __maybe_unused
 check_branch_predictor(const struct arm64_cpu_capabilities *entry, int scope)
@@ -585,7 +585,7 @@ check_branch_predictor(const struct arm64_cpu_capabilities *entry, int scope)
 	}
 
 	/* forced off */
-	if (__nospectre_v2 || cpu_mitigations_off()) {
+	if (__yesspectre_v2 || cpu_mitigations_off()) {
 		pr_info_once("spectrev2 mitigation disabled by command line option\n");
 		__hardenbp_enab = false;
 		return false;
@@ -833,7 +833,7 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	},
 #ifdef CONFIG_QCOM_FALKOR_ERRATUM_1003
 	{
-		.desc = "Qualcomm Technologies Falkor/Kryo erratum 1003",
+		.desc = "Qualcomm Techyeslogies Falkor/Kryo erratum 1003",
 		.capability = ARM64_WORKAROUND_QCOM_FALKOR_E1003,
 		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		.matches = cpucap_multi_entry_cap_matches,

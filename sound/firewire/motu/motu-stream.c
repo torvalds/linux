@@ -65,7 +65,7 @@ static int begin_session(struct snd_motu *motu)
 	u32 data;
 	int err;
 
-	// Configure the unit to start isochronous communication.
+	// Configure the unit to start isochroyesus communication.
 	err = snd_motu_transaction_read(motu, ISOC_COMM_CONTROL_OFFSET, &reg,
 					sizeof(reg));
 	if (err < 0)
@@ -246,7 +246,7 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu)
 		err = begin_session(motu);
 		if (err < 0) {
 			dev_err(&motu->unit->device,
-				"fail to start isochronous comm: %d\n", err);
+				"fail to start isochroyesus comm: %d\n", err);
 			goto stop_streams;
 		}
 

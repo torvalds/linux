@@ -24,7 +24,7 @@
  *     https://static.dev.sifive.com/U54-MC-RVCoreIP.pdf
  *
  * The largest number supported by devices marked as 'sifive,plic-1.0.0', is
- * 1024, of which device 0 is defined as non-existent by the RISC-V Privileged
+ * 1024, of which device 0 is defined as yesn-existent by the RISC-V Privileged
  * Spec.
  */
 
@@ -47,7 +47,7 @@
 
 /*
  * Each hart context has a set of control registers associated with it.  Right
- * now there's only two: a source priority threshold over which the hart will
+ * yesw there's only two: a source priority threshold over which the hart will
  * take an interrupt, and a register to claim interrupts.
  */
 #define CONTEXT_BASE			0x200000
@@ -156,7 +156,7 @@ static int plic_irqdomain_map(struct irq_domain *d, unsigned int irq,
 {
 	irq_set_chip_and_handler(irq, &plic_chip, handle_fasteoi_irq);
 	irq_set_chip_data(irq, NULL);
-	irq_set_noprobe(irq);
+	irq_set_yesprobe(irq);
 	return 0;
 }
 
@@ -171,7 +171,7 @@ static struct irq_domain *plic_irqdomain;
  * Handling an interrupt is a two-step process: first you claim the interrupt
  * by reading the claim register, then you complete the interrupt by writing
  * that source ID back to the same claim register.  This automatically enables
- * and disables the interrupt, so there's nothing else to do.
+ * and disables the interrupt, so there's yesthing else to do.
  */
 static void plic_handle_irq(struct pt_regs *regs)
 {
@@ -195,21 +195,21 @@ static void plic_handle_irq(struct pt_regs *regs)
 }
 
 /*
- * Walk up the DT tree until we find an active RISC-V core (HART) node and
+ * Walk up the DT tree until we find an active RISC-V core (HART) yesde and
  * extract the cpuid from it.
  */
-static int plic_find_hart_id(struct device_node *node)
+static int plic_find_hart_id(struct device_yesde *yesde)
 {
-	for (; node; node = node->parent) {
-		if (of_device_is_compatible(node, "riscv"))
-			return riscv_of_processor_hartid(node);
+	for (; yesde; yesde = yesde->parent) {
+		if (of_device_is_compatible(yesde, "riscv"))
+			return riscv_of_processor_hartid(yesde);
 	}
 
 	return -1;
 }
 
-static int __init plic_init(struct device_node *node,
-		struct device_node *parent)
+static int __init plic_init(struct device_yesde *yesde,
+		struct device_yesde *parent)
 {
 	int error = 0, nr_contexts, nr_handlers = 0, i;
 	u32 nr_irqs;
@@ -219,23 +219,23 @@ static int __init plic_init(struct device_node *node,
 		return -ENXIO;
 	}
 
-	plic_regs = of_iomap(node, 0);
+	plic_regs = of_iomap(yesde, 0);
 	if (WARN_ON(!plic_regs))
 		return -EIO;
 
 	error = -EINVAL;
-	of_property_read_u32(node, "riscv,ndev", &nr_irqs);
+	of_property_read_u32(yesde, "riscv,ndev", &nr_irqs);
 	if (WARN_ON(!nr_irqs))
 		goto out_iounmap;
 
-	nr_contexts = of_irq_count(node);
+	nr_contexts = of_irq_count(yesde);
 	if (WARN_ON(!nr_contexts))
 		goto out_iounmap;
 	if (WARN_ON(nr_contexts < num_possible_cpus()))
 		goto out_iounmap;
 
 	error = -ENOMEM;
-	plic_irqdomain = irq_domain_add_linear(node, nr_irqs + 1,
+	plic_irqdomain = irq_domain_add_linear(yesde, nr_irqs + 1,
 			&plic_irqdomain_ops, NULL);
 	if (WARN_ON(!plic_irqdomain))
 		goto out_iounmap;
@@ -247,7 +247,7 @@ static int __init plic_init(struct device_node *node,
 		int cpu, hartid;
 		u32 threshold = 0;
 
-		if (of_irq_parse_one(node, i, &parent)) {
+		if (of_irq_parse_one(yesde, i, &parent)) {
 			pr_err("failed to parse parent for context %d.\n", i);
 			continue;
 		}
@@ -272,7 +272,7 @@ static int __init plic_init(struct device_node *node,
 		}
 
 		/*
-		 * When running in M-mode we need to ignore the S-mode handler.
+		 * When running in M-mode we need to igyesre the S-mode handler.
 		 * Here we assume it always comes later, but that might be a
 		 * little fragile.
 		 */

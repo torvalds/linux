@@ -136,12 +136,12 @@ static void __init combiner_init_one(struct combiner_chip_data *combiner_data,
 }
 
 static int combiner_irq_domain_xlate(struct irq_domain *d,
-				     struct device_node *controller,
+				     struct device_yesde *controller,
 				     const u32 *intspec, unsigned int intsize,
 				     unsigned long *out_hwirq,
 				     unsigned int *out_type)
 {
-	if (irq_domain_get_of_node(d) != controller)
+	if (irq_domain_get_of_yesde(d) != controller)
 		return -EINVAL;
 
 	if (intsize < 2)
@@ -171,7 +171,7 @@ static const struct irq_domain_ops combiner_irq_domain_ops = {
 };
 
 static void __init combiner_init(void __iomem *combiner_base,
-				 struct device_node *np)
+				 struct device_yesde *np)
 {
 	int i, irq;
 	unsigned int nr_irq;
@@ -180,7 +180,7 @@ static void __init combiner_init(void __iomem *combiner_base,
 
 	combiner_data = kcalloc(max_nr, sizeof (*combiner_data), GFP_KERNEL);
 	if (!combiner_data) {
-		pr_warn("%s: could not allocate combiner data\n", __func__);
+		pr_warn("%s: could yest allocate combiner data\n", __func__);
 		return;
 	}
 
@@ -249,8 +249,8 @@ static struct syscore_ops combiner_syscore_ops = {
 	.resume		= combiner_resume,
 };
 
-static int __init combiner_of_init(struct device_node *np,
-				   struct device_node *parent)
+static int __init combiner_of_init(struct device_yesde *np,
+				   struct device_yesde *parent)
 {
 	void __iomem *combiner_base;
 
@@ -261,7 +261,7 @@ static int __init combiner_of_init(struct device_node *np,
 	}
 
 	if (of_property_read_u32(np, "samsung,combiner-nr", &max_nr)) {
-		pr_info("%s: number of combiners not specified, "
+		pr_info("%s: number of combiners yest specified, "
 			"setting default as %d.\n",
 			__func__, max_nr);
 	}
@@ -272,5 +272,5 @@ static int __init combiner_of_init(struct device_node *np,
 
 	return 0;
 }
-IRQCHIP_DECLARE(exynos4210_combiner, "samsung,exynos4210-combiner",
+IRQCHIP_DECLARE(exyyess4210_combiner, "samsung,exyyess4210-combiner",
 		combiner_of_init);

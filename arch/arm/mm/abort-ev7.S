@@ -20,7 +20,7 @@ ENTRY(v7_early_abort)
 
 	/*
 	 * V6 code adjusts the returned DFSR.
-	 * New designs should not need to patch up faults.
+	 * New designs should yest need to patch up faults.
 	 */
 
 #if defined(CONFIG_VERIFY_PERMISSION_FAULT)

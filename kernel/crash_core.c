@@ -14,7 +14,7 @@
 /* vmcoreinfo stuff */
 unsigned char *vmcoreinfo_data;
 size_t vmcoreinfo_size;
-u32 *vmcoreinfo_note;
+u32 *vmcoreinfo_yeste;
 
 /* trusted vmcoreinfo, e.g. we can make a copy in the crash memory */
 static unsigned char *vmcoreinfo_data_safecopy;
@@ -57,7 +57,7 @@ static int __init parse_crashkernel_mem(char *cmdline,
 		}
 		cur++;
 
-		/* if no ':' is here, than we read the end */
+		/* if yes ':' is here, than we read the end */
 		if (*cur != ':') {
 			end = memparse(cur, &tmp);
 			if (cur == tmp) {
@@ -201,7 +201,7 @@ static __init char *get_last_crashkernel(char *cmdline,
 		if (!suffix) {
 			int i;
 
-			/* skip the one with any known suffix */
+			/* skip the one with any kyeswn suffix */
 			for (i = 0; suffix_tbl[i]; i++) {
 				q = end_p - strlen(suffix_tbl[i]);
 				if (!strncmp(q, suffix_tbl[i],
@@ -250,7 +250,7 @@ static int __init __parse_crashkernel(char *cmdline,
 				suffix);
 	/*
 	 * if the commandline contains a ':', then that's the extended
-	 * syntax -- if not, it must be the classic syntax
+	 * syntax -- if yest, it must be the classic syntax
 	 */
 	first_colon = strchr(ck_cmdline, ':');
 	first_space = strchr(ck_cmdline, ' ');
@@ -292,37 +292,37 @@ int __init parse_crashkernel_low(char *cmdline,
 				"crashkernel=", suffix_tbl[SUFFIX_LOW]);
 }
 
-Elf_Word *append_elf_note(Elf_Word *buf, char *name, unsigned int type,
+Elf_Word *append_elf_yeste(Elf_Word *buf, char *name, unsigned int type,
 			  void *data, size_t data_len)
 {
-	struct elf_note *note = (struct elf_note *)buf;
+	struct elf_yeste *yeste = (struct elf_yeste *)buf;
 
-	note->n_namesz = strlen(name) + 1;
-	note->n_descsz = data_len;
-	note->n_type   = type;
-	buf += DIV_ROUND_UP(sizeof(*note), sizeof(Elf_Word));
-	memcpy(buf, name, note->n_namesz);
-	buf += DIV_ROUND_UP(note->n_namesz, sizeof(Elf_Word));
+	yeste->n_namesz = strlen(name) + 1;
+	yeste->n_descsz = data_len;
+	yeste->n_type   = type;
+	buf += DIV_ROUND_UP(sizeof(*yeste), sizeof(Elf_Word));
+	memcpy(buf, name, yeste->n_namesz);
+	buf += DIV_ROUND_UP(yeste->n_namesz, sizeof(Elf_Word));
 	memcpy(buf, data, data_len);
 	buf += DIV_ROUND_UP(data_len, sizeof(Elf_Word));
 
 	return buf;
 }
 
-void final_note(Elf_Word *buf)
+void final_yeste(Elf_Word *buf)
 {
-	memset(buf, 0, sizeof(struct elf_note));
+	memset(buf, 0, sizeof(struct elf_yeste));
 }
 
-static void update_vmcoreinfo_note(void)
+static void update_vmcoreinfo_yeste(void)
 {
-	u32 *buf = vmcoreinfo_note;
+	u32 *buf = vmcoreinfo_yeste;
 
 	if (!vmcoreinfo_size)
 		return;
-	buf = append_elf_note(buf, VMCOREINFO_NOTE_NAME, 0, vmcoreinfo_data,
+	buf = append_elf_yeste(buf, VMCOREINFO_NOTE_NAME, 0, vmcoreinfo_data,
 			      vmcoreinfo_size);
-	final_note(buf);
+	final_yeste(buf);
 }
 
 void crash_update_vmcoreinfo_safecopy(void *ptr)
@@ -335,15 +335,15 @@ void crash_update_vmcoreinfo_safecopy(void *ptr)
 
 void crash_save_vmcoreinfo(void)
 {
-	if (!vmcoreinfo_note)
+	if (!vmcoreinfo_yeste)
 		return;
 
-	/* Use the safe copy to generate vmcoreinfo note if have */
+	/* Use the safe copy to generate vmcoreinfo yeste if have */
 	if (vmcoreinfo_data_safecopy)
 		vmcoreinfo_data = vmcoreinfo_data_safecopy;
 
 	vmcoreinfo_append_str("CRASHTIME=%lld\n", ktime_get_real_seconds());
-	update_vmcoreinfo_note();
+	update_vmcoreinfo_yeste();
 }
 
 void vmcoreinfo_append_str(const char *fmt, ...)
@@ -370,11 +370,11 @@ void vmcoreinfo_append_str(const char *fmt, ...)
 void __weak arch_crash_save_vmcoreinfo(void)
 {}
 
-phys_addr_t __weak paddr_vmcoreinfo_note(void)
+phys_addr_t __weak paddr_vmcoreinfo_yeste(void)
 {
-	return __pa(vmcoreinfo_note);
+	return __pa(vmcoreinfo_yeste);
 }
-EXPORT_SYMBOL(paddr_vmcoreinfo_note);
+EXPORT_SYMBOL(paddr_vmcoreinfo_yeste);
 
 static int __init crash_save_vmcoreinfo_init(void)
 {
@@ -384,12 +384,12 @@ static int __init crash_save_vmcoreinfo_init(void)
 		return -ENOMEM;
 	}
 
-	vmcoreinfo_note = alloc_pages_exact(VMCOREINFO_NOTE_SIZE,
+	vmcoreinfo_yeste = alloc_pages_exact(VMCOREINFO_NOTE_SIZE,
 						GFP_KERNEL | __GFP_ZERO);
-	if (!vmcoreinfo_note) {
+	if (!vmcoreinfo_yeste) {
 		free_page((unsigned long)vmcoreinfo_data);
 		vmcoreinfo_data = NULL;
-		pr_warn("Memory allocation for vmcoreinfo_note failed\n");
+		pr_warn("Memory allocation for vmcoreinfo_yeste failed\n");
 		return -ENOMEM;
 	}
 
@@ -397,7 +397,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 	VMCOREINFO_PAGESIZE(PAGE_SIZE);
 
 	VMCOREINFO_SYMBOL(init_uts_ns);
-	VMCOREINFO_SYMBOL(node_online_map);
+	VMCOREINFO_SYMBOL(yesde_online_map);
 #ifdef CONFIG_MMU
 	VMCOREINFO_SYMBOL_ARRAY(swapper_pg_dir);
 #endif
@@ -419,7 +419,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 	VMCOREINFO_STRUCT_SIZE(zone);
 	VMCOREINFO_STRUCT_SIZE(free_area);
 	VMCOREINFO_STRUCT_SIZE(list_head);
-	VMCOREINFO_SIZE(nodemask_t);
+	VMCOREINFO_SIZE(yesdemask_t);
 	VMCOREINFO_OFFSET(page, flags);
 	VMCOREINFO_OFFSET(page, _refcount);
 	VMCOREINFO_OFFSET(page, mapping);
@@ -429,14 +429,14 @@ static int __init crash_save_vmcoreinfo_init(void)
 	VMCOREINFO_OFFSET(page, compound_dtor);
 	VMCOREINFO_OFFSET(page, compound_order);
 	VMCOREINFO_OFFSET(page, compound_head);
-	VMCOREINFO_OFFSET(pglist_data, node_zones);
+	VMCOREINFO_OFFSET(pglist_data, yesde_zones);
 	VMCOREINFO_OFFSET(pglist_data, nr_zones);
 #ifdef CONFIG_FLAT_NODE_MEM_MAP
-	VMCOREINFO_OFFSET(pglist_data, node_mem_map);
+	VMCOREINFO_OFFSET(pglist_data, yesde_mem_map);
 #endif
-	VMCOREINFO_OFFSET(pglist_data, node_start_pfn);
-	VMCOREINFO_OFFSET(pglist_data, node_spanned_pages);
-	VMCOREINFO_OFFSET(pglist_data, node_id);
+	VMCOREINFO_OFFSET(pglist_data, yesde_start_pfn);
+	VMCOREINFO_OFFSET(pglist_data, yesde_spanned_pages);
+	VMCOREINFO_OFFSET(pglist_data, yesde_id);
 	VMCOREINFO_OFFSET(zone, free_area);
 	VMCOREINFO_OFFSET(zone, vm_stat);
 	VMCOREINFO_OFFSET(zone, spanned_pages);
@@ -467,7 +467,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 #endif
 
 	arch_crash_save_vmcoreinfo();
-	update_vmcoreinfo_note();
+	update_vmcoreinfo_yeste();
 
 	return 0;
 }

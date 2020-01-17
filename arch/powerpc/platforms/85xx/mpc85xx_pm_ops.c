@@ -84,14 +84,14 @@ static const struct fsl_pm_ops mpc85xx_pm_ops = {
 
 int __init mpc85xx_setup_pmc(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_matching_node(NULL, mpc85xx_smp_guts_ids);
+	np = of_find_matching_yesde(NULL, mpc85xx_smp_guts_ids);
 	if (np) {
 		guts = of_iomap(np, 0);
-		of_node_put(np);
+		of_yesde_put(np);
 		if (!guts) {
-			pr_err("Could not map guts node address\n");
+			pr_err("Could yest map guts yesde address\n");
 			return -ENOMEM;
 		}
 	}

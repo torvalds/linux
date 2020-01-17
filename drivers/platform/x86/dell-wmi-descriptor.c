@@ -120,7 +120,7 @@ static int dell_wmi_descriptor_probe(struct wmi_device *wdev,
 		goto out;
 	}
 
-	/* Although it's not technically a failure, this would lead to
+	/* Although it's yest technically a failure, this would lead to
 	 * unexpected behavior
 	 */
 	if (obj->buffer.length != 128) {
@@ -144,7 +144,7 @@ static int dell_wmi_descriptor_probe(struct wmi_device *wdev,
 	descriptor_valid = 0;
 
 	if (buffer[2] != 0 && buffer[2] != 1)
-		dev_warn(&wdev->dev, "Dell descriptor buffer has unknown version (%lu)\n",
+		dev_warn(&wdev->dev, "Dell descriptor buffer has unkyeswn version (%lu)\n",
 			(unsigned long) buffer[2]);
 
 	priv = devm_kzalloc(&wdev->dev, sizeof(struct descriptor_priv),

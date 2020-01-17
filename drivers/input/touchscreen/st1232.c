@@ -185,7 +185,7 @@ static int st1232_ts_probe(struct i2c_client *client,
 	if (!match && id)
 		match = (const void *)id->driver_data;
 	if (!match) {
-		dev_err(&client->dev, "unknown device model\n");
+		dev_err(&client->dev, "unkyeswn device model\n");
 		return -ENODEV;
 	}
 
@@ -195,7 +195,7 @@ static int st1232_ts_probe(struct i2c_client *client,
 	}
 
 	if (!client->irq) {
-		dev_err(&client->dev, "no IRQ?\n");
+		dev_err(&client->dev, "yes IRQ?\n");
 		return -EINVAL;
 	}
 

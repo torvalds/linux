@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999, 2000
@@ -387,7 +387,7 @@ typedef struct {
 } ptrace_area;
 
 /*
- * S/390 specific non posix ptrace requests. I chose unusual values so
+ * S/390 specific yesn posix ptrace requests. I chose unusual values so
  * they are unlikely to clash with future ptrace definitions.
  */
 #define PTRACE_PEEKUSR_AREA	      0x5000
@@ -405,7 +405,7 @@ typedef struct {
 
 /*
  * The numbers chosen here are somewhat arbitrary but absolutely MUST
- * not overlap with any of the number assigned in <linux/ptrace.h>.
+ * yest overlap with any of the number assigned in <linux/ptrace.h>.
  */
 #define PTRACE_SINGLEBLOCK	12	/* resume execution until next branch */
 
@@ -445,7 +445,7 @@ struct user_regs_struct {
 	s390_fp_regs fp_regs;
 	/*
 	 * These per registers are in here so that gdb can modify them
-	 * itself as there is no "official" ptrace interface for hardware
+	 * itself as there is yes "official" ptrace interface for hardware
 	 * watchpoints. This is the way intel does it.
 	 */
 	per_struct per_info;

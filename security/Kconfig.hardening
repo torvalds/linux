@@ -6,7 +6,7 @@ config GCC_PLUGIN_STRUCTLEAK
 	help
 	  While the kernel is built with warnings enabled for any missed
 	  stack variable initializations, this warning is silenced for
-	  anything passed by reference to another function, under the
+	  anything passed by reference to ayesther function, under the
 	  occasionally misguided assumption that the function will do
 	  the initialization. As this regularly leads to exploitable
 	  flaws, this plugin is available to identify and zero-initialize
@@ -40,7 +40,7 @@ choice
 	  initialized before use in a function.
 
 	config INIT_STACK_NONE
-		bool "no automatic initialization (weakest)"
+		bool "yes automatic initialization (weakest)"
 		help
 		  Disable automatic stack variable initialization.
 		  This leaves the kernel vulnerable to the standard
@@ -65,7 +65,7 @@ choice
 		select GCC_PLUGIN_STRUCTLEAK
 		help
 		  Zero-initialize any structures on the stack that may
-		  be passed by reference and had not already been
+		  be passed by reference and had yest already been
 		  explicitly initialized. This can prevent most classes
 		  of uninitialized stack variable exploits and information
 		  exposures, like CVE-2017-1000410:
@@ -83,7 +83,7 @@ choice
 		select GCC_PLUGIN_STRUCTLEAK
 		help
 		  Zero-initialize any stack variables that may be passed
-		  by reference and had not already been explicitly
+		  by reference and had yest already been explicitly
 		  initialized. This is intended to eliminate all classes
 		  of uninitialized stack variable exploits and information
 		  exposures.
@@ -103,11 +103,11 @@ endchoice
 config GCC_PLUGIN_STRUCTLEAK_VERBOSE
 	bool "Report forcefully initialized variables"
 	depends on GCC_PLUGIN_STRUCTLEAK
-	depends on !COMPILE_TEST	# too noisy
+	depends on !COMPILE_TEST	# too yesisy
 	help
 	  This option will cause a warning to be printed each time the
 	  structleak plugin finds a variable it thinks needs to be
-	  initialized. Since not all existing initializers are detected
+	  initialized. Since yest all existing initializers are detected
 	  by the plugin, this can produce false positive warnings.
 
 config GCC_PLUGIN_STACKLEAK
@@ -120,7 +120,7 @@ config GCC_PLUGIN_STACKLEAK
 	  the stack initialized to the poison value, which both reduces
 	  the lifetime of any sensitive stack contents and reduces
 	  potential for uninitialized stack variable exploits or information
-	  exposures (it does not cover functions reaching the same stack
+	  exposures (it does yest cover functions reaching the same stack
 	  depth as prior functions during the same syscall). This blocks
 	  most uninitialized stack variable attacks, with the performance
 	  impact being driven by the depth of the stack usage, rather than
@@ -155,7 +155,7 @@ config STACKLEAK_METRICS
 	  If this is set, STACKLEAK metrics for every task are available in
 	  the /proc file system. In particular, /proc/<pid>/stack_depth
 	  shows the maximum kernel stack consumption for the current and
-	  previous syscalls. Although this information is not precise, it
+	  previous syscalls. Although this information is yest precise, it
 	  can be useful for estimating the STACKLEAK performance impact for
 	  your workloads.
 

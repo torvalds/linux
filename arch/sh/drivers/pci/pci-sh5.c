@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2001 David J. Mckay (david.mckay@st.com)
  * Copyright (C) 2003, 2004 Paul Mundt
- * Copyright (C) 2004 Richard Curnow
+ * Copyright (C) 2004 Richard Curyesw
  *
  * Support functions for the SH5 PCI hardware.
  */
@@ -12,7 +12,7 @@
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/types.h>
@@ -105,27 +105,27 @@ static int __init sh5pci_init(void)
 
         if (request_irq(IRQ_ERR, pcish5_err_irq,
                         0, "PCI Error",NULL) < 0) {
-                printk(KERN_ERR "PCISH5: Cannot hook PCI_PERR interrupt\n");
+                printk(KERN_ERR "PCISH5: Canyest hook PCI_PERR interrupt\n");
                 return -EINVAL;
         }
 
         if (request_irq(IRQ_SERR, pcish5_serr_irq,
                         0, "PCI SERR interrupt", NULL) < 0) {
-                printk(KERN_ERR "PCISH5: Cannot hook PCI_SERR interrupt\n");
+                printk(KERN_ERR "PCISH5: Canyest hook PCI_SERR interrupt\n");
                 return -EINVAL;
         }
 
-	pcicr_virt = (unsigned long)ioremap_nocache(SH5PCI_ICR_BASE, 1024);
+	pcicr_virt = (unsigned long)ioremap_yescache(SH5PCI_ICR_BASE, 1024);
 	if (!pcicr_virt) {
 		panic("Unable to remap PCICR\n");
 	}
 
-	PCI_IO_AREA = (unsigned long)ioremap_nocache(SH5PCI_IO_BASE, 0x10000);
+	PCI_IO_AREA = (unsigned long)ioremap_yescache(SH5PCI_IO_BASE, 0x10000);
 	if (!PCI_IO_AREA) {
 		panic("Unable to remap PCIIO\n");
 	}
 
-	/* Clear snoop registers */
+	/* Clear syesop registers */
         SH5PCI_WRITE(CSCR0, 0);
         SH5PCI_WRITE(CSCR1, 0);
 
@@ -174,7 +174,7 @@ static int __init sh5pci_init(void)
 
 	/* The SH5 has a HUGE 256K I/O region, which breaks the PCI spec.
 	 * Ideally, we would want to map the I/O region somewhere, but it
-	 * is so big this is not that easy!
+	 * is so big this is yest that easy!
          */
 	SH5PCI_WRITE(CSR_IBAR0,~0);
 	/* Set memory size value */

@@ -14,7 +14,7 @@ description: |
   Boards with a SoC of the Atmel AT91 or SMART family shall have the following
 
 properties:
-  $nodename:
+  $yesdename:
     const: '/'
   compatible:
     oneOf:

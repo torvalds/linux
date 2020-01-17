@@ -6,8 +6,8 @@
  * Expose entries from QEMU's firmware configuration (fw_cfg) device in
  * sysfs (read-only, under "/sys/firmware/qemu_fw_cfg/...").
  *
- * The fw_cfg device may be instantiated via either an ACPI node (on x86
- * and select subsets of aarch64), a Device Tree node (on arm), or using
+ * The fw_cfg device may be instantiated via either an ACPI yesde (on x86
+ * and select subsets of aarch64), a Device Tree yesde (on arm), or using
  * a kernel module (or command line) parameter with the following syntax:
  *
  *      [qemu_fw_cfg.]ioport=<size>@<base>[:<ctrl_off>:<data_off>[:<dma_off>]]
@@ -79,7 +79,7 @@ static void fw_cfg_wait_for_control(struct fw_cfg_dma_access *d)
 	for (;;) {
 		u32 ctrl = be32_to_cpu(READ_ONCE(d->control));
 
-		/* do not reorder the read to d->control */
+		/* do yest reorder the read to d->control */
 		rmb();
 		if ((ctrl & ~FW_CFG_DMA_CTL_ERROR) == 0)
 			return;
@@ -100,7 +100,7 @@ static ssize_t fw_cfg_dma_transfer(void *address, u32 length, u32 control)
 		goto end;
 	}
 
-	/* fw_cfg device does not need IOMMU protection, so use physical addresses */
+	/* fw_cfg device does yest need IOMMU protection, so use physical addresses */
 	*d = (struct fw_cfg_dma_access) {
 		.address = cpu_to_be64(address ? virt_to_phys(address) : 0),
 		.length = cpu_to_be32(length),
@@ -110,7 +110,7 @@ static ssize_t fw_cfg_dma_transfer(void *address, u32 length, u32 control)
 	dma = virt_to_phys(d);
 
 	iowrite32be((u64)dma >> 32, fw_cfg_reg_dma);
-	/* force memory to sync before notifying device via MMIO */
+	/* force memory to sync before yestifying device via MMIO */
 	wmb();
 	iowrite32be(dma, fw_cfg_reg_dma + 4);
 
@@ -209,7 +209,7 @@ static void fw_cfg_io_cleanup(void)
 	}
 }
 
-/* arch-specific ctrl & data register offsets are not available in ACPI, DT */
+/* arch-specific ctrl & data register offsets are yest available in ACPI, DT */
 #if !(defined(FW_CFG_CTRL_OFF) && defined(FW_CFG_DATA_OFF))
 # if (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
 #  define FW_CFG_CTRL_OFF 0x08
@@ -223,7 +223,7 @@ static void fw_cfg_io_cleanup(void)
 #  define FW_CFG_DATA_OFF 0x01
 #  define FW_CFG_DMA_OFF 0x04
 # else
-#  error "QEMU FW_CFG not available on this architecture!"
+#  error "QEMU FW_CFG yest available on this architecture!"
 # endif
 #endif
 
@@ -331,10 +331,10 @@ static ssize_t fw_cfg_write_vmcoreinfo(const struct fw_cfg_file *f)
 	*data = (struct fw_cfg_vmcoreinfo) {
 		.guest_format = cpu_to_le16(FW_CFG_VMCOREINFO_FORMAT_ELF),
 		.size = cpu_to_le32(VMCOREINFO_NOTE_SIZE),
-		.paddr = cpu_to_le64(paddr_vmcoreinfo_note())
+		.paddr = cpu_to_le64(paddr_vmcoreinfo_yeste())
 	};
-	/* spare ourself reading host format support for now since we
-	 * don't know what else to format - host may ignore ours
+	/* spare ourself reading host format support for yesw since we
+	 * don't kyesw what else to format - host may igyesre ours
 	 */
 	ret = fw_cfg_write_blob(be16_to_cpu(f->select), data,
 				0, sizeof(struct fw_cfg_vmcoreinfo));
@@ -483,7 +483,7 @@ static struct bin_attribute fw_cfg_sysfs_attr_raw = {
  * Create a kset subdirectory matching each '/' delimited dirname token
  * in 'name', starting with sysfs kset/folder 'dir'; At the end, create
  * a symlink directed at the given 'target'.
- * NOTE: We do this on a best-effort basis, since 'name' is not guaranteed
+ * NOTE: We do this on a best-effort basis, since 'name' is yest guaranteed
  * to be a well-behaved path name. Whenever a symlink vs. kset directory
  * name collision occurs, the kernel will issue big scary warnings while
  * refusing to add the offending link or directory. We follow up with our
@@ -771,7 +771,7 @@ static struct platform_driver fw_cfg_sysfs_driver = {
 static struct platform_device *fw_cfg_cmdline_dev;
 
 /* this probably belongs in e.g. include/linux/types.h,
- * but right now we are the only ones doing it...
+ * but right yesw we are the only ones doing it...
  */
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 #define __PHYS_ADDR_PREFIX "ll"
@@ -825,7 +825,7 @@ static int fw_cfg_cmdline_set(const char *arg, const struct kernel_param *kp)
 	/* sscanf() must process precisely 1, 3 or 4 chunks:
 	 * <base> is mandatory, optionally followed by <ctrl_off>
 	 * and <data_off>, and <dma_off>;
-	 * there must be no extra characters after the last chunk,
+	 * there must be yes extra characters after the last chunk,
 	 * so str[consumed] must be '\0'.
 	 */
 	if (str[consumed] ||
@@ -863,7 +863,7 @@ static int fw_cfg_cmdline_set(const char *arg, const struct kernel_param *kp)
 
 static int fw_cfg_cmdline_get(char *buf, const struct kernel_param *kp)
 {
-	/* stay silent if device was not configured via the command
+	/* stay silent if device was yest configured via the command
 	 * line, or if the parameter name (ioport/mmio) doesn't match
 	 * the device setting
 	 */

@@ -89,7 +89,7 @@ static int clk_bcm2835_i2c_calc_divider(unsigned long rate,
 
 	/*
 	 * Per the datasheet, the register is always interpreted as an even
-	 * number, by rounding down. In other words, the LSB is ignored. So,
+	 * number, by rounding down. In other words, the LSB is igyesred. So,
 	 * if the LSB is set, increment the divider to avoid any issue.
 	 */
 	if (divider & 1)
@@ -224,8 +224,8 @@ static void bcm2835_drain_rxfifo(struct bcm2835_i2c_dev *i2c_dev)
  * A comment in https://github.com/raspberrypi/linux/issues/254 shows how the
  * firmware actually does it using polling and says that it's a workaround for
  * a problem in the state machine.
- * It turns out that it is possible to use the TXW interrupt to know when the
- * transfer is active, provided the FIFO has not been prefilled.
+ * It turns out that it is possible to use the TXW interrupt to kyesw when the
+ * transfer is active, provided the FIFO has yest been prefilled.
  */
 
 static void bcm2835_i2c_start_transfer(struct bcm2835_i2c_dev *i2c_dev)
@@ -266,7 +266,7 @@ static void bcm2835_i2c_finish_transfer(struct bcm2835_i2c_dev *i2c_dev)
 /*
  * Note about I2C_C_CLEAR on error:
  * The I2C_C_CLEAR on errors will take some time to resolve -- if you were in
- * non-idle state and I2C_C_READ, it sets an abort_rx flag and runs through
+ * yesn-idle state and I2C_C_READ, it sets an abort_rx flag and runs through
  * the state machine to send a NACK and a STOP. Since we're setting CLEAR
  * without I2CEN, that NACK will be hanging around queued up for next time
  * we start the engine.
@@ -392,7 +392,7 @@ static const struct i2c_algorithm bcm2835_i2c_algo = {
 
 /*
  * The BCM2835 was reported to have problems with clock stretching:
- * http://www.advamation.com/knowhow/raspberrypi/rpi-i2c-bug.html
+ * http://www.advamation.com/kyeswhow/raspberrypi/rpi-i2c-bug.html
  * https://www.raspberrypi.org/forums/viewtopic.php?p=146272
  */
 static const struct i2c_adapter_quirks bcm2835_i2c_quirks = {
@@ -423,28 +423,28 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	mclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(mclk)) {
 		if (PTR_ERR(mclk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Could not get clock\n");
+			dev_err(&pdev->dev, "Could yest get clock\n");
 		return PTR_ERR(mclk);
 	}
 
 	i2c_dev->bus_clk = bcm2835_i2c_register_div(&pdev->dev, mclk, i2c_dev);
 
 	if (IS_ERR(i2c_dev->bus_clk)) {
-		dev_err(&pdev->dev, "Could not register clock\n");
+		dev_err(&pdev->dev, "Could yest register clock\n");
 		return PTR_ERR(i2c_dev->bus_clk);
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	ret = of_property_read_u32(pdev->dev.of_yesde, "clock-frequency",
 				   &bus_clk_rate);
 	if (ret < 0) {
 		dev_warn(&pdev->dev,
-			 "Could not read clock-frequency property\n");
+			 "Could yest read clock-frequency property\n");
 		bus_clk_rate = 100000;
 	}
 
 	ret = clk_set_rate_exclusive(i2c_dev->bus_clk, bus_clk_rate);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not set clock frequency\n");
+		dev_err(&pdev->dev, "Could yest set clock frequency\n");
 		return ret;
 	}
 
@@ -464,7 +464,7 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	ret = request_irq(i2c_dev->irq, bcm2835_i2c_isr, IRQF_SHARED,
 			  dev_name(&pdev->dev), i2c_dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not request IRQ\n");
+		dev_err(&pdev->dev, "Could yest request IRQ\n");
 		return -ENODEV;
 	}
 
@@ -473,10 +473,10 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	adap->owner = THIS_MODULE;
 	adap->class = I2C_CLASS_DEPRECATED;
 	snprintf(adap->name, sizeof(adap->name), "bcm2835 (%s)",
-		 of_node_full_name(pdev->dev.of_node));
+		 of_yesde_full_name(pdev->dev.of_yesde));
 	adap->algo = &bcm2835_i2c_algo;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 	adap->quirks = of_device_get_match_data(&pdev->dev);
 
 	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_C, 0);

@@ -39,7 +39,7 @@ static inline char *check_image_kernel(struct swsusp_info *info)
 }
 #endif /* CONFIG_ARCH_HIBERNATION_HEADER */
 
-extern int hibernate_resume_nonboot_cpu_disable(void);
+extern int hibernate_resume_yesnboot_cpu_disable(void);
 
 /*
  * Keep some memory free so that I/O operations can succeed without paging
@@ -119,7 +119,7 @@ extern void clear_free_pages(void);
  *
  *	The code that writes the image to a storage or transfers it to
  *	the user land is required to use snapshot_read_next() for this
- *	purpose and it should not make any assumptions regarding the internal
+ *	purpose and it should yest make any assumptions regarding the internal
  *	structure of the image.  Similarly, the code that reads the image from
  *	a storage or transfers it from the user land is required to use
  *	snapshot_write_next().
@@ -135,7 +135,7 @@ struct snapshot_handle {
 	void		*buffer;	/* address of the block to read from
 					 * or write to
 					 */
-	int		sync_read;	/* Set to one to notify the caller of
+	int		sync_read;	/* Set to one to yestify the caller of
 					 * snapshot_write_next() that it may
 					 * need to call wait_on_bio_chain()
 					 */
@@ -154,7 +154,7 @@ extern int snapshot_write_next(struct snapshot_handle *handle);
 extern void snapshot_write_finalize(struct snapshot_handle *handle);
 extern int snapshot_image_loaded(struct snapshot_handle *handle);
 
-/* If unset, the snapshot device cannot be open. */
+/* If unset, the snapshot device canyest be open. */
 extern atomic_t snapshot_device_available;
 
 extern sector_t alloc_swapdev_block(int swap);
@@ -210,9 +210,9 @@ static inline void suspend_test_finish(const char *label) {}
 
 #ifdef CONFIG_PM_SLEEP
 /* kernel/power/main.c */
-extern int __pm_notifier_call_chain(unsigned long val, int nr_to_call,
+extern int __pm_yestifier_call_chain(unsigned long val, int nr_to_call,
 				    int *nr_calls);
-extern int pm_notifier_call_chain(unsigned long val);
+extern int pm_yestifier_call_chain(unsigned long val);
 #endif
 
 #ifdef CONFIG_HIGHMEM
@@ -254,7 +254,7 @@ static inline int suspend_freeze_processes(void)
 	error = freeze_processes();
 	/*
 	 * freeze_processes() automatically thaws every task if freezing
-	 * fails. So we need not do anything extra upon error.
+	 * fails. So we need yest do anything extra upon error.
 	 */
 	if (error)
 		return error;

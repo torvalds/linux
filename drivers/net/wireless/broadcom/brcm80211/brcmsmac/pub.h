@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -48,7 +48,7 @@
 #define	BRCMS_RSSI_EXCELLENT	-57	/* Excellent quality cutoffs */
 
 /* a large TX Power as an init value to factor out of min() calculations,
- * keep low enough to fit in an s8, units are .25 dBm
+ * keep low eyesugh to fit in an s8, units are .25 dBm
  */
 #define BRCMS_TXPWR_MAX		(127)	/* ~32 dBm = 1,500 mW */
 
@@ -88,7 +88,7 @@
 #define RXCHAIN_DEF_NPHY	0x3
 /* default bitmap of rx chains for nphy */
 #define RXCHAIN_DEF_HTPHY	0x7
-/* no antenna switch */
+/* yes antenna switch */
 #define ANTSWITCH_NONE		0
 /* antenna switch on 4321CB2, 2of3 */
 #define ANTSWITCH_TYPE_1	1
@@ -154,12 +154,12 @@ struct brcms_pub {
 	bool hw_up;		/* one time hw up/down */
 	bool _piomode;		/* true if pio mode */
 	uint _nbands;		/* # bands supported */
-	uint now;		/* # elapsed seconds */
+	uint yesw;		/* # elapsed seconds */
 
 	bool delayed_down;	/* down delayed */
-	bool associated;	/* true:part of [I]BSS, false: not */
+	bool associated;	/* true:part of [I]BSS, false: yest */
 	/* (union of stas_associated, aps_associated) */
-	bool _ampdu;		/* ampdu enabled or not */
+	bool _ampdu;		/* ampdu enabled or yest */
 	u8 _n_enab;		/* bitmap of 11N + HT support */
 
 	u8 cur_etheraddr[ETH_ALEN];	/* our local ethernet address */
@@ -207,10 +207,10 @@ enum wlc_par_id {
 #define	BRCMS_PROT_N_USER		10	/* nmode specified by user */
 #define	BRCMS_PROT_N_CFG		11	/* n protection */
 #define	BRCMS_PROT_N_CFG_OVR	12	/* n protection override */
-#define	BRCMS_PROT_N_NONGF	13	/* non-GF protection */
-#define	BRCMS_PROT_N_NONGF_OVR	14	/* non-GF protection override */
+#define	BRCMS_PROT_N_NONGF	13	/* yesn-GF protection */
+#define	BRCMS_PROT_N_NONGF_OVR	14	/* yesn-GF protection override */
 #define	BRCMS_PROT_N_PAM_OVR	15	/* n preamble override */
-#define	BRCMS_PROT_N_OBSS		16	/* non-HT OBSS present */
+#define	BRCMS_PROT_N_OBSS		16	/* yesn-HT OBSS present */
 
 /*
  * 54g modes (basic bits may still be overridden)

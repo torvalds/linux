@@ -75,13 +75,13 @@ static const char Unused_offset[] = "Unused swap offset entry ";
 PLIST_HEAD(swap_active_head);
 
 /*
- * all available (active, not full) swap_info_structs
+ * all available (active, yest full) swap_info_structs
  * protected with swap_avail_lock, ordered by priority.
  * This is used by get_swap_page() instead of swap_active_head
  * because swap_active_head includes all swap_info_structs,
  * but get_swap_page() doesn't need to look at full ones.
  * This uses its own lock instead of swap_lock because when a
- * swap_info_struct changes between not-full/full, it needs to
+ * swap_info_struct changes between yest-full/full, it needs to
  * add/remove itself to/from this list, but the swap_info_struct->lock
  * is held and the locking order requires swap_lock to be taken
  * before any swap_info_struct->lock.
@@ -116,7 +116,7 @@ static inline unsigned char swap_count(unsigned char ent)
 /* Reclaim the swap entry anyway if possible */
 #define TTRS_ANYWAY		0x1
 /*
- * Reclaim the swap entry if there are no more mappings of the
+ * Reclaim the swap entry if there are yes more mappings of the
  * corresponding page
  */
 #define TTRS_UNMAPPED		0x2
@@ -154,14 +154,14 @@ static int __try_to_reclaim_swap(struct swap_info_struct *si,
 
 static inline struct swap_extent *first_se(struct swap_info_struct *sis)
 {
-	struct rb_node *rb = rb_first(&sis->swap_extent_root);
-	return rb_entry(rb, struct swap_extent, rb_node);
+	struct rb_yesde *rb = rb_first(&sis->swap_extent_root);
+	return rb_entry(rb, struct swap_extent, rb_yesde);
 }
 
 static inline struct swap_extent *next_se(struct swap_extent *se)
 {
-	struct rb_node *rb = rb_next(&se->rb_node);
-	return rb ? rb_entry(rb, struct swap_extent, rb_node) : NULL;
+	struct rb_yesde *rb = rb_next(&se->rb_yesde);
+	return rb ? rb_entry(rb, struct swap_extent, rb_yesde) : NULL;
 }
 
 /*
@@ -175,7 +175,7 @@ static int discard_swap(struct swap_info_struct *si)
 	sector_t nr_blocks;
 	int err = 0;
 
-	/* Do not discard the swap header page! */
+	/* Do yest discard the swap header page! */
 	se = first_se(si);
 	start_block = (se->start_block + 1) << (PAGE_SHIFT - 9);
 	nr_blocks = ((sector_t)se->nr_pages - 1) << (PAGE_SHIFT - 9);
@@ -205,11 +205,11 @@ static struct swap_extent *
 offset_to_swap_extent(struct swap_info_struct *sis, unsigned long offset)
 {
 	struct swap_extent *se;
-	struct rb_node *rb;
+	struct rb_yesde *rb;
 
-	rb = sis->swap_extent_root.rb_node;
+	rb = sis->swap_extent_root.rb_yesde;
 	while (rb) {
-		se = rb_entry(rb, struct swap_extent, rb_node);
+		se = rb_entry(rb, struct swap_extent, rb_yesde);
 		if (offset < se->start_page)
 			rb = rb->rb_left;
 		else if (offset >= se->start_page + se->nr_pages)
@@ -222,7 +222,7 @@ offset_to_swap_extent(struct swap_info_struct *sis, unsigned long offset)
 }
 
 /*
- * swap allocation tell device that a cluster of swap can now be discarded,
+ * swap allocation tell device that a cluster of swap can yesw be discarded,
  * to allow the swap device to optimize its wear-levelling.
  */
 static void discard_swap_cluster(struct swap_info_struct *si,
@@ -549,7 +549,7 @@ static void inc_cluster_info_page(struct swap_info_struct *p,
 
 /*
  * The cluster corresponding to page_nr decreases one usage. If the usage
- * counter becomes 0, which means no page in the cluster is in using, we can
+ * counter becomes 0, which means yes page in the cluster is in using, we can
  * optionally discard the cluster and add it to free cluster list.
  */
 static void dec_cluster_info_page(struct swap_info_struct *p,
@@ -614,7 +614,7 @@ new_cluster:
 		} else if (!cluster_list_empty(&si->discard_clusters)) {
 			/*
 			 * we don't have free cluster but have some clusters in
-			 * discarding, do discard now and reclaim them
+			 * discarding, do discard yesw and reclaim them
 			 */
 			swap_do_scheduled_discard(si);
 			*scan_base = *offset = si->cluster_next;
@@ -659,7 +659,7 @@ static void __del_from_avail_list(struct swap_info_struct *p)
 {
 	int nid;
 
-	for_each_node(nid)
+	for_each_yesde(nid)
 		plist_del(&p->avail_lists[nid], &swap_avail_heads[nid]);
 }
 
@@ -692,8 +692,8 @@ static void add_to_avail_list(struct swap_info_struct *p)
 	int nid;
 
 	spin_lock(&swap_avail_lock);
-	for_each_node(nid) {
-		WARN_ON(!plist_node_empty(&p->avail_lists[nid]));
+	for_each_yesde(nid) {
+		WARN_ON(!plist_yesde_empty(&p->avail_lists[nid]));
 		plist_add(&p->avail_lists[nid], &swap_avail_heads[nid]);
 	}
 	spin_unlock(&swap_avail_lock);
@@ -703,7 +703,7 @@ static void swap_range_free(struct swap_info_struct *si, unsigned long offset,
 			    unsigned int nr_entries)
 {
 	unsigned long end = offset + nr_entries - 1;
-	void (*swap_slot_free_notify)(struct block_device *, unsigned long);
+	void (*swap_slot_free_yestify)(struct block_device *, unsigned long);
 
 	if (offset < si->lowest_bit)
 		si->lowest_bit = offset;
@@ -717,14 +717,14 @@ static void swap_range_free(struct swap_info_struct *si, unsigned long offset,
 	atomic_long_add(nr_entries, &nr_swap_pages);
 	si->inuse_pages -= nr_entries;
 	if (si->flags & SWP_BLKDEV)
-		swap_slot_free_notify =
-			si->bdev->bd_disk->fops->swap_slot_free_notify;
+		swap_slot_free_yestify =
+			si->bdev->bd_disk->fops->swap_slot_free_yestify;
 	else
-		swap_slot_free_notify = NULL;
+		swap_slot_free_yestify = NULL;
 	while (offset <= end) {
 		frontswap_invalidate_page(si->type, offset);
-		if (swap_slot_free_notify)
-			swap_slot_free_notify(si->bdev, offset);
+		if (swap_slot_free_yestify)
+			swap_slot_free_yestify(si->bdev, offset);
 		offset++;
 	}
 }
@@ -750,7 +750,7 @@ static int scan_swap_map_slots(struct swap_info_struct *si,
 	 * a new cluster.  This prevents us from scattering swap pages
 	 * all over the entire swap partition, so that we reduce
 	 * overall disk seek times between swap pages.  -- sct
-	 * But we do now try to find an empty cluster.  -Andrea
+	 * But we do yesw try to find an empty cluster.  -Andrea
 	 * And we let swap pages go all over an SSD partition.  Hugh
 	 */
 
@@ -816,14 +816,14 @@ checks:
 		}
 	}
 	if (!(si->flags & SWP_WRITEOK))
-		goto no_page;
+		goto yes_page;
 	if (!si->highest_bit)
-		goto no_page;
+		goto yes_page;
 	if (offset > si->highest_bit)
 		scan_base = offset = si->lowest_bit;
 
 	ci = lock_cluster(si, offset);
-	/* reuse swap entry of cache-only swap if not busy. */
+	/* reuse swap entry of cache-only swap if yest busy. */
 	if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
 		int swap_was_freed;
 		unlock_cluster(ci);
@@ -851,7 +851,7 @@ checks:
 	si->cluster_next = offset + 1;
 	slots[n_ret++] = swp_entry(si->type, offset);
 
-	/* got enough slots or reach max slots? */
+	/* got eyesugh slots or reach max slots? */
 	if ((n_ret == nr) || (offset >= si->highest_bit))
 		goto done;
 
@@ -874,10 +874,10 @@ checks:
 		else
 			goto done;
 	}
-	/* non-ssd case */
+	/* yesn-ssd case */
 	++offset;
 
-	/* non-ssd case, still more slots in cluster? */
+	/* yesn-ssd case, still more slots in cluster? */
 	if (si->cluster_nr && !si->swap_map[offset]) {
 		--si->cluster_nr;
 		goto checks;
@@ -921,7 +921,7 @@ scan:
 	}
 	spin_lock(&si->lock);
 
-no_page:
+yes_page:
 	si->flags -= SWP_SCANNING;
 	return n_ret;
 }
@@ -934,7 +934,7 @@ static int swap_alloc_cluster(struct swap_info_struct *si, swp_entry_t *slot)
 	unsigned char *map;
 
 	/*
-	 * Should not even be attempting cluster allocations when huge
+	 * Should yest even be attempting cluster allocations when huge
 	 * page swap is disabled.  Warn and fail the allocation.
 	 */
 	if (!IS_ENABLED(CONFIG_THP_SWAP)) {
@@ -995,14 +995,14 @@ int get_swap_pages(int n_goal, swp_entry_t swp_entries[], int entry_size)
 	struct swap_info_struct *si, *next;
 	long avail_pgs;
 	int n_ret = 0;
-	int node;
+	int yesde;
 
 	/* Only single cluster request supported */
 	WARN_ON_ONCE(n_goal > 1 && size == SWAPFILE_CLUSTER);
 
 	avail_pgs = atomic_long_read(&nr_swap_pages) / size;
 	if (avail_pgs <= 0)
-		goto noswap;
+		goto yesswap;
 
 	if (n_goal > SWAP_BATCH)
 		n_goal = SWAP_BATCH;
@@ -1015,15 +1015,15 @@ int get_swap_pages(int n_goal, swp_entry_t swp_entries[], int entry_size)
 	spin_lock(&swap_avail_lock);
 
 start_over:
-	node = numa_node_id();
-	plist_for_each_entry_safe(si, next, &swap_avail_heads[node], avail_lists[node]) {
+	yesde = numa_yesde_id();
+	plist_for_each_entry_safe(si, next, &swap_avail_heads[yesde], avail_lists[yesde]) {
 		/* requeue si to after same-priority siblings */
-		plist_requeue(&si->avail_lists[node], &swap_avail_heads[node]);
+		plist_requeue(&si->avail_lists[yesde], &swap_avail_heads[yesde]);
 		spin_unlock(&swap_avail_lock);
 		spin_lock(&si->lock);
 		if (!si->highest_bit || !(si->flags & SWP_WRITEOK)) {
 			spin_lock(&swap_avail_lock);
-			if (plist_node_empty(&si->avail_lists[node])) {
+			if (plist_yesde_empty(&si->avail_lists[yesde])) {
 				spin_unlock(&si->lock);
 				goto nextsi;
 			}
@@ -1060,9 +1060,9 @@ nextsi:
 		 * Since we dropped the swap_avail_lock, the swap_avail_head
 		 * list may have been modified; so if next is still in the
 		 * swap_avail_head list then try it, otherwise start over
-		 * if we have not gotten any slots.
+		 * if we have yest gotten any slots.
 		 */
-		if (plist_node_empty(&next->avail_lists[node]))
+		if (plist_yesde_empty(&next->avail_lists[yesde]))
 			goto start_over;
 	}
 
@@ -1072,11 +1072,11 @@ check_out:
 	if (n_ret < n_goal)
 		atomic_long_add((long)(n_goal - n_ret) * size,
 				&nr_swap_pages);
-noswap:
+yesswap:
 	return n_ret;
 }
 
-/* The only caller of this function is now suspend routine */
+/* The only caller of this function is yesw suspend routine */
 swp_entry_t get_swap_page_of_type(int type)
 {
 	struct swap_info_struct *si = swap_type_to_swap_info(type);
@@ -1088,7 +1088,7 @@ swp_entry_t get_swap_page_of_type(int type)
 	spin_lock(&si->lock);
 	if (si->flags & SWP_WRITEOK) {
 		atomic_long_dec(&nr_swap_pages);
-		/* This is called for allocating swap entry, not cache */
+		/* This is called for allocating swap entry, yest cache */
 		offset = scan_swap_map(si, 1);
 		if (offset) {
 			spin_unlock(&si->lock);
@@ -1110,7 +1110,7 @@ static struct swap_info_struct *__swap_info_get(swp_entry_t entry)
 		goto out;
 	p = swp_swap_info(entry);
 	if (!p)
-		goto bad_nofile;
+		goto bad_yesfile;
 	if (!(p->flags & SWP_USED))
 		goto bad_device;
 	offset = swp_offset(entry);
@@ -1124,7 +1124,7 @@ bad_offset:
 bad_device:
 	pr_err("swap_info_get: %s%08lx\n", Unused_file, entry.val);
 	goto out;
-bad_nofile:
+bad_yesfile:
 	pr_err("swap_info_get: %s%08lx\n", Bad_file, entry.val);
 out:
 	return NULL;
@@ -1237,12 +1237,12 @@ static unsigned char __swap_entry_free_locked(struct swap_info_struct *p,
  *       swapcache_prepare()
  *         __swap_duplicate()
  *           // check swap_map
- *     // verify PTE not changed
+ *     // verify PTE yest changed
  *
  * In __swap_duplicate(), the swap_map need to be checked before
- * changing partly because the specified swap entry may be for another
+ * changing partly because the specified swap entry may be for ayesther
  * swap device which has been swapoff.  And in do_swap_page(), after
- * the page is read from the swap device, the PTE is verified not
+ * the page is read from the swap device, the PTE is verified yest
  * changed with the page table locked to check whether the swap device
  * has been swapoff or swapoff+swapon.
  */
@@ -1255,7 +1255,7 @@ struct swap_info_struct *get_swap_device(swp_entry_t entry)
 		goto out;
 	si = swp_swap_info(entry);
 	if (!si)
-		goto bad_nofile;
+		goto bad_yesfile;
 
 	rcu_read_lock();
 	if (!(si->flags & SWP_VALID))
@@ -1265,7 +1265,7 @@ struct swap_info_struct *get_swap_device(swp_entry_t entry)
 		goto unlock_out;
 
 	return si;
-bad_nofile:
+bad_yesfile:
 	pr_err("%s: %s%08lx\n", __func__, Bad_file, entry.val);
 out:
 	return NULL;
@@ -1308,7 +1308,7 @@ static void swap_entry_free(struct swap_info_struct *p, swp_entry_t entry)
 
 /*
  * Caller has made sure that the swap device corresponding to entry
- * is still around or has not been recycled.
+ * is still around or has yest been recycled.
  */
 void swap_free(swp_entry_t entry)
 {
@@ -1423,7 +1423,7 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
 
 /*
  * How many references to page are currently swapped out?
- * This does not give an exact answer when swap count is continued,
+ * This does yest give an exact answer when swap count is continued,
  * but does include the high COUNT_CONTINUED flag to allow for that.
  */
 int page_swapcount(struct page *page)
@@ -1473,7 +1473,7 @@ static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
 
 /*
  * How many references to @entry are currently swapped out?
- * This does not give an exact answer when swap count is continued,
+ * This does yest give an exact answer when swap count is continued,
  * but does include the high COUNT_CONTINUED flag to allow for that.
  */
 int __swp_swapcount(swp_entry_t entry)
@@ -1641,12 +1641,12 @@ static int page_trans_huge_map_swapcount(struct page *page, int *total_mapcount,
 }
 
 /*
- * We can write to an anon page without COW if there are no other references
+ * We can write to an ayesn page without COW if there are yes other references
  * to it.  And as a side-effect, free up its swap: because the old content
  * on disk will never be read, and seeking back there to write new content
  * later would only waste time away from clustering.
  *
- * NOTE: total_map_swapcount should not be relied upon by the caller if
+ * NOTE: total_map_swapcount should yest be relied upon by the caller if
  * reuse_swap_page() returns false, but it may be always overwritten
  * (see the other implementation for CONFIG_SWAP=n).
  */
@@ -1687,7 +1687,7 @@ bool reuse_swap_page(struct page *page, int *total_map_swapcount)
 }
 
 /*
- * If swap is getting full, or if there are no more mappings of this page,
+ * If swap is getting full, or if there are yes more mappings of this page,
  * then try_to_free_swap is called to free its swap space.
  */
 int try_to_free_swap(struct page *page)
@@ -1709,9 +1709,9 @@ int try_to_free_swap(struct page *page)
 	 * but conceivably even a call from memory reclaim - will free
 	 * the swap from a page which has already been recorded in the
 	 * image as a clean swapcache page, and then reuse its swap for
-	 * another page of the image.  On waking from hibernation, the
+	 * ayesther page of the image.  On waking from hibernation, the
 	 * original page might be freed under memory pressure, then
-	 * later read back in from swap, now with the wrong data.
+	 * later read back in from swap, yesw with the wrong data.
 	 *
 	 * Hibernation suspends storage while it is writing the image
 	 * to disk so check that here.
@@ -1734,7 +1734,7 @@ int free_swap_and_cache(swp_entry_t entry)
 	struct swap_info_struct *p;
 	unsigned char count;
 
-	if (non_swap_entry(entry))
+	if (yesn_swap_entry(entry))
 		return 1;
 
 	p = _swap_info_get(entry);
@@ -1867,7 +1867,7 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
 	if (mem_cgroup_try_charge(page, vma->vm_mm, GFP_KERNEL,
 				&memcg, false)) {
 		ret = -ENOMEM;
-		goto out_nolock;
+		goto out_yeslock;
 	}
 
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
@@ -1883,22 +1883,22 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
 	set_pte_at(vma->vm_mm, addr, pte,
 		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
 	if (page == swapcache) {
-		page_add_anon_rmap(page, vma, addr, false);
+		page_add_ayesn_rmap(page, vma, addr, false);
 		mem_cgroup_commit_charge(page, memcg, true, false);
 	} else { /* ksm created a completely new copy */
-		page_add_new_anon_rmap(page, vma, addr, false);
+		page_add_new_ayesn_rmap(page, vma, addr, false);
 		mem_cgroup_commit_charge(page, memcg, false, false);
 		lru_cache_add_active_or_unevictable(page, vma);
 	}
 	swap_free(entry);
 	/*
-	 * Move the page to the active list so it is not
+	 * Move the page to the active list so it is yest
 	 * immediately swapped out again after swapon.
 	 */
 	activate_page(page);
 out:
 	pte_unmap_unlock(pte, ptl);
-out_nolock:
+out_yeslock:
 	if (page != swapcache) {
 		unlock_page(page);
 		put_page(page);
@@ -1987,7 +1987,7 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
 	do {
 		cond_resched();
 		next = pmd_addr_end(addr, end);
-		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+		if (pmd_yesne_or_trans_huge_or_clear_bad(pmd))
 			continue;
 		ret = unuse_pte_range(vma, pmd, addr, next, type,
 				      frontswap, fs_pages_to_unuse);
@@ -2009,7 +2009,7 @@ static inline int unuse_pud_range(struct vm_area_struct *vma, p4d_t *p4d,
 	pud = pud_offset(p4d, addr);
 	do {
 		next = pud_addr_end(addr, end);
-		if (pud_none_or_clear_bad(pud))
+		if (pud_yesne_or_clear_bad(pud))
 			continue;
 		ret = unuse_pmd_range(vma, pud, addr, next, type,
 				      frontswap, fs_pages_to_unuse);
@@ -2031,7 +2031,7 @@ static inline int unuse_p4d_range(struct vm_area_struct *vma, pgd_t *pgd,
 	p4d = p4d_offset(pgd, addr);
 	do {
 		next = p4d_addr_end(addr, end);
-		if (p4d_none_or_clear_bad(p4d))
+		if (p4d_yesne_or_clear_bad(p4d))
 			continue;
 		ret = unuse_pud_range(vma, p4d, addr, next, type,
 				      frontswap, fs_pages_to_unuse);
@@ -2054,7 +2054,7 @@ static int unuse_vma(struct vm_area_struct *vma, unsigned int type,
 	pgd = pgd_offset(vma->vm_mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
-		if (pgd_none_or_clear_bad(pgd))
+		if (pgd_yesne_or_clear_bad(pgd))
 			continue;
 		ret = unuse_p4d_range(vma, pgd, addr, next, type,
 				      frontswap, fs_pages_to_unuse);
@@ -2072,7 +2072,7 @@ static int unuse_mm(struct mm_struct *mm, unsigned int type,
 
 	down_read(&mm->mmap_sem);
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-		if (vma->anon_vma) {
+		if (vma->ayesn_vma) {
 			ret = unuse_vma(vma, type, frontswap,
 					fs_pages_to_unuse);
 			if (ret)
@@ -2087,7 +2087,7 @@ static int unuse_mm(struct mm_struct *mm, unsigned int type,
 /*
  * Scan swap_map (or frontswap_map if frontswap parameter is true)
  * from current position to next entry still in use. Return 0
- * if there are no inuse entries after prev till end of the map.
+ * if there are yes inuse entries after prev till end of the map.
  */
 static unsigned int find_next_to_unuse(struct swap_info_struct *si,
 					unsigned int prev, bool frontswap)
@@ -2097,7 +2097,7 @@ static unsigned int find_next_to_unuse(struct swap_info_struct *si,
 
 	/*
 	 * No need for swap_lock here: we're just looking
-	 * for whether an entry is in use, not modifying it; false
+	 * for whether an entry is in use, yest modifying it; false
 	 * hits are okay, and sys_swapoff() has already prevented new
 	 * allocations from this area (while holding swap_lock).
 	 */
@@ -2118,7 +2118,7 @@ static unsigned int find_next_to_unuse(struct swap_info_struct *si,
 
 /*
  * If the boolean frontswap is true, only unuse pages_to_unuse pages;
- * pages_to_unuse==0 means all pages; ignored if frontswap is false
+ * pages_to_unuse==0 means all pages; igyesred if frontswap is false
  */
 int try_to_unuse(unsigned int type, bool frontswap,
 		 unsigned long pages_to_unuse)
@@ -2153,7 +2153,7 @@ retry:
 	       (p = p->next) != &init_mm.mmlist) {
 
 		mm = list_entry(p, struct mm_struct, mmlist);
-		if (!mmget_not_zero(mm))
+		if (!mmget_yest_zero(mm))
 			continue;
 		spin_unlock(&mmlist_lock);
 		mmput(prev_mm);
@@ -2189,7 +2189,7 @@ retry:
 		/*
 		 * It is conceivable that a racing task removed this page from
 		 * swap cache just before we acquired the page lock. The page
-		 * might even be back in swap cache on another swap area. But
+		 * might even be back in swap cache on ayesther swap area. But
 		 * that is okay, try_to_free_swap() only removes stale pages.
 		 */
 		lock_page(page);
@@ -2200,8 +2200,8 @@ retry:
 
 		/*
 		 * For frontswap, we just need to unuse pages_to_unuse, if
-		 * it was specified. Need not check frontswap again here as
-		 * we already zeroed out pages_to_unuse if not frontswap.
+		 * it was specified. Need yest check frontswap again here as
+		 * we already zeroed out pages_to_unuse if yest frontswap.
 		 */
 		if (pages_to_unuse && --pages_to_unuse == 0)
 			goto out;
@@ -2209,11 +2209,11 @@ retry:
 
 	/*
 	 * Lets check again to see if there are still swap entries in the map.
-	 * If yes, we would need to do retry the unuse logic again.
+	 * If no, we would need to do retry the unuse logic again.
 	 * Under global memory pressure, swap entries can be reinserted back
 	 * into process space after the mmlist loop above passes over them.
 	 *
-	 * Limit the number of retries? No: when mmget_not_zero() above fails,
+	 * Limit the number of retries? No: when mmget_yest_zero() above fails,
 	 * that mm is likely to be freeing swap from exit_mmap(), which proceeds
 	 * at its own independent pace; and even shmem_writepage() could have
 	 * been preempted after get_swap_page(), temporarily hiding that swap.
@@ -2229,7 +2229,7 @@ out:
 }
 
 /*
- * After a successful try_to_unuse, if no swap is now in use, we know
+ * After a successful try_to_unuse, if yes swap is yesw in use, we kyesw
  * we can empty the mmlist.  swap_lock must be held on entry and exit.
  * Note that mmlist_lock nests inside swap_lock, and an mm must be
  * added to the mmlist just after page_duplicate - before would be racy.
@@ -2252,7 +2252,7 @@ static void drain_mmlist(void)
  * Use this swapdev's extent info to locate the (PAGE_SIZE) block which
  * corresponds to page offset for the specified swap entry.
  * Note that the type of this function is sector_t, but it returns page offset
- * into the bdev, not sector offset.
+ * into the bdev, yest sector offset.
  */
 static sector_t map_swap_entry(swp_entry_t entry, struct block_device **bdev)
 {
@@ -2284,8 +2284,8 @@ sector_t map_swap_page(struct page *page, struct block_device **bdev)
 static void destroy_swap_extents(struct swap_info_struct *sis)
 {
 	while (!RB_EMPTY_ROOT(&sis->swap_extent_root)) {
-		struct rb_node *rb = sis->swap_extent_root.rb_node;
-		struct swap_extent *se = rb_entry(rb, struct swap_extent, rb_node);
+		struct rb_yesde *rb = sis->swap_extent_root.rb_yesde;
+		struct swap_extent *se = rb_entry(rb, struct swap_extent, rb_yesde);
 
 		rb_erase(rb, &sis->swap_extent_root);
 		kfree(se);
@@ -2311,12 +2311,12 @@ int
 add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
 		unsigned long nr_pages, sector_t start_block)
 {
-	struct rb_node **link = &sis->swap_extent_root.rb_node, *parent = NULL;
+	struct rb_yesde **link = &sis->swap_extent_root.rb_yesde, *parent = NULL;
 	struct swap_extent *se;
 	struct swap_extent *new_se;
 
 	/*
-	 * place the new node at the right most since the
+	 * place the new yesde at the right most since the
 	 * function is called in ascending page order.
 	 */
 	while (*link) {
@@ -2325,7 +2325,7 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
 	}
 
 	if (parent) {
-		se = rb_entry(parent, struct swap_extent, rb_node);
+		se = rb_entry(parent, struct swap_extent, rb_yesde);
 		BUG_ON(se->start_page + se->nr_pages != start_page);
 		if (se->start_block + se->nr_pages == start_block) {
 			/* Merge it */
@@ -2342,8 +2342,8 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
 	new_se->nr_pages = nr_pages;
 	new_se->start_block = start_block;
 
-	rb_link_node(&new_se->rb_node, parent, link);
-	rb_insert_color(&new_se->rb_node, &sis->swap_extent_root);
+	rb_link_yesde(&new_se->rb_yesde, parent, link);
+	rb_insert_color(&new_se->rb_yesde, &sis->swap_extent_root);
 	return 1;
 }
 EXPORT_SYMBOL_GPL(add_swap_extent);
@@ -2364,7 +2364,7 @@ EXPORT_SYMBOL_GPL(add_swap_extent);
  *
  * For S_ISREG swapfiles, setup_swap_extents() will walk all the file's blocks
  * and will parse them into an ordered extent list, in PAGE_SIZE chunks.  If
- * some stray blocks are found which do not fall within the PAGE_SIZE alignment
+ * some stray blocks are found which do yest fall within the PAGE_SIZE alignment
  * requirements, they are simply tossed out - we will never use those blocks
  * for swapping.
  *
@@ -2382,10 +2382,10 @@ static int setup_swap_extents(struct swap_info_struct *sis, sector_t *span)
 {
 	struct file *swap_file = sis->swap_file;
 	struct address_space *mapping = swap_file->f_mapping;
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	int ret;
 
-	if (S_ISBLK(inode->i_mode)) {
+	if (S_ISBLK(iyesde->i_mode)) {
 		ret = add_swap_extent(sis, 0, sis->max, 0);
 		*span = sis->pages;
 		return ret;
@@ -2406,16 +2406,16 @@ static int setup_swap_extents(struct swap_info_struct *sis, sector_t *span)
 	return generic_swapfile_activate(sis, swap_file, span);
 }
 
-static int swap_node(struct swap_info_struct *p)
+static int swap_yesde(struct swap_info_struct *p)
 {
 	struct block_device *bdev;
 
 	if (p->bdev)
 		bdev = p->bdev;
 	else
-		bdev = p->swap_file->f_inode->i_sb->s_bdev;
+		bdev = p->swap_file->f_iyesde->i_sb->s_bdev;
 
-	return bdev ? bdev->bd_disk->node_id : NUMA_NO_NODE;
+	return bdev ? bdev->bd_disk->yesde_id : NUMA_NO_NODE;
 }
 
 static void setup_swap_info(struct swap_info_struct *p, int prio,
@@ -2433,11 +2433,11 @@ static void setup_swap_info(struct swap_info_struct *p, int prio,
 	 * low-to-high, while swap ordering is high-to-low
 	 */
 	p->list.prio = -p->prio;
-	for_each_node(i) {
+	for_each_yesde(i) {
 		if (p->prio >= 0)
 			p->avail_lists[i].prio = -p->prio;
 		else {
-			if (swap_node(p) == i)
+			if (swap_yesde(p) == i)
 				p->avail_lists[i].prio = 1;
 			else
 				p->avail_lists[i].prio = -p->prio;
@@ -2520,7 +2520,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	unsigned long *frontswap_map;
 	struct file *swap_file, *victim;
 	struct address_space *mapping;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct filename *pathname;
 	int err, found = 0;
 	unsigned int old_block_size;
@@ -2554,7 +2554,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 		spin_unlock(&swap_lock);
 		goto out_dput;
 	}
-	if (!security_vm_enough_memory_mm(current->mm, p->pages))
+	if (!security_vm_eyesugh_memory_mm(current->mm, p->pages))
 		vm_unacct_memory(p->pages);
 	else {
 		err = -ENOMEM;
@@ -2570,7 +2570,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 		plist_for_each_entry_continue(si, &swap_active_head, list) {
 			si->prio++;
 			si->list.prio--;
-			for_each_node(nid) {
+			for_each_yesde(nid) {
 				if (si->avail_lists[nid].prio != 1)
 					si->avail_lists[nid].prio--;
 			}
@@ -2616,7 +2616,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	if (p->flags & SWP_CONTINUED)
 		free_swap_count_continuations(p);
 
-	if (!p->bdev || !blk_queue_nonrot(bdev_get_queue(p->bdev)))
+	if (!p->bdev || !blk_queue_yesnrot(bdev_get_queue(p->bdev)))
 		atomic_dec(&nr_rotate_swap);
 
 	mutex_lock(&swapon_mutex);
@@ -2657,23 +2657,23 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	swap_cgroup_swapoff(p->type);
 	exit_swap_address_space(p->type);
 
-	inode = mapping->host;
-	if (S_ISBLK(inode->i_mode)) {
-		struct block_device *bdev = I_BDEV(inode);
+	iyesde = mapping->host;
+	if (S_ISBLK(iyesde->i_mode)) {
+		struct block_device *bdev = I_BDEV(iyesde);
 
 		set_blocksize(bdev, old_block_size);
 		blkdev_put(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 	}
 
-	inode_lock(inode);
-	inode->i_flags &= ~S_SWAPFILE;
-	inode_unlock(inode);
+	iyesde_lock(iyesde);
+	iyesde->i_flags &= ~S_SWAPFILE;
+	iyesde_unlock(iyesde);
 	filp_close(swap_file, NULL);
 
 	/*
 	 * Clear the SWP_USED flag after all resources are freed so that swapon
 	 * can reuse this swap_info in alloc_swap_info() safely.  It is ok to
-	 * not hold p->lock after we cleared its SWP_WRITEOK.
+	 * yest hold p->lock after we cleared its SWP_WRITEOK.
 	 */
 	spin_lock(&swap_lock);
 	p->flags = 0;
@@ -2767,7 +2767,7 @@ static int swap_show(struct seq_file *swap, void *v)
 	len = seq_file_path(swap, file, " \t\n\\");
 	seq_printf(swap, "%*s%s\t%u\t%u\t%d\n",
 			len < 40 ? 40 - len : 1, " ",
-			S_ISBLK(file_inode(file)->i_mode) ?
+			S_ISBLK(file_iyesde(file)->i_mode) ?
 				"partition" : "file\t",
 			si->pages << (PAGE_SHIFT - 10),
 			si->inuse_pages << (PAGE_SHIFT - 10),
@@ -2782,7 +2782,7 @@ static const struct seq_operations swaps_op = {
 	.show =		swap_show
 };
 
-static int swaps_open(struct inode *inode, struct file *file)
+static int swaps_open(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq;
 	int ret;
@@ -2827,7 +2827,7 @@ static struct swap_info_struct *alloc_swap_info(void)
 	unsigned int type;
 	int i;
 
-	p = kvzalloc(struct_size(p, avail_lists, nr_node_ids), GFP_KERNEL);
+	p = kvzalloc(struct_size(p, avail_lists, nr_yesde_ids), GFP_KERNEL);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
@@ -2855,14 +2855,14 @@ static struct swap_info_struct *alloc_swap_info(void)
 		kvfree(p);
 		p = swap_info[type];
 		/*
-		 * Do not memset this entry: a racing procfs swap_next()
+		 * Do yest memset this entry: a racing procfs swap_next()
 		 * would be relying on p->type to remain valid.
 		 */
 	}
 	p->swap_extent_root = RB_ROOT;
-	plist_node_init(&p->list, 0);
-	for_each_node(i)
-		plist_node_init(&p->avail_lists[i], 0);
+	plist_yesde_init(&p->list, 0);
+	for_each_yesde(i)
+		plist_yesde_init(&p->avail_lists[i], 0);
 	p->flags = SWP_USED;
 	spin_unlock(&swap_lock);
 	spin_lock_init(&p->lock);
@@ -2871,12 +2871,12 @@ static struct swap_info_struct *alloc_swap_info(void)
 	return p;
 }
 
-static int claim_swapfile(struct swap_info_struct *p, struct inode *inode)
+static int claim_swapfile(struct swap_info_struct *p, struct iyesde *iyesde)
 {
 	int error;
 
-	if (S_ISBLK(inode->i_mode)) {
-		p->bdev = bdgrab(I_BDEV(inode));
+	if (S_ISBLK(iyesde->i_mode)) {
+		p->bdev = bdgrab(I_BDEV(iyesde));
 		error = blkdev_get(p->bdev,
 				   FMODE_READ | FMODE_WRITE | FMODE_EXCL, p);
 		if (error < 0) {
@@ -2889,18 +2889,18 @@ static int claim_swapfile(struct swap_info_struct *p, struct inode *inode)
 			return error;
 		/*
 		 * Zoned block devices contain zones that have a sequential
-		 * write only restriction.  Hence zoned block devices are not
+		 * write only restriction.  Hence zoned block devices are yest
 		 * suitable for swapping.  Disallow them here.
 		 */
 		if (blk_queue_is_zoned(p->bdev->bd_queue))
 			return -EINVAL;
 		p->flags |= SWP_BLKDEV;
-	} else if (S_ISREG(inode->i_mode)) {
-		p->bdev = inode->i_sb->s_bdev;
+	} else if (S_ISREG(iyesde->i_mode)) {
+		p->bdev = iyesde->i_sb->s_bdev;
 	}
 
-	inode_lock(inode);
-	if (IS_SWAPFILE(inode))
+	iyesde_lock(iyesde);
+	if (IS_SWAPFILE(iyesde))
 		return -EBUSY;
 
 	return 0;
@@ -2937,7 +2937,7 @@ __weak unsigned long max_swapfile_size(void)
 
 static unsigned long read_swap_header(struct swap_info_struct *p,
 					union swap_header *swap_header,
-					struct inode *inode)
+					struct iyesde *iyesde)
 {
 	int i;
 	unsigned long maxpages;
@@ -2991,12 +2991,12 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
 
 	if (!maxpages)
 		return 0;
-	swapfilepages = i_size_read(inode) >> PAGE_SHIFT;
+	swapfilepages = i_size_read(iyesde) >> PAGE_SHIFT;
 	if (swapfilepages && maxpages > swapfilepages) {
 		pr_warn("Swap area shorter than signature indicates\n");
 		return 0;
 	}
-	if (swap_header->info.nr_badpages && S_ISREG(inode->i_mode))
+	if (swap_header->info.nr_badpages && S_ISREG(iyesde->i_mode))
 		return 0;
 	if (swap_header->info.nr_badpages > MAX_SWAP_BADPAGES)
 		return 0;
@@ -3038,21 +3038,21 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
 			swap_map[page_nr] = SWAP_MAP_BAD;
 			nr_good_pages--;
 			/*
-			 * Haven't marked the cluster free yet, no list
+			 * Haven't marked the cluster free yet, yes list
 			 * operation involved
 			 */
 			inc_cluster_info_page(p, cluster_info, page_nr);
 		}
 	}
 
-	/* Haven't marked the cluster free yet, no list operation involved */
+	/* Haven't marked the cluster free yet, yes list operation involved */
 	for (i = maxpages; i < round_up(maxpages, SWAPFILE_CLUSTER); i++)
 		inc_cluster_info_page(p, cluster_info, i);
 
 	if (nr_good_pages) {
 		swap_map[0] = SWAP_MAP_BAD;
 		/*
-		 * Not mark the cluster free yet, no list
+		 * Not mark the cluster free yet, yes list
 		 * operation involved
 		 */
 		inc_cluster_info_page(p, cluster_info, 0);
@@ -3122,7 +3122,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	struct swap_cluster_info *cluster_info = NULL;
 	unsigned long *frontswap_map = NULL;
 	struct page *page = NULL;
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	bool inced_nr_rotate_swap = false;
 
 	if (swap_flags & ~SWAP_FLAGS_VALID)
@@ -3155,10 +3155,10 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 
 	p->swap_file = swap_file;
 	mapping = swap_file->f_mapping;
-	inode = mapping->host;
+	iyesde = mapping->host;
 
-	/* If S_ISREG(inode->i_mode) will do inode_lock(inode); */
-	error = claim_swapfile(p, inode);
+	/* If S_ISREG(iyesde->i_mode) will do iyesde_lock(iyesde); */
+	error = claim_swapfile(p, iyesde);
 	if (unlikely(error))
 		goto bad_swap;
 
@@ -3176,7 +3176,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	}
 	swap_header = kmap(page);
 
-	maxpages = read_swap_header(p, swap_header, inode);
+	maxpages = read_swap_header(p, swap_header, iyesde);
 	if (unlikely(!maxpages)) {
 		error = -EINVAL;
 		goto bad_swap;
@@ -3189,13 +3189,13 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		goto bad_swap;
 	}
 
-	if (bdi_cap_stable_pages_required(inode_to_bdi(inode)))
+	if (bdi_cap_stable_pages_required(iyesde_to_bdi(iyesde)))
 		p->flags |= SWP_STABLE_WRITES;
 
-	if (bdi_cap_synchronous_io(inode_to_bdi(inode)))
+	if (bdi_cap_synchroyesus_io(iyesde_to_bdi(iyesde)))
 		p->flags |= SWP_SYNCHRONOUS_IO;
 
-	if (p->bdev && blk_queue_nonrot(bdev_get_queue(p->bdev))) {
+	if (p->bdev && blk_queue_yesnrot(bdev_get_queue(p->bdev))) {
 		int cpu;
 		unsigned long ci, nr_cluster;
 
@@ -3250,7 +3250,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 
 	if (p->bdev &&(swap_flags & SWAP_FLAG_DISCARD) && swap_discardable(p)) {
 		/*
-		 * When discard is enabled for swap with no particular
+		 * When discard is enabled for swap with yes particular
 		 * policy flagged, we set all swap discard flags here in
 		 * order to sustain backward compatibility with older
 		 * swapon(8) releases.
@@ -3286,10 +3286,10 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	 * Flush any pending IO and dirty mappings before we start using this
 	 * swap device.
 	 */
-	inode->i_flags |= S_SWAPFILE;
-	error = inode_drain_writes(inode);
+	iyesde->i_flags |= S_SWAPFILE;
+	error = iyesde_drain_writes(iyesde);
 	if (error) {
-		inode->i_flags &= ~S_SWAPFILE;
+		iyesde->i_flags &= ~S_SWAPFILE;
 		goto bad_swap;
 	}
 
@@ -3318,7 +3318,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 bad_swap:
 	free_percpu(p->percpu_cluster);
 	p->percpu_cluster = NULL;
-	if (inode && S_ISBLK(inode->i_mode) && p->bdev) {
+	if (iyesde && S_ISBLK(iyesde->i_mode) && p->bdev) {
 		set_blocksize(p->bdev, p->old_block_size);
 		blkdev_put(p->bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 	}
@@ -3334,9 +3334,9 @@ bad_swap:
 	if (inced_nr_rotate_swap)
 		atomic_dec(&nr_rotate_swap);
 	if (swap_file) {
-		if (inode) {
-			inode_unlock(inode);
-			inode = NULL;
+		if (iyesde) {
+			iyesde_unlock(iyesde);
+			iyesde = NULL;
 		}
 		filp_close(swap_file, NULL);
 	}
@@ -3347,8 +3347,8 @@ out:
 	}
 	if (name)
 		putname(name);
-	if (inode)
-		inode_unlock(inode);
+	if (iyesde)
+		iyesde_unlock(iyesde);
 	if (!error)
 		enable_swap_slots_cache();
 	return error;
@@ -3379,7 +3379,7 @@ void si_swapinfo(struct sysinfo *val)
  * - swp_entry is invalid -> EINVAL
  * - swp_entry is migration entry -> EINVAL
  * - swap-cache reference is requested but there is already one. -> EEXIST
- * - swap-cache reference is requested but the entry is not used. -> ENOENT
+ * - swap-cache reference is requested but the entry is yest used. -> ENOENT
  * - swap-mapped reference requested but needs continued swap count. -> ENOMEM
  */
 static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
@@ -3415,12 +3415,12 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
 
 	if (usage == SWAP_HAS_CACHE) {
 
-		/* set SWAP_HAS_CACHE if there is no cache and entry is used */
+		/* set SWAP_HAS_CACHE if there is yes cache and entry is used */
 		if (!has_cache && count)
 			has_cache = SWAP_HAS_CACHE;
 		else if (has_cache)		/* someone else added cache */
 			err = -EEXIST;
-		else				/* no users remaining */
+		else				/* yes users remaining */
 			err = -ENOENT;
 
 	} else if (count || has_cache) {
@@ -3447,7 +3447,7 @@ out:
 }
 
 /*
- * Help swapoff by noting that swap entry belongs to shmem/tmpfs
+ * Help swapoff by yesting that swap entry belongs to shmem/tmpfs
  * (in which case its reference count is never incremented).
  */
 void swap_shmem_alloc(swp_entry_t entry)
@@ -3458,8 +3458,8 @@ void swap_shmem_alloc(swp_entry_t entry)
 /*
  * Increase reference count of swap entry by 1.
  * Returns 0 for success, or -ENOMEM if a swap_count_continuation is required
- * but could not be atomically allocated.  Returns 0, just as if it succeeded,
- * if __swap_duplicate() fails for another reason (-EINVAL or -ENOENT), which
+ * but could yest be atomically allocated.  Returns 0, just as if it succeeded,
+ * if __swap_duplicate() fails for ayesther reason (-EINVAL or -ENOENT), which
  * might occur if a page table entry has got corrupted.
  */
 int swap_duplicate(swp_entry_t entry)
@@ -3539,7 +3539,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
 
 	/*
 	 * When debugging, it's easier to use __GFP_ZERO here; but it's better
-	 * for latency not to zero a page while GFP_ATOMIC and holding locks.
+	 * for latency yest to zero a page while GFP_ATOMIC and holding locks.
 	 */
 	page = alloc_page(gfp_mask | __GFP_HIGHMEM);
 
@@ -3575,15 +3575,15 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
 
 	/*
 	 * We are fortunate that although vmalloc_to_page uses pte_offset_map,
-	 * no architecture is using highmem pages for kernel page tables: so it
-	 * will not corrupt the GFP_ATOMIC caller's atomic page table kmaps.
+	 * yes architecture is using highmem pages for kernel page tables: so it
+	 * will yest corrupt the GFP_ATOMIC caller's atomic page table kmaps.
 	 */
 	head = vmalloc_to_page(si->swap_map + offset);
 	offset &= ~PAGE_MASK;
 
 	spin_lock(&si->cont_lock);
 	/*
-	 * Page allocation does not initialize the page's lru field,
+	 * Page allocation does yest initialize the page's lru field,
 	 * but it does always reset its private field.
 	 */
 	if (!page_private(head)) {
@@ -3597,7 +3597,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
 		unsigned char *map;
 
 		/*
-		 * If the previous map said no continuation, but we've found
+		 * If the previous map said yes continuation, but we've found
 		 * a continuation page, free our allocation and use this one.
 		 */
 		if (!(count & COUNT_CONTINUED))
@@ -3608,7 +3608,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
 		kunmap_atomic(map);
 
 		/*
-		 * If this continuation count now has some space in it,
+		 * If this continuation count yesw has some space in it,
 		 * free our allocation and use this one.
 		 */
 		if ((count & ~COUNT_CONTINUED) != SWAP_CONT_MAX)
@@ -3616,7 +3616,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
 	}
 
 	list_add_tail(&page->lru, &head->lru);
-	page = NULL;			/* now it's attached, don't free it */
+	page = NULL;			/* yesw it's attached, don't free it */
 out_unlock_cont:
 	spin_unlock(&si->cont_lock);
 out:
@@ -3745,7 +3745,7 @@ static void free_swap_count_continuations(struct swap_info_struct *si)
 }
 
 #if defined(CONFIG_MEMCG) && defined(CONFIG_BLK_CGROUP)
-void mem_cgroup_throttle_swaprate(struct mem_cgroup *memcg, int node,
+void mem_cgroup_throttle_swaprate(struct mem_cgroup *memcg, int yesde,
 				  gfp_t gfp_mask)
 {
 	struct swap_info_struct *si, *next;
@@ -3763,8 +3763,8 @@ void mem_cgroup_throttle_swaprate(struct mem_cgroup *memcg, int node,
 		return;
 
 	spin_lock(&swap_avail_lock);
-	plist_for_each_entry_safe(si, next, &swap_avail_heads[node],
-				  avail_lists[node]) {
+	plist_for_each_entry_safe(si, next, &swap_avail_heads[yesde],
+				  avail_lists[yesde]) {
 		if (si->bdev) {
 			blkcg_schedule_throttle(bdev_get_queue(si->bdev),
 						true);
@@ -3779,14 +3779,14 @@ static int __init swapfile_init(void)
 {
 	int nid;
 
-	swap_avail_heads = kmalloc_array(nr_node_ids, sizeof(struct plist_head),
+	swap_avail_heads = kmalloc_array(nr_yesde_ids, sizeof(struct plist_head),
 					 GFP_KERNEL);
 	if (!swap_avail_heads) {
-		pr_emerg("Not enough memory for swap heads, swap is disabled\n");
+		pr_emerg("Not eyesugh memory for swap heads, swap is disabled\n");
 		return -ENOMEM;
 	}
 
-	for_each_node(nid)
+	for_each_yesde(nid)
 		plist_head_init(&swap_avail_heads[nid]);
 
 	return 0;

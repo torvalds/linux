@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -143,7 +143,7 @@ void opa_vnic_get_error_counters(struct opa_vnic_adapter *adapter,
 	cntrs->tx_logic = cpu_to_be64(vstats.netstats.tx_fifo_errors +
 				      vstats.netstats.tx_carrier_errors);
 
-	cntrs->rx_bad_veswid = cpu_to_be64(vstats.netstats.rx_nohandler);
+	cntrs->rx_bad_veswid = cpu_to_be64(vstats.netstats.rx_yeshandler);
 	cntrs->rx_runt = cpu_to_be64(vstats.rx_runt);
 	cntrs->rx_oversize = cpu_to_be64(vstats.rx_oversize);
 	cntrs->rx_drop_state = cpu_to_be64(vstats.rx_drop_state);
@@ -224,7 +224,7 @@ void opa_vnic_set_vesw_info(struct opa_vnic_adapter *adapter,
  *
  * This function copies the vesw per port info that is maintained by the
  * given adapter to destination address provided.
- * Note that the read only fields are not copied.
+ * Note that the read only fields are yest copied.
  */
 void opa_vnic_get_per_veswport_info(struct opa_vnic_adapter *adapter,
 				    struct opa_per_veswport_info *info)
@@ -253,10 +253,10 @@ void opa_vnic_get_per_veswport_info(struct opa_vnic_adapter *adapter,
 	       ARRAY_SIZE(info->pcp_to_sc_mc));
 	memcpy(info->pcp_to_vl_mc, src->pcp_to_vl_mc,
 	       ARRAY_SIZE(info->pcp_to_vl_mc));
-	info->non_vlan_sc_uc = src->non_vlan_sc_uc;
-	info->non_vlan_vl_uc = src->non_vlan_vl_uc;
-	info->non_vlan_sc_mc = src->non_vlan_sc_mc;
-	info->non_vlan_vl_mc = src->non_vlan_vl_mc;
+	info->yesn_vlan_sc_uc = src->yesn_vlan_sc_uc;
+	info->yesn_vlan_vl_uc = src->yesn_vlan_vl_uc;
+	info->yesn_vlan_sc_mc = src->yesn_vlan_sc_mc;
+	info->yesn_vlan_vl_mc = src->yesn_vlan_vl_mc;
 	memcpy(info->rsvd2, src->rsvd2, ARRAY_SIZE(src->rsvd2));
 
 	info->uc_macs_gen_count = cpu_to_be16(src->uc_macs_gen_count);
@@ -295,10 +295,10 @@ void opa_vnic_set_per_veswport_info(struct opa_vnic_adapter *adapter,
 	       ARRAY_SIZE(dst->pcp_to_sc_mc));
 	memcpy(dst->pcp_to_vl_mc, info->pcp_to_vl_mc,
 	       ARRAY_SIZE(dst->pcp_to_vl_mc));
-	dst->non_vlan_sc_uc = info->non_vlan_sc_uc;
-	dst->non_vlan_vl_uc = info->non_vlan_vl_uc;
-	dst->non_vlan_sc_mc = info->non_vlan_sc_mc;
-	dst->non_vlan_vl_mc = info->non_vlan_vl_mc;
+	dst->yesn_vlan_sc_uc = info->yesn_vlan_sc_uc;
+	dst->yesn_vlan_vl_uc = info->yesn_vlan_vl_uc;
+	dst->yesn_vlan_sc_mc = info->yesn_vlan_sc_mc;
+	dst->yesn_vlan_vl_mc = info->yesn_vlan_vl_mc;
 	memcpy(dst->rsvd2, info->rsvd2, ARRAY_SIZE(info->rsvd2));
 	memcpy(dst->rsvd3, info->rsvd3, ARRAY_SIZE(info->rsvd3));
 }
@@ -355,7 +355,7 @@ void opa_vnic_query_ucast_macs(struct opa_vnic_adapter *adapter,
 	for_each_dev_addr(adapter->netdev, ha) {
 		struct opa_vnic_iface_mac_entry *entry = &macs->entry[count];
 
-		/* Do not include EM specified MAC address */
+		/* Do yest include EM specified MAC address */
 		if (!memcmp(adapter->info.vport.base_mac_addr, ha->addr,
 			    ARRAY_SIZE(adapter->info.vport.base_mac_addr))) {
 			em_macs++;

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -42,7 +42,7 @@ gf100_volt_oneinit(struct nvkm_volt *volt)
 {
 	struct nvkm_subdev *subdev = &volt->subdev;
 	if (volt->speedo <= 0)
-		nvkm_error(subdev, "couldn't find speedo value, volting not "
+		nvkm_error(subdev, "couldn't find speedo value, volting yest "
 			   "possible\n");
 	return 0;
 }

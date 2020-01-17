@@ -29,7 +29,7 @@ static acpi_status acpi_ns_delete_subtree(acpi_handle start_handle);
  * FUNCTION:    acpi_ns_load_table
  *
  * PARAMETERS:  table_index     - Index for table to be loaded
- *              node            - Owning NS node
+ *              yesde            - Owning NS yesde
  *
  * RETURN:      Status
  *
@@ -38,7 +38,7 @@ static acpi_status acpi_ns_delete_subtree(acpi_handle start_handle);
  ******************************************************************************/
 
 acpi_status
-acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
+acpi_ns_load_table(u32 table_index, struct acpi_namespace_yesde *yesde)
 {
 	acpi_status status;
 
@@ -62,22 +62,22 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 	/*
 	 * Parse the table and load the namespace with all named
 	 * objects found within. Control methods are NOT parsed
-	 * at this time. In fact, the control methods cannot be
+	 * at this time. In fact, the control methods canyest be
 	 * parsed until the entire namespace is loaded, because
 	 * if a control method makes a forward reference (call)
-	 * to another control method, we can't continue parsing
-	 * because we don't know how many arguments to parse next!
+	 * to ayesther control method, we can't continue parsing
+	 * because we don't kyesw how many arguments to parse next!
 	 */
-	status = acpi_ns_parse_table(table_index, node);
+	status = acpi_ns_parse_table(table_index, yesde);
 	if (ACPI_SUCCESS(status)) {
 		acpi_tb_set_table_loaded_flag(table_index, TRUE);
 	} else {
 		/*
 		 * On error, delete any namespace objects created by this table.
-		 * We cannot initialize these objects, so delete them. There are
+		 * We canyest initialize these objects, so delete them. There are
 		 * a couple of especially bad cases:
 		 * AE_ALREADY_EXISTS - namespace collision.
-		 * AE_NOT_FOUND - the target of a Scope operator does not
+		 * AE_NOT_FOUND - the target of a Scope operator does yest
 		 * exist. This target of Scope must already exist in the
 		 * namespace, as per the ACPI specification.
 		 */
@@ -103,7 +103,7 @@ unlock:
 			  "**** Begin Table Object Initialization\n"));
 
 	acpi_ex_enter_interpreter();
-	status = acpi_ds_initialize_objects(table_index, node);
+	status = acpi_ds_initialize_objects(table_index, yesde);
 	acpi_ex_exit_interpreter();
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -135,7 +135,7 @@ acpi_status acpi_ns_load_namespace(void)
 	/* There must be at least a DSDT installed */
 
 	if (acpi_gbl_DSDT == NULL) {
-		ACPI_ERROR((AE_INFO, "DSDT is not in memory"));
+		ACPI_ERROR((AE_INFO, "DSDT is yest in memory"));
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 
@@ -148,14 +148,14 @@ acpi_status acpi_ns_load_namespace(void)
 		return_ACPI_STATUS(status);
 	}
 
-	/* Ignore exceptions from these */
+	/* Igyesre exceptions from these */
 
 	(void)acpi_ns_load_table_by_type(ACPI_TABLE_ID_SSDT);
 	(void)acpi_ns_load_table_by_type(ACPI_TABLE_ID_PSDT);
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
 			      "ACPI Namespace successfully loaded at root %p\n",
-			      acpi_gbl_root_node));
+			      acpi_gbl_root_yesde));
 
 	return_ACPI_STATUS(status);
 }
@@ -230,7 +230,7 @@ static acpi_status acpi_ns_delete_subtree(acpi_handle start_handle)
 			 */
 			level--;
 
-			/* Delete all children now */
+			/* Delete all children yesw */
 
 			acpi_ns_delete_children(child_handle);
 
@@ -244,7 +244,7 @@ static acpi_status acpi_ns_delete_subtree(acpi_handle start_handle)
 
 	/* Now delete the starting object, and we are done */
 
-	acpi_ns_remove_node(child_handle);
+	acpi_ns_remove_yesde(child_handle);
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -270,7 +270,7 @@ acpi_status acpi_ns_unload_namespace(acpi_handle handle)
 
 	/* Parameter validation */
 
-	if (!acpi_gbl_root_node) {
+	if (!acpi_gbl_root_yesde) {
 		return_ACPI_STATUS(AE_NO_NAMESPACE);
 	}
 

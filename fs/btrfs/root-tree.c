@@ -14,10 +14,10 @@
 
 /*
  * Read a root item from the tree. In case we detect a root item smaller then
- * sizeof(root_item), we know it's an old version of the root structure and
+ * sizeof(root_item), we kyesw it's an old version of the root structure and
  * initialize all new fields to zero. The same happens if we detect mismatching
- * generation numbers as then we know the root was once mounted with an older
- * kernel that was not aware of the root item structure change.
+ * generation numbers as then we kyesw the root was once mounted with an older
+ * kernel that was yest aware of the root item structure change.
  */
 static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
 				struct btrfs_root_item *item)
@@ -57,7 +57,7 @@ static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
  * root_item: the root item of the tree we look for
  * root_key: the root key of the tree we look for
  *
- * If ->offset of 'search_key' is -1ULL, it means we are not sure the offset
+ * If ->offset of 'search_key' is -1ULL, it means we are yest sure the offset
  * of the search key, just lookup the root with the highest offset for a
  * given objectid.
  *
@@ -87,7 +87,7 @@ int btrfs_find_root(struct btrfs_root *root, const struct btrfs_key *search_key,
 		ret = 0;
 	}
 
-	l = path->nodes[0];
+	l = path->yesdes[0];
 	slot = path->slots[0];
 
 	btrfs_item_key_to_cpu(l, &found_key, slot);
@@ -106,12 +106,12 @@ out:
 	return ret;
 }
 
-void btrfs_set_root_node(struct btrfs_root_item *item,
-			 struct extent_buffer *node)
+void btrfs_set_root_yesde(struct btrfs_root_item *item,
+			 struct extent_buffer *yesde)
 {
-	btrfs_set_root_bytenr(item, node->start);
-	btrfs_set_root_level(item, btrfs_header_level(node));
-	btrfs_set_root_generation(item, btrfs_header_generation(node));
+	btrfs_set_root_bytenr(item, yesde->start);
+	btrfs_set_root_level(item, btrfs_header_level(yesde));
+	btrfs_set_root_generation(item, btrfs_header_generation(yesde));
 }
 
 /*
@@ -147,7 +147,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		goto out;
 	}
 
-	l = path->nodes[0];
+	l = path->yesdes[0];
 	slot = path->slots[0];
 	ptr = btrfs_item_ptr_offset(l, slot);
 	old_len = btrfs_item_size_nr(l, slot);
@@ -178,19 +178,19 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
-		l = path->nodes[0];
+		l = path->yesdes[0];
 		slot = path->slots[0];
 		ptr = btrfs_item_ptr_offset(l, slot);
 	}
 
 	/*
-	 * Update generation_v2 so at the next mount we know the new root
+	 * Update generation_v2 so at the next mount we kyesw the new root
 	 * fields are valid.
 	 */
 	btrfs_set_root_generation_v2(item, btrfs_root_generation(item));
 
 	write_extent_buffer(l, item, ptr, sizeof(*item));
-	btrfs_mark_buffer_dirty(path->nodes[0]);
+	btrfs_mark_buffer_dirty(path->yesdes[0]);
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -235,14 +235,14 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 			break;
 		}
 
-		leaf = path->nodes[0];
+		leaf = path->yesdes[0];
 		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
 			ret = btrfs_next_leaf(tree_root, path);
 			if (ret < 0)
 				err = ret;
 			if (ret != 0)
 				break;
-			leaf = path->nodes[0];
+			leaf = path->yesdes[0];
 		}
 
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
@@ -373,7 +373,7 @@ again:
 	ret = btrfs_search_slot(trans, tree_root, &key, path, -1, 1);
 	BUG_ON(ret < 0);
 	if (ret == 0) {
-		leaf = path->nodes[0];
+		leaf = path->yesdes[0];
 		ref = btrfs_item_ptr(leaf, path->slots[0],
 				     struct btrfs_root_ref);
 
@@ -447,7 +447,7 @@ again:
 		return ret;
 	}
 
-	leaf = path->nodes[0];
+	leaf = path->yesdes[0];
 	ref = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_root_ref);
 	btrfs_set_root_ref_dirid(leaf, ref, dirid);
 	btrfs_set_root_ref_sequence(leaf, ref, sequence);
@@ -471,16 +471,16 @@ again:
 /*
  * Old btrfs forgets to init root_item->flags and root_item->byte_limit
  * for subvolumes. To work around this problem, we steal a bit from
- * root_item->inode_item->flags, and use it to indicate if those fields
+ * root_item->iyesde_item->flags, and use it to indicate if those fields
  * have been properly initialized.
  */
 void btrfs_check_and_init_root_item(struct btrfs_root_item *root_item)
 {
-	u64 inode_flags = btrfs_stack_inode_flags(&root_item->inode);
+	u64 iyesde_flags = btrfs_stack_iyesde_flags(&root_item->iyesde);
 
-	if (!(inode_flags & BTRFS_INODE_ROOT_ITEM_INIT)) {
-		inode_flags |= BTRFS_INODE_ROOT_ITEM_INIT;
-		btrfs_set_stack_inode_flags(&root_item->inode, inode_flags);
+	if (!(iyesde_flags & BTRFS_INODE_ROOT_ITEM_INIT)) {
+		iyesde_flags |= BTRFS_INODE_ROOT_ITEM_INIT;
+		btrfs_set_stack_iyesde_flags(&root_item->iyesde, iyesde_flags);
 		btrfs_set_root_flags(root_item, 0);
 		btrfs_set_root_limit(root_item, 0);
 	}
@@ -511,7 +511,7 @@ void btrfs_update_root_times(struct btrfs_trans_handle *trans,
  * creation and deletion. Those operations are different with the
  * common file/directory operations, they change two fs/file trees
  * and root tree, the number of items that the qgroup reserves is
- * different with the free space reservation. So we can not use
+ * different with the free space reservation. So we can yest use
  * the space reservation mechanism in start_transaction().
  */
 int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
@@ -525,8 +525,8 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
 
 	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags)) {
-		/* One for parent inode, two for dir entries */
-		qgroup_num_bytes = 3 * fs_info->nodesize;
+		/* One for parent iyesde, two for dir entries */
+		qgroup_num_bytes = 3 * fs_info->yesdesize;
 		ret = btrfs_qgroup_reserve_meta_prealloc(root,
 				qgroup_num_bytes, true);
 		if (ret)

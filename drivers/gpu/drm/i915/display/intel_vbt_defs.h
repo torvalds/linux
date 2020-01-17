@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -78,7 +78,7 @@ struct bdb_header {
 /*
  * There are several types of BIOS data blocks (BDBs), each block has
  * an ID and size in the first 3 bytes (ID in first, size in next 2).
- * Known types are listed below.
+ * Kyeswn types are listed below.
  */
 enum bdb_block_id {
 	BDB_GENERAL_FEATURES		= 1,
@@ -115,7 +115,7 @@ enum bdb_block_id {
 	BDB_MIPI_CONFIG			= 52,
 	BDB_MIPI_SEQUENCE		= 53,
 	BDB_COMPRESSION_PARAMETERS	= 56,
-	BDB_SKIP			= 254, /* VBIOS private block, ignore */
+	BDB_SKIP			= 254, /* VBIOS private block, igyesre */
 };
 
 /*
@@ -148,7 +148,7 @@ struct bdb_general_features {
 	u8 vbios_extended_mode:1;				/* 160 */
 	u8 copy_ilfp_dtd_to_sdvo_lvds_dtd:1;			/* 160 */
 	u8 panel_best_fit_timing:1;				/* 160 */
-	u8 ignore_strap_state:1;				/* 160 */
+	u8 igyesre_strap_state:1;				/* 160 */
 
         /* bits 4 */
 	u8 legacy_monitor_detect;
@@ -227,7 +227,7 @@ struct bdb_general_features {
 
 /*
  * Bits we care about when checking for DEVICE_TYPE_eDP. Depending on the
- * system, the other bits may or may not be set for eDP outputs.
+ * system, the other bits may or may yest be set for eDP outputs.
  */
 #define DEVICE_TYPE_eDP_BITS \
 	(DEVICE_TYPE_INTERNAL_CONNECTOR |	\
@@ -272,7 +272,7 @@ struct bdb_general_features {
 #define DEVICE_WIRE_DVOC_MASTER 0x0e
 
 /* dvo_port pre BDB 155 */
-#define DEVICE_PORT_DVOA	0x00 /* none on 845+ */
+#define DEVICE_PORT_DVOA	0x00 /* yesne on 845+ */
 #define DEVICE_PORT_DVOB	0x01
 #define DEVICE_PORT_DVOC	0x02
 
@@ -345,7 +345,7 @@ enum vbt_gmbus_ddi {
  * version in question.
  *
  * When we copy the child device configs to dev_priv->vbt.child_dev, we reserve
- * space for the full structure below, and initialize the tail not actually
+ * space for the full structure below, and initialize the tail yest actually
  * present in VBT to zeros. Accessing those fields is fine, as long as the
  * default zero is taken into account, again according to the BDB version.
  *
@@ -606,7 +606,7 @@ struct lvds_dvo_timing {
 	u8 digital:2;
 	u8 vsync_positive:1;
 	u8 hsync_positive:1;
-	u8 non_interlaced:1;
+	u8 yesn_interlaced:1;
 } __packed;
 
 struct bdb_sdvo_panel_dtds {
@@ -826,7 +826,7 @@ struct bdb_mipi_sequence {
 
 struct dsc_compression_parameters_entry {
 	u8 version_major:4;
-	u8 version_minor:4;
+	u8 version_miyesr:4;
 
 	u8 rc_buffer_block_size:2;
 	u8 reserved1:6;

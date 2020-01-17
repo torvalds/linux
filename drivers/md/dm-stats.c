@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/numa.h>
 #include <linux/slab.h>
 #include <linux/rculist.h>
@@ -140,14 +140,14 @@ static void free_shared_memory(size_t alloc_size)
 	spin_unlock_irqrestore(&shared_memory_lock, flags);
 }
 
-static void *dm_kvzalloc(size_t alloc_size, int node)
+static void *dm_kvzalloc(size_t alloc_size, int yesde)
 {
 	void *p;
 
 	if (!claim_shared_memory(alloc_size))
 		return NULL;
 
-	p = kvzalloc_node(alloc_size, GFP_KERNEL | __GFP_NOMEMALLOC, node);
+	p = kvzalloc_yesde(alloc_size, GFP_KERNEL | __GFP_NOMEMALLOC, yesde);
 	if (p)
 		return p;
 
@@ -329,7 +329,7 @@ static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,
 	}
 
 	for_each_possible_cpu(cpu) {
-		p = dm_kvzalloc(percpu_alloc_size, cpu_to_node(cpu));
+		p = dm_kvzalloc(percpu_alloc_size, cpu_to_yesde(cpu));
 		if (!p) {
 			r = -ENOMEM;
 			goto out;
@@ -337,7 +337,7 @@ static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,
 		s->stat_percpu[cpu] = p;
 		if (s->n_histogram_entries) {
 			unsigned long long *hi;
-			hi = dm_kvzalloc(s->histogram_alloc_size, cpu_to_node(cpu));
+			hi = dm_kvzalloc(s->histogram_alloc_size, cpu_to_yesde(cpu));
 			if (!hi) {
 				r = -ENOMEM;
 				goto out;
@@ -350,10 +350,10 @@ static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,
 	}
 
 	/*
-	 * Suspend/resume to make sure there is no i/o in flight,
+	 * Suspend/resume to make sure there is yes i/o in flight,
 	 * so that newly created statistics will be exact.
 	 *
-	 * (note: we couldn't suspend earlier because we must not
+	 * (yeste: we couldn't suspend earlier because we must yest
 	 * allocate memory while suspended)
 	 */
 	suspend_callback(md);
@@ -486,15 +486,15 @@ static void dm_stat_round(struct dm_stat *s, struct dm_stat_shared *shared,
 	/*
 	 * This is racy, but so is part_round_stats_single.
 	 */
-	unsigned long long now, difference;
+	unsigned long long yesw, difference;
 	unsigned in_flight_read, in_flight_write;
 
 	if (likely(!(s->stat_flags & STAT_PRECISE_TIMESTAMPS)))
-		now = jiffies;
+		yesw = jiffies;
 	else
-		now = ktime_to_ns(ktime_get());
+		yesw = ktime_to_ns(ktime_get());
 
-	difference = now - shared->stamp;
+	difference = yesw - shared->stamp;
 	if (!difference)
 		return;
 
@@ -508,7 +508,7 @@ static void dm_stat_round(struct dm_stat *s, struct dm_stat_shared *shared,
 		p->io_ticks_total += difference;
 		p->time_in_queue += (in_flight_read + in_flight_write) * difference;
 	}
-	shared->stamp = now;
+	shared->stamp = yesw;
 }
 
 static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
@@ -524,10 +524,10 @@ static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
 	 * instead of preempt_disable/enable.
 	 *
 	 * preempt_disable/enable is racy if the driver finishes bios
-	 * from non-interrupt context as well as from interrupt context
+	 * from yesn-interrupt context as well as from interrupt context
 	 * or from more different interrupts.
 	 *
-	 * On 64-bit architectures the race only results in not counting some
+	 * On 64-bit architectures the race only results in yest counting some
 	 * events, so it is acceptable.  On 32-bit architectures the race could
 	 * cause the counter going off by 2^32, so we need to do proper locking
 	 * there.

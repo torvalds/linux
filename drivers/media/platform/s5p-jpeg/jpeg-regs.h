@@ -167,7 +167,7 @@
 #define S5P_JPG_HACTBLG(n)		(0x8c0 + (n) * 0x400)
 
 
-/* Register and bit definitions for Exynos 4x12 */
+/* Register and bit definitions for Exyyess 4x12 */
 
 /* JPEG Codec Control Registers */
 #define EXYNOS4_JPEG_CNTL_REG		0x00
@@ -397,7 +397,7 @@
 /* JPEG AC chrominance (values) Huffman table register */
 #define EXYNOS4_HUFF_TBL_HACCV	0x310
 
-/* Register and bit definitions for Exynos 3250 */
+/* Register and bit definitions for Exyyess 3250 */
 
 /* JPEG mode register */
 #define EXYNOS3250_JPGMOD			0x00

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -88,7 +88,7 @@ int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt,
 }
 
 /*
- * returns 0 if no resource available
+ * returns 0 if yes resource available
  */
 u32 c4iw_get_resource(struct c4iw_id_table *id_table)
 {
@@ -134,7 +134,7 @@ u32 c4iw_get_cqid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx)
 		}
 
 		/*
-		 * now put the same ids on the qp list since they all
+		 * yesw put the same ids on the qp list since they all
 		 * map to the same db/gts page.
 		 */
 		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
@@ -208,7 +208,7 @@ u32 c4iw_get_qpid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx)
 		}
 
 		/*
-		 * now put the same ids on the cq list since they all
+		 * yesw put the same ids on the cq list since they all
 		 * map to the same db/gts page.
 		 */
 		entry = kmalloc(sizeof(*entry), GFP_KERNEL);

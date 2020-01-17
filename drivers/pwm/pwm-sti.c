@@ -254,7 +254,7 @@ static int sti_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	int ret = 0;
 
 	/*
-	 * Since we have a common enable for all PWM devices, do not enable if
+	 * Since we have a common enable for all PWM devices, do yest enable if
 	 * already enabled.
 	 */
 	mutex_lock(&pc->sti_pwm_lock);
@@ -321,7 +321,7 @@ static int sti_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret;
 
 	if (pwm->hwpwm >= cdata->cpt_num_devs) {
-		dev_err(dev, "device %u is not valid\n", pwm->hwpwm);
+		dev_err(dev, "device %u is yest valid\n", pwm->hwpwm);
 		return -EINVAL;
 	}
 
@@ -354,7 +354,7 @@ static int sti_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 		/*
 		 * Getting here could mean:
 		 *  - input signal is constant of less than 1 Hz
-		 *  - there is no input signal at all
+		 *  - there is yes input signal at all
 		 *
 		 * In such case the frequency is rounded down to 0
 		 */
@@ -432,7 +432,7 @@ static irqreturn_t sti_pwm_interrupt(int irq, void *data)
 		 *
 		 * After the capture, if the index > 1, we have collected the
 		 * necessary data so we signal the thread waiting for it and
-		 * disable the capture by setting capture edge to none
+		 * disable the capture by setting capture edge to yesne
 		 */
 
 		regmap_read(pc->regmap,
@@ -475,7 +475,7 @@ static int sti_pwm_probe_dt(struct sti_pwm_chip *pc)
 {
 	struct device *dev = pc->dev;
 	const struct reg_field *reg_fields;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct sti_pwm_compat_data *cdata = pc->cdata;
 	u32 num_devs;
 	int ret;
@@ -596,7 +596,7 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	if (!cdata->pwm_num_devs)
 		goto skip_pwm;
 
-	pc->pwm_clk = of_clk_get_by_name(dev->of_node, "pwm");
+	pc->pwm_clk = of_clk_get_by_name(dev->of_yesde, "pwm");
 	if (IS_ERR(pc->pwm_clk)) {
 		dev_err(dev, "failed to get PWM clock\n");
 		return PTR_ERR(pc->pwm_clk);
@@ -612,7 +612,7 @@ skip_pwm:
 	if (!cdata->cpt_num_devs)
 		goto skip_cpt;
 
-	pc->cpt_clk = of_clk_get_by_name(dev->of_node, "capture");
+	pc->cpt_clk = of_clk_get_by_name(dev->of_yesde, "capture");
 	if (IS_ERR(pc->cpt_clk)) {
 		dev_err(dev, "failed to get PWM capture clock\n");
 		return PTR_ERR(pc->cpt_clk);

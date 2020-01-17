@@ -4,7 +4,7 @@
 #include <linux/types.h>
 #include "ctree.h"
 #include "disk-io.h"
-#include "btrfs_inode.h"
+#include "btrfs_iyesde.h"
 #include "print-tree.h"
 #include "export.h"
 
@@ -14,8 +14,8 @@
 					     parent_root_objectid) / 4)
 #define BTRFS_FID_SIZE_CONNECTABLE_ROOT (sizeof(struct btrfs_fid) / 4)
 
-static int btrfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
-			   struct inode *parent)
+static int btrfs_encode_fh(struct iyesde *iyesde, u32 *fh, int *max_len,
+			   struct iyesde *parent)
 {
 	struct btrfs_fid *fid = (struct btrfs_fid *)fh;
 	int len = *max_len;
@@ -32,9 +32,9 @@ static int btrfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 	len  = BTRFS_FID_SIZE_NON_CONNECTABLE;
 	type = FILEID_BTRFS_WITHOUT_PARENT;
 
-	fid->objectid = btrfs_ino(BTRFS_I(inode));
-	fid->root_objectid = BTRFS_I(inode)->root->root_key.objectid;
-	fid->gen = inode->i_generation;
+	fid->objectid = btrfs_iyes(BTRFS_I(iyesde));
+	fid->root_objectid = BTRFS_I(iyesde)->root->root_key.objectid;
+	fid->gen = iyesde->i_generation;
 
 	if (parent) {
 		u64 parent_root_id;
@@ -63,7 +63,7 @@ static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	struct btrfs_root *root;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct btrfs_key key;
 	int index;
 	int err = 0;
@@ -77,7 +77,7 @@ static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 
 	index = srcu_read_lock(&fs_info->subvol_srcu);
 
-	root = btrfs_read_fs_root_no_name(fs_info, &key);
+	root = btrfs_read_fs_root_yes_name(fs_info, &key);
 	if (IS_ERR(root)) {
 		err = PTR_ERR(root);
 		goto fail;
@@ -87,20 +87,20 @@ static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 
-	inode = btrfs_iget(sb, &key, root);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
+	iyesde = btrfs_iget(sb, &key, root);
+	if (IS_ERR(iyesde)) {
+		err = PTR_ERR(iyesde);
 		goto fail;
 	}
 
 	srcu_read_unlock(&fs_info->subvol_srcu, index);
 
-	if (check_generation && generation != inode->i_generation) {
-		iput(inode);
+	if (check_generation && generation != iyesde->i_generation) {
+		iput(iyesde);
 		return ERR_PTR(-ESTALE);
 	}
 
-	return d_obtain_alias(inode);
+	return d_obtain_alias(iyesde);
 fail:
 	srcu_read_unlock(&fs_info->subvol_srcu, index);
 	return ERR_PTR(err);
@@ -154,7 +154,7 @@ static struct dentry *btrfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 
 static struct dentry *btrfs_get_parent(struct dentry *child)
 {
-	struct inode *dir = d_inode(child);
+	struct iyesde *dir = d_iyesde(child);
 	struct btrfs_fs_info *fs_info = btrfs_sb(dir->i_sb);
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_path *path;
@@ -168,13 +168,13 @@ static struct dentry *btrfs_get_parent(struct dentry *child)
 	if (!path)
 		return ERR_PTR(-ENOMEM);
 
-	if (btrfs_ino(BTRFS_I(dir)) == BTRFS_FIRST_FREE_OBJECTID) {
+	if (btrfs_iyes(BTRFS_I(dir)) == BTRFS_FIRST_FREE_OBJECTID) {
 		key.objectid = root->root_key.objectid;
 		key.type = BTRFS_ROOT_BACKREF_KEY;
 		key.offset = (u64)-1;
 		root = fs_info->tree_root;
 	} else {
-		key.objectid = btrfs_ino(BTRFS_I(dir));
+		key.objectid = btrfs_iyes(BTRFS_I(dir));
 		key.type = BTRFS_INODE_REF_KEY;
 		key.offset = (u64)-1;
 	}
@@ -190,7 +190,7 @@ static struct dentry *btrfs_get_parent(struct dentry *child)
 	}
 
 	path->slots[0]--;
-	leaf = path->nodes[0];
+	leaf = path->yesdes[0];
 
 	btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 	if (found_key.objectid != key.objectid || found_key.type != key.type) {
@@ -223,38 +223,38 @@ fail:
 static int btrfs_get_name(struct dentry *parent, char *name,
 			  struct dentry *child)
 {
-	struct inode *inode = d_inode(child);
-	struct inode *dir = d_inode(parent);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct iyesde *iyesde = d_iyesde(child);
+	struct iyesde *dir = d_iyesde(parent);
+	struct btrfs_fs_info *fs_info = btrfs_sb(iyesde->i_sb);
 	struct btrfs_path *path;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
-	struct btrfs_inode_ref *iref;
+	struct btrfs_iyesde_ref *iref;
 	struct btrfs_root_ref *rref;
 	struct extent_buffer *leaf;
 	unsigned long name_ptr;
 	struct btrfs_key key;
 	int name_len;
 	int ret;
-	u64 ino;
+	u64 iyes;
 
 	if (!S_ISDIR(dir->i_mode))
 		return -EINVAL;
 
-	ino = btrfs_ino(BTRFS_I(inode));
+	iyes = btrfs_iyes(BTRFS_I(iyesde));
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 	path->leave_spinning = 1;
 
-	if (ino == BTRFS_FIRST_FREE_OBJECTID) {
-		key.objectid = BTRFS_I(inode)->root->root_key.objectid;
+	if (iyes == BTRFS_FIRST_FREE_OBJECTID) {
+		key.objectid = BTRFS_I(iyesde)->root->root_key.objectid;
 		key.type = BTRFS_ROOT_BACKREF_KEY;
 		key.offset = (u64)-1;
 		root = fs_info->tree_root;
 	} else {
-		key.objectid = ino;
-		key.offset = btrfs_ino(BTRFS_I(dir));
+		key.objectid = iyes;
+		key.offset = btrfs_iyes(BTRFS_I(dir));
 		key.type = BTRFS_INODE_REF_KEY;
 	}
 
@@ -263,25 +263,25 @@ static int btrfs_get_name(struct dentry *parent, char *name,
 		btrfs_free_path(path);
 		return ret;
 	} else if (ret > 0) {
-		if (ino == BTRFS_FIRST_FREE_OBJECTID) {
+		if (iyes == BTRFS_FIRST_FREE_OBJECTID) {
 			path->slots[0]--;
 		} else {
 			btrfs_free_path(path);
 			return -ENOENT;
 		}
 	}
-	leaf = path->nodes[0];
+	leaf = path->yesdes[0];
 
-	if (ino == BTRFS_FIRST_FREE_OBJECTID) {
+	if (iyes == BTRFS_FIRST_FREE_OBJECTID) {
 		rref = btrfs_item_ptr(leaf, path->slots[0],
 				     struct btrfs_root_ref);
 		name_ptr = (unsigned long)(rref + 1);
 		name_len = btrfs_root_ref_name_len(leaf, rref);
 	} else {
 		iref = btrfs_item_ptr(leaf, path->slots[0],
-				      struct btrfs_inode_ref);
+				      struct btrfs_iyesde_ref);
 		name_ptr = (unsigned long)(iref + 1);
-		name_len = btrfs_inode_ref_name_len(leaf, iref);
+		name_len = btrfs_iyesde_ref_name_len(leaf, iref);
 	}
 
 	read_extent_buffer(leaf, name, name_ptr, name_len);

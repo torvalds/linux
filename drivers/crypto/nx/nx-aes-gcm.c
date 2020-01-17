@@ -64,7 +64,7 @@ static int gcm4106_aes_nx_set_key(struct crypto_aead *tfm,
 				  unsigned int        key_len)
 {
 	struct nx_crypto_ctx *nx_ctx = crypto_aead_ctx(tfm);
-	char *nonce = nx_ctx->priv.gcm.nonce;
+	char *yesnce = nx_ctx->priv.gcm.yesnce;
 	int rc;
 
 	if (key_len < 4)
@@ -76,7 +76,7 @@ static int gcm4106_aes_nx_set_key(struct crypto_aead *tfm,
 	if (rc)
 		goto out;
 
-	memcpy(nonce, in_key + key_len, 4);
+	memcpy(yesnce, in_key + key_len, 4);
 out:
 	return rc;
 }
@@ -439,9 +439,9 @@ static int gcm4106_aes_nx_encrypt(struct aead_request *req)
 		crypto_aead_ctx(crypto_aead_reqtfm(req));
 	struct nx_gcm_rctx *rctx = aead_request_ctx(req);
 	char *iv = rctx->iv;
-	char *nonce = nx_ctx->priv.gcm.nonce;
+	char *yesnce = nx_ctx->priv.gcm.yesnce;
 
-	memcpy(iv, nonce, NX_GCM4106_NONCE_LEN);
+	memcpy(iv, yesnce, NX_GCM4106_NONCE_LEN);
 	memcpy(iv + NX_GCM4106_NONCE_LEN, req->iv, 8);
 
 	if (req->assoclen < 8)
@@ -456,9 +456,9 @@ static int gcm4106_aes_nx_decrypt(struct aead_request *req)
 		crypto_aead_ctx(crypto_aead_reqtfm(req));
 	struct nx_gcm_rctx *rctx = aead_request_ctx(req);
 	char *iv = rctx->iv;
-	char *nonce = nx_ctx->priv.gcm.nonce;
+	char *yesnce = nx_ctx->priv.gcm.yesnce;
 
-	memcpy(iv, nonce, NX_GCM4106_NONCE_LEN);
+	memcpy(iv, yesnce, NX_GCM4106_NONCE_LEN);
 	memcpy(iv + NX_GCM4106_NONCE_LEN, req->iv, 8);
 
 	if (req->assoclen < 8)

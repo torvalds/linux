@@ -12,8 +12,8 @@ The basic object the validator operates upon is a 'class' of locks.
 
 A class of locks is a group of locks that are logically the same with
 respect to locking rules, even if the locks may have multiple (possibly
-tens of thousands of) instantiations. For example a lock in the inode
-struct is one class, while each inode has its own instantiation of that
+tens of thousands of) instantiations. For example a lock in the iyesde
+struct is one class, while each iyesde has its own instantiation of that
 lock class.
 
 The validator tracks the 'usage state' of lock-classes, and it tracks
@@ -21,7 +21,7 @@ the dependencies between different lock-classes. Lock usage indicates
 how a lock is used with regard to its IRQ contexts, while lock
 dependency can be understood as lock order, where L1 -> L2 suggests that
 a task is attempting to acquire L2 while holding L1. From lockdep's
-perspective, the two locks (L1 and L2) are not necessarily related; that
+perspective, the two locks (L1 and L2) are yest necessarily related; that
 dependency just means the order ever happened. The validator maintains a
 continuing effort to prove lock usages and dependencies are correct or
 the validator will shoot a splat if incorrect.
@@ -30,7 +30,7 @@ A lock-class's behavior is constructed by its instances collectively:
 when the first instance of a lock-class is used after bootup the class
 gets registered, then all (subsequent) instances will be mapped to the
 class and hence their usages and dependecies will contribute to those of
-the class. A lock-class does not go away when a lock instance does, but
+the class. A lock-class does yest go away when a lock instance does, but
 it can be removed if the memory space of the lock class (static or
 dynamic) is reclaimed, this happens for example when a module is
 unloaded or a workqueue is destroyed.
@@ -48,7 +48,7 @@ where the 4 usages can be:
 - 'ever held as readlock with STATE enabled'
 
 where the n STATEs are coded in kernel/locking/lockdep_states.h and as of
-now they include:
+yesw they include:
 - hardirq
 - softirq
 
@@ -72,7 +72,7 @@ above respectively, and the character displayed at each bit position
 indicates:
 
    ===  ===================================================
-   '.'  acquired while irqs disabled and not in irq context
+   '.'  acquired while irqs disabled and yest in irq context
    '-'  acquired in irq context
    '+'  acquired with irqs enabled
    '?'  acquired in irq context with irqs enabled.
@@ -82,9 +82,9 @@ The bits are illustrated with an example::
 
     (&sio_locks[i].lock){-.-.}, at: [<c02867fd>] mutex_lock+0x21/0x24
                          ||||
-                         ||| \-> softirq disabled and not in softirq context
+                         ||| \-> softirq disabled and yest in softirq context
                          || \--> acquired in softirq context
-                         | \---> hardirq disabled and not in hardirq context
+                         | \---> hardirq disabled and yest in hardirq context
                           \----> acquired in hardirq context
 
 
@@ -105,7 +105,7 @@ The character '-' suggests irq is disabled because if otherwise the
 charactor '?' would have been shown instead. Similar deduction can be
 applied for '+' too.
 
-Unused locks (e.g., mutexes) cannot be part of the cause of an error.
+Unused locks (e.g., mutexes) canyest be part of the cause of an error.
 
 
 Single-lock state rules:
@@ -122,7 +122,7 @@ for any lock-class based on its usage::
  <softirq-safe> or <softirq-unsafe>
 
 This is because if a lock can be used in irq context (irq-safe) then it
-cannot be ever acquired with irq enabled (irq-unsafe). Otherwise, a
+canyest be ever acquired with irq enabled (irq-unsafe). Otherwise, a
 deadlock may happen. For example, in the scenario that after this lock
 was acquired but before released, if the context is interrupted this
 lock will be attempted to acquire twice, which creates a deadlock,
@@ -134,10 +134,10 @@ single-lock state rules.
 Multi-lock dependency rules:
 ----------------------------
 
-The same lock-class must not be acquired twice, because this could lead
+The same lock-class must yest be acquired twice, because this could lead
 to lock recursion deadlocks.
 
-Furthermore, two locks can not be taken in inverse order::
+Furthermore, two locks can yest be taken in inverse order::
 
  <L1> -> <L2>
  <L2> -> <L1>
@@ -150,7 +150,7 @@ i.e., there can be any other locking sequence between the acquire-lock
 operations; the validator will still find whether these locks can be
 acquired in a circular fashion.
 
-Furthermore, the following usage based lock dependencies are not allowed
+Furthermore, the following usage based lock dependencies are yest allowed
 between any two lock-classes::
 
    <hardirq-safe>   ->  <hardirq-unsafe>
@@ -184,7 +184,7 @@ dependency rules are enforced:
 (Again, we do these checks too on the basis that an interrupt context
 could interrupt _any_ of the irq-unsafe or hardirq-unsafe locks, which
 could lead to a lock inversion deadlock - even if that lock scenario did
-not trigger in practice yet.)
+yest trigger in practice yet.)
 
 Exception: Nested data dependencies leading to nested locking
 -------------------------------------------------------------
@@ -200,9 +200,9 @@ An example of such an object hierarchy that results in "nested locking"
 is that of a "whole disk" block-dev object and a "partition" block-dev
 object; the partition is "part of" the whole device and as long as one
 always takes the whole disk lock as a higher lock than the partition
-lock, the lock ordering is fully correct. The validator does not
+lock, the lock ordering is fully correct. The validator does yest
 automatically detect this natural ordering, as the locking rule behind
-the ordering is not static.
+the ordering is yest static.
 
 In order to teach the validator about this correct usage model, new
 versions of the various locking primitives were added that allow you to
@@ -218,7 +218,7 @@ looks like this::
 
 mutex_lock_nested(&bdev->bd_contains->bd_mutex, BD_MUTEX_PARTITION);
 
-In this case the locking is done on a bdev object that is known to be a
+In this case the locking is done on a bdev object that is kyeswn to be a
 partition.
 
 The validator treats a lock that is taken in such a nested fashion as a
@@ -228,15 +228,15 @@ Note: When changing code to use the _nested() primitives, be careful and
 check really thoroughly that the hierarchy is correctly mapped; otherwise
 you can get false positives or false negatives.
 
-Annotations
+Anyestations
 -----------
 
-Two constructs can be used to annotate and check where and if certain locks
+Two constructs can be used to anyestate and check where and if certain locks
 must be held: lockdep_assert_held*(&lock) and lockdep_*pin_lock(&lock).
 
 As the name suggests, lockdep_assert_held* family of macros assert that a
 particular lock is held at a certain time (and generate a WARN() otherwise).
-This annotation is largely used all over the kernel, e.g. kernel/sched/
+This anyestation is largely used all over the kernel, e.g. kernel/sched/
 core.c::
 
   void update_rq_clock(struct rq *rq)
@@ -250,13 +250,13 @@ core.c::
 where holding rq->lock is required to safely update a rq's clock.
 
 The other family of macros is lockdep_*pin_lock(), which is admittedly only
-used for rq->lock ATM. Despite their limited adoption these annotations
+used for rq->lock ATM. Despite their limited adoption these anyestations
 generate a WARN() if the lock of interest is "accidentally" unlocked. This turns
 out to be especially helpful to debug code with callbacks, where an upper
 layer assumes a lock remains taken, but a lower layer thinks it can maybe drop
 and reacquire the lock ("unwittingly" introducing races). lockdep_pin_lock()
 returns a 'struct pin_cookie' that is then used by lockdep_unpin_lock() to check
-that nobody tampered with the lock, e.g. kernel/sched/sched.h::
+that yesbody tampered with the lock, e.g. kernel/sched/sched.h::
 
   static inline void rq_pin_lock(struct rq *rq, struct rq_flags *rf)
   {
@@ -271,9 +271,9 @@ that nobody tampered with the lock, e.g. kernel/sched/sched.h::
   }
 
 While comments about locking requirements might provide useful information,
-the runtime checks performed by annotations are invaluable when debugging
+the runtime checks performed by anyestations are invaluable when debugging
 locking problems and they carry the same level of details when inspecting
-code.  Always prefer annotations when in doubt!
+code.  Always prefer anyestations when in doubt!
 
 Proof of 100% correctness:
 --------------------------
@@ -281,15 +281,15 @@ Proof of 100% correctness:
 The validator achieves perfect, mathematical 'closure' (proof of locking
 correctness) in the sense that for every simple, standalone single-task
 locking sequence that occurred at least once during the lifetime of the
-kernel, the validator proves it with a 100% certainty that no
+kernel, the validator proves it with a 100% certainty that yes
 combination and timing of these locking sequences can cause any class of
 lock related deadlock. [1]_
 
-I.e. complex multi-CPU and multi-task locking scenarios do not have to
+I.e. complex multi-CPU and multi-task locking scenarios do yest have to
 occur in practice to prove a deadlock: only the simple 'component'
 locking chains have to occur at least once (anytime, in any
 task/context) for the validator to be able to prove correctness. (For
-example, complex deadlocks that would normally need more than 3 CPUs and
+example, complex deadlocks that would yesrmally need more than 3 CPUs and
 a very unlikely constellation of tasks, irq-contexts and timings to
 occur, can be detected on a plain, lightly loaded single-CPU system as
 well!)
@@ -304,13 +304,13 @@ to do in practice).
 
 .. [1]
 
-    assuming that the validator itself is 100% correct, and no other
+    assuming that the validator itself is 100% correct, and yes other
     part of the system corrupts the state of the validator in any way.
     We also assume that all NMI/SMM paths [which could interrupt
-    even hardirq-disabled codepaths] are correct and do not interfere
+    even hardirq-disabled codepaths] are correct and do yest interfere
     with the validator. We also assume that the 64-bit 'chain hash'
     value is unique for every lock-chain in the system. Also, lock
-    recursion must not be higher than 20.
+    recursion must yest be higher than 20.
 
 Performance:
 ------------
@@ -340,19 +340,19 @@ Exceeding this number will trigger the following lockdep warning:
 
 By default, MAX_LOCKDEP_KEYS is currently set to 8191, and typical
 desktop systems have less than 1,000 lock classes, so this warning
-normally results from lock-class leakage or failure to properly
+yesrmally results from lock-class leakage or failure to properly
 initialize locks.  These two problems are illustrated below:
 
 1.	Repeated module loading and unloading while running the validator
 	will result in lock-class leakage.  The issue here is that each
 	load of the module will create a new set of lock classes for
-	that module's locks, but module unloading does not remove old
+	that module's locks, but module unloading does yest remove old
 	classes (see below discussion of reuse of lock classes for why).
 	Therefore, if that module is loaded and unloaded repeatedly,
 	the number of lock classes will eventually reach the maximum.
 
 2.	Using structures such as arrays that have large numbers of
-	locks that are not explicitly initialized.  For example,
+	locks that are yest explicitly initialized.  For example,
 	a hash table with 8192 buckets where each bucket has its own
 	spinlock_t will consume 8192 lock classes -unless- each spinlock
 	is explicitly initialized at runtime, for example, using the

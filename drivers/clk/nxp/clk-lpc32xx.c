@@ -250,7 +250,7 @@ static const struct clk_proto_t clk_proto[LPC32XX_CLK_CCF_MAX] __initconst = {
 
 	/*
 	 * CLK_GET_RATE_NOCACHE is needed, if UART clock is disabled, its
-	 * divider register does not contain information about selected rate.
+	 * divider register does yest contain information about selected rate.
 	 */
 	LPC32XX_CLK_DEFINE(UART3, "uart3", CLK_GET_RATE_NOCACHE,
 		LPC32XX_CLK_PERIPH, LPC32XX_CLK_HCLK),
@@ -522,7 +522,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 	    !(pll_is_valid(parent_rate, 1, 1000000, 20000000)
 	      && pll_is_valid(cco_rate, 1, 156000000, 320000000)
 	      && pll_is_valid(ref_rate, 1, 1000000, 27000000)))
-		pr_err("%s: PLL clocks are not in valid ranges: %lu/%lu/%lu\n",
+		pr_err("%s: PLL clocks are yest in valid ranges: %lu/%lu/%lu\n",
 		       clk_hw_get_name(hw),
 		       parent_rate, cco_rate, ref_rate);
 
@@ -615,7 +615,7 @@ static long clk_hclk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	}
 
 	if (d == (u64)rate << 6) {
-		pr_err("%s: %lu: no valid PLL parameters are found\n",
+		pr_err("%s: %lu: yes valid PLL parameters are found\n",
 		       clk_hw_get_name(hw), rate);
 		return -EINVAL;
 	}
@@ -624,7 +624,7 @@ static long clk_hclk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	clk->n_div = n;
 	clk->p_div = p;
 
-	/* Set only direct or non-integer mode of PLL */
+	/* Set only direct or yesn-integer mode of PLL */
 	if (!p)
 		clk->mode = PLL_DIRECT;
 	else
@@ -732,7 +732,7 @@ static int clk_ddram_enable(struct clk_hw *hw)
 
 	/*
 	 * DDRAM clock must be 2 times higher than HCLK,
-	 * this implies DDRAM clock can not be enabled,
+	 * this implies DDRAM clock can yest be enabled,
 	 * if HCLK clock rate is equal to ARM clock rate
 	 */
 	if (hclk_div == 0x0 || hclk_div == (BIT(1) | BIT(0)))
@@ -1350,7 +1350,7 @@ static struct clk_hw_proto clk_hw_proto[LPC32XX_CLK_HW_MAX] = {
 			   BIT(1), BIT(2) | BIT(1), 0x0, BIT(1),
 			   BIT(2) | BIT(0), BIT(2) | BIT(0), clk_mask_ops),
 	/*
-	 * ADC/TS clock unfortunately cannot be registered as a composite one
+	 * ADC/TS clock unfortunately canyest be registered as a composite one
 	 * due to a different connection of gate, div and mux, e.g. gating it
 	 * won't mean that the clock is off, if peripheral clock is its parent:
 	 *
@@ -1486,7 +1486,7 @@ static void __init lpc32xx_clk_div_quirk(u32 reg, u32 div_mask, u32 gate)
 	regmap_update_bits(clk_regmap, reg, gate | div_mask, val);
 }
 
-static void __init lpc32xx_clk_init(struct device_node *np)
+static void __init lpc32xx_clk_init(struct device_yesde *np)
 {
 	unsigned int i;
 	struct clk *clk_osc, *clk_32k;
@@ -1528,7 +1528,7 @@ static void __init lpc32xx_clk_init(struct device_node *np)
 	/*
 	 * Divider part of PWM and MS clocks requires a quirk to avoid
 	 * a misinterpretation of formally valid zero value in register
-	 * bitfield, which indicates another clock gate. Instead of
+	 * bitfield, which indicates ayesther clock gate. Instead of
 	 * adding complexity to a gate clock ensure that zero value in
 	 * divider clock is never met in runtime.
 	 */
@@ -1563,7 +1563,7 @@ static void __init lpc32xx_clk_init(struct device_node *np)
 }
 CLK_OF_DECLARE(lpc32xx_clk, "nxp,lpc3220-clk", lpc32xx_clk_init);
 
-static void __init lpc32xx_usb_clk_init(struct device_node *np)
+static void __init lpc32xx_usb_clk_init(struct device_yesde *np)
 {
 	unsigned int i;
 

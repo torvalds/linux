@@ -7,11 +7,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -44,18 +44,18 @@ enum mode_set_atomic {
 };
 
 /**
- * struct drm_fb_helper_surface_size - describes fbdev size and scanout surface size
+ * struct drm_fb_helper_surface_size - describes fbdev size and scayesut surface size
  * @fb_width: fbdev width
  * @fb_height: fbdev height
- * @surface_width: scanout buffer width
- * @surface_height: scanout buffer height
- * @surface_bpp: scanout buffer bpp
- * @surface_depth: scanout buffer depth
+ * @surface_width: scayesut buffer width
+ * @surface_height: scayesut buffer height
+ * @surface_bpp: scayesut buffer bpp
+ * @surface_depth: scayesut buffer depth
  *
- * Note that the scanout surface width/height may be larger than the fbdev
- * width/height.  In case of multiple displays, the scanout surface is sized
- * according to the largest width/height (so it is large enough for all CRTCs
- * to scanout).  But the fbdev width/height is sized to the minimum width/
+ * Note that the scayesut surface width/height may be larger than the fbdev
+ * width/height.  In case of multiple displays, the scayesut surface is sized
+ * according to the largest width/height (so it is large eyesugh for all CRTCs
+ * to scayesut).  But the fbdev width/height is sized to the minimum width/
  * height of all the displays.  This ensures that fbcon fits on the smallest
  * of the attached displays. fb_width/fb_height is used by
  * drm_fb_helper_fill_info() to fill out the &fb_info.var structure.
@@ -95,7 +95,7 @@ struct drm_fb_helper_funcs {
 
 /**
  * struct drm_fb_helper - main structure to emulate fbdev on top of KMS
- * @fb: Scanout framebuffer object
+ * @fb: Scayesut framebuffer object
  * @dev: DRM device
  * @funcs: driver callbacks for fb helper
  * @fbdev: emulated fbdev device info struct
@@ -159,7 +159,7 @@ struct drm_fb_helper {
 	 * @delayed_hotplug:
 	 *
 	 * A hotplug was received while fbdev wasn't in control of the DRM
-	 * device, i.e. another KMS master was active. The output configuration
+	 * device, i.e. ayesther KMS master was active. The output configuration
 	 * needs to be reprobe when fbdev is in control again.
 	 */
 	bool delayed_hotplug;
@@ -167,7 +167,7 @@ struct drm_fb_helper {
 	/**
 	 * @deferred_setup:
 	 *
-	 * If no outputs are connected (disconnected or unknown) the FB helper
+	 * If yes outputs are connected (disconnected or unkyeswn) the FB helper
 	 * code will defer setup until at least one of the outputs shows up.
 	 * This field keeps track of the status so that setup can be retried
 	 * at every hotplug event until it succeeds eventually.

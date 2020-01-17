@@ -43,32 +43,32 @@ void vexpress_config_unlock(void *arg)
 }
 
 
-static void vexpress_config_find_prop(struct device_node *node,
+static void vexpress_config_find_prop(struct device_yesde *yesde,
 		const char *name, u32 *val)
 {
 	/* Default value */
 	*val = 0;
 
-	of_node_get(node);
-	while (node) {
-		if (of_property_read_u32(node, name, val) == 0) {
-			of_node_put(node);
+	of_yesde_get(yesde);
+	while (yesde) {
+		if (of_property_read_u32(yesde, name, val) == 0) {
+			of_yesde_put(yesde);
 			return;
 		}
-		node = of_get_next_parent(node);
+		yesde = of_get_next_parent(yesde);
 	}
 }
 
-int vexpress_config_get_topo(struct device_node *node, u32 *site,
+int vexpress_config_get_topo(struct device_yesde *yesde, u32 *site,
 		u32 *position, u32 *dcc)
 {
-	vexpress_config_find_prop(node, "arm,vexpress,site", site);
+	vexpress_config_find_prop(yesde, "arm,vexpress,site", site);
 	if (*site == VEXPRESS_SITE_MASTER)
 		*site = vexpress_config_site_master;
 	if (WARN_ON(vexpress_config_site_master == VEXPRESS_SITE_MASTER))
 		return -EINVAL;
-	vexpress_config_find_prop(node, "arm,vexpress,position", position);
-	vexpress_config_find_prop(node, "arm,vexpress,dcc", dcc);
+	vexpress_config_find_prop(yesde, "arm,vexpress,position", position);
+	vexpress_config_find_prop(yesde, "arm,vexpress,dcc", dcc);
 
 	return 0;
 }
@@ -143,40 +143,40 @@ struct device *vexpress_config_bridge_register(struct device *parent,
 
 	dev_set_drvdata(dev, bridge);
 
-	dev_dbg(parent, "Registered bridge '%s', parent node %p\n",
-			dev_name(dev), parent->of_node);
+	dev_dbg(parent, "Registered bridge '%s', parent yesde %p\n",
+			dev_name(dev), parent->of_yesde);
 
 	return dev;
 }
 
 
-static int vexpress_config_node_match(struct device *dev, const void *data)
+static int vexpress_config_yesde_match(struct device *dev, const void *data)
 {
-	const struct device_node *node = data;
+	const struct device_yesde *yesde = data;
 
-	dev_dbg(dev, "Parent node %p, looking for %p\n",
-			dev->parent->of_node, node);
+	dev_dbg(dev, "Parent yesde %p, looking for %p\n",
+			dev->parent->of_yesde, yesde);
 
-	return dev->parent->of_node == node;
+	return dev->parent->of_yesde == yesde;
 }
 
-static int vexpress_config_populate(struct device_node *node)
+static int vexpress_config_populate(struct device_yesde *yesde)
 {
-	struct device_node *bridge;
+	struct device_yesde *bridge;
 	struct device *parent;
 	int ret;
 
-	bridge = of_parse_phandle(node, "arm,vexpress,config-bridge", 0);
+	bridge = of_parse_phandle(yesde, "arm,vexpress,config-bridge", 0);
 	if (!bridge)
 		return -EINVAL;
 
 	parent = class_find_device(vexpress_config_class, NULL, bridge,
-			vexpress_config_node_match);
-	of_node_put(bridge);
+			vexpress_config_yesde_match);
+	of_yesde_put(bridge);
 	if (WARN_ON(!parent))
 		return -ENODEV;
 
-	ret = of_platform_populate(node, NULL, NULL, parent);
+	ret = of_platform_populate(yesde, NULL, NULL, parent);
 
 	put_device(parent);
 
@@ -186,13 +186,13 @@ static int vexpress_config_populate(struct device_node *node)
 static int __init vexpress_config_init(void)
 {
 	int err = 0;
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	/* Need the config devices early, before the "normal" devices... */
-	for_each_compatible_node(node, NULL, "arm,vexpress,config-bus") {
-		err = vexpress_config_populate(node);
+	/* Need the config devices early, before the "yesrmal" devices... */
+	for_each_compatible_yesde(yesde, NULL, "arm,vexpress,config-bus") {
+		err = vexpress_config_populate(yesde);
 		if (err) {
-			of_node_put(node);
+			of_yesde_put(yesde);
 			break;
 		}
 	}

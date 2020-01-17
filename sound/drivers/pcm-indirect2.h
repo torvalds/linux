@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Helper functions for indirect PCM data transfer to a simple FIFO in
- * hardware (small, no possibility to read "hardware io position",
+ * hardware (small, yes possibility to read "hardware io position",
  * updating position done by interrupt, ...)
  *
  *  Copyright (c) by 2007  Joachim Foerster <JOFT@gmx.de>
@@ -55,9 +55,9 @@ struct snd_pcm_indirect2 {
 	 * A call to ack() callback synchronizes both indirectly.
 	 */
 
-	/* We have no real sw_io pointer here. Usually sw_io is pointing to the
+	/* We have yes real sw_io pointer here. Usually sw_io is pointing to the
 	 * current playback/capture position _inside_ the hardware. Devices
-	 * with plain FIFOs often have no possibility to publish this position.
+	 * with plain FIFOs often have yes possibility to publish this position.
 	 * So we say: if sw_data is updated, that means bytes were copied to
 	 * the hardware, we increase sw_io by that amount, because there have
 	 * to be as much bytes which were played. So sw_io will stay behind
@@ -71,7 +71,7 @@ struct snd_pcm_indirect2 {
 	 */
 	int sw_ready;		  /* Bytes ready to be transferred to/from hw */
 
-	/* appl_ptr: last known position of ALSA (where ALSA is going to write
+	/* appl_ptr: last kyeswn position of ALSA (where ALSA is going to write
 	 * next time into the intermediate buffer
 	 */
 	snd_pcm_uframes_t appl_ptr;   /* Last seen appl_ptr */
@@ -92,7 +92,7 @@ struct snd_pcm_indirect2 {
 	unsigned int mul_adds[8];
 	unsigned int zero_times[3750];	/* = 15s */
 	unsigned int zero_times_saved;
-	unsigned int zero_times_notsaved;
+	unsigned int zero_times_yestsaved;
 	unsigned int irq_occured;
 	unsigned int pointer_calls;
 	unsigned int lastdifftime;

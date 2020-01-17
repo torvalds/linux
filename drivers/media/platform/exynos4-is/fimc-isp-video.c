@@ -14,7 +14,7 @@
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -27,7 +27,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
-#include <media/drv-intf/exynos-fimc.h>
+#include <media/drv-intf/exyyess-fimc.h>
 
 #include "common.h"
 #include "media-dev.h"
@@ -88,7 +88,7 @@ static int isp_video_capture_start_streaming(struct vb2_queue *q,
 
 
 	dma->cmd = DMA_OUTPUT_COMMAND_ENABLE;
-	dma->notify_dma_done = DMA_OUTPUT_NOTIFY_DMA_DONE_ENABLE;
+	dma->yestify_dma_done = DMA_OUTPUT_NOTIFY_DMA_DONE_ENABLE;
 	dma->buffer_address = is->is_dma_p_region +
 				DMA2_OUTPUT_ADDR_ARRAY_OFFS;
 	dma->buffer_number = video->reqbufs_count;
@@ -128,7 +128,7 @@ static void isp_video_capture_stop_streaming(struct vb2_queue *q)
 		return;
 
 	dma->cmd = DMA_OUTPUT_COMMAND_DISABLE;
-	dma->notify_dma_done = DMA_OUTPUT_NOTIFY_DMA_DONE_DISABLE;
+	dma->yestify_dma_done = DMA_OUTPUT_NOTIFY_DMA_DONE_DISABLE;
 	dma->buffer_number = 0;
 	dma->buffer_address = 0;
 	dma->dma_out_mask = 0;
@@ -169,7 +169,7 @@ static int isp_video_capture_buffer_prepare(struct vb2_buffer *vb)
 		vb2_set_plane_payload(vb, i, size);
 	}
 
-	/* Check if we get one of the already known buffers. */
+	/* Check if we get one of the already kyeswn buffers. */
 	if (test_bit(ST_ISP_VID_CAP_BUF_PREP, &isp->state)) {
 		dma_addr_t dma_addr = vb2_dma_contig_plane_dma_addr(vb, 0);
 		int i;
@@ -264,7 +264,7 @@ static const struct vb2_ops isp_video_capture_qops = {
 static int isp_video_open(struct file *file)
 {
 	struct fimc_isp *isp = video_drvdata(file);
-	struct exynos_video_entity *ve = &isp->video_capture.ve;
+	struct exyyess_video_entity *ve = &isp->video_capture.ve;
 	struct media_entity *me = &ve->vdev.entity;
 	int ret;
 
@@ -339,7 +339,7 @@ static const struct v4l2_file_operations isp_video_fops = {
 };
 
 /*
- * Video node ioctl operations
+ * Video yesde ioctl operations
  */
 static int isp_video_querycap(struct file *file, void *priv,
 					struct v4l2_capability *cap)
@@ -486,7 +486,7 @@ static int isp_video_streamon(struct file *file, void *priv,
 				      enum v4l2_buf_type type)
 {
 	struct fimc_isp *isp = video_drvdata(file);
-	struct exynos_video_entity *ve = &isp->video_capture.ve;
+	struct exyyess_video_entity *ve = &isp->video_capture.ve;
 	struct media_entity *me = &ve->vdev.entity;
 	int ret;
 
@@ -607,7 +607,7 @@ int fimc_isp_video_device_register(struct fimc_isp *isp,
 	vdev->fops = &isp_video_fops;
 	vdev->ioctl_ops = &isp_video_ioctl_ops;
 	vdev->v4l2_dev = v4l2_dev;
-	vdev->minor = -1;
+	vdev->miyesr = -1;
 	vdev->release = video_device_release_empty;
 	vdev->lock = &isp->video_lock;
 	vdev->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE_MPLANE;
@@ -626,7 +626,7 @@ int fimc_isp_video_device_register(struct fimc_isp *isp,
 	}
 
 	v4l2_info(v4l2_dev, "Registered %s as /dev/%s\n",
-		  vdev->name, video_device_node_name(vdev));
+		  vdev->name, video_device_yesde_name(vdev));
 
 	return 0;
 }
@@ -634,7 +634,7 @@ int fimc_isp_video_device_register(struct fimc_isp *isp,
 void fimc_isp_video_device_unregister(struct fimc_isp *isp,
 				      enum v4l2_buf_type type)
 {
-	struct exynos_video_entity *ve;
+	struct exyyess_video_entity *ve;
 
 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		ve = &isp->video_capture.ve;

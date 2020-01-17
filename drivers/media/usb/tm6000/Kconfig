@@ -9,7 +9,7 @@ config VIDEO_TM6000
 	help
 	  Support for TM5600/TM6000/TM6010 USB Device
 
-	  Since these cards have no MPEG decoder onboard, they transmit
+	  Since these cards have yes MPEG decoder onboard, they transmit
 	  only compressed MPEG data over the usb bus, so you need
 	  an external software decoder to watch TV on your computer.
 

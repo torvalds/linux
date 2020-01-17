@@ -130,7 +130,7 @@ static union nested_table *nested_table_alloc(struct rhashtable *ht,
 
 	if (cmpxchg((union nested_table **)prev, NULL, ntbl) == NULL)
 		return ntbl;
-	/* Raced with another thread. */
+	/* Raced with ayesther thread. */
 	kfree(ntbl);
 	return rcu_dereference(*prev);
 }
@@ -289,7 +289,7 @@ static int rhashtable_rehash_attach(struct rhashtable *ht,
 {
 	/* Make insertions go into the new, empty table right away. Deletions
 	 * and lookups will be attempted in both tables until we synchronize.
-	 * As cmpxchg() provides strong barriers, we do not need
+	 * As cmpxchg() provides strong barriers, we do yest need
 	 * rcu_assign_pointer().
 	 */
 
@@ -327,11 +327,11 @@ static int rhashtable_rehash_table(struct rhashtable *ht)
 		walker->tbl = NULL;
 
 	/* Wait for readers. All new readers will see the new
-	 * table, and thus no references to the old table will
+	 * table, and thus yes references to the old table will
 	 * remain.
 	 * We do this inside the locked region so that
 	 * rhashtable_walk_stop() can use rcu_head_after_call_rcu()
-	 * to check if it should not re-link the table.
+	 * to check if it should yest re-link the table.
 	 */
 	call_rcu(&old_tbl->rcu, bucket_table_free_rcu);
 	spin_unlock(&ht->lock);
@@ -364,12 +364,12 @@ static int rhashtable_rehash_alloc(struct rhashtable *ht,
  * @ht:		the hash table to shrink
  *
  * This function shrinks the hash table to fit, i.e., the smallest
- * size would not cause it to expand right away automatically.
+ * size would yest cause it to expand right away automatically.
  *
- * The caller must ensure that no concurrent resizing occurs by holding
+ * The caller must ensure that yes concurrent resizing occurs by holding
  * ht->mutex.
  *
- * The caller must ensure that no concurrent table mutations take place.
+ * The caller must ensure that yes concurrent table mutations take place.
  * It is however valid to have concurrent lookups if they are RCU protected.
  *
  * It is valid to have concurrent insertions and deletions protected by per
@@ -443,7 +443,7 @@ static int rhashtable_insert_rehash(struct rhashtable *ht,
 
 	if (rht_grow_above_75(ht, tbl))
 		size *= 2;
-	/* Do not schedule more than one rehash */
+	/* Do yest schedule more than one rehash */
 	else if (old_tbl != tbl)
 		goto fail;
 
@@ -464,7 +464,7 @@ static int rhashtable_insert_rehash(struct rhashtable *ht,
 	return err;
 
 fail:
-	/* Do not fail the insert if someone else did a rehash. */
+	/* Do yest fail the insert if someone else did a rehash. */
 	if (likely(rcu_access_pointer(tbl->future_tbl)))
 		return 0;
 
@@ -650,7 +650,7 @@ EXPORT_SYMBOL_GPL(rhashtable_insert_slow);
  * structure outside the hash table.
  *
  * This function may be called from any process context, including
- * non-preemptable context, but cannot be called from softirq or
+ * yesn-preemptable context, but canyest be called from softirq or
  * hardirq context.
  *
  * You must call rhashtable_walk_exit after this function returns.
@@ -701,7 +701,7 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_exit);
  * by calling rhashtable_walk_next.
  *
  * rhashtable_walk_start is defined as an inline variant that returns
- * void. This is preferred in cases where the caller would ignore
+ * void. This is preferred in cases where the caller would igyesre
  * resize events and always continue.
  */
 int rhashtable_walk_start_check(struct rhashtable_iter *iter)
@@ -900,7 +900,7 @@ void *rhashtable_walk_peek(struct rhashtable_iter *iter)
 	/* No object found in current iter, find next one in the table. */
 
 	if (iter->skip) {
-		/* A nonzero skip value points to the next entry in the table
+		/* A yesnzero skip value points to the next entry in the table
 		 * beyond that last one that was found. Decrement skip so
 		 * we find the current value. __rhashtable_walk_find_next
 		 * will restore the original value of skip assuming that
@@ -917,7 +917,7 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_peek);
  * rhashtable_walk_stop - Finish a hash table walk
  * @iter:	Hash table iterator
  *
- * Finish a hash table walk.  Does not reset the iterator to the start of the
+ * Finish a hash table walk.  Does yest reset the iterator to the start of the
  * hash table.
  */
 void rhashtable_walk_stop(struct rhashtable_iter *iter)
@@ -976,11 +976,11 @@ static u32 rhashtable_jhash2(const void *key, u32 length, u32 seed)
  * struct test_obj {
  *	int			key;
  *	void *			my_member;
- *	struct rhash_head	node;
+ *	struct rhash_head	yesde;
  * };
  *
  * struct rhashtable_params params = {
- *	.head_offset = offsetof(struct test_obj, node),
+ *	.head_offset = offsetof(struct test_obj, yesde),
  *	.key_offset = offsetof(struct test_obj, key),
  *	.key_len = sizeof(int),
  *	.hashfn = jhash,
@@ -989,7 +989,7 @@ static u32 rhashtable_jhash2(const void *key, u32 length, u32 seed)
  * Configuration Example 2: Variable length keys
  * struct test_obj {
  *	[...]
- *	struct rhash_head	node;
+ *	struct rhash_head	yesde;
  * };
  *
  * u32 my_hash_fn(const void *data, u32 len, u32 seed)
@@ -1000,7 +1000,7 @@ static u32 rhashtable_jhash2(const void *key, u32 length, u32 seed)
  * }
  *
  * struct rhashtable_params params = {
- *	.head_offset = offsetof(struct test_obj, node),
+ *	.head_offset = offsetof(struct test_obj, yesde),
  *	.hashfn = jhash,
  *	.obj_hashfn = my_hash_fn,
  * };
@@ -1112,12 +1112,12 @@ static void rhashtable_free_one(struct rhashtable *ht, struct rhash_head *obj,
  * @arg:	pointer passed to free_fn
  *
  * Stops an eventual async resize. If defined, invokes free_fn for each
- * element to releasal resources. Please note that RCU protected
+ * element to releasal resources. Please yeste that RCU protected
  * readers may still be accessing the elements. Releasing of resources
  * must occur in a compatible manner. Then frees the bucket array.
  *
  * This function will eventually sleep to wait for an async resize
- * to complete. The caller is responsible that no further write operations
+ * to complete. The caller is responsible that yes further write operations
  * occurs in parallel.
  */
 void rhashtable_free_and_destroy(struct rhashtable *ht,

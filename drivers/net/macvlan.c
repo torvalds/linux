@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2007 Patrick McHardy <kaber@trash.net>
  *
- * The code this is based on carried the following copyright notice:
+ * The code this is based on carried the following copyright yestice:
  * ---
  * (C) Copyright 2001-2006
  * Alex Zeffertt, Cambridge Broadband Ltd, ajz@cambridgebroadband.com
@@ -13,11 +13,11 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/rculist.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/net_tstamp.h>
@@ -54,7 +54,7 @@ struct macvlan_port {
 };
 
 struct macvlan_source_entry {
-	struct hlist_node	hlist;
+	struct hlist_yesde	hlist;
 	struct macvlan_dev	*vlan;
 	unsigned char		addr[6+2] __aligned(sizeof(u16));
 	struct rcu_head		rcu;
@@ -208,7 +208,7 @@ static bool macvlan_addr_busy(const struct macvlan_port *port,
 {
 	/* Test to see if the specified address is
 	 * currently in use by the underlying device or
-	 * another macvlan.
+	 * ayesther macvlan.
 	 */
 	if (!macvlan_passthru(port) && !macvlan_addr_change(port) &&
 	    ether_addr_equal_64bits(port->dev->dev_addr, addr))
@@ -378,7 +378,7 @@ static void macvlan_flush_sources(struct macvlan_port *port,
 	int i;
 
 	for (i = 0; i < MACVLAN_HASH_SIZE; i++) {
-		struct hlist_node *h, *n;
+		struct hlist_yesde *h, *n;
 
 		hlist_for_each_safe(h, n, &port->vlan_source_hash[i]) {
 			struct macvlan_source_entry *entry;
@@ -616,7 +616,7 @@ static int macvlan_open(struct net_device *dev)
 		vlan->accel_priv =
 		      lowerdev->netdev_ops->ndo_dfwd_add_station(lowerdev, dev);
 
-	/* If earlier attempt to offload failed, or accel_priv is not
+	/* If earlier attempt to offload failed, or accel_priv is yest
 	 * populated we must add the unicast address to the lower device.
 	 */
 	if (IS_ERR_OR_NULL(vlan->accel_priv)) {
@@ -735,7 +735,7 @@ static int macvlan_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	/* If the addresses are the same, this is a no-op */
+	/* If the addresses are the same, this is a yes-op */
 	if (ether_addr_equal(dev->dev_addr, addr->sa_data))
 		return 0;
 
@@ -850,7 +850,7 @@ static int macvlan_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 /*
  * macvlan network devices have devices nesting below it and are a special
- * "super class" of normal network devices; split their locks off into a
+ * "super class" of yesrmal network devices; split their locks off into a
  * separate class since they always nest.
  */
 #define ALWAYS_ON_OFFLOADS \
@@ -1220,7 +1220,7 @@ static void macvlan_port_destroy(struct net_device *dev)
 	dev->priv_flags &= ~IFF_MACVLAN_PORT;
 	netdev_rx_handler_unregister(dev);
 
-	/* After this point, no packet can schedule bc_work anymore,
+	/* After this point, yes packet can schedule bc_work anymore,
 	 * but we need to cancel it and purge left skbs if any.
 	 */
 	cancel_work_sync(&port->bc_work);
@@ -1417,7 +1417,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 
 	/* Only 1 macvlan device can be created in passthru mode */
 	if (macvlan_passthru(port)) {
-		/* The macvlan port must be not created this time,
+		/* The macvlan port must be yest created this time,
 		 * still goto destroy_macvlan_port for readability.
 		 */
 		err = -EINVAL;
@@ -1605,7 +1605,7 @@ static int macvlan_fill_info(struct sk_buff *skb,
 	if (nla_put_u32(skb, IFLA_MACVLAN_MACADDR_COUNT, vlan->macaddr_count))
 		goto nla_put_failure;
 	if (vlan->macaddr_count > 0) {
-		nest = nla_nest_start_noflag(skb, IFLA_MACVLAN_MACADDR_DATA);
+		nest = nla_nest_start_yesflag(skb, IFLA_MACVLAN_MACADDR_DATA);
 		if (nest == NULL)
 			goto nla_put_failure;
 
@@ -1658,10 +1658,10 @@ static struct rtnl_link_ops macvlan_link_ops = {
 	.priv_size      = sizeof(struct macvlan_dev),
 };
 
-static int macvlan_device_event(struct notifier_block *unused,
+static int macvlan_device_event(struct yestifier_block *unused,
 				unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct macvlan_dev *vlan, *next;
 	struct macvlan_port *port;
 	LIST_HEAD(list_kill);
@@ -1723,34 +1723,34 @@ static int macvlan_device_event(struct notifier_block *unused,
 	case NETDEV_RESEND_IGMP:
 		/* Propagate to all vlans */
 		list_for_each_entry(vlan, &port->vlans, list)
-			call_netdevice_notifiers(event, vlan->dev);
+			call_netdevice_yestifiers(event, vlan->dev);
 	}
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block macvlan_notifier_block __read_mostly = {
-	.notifier_call	= macvlan_device_event,
+static struct yestifier_block macvlan_yestifier_block __read_mostly = {
+	.yestifier_call	= macvlan_device_event,
 };
 
 static int __init macvlan_init_module(void)
 {
 	int err;
 
-	register_netdevice_notifier(&macvlan_notifier_block);
+	register_netdevice_yestifier(&macvlan_yestifier_block);
 
 	err = macvlan_link_register(&macvlan_link_ops);
 	if (err < 0)
 		goto err1;
 	return 0;
 err1:
-	unregister_netdevice_notifier(&macvlan_notifier_block);
+	unregister_netdevice_yestifier(&macvlan_yestifier_block);
 	return err;
 }
 
 static void __exit macvlan_cleanup_module(void)
 {
 	rtnl_link_unregister(&macvlan_link_ops);
-	unregister_netdevice_notifier(&macvlan_notifier_block);
+	unregister_netdevice_yestifier(&macvlan_yestifier_block);
 }
 
 module_init(macvlan_init_module);

@@ -253,12 +253,12 @@ const struct clk_ops ccu_mux_ops = {
 };
 
 /*
- * This clock notifier is called when the frequency of the of the parent
+ * This clock yestifier is called when the frequency of the of the parent
  * PLL clock is to be changed. The idea is to switch the parent to a
  * stable clock, such as the main oscillator, while the PLL frequency
  * stabilizes.
  */
-static int ccu_mux_notifier_cb(struct notifier_block *nb,
+static int ccu_mux_yestifier_cb(struct yestifier_block *nb,
 			       unsigned long event, void *data)
 {
 	struct ccu_mux_nb *mux = to_ccu_mux_nb(nb);
@@ -276,12 +276,12 @@ static int ccu_mux_notifier_cb(struct notifier_block *nb,
 
 	udelay(mux->delay_us);
 
-	return notifier_from_errno(ret);
+	return yestifier_from_erryes(ret);
 }
 
-int ccu_mux_notifier_register(struct clk *clk, struct ccu_mux_nb *mux_nb)
+int ccu_mux_yestifier_register(struct clk *clk, struct ccu_mux_nb *mux_nb)
 {
-	mux_nb->clk_nb.notifier_call = ccu_mux_notifier_cb;
+	mux_nb->clk_nb.yestifier_call = ccu_mux_yestifier_cb;
 
-	return clk_notifier_register(clk, &mux_nb->clk_nb);
+	return clk_yestifier_register(clk, &mux_nb->clk_nb);
 }

@@ -70,7 +70,7 @@ struct lpfc_sli2_slim;
 #define LPFC_MIN_TGT_QDEPTH	10
 #define LPFC_MAX_TGT_QDEPTH	0xFFFF
 
-#define  LPFC_MAX_BUCKET_COUNT 20	/* Maximum no. of buckets for stat data
+#define  LPFC_MAX_BUCKET_COUNT 20	/* Maximum yes. of buckets for stat data
 					   collection. */
 /*
  * Following time intervals are used of adjusting SCSI device
@@ -213,7 +213,7 @@ typedef struct lpfc_vpd {
 		uint32_t cbg	: 1;  /* Configure BlockGuard                 */
 		uint32_t cmv	: 1;  /* Configure Max VPIs                   */
 		uint32_t ccrp   : 1;  /* Config Command Ring Polling          */
-		uint32_t csah   : 1;  /* Configure Synchronous Abort Handling */
+		uint32_t csah   : 1;  /* Configure Synchroyesus Abort Handling */
 		uint32_t chbs   : 1;  /* Cofigure Host Backing store          */
 		uint32_t cinb   : 1;  /* Enable Interrupt Notification Block  */
 		uint32_t cerbm	: 1;  /* Configure Enhanced Receive Buf Mgmt  */
@@ -225,7 +225,7 @@ typedef struct lpfc_vpd {
 		uint32_t cerbm	: 1;  /* Configure Enhanced Receive Buf Mgmt  */
 		uint32_t cinb   : 1;  /* Enable Interrupt Notification Block  */
 		uint32_t chbs   : 1;  /* Cofigure Host Backing store          */
-		uint32_t csah   : 1;  /* Configure Synchronous Abort Handling */
+		uint32_t csah   : 1;  /* Configure Synchroyesus Abort Handling */
 		uint32_t ccrp   : 1;  /* Config Command Ring Polling          */
 		uint32_t cmv	: 1;  /* Configure Max VPIs                   */
 		uint32_t cbg	: 1;  /* Configure BlockGuard                 */
@@ -307,7 +307,7 @@ struct lpfc_hba;
 
 
 enum discovery_state {
-	LPFC_VPORT_UNKNOWN     =  0,    /* vport state is unknown */
+	LPFC_VPORT_UNKNOWN     =  0,    /* vport state is unkyeswn */
 	LPFC_VPORT_FAILED      =  1,    /* vport has failed */
 	LPFC_LOCAL_CFG_LINK    =  6,    /* local NPORT Id configured */
 	LPFC_FLOGI             =  7,    /* FLOGI sent to Fabric */
@@ -323,7 +323,7 @@ enum discovery_state {
 };
 
 enum hba_state {
-	LPFC_LINK_UNKNOWN    =   0,   /* HBA state is unknown */
+	LPFC_LINK_UNKNOWN    =   0,   /* HBA state is unkyeswn */
 	LPFC_WARM_START      =   1,   /* HBA state after selective reset */
 	LPFC_INIT_START      =   2,   /* Initial state after board reset */
 	LPFC_INIT_MBX_CMDS   =   3,   /* Initialize HBA with mbox commands */
@@ -365,13 +365,13 @@ struct lpfc_vport {
 /* Several of these flags are HBA centric and should be moved to
  * phba->link_flag (e.g. FC_PTP, FC_PUBLIC_LOOP)
  */
-#define FC_PT2PT                0x1	 /* pt2pt with no fabric */
+#define FC_PT2PT                0x1	 /* pt2pt with yes fabric */
 #define FC_PT2PT_PLOGI          0x2	 /* pt2pt initiate PLOGI */
 #define FC_DISC_TMO             0x4	 /* Discovery timer running */
 #define FC_PUBLIC_LOOP          0x8	 /* Public loop */
 #define FC_LBIT                 0x10	 /* LOGIN bit in loopinit set */
 #define FC_RSCN_MODE            0x20	 /* RSCN cmd rcv'ed */
-#define FC_NLP_MORE             0x40	 /* More node to process in node tbl */
+#define FC_NLP_MORE             0x40	 /* More yesde to process in yesde tbl */
 #define FC_OFFLINE_MODE         0x80	 /* Interface is offline for diag */
 #define FC_FABRIC               0x100	 /* We are fabric attached */
 #define FC_VPORT_LOGO_RCVD      0x200    /* LOGO received on vport */
@@ -396,7 +396,7 @@ struct lpfc_vport {
 #define FC_CT_RSPN_ID		0x8	 /* RSPN_ID accepted by switch */
 #define FC_CT_RFT_ID		0x10	 /* RFT_ID accepted by switch */
 
-	struct list_head fc_nodes;
+	struct list_head fc_yesdes;
 
 	/* Keep counters for the number of entries in each list. */
 	uint16_t fc_plogi_cnt;
@@ -412,19 +412,19 @@ struct lpfc_vport {
 	uint32_t fc_myDID;	/* fibre channel S_ID */
 	uint32_t fc_prevDID;	/* previous fibre channel S_ID */
 	struct lpfc_name fabric_portname;
-	struct lpfc_name fabric_nodename;
+	struct lpfc_name fabric_yesdename;
 
-	int32_t stopped;   /* HBA has not been restarted since last ERATT */
+	int32_t stopped;   /* HBA has yest been restarted since last ERATT */
 	uint8_t fc_linkspeed;	/* Link speed after last READ_LA */
 
-	uint32_t num_disc_nodes;	/* in addition to hba_state */
+	uint32_t num_disc_yesdes;	/* in addition to hba_state */
 	uint32_t gidft_inp;		/* cnt of outstanding GID_FTs */
 
 	uint32_t fc_nlp_cnt;	/* outstanding NODELIST requests */
 	uint32_t fc_rscn_id_cnt;	/* count of RSCNs payloads in list */
 	uint32_t fc_rscn_flush;		/* flag use of fc_rscn_id_list */
 	struct lpfc_dmabuf *fc_rscn_id_list[FC_MAX_HOLD_RSCN];
-	struct lpfc_name fc_nodename;	/* fc nodename */
+	struct lpfc_name fc_yesdename;	/* fc yesdename */
 	struct lpfc_name fc_portname;	/* fc portname */
 
 	struct lpfc_work_evt disc_timeout_evt;
@@ -458,7 +458,7 @@ struct lpfc_vport {
 	/* Vport Config Parameters */
 	uint32_t cfg_scan_down;
 	uint32_t cfg_lun_queue_depth;
-	uint32_t cfg_nodev_tmo;
+	uint32_t cfg_yesdev_tmo;
 	uint32_t cfg_devloss_tmo;
 	uint32_t cfg_restrict_login;
 	uint32_t cfg_peer_port_login;
@@ -478,7 +478,7 @@ struct lpfc_vport {
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct dentry *debug_disc_trc;
-	struct dentry *debug_nodelist;
+	struct dentry *debug_yesdelist;
 	struct dentry *debug_nvmestat;
 	struct dentry *debug_scsistat;
 	struct dentry *debug_nvmektime;
@@ -623,7 +623,7 @@ struct lpfc_ras_fwlog {
 	struct list_head fwlog_buff_list;
 
 	/* RAS support status on adapter */
-	bool ras_hwsupport; /* RAS Support available on HW or not */
+	bool ras_hwsupport; /* RAS Support available on HW or yest */
 	bool ras_enabled;   /* Ras Enabled for the function */
 #define LPFC_RAS_DISABLE_LOGGING 0x00
 #define LPFC_RAS_ENABLE_LOGGING 0x01
@@ -633,7 +633,7 @@ struct lpfc_ras_fwlog {
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
 	struct lpfc_io_buf * (*lpfc_get_scsi_buf)
-		(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
+		(struct lpfc_hba *phba, struct lpfc_yesdelist *ndlp,
 		struct scsi_cmnd *cmnd);
 	int (*lpfc_scsi_prep_dma_buf)
 		(struct lpfc_hba *, struct lpfc_io_buf *);
@@ -645,7 +645,7 @@ struct lpfc_hba {
 		(struct lpfc_hba *);
 	void (*lpfc_scsi_prep_cmnd)
 		(struct lpfc_vport *, struct lpfc_io_buf *,
-		 struct lpfc_nodelist *);
+		 struct lpfc_yesdelist *);
 
 	/* IOCB interface function jump table entries */
 	int (*__lpfc_sli_issue_iocb)
@@ -721,9 +721,9 @@ struct lpfc_hba {
 					/* This flag is set while issuing */
 					/* INIT_LINK mailbox command */
 #define LS_NPIV_FAB_SUPPORTED 0x2	/* Fabric supports NPIV */
-#define LS_IGNORE_ERATT       0x4	/* intr handler should ignore ERATT */
-#define LS_MDS_LINK_DOWN      0x8	/* MDS Diagnostics Link Down */
-#define LS_MDS_LOOPBACK      0x10	/* MDS Diagnostics Link Up (Loopback) */
+#define LS_IGNORE_ERATT       0x4	/* intr handler should igyesre ERATT */
+#define LS_MDS_LINK_DOWN      0x8	/* MDS Diagyesstics Link Down */
+#define LS_MDS_LOOPBACK      0x10	/* MDS Diagyesstics Link Up (Loopback) */
 
 	uint32_t hba_flag;	/* hba generic flags */
 #define HBA_ERATT_HANDLED	0x1 /* This flag is set when eratt handled */
@@ -790,7 +790,7 @@ struct lpfc_hba {
 
 	struct lpfc_stats fc_stat;
 
-	struct lpfc_nodelist fc_fcpnodev; /* nodelist entry for no device */
+	struct lpfc_yesdelist fc_fcpyesdev; /* yesdelist entry for yes device */
 	uint32_t nport_event_cnt;	/* timestamp for nlplist entry */
 
 	uint8_t  wwnn[8];
@@ -818,7 +818,7 @@ struct lpfc_hba {
 	uint32_t cfg_fcf_failover_policy;
 	uint32_t cfg_fcp_io_sched;
 	uint32_t cfg_ns_query;
-	uint32_t cfg_fcp2_no_tgt_reset;
+	uint32_t cfg_fcp2_yes_tgt_reset;
 	uint32_t cfg_cr_delay;
 	uint32_t cfg_cr_count;
 	uint32_t cfg_multi_ring_support;
@@ -884,12 +884,12 @@ struct lpfc_hba {
 	uint32_t cfg_rrq_xri_bitmap_sz;
 	uint32_t cfg_delay_discovery;
 	uint32_t cfg_sli_mode;
-#define LPFC_INITIALIZE_LINK              0	/* do normal init_link mbox */
+#define LPFC_INITIALIZE_LINK              0	/* do yesrmal init_link mbox */
 #define LPFC_DELAY_INIT_LINK              1	/* layered driver hold off */
 #define LPFC_DELAY_INIT_LINK_INDEFINITELY 2	/* wait, manual intervention */
 	uint32_t cfg_enable_dss;
 	uint32_t cfg_fdmi_on;
-#define LPFC_FDMI_NO_SUPPORT	0	/* FDMI not supported */
+#define LPFC_FDMI_NO_SUPPORT	0	/* FDMI yest supported */
 #define LPFC_FDMI_SUPPORT	1	/* FDMI supported? */
 	uint32_t cfg_enable_SmartSAN;
 	uint32_t cfg_enable_mds_diags;
@@ -953,7 +953,7 @@ struct lpfc_hba {
 	uint32_t __iomem  *hbq_put;     /* Address in SLIM to HBQ put ptrs */
 	uint32_t          *hbq_get;     /* Host mem address of HBQ get ptrs */
 
-	int brd_no;			/* FC board number */
+	int brd_yes;			/* FC board number */
 	char SerialNumber[32];		/* adapter Serial Number */
 	char OptionROMVersion[32];	/* adapter BIOS / Fcode version */
 	char BIOSVersion[16];		/* Boot BIOS version */
@@ -1111,7 +1111,7 @@ struct lpfc_hba {
 	/* ndlp reference management */
 	spinlock_t ndlp_lock;
 	/*
-	 * Following bit will be set for all buffer tags which are not
+	 * Following bit will be set for all buffer tags which are yest
 	 * associated with any HBQ.
 	 */
 #define QUE_BUFTAG_BIT  (1<<31)
@@ -1217,7 +1217,7 @@ struct lpfc_hba {
 	uint64_t ktime_seg10_max;
 #endif
 
-	struct hlist_node cpuhp;	/* used for cpuhp per hba callback */
+	struct hlist_yesde cpuhp;	/* used for cpuhp per hba callback */
 	struct timer_list cpuhp_poll_timer;
 	struct list_head poll_list;	/* slowpath eq polling list */
 #define LPFC_POLL_HB	1		/* slowpath heartbeat */
@@ -1313,11 +1313,11 @@ lpfc_phba_elsring(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_next_online_numa_cpu - Finds next online CPU on NUMA node
+ * lpfc_next_online_numa_cpu - Finds next online CPU on NUMA yesde
  * @numa_mask: Pointer to phba's numa_mask member.
  * @start: starting cpu index
  *
- * Note: If no valid cpu found, then nr_cpu_ids is returned.
+ * Note: If yes valid cpu found, then nr_cpu_ids is returned.
  *
  **/
 static inline unsigned int

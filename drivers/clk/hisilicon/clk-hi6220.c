@@ -69,7 +69,7 @@ static struct hisi_gate_clock hi6220_separated_gate_clks_ao[] __initdata = {
 	{ HI6220_RTC1_PCLK,   "rtc1_pclk",   "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 26, 0, },
 };
 
-static void __init hi6220_clk_ao_init(struct device_node *np)
+static void __init hi6220_clk_ao_init(struct device_yesde *np)
 {
 	struct hisi_clock_data *clk_data_ao;
 
@@ -177,7 +177,7 @@ static struct hi6220_divider_clock hi6220_div_clks_sys[] __initdata = {
 	{ HI6220_CS_ATB_DIV,  "cs_atb_div",  "cs_atb_syspll", CLK_SET_RATE_PARENT, 0x4a4, 0,  4, 7, },
 };
 
-static void __init hi6220_clk_sys_init(struct device_node *np)
+static void __init hi6220_clk_sys_init(struct device_yesde *np)
 {
 	struct hisi_clock_data *clk_data;
 
@@ -234,7 +234,7 @@ static struct hi6220_divider_clock hi6220_div_clks_media[] __initdata = {
 	{ HI6220_CODEC_VPU_SRC, "codec_vpu_src",   "codec_vpu_gate", CLK_SET_RATE_PARENT, 0xcc4, 24, 6, 31, },
 };
 
-static void __init hi6220_clk_media_init(struct device_node *np)
+static void __init hi6220_clk_media_init(struct device_yesde *np)
 {
 	struct hisi_clock_data *clk_data;
 
@@ -268,7 +268,7 @@ static struct hi6220_divider_clock hi6220_div_clks_power[] __initdata = {
 	{ HI6220_DDRC_AXI1, "ddrc_axi1", "ddrc_src",    CLK_SET_RATE_PARENT, 0x5a8, 8, 2, 0, },
 };
 
-static void __init hi6220_clk_power_init(struct device_node *np)
+static void __init hi6220_clk_power_init(struct device_yesde *np)
 {
 	struct hisi_clock_data *clk_data;
 
@@ -290,7 +290,7 @@ static const struct hisi_gate_clock hi6220_acpu_sc_gate_sep_clks[] = {
 	  CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0xc, 11, 0, },
 };
 
-static void __init hi6220_clk_acpu_init(struct device_node *np)
+static void __init hi6220_clk_acpu_init(struct device_yesde *np)
 {
 	struct hisi_clock_data *clk_data;
 	int nr = ARRAY_SIZE(hi6220_acpu_sc_gate_sep_clks);

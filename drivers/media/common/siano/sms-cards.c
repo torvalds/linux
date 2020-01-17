@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Card-specific functions for the Siano SMS1xxx USB dongle
+ *  Card-specific functions for the Siayes SMS1xxx USB dongle
  *
  *  Copyright (c) 2008 Michael Krufky <mkrufky@linuxtv.org>
  */
@@ -11,27 +11,27 @@
 
 static struct sms_board sms_boards[] = {
 	[SMS_BOARD_UNKNOWN] = {
-		.name	= "Unknown board",
+		.name	= "Unkyeswn board",
 		.type = SMS_UNKNOWN_TYPE,
 		.default_mode = DEVICE_MODE_NONE,
 	},
 	[SMS1XXX_BOARD_SIANO_STELLAR] = {
-		.name	= "Siano Stellar Digital Receiver",
+		.name	= "Siayes Stellar Digital Receiver",
 		.type	= SMS_STELLAR,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_NOVA_A] = {
-		.name	= "Siano Nova A Digital Receiver",
+		.name	= "Siayes Nova A Digital Receiver",
 		.type	= SMS_NOVA_A0,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_NOVA_B] = {
-		.name	= "Siano Nova B Digital Receiver",
+		.name	= "Siayes Nova B Digital Receiver",
 		.type	= SMS_NOVA_B0,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_VEGA] = {
-		.name	= "Siano Vega Digital Receiver",
+		.name	= "Siayes Vega Digital Receiver",
 		.type	= SMS_VEGA,
 		.default_mode = DEVICE_MODE_CMMB,
 	},
@@ -86,17 +86,17 @@ static struct sms_board sms_boards[] = {
 		.lna_ctrl  = -1,
 	},
 	[SMS1XXX_BOARD_SIANO_NICE] = {
-		.name = "Siano Nice Digital Receiver",
+		.name = "Siayes Nice Digital Receiver",
 		.type = SMS_NOVA_B0,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_VENICE] = {
-		.name = "Siano Venice Digital Receiver",
+		.name = "Siayes Venice Digital Receiver",
 		.type = SMS_VEGA,
 		.default_mode = DEVICE_MODE_CMMB,
 	},
 	[SMS1XXX_BOARD_SIANO_STELLAR_ROM] = {
-		.name = "Siano Stellar Digital Receiver ROM",
+		.name = "Siayes Stellar Digital Receiver ROM",
 		.type = SMS_STELLAR,
 		.default_mode = DEVICE_MODE_DVBT_BDA,
 		.intf_num = 1,
@@ -116,28 +116,28 @@ static struct sms_board sms_boards[] = {
 		.mtu = 15792,
 	},
 	[SMS1XXX_BOARD_SIANO_MING] = {
-		.name = "Siano Ming Digital Receiver",
+		.name = "Siayes Ming Digital Receiver",
 		.type = SMS_MING,
 		.default_mode = DEVICE_MODE_CMMB,
 	},
 	[SMS1XXX_BOARD_SIANO_PELE] = {
-		.name = "Siano Pele Digital Receiver",
+		.name = "Siayes Pele Digital Receiver",
 		.type = SMS_PELE,
 		.default_mode = DEVICE_MODE_ISDBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_RIO] = {
-		.name = "Siano Rio Digital Receiver",
+		.name = "Siayes Rio Digital Receiver",
 		.type = SMS_RIO,
 		.default_mode = DEVICE_MODE_ISDBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_DENVER_1530] = {
-		.name = "Siano Denver (ATSC-M/H) Digital Receiver",
+		.name = "Siayes Denver (ATSC-M/H) Digital Receiver",
 		.type = SMS_DENVER_1530,
 		.default_mode = DEVICE_MODE_ATSC,
 		.crystal = 2400,
 	},
 	[SMS1XXX_BOARD_SIANO_DENVER_2160] = {
-		.name = "Siano Denver (TDMB) Digital Receiver",
+		.name = "Siayes Denver (TDMB) Digital Receiver",
 		.type = SMS_DENVER_2160,
 		.default_mode = DEVICE_MODE_DAB_TDMB,
 	},
@@ -216,7 +216,7 @@ int sms_board_event(struct smscore_device_t *coredev,
 		break; /* BOARD_EVENT_MULTIPLEX_ERRORS */
 
 	default:
-		pr_err("Unknown SMS board event\n");
+		pr_err("Unkyeswn SMS board event\n");
 		break;
 	}
 	return 0;
@@ -276,7 +276,7 @@ int sms_board_setup(struct smscore_device_t *coredev)
 }
 EXPORT_SYMBOL_GPL(sms_board_setup);
 
-int sms_board_power(struct smscore_device_t *coredev, int onoff)
+int sms_board_power(struct smscore_device_t *coredev, int oyesff)
 {
 	int board_id = smscore_get_board_id(coredev);
 	struct sms_board *board = sms_get_board(board_id);
@@ -285,12 +285,12 @@ int sms_board_power(struct smscore_device_t *coredev, int onoff)
 	case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
 		/* power LED */
 		sms_set_gpio(coredev,
-			     board->led_power, onoff ? 1 : 0);
+			     board->led_power, oyesff ? 1 : 0);
 		break;
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
 		/* LNA */
-		if (!onoff)
+		if (!oyesff)
 			sms_set_gpio(coredev, board->lna_ctrl, 0);
 		break;
 	}
@@ -321,20 +321,20 @@ int sms_board_led_feedback(struct smscore_device_t *coredev, int led)
 }
 EXPORT_SYMBOL_GPL(sms_board_led_feedback);
 
-int sms_board_lna_control(struct smscore_device_t *coredev, int onoff)
+int sms_board_lna_control(struct smscore_device_t *coredev, int oyesff)
 {
 	int board_id = smscore_get_board_id(coredev);
 	struct sms_board *board = sms_get_board(board_id);
 
-	pr_debug("%s: LNA %s\n", __func__, onoff ? "enabled" : "disabled");
+	pr_debug("%s: LNA %s\n", __func__, oyesff ? "enabled" : "disabled");
 
 	switch (board_id) {
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
 		sms_set_gpio(coredev,
-			     board->rf_switch, onoff ? 1 : 0);
+			     board->rf_switch, oyesff ? 1 : 0);
 		return sms_set_gpio(coredev,
-				    board->lna_ctrl, onoff ? 1 : 0);
+				    board->lna_ctrl, oyesff ? 1 : 0);
 	}
 	return -EINVAL;
 }

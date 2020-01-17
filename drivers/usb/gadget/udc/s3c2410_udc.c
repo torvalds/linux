@@ -16,7 +16,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
@@ -297,7 +297,7 @@ static inline int s3c2410_udc_write_packet(int fifo,
 /*
  *	s3c2410_udc_write_fifo
  *
- * return:  0 = still running, 1 = completed, negative = errno
+ * return:  0 = still running, 1 = completed, negative = erryes
  */
 static int s3c2410_udc_write_fifo(struct s3c2410_ep *ep,
 		struct s3c2410_request *req)
@@ -352,7 +352,7 @@ static int s3c2410_udc_write_fifo(struct s3c2410_ep *ep,
 		 * at the same time */
 
 		if (idx == 0) {
-			/* Reset signal => no need to say 'data sent' */
+			/* Reset signal => yes need to say 'data sent' */
 			if (!(udc_read(S3C2410_UDC_USB_INT_REG)
 					& S3C2410_UDC_USBINT_RESET))
 				s3c2410_udc_set_ep0_de_in(base_addr);
@@ -369,7 +369,7 @@ static int s3c2410_udc_write_fifo(struct s3c2410_ep *ep,
 		is_last = 1;
 	} else {
 		if (idx == 0) {
-			/* Reset signal => no need to say 'data sent' */
+			/* Reset signal => yes need to say 'data sent' */
 			if (!(udc_read(S3C2410_UDC_USB_INT_REG)
 					& S3C2410_UDC_USBINT_RESET))
 				s3c2410_udc_set_ep0_ipr(base_addr);
@@ -398,7 +398,7 @@ static inline int s3c2410_udc_read_packet(int fifo, u8 *buf,
 }
 
 /*
- * return:  0 = still running, 1 = queue empty, negative = errno
+ * return:  0 = still running, 1 = queue empty, negative = erryes
  */
 static int s3c2410_udc_read_fifo(struct s3c2410_ep *ep,
 				 struct s3c2410_request *req)
@@ -457,7 +457,7 @@ static int s3c2410_udc_read_fifo(struct s3c2410_ep *ep,
 
 	fifo_count = s3c2410_udc_read_packet(fifo_reg, buf, req, avail);
 
-	/* checking this with ep0 is not accurate as we already
+	/* checking this with ep0 is yest accurate as we already
 	 * read a control request
 	 **/
 	if (idx != 0 && fifo_count < ep->ep.maxpacket) {
@@ -702,7 +702,7 @@ static void s3c2410_udc_handle_ep0_idle(struct s3c2410_udc *dev,
 		}
 
 		if (ret == -EOPNOTSUPP)
-			dprintk(DEBUG_NORMAL, "Operation not supported\n");
+			dprintk(DEBUG_NORMAL, "Operation yest supported\n");
 		else
 			dprintk(DEBUG_NORMAL,
 				"dev->driver->setup failed. (%d)\n", ret);
@@ -711,9 +711,9 @@ static void s3c2410_udc_handle_ep0_idle(struct s3c2410_udc *dev,
 		s3c2410_udc_set_ep0_ss(base_addr);
 		s3c2410_udc_set_ep0_de_out(base_addr);
 		dev->ep0state = EP0_IDLE;
-		/* deferred i/o == no response yet */
+		/* deferred i/o == yes response yet */
 	} else if (dev->req_pending) {
-		dprintk(DEBUG_VERBOSE, "dev->req_pending... what now?\n");
+		dprintk(DEBUG_VERBOSE, "dev->req_pending... what yesw?\n");
 		dev->req_pending = 0;
 	}
 
@@ -764,24 +764,24 @@ static void s3c2410_udc_handle_ep0(struct s3c2410_udc *dev)
 		break;
 
 	case EP0_IN_DATA_PHASE:			/* GET_DESCRIPTOR etc */
-		dprintk(DEBUG_NORMAL, "EP0_IN_DATA_PHASE ... what now?\n");
+		dprintk(DEBUG_NORMAL, "EP0_IN_DATA_PHASE ... what yesw?\n");
 		if (!(ep0csr & S3C2410_UDC_EP0_CSR_IPKRDY) && req)
 			s3c2410_udc_write_fifo(ep, req);
 		break;
 
 	case EP0_OUT_DATA_PHASE:		/* SET_DESCRIPTOR etc */
-		dprintk(DEBUG_NORMAL, "EP0_OUT_DATA_PHASE ... what now?\n");
+		dprintk(DEBUG_NORMAL, "EP0_OUT_DATA_PHASE ... what yesw?\n");
 		if ((ep0csr & S3C2410_UDC_EP0_CSR_OPKRDY) && req)
 			s3c2410_udc_read_fifo(ep, req);
 		break;
 
 	case EP0_END_XFER:
-		dprintk(DEBUG_NORMAL, "EP0_END_XFER ... what now?\n");
+		dprintk(DEBUG_NORMAL, "EP0_END_XFER ... what yesw?\n");
 		dev->ep0state = EP0_IDLE;
 		break;
 
 	case EP0_STALL:
-		dprintk(DEBUG_NORMAL, "EP0_STALL ... what now?\n");
+		dprintk(DEBUG_NORMAL, "EP0_STALL ... what yesw?\n");
 		dev->ep0state = EP0_IDLE;
 		break;
 	}
@@ -945,7 +945,7 @@ static irqreturn_t s3c2410_udc_irq(int dummy, void *_dev)
 
 	/* EP */
 	/* control traffic */
-	/* check on ep0csr != 0 is not a good idea as clearing in_pkt_ready
+	/* check on ep0csr != 0 is yest a good idea as clearing in_pkt_ready
 	 * generate an interrupt
 	 */
 	if (usbd_status & S3C2410_UDC_INT_EP0) {
@@ -1097,7 +1097,7 @@ static int s3c2410_udc_ep_disable(struct usb_ep *_ep)
 	u32 int_en_reg;
 
 	if (!_ep || !ep->ep.desc) {
-		dprintk(DEBUG_NORMAL, "%s not enabled\n",
+		dprintk(DEBUG_NORMAL, "%s yest enabled\n",
 			_ep ? ep->ep.name : NULL);
 		return -EINVAL;
 	}
@@ -1566,7 +1566,7 @@ static void s3c2410_udc_disable(struct s3c2410_udc *dev)
 	/* Good bye, cruel world */
 	s3c2410_udc_command(S3C2410_UDC_P_DISABLE);
 
-	/* Set speed to unknown */
+	/* Set speed to unkyeswn */
 	dev->gadget.speed = USB_SPEED_UNKNOWN;
 }
 
@@ -1807,7 +1807,7 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 			     0, gadget_name, udc);
 
 	if (retval != 0) {
-		dev_err(dev, "cannot get irq %i, err %d\n", IRQ_USBD, retval);
+		dev_err(dev, "canyest get irq %i, err %d\n", IRQ_USBD, retval);
 		retval = -EBUSY;
 		goto err_map;
 	}
@@ -1817,13 +1817,13 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 	if (udc_info && udc_info->vbus_pin > 0) {
 		retval = gpio_request(udc_info->vbus_pin, "udc vbus");
 		if (retval < 0) {
-			dev_err(dev, "cannot claim vbus pin\n");
+			dev_err(dev, "canyest claim vbus pin\n");
 			goto err_int;
 		}
 
 		irq = gpio_to_irq(udc_info->vbus_pin);
 		if (irq < 0) {
-			dev_err(dev, "no irq for gpio vbus pin\n");
+			dev_err(dev, "yes irq for gpio vbus pin\n");
 			retval = irq;
 			goto err_gpio_claim;
 		}

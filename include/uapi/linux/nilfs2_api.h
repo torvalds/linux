@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-yeste */
 /*
  * nilfs2_api.h - NILFS2 user space API
  *
@@ -20,20 +20,20 @@
  * struct nilfs_cpinfo - checkpoint information
  * @ci_flags: flags
  * @ci_pad: padding
- * @ci_cno: checkpoint number
+ * @ci_cyes: checkpoint number
  * @ci_create: creation timestamp
  * @ci_nblk_inc: number of blocks incremented by this checkpoint
- * @ci_inodes_count: inodes count
+ * @ci_iyesdes_count: iyesdes count
  * @ci_blocks_count: blocks count
  * @ci_next: next checkpoint number in snapshot list
  */
 struct nilfs_cpinfo {
 	__u32 ci_flags;
 	__u32 ci_pad;
-	__u64 ci_cno;
+	__u64 ci_cyes;
 	__u64 ci_create;
 	__u64 ci_nblk_inc;
-	__u64 ci_inodes_count;
+	__u64 ci_iyesdes_count;
 	__u64 ci_blocks_count;
 	__u64 ci_next;
 };
@@ -55,7 +55,7 @@ nilfs_cpinfo_##name(const struct nilfs_cpinfo *cpinfo)			\
 
 NILFS_CPINFO_FNS(SNAPSHOT, snapshot)
 NILFS_CPINFO_FNS(INVALID, invalid)
-NILFS_CPINFO_FNS(MINOR, minor)
+NILFS_CPINFO_FNS(MINOR, miyesr)
 
 /**
  * nilfs_suinfo - segment usage information
@@ -141,12 +141,12 @@ enum {
 
 /**
  * struct nilfs_cpmode - change checkpoint mode structure
- * @cm_cno: checkpoint number
+ * @cm_cyes: checkpoint number
  * @cm_mode: mode of checkpoint
  * @cm_pad: padding
  */
 struct nilfs_cpmode {
-	__u64 cm_cno;
+	__u64 cm_cyes;
 	__u32 cm_mode;
 	__u32 cm_pad;
 };
@@ -179,12 +179,12 @@ struct nilfs_period {
 
 /**
  * struct nilfs_cpstat - checkpoint statistics
- * @cs_cno: checkpoint number
+ * @cs_cyes: checkpoint number
  * @cs_ncps: number of checkpoints
  * @cs_nsss: number of snapshots
  */
 struct nilfs_cpstat {
-	__u64 cs_cno;
+	__u64 cs_cyes;
 	__u64 cs_ncps;
 	__u64 cs_nsss;
 };
@@ -195,15 +195,15 @@ struct nilfs_cpstat {
  * @ss_ncleansegs: number of clean segments
  * @ss_ndirtysegs: number of dirty segments
  * @ss_ctime: creation time of the last segment
- * @ss_nongc_ctime: creation time of the last segment not for GC
- * @ss_prot_seq: least sequence number of segments which must not be reclaimed
+ * @ss_yesngc_ctime: creation time of the last segment yest for GC
+ * @ss_prot_seq: least sequence number of segments which must yest be reclaimed
  */
 struct nilfs_sustat {
 	__u64 ss_nsegs;
 	__u64 ss_ncleansegs;
 	__u64 ss_ndirtysegs;
 	__u64 ss_ctime;
-	__u64 ss_nongc_ctime;
+	__u64 ss_yesngc_ctime;
 	__u64 ss_prot_seq;
 };
 
@@ -223,18 +223,18 @@ struct nilfs_vinfo {
 
 /**
  * struct nilfs_vdesc - descriptor of virtual block number
- * @vd_ino: inode number
- * @vd_cno: checkpoint number
+ * @vd_iyes: iyesde number
+ * @vd_cyes: checkpoint number
  * @vd_vblocknr: virtual block number
  * @vd_period: period of checkpoint numbers
  * @vd_blocknr: disk block number
  * @vd_offset: logical block offset inside a file
- * @vd_flags: flags (data or node block)
+ * @vd_flags: flags (data or yesde block)
  * @vd_pad: padding
  */
 struct nilfs_vdesc {
-	__u64 vd_ino;
-	__u64 vd_cno;
+	__u64 vd_iyes;
+	__u64 vd_cyes;
 	__u64 vd_vblocknr;
 	struct nilfs_period vd_period;
 	__u64 vd_blocknr;
@@ -245,7 +245,7 @@ struct nilfs_vdesc {
 
 /**
  * struct nilfs_bdesc - descriptor of disk block number
- * @bd_ino: inode number
+ * @bd_iyes: iyesde number
  * @bd_oblocknr: disk block address (for skipping dead blocks)
  * @bd_blocknr: disk block address
  * @bd_offset: logical block offset inside a file
@@ -253,7 +253,7 @@ struct nilfs_vdesc {
  * @bd_pad: padding
  */
 struct nilfs_bdesc {
-	__u64 bd_ino;
+	__u64 bd_iyes;
 	__u64 bd_oblocknr;
 	__u64 bd_blocknr;
 	__u64 bd_offset;

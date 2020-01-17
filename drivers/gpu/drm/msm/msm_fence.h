@@ -13,7 +13,7 @@ struct msm_fence_context {
 	struct drm_device *dev;
 	char name[32];
 	unsigned context;
-	/* last_fence == completed_fence --> no pending work */
+	/* last_fence == completed_fence --> yes pending work */
 	uint32_t last_fence;          /* last assigned fence */
 	uint32_t completed_fence;     /* last completed fence */
 	wait_queue_head_t event;

@@ -54,7 +54,7 @@ vimc-sensor:
 	* 1 Pad source
 
 vimc-debayer:
-	Transforms images in bayer format into a non-bayer format.
+	Transforms images in bayer format into a yesn-bayer format.
 	Exposes:
 
 	* 1 Pad sink
@@ -70,7 +70,7 @@ vimc-scaler:
 	* 1 Pad source
 
 vimc-capture:
-	Exposes node /dev/videoX to allow userspace to capture the stream.
+	Exposes yesde /dev/videoX to allow userspace to capture the stream.
 	Exposes:
 
 	* 1 Pad sink

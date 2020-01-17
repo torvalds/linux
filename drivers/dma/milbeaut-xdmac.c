@@ -101,7 +101,7 @@ milbeaut_xdmac_next_desc(struct milbeaut_xdmac_chan *mc)
 		return NULL;
 	}
 
-	list_del(&vd->node);
+	list_del(&vd->yesde);
 
 	mc->md = to_milbeaut_xdmac_desc(vd);
 
@@ -353,7 +353,7 @@ static int milbeaut_xdmac_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = of_dma_controller_register(dev->of_node,
+	ret = of_dma_controller_register(dev->of_yesde,
 					 of_dma_simple_xlate, mdev);
 	if (ret)
 		goto unregister_dmac;
@@ -377,17 +377,17 @@ static int milbeaut_xdmac_remove(struct platform_device *pdev)
 	 * Before reaching here, almost all descriptors have been freed by the
 	 * ->device_free_chan_resources() hook. However, each channel might
 	 * be still holding one descriptor that was on-flight at that moment.
-	 * Terminate it to make sure this hardware is no longer running. Then,
+	 * Terminate it to make sure this hardware is yes longer running. Then,
 	 * free the channel resources once again to avoid memory leak.
 	 */
-	list_for_each_entry(chan, &mdev->ddev.channels, device_node) {
+	list_for_each_entry(chan, &mdev->ddev.channels, device_yesde) {
 		ret = dmaengine_terminate_sync(chan);
 		if (ret)
 			return ret;
 		milbeaut_xdmac_free_chan_resources(chan);
 	}
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 	dma_async_device_unregister(&mdev->ddev);
 
 	disable_xdmac(mdev);

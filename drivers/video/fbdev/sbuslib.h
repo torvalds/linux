@@ -13,7 +13,7 @@ struct sbus_mmap_map {
 #define SBUS_MMAP_EMPTY	0x80000000
 
 extern void sbusfb_fill_var(struct fb_var_screeninfo *var,
-			    struct device_node *dp, int bpp);
+			    struct device_yesde *dp, int bpp);
 struct vm_area_struct;
 extern int sbusfb_mmap_helper(struct sbus_mmap_map *map,
 			      unsigned long physbase, unsigned long fbsize,

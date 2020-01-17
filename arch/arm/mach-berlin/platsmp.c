@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2014 Marvell Technology Group Ltd.
+ * Copyright (C) 2014 Marvell Techyeslogy Group Ltd.
  *
  * Antoine Ténart <antoine.tenart@free-electrons.com>
  */
@@ -18,7 +18,7 @@
 
 /*
  * There are two reset registers, one with self-clearing (SC)
- * reset and one with non-self-clearing reset (NON_SC).
+ * reset and one with yesn-self-clearing reset (NON_SC).
  */
 #define CPU_RESET_SC		0x00
 #define CPU_RESET_NON_SC	0x20
@@ -57,19 +57,19 @@ static int berlin_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init berlin_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *scu_base;
 	void __iomem *vectors_base;
 
-	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+	np = of_find_compatible_yesde(NULL, NULL, "arm,cortex-a9-scu");
 	scu_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!scu_base)
 		return;
 
-	np = of_find_compatible_node(NULL, NULL, "marvell,berlin-cpu-ctrl");
+	np = of_find_compatible_yesde(NULL, NULL, "marvell,berlin-cpu-ctrl");
 	cpu_ctrl = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!cpu_ctrl)
 		goto unmap_scu;
 

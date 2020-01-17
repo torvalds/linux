@@ -187,7 +187,7 @@ _func_exit_;
 
 }
 
-/*addr_off : address offset of the entry in eeprom (not the tuple number of eeprom (reg); that is addr_off !=reg)*/
+/*addr_off : address offset of the entry in eeprom (yest the tuple number of eeprom (reg); that is addr_off !=reg)*/
 u8 eeprom_read(_adapter *padapter, u32 addr_off, u8 sz, u8 *rbuf)
 {
 	u8 quotient, remainder, addr_2align_odd;

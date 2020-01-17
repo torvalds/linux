@@ -20,7 +20,7 @@
 !
 ! This implementation makes two assumptions about how it is called:
 !
-! 1.: If the byte count is nonzero, the address of the last byte to be
+! 1.: If the byte count is yesnzero, the address of the last byte to be
 !     copied is unsigned greater than the address of the first byte to
 !     be copied.  This could be easily swapped for a signed comparison,
 !     but the algorithm used needs some comparison.
@@ -34,7 +34,7 @@
 !     For SHmedia, the assumption is that any quadword can be read in its
 !     enirety if at least one byte is included in the copy.
 
-/* Imported into Linux kernel by Richard Curnow.  This is used to implement the
+/* Imported into Linux kernel by Richard Curyesw.  This is used to implement the
    __copy_user function in the general case, so it has to be a distinct
    function from intra-kernel memcpy to allow for exception fix-ups in the
    event that the user pointer is bad somewhere in the copy (e.g. due to
@@ -48,7 +48,7 @@
 */
 
 /* NOTE : Prefetches removed and allocos guarded by synco to avoid TAKum03020
- * erratum.  The first two prefetches are nop-ed out to avoid upsetting the
+ * erratum.  The first two prefetches are yesp-ed out to avoid upsetting the
  * instruction counts used in the jump address calculation.
  * */
 
@@ -64,7 +64,7 @@ copy_user_memcpy:
 #define LDUAL(P,O,D0,D1) ldlo.l P,O,D0; ldhi.l P,O+3,D1
 #define STUAL(P,O,D0,D1) stlo.l P,O,D0; sthi.l P,O+3,D1
 
-	nop ! ld.b r3,0,r63 ! TAKum03020
+	yesp ! ld.b r3,0,r63 ! TAKum03020
 	pta/l Large,tr0
 	movi 25,r0
 	bgeu/u r4,r0,tr0
@@ -89,12 +89,12 @@ L4_7:	/* 4..7 byte memcpy cntd. */
 
 	.balign 8
 L1:	/* 0 byte memcpy */
-	nop
+	yesp
 	blink tr1,r63
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
 
 L2_3:	/* 2 or 3 byte memcpy cntd. */
 	st.b r5,-1,r6
@@ -114,7 +114,7 @@ L8_15:	/* 8..15 byte memcpy cntd. */
 
 	/* 2 or 3 byte memcpy */
 	ld.b r3,0,r0
-	nop ! ld.b r2,0,r63 ! TAKum03020
+	yesp ! ld.b r2,0,r63 ! TAKum03020
 	ld.b r3,1,r1
 	st.b r2,0,r0
 	pta/l L2_3,tr0
@@ -215,4 +215,4 @@ Loop_ua:
 	stlo.q r5, 8, r1
 	blink tr1, r63
 copy_user_memcpy_end:
-	nop
+	yesp

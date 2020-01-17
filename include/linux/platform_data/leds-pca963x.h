@@ -3,7 +3,7 @@
  * PCA963X LED chip driver.
  *
  * Copyright 2012 bct electronic GmbH
- * Copyright 2013 Qtechnology A/S
+ * Copyright 2013 Qtechyeslogy A/S
  */
 
 #ifndef __LINUX_PCA963X_H

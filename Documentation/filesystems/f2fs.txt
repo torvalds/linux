@@ -4,18 +4,18 @@ WHAT IS Flash-Friendly File System (F2FS)?
 
 NAND flash memory-based storage devices, such as SSD, eMMC, and SD cards, have
 been equipped on a variety systems ranging from mobile to server systems. Since
-they are known to have different characteristics from the conventional rotating
+they are kyeswn to have different characteristics from the conventional rotating
 disks, a file system, an upper layer to the storage device, should adapt to the
 changes from the sketch in the design level.
 
 F2FS is a file system exploiting NAND flash memory-based storage devices, which
 is based on Log-structured File System (LFS). The design has been focused on
-addressing the fundamental issues in LFS, which are snowball effect of wandering
+addressing the fundamental issues in LFS, which are syeswball effect of wandering
 tree and high cleaning overhead.
 
 Since a NAND flash memory-based storage device shows different characteristic
 according to its internal geometry or flash memory management scheme, namely FTL,
-F2FS and its tools support various parameters not only for configuring on-disk
+F2FS and its tools support various parameters yest only for configuring on-disk
 layout, but also for selecting allocation and cleaning algorithms.
 
 The following git tree provides the file system formatting tool (mkfs.f2fs),
@@ -46,7 +46,7 @@ Wandering Tree Problem
 In LFS, when a file data is updated and written to the end of log, its direct
 pointer block is updated due to the changed location. Then the indirect pointer
 block is also updated due to the direct pointer block update. In this manner,
-the upper index structures such as inode, inode map, and checkpoint block are
+the upper index structures such as iyesde, iyesde map, and checkpoint block are
 also updated recursively. This problem is called as wandering tree problem [1],
 and in order to enhance the performance, it should eliminate or relax the update
 propagation as much as possible.
@@ -83,8 +83,8 @@ Flash Awareness
 
 Wandering Tree Problem
 ----------------------
-- Use a term, “node”, that represents inodes as well as various pointer blocks
-- Introduce Node Address Table (NAT) containing the locations of all the “node”
+- Use a term, “yesde”, that represents iyesdes as well as various pointer blocks
+- Introduce Node Address Table (NAT) containing the locations of all the “yesde”
   blocks; this will cut off the update propagation.
 
 Cleaning Overhead
@@ -103,57 +103,57 @@ background_gc=%s       Turn on/off cleaning operations, namely garbage
                        idle. If background_gc=on, it will turn on the garbage
                        collection and if background_gc=off, garbage collection
                        will be turned off. If background_gc=sync, it will turn
-                       on synchronous garbage collection running in background.
+                       on synchroyesus garbage collection running in background.
                        Default value for this option is on. So garbage
                        collection is on by default.
 disable_roll_forward   Disable the roll-forward recovery routine
-norecovery             Disable the roll-forward recovery routine, mounted read-
+yesrecovery             Disable the roll-forward recovery routine, mounted read-
                        only (i.e., -o ro,disable_roll_forward)
-discard/nodiscard      Enable/disable real-time discard in f2fs, if discard is
+discard/yesdiscard      Enable/disable real-time discard in f2fs, if discard is
                        enabled, f2fs will issue discard/TRIM commands when a
 		       segment is cleaned.
-no_heap                Disable heap-style segment allocation which finds free
+yes_heap                Disable heap-style segment allocation which finds free
                        segments for data from the beginning of main area, while
-		       for node from the end of main area.
-nouser_xattr           Disable Extended User Attributes. Note: xattr is enabled
+		       for yesde from the end of main area.
+yesuser_xattr           Disable Extended User Attributes. Note: xattr is enabled
                        by default if CONFIG_F2FS_FS_XATTR is selected.
-noacl                  Disable POSIX Access Control List. Note: acl is enabled
+yesacl                  Disable POSIX Access Control List. Note: acl is enabled
                        by default if CONFIG_F2FS_FS_POSIX_ACL is selected.
 active_logs=%u         Support configuring the number of active logs. In the
                        current design, f2fs supports only 2, 4, and 6 logs.
                        Default number is 6.
 disable_ext_identify   Disable the extension list configured by mkfs, so f2fs
-                       does not aware of cold files such as media files.
+                       does yest aware of cold files such as media files.
 inline_xattr           Enable the inline xattrs feature.
-noinline_xattr         Disable the inline xattrs feature.
+yesinline_xattr         Disable the inline xattrs feature.
 inline_xattr_size=%u   Support configuring inline xattr size, it depends on
 		       flexible inline xattr feature.
 inline_data            Enable the inline data feature: New created small(<~3.4k)
-                       files can be written into inode block.
+                       files can be written into iyesde block.
 inline_dentry          Enable the inline dir feature: data in new created
-                       directory entries can be written into inode block. The
-                       space of inode block which is used to store inline
+                       directory entries can be written into iyesde block. The
+                       space of iyesde block which is used to store inline
                        dentries is limited to ~3.4k.
-noinline_dentry        Disable the inline dentry feature.
+yesinline_dentry        Disable the inline dentry feature.
 flush_merge	       Merge concurrent cache_flush commands as much as possible
                        to eliminate redundant command issues. If the underlying
 		       device handles the cache_flush command relatively slowly,
 		       recommend to enable this option.
-nobarrier              This option can be used if underlying storage guarantees
-                       its cached data should be written to the novolatile area.
-		       If this option is set, no cache_flush commands are issued
+yesbarrier              This option can be used if underlying storage guarantees
+                       its cached data should be written to the yesvolatile area.
+		       If this option is set, yes cache_flush commands are issued
 		       but f2fs still guarantees the write ordering of all the
 		       data writes.
 fastboot               This option is used when a system wants to reduce mount
-                       time as much as possible, even though normal performance
+                       time as much as possible, even though yesrmal performance
 		       can be sacrificed.
 extent_cache           Enable an extent cache based on rb-tree, it can cache
                        as many as extent which map between contiguous logical
-                       address and physical address per inode, resulting in
+                       address and physical address per iyesde, resulting in
                        increasing the cache hit ratio. Set by default.
-noextent_cache         Disable an extent cache based on rb-tree explicitly, see
+yesextent_cache         Disable an extent cache based on rb-tree explicitly, see
                        the above extent_cache mount option.
-noinline_data          Disable the inline data feature, inline data feature is
+yesinline_data          Disable the inline data feature, inline data feature is
                        enabled by default.
 data_flush             Enable data flushing before checkpoint in order to
                        persist data of regular and symlink.
@@ -184,7 +184,7 @@ fault_type=%d          Support configuring fault injection type, should be
                        FAULT_DISCARD		0x000002000
                        FAULT_WRITE_IO		0x000004000
 mode=%s                Control block allocation mode which supports "adaptive"
-                       and "lfs". In "lfs" mode, there should be no random
+                       and "lfs". In "lfs" mode, there should be yes random
                        writes towards main area.
 io_bits=%u             Set the bit size of write IO requests. It should be set
                        with "mode=lfs".
@@ -199,24 +199,24 @@ offusrjquota           Turn off user journelled quota.
 offgrpjquota           Turn off group journelled quota.
 offprjjquota           Turn off project journelled quota.
 quota                  Enable plain user disk quota accounting.
-noquota                Disable all plain disk quota option.
+yesquota                Disable all plain disk quota option.
 whint_mode=%s          Control which write hints are passed down to block
                        layer. This supports "off", "user-based", and
-                       "fs-based".  In "off" mode (default), f2fs does not pass
+                       "fs-based".  In "off" mode (default), f2fs does yest pass
                        down hints. In "user-based" mode, f2fs tries to pass
                        down hints given by users. And in "fs-based" mode, f2fs
                        passes down hints with its policy.
 alloc_mode=%s          Adjust block allocation policy, which supports "reuse"
                        and "default".
 fsync_mode=%s          Control the policy of fsync. Currently supports "posix",
-                       "strict", and "nobarrier". In "posix" mode, which is
+                       "strict", and "yesbarrier". In "posix" mode, which is
                        default, fsync will follow POSIX semantics and does a
                        light operation to improve the filesystem performance.
                        In "strict" mode, fsync will be heavy and behaves in line
                        with xfs, ext4 and btrfs, where xfstest generic/342 will
-                       pass, but the performance will regress. "nobarrier" is
+                       pass, but the performance will regress. "yesbarrier" is
                        based on "posix", but doesn't issue flush command for
-                       non-atomic files likewise "nobarrier" mount option.
+                       yesn-atomic files likewise "yesbarrier" mount option.
 test_dummy_encryption  Enable dummy encryption, which provides a fake fscrypt
                        context. The fake fscrypt context is used by xfstests.
 checkpoint=%s[:%u[%]]     Set to "disable" to turn off checkpointing. Set to "enable"
@@ -273,7 +273,7 @@ Files in /sys/fs/f2fs/<devname>
                               time for the garbage collection thread. Time is
                               in milliseconds.
 
- gc_no_gc_sleep_time          This tuning parameter controls the default sleep
+ gc_yes_gc_sleep_time          This tuning parameter controls the default sleep
                               time for the garbage collection thread. Time is
                               in milliseconds.
 
@@ -284,7 +284,7 @@ Files in /sys/fs/f2fs/<devname>
                               & setting gc_idle = 2 will select the greedy approach.
 
  gc_urgent                    This parameter controls triggering background GCs
-                              urgently or not. Setting gc_urgent = 0 [default]
+                              urgently or yest. Setting gc_urgent = 0 [default]
                               makes back to default behavior, while if it is set
                               to 1, background thread starts to do GC by given
                               gc_urgent_sleep_time interval.
@@ -376,7 +376,7 @@ Files in /sys/fs/f2fs/<devname>
  cp_interval		      F2FS tries to do checkpoint periodically, 60 secs
 			      by default.
 
- idle_interval		      F2FS detects system is idle, if there's no F2FS
+ idle_interval		      F2FS detects system is idle, if there's yes F2FS
 			      operations during given interval, 5 secs by
 			      default.
 
@@ -392,7 +392,7 @@ Files in /sys/fs/f2fs/<devname>
 
  iostat_enable		      This controls to enable/disable iostat in F2FS.
 
- readdir_ra		      This enables/disabled readahead of inode blocks
+ readdir_ra		      This enables/disabled readahead of iyesde blocks
 			      in readdir, and default is enabled.
 
  gc_pin_file_thresh	      This indicates how many GC can be failed for the
@@ -422,7 +422,7 @@ Files in /sys/fs/f2fs/<devname>
                               to be set.
 
 encoding 	              This shows the encoding used for casefolding.
-                              If casefolding is not enabled, returns (none)
+                              If casefolding is yest enabled, returns (yesne)
 
 ================================================================================
 USAGE
@@ -457,37 +457,37 @@ The options consist of:
 -z [int]     : Set the number of sections per zone.
                1 is set by default.
 -e [str]     : Set basic extension list. e.g. "mp3,gif,mov"
--t [0 or 1]  : Disable discard command or not.
+-t [0 or 1]  : Disable discard command or yest.
                1 is set by default, which conducts discard.
 
 fsck.f2fs
 ---------
 The fsck.f2fs is a tool to check the consistency of an f2fs-formatted
 partition, which examines whether the filesystem metadata and user-made data
-are cross-referenced correctly or not.
-Note that, initial version of the tool does not fix any inconsistency.
+are cross-referenced correctly or yest.
+Note that, initial version of the tool does yest fix any inconsistency.
 
 The options consist of:
   -d debug level [default:0]
 
 dump.f2fs
 ---------
-The dump.f2fs shows the information of specific inode and dumps SSA and SIT to
+The dump.f2fs shows the information of specific iyesde and dumps SSA and SIT to
 file. Each file is dump_ssa and dump_sit.
 
 The dump.f2fs is used to debug on-disk data structures of the f2fs filesystem.
-It shows on-disk inode information recognized by a given inode number, and is
+It shows on-disk iyesde information recognized by a given iyesde number, and is
 able to dump all the SSA and SIT entries into predefined files, ./dump_ssa and
 ./dump_sit respectively.
 
 The options consist of:
   -d debug level [default:0]
-  -i inode no (hex)
-  -s [SIT dump segno from #1~#2 (decimal), for all 0~-1]
-  -a [SSA dump segno from #1~#2 (decimal), for all 0~-1]
+  -i iyesde yes (hex)
+  -s [SIT dump segyes from #1~#2 (decimal), for all 0~-1]
+  -a [SSA dump segyes from #1~#2 (decimal), for all 0~-1]
 
 Examples:
-# dump.f2fs -i [ino] /dev/sdx
+# dump.f2fs -i [iyes] /dev/sdx
 # dump.f2fs -s 0~-1 /dev/sdx (SIT dump)
 # dump.f2fs -a 0~-1 /dev/sdx (SSA dump)
 
@@ -532,19 +532,19 @@ consists of multiple segments as described below.
 
 - Checkpoint (CP)
  : It contains file system information, bitmaps for valid NAT/SIT sets, orphan
-   inode lists, and summary entries of current active segments.
+   iyesde lists, and summary entries of current active segments.
 
 - Segment Information Table (SIT)
  : It contains segment information such as valid block count and bitmap for the
    validity of all the blocks.
 
 - Node Address Table (NAT)
- : It is composed of a block address table for all the node blocks stored in
+ : It is composed of a block address table for all the yesde blocks stored in
    Main area.
 
 - Segment Summary Area (SSA)
  : It contains summary entries which contains the owner information of all the
-   data and node blocks stored in Main area.
+   data and yesde blocks stored in Main area.
 
 - Main Area
  : It contains file and directory data including their indices.
@@ -585,31 +585,31 @@ valid, as shown as below.
 Index Structure
 ---------------
 
-The key data structure to manage the data locations is a "node". Similar to
-traditional file structures, F2FS has three types of node: inode, direct node,
-indirect node. F2FS assigns 4KB to an inode block which contains 923 data block
-indices, two direct node pointers, two indirect node pointers, and one double
-indirect node pointer as described below. One direct node block contains 1018
-data blocks, and one indirect node block contains also 1018 node blocks. Thus,
-one inode block (i.e., a file) covers:
+The key data structure to manage the data locations is a "yesde". Similar to
+traditional file structures, F2FS has three types of yesde: iyesde, direct yesde,
+indirect yesde. F2FS assigns 4KB to an iyesde block which contains 923 data block
+indices, two direct yesde pointers, two indirect yesde pointers, and one double
+indirect yesde pointer as described below. One direct yesde block contains 1018
+data blocks, and one indirect yesde block contains also 1018 yesde blocks. Thus,
+one iyesde block (i.e., a file) covers:
 
   4KB * (923 + 2 * 1018 + 2 * 1018 * 1018 + 1018 * 1018 * 1018) := 3.94TB.
 
-   Inode block (4KB)
+   Iyesde block (4KB)
      |- data (923)
-     |- direct node (2)
+     |- direct yesde (2)
      |          `- data (1018)
-     |- indirect node (2)
-     |            `- direct node (1018)
+     |- indirect yesde (2)
+     |            `- direct yesde (1018)
      |                       `- data (1018)
-     `- double indirect node (1)
-                         `- indirect node (1018)
-			              `- direct node (1018)
+     `- double indirect yesde (1)
+                         `- indirect yesde (1018)
+			              `- direct yesde (1018)
 	                                         `- data (1018)
 
-Note that, all the node blocks are mapped by NAT which means the location of
-each node is translated by the NAT table. In the consideration of the wandering
-tree problem, F2FS is able to cut off the propagation of node updates caused by
+Note that, all the yesde blocks are mapped by NAT which means the location of
+each yesde is translated by the NAT table. In the consideration of the wandering
+tree problem, F2FS is able to cut off the propagation of yesde updates caused by
 leaf data writes.
 
 Directory Structure
@@ -618,12 +618,12 @@ Directory Structure
 A directory entry occupies 11 bytes, which consists of the following attributes.
 
 - hash		hash value of the file name
-- ino		inode number
+- iyes		iyesde number
 - len		the length of file name
 - type		file type such as directory, symlink, etc
 
 A dentry block consists of 214 dentry slots and file names. Therein a bitmap is
-used to represent whether each dentry is valid or not. A dentry block occupies
+used to represent whether each dentry is valid or yest. A dentry block occupies
 4KB with the following composition.
 
   Dentry Block(4 K) = bitmap (27 bytes) + reserved (3 bytes) +
@@ -643,7 +643,7 @@ used to represent whether each dentry is valid or not. A dentry block occupies
 		 .               .
             .                          .
             +------+------+-----+------+
-            | hash | ino  | len | type |
+            | hash | iyes  | len | type |
             +------+------+-----+------+
             [Dentry Structure: 11 bytes]
 
@@ -681,7 +681,7 @@ The number of blocks and buckets are determined by,
 
 When F2FS finds a file name in a directory, at first a hash value of the file
 name is calculated. Then, F2FS scans the hash table in level #0 to find the
-dentry consisting of the file name and its inode number. If not found, F2FS
+dentry consisting of the file name and its iyesde number. If yest found, F2FS
 scans the next hash table in level #1. In this way, F2FS scans hash tables in
 each levels incrementally from 1 to N. In each levels F2FS needs to scan only
 one bucket determined by the following equation, which shows O(log(# of files))
@@ -709,22 +709,22 @@ The following figure shows an example of two cases holding children.
 Default Block Allocation
 ------------------------
 
-At runtime, F2FS manages six active logs inside "Main" area: Hot/Warm/Cold node
+At runtime, F2FS manages six active logs inside "Main" area: Hot/Warm/Cold yesde
 and Hot/Warm/Cold data.
 
-- Hot node	contains direct node blocks of directories.
-- Warm node	contains direct node blocks except hot node blocks.
-- Cold node	contains indirect node blocks
+- Hot yesde	contains direct yesde blocks of directories.
+- Warm yesde	contains direct yesde blocks except hot yesde blocks.
+- Cold yesde	contains indirect yesde blocks
 - Hot data	contains dentry blocks
 - Warm data	contains data blocks except hot and cold data blocks
 - Cold data	contains multimedia data or migrated data blocks
 
 LFS has two schemes for free space management: threaded log and copy-and-compac-
-tion. The copy-and-compaction scheme which is known as cleaning, is well-suited
+tion. The copy-and-compaction scheme which is kyeswn as cleaning, is well-suited
 for devices showing very good sequential write performance, since free segments
 are served all the time for writing new data. However, it suffers from cleaning
 overhead under high utilization. Contrarily, the threaded log scheme suffers
-from random writes, but no cleaning process is needed. F2FS adopts a hybrid
+from random writes, but yes cleaning process is needed. F2FS adopts a hybrid
 scheme where the copy-and-compaction scheme is adopted by default, but the
 policy is dynamically changed to the threaded log scheme according to the file
 system status.
@@ -740,7 +740,7 @@ Cleaning process
 ----------------
 
 F2FS does cleaning both on demand and in the background. On-demand cleaning is
-triggered when there are not enough free segments to serve VFS calls. Background
+triggered when there are yest eyesugh free segments to serve VFS calls. Background
 cleaner is operated by a kernel thread, and triggers the cleaning job when the
 system is idle.
 
@@ -752,7 +752,7 @@ log block thrashing problem in the greedy algorithm. F2FS adopts the greedy
 algorithm for on-demand cleaner, while background cleaner adopts cost-benefit
 algorithm.
 
-In order to identify whether the data in the victim segment are valid or not,
+In order to identify whether the data in the victim segment are valid or yest,
 F2FS manages a bitmap. Each bit represents the validity of a block, and the
 bitmap is composed of a bit stream covering whole blocks in main area.
 
@@ -826,7 +826,7 @@ Allocating disk space
     the disk space within the range specified by offset and len.  The
     file size (as reported by stat(2)) will be changed if offset+len is
     greater than the file size.  Any subregion within the range specified
-    by offset and len that did not contain data before the call will be
+    by offset and len that did yest contain data before the call will be
     initialized to zero.  This default behavior closely resembles the
     behavior of the posix_fallocate(3) library function, and is intended
     as a method of optimally implementing that function.

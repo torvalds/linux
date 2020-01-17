@@ -134,7 +134,7 @@ core_read_mmd_indirect(struct mt7530_priv *priv, int prtad, int devad)
 	if (ret < 0)
 		goto err;
 
-	/* Select the Function : DATA with no post increment */
+	/* Select the Function : DATA with yes post increment */
 	ret = bus->write(bus, 0, MII_MMD_CTRL, (devad | MII_MMD_CTRL_NOINCR));
 	if (ret < 0)
 		goto err;
@@ -166,7 +166,7 @@ core_write_mmd_indirect(struct mt7530_priv *priv, int prtad,
 	if (ret < 0)
 		goto err;
 
-	/* Select the Function : DATA with no post increment */
+	/* Select the Function : DATA with yes post increment */
 	ret = bus->write(bus, 0, MII_MMD_CTRL, (devad | MII_MMD_CTRL_NOINCR));
 	if (ret < 0)
 		goto err;
@@ -393,7 +393,7 @@ mt7530_fdb_read(struct mt7530_priv *priv, struct mt7530_fdb *fdb)
 	fdb->mac[3] = (reg[0] >> MAC_BYTE_3) & MAC_BYTE_MASK;
 	fdb->mac[4] = (reg[1] >> MAC_BYTE_4) & MAC_BYTE_MASK;
 	fdb->mac[5] = (reg[1] >> MAC_BYTE_5) & MAC_BYTE_MASK;
-	fdb->noarp = ((reg[2] >> ENT_STATUS) & ENT_STATUS_MASK) == STATIC_ENT;
+	fdb->yesarp = ((reg[2] >> ENT_STATUS) & ENT_STATUS_MASK) == STATIC_ENT;
 }
 
 static void
@@ -434,7 +434,7 @@ mt7530_pad_clk_setup(struct dsa_switch *ds, int mode)
 
 	if (xtal == HWTRAP_XTAL_20MHZ) {
 		dev_err(priv->dev,
-			"%s: MT7530 with a 20MHz XTAL is not supported!\n",
+			"%s: MT7530 with a 20MHz XTAL is yest supported!\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -461,7 +461,7 @@ mt7530_pad_clk_setup(struct dsa_switch *ds, int mode)
 		}
 		break;
 	default:
-		dev_err(priv->dev, "xMII mode %d not supported\n", mode);
+		dev_err(priv->dev, "xMII mode %d yest supported\n", mode);
 		return -EINVAL;
 	}
 
@@ -483,7 +483,7 @@ mt7530_pad_clk_setup(struct dsa_switch *ds, int mode)
 		/* Disable MT7530 core clock */
 		core_clear(priv, CORE_TRGMII_GSW_CLK_CG, REG_GSWCK_EN);
 
-		/* Disable PLL, since phy_device has not yet been created
+		/* Disable PLL, since phy_device has yest yet been created
 		 * provided for phy_[read,write]_mmd_indirect is called, we
 		 * provide our own core_write_mmd_indirect to complete this
 		 * function.
@@ -715,7 +715,7 @@ mt7530_cpu_port_enable(struct mt7530_priv *priv,
 	/* Disable auto learning on the cpu port */
 	mt7530_set(priv, MT7530_PSC_P(port), SA_DIS);
 
-	/* Unknown unicast frame fordwarding to the cpu port */
+	/* Unkyeswn unicast frame fordwarding to the cpu port */
 	mt7530_set(priv, MT7530_MFC, UNU_FFP(BIT(port)));
 
 	/* Set CPU port number */
@@ -819,7 +819,7 @@ mt7530_port_bridge_join(struct dsa_switch *ds, int port,
 	for (i = 0; i < MT7530_NUM_PORTS; i++) {
 		/* Add this port to the port matrix of the other ports in the
 		 * same bridge. If the port is disabled, port matrix is kept
-		 * and not being setup until the port becomes enabled.
+		 * and yest being setup until the port becomes enabled.
 		 */
 		if (dsa_is_user_port(ds, i) && i != port) {
 			if (dsa_to_port(ds, i)->bridge_dev != bridge)
@@ -917,8 +917,8 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 	for (i = 0; i < MT7530_NUM_PORTS; i++) {
 		/* Remove this port from the port matrix of the other ports
 		 * in the same bridge. If the port is disabled, port matrix
-		 * is kept and not being setup until the port becomes enabled.
-		 * And the other port's port matrix cannot be broken when the
+		 * is kept and yest being setup until the port becomes enabled.
+		 * And the other port's port matrix canyest be broken when the
 		 * other port is still a VLAN-aware port.
 		 */
 		if (dsa_is_user_port(ds, i) && i != port &&
@@ -995,7 +995,7 @@ mt7530_port_fdb_dump(struct dsa_switch *ds, int port,
 		if (rsp & ATC_SRCH_HIT) {
 			mt7530_fdb_read(priv, &_fdb);
 			if (_fdb.port_mask & BIT(port)) {
-				ret = cb(_fdb.mac, _fdb.vid, _fdb.noarp,
+				ret = cb(_fdb.mac, _fdb.vid, _fdb.yesarp,
 					 data);
 				if (ret < 0)
 					break;
@@ -1043,7 +1043,7 @@ mt7530_port_vlan_filtering(struct dsa_switch *ds, int port,
 {
 	if (vlan_filtering) {
 		/* The port is being kept as VLAN-unaware port when bridge is
-		 * set up with vlan_filtering not being set, Otherwise, the
+		 * set up with vlan_filtering yest being set, Otherwise, the
 		 * port and the corresponding CPU port is required the setup
 		 * for becoming a VLAN-aware port.
 		 */
@@ -1060,7 +1060,7 @@ static int
 mt7530_port_vlan_prepare(struct dsa_switch *ds, int port,
 			 const struct switchdev_obj_port_vlan *vlan)
 {
-	/* nothing needed */
+	/* yesthing needed */
 
 	return 0;
 }
@@ -1081,7 +1081,7 @@ mt7530_hw_vlan_add(struct mt7530_priv *priv,
 	val = IVL_MAC | VTAG_EN | PORT_MEM(new_members) | VLAN_VALID;
 	mt7530_write(priv, MT7530_VAWD1, val);
 
-	/* Decide whether adding tag or not for those outgoing packets from the
+	/* Decide whether adding tag or yest for those outgoing packets from the
 	 * port inside the VLAN.
 	 */
 	val = entry->untagged ? MT7530_VLAN_EGRESS_UNTAG :
@@ -1113,7 +1113,7 @@ mt7530_hw_vlan_del(struct mt7530_priv *priv,
 	val = mt7530_read(priv, MT7530_VAWD1);
 	if (!(val & VLAN_VALID)) {
 		dev_err(priv->dev,
-			"Cannot be deleted due to invalid entry\n");
+			"Canyest be deleted due to invalid entry\n");
 		return;
 	}
 
@@ -1162,7 +1162,7 @@ mt7530_port_vlan_add(struct dsa_switch *ds, int port,
 	struct mt7530_priv *priv = ds->priv;
 	u16 vid;
 
-	/* The port is kept as VLAN-unaware if bridge with vlan_filtering not
+	/* The port is kept as VLAN-unaware if bridge with vlan_filtering yest
 	 * being set.
 	 */
 	if (!dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
@@ -1193,7 +1193,7 @@ mt7530_port_vlan_del(struct dsa_switch *ds, int port,
 	struct mt7530_priv *priv = ds->priv;
 	u16 vid, pvid;
 
-	/* The port is kept as VLAN-unaware if bridge with vlan_filtering not
+	/* The port is kept as VLAN-unaware if bridge with vlan_filtering yest
 	 * being set.
 	 */
 	if (!dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
@@ -1229,7 +1229,7 @@ mtk_get_tag_protocol(struct dsa_switch *ds, int port)
 
 	if (port != MT7530_CPU_PORT) {
 		dev_warn(priv->dev,
-			 "port not matched with tagging CPU port\n");
+			 "port yest matched with tagging CPU port\n");
 		return DSA_TAG_PROTO_NONE;
 	} else {
 		return DSA_TAG_PROTO_MTK;
@@ -1240,22 +1240,22 @@ static int
 mt7530_setup(struct dsa_switch *ds)
 {
 	struct mt7530_priv *priv = ds->priv;
-	struct device_node *phy_node;
-	struct device_node *mac_np;
+	struct device_yesde *phy_yesde;
+	struct device_yesde *mac_np;
 	struct mt7530_dummy_poll p;
 	phy_interface_t interface;
-	struct device_node *dn;
+	struct device_yesde *dn;
 	u32 id, val;
 	int ret, i;
 
-	/* The parent node of master netdev which holds the common system
-	 * controller also is the container for two GMACs nodes representing
+	/* The parent yesde of master netdev which holds the common system
+	 * controller also is the container for two GMACs yesdes representing
 	 * as two netdev instances.
 	 */
-	dn = dsa_to_port(ds, MT7530_CPU_PORT)->master->dev.of_node->parent;
+	dn = dsa_to_port(ds, MT7530_CPU_PORT)->master->dev.of_yesde->parent;
 
 	if (priv->id == ID_MT7530) {
-		priv->ethernet = syscon_node_to_regmap(dn);
+		priv->ethernet = syscon_yesde_to_regmap(dn);
 		if (IS_ERR(priv->ethernet))
 			return PTR_ERR(priv->ethernet);
 
@@ -1310,7 +1310,7 @@ mt7530_setup(struct dsa_switch *ds)
 		     SYS_CTRL_PHY_RST | SYS_CTRL_SW_RST |
 		     SYS_CTRL_REG_RST);
 
-	/* Enable Port 6 only; P5 as GMAC5 which currently is not supported */
+	/* Enable Port 6 only; P5 as GMAC5 which currently is yest supported */
 	val = mt7530_read(priv, MT7530_MHWTRAP);
 	val &= ~MHWTRAP_P6_DIS & ~MHWTRAP_PHY_ACCESS;
 	val |= MHWTRAP_MANUAL;
@@ -1344,8 +1344,8 @@ mt7530_setup(struct dsa_switch *ds)
 		if (ret && ret != -ENODEV)
 			return ret;
 	} else {
-		/* Scan the ethernet nodes. look for GMAC1, lookup used phy */
-		for_each_child_of_node(dn, mac_np) {
+		/* Scan the ethernet yesdes. look for GMAC1, lookup used phy */
+		for_each_child_of_yesde(dn, mac_np) {
 			if (!of_device_is_compatible(mac_np,
 						     "mediatek,eth-mac"))
 				continue;
@@ -1354,18 +1354,18 @@ mt7530_setup(struct dsa_switch *ds)
 			if (ret < 0 || id != 1)
 				continue;
 
-			phy_node = of_parse_phandle(mac_np, "phy-handle", 0);
-			if (phy_node->parent == priv->dev->of_node->parent) {
+			phy_yesde = of_parse_phandle(mac_np, "phy-handle", 0);
+			if (phy_yesde->parent == priv->dev->of_yesde->parent) {
 				ret = of_get_phy_mode(mac_np, &interface);
 				if (ret && ret != -ENODEV)
 					return ret;
-				id = of_mdio_parse_addr(ds->dev, phy_node);
+				id = of_mdio_parse_addr(ds->dev, phy_yesde);
 				if (id == 0)
 					priv->p5_intf_sel = P5_INTF_SEL_PHY_P0;
 				if (id == 4)
 					priv->p5_intf_sel = P5_INTF_SEL_PHY_P4;
 			}
-			of_node_put(phy_node);
+			of_yesde_put(phy_yesde);
 			break;
 		}
 	}
@@ -1628,9 +1628,9 @@ static int
 mt7530_probe(struct mdio_device *mdiodev)
 {
 	struct mt7530_priv *priv;
-	struct device_node *dn;
+	struct device_yesde *dn;
 
-	dn = mdiodev->dev.of_node;
+	dn = mdiodev->dev.of_yesde;
 
 	priv = devm_kzalloc(&mdiodev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -1657,7 +1657,7 @@ mt7530_probe(struct mdio_device *mdiodev)
 		}
 	}
 
-	/* Get the hardware identifier from the devicetree node.
+	/* Get the hardware identifier from the devicetree yesde.
 	 * We will need it for some of the clock and regulator setup.
 	 */
 	priv->id = (unsigned int)(unsigned long)

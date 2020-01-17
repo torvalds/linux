@@ -37,7 +37,7 @@
    It's probably possible to make it work if some one wants to put some
    serious work into it.
 
-   At present no special treatment is provided for tones, which
+   At present yes special treatment is provided for tones, which
    generally cause NLMS algorithms to diverge.  Initial runs of a
    subset of the G168 tests for tones (e.g ./echo_test 6) show the
    current algorithm is passing OK, which is kind of surprising.  The
@@ -51,14 +51,14 @@
 
    I also attempted the implementation of a block based NLMS update
    [2] but although this passes g168_tests.sh it didn't converge well
-   on the real-world samples.  I have no idea why, perhaps a scaling
+   on the real-world samples.  I have yes idea why, perhaps a scaling
    problem.  The block based code is also available in SVN
    http://svn.rowetel.com/software/oslec/tags/before_16bit.  If this
    code can be debugged, it will lead to further reduction in MIPS, as
    the block update code maps nicely onto DSP instruction sets (it's a
    dot product) compared to the current sample-by-sample update.
 
-   Steve also has some nice notes on echo cancellers in echo.h
+   Steve also has some nice yestes on echo cancellers in echo.h
 
    References:
 
@@ -237,7 +237,7 @@ void oslec_flush(struct oslec_state *ec)
 	ec->lbgn_upper = 200;
 	ec->lbgn_upper_acc = ec->lbgn_upper << 13;
 
-	ec->nonupdate_dwell = 0;
+	ec->yesnupdate_dwell = 0;
 
 	fir16_flush(&ec->fir_state);
 	fir16_flush(&ec->fir_state_bg);
@@ -268,7 +268,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 
 	/*
 	 * Input scaling was found be required to prevent problems when tx
-	 * starts clipping.  Another possible way to handle this would be the
+	 * starts clipping.  Ayesther possible way to handle this would be the
 	 * filter coefficent scaling.
 	 */
 
@@ -278,15 +278,15 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 	rx >>= 1;
 
 	/*
-	 * Filter DC, 3dB point is 160Hz (I think), note 32 bit precision
-	 * required otherwise values do not track down to 0. Zero at DC, Pole
+	 * Filter DC, 3dB point is 160Hz (I think), yeste 32 bit precision
+	 * required otherwise values do yest track down to 0. Zero at DC, Pole
 	 * at (1-Beta) on real axis.  Some chip sets (like Si labs) don't
 	 * need this, but something like a $10 X100P card does.  Any DC really
 	 * slows down convergence.
 	 *
 	 * Note: removes some low frequency from the signal, this reduces the
 	 * speech quality when listening to samples through headphones but may
-	 * not be obvious through a telephone handset.
+	 * yest be obvious through a telephone handset.
 	 *
 	 * Note that the 3dB frequency in radians is approx Beta, e.g. for Beta
 	 * = 2^(-3) = 0.125, 3dB freq is 0.125 rads = 159Hz.
@@ -300,7 +300,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 		 * saturate a little under impulse conditions, and it might
 		 * roll to 32768 and need clipping on sustained peak level
 		 * signals. However, the scale of such clipping is small, and
-		 * the error due to any saturation should not markedly affect
+		 * the error due to any saturation should yest markedly affect
 		 * the downstream processing.
 		 */
 		tmp -= (tmp >> 4);
@@ -365,11 +365,11 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 
 	/* Almost always adap bg filter, just simple DT and energy
 	   detection to minimise adaption in cases of strong double talk.
-	   However this is not critical for the dual path algorithm.
+	   However this is yest critical for the dual path algorithm.
 	 */
 	ec->factor = 0;
 	ec->shift = 0;
-	if (!ec->nonupdate_dwell) {
+	if (!ec->yesnupdate_dwell) {
 		int p, logp, shift;
 
 		/* Determine:
@@ -396,11 +396,11 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 		   factor      = clean_bg_rx 2                     ----- (3)
 
 		   To avoid a divide we approximate log2(P) as top_bit(P),
-		   which returns the position of the highest non-zero bit in
+		   which returns the position of the highest yesn-zero bit in
 		   P.  This approximation introduces an error as large as a
 		   factor of 2, but the algorithm seems to handle it OK.
 
-		   Come to think of it a divide may not be a big deal on a
+		   Come to think of it a divide may yest be a big deal on a
 		   modern DSP, so its probably worth checking out the cycles
 		   for a divide versus a top_bit() implementation.
 		 */
@@ -418,9 +418,9 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 
 	ec->adapt = 0;
 	if ((ec->lrx > MIN_RX_POWER_FOR_ADAPTION) && (ec->lrx > ec->ltx))
-		ec->nonupdate_dwell = DTD_HANGOVER;
-	if (ec->nonupdate_dwell)
-		ec->nonupdate_dwell--;
+		ec->yesnupdate_dwell = DTD_HANGOVER;
+	if (ec->yesnupdate_dwell)
+		ec->yesnupdate_dwell--;
 
 	/* Transfer logic */
 
@@ -428,7 +428,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 	   them a bit to improve performance. */
 
 	if ((ec->adaption_mode & ECHO_CAN_USE_ADAPTION) &&
-	    (ec->nonupdate_dwell == 0) &&
+	    (ec->yesnupdate_dwell == 0) &&
 	    /* (ec->Lclean_bg < 0.875*ec->Lclean) */
 	    (8 * ec->lclean_bg < 7 * ec->lclean) &&
 	    /* (ec->Lclean_bg < 0.125*ec->Ltx) */
@@ -453,7 +453,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 		/*
 		 * Non-linear processor - a fancy way to say "zap small
 		 * signals, to avoid residual echo due to (uLaw/ALaw)
-		 * non-linearity in the channel.".
+		 * yesn-linearity in the channel.".
 		 */
 
 		if ((16 * ec->lclean < ec->ltx)) {
@@ -466,13 +466,13 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 				ec->cng_level = ec->lbgn;
 
 				/*
-				 * Very elementary comfort noise generation.
+				 * Very elementary comfort yesise generation.
 				 * Just random numbers rolled off very vaguely
-				 * Hoth-like.  DR: This noise doesn't sound
+				 * Hoth-like.  DR: This yesise doesn't sound
 				 * quite right to me - I suspect there are some
 				 * overflow issues in the filtering as it's too
 				 * "crackly".
-				 * TODO: debug this, maybe just play noise at
+				 * TODO: debug this, maybe just play yesise at
 				 * high level or look at spectrum.
 				 */
 
@@ -499,7 +499,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 			}
 		} else {
 			/*
-			 * Background noise estimator.  I tried a few
+			 * Background yesise estimator.  I tried a few
 			 * algorithms here without much luck.  This very simple
 			 * one seems to work best, we just average the level
 			 * using a slow (1 sec time const) filter if the
@@ -534,7 +534,7 @@ EXPORT_SYMBOL_GPL(oslec_update);
    the same design.
 
    Some soft phones send speech signals with a lot of low frequency
-   energy, e.g. down to 20Hz.  This can make the hybrid non-linear
+   energy, e.g. down to 20Hz.  This can make the hybrid yesn-linear
    which causes the echo canceller to fall over.  This filter can help
    by removing any low frequency before it gets to the tx port of the
    hybrid.
@@ -547,7 +547,7 @@ EXPORT_SYMBOL_GPL(oslec_update);
    from things that upset them. The difference between successive samples
    produces a lousy HPF, and then a suitably placed pole flattens things out.
    The final result is a nicely rolled off bass end. The filtering is
-   implemented with extended fractional precision, which noise shapes things,
+   implemented with extended fractional precision, which yesise shapes things,
    giving very clean DC removal.
 */
 
@@ -564,7 +564,7 @@ int16_t oslec_hpf_tx(struct oslec_state *ec, int16_t tx)
 		 * saturate a little under impulse conditions, and it might
 		 * roll to 32768 and need clipping on sustained peak level
 		 * signals. However, the scale of such clipping is small, and
-		 * the error due to any saturation should not markedly affect
+		 * the error due to any saturation should yest markedly affect
 		 * the downstream processing.
 		 */
 		tmp -= (tmp >> 4);

@@ -23,12 +23,12 @@ Hardware requirements
        # lspci -vvv
        ...
        00:1d.7 USB Controller: Intel Corporation 82801H (ICH8 Family) USB2 EHCI Controller #1 (rev 03) (prog-if 20 [EHCI])
-               Subsystem: Lenovo ThinkPad T61
-               Control: I/O- Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR+ FastB2B- DisINTx-
+               Subsystem: Leyesvo ThinkPad T61
+               Control: I/O- Mem+ BusMaster+ SpecCycle- MemWINV- VGASyesop- ParErr- Stepping- SERR+ FastB2B- DisINTx-
                Status: Cap+ 66MHz- UDF- FastB2B+ ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR- <PERR- INTx-
                Latency: 0
                Interrupt: pin D routed to IRQ 19
-               Region 0: Memory at fe227000 (32-bit, non-prefetchable) [size=1K]
+               Region 0: Memory at fe227000 (32-bit, yesn-prefetchable) [size=1K]
                Capabilities: [50] Power Management version 2
                        Flags: PMEClk- DSI- D1- D2- AuxCurrent=375mA PME(D0+,D1-,D2-,D3hot+,D3cold+)
                        Status: D0 PME-Enable- DSel=0 DScale=0 PME+
@@ -38,8 +38,8 @@ Hardware requirements
                Kernel modules: ehci-hcd
        ...
 
-     .. note::
-       If your system does not list a debug port capability then you probably
+     .. yeste::
+       If your system does yest list a debug port capability then you probably
        won't be able to use the USB debug key.
 
   b) You also need a NetChip USB debug cable/key:
@@ -52,31 +52,31 @@ Hardware requirements
   c) You need a second client/console system with a high speed USB 2.0 port.
 
   d) The NetChip device must be plugged directly into the physical
-     debug port on the "host/target" system. You cannot use a USB hub in
+     debug port on the "host/target" system. You canyest use a USB hub in
      between the physical debug port and the "host/target" system.
 
      The EHCI debug controller is bound to a specific physical USB
      port and the NetChip device will only work as an early printk
      device in this port.  The EHCI host controllers are electrically
      wired such that the EHCI debug controller is hooked up to the
-     first physical port and there is no way to change this via software.
+     first physical port and there is yes way to change this via software.
      You can find the physical port through experimentation by trying
      each physical port on the system and rebooting.  Or you can try
      and use lsusb or look at the kernel info messages emitted by the
      usb stack when you plug a usb device into various ports on the
      "host/target" system.
 
-     Some hardware vendors do not expose the usb debug port with a
+     Some hardware vendors do yest expose the usb debug port with a
      physical connector and if you find such a device send a complaint
-     to the hardware vendor, because there is no reason not to wire
+     to the hardware vendor, because there is yes reason yest to wire
      this port into one of the physically accessible ports.
 
-  e) It is also important to note, that many versions of the NetChip
+  e) It is also important to yeste, that many versions of the NetChip
      device require the "client/console" system to be plugged into the
      right hand side of the device (with the product logo facing up and
      readable left to right).  The reason being is that the 5 volt
      power supply is taken from only one side of the device and it
-     must be the side that does not get rebooted.
+     must be the side that does yest get rebooted.
 
 Software requirements
 =====================
@@ -89,7 +89,7 @@ Software requirements
 
     And you need to add the boot command line: "earlyprintk=dbgp".
 
-    .. note::
+    .. yeste::
       If you are using Grub, append it to the 'kernel' line in
       /etc/grub.conf.  If you are using Grub2 on a BIOS firmware system,
       append it to the 'linux' line in /boot/grub2/grub.cfg. If you are
@@ -100,12 +100,12 @@ Software requirements
     On systems with more than one EHCI debug controller you must
     specify the correct EHCI debug controller number.  The ordering
     comes from the PCI bus enumeration of the EHCI controllers.  The
-    default with no number argument is "0" or the first EHCI debug
+    default with yes number argument is "0" or the first EHCI debug
     controller.  To use the second EHCI debug controller, you would
     use the command line: "earlyprintk=dbgp1"
 
-    .. note::
-      normally earlyprintk console gets turned off once the
+    .. yeste::
+      yesrmally earlyprintk console gets turned off once the
       regular console is alive - use "earlyprintk=dbgp,keep" to keep
       this channel open beyond early bootup. This can be useful for
       debugging crashes under Xorg, etc.
@@ -147,5 +147,5 @@ On the client/console system do::
 And you should see the help line above displayed shortly after you've
 provoked it on the host system.
 
-If it does not work then please ask about it on the linux-kernel@vger.kernel.org
+If it does yest work then please ask about it on the linux-kernel@vger.kernel.org
 mailing list or contact the x86 maintainers.

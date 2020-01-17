@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * This file define a set of standard wireless extensions
  *
@@ -15,7 +15,7 @@
 /*
  * Initial APIs (1996 -> onward) :
  * -----------------------------
- * Basically, the wireless extensions are for now a set of standard ioctl
+ * Basically, the wireless extensions are for yesw a set of standard ioctl
  * call + /proc/net/wireless
  *
  * The entry /proc/net/wireless give statistics and information on the
@@ -47,7 +47,7 @@
  * The new driver API is defined and documented in :
  *	# include/net/iw_handler.h
  *
- * Note as well that /proc/net/wireless implementation has now moved in :
+ * Note as well that /proc/net/wireless implementation has yesw moved in :
  *	# net/core/wireless.c
  *
  * Wireless Events (2002 -> onward) :
@@ -57,11 +57,11 @@
  *
  * Other comments :
  * --------------
- * Do not add here things that are redundant with other mechanisms
- * (drivers init, ifconfig, /proc/net/dev, ...) and with are not
+ * Do yest add here things that are redundant with other mechanisms
+ * (drivers init, ifconfig, /proc/net/dev, ...) and with are yest
  * wireless specific.
  *
- * These wireless extensions are not magic : each driver has to provide
+ * These wireless extensions are yest magic : each driver has to provide
  * support for them...
  *
  * IMPORTANT NOTE : As everything in the kernel, this is very much a
@@ -76,8 +76,8 @@
 
 /***************************** VERSION *****************************/
 /*
- * This constant is used to know the availability of the wireless
- * extensions and to know which version of wireless extensions it is
+ * This constant is used to kyesw the availability of the wireless
+ * extensions and to kyesw which version of wireless extensions it is
  * (there is some stuff that will be added in the future...)
  * I just plan to increment with each new version.
  */
@@ -215,7 +215,7 @@
  *	- Remove (struct net_device *)->get_wireless_stats()
  *	- Change length in ESSID and NICK to strlen() instead of strlen()+1
  *	- Add IW_RETRY_SHORT/IW_RETRY_LONG retry modifiers
- *	- Power/Retry relative values no longer * 100000
+ *	- Power/Retry relative values yes longer * 100000
  *	- Add explicit flag to tell stats are in 802.11k RCPI : IW_QUAL_RCPI
  *
  * V21 to V22
@@ -270,8 +270,8 @@
 /* 802.11 specific support */
 #define SIOCSIWESSID	0x8B1A		/* set ESSID (network name) */
 #define SIOCGIWESSID	0x8B1B		/* get ESSID */
-#define SIOCSIWNICKN	0x8B1C		/* set node name/nickname */
-#define SIOCGIWNICKN	0x8B1D		/* get node name/nickname */
+#define SIOCSIWNICKN	0x8B1C		/* set yesde name/nickname */
+#define SIOCGIWNICKN	0x8B1D		/* get yesde name/nickname */
 /* As the ESSID and NICKN are strings up to 32 bytes long, it doesn't fit
  * within the 'iwreq' structure, so we need to use the 'data' member to
  * point to a string in user space, like it is done for RANGE... */
@@ -330,14 +330,14 @@
  */
 #define SIOCIWFIRSTPRIV	0x8BE0
 #define SIOCIWLASTPRIV	0x8BFF
-/* Previously, we were using SIOCDEVPRIVATE, but we now have our
+/* Previously, we were using SIOCDEVPRIVATE, but we yesw have our
  * separate range because of collisions with other tools such as
  * 'mii-tool'.
- * We now have 32 commands, so a bit more space ;-).
+ * We yesw have 32 commands, so a bit more space ;-).
  * Also, all 'even' commands are only usable by root and don't return the
- * content of ifr/iwr to user (but you are not obliged to use the set/get
+ * content of ifr/iwr to user (but you are yest obliged to use the set/get
  * convention, just use every other two command). More details in iwpriv.c.
- * And I repeat : you are not forced to use them with iwpriv, but you
+ * And I repeat : you are yest forced to use them with iwpriv, but you
  * must be compliant with it.
  */
 
@@ -355,14 +355,14 @@
 #define IW_IS_GET(cmd)	((cmd) & 0x1)
 
 /* ----------------------- WIRELESS EVENTS ----------------------- */
-/* Those are *NOT* ioctls, do not issue request on them !!! */
+/* Those are *NOT* ioctls, do yest issue request on them !!! */
 /* Most events use the same identifier as ioctl requests */
 
 #define IWEVTXDROP	0x8C00		/* Packet dropped to excessive retry */
 #define IWEVQUAL	0x8C01		/* Quality part of statistics (scan) */
 #define IWEVCUSTOM	0x8C02		/* Driver specific ascii string */
-#define IWEVREGISTERED	0x8C03		/* Discovered a new node (AP mode) */
-#define IWEVEXPIRED	0x8C04		/* Expired a node (AP mode) */
+#define IWEVREGISTERED	0x8C03		/* Discovered a new yesde (AP mode) */
+#define IWEVEXPIRED	0x8C04		/* Expired a yesde (AP mode) */
 #define IWEVGENIE	0x8C05		/* Generic IE (WPA, RSN, WMM, ..)
 					 * (scan results); This includes id and
 					 * length fields. One IWEVGENIE may
@@ -476,7 +476,7 @@
 #define IW_MAX_ENCODING_SIZES	8
 
 /* Maximum size of the encoding token in bytes */
-#define IW_ENCODING_TOKEN_MAX	64	/* 512 bits (for now) */
+#define IW_ENCODING_TOKEN_MAX	64	/* 512 bits (for yesw) */
 
 /* Flags for encoding (along with the token) */
 #define IW_ENCODE_INDEX		0x00FF	/* Token index (if needed) */
@@ -484,9 +484,9 @@
 #define IW_ENCODE_MODE		0xF000	/* Modes defined below */
 #define IW_ENCODE_DISABLED	0x8000	/* Encoding disabled */
 #define IW_ENCODE_ENABLED	0x0000	/* Encoding enabled */
-#define IW_ENCODE_RESTRICTED	0x4000	/* Refuse non-encoded packets */
-#define IW_ENCODE_OPEN		0x2000	/* Accept non-encoded packets */
-#define IW_ENCODE_NOKEY		0x0800  /* Key is write only, so not present */
+#define IW_ENCODE_RESTRICTED	0x4000	/* Refuse yesn-encoded packets */
+#define IW_ENCODE_OPEN		0x2000	/* Accept yesn-encoded packets */
+#define IW_ENCODE_NOKEY		0x0800  /* Key is write only, so yest present */
 #define IW_ENCODE_TEMP		0x0400  /* Temporary key */
 
 /* Power management flags available (along with the value, if any) */
@@ -503,7 +503,7 @@
 #define IW_POWER_MODIFIER	0x000F	/* Modify a parameter */
 #define IW_POWER_MIN		0x0001	/* Value is a minimum  */
 #define IW_POWER_MAX		0x0002	/* Value is a maximum */
-#define IW_POWER_RELATIVE	0x0004	/* Value is not in seconds/ms/us */
+#define IW_POWER_RELATIVE	0x0004	/* Value is yest in seconds/ms/us */
 
 /* Transmit Power flags available */
 #define IW_TXPOW_TYPE		0x00FF	/* Type of value */
@@ -520,7 +520,7 @@
 #define IW_RETRY_MODIFIER	0x00FF	/* Modify a parameter */
 #define IW_RETRY_MIN		0x0001	/* Value is a minimum  */
 #define IW_RETRY_MAX		0x0002	/* Value is a maximum */
-#define IW_RETRY_RELATIVE	0x0004	/* Value is not in seconds/ms/us */
+#define IW_RETRY_RELATIVE	0x0004	/* Value is yest in seconds/ms/us */
 #define IW_RETRY_SHORT		0x0010	/* Value is for short packets  */
 #define IW_RETRY_LONG		0x0020	/* Value is for long packets */
 
@@ -636,7 +636,7 @@
 #define IW_MICFAILURE_GROUP	0x00000004
 #define IW_MICFAILURE_PAIRWISE	0x00000008
 #define IW_MICFAILURE_STAKEY	0x00000010
-#define IW_MICFAILURE_COUNT	0x00000060 /* 1 or 2 (0 = count not supported)
+#define IW_MICFAILURE_COUNT	0x00000060 /* 1 or 2 (0 = count yest supported)
 					    */
 
 /* Bit field values for enc_capa in struct iw_range */
@@ -673,7 +673,7 @@
  */
 struct iw_param {
   __s32		value;		/* The value of the parameter itself */
-  __u8		fixed;		/* Hardware should not use auto select */
+  __u8		fixed;		/* Hardware should yest use auto select */
   __u8		disabled;	/* Disable the feature */
   __u16		flags;		/* Various specifc flags (if any) */
 };
@@ -711,8 +711,8 @@ struct iw_quality {
 	__u8		qual;		/* link quality (%retries, SNR,
 					   %missed beacons or better...) */
 	__u8		level;		/* signal level (dBm) */
-	__u8		noise;		/* noise level (dBm) */
-	__u8		updated;	/* Flags to know if updated */
+	__u8		yesise;		/* yesise level (dBm) */
+	__u8		updated;	/* Flags to kyesw if updated */
 };
 
 /*
@@ -752,7 +752,7 @@ struct iw_thrspy {
  *	Optional data for scan request
  *
  *	Note: these optional parameters are controlling parameters for the
- *	scanning behavior, these do not apply to getting scan results
+ *	scanning behavior, these do yest apply to getting scan results
  *	(SIOCGIWSCAN). Drivers are expected to keep a local BSS table and
  *	provide a merged results with all BSSes even if the previous scan
  *	request limited scanning to a subset, e.g., by specifying an SSID.
@@ -783,7 +783,7 @@ struct iw_scan_req {
 	 * These are based on the MLME-SCAN.request from IEEE Std 802.11.
 	 * TU is 1.024 ms. If these are set to 0, driver is expected to use
 	 * reasonable default values. min_channel_time defines the time that
-	 * will be used to wait for the first reply on each channel. If no
+	 * will be used to wait for the first reply on each channel. If yes
 	 * replies are received, next channel will be scanned after this. If
 	 * replies are received, total time waited on the channel is defined by
 	 * max_channel_time.
@@ -814,7 +814,7 @@ struct iw_scan_req {
  *	tx_seq/rx_seq are only used when respective
  *	IW_ENCODE_EXT_{TX,RX}_SEQ_VALID flag is set in ext_flags. Normal
  *	TKIP/CCMP operation is to set RX seq with SIOCSIWENCODEEXT and start
- *	TX seq from zero whenever key is changed. SIOCGIWENCODEEXT is normally
+ *	TX seq from zero whenever key is changed. SIOCGIWENCODEEXT is yesrmally
  *	used only by an Authenticator (AP or an IBSS station) to get the
  *	current TX sequence number. Using TX_SEQ_VALID for SIOCSIWENCODEEXT and
  *	RX_SEQ_VALID for SIOCGIWENCODEEXT are optional, but can be useful for
@@ -874,7 +874,7 @@ struct iw_pmkid_cand {
  */
 struct iw_statistics {
 	__u16		status;		/* Status
-					 * - device dependent for now */
+					 * - device dependent for yesw */
 
 	struct iw_quality	qual;		/* Quality of the link
 						 * (instant/mean/max) */
@@ -978,7 +978,7 @@ struct iw_range {
 	__s32		sensitivity;
 
 	/* Quality of link & SNR stuff */
-	/* Quality range (link, level, noise)
+	/* Quality range (link, level, yesise)
 	 * If the quality is absolute, it will be in the range [0 ; max_qual],
 	 * if the quality is dBm, it will be in the range [max_qual ; 0].
 	 * Don't forget that we use 8 bit arithmetics... */

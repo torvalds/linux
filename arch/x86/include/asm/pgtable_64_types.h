@@ -25,7 +25,7 @@ extern unsigned int __pgtable_l5_enabled;
 
 #ifdef USE_EARLY_PGTABLE_L5
 /*
- * cpu_feature_enabled() is not available in early boot code.
+ * cpu_feature_enabled() is yest available in early boot code.
  * Use variable instead.
  */
 static inline bool pgtable_l5_enabled(void)
@@ -106,7 +106,7 @@ extern unsigned int ptrs_per_p4d;
  * See Documentation/x86/x86_64/mm.rst for a description of the memory map.
  *
  * Be very careful vs. KASLR when changing anything here. The KASLR address
- * range must not overlap with anything except the KASAN shadow area, which
+ * range must yest overlap with anything except the KASAN shadow area, which
  * is correct as KASAN disables KASLR.
  */
 #define MAXMEM			(1UL << MAX_PHYSMEM_BITS)

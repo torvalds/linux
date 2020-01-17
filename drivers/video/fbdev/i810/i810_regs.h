@@ -1,7 +1,7 @@
 /*-*- linux-c -*-
  *  linux/drivers/video/i810_regs.h -- Intel 810/815 Register List
  *
- *      Copyright (C) 2001 Antonino Daplas<adaplas@pol.net>
+ *      Copyright (C) 2001 Antoniyes Daplas<adaplas@pol.net>
  *      All Rights Reserved      
  *
  *

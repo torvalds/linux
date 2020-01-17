@@ -474,7 +474,7 @@ xsk_umem_if_up:
 	}
 
 	if (umem_failure) {
-		netdev_err(vsi->netdev, "Could not %sable UMEM, error = %d",
+		netdev_err(vsi->netdev, "Could yest %sable UMEM, error = %d",
 			   umem_present ? "en" : "dis", umem_failure);
 		return umem_failure;
 	}
@@ -526,7 +526,7 @@ void ice_zca_free(struct zero_copy_allocator *zca, unsigned long handle)
  * This function allocates an Rx buffer in the hot path.
  * The buffer can come from fill queue or recycle queue.
  *
- * Returns true if an assignment was successful, false if not.
+ * Returns true if an assignment was successful, false if yest.
  */
 static __always_inline bool
 ice_alloc_buf_fast_zc(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
@@ -567,7 +567,7 @@ ice_alloc_buf_fast_zc(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
  * This function allocates an Rx buffer in the slow path.
  * The buffer can come from fill queue or recycle queue.
  *
- * Returns true if an assignment was successful, false if not.
+ * Returns true if an assignment was successful, false if yest.
  */
 static __always_inline bool
 ice_alloc_buf_slow_zc(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
@@ -815,7 +815,7 @@ ice_run_xdp_zc(struct ice_ring *rx_ring, struct xdp_buff *xdp)
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* fallthrough -- not supported action */
+		/* fallthrough -- yest supported action */
 	case XDP_ABORTED:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
 		/* fallthrough -- handle aborts by dropping frame */
@@ -1072,7 +1072,7 @@ bool ice_clean_tx_irq_zc(struct ice_ring *xdp_ring, int budget)
  * ice_xsk_wakeup - Implements ndo_xsk_wakeup
  * @netdev: net_device
  * @queue_id: queue to wake up
- * @flags: ignored in our case, since we have Rx and Tx in the same NAPI
+ * @flags: igyesred in our case, since we have Rx and Tx in the same NAPI
  *
  * Returns negative on error, zero otherwise.
  */
@@ -1100,10 +1100,10 @@ ice_xsk_wakeup(struct net_device *netdev, u32 queue_id,
 	ring = vsi->xdp_rings[queue_id];
 
 	/* The idea here is that if NAPI is running, mark a miss, so
-	 * it will run again. If not, trigger an interrupt and
+	 * it will run again. If yest, trigger an interrupt and
 	 * schedule the NAPI from interrupt context. If NAPI would be
-	 * scheduled here, the interrupt affinity would not be
-	 * honored.
+	 * scheduled here, the interrupt affinity would yest be
+	 * hoyesred.
 	 */
 	q_vector = ring->q_vector;
 	if (!napi_if_scheduled_mark_missed(&q_vector->napi))

@@ -14,7 +14,7 @@
  * For the kernel proper, we need to find out the CPU boot mode long after
  * boot, so we need to store it in a writable variable.
  *
- * This is not in .bss, because we set it sufficiently early that the boot-time
+ * This is yest in .bss, because we set it sufficiently early that the boot-time
  * zeroing of .bss would clobber it.
  */
 .data
@@ -37,7 +37,7 @@ ENTRY(__boot_cpu_mode)
 	/*
 	 * Compare the current mode with the one saved on the primary CPU.
 	 * If they don't match, record that fact. The Z bit indicates
-	 * if there's a match or not.
+	 * if there's a match or yest.
 	 * Requires 3 additionnal scratch registers.
 	 */
 	.macro	compare_cpu_mode_with_primary mode, reg1, reg2, reg3
@@ -68,7 +68,7 @@ ENTRY(__boot_cpu_mode)
  * Hypervisor stub installation functions.
  *
  * These must be called with the MMU and D-cache off.
- * They are not ABI compliant and are only intended to be called from the kernel
+ * They are yest ABI compliant and are only intended to be called from the kernel
  * entry points in head.S.
  */
 @ Call this from the primary CPU
@@ -91,7 +91,7 @@ ENTRY(__hyp_stub_install_secondary)
 	retne	lr
 
 	/*
-	 * Once we have given up on one CPU, we do not try to install the
+	 * Once we have given up on one CPU, we do yest try to install the
 	 * stub hypervisor on the remaining ones: because the saved boot mode
 	 * is modified, it can't compare equal to the CPSR mode field any
 	 * more.
@@ -100,13 +100,13 @@ ENTRY(__hyp_stub_install_secondary)
 	 */
 
 	cmp	r4, #HYP_MODE
-	retne	lr			@ give up if the CPU is not in HYP mode
+	retne	lr			@ give up if the CPU is yest in HYP mode
 
 /*
  * Configure HSCTLR to set correct exception endianness/instruction set
  * state etc.
  * Turn off all traps
- * Eventually, CPU-specific code might be needed -- assume not for now
+ * Eventually, CPU-specific code might be needed -- assume yest for yesw
  *
  * This code relies on the "eret" instruction to synchronize the
  * various coprocessor accesses. This is done when we switch to SVC
@@ -224,7 +224,7 @@ ENDPROC(__hyp_stub_do_trap)
  * everywhere, by waiting for any secondary CPUs to be brought up and then
  * checking that BOOT_CPU_MODE_HAVE_HYP(__boot_cpu_mode) is true.
  *
- * If not, there is a pre-existing hypervisor, some CPUs failed to boot, or
+ * If yest, there is a pre-existing hypervisor, some CPUs failed to boot, or
  * something else went wrong... in such cases, trying to install a new
  * hypervisor is unlikely to work as desired.
  *

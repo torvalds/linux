@@ -23,7 +23,7 @@
  *
  * @timer: the timer to read
  *
- * Returns the delta between the expiry time and now, which can be
+ * Returns the delta between the expiry time and yesw, which can be
  * less than zero or 1usec for an pending expired timer
  */
 static struct timespec64 itimer_get_remtime(struct hrtimer *timer)
@@ -202,7 +202,7 @@ static void set_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
 }
 
 /*
- * Returns true if the timeval is in canonical form
+ * Returns true if the timeval is in cayesnical form
  */
 #define timeval_valid(t) \
 	(((t)->tv_sec >= 0) && (((unsigned long) (t)->tv_usec) < USEC_PER_SEC))
@@ -273,7 +273,7 @@ void clear_itimer(void)
  *		0 disables the alarm
  *
  * Returns the remaining time in seconds of a pending timer or 0 when
- * the timer is not active.
+ * the timer is yest active.
  *
  * On 32 bit machines the seconds value is limited to (INT_MAX/2) to avoid
  * negative timeval settings which would cause immediate expiry.

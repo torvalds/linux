@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -150,7 +150,7 @@ int qxl_device_init(struct qxl_device *qdev,
 					     qdev->surfaceram_size);
 	}
 	if (qdev->surface_mapping == NULL) {
-		/* 64bit surface bar not present (or mapping failed) */
+		/* 64bit surface bar yest present (or mapping failed) */
 		sb = 1;
 		qdev->surfaceram_base = pci_resource_start(pdev, sb);
 		qdev->surfaceram_size = pci_resource_len(pdev, sb);
@@ -249,8 +249,8 @@ int qxl_device_init(struct qxl_device *qdev,
 
 	mutex_init(&qdev->async_io_mutex);
 
-	/* reset the device into a known state - no memslots, no primary
-	 * created, no surfaces. */
+	/* reset the device into a kyeswn state - yes memslots, yes primary
+	 * created, yes surfaces. */
 	qxl_io_reset(qdev);
 
 	/* must initialize irq before first async io - slot creation */

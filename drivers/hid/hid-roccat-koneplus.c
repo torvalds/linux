@@ -10,7 +10,7 @@
 
 /*
  * Roccat Kone[+] is an updated/improved version of the Kone with more memory
- * and functionality and without the non-standard behaviours the Kone had.
+ * and functionality and without the yesn-standard behaviours the Kone had.
  * KoneXTD has same capabilities but updated sensor.
  */
 
@@ -281,7 +281,7 @@ static ssize_t koneplus_sysfs_set_actual_profile(struct device *dev,
 	roccat_report.data1 = profile + 1;
 	roccat_report.data2 = 0;
 	roccat_report.profile = profile + 1;
-	roccat_report_event(koneplus->chrdev_minor,
+	roccat_report_event(koneplus->chrdev_miyesr,
 			(uint8_t const *)&roccat_report);
 
 	mutex_unlock(&koneplus->koneplus_lock);
@@ -399,7 +399,7 @@ static int koneplus_init_specials(struct hid_device *hdev)
 		if (retval < 0) {
 			hid_err(hdev, "couldn't init char dev\n");
 		} else {
-			koneplus->chrdev_minor = retval;
+			koneplus->chrdev_miyesr = retval;
 			koneplus->roccat_claimed = 1;
 		}
 	} else {
@@ -421,7 +421,7 @@ static void koneplus_remove_specials(struct hid_device *hdev)
 			== USB_INTERFACE_PROTOCOL_MOUSE) {
 		koneplus = hid_get_drvdata(hdev);
 		if (koneplus->roccat_claimed)
-			roccat_disconnect(koneplus->chrdev_minor);
+			roccat_disconnect(koneplus->chrdev_miyesr);
 		kfree(koneplus);
 	}
 }
@@ -500,7 +500,7 @@ static void koneplus_report_to_chrdev(struct koneplus_device const *koneplus,
 	roccat_report.data1 = button_report->data1;
 	roccat_report.data2 = button_report->data2;
 	roccat_report.profile = koneplus->actual_profile + 1;
-	roccat_report_event(koneplus->chrdev_minor,
+	roccat_report_event(koneplus->chrdev_miyesr,
 			(uint8_t const *)&roccat_report);
 }
 

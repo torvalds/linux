@@ -7,7 +7,7 @@
  *	Original code comment copied from the i386 version of this file
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/crash_dump.h>
 
@@ -24,12 +24,12 @@
  * @userbuf: if set, @buf is in user address space, use copy_to_user(),
  *	otherwise @buf is in kernel address space, use memcpy().
  *
- * Copy a page from "oldmem". For this page, there is no pte mapped
+ * Copy a page from "oldmem". For this page, there is yes pte mapped
  * in the current kernel. We stitch up a pte, similar to kmap_atomic.
  *
- * Calling copy_to_user() in atomic context is not desirable. Hence first
+ * Calling copy_to_user() in atomic context is yest desirable. Hence first
  * copying the data to a pre-allocated kernel page and then copying to user
- * space in non-atomic context.
+ * space in yesn-atomic context.
  */
 ssize_t
 copy_oldmem_page(unsigned long pfn, char *buf,

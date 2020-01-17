@@ -562,7 +562,7 @@
 #define	IMR_HSISR_IND_ON_INT			BIT(15)
 /* Beacon DMA Interrupt Extension for Win7			*/
 #define	IMR_BCNDMAINT_E				BIT(14)
-/* CTWidnow End or ATIM Window End */
+/* CTWidyesw End or ATIM Window End */
 #define	IMR_ATIMEND				BIT(12)
 /* HISR1 Indicator (HISR1 & HIMR1 is true, this bit is set to 1)*/
 #define	IMR_HISR1_IND_INT			BIT(11)

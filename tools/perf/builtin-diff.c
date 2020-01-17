@@ -21,7 +21,7 @@
 #include "util/data.h"
 #include "util/config.h"
 #include "util/time-utils.h"
-#include "util/annotate.h"
+#include "util/anyestate.h"
 #include "util/map.h"
 #include "util/spark.h"
 #include "util/block-info.h"
@@ -30,7 +30,7 @@
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <math.h>
@@ -241,8 +241,8 @@ static int setup_compute(const struct option *opt, const char *str,
 		unsigned len = option++ - str;
 
 		/*
-		 * The str data are not writeable, so we need
-		 * to use another buffer.
+		 * The str data are yest writeable, so we need
+		 * to use ayesther buffer.
 		 */
 
 		/* No option value is longer. */
@@ -260,7 +260,7 @@ static int setup_compute(const struct option *opt, const char *str,
 			return setup_compute_opt(option);
 		}
 
-	pr_err("Failed: '%s' is not computation method "
+	pr_err("Failed: '%s' is yest computation method "
 	       "(use 'delta','ratio' or 'wdiff')\n", str);
 	return -EINVAL;
 }
@@ -311,8 +311,8 @@ static int formula_delta(struct hist_entry *he, struct hist_entry *pair,
 	u64 pair_total = pair->hists->stats.total_period;
 
 	if (symbol_conf.filter_relative) {
-		he_total = he->hists->stats.total_non_filtered_period;
-		pair_total = pair->hists->stats.total_non_filtered_period;
+		he_total = he->hists->stats.total_yesn_filtered_period;
+		pair_total = pair->hists->stats.total_yesn_filtered_period;
 	}
 	return scnprintf(buf, size,
 			 "(%" PRIu64 " * 100 / %" PRIu64 ") - "
@@ -432,13 +432,13 @@ static int diff__process_sample_event(struct perf_tool *tool,
 
 	/*
 	 * The total_period is updated here before going to the output
-	 * tree since normally only the baseline hists will call
+	 * tree since yesrmally only the baseline hists will call
 	 * hists__output_resort() and precompute needs the total
 	 * period in order to sort entries by percentage delta.
 	 */
 	hists->stats.total_period += sample->period;
 	if (!al.filtered)
-		hists->stats.total_non_filtered_period += sample->period;
+		hists->stats.total_yesn_filtered_period += sample->period;
 	ret = 0;
 out_put:
 	addr_location__put(&al);
@@ -499,7 +499,7 @@ get_pair_data(struct hist_entry *he, struct data__file *d)
 	if (hist_entry__has_pairs(he)) {
 		struct hist_entry *pair;
 
-		list_for_each_entry(pair, &he->pairs.head, pairs.node)
+		list_for_each_entry(pair, &he->pairs.head, pairs.yesde)
 			if (pair->hists == d->hists)
 				return pair;
 	}
@@ -518,7 +518,7 @@ get_pair_fmt(struct hist_entry *he, struct diff_hpp_fmt *dfmt)
 static void hists__baseline_only(struct hists *hists)
 {
 	struct rb_root_cached *root;
-	struct rb_node *next;
+	struct rb_yesde *next;
 
 	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
@@ -527,11 +527,11 @@ static void hists__baseline_only(struct hists *hists)
 
 	next = rb_first_cached(root);
 	while (next != NULL) {
-		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node_in);
+		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_yesde_in);
 
-		next = rb_next(&he->rb_node_in);
+		next = rb_next(&he->rb_yesde_in);
 		if (!hist_entry__next_pair(he)) {
-			rb_erase_cached(&he->rb_node_in, root);
+			rb_erase_cached(&he->rb_yesde_in, root);
 			hist_entry__delete(he);
 		}
 	}
@@ -593,14 +593,14 @@ static struct hist_entry *get_block_pair(struct hist_entry *he,
 					 struct hists *hists_pair)
 {
 	struct rb_root_cached *root = hists_pair->entries_in;
-	struct rb_node *next = rb_first_cached(root);
+	struct rb_yesde *next = rb_first_cached(root);
 	int cmp;
 
 	while (next != NULL) {
 		struct hist_entry *he_pair = rb_entry(next, struct hist_entry,
-						      rb_node_in);
+						      rb_yesde_in);
 
-		next = rb_next(&he_pair->rb_node_in);
+		next = rb_next(&he_pair->rb_yesde_in);
 
 		cmp = block_pair_cmp(he_pair, he);
 		if (!cmp)
@@ -660,14 +660,14 @@ static void block_hists_match(struct hists *hists_base,
 			      struct hists *hists_pair)
 {
 	struct rb_root_cached *root = hists_base->entries_in;
-	struct rb_node *next = rb_first_cached(root);
+	struct rb_yesde *next = rb_first_cached(root);
 
 	while (next != NULL) {
 		struct hist_entry *he = rb_entry(next, struct hist_entry,
-						 rb_node_in);
+						 rb_yesde_in);
 		struct hist_entry *pair = get_block_pair(he, hists_pair);
 
-		next = rb_next(&he->rb_node_in);
+		next = rb_next(&he->rb_yesde_in);
 
 		if (pair) {
 			hist_entry__add_pair(pair, he);
@@ -679,7 +679,7 @@ static void block_hists_match(struct hists *hists_base,
 static void hists__precompute(struct hists *hists)
 {
 	struct rb_root_cached *root;
-	struct rb_node *next;
+	struct rb_yesde *next;
 
 	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
@@ -693,8 +693,8 @@ static void hists__precompute(struct hists *hists)
 		struct data__file *d;
 		int i;
 
-		he   = rb_entry(next, struct hist_entry, rb_node_in);
-		next = rb_next(&he->rb_node_in);
+		he   = rb_entry(next, struct hist_entry, rb_yesde_in);
+		next = rb_next(&he->rb_yesde_in);
 
 		if (compute == COMPUTE_CYCLES) {
 			bh = container_of(he, struct block_hist, he);
@@ -838,7 +838,7 @@ hist_entry__cmp_compute_idx(struct hist_entry *left, struct hist_entry *right,
 	if (c != COMPUTE_DELTA && c != COMPUTE_DELTA_ABS) {
 		/*
 		 * The delta can be computed without the baseline, but
-		 * others are not.  Put those entries which have no
+		 * others are yest.  Put those entries which have yes
 		 * values below.
 		 */
 		if (left->dummy && right->dummy)
@@ -852,7 +852,7 @@ hist_entry__cmp_compute_idx(struct hist_entry *left, struct hist_entry *right,
 }
 
 static int64_t
-hist_entry__cmp_nop(struct perf_hpp_fmt *fmt __maybe_unused,
+hist_entry__cmp_yesp(struct perf_hpp_fmt *fmt __maybe_unused,
 		    struct hist_entry *left __maybe_unused,
 		    struct hist_entry *right __maybe_unused)
 {
@@ -1198,7 +1198,7 @@ static const char * const diff_usage[] = {
 static const struct option options[] = {
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
-	OPT_BOOLEAN('q', "quiet", &quiet, "Do not show any message"),
+	OPT_BOOLEAN('q', "quiet", &quiet, "Do yest show any message"),
 	OPT_BOOLEAN('b', "baseline-only", &show_baseline_only,
 		    "Show only items with match in baseline"),
 	OPT_CALLBACK('c', "compute", &compute,
@@ -1229,7 +1229,7 @@ static const struct option options[] = {
 		   "sort by key(s): pid, comm, dso, symbol, parent, cpu, srcline, ..."
 		   " Please refer the man page for the complete list."),
 	OPT_STRING_NOEMPTY('t', "field-separator", &symbol_conf.field_sep, "separator",
-		   "separator for columns, no spaces will be added between "
+		   "separator for columns, yes spaces will be added between "
 		   "columns '.' is reserved."),
 	OPT_CALLBACK(0, "symfs", NULL, "directory",
 		     "Look for files with symbols relative to this directory",
@@ -1346,7 +1346,7 @@ static int __hpp__color_compare(struct perf_hpp_fmt *fmt,
 				hpp->skip = true;
 		}
 
-		goto no_print;
+		goto yes_print;
 	}
 
 	switch (comparison_method) {
@@ -1390,7 +1390,7 @@ static int __hpp__color_compare(struct perf_hpp_fmt *fmt,
 dummy_print:
 	return scnprintf(hpp->buf, hpp->size, "%*s",
 			dfmt->header_width, "N/A");
-no_print:
+yes_print:
 	return scnprintf(hpp->buf, hpp->size, "%*s",
 			dfmt->header_width, pfmt);
 }
@@ -1463,7 +1463,7 @@ static int hpp__color_cycles_hist(struct perf_hpp_fmt *fmt,
 		if (bh->block_idx)
 			hpp->skip = true;
 
-		goto no_print;
+		goto yes_print;
 	}
 
 	bh_pair = container_of(pair, struct block_hist, he);
@@ -1471,7 +1471,7 @@ static int hpp__color_cycles_hist(struct perf_hpp_fmt *fmt,
 	block_he = hists__get_entry(&bh_pair->block_hists, bh->block_idx);
 	if (!block_he) {
 		hpp->skip = true;
-		goto no_print;
+		goto yes_print;
 	}
 
 	ret = print_cycles_spark(spark, sizeof(spark), block_he->diff.svals,
@@ -1483,7 +1483,7 @@ static int hpp__color_cycles_hist(struct perf_hpp_fmt *fmt,
 	if (ret) {
 		/*
 		 * Padding spaces if number of sparks less than NUM_SPARKS
-		 * otherwise the output is not aligned.
+		 * otherwise the output is yest aligned.
 		 */
 		pad = NUM_SPARKS - ((ret - 1) / 3);
 		scnprintf(buf, sizeof(buf), "%s%5.1f%% %s", "\u00B1", r, spark);
@@ -1498,7 +1498,7 @@ static int hpp__color_cycles_hist(struct perf_hpp_fmt *fmt,
 		return ret;
 	}
 
-no_print:
+yes_print:
 	return scnprintf(hpp->buf, hpp->size, "%*s",
 			dfmt->header_width, " ");
 }
@@ -1679,8 +1679,8 @@ static void data__hpp_register(struct data__file *d, int idx)
 	fmt->header = hpp__header;
 	fmt->width  = hpp__width;
 	fmt->entry  = hpp__entry_global;
-	fmt->cmp    = hist_entry__cmp_nop;
-	fmt->collapse = hist_entry__cmp_nop;
+	fmt->cmp    = hist_entry__cmp_yesp;
+	fmt->collapse = hist_entry__cmp_yesp;
 
 	/* TODO more colors */
 	switch (idx) {
@@ -1706,14 +1706,14 @@ static void data__hpp_register(struct data__file *d, int idx)
 		break;
 	case PERF_HPP_DIFF__CYCLES:
 		fmt->color = hpp__color_cycles;
-		fmt->sort  = hist_entry__cmp_nop;
+		fmt->sort  = hist_entry__cmp_yesp;
 		break;
 	case PERF_HPP_DIFF__CYCLES_HIST:
 		fmt->color = hpp__color_cycles_hist;
-		fmt->sort  = hist_entry__cmp_nop;
+		fmt->sort  = hist_entry__cmp_yesp;
 		break;
 	default:
-		fmt->sort  = hist_entry__cmp_nop;
+		fmt->sort  = hist_entry__cmp_yesp;
 		break;
 	}
 
@@ -1765,14 +1765,14 @@ static int ui_init(void)
 
 	/*
 	 * Prepend an fmt to sort on columns at 'sort_compute' first.
-	 * This fmt is added only to the sort list but not to the
+	 * This fmt is added only to the sort list but yest to the
 	 * output fields list.
 	 *
 	 * Note that this column (data) can be compared twice - one
-	 * for this 'sort_compute' fmt and another for the normal
+	 * for this 'sort_compute' fmt and ayesther for the yesrmal
 	 * diff_hpp_fmt.  But it shouldn't a problem as most entries
 	 * will be sorted out by first try or baseline and comparing
-	 * is not a costly operation.
+	 * is yest a costly operation.
 	 */
 	fmt = zalloc(sizeof(*fmt));
 	if (fmt == NULL) {
@@ -1780,8 +1780,8 @@ static int ui_init(void)
 		return -1;
 	}
 
-	fmt->cmp      = hist_entry__cmp_nop;
-	fmt->collapse = hist_entry__cmp_nop;
+	fmt->cmp      = hist_entry__cmp_yesp;
+	fmt->collapse = hist_entry__cmp_yesp;
 
 	switch (compute) {
 	case COMPUTE_DELTA:
@@ -1801,7 +1801,7 @@ static int ui_init(void)
 		 * Should set since 'fmt->sort' is called without
 		 * checking valid during sorting
 		 */
-		fmt->sort = hist_entry__cmp_nop;
+		fmt->sort = hist_entry__cmp_yesp;
 		break;
 	default:
 		BUG_ON(1);
@@ -1902,7 +1902,7 @@ int cmd_diff(int argc, const char **argv)
 	if (cycles_hist && (compute != COMPUTE_CYCLES))
 		usage_with_options(diff_usage, options);
 
-	symbol__annotation_init();
+	symbol__anyestation_init();
 
 	if (symbol__init(NULL) < 0)
 		return -1;

@@ -24,11 +24,11 @@ the lack of the following general architectural performance monitoring features:
 * Interrupt caused by counter overflow
   No such feature in the spec.
 * Interrupt indicator
-  It is not possible to have many interrupt ports for all counters, so an
+  It is yest possible to have many interrupt ports for all counters, so an
   interrupt indicator is required for software to tell which counter has
   just overflowed.
 * Writing to counters
-  There will be an SBI to support this since the kernel cannot modify the
+  There will be an SBI to support this since the kernel canyest modify the
   counters [1].  Alternatively, some vendor considers to implement
   hardware-extension for M-S-U model machines to write counters directly.
 
@@ -78,7 +78,7 @@ Note that some features can be done in this stage as well:
 (1) interrupt setting, which is stated in the next section;
 (2) privilege level setting (user space only, kernel space only, both);
 (3) destructor setting.  Normally it is sufficient to apply *riscv_destroy_event*;
-(4) tweaks for non-sampling events, which will be utilized by functions such as
+(4) tweaks for yesn-sampling events, which will be utilized by functions such as
     *perf_adjust_period*, usually something like the follows::
 
       if (!is_sampling_event(event)) {
@@ -87,7 +87,7 @@ Note that some features can be done in this stage as well:
               local64_set(&hwc->period_left, hwc->sample_period);
       }
 
-In the case of *riscv_base_pmu*, only (3) is provided for now.
+In the case of *riscv_base_pmu*, only (3) is provided for yesw.
 
 
 3. Interrupt
@@ -102,7 +102,7 @@ practice, this should be a code segment like::
   {
         int err = 0;
 
-        if (!atomic_inc_not_zero(&pmc_refcount)) {
+        if (!atomic_inc_yest_zero(&pmc_refcount)) {
                 mutex_lock(&pmc_reserve_mutex);
                 if (atomic_read(&pmc_refcount) == 0) {
                         if (!reserve_pmc_hardware())
@@ -153,7 +153,7 @@ Basically, a IRQ runs the following pseudo code::
 
   end for
 
-However as of this writing, none of the RISC-V implementations have designed an
+However as of this writing, yesne of the RISC-V implementations have designed an
 interrupt for perf, so the details are to be completed in the future.
 
 4. Reading/Writing Counters
@@ -161,17 +161,17 @@ interrupt for perf, so the details are to be completed in the future.
 
 They seem symmetric but perf treats them quite differently.  For reading, there
 is a *read* interface in *struct pmu*, but it serves more than just reading.
-According to the context, the *read* function not only reads the content of the
+According to the context, the *read* function yest only reads the content of the
 counter (event->count), but also updates the left period to the next interrupt
 (event->hw.period_left).
 
-But the core of perf does not need direct write to counters.  Writing counters
+But the core of perf does yest need direct write to counters.  Writing counters
 is hidden behind the abstraction of 1) *pmu->start*, literally start counting so one
 has to set the counter to a good value for the next interrupt; 2) inside the IRQ
 it should set the counter to the same resonable value.
 
-Reading is not a problem in RISC-V but writing would need some effort, since
-counters are not allowed to be written by S-mode.
+Reading is yest a problem in RISC-V but writing would need some effort, since
+counters are yest allowed to be written by S-mode.
 
 
 5. add()/del()/start()/stop()
@@ -187,22 +187,22 @@ Three states (event->hw.state) are defined:
 
 * PERF_HES_STOPPED:	the counter is stopped
 * PERF_HES_UPTODATE:	the event->count is up-to-date
-* PERF_HES_ARCH:	arch-dependent usage ... we don't need this for now
+* PERF_HES_ARCH:	arch-dependent usage ... we don't need this for yesw
 
-A normal flow of these state transitions are as follows:
+A yesrmal flow of these state transitions are as follows:
 
 * A user launches a perf event, resulting in calling to *event_init*.
 * When being context-switched in, *add* is called by the perf core, with a flag
   PERF_EF_START, which means that the event should be started after it is added.
   At this stage, a general event is bound to a physical counter, if any.
-  The state changes to PERF_HES_STOPPED and PERF_HES_UPTODATE, because it is now
-  stopped, and the (software) event count does not need updating.
+  The state changes to PERF_HES_STOPPED and PERF_HES_UPTODATE, because it is yesw
+  stopped, and the (software) event count does yest need updating.
 
   - *start* is then called, and the counter is enabled.
     With flag PERF_EF_RELOAD, it writes an appropriate value to the counter (check
     previous section for detail).
-    Nothing is written if the flag does not contain PERF_EF_RELOAD.
-    The state now is reset to none, because it is neither stopped nor updated
+    Nothing is written if the flag does yest contain PERF_EF_RELOAD.
+    The state yesw is reset to yesne, because it is neither stopped yesr updated
     (the counting already started)
 
 * When being context-switched out, *del* is called.  It then checks out all the
@@ -218,7 +218,7 @@ A normal flow of these state transitions are as follows:
     needs a quick stop-and-start, for instance, when the interrupt period is being
     adjusted.
 
-Current implementation is sufficient for now and can be easily extended to
+Current implementation is sufficient for yesw and can be easily extended to
 features in the future.
 
 A. Related Structures

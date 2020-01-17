@@ -32,7 +32,7 @@ struct soc_device_data {
 
 /*
  * Some of the buttons like volume up/down are auto repeat, while others
- * are not. To support both, we register two platform devices, and put
+ * are yest. To support both, we register two platform devices, and put
  * buttons into them based on whether the key should be auto repeat.
  */
 #define BUTTON_TYPES	2
@@ -94,15 +94,15 @@ soc_button_device_create(struct platform_device *pdev,
 		gpio = soc_button_lookup_gpio(&pdev->dev, info->acpi_index);
 		if (!gpio_is_valid(gpio)) {
 			/*
-			 * Skip GPIO if not present. Note we deliberately
-			 * ignore -EPROBE_DEFER errors here. On some devices
-			 * Intel is using so called virtual GPIOs which are not
+			 * Skip GPIO if yest present. Note we deliberately
+			 * igyesre -EPROBE_DEFER errors here. On some devices
+			 * Intel is using so called virtual GPIOs which are yest
 			 * GPIOs at all but some way for AML code to check some
 			 * random status bits without need a custom opregion.
 			 * In some cases the resources table we parse points to
-			 * such a virtual GPIO, since these are not real GPIOs
-			 * we do not have a driver for these so they will never
-			 * show up, therefore we ignore -EPROBE_DEFER.
+			 * such a virtual GPIO, since these are yest real GPIOs
+			 * we do yest have a driver for these so they will never
+			 * show up, therefore we igyesre -EPROBE_DEFER.
 			 */
 			continue;
 		}
@@ -180,13 +180,13 @@ static int soc_button_parse_btn_desc(struct device *dev,
 
 	/*
 	 * The UUID: fa6bd625-9ce8-470d-a2c7-b3ca36c4282e descriptors use HID
-	 * usage page and usage codes, but otherwise the device is not HID
+	 * usage page and usage codes, but otherwise the device is yest HID
 	 * compliant: it uses one irq per button instead of generating HID
 	 * input reports and some buttons should generate wakeups where as
-	 * others should not, so we cannot use the HID subsystem.
+	 * others should yest, so we canyest use the HID subsystem.
 	 *
 	 * Luckily all devices only use a few usage page + usage combinations,
-	 * so we can simply check for the known combinations here.
+	 * so we can simply check for the kyeswn combinations here.
 	 */
 	if (upage == 0x01 && usage == 0x81) {
 		info->name = "power";
@@ -209,9 +209,9 @@ static int soc_button_parse_btn_desc(struct device *dev,
 		info->event_code = KEY_VOLUMEDOWN;
 		info->autorepeat = true;
 	} else {
-		dev_warn(dev, "Unknown button index %d upage %02x usage %02x, ignoring\n",
+		dev_warn(dev, "Unkyeswn button index %d upage %02x usage %02x, igyesring\n",
 			 info->acpi_index, upage, usage);
-		info->name = "unknown";
+		info->name = "unkyeswn";
 		info->event_code = KEY_RESERVED;
 	}
 
@@ -236,7 +236,7 @@ static struct soc_button_info *soc_button_get_button_info(struct device *dev)
 	status = acpi_evaluate_object_typed(ACPI_HANDLE(dev), "_DSD", NULL,
 					    &buf, ACPI_TYPE_PACKAGE);
 	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "ACPI _DSD object not found\n");
+		dev_err(dev, "ACPI _DSD object yest found\n");
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -258,7 +258,7 @@ static struct soc_button_info *soc_button_get_button_info(struct device *dev)
 	}
 
 	if (!btns_desc) {
-		dev_err(dev, "ACPI Button Descriptors not found\n");
+		dev_err(dev, "ACPI Button Descriptors yest found\n");
 		button_info = ERR_PTR(-ENODEV);
 		goto out;
 	}
@@ -344,7 +344,7 @@ static int soc_button_probe(struct platform_device *pdev)
 
 	error = gpiod_count(dev, NULL);
 	if (error < 0) {
-		dev_dbg(dev, "no GPIO attached, ignoring...\n");
+		dev_dbg(dev, "yes GPIO attached, igyesring...\n");
 		return -ENODEV;
 	}
 
@@ -413,7 +413,7 @@ static int soc_device_check_MSHW0040(struct device *dev)
 {
 	acpi_handle handle = ACPI_HANDLE(dev);
 	union acpi_object *result;
-	u64 oem_platform_rev = 0;	// valid revisions are nonzero
+	u64 oem_platform_rev = 0;	// valid revisions are yesnzero
 
 	// get OEM platform revision
 	result = acpi_evaluate_dsm_typed(handle, &MSHW0040_DSM_UUID,
@@ -428,7 +428,7 @@ static int soc_device_check_MSHW0040(struct device *dev)
 
 	/*
 	 * If the revision is zero here, the _DSM evaluation has failed. This
-	 * indicates that we have a Pro 4 or Book 1 and this driver should not
+	 * indicates that we have a Pro 4 or Book 1 and this driver should yest
 	 * be used.
 	 */
 	if (oem_platform_rev == 0)

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -144,7 +144,7 @@ uint32_t generic_reg_update_ex(const struct dc_context *ctx,
 
 /*
  * return number of poll before condition is met
- * return 0 if condition is not meet after specified time out tries
+ * return 0 if condition is yest meet after specified time out tries
  */
 void generic_reg_wait(const struct dc_context *ctx,
 	uint32_t addr, uint32_t mask, uint32_t shift, uint32_t condition_value,
@@ -210,18 +210,18 @@ bool dm_pp_get_clock_levels_by_type_with_voltage(
 	enum dm_pp_clock_type clk_type,
 	struct dm_pp_clock_levels_with_voltage *clk_level_info);
 
-bool dm_pp_notify_wm_clock_changes(
+bool dm_pp_yestify_wm_clock_changes(
 	const struct dc_context *ctx,
 	struct dm_pp_wm_sets_with_clock_ranges *wm_with_clock_ranges);
 
 void dm_pp_get_funcs(struct dc_context *ctx,
 		struct pp_smu_funcs *funcs);
 
-/* DAL calls this function to notify PP about completion of Mode Set.
+/* DAL calls this function to yestify PP about completion of Mode Set.
  * For PP it means that current DCE clocks are those which were returned
  * by dc_service_pp_pre_dce_clock_change(), in the 'output' parameter.
  *
- * If the clocks are higher than before, then PP does nothing.
+ * If the clocks are higher than before, then PP does yesthing.
  *
  * If the clocks are lower than before, then PP reduces the voltage.
  *
@@ -271,7 +271,7 @@ struct persistent_data_flag {
  * NULL         -              NULL     - create module folder under base folder
  * -            NULL           NULL     - failure
  * NULL         -              -        - create key under module folder
- *                                            with no edid/link identification
+ *                                            with yes edid/link identification
  * -            NULL           -        - create key with param value
  *                                                       under base folder
  * -            -              NULL     - create module folder under base folder
@@ -306,7 +306,7 @@ bool dm_write_persistent_data(struct dc_context *ctx,
  * NULL         -              NULL     - failure
  * -            NULL           NULL     - failure
  * NULL         -              -        - read key under module folder
- *                                             with no edid/link identification
+ *                                             with yes edid/link identification
  * -            NULL           -        - read key under base folder
  * -            -              NULL     - failure
  * -            -              -        - read key under module folder

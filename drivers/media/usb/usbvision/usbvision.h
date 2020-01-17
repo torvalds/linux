@@ -192,8 +192,8 @@ enum {
 
 /*
  * This macro checks if usbvision is still operational. The 'usbvision'
- * pointer must be valid, usbvision->dev must be valid, we are not
- * removing the device and the device has not erred on us.
+ * pointer must be valid, usbvision->dev must be valid, we are yest
+ * removing the device and the device has yest erred on us.
  */
 #define USBVISION_IS_OPERATIONAL(udevice) (\
 	(udevice != NULL) && \
@@ -217,15 +217,15 @@ enum scan_state {
 enum parse_state {
 	parse_state_continue,	/* Just parse next item */
 	parse_state_next_frame,	/* Frame done, send it to V4L */
-	parse_state_out,	/* Not enough data for frame */
+	parse_state_out,	/* Not eyesugh data for frame */
 	parse_state_end_parse	/* End parsing */
 };
 
 enum frame_state {
-	frame_state_unused,	/* Unused (no MCAPTURE) */
+	frame_state_unused,	/* Unused (yes MCAPTURE) */
 	frame_state_ready,	/* Ready to start grabbing */
 	frame_state_grabbing,	/* In the process of being grabbed into */
-	frame_state_done,	/* Finished grabbing, but not been synced yet */
+	frame_state_done,	/* Finished grabbing, but yest been synced yet */
 	frame_state_done_hold,	/* Are syncing or reading */
 	frame_state_error,	/* Something bad happened while processing */
 };
@@ -240,7 +240,7 @@ enum stream_state {
 
 enum isoc_state {
 	isoc_state_in_frame,	/* Isoc packet is member of frame */
-	isoc_state_no_frame,	/* Isoc packet is not member of any frame */
+	isoc_state_yes_frame,	/* Isoc packet is yest member of any frame */
 };
 
 struct usb_device;
@@ -317,7 +317,7 @@ struct usbvision_frame {
 #define BRIDGE_NT1005   1005
 
 struct usbvision_device_data_st {
-	__u64 video_norm;
+	__u64 video_yesrm;
 	const char *model_string;
 	int interface; /* to handle special interface number like BELKIN and Hauppauge WinTV-USB II */
 	__u16 codec;
@@ -382,7 +382,7 @@ struct usb_usbvision {
 	int user;							/* user count for exclusive use */
 	int initialized;						/* Had we already sent init sequence? */
 	int dev_model;							/* What type of USBVISION device we got? */
-	enum stream_state streaming;					/* Are we streaming Isochronous? */
+	enum stream_state streaming;					/* Are we streaming Isochroyesus? */
 	int last_error;							/* What calamity struck us? */
 	int curwidth;							/* width of the frame the device is currently set to*/
 	int curheight;							/* height of the frame the device is currently set to*/
@@ -401,7 +401,7 @@ struct usb_usbvision {
 	struct usbvision_sbuf sbuf[USBVISION_NUMSBUF];			/* S buffering */
 	volatile int remove_pending;					/* If set then about to exit */
 
-	/* Scratch space from the Isochronous Pipe.*/
+	/* Scratch space from the Isochroyesus Pipe.*/
 	unsigned char *scratch;
 	int scratch_read_ptr;
 	int scratch_write_ptr;
@@ -413,13 +413,13 @@ struct usb_usbvision {
 
 	struct v4l2_capability vcap;					/* Video capabilities */
 	unsigned int ctl_input;						/* selected input */
-	v4l2_std_id tvnorm_id;						/* selected tv norm */
+	v4l2_std_id tvyesrm_id;						/* selected tv yesrm */
 	unsigned char video_endp;					/* 0x82 for USBVISION devices based */
 
 	/* Decompression stuff: */
 	unsigned char *intra_frame_buffer;				/* Buffer for reference frame */
 	int block_pos;							/* for test only */
-	int request_intra;						/* 0 = normal; 1 = intra frame is requested; */
+	int request_intra;						/* 0 = yesrmal; 1 = intra frame is requested; */
 	int last_isoc_frame_num;					/* check for lost isoc frames */
 	int isoc_packet_size;						/* need to calculate used_bandwidth */
 	int used_bandwidth;						/* used bandwidth 0-100%, need to set compr_level */

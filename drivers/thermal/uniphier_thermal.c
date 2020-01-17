@@ -101,7 +101,7 @@ static int uniphier_tm_initialize_sensor(struct uniphier_tm_dev *tdev)
 
 	/*
 	 * Since SoC has a calibrated value that was set in advance,
-	 * TMODCOEF shows non-zero and PVT refers the value internally.
+	 * TMODCOEF shows yesn-zero and PVT refers the value internally.
 	 *
 	 * If TMODCOEF shows zero, the boards don't have the calibrated
 	 * value, and the driver has to set default value from DT.
@@ -111,7 +111,7 @@ static int uniphier_tm_initialize_sensor(struct uniphier_tm_dev *tdev)
 		return ret;
 	if (!val) {
 		/* look for the default values in DT */
-		ret = of_property_read_u32_array(tdev->dev->of_node,
+		ret = of_property_read_u32_array(tdev->dev->of_yesde,
 						 "socionext,tmod-calibration",
 						 tmod_calib,
 						 ARRAY_SIZE(tmod_calib));
@@ -169,7 +169,7 @@ static void uniphier_tm_enable_sensor(struct uniphier_tm_dev *tdev)
 	regmap_write_bits(map, tdev->data->block_base + PVTCTLEN,
 			  PVTCTLEN_EN, PVTCTLEN_EN);
 
-	usleep_range(700, 1500);	/* The spec note says at least 700us */
+	usleep_range(700, 1500);	/* The spec yeste says at least 700us */
 }
 
 static void uniphier_tm_disable_sensor(struct uniphier_tm_dev *tdev)
@@ -184,7 +184,7 @@ static void uniphier_tm_disable_sensor(struct uniphier_tm_dev *tdev)
 	regmap_write_bits(map, tdev->data->block_base + PVTCTLEN,
 			  PVTCTLEN_EN, 0);
 
-	usleep_range(1000, 2000);	/* The spec note says at least 1ms */
+	usleep_range(1000, 2000);	/* The spec yeste says at least 1ms */
 }
 
 static int uniphier_tm_get_temp(void *data, int *out_temp)
@@ -227,7 +227,7 @@ static irqreturn_t uniphier_tm_alarm_irq(int irq, void *_tdev)
 {
 	struct uniphier_tm_dev *tdev = _tdev;
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	uniphier_tm_irq_clear(tdev);
 
 	return IRQ_WAKE_THREAD;
@@ -246,7 +246,7 @@ static int uniphier_tm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct regmap *regmap;
-	struct device_node *parent;
+	struct device_yesde *parent;
 	struct uniphier_tm_dev *tdev;
 	const struct thermal_trip *trips;
 	int i, ret, irq, ntrips, crit_temp = INT_MAX;
@@ -264,10 +264,10 @@ static int uniphier_tm_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	/* get regmap from syscon node */
-	parent = of_get_parent(dev->of_node); /* parent should be syscon node */
-	regmap = syscon_node_to_regmap(parent);
-	of_node_put(parent);
+	/* get regmap from syscon yesde */
+	parent = of_get_parent(dev->of_yesde); /* parent should be syscon yesde */
+	regmap = syscon_yesde_to_regmap(parent);
+	of_yesde_put(parent);
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "failed to get regmap (error %ld)\n",
 			PTR_ERR(regmap));
@@ -313,7 +313,7 @@ static int uniphier_tm_probe(struct platform_device *pdev)
 		tdev->alert_en[i] = true;
 	}
 	if (crit_temp > CRITICAL_TEMP_LIMIT) {
-		dev_err(dev, "critical trip is over limit(>%d), or not set\n",
+		dev_err(dev, "critical trip is over limit(>%d), or yest set\n",
 			CRITICAL_TEMP_LIMIT);
 		return -EINVAL;
 	}

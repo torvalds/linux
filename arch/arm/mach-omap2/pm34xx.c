@@ -58,7 +58,7 @@ struct power_state {
 #ifdef CONFIG_SUSPEND
 	u32 saved_state;
 #endif
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static LIST_HEAD(pwrst_list);
@@ -102,7 +102,7 @@ static void omap3_core_restore_context(void)
 /*
  * FIXME: This function should be called before entering off-mode after
  * OMAP3 secure services have been accessed. Currently it is only called
- * once during boot sequence, but this works as we are not using secure
+ * once during boot sequence, but this works as we are yest using secure
  * services.
  */
 static void omap3_save_secure_ram_context(void)
@@ -120,7 +120,7 @@ static void omap3_save_secure_ram_context(void)
 		ret = omap3_save_secure_ram(omap3_secure_ram_storage,
 					    OMAP3_SAVE_SECURE_RAM_SZ);
 		pwrdm_set_next_pwrst(mpu_pwrdm, mpu_next_state);
-		/* Following is for error tracking, it should not happen */
+		/* Following is for error tracking, it should yest happen */
 		if (ret) {
 			pr_err("save_secure_sram() returns %08x\n", ret);
 			while (1)
@@ -262,7 +262,7 @@ void omap_sram_idle(void)
 	else
 		omap34xx_do_sram_idle(save_state);
 
-	/* Restore normal SDRC POWER settings */
+	/* Restore yesrmal SDRC POWER settings */
 	if (cpu_is_omap3430() && omap_rev() >= OMAP3430_REV_ES3_0 &&
 	    (omap_type() == OMAP2_DEVICE_TYPE_EMU ||
 	     omap_type() == OMAP2_DEVICE_TYPE_SEC) &&
@@ -280,7 +280,7 @@ void omap_sram_idle(void)
 		/*
 		 * In off-mode resume path above, omap3_core_restore_context
 		 * also handles the INTC autoidle restore done here so limit
-		 * this to non-off mode resume paths so we don't do it twice.
+		 * this to yesn-off mode resume paths so we don't do it twice.
 		 */
 		omap3_intc_resume_idle();
 	}
@@ -311,10 +311,10 @@ static int omap3_pm_suspend(void)
 	int state, ret = 0;
 
 	/* Read current next_pwrsts */
-	list_for_each_entry(pwrst, &pwrst_list, node)
+	list_for_each_entry(pwrst, &pwrst_list, yesde)
 		pwrst->saved_state = pwrdm_read_next_pwrst(pwrst->pwrdm);
 	/* Set ones wanted by suspend */
-	list_for_each_entry(pwrst, &pwrst_list, node) {
+	list_for_each_entry(pwrst, &pwrst_list, yesde) {
 		if (omap_set_pwrdm_state(pwrst->pwrdm, pwrst->next_state))
 			goto restore;
 		if (pwrdm_clear_all_prev_pwrst(pwrst->pwrdm))
@@ -327,7 +327,7 @@ static int omap3_pm_suspend(void)
 
 restore:
 	/* Restore next_pwrsts */
-	list_for_each_entry(pwrst, &pwrst_list, node) {
+	list_for_each_entry(pwrst, &pwrst_list, yesde) {
 		state = pwrdm_read_prev_pwrst(pwrst->pwrdm);
 		if (state > pwrst->next_state) {
 			pr_info("Powerdomain (%s) didn't enter target state %d\n",
@@ -337,7 +337,7 @@ restore:
 		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
 	}
 	if (ret)
-		pr_err("Could not enter target state in pm_suspend\n");
+		pr_err("Could yest enter target state in pm_suspend\n");
 	else
 		pr_info("Successfully put all powerdomains to target state\n");
 
@@ -364,7 +364,7 @@ void omap3_pm_off_mode_enable(int enable)
 	else
 		state = PWRDM_POWER_RET;
 
-	list_for_each_entry(pwrst, &pwrst_list, node) {
+	list_for_each_entry(pwrst, &pwrst_list, yesde) {
 		if (IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583) &&
 				pwrst->pwrdm == core_pwrdm &&
 				state == PWRDM_POWER_OFF) {
@@ -382,7 +382,7 @@ int omap3_pm_get_suspend_state(struct powerdomain *pwrdm)
 {
 	struct power_state *pwrst;
 
-	list_for_each_entry(pwrst, &pwrst_list, node) {
+	list_for_each_entry(pwrst, &pwrst_list, yesde) {
 		if (pwrst->pwrdm == pwrdm)
 			return pwrst->next_state;
 	}
@@ -393,7 +393,7 @@ int omap3_pm_set_suspend_state(struct powerdomain *pwrdm, int state)
 {
 	struct power_state *pwrst;
 
-	list_for_each_entry(pwrst, &pwrst_list, node) {
+	list_for_each_entry(pwrst, &pwrst_list, yesde) {
 		if (pwrst->pwrdm == pwrdm) {
 			pwrst->next_state = state;
 			return 0;
@@ -414,7 +414,7 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 		return -ENOMEM;
 	pwrst->pwrdm = pwrdm;
 	pwrst->next_state = PWRDM_POWER_RET;
-	list_add(&pwrst->node, &pwrst_list);
+	list_add(&pwrst->yesde, &pwrst_list);
 
 	if (pwrdm_has_hdwr_sar(pwrdm))
 		pwrdm_enable_hdwr_sar(pwrdm);
@@ -454,7 +454,7 @@ int __init omap3_pm_init(void)
 	int ret;
 
 	if (!omap3_has_io_chain_ctrl())
-		pr_warn("PM: no software I/O chain control; some wakeups may be lost\n");
+		pr_warn("PM: yes software I/O chain control; some wakeups may be lost\n");
 
 	pm_errata_configure();
 
@@ -519,13 +519,13 @@ int __init omap3_pm_init(void)
 
 	/*
 	 * The UART3/4 FIFO and the sidetone memory in McBSP2/3 are
-	 * not correctly reset when the PER powerdomain comes back
+	 * yest correctly reset when the PER powerdomain comes back
 	 * from OFF or OSWR when the CORE powerdomain is kept active.
 	 * See OMAP36xx Erratum i582 "PER Domain reset issue after
-	 * Domain-OFF/OSWR Wakeup".  This wakeup dependency is not a
+	 * Domain-OFF/OSWR Wakeup".  This wakeup dependency is yest a
 	 * complete workaround.  The kernel must also prevent the PER
 	 * powerdomain from going to OSWR/OFF while the CORE
-	 * powerdomain is not going to OSWR/OFF.  And if PER last
+	 * powerdomain is yest going to OSWR/OFF.  And if PER last
 	 * power state was off while CORE last power state was ON, the
 	 * UART3/4 and McBSP2/3 SIDETONE devices need to run a
 	 * self-test using their loopback tests; if that fails, those
@@ -558,8 +558,8 @@ int __init omap3_pm_init(void)
 	return ret;
 
 err3:
-	list_for_each_entry_safe(pwrst, tmp, &pwrst_list, node) {
-		list_del(&pwrst->node);
+	list_for_each_entry_safe(pwrst, tmp, &pwrst_list, yesde) {
+		list_del(&pwrst->yesde);
 		kfree(pwrst);
 	}
 	free_irq(omap_prcm_event_to_irq("io"), omap3_pm_init);

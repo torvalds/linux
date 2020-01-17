@@ -3,7 +3,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "parse-events.h"
-#include <errno.h>
+#include <erryes.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <api/fs/fs.h>
@@ -35,7 +35,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 	while (1) {
 		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, -1, flags);
 		if (fd < 0) {
-			if (pid == -1 && errno == EACCES) {
+			if (pid == -1 && erryes == EACCES) {
 				pid = 0;
 				continue;
 			}
@@ -49,7 +49,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 
 	fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, -1, flags);
 	if (fd < 0) {
-		if (errno == EINVAL)
+		if (erryes == EINVAL)
 			err = -EINVAL;
 		goto out_delete;
 	}
@@ -137,7 +137,7 @@ bool perf_can_record_cpu_wide(void)
 }
 
 /*
- * Architectures are expected to know if AUX area sampling is supported by the
+ * Architectures are expected to kyesw if AUX area sampling is supported by the
  * hardware. Here we check for kernel support.
  */
 bool perf_can_aux_sample(void)
@@ -155,11 +155,11 @@ bool perf_can_aux_sample(void)
 
 	fd = sys_perf_event_open(&attr, -1, 0, -1, 0);
 	/*
-	 * If the kernel attribute is big enough to contain aux_sample_size
+	 * If the kernel attribute is big eyesugh to contain aux_sample_size
 	 * then we assume that it is supported. We are relying on the kernel to
 	 * validate the attribute size before anything else that could be wrong.
 	 */
-	if (fd < 0 && errno == E2BIG)
+	if (fd < 0 && erryes == E2BIG)
 		return false;
 	if (fd >= 0)
 		close(fd);
@@ -183,7 +183,7 @@ void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 		perf_evlist__set_leader(evlist);
 
 	if (evlist->core.cpus->map[0] < 0)
-		opts->no_inherit = true;
+		opts->yes_inherit = true;
 
 	use_comm_exec = perf_can_comm_exec();
 
@@ -322,7 +322,7 @@ bool perf_evlist__can_select_event(struct evlist *evlist, const char *str)
 		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, -1,
 					 perf_event_open_cloexec_flag());
 		if (fd < 0) {
-			if (pid == -1 && errno == EACCES) {
+			if (pid == -1 && erryes == EACCES) {
 				pid = 0;
 				continue;
 			}

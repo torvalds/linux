@@ -67,11 +67,11 @@ static inline void i8042_write_command(int val)
 
 #include <linux/dmi.h>
 
-static const struct dmi_system_id __initconst i8042_dmi_noloop_table[] = {
+static const struct dmi_system_id __initconst i8042_dmi_yesloop_table[] = {
 	{
 		/*
 		 * Arima-Rioworks HDAMB -
-		 * AUX LOOP command does not raise AUX IRQ
+		 * AUX LOOP command does yest raise AUX IRQ
 		 */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "RIOWORKS"),
@@ -88,7 +88,7 @@ static const struct dmi_system_id __initconst i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
-		/* ASUS P65UP5 - AUX LOOP command does not raise AUX IRQ */
+		/* ASUS P65UP5 - AUX LOOP command does yest raise AUX IRQ */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
 			DMI_MATCH(DMI_BOARD_NAME, "P/I-P65UP5"),
@@ -131,7 +131,7 @@ static const struct dmi_system_id __initconst i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
-		/* ULI EV4873 - AUX LOOP does not work properly */
+		/* ULI EV4873 - AUX LOOP does yest work properly */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ULI"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "EV4873"),
@@ -181,7 +181,7 @@ static const struct dmi_system_id __initconst i8042_dmi_noloop_table[] = {
 	{
 		/* Gigabyte M1022M netbook */
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Technology Co.,Ltd."),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Techyeslogy Co.,Ltd."),
 			DMI_MATCH(DMI_BOARD_NAME, "M1022E"),
 			DMI_MATCH(DMI_BOARD_VERSION, "1.02"),
 		},
@@ -224,13 +224,13 @@ static const struct dmi_system_id __initconst i8042_dmi_noloop_table[] = {
 };
 
 /*
- * Some Fujitsu notebooks are having trouble with touchpads if
+ * Some Fujitsu yestebooks are having trouble with touchpads if
  * active multiplexing mode is activated. Luckily they don't have
  * external PS/2 ports so we can safely disable it.
  * ... apparently some Toshibas don't like MUX mode either and
  * die horrible death on reboot.
  */
-static const struct dmi_system_id __initconst i8042_dmi_nomux_table[] = {
+static const struct dmi_system_id __initconst i8042_dmi_yesmux_table[] = {
 	{
 		/* Fujitsu Lifebook P7010/P7010D */
 		.matches = {
@@ -333,7 +333,7 @@ static const struct dmi_system_id __initconst i8042_dmi_nomux_table[] = {
 	{
 		/*
 		 * HP Pavilion ZT1000 -
-		 * like DV4017EA does not raise AUXERR for errors on MUX ports.
+		 * like DV4017EA does yest raise AUXERR for errors on MUX ports.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -344,7 +344,7 @@ static const struct dmi_system_id __initconst i8042_dmi_nomux_table[] = {
 	{
 		/*
 		 * HP Pavilion DV4270ca -
-		 * like DV4017EA does not raise AUXERR for errors on MUX ports.
+		 * like DV4017EA does yest raise AUXERR for errors on MUX ports.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -402,7 +402,7 @@ static const struct dmi_system_id __initconst i8042_dmi_nomux_table[] = {
 	},
 	{
 		/*
-		 * Most (all?) VAIOs do not have external PS/2 ports nor
+		 * Most (all?) VAIOs do yest have external PS/2 ports yesr
 		 * they implement active multiplexing properly, and
 		 * MUX discovery usually messes up keyboard/touchpad.
 		 */
@@ -419,7 +419,7 @@ static const struct dmi_system_id __initconst i8042_dmi_nomux_table[] = {
 		},
 	},
 	{
-		/* Lenovo 3000 n100 */
+		/* Leyesvo 3000 n100 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "076804U"),
@@ -524,10 +524,10 @@ static const struct dmi_system_id __initconst i8042_dmi_nomux_table[] = {
 		},
 	},
 	{
-		/* Lenovo LaVie Z */
+		/* Leyesvo LaVie Z */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo LaVie Z"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Leyesvo LaVie Z"),
 		},
 	},
 	{ }
@@ -550,7 +550,7 @@ static const struct dmi_system_id i8042_dmi_forcemux_table[] __initconst = {
 /*
  * On some Asus laptops, just running self tests cause problems.
  */
-static const struct dmi_system_id i8042_dmi_noselftest_table[] = {
+static const struct dmi_system_id i8042_dmi_yesselftest_table[] = {
 	{
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
@@ -631,14 +631,14 @@ static const struct dmi_system_id __initconst i8042_dmi_reset_table[] = {
 		},
 	},
 	{
-		/* Lenovo Ideapad U455 */
+		/* Leyesvo Ideapad U455 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "20046"),
 		},
 	},
 	{
-		/* Lenovo ThinkPad L460 */
+		/* Leyesvo ThinkPad L460 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad L460"),
@@ -655,7 +655,7 @@ static const struct dmi_system_id __initconst i8042_dmi_reset_table[] = {
 };
 
 #ifdef CONFIG_PNP
-static const struct dmi_system_id __initconst i8042_dmi_nopnp_table[] = {
+static const struct dmi_system_id __initconst i8042_dmi_yespnp_table[] = {
 	{
 		/* Intel MBO Desktop D845PESV */
 		.matches = {
@@ -665,7 +665,7 @@ static const struct dmi_system_id __initconst i8042_dmi_nopnp_table[] = {
 	},
 	{
 		/*
-		 * Intel NUC D54250WYK - does not have i8042 controller but
+		 * Intel NUC D54250WYK - does yest have i8042 controller but
 		 * declares PS/2 devices in DSDT.
 		 */
 		.matches = {
@@ -708,7 +708,7 @@ static const struct dmi_system_id __initconst i8042_dmi_laptop_table[] = {
 };
 #endif
 
-static const struct dmi_system_id __initconst i8042_dmi_notimeout_table[] = {
+static const struct dmi_system_id __initconst i8042_dmi_yestimeout_table[] = {
 	{
 		/* Dell Vostro V13 */
 		.matches = {
@@ -1034,11 +1034,11 @@ static int __init i8042_pnp_init(void)
 	int err;
 
 #ifdef CONFIG_X86
-	if (dmi_check_system(i8042_dmi_nopnp_table))
-		i8042_nopnp = true;
+	if (dmi_check_system(i8042_dmi_yespnp_table))
+		i8042_yespnp = true;
 #endif
 
-	if (i8042_nopnp) {
+	if (i8042_yespnp) {
 		pr_info("PNP detection disabled\n");
 		return 0;
 	}
@@ -1081,9 +1081,9 @@ static int __init i8042_pnp_init(void)
 
 #if defined(__ia64__)
 	if (!i8042_pnp_kbd_devices)
-		i8042_nokbd = true;
+		i8042_yeskbd = true;
 	if (!i8042_pnp_aux_devices)
-		i8042_noaux = true;
+		i8042_yesaux = true;
 #endif
 
 	if (((i8042_pnp_data_reg & ~0xf) == (i8042_data_reg & ~0xf) &&
@@ -1104,18 +1104,18 @@ static int __init i8042_pnp_init(void)
 		pnp_data_busted = true;
 	}
 
-	if (!i8042_nokbd && !i8042_pnp_kbd_irq) {
+	if (!i8042_yeskbd && !i8042_pnp_kbd_irq) {
 		pr_warn("PNP: PS/2 controller doesn't have KBD irq; using default %d\n",
 			i8042_kbd_irq);
 		i8042_pnp_kbd_irq = i8042_kbd_irq;
 		pnp_data_busted = true;
 	}
 
-	if (!i8042_noaux && !i8042_pnp_aux_irq) {
+	if (!i8042_yesaux && !i8042_pnp_aux_irq) {
 		if (!pnp_data_busted && i8042_pnp_kbd_irq) {
 			pr_warn("PNP: PS/2 appears to have AUX port disabled, "
-				"if this is incorrect please boot with i8042.nopnp\n");
-			i8042_noaux = true;
+				"if this is incorrect please boot with i8042.yespnp\n");
+			i8042_yesaux = true;
 		} else {
 			pr_warn("PNP: PS/2 controller doesn't have AUX irq; using default %d\n",
 				i8042_aux_irq);
@@ -1147,7 +1147,7 @@ static int __init i8042_platform_init(void)
 
 #ifdef CONFIG_X86
 	u8 a20_on = 0xdf;
-	/* Just return if platform does not have i8042 controller */
+	/* Just return if platform does yest have i8042 controller */
 	if (x86_platform.legacy.i8042 == X86_LEGACY_I8042_PLATFORM_ABSENT)
 		return -ENODEV;
 #endif
@@ -1172,26 +1172,26 @@ static int __init i8042_platform_init(void)
 #endif
 
 #ifdef CONFIG_X86
-	/* Honor module parameter when value is not default */
+	/* Hoyesr module parameter when value is yest default */
 	if (i8042_reset == I8042_RESET_DEFAULT) {
 		if (dmi_check_system(i8042_dmi_reset_table))
 			i8042_reset = I8042_RESET_ALWAYS;
 
-		if (dmi_check_system(i8042_dmi_noselftest_table))
+		if (dmi_check_system(i8042_dmi_yesselftest_table))
 			i8042_reset = I8042_RESET_NEVER;
 	}
 
-	if (dmi_check_system(i8042_dmi_noloop_table))
-		i8042_noloop = true;
+	if (dmi_check_system(i8042_dmi_yesloop_table))
+		i8042_yesloop = true;
 
-	if (dmi_check_system(i8042_dmi_nomux_table))
-		i8042_nomux = true;
+	if (dmi_check_system(i8042_dmi_yesmux_table))
+		i8042_yesmux = true;
 
 	if (dmi_check_system(i8042_dmi_forcemux_table))
-		i8042_nomux = false;
+		i8042_yesmux = false;
 
-	if (dmi_check_system(i8042_dmi_notimeout_table))
-		i8042_notimeout = true;
+	if (dmi_check_system(i8042_dmi_yestimeout_table))
+		i8042_yestimeout = true;
 
 	if (dmi_check_system(i8042_dmi_dritek_table))
 		i8042_dritek = true;
@@ -1202,7 +1202,7 @@ static int __init i8042_platform_init(void)
 	/*
 	 * A20 was already enabled during early kernel init. But some buggy
 	 * BIOSes (in MSI Laptops) require A20 to be enabled using 8042 to
-	 * resume from S3. So we do it here and hope that nothing breaks.
+	 * resume from S3. So we do it here and hope that yesthing breaks.
 	 */
 	i8042_command(&a20_on, 0x10d1);
 	i8042_command(NULL, 0x00ff);	/* Null command for SMM firmware */

@@ -4,7 +4,7 @@
  *
  * Test page read and write on MTD device.
  *
- * Author: Adrian Hunter <ext-adrian.hunter@nokia.com>
+ * Author: Adrian Hunter <ext-adrian.hunter@yeskia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -211,7 +211,7 @@ static int erasecrosstest(void)
 
 	pr_info("writing 1st page of block %d\n", ebnum);
 	prandom_bytes_state(&rnd_state, writebuf, pgsize);
-	strcpy(writebuf, "There is no data like this!");
+	strcpy(writebuf, "There is yes data like this!");
 	err = mtdtest_write(mtd, addr0, pgsize, writebuf);
 	if (err)
 		return err;
@@ -236,7 +236,7 @@ static int erasecrosstest(void)
 
 	pr_info("writing 1st page of block %d\n", ebnum);
 	prandom_bytes_state(&rnd_state, writebuf, pgsize);
-	strcpy(writebuf, "There is no data like this!");
+	strcpy(writebuf, "There is yes data like this!");
 	err = mtdtest_write(mtd, addr0, pgsize, writebuf);
 	if (err)
 		return err;
@@ -336,7 +336,7 @@ static int __init mtd_pagetest_init(void)
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
 		err = PTR_ERR(mtd);
-		pr_err("error: cannot get MTD device\n");
+		pr_err("error: canyest get MTD device\n");
 		return err;
 	}
 

@@ -11,7 +11,7 @@
 
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 #include <asm/cache.h>
 #include <asm/apic.h>
 #include <asm/uv/uv.h>
@@ -23,7 +23,7 @@
  *		c/o Linus Torvalds.
  *
  *	These mean you can really definitely utterly forget about
- *	writing to user space from interrupts. (Its not allowed anyway).
+ *	writing to user space from interrupts. (Its yest allowed anyway).
  *
  *	Optimizations Manfred Spraul <manfred@colorfullife.com>
  *
@@ -40,7 +40,7 @@
 
 /*
  * We get here when we do something requiring a TLB invalidation
- * but could not go invalidate all of the contexts.  We do the
+ * but could yest go invalidate all of the contexts.  We do the
  * necessary invalidation by clearing out the 'ctx_id' which
  * forces a TLB flush when the context is loaded.
  */
@@ -58,7 +58,7 @@ static void clear_asid_other(void)
 	}
 
 	for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
-		/* Do not need to flush the current asid */
+		/* Do yest need to flush the current asid */
 		if (asid == this_cpu_read(cpu_tlbstate.loaded_mm_asid))
 			continue;
 		/*
@@ -118,7 +118,7 @@ static void load_new_mm_cr3(pgd_t *pgdir, u16 new_asid, bool need_flush)
 		invalidate_user_asid(new_asid);
 		new_mm_cr3 = build_cr3(pgdir, new_asid);
 	} else {
-		new_mm_cr3 = build_cr3_noflush(pgdir, new_asid);
+		new_mm_cr3 = build_cr3_yesflush(pgdir, new_asid);
 	}
 
 	/*
@@ -144,7 +144,7 @@ void leave_mm(int cpu)
 	if (loaded_mm == &init_mm)
 		return;
 
-	/* Warn if we're not lazy. */
+	/* Warn if we're yest lazy. */
 	WARN_ON(!this_cpu_read(cpu_tlbstate.is_lazy));
 
 	switch_mm(NULL, &init_mm, NULL);
@@ -167,7 +167,7 @@ static void sync_current_stack_to_mm(struct mm_struct *mm)
 	pgd_t *pgd = pgd_offset(mm, sp);
 
 	if (pgtable_l5_enabled()) {
-		if (unlikely(pgd_none(*pgd))) {
+		if (unlikely(pgd_yesne(*pgd))) {
 			pgd_t *pgd_ref = pgd_offset_k(sp);
 
 			set_pgd(pgd, *pgd_ref);
@@ -180,7 +180,7 @@ static void sync_current_stack_to_mm(struct mm_struct *mm)
 		 */
 		p4d_t *p4d = p4d_offset(pgd, sp);
 
-		if (unlikely(p4d_none(*p4d))) {
+		if (unlikely(p4d_yesne(*p4d))) {
 			pgd_t *pgd_ref = pgd_offset_k(sp);
 			p4d_t *p4d_ref = p4d_offset(pgd_ref, sp);
 
@@ -209,7 +209,7 @@ static void cond_ibpb(struct task_struct *next)
 	 * opens a hypothetical hole vs. mm_struct reuse, which is more or
 	 * less impossible to control by an attacker. Aside of that it
 	 * would only affect the first schedule so the theoretically
-	 * exposed data is not really interesting.
+	 * exposed data is yest really interesting.
 	 */
 	if (static_branch_likely(&switch_mm_cond_ibpb)) {
 		unsigned long prev_mm, next_mm;
@@ -220,10 +220,10 @@ static void cond_ibpb(struct task_struct *next)
 		 *
 		 * 1) Switch from a user space task (potential attacker)
 		 *    which has TIF_SPEC_IB set to a user space task
-		 *    (potential victim) which has TIF_SPEC_IB not set.
+		 *    (potential victim) which has TIF_SPEC_IB yest set.
 		 *
 		 * 2) Switch from a user space task (potential attacker)
-		 *    which has TIF_SPEC_IB not set to a user space task
+		 *    which has TIF_SPEC_IB yest set to a user space task
 		 *    (potential victim) which has TIF_SPEC_IB set.
 		 *
 		 * This could be done by unconditionally issuing IBPB when
@@ -285,7 +285,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 
 	/*
 	 * NB: The scheduler will call us with prev == next when switching
-	 * from lazy TLB mode to normal mode if active_mm isn't changing.
+	 * from lazy TLB mode to yesrmal mode if active_mm isn't changing.
 	 * When this happens, we don't assume that CR3 (and hence
 	 * cpu_tlbstate.loaded_mm) matches next.
 	 *
@@ -310,14 +310,14 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		/*
 		 * If we were to BUG here, we'd be very likely to kill
 		 * the system so hard that we don't see the call trace.
-		 * Try to recover instead by ignoring the error and doing
+		 * Try to recover instead by igyesring the error and doing
 		 * a global flush to minimize the chance of corruption.
 		 *
 		 * (This is far from being a fully correct recovery.
 		 *  Architecturally, the CPU could prefetch something
 		 *  back into an incorrect ASID slot and leave it there
 		 *  to cause trouble down the road.  It's better than
-		 *  nothing, though.)
+		 *  yesthing, though.)
 		 */
 		__flush_tlb_all();
 	}
@@ -337,15 +337,15 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		/*
 		 * Even in lazy TLB mode, the CPU should stay set in the
 		 * mm_cpumask. The TLB shootdown code can figure out from
-		 * from cpu_tlbstate.is_lazy whether or not to send an IPI.
+		 * from cpu_tlbstate.is_lazy whether or yest to send an IPI.
 		 */
 		if (WARN_ON_ONCE(real_prev != &init_mm &&
 				 !cpumask_test_cpu(cpu, mm_cpumask(next))))
 			cpumask_set_cpu(cpu, mm_cpumask(next));
 
 		/*
-		 * If the CPU is not in lazy TLB mode, we are just switching
-		 * from one thread in a process to another thread in the same
+		 * If the CPU is yest in lazy TLB mode, we are just switching
+		 * from one thread in a process to ayesther thread in the same
 		 * process. No TLB flush required.
 		 */
 		if (!was_lazy)
@@ -373,7 +373,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		/*
 		 * Avoid user/user BTB poisoning by flushing the branch
 		 * predictor when switching between processes. This stops
-		 * one process from doing Spectre-v2 attacks on another.
+		 * one process from doing Spectre-v2 attacks on ayesther.
 		 */
 		cond_ibpb(tsk);
 
@@ -406,7 +406,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 
 		choose_new_asid(next, next_tlb_gen, &new_asid, &need_flush);
 
-		/* Let nmi_uaccess_okay() know that we're changing CR3. */
+		/* Let nmi_uaccess_okay() kyesw that we're changing CR3. */
 		this_cpu_write(cpu_tlbstate.loaded_mm, LOADED_MM_SWITCHING);
 		barrier();
 	}
@@ -418,10 +418,10 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 
 		/*
 		 * NB: This gets called via leave_mm() in the idle path
-		 * where RCU functions differently.  Tracing normally
+		 * where RCU functions differently.  Tracing yesrmally
 		 * uses RCU, so we need to use the _rcuidle variant.
 		 *
-		 * (There is no good reason for this.  The idle code should
+		 * (There is yes good reason for this.  The idle code should
 		 *  be rearranged to call this before rcu_idle_enter().)
 		 */
 		trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
@@ -446,16 +446,16 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 }
 
 /*
- * Please ignore the name of this function.  It should be called
+ * Please igyesre the name of this function.  It should be called
  * switch_to_kernel_thread().
  *
  * enter_lazy_tlb() is a hint from the scheduler that we are entering a
  * kernel thread or other context without an mm.  Acceptable implementations
- * include doing nothing whatsoever, switching to init_mm, or various clever
+ * include doing yesthing whatsoever, switching to init_mm, or various clever
  * lazy tricks to try to minimize TLB flushes.
  *
  * The scheduler reserves the right to call enter_lazy_tlb() several times
- * in a row.  It will notify us that we're going back to a real mm by
+ * in a row.  It will yestify us that we're going back to a real mm by
  * calling switch_mm_irqs_off().
  */
 void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
@@ -535,7 +535,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 	u64 mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
 	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen);
 
-	/* This code cannot presently handle being reentered. */
+	/* This code canyest presently handle being reentered. */
 	VM_WARN_ON(!irqs_disabled());
 
 	if (unlikely(loaded_mm == &init_mm))
@@ -560,9 +560,9 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 
 	if (unlikely(local_tlb_gen == mm_tlb_gen)) {
 		/*
-		 * There's nothing to do: we're already up to date.  This can
+		 * There's yesthing to do: we're already up to date.  This can
 		 * happen if two concurrent flushes happen -- the first flush to
-		 * be handled can catch us all the way up, leaving no work for
+		 * be handled can catch us all the way up, leaving yes work for
 		 * the second flush.
 		 */
 		trace_tlb_flush(reason, 0);
@@ -573,8 +573,8 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 	WARN_ON_ONCE(f->new_tlb_gen > mm_tlb_gen);
 
 	/*
-	 * If we get to this point, we know that our TLB is out of date.
-	 * This does not strictly imply that we need to flush (it's
+	 * If we get to this point, we kyesw that our TLB is out of date.
+	 * This does yest strictly imply that we need to flush (it's
 	 * possible that f->new_tlb_gen <= local_tlb_gen), but we're
 	 * going to need to flush in the very near future, so we might
 	 * as well get it over with.
@@ -587,7 +587,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 	 * 1. f->new_tlb_gen == local_tlb_gen + 1.  We have an invariant that
 	 *    we've always done all needed flushes to catch up to
 	 *    local_tlb_gen.  If, for example, local_tlb_gen == 2 and
-	 *    f->new_tlb_gen == 3, then we know that the flush needed to bring
+	 *    f->new_tlb_gen == 3, then we kyesw that the flush needed to bring
 	 *    us up to date for tlb_gen 3 is the partial flush we're
 	 *    processing.
 	 *
@@ -602,12 +602,12 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 	 *    1 without the full flush that's needed for tlb_gen 2.
 	 *
 	 * 2. f->new_tlb_gen == mm_tlb_gen.  This is purely an optimiation.
-	 *    Partial TLB flushes are not all that much cheaper than full TLB
+	 *    Partial TLB flushes are yest all that much cheaper than full TLB
 	 *    flushes, so it seems unlikely that it would be a performance win
 	 *    to do a partial flush if that won't bring our TLB fully up to
 	 *    date.  By doing a full flush instead, we can increase
 	 *    local_tlb_gen all the way to mm_tlb_gen and we can probably
-	 *    avoid another flush in the very near future.
+	 *    avoid ayesther flush in the very near future.
 	 */
 	if (f->end != TLB_FLUSH_ALL &&
 	    f->new_tlb_gen == local_tlb_gen + 1 &&
@@ -655,7 +655,7 @@ static void flush_tlb_func_remote(void *info)
 	flush_tlb_func_common(f, false, TLB_REMOTE_SHOOTDOWN);
 }
 
-static bool tlb_is_not_lazy(int cpu, void *data)
+static bool tlb_is_yest_lazy(int cpu, void *data)
 {
 	return !per_cpu(cpu_tlbstate.is_lazy, cpu);
 }
@@ -694,7 +694,7 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 	}
 
 	/*
-	 * If no page tables were freed, we can skip sending IPIs to
+	 * If yes page tables were freed, we can skip sending IPIs to
 	 * CPUs in lazy TLB mode. They will flush the CPU themselves
 	 * at the next context switch.
 	 *
@@ -707,15 +707,15 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 		smp_call_function_many(cpumask, flush_tlb_func_remote,
 			       (void *)info, 1);
 	else
-		on_each_cpu_cond_mask(tlb_is_not_lazy, flush_tlb_func_remote,
+		on_each_cpu_cond_mask(tlb_is_yest_lazy, flush_tlb_func_remote,
 				(void *)info, 1, GFP_ATOMIC, cpumask);
 }
 
 /*
  * See Documentation/x86/tlb.rst for details.  We choose 33
- * because it is large enough to cover the vast majority (at
- * least 95%) of allocations, and is small enough that we are
- * confident it will not cause too much overhead.  Each single
+ * because it is large eyesugh to cover the vast majority (at
+ * least 95%) of allocations, and is small eyesugh that we are
+ * confident it will yest cause too much overhead.  Each single
  * flush is about 100 ns, so this caps the maximum overhead at
  * _about_ 3,000 ns.
  *
@@ -738,8 +738,8 @@ static inline struct flush_tlb_info *get_flush_tlb_info(struct mm_struct *mm,
 
 #ifdef CONFIG_DEBUG_VM
 	/*
-	 * Ensure that the following code is non-reentrant and flush_tlb_info
-	 * is not overwritten. This means no TLB flushing is initiated by
+	 * Ensure that the following code is yesn-reentrant and flush_tlb_info
+	 * is yest overwritten. This means yes TLB flushing is initiated by
 	 * interrupt handlers and machine-check exception handlers.
 	 */
 	BUG_ON(this_cpu_inc_return(flush_tlb_info_idx) != 1);

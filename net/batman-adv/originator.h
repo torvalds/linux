@@ -17,31 +17,31 @@
 #include <linux/skbuff.h>
 #include <linux/types.h>
 
-bool batadv_compare_orig(const struct hlist_node *node, const void *data2);
+bool batadv_compare_orig(const struct hlist_yesde *yesde, const void *data2);
 int batadv_originator_init(struct batadv_priv *bat_priv);
 void batadv_originator_free(struct batadv_priv *bat_priv);
 void batadv_purge_orig_ref(struct batadv_priv *bat_priv);
-void batadv_orig_node_put(struct batadv_orig_node *orig_node);
-struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
+void batadv_orig_yesde_put(struct batadv_orig_yesde *orig_yesde);
+struct batadv_orig_yesde *batadv_orig_yesde_new(struct batadv_priv *bat_priv,
 					      const u8 *addr);
-struct batadv_hardif_neigh_node *
+struct batadv_hardif_neigh_yesde *
 batadv_hardif_neigh_get(const struct batadv_hard_iface *hard_iface,
 			const u8 *neigh_addr);
 void
-batadv_hardif_neigh_put(struct batadv_hardif_neigh_node *hardif_neigh);
-struct batadv_neigh_node *
-batadv_neigh_node_get_or_create(struct batadv_orig_node *orig_node,
+batadv_hardif_neigh_put(struct batadv_hardif_neigh_yesde *hardif_neigh);
+struct batadv_neigh_yesde *
+batadv_neigh_yesde_get_or_create(struct batadv_orig_yesde *orig_yesde,
 				struct batadv_hard_iface *hard_iface,
 				const u8 *neigh_addr);
-void batadv_neigh_node_put(struct batadv_neigh_node *neigh_node);
-struct batadv_neigh_node *
-batadv_orig_router_get(struct batadv_orig_node *orig_node,
+void batadv_neigh_yesde_put(struct batadv_neigh_yesde *neigh_yesde);
+struct batadv_neigh_yesde *
+batadv_orig_router_get(struct batadv_orig_yesde *orig_yesde,
 		       const struct batadv_hard_iface *if_outgoing);
 struct batadv_neigh_ifinfo *
-batadv_neigh_ifinfo_new(struct batadv_neigh_node *neigh,
+batadv_neigh_ifinfo_new(struct batadv_neigh_yesde *neigh,
 			struct batadv_hard_iface *if_outgoing);
 struct batadv_neigh_ifinfo *
-batadv_neigh_ifinfo_get(struct batadv_neigh_node *neigh,
+batadv_neigh_ifinfo_get(struct batadv_neigh_yesde *neigh,
 			struct batadv_hard_iface *if_outgoing);
 void batadv_neigh_ifinfo_put(struct batadv_neigh_ifinfo *neigh_ifinfo);
 
@@ -49,27 +49,27 @@ int batadv_hardif_neigh_dump(struct sk_buff *msg, struct netlink_callback *cb);
 int batadv_hardif_neigh_seq_print_text(struct seq_file *seq, void *offset);
 
 struct batadv_orig_ifinfo *
-batadv_orig_ifinfo_get(struct batadv_orig_node *orig_node,
+batadv_orig_ifinfo_get(struct batadv_orig_yesde *orig_yesde,
 		       struct batadv_hard_iface *if_outgoing);
 struct batadv_orig_ifinfo *
-batadv_orig_ifinfo_new(struct batadv_orig_node *orig_node,
+batadv_orig_ifinfo_new(struct batadv_orig_yesde *orig_yesde,
 		       struct batadv_hard_iface *if_outgoing);
 void batadv_orig_ifinfo_put(struct batadv_orig_ifinfo *orig_ifinfo);
 
 int batadv_orig_seq_print_text(struct seq_file *seq, void *offset);
 int batadv_orig_dump(struct sk_buff *msg, struct netlink_callback *cb);
 int batadv_orig_hardif_seq_print_text(struct seq_file *seq, void *offset);
-struct batadv_orig_node_vlan *
-batadv_orig_node_vlan_new(struct batadv_orig_node *orig_node,
+struct batadv_orig_yesde_vlan *
+batadv_orig_yesde_vlan_new(struct batadv_orig_yesde *orig_yesde,
 			  unsigned short vid);
-struct batadv_orig_node_vlan *
-batadv_orig_node_vlan_get(struct batadv_orig_node *orig_node,
+struct batadv_orig_yesde_vlan *
+batadv_orig_yesde_vlan_get(struct batadv_orig_yesde *orig_yesde,
 			  unsigned short vid);
-void batadv_orig_node_vlan_put(struct batadv_orig_node_vlan *orig_vlan);
+void batadv_orig_yesde_vlan_put(struct batadv_orig_yesde_vlan *orig_vlan);
 
 /**
  * batadv_choose_orig() - Return the index of the orig entry in the hash table
- * @data: mac address of the originator node
+ * @data: mac address of the originator yesde
  * @size: the size of the hash table
  *
  * Return: the hash index where the object represented by @data should be
@@ -83,7 +83,7 @@ static inline u32 batadv_choose_orig(const void *data, u32 size)
 	return hash % size;
 }
 
-struct batadv_orig_node *
+struct batadv_orig_yesde *
 batadv_orig_hash_find(struct batadv_priv *bat_priv, const void *data);
 
 #endif /* _NET_BATMAN_ADV_ORIGINATOR_H_ */

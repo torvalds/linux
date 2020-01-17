@@ -51,13 +51,13 @@ struct apm_queue {
 /*
  * thread states (for threads using a writable /dev/apm_bios fd):
  *
- * SUSPEND_NONE:	nothing happening
+ * SUSPEND_NONE:	yesthing happening
  * SUSPEND_PENDING:	suspend event queued for thread and pending to be read
- * SUSPEND_READ:	suspend event read, pending acknowledgement
- * SUSPEND_ACKED:	acknowledgement received from thread (via ioctl),
+ * SUSPEND_READ:	suspend event read, pending ackyeswledgement
+ * SUSPEND_ACKED:	ackyeswledgement received from thread (via ioctl),
  *			waiting for resume
- * SUSPEND_ACKTO:	acknowledgement timeout
- * SUSPEND_DONE:	thread had acked suspend and is now notified of
+ * SUSPEND_ACKTO:	ackyeswledgement timeout
+ * SUSPEND_DONE:	thread had acked suspend and is yesw yestified of
  *			resume
  *
  * SUSPEND_WAIT:	this thread invoked suspend and is waiting for resume
@@ -77,7 +77,7 @@ struct apm_queue {
  *	4: core PM code signals that we have resumed
  *	5: APM_IOC_SUSPEND ioctl returns
  *
- *	6: the notifier invoked from the core PM code timed out waiting
+ *	6: the yestifier invoked from the core PM code timed out waiting
  *	   for all relevant threds to enter ACKED state and puts those
  *	   that haven't into ACKTO
  *	7: those threads issue APM_IOC_SUSPEND ioctl too late,
@@ -117,7 +117,7 @@ struct apm_user {
  * Local variables
  */
 static atomic_t suspend_acks_pending = ATOMIC_INIT(0);
-static atomic_t userspace_notification_inhibit = ATOMIC_INIT(0);
+static atomic_t userspace_yestification_inhibit = ATOMIC_INIT(0);
 static int apm_disabled;
 static struct task_struct *kapmd_tsk;
 
@@ -141,7 +141,7 @@ static struct apm_queue kapmd_queue;
 
 static DEFINE_MUTEX(state_lock);
 
-static const char driver_version[] = "1.13";	/* no spaces */
+static const char driver_version[] = "1.13";	/* yes spaces */
 
 
 
@@ -178,9 +178,9 @@ static void queue_add_event(struct apm_queue *q, apm_event_t event)
 {
 	q->event_head = (q->event_head + 1) % APM_MAX_EVENTS;
 	if (q->event_head == q->event_tail) {
-		static int notified;
+		static int yestified;
 
-		if (notified++ == 0)
+		if (yestified++ == 0)
 		    printk(KERN_ERR "apm: an event queue overflowed\n");
 		q->event_tail = (q->event_tail + 1) % APM_MAX_EVENTS;
 	}
@@ -251,9 +251,9 @@ static __poll_t apm_poll(struct file *fp, poll_table * wait)
  * APM_IOC_SUSPEND
  *   This IOCTL is overloaded, and performs two functions.  It is used to:
  *     - initiate a suspend
- *     - acknowledge a suspend read from /dev/apm_bios.
+ *     - ackyeswledge a suspend read from /dev/apm_bios.
  *   Only when everyone who has opened /dev/apm_bios with write permission
- *   has acknowledge does the actual suspend happen.
+ *   has ackyeswledge does the actual suspend happen.
  */
 static long
 apm_ioctl(struct file *filp, u_int cmd, u_long arg)
@@ -275,21 +275,21 @@ apm_ioctl(struct file *filp, u_int cmd, u_long arg)
 			/*
 			 * If we read a suspend command from /dev/apm_bios,
 			 * then the corresponding APM_IOC_SUSPEND ioctl is
-			 * interpreted as an acknowledge.
+			 * interpreted as an ackyeswledge.
 			 */
 			as->suspend_state = SUSPEND_ACKED;
 			atomic_dec(&suspend_acks_pending);
 			mutex_unlock(&state_lock);
 
 			/*
-			 * suspend_acks_pending changed, the notifier needs to
+			 * suspend_acks_pending changed, the yestifier needs to
 			 * be woken up for this
 			 */
 			wake_up(&apm_suspend_waitqueue);
 
 			/*
 			 * Wait for the suspend/resume to complete.  If there
-			 * are pending acknowledges, we wait here for them.
+			 * are pending ackyeswledges, we wait here for them.
 			 * wait_event_freezable() is interruptible and pending
 			 * signal can cause busy looping.  We aren't doing
 			 * anything critical, chill a bit on each iteration.
@@ -309,7 +309,7 @@ apm_ioctl(struct file *filp, u_int cmd, u_long arg)
 			/*
 			 * Otherwise it is a request to suspend the system.
 			 * Just invoke pm_suspend(), we'll handle it from
-			 * there via the notifier.
+			 * there via the yestifier.
 			 */
 			as->suspend_result = pm_suspend(PM_SUSPEND_MEM);
 		}
@@ -324,7 +324,7 @@ apm_ioctl(struct file *filp, u_int cmd, u_long arg)
 	return err;
 }
 
-static int apm_release(struct inode * inode, struct file * filp)
+static int apm_release(struct iyesde * iyesde, struct file * filp)
 {
 	struct apm_user *as = filp->private_data;
 
@@ -335,8 +335,8 @@ static int apm_release(struct inode * inode, struct file * filp)
 	up_write(&user_list_lock);
 
 	/*
-	 * We are now unhooked from the chain.  As far as new
-	 * events are concerned, we no longer exist.
+	 * We are yesw unhooked from the chain.  As far as new
+	 * events are concerned, we yes longer exist.
 	 */
 	mutex_lock(&state_lock);
 	if (as->suspend_state == SUSPEND_PENDING ||
@@ -350,7 +350,7 @@ static int apm_release(struct inode * inode, struct file * filp)
 	return 0;
 }
 
-static int apm_open(struct inode * inode, struct file * filp)
+static int apm_open(struct iyesde * iyesde, struct file * filp)
 {
 	struct apm_user *as;
 
@@ -359,7 +359,7 @@ static int apm_open(struct inode * inode, struct file * filp)
 		/*
 		 * XXX - this is a tiny bit broken, when we consider BSD
 		 * process accounting. If the device is opened by root, we
-		 * instantly flag that we used superuser privs. Who knows,
+		 * instantly flag that we used superuser privs. Who kyesws,
 		 * we might close the device immediately without doing a
 		 * privileged operation -- cevans
 		 */
@@ -384,11 +384,11 @@ static const struct file_operations apm_bios_fops = {
 	.unlocked_ioctl	= apm_ioctl,
 	.open		= apm_open,
 	.release	= apm_release,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static struct miscdevice apm_device = {
-	.minor		= APM_MINOR_DEV,
+	.miyesr		= APM_MINOR_DEV,
 	.name		= "apm_bios",
 	.fops		= &apm_bios_fops
 };
@@ -410,27 +410,27 @@ static struct miscdevice apm_device = {
  *	0x00: Off-line
  *	0x01: On-line
  *	0x02: On backup power (BIOS >= 1.1 only)
- *	0xff: Unknown
+ *	0xff: Unkyeswn
  *   4) Battery status
  *	0x00: High
  *	0x01: Low
  *	0x02: Critical
  *	0x03: Charging
- *	0x04: Selected battery not present (BIOS >= 1.2 only)
- *	0xff: Unknown
+ *	0x04: Selected battery yest present (BIOS >= 1.2 only)
+ *	0xff: Unkyeswn
  *   5) Battery flag
  *	bit 0: High
  *	bit 1: Low
  *	bit 2: Critical
  *	bit 3: Charging
  *	bit 7: No system battery
- *	0xff: Unknown
+ *	0xff: Unkyeswn
  *   6) Remaining battery life (percentage of charge):
  *	0-100: valid
- *	-1: Unknown
+ *	-1: Unkyeswn
  *   7) Remaining battery life (time units):
  *	Number of remaining minutes or seconds
- *	-1: Unknown
+ *	-1: Unkyeswn
  *   8) min = minutes; sec = seconds
  */
 static int proc_apm_show(struct seq_file *m, void *v)
@@ -496,9 +496,9 @@ static int kapmd(void *arg)
 			break;
 
 		case APM_CRITICAL_SUSPEND:
-			atomic_inc(&userspace_notification_inhibit);
+			atomic_inc(&userspace_yestification_inhibit);
 			pm_suspend(PM_SUSPEND_MEM);
-			atomic_dec(&userspace_notification_inhibit);
+			atomic_dec(&userspace_yestification_inhibit);
 			break;
 		}
 	} while (1);
@@ -506,7 +506,7 @@ static int kapmd(void *arg)
 	return 0;
 }
 
-static int apm_suspend_notifier(struct notifier_block *nb,
+static int apm_suspend_yestifier(struct yestifier_block *nb,
 				unsigned long event,
 				void *dummy)
 {
@@ -515,7 +515,7 @@ static int apm_suspend_notifier(struct notifier_block *nb,
 	unsigned long apm_event;
 
 	/* short-cut emergency suspends */
-	if (atomic_read(&userspace_notification_inhibit))
+	if (atomic_read(&userspace_yestification_inhibit))
 		return NOTIFY_DONE;
 
 	switch (event) {
@@ -549,7 +549,7 @@ static int apm_suspend_notifier(struct notifier_block *nb,
 		 * process was killed.)
 		 *
 		 * If the app won't answer within a short while we assume it
-		 * locked up and ignore it.
+		 * locked up and igyesre it.
 		 */
 		err = wait_event_interruptible_timeout(
 			apm_suspend_waitqueue,
@@ -583,7 +583,7 @@ static int apm_suspend_notifier(struct notifier_block *nb,
 			return NOTIFY_OK;
 
 		/* interrupted by signal */
-		return notifier_from_errno(err);
+		return yestifier_from_erryes(err);
 
 	case PM_POST_SUSPEND:
 	case PM_POST_HIBERNATION:
@@ -591,7 +591,7 @@ static int apm_suspend_notifier(struct notifier_block *nb,
 			APM_NORMAL_RESUME : APM_HIBERNATION_RESUME;
 		/*
 		 * Anyone on the APM queues will think we're still suspended.
-		 * Send a message so everyone knows we're now awake again.
+		 * Send a message so everyone kyesws we're yesw awake again.
 		 */
 		queue_event(apm_event);
 
@@ -604,7 +604,7 @@ static int apm_suspend_notifier(struct notifier_block *nb,
 			if (as->suspend_state == SUSPEND_ACKED) {
 				/*
 				 * TODO: maybe grab error code, needs core
-				 * changes to push the error to the notifier
+				 * changes to push the error to the yestifier
 				 * chain (could use the second parameter if
 				 * implemented)
 				 */
@@ -623,8 +623,8 @@ static int apm_suspend_notifier(struct notifier_block *nb,
 	}
 }
 
-static struct notifier_block apm_notif_block = {
-	.notifier_call = apm_suspend_notifier,
+static struct yestifier_block apm_yestif_block = {
+	.yestifier_call = apm_suspend_yestifier,
 };
 
 static int __init apm_init(void)
@@ -652,7 +652,7 @@ static int __init apm_init(void)
 	if (ret)
 		goto out_stop;
 
-	ret = register_pm_notifier(&apm_notif_block);
+	ret = register_pm_yestifier(&apm_yestif_block);
 	if (ret)
 		goto out_unregister;
 
@@ -669,7 +669,7 @@ static int __init apm_init(void)
 
 static void __exit apm_exit(void)
 {
-	unregister_pm_notifier(&apm_notif_block);
+	unregister_pm_yestifier(&apm_yestif_block);
 	misc_deregister(&apm_device);
 	remove_proc_entry("apm", NULL);
 

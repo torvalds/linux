@@ -14,7 +14,7 @@
 #include <linux/crypto.h>
 #include <linux/dmaengine.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irqreturn.h>
@@ -200,7 +200,7 @@ static irqreturn_t cryp_interrupt_handler(int irq, void *param)
 		return IRQ_HANDLED;
 	}
 
-	/* The device is coming from the one found in hw_crypt_noxts. */
+	/* The device is coming from the one found in hw_crypt_yesxts. */
 	device_data = (struct cryp_device_data *)param;
 
 	ctx = device_data->current_ctx;
@@ -386,7 +386,7 @@ static int cryp_setup_context(struct cryp_ctx *ctx,
 	}
 
 	if (ctx->updated == 0) {
-		cryp_flush_inoutfifo(device_data);
+		cryp_flush_iyesutfifo(device_data);
 		if (cfg_keys(ctx) != 0) {
 			dev_err(ctx->device->dev, "[%s]: cfg_keys failed!",
 				__func__);
@@ -406,7 +406,7 @@ static int cryp_setup_context(struct cryp_ctx *ctx,
 		add_session_id(ctx);
 	} else if (ctx->updated == 1 &&
 		   ctx->session_id != atomic_read(&session_id)) {
-		cryp_flush_inoutfifo(device_data);
+		cryp_flush_iyesutfifo(device_data);
 		cryp_restore_device_context(device_data, &ctx->dev_ctx);
 
 		add_session_id(ctx);
@@ -426,7 +426,7 @@ static int cryp_get_device_data(struct cryp_ctx *ctx,
 {
 	int ret;
 	struct klist_iter device_iterator;
-	struct klist_node *device_node;
+	struct klist_yesde *device_yesde;
 	struct cryp_device_data *local_device_data = NULL;
 	pr_debug(DEV_DBG_NAME " [%s]", __func__);
 
@@ -438,14 +438,14 @@ static int cryp_get_device_data(struct cryp_ctx *ctx,
 	/* Select a device */
 	klist_iter_init(&driver_data.device_list, &device_iterator);
 
-	device_node = klist_next(&device_iterator);
-	while (device_node) {
-		local_device_data = container_of(device_node,
-					   struct cryp_device_data, list_node);
+	device_yesde = klist_next(&device_iterator);
+	while (device_yesde) {
+		local_device_data = container_of(device_yesde,
+					   struct cryp_device_data, list_yesde);
 		spin_lock(&local_device_data->ctx_lock);
 		/* current_ctx allocates a device, NULL = unallocated */
 		if (local_device_data->current_ctx) {
-			device_node = klist_next(&device_iterator);
+			device_yesde = klist_next(&device_iterator);
 		} else {
 			local_device_data->current_ctx = ctx;
 			ctx->device = local_device_data;
@@ -456,13 +456,13 @@ static int cryp_get_device_data(struct cryp_ctx *ctx,
 	}
 	klist_iter_exit(&device_iterator);
 
-	if (!device_node) {
+	if (!device_yesde) {
 		/**
 		 * No free device found.
 		 * Since we allocated a device with down_interruptible, this
-		 * should not be able to happen.
+		 * should yest be able to happen.
 		 * Number of available devices, which are contained in
-		 * device_allocation, is therefore decremented by not doing
+		 * device_allocation, is therefore decremented by yest doing
 		 * an up(device_allocation).
 		 */
 		return -EBUSY;
@@ -546,7 +546,7 @@ static int cryp_set_dma_transfer(struct cryp_ctx *ctx,
 
 		if (!ctx->device->dma.sg_src_len) {
 			dev_dbg(ctx->device->dev,
-				"[%s]: Could not map the sg list (TO_DEVICE)",
+				"[%s]: Could yest map the sg list (TO_DEVICE)",
 				__func__);
 			return -EFAULT;
 		}
@@ -570,7 +570,7 @@ static int cryp_set_dma_transfer(struct cryp_ctx *ctx,
 
 		if (!ctx->device->dma.sg_dst_len) {
 			dev_dbg(ctx->device->dev,
-				"[%s]: Could not map the sg list (FROM_DEVICE)",
+				"[%s]: Could yest map the sg list (FROM_DEVICE)",
 				__func__);
 			return -EFAULT;
 		}
@@ -750,7 +750,7 @@ out:
 	return ret;
 }
 
-static int hw_crypt_noxts(struct cryp_ctx *ctx,
+static int hw_crypt_yesxts(struct cryp_ctx *ctx,
 			  struct cryp_device_data *device_data)
 {
 	int ret = 0;
@@ -792,7 +792,7 @@ static int hw_crypt_noxts(struct cryp_ctx *ctx,
 		 * The reason for having DMA in this if case is that if we are
 		 * running cryp_mode = 2, then we separate DMA routines for
 		 * handling cipher/plaintext > blocksize, except when
-		 * running the normal CRYPTO_ALG_TYPE_CIPHER, then we still use
+		 * running the yesrmal CRYPTO_ALG_TYPE_CIPHER, then we still use
 		 * the polling mode. Overhead of doing DMA setup eats up the
 		 * benefits using it.
 		 */
@@ -852,7 +852,7 @@ static int ablk_dma_crypt(struct skcipher_request *areq)
 	if (ret)
 		goto out;
 
-	/* We have the device now, so store the nents in the dma struct. */
+	/* We have the device yesw, so store the nents in the dma struct. */
 	ctx->device->dma.nents_src = get_nents(areq->src, ctx->datalen);
 	ctx->device->dma.nents_dst = get_nents(areq->dst, ctx->outlen);
 
@@ -921,7 +921,7 @@ static int ablk_crypt(struct skcipher_request *areq)
 
 		ctx->datalen = nbytes - (nbytes % ctx->blocksize);
 
-		ret = hw_crypt_noxts(ctx, device_data);
+		ret = hw_crypt_yesxts(ctx, device_data);
 		if (ret)
 			goto out;
 
@@ -969,7 +969,7 @@ static int aes_skcipher_setkey(struct crypto_skcipher *cipher,
 		break;
 
 	default:
-		pr_err(DEV_DBG_NAME "[%s]: Unknown keylen!", __func__);
+		pr_err(DEV_DBG_NAME "[%s]: Unkyeswn keylen!", __func__);
 		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
 	}
@@ -1030,11 +1030,11 @@ static int cryp_blk_encrypt(struct skcipher_request *areq)
 	ctx->config.algodir = CRYP_ALGORITHM_ENCRYPT;
 
 	/*
-	 * DMA does not work for DES due to a hw bug */
+	 * DMA does yest work for DES due to a hw bug */
 	if (cryp_mode == CRYP_MODE_DMA && mode_is_aes(ctx->config.algomode))
 		return ablk_dma_crypt(areq);
 
-	/* For everything except DMA, we run the non DMA version. */
+	/* For everything except DMA, we run the yesn DMA version. */
 	return ablk_crypt(areq);
 }
 
@@ -1047,11 +1047,11 @@ static int cryp_blk_decrypt(struct skcipher_request *areq)
 
 	ctx->config.algodir = CRYP_ALGORITHM_DECRYPT;
 
-	/* DMA does not work for DES due to a hw bug */
+	/* DMA does yest work for DES due to a hw bug */
 	if (cryp_mode == CRYP_MODE_DMA && mode_is_aes(ctx->config.algomode))
 		return ablk_dma_crypt(areq);
 
-	/* For everything except DMA, we run the non DMA version. */
+	/* For everything except DMA, we run the yesn DMA version. */
 	return ablk_crypt(areq);
 }
 
@@ -1311,7 +1311,7 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 	/* Enable power for CRYP hardware block */
 	device_data->pwr_regulator = regulator_get(&pdev->dev, "v-ape");
 	if (IS_ERR(device_data->pwr_regulator)) {
-		dev_err(dev, "[%s]: could not get cryp regulator", __func__);
+		dev_err(dev, "[%s]: could yest get cryp regulator", __func__);
 		ret = PTR_ERR(device_data->pwr_regulator);
 		device_data->pwr_regulator = NULL;
 		goto out;
@@ -1372,7 +1372,7 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, device_data);
 
 	/* Put the new device into the device list... */
-	klist_add_tail(&device_data->list_node, &driver_data.device_list);
+	klist_add_tail(&device_data->list_yesde, &driver_data.device_list);
 
 	/* ... and signal that a new device is available. */
 	up(&driver_data.device_allocation);
@@ -1433,8 +1433,8 @@ static int ux500_cryp_remove(struct platform_device *pdev)
 	spin_unlock(&device_data->ctx_lock);
 
 	/* Remove the device from the list */
-	if (klist_node_attached(&device_data->list_node))
-		klist_remove(&device_data->list_node);
+	if (klist_yesde_attached(&device_data->list_yesde))
+		klist_remove(&device_data->list_yesde);
 
 	/* If this was the last device, remove the services */
 	if (list_empty(&driver_data.device_list.k_list))
@@ -1472,7 +1472,7 @@ static void ux500_cryp_shutdown(struct platform_device *pdev)
 				"Shutting down anyway...", __func__);
 		/**
 		 * (Allocate the device)
-		 * Need to set this to non-null (dummy) value,
+		 * Need to set this to yesn-null (dummy) value,
 		 * to avoid usage if context switching.
 		 */
 		device_data->current_ctx++;
@@ -1480,8 +1480,8 @@ static void ux500_cryp_shutdown(struct platform_device *pdev)
 	spin_unlock(&device_data->ctx_lock);
 
 	/* Remove the device from the list */
-	if (klist_node_attached(&device_data->list_node))
-		klist_remove(&device_data->list_node);
+	if (klist_yesde_attached(&device_data->list_yesde))
+		klist_remove(&device_data->list_yesde);
 
 	/* If this was the last device, remove the services */
 	if (list_empty(&driver_data.device_list.k_list))

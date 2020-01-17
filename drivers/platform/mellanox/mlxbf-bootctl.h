@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2019, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2019, Mellayesx Techyeslogies. All rights reserved.
  */
 
 #ifndef __MLXBF_BOOTCTL_H__
@@ -8,10 +8,10 @@
 
 /*
  * Request that the on-chip watchdog be enabled, or disabled, after
- * the next chip soft reset. This call does not affect the current
- * status of the on-chip watchdog. If non-zero, the argument
+ * the next chip soft reset. This call does yest affect the current
+ * status of the on-chip watchdog. If yesn-zero, the argument
  * specifies the watchdog interval in seconds. If zero, the watchdog
- * will not be enabled after the next soft reset. Non-zero errors are
+ * will yest be enabled after the next soft reset. Non-zero errors are
  * returned as documented below.
  */
 #define MLXBF_BOOTCTL_SET_POST_RESET_WDOG	0x82000000
@@ -46,12 +46,12 @@
  * after the next soft reset. For a specified valid boot mode, the
  * effect of this call is identical to that of invoking
  * MLXBF_BOOTCTL_SET_RESET_ACTION after the next chip soft reset; in
- * particular, after that reset, the action for the now next reset can
+ * particular, after that reset, the action for the yesw next reset can
  * be queried with MLXBF_BOOTCTL_GET_RESET_ACTION and modified with
  * MLXBF_BOOTCTL_SET_RESET_ACTION. You may also specify the parameter as
- * MLNX_BOOT_NONE, which is equivalent to specifying that no call to
+ * MLNX_BOOT_NONE, which is equivalent to specifying that yes call to
  * MLXBF_BOOTCTL_SET_RESET_ACTION be taken after the next chip soft reset.
- * This call does not affect the action to be taken at the next soft
+ * This call does yest affect the action to be taken at the next soft
  * reset. Non-zero errors are returned as documented below.
  */
 #define MLXBF_BOOTCTL_SET_SECOND_RESET_ACTION	0x82000004

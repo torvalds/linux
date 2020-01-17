@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Mellanox register access driver
+ * Mellayesx register access driver
  *
- * Copyright (C) 2018 Mellanox Technologies
- * Copyright (C) 2018 Vadim Pasternak <vadimp@mellanox.com>
+ * Copyright (C) 2018 Mellayesx Techyeslogies
+ * Copyright (C) 2018 Vadim Pasternak <vadimp@mellayesx.com>
  */
 
 #include <linux/bitops.h>
@@ -54,7 +54,7 @@ mlxreg_io_get_reg(void *regmap, struct mlxreg_core_data *data, u32 in_val,
 	/*
 	 * There are three kinds of attributes: single bit, full register's
 	 * bits and bit sequence. For the first kind field mask indicates which
-	 * bits are not related and field bit is set zero. For the second kind
+	 * bits are yest related and field bit is set zero. For the second kind
 	 * field mask is set to zero and field bit is set with all bits one.
 	 * No special handling for such kind of attributes - pass value as is.
 	 * For the third kind, field mask indicates which bits are related and
@@ -239,7 +239,7 @@ static struct platform_driver mlxreg_io_driver = {
 
 module_platform_driver(mlxreg_io_driver);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox regmap I/O access driver");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx regmap I/O access driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:mlxreg-io");

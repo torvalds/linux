@@ -15,7 +15,7 @@
 #define IMM_L(i)		((uintptr_t)(i) & 0xffff)
 
 /*
- * Defined with TEST_ prefix so it does not conflict with other
+ * Defined with TEST_ prefix so it does yest conflict with other
  * definitions.
  */
 #define TEST_LD(r, base, i)	(PPC_INST_LD | ___PPC_RT(r) |		\
@@ -209,7 +209,7 @@ static void __init test_ldarx_stdcx(void)
 	 * of stdcx. :
 	 *  1. Reservation is active and store is performed. In this
 	 *     case cr0.eq bit will be set to 1.
-	 *  2. Reservation is not active and store is not performed.
+	 *  2. Reservation is yest active and store is yest performed.
 	 *     In this case cr0.eq bit will be set to 0.
 	 */
 	if (stepped == 1 && ((regs.gpr[5] == a && (regs.ccr & cr0_eq))
@@ -308,14 +308,14 @@ static void __init test_lfdx_stfdx(void)
 #else
 static void __init test_lfsx_stfsx(void)
 {
-	show_result("lfsx", "SKIP (CONFIG_PPC_FPU is not set)");
-	show_result("stfsx", "SKIP (CONFIG_PPC_FPU is not set)");
+	show_result("lfsx", "SKIP (CONFIG_PPC_FPU is yest set)");
+	show_result("stfsx", "SKIP (CONFIG_PPC_FPU is yest set)");
 }
 
 static void __init test_lfdx_stfdx(void)
 {
-	show_result("lfdx", "SKIP (CONFIG_PPC_FPU is not set)");
-	show_result("stfdx", "SKIP (CONFIG_PPC_FPU is not set)");
+	show_result("lfdx", "SKIP (CONFIG_PPC_FPU is yest set)");
+	show_result("stfdx", "SKIP (CONFIG_PPC_FPU is yest set)");
 }
 #endif /* CONFIG_PPC_FPU */
 
@@ -371,8 +371,8 @@ static void __init test_lvx_stvx(void)
 #else
 static void __init test_lvx_stvx(void)
 {
-	show_result("lvx", "SKIP (CONFIG_ALTIVEC is not set)");
-	show_result("stvx", "SKIP (CONFIG_ALTIVEC is not set)");
+	show_result("lvx", "SKIP (CONFIG_ALTIVEC is yest set)");
+	show_result("stvx", "SKIP (CONFIG_ALTIVEC is yest set)");
 }
 #endif /* CONFIG_ALTIVEC */
 
@@ -437,8 +437,8 @@ static void __init test_lxvd2x_stxvd2x(void)
 #else
 static void __init test_lxvd2x_stxvd2x(void)
 {
-	show_result("lxvd2x", "SKIP (CONFIG_VSX is not set)");
-	show_result("stxvd2x", "SKIP (CONFIG_VSX is not set)");
+	show_result("lxvd2x", "SKIP (CONFIG_VSX is yest set)");
+	show_result("stxvd2x", "SKIP (CONFIG_VSX is yest set)");
 }
 #endif /* CONFIG_VSX */
 
@@ -467,7 +467,7 @@ struct compute_test {
 
 static struct compute_test compute_tests[] = {
 	{
-		.mnemonic = "nop",
+		.mnemonic = "yesp",
 		.subtests = {
 			{
 				.descr = "R0 = LONG_MAX",
@@ -891,7 +891,7 @@ static void __init run_tests_compute(void)
 	struct compute_test *test;
 	struct pt_regs *regs, exp, got;
 	unsigned int i, j, k, instr;
-	bool ignore_gpr, ignore_xer, ignore_ccr, passed;
+	bool igyesre_gpr, igyesre_xer, igyesre_ccr, passed;
 
 	for (i = 0; i < ARRAY_SIZE(compute_tests); i++) {
 		test = &compute_tests[i];
@@ -900,8 +900,8 @@ static void __init run_tests_compute(void)
 			instr = test->subtests[j].instr;
 			flags = test->subtests[j].flags;
 			regs = &test->subtests[j].regs;
-			ignore_xer = flags & IGNORE_XER;
-			ignore_ccr = flags & IGNORE_CCR;
+			igyesre_xer = flags & IGNORE_XER;
+			igyesre_ccr = flags & IGNORE_CCR;
 			passed = true;
 
 			memcpy(&exp, regs, sizeof(struct pt_regs));
@@ -922,8 +922,8 @@ static void __init run_tests_compute(void)
 
 			/* Verify GPR values */
 			for (k = 0; k < 32; k++) {
-				ignore_gpr = flags & IGNORE_GPR(k);
-				if (!ignore_gpr && exp.gpr[k] != got.gpr[k]) {
+				igyesre_gpr = flags & IGNORE_GPR(k);
+				if (!igyesre_gpr && exp.gpr[k] != got.gpr[k]) {
 					passed = false;
 					gpr_mismatch(k, exp.gpr[k], got.gpr[k]);
 				}
@@ -936,13 +936,13 @@ static void __init run_tests_compute(void)
 			}
 
 			/* Verify XER value */
-			if (!ignore_xer && exp.xer != got.xer) {
+			if (!igyesre_xer && exp.xer != got.xer) {
 				passed = false;
 				reg_mismatch("XER", exp.xer, got.xer);
 			}
 
 			/* Verify CR value */
-			if (!ignore_ccr && exp.ccr != got.ccr) {
+			if (!igyesre_ccr && exp.ccr != got.ccr) {
 				passed = false;
 				reg_mismatch("CR", exp.ccr, got.ccr);
 			}

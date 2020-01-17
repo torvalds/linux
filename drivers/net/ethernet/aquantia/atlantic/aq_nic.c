@@ -120,8 +120,8 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 		cfg->vecs = 1U;
 	}
 
-	/* Check if we have enough vectors allocated for
-	 * link status IRQ. If no - we'll know link state from
+	/* Check if we have eyesugh vectors allocated for
+	 * link status IRQ. If yes - we'll kyesw link state from
 	 * slower service task.
 	 */
 	if (AQ_HW_SERVICE_IRQS > 0 && cfg->vecs + 1 <= self->irqvecs)
@@ -498,7 +498,7 @@ unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
 		} else if (l4proto == IPPROTO_UDP) {
 			dx_buff->is_gso_udp = 1U;
 			dx_buff->len_l4 = sizeof(struct udphdr);
-			/* UDP GSO Hardware does not replace packet length. */
+			/* UDP GSO Hardware does yest replace packet length. */
 			udp_hdr(skb)->len = htons(dx_buff->mss +
 						  dx_buff->len_l4);
 		} else {
@@ -911,7 +911,7 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     Pause);
 
-	/* Asym is when either RX or TX, but not both */
+	/* Asym is when either RX or TX, but yest both */
 	if (!!(self->aq_nic_cfg.fc.cur & AQ_NIC_FC_TX) ^
 	    !!(self->aq_nic_cfg.fc.cur & AQ_NIC_FC_RX))
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,

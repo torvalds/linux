@@ -21,7 +21,7 @@
  * Updated: Mon, 20 Jun 2016 10:57:01 -0700
  * Status: untested
  *
- * Configuration Options: not applicable, uses comedi PCI auto config
+ * Configuration Options: yest applicable, uses comedi PCI auto config
  *
  * This board has the following features:
  *   - 4 or 8 analog output channels
@@ -37,7 +37,7 @@
  * channels used by this driver is determined by reading the EEPROM on
  * the board.
  *
- * The watchdog/timer subdevice is not currently supported.
+ * The watchdog/timer subdevice is yest currently supported.
  */
 
 #include <linux/module.h>
@@ -290,7 +290,7 @@ static int apci3501_reset(struct comedi_device *dev)
 		ret = apci3501_wait_for_dac(dev);
 		if (ret) {
 			dev_warn(dev->class_dev,
-				 "%s: DAC not-ready for channel %i\n",
+				 "%s: DAC yest-ready for channel %i\n",
 				 __func__, chan);
 		} else {
 			outl(val | APCI3501_AO_DATA_CHAN(chan),

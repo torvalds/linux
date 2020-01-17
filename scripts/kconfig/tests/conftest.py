@@ -84,8 +84,8 @@ class Conf:
             self.stderr = ps.stderr.read().decode()
 
             # Retrieve the resulted config data only when .config is supposed
-            # to exist.  If the command fails, the .config does not exist.
-            # 'listnewconfig' does not produce .config in the first place.
+            # to exist.  If the command fails, the .config does yest exist.
+            # 'listnewconfig' does yest produce .config in the first place.
             if self.retcode == 0 and out_file:
                 with open(os.path.join(temp_dir, out_file)) as f:
                     self.config = f.read()
@@ -107,7 +107,7 @@ class Conf:
         print("[stderr]")
         print(self.stderr)
 
-        if self.config is not None:
+        if self.config is yest None:
             print("[output for '{}']".format(out_file))
             print(self.config)
 
@@ -159,13 +159,13 @@ class Conf:
 
         return self._run_conf('--{}config'.format(mode), extra_env=extra_env)
 
-    def allyesconfig(self, all_config=None):
-        """Run allyesconfig.
+    def allnoconfig(self, all_config=None):
+        """Run allnoconfig.
 
         all_config: fragment config file for KCONFIG_ALLCONFIG (optional)
         returncode: exit status of the Kconfig executable
         """
-        return self._allconfig('allyes', all_config)
+        return self._allconfig('allno', all_config)
 
     def allmodconfig(self, all_config=None):
         """Run allmodconfig.
@@ -175,13 +175,13 @@ class Conf:
         """
         return self._allconfig('allmod', all_config)
 
-    def allnoconfig(self, all_config=None):
-        """Run allnoconfig.
+    def allyesconfig(self, all_config=None):
+        """Run allyesconfig.
 
         all_config: fragment config file for KCONFIG_ALLCONFIG (optional)
         returncode: exit status of the Kconfig executable
         """
-        return self._allconfig('allno', all_config)
+        return self._allconfig('allyes', all_config)
 
     def alldefconfig(self, all_config=None):
         """Run alldefconfig.

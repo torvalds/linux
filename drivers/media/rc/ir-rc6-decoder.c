@@ -10,13 +10,13 @@
 /*
  * This decoder currently supports:
  * RC6-0-16	(standard toggle bit in header)
- * RC6-6A-20	(no toggle bit)
- * RC6-6A-24	(no toggle bit)
+ * RC6-6A-20	(yes toggle bit)
+ * RC6-6A-24	(yes toggle bit)
  * RC6-6A-32	(MCE version with toggle bit in body)
  */
 
-#define RC6_UNIT		444444	/* nanosecs */
-#define RC6_HEADER_NBITS	4	/* not including toggle bit */
+#define RC6_UNIT		444444	/* nayessecs */
+#define RC6_HEADER_NBITS	4	/* yest including toggle bit */
 #define RC6_0_NBITS		16
 #define RC6_6A_32_NBITS		32
 #define RC6_6A_NBITS		128	/* Variable 8..128 */
@@ -174,7 +174,7 @@ again:
 			data->wanted_bits = RC6_6A_NBITS;
 			break;
 		default:
-			dev_dbg(&dev->dev, "RC6 unknown mode\n");
+			dev_dbg(&dev->dev, "RC6 unkyeswn mode\n");
 			goto out;
 		}
 		goto again;
@@ -259,7 +259,7 @@ again:
 				protocol, scancode, toggle);
 			break;
 		default:
-			dev_dbg(&dev->dev, "RC6 unknown mode\n");
+			dev_dbg(&dev->dev, "RC6 unkyeswn mode\n");
 			goto out;
 		}
 
@@ -302,7 +302,7 @@ static const struct ir_raw_timings_manchester ir_rc6_timings[4] = {
  * @max:	maximum size of @events
  *
  * Returns:	The number of events written.
- *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		-ENOBUFS if there isn't eyesugh space in the array to fit the
  *		encoding. In this case all @max events will have been written.
  *		-EINVAL if the scancode is ambiguous or invalid.
  */

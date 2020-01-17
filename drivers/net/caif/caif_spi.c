@@ -44,7 +44,7 @@ MODULE_PARM_DESC(spi_frm_align, "SPI frame alignment.");
 
 /*
  * SPI padding options.
- * Warning: must be a base of 2 (& operation used) and can not be zero !
+ * Warning: must be a base of 2 (& operation used) and can yest be zero !
  */
 module_param(spi_up_head_align, int, 0444);
 MODULE_PARM_DESC(spi_up_head_align, "SPI uplink head alignment.");
@@ -67,7 +67,7 @@ MODULE_PARM_DESC(spi_down_tail_align, "SPI downlink tail alignment.");
 #define SPI_MAX_PAYLOAD_SIZE 4096
 /*
  * Threshold values for the SPI packet queue. Flowcontrol will be asserted
- * when the number of packets exceeds HIGH_WATER_MARK. It will not be
+ * when the number of packets exceeds HIGH_WATER_MARK. It will yest be
  * deasserted before the number of packets drops below LOW_WATER_MARK.
  */
 #define LOW_WATER_MARK   100
@@ -76,7 +76,7 @@ MODULE_PARM_DESC(spi_down_tail_align, "SPI downlink tail alignment.");
 #ifndef CONFIG_HAS_DMA
 
 /*
- * We sometimes use UML for debugging, but it cannot handle
+ * We sometimes use UML for debugging, but it canyest handle
  * dma_alloc_coherent so we have to wrap it.
  */
 static inline void *dma_alloc(struct cfspi *cfspi, dma_addr_t *daddr)
@@ -440,7 +440,7 @@ int cfspi_xmitlen(struct cfspi *cfspi)
 
 	/*
 	 * Send flow on if previously sent flow off
-	 * and now go below the low water mark
+	 * and yesw go below the low water mark
 	 */
 	if (cfspi->flow_off_sent && cfspi->qhead.qlen < cfspi->qd_low_mark &&
 		cfspi->cfdev.flowctrl) {
@@ -770,12 +770,12 @@ int cfspi_spi_remove(struct platform_device *pdev)
 
 static void __exit cfspi_exit_module(void)
 {
-	struct list_head *list_node;
+	struct list_head *list_yesde;
 	struct list_head *n;
 	struct cfspi *cfspi = NULL;
 
-	list_for_each_safe(list_node, n, &cfspi_list) {
-		cfspi = list_entry(list_node, struct cfspi, list);
+	list_for_each_safe(list_yesde, n, &cfspi_list) {
+		cfspi = list_entry(list_yesde, struct cfspi, list);
 		unregister_netdev(cfspi->ndev);
 	}
 
@@ -805,7 +805,7 @@ static int __init cfspi_init_module(void)
 	/* Register platform driver. */
 	result = platform_driver_register(&cfspi_spi_driver);
 	if (result) {
-		printk(KERN_ERR "Could not register platform SPI driver.\n");
+		printk(KERN_ERR "Could yest register platform SPI driver.\n");
 		goto err_dev_register;
 	}
 

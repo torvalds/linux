@@ -16,7 +16,7 @@
 #define EXT_IRQS 16
 #endif
 
-static inline int irq_canonicalize(int irq)
+static inline int irq_cayesnicalize(int irq)
 {
 	return irq;
 }

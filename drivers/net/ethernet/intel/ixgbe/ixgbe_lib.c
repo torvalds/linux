@@ -53,7 +53,7 @@ static bool ixgbe_cache_ring_dcb_sriov(struct ixgbe_adapter *adapter)
 	}
 
 #ifdef IXGBE_FCOE
-	/* nothing to do if FCoE is disabled */
+	/* yesthing to do if FCoE is disabled */
 	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
 		return true;
 
@@ -176,7 +176,7 @@ static bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
  * @adapter: board private structure to initialize
  *
  * SR-IOV doesn't use any descriptor rings but changes the default if
- * no other mapping is used.
+ * yes other mapping is used.
  *
  */
 static bool ixgbe_cache_ring_sriov(struct ixgbe_adapter *adapter)
@@ -269,7 +269,7 @@ static bool ixgbe_cache_ring_rss(struct ixgbe_adapter *adapter)
  * ixgbe_cache_ring_register - Descriptor ring to register mapping
  * @adapter: board private structure to initialize
  *
- * Once we know the feature-set enabled for the device, we'll cache
+ * Once we kyesw the feature-set enabled for the device, we'll cache
  * the register offset the descriptor ring is assigned to.
  *
  * Note, the order the various feature calls is important.  It must start with
@@ -365,13 +365,13 @@ static bool ixgbe_set_dcb_sriov_queues(struct ixgbe_adapter *adapter)
 	adapter->ring_feature[RING_F_VMDQ].mask = vmdq_m;
 
 	/*
-	 * We do not support DCB, VMDq, and RSS all simultaneously
+	 * We do yest support DCB, VMDq, and RSS all simultaneously
 	 * so we will disable RSS since it is the lowest priority
 	 */
 	adapter->ring_feature[RING_F_RSS].indices = 1;
 	adapter->ring_feature[RING_F_RSS].mask = IXGBE_RSS_DISABLED_MASK;
 
-	/* disable ATR as it is not supported when VMDq is enabled */
+	/* disable ATR as it is yest supported when VMDq is enabled */
 	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 
 	adapter->num_rx_pools = vmdq_i;
@@ -454,7 +454,7 @@ static bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 	f->indices = rss_i;
 	f->mask = rss_m;
 
-	/* disable ATR as it is not supported when multiple TCs are enabled */
+	/* disable ATR as it is yest supported when multiple TCs are enabled */
 	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 
 #ifdef IXGBE_FCOE
@@ -551,7 +551,7 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 	adapter->num_tx_queues = vmdq_i * rss_i;
 	adapter->num_xdp_queues = 0;
 
-	/* disable ATR as it is not supported when VMDq is enabled */
+	/* disable ATR as it is yest supported when VMDq is enabled */
 	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 
 #ifdef IXGBE_FCOE
@@ -747,7 +747,7 @@ static int ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter)
 	 */
 	vectors = min_t(int, vectors, num_online_cpus());
 
-	/* Some vectors are necessary for non-queue interrupts */
+	/* Some vectors are necessary for yesn-queue interrupts */
 	vectors += NON_Q_VECTORS;
 
 	/* Hardware can only support a maximum of hw.mac->max_msix_vectors.
@@ -832,7 +832,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 				int xdp_count, int xdp_idx,
 				int rxr_count, int rxr_idx)
 {
-	int node = dev_to_node(&adapter->pdev->dev);
+	int yesde = dev_to_yesde(&adapter->pdev->dev);
 	struct ixgbe_q_vector *q_vector;
 	struct ixgbe_ring *ring;
 	int cpu = -1;
@@ -845,24 +845,24 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	if ((tcs <= 1) && !(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)) {
 		u16 rss_i = adapter->ring_feature[RING_F_RSS].indices;
 		if (rss_i > 1 && adapter->atr_sample_rate) {
-			cpu = cpumask_local_spread(v_idx, node);
-			node = cpu_to_node(cpu);
+			cpu = cpumask_local_spread(v_idx, yesde);
+			yesde = cpu_to_yesde(cpu);
 		}
 	}
 
 	/* allocate q_vector and rings */
-	q_vector = kzalloc_node(struct_size(q_vector, ring, ring_count),
-				GFP_KERNEL, node);
+	q_vector = kzalloc_yesde(struct_size(q_vector, ring, ring_count),
+				GFP_KERNEL, yesde);
 	if (!q_vector)
 		q_vector = kzalloc(struct_size(q_vector, ring, ring_count),
 				   GFP_KERNEL);
 	if (!q_vector)
 		return -ENOMEM;
 
-	/* setup affinity mask and node */
+	/* setup affinity mask and yesde */
 	if (cpu != -1)
 		cpumask_set_cpu(cpu, &q_vector->affinity_mask);
-	q_vector->numa_node = node;
+	q_vector->numa_yesde = yesde;
 
 #ifdef CONFIG_IXGBE_DCA
 	/* initialize CPU for DCA */
@@ -1173,7 +1173,7 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	if (!ixgbe_acquire_msix_vectors(adapter))
 		return;
 
-	/* At this point, we do not have MSI-X capabilities. We need to
+	/* At this point, we do yest have MSI-X capabilities. We need to
 	 * reconfigure or disable various features which require MSI-X
 	 * capability.
 	 */
@@ -1203,7 +1203,7 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	e_dev_warn("Disabling RSS support\n");
 	adapter->ring_feature[RING_F_RSS].limit = 1;
 
-	/* recalculate number of queues now that many features have been
+	/* recalculate number of queues yesw that many features have been
 	 * changed or disabled.
 	 */
 	ixgbe_set_num_queues(adapter);

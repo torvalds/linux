@@ -112,7 +112,7 @@ static bool is_sibling_call(struct instruction *insn)
 }
 
 /*
- * This checks to see if the given function is a "noreturn" function.
+ * This checks to see if the given function is a "yesreturn" function.
  *
  * For global functions which are outside the scope of this object file, we
  * have to keep a manual list of them.
@@ -128,10 +128,10 @@ static bool __dead_end_function(struct objtool_file *file, struct symbol *func,
 	bool empty = true;
 
 	/*
-	 * Unfortunately these have to be hard coded because the noreturn
+	 * Unfortunately these have to be hard coded because the yesreturn
 	 * attribute isn't provided in ELF data.
 	 */
-	static const char * const global_noreturns[] = {
+	static const char * const global_yesreturns[] = {
 		"__stack_chk_fail",
 		"panic",
 		"do_exit",
@@ -154,8 +154,8 @@ static bool __dead_end_function(struct objtool_file *file, struct symbol *func,
 		return false;
 
 	if (func->bind == STB_GLOBAL)
-		for (i = 0; i < ARRAY_SIZE(global_noreturns); i++)
-			if (!strcmp(func->name, global_noreturns[i]))
+		for (i = 0; i < ARRAY_SIZE(global_yesreturns); i++)
+			if (!strcmp(func->name, global_yesreturns[i]))
 				return true;
 
 	if (!func->len)
@@ -185,7 +185,7 @@ static bool __dead_end_function(struct objtool_file *file, struct symbol *func,
 			struct instruction *dest = insn->jump_dest;
 
 			if (!dest)
-				/* sibling call to another file */
+				/* sibling call to ayesther file */
 				return false;
 
 			/* local sibling call */
@@ -294,7 +294,7 @@ err:
 }
 
 /*
- * Mark "ud2" instructions and manually annotated dead ends.
+ * Mark "ud2" instructions and manually anyestated dead ends.
  */
 static int add_dead_ends(struct objtool_file *file)
 {
@@ -304,7 +304,7 @@ static int add_dead_ends(struct objtool_file *file)
 	bool found;
 
 	/*
-	 * By default, "ud2" is a dead end unless otherwise annotated, because
+	 * By default, "ud2" is a dead end unless otherwise anyestated, because
 	 * GCC 7 inserts it for certain divide-by-zero cases.
 	 */
 	for_each_insn(file, insn)
@@ -312,7 +312,7 @@ static int add_dead_ends(struct objtool_file *file)
 			insn->dead_end = true;
 
 	/*
-	 * Check for manually annotated dead ends.
+	 * Check for manually anyestated dead ends.
 	 */
 	sec = find_section_by_name(file->elf, ".rela.discard.unreachable");
 	if (!sec)
@@ -351,10 +351,10 @@ static int add_dead_ends(struct objtool_file *file)
 
 reachable:
 	/*
-	 * These manually annotated reachable checks are needed for GCC 4.4,
+	 * These manually anyestated reachable checks are needed for GCC 4.4,
 	 * where the Linux unreachable() macro isn't supported.  In that case
-	 * GCC doesn't know the "ud2" is fatal, so it generates code as if it's
-	 * not a dead end.
+	 * GCC doesn't kyesw the "ud2" is fatal, so it generates code as if it's
+	 * yest a dead end.
 	 */
 	sec = find_section_by_name(file->elf, ".rela.discard.reachable");
 	if (!sec)
@@ -395,16 +395,16 @@ reachable:
 }
 
 /*
- * Warnings shouldn't be reported for ignored functions.
+ * Warnings shouldn't be reported for igyesred functions.
  */
-static void add_ignores(struct objtool_file *file)
+static void add_igyesres(struct objtool_file *file)
 {
 	struct instruction *insn;
 	struct section *sec;
 	struct symbol *func;
 	struct rela *rela;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.func_stack_frame_non_standard");
+	sec = find_section_by_name(file->elf, ".rela.discard.func_stack_frame_yesn_standard");
 	if (!sec)
 		return;
 
@@ -426,7 +426,7 @@ static void add_ignores(struct objtool_file *file)
 		}
 
 		func_for_each_insn_all(file, func, insn)
-			insn->ignore = true;
+			insn->igyesre = true;
 	}
 }
 
@@ -435,38 +435,38 @@ static void add_ignores(struct objtool_file *file)
  * The list is meant to be minimal and only contains compiler instrumentation
  * ABI and a few functions used to implement *_{to,from}_user() functions.
  *
- * These functions must not directly change AC, but may PUSHF/POPF.
+ * These functions must yest directly change AC, but may PUSHF/POPF.
  */
 static const char *uaccess_safe_builtin[] = {
 	/* KASAN */
 	"kasan_report",
 	"check_memory_region",
 	/* KASAN out-of-line */
-	"__asan_loadN_noabort",
-	"__asan_load1_noabort",
-	"__asan_load2_noabort",
-	"__asan_load4_noabort",
-	"__asan_load8_noabort",
-	"__asan_load16_noabort",
-	"__asan_storeN_noabort",
-	"__asan_store1_noabort",
-	"__asan_store2_noabort",
-	"__asan_store4_noabort",
-	"__asan_store8_noabort",
-	"__asan_store16_noabort",
+	"__asan_loadN_yesabort",
+	"__asan_load1_yesabort",
+	"__asan_load2_yesabort",
+	"__asan_load4_yesabort",
+	"__asan_load8_yesabort",
+	"__asan_load16_yesabort",
+	"__asan_storeN_yesabort",
+	"__asan_store1_yesabort",
+	"__asan_store2_yesabort",
+	"__asan_store4_yesabort",
+	"__asan_store8_yesabort",
+	"__asan_store16_yesabort",
 	/* KASAN in-line */
-	"__asan_report_load_n_noabort",
-	"__asan_report_load1_noabort",
-	"__asan_report_load2_noabort",
-	"__asan_report_load4_noabort",
-	"__asan_report_load8_noabort",
-	"__asan_report_load16_noabort",
-	"__asan_report_store_n_noabort",
-	"__asan_report_store1_noabort",
-	"__asan_report_store2_noabort",
-	"__asan_report_store4_noabort",
-	"__asan_report_store8_noabort",
-	"__asan_report_store16_noabort",
+	"__asan_report_load_n_yesabort",
+	"__asan_report_load1_yesabort",
+	"__asan_report_load2_yesabort",
+	"__asan_report_load4_yesabort",
+	"__asan_report_load8_yesabort",
+	"__asan_report_load16_yesabort",
+	"__asan_report_store_n_yesabort",
+	"__asan_report_store1_yesabort",
+	"__asan_report_store2_yesabort",
+	"__asan_report_store4_yesabort",
+	"__asan_report_store8_yesabort",
+	"__asan_report_store16_yesabort",
 	/* KCOV */
 	"write_comp_data",
 	"__sanitizer_cov_trace_pc",
@@ -509,18 +509,18 @@ static void add_uaccess_safe(struct objtool_file *file)
 }
 
 /*
- * FIXME: For now, just ignore any alternatives which add retpolines.  This is
+ * FIXME: For yesw, just igyesre any alternatives which add retpolines.  This is
  * a temporary hack, as it doesn't allow ORC to unwind from inside a retpoline.
  * But it at least allows objtool to understand the control flow *around* the
  * retpoline.
  */
-static int add_ignore_alternatives(struct objtool_file *file)
+static int add_igyesre_alternatives(struct objtool_file *file)
 {
 	struct section *sec;
 	struct rela *rela;
 	struct instruction *insn;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.ignore_alts");
+	sec = find_section_by_name(file->elf, ".rela.discard.igyesre_alts");
 	if (!sec)
 		return 0;
 
@@ -532,11 +532,11 @@ static int add_ignore_alternatives(struct objtool_file *file)
 
 		insn = find_insn(file, rela->sym->sec, rela->addend);
 		if (!insn) {
-			WARN("bad .discard.ignore_alts entry");
+			WARN("bad .discard.igyesre_alts entry");
 			return -1;
 		}
 
-		insn->ignore_alts = true;
+		insn->igyesre_alts = true;
 	}
 
 	return 0;
@@ -557,7 +557,7 @@ static int add_jump_destinations(struct objtool_file *file)
 		    insn->type != INSN_JUMP_UNCONDITIONAL)
 			continue;
 
-		if (insn->ignore || insn->offset == FAKE_JUMP_OFFSET)
+		if (insn->igyesre || insn->offset == FAKE_JUMP_OFFSET)
 			continue;
 
 		rela = find_rela_by_dest_range(insn->sec, insn->offset,
@@ -664,11 +664,11 @@ static int add_call_destinations(struct objtool_file *file)
 			insn->call_dest = find_symbol_by_offset(insn->sec,
 								dest_off);
 
-			if (!insn->call_dest && !insn->ignore) {
+			if (!insn->call_dest && !insn->igyesre) {
 				WARN_FUNC("unsupported intra-function call",
 					  insn->sec, insn->offset);
 				if (retpoline)
-					WARN("If this is a retpoline, please patch it in with alternatives and annotate it with ANNOTATE_NOSPEC_ALTERNATIVE.");
+					WARN("If this is a retpoline, please patch it in with alternatives and anyestate it with ANNOTATE_NOSPEC_ALTERNATIVE.");
 				return -1;
 			}
 
@@ -699,7 +699,7 @@ static int add_call_destinations(struct objtool_file *file)
  *    replaced instructions when validating the new instruction path.
  *
  * 2. An added wrinkle is that the new instruction length might be zero.  In
- *    that case the old instructions are replaced with noops.  We simulate that
+ *    that case the old instructions are replaced with yesops.  We simulate that
  *    by creating a fake jump as the only new instruction.
  *
  * 3. In some cases, the alternative section includes an instruction which
@@ -761,7 +761,7 @@ static int handle_group_alt(struct objtool_file *file,
 
 		last_new_insn = insn;
 
-		insn->ignore = orig_insn->ignore_alts;
+		insn->igyesre = orig_insn->igyesre_alts;
 		insn->func = orig_insn->func;
 
 		if (insn->type != INSN_JUMP_CONDITIONAL &&
@@ -801,8 +801,8 @@ static int handle_group_alt(struct objtool_file *file,
 }
 
 /*
- * A jump table entry can either convert a nop to a jump or a jump to a nop.
- * If the original instruction is a jump, make the alt entry an effective nop
+ * A jump table entry can either convert a yesp to a jump or a jump to a yesp.
+ * If the original instruction is a jump, make the alt entry an effective yesp
  * by just skipping the original instruction.
  */
 static int handle_jump_alt(struct objtool_file *file,
@@ -870,7 +870,7 @@ static int add_special_section_alts(struct objtool_file *file)
 					       &new_insn);
 			if (ret)
 				goto out;
-		} else if (special_alt->jump_or_nop) {
+		} else if (special_alt->jump_or_yesp) {
 			ret = handle_jump_alt(file, special_alt, orig_insn,
 					      &new_insn);
 			if (ret)
@@ -886,7 +886,7 @@ static int add_special_section_alts(struct objtool_file *file)
 
 		alt->insn = new_insn;
 		alt->skip_orig = special_alt->skip_orig;
-		orig_insn->ignore_alts |= special_alt->skip_alt;
+		orig_insn->igyesre_alts |= special_alt->skip_alt;
 		list_add_tail(&alt->list, &orig_insn->alts);
 
 		list_del(&special_alt->list);
@@ -967,17 +967,17 @@ static int add_jump_table(struct objtool_file *file, struct instruction *insn,
  * 2. jmpq *[rodata addr](%rip)
  *
  *    This is caused by a rare GCC quirk, currently only seen in three driver
- *    functions in the kernel, only with certain obscure non-distro configs.
+ *    functions in the kernel, only with certain obscure yesn-distro configs.
  *
  *    As part of an optimization, GCC makes a copy of an existing switch jump
  *    table, modifies it, and then hard-codes the jump (albeit with an indirect
  *    jump) to use a single entry in the table.  The rest of the jump table and
  *    some of its jump targets remain as dead code.
  *
- *    In such a case we can just crudely ignore all unreachable instruction
- *    warnings for the entire object file.  Ideally we would just ignore them
+ *    In such a case we can just crudely igyesre all unreachable instruction
+ *    warnings for the entire object file.  Ideally we would just igyesre them
  *    for the function, but that would require redesigning the code quite a
- *    bit.  And honestly that's just not worth doing: unreachable instruction
+ *    bit.  And honestly that's just yest worth doing: unreachable instruction
  *    warnings are of questionable value anyway, and this is such a rare issue.
  *
  * 3. mov [rodata addr],%reg1
@@ -1042,7 +1042,7 @@ static struct rela *find_jump_table(struct objtool_file *file,
 
 		/*
 		 * Make sure the .rodata address isn't associated with a
-		 * symbol.  GCC jump tables are anonymous data.
+		 * symbol.  GCC jump tables are ayesnymous data.
 		 *
 		 * Also support C jump tables which are in the same format as
 		 * switch jump tables.  For objtool to recognize them, they
@@ -1064,7 +1064,7 @@ static struct rela *find_jump_table(struct objtool_file *file,
 		 * behind.
 		 */
 		if (text_rela->type == R_X86_64_PC32)
-			file->ignore_unreachables = true;
+			file->igyesre_unreachables = true;
 
 		return table_rela;
 	}
@@ -1074,7 +1074,7 @@ static struct rela *find_jump_table(struct objtool_file *file,
 
 /*
  * First pass: Mark the head of each jump table so that in the next pass,
- * we know when a given jump table ends and the next one starts.
+ * we kyesw when a given jump table ends and the next one starts.
  */
 static void mark_func_jump_tables(struct objtool_file *file,
 				    struct symbol *func)
@@ -1276,7 +1276,7 @@ static int read_retpoline_hints(struct objtool_file *file)
 
 		if (insn->type != INSN_JUMP_DYNAMIC &&
 		    insn->type != INSN_CALL_DYNAMIC) {
-			WARN_FUNC("retpoline_safe hint not an indirect jump/call",
+			WARN_FUNC("retpoline_safe hint yest an indirect jump/call",
 				  insn->sec, insn->offset);
 			return -1;
 		}
@@ -1298,9 +1298,9 @@ static void mark_rodata(struct objtool_file *file)
 	 *
 	 * - .rodata: can contain GCC switch tables
 	 * - .rodata.<func>: same, if -fdata-sections is being used
-	 * - .rodata..c_jump_table: contains C annotated jump tables
+	 * - .rodata..c_jump_table: contains C anyestated jump tables
 	 *
-	 * .rodata.str1.* sections are ignored; they don't contain jump tables.
+	 * .rodata.str1.* sections are igyesred; they don't contain jump tables.
 	 */
 	for_each_sec(file, sec) {
 		if ((!strncmp(sec->name, ".rodata", 7) && !strstr(sec->name, ".str1.")) ||
@@ -1327,10 +1327,10 @@ static int decode_sections(struct objtool_file *file)
 	if (ret)
 		return ret;
 
-	add_ignores(file);
+	add_igyesres(file);
 	add_uaccess_safe(file);
 
-	ret = add_ignore_alternatives(file);
+	ret = add_igyesre_alternatives(file);
 	if (ret)
 		return ret;
 
@@ -1442,7 +1442,7 @@ static void restore_reg(struct insn_state *state, unsigned char reg)
 }
 
 /*
- * A note about DRAP stack alignment:
+ * A yeste about DRAP stack alignment:
  *
  * GCC has the concept of a DRAP register, which is used to help keep track of
  * the stack pointer when aligning the stack.  r10 or r13 is used as the DRAP
@@ -1728,7 +1728,7 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 			break;
 
 		default:
-			WARN_FUNC("unknown stack-related instruction",
+			WARN_FUNC("unkyeswn stack-related instruction",
 				  insn->sec, insn->offset);
 			return -1;
 		}
@@ -1751,7 +1751,7 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 				cfa->base = CFI_BP_INDIRECT;
 				cfa->offset = -state->stack_size;
 
-				/* save drap so we know when to restore it */
+				/* save drap so we kyesw when to restore it */
 				state->drap_offset = -state->stack_size;
 
 			} else if (op->src.reg == CFI_BP && cfa->base == state->drap_reg) {
@@ -1772,7 +1772,7 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 		}
 
 		/* detect when asm code uses rbp as a scratch register */
-		if (!no_fp && insn->func && op->src.reg == CFI_BP &&
+		if (!yes_fp && insn->func && op->src.reg == CFI_BP &&
 		    cfa->base != CFI_BP)
 			state->bp_scratch = true;
 		break;
@@ -1786,7 +1786,7 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 				cfa->base = CFI_BP_INDIRECT;
 				cfa->offset = op->dest.offset;
 
-				/* save drap offset so we know when to restore it */
+				/* save drap offset so we kyesw when to restore it */
 				state->drap_offset = op->dest.offset;
 			}
 
@@ -1828,7 +1828,7 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 
 	case OP_DEST_MEM:
 		if (op->src.type != OP_SRC_POP && op->src.type != OP_SRC_POPF) {
-			WARN_FUNC("unknown stack-related memory operation",
+			WARN_FUNC("unkyeswn stack-related memory operation",
 				  insn->sec, insn->offset);
 			return -1;
 		}
@@ -1841,7 +1841,7 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 		break;
 
 	default:
-		WARN_FUNC("unknown stack-related instruction",
+		WARN_FUNC("unkyeswn stack-related instruction",
 			  insn->sec, insn->offset);
 		return -1;
 	}
@@ -1954,7 +1954,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 	sec = insn->sec;
 
 	if (insn->alt_group && list_empty(&insn->alts)) {
-		WARN_FUNC("don't know how to handle branch to middle of alternative instruction group",
+		WARN_FUNC("don't kyesw how to handle branch to middle of alternative instruction group",
 			  sec, insn->offset);
 		return 1;
 	}
@@ -1968,8 +1968,8 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 			return 1;
 		}
 
-		if (func && insn->ignore) {
-			WARN_FUNC("BUG: why am I validating an ignored function?",
+		if (func && insn->igyesre) {
+			WARN_FUNC("BUG: why am I validating an igyesred function?",
 				  sec, insn->offset);
 			return 1;
 		}
@@ -1997,23 +1997,23 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 				}
 
 				if (!save_insn) {
-					WARN_FUNC("no corresponding CFI save for CFI restore",
+					WARN_FUNC("yes corresponding CFI save for CFI restore",
 						  sec, insn->offset);
 					return 1;
 				}
 
 				if (!save_insn->visited) {
 					/*
-					 * Oops, no state to copy yet.
+					 * Oops, yes state to copy yet.
 					 * Hopefully we can reach this
-					 * instruction from another branch
+					 * instruction from ayesther branch
 					 * after the save insn has been
 					 * visited.
 					 */
 					if (insn == first)
 						return 0;
 
-					WARN_FUNC("objtool isn't smart enough to handle this CFI save/restore combo",
+					WARN_FUNC("objtool isn't smart eyesugh to handle this CFI save/restore combo",
 						  sec, insn->offset);
 					return 1;
 				}
@@ -2028,7 +2028,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 
 		insn->visited |= visited;
 
-		if (!insn->ignore_alts) {
+		if (!insn->igyesre_alts) {
 			bool skip_orig = false;
 
 			list_for_each_entry(alt, &insn->alts, list) {
@@ -2085,7 +2085,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 			if (ret)
 				return ret;
 
-			if (!no_fp && func && !is_fentry_call(insn) &&
+			if (!yes_fp && func && !is_fentry_call(insn) &&
 			    !has_valid_stack_frame(&state)) {
 				WARN_FUNC("call without frame pointer save/setup",
 					  sec, insn->offset);
@@ -2281,7 +2281,7 @@ static int validate_retpoline(struct objtool_file *file)
 static bool is_kasan_insn(struct instruction *insn)
 {
 	return (insn->type == INSN_CALL &&
-		!strcmp(insn->call_dest->name, "__asan_handle_no_return"));
+		!strcmp(insn->call_dest->name, "__asan_handle_yes_return"));
 }
 
 static bool is_ubsan_insn(struct instruction *insn)
@@ -2291,18 +2291,18 @@ static bool is_ubsan_insn(struct instruction *insn)
 			"__ubsan_handle_builtin_unreachable"));
 }
 
-static bool ignore_unreachable_insn(struct instruction *insn)
+static bool igyesre_unreachable_insn(struct instruction *insn)
 {
 	int i;
 
-	if (insn->ignore || insn->type == INSN_NOP)
+	if (insn->igyesre || insn->type == INSN_NOP)
 		return true;
 
 	/*
-	 * Ignore any unused exceptions.  This can happen when a whitelisted
+	 * Igyesre any unused exceptions.  This can happen when a whitelisted
 	 * function has an exception table entry.
 	 *
-	 * Also ignore alternative replacement instructions.  This can happen
+	 * Also igyesre alternative replacement instructions.  This can happen
 	 * when a whitelisted function uses one of the ALTERNATIVE macros.
 	 */
 	if (!strcmp(insn->sec->name, ".fixup") ||
@@ -2363,7 +2363,7 @@ static int validate_functions(struct objtool_file *file)
 				continue;
 
 			if (!func->len) {
-				WARN("%s() is missing an ELF size annotation",
+				WARN("%s() is missing an ELF size anyestation",
 				     func->name);
 				warnings++;
 			}
@@ -2372,7 +2372,7 @@ static int validate_functions(struct objtool_file *file)
 				continue;
 
 			insn = find_insn(file, sec, func->offset);
-			if (!insn || insn->ignore || insn->visited)
+			if (!insn || insn->igyesre || insn->visited)
 				continue;
 
 			state.uaccess = func->uaccess_safe;
@@ -2391,11 +2391,11 @@ static int validate_reachable_instructions(struct objtool_file *file)
 {
 	struct instruction *insn;
 
-	if (file->ignore_unreachables)
+	if (file->igyesre_unreachables)
 		return 0;
 
 	for_each_insn(file, insn) {
-		if (insn->visited || ignore_unreachable_insn(insn))
+		if (insn->visited || igyesre_unreachable_insn(insn))
 			continue;
 
 		WARN_FUNC("unreachable instruction", insn->sec, insn->offset);
@@ -2437,7 +2437,7 @@ int check(const char *_objname, bool orc)
 	INIT_LIST_HEAD(&file.insn_list);
 	hash_init(file.insn_hash);
 	file.c_file = find_section_by_name(file.elf, ".comment");
-	file.ignore_unreachables = no_unreachable;
+	file.igyesre_unreachables = yes_unreachable;
 	file.hints = false;
 
 	arch_initial_func_cfi_state(&initial_func_cfi);
@@ -2491,7 +2491,7 @@ int check(const char *_objname, bool orc)
 out:
 	cleanup(&file);
 
-	/* ignore warnings for now until we get all the code cleaned up */
+	/* igyesre warnings for yesw until we get all the code cleaned up */
 	if (ret || warnings)
 		return 0;
 	return 0;

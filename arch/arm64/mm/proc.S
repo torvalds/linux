@@ -61,7 +61,7 @@ ENTRY(cpu_do_suspend)
 	mrs	x9, mdscr_el1
 	mrs	x10, oslsr_el1
 	mrs	x11, sctlr_el1
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+alternative_if_yest ARM64_HAS_VIRT_HOST_EXTN
 	mrs	x12, tpidr_el1
 alternative_else
 	mrs	x12, tpidr_el2
@@ -111,7 +111,7 @@ ENTRY(cpu_do_resume)
 	msr	mdscr_el1, x10
 
 	msr	sctlr_el1, x12
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+alternative_if_yest ARM64_HAS_VIRT_HOST_EXTN
 	msr	tpidr_el1, x13
 alternative_else
 	msr	tpidr_el2, x13
@@ -127,7 +127,7 @@ alternative_endif
 
 alternative_if ARM64_HAS_RAS_EXTN
 	msr_s	SYS_DISR_EL1, xzr
-alternative_else_nop_endif
+alternative_else_yesp_endif
 
 	isb
 	ret
@@ -151,14 +151,14 @@ alternative_if ARM64_HAS_CNP
 	cbz     x1, 1f                          // skip CNP for reserved ASID
 	orr     x3, x3, #TTBR_CNP_BIT
 1:
-alternative_else_nop_endif
+alternative_else_yesp_endif
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	bfi	x3, x1, #48, #16		// set the ASID field in TTBR0
 #endif
 	bfi	x2, x1, #48, #16		// set the ASID
 	msr	ttbr1_el1, x2			// in TTBR1 (since TCR.A1 is set)
 	isb
-	msr	ttbr0_el1, x3			// now update TTBR0
+	msr	ttbr0_el1, x3			// yesw update TTBR0
 	isb
 	b	post_ttbr_update_workaround	// Back to C code...
 ENDPROC(cpu_do_switch_mm)
@@ -179,7 +179,7 @@ ENDPROC(cpu_do_switch_mm)
 /*
  * void idmap_cpu_replace_ttbr1(phys_addr_t ttbr1)
  *
- * This is the low-level counterpart to cpu_replace_ttbr1, and should not be
+ * This is the low-level counterpart to cpu_replace_ttbr1, and should yest be
  * called by anything else. It can only be executed from a TTBR0 mapping.
  */
 ENTRY(idmap_cpu_replace_ttbr1)
@@ -205,7 +205,7 @@ ENDPROC(idmap_cpu_replace_ttbr1)
 	dmb	sy				// lines are written back before
 	ldr	\type, [cur_\()\type\()p]	// loading the entry
 	tbz	\type, #0, skip_\()\type	// Skip invalid and
-	tbnz	\type, #11, skip_\()\type	// non-global entries
+	tbnz	\type, #11, skip_\()\type	// yesn-global entries
 	.endm
 
 	.macro __idmap_kpti_put_pgtable_ent_ng, type
@@ -370,7 +370,7 @@ __idmap_kpti_secondary:
 	ldxr	w18, [flag_ptr]
 	cbnz	w18, 1b
 
-	/* All done, act like nothing happened */
+	/* All done, act like yesthing happened */
 	offset_ttbr1 swapper_ttb, x18
 	msr	ttbr1_el1, swapper_ttb
 	isb
@@ -412,7 +412,7 @@ ENTRY(__cpu_setup)
 	msr	cpacr_el1, x0			// Enable FP/ASIMD
 	mov	x0, #1 << 12			// Reset mdscr_el1 and disable
 	msr	mdscr_el1, x0			// access to the DCC from EL0
-	isb					// Unmask debug exceptions now,
+	isb					// Unmask debug exceptions yesw,
 	enable_dbg				// since this is per-cpu
 	reset_pmuserenr_el0 x0			// Disable PMU access from EL0
 	/*

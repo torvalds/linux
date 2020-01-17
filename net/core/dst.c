@@ -7,7 +7,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/workqueue.h>
@@ -304,7 +304,7 @@ metadata_dst_alloc_percpu(u8 optslen, enum metadata_type type, gfp_t flags)
 	struct metadata_dst __percpu *md_dst;
 
 	md_dst = __alloc_percpu_gfp(sizeof(struct metadata_dst) + optslen,
-				    __alignof__(struct metadata_dst), flags);
+				    __aligyesf__(struct metadata_dst), flags);
 	if (!md_dst)
 		return NULL;
 

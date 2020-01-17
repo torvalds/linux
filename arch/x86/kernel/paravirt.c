@@ -6,7 +6,7 @@
     2007 - x86_64 support added by Glauber de Oliveira Costa, Red Hat Inc
 */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/efi.h>
@@ -32,16 +32,16 @@
 #include <asm/tlb.h>
 
 /*
- * nop stub, which must not clobber anything *including the stack* to
+ * yesp stub, which must yest clobber anything *including the stack* to
  * avoid confusing the entry prologues.
  */
-extern void _paravirt_nop(void);
+extern void _paravirt_yesp(void);
 asm (".pushsection .entry.text, \"ax\"\n"
-     ".global _paravirt_nop\n"
-     "_paravirt_nop:\n\t"
+     ".global _paravirt_yesp\n"
+     "_paravirt_yesp:\n\t"
      "ret\n\t"
-     ".size _paravirt_nop, . - _paravirt_nop\n\t"
-     ".type _paravirt_nop, @function\n\t"
+     ".size _paravirt_yesp, . - _paravirt_yesp\n\t"
+     ".type _paravirt_yesp, @function\n\t"
      ".popsection");
 
 void __init default_banner(void)
@@ -67,7 +67,7 @@ static unsigned paravirt_patch_call(void *insn_buff, const void *target,
 
 	if (len < call_len) {
 		pr_warn("paravirt: Failed to patch indirect CALL at %ps\n", (void *)addr);
-		/* Kernel might not be viable if patching fails, bail out: */
+		/* Kernel might yest be viable if patching fails, bail out: */
 		BUG_ON(1);
 	}
 
@@ -80,7 +80,7 @@ static unsigned paravirt_patch_call(void *insn_buff, const void *target,
 
 #ifdef CONFIG_PARAVIRT_XXL
 /* identity function, which can be inlined */
-u64 notrace _paravirt_ident_64(u64 x)
+u64 yestrace _paravirt_ident_64(u64 x)
 {
 	return x;
 }
@@ -124,9 +124,9 @@ unsigned paravirt_patch_default(u8 type, void *insn_buff,
 	unsigned ret;
 
 	if (opfunc == NULL)
-		/* If there's no function, patch it with a ud2a (BUG) */
+		/* If there's yes function, patch it with a ud2a (BUG) */
 		ret = paravirt_patch_insns(insn_buff, len, ud2a, ud2a+sizeof(ud2a));
-	else if (opfunc == _paravirt_nop)
+	else if (opfunc == _paravirt_yesp)
 		ret = 0;
 
 #ifdef CONFIG_PARAVIRT_XXL
@@ -151,7 +151,7 @@ unsigned paravirt_patch_insns(void *insn_buff, unsigned len,
 {
 	unsigned insn_len = end - start;
 
-	/* Alternative instruction is too large for the patch site and we cannot continue: */
+	/* Alternative instruction is too large for the patch site and we canyest continue: */
 	BUG_ON(insn_len > len || start == NULL);
 
 	memcpy(insn_buff, start, insn_len);
@@ -166,7 +166,7 @@ static void native_flush_tlb(void)
 
 /*
  * Global pages have to be flushed a bit differently. Not a real
- * performance problem because this does not happen often.
+ * performance problem because this does yest happen often.
  */
 static void native_flush_tlb_global(void)
 {
@@ -200,7 +200,7 @@ static struct resource reserve_ioports = {
 /*
  * Reserve the whole legacy IO space to prevent any legacy drivers
  * from wasting time probing for their hardware.  This is a fairly
- * brute-force approach to disabling all non-virtual drivers.
+ * brute-force approach to disabling all yesn-virtual drivers.
  *
  * Note that this must be called very early to have any effect.
  */
@@ -330,8 +330,8 @@ struct paravirt_patch_template pv_ops = {
 	.cpu.write_gdt_entry	= native_write_gdt_entry,
 	.cpu.write_idt_entry	= native_write_idt_entry,
 
-	.cpu.alloc_ldt		= paravirt_nop,
-	.cpu.free_ldt		= paravirt_nop,
+	.cpu.alloc_ldt		= paravirt_yesp,
+	.cpu.free_ldt		= paravirt_yesp,
 
 	.cpu.load_sp0		= native_load_sp0,
 
@@ -341,8 +341,8 @@ struct paravirt_patch_template pv_ops = {
 	.cpu.iret		= native_iret,
 	.cpu.swapgs		= native_swapgs,
 
-	.cpu.start_context_switch	= paravirt_nop,
-	.cpu.end_context_switch		= paravirt_nop,
+	.cpu.start_context_switch	= paravirt_yesp,
+	.cpu.end_context_switch		= paravirt_yesp,
 
 	/* Irq ops. */
 	.irq.save_fl		= __PV_IS_CALLEE_SAVE(native_save_fl),
@@ -361,7 +361,7 @@ struct paravirt_patch_template pv_ops = {
 	.mmu.tlb_remove_table	=
 			(void (*)(struct mmu_gather *, void *))tlb_remove_page,
 
-	.mmu.exit_mmap		= paravirt_nop,
+	.mmu.exit_mmap		= paravirt_yesp,
 
 #ifdef CONFIG_PARAVIRT_XXL
 	.mmu.read_cr2		= __PV_IS_CALLEE_SAVE(native_read_cr2),
@@ -370,16 +370,16 @@ struct paravirt_patch_template pv_ops = {
 	.mmu.write_cr3		= native_write_cr3,
 
 	.mmu.pgd_alloc		= __paravirt_pgd_alloc,
-	.mmu.pgd_free		= paravirt_nop,
+	.mmu.pgd_free		= paravirt_yesp,
 
-	.mmu.alloc_pte		= paravirt_nop,
-	.mmu.alloc_pmd		= paravirt_nop,
-	.mmu.alloc_pud		= paravirt_nop,
-	.mmu.alloc_p4d		= paravirt_nop,
-	.mmu.release_pte	= paravirt_nop,
-	.mmu.release_pmd	= paravirt_nop,
-	.mmu.release_pud	= paravirt_nop,
-	.mmu.release_p4d	= paravirt_nop,
+	.mmu.alloc_pte		= paravirt_yesp,
+	.mmu.alloc_pmd		= paravirt_yesp,
+	.mmu.alloc_pud		= paravirt_yesp,
+	.mmu.alloc_p4d		= paravirt_yesp,
+	.mmu.release_pte	= paravirt_yesp,
+	.mmu.release_pmd	= paravirt_yesp,
+	.mmu.release_pud	= paravirt_yesp,
+	.mmu.release_p4d	= paravirt_yesp,
 
 	.mmu.set_pte		= native_set_pte,
 	.mmu.set_pte_at		= native_set_pte_at,
@@ -420,13 +420,13 @@ struct paravirt_patch_template pv_ops = {
 	.mmu.make_pte		= PTE_IDENT,
 	.mmu.make_pgd		= PTE_IDENT,
 
-	.mmu.dup_mmap		= paravirt_nop,
-	.mmu.activate_mm	= paravirt_nop,
+	.mmu.dup_mmap		= paravirt_yesp,
+	.mmu.activate_mm	= paravirt_yesp,
 
 	.mmu.lazy_mode = {
-		.enter		= paravirt_nop,
-		.leave		= paravirt_nop,
-		.flush		= paravirt_nop,
+		.enter		= paravirt_yesp,
+		.leave		= paravirt_yesp,
+		.flush		= paravirt_yesp,
 	},
 
 	.mmu.set_fixmap		= native_set_fixmap,
@@ -438,8 +438,8 @@ struct paravirt_patch_template pv_ops = {
 	.lock.queued_spin_lock_slowpath	= native_queued_spin_lock_slowpath,
 	.lock.queued_spin_unlock	=
 				PV_CALLEE_SAVE(__native_queued_spin_unlock),
-	.lock.wait			= paravirt_nop,
-	.lock.kick			= paravirt_nop,
+	.lock.wait			= paravirt_yesp,
+	.lock.kick			= paravirt_yesp,
 	.lock.vcpu_is_preempted		=
 				PV_CALLEE_SAVE(__native_vcpu_is_preempted),
 #endif /* SMP */

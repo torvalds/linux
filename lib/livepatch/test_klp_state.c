@@ -10,7 +10,7 @@
 #include <linux/livepatch.h>
 
 #define CONSOLE_LOGLEVEL_STATE 1
-/* Version 1 does not support migration. */
+/* Version 1 does yest support migration. */
 #define CONSOLE_LOGLEVEL_STATE_VERSION 1
 
 static const char *const module_state[] = {
@@ -114,14 +114,14 @@ static void post_unpatch_callback(struct klp_object *obj)
 	free_loglevel_state();
 }
 
-static struct klp_func no_funcs[] = {
+static struct klp_func yes_funcs[] = {
 	{}
 };
 
 static struct klp_object objs[] = {
 	{
 		.name = NULL,	/* vmlinux */
-		.funcs = no_funcs,
+		.funcs = yes_funcs,
 		.callbacks = {
 			.pre_patch = pre_patch_callback,
 			.post_patch = post_patch_callback,

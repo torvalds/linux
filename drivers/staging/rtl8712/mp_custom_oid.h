@@ -22,8 +22,8 @@
  * For Production Kit with Agilent Equipments
  * in order to make our custom oids hopefully somewhat unique
  * we will use 0xFF (indicating implementation specific OID)
- *	 81(first byte of non zero Realtek unique identifier)
- *	 80 (second byte of non zero Realtek unique identifier)
+ *	 81(first byte of yesn zero Realtek unique identifier)
+ *	 80 (second byte of yesn zero Realtek unique identifier)
  *	 XX (the custom OID number - providing 255 possible custom oids)
  */
 #define OID_RT_PRO_RESET_DUT				0xFF818000

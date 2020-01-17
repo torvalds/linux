@@ -14,7 +14,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
@@ -137,7 +137,7 @@ static void xenkbd_handle_mt_event(struct xenkbd_info *info,
 		input_report_abs(info->mtouch, ABS_MT_TOUCH_MAJOR,
 				 mtouch->u.shape.major);
 		input_report_abs(info->mtouch, ABS_MT_TOUCH_MINOR,
-				 mtouch->u.shape.minor);
+				 mtouch->u.shape.miyesr);
 		break;
 
 	case XENKBD_MT_EV_ORIENT:
@@ -192,7 +192,7 @@ static irqreturn_t input_handler(int rq, void *dev_id)
 		xenkbd_handle_event(info, &XENKBD_IN_RING_REF(page, cons));
 	mb();			/* ensure we got ring contents */
 	page->in_cons = cons;
-	notify_remote_via_irq(info->irq);
+	yestify_remote_via_irq(info->irq);
 
 	return IRQ_HANDLED;
 }
@@ -214,15 +214,15 @@ static int xenkbd_probe(struct xenbus_device *dev,
 	info->xbdev = dev;
 	info->irq = -1;
 	info->gref = -1;
-	snprintf(info->phys, sizeof(info->phys), "xenbus/%s", dev->nodename);
+	snprintf(info->phys, sizeof(info->phys), "xenbus/%s", dev->yesdename);
 
 	info->page = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 	if (!info->page)
-		goto error_nomem;
+		goto error_yesmem;
 
 	/*
 	 * The below are reverse logic, e.g. if the feature is set, then
-	 * do not expose the corresponding virtual device.
+	 * do yest expose the corresponding virtual device.
 	 */
 	with_kbd = !xenbus_read_unsigned(dev->otherend,
 					 XENKBD_FIELD_FEAT_DSBL_KEYBRD, 0);
@@ -234,7 +234,7 @@ static int xenkbd_probe(struct xenbus_device *dev,
 	with_mtouch = xenbus_read_unsigned(dev->otherend,
 					   XENKBD_FIELD_FEAT_MTOUCH, 0);
 	if (with_mtouch) {
-		ret = xenbus_write(XBT_NIL, dev->nodename,
+		ret = xenbus_write(XBT_NIL, dev->yesdename,
 				   XENKBD_FIELD_REQ_MTOUCH, "1");
 		if (ret) {
 			pr_warn("xenkbd: can't request multi-touch");
@@ -246,7 +246,7 @@ static int xenkbd_probe(struct xenbus_device *dev,
 	if (with_kbd) {
 		kbd = input_allocate_device();
 		if (!kbd)
-			goto error_nomem;
+			goto error_yesmem;
 		kbd->name = "Xen Virtual Keyboard";
 		kbd->phys = info->phys;
 		kbd->id.bustype = BUS_PCI;
@@ -283,7 +283,7 @@ static int xenkbd_probe(struct xenbus_device *dev,
 							  XENKBD_FIELD_HEIGHT,
 							  ptr_size[KPARAM_Y]);
 		if (abs) {
-			ret = xenbus_write(XBT_NIL, dev->nodename,
+			ret = xenbus_write(XBT_NIL, dev->yesdename,
 					   XENKBD_FIELD_REQ_ABS_POINTER, "1");
 			if (ret) {
 				pr_warn("xenkbd: can't request abs-pointer\n");
@@ -293,7 +293,7 @@ static int xenkbd_probe(struct xenbus_device *dev,
 
 		ptr = input_allocate_device();
 		if (!ptr)
-			goto error_nomem;
+			goto error_yesmem;
 		ptr->name = "Xen Virtual Pointer";
 		ptr->phys = info->phys;
 		ptr->id.bustype = BUS_PCI;
@@ -332,7 +332,7 @@ static int xenkbd_probe(struct xenbus_device *dev,
 
 		mtouch = input_allocate_device();
 		if (!mtouch)
-			goto error_nomem;
+			goto error_yesmem;
 
 		num_cont = xenbus_read_unsigned(info->xbdev->otherend,
 						XENKBD_FIELD_MT_NUM_CONTACTS,
@@ -387,7 +387,7 @@ static int xenkbd_probe(struct xenbus_device *dev,
 
 	return 0;
 
- error_nomem:
+ error_yesmem:
 	ret = -ENOMEM;
 	xenbus_dev_fatal(dev, ret, "allocating device memory");
  error:
@@ -449,15 +449,15 @@ static int xenkbd_connect_backend(struct xenbus_device *dev,
 		xenbus_dev_fatal(dev, ret, "starting transaction");
 		goto error_irqh;
 	}
-	ret = xenbus_printf(xbt, dev->nodename, XENKBD_FIELD_RING_REF, "%lu",
+	ret = xenbus_printf(xbt, dev->yesdename, XENKBD_FIELD_RING_REF, "%lu",
 			    virt_to_gfn(info->page));
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, XENKBD_FIELD_RING_GREF,
+	ret = xenbus_printf(xbt, dev->yesdename, XENKBD_FIELD_RING_GREF,
 			    "%u", info->gref);
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, XENKBD_FIELD_EVT_CHANNEL, "%u",
+	ret = xenbus_printf(xbt, dev->yesdename, XENKBD_FIELD_EVT_CHANNEL, "%u",
 			    evtchn);
 	if (ret)
 		goto error_xenbus;
@@ -504,7 +504,7 @@ static void xenkbd_backend_changed(struct xenbus_device *dev,
 	case XenbusStateInitialised:
 	case XenbusStateReconfiguring:
 	case XenbusStateReconfigured:
-	case XenbusStateUnknown:
+	case XenbusStateUnkyeswn:
 		break;
 
 	case XenbusStateInitWait:
@@ -514,7 +514,7 @@ static void xenkbd_backend_changed(struct xenbus_device *dev,
 	case XenbusStateConnected:
 		/*
 		 * Work around xenbus race condition: If backend goes
-		 * through InitWait to Connected fast enough, we can
+		 * through InitWait to Connected fast eyesugh, we can
 		 * get Connected twice here.
 		 */
 		if (dev->state != XenbusStateConnected)

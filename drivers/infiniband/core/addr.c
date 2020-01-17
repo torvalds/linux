@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
  * Copyright (c) 2002-2005, Network Appliance, Inc. All rights reserved.
- * Copyright (c) 1999-2005, Mellanox Technologies, Inc. All rights reserved.
+ * Copyright (c) 1999-2005, Mellayesx Techyeslogies, Inc. All rights reserved.
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -481,7 +481,7 @@ static int copy_src_l2_addr(struct rdma_dev_addr *dev_addr,
 		rdma_copy_src_l2_addr(dev_addr, dst->dev);
 
 	/*
-	 * If there's a gateway and type of device not ARPHRD_INFINIBAND,
+	 * If there's a gateway and type of device yest ARPHRD_INFINIBAND,
 	 * we're definitely in RoCE v2 (as RoCE v1 isn't routable) set the
 	 * network type accordingly.
 	 */
@@ -509,7 +509,7 @@ static int rdma_set_src_addr_rcu(struct rdma_dev_addr *dev_addr,
 		/*
 		 * RDMA (IB/RoCE, iWarp) doesn't run on lo interface or
 		 * loopback IP address. So if route is resolved to loopback
-		 * interface, translate that to a real ndev based on non
+		 * interface, translate that to a real ndev based on yesn
 		 * loopback IP address.
 		 */
 		ndev = rdma_find_ndev_for_src_ip_rcu(dev_net(ndev), dst_in);
@@ -647,7 +647,7 @@ static void process_one_req(struct work_struct *_work)
 	spin_lock_bh(&lock);
 	if (!list_empty(&req->list)) {
 		/*
-		 * Although the work will normally have been canceled by the
+		 * Although the work will yesrmally have been canceled by the
 		 * workqueue, it can still be requeued as long as it is on the
 		 * req_list.
 		 */
@@ -760,7 +760,7 @@ int roce_resolve_route_from_path(struct sa_path_rec *rec,
  * rdma_addr_cancel - Cancel resolve ip request
  * @addr:	Pointer to address structure given previously
  *		during rdma_resolve_ip().
- * rdma_addr_cancel() is synchronous function which cancels any pending
+ * rdma_addr_cancel() is synchroyesus function which cancels any pending
  * request if there is any.
  */
 void rdma_addr_cancel(struct rdma_dev_addr *addr)
@@ -787,7 +787,7 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 
 	/*
 	 * sync canceling the work after removing it from the req_list
-	 * guarentees no work is running and none will be started.
+	 * guarentees yes work is running and yesne will be started.
 	 */
 	cancel_delayed_work_sync(&found->work);
 	kfree(found);
@@ -844,7 +844,7 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 	return 0;
 }
 
-static int netevent_callback(struct notifier_block *self, unsigned long event,
+static int netevent_callback(struct yestifier_block *self, unsigned long event,
 	void *ctx)
 {
 	struct addr_req *req;
@@ -862,8 +862,8 @@ static int netevent_callback(struct notifier_block *self, unsigned long event,
 	return 0;
 }
 
-static struct notifier_block nb = {
-	.notifier_call = netevent_callback
+static struct yestifier_block nb = {
+	.yestifier_call = netevent_callback
 };
 
 int addr_init(void)
@@ -872,14 +872,14 @@ int addr_init(void)
 	if (!addr_wq)
 		return -ENOMEM;
 
-	register_netevent_notifier(&nb);
+	register_netevent_yestifier(&nb);
 
 	return 0;
 }
 
 void addr_cleanup(void)
 {
-	unregister_netevent_notifier(&nb);
+	unregister_netevent_yestifier(&nb);
 	destroy_workqueue(addr_wq);
 	WARN_ON(!list_empty(&req_list));
 }

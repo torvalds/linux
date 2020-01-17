@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_FD_H
 #define _UAPI_LINUX_FD_H
 
@@ -128,7 +128,7 @@ struct floppy_drive_params {
 	signed char cmos;		/* CMOS type */
 	
 	/* Spec2 is (HLD<<1 | ND), where HLD is head load time (1=2ms, 2=4 ms 
-	 * etc) and ND is set means no DMA. Hardcoded to 6 (HLD=6ms, use DMA).
+	 * etc) and ND is set means yes DMA. Hardcoded to 6 (HLD=6ms, use DMA).
 	 */
 	unsigned long max_dtr;		/* Step rate, usec */
 	unsigned long hlt;     		/* Head load/settle time, msec */
@@ -153,7 +153,7 @@ struct floppy_drive_params {
 	
 	char flags;			/* various flags, including ftd_msg */
 /*
- * Announce successful media type detection and media information loss after
+ * Anyesunce successful media type detection and media information loss after
  * disk changes.
  * Also used to enable/disable printing of overrun warnings.
  */
@@ -169,7 +169,7 @@ struct floppy_drive_params {
 
 /*
  * Auto-detection. Each drive type has eight formats which are
- * used in succession to try to read the disk. If the FDC cannot lock onto
+ * used in succession to try to read the disk. If the FDC canyest lock onto
  * the disk, the next format is tried. This uses the variable 'probing'.
  */
 	short autodetect[8];		/* autodetected formats */
@@ -182,7 +182,7 @@ struct floppy_drive_params {
 enum {
 	FD_NEED_TWADDLE_BIT,	/* more magic */
 	FD_VERIFY_BIT,		/* inquire for write protection */
-	FD_DISK_NEWCHANGE_BIT,	/* change detected, and no action undertaken yet
+	FD_DISK_NEWCHANGE_BIT,	/* change detected, and yes action undertaken yet
 				 * to clear media change status */
 	FD_UNUSED_BIT,
 	FD_DISK_CHANGED_BIT,	/* disk has been changed since last i/o */
@@ -196,7 +196,7 @@ enum {
 
 
 /*
- * Current drive state (not directly modifiable by user, readonly)
+ * Current drive state (yest directly modifiable by user, readonly)
  */
 struct floppy_drive_struct {
 	unsigned long flags;
@@ -217,8 +217,8 @@ struct floppy_drive_struct {
 	int generation; /* how many diskchanges? */
 
 /*
- * (User-provided) media information is _not_ discarded after a media change
- * if the corresponding keep_data flag is non-zero. Positive values are
+ * (User-provided) media information is _yest_ discarded after a media change
+ * if the corresponding keep_data flag is yesn-zero. Positive values are
  * decremented after each probe.
  */
 	int keep_data;
@@ -276,11 +276,11 @@ struct floppy_fdc_state {
 	unsigned char track[4];
 	/* Position of the heads of the 4 units attached to this FDC,
 	 * as stored on the FDC. In the future, the position as stored
-	 * on the FDC might not agree with the actual physical
+	 * on the FDC might yest agree with the actual physical
 	 * position of these drive heads. By allowing such
 	 * disagreement, it will be possible to reset the FDC without
 	 * incurring the expensive cost of repositioning all heads.
-	 * Right now, these positions are hard wired to 0. */
+	 * Right yesw, these positions are hard wired to 0. */
 
 };
 
@@ -288,7 +288,7 @@ struct floppy_fdc_state {
 
 
 /*
- * Asynchronous Write error tracking
+ * Asynchroyesus Write error tracking
  */
 struct floppy_write_errors {
 	/* Write error logging.
@@ -296,7 +296,7 @@ struct floppy_write_errors {
 	 * These fields can be cleared with the FDWERRORCLR ioctl.
 	 * Only writes that were attempted but failed due to a physical media
 	 * error are logged.  write(2) calls that fail and return an error code
-	 * to the user process are not counted.
+	 * to the user process are yest counted.
 	 */
 
 	unsigned int write_errors;  /* number of physical write errors 
@@ -321,7 +321,7 @@ struct floppy_write_errors {
 /*
  * Raw commands
  */
-/* new interface flag: now we can do them in batches */
+/* new interface flag: yesw we can do them in batches */
 #define FDHAVEBATCHEDRAWCMD
 
 struct floppy_raw_cmd {
@@ -369,7 +369,7 @@ struct floppy_raw_cmd {
 };
 
 #define FDRAWCMD _IO(2, 0x58)
-/* send a raw command to the fdc. Structure size not included, because of
+/* send a raw command to the fdc. Structure size yest included, because of
  * batches */
 
 #define FDTWADDLE _IO(2, 0x59)

@@ -39,7 +39,7 @@
  * @dev:            device handle.
  * @pctrl:          pinctrl handle.
  * @chip:           gpiochip handle.
- * @restart_nb:     restart notifier block.
+ * @restart_nb:     restart yestifier block.
  * @irq:            parent irq for the TLMM irq_chip.
  * @lock:           Spinlock to protect register resources as well
  *                  as msm_pinctrl data structures.
@@ -55,7 +55,7 @@ struct msm_pinctrl {
 	struct pinctrl_dev *pctrl;
 	struct gpio_chip chip;
 	struct pinctrl_desc desc;
-	struct notifier_block restart_nb;
+	struct yestifier_block restart_nb;
 
 	struct irq_chip irq_chip;
 	int irq;
@@ -119,7 +119,7 @@ static const struct pinctrl_ops msm_pinctrl_ops = {
 	.get_groups_count	= msm_get_groups_count,
 	.get_group_name		= msm_get_group_name,
 	.get_group_pins		= msm_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -202,7 +202,7 @@ static int msm_pinmux_request_gpio(struct pinctrl_dev *pctldev,
 	if (!g->nfuncs)
 		return 0;
 
-	/* For now assume function 0 is GPIO because it always is */
+	/* For yesw assume function 0 is GPIO because it always is */
 	return msm_pinmux_set_mux(pctldev, g->funcs[0], offset);
 }
 
@@ -291,7 +291,7 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		arg = 1;
 		break;
 	case PIN_CONFIG_BIAS_BUS_HOLD:
-		if (pctrl->soc->pull_no_keeper)
+		if (pctrl->soc->pull_yes_keeper)
 			return -ENOTSUPP;
 
 		if (arg != MSM_KEEPER)
@@ -299,7 +299,7 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		arg = 1;
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
-		if (pctrl->soc->pull_no_keeper)
+		if (pctrl->soc->pull_yes_keeper)
 			arg = arg == MSM_PULL_UP_NO_KEEPER;
 		else
 			arg = arg == MSM_PULL_UP;
@@ -310,7 +310,7 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		arg = msm_regval_to_drive(arg);
 		break;
 	case PIN_CONFIG_OUTPUT:
-		/* Pin is not output */
+		/* Pin is yest output */
 		if (!arg)
 			return -EINVAL;
 
@@ -367,13 +367,13 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 			arg = MSM_PULL_DOWN;
 			break;
 		case PIN_CONFIG_BIAS_BUS_HOLD:
-			if (pctrl->soc->pull_no_keeper)
+			if (pctrl->soc->pull_yes_keeper)
 				return -ENOTSUPP;
 
 			arg = MSM_KEEPER;
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
-			if (pctrl->soc->pull_no_keeper)
+			if (pctrl->soc->pull_yes_keeper)
 				arg = MSM_PULL_UP_NO_KEEPER;
 			else
 				arg = MSM_PULL_UP;
@@ -545,14 +545,14 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	u32 ctl_reg, io_reg;
 
 	static const char * const pulls_keeper[] = {
-		"no pull",
+		"yes pull",
 		"pull down",
 		"keeper",
 		"pull up"
 	};
 
-	static const char * const pulls_no_keeper[] = {
-		"no pull",
+	static const char * const pulls_yes_keeper[] = {
+		"yes pull",
 		"pull down",
 		"pull up",
 	};
@@ -577,8 +577,8 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	seq_printf(s, " %-8s: %-3s", g->name, is_out ? "out" : "in");
 	seq_printf(s, " %-4s func%d", val ? "high" : "low", func);
 	seq_printf(s, " %dmA", msm_regval_to_drive(drive));
-	if (pctrl->soc->pull_no_keeper)
-		seq_printf(s, " %s", pulls_no_keeper[pull]);
+	if (pctrl->soc->pull_yes_keeper)
+		seq_printf(s, " %s", pulls_yes_keeper[pull]);
 	else
 		seq_printf(s, " %s", pulls_keeper[pull]);
 	seq_puts(s, "\n");
@@ -635,7 +635,7 @@ static int msm_gpio_init_valid_mask(struct gpio_chip *gc,
 
 	ret = device_property_read_u16_array(pctrl->dev, "gpios", tmp, len);
 	if (ret < 0) {
-		dev_err(pctrl->dev, "could not read list of GPIOs\n");
+		dev_err(pctrl->dev, "could yest read list of GPIOs\n");
 		goto out;
 	}
 
@@ -659,7 +659,7 @@ static const struct gpio_chip msm_gpio_template = {
 	.dbg_show         = msm_gpio_dbg_show,
 };
 
-/* For dual-edge interrupts in software, since some hardware has no
+/* For dual-edge interrupts in software, since some hardware has yes
  * such support:
  *
  * At appropriate moments, this function may be called to flip the polarity
@@ -670,7 +670,7 @@ static const struct gpio_chip msm_gpio_template = {
  * - the input value of the gpio doesn't change during the attempt.
  * If the value changes twice during the process, that would cause the first
  * test to fail but would force the second, as two opposite
- * transitions would cause a detection no matter the polarity setting.
+ * transitions would cause a detection yes matter the polarity setting.
  *
  * The do-loop tries to sledge-hammer closed the timing hole between
  * the initial value-read and the polarity-write - if the line value changes
@@ -727,7 +727,7 @@ static void msm_gpio_irq_mask(struct irq_data *d)
 	 * RAW_STATUS_EN bit causes the level or edge sensed on the line to be
 	 * latched into the interrupt status register when the hardware detects
 	 * an irq that it's configured for (either edge for edge type or level
-	 * for level type irq). The 'non-raw' status enable bit causes the
+	 * for level type irq). The 'yesn-raw' status enable bit causes the
 	 * hardware to assert the summary interrupt to the CPU if the latched
 	 * status bit is set. There's a bug though, the edge detection logic
 	 * seems to have a problem where toggling the RAW_STATUS_EN bit may
@@ -775,7 +775,7 @@ static void msm_gpio_irq_clear_unmask(struct irq_data *d, bool status_clear)
 		/*
 		 * clear the interrupt status bit before unmask to avoid
 		 * any erroneous interrupts that would have got latched
-		 * when the interrupt is not in use.
+		 * when the interrupt is yest in use.
 		 */
 		val = msm_readl_intr_status(pctrl, g);
 		val &= ~BIT(g->intr_status_bit);
@@ -799,7 +799,7 @@ static void msm_gpio_irq_enable(struct irq_data *d)
 	 * the line.
 	 * This is especially a problem with the GPIOs routed to the
 	 * PDC. These GPIOs are direct-connect interrupts to the GIC.
-	 * Disabling the interrupt line at the PDC does not prevent
+	 * Disabling the interrupt line at the PDC does yest prevent
 	 * the interrupt from being latched at the GIC. The state at
 	 * GIC needs to be cleared before enabling.
 	 */
@@ -963,7 +963,7 @@ static int msm_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 	unsigned long flags;
 
 	/*
-	 * While they may not wake up when the TLMM is powered off,
+	 * While they may yest wake up when the TLMM is powered off,
 	 * some GPIOs would like to wakeup the system from suspend
 	 * when TLMM is powered on. To allow that, enable the GPIO
 	 * summary line to be wakeup capable at GIC.
@@ -1087,7 +1087,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	struct gpio_irq_chip *girq;
 	int i, ret;
 	unsigned gpio, ngpio = pctrl->soc->ngpios;
-	struct device_node *np;
+	struct device_yesde *np;
 	bool skip;
 
 	if (WARN_ON(ngpio > MAX_NR_GPIO))
@@ -1099,7 +1099,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	chip->label = dev_name(pctrl->dev);
 	chip->parent = pctrl->dev;
 	chip->owner = THIS_MODULE;
-	chip->of_node = pctrl->dev->of_node;
+	chip->of_yesde = pctrl->dev->of_yesde;
 	if (msm_gpio_needs_valid_mask(pctrl))
 		chip->init_valid_mask = msm_gpio_init_valid_mask;
 
@@ -1115,11 +1115,11 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	pctrl->irq_chip.irq_request_resources = msm_gpio_irq_reqres;
 	pctrl->irq_chip.irq_release_resources = msm_gpio_irq_relres;
 
-	np = of_parse_phandle(pctrl->dev->of_node, "wakeup-parent", 0);
+	np = of_parse_phandle(pctrl->dev->of_yesde, "wakeup-parent", 0);
 	if (np) {
 		chip->irq.parent_domain = irq_find_matching_host(np,
 						 DOMAIN_BUS_WAKEUP);
-		of_node_put(np);
+		of_yesde_put(np);
 		if (!chip->irq.parent_domain)
 			return -EPROBE_DEFER;
 		chip->irq.child_to_parent_hwirq = msm_gpio_wakeirq;
@@ -1138,7 +1138,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	girq = &chip->irq;
 	girq->chip = &pctrl->irq_chip;
 	girq->parent_handler = msm_gpio_irq_handler;
-	girq->fwnode = pctrl->dev->fwnode;
+	girq->fwyesde = pctrl->dev->fwyesde;
 	girq->num_parents = 1;
 	girq->parents = devm_kcalloc(pctrl->dev, 1, sizeof(*girq->parents),
 				     GFP_KERNEL);
@@ -1156,7 +1156,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 
 	/*
 	 * For DeviceTree-supported systems, the gpio core checks the
-	 * pinctrl's device node for the "gpio-ranges" property.
+	 * pinctrl's device yesde for the "gpio-ranges" property.
 	 * If it is present, it takes care of adding the pin ranges
 	 * for the driver. In this case the driver can skip ahead.
 	 *
@@ -1164,7 +1164,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	 * files which don't set the "gpio-ranges" property or systems that
 	 * utilize ACPI the driver has to call gpiochip_add_pin_range().
 	 */
-	if (!of_property_read_bool(pctrl->dev->of_node, "gpio-ranges")) {
+	if (!of_property_read_bool(pctrl->dev->of_yesde, "gpio-ranges")) {
 		ret = gpiochip_add_pin_range(&pctrl->chip,
 			dev_name(pctrl->dev), 0, 0, chip->ngpio);
 		if (ret) {
@@ -1177,7 +1177,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	return 0;
 }
 
-static int msm_ps_hold_restart(struct notifier_block *nb, unsigned long action,
+static int msm_ps_hold_restart(struct yestifier_block *nb, unsigned long action,
 			       void *data)
 {
 	struct msm_pinctrl *pctrl = container_of(nb, struct msm_pinctrl, restart_nb);
@@ -1201,7 +1201,7 @@ static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 
 	for (i = 0; i < pctrl->soc->nfunctions; i++)
 		if (!strcmp(func[i].name, "ps_hold")) {
-			pctrl->restart_nb.notifier_call = msm_ps_hold_restart;
+			pctrl->restart_nb.yestifier_call = msm_ps_hold_restart;
 			pctrl->restart_nb.priority = 128;
 			if (register_restart_handler(&pctrl->restart_nb))
 				dev_err(pctrl->dev,

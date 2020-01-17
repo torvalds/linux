@@ -114,11 +114,11 @@
 	.insns = {
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_JMP_IMM(BPF_JSLE, BPF_REG_0, 0, 0),
-		/* Marks reg as unknown. */
+		/* Marks reg as unkyeswn. */
 		BPF_ALU64_IMM(BPF_NEG, BPF_REG_0, 0),
 		BPF_ALU64_REG(BPF_SUB, BPF_REG_0, BPF_REG_1),
 		BPF_EXIT_INSN(),
 	},
 	.result = REJECT,
-	.errstr = "math between ctx pointer and register with unbounded min value is not allowed",
+	.errstr = "math between ctx pointer and register with unbounded min value is yest allowed",
 },

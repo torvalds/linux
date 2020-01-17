@@ -38,9 +38,9 @@ Required properties:
 See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt for
 further information on IRQ bindings.
 
-Sub-nodes:
+Sub-yesdes:
 
-- regulators : This node defines the settings for the LDOs and BUCKs.
+- regulators : This yesde defines the settings for the LDOs and BUCKs.
   The DA9062 regulators are bound using their names listed below:
 
     buck1    : BUCK_1
@@ -69,9 +69,9 @@ Sub-nodes:
   regulator-initial-mode may be specified for buck regulators using mode values
   from include/dt-bindings/regulator/dlg,da9063-regulator.h.
 
-- rtc : This node defines settings required for the Real-Time Clock associated
-  with the DA9062. There are currently no entries in this binding, however
-  compatible = "dlg,da9062-rtc" should be added if a node is created.
+- rtc : This yesde defines settings required for the Real-Time Clock associated
+  with the DA9062. There are currently yes entries in this binding, however
+  compatible = "dlg,da9062-rtc" should be added if a yesde is created.
 
 - onkey : See ../input/da9062-onkey.txt
 

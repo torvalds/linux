@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2001
  * Brad Boyer (flar@allandria.com)
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techyeslogies <roman@ardistech.com>
  *
  * Handler routines for unicode strings
  */
@@ -15,7 +15,7 @@
 #include "hfsplus_raw.h"
 
 /* Fold the case of a unicode char, given the 16 bit value */
-/* Returns folded char, or 0 if ignorable */
+/* Returns folded char, or 0 if igyesrable */
 static inline u16 case_fold(u16 c)
 {
 	u16 tmp;
@@ -28,7 +28,7 @@ static inline u16 case_fold(u16 c)
 	return tmp;
 }
 
-/* Compare unicode strings, return values like normal strcmp */
+/* Compare unicode strings, return values like yesrmal strcmp */
 int hfsplus_strcasecmp(const struct hfsplus_unistr *s1,
 		       const struct hfsplus_unistr *s2)
 {
@@ -173,7 +173,7 @@ int hfsplus_uni2asc(struct super_block *sb,
 			}
 		}
 		while (1) {
-			/* main loop for common case of not composed chars */
+			/* main loop for common case of yest composed chars */
 			if (!ustrlen)
 				goto same;
 			c1 = be16_to_cpu(*ip);
@@ -272,8 +272,8 @@ static inline int asc2unichar(struct super_block *sb, const char *astr, int len,
 	return size;
 }
 
-/* Decomposes a non-Hangul unicode character. */
-static u16 *hfsplus_decompose_nonhangul(wchar_t uc, int *size)
+/* Decomposes a yesn-Hangul unicode character. */
+static u16 *hfsplus_decompose_yesnhangul(wchar_t uc, int *size)
 {
 	int off;
 
@@ -297,7 +297,7 @@ static u16 *hfsplus_decompose_nonhangul(wchar_t uc, int *size)
 }
 
 /*
- * Try to decompose a unicode character as Hangul. Return 0 if @uc is not
+ * Try to decompose a unicode character as Hangul. Return 0 if @uc is yest
  * precomposed Hangul, otherwise return the length of the decomposition.
  *
  * This function was adapted from sample code from the Unicode Standard
@@ -337,7 +337,7 @@ static u16 *decompose_unichar(wchar_t uc, int *size, u16 *hangul_buffer)
 	result = hangul_buffer;
 	*size = hfsplus_try_decompose_hangul(uc, result);
 	if (*size == 0)
-		result = hfsplus_decompose_nonhangul(uc, size);
+		result = hfsplus_decompose_yesnhangul(uc, size);
 	return result;
 }
 

@@ -23,7 +23,7 @@ struct parport_pc_private {
 	/* Bitmask of writable CTR bits. */
 	unsigned char ctr_writable;
 
-	/* Whether or not there's an ECR. */
+	/* Whether or yest there's an ECR. */
 	int ecr;
 
 	/* Number of PWords that FIFO will hold. */

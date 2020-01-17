@@ -74,7 +74,7 @@ struct opt3001 {
 	struct device		*dev;
 
 	struct mutex		lock;
-	bool			ok_to_ignore_lock;
+	bool			ok_to_igyesre_lock;
 	bool			result_ready;
 	wait_queue_head_t	result_ready_queue;
 	u16			result;
@@ -245,7 +245,7 @@ static int opt3001_get_lux(struct opt3001 *opt, int *val, int *val2)
 		}
 
 		/* Allow IRQ to access the device despite lock being set */
-		opt->ok_to_ignore_lock = true;
+		opt->ok_to_igyesre_lock = true;
 	}
 
 	/* Reset data-ready indicator flag */
@@ -309,7 +309,7 @@ static int opt3001_get_lux(struct opt3001 *opt, int *val, int *val2)
 err:
 	if (opt->use_irq)
 		/* Disallow IRQ to access the device while lock is active */
-		opt->ok_to_ignore_lock = false;
+		opt->ok_to_igyesre_lock = false;
 
 	if (ret == 0)
 		return -ETIMEDOUT;
@@ -688,7 +688,7 @@ static irqreturn_t opt3001_irq(int irq, void *_iio)
 	int ret;
 	bool wake_result_ready_queue = false;
 
-	if (!opt->ok_to_ignore_lock)
+	if (!opt->ok_to_igyesre_lock)
 		mutex_lock(&opt->lock);
 
 	ret = i2c_smbus_read_word_swapped(opt->client, OPT3001_CONFIGURATION);
@@ -725,7 +725,7 @@ static irqreturn_t opt3001_irq(int irq, void *_iio)
 	}
 
 out:
-	if (!opt->ok_to_ignore_lock)
+	if (!opt->ok_to_igyesre_lock)
 		mutex_unlock(&opt->lock);
 
 	if (wake_result_ready_queue)
@@ -777,7 +777,7 @@ static int opt3001_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	/* Make use of INT pin only if valid IRQ no. is given */
+	/* Make use of INT pin only if valid IRQ yes. is given */
 	if (irq > 0) {
 		ret = request_threaded_irq(irq, NULL, opt3001_irq,
 				IRQF_TRIGGER_FALLING | IRQF_ONESHOT,

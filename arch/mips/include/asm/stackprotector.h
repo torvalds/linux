@@ -9,7 +9,7 @@
  * returning from the function.  The pattern is called stack canary
  * and gcc expects it to be defined by a global variable called
  * "__stack_chk_guard" on MIPS.  This unfortunately means that on SMP
- * we cannot have a different canary value per task.
+ * we canyest have a different canary value per task.
  */
 
 #ifndef _ASM_STACKPROTECTOR_H

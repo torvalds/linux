@@ -25,11 +25,11 @@
 static DEFINE_MUTEX(coresight_mutex);
 
 /**
- * struct coresight_node - elements of a path, from source to sink
+ * struct coresight_yesde - elements of a path, from source to sink
  * @csdev:	Address of an element.
  * @link:	hook to the list.
  */
-struct coresight_node {
+struct coresight_yesde {
 	struct coresight_device *csdev;
 	struct list_head link;
 };
@@ -42,7 +42,7 @@ static DEFINE_PER_CPU(struct list_head *, tracer_path);
 
 /*
  * As of this writing only a single STM can be found in CS topologies.  Since
- * there is no way to know if we'll ever see more and what kind of
+ * there is yes way to kyesw if we'll ever see more and what kind of
  * configuration they will enact, for the time being only define a single path
  * for STM.
  */
@@ -50,8 +50,8 @@ static struct list_head *stm_path;
 
 /*
  * When losing synchronisation a new barrier packet needs to be inserted at the
- * beginning of the data collected in a buffer.  That way the decoder knows that
- * it needs to look for another sync sequence.
+ * beginning of the data collected in a buffer.  That way the decoder kyesws that
+ * it needs to look for ayesther sync sequence.
  */
 const u32 barrier_pkt[4] = {0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff};
 
@@ -64,8 +64,8 @@ static int coresight_id_match(struct device *dev, void *data)
 	i_csdev = to_coresight_device(dev);
 
 	/*
-	 * No need to care about oneself and components that are not
-	 * sources or not enabled
+	 * No need to care about oneself and components that are yest
+	 * sources or yest enabled
 	 */
 	if (i_csdev == csdev || !i_csdev->enable ||
 	    i_csdev->type != CORESIGHT_DEV_TYPE_SOURCE)
@@ -202,7 +202,7 @@ void coresight_disclaim_device_unlocked(void __iomem *base)
 		coresight_clear_claim_tags(base);
 	else
 		/*
-		 * The external agent may have not honoured our claim
+		 * The external agent may have yest hoyesured our claim
 		 * and has manipulated it. Or something else has seriously
 		 * gone wrong in our driver.
 		 */
@@ -315,7 +315,7 @@ static int coresight_enable_source(struct coresight_device *csdev, u32 mode)
 	int ret;
 
 	if (!coresight_source_is_unique(csdev)) {
-		dev_warn(&csdev->dev, "traceID %d not unique\n",
+		dev_warn(&csdev->dev, "traceID %d yest unique\n",
 			 source_ops(csdev)->trace_id(csdev));
 		return -EINVAL;
 	}
@@ -336,7 +336,7 @@ static int coresight_enable_source(struct coresight_device *csdev, u32 mode)
 
 /**
  *  coresight_disable_source - Drop the reference count by 1 and disable
- *  the device if there are no users left.
+ *  the device if there are yes users left.
  *
  *  @csdev - The coresight device to disable
  *
@@ -358,13 +358,13 @@ static bool coresight_disable_source(struct coresight_device *csdev)
  * disabled.
  */
 static void coresight_disable_path_from(struct list_head *path,
-					struct coresight_node *nd)
+					struct coresight_yesde *nd)
 {
 	u32 type;
 	struct coresight_device *csdev, *parent, *child;
 
 	if (!nd)
-		nd = list_first_entry(path, struct coresight_node, link);
+		nd = list_first_entry(path, struct coresight_yesde, link);
 
 	list_for_each_entry_continue(nd, path, link) {
 		csdev = nd->csdev;
@@ -387,7 +387,7 @@ static void coresight_disable_path_from(struct list_head *path,
 			break;
 		case CORESIGHT_DEV_TYPE_SOURCE:
 			/*
-			 * We skip the first node in the path assuming that it
+			 * We skip the first yesde in the path assuming that it
 			 * is the source. So we don't expect a source device in
 			 * the middle of a path.
 			 */
@@ -414,7 +414,7 @@ int coresight_enable_path(struct list_head *path, u32 mode, void *sink_data)
 
 	int ret = 0;
 	u32 type;
-	struct coresight_node *nd;
+	struct coresight_yesde *nd;
 	struct coresight_device *csdev, *parent, *child;
 
 	list_for_each_entry_reverse(nd, path, link) {
@@ -437,7 +437,7 @@ int coresight_enable_path(struct list_head *path, u32 mode, void *sink_data)
 			ret = coresight_enable_sink(csdev, mode, sink_data);
 			/*
 			 * Sink is the first component turned on. If we
-			 * failed to enable the sink, there are no components
+			 * failed to enable the sink, there are yes components
 			 * that need disabling. Disabling the path here
 			 * would mean we could disrupt an existing session.
 			 */
@@ -473,7 +473,7 @@ struct coresight_device *coresight_get_sink(struct list_head *path)
 	if (!path)
 		return NULL;
 
-	csdev = list_last_entry(path, struct coresight_node, link)->csdev;
+	csdev = list_last_entry(path, struct coresight_yesde, link)->csdev;
 	if (csdev->type != CORESIGHT_DEV_TYPE_SINK &&
 	    csdev->type != CORESIGHT_DEV_TYPE_LINKSINK)
 		return NULL;
@@ -492,8 +492,8 @@ static int coresight_enabled_sink(struct device *dev, const void *data)
 		/*
 		 * Now that we have a handle on the sink for this session,
 		 * disable the sysFS "enable_sink" flag so that possible
-		 * concurrent perf session that wish to use another sink don't
-		 * trip on it.  Doing so has no ramification for the current
+		 * concurrent perf session that wish to use ayesther sink don't
+		 * trip on it.  Doing so has yes ramification for the current
 		 * session.
 		 */
 		if (*reset)
@@ -538,7 +538,7 @@ static int coresight_sink_by_id(struct device *dev, const void *data)
 		if (!csdev->ea)
 			return 0;
 		/*
-		 * See function etm_perf_add_symlink_sink() to know where
+		 * See function etm_perf_add_symlink_sink() to kyesw where
 		 * this comes from.
 		 */
 		hash = (unsigned long)csdev->ea->var;
@@ -623,7 +623,7 @@ static int _coresight_build_path(struct coresight_device *csdev,
 {
 	int i;
 	bool found = false;
-	struct coresight_node *node;
+	struct coresight_yesde *yesde;
 
 	/* An activated sink has been found.  Enqueue the element */
 	if (csdev == sink)
@@ -648,16 +648,16 @@ out:
 	/*
 	 * A path from this element to a sink has been found.  The elements
 	 * leading to the sink are already enqueued, all that is left to do
-	 * is tell the PM runtime core we need this element and add a node
+	 * is tell the PM runtime core we need this element and add a yesde
 	 * for it.
 	 */
-	node = kzalloc(sizeof(struct coresight_node), GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(sizeof(struct coresight_yesde), GFP_KERNEL);
+	if (!yesde)
 		return -ENOMEM;
 
 	coresight_grab_device(csdev);
-	node->csdev = csdev;
-	list_add(&node->link, path);
+	yesde->csdev = csdev;
+	list_add(&yesde->link, path);
 
 	return 0;
 }
@@ -691,12 +691,12 @@ struct list_head *coresight_build_path(struct coresight_device *source,
  * @path:	the path to release.
  *
  * Go through all the elements of a path and 1) removed it from the list and
- * 2) free the memory allocated for each node.
+ * 2) free the memory allocated for each yesde.
  */
 void coresight_release_path(struct list_head *path)
 {
 	struct coresight_device *csdev;
-	struct coresight_node *nd, *next;
+	struct coresight_yesde *nd, *next;
 
 	list_for_each_entry_safe(nd, next, path, link) {
 		csdev = nd->csdev;
@@ -935,7 +935,7 @@ ATTRIBUTE_GROUPS(coresight_source);
 
 static struct device_type coresight_dev_type[] = {
 	{
-		.name = "none",
+		.name = "yesne",
 	},
 	{
 		.name = "sink",
@@ -961,7 +961,7 @@ static void coresight_device_release(struct device *dev)
 {
 	struct coresight_device *csdev = to_coresight_device(dev);
 
-	fwnode_handle_put(csdev->dev.fwnode);
+	fwyesde_handle_put(csdev->dev.fwyesde);
 	kfree(csdev->refcnt);
 	kfree(csdev);
 }
@@ -980,7 +980,7 @@ static int coresight_orphan_match(struct device *dev, void *data)
 	if (csdev == i_csdev)
 		return 0;
 
-	/* Move on to another component if no connection is orphan */
+	/* Move on to ayesther component if yes connection is orphan */
 	if (!i_csdev->orphan)
 		return 0;
 	/*
@@ -993,7 +993,7 @@ static int coresight_orphan_match(struct device *dev, void *data)
 		/* We have found at least one orphan connection */
 		if (conn->child_dev == NULL) {
 			/* Does it match this newly added device? */
-			if (conn->child_fwnode == csdev->dev.fwnode)
+			if (conn->child_fwyesde == csdev->dev.fwyesde)
 				conn->child_dev = csdev;
 			else
 				/* This component still has an orphan */
@@ -1004,7 +1004,7 @@ static int coresight_orphan_match(struct device *dev, void *data)
 	i_csdev->orphan = still_orphan;
 
 	/*
-	 * Returning '0' ensures that all known component on the
+	 * Returning '0' ensures that all kyeswn component on the
 	 * bus will be checked.
 	 */
 	return 0;
@@ -1029,7 +1029,7 @@ static void coresight_fixup_device_conns(struct coresight_device *csdev)
 		struct coresight_connection *conn = &csdev->pdata->conns[i];
 		struct device *dev = NULL;
 
-		dev = bus_find_device_by_fwnode(&coresight_bustype, conn->child_fwnode);
+		dev = bus_find_device_by_fwyesde(&coresight_bustype, conn->child_fwyesde);
 		if (dev) {
 			conn->child_dev = to_coresight_device(dev);
 			/* and put reference from 'bus_find_device()' */
@@ -1064,7 +1064,7 @@ static int coresight_remove_match(struct device *dev, void *data)
 		if (conn->child_dev == NULL)
 			continue;
 
-		if (csdev->dev.fwnode == conn->child_fwnode) {
+		if (csdev->dev.fwyesde == conn->child_fwyesde) {
 			iterator->orphan = true;
 			conn->child_dev = NULL;
 			/*
@@ -1072,14 +1072,14 @@ static int coresight_remove_match(struct device *dev, void *data)
 			 * device acquired in parsing the connections from
 			 * platform data.
 			 */
-			fwnode_handle_put(conn->child_fwnode);
+			fwyesde_handle_put(conn->child_fwyesde);
 			/* No need to continue */
 			break;
 		}
 	}
 
 	/*
-	 * Returning '0' ensures that all known component on the
+	 * Returning '0' ensures that all kyeswn component on the
 	 * bus will be checked.
 	 */
 	return 0;
@@ -1092,9 +1092,9 @@ static int coresight_remove_match(struct device *dev, void *data)
 static void coresight_remove_conns(struct coresight_device *csdev)
 {
 	/*
-	 * Another device will point to this device only if there is
+	 * Ayesther device will point to this device only if there is
 	 * an output port connected to this one. i.e, if the device
-	 * doesn't have at least one input port, there is no point
+	 * doesn't have at least one input port, there is yes point
 	 * in searching all the devices.
 	 */
 	if (csdev->pdata->nr_inport)
@@ -1161,9 +1161,9 @@ void coresight_release_platform_data(struct coresight_platform_data *pdata)
 	int i;
 
 	for (i = 0; i < pdata->nr_outport; i++) {
-		if (pdata->conns[i].child_fwnode) {
-			fwnode_handle_put(pdata->conns[i].child_fwnode);
-			pdata->conns[i].child_fwnode = NULL;
+		if (pdata->conns[i].child_fwyesde) {
+			fwyesde_handle_put(pdata->conns[i].child_fwyesde);
+			pdata->conns[i].child_fwyesde = NULL;
 		}
 	}
 }
@@ -1216,7 +1216,7 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 	 * Hold the reference to our parent device. This will be
 	 * dropped only in coresight_device_release().
 	 */
-	csdev->dev.fwnode = fwnode_handle_get(dev_fwnode(desc->dev));
+	csdev->dev.fwyesde = fwyesde_handle_get(dev_fwyesde(desc->dev));
 	dev_set_name(&csdev->dev, "%s", desc->name);
 
 	ret = device_register(&csdev->dev);
@@ -1275,32 +1275,32 @@ EXPORT_SYMBOL_GPL(coresight_unregister);
 
 
 /*
- * coresight_search_device_idx - Search the fwnode handle of a device
+ * coresight_search_device_idx - Search the fwyesde handle of a device
  * in the given dev_idx list. Must be called with the coresight_mutex held.
  *
  * Returns the index of the entry, when found. Otherwise, -ENOENT.
  */
 static inline int coresight_search_device_idx(struct coresight_dev_list *dict,
-					      struct fwnode_handle *fwnode)
+					      struct fwyesde_handle *fwyesde)
 {
 	int i;
 
 	for (i = 0; i < dict->nr_idx; i++)
-		if (dict->fwnode_list[i] == fwnode)
+		if (dict->fwyesde_list[i] == fwyesde)
 			return i;
 	return -ENOENT;
 }
 
 bool coresight_loses_context_with_cpu(struct device *dev)
 {
-	return fwnode_property_present(dev_fwnode(dev),
+	return fwyesde_property_present(dev_fwyesde(dev),
 				       "arm,coresight-loses-context-with-cpu");
 }
 
 /*
  * coresight_alloc_device_name - Get an index for a given device in the
  * device index list specific to a driver. An index is allocated for a
- * device and is tracked with the fwnode_handle to prevent allocating
+ * device and is tracked with the fwyesde_handle to prevent allocating
  * duplicate indices for the same device (e.g, if we defer probing of
  * a device due to dependencies), in case the index is requested again.
  */
@@ -1309,24 +1309,24 @@ char *coresight_alloc_device_name(struct coresight_dev_list *dict,
 {
 	int idx;
 	char *name = NULL;
-	struct fwnode_handle **list;
+	struct fwyesde_handle **list;
 
 	mutex_lock(&coresight_mutex);
 
-	idx = coresight_search_device_idx(dict, dev_fwnode(dev));
+	idx = coresight_search_device_idx(dict, dev_fwyesde(dev));
 	if (idx < 0) {
 		/* Make space for the new entry */
 		idx = dict->nr_idx;
-		list = krealloc(dict->fwnode_list,
-				(idx + 1) * sizeof(*dict->fwnode_list),
+		list = krealloc(dict->fwyesde_list,
+				(idx + 1) * sizeof(*dict->fwyesde_list),
 				GFP_KERNEL);
 		if (ZERO_OR_NULL_PTR(list)) {
 			idx = -ENOMEM;
 			goto done;
 		}
 
-		list[idx] = dev_fwnode(dev);
-		dict->fwnode_list = list;
+		list[idx] = dev_fwyesde(dev);
+		dict->fwyesde_list = list;
 		dict->nr_idx = idx + 1;
 	}
 

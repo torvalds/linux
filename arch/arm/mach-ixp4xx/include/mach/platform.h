@@ -9,7 +9,7 @@
  */
 
 #ifndef __ASM_ARCH_HARDWARE_H__
-#error "Do not include this directly, instead #include <mach/hardware.h>"
+#error "Do yest include this directly, instead #include <mach/hardware.h>"
 #endif
 
 #ifndef __ASSEMBLY__
@@ -32,7 +32,7 @@
 /*
  * The expansion bus on the IXP4xx can be configured for either 16 or
  * 32MB windows and the CS offset for each region changes based on the
- * current configuration. This means that we cannot simply hardcode
+ * current configuration. This means that we canyest simply hardcode
  * each offset. ixp4xx_sys_init() looks at the expansion bus configuration
  * as setup by the bootloader to determine our window size.
  */
@@ -104,7 +104,7 @@ struct eth_plat_info {
 	u8 hwaddr[6];
 };
 
-/* Information about built-in HSS (synchronous serial) interfaces */
+/* Information about built-in HSS (synchroyesus serial) interfaces */
 struct hss_plat_info {
 	int (*set_clock)(int port, unsigned int clock_type);
 	int (*open)(int port, void *pdev,

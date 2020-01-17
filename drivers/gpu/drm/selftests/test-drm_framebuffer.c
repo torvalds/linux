@@ -25,7 +25,7 @@ struct drm_framebuffer_test {
 };
 
 static struct drm_framebuffer_test createbuffer_tests[] = {
-{ .buffer_created = 1, .name = "ABGR8888 normal sizes",
+{ .buffer_created = 1, .name = "ABGR8888 yesrmal sizes",
 	.cmd = { .width = 600, .height = 600, .pixel_format = DRM_FORMAT_ABGR8888,
 		 .handles = { 1, 0, 0 }, .pitches = { 4 * 600, 0, 0 },
 	}
@@ -337,7 +337,7 @@ static int execute_drm_mode_fb_cmd2(struct drm_mode_fb_cmd2 *r)
 	return buffer_created;
 }
 
-int igt_check_drm_framebuffer_create(void *ignored)
+int igt_check_drm_framebuffer_create(void *igyesred)
 {
 	int i = 0;
 

@@ -1,7 +1,7 @@
 /*
- * Synopsys AXS10X SDP I2S PLL clock driver
+ * Syyespsys AXS10X SDP I2S PLL clock driver
  *
- * Copyright (C) 2016 Synopsys
+ * Copyright (C) 2016 Syyespsys
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -166,7 +166,7 @@ static const struct clk_ops i2s_pll_ops = {
 static int i2s_pll_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	const char *clk_name;
 	const char *parent_name;
 	struct clk *clk;
@@ -182,10 +182,10 @@ static int i2s_pll_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(pll_clk->base);
 
 	memset(&init, 0, sizeof(init));
-	clk_name = node->name;
+	clk_name = yesde->name;
 	init.name = clk_name;
 	init.ops = &i2s_pll_ops;
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(yesde, 0);
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 	pll_clk->hw.init = &init;
@@ -198,12 +198,12 @@ static int i2s_pll_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 	}
 
-	return of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	return of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 }
 
 static int i2s_pll_clk_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 	return 0;
 }
 
@@ -223,6 +223,6 @@ static struct platform_driver i2s_pll_clk_driver = {
 };
 module_platform_driver(i2s_pll_clk_driver);
 
-MODULE_AUTHOR("Jose Abreu <joabreu@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys AXS10X SDP I2S PLL Clock Driver");
+MODULE_AUTHOR("Jose Abreu <joabreu@syyespsys.com>");
+MODULE_DESCRIPTION("Syyespsys AXS10X SDP I2S PLL Clock Driver");
 MODULE_LICENSE("GPL v2");

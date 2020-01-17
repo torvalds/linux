@@ -161,7 +161,7 @@ static int saa711x_writeregs(struct v4l2_subdev *sd, const unsigned char *regs)
 		data = *(regs++);
 
 		/* According with datasheets, reserved regs should be
-		   filled with 0 - seems better not to touch on they */
+		   filled with 0 - seems better yest to touch on they */
 		if (saa711x_has_reg(state->ident, reg)) {
 			if (saa711x_write(sd, reg, data) < 0)
 				return -1;
@@ -222,7 +222,7 @@ static const unsigned char saa7111_init[] = {
 };
 
 /*
- * This table has one illegal value, and some values that are not
+ * This table has one illegal value, and some values that are yest
  * correct according to the datasheet initialization table.
  *
  *  If you need a table with legal/default values tell the driver in
@@ -298,7 +298,7 @@ static const unsigned char gm7113c_init[] = {
 };
 
 /* If a value differs from the Hauppauge driver values, then the comment starts with
-   'was 0xXX' to denote the Hauppauge value. Otherwise the value is identical to what the
+   'was 0xXX' to deyeste the Hauppauge value. Otherwise the value is identical to what the
    Hauppauge driver sets. */
 
 /* SAA7114 and SAA7115 initialization table */
@@ -322,7 +322,7 @@ static const unsigned char saa7115_init_auto_input[] = {
 	R_12_RT_SIGNAL_CNTL, 0x9d,		/* RTS0 output control: VGATE */
 	R_13_RT_X_PORT_OUT_CNTL, 0x80,		/* ITU656 standard mode, RTCO output enable RTCE */
 	R_14_ANAL_ADC_COMPAT_CNTL, 0x00,
-	R_18_RAW_DATA_GAIN_CNTL, 0x40,		/* gain 0x00 = nominal */
+	R_18_RAW_DATA_GAIN_CNTL, 0x40,		/* gain 0x00 = yesminal */
 	R_19_RAW_DATA_OFF_CNTL, 0x80,
 	R_1A_COLOR_KILL_LVL_CNTL, 0x77,		/* recommended value */
 	R_1B_MISC_TVVCRDET, 0x42,		/* recommended value */
@@ -536,12 +536,12 @@ static const unsigned char saa7115_init_misc[] = {
 	R_A1_A_ACCUMULATION_LENGTH, 0x00,
 	R_A2_A_PRESCALER_DC_GAIN_AND_FIR_PREFILTER, 0x00,
 
-	/* Configure controls at nominal value*/
+	/* Configure controls at yesminal value*/
 	R_A4_A_LUMA_BRIGHTNESS_CNTL, 0x80,
 	R_A5_A_LUMA_CONTRAST_CNTL, 0x40,
 	R_A6_A_CHROMA_SATURATION_CNTL, 0x40,
 
-	/* note: 2 x zoom ensures that VBI lines have same length as video lines. */
+	/* yeste: 2 x zoom ensures that VBI lines have same length as video lines. */
 	R_A8_A_HORIZ_LUMA_SCALING_INC, 0x00,
 	R_A9_A_HORIZ_LUMA_SCALING_INC_MSB, 0x02,
 
@@ -577,7 +577,7 @@ static const unsigned char saa7115_init_misc[] = {
 	R_D1_B_ACCUMULATION_LENGTH, 0x00,
 	R_D2_B_PRESCALER_DC_GAIN_AND_FIR_PREFILTER, 0x00,
 
-	/* Configure controls at nominal value*/
+	/* Configure controls at yesminal value*/
 	R_D4_B_LUMA_BRIGHTNESS_CNTL, 0x80,
 	R_D5_B_LUMA_CONTRAST_CNTL, 0x40,
 	R_D6_B_CHROMA_SATURATION_CNTL, 0x40,
@@ -616,7 +616,7 @@ static const unsigned char saa7115_init_misc[] = {
 	R_F2_NOMINAL_PLL2_DTO, 0x50,		/* crystal clock = 24.576 MHz, target = 27MHz */
 	R_F3_PLL_INCREMENT, 0x46,
 	R_F4_PLL2_STATUS, 0x00,
-	R_F7_PULSE_A_POS_MSB, 0x4b,		/* not the recommended settings! */
+	R_F7_PULSE_A_POS_MSB, 0x4b,		/* yest the recommended settings! */
 	R_F8_PULSE_B_POS, 0x00,
 	R_F9_PULSE_B_POS_MSB, 0x4b,
 	R_FA_PULSE_C_POS, 0x00,
@@ -917,7 +917,7 @@ static int saa711x_set_size(struct v4l2_subdev *sd, int width, int height)
 	/* Scaling settings */
 	/* Hprescaler is floor(inres/outres) */
 	HPSC = (int)(720 / width);
-	/* 0 is not allowed (div. by zero) */
+	/* 0 is yest allowed (div. by zero) */
 	HPSC = HPSC ? HPSC : 1;
 	HFSC = (int)((1024 * 720) / (HPSC * width));
 	/* FIXME hardcodes to "Task B"
@@ -976,7 +976,7 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 	   reading from that port can get confused.
 	   Note that s_std is also used to switch from
 	   radio to TV mode, so if a s_std is broadcast to
-	   all I2C devices then you do not want to have an unwanted
+	   all I2C devices then you do yest want to have an unwanted
 	   side-effect here. */
 	if (std == state->std)
 		return;
@@ -1076,7 +1076,7 @@ static void saa711x_set_lcr(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_forma
 				lcr[i] = 0xdd;
 	} else {
 		/* sliced VBI */
-		/* first clear lines that cannot be captured */
+		/* first clear lines that canyest be captured */
 		if (is_50hz) {
 			for (i = 0; i <= 5; i++)
 				fmt->service_lines[0][i] =
@@ -1184,13 +1184,13 @@ static int saa711x_set_fmt(struct v4l2_subdev *sd,
 /* Decode the sliced VBI data stream as created by the saa7115.
    The format is described in the saa7115 datasheet in Tables 25 and 26
    and in Figure 33.
-   The current implementation uses SAV/EAV codes and not the ancillary data
+   The current implementation uses SAV/EAV codes and yest the ancillary data
    headers. The vbi->p pointer points to the R_5E_SDID byte right after the SAV
    code. */
 static int saa711x_decode_vbi_line(struct v4l2_subdev *sd, struct v4l2_decode_vbi_line *vbi)
 {
 	struct saa711x_state *state = to_state(sd);
-	static const char vbi_no_data_pattern[] = {
+	static const char vbi_yes_data_pattern[] = {
 		0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0
 	};
 	u8 *p = vbi->p;
@@ -1204,7 +1204,7 @@ static int saa711x_decode_vbi_line(struct v4l2_subdev *sd, struct v4l2_decode_vb
 	if (state->std & V4L2_STD_525_60)
 		id1 ^= 0x40;
 
-	/* Skip internal header, p now points to the start of the payload */
+	/* Skip internal header, p yesw points to the start of the payload */
 	p += 4;
 	vbi->p = p;
 
@@ -1216,9 +1216,9 @@ static int saa711x_decode_vbi_line(struct v4l2_subdev *sd, struct v4l2_decode_vb
 	/* Obtain data type */
 	id2 &= 0xf;
 
-	/* If the VBI slicer does not detect any signal it will fill up
+	/* If the VBI slicer does yest detect any signal it will fill up
 	   the payload buffer with 0xa0 bytes. */
-	if (!memcmp(p, vbi_no_data_pattern, sizeof(vbi_no_data_pattern)))
+	if (!memcmp(p, vbi_yes_data_pattern, sizeof(vbi_yes_data_pattern)))
 		return 0;
 
 	/* decode payloads */
@@ -1292,7 +1292,7 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 	v4l2_dbg(1, debug, sd, "decoder set input %d output %d\n",
 		input, output);
 
-	/* saa7111/3 does not have these inputs */
+	/* saa7111/3 does yest have these inputs */
 	if ((state->ident <= SAA7113 ||
 	     state->ident == GM7113C) &&
 	    (input == SAA7115_COMPOSITE4 ||
@@ -1303,7 +1303,7 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 		return -EINVAL;
 	if (state->input == input && state->output == output)
 		return 0;
-	v4l2_dbg(1, debug, sd, "now setting %s input %s output\n",
+	v4l2_dbg(1, debug, sd, "yesw setting %s input %s output\n",
 		(input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite",
 		(output == SAA7115_IPORT_ON) ? "iport on" : "iport off");
 	state->input = input;
@@ -1471,7 +1471,7 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 
 	v4l2_dbg(1, debug, sd, "Status byte 2 (0x1f)=0x%02x\n", reg1f);
 
-	/* horizontal/vertical not locked */
+	/* horizontal/vertical yest locked */
 	if (reg1f & 0x40) {
 		*std = V4L2_STD_UNKNOWN;
 		goto ret;
@@ -1696,7 +1696,7 @@ static void saa711x_write_platform_data(struct saa711x_state *state,
  * Detects the Philips/NXP saa711x chip, or some clone of it.
  * if 'id' is NULL or id->driver_data is equal to 1, it auto-probes
  * the analog demod.
- * If the tuner is not found, it returns -ENODEV.
+ * If the tuner is yest found, it returns -ENODEV.
  * If auto-detection is disabled and the tuner doesn't match what it was
  *	required, it returns -EINVAL and fills 'name'.
  * If the chip is found, it returns the chip ID and fills 'name'.
@@ -1748,7 +1748,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 			return SAA7118;
 		default:
 			v4l2_info(client,
-				  "WARNING: Philips/NXP chip unknown - Falling back to saa7111\n");
+				  "WARNING: Philips/NXP chip unkyeswn - Falling back to saa7111\n");
 			return SAA7111;
 		}
 	}
@@ -1766,7 +1766,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 		 * exists. However, tests on a device labeled as:
 		 * "GM7113C 1145" returned "10" on all 16 chip
 		 * version (reg 0x00) reads. So, we need to also
-		 * accept at least version 0. For now, let's just
+		 * accept at least version 0. For yesw, let's just
 		 * assume that a device that returns "0000" for
 		 * the lower nibble is a gm7113c.
 		 */
@@ -1798,8 +1798,8 @@ static int saa711x_detect_chip(struct i2c_client *client,
 		return SAA7113;
 	}
 
-	/* Chip was not discovered. Return its ID and don't bind */
-	v4l_dbg(1, debug, client, "chip %*ph @ 0x%x is unknown.\n",
+	/* Chip was yest discovered. Return its ID and don't bind */
+	v4l_dbg(1, debug, client, "chip %*ph @ 0x%x is unkyeswn.\n",
 		16, chip_ver, client->addr << 1);
 	return -ENODEV;
 }

@@ -156,7 +156,7 @@ void rtw_hal_dm_watchdog(struct adapter *Adapter)
 	ODM_DMWatchdog(&Adapter->HalData->odmpriv);
 skip_dm:
 	/*  Check GPIO to determine current RF on/off and Pbc status. */
-	/*  Check Hardware Radio ON/OFF or not */
+	/*  Check Hardware Radio ON/OFF or yest */
 	return;
 }
 
@@ -190,7 +190,7 @@ u8 rtw_hal_antdiv_before_linked(struct adapter *Adapter)
 	struct sw_ant_switch *dm_swat_tbl = &dm_odm->DM_SWAT_Table;
 	struct mlme_priv *pmlmepriv = &(Adapter->mlmepriv);
 
-	/*  Condition that does not need to use antenna diversity. */
+	/*  Condition that does yest need to use antenna diversity. */
 	if (Adapter->HalData->AntDivCfg == 0)
 		return false;
 

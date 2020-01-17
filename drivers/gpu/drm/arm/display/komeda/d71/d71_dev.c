@@ -264,7 +264,7 @@ static int to_d71_opmode(int core_mode)
 	case KOMEDA_MODE_INACTIVE:
 		return INACTIVE_MODE;
 	default:
-		WARN(1, "Unknown operation mode");
+		WARN(1, "Unkyeswn operation mode");
 		return INACTIVE_MODE;
 	}
 }
@@ -399,7 +399,7 @@ static int d71_enum_resources(struct komeda_dev *mdev)
 		/* D71 HW doesn't update shadow registers when display output
 		 * is turning off, so when we disable all pipeline components
 		 * together with display output disable by one flush or one
-		 * operation, the disable operation updated registers will not
+		 * operation, the disable operation updated registers will yest
 		 * be flush to or valid in HW, which may leads problem.
 		 * To workaround this problem, introduce a two phase disable.
 		 * Phase1: Disabling components with display is on to make sure
@@ -481,7 +481,7 @@ static struct komeda_format_caps d71_format_caps_table[] = {
 	{__HW_ID(2, 1),	DRM_FORMAT_XBGR8888,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
 	{__HW_ID(2, 2),	DRM_FORMAT_RGBX8888,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
 	{__HW_ID(2, 3),	DRM_FORMAT_BGRX8888,	RICH_SIMPLE_WB,	Flip_H_V,		0, 0},
-	/* BGR_888 */ /* none-afbc RGB888 doesn't support rotation and flip */
+	/* BGR_888 */ /* yesne-afbc RGB888 doesn't support rotation and flip */
 	{__HW_ID(3, 0),	DRM_FORMAT_RGB888,	RICH_SIMPLE_WB,	Rot_0,			0, 0},
 	{__HW_ID(3, 1),	DRM_FORMAT_BGR888,	RICH_SIMPLE_WB,	Rot_0,			0, 0},
 	{__HW_ID(3, 1),	DRM_FORMAT_BGR888,	RICH_SIMPLE,	Rot_ALL_H_V,	LYT_NM_WB, AFB_TH_SC_YTR_BS}, /* afbc */

@@ -113,7 +113,7 @@ static int nfs4_validate_fspath(struct dentry *dentry,
 		return PTR_ERR(fs_path);
 
 	if (strncmp(path, fs_path, strlen(fs_path)) != 0) {
-		dprintk("%s: path %s does not begin with fsroot %s\n",
+		dprintk("%s: path %s does yest begin with fsroot %s\n",
 			__func__, path, fs_path);
 		return -ENOENT;
 	}
@@ -147,7 +147,7 @@ static size_t nfs_parse_server_name(char *string, size_t len,
  * recommendation and each flavor is checked for membership in the
  * sec= mount option list if it exists.
  *
- * Return -EPERM if no matching flavor is found in the array.
+ * Return -EPERM if yes matching flavor is found in the array.
  *
  * Please call rpc_shutdown_client() when you are done with this rpc client.
  *
@@ -203,13 +203,13 @@ static struct rpc_clnt *nfs_find_best_sec(struct rpc_clnt *clnt,
  * respect to the secinfo flavor list and the sec= mount options.
  *
  * @clnt: RPC client to clone
- * @inode: directory inode
+ * @iyesde: directory iyesde
  * @name: lookup name
  *
  * Please call rpc_shutdown_client() when you are done with this rpc client.
  */
 struct rpc_clnt *
-nfs4_negotiate_security(struct rpc_clnt *clnt, struct inode *inode,
+nfs4_negotiate_security(struct rpc_clnt *clnt, struct iyesde *iyesde,
 					const struct qstr *name)
 {
 	struct page *page;
@@ -223,13 +223,13 @@ nfs4_negotiate_security(struct rpc_clnt *clnt, struct inode *inode,
 
 	flavors = page_address(page);
 
-	err = nfs4_proc_secinfo(inode, name, flavors);
+	err = nfs4_proc_secinfo(iyesde, name, flavors);
 	if (err < 0) {
 		new = ERR_PTR(err);
 		goto out;
 	}
 
-	new = nfs_find_best_sec(clnt, NFS_SERVER(inode), flavors);
+	new = nfs_find_best_sec(clnt, NFS_SERVER(iyesde), flavors);
 
 out:
 	put_page(page);
@@ -372,7 +372,7 @@ static struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *
 	dprintk("%s: getting locations for %pd2\n",
 		__func__, dentry);
 
-	err = nfs4_proc_fs_locations(client, d_inode(parent), &dentry->d_name, fs_locations, page);
+	err = nfs4_proc_fs_locations(client, d_iyesde(parent), &dentry->d_name, fs_locations, page);
 	dput(parent);
 	if (err != 0 ||
 	    fs_locations->nlocations <= 0 ||
@@ -391,7 +391,7 @@ struct vfsmount *nfs4_submount(struct nfs_server *server, struct dentry *dentry,
 {
 	rpc_authflavor_t flavor = server->client->cl_auth->au_flavor;
 	struct dentry *parent = dget_parent(dentry);
-	struct inode *dir = d_inode(parent);
+	struct iyesde *dir = d_iyesde(parent);
 	const struct qstr *name = &dentry->d_name;
 	struct rpc_clnt *client;
 	struct vfsmount *mnt;
@@ -418,7 +418,7 @@ out:
 /*
  * Try one location from the fs_locations array.
  *
- * Returns zero on success, or a negative errno value.
+ * Returns zero on success, or a negative erryes value.
  */
 static int nfs4_try_replacing_one_location(struct nfs_server *server,
 		char *page, char *page2,
@@ -473,7 +473,7 @@ static int nfs4_try_replacing_one_location(struct nfs_server *server,
  * @server: export being migrated
  * @locations: fs_locations array
  *
- * Returns zero on success, or a negative errno value.
+ * Returns zero on success, or a negative erryes value.
  *
  * The client tries all the entries in the "locations" array, in the
  * order returned by the server, until one works or the end of the

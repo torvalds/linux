@@ -10,7 +10,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -75,7 +75,7 @@ DEFINE_GUEST_HANDLE_STRUCT(xenpf_add_memtype_t);
 /*
  * Tear down an existing memory-range type. If @handle is remembered then it
  * should be passed in to accurately tear down the correct setting (in case
- * of overlapping memory regions with differing types). If it is not known
+ * of overlapping memory regions with differing types). If it is yest kyeswn
  * then @handle should be set to zero. In all cases @reg must be set.
  * (x86-specific).
  */
@@ -108,7 +108,7 @@ struct xenpf_microcode_update {
 DEFINE_GUEST_HANDLE_STRUCT(xenpf_microcode_update_t);
 
 #define XENPF_platform_quirk      39
-#define QUIRK_NOIRQBALANCING      1 /* Do not restrict IO-APIC RTE targets */
+#define QUIRK_NOIRQBALANCING      1 /* Do yest restrict IO-APIC RTE targets */
 #define QUIRK_IOAPIC_BAD_REGSEL   2 /* IO-APIC REGSEL forgets its value    */
 #define QUIRK_IOAPIC_GOOD_REGSEL  3 /* IO-APIC REGSEL behaves properly     */
 struct xenpf_platform_quirk {
@@ -122,7 +122,7 @@ DEFINE_GUEST_HANDLE_STRUCT(xenpf_platform_quirk_t);
 #define XEN_EFI_set_time                      2
 #define XEN_EFI_get_wakeup_time               3
 #define XEN_EFI_set_wakeup_time               4
-#define XEN_EFI_get_next_high_monotonic_count 5
+#define XEN_EFI_get_next_high_moyestonic_count 5
 #define XEN_EFI_get_variable                  6
 #define XEN_EFI_set_variable                  7
 #define XEN_EFI_get_next_variable_name        8
@@ -134,7 +134,7 @@ struct xenpf_efi_runtime_call {
 	uint32_t function;
 	/*
 	 * This field is generally used for per sub-function flags (defined
-	 * below), except for the XEN_EFI_get_next_high_monotonic_count case,
+	 * below), except for the XEN_EFI_get_next_high_moyestonic_count case,
 	 * where it holds the single returned value.
 	 */
 	uint32_t misc;
@@ -301,11 +301,11 @@ struct xenpf_change_freq {
 DEFINE_GUEST_HANDLE_STRUCT(xenpf_change_freq_t);
 
 /*
- * Get idle times (nanoseconds since boot) for physical CPUs specified in the
+ * Get idle times (nayesseconds since boot) for physical CPUs specified in the
  * @cpumap_bitmap with range [0..@cpumap_nr_cpus-1]. The @idletime array is
  * indexed by CPU number; only entries with the corresponding @cpumap_bitmap
  * bit set are written to. On return, @cpumap_bitmap is modified so that any
- * non-existent CPUs are cleared. Such CPUs have their @idletime array entry
+ * yesn-existent CPUs are cleared. Such CPUs have their @idletime array entry
  * cleared.
  */
 #define XENPF_getidletime         53
@@ -320,7 +320,7 @@ struct xenpf_getidletime {
 	GUEST_HANDLE(uint64_t) idletime;
 	/* OUT variables */
 	/* System time when the idletime snapshots were taken. */
-	uint64_t now;
+	uint64_t yesw;
 };
 DEFINE_GUEST_HANDLE_STRUCT(xenpf_getidletime_t);
 
@@ -363,7 +363,7 @@ struct xen_processor_cx {
 	uint32_t    latency;  /* worst latency (ms) to enter/exit this cstate */
 	uint32_t    power;    /* average power consumption(mW) */
 	uint32_t    dpcnt;    /* number of dependency entries */
-	GUEST_HANDLE(xen_processor_csd) dp; /* NULL if no dependency */
+	GUEST_HANDLE(xen_processor_csd) dp; /* NULL if yes dependency */
 };
 DEFINE_GUEST_HANDLE_STRUCT(xen_processor_cx);
 
@@ -441,7 +441,7 @@ struct xenpf_pcpuinfo {
 	/* The maxium cpu_id that is present */
 	uint32_t max_present;
 #define XEN_PCPU_FLAGS_ONLINE   1
-	/* Correponding xen_cpuid is not present*/
+	/* Correponding xen_cpuid is yest present*/
 #define XEN_PCPU_FLAGS_INVALID  2
 	uint32_t flags;
 	uint32_t apic_id;

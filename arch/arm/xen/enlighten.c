@@ -72,7 +72,7 @@ EXPORT_SYMBOL_GPL(xen_unmap_domain_gfn_range);
 static void xen_read_wallclock(struct timespec64 *ts)
 {
 	u32 version;
-	struct timespec64 now, ts_monotonic;
+	struct timespec64 yesw, ts_moyestonic;
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct pvclock_wall_clock *wall_clock = &(s->wc);
 
@@ -80,41 +80,41 @@ static void xen_read_wallclock(struct timespec64 *ts)
 	do {
 		version = wall_clock->version;
 		rmb();		/* fetch version before time */
-		now.tv_sec  = ((uint64_t)wall_clock->sec_hi << 32) | wall_clock->sec;
-		now.tv_nsec = wall_clock->nsec;
+		yesw.tv_sec  = ((uint64_t)wall_clock->sec_hi << 32) | wall_clock->sec;
+		yesw.tv_nsec = wall_clock->nsec;
 		rmb();		/* fetch time before checking version */
 	} while ((wall_clock->version & 1) || (version != wall_clock->version));
 
 	/* time since system boot */
-	ktime_get_ts64(&ts_monotonic);
-	*ts = timespec64_add(now, ts_monotonic);
+	ktime_get_ts64(&ts_moyestonic);
+	*ts = timespec64_add(yesw, ts_moyestonic);
 }
 
-static int xen_pvclock_gtod_notify(struct notifier_block *nb,
+static int xen_pvclock_gtod_yestify(struct yestifier_block *nb,
 				   unsigned long was_set, void *priv)
 {
 	/* Protected by the calling core code serialization */
 	static struct timespec64 next_sync;
 
 	struct xen_platform_op op;
-	struct timespec64 now, system_time;
+	struct timespec64 yesw, system_time;
 	struct timekeeper *tk = priv;
 
-	now.tv_sec = tk->xtime_sec;
-	now.tv_nsec = (long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
-	system_time = timespec64_add(now, tk->wall_to_monotonic);
+	yesw.tv_sec = tk->xtime_sec;
+	yesw.tv_nsec = (long)(tk->tkr_moyes.xtime_nsec >> tk->tkr_moyes.shift);
+	system_time = timespec64_add(yesw, tk->wall_to_moyestonic);
 
 	/*
 	 * We only take the expensive HV call when the clock was set
 	 * or when the 11 minutes RTC synchronization time elapsed.
 	 */
-	if (!was_set && timespec64_compare(&now, &next_sync) < 0)
+	if (!was_set && timespec64_compare(&yesw, &next_sync) < 0)
 		return NOTIFY_OK;
 
 	op.cmd = XENPF_settime64;
 	op.u.settime64.mbz = 0;
-	op.u.settime64.secs = now.tv_sec;
-	op.u.settime64.nsecs = now.tv_nsec;
+	op.u.settime64.secs = yesw.tv_sec;
+	op.u.settime64.nsecs = yesw.tv_nsec;
 	op.u.settime64.system_time = timespec64_to_ns(&system_time);
 	(void)HYPERVISOR_platform_op(&op);
 
@@ -123,14 +123,14 @@ static int xen_pvclock_gtod_notify(struct notifier_block *nb,
 	 * ahead. That's emulating the sync_cmos_clock() update for
 	 * the hardware RTC.
 	 */
-	next_sync = now;
+	next_sync = yesw;
 	next_sync.tv_sec += 11 * 60;
 
 	return NOTIFY_OK;
 }
 
-static struct notifier_block xen_pvclock_gtod_notifier = {
-	.notifier_call = xen_pvclock_gtod_notify,
+static struct yestifier_block xen_pvclock_gtod_yestifier = {
+	.yestifier_call = xen_pvclock_gtod_yestify,
 };
 
 static int xen_starting_cpu(unsigned int cpu)
@@ -140,7 +140,7 @@ static int xen_starting_cpu(unsigned int cpu)
 	int err;
 
 	/* 
-	 * VCPUOP_register_vcpu_info cannot be called twice for the same
+	 * VCPUOP_register_vcpu_info canyest be called twice for the same
 	 * vcpu, so if vcpu_info is already registered, just get out. This
 	 * can happen with cpu-hotplug.
 	 */
@@ -202,9 +202,9 @@ static __initdata struct {
 	const char *prefix;
 	const char *version;
 	bool found;
-} hyper_node = {"xen,xen", "xen,xen-", NULL, false};
+} hyper_yesde = {"xen,xen", "xen,xen-", NULL, false};
 
-static int __init fdt_find_hyper_node(unsigned long node, const char *uname,
+static int __init fdt_find_hyper_yesde(unsigned long yesde, const char *uname,
 				      int depth, void *data)
 {
 	const void *s = NULL;
@@ -213,23 +213,23 @@ static int __init fdt_find_hyper_node(unsigned long node, const char *uname,
 	if (depth != 1 || strcmp(uname, "hypervisor") != 0)
 		return 0;
 
-	if (of_flat_dt_is_compatible(node, hyper_node.compat))
-		hyper_node.found = true;
+	if (of_flat_dt_is_compatible(yesde, hyper_yesde.compat))
+		hyper_yesde.found = true;
 
-	s = of_get_flat_dt_prop(node, "compatible", &len);
-	if (strlen(hyper_node.prefix) + 3  < len &&
-	    !strncmp(hyper_node.prefix, s, strlen(hyper_node.prefix)))
-		hyper_node.version = s + strlen(hyper_node.prefix);
+	s = of_get_flat_dt_prop(yesde, "compatible", &len);
+	if (strlen(hyper_yesde.prefix) + 3  < len &&
+	    !strncmp(hyper_yesde.prefix, s, strlen(hyper_yesde.prefix)))
+		hyper_yesde.version = s + strlen(hyper_yesde.prefix);
 
 	/*
 	 * Check if Xen supports EFI by checking whether there is the
-	 * "/hypervisor/uefi" node in DT. If so, runtime services are available
+	 * "/hypervisor/uefi" yesde in DT. If so, runtime services are available
 	 * through proxy functions (e.g. in case of Xen dom0 EFI implementation
 	 * they call special hypercall which executes relevant EFI functions)
 	 * and that is why they are always enabled.
 	 */
 	if (IS_ENABLED(CONFIG_XEN_EFI)) {
-		if ((of_get_flat_dt_subnode_by_name(node, "uefi") > 0) &&
+		if ((of_get_flat_dt_subyesde_by_name(yesde, "uefi") > 0) &&
 		    !efi_runtime_disabled())
 			set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 	}
@@ -244,18 +244,18 @@ static int __init fdt_find_hyper_node(unsigned long node, const char *uname,
 #define GRANT_TABLE_PHYSADDR 0
 void __init xen_early_init(void)
 {
-	of_scan_flat_dt(fdt_find_hyper_node, NULL);
-	if (!hyper_node.found) {
+	of_scan_flat_dt(fdt_find_hyper_yesde, NULL);
+	if (!hyper_yesde.found) {
 		pr_debug("No Xen support\n");
 		return;
 	}
 
-	if (hyper_node.version == NULL) {
-		pr_debug("Xen version not found\n");
+	if (hyper_yesde.version == NULL) {
+		pr_debug("Xen version yest found\n");
 		return;
 	}
 
-	pr_info("Xen %s support found\n", hyper_node.version);
+	pr_info("Xen %s support found\n", hyper_yesde.version);
 
 	xen_domain_type = XEN_HVM_DOMAIN;
 
@@ -294,15 +294,15 @@ static void __init xen_acpi_guest_init(void)
 
 static void __init xen_dt_guest_init(void)
 {
-	struct device_node *xen_node;
+	struct device_yesde *xen_yesde;
 
-	xen_node = of_find_compatible_node(NULL, NULL, "xen,xen");
-	if (!xen_node) {
+	xen_yesde = of_find_compatible_yesde(NULL, NULL, "xen,xen");
+	if (!xen_yesde) {
 		pr_err("Xen support was detected before, but it has disappeared\n");
 		return;
 	}
 
-	xen_events_irq = irq_of_parse_and_map(xen_node, 0);
+	xen_events_irq = irq_of_parse_and_map(xen_yesde, 0);
 }
 
 static int __init xen_guest_init(void)
@@ -320,7 +320,7 @@ static int __init xen_guest_init(void)
 		xen_dt_guest_init();
 
 	if (!xen_events_irq) {
-		pr_err("Xen event channel interrupt not found\n");
+		pr_err("Xen event channel interrupt yest found\n");
 		return -ENODEV;
 	}
 
@@ -334,7 +334,7 @@ static int __init xen_guest_init(void)
 	shared_info_page = (struct shared_info *)get_zeroed_page(GFP_KERNEL);
 
 	if (!shared_info_page) {
-		pr_err("not enough memory\n");
+		pr_err("yest eyesugh memory\n");
 		return -ENOMEM;
 	}
 	xatp.domid = DOMID_SELF;
@@ -374,7 +374,7 @@ static int __init xen_guest_init(void)
 		xenbus_probe(NULL);
 
 	/*
-	 * Making sure board specific code will not set up ops for
+	 * Making sure board specific code will yest set up ops for
 	 * cpu idle and cpu freq.
 	 */
 	disable_cpuidle();
@@ -391,7 +391,7 @@ static int __init xen_guest_init(void)
 	xen_time_setup_guest();
 
 	if (xen_initial_domain())
-		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
+		pvclock_gtod_register_yestifier(&xen_pvclock_gtod_yestifier);
 
 	return cpuhp_setup_state(CPUHP_AP_ARM_XEN_STARTING,
 				 "arm/xen:starting", xen_starting_cpu,

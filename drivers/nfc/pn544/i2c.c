@@ -174,7 +174,7 @@ struct pn544_i2c_phy {
 
 	int hard_fault;		/*
 				 * < 0 if hardware error occured (e.g. i2c err)
-				 * and prevents normal operation.
+				 * and prevents yesrmal operation.
 				 */
 };
 
@@ -221,7 +221,7 @@ static void pn544_hci_i2c_platform_init(struct pn544_i2c_phy *phy)
 	}
 
 	nfc_err(&phy->i2c_dev->dev,
-		"Could not detect nfc_en polarity, fallback to active high\n");
+		"Could yest detect nfc_en polarity, fallback to active high\n");
 
 out:
 	gpiod_set_value_cansleep(phy->gpiod_en, !phy->en_polarity);
@@ -287,9 +287,9 @@ static void pn544_hci_i2c_remove_len_crc(struct sk_buff *skb)
 }
 
 /*
- * Writing a frame must not return the number of written bytes.
+ * Writing a frame must yest return the number of written bytes.
  * It must return either zero for success, or <0 for error.
- * In addition, it must not alter the skb
+ * In addition, it must yest alter the skb
  */
 static int pn544_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 {
@@ -352,7 +352,7 @@ static int check_crc(u8 *buf, int buflen)
  * returns:
  * -EREMOTEIO : i2c read error (fatal)
  * -EBADMSG : frame was incorrect and discarded
- * -ENOMEM : cannot allocate skb, frame dropped
+ * -ENOMEM : canyest allocate skb, frame dropped
  */
 static int pn544_hci_i2c_read(struct pn544_i2c_phy *phy, struct sk_buff **skb)
 {
@@ -363,7 +363,7 @@ static int pn544_hci_i2c_read(struct pn544_i2c_phy *phy, struct sk_buff **skb)
 
 	r = i2c_master_recv(client, &len, 1);
 	if (r != 1) {
-		nfc_err(&client->dev, "cannot read len byte\n");
+		nfc_err(&client->dev, "canyest read len byte\n");
 		return -EREMOTEIO;
 	}
 
@@ -421,7 +421,7 @@ static int pn544_hci_i2c_fw_read_status(struct pn544_i2c_phy *phy)
 
 	r = i2c_master_recv(client, (char *) &response, sizeof(response));
 	if (r != sizeof(response)) {
-		nfc_err(&client->dev, "cannot read fw status\n");
+		nfc_err(&client->dev, "canyest read fw status\n");
 		return -EIO;
 	}
 
@@ -463,7 +463,7 @@ static int pn544_hci_i2c_fw_read_status(struct pn544_i2c_phy *phy)
 }
 
 /*
- * Reads an shdlc frame from the chip. This is not as straightforward as it
+ * Reads an shdlc frame from the chip. This is yest as straightforward as it
  * seems. There are cases where we could loose the frame start synchronization.
  * The frame format is len-data-crc, and corruption can occur anywhere while
  * transiting on i2c bus, such that we could read an invalid len.
@@ -472,7 +472,7 @@ static int pn544_hci_i2c_fw_read_status(struct pn544_i2c_phy *phy)
  * assuming the following:
  * - the chip will always present only one single complete frame on the bus
  *   before triggering the interrupt
- * - the chip will not present a new frame until we have completely read
+ * - the chip will yest present a new frame until we have completely read
  *   the previous one (or until we have handled the interrupt).
  * The tricky case is when we read a corrupted len that is less than the real
  * len. We must detect this here in order to determine that we need to flush
@@ -723,7 +723,7 @@ exit:
 	phy->fw_written += r;
 	phy->fw_work_state = FW_WORK_STATE_WAIT_SECURE_WRITE_ANSWER;
 
-	/* SW reset command will not trig any response from PN544 */
+	/* SW reset command will yest trig any response from PN544 */
 	if (framep->cmd == PN544_FW_CMD_RESET) {
 		pn544_hci_i2c_enable_mode(phy, PN544_FW_MODE);
 		phy->fw_cmd_result = 0;

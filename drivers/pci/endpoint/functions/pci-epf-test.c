@@ -46,7 +46,7 @@ static struct workqueue_struct *kpcitest_workqueue;
 struct pci_epf_test {
 	void			*reg[PCI_STD_NUM_BARS];
 	struct pci_epf		*epf;
-	enum pci_barno		test_reg_bar;
+	enum pci_baryes		test_reg_bar;
 	struct delayed_work	cmd_handler;
 	const struct pci_epc_features *epc_features;
 };
@@ -82,7 +82,7 @@ static int pci_epf_test_copy(struct pci_epf_test *epf_test)
 	struct pci_epf *epf = epf_test->epf;
 	struct device *dev = &epf->dev;
 	struct pci_epc *epc = epf->epc;
-	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
+	enum pci_baryes test_reg_bar = epf_test->test_reg_bar;
 	struct pci_epf_test_reg *reg = epf_test->reg[test_reg_bar];
 
 	src_addr = pci_epc_mem_alloc_addr(epc, &src_phys_addr, reg->size);
@@ -93,7 +93,7 @@ static int pci_epf_test_copy(struct pci_epf_test *epf_test)
 		goto err;
 	}
 
-	ret = pci_epc_map_addr(epc, epf->func_no, src_phys_addr, reg->src_addr,
+	ret = pci_epc_map_addr(epc, epf->func_yes, src_phys_addr, reg->src_addr,
 			       reg->size);
 	if (ret) {
 		dev_err(dev, "Failed to map source address\n");
@@ -109,7 +109,7 @@ static int pci_epf_test_copy(struct pci_epf_test *epf_test)
 		goto err_src_map_addr;
 	}
 
-	ret = pci_epc_map_addr(epc, epf->func_no, dst_phys_addr, reg->dst_addr,
+	ret = pci_epc_map_addr(epc, epf->func_yes, dst_phys_addr, reg->dst_addr,
 			       reg->size);
 	if (ret) {
 		dev_err(dev, "Failed to map destination address\n");
@@ -119,13 +119,13 @@ static int pci_epf_test_copy(struct pci_epf_test *epf_test)
 
 	memcpy(dst_addr, src_addr, reg->size);
 
-	pci_epc_unmap_addr(epc, epf->func_no, dst_phys_addr);
+	pci_epc_unmap_addr(epc, epf->func_yes, dst_phys_addr);
 
 err_dst_addr:
 	pci_epc_mem_free_addr(epc, dst_phys_addr, dst_addr, reg->size);
 
 err_src_map_addr:
-	pci_epc_unmap_addr(epc, epf->func_no, src_phys_addr);
+	pci_epc_unmap_addr(epc, epf->func_yes, src_phys_addr);
 
 err_src_addr:
 	pci_epc_mem_free_addr(epc, src_phys_addr, src_addr, reg->size);
@@ -144,7 +144,7 @@ static int pci_epf_test_read(struct pci_epf_test *epf_test)
 	struct pci_epf *epf = epf_test->epf;
 	struct device *dev = &epf->dev;
 	struct pci_epc *epc = epf->epc;
-	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
+	enum pci_baryes test_reg_bar = epf_test->test_reg_bar;
 	struct pci_epf_test_reg *reg = epf_test->reg[test_reg_bar];
 
 	src_addr = pci_epc_mem_alloc_addr(epc, &phys_addr, reg->size);
@@ -155,7 +155,7 @@ static int pci_epf_test_read(struct pci_epf_test *epf_test)
 		goto err;
 	}
 
-	ret = pci_epc_map_addr(epc, epf->func_no, phys_addr, reg->src_addr,
+	ret = pci_epc_map_addr(epc, epf->func_yes, phys_addr, reg->src_addr,
 			       reg->size);
 	if (ret) {
 		dev_err(dev, "Failed to map address\n");
@@ -178,7 +178,7 @@ static int pci_epf_test_read(struct pci_epf_test *epf_test)
 	kfree(buf);
 
 err_map_addr:
-	pci_epc_unmap_addr(epc, epf->func_no, phys_addr);
+	pci_epc_unmap_addr(epc, epf->func_yes, phys_addr);
 
 err_addr:
 	pci_epc_mem_free_addr(epc, phys_addr, src_addr, reg->size);
@@ -196,7 +196,7 @@ static int pci_epf_test_write(struct pci_epf_test *epf_test)
 	struct pci_epf *epf = epf_test->epf;
 	struct device *dev = &epf->dev;
 	struct pci_epc *epc = epf->epc;
-	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
+	enum pci_baryes test_reg_bar = epf_test->test_reg_bar;
 	struct pci_epf_test_reg *reg = epf_test->reg[test_reg_bar];
 
 	dst_addr = pci_epc_mem_alloc_addr(epc, &phys_addr, reg->size);
@@ -207,7 +207,7 @@ static int pci_epf_test_write(struct pci_epf_test *epf_test)
 		goto err;
 	}
 
-	ret = pci_epc_map_addr(epc, epf->func_no, phys_addr, reg->dst_addr,
+	ret = pci_epc_map_addr(epc, epf->func_yes, phys_addr, reg->dst_addr,
 			       reg->size);
 	if (ret) {
 		dev_err(dev, "Failed to map address\n");
@@ -227,7 +227,7 @@ static int pci_epf_test_write(struct pci_epf_test *epf_test)
 	memcpy_toio(dst_addr, buf, reg->size);
 
 	/*
-	 * wait 1ms inorder for the write to complete. Without this delay L3
+	 * wait 1ms iyesrder for the write to complete. Without this delay L3
 	 * error in observed in the host system.
 	 */
 	usleep_range(1000, 2000);
@@ -235,7 +235,7 @@ static int pci_epf_test_write(struct pci_epf_test *epf_test)
 	kfree(buf);
 
 err_map_addr:
-	pci_epc_unmap_addr(epc, epf->func_no, phys_addr);
+	pci_epc_unmap_addr(epc, epf->func_yes, phys_addr);
 
 err_addr:
 	pci_epc_mem_free_addr(epc, phys_addr, dst_addr, reg->size);
@@ -250,23 +250,23 @@ static void pci_epf_test_raise_irq(struct pci_epf_test *epf_test, u8 irq_type,
 	struct pci_epf *epf = epf_test->epf;
 	struct device *dev = &epf->dev;
 	struct pci_epc *epc = epf->epc;
-	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
+	enum pci_baryes test_reg_bar = epf_test->test_reg_bar;
 	struct pci_epf_test_reg *reg = epf_test->reg[test_reg_bar];
 
 	reg->status |= STATUS_IRQ_RAISED;
 
 	switch (irq_type) {
 	case IRQ_TYPE_LEGACY:
-		pci_epc_raise_irq(epc, epf->func_no, PCI_EPC_IRQ_LEGACY, 0);
+		pci_epc_raise_irq(epc, epf->func_yes, PCI_EPC_IRQ_LEGACY, 0);
 		break;
 	case IRQ_TYPE_MSI:
-		pci_epc_raise_irq(epc, epf->func_no, PCI_EPC_IRQ_MSI, irq);
+		pci_epc_raise_irq(epc, epf->func_yes, PCI_EPC_IRQ_MSI, irq);
 		break;
 	case IRQ_TYPE_MSIX:
-		pci_epc_raise_irq(epc, epf->func_no, PCI_EPC_IRQ_MSIX, irq);
+		pci_epc_raise_irq(epc, epf->func_yes, PCI_EPC_IRQ_MSIX, irq);
 		break;
 	default:
-		dev_err(dev, "Failed to raise IRQ, unknown type\n");
+		dev_err(dev, "Failed to raise IRQ, unkyeswn type\n");
 		break;
 	}
 }
@@ -281,7 +281,7 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 	struct pci_epf *epf = epf_test->epf;
 	struct device *dev = &epf->dev;
 	struct pci_epc *epc = epf->epc;
-	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
+	enum pci_baryes test_reg_bar = epf_test->test_reg_bar;
 	struct pci_epf_test_reg *reg = epf_test->reg[test_reg_bar];
 
 	command = reg->command;
@@ -298,7 +298,7 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 
 	if (command & COMMAND_RAISE_LEGACY_IRQ) {
 		reg->status = STATUS_IRQ_RAISED;
-		pci_epc_raise_irq(epc, epf->func_no, PCI_EPC_IRQ_LEGACY, 0);
+		pci_epc_raise_irq(epc, epf->func_yes, PCI_EPC_IRQ_LEGACY, 0);
 		goto reset_handler;
 	}
 
@@ -336,21 +336,21 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 	}
 
 	if (command & COMMAND_RAISE_MSI_IRQ) {
-		count = pci_epc_get_msi(epc, epf->func_no);
+		count = pci_epc_get_msi(epc, epf->func_yes);
 		if (reg->irq_number > count || count <= 0)
 			goto reset_handler;
 		reg->status = STATUS_IRQ_RAISED;
-		pci_epc_raise_irq(epc, epf->func_no, PCI_EPC_IRQ_MSI,
+		pci_epc_raise_irq(epc, epf->func_yes, PCI_EPC_IRQ_MSI,
 				  reg->irq_number);
 		goto reset_handler;
 	}
 
 	if (command & COMMAND_RAISE_MSIX_IRQ) {
-		count = pci_epc_get_msix(epc, epf->func_no);
+		count = pci_epc_get_msix(epc, epf->func_yes);
 		if (reg->irq_number > count || count <= 0)
 			goto reset_handler;
 		reg->status = STATUS_IRQ_RAISED;
-		pci_epc_raise_irq(epc, epf->func_no, PCI_EPC_IRQ_MSIX,
+		pci_epc_raise_irq(epc, epf->func_yes, PCI_EPC_IRQ_MSIX,
 				  reg->irq_number);
 		goto reset_handler;
 	}
@@ -381,7 +381,7 @@ static void pci_epf_test_unbind(struct pci_epf *epf)
 		epf_bar = &epf->bar[bar];
 
 		if (epf_test->reg[bar]) {
-			pci_epc_clear_bar(epc, epf->func_no, epf_bar);
+			pci_epc_clear_bar(epc, epf->func_yes, epf_bar);
 			pci_epf_free_space(epf, epf_test->reg[bar], bar);
 		}
 	}
@@ -395,7 +395,7 @@ static int pci_epf_test_set_bar(struct pci_epf *epf)
 	struct pci_epc *epc = epf->epc;
 	struct device *dev = &epf->dev;
 	struct pci_epf_test *epf_test = epf_get_drvdata(epf);
-	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
+	enum pci_baryes test_reg_bar = epf_test->test_reg_bar;
 	const struct pci_epc_features *epc_features;
 
 	epc_features = epf_test->epc_features;
@@ -412,7 +412,7 @@ static int pci_epf_test_set_bar(struct pci_epf *epf)
 		if (!!(epc_features->reserved_bar & (1 << bar)))
 			continue;
 
-		ret = pci_epc_set_bar(epc, epf->func_no, epf_bar);
+		ret = pci_epc_set_bar(epc, epf->func_yes, epf_bar);
 		if (ret) {
 			pci_epf_free_space(epf, epf_test->reg[bar], bar);
 			dev_err(dev, "Failed to set BAR%d\n", bar);
@@ -431,7 +431,7 @@ static int pci_epf_test_alloc_space(struct pci_epf *epf)
 	struct pci_epf_bar *epf_bar;
 	void *base;
 	int bar, add;
-	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
+	enum pci_baryes test_reg_bar = epf_test->test_reg_bar;
 	const struct pci_epc_features *epc_features;
 	size_t test_reg_size;
 
@@ -494,19 +494,19 @@ static int pci_epf_test_bind(struct pci_epf *epf)
 	struct pci_epf_test *epf_test = epf_get_drvdata(epf);
 	struct pci_epf_header *header = epf->header;
 	const struct pci_epc_features *epc_features;
-	enum pci_barno test_reg_bar = BAR_0;
+	enum pci_baryes test_reg_bar = BAR_0;
 	struct pci_epc *epc = epf->epc;
 	struct device *dev = &epf->dev;
-	bool linkup_notifier = false;
+	bool linkup_yestifier = false;
 	bool msix_capable = false;
 	bool msi_capable = true;
 
 	if (WARN_ON_ONCE(!epc))
 		return -EINVAL;
 
-	epc_features = pci_epc_get_features(epc, epf->func_no);
+	epc_features = pci_epc_get_features(epc, epf->func_yes);
 	if (epc_features) {
-		linkup_notifier = epc_features->linkup_notifier;
+		linkup_yestifier = epc_features->linkup_yestifier;
 		msix_capable = epc_features->msix_capable;
 		msi_capable = epc_features->msi_capable;
 		test_reg_bar = pci_epc_get_first_free_bar(epc_features);
@@ -516,7 +516,7 @@ static int pci_epf_test_bind(struct pci_epf *epf)
 	epf_test->test_reg_bar = test_reg_bar;
 	epf_test->epc_features = epc_features;
 
-	ret = pci_epc_write_header(epc, epf->func_no, header);
+	ret = pci_epc_write_header(epc, epf->func_yes, header);
 	if (ret) {
 		dev_err(dev, "Configuration header write failed\n");
 		return ret;
@@ -531,7 +531,7 @@ static int pci_epf_test_bind(struct pci_epf *epf)
 		return ret;
 
 	if (msi_capable) {
-		ret = pci_epc_set_msi(epc, epf->func_no, epf->msi_interrupts);
+		ret = pci_epc_set_msi(epc, epf->func_yes, epf->msi_interrupts);
 		if (ret) {
 			dev_err(dev, "MSI configuration failed\n");
 			return ret;
@@ -539,14 +539,14 @@ static int pci_epf_test_bind(struct pci_epf *epf)
 	}
 
 	if (msix_capable) {
-		ret = pci_epc_set_msix(epc, epf->func_no, epf->msix_interrupts);
+		ret = pci_epc_set_msix(epc, epf->func_yes, epf->msix_interrupts);
 		if (ret) {
 			dev_err(dev, "MSI-X configuration failed\n");
 			return ret;
 		}
 	}
 
-	if (!linkup_notifier)
+	if (!linkup_yestifier)
 		queue_work(kpcitest_workqueue, &epf_test->cmd_handler.work);
 
 	return 0;

@@ -75,7 +75,7 @@ static int autofs_write(struct autofs_sb_info *sbi,
 	return bytes == 0 ? 0 : wr < 0 ? wr : -EIO;
 }
 
-static void autofs_notify_daemon(struct autofs_sb_info *sbi,
+static void autofs_yestify_daemon(struct autofs_sb_info *sbi,
 				 struct autofs_wait_queue *wq,
 				 int type)
 {
@@ -143,7 +143,7 @@ static void autofs_notify_daemon(struct autofs_sb_info *sbi,
 		memcpy(packet->name, wq->name.name, wq->name.len);
 		packet->name[wq->name.len] = '\0';
 		packet->dev = wq->dev;
-		packet->ino = wq->ino;
+		packet->iyes = wq->iyes;
 		packet->uid = from_kuid_munged(user_ns, wq->uid);
 		packet->gid = from_kgid_munged(user_ns, wq->gid);
 		packet->pid = wq->pid;
@@ -241,16 +241,16 @@ autofs_find_wait(struct autofs_sb_info *sbi, const struct qstr *qstr)
  * 1 if the request should continue.
  *   In this case we can return an autofs_wait_queue entry if one is
  *   found or NULL to idicate a new wait needs to be created.
- * 0 or a negative errno if the request shouldn't continue.
+ * 0 or a negative erryes if the request shouldn't continue.
  */
 static int validate_request(struct autofs_wait_queue **wait,
 			    struct autofs_sb_info *sbi,
 			    const struct qstr *qstr,
-			    const struct path *path, enum autofs_notify notify)
+			    const struct path *path, enum autofs_yestify yestify)
 {
 	struct dentry *dentry = path->dentry;
 	struct autofs_wait_queue *wq;
-	struct autofs_info *ino;
+	struct autofs_info *iyes;
 
 	if (sbi->flags & AUTOFS_SBI_CATATONIC)
 		return -ENOENT;
@@ -265,15 +265,15 @@ static int validate_request(struct autofs_wait_queue **wait,
 	*wait = NULL;
 
 	/* If we don't yet have any info this is a new request */
-	ino = autofs_dentry_ino(dentry);
-	if (!ino)
+	iyes = autofs_dentry_iyes(dentry);
+	if (!iyes)
 		return 1;
 
 	/*
 	 * If we've been asked to wait on an existing expire (NFY_NONE)
-	 * but there is no wait in the queue ...
+	 * but there is yes wait in the queue ...
 	 */
-	if (notify == NFY_NONE) {
+	if (yestify == NFY_NONE) {
 		/*
 		 * Either we've betean the pending expire to post it's
 		 * wait or it finished while we waited on the mutex.
@@ -281,7 +281,7 @@ static int validate_request(struct autofs_wait_queue **wait,
 		 * or the expire finishes.
 		 */
 
-		while (ino->flags & AUTOFS_INF_EXPIRING) {
+		while (iyes->flags & AUTOFS_INF_EXPIRING) {
 			mutex_unlock(&sbi->wq_mutex);
 			schedule_timeout_interruptible(HZ/10);
 			if (mutex_lock_interruptible(&sbi->wq_mutex))
@@ -309,7 +309,7 @@ static int validate_request(struct autofs_wait_queue **wait,
 	 * If we've been asked to trigger a mount and the request
 	 * completed while we waited on the mutex ...
 	 */
-	if (notify == NFY_MOUNT) {
+	if (yestify == NFY_MOUNT) {
 		struct dentry *new = NULL;
 		struct path this;
 		int valid = 1;
@@ -318,7 +318,7 @@ static int validate_request(struct autofs_wait_queue **wait,
 		 * If the dentry was successfully mounted while we slept
 		 * on the wait queue mutex we can return success. If it
 		 * isn't mounted (doesn't have submounts for the case of
-		 * a multi-mount with no mount at it's base) we can
+		 * a multi-mount with yes mount at it's base) we can
 		 * continue on and create a new request.
 		 */
 		if (!IS_ROOT(dentry)) {
@@ -345,7 +345,7 @@ static int validate_request(struct autofs_wait_queue **wait,
 }
 
 int autofs_wait(struct autofs_sb_info *sbi,
-		 const struct path *path, enum autofs_notify notify)
+		 const struct path *path, enum autofs_yestify yestify)
 {
 	struct dentry *dentry = path->dentry;
 	struct autofs_wait_queue *wq;
@@ -355,7 +355,7 @@ int autofs_wait(struct autofs_sb_info *sbi,
 	pid_t pid;
 	pid_t tgid;
 
-	/* In catatonic mode, we don't wait for nobody */
+	/* In catatonic mode, we don't wait for yesbody */
 	if (sbi->flags & AUTOFS_SBI_CATATONIC)
 		return -ENOENT;
 
@@ -406,7 +406,7 @@ int autofs_wait(struct autofs_sb_info *sbi,
 		return -EINTR;
 	}
 
-	ret = validate_request(&wq, sbi, &qstr, path, notify);
+	ret = validate_request(&wq, sbi, &qstr, path, yestify);
 	if (ret <= 0) {
 		if (ret != -EINTR)
 			mutex_unlock(&sbi->wq_mutex);
@@ -431,7 +431,7 @@ int autofs_wait(struct autofs_sb_info *sbi,
 		init_waitqueue_head(&wq->queue);
 		memcpy(&wq->name, &qstr, sizeof(struct qstr));
 		wq->dev = autofs_get_dev(sbi);
-		wq->ino = autofs_get_ino(sbi);
+		wq->iyes = autofs_get_iyes(sbi);
 		wq->uid = current_uid();
 		wq->gid = current_gid();
 		wq->pid = pid;
@@ -440,12 +440,12 @@ int autofs_wait(struct autofs_sb_info *sbi,
 		wq->wait_ctr = 2;
 
 		if (sbi->version < 5) {
-			if (notify == NFY_MOUNT)
+			if (yestify == NFY_MOUNT)
 				type = autofs_ptype_missing;
 			else
 				type = autofs_ptype_expire_multi;
 		} else {
-			if (notify == NFY_MOUNT)
+			if (yestify == NFY_MOUNT)
 				type = autofs_type_trigger(sbi->type) ?
 					autofs_ptype_missing_direct :
 					 autofs_ptype_missing_indirect;
@@ -457,17 +457,17 @@ int autofs_wait(struct autofs_sb_info *sbi,
 
 		pr_debug("new wait id = 0x%08lx, name = %.*s, nfy=%d\n",
 			 (unsigned long) wq->wait_queue_token, wq->name.len,
-			 wq->name.name, notify);
+			 wq->name.name, yestify);
 
 		/*
-		 * autofs_notify_daemon() may block; it will unlock ->wq_mutex
+		 * autofs_yestify_daemon() may block; it will unlock ->wq_mutex
 		 */
-		autofs_notify_daemon(sbi, wq, type);
+		autofs_yestify_daemon(sbi, wq, type);
 	} else {
 		wq->wait_ctr++;
 		pr_debug("existing wait id = 0x%08lx, name = %.*s, nfy=%d\n",
 			 (unsigned long) wq->wait_queue_token, wq->name.len,
-			 wq->name.name, notify);
+			 wq->name.name, yestify);
 		mutex_unlock(&sbi->wq_mutex);
 		kfree(qstr.name);
 	}
@@ -489,23 +489,23 @@ int autofs_wait(struct autofs_sb_info *sbi,
 	 * in autofs mount maps.
 	 */
 	if (!status) {
-		struct autofs_info *ino;
+		struct autofs_info *iyes;
 		struct dentry *de = NULL;
 
 		/* direct mount or browsable map */
-		ino = autofs_dentry_ino(dentry);
-		if (!ino) {
-			/* If not lookup actual dentry used */
+		iyes = autofs_dentry_iyes(dentry);
+		if (!iyes) {
+			/* If yest lookup actual dentry used */
 			de = d_lookup(dentry->d_parent, &dentry->d_name);
 			if (de)
-				ino = autofs_dentry_ino(de);
+				iyes = autofs_dentry_iyes(de);
 		}
 
 		/* Set mount requester */
-		if (ino) {
+		if (iyes) {
 			spin_lock(&sbi->fs_lock);
-			ino->uid = wq->uid;
-			ino->gid = wq->gid;
+			iyes->uid = wq->uid;
+			iyes->gid = wq->gid;
 			spin_unlock(&sbi->fs_lock);
 		}
 
@@ -541,7 +541,7 @@ int autofs_wait_release(struct autofs_sb_info *sbi,
 
 	*wql = wq->next;	/* Unlink from chain */
 	kfree(wq->name.name);
-	wq->name.name = NULL;	/* Do not wait on this queue */
+	wq->name.name = NULL;	/* Do yest wait on this queue */
 	wq->status = status;
 	wake_up(&wq->queue);
 	if (!--wq->wait_ctr)

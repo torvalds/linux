@@ -12,7 +12,7 @@
 
 static int clps711x_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	void __iomem *dat, *dir;
 	struct gpio_chip *gc;
 	int err, id;

@@ -1,39 +1,39 @@
 /* cfg80211 support
  *
- * See copyright notice in main.c
+ * See copyright yestice in main.c
  */
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
 #include "hw.h"
 #include "main.h"
-#include "orinoco.h"
+#include "oriyesco.h"
 
 #include "cfg.h"
 
 /* Supported bitrates. Must agree with hw.c */
-static struct ieee80211_rate orinoco_rates[] = {
+static struct ieee80211_rate oriyesco_rates[] = {
 	{ .bitrate = 10 },
 	{ .bitrate = 20 },
 	{ .bitrate = 55 },
 	{ .bitrate = 110 },
 };
 
-static const void * const orinoco_wiphy_privid = &orinoco_wiphy_privid;
+static const void * const oriyesco_wiphy_privid = &oriyesco_wiphy_privid;
 
-/* Called after orinoco_private is allocated. */
-void orinoco_wiphy_init(struct wiphy *wiphy)
+/* Called after oriyesco_private is allocated. */
+void oriyesco_wiphy_init(struct wiphy *wiphy)
 {
-	struct orinoco_private *priv = wiphy_priv(wiphy);
+	struct oriyesco_private *priv = wiphy_priv(wiphy);
 
-	wiphy->privid = orinoco_wiphy_privid;
+	wiphy->privid = oriyesco_wiphy_privid;
 
 	set_wiphy_dev(wiphy, priv->dev);
 }
 
 /* Called after firmware is initialised */
-int orinoco_wiphy_register(struct wiphy *wiphy)
+int oriyesco_wiphy_register(struct wiphy *wiphy)
 {
-	struct orinoco_private *priv = wiphy_priv(wiphy);
+	struct oriyesco_private *priv = wiphy_priv(wiphy);
 	int i, channels = 0;
 
 	if (priv->firmware_type == FIRMWARE_TYPE_AGERE)
@@ -52,8 +52,8 @@ int orinoco_wiphy_register(struct wiphy *wiphy)
 	if (!priv->broken_monitor || force_monitor)
 		wiphy->interface_modes |= BIT(NL80211_IFTYPE_MONITOR);
 
-	priv->band.bitrates = orinoco_rates;
-	priv->band.n_bitrates = ARRAY_SIZE(orinoco_rates);
+	priv->band.bitrates = oriyesco_rates;
+	priv->band.n_bitrates = ARRAY_SIZE(oriyesco_rates);
 
 	/* Only support channels allowed by the card EEPROM */
 	for (i = 0; i < NUM_CHANNELS; i++) {
@@ -96,15 +96,15 @@ int orinoco_wiphy_register(struct wiphy *wiphy)
 	return wiphy_register(wiphy);
 }
 
-static int orinoco_change_vif(struct wiphy *wiphy, struct net_device *dev,
+static int oriyesco_change_vif(struct wiphy *wiphy, struct net_device *dev,
 			      enum nl80211_iftype type,
 			      struct vif_params *params)
 {
-	struct orinoco_private *priv = wiphy_priv(wiphy);
+	struct oriyesco_private *priv = wiphy_priv(wiphy);
 	int err = 0;
 	unsigned long lock;
 
-	if (orinoco_lock(priv, &lock) != 0)
+	if (oriyesco_lock(priv, &lock) != 0)
 		return -EBUSY;
 
 	switch (type) {
@@ -119,7 +119,7 @@ static int orinoco_change_vif(struct wiphy *wiphy, struct net_device *dev,
 	case NL80211_IFTYPE_MONITOR:
 		if (priv->broken_monitor && !force_monitor) {
 			wiphy_warn(wiphy,
-				   "Monitor mode support is buggy in this firmware, not enabling\n");
+				   "Monitor mode support is buggy in this firmware, yest enabling\n");
 			err = -EINVAL;
 		}
 		break;
@@ -131,18 +131,18 @@ static int orinoco_change_vif(struct wiphy *wiphy, struct net_device *dev,
 	if (!err) {
 		priv->iw_mode = type;
 		set_port_type(priv);
-		err = orinoco_commit(priv);
+		err = oriyesco_commit(priv);
 	}
 
-	orinoco_unlock(priv, &lock);
+	oriyesco_unlock(priv, &lock);
 
 	return err;
 }
 
-static int orinoco_scan(struct wiphy *wiphy,
+static int oriyesco_scan(struct wiphy *wiphy,
 			struct cfg80211_scan_request *request)
 {
-	struct orinoco_private *priv = wiphy_priv(wiphy);
+	struct oriyesco_private *priv = wiphy_priv(wiphy);
 	int err;
 
 	if (!request)
@@ -153,7 +153,7 @@ static int orinoco_scan(struct wiphy *wiphy,
 
 	priv->scan_request = request;
 
-	err = orinoco_hw_trigger_scan(priv, request->ssids);
+	err = oriyesco_hw_trigger_scan(priv, request->ssids);
 	/* On error the we aren't processing the request */
 	if (err)
 		priv->scan_request = NULL;
@@ -161,10 +161,10 @@ static int orinoco_scan(struct wiphy *wiphy,
 	return err;
 }
 
-static int orinoco_set_monitor_channel(struct wiphy *wiphy,
+static int oriyesco_set_monitor_channel(struct wiphy *wiphy,
 				       struct cfg80211_chan_def *chandef)
 {
-	struct orinoco_private *priv = wiphy_priv(wiphy);
+	struct oriyesco_private *priv = wiphy_priv(wiphy);
 	int err = 0;
 	unsigned long flags;
 	int channel;
@@ -184,36 +184,36 @@ static int orinoco_set_monitor_channel(struct wiphy *wiphy,
 	     !(priv->channel_mask & (1 << (channel - 1))))
 		return -EINVAL;
 
-	if (orinoco_lock(priv, &flags) != 0)
+	if (oriyesco_lock(priv, &flags) != 0)
 		return -EBUSY;
 
 	priv->channel = channel;
 	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
-		/* Fast channel change - no commit if successful */
+		/* Fast channel change - yes commit if successful */
 		struct hermes *hw = &priv->hw;
 		err = hw->ops->cmd_wait(hw, HERMES_CMD_TEST |
 					    HERMES_TEST_SET_CHANNEL,
 					channel, NULL);
 	}
-	orinoco_unlock(priv, &flags);
+	oriyesco_unlock(priv, &flags);
 
 	return err;
 }
 
-static int orinoco_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+static int oriyesco_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
-	struct orinoco_private *priv = wiphy_priv(wiphy);
+	struct oriyesco_private *priv = wiphy_priv(wiphy);
 	int frag_value = -1;
 	int rts_value = -1;
 	int err = 0;
 
 	if (changed & WIPHY_PARAM_RETRY_SHORT) {
-		/* Setting short retry not supported */
+		/* Setting short retry yest supported */
 		err = -EINVAL;
 	}
 
 	if (changed & WIPHY_PARAM_RETRY_LONG) {
-		/* Setting long retry not supported */
+		/* Setting long retry yest supported */
 		err = -EINVAL;
 	}
 
@@ -224,7 +224,7 @@ static int orinoco_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 				frag_value = 0;
 			else {
 				printk(KERN_WARNING "%s: Fixed fragmentation "
-				       "is not supported on this firmware. "
+				       "is yest supported on this firmware. "
 				       "Using MWO robust instead.\n",
 				       priv->ndev->name);
 				frag_value = 1;
@@ -237,7 +237,7 @@ static int orinoco_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 				err = -EINVAL;
 			else
 				/* cfg80211 value is 257-2347 (odd only)
-				 * orinoco rid has range 256-2346 (even only) */
+				 * oriyesco rid has range 256-2346 (even only) */
 				frag_value = wiphy->frag_threshold & ~0x1;
 		}
 	}
@@ -263,7 +263,7 @@ static int orinoco_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	if (!err) {
 		unsigned long flags;
 
-		if (orinoco_lock(priv, &flags) != 0)
+		if (oriyesco_lock(priv, &flags) != 0)
 			return -EBUSY;
 
 		if (frag_value >= 0) {
@@ -275,17 +275,17 @@ static int orinoco_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 		if (rts_value >= 0)
 			priv->rts_thresh = rts_value;
 
-		err = orinoco_commit(priv);
+		err = oriyesco_commit(priv);
 
-		orinoco_unlock(priv, &flags);
+		oriyesco_unlock(priv, &flags);
 	}
 
 	return err;
 }
 
-const struct cfg80211_ops orinoco_cfg_ops = {
-	.change_virtual_intf = orinoco_change_vif,
-	.set_monitor_channel = orinoco_set_monitor_channel,
-	.scan = orinoco_scan,
-	.set_wiphy_params = orinoco_set_wiphy_params,
+const struct cfg80211_ops oriyesco_cfg_ops = {
+	.change_virtual_intf = oriyesco_change_vif,
+	.set_monitor_channel = oriyesco_set_monitor_channel,
+	.scan = oriyesco_scan,
+	.set_wiphy_params = oriyesco_set_wiphy_params,
 };

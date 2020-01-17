@@ -65,7 +65,7 @@ static void dn_slow_timer(struct timer_list *t)
 	 * in the RUN state. The different states are catered for by changing
 	 * the function pointer in the socket. Setting the timer to a value
 	 * of zero turns it off. We allow the persist_fxn to turn the
-	 * timer off in a permant way by returning non-zero, so that
+	 * timer off in a permant way by returning yesn-zero, so that
 	 * timer based routines may remove sockets. This is why we have a
 	 * sock_hold()/sock_put() around the timer to prevent the socket
 	 * going away in the middle.
@@ -86,10 +86,10 @@ static void dn_slow_timer(struct timer_list *t)
 	 * the previous timer caused a retransmit, we don't need to
 	 * do this. scp->stamp is the last time that we sent a packet.
 	 * The keepalive function sends a link service packet to the
-	 * other end. If it remains unacknowledged, the standard
+	 * other end. If it remains unackyeswledged, the standard
 	 * socket timers will eventually shut the socket down. Each
 	 * time we do this, scp->stamp will be updated, thus
-	 * we won't try and send another until scp->keepalive has passed
+	 * we won't try and send ayesther until scp->keepalive has passed
 	 * since the last successful transmission.
 	 */
 	if (scp->keepalive && scp->keepalive_fxn && (scp->state == DN_RUN)) {

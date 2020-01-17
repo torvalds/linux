@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -218,7 +218,7 @@ struct qed_tunn_update_params {
 	u8		tunn_clss_ipgre;
 };
 
-/* The PCI personality is not quite synonymous to protocol ID:
+/* The PCI personality is yest quite syyesnymous to protocol ID:
  * 1. All personalities need CORE connections
  * 2. The Ethernet personality may support also the RoCE/iWARP protocol
  */
@@ -354,7 +354,7 @@ struct qed_hw_info {
 	u32				part_num[4];
 
 	unsigned char			hw_mac_addr[ETH_ALEN];
-	u64				node_wwn;
+	u64				yesde_wwn;
 	u64				port_wwn;
 
 	u16				num_fcoe_conns;
@@ -498,7 +498,7 @@ enum qed_mf_mode_bit {
 	/* Allow DSCP to TC mapping */
 	QED_MF_DSCP_TO_TC_MAP,
 
-	/* Do not insert a vlan tag with id 0 */
+	/* Do yest insert a vlan tag with id 0 */
 	QED_MF_DONT_ADD_VLAN0_TAG,
 };
 
@@ -620,7 +620,7 @@ struct qed_hwfn {
 
 	struct qed_cxt_mngr		*p_cxt_mngr;
 
-	/* Flag indicating whether interrupts are enabled or not*/
+	/* Flag indicating whether interrupts are enabled or yest*/
 	bool				b_int_enabled;
 	bool				b_int_requested;
 
@@ -656,8 +656,8 @@ struct qed_hwfn {
 	u32 dpi_start_offset;
 
 	/* If one of the following is set then EDPM shouldn't be used */
-	u8 dcbx_no_edpm;
-	u8 db_bar_no_edpm;
+	u8 dcbx_yes_edpm;
+	u8 db_bar_yes_edpm;
 
 	/* L2-related */
 	struct qed_l2_info *p_l2_info;

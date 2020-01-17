@@ -28,11 +28,11 @@ Optional properties:
 - atmel,pwm-type
 	PWM modulation type, "single" or "diff".
 	The default value is "single".
-- atmel,non-overlap-time
-	Set non-overlapping time, the unit is nanosecond(ns).
+- atmel,yesn-overlap-time
+	Set yesn-overlapping time, the unit is nayessecond(ns).
 	There are four values,
 	<5>, <10>, <15>, <20>, the default value is <10>.
-	Non-overlapping will be disabled if not specified.
+	Non-overlapping will be disabled if yest specified.
 
 Example:
 classd: classd@fc048000 {
@@ -51,5 +51,5 @@ classd: classd@fc048000 {
 		pinctrl-0 = <&pinctrl_classd_default>;
 		atmel,model = "classd @ SAMA5D2-Xplained";
 		atmel,pwm-type = "diff";
-		atmel,non-overlap-time = <10>;
+		atmel,yesn-overlap-time = <10>;
 };

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -94,12 +94,12 @@ bool hubbub2_dcc_support_swizzle(
 			return true;
 		}
 		if (bytes_per_element == 2) {
-			*segment_order_horz = segment_order__non_contiguous;
+			*segment_order_horz = segment_order__yesn_contiguous;
 			*segment_order_vert = segment_order__contiguous;
 			return true;
 		}
 		if (bytes_per_element == 4) {
-			*segment_order_horz = segment_order__non_contiguous;
+			*segment_order_horz = segment_order__yesn_contiguous;
 			*segment_order_vert = segment_order__contiguous;
 			return true;
 		}
@@ -116,19 +116,19 @@ bool hubbub2_dcc_support_swizzle(
 			return true;
 		}
 		if (bytes_per_element == 4) {
-			*segment_order_horz = segment_order__non_contiguous;
+			*segment_order_horz = segment_order__yesn_contiguous;
 			*segment_order_vert = segment_order__contiguous;
 			return true;
 		}
 		if (bytes_per_element == 8) {
 			*segment_order_horz = segment_order__contiguous;
-			*segment_order_vert = segment_order__non_contiguous;
+			*segment_order_vert = segment_order__yesn_contiguous;
 			return true;
 		}
 	}
 	if (display_swizzle && bytes_per_element == 8) {
 		*segment_order_horz = segment_order__contiguous;
-		*segment_order_vert = segment_order__non_contiguous;
+		*segment_order_vert = segment_order__yesn_contiguous;
 		return true;
 	}
 
@@ -257,10 +257,10 @@ bool hubbub2_get_dcc_compression_cap(struct hubbub *hubbub,
 			dcc_control = dcc_control__256_64_64;
 	} else {
 		if ((req128_horz_wc &&
-			segment_order_horz == segment_order__non_contiguous) ||
+			segment_order_horz == segment_order__yesn_contiguous) ||
 			(req128_vert_wc &&
-			segment_order_vert == segment_order__non_contiguous))
-			/* access_dir not known, must use most constraining */
+			segment_order_vert == segment_order__yesn_contiguous))
+			/* access_dir yest kyeswn, must use most constraining */
 			dcc_control = dcc_control__256_64_64;
 		else
 			/* reg128 is true for either horz and vert
@@ -431,7 +431,7 @@ void hubbub2_update_dchub(struct hubbub *hubbub,
 						dh_data->zfb_size_in_byte - 1) >> 24);
 		break;
 	case FRAME_BUFFER_MODE_MIXED_ZFB_AND_LOCAL:
-		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+		/*Should yest touch FB LOCATION (done by VBIOS on AsicInit table)*/
 
 		/*This field defines the 24 MSBs, bits [47:24] of the 48 bit AGP Base*/
 		REG_UPDATE(DCN_VM_AGP_BASE,
@@ -449,7 +449,7 @@ void hubbub2_update_dchub(struct hubbub *hubbub,
 						dh_data->zfb_size_in_byte - 1) >> 24);
 		break;
 	case FRAME_BUFFER_MODE_LOCAL_ONLY:
-		/*Should not touch FB LOCATION (should be done by VBIOS)*/
+		/*Should yest touch FB LOCATION (should be done by VBIOS)*/
 
 		/*This field defines the 24 MSBs, bits [47:24] of the 48 bit AGP Base*/
 		REG_UPDATE(DCN_VM_AGP_BASE,
@@ -567,7 +567,7 @@ static void hubbub2_program_watermarks(
 {
 	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
 	/*
-	 * Need to clamp to max of the register values (i.e. no wrap)
+	 * Need to clamp to max of the register values (i.e. yes wrap)
 	 * for dcn1, all wm registers are 21-bit wide
 	 */
 	hubbub1_program_urgent_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower);
@@ -576,7 +576,7 @@ static void hubbub2_program_watermarks(
 	/*
 	 * There's a special case when going from p-state support to p-state unsupported
 	 * here we are going to LOWER watermarks to go to dummy p-state only, but this has
-	 * to be done prepare_bandwidth, not optimize
+	 * to be done prepare_bandwidth, yest optimize
 	 */
 	if (hubbub1->base.ctx->dc->clk_mgr->clks.prev_p_state_change_support == true &&
 		hubbub1->base.ctx->dc->clk_mgr->clks.p_state_change_support == false)

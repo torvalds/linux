@@ -303,8 +303,8 @@ redirected to $DST_IFINDEX" || exit 1
 	remove_prog xmit
 }
 
-function test_no_l2_and_redirect {
-	test_start "test_no_l2_and_redirect on lwt xmit"
+function test_yes_l2_and_redirect {
+	test_start "test_yes_l2_and_redirect on lwt xmit"
 	install_test xmit fill_garbage_and_redirect
 	ping -c 3 $IPVETH1 && {
 		failure "Unexpected success despite lack of L2 header"
@@ -342,9 +342,9 @@ Set initial 96 bytes of header to FF" || exit 1
 	remove_prog xmit
 }
 
-function test_netperf_nop {
-	test_start "test_netperf_nop on lwt xmit"
-	install_test xmit nop
+function test_netperf_yesp {
+	test_start "test_netperf_yesp on lwt xmit"
+	install_test xmit yesp
 	netperf -H $IPVETH1 -t TCP_STREAM || {
 		failure "packets appear to be dropped"
 	}
@@ -390,9 +390,9 @@ test_drop_all "out"
 test_drop_all_in
 test_rewrite
 test_push_ll_and_redirect
-test_no_l2_and_redirect
+test_yes_l2_and_redirect
 test_fill_garbage
-test_netperf_nop
+test_netperf_yesp
 test_netperf_redirect
 
 cleanup

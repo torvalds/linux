@@ -4,8 +4,8 @@ config DRM_I915_UNSTABLE
 	depends on EXPERT
 	depends on STAGING
 	depends on BROKEN # should never be enabled by distros!
-	# We use the dependency on !COMPILE_TEST to not be enabled in
-	# allmodconfig or allyesconfig configurations
+	# We use the dependency on !COMPILE_TEST to yest be enabled in
+	# allmodconfig or allnoconfig configurations
 	depends on !COMPILE_TEST
 	default n
 	help

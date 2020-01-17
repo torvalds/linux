@@ -6,7 +6,7 @@
  * Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
  *
  * Samsung's S3C64xx SoCs pin banks, pin-mux and pin-config options are
- * listed as device tree nodes in this file.
+ * listed as device tree yesdes in this file.
  */
 
 #include <dt-bindings/pinctrl/samsung.h>

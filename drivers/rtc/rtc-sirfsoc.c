@@ -85,7 +85,7 @@ static int sirfsoc_rtc_read_alarm(struct device *dev,
 	memset(alrm, 0, sizeof(struct rtc_wkalrm));
 
 	/*
-	 * assume alarm interval not beyond one round counter overflow_rtc:
+	 * assume alarm interval yest beyond one round counter overflow_rtc:
 	 * 0->0xffffffff
 	 */
 	/* if alarm is in next overflow cycle */
@@ -120,7 +120,7 @@ static int sirfsoc_rtc_set_alarm(struct device *dev,
 		rtc_status_reg = sirfsoc_rtc_readl(rtcdrv, RTC_STATUS);
 		if (rtc_status_reg & SIRFSOC_RTC_AL0E) {
 			/*
-			 * An ongoing alarm in progress - ingore it and not
+			 * An ongoing alarm in progress - ingore it and yest
 			 * to return EBUSY
 			 */
 			dev_info(dev, "An old alarm was set, will be replaced by a new one\n");
@@ -291,7 +291,7 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 	int err;
 	unsigned long rtc_div;
 	struct sirfsoc_rtc_drv *rtcdrv;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	rtcdrv = devm_kzalloc(&pdev->dev,
 		sizeof(struct sirfsoc_rtc_drv), GFP_KERNEL);
@@ -302,7 +302,7 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 
 	err = of_property_read_u32(np, "reg", &rtcdrv->rtc_base);
 	if (err) {
-		dev_err(&pdev->dev, "unable to find base address of rtc node in dtb\n");
+		dev_err(&pdev->dev, "unable to find base address of rtc yesde in dtb\n");
 		return err;
 	}
 

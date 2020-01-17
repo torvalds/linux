@@ -22,7 +22,7 @@
  *	- Block cipher: any with a 128-bit block size and 256-bit key
  *
  * This implementation doesn't currently allow other ε-∆U hash functions, i.e.
- * HPolyC is not supported.  This is because Adiantum is ~20% faster than HPolyC
+ * HPolyC is yest supported.  This is because Adiantum is ~20% faster than HPolyC
  * but still provably as secure, and also the ε-∆U hash function of HBSH is
  * formally defined to take two inputs (tweak, message) which makes it difficult
  * to wrap with the crypto_shash API.  Rather, some details need to be handled
@@ -110,9 +110,9 @@ struct adiantum_request_ctx {
  * Given the XChaCha stream key K_S, derive the block cipher key K_E and the
  * hash key K_H as follows:
  *
- *     K_E || K_H || ... = XChaCha(key=K_S, nonce=1||0^191)
+ *     K_E || K_H || ... = XChaCha(key=K_S, yesnce=1||0^191)
  *
- * Note that this denotes using bits from the XChaCha keystream, which here we
+ * Note that this deyestes using bits from the XChaCha keystream, which here we
  * get indirectly by encrypting a buffer containing all 0's.
  */
 static int adiantum_setkey(struct crypto_skcipher *tfm, const u8 *key,
@@ -364,7 +364,7 @@ static int adiantum_crypt(struct skcipher_request *req, bool enc)
 
 	/* Initialize the rest of the XChaCha IV (first part is C_M) */
 	BUILD_BUG_ON(BLOCKCIPHER_BLOCK_SIZE != 16);
-	BUILD_BUG_ON(XCHACHA_IV_SIZE != 32);	/* nonce || stream position */
+	BUILD_BUG_ON(XCHACHA_IV_SIZE != 32);	/* yesnce || stream position */
 	rctx->rbuf.words[4] = cpu_to_le32(1);
 	rctx->rbuf.words[5] = 0;
 	rctx->rbuf.words[6] = 0;

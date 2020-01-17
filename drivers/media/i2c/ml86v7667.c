@@ -2,7 +2,7 @@
 /*
  * OKI Semiconductor ML86V7667 video decoder driver
  *
- * Author: Vladimir Barinov <source@cogentembedded.com>
+ * Author: Vladimir Bariyesv <source@cogentembedded.com>
  * Copyright (C) 2013 Cogent Embedded, Inc.
  * Copyright (C) 2013 Renesas Solutions Corp.
  */
@@ -442,5 +442,5 @@ static struct i2c_driver ml86v7667_i2c_driver = {
 module_i2c_driver(ml86v7667_i2c_driver);
 
 MODULE_DESCRIPTION("OKI Semiconductor ML86V7667 video decoder driver");
-MODULE_AUTHOR("Vladimir Barinov");
+MODULE_AUTHOR("Vladimir Bariyesv");
 MODULE_LICENSE("GPL");

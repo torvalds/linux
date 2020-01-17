@@ -61,7 +61,7 @@ struct ep93xx_dma_chan_data {
  *
  * This structure is passed to the DMA engine driver via platform data. For
  * M2P channels, contract is that even channels are for TX and odd for RX.
- * There is no requirement for the M2M channels.
+ * There is yes requirement for the M2M channels.
  */
 struct ep93xx_dma_platform_data {
 	struct ep93xx_dma_chan_data	*channels;

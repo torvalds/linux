@@ -42,7 +42,7 @@
 struct f2fs_xattr_header {
 	__le32  h_magic;        /* magic number for identification */
 	__le32  h_refcount;     /* reference count */
-	__u32   h_reserved[4];  /* zero right now */
+	__u32   h_reserved[4];  /* zero right yesw */
 };
 
 struct f2fs_xattr_entry {
@@ -71,7 +71,7 @@ struct f2fs_xattr_entry {
 		for (entry = XATTR_FIRST_ENTRY(addr);\
 				!IS_XATTR_LAST_ENTRY(entry);\
 				entry = XATTR_NEXT_ENTRY(entry))
-#define VALID_XATTR_BLOCK_SIZE	(PAGE_SIZE - sizeof(struct node_footer))
+#define VALID_XATTR_BLOCK_SIZE	(PAGE_SIZE - sizeof(struct yesde_footer))
 #define XATTR_PADDING_SIZE	(sizeof(__u32))
 #define XATTR_SIZE(x,i)		(((x) ? VALID_XATTR_BLOCK_SIZE : 0) +	\
 						(inline_xattr_size(i)))
@@ -111,8 +111,8 @@ struct f2fs_xattr_entry {
  * |        Free        |
  * |                    |
  * +--------------------+<- MIN_OFFSET
- * |   node_footer      |
- * | (nid, ino, offset) |
+ * |   yesde_footer      |
+ * | (nid, iyes, offset) |
  * +--------------------+
  *
  **/
@@ -125,21 +125,21 @@ extern const struct xattr_handler f2fs_xattr_security_handler;
 
 extern const struct xattr_handler *f2fs_xattr_handlers[];
 
-extern int f2fs_setxattr(struct inode *, int, const char *,
+extern int f2fs_setxattr(struct iyesde *, int, const char *,
 				const void *, size_t, struct page *, int);
-extern int f2fs_getxattr(struct inode *, int, const char *, void *,
+extern int f2fs_getxattr(struct iyesde *, int, const char *, void *,
 						size_t, struct page *);
 extern ssize_t f2fs_listxattr(struct dentry *, char *, size_t);
 #else
 
 #define f2fs_xattr_handlers	NULL
-static inline int f2fs_setxattr(struct inode *inode, int index,
+static inline int f2fs_setxattr(struct iyesde *iyesde, int index,
 		const char *name, const void *value, size_t size,
 		struct page *page, int flags)
 {
 	return -EOPNOTSUPP;
 }
-static inline int f2fs_getxattr(struct inode *inode, int index,
+static inline int f2fs_getxattr(struct iyesde *iyesde, int index,
 			const char *name, void *buffer,
 			size_t buffer_size, struct page *dpage)
 {
@@ -153,10 +153,10 @@ static inline ssize_t f2fs_listxattr(struct dentry *dentry, char *buffer,
 #endif
 
 #ifdef CONFIG_F2FS_FS_SECURITY
-extern int f2fs_init_security(struct inode *, struct inode *,
+extern int f2fs_init_security(struct iyesde *, struct iyesde *,
 				const struct qstr *, struct page *);
 #else
-static inline int f2fs_init_security(struct inode *inode, struct inode *dir,
+static inline int f2fs_init_security(struct iyesde *iyesde, struct iyesde *dir,
 				const struct qstr *qstr, struct page *ipage)
 {
 	return 0;

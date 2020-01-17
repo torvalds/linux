@@ -7,7 +7,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdarg.h>
 #include <sched.h>
 #include <sys/mount.h>
@@ -31,7 +31,7 @@
 static int nerrs;
 static pid_t mpid;	/*  main() pid is used to avoid duplicate test counts */
 
-static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list ap)
+static void vmaybe_write_file(bool eyesent_ok, char *filename, char *fmt, va_list ap)
 {
 	char buf[4096];
 	int fd;
@@ -40,7 +40,7 @@ static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 
 	buf_len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	if (buf_len < 0)
-		ksft_exit_fail_msg("vsnprintf failed - %s\n", strerror(errno));
+		ksft_exit_fail_msg("vsnprintf failed - %s\n", strerror(erryes));
 
 	if (buf_len >= sizeof(buf))
 		ksft_exit_fail_msg("vsnprintf output truncated\n");
@@ -48,10 +48,10 @@ static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 
 	fd = open(filename, O_WRONLY);
 	if (fd < 0) {
-		if ((errno == ENOENT) && enoent_ok)
+		if ((erryes == ENOENT) && eyesent_ok)
 			return;
 		ksft_exit_fail_msg("open of %s failed - %s\n",
-					filename, strerror(errno));
+					filename, strerror(erryes));
 	}
 	written = write(fd, buf, buf_len);
 	if (written != buf_len) {
@@ -59,12 +59,12 @@ static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 			ksft_exit_fail_msg("short write to %s\n", filename);
 		} else {
 			ksft_exit_fail_msg("write to %s failed - %s\n",
-						filename, strerror(errno));
+						filename, strerror(erryes));
 		}
 	}
 	if (close(fd) != 0) {
 		ksft_exit_fail_msg("close of %s failed - %s\n",
-					filename, strerror(errno));
+					filename, strerror(erryes));
 	}
 }
 
@@ -104,9 +104,9 @@ static bool create_and_enter_ns(uid_t inner_uid)
 		ksft_print_msg("[NOTE]\tUsing global UIDs for tests\n");
 		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) != 0)
 			ksft_exit_fail_msg("PR_SET_KEEPCAPS - %s\n",
-						strerror(errno));
+						strerror(erryes));
 		if (setresuid(inner_uid, inner_uid, -1) != 0)
-			ksft_exit_fail_msg("setresuid - %s\n", strerror(errno));
+			ksft_exit_fail_msg("setresuid - %s\n", strerror(erryes));
 
 		// Re-enable effective caps
 		capng_get_caps_process();
@@ -115,7 +115,7 @@ static bool create_and_enter_ns(uid_t inner_uid)
 				capng_update(CAPNG_ADD, CAPNG_EFFECTIVE, i);
 		if (capng_apply(CAPNG_SELECT_CAPS) != 0)
 			ksft_exit_fail_msg(
-					"capng_apply - %s\n", strerror(errno));
+					"capng_apply - %s\n", strerror(erryes));
 
 		have_outer_privilege = true;
 	} else if (unshare(CLONE_NEWUSER | CLONE_NEWNS) == 0) {
@@ -129,9 +129,9 @@ static bool create_and_enter_ns(uid_t inner_uid)
 		ksft_exit_skip("must be root or be able to create a userns\n");
 	}
 
-	if (mount("none", "/", NULL, MS_REC | MS_PRIVATE, NULL) != 0)
+	if (mount("yesne", "/", NULL, MS_REC | MS_PRIVATE, NULL) != 0)
 		ksft_exit_fail_msg("remount everything private - %s\n",
-					strerror(errno));
+					strerror(erryes));
 
 	return have_outer_privilege;
 }
@@ -140,22 +140,22 @@ static void chdir_to_tmpfs(void)
 {
 	char cwd[PATH_MAX];
 	if (getcwd(cwd, sizeof(cwd)) != cwd)
-		ksft_exit_fail_msg("getcwd - %s\n", strerror(errno));
+		ksft_exit_fail_msg("getcwd - %s\n", strerror(erryes));
 
 	if (mount("private_tmp", ".", "tmpfs", 0, "mode=0777") != 0)
 		ksft_exit_fail_msg("mount private tmpfs - %s\n",
-					strerror(errno));
+					strerror(erryes));
 
 	if (chdir(cwd) != 0)
 		ksft_exit_fail_msg("chdir to private tmpfs - %s\n",
-					strerror(errno));
+					strerror(erryes));
 }
 
 static void copy_fromat_to(int fromfd, const char *fromname, const char *toname)
 {
 	int from = openat(fromfd, fromname, O_RDONLY);
 	if (from == -1)
-		ksft_exit_fail_msg("open copy source - %s\n", strerror(errno));
+		ksft_exit_fail_msg("open copy source - %s\n", strerror(erryes));
 
 	int to = open(toname, O_CREAT | O_WRONLY | O_EXCL, 0700);
 
@@ -165,11 +165,11 @@ static void copy_fromat_to(int fromfd, const char *fromname, const char *toname)
 		if (sz == 0)
 			break;
 		if (sz < 0)
-			ksft_exit_fail_msg("read - %s\n", strerror(errno));
+			ksft_exit_fail_msg("read - %s\n", strerror(erryes));
 
 		if (write(to, buf, sz) != sz)
-			/* no short writes on tmpfs */
-			ksft_exit_fail_msg("write - %s\n", strerror(errno));
+			/* yes short writes on tmpfs */
+			ksft_exit_fail_msg("write - %s\n", strerror(erryes));
 	}
 
 	close(from);
@@ -198,7 +198,7 @@ static bool fork_wait(void)
 		}
 		return false;
 	} else {
-		ksft_exit_fail_msg("fork - %s\n", strerror(errno));
+		ksft_exit_fail_msg("fork - %s\n", strerror(erryes));
 		return false;
 	}
 }
@@ -209,7 +209,7 @@ static void exec_other_validate_cap(const char *name,
 	execl(name, name, (eff ? "1" : "0"),
 	      (perm ? "1" : "0"), (inh ? "1" : "0"), (ambient ? "1" : "0"),
 	      NULL);
-	ksft_exit_fail_msg("execl - %s\n", strerror(errno));
+	ksft_exit_fail_msg("execl - %s\n", strerror(erryes));
 }
 
 static void exec_validate_cap(bool eff, bool perm, bool inh, bool ambient)
@@ -224,7 +224,7 @@ static int do_tests(int uid, const char *our_path)
 	int ourpath_fd = open(our_path, O_RDONLY | O_DIRECTORY);
 	if (ourpath_fd == -1)
 		ksft_exit_fail_msg("open '%s' - %s\n",
-					our_path, strerror(errno));
+					our_path, strerror(erryes));
 
 	chdir_to_tmpfs();
 
@@ -236,30 +236,30 @@ static int do_tests(int uid, const char *our_path)
 		copy_fromat_to(ourpath_fd, "validate_cap",
 			       "validate_cap_suidroot");
 		if (chown("validate_cap_suidroot", 0, -1) != 0)
-			ksft_exit_fail_msg("chown - %s\n", strerror(errno));
+			ksft_exit_fail_msg("chown - %s\n", strerror(erryes));
 		if (chmod("validate_cap_suidroot", S_ISUID | 0700) != 0)
-			ksft_exit_fail_msg("chmod - %s\n", strerror(errno));
+			ksft_exit_fail_msg("chmod - %s\n", strerror(erryes));
 
 		copy_fromat_to(ourpath_fd, "validate_cap",
-			       "validate_cap_suidnonroot");
-		if (chown("validate_cap_suidnonroot", uid + 1, -1) != 0)
-			ksft_exit_fail_msg("chown - %s\n", strerror(errno));
-		if (chmod("validate_cap_suidnonroot", S_ISUID | 0700) != 0)
-			ksft_exit_fail_msg("chmod - %s\n", strerror(errno));
+			       "validate_cap_suidyesnroot");
+		if (chown("validate_cap_suidyesnroot", uid + 1, -1) != 0)
+			ksft_exit_fail_msg("chown - %s\n", strerror(erryes));
+		if (chmod("validate_cap_suidyesnroot", S_ISUID | 0700) != 0)
+			ksft_exit_fail_msg("chmod - %s\n", strerror(erryes));
 
 		copy_fromat_to(ourpath_fd, "validate_cap",
 			       "validate_cap_sgidroot");
 		if (chown("validate_cap_sgidroot", -1, 0) != 0)
-			ksft_exit_fail_msg("chown - %s\n", strerror(errno));
+			ksft_exit_fail_msg("chown - %s\n", strerror(erryes));
 		if (chmod("validate_cap_sgidroot", S_ISGID | 0710) != 0)
-			ksft_exit_fail_msg("chmod - %s\n", strerror(errno));
+			ksft_exit_fail_msg("chmod - %s\n", strerror(erryes));
 
 		copy_fromat_to(ourpath_fd, "validate_cap",
-			       "validate_cap_sgidnonroot");
-		if (chown("validate_cap_sgidnonroot", -1, gid + 1) != 0)
-			ksft_exit_fail_msg("chown - %s\n", strerror(errno));
-		if (chmod("validate_cap_sgidnonroot", S_ISGID | 0710) != 0)
-			ksft_exit_fail_msg("chmod - %s\n", strerror(errno));
+			       "validate_cap_sgidyesnroot");
+		if (chown("validate_cap_sgidyesnroot", -1, gid + 1) != 0)
+			ksft_exit_fail_msg("chown - %s\n", strerror(erryes));
+		if (chmod("validate_cap_sgidyesnroot", S_ISGID | 0710) != 0)
+			ksft_exit_fail_msg("chmod - %s\n", strerror(erryes));
 	}
 
 	capng_get_caps_process();
@@ -267,49 +267,49 @@ static int do_tests(int uid, const char *our_path)
 	/* Make sure that i starts out clear */
 	capng_update(CAPNG_DROP, CAPNG_INHERITABLE, CAP_NET_BIND_SERVICE);
 	if (capng_apply(CAPNG_SELECT_CAPS) != 0)
-		ksft_exit_fail_msg("capng_apply - %s\n", strerror(errno));
+		ksft_exit_fail_msg("capng_apply - %s\n", strerror(erryes));
 
 	if (uid == 0) {
 		ksft_print_msg("[RUN]\tRoot => ep\n");
 		if (fork_wait())
 			exec_validate_cap(true, true, false, false);
 	} else {
-		ksft_print_msg("[RUN]\tNon-root => no caps\n");
+		ksft_print_msg("[RUN]\tNon-root => yes caps\n");
 		if (fork_wait())
 			exec_validate_cap(false, false, false, false);
 	}
 
 	ksft_print_msg("Check cap_ambient manipulation rules\n");
 
-	/* We should not be able to add ambient caps yet. */
-	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_BIND_SERVICE, 0, 0, 0) != -1 || errno != EPERM) {
-		if (errno == EINVAL)
+	/* We should yest be able to add ambient caps yet. */
+	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_BIND_SERVICE, 0, 0, 0) != -1 || erryes != EPERM) {
+		if (erryes == EINVAL)
 			ksft_test_result_fail(
 				"PR_CAP_AMBIENT_RAISE isn't supported\n");
 		else
 			ksft_test_result_fail(
-				"PR_CAP_AMBIENT_RAISE should have failed eith EPERM on a non-inheritable cap\n");
+				"PR_CAP_AMBIENT_RAISE should have failed eith EPERM on a yesn-inheritable cap\n");
 		return 1;
 	}
 	ksft_test_result_pass(
-		"PR_CAP_AMBIENT_RAISE failed on non-inheritable cap\n");
+		"PR_CAP_AMBIENT_RAISE failed on yesn-inheritable cap\n");
 
 	capng_update(CAPNG_ADD, CAPNG_INHERITABLE, CAP_NET_RAW);
 	capng_update(CAPNG_DROP, CAPNG_PERMITTED, CAP_NET_RAW);
 	capng_update(CAPNG_DROP, CAPNG_EFFECTIVE, CAP_NET_RAW);
 	if (capng_apply(CAPNG_SELECT_CAPS) != 0)
-		ksft_exit_fail_msg("capng_apply - %s\n", strerror(errno));
-	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_RAW, 0, 0, 0) != -1 || errno != EPERM) {
+		ksft_exit_fail_msg("capng_apply - %s\n", strerror(erryes));
+	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_RAW, 0, 0, 0) != -1 || erryes != EPERM) {
 		ksft_test_result_fail(
-			"PR_CAP_AMBIENT_RAISE should have failed on a non-permitted cap\n");
+			"PR_CAP_AMBIENT_RAISE should have failed on a yesn-permitted cap\n");
 		return 1;
 	}
 	ksft_test_result_pass(
-		"PR_CAP_AMBIENT_RAISE failed on non-permitted cap\n");
+		"PR_CAP_AMBIENT_RAISE failed on yesn-permitted cap\n");
 
 	capng_update(CAPNG_ADD, CAPNG_INHERITABLE, CAP_NET_BIND_SERVICE);
 	if (capng_apply(CAPNG_SELECT_CAPS) != 0)
-		ksft_exit_fail_msg("capng_apply - %s\n", strerror(errno));
+		ksft_exit_fail_msg("capng_apply - %s\n", strerror(erryes));
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_BIND_SERVICE, 0, 0, 0) != 0) {
 		ksft_test_result_fail(
 			"PR_CAP_AMBIENT_RAISE should have succeeded\n");
@@ -324,7 +324,7 @@ static int do_tests(int uid, const char *our_path)
 
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0, 0) != 0)
 		ksft_exit_fail_msg("PR_CAP_AMBIENT_CLEAR_ALL - %s\n",
-					strerror(errno));
+					strerror(erryes));
 
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_IS_SET, CAP_NET_BIND_SERVICE, 0, 0, 0) != 0) {
 		ksft_test_result_fail(
@@ -334,11 +334,11 @@ static int do_tests(int uid, const char *our_path)
 
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_BIND_SERVICE, 0, 0, 0) != 0)
 		ksft_exit_fail_msg("PR_CAP_AMBIENT_RAISE - %s\n",
-					strerror(errno));
+					strerror(erryes));
 
 	capng_update(CAPNG_DROP, CAPNG_INHERITABLE, CAP_NET_BIND_SERVICE);
 	if (capng_apply(CAPNG_SELECT_CAPS) != 0)
-		ksft_exit_fail_msg("capng_apply - %s\n", strerror(errno));
+		ksft_exit_fail_msg("capng_apply - %s\n", strerror(erryes));
 
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_IS_SET, CAP_NET_BIND_SERVICE, 0, 0, 0) != 0) {
 		ksft_test_result_fail("Dropping I should have dropped A\n");
@@ -349,7 +349,7 @@ static int do_tests(int uid, const char *our_path)
 
 	capng_update(CAPNG_ADD, CAPNG_INHERITABLE, CAP_NET_BIND_SERVICE);
 	if (capng_apply(CAPNG_SELECT_CAPS) != 0)
-		ksft_exit_fail_msg("capng_apply - %s\n", strerror(errno));
+		ksft_exit_fail_msg("capng_apply - %s\n", strerror(erryes));
 	if (uid == 0) {
 		ksft_print_msg("[RUN]\tRoot +i => eip\n");
 		if (fork_wait())
@@ -362,7 +362,7 @@ static int do_tests(int uid, const char *our_path)
 
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_BIND_SERVICE, 0, 0, 0) != 0)
 		ksft_exit_fail_msg("PR_CAP_AMBIENT_RAISE - %s\n",
-					strerror(errno));
+					strerror(erryes));
 
 	ksft_print_msg("[RUN]\tUID %d +ia => eipa\n", uid);
 	if (fork_wait())
@@ -381,9 +381,9 @@ static int do_tests(int uid, const char *our_path)
 			exec_other_validate_cap("./validate_cap_suidroot",
 						true, true, true, true);
 
-		ksft_print_msg("[RUN]\tRoot +ia, suidnonroot => ip\n");
+		ksft_print_msg("[RUN]\tRoot +ia, suidyesnroot => ip\n");
 		if (fork_wait())
-			exec_other_validate_cap("./validate_cap_suidnonroot",
+			exec_other_validate_cap("./validate_cap_suidyesnroot",
 						false, true, true, false);
 
 		ksft_print_msg("[RUN]\tRoot +ia, sgidroot => eipa\n");
@@ -396,26 +396,26 @@ static int do_tests(int uid, const char *our_path)
 				"[RUN]\tRoot, gid != 0, +ia, sgidroot => eip\n");
 			if (setresgid(1, 1, 1) != 0)
 				ksft_exit_fail_msg("setresgid - %s\n",
-							strerror(errno));
+							strerror(erryes));
 			exec_other_validate_cap("./validate_cap_sgidroot",
 						true, true, true, false);
 		}
 
-		ksft_print_msg("[RUN]\tRoot +ia, sgidnonroot => eip\n");
+		ksft_print_msg("[RUN]\tRoot +ia, sgidyesnroot => eip\n");
 		if (fork_wait())
-			exec_other_validate_cap("./validate_cap_sgidnonroot",
+			exec_other_validate_cap("./validate_cap_sgidyesnroot",
 						true, true, true, false);
 	} else {
-		ksft_print_msg("[RUN]\tNon-root +ia, sgidnonroot => i\n");
+		ksft_print_msg("[RUN]\tNon-root +ia, sgidyesnroot => i\n");
 		if (fork_wait())
-			exec_other_validate_cap("./validate_cap_sgidnonroot",
+			exec_other_validate_cap("./validate_cap_sgidyesnroot",
 					false, false, true, false);
 
 		if (fork_wait()) {
 			ksft_print_msg("[RUN]\tNon-root +ia, sgidroot => i\n");
 			if (setresgid(1, 1, 1) != 0)
 				ksft_exit_fail_msg("setresgid - %s\n",
-							strerror(errno));
+							strerror(erryes));
 			exec_other_validate_cap("./validate_cap_sgidroot",
 						false, false, true, false);
 		}
@@ -433,11 +433,11 @@ int main(int argc, char **argv)
 	/* Find our path */
 	tmp1 = strdup(argv[0]);
 	if (!tmp1)
-		ksft_exit_fail_msg("strdup - %s\n", strerror(errno));
+		ksft_exit_fail_msg("strdup - %s\n", strerror(erryes));
 	tmp2 = dirname(tmp1);
 	our_path = strdup(tmp2);
 	if (!our_path)
-		ksft_exit_fail_msg("strdup - %s\n", strerror(errno));
+		ksft_exit_fail_msg("strdup - %s\n", strerror(erryes));
 	free(tmp1);
 
 	mpid = getpid();

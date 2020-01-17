@@ -9,7 +9,7 @@ menuconfig WAN
 	  Wide Area Networks (WANs), such as X.25, Frame Relay and leased
 	  lines, are used to interconnect Local Area Networks (LANs) over vast
 	  distances with data transfer rates significantly higher than those
-	  achievable with commonly used asynchronous modem connections.
+	  achievable with commonly used asynchroyesus modem connections.
 
 	  Usually, a quite expensive external device called a `WAN router' is
 	  needed to connect to a WAN. As an alternative, a relatively
@@ -23,29 +23,29 @@ menuconfig WAN
 
 if WAN
 
-# There is no way to detect a comtrol sv11 - force it modular for now.
+# There is yes way to detect a comtrol sv11 - force it modular for yesw.
 config HOSTESS_SV11
 	tristate "Comtrol Hostess SV-11 support"
 	depends on ISA && m && ISA_DMA_API && INET && HDLC && VIRT_TO_BUS
 	help
 	  Driver for Comtrol Hostess SV-11 network card which
-	  operates on low speed synchronous serial links at up to
+	  operates on low speed synchroyesus serial links at up to
 	  256Kbps, supporting PPP and Cisco HDLC.
 
 	  The driver will be compiled as a module: the
 	  module will be called hostess_sv11.
 
-# The COSA/SRP driver has not been tested as non-modular yet.
+# The COSA/SRP driver has yest been tested as yesn-modular yet.
 config COSA
 	tristate "COSA/SRP sync serial boards support"
 	depends on ISA && m && ISA_DMA_API && HDLC && VIRT_TO_BUS
 	---help---
-	  Driver for COSA and SRP synchronous serial boards.
+	  Driver for COSA and SRP synchroyesus serial boards.
 
-	  These boards allow to connect synchronous serial devices (for example
+	  These boards allow to connect synchroyesus serial devices (for example
 	  base-band modems, or any other device with the X.21, V.24, V.35 or
 	  V.36 interface) to your Linux box. The cards can work as the
-	  character device, synchronous PPP network device, or the Cisco HDLC
+	  character device, synchroyesus PPP network device, or the Cisco HDLC
 	  network device.
 
 	  You will need user-space utilities COSA or SRP boards for downloading
@@ -66,7 +66,7 @@ config LANMEDIA
 	---help---
 	  Driver for the following Lan Media family of serial boards:
 
-	  - LMC 1000 board allows you to connect synchronous serial devices
+	  - LMC 1000 board allows you to connect synchroyesus serial devices
 	  (for example base-band modems, or any other device with the X.21,
 	  V.24, V.35 or V.36 interface) to your Linux box.
 
@@ -85,7 +85,7 @@ config LANMEDIA
 	  To compile this driver as a module, choose M here: the
 	  module will be called lmc.
 
-# There is no way to detect a Sealevel board. Force it modular
+# There is yes way to detect a Sealevel board. Force it modular
 config SEALEVEL_4021
 	tristate "Sealevel Systems 4021 support"
 	depends on ISA && m && ISA_DMA_API && INET && HDLC && VIRT_TO_BUS
@@ -106,7 +106,7 @@ config HDLC
 	  You will need supporting software from
 	  <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
 	  Generic HDLC driver currently supports raw HDLC, Cisco HDLC, Frame
-	  Relay, synchronous Point-to-Point Protocol (PPP) and X.25.
+	  Relay, synchroyesus Point-to-Point Protocol (PPP) and X.25.
 
  	  To compile this driver as a module, choose M here: the
 	  module will be called hdlc.
@@ -149,7 +149,7 @@ config HDLC_FR
 	  If unsure, say N.
 
 config HDLC_PPP
-	tristate "Synchronous Point-to-Point Protocol (PPP) support"
+	tristate "Synchroyesus Point-to-Point Protocol (PPP) support"
 	depends on HDLC
 	help
 	  Generic HDLC driver supporting PPP over WAN connections.
@@ -227,7 +227,7 @@ config N2
 	  If you have such a card, say Y here and see
 	  <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
 
-	  Note that N2csu and N2dds cards are not supported by this driver.
+	  Note that N2csu and N2dds cards are yest supported by this driver.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called n2.
@@ -238,7 +238,7 @@ config C101
 	tristate "Moxa C101 support"
 	depends on HDLC && ISA
 	help
-	  Driver for C101 SuperSync ISA cards by Moxa Technologies Co., Ltd.
+	  Driver for C101 SuperSync ISA cards by Moxa Techyeslogies Co., Ltd.
 
 	  If you have such a card, say Y here and see
 	  <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
@@ -255,8 +255,8 @@ config FARSYNC
 	  Support for the FarSync T-Series X.21 (and V.35/V.24) cards by
 	  FarSite Communications Ltd.
 
-	  Synchronous communication is supported on all ports at speeds up to
-	  8Mb/s (128K on V.24) using synchronous PPP, Cisco HDLC, raw HDLC,
+	  Synchroyesus communication is supported on all ports at speeds up to
+	  8Mb/s (128K on V.24) using synchroyesus PPP, Cisco HDLC, raw HDLC,
 	  Frame Relay or X.25/LAPB.
 
 	  If you want the module to be automatically loaded when the interface
@@ -295,7 +295,7 @@ config DSCC4_PCISYNC
 	help
 	  Due to Etinc's design choice for its PCISYNC cards, some operations
 	  are only allowed on specific ports of the DSCC4. This option is the
-	  only way for the driver to know that it shouldn't return a success
+	  only way for the driver to kyesw that it shouldn't return a success
 	  code for these operations.
 
 	  Please say Y if your card is an Etinc's PCISYNC.
@@ -308,13 +308,13 @@ config DSCC4_PCI_RST
 	  As a replacement, some vendors provide a way to assert the PCI #RST
 	  pin of DSCC4 through the GPIO port of the card. If you choose Y,
 	  the driver will make use of this feature before module removal
-	  (i.e. rmmod). The feature is known to be available on Commtech's
+	  (i.e. rmmod). The feature is kyeswn to be available on Commtech's
 	  cards. Contact your manufacturer for details.
 
 	  Say Y if your card supports this feature.
 
 config IXP4XX_HSS
-	tristate "Intel IXP4xx HSS (synchronous serial port) support"
+	tristate "Intel IXP4xx HSS (synchroyesus serial port) support"
 	depends on HDLC && ARM && ARCH_IXP4XX && IXP4XX_NPE && IXP4XX_QMGR
 	help
 	  Say Y here if you want to use built-in HSS ports
@@ -386,11 +386,11 @@ config X25_ASY
 	tristate "X.25 async driver"
 	depends on LAPB && X25 && TTY
 	---help---
-	  Send and receive X.25 frames over regular asynchronous serial
+	  Send and receive X.25 frames over regular asynchroyesus serial
 	  lines such as telephone lines equipped with ordinary modems.
 
-	  Experts should note that this driver doesn't currently comply with
-	  the asynchronous HDLS framing protocols in CCITT recommendation X.25.
+	  Experts should yeste that this driver doesn't currently comply with
+	  the asynchroyesus HDLS framing protocols in CCITT recommendation X.25.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called x25_asy.

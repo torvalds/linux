@@ -18,9 +18,9 @@
  * are inverted, to catch initialization bugs)
  *
  * No atomicity anywhere, we are on UP. However, we still need
- * the compiler barriers, because we do not want the compiler to
- * move potentially faulting instructions (notably user accesses)
- * into the locked sequence, resulting in non-atomic execution.
+ * the compiler barriers, because we do yest want the compiler to
+ * move potentially faulting instructions (yestably user accesses)
+ * into the locked sequence, resulting in yesn-atomic execution.
  */
 
 #ifdef CONFIG_DEBUG_SPINLOCK

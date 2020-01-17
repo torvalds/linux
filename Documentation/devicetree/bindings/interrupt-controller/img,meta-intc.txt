@@ -11,7 +11,7 @@ Required properties:
     - num-banks: Specifies the number of interrupt banks (each of which can
       handle 32 interrupt sources).
 
-    - interrupt-controller: The presence of this property identifies the node
+    - interrupt-controller: The presence of this property identifies the yesde
       as an interrupt controller. No property value shall be defined.
 
     - #interrupt-cells: Specifies the number of cells needed to encode an
@@ -19,11 +19,11 @@ Required properties:
 
     - #address-cells: Specifies the number of cells needed to encode an
       address. The type shall be <u32> and the value shall be 0. As such,
-      'interrupt-map' nodes do not have to specify a parent unit address.
+      'interrupt-map' yesdes do yest have to specify a parent unit address.
 
 Optional properties:
 
-    - no-mask: The controller doesn't have any mask registers.
+    - yes-mask: The controller doesn't have any mask registers.
 
 * Interrupt Specifier Definition
 
@@ -44,11 +44,11 @@ Example 1:
 	 * Meta external trigger block
 	 */
 	intc: intc {
-		// This is an interrupt controller node.
+		// This is an interrupt controller yesde.
 		interrupt-controller;
 
-		// No address cells so that 'interrupt-map' nodes which
-		// reference this interrupt controller node do not need a parent
+		// No address cells so that 'interrupt-map' yesdes which
+		// reference this interrupt controller yesde do yest need a parent
 		// address specifier.
 		#address-cells = <0>;
 
@@ -59,7 +59,7 @@ Example 1:
 		num-banks = <2>;
 
 		// No HWMASKEXT is available (specify on Chorus2 and Comet ES1)
-		no-mask;
+		yes-mask;
 
 		// Compatible with Meta hardware trigger block.
 		compatible = "img,meta-intc";

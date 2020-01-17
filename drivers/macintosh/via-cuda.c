@@ -11,7 +11,7 @@
  */
 #include <stdarg.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/adb.h>
@@ -49,7 +49,7 @@ static DEFINE_SPINLOCK(cuda_lock);
 #define PCR		(12*RS)		/* Peripheral control register */
 #define IFR		(13*RS)		/* Interrupt flag register */
 #define IER		(14*RS)		/* Interrupt enable register */
-#define ANH		(15*RS)		/* A-side data, no handshake */
+#define ANH		(15*RS)		/* A-side data, yes handshake */
 
 /*
  * When the Cuda design replaced the Egret, some signal names and
@@ -64,13 +64,13 @@ static DEFINE_SPINLOCK(cuda_lock);
  *   VIA pin       |  Cuda pin
  * ----------------+------------------------------------------
  *   PB3 (input)   |  Transfer request      (active low)
- *   PB4 (output)  |  Byte acknowledge      (active low)
+ *   PB4 (output)  |  Byte ackyeswledge      (active low)
  *   PB5 (output)  |  Transfer in progress  (active low)
  */
 
 /* Bits in Port B data register */
 #define TREQ		0x08		/* Transfer request */
-#define TACK		0x10		/* Transfer acknowledge */
+#define TACK		0x10		/* Transfer ackyeswledge */
 #define TIP		0x20		/* Transfer in progress */
 
 /* Bits in ACR */
@@ -83,7 +83,7 @@ static DEFINE_SPINLOCK(cuda_lock);
 #define IER_CLR		0		/* clear bits in IER */
 #define SR_INT		0x04		/* Shift register full/empty */
 
-/* Duration of byte acknowledgement pulse (us) */
+/* Duration of byte ackyeswledgement pulse (us) */
 #define EGRET_TACK_ASSERTED_DELAY	300
 #define EGRET_TACK_NEGATED_DELAY	400
 
@@ -168,7 +168,7 @@ static int reading_reply;
 static int data_index;
 static int cuda_irq;
 #ifdef CONFIG_PPC
-static struct device_node *vias;
+static struct device_yesde *vias;
 #endif
 static int cuda_fully_inited;
 
@@ -238,7 +238,7 @@ int __init find_via_cuda(void)
 
     if (vias != 0)
 	return 1;
-    vias = of_find_node_by_name(NULL, "via-cuda");
+    vias = of_find_yesde_by_name(NULL, "via-cuda");
     if (vias == 0)
 	return 0;
 
@@ -282,7 +282,7 @@ int __init find_via_cuda(void)
     return 1;
 
  fail:
-    of_node_put(vias);
+    of_yesde_put(vias);
     vias = NULL;
     return 0;
 }
@@ -620,7 +620,7 @@ idle_state:
 	    (void)in_8(&via[SR]);
 	    negate_TIP_and_TACK();
 	    cuda_state = idle;
-	    /* Egret does not raise an "aborted" interrupt */
+	    /* Egret does yest raise an "aborted" interrupt */
 	    if (mcu_is_egret)
 		goto idle_state;
 	} else {
@@ -644,7 +644,7 @@ idle_state:
 	    } else {
 		current_req = req->next;
 		complete = 1;
-		/* not sure about this */
+		/* yest sure about this */
 		cuda_state = idle;
 		cuda_start();
 	    }
@@ -669,7 +669,7 @@ idle_state:
 	    /* that's all folks */
 	    negate_TIP_and_TACK();
 	    cuda_state = read_done;
-	    /* Egret does not raise a "read done" interrupt */
+	    /* Egret does yest raise a "read done" interrupt */
 	    if (mcu_is_egret)
 		goto read_done_state;
 	} else {
@@ -688,7 +688,7 @@ read_done_state:
 	    if (req->data[0] == ADB_PACKET) {
 		/* Have to adjust the reply from ADB commands */
 		if (req->reply_len <= 2 || (req->reply[1] & 2) != 0) {
-		    /* the 0x2 bit indicates no response */
+		    /* the 0x2 bit indicates yes response */
 		    req->reply_len = 0;
 		} else {
 		    /* leave just the command and result bytes in the reply */
@@ -702,7 +702,7 @@ read_done_state:
 	} else {
 	    /* This is tricky. We must break the spinlock to call
 	     * cuda_input. However, doing so means we might get
-	     * re-entered from another CPU getting an interrupt
+	     * re-entered from ayesther CPU getting an interrupt
 	     * or calling cuda_poll(). I ended up using the stack
 	     * (it's only for 16 bytes) and moving the actual
 	     * call to cuda_input to outside of the lock.
@@ -720,7 +720,7 @@ read_done_state:
 	break;
 
     default:
-	pr_err("cuda_interrupt: unknown cuda_state %d?\n", cuda_state);
+	pr_err("cuda_interrupt: unkyeswn cuda_state %d?\n", cuda_state);
     }
     spin_unlock_irqrestore(&cuda_lock, flags);
     if (complete && req) {
@@ -775,7 +775,7 @@ cuda_input(unsigned char *buf, int nb)
 time64_t cuda_get_time(void)
 {
 	struct adb_request req;
-	u32 now;
+	u32 yesw;
 
 	if (cuda_request(&req, NULL, 2, CUDA_PACKET, CUDA_GET_TIME) < 0)
 		return 0;
@@ -783,19 +783,19 @@ time64_t cuda_get_time(void)
 		cuda_poll();
 	if (req.reply_len != 7)
 		pr_err("%s: got %d byte reply\n", __func__, req.reply_len);
-	now = (req.reply[3] << 24) + (req.reply[4] << 16) +
+	yesw = (req.reply[3] << 24) + (req.reply[4] << 16) +
 	      (req.reply[5] << 8) + req.reply[6];
-	return (time64_t)now - RTC_OFFSET;
+	return (time64_t)yesw - RTC_OFFSET;
 }
 
 int cuda_set_rtc_time(struct rtc_time *tm)
 {
-	u32 now;
+	u32 yesw;
 	struct adb_request req;
 
-	now = lower_32_bits(rtc_tm_to_time64(tm) + RTC_OFFSET);
+	yesw = lower_32_bits(rtc_tm_to_time64(tm) + RTC_OFFSET);
 	if (cuda_request(&req, NULL, 6, CUDA_PACKET, CUDA_SET_TIME,
-	                 now >> 24, now >> 16, now >> 8, now) < 0)
+	                 yesw >> 24, yesw >> 16, yesw >> 8, yesw) < 0)
 		return -ENXIO;
 	while (!req.complete)
 		cuda_poll();

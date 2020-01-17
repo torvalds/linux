@@ -35,7 +35,7 @@
 /*
  * IOP clocksource (free-running timer 1).
  */
-static u64 notrace iop_clocksource_read(struct clocksource *unused)
+static u64 yestrace iop_clocksource_read(struct clocksource *unused)
 {
 	return 0xffffffffu - read_tcr1();
 }
@@ -51,7 +51,7 @@ static struct clocksource iop_clocksource = {
 /*
  * IOP sched_clock() implementation via its clocksource.
  */
-static u64 notrace iop_read_sched_clock(void)
+static u64 yestrace iop_read_sched_clock(void)
 {
 	return 0xffffffffu - read_tcr1();
 }

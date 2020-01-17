@@ -33,7 +33,7 @@ static int ufs_bsg_verify_query_size(struct ufs_hba *hba,
 	int min_rsp_len = sizeof(struct ufs_bsg_reply);
 
 	if (min_req_len > request_len || min_rsp_len > reply_len) {
-		dev_err(hba->dev, "not enough space assigned\n");
+		dev_err(hba->dev, "yest eyesugh space assigned\n");
 		return -EINVAL;
 	}
 
@@ -153,7 +153,7 @@ static int ufs_bsg_request(struct bsg_job *job)
 out:
 	bsg_reply->result = ret;
 	job->reply_len = sizeof(struct ufs_bsg_reply);
-	/* complete the job here only if no error */
+	/* complete the job here only if yes error */
 	if (ret == 0)
 		bsg_job_done(job, ret, bsg_reply->reply_payload_rcv_len);
 
@@ -161,7 +161,7 @@ out:
 }
 
 /**
- * ufs_bsg_remove - detach and remove the added ufs-bsg node
+ * ufs_bsg_remove - detach and remove the added ufs-bsg yesde
  * @hba: per adapter object
  *
  * Should be called when unloading the driver.
@@ -179,13 +179,13 @@ void ufs_bsg_remove(struct ufs_hba *hba)
 	put_device(bsg_dev);
 }
 
-static inline void ufs_bsg_node_release(struct device *dev)
+static inline void ufs_bsg_yesde_release(struct device *dev)
 {
 	put_device(dev->parent);
 }
 
 /**
- * ufs_bsg_probe - Add ufs bsg device node
+ * ufs_bsg_probe - Add ufs bsg device yesde
  * @hba: per adapter object
  *
  * Called during initial loading of the driver, and before scsi_scan_host.
@@ -201,9 +201,9 @@ int ufs_bsg_probe(struct ufs_hba *hba)
 	device_initialize(bsg_dev);
 
 	bsg_dev->parent = get_device(parent);
-	bsg_dev->release = ufs_bsg_node_release;
+	bsg_dev->release = ufs_bsg_yesde_release;
 
-	dev_set_name(bsg_dev, "ufs-bsg%u", shost->host_no);
+	dev_set_name(bsg_dev, "ufs-bsg%u", shost->host_yes);
 
 	ret = device_add(bsg_dev);
 	if (ret)
@@ -220,7 +220,7 @@ int ufs_bsg_probe(struct ufs_hba *hba)
 	return 0;
 
 out:
-	dev_err(bsg_dev, "fail to initialize a bsg dev %d\n", shost->host_no);
+	dev_err(bsg_dev, "fail to initialize a bsg dev %d\n", shost->host_yes);
 	put_device(bsg_dev);
 	return ret;
 }

@@ -42,7 +42,7 @@ if [ "$2" = "zImage" ]; then
   cp $3 $4/System.map-$1
 else
 # Normal install
-  echo "Installing normal kernel"
+  echo "Installing yesrmal kernel"
   if [ -f $4/vmlinux-$1 ]; then
     mv $4/vmlinux-$1 $4/vmlinux.old
   fi

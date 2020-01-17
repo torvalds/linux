@@ -76,7 +76,7 @@ static struct class *typec_class;
 /* Common attributes */
 
 static const char * const typec_accessory_modes[] = {
-	[TYPEC_ACCESSORY_NONE]		= "none",
+	[TYPEC_ACCESSORY_NONE]		= "yesne",
 	[TYPEC_ACCESSORY_AUDIO]		= "analog_audio",
 	[TYPEC_ACCESSORY_DEBUG]		= "debug",
 };
@@ -141,9 +141,9 @@ static const struct attribute_group *usb_pd_id_groups[] = {
 
 static void typec_report_identity(struct device *dev)
 {
-	sysfs_notify(&dev->kobj, "identity", "id_header");
-	sysfs_notify(&dev->kobj, "identity", "cert_stat");
-	sysfs_notify(&dev->kobj, "identity", "product");
+	sysfs_yestify(&dev->kobj, "identity", "id_header");
+	sysfs_yestify(&dev->kobj, "identity", "cert_stat");
+	sysfs_yestify(&dev->kobj, "identity", "product");
 }
 
 /* ------------------------------------------------------------------------- */
@@ -211,11 +211,11 @@ static void *typec_port_match(struct device_connection *con, int ep, void *data)
 	struct device *dev;
 
 	/*
-	 * FIXME: Check does the fwnode supports the requested SVID. If it does
-	 * we need to return ERR_PTR(-PROBE_DEFER) when there is no device.
+	 * FIXME: Check does the fwyesde supports the requested SVID. If it does
+	 * we need to return ERR_PTR(-PROBE_DEFER) when there is yes device.
 	 */
-	if (con->fwnode)
-		return class_find_device_by_fwnode(typec_class, con->fwnode);
+	if (con->fwyesde)
+		return class_find_device_by_fwyesde(typec_class, con->fwyesde);
 
 	dev = class_find_device_by_name(typec_class, con->endpoint[ep]);
 
@@ -223,8 +223,8 @@ static void *typec_port_match(struct device_connection *con, int ep, void *data)
 }
 
 struct typec_altmode *
-typec_altmode_register_notifier(struct device *dev, u16 svid, u8 mode,
-				struct notifier_block *nb)
+typec_altmode_register_yestifier(struct device *dev, u16 svid, u8 mode,
+				struct yestifier_block *nb)
 {
 	struct typec_device_id id = { svid, mode, };
 	struct device *altmode_dev;
@@ -248,8 +248,8 @@ typec_altmode_register_notifier(struct device *dev, u16 svid, u8 mode,
 
 	altmode = to_altmode(to_typec_altmode(altmode_dev));
 
-	/* Register notifier */
-	ret = blocking_notifier_chain_register(&altmode->nh, nb);
+	/* Register yestifier */
+	ret = blocking_yestifier_chain_register(&altmode->nh, nb);
 	if (ret) {
 		put_device(altmode_dev);
 		return ERR_PTR(ret);
@@ -257,17 +257,17 @@ typec_altmode_register_notifier(struct device *dev, u16 svid, u8 mode,
 
 	return &altmode->adev;
 }
-EXPORT_SYMBOL_GPL(typec_altmode_register_notifier);
+EXPORT_SYMBOL_GPL(typec_altmode_register_yestifier);
 
-void typec_altmode_unregister_notifier(struct typec_altmode *adev,
-				       struct notifier_block *nb)
+void typec_altmode_unregister_yestifier(struct typec_altmode *adev,
+				       struct yestifier_block *nb)
 {
 	struct altmode *altmode = to_altmode(adev);
 
-	blocking_notifier_chain_unregister(&altmode->nh, nb);
+	blocking_yestifier_chain_unregister(&altmode->nh, nb);
 	put_device(&adev->dev);
 }
-EXPORT_SYMBOL_GPL(typec_altmode_unregister_notifier);
+EXPORT_SYMBOL_GPL(typec_altmode_unregister_yestifier);
 
 /**
  * typec_altmode_update_active - Report Enter/Exit mode
@@ -293,8 +293,8 @@ void typec_altmode_update_active(struct typec_altmode *adev, bool active)
 
 	adev->active = active;
 	snprintf(dir, sizeof(dir), "mode%d", adev->mode);
-	sysfs_notify(&adev->dev.kobj, dir, "active");
-	sysfs_notify(&adev->dev.kobj, NULL, "active");
+	sysfs_yestify(&adev->dev.kobj, dir, "active");
+	sysfs_yestify(&adev->dev.kobj, NULL, "active");
 	kobject_uevent(&adev->dev.kobj, KOBJ_CHANGE);
 }
 EXPORT_SYMBOL_GPL(typec_altmode_update_active);
@@ -342,7 +342,7 @@ active_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct typec_altmode *alt = to_typec_altmode(dev);
 
-	return sprintf(buf, "%s\n", alt->active ? "yes" : "no");
+	return sprintf(buf, "%s\n", alt->active ? "no" : "yes");
 }
 
 static ssize_t active_store(struct device *dev, struct device_attribute *attr,
@@ -373,7 +373,7 @@ static ssize_t active_store(struct device *dev, struct device_attribute *attr,
 		}
 	}
 
-	/* Note: If there is no driver, the mode will not be entered */
+	/* Note: If there is yes driver, the mode will yest be entered */
 	if (adev->ops && adev->ops->activate) {
 		ret = adev->ops->activate(adev, enter);
 		if (ret)
@@ -572,7 +572,7 @@ static ssize_t supports_usb_power_delivery_show(struct device *dev,
 {
 	struct typec_partner *p = to_typec_partner(dev);
 
-	return sprintf(buf, "%s\n", p->usb_pd ? "yes" : "no");
+	return sprintf(buf, "%s\n", p->usb_pd ? "no" : "yes");
 }
 static DEVICE_ATTR_RO(supports_usb_power_delivery);
 
@@ -798,7 +798,7 @@ type_show(struct device *dev, struct device_attribute *attr, char *buf)
 static DEVICE_ATTR_RO(type);
 
 static const char * const typec_plug_types[] = {
-	[USB_PLUG_NONE]		= "unknown",
+	[USB_PLUG_NONE]		= "unkyeswn",
 	[USB_PLUG_TYPE_A]	= "type-a",
 	[USB_PLUG_TYPE_B]	= "type-b",
 	[USB_PLUG_TYPE_C]	= "type-c",
@@ -957,13 +957,13 @@ preferred_role_store(struct device *dev, struct device_attribute *attr,
 	}
 
 	if (!port->ops || !port->ops->try_role) {
-		dev_dbg(dev, "Setting preferred role not supported\n");
+		dev_dbg(dev, "Setting preferred role yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
 	role = sysfs_match_string(typec_roles, buf);
 	if (role < 0) {
-		if (sysfs_streq(buf, "none"))
+		if (sysfs_streq(buf, "yesne"))
 			role = TYPEC_NO_PREFERRED_ROLE;
 		else
 			return -EINVAL;
@@ -1001,7 +1001,7 @@ static ssize_t data_role_store(struct device *dev,
 	int ret;
 
 	if (!port->ops || !port->ops->dr_set) {
-		dev_dbg(dev, "data role swapping not supported\n");
+		dev_dbg(dev, "data role swapping yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1046,12 +1046,12 @@ static ssize_t power_role_store(struct device *dev,
 	int ret;
 
 	if (!port->cap->pd_revision) {
-		dev_dbg(dev, "USB Power Delivery not supported\n");
+		dev_dbg(dev, "USB Power Delivery yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
 	if (!port->ops || !port->ops->pr_set) {
-		dev_dbg(dev, "power role swapping not supported\n");
+		dev_dbg(dev, "power role swapping yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1105,7 +1105,7 @@ port_type_store(struct device *dev, struct device_attribute *attr,
 
 	if (port->cap->type != TYPEC_PORT_DRP ||
 	    !port->ops || !port->ops->port_type_set) {
-		dev_dbg(dev, "changing port type not supported\n");
+		dev_dbg(dev, "changing port type yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1178,7 +1178,7 @@ static ssize_t vconn_source_store(struct device *dev,
 	}
 
 	if (!port->ops || !port->ops->vconn_set) {
-		dev_dbg(dev, "VCONN swapping not supported\n");
+		dev_dbg(dev, "VCONN swapping yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1199,7 +1199,7 @@ static ssize_t vconn_source_show(struct device *dev,
 	struct typec_port *port = to_typec_port(dev);
 
 	return sprintf(buf, "%s\n",
-		       port->vconn_role == TYPEC_SOURCE ? "yes" : "no");
+		       port->vconn_role == TYPEC_SOURCE ? "no" : "yes");
 }
 static DEVICE_ATTR_RW(vconn_source);
 
@@ -1218,7 +1218,7 @@ static ssize_t supported_accessory_modes_show(struct device *dev,
 	}
 
 	if (!ret)
-		return sprintf(buf, "none\n");
+		return sprintf(buf, "yesne\n");
 
 	buf[ret - 1] = '\n';
 
@@ -1307,7 +1307,7 @@ void typec_set_data_role(struct typec_port *port, enum typec_data_role role)
 		return;
 
 	port->data_role = role;
-	sysfs_notify(&port->dev.kobj, NULL, "data_role");
+	sysfs_yestify(&port->dev.kobj, NULL, "data_role");
 	kobject_uevent(&port->dev.kobj, KOBJ_CHANGE);
 }
 EXPORT_SYMBOL_GPL(typec_set_data_role);
@@ -1325,7 +1325,7 @@ void typec_set_pwr_role(struct typec_port *port, enum typec_role role)
 		return;
 
 	port->pwr_role = role;
-	sysfs_notify(&port->dev.kobj, NULL, "power_role");
+	sysfs_yestify(&port->dev.kobj, NULL, "power_role");
 	kobject_uevent(&port->dev.kobj, KOBJ_CHANGE);
 }
 EXPORT_SYMBOL_GPL(typec_set_pwr_role);
@@ -1333,7 +1333,7 @@ EXPORT_SYMBOL_GPL(typec_set_pwr_role);
 /**
  * typec_set_vconn_role - Report VCONN source change
  * @port: The USB Type-C Port which VCONN role changed
- * @role: Source when @port is sourcing VCONN, or Sink when it's not
+ * @role: Source when @port is sourcing VCONN, or Sink when it's yest
  *
  * This routine is used by the port drivers to report if the VCONN source is
  * changes.
@@ -1344,7 +1344,7 @@ void typec_set_vconn_role(struct typec_port *port, enum typec_role role)
 		return;
 
 	port->vconn_role = role;
-	sysfs_notify(&port->dev.kobj, NULL, "vconn_source");
+	sysfs_yestify(&port->dev.kobj, NULL, "vconn_source");
 	kobject_uevent(&port->dev.kobj, KOBJ_CHANGE);
 }
 EXPORT_SYMBOL_GPL(typec_set_vconn_role);
@@ -1373,7 +1373,7 @@ void typec_set_pwr_opmode(struct typec_port *port,
 		return;
 
 	port->pwr_opmode = opmode;
-	sysfs_notify(&port->dev.kobj, NULL, "power_operation_mode");
+	sysfs_yestify(&port->dev.kobj, NULL, "power_operation_mode");
 	kobject_uevent(&port->dev.kobj, KOBJ_CHANGE);
 
 	partner_dev = device_find_child(&port->dev, NULL, partner_match);
@@ -1382,7 +1382,7 @@ void typec_set_pwr_opmode(struct typec_port *port,
 
 		if (opmode == TYPEC_PWR_MODE_PD && !partner->usb_pd) {
 			partner->usb_pd = 1;
-			sysfs_notify(&partner_dev->kobj, NULL,
+			sysfs_yestify(&partner_dev->kobj, NULL,
 				     "supports_usb_power_delivery");
 		}
 		put_device(partner_dev);
@@ -1599,7 +1599,7 @@ struct typec_port *typec_register_port(struct device *parent,
 	device_initialize(&port->dev);
 	port->dev.class = typec_class;
 	port->dev.parent = parent;
-	port->dev.fwnode = cap->fwnode;
+	port->dev.fwyesde = cap->fwyesde;
 	port->dev.type = &typec_port_dev_type;
 	dev_set_name(&port->dev, "port%d", id);
 	dev_set_drvdata(&port->dev, cap->driver_data);

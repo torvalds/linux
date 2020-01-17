@@ -145,12 +145,12 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 	}
 
 	/*
-	 * We know that this operator is not a
-	 * Return() operator (would not come here.) The following code is the
+	 * We kyesw that this operator is yest a
+	 * Return() operator (would yest come here.) The following code is the
 	 * optional support for a so-called "implicit return". Some AML code
 	 * assumes that the last value of the method is "implicitly" returned
 	 * to the caller. Just save the last result as the return value.
-	 * NOTE: this is optional because the ASL language does not actually
+	 * NOTE: this is optional because the ASL language does yest actually
 	 * support this behavior.
 	 */
 	(void)acpi_ds_do_implicit_return(walk_state->result_obj, walk_state,
@@ -159,18 +159,18 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 	/*
 	 * Now determine if the parent will use the result
 	 *
-	 * If there is no parent, or the parent is a scope_op, we are executing
-	 * at the method level. An executing method typically has no parent,
+	 * If there is yes parent, or the parent is a scope_op, we are executing
+	 * at the method level. An executing method typically has yes parent,
 	 * since each method is parsed separately. A method invoked externally
 	 * via execute_control_method has a scope_op as the parent.
 	 */
 	if ((!op->common.parent) ||
 	    (op->common.parent->common.aml_opcode == AML_SCOPE_OP)) {
 
-		/* No parent, the return value cannot possibly be used */
+		/* No parent, the return value canyest possibly be used */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-				  "At Method level, result of [%s] not used\n",
+				  "At Method level, result of [%s] yest used\n",
 				  acpi_ps_get_opcode_name(op->common.
 							  aml_opcode)));
 		return_UINT8(FALSE);
@@ -181,13 +181,13 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 	parent_info =
 	    acpi_ps_get_opcode_info(op->common.parent->common.aml_opcode);
 	if (parent_info->class == AML_CLASS_UNKNOWN) {
-		ACPI_ERROR((AE_INFO, "Unknown parent opcode Op=%p", op));
+		ACPI_ERROR((AE_INFO, "Unkyeswn parent opcode Op=%p", op));
 		return_UINT8(FALSE);
 	}
 
 	/*
 	 * Decide what to do with the result based on the parent. If
-	 * the parent opcode will not use the result, delete the object.
+	 * the parent opcode will yest use the result, delete the object.
 	 * Otherwise leave it as is, it will be deleted when it is used
 	 * as an operand later.
 	 */
@@ -217,14 +217,14 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 
 		default:
 
-			/* Ignore other control opcodes */
+			/* Igyesre other control opcodes */
 
 			break;
 		}
 
-		/* The general control opcode returns no result */
+		/* The general control opcode returns yes result */
 
-		goto result_not_used;
+		goto result_yest_used;
 
 	case AML_CLASS_CREATE:
 		/*
@@ -252,7 +252,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			goto result_used;
 		}
 
-		goto result_not_used;
+		goto result_yest_used;
 
 	default:
 		/*
@@ -271,9 +271,9 @@ result_used:
 
 	return_UINT8(TRUE);
 
-result_not_used:
+result_yest_used:
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-			  "Result of [%s] not used by Parent [%s] Op=%p\n",
+			  "Result of [%s] yest used by Parent [%s] Op=%p\n",
 			  acpi_ps_get_opcode_name(op->common.aml_opcode),
 			  acpi_ps_get_opcode_name(op->common.parent->common.
 						  aml_opcode), op));
@@ -283,7 +283,7 @@ result_not_used:
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ds_delete_result_if_not_used
+ * FUNCTION:    acpi_ds_delete_result_if_yest_used
  *
  * PARAMETERS:  op              - Current parse Op
  *              result_obj      - Result of the operation
@@ -293,20 +293,20 @@ result_not_used:
  *
  * DESCRIPTION: Used after interpretation of an opcode. If there is an internal
  *              result descriptor, check if the parent opcode will actually use
- *              this result. If not, delete the result now so that it will
- *              not become orphaned.
+ *              this result. If yest, delete the result yesw so that it will
+ *              yest become orphaned.
  *
  ******************************************************************************/
 
 void
-acpi_ds_delete_result_if_not_used(union acpi_parse_object *op,
+acpi_ds_delete_result_if_yest_used(union acpi_parse_object *op,
 				  union acpi_operand_object *result_obj,
 				  struct acpi_walk_state *walk_state)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_PTR(ds_delete_result_if_not_used, result_obj);
+	ACPI_FUNCTION_TRACE_PTR(ds_delete_result_if_yest_used, result_obj);
 
 	if (!op) {
 		ACPI_ERROR((AE_INFO, "Null Op"));
@@ -340,7 +340,7 @@ acpi_ds_delete_result_if_not_used(union acpi_parse_object *op,
  *
  * DESCRIPTION: Resolve all operands to their values. Used to prepare
  *              arguments to a control method invocation (a call from one
- *              method to another.)
+ *              method to ayesther.)
  *
  ******************************************************************************/
 
@@ -353,8 +353,8 @@ acpi_status acpi_ds_resolve_operands(struct acpi_walk_state *walk_state)
 
 	/*
 	 * Attempt to resolve each of the valid operands
-	 * Method arguments are passed by reference, not by value. This means
-	 * that the actual objects are passed, not copies of the objects.
+	 * Method arguments are passed by reference, yest by value. This means
+	 * that the actual objects are passed, yest copies of the objects.
 	 */
 	for (i = 0; i < walk_state->num_operands; i++) {
 		status =
@@ -462,13 +462,13 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 		 * because we may be executing in a different scope than where the
 		 * actual opcode exists.
 		 */
-		if ((walk_state->deferred_node) &&
-		    (walk_state->deferred_node->type == ACPI_TYPE_BUFFER_FIELD)
+		if ((walk_state->deferred_yesde) &&
+		    (walk_state->deferred_yesde->type == ACPI_TYPE_BUFFER_FIELD)
 		    && (arg_index == (u32)
 			((walk_state->opcode == AML_CREATE_FIELD_OP) ? 3 : 2))) {
 			obj_desc =
 			    ACPI_CAST_PTR(union acpi_operand_object,
-					  walk_state->deferred_node);
+					  walk_state->deferred_yesde);
 			status = AE_OK;
 		} else {	/* All other opcodes */
 
@@ -490,11 +490,11 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			    && (parent_op->common.aml_opcode !=
 				AML_INT_NAMEPATH_OP)) {
 
-				/* Enter name into namespace if not found */
+				/* Enter name into namespace if yest found */
 
 				interpreter_mode = ACPI_IMODE_LOAD_PASS2;
 			} else {
-				/* Return a failure if name not found */
+				/* Return a failure if name yest found */
 
 				interpreter_mode = ACPI_IMODE_EXECUTE;
 			}
@@ -505,10 +505,10 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 					   ACPI_NS_SEARCH_PARENT |
 					   ACPI_NS_DONT_OPEN_SCOPE, walk_state,
 					   ACPI_CAST_INDIRECT_PTR(struct
-								  acpi_namespace_node,
+								  acpi_namespace_yesde,
 								  &obj_desc));
 			/*
-			 * The only case where we pass through (ignore) a NOT_FOUND
+			 * The only case where we pass through (igyesre) a NOT_FOUND
 			 * error is for the cond_ref_of opcode.
 			 */
 			if (status == AE_NOT_FOUND) {
@@ -516,14 +516,14 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 				    AML_CONDITIONAL_REF_OF_OP) {
 					/*
 					 * For the Conditional Reference op, it's OK if
-					 * the name is not found;  We just need a way to
+					 * the name is yest found;  We just need a way to
 					 * indicate this to the interpreter, set the
 					 * object to the root
 					 */
 					obj_desc =
 					    ACPI_CAST_PTR(union
 								 acpi_operand_object,
-								 acpi_gbl_root_node);
+								 acpi_gbl_root_yesde);
 					status = AE_OK;
 				} else if (parent_op->common.aml_opcode ==
 					   AML_EXTERNAL_OP) {
@@ -575,11 +575,11 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 		    !(arg->common.flags & ACPI_PARSEOP_IN_STACK)) {
 			/*
 			 * If the name is null, this means that this is an
-			 * optional result parameter that was not specified
+			 * optional result parameter that was yest specified
 			 * in the original ASL. Create a Zero Constant for a
 			 * placeholder. (Store to a constant is a Noop.)
 			 */
-			opcode = AML_ZERO_OP;	/* Has no arguments! */
+			opcode = AML_ZERO_OP;	/* Has yes arguments! */
 
 			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 					  "Null namepath: Arg=%p\n", arg));
@@ -800,7 +800,7 @@ acpi_status acpi_ds_evaluate_name_path(struct acpi_walk_state *walk_state)
 	} else {
 		/*
 		 * The object either was anew created or is
-		 * a Namespace node - don't decrement it.
+		 * a Namespace yesde - don't decrement it.
 		 */
 		new_obj_desc = *operand;
 	}

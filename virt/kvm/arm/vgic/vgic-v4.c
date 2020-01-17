@@ -56,25 +56,25 @@
  *   the handling of MOVI). MOVALL is horrible.
  *
  * Note that a DISCARD/MAPTI sequence emitted from the guest without
- * reprogramming the PCI endpoint after MAPTI does not result in a
- * VLPI being mapped, as there is no callback from VFIO (the guest
- * will get the interrupt via the normal SW injection). Fixing this is
- * not trivial, and requires some horrible messing with the VFIO
+ * reprogramming the PCI endpoint after MAPTI does yest result in a
+ * VLPI being mapped, as there is yes callback from VFIO (the guest
+ * will get the interrupt via the yesrmal SW injection). Fixing this is
+ * yest trivial, and requires some horrible messing with the VFIO
  * internals. Not fun. Don't do that.
  *
  * Then there is the scheduling. Each time a vcpu is about to run on a
  * physical CPU, KVM must tell the corresponding redistributor about
- * it. And if we've migrated our vcpu from one CPU to another, we must
+ * it. And if we've migrated our vcpu from one CPU to ayesther, we must
  * tell the ITS (so that the messages reach the right redistributor).
  * This is done in two steps: first issue a irq_set_affinity() on the
  * irq corresponding to the vcpu, then call its_schedule_vpe(). You
- * must be in a non-preemptible context. On exit, another call to
+ * must be in a yesn-preemptible context. On exit, ayesther call to
  * its_schedule_vpe() tells the redistributor that we're done with the
  * vcpu.
  *
  * Finally, the doorbell handling: Each vcpu is allocated an interrupt
  * which will fire each time a VLPI is made pending whilst the vcpu is
- * not running. Each time the vcpu gets blocked, the doorbell
+ * yest running. Each time the vcpu gets blocked, the doorbell
  * interrupt gets enabled. When the vcpu is unblocked (for whatever
  * reason), the doorbell interrupt is disabled.
  */
@@ -85,9 +85,9 @@ static irqreturn_t vgic_v4_doorbell_handler(int irq, void *info)
 {
 	struct kvm_vcpu *vcpu = info;
 
-	/* We got the message, no need to fire again */
+	/* We got the message, yes need to fire again */
 	if (!irqd_irq_disabled(&irq_to_desc(irq)->irq_data))
-		disable_irq_nosync(irq);
+		disable_irq_yessync(irq);
 
 	vcpu->arch.vgic_cpu.vgic_v3.its_vpe.pending_last = true;
 	kvm_make_request(KVM_REQ_IRQ_PENDING, vcpu);
@@ -102,7 +102,7 @@ static irqreturn_t vgic_v4_doorbell_handler(int irq, void *info)
  *
  * We may be called each time a vITS is created, or when the
  * vgic is initialized. This relies on kvm->lock to be
- * held. In both cases, the number of vcpus should now be
+ * held. In both cases, the number of vcpus should yesw be
  * fixed.
  */
 int vgic_v4_init(struct kvm *kvm)
@@ -154,7 +154,7 @@ int vgic_v4_init(struct kvm *kvm)
 		if (ret) {
 			kvm_err("failed to allocate vcpu IRQ%d\n", irq);
 			/*
-			 * Trick: adjust the number of vpes so we know
+			 * Trick: adjust the number of vpes so we kyesw
 			 * how many to nuke on teardown...
 			 */
 			dist->its_vm.nr_vpes = i;
@@ -233,7 +233,7 @@ int vgic_v4_load(struct kvm_vcpu *vcpu)
 		return err;
 
 	/* Disabled the doorbell, as we're about to enter the guest */
-	disable_irq_nosync(vpe->irq);
+	disable_irq_yessync(vpe->irq);
 
 	err = its_schedule_vpe(vpe, true);
 	if (err)
@@ -272,7 +272,7 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 		return 0;
 
 	/*
-	 * Get the ITS, and escape early on error (not a valid
+	 * Get the ITS, and escape early on error (yest a valid
 	 * doorbell for any of our vITSs).
 	 */
 	its = vgic_get_its(kvm, irq_entry);
@@ -290,7 +290,7 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 	/*
 	 * Emit the mapping request. If it fails, the ITS probably
 	 * isn't v4 compatible, so let's silently bail out. Holding
-	 * the ITS lock should ensure that nothing can modify the
+	 * the ITS lock should ensure that yesthing can modify the
 	 * target vcpu.
 	 */
 	map = (struct its_vlpi_map) {
@@ -327,7 +327,7 @@ int kvm_vgic_v4_unset_forwarding(struct kvm *kvm, int virq,
 		return 0;
 
 	/*
-	 * Get the ITS, and escape early on error (not a valid
+	 * Get the ITS, and escape early on error (yest a valid
 	 * doorbell for any of our vITSs).
 	 */
 	its = vgic_get_its(kvm, irq_entry);

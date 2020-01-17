@@ -9,7 +9,7 @@
 #include <linux/syscalls.h>
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 
 static long get_pfn(unsigned long user_addr, unsigned long access,

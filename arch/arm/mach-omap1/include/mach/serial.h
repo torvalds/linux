@@ -20,7 +20,7 @@
  * Note that using a memory location for storing the UART configuration
  * has at least two limitations:
  *
- * 1. Kernel uncompress code cannot overlap OMAP_UART_INFO as the
+ * 1. Kernel uncompress code canyest overlap OMAP_UART_INFO as the
  *    uncompress code could then partially overwrite itself
  * 2. We assume printascii is called at least once before paging_init,
  *    and addruart has a chance to read OMAP_UART_INFO

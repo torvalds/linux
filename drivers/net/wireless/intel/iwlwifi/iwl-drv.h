@@ -35,12 +35,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -99,7 +99,7 @@
  * 2) The bus specific component registers the bus driver
  * 3) The bus driver calls the probe function
  * 4) The bus specific component configures the bus
- * 5) The bus specific component calls to the drv bus agnostic part
+ * 5) The bus specific component calls to the drv bus agyesstic part
  *    (iwl_drv_start)
  * 6) iwl_drv_start fetches the fw ASYNC, iwl_req_fw_callback
  * 7) iwl_req_fw_callback parses the fw file
@@ -136,7 +136,7 @@ void iwl_drv_stop(struct iwl_drv *drv);
  * exported symbol management
  *
  * The driver can be split into multiple modules, in which case some symbols
- * must be exported for the sub-modules. However, if it's not split and
+ * must be exported for the sub-modules. However, if it's yest split and
  * everything is built-in, then we can avoid that.
  */
 #ifdef CONFIG_IWLWIFI_OPMODE_MODULAR

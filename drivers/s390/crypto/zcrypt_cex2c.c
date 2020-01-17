@@ -63,7 +63,7 @@ MODULE_DEVICE_TABLE(ap, zcrypt_cex2c_queue_ids);
  * card to find out if large random numbers are supported.
  * @ap_dev: pointer to the AP device.
  *
- * Returns 1 if large random numbers are supported, 0 if not and < 0 on error.
+ * Returns 1 if large random numbers are supported, 0 if yest and < 0 on error.
  */
 static int zcrypt_cex2c_rng_supported(struct ap_queue *aq)
 {
@@ -110,7 +110,7 @@ static int zcrypt_cex2c_rng_supported(struct ap_queue *aq)
 	}
 
 	if (i >= 2 * HZ) {
-		/* Got no answer. */
+		/* Got yes answer. */
 		rc = -ENODEV;
 		goto out_free;
 	}

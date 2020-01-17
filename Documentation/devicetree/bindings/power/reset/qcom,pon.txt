@@ -3,7 +3,7 @@ Qualcomm PON Device
 The Power On device for Qualcomm PM8xxx is MFD supporting pwrkey
 and resin along with the Android reboot-mode.
 
-This DT node has pwrkey and resin as sub nodes.
+This DT yesde has pwrkey and resin as sub yesdes.
 
 Required Properties:
 -compatible: Must be one of:
@@ -13,10 +13,10 @@ Required Properties:
 
 -reg: Specifies the physical address of the pon register
 
-Optional subnode:
--pwrkey: Specifies the subnode pwrkey and should follow the
+Optional subyesde:
+-pwrkey: Specifies the subyesde pwrkey and should follow the
  qcom,pm8941-pwrkey.txt description.
--resin: Specifies the subnode resin and should follow the
+-resin: Specifies the subyesde resin and should follow the
  qcom,pm8xxx-pwrkey.txt description.
 
 The rest of the properties should follow the generic reboot-mode description

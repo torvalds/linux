@@ -76,7 +76,7 @@ static inline int decode_access_size(struct pt_regs *regs, unsigned int insn)
 
 		/* GCC should never warn that control reaches the end
 		 * of this function without returning a value because
-		 * die_if_kernel() is marked with attribute 'noreturn'.
+		 * die_if_kernel() is marked with attribute 'yesreturn'.
 		 * Alas, some versions do...
 		 */
 
@@ -315,7 +315,7 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 	orig_asi = asi = decode_asi(insn, regs);
 
 	/* If this is a {get,put}_user() on an unaligned userspace pointer,
-	 * just signal a fault and do not log the event.
+	 * just signal a fault and do yest log the event.
 	 */
 	if (asi == ASI_AIUS) {
 		kernel_mna_trap_fault(0);

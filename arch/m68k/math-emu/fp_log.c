@@ -7,7 +7,7 @@
 
   I hereby give permission, free of charge, to copy, modify, and
   redistribute this software, in source or binary form, provided that
-  the above copyright notice and the following disclaimer are included
+  the above copyright yestice and the following disclaimer are included
   in all such copies.
 
   THIS SOFTWARE IS PROVIDED "AS IS", WITH ABSOLUTELY NO WARRANTY, REAL
@@ -74,7 +74,7 @@ fp_fsqrt(struct fp_ext *dest, struct fp_ext *src)
 	dest->exp--;		/* * 1/2 */
 
 	/*
-	 * We now apply the newton rule to the function
+	 * We yesw apply the newton rule to the function
 	 *	f(x) := x^2 - r
 	 * which has a null point on x = sqrt(r).
 	 *
@@ -194,7 +194,7 @@ fp_fgetexp(struct fp_ext *dest, struct fp_ext *src)
 
 	fp_conv_long2ext(dest, (int)dest->exp - 0x3FFF);
 
-	fp_normalize_ext(dest);
+	fp_yesrmalize_ext(dest);
 
 	return dest;
 }

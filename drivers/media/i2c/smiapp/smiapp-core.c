@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/smiapp.h>
 #include <linux/v4l2-mediabus.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-device.h>
 
 #include "smiapp.h"
@@ -219,7 +219,7 @@ static int smiapp_pll_configure(struct smiapp_sensor *sensor)
 	if (rval < 0)
 		return rval;
 
-	/* Lane op clock ratio does not apply here. */
+	/* Lane op clock ratio does yest apply here. */
 	rval = smiapp_write(
 		sensor, SMIAPP_REG_U32_REQUESTED_LINK_BIT_RATE_MBPS,
 		DIV_ROUND_UP(pll->op.sys_clk_freq_hz, 1000000 / 256 / 256));
@@ -793,7 +793,7 @@ static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 			rval = smiapp_pll_try(sensor, pll);
 			dev_dbg(&client->dev, "link freq %u Hz, bpp %u %s\n",
 				pll->link_freq, pll->bits_per_pixel,
-				rval ? "not ok" : "ok");
+				rval ? "yest ok" : "ok");
 			if (rval)
 				continue;
 
@@ -802,7 +802,7 @@ static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 
 		if (!*valid_link_freqs) {
 			dev_info(&client->dev,
-				 "no valid link frequencies for %u bpp\n",
+				 "yes valid link frequencies for %u bpp\n",
 				 f->compressed);
 			sensor->default_mbus_frame_fmts &= ~BIT(i);
 			continue;
@@ -818,7 +818,7 @@ static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 	}
 
 	if (!sensor->csi_format) {
-		dev_err(&client->dev, "no supported mbus code found\n");
+		dev_err(&client->dev, "yes supported mbus code found\n");
 		return -EINVAL;
 	}
 
@@ -1034,7 +1034,7 @@ static int smiapp_setup_flash_strobe(struct smiapp_sensor *sensor)
 
 	/*
 	 * How to calculate registers related to strobe length. Please
-	 * do not change, or if you do at least know what you're
+	 * do yest change, or if you do at least kyesw what you're
 	 * doing. :-)
 	 *
 	 * Sakari Ailus <sakari.ailus@iki.fi> 2010-10-25
@@ -1189,7 +1189,7 @@ static int smiapp_power_on(struct device *dev)
 	sensor->active = true;
 
 	/*
-	 * Failures to respond to the address change command have been noticed.
+	 * Failures to respond to the address change command have been yesticed.
 	 * Those failures seem to be caused by the sensor requiring a longer
 	 * boot time than advertised. An additional 10ms delay seems to work
 	 * around the issue, but the SMIA++ I2C write retry hack makes the delay
@@ -1270,7 +1270,7 @@ static int smiapp_power_on(struct device *dev)
 		goto out_cci_addr_fail;
 	}
 
-	/* Are we still initialising...? If not, proceed with control setup. */
+	/* Are we still initialising...? If yest, proceed with control setup. */
 	if (sensor->pixel_array) {
 		rval = __v4l2_ctrl_handler_setup(
 			&sensor->pixel_array->ctrl_handler);
@@ -1310,7 +1310,7 @@ static int smiapp_power_off(struct device *dev)
 	/*
 	 * Currently power/clock to lens are enable/disabled separately
 	 * but they are essentially the same signals. So if the sensor is
-	 * powered off while the lens is powered on the sensor does not
+	 * powered off while the lens is powered on the sensor does yest
 	 * really see a power off and next time the cci address change
 	 * will fail. So do a soft reset explicitly here.
 	 */
@@ -2295,7 +2295,7 @@ smiapp_sysfs_nvm_read(struct device *dev, struct device_attribute *attr,
 	if (rval < 0) {
 		if (rval != -EBUSY && rval != -EAGAIN)
 			pm_runtime_set_active(&client->dev);
-		pm_runtime_put_noidle(&client->dev);
+		pm_runtime_put_yesidle(&client->dev);
 		return -ENODEV;
 	}
 
@@ -2311,7 +2311,7 @@ smiapp_sysfs_nvm_read(struct device *dev, struct device_attribute *attr,
 
 	/*
 	 * NVM is still way below a PAGE_SIZE, so we can safely
-	 * assume this for now.
+	 * assume this for yesw.
 	 */
 	return rval;
 }
@@ -2358,7 +2358,7 @@ static int smiapp_identify_module(struct smiapp_sensor *sensor)
 	if (!rval)
 		rval = smiapp_read_8only(sensor,
 					 SMIAPP_REG_U8_REVISION_NUMBER_MINOR,
-					 &minfo->revision_number_minor);
+					 &minfo->revision_number_miyesr);
 	if (!rval)
 		rval = smiapp_read_8only(sensor,
 					 SMIAPP_REG_U8_MODULE_DATE_YEAR,
@@ -2407,7 +2407,7 @@ static int smiapp_identify_module(struct smiapp_sensor *sensor)
 
 	dev_dbg(&client->dev,
 		"module revision 0x%2.2x-0x%2.2x date %2.2d-%2.2d-%2.2d\n",
-		minfo->revision_number_major, minfo->revision_number_minor,
+		minfo->revision_number_major, minfo->revision_number_miyesr,
 		minfo->module_year, minfo->module_month, minfo->module_day);
 
 	dev_dbg(&client->dev, "sensor 0x%2.2x-0x%4.4x\n",
@@ -2455,7 +2455,7 @@ static int smiapp_identify_module(struct smiapp_sensor *sensor)
 
 	if (i >= ARRAY_SIZE(smiapp_module_idents))
 		dev_warn(&client->dev,
-			 "no quirks for this module; let's hope it's fully compliant\n");
+			 "yes quirks for this module; let's hope it's fully compliant\n");
 
 	dev_dbg(&client->dev, "the sensor is called %s, ident %2.2x%4.4x%2.2x\n",
 		minfo->name, minfo->manufacturer_id, minfo->model_id,
@@ -2716,26 +2716,26 @@ static int __maybe_unused smiapp_resume(struct device *dev)
 static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 {
 	struct smiapp_hwconfig *hwcfg;
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct v4l2_fwyesde_endpoint bus_cfg = { .bus_type = 0 };
+	struct fwyesde_handle *ep;
+	struct fwyesde_handle *fwyesde = dev_fwyesde(dev);
 	u32 rotation;
 	int i;
 	int rval;
 
-	if (!fwnode)
+	if (!fwyesde)
 		return dev->platform_data;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwyesde_graph_get_next_endpoint(fwyesde, NULL);
 	if (!ep)
 		return NULL;
 
 	bus_cfg.bus_type = V4L2_MBUS_CSI2_DPHY;
-	rval = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+	rval = v4l2_fwyesde_endpoint_alloc_parse(ep, &bus_cfg);
 	if (rval == -ENXIO) {
-		bus_cfg = (struct v4l2_fwnode_endpoint)
+		bus_cfg = (struct v4l2_fwyesde_endpoint)
 			{ .bus_type = V4L2_MBUS_CCP2 };
-		rval = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+		rval = v4l2_fwyesde_endpoint_alloc_parse(ep, &bus_cfg);
 	}
 	if (rval)
 		goto out_err;
@@ -2762,7 +2762,7 @@ static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 
 	dev_dbg(dev, "lanes %u\n", hwcfg->lanes);
 
-	rval = fwnode_property_read_u32(fwnode, "rotation", &rotation);
+	rval = fwyesde_property_read_u32(fwyesde, "rotation", &rotation);
 	if (!rval) {
 		switch (rotation) {
 		case 180:
@@ -2777,7 +2777,7 @@ static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 		}
 	}
 
-	rval = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+	rval = fwyesde_property_read_u32(dev_fwyesde(dev), "clock-frequency",
 					&hwcfg->ext_clk);
 	if (rval)
 		dev_info(dev, "can't get clock-frequency\n");
@@ -2786,7 +2786,7 @@ static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 		hwcfg->csi_signalling_mode);
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_warn(dev, "no link frequencies defined\n");
+		dev_warn(dev, "yes link frequencies defined\n");
 		goto out_err;
 	}
 
@@ -2801,13 +2801,13 @@ static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 		dev_dbg(dev, "freq %d: %lld\n", i, hwcfg->op_sys_clock[i]);
 	}
 
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	fwnode_handle_put(ep);
+	v4l2_fwyesde_endpoint_free(&bus_cfg);
+	fwyesde_handle_put(ep);
 	return hwcfg;
 
 out_err:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	fwnode_handle_put(ep);
+	v4l2_fwyesde_endpoint_free(&bus_cfg);
+	fwyesde_handle_put(ep);
 	return NULL;
 }
 
@@ -2833,16 +2833,16 @@ static int smiapp_probe(struct i2c_client *client)
 
 	sensor->vana = devm_regulator_get(&client->dev, "vana");
 	if (IS_ERR(sensor->vana)) {
-		dev_err(&client->dev, "could not get regulator for vana\n");
+		dev_err(&client->dev, "could yest get regulator for vana\n");
 		return PTR_ERR(sensor->vana);
 	}
 
 	sensor->ext_clk = devm_clk_get(&client->dev, NULL);
 	if (PTR_ERR(sensor->ext_clk) == -ENOENT) {
-		dev_info(&client->dev, "no clock defined, continuing...\n");
+		dev_info(&client->dev, "yes clock defined, continuing...\n");
 		sensor->ext_clk = NULL;
 	} else if (IS_ERR(sensor->ext_clk)) {
-		dev_err(&client->dev, "could not get clock (%ld)\n",
+		dev_err(&client->dev, "could yest get clock (%ld)\n",
 			PTR_ERR(sensor->ext_clk));
 		return -EPROBE_DEFER;
 	}
@@ -2916,7 +2916,7 @@ static int smiapp_probe(struct i2c_client *client)
 	 * the sensor orientation on the board.
 	 *
 	 * For SMIAPP_BOARD_SENSOR_ORIENT_180 the default behaviour is to set
-	 * both H-FLIP and V-FLIP for normal operation which also implies
+	 * both H-FLIP and V-FLIP for yesrmal operation which also implies
 	 * that a set/unset operation for user space HFLIP and VFLIP v4l2
 	 * controls will need to be internally inverted.
 	 *
@@ -3011,7 +3011,7 @@ static int smiapp_probe(struct i2c_client *client)
 	sensor->pll.csi2.lanes = sensor->hwcfg->lanes;
 	sensor->pll.ext_clk_freq_hz = sensor->hwcfg->ext_clk;
 	sensor->pll.scale_n = sensor->limits[SMIAPP_LIMIT_SCALER_N_MIN];
-	/* Profile 0 sensors have no separate OP clock branch. */
+	/* Profile 0 sensors have yes separate OP clock branch. */
 	if (sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0)
 		sensor->pll.flags |= SMIAPP_PLL_FLAG_NO_OP_CLOCKS;
 
@@ -3060,7 +3060,7 @@ static int smiapp_probe(struct i2c_client *client)
 		goto out_media_entity_cleanup;
 
 	pm_runtime_set_active(&client->dev);
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_yesresume(&client->dev);
 	pm_runtime_enable(&client->dev);
 
 	rval = v4l2_async_register_subdev_sensor_common(&sensor->src->sd);
@@ -3113,7 +3113,7 @@ static int smiapp_remove(struct i2c_client *client)
 }
 
 static const struct of_device_id smiapp_of_table[] = {
-	{ .compatible = "nokia,smia" },
+	{ .compatible = "yeskia,smia" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, smiapp_of_table);

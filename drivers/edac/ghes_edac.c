@@ -30,7 +30,7 @@ static refcount_t ghes_refcount = REFCOUNT_INIT(0);
 /*
  * Access to ghes_pvt must be protected by ghes_lock. The spinlock
  * also provides the necessary (implicit) memory barrier for the SMP
- * case to make the pointer visible on another CPU.
+ * case to make the pointer visible on ayesther CPU.
  */
 static struct ghes_edac_pvt *ghes_pvt;
 
@@ -39,7 +39,7 @@ static DEFINE_MUTEX(ghes_reg_mutex);
 
 /*
  * Sync with other, potentially concurrent callers of
- * ghes_edac_report_mem_error(). We don't know what the
+ * ghes_edac_report_mem_error(). We don't kyesw what the
  * "inventive" firmware would do.
  */
 static DEFINE_SPINLOCK(ghes_lock);
@@ -112,7 +112,7 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 		if (entry->size == 0xffff) {
 			pr_info("Can't get DIMM%i size\n",
 				dimm_fill->count);
-			dimm->nr_pages = MiB_TO_PAGES(32);/* Unknown */
+			dimm->nr_pages = MiB_TO_PAGES(32);/* Unkyeswn */
 		} else if (entry->size == 0x7fff) {
 			dimm->nr_pages = MiB_TO_PAGES(entry->extended_size);
 		} else {
@@ -169,7 +169,7 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 
 		/*
 		 * Actually, we can only detect if the memory has bits for
-		 * checksum or not
+		 * checksum or yest
 		 */
 		if (entry->total_width == entry->data_width)
 			dimm->edac_mode = EDAC_NONE;
@@ -211,7 +211,7 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 	/*
 	 * We can do the locking below because GHES defers error processing
 	 * from NMI to IRQ context. Whenever that changes, we'd at least
-	 * know.
+	 * kyesw.
 	 */
 	if (WARN_ON_ONCE(in_nmi()))
 		return;
@@ -229,7 +229,7 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 	memset(e, 0, sizeof (*e));
 	e->error_count = 1;
 	e->grain = 1;
-	strcpy(e->label, "unknown label");
+	strcpy(e->label, "unkyeswn label");
 	e->msg = pvt->msg;
 	e->other_detail = pvt->other_detail;
 	e->top_layer = -1;
@@ -261,7 +261,7 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 		p = pvt->msg;
 		switch (mem_err->error_type) {
 		case 0:
-			p += sprintf(p, "Unknown");
+			p += sprintf(p, "Unkyeswn");
 			break;
 		case 1:
 			p += sprintf(p, "No error");
@@ -313,7 +313,7 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 				     mem_err->error_type);
 		}
 	} else {
-		strcpy(pvt->msg, "unknown error");
+		strcpy(pvt->msg, "unkyeswn error");
 	}
 
 	/* Error address */
@@ -329,7 +329,7 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 	/* Memory error location, mapped on e->location */
 	p = e->location;
 	if (mem_err->validation_bits & CPER_MEM_VALID_NODE)
-		p += sprintf(p, "node:%d ", mem_err->node);
+		p += sprintf(p, "yesde:%d ", mem_err->yesde);
 	if (mem_err->validation_bits & CPER_MEM_VALID_CARD)
 		p += sprintf(p, "card:%d ", mem_err->card);
 	if (mem_err->validation_bits & CPER_MEM_VALID_MODULE)
@@ -399,19 +399,19 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 			p += sprintf(p, "Overflow or undervalue of internal queue ");
 			break;
 		case 17:
-			p += sprintf(p, "Virtual address not found on IO-TLB or IO-PDIR ");
+			p += sprintf(p, "Virtual address yest found on IO-TLB or IO-PDIR ");
 			break;
 		case 18:
 			p += sprintf(p, "Improper access error ");
 			break;
 		case 19:
-			p += sprintf(p, "Access to a memory address which is not mapped to any component ");
+			p += sprintf(p, "Access to a memory address which is yest mapped to any component ");
 			break;
 		case 20:
 			p += sprintf(p, "Loss of Lockstep ");
 			break;
 		case 21:
-			p += sprintf(p, "Response not associated with a request ");
+			p += sprintf(p, "Response yest associated with a request ");
 			break;
 		case 22:
 			p += sprintf(p, "Bus parity error - must also set the A, C, or D Bits ");
@@ -449,7 +449,7 @@ unlock:
 }
 
 /*
- * Known systems that are safe to enable this module.
+ * Kyeswn systems that are safe to enable this module.
  */
 static struct acpi_platform_list plat_list[] = {
 	{"HPE   ", "Server  ", 0, ACPI_SIG_FADT, all_versions},
@@ -476,13 +476,13 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 		idx = 0;
 	}
 
-	/* finish another registration/unregistration instance first */
+	/* finish ayesther registration/unregistration instance first */
 	mutex_lock(&ghes_reg_mutex);
 
 	/*
 	 * We have only one logical memory controller to which all DIMMs belong.
 	 */
-	if (refcount_inc_not_zero(&ghes_refcount))
+	if (refcount_inc_yest_zero(&ghes_refcount))
 		goto unlock;
 
 	/* Get the number of DIMMs */
@@ -523,7 +523,7 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 		pr_info("work on such system. Use this driver with caution\n");
 	} else if (idx < 0) {
 		pr_info("This EDAC driver relies on BIOS to enumerate memory and get error reports.\n");
-		pr_info("Unfortunately, not all BIOSes reflect the memory layout correctly.\n");
+		pr_info("Unfortunately, yest all BIOSes reflect the memory layout correctly.\n");
 		pr_info("So, the end result of using this driver varies from vendor to vendor.\n");
 		pr_info("If you find incorrect reports, please contact your hardware vendor\n");
 		pr_info("to correct its BIOS.\n");

@@ -6,11 +6,11 @@
  * The later H8SX models have a 32x32-bit multiply, but the H8/300H
  * and H8S have only 16x16->32.  Since it's tolerably compact, this is
  * basically an inlined version of the __mulsi3 code.  Since the inputs
- * are not expected to be small, it's also simplfied by skipping the
+ * are yest expected to be small, it's also simplfied by skipping the
  * early-out checks.
  *
  * (Since neither CPU has any multi-bit shift instructions, a
- * shift-and-add version is a non-starter.)
+ * shift-and-add version is a yesn-starter.)
  *
  * TODO: come up with an arch-specific version of the hashing in fs/namei.c,
  * since that is heavily dependent on rotates.  Which, as mentioned, suck
@@ -26,7 +26,7 @@
  * one extra instruction, but reducing register pressure will probably
  * make that back and then some.
  *
- * GCC asm note: %e1 is the high half of operand %1, while %f1 is the
+ * GCC asm yeste: %e1 is the high half of operand %1, while %f1 is the
  * low half.  So if %1 is er4, then %e1 is e4 and %f1 is r4.
  *
  * This has been designed to modify x in place, since that's the most

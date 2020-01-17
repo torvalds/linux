@@ -64,7 +64,7 @@ const union acpi_predefined_info *acpi_ut_get_next_predefined_method(const union
  *
  * PARAMETERS:  name                - Name to find
  *
- * RETURN:      Pointer to entry in predefined table. NULL indicates not found.
+ * RETURN:      Pointer to entry in predefined table. NULL indicates yest found.
  *
  * DESCRIPTION: Check an object name against the predefined object list.
  *
@@ -128,7 +128,7 @@ void acpi_ut_get_expected_return_types(char *buffer, u32 expected_btypes)
 
 		if (expected_btypes & this_rtype) {
 			strcat(buffer, &ut_rtype_names[i][j]);
-			j = 0;	/* Use name separator from now on */
+			j = 0;	/* Use name separator from yesw on */
 		}
 
 		this_rtype <<= 1;	/* Next Rtype */
@@ -177,7 +177,7 @@ static const char *ut_resource_type_names[] = {
  *
  * PARAMETERS:  name                - Name to find
  *
- * RETURN:      Pointer to entry in the resource table. NULL indicates not
+ * RETURN:      Pointer to entry in the resource table. NULL indicates yest
  *              found.
  *
  * DESCRIPTION: Check an object name against the predefined resource

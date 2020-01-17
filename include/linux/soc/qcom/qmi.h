@@ -108,21 +108,21 @@ extern struct qmi_elem_info qmi_response_type_v01_ei[];
  * @service:	service type
  * @version:	version of the @service
  * @instance:	instance id of the @service
- * @node:	node of the service
+ * @yesde:	yesde of the service
  * @port:	port of the service
  * @priv:	handle for client's use
- * @list_node:	list_head for house keeping
+ * @list_yesde:	list_head for house keeping
  */
 struct qmi_service {
 	unsigned int service;
 	unsigned int version;
 	unsigned int instance;
 
-	unsigned int node;
+	unsigned int yesde;
 	unsigned int port;
 
 	void *priv;
-	struct list_head list_node;
+	struct list_head list_yesde;
 };
 
 struct qmi_handle;
@@ -139,7 +139,7 @@ struct qmi_handle;
  *                      that and any state needs to be released
  * @msg_handler:	invoked for incoming messages, allows a client to
  *                      override the usual QMI message handler
- * @bye:                inform a client that all clients from a node are gone
+ * @bye:                inform a client that all clients from a yesde are gone
  * @del_client:         inform a client that a particular client is gone
  */
 struct qmi_ops {
@@ -148,9 +148,9 @@ struct qmi_ops {
 	void (*net_reset)(struct qmi_handle *qmi);
 	void (*msg_handler)(struct qmi_handle *qmi, struct sockaddr_qrtr *sq,
 			    const void *data, size_t count);
-	void (*bye)(struct qmi_handle *qmi, unsigned int node);
+	void (*bye)(struct qmi_handle *qmi, unsigned int yesde);
 	void (*del_client)(struct qmi_handle *qmi,
-			   unsigned int node, unsigned int port);
+			   unsigned int yesde, unsigned int port);
 };
 
 /**

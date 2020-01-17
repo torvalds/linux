@@ -18,7 +18,7 @@
  * If the abort was because of a context switch, check the DSCR value.
  * Otherwise, try again.
  *
- * (*) If the transaction is not suspended we can't see the problem because
+ * (*) If the transaction is yest suspended we can't see the problem because
  * the transaction abort handler will restore the DSCR to it's checkpointed
  * value before we regain control.
  */
@@ -45,7 +45,7 @@ int test_body(void)
 	fflush(stdout);
 	for (;;) {
 		asm __volatile__ (
-			/* set a known value into the DSCR */
+			/* set a kyeswn value into the DSCR */
 			"ld      3, %[dscr1];"
 			"mtspr   %[sprn_dscr], 3;"
 

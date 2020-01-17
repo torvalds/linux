@@ -24,11 +24,11 @@ Optional properties:
   - interrupts : Should contain the interrupt for the dma device if an
     FMC
 
-The child nodes are the SPI flash modules which must have a compatible
-property as specified in bindings/mtd/jedec,spi-nor.txt
+The child yesdes are the SPI flash modules which must have a compatible
+property as specified in bindings/mtd/jedec,spi-yesr.txt
 
-Optionally, the child node can contain properties for SPI mode (may be
-ignored):
+Optionally, the child yesde can contain properties for SPI mode (may be
+igyesred):
   - spi-max-frequency - max frequency of spi bus
 
 
@@ -42,7 +42,7 @@ fmc: fmc@1e620000 {
 	interrupts = <19>;
 	flash@0 {
 		reg = < 0 >;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		/* spi-max-frequency = <>; */
 		/* m25p,fast-read; */
 		#address-cells = <1>;

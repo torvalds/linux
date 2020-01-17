@@ -87,7 +87,7 @@ static int zynqmp_reset_probe(struct platform_device *pdev)
 
 	priv->rcdev.ops = &zynqmp_reset_ops;
 	priv->rcdev.owner = THIS_MODULE;
-	priv->rcdev.of_node = pdev->dev.of_node;
+	priv->rcdev.of_yesde = pdev->dev.of_yesde;
 	priv->rcdev.nr_resets = ZYNQMP_NR_RESETS;
 
 	return devm_reset_controller_register(&pdev->dev, &priv->rcdev);

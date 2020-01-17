@@ -108,22 +108,22 @@ static int ab8500_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	int retval, i;
 	unsigned char buf[ARRAY_SIZE(ab8500_rtc_time_regs)];
-	unsigned long no_secs, no_mins, secs = 0;
+	unsigned long yes_secs, yes_mins, secs = 0;
 
 	rtc_tm_to_time(tm, &secs);
 
-	no_mins = secs / 60;
+	yes_mins = secs / 60;
 
-	no_secs = secs % 60;
+	yes_secs = secs % 60;
 	/* Make the seconds count as per the RTC resolution */
-	no_secs = no_secs * COUNTS_PER_SEC;
+	yes_secs = yes_secs * COUNTS_PER_SEC;
 
-	buf[4] = no_secs & 0xFF;
-	buf[3] = (no_secs >> 8) & 0xFF;
+	buf[4] = yes_secs & 0xFF;
+	buf[3] = (yes_secs >> 8) & 0xFF;
 
-	buf[2] = no_mins & 0xFF;
-	buf[1] = (no_mins >> 8) & 0xFF;
-	buf[0] = (no_mins >> 16) & 0xFF;
+	buf[2] = yes_mins & 0xFF;
+	buf[1] = (yes_mins >> 8) & 0xFF;
+	buf[0] = (yes_mins >> 16) & 0xFF;
 
 	for (i = 0; i < ARRAY_SIZE(ab8500_rtc_time_regs); i++) {
 		retval = abx500_set_register_interruptible(dev, AB8500_RTC,
@@ -144,7 +144,7 @@ static int ab8500_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	unsigned char buf[ARRAY_SIZE(ab8500_rtc_alarm_regs)];
 	unsigned long secs, mins;
 
-	/* Check if the alarm is enabled or not */
+	/* Check if the alarm is enabled or yest */
 	retval = abx500_get_register_interruptible(dev, AB8500_RTC,
 		AB8500_RTC_STAT_REG, &rtc_ctrl);
 	if (retval < 0)
@@ -198,7 +198,7 @@ static int ab8500_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	ab8500_rtc_read_time(dev, &curtm); /* Read current time */
 	rtc_tm_to_time(&curtm, &cursec);
 	if ((secs - cursec) < 59) {
-		dev_dbg(dev, "Alarm less than 1 minute not supported\r\n");
+		dev_dbg(dev, "Alarm less than 1 minute yest supported\r\n");
 		return -EINVAL;
 	}
 
@@ -227,8 +227,8 @@ static int ab8500_rtc_set_calibration(struct device *dev, int calibration)
 	/*
 	 * Check that the calibration value (which is in units of 0.5
 	 * parts-per-million) is in the AB8500's range for RtcCalibration
-	 * register. -128 (0x80) is not permitted because the AB8500 uses
-	 * a sign-bit rather than two's complement, so 0x80 is just another
+	 * register. -128 (0x80) is yest permitted because the AB8500 uses
+	 * a sign-bit rather than two's complement, so 0x80 is just ayesther
 	 * representation of zero.
 	 */
 	if ((calibration < -127) || (calibration > 127)) {

@@ -94,7 +94,7 @@ static void __iomem *pl353_smc_base;
 /**
  * pl353_smc_set_buswidth - Set memory buswidth
  * @bw: Memory buswidth (8 | 16)
- * Return: 0 on success or negative errno.
+ * Return: 0 on success or negative erryes.
  */
 int pl353_smc_set_buswidth(unsigned int bw)
 {
@@ -204,7 +204,7 @@ EXPORT_SYMBOL_GPL(pl353_smc_clr_nand_int);
 /**
  * pl353_smc_set_ecc_mode - Set SMC ECC mode
  * @mode: ECC mode (BYPASS, APB, MEM)
- * Return: 0 on success or negative errno.
+ * Return: 0 on success or negative erryes.
  */
 int pl353_smc_set_ecc_mode(enum pl353_smc_ecc_mode mode)
 {
@@ -233,7 +233,7 @@ EXPORT_SYMBOL_GPL(pl353_smc_set_ecc_mode);
 /**
  * pl353_smc_set_ecc_pg_size - Set SMC ECC page size
  * @pg_sz: ECC page size
- * Return: 0 on success or negative errno.
+ * Return: 0 on success or negative erryes.
  */
 int pl353_smc_set_ecc_pg_size(unsigned int pg_sz)
 {
@@ -282,13 +282,13 @@ static int __maybe_unused pl353_smc_resume(struct device *dev)
 
 	ret = clk_enable(pl353_smc->aclk);
 	if (ret) {
-		dev_err(dev, "Cannot enable axi domain clock.\n");
+		dev_err(dev, "Canyest enable axi domain clock.\n");
 		return ret;
 	}
 
 	ret = clk_enable(pl353_smc->memclk);
 	if (ret) {
-		dev_err(dev, "Cannot enable memory clock.\n");
+		dev_err(dev, "Canyest enable memory clock.\n");
 		clk_disable(pl353_smc->aclk);
 		return ret;
 	}
@@ -304,10 +304,10 @@ static SIMPLE_DEV_PM_OPS(pl353_smc_dev_pm_ops, pl353_smc_suspend,
 /**
  * pl353_smc_init_nand_interface - Initialize the NAND interface
  * @adev: Pointer to the amba_device struct
- * @nand_node: Pointer to the pl353_nand device_node struct
+ * @nand_yesde: Pointer to the pl353_nand device_yesde struct
  */
 static void pl353_smc_init_nand_interface(struct amba_device *adev,
-					  struct device_node *nand_node)
+					  struct device_yesde *nand_yesde)
 {
 	unsigned long timeout;
 
@@ -349,12 +349,12 @@ static const struct of_device_id pl353_smc_supported_children[] = {
 static int pl353_smc_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct pl353_smc_data *pl353_smc;
-	struct device_node *child;
+	struct device_yesde *child;
 	struct resource *res;
 	int err;
-	struct device_node *of_node = adev->dev.of_node;
+	struct device_yesde *of_yesde = adev->dev.of_yesde;
 	static void (*init)(struct amba_device *adev,
-			    struct device_node *nand_node);
+			    struct device_yesde *nand_yesde);
 	const struct of_device_id *match = NULL;
 
 	pl353_smc = devm_kzalloc(&adev->dev, sizeof(*pl353_smc), GFP_KERNEL);
@@ -369,13 +369,13 @@ static int pl353_smc_probe(struct amba_device *adev, const struct amba_id *id)
 
 	pl353_smc->aclk = devm_clk_get(&adev->dev, "apb_pclk");
 	if (IS_ERR(pl353_smc->aclk)) {
-		dev_err(&adev->dev, "aclk clock not found.\n");
+		dev_err(&adev->dev, "aclk clock yest found.\n");
 		return PTR_ERR(pl353_smc->aclk);
 	}
 
 	pl353_smc->memclk = devm_clk_get(&adev->dev, "memclk");
 	if (IS_ERR(pl353_smc->memclk)) {
-		dev_err(&adev->dev, "memclk clock not found.\n");
+		dev_err(&adev->dev, "memclk clock yest found.\n");
 		return PTR_ERR(pl353_smc->memclk);
 	}
 
@@ -398,16 +398,16 @@ static int pl353_smc_probe(struct amba_device *adev, const struct amba_id *id)
 	       pl353_smc_base + PL353_SMC_CFG_CLR_OFFS);
 
 	/* Find compatible children. Only a single child is supported */
-	for_each_available_child_of_node(of_node, child) {
-		match = of_match_node(pl353_smc_supported_children, child);
+	for_each_available_child_of_yesde(of_yesde, child) {
+		match = of_match_yesde(pl353_smc_supported_children, child);
 		if (!match) {
-			dev_warn(&adev->dev, "unsupported child node\n");
+			dev_warn(&adev->dev, "unsupported child yesde\n");
 			continue;
 		}
 		break;
 	}
 	if (!match) {
-		dev_err(&adev->dev, "no matching children\n");
+		dev_err(&adev->dev, "yes matching children\n");
 		goto out_clk_disable;
 	}
 

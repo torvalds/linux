@@ -7,7 +7,7 @@
  *
  * Based on cw1200_sdio.c
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.yes>
  */
 
 #include <linux/module.h>
@@ -450,7 +450,7 @@ static int __maybe_unused cw1200_spi_suspend(struct device *dev)
 	if (!cw1200_can_suspend(self->core))
 		return -EAGAIN;
 
-	/* XXX notify host that we have to keep CW1200 powered on? */
+	/* XXX yestify host that we have to keep CW1200 powered on? */
 	return 0;
 }
 

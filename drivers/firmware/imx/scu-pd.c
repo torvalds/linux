@@ -9,7 +9,7 @@
  * NOTE: a better implementation suggested by Ulf Hansson is using a
  * single global power domain and implement the ->attach|detach_dev()
  * callback for the genpd and use the regular of_genpd_add_provider_simple().
- * From within the ->attach_dev(), we could get the OF node for
+ * From within the ->attach_dev(), we could get the OF yesde for
  * the device that is being attached and then parse the power-domain
  * cell containing the "resource id" and store that in the per device
  * struct generic_pm_domain_data (we have void pointer there for
@@ -19,10 +19,10 @@
  * callbacks of genpd, which is where you "power on/off" devices,
  * rather than using the above ->power_on|off() callbacks.
  *
- * However, there're two known issues:
+ * However, there're two kyeswn issues:
  * 1. The ->attach_dev() of power domain infrastructure still does
- *    not support multi domains case as the struct device *dev passed
- *    in is a virtual PD device, it does not help for parsing the real
+ *    yest support multi domains case as the struct device *dev passed
+ *    in is a virtual PD device, it does yest help for parsing the real
  *    device resource id from device tree, so it's unware of which
  *    real sub power domain of device should be attached.
  *
@@ -32,9 +32,9 @@
  * 2. It also breaks most of current drivers as the driver probe sequence
  *    behavior changed if removing ->power_on|off() callback and use
  *    ->start() and ->stop() instead. genpd_dev_pm_attach will only power
- *    up the domain and attach device, but will not call .start() which
+ *    up the domain and attach device, but will yest call .start() which
  *    relies on device runtime pm. That means the device power is still
- *    not up before running driver probe function. For SCU enabled
+ *    yest up before running driver probe function. For SCU enabled
  *    platforms, all device drivers accessing registers/clock without power
  *    domain enabled will trigger a HW access error. That means we need fix
  *    most drivers probe sequence with proper runtime pm.
@@ -308,7 +308,7 @@ static int imx_scu_init_pm_domains(struct device *dev,
 	pd_data->num_domains = count;
 	pd_data->xlate = imx_scu_pd_xlate;
 
-	of_genpd_add_provider_onecell(dev->of_node, pd_data);
+	of_genpd_add_provider_onecell(dev->of_yesde, pd_data);
 
 	return 0;
 }

@@ -38,7 +38,7 @@ void kprobe_ftrace_handler(unsigned long nip, unsigned long parent_nip,
 		if (!p->pre_handler || !p->pre_handler(p, regs)) {
 			/*
 			 * Emulate singlestep (and also recover regs->nip)
-			 * as if there is a nop
+			 * as if there is a yesp
 			 */
 			regs->nip += MCOUNT_INSN_SIZE;
 			if (unlikely(p->post_handler)) {

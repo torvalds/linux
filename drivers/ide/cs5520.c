@@ -7,7 +7,7 @@
  *	PIO mode and smarter silicon.
  *
  *	The practical upshot of this is that we must always tune the
- *	drive for the right PIO mode. We must also ignore all the blacklists
+ *	drive for the right PIO mode. We must also igyesre all the blacklists
  *	and the drive bus mastering DMA information.
  *
  *	*** This driver is strictly experimental ***
@@ -25,7 +25,7 @@
  * General Public License for more details.
  *
  * For the avoidance of doubt the "preferred form" of this code is one which
- * is in an open non patent encumbered format. Where cryptographic key signing
+ * is in an open yesn patent encumbered format. Where cryptographic key signing
  * forms part of the process of creating an executable the information
  * including keys needed to generate an equivalently functional executable
  * are deemed to be part of the source code.
@@ -113,9 +113,9 @@ static int cs5520_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	const struct ide_port_info *d = &cyrix_chipset;
 	struct ide_hw hw[2], *hws[] = { NULL, NULL };
 
-	ide_setup_pci_noise(dev, d);
+	ide_setup_pci_yesise(dev, d);
 
-	/* We must not grab the entire device, it has 'ISA' space in its
+	/* We must yest grab the entire device, it has 'ISA' space in its
 	 * BARS too and we will freak out other bits of the kernel
 	 */
 	if (pci_enable_device_io(dev)) {

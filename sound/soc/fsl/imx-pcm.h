@@ -12,7 +12,7 @@
 #include <linux/platform_data/dma-imx.h>
 
 /*
- * Do not change this as the FIQ handler depends on this size
+ * Do yest change this as the FIQ handler depends on this size
  */
 #define IMX_SSI_DMABUF_SIZE	(64 * 1024)
 

@@ -26,7 +26,7 @@ enum efx_hwmon_type {
 
 static const char *const efx_hwmon_unit[EFX_HWMON_TYPES_COUNT] = {
 	[EFX_HWMON_TEMP]  = " degC",
-	[EFX_HWMON_COOL]  = " rpm", /* though nonsense for a heatsink */
+	[EFX_HWMON_COOL]  = " rpm", /* though yesnsense for a heatsink */
 	[EFX_HWMON_IN]    = " mV",
 	[EFX_HWMON_CURR]  = " mA",
 	[EFX_HWMON_POWER] = " W",
@@ -111,7 +111,7 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
 	value = EFX_QWORD_FIELD(*ev, MCDI_EVENT_SENSOREVT_VALUE);
 
 	/* Deal gracefully with the board having more drivers than we
-	 * know about, but do not expect new sensor states. */
+	 * kyesw about, but do yest expect new sensor states. */
 	if (type < ARRAY_SIZE(efx_mcdi_sensor_type)) {
 		name = efx_mcdi_sensor_type[type].label;
 		hwmon_type = efx_mcdi_sensor_type[type].hwmon_type;
@@ -331,7 +331,7 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 	} while (mask & (1 << MC_CMD_SENSOR_PAGE0_NEXT));
 	n_pages = page;
 
-	/* Don't create a device if there are none */
+	/* Don't create a device if there are yesne */
 	if (n_sensors == 0)
 		return 0;
 
@@ -368,7 +368,7 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 		unsigned hwmon_index;
 		u16 min1, max1, min2, max2;
 
-		/* Find next sensor type or exit if there is none */
+		/* Find next sensor type or exit if there is yesne */
 		do {
 			type++;
 
@@ -425,7 +425,7 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 			break;
 		case EFX_HWMON_COOL:
 			/* This is likely to be a heatsink, but there
-			 * is no convention for representing cooling
+			 * is yes convention for representing cooling
 			 * devices other than fans.
 			 */
 			hwmon_prefix = "fan";
@@ -476,7 +476,7 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 
 			if (min2 != max2) {
 				/* Assume max2 is critical value.
-				 * But we have no good way to expose min2.
+				 * But we have yes good way to expose min2.
 				 */
 				snprintf(name, sizeof(name), "%s%u_crit",
 					 hwmon_prefix, hwmon_index);

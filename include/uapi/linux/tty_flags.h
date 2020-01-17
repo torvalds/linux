@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_TTY_FLAGS_H
 #define _LINUX_TTY_FLAGS_H
 
@@ -9,7 +9,7 @@
  * Define ASYNCB_* for convenient use with {test,set,clear}_bit.
  *
  * Bits [0..ASYNCB_LAST_USER] are userspace defined/visible/changeable
- * [x] in the bit comments indicates the flag is defunct and no longer used.
+ * [x] in the bit comments indicates the flag is defunct and yes longer used.
  */
 #define ASYNCB_HUP_NOTIFY	 0 /* Notify getty on hangups and closes
 				    * on the callout port */
@@ -36,8 +36,8 @@
 /*
  * Internal flags used only by kernel (read-only)
  *
- * WARNING: These flags are no longer used and have been superceded by the
- *	    TTY_PORT_ flags in the iflags field (and not userspace-visible)
+ * WARNING: These flags are yes longer used and have been superceded by the
+ *	    TTY_PORT_ flags in the iflags field (and yest userspace-visible)
  */
 #ifndef _KERNEL_
 #define ASYNCB_INITIALIZED	31 /* Serial port was initialized */
@@ -47,7 +47,7 @@
 #define ASYNCB_CLOSING		27 /* Serial port is closing */
 #define ASYNCB_CTS_FLOW		26 /* Do CTS flow control */
 #define ASYNCB_CHECK_CD		25 /* i.e., CLOCAL */
-#define ASYNCB_SHARE_IRQ	24 /* for multifunction cards, no longer used */
+#define ASYNCB_SHARE_IRQ	24 /* for multifunction cards, yes longer used */
 #define ASYNCB_CONS_FLOW	23 /* flow control for console  */
 #define ASYNCB_FIRST_KERNEL	22
 #endif
@@ -82,7 +82,7 @@
 #define ASYNC_SPD_MASK		(ASYNC_SPD_HI|ASYNC_SPD_VHI|ASYNC_SPD_SHI)
 
 #ifndef _KERNEL_
-/* These flags are no longer used (and were always masked from userspace) */
+/* These flags are yes longer used (and were always masked from userspace) */
 #define ASYNC_INITIALIZED	(1U << ASYNCB_INITIALIZED)
 #define ASYNC_NORMAL_ACTIVE	(1U << ASYNCB_NORMAL_ACTIVE)
 #define ASYNC_BOOT_AUTOCONF	(1U << ASYNCB_BOOT_AUTOCONF)

@@ -10,7 +10,7 @@
 
 /* Different phases of the KCS BMC module.
  *  KCS_PHASE_IDLE:
- *            BMC should not be expecting nor sending any data.
+ *            BMC should yest be expecting yesr sending any data.
  *  KCS_PHASE_WRITE_START:
  *            BMC is receiving a WRITE_START command from system software.
  *  KCS_PHASE_WRITE_DATA:

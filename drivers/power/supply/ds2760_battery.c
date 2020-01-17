@@ -6,7 +6,7 @@
  *	       2004 Szabolcs Gyurko
  *
  * Use consistent with the GNU GPL is permitted,
- * provided that this copyright notice is
+ * provided that this copyright yestice is
  * preserved in its entirety in all copies and derived works.
  *
  * Author:  Anton Vorontsov <cbou@mail.ru>
@@ -49,7 +49,7 @@ MODULE_PARM_DESC(current_accum, "current accumulator value");
 
 #define W1_FAMILY_DS2760		0x30
 
-/* Known commands to the DS2760 chip */
+/* Kyeswn commands to the DS2760 chip */
 #define W1_DS2760_SWAP			0xAA
 #define W1_DS2760_READ_DATA		0x69
 #define W1_DS2760_WRITE_DATA		0x6C
@@ -113,7 +113,7 @@ struct ds2760_device_info {
 	struct workqueue_struct *monitor_wqueue;
 	struct delayed_work monitor_work;
 	struct delayed_work set_charged_work;
-	struct notifier_block pm_notifier;
+	struct yestifier_block pm_yestifier;
 };
 
 static int w1_ds2760_io(struct device *dev, char *buf, int addr, size_t count,
@@ -142,7 +142,7 @@ static int w1_ds2760_io(struct device *dev, char *buf, int addr, size_t count,
 			w1_write_8(sl->master, W1_DS2760_WRITE_DATA);
 			w1_write_8(sl->master, addr);
 			w1_write_block(sl->master, buf, count);
-			/* XXX w1_write_block returns void, not n_written */
+			/* XXX w1_write_block returns void, yest n_written */
 		}
 	}
 
@@ -327,9 +327,9 @@ static int ds2760_battery_read_status(struct ds2760_device_info *di)
 	di->full_active_uAh = di->raw[DS2760_ACTIVE_FULL] << 8 |
 			      di->raw[DS2760_ACTIVE_FULL + 1];
 
-	/* If the full_active_uAh value is not given, fall back to the rated
-	 * capacity. This is likely to happen when chips are not part of the
-	 * battery pack and is therefore not bootstrapped. */
+	/* If the full_active_uAh value is yest given, fall back to the rated
+	 * capacity. This is likely to happen when chips are yest part of the
+	 * battery pack and is therefore yest bootstrapped. */
 	if (di->full_active_uAh == 0)
 		di->full_active_uAh = di->rated_capacity / 1000L;
 
@@ -401,7 +401,7 @@ static void ds2760_battery_update_status(struct ds2760_device_info *di)
 			di->full_counter = 0;
 		} else if (di->current_uA < -5000) {
 			if (di->charge_status != POWER_SUPPLY_STATUS_NOT_CHARGING)
-				dev_notice(di->dev, "not enough power to "
+				dev_yestice(di->dev, "yest eyesugh power to "
 					   "charge\n");
 			di->charge_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
 			di->full_counter = 0;
@@ -507,8 +507,8 @@ static void ds2760_battery_set_charged_work(struct work_struct *work)
 
 	ds2760_battery_read_status(di);
 
-	/* When we get notified by external circuitry that the battery is
-	 * considered fully charged now, we know that there is no current
+	/* When we get yestified by external circuitry that the battery is
+	 * considered fully charged yesw, we kyesw that there is yes current
 	 * flow any more. However, the ds2760's internal current meter is
 	 * too inaccurate to rely on - spec say something ~15% failure.
 	 * Hence, we use the current offset bias register to compensate
@@ -644,12 +644,12 @@ static enum power_supply_property ds2760_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 };
 
-static int ds2760_pm_notifier(struct notifier_block *notifier,
+static int ds2760_pm_yestifier(struct yestifier_block *yestifier,
 			      unsigned long pm_event,
 			      void *unused)
 {
 	struct ds2760_device_info *di =
-		container_of(notifier, struct ds2760_device_info, pm_notifier);
+		container_of(yestifier, struct ds2760_device_info, pm_yestifier);
 
 	switch (pm_event) {
 	case PM_HIBERNATION_PREPARE:
@@ -706,19 +706,19 @@ static int w1_ds2760_add_slave(struct w1_slave *sl)
 
 	psy_cfg.drv_data = di;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		u32 tmp;
 
-		psy_cfg.of_node = dev->of_node;
+		psy_cfg.of_yesde = dev->of_yesde;
 
-		if (!of_property_read_bool(dev->of_node, "maxim,pmod-enabled"))
+		if (!of_property_read_bool(dev->of_yesde, "maxim,pmod-enabled"))
 			pmod_enabled = true;
 
-		if (!of_property_read_u32(dev->of_node,
+		if (!of_property_read_u32(dev->of_yesde,
 					  "maxim,cache-time-ms", &tmp))
 			cache_time = tmp;
 
-		if (!of_property_read_u32(dev->of_node,
+		if (!of_property_read_u32(dev->of_yesde,
 					  "rated-capacity-microamp-hours",
 					  &tmp))
 			rated_capacity = tmp / 10; /* property is in mAh */
@@ -764,8 +764,8 @@ static int w1_ds2760_add_slave(struct w1_slave *sl)
 	}
 	queue_delayed_work(di->monitor_wqueue, &di->monitor_work, HZ * 1);
 
-	di->pm_notifier.notifier_call = ds2760_pm_notifier;
-	register_pm_notifier(&di->pm_notifier);
+	di->pm_yestifier.yestifier_call = ds2760_pm_yestifier;
+	register_pm_yestifier(&di->pm_yestifier);
 
 	goto success;
 
@@ -781,7 +781,7 @@ static void w1_ds2760_remove_slave(struct w1_slave *sl)
 {
 	struct ds2760_device_info *di = sl->family_data;
 
-	unregister_pm_notifier(&di->pm_notifier);
+	unregister_pm_yestifier(&di->pm_yestifier);
 	cancel_delayed_work_sync(&di->monitor_work);
 	cancel_delayed_work_sync(&di->set_charged_work);
 	destroy_workqueue(di->monitor_wqueue);

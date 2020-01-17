@@ -37,7 +37,7 @@ static irqreturn_t gpio_ir_recv_irq(int irq, void *dev_id)
 static int gpio_ir_recv_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct gpio_rc_dev *gpio_dev;
 	struct rc_dev *rcdev;
 	int rc;

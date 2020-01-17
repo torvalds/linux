@@ -81,9 +81,9 @@ static void etm_event_read(struct perf_event *event) {}
 static int etm_addr_filters_alloc(struct perf_event *event)
 {
 	struct etm_filters *filters;
-	int node = event->cpu == -1 ? -1 : cpu_to_node(event->cpu);
+	int yesde = event->cpu == -1 ? -1 : cpu_to_yesde(event->cpu);
 
-	filters = kzalloc_node(sizeof(struct etm_filters), GFP_KERNEL, node);
+	filters = kzalloc_yesde(sizeof(struct etm_filters), GFP_KERNEL, yesde);
 	if (!filters)
 		return -ENOMEM;
 
@@ -244,7 +244,7 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 
 		csdev = per_cpu(csdev_src, cpu);
 		/*
-		 * If there is no ETM associated with this CPU clear it from
+		 * If there is yes ETM associated with this CPU clear it from
 		 * the mask and continue with the rest. If ever we try to trace
 		 * on this CPU, we handle it accordingly.
 		 */
@@ -311,7 +311,7 @@ static void etm_event_start(struct perf_event *event, int flags)
 		goto fail;
 
 	path = etm_event_cpu_path(event_data, cpu);
-	/* We need a sink, no need to continue without one */
+	/* We need a sink, yes need to continue without one */
 	sink = coresight_get_sink(path);
 	if (WARN_ON_ONCE(!sink))
 		goto fail_end_stop;
@@ -415,7 +415,7 @@ static int etm_addr_filters_validate(struct list_head *filters)
 
 	list_for_each_entry(filter, filters, entry) {
 		/*
-		 * No need to go further if there's no more
+		 * No need to go further if there's yes more
 		 * room for filters.
 		 */
 		if (++index > ETM_ADDR_CMP_MAX)
@@ -541,7 +541,7 @@ int etm_perf_add_symlink_sink(struct coresight_device *csdev)
 		return -ENOMEM;
 
 	name = dev_name(dev);
-	/* See function coresight_get_sink_by_id() to know where this is used */
+	/* See function coresight_get_sink_by_id() to kyesw where this is used */
 	hash = hashlen_hash(hashlen_string(NULL, name));
 
 	sysfs_attr_init(&ea->attr.attr);

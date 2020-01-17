@@ -109,7 +109,7 @@ test_chip()
 	ngpio=`cat $chip/ngpio`
 	printf "%-10s %-5s %-5s\n" $name $base $ngpio
 	if [ $ngpio = "0" ]; then
-		echo "number of gpio is zero is not allowed".
+		echo "number of gpio is zero is yest allowed".
 	fi
 	test_one_pin $base
 	test_one_pin $(($base + $ngpio - 1))

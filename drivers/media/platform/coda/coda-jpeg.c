@@ -199,7 +199,7 @@ bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_buffer *vb)
 }
 
 /*
- * Scale quantization table using nonlinear scaling factor
+ * Scale quantization table using yesnlinear scaling factor
  * u8 qtab[64], scale [50,190]
  */
 static void coda_scale_quant_table(u8 *q_tab, int scale)

@@ -141,7 +141,7 @@ void rtl92de_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HAL_DEF_WOWLAN:
 		break;
 	default:
-		pr_err("switch case %#x not processed\n", variable);
+		pr_err("switch case %#x yest processed\n", variable);
 		break;
 	}
 }
@@ -335,7 +335,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				acm_ctrl &= (~ACMHW_VOQEN);
 				break;
 			default:
-				pr_err("switch case %#x not processed\n",
+				pr_err("switch case %#x yest processed\n",
 				       e_aci);
 				break;
 			}
@@ -476,7 +476,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	}
 	default:
-		pr_err("switch case %#x not processed\n", variable);
+		pr_err("switch case %#x yest processed\n", variable);
 		break;
 	}
 }
@@ -512,7 +512,7 @@ static bool _rtl92de_llt_table_init(struct ieee80211_hw *hw)
 	u8 maxpage;
 	bool status;
 	u32 value32; /* High+low page number */
-	u8 value8;	 /* normal page number */
+	u8 value8;	 /* yesrmal page number */
 
 	if (rtlpriv->rtlhal.macphymode == SINGLEMAC_SINGLEPHY) {
 		maxpage = 255;
@@ -625,7 +625,7 @@ static bool _rtl92de_init_mac(struct ieee80211_hw *hw)
 
 	/* 1.   AFE_XTAL_CTRL [7:0] = 0x0F  enable XTAL */
 	/* 2.   SPS0_CTRL 0x11[7:0] = 0x2b  enable SPS into PWM mode  */
-	/* 3.   delay (1ms) this is not necessary when initially power on */
+	/* 3.   delay (1ms) this is yest necessary when initially power on */
 
 	/* C.   Resume Sequence */
 	/* a.   SPS0_CTRL 0x11[7:0] = 0x2b */
@@ -702,7 +702,7 @@ static bool _rtl92de_init_mac(struct ieee80211_hw *hw)
 
 	rtl92d_phy_config_maccoexist_rfpage(hw);
 
-	/* THe below section is not related to power document Vxx . */
+	/* THe below section is yest related to power document Vxx . */
 	/* This is only useful for driver and OS setting. */
 	/* -------------------Software Relative Setting---------------------- */
 	wordtmp = rtl_read_word(rtlpriv, REG_TRXDMA_CTRL);
@@ -712,7 +712,7 @@ static bool _rtl92de_init_mac(struct ieee80211_hw *hw)
 
 	/* Reported Tx status from HW for rate adaptive. */
 	/* This should be realtive to power on step 14. But in document V11  */
-	/* still not contain the description.!!! */
+	/* still yest contain the description.!!! */
 	rtl_write_byte(rtlpriv, REG_FWHW_TXQ_CTRL + 1, 0x1F);
 
 	/* Set Tx/Rx page size (Tx must be 128 Bytes,
@@ -743,7 +743,7 @@ static bool _rtl92de_init_mac(struct ieee80211_hw *hw)
 			rtlpci->rx_ring[RX_MPDU_QUEUE].dma);
 
 	/* if we want to support 64 bit DMA, we should set it here,
-	 * but now we do not support 64 bit DMA*/
+	 * but yesw we do yest support 64 bit DMA*/
 
 	rtl_write_byte(rtlpriv, REG_PCIE_CTRL_REG + 3, 0x33);
 
@@ -857,7 +857,7 @@ void rtl92de_enable_hw_security_config(struct ieee80211_hw *hw)
 		 rtlpriv->sec.group_enc_algorithm);
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-			 "not open hw encryption\n");
+			 "yest open hw encryption\n");
 		return;
 	}
 	sec_reg_value = SCR_TXENCENABLE | SCR_RXENCENABLE;
@@ -1013,7 +1013,7 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 				if (((tmp_rega & BIT(11)) == BIT(11)))
 					break;
 			}
-			/* check that loop was successful. If not, exit now */
+			/* check that loop was successful. If yest, exit yesw */
 			if (i == 10000) {
 				rtlpci->init_ready = false;
 				return 1;
@@ -1093,7 +1093,7 @@ static int _rtl92de_set_media_status(struct ieee80211_hw *hw,
 			 "Set Network type to AP!\n");
 		break;
 	default:
-		pr_err("Network type %d not supported!\n", type);
+		pr_err("Network type %d yest supported!\n", type);
 		return 1;
 	}
 	rtl_write_byte(rtlpriv, MSR, bt_msr);
@@ -1249,16 +1249,16 @@ static void _rtl92de_poweroff_adapter(struct ieee80211_hw *hw)
 
 	/* q.   APS_FSMCO[15:8] = 0x58 PCIe suspend mode */
 	/* According to power document V11, we need to set this */
-	/* value as 0x18. Otherwise, we may not L0s sometimes. */
+	/* value as 0x18. Otherwise, we may yest L0s sometimes. */
 	/* This indluences power consumption. Bases on SD1's test, */
-	/* set as 0x00 do not affect power current. And if it */
+	/* set as 0x00 do yest affect power current. And if it */
 	/* is set as 0x18, they had ever met auto load fail problem. */
 	rtl_write_byte(rtlpriv, REG_APS_FSMCO + 1, 0x10);
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "In PowerOff,reg0x%x=%X\n",
 		 REG_SPS0_CTRL, rtl_read_byte(rtlpriv, REG_SPS0_CTRL));
-	/* r.   Note: for PCIe interface, PON will not turn */
+	/* r.   Note: for PCIe interface, PON will yest turn */
 	/* off m-bias and BandGap in PCIe suspend mode.  */
 
 	/* 0x17[7] 1b': power off in process  0b' : power off over */
@@ -1317,7 +1317,7 @@ void rtl92de_card_disable(struct ieee80211_hw *hw)
 	/*  SYS_FUNC_EN 0x02[7:0] = 0xE2   reset BB state machine */
 	rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN, 0xE2);
 
-	/* Mac0 can not do Global reset. Mac1 can do. */
+	/* Mac0 can yest do Global reset. Mac1 can do. */
 	/* SYS_FUNC_EN 0x02[7:0] = 0xE0  reset BB state machine  */
 	if (rtlpriv->rtlhal.interfaceindex == 1)
 		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN, 0xE0);
@@ -1431,7 +1431,7 @@ static void _rtl92de_readpowervalue_fromprom(struct txpower_info *pwrinfo,
 		return;
 	}
 
-	/* Maybe autoload OK,buf the tx power index value is not filled.
+	/* Maybe autoload OK,buf the tx power index value is yest filled.
 	 * If we find it, we set it to default value. */
 	for (rfpath = 0; rfpath < RF6052_MAX_PATH; rfpath++) {
 		for (group = 0; group < CHANNEL_GROUP_MAX_2G; group++) {
@@ -1575,7 +1575,7 @@ static void _rtl92de_read_txpower_info(struct ieee80211_hw *hw,
 	}
 
 	/* Use default value to fill parameters if
-	 * efuse is not filled on some place. */
+	 * efuse is yest filled on some place. */
 
 	/* ThermalMeter from EEPROM */
 	if (rtlefuse->eeprom_thermalmeter < 0x06 ||
@@ -1699,7 +1699,7 @@ static void _rtl92de_efuse_update_chip_version(struct ieee80211_hw *hw)
 		break;
 	default:
 		chipver |= CHIP_92D_D_CUT;
-		pr_err("Unknown CUT!\n");
+		pr_err("Unkyeswn CUT!\n");
 		break;
 	}
 	rtlpriv->rtlhal.version = chipver;
@@ -2136,7 +2136,7 @@ void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
 			enc_algo = CAM_AES;
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
+			pr_err("switch case %#x yest processed\n",
 			       enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
@@ -2153,7 +2153,7 @@ void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id = rtl_cam_get_free_entry(hw,
 								 p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						pr_err("Can not find free hw security cam entry\n");
+						pr_err("Can yest find free hw security cam entry\n");
 						return;
 					}
 				} else {

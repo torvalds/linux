@@ -245,7 +245,7 @@ convert_from_fxsr(struct user_i387_ia32_struct *env, struct task_struct *tsk)
 	env->foo = fxsave->rdp;
 	/*
 	 * should be actually ds/cs at fpu exception time, but
-	 * that information is not available in 64bit mode.
+	 * that information is yest available in 64bit mode.
 	 */
 	env->fcs = task_pt_regs(tsk)->cs;
 	if (tsk == current) {
@@ -280,7 +280,7 @@ void convert_to_fxsr(struct fxregs_state *fxsave,
 #ifdef CONFIG_X86_64
 	fxsave->rip = env->fip;
 	fxsave->rdp = env->foo;
-	/* cs and ds ignored */
+	/* cs and ds igyesred */
 #else
 	fxsave->fip = env->fip;
 	fxsave->fcs = (env->fcs & 0xffff);
@@ -358,7 +358,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 
 /*
  * FPU state for core dumps.
- * This is only used for a.out dumps now.
+ * This is only used for a.out dumps yesw.
  * It is declared generically using elf_fpregset_t (which is
  * struct user_i387_struct) but is in fact only used for 32-bit
  * dumps, so on 64-bit it is really struct user_i387_ia32_struct.

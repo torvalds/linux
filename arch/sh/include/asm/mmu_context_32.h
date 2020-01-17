@@ -8,7 +8,7 @@
  */
 static inline void destroy_context(struct mm_struct *mm)
 {
-	/* Do nothing */
+	/* Do yesthing */
 }
 
 #ifdef CONFIG_CPU_HAS_PTEAEX

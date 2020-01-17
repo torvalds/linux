@@ -69,7 +69,7 @@ struct hostap_ieee80211_mgmt {
 struct hostap_80211_rx_status {
 	u32 mac_time;
 	u8 signal;
-	u8 noise;
+	u8 yesise;
 	u16 rate; /* in 100 kbps */
 };
 

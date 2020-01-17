@@ -5,7 +5,7 @@
  *      This software may be used and distributed according to the terms
  *      of the GNU General Public License, incorporated herein by reference.
  *
- *      This is ALPHA code at best.  It may not work for you.  It may
+ *      This is ALPHA code at best.  It may yest work for you.  It may
  *      damage your equipment.  It may damage your relations with other
  *      users of your network.  Use it at your own risk!
  *
@@ -16,8 +16,8 @@
  *      the netatalk source code (UMICH)
  *      lots of work on the card...
  *
- *      I do not have access to the (proprietary) SDK that goes with the card.
- *      If you do, I don't want to know about it, and you can probably write
+ *      I do yest have access to the (proprietary) SDK that goes with the card.
+ *      If you do, I don't want to kyesw about it, and you can probably write
  *      a better driver yourself anyway.  This does mean that the pieces that
  *      talk to the card are guesswork on my part, so use at your own risk!
  *
@@ -48,7 +48,7 @@
  *      things at a higher level, and probably a bad idea...
  *
  *      There are a number of other cards that do LocalTalk on the PC.  If
- *      nobody finds any insurmountable (at the netatalk level) problems
+ *      yesbody finds any insurmountable (at the netatalk level) problems
  *      here, this driver should encourage people to put some work into the
  *      other cards (some of which I gather are still commercially available)
  *      and also to put hooks for LocalTalk into the official ddp code.
@@ -66,7 +66,7 @@
  * at and tr cleanup
  *
  * Revision 1.8  1997/01/28 05:44:54  bradford
- * Clean up for non-module a little.
+ * Clean up for yesn-module a little.
  * Hacked about a bit to clean things up - Alan Cox 
  * Probably broken it from the origina 1.8
  *
@@ -80,12 +80,12 @@
    line and through insmod
  * Changed the device name from "ltalk0" to "lt0", both to conform with the
    other localtalk driver, and to clear up the inconsistency between the
-   module and the non-module versions of the driver :-)
+   module and the yesn-module versions of the driver :-)
  * Added a bunch of comments (I was going to make some enums for the state
-   codes and the register offsets, but I'm still not sure exactly what their
+   codes and the register offsets, but I'm still yest sure exactly what their
    semantics are)
  * Don't poll anymore in interrupt-driven mode
- * It seems to work as a module now (as of 2.1.127), but I don't think
+ * It seems to work as a module yesw (as of 2.1.127), but I don't think
    I'm responsible for that...
 
  *
@@ -165,7 +165,7 @@
 
 /* ltpc jumpers are:
 *
-*	Interrupts -- set at most one.  If none are set, the driver uses
+*	Interrupts -- set at most one.  If yesne are set, the driver uses
 *	polled mode.  Because the card was developed in the XT era, the
 *	original documentation refers to IRQ2.  Since you'll be running
 *	this on an AT (or later) class machine, that really means IRQ9.
@@ -193,7 +193,7 @@
 *
 *	For a whole bunch of stuff, use higher numbers.
 *
-*	The default is 0, i.e. no messages except for the probe results.
+*	The default is 0, i.e. yes messages except for the probe results.
 */
 
 /* insmod-tweakable variables */
@@ -216,7 +216,7 @@ static int dma;
 #include <linux/spinlock.h>
 #include <linux/in.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -367,7 +367,7 @@ static int getmbox(void)
 /* read a command from the card */
 static void handlefc(struct net_device *dev)
 {
-	/* called *only* from idle, non-reentrant */
+	/* called *only* from idle, yesn-reentrant */
 	int dma = dev->dma;
 	int base = dev->base_addr;
 	unsigned long flags;
@@ -413,7 +413,7 @@ static void handlefd(struct net_device *dev)
 
 static void handlewrite(struct net_device *dev)
 {
-	/* called *only* from idle, non-reentrant */
+	/* called *only* from idle, yesn-reentrant */
 	/* on entry, 0xfb and ltdmabuf holds data */
 	int dma = dev->dma;
 	int base = dev->base_addr;
@@ -612,7 +612,7 @@ loop:
 				handlewrite(dev);
 			} else {
 				handleread(dev);
-				/* non-zero mailbox numbers are for
+				/* yesn-zero mailbox numbers are for
 				   commmands, 0 is for GETRESULT
 				   requests */
 				if(q->mailbox) {
@@ -630,10 +630,10 @@ loop:
 done:
 	QInIdle=0;
 
-	/* now set the interrupts back as appropriate */
+	/* yesw set the interrupts back as appropriate */
 	/* the first read takes it out of tri-state (but still high) */
 	/* the second resets it */
-	/* note that after this point, any read of base+6 will
+	/* yeste that after this point, any read of base+6 will
 	   trigger an interrupt */
 
 	if (dev->irq) {
@@ -663,7 +663,7 @@ static int do_write(struct net_device *dev, void *cbuf, int cbuflen,
 		mboxinuse[i]=0;
 		return ret;
 	}
-	printk("ltpc: could not allocate mbox\n");
+	printk("ltpc: could yest allocate mbox\n");
 	return -1;
 }
 
@@ -687,7 +687,7 @@ static int do_read(struct net_device *dev, void *cbuf, int cbuflen,
 		mboxinuse[i]=0;
 		return ret;
 	}
-	printk("ltpc: could not allocate mbox\n");
+	printk("ltpc: could yest allocate mbox\n");
 	return -1;
 }
 
@@ -718,19 +718,19 @@ static int set_30 (struct net_device *dev,int x)
 static int sendup_buffer (struct net_device *dev)
 {
 	/* on entry, command is in ltdmacbuf, data in ltdmabuf */
-	/* called from idle, non-reentrant */
+	/* called from idle, yesn-reentrant */
 
-	int dnode, snode, llaptype, len; 
+	int dyesde, syesde, llaptype, len; 
 	int sklen;
 	struct sk_buff *skb;
 	struct lt_rcvlap *ltc = (struct lt_rcvlap *) ltdmacbuf;
 
 	if (ltc->command != LT_RCVLAP) {
-		printk("unknown command 0x%02x from ltpc card\n",ltc->command);
+		printk("unkyeswn command 0x%02x from ltpc card\n",ltc->command);
 		return -1;
 	}
-	dnode = ltc->dnode;
-	snode = ltc->snode;
+	dyesde = ltc->dyesde;
+	syesde = ltc->syesde;
 	llaptype = ltc->laptype;
 	len = ltc->length; 
 
@@ -738,13 +738,13 @@ static int sendup_buffer (struct net_device *dev)
 	if (llaptype == 1) 
 		sklen += 8;  /* correct for short ddp */
 	if(sklen > 800) {
-		printk(KERN_INFO "%s: nonsense length in ltpc command 0x14: 0x%08x\n",
+		printk(KERN_INFO "%s: yesnsense length in ltpc command 0x14: 0x%08x\n",
 			dev->name,sklen);
 		return -1;
 	}
 
 	if ( (llaptype==0) || (llaptype>2) ) {
-		printk(KERN_INFO "%s: unknown LLAP type: %d\n",dev->name,llaptype);
+		printk(KERN_INFO "%s: unkyeswn LLAP type: %d\n",dev->name,llaptype);
 		return -1;
 	}
 
@@ -763,8 +763,8 @@ static int sendup_buffer (struct net_device *dev)
 	skb_put(skb,len+3);
 	skb->protocol = htons(ETH_P_LOCALTALK);
 	/* add LLAP header */
-	skb->data[0] = dnode;
-	skb->data[1] = snode;
+	skb->data[0] = dyesde;
+	skb->data[1] = syesde;
 	skb->data[2] = llaptype;
 	skb_reset_mac_header(skb);	/* save pointer to llap header */
 	skb_pull(skb,3);
@@ -790,7 +790,7 @@ ltpc_interrupt(int irq, void *dev_id)
 	struct net_device *dev = dev_id;
 
 	if (dev==NULL) {
-		printk("ltpc_interrupt: unknown device.\n");
+		printk("ltpc_interrupt: unkyeswn device.\n");
 		return IRQ_NONE;
 	}
 
@@ -807,8 +807,8 @@ ltpc_interrupt(int irq, void *dev_id)
  *
  *    The ioctls that the driver responds to are:
  *
- *    SIOCSIFADDR -- do probe using the passed node hint.
- *    SIOCGIFADDR -- return net, node.
+ *    SIOCSIFADDR -- do probe using the passed yesde hint.
+ *    SIOCGIFADDR -- return net, yesde.
  *
  *    some of this stuff should be done elsewhere.
  *
@@ -817,7 +817,7 @@ ltpc_interrupt(int irq, void *dev_id)
 static int ltpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct sockaddr_at *sa = (struct sockaddr_at *) &ifr->ifr_addr;
-	/* we'll keep the localtalk node address in dev->pa_addr */
+	/* we'll keep the localtalk yesde address in dev->pa_addr */
 	struct ltpc_private *ltpc_priv = netdev_priv(dev);
 	struct atalk_addr *aa = &ltpc_priv->my_addr;
 	struct lt_init c;
@@ -830,11 +830,11 @@ static int ltpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 			aa->s_net  = sa->sat_addr.s_net;
       
-			/* this does the probe and returns the node addr */
+			/* this does the probe and returns the yesde addr */
 			c.command = LT_INIT;
-			c.hint = sa->sat_addr.s_node;
+			c.hint = sa->sat_addr.s_yesde;
 
-			aa->s_node = do_read(dev,&c,sizeof(c),&c,0);
+			aa->s_yesde = do_read(dev,&c,sizeof(c),&c,0);
 
 			/* get all llap frames raw */
 			ltflags = read_30(dev);
@@ -842,7 +842,7 @@ static int ltpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			set_30 (dev,ltflags);  
 
 			dev->broadcast[0] = 0xFF;
-			dev->dev_addr[0] = aa->s_node;
+			dev->dev_addr[0] = aa->s_yesde;
 
 			dev->addr_len=1;
    
@@ -851,7 +851,7 @@ static int ltpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		case SIOCGIFADDR:
 
 			sa->sat_addr.s_net = aa->s_net;
-			sa->sat_addr.s_node = aa->s_node;
+			sa->sat_addr.s_yesde = aa->s_yesde;
 
 			return 0;
 
@@ -898,7 +898,7 @@ static netdev_tx_t ltpc_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned char *hdr;
 
 	cbuf.command = LT_SENDLAP;
-	cbuf.dnode = skb->data[0];
+	cbuf.dyesde = skb->data[0];
 	cbuf.laptype = skb->data[2];
 	skb_pull(skb,3);	/* skip past LLAP header */
 	cbuf.length = skb->len;	/* this is host order */
@@ -972,7 +972,7 @@ static int __init ltpc_probe_dma(int base, int dma)
 	ltdmabuf[1] = 1;  /* mailbox */
 	ltdmabuf[2] = 0; ltdmabuf[3] = 0;  /* address */
 	ltdmabuf[4] = 0; ltdmabuf[5] = 1;  /* read 0x0100 bytes */
-	ltdmabuf[6] = 0; /* dunno if this is necessary */
+	ltdmabuf[6] = 0; /* dunyes if this is necessary */
 
 	inb_p(io+1);
 	inb_p(io+0);
@@ -1044,7 +1044,7 @@ struct net_device * __init ltpc_probe(void)
 	} 
 
 	/* give up in despair */
-	printk(KERN_ERR "LocalTalk card not found; 220 = %02x, 240 = %02x.\n", x,y);
+	printk(KERN_ERR "LocalTalk card yest found; 220 = %02x, 240 = %02x.\n", x,y);
 	err = -ENODEV;
 	goto out1;
 
@@ -1100,12 +1100,12 @@ struct net_device * __init ltpc_probe(void)
 
 	ssleep(1);
 	
-	/* now, figure out which dma channel we're using, unless it's
+	/* yesw, figure out which dma channel we're using, unless it's
 	   already been specified */
 	/* well, 0 is a legal DMA channel, but the LTPC card doesn't
 	   use it... */
 	dma = ltpc_probe_dma(io, dma);
-	if (!dma) {  /* no dma channel */
+	if (!dma) {  /* yes dma channel */
 		printk(KERN_ERR "No DMA channel found on ltpc card.\n");
 		err = -ENODEV;
 		goto out3;
@@ -1195,7 +1195,7 @@ static int __init ltpc_setup(char *str)
 
 	if (ints[0] == 0) {
 		if (str && !strncmp(str, "auto", 4)) {
-			/* do nothing :-) */
+			/* do yesthing :-) */
 		}
 		else {
 			/* usage message */
@@ -1211,7 +1211,7 @@ static int __init ltpc_setup(char *str)
 		if (ints[0] > 2) {
 			dma = ints[3];
 		}
-		/* ignore any other parameters */
+		/* igyesre any other parameters */
 	}
 	return 1;
 }
@@ -1234,7 +1234,7 @@ static int __init ltpc_module_init(void)
 {
         if(io == 0)
 		printk(KERN_NOTICE
-		       "ltpc: Autoprobing is not recommended for modules\n");
+		       "ltpc: Autoprobing is yest recommended for modules\n");
 
 	dev_ltpc = ltpc_probe();
 	return PTR_ERR_OR_ZERO(dev_ltpc);

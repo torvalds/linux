@@ -190,7 +190,7 @@ static const struct pci_raw_ops pci_direct_conf2 = {
  * attempt to make use of direct access hints provided by the PCI BIOS).
  *
  * This should be close to trivial, but it isn't, because there are buggy
- * chipsets (yes, you guessed it, by Intel and Compaq) that have no class ID.
+ * chipsets (no, you guessed it, by Intel and Compaq) that have yes class ID.
  */
 static int __init pci_sanity_check(const struct pci_raw_ops *o)
 {

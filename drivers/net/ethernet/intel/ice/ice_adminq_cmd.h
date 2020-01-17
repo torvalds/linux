@@ -25,18 +25,18 @@ struct ice_aqc_get_ver {
 	__le32 fw_build;
 	u8 fw_branch;
 	u8 fw_major;
-	u8 fw_minor;
+	u8 fw_miyesr;
 	u8 fw_patch;
 	u8 api_branch;
 	u8 api_major;
-	u8 api_minor;
+	u8 api_miyesr;
 	u8 api_patch;
 };
 
 /* Send driver version (indirect 0x0002) */
 struct ice_aqc_driver_ver {
 	u8 major_ver;
-	u8 minor_ver;
+	u8 miyesr_ver;
 	u8 build_ver;
 	u8 subbuild_ver;
 	u8 reserved[4];
@@ -110,7 +110,7 @@ struct ice_aqc_list_caps_elem {
 #define ICE_AQC_CAPS_MAX_MTU				0x0047
 
 	u8 major_ver;
-	u8 minor_ver;
+	u8 miyesr_ver;
 	/* Number of resources described by this capability */
 	__le32 number;
 	/* Only meaningful for some types of resources */
@@ -178,8 +178,8 @@ struct ice_aqc_get_sw_cfg {
 	/* Reserved for command and copy of request flags for response */
 	__le16 flags;
 	/* First desc in case of command and next_elem in case of response
-	 * In case of response, if it is not zero, means all the configuration
-	 * was not returned and new command shall be sent with this value in
+	 * In case of response, if it is yest zero, means all the configuration
+	 * was yest returned and new command shall be sent with this value in
 	 * the 'first desc' field
 	 */
 	__le16 element;
@@ -727,7 +727,7 @@ struct ice_aqc_txsched_elem {
 
 struct ice_aqc_txsched_elem_data {
 	__le32 parent_teid;
-	__le32 node_teid;
+	__le32 yesde_teid;
 	struct ice_aqc_txsched_elem data;
 };
 
@@ -763,7 +763,7 @@ struct ice_aqc_delete_elem {
 
 /* Query Port ETS (indirect 0x040E)
  *
- * This indirect command is used to query port TC node configuration.
+ * This indirect command is used to query port TC yesde configuration.
  */
 struct ice_aqc_query_port_ets {
 	__le32 port_teid;
@@ -781,10 +781,10 @@ struct ice_aqc_port_ets_elem {
 	__le32 port_eir_prof_id;
 	__le32 port_cir_prof_id;
 	/* 3 bits per Node priority to TC 0-7, 4th byte reserved */
-	__le32 tc_node_prio;
+	__le32 tc_yesde_prio;
 #define ICE_TC_NODE_PRIO_S	0x4
 	u8 reserved1[4];
-	__le32 tc_node_teid[8]; /* Used for response, reserved in command */
+	__le32 tc_yesde_teid[8]; /* Used for response, reserved in command */
 };
 
 /* Rate limiting profile for
@@ -849,8 +849,8 @@ struct ice_aqc_generic_sched_props {
 struct ice_aqc_layer_props {
 	u8 logical_layer;
 	u8 chunk_size;
-	__le16 max_device_nodes;
-	__le16 max_pf_nodes;
+	__le16 max_device_yesdes;
+	__le16 max_pf_yesdes;
 	u8 rsvd0[4];
 	__le16 max_sibl_grp_sz;
 	__le16 max_cir_rl_profiles;
@@ -1466,7 +1466,7 @@ struct ice_aqc_add_txqs_perq {
 };
 
 /* The format of the command buffer for Add Tx LAN Queues (0x0C30)
- * is an array of the following structs. Please note that the length of
+ * is an array of the following structs. Please yeste that the length of
  * each struct ice_aqc_add_tx_qgrp is variable due
  * to the variable number of queues in each group!
  */
@@ -1527,7 +1527,7 @@ struct ice_aqc_dis_txq {
 
 /* Configure Firmware Logging Command (indirect 0xFF09)
  * Logging Information Read Response (indirect 0xFF10)
- * Note: The 0xFF10 command has no input parameters.
+ * Note: The 0xFF10 command has yes input parameters.
  */
 struct ice_aqc_fw_logging {
 	u8 log_ctrl;
@@ -1632,7 +1632,7 @@ struct ice_aqc_get_pkg_info_list {
 /* Version format for packages */
 struct ice_pkg_ver {
 	u8 major;
-	u8 minor;
+	u8 miyesr;
 	u8 update;
 	u8 draft;
 };
@@ -1665,9 +1665,9 @@ struct ice_aqc_get_pkg_info_resp {
  *
  * Descriptor format for commands the driver posts on the Admin Transmit Queue
  * (ATQ). The firmware writes back onto the command descriptor and returns
- * the result of the command. Asynchronous events that are not an immediate
+ * the result of the command. Asynchroyesus events that are yest an immediate
  * result of the command are written to the Admin Receive Queue (ARQ) using
- * the same descriptor format. Descriptors are in little-endian notation with
+ * the same descriptor format. Descriptors are in little-endian yestation with
  * 32-bit words.
  */
 struct ice_aq_desc {
@@ -1743,13 +1743,13 @@ struct ice_aq_desc {
 /* error codes */
 enum ice_aq_err {
 	ICE_AQ_RC_OK		= 0,  /* Success */
-	ICE_AQ_RC_EPERM		= 1,  /* Operation not permitted */
+	ICE_AQ_RC_EPERM		= 1,  /* Operation yest permitted */
 	ICE_AQ_RC_ENOENT	= 2,  /* No such element */
 	ICE_AQ_RC_ENOMEM	= 9,  /* Out of memory */
 	ICE_AQ_RC_EBUSY		= 12, /* Device or resource busy */
 	ICE_AQ_RC_EEXIST	= 13, /* Object already exists */
 	ICE_AQ_RC_ENOSPC	= 16, /* No space left or allocation failure */
-	ICE_AQ_RC_ENOSYS	= 17, /* Function not implemented */
+	ICE_AQ_RC_ENOSYS	= 17, /* Function yest implemented */
 	ICE_AQ_RC_ENOSEC	= 24, /* Missing security manifest */
 	ICE_AQ_RC_EBADSIG	= 25, /* Bad RSA signature */
 	ICE_AQ_RC_ESVN		= 26, /* SVN number prohibits this package */

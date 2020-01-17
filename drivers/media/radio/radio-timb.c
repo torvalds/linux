@@ -110,7 +110,7 @@ static int timbradio_probe(struct platform_device *pdev)
 	tr->video_dev.fops = &timbradio_fops;
 	tr->video_dev.ioctl_ops = &timbradio_ioctl_ops;
 	tr->video_dev.release = video_device_release_empty;
-	tr->video_dev.minor = -1;
+	tr->video_dev.miyesr = -1;
 	tr->video_dev.lock = &tr->lock;
 	tr->video_dev.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
 

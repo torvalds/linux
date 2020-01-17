@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellayesx Techyeslogies. All rights reserved */
 
 #ifndef _MLXSW_SPECTRUM_SPAN_H
 #define _MLXSW_SPECTRUM_SPAN_H
@@ -27,7 +27,7 @@ struct mlxsw_sp_span_inspected_port {
 };
 
 struct mlxsw_sp_span_parms {
-	struct mlxsw_sp_port *dest_port; /* NULL for unoffloaded SPAN. */
+	struct mlxsw_sp_port *dest_port; /* NULL for uyesffloaded SPAN. */
 	unsigned int ttl;
 	unsigned char dmac[ETH_ALEN];
 	unsigned char smac[ETH_ALEN];

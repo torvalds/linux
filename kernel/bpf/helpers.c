@@ -129,21 +129,21 @@ const struct bpf_func_proto bpf_get_smp_processor_id_proto = {
 	.ret_type	= RET_INTEGER,
 };
 
-BPF_CALL_0(bpf_get_numa_node_id)
+BPF_CALL_0(bpf_get_numa_yesde_id)
 {
-	return numa_node_id();
+	return numa_yesde_id();
 }
 
-const struct bpf_func_proto bpf_get_numa_node_id_proto = {
-	.func		= bpf_get_numa_node_id,
+const struct bpf_func_proto bpf_get_numa_yesde_id_proto = {
+	.func		= bpf_get_numa_yesde_id,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 };
 
 BPF_CALL_0(bpf_ktime_get_ns)
 {
-	/* NMI safe access to clock monotonic */
-	return ktime_get_mono_fast_ns();
+	/* NMI safe access to clock moyestonic */
+	return ktime_get_moyes_fast_ns();
 }
 
 const struct bpf_func_proto bpf_ktime_get_ns_proto = {
@@ -226,7 +226,7 @@ static inline void __bpf_spin_lock(struct bpf_spin_lock *lock)
 		arch_spinlock_t lock;
 	} u = { .lock = __ARCH_SPIN_LOCK_UNLOCKED };
 
-	compiletime_assert(u.val == 0, "__ARCH_SPIN_LOCK_UNLOCKED not 0");
+	compiletime_assert(u.val == 0, "__ARCH_SPIN_LOCK_UNLOCKED yest 0");
 	BUILD_BUG_ON(sizeof(*l) != sizeof(__u32));
 	BUILD_BUG_ON(sizeof(*lock) != sizeof(__u32));
 	arch_spin_lock(l);
@@ -262,7 +262,7 @@ static inline void __bpf_spin_unlock(struct bpf_spin_lock *lock)
 
 static DEFINE_PER_CPU(unsigned long, irqsave_flags);
 
-notrace BPF_CALL_1(bpf_spin_lock, struct bpf_spin_lock *, lock)
+yestrace BPF_CALL_1(bpf_spin_lock, struct bpf_spin_lock *, lock)
 {
 	unsigned long flags;
 
@@ -279,7 +279,7 @@ const struct bpf_func_proto bpf_spin_lock_proto = {
 	.arg1_type	= ARG_PTR_TO_SPIN_LOCK,
 };
 
-notrace BPF_CALL_1(bpf_spin_unlock, struct bpf_spin_lock *, lock)
+yestrace BPF_CALL_1(bpf_spin_unlock, struct bpf_spin_lock *, lock)
 {
 	unsigned long flags;
 
@@ -332,7 +332,7 @@ DECLARE_PER_CPU(struct bpf_cgroup_storage*,
 
 BPF_CALL_2(bpf_get_local_storage, struct bpf_map *, map, u64, flags)
 {
-	/* flags argument is not used now,
+	/* flags argument is yest used yesw,
 	 * but provides an ability to extend the API.
 	 * verifier checks that its value is correct.
 	 */

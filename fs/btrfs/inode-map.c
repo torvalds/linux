@@ -9,7 +9,7 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "free-space-cache.h"
-#include "inode-map.h"
+#include "iyesde-map.h"
 #include "transaction.h"
 #include "delalloc-space.h"
 
@@ -17,20 +17,20 @@ static void fail_caching_thread(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
-	btrfs_warn(fs_info, "failed to start inode caching task");
+	btrfs_warn(fs_info, "failed to start iyesde caching task");
 	btrfs_clear_pending_and_info(fs_info, INODE_MAP_CACHE,
-				     "disabling inode map caching");
-	spin_lock(&root->ino_cache_lock);
-	root->ino_cache_state = BTRFS_CACHE_ERROR;
-	spin_unlock(&root->ino_cache_lock);
-	wake_up(&root->ino_cache_wait);
+				     "disabling iyesde map caching");
+	spin_lock(&root->iyes_cache_lock);
+	root->iyes_cache_state = BTRFS_CACHE_ERROR;
+	spin_unlock(&root->iyes_cache_lock);
+	wake_up(&root->iyes_cache_wait);
 }
 
 static int caching_kthread(void *data)
 {
 	struct btrfs_root *root = data;
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
+	struct btrfs_free_space_ctl *ctl = root->free_iyes_ctl;
 	struct btrfs_key key;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
@@ -67,7 +67,7 @@ again:
 		if (btrfs_fs_closing(fs_info))
 			goto out;
 
-		leaf = path->nodes[0];
+		leaf = path->yesdes[0];
 		slot = path->slots[0];
 		if (slot >= btrfs_header_nritems(leaf)) {
 			ret = btrfs_next_leaf(root, path);
@@ -78,7 +78,7 @@ again:
 
 			if (need_resched() ||
 			    btrfs_transaction_in_commit(fs_info)) {
-				leaf = path->nodes[0];
+				leaf = path->yesdes[0];
 
 				if (WARN_ON(btrfs_header_nritems(leaf) == 0))
 					break;
@@ -89,7 +89,7 @@ again:
 				 */
 				btrfs_item_key_to_cpu(leaf, &key, 0);
 				btrfs_release_path(path);
-				root->ino_cache_progress = last;
+				root->iyes_cache_progress = last;
 				up_read(&fs_info->commit_root_sem);
 				schedule_timeout(1);
 				goto again;
@@ -108,7 +108,7 @@ again:
 		if (last != (u64)-1 && last + 1 != key.objectid) {
 			__btrfs_add_free_space(fs_info, ctl, last + 1,
 					       key.objectid - last - 1);
-			wake_up(&root->ino_cache_wait);
+			wake_up(&root->iyes_cache_wait);
 		}
 
 		last = key.objectid;
@@ -121,14 +121,14 @@ next:
 				       root->highest_objectid - last - 1);
 	}
 
-	spin_lock(&root->ino_cache_lock);
-	root->ino_cache_state = BTRFS_CACHE_FINISHED;
-	spin_unlock(&root->ino_cache_lock);
+	spin_lock(&root->iyes_cache_lock);
+	root->iyes_cache_state = BTRFS_CACHE_FINISHED;
+	spin_unlock(&root->iyes_cache_lock);
 
-	root->ino_cache_progress = (u64)-1;
-	btrfs_unpin_free_ino(root);
+	root->iyes_cache_progress = (u64)-1;
+	btrfs_unpin_free_iyes(root);
 out:
-	wake_up(&root->ino_cache_wait);
+	wake_up(&root->iyes_cache_wait);
 	up_read(&fs_info->commit_root_sem);
 
 	btrfs_free_path(path);
@@ -139,7 +139,7 @@ out:
 static void start_caching(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
+	struct btrfs_free_space_ctl *ctl = root->free_iyes_ctl;
 	struct task_struct *tsk;
 	int ret;
 	u64 objectid;
@@ -147,90 +147,90 @@ static void start_caching(struct btrfs_root *root)
 	if (!btrfs_test_opt(fs_info, INODE_MAP_CACHE))
 		return;
 
-	spin_lock(&root->ino_cache_lock);
-	if (root->ino_cache_state != BTRFS_CACHE_NO) {
-		spin_unlock(&root->ino_cache_lock);
+	spin_lock(&root->iyes_cache_lock);
+	if (root->iyes_cache_state != BTRFS_CACHE_NO) {
+		spin_unlock(&root->iyes_cache_lock);
 		return;
 	}
 
-	root->ino_cache_state = BTRFS_CACHE_STARTED;
-	spin_unlock(&root->ino_cache_lock);
+	root->iyes_cache_state = BTRFS_CACHE_STARTED;
+	spin_unlock(&root->iyes_cache_lock);
 
-	ret = load_free_ino_cache(fs_info, root);
+	ret = load_free_iyes_cache(fs_info, root);
 	if (ret == 1) {
-		spin_lock(&root->ino_cache_lock);
-		root->ino_cache_state = BTRFS_CACHE_FINISHED;
-		spin_unlock(&root->ino_cache_lock);
-		wake_up(&root->ino_cache_wait);
+		spin_lock(&root->iyes_cache_lock);
+		root->iyes_cache_state = BTRFS_CACHE_FINISHED;
+		spin_unlock(&root->iyes_cache_lock);
+		wake_up(&root->iyes_cache_wait);
 		return;
 	}
 
 	/*
 	 * It can be quite time-consuming to fill the cache by searching
-	 * through the extent tree, and this can keep ino allocation path
+	 * through the extent tree, and this can keep iyes allocation path
 	 * waiting. Therefore at start we quickly find out the highest
-	 * inode number and we know we can use inode numbers which fall in
-	 * [highest_ino + 1, BTRFS_LAST_FREE_OBJECTID].
+	 * iyesde number and we kyesw we can use iyesde numbers which fall in
+	 * [highest_iyes + 1, BTRFS_LAST_FREE_OBJECTID].
 	 */
 	ret = btrfs_find_free_objectid(root, &objectid);
 	if (!ret && objectid <= BTRFS_LAST_FREE_OBJECTID) {
 		__btrfs_add_free_space(fs_info, ctl, objectid,
 				       BTRFS_LAST_FREE_OBJECTID - objectid + 1);
-		wake_up(&root->ino_cache_wait);
+		wake_up(&root->iyes_cache_wait);
 	}
 
-	tsk = kthread_run(caching_kthread, root, "btrfs-ino-cache-%llu",
+	tsk = kthread_run(caching_kthread, root, "btrfs-iyes-cache-%llu",
 			  root->root_key.objectid);
 	if (IS_ERR(tsk))
 		fail_caching_thread(root);
 }
 
-int btrfs_find_free_ino(struct btrfs_root *root, u64 *objectid)
+int btrfs_find_free_iyes(struct btrfs_root *root, u64 *objectid)
 {
 	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return btrfs_find_free_objectid(root, objectid);
 
 again:
-	*objectid = btrfs_find_ino_for_alloc(root);
+	*objectid = btrfs_find_iyes_for_alloc(root);
 
 	if (*objectid != 0)
 		return 0;
 
 	start_caching(root);
 
-	wait_event(root->ino_cache_wait,
-		   root->ino_cache_state == BTRFS_CACHE_FINISHED ||
-		   root->ino_cache_state == BTRFS_CACHE_ERROR ||
-		   root->free_ino_ctl->free_space > 0);
+	wait_event(root->iyes_cache_wait,
+		   root->iyes_cache_state == BTRFS_CACHE_FINISHED ||
+		   root->iyes_cache_state == BTRFS_CACHE_ERROR ||
+		   root->free_iyes_ctl->free_space > 0);
 
-	if (root->ino_cache_state == BTRFS_CACHE_FINISHED &&
-	    root->free_ino_ctl->free_space == 0)
+	if (root->iyes_cache_state == BTRFS_CACHE_FINISHED &&
+	    root->free_iyes_ctl->free_space == 0)
 		return -ENOSPC;
-	else if (root->ino_cache_state == BTRFS_CACHE_ERROR)
+	else if (root->iyes_cache_state == BTRFS_CACHE_ERROR)
 		return btrfs_find_free_objectid(root, objectid);
 	else
 		goto again;
 }
 
-void btrfs_return_ino(struct btrfs_root *root, u64 objectid)
+void btrfs_return_iyes(struct btrfs_root *root, u64 objectid)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_free_space_ctl *pinned = root->free_ino_pinned;
+	struct btrfs_free_space_ctl *pinned = root->free_iyes_pinned;
 
 	if (!btrfs_test_opt(fs_info, INODE_MAP_CACHE))
 		return;
 again:
-	if (root->ino_cache_state == BTRFS_CACHE_FINISHED) {
+	if (root->iyes_cache_state == BTRFS_CACHE_FINISHED) {
 		__btrfs_add_free_space(fs_info, pinned, objectid, 1);
 	} else {
 		down_write(&fs_info->commit_root_sem);
-		spin_lock(&root->ino_cache_lock);
-		if (root->ino_cache_state == BTRFS_CACHE_FINISHED) {
-			spin_unlock(&root->ino_cache_lock);
+		spin_lock(&root->iyes_cache_lock);
+		if (root->iyes_cache_state == BTRFS_CACHE_FINISHED) {
+			spin_unlock(&root->iyes_cache_lock);
 			up_write(&fs_info->commit_root_sem);
 			goto again;
 		}
-		spin_unlock(&root->ino_cache_lock);
+		spin_unlock(&root->iyes_cache_lock);
 
 		start_caching(root);
 
@@ -241,20 +241,20 @@ again:
 }
 
 /*
- * When a transaction is committed, we'll move those inode numbers which are
- * smaller than root->ino_cache_progress from pinned tree to free_ino tree, and
+ * When a transaction is committed, we'll move those iyesde numbers which are
+ * smaller than root->iyes_cache_progress from pinned tree to free_iyes tree, and
  * others will just be dropped, because the commit root we were searching has
  * changed.
  *
  * Must be called with root->fs_info->commit_root_sem held
  */
-void btrfs_unpin_free_ino(struct btrfs_root *root)
+void btrfs_unpin_free_iyes(struct btrfs_root *root)
 {
-	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
-	struct rb_root *rbroot = &root->free_ino_pinned->free_space_offset;
-	spinlock_t *rbroot_lock = &root->free_ino_pinned->tree_lock;
+	struct btrfs_free_space_ctl *ctl = root->free_iyes_ctl;
+	struct rb_root *rbroot = &root->free_iyes_pinned->free_space_offset;
+	spinlock_t *rbroot_lock = &root->free_iyes_pinned->tree_lock;
 	struct btrfs_free_space *info;
-	struct rb_node *n;
+	struct rb_yesde *n;
 	u64 count;
 
 	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
@@ -271,10 +271,10 @@ void btrfs_unpin_free_ino(struct btrfs_root *root)
 		info = rb_entry(n, struct btrfs_free_space, offset_index);
 		BUG_ON(info->bitmap); /* Logic error */
 
-		if (info->offset > root->ino_cache_progress)
+		if (info->offset > root->iyes_cache_progress)
 			count = 0;
 		else
-			count = min(root->ino_cache_progress - info->offset + 1,
+			count = min(root->iyes_cache_progress - info->offset + 1,
 				    info->bytes);
 
 		rb_erase(&info->offset_index, rbroot);
@@ -290,14 +290,14 @@ void btrfs_unpin_free_ino(struct btrfs_root *root)
 #define INODES_PER_BITMAP (PAGE_SIZE * 8)
 
 /*
- * The goal is to keep the memory used by the free_ino tree won't
+ * The goal is to keep the memory used by the free_iyes tree won't
  * exceed the memory if we use bitmaps only.
  */
 static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 {
 	struct btrfs_free_space *info;
-	struct rb_node *n;
-	int max_ino;
+	struct rb_yesde *n;
+	int max_iyes;
 	int max_bitmaps;
 
 	n = rb_last(&ctl->free_space_offset);
@@ -308,13 +308,13 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	info = rb_entry(n, struct btrfs_free_space, offset_index);
 
 	/*
-	 * Find the maximum inode number in the filesystem. Note we
-	 * ignore the fact that this can be a bitmap, because we are
-	 * not doing precise calculation.
+	 * Find the maximum iyesde number in the filesystem. Note we
+	 * igyesre the fact that this can be a bitmap, because we are
+	 * yest doing precise calculation.
 	 */
-	max_ino = info->bytes - 1;
+	max_iyes = info->bytes - 1;
 
-	max_bitmaps = ALIGN(max_ino, INODES_PER_BITMAP) / INODES_PER_BITMAP;
+	max_bitmaps = ALIGN(max_iyes, INODES_PER_BITMAP) / INODES_PER_BITMAP;
 	if (max_bitmaps <= ctl->total_bitmaps) {
 		ctl->extents_thresh = 0;
 		return;
@@ -326,7 +326,7 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 
 /*
  * We don't fall back to bitmap, if we are below the extents threshold
- * or this chunk of inode numbers is a big one.
+ * or this chunk of iyesde numbers is a big one.
  */
 static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 		       struct btrfs_free_space *info)
@@ -338,7 +338,7 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 	return true;
 }
 
-static const struct btrfs_free_space_op free_ino_op = {
+static const struct btrfs_free_space_op free_iyes_op = {
 	.recalc_thresholds	= recalculate_thresholds,
 	.use_bitmap		= use_bitmap,
 };
@@ -355,32 +355,32 @@ static bool pinned_use_bitmap(struct btrfs_free_space_ctl *ctl,
 	 *
 	 * - The pinned tree is only used during the process of caching
 	 *   work.
-	 * - Make code simpler. See btrfs_unpin_free_ino().
+	 * - Make code simpler. See btrfs_unpin_free_iyes().
 	 */
 	return false;
 }
 
-static const struct btrfs_free_space_op pinned_free_ino_op = {
+static const struct btrfs_free_space_op pinned_free_iyes_op = {
 	.recalc_thresholds	= pinned_recalc_thresholds,
 	.use_bitmap		= pinned_use_bitmap,
 };
 
-void btrfs_init_free_ino_ctl(struct btrfs_root *root)
+void btrfs_init_free_iyes_ctl(struct btrfs_root *root)
 {
-	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
-	struct btrfs_free_space_ctl *pinned = root->free_ino_pinned;
+	struct btrfs_free_space_ctl *ctl = root->free_iyes_ctl;
+	struct btrfs_free_space_ctl *pinned = root->free_iyes_pinned;
 
 	spin_lock_init(&ctl->tree_lock);
 	ctl->unit = 1;
 	ctl->start = 0;
 	ctl->private = NULL;
-	ctl->op = &free_ino_op;
+	ctl->op = &free_iyes_op;
 	INIT_LIST_HEAD(&ctl->trimming_ranges);
 	mutex_init(&ctl->cache_writeout_mutex);
 
 	/*
 	 * Initially we allow to use 16K of ram to cache chunks of
-	 * inode numbers before we resort to bitmaps. This is somewhat
+	 * iyesde numbers before we resort to bitmaps. This is somewhat
 	 * arbitrary, but it will be adjusted in runtime.
 	 */
 	ctl->extents_thresh = INIT_THRESHOLD;
@@ -390,16 +390,16 @@ void btrfs_init_free_ino_ctl(struct btrfs_root *root)
 	pinned->start = 0;
 	pinned->private = NULL;
 	pinned->extents_thresh = 0;
-	pinned->op = &pinned_free_ino_op;
+	pinned->op = &pinned_free_iyes_op;
 }
 
-int btrfs_save_ino_cache(struct btrfs_root *root,
+int btrfs_save_iyes_cache(struct btrfs_root *root,
 			 struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
+	struct btrfs_free_space_ctl *ctl = root->free_iyes_ctl;
 	struct btrfs_path *path;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct btrfs_block_rsv *rsv;
 	struct extent_changeset *data_reserved = NULL;
 	u64 num_bytes;
@@ -408,13 +408,13 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 	int prealloc;
 	bool retry = false;
 
-	/* only fs tree and subvol/snap needs ino cache */
+	/* only fs tree and subvol/snap needs iyes cache */
 	if (root->root_key.objectid != BTRFS_FS_TREE_OBJECTID &&
 	    (root->root_key.objectid < BTRFS_FIRST_FREE_OBJECTID ||
 	     root->root_key.objectid > BTRFS_LAST_FREE_OBJECTID))
 		return 0;
 
-	/* Don't save inode cache if we are deleting this root */
+	/* Don't save iyesde cache if we are deleting this root */
 	if (btrfs_root_refs(&root->root_item) == 0)
 		return 0;
 
@@ -430,8 +430,8 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 
 	num_bytes = trans->bytes_reserved;
 	/*
-	 * 1 item for inode item insertion if need
-	 * 4 items for inode item update (in the worst case)
+	 * 1 item for iyesde item insertion if need
+	 * 4 items for iyesde item update (in the worst case)
 	 * 1 items for slack space if we need do truncation
 	 * 1 item for free space object
 	 * 3 items for pre-allocation
@@ -442,34 +442,34 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 				  BTRFS_RESERVE_NO_FLUSH);
 	if (ret)
 		goto out;
-	trace_btrfs_space_reservation(fs_info, "ino_cache", trans->transid,
+	trace_btrfs_space_reservation(fs_info, "iyes_cache", trans->transid,
 				      trans->bytes_reserved, 1);
 again:
-	inode = lookup_free_ino_inode(root, path);
-	if (IS_ERR(inode) && (PTR_ERR(inode) != -ENOENT || retry)) {
-		ret = PTR_ERR(inode);
+	iyesde = lookup_free_iyes_iyesde(root, path);
+	if (IS_ERR(iyesde) && (PTR_ERR(iyesde) != -ENOENT || retry)) {
+		ret = PTR_ERR(iyesde);
 		goto out_release;
 	}
 
-	if (IS_ERR(inode)) {
+	if (IS_ERR(iyesde)) {
 		BUG_ON(retry); /* Logic error */
 		retry = true;
 
-		ret = create_free_ino_inode(root, trans, path);
+		ret = create_free_iyes_iyesde(root, trans, path);
 		if (ret)
 			goto out_release;
 		goto again;
 	}
 
-	BTRFS_I(inode)->generation = 0;
-	ret = btrfs_update_inode(trans, root, inode);
+	BTRFS_I(iyesde)->generation = 0;
+	ret = btrfs_update_iyesde(trans, root, iyesde);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_put;
 	}
 
-	if (i_size_read(inode) > 0) {
-		ret = btrfs_truncate_free_space_cache(trans, NULL, inode);
+	if (i_size_read(iyesde) > 0) {
+		ret = btrfs_truncate_free_space_cache(trans, NULL, iyesde);
 		if (ret) {
 			if (ret != -ENOSPC)
 				btrfs_abort_transaction(trans, ret);
@@ -477,13 +477,13 @@ again:
 		}
 	}
 
-	spin_lock(&root->ino_cache_lock);
-	if (root->ino_cache_state != BTRFS_CACHE_FINISHED) {
+	spin_lock(&root->iyes_cache_lock);
+	if (root->iyes_cache_state != BTRFS_CACHE_FINISHED) {
 		ret = -1;
-		spin_unlock(&root->ino_cache_lock);
+		spin_unlock(&root->iyes_cache_lock);
 		goto out_put;
 	}
-	spin_unlock(&root->ino_cache_lock);
+	spin_unlock(&root->iyes_cache_lock);
 
 	spin_lock(&ctl->tree_lock);
 	prealloc = sizeof(struct btrfs_free_space) * ctl->free_extents;
@@ -491,27 +491,27 @@ again:
 	prealloc += ctl->total_bitmaps * PAGE_SIZE;
 	spin_unlock(&ctl->tree_lock);
 
-	/* Just to make sure we have enough space */
+	/* Just to make sure we have eyesugh space */
 	prealloc += 8 * PAGE_SIZE;
 
-	ret = btrfs_delalloc_reserve_space(inode, &data_reserved, 0, prealloc);
+	ret = btrfs_delalloc_reserve_space(iyesde, &data_reserved, 0, prealloc);
 	if (ret)
 		goto out_put;
 
-	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, prealloc,
+	ret = btrfs_prealloc_file_range_trans(iyesde, trans, 0, 0, prealloc,
 					      prealloc, prealloc, &alloc_hint);
 	if (ret) {
-		btrfs_delalloc_release_extents(BTRFS_I(inode), prealloc);
-		btrfs_delalloc_release_metadata(BTRFS_I(inode), prealloc, true);
+		btrfs_delalloc_release_extents(BTRFS_I(iyesde), prealloc);
+		btrfs_delalloc_release_metadata(BTRFS_I(iyesde), prealloc, true);
 		goto out_put;
 	}
 
-	ret = btrfs_write_out_ino_cache(root, trans, path, inode);
-	btrfs_delalloc_release_extents(BTRFS_I(inode), prealloc);
+	ret = btrfs_write_out_iyes_cache(root, trans, path, iyesde);
+	btrfs_delalloc_release_extents(BTRFS_I(iyesde), prealloc);
 out_put:
-	iput(inode);
+	iput(iyesde);
 out_release:
-	trace_btrfs_space_reservation(fs_info, "ino_cache", trans->transid,
+	trace_btrfs_space_reservation(fs_info, "iyes_cache", trans->transid,
 				      trans->bytes_reserved, 0);
 	btrfs_block_rsv_release(fs_info, trans->block_rsv,
 				trans->bytes_reserved);
@@ -546,7 +546,7 @@ int btrfs_find_highest_objectid(struct btrfs_root *root, u64 *objectid)
 	BUG_ON(ret == 0); /* Corruption */
 	if (path->slots[0] > 0) {
 		slot = path->slots[0] - 1;
-		l = path->nodes[0];
+		l = path->yesdes[0];
 		btrfs_item_key_to_cpu(l, &found_key, slot);
 		*objectid = max_t(u64, found_key.objectid,
 				  BTRFS_FIRST_FREE_OBJECTID - 1);

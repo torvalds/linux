@@ -372,7 +372,7 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 
 		phy->phys[port] = instance;
 
-		pphy = devm_phy_create(dev, dev->of_node, &mt7621_pci_phy_ops);
+		pphy = devm_phy_create(dev, dev->of_yesde, &mt7621_pci_phy_ops);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create phy\n");
 			return PTR_ERR(phy);

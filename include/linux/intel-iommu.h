@@ -14,10 +14,10 @@
 #include <linux/iova.h>
 #include <linux/io.h>
 #include <linux/idr.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/list.h>
 #include <linux/iommu.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/dmar.h>
 
 #include <asm/cacheflush.h>
@@ -184,7 +184,7 @@
 #define ecap_ir_support(e)	((e >> 3) & 0x1)
 #define ecap_dev_iotlb_support(e)	(((e) >> 2) & 0x1)
 #define ecap_max_handle_mask(e) ((e >> 20) & 0xf)
-#define ecap_sc_support(e)	((e >> 7) & 0x1) /* Snooping Control */
+#define ecap_sc_support(e)	((e >> 7) & 0x1) /* Syesoping Control */
 
 /* IOTLB_REG */
 #define DMA_TLB_FLUSH_GRANU_OFFSET  60
@@ -474,7 +474,7 @@ struct context_entry {
 };
 
 struct dmar_domain {
-	int	nid;			/* node id */
+	int	nid;			/* yesde id */
 
 	unsigned	iommu_refcnt[DMAR_UNITS_SUPPORTED];
 					/* Refcount of devices per iommu */
@@ -500,15 +500,15 @@ struct dmar_domain {
 	int		flags;		/* flags to find out type of domain */
 
 	int		iommu_coherency;/* indicate coherency of iommu access */
-	int		iommu_snooping; /* indicate snooping control feature*/
+	int		iommu_syesoping; /* indicate syesoping control feature*/
 	int		iommu_count;	/* reference count of iommu */
 	int		iommu_superpage;/* Level of superpages supported:
-					   0 == 4KiB (no superpages), 1 == 2MiB,
+					   0 == 4KiB (yes superpages), 1 == 2MiB,
 					   2 == 1GiB, 3 == 512GiB, 4 == 1TiB */
 	u64		max_addr;	/* maximum mapped address */
 
 	int		default_pasid;	/*
-					 * The default pasid used for non-SVM
+					 * The default pasid used for yesn-SVM
 					 * traffic on mediated devices.
 					 */
 
@@ -552,7 +552,7 @@ struct intel_iommu {
 	struct irq_domain *ir_msi_domain;
 #endif
 	struct iommu_device iommu;  /* IOMMU core code handle */
-	int		node;
+	int		yesde;
 	u32		flags;      /* Software defined flags */
 };
 
@@ -594,7 +594,7 @@ static inline void __iommu_flush_cache(
  * 2-6: reserved
  * 7: super page
  * 8-10: available
- * 11: snoop behavior
+ * 11: syesop behavior
  * 12-63: Host physcial address
  */
 struct dma_pte {
@@ -649,7 +649,7 @@ extern int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
 extern int dmar_ir_support(void);
 
-void *alloc_pgtable_page(int node);
+void *alloc_pgtable_page(int yesde);
 void free_pgtable_page(void *vaddr);
 struct intel_iommu *domain_get_iommu(struct dmar_domain *domain);
 int for_each_device_domain(int (*fn)(struct device_domain_info *info,
@@ -676,7 +676,7 @@ struct intel_svm_dev {
 };
 
 struct intel_svm {
-	struct mmu_notifier notifier;
+	struct mmu_yestifier yestifier;
 	struct mm_struct *mm;
 	struct intel_iommu *iommu;
 	int flags;
@@ -704,7 +704,7 @@ extern int iommu_calculate_agaw(struct intel_iommu *iommu);
 extern int iommu_calculate_max_sagaw(struct intel_iommu *iommu);
 extern int dmar_disabled;
 extern int intel_iommu_enabled;
-extern int intel_iommu_tboot_noforce;
+extern int intel_iommu_tboot_yesforce;
 #else
 static inline int iommu_calculate_agaw(struct intel_iommu *iommu)
 {

@@ -2,8 +2,8 @@
 /*
  * ARC Cache Management
  *
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syyespsys, Inc. (www.syyespsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <linux/module.h>
@@ -214,7 +214,7 @@ slc_chk:
  * the exact same line.
  *
  * However for larger Caches (way-size > page-size) - i.e. in Aliasing config,
- * paddr alone could not be used to correctly index the cache.
+ * paddr alone could yest be used to correctly index the cache.
  *
  * ------------------
  * MMU v1/v2 (Fixed Page Size 8k)
@@ -224,9 +224,9 @@ slc_chk:
  * standard page size of 8k.
  * H/w folks chose [17:13] to be a future safe range, and moreso these 5 bits
  * of vaddr could easily be "stuffed" in the paddr as bits [4:0] since the
- * orig 5 bits of paddr were anyways ignored by CDU line ops, as they
+ * orig 5 bits of paddr were anyways igyesred by CDU line ops, as they
  * represent the offset within cache-line. The adv of using this "clumsy"
- * interface for additional info was no new reg was needed in CDU programming
+ * interface for additional info was yes new reg was needed in CDU programming
  * model.
  *
  * 17:13 represented the max num of bits passable, actual bits needed were
@@ -260,7 +260,7 @@ void __cache_line_loop_v2(phys_addr_t paddr, unsigned long vaddr,
 		aux_cmd = op & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
 	}
 
-	/* Ensure we properly floor/ceil the non-line aligned/sized requests
+	/* Ensure we properly floor/ceil the yesn-line aligned/sized requests
 	 * and have @paddr - aligned to cache line and integral @num_lines.
 	 * This however can be avoided for page sized since:
 	 *  -@paddr will be cache-line aligned already (being page aligned)
@@ -287,9 +287,9 @@ void __cache_line_loop_v2(phys_addr_t paddr, unsigned long vaddr,
  * For ARC700 MMUv3 I-cache and D-cache flushes
  *  - ARC700 programming model requires paddr and vaddr be passed in seperate
  *    AUX registers (*_IV*L and *_PTAG respectively) irrespective of whether the
- *    caches actually alias or not.
+ *    caches actually alias or yest.
  * -  For HS38, only the aliasing I-cache configuration uses the PTAG reg
- *    (non aliasing I-cache version doesn't; while D-cache can't possibly alias)
+ *    (yesn aliasing I-cache version doesn't; while D-cache can't possibly alias)
  */
 static inline
 void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
@@ -306,7 +306,7 @@ void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
 		aux_tag = ARC_REG_DC_PTAG;
 	}
 
-	/* Ensure we properly floor/ceil the non-line aligned/sized requests
+	/* Ensure we properly floor/ceil the yesn-line aligned/sized requests
 	 * and have @paddr - aligned to cache line and integral @num_lines.
 	 * This however can be avoided for page sized since:
 	 *  -@paddr will be cache-line aligned already (being page aligned)
@@ -376,7 +376,7 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 		aux_cmd = op & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
 	}
 
-	/* Ensure we properly floor/ceil the non-line aligned/sized requests
+	/* Ensure we properly floor/ceil the yesn-line aligned/sized requests
 	 * and have @paddr - aligned to cache line and integral @num_lines.
 	 * This however can be avoided for page sized since:
 	 *  -@paddr will be cache-line aligned already (being page aligned)
@@ -477,7 +477,7 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 #ifndef USE_RGN_FLSH
 /*
  * this version avoids extra read/write of DC_CTRL for flush or invalid ops
- * in the non region flush regime (such as for ARCompact)
+ * in the yesn region flush regime (such as for ARCompact)
  */
 static inline void __before_dc_op(const int op)
 {
@@ -663,13 +663,13 @@ static void __ic_line_inv_vaddr(phys_addr_t paddr, unsigned long vaddr,
 
 #endif /* CONFIG_ARC_HAS_ICACHE */
 
-noinline void slc_op_rgn(phys_addr_t paddr, unsigned long sz, const int op)
+yesinline void slc_op_rgn(phys_addr_t paddr, unsigned long sz, const int op)
 {
 #ifdef CONFIG_ISA_ARCV2
 	/*
 	 * SLC is shared between all cores and concurrent aux operations from
 	 * multiple cores need to be serialized using a spinlock
-	 * A concurrent operation can be silently ignored and/or the old/new
+	 * A concurrent operation can be silently igyesred and/or the old/new
 	 * operation can remain incomplete forever (lockup in SLC_CTRL_BUSY loop
 	 * below)
 	 */
@@ -702,7 +702,7 @@ noinline void slc_op_rgn(phys_addr_t paddr, unsigned long sz, const int op)
 	write_aux_reg(ARC_REG_SLC_CTRL, ctrl);
 
 	/*
-	 * Lower bits are ignored, no need to clip
+	 * Lower bits are igyesred, yes need to clip
 	 * END needs to be setup before START (latter triggers the operation)
 	 * END can't be same as START, so add (l2_line_sz - 1) to sz
 	 */
@@ -726,13 +726,13 @@ noinline void slc_op_rgn(phys_addr_t paddr, unsigned long sz, const int op)
 #endif
 }
 
-noinline void slc_op_line(phys_addr_t paddr, unsigned long sz, const int op)
+yesinline void slc_op_line(phys_addr_t paddr, unsigned long sz, const int op)
 {
 #ifdef CONFIG_ISA_ARCV2
 	/*
 	 * SLC is shared between all cores and concurrent aux operations from
 	 * multiple cores need to be serialized using a spinlock
-	 * A concurrent operation can be silently ignored and/or the old/new
+	 * A concurrent operation can be silently igyesred and/or the old/new
 	 * operation can remain incomplete forever (lockup in SLC_CTRL_BUSY loop
 	 * below)
 	 */
@@ -778,7 +778,7 @@ noinline void slc_op_line(phys_addr_t paddr, unsigned long sz, const int op)
 
 #define slc_op(paddr, sz, op)	slc_op_rgn(paddr, sz, op)
 
-noinline static void slc_entire_op(const int op)
+yesinline static void slc_entire_op(const int op)
 {
 	unsigned int ctrl, r = ARC_REG_SLC_CTRL;
 
@@ -832,7 +832,7 @@ static inline void arc_slc_enable(void)
  *  -In SMP, if hardware caches are coherent
  *
  * There's a corollary case, where kernel READs from a userspace mapped page.
- * If the U-mapping is not congruent to to K-mapping, former needs flushing.
+ * If the U-mapping is yest congruent to to K-mapping, former needs flushing.
  */
 void flush_dcache_page(struct page *page)
 {
@@ -843,14 +843,14 @@ void flush_dcache_page(struct page *page)
 		return;
 	}
 
-	/* don't handle anon pages here */
+	/* don't handle ayesn pages here */
 	mapping = page_mapping_file(page);
 	if (!mapping)
 		return;
 
 	/*
-	 * pagecache page, file not yet mapped to userspace
-	 * Make a note that K-mapping is dirty
+	 * pagecache page, file yest yet mapped to userspace
+	 * Make a yeste that K-mapping is dirty
 	 */
 	if (!mapping_mapped(mapping)) {
 		clear_bit(PG_dc_clean, &page->flags);
@@ -860,7 +860,7 @@ void flush_dcache_page(struct page *page)
 		phys_addr_t paddr = (unsigned long)page_address(page);
 		unsigned long vaddr = page->index << PAGE_SHIFT;
 
-		if (addr_not_cache_congruent(paddr, vaddr))
+		if (addr_yest_cache_congruent(paddr, vaddr))
 			__flush_dcache_page(paddr, vaddr);
 	}
 }
@@ -954,7 +954,7 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 	if (likely(kstart > PAGE_OFFSET)) {
 		/*
 		 * The 2nd arg despite being paddr will be used to index icache
-		 * This is OK since no alternate virtual mappings will exist
+		 * This is OK since yes alternate virtual mappings will exist
 		 * given the callers for this case: kprobe/kgdb in built-in
 		 * kernel code only.
 		 */
@@ -993,7 +993,7 @@ EXPORT_SYMBOL(flush_icache_range);
  *    However in one instance, when called by kprobe (for a breakpt in
  *    builtin kernel code) @vaddr will be paddr only, meaning CDU operation will
  *    use a paddr to index the cache (despite VIPT). This is fine since since a
- *    builtin kernel page will not have any virtual mappings.
+ *    builtin kernel page will yest have any virtual mappings.
  *    kprobe on loadable module will be kernel vaddr.
  */
 void __sync_icache_dcache(phys_addr_t paddr, unsigned long vaddr, int len)
@@ -1017,7 +1017,7 @@ void __flush_dcache_page(phys_addr_t paddr, unsigned long vaddr)
 	__dc_line_op(paddr, vaddr & PAGE_MASK, PAGE_SIZE, OP_FLUSH_N_INV);
 }
 
-noinline void flush_cache_all(void)
+yesinline void flush_cache_all(void)
 {
 	unsigned long flags;
 
@@ -1056,7 +1056,7 @@ void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 	flush_cache_all();
 }
 
-void flush_anon_page(struct vm_area_struct *vma, struct page *page,
+void flush_ayesn_page(struct vm_area_struct *vma, struct page *page,
 		     unsigned long u_vaddr)
 {
 	/* TBD: do we really need to clear the kernel mapping */
@@ -1077,16 +1077,16 @@ void copy_user_highpage(struct page *to, struct page *from,
 
 	/*
 	 * If SRC page was already mapped in userspace AND it's U-mapping is
-	 * not congruent with K-mapping, sync former to physical page so that
+	 * yest congruent with K-mapping, sync former to physical page so that
 	 * K-mapping in memcpy below, sees the right data
 	 *
 	 * Note that while @u_vaddr refers to DST page's userspace vaddr, it is
 	 * equally valid for SRC page as well
 	 *
 	 * For !VIPT cache, all of this gets compiled out as
-	 * addr_not_cache_congruent() is 0
+	 * addr_yest_cache_congruent() is 0
 	 */
-	if (page_mapcount(from) && addr_not_cache_congruent(kfrom, u_vaddr)) {
+	if (page_mapcount(from) && addr_yest_cache_congruent(kfrom, u_vaddr)) {
 		__flush_dcache_page((unsigned long)kfrom, u_vaddr);
 		clean_src_k_mappings = 1;
 	}
@@ -1098,13 +1098,13 @@ void copy_user_highpage(struct page *to, struct page *from,
 	 * update_mmu_cache(). Although the finalization could have been done
 	 * here as well (given that both vaddr/paddr are available).
 	 * But update_mmu_cache() already has code to do that for other
-	 * non copied user pages (e.g. read faults which wire in pagecache page
+	 * yesn copied user pages (e.g. read faults which wire in pagecache page
 	 * directly).
 	 */
 	clear_bit(PG_dc_clean, &to->flags);
 
 	/*
-	 * if SRC was already usermapped and non-congruent to kernel mapping
+	 * if SRC was already usermapped and yesn-congruent to kernel mapping
 	 * sync the kernel mapping back to physical page
 	 */
 	if (clean_src_k_mappings) {
@@ -1140,7 +1140,7 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
  * IO-Coherency (IOC) setup rules:
  *
  * 1. Needs to be at system level, so only once by Master core
- *    Non-Masters need not be accessing caches at that time
+ *    Non-Masters need yest be accessing caches at that time
  *    - They are either HALT_ON_RESET and kick started much later or
  *    - if run on reset, need to ensure that arc_platform_smp_wait_to_boot()
  *      doesn't perturb caches or coherency unit
@@ -1151,7 +1151,7 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
  * 3. All Caches need to be disabled when setting up IOC to elide any in-flight
  *    Coherency transactions
  */
-noinline void __init arc_ioc_setup(void)
+yesinline void __init arc_ioc_setup(void)
 {
 	unsigned int ioc_base, mem_sz;
 
@@ -1192,7 +1192,7 @@ noinline void __init arc_ioc_setup(void)
 	 */
 	write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, order_base_2(mem_sz >> 10) - 2);
 
-	/* for now assume kernel base is start of IOC aperture */
+	/* for yesw assume kernel base is start of IOC aperture */
 	ioc_base = CONFIG_LINUX_RAM_BASE;
 
 	if (ioc_base % mem_sz != 0)
@@ -1221,7 +1221,7 @@ void __init arc_cache_init_master(void)
 		struct cpuinfo_arc_cache *ic = &cpuinfo_arc700[cpu].icache;
 
 		if (!ic->line_len)
-			panic("cache support enabled but non-existent cache\n");
+			panic("cache support enabled but yesn-existent cache\n");
 
 		if (ic->line_len != L1_CACHE_BYTES)
 			panic("ICache line [%d] != kernel Config [%d]",
@@ -1241,7 +1241,7 @@ void __init arc_cache_init_master(void)
 		struct cpuinfo_arc_cache *dc = &cpuinfo_arc700[cpu].dcache;
 
 		if (!dc->line_len)
-			panic("cache support enabled but non-existent cache\n");
+			panic("cache support enabled but yesn-existent cache\n");
 
 		if (dc->line_len != L1_CACHE_BYTES)
 			panic("DCache line [%d] != kernel Config [%d]",
@@ -1256,7 +1256,7 @@ void __init arc_cache_init_master(void)
 				if (!handled)
 					panic("Enable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
 				if (CACHE_COLORS_NUM != num_colors)
-					panic("CACHE_COLORS_NUM not optimized for config\n");
+					panic("CACHE_COLORS_NUM yest optimized for config\n");
 			} else if (!dc->alias && handled) {
 				panic("Disable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
 			}
@@ -1273,7 +1273,7 @@ void __init arc_cache_init_master(void)
 		panic("L2 Cache line [%d] > kernel Config [%d]\n",
 		      l2_line_sz, SMP_CACHE_BYTES);
 
-	/* Note that SLC disable not formally supported till HS 3.0 */
+	/* Note that SLC disable yest formally supported till HS 3.0 */
 	if (is_isa_arcv2() && l2_line_sz && !slc_enable)
 		arc_slc_disable();
 
@@ -1291,7 +1291,7 @@ void __init arc_cache_init_master(void)
 	}
 	/*
 	 * In case of IOC (say IOC+SLC case), pointers above could still be set
-	 * but end up not being relevant as the first function in chain is not
+	 * but end up yest being relevant as the first function in chain is yest
 	 * called at all for devices using coherent DMA.
 	 *     arch_sync_dma_for_cpu() -> dma_cache_*() -> __dma_cache_*()
 	 */
@@ -1309,12 +1309,12 @@ void __ref arc_cache_init(void)
 
 	/*
 	 * In PAE regime, TLB and cache maintenance ops take wider addresses
-	 * And even if PAE is not enabled in kernel, the upper 32-bits still need
+	 * And even if PAE is yest enabled in kernel, the upper 32-bits still need
 	 * to be zeroed to keep the ops sane.
 	 * As an optimization for more common !PAE enabled case, zero them out
 	 * once at init, rather than checking/setting to 0 for every runtime op
 	 */
-	if (is_isa_arcv2() && pae40_exist_but_not_enab()) {
+	if (is_isa_arcv2() && pae40_exist_but_yest_enab()) {
 
 		if (IS_ENABLED(CONFIG_ARC_HAS_ICACHE))
 			write_aux_reg(ARC_REG_IC_PTAG_HI, 0);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * net/psample/psample.c - Netlink channel for packet sampling
- * Copyright (c) 2017 Yotam Gigi <yotamg@mellanox.com>
+ * Copyright (c) 2017 Yotam Gigi <yotamg@mellayesx.com>
  */
 
 #include <linux/types.h>
@@ -115,7 +115,7 @@ static struct genl_family psample_nl_family __ro_after_init = {
 	.n_mcgrps	= ARRAY_SIZE(psample_nl_mcgrps),
 };
 
-static void psample_group_notify(struct psample_group *group,
+static void psample_group_yestify(struct psample_group *group,
 				 enum psample_command cmd)
 {
 	struct sk_buff *msg;
@@ -146,13 +146,13 @@ static struct psample_group *psample_group_create(struct net *net,
 	group->group_num = group_num;
 	list_add_tail(&group->list, &psample_groups_list);
 
-	psample_group_notify(group, PSAMPLE_CMD_NEW_GROUP);
+	psample_group_yestify(group, PSAMPLE_CMD_NEW_GROUP);
 	return group;
 }
 
 static void psample_group_destroy(struct psample_group *group)
 {
-	psample_group_notify(group, PSAMPLE_CMD_DEL_GROUP);
+	psample_group_yestify(group, PSAMPLE_CMD_DEL_GROUP);
 	list_del(&group->list);
 	kfree_rcu(group, rcu);
 }
@@ -284,7 +284,7 @@ void psample_sample_packet(struct psample_group *group, struct sk_buff *skb,
 
 	return;
 error:
-	pr_err_ratelimited("Could not create psample log message\n");
+	pr_err_ratelimited("Could yest create psample log message\n");
 	nlmsg_free(nl_skb);
 }
 EXPORT_SYMBOL_GPL(psample_sample_packet);

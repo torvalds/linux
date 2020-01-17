@@ -89,7 +89,7 @@ struct cx25821_fmt {
 	u32 cxformat;
 };
 
-struct cx25821_tvnorm {
+struct cx25821_tvyesrm {
 	char *name;
 	v4l2_std_id id;
 	u32 cxiformat;
@@ -249,7 +249,7 @@ struct cx25821_dev {
 
 	/* Analog video */
 	unsigned int input;
-	v4l2_std_id tvnorm;
+	v4l2_std_id tvyesrm;
 	unsigned short _max_num_decoders;
 
 	/* Analog Audio Upstream */

@@ -3,7 +3,7 @@
  * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/hash.h>
 
 #include "hfi_cmds.h"
@@ -612,11 +612,11 @@ static int pkt_session_set_property_1x(struct hfi_session_set_property_pkt *pkt,
 		pl->level = in->level;
 		pl->profile = in->profile;
 		if (pl->profile <= 0)
-			/* Profile not supported, falling back to high */
+			/* Profile yest supported, falling back to high */
 			pl->profile = HFI_H264_PROFILE_HIGH;
 
 		if (!pl->level)
-			/* Level not supported, falling back to 1 */
+			/* Level yest supported, falling back to 1 */
 			pl->level = 1;
 
 		pkt->shdr.hdr.size += sizeof(u32) + sizeof(*pl);
@@ -1207,7 +1207,7 @@ pkt_session_set_property_4xx(struct hfi_session_set_property_pkt *pkt,
 	case HFI_PROPERTY_CONFIG_VENC_MAX_BITRATE:
 	case HFI_PROPERTY_CONFIG_VDEC_POST_LOOP_DEBLOCKER:
 	case HFI_PROPERTY_PARAM_BUFFER_ALLOC_MODE:
-		/* not implemented on Venus 4xx */
+		/* yest implemented on Venus 4xx */
 		return -ENOTSUPP;
 	default:
 		return pkt_session_set_property_3xx(pkt, cookie, ptype, pdata);

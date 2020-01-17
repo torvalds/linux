@@ -298,7 +298,7 @@ static int mv88e6xxx_g1_atu_flushmove(struct mv88e6xxx_chip *chip, u16 fid,
 	if (err)
 		return err;
 
-	/* Flush/Move all or non-static entries from all or a given database */
+	/* Flush/Move all or yesn-static entries from all or a given database */
 	if (all && fid)
 		op = MV88E6XXX_G1_ATU_OP_FLUSH_MOVE_ALL_DB;
 	else if (fid)

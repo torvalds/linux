@@ -236,7 +236,7 @@ struct mwifiex_chan_stats {
 	u8 chan_num;
 	u8 bandcfg;
 	u8 flags;
-	s8 noise;
+	s8 yesise;
 	u16 total_bss;
 	u16 cca_scan_dur;
 	u16 cca_busy_dur;
@@ -252,7 +252,7 @@ struct mwifiex_chan_stats {
 struct mwifiex_histogram_data {
 	atomic_t rx_rate[MWIFIEX_MAX_AC_RX_RATES];
 	atomic_t snr[MWIFIEX_MAX_SNR];
-	atomic_t noise_flr[MWIFIEX_MAX_NOISE_FLR];
+	atomic_t yesise_flr[MWIFIEX_MAX_NOISE_FLR];
 	atomic_t sig_str[MWIFIEX_MAX_SIG_STRENGTH];
 	atomic_t num_samples;
 };

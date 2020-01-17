@@ -211,9 +211,9 @@ static void ds1620_read_state(struct therm *therm)
 	therm->hi = cvt_9_to_int(ds1620_in(THERM_READ_TH, 9));
 }
 
-static int ds1620_open(struct inode *inode, struct file *file)
+static int ds1620_open(struct iyesde *iyesde, struct file *file)
 {
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
 static ssize_t
@@ -353,7 +353,7 @@ static const struct file_operations ds1620_fops = {
 	.open		= ds1620_open,
 	.read		= ds1620_read,
 	.unlocked_ioctl	= ds1620_unlocked_ioctl,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice ds1620_miscdev = {

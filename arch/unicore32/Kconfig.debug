@@ -6,9 +6,9 @@ config EARLY_PRINTK
 	  Write kernel log output directly into the ocd or to a serial port.
 
 	  This is useful for kernel debugging when your machine crashes very
-	  early before the console code is initialized. For normal operation
-	  it is not recommended because it looks ugly and doesn't cooperate
-	  with klogd/syslogd or the X server. You should normally N here,
+	  early before the console code is initialized. For yesrmal operation
+	  it is yest recommended because it looks ugly and doesn't cooperate
+	  with klogd/syslogd or the X server. You should yesrmally N here,
 	  unless you want to debug such a crash.
 
 # These options are only for real kernel hackers who want to get their hands dirty.

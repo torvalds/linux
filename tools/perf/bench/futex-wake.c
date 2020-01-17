@@ -5,7 +5,7 @@
  * futex-wake: Block a bunch of threads on a futex and wake'em up, N at a time.
  *
  * This program is particularly useful to measure the latency of nthread wakeups
- * in non-error situations:  all waiters are queued and all wake calls wakeup
+ * in yesn-error situations:  all waiters are queued and all wake calls wakeup
  * one or more tasks, and thus the waitqueue is never empty.
  */
 
@@ -19,7 +19,7 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/time64.h>
-#include <errno.h>
+#include <erryes.h>
 #include <internal/cpumap.h>
 #include <perf/cpumap.h>
 #include "bench.h"
@@ -49,7 +49,7 @@ static int futex_flag = 0;
 static const struct option options[] = {
 	OPT_UINTEGER('t', "threads", &nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('w', "nwakes",  &nwakes,   "Specify amount of threads to wake at once"),
-	OPT_BOOLEAN( 's', "silent",  &silent,   "Silent mode: do not display data/details"),
+	OPT_BOOLEAN( 's', "silent",  &silent,   "Silent mode: do yest display data/details"),
 	OPT_BOOLEAN( 'S', "shared",  &fshared,  "Use shared futexes instead of private ones"),
 	OPT_END()
 };

@@ -514,8 +514,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		spi_nor: spi-nor@0 {
-			compatible = "jedec,spi-nor";
+		spi_yesr: spi-yesr@0 {
+			compatible = "jedec,spi-yesr";
 			reg = <0>;
 			spi-max-frequency = <20000000>;
 			status = "disabled";

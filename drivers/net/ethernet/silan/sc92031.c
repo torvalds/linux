@@ -19,7 +19,7 @@
  *  http://www.silan.com.cn/english/product/pdf/SC92031AY.pdf 
  */
 
-/* Note about set_mac_address: I don't know how to change the hardware
+/* Note about set_mac_address: I don't kyesw how to change the hardware
  * matching, so you need to enable IFF_PROMISC when using it.
  */
 
@@ -244,9 +244,9 @@ enum PMConfigBits {
 
 /* Locking rules:
  * priv->lock protects most of the fields of priv and most of the
- * hardware registers. It does not have to protect against softirqs
+ * hardware registers. It does yest have to protect against softirqs
  * between sc92031_disable_interrupts and sc92031_enable_interrupts;
- * it also does not need to be used in ->open and ->stop while the
+ * it also does yest need to be used in ->open and ->stop while the
  * device interrupts are off.
  * Not having to protect against softirqs is very useful due to heavy
  * use of mdelay() at _sc92031_reset.
@@ -303,7 +303,7 @@ struct sc92031_priv {
 	long			rx_value;
 };
 
-/* I don't know which registers can be safely read; however, I can guess
+/* I don't kyesw which registers can be safely read; however, I can guess
  * MAC0 is one of them. */
 static inline void _sc92031_dummy_read(void __iomem *port_base)
 {
@@ -354,7 +354,7 @@ static void sc92031_disable_interrupts(struct net_device *dev)
 	struct sc92031_priv *priv = netdev_priv(dev);
 	void __iomem *port_base = priv->port_base;
 
-	/* tell the tasklet/interrupt not to enable interrupts */
+	/* tell the tasklet/interrupt yest to enable interrupts */
 	atomic_set(&priv->intr_mask, 0);
 	wmb();
 
@@ -886,14 +886,14 @@ static irqreturn_t sc92031_interrupt(int irq, void *dev_id)
 
 	intr_status &= IntrBits;
 	if (!intr_status)
-		goto out_none;
+		goto out_yesne;
 
 	priv->intr_status = intr_status;
 	tasklet_schedule(&priv->tasklet);
 
 	return IRQ_HANDLED;
 
-out_none:
+out_yesne:
 	intr_mask = atomic_read(&priv->intr_mask);
 	rmb();
 
@@ -907,7 +907,7 @@ static struct net_device_stats *sc92031_get_stats(struct net_device *dev)
 	struct sc92031_priv *priv = netdev_priv(dev);
 	void __iomem *port_base = priv->port_base;
 
-	// FIXME I do not understand what is this trying to do.
+	// FIXME I do yest understand what is this trying to do.
 	if (netif_running(dev)) {
 		int temp;
 
@@ -1213,7 +1213,7 @@ sc92031_ethtool_set_link_ksettings(struct net_device *dev,
 
 		phy_ctrl = PhyCtrlAne;
 
-		// FIXME: I'm not sure what the original code was trying to do
+		// FIXME: I'm yest sure what the original code was trying to do
 		if (advertising & ADVERTISED_Autoneg)
 			phy_ctrl |= PhyCtrlDux | PhyCtrlSpd100 | PhyCtrlSpd10;
 		if (advertising & ADVERTISED_100baseT_Full)
@@ -1449,7 +1449,7 @@ static int sc92031_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	tasklet_init(&priv->tasklet, sc92031_tasklet, (unsigned long)dev);
 	/* Fudge tasklet count so the call to sc92031_enable_interrupts at
 	 * sc92031_open will work correctly */
-	tasklet_disable_nosync(&priv->tasklet);
+	tasklet_disable_yessync(&priv->tasklet);
 
 	/* PCI PM Wakeup */
 	iowrite32((~PM_LongWF & ~PM_LWPTN) | PM_Enable, port_base + PMConfig);

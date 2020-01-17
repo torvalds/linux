@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Watchdog driver for Faraday Technology FTWDT010
+ * Watchdog driver for Faraday Techyeslogy FTWDT010
  *
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  *
@@ -97,7 +97,7 @@ static irqreturn_t ftwdt010_wdt_interrupt(int irq, void *data)
 {
 	struct ftwdt010_wdt *gwdt = data;
 
-	watchdog_notify_pretimeout(&gwdt->wdd);
+	watchdog_yestify_pretimeout(&gwdt->wdd);
 
 	return IRQ_HANDLED;
 }
@@ -225,5 +225,5 @@ static struct platform_driver ftwdt010_wdt_driver = {
 };
 module_platform_driver(ftwdt010_wdt_driver);
 MODULE_AUTHOR("Linus Walleij");
-MODULE_DESCRIPTION("Watchdog driver for Faraday Technology FTWDT010");
+MODULE_DESCRIPTION("Watchdog driver for Faraday Techyeslogy FTWDT010");
 MODULE_LICENSE("GPL");

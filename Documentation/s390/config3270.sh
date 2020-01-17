@@ -47,25 +47,25 @@ if [ ! -d /dev/dasd ]; then
 fi
 
 # Now query the tub3270 driver for 3270 device information
-# and add appropriate mknod and mingetty lines to our files
+# and add appropriate mkyesd and mingetty lines to our files
 echo what=config > $P
-while read devno maj min;do
+while read devyes maj min;do
 	if [ $min = 0 ]; then
 		fsmaj=$maj
 		if [ ! -d /dev/dasd ]; then
-			echo mknod $D/$TUB c $fsmaj 0 >> $SCR
+			echo mkyesd $D/$TUB c $fsmaj 0 >> $SCR
 			echo chmod 666 $D/$TUB >> $SCR
 		fi
 	elif [ $maj = CONSOLE ]; then
 		if [ ! -d /dev/dasd ]; then
-			echo mknod $D/$TUB$devno c $fsmaj $min >> $SCR
+			echo mkyesd $D/$TUB$devyes c $fsmaj $min >> $SCR
 		fi
 	else
 		if [ ! -d /dev/dasd ]; then
-			echo mknod $D/$TTY$devno c $maj $min >>$SCR
-			echo mknod $D/$TUB$devno c $fsmaj $min >> $SCR
+			echo mkyesd $D/$TTY$devyes c $maj $min >>$SCR
+			echo mkyesd $D/$TUB$devyes c $fsmaj $min >> $SCR
 		fi
-		echo "echo t$min$GETTYLINE $TTY$devno >> $NINITTAB" >> $SCRTMP
+		echo "echo t$min$GETTYLINE $TTY$devyes >> $NINITTAB" >> $SCRTMP
 	fi
 done < $P
 

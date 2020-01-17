@@ -25,17 +25,17 @@ const struct rpc_program nfsacl_program = {
 static void nfs_init_server_aclclient(struct nfs_server *server)
 {
 	if (server->flags & NFS_MOUNT_NOACL)
-		goto out_noacl;
+		goto out_yesacl;
 
 	server->client_acl = rpc_bind_new_program(server->client, &nfsacl_program, 3);
 	if (IS_ERR(server->client_acl))
-		goto out_noacl;
+		goto out_yesacl;
 
 	/* No errors! Assume that Sun nfsacls are supported */
 	server->caps |= NFS_CAP_ACLS;
 	return;
 
-out_noacl:
+out_yesacl:
 	server->caps &= ~NFS_CAP_ACLS;
 }
 #else
@@ -71,7 +71,7 @@ struct nfs_server *nfs3_clone_server(struct nfs_server *source,
  * Set up a pNFS Data Server client over NFSv3.
  *
  * Return any existing nfs_client that matches server address,port,version
- * and minorversion.
+ * and miyesrversion.
  *
  * For a new nfs_client, use a soft mount (default), a low retrans and a
  * low timeout interval so that if a connection is lost, we retry through
@@ -86,7 +86,7 @@ struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
 	struct nfs_client_initdata cl_init = {
 		.addr = ds_addr,
 		.addrlen = ds_addrlen,
-		.nodename = mds_clp->cl_rpcclient->cl_nodename,
+		.yesdename = mds_clp->cl_rpcclient->cl_yesdename,
 		.ip_addr = mds_clp->cl_ipaddr,
 		.nfs_mod = &nfs_v3,
 		.proto = ds_proto,

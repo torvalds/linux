@@ -85,7 +85,7 @@
 /**
  * struct cpcap_adc_ato - timing settings for cpcap adc
  *
- * Unfortunately no cpcap documentation available, please document when
+ * Unfortunately yes cpcap documentation available, please document when
  * using these.
  */
 struct cpcap_adc_ato {
@@ -130,7 +130,7 @@ enum cpcap_adc_channel {
 	CPCAP_ADC_BATTP,	/* Battery voltage */
 	CPCAP_ADC_VBUS,		/* USB VBUS voltage */
 	CPCAP_ADC_AD3,		/* Die temperature when charging */
-	CPCAP_ADC_BPLUS_AD4,	/* Another battery or system voltage */
+	CPCAP_ADC_BPLUS_AD4,	/* Ayesther battery or system voltage */
 	CPCAP_ADC_CHG_ISENSE,	/* Calibrated charge current */
 	CPCAP_ADC_BATTI,	/* Calibrated system current */
 	CPCAP_ADC_USB_ID,	/* USB OTG ID, unused on droid 4? */
@@ -139,7 +139,7 @@ enum cpcap_adc_channel {
 	CPCAP_ADC_AD8,		/* Seems unused */
 	CPCAP_ADC_AD9,		/* Seems unused */
 	CPCAP_ADC_LICELL,	/* Maybe system voltage? Always 3V */
-	CPCAP_ADC_HV_BATTP,	/* Another battery detection? */
+	CPCAP_ADC_HV_BATTP,	/* Ayesther battery detection? */
 	CPCAP_ADC_TSX1_AD12,	/* Seems unused, for touchscreen? */
 	CPCAP_ADC_TSX2_AD13,	/* Seems unused, for touchscreen? */
 	CPCAP_ADC_TSY1_AD14,	/* Seems unused, for touchscreen? */
@@ -155,7 +155,7 @@ enum cpcap_adc_channel {
 /**
  * enum cpcap_adc_timing - cpcap adc timing options
  *
- * CPCAP_ADC_TIMING_IMM seems to be immediate with no timings.
+ * CPCAP_ADC_TIMING_IMM seems to be immediate with yes timings.
  * Please document when using.
  */
 enum cpcap_adc_timing {
@@ -781,7 +781,7 @@ static void cpcap_adc_convert(struct cpcap_adc_request *req)
 
 /*
  * REVISIT: Check if timed sampling can use multiple channels at the
- * same time. If not, replace channel_mask with just channel.
+ * same time. If yest, replace channel_mask with just channel.
  */
 static int cpcap_adc_read_bank_scaled(struct cpcap_adc *ddata,
 				      struct cpcap_adc_request *req)
@@ -966,7 +966,7 @@ static int cpcap_adc_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	if (!match->data) {
-		dev_err(&pdev->dev, "no configuration data found\n");
+		dev_err(&pdev->dev, "yes configuration data found\n");
 
 		return -ENODEV;
 	}
@@ -986,7 +986,7 @@ static int cpcap_adc_probe(struct platform_device *pdev)
 
 	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_SOFTWARE;
 	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
+	indio_dev->dev.of_yesde = pdev->dev.of_yesde;
 	indio_dev->channels = cpcap_adc_channels;
 	indio_dev->num_channels = ARRAY_SIZE(cpcap_adc_channels);
 	indio_dev->name = dev_name(&pdev->dev);
@@ -1011,7 +1011,7 @@ static int cpcap_adc_probe(struct platform_device *pdev)
 					  IRQF_TRIGGER_NONE | IRQF_ONESHOT,
 					  "cpcap-adc", indio_dev);
 	if (error) {
-		dev_err(&pdev->dev, "could not get irq: %i\n",
+		dev_err(&pdev->dev, "could yest get irq: %i\n",
 			error);
 
 		return error;

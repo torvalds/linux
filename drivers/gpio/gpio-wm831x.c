@@ -162,9 +162,9 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		int reg;
 		const char *label, *pull, *powerdomain;
 
-		/* We report the GPIO even if it's not requested since
+		/* We report the GPIO even if it's yest requested since
 		 * we're also reporting things like alternate
-		 * functions which apply even when the GPIO is not in
+		 * functions which apply even when the GPIO is yest in
 		 * use as a GPIO.
 		 */
 		label = gpiochip_is_requested(chip, i);
@@ -184,7 +184,7 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 		switch (reg & WM831X_GPN_PULL_MASK) {
 		case WM831X_GPIO_PULL_NONE:
-			pull = "nopull";
+			pull = "yespull";
 			break;
 		case WM831X_GPIO_PULL_DOWN:
 			pull = "pulldown";
@@ -277,13 +277,13 @@ static int wm831x_gpio_probe(struct platform_device *pdev)
 	else
 		wm831x_gpio->gpio_chip.base = -1;
 #ifdef CONFIG_OF_GPIO
-	wm831x_gpio->gpio_chip.of_node = wm831x->dev->of_node;
+	wm831x_gpio->gpio_chip.of_yesde = wm831x->dev->of_yesde;
 #endif
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &wm831x_gpio->gpio_chip,
 				     wm831x_gpio);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "Could yest register gpiochip, %d\n", ret);
 		return ret;
 	}
 

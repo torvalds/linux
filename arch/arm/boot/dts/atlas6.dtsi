@@ -237,7 +237,7 @@
 				interrupts = <18>;
 				fifosize = <32>;
 				clocks = <&clks 14>;
-				dma-names = "no-rx", "no-tx";
+				dma-names = "yes-rx", "yes-tx";
 			};
 
 			uart2: uart@b0070000 {
@@ -397,10 +397,10 @@
 						sirf,function = "uart0";
 					};
 				};
-				uart0_noflow_pins_a: uart0@1 {
+				uart0_yesflow_pins_a: uart0@1 {
 					uart {
-						sirf,pins = "uart0_nostreamctrlgrp";
-						sirf,function = "uart0_nostreamctrl";
+						sirf,pins = "uart0_yesstreamctrlgrp";
+						sirf,function = "uart0_yesstreamctrl";
 					};
 				};
 				uart1_pins_a: uart1@0 {
@@ -415,10 +415,10 @@
 						sirf,function = "uart2";
 					};
 				};
-				uart2_noflow_pins_a: uart2@1 {
+				uart2_yesflow_pins_a: uart2@1 {
 					uart {
-						sirf,pins = "uart2_nostreamctrlgrp";
-						sirf,function = "uart2_nostreamctrl";
+						sirf,pins = "uart2_yesstreamctrlgrp";
+						sirf,function = "uart2_yesstreamctrl";
 					};
 				};
 				spi0_pins_a: spi0@0 {
@@ -505,10 +505,10 @@
                                                 sirf,function = "sdmmc2";
                                         };
                                 };
-				sdmmc2_nowp_pins_a: sdmmc2_nowp@0 {
-                                        sdmmc2_nowp {
-                                                sirf,pins = "sdmmc2_nowpgrp";
-                                                sirf,function = "sdmmc2_nowp";
+				sdmmc2_yeswp_pins_a: sdmmc2_yeswp@0 {
+                                        sdmmc2_yeswp {
+                                                sirf,pins = "sdmmc2_yeswpgrp";
+                                                sirf,function = "sdmmc2_yeswp";
                                         };
                                 };
                                 sdmmc3_pins_a: sdmmc3@0 {
@@ -541,10 +541,10 @@
                                                 sirf,function = "i2s";
                                         };
                                 };
-				i2s_no_din_pins_a: i2s_no_din@0 {
-                                        i2s_no_din {
-                                                sirf,pins = "i2s_no_dingrp";
-                                                sirf,function = "i2s_no_din";
+				i2s_yes_din_pins_a: i2s_yes_din@0 {
+                                        i2s_yes_din {
+                                                sirf,pins = "i2s_yes_dingrp";
+                                                sirf,function = "i2s_yes_din";
                                         };
                                 };
 				i2s_6chn_pins_a: i2s_6chn@0 {
@@ -571,10 +571,10 @@
                                                 sirf,function = "usp0";
                                         };
                                 };
-				usp0_uart_nostreamctrl_pins_a: usp0@1 {
+				usp0_uart_yesstreamctrl_pins_a: usp0@1 {
                                         usp0 {
-                                                sirf,pins = "usp0_uart_nostreamctrl_grp";
-                                                sirf,function = "usp0_uart_nostreamctrl";
+                                                sirf,pins = "usp0_uart_yesstreamctrl_grp";
+                                                sirf,function = "usp0_uart_yesstreamctrl";
                                         };
                                 };
 				usp0_only_utfs_pins_a: usp0@2 {
@@ -595,10 +595,10 @@
                                                 sirf,function = "usp1";
                                         };
                                 };
-				usp1_uart_nostreamctrl_pins_a: usp1@1 {
+				usp1_uart_yesstreamctrl_pins_a: usp1@1 {
                                         usp1 {
-                                                sirf,pins = "usp1_uart_nostreamctrl_grp";
-                                                sirf,function = "usp1_uart_nostreamctrl";
+                                                sirf,pins = "usp1_uart_yesstreamctrl_grp";
+                                                sirf,function = "usp1_uart_yesstreamctrl";
                                         };
                                 };
                                 usb0_upli_drvbus_pins_a: usb0_upli_drvbus@0 {

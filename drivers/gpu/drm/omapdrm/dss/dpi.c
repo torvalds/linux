@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/string.h>
@@ -256,7 +256,7 @@ static bool dpi_dss_clk_calc(struct dpi_data *dpi, unsigned long pck,
 
 	/*
 	 * DSS fck gives us very few possibilities, so finding a good pixel
-	 * clock may not be possible. We try multiple times to find the clock,
+	 * clock may yest be possible. We try multiple times to find the clock,
 	 * each time widening the pixel clock range we look for, up to
 	 * +/- ~15MHz.
 	 */
@@ -529,7 +529,7 @@ static void dpi_init_pll(struct dpi_data *dpi)
 		return;
 
 	if (dpi_verify_pll(pll)) {
-		DSSWARN("PLL not operational\n");
+		DSSWARN("PLL yest operational\n");
 		return;
 	}
 
@@ -599,7 +599,7 @@ static const struct omap_dss_device_ops dpi_ops = {
 	.set_timings = dpi_set_timings,
 };
 
-static int dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
+static int dpi_init_output_port(struct dpi_data *dpi, struct device_yesde *port)
 {
 	struct omap_dss_device *out = &dpi->output;
 	u32 port_num = 0;
@@ -638,7 +638,7 @@ static int dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
 	return 0;
 }
 
-static void dpi_uninit_output_port(struct device_node *port)
+static void dpi_uninit_output_port(struct device_yesde *port)
 {
 	struct dpi_data *dpi = port->data;
 	struct omap_dss_device *out = &dpi->output;
@@ -677,10 +677,10 @@ static int dpi_init_regulator(struct dpi_data *dpi)
 }
 
 int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
-		  struct device_node *port, enum dss_model dss_model)
+		  struct device_yesde *port, enum dss_model dss_model)
 {
 	struct dpi_data *dpi;
-	struct device_node *ep;
+	struct device_yesde *ep;
 	u32 datalines;
 	int r;
 
@@ -693,7 +693,7 @@ int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
 		return 0;
 
 	r = of_property_read_u32(ep, "data-lines", &datalines);
-	of_node_put(ep);
+	of_yesde_put(ep);
 	if (r) {
 		DSSERR("failed to parse datalines\n");
 		return r;
@@ -715,7 +715,7 @@ int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
 	return dpi_init_output_port(dpi, port);
 }
 
-void dpi_uninit_port(struct device_node *port)
+void dpi_uninit_port(struct device_yesde *port)
 {
 	struct dpi_data *dpi = port->data;
 

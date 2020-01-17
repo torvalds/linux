@@ -5,9 +5,9 @@ Required properties:
 - compatible: Must be "ingenic,jz4740-battery".
 - io-channels: phandle and IIO specifier pair to the IIO device.
   Format described in iio-bindings.txt.
-- monitored-battery: phandle to a "simple-battery" compatible node.
+- monitored-battery: phandle to a "simple-battery" compatible yesde.
 
-The "monitored-battery" property must be a phandle to a node using the format
+The "monitored-battery" property must be a phandle to a yesde using the format
 described in battery.txt, with the following properties being required:
 
 - voltage-min-design-microvolt: Drained battery voltage.

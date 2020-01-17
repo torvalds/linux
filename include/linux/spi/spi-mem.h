@@ -57,7 +57,7 @@
 /**
  * enum spi_mem_data_dir - describes the direction of a SPI memory data
  *			   transfer from the controller perspective
- * @SPI_MEM_NO_DATA: no data transferred
+ * @SPI_MEM_NO_DATA: yes data transferred
  * @SPI_MEM_DATA_IN: data coming from the SPI memory
  * @SPI_MEM_DATA_OUT: data sent to the SPI memory
  */
@@ -72,19 +72,19 @@ enum spi_mem_data_dir {
  * @cmd.buswidth: number of IO lines used to transmit the command
  * @cmd.opcode: operation opcode
  * @addr.nbytes: number of address bytes to send. Can be zero if the operation
- *		 does not need to send an address
+ *		 does yest need to send an address
  * @addr.buswidth: number of IO lines used to transmit the address cycles
  * @addr.val: address value. This value is always sent MSB first on the bus.
  *	      Note that only @addr.nbytes are taken into account in this
  *	      address value, so users should make sure the value fits in the
  *	      assigned number of bytes.
  * @dummy.nbytes: number of dummy bytes to send after an opcode or address. Can
- *		  be zero if the operation does not require dummy bytes
+ *		  be zero if the operation does yest require dummy bytes
  * @dummy.buswidth: number of IO lanes used to transmit the dummy bytes
  * @data.buswidth: number of IO lanes used to send/receive the data
  * @data.dir: direction of the transfer
  * @data.nbytes: number of data bytes to send/receive. Can be zero if the
- *		 operation does not involve transferring data
+ *		 operation does yest involve transferring data
  * @data.buf.in: input buffer (must be DMA-able)
  * @data.buf.out: output buffer (must be DMA-able)
  */
@@ -131,7 +131,7 @@ struct spi_mem_op {
  * @offset: absolute offset this direct mapping is pointing to
  * @length: length in byte of this direct mapping
  *
- * These information are used by the controller specific implementation to know
+ * These information are used by the controller specific implementation to kyesw
  * the portion of memory that is directly mapped and the spi_mem_op that should
  * be used to access the device.
  * A direct mapping is only valid for one direction (read or write) and this
@@ -147,12 +147,12 @@ struct spi_mem_dirmap_info {
  * struct spi_mem_dirmap_desc - Direct mapping descriptor
  * @mem: the SPI memory device this direct mapping is attached to
  * @info: information passed at direct mapping creation time
- * @nodirmap: set to 1 if the SPI controller does not implement
+ * @yesdirmap: set to 1 if the SPI controller does yest implement
  *	      ->mem_ops->dirmap_create() or when this function returned an
- *	      error. If @nodirmap is true, all spi_mem_dirmap_{read,write}()
+ *	      error. If @yesdirmap is true, all spi_mem_dirmap_{read,write}()
  *	      calls will use spi_mem_exec_op() to access the memory. This is a
  *	      degraded mode that allows spi_mem drivers to use the same code
- *	      no matter whether the controller supports direct mapping or not
+ *	      yes matter whether the controller supports direct mapping or yest
  * @priv: field pointing to controller specific data
  *
  * Common part of a direct mapping descriptor. This object is created by
@@ -163,7 +163,7 @@ struct spi_mem_dirmap_info {
 struct spi_mem_dirmap_desc {
 	struct spi_mem *mem;
 	struct spi_mem_dirmap_info info;
-	unsigned int nodirmap;
+	unsigned int yesdirmap;
 	void *priv;
 };
 
@@ -276,7 +276,7 @@ struct spi_controller_mem_ops {
  * allocating the spi_mem object and forwarding the probe/remove/shutdown
  * request to the spi_mem_driver. The reason we use this wrapper is because
  * we might have to stuff more information into the spi_mem struct to let
- * SPI controllers know more about the SPI memory they interact with, and
+ * SPI controllers kyesw more about the SPI memory they interact with, and
  * having this intermediate layer allows us to do that without adding more
  * useless fields to the spi_device object.
  */

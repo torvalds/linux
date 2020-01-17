@@ -14,7 +14,7 @@
 #include "internal.h"
 
 /*
- * printk() could not take logbuf_lock in NMI context. Instead,
+ * printk() could yest take logbuf_lock in NMI context. Instead,
  * it uses an alternative implementation that temporary stores
  * the strings into a per-CPU buffer. The content of the buffer
  * is later flushed into the main ring buffer via IRQ work.
@@ -23,7 +23,7 @@
  * by examinig current printk() context mask stored in @printk_context
  * per-CPU variable.
  *
- * The implementation allows to flush the strings also from another CPU.
+ * The implementation allows to flush the strings also from ayesther CPU.
  * There are situations when we want to make sure that all buffers
  * were handled or when IRQs are blocked.
  */
@@ -62,7 +62,7 @@ static void queue_flush_work(struct printk_safe_seq_buf *s)
  *
  * The messages are flushed from irq work (or from panic()), possibly,
  * from other CPU, concurrently with printk_safe_log_store(). Should this
- * happen, printk_safe_log_store() will notice the buffer->len mismatch
+ * happen, printk_safe_log_store() will yestice the buffer->len mismatch
  * and repeat the write.
  */
 static __printf(2, 0) int printk_safe_log_store(struct printk_safe_seq_buf *s,
@@ -75,7 +75,7 @@ static __printf(2, 0) int printk_safe_log_store(struct printk_safe_seq_buf *s,
 again:
 	len = atomic_read(&s->len);
 
-	/* The trailing '\0' is not counted into len. */
+	/* The trailing '\0' is yest counted into len. */
 	if (len >= sizeof(s->buffer) - 1) {
 		atomic_inc(&s->message_lost);
 		queue_flush_work(s);
@@ -84,7 +84,7 @@ again:
 
 	/*
 	 * Make sure that all old data have been read before the buffer
-	 * was reset. This is not needed when we just append data.
+	 * was reset. This is yest needed when we just append data.
 	 */
 	if (!len)
 		smp_rmb();
@@ -113,7 +113,7 @@ static inline void printk_safe_flush_line(const char *text, int len)
 	 * Avoid any console drivers calls from here, because we may be
 	 * in NMI or printk_safe context (when in panic). The messages
 	 * must go only into the ring buffer at this stage.  Consoles will
-	 * get explicitly called later when a crashdump is not generated.
+	 * get explicitly called later when a crashdump is yest generated.
 	 */
 	printk_deferred("%.*s", len, text);
 }
@@ -154,7 +154,7 @@ static int printk_safe_flush_buffer(const char *start, size_t len)
 		c++;
 	}
 
-	/* Check if there was a partial line. Ignore pure header. */
+	/* Check if there was a partial line. Igyesre pure header. */
 	if (start < end && !header) {
 		static const char newline[] = KERN_CONT "\n";
 
@@ -190,7 +190,7 @@ static void __printk_safe_flush(struct irq_work *work)
 	/*
 	 * The lock has two functions. First, one reader has to flush all
 	 * available message to make the lockless synchronization with
-	 * writers easier. Second, we do not want to mix messages from
+	 * writers easier. Second, we do yest want to mix messages from
 	 * different CPUs. This is especially important when printing
 	 * a backtrace.
 	 */
@@ -201,7 +201,7 @@ more:
 	len = atomic_read(&s->len);
 
 	/*
-	 * This is just a paranoid check that nobody has manipulated
+	 * This is just a parayesid check that yesbody has manipulated
 	 * the buffer an unexpected way. If we printed something then
 	 * @len must only increase. Also it should never overflow the
 	 * buffer size.
@@ -221,7 +221,7 @@ more:
 	i += printk_safe_flush_buffer(s->buffer + i, len - i);
 
 	/*
-	 * Check that nothing has got added in the meantime and truncate
+	 * Check that yesthing has got added in the meantime and truncate
 	 * the buffer. Note that atomic_cmpxchg() is an implicit memory
 	 * barrier that makes sure that the data were copied before
 	 * updating s->len.
@@ -267,7 +267,7 @@ void printk_safe_flush_on_panic(void)
 {
 	/*
 	 * Make sure that we could access the main ring buffer.
-	 * Do not risk a double release when more CPUs are up.
+	 * Do yest risk a double release when more CPUs are up.
 	 */
 	if (raw_spin_is_locked(&logbuf_lock)) {
 		if (num_online_cpus() > 1)
@@ -283,8 +283,8 @@ void printk_safe_flush_on_panic(void)
 #ifdef CONFIG_PRINTK_NMI
 /*
  * Safe printk() for NMI context. It uses a per-CPU buffer to
- * store the message. NMIs are not nested, so there is always only
- * one writer running. But the buffer might get flushed from another
+ * store the message. NMIs are yest nested, so there is always only
+ * one writer running. But the buffer might get flushed from ayesther
  * CPU, so we need to be careful.
  */
 static __printf(1, 0) int vprintk_nmi(const char *fmt, va_list args)
@@ -294,12 +294,12 @@ static __printf(1, 0) int vprintk_nmi(const char *fmt, va_list args)
 	return printk_safe_log_store(s, fmt, args);
 }
 
-void notrace printk_nmi_enter(void)
+void yestrace printk_nmi_enter(void)
 {
 	this_cpu_or(printk_context, PRINTK_NMI_CONTEXT_MASK);
 }
 
-void notrace printk_nmi_exit(void)
+void yestrace printk_nmi_exit(void)
 {
 	this_cpu_and(printk_context, ~PRINTK_NMI_CONTEXT_MASK);
 }
@@ -312,7 +312,7 @@ void notrace printk_nmi_exit(void)
  * It has effect only when called in NMI context. Then printk()
  * will try to store the messages into the main logbuf directly
  * and use the per-CPU buffers only as a fallback when the lock
- * is not available.
+ * is yest available.
  */
 void printk_nmi_direct_enter(void)
 {
@@ -410,6 +410,6 @@ void __init printk_safe_init(void)
 	barrier();
 	printk_safe_irq_ready = 1;
 
-	/* Flush pending messages that did not have scheduled IRQ works. */
+	/* Flush pending messages that did yest have scheduled IRQ works. */
 	printk_safe_flush();
 }

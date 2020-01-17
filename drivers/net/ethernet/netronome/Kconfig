@@ -1,29 +1,29 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Netronome device configuration
+# Netroyesme device configuration
 #
 
 config NET_VENDOR_NETRONOME
-	bool "Netronome(R) devices"
+	bool "Netroyesme(R) devices"
 	default y
 	---help---
-	  If you have a Netronome(R) network (Ethernet) card or device, say Y.
+	  If you have a Netroyesme(R) network (Ethernet) card or device, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
-	  the questions about Netronome(R) cards. If you say Y, you will be
+	  the questions about Netroyesme(R) cards. If you say Y, you will be
 	  asked for your specific card in the following questions.
 
 if NET_VENDOR_NETRONOME
 
 config NFP
-	tristate "Netronome(R) NFP4000/NFP6000 NIC driver"
+	tristate "Netroyesme(R) NFP4000/NFP6000 NIC driver"
 	depends on PCI && PCI_MSI
 	depends on VXLAN || VXLAN=n
 	depends on TLS && TLS_DEVICE || TLS_DEVICE=n
 	select NET_DEVLINK
 	---help---
-	  This driver supports the Netronome(R) NFP4000/NFP6000 based
+	  This driver supports the Netroyesme(R) NFP4000/NFP6000 based
 	  cards working as a advanced Ethernet NIC.  It works with both
 	  SR-IOV physical and virtual functions.
 
@@ -52,11 +52,11 @@ config NFP_APP_ABM_NIC
 	  Code will be built into the nfp.ko driver.
 
 config NFP_DEBUG
-	bool "Debug support for Netronome(R) NFP4000/NFP6000 NIC drivers"
+	bool "Debug support for Netroyesme(R) NFP4000/NFP6000 NIC drivers"
 	depends on NFP
 	---help---
 	  Enable extra sanity checks and debugfs support in
-	  Netronome(R) NFP4000/NFP6000 NIC drivers.
+	  Netroyesme(R) NFP4000/NFP6000 NIC drivers.
 	  Note: selecting this option may adversely impact
 		performance.
 

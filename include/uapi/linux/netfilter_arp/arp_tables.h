@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * 	Format of an ARP firewall descriptor
  *
@@ -60,7 +60,7 @@ struct arpt_arp {
 	__be16 arpro, arpro_mask;
 
 	/* The protocol address length is only accepted if it is 4
-	 * so there is no use in offering a way to do filtering on it.
+	 * so there is yes use in offering a way to do filtering on it.
 	 */
 
 	char iniface[IFNAMSIZ], outiface[IFNAMSIZ];
@@ -180,7 +180,7 @@ struct arpt_replace {
 	/* The old entries' counters. */
 	struct xt_counters __user *counters;
 
-	/* The entries (hang off end: not really an array). */
+	/* The entries (hang off end: yest really an array). */
 	struct arpt_entry entries[0];
 };
 

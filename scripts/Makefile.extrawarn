@@ -6,7 +6,7 @@
 # They are independent, and can be combined like W=12 or W=123.
 # ==========================================================================
 
-KBUILD_CFLAGS += $(call cc-disable-warning, packed-not-aligned)
+KBUILD_CFLAGS += $(call cc-disable-warning, packed-yest-aligned)
 
 # backward compatibility
 KBUILD_EXTRA_WARN ?= $(KBUILD_ENABLE_EXTRA_GCC_CHECKS)
@@ -18,11 +18,11 @@ endif
 export KBUILD_EXTRA_WARN
 
 #
-# W=1 - warnings which may be relevant and do not occur too often
+# W=1 - warnings which may be relevant and do yest occur too often
 #
 ifneq ($(findstring 1, $(KBUILD_EXTRA_WARN)),)
 
-KBUILD_CFLAGS += -Wextra -Wunused -Wno-unused-parameter
+KBUILD_CFLAGS += -Wextra -Wunused -Wyes-unused-parameter
 KBUILD_CFLAGS += -Wmissing-declarations
 KBUILD_CFLAGS += -Wmissing-format-attribute
 KBUILD_CFLAGS += -Wmissing-prototypes
@@ -30,24 +30,24 @@ KBUILD_CFLAGS += -Wold-style-definition
 KBUILD_CFLAGS += -Wmissing-include-dirs
 KBUILD_CFLAGS += $(call cc-option, -Wunused-but-set-variable)
 KBUILD_CFLAGS += $(call cc-option, -Wunused-const-variable)
-KBUILD_CFLAGS += $(call cc-option, -Wpacked-not-aligned)
+KBUILD_CFLAGS += $(call cc-option, -Wpacked-yest-aligned)
 KBUILD_CFLAGS += $(call cc-option, -Wstringop-truncation)
 # The following turn off the warnings enabled by -Wextra
-KBUILD_CFLAGS += -Wno-missing-field-initializers
-KBUILD_CFLAGS += -Wno-sign-compare
+KBUILD_CFLAGS += -Wyes-missing-field-initializers
+KBUILD_CFLAGS += -Wyes-sign-compare
 
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN1
 
 else
 
-# Some diagnostics enabled by default are noisy.
-# Suppress them by using -Wno... except for W=1.
+# Some diagyesstics enabled by default are yesisy.
+# Suppress them by using -Wyes... except for W=1.
 
 ifdef CONFIG_CC_IS_CLANG
-KBUILD_CFLAGS += -Wno-initializer-overrides
-KBUILD_CFLAGS += -Wno-format
-KBUILD_CFLAGS += -Wno-sign-compare
-KBUILD_CFLAGS += -Wno-format-zero-length
+KBUILD_CFLAGS += -Wyes-initializer-overrides
+KBUILD_CFLAGS += -Wyes-format
+KBUILD_CFLAGS += -Wyes-sign-compare
+KBUILD_CFLAGS += -Wyes-format-zero-length
 endif
 
 endif
@@ -72,7 +72,7 @@ KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN2
 endif
 
 #
-# W=3 - more obscure warnings, can most likely be ignored
+# W=3 - more obscure warnings, can most likely be igyesred
 #
 ifneq ($(findstring 3, $(KBUILD_EXTRA_WARN)),)
 

@@ -21,7 +21,7 @@
  * like module clk, register set, irq and dma. These internal channels share
  * common CLK & SYNC from master. The two data pins D0 & D1 shall be
  * considered to represent the two internal channels. This internal split
- * is not visible to the master device.
+ * is yest visible to the master device.
  *
  * Depending on the master device, a DRIF channel can use
  *  (1) both internal channels (D0 & D1) to receive data in parallel (or)
@@ -32,13 +32,13 @@
  * driver exposes the device as a V4L2 SDR device. In order to qualify as
  * a V4L2 SDR device, it should possess a tuner interface as mandated by the
  * framework. This driver expects a tuner driver (sub-device) to bind
- * asynchronously with this device and the combined drivers shall expose
+ * asynchroyesusly with this device and the combined drivers shall expose
  * a V4L2 compliant SDR device. The DRIF driver is independent of the
  * tuner vendor.
  *
  * The DRIF h/w can support I2S mode and Frame start synchronization pulse mode.
  * This driver is tested for I2S mode only because of the availability of
- * suitable master devices. Hence, not all configurable options of DRIF h/w
+ * suitable master devices. Hence, yest all configurable options of DRIF h/w
  * like lsb/msb first, syncdl, dtdl etc. are exposed via DT and I2S defaults
  * are used. These can be exposed later if needed after testing.
  */
@@ -223,7 +223,7 @@ struct rcar_drif_sdr {
 	struct mutex v4l2_mutex;	/* To serialize ioctls */
 	struct mutex vb_queue_mutex;	/* To serialize streaming ioctls */
 	struct v4l2_ctrl_handler ctrl_hdl;	/* SDR control handler */
-	struct v4l2_async_notifier notifier;	/* For subdev (tuner) */
+	struct v4l2_async_yestifier yestifier;	/* For subdev (tuner) */
 	struct rcar_drif_graph_ep ep;	/* Endpoint V4L2 async data */
 
 	/* Current V4L2 SDR format ptr */
@@ -935,7 +935,7 @@ static int rcar_drif_s_fmt_sdr_cap(struct file *file, void *priv,
 	}
 
 	if (i == ARRAY_SIZE(formats))
-		i = 0;		/* Set the 1st format as default on no match */
+		i = 0;		/* Set the 1st format as default on yes match */
 
 	sdr->fmt = &formats[i];
 	f->fmt.sdr.pixelformat = sdr->fmt->pixelformat;
@@ -1098,16 +1098,16 @@ static void rcar_drif_sdr_unregister(struct rcar_drif_sdr *sdr)
 }
 
 /* Sub-device bound callback */
-static int rcar_drif_notify_bound(struct v4l2_async_notifier *notifier,
+static int rcar_drif_yestify_bound(struct v4l2_async_yestifier *yestifier,
 				   struct v4l2_subdev *subdev,
 				   struct v4l2_async_subdev *asd)
 {
 	struct rcar_drif_sdr *sdr =
-		container_of(notifier, struct rcar_drif_sdr, notifier);
+		container_of(yestifier, struct rcar_drif_sdr, yestifier);
 
-	if (sdr->ep.asd.match.fwnode !=
-	    of_fwnode_handle(subdev->dev->of_node)) {
-		rdrif_err(sdr, "subdev %s cannot bind\n", subdev->name);
+	if (sdr->ep.asd.match.fwyesde !=
+	    of_fwyesde_handle(subdev->dev->of_yesde)) {
+		rdrif_err(sdr, "subdev %s canyest bind\n", subdev->name);
 		return -EINVAL;
 	}
 
@@ -1119,15 +1119,15 @@ static int rcar_drif_notify_bound(struct v4l2_async_notifier *notifier,
 }
 
 /* Sub-device unbind callback */
-static void rcar_drif_notify_unbind(struct v4l2_async_notifier *notifier,
+static void rcar_drif_yestify_unbind(struct v4l2_async_yestifier *yestifier,
 				   struct v4l2_subdev *subdev,
 				   struct v4l2_async_subdev *asd)
 {
 	struct rcar_drif_sdr *sdr =
-		container_of(notifier, struct rcar_drif_sdr, notifier);
+		container_of(yestifier, struct rcar_drif_sdr, yestifier);
 
 	if (sdr->ep.subdev != subdev) {
-		rdrif_err(sdr, "subdev %s is not bound\n", subdev->name);
+		rdrif_err(sdr, "subdev %s is yest bound\n", subdev->name);
 		return;
 	}
 
@@ -1140,11 +1140,11 @@ static void rcar_drif_notify_unbind(struct v4l2_async_notifier *notifier,
 	rdrif_dbg(sdr, "unbind asd %s\n", subdev->name);
 }
 
-/* Sub-device registered notification callback */
-static int rcar_drif_notify_complete(struct v4l2_async_notifier *notifier)
+/* Sub-device registered yestification callback */
+static int rcar_drif_yestify_complete(struct v4l2_async_yestifier *yestifier)
 {
 	struct rcar_drif_sdr *sdr =
-		container_of(notifier, struct rcar_drif_sdr, notifier);
+		container_of(yestifier, struct rcar_drif_sdr, yestifier);
 	int ret;
 
 	/*
@@ -1158,9 +1158,9 @@ static int rcar_drif_notify_complete(struct v4l2_async_notifier *notifier)
 		return -ENOMEM;
 
 	sdr->v4l2_dev.ctrl_handler = &sdr->ctrl_hdl;
-	ret = v4l2_device_register_subdev_nodes(&sdr->v4l2_dev);
+	ret = v4l2_device_register_subdev_yesdes(&sdr->v4l2_dev);
 	if (ret) {
-		rdrif_err(sdr, "failed: register subdev nodes ret %d\n", ret);
+		rdrif_err(sdr, "failed: register subdev yesdes ret %d\n", ret);
 		goto error;
 	}
 
@@ -1183,15 +1183,15 @@ error:
 	return ret;
 }
 
-static const struct v4l2_async_notifier_operations rcar_drif_notify_ops = {
-	.bound = rcar_drif_notify_bound,
-	.unbind = rcar_drif_notify_unbind,
-	.complete = rcar_drif_notify_complete,
+static const struct v4l2_async_yestifier_operations rcar_drif_yestify_ops = {
+	.bound = rcar_drif_yestify_bound,
+	.unbind = rcar_drif_yestify_unbind,
+	.complete = rcar_drif_yestify_complete,
 };
 
 /* Read endpoint properties */
 static void rcar_drif_get_ep_properties(struct rcar_drif_sdr *sdr,
-					struct fwnode_handle *fwnode)
+					struct fwyesde_handle *fwyesde)
 {
 	u32 val;
 
@@ -1200,7 +1200,7 @@ static void rcar_drif_get_ep_properties(struct rcar_drif_sdr *sdr,
 		RCAR_DRIF_SIRMDR1_DTDL_1 | RCAR_DRIF_SIRMDR1_SYNCDL_0;
 
 	/* Parse sync polarity from endpoint */
-	if (!fwnode_property_read_u32(fwnode, "sync-active", &val))
+	if (!fwyesde_property_read_u32(fwyesde, "sync-active", &val))
 		sdr->mdr1 |= val ? RCAR_DRIF_SIRMDR1_SYNCAC_POL_HIGH :
 			RCAR_DRIF_SIRMDR1_SYNCAC_POL_LOW;
 	else
@@ -1212,37 +1212,37 @@ static void rcar_drif_get_ep_properties(struct rcar_drif_sdr *sdr,
 /* Parse sub-devs (tuner) to find a matching device */
 static int rcar_drif_parse_subdevs(struct rcar_drif_sdr *sdr)
 {
-	struct v4l2_async_notifier *notifier = &sdr->notifier;
-	struct fwnode_handle *fwnode, *ep;
+	struct v4l2_async_yestifier *yestifier = &sdr->yestifier;
+	struct fwyesde_handle *fwyesde, *ep;
 	int ret;
 
-	v4l2_async_notifier_init(notifier);
+	v4l2_async_yestifier_init(yestifier);
 
-	ep = fwnode_graph_get_next_endpoint(of_fwnode_handle(sdr->dev->of_node),
+	ep = fwyesde_graph_get_next_endpoint(of_fwyesde_handle(sdr->dev->of_yesde),
 					    NULL);
 	if (!ep)
 		return 0;
 
-	fwnode = fwnode_graph_get_remote_port_parent(ep);
-	if (!fwnode) {
+	fwyesde = fwyesde_graph_get_remote_port_parent(ep);
+	if (!fwyesde) {
 		dev_warn(sdr->dev, "bad remote port parent\n");
-		fwnode_handle_put(ep);
+		fwyesde_handle_put(ep);
 		return -EINVAL;
 	}
 
-	sdr->ep.asd.match.fwnode = fwnode;
+	sdr->ep.asd.match.fwyesde = fwyesde;
 	sdr->ep.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-	ret = v4l2_async_notifier_add_subdev(notifier, &sdr->ep.asd);
+	ret = v4l2_async_yestifier_add_subdev(yestifier, &sdr->ep.asd);
 	if (ret) {
-		fwnode_handle_put(fwnode);
+		fwyesde_handle_put(fwyesde);
 		return ret;
 	}
 
 	/* Get the endpoint properties */
 	rcar_drif_get_ep_properties(sdr, ep);
 
-	fwnode_handle_put(fwnode);
-	fwnode_handle_put(ep);
+	fwyesde_handle_put(fwyesde);
+	fwyesde_handle_put(ep);
 
 	return 0;
 }
@@ -1250,15 +1250,15 @@ static int rcar_drif_parse_subdevs(struct rcar_drif_sdr *sdr)
 /* Check if the given device is the primary bond */
 static bool rcar_drif_primary_bond(struct platform_device *pdev)
 {
-	return of_property_read_bool(pdev->dev.of_node, "renesas,primary-bond");
+	return of_property_read_bool(pdev->dev.of_yesde, "renesas,primary-bond");
 }
 
 /* Check if both devices of the bond are enabled */
-static struct device_node *rcar_drif_bond_enabled(struct platform_device *p)
+static struct device_yesde *rcar_drif_bond_enabled(struct platform_device *p)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_parse_phandle(p->dev.of_node, "renesas,bonding", 0);
+	np = of_parse_phandle(p->dev.of_yesde, "renesas,bonding", 0);
 	if (np && of_device_is_available(np))
 		return np;
 
@@ -1267,15 +1267,15 @@ static struct device_node *rcar_drif_bond_enabled(struct platform_device *p)
 
 /* Check if the bonded device is probed */
 static int rcar_drif_bond_available(struct rcar_drif_sdr *sdr,
-				    struct device_node *np)
+				    struct device_yesde *np)
 {
 	struct platform_device *pdev;
 	struct rcar_drif *ch;
 	int ret = 0;
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_yesde(np);
 	if (!pdev) {
-		dev_err(sdr->dev, "failed to get bonded device from node\n");
+		dev_err(sdr->dev, "failed to get bonded device from yesde\n");
 		return -ENODEV;
 	}
 
@@ -1352,19 +1352,19 @@ static int rcar_drif_sdr_probe(struct rcar_drif_sdr *sdr)
 	if (ret)
 		goto error;
 
-	sdr->notifier.ops = &rcar_drif_notify_ops;
+	sdr->yestifier.ops = &rcar_drif_yestify_ops;
 
-	/* Register notifier */
-	ret = v4l2_async_notifier_register(&sdr->v4l2_dev, &sdr->notifier);
+	/* Register yestifier */
+	ret = v4l2_async_yestifier_register(&sdr->v4l2_dev, &sdr->yestifier);
 	if (ret < 0) {
-		dev_err(sdr->dev, "failed: notifier register ret %d\n", ret);
+		dev_err(sdr->dev, "failed: yestifier register ret %d\n", ret);
 		goto cleanup;
 	}
 
 	return ret;
 
 cleanup:
-	v4l2_async_notifier_cleanup(&sdr->notifier);
+	v4l2_async_yestifier_cleanup(&sdr->yestifier);
 error:
 	v4l2_device_unregister(&sdr->v4l2_dev);
 
@@ -1374,8 +1374,8 @@ error:
 /* V4L2 SDR device remove */
 static void rcar_drif_sdr_remove(struct rcar_drif_sdr *sdr)
 {
-	v4l2_async_notifier_unregister(&sdr->notifier);
-	v4l2_async_notifier_cleanup(&sdr->notifier);
+	v4l2_async_yestifier_unregister(&sdr->yestifier);
+	v4l2_async_yestifier_cleanup(&sdr->yestifier);
 	v4l2_device_unregister(&sdr->v4l2_dev);
 }
 
@@ -1383,7 +1383,7 @@ static void rcar_drif_sdr_remove(struct rcar_drif_sdr *sdr)
 static int rcar_drif_probe(struct platform_device *pdev)
 {
 	struct rcar_drif_sdr *sdr;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct rcar_drif *ch;
 	struct resource	*res;
 	int ret;
@@ -1418,7 +1418,7 @@ static int rcar_drif_probe(struct platform_device *pdev)
 		/* Check if current channel acting as primary-bond */
 		if (!rcar_drif_primary_bond(pdev)) {
 			ch->num = 1;	/* Primary bond is channel 0 always */
-			of_node_put(np);
+			of_yesde_put(np);
 			return 0;
 		}
 	}
@@ -1426,7 +1426,7 @@ static int rcar_drif_probe(struct platform_device *pdev)
 	/* Reserve memory for SDR structure */
 	sdr = devm_kzalloc(&pdev->dev, sizeof(*sdr), GFP_KERNEL);
 	if (!sdr) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return -ENOMEM;
 	}
 	ch->sdr = sdr;
@@ -1438,7 +1438,7 @@ static int rcar_drif_probe(struct platform_device *pdev)
 	if (np) {
 		/* Check if bonded device is ready */
 		ret = rcar_drif_bond_available(sdr, np);
-		of_node_put(np);
+		of_yesde_put(np);
 		if (ret)
 			return ret;
 	}

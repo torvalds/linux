@@ -150,7 +150,7 @@ static const char *wm8960_adc_data_output_sel[] = {
 	"Left Data = Right ADC; Right Data = Right ADC",
 	"Left Data = Right ADC; Right Data = Left ADC",
 };
-static const char *wm8960_dmonomix[] = {"Stereo", "Mono"};
+static const char *wm8960_dmoyesmix[] = {"Stereo", "Moyes"};
 
 static const struct soc_enum wm8960_enum[] = {
 	SOC_ENUM_SINGLE(WM8960_DACCTL1, 5, 4, wm8960_polarity),
@@ -160,7 +160,7 @@ static const struct soc_enum wm8960_enum[] = {
 	SOC_ENUM_SINGLE(WM8960_ALC1, 7, 4, wm8960_alcfunc),
 	SOC_ENUM_SINGLE(WM8960_ALC3, 8, 2, wm8960_alcmode),
 	SOC_ENUM_SINGLE(WM8960_ADDCTL1, 2, 4, wm8960_adc_data_output_sel),
-	SOC_ENUM_SINGLE(WM8960_ADDCTL1, 4, 2, wm8960_dmonomix),
+	SOC_ENUM_SINGLE(WM8960_ADDCTL1, 4, 2, wm8960_dmoyesmix),
 };
 
 static const int deemph_settings[] = { 0, 32000, 44100, 48000 };
@@ -302,7 +302,7 @@ SOC_SINGLE_TLV("Right Output Mixer RINPUT3 Volume",
 	       WM8960_ROUTMIX, 4, 7, 1, bypass_tlv),
 
 SOC_ENUM("ADC Data Output Select", wm8960_enum[6]),
-SOC_ENUM("DAC Mono Mix", wm8960_enum[7]),
+SOC_ENUM("DAC Moyes Mix", wm8960_enum[7]),
 };
 
 static const struct snd_kcontrol_new wm8960_lin_boost[] = {
@@ -337,7 +337,7 @@ SOC_DAPM_SINGLE("RINPUT3 Switch", WM8960_ROUTMIX, 7, 1, 0),
 SOC_DAPM_SINGLE("Boost Bypass Switch", WM8960_BYPASS2, 7, 1, 0),
 };
 
-static const struct snd_kcontrol_new wm8960_mono_out[] = {
+static const struct snd_kcontrol_new wm8960_moyes_out[] = {
 SOC_DAPM_SINGLE("Left Switch", WM8960_MONOMIX1, 7, 1, 0),
 SOC_DAPM_SINGLE("Right Switch", WM8960_MONOMIX2, 7, 1, 0),
 };
@@ -394,9 +394,9 @@ SND_SOC_DAPM_OUTPUT("OUT3"),
 };
 
 static const struct snd_soc_dapm_widget wm8960_dapm_widgets_out3[] = {
-SND_SOC_DAPM_MIXER("Mono Output Mixer", WM8960_POWER2, 1, 0,
-	&wm8960_mono_out[0],
-	ARRAY_SIZE(wm8960_mono_out)),
+SND_SOC_DAPM_MIXER("Moyes Output Mixer", WM8960_POWER2, 1, 0,
+	&wm8960_moyes_out[0],
+	ARRAY_SIZE(wm8960_moyes_out)),
 };
 
 /* Represent OUT3 as a PGA so that it gets turned on with LOUT1/ROUT1 */
@@ -453,10 +453,10 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 };
 
 static const struct snd_soc_dapm_route audio_paths_out3[] = {
-	{ "Mono Output Mixer", "Left Switch", "Left Output Mixer" },
-	{ "Mono Output Mixer", "Right Switch", "Right Output Mixer" },
+	{ "Moyes Output Mixer", "Left Switch", "Left Output Mixer" },
+	{ "Moyes Output Mixer", "Right Switch", "Right Output Mixer" },
 
-	{ "OUT3", NULL, "Mono Output Mixer", }
+	{ "OUT3", NULL, "Moyes Output Mixer", }
 };
 
 static const struct snd_soc_dapm_route audio_paths_capless[] = {
@@ -480,7 +480,7 @@ static int wm8960_add_widgets(struct snd_soc_component *component)
 	snd_soc_dapm_add_routes(dapm, audio_paths, ARRAY_SIZE(audio_paths));
 
 	/* In capless mode OUT3 is used to provide VMID for the
-	 * headphone outputs, otherwise it is used as a mono mixer.
+	 * headphone outputs, otherwise it is used as a moyes mixer.
 	 */
 	if (pdata && pdata->capless) {
 		snd_soc_dapm_new_controls(dapm, wm8960_dapm_widgets_capless,
@@ -498,7 +498,7 @@ static int wm8960_add_widgets(struct snd_soc_component *component)
 
 	/* We need to power up the headphone output stage out of
 	 * sequence for capless mode.  To save scanning the widget
-	 * list each time to find the desired power state do so now
+	 * list each time to find the desired power state do so yesw
 	 * and save the result.
 	 */
 	list_for_each_entry(w, &component->card->widgets, list) {
@@ -608,7 +608,7 @@ static const int bclk_divs[] = {
  *		- lrclk      = sysclk / dac_divs
  *		- 10 * bclk  = sysclk / bclk_divs
  *
- *	If we cannot find an exact match for (sysclk, lrclk, bclk)
+ *	If we canyest find an exact match for (sysclk, lrclk, bclk)
  *	triplet, we relax the bclk such that bclk is chosen as the
  *	closest available frequency greater than expected bclk.
  *
@@ -619,7 +619,7 @@ static const int bclk_divs[] = {
  * @bclk_idx: bclk_divs index for found bclk
  *
  * Returns:
- *  -1, in case no sysclk frequency available found
+ *  -1, in case yes sysclk frequency available found
  * >=0, in case we could derive bclk and lrclk from sysclk using
  *      (@sysclk_idx, @dac_idx, @bclk_idx) dividers
  */
@@ -631,7 +631,7 @@ int wm8960_configure_sysclk(struct wm8960_priv *wm8960, int mclk,
 	int i, j, k;
 	int diff, closest = mclk;
 
-	/* marker for no match */
+	/* marker for yes match */
 	*bclk_idx = -1;
 
 	bclk = wm8960->bclk;
@@ -676,7 +676,7 @@ int wm8960_configure_sysclk(struct wm8960_priv *wm8960, int mclk,
  *		- freq_out    = sysclk * sysclk_divs
  *		- 10 * sysclk = bclk * bclk_divs
  *
- * 	If we cannot find an exact match for (sysclk, lrclk, bclk)
+ * 	If we canyest find an exact match for (sysclk, lrclk, bclk)
  * 	triplet, we relax the bclk such that bclk is chosen as the
  * 	closest available frequency greater than expected bclk.
  *
@@ -687,7 +687,7 @@ int wm8960_configure_sysclk(struct wm8960_priv *wm8960, int mclk,
  * @bclk_idx: bclk_divs index for found bclk
  *
  * Returns:
- * < 0, in case no PLL frequency out available was found
+ * < 0, in case yes PLL frequency out available was found
  * >=0, in case we could derive bclk, lrclk, sysclk from PLL out using
  *      (@sysclk_idx, @dac_idx, @bclk_idx) dividers
  */
@@ -748,7 +748,7 @@ static int wm8960_configure_clocking(struct snd_soc_component *component)
 
 	if (!(iface1 & (1<<6))) {
 		dev_dbg(component->dev,
-			"Codec is slave mode, no need to configure clock\n");
+			"Codec is slave mode, yes need to configure clock\n");
 		return 0;
 	}
 
@@ -760,7 +760,7 @@ static int wm8960_configure_clocking(struct snd_soc_component *component)
 	freq_in = wm8960->freq_in;
 	/*
 	 * If it's sysclk auto mode, check if the MCLK can provide sysclk or
-	 * not. If MCLK can provide sysclk, using MCLK to provide sysclk
+	 * yest. If MCLK can provide sysclk, using MCLK to provide sysclk
 	 * directly. Otherwise, auto select a available pll out frequency
 	 * and set PLL.
 	 */
@@ -831,7 +831,7 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 		iface |= 0x0008;
 		break;
 	case 32:
-		/* right justify mode does not support 32 word length */
+		/* right justify mode does yest support 32 word length */
 		if ((iface & 0x3) != 0) {
 			iface |= 0x000c;
 			break;
@@ -1171,7 +1171,7 @@ static int pll_factors(unsigned int source, unsigned int target,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range yesw rounding is done */
 	K /= 10;
 
 	pll_div->k = K;
@@ -1365,7 +1365,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8960 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8960_regmap = {
@@ -1383,7 +1383,7 @@ static const struct regmap_config wm8960_regmap = {
 static void wm8960_set_pdata_from_of(struct i2c_client *i2c,
 				struct wm8960_data *pdata)
 {
-	const struct device_node *np = i2c->dev.of_node;
+	const struct device_yesde *np = i2c->dev.of_yesde;
 
 	if (of_property_read_bool(np, "wlf,capless"))
 		pdata->capless = true;
@@ -1416,7 +1416,7 @@ static int wm8960_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata)
 		memcpy(&wm8960->pdata, pdata, sizeof(struct wm8960_data));
-	else if (i2c->dev.of_node)
+	else if (i2c->dev.of_yesde)
 		wm8960_set_pdata_from_of(i2c, &wm8960->pdata);
 
 	ret = wm8960_reset(wm8960->regmap);

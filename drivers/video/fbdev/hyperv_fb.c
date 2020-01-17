@@ -26,7 +26,7 @@
  *
  * When a Windows 10 RS5+ host is used, the virtual machine screen
  * resolution is obtained from the host. The "video=hyperv_fb" option is
- * not needed, but still can be used to overwrite what the host specifies.
+ * yest needed, but still can be used to overwrite what the host specifies.
  * The VM resolution on the host could be set by executing the powershell
  * "set-vmvideo" command. For example
  *     set-vmvideo -vmname name -horizontalresolution:1920 \
@@ -50,7 +50,7 @@
 /* Hyper-V Synthetic Video Protocol definitions and structures */
 #define MAX_VMBUS_PKT_SIZE 0x4000
 
-#define SYNTHVID_VERSION(major, minor) ((minor) << 16 | (major))
+#define SYNTHVID_VERSION(major, miyesr) ((miyesr) << 16 | (major))
 #define SYNTHVID_VERSION_WIN7 SYNTHVID_VERSION(3, 0)
 #define SYNTHVID_VERSION_WIN8 SYNTHVID_VERSION(3, 2)
 #define SYNTHVID_VERSION_WIN10 SYNTHVID_VERSION(3, 5)
@@ -255,10 +255,10 @@ struct hvfb_par {
 	u8 init_buf[MAX_VMBUS_PKT_SIZE];
 	u8 recv_buf[MAX_VMBUS_PKT_SIZE];
 
-	/* If true, the VSC notifies the VSP on every framebuffer change */
-	bool synchronous_fb;
+	/* If true, the VSC yestifies the VSP on every framebuffer change */
+	bool synchroyesus_fb;
 
-	struct notifier_block hvfb_panic_nb;
+	struct yestifier_block hvfb_panic_nb;
 
 	/* Memory for deferred IO and frame buffer itself */
 	unsigned char *dio_vp;
@@ -552,7 +552,7 @@ static int synthvid_negotiate_ver(struct hv_device *hdev, u32 ver)
 	}
 
 	par->synthvid_version = ver;
-	pr_info("Synthvid Version major %d, minor %d\n",
+	pr_info("Synthvid Version major %d, miyesr %d\n",
 		SYNTHVID_VER_GET_MAJOR(ver), SYNTHVID_VER_GET_MINOR(ver));
 
 out:
@@ -653,7 +653,7 @@ static int synthvid_connect_vsp(struct hv_device *hdev)
 	}
 
 	if (ret) {
-		pr_err("Synthetic video device version not accepted\n");
+		pr_err("Synthetic video device version yest accepted\n");
 		goto error;
 	}
 
@@ -720,7 +720,7 @@ out:
 /*
  * Delayed work callback:
  * It is scheduled to call whenever update request is received and it has
- * not been called in last HVFB_ONDEMAND_THROTTLE time interval.
+ * yest been called in last HVFB_ONDEMAND_THROTTLE time interval.
  */
 static void hvfb_update_work(struct work_struct *w)
 {
@@ -765,7 +765,7 @@ static void hvfb_update_work(struct work_struct *w)
 
 /*
  * Control the on-demand refresh frequency. It schedules a delayed
- * screen update if it has not yet.
+ * screen update if it has yest yet.
  */
 static void hvfb_ondemand_refresh_throttle(struct hvfb_par *par,
 					   int x1, int y1, int w, int h)
@@ -782,7 +782,7 @@ static void hvfb_ondemand_refresh_throttle(struct hvfb_par *par,
 	par->x2 = max_t(int, par->x2, x2);
 	par->y2 = max_t(int, par->y2, y2);
 
-	/* Schedule a delayed screen update if not yet */
+	/* Schedule a delayed screen update if yest yet */
 	if (par->delayed_refresh == false) {
 		schedule_delayed_work(&par->dwork,
 				      HVFB_ONDEMAND_THROTTLE);
@@ -792,14 +792,14 @@ static void hvfb_ondemand_refresh_throttle(struct hvfb_par *par,
 	spin_unlock_irqrestore(&par->delayed_refresh_lock, flags);
 }
 
-static int hvfb_on_panic(struct notifier_block *nb,
+static int hvfb_on_panic(struct yestifier_block *nb,
 			 unsigned long e, void *p)
 {
 	struct hvfb_par *par;
 	struct fb_info *info;
 
 	par = container_of(nb, struct hvfb_par, hvfb_panic_nb);
-	par->synchronous_fb = true;
+	par->synchroyesus_fb = true;
 	info = par->info;
 	hvfb_docopy(par, 0, dio_fb_size);
 	synthvid_update(info, 0, 0, INT_MAX, INT_MAX);
@@ -835,15 +835,15 @@ static inline u32 chan_to_field(u32 chan, struct fb_bitfield *bf)
 	return ((chan & 0xffff) >> (16 - bf->length)) << bf->offset;
 }
 
-static int hvfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int hvfb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			  unsigned blue, unsigned transp, struct fb_info *info)
 {
 	u32 *pal = info->pseudo_palette;
 
-	if (regno > 15)
+	if (regyes > 15)
 		return -EINVAL;
 
-	pal[regno] = chan_to_field(red, &info->var.red)
+	pal[regyes] = chan_to_field(red, &info->var.red)
 		| chan_to_field(green, &info->var.green)
 		| chan_to_field(blue, &info->var.blue)
 		| chan_to_field(transp, &info->var.transp);
@@ -862,7 +862,7 @@ static void hvfb_cfb_fillrect(struct fb_info *p,
 	struct hvfb_par *par = p->par;
 
 	cfb_fillrect(p, rect);
-	if (par->synchronous_fb)
+	if (par->synchroyesus_fb)
 		synthvid_update(p, 0, 0, INT_MAX, INT_MAX);
 	else
 		hvfb_ondemand_refresh_throttle(par, rect->dx, rect->dy,
@@ -875,7 +875,7 @@ static void hvfb_cfb_copyarea(struct fb_info *p,
 	struct hvfb_par *par = p->par;
 
 	cfb_copyarea(p, area);
-	if (par->synchronous_fb)
+	if (par->synchroyesus_fb)
 		synthvid_update(p, 0, 0, INT_MAX, INT_MAX);
 	else
 		hvfb_ondemand_refresh_throttle(par, area->dx, area->dy,
@@ -888,7 +888,7 @@ static void hvfb_cfb_imageblit(struct fb_info *p,
 	struct hvfb_par *par = p->par;
 
 	cfb_imageblit(p, image);
-	if (par->synchronous_fb)
+	if (par->synchroyesus_fb)
 		synthvid_update(p, 0, 0, INT_MAX, INT_MAX);
 	else
 		hvfb_ondemand_refresh_throttle(par, image->dx, image->dy,
@@ -967,7 +967,7 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 
 		if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM) ||
 		    pci_resource_len(pdev, 0) < screen_fb_size) {
-			pr_err("Resource not available or (0x%lx < 0x%lx)\n",
+			pr_err("Resource yest available or (0x%lx < 0x%lx)\n",
 			       (unsigned long) pci_resource_len(pdev, 0),
 			       (unsigned long) screen_fb_size);
 			goto err1;
@@ -1138,9 +1138,9 @@ static int hvfb_probe(struct hv_device *hdev,
 
 	par->fb_ready = true;
 
-	par->synchronous_fb = false;
-	par->hvfb_panic_nb.notifier_call = hvfb_on_panic;
-	atomic_notifier_chain_register(&panic_notifier_list,
+	par->synchroyesus_fb = false;
+	par->hvfb_panic_nb.yestifier_call = hvfb_on_panic;
+	atomic_yestifier_chain_register(&panic_yestifier_list,
 				       &par->hvfb_panic_nb);
 
 	return 0;
@@ -1163,7 +1163,7 @@ static int hvfb_remove(struct hv_device *hdev)
 	struct fb_info *info = hv_get_drvdata(hdev);
 	struct hvfb_par *par = info->par;
 
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_yestifier_chain_unregister(&panic_yestifier_list,
 					 &par->hvfb_panic_nb);
 
 	par->update = false;

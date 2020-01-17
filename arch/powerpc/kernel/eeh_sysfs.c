@@ -62,7 +62,7 @@ static ssize_t eeh_pe_state_store(struct device *dev,
 	if (!edev || !edev->pe)
 		return -ENODEV;
 
-	/* Nothing to do if it's not frozen */
+	/* Nothing to do if it's yest frozen */
 	if (!(edev->pe->state & EEH_PE_ISOLATED))
 		return count;
 
@@ -76,7 +76,7 @@ static ssize_t eeh_pe_state_store(struct device *dev,
 static DEVICE_ATTR_RW(eeh_pe_state);
 
 #ifdef CONFIG_PCI_IOV
-static ssize_t eeh_notify_resume_show(struct device *dev,
+static ssize_t eeh_yestify_resume_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -90,48 +90,48 @@ static ssize_t eeh_notify_resume_show(struct device *dev,
 	return sprintf(buf, "%d\n", pdn->last_allow_rc);
 }
 
-static ssize_t eeh_notify_resume_store(struct device *dev,
+static ssize_t eeh_yestify_resume_store(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct eeh_dev *edev = pci_dev_to_eeh_dev(pdev);
 
-	if (!edev || !edev->pe || !eeh_ops->notify_resume)
+	if (!edev || !edev->pe || !eeh_ops->yestify_resume)
 		return -ENODEV;
 
-	if (eeh_ops->notify_resume(pci_get_pdn(pdev)))
+	if (eeh_ops->yestify_resume(pci_get_pdn(pdev)))
 		return -EIO;
 
 	return count;
 }
-static DEVICE_ATTR_RW(eeh_notify_resume);
+static DEVICE_ATTR_RW(eeh_yestify_resume);
 
-static int eeh_notify_resume_add(struct pci_dev *pdev)
+static int eeh_yestify_resume_add(struct pci_dev *pdev)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int rc = 0;
 
-	np = pci_device_to_OF_node(pdev->is_physfn ? pdev : pdev->physfn);
+	np = pci_device_to_OF_yesde(pdev->is_physfn ? pdev : pdev->physfn);
 
 	if (of_property_read_bool(np, "ibm,is-open-sriov-pf"))
-		rc = device_create_file(&pdev->dev, &dev_attr_eeh_notify_resume);
+		rc = device_create_file(&pdev->dev, &dev_attr_eeh_yestify_resume);
 
 	return rc;
 }
 
-static void eeh_notify_resume_remove(struct pci_dev *pdev)
+static void eeh_yestify_resume_remove(struct pci_dev *pdev)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = pci_device_to_OF_node(pdev->is_physfn ? pdev : pdev->physfn);
+	np = pci_device_to_OF_yesde(pdev->is_physfn ? pdev : pdev->physfn);
 
 	if (of_property_read_bool(np, "ibm,is-open-sriov-pf"))
-		device_remove_file(&pdev->dev, &dev_attr_eeh_notify_resume);
+		device_remove_file(&pdev->dev, &dev_attr_eeh_yestify_resume);
 }
 #else
-static inline int eeh_notify_resume_add(struct pci_dev *pdev) { return 0; }
-static inline void eeh_notify_resume_remove(struct pci_dev *pdev) { }
+static inline int eeh_yestify_resume_add(struct pci_dev *pdev) { return 0; }
+static inline void eeh_yestify_resume_remove(struct pci_dev *pdev) { }
 #endif /* CONFIG_PCI_IOV */
 
 void eeh_sysfs_add_device(struct pci_dev *pdev)
@@ -148,7 +148,7 @@ void eeh_sysfs_add_device(struct pci_dev *pdev)
 	rc += device_create_file(&pdev->dev, &dev_attr_eeh_mode);
 	rc += device_create_file(&pdev->dev, &dev_attr_eeh_pe_config_addr);
 	rc += device_create_file(&pdev->dev, &dev_attr_eeh_pe_state);
-	rc += eeh_notify_resume_add(pdev);
+	rc += eeh_yestify_resume_add(pdev);
 
 	if (rc)
 		pr_warn("EEH: Unable to create sysfs entries\n");
@@ -174,7 +174,7 @@ void eeh_sysfs_remove_device(struct pci_dev *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_eeh_pe_config_addr);
 	device_remove_file(&pdev->dev, &dev_attr_eeh_pe_state);
 
-	eeh_notify_resume_remove(pdev);
+	eeh_yestify_resume_remove(pdev);
 
 	if (edev)
 		edev->mode &= ~EEH_DEV_SYSFS;

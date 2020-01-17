@@ -75,27 +75,27 @@ static void sirfsoc_pin_dbg_show(struct pinctrl_dev *pctldev,
 	seq_printf(s, " " DRIVER_NAME);
 }
 
-static int sirfsoc_dt_node_to_map(struct pinctrl_dev *pctldev,
-				 struct device_node *np_config,
+static int sirfsoc_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+				 struct device_yesde *np_config,
 				 struct pinctrl_map **map, unsigned *num_maps)
 {
 	struct sirfsoc_pmx *spmx = pinctrl_dev_get_drvdata(pctldev);
-	struct device_node *np;
+	struct device_yesde *np;
 	struct property *prop;
 	const char *function, *group;
 	int ret, index = 0, count = 0;
 
 	/* calculate number of maps required */
-	for_each_child_of_node(np_config, np) {
+	for_each_child_of_yesde(np_config, np) {
 		ret = of_property_read_string(np, "sirf,function", &function);
 		if (ret < 0) {
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 
 		ret = of_property_count_strings(np, "sirf,pins");
 		if (ret < 0) {
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 
@@ -103,7 +103,7 @@ static int sirfsoc_dt_node_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	if (!count) {
-		dev_err(spmx->dev, "No child nodes passed via DT\n");
+		dev_err(spmx->dev, "No child yesdes passed via DT\n");
 		return -ENODEV;
 	}
 
@@ -111,7 +111,7 @@ static int sirfsoc_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (!*map)
 		return -ENOMEM;
 
-	for_each_child_of_node(np_config, np) {
+	for_each_child_of_yesde(np_config, np) {
 		of_property_read_string(np, "sirf,function", &function);
 		of_property_for_each_string(np, "sirf,pins", prop, group) {
 			(*map)[index].type = PIN_MAP_TYPE_MUX_GROUP;
@@ -137,7 +137,7 @@ static const struct pinctrl_ops sirfsoc_pctrl_ops = {
 	.get_group_name = sirfsoc_get_group_name,
 	.get_group_pins = sirfsoc_get_group_pins,
 	.pin_dbg_show = sirfsoc_pin_dbg_show,
-	.dt_node_to_map = sirfsoc_dt_node_to_map,
+	.dt_yesde_to_map = sirfsoc_dt_yesde_to_map,
 	.dt_free_map = sirfsoc_dt_free_map,
 };
 
@@ -249,11 +249,11 @@ static void __iomem *sirfsoc_rsc_of_iomap(void)
 		{ .compatible = "sirf,prima2-rsc" },
 		{}
 	};
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_matching_node(NULL, rsc_ids);
+	np = of_find_matching_yesde(NULL, rsc_ids);
 	if (!np)
-		panic("unable to find compatible rsc node in dtb\n");
+		panic("unable to find compatible rsc yesde in dtb\n");
 
 	return of_iomap(np, 0);
 }
@@ -281,7 +281,7 @@ static int sirfsoc_pinmux_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct sirfsoc_pmx *spmx;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct sirfsoc_pinctrl_data *pdata;
 
 	/* Create state holders etc for this driver */
@@ -303,10 +303,10 @@ static int sirfsoc_pinmux_probe(struct platform_device *pdev)
 	if (!spmx->rsc_virtbase) {
 		ret = -ENOMEM;
 		dev_err(&pdev->dev, "can't map rsc registers\n");
-		goto out_no_rsc_remap;
+		goto out_yes_rsc_remap;
 	}
 
-	pdata = of_match_node(pinmux_ids, np)->data;
+	pdata = of_match_yesde(pinmux_ids, np)->data;
 	sirfsoc_pin_groups = pdata->grps;
 	sirfsoc_pingrp_cnt = pdata->grps_cnt;
 	sirfsoc_pmx_functions = pdata->funcs;
@@ -318,24 +318,24 @@ static int sirfsoc_pinmux_probe(struct platform_device *pdev)
 	/* Now register the pin controller and all pins it handles */
 	spmx->pmx = pinctrl_register(&sirfsoc_pinmux_desc, &pdev->dev, spmx);
 	if (IS_ERR(spmx->pmx)) {
-		dev_err(&pdev->dev, "could not register SIRFSOC pinmux driver\n");
+		dev_err(&pdev->dev, "could yest register SIRFSOC pinmux driver\n");
 		ret = PTR_ERR(spmx->pmx);
-		goto out_no_pmx;
+		goto out_yes_pmx;
 	}
 
 	dev_info(&pdev->dev, "initialized SIRFSOC pinmux driver\n");
 
 	return 0;
 
-out_no_pmx:
+out_yes_pmx:
 	iounmap(spmx->rsc_virtbase);
-out_no_rsc_remap:
+out_yes_rsc_remap:
 	iounmap(spmx->gpio_virtbase);
 	return ret;
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int sirfsoc_pinmux_suspend_noirq(struct device *dev)
+static int sirfsoc_pinmux_suspend_yesirq(struct device *dev)
 {
 	int i, j;
 	struct sirfsoc_pmx *spmx = dev_get_drvdata(dev);
@@ -358,7 +358,7 @@ static int sirfsoc_pinmux_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int sirfsoc_pinmux_resume_noirq(struct device *dev)
+static int sirfsoc_pinmux_resume_yesirq(struct device *dev)
 {
 	int i, j;
 	struct sirfsoc_pmx *spmx = dev_get_drvdata(dev);
@@ -382,10 +382,10 @@ static int sirfsoc_pinmux_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops sirfsoc_pinmux_pm_ops = {
-	.suspend_noirq = sirfsoc_pinmux_suspend_noirq,
-	.resume_noirq = sirfsoc_pinmux_resume_noirq,
-	.freeze_noirq = sirfsoc_pinmux_suspend_noirq,
-	.restore_noirq = sirfsoc_pinmux_resume_noirq,
+	.suspend_yesirq = sirfsoc_pinmux_suspend_yesirq,
+	.resume_yesirq = sirfsoc_pinmux_resume_yesirq,
+	.freeze_yesirq = sirfsoc_pinmux_suspend_yesirq,
+	.restore_yesirq = sirfsoc_pinmux_resume_yesirq,
 };
 #endif
 
@@ -570,7 +570,7 @@ static void sirfsoc_gpio_handle_irq(struct irq_desc *desc)
 	status = readl(sgpio->chip.regs + SIRFSOC_GPIO_INT_STATUS(bank->id));
 	if (!status) {
 		printk(KERN_WARNING
-			"%s: gpio id %d status %#x no interrupt is flagged\n",
+			"%s: gpio id %d status %#x yes interrupt is flagged\n",
 			__func__, bank->id, status);
 		handle_bad_irq(desc);
 		return;
@@ -778,7 +778,7 @@ static void sirfsoc_gpio_set_pulldown(struct sirfsoc_gpio_chip *sgpio,
 	}
 }
 
-static int sirfsoc_gpio_probe(struct device_node *np)
+static int sirfsoc_gpio_probe(struct device_yesde *np)
 {
 	int i, err = 0;
 	struct sirfsoc_gpio_chip *sgpio;
@@ -789,7 +789,7 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 
 	u32 pullups[SIRFSOC_GPIO_NO_OF_BANKS], pulldowns[SIRFSOC_GPIO_NO_OF_BANKS];
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_yesde(np);
 	if (!pdev)
 		return -ENODEV;
 
@@ -811,7 +811,7 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 	sgpio->chip.gc.base = 0;
 	sgpio->chip.gc.ngpio = SIRFSOC_GPIO_BANK_SIZE * SIRFSOC_GPIO_NO_OF_BANKS;
 	sgpio->chip.gc.label = kasprintf(GFP_KERNEL, "%pOF", np);
-	sgpio->chip.gc.of_node = np;
+	sgpio->chip.gc.of_yesde = np;
 	sgpio->chip.gc.of_xlate = sirfsoc_gpio_of_xlate;
 	sgpio->chip.gc.of_gpio_n_cells = 2;
 	sgpio->chip.gc.parent = &pdev->dev;
@@ -850,8 +850,8 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 		0, 0, SIRFSOC_GPIO_BANK_SIZE * SIRFSOC_GPIO_NO_OF_BANKS);
 	if (err) {
 		dev_err(&pdev->dev,
-			"could not add gpiochip pin range\n");
-		goto out_no_range;
+			"could yest add gpiochip pin range\n");
+		goto out_yes_range;
 	}
 
 	if (!of_property_read_u32_array(np, "sirf,pullups", pullups,
@@ -864,7 +864,7 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 
 	return 0;
 
-out_no_range:
+out_yes_range:
 	gpiochip_remove(&sgpio->chip.gc);
 out:
 	iounmap(regs);
@@ -874,9 +874,9 @@ out:
 static int __init sirfsoc_gpio_init(void)
 {
 
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_matching_node(NULL, pinmux_ids);
+	np = of_find_matching_yesde(NULL, pinmux_ids);
 
 	if (!np)
 		return -ENODEV;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *  include/linux/userfaultfd.h
  *
@@ -14,7 +14,7 @@
 
 /*
  * If the UFFDIO_API is upgraded someday, the UFFDIO_UNREGISTER and
- * UFFDIO_WAKE ioctls should be defined as _IOW and not as _IOR.  In
+ * UFFDIO_WAKE ioctls should be defined as _IOW and yest as _IOR.  In
  * userfaultfd.h we assumed the kernel was reading (instead _IOC_READ
  * means the userland is reading).
  */
@@ -111,7 +111,7 @@ struct uffd_msg {
 } __packed;
 
 /*
- * Start at 0x12 and not at 0 to be more strict against bugs.
+ * Start at 0x12 and yest at 0 to be more strict against bugs.
  */
 #define UFFD_EVENT_PAGEFAULT	0x12
 #define UFFD_EVENT_FORK		0x13
@@ -128,7 +128,7 @@ struct uffdio_api {
 	__u64 api;
 	/*
 	 * Kernel answers below with the all available features for
-	 * the API, this notifies userland of which events and/or
+	 * the API, this yestifies userland of which events and/or
 	 * which flags for each event are enabled in the current
 	 * kernel.
 	 *
@@ -138,9 +138,9 @@ struct uffdio_api {
 	 *
 	 * UFFD_FEATURE_MISSING_HUGETLBFS means an UFFDIO_REGISTER
 	 * with UFFDIO_REGISTER_MODE_MISSING mode will succeed on
-	 * hugetlbfs virtual memory ranges. Adding or not adding
+	 * hugetlbfs virtual memory ranges. Adding or yest adding
 	 * UFFD_FEATURE_MISSING_HUGETLBFS to uffdio_api.features has
-	 * no real functional effect after UFFDIO_API returns, but
+	 * yes real functional effect after UFFDIO_API returns, but
 	 * it's only useful for an initial feature set probe at
 	 * UFFDIO_API time. There are two ways to use it:
 	 *
@@ -149,7 +149,7 @@ struct uffdio_api {
 	 *    will be returned by UFFDIO_API on a kernel without
 	 *    hugetlbfs missing support
 	 *
-	 * 2) the UFFD_FEATURE_MISSING_HUGETLBFS can not be added in
+	 * 2) the UFFD_FEATURE_MISSING_HUGETLBFS can yest be added in
 	 *    uffdio_api.features and instead it will be set by the
 	 *    kernel in the uffdio_api.features if the kernel supports
 	 *    it, so userland can later check if the feature flag is
@@ -160,12 +160,12 @@ struct uffdio_api {
 	 * UFFD_FEATURE_MISSING_HUGETLBFS, but it applies to shmem
 	 * (i.e. tmpfs and other shmem based APIs).
 	 *
-	 * UFFD_FEATURE_SIGBUS feature means no page-fault
+	 * UFFD_FEATURE_SIGBUS feature means yes page-fault
 	 * (UFFD_EVENT_PAGEFAULT) event will be delivered, instead
 	 * a SIGBUS signal will be sent to the faulting process.
 	 *
 	 * UFFD_FEATURE_THREAD_ID pid of the page faulted task_struct will
-	 * be returned, if feature is not requested 0 will be returned.
+	 * be returned, if feature is yest requested 0 will be returned.
 	 */
 #define UFFD_FEATURE_PAGEFAULT_FLAG_WP		(1<<0)
 #define UFFD_FEATURE_EVENT_FORK			(1<<1)
@@ -214,7 +214,7 @@ struct uffdio_copy {
 
 	/*
 	 * "copy" is written by the ioctl and must be at the end: the
-	 * copy_from_user will not read the last 8 bytes.
+	 * copy_from_user will yest read the last 8 bytes.
 	 */
 	__s64 copy;
 };
@@ -226,7 +226,7 @@ struct uffdio_zeropage {
 
 	/*
 	 * "zeropage" is written by the ioctl and must be at the end:
-	 * the copy_from_user will not read the last 8 bytes.
+	 * the copy_from_user will yest read the last 8 bytes.
 	 */
 	__s64 zeropage;
 };

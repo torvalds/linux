@@ -17,7 +17,7 @@ struct nvkm_object {
 	u8  route;
 	u64 token;
 	u64 object;
-	struct rb_node node;
+	struct rb_yesde yesde;
 };
 
 enum nvkm_object_map {

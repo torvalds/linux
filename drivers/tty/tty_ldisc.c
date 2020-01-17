@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kmod.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
@@ -38,7 +38,7 @@ enum {
 /*
  *	This guards the refcounted line discipline lists. The lock
  *	must be taken with irqs off because there are hangup path
- *	callers who will do ldisc lookups and cannot sleep.
+ *	callers who will do ldisc lookups and canyest sleep.
  */
 
 static DEFINE_RAW_SPINLOCK(tty_ldiscs_lock);
@@ -81,7 +81,7 @@ EXPORT_SYMBOL(tty_register_ldisc);
  *	@disc: ldisc number
  *	@new_ldisc: pointer to the ldisc object
  *
- *	Remove a line discipline from the kernel providing it is not
+ *	Remove a line discipline from the kernel providing it is yest
  *	currently in use.
  *
  *	Locking:
@@ -143,8 +143,8 @@ static void put_ldops(struct tty_ldisc_ops *ldops)
  *	Takes a reference to a line discipline. Deals with refcounts and
  *	module locking counts.
  *
- *	Returns: -EINVAL if the discipline index is not [N_TTY..NR_LDISCS] or
- *			 if the discipline is not registered
+ *	Returns: -EINVAL if the discipline index is yest [N_TTY..NR_LDISCS] or
+ *			 if the discipline is yest registered
  *		 -EAGAIN if request_module() failed to load or register the
  *			 the discipline
  *		 -ENOMEM if allocation failure
@@ -181,7 +181,7 @@ static struct tty_ldisc *tty_ldisc_get(struct tty_struct *tty, int disc)
 	}
 
 	/*
-	 * There is no way to handle allocation failure of only 16 bytes.
+	 * There is yes way to handle allocation failure of only 16 bytes.
 	 * Let's simplify error handling and save more memory.
 	 */
 	ld = kmalloc(sizeof(struct tty_ldisc), GFP_KERNEL | __GFP_NOFAIL);
@@ -248,11 +248,11 @@ const struct seq_operations tty_ldiscs_seq_ops = {
  *	reference to it. If the line discipline is in flux then
  *	wait patiently until it changes.
  *
- *	Returns: NULL if the tty has been hungup and not re-opened with
+ *	Returns: NULL if the tty has been hungup and yest re-opened with
  *		 a new file descriptor, otherwise valid ldisc reference
  *
- *	Note: Must not be called from an IRQ/timer context. The caller
- *	must also be careful not to hold other locks that will deadlock
+ *	Note: Must yest be called from an IRQ/timer context. The caller
+ *	must also be careful yest to hold other locks that will deadlock
  *	against a discipline change, such as an existing ldisc reference
  *	(which we check for)
  *
@@ -424,7 +424,7 @@ EXPORT_SYMBOL_GPL(tty_ldisc_flush);
  *	@disc: line discipline number
  *
  *	This is probably overkill for real world processors but
- *	they are not on hot paths so a little discipline won't do
+ *	they are yest on hot paths so a little discipline won't do
  *	any harm.
  *
  *	The line discipline-related tty_struct fields are reset to
@@ -531,7 +531,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 
 		pr_warn("Falling back ldisc for %s.\n", name);
 		/* The traditional behaviour is to fall back to N_TTY, we
-		   want to avoid falling back to N_NULL unless we have no
+		   want to avoid falling back to N_NULL unless we have yes
 		   choice to avoid the risk of breaking anything */
 		if (tty_ldisc_failto(tty, N_TTY) < 0 &&
 		    tty_ldisc_failto(tty, N_NULL) < 0)
@@ -569,7 +569,7 @@ int tty_set_ldisc(struct tty_struct *tty, int disc)
 		goto out;
 	}
 
-	/* Check the no-op case */
+	/* Check the yes-op case */
 	if (tty->ldisc->ops->num == disc)
 		goto out;
 
@@ -610,7 +610,7 @@ int tty_set_ldisc(struct tty_struct *tty, int disc)
 out:
 	tty_ldisc_unlock(tty);
 
-	/* Restart the work queue in case no characters kick it off. Safe if
+	/* Restart the work queue in case yes characters kick it off. Safe if
 	   already running */
 	tty_buffer_restart_work(tty->port);
 err:
@@ -664,7 +664,7 @@ static void tty_reset_termios(struct tty_struct *tty)
  *
  *	Completely reinitialize the line discipline state, by closing the
  *	current instance, if there is one, and opening a new instance. If
- *	an error occurs opening the new non-N_TTY instance, the instance
+ *	an error occurs opening the new yesn-N_TTY instance, the instance
  *	is dropped and tty->ldisc reset to NULL. The caller can then retry
  *	with N_TTY instead.
  *
@@ -764,7 +764,7 @@ void tty_ldisc_hangup(struct tty_struct *tty, bool reinit)
  *	@o_tty: pair tty for pty/tty pairs
  *
  *	Called during the initial open of a tty/pty pair in order to set up the
- *	line disciplines and bind them to the tty. This has no locking issues
+ *	line disciplines and bind them to the tty. This has yes locking issues
  *	as the device isn't yet active.
  */
 
@@ -777,7 +777,7 @@ int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
 	if (o_tty) {
 		/*
 		 * Called without o_tty->ldisc_sem held, as o_tty has been
-		 * just allocated and no one has a reference to it.
+		 * just allocated and yes one has a reference to it.
 		 */
 		retval = tty_ldisc_open(o_tty, o_tty->ldisc);
 		if (retval) {
@@ -802,7 +802,7 @@ void tty_ldisc_release(struct tty_struct *tty)
 
 	/*
 	 * Shutdown this line discipline. As this is the final close,
-	 * it does not race with the set_ldisc code path.
+	 * it does yest race with the set_ldisc code path.
 	 */
 
 	tty_ldisc_lock_pair(tty, o_tty);
@@ -823,7 +823,7 @@ EXPORT_SYMBOL_GPL(tty_ldisc_release);
  *	@tty: tty being allocated
  *
  *	Set up the line discipline objects for a newly allocated tty. Note that
- *	the tty structure is not completely set up when this call is made.
+ *	the tty structure is yest completely set up when this call is made.
  */
 
 int tty_ldisc_init(struct tty_struct *tty)
@@ -839,12 +839,12 @@ int tty_ldisc_init(struct tty_struct *tty)
  *	tty_ldisc_deinit	-	ldisc cleanup for new tty
  *	@tty: tty that was allocated recently
  *
- *	The tty structure must not becompletely set up (tty_ldisc_setup) when
+ *	The tty structure must yest becompletely set up (tty_ldisc_setup) when
  *      this call is made.
  */
 void tty_ldisc_deinit(struct tty_struct *tty)
 {
-	/* no ldisc_sem, tty is being destroyed */
+	/* yes ldisc_sem, tty is being destroyed */
 	if (tty->ldisc)
 		tty_ldisc_put(tty->ldisc);
 	tty->ldisc = NULL;

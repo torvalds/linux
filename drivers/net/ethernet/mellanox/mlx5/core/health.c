@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -90,7 +90,7 @@ void mlx5_set_nic_state(struct mlx5_core_dev *dev, u8 state)
 		    &dev->iseg->cmdq_addr_l_sz);
 }
 
-static bool sensor_pci_not_working(struct mlx5_core_dev *dev)
+static bool sensor_pci_yest_working(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct health_buffer __iomem *h = health->health;
@@ -113,7 +113,7 @@ static bool sensor_fw_synd_rfr(struct mlx5_core_dev *dev)
 
 static u32 check_fatal_sensors(struct mlx5_core_dev *dev)
 {
-	if (sensor_pci_not_working(dev))
+	if (sensor_pci_yest_working(dev))
 		return MLX5_SENSOR_PCI_COMM_ERR;
 	if (pci_channel_offline(dev->pdev))
 		return MLX5_SENSOR_PCI_ERR;
@@ -136,7 +136,7 @@ static int lock_sem_sw_reset(struct mlx5_core_dev *dev, bool lock)
 		return -EBUSY;
 
 	/* Try to lock GW access, this stage doesn't return
-	 * EBUSY because locked GW does not mean that other PF
+	 * EBUSY because locked GW does yest mean that other PF
 	 * already started the reset.
 	 */
 	ret = mlx5_vsc_gw_lock(dev);
@@ -146,9 +146,9 @@ static int lock_sem_sw_reset(struct mlx5_core_dev *dev, bool lock)
 		return ret;
 
 	state = lock ? MLX5_VSC_LOCK : MLX5_VSC_UNLOCK;
-	/* At this stage, if the return status == EBUSY, then we know
-	 * for sure that another PF started the reset, so don't allow
-	 * another reset.
+	/* At this stage, if the return status == EBUSY, then we kyesw
+	 * for sure that ayesther PF started the reset, so don't allow
+	 * ayesther reset.
 	 */
 	ret = mlx5_vsc_sem_set_space(dev, MLX5_SEMAPHORE_SW_RESET, state);
 	if (ret)
@@ -206,7 +206,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 		mlx5_cmd_flush(dev);
 	}
 
-	mlx5_notifier_call_chain(dev->priv.events, MLX5_DEV_EVENT_SYS_ERROR, (void *)1);
+	mlx5_yestifier_call_chain(dev->priv.events, MLX5_DEV_EVENT_SYS_ERROR, (void *)1);
 unlock:
 	mutex_unlock(&dev->intf_state_mutex);
 }
@@ -275,15 +275,15 @@ static void mlx5_handle_bad_state(struct mlx5_core_dev *dev)
 		break;
 
 	case MLX5_NIC_IFC_NO_DRAM_NIC:
-		mlx5_core_warn(dev, "Expected to see disabled NIC but it is no dram nic\n");
+		mlx5_core_warn(dev, "Expected to see disabled NIC but it is yes dram nic\n");
 		break;
 
 	case MLX5_NIC_IFC_SW_RESET:
 		/* The IFC mode field is 3 bits, so it will read 0x7 in 2 cases:
 		 * 1. PCI has been disabled (ie. PCI-AER, PF driver unloaded
-		 *    and this is a VF), this is not recoverable by SW reset.
+		 *    and this is a VF), this is yest recoverable by SW reset.
 		 *    Logging of this is handled elsewhere.
-		 * 2. FW reset has been issued by another function, driver can
+		 * 2. FW reset has been issued by ayesther function, driver can
 		 *    be reloaded to recover after the mode switches to
 		 *    MLX5_NIC_IFC_DISABLED.
 		 */
@@ -308,10 +308,10 @@ static int mlx5_health_try_recover(struct mlx5_core_dev *dev)
 	mlx5_core_warn(dev, "handling bad device here\n");
 	mlx5_handle_bad_state(dev);
 	end = jiffies + msecs_to_jiffies(MLX5_RECOVERY_WAIT_MSECS);
-	while (sensor_pci_not_working(dev)) {
+	while (sensor_pci_yest_working(dev)) {
 		if (time_after(jiffies, end)) {
 			mlx5_core_err(dev,
-				      "health recovery flow aborted, PCI reads still not working\n");
+				      "health recovery flow aborted, PCI reads still yest working\n");
 			return -EIO;
 		}
 		msleep(100);
@@ -333,7 +333,7 @@ static const char *hsynd_str(u8 synd)
 	case MLX5_HEALTH_SYNDR_FW_ERR:
 		return "firmware internal error";
 	case MLX5_HEALTH_SYNDR_IRISC_ERR:
-		return "irisc not responding";
+		return "irisc yest responding";
 	case MLX5_HEALTH_SYNDR_HW_UNRECOVERABLE_ERR:
 		return "unrecoverable hardware error";
 	case MLX5_HEALTH_SYNDR_CRC_ERR:
@@ -365,7 +365,7 @@ static void print_health_info(struct mlx5_core_dev *dev)
 	u32 fw;
 	int i;
 
-	/* If the syndrome is 0, the device is OK and no need to print buffer */
+	/* If the syndrome is 0, the device is OK and yes need to print buffer */
 	if (!ioread8(&h->synd))
 		return;
 
@@ -389,7 +389,7 @@ static void print_health_info(struct mlx5_core_dev *dev)
 }
 
 static int
-mlx5_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
+mlx5_fw_reporter_diagyesse(struct devlink_health_reporter *reporter,
 			  struct devlink_fmsg *fmsg,
 			  struct netlink_ext_ack *extack)
 {
@@ -541,7 +541,7 @@ static void mlx5_fw_reporter_err_work(struct work_struct *work)
 
 static const struct devlink_health_reporter_ops mlx5_fw_reporter_ops = {
 		.name = "fw",
-		.diagnose = mlx5_fw_reporter_diagnose,
+		.diagyesse = mlx5_fw_reporter_diagyesse,
 		.dump = mlx5_fw_reporter_dump,
 };
 
@@ -673,7 +673,7 @@ void mlx5_trigger_health_work(struct mlx5_core_dev *dev)
 	if (!test_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags))
 		queue_work(health->wq, &health->fatal_report_work);
 	else
-		mlx5_core_err(dev, "new health works are not permitted at this stage\n");
+		mlx5_core_err(dev, "new health works are yest permitted at this stage\n");
 	spin_unlock_irqrestore(&health->wq_lock, flags);
 }
 

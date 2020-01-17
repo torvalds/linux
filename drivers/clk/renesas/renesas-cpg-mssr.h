@@ -83,7 +83,7 @@ struct mssr_mod_clk {
 #define DEF_MOD_STB(_name, _mod, _parent...)	\
 	{ .name = _name, .id = MOD_CLK_ID_10(_mod), .parent = _parent }
 
-struct device_node;
+struct device_yesde;
 
     /**
      * SoC-specific CPG/MSSR Description
@@ -103,7 +103,7 @@ struct device_node;
      * @num_hw_mod_clks: Number of Module Clocks supported by the hardware
      *
      * @crit_mod_clks: Array with Module Clock IDs of critical clocks that
-     *                 should not be disabled without a knowledgeable driver
+     *                 should yest be disabled without a kyeswledgeable driver
      * @num_crit_mod_clks: Number of entries in crit_mod_clks[]
      *
      * @core_pm_clks: Array with IDs of Core Clocks that are suitable for Power
@@ -114,7 +114,7 @@ struct device_node;
      * @cpg_clk_register: Optional callback to handle special Core Clock types
      *
      * @stbyctrl: This device has Standby Control Registers which are 8-bits
-     *            wide, no status registers (MSTPSR) and have different address
+     *            wide, yes status registers (MSTPSR) and have different address
      *            offsets.
      */
 
@@ -137,7 +137,7 @@ struct cpg_mssr_info {
 	unsigned int num_mod_clks;
 	unsigned int num_hw_mod_clks;
 
-	/* Critical Module Clocks that should not be disabled */
+	/* Critical Module Clocks that should yest be disabled */
 	const unsigned int *crit_mod_clks;
 	unsigned int num_crit_mod_clks;
 
@@ -151,7 +151,7 @@ struct cpg_mssr_info {
 					const struct cpg_core_clk *core,
 					const struct cpg_mssr_info *info,
 					struct clk **clks, void __iomem *base,
-					struct raw_notifier_head *notifiers);
+					struct raw_yestifier_head *yestifiers);
 };
 
 extern const struct cpg_mssr_info r7s9210_cpg_mssr_info;
@@ -173,7 +173,7 @@ extern const struct cpg_mssr_info r8a77980_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a77990_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a77995_cpg_mssr_info;
 
-void __init cpg_mssr_early_init(struct device_node *np,
+void __init cpg_mssr_early_init(struct device_yesde *np,
 				const struct cpg_mssr_info *info);
 
     /*

@@ -13,11 +13,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * - Redistributions of source code must retain the above copyright notice,
+ * - Redistributions of source code must retain the above copyright yestice,
  *   this list of conditions and the following disclaimer.
  *
  * - Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
@@ -286,7 +286,7 @@ struct ocrdma_mqe {
 		struct ocrdma_mqe_emb_cmd emb_req;
 		struct {
 			struct ocrdma_mqe_sge sge[19];
-		} nonemb_req;
+		} yesnemb_req;
 		u8 cmd[236];
 		struct ocrdma_mbx_rsp rsp;
 	} u;
@@ -1923,14 +1923,14 @@ struct ocrdma_av {
 
 struct ocrdma_rsrc_stats {
 	u32 dpp_pds;
-	u32 non_dpp_pds;
+	u32 yesn_dpp_pds;
 	u32 rc_dpp_qps;
 	u32 uc_dpp_qps;
 	u32 ud_dpp_qps;
-	u32 rc_non_dpp_qps;
+	u32 rc_yesn_dpp_qps;
 	u32 rsvd;
-	u32 uc_non_dpp_qps;
-	u32 ud_non_dpp_qps;
+	u32 uc_yesn_dpp_qps;
+	u32 ud_yesn_dpp_qps;
 	u32 rsvd1;
 	u32 srqs;
 	u32 rbqs;

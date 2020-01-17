@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -229,11 +229,11 @@ int amdgpu_ctx_get_entity(struct amdgpu_ctx *ctx, u32 hw_ip, u32 instance,
 			  u32 ring, struct drm_sched_entity **entity)
 {
 	if (hw_ip >= AMDGPU_HW_IP_NUM) {
-		DRM_ERROR("unknown HW IP type: %d\n", hw_ip);
+		DRM_ERROR("unkyeswn HW IP type: %d\n", hw_ip);
 		return -EINVAL;
 	}
 
-	/* Right now all IPs have only one instance - multiple rings. */
+	/* Right yesw all IPs have only one instance - multiple rings. */
 	if (instance != 0) {
 		DRM_DEBUG("invalid ip instance: %d\n", instance);
 		return -EINVAL;
@@ -378,7 +378,7 @@ static int amdgpu_ctx_query2(struct amdgpu_device *adev,
 
 	/*query ue count*/
 	ras_counter = amdgpu_ras_query_error_count(adev, false);
-	/*ras counter is monotonic increasing*/
+	/*ras counter is moyestonic increasing*/
 	if (ras_counter != ctx->ras_counter_ue) {
 		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_RAS_UE;
 		ctx->ras_counter_ue = ras_counter;

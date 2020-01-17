@@ -22,15 +22,15 @@
 /*
  * WARNING!!
  * This code is compiled with -fPIC and it is relocated dynamically at
- * run time, but no relocation processing is performed. This means that
- * it is not safe to place pointers in static structures.
+ * run time, but yes relocation processing is performed. This means that
+ * it is yest safe to place pointers in static structures.
  */
 
 /* Macros used by the included decompressor code below. */
 #define STATIC		static
 
 /*
- * Use normal definitions of mem*() from string.c. There are already
+ * Use yesrmal definitions of mem*() from string.c. There are already
  * included header files which expect a definition of memset() and by
  * the time we define memset macro, it is too late.
  */
@@ -284,7 +284,7 @@ static void parse_elf(void *output)
 	   ehdr.e_ident[EI_MAG1] != ELFMAG1 ||
 	   ehdr.e_ident[EI_MAG2] != ELFMAG2 ||
 	   ehdr.e_ident[EI_MAG3] != ELFMAG3) {
-		error("Kernel is not a valid ELF file");
+		error("Kernel is yest a valid ELF file");
 		return;
 	}
 
@@ -313,7 +313,7 @@ static void parse_elf(void *output)
 #endif
 			memmove(dest, output + phdr->p_offset, phdr->p_filesz);
 			break;
-		default: /* Ignore other PT_* */ break;
+		default: /* Igyesre other PT_* */ break;
 		}
 	}
 
@@ -430,9 +430,9 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 #endif
 #ifndef CONFIG_RELOCATABLE
 	if ((unsigned long)output != LOAD_PHYSICAL_ADDR)
-		error("Destination address does not match LOAD_PHYSICAL_ADDR");
+		error("Destination address does yest match LOAD_PHYSICAL_ADDR");
 	if (virt_addr != LOAD_PHYSICAL_ADDR)
-		error("Destination virtual address changed when not relocatable");
+		error("Destination virtual address changed when yest relocatable");
 #endif
 
 	debug_putstr("\nDecompressing Linux... ");

@@ -33,4 +33,4 @@ OPTIONS
 
 -F::
 --dont-fork::
-	Do not fork child for each test, run all tests within single process.
+	Do yest fork child for each test, run all tests within single process.

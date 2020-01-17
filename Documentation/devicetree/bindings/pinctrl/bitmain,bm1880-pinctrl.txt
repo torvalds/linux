@@ -9,20 +9,20 @@ Required Properties:
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration yesde".
 
-The pin configuration nodes act as a container for an arbitrary number of
-subnodes. Each of these subnodes represents some desired configuration for a
+The pin configuration yesdes act as a container for an arbitrary number of
+subyesdes. Each of these subyesdes represents some desired configuration for a
 pin, a group, or a list of pins or groups. This configuration for BM1880 SoC
 includes pinmux and various pin configuration parameters, such as pull-up,
 slew rate etc...
 
-Each configuration node can consist of multiple nodes describing the pinmux
-options. The name of each subnode is not important; all subnodes should be
+Each configuration yesde can consist of multiple yesdes describing the pinmux
+options. The name of each subyesde is yest important; all subyesdes should be
 enumerated and processed purely based on their content.
 
 The following generic properties as defined in pinctrl-bindings.txt are valid
-to specify in a pinmux subnode:
+to specify in a pinmux subyesde:
 
 Required Properties:
 

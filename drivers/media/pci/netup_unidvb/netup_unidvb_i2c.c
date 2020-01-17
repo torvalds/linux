@@ -107,7 +107,7 @@ irqreturn_t netup_i2c_interrupt(struct netup_i2c *i2c)
 			"%s(): want write\n", __func__);
 		goto irq_ok;
 	}
-	dev_warn(&i2c->adap.dev, "%s(): not mine interrupt\n", __func__);
+	dev_warn(&i2c->adap.dev, "%s(): yest mine interrupt\n", __func__);
 	iret = IRQ_NONE;
 irq_ok:
 	spin_unlock_irqrestore(&i2c->lock, flags);

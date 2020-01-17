@@ -19,7 +19,7 @@ struct bpf_map_def SEC("maps") my_map = {
 };
 
 /* kprobe is NOT a stable ABI. If kernel internals change this bpf+kprobe
- * example will no longer be meaningful
+ * example will yes longer be meaningful
  */
 SEC("kprobe/blk_mq_start_request")
 int bpf_prog1(struct pt_regs *ctx)

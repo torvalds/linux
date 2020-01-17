@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * CPPC (Collaborative Processor Performance Control) driver for
- * interfacing with the CPUfreq layer and governors. See
+ * interfacing with the CPUfreq layer and goveryesrs. See
  * cppc_acpi.c for CPPC specific methods.
  *
  * (C) Copyright 2014, 2015 Linaro Ltd.
@@ -62,7 +62,7 @@ static unsigned int cppc_cpufreq_perf_to_khz(struct cppc_cpudata *cpu,
 					unsigned int perf);
 
 /*
- * HISI platform does not support delivered performance counter and
+ * HISI platform does yest support delivered performance counter and
  * reference performance counter. It can calculate the performance using the
  * platform specific mechanism. We reuse the desired performance register to
  * store the real performance calculated by the platform.
@@ -120,7 +120,7 @@ static u64 cppc_get_dmi_max_khz(void)
 	dmi_walk(cppc_find_dmi_mhz, &mhz);
 
 	/*
-	 * Real stupid fallback value, just in case there is no
+	 * Real stupid fallback value, just in case there is yes
 	 * actual value set.
 	 */
 	mhz = mhz ? mhz : 1;
@@ -129,7 +129,7 @@ static u64 cppc_get_dmi_max_khz(void)
 }
 
 /*
- * If CPPC lowest_freq and nominal_freq registers are exposed then we can
+ * If CPPC lowest_freq and yesminal_freq registers are exposed then we can
  * use them to convert perf to freq and vice versa
  *
  * If the perf/freq point lies between Nominal and Lowest, we can treat
@@ -144,13 +144,13 @@ static unsigned int cppc_cpufreq_perf_to_khz(struct cppc_cpudata *cpu,
 	struct cppc_perf_caps *caps = &cpu->perf_caps;
 	u64 mul, div;
 
-	if (caps->lowest_freq && caps->nominal_freq) {
-		if (perf >= caps->nominal_perf) {
-			mul = caps->nominal_freq;
-			div = caps->nominal_perf;
+	if (caps->lowest_freq && caps->yesminal_freq) {
+		if (perf >= caps->yesminal_perf) {
+			mul = caps->yesminal_freq;
+			div = caps->yesminal_perf;
 		} else {
-			mul = caps->nominal_freq - caps->lowest_freq;
-			div = caps->nominal_perf - caps->lowest_perf;
+			mul = caps->yesminal_freq - caps->lowest_freq;
+			div = caps->yesminal_perf - caps->lowest_perf;
 		}
 	} else {
 		if (!max_khz)
@@ -168,10 +168,10 @@ static unsigned int cppc_cpufreq_khz_to_perf(struct cppc_cpudata *cpu,
 	struct cppc_perf_caps *caps = &cpu->perf_caps;
 	u64  mul, div;
 
-	if (caps->lowest_freq && caps->nominal_freq) {
-		if (freq >= caps->nominal_freq) {
-			mul = caps->nominal_perf;
-			div = caps->nominal_freq;
+	if (caps->lowest_freq && caps->yesminal_freq) {
+		if (freq >= caps->yesminal_freq) {
+			mul = caps->yesminal_perf;
+			div = caps->yesminal_freq;
 		} else {
 			mul = caps->lowest_perf;
 			div = caps->lowest_freq;
@@ -239,7 +239,7 @@ static void cppc_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 
 /*
  * The PCC subspace describes the rate at which platform can accept commands
- * on the shared PCC channel (including READs which do not count towards freq
+ * on the shared PCC channel (including READs which do yest count towards freq
  * trasition requests), so ideally we need to use the PCC values as a fallback
  * if we don't have a platform specific transition_delay_us
  */
@@ -297,21 +297,21 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		return ret;
 	}
 
-	/* Convert the lowest and nominal freq from MHz to KHz */
+	/* Convert the lowest and yesminal freq from MHz to KHz */
 	cpu->perf_caps.lowest_freq *= 1000;
-	cpu->perf_caps.nominal_freq *= 1000;
+	cpu->perf_caps.yesminal_freq *= 1000;
 
 	/*
-	 * Set min to lowest nonlinear perf to avoid any efficiency penalty (see
+	 * Set min to lowest yesnlinear perf to avoid any efficiency penalty (see
 	 * Section 8.4.7.1.1.5 of ACPI 6.1 spec)
 	 */
-	policy->min = cppc_cpufreq_perf_to_khz(cpu, cpu->perf_caps.lowest_nonlinear_perf);
+	policy->min = cppc_cpufreq_perf_to_khz(cpu, cpu->perf_caps.lowest_yesnlinear_perf);
 	policy->max = cppc_cpufreq_perf_to_khz(cpu, cpu->perf_caps.highest_perf);
 
 	/*
 	 * Set cpuinfo.min_freq to Lowest to make the full range of performance
 	 * available if userspace wants to use any perf between lowest & lowest
-	 * nonlinear perf
+	 * yesnlinear perf
 	 */
 	policy->cpuinfo.min_freq = cppc_cpufreq_perf_to_khz(cpu, cpu->perf_caps.lowest_perf);
 	policy->cpuinfo.max_freq = cppc_cpufreq_perf_to_khz(cpu, cpu->perf_caps.highest_perf);
@@ -332,14 +332,14 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 			       sizeof(cpu->perf_caps));
 		}
 	} else if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL) {
-		/* Support only SW_ANY for now. */
+		/* Support only SW_ANY for yesw. */
 		pr_debug("Unsupported CPU co-ord type\n");
 		return -EFAULT;
 	}
 
 	cpu->cur_policy = policy;
 
-	/* Set policy->cur to max now. The governors will adjust later. */
+	/* Set policy->cur to max yesw. The goveryesrs will adjust later. */
 	policy->cur = cppc_cpufreq_perf_to_khz(cpu,
 					cpu->perf_caps.highest_perf);
 	cpu->perf_ctrls.desired_perf = cpu->perf_caps.highest_perf;

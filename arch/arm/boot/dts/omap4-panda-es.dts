@@ -78,5 +78,5 @@
 };
 
 &gpio1_target {
-	 ti,no-reset-on-init;
+	 ti,yes-reset-on-init;
 };

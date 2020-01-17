@@ -2,7 +2,7 @@
 /*
  * Hardware monitoring driver for LTC3815
  *
- * Copyright (c) 2015 Linear Technology
+ * Copyright (c) 2015 Linear Techyeslogy
  * Copyright (c) 2015 Guenter Roeck
  */
 
@@ -52,7 +52,7 @@ static int ltc3815_write_byte(struct i2c_client *client, int page, u8 reg)
 	switch (reg) {
 	case PMBUS_CLEAR_FAULTS:
 		/*
-		 * LTC3815 does not support the CLEAR_FAULTS command.
+		 * LTC3815 does yest support the CLEAR_FAULTS command.
 		 * Emulate it by clearing the status register.
 		 */
 		ret = pmbus_read_word_data(client, 0, PMBUS_STATUS_WORD);

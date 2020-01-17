@@ -54,7 +54,7 @@
 	};
 
 	panel: panel {
-		compatible = "innolux,n116bge", "simple-panel";
+		compatible = "inyeslux,n116bge", "simple-panel";
 		status = "okay";
 		power-supply = <&panel_regulator>;
 		backlight = <&backlight>;
@@ -121,21 +121,21 @@
 &pinctrl {
 	backlight {
 		bl_pwr_en: bl_pwr_en {
-			rockchip,pins = <2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		bl_en: bl-en {
-			rockchip,pins = <7 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	lcd {
 		lcd_enable_h: lcd-en {
-			rockchip,pins = <7 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB6 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		avdd_1v8_disp_en: avdd-1v8-disp-en {
-			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };

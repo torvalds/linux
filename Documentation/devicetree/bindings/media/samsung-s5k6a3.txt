@@ -20,14 +20,14 @@ Required properties:
 Optional properties:
 
 - clock-frequency : the frequency at which the "extclk" clock should be
-		    configured to operate, in Hz; if this property is not
+		    configured to operate, in Hz; if this property is yest
 		    specified default 24 MHz value will be used.
 
 The common video interfaces bindings (see video-interfaces.txt) should be
 used to specify link to the image data receiver. The S5K6A3(YX) device
-node should contain one 'port' child node with an 'endpoint' subnode.
+yesde should contain one 'port' child yesde with an 'endpoint' subyesde.
 
-Following properties are valid for the endpoint node:
+Following properties are valid for the endpoint yesde:
 
 - data-lanes : (optional) specifies MIPI CSI-2 data lanes as covered in
   video-interfaces.txt.  The sensor supports only one data lane.

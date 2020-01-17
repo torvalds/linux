@@ -60,10 +60,10 @@ Call Trace:
 
 	# example_simple_test: kunit test case crashed!
 	# example_simple_test: example_simple_test failed
-	not ok 1 - example_simple_test
+	yest ok 1 - example_simple_test
 	# example_mock_test: initializing
 	# example_mock_test: example_mock_test passed
 	ok 2 - example_mock_test
 kunit example: one or more tests failed
-not ok 2 - example
+yest ok 2 - example
 List of all partitions:

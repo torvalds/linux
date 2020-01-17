@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * PHY support for Xenon SDHC
+ * PHY support for Xeyesn SDHC
  *
  * Copyright (C) 2016 Marvell, All Rights Reserved.
  *
@@ -14,7 +14,7 @@
 #include <linux/of_address.h>
 
 #include "sdhci-pltfm.h"
-#include "sdhci-xenon.h"
+#include "sdhci-xeyesn.h"
 
 /* Register base for eMMC PHY 5.0 Version */
 #define XENON_EMMC_5_0_PHY_REG_BASE		0x0160
@@ -113,7 +113,7 @@
  * List offset of PHY registers and some special register values
  * in eMMC PHY 5.0 or eMMC PHY 5.1
  */
-struct xenon_emmc_phy_regs {
+struct xeyesn_emmc_phy_regs {
 	/* Offset of Timing Adjust register */
 	u16 timing_adj;
 	/* Offset of Func Control register */
@@ -137,7 +137,7 @@ static const char * const phy_types[] = {
 	"emmc 5.1 phy"
 };
 
-enum xenon_phy_type_enum {
+enum xeyesn_phy_type_enum {
 	EMMC_5_0_PHY,
 	EMMC_5_1_PHY,
 	NR_PHY_TYPES
@@ -158,7 +158,7 @@ struct soc_pad_ctrl {
 			    unsigned char signal_voltage);
 };
 
-static struct xenon_emmc_phy_regs xenon_emmc_5_0_phy_regs = {
+static struct xeyesn_emmc_phy_regs xeyesn_emmc_5_0_phy_regs = {
 	.timing_adj	= XENON_EMMC_5_0_PHY_TIMING_ADJUST,
 	.func_ctrl	= XENON_EMMC_5_0_PHY_FUNC_CONTROL,
 	.pad_ctrl	= XENON_EMMC_5_0_PHY_PAD_CONTROL,
@@ -169,7 +169,7 @@ static struct xenon_emmc_phy_regs xenon_emmc_5_0_phy_regs = {
 	.logic_timing_val = XENON_EMMC_5_0_PHY_LOGIC_TIMING_VALUE,
 };
 
-static struct xenon_emmc_phy_regs xenon_emmc_5_1_phy_regs = {
+static struct xeyesn_emmc_phy_regs xeyesn_emmc_5_1_phy_regs = {
 	.timing_adj	= XENON_EMMC_PHY_TIMING_ADJUST,
 	.func_ctrl	= XENON_EMMC_PHY_FUNC_CONTROL,
 	.pad_ctrl	= XENON_EMMC_PHY_PAD_CONTROL,
@@ -183,7 +183,7 @@ static struct xenon_emmc_phy_regs xenon_emmc_5_1_phy_regs = {
 /*
  * eMMC PHY configuration and operations
  */
-struct xenon_emmc_phy_params {
+struct xeyesn_emmc_phy_params {
 	bool	slow_mode;
 
 	u8	znr;
@@ -197,11 +197,11 @@ struct xenon_emmc_phy_params {
 	struct soc_pad_ctrl pad_ctrl;
 };
 
-static int xenon_alloc_emmc_phy(struct sdhci_host *host)
+static int xeyesn_alloc_emmc_phy(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	struct xenon_emmc_phy_params *params;
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_emmc_phy_params *params;
 
 	params = devm_kzalloc(mmc_dev(host->mmc), sizeof(*params), GFP_KERNEL);
 	if (!params)
@@ -209,9 +209,9 @@ static int xenon_alloc_emmc_phy(struct sdhci_host *host)
 
 	priv->phy_params = params;
 	if (priv->phy_type == EMMC_5_0_PHY)
-		priv->emmc_phy_regs = &xenon_emmc_5_0_phy_regs;
+		priv->emmc_phy_regs = &xeyesn_emmc_5_0_phy_regs;
 	else
-		priv->emmc_phy_regs = &xenon_emmc_5_1_phy_regs;
+		priv->emmc_phy_regs = &xeyesn_emmc_5_1_phy_regs;
 
 	return 0;
 }
@@ -224,13 +224,13 @@ static int xenon_alloc_emmc_phy(struct sdhci_host *host)
  * 3. config in emmc_phy_regs->timing_adj and emmc_phy_regs->func_ctrl
  * are changed
  */
-static int xenon_emmc_phy_init(struct sdhci_host *host)
+static int xeyesn_emmc_phy_init(struct sdhci_host *host)
 {
 	u32 reg;
 	u32 wait, clock;
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	struct xenon_emmc_phy_regs *phy_regs = priv->emmc_phy_regs;
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_emmc_phy_regs *phy_regs = priv->emmc_phy_regs;
 
 	reg = sdhci_readl(host, phy_regs->timing_adj);
 	reg |= XENON_PHY_INITIALIZAION;
@@ -265,7 +265,7 @@ static int xenon_emmc_phy_init(struct sdhci_host *host)
 	reg = sdhci_readl(host, phy_regs->timing_adj);
 	reg &= XENON_PHY_INITIALIZAION;
 	if (reg) {
-		dev_err(mmc_dev(host->mmc), "eMMC PHY init cannot complete after %d us\n",
+		dev_err(mmc_dev(host->mmc), "eMMC PHY init canyest complete after %d us\n",
 			wait);
 		return -ETIMEDOUT;
 	}
@@ -280,8 +280,8 @@ static void armada_3700_soc_pad_voltage_set(struct sdhci_host *host,
 					    unsigned char signal_voltage)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	struct xenon_emmc_phy_params *params = priv->phy_params;
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_emmc_phy_params *params = priv->phy_params;
 
 	if (params->pad_ctrl.pad_type == SOC_PAD_FIXED_1_8V) {
 		writel(ARMADA_3700_SOC_PAD_1_8V, params->pad_ctrl.reg);
@@ -298,12 +298,12 @@ static void armada_3700_soc_pad_voltage_set(struct sdhci_host *host,
  * according to the operation voltage on PAD.
  * The detailed operation depends on SoC implementation.
  */
-static void xenon_emmc_phy_set_soc_pad(struct sdhci_host *host,
+static void xeyesn_emmc_phy_set_soc_pad(struct sdhci_host *host,
 				       unsigned char signal_voltage)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	struct xenon_emmc_phy_params *params = priv->phy_params;
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_emmc_phy_params *params = priv->phy_params;
 
 	if (!params->pad_ctrl.reg)
 		return;
@@ -317,12 +317,12 @@ static void xenon_emmc_phy_set_soc_pad(struct sdhci_host *host,
  * DLL should be enabled and stable before HS200/SDR104 tuning,
  * and before HS400 data strobe setting.
  */
-static int xenon_emmc_phy_enable_dll(struct sdhci_host *host)
+static int xeyesn_emmc_phy_enable_dll(struct sdhci_host *host)
 {
 	u32 reg;
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	struct xenon_emmc_phy_regs *phy_regs = priv->emmc_phy_regs;
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_emmc_phy_regs *phy_regs = priv->emmc_phy_regs;
 	ktime_t timeout;
 
 	if (WARN_ON(host->clock <= MMC_HIGH_52_MAX_DTR))
@@ -338,7 +338,7 @@ static int xenon_emmc_phy_enable_dll(struct sdhci_host *host)
 
 	/*
 	 * Set Phase as 90 degree, which is most common value.
-	 * Might set another value if necessary.
+	 * Might set ayesther value if necessary.
 	 * The granularity is 1 degree.
 	 */
 	reg &= ~((XENON_DLL_PHASE_MASK << XENON_DLL_PHSEL0_SHIFT) |
@@ -373,18 +373,18 @@ static int xenon_emmc_phy_enable_dll(struct sdhci_host *host)
  * Config to eMMC PHY to prepare for tuning.
  * Enable HW DLL and set the TUNING_STEP
  */
-static int xenon_emmc_phy_config_tuning(struct sdhci_host *host)
+static int xeyesn_emmc_phy_config_tuning(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	struct xenon_emmc_phy_params *params = priv->phy_params;
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_emmc_phy_params *params = priv->phy_params;
 	u32 reg, tuning_step;
 	int ret;
 
 	if (host->clock <= MMC_HIGH_52_MAX_DTR)
 		return -EINVAL;
 
-	ret = xenon_emmc_phy_enable_dll(host);
+	ret = xeyesn_emmc_phy_enable_dll(host);
 	if (ret)
 		return ret;
 
@@ -410,10 +410,10 @@ static int xenon_emmc_phy_config_tuning(struct sdhci_host *host)
 	return 0;
 }
 
-static void xenon_emmc_phy_disable_strobe(struct sdhci_host *host)
+static void xeyesn_emmc_phy_disable_strobe(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	u32 reg;
 
 	/* Disable both SDHC Data Strobe and Enhanced Strobe */
@@ -434,10 +434,10 @@ static void xenon_emmc_phy_disable_strobe(struct sdhci_host *host)
 }
 
 /* Set HS400 Data Strobe and Enhanced Strobe */
-static void xenon_emmc_phy_strobe_delay_adj(struct sdhci_host *host)
+static void xeyesn_emmc_phy_strobe_delay_adj(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	u32 reg;
 
 	if (WARN_ON(host->timing != MMC_TIMING_MMC_HS400))
@@ -448,14 +448,14 @@ static void xenon_emmc_phy_strobe_delay_adj(struct sdhci_host *host)
 
 	dev_dbg(mmc_dev(host->mmc), "starts HS400 strobe delay adjustment\n");
 
-	xenon_emmc_phy_enable_dll(host);
+	xeyesn_emmc_phy_enable_dll(host);
 
 	/* Enable SDHC Data Strobe */
 	reg = sdhci_readl(host, XENON_SLOT_EMMC_CTRL);
 	reg |= XENON_ENABLE_DATA_STROBE;
 	/*
 	 * Enable SDHC Enhanced Strobe if supported
-	 * Xenon Enhanced Strobe should be enabled only when
+	 * Xeyesn Enhanced Strobe should be enabled only when
 	 * 1. card is in HS400 mode and
 	 * 2. SDCLK is higher than 52MHz
 	 * 3. DLL is enabled
@@ -486,13 +486,13 @@ static void xenon_emmc_phy_strobe_delay_adj(struct sdhci_host *host)
  * If Slow Mode is enabled, return true.
  * Otherwise, return false.
  */
-static bool xenon_emmc_phy_slow_mode(struct sdhci_host *host,
+static bool xeyesn_emmc_phy_slow_mode(struct sdhci_host *host,
 				     unsigned char timing)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	struct xenon_emmc_phy_params *params = priv->phy_params;
-	struct xenon_emmc_phy_regs *phy_regs = priv->emmc_phy_regs;
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_emmc_phy_params *params = priv->phy_params;
+	struct xeyesn_emmc_phy_regs *phy_regs = priv->emmc_phy_regs;
 	u32 reg;
 	int ret;
 
@@ -541,14 +541,14 @@ static bool xenon_emmc_phy_slow_mode(struct sdhci_host *host,
  * Set-up eMMC 5.0/5.1 PHY.
  * Specific configuration depends on the current speed mode in use.
  */
-static void xenon_emmc_phy_set(struct sdhci_host *host,
+static void xeyesn_emmc_phy_set(struct sdhci_host *host,
 			       unsigned char timing)
 {
 	u32 reg;
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	struct xenon_emmc_phy_params *params = priv->phy_params;
-	struct xenon_emmc_phy_regs *phy_regs = priv->emmc_phy_regs;
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_emmc_phy_params *params = priv->phy_params;
+	struct xeyesn_emmc_phy_regs *phy_regs = priv->emmc_phy_regs;
 
 	dev_dbg(mmc_dev(host->mmc), "eMMC PHY setting starts\n");
 
@@ -574,7 +574,7 @@ static void xenon_emmc_phy_set(struct sdhci_host *host,
 	}
 
 	if (timing == MMC_TIMING_LEGACY) {
-		xenon_emmc_phy_slow_mode(host, timing);
+		xeyesn_emmc_phy_slow_mode(host, timing);
 		goto phy_init;
 	}
 
@@ -589,13 +589,13 @@ static void xenon_emmc_phy_set(struct sdhci_host *host,
 		reg &= ~XENON_TIMING_ADJUST_SDIO_MODE;
 	sdhci_writel(host, reg, phy_regs->timing_adj);
 
-	if (xenon_emmc_phy_slow_mode(host, timing))
+	if (xeyesn_emmc_phy_slow_mode(host, timing))
 		goto phy_init;
 
 	/*
 	 * Set preferred ZNR and ZPR value
 	 * The ZNR and ZPR value vary between different boards.
-	 * Define them both in sdhci-xenon-emmc-phy.h.
+	 * Define them both in sdhci-xeyesn-emmc-phy.h.
 	 */
 	reg = sdhci_readl(host, phy_regs->pad_ctrl2);
 	reg &= ~((XENON_ZNR_MASK << XENON_ZNR_SHIFT) | XENON_ZPR_MASK);
@@ -639,17 +639,17 @@ static void xenon_emmc_phy_set(struct sdhci_host *host,
 		sdhci_writel(host, phy_regs->logic_timing_val,
 			     phy_regs->logic_timing_adj);
 	else
-		xenon_emmc_phy_disable_strobe(host);
+		xeyesn_emmc_phy_disable_strobe(host);
 
 phy_init:
-	xenon_emmc_phy_init(host);
+	xeyesn_emmc_phy_init(host);
 
 	dev_dbg(mmc_dev(host->mmc), "eMMC PHY setting completes\n");
 }
 
 static int get_dt_pad_ctrl_data(struct sdhci_host *host,
-				struct device_node *np,
-				struct xenon_emmc_phy_params *params)
+				struct device_yesde *np,
+				struct xeyesn_emmc_phy_params *params)
 {
 	int ret = 0;
 	const char *name;
@@ -689,31 +689,31 @@ static int get_dt_pad_ctrl_data(struct sdhci_host *host,
 	return ret;
 }
 
-static int xenon_emmc_phy_parse_param_dt(struct sdhci_host *host,
-					 struct device_node *np,
-					 struct xenon_emmc_phy_params *params)
+static int xeyesn_emmc_phy_parse_param_dt(struct sdhci_host *host,
+					 struct device_yesde *np,
+					 struct xeyesn_emmc_phy_params *params)
 {
 	u32 value;
 
 	params->slow_mode = false;
-	if (of_property_read_bool(np, "marvell,xenon-phy-slow-mode"))
+	if (of_property_read_bool(np, "marvell,xeyesn-phy-slow-mode"))
 		params->slow_mode = true;
 
 	params->znr = XENON_ZNR_DEF_VALUE;
-	if (!of_property_read_u32(np, "marvell,xenon-phy-znr", &value))
+	if (!of_property_read_u32(np, "marvell,xeyesn-phy-znr", &value))
 		params->znr = value & XENON_ZNR_MASK;
 
 	params->zpr = XENON_ZPR_DEF_VALUE;
-	if (!of_property_read_u32(np, "marvell,xenon-phy-zpr", &value))
+	if (!of_property_read_u32(np, "marvell,xeyesn-phy-zpr", &value))
 		params->zpr = value & XENON_ZPR_MASK;
 
 	params->nr_tun_times = XENON_TUN_CONSECUTIVE_TIMES;
-	if (!of_property_read_u32(np, "marvell,xenon-phy-nr-success-tun",
+	if (!of_property_read_u32(np, "marvell,xeyesn-phy-nr-success-tun",
 				  &value))
 		params->nr_tun_times = value & XENON_TUN_CONSECUTIVE_TIMES_MASK;
 
 	params->tun_step_divider = XENON_TUNING_STEP_DIVIDER;
-	if (!of_property_read_u32(np, "marvell,xenon-phy-tun-step-divider",
+	if (!of_property_read_u32(np, "marvell,xeyesn-phy-tun-step-divider",
 				  &value))
 		params->tun_step_divider = value & 0xFF;
 
@@ -721,10 +721,10 @@ static int xenon_emmc_phy_parse_param_dt(struct sdhci_host *host,
 }
 
 /* Set SoC PHY Voltage PAD */
-void xenon_soc_pad_ctrl(struct sdhci_host *host,
+void xeyesn_soc_pad_ctrl(struct sdhci_host *host,
 			unsigned char signal_voltage)
 {
-	xenon_emmc_phy_set_soc_pad(host, signal_voltage);
+	xeyesn_emmc_phy_set_soc_pad(host, signal_voltage);
 }
 
 /*
@@ -732,7 +732,7 @@ void xenon_soc_pad_ctrl(struct sdhci_host *host,
  * HS400 set Data Strobe and Enhanced Strobe if it is supported.
  * HS200/SDR104 set tuning config to prepare for tuning.
  */
-static int xenon_hs_delay_adj(struct sdhci_host *host)
+static int xeyesn_hs_delay_adj(struct sdhci_host *host)
 {
 	int ret = 0;
 
@@ -741,18 +741,18 @@ static int xenon_hs_delay_adj(struct sdhci_host *host)
 
 	switch (host->timing) {
 	case MMC_TIMING_MMC_HS400:
-		xenon_emmc_phy_strobe_delay_adj(host);
+		xeyesn_emmc_phy_strobe_delay_adj(host);
 		return 0;
 	case MMC_TIMING_MMC_HS200:
 	case MMC_TIMING_UHS_SDR104:
-		return xenon_emmc_phy_config_tuning(host);
+		return xeyesn_emmc_phy_config_tuning(host);
 	case MMC_TIMING_MMC_DDR52:
 	case MMC_TIMING_UHS_DDR50:
 		/*
 		 * DDR Mode requires driver to scan Sampling Fixed Delay Line,
 		 * to find out a perfect operation sampling point.
 		 * It is hard to implement such a scan in host driver
-		 * since initiating commands by host driver is not safe.
+		 * since initiating commands by host driver is yest safe.
 		 * Thus so far just keep PHY Sampling Fixed Delay in
 		 * default value of DDR mode.
 		 *
@@ -773,10 +773,10 @@ static int xenon_hs_delay_adj(struct sdhci_host *host)
  * Additional config are required when card is working in High Speed mode,
  * after leaving Legacy Mode.
  */
-int xenon_phy_adj(struct sdhci_host *host, struct mmc_ios *ios)
+int xeyesn_phy_adj(struct sdhci_host *host, struct mmc_ios *ios)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	int ret = 0;
 
 	if (!host->clock) {
@@ -787,14 +787,14 @@ int xenon_phy_adj(struct sdhci_host *host, struct mmc_ios *ios)
 	/*
 	 * The timing, frequency or bus width is changed,
 	 * better to set eMMC PHY based on current setting
-	 * and adjust Xenon SDHC delay.
+	 * and adjust Xeyesn SDHC delay.
 	 */
 	if ((host->clock == priv->clock) &&
 	    (ios->bus_width == priv->bus_width) &&
 	    (ios->timing == priv->timing))
 		return 0;
 
-	xenon_emmc_phy_set(host, ios->timing);
+	xeyesn_emmc_phy_set(host, ios->timing);
 
 	/* Update the record */
 	priv->bus_width = ios->bus_width;
@@ -807,15 +807,15 @@ int xenon_phy_adj(struct sdhci_host *host, struct mmc_ios *ios)
 		return 0;
 
 	if (host->clock > XENON_DEFAULT_SDCLK_FREQ)
-		ret = xenon_hs_delay_adj(host);
+		ret = xeyesn_hs_delay_adj(host);
 	return ret;
 }
 
-static int xenon_add_phy(struct device_node *np, struct sdhci_host *host,
+static int xeyesn_add_phy(struct device_yesde *np, struct sdhci_host *host,
 			 const char *phy_name)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	struct xeyesn_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	int ret;
 
 	priv->phy_type = match_string(phy_types, NR_PHY_TYPES, phy_name);
@@ -826,19 +826,19 @@ static int xenon_add_phy(struct device_node *np, struct sdhci_host *host,
 		priv->phy_type = EMMC_5_1_PHY;
 	}
 
-	ret = xenon_alloc_emmc_phy(host);
+	ret = xeyesn_alloc_emmc_phy(host);
 	if (ret)
 		return ret;
 
-	return xenon_emmc_phy_parse_param_dt(host, np, priv->phy_params);
+	return xeyesn_emmc_phy_parse_param_dt(host, np, priv->phy_params);
 }
 
-int xenon_phy_parse_dt(struct device_node *np, struct sdhci_host *host)
+int xeyesn_phy_parse_dt(struct device_yesde *np, struct sdhci_host *host)
 {
 	const char *phy_type = NULL;
 
-	if (!of_property_read_string(np, "marvell,xenon-phy-type", &phy_type))
-		return xenon_add_phy(np, host, phy_type);
+	if (!of_property_read_string(np, "marvell,xeyesn-phy-type", &phy_type))
+		return xeyesn_add_phy(np, host, phy_type);
 
-	return xenon_add_phy(np, host, "emmc 5.1 phy");
+	return xeyesn_add_phy(np, host, "emmc 5.1 phy");
 }

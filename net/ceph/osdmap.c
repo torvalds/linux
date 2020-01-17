@@ -89,13 +89,13 @@ static int crush_decode_tree_bucket(void **p, void *end,
 {
 	int j;
 	dout("crush_decode_tree_bucket %p to %p\n", *p, end);
-	ceph_decode_8_safe(p, end, b->num_nodes, bad);
-	b->node_weights = kcalloc(b->num_nodes, sizeof(u32), GFP_NOFS);
-	if (b->node_weights == NULL)
+	ceph_decode_8_safe(p, end, b->num_yesdes, bad);
+	b->yesde_weights = kcalloc(b->num_yesdes, sizeof(u32), GFP_NOFS);
+	if (b->yesde_weights == NULL)
 		return -ENOMEM;
-	ceph_decode_need(p, end, b->num_nodes * sizeof(u32), bad);
-	for (j = 0; j < b->num_nodes; j++)
-		b->node_weights[j] = ceph_decode_32(p);
+	ceph_decode_need(p, end, b->num_yesdes * sizeof(u32), bad);
+	for (j = 0; j < b->num_yesdes; j++)
+		b->yesde_weights[j] = ceph_decode_32(p);
 	return 0;
 bad:
 	return -EINVAL;
@@ -146,7 +146,7 @@ static struct crush_choose_arg_map *alloc_choose_arg_map(void)
 	if (!arg_map)
 		return NULL;
 
-	RB_CLEAR_NODE(&arg_map->node);
+	RB_CLEAR_NODE(&arg_map->yesde);
 	return arg_map;
 }
 
@@ -155,7 +155,7 @@ static void free_choose_arg_map(struct crush_choose_arg_map *arg_map)
 	if (arg_map) {
 		int i, j;
 
-		WARN_ON(!RB_EMPTY_NODE(&arg_map->node));
+		WARN_ON(!RB_EMPTY_NODE(&arg_map->yesde));
 
 		for (i = 0; i < arg_map->size; i++) {
 			struct crush_choose_arg *arg = &arg_map->args[i];
@@ -171,14 +171,14 @@ static void free_choose_arg_map(struct crush_choose_arg_map *arg_map)
 }
 
 DEFINE_RB_FUNCS(choose_arg_map, struct crush_choose_arg_map, choose_args_index,
-		node);
+		yesde);
 
 void clear_choose_args(struct crush_map *c)
 {
 	while (!RB_EMPTY_ROOT(&c->choose_args)) {
 		struct crush_choose_arg_map *arg_map =
 		    rb_entry(rb_first(&c->choose_args),
-			     struct crush_choose_arg_map, node);
+			     struct crush_choose_arg_map, yesde);
 
 		erase_choose_arg_map(&c->choose_args, arg_map);
 		free_choose_arg_map(arg_map);
@@ -474,11 +474,11 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	/* rules */
 	dout("rule vec is %p\n", c->rules);
 	for (i = 0; i < c->max_rules; i++) {
-		u32 yes;
+		u32 no;
 		struct crush_rule *r;
 
-		ceph_decode_32_safe(p, end, yes, bad);
-		if (!yes) {
+		ceph_decode_32_safe(p, end, no, bad);
+		if (!no) {
 			dout("crush_decode NO rule %d off %x %p to %p\n",
 			     i, (int)(*p-start), *p, end);
 			c->rules[i] = NULL;
@@ -489,18 +489,18 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		     i, (int)(*p-start), *p, end);
 
 		/* len */
-		ceph_decode_32_safe(p, end, yes, bad);
+		ceph_decode_32_safe(p, end, no, bad);
 #if BITS_PER_LONG == 32
-		if (yes > (ULONG_MAX - sizeof(*r))
+		if (no > (ULONG_MAX - sizeof(*r))
 			  / sizeof(struct crush_rule_step))
 			goto bad;
 #endif
-		r = kmalloc(struct_size(r, steps, yes), GFP_NOFS);
+		r = kmalloc(struct_size(r, steps, no), GFP_NOFS);
 		c->rules[i] = r;
 		if (r == NULL)
 			goto badmem;
 		dout(" rule %d is at %p\n", i, r);
-		r->len = yes;
+		r->len = no;
 		ceph_decode_copy_safe(p, end, &r->mask, 4, bad); /* 4 u8's */
 		ceph_decode_need(p, end, r->len*3*sizeof(u32), bad);
 		for (j = 0; j < r->len; j++) {
@@ -615,13 +615,13 @@ static struct ceph_pg_mapping *alloc_pg_mapping(size_t payload_len)
 	if (!pg)
 		return NULL;
 
-	RB_CLEAR_NODE(&pg->node);
+	RB_CLEAR_NODE(&pg->yesde);
 	return pg;
 }
 
 static void free_pg_mapping(struct ceph_pg_mapping *pg)
 {
-	WARN_ON(!RB_EMPTY_NODE(&pg->node));
+	WARN_ON(!RB_EMPTY_NODE(&pg->yesde));
 
 	kfree(pg);
 }
@@ -631,20 +631,20 @@ static void free_pg_mapping(struct ceph_pg_mapping *pg)
  * to a set of osds) and primary_temp (explicit primary setting)
  */
 DEFINE_RB_FUNCS2(pg_mapping, struct ceph_pg_mapping, pgid, ceph_pg_compare,
-		 RB_BYPTR, const struct ceph_pg *, node)
+		 RB_BYPTR, const struct ceph_pg *, yesde)
 
 /*
  * rbtree of pg pool info
  */
 static int __insert_pg_pool(struct rb_root *root, struct ceph_pg_pool_info *new)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &root->rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct ceph_pg_pool_info *pi = NULL;
 
 	while (*p) {
 		parent = *p;
-		pi = rb_entry(parent, struct ceph_pg_pool_info, node);
+		pi = rb_entry(parent, struct ceph_pg_pool_info, yesde);
 		if (new->id < pi->id)
 			p = &(*p)->rb_left;
 		else if (new->id > pi->id)
@@ -653,18 +653,18 @@ static int __insert_pg_pool(struct rb_root *root, struct ceph_pg_pool_info *new)
 			return -EEXIST;
 	}
 
-	rb_link_node(&new->node, parent, p);
-	rb_insert_color(&new->node, root);
+	rb_link_yesde(&new->yesde, parent, p);
+	rb_insert_color(&new->yesde, root);
 	return 0;
 }
 
 static struct ceph_pg_pool_info *__lookup_pg_pool(struct rb_root *root, u64 id)
 {
 	struct ceph_pg_pool_info *pi;
-	struct rb_node *n = root->rb_node;
+	struct rb_yesde *n = root->rb_yesde;
 
 	while (n) {
-		pi = rb_entry(n, struct ceph_pg_pool_info, node);
+		pi = rb_entry(n, struct ceph_pg_pool_info, yesde);
 		if (id < pi->id)
 			n = n->rb_left;
 		else if (id > pi->id)
@@ -698,11 +698,11 @@ EXPORT_SYMBOL(ceph_pg_pool_name_by_id);
 
 int ceph_pg_poolid_by_name(struct ceph_osdmap *map, const char *name)
 {
-	struct rb_node *rbp;
+	struct rb_yesde *rbp;
 
 	for (rbp = rb_first(&map->pg_pools); rbp; rbp = rb_next(rbp)) {
 		struct ceph_pg_pool_info *pi =
-			rb_entry(rbp, struct ceph_pg_pool_info, node);
+			rb_entry(rbp, struct ceph_pg_pool_info, yesde);
 		if (pi->name && strcmp(pi->name, name) == 0)
 			return pi->id;
 	}
@@ -712,7 +712,7 @@ EXPORT_SYMBOL(ceph_pg_poolid_by_name);
 
 static void __remove_pg_pool(struct rb_root *root, struct ceph_pg_pool_info *pi)
 {
-	rb_erase(&pi->node, root);
+	rb_erase(&pi->yesde, root);
 	kfree(pi->name);
 	kfree(pi);
 }
@@ -830,7 +830,7 @@ static int decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 	}
 
 	/*
-	 * last_force_op_resend_preluminous, will be overridden if the
+	 * last_force_op_resend_prelumiyesus, will be overridden if the
 	 * map was encoded with RESEND_ON_SPLIT
 	 */
 	if (ev >= 15)
@@ -871,7 +871,7 @@ static int decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 	if (ev >= 25)
 		pi->last_force_request_resend = ceph_decode_32(p);
 
-	/* ignore the rest */
+	/* igyesre the rest */
 
 	*p = pool_end;
 	calc_pg_masks(pi);
@@ -942,35 +942,35 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
 	while (!RB_EMPTY_ROOT(&map->pg_temp)) {
 		struct ceph_pg_mapping *pg =
 			rb_entry(rb_first(&map->pg_temp),
-				 struct ceph_pg_mapping, node);
+				 struct ceph_pg_mapping, yesde);
 		erase_pg_mapping(&map->pg_temp, pg);
 		free_pg_mapping(pg);
 	}
 	while (!RB_EMPTY_ROOT(&map->primary_temp)) {
 		struct ceph_pg_mapping *pg =
 			rb_entry(rb_first(&map->primary_temp),
-				 struct ceph_pg_mapping, node);
+				 struct ceph_pg_mapping, yesde);
 		erase_pg_mapping(&map->primary_temp, pg);
 		free_pg_mapping(pg);
 	}
 	while (!RB_EMPTY_ROOT(&map->pg_upmap)) {
 		struct ceph_pg_mapping *pg =
 			rb_entry(rb_first(&map->pg_upmap),
-				 struct ceph_pg_mapping, node);
-		rb_erase(&pg->node, &map->pg_upmap);
+				 struct ceph_pg_mapping, yesde);
+		rb_erase(&pg->yesde, &map->pg_upmap);
 		kfree(pg);
 	}
 	while (!RB_EMPTY_ROOT(&map->pg_upmap_items)) {
 		struct ceph_pg_mapping *pg =
 			rb_entry(rb_first(&map->pg_upmap_items),
-				 struct ceph_pg_mapping, node);
-		rb_erase(&pg->node, &map->pg_upmap_items);
+				 struct ceph_pg_mapping, yesde);
+		rb_erase(&pg->yesde, &map->pg_upmap_items);
 		kfree(pg);
 	}
 	while (!RB_EMPTY_ROOT(&map->pg_pools)) {
 		struct ceph_pg_pool_info *pi =
 			rb_entry(rb_first(&map->pg_pools),
-				 struct ceph_pg_pool_info, node);
+				 struct ceph_pg_pool_info, yesde);
 		__remove_pg_pool(&map->pg_pools, pi);
 	}
 	kvfree(map->osd_state);
@@ -1099,7 +1099,7 @@ static int get_osdmap_client_data_v(void **p, void *end,
 				OSDMAP_WRAPPER_COMPAT_VER, prefix);
 			return -EINVAL;
 		}
-		*p += 4; /* ignore wrapper struct_len */
+		*p += 4; /* igyesre wrapper struct_len */
 
 		ceph_decode_8_safe(p, end, struct_v, e_inval);
 		ceph_decode_8_safe(p, end, struct_compat, e_inval);
@@ -1109,7 +1109,7 @@ static int get_osdmap_client_data_v(void **p, void *end,
 				OSDMAP_CLIENT_DATA_COMPAT_VER, prefix);
 			return -EINVAL;
 		}
-		*p += 4; /* ignore client data struct_len */
+		*p += 4; /* igyesre client data struct_len */
 	} else {
 		u16 version;
 
@@ -1582,7 +1582,7 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 		WARN_ON(!RB_EMPTY_ROOT(&map->pg_upmap_items));
 	}
 
-	/* ignore the rest */
+	/* igyesre the rest */
 	*p = end;
 
 	dout("full osdmap epoch %d max_osd %d\n", map->epoch, map->max_osd);
@@ -1701,7 +1701,7 @@ static int decode_new_up_state_weight(void **p, void *end, u8 struct_v,
 			pr_info("osd%d down\n", osd);
 		if ((map->osd_state[osd] & CEPH_OSD_EXISTS) &&
 		    (xorstate & CEPH_OSD_EXISTS)) {
-			pr_info("osd%d does not exist\n", osd);
+			pr_info("osd%d does yest exist\n", osd);
 			ret = set_primary_affinity(map, osd,
 						   CEPH_OSD_DEFAULT_PRIMARY_AFFINITY);
 			if (ret)
@@ -1875,7 +1875,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 			goto bad;
 	}
 
-	/* ignore the rest */
+	/* igyesre the rest */
 	*p = end;
 
 	dout("inc osdmap epoch %d max_osd %d\n", map->epoch, map->max_osd);
@@ -2034,7 +2034,7 @@ static bool osds_equal(const struct ceph_osds *lhs,
 
 static bool osds_valid(const struct ceph_osds *set)
 {
-	/* non-empty set */
+	/* yesn-empty set */
 	if (set->size > 0 && set->primary >= 0)
 		return true;
 
@@ -2136,7 +2136,7 @@ static bool primary_changed(const struct ceph_osds *old_acting,
 		return false; /* both still empty */
 
 	if (!old_acting->size ^ !new_acting->size)
-		return true; /* was empty, now not, or vice versa */
+		return true; /* was empty, yesw yest, or vice versa */
 
 	if (old_acting->primary != new_acting->primary)
 		return true; /* primary changed */
@@ -2238,7 +2238,7 @@ static u32 raw_pg_to_pps(struct ceph_pg_pool_info *pi,
 			 const struct ceph_pg *raw_pgid)
 {
 	if (pi->flags & CEPH_POOL_FLAG_HASHPSPOOL) {
-		/* hash pool id and seed so that pool PGs do not overlap */
+		/* hash pool id and seed so that pool PGs do yest overlap */
 		return crush_hash32_2(CRUSH_HASH_RJENKINS1,
 				      ceph_stable_mod(raw_pgid->seed,
 						      pi->pgp_num,
@@ -2247,7 +2247,7 @@ static u32 raw_pg_to_pps(struct ceph_pg_pool_info *pi,
 	} else {
 		/*
 		 * legacy behavior: add ps and pool together.  this is
-		 * not a great approach because the PGs from each pool
+		 * yest a great approach because the PGs from each pool
 		 * will overlap on top of each other: 0.5 == 1.4 ==
 		 * 2.3 == ...
 		 */
@@ -2259,12 +2259,12 @@ static u32 raw_pg_to_pps(struct ceph_pg_pool_info *pi,
 
 /*
  * Magic value used for a "default" fallback choose_args, used if the
- * crush_choose_arg_map passed to do_crush() does not exist.  If this
- * also doesn't exist, fall back to canonical weights.
+ * crush_choose_arg_map passed to do_crush() does yest exist.  If this
+ * also doesn't exist, fall back to cayesnical weights.
  */
 #define CEPH_DEFAULT_CHOOSE_ARGS	-1
 
-static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
+static int do_crush(struct ceph_osdmap *map, int ruleyes, int x,
 		    int *result, int result_max,
 		    const __u32 *weight, int weight_max,
 		    s64 choose_args_index)
@@ -2281,7 +2281,7 @@ static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 						CEPH_DEFAULT_CHOOSE_ARGS);
 
 	mutex_lock(&map->crush_workspace_mutex);
-	r = crush_do_rule(map->crush, ruleno, x, result, result_max,
+	r = crush_do_rule(map->crush, ruleyes, x, result, result_max,
 			  weight, weight_max, map->crush_workspace,
 			  arg_map ? arg_map->args : NULL);
 	mutex_unlock(&map->crush_workspace_mutex);
@@ -2289,7 +2289,7 @@ static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 	return r;
 }
 
-static void remove_nonexistent_osds(struct ceph_osdmap *osdmap,
+static void remove_yesnexistent_osds(struct ceph_osdmap *osdmap,
 				    struct ceph_pg_pool_info *pi,
 				    struct ceph_osds *set)
 {
@@ -2319,7 +2319,7 @@ static void remove_nonexistent_osds(struct ceph_osdmap *osdmap,
 
 /*
  * Calculate raw set (CRUSH output) for given PG and filter out
- * nonexistent OSDs.  ->primary is undefined for a raw set.
+ * yesnexistent OSDs.  ->primary is undefined for a raw set.
  *
  * Placement seed (CRUSH input) is returned through @ppps.
  */
@@ -2330,17 +2330,17 @@ static void pg_to_raw_osds(struct ceph_osdmap *osdmap,
 			   u32 *ppps)
 {
 	u32 pps = raw_pg_to_pps(pi, raw_pgid);
-	int ruleno;
+	int ruleyes;
 	int len;
 
 	ceph_osds_init(raw);
 	if (ppps)
 		*ppps = pps;
 
-	ruleno = crush_find_rule(osdmap->crush, pi->crush_ruleset, pi->type,
+	ruleyes = crush_find_rule(osdmap->crush, pi->crush_ruleset, pi->type,
 				 pi->size);
-	if (ruleno < 0) {
-		pr_err("no crush rule: pool %lld ruleset %d type %d size %d\n",
+	if (ruleyes < 0) {
+		pr_err("yes crush rule: pool %lld ruleset %d type %d size %d\n",
 		       pi->id, pi->crush_ruleset, pi->type, pi->size);
 		return;
 	}
@@ -2352,17 +2352,17 @@ static void pg_to_raw_osds(struct ceph_osdmap *osdmap,
 		return;
 	}
 
-	len = do_crush(osdmap, ruleno, pps, raw->osds, pi->size,
+	len = do_crush(osdmap, ruleyes, pps, raw->osds, pi->size,
 		       osdmap->osd_weight, osdmap->max_osd, pi->id);
 	if (len < 0) {
 		pr_err("error %d from crush rule %d: pool %lld ruleset %d type %d size %d\n",
-		       len, ruleno, pi->id, pi->crush_ruleset, pi->type,
+		       len, ruleyes, pi->id, pi->crush_ruleset, pi->type,
 		       pi->size);
 		return;
 	}
 
 	raw->size = len;
-	remove_nonexistent_osds(osdmap, pi, raw);
+	remove_yesnexistent_osds(osdmap, pi, raw);
 }
 
 /* apply pg_upmap[_items] mappings */
@@ -2382,7 +2382,7 @@ static void apply_upmap(struct ceph_osdmap *osdmap,
 			if (osd != CRUSH_ITEM_NONE &&
 			    osd < osdmap->max_osd &&
 			    osdmap->osd_weight[osd] == 0) {
-				/* reject/ignore explicit mapping */
+				/* reject/igyesre explicit mapping */
 				return;
 			}
 		}
@@ -2395,7 +2395,7 @@ static void apply_upmap(struct ceph_osdmap *osdmap,
 	pg = lookup_pg_mapping(&osdmap->pg_upmap_items, pgid);
 	if (pg) {
 		/*
-		 * Note: this approach does not allow a bidirectional swap,
+		 * Note: this approach does yest allow a bidirectional swap,
 		 * e.g., [[1,2],[2,1]] applied to [0,1,2] -> [0,2,1].
 		 */
 		for (i = 0; i < pg->pg_upmap_items.len; i++) {
@@ -2412,7 +2412,7 @@ static void apply_upmap(struct ceph_osdmap *osdmap,
 					exists = true;
 					break;
 				}
-				/* ignore mapping if target is marked out */
+				/* igyesre mapping if target is marked out */
 				if (osd == from && pos < 0 &&
 				    !(to != CRUSH_ITEM_NONE &&
 				      to < osdmap->max_osd &&
@@ -2428,7 +2428,7 @@ static void apply_upmap(struct ceph_osdmap *osdmap,
 
 /*
  * Given raw set, calculate up set and up primary.  By definition of an
- * up set, the result won't contain nonexistent or down OSDs.
+ * up set, the result won't contain yesnexistent or down OSDs.
  *
  * This is done in-place - on return @set is the up set.  If it's
  * empty, ->primary will remain undefined.
@@ -2477,7 +2477,7 @@ static void apply_primary_affinity(struct ceph_osdmap *osdmap,
 	int pos = -1;
 
 	/*
-	 * Do we have any non-default primary_affinity values for these
+	 * Do we have any yesn-default primary_affinity values for these
 	 * osds?
 	 */
 	if (!osdmap->osd_primary_affinity)
@@ -2512,7 +2512,7 @@ static void apply_primary_affinity(struct ceph_osdmap *osdmap,
 		    (crush_hash32_2(CRUSH_HASH_RJENKINS1,
 				    pps, osd) >> 16) >= aff) {
 			/*
-			 * We chose not to use this primary.  Note it
+			 * We chose yest to use this primary.  Note it
 			 * anyway as a fallback in case we don't pick
 			 * anyone else, but keep looking.
 			 */
@@ -2539,7 +2539,7 @@ static void apply_primary_affinity(struct ceph_osdmap *osdmap,
 /*
  * Get pg_temp and primary_temp mappings for given PG.
  *
- * Note that a PG may have none, only pg_temp, only primary_temp or
+ * Note that a PG may have yesne, only pg_temp, only primary_temp or
  * both pg_temp and primary_temp mappings.  This means @temp isn't
  * always a valid OSD set on return: in the "only primary_temp" case,
  * @temp will have its ->primary >= 0 but ->size == 0.
@@ -2647,7 +2647,7 @@ bool ceph_pg_to_primary_shard(struct ceph_osdmap *osdmap,
 }
 
 /*
- * Return acting primary for given PG, or -1 if none.
+ * Return acting primary for given PG, or -1 if yesne.
  */
 int ceph_pg_to_acting_primary(struct ceph_osdmap *osdmap,
 			      const struct ceph_pg *raw_pgid)

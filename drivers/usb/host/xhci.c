@@ -60,7 +60,7 @@ static bool td_on_ring(struct xhci_td *td, struct xhci_ring *ring)
  * @done: value of those bits when handshake succeeds
  * @usec: timeout in microseconds
  *
- * Returns negative errno, or zero on success
+ * Returns negative erryes, or zero on success
  *
  * Success happens when the "mask" bits have the specified value (hardware
  * handshake done).  There are two failure modes:  "usec" have passed (major
@@ -172,12 +172,12 @@ int xhci_reset(struct xhci_hcd *xhci)
 	state = readl(&xhci->op_regs->status);
 
 	if (state == ~(u32)0) {
-		xhci_warn(xhci, "Host not accessible, reset failed.\n");
+		xhci_warn(xhci, "Host yest accessible, reset failed.\n");
 		return -ENODEV;
 	}
 
 	if ((state & STS_HALT) == 0) {
-		xhci_warn(xhci, "Host controller not halted, aborting reset.\n");
+		xhci_warn(xhci, "Host controller yest halted, aborting reset.\n");
 		return 0;
 	}
 
@@ -207,7 +207,7 @@ int xhci_reset(struct xhci_hcd *xhci)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			 "Wait for controller to be ready for doorbell rings");
 	/*
-	 * xHCI cannot write to any doorbells or operational registers other
+	 * xHCI canyest write to any doorbells or operational registers other
 	 * than status until the "Controller Not Ready" flag is cleared.
 	 */
 	ret = xhci_handshake(&xhci->op_regs->status,
@@ -232,7 +232,7 @@ static void xhci_zero_64b_regs(struct xhci_hcd *xhci)
 	/*
 	 * Some Renesas controllers get into a weird state if they are
 	 * reset while programmed with 64bit addresses (they will preserve
-	 * the top half of the address in internal, non visible
+	 * the top half of the address in internal, yesn visible
 	 * registers). You end up with half the address coming from the
 	 * kernel, and the other half coming from the firmware. Also,
 	 * changing the programming leads to extra accesses even if the
@@ -240,7 +240,7 @@ static void xhci_zero_64b_regs(struct xhci_hcd *xhci)
 	 * a fatal fault, and is then ripe for being properly reset.
 	 *
 	 * Special care is taken to only apply this if the device is behind
-	 * an iommu. Doing anything when there is no iommu is definitely
+	 * an iommu. Doing anything when there is yes iommu is definitely
 	 * unsafe...
 	 */
 	if (!(xhci->quirks & XHCI_ZERO_64B_REGS) || !device_iommu_mapped(dev))
@@ -248,7 +248,7 @@ static void xhci_zero_64b_regs(struct xhci_hcd *xhci)
 
 	xhci_info(xhci, "Zeroing 64bit base registers, expecting fault\n");
 
-	/* Clear HSEIE so that faults do not get signaled */
+	/* Clear HSEIE so that faults do yest get signaled */
 	val = readl(&xhci->op_regs->command);
 	val &= ~CMD_HSEIE;
 	writel(val, &xhci->op_regs->command);
@@ -434,7 +434,7 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 	}
 
 	if (!pdev->irq) {
-		xhci_err(xhci, "No msi-x/msi found and no IRQ in BIOS\n");
+		xhci_err(xhci, "No msi-x/msi found and yes IRQ in BIOS\n");
 		return -EINVAL;
 	}
 
@@ -514,8 +514,8 @@ static void compliance_mode_recovery(struct timer_list *t)
  * that causes ports behind that hardware to enter compliance mode sometimes.
  * The quirk creates a timer that polls every 2 seconds the link state of
  * each host controller's port and recovers it by issuing a Warm reset
- * if Compliance mode is detected, otherwise the port will become "dead" (no
- * device connections or disconnections will be detected anymore). Becasue no
+ * if Compliance mode is detected, otherwise the port will become "dead" (yes
+ * device connections or disconnections will be detected anymore). Becasue yes
  * status event is generated when entering compliance mode (per xhci spec),
  * this quirk is needed on systems that have the failing hardware installed.
  */
@@ -570,7 +570,7 @@ static int xhci_all_ports_seen_u0(struct xhci_hcd *xhci)
  *
  * Program the PAGESIZE register, initialize the device context array, create
  * device contexts (?), set up a command ring segment (or two?), create event
- * ring (one for now).
+ * ring (one for yesw).
  */
 static int xhci_init(struct usb_hcd *hcd)
 {
@@ -762,7 +762,7 @@ static void xhci_stop(struct usb_hcd *hcd)
 }
 
 /*
- * Shutdown HC (not bus-specific)
+ * Shutdown HC (yest bus-specific)
  *
  * This is called when the machine is rebooting or halting.  We assume that the
  * machine will be powered off, and the HC's internal state will be reset.
@@ -796,7 +796,7 @@ EXPORT_SYMBOL_GPL(xhci_shutdown);
 static void xhci_save_registers(struct xhci_hcd *xhci)
 {
 	xhci->s3.command = readl(&xhci->op_regs->command);
-	xhci->s3.dev_nt = readl(&xhci->op_regs->dev_notification);
+	xhci->s3.dev_nt = readl(&xhci->op_regs->dev_yestification);
 	xhci->s3.dcbaa_ptr = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
 	xhci->s3.config_reg = readl(&xhci->op_regs->config_reg);
 	xhci->s3.erst_size = readl(&xhci->ir_set->erst_size);
@@ -809,7 +809,7 @@ static void xhci_save_registers(struct xhci_hcd *xhci)
 static void xhci_restore_registers(struct xhci_hcd *xhci)
 {
 	writel(xhci->s3.command, &xhci->op_regs->command);
-	writel(xhci->s3.dev_nt, &xhci->op_regs->dev_notification);
+	writel(xhci->s3.dev_nt, &xhci->op_regs->dev_yestification);
 	xhci_write_64(xhci, xhci->s3.dcbaa_ptr, &xhci->op_regs->dcbaa_ptr);
 	writel(xhci->s3.config_reg, &xhci->op_regs->config_reg);
 	writel(xhci->s3.erst_size, &xhci->ir_set->erst_size);
@@ -868,14 +868,14 @@ static void xhci_clear_command_ring(struct xhci_hcd *xhci)
 
 	ring->num_trbs_free = ring->num_segs * (TRBS_PER_SEGMENT - 1) - 1;
 	/*
-	 * Ring is now zeroed, so the HW should look for change of ownership
+	 * Ring is yesw zeroed, so the HW should look for change of ownership
 	 * when the cycle bit is set to 1.
 	 */
 	ring->cycle_state = 1;
 
 	/*
 	 * Reset the hardware dequeue pointer.
-	 * Yes, this will need to be re-written after resume, but we're paranoid
+	 * Yes, this will need to be re-written after resume, but we're parayesid
 	 * and want to make sure the hardware doesn't access bogus memory
 	 * because, say, the BIOS or an SMI started the host without changing
 	 * the command ring pointers.
@@ -937,9 +937,9 @@ static bool xhci_pending_portevent(struct xhci_hcd *xhci)
 	if (status & STS_EINT)
 		return true;
 	/*
-	 * Checking STS_EINT is not enough as there is a lag between a change
+	 * Checking STS_EINT is yest eyesugh as there is a lag between a change
 	 * bit being set and the Port Status Change Event that it generated
-	 * being written to the Event Ring. See note in xhci 1.1 section 4.19.2.
+	 * being written to the Event Ring. See yeste in xhci 1.1 section 4.19.2.
 	 */
 
 	port_index = xhci->usb2_rhub.num_ports;
@@ -962,7 +962,7 @@ static bool xhci_pending_portevent(struct xhci_hcd *xhci)
 }
 
 /*
- * Stop HC (not bus-specific)
+ * Stop HC (yest bus-specific)
  *
  * This is called when the machine transition into S3/S4 mode.
  *
@@ -984,7 +984,7 @@ int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
 
 	xhci_dbc_suspend(xhci);
 
-	/* Clear root port wake on bits if wakeup not allowed. */
+	/* Clear root port wake on bits if wakeup yest allowed. */
 	if (!do_wakeup)
 		xhci_disable_port_wake_on_bits(xhci);
 
@@ -1031,12 +1031,12 @@ int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
 	if (xhci_handshake(&xhci->op_regs->status,
 				STS_SAVE, 0, 20 * 1000)) {
 	/*
-	 * AMD SNPS xHC 3.0 occasionally does not clear the
+	 * AMD SNPS xHC 3.0 occasionally does yest clear the
 	 * SSS bit of USBSTS and when driver tries to poll
 	 * to see if the xHC clears BIT(8) which never happens
-	 * and driver assumes that controller is not responding
+	 * and driver assumes that controller is yest responding
 	 * and times out. To workaround this, its good to check
-	 * if SRE and HCE bits are not set (as per xhci
+	 * if SRE and HCE bits are yest set (as per xhci
 	 * Section 5.4.2) and bypass the timeout.
 	 */
 		res = readl(&xhci->op_regs->status);
@@ -1073,7 +1073,7 @@ int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
 EXPORT_SYMBOL_GPL(xhci_suspend);
 
 /*
- * start xHC (not bus-specific)
+ * start xHC (yest bus-specific)
  *
  * This is called when the machine transition from S3/S4 mode.
  *
@@ -1107,12 +1107,12 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	if (!hibernated) {
 		/*
 		 * Some controllers might lose power during suspend, so wait
-		 * for controller not ready bit to clear, just as in xHC init.
+		 * for controller yest ready bit to clear, just as in xHC init.
 		 */
 		retval = xhci_handshake(&xhci->op_regs->status,
 					STS_CNR, 0, 10 * 1000 * 1000);
 		if (retval) {
-			xhci_warn(xhci, "Controller not ready at resume %d\n",
+			xhci_warn(xhci, "Controller yest ready at resume %d\n",
 				  retval);
 			spin_unlock_irq(&xhci->lock);
 			return retval;
@@ -1150,7 +1150,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 				"Compliance Mode Recovery Timer deleted!");
 		}
 
-		/* Let the USB core know _both_ roothubs lost power. */
+		/* Let the USB core kyesw _both_ roothubs lost power. */
 		usb_root_hub_lost_power(xhci->main_hcd->self.root_hub);
 		usb_root_hub_lost_power(xhci->shared_hcd->self.root_hub);
 
@@ -1358,7 +1358,7 @@ static int xhci_check_args(struct usb_hcd *hcd, struct usb_device *udev,
 		virt_dev = xhci->devs[udev->slot_id];
 		if (virt_dev->udev != udev) {
 			xhci_dbg(xhci, "xHCI %s called with udev and "
-					  "virt_dev does not match\n", func);
+					  "virt_dev does yest match\n", func);
 			return -EINVAL;
 		}
 	}
@@ -1375,7 +1375,7 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 
 /*
  * Full speed devices may have a max packet size greater than 8 bytes, but the
- * USB core doesn't know that until it reads the first 8 bytes of the
+ * USB core doesn't kyesw that until it reads the first 8 bytes of the
  * descriptor.  If the usb_device's max packet size changes after that point,
  * we need to issue an evaluate context command and wait on it.
  */
@@ -1407,7 +1407,7 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 				"Issuing evaluate context command.");
 
 		/* Set up the input context flags for the command */
-		/* FIXME: This won't work if a non-default control endpoint
+		/* FIXME: This won't work if a yesn-default control endpoint
 		 * changes max packet sizes.
 		 */
 
@@ -1418,7 +1418,7 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 		command->in_ctx = xhci->devs[slot_id]->in_ctx;
 		ctrl_ctx = xhci_get_input_control_ctx(command->in_ctx);
 		if (!ctrl_ctx) {
-			xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
+			xhci_warn(xhci, "%s: Could yest get input context, bad type.\n",
 					__func__);
 			ret = -ENOMEM;
 			goto command_cleanup;
@@ -1449,7 +1449,7 @@ command_cleanup:
 }
 
 /*
- * non-error returns are a promise to giveback() the urb later
+ * yesn-error returns are a promise to giveback() the urb later
  * we drop ownership so next owner (or urb unlink) can get it
  */
 static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
@@ -1518,7 +1518,7 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	if (xhci->xhc_state & XHCI_STATE_DYING) {
-		xhci_dbg(xhci, "Ep 0x%x: URB %p submitted for non-responsive xHCI host.\n",
+		xhci_dbg(xhci, "Ep 0x%x: URB %p submitted for yesn-responsive xHCI host.\n",
 			 urb->ep->desc.bEndpointAddress, urb);
 		ret = -ESHUTDOWN;
 		goto free_priv;
@@ -1579,9 +1579,9 @@ free_priv:
  *     when drivers timeout on the last submitted URB and attempt to cancel.
  *
  *  2) If the HC is in the middle of a different TD, we turn the TRBs into a
- *     series of 1-TRB transfer no-op TDs.  (No-ops shouldn't be chained.)  The
+ *     series of 1-TRB transfer yes-op TDs.  (No-ops shouldn't be chained.)  The
  *     HC will need to invalidate the any TRBs it has cached after the stop
- *     endpoint command, as noted in the xHCI 0.95 errata.
+ *     endpoint command, as yested in the xHCI 0.95 errata.
  *
  *  3) The TD may have completed by the time the Stop Endpoint Command
  *     completes, so software needs to handle that case too.
@@ -1618,7 +1618,7 @@ static int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	if (ret)
 		goto done;
 
-	/* give back URB now if we can't queue it for cancel */
+	/* give back URB yesw if we can't queue it for cancel */
 	vdev = xhci->devs[urb->dev->slot_id];
 	urb_priv = urb->hcpriv;
 	if (!vdev || !urb_priv)
@@ -1638,12 +1638,12 @@ static int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	}
 
 	/*
-	 * check ring is not re-allocated since URB was enqueued. If it is, then
-	 * make sure none of the ring related pointers in this URB private data
+	 * check ring is yest re-allocated since URB was enqueued. If it is, then
+	 * make sure yesne of the ring related pointers in this URB private data
 	 * are touched, such as td_list, otherwise we overwrite freed data
 	 */
 	if (!td_on_ring(&urb_priv->td[0], ep_ring)) {
-		xhci_err(xhci, "Canceled URB td not found on endpoint ring");
+		xhci_err(xhci, "Canceled URB td yest found on endpoint ring");
 		for (i = urb_priv->num_tds_done; i < urb_priv->num_tds; i++) {
 			td = &urb_priv->td[i];
 			if (!list_empty(&td->cancelled_td_list))
@@ -1717,13 +1717,13 @@ err_giveback:
  * Only one call to this function is allowed per endpoint before
  * check_bandwidth() or reset_bandwidth() must be called.
  * A call to xhci_drop_endpoint() followed by a call to xhci_add_endpoint() will
- * add the endpoint to the schedule with possibly new parameters denoted by a
+ * add the endpoint to the schedule with possibly new parameters deyested by a
  * different endpoint descriptor in usb_host_endpoint.
  * A call to xhci_add_endpoint() followed by a call to xhci_drop_endpoint() is
- * not allowed.
+ * yest allowed.
  *
- * The USB core will not allow URBs to be queued to an endpoint that is being
- * disabled, so there's no need for mutual exclusion to protect
+ * The USB core will yest allow URBs to be queued to an endpoint that is being
+ * disabled, so there's yes need for mutual exclusion to protect
  * the xhci->devs[slot_id] structure.
  */
 static int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
@@ -1757,20 +1757,20 @@ static int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	out_ctx = xhci->devs[udev->slot_id]->out_ctx;
 	ctrl_ctx = xhci_get_input_control_ctx(in_ctx);
 	if (!ctrl_ctx) {
-		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
+		xhci_warn(xhci, "%s: Could yest get input context, bad type.\n",
 				__func__);
 		return 0;
 	}
 
 	ep_index = xhci_get_endpoint_index(&ep->desc);
 	ep_ctx = xhci_get_ep_ctx(xhci, out_ctx, ep_index);
-	/* If the HC already knows the endpoint is disabled,
-	 * or the HCD has noted it is disabled, ignore this request
+	/* If the HC already kyesws the endpoint is disabled,
+	 * or the HCD has yested it is disabled, igyesre this request
 	 */
 	if ((GET_EP_CTX_STATE(ep_ctx) == EP_STATE_DISABLED) ||
 	    le32_to_cpu(ctrl_ctx->drop_flags) &
 	    xhci_get_endpoint_flag(&ep->desc)) {
-		/* Do not warn when called after a usb_device_reset */
+		/* Do yest warn when called after a usb_device_reset */
 		if (xhci->devs[udev->slot_id]->eps[ep_index].ring != NULL)
 			xhci_warn(xhci, "xHCI %s called with disabled ep %p\n",
 				  __func__, ep);
@@ -1802,13 +1802,13 @@ static int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
  * Only one call to this function is allowed per endpoint before
  * check_bandwidth() or reset_bandwidth() must be called.
  * A call to xhci_drop_endpoint() followed by a call to xhci_add_endpoint() will
- * add the endpoint to the schedule with possibly new parameters denoted by a
+ * add the endpoint to the schedule with possibly new parameters deyested by a
  * different endpoint descriptor in usb_host_endpoint.
  * A call to xhci_add_endpoint() followed by a call to xhci_drop_endpoint() is
- * not allowed.
+ * yest allowed.
  *
- * The USB core will not allow URBs to be queued to an endpoint until the
- * configuration or alt setting is installed in the device, so there's no need
+ * The USB core will yest allow URBs to be queued to an endpoint until the
+ * configuration or alt setting is installed in the device, so there's yes need
  * for mutual exclusion to protect the xhci->devs[slot_id] structure.
  */
 static int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
@@ -1849,7 +1849,7 @@ static int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	in_ctx = virt_dev->in_ctx;
 	ctrl_ctx = xhci_get_input_control_ctx(in_ctx);
 	if (!ctrl_ctx) {
-		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
+		xhci_warn(xhci, "%s: Could yest get input context, bad type.\n",
 				__func__);
 		return 0;
 	}
@@ -1866,8 +1866,8 @@ static int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		return -EINVAL;
 	}
 
-	/* If the HCD has already noted the endpoint is enabled,
-	 * ignore this request.
+	/* If the HCD has already yested the endpoint is enabled,
+	 * igyesre this request.
 	 */
 	if (le32_to_cpu(ctrl_ctx->add_flags) & added_ctxs) {
 		xhci_warn(xhci, "xHCI %s called with enabled ep %p\n",
@@ -1877,11 +1877,11 @@ static int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 
 	/*
 	 * Configuration and alternate setting changes must be done in
-	 * process context, not interrupt context (or so documenation
+	 * process context, yest interrupt context (or so documenation
 	 * for usb_set_interface() and usb_set_configuration() claim).
 	 */
 	if (xhci_endpoint_init(xhci, virt_dev, udev, ep, GFP_NOIO) < 0) {
-		dev_dbg(&udev->dev, "%s - could not initialize ep %#x\n",
+		dev_dbg(&udev->dev, "%s - could yest initialize ep %#x\n",
 				__func__, ep->desc.bEndpointAddress);
 		return -ENOMEM;
 	}
@@ -1899,7 +1899,7 @@ static int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	new_add_flags = le32_to_cpu(ctrl_ctx->add_flags);
 
 	/* If xhci_endpoint_disable() was called for this endpoint, but the
-	 * xHC hasn't been notified yet through the check_bandwidth() call,
+	 * xHC hasn't been yestified yet through the check_bandwidth() call,
 	 * this re-adds a new state for the endpoint from the new endpoint
 	 * descriptors.  We must drop and re-add this endpoint, so we leave the
 	 * drop flags alone.
@@ -1931,7 +1931,7 @@ static void xhci_zero_in_ctx(struct xhci_hcd *xhci, struct xhci_virt_device *vir
 
 	ctrl_ctx = xhci_get_input_control_ctx(virt_dev->in_ctx);
 	if (!ctrl_ctx) {
-		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
+		xhci_warn(xhci, "%s: Could yest get input context, bad type.\n",
 				__func__);
 		return;
 	}
@@ -1969,14 +1969,14 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 		break;
 	case COMP_RESOURCE_ERROR:
 		dev_warn(&udev->dev,
-			 "Not enough host controller resources for new device state.\n");
+			 "Not eyesugh host controller resources for new device state.\n");
 		ret = -ENOMEM;
 		/* FIXME: can we allocate more resources for the HC? */
 		break;
 	case COMP_BANDWIDTH_ERROR:
 	case COMP_SECONDARY_BANDWIDTH_ERROR:
 		dev_warn(&udev->dev,
-			 "Not enough bandwidth for new device state.\n");
+			 "Not eyesugh bandwidth for new device state.\n");
 		ret = -ENOSPC;
 		/* FIXME: can we go back to the old state? */
 		break;
@@ -1984,7 +1984,7 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 		/* the HCD set up something wrong */
 		dev_warn(&udev->dev, "ERROR: Endpoint drop flag = 0, "
 				"add flag = 1, "
-				"and endpoint is not disabled.\n");
+				"and endpoint is yest disabled.\n");
 		ret = -EINVAL;
 		break;
 	case COMP_INCOMPATIBLE_DEVICE_ERROR:
@@ -2024,7 +2024,7 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 		break;
 	case COMP_SLOT_NOT_ENABLED_ERROR:
 		dev_warn(&udev->dev,
-			"WARN: slot not enabled for evaluate context command.\n");
+			"WARN: slot yest enabled for evaluate context command.\n");
 		ret = -EINVAL;
 		break;
 	case COMP_CONTEXT_STATE_ERROR:
@@ -2062,7 +2062,7 @@ static u32 xhci_count_num_new_endpoints(struct xhci_hcd *xhci,
 	u32 valid_add_flags;
 	u32 valid_drop_flags;
 
-	/* Ignore the slot flag (bit 0), and the default control endpoint flag
+	/* Igyesre the slot flag (bit 0), and the default control endpoint flag
 	 * (bit 1).  The default control endpoint is added during the Address
 	 * Device command and is never removed until the slot is disabled.
 	 */
@@ -2099,7 +2099,7 @@ static unsigned int xhci_count_num_dropped_endpoints(struct xhci_hcd *xhci,
  *  - the first configure endpoint command drops more endpoints than it adds
  *  - a second configure endpoint command that adds more endpoints is queued
  *  - the first configure endpoint command fails, so the config is unchanged
- *  - the second command may succeed, even though there isn't enough resources
+ *  - the second command may succeed, even though there isn't eyesugh resources
  *
  * Must be called with xhci->lock held.
  */
@@ -2111,7 +2111,7 @@ static int xhci_reserve_host_resources(struct xhci_hcd *xhci,
 	added_eps = xhci_count_num_new_endpoints(xhci, ctrl_ctx);
 	if (xhci->num_active_eps + added_eps > xhci->limit_active_eps) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
-				"Not enough ep ctxs: "
+				"Not eyesugh ep ctxs: "
 				"%u active, need to add %u, limit is %u.",
 				xhci->num_active_eps, added_eps,
 				xhci->limit_active_eps);
@@ -2119,7 +2119,7 @@ static int xhci_reserve_host_resources(struct xhci_hcd *xhci,
 	}
 	xhci->num_active_eps += added_eps;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
-			"Adding %u ep ctxs, %u now active.", added_eps,
+			"Adding %u ep ctxs, %u yesw active.", added_eps,
 			xhci->num_active_eps);
 	return 0;
 }
@@ -2138,14 +2138,14 @@ static void xhci_free_host_resources(struct xhci_hcd *xhci,
 	num_failed_eps = xhci_count_num_new_endpoints(xhci, ctrl_ctx);
 	xhci->num_active_eps -= num_failed_eps;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
-			"Removing %u failed ep ctxs, %u now active.",
+			"Removing %u failed ep ctxs, %u yesw active.",
 			num_failed_eps,
 			xhci->num_active_eps);
 }
 
 /*
  * Now that the command has completed, clean up the active endpoint count by
- * subtracting out the endpoints that were dropped (but not changed).
+ * subtracting out the endpoints that were dropped (but yest changed).
  *
  * Must be called with xhci->lock held.
  */
@@ -2158,7 +2158,7 @@ static void xhci_finish_resource_reservation(struct xhci_hcd *xhci,
 	xhci->num_active_eps -= num_dropped_eps;
 	if (num_dropped_eps)
 		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
-				"Removing %u dropped ep ctxs, %u now active.",
+				"Removing %u dropped ep ctxs, %u yesw active.",
 				num_dropped_eps,
 				xhci->num_active_eps);
 }
@@ -2193,7 +2193,7 @@ xhci_get_largest_overhead(struct xhci_interval_bw *interval_bw)
 }
 
 /* If we are changing a LS/FS device under a HS hub,
- * make sure (if we are activating a new TT) that the HS bus has enough
+ * make sure (if we are activating a new TT) that the HS bus has eyesugh
  * bandwidth for this new TT.
  */
 static int xhci_check_tt_bw_table(struct xhci_hcd *xhci,
@@ -2217,7 +2217,7 @@ static int xhci_check_tt_bw_table(struct xhci_hcd *xhci,
 			return -ENOMEM;
 		return 0;
 	}
-	/* Not sure why we would have no new active endpoints...
+	/* Not sure why we would have yes new active endpoints...
 	 *
 	 * Maybe because of an Evaluate Context change for a hub update or a
 	 * control endpoint 0 max packet size change?
@@ -2249,7 +2249,7 @@ static int xhci_check_ss_bw(struct xhci_hcd *xhci,
  * the bandwidth scheduling.  This only takes into account periodic endpoints.
  *
  * Obviously, we can't solve an NP complete problem to find the minimum worst
- * case scenario.  Instead, we come up with an estimate that is no less than
+ * case scenario.  Instead, we come up with an estimate that is yes less than
  * the worst case bandwidth used for any one microframe, but may be an
  * over-estimate.
  *
@@ -2317,14 +2317,14 @@ static int xhci_check_bw_table(struct xhci_hcd *xhci,
 	block_size = xhci_get_block_size(virt_dev->udev);
 
 	/* If we are manipulating a LS/FS device under a HS hub, double check
-	 * that the HS bus has enough bandwidth if we are activing a new TT.
+	 * that the HS bus has eyesugh bandwidth if we are activing a new TT.
 	 */
 	if (virt_dev->tt_info) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
 				"Recalculating BW for rootport %u",
 				virt_dev->real_port);
 		if (xhci_check_tt_bw_table(xhci, virt_dev, old_active_eps)) {
-			xhci_warn(xhci, "Not enough bandwidth on HS bus for "
+			xhci_warn(xhci, "Not eyesugh bandwidth on HS bus for "
 					"newly activated TT.\n");
 			return -ENOMEM;
 		}
@@ -2416,15 +2416,15 @@ static int xhci_check_bw_table(struct xhci_hcd *xhci,
 		 */
 		bw_used += bw_added;
 		if (bw_used > max_bandwidth) {
-			xhci_warn(xhci, "Not enough bandwidth. "
+			xhci_warn(xhci, "Not eyesugh bandwidth. "
 					"Proposed: %u, Max: %u\n",
 				bw_used, max_bandwidth);
 			return -ENOMEM;
 		}
 	}
 	/*
-	 * Ok, we know we have some packets left over after even-handedly
-	 * scheduling interval 15.  We don't know which microframes they will
+	 * Ok, we kyesw we have some packets left over after even-handedly
+	 * scheduling interval 15.  We don't kyesw which microframes they will
 	 * fit into, so we over-schedule and say they will be scheduled every
 	 * microframe.
 	 */
@@ -2451,7 +2451,7 @@ static int xhci_check_bw_table(struct xhci_hcd *xhci,
 
 	bw_used += bw_reserved;
 	if (bw_used > max_bandwidth) {
-		xhci_warn(xhci, "Not enough bandwidth. Proposed: %u, Max: %u\n",
+		xhci_warn(xhci, "Not eyesugh bandwidth. Proposed: %u, Max: %u\n",
 				bw_used, max_bandwidth);
 		return -ENOMEM;
 	}
@@ -2494,7 +2494,7 @@ static void xhci_drop_ep_from_interval_table(struct xhci_hcd *xhci,
 		struct xhci_tt_bw_info *tt_info)
 {
 	struct xhci_interval_bw	*interval_bw;
-	int normalized_interval;
+	int yesrmalized_interval;
 
 	if (xhci_is_async_ep(ep_bw->type))
 		return;
@@ -2518,13 +2518,13 @@ static void xhci_drop_ep_from_interval_table(struct xhci_hcd *xhci,
 	 * microframes to frames.
 	 */
 	if (udev->speed == USB_SPEED_HIGH)
-		normalized_interval = ep_bw->ep_interval;
+		yesrmalized_interval = ep_bw->ep_interval;
 	else
-		normalized_interval = ep_bw->ep_interval - 3;
+		yesrmalized_interval = ep_bw->ep_interval - 3;
 
-	if (normalized_interval == 0)
+	if (yesrmalized_interval == 0)
 		bw_table->interval0_esit_payload -= ep_bw->max_esit_payload;
-	interval_bw = &bw_table->interval_bw[normalized_interval];
+	interval_bw = &bw_table->interval_bw[yesrmalized_interval];
 	interval_bw->num_packets -= ep_bw->num_packets;
 	switch (udev->speed) {
 	case USB_SPEED_LOW:
@@ -2559,7 +2559,7 @@ static void xhci_add_ep_to_interval_table(struct xhci_hcd *xhci,
 {
 	struct xhci_interval_bw	*interval_bw;
 	struct xhci_virt_ep *smaller_ep;
-	int normalized_interval;
+	int yesrmalized_interval;
 
 	if (xhci_is_async_ep(ep_bw->type))
 		return;
@@ -2578,13 +2578,13 @@ static void xhci_add_ep_to_interval_table(struct xhci_hcd *xhci,
 	 * microframes to frames.
 	 */
 	if (udev->speed == USB_SPEED_HIGH)
-		normalized_interval = ep_bw->ep_interval;
+		yesrmalized_interval = ep_bw->ep_interval;
 	else
-		normalized_interval = ep_bw->ep_interval - 3;
+		yesrmalized_interval = ep_bw->ep_interval - 3;
 
-	if (normalized_interval == 0)
+	if (yesrmalized_interval == 0)
 		bw_table->interval0_esit_payload += ep_bw->max_esit_payload;
-	interval_bw = &bw_table->interval_bw[normalized_interval];
+	interval_bw = &bw_table->interval_bw[yesrmalized_interval];
 	interval_bw->num_packets += ep_bw->num_packets;
 	switch (udev->speed) {
 	case USB_SPEED_LOW:
@@ -2658,7 +2658,7 @@ static int xhci_reserve_bandwidth(struct xhci_hcd *xhci,
 
 	ctrl_ctx = xhci_get_input_control_ctx(in_ctx);
 	if (!ctrl_ctx) {
-		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
+		xhci_warn(xhci, "%s: Could yest get input context, bad type.\n",
 				__func__);
 		return -ENOMEM;
 	}
@@ -2702,7 +2702,7 @@ static int xhci_reserve_bandwidth(struct xhci_hcd *xhci,
 		return 0;
 	}
 
-	/* We don't have enough bandwidth for this, revert the stored info. */
+	/* We don't have eyesugh bandwidth for this, revert the stored info. */
 	for (i = 0; i < 31; i++) {
 		if (!EP_IS_ADDED(ctrl_ctx, i) && !EP_IS_DROPPED(ctrl_ctx, i))
 			continue;
@@ -2763,7 +2763,7 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	ctrl_ctx = xhci_get_input_control_ctx(command->in_ctx);
 	if (!ctrl_ctx) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
-		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
+		xhci_warn(xhci, "%s: Could yest get input context, bad type.\n",
 				__func__);
 		return -ENOMEM;
 	}
@@ -2771,7 +2771,7 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK) &&
 			xhci_reserve_host_resources(xhci, ctrl_ctx)) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
-		xhci_warn(xhci, "Not enough host resources, "
+		xhci_warn(xhci, "Not eyesugh host resources, "
 				"active endpoint contexts = %u\n",
 				xhci->num_active_eps);
 		return -ENOMEM;
@@ -2781,7 +2781,7 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 		if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK))
 			xhci_free_host_resources(xhci, ctrl_ctx);
 		spin_unlock_irqrestore(&xhci->lock, flags);
-		xhci_warn(xhci, "Not enough bandwidth\n");
+		xhci_warn(xhci, "Not eyesugh bandwidth\n");
 		return -ENOMEM;
 	}
 
@@ -2887,7 +2887,7 @@ static int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	/* See section 4.6.6 - A0 = 1; A1 = D0 = D1 = 0 */
 	ctrl_ctx = xhci_get_input_control_ctx(command->in_ctx);
 	if (!ctrl_ctx) {
-		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
+		xhci_warn(xhci, "%s: Could yest get input context, bad type.\n",
 				__func__);
 		ret = -ENOMEM;
 		goto command_cleanup;
@@ -2896,7 +2896,7 @@ static int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	ctrl_ctx->add_flags &= cpu_to_le32(~EP0_FLAG);
 	ctrl_ctx->drop_flags &= cpu_to_le32(~(SLOT_FLAG | EP0_FLAG));
 
-	/* Don't issue the command if there's no endpoints to update. */
+	/* Don't issue the command if there's yes endpoints to update. */
 	if (ctrl_ctx->add_flags == cpu_to_le32(SLOT_FLAG) &&
 	    ctrl_ctx->drop_flags == 0) {
 		ret = 0;
@@ -2921,7 +2921,7 @@ static int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		/* Callee should call reset_bandwidth() */
 		goto command_cleanup;
 
-	/* Free any rings that were dropped, but not changed. */
+	/* Free any rings that were dropped, but yest changed. */
 	for (i = 1; i < 31; i++) {
 		if ((le32_to_cpu(ctrl_ctx->drop_flags) & (1 << (i + 1))) &&
 		    !(le32_to_cpu(ctrl_ctx->add_flags) & (1 << (i + 1)))) {
@@ -2938,7 +2938,7 @@ static int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		if (!virt_dev->eps[i].new_ring)
 			continue;
 		/* Only free the old ring if it exists.
-		 * It may not if this is the first add of an endpoint.
+		 * It may yest if this is the first add of an endpoint.
 		 */
 		if (virt_dev->eps[i].ring) {
 			xhci_free_endpoint_ring(xhci, virt_dev, i);
@@ -3003,7 +3003,7 @@ static void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
 	in_ctx = xhci->devs[slot_id]->in_ctx;
 	ctrl_ctx = xhci_get_input_control_ctx(in_ctx);
 	if (!ctrl_ctx) {
-		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
+		xhci_warn(xhci, "%s: Could yest get input context, bad type.\n",
 				__func__);
 		return;
 	}
@@ -3014,7 +3014,7 @@ static void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
 	addr = xhci_trb_virt_to_dma(deq_state->new_deq_seg,
 			deq_state->new_deq_ptr);
 	if (addr == 0) {
-		xhci_warn(xhci, "WARN Cannot submit config ep after "
+		xhci_warn(xhci, "WARN Canyest submit config ep after "
 				"reset ep command\n");
 		xhci_warn(xhci, "WARN deq seg = %p, deq ptr = %p\n",
 				deq_state->new_deq_seg,
@@ -3055,7 +3055,7 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci, unsigned int ep_index,
 		xhci_queue_new_dequeue_state(xhci, udev->slot_id,
 				ep_index, &deq_state);
 	} else {
-		/* Better hope no one uses the input context between now and the
+		/* Better hope yes one uses the input context between yesw and the
 		 * reset endpoint completion!
 		 * XXX: No idea how this hardware will react when stream rings
 		 * are enabled.
@@ -3119,7 +3119,7 @@ done:
  * state. For software that wishes to reset the data toggle or sequence number
  * of an endpoint that isn't in the halted state this function will issue a
  * configure endpoint command with the Drop and Add bits set for the target
- * endpoint. Refer to the additional note in xhci spcification section 4.6.8.
+ * endpoint. Refer to the additional yeste in xhci spcification section 4.6.8.
  */
 
 static void xhci_endpoint_reset(struct usb_hcd *hcd,
@@ -3184,12 +3184,12 @@ static void xhci_endpoint_reset(struct usb_hcd *hcd,
 
 	/*
 	 * Make sure endpoint ring is empty before resetting the toggle/seq.
-	 * Driver is required to synchronously cancel all transfer request.
+	 * Driver is required to synchroyesusly cancel all transfer request.
 	 * Stop the endpoint to force xHC to update the output context
 	 */
 
 	if (!list_empty(&ep->ring->td_list)) {
-		dev_err(&udev->dev, "EP not empty, refuse reset\n");
+		dev_err(&udev->dev, "EP yest empty, refuse reset\n");
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		xhci_free_command(xhci, cfg_cmd);
 		goto cleanup;
@@ -3254,7 +3254,7 @@ static int xhci_check_streams_endpoint(struct xhci_hcd *xhci,
 		return -EINVAL;
 	if (usb_ss_max_streams(&ep->ss_ep_comp) == 0) {
 		xhci_warn(xhci, "WARN: SuperSpeed Endpoint Companion"
-				" descriptor for ep 0x%x does not support streams\n",
+				" descriptor for ep 0x%x does yest support streams\n",
 				ep->desc.bEndpointAddress);
 		return -EINVAL;
 	}
@@ -3271,7 +3271,7 @@ static int xhci_check_streams_endpoint(struct xhci_hcd *xhci,
 		return -EINVAL;
 	}
 	if (!list_empty(&xhci->devs[slot_id]->eps[ep_index].ring->td_list)) {
-		xhci_warn(xhci, "Cannot setup streams for SuperSpeed bulk "
+		xhci_warn(xhci, "Canyest setup streams for SuperSpeed bulk "
 				"endpoint 0x%x; URBs are pending.\n",
 				ep->desc.bEndpointAddress);
 		return -EINVAL;
@@ -3302,7 +3302,7 @@ static void xhci_calculate_streams_entries(struct xhci_hcd *xhci,
 }
 
 /* Returns an error code if one of the endpoint already has streams.
- * This does not change any data structures, it only checks and gathers
+ * This does yest change any data structures, it only checks and gathers
  * information.
  */
 static int xhci_calculate_streams_and_bitmask(struct xhci_hcd *xhci,
@@ -3337,7 +3337,7 @@ static int xhci_calculate_streams_and_bitmask(struct xhci_hcd *xhci,
 	return 0;
 }
 
-static u32 xhci_calculate_no_streams_bitmask(struct xhci_hcd *xhci,
+static u32 xhci_calculate_yes_streams_bitmask(struct xhci_hcd *xhci,
 		struct usb_device *udev,
 		struct usb_host_endpoint **eps, unsigned int num_eps)
 {
@@ -3370,7 +3370,7 @@ static u32 xhci_calculate_no_streams_bitmask(struct xhci_hcd *xhci,
 					"streams are already disabled!\n",
 					eps[i]->desc.bEndpointAddress);
 			xhci_warn(xhci, "WARN xhci_free_streams() called "
-					"with non-streams endpoint\n");
+					"with yesn-streams endpoint\n");
 			return 0;
 		}
 		changed_ep_bitmask |= xhci_get_endpoint_flag(&eps[i]->desc);
@@ -3420,10 +3420,10 @@ static int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 	xhci_dbg(xhci, "Driver wants %u stream IDs (including stream 0).\n",
 			num_streams);
 
-	/* MaxPSASize value 0 (2 streams) means streams are not supported */
+	/* MaxPSASize value 0 (2 streams) means streams are yest supported */
 	if ((xhci->quirks & XHCI_BROKEN_STREAMS) ||
 			HCC_MAX_PSA(xhci->hcc_params) < 4) {
-		xhci_dbg(xhci, "xHCI controller does not support streams.\n");
+		xhci_dbg(xhci, "xHCI controller does yest support streams.\n");
 		return -ENOSYS;
 	}
 
@@ -3433,13 +3433,13 @@ static int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 
 	ctrl_ctx = xhci_get_input_control_ctx(config_cmd->in_ctx);
 	if (!ctrl_ctx) {
-		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
+		xhci_warn(xhci, "%s: Could yest get input context, bad type.\n",
 				__func__);
 		xhci_free_command(xhci, config_cmd);
 		return -ENOMEM;
 	}
 
-	/* Check to make sure all endpoints are not already configured for
+	/* Check to make sure all endpoints are yest already configured for
 	 * streams.  While we're at it, find the maximum number of streams that
 	 * all the endpoints will support and check for duplicate endpoints.
 	 */
@@ -3524,7 +3524,7 @@ static int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 	for (i = 0; i < num_eps; i++) {
 		ep_index = xhci_get_endpoint_index(&eps[i]->desc);
 		vdev->eps[ep_index].ep_state &= ~EP_GETTING_STREAMS;
-		xhci_dbg(xhci, "Slot %u ep ctx %u now has streams.\n",
+		xhci_dbg(xhci, "Slot %u ep ctx %u yesw has streams.\n",
 			 udev->slot_id, ep_index);
 		vdev->eps[ep_index].ep_state |= EP_HAS_STREAMS;
 	}
@@ -3541,7 +3541,7 @@ cleanup:
 		xhci_free_stream_info(xhci, vdev->eps[ep_index].stream_info);
 		vdev->eps[ep_index].stream_info = NULL;
 		/* FIXME Unset maxPstreams in endpoint context and
-		 * update deq ptr to point to normal string ring.
+		 * update deq ptr to point to yesrmal string ring.
 		 */
 		vdev->eps[ep_index].ep_state &= ~EP_GETTING_STREAMS;
 		vdev->eps[ep_index].ep_state &= ~EP_HAS_STREAMS;
@@ -3551,7 +3551,7 @@ cleanup:
 	return -ENOMEM;
 }
 
-/* Transition the endpoint from using streams to being a "normal" endpoint
+/* Transition the endpoint from using streams to being a "yesrmal" endpoint
  * without streams.
  *
  * Modify the endpoint context state, submit a configure endpoint command,
@@ -3575,7 +3575,7 @@ static int xhci_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
 
 	/* Set up a configure endpoint command to remove the streams rings */
 	spin_lock_irqsave(&xhci->lock, flags);
-	changed_ep_bitmask = xhci_calculate_no_streams_bitmask(xhci,
+	changed_ep_bitmask = xhci_calculate_yes_streams_bitmask(xhci,
 			udev, eps, num_eps);
 	if (changed_ep_bitmask == 0) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
@@ -3591,7 +3591,7 @@ static int xhci_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
 	ctrl_ctx = xhci_get_input_control_ctx(command->in_ctx);
 	if (!ctrl_ctx) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
-		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
+		xhci_warn(xhci, "%s: Could yest get input context, bad type.\n",
 				__func__);
 		return -EINVAL;
 	}
@@ -3606,7 +3606,7 @@ static int xhci_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
 
 		xhci_endpoint_copy(xhci, command->in_ctx,
 				vdev->out_ctx, ep_index);
-		xhci_setup_no_streams_ep_input_ctx(ep_ctx,
+		xhci_setup_yes_streams_ep_input_ctx(ep_ctx,
 				&vdev->eps[ep_index]);
 	}
 	xhci_setup_input_ctx_for_config_ep(xhci, command->in_ctx,
@@ -3632,7 +3632,7 @@ static int xhci_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
 		xhci_free_stream_info(xhci, vdev->eps[ep_index].stream_info);
 		vdev->eps[ep_index].stream_info = NULL;
 		/* FIXME Unset maxPstreams in endpoint context and
-		 * update deq ptr to point to normal string ring.
+		 * update deq ptr to point to yesrmal string ring.
 		 */
 		vdev->eps[ep_index].ep_state &= ~EP_GETTING_NO_STREAMS;
 		vdev->eps[ep_index].ep_state &= ~EP_HAS_STREAMS;
@@ -3666,7 +3666,7 @@ void xhci_free_device_endpoint_resources(struct xhci_hcd *xhci,
 	if (num_dropped_eps)
 		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
 				"Dropped %u ep ctxs, flags = 0x%x, "
-				"%u now active.",
+				"%u yesw active.",
 				num_dropped_eps, drop_flags,
 				xhci->num_active_eps);
 }
@@ -3677,14 +3677,14 @@ void xhci_free_device_endpoint_resources(struct xhci_hcd *xhci,
  * control endpoint.  The USB core should come back and call
  * xhci_address_device(), and then re-set up the configuration.  If this is
  * called because of a usb_reset_and_verify_device(), then the old alternate
- * settings will be re-installed through the normal bandwidth allocation
+ * settings will be re-installed through the yesrmal bandwidth allocation
  * functions.
  *
  * Wait for the Reset Device command to finish.  Remove all structures
  * associated with the endpoints that were disabled.  Clear the input device
  * structure? Reset the control endpoint 0 max packet size?
  *
- * If the virt_dev to be reset does not exist or does not match the udev,
+ * If the virt_dev to be reset does yest exist or does yest match the udev,
  * it means the device is lost, possibly due to the xHC restore error and
  * re-initialization during S3/S4. In this case, call xhci_alloc_dev() to
  * re-allocate the device.
@@ -3709,7 +3709,7 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 	virt_dev = xhci->devs[slot_id];
 	if (!virt_dev) {
 		xhci_dbg(xhci, "The device to be reset with slot ID %u does "
-				"not exist. Re-allocate the device\n", slot_id);
+				"yest exist. Re-allocate the device\n", slot_id);
 		ret = xhci_alloc_dev(hcd, udev);
 		if (ret == 1)
 			return 0;
@@ -3721,12 +3721,12 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 		old_active_eps = virt_dev->tt_info->active_eps;
 
 	if (virt_dev->udev != udev) {
-		/* If the virt_dev and the udev does not match, this virt_dev
-		 * may belong to another udev.
+		/* If the virt_dev and the udev does yest match, this virt_dev
+		 * may belong to ayesther udev.
 		 * Re-allocate the device.
 		 */
 		xhci_dbg(xhci, "The device to be reset with slot ID %u does "
-				"not match the udev. Re-allocate the device\n",
+				"yest match the udev. Re-allocate the device\n",
 				slot_id);
 		ret = xhci_alloc_dev(hcd, udev);
 		if (ret == 1)
@@ -3735,7 +3735,7 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 			return -EINVAL;
 	}
 
-	/* If device is not setup, there is no point in resetting it */
+	/* If device is yest setup, there is yes point in resetting it */
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->out_ctx);
 	if (GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state)) ==
 						SLOT_STATE_DISABLED)
@@ -3745,7 +3745,7 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 
 	xhci_dbg(xhci, "Resetting device with slot ID %u\n", slot_id);
 	/* Allocate the command structure that holds the struct completion.
-	 * Assume we're in process context, since the normal device reset
+	 * Assume we're in process context, since the yesrmal device reset
 	 * process has to wait for the device anyway.  Storage devices are
 	 * reset as part of error handling, so use GFP_NOIO instead of
 	 * GFP_KERNEL.
@@ -3797,7 +3797,7 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 	default:
 		if (xhci_is_vendor_info_code(xhci, ret))
 			break;
-		xhci_warn(xhci, "Unknown completion code %u for "
+		xhci_warn(xhci, "Unkyeswn completion code %u for "
 				"reset device command.\n", ret);
 		ret = -EINVAL;
 		goto command_cleanup;
@@ -3860,12 +3860,12 @@ static void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 
 #ifndef CONFIG_USB_DEFAULT_PERSIST
 	/*
-	 * We called pm_runtime_get_noresume when the device was attached.
+	 * We called pm_runtime_get_yesresume when the device was attached.
 	 * Decrement the counter here to allow controller to runtime suspend
-	 * if no devices remain.
+	 * if yes devices remain.
 	 */
 	if (xhci->quirks & XHCI_RESET_ON_RESUME)
-		pm_runtime_put_noidle(hcd->self.controller);
+		pm_runtime_put_yesidle(hcd->self.controller);
 #endif
 
 	ret = xhci_check_args(hcd, udev, NULL, 0, true, __func__);
@@ -3926,7 +3926,7 @@ int xhci_disable_slot(struct xhci_hcd *xhci, u32 slot_id)
 }
 
 /*
- * Checks if we have enough host controller resources for the default control
+ * Checks if we have eyesugh host controller resources for the default control
  * endpoint.
  *
  * Must be called with xhci->lock held.
@@ -3935,14 +3935,14 @@ static int xhci_reserve_host_control_ep_resources(struct xhci_hcd *xhci)
 {
 	if (xhci->num_active_eps + 1 > xhci->limit_active_eps) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
-				"Not enough ep ctxs: "
+				"Not eyesugh ep ctxs: "
 				"%u active, need to add 1, limit is %u.",
 				xhci->num_active_eps, xhci->limit_active_eps);
 		return -ENOMEM;
 	}
 	xhci->num_active_eps += 1;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
-			"Adding 1 ep ctx, %u now active.",
+			"Adding 1 ep ctx, %u yesw active.",
 			xhci->num_active_eps);
 	return 0;
 }
@@ -3995,7 +3995,7 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		ret = xhci_reserve_host_control_ep_resources(xhci);
 		if (ret) {
 			spin_unlock_irqrestore(&xhci->lock, flags);
-			xhci_warn(xhci, "Not enough host resources, "
+			xhci_warn(xhci, "Not eyesugh host resources, "
 					"active endpoint contexts = %u\n",
 					xhci->num_active_eps);
 			goto disable_slot;
@@ -4007,7 +4007,7 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	 * mass storage driver error handling.
 	 */
 	if (!xhci_alloc_virt_device(xhci, slot_id, udev, GFP_NOIO)) {
-		xhci_warn(xhci, "Could not allocate xHCI USB device data structures\n");
+		xhci_warn(xhci, "Could yest allocate xHCI USB device data structures\n");
 		goto disable_slot;
 	}
 	vdev = xhci->devs[slot_id];
@@ -4024,7 +4024,7 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	 * suspend if there is a device attached.
 	 */
 	if (xhci->quirks & XHCI_RESET_ON_RESUME)
-		pm_runtime_get_noresume(hcd->self.controller);
+		pm_runtime_get_yesresume(hcd->self.controller);
 #endif
 
 	/* Is this a LS or FS device under a HS hub? */
@@ -4105,7 +4105,7 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->in_ctx);
 	ctrl_ctx = xhci_get_input_control_ctx(virt_dev->in_ctx);
 	if (!ctrl_ctx) {
-		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
+		xhci_warn(xhci, "%s: Could yest get input context, bad type.\n",
 				__func__);
 		ret = -EINVAL;
 		goto out;
@@ -4160,7 +4160,7 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		ret = -EINVAL;
 		break;
 	case COMP_USB_TRANSACTION_ERROR:
-		dev_warn(&udev->dev, "Device not responding to setup %s.\n", act);
+		dev_warn(&udev->dev, "Device yest responding to setup %s.\n", act);
 
 		mutex_unlock(&xhci->mutex);
 		ret = xhci_disable_slot(xhci, udev->slot_id);
@@ -4269,7 +4269,7 @@ static int __maybe_unused xhci_change_max_exit_latency(struct xhci_hcd *xhci,
 	virt_dev = xhci->devs[udev->slot_id];
 
 	/*
-	 * virt_dev might not exists yet if xHC resumed from hibernate (S4) and
+	 * virt_dev might yest exists yet if xHC resumed from hibernate (S4) and
 	 * xHC was re-initialized. Exit latency will be set later after
 	 * hub_port_finish_reset() is done and xhci->devs[] are re-allocated
 	 */
@@ -4284,7 +4284,7 @@ static int __maybe_unused xhci_change_max_exit_latency(struct xhci_hcd *xhci,
 	ctrl_ctx = xhci_get_input_control_ctx(command->in_ctx);
 	if (!ctrl_ctx) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
-		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
+		xhci_warn(xhci, "%s: Could yest get input context, bad type.\n",
 				__func__);
 		return -ENOMEM;
 	}
@@ -4508,7 +4508,7 @@ static int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 	if (hcd->speed >= HCD_USB3 || !udev->lpm_capable)
 		return 0;
 
-	/* we only support lpm for non-hub device connected to root hub yet */
+	/* we only support lpm for yesn-hub device connected to root hub yet */
 	if (!udev->parent || udev->parent->parent ||
 			udev->descriptor.bDeviceClass == USB_CLASS_HUB)
 		return 0;
@@ -4529,14 +4529,14 @@ static int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 
 /*---------------------- USB 3.0 Link PM functions ------------------------*/
 
-/* Service interval in nanoseconds = 2^(bInterval - 1) * 125us * 1000ns / 1us */
+/* Service interval in nayesseconds = 2^(bInterval - 1) * 125us * 1000ns / 1us */
 static unsigned long long xhci_service_interval_to_ns(
 		struct usb_endpoint_descriptor *desc)
 {
 	return (1ULL << (desc->bInterval - 1)) * 125 * 1000;
 }
 
-static u16 xhci_get_timeout_no_hub_lpm(struct usb_device *udev,
+static u16 xhci_get_timeout_yes_hub_lpm(struct usb_device *udev,
 		enum usb3_link_state state)
 {
 	unsigned long long sel;
@@ -4546,7 +4546,7 @@ static u16 xhci_get_timeout_no_hub_lpm(struct usb_device *udev,
 
 	switch (state) {
 	case USB3_LPM_U1:
-		/* Convert SEL and PEL stored in nanoseconds to microseconds */
+		/* Convert SEL and PEL stored in nayesseconds to microseconds */
 		sel = DIV_ROUND_UP(udev->u1_params.sel, 1000);
 		pel = DIV_ROUND_UP(udev->u1_params.pel, 1000);
 		max_sel_pel = USB3_LPM_MAX_U1_SEL_PEL;
@@ -4559,7 +4559,7 @@ static u16 xhci_get_timeout_no_hub_lpm(struct usb_device *udev,
 		state_name = "U2";
 		break;
 	default:
-		dev_warn(&udev->dev, "%s: Can't get timeout for non-U1 or U2 state.\n",
+		dev_warn(&udev->dev, "%s: Can't get timeout for yesn-U1 or U2 state.\n",
 				__func__);
 		return USB3_LPM_DISABLED;
 	}
@@ -4584,7 +4584,7 @@ static u16 xhci_get_timeout_no_hub_lpm(struct usb_device *udev,
  *  - For interrupt endpoints:
  *    - Notification EPs, U1 SEL * 3
  *    - Periodic EPs, max(105% of bInterval, U1 SEL * 2)
- *  - For isochronous endpoints, max(105% of bInterval, U1 SEL * 2)
+ *  - For isochroyesus endpoints, max(105% of bInterval, U1 SEL * 2)
  */
 static unsigned long long xhci_calculate_intel_u1_timeout(
 		struct usb_device *udev,
@@ -4658,7 +4658,7 @@ static u16 xhci_calculate_u1_timeout(struct xhci_hcd *xhci,
 		return timeout_ns;
 	dev_dbg(&udev->dev, "Hub-initiated U1 disabled "
 			"due to long timeout %llu ms\n", timeout_ns);
-	return xhci_get_timeout_no_hub_lpm(udev, USB3_LPM_U1);
+	return xhci_get_timeout_yes_hub_lpm(udev, USB3_LPM_U1);
 }
 
 /* The U2 timeout should be the maximum of:
@@ -4716,7 +4716,7 @@ static u16 xhci_calculate_u2_timeout(struct xhci_hcd *xhci,
 		return timeout_ns;
 	dev_dbg(&udev->dev, "Hub-initiated U2 disabled "
 			"due to long timeout %llu ms\n", timeout_ns);
-	return xhci_get_timeout_no_hub_lpm(udev, USB3_LPM_U2);
+	return xhci_get_timeout_yes_hub_lpm(udev, USB3_LPM_U2);
 }
 
 static u16 xhci_call_host_update_timeout_for_endpoint(struct xhci_hcd *xhci,
@@ -4810,7 +4810,7 @@ static int xhci_check_tier_policy(struct xhci_hcd *xhci,
 }
 
 /* Returns the U1 or U2 timeout that should be enabled.
- * If the tier check or timeout setting functions return with a non-zero exit
+ * If the tier check or timeout setting functions return with a yesn-zero exit
  * code, that means the timeout value has been finalized and we shouldn't look
  * at any more endpoints.
  */
@@ -4828,7 +4828,7 @@ static u16 xhci_calculate_lpm_timeout(struct usb_hcd *hcd,
 	else if (state == USB3_LPM_U2)
 		state_name = "U2";
 	else {
-		dev_warn(&udev->dev, "Can't enable unknown link state %i\n",
+		dev_warn(&udev->dev, "Can't enable unkyeswn link state %i\n",
 				state);
 		return timeout;
 	}
@@ -4862,7 +4862,7 @@ static u16 xhci_calculate_lpm_timeout(struct usb_hcd *hcd,
 			if (driver && driver->disable_hub_initiated_lpm) {
 				dev_dbg(&udev->dev, "Hub-initiated %s disabled at request of driver %s\n",
 					state_name, driver->name);
-				timeout = xhci_get_timeout_no_hub_lpm(udev,
+				timeout = xhci_get_timeout_yes_hub_lpm(udev,
 								      state);
 				if (timeout == USB3_LPM_DISABLED)
 					return timeout;
@@ -4903,7 +4903,7 @@ static int calculate_max_exit_latency(struct usb_device *udev,
 	enabling_u2 = (state_changed == USB3_LPM_U2 &&
 			hub_encoded_timeout != USB3_LPM_DISABLED);
 
-	/* If U1 was already enabled and we're not disabling it,
+	/* If U1 was already enabled and we're yest disabling it,
 	 * or we're going to enable U1, account for the U1 max exit latency.
 	 */
 	if ((udev->u1_params.timeout != USB3_LPM_DISABLED && !disabling_u1) ||
@@ -5015,13 +5015,13 @@ static int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 	unsigned think_time;
 	int ret;
 
-	/* Ignore root hubs */
+	/* Igyesre root hubs */
 	if (!hdev->parent)
 		return 0;
 
 	vdev = xhci->devs[hdev->slot_id];
 	if (!vdev) {
-		xhci_warn(xhci, "Cannot update hub desc for unknown device.\n");
+		xhci_warn(xhci, "Canyest update hub desc for unkyeswn device.\n");
 		return -EINVAL;
 	}
 
@@ -5031,7 +5031,7 @@ static int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 
 	ctrl_ctx = xhci_get_input_control_ctx(config_cmd->in_ctx);
 	if (!ctrl_ctx) {
-		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
+		xhci_warn(xhci, "%s: Could yest get input context, bad type.\n",
 				__func__);
 		xhci_free_command(xhci, config_cmd);
 		return -ENOMEM;
@@ -5040,7 +5040,7 @@ static int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 	spin_lock_irqsave(&xhci->lock, flags);
 	if (hdev->speed == USB_SPEED_HIGH &&
 			xhci_alloc_tt_info(xhci, vdev, hdev, tt, GFP_ATOMIC)) {
-		xhci_dbg(xhci, "Could not allocate xHCI TT structure.\n");
+		xhci_dbg(xhci, "Could yest allocate xHCI TT structure.\n");
 		xhci_free_command(xhci, config_cmd);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return -ENOMEM;
@@ -5069,7 +5069,7 @@ static int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 		 * 0 = 8 FS bit times, 1 = 16 FS bit times,
 		 * 2 = 24 FS bit times, 3 = 32 FS bit times.
 		 *
-		 * xHCI 1.0: this field shall be 0 if the device is not a
+		 * xHCI 1.0: this field shall be 0 if the device is yest a
 		 * High-spped hub.
 		 */
 		think_time = tt->think_time;
@@ -5119,17 +5119,17 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	 * quirks
 	 */
 	struct device		*dev = hcd->self.sysdev;
-	unsigned int		minor_rev;
+	unsigned int		miyesr_rev;
 	int			retval;
 
 	/* Accept arbitrarily long scatter-gather lists */
 	hcd->self.sg_tablesize = ~0;
 
 	/* support to build packet from discontinuous buffers */
-	hcd->self.no_sg_constraint = 1;
+	hcd->self.yes_sg_constraint = 1;
 
 	/* XHCI controllers don't stop the ep queue on short packets :| */
-	hcd->self.no_stop_on_short = 1;
+	hcd->self.yes_stop_on_short = 1;
 
 	xhci = hcd_to_xhci(hcd);
 
@@ -5149,20 +5149,20 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		hcd->has_tt = 1;
 	} else {
 		/*
-		 * Early xHCI 1.1 spec did not mention USB 3.1 capable hosts
-		 * should return 0x31 for sbrn, or that the minor revision
-		 * is a two digit BCD containig minor and sub-minor numbers.
+		 * Early xHCI 1.1 spec did yest mention USB 3.1 capable hosts
+		 * should return 0x31 for sbrn, or that the miyesr revision
+		 * is a two digit BCD containig miyesr and sub-miyesr numbers.
 		 * This was later clarified in xHCI 1.2.
 		 *
 		 * Some USB 3.1 capable hosts therefore have sbrn 0x30, and
-		 * minor revision set to 0x1 instead of 0x10.
+		 * miyesr revision set to 0x1 instead of 0x10.
 		 */
 		if (xhci->usb3_rhub.min_rev == 0x1)
-			minor_rev = 1;
+			miyesr_rev = 1;
 		else
-			minor_rev = xhci->usb3_rhub.min_rev / 0x10;
+			miyesr_rev = xhci->usb3_rhub.min_rev / 0x10;
 
-		switch (minor_rev) {
+		switch (miyesr_rev) {
 		case 2:
 			hcd->speed = HCD_USB32;
 			hcd->self.root_hub->speed = USB_SPEED_SUPER_PLUS;
@@ -5175,8 +5175,8 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 			break;
 		}
 		xhci_info(xhci, "Host supports USB 3.%x %sSuperSpeed\n",
-			  minor_rev,
-			  minor_rev ? "Enhanced " : "");
+			  miyesr_rev,
+			  miyesr_rev ? "Enhanced " : "");
 
 		xhci->usb3_rhub.hcd = hcd;
 		/* xHCI private pointer was set in xhci_pci_probe for the second
@@ -5206,7 +5206,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	get_quirks(dev, xhci);
 
 	/* In xhci controllers which follow xhci 1.0 spec gives a spurious
-	 * success event after a short transfer. This quirk will ignore such
+	 * success event after a short transfer. This quirk will igyesre such
 	 * spurious event.
 	 */
 	if (xhci->hci_version > 0x96)

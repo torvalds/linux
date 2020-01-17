@@ -34,7 +34,7 @@ void __init sort_iommu_table(struct iommu_table_entry *start,
 again:
 		q = find_dependents_of(start, finish, p);
 		/* We are bit sneaky here. We use the memory address to figure
-		 * out if the node we depend on is past our point, if so, swap.
+		 * out if the yesde we depend on is past our point, if so, swap.
 		 */
 		if (q > p) {
 			tmp = *p;

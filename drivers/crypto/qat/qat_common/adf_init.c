@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -83,7 +83,7 @@ int adf_service_unregister(struct service_hndl *service)
 
 	for (i = 0; i < ARRAY_SIZE(service->init_status); i++) {
 		if (service->init_status[i] || service->start_status[i]) {
-			pr_err("QAT: Could not remove active service\n");
+			pr_err("QAT: Could yest remove active service\n");
 			return -EFAULT;
 		}
 	}
@@ -108,12 +108,12 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 
 	if (!hw_data) {
 		dev_err(&GET_DEV(accel_dev),
-			"Failed to init device - hw_data not set\n");
+			"Failed to init device - hw_data yest set\n");
 		return -EFAULT;
 	}
 
 	if (!test_bit(ADF_STATUS_CONFIGURED, &accel_dev->status)) {
-		dev_err(&GET_DEV(accel_dev), "Device not configured\n");
+		dev_err(&GET_DEV(accel_dev), "Device yest configured\n");
 		return -EFAULT;
 	}
 
@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(adf_dev_init);
  * adf_dev_start() - Start acceleration service for the given accel device
  * @accel_dev:    Pointer to acceleration device.
  *
- * Function notifies all the registered services that the acceleration device
+ * Function yestifies all the registered services that the acceleration device
  * is ready to be used.
  * To be used by QAT device specific drivers.
  *
@@ -236,7 +236,7 @@ EXPORT_SYMBOL_GPL(adf_dev_start);
  * adf_dev_stop() - Stop acceleration service for the given accel device
  * @accel_dev:    Pointer to acceleration device.
  *
- * Function notifies all the registered services that the acceleration device
+ * Function yestifies all the registered services that the acceleration device
  * is shuting down.
  * To be used by QAT device specific drivers.
  *
@@ -301,7 +301,7 @@ void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 
 	if (!hw_data) {
 		dev_err(&GET_DEV(accel_dev),
-			"QAT: Failed to shutdown device - hw_data not set\n");
+			"QAT: Failed to shutdown device - hw_data yest set\n");
 		return;
 	}
 
@@ -338,7 +338,7 @@ void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 		clear_bit(ADF_STATUS_IRQ_ALLOCATED, &accel_dev->status);
 	}
 
-	/* Delete configuration only if not restarting */
+	/* Delete configuration only if yest restarting */
 	if (!test_bit(ADF_STATUS_RESTARTING, &accel_dev->status))
 		adf_cfg_del_all(accel_dev);
 
@@ -353,7 +353,7 @@ void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 }
 EXPORT_SYMBOL_GPL(adf_dev_shutdown);
 
-int adf_dev_restarting_notify(struct adf_accel_dev *accel_dev)
+int adf_dev_restarting_yestify(struct adf_accel_dev *accel_dev)
 {
 	struct service_hndl *service;
 	struct list_head *list_itr;
@@ -368,7 +368,7 @@ int adf_dev_restarting_notify(struct adf_accel_dev *accel_dev)
 	return 0;
 }
 
-int adf_dev_restarted_notify(struct adf_accel_dev *accel_dev)
+int adf_dev_restarted_yestify(struct adf_accel_dev *accel_dev)
 {
 	struct service_hndl *service;
 	struct list_head *list_itr;

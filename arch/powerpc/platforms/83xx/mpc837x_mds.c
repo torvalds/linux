@@ -25,7 +25,7 @@
 
 static int mpc837xmds_usb_cfg(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const void *phy_type, *mode;
 	void __iomem *bcsr_regs = NULL;
 	u8 bcsr12;
@@ -35,15 +35,15 @@ static int mpc837xmds_usb_cfg(void)
 	if (ret)
 		return ret;
 	/* Map BCSR area */
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc837xmds-bcsr");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,mpc837xmds-bcsr");
 	if (np) {
 		bcsr_regs = of_iomap(np, 0);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 	if (!bcsr_regs)
 		return -1;
 
-	np = of_find_node_by_name(NULL, "usb");
+	np = of_find_yesde_by_name(NULL, "usb");
 	if (!np) {
 		ret = -ENODEV;
 		goto out;
@@ -62,7 +62,7 @@ static int mpc837xmds_usb_cfg(void)
 		printk(KERN_ERR "USB DR: unsupported PHY\n");
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 out:
 	iounmap(bcsr_regs);
 	return ret;

@@ -1437,7 +1437,7 @@ static int da7218_dai_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_write(component, DA7218_PC_COUNT,
 			      DA7218_PC_RESYNC_AUTO_MASK);
 
-		/* If SRM not enabled, we don't need to check status */
+		/* If SRM yest enabled, we don't need to check status */
 		pll_ctrl = snd_soc_component_read32(component, DA7218_PLL_CTRL);
 		if ((pll_ctrl & DA7218_PLL_MODE_MASK) != DA7218_PLL_MODE_SRM)
 			return 0;
@@ -1833,7 +1833,7 @@ static int da7218_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				    DA7218_PLL_MCLK_SQR_EN_MASK, 0);
 		break;
 	default:
-		dev_err(codec_dai->dev, "Unknown clock source %d\n", clk_id);
+		dev_err(codec_dai->dev, "Unkyeswn clock source %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -2443,8 +2443,8 @@ static enum da7218_hpldet_jack_thr
 static struct da7218_pdata *da7218_of_to_pdata(struct snd_soc_component *component)
 {
 	struct da7218_priv *da7218 = snd_soc_component_get_drvdata(component);
-	struct device_node *np = component->dev->of_node;
-	struct device_node *hpldet_np;
+	struct device_yesde *np = component->dev->of_yesde;
+	struct device_yesde *hpldet_np;
 	struct da7218_pdata *pdata;
 	struct da7218_hpldet_pdata *hpldet_pdata;
 	const char *of_str;
@@ -2521,7 +2521,7 @@ static struct da7218_pdata *da7218_of_to_pdata(struct snd_soc_component *compone
 		hpldet_pdata = devm_kzalloc(component->dev, sizeof(*hpldet_pdata),
 					    GFP_KERNEL);
 		if (!hpldet_pdata) {
-			of_node_put(hpldet_np);
+			of_yesde_put(hpldet_np);
 			return pdata;
 		}
 		pdata->hpldet_pdata = hpldet_pdata;
@@ -2557,7 +2557,7 @@ static struct da7218_pdata *da7218_of_to_pdata(struct snd_soc_component *compone
 		if (of_property_read_bool(hpldet_np, "dlg,discharge"))
 			hpldet_pdata->discharge = true;
 
-		of_node_put(hpldet_np);
+		of_yesde_put(hpldet_np);
 	}
 
 	return pdata;
@@ -2885,14 +2885,14 @@ static int da7218_probe(struct snd_soc_component *component)
 		return ret;
 
 	/* Handle DT/Platform data */
-	if (component->dev->of_node)
+	if (component->dev->of_yesde)
 		da7218->pdata = da7218_of_to_pdata(component);
 	else
 		da7218->pdata = dev_get_platdata(component->dev);
 
 	da7218_handle_pdata(component);
 
-	/* Check if MCLK provided, if not the clock is NULL */
+	/* Check if MCLK provided, if yest the clock is NULL */
 	da7218->mclk = devm_clk_get(component->dev, "mclk");
 	if (IS_ERR(da7218->mclk)) {
 		if (PTR_ERR(da7218->mclk) != -ENOENT) {
@@ -2913,7 +2913,7 @@ static int da7218_probe(struct snd_soc_component *component)
 	snd_soc_component_write(component, DA7218_DROUTING_OUTFILT_1L, 0);
 	snd_soc_component_write(component, DA7218_DROUTING_OUTFILT_1R, 0);
 
-	/* Default CP to normal load, power mode */
+	/* Default CP to yesrmal load, power mode */
 	snd_soc_component_update_bits(component, DA7218_CP_CTRL,
 			    DA7218_CP_SMALL_SWITCH_FREQ_EN_MASK, 0);
 
@@ -3040,7 +3040,7 @@ static const struct snd_soc_component_driver soc_component_dev_da7218 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 
@@ -3270,7 +3270,7 @@ static int da7218_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, da7218);
 
-	if (i2c->dev.of_node)
+	if (i2c->dev.of_yesde)
 		da7218->dev_id = da7218_of_get_id(&i2c->dev);
 	else
 		da7218->dev_id = id->driver_data;

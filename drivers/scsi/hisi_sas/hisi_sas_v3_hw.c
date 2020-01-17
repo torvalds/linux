@@ -301,7 +301,7 @@
 #define ERR_CNT_CODE_ERR		(PORT_BASE + 0x394)
 #define ERR_CNT_DISP_ERR		(PORT_BASE + 0x398)
 
-#define DEFAULT_ITCT_HW		2048 /* reset value, not reprogrammed */
+#define DEFAULT_ITCT_HW		2048 /* reset value, yest reprogrammed */
 #if (HISI_SAS_MAX_DEVICES > DEFAULT_ITCT_HW)
 #error Max ITCT exceeded
 #endif
@@ -526,18 +526,18 @@ static void hisi_sas_write32(struct hisi_hba *hisi_hba, u32 off, u32 val)
 	writel(val, regs);
 }
 
-static void hisi_sas_phy_write32(struct hisi_hba *hisi_hba, int phy_no,
+static void hisi_sas_phy_write32(struct hisi_hba *hisi_hba, int phy_yes,
 				 u32 off, u32 val)
 {
-	void __iomem *regs = hisi_hba->regs + (0x400 * phy_no) + off;
+	void __iomem *regs = hisi_hba->regs + (0x400 * phy_yes) + off;
 
 	writel(val, regs);
 }
 
 static u32 hisi_sas_phy_read32(struct hisi_hba *hisi_hba,
-				      int phy_no, u32 off)
+				      int phy_yes, u32 off)
 {
-	void __iomem *regs = hisi_hba->regs + (0x400 * phy_no) + off;
+	void __iomem *regs = hisi_hba->regs + (0x400 * phy_yes) + off;
 
 	return readl(regs);
 }
@@ -704,16 +704,16 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, SAS_GPIO_CFG_0, 0x800000);
 }
 
-static void config_phy_opt_mode_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+static void config_phy_opt_mode_v3_hw(struct hisi_hba *hisi_hba, int phy_yes)
 {
-	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG);
+	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy_yes, PHY_CFG);
 
 	cfg &= ~PHY_CFG_DC_OPT_MSK;
 	cfg |= 1 << PHY_CFG_DC_OPT_OFF;
-	hisi_sas_phy_write32(hisi_hba, phy_no, PHY_CFG, cfg);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, PHY_CFG, cfg);
 }
 
-static void config_id_frame_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+static void config_id_frame_v3_hw(struct hisi_hba *hisi_hba, int phy_yes)
 {
 	struct sas_identify_frame identify_frame;
 	u32 *identify_buffer;
@@ -726,20 +726,20 @@ static void config_id_frame_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 	identify_frame.target_bits = SAS_PROTOCOL_NONE;
 	memcpy(&identify_frame._un4_11[0], hisi_hba->sas_addr, SAS_ADDR_SIZE);
 	memcpy(&identify_frame.sas_addr[0], hisi_hba->sas_addr,	SAS_ADDR_SIZE);
-	identify_frame.phy_id = phy_no;
+	identify_frame.phy_id = phy_yes;
 	identify_buffer = (u32 *)(&identify_frame);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, TX_ID_DWORD0,
+	hisi_sas_phy_write32(hisi_hba, phy_yes, TX_ID_DWORD0,
 			__swab32(identify_buffer[0]));
-	hisi_sas_phy_write32(hisi_hba, phy_no, TX_ID_DWORD1,
+	hisi_sas_phy_write32(hisi_hba, phy_yes, TX_ID_DWORD1,
 			__swab32(identify_buffer[1]));
-	hisi_sas_phy_write32(hisi_hba, phy_no, TX_ID_DWORD2,
+	hisi_sas_phy_write32(hisi_hba, phy_yes, TX_ID_DWORD2,
 			__swab32(identify_buffer[2]));
-	hisi_sas_phy_write32(hisi_hba, phy_no, TX_ID_DWORD3,
+	hisi_sas_phy_write32(hisi_hba, phy_yes, TX_ID_DWORD3,
 			__swab32(identify_buffer[3]));
-	hisi_sas_phy_write32(hisi_hba, phy_no, TX_ID_DWORD4,
+	hisi_sas_phy_write32(hisi_hba, phy_yes, TX_ID_DWORD4,
 			__swab32(identify_buffer[4]));
-	hisi_sas_phy_write32(hisi_hba, phy_no, TX_ID_DWORD5,
+	hisi_sas_phy_write32(hisi_hba, phy_yes, TX_ID_DWORD5,
 			__swab32(identify_buffer[5]));
 }
 
@@ -864,7 +864,7 @@ static int reset_hw_v3_hw(struct hisi_hba *hisi_hba)
 	ret = hisi_sas_read32_poll_timeout(AXI_CFG, val, !val,
 					   20000, 1000000);
 	if (ret) {
-		dev_err(dev, "axi bus is not idle, ret = %d!\n", ret);
+		dev_err(dev, "axi bus is yest idle, ret = %d!\n", ret);
 		return -EIO;
 	}
 
@@ -877,7 +877,7 @@ static int reset_hw_v3_hw(struct hisi_hba *hisi_hba)
 			return -EIO;
 		}
 	} else {
-		dev_err(dev, "no reset method!\n");
+		dev_err(dev, "yes reset method!\n");
 		return -EINVAL;
 	}
 
@@ -916,67 +916,67 @@ static int hw_init_v3_hw(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
-static void enable_phy_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+static void enable_phy_v3_hw(struct hisi_hba *hisi_hba, int phy_yes)
 {
-	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG);
+	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy_yes, PHY_CFG);
 
 	cfg |= PHY_CFG_ENA_MSK;
 	cfg &= ~PHY_CFG_PHY_RST_MSK;
-	hisi_sas_phy_write32(hisi_hba, phy_no, PHY_CFG, cfg);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, PHY_CFG, cfg);
 }
 
-static void disable_phy_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+static void disable_phy_v3_hw(struct hisi_hba *hisi_hba, int phy_yes)
 {
-	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG);
-	u32 irq_msk = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_MSK);
+	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy_yes, PHY_CFG);
+	u32 irq_msk = hisi_sas_phy_read32(hisi_hba, phy_yes, CHL_INT2_MSK);
 	static const u32 msk = BIT(CHL_INT2_RX_DISP_ERR_OFF) |
 			       BIT(CHL_INT2_RX_CODE_ERR_OFF) |
 			       BIT(CHL_INT2_RX_INVLD_DW_OFF);
 	u32 state;
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_MSK, msk | irq_msk);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, CHL_INT2_MSK, msk | irq_msk);
 
 	cfg &= ~PHY_CFG_ENA_MSK;
-	hisi_sas_phy_write32(hisi_hba, phy_no, PHY_CFG, cfg);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, PHY_CFG, cfg);
 
 	mdelay(50);
 
 	state = hisi_sas_read32(hisi_hba, PHY_STATE);
-	if (state & BIT(phy_no)) {
+	if (state & BIT(phy_yes)) {
 		cfg |= PHY_CFG_PHY_RST_MSK;
-		hisi_sas_phy_write32(hisi_hba, phy_no, PHY_CFG, cfg);
+		hisi_sas_phy_write32(hisi_hba, phy_yes, PHY_CFG, cfg);
 	}
 
 	udelay(1);
 
-	hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_INVLD_DW);
-	hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_DISP_ERR);
-	hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_CODE_ERR);
+	hisi_sas_phy_read32(hisi_hba, phy_yes, ERR_CNT_INVLD_DW);
+	hisi_sas_phy_read32(hisi_hba, phy_yes, ERR_CNT_DISP_ERR);
+	hisi_sas_phy_read32(hisi_hba, phy_yes, ERR_CNT_CODE_ERR);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2, msk);
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_MSK, irq_msk);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, CHL_INT2, msk);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, CHL_INT2_MSK, irq_msk);
 }
 
-static void start_phy_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+static void start_phy_v3_hw(struct hisi_hba *hisi_hba, int phy_yes)
 {
-	config_id_frame_v3_hw(hisi_hba, phy_no);
-	config_phy_opt_mode_v3_hw(hisi_hba, phy_no);
-	enable_phy_v3_hw(hisi_hba, phy_no);
+	config_id_frame_v3_hw(hisi_hba, phy_yes);
+	config_phy_opt_mode_v3_hw(hisi_hba, phy_yes);
+	enable_phy_v3_hw(hisi_hba, phy_yes);
 }
 
-static void phy_hard_reset_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+static void phy_hard_reset_v3_hw(struct hisi_hba *hisi_hba, int phy_yes)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_yes];
 	u32 txid_auto;
 
-	hisi_sas_phy_enable(hisi_hba, phy_no, 0);
+	hisi_sas_phy_enable(hisi_hba, phy_yes, 0);
 	if (phy->identify.device_type == SAS_END_DEVICE) {
-		txid_auto = hisi_sas_phy_read32(hisi_hba, phy_no, TXID_AUTO);
-		hisi_sas_phy_write32(hisi_hba, phy_no, TXID_AUTO,
+		txid_auto = hisi_sas_phy_read32(hisi_hba, phy_yes, TXID_AUTO);
+		hisi_sas_phy_write32(hisi_hba, phy_yes, TXID_AUTO,
 					txid_auto | TX_HARDRST_MSK);
 	}
 	msleep(100);
-	hisi_sas_phy_enable(hisi_hba, phy_no, 1);
+	hisi_sas_phy_enable(hisi_hba, phy_yes, 1);
 }
 
 static enum sas_linkrate phy_get_max_linkrate_v3_hw(void)
@@ -999,17 +999,17 @@ static void phys_init_v3_hw(struct hisi_hba *hisi_hba)
 	}
 }
 
-static void sl_notify_ssp_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+static void sl_yestify_ssp_v3_hw(struct hisi_hba *hisi_hba, int phy_yes)
 {
 	u32 sl_control;
 
-	sl_control = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
+	sl_control = hisi_sas_phy_read32(hisi_hba, phy_yes, SL_CONTROL);
 	sl_control |= SL_CONTROL_NOTIFY_EN_MSK;
-	hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, sl_control);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, SL_CONTROL, sl_control);
 	msleep(1);
-	sl_control = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
+	sl_control = hisi_sas_phy_read32(hisi_hba, phy_yes, SL_CONTROL);
 	sl_control &= ~SL_CONTROL_NOTIFY_EN_MSK;
-	hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, sl_control);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, SL_CONTROL, sl_control);
 }
 
 static int get_wideport_bitmap_v3_hw(struct hisi_hba *hisi_hba, int port_id)
@@ -1149,7 +1149,7 @@ static void fill_prot_v3_hw(struct scsi_cmnd *scsi_cmnd,
 		prot->dw4 |= get_prot_chk_msk_v3_hw(scsi_cmnd);
 		break;
 	default:
-		WARN(1, "prot_op(0x%x) is not valid\n", prot_op);
+		WARN(1, "prot_op(0x%x) is yest valid\n", prot_op);
 		break;
 	}
 
@@ -1439,26 +1439,26 @@ static void prep_abort_v3_hw(struct hisi_hba *hisi_hba,
 
 }
 
-static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
+static irqreturn_t phy_up_v3_hw(int phy_yes, struct hisi_hba *hisi_hba)
 {
 	int i;
 	irqreturn_t res;
 	u32 context, port_id, link_rate;
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_yes];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct device *dev = hisi_hba->dev;
 	unsigned long flags;
 
 	del_timer(&phy->timer);
-	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_PHY_ENA_MSK, 1);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, PHYCTRL_PHY_ENA_MSK, 1);
 
 	port_id = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA);
-	port_id = (port_id >> (4 * phy_no)) & 0xf;
+	port_id = (port_id >> (4 * phy_yes)) & 0xf;
 	link_rate = hisi_sas_read32(hisi_hba, PHY_CONN_RATE);
-	link_rate = (link_rate >> (phy_no * 4)) & 0xf;
+	link_rate = (link_rate >> (phy_yes * 4)) & 0xf;
 
 	if (port_id == 0xf) {
-		dev_err(dev, "phyup: phy%d invalid portid\n", phy_no);
+		dev_err(dev, "phyup: phy%d invalid portid\n", phy_yes);
 		res = IRQ_NONE;
 		goto end;
 	}
@@ -1467,29 +1467,29 @@ static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 
 	/* Check for SATA dev */
 	context = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
-	if (context & (1 << phy_no)) {
+	if (context & (1 << phy_yes)) {
 		struct hisi_sas_initial_fis *initial_fis;
 		struct dev_to_host_fis *fis;
 		u8 attached_sas_addr[SAS_ADDR_SIZE] = {0};
 		struct Scsi_Host *shost = hisi_hba->shost;
 
-		dev_info(dev, "phyup: phy%d link_rate=%d(sata)\n", phy_no, link_rate);
-		initial_fis = &hisi_hba->initial_fis[phy_no];
+		dev_info(dev, "phyup: phy%d link_rate=%d(sata)\n", phy_yes, link_rate);
+		initial_fis = &hisi_hba->initial_fis[phy_yes];
 		fis = &initial_fis->fis;
 
 		/* check ERR bit of Status Register */
 		if (fis->status & ATA_ERR) {
 			dev_warn(dev, "sata int: phy%d FIS status: 0x%x\n",
-				 phy_no, fis->status);
-			hisi_sas_notify_phy_event(phy, HISI_PHYE_LINK_RESET);
+				 phy_yes, fis->status);
+			hisi_sas_yestify_phy_event(phy, HISI_PHYE_LINK_RESET);
 			res = IRQ_NONE;
 			goto end;
 		}
 
 		sas_phy->oob_mode = SATA_OOB_MODE;
 		attached_sas_addr[0] = 0x50;
-		attached_sas_addr[6] = shost->host_no;
-		attached_sas_addr[7] = phy_no;
+		attached_sas_addr[6] = shost->host_yes;
+		attached_sas_addr[7] = phy_yes;
 		memcpy(sas_phy->attached_sas_addr,
 		       attached_sas_addr,
 		       SAS_ADDR_SIZE);
@@ -1504,9 +1504,9 @@ static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 		struct sas_identify_frame *id =
 			(struct sas_identify_frame *)frame_rcvd;
 
-		dev_info(dev, "phyup: phy%d link_rate=%d\n", phy_no, link_rate);
+		dev_info(dev, "phyup: phy%d link_rate=%d\n", phy_yes, link_rate);
 		for (i = 0; i < 6; i++) {
-			u32 idaf = hisi_sas_phy_read32(hisi_hba, phy_no,
+			u32 idaf = hisi_sas_phy_read32(hisi_hba, phy_yes,
 					       RX_IDAF_DWORD0 + (i * 4));
 			frame_rcvd[i] = __swab32(idaf);
 		}
@@ -1527,7 +1527,7 @@ static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 
 	phy->port_id = port_id;
 	phy->phy_attached = 1;
-	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP);
+	hisi_sas_yestify_phy_event(phy, HISI_PHYE_PHY_UP);
 	res = IRQ_HANDLED;
 	spin_lock_irqsave(&phy->lock, flags);
 	if (phy->reset_completion) {
@@ -1536,98 +1536,98 @@ static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 	}
 	spin_unlock_irqrestore(&phy->lock, flags);
 end:
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
+	hisi_sas_phy_write32(hisi_hba, phy_yes, CHL_INT0,
 			     CHL_INT0_SL_PHY_ENABLE_MSK);
-	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_PHY_ENA_MSK, 0);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, PHYCTRL_PHY_ENA_MSK, 0);
 
 	return res;
 }
 
-static irqreturn_t phy_down_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
+static irqreturn_t phy_down_v3_hw(int phy_yes, struct hisi_hba *hisi_hba)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_yes];
 	u32 phy_state, sl_ctrl, txid_auto;
 	struct device *dev = hisi_hba->dev;
 
 	atomic_inc(&phy->down_cnt);
 
 	del_timer(&phy->timer);
-	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 1);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, PHYCTRL_NOT_RDY_MSK, 1);
 
 	phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
-	dev_info(dev, "phydown: phy%d phy_state=0x%x\n", phy_no, phy_state);
-	hisi_sas_phy_down(hisi_hba, phy_no, (phy_state & 1 << phy_no) ? 1 : 0);
+	dev_info(dev, "phydown: phy%d phy_state=0x%x\n", phy_yes, phy_state);
+	hisi_sas_phy_down(hisi_hba, phy_yes, (phy_state & 1 << phy_yes) ? 1 : 0);
 
-	sl_ctrl = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
-	hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL,
+	sl_ctrl = hisi_sas_phy_read32(hisi_hba, phy_yes, SL_CONTROL);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, SL_CONTROL,
 						sl_ctrl&(~SL_CTA_MSK));
 
-	txid_auto = hisi_sas_phy_read32(hisi_hba, phy_no, TXID_AUTO);
-	hisi_sas_phy_write32(hisi_hba, phy_no, TXID_AUTO,
+	txid_auto = hisi_sas_phy_read32(hisi_hba, phy_yes, TXID_AUTO);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, TXID_AUTO,
 						txid_auto | CT3_MSK);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, CHL_INT0_NOT_RDY_MSK);
-	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 0);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, CHL_INT0, CHL_INT0_NOT_RDY_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, PHYCTRL_NOT_RDY_MSK, 0);
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t phy_bcast_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
+static irqreturn_t phy_bcast_v3_hw(int phy_yes, struct hisi_hba *hisi_hba)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_yes];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 	u32 bcast_status;
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 1);
-	bcast_status = hisi_sas_phy_read32(hisi_hba, phy_no, RX_PRIMS_STATUS);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, SL_RX_BCAST_CHK_MSK, 1);
+	bcast_status = hisi_sas_phy_read32(hisi_hba, phy_yes, RX_PRIMS_STATUS);
 	if ((bcast_status & RX_BCAST_CHG_MSK) &&
 	    !test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
-		sas_ha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
+		sas_ha->yestify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, CHL_INT0,
 			     CHL_INT0_SL_RX_BCST_ACK_MSK);
-	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 0);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, SL_RX_BCAST_CHK_MSK, 0);
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t int_phy_up_down_bcast_v3_hw(int irq_no, void *p)
+static irqreturn_t int_phy_up_down_bcast_v3_hw(int irq_yes, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_msk;
-	int phy_no = 0;
+	int phy_yes = 0;
 	irqreturn_t res = IRQ_NONE;
 
 	irq_msk = hisi_sas_read32(hisi_hba, CHNL_INT_STATUS)
 				& 0x11111111;
 	while (irq_msk) {
 		if (irq_msk  & 1) {
-			u32 irq_value = hisi_sas_phy_read32(hisi_hba, phy_no,
+			u32 irq_value = hisi_sas_phy_read32(hisi_hba, phy_yes,
 							    CHL_INT0);
 			u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
-			int rdy = phy_state & (1 << phy_no);
+			int rdy = phy_state & (1 << phy_yes);
 
 			if (rdy) {
 				if (irq_value & CHL_INT0_SL_PHY_ENABLE_MSK)
 					/* phy up */
-					if (phy_up_v3_hw(phy_no, hisi_hba)
+					if (phy_up_v3_hw(phy_yes, hisi_hba)
 							== IRQ_HANDLED)
 						res = IRQ_HANDLED;
 				if (irq_value & CHL_INT0_SL_RX_BCST_ACK_MSK)
 					/* phy bcast */
-					if (phy_bcast_v3_hw(phy_no, hisi_hba)
+					if (phy_bcast_v3_hw(phy_yes, hisi_hba)
 							== IRQ_HANDLED)
 						res = IRQ_HANDLED;
 			} else {
 				if (irq_value & CHL_INT0_NOT_RDY_MSK)
 					/* phy down */
-					if (phy_down_v3_hw(phy_no, hisi_hba)
+					if (phy_down_v3_hw(phy_yes, hisi_hba)
 							== IRQ_HANDLED)
 						res = IRQ_HANDLED;
 			}
 		}
 		irq_msk >>= 4;
-		phy_no++;
+		phy_yes++;
 	}
 
 	return res;
@@ -1676,10 +1676,10 @@ static const struct hisi_sas_hw_error port_axi_error[] = {
 	},
 };
 
-static void handle_chl_int1_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+static void handle_chl_int1_v3_hw(struct hisi_hba *hisi_hba, int phy_yes)
 {
-	u32 irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT1);
-	u32 irq_msk = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT1_MSK);
+	u32 irq_value = hisi_sas_phy_read32(hisi_hba, phy_yes, CHL_INT1);
+	u32 irq_msk = hisi_sas_phy_read32(hisi_hba, phy_yes, CHL_INT1_MSK);
 	struct device *dev = hisi_hba->dev;
 	int i;
 
@@ -1694,16 +1694,16 @@ static void handle_chl_int1_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 			continue;
 
 		dev_err(dev, "%s error (phy%d 0x%x) found!\n",
-			error->msg, phy_no, irq_value);
+			error->msg, phy_yes, irq_value);
 		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
 	}
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT1, irq_value);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, CHL_INT1, irq_value);
 }
 
-static void phy_get_events_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+static void phy_get_events_v3_hw(struct hisi_hba *hisi_hba, int phy_yes)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_yes];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct sas_phy *sphy = sas_phy->phy;
 	unsigned long flags;
@@ -1712,33 +1712,33 @@ static void phy_get_events_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 	spin_lock_irqsave(&phy->lock, flags);
 
 	/* loss dword sync */
-	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_DWS_LOST);
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_yes, ERR_CNT_DWS_LOST);
 	sphy->loss_of_dword_sync_count += reg_value;
 
 	/* phy reset problem */
-	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_RESET_PROB);
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_yes, ERR_CNT_RESET_PROB);
 	sphy->phy_reset_problem_count += reg_value;
 
 	/* invalid dword */
-	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_INVLD_DW);
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_yes, ERR_CNT_INVLD_DW);
 	sphy->invalid_dword_count += reg_value;
 
 	/* disparity err */
-	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_DISP_ERR);
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_yes, ERR_CNT_DISP_ERR);
 	sphy->running_disparity_error_count += reg_value;
 
 	/* code violation error */
-	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_CODE_ERR);
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_yes, ERR_CNT_CODE_ERR);
 	phy->code_violation_err_count += reg_value;
 
 	spin_unlock_irqrestore(&phy->lock, flags);
 }
 
-static void handle_chl_int2_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+static void handle_chl_int2_v3_hw(struct hisi_hba *hisi_hba, int phy_yes)
 {
-	u32 irq_msk = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_MSK);
-	u32 irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	u32 irq_msk = hisi_sas_phy_read32(hisi_hba, phy_yes, CHL_INT2_MSK);
+	u32 irq_value = hisi_sas_phy_read32(hisi_hba, phy_yes, CHL_INT2);
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_yes];
 	struct pci_dev *pci_dev = hisi_hba->pci_dev;
 	struct device *dev = hisi_hba->dev;
 	static const u32 msk = BIT(CHL_INT2_RX_DISP_ERR_OFF) |
@@ -1750,36 +1750,36 @@ static void handle_chl_int2_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 		return;
 
 	if (irq_value & BIT(CHL_INT2_SL_IDAF_TOUT_CONF_OFF)) {
-		dev_warn(dev, "phy%d identify timeout\n", phy_no);
-		hisi_sas_notify_phy_event(phy, HISI_PHYE_LINK_RESET);
+		dev_warn(dev, "phy%d identify timeout\n", phy_yes);
+		hisi_sas_yestify_phy_event(phy, HISI_PHYE_LINK_RESET);
 	}
 
 	if (irq_value & BIT(CHL_INT2_STP_LINK_TIMEOUT_OFF)) {
-		u32 reg_value = hisi_sas_phy_read32(hisi_hba, phy_no,
+		u32 reg_value = hisi_sas_phy_read32(hisi_hba, phy_yes,
 				STP_LINK_TIMEOUT_STATE);
 
 		dev_warn(dev, "phy%d stp link timeout (0x%x)\n",
-			 phy_no, reg_value);
+			 phy_yes, reg_value);
 		if (reg_value & BIT(4))
-			hisi_sas_notify_phy_event(phy, HISI_PHYE_LINK_RESET);
+			hisi_sas_yestify_phy_event(phy, HISI_PHYE_LINK_RESET);
 	}
 
 	if (pci_dev->revision > 0x20 && (irq_value & msk)) {
 		struct asd_sas_phy *sas_phy = &phy->sas_phy;
 		struct sas_phy *sphy = sas_phy->phy;
 
-		phy_get_events_v3_hw(hisi_hba, phy_no);
+		phy_get_events_v3_hw(hisi_hba, phy_yes);
 
 		if (irq_value & BIT(CHL_INT2_RX_INVLD_DW_OFF))
-			dev_info(dev, "phy%d invalid dword cnt:   %u\n", phy_no,
+			dev_info(dev, "phy%d invalid dword cnt:   %u\n", phy_yes,
 				 sphy->invalid_dword_count);
 
 		if (irq_value & BIT(CHL_INT2_RX_CODE_ERR_OFF))
-			dev_info(dev, "phy%d code violation cnt:  %u\n", phy_no,
+			dev_info(dev, "phy%d code violation cnt:  %u\n", phy_yes,
 				 phy->code_violation_err_count);
 
 		if (irq_value & BIT(CHL_INT2_RX_DISP_ERR_OFF))
-			dev_info(dev, "phy%d disparity error cnt: %u\n", phy_no,
+			dev_info(dev, "phy%d disparity error cnt: %u\n", phy_yes,
 				 sphy->running_disparity_error_count);
 	}
 
@@ -1790,49 +1790,49 @@ static void handle_chl_int2_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 
 		rc = hisi_sas_read32_poll_timeout_atomic(
 				HILINK_ERR_DFX, reg_value,
-				!((reg_value >> 8) & BIT(phy_no)),
+				!((reg_value >> 8) & BIT(phy_yes)),
 				1000, 10000);
 		if (rc)
-			hisi_sas_notify_phy_event(phy, HISI_PHYE_LINK_RESET);
+			hisi_sas_yestify_phy_event(phy, HISI_PHYE_LINK_RESET);
 	}
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2, irq_value);
+	hisi_sas_phy_write32(hisi_hba, phy_yes, CHL_INT2, irq_value);
 }
 
-static void handle_chl_int0_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+static void handle_chl_int0_v3_hw(struct hisi_hba *hisi_hba, int phy_yes)
 {
-	u32 irq_value0 = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0);
+	u32 irq_value0 = hisi_sas_phy_read32(hisi_hba, phy_yes, CHL_INT0);
 
 	if (irq_value0 & CHL_INT0_PHY_RDY_MSK)
-		hisi_sas_phy_oob_ready(hisi_hba, phy_no);
+		hisi_sas_phy_oob_ready(hisi_hba, phy_yes);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
+	hisi_sas_phy_write32(hisi_hba, phy_yes, CHL_INT0,
 			     irq_value0 & (~CHL_INT0_SL_RX_BCST_ACK_MSK)
 			     & (~CHL_INT0_SL_PHY_ENABLE_MSK)
 			     & (~CHL_INT0_NOT_RDY_MSK));
 }
 
-static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
+static irqreturn_t int_chnl_int_v3_hw(int irq_yes, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_msk;
-	int phy_no = 0;
+	int phy_yes = 0;
 
 	irq_msk = hisi_sas_read32(hisi_hba, CHNL_INT_STATUS)
 				& 0xeeeeeeee;
 
 	while (irq_msk) {
-		if (irq_msk & (2 << (phy_no * 4)))
-			handle_chl_int0_v3_hw(hisi_hba, phy_no);
+		if (irq_msk & (2 << (phy_yes * 4)))
+			handle_chl_int0_v3_hw(hisi_hba, phy_yes);
 
-		if (irq_msk & (4 << (phy_no * 4)))
-			handle_chl_int1_v3_hw(hisi_hba, phy_no);
+		if (irq_msk & (4 << (phy_yes * 4)))
+			handle_chl_int1_v3_hw(hisi_hba, phy_yes);
 
-		if (irq_msk & (8 << (phy_no * 4)))
-			handle_chl_int2_v3_hw(hisi_hba, phy_no);
+		if (irq_msk & (8 << (phy_yes * 4)))
+			handle_chl_int2_v3_hw(hisi_hba, phy_yes);
 
-		irq_msk &= ~(0xe << (phy_no * 4));
-		phy_no++;
+		irq_msk &= ~(0xe << (phy_yes * 4));
+		phy_yes++;
 	}
 
 	return IRQ_HANDLED;
@@ -1982,7 +1982,7 @@ static const struct hisi_sas_hw_error fatal_axi_error[] = {
 	},
 	{
 		.irq_msk = BIT(ENT_INT_SRC3_IPTT_SLOT_NOMATCH_OFF),
-		.msg = "iptt no match slot",
+		.msg = "iptt yes match slot",
 	},
 	{
 		.irq_msk = BIT(ENT_INT_SRC3_RP_DEPTH_OFF),
@@ -2025,7 +2025,7 @@ static const struct hisi_sas_hw_error fatal_axi_error[] = {
 
 };
 
-static irqreturn_t fatal_axi_int_v3_hw(int irq_no, void *p)
+static irqreturn_t fatal_axi_int_v3_hw(int irq_yes, void *p)
 {
 	u32 irq_value, irq_msk;
 	struct hisi_hba *hisi_hba = p;
@@ -2180,7 +2180,7 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	ts->resp = SAS_TASK_COMPLETE;
 
 	if (unlikely(!sas_dev)) {
-		dev_dbg(dev, "slot complete: port has not device\n");
+		dev_dbg(dev, "slot complete: port has yest device\n");
 		ts->stat = SAS_PHY_DOWN;
 		goto out;
 	}
@@ -2286,7 +2286,7 @@ out:
 		spin_lock_irqsave(&device->done_lock, flags);
 		if (test_bit(SAS_HA_FROZEN, &ha->state)) {
 			spin_unlock_irqrestore(&device->done_lock, flags);
-			dev_info(dev, "slot complete: task(%pK) ignored\n ",
+			dev_info(dev, "slot complete: task(%pK) igyesred\n ",
 				 task);
 			return sts;
 		}
@@ -2340,7 +2340,7 @@ static void cq_tasklet_v3_hw(unsigned long val)
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
 }
 
-static irqreturn_t cq_interrupt_v3_hw(int irq_no, void *p)
+static irqreturn_t cq_interrupt_v3_hw(int irq_yes, void *p)
 {
 	struct hisi_sas_cq *cq = p;
 	struct hisi_hba *hisi_hba = cq->hisi_hba;
@@ -2418,7 +2418,7 @@ static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
 			      int_phy_up_down_bcast_v3_hw, 0,
 			      DRV_NAME " phy", hisi_hba);
 	if (rc) {
-		dev_err(dev, "could not request phy interrupt, rc=%d\n", rc);
+		dev_err(dev, "could yest request phy interrupt, rc=%d\n", rc);
 		rc = -ENOENT;
 		goto free_irq_vectors;
 	}
@@ -2427,7 +2427,7 @@ static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
 			      int_chnl_int_v3_hw, 0,
 			      DRV_NAME " channel", hisi_hba);
 	if (rc) {
-		dev_err(dev, "could not request chnl interrupt, rc=%d\n", rc);
+		dev_err(dev, "could yest request chnl interrupt, rc=%d\n", rc);
 		rc = -ENOENT;
 		goto free_irq_vectors;
 	}
@@ -2436,7 +2436,7 @@ static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
 			      fatal_axi_int_v3_hw, 0,
 			      DRV_NAME " fatal", hisi_hba);
 	if (rc) {
-		dev_err(dev, "could not request fatal interrupt, rc=%d\n", rc);
+		dev_err(dev, "could yest request fatal interrupt, rc=%d\n", rc);
 		rc = -ENOENT;
 		goto free_irq_vectors;
 	}
@@ -2452,7 +2452,7 @@ static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
 				      cq_interrupt_v3_hw, irqflags,
 				      DRV_NAME " cq", cq);
 		if (rc) {
-			dev_err(dev, "could not request cq%d interrupt, rc=%d\n",
+			dev_err(dev, "could yest request cq%d interrupt, rc=%d\n",
 				i, rc);
 			rc = -ENOENT;
 			goto free_irq_vectors;
@@ -2483,14 +2483,14 @@ static int hisi_sas_v3_init(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
-static void phy_set_linkrate_v3_hw(struct hisi_hba *hisi_hba, int phy_no,
+static void phy_set_linkrate_v3_hw(struct hisi_hba *hisi_hba, int phy_yes,
 		struct sas_phy_linkrates *r)
 {
 	enum sas_linkrate max = r->maximum_linkrate;
 	u32 prog_phy_link_rate = 0x800;
 
 	prog_phy_link_rate |= hisi_sas_get_prog_phy_linkrate_mask(max);
-	hisi_sas_phy_write32(hisi_hba, phy_no, PROG_PHY_LINK_RATE,
+	hisi_sas_phy_write32(hisi_hba, phy_yes, PROG_PHY_LINK_RATE,
 			     prog_phy_link_rate);
 }
 
@@ -2551,7 +2551,7 @@ static int disable_host_v3_hw(struct hisi_hba *hisi_hba)
 					  AM_CURR_TRANS_RETURN, status,
 					  status == 0x3, 10, 100);
 	if (rc) {
-		dev_err(dev, "axi bus is not idle, rc=%d\n", rc);
+		dev_err(dev, "axi bus is yest idle, rc=%d\n", rc);
 		return rc;
 	}
 
@@ -2953,7 +2953,7 @@ static void read_iost_itct_cache_v3_hw(struct hisi_hba *hisi_hba,
 static void hisi_sas_bist_test_prep_v3_hw(struct hisi_hba *hisi_hba)
 {
 	u32 reg_val;
-	int phy_id = hisi_hba->debugfs_bist_phy_no;
+	int phy_id = hisi_hba->debugfs_bist_phy_yes;
 
 	/* disable PHY */
 	hisi_sas_phy_enable(hisi_hba, phy_id, 0);
@@ -2967,7 +2967,7 @@ static void hisi_sas_bist_test_prep_v3_hw(struct hisi_hba *hisi_hba)
 static void hisi_sas_bist_test_restore_v3_hw(struct hisi_hba *hisi_hba)
 {
 	u32 reg_val;
-	int phy_id = hisi_hba->debugfs_bist_phy_no;
+	int phy_id = hisi_hba->debugfs_bist_phy_yes;
 
 	/* disable loopback */
 	reg_val = hisi_sas_phy_read32(hisi_hba, phy_id, SAS_PHY_BIST_CTRL);
@@ -2997,7 +2997,7 @@ static int debugfs_set_bist_v3_hw(struct hisi_hba *hisi_hba, bool enable)
 {
 	u32 reg_val, mode_tmp;
 	u32 linkrate = hisi_hba->debugfs_bist_linkrate;
-	u32 phy_id = hisi_hba->debugfs_bist_phy_no;
+	u32 phy_id = hisi_hba->debugfs_bist_phy_yes;
 	u32 code_mode = hisi_hba->debugfs_bist_code_mode;
 	u32 path_mode = hisi_hba->debugfs_bist_mode;
 	struct device *dev = hisi_hba->dev;
@@ -3086,7 +3086,7 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.get_wideport_bitmap = get_wideport_bitmap_v3_hw,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v3_hdr),
 	.clear_itct = clear_itct_v3_hw,
-	.sl_notify_ssp = sl_notify_ssp_v3_hw,
+	.sl_yestify_ssp = sl_yestify_ssp_v3_hw,
 	.prep_ssp = prep_ssp_v3_hw,
 	.prep_smp = prep_smp_v3_hw,
 	.prep_stp = prep_ata_v3_hw,
@@ -3199,7 +3199,7 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	hisi_hba->regs = pcim_iomap(pdev, 5, 0);
 	if (!hisi_hba->regs) {
-		dev_err(dev, "cannot map register\n");
+		dev_err(dev, "canyest map register\n");
 		rc = -ENOMEM;
 		goto err_out_ha;
 	}
@@ -3367,7 +3367,7 @@ static int hisi_sas_v3_suspend(struct pci_dev *pdev, pm_message_t state)
 	int rc;
 
 	if (!pdev->pm_cap) {
-		dev_err(dev, "PCI PM not supported\n");
+		dev_err(dev, "PCI PM yest supported\n");
 		return -ENODEV;
 	}
 

@@ -39,7 +39,7 @@ void cea_set_pte(void *cea_vaddr, phys_addr_t pa, pgprot_t flags)
 	 * The cpu_entry_area is shared between the user and kernel
 	 * page tables.  All of its ptes can safely be global.
 	 * _PAGE_GLOBAL gets reused to help indicate PROT_NONE for
-	 * non-present PTEs, so be careful not to set it in that
+	 * yesn-present PTEs, so be careful yest to set it in that
 	 * case to avoid confusion.
 	 */
 	if (boot_cpu_has(X86_FEATURE_PGE) &&
@@ -73,7 +73,7 @@ static void __init percpu_setup_debug_store(unsigned int cpu)
 
 	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers;
 	/*
-	 * Force the population of PMDs for not yet allocated per cpu
+	 * Force the population of PMDs for yest yet allocated per cpu
 	 * memory like debug store buffers.
 	 */
 	npages = sizeof(struct debug_store_buffers) / PAGE_SIZE;
@@ -103,7 +103,7 @@ static void __init percpu_setup_exception_stacks(unsigned int cpu)
 	/*
 	 * The exceptions stack mappings in the per cpu area are protected
 	 * by guard pages so each stack must be mapped separately. DB2 is
-	 * not mapped; it just exists to catch triple nesting of #DB.
+	 * yest mapped; it just exists to catch triple nesting of #DB.
 	 */
 	cea_map_stack(DF);
 	cea_map_stack(NMI);
@@ -133,10 +133,10 @@ static void __init setup_cpu_entry_area(unsigned int cpu)
 	pgprot_t tss_prot = PAGE_KERNEL_RO;
 #else
 	/*
-	 * On native 32-bit systems, the GDT cannot be read-only because
+	 * On native 32-bit systems, the GDT canyest be read-only because
 	 * our double fault handler uses a task gate, and entering through
 	 * a task gate needs to change an available TSS to busy.  If the
-	 * GDT is read-only, that will triple fault.  The TSS cannot be
+	 * GDT is read-only, that will triple fault.  The TSS canyest be
 	 * read-only because the CPU writes to it on task switches.
 	 *
 	 * On Xen PV, the GDT must be read-only because the hypervisor
@@ -158,17 +158,17 @@ static void __init setup_cpu_entry_area(unsigned int cpu)
 	 *
 	 *  Avoid placing a page boundary in the part of the TSS that the
 	 *  processor reads during a task switch (the first 104 bytes). The
-	 *  processor may not correctly perform address translations if a
+	 *  processor may yest correctly perform address translations if a
 	 *  boundary occurs in this area. During a task switch, the processor
 	 *  reads and writes into the first 104 bytes of each TSS (using
 	 *  contiguous physical addresses beginning with the physical address
 	 *  of the first byte of the TSS). So, after TSS access begins, if
-	 *  part of the 104 bytes is not physically contiguous, the processor
+	 *  part of the 104 bytes is yest physically contiguous, the processor
 	 *  will access incorrect information without generating a page-fault
 	 *  exception.
 	 *
 	 * There are also a lot of errata involving the TSS spanning a page
-	 * boundary.  Assert that we're not doing that.
+	 * boundary.  Assert that we're yest doing that.
 	 */
 	BUILD_BUG_ON((offsetof(struct tss_struct, x86_tss) ^
 		      offsetofend(struct tss_struct, x86_tss)) & PAGE_MASK);

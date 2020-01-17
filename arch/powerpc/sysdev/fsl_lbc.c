@@ -42,7 +42,7 @@ EXPORT_SYMBOL(fsl_lbc_ctrl_dev);
  */
 u32 fsl_lbc_addr(phys_addr_t addr_base)
 {
-	struct device_node *np = fsl_lbc_ctrl_dev->dev->of_node;
+	struct device_yesde *np = fsl_lbc_ctrl_dev->dev->of_yesde;
 	u32 addr = addr_base & 0xffff8000;
 
 	if (of_device_is_compatible(np, "fsl,elbc"))
@@ -59,7 +59,7 @@ EXPORT_SYMBOL(fsl_lbc_addr);
  * This function walks LBC banks comparing "Base address" field of the BR
  * registers with the supplied addr_base argument. When bases match this
  * function returns bank number (starting with 0), otherwise it returns
- * appropriate errno value.
+ * appropriate erryes value.
  */
 int fsl_lbc_find(phys_addr_t addr_base)
 {
@@ -89,7 +89,7 @@ EXPORT_SYMBOL(fsl_lbc_find);
  *
  * This function fills fsl_upm structure so you can use it with the rest of
  * UPM API. On success this function returns 0, otherwise it returns
- * appropriate errno value.
+ * appropriate erryes value.
  */
 int fsl_upm_find(phys_addr_t addr_base, struct fsl_upm *upm)
 {
@@ -183,7 +183,7 @@ int fsl_upm_run_pattern(struct fsl_upm *upm, void __iomem *io_base, u32 mar)
 EXPORT_SYMBOL(fsl_upm_run_pattern);
 
 static int fsl_lbc_ctrl_init(struct fsl_lbc_ctrl *ctrl,
-			     struct device_node *node)
+			     struct device_yesde *yesde)
 {
 	struct fsl_lbc_regs __iomem *lbc = ctrl->regs;
 
@@ -195,7 +195,7 @@ static int fsl_lbc_ctrl_init(struct fsl_lbc_ctrl *ctrl,
 	out_be32(&lbc->ltedr, LTEDR_ENABLE);
 
 	/* Set the monitor timeout value to the maximum for erratum A001 */
-	if (of_device_is_compatible(node, "fsl,elbc"))
+	if (of_device_is_compatible(yesde, "fsl,elbc"))
 		clrsetbits_be32(&lbc->lbcr, LBCR_BMT, LBCR_BMTPS);
 
 	return 0;
@@ -206,7 +206,7 @@ static int fsl_lbc_ctrl_init(struct fsl_lbc_ctrl *ctrl,
  * such as transaction errors on the chipselects.
  */
 
-static irqreturn_t fsl_lbc_ctrl_irq(int irqno, void *data)
+static irqreturn_t fsl_lbc_ctrl_irq(int irqyes, void *data)
 {
 	struct fsl_lbc_ctrl *ctrl = data;
 	struct fsl_lbc_regs __iomem *lbc = ctrl->regs;
@@ -257,7 +257,7 @@ static irqreturn_t fsl_lbc_ctrl_irq(int irqno, void *data)
 		wake_up(&ctrl->irq_wait);
 	}
 	if (status & ~LTESR_MASK)
-		dev_err(ctrl->dev, "Unknown error: "
+		dev_err(ctrl->dev, "Unkyeswn error: "
 			"LTESR 0x%08X\n", status);
 	spin_unlock_irqrestore(&fsl_lbc_lock, flags);
 	return IRQ_HANDLED;
@@ -277,7 +277,7 @@ static int fsl_lbc_ctrl_probe(struct platform_device *dev)
 {
 	int ret;
 
-	if (!dev->dev.of_node) {
+	if (!dev->dev.of_yesde) {
 		dev_err(&dev->dev, "Device OF-Node is NULL");
 		return -EFAULT;
 	}
@@ -291,14 +291,14 @@ static int fsl_lbc_ctrl_probe(struct platform_device *dev)
 	spin_lock_init(&fsl_lbc_ctrl_dev->lock);
 	init_waitqueue_head(&fsl_lbc_ctrl_dev->irq_wait);
 
-	fsl_lbc_ctrl_dev->regs = of_iomap(dev->dev.of_node, 0);
+	fsl_lbc_ctrl_dev->regs = of_iomap(dev->dev.of_yesde, 0);
 	if (!fsl_lbc_ctrl_dev->regs) {
 		dev_err(&dev->dev, "failed to get memory region\n");
 		ret = -ENODEV;
 		goto err;
 	}
 
-	fsl_lbc_ctrl_dev->irq[0] = irq_of_parse_and_map(dev->dev.of_node, 0);
+	fsl_lbc_ctrl_dev->irq[0] = irq_of_parse_and_map(dev->dev.of_yesde, 0);
 	if (!fsl_lbc_ctrl_dev->irq[0]) {
 		dev_err(&dev->dev, "failed to get irq resource\n");
 		ret = -ENODEV;
@@ -307,7 +307,7 @@ static int fsl_lbc_ctrl_probe(struct platform_device *dev)
 
 	fsl_lbc_ctrl_dev->dev = &dev->dev;
 
-	ret = fsl_lbc_ctrl_init(fsl_lbc_ctrl_dev, dev->dev.of_node);
+	ret = fsl_lbc_ctrl_init(fsl_lbc_ctrl_dev, dev->dev.of_yesde);
 	if (ret < 0)
 		goto err;
 
@@ -320,7 +320,7 @@ static int fsl_lbc_ctrl_probe(struct platform_device *dev)
 		goto err;
 	}
 
-	fsl_lbc_ctrl_dev->irq[1] = irq_of_parse_and_map(dev->dev.of_node, 1);
+	fsl_lbc_ctrl_dev->irq[1] = irq_of_parse_and_map(dev->dev.of_yesde, 1);
 	if (fsl_lbc_ctrl_dev->irq[1]) {
 		ret = request_irq(fsl_lbc_ctrl_dev->irq[1], fsl_lbc_ctrl_irq,
 				IRQF_SHARED, "fsl-lbc-err", fsl_lbc_ctrl_dev);

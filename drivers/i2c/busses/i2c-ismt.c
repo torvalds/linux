@@ -24,12 +24,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -51,10 +51,10 @@
  *  S12xx Product Family.
  *
  *  Features supported by this driver:
- *  Hardware PEC                     yes
- *  Block buffer                     yes
- *  Block process call transaction   no
- *  Slave mode                       no
+ *  Hardware PEC                     no
+ *  Block buffer                     no
+ *  Block process call transaction   yes
+ *  Slave mode                       yes
  */
 
 #include <linux/module.h>
@@ -67,7 +67,7 @@
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 /* PCI Address Constants */
 #define SMBBAR		0
@@ -661,7 +661,7 @@ static irqreturn_t ismt_do_interrupt(int vec, void *data)
 	struct ismt_priv *priv = data;
 
 	/*
-	 * check to see it's our interrupt, return IRQ_NONE if not ours
+	 * check to see it's our interrupt, return IRQ_NONE if yest ours
 	 * since we are sharing interrupt
 	 */
 	val = readl(priv->smba + ISMT_MSTR_MSTS);
@@ -825,7 +825,7 @@ intx:
 			       "ismt-intx",
 			       priv);
 	if (err) {
-		dev_err(&priv->pci_dev->dev, "no usable interrupts\n");
+		dev_err(&priv->pci_dev->dev, "yes usable interrupts\n");
 		return err;
 	}
 

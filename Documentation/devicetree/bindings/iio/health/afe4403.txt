@@ -12,7 +12,7 @@ Optional properties:
  - reset-gpios		: GPIO used to reset the device.
 			  For details refer to, ../../gpio/gpio.txt.
 
-For other required and optional properties of SPI slave nodes
+For other required and optional properties of SPI slave yesdes
 please refer to ../../spi/spi-bus.txt.
 
 Example:

@@ -45,7 +45,7 @@ static void __init tegra_cpu_reset_handler_set(const u32 reset_address)
 
 	/*
 	 * Prevent further modifications to the physical reset vector.
-	 *  NOTE: Has no effect on chips prior to Tegra30.
+	 *  NOTE: Has yes effect on chips prior to Tegra30.
 	 */
 	reg = readl(sb_ctrl);
 	reg |= 2;
@@ -75,7 +75,7 @@ static void __init tegra_cpu_reset_handler_enable(void)
 		is_enabled = true;
 		break;
 	default:
-		pr_crit("Cannot set CPU reset handler: %d\n", err);
+		pr_crit("Canyest set CPU reset handler: %d\n", err);
 		BUG();
 	}
 }

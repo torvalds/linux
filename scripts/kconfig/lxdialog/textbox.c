@@ -38,7 +38,7 @@ static void refresh_text_box(WINDOW *dialog, WINDOW *box, int boxh, int boxw,
  * Display text from a file in a dialog box.
  *
  * keys is a null-terminated array
- * update_text() may not add or remove any '\n' or '\0' in tbuf
+ * update_text() may yest add or remove any '\n' or '\0' in tbuf
  */
 int dialog_textbox(const char *title, char *tbuf, int initial_height,
 		   int initial_width, int *keys, int *_vscroll, int *_hscroll,
@@ -117,7 +117,7 @@ do_resize:
 	print_title(dialog, title, width);
 
 	print_button(dialog, " Exit ", height - 2, width / 2 - 4, TRUE);
-	wnoutrefresh(dialog);
+	wyesutrefresh(dialog);
 	getyx(dialog, cur_y, cur_x);	/* Save cursor position */
 
 	/* Print first page of text */
@@ -319,7 +319,7 @@ static void print_page(WINDOW *win, int height, int width, update_text_fn
 		if (end_reached && !passed_end)
 			passed_end = 1;
 	}
-	wnoutrefresh(win);
+	wyesutrefresh(win);
 }
 
 /*

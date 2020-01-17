@@ -17,7 +17,7 @@
 #include <linux/module.h>
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
@@ -103,7 +103,7 @@ static void cnic_shutdown_rings(struct cnic_dev *);
 static void cnic_init_rings(struct cnic_dev *);
 static int cnic_cm_set_pg(struct cnic_sock *);
 
-static int cnic_uio_open(struct uio_info *uinfo, struct inode *inode)
+static int cnic_uio_open(struct uio_info *uinfo, struct iyesde *iyesde)
 {
 	struct cnic_uio_dev *udev = uinfo->priv;
 	struct cnic_dev *dev;
@@ -122,7 +122,7 @@ static int cnic_uio_open(struct uio_info *uinfo, struct inode *inode)
 		return -ENODEV;
 	}
 
-	udev->uio_dev = iminor(inode);
+	udev->uio_dev = imiyesr(iyesde);
 
 	cnic_shutdown_rings(dev);
 	cnic_init_rings(dev);
@@ -131,7 +131,7 @@ static int cnic_uio_open(struct uio_info *uinfo, struct inode *inode)
 	return 0;
 }
 
-static int cnic_uio_close(struct uio_info *uinfo, struct inode *inode)
+static int cnic_uio_close(struct uio_info *uinfo, struct iyesde *iyesde)
 {
 	struct cnic_uio_dev *udev = uinfo->priv;
 
@@ -524,7 +524,7 @@ int cnic_unregister_driver(int ulp_type)
 	mutex_lock(&cnic_lock);
 	ulp_ops = cnic_ulp_tbl_prot(ulp_type);
 	if (!ulp_ops) {
-		pr_err("%s: Type %d has not been registered\n",
+		pr_err("%s: Type %d has yest been registered\n",
 		       __func__, ulp_type);
 		goto out_unlock;
 	}
@@ -575,7 +575,7 @@ static int cnic_register_device(struct cnic_dev *dev, int ulp_type,
 	}
 	mutex_lock(&cnic_lock);
 	if (cnic_ulp_tbl_prot(ulp_type) == NULL) {
-		pr_err("%s: Driver with type %d has not been registered\n",
+		pr_err("%s: Driver with type %d has yest been registered\n",
 		       __func__, ulp_type);
 		mutex_unlock(&cnic_lock);
 		return -EAGAIN;
@@ -624,7 +624,7 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 		RCU_INIT_POINTER(cp->ulp_ops[ulp_type], NULL);
 		cnic_put(dev);
 	} else {
-		pr_err("%s: device not registered to this ulp type %d\n",
+		pr_err("%s: device yest registered to this ulp type %d\n",
 		       __func__, ulp_type);
 		mutex_unlock(&cnic_lock);
 		return -EINVAL;
@@ -690,7 +690,7 @@ static int cnic_alloc_id(struct cnic_id_tbl *id_tbl, u32 id)
 	return ret;
 }
 
-/* Returns -1 if not successful */
+/* Returns -1 if yest successful */
 static u32 cnic_alloc_new_id(struct cnic_id_tbl *id_tbl)
 {
 	u32 id;
@@ -1764,7 +1764,7 @@ static int cnic_setup_bnx2x_ctx(struct cnic_dev *dev, struct kwqe *wqes[],
 		port << XSTORM_COMMON_CONTEXT_SECTION_PBF_PORT_SHIFT;
 
 	ictx->tstorm_st_context.iscsi.hdr_bytes_2_fetch = ISCSI_HEADER_SIZE;
-	/* TSTORM requires the base address of RQ DB & not PTE */
+	/* TSTORM requires the base address of RQ DB & yest PTE */
 	ictx->tstorm_st_context.iscsi.rq_db_phy_addr.lo =
 		req2->rq_page_table_addr_lo & CNIC_PAGE_MASK;
 	ictx->tstorm_st_context.iscsi.rq_db_phy_addr.hi =
@@ -1846,7 +1846,7 @@ static int cnic_setup_bnx2x_ctx(struct cnic_dev *dev, struct kwqe *wqes[],
 	ictx->cstorm_st_context.task_pbl_base.hi =
 		(u64) iscsi->task_array_info.pgtbl_map >> 32;
 	/* CSTORM and USTORM initialization is different, CSTORM requires
-	 * CQ DB base & not PTE addr */
+	 * CQ DB base & yest PTE addr */
 	ictx->cstorm_st_context.cq_db_base.lo =
 		req1->cq_page_table_addr_lo & CNIC_PAGE_MASK;
 	ictx->cstorm_st_context.cq_db_base.hi = req1->cq_page_table_addr_hi;
@@ -1855,7 +1855,7 @@ static int cnic_setup_bnx2x_ctx(struct cnic_dev *dev, struct kwqe *wqes[],
 	for (i = 0; i < cp->num_cqs; i++) {
 		ictx->cstorm_st_context.cq_c_prod_sqn_arr.sqn[i] =
 			ISCSI_INITIAL_SN;
-		ictx->cstorm_st_context.cq_c_sqn_2_notify_arr.sqn[i] =
+		ictx->cstorm_st_context.cq_c_sqn_2_yestify_arr.sqn[i] =
 			ISCSI_INITIAL_SN;
 	}
 
@@ -2555,7 +2555,7 @@ static void cnic_bnx2x_delete_wait(struct cnic_dev *dev, u32 start_cid)
 		}
 
 		if (test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags))
-			netdev_warn(dev->netdev, "CID %x not deleted\n",
+			netdev_warn(dev->netdev, "CID %x yest deleted\n",
 				   ctx->cid);
 	}
 }
@@ -2704,7 +2704,7 @@ static int cnic_submit_bnx2x_iscsi_kwqes(struct cnic_dev *dev,
 			break;
 		default:
 			ret = 0;
-			netdev_err(dev->netdev, "Unknown type of KWQE(0x%x)\n",
+			netdev_err(dev->netdev, "Unkyeswn type of KWQE(0x%x)\n",
 				   opcode);
 			break;
 		}
@@ -2769,7 +2769,7 @@ static int cnic_submit_bnx2x_fcoe_kwqes(struct cnic_dev *dev,
 			break;
 		default:
 			ret = 0;
-			netdev_err(dev->netdev, "Unknown type of KWQE(0x%x)\n",
+			netdev_err(dev->netdev, "Unkyeswn type of KWQE(0x%x)\n",
 				   opcode);
 			break;
 		}
@@ -2862,7 +2862,7 @@ static void service_kcqes(struct cnic_dev *dev, int num_cqes)
 		else if (kcqe_layer == KCQE_FLAGS_LAYER_MASK_L2)
 			goto end;
 		else {
-			netdev_err(dev->netdev, "Unknown type of KCQE(0x%x)\n",
+			netdev_err(dev->netdev, "Unkyeswn type of KCQE(0x%x)\n",
 				   kcqe_op_flag);
 			goto end;
 		}
@@ -2962,7 +2962,7 @@ static void cnic_chk_pkt_rings(struct cnic_local *cp)
 		cp->rx_cons = rx_cons;
 
 		if (cp->udev)
-			uio_event_notify(&cp->udev->cnic_uinfo);
+			uio_event_yestify(&cp->udev->cnic_uinfo);
 	}
 	if (comp)
 		clear_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags);
@@ -3873,7 +3873,7 @@ static int cnic_cm_abort(struct cnic_sock *csk)
 		return cnic_cm_abort_req(csk);
 
 	/* Getting here means that we haven't started connect, or
-	 * connect was not successful, or it has been reset by the target.
+	 * connect was yest successful, or it has been reset by the target.
 	 */
 
 	cp->close_conn(csk, opcode);
@@ -4228,7 +4228,7 @@ static void cnic_cm_stop_bnx2x_hw(struct cnic_dev *dev)
 	flush_workqueue(cnic_wq);
 
 	if (atomic_read(&cp->iscsi_conn) != 0)
-		netdev_warn(dev->netdev, "%d iSCSI connections not destroyed\n",
+		netdev_warn(dev->netdev, "%d iSCSI connections yest destroyed\n",
 			    atomic_read(&cp->iscsi_conn));
 }
 
@@ -4497,7 +4497,7 @@ static int cnic_init_bnx2_irq(struct cnic_dev *dev)
 	return 0;
 
 failed:
-	netdev_err(dev->netdev, "KCQ index not resetting to 0\n");
+	netdev_err(dev->netdev, "KCQ index yest resetting to 0\n");
 	return -EBUSY;
 }
 
@@ -4807,11 +4807,11 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 		cnic_ctx_wr(dev, kcq_cid_addr, L5_KRNLQ_HOST_QIDX, sb);
 	}
 
-	/* Enable Commnad Scheduler notification when we write to the
+	/* Enable Commnad Scheduler yestification when we write to the
 	 * host producer index of the kernel contexts. */
 	CNIC_WR(dev, BNX2_MQ_KNL_CMD_MASK1, 2);
 
-	/* Enable Command Scheduler notification when we write to either
+	/* Enable Command Scheduler yestification when we write to either
 	 * the Send Queue or Receive Queue producer indexes of the kernel
 	 * bypass contexts. */
 	CNIC_WR(dev, BNX2_MQ_KNL_BYP_CMD_MASK1, 7);
@@ -4821,7 +4821,7 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 	CNIC_WR(dev, BNX2_MQ_KNL_RX_V2P_MASK2, 0x2000);
 
 	/* Set the CP and COM doorbells.  These two processors polls the
-	 * doorbell for a non zero value before running.  This must be done
+	 * doorbell for a yesn zero value before running.  This must be done
 	 * after setting up the kernel queue contexts. */
 	cnic_reg_wr_ind(dev, BNX2_CP_SCRATCH + 0x20, 1);
 	cnic_reg_wr_ind(dev, BNX2_COM_SCRATCH + 0x20, 1);
@@ -5225,7 +5225,7 @@ static void cnic_init_rings(struct cnic_dev *dev)
 
 		if (test_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags))
 			netdev_err(dev->netdev,
-				"iSCSI CLIENT_SETUP did not complete\n");
+				"iSCSI CLIENT_SETUP did yest complete\n");
 		cnic_spq_completion(dev, DRV_CTL_RET_L2_SPQ_CREDIT_CMD, 1);
 		cnic_ring_ctl(dev, cid, cli, 1);
 		*cid_ptr = cid >> 4;
@@ -5266,7 +5266,7 @@ static void cnic_shutdown_rings(struct cnic_dev *dev)
 
 		if (test_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags))
 			netdev_err(dev->netdev,
-				"iSCSI CLIENT_HALT did not complete\n");
+				"iSCSI CLIENT_HALT did yest complete\n");
 		cnic_spq_completion(dev, DRV_CTL_RET_L2_SPQ_CREDIT_CMD, 1);
 
 		memset(&l5_data, 0, sizeof(l5_data));
@@ -5679,10 +5679,10 @@ static void cnic_rcv_netevent(struct cnic_local *cp, unsigned long event,
 }
 
 /* netdev event handler */
-static int cnic_netdev_event(struct notifier_block *this, unsigned long event,
+static int cnic_netdev_event(struct yestifier_block *this, unsigned long event,
 							 void *ptr)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = netdev_yestifier_info_to_dev(ptr);
 	struct cnic_dev *dev;
 	int new_dev = 0;
 
@@ -5737,7 +5737,7 @@ static int cnic_netdev_event(struct notifier_block *this, unsigned long event,
 		if (realdev) {
 			dev = cnic_from_netdev(realdev);
 			if (dev) {
-				vid |= VLAN_CFI_MASK;	/* make non-zero */
+				vid |= VLAN_CFI_MASK;	/* make yesn-zero */
 				cnic_rcv_netevent(dev->cnic_priv, event, vid);
 				cnic_put(dev);
 			}
@@ -5747,8 +5747,8 @@ done:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block cnic_netdev_notifier = {
-	.notifier_call = cnic_netdev_event
+static struct yestifier_block cnic_netdev_yestifier = {
+	.yestifier_call = cnic_netdev_event
 };
 
 static void cnic_release(void)
@@ -5768,7 +5768,7 @@ static int __init cnic_init(void)
 
 	pr_info("%s", version);
 
-	rc = register_netdevice_notifier(&cnic_netdev_notifier);
+	rc = register_netdevice_yestifier(&cnic_netdev_yestifier);
 	if (rc) {
 		cnic_release();
 		return rc;
@@ -5777,7 +5777,7 @@ static int __init cnic_init(void)
 	cnic_wq = create_singlethread_workqueue("cnic_wq");
 	if (!cnic_wq) {
 		cnic_release();
-		unregister_netdevice_notifier(&cnic_netdev_notifier);
+		unregister_netdevice_yestifier(&cnic_netdev_yestifier);
 		return -ENOMEM;
 	}
 
@@ -5786,7 +5786,7 @@ static int __init cnic_init(void)
 
 static void __exit cnic_exit(void)
 {
-	unregister_netdevice_notifier(&cnic_netdev_notifier);
+	unregister_netdevice_yestifier(&cnic_netdev_yestifier);
 	cnic_release();
 	destroy_workqueue(cnic_wq);
 }

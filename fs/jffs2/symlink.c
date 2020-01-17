@@ -9,9 +9,9 @@
  *
  */
 
-#include "nodelist.h"
+#include "yesdelist.h"
 
-const struct inode_operations jffs2_symlink_inode_operations =
+const struct iyesde_operations jffs2_symlink_iyesde_operations =
 {
 	.get_link =	simple_get_link,
 	.setattr =	jffs2_setattr,

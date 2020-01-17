@@ -60,7 +60,7 @@ struct psp_device {
 	struct sev_data_init init_cmd_buf;
 
 	u8 api_major;
-	u8 api_minor;
+	u8 api_miyesr;
 	u8 build;
 };
 

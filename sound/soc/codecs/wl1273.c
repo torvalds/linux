@@ -2,7 +2,7 @@
 /*
  * ALSA SoC WL1273 codec driver
  *
- * Author:      Matti Aaltonen, <matti.j.aaltonen@nokia.com>
+ * Author:      Matti Aaltonen, <matti.j.aaltonen@yeskia.com>
  *
  * Copyright:   (C) 2010, 2011 Nokia Corporation
  */
@@ -66,7 +66,7 @@ static int snd_wl1273_fm_set_i2s_mode(struct wl1273_core *core,
 		mode |= WL1273_IS2_RATE_8K;
 		break;
 	default:
-		dev_err(dev, "Sampling rate: %d not supported\n", rate);
+		dev_err(dev, "Sampling rate: %d yest supported\n", rate);
 		r = -EINVAL;
 		goto out;
 	}
@@ -100,7 +100,7 @@ static int snd_wl1273_fm_set_i2s_mode(struct wl1273_core *core,
 		mode |= WL1273_IS2_WIDTH_128;
 		break;
 	default:
-		dev_err(dev, "Data width: %d not supported\n", width);
+		dev_err(dev, "Data width: %d yest supported\n", width);
 		r = -EINVAL;
 		goto out;
 	}
@@ -182,7 +182,7 @@ static int snd_wl1273_set_audio_route(struct snd_kcontrol *kcontrol,
 	if (wl1273->mode == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	/* Do not allow changes while stream is running */
+	/* Do yest allow changes while stream is running */
 	if (snd_soc_component_is_active(component))
 		return -EPERM;
 
@@ -299,13 +299,13 @@ static int wl1273_startup(struct snd_pcm_substream *substream,
 		break;
 	case WL1273_MODE_FM_RX:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			pr_err("Cannot play in RX mode.\n");
+			pr_err("Canyest play in RX mode.\n");
 			return -EINVAL;
 		}
 		break;
 	case WL1273_MODE_FM_TX:
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-			pr_err("Cannot capture in TX mode.\n");
+			pr_err("Canyest capture in TX mode.\n");
 			return -EINVAL;
 		}
 		break;
@@ -326,7 +326,7 @@ static int wl1273_hw_params(struct snd_pcm_substream *substream,
 	unsigned int rate, width, r;
 
 	if (params_width(params) != 16) {
-		dev_err(dai->dev, "%d bits/sample not supported\n",
+		dev_err(dai->dev, "%d bits/sample yest supported\n",
 			params_width(params));
 		return -EINVAL;
 	}
@@ -336,12 +336,12 @@ static int wl1273_hw_params(struct snd_pcm_substream *substream,
 
 	if (wl1273->mode == WL1273_MODE_BT) {
 		if (rate != 8000) {
-			pr_err("Rate %d not supported.\n", params_rate(params));
+			pr_err("Rate %d yest supported.\n", params_rate(params));
 			return -EINVAL;
 		}
 
 		if (params_channels(params) != 1) {
-			pr_err("Only mono supported.\n");
+			pr_err("Only moyes supported.\n");
 			return -EINVAL;
 		}
 
@@ -476,7 +476,7 @@ static const struct snd_soc_component_driver soc_component_dev_wl1273 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int wl1273_platform_probe(struct platform_device *pdev)
@@ -503,6 +503,6 @@ static struct platform_driver wl1273_platform_driver = {
 
 module_platform_driver(wl1273_platform_driver);
 
-MODULE_AUTHOR("Matti Aaltonen <matti.j.aaltonen@nokia.com>");
+MODULE_AUTHOR("Matti Aaltonen <matti.j.aaltonen@yeskia.com>");
 MODULE_DESCRIPTION("ASoC WL1273 codec driver");
 MODULE_LICENSE("GPL");

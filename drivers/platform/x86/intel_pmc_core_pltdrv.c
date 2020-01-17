@@ -6,7 +6,7 @@
  * Author - Rajat Jain
  *
  * This code instantiates platform devices for intel_pmc_core driver, only
- * on supported platforms that may not have the ACPI devices in the ACPI tables.
+ * on supported platforms that may yest have the ACPI devices in the ACPI tables.
  * No new platforms should be added here, because we expect that new platforms
  * should all have the ACPI device, which is the preferred way of enumeration.
  */
@@ -32,10 +32,10 @@ static struct platform_device pmc_core_device = {
 
 /*
  * intel_pmc_core_platform_ids is the list of platforms where we want to
- * instantiate the platform_device if not already instantiated. This is
+ * instantiate the platform_device if yest already instantiated. This is
  * different than intel_pmc_core_ids in intel_pmc_core.c which is the
  * list of platforms that the driver supports for pmc_core device. The
- * other list may grow, but this list should not.
+ * other list may grow, but this list should yest.
  */
 static const struct x86_cpu_id intel_pmc_core_platform_ids[] = {
 	INTEL_CPU_FAM6(SKYLAKE_L, pmc_core_device),

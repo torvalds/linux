@@ -49,13 +49,13 @@ static int am335x_phy_probe(struct platform_device *pdev)
 	if (!am_phy->phy_ctrl)
 		return -EPROBE_DEFER;
 
-	am_phy->id = of_alias_get_id(pdev->dev.of_node, "phy");
+	am_phy->id = of_alias_get_id(pdev->dev.of_yesde, "phy");
 	if (am_phy->id < 0) {
 		dev_err(&pdev->dev, "Missing PHY id: %d\n", am_phy->id);
 		return am_phy->id;
 	}
 
-	am_phy->dr_mode = of_usb_get_dr_mode_by_phy(pdev->dev.of_node, -1);
+	am_phy->dr_mode = of_usb_get_dr_mode_by_phy(pdev->dev.of_yesde, -1);
 
 	ret = usb_phy_gen_create_phy(dev, &am_phy->usb_phy_gen, NULL);
 	if (ret)
@@ -71,7 +71,7 @@ static int am335x_phy_probe(struct platform_device *pdev)
 	 * If we leave PHY wakeup enabled then AM33XX wakes up
 	 * immediately from DS0. To avoid this we mark dev->power.can_wakeup
 	 * to false. The same is checked in suspend routine to decide
-	 * on whether to enable PHY wakeup or not.
+	 * on whether to enable PHY wakeup or yest.
 	 * PHY wakeup works fine in standby mode, there by allowing us to
 	 * handle remote wakeup, wakeup on disconnect and connect.
 	 */
@@ -98,7 +98,7 @@ static int am335x_phy_suspend(struct device *dev)
 	/*
 	 * Enable phy wakeup only if dev->power.can_wakeup is true.
 	 * Make sure to enable wakeup to support remote wakeup	in
-	 * standby mode ( same is not supported in OFF(DS0) mode).
+	 * standby mode ( same is yest supported in OFF(DS0) mode).
 	 * Enable it by doing
 	 * echo enabled > /sys/bus/platform/devices/<usb-phy-id>/power/wakeup
 	 */

@@ -344,7 +344,7 @@ ping_ipv6()
 
 ip nexthop ls >/dev/null 2>&1
 if [ $? -ne 0 ]; then
-	echo "Nexthop objects not supported; skipping tests"
+	echo "Nexthop objects yest supported; skipping tests"
 	exit 0
 fi
 

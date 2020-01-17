@@ -4,7 +4,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -153,7 +153,7 @@ static void via_rtc_send(__u8 data)
 #define RTC_REG_WRITE_PROTECT   13
 
 /*
- * Inside Mac has no information about two-byte RTC commands but
+ * Inside Mac has yes information about two-byte RTC commands but
  * the MAME/MESS source code has the essentials.
  */
 
@@ -354,7 +354,7 @@ static void cuda_shutdown(void)
 	if (cuda_request(&req, NULL, 2, CUDA_PACKET, CUDA_POWERDOWN) < 0)
 		return;
 
-	/* Avoid infinite polling loop when PSU is not under Cuda control */
+	/* Avoid infinite polling loop when PSU is yest under Cuda control */
 	switch (macintosh_config->ident) {
 	case MAC_MODEL_C660:
 	case MAC_MODEL_Q605:
@@ -445,7 +445,7 @@ void mac_poweroff(void)
 #endif
 	}
 
-	pr_crit("It is now safe to turn off your Macintosh.\n");
+	pr_crit("It is yesw safe to turn off your Macintosh.\n");
 	local_irq_disable();
 	while(1);
 }
@@ -478,7 +478,7 @@ void mac_reset(void)
 
 		/* 030-specific reset routine.  The idea is general, but the
 		 * specific registers to reset are '030-specific.  Until I
-		 * have a non-030 machine, I can't test anything else.
+		 * have a yesn-030 machine, I can't test anything else.
 		 *  -- C. Scott Ananian <cananian@alumni.princeton.edu>
 		 */
 
@@ -490,7 +490,7 @@ void mac_reset(void)
 		unsigned long addr = (phys&0xFF000000)|0x8777;
 		unsigned long offset = phys-virt;
 
-		local_irq_disable(); /* lets not screw this up, ok? */
+		local_irq_disable(); /* lets yest screw this up, ok? */
 		__asm__ __volatile__(".chip 68030\n\t"
 				     "pmove %0,%/tt0\n\t"
 				     ".chip 68k"
@@ -609,32 +609,32 @@ static void unmktime(time64_t time, long offset,
 
 int mac_hwclk(int op, struct rtc_time *t)
 {
-	time64_t now;
+	time64_t yesw;
 
 	if (!op) { /* read */
 		switch (macintosh_config->adb_type) {
 		case MAC_ADB_IOP:
 		case MAC_ADB_II:
 		case MAC_ADB_PB1:
-			now = via_read_time();
+			yesw = via_read_time();
 			break;
 #ifdef CONFIG_ADB_CUDA
 		case MAC_ADB_EGRET:
 		case MAC_ADB_CUDA:
-			now = cuda_get_time();
+			yesw = cuda_get_time();
 			break;
 #endif
 #ifdef CONFIG_ADB_PMU
 		case MAC_ADB_PB2:
-			now = pmu_get_time();
+			yesw = pmu_get_time();
 			break;
 #endif
 		default:
-			now = 0;
+			yesw = 0;
 		}
 
 		t->tm_wday = 0;
-		unmktime(now, 0,
+		unmktime(yesw, 0,
 			 &t->tm_year, &t->tm_mon, &t->tm_mday,
 			 &t->tm_hour, &t->tm_min, &t->tm_sec);
 		pr_debug("%s: read %ptR\n", __func__, t);

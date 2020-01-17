@@ -35,7 +35,7 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 unsigned long _dflt_cache_att = CACHEDEF;
 
 /*
- * The current "generation" of kernel map, which should not roll
+ * The current "generation" of kernel map, which should yest roll
  * over until Hell freezes over.  Actual bound in years needs to be
  * calculated to confirm.
  */
@@ -83,7 +83,7 @@ void sync_icache_dcache(pte_t pte)
 }
 
 /*
- * In order to set up page allocator "nodes",
+ * In order to set up page allocator "yesdes",
  * somebody has to call free_area_init() for UMA.
  *
  * In this mode, we only have one pg_data_t
@@ -94,7 +94,7 @@ void __init paging_init(void)
 	unsigned long zones_sizes[MAX_NR_ZONES] = {0, };
 
 	/*
-	 *  This is not particularly well documented anywhere, but
+	 *  This is yest particularly well documented anywhere, but
 	 *  give ZONE_NORMAL all the memory, including the big holes
 	 *  left by the kernel+bootmem_map which are already left as reserved
 	 *  in the bootmem_map; free_area_init should see those bits and
@@ -232,7 +232,7 @@ void __init setup_arch_memory(void)
 
 	/*
 	 *  At this point, the page allocator is kind of initialized, but
-	 *  apparently no pages are available (just like with the bootmem
+	 *  apparently yes pages are available (just like with the bootmem
 	 *  allocator), and need to be freed themselves via mem_init(),
 	 *  which is called by start_kernel() later on in the process
 	 */

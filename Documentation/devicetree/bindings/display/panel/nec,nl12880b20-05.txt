@@ -1,4 +1,4 @@
-NEC LCD Technologies, Ltd. 12.1" WXGA (1280x800) LVDS TFT LCD panel
+NEC LCD Techyeslogies, Ltd. 12.1" WXGA (1280x800) LVDS TFT LCD panel
 
 Required properties:
 - compatible: should be "nec,nl12880bc20-05"

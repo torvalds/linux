@@ -101,10 +101,10 @@ struct rvin_parallel_entity {
  * @mask:	Bitmask of the different CHSEL register values that
  *		allow for a route from @csi + @chan to @vin.
  *
- * .. note::
+ * .. yeste::
  *	Each R-Car CSI-2 receiver has four output channels facing the VIN
  *	devices, each channel can carry one CSI-2 Virtual Channel (VC).
- *	There is no correlation between channel number and CSI-2 VC. It's
+ *	There is yes correlation between channel number and CSI-2 VC. It's
  *	up to the CSI-2 receiver driver to configure which VC is output
  *	on which channel, the VIN devices only care about output channels.
  *
@@ -151,7 +151,7 @@ struct rvin_info {
  * @vdev:		V4L2 video device associated with VIN
  * @v4l2_dev:		V4L2 device
  * @ctrl_handler:	V4L2 control handler
- * @notifier:		V4L2 asynchronous subdevs notifier
+ * @yestifier:		V4L2 asynchroyesus subdevs yestifier
  *
  * @parallel:		parallel input subdevice descriptor
  *
@@ -191,7 +191,7 @@ struct rvin_dev {
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_yestifier yestifier;
 
 	struct rvin_parallel_entity *parallel;
 
@@ -237,11 +237,11 @@ struct rvin_dev {
  *
  * @mdev:		media device which represents the group
  *
- * @lock:		protects the count, notifier, vin and csi members
+ * @lock:		protects the count, yestifier, vin and csi members
  * @count:		number of enabled VIN instances found in DT
- * @notifier:		group notifier for CSI-2 async subdevices
+ * @yestifier:		group yestifier for CSI-2 async subdevices
  * @vin:		VIN instances which are part of the group
- * @csi:		array of pairs of fwnode and subdev pointers
+ * @csi:		array of pairs of fwyesde and subdev pointers
  *			to all CSI-2 subdevices.
  */
 struct rvin_group {
@@ -251,11 +251,11 @@ struct rvin_group {
 
 	struct mutex lock;
 	unsigned int count;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_yestifier yestifier;
 	struct rvin_dev *vin[RCAR_VIN_NUM];
 
 	struct {
-		struct fwnode_handle *fwnode;
+		struct fwyesde_handle *fwyesde;
 		struct v4l2_subdev *subdev;
 	} csi[RVIN_CSI_MAX];
 };

@@ -90,7 +90,7 @@ static int FDC2 = -1;
 #define N_DRIVE 8
 
 /*
- * Most Alphas have no problems with floppy DMA crossing 64k borders,
+ * Most Alphas have yes problems with floppy DMA crossing 64k borders,
  * except for certain ones, like XL and RUFFIAN.
  *
  * However, the test is simple and fast, and this *is* floppy, after all,

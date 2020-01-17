@@ -16,11 +16,11 @@
  *  are met:
  *
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
+ *     yestice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the Panasas company nor the names of its
+ *  3. Neither the name of the Panasas company yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -42,7 +42,7 @@
 #include <linux/nfs_fs.h>
 
 /*
- * draft-ietf-nfsv4-minorversion-22
+ * draft-ietf-nfsv4-miyesrversion-22
  * draft-ietf-nfsv4-pnfs-obj-12
  */
 
@@ -226,7 +226,7 @@ struct pnfs_osd_layoutupdate {
 
 /* LAYOUTRETURN: I/O Rrror Report */
 
-enum pnfs_osd_errno {
+enum pnfs_osd_erryes {
 	PNFS_OSD_ERR_EIO		= 1,
 	PNFS_OSD_ERR_NOT_FOUND		= 2,
 	PNFS_OSD_ERR_NO_SPACE		= 3,
@@ -241,7 +241,7 @@ enum pnfs_osd_errno {
  *       length4             oer_comp_offset;
  *       length4             oer_comp_length;
  *       bool                oer_iswrite;
- *       pnfs_osd_errno4     oer_errno;
+ *       pnfs_osd_erryes4     oer_erryes;
  *   };
  */
 struct pnfs_osd_ioerr {
@@ -249,14 +249,14 @@ struct pnfs_osd_ioerr {
 	u64			oer_comp_offset;
 	u64			oer_comp_length;
 	u32			oer_iswrite;
-	u32			oer_errno;
+	u32			oer_erryes;
 };
 
 /* OSD XDR Client API */
 /* Layout helpers */
 /* Layout decoding is done in two parts:
  * 1. First Call pnfs_osd_xdr_decode_layout_map to read in only the header part
- *    of the layout. @iter members need not be initialized.
+ *    of the layout. @iter members need yest be initialized.
  *    Returned:
  *             @layout members are set. (@layout->olo_comps set to NULL).
  *

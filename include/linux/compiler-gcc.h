@@ -21,7 +21,7 @@
 /*
  * This version is i.e. to prevent dead stores elimination on @ptr
  * where gcc and llvm may behave differently when otherwise using
- * normal barrier(): while gcc behavior gets along with a normal
+ * yesrmal barrier(): while gcc behavior gets along with a yesrmal
  * barrier(), llvm needs an explicit input variable to be assumed
  * clobbered. The issue is as follows: while the inline asm might
  * access any memory it wants, the compiler could have fit all of
@@ -40,7 +40,7 @@
  * This is needed because the C standard makes it undefined to do
  * pointer arithmetic on "objects" outside their boundaries and the
  * gcc optimizers assume this is the case. In particular they
- * assume such arithmetic does not wrap.
+ * assume such arithmetic does yest wrap.
  *
  * A miscompilation has been observed because of this on PPC.
  * To work around it we hide the relationship of the pointer and the object
@@ -65,7 +65,7 @@
 #define uninitialized_var(x) x = x
 
 #ifdef CONFIG_RETPOLINE
-#define __noretpoline __attribute__((__indirect_branch__("keep")))
+#define __yesretpoline __attribute__((__indirect_branch__("keep")))
 #endif
 
 #define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
@@ -80,7 +80,7 @@
 #endif
 
 /*
- * calling noreturn functions, __builtin_unreachable() and __builtin_trap()
+ * calling yesreturn functions, __builtin_unreachable() and __builtin_trap()
  * confuse the stack allocation in gcc, leading to overly large stack
  * frames, see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82365
  *
@@ -95,15 +95,15 @@
  */
 #define unreachable() \
 	do {					\
-		annotate_unreachable();		\
+		anyestate_unreachable();		\
 		barrier_before_unreachable();	\
 		__builtin_unreachable();	\
 	} while (0)
 
 #if defined(RANDSTRUCT_PLUGIN) && !defined(__CHECKER__)
 #define __randomize_layout __attribute__((randomize_layout))
-#define __no_randomize_layout __attribute__((no_randomize_layout))
-/* This anon struct can add padding, so only enable it under randstruct. */
+#define __yes_randomize_layout __attribute__((yes_randomize_layout))
+/* This ayesn struct can add padding, so only enable it under randstruct. */
 #define randomized_struct_fields_start	struct {
 #define randomized_struct_fields_end	} __randomize_layout;
 #endif
@@ -139,10 +139,10 @@
 #define KASAN_ABI_VERSION 3
 #endif
 
-#if __has_attribute(__no_sanitize_address__)
-#define __no_sanitize_address __attribute__((no_sanitize_address))
+#if __has_attribute(__yes_sanitize_address__)
+#define __yes_sanitize_address __attribute__((yes_sanitize_address))
 #else
-#define __no_sanitize_address
+#define __yes_sanitize_address
 #endif
 
 #if GCC_VERSION >= 50100
@@ -157,13 +157,13 @@
 	__diag_GCC_ ## version(__diag_GCC_ ## severity s)
 
 /* Severity used in pragma directives */
-#define __diag_GCC_ignore	ignored
+#define __diag_GCC_igyesre	igyesred
 #define __diag_GCC_warn		warning
 #define __diag_GCC_error	error
 
 #define __diag_str1(s)		#s
 #define __diag_str(s)		__diag_str1(s)
-#define __diag(s)		_Pragma(__diag_str(GCC diagnostic s))
+#define __diag(s)		_Pragma(__diag_str(GCC diagyesstic s))
 
 #if GCC_VERSION >= 80000
 #define __diag_GCC_8(s)		__diag(s)
@@ -171,4 +171,4 @@
 #define __diag_GCC_8(s)
 #endif
 
-#define __no_fgcse __attribute__((optimize("-fno-gcse")))
+#define __yes_fgcse __attribute__((optimize("-fyes-gcse")))

@@ -77,7 +77,7 @@ static int eadm_subchannel_start(struct subchannel *sch, struct aob *aob)
 	case 1:		/* status pending */
 	case 2:		/* busy */
 		return -EBUSY;
-	case 3:		/* not operational */
+	case 3:		/* yest operational */
 		return -ENODEV;
 	}
 	return 0;
@@ -319,7 +319,7 @@ static int eadm_subchannel_restore(struct subchannel *sch)
 /**
  * eadm_subchannel_sch_event - process subchannel event
  * @sch: subchannel
- * @process: non-zero if function is called in process context
+ * @process: yesn-zero if function is called in process context
  *
  * An unspecified event occurred for this subchannel. Adjust data according
  * to the current operational state of the subchannel. Return zero when the

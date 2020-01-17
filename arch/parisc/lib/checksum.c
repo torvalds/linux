@@ -110,7 +110,7 @@ EXPORT_SYMBOL(csum_partial);
 /*
  * copy while checksumming, otherwise like csum_partial
  */
-__wsum csum_partial_copy_nocheck(const void *src, void *dst,
+__wsum csum_partial_copy_yescheck(const void *src, void *dst,
 				       int len, __wsum sum)
 {
 	/*
@@ -122,7 +122,7 @@ __wsum csum_partial_copy_nocheck(const void *src, void *dst,
 
 	return sum;
 }
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
+EXPORT_SYMBOL(csum_partial_copy_yescheck);
 
 /*
  * Copy from userspace and compute checksum.  If we catch an exception

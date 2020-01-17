@@ -61,7 +61,7 @@ static const struct clk_ops ti_composite_gate_ops = {
 struct component_clk {
 	int num_parents;
 	const char **parent_names;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int type;
 	struct clk_hw *hw;
 	struct list_head link;
@@ -73,12 +73,12 @@ static const char * const component_clk_types[] __initconst = {
 
 static LIST_HEAD(component_clks);
 
-static struct device_node *_get_component_node(struct device_node *node, int i)
+static struct device_yesde *_get_component_yesde(struct device_yesde *yesde, int i)
 {
 	int rc;
 	struct of_phandle_args clkspec;
 
-	rc = of_parse_phandle_with_args(node, "clocks", "#clock-cells", i,
+	rc = of_parse_phandle_with_args(yesde, "clocks", "#clock-cells", i,
 					&clkspec);
 	if (rc)
 		return NULL;
@@ -86,12 +86,12 @@ static struct device_node *_get_component_node(struct device_node *node, int i)
 	return clkspec.np;
 }
 
-static struct component_clk *_lookup_component(struct device_node *node)
+static struct component_clk *_lookup_component(struct device_yesde *yesde)
 {
 	struct component_clk *comp;
 
 	list_for_each_entry(comp, &component_clks, link) {
-		if (comp->node == node)
+		if (comp->yesde == yesde)
 			return comp;
 	}
 	return NULL;
@@ -99,7 +99,7 @@ static struct component_clk *_lookup_component(struct device_node *node)
 
 struct clk_hw_omap_comp {
 	struct clk_hw hw;
-	struct device_node *comp_nodes[CLK_COMPONENT_TYPE_MAX];
+	struct device_yesde *comp_yesdes[CLK_COMPONENT_TYPE_MAX];
 	struct component_clk *comp_clks[CLK_COMPONENT_TYPE_MAX];
 };
 
@@ -117,7 +117,7 @@ static inline struct clk_hw *_get_hw(struct clk_hw_omap_comp *clk, int idx)
 #define to_clk_hw_comp(_hw) container_of(_hw, struct clk_hw_omap_comp, hw)
 
 static void __init _register_composite(void *user,
-				       struct device_node *node)
+				       struct device_yesde *yesde)
 {
 	struct clk_hw *hw = user;
 	struct clk *clk;
@@ -130,14 +130,14 @@ static void __init _register_composite(void *user,
 
 	/* Check for presence of each component clock */
 	for (i = 0; i < CLK_COMPONENT_TYPE_MAX; i++) {
-		if (!cclk->comp_nodes[i])
+		if (!cclk->comp_yesdes[i])
 			continue;
 
-		comp = _lookup_component(cclk->comp_nodes[i]);
+		comp = _lookup_component(cclk->comp_yesdes[i]);
 		if (!comp) {
-			pr_debug("component %s not ready for %pOFn, retry\n",
-				 cclk->comp_nodes[i]->name, node);
-			if (!ti_clk_retry_init(node, hw,
+			pr_debug("component %s yest ready for %pOFn, retry\n",
+				 cclk->comp_yesdes[i]->name, yesde);
+			if (!ti_clk_retry_init(yesde, hw,
 					       _register_composite))
 				return;
 
@@ -145,14 +145,14 @@ static void __init _register_composite(void *user,
 		}
 		if (cclk->comp_clks[comp->type] != NULL) {
 			pr_err("duplicate component types for %pOFn (%s)!\n",
-			       node, component_clk_types[comp->type]);
+			       yesde, component_clk_types[comp->type]);
 			goto cleanup;
 		}
 
 		cclk->comp_clks[comp->type] = comp;
 
-		/* Mark this node as found */
-		cclk->comp_nodes[i] = NULL;
+		/* Mark this yesde as found */
+		cclk->comp_yesdes[i] = NULL;
 	}
 
 	/* All components exists, proceed with registration */
@@ -168,11 +168,11 @@ static void __init _register_composite(void *user,
 	}
 
 	if (!num_parents) {
-		pr_err("%s: no parents found for %pOFn!\n", __func__, node);
+		pr_err("%s: yes parents found for %pOFn!\n", __func__, yesde);
 		goto cleanup;
 	}
 
-	clk = clk_register_composite(NULL, node->name,
+	clk = clk_register_composite(NULL, yesde->name,
 				     parent_names, num_parents,
 				     _get_hw(cclk, CLK_COMPONENT_TYPE_MUX),
 				     &ti_clk_mux_ops,
@@ -182,12 +182,12 @@ static void __init _register_composite(void *user,
 				     &ti_composite_gate_ops, 0);
 
 	if (!IS_ERR(clk)) {
-		ret = ti_clk_add_alias(NULL, clk, node->name);
+		ret = ti_clk_add_alias(NULL, clk, yesde->name);
 		if (ret) {
 			clk_unregister(clk);
 			goto cleanup;
 		}
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 	}
 
 cleanup:
@@ -202,17 +202,17 @@ cleanup:
 	kfree(cclk);
 }
 
-static void __init of_ti_composite_clk_setup(struct device_node *node)
+static void __init of_ti_composite_clk_setup(struct device_yesde *yesde)
 {
 	unsigned int num_clks;
 	int i;
 	struct clk_hw_omap_comp *cclk;
 
 	/* Number of component clocks to be put inside this clock */
-	num_clks = of_clk_get_parent_count(node);
+	num_clks = of_clk_get_parent_count(yesde);
 
 	if (!num_clks) {
-		pr_err("composite clk %pOFn must have component(s)\n", node);
+		pr_err("composite clk %pOFn must have component(s)\n", yesde);
 		return;
 	}
 
@@ -220,35 +220,35 @@ static void __init of_ti_composite_clk_setup(struct device_node *node)
 	if (!cclk)
 		return;
 
-	/* Get device node pointers for each component clock */
+	/* Get device yesde pointers for each component clock */
 	for (i = 0; i < num_clks; i++)
-		cclk->comp_nodes[i] = _get_component_node(node, i);
+		cclk->comp_yesdes[i] = _get_component_yesde(yesde, i);
 
-	_register_composite(&cclk->hw, node);
+	_register_composite(&cclk->hw, yesde);
 }
 CLK_OF_DECLARE(ti_composite_clock, "ti,composite-clock",
 	       of_ti_composite_clk_setup);
 
 /**
  * ti_clk_add_component - add a component clock to the pool
- * @node: device node of the component clock
+ * @yesde: device yesde of the component clock
  * @hw: hardware clock definition for the component clock
  * @type: type of the component clock
  *
  * Adds a component clock to the list of available components, so that
  * it can be registered by a composite clock.
  */
-int __init ti_clk_add_component(struct device_node *node, struct clk_hw *hw,
+int __init ti_clk_add_component(struct device_yesde *yesde, struct clk_hw *hw,
 				int type)
 {
 	unsigned int num_parents;
 	const char **parent_names;
 	struct component_clk *clk;
 
-	num_parents = of_clk_get_parent_count(node);
+	num_parents = of_clk_get_parent_count(yesde);
 
 	if (!num_parents) {
-		pr_err("component-clock %pOFn must have parent(s)\n", node);
+		pr_err("component-clock %pOFn must have parent(s)\n", yesde);
 		return -EINVAL;
 	}
 
@@ -256,7 +256,7 @@ int __init ti_clk_add_component(struct device_node *node, struct clk_hw *hw,
 	if (!parent_names)
 		return -ENOMEM;
 
-	of_clk_parent_fill(node, parent_names, num_parents);
+	of_clk_parent_fill(yesde, parent_names, num_parents);
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 	if (!clk) {
@@ -267,7 +267,7 @@ int __init ti_clk_add_component(struct device_node *node, struct clk_hw *hw,
 	clk->num_parents = num_parents;
 	clk->parent_names = parent_names;
 	clk->hw = hw;
-	clk->node = node;
+	clk->yesde = yesde;
 	clk->type = type;
 	list_add(&clk->link, &component_clks);
 

@@ -7,9 +7,9 @@
  *
  * Copyright:   (C) 2011 Texas Instruments, Inc.
  *
- * Based on twl4030-vibra.c by Henrik Saari <henrik.saari@nokia.com>
- *				Felipe Balbi <felipe.balbi@nokia.com>
- *				Jari Vanhala <ext-javi.vanhala@nokia.com>
+ * Based on twl4030-vibra.c by Henrik Saari <henrik.saari@yeskia.com>
+ *				Felipe Balbi <felipe.balbi@yeskia.com>
+ *				Jari Vanhala <ext-javi.vanhala@yeskia.com>
  */
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -169,7 +169,7 @@ static void vibra_play_work(struct work_struct *work)
 				struct vibra_info, play_work);
 	int ret;
 
-	/* Do not allow effect, while the routing is set to use audio */
+	/* Do yest allow effect, while the routing is set to use audio */
 	ret = twl6040_get_vibralr_status(info->twl6040);
 	if (ret & TWL6040_VIBSEL) {
 		dev_info(info->dev, "Vibra is configured for audio\n");
@@ -228,22 +228,22 @@ static SIMPLE_DEV_PM_OPS(twl6040_vibra_pm_ops, twl6040_vibra_suspend, NULL);
 static int twl6040_vibra_probe(struct platform_device *pdev)
 {
 	struct device *twl6040_core_dev = pdev->dev.parent;
-	struct device_node *twl6040_core_node;
+	struct device_yesde *twl6040_core_yesde;
 	struct vibra_info *info;
 	int vddvibl_uV = 0;
 	int vddvibr_uV = 0;
 	int error;
 
-	twl6040_core_node = of_get_child_by_name(twl6040_core_dev->of_node,
+	twl6040_core_yesde = of_get_child_by_name(twl6040_core_dev->of_yesde,
 						 "vibra");
-	if (!twl6040_core_node) {
-		dev_err(&pdev->dev, "parent of node is missing?\n");
+	if (!twl6040_core_yesde) {
+		dev_err(&pdev->dev, "parent of yesde is missing?\n");
 		return -EINVAL;
 	}
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		of_node_put(twl6040_core_node);
+		of_yesde_put(twl6040_core_yesde);
 		dev_err(&pdev->dev, "couldn't allocate memory\n");
 		return -ENOMEM;
 	}
@@ -252,18 +252,18 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 
 	info->twl6040 = dev_get_drvdata(pdev->dev.parent);
 
-	of_property_read_u32(twl6040_core_node, "ti,vibldrv-res",
+	of_property_read_u32(twl6040_core_yesde, "ti,vibldrv-res",
 			     &info->vibldrv_res);
-	of_property_read_u32(twl6040_core_node, "ti,vibrdrv-res",
+	of_property_read_u32(twl6040_core_yesde, "ti,vibrdrv-res",
 			     &info->vibrdrv_res);
-	of_property_read_u32(twl6040_core_node, "ti,viblmotor-res",
+	of_property_read_u32(twl6040_core_yesde, "ti,viblmotor-res",
 			     &info->viblmotor_res);
-	of_property_read_u32(twl6040_core_node, "ti,vibrmotor-res",
+	of_property_read_u32(twl6040_core_yesde, "ti,vibrmotor-res",
 			     &info->vibrmotor_res);
-	of_property_read_u32(twl6040_core_node, "ti,vddvibl-uV", &vddvibl_uV);
-	of_property_read_u32(twl6040_core_node, "ti,vddvibr-uV", &vddvibr_uV);
+	of_property_read_u32(twl6040_core_yesde, "ti,vddvibl-uV", &vddvibl_uV);
+	of_property_read_u32(twl6040_core_yesde, "ti,vddvibr-uV", &vddvibr_uV);
 
-	of_node_put(twl6040_core_node);
+	of_yesde_put(twl6040_core_yesde);
 
 	if ((!info->vibldrv_res && !info->viblmotor_res) ||
 	    (!info->vibrdrv_res && !info->vibrmotor_res)) {

@@ -155,7 +155,7 @@ static int saa7134_go7007_interface_reset(struct go7007 *go)
 	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 
 	saa_readb(SAA7134_GPIO_GPSTATUS2);
-	/*pr_debug("status is %s\n", saa_readb(SAA7134_GPIO_GPSTATUS2) & 0x40 ? "OK" : "not OK"); */
+	/*pr_debug("status is %s\n", saa_readb(SAA7134_GPIO_GPSTATUS2) & 0x40 ? "OK" : "yest OK"); */
 
 	/* enter command mode...(?) */
 	saa_writeb(SAA7134_GPIO_GPSTATUS2, GPIO_COMMAND_REQ1);
@@ -210,7 +210,7 @@ static int saa7134_go7007_read_interrupt(struct go7007 *go)
 	struct saa7134_go7007 *saa = go->hpi_context;
 	struct saa7134_dev *dev = saa->dev;
 
-	/* XXX we need to wait if there is no interrupt available */
+	/* XXX we need to wait if there is yes interrupt available */
 	go->interrupt_available = 1;
 	gpio_read(dev, HPI_ADDR_INTR_RET_VALUE, &go->interrupt_value);
 	gpio_read(dev, HPI_ADDR_INTR_RET_DATA, &go->interrupt_data);
@@ -382,13 +382,13 @@ MODULE_FIRMWARE("go7007/go7007tv.bin");
 
 /* --------------------------------------------------------------------------*/
 
-static int saa7134_go7007_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int saa7134_go7007_s_std(struct v4l2_subdev *sd, v4l2_std_id yesrm)
 {
 #if 0
 	struct saa7134_go7007 *saa = to_state(sd);
 	struct saa7134_dev *dev = saa->dev;
 
-	return saa7134_s_std_internal(dev, NULL, norm);
+	return saa7134_s_std_internal(dev, NULL, yesrm);
 #else
 	return 0;
 #endif

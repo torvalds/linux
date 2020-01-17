@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2018, Intel Corporation. */
 
-/* A common module to handle registrations and notifications for paravirtual
+/* A common module to handle registrations and yestifications for paravirtual
  * drivers to enable accelerated datapath and support VF live migration.
  *
- * The notifier and event handling code is based on netvsc driver.
+ * The yestifier and event handling code is based on netvsc driver.
  */
 
 #include <linux/module.h>
@@ -66,7 +66,7 @@ static int failover_slave_register(struct net_device *slave_dev)
 	err = netdev_rx_handler_register(slave_dev, fops->slave_handle_frame,
 					 failover_dev);
 	if (err) {
-		netdev_err(slave_dev, "can not register failover rx handler (err = %d)\n",
+		netdev_err(slave_dev, "can yest register failover rx handler (err = %d)\n",
 			   err);
 		goto done;
 	}
@@ -75,7 +75,7 @@ static int failover_slave_register(struct net_device *slave_dev)
 	err = netdev_master_upper_dev_link(slave_dev, failover_dev, NULL,
 					   &lag_upper_info, NULL);
 	if (err) {
-		netdev_err(slave_dev, "can not set failover device %s (err = %d)\n",
+		netdev_err(slave_dev, "can yest set failover device %s (err = %d)\n",
 			   failover_dev->name, err);
 		goto err_upper_link;
 	}
@@ -183,9 +183,9 @@ done:
 }
 
 static int
-failover_event(struct notifier_block *this, unsigned long event, void *ptr)
+failover_event(struct yestifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *event_dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *event_dev = netdev_yestifier_info_to_dev(ptr);
 
 	/* Skip parent events */
 	if (netif_is_failover(event_dev))
@@ -207,8 +207,8 @@ failover_event(struct notifier_block *this, unsigned long event, void *ptr)
 	}
 }
 
-static struct notifier_block failover_notifier = {
-	.notifier_call = failover_event,
+static struct yestifier_block failover_yestifier = {
+	.yestifier_call = failover_event,
 };
 
 static void
@@ -298,7 +298,7 @@ EXPORT_SYMBOL_GPL(failover_unregister);
 static __init int
 failover_init(void)
 {
-	register_netdevice_notifier(&failover_notifier);
+	register_netdevice_yestifier(&failover_yestifier);
 
 	return 0;
 }
@@ -307,7 +307,7 @@ module_init(failover_init);
 static __exit
 void failover_exit(void)
 {
-	unregister_netdevice_notifier(&failover_notifier);
+	unregister_netdevice_yestifier(&failover_yestifier);
 }
 module_exit(failover_exit);
 

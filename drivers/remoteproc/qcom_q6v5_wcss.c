@@ -367,7 +367,7 @@ static int q6v5_q6_powerdown(struct q6v5_wcss *wcss)
 				 val, !(val & BHS_EN_REST_ACK), 1000,
 				 HALT_CHECK_MAX_LOOPS);
 	if (ret) {
-		dev_err(wcss->dev, "BHS_STATUS not OFF (rc:%d)\n", ret);
+		dev_err(wcss->dev, "BHS_STATUS yest OFF (rc:%d)\n", ret);
 		return ret;
 	}
 
@@ -422,7 +422,7 @@ static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
 
-	return qcom_mdt_load_no_init(wcss->dev, fw, rproc->firmware,
+	return qcom_mdt_load_yes_init(wcss->dev, fw, rproc->firmware,
 				     0, wcss->mem_region, wcss->mem_phys,
 				     wcss->mem_size, &wcss->mem_reloc);
 }
@@ -477,15 +477,15 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 	if (IS_ERR(wcss->rmb_base))
 		return PTR_ERR(wcss->rmb_base);
 
-	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
+	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_yesde,
 					       "qcom,halt-regs", 3, 0, &args);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to parse qcom,halt-regs\n");
 		return -EINVAL;
 	}
 
-	wcss->halt_map = syscon_node_to_regmap(args.np);
-	of_node_put(args.np);
+	wcss->halt_map = syscon_yesde_to_regmap(args.np);
+	of_yesde_put(args.np);
 	if (IS_ERR(wcss->halt_map))
 		return PTR_ERR(wcss->halt_map);
 
@@ -499,13 +499,13 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 static int q6v5_alloc_memory_region(struct q6v5_wcss *wcss)
 {
 	struct reserved_mem *rmem = NULL;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct device *dev = wcss->dev;
 
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (node)
-		rmem = of_reserved_mem_lookup(node);
-	of_node_put(node);
+	yesde = of_parse_phandle(dev->of_yesde, "memory-region", 0);
+	if (yesde)
+		rmem = of_reserved_mem_lookup(yesde);
+	of_yesde_put(yesde);
 
 	if (!rmem) {
 		dev_err(dev, "unable to acquire memory-region\n");

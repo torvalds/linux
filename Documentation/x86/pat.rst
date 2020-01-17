@@ -8,9 +8,9 @@ x86 Page Attribute Table (PAT) allows for setting the memory attribute at the
 page level granularity. PAT is complementary to the MTRR settings which allows
 for setting of memory types over physical address ranges. However, PAT is
 more flexible than MTRR due to its capability to set attributes at page level
-and also due to the fact that there are no hardware limitations on number of
+and also due to the fact that there are yes hardware limitations on number of
 such attribute settings allowed. Added flexibility comes with guidelines for
-not having memory type aliasing for the same physical memory with multiple
+yest having memory type aliasing for the same physical memory with multiple
 virtual addresses.
 
 PAT allows for different types of memory attributes. The most commonly used
@@ -44,7 +44,7 @@ address range to avoid any aliasing.
 +------------------------+----------+--------------+------------------+
 | ioremap_uc             |    --    |    UC        |       UC         |
 +------------------------+----------+--------------+------------------+
-| ioremap_nocache        |    --    |    UC-       |       UC-        |
+| ioremap_yescache        |    --    |    UC-       |       UC-        |
 +------------------------+----------+--------------+------------------+
 | ioremap_wc             |    --    |    --        |       WC         |
 +------------------------+----------+--------------+------------------+
@@ -83,13 +83,13 @@ address range to avoid any aliasing.
 +------------------------+----------+--------------+------------------+
 | /dev/mem               |    --    |    WB        |       WB         |
 | mmap !SYNC flag        |          |              |                  |
-| no alias to this area  |          |              |                  |
+| yes alias to this area  |          |              |                  |
 | and                    |          |              |                  |
 | MTRR says WB           |          |              |                  |
 +------------------------+----------+--------------+------------------+
 | /dev/mem               |    --    |    --        |       UC-        |
 | mmap !SYNC flag        |          |              |                  |
-| no alias to this area  |          |              |                  |
+| yes alias to this area  |          |              |                  |
 | and                    |          |              |                  |
 | MTRR says !WB          |          |              |                  |
 +------------------------+----------+--------------+------------------+
@@ -104,28 +104,28 @@ vmf_insert_pfn.
 Drivers wanting to export some pages to userspace do it by using mmap
 interface and a combination of:
 
-  1) pgprot_noncached()
+  1) pgprot_yesncached()
   2) io_remap_pfn_range() or remap_pfn_range() or vmf_insert_pfn()
 
 With PAT support, a new API pgprot_writecombine is being added. So, drivers can
-continue to use the above sequence, with either pgprot_noncached() or
+continue to use the above sequence, with either pgprot_yesncached() or
 pgprot_writecombine() in step 1, followed by step 2.
 
 In addition, step 2 internally tracks the region as UC or WC in memtype
-list in order to ensure no conflicting mapping.
+list in order to ensure yes conflicting mapping.
 
-Note that this set of APIs only works with IO (non RAM) regions. If driver
+Note that this set of APIs only works with IO (yesn RAM) regions. If driver
 wants to export a RAM region, it has to do set_memory_uc() or set_memory_wc()
 as step 0 above and also track the usage of those pages and use set_memory_wb()
 before the page is freed to free pool.
 
-MTRR effects on PAT / non-PAT systems
+MTRR effects on PAT / yesn-PAT systems
 =====================================
 
 The following table provides the effects of using write-combining MTRRs when
-using ioremap*() calls on x86 for both non-PAT and PAT systems. Ideally
+using ioremap*() calls on x86 for both yesn-PAT and PAT systems. Ideally
 mtrr_add() usage will be phased out in favor of arch_phys_wc_add() which will
-be a no-op on PAT enabled systems. The region over which a arch_phys_wc_add()
+be a yes-op on PAT enabled systems. The region over which a arch_phys_wc_add()
 is made, should already have been ioremapped with WC attributes or PAT entries,
 this can be done by using ioremap_wc() / set_memory_wc().  Devices which
 combine areas of IO memory desired to remain uncacheable with areas where
@@ -134,7 +134,7 @@ set_memory_wc() to white-list effective write-combined areas.  Such use is
 nevertheless discouraged as the effective memory type is considered
 implementation defined, yet this strategy can be used as last resort on devices
 with size-constrained regions where otherwise MTRR write-combining would
-otherwise not be effective.
+otherwise yest be effective.
 ::
 
   ====  =======  ===  =========================  =====================
@@ -150,10 +150,10 @@ otherwise not be effective.
   WC    011      UC   _PAGE_CACHE_MODE_UC             UC   |   UC
   ====  =======  ===  =========================  =====================
 
-  (*) denotes implementation defined and is discouraged
+  (*) deyestes implementation defined and is discouraged
 
-.. note:: -- in the above table mean "Not suggested usage for the API". Some
-  of the --'s are strictly enforced by the kernel. Some others are not really
+.. yeste:: -- in the above table mean "Not suggested usage for the API". Some
+  of the --'s are strictly enforced by the kernel. Some others are yest really
   enforced today, but may be enforced in future.
 
 For ioremap and pci access through /sys or /proc - The actual type returned
@@ -200,7 +200,7 @@ With CONFIG_DEBUG_FS enabled, PAT memtype list can be examined by::
 This list shows physical address ranges and various PAT settings used to
 access those physical address ranges.
 
-Another, more verbose way of getting PAT related debug messages is with
+Ayesther, more verbose way of getting PAT related debug messages is with
 "debugpat" boot parameter. With this parameter, various debug messages are
 printed to dmesg log.
 
@@ -231,7 +231,7 @@ by the firmware. Note, Xen enables WC attribute in the PAT MSR for guests.
  ========= =======================================
  E         Feature enabled in CPU
  D	   Feature disabled/unsupported in CPU
- np	   "nopat" boot option specified
+ np	   "yespat" boot option specified
  !P	   CONFIG_X86_PAT option unset
  !M	   CONFIG_MTRR option unset
  Enabled   PAT state set to enabled

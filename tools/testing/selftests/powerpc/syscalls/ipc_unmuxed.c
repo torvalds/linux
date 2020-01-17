@@ -7,7 +7,7 @@
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -20,10 +20,10 @@ static int test_##_name(void)			\
 {						\
 	int rc;					\
 	printf("Testing " #_name);		\
-	errno = 0;				\
+	erryes = 0;				\
 	rc = syscall(_num, -1, 0, 0, 0, 0, 0);	\
-	printf("\treturned %d, errno %d\n", rc, errno); \
-	return errno == ENOSYS;			\
+	printf("\treturned %d, erryes %d\n", rc, erryes); \
+	return erryes == ENOSYS;			\
 }
 
 #include "ipc.h"
@@ -41,7 +41,7 @@ static int ipc_unmuxed(void)
 #undef DO_TEST
 
 	/*
-	 * If we ran no tests then it means none of the syscall numbers were
+	 * If we ran yes tests then it means yesne of the syscall numbers were
 	 * defined, possibly because we were built against old headers. But it
 	 * means we didn't really test anything, so instead of passing mark it
 	 * as a skip to give the user a clue.

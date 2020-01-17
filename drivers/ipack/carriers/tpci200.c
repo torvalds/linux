@@ -54,7 +54,7 @@ static struct tpci200_board *check_slot(struct ipack_device *dev)
 	tpci200 = dev_get_drvdata(dev->bus->parent);
 
 	if (tpci200 == NULL) {
-		dev_info(&dev->dev, "carrier board not found\n");
+		dev_info(&dev->dev, "carrier board yest found\n");
 		return NULL;
 	}
 
@@ -226,7 +226,7 @@ static int tpci200_request_irq(struct ipack_device *dev,
 	/*
 	 * WARNING: Setup Interrupt Vector in the IndustryPack device
 	 * before an IRQ request.
-	 * Read the User Manual of your IndustryPack device to know
+	 * Read the User Manual of your IndustryPack device to kyesw
 	 * where to write the vector in memory.
 	 */
 	slot_irq->handler = handler;
@@ -298,7 +298,7 @@ static int tpci200_register(struct tpci200_board *tpci200)
 
 	/* Map internal tpci200 driver user space */
 	tpci200->info->interface_regs =
-		ioremap_nocache(pci_resource_start(tpci200->info->pdev,
+		ioremap_yescache(pci_resource_start(tpci200->info->pdev,
 					   TPCI200_IP_INTERFACE_BAR),
 			TPCI200_IFACE_SIZE);
 	if (!tpci200->info->interface_regs) {
@@ -541,7 +541,7 @@ static int tpci200_pci_probe(struct pci_dev *pdev,
 		ret = -EBUSY;
 		goto out_err_pci_request;
 	}
-	tpci200->info->cfg_regs = ioremap_nocache(
+	tpci200->info->cfg_regs = ioremap_yescache(
 			pci_resource_start(pdev, TPCI200_CFG_MEM_BAR),
 			pci_resource_len(pdev, TPCI200_CFG_MEM_BAR));
 	if (!tpci200->info->cfg_regs) {

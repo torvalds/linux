@@ -69,9 +69,9 @@ static int debugfs_log_show(struct seq_file *f, void *offset)
 	return 0;
 }
 
-static int debugfs_log_open(struct inode *inode, struct file *file)
+static int debugfs_log_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, debugfs_log_show, inode->i_private);
+	return single_open(file, debugfs_log_show, iyesde->i_private);
 }
 
 static ssize_t debugfs_log_write(struct file *file,
@@ -138,9 +138,9 @@ static int debugfs_trace_show(struct seq_file *f, void *offset)
 	return 0;
 }
 
-static int debugfs_trace_open(struct inode *inode, struct file *file)
+static int debugfs_trace_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, debugfs_trace_show, inode->i_private);
+	return single_open(file, debugfs_trace_show, iyesde->i_private);
 }
 
 static ssize_t debugfs_trace_write(struct file *file,
@@ -198,15 +198,15 @@ void vchiq_debugfs_add_instance(struct vchiq_instance *instance)
 			    &debugfs_usecount_fops);
 	debugfs_create_file("trace", 0644, top, instance, &debugfs_trace_fops);
 
-	vchiq_instance_get_debugfs_node(instance)->dentry = top;
+	vchiq_instance_get_debugfs_yesde(instance)->dentry = top;
 }
 
 void vchiq_debugfs_remove_instance(struct vchiq_instance *instance)
 {
-	struct vchiq_debugfs_node *node =
-				vchiq_instance_get_debugfs_node(instance);
+	struct vchiq_debugfs_yesde *yesde =
+				vchiq_instance_get_debugfs_yesde(instance);
 
-	debugfs_remove_recursive(node->dentry);
+	debugfs_remove_recursive(yesde->dentry);
 }
 
 void vchiq_debugfs_init(void)

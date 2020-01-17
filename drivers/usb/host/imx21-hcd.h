@@ -286,7 +286,7 @@ static char fmt_urb_to_etd[4] = {
 #define TD_CC_STALL		0x04
 #define TD_DEVNOTRESP		0x05
 #define TD_PIDCHECKFAIL		0x06
-/*#define TD_UNEXPECTEDPID	0x07 - reserved, not active on MX2*/
+/*#define TD_UNEXPECTEDPID	0x07 - reserved, yest active on MX2*/
 #define TD_DATAOVERRUN		0x08
 #define TD_DATAUNDERRUN		0x09
 #define TD_BUFFEROVERRUN	0x0C
@@ -416,7 +416,7 @@ struct imx21 {
 	void __iomem *regs;
 #ifdef DEBUG
 	struct dentry *debug_root;
-	struct debug_stats nonisoc_stats;
+	struct debug_stats yesnisoc_stats;
 	struct debug_stats isoc_stats;
 	struct debug_usage_stats etd_usage;
 	struct debug_usage_stats dmem_usage;

@@ -89,8 +89,8 @@ static const struct v4l2_pix_format sif_072a_mode[] = {
 
 /*
  * Initialization data
- * I'm not very sure how to split initialization from open data
- * chunks. For now, we'll consider everything as initialization
+ * I'm yest very sure how to split initialization from open data
+ * chunks. For yesw, we'll consider everything as initialization
  */
 /* Frame packet header offsets for the spca561 */
 #define SPCA561_OFFSET_SNAP 1
@@ -124,7 +124,7 @@ static const __u16 rev72a_init_data1[][2] = {
 	{0x0001, 0x8703},	/* HSYNC from cmos inverted */
 	{0x0011, 0x8118},	/* Enable and conf sensor */
 	{0x0001, 0x8118},	/* Conf sensor */
-	{0x0092, 0x8804},	/* I know nothing about these */
+	{0x0092, 0x8804},	/* I kyesw yesthing about these */
 	{0x0010, 0x8802},	/* 0x88xx registers, so I won't */
 	{}
 };
@@ -174,7 +174,7 @@ static const __u16 rev72a_init_data2[][2] = {
 	{0x0087, 0x8700},	/* Set master clock (96Mhz????) */
 	{0x0081, 0x8702},	/* Master clock output enable */
 
-	{0x0000, 0x8500},	/* Set image type (352x288 no compression) */
+	{0x0000, 0x8500},	/* Set image type (352x288 yes compression) */
 	/* Originally was 0x0010 (352x288 compression) */
 
 	{0x0002, 0x865b},	/* Horizontal offset for valid pixels */
@@ -496,13 +496,13 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 
 	/* Register 0x8309 controls exposure for the spca561,
 	   the basic exposure setting goes from 1-2047, where 1 is completely
-	   dark and 2047 is very bright. It not only influences exposure but
+	   dark and 2047 is very bright. It yest only influences exposure but
 	   also the framerate (to allow for longer exposure) from 1 - 300 it
 	   only raises the exposure time then from 300 - 600 it halves the
 	   framerate to be able to further raise the exposure time and for every
 	   300 more it halves the framerate again. This allows for a maximum
 	   exposure time of circa 0.2 - 0.25 seconds (30 / (2000/3000) fps).
-	   Sometimes this is not enough, the 1-2047 uses bits 0-10, bits 11-12
+	   Sometimes this is yest eyesugh, the 1-2047 uses bits 0-10, bits 11-12
 	   configure a divider for the base framerate which us used at the
 	   exposure setting of 1-300. These bits configure the base framerate
 	   according to the following formula: fps = 60 / (value + 2) */
@@ -711,7 +711,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 		/* This should never happen */
 		if (len < 2) {
-			gspca_err(gspca_dev, "Short SOF packet, ignoring\n\n\n\n\n");
+			gspca_err(gspca_dev, "Short SOF packet, igyesring\n\n\n\n\n");
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			return;
 		}
@@ -802,7 +802,7 @@ static int sd_init_controls_12a(struct gspca_dev *gspca_dev)
 			V4L2_CID_GAIN, 0, 255, 1, 63);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;
@@ -825,7 +825,7 @@ static int sd_init_controls_72a(struct gspca_dev *gspca_dev)
 			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	v4l2_ctrl_cluster(2, &sd->contrast);

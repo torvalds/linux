@@ -5,24 +5,24 @@ Required properties:
                    BD71837. For BD71847 names should be "buck1", ..., "buck6"
 		   and "ldo1", ..., "ldo6"
 
-List of regulators provided by this controller. BD71837 regulators node
-should be sub node of the BD71837 MFD node. See BD71837 MFD bindings at
+List of regulators provided by this controller. BD71837 regulators yesde
+should be sub yesde of the BD71837 MFD yesde. See BD71837 MFD bindings at
 Documentation/devicetree/bindings/mfd/rohm,bd71837-pmic.txt
-Regulator nodes should be named to BUCK_<number> and LDO_<number>. The
-definition for each of these nodes is defined using the standard
+Regulator yesdes should be named to BUCK_<number> and LDO_<number>. The
+definition for each of these yesdes is defined using the standard
 binding for regulators at
 Documentation/devicetree/bindings/regulator/regulator.txt.
 Note that if BD71837 starts at RUN state you probably want to use
-regulator-boot-on at least for BUCK6 and BUCK7 so that those are not
+regulator-boot-on at least for BUCK6 and BUCK7 so that those are yest
 disabled by driver at startup. LDO5 and LDO6 are supplied by those and
 if they are disabled at startup the voltage monitoring for LDO5/LDO6 will
 cause PMIC to reset.
 
-The valid names for BD71837 regulator nodes are:
+The valid names for BD71837 regulator yesdes are:
 BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6, BUCK7, BUCK8
 LDO1, LDO2, LDO3, LDO4, LDO5, LDO6, LDO7
 
-The valid names for BD71847 regulator nodes are:
+The valid names for BD71847 regulator yesdes are:
 BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6
 LDO1, LDO2, LDO3, LDO4, LDO5, LDO6
 
@@ -42,22 +42,22 @@ buck	| dvs-run-voltage	| dvs-idle-voltage	| dvs-suspend-voltage
 -----------------------------------------------------------------------------
 1	| supported		| supported		| supported
 ----------------------------------------------------------------------------
-2	| supported		| supported		| not supported
+2	| supported		| supported		| yest supported
 ----------------------------------------------------------------------------
-3	| supported		| not supported		| not supported
+3	| supported		| yest supported		| yest supported
 ----------------------------------------------------------------------------
-4	| supported		| not supported		| not supported
+4	| supported		| yest supported		| yest supported
 ----------------------------------------------------------------------------
-rest	| not supported		| not supported		| not supported
+rest	| yest supported		| yest supported		| yest supported
 
 BD71847:
 buck	| dvs-run-voltage	| dvs-idle-voltage	| dvs-suspend-voltage
 -----------------------------------------------------------------------------
 1	| supported		| supported		| supported
 ----------------------------------------------------------------------------
-2	| supported		| supported		| not supported
+2	| supported		| supported		| yest supported
 ----------------------------------------------------------------------------
-rest	| not supported		| not supported		| not supported
+rest	| yest supported		| yest supported		| yest supported
 
 Example:
 regulators {

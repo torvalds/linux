@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -113,7 +113,7 @@ struct if_dqblk {
 	__u64 dqb_curspace;
 	__u64 dqb_ihardlimit;
 	__u64 dqb_isoftlimit;
-	__u64 dqb_curinodes;
+	__u64 dqb_curiyesdes;
 	__u64 dqb_btime;
 	__u64 dqb_itime;
 	__u32 dqb_valid;
@@ -125,7 +125,7 @@ struct if_nextdqblk {
 	__u64 dqb_curspace;
 	__u64 dqb_ihardlimit;
 	__u64 dqb_isoftlimit;
-	__u64 dqb_curinodes;
+	__u64 dqb_curiyesdes;
 	__u64 dqb_btime;
 	__u64 dqb_itime;
 	__u32 dqb_valid;
@@ -164,14 +164,14 @@ struct if_dqinfo {
  * Definitions for quota netlink interface
  */
 #define QUOTA_NL_NOWARN 0
-#define QUOTA_NL_IHARDWARN 1		/* Inode hardlimit reached */
-#define QUOTA_NL_ISOFTLONGWARN 2 	/* Inode grace time expired */
-#define QUOTA_NL_ISOFTWARN 3		/* Inode softlimit reached */
+#define QUOTA_NL_IHARDWARN 1		/* Iyesde hardlimit reached */
+#define QUOTA_NL_ISOFTLONGWARN 2 	/* Iyesde grace time expired */
+#define QUOTA_NL_ISOFTWARN 3		/* Iyesde softlimit reached */
 #define QUOTA_NL_BHARDWARN 4		/* Block hardlimit reached */
 #define QUOTA_NL_BSOFTLONGWARN 5	/* Block grace time expired */
 #define QUOTA_NL_BSOFTWARN 6		/* Block softlimit reached */
-#define QUOTA_NL_IHARDBELOW 7		/* Usage got below inode hardlimit */
-#define QUOTA_NL_ISOFTBELOW 8		/* Usage got below inode softlimit */
+#define QUOTA_NL_IHARDBELOW 7		/* Usage got below iyesde hardlimit */
+#define QUOTA_NL_ISOFTBELOW 8		/* Usage got below iyesde softlimit */
 #define QUOTA_NL_BHARDBELOW 9		/* Usage got below block hardlimit */
 #define QUOTA_NL_BSOFTBELOW 10		/* Usage got below block softlimit */
 

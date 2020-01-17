@@ -255,7 +255,7 @@
 	cap-sd-highspeed;
 	cap-sdio-irq;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	yesn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4>, <&sdio0_cmd>, <&sdio0_clk>, <&sdio0_int>;
 	sd-uhs-sdr12;
@@ -312,11 +312,11 @@
 
 	dvp {
 		dvp_pwr: dvp-pwr {
-			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		cif_pwr: cif-pwr {
-			rockchip,pins = <7 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -334,17 +334,17 @@
 
 	leds {
 		power_led: power-led {
-			rockchip,pins = <8 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <8 RK_PA2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		work_led: work-led {
-			rockchip,pins = <8 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <8 RK_PA1 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	sdmmc {
 		/*
-		 * Default drive strength isn't enough to achieve even
+		 * Default drive strength isn't eyesugh to achieve even
 		 * high-speed mode on firefly board so bump up to 12ma.
 		 */
 		sdmmc_bus4: sdmmc-bus4 {
@@ -355,7 +355,7 @@
 		};
 
 		sdmmc_clk: sdmmc-clk {
-			rockchip,pins = <6 RK_PC4 1 &pcfg_pull_none_12ma>;
+			rockchip,pins = <6 RK_PC4 1 &pcfg_pull_yesne_12ma>;
 		};
 
 		sdmmc_cmd: sdmmc-cmd {
@@ -363,19 +363,19 @@
 		};
 
 		sdmmc_pwr: sdmmc-pwr {
-			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	sdio {
 		wifi_enable: wifi-enable {
-			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	usb_host {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		usbhub_rst: usbhub-rst {
@@ -385,7 +385,7 @@
 
 	usb_otg {
 		otg_vbus_drv: otg-vbus-drv {
-			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };

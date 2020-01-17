@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2018 Mellanox Technologies. */
+/* Copyright (c) 2018 Mellayesx Techyeslogies. */
 
 #include <net/vxlan.h>
 #include <net/gre.h>
@@ -127,14 +127,14 @@ static const char *mlx5e_netdev_kind(struct net_device *dev)
 	if (dev->rtnl_link_ops)
 		return dev->rtnl_link_ops->kind;
 	else
-		return "unknown";
+		return "unkyeswn";
 }
 
 static int mlx5e_gen_ip_tunnel_header(char buf[], __u8 *ip_proto,
 				      struct mlx5e_encap_entry *e)
 {
 	if (!e->tunnel) {
-		pr_warn("mlx5: Cannot generate tunnel header for this tunnel\n");
+		pr_warn("mlx5: Canyest generate tunnel header for this tunnel\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -219,7 +219,7 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	e->route_dev = route_dev;
 
 	/* It's important to add the neigh to the hash table before checking
-	 * the neigh validity state. So if we'll get a notification, in case the
+	 * the neigh validity state. So if we'll get a yestification, in case the
 	 * neigh changes it's validity state, we would find the relevant neigh
 	 * in the hash.
 	 */
@@ -256,7 +256,7 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(n, NULL);
 		/* the encap entry will be made valid on neigh update event
-		 * and not used before that.
+		 * and yest used before that.
 		 */
 		goto release_neigh;
 	}
@@ -374,7 +374,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	e->route_dev = route_dev;
 
 	/* It's importent to add the neigh to the hash table before checking
-	 * the neigh validity state. So if we'll get a notification, in case the
+	 * the neigh validity state. So if we'll get a yestification, in case the
 	 * neigh changes it's validity state, we would find the relevant neigh
 	 * in the hash.
 	 */
@@ -410,7 +410,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(n, NULL);
 		/* the encap entry will be made valid on neigh update event
-		 * and not used before that.
+		 * and yest used before that.
 		 */
 		goto release_neigh;
 	}
@@ -477,7 +477,7 @@ int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 
 	if (!tunnel) {
 		netdev_warn(priv->netdev,
-			    "decapsulation offload is not supported for %s net device\n",
+			    "decapsulation offload is yest supported for %s net device\n",
 			    mlx5e_netdev_kind(filter_dev));
 		err = -EOPNOTSUPP;
 		goto out;

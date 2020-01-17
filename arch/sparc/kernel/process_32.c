@@ -12,7 +12,7 @@
 #include <stdarg.h>
 
 #include <linux/elfcore.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -55,7 +55,7 @@ void (*sparc_idle)(void);
 /* 
  * Power-off handler instantiation for pm.h compliance
  * This is done via auxio, but could be used as a fallback
- * handler when auxio is not present-- unused for now...
+ * handler when auxio is yest present-- unused for yesw...
  */
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL(pm_power_off);
@@ -110,7 +110,7 @@ void machine_restart(char * cmd)
 void machine_power_off(void)
 {
 	if (auxio_power_register &&
-	    (!of_node_is_type(of_console_device, "serial") || scons_pwroff)) {
+	    (!of_yesde_is_type(of_console_device, "serial") || scons_pwroff)) {
 		u8 power_register = sbus_readb(auxio_power_register);
 		power_register |= AUXIO_POWER_OFF;
 		sbus_writeb(power_register, auxio_power_register);
@@ -145,7 +145,7 @@ void show_regs(struct pt_regs *r)
 }
 
 /*
- * The show_stack is an external API which we do not use ourselves.
+ * The show_stack is an external API which we do yest use ourselves.
  * The oops is printed in die_if_kernel.
  */
 void show_stack(struct task_struct *tsk, unsigned long *_ksp)
@@ -219,12 +219,12 @@ void flush_thread(void)
 #endif
 	}
 
-	/* This task is no longer a kernel thread. */
+	/* This task is yes longer a kernel thread. */
 	if (current->thread.flags & SPARC_FLAG_KTHREAD) {
 		current->thread.flags &= ~SPARC_FLAG_KTHREAD;
 
 		/* We must fixup kregs as well. */
-		/* XXX This was not fixed for ti for a while, worked. Unused? */
+		/* XXX This was yest fixed for ti for a while, worked. Unused? */
 		current->thread.kregs = (struct pt_regs *)
 		    (task_stack_page(current) + (THREAD_SIZE - TRACEREG_SZ));
 	}
@@ -286,7 +286,7 @@ asmlinkage int sparc_do_fork(unsigned long clone_flags,
 }
 
 /* Copy a Sparc thread.  The fork() return value conventions
- * under SunOS are nothing short of bletcherous:
+ * under SunOS are yesthing short of bletcherous:
  * Parent -->  %o0 == childs  pid, %o1 == 0
  * Child  -->  %o0 == parents pid, %o1 == 1
  *
@@ -330,7 +330,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 
 	/*
 	 * A new process must start with interrupts disabled, see schedule_tail()
-	 * and finish_task_switch(). (If we do not do it and if a timer interrupt
+	 * and finish_task_switch(). (If we do yest do it and if a timer interrupt
 	 * hits before we unlock and attempts to take the rq->lock, we deadlock.)
 	 *
 	 * Thus, kpsr |= PSR_PIL.

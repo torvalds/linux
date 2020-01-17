@@ -297,7 +297,7 @@ static const struct hisi_qm_hw_error qm_hw_error[] = {
 	{ .int_msk = BIT(3), .msg = "qm_ecc_1bit" },
 	{ .int_msk = BIT(4), .msg = "qm_acc_get_task_timeout" },
 	{ .int_msk = BIT(5), .msg = "qm_acc_do_task_timeout" },
-	{ .int_msk = BIT(6), .msg = "qm_acc_wb_not_ready_timeout" },
+	{ .int_msk = BIT(6), .msg = "qm_acc_wb_yest_ready_timeout" },
 	{ .int_msk = BIT(7), .msg = "qm_sq_cq_vf_invalid" },
 	{ .int_msk = BIT(8), .msg = "qm_cq_vf_invalid" },
 	{ .int_msk = BIT(9), .msg = "qm_sq_vf_invalid" },
@@ -554,7 +554,7 @@ static irqreturn_t qm_aeq_irq(int irq, void *data)
 			dev_err(&qm->pdev->dev, "%s overflow\n",
 				qm_fifo_overflow[type]);
 		else
-			dev_err(&qm->pdev->dev, "unknown error type %d\n",
+			dev_err(&qm->pdev->dev, "unkyeswn error type %d\n",
 				type);
 
 		if (qm->status.aeq_head == QM_Q_DEPTH - 1) {
@@ -572,7 +572,7 @@ static irqreturn_t qm_aeq_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t qm_abnormal_irq(int irq, void *data)
+static irqreturn_t qm_abyesrmal_irq(int irq, void *data)
 {
 	const struct hisi_qm_hw_error *err = qm_hw_error;
 	struct hisi_qm *qm = data;
@@ -616,16 +616,16 @@ static int qm_irq_register(struct hisi_qm *qm)
 		if (qm->fun_type == QM_HW_PF) {
 			ret = request_irq(pci_irq_vector(pdev,
 					  QM_ABNORMAL_EVENT_IRQ_VECTOR),
-					  qm_abnormal_irq, IRQF_SHARED,
+					  qm_abyesrmal_irq, IRQF_SHARED,
 					  qm->dev_name, qm);
 			if (ret)
-				goto err_abonormal_irq;
+				goto err_aboyesrmal_irq;
 		}
 	}
 
 	return 0;
 
-err_abonormal_irq:
+err_aboyesrmal_irq:
 	free_irq(pci_irq_vector(pdev, QM_AEQ_EVENT_IRQ_VECTOR), qm);
 err_aeq_irq:
 	free_irq(pci_irq_vector(pdev, QM_EQ_EVENT_IRQ_VECTOR), qm);
@@ -956,9 +956,9 @@ static int qm_regs_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int qm_regs_open(struct inode *inode, struct file *file)
+static int qm_regs_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, qm_regs_show, inode->i_private);
+	return single_open(file, qm_regs_show, iyesde->i_private);
 }
 
 static const struct file_operations qm_regs_fops = {
@@ -1044,7 +1044,7 @@ static void qm_log_hw_error(struct hisi_qm *qm, u32 error_status)
 						qm_fifo_overflow[type],
 						vf_num);
 				else
-					dev_err(dev, "unknown error type\n");
+					dev_err(dev, "unkyeswn error type\n");
 			}
 		}
 		err++;
@@ -1289,13 +1289,13 @@ int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg)
 } while (0)
 
 	if (!qp->qdma.dma) {
-		dev_err(dev, "cannot get qm dma buffer\n");
+		dev_err(dev, "canyest get qm dma buffer\n");
 		return -EINVAL;
 	}
 
 	/* sq need 128 bytes alignment */
 	if (qp->qdma.dma & QM_SQE_DATA_ALIGN_MASK) {
-		dev_err(dev, "qm sq is not aligned to 128 byte\n");
+		dev_err(dev, "qm sq is yest aligned to 128 byte\n");
 		return -EINVAL;
 	}
 
@@ -1337,7 +1337,7 @@ int hisi_qm_stop_qp(struct hisi_qp *qp)
 		i++;
 		msleep(20);
 		if (i == 10) {
-			dev_err(dev, "Cannot drain out data for stopping, Force to stop!\n");
+			dev_err(dev, "Canyest drain out data for stopping, Force to stop!\n");
 			return 0;
 		}
 	}
@@ -1534,7 +1534,7 @@ EXPORT_SYMBOL_GPL(hisi_qm_uninit);
  * table. We get related configures by this function. Normally, we call this
  * function in VF driver to get the queue information.
  *
- * qm hw v1 does not support this interface.
+ * qm hw v1 does yest support this interface.
  */
 int hisi_qm_get_vft(struct hisi_qm *qm, u32 *base, u32 *number)
 {
@@ -1714,7 +1714,7 @@ int hisi_qm_start(struct hisi_qm *qm)
 	dev_dbg(dev, "qm start with %d queue pairs\n", qm->qp_num);
 
 	if (!qm->qp_num) {
-		dev_err(dev, "qp_num should not be 0\n");
+		dev_err(dev, "qp_num should yest be 0\n");
 		return -EINVAL;
 	}
 
@@ -1752,8 +1752,8 @@ EXPORT_SYMBOL_GPL(hisi_qm_start);
  * hisi_qm_stop() - Stop a qm.
  * @qm: The qm which will be stopped.
  *
- * This function stops qm and its qps, then qm can not accept request.
- * Related resources are not released at this state, we can use hisi_qm_start
+ * This function stops qm and its qps, then qm can yest accept request.
+ * Related resources are yest released at this state, we can use hisi_qm_start
  * to let qm start again.
  */
 int hisi_qm_stop(struct hisi_qm *qm)
@@ -1860,19 +1860,19 @@ EXPORT_SYMBOL_GPL(hisi_qm_debug_regs_clear);
  * hisi_qm_hw_error_init() - Configure qm hardware error report method.
  * @qm: The qm which we want to configure.
  * @ce: Bit mask of correctable error configure.
- * @nfe: Bit mask of non-fatal error configure.
+ * @nfe: Bit mask of yesn-fatal error configure.
  * @fe: Bit mask of fatal error configure.
  * @msi: Bit mask of error reported by message signal interrupt.
  *
  * Hardware errors of qm can be reported either by RAS interrupts which will
  * be handled by UEFI and then PCIe AER or by device MSI. User can configure
  * each error to use either of above two methods. For RAS interrupts, we can
- * configure an error as one of correctable error, non-fatal error or
+ * configure an error as one of correctable error, yesn-fatal error or
  * fatal error.
  *
  * Bits indicating errors can be configured to ce, nfe, fe and msi to enable
  * related report methods. Error report will be masked if related error bit
- * does not configure.
+ * does yest configure.
  */
 void hisi_qm_hw_error_init(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
 			   u32 msi)
@@ -1887,10 +1887,10 @@ void hisi_qm_hw_error_init(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
 EXPORT_SYMBOL_GPL(hisi_qm_hw_error_init);
 
 /**
- * hisi_qm_hw_error_handle() - Handle qm non-fatal hardware errors.
- * @qm: The qm which has non-fatal hardware errors.
+ * hisi_qm_hw_error_handle() - Handle qm yesn-fatal hardware errors.
+ * @qm: The qm which has yesn-fatal hardware errors.
  *
- * Accelerators use this function to handle qm non-fatal hardware errors.
+ * Accelerators use this function to handle qm yesn-fatal hardware errors.
  */
 pci_ers_result_t hisi_qm_hw_error_handle(struct hisi_qm *qm)
 {
@@ -1908,7 +1908,7 @@ EXPORT_SYMBOL_GPL(hisi_qm_hw_error_handle);
  * @pdev: The device which hardware version we want to get.
  *
  * This function gets the hardware version of a qm. Return QM_HW_UNKNOWN
- * if the hardware version is not supported.
+ * if the hardware version is yest supported.
  */
 enum qm_hw_ver hisi_qm_get_hw_version(struct pci_dev *pdev)
 {

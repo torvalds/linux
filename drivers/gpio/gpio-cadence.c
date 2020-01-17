@@ -98,7 +98,7 @@ static int cdns_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	/*
 	 * The GPIO controller doesn't have an ACK register.
 	 * All interrupt statuses are cleared on a status register read.
-	 * Don't support edge interrupts for now.
+	 * Don't support edge interrupts for yesw.
 	 */
 
 	if (type == IRQ_TYPE_LEVEL_HIGH) {
@@ -160,7 +160,7 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(cgpio->regs))
 		return PTR_ERR(cgpio->regs);
 
-	of_property_read_u32(pdev->dev.of_node, "ngpios", &num_gpios);
+	of_property_read_u32(pdev->dev.of_yesde, "ngpios", &num_gpios);
 
 	if (num_gpios > 32) {
 		dev_err(&pdev->dev, "ngpios must be less or equal 32\n");
@@ -239,14 +239,14 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &cgpio->gc, cgpio);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "Could yest register gpiochip, %d\n", ret);
 		goto err_disable_clk;
 	}
 
 	cgpio->bypass_orig = ioread32(cgpio->regs + CDNS_GPIO_BYPASS_MODE);
 
 	/*
-	 * Enable gpio outputs, ignored for input direction
+	 * Enable gpio outputs, igyesred for input direction
 	 */
 	iowrite32(GENMASK(num_gpios - 1, 0),
 		  cgpio->regs + CDNS_GPIO_OUTPUT_EN);

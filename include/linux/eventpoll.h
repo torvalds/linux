@@ -46,8 +46,8 @@ static inline void eventpoll_release(struct file *file)
 	 * Fast check to avoid the get/release of the semaphore. Since
 	 * we're doing this outside the semaphore lock, it might return
 	 * false negatives, but we don't care. It'll help in 99.99% of cases
-	 * to avoid the semaphore lock. False positives simply cannot happen
-	 * because the file in on the way to be removed and nobody ( but
+	 * to avoid the semaphore lock. False positives simply canyest happen
+	 * because the file in on the way to be removed and yesbody ( but
 	 * eventpoll ) has still a reference to this file.
 	 */
 	if (likely(list_empty(&file->f_ep_links)))

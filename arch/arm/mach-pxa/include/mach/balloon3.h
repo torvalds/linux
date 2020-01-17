@@ -103,7 +103,7 @@ enum balloon3_features {
 #define	BALLOON3_PCF_GPIO_LED6		(BALLOON3_PCF_GPIO_BASE + 6)
 #define	BALLOON3_PCF_GPIO_LED7		(BALLOON3_PCF_GPIO_BASE + 7)
 
-/* FPGA Interrupt Mask/Acknowledge Register */
+/* FPGA Interrupt Mask/Ackyeswledge Register */
 #define BALLOON3_INT_S0_IRQ		(1 << 0)  /* PCMCIA 0 IRQ */
 #define BALLOON3_INT_S0_STSCHG		(1 << 1)  /* PCMCIA 0 status changed */
 

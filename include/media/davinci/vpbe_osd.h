@@ -78,7 +78,7 @@ enum osd_pix_format {
 
 /**
  * enum osd_h_exp_ratio
- * @H_EXP_OFF: no expansion (1/1)
+ * @H_EXP_OFF: yes expansion (1/1)
  * @H_EXP_9_OVER_8: 9/8 expansion ratio
  * @H_EXP_3_OVER_2: 3/2 expansion ratio
  *
@@ -93,7 +93,7 @@ enum osd_h_exp_ratio {
 
 /**
  * enum osd_v_exp_ratio
- * @V_EXP_OFF: no expansion (1/1)
+ * @V_EXP_OFF: yes expansion (1/1)
  * @V_EXP_6_OVER_5: 6/5 expansion ratio
  *
  * Description:
@@ -106,7 +106,7 @@ enum osd_v_exp_ratio {
 
 /**
  * enum osd_zoom_factor
- * @ZOOM_X1: no zoom (x1)
+ * @ZOOM_X1: yes zoom (x1)
  * @ZOOM_X2: x2 zoom
  * @ZOOM_X4: x4 zoom
  *

@@ -22,7 +22,7 @@
 
 /*
  * this function returns
- *   0 if the key corresponding to name is not meant to be printed as part
+ *   0 if the key corresponding to name is yest meant to be printed as part
  *     of a listxattr.
  *   1 if the key corresponding to name is meant to be returned as part of
  *     a listxattr.
@@ -45,7 +45,7 @@ static inline int convert_to_internal_xattr_flags(int setxattr_flags)
 		/* Attribute must exist! */
 		internal_flag = ORANGEFS_XATTR_REPLACE;
 	} else if (setxattr_flags & XATTR_CREATE) {
-		/* Attribute must not exist */
+		/* Attribute must yest exist */
 		internal_flag = ORANGEFS_XATTR_CREATE;
 	}
 	return internal_flag;
@@ -59,19 +59,19 @@ static unsigned int xattr_key(const char *key)
 	return i % 16;
 }
 
-static struct orangefs_cached_xattr *find_cached_xattr(struct inode *inode,
+static struct orangefs_cached_xattr *find_cached_xattr(struct iyesde *iyesde,
     const char *key)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
 	struct orangefs_cached_xattr *cx;
 	struct hlist_head *h;
-	struct hlist_node *tmp;
-	h = &orangefs_inode->xattr_cache[xattr_key(key)];
+	struct hlist_yesde *tmp;
+	h = &orangefs_iyesde->xattr_cache[xattr_key(key)];
 	if (hlist_empty(h))
 		return NULL;
-	hlist_for_each_entry_safe(cx, tmp, h, node) {
+	hlist_for_each_entry_safe(cx, tmp, h, yesde) {
 /*		if (!time_before(jiffies, cx->timeout)) {
-			hlist_del(&cx->node);
+			hlist_del(&cx->yesde);
 			kfree(cx);
 			continue;
 		}*/
@@ -87,13 +87,13 @@ static struct orangefs_cached_xattr *find_cached_xattr(struct inode *inode,
  * interface allows for the users to probe the size of an
  * extended attribute by passing in a value of 0 to size.
  * Thus our return value is always the size of the attribute
- * unless the key does not exist for the file and/or if
+ * unless the key does yest exist for the file and/or if
  * there were errors in fetching the attribute value.
  */
-ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
+ssize_t orangefs_iyesde_getxattr(struct iyesde *iyesde, const char *name,
 				void *buffer, size_t size)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
 	struct orangefs_kernel_op_s *new_op = NULL;
 	struct orangefs_cached_xattr *cx;
 	ssize_t ret = -ENOMEM;
@@ -105,7 +105,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 		     "%s: name %s, buffer_size %zd\n",
 		     __func__, name, size);
 
-	if (S_ISLNK(inode->i_mode))
+	if (S_ISLNK(iyesde->i_mode))
 		return -EOPNOTSUPP;
 
 	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
@@ -115,16 +115,16 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 	fsgid = from_kgid(&init_user_ns, current_fsgid());
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "getxattr on inode %pU, name %s "
+		     "getxattr on iyesde %pU, name %s "
 		     "(uid %o, gid %o)\n",
-		     get_khandle_from_ino(inode),
+		     get_khandle_from_iyes(iyesde),
 		     name,
 		     fsuid,
 		     fsgid);
 
-	down_read(&orangefs_inode->xattr_sem);
+	down_read(&orangefs_iyesde->xattr_sem);
 
-	cx = find_cached_xattr(inode, name);
+	cx = find_cached_xattr(iyesde, name);
 	if (cx && time_before(jiffies, cx->timeout)) {
 		if (cx->length == -1) {
 			ret = -ENODATA;
@@ -149,7 +149,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 	if (!new_op)
 		goto out_unlock;
 
-	new_op->upcall.req.getxattr.refn = orangefs_inode->refn;
+	new_op->upcall.req.getxattr.refn = orangefs_iyesde->refn;
 	strcpy(new_op->upcall.req.getxattr.key, name);
 
 	/*
@@ -159,15 +159,15 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 	 */
 	new_op->upcall.req.getxattr.key_sz = strlen(name) + 1;
 
-	ret = service_operation(new_op, "orangefs_inode_getxattr",
-				get_interruptible_flag(inode));
+	ret = service_operation(new_op, "orangefs_iyesde_getxattr",
+				get_interruptible_flag(iyesde));
 	if (ret != 0) {
 		if (ret == -ENOENT) {
 			ret = -ENODATA;
 			gossip_debug(GOSSIP_XATTR_DEBUG,
-				     "orangefs_inode_getxattr: inode %pU key %s"
-				     " does not exist!\n",
-				     get_khandle_from_ino(inode),
+				     "orangefs_iyesde_getxattr: iyesde %pU key %s"
+				     " does yest exist!\n",
+				     get_khandle_from_iyes(iyesde),
 				     (char *)new_op->upcall.req.getxattr.key);
 			cx = kmalloc(sizeof *cx, GFP_KERNEL);
 			if (cx) {
@@ -175,7 +175,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 				cx->length = -1;
 				cx->timeout = jiffies +
 				    orangefs_getattr_timeout_msecs*HZ/1000;
-				hash_add(orangefs_inode->xattr_cache, &cx->node,
+				hash_add(orangefs_iyesde->xattr_cache, &cx->yesde,
 				    xattr_key(cx->key));
 			}
 		}
@@ -206,9 +206,9 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 	memcpy(buffer, new_op->downcall.resp.getxattr.val, length);
 	memset(buffer + length, 0, size - length);
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-	     "orangefs_inode_getxattr: inode %pU "
+	     "orangefs_iyesde_getxattr: iyesde %pU "
 	     "key %s key_sz %d, val_len %d\n",
-	     get_khandle_from_ino(inode),
+	     get_khandle_from_iyes(iyesde),
 	     (char *)new_op->
 		upcall.req.getxattr.key,
 		     (int)new_op->
@@ -229,7 +229,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 			memcpy(cx->val, buffer, length);
 			cx->length = length;
 			cx->timeout = jiffies + HZ;
-			hash_add(orangefs_inode->xattr_cache, &cx->node,
+			hash_add(orangefs_iyesde->xattr_cache, &cx->yesde,
 			    xattr_key(cx->key));
 		}
 	}
@@ -237,29 +237,29 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 out_release_op:
 	op_release(new_op);
 out_unlock:
-	up_read(&orangefs_inode->xattr_sem);
+	up_read(&orangefs_iyesde->xattr_sem);
 	return ret;
 }
 
-static int orangefs_inode_removexattr(struct inode *inode, const char *name,
+static int orangefs_iyesde_removexattr(struct iyesde *iyesde, const char *name,
 				      int flags)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
 	struct orangefs_kernel_op_s *new_op = NULL;
 	struct orangefs_cached_xattr *cx;
 	struct hlist_head *h;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	int ret = -ENOMEM;
 
 	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
 		return -EINVAL;
 
-	down_write(&orangefs_inode->xattr_sem);
+	down_write(&orangefs_iyesde->xattr_sem);
 	new_op = op_alloc(ORANGEFS_VFS_OP_REMOVEXATTR);
 	if (!new_op)
 		goto out_unlock;
 
-	new_op->upcall.req.removexattr.refn = orangefs_inode->refn;
+	new_op->upcall.req.removexattr.refn = orangefs_iyesde->refn;
 	/*
 	 * NOTE: Although keys are meant to be NULL terminated
 	 * textual strings, I am going to explicitly pass the
@@ -269,16 +269,16 @@ static int orangefs_inode_removexattr(struct inode *inode, const char *name,
 	new_op->upcall.req.removexattr.key_sz = strlen(name) + 1;
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "orangefs_inode_removexattr: key %s, key_sz %d\n",
+		     "orangefs_iyesde_removexattr: key %s, key_sz %d\n",
 		     (char *)new_op->upcall.req.removexattr.key,
 		     (int)new_op->upcall.req.removexattr.key_sz);
 
 	ret = service_operation(new_op,
-				"orangefs_inode_removexattr",
-				get_interruptible_flag(inode));
+				"orangefs_iyesde_removexattr",
+				get_interruptible_flag(iyesde));
 	if (ret == -ENOENT) {
 		/*
-		 * Request to replace a non-existent attribute is an error.
+		 * Request to replace a yesn-existent attribute is an error.
 		 */
 		if (flags & XATTR_REPLACE)
 			ret = -ENODATA;
@@ -287,21 +287,21 @@ static int orangefs_inode_removexattr(struct inode *inode, const char *name,
 	}
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "orangefs_inode_removexattr: returning %d\n", ret);
+		     "orangefs_iyesde_removexattr: returning %d\n", ret);
 
 	op_release(new_op);
 
-	h = &orangefs_inode->xattr_cache[xattr_key(name)];
-	hlist_for_each_entry_safe(cx, tmp, h, node) {
+	h = &orangefs_iyesde->xattr_cache[xattr_key(name)];
+	hlist_for_each_entry_safe(cx, tmp, h, yesde) {
 		if (!strcmp(cx->key, name)) {
-			hlist_del(&cx->node);
+			hlist_del(&cx->yesde);
 			kfree(cx);
 			break;
 		}
 	}
 
 out_unlock:
-	up_write(&orangefs_inode->xattr_sem);
+	up_write(&orangefs_iyesde->xattr_sem);
 	return ret;
 }
 
@@ -311,15 +311,15 @@ out_unlock:
  * Returns a -ve number on error and 0 on success.  Key is text, but value
  * can be binary!
  */
-int orangefs_inode_setxattr(struct inode *inode, const char *name,
+int orangefs_iyesde_setxattr(struct iyesde *iyesde, const char *name,
 			    const void *value, size_t size, int flags)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
 	struct orangefs_kernel_op_s *new_op;
 	int internal_flag = 0;
 	struct orangefs_cached_xattr *cx;
 	struct hlist_head *h;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	int ret = -ENOMEM;
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
@@ -338,21 +338,21 @@ int orangefs_inode_setxattr(struct inode *inode, const char *name,
 		gossip_debug(GOSSIP_XATTR_DEBUG,
 			     "removing xattr (%s)\n",
 			     name);
-		return orangefs_inode_removexattr(inode, name, flags);
+		return orangefs_iyesde_removexattr(iyesde, name, flags);
 	}
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "setxattr on inode %pU, name %s\n",
-		     get_khandle_from_ino(inode),
+		     "setxattr on iyesde %pU, name %s\n",
+		     get_khandle_from_iyes(iyesde),
 		     name);
 
-	down_write(&orangefs_inode->xattr_sem);
+	down_write(&orangefs_iyesde->xattr_sem);
 	new_op = op_alloc(ORANGEFS_VFS_OP_SETXATTR);
 	if (!new_op)
 		goto out_unlock;
 
 
-	new_op->upcall.req.setxattr.refn = orangefs_inode->refn;
+	new_op->upcall.req.setxattr.refn = orangefs_iyesde->refn;
 	new_op->upcall.req.setxattr.flags = internal_flag;
 	/*
 	 * NOTE: Although keys are meant to be NULL terminated textual
@@ -365,34 +365,34 @@ int orangefs_inode_setxattr(struct inode *inode, const char *name,
 	new_op->upcall.req.setxattr.keyval.val_sz = size;
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "orangefs_inode_setxattr: key %s, key_sz %d "
+		     "orangefs_iyesde_setxattr: key %s, key_sz %d "
 		     " value size %zd\n",
 		     (char *)new_op->upcall.req.setxattr.keyval.key,
 		     (int)new_op->upcall.req.setxattr.keyval.key_sz,
 		     size);
 
 	ret = service_operation(new_op,
-				"orangefs_inode_setxattr",
-				get_interruptible_flag(inode));
+				"orangefs_iyesde_setxattr",
+				get_interruptible_flag(iyesde));
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "orangefs_inode_setxattr: returning %d\n",
+		     "orangefs_iyesde_setxattr: returning %d\n",
 		     ret);
 
 	/* when request is serviced properly, free req op struct */
 	op_release(new_op);
 
-	h = &orangefs_inode->xattr_cache[xattr_key(name)];
-	hlist_for_each_entry_safe(cx, tmp, h, node) {
+	h = &orangefs_iyesde->xattr_cache[xattr_key(name)];
+	hlist_for_each_entry_safe(cx, tmp, h, yesde) {
 		if (!strcmp(cx->key, name)) {
-			hlist_del(&cx->node);
+			hlist_del(&cx->yesde);
 			kfree(cx);
 			break;
 		}
 	}
 
 out_unlock:
-	up_write(&orangefs_inode->xattr_sem);
+	up_write(&orangefs_iyesde->xattr_sem);
 	return ret;
 }
 
@@ -405,8 +405,8 @@ out_unlock:
  */
 ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
-	struct inode *inode = dentry->d_inode;
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct iyesde *iyesde = dentry->d_iyesde;
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
 	struct orangefs_kernel_op_s *new_op;
 	__u64 token = ORANGEFS_ITERATE_START;
 	ssize_t ret = -ENOMEM;
@@ -421,7 +421,7 @@ ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		return -EINVAL;
 	}
 
-	down_read(&orangefs_inode->xattr_sem);
+	down_read(&orangefs_iyesde->xattr_sem);
 	new_op = op_alloc(ORANGEFS_VFS_OP_LISTXATTR);
 	if (!new_op)
 		goto out_unlock;
@@ -431,18 +431,18 @@ ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 try_again:
 	key_size = 0;
-	new_op->upcall.req.listxattr.refn = orangefs_inode->refn;
+	new_op->upcall.req.listxattr.refn = orangefs_iyesde->refn;
 	new_op->upcall.req.listxattr.token = token;
 	new_op->upcall.req.listxattr.requested_count =
 	    (size == 0) ? 0 : ORANGEFS_MAX_XATTR_LISTLEN;
 	ret = service_operation(new_op, __func__,
-				get_interruptible_flag(inode));
+				get_interruptible_flag(iyesde));
 	if (ret != 0)
 		goto done;
 
 	if (size == 0) {
 		/*
-		 * This is a bit of a big upper limit, but I did not want to
+		 * This is a bit of a big upper limit, but I did yest want to
 		 * spend too much time getting this correct, since users end
 		 * up allocating memory rather than us...
 		 */
@@ -479,7 +479,7 @@ try_again:
 
 		/*
 		 * Since many dumb programs try to setxattr() on our reserved
-		 * xattrs this is a feeble attempt at defeating those by not
+		 * xattrs this is a feeble attempt at defeating those by yest
 		 * listing them in the output of listxattr.. sigh
 		 */
 		if (is_reserved_key(new_op->downcall.resp.listxattr.key +
@@ -503,7 +503,7 @@ try_again:
 	}
 
 	/*
-	 * Since the buffer was large enough, we might have to continue
+	 * Since the buffer was large eyesugh, we might have to continue
 	 * fetching more keys!
 	 */
 	token = new_op->downcall.resp.listxattr.token;
@@ -521,29 +521,29 @@ done:
 	if (ret == 0)
 		ret = total;
 out_unlock:
-	up_read(&orangefs_inode->xattr_sem);
+	up_read(&orangefs_iyesde->xattr_sem);
 	return ret;
 }
 
 static int orangefs_xattr_set_default(const struct xattr_handler *handler,
 				      struct dentry *unused,
-				      struct inode *inode,
+				      struct iyesde *iyesde,
 				      const char *name,
 				      const void *buffer,
 				      size_t size,
 				      int flags)
 {
-	return orangefs_inode_setxattr(inode, name, buffer, size, flags);
+	return orangefs_iyesde_setxattr(iyesde, name, buffer, size, flags);
 }
 
 static int orangefs_xattr_get_default(const struct xattr_handler *handler,
 				      struct dentry *unused,
-				      struct inode *inode,
+				      struct iyesde *iyesde,
 				      const char *name,
 				      void *buffer,
 				      size_t size)
 {
-	return orangefs_inode_getxattr(inode, name, buffer, size);
+	return orangefs_iyesde_getxattr(iyesde, name, buffer, size);
 
 }
 

@@ -262,7 +262,7 @@ static inline int cpcap_get_revision(struct device *dev,
 
 	ret = regmap_read(regmap, CPCAP_REG_VERSC1, &val);
 	if (ret) {
-		dev_err(dev, "Could not read revision\n");
+		dev_err(dev, "Could yest read revision\n");
 
 		return ret;
 	}
@@ -281,7 +281,7 @@ static inline int cpcap_get_vendor(struct device *dev,
 
 	ret = regmap_read(regmap, CPCAP_REG_VERSC1, &val);
 	if (ret) {
-		dev_err(dev, "Could not read vendor\n");
+		dev_err(dev, "Could yest read vendor\n");
 
 		return ret;
 	}

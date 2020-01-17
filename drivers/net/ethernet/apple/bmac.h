@@ -30,7 +30,7 @@
 #	define	TxThreshold	0x0004
 #define RXFIFOCSR	0x120   /* receive FIFO control */
 #	define	RxFIFOEnable	0x0001
-#define MEMADD		0x130   /* memory address, unknown function */
+#define MEMADD		0x130   /* memory address, unkyeswn function */
 #define MEMDATAHI	0x140   /* memory data high, presently unused in driver */
 #define MEMDATALO	0x150   /* memory data low, presently unused in driver */
 #define XCVRIF		0x160   /* transceiver interface control */
@@ -70,7 +70,7 @@
 #	define	RxDMALateErr	0x00080000 /* Receive DMA, data late */
 #	define	RxParityErr	0x00100000 /* Parity error during receive DMA */
 #	define	RxTagError	0x00200000 /* Tag error during receive DMA */
-#	define	TxEOPError	0x00400000 /* Tx descriptor did not have EOP set */
+#	define	TxEOPError	0x00400000 /* Tx descriptor did yest have EOP set */
 #	define	MIFIntrEvent	0x00800000 /* MIF is signaling an interrupt */
 #	define	TxHostToFIFO	0x01000000 /* Data moved from host to FIFO  */
 #	define	TxFIFOAllSent	0x02000000 /* Transmitted all packets in FIFO */
@@ -96,9 +96,9 @@
 #define	TXCFG		0x430   /* transmit configuration control*/
 #	define	TxMACEnable	0x0001 /* output driver enable */
 #	define	TxSlowMode	0x0020 /* enable slow mode */
-#	define	TxIgnoreColl	0x0040 /* ignore transmit collisions */
-#	define	TxNoFCS		0x0080 /* do not emit FCS */
-#	define	TxNoBackoff	0x0100 /* no backoff in case of collisions */
+#	define	TxIgyesreColl	0x0040 /* igyesre transmit collisions */
+#	define	TxNoFCS		0x0080 /* do yest emit FCS */
+#	define	TxNoBackoff	0x0100 /* yes backoff in case of collisions */
 #	define	TxFullDuplex	0x0200 /* enable full-duplex */
 #	define	TxNeverGiveUp	0x0400 /* don't give up on transmits */
 #define IPG1		0x440   /* Inter-packet gap 1 */
@@ -113,7 +113,7 @@
 #define TXMIN		0x4d0   /* Transmit min pkt size */
 #define PAREG		0x4e0   /* Count of transmit peak attempts */
 #define DCNT		0x4f0   /* Transmit defer timer */
-#define NCCNT		0x500   /* Transmit normal-collision counter */
+#define NCCNT		0x500   /* Transmit yesrmal-collision counter */
 #define NTCNT		0x510   /* Transmit first-collision counter */
 #define EXCNT		0x520   /* Transmit excess-collision counter */
 #define LTCNT		0x530   /* Transmit late-collision counter */

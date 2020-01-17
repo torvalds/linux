@@ -152,19 +152,19 @@ static int st_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 static int st_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct st_rtc *rtc = dev_get_drvdata(dev);
-	struct rtc_time now;
-	unsigned long long now_secs;
+	struct rtc_time yesw;
+	unsigned long long yesw_secs;
 	unsigned long long alarm_secs;
 	unsigned long long lpa;
 
-	st_rtc_read_time(dev, &now);
-	now_secs = rtc_tm_to_time64(&now);
+	st_rtc_read_time(dev, &yesw);
+	yesw_secs = rtc_tm_to_time64(&yesw);
 	alarm_secs = rtc_tm_to_time64(&t->time);
 
 	memcpy(&rtc->alarm, t, sizeof(struct rtc_wkalrm));
 
 	/* Now many secs to fire */
-	alarm_secs -= now_secs;
+	alarm_secs -= yesw_secs;
 	lpa = (unsigned long long)alarm_secs * rtc->clkrate;
 
 	st_rtc_set_hw_alarm(rtc, lpa >> 32, lpa);
@@ -183,7 +183,7 @@ static struct rtc_class_ops st_rtc_ops = {
 
 static int st_rtc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct st_rtc *rtc;
 	uint32_t mode;
 	int ret = 0;

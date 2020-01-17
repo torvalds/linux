@@ -26,7 +26,7 @@ static int nvdimm_probe(struct device *dev)
 
 	rc = nvdimm_check_config_data(dev);
 	if (rc) {
-		/* not required for non-aliased nvdimm, ex. NVDIMM-N */
+		/* yest required for yesn-aliased nvdimm, ex. NVDIMM-N */
 		if (rc == -ENOTTY)
 			rc = 0;
 		return rc;

@@ -8,9 +8,9 @@
  *   Copyright (C) 2007-2009  Sam Ravnborg <sam@ravnborg.org>
  *
  *
- * Don't define absolute symbols until and unless you know that symbol
+ * Don't define absolute symbols until and unless you kyesw that symbol
  * value is should remain constant even if kernel image is relocated
- * at run time. Absolute symbols are not relocated. If symbol value should
+ * at run time. Absolute symbols are yest relocated. If symbol value should
  * change if kernel is relocated, make the symbol section relative and
  * put it inside the section definition.
  */
@@ -107,7 +107,7 @@ PHDRS {
 #endif
 	init PT_LOAD FLAGS(7);          /* RWE */
 #endif
-	note PT_NOTE FLAGS(0);          /* ___ */
+	yeste PT_NOTE FLAGS(0);          /* ___ */
 }
 
 SECTIONS
@@ -163,7 +163,7 @@ SECTIONS
 		INIT_TASK_DATA(THREAD_SIZE)
 
 #ifdef CONFIG_X86_32
-		/* 32 bit has nosave before _edata */
+		/* 32 bit has yessave before _edata */
 		NOSAVE_DATA
 #endif
 
@@ -220,7 +220,7 @@ SECTIONS
 	/*
 	 * percpu offsets are zero-based on SMP.  PERCPU_VADDR() changes the
 	 * output PHDR, so the next output section - .init.text - should
-	 * start another segment - init.
+	 * start ayesther segment - init.
 	 */
 	PERCPU_VADDR(INTERNODE_CACHE_BYTES, 0, :percpu)
 	ASSERT(SIZEOF(.data..percpu) < CONFIG_PHYSICAL_START,
@@ -234,7 +234,7 @@ SECTIONS
 
 	/*
 	 * Section for code used exclusively before alternatives are run. All
-	 * references to such code must be patched out by alternatives, normally
+	 * references to such code must be patched out by alternatives, yesrmally
 	 * by using X86_FEATURE_ALWAYS CPU feature bit.
 	 *
 	 * See static_cpu_has() for an example.
@@ -287,7 +287,7 @@ SECTIONS
 
 	/*
 	 * And here are the replacement instructions. The linker sticks
-	 * them as binary blobs. The .altinstructions has enough data to
+	 * them as binary blobs. The .altinstructions has eyesugh data to
 	 * get the address and the length of them to patch the kernel safely.
 	 */
 	.altinstr_replacement : AT(ADDR(.altinstr_replacement) - LOAD_OFFSET) {
@@ -315,7 +315,7 @@ SECTIONS
 
 	. = ALIGN(8);
 	/*
-	 * .exit.text is discard at runtime, not link time, to deal with
+	 * .exit.text is discard at runtime, yest link time, to deal with
 	 *  references from .altinstructions and .eh_frame
 	 */
 	.exit.text : AT(ADDR(.exit.text) - LOAD_OFFSET) {
@@ -350,7 +350,7 @@ SECTIONS
 	}
 
 #ifdef CONFIG_X86_64
-	.data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
+	.data_yessave : AT(ADDR(.data_yessave) - LOAD_OFFSET) {
 		NOSAVE_DATA
 	}
 #endif
@@ -394,7 +394,7 @@ SECTIONS
 	 * __end_of_kernel_reserve, the .brk section is later reserved as a
 	 * part of the kernel. Since it is located after __end_of_kernel_reserve
 	 * it will be discarded and become part of the available memory. As
-	 * such, it can only be used by very early boot code and must not be
+	 * such, it can only be used by very early boot code and must yest be
 	 * needed afterwards.
 	 *
 	 * Currently used by SME for performing in-place encryption of the
@@ -444,7 +444,7 @@ INIT_PER_CPU(irq_stack_backing_store);
 
 #ifdef CONFIG_SMP
 . = ASSERT((fixed_percpu_data == 0),
-           "fixed_percpu_data is not at start of per-cpu area");
+           "fixed_percpu_data is yest at start of per-cpu area");
 #endif
 
 #endif /* CONFIG_X86_32 */

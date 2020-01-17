@@ -142,7 +142,7 @@ static int c_can_pci_probe(struct pci_dev *pdev,
 			 pci_resource_len(pdev, c_can_pci_data->bar));
 	if (!addr) {
 		dev_err(&pdev->dev,
-			"device has no PCI memory resources, "
+			"device has yes PCI memory resources, "
 			"failing adapter\n");
 		ret = -ENOMEM;
 		goto out_release_regions;
@@ -164,7 +164,7 @@ static int c_can_pci_probe(struct pci_dev *pdev,
 	priv->device = &pdev->dev;
 
 	if (!c_can_pci_data->freq) {
-		dev_err(&pdev->dev, "no clock frequency defined\n");
+		dev_err(&pdev->dev, "yes clock frequency defined\n");
 		ret = -ENODEV;
 		goto out_free_c_can;
 	} else {

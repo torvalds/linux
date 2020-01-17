@@ -49,7 +49,7 @@ found_colon:
 
 /*
  * The hash to be blacklisted is expected to be in the description.  There will
- * be no payload.
+ * be yes payload.
  */
 static int blacklist_preparse(struct key_preparsed_payload *prep)
 {

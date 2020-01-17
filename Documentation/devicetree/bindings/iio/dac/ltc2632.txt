@@ -1,4 +1,4 @@
-Linear Technology LTC2632 DAC device driver
+Linear Techyeslogy LTC2632 DAC device driver
 
 Required properties:
  - compatible: Has to contain one of the following:
@@ -15,7 +15,7 @@ apply. In particular, "reg" and "spi-max-frequency" properties must be given.
 Optional properties:
 	- vref-supply: Phandle to the external reference voltage supply. This should
 	  only be set if there is an external reference voltage connected to the VREF
-	  pin. If the property is not set the internal reference is used.
+	  pin. If the property is yest set the internal reference is used.
 
 Example:
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  Copyright (C) 2019 Microchip Technology Inc.
+ *  Copyright (C) 2019 Microchip Techyeslogy Inc.
  *
  */
 
@@ -227,7 +227,7 @@ static long sam9x60_pll_get_best_div_mul(struct sam9x60_pll *pll,
 
 		/*
 		 * Compare the remainder with the best remainder found until
-		 * now and elect a new best multiplier/divider pair if the
+		 * yesw and elect a new best multiplier/divider pair if the
 		 * current remainder is smaller than the best one.
 		 */
 		if (remainder < bestremainder) {

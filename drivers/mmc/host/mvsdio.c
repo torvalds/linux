@@ -29,7 +29,7 @@
 #define DRIVER_NAME	"mvsdio"
 
 static int maxfreq;
-static int nodma;
+static int yesdma;
 
 struct mvsd_host {
 	void __iomem *base;
@@ -61,10 +61,10 @@ static int mvsd_setup_data(struct mvsd_host *host, struct mmc_data *data)
 
 	/*
 	 * Hardware weirdness.  The FIFO_EMPTY bit of the HW_STATE
-	 * register is sometimes not set before a while when some
+	 * register is sometimes yest set before a while when some
 	 * "unusual" data block sizes are used (such as with the SWITCH
 	 * command), even despite the fact that the XFER_DONE interrupt
-	 * was raised.  And if another data transfer starts before
+	 * was raised.  And if ayesther data transfer starts before
 	 * this bit comes to good sense (which eventually happens by
 	 * itself) then the new transfer simply fails with a timeout.
 	 */
@@ -104,19 +104,19 @@ static int mvsd_setup_data(struct mvsd_host *host, struct mmc_data *data)
 	mvsd_write(MVSD_BLK_COUNT, data->blocks);
 	mvsd_write(MVSD_BLK_SIZE, data->blksz);
 
-	if (nodma || (data->blksz | data->sg->offset) & 3 ||
+	if (yesdma || (data->blksz | data->sg->offset) & 3 ||
 	    ((!(data->flags & MMC_DATA_READ) && data->sg->offset & 0x3f))) {
 		/*
-		 * We cannot do DMA on a buffer which offset or size
-		 * is not aligned on a 4-byte boundary.
+		 * We canyest do DMA on a buffer which offset or size
+		 * is yest aligned on a 4-byte boundary.
 		 *
 		 * It also appears the host to card DMA can corrupt
-		 * data when the buffer is not aligned on a 64 byte
+		 * data when the buffer is yest aligned on a 64 byte
 		 * boundary.
 		 */
 		host->pio_size = data->blocks * data->blksz;
 		host->pio_ptr = sg_virt(data->sg);
-		if (!nodma)
+		if (!yesdma)
 			dev_dbg(host->dev, "fallback to PIO for data at 0x%p size %d\n",
 				host->pio_ptr, host->pio_size);
 		return 1;
@@ -635,10 +635,10 @@ static void mvsd_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		ctrl_reg |= MVSD_HOST_CTRL_DATA_WIDTH_4_BITS;
 
 	/*
-	 * The HI_SPEED_EN bit is causing trouble with many (but not all)
+	 * The HI_SPEED_EN bit is causing trouble with many (but yest all)
 	 * high speed SD, SDHC and SDIO cards.  Not enabling that bit
-	 * makes all cards work.  So let's just ignore that bit for now
-	 * and revisit this issue if problems for not enabling this bit
+	 * makes all cards work.  So let's just igyesre that bit for yesw
+	 * and revisit this issue if problems for yest enabling this bit
 	 * are ever reported.
 	 */
 #if 0
@@ -692,7 +692,7 @@ mv_conf_mbus_windows(struct mvsd_host *host,
 
 static int mvsd_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct mmc_host *mmc = NULL;
 	struct mvsd_host *host = NULL;
 	const struct mbus_dram_target_info *dram;
@@ -700,7 +700,7 @@ static int mvsd_probe(struct platform_device *pdev)
 	int ret, irq;
 
 	if (!np) {
-		dev_err(&pdev->dev, "no DT node\n");
+		dev_err(&pdev->dev, "yes DT yesde\n");
 		return -ENODEV;
 	}
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -719,15 +719,15 @@ static int mvsd_probe(struct platform_device *pdev)
 	host->dev = &pdev->dev;
 
 	/*
-	 * Some non-DT platforms do not pass a clock, and the clock
+	 * Some yesn-DT platforms do yest pass a clock, and the clock
 	 * frequency is passed through platform_data. On DT platforms,
-	 * a clock must always be passed, even if there is no gatable
+	 * a clock must always be passed, even if there is yes gatable
 	 * clock associated to the SDIO interface (it can simply be a
 	 * fixed rate clock).
 	 */
 	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
-		dev_err(&pdev->dev, "no clock associated\n");
+		dev_err(&pdev->dev, "yes clock associated\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -773,7 +773,7 @@ static int mvsd_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, irq, mvsd_irq, 0, DRIVER_NAME, host);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot assign irq %d\n", irq);
+		dev_err(&pdev->dev, "canyest assign irq %d\n", irq);
 		goto out;
 	}
 
@@ -838,7 +838,7 @@ module_platform_driver(mvsd_driver);
 module_param(maxfreq, int, 0);
 
 /* force PIO transfers all the time */
-module_param(nodma, int, 0);
+module_param(yesdma, int, 0);
 
 MODULE_AUTHOR("Maen Suleiman, Nicolas Pitre");
 MODULE_DESCRIPTION("Marvell MMC,SD,SDIO Host Controller driver");

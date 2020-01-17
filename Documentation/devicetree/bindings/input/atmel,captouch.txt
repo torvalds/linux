@@ -2,7 +2,7 @@ Device tree bindings for Atmel capacitive touch device, typically
 an Atmel touch sensor connected to AtmegaXX MCU running firmware
 based on Qtouch library.
 
-The node for this device must be a child of a I2C controller node, as the
+The yesde for this device must be a child of a I2C controller yesde, as the
 device communicates via I2C.
 
 Required properties:

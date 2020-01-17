@@ -69,7 +69,7 @@
 	m25p80@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 		broken-flash-reset;
@@ -102,7 +102,7 @@
 
 &sysclock {
 			compatible = "fixed-clock";
-			/* This is normally 1/4 of cpuclock */
+			/* This is yesrmally 1/4 of cpuclock */
 			clock-frequency = <225000000>;
 };
 

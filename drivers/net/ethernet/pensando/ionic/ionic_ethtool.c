@@ -123,7 +123,7 @@ static int ionic_get_link_ksettings(struct net_device *netdev,
 	ethtool_link_ksettings_zero_link_mode(ks, supported);
 
 	/* The port_info data is found in a DMA space that the NIC keeps
-	 * up-to-date, so there's no need to request the data from the
+	 * up-to-date, so there's yes need to request the data from the
 	 * NIC, we already have it in our memory space.
 	 */
 
@@ -198,10 +198,10 @@ static int ionic_get_link_ksettings(struct net_device *netdev,
 						     10000baseER_Full);
 		break;
 	case IONIC_XCVR_PID_UNKNOWN:
-		/* This means there's no module plugged in */
+		/* This means there's yes module plugged in */
 		break;
 	default:
-		dev_info(lif->ionic->dev, "unknown xcvr type pid=%d / 0x%x\n",
+		dev_info(lif->ionic->dev, "unkyeswn xcvr type pid=%d / 0x%x\n",
 			 idev->port_info->status.xcvr.pid,
 			 idev->port_info->status.xcvr.pid);
 		break;
@@ -357,7 +357,7 @@ static int ionic_set_fecparam(struct net_device *netdev,
 	int ret = 0;
 
 	if (lif->ionic->idev.port_info->config.an_enable) {
-		netdev_err(netdev, "FEC request not allowed while autoneg is enabled\n");
+		netdev_err(netdev, "FEC request yest allowed while autoneg is enabled\n");
 		return -EINVAL;
 	}
 
@@ -376,7 +376,7 @@ static int ionic_set_fecparam(struct net_device *netdev,
 		break;
 	case ETHTOOL_FEC_AUTO:
 	default:
-		netdev_err(netdev, "FEC request 0x%04x not supported\n",
+		netdev_err(netdev, "FEC request 0x%04x yest supported\n",
 			   fec->fec);
 		return -EINVAL;
 	}
@@ -448,7 +448,7 @@ static int ionic_set_coalesce(struct net_device *netdev,
 	}
 
 	/* Convert the usec request to a HW useable value.  If they asked
-	 * for non-zero and it resolved to zero, bump it up
+	 * for yesn-zero and it resolved to zero, bump it up
 	 */
 	coal = ionic_coal_usec_to_hw(lif->ionic, coalesce->rx_coalesce_usecs);
 	if (!coal && coalesce->rx_coalesce_usecs)
@@ -494,7 +494,7 @@ static int ionic_set_ringparam(struct net_device *netdev,
 	int err;
 
 	if (ring->rx_mini_pending || ring->rx_jumbo_pending) {
-		netdev_info(netdev, "Changing jumbo or mini descriptors not supported\n");
+		netdev_info(netdev, "Changing jumbo or mini descriptors yest supported\n");
 		return -EINVAL;
 	}
 
@@ -504,7 +504,7 @@ static int ionic_set_ringparam(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	/* if nothing to do return success */
+	/* if yesthing to do return success */
 	if (ring->tx_pending == lif->ntxq_descs &&
 	    ring->rx_pending == lif->nrxq_descs)
 		return 0;
@@ -607,7 +607,7 @@ static int ionic_get_rxnfc(struct net_device *netdev,
 		info->data = lif->nxqs;
 		break;
 	default:
-		netdev_err(netdev, "Command parameter %d is not supported\n",
+		netdev_err(netdev, "Command parameter %d is yest supported\n",
 			   info->cmd);
 		err = -EOPNOTSUPP;
 	}
@@ -719,7 +719,7 @@ static int ionic_get_module_info(struct net_device *netdev,
 		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
 		break;
 	default:
-		netdev_info(netdev, "unknown xcvr type 0x%02x\n",
+		netdev_info(netdev, "unkyeswn xcvr type 0x%02x\n",
 			    xcvr->sprom[0]);
 		break;
 	}

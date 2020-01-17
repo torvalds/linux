@@ -15,11 +15,11 @@
 #include <net/flow.h>
 #include <linux/seq_file.h>
 #include <linux/rcupdate.h>
-#include <net/fib_notifier.h>
+#include <net/fib_yestifier.h>
 #include <net/fib_rules.h>
 #include <net/inetpeer.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/refcount.h>
 
 struct fib_config {
@@ -102,7 +102,7 @@ struct fib_nh_common {
 
 struct fib_nh {
 	struct fib_nh_common	nh_common;
-	struct hlist_node	nh_hash;
+	struct hlist_yesde	nh_hash;
 	struct fib_info		*nh_parent;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	__u32			nh_tclassid;
@@ -129,8 +129,8 @@ struct fib_nh {
 struct nexthop;
 
 struct fib_info {
-	struct hlist_node	fib_hash;
-	struct hlist_node	fib_lhash;
+	struct hlist_yesde	fib_hash;
+	struct hlist_yesde	fib_lhash;
 	struct list_head	nh_list;
 	struct net		*fib_net;
 	int			fib_treeref;
@@ -204,8 +204,8 @@ __be32 fib_result_prefsrc(struct net *net, struct fib_result *res);
 #define FIB_RES_DEV(res)	(FIB_RES_NHC(res)->nhc_dev)
 #define FIB_RES_OIF(res)	(FIB_RES_NHC(res)->nhc_oif)
 
-struct fib_entry_notifier_info {
-	struct fib_notifier_info info; /* must be first */
+struct fib_entry_yestifier_info {
+	struct fib_yestifier_info info; /* must be first */
 	u32 dst;
 	int dst_len;
 	struct fib_info *fi;
@@ -214,26 +214,26 @@ struct fib_entry_notifier_info {
 	u32 tb_id;
 };
 
-struct fib_nh_notifier_info {
-	struct fib_notifier_info info; /* must be first */
+struct fib_nh_yestifier_info {
+	struct fib_yestifier_info info; /* must be first */
 	struct fib_nh *fib_nh;
 };
 
-int call_fib4_notifier(struct notifier_block *nb,
+int call_fib4_yestifier(struct yestifier_block *nb,
 		       enum fib_event_type event_type,
-		       struct fib_notifier_info *info);
-int call_fib4_notifiers(struct net *net, enum fib_event_type event_type,
-			struct fib_notifier_info *info);
+		       struct fib_yestifier_info *info);
+int call_fib4_yestifiers(struct net *net, enum fib_event_type event_type,
+			struct fib_yestifier_info *info);
 
-int __net_init fib4_notifier_init(struct net *net);
-void __net_exit fib4_notifier_exit(struct net *net);
+int __net_init fib4_yestifier_init(struct net *net);
+void __net_exit fib4_yestifier_exit(struct net *net);
 
-void fib_info_notify_update(struct net *net, struct nl_info *info);
-int fib_notify(struct net *net, struct notifier_block *nb,
+void fib_info_yestify_update(struct net *net, struct nl_info *info);
+int fib_yestify(struct net *net, struct yestifier_block *nb,
 	       struct netlink_ext_ack *extack);
 
 struct fib_table {
-	struct hlist_node	tb_hlist;
+	struct hlist_yesde	tb_hlist;
 	u32			tb_id;
 	int			tb_num_default;
 	struct rcu_head		rcu;
@@ -274,7 +274,7 @@ void fib_free_table(struct fib_table *tb);
 
 static inline struct fib_table *fib_get_table(struct net *net, u32 id)
 {
-	struct hlist_node *tb_hlist;
+	struct hlist_yesde *tb_hlist;
 	struct hlist_head *ptr;
 
 	ptr = id == RT_TABLE_LOCAL ?
@@ -321,7 +321,7 @@ static inline bool fib4_rule_default(const struct fib_rule *rule)
 	return true;
 }
 
-static inline int fib4_rules_dump(struct net *net, struct notifier_block *nb,
+static inline int fib4_rules_dump(struct net *net, struct yestifier_block *nb,
 				  struct netlink_ext_ack *extack)
 {
 	return 0;
@@ -389,7 +389,7 @@ static inline bool fib4_has_custom_rules(const struct net *net)
 }
 
 bool fib4_rule_default(const struct fib_rule *rule);
-int fib4_rules_dump(struct net *net, struct notifier_block *nb,
+int fib4_rules_dump(struct net *net, struct yestifier_block *nb,
 		    struct netlink_ext_ack *extack);
 unsigned int fib4_rules_seq_read(struct net *net);
 

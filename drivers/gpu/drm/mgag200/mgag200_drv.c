@@ -73,14 +73,14 @@ int mgag200_driver_dumb_create(struct drm_file *file,
 	struct mga_device *mdev = dev->dev_private;
 	unsigned long pg_align;
 
-	if (WARN_ONCE(!dev->vram_mm, "VRAM MM not initialized"))
+	if (WARN_ONCE(!dev->vram_mm, "VRAM MM yest initialized"))
 		return -EINVAL;
 
 	pg_align = 0ul;
 
 	/*
-	 * Aligning scanout buffers to the size of the video ram forces
-	 * placement at offset 0. Works around a bug where HW does not
+	 * Aligning scayesut buffers to the size of the video ram forces
+	 * placement at offset 0. Works around a bug where HW does yest
 	 * respect 'startadd' field.
 	 */
 	if (mgag200_pin_bo_at_0(mdev))
@@ -99,7 +99,7 @@ static struct drm_driver driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.miyesr = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 	.debugfs_init = drm_vram_mm_debugfs_init,
 	.dumb_create = mgag200_driver_dumb_create,

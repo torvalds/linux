@@ -18,8 +18,8 @@ struct ci_hdrc;
  * @enabled: set to true if we've enabled the vbus or id interrupt
  * @edev: device which generate events
  * @ci: driver state of the chipidea device
- * @nb: hold event notification callback
- * @conn: used for notification registration
+ * @nb: hold event yestification callback
+ * @conn: used for yestification registration
  */
 struct ci_hdrc_cable {
 	bool				connected;
@@ -27,7 +27,7 @@ struct ci_hdrc_cable {
 	bool				enabled;
 	struct extcon_dev		*edev;
 	struct ci_hdrc			*ci;
-	struct notifier_block		nb;
+	struct yestifier_block		nb;
 };
 
 struct ci_hdrc_platform_data {
@@ -48,7 +48,7 @@ struct ci_hdrc_platform_data {
 		CI_HDRC_DISABLE_HOST_STREAMING)
 	/*
 	 * Only set it when DCCPARAMS.DC==1 and DCCPARAMS.HC==1,
-	 * but otg is not supported (no register otgsc).
+	 * but otg is yest supported (yes register otgsc).
 	 */
 #define CI_HDRC_DUAL_ROLE_NOT_OTG	BIT(4)
 #define CI_HDRC_IMX28_WRITE_FIX		BIT(5)
@@ -67,7 +67,7 @@ struct ci_hdrc_platform_data {
 #define CI_HDRC_CONTROLLER_STOPPED_EVENT	1
 #define CI_HDRC_IMX_HSIC_ACTIVE_EVENT		2
 #define CI_HDRC_IMX_HSIC_SUSPEND_EVENT		3
-	int	(*notify_event) (struct ci_hdrc *ci, unsigned event);
+	int	(*yestify_event) (struct ci_hdrc *ci, unsigned event);
 	struct regulator	*reg_vbus;
 	struct usb_otg_caps	ci_otg_caps;
 	bool			tpl_support;

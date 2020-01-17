@@ -71,7 +71,7 @@ ENTRY_CFI(real32_call_asm)
 
 	/* load up the arg registers from the saved arg area */
 	/* 32-bit calling convention passes first 4 args in registers */
-	ldw	0(%arg1), %arg0		/* note overwriting arg0 */
+	ldw	0(%arg1), %arg0		/* yeste overwriting arg0 */
 	ldw	-8(%arg1), %arg2
 	ldw	-12(%arg1), %arg3
 	ldw	-4(%arg1), %arg1	/* obviously must do this one last! */
@@ -79,10 +79,10 @@ ENTRY_CFI(real32_call_asm)
 	tophys_r1  %sp
 
 	b,l	rfi_virt2real,%r2
-	nop
+	yesp
 
 	b,l	save_control_regs,%r2		/* modifies r1, r2, r28 */
-	nop
+	yesp
 
 #ifdef CONFIG_64BIT
 	rsm	PSW_SM_W, %r0		/* go narrow */
@@ -90,17 +90,17 @@ ENTRY_CFI(real32_call_asm)
 
 	load32	PA(ric_ret), %r2
 	bv	0(%r31)
-	nop
+	yesp
 ric_ret:
 #ifdef CONFIG_64BIT
 	ssm	PSW_SM_W, %r0		/* go wide */
 #endif
 	/* restore CRs before going virtual in case we page fault */
 	b,l	restore_control_regs, %r2	/* modifies r1, r2, r26 */
-	nop
+	yesp
 
 	b,l	rfi_real2virt,%r2
-	nop
+	yesp
 
 	tovirt_r1 %sp
 	LDREG	-REG_SZ(%sp), %sp	/* restore SP */
@@ -112,7 +112,7 @@ ric_ret:
 #endif
 	LDREG	-RP_OFFSET(%sp), %rp	/* restore RP */
 	bv	0(%rp)
-	nop
+	yesp
 ENDPROC_CFI(real32_call_asm)
 
 
@@ -132,7 +132,7 @@ ENTRY_CFI(save_control_regs)
 	PUSH_CR(%cr31, %r28)
 	PUSH_CR(%cr15, %r28)
 	bv 0(%r2)
-	nop
+	yesp
 ENDPROC_CFI(save_control_regs)
 
 ENTRY_CFI(restore_control_regs)
@@ -147,7 +147,7 @@ ENTRY_CFI(restore_control_regs)
 	POP_CR(%cr25, %r26)
 	POP_CR(%cr24, %r26)
 	bv 0(%r2)
-	nop
+	yesp
 ENDPROC_CFI(restore_control_regs)
 
 /* rfi_virt2real() and rfi_real2virt() could perhaps be adapted for
@@ -160,11 +160,11 @@ ENTRY_CFI(rfi_virt2real)
 	/* switch to real mode... */
 	rsm		PSW_SM_I,%r0
 	load32		PA(rfi_v2r_1), %r1
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 	
 	rsm             PSW_SM_Q,%r0  /* disable Q & I bits to load iia queue */
 	mtctl		%r0, %cr17	/* Clear IIASQ tail */
@@ -176,19 +176,19 @@ ENTRY_CFI(rfi_virt2real)
 	mtctl		%r1, %cr22
 	rfi
 	
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 rfi_v2r_1:
 	tophys_r1 %r2
 #endif /* defined(BOOTLOADER) */
 	bv	0(%r2)
-	nop
+	yesp
 ENDPROC_CFI(rfi_virt2real)
 
 	.text
@@ -197,11 +197,11 @@ ENTRY_CFI(rfi_real2virt)
 #if !defined(BOOTLOADER)
 	rsm		PSW_SM_I,%r0
 	load32		(rfi_r2v_1), %r1
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 	
 	rsm             PSW_SM_Q,%r0    /* disable Q bit to load iia queue */
 	mtctl		%r0, %cr17	/* Clear IIASQ tail */
@@ -213,25 +213,25 @@ ENTRY_CFI(rfi_real2virt)
 	mtctl		%r1, %cr22
 	rfi
 	
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 rfi_r2v_1:
 	tovirt_r1 %r2
 #endif /* defined(BOOTLOADER) */
 	bv	0(%r2)
-	nop
+	yesp
 ENDPROC_CFI(rfi_real2virt)
 
 #ifdef CONFIG_64BIT
 
 /************************ 64-bit real-mode calls ***********************/
-/* This is only usable in wide kernels right now and will probably stay so */
+/* This is only usable in wide kernels right yesw and will probably stay so */
 	.text
 	/* unsigned long real64_call_asm(unsigned long *sp,
 	 *		unsigned long *arg0p,
@@ -253,7 +253,7 @@ ENTRY_CFI(real64_call_asm)
 
 	/* load up the arg registers from the saved arg area */
 	/* 32-bit calling convention passes first 4 args in registers */
-	ldd	0*REG_SZ(%arg1), %arg0		/* note overwriting arg0 */
+	ldd	0*REG_SZ(%arg1), %arg0		/* yeste overwriting arg0 */
 	ldd	2*REG_SZ(%arg1), %arg2
 	ldd	3*REG_SZ(%arg1), %arg3
 	ldd	4*REG_SZ(%arg1), %r22
@@ -265,27 +265,27 @@ ENTRY_CFI(real64_call_asm)
 	tophys_r1 %sp
 
 	b,l	rfi_virt2real,%r2
-	nop
+	yesp
 
 	b,l	save_control_regs,%r2		/* modifies r1, r2, r28 */
-	nop
+	yesp
 
 	load32	PA(r64_ret), %r2
 	bv	0(%r31)
-	nop
+	yesp
 r64_ret:
 	/* restore CRs before going virtual in case we page fault */
 	b,l	restore_control_regs, %r2	/* modifies r1, r2, r26 */
-	nop
+	yesp
 
 	b,l	rfi_real2virt,%r2
-	nop
+	yesp
 
 	tovirt_r1 %sp
 	ldd	-8(%sp), %sp		/* restore SP */
 	ldd	-0x10(%sp), %rp		/* restore RP */
 	bv	0(%rp)
-	nop
+	yesp
 ENDPROC_CFI(real64_call_asm)
 
 #endif
@@ -295,12 +295,12 @@ ENDPROC_CFI(real64_call_asm)
 	**	GCC 3.3 and later has a new function in libgcc.a for
 	**	comparing function pointers.
 	*/
-ENTRY_CFI(__canonicalize_funcptr_for_compare)
+ENTRY_CFI(__cayesnicalize_funcptr_for_compare)
 #ifdef CONFIG_64BIT
 	bve (%r2)
 #else
 	bv %r0(%r2)
 #endif
 	copy %r26,%r28
-ENDPROC_CFI(__canonicalize_funcptr_for_compare)
+ENDPROC_CFI(__cayesnicalize_funcptr_for_compare)
 

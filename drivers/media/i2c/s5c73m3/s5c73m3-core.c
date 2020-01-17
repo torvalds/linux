@@ -28,7 +28,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
 #include <media/i2c/s5c73m3.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 
 #include "s5c73m3.h"
 
@@ -583,7 +583,7 @@ static int s5c73m3_spi_boot(struct s5c73m3 *state, bool load_fw)
 	/* Check SPI status */
 	ret = s5c73m3_system_status_wait(state, 0x210d, 100, 300);
 	if (ret < 0)
-		v4l2_err(sd, "SPI not ready: %d\n", ret);
+		v4l2_err(sd, "SPI yest ready: %d\n", ret);
 
 	/* Firmware download over SPI */
 	if (load_fw)
@@ -694,7 +694,7 @@ static int s5c73m3_get_fw_version(struct s5c73m3 *state)
 	/* Check SPI status */
 	ret = s5c73m3_system_status_wait(state, 0x230e, 100, 300);
 	if (ret < 0)
-		v4l2_err(sd, "SPI not ready: %d\n", ret);
+		v4l2_err(sd, "SPI yest ready: %d\n", ret);
 
 	/* ARM reset */
 	ret = s5c73m3_write(state, 0x30000004, 0xfffd);
@@ -895,10 +895,10 @@ static int __s5c73m3_set_frame_interval(struct s5c73m3 *state,
 	unsigned int ret, min_err = UINT_MAX;
 	unsigned int i, fr_time;
 
-	if (fi->interval.denominator == 0)
+	if (fi->interval.deyesminator == 0)
 		return -EINVAL;
 
-	fr_time = fi->interval.numerator * 1000 / fi->interval.denominator;
+	fr_time = fi->interval.numerator * 1000 / fi->interval.deyesminator;
 
 	for (i = 0; i < ARRAY_SIZE(s5c73m3_intervals); i++) {
 		const struct s5c73m3_interval *iv = &s5c73m3_intervals[i];
@@ -930,7 +930,7 @@ static int s5c73m3_oif_s_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	v4l2_dbg(1, s5c73m3_dbg, sd, "Setting %d/%d frame interval\n",
-		 fi->interval.numerator, fi->interval.denominator);
+		 fi->interval.numerator, fi->interval.deyesminator);
 
 	mutex_lock(&state->lock);
 
@@ -1570,13 +1570,13 @@ static int s5c73m3_parse_gpios(struct s5c73m3 *state)
 		"standby-gpios", "xshutdown-gpios",
 	};
 	struct device *dev = &state->i2c_client->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	int ret, i;
 
 	for (i = 0; i < GPIO_NUM; ++i) {
 		enum of_gpio_flags of_flags;
 
-		ret = of_get_named_gpio_flags(node, prop_names[i],
+		ret = of_get_named_gpio_flags(yesde, prop_names[i],
 					      0, &of_flags);
 		if (ret < 0) {
 			dev_err(dev, "failed to parse %s DT property\n",
@@ -1593,14 +1593,14 @@ static int s5c73m3_get_platform_data(struct s5c73m3 *state)
 {
 	struct device *dev = &state->i2c_client->dev;
 	const struct s5c73m3_platform_data *pdata = dev->platform_data;
-	struct device_node *node = dev->of_node;
-	struct device_node *node_ep;
-	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
+	struct device_yesde *yesde = dev->of_yesde;
+	struct device_yesde *yesde_ep;
+	struct v4l2_fwyesde_endpoint ep = { .bus_type = 0 };
 	int ret;
 
-	if (!node) {
+	if (!yesde) {
 		if (!pdata) {
-			dev_err(dev, "Platform data not specified\n");
+			dev_err(dev, "Platform data yest specified\n");
 			return -EINVAL;
 		}
 
@@ -1614,7 +1614,7 @@ static int s5c73m3_get_platform_data(struct s5c73m3 *state)
 	if (IS_ERR(state->clock))
 		return PTR_ERR(state->clock);
 
-	if (of_property_read_u32(node, "clock-frequency",
+	if (of_property_read_u32(yesde, "clock-frequency",
 				 &state->mclk_frequency)) {
 		state->mclk_frequency = S5C73M3_DEFAULT_MCLK_FREQ;
 		dev_info(dev, "using default %u Hz clock frequency\n",
@@ -1625,14 +1625,14 @@ static int s5c73m3_get_platform_data(struct s5c73m3 *state)
 	if (ret < 0)
 		return -EINVAL;
 
-	node_ep = of_graph_get_next_endpoint(node, NULL);
-	if (!node_ep) {
-		dev_warn(dev, "no endpoint defined for node: %pOF\n", node);
+	yesde_ep = of_graph_get_next_endpoint(yesde, NULL);
+	if (!yesde_ep) {
+		dev_warn(dev, "yes endpoint defined for yesde: %pOF\n", yesde);
 		return 0;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(node_ep), &ep);
-	of_node_put(node_ep);
+	ret = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(yesde_ep), &ep);
+	of_yesde_put(yesde_ep);
 	if (ret)
 		return ret;
 
@@ -1641,7 +1641,7 @@ static int s5c73m3_get_platform_data(struct s5c73m3 *state)
 		return -EINVAL;
 	}
 	/*
-	 * Number of MIPI CSI-2 data lanes is currently not configurable,
+	 * Number of MIPI CSI-2 data lanes is currently yest configurable,
 	 * always a default value of 4 lanes is used.
 	 */
 	if (ep.bus.mipi_csi2.num_data_lanes != S5C73M3_MIPI_DATA_LANES)

@@ -66,16 +66,16 @@ static void test_queue_stack_map_by_type(int type)
 
 	CHECK(err || retval || size != sizeof(pkt_v4) || iph->daddr != val,
 	      "bpf_map_pop_elem",
-	      "err %d errno %d retval %d size %d iph->daddr %u\n",
-	      err, errno, retval, size, iph->daddr);
+	      "err %d erryes %d retval %d size %d iph->daddr %u\n",
+	      err, erryes, retval, size, iph->daddr);
 
 	/* Queue is empty, program should return TC_ACT_SHOT */
 	err = bpf_prog_test_run(prog_fd, 1, &pkt_v4, sizeof(pkt_v4),
 				buf, &size, &retval, &duration);
 	CHECK(err || retval != 2 /* TC_ACT_SHOT */|| size != sizeof(pkt_v4),
 	      "check-queue-stack-map-empty",
-	      "err %d errno %d retval %d size %d\n",
-	      err, errno, retval, size);
+	      "err %d erryes %d retval %d size %d\n",
+	      err, erryes, retval, size);
 
 	/* Check that the program pushed elements correctly */
 	for (i = 0; i < MAP_SIZE; i++) {

@@ -371,7 +371,7 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	crypto_info->irq = platform_get_irq(pdev, 0);
 	if (crypto_info->irq < 0) {
 		dev_warn(crypto_info->dev,
-			 "control Interrupt is not available.\n");
+			 "control Interrupt is yest available.\n");
 		err = crypto_info->irq;
 		goto err_crypto;
 	}

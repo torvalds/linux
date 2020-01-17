@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -48,8 +48,8 @@
 #include <asm/netlogic/xlp-hal/sys.h>
 #include <asm/netlogic/xlp-hal/cpucontrol.h>
 
-	.set	noreorder
-	.set	noat
+	.set	yesreorder
+	.set	yesat
 	.set	arch=xlr		/* for mfcr/mtcr, XLR is sufficient */
 
 /* Called by the boot cpu to wake up its sibling threads */
@@ -65,10 +65,10 @@ NESTED(xlp_boot_core0_siblings, PT_SIZE, sp)
 	daddu	t2, t0
 	/* call it */
 	jalr	t2
-	nop
+	yesp
 	RESTORE_ALL
 	jr	ra
-	nop
+	yesp
 END(xlp_boot_core0_siblings)
 
 NESTED(nlm_boot_secondary_cpus, 16, sp)
@@ -85,14 +85,14 @@ NESTED(nlm_boot_secondary_cpus, 16, sp)
 
 	/* a0 has the processor id */
 	mfc0	a0, CP0_EBASE
-	andi	a0, 0x3ff		/* a0 <- node/core */
+	andi	a0, 0x3ff		/* a0 <- yesde/core */
 	PTR_LA	t0, nlm_early_init_secondary
 	jalr	t0
-	nop
+	yesp
 
 	PTR_LA	t0, smp_bootstrap
 	jr	t0
-	nop
+	yesp
 END(nlm_boot_secondary_cpus)
 
 /*
@@ -114,7 +114,7 @@ NESTED(nlm_rmiboot_preboot, 16, sp)
 	sw	t3, 0(t1)
 
 	bnez	t2, 1f		/* skip thread programming */
-	nop			/* for thread id != 0 */
+	yesp			/* for thread id != 0 */
 
 	/*
 	 * XLR MMU setup only for first thread in core
@@ -122,13 +122,13 @@ NESTED(nlm_rmiboot_preboot, 16, sp)
 	li	t0, 0x400
 	mfcr	t1, t0
 	li	t2, 6		/* XLR thread mode mask */
-	nor	t3, t2, zero
+	yesr	t3, t2, zero
 	and	t2, t1, t2	/* t2 - current thread mode */
 	li	v0, CKSEG1ADDR(RESET_DATA_PHYS)
 	lw	v1, BOOT_THREAD_MODE(v0) /* v1 - new thread mode */
 	sll	v1, 1
 	beq	v1, t2, 1f	/* same as request value */
-	nop			/* nothing to do */
+	yesp			/* yesthing to do */
 
 	and	t2, t1, t3	/* mask out old thread mode */
 	or	t1, t2, v1	/* put in new value */
@@ -137,5 +137,5 @@ NESTED(nlm_rmiboot_preboot, 16, sp)
 	/* wait for NMI to hit */
 1:	wait
 	b	1b
-	nop
+	yesp
 END(nlm_rmiboot_preboot)

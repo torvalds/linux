@@ -7,7 +7,7 @@
  *
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -126,7 +126,7 @@ static long cmm_free_pages(long nr, long *counter, struct cmm_page_array **list)
 	return nr;
 }
 
-static int cmm_oom_notify(struct notifier_block *self,
+static int cmm_oom_yestify(struct yestifier_block *self,
 			  unsigned long dummy, void *parm)
 {
 	unsigned long *freed = parm;
@@ -141,8 +141,8 @@ static int cmm_oom_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block cmm_oom_nb = {
-	.notifier_call = cmm_oom_notify,
+static struct yestifier_block cmm_oom_nb = {
+	.yestifier_call = cmm_oom_yestify,
 };
 
 static int cmm_thread(void *dummy)
@@ -405,7 +405,7 @@ static int cmm_resume(void)
 	return 0;
 }
 
-static int cmm_power_event(struct notifier_block *this,
+static int cmm_power_event(struct yestifier_block *this,
 			   unsigned long event, void *ptr)
 {
 	switch (event) {
@@ -418,8 +418,8 @@ static int cmm_power_event(struct notifier_block *this,
 	}
 }
 
-static struct notifier_block cmm_power_notifier = {
-	.notifier_call = cmm_power_event,
+static struct yestifier_block cmm_power_yestifier = {
+	.yestifier_call = cmm_power_event,
 };
 
 static int __init cmm_init(void)
@@ -443,10 +443,10 @@ static int __init cmm_init(void)
 	if (rc < 0)
 		goto out_smsg;
 #endif
-	rc = register_oom_notifier(&cmm_oom_nb);
+	rc = register_oom_yestifier(&cmm_oom_nb);
 	if (rc < 0)
-		goto out_oom_notify;
-	rc = register_pm_notifier(&cmm_power_notifier);
+		goto out_oom_yestify;
+	rc = register_pm_yestifier(&cmm_power_yestifier);
 	if (rc)
 		goto out_pm;
 	cmm_thread_ptr = kthread_run(cmm_thread, NULL, "cmmthread");
@@ -454,10 +454,10 @@ static int __init cmm_init(void)
 		return 0;
 
 	rc = PTR_ERR(cmm_thread_ptr);
-	unregister_pm_notifier(&cmm_power_notifier);
+	unregister_pm_yestifier(&cmm_power_yestifier);
 out_pm:
-	unregister_oom_notifier(&cmm_oom_nb);
-out_oom_notify:
+	unregister_oom_yestifier(&cmm_oom_nb);
+out_oom_yestify:
 #ifdef CONFIG_CMM_IUCV
 	smsg_unregister_callback(SMSG_PREFIX, cmm_smsg_target);
 out_smsg:
@@ -475,8 +475,8 @@ static void __exit cmm_exit(void)
 #ifdef CONFIG_CMM_IUCV
 	smsg_unregister_callback(SMSG_PREFIX, cmm_smsg_target);
 #endif
-	unregister_pm_notifier(&cmm_power_notifier);
-	unregister_oom_notifier(&cmm_oom_nb);
+	unregister_pm_yestifier(&cmm_power_yestifier);
+	unregister_oom_yestifier(&cmm_oom_nb);
 	kthread_stop(cmm_thread_ptr);
 	del_timer_sync(&cmm_timer);
 	cmm_free_pages(cmm_pages, &cmm_pages, &cmm_page_list);

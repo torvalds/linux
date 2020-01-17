@@ -34,7 +34,7 @@ https://github.com/hgst/dm-zoned-tools
 Algorithm
 =========
 
-dm-zoned implements an on-disk buffering scheme to handle non-sequential
+dm-zoned implements an on-disk buffering scheme to handle yesn-sequential
 write accesses to the sequential zones of a zoned block device.
 Conventional zones are used for caching as well as for storing internal
 metadata.
@@ -42,7 +42,7 @@ metadata.
 The zones of the device are separated into 2 types:
 
 1) Metadata zones: these are conventional zones used to store metadata.
-Metadata zones are not reported as useable capacity to the user.
+Metadata zones are yest reported as useable capacity to the user.
 
 2) Data zones: all remaining zones, the vast majority of which will be
 sequential zones used exclusively to store user data. The conventional
@@ -72,7 +72,7 @@ zone used to buffer random modification to the data zone.
 
 3) A set of blocks used to store bitmaps indicating the validity of
 blocks in the data zones follows the mapping table. A valid block is
-defined as a block that was written and not discarded. For a buffered
+defined as a block that was written and yest discarded. For a buffered
 data chunk, a block is always valid only in the data zone mapping the
 chunk or in the buffer zone of the chunk.
 
@@ -94,7 +94,7 @@ block device.
 Read operations are processed according to the block validity
 information provided by the bitmaps. Valid blocks are read either from
 the sequential zone mapping a chunk, or if the chunk is buffered, from
-the buffer zone assigned. If the accessed chunk has no mapping, or the
+the buffer zone assigned. If the accessed chunk has yes mapping, or the
 accessed blocks are invalid, the read buffer is zeroed and the read
 operation terminated.
 
@@ -118,7 +118,7 @@ secondary set and validated by updating the super block in the secondary
 set, a generation counter is used to indicate that this set contains the
 newest metadata. Once this operation completes, in place of metadata
 block updates can be done in the primary metadata set. This ensures that
-one of the set is always consistent (all modifications committed or none
+one of the set is always consistent (all modifications committed or yesne
 at all). Flush operations are used as a commit point. Upon reception of
 a flush request, metadata modification activity is temporarily blocked
 (for both incoming BIO processing and reclaim process) and all dirty
@@ -138,7 +138,7 @@ Ex::
 
 	dmzadm --format /dev/sdxx
 
-For a formatted device, the target can be created normally with the
+For a formatted device, the target can be created yesrmally with the
 dmsetup utility. The only parameter that dm-zoned requires is the
 underlying zoned block device name. Ex::
 

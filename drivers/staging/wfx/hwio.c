@@ -18,7 +18,7 @@
  * Internal helpers.
  *
  * About CONFIG_VMAP_STACK:
- * When CONFIG_VMAP_STACK is enabled, it is not possible to run DMA on stack
+ * When CONFIG_VMAP_STACK is enabled, it is yest possible to run DMA on stack
  * allocated data. Functions below that work with registers (aka functions
  * ending with "32") automatically reallocate buffers with kmalloc. However,
  * functions that work with arbitrary length buffers let's caller to handle

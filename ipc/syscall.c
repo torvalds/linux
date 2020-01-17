@@ -12,7 +12,7 @@
 #include "util.h"
 
 #ifdef __ARCH_WANT_SYS_IPC
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ipc.h>
 #include <linux/shm.h>
 #include <linux/uaccess.h>

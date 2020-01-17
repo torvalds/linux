@@ -68,7 +68,7 @@ struct Qdisc {
 				      * q->dev_queue : It can test
 				      * netif_xmit_frozen_or_stopped() before
 				      * dequeueing next packet.
-				      * Its true for MQ/MQPRIO slaves, or non
+				      * Its true for MQ/MQPRIO slaves, or yesn
 				      * multiqueue device.
 				      */
 #define TCQ_F_WARN_NONWC	(1 << 16)
@@ -77,12 +77,12 @@ struct Qdisc {
 				      * qdisc_tree_decrease_qlen() should stop.
 				      */
 #define TCQ_F_INVISIBLE		0x80 /* invisible by default in dump */
-#define TCQ_F_NOLOCK		0x100 /* qdisc does not require locking */
+#define TCQ_F_NOLOCK		0x100 /* qdisc does yest require locking */
 #define TCQ_F_OFFLOADED		0x200 /* qdisc is offloaded to HW */
 	u32			limit;
 	const struct Qdisc_ops	*ops;
 	struct qdisc_size_table	__rcu *stab;
-	struct hlist_node       hash;
+	struct hlist_yesde       hash;
 	u32			handle;
 	u32			parent;
 
@@ -109,7 +109,7 @@ struct Qdisc {
 	spinlock_t		busylock ____cacheline_aligned_in_smp;
 	spinlock_t		seqlock;
 
-	/* for NOLOCK qdisc, true if there are no enqueued skbs */
+	/* for NOLOCK qdisc, true if there are yes enqueued skbs */
 	bool			empty;
 	struct rcu_head		rcu;
 };
@@ -129,7 +129,7 @@ static inline struct Qdisc *qdisc_refcount_inc_nz(struct Qdisc *qdisc)
 {
 	if (qdisc->flags & TCQ_F_BUILTIN)
 		return qdisc;
-	if (refcount_inc_not_zero(&qdisc->refcnt))
+	if (refcount_inc_yest_zero(&qdisc->refcnt))
 		return qdisc;
 	return NULL;
 }
@@ -200,7 +200,7 @@ struct Qdisc_class_ops {
 					struct Qdisc *, struct Qdisc **,
 					struct netlink_ext_ack *extack);
 	struct Qdisc *		(*leaf)(struct Qdisc *, unsigned long cl);
-	void			(*qlen_notify)(struct Qdisc *, unsigned long);
+	void			(*qlen_yestify)(struct Qdisc *, unsigned long);
 
 	/* Class manipulation routines */
 	unsigned long		(*find)(struct Qdisc *, u32 classid);
@@ -368,7 +368,7 @@ struct tcf_proto {
 	bool			deleting;
 	refcount_t		refcnt;
 	struct rcu_head		rcu;
-	struct hlist_node	destroy_ht_node;
+	struct hlist_yesde	destroy_ht_yesde;
 };
 
 struct qdisc_skb_cb {
@@ -414,7 +414,7 @@ struct tcf_block {
 	struct list_head owner_list;
 	bool keep_dst;
 	atomic_t offloadcnt; /* Number of oddloaded filters */
-	unsigned int nooffloaddevcnt; /* Number of devs unable to do offload */
+	unsigned int yesoffloaddevcnt; /* Number of devs unable to do offload */
 	unsigned int lockeddevcnt; /* Number of devs that require rtnl lock. */
 	struct {
 		struct tcf_chain *chain;
@@ -514,12 +514,12 @@ static inline struct Qdisc *qdisc_root_sleeping(const struct Qdisc *qdisc)
 }
 
 /* The qdisc root lock is a mechanism by which to top level
- * of a qdisc tree can be locked from any qdisc node in the
+ * of a qdisc tree can be locked from any qdisc yesde in the
  * forest.  This allows changing the configuration of some
- * aspect of the qdisc tree while blocking out asynchronous
+ * aspect of the qdisc tree while blocking out asynchroyesus
  * qdisc access in the packet processing paths.
  *
- * It is only legal to do this when the root will not change
+ * It is only legal to do this when the root will yest change
  * on us.  Otherwise we'll potentially lock the wrong qdisc
  * root.  This is enforced by holding the RTNL semaphore, which
  * all users of this lock accessor must do.
@@ -563,11 +563,11 @@ static inline void sch_tree_unlock(const struct Qdisc *q)
 	spin_unlock_bh(qdisc_root_sleeping_lock(q));
 }
 
-extern struct Qdisc noop_qdisc;
-extern struct Qdisc_ops noop_qdisc_ops;
+extern struct Qdisc yesop_qdisc;
+extern struct Qdisc_ops yesop_qdisc_ops;
 extern struct Qdisc_ops pfifo_fast_ops;
 extern struct Qdisc_ops mq_qdisc_ops;
-extern struct Qdisc_ops noqueue_qdisc_ops;
+extern struct Qdisc_ops yesqueue_qdisc_ops;
 extern const struct Qdisc_ops *default_qdisc_ops;
 static inline const struct Qdisc_ops *
 get_default_qdisc_ops(const struct net_device *dev, int ntx)
@@ -578,7 +578,7 @@ get_default_qdisc_ops(const struct net_device *dev, int ntx)
 
 struct Qdisc_class_common {
 	u32			classid;
-	struct hlist_node	hnode;
+	struct hlist_yesde	hyesde;
 };
 
 struct Qdisc_class_hash {
@@ -605,7 +605,7 @@ qdisc_class_find(const struct Qdisc_class_hash *hash, u32 id)
 		return NULL;
 
 	h = qdisc_class_hash(id, hash->hashmask);
-	hlist_for_each_entry(cl, &hash->hash[h], hnode) {
+	hlist_for_each_entry(cl, &hash->hash[h], hyesde) {
 		if (cl->classid == id)
 			return cl;
 	}
@@ -762,14 +762,14 @@ static inline bool qdisc_tx_changing(const struct net_device *dev)
 	return false;
 }
 
-/* Is the device using the noop qdisc on all queues?  */
-static inline bool qdisc_tx_is_noop(const struct net_device *dev)
+/* Is the device using the yesop qdisc on all queues?  */
+static inline bool qdisc_tx_is_yesop(const struct net_device *dev)
 {
 	unsigned int i;
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		if (rcu_access_pointer(txq->qdisc) != &noop_qdisc)
+		if (rcu_access_pointer(txq->qdisc) != &yesop_qdisc)
 			return false;
 	}
 	return true;
@@ -1074,7 +1074,7 @@ static inline struct sk_buff *qdisc_peek_head(struct Qdisc *sch)
 	return qh->head;
 }
 
-/* generic pseudo peek method for non-work-conserving qdisc */
+/* generic pseudo peek method for yesn-work-conserving qdisc */
 static inline struct sk_buff *qdisc_peek_dequeued(struct Qdisc *sch)
 {
 	struct sk_buff *skb = skb_peek(&sch->gso_skb);
@@ -1144,7 +1144,7 @@ static inline struct sk_buff *qdisc_dequeue_peeked(struct Qdisc *sch)
 static inline void __qdisc_reset_queue(struct qdisc_skb_head *qh)
 {
 	/*
-	 * We do not know the backlog in bytes of this list, it
+	 * We do yest kyesw the backlog in bytes of this list, it
 	 * is up to the caller to correct it
 	 */
 	ASSERT_RTNL();

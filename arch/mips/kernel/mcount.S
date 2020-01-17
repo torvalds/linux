@@ -16,8 +16,8 @@
 #include <asm/ftrace.h>
 
 	.text
-	.set noreorder
-	.set noat
+	.set yesreorder
+	.set yesat
 
 	.macro MCOUNT_SAVE_REGS
 	PTR_SUBU	sp, PT_SIZE
@@ -72,7 +72,7 @@ EXPORT_SYMBOL(_mcount)
 #ifdef CONFIG_32BIT
 	 addiu sp,sp,8
 #else
-	 nop
+	 yesp
 #endif
 
 	/* When tracing is activated, it calls ftrace_caller+8 (aka here) */
@@ -88,7 +88,7 @@ EXPORT_SYMBOL(_mcount)
 	sltu     t3, t1, a0	/* t3 = (a0 > _etext) */
 	or       t1, t2, t3
 	beqz     t1, ftrace_call
-	 nop
+	 yesp
 #if defined(KBUILD_MCOUNT_RA_ADDRESS) && defined(CONFIG_32BIT)
 	PTR_SUBU a0, a0, 16	/* arg1: adjust to module's recorded callsite */
 #else
@@ -97,14 +97,14 @@ EXPORT_SYMBOL(_mcount)
 
 	.globl ftrace_call
 ftrace_call:
-	nop	/* a placeholder for the call to a real tracing function */
+	yesp	/* a placeholder for the call to a real tracing function */
 	 move	a1, AT		/* arg2: parent's return address */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	.globl ftrace_graph_call
 ftrace_graph_call:
-	nop
-	 nop
+	yesp
+	 yesp
 #endif
 
 	MCOUNT_RESTORE_REGS
@@ -120,7 +120,7 @@ EXPORT_SYMBOL(_mcount)
 	PTR_LA	t1, ftrace_stub
 	PTR_L	t2, ftrace_trace_function /* Prepare t2 for (1) */
 	beq	t1, t2, fgraph_trace
-	 nop
+	 yesp
 
 	MCOUNT_SAVE_REGS
 
@@ -135,11 +135,11 @@ fgraph_trace:
 	PTR_LA	t1, ftrace_stub
 	PTR_L	t3, ftrace_graph_return
 	bne	t1, t3, ftrace_graph_caller
-	 nop
+	 yesp
 	PTR_LA	t1, ftrace_graph_entry_stub
 	PTR_L	t3, ftrace_graph_entry
 	bne	t1, t3, ftrace_graph_caller
-	 nop
+	 yesp
 #endif
 
 #ifdef CONFIG_32BIT
@@ -167,8 +167,8 @@ NESTED(ftrace_graph_caller, PT_SIZE, ra)
 #else
 	move	a0, MCOUNT_RA_ADDRESS_REG
 #endif
-	bnez	a0, 1f	/* non-leaf func: stored in MCOUNT_RA_ADDRESS_REG */
-	 nop
+	bnez	a0, 1f	/* yesn-leaf func: stored in MCOUNT_RA_ADDRESS_REG */
+	 yesp
 #endif
 	PTR_LA	a0, PT_R1(sp)	/* leaf func: the location in current stack */
 1:
@@ -188,7 +188,7 @@ NESTED(ftrace_graph_caller, PT_SIZE, ra)
 #endif
 
 	jal	prepare_ftrace_return
-	 nop
+	 yesp
 	MCOUNT_RESTORE_REGS
 #ifndef CONFIG_DYNAMIC_FTRACE
 #ifdef CONFIG_32BIT

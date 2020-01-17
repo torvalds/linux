@@ -19,15 +19,15 @@
 
 #define CSR_NODE_SHIFT		16
 #define CSR_NODE_BITS(p)	(((unsigned long)(p)) << CSR_NODE_SHIFT)
-#define CSR_NODE_MASK		0x0fff		/* 4K nodes */
+#define CSR_NODE_MASK		0x0fff		/* 4K yesdes */
 
-/* 32K CSR space, b15 indicates geo/non-geo */
+/* 32K CSR space, b15 indicates geo/yesn-geo */
 #define CSR_OFFSET_MASK	0x7fffUL
 #define CSR_G0_NODE_IDS (0x008 + (0 << 12))
 #define CSR_G3_EXT_IRQ_GEN (0x030 + (3 << 12))
 
 /*
- * Local CSR space starts in global CSR space with "nodeid" = 0xfff0, however
+ * Local CSR space starts in global CSR space with "yesdeid" = 0xfff0, however
  * when using the direct mapping on x86_64, both start and size needs to be
  * aligned with PMD_SIZE which is 2M
  */

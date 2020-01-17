@@ -1,7 +1,7 @@
 USB Connector
 =============
 
-USB connector node represents physical USB connector. It should be
+USB connector yesde represents physical USB connector. It should be
 a child of USB interface controller.
 
 Required properties:
@@ -13,7 +13,7 @@ Required properties:
 Optional properties:
 - label: symbolic name for the connector,
 - type: size of the connector, should be specified in case of USB-A, USB-B
-  non-fullsize connectors: "mini", "micro".
+  yesn-fullsize connectors: "mini", "micro".
 - self-powered: Set this property if the usb device that has its own power
   source.
 
@@ -58,9 +58,9 @@ Required properties for usb-c-connector with power delivery support:
   can't offer the power, Capability Mismatch is set. Required for power
   sink and power dual role.
 
-Required nodes:
+Required yesdes:
 - any data bus to the connector should be modeled using the OF graph bindings
-  specified in bindings/graph.txt, unless the bus is between parent node and
+  specified in bindings/graph.txt, unless the bus is between parent yesde and
   the connector. Since single connector can have multiple data buses every bus
   has assigned OF graph port number as follows:
     0: High Speed (HS), present in all connectors,

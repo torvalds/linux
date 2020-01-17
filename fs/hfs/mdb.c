@@ -2,7 +2,7 @@
  *  linux/fs/hfs/mdb.c
  *
  * Copyright (C) 1995-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techyeslogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  *
  * This file contains functions for reading/writing the MDB.
@@ -21,7 +21,7 @@
 /*
  * The HFS Master Directory Block (MDB).
  *
- * Also known as the Volume Information Block (VIB), this structure is
+ * Also kyeswn as the Volume Information Block (VIB), this structure is
  * the HFS equivalent of a superblock.
  *
  * Reference: _Inside Macintosh: Files_ pages 2-59 through 2-62
@@ -38,7 +38,7 @@ static int hfs_get_last_session(struct super_block *sb,
 
 	/* default values */
 	*start = 0;
-	*size = i_size_read(sb->s_bdev->bd_inode) >> 9;
+	*size = i_size_read(sb->s_bdev->bd_iyesde) >> 9;
 
 	if (HFS_SB(sb)->session >= 0) {
 		te.cdte_track = HFS_SB(sb)->session;
@@ -203,7 +203,7 @@ int hfs_mdb_get(struct super_block *sb)
 
 	attrib = mdb->drAtrb;
 	if (!(attrib & cpu_to_be16(HFS_SB_ATTRIB_UNMNT))) {
-		pr_warn("filesystem was not cleanly unmounted, running fsck.hfs is recommended.  mounting read-only.\n");
+		pr_warn("filesystem was yest cleanly unmounted, running fsck.hfs is recommended.  mounting read-only.\n");
 		sb->s_flags |= SB_RDONLY;
 	}
 	if ((attrib & cpu_to_be16(HFS_SB_ATTRIB_SLOCK))) {
@@ -236,7 +236,7 @@ out:
  *
  * Description:
  *   This updates the MDB on disk.
- *   It does not check, if the superblock has been modified, or
+ *   It does yest check, if the superblock has been modified, or
  *   if the filesystem has been mounted read-only. It is mainly
  *   called by hfs_sync_fs() and flush_mdb().
  * Input Variable(s):
@@ -252,7 +252,7 @@ out:
  *   The HFS MDB and on disk will be updated, by copying the possibly
  *   modified fields from the in memory MDB (in native byte order) to
  *   the disk block buffer.
- *   If 'backup' is non-zero then the alternate MDB is also written
+ *   If 'backup' is yesn-zero then the alternate MDB is also written
  *   and the function doesn't return until it is actually on disk.
  */
 void hfs_mdb_commit(struct super_block *sb)
@@ -277,14 +277,14 @@ void hfs_mdb_commit(struct super_block *sb)
 		mark_buffer_dirty(HFS_SB(sb)->mdb_bh);
 	}
 
-	/* write the backup MDB, not returning until it is written.
+	/* write the backup MDB, yest returning until it is written.
 	 * we only do this when either the catalog or extents overflow
 	 * files grow. */
 	if (test_and_clear_bit(HFS_FLG_ALT_MDB_DIRTY, &HFS_SB(sb)->flags) &&
 	    HFS_SB(sb)->alt_mdb) {
-		hfs_inode_write_fork(HFS_SB(sb)->ext_tree->inode, mdb->drXTExtRec,
+		hfs_iyesde_write_fork(HFS_SB(sb)->ext_tree->iyesde, mdb->drXTExtRec,
 				     &mdb->drXTFlSize, NULL);
-		hfs_inode_write_fork(HFS_SB(sb)->cat_tree->inode, mdb->drCTExtRec,
+		hfs_iyesde_write_fork(HFS_SB(sb)->cat_tree->iyesde, mdb->drCTExtRec,
 				     &mdb->drCTFlSize, NULL);
 
 		lock_buffer(HFS_SB(sb)->alt_mdb_bh);

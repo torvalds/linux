@@ -211,12 +211,12 @@ TRACE_EVENT(arm_event,
  * Non-Standard Section Report
  *
  * This event is generated when hardware detected a hardware
- * error event, which may be of non-standard section as defined
+ * error event, which may be of yesn-standard section as defined
  * in UEFI spec appendix "Common Platform Error Record", or may
- * be of sections for which TRACE_EVENT is not defined.
+ * be of sections for which TRACE_EVENT is yest defined.
  *
  */
-TRACE_EVENT(non_standard_event,
+TRACE_EVENT(yesn_standard_event,
 
 	TP_PROTO(const guid_t *sec_type,
 		 const guid_t *fru_id,
@@ -329,7 +329,7 @@ TRACE_EVENT(aer_event,
 		__get_str(dev_name),
 		__entry->severity == AER_CORRECTABLE ? "Corrected" :
 			__entry->severity == AER_FATAL ?
-			"Fatal" : "Uncorrected, non-fatal",
+			"Fatal" : "Uncorrected, yesn-fatal",
 		__entry->severity == AER_CORRECTABLE ?
 		__print_flags(__entry->status, "|", aer_correctable_errors) :
 		__print_flags(__entry->status, "|", aer_uncorrectable_errors),
@@ -348,7 +348,7 @@ TRACE_EVENT(aer_event,
 
 #ifdef CONFIG_MEMORY_FAILURE
 #define MF_ACTION_RESULT	\
-	EM ( MF_IGNORED, "Ignored" )	\
+	EM ( MF_IGNORED, "Igyesred" )	\
 	EM ( MF_FAILED,  "Failed" )	\
 	EM ( MF_DELAYED, "Delayed" )	\
 	EMe ( MF_RECOVERED, "Recovered" )
@@ -373,7 +373,7 @@ TRACE_EVENT(aer_event,
 	EM ( MF_MSG_TRUNCATED_LRU, "already truncated LRU page" )	\
 	EM ( MF_MSG_BUDDY, "free buddy page" )				\
 	EM ( MF_MSG_BUDDY_2ND, "free buddy page (2nd try)" )		\
-	EMe ( MF_MSG_UNKNOWN, "unknown page" )
+	EMe ( MF_MSG_UNKNOWN, "unkyeswn page" )
 
 /*
  * First define the enums in MM_ACTION_RESULT to be exported to userspace

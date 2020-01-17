@@ -108,7 +108,7 @@
 #define	MCF_IRQ_UART0		73		/* UART 0 */
 #define	MCF_IRQ_UART1		74		/* UART 1 */
 #define	MCF_IRQ_PLIP		75		/* PLIC 2Khz Periodic */
-#define	MCF_IRQ_PLIA		76		/* PLIC Asynchronous */
+#define	MCF_IRQ_PLIA		76		/* PLIC Asynchroyesus */
 #define	MCF_IRQ_USB0		77		/* USB Endpoint 0 */
 #define	MCF_IRQ_USB1		78		/* USB Endpoint 1 */
 #define	MCF_IRQ_USB2		79		/* USB Endpoint 2 */

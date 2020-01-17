@@ -11,12 +11,12 @@
  *  - DC charge-path
  *  - USB charge-path
  *  - Battery interface
- *  - Boost (not implemented)
+ *  - Boost (yest implemented)
  *  - Misc
  *  - HF-Buck
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -341,7 +341,7 @@ static int smbb_charger_attr_parse(struct smbb_charger *chg,
 
 	prop = &smbb_charger_attrs[which];
 
-	rc = of_property_read_u32(chg->dev->of_node, prop->name, &val);
+	rc = of_property_read_u32(chg->dev->of_yesde, prop->name, &val);
 	if (rc == 0) {
 		rc = smbb_charger_attr_write(chg, which, val);
 		if (!rc || !prop->fail_ok)
@@ -611,7 +611,7 @@ static int smbb_battery_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		else if (status & (STATUS_CHG_FAST | STATUS_CHG_TRKL))
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
-		else /* everything is ok for charging, but we are not... */
+		else /* everything is ok for charging, but we are yest... */
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
@@ -641,7 +641,7 @@ static int smbb_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		/* this charger is a single-cell lithium-ion battery charger
-		* only.  If you hook up some other technology, there will be
+		* only.  If you hook up some other techyeslogy, there will be
 		* fireworks.
 		*/
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
@@ -732,7 +732,7 @@ static const struct reg_off_mask_default {
 	*/
 	{ SMBB_CHG_CFG, 0xff, 0x00, BIT(3) },
 
-	/* Use VBAT (not VSYS) to compensate for IR drop during fast charging */
+	/* Use VBAT (yest VSYS) to compensate for IR drop during fast charging */
 	{ SMBB_BUCK_REG_MODE, BUCK_REG_MODE, BUCK_REG_MODE_VBAT },
 
 	/* Enable battery temperature comparators */
@@ -850,7 +850,7 @@ static int smbb_charger_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	rc = of_property_read_u32(pdev->dev.of_node, "reg", &chg->addr);
+	rc = of_property_read_u32(pdev->dev.of_yesde, "reg", &chg->addr);
 	if (rc) {
 		dev_err(&pdev->dev, "missing or invalid 'reg' property\n");
 		return rc;
@@ -864,12 +864,12 @@ static int smbb_charger_probe(struct platform_device *pdev)
 
 	chg->revision += 1;
 	if (chg->revision != 2 && chg->revision != 3) {
-		dev_err(&pdev->dev, "v1 hardware not supported\n");
+		dev_err(&pdev->dev, "v1 hardware yest supported\n");
 		return -ENODEV;
 	}
 	dev_info(&pdev->dev, "Initializing SMBB rev %u", chg->revision);
 
-	chg->dc_disabled = of_property_read_bool(pdev->dev.of_node, "qcom,disable-dc");
+	chg->dc_disabled = of_property_read_bool(pdev->dev.of_yesde, "qcom,disable-dc");
 
 	for (i = 0; i < _ATTR_CNT; ++i) {
 		rc = smbb_charger_attr_parse(chg, i);
@@ -880,7 +880,7 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	}
 
 	bat_cfg.drv_data = chg;
-	bat_cfg.of_node = pdev->dev.of_node;
+	bat_cfg.of_yesde = pdev->dev.of_yesde;
 	chg->bat_psy = devm_power_supply_register(&pdev->dev,
 						  &bat_psy_desc,
 						  &bat_cfg);
@@ -967,7 +967,7 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	if (IS_ERR(chg->otg_reg))
 		return PTR_ERR(chg->otg_reg);
 
-	chg->jeita_ext_temp = of_property_read_bool(pdev->dev.of_node,
+	chg->jeita_ext_temp = of_property_read_bool(pdev->dev.of_yesde,
 			"qcom,jeita-extended-temp-range");
 
 	/* Set temperature range to [35%:70%] or [25%:80%] accordingly */
@@ -979,7 +979,7 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	if (rc) {
 		dev_err(&pdev->dev,
 			"unable to set %s temperature range\n",
-			chg->jeita_ext_temp ? "JEITA extended" : "normal");
+			chg->jeita_ext_temp ? "JEITA extended" : "yesrmal");
 		return rc;
 	}
 

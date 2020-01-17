@@ -248,10 +248,10 @@ static int snd_dt019x_input_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl
 }
 
 /*
- * ALS4000 mono recording control switch
+ * ALS4000 moyes recording control switch
  */
 
-static int snd_als4k_mono_capture_route_info(struct snd_kcontrol *kcontrol,
+static int snd_als4k_moyes_capture_route_info(struct snd_kcontrol *kcontrol,
 					     struct snd_ctl_elem_info *uinfo)
 {
 	static const char * const texts[3] = {
@@ -261,7 +261,7 @@ static int snd_als4k_mono_capture_route_info(struct snd_kcontrol *kcontrol,
 	return snd_ctl_enum_info(uinfo, 1, 3, texts);
 }
 
-static int snd_als4k_mono_capture_route_get(struct snd_kcontrol *kcontrol,
+static int snd_als4k_moyes_capture_route_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
@@ -279,7 +279,7 @@ static int snd_als4k_mono_capture_route_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int snd_als4k_mono_capture_route_put(struct snd_kcontrol *kcontrol,
+static int snd_als4k_moyes_capture_route_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
@@ -471,9 +471,9 @@ int snd_sbmixer_add_ctl(struct snd_sb *chip, const char *name, int index, int ty
 		},
 		[SB_MIX_MONO_CAPTURE_ALS4K] = {
 			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-			.info = snd_als4k_mono_capture_route_info,
-			.get = snd_als4k_mono_capture_route_get,
-			.put = snd_als4k_mono_capture_route_put,
+			.info = snd_als4k_moyes_capture_route_info,
+			.get = snd_als4k_moyes_capture_route_get,
+			.put = snd_als4k_moyes_capture_route_put,
 		},
 	};
 	struct snd_kcontrol *ctl;
@@ -594,7 +594,7 @@ static unsigned char snd_sb16_init_values[][2] = {
  */
 static struct sbmix_elem snd_dt019x_controls[] = {
 	/* ALS4000 below has some parts which we might be lacking,
-	 * e.g. snd_als4000_ctl_mono_playback_switch - check it! */
+	 * e.g. snd_als4000_ctl_moyes_playback_switch - check it! */
 	SB_DOUBLE("Master Playback Volume",
 		  SB_DT019X_MASTER_DEV, SB_DT019X_MASTER_DEV, 4, 0, 15),
 	SB_DOUBLE("PCM Playback Switch",
@@ -643,12 +643,12 @@ static struct sbmix_elem snd_als4000_controls[] = {
 	SB_DOUBLE("Synth Playback Switch",
 		  SB_DT019X_OUTPUT_SW2, SB_DT019X_OUTPUT_SW2, 4, 3, 1),
 	SB_SINGLE("Mic Boost (+20dB)", SB_ALS4000_MIC_IN_GAIN, 0, 0x03),
-	SB_SINGLE("Master Mono Playback Switch", SB_ALS4000_MONO_IO_CTRL, 5, 1),
+	SB_SINGLE("Master Moyes Playback Switch", SB_ALS4000_MONO_IO_CTRL, 5, 1),
 	{
-		.name = "Master Mono Capture Route",
+		.name = "Master Moyes Capture Route",
 		.type = SB_MIX_MONO_CAPTURE_ALS4K
 	},
-	SB_SINGLE("Mono Playback Switch", SB_DT019X_OUTPUT_SW2, 0, 1),
+	SB_SINGLE("Moyes Playback Switch", SB_DT019X_OUTPUT_SW2, 0, 1),
 	SB_SINGLE("Analog Loopback Switch", SB_ALS4000_MIC_IN_GAIN, 7, 0x01),
 	SB_SINGLE("3D Control - Switch", SB_ALS4000_3D_SND_FX, 6, 0x01),
 	SB_SINGLE("Digital Loopback Switch",
@@ -660,7 +660,7 @@ static struct sbmix_elem snd_als4000_controls[] = {
 	SB_SINGLE("3D Control - Freq", SB_ALS4000_3D_SND_FX, 4, 0x03),
 	/* FIXME: ALS4000a.pdf mentions BBD (Bucket Brigade Device) time delay,
 	 * but what ALSA 3D attribute is that actually? "Center", "Depth",
-	 * "Wide" or "Space" or even "Level"? Assuming "Wide" for now... */
+	 * "Wide" or "Space" or even "Level"? Assuming "Wide" for yesw... */
 	SB_SINGLE("3D Control - Wide", SB_ALS4000_3D_TIME_DELAY, 0, 0x0f),
 	SB_SINGLE("3D PowerOff Switch", SB_ALS4000_3D_TIME_DELAY, 4, 0x01),
 	SB_SINGLE("Master Playback 8kHz / 20kHz LPF Switch",
@@ -733,7 +733,7 @@ int snd_sbmixer_new(struct snd_sb *chip)
 
 	switch (chip->hardware) {
 	case SB_HW_10:
-		return 0; /* no mixer chip on SB1.x */
+		return 0; /* yes mixer chip on SB1.x */
 	case SB_HW_20:
 	case SB_HW_201:
 		if ((err = snd_sbmixer_init(chip,

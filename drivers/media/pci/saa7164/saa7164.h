@@ -249,13 +249,13 @@ struct saa7164_i2c {
 	u32				i2c_rc;
 };
 
-struct saa7164_tvnorm {
+struct saa7164_tvyesrm {
 	char		*name;
 	v4l2_std_id	id;
 };
 
 struct saa7164_encoder_params {
-	struct saa7164_tvnorm encodernorm;
+	struct saa7164_tvyesrm encoderyesrm;
 	u32 height;
 	u32 width;
 	u32 is_50hz;
@@ -272,7 +272,7 @@ struct saa7164_encoder_params {
 };
 
 struct saa7164_vbi_params {
-	struct saa7164_tvnorm encodernorm;
+	struct saa7164_tvyesrm encoderyesrm;
 	u32 height;
 	u32 width;
 	u32 is_50hz;
@@ -368,7 +368,7 @@ struct saa7164_port {
 	/* --- Encoder/V4L related attributes --- */
 	/* Encoder */
 	/* Defaults established in saa7164-encoder.c */
-	struct saa7164_tvnorm encodernorm;
+	struct saa7164_tvyesrm encoderyesrm;
 	struct v4l2_ctrl_handler ctrl_handler;
 	v4l2_std_id std;
 	u32 height;
@@ -510,7 +510,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 int saa7164_cmd_send(struct saa7164_dev *dev,
 	u8 id, enum tmComResCmd command, u16 controlselector,
 	u16 size, void *buf);
-void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqno);
+void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqyes);
 int saa7164_irq_dequeue(struct saa7164_dev *dev);
 
 /* ----------------------------------------------------------- */

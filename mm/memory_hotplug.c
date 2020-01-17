@@ -64,7 +64,7 @@ void put_online_mems(void)
 	percpu_up_read(&mem_hotplug_lock);
 }
 
-bool movable_node_enabled = false;
+bool movable_yesde_enabled = false;
 
 #ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
 bool memhp_auto_online;
@@ -111,7 +111,7 @@ static struct resource *register_memory_resource(u64 start, u64 size)
 	/*
 	 * Request ownership of the new memory range.  This might be
 	 * a child of an existing resource that was present but
-	 * not marked as busy.
+	 * yest marked as busy.
 	 */
 	res = __request_region(&iomem_resource, start, size,
 			       resource_name, flags);
@@ -220,30 +220,30 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
 }
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
 
-void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
+void __init register_page_bootmem_info_yesde(struct pglist_data *pgdat)
 {
 	unsigned long i, pfn, end_pfn, nr_pages;
-	int node = pgdat->node_id;
+	int yesde = pgdat->yesde_id;
 	struct page *page;
 
 	nr_pages = PAGE_ALIGN(sizeof(struct pglist_data)) >> PAGE_SHIFT;
 	page = virt_to_page(pgdat);
 
 	for (i = 0; i < nr_pages; i++, page++)
-		get_page_bootmem(node, page, NODE_INFO);
+		get_page_bootmem(yesde, page, NODE_INFO);
 
-	pfn = pgdat->node_start_pfn;
+	pfn = pgdat->yesde_start_pfn;
 	end_pfn = pgdat_end_pfn(pgdat);
 
 	/* register section info */
 	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
 		/*
-		 * Some platforms can assign the same pfn to multiple nodes - on
-		 * node0 as well as nodeN.  To avoid registering a pfn against
-		 * multiple nodes we check that this pfn does not already
-		 * reside in some other nodes.
+		 * Some platforms can assign the same pfn to multiple yesdes - on
+		 * yesde0 as well as yesdeN.  To avoid registering a pfn against
+		 * multiple yesdes we check that this pfn does yest already
+		 * reside in some other yesdes.
 		 */
-		if (pfn_valid(pfn) && (early_pfn_to_nid(pfn) == node))
+		if (pfn_valid(pfn) && (early_pfn_to_nid(pfn) == yesde))
 			register_page_bootmem_info_section(pfn);
 	}
 }
@@ -426,10 +426,10 @@ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
 	}
 
 	/*
-	 * The section is not biggest or smallest mem_section in the zone, it
-	 * only creates a hole in the zone. So in this case, we need not
+	 * The section is yest biggest or smallest mem_section in the zone, it
+	 * only creates a hole in the zone. So in this case, we need yest
 	 * change the zone. But perhaps, the zone has only hole data. Thus
-	 * it check the zone has only hole or not.
+	 * it check the zone has only hole or yest.
 	 */
 	pfn = zone_start_pfn;
 	for (; pfn < zone_end_pfn; pfn += PAGES_PER_SUBSECTION) {
@@ -443,12 +443,12 @@ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
 		if (pfn >= start_pfn && pfn < end_pfn)
 			continue;
 
-		/* If we find valid section, we have nothing to do */
+		/* If we find valid section, we have yesthing to do */
 		zone_span_writeunlock(zone);
 		return;
 	}
 
-	/* The zone has no valid section */
+	/* The zone has yes valid section */
 	zone->zone_start_pfn = 0;
 	zone->spanned_pages = 0;
 	zone_span_writeunlock(zone);
@@ -456,31 +456,31 @@ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
 
 static void update_pgdat_span(struct pglist_data *pgdat)
 {
-	unsigned long node_start_pfn = 0, node_end_pfn = 0;
+	unsigned long yesde_start_pfn = 0, yesde_end_pfn = 0;
 	struct zone *zone;
 
-	for (zone = pgdat->node_zones;
-	     zone < pgdat->node_zones + MAX_NR_ZONES; zone++) {
+	for (zone = pgdat->yesde_zones;
+	     zone < pgdat->yesde_zones + MAX_NR_ZONES; zone++) {
 		unsigned long zone_end_pfn = zone->zone_start_pfn +
 					     zone->spanned_pages;
 
 		/* No need to lock the zones, they can't change. */
 		if (!zone->spanned_pages)
 			continue;
-		if (!node_end_pfn) {
-			node_start_pfn = zone->zone_start_pfn;
-			node_end_pfn = zone_end_pfn;
+		if (!yesde_end_pfn) {
+			yesde_start_pfn = zone->zone_start_pfn;
+			yesde_end_pfn = zone_end_pfn;
 			continue;
 		}
 
-		if (zone_end_pfn > node_end_pfn)
-			node_end_pfn = zone_end_pfn;
-		if (zone->zone_start_pfn < node_start_pfn)
-			node_start_pfn = zone->zone_start_pfn;
+		if (zone_end_pfn > yesde_end_pfn)
+			yesde_end_pfn = zone_end_pfn;
+		if (zone->zone_start_pfn < yesde_start_pfn)
+			yesde_start_pfn = zone->zone_start_pfn;
 	}
 
-	pgdat->node_start_pfn = node_start_pfn;
-	pgdat->node_spanned_pages = node_end_pfn - node_start_pfn;
+	pgdat->yesde_start_pfn = yesde_start_pfn;
+	pgdat->yesde_spanned_pages = yesde_end_pfn - yesde_start_pfn;
 }
 
 void __ref remove_pfn_range_from_zone(struct zone *zone,
@@ -492,9 +492,9 @@ void __ref remove_pfn_range_from_zone(struct zone *zone,
 
 #ifdef CONFIG_ZONE_DEVICE
 	/*
-	 * Zone shrinking code cannot properly deal with ZONE_DEVICE. So
-	 * we will not try to shrink the zones - which is okay as
-	 * set_zone_contiguous() cannot deal with ZONE_DEVICE either way.
+	 * Zone shrinking code canyest properly deal with ZONE_DEVICE. So
+	 * we will yest try to shrink the zones - which is okay as
+	 * set_zone_contiguous() canyest deal with ZONE_DEVICE either way.
 	 */
 	if (zone_idx(zone) == ZONE_DEVICE)
 		return;
@@ -636,36 +636,36 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
 	return 0;
 }
 
-/* check which state of node_states will be changed when online memory */
-static void node_states_check_changes_online(unsigned long nr_pages,
-	struct zone *zone, struct memory_notify *arg)
+/* check which state of yesde_states will be changed when online memory */
+static void yesde_states_check_changes_online(unsigned long nr_pages,
+	struct zone *zone, struct memory_yestify *arg)
 {
 	int nid = zone_to_nid(zone);
 
 	arg->status_change_nid = NUMA_NO_NODE;
-	arg->status_change_nid_normal = NUMA_NO_NODE;
+	arg->status_change_nid_yesrmal = NUMA_NO_NODE;
 	arg->status_change_nid_high = NUMA_NO_NODE;
 
-	if (!node_state(nid, N_MEMORY))
+	if (!yesde_state(nid, N_MEMORY))
 		arg->status_change_nid = nid;
-	if (zone_idx(zone) <= ZONE_NORMAL && !node_state(nid, N_NORMAL_MEMORY))
-		arg->status_change_nid_normal = nid;
+	if (zone_idx(zone) <= ZONE_NORMAL && !yesde_state(nid, N_NORMAL_MEMORY))
+		arg->status_change_nid_yesrmal = nid;
 #ifdef CONFIG_HIGHMEM
-	if (zone_idx(zone) <= ZONE_HIGHMEM && !node_state(nid, N_HIGH_MEMORY))
+	if (zone_idx(zone) <= ZONE_HIGHMEM && !yesde_state(nid, N_HIGH_MEMORY))
 		arg->status_change_nid_high = nid;
 #endif
 }
 
-static void node_states_set_node(int node, struct memory_notify *arg)
+static void yesde_states_set_yesde(int yesde, struct memory_yestify *arg)
 {
-	if (arg->status_change_nid_normal >= 0)
-		node_set_state(node, N_NORMAL_MEMORY);
+	if (arg->status_change_nid_yesrmal >= 0)
+		yesde_set_state(yesde, N_NORMAL_MEMORY);
 
 	if (arg->status_change_nid_high >= 0)
-		node_set_state(node, N_HIGH_MEMORY);
+		yesde_set_state(yesde, N_HIGH_MEMORY);
 
 	if (arg->status_change_nid >= 0)
-		node_set_state(node, N_MEMORY);
+		yesde_set_state(yesde, N_MEMORY);
 }
 
 static void __meminit resize_zone_range(struct zone *zone, unsigned long start_pfn,
@@ -684,10 +684,10 @@ static void __meminit resize_pgdat_range(struct pglist_data *pgdat, unsigned lon
 {
 	unsigned long old_end_pfn = pgdat_end_pfn(pgdat);
 
-	if (!pgdat->node_spanned_pages || start_pfn < pgdat->node_start_pfn)
-		pgdat->node_start_pfn = start_pfn;
+	if (!pgdat->yesde_spanned_pages || start_pfn < pgdat->yesde_start_pfn)
+		pgdat->yesde_start_pfn = start_pfn;
 
-	pgdat->node_spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - pgdat->node_start_pfn;
+	pgdat->yesde_spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - pgdat->yesde_start_pfn;
 
 }
 /*
@@ -699,12 +699,12 @@ void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
 		unsigned long nr_pages, struct vmem_altmap *altmap)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
-	int nid = pgdat->node_id;
+	int nid = pgdat->yesde_id;
 	unsigned long flags;
 
 	clear_zone_contiguous(zone);
 
-	/* TODO Huh pgdat is irqsave while zone is not. It used to be like that before */
+	/* TODO Huh pgdat is irqsave while zone is yest. It used to be like that before */
 	pgdat_resize_lock(pgdat, &flags);
 	zone_span_writelock(zone);
 	if (zone_is_empty(zone))
@@ -715,10 +715,10 @@ void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
 	pgdat_resize_unlock(pgdat, &flags);
 
 	/*
-	 * TODO now we have a visible range of pages which are not associated
+	 * TODO yesw we have a visible range of pages which are yest associated
 	 * with their zone properly. Not nice but set_pfnblock_flags_mask
 	 * expects the zone spans the pfn range. All the pages in the range
-	 * are reserved so nobody should be touching them so we should be safe
+	 * are reserved so yesbody should be touching them so we should be safe
 	 */
 	memmap_init_zone(nr_pages, nid, zone_idx(zone), start_pfn,
 			MEMMAP_HOTPLUG, altmap);
@@ -728,7 +728,7 @@ void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
 
 /*
  * Returns a default kernel memory zone for the given pfn range.
- * If no kernel zone covers this pfn range it will automatically go
+ * If yes kernel zone covers this pfn range it will automatically go
  * to the ZONE_NORMAL.
  */
 static struct zone *default_kernel_zone_for_pfn(int nid, unsigned long start_pfn,
@@ -738,13 +738,13 @@ static struct zone *default_kernel_zone_for_pfn(int nid, unsigned long start_pfn
 	int zid;
 
 	for (zid = 0; zid <= ZONE_NORMAL; zid++) {
-		struct zone *zone = &pgdat->node_zones[zid];
+		struct zone *zone = &pgdat->yesde_zones[zid];
 
 		if (zone_intersects(zone, start_pfn, nr_pages))
 			return zone;
 	}
 
-	return &pgdat->node_zones[ZONE_NORMAL];
+	return &pgdat->yesde_zones[ZONE_NORMAL];
 }
 
 static inline struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
@@ -752,12 +752,12 @@ static inline struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn
 {
 	struct zone *kernel_zone = default_kernel_zone_for_pfn(nid, start_pfn,
 			nr_pages);
-	struct zone *movable_zone = &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
+	struct zone *movable_zone = &NODE_DATA(nid)->yesde_zones[ZONE_MOVABLE];
 	bool in_kernel = zone_intersects(kernel_zone, start_pfn, nr_pages);
 	bool in_movable = zone_intersects(movable_zone, start_pfn, nr_pages);
 
 	/*
-	 * We inherit the existing zone in a simple case where zones do not
+	 * We inherit the existing zone in a simple case where zones do yest
 	 * overlap in the given range
 	 */
 	if (in_kernel ^ in_movable)
@@ -765,10 +765,10 @@ static inline struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn
 
 	/*
 	 * If the range doesn't belong to any zone or two zones overlap in the
-	 * given range then we use movable zone only if movable_node is
+	 * given range then we use movable zone only if movable_yesde is
 	 * enabled because we always online to a kernel zone by default.
 	 */
-	return movable_node_enabled ? movable_zone : kernel_zone;
+	return movable_yesde_enabled ? movable_zone : kernel_zone;
 }
 
 struct zone * zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
@@ -778,7 +778,7 @@ struct zone * zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
 		return default_kernel_zone_for_pfn(nid, start_pfn, nr_pages);
 
 	if (online_type == MMOP_ONLINE_MOVABLE)
-		return &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
+		return &NODE_DATA(nid)->yesde_zones[ZONE_MOVABLE];
 
 	return default_zone_for_pfn(nid, start_pfn, nr_pages);
 }
@@ -791,14 +791,14 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 	int need_zonelists_rebuild = 0;
 	int nid;
 	int ret;
-	struct memory_notify arg;
+	struct memory_yestify arg;
 	struct memory_block *mem;
 
 	mem_hotplug_begin();
 
 	/*
 	 * We can't use pfn_to_nid() because nid might be stored in struct page
-	 * which is not yet initialized. Instead, we find nid from memory block.
+	 * which is yest yet initialized. Instead, we find nid from memory block.
 	 */
 	mem = find_memory_block(__pfn_to_section(pfn));
 	nid = mem->nid;
@@ -810,16 +810,16 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 
 	arg.start_pfn = pfn;
 	arg.nr_pages = nr_pages;
-	node_states_check_changes_online(nr_pages, zone, &arg);
+	yesde_states_check_changes_online(nr_pages, zone, &arg);
 
-	ret = memory_notify(MEM_GOING_ONLINE, &arg);
-	ret = notifier_to_errno(ret);
+	ret = memory_yestify(MEM_GOING_ONLINE, &arg);
+	ret = yestifier_to_erryes(ret);
 	if (ret)
 		goto failed_addition;
 
 	/*
-	 * If this zone is not populated, then it is not in zonelist.
-	 * This means the page allocator ignores this zone.
+	 * If this zone is yest populated, then it is yest in zonelist.
+	 * This means the page allocator igyesres this zone.
 	 * So, zonelist must be updated after online.
 	 */
 	if (!populated_zone(zone)) {
@@ -830,7 +830,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 	ret = walk_system_ram_range(pfn, nr_pages, &onlined_pages,
 		online_pages_range);
 	if (ret) {
-		/* not a single memory resource was applicable */
+		/* yest a single memory resource was applicable */
 		if (need_zonelists_rebuild)
 			zone_pcp_reset(zone);
 		goto failed_addition;
@@ -839,12 +839,12 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 	zone->present_pages += onlined_pages;
 
 	pgdat_resize_lock(zone->zone_pgdat, &flags);
-	zone->zone_pgdat->node_present_pages += onlined_pages;
+	zone->zone_pgdat->yesde_present_pages += onlined_pages;
 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
 
 	shuffle_zone(zone);
 
-	node_states_set_node(nid, &arg);
+	yesde_states_set_yesde(nid, &arg);
 	if (need_zonelists_rebuild)
 		build_all_zonelists(NULL);
 	else
@@ -859,7 +859,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 
 	writeback_set_ratelimit();
 
-	memory_notify(MEM_ONLINE, &arg);
+	memory_yestify(MEM_ONLINE, &arg);
 	mem_hotplug_done();
 	return 0;
 
@@ -867,21 +867,21 @@ failed_addition:
 	pr_debug("online_pages [mem %#010llx-%#010llx] failed\n",
 		 (unsigned long long) pfn << PAGE_SHIFT,
 		 (((unsigned long long) pfn + nr_pages) << PAGE_SHIFT) - 1);
-	memory_notify(MEM_CANCEL_ONLINE, &arg);
+	memory_yestify(MEM_CANCEL_ONLINE, &arg);
 	remove_pfn_range_from_zone(zone, pfn, nr_pages);
 	mem_hotplug_done();
 	return ret;
 }
 #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
 
-static void reset_node_present_pages(pg_data_t *pgdat)
+static void reset_yesde_present_pages(pg_data_t *pgdat)
 {
 	struct zone *z;
 
-	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+	for (z = pgdat->yesde_zones; z < pgdat->yesde_zones + MAX_NR_ZONES; z++)
 		z->present_pages = 0;
 
-	pgdat->node_present_pages = 0;
+	pgdat->yesde_present_pages = 0;
 }
 
 /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
@@ -892,13 +892,13 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
 
 	pgdat = NODE_DATA(nid);
 	if (!pgdat) {
-		pgdat = arch_alloc_nodedata(nid);
+		pgdat = arch_alloc_yesdedata(nid);
 		if (!pgdat)
 			return NULL;
 
-		pgdat->per_cpu_nodestats =
-			alloc_percpu(struct per_cpu_nodestat);
-		arch_refresh_nodedata(nid, pgdat);
+		pgdat->per_cpu_yesdestats =
+			alloc_percpu(struct per_cpu_yesdestat);
+		arch_refresh_yesdedata(nid, pgdat);
 	} else {
 		int cpu;
 		/*
@@ -910,24 +910,24 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
 		pgdat->kswapd_order = 0;
 		pgdat->kswapd_classzone_idx = 0;
 		for_each_online_cpu(cpu) {
-			struct per_cpu_nodestat *p;
+			struct per_cpu_yesdestat *p;
 
-			p = per_cpu_ptr(pgdat->per_cpu_nodestats, cpu);
+			p = per_cpu_ptr(pgdat->per_cpu_yesdestats, cpu);
 			memset(p, 0, sizeof(*p));
 		}
 	}
 
 	/* we can use NODE_DATA(nid) from here */
 
-	pgdat->node_id = nid;
-	pgdat->node_start_pfn = start_pfn;
+	pgdat->yesde_id = nid;
+	pgdat->yesde_start_pfn = start_pfn;
 
-	/* init node's zones as empty zones, we don't have any present pages.*/
+	/* init yesde's zones as empty zones, we don't have any present pages.*/
 	free_area_init_core_hotplug(nid);
 
 	/*
-	 * The node we allocated has no zone fallback lists. For avoiding
-	 * to access not-initialized zonelist, build here.
+	 * The yesde we allocated has yes zone fallback lists. For avoiding
+	 * to access yest-initialized zonelist, build here.
 	 */
 	build_all_zonelists(pgdat);
 
@@ -936,52 +936,52 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
 	 * clear all zones' present_pages because they will be updated in
 	 * online_pages() and offline_pages().
 	 */
-	reset_node_managed_pages(pgdat);
-	reset_node_present_pages(pgdat);
+	reset_yesde_managed_pages(pgdat);
+	reset_yesde_present_pages(pgdat);
 
 	return pgdat;
 }
 
-static void rollback_node_hotadd(int nid)
+static void rollback_yesde_hotadd(int nid)
 {
 	pg_data_t *pgdat = NODE_DATA(nid);
 
-	arch_refresh_nodedata(nid, NULL);
-	free_percpu(pgdat->per_cpu_nodestats);
-	arch_free_nodedata(pgdat);
+	arch_refresh_yesdedata(nid, NULL);
+	free_percpu(pgdat->per_cpu_yesdestats);
+	arch_free_yesdedata(pgdat);
 }
 
 
 /**
- * try_online_node - online a node if offlined
- * @nid: the node ID
- * @start: start addr of the node
- * @set_node_online: Whether we want to online the node
- * called by cpu_up() to online a node without onlined memory.
+ * try_online_yesde - online a yesde if offlined
+ * @nid: the yesde ID
+ * @start: start addr of the yesde
+ * @set_yesde_online: Whether we want to online the yesde
+ * called by cpu_up() to online a yesde without onlined memory.
  *
  * Returns:
- * 1 -> a new node has been allocated
- * 0 -> the node is already online
- * -ENOMEM -> the node could not be allocated
+ * 1 -> a new yesde has been allocated
+ * 0 -> the yesde is already online
+ * -ENOMEM -> the yesde could yest be allocated
  */
-static int __try_online_node(int nid, u64 start, bool set_node_online)
+static int __try_online_yesde(int nid, u64 start, bool set_yesde_online)
 {
 	pg_data_t *pgdat;
 	int ret = 1;
 
-	if (node_online(nid))
+	if (yesde_online(nid))
 		return 0;
 
 	pgdat = hotadd_new_pgdat(nid, start);
 	if (!pgdat) {
-		pr_err("Cannot online node %d due to NULL pgdat\n", nid);
+		pr_err("Canyest online yesde %d due to NULL pgdat\n", nid);
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	if (set_node_online) {
-		node_set_online(nid);
-		ret = register_one_node(nid);
+	if (set_yesde_online) {
+		yesde_set_online(nid);
+		ret = register_one_yesde(nid);
 		BUG_ON(ret);
 	}
 out:
@@ -989,14 +989,14 @@ out:
 }
 
 /*
- * Users of this function always want to online/register the node
+ * Users of this function always want to online/register the yesde
  */
-int try_online_node(int nid)
+int try_online_yesde(int nid)
 {
 	int ret;
 
 	mem_hotplug_begin();
-	ret =  __try_online_node(nid, 0, true);
+	ret =  __try_online_yesde(nid, 0, true);
 	mem_hotplug_done();
 	return ret;
 }
@@ -1029,7 +1029,7 @@ int __ref add_memory_resource(int nid, struct resource *res)
 {
 	struct mhp_restrictions restrictions = {};
 	u64 start, size;
-	bool new_node = false;
+	bool new_yesde = false;
 	int ret;
 
 	start = res->start;
@@ -1047,12 +1047,12 @@ int __ref add_memory_resource(int nid, struct resource *res)
 	 * this new range and calculate total pages correctly.  The range will
 	 * be removed at hot-remove time.
 	 */
-	memblock_add_node(start, size, nid);
+	memblock_add_yesde(start, size, nid);
 
-	ret = __try_online_node(nid, start, false);
+	ret = __try_online_yesde(nid, start, false);
 	if (ret < 0)
 		goto error;
-	new_node = ret;
+	new_yesde = ret;
 
 	/* call arch's memory hotadd */
 	ret = arch_add_memory(nid, start, size, &restrictions);
@@ -1066,18 +1066,18 @@ int __ref add_memory_resource(int nid, struct resource *res)
 		goto error;
 	}
 
-	if (new_node) {
-		/* If sysfs file of new node can't be created, cpu on the node
-		 * can't be hot-added. There is no rollback way now.
+	if (new_yesde) {
+		/* If sysfs file of new yesde can't be created, cpu on the yesde
+		 * can't be hot-added. There is yes rollback way yesw.
 		 * So, check by BUG_ON() to catch it reluctantly..
-		 * We online node here. We can't roll back from here.
+		 * We online yesde here. We can't roll back from here.
 		 */
-		node_set_online(nid);
-		ret = __register_one_node(nid);
+		yesde_set_online(nid);
+		ret = __register_one_yesde(nid);
 		BUG_ON(ret);
 	}
 
-	/* link memory sections under this node.*/
+	/* link memory sections under this yesde.*/
 	ret = link_mem_sections(nid, PFN_DOWN(start), PFN_UP(start + size - 1));
 	BUG_ON(ret);
 
@@ -1094,8 +1094,8 @@ int __ref add_memory_resource(int nid, struct resource *res)
 	return ret;
 error:
 	/* rollback pgdat allocation and others */
-	if (new_node)
-		rollback_node_hotadd(nid);
+	if (new_yesde)
+		rollback_yesde_hotadd(nid);
 	memblock_remove(start, size);
 	mem_hotplug_done();
 	return ret;
@@ -1131,7 +1131,7 @@ EXPORT_SYMBOL_GPL(add_memory);
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
 /*
- * A free page on the buddy free lists (not the per-cpu lists) has PageBuddy
+ * A free page on the buddy free lists (yest the per-cpu lists) has PageBuddy
  * set and the size of the free page is given by page_order(). Using this,
  * the function determines if the pageblock contains only free pages.
  * Due to buddy contraints, a free page at least the size of a pageblock will
@@ -1162,19 +1162,19 @@ static unsigned long next_active_pageblock(unsigned long pfn)
 	return pfn + pageblock_nr_pages;
 }
 
-static bool is_pageblock_removable_nolock(unsigned long pfn)
+static bool is_pageblock_removable_yeslock(unsigned long pfn)
 {
 	struct page *page = pfn_to_page(pfn);
 	struct zone *zone;
 
 	/*
 	 * We have to be careful here because we are iterating over memory
-	 * sections which are not zone aware so we might end up outside of
+	 * sections which are yest zone aware so we might end up outside of
 	 * the zone but still within the section.
-	 * We have to take care about the node as well. If the node is offline
+	 * We have to take care about the yesde as well. If the yesde is offline
 	 * its NODE_DATA will be NULL - see page_zone.
 	 */
-	if (!node_online(page_to_nid(page)))
+	if (!yesde_online(page_to_nid(page)))
 		return false;
 
 	zone = page_zone(page);
@@ -1196,7 +1196,7 @@ bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
 
 	/* Check the starting page of each pageblock within the range */
 	for (pfn = start_pfn; pfn < end_pfn; pfn = next_active_pageblock(pfn)) {
-		if (!is_pageblock_removable_nolock(pfn))
+		if (!is_pageblock_removable_yeslock(pfn))
 			return false;
 		cond_resched();
 	}
@@ -1256,7 +1256,7 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
 
 /*
  * Scan pfn range [start,end) to find movable/migratable pages (LRU pages,
- * non-lru movable pages and hugepages). We scan pfn because it's much
+ * yesn-lru movable pages and hugepages). We scan pfn because it's much
  * easier than scanning over linked list. This function returns the pfn
  * of the first found movable page if it's found, otherwise 0.
  */
@@ -1287,21 +1287,21 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
 	return 0;
 }
 
-static struct page *new_node_page(struct page *page, unsigned long private)
+static struct page *new_yesde_page(struct page *page, unsigned long private)
 {
 	int nid = page_to_nid(page);
-	nodemask_t nmask = node_states[N_MEMORY];
+	yesdemask_t nmask = yesde_states[N_MEMORY];
 
 	/*
-	 * try to allocate from a different node but reuse this node if there
-	 * are no other online nodes to be used (e.g. we are offlining a part
-	 * of the only existing node)
+	 * try to allocate from a different yesde but reuse this yesde if there
+	 * are yes other online yesdes to be used (e.g. we are offlining a part
+	 * of the only existing yesde)
 	 */
-	node_clear(nid, nmask);
-	if (nodes_empty(nmask))
-		node_set(nid, nmask);
+	yesde_clear(nid, nmask);
+	if (yesdes_empty(nmask))
+		yesde_set(nid, nmask);
 
-	return new_page_nodemask(page, nid, &nmask);
+	return new_page_yesdemask(page, nid, &nmask);
 }
 
 static int
@@ -1345,7 +1345,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 			continue;
 		/*
 		 * We can skip free pages. And we can deal with pages on
-		 * LRU and non-lru movable pages.
+		 * LRU and yesn-lru movable pages.
 		 */
 		if (PageLRU(page))
 			ret = isolate_lru_page(page);
@@ -1354,7 +1354,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 		if (!ret) { /* Success */
 			list_add_tail(&page->lru, &source);
 			if (!__PageMovable(page))
-				inc_node_page_state(page, NR_ISOLATED_ANON +
+				inc_yesde_page_state(page, NR_ISOLATED_ANON +
 						    page_is_file_cache(page));
 
 		} else {
@@ -1364,8 +1364,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 		put_page(page);
 	}
 	if (!list_empty(&source)) {
-		/* Allocate a new page from the nearest neighbor node */
-		ret = migrate_pages(&source, new_node_page, NULL, 0,
+		/* Allocate a new page from the nearest neighbor yesde */
+		ret = migrate_pages(&source, new_yesde_page, NULL, 0,
 					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
 		if (ret) {
 			list_for_each_entry(page, &source, lru) {
@@ -1402,52 +1402,52 @@ check_pages_isolated_cb(unsigned long start_pfn, unsigned long nr_pages,
 				   MEMORY_OFFLINE);
 }
 
-static int __init cmdline_parse_movable_node(char *p)
+static int __init cmdline_parse_movable_yesde(char *p)
 {
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-	movable_node_enabled = true;
+	movable_yesde_enabled = true;
 #else
-	pr_warn("movable_node parameter depends on CONFIG_HAVE_MEMBLOCK_NODE_MAP to work properly\n");
+	pr_warn("movable_yesde parameter depends on CONFIG_HAVE_MEMBLOCK_NODE_MAP to work properly\n");
 #endif
 	return 0;
 }
-early_param("movable_node", cmdline_parse_movable_node);
+early_param("movable_yesde", cmdline_parse_movable_yesde);
 
-/* check which state of node_states will be changed when offline memory */
-static void node_states_check_changes_offline(unsigned long nr_pages,
-		struct zone *zone, struct memory_notify *arg)
+/* check which state of yesde_states will be changed when offline memory */
+static void yesde_states_check_changes_offline(unsigned long nr_pages,
+		struct zone *zone, struct memory_yestify *arg)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
 	unsigned long present_pages = 0;
 	enum zone_type zt;
 
 	arg->status_change_nid = NUMA_NO_NODE;
-	arg->status_change_nid_normal = NUMA_NO_NODE;
+	arg->status_change_nid_yesrmal = NUMA_NO_NODE;
 	arg->status_change_nid_high = NUMA_NO_NODE;
 
 	/*
-	 * Check whether node_states[N_NORMAL_MEMORY] will be changed.
+	 * Check whether yesde_states[N_NORMAL_MEMORY] will be changed.
 	 * If the memory to be offline is within the range
 	 * [0..ZONE_NORMAL], and it is the last present memory there,
 	 * the zones in that range will become empty after the offlining,
-	 * thus we can determine that we need to clear the node from
-	 * node_states[N_NORMAL_MEMORY].
+	 * thus we can determine that we need to clear the yesde from
+	 * yesde_states[N_NORMAL_MEMORY].
 	 */
 	for (zt = 0; zt <= ZONE_NORMAL; zt++)
-		present_pages += pgdat->node_zones[zt].present_pages;
+		present_pages += pgdat->yesde_zones[zt].present_pages;
 	if (zone_idx(zone) <= ZONE_NORMAL && nr_pages >= present_pages)
-		arg->status_change_nid_normal = zone_to_nid(zone);
+		arg->status_change_nid_yesrmal = zone_to_nid(zone);
 
 #ifdef CONFIG_HIGHMEM
 	/*
-	 * node_states[N_HIGH_MEMORY] contains nodes which
-	 * have normal memory or high memory.
+	 * yesde_states[N_HIGH_MEMORY] contains yesdes which
+	 * have yesrmal memory or high memory.
 	 * Here we add the present_pages belonging to ZONE_HIGHMEM.
 	 * If the zone is within the range of [0..ZONE_HIGHMEM), and
 	 * we determine that the zones in that range become empty,
-	 * we need to clear the node for N_HIGH_MEMORY.
+	 * we need to clear the yesde for N_HIGH_MEMORY.
 	 */
-	present_pages += pgdat->node_zones[ZONE_HIGHMEM].present_pages;
+	present_pages += pgdat->yesde_zones[ZONE_HIGHMEM].present_pages;
 	if (zone_idx(zone) <= ZONE_HIGHMEM && nr_pages >= present_pages)
 		arg->status_change_nid_high = zone_to_nid(zone);
 #endif
@@ -1459,25 +1459,25 @@ static void node_states_check_changes_offline(unsigned long nr_pages,
 	 * Here we count the possible pages from ZONE_MOVABLE.
 	 * If after having accounted all the pages, we see that the nr_pages
 	 * to be offlined is over or equal to the accounted pages,
-	 * we know that the node will become empty, and so, we can clear
+	 * we kyesw that the yesde will become empty, and so, we can clear
 	 * it for N_MEMORY as well.
 	 */
-	present_pages += pgdat->node_zones[ZONE_MOVABLE].present_pages;
+	present_pages += pgdat->yesde_zones[ZONE_MOVABLE].present_pages;
 
 	if (nr_pages >= present_pages)
 		arg->status_change_nid = zone_to_nid(zone);
 }
 
-static void node_states_clear_node(int node, struct memory_notify *arg)
+static void yesde_states_clear_yesde(int yesde, struct memory_yestify *arg)
 {
-	if (arg->status_change_nid_normal >= 0)
-		node_clear_state(node, N_NORMAL_MEMORY);
+	if (arg->status_change_nid_yesrmal >= 0)
+		yesde_clear_state(yesde, N_NORMAL_MEMORY);
 
 	if (arg->status_change_nid_high >= 0)
-		node_clear_state(node, N_HIGH_MEMORY);
+		yesde_clear_state(yesde, N_HIGH_MEMORY);
 
 	if (arg->status_change_nid >= 0)
-		node_clear_state(node, N_MEMORY);
+		yesde_clear_state(yesde, N_MEMORY);
 }
 
 static int count_system_ram_pages_cb(unsigned long start_pfn,
@@ -1494,11 +1494,11 @@ static int __ref __offline_pages(unsigned long start_pfn,
 {
 	unsigned long pfn, nr_pages = 0;
 	unsigned long offlined_pages = 0;
-	int ret, node, nr_isolate_pageblock;
+	int ret, yesde, nr_isolate_pageblock;
 	unsigned long flags;
 	unsigned long valid_start, valid_end;
 	struct zone *zone;
-	struct memory_notify arg;
+	struct memory_yestify arg;
 	char *reason;
 
 	mem_hotplug_begin();
@@ -1507,7 +1507,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
 	 * Don't allow to offline memory blocks that contain holes.
 	 * Consequently, memory blocks with holes can never get onlined
 	 * via the hotplug path - online_pages() - as hotplugged memory has
-	 * no holes. This way, we e.g., don't have to worry about marking
+	 * yes holes. This way, we e.g., don't have to worry about marking
 	 * memory holes PG_reserved, don't need pfn_valid() checks, and can
 	 * avoid using walk_system_ram_range() later.
 	 */
@@ -1520,7 +1520,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
 	}
 
 	/* This makes hotplug much easier...and readable.
-	   we assume this for now. .*/
+	   we assume this for yesw. .*/
 	if (!test_pages_in_a_zone(start_pfn, end_pfn, &valid_start,
 				  &valid_end)) {
 		ret = -EINVAL;
@@ -1529,7 +1529,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
 	}
 
 	zone = page_zone(pfn_to_page(valid_start));
-	node = zone_to_nid(zone);
+	yesde = zone_to_nid(zone);
 
 	/* set above range as isolated */
 	ret = start_isolate_page_range(start_pfn, end_pfn,
@@ -1543,12 +1543,12 @@ static int __ref __offline_pages(unsigned long start_pfn,
 
 	arg.start_pfn = start_pfn;
 	arg.nr_pages = nr_pages;
-	node_states_check_changes_offline(nr_pages, zone, &arg);
+	yesde_states_check_changes_offline(nr_pages, zone, &arg);
 
-	ret = memory_notify(MEM_GOING_OFFLINE, &arg);
-	ret = notifier_to_errno(ret);
+	ret = memory_yestify(MEM_GOING_OFFLINE, &arg);
+	ret = yestifier_to_erryes(ret);
 	if (ret) {
-		reason = "notifier failure";
+		reason = "yestifier failure";
 		goto failed_removal_isolated;
 	}
 
@@ -1589,7 +1589,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
 	} while (ret);
 
 	/* Ok, all of our target is isolated.
-	   We cannot do rollback at this point. */
+	   We canyest do rollback at this point. */
 	walk_system_ram_range(start_pfn, end_pfn - start_pfn,
 			      &offlined_pages, offline_isolated_pages_cb);
 	pr_info("Offlined Pages %ld\n", offlined_pages);
@@ -1607,7 +1607,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
 	zone->present_pages -= offlined_pages;
 
 	pgdat_resize_lock(zone->zone_pgdat, &flags);
-	zone->zone_pgdat->node_present_pages -= offlined_pages;
+	zone->zone_pgdat->yesde_present_pages -= offlined_pages;
 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
 
 	init_per_zone_wmark_min();
@@ -1618,23 +1618,23 @@ static int __ref __offline_pages(unsigned long start_pfn,
 	} else
 		zone_pcp_update(zone);
 
-	node_states_clear_node(node, &arg);
+	yesde_states_clear_yesde(yesde, &arg);
 	if (arg.status_change_nid >= 0) {
-		kswapd_stop(node);
-		kcompactd_stop(node);
+		kswapd_stop(yesde);
+		kcompactd_stop(yesde);
 	}
 
 	vm_total_pages = nr_free_pagecache_pages();
 	writeback_set_ratelimit();
 
-	memory_notify(MEM_OFFLINE, &arg);
+	memory_yestify(MEM_OFFLINE, &arg);
 	remove_pfn_range_from_zone(zone, start_pfn, nr_pages);
 	mem_hotplug_done();
 	return 0;
 
 failed_removal_isolated:
 	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
-	memory_notify(MEM_CANCEL_OFFLINE, &arg);
+	memory_yestify(MEM_CANCEL_OFFLINE, &arg);
 failed_removal:
 	pr_debug("memory offlining [mem %#010llx-%#010llx] failed due to %s\n",
 		 (unsigned long long) start_pfn << PAGE_SHIFT,
@@ -1667,15 +1667,15 @@ static int check_memblock_offlined_cb(struct memory_block *mem, void *arg)
 	return 0;
 }
 
-static int check_cpu_on_node(pg_data_t *pgdat)
+static int check_cpu_on_yesde(pg_data_t *pgdat)
 {
 	int cpu;
 
 	for_each_present_cpu(cpu) {
-		if (cpu_to_node(cpu) == pgdat->node_id)
+		if (cpu_to_yesde(cpu) == pgdat->yesde_id)
 			/*
-			 * the cpu on this node isn't removed, and we can't
-			 * offline this node.
+			 * the cpu on this yesde isn't removed, and we can't
+			 * offline this yesde.
 			 */
 			return -EBUSY;
 	}
@@ -1683,60 +1683,60 @@ static int check_cpu_on_node(pg_data_t *pgdat)
 	return 0;
 }
 
-static int check_no_memblock_for_node_cb(struct memory_block *mem, void *arg)
+static int check_yes_memblock_for_yesde_cb(struct memory_block *mem, void *arg)
 {
 	int nid = *(int *)arg;
 
 	/*
-	 * If a memory block belongs to multiple nodes, the stored nid is not
-	 * reliable. However, such blocks are always online (e.g., cannot get
-	 * offlined) and, therefore, are still spanned by the node.
+	 * If a memory block belongs to multiple yesdes, the stored nid is yest
+	 * reliable. However, such blocks are always online (e.g., canyest get
+	 * offlined) and, therefore, are still spanned by the yesde.
 	 */
 	return mem->nid == nid ? -EEXIST : 0;
 }
 
 /**
- * try_offline_node
- * @nid: the node ID
+ * try_offline_yesde
+ * @nid: the yesde ID
  *
- * Offline a node if all memory sections and cpus of the node are removed.
+ * Offline a yesde if all memory sections and cpus of the yesde are removed.
  *
  * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
  * and online/offline operations before this call.
  */
-void try_offline_node(int nid)
+void try_offline_yesde(int nid)
 {
 	pg_data_t *pgdat = NODE_DATA(nid);
 	int rc;
 
 	/*
-	 * If the node still spans pages (especially ZONE_DEVICE), don't
-	 * offline it. A node spans memory after move_pfn_range_to_zone(),
+	 * If the yesde still spans pages (especially ZONE_DEVICE), don't
+	 * offline it. A yesde spans memory after move_pfn_range_to_zone(),
 	 * e.g., after the memory block was onlined.
 	 */
-	if (pgdat->node_spanned_pages)
+	if (pgdat->yesde_spanned_pages)
 		return;
 
 	/*
-	 * Especially offline memory blocks might not be spanned by the
-	 * node. They will get spanned by the node once they get onlined.
-	 * However, they link to the node in sysfs and can get onlined later.
+	 * Especially offline memory blocks might yest be spanned by the
+	 * yesde. They will get spanned by the yesde once they get onlined.
+	 * However, they link to the yesde in sysfs and can get onlined later.
 	 */
-	rc = for_each_memory_block(&nid, check_no_memblock_for_node_cb);
+	rc = for_each_memory_block(&nid, check_yes_memblock_for_yesde_cb);
 	if (rc)
 		return;
 
-	if (check_cpu_on_node(pgdat))
+	if (check_cpu_on_yesde(pgdat))
 		return;
 
 	/*
-	 * all memory/cpu of this node are removed, we can offline this
-	 * node now.
+	 * all memory/cpu of this yesde are removed, we can offline this
+	 * yesde yesw.
 	 */
-	node_set_offline(nid);
-	unregister_one_node(nid);
+	yesde_set_offline(nid);
+	unregister_one_yesde(nid);
 }
-EXPORT_SYMBOL(try_offline_node);
+EXPORT_SYMBOL(try_offline_yesde);
 
 static void __release_memory_resource(resource_size_t start,
 				      resource_size_t size)
@@ -1746,8 +1746,8 @@ static void __release_memory_resource(resource_size_t start,
 	/*
 	 * When removing memory in the same granularity as it was added,
 	 * this function never fails. It might only fail if resources
-	 * have to be adjusted or split. We'll ignore the error, as
-	 * removing of memory cannot fail.
+	 * have to be adjusted or split. We'll igyesre the error, as
+	 * removing of memory canyest fail.
 	 */
 	ret = release_mem_region_adjustable(&iomem_resource, start, size);
 	if (ret) {
@@ -1769,7 +1769,7 @@ static int __ref try_remove_memory(int nid, u64 start, u64 size)
 	/*
 	 * All memory blocks must be offlined before removing memory.  Check
 	 * whether all memory blocks in question are offline and return error
-	 * if this is not the case.
+	 * if this is yest the case.
 	 */
 	rc = walk_memory_blocks(start, size, NULL, check_memblock_offlined_cb);
 	if (rc)
@@ -1786,7 +1786,7 @@ static int __ref try_remove_memory(int nid, u64 start, u64 size)
 	memblock_remove(start, size);
 	__release_memory_resource(start, size);
 
-	try_offline_node(nid);
+	try_offline_yesde(nid);
 
 done:
 	mem_hotplug_done();
@@ -1795,19 +1795,19 @@ done:
 
 /**
  * remove_memory
- * @nid: the node ID
+ * @nid: the yesde ID
  * @start: physical address of the region to remove
  * @size: size of the region to remove
  *
  * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
  * and online/offline operations before this call, as required by
- * try_offline_node().
+ * try_offline_yesde().
  */
 void __remove_memory(int nid, u64 start, u64 size)
 {
 
 	/*
-	 * trigger BUG() if some memory is not offlined prior to calling this
+	 * trigger BUG() if some memory is yest offlined prior to calling this
 	 * function
 	 */
 	if (try_remove_memory(nid, start, size))
@@ -1816,7 +1816,7 @@ void __remove_memory(int nid, u64 start, u64 size)
 
 /*
  * Remove memory if every memory block is offline, otherwise return -EBUSY is
- * some memory is not offline
+ * some memory is yest offline
  */
 int remove_memory(int nid, u64 start, u64 size)
 {

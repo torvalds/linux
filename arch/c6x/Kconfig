@@ -60,7 +60,7 @@ config CMDLINE
 	depends on CMDLINE_BOOL
 	default "console=ttyS0,57600"
 	help
-	  On some architectures there is currently no way for the boot loader
+	  On some architectures there is currently yes way for the boot loader
 	  to pass arguments to the kernel. For these architectures, you should
 	  supply some command-line options at build time by entering them
 	  here.

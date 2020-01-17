@@ -26,7 +26,7 @@ struct i915_active_fence {
 	 *
 	 * Updates to the i915_active_request must be serialised under a lock
 	 * to ensure that the timeline is ordered. Normally, this is the
-	 * timeline->mutex, but another mutex may be used so long as it is
+	 * timeline->mutex, but ayesther mutex may be used so long as it is
 	 * done so consistently.
 	 *
 	 * For lockdep tracking of the above, we store the lock we intend
@@ -37,7 +37,7 @@ struct i915_active_fence {
 #endif
 };
 
-struct active_node;
+struct active_yesde;
 
 #define I915_ACTIVE_MAY_SLEEP BIT(0)
 
@@ -49,10 +49,10 @@ struct i915_active {
 	struct mutex mutex;
 
 	spinlock_t tree_lock;
-	struct active_node *cache;
+	struct active_yesde *cache;
 	struct rb_root tree;
 
-	/* Preallocated "exclusive" node */
+	/* Preallocated "exclusive" yesde */
 	struct i915_active_fence excl;
 
 	unsigned long flags;

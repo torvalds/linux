@@ -212,7 +212,7 @@
 			ranges = <0 0x50000000 0x2000000>;
 
 			/*
-			 * Closed source PowerVR driver, no child device
+			 * Closed source PowerVR driver, yes child device
 			 * binding or driver in mainline
 			 */
 		};

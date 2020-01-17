@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <linux/module.h>
@@ -21,7 +21,7 @@ static inline void arc_write_me(unsigned short *addr, unsigned long value)
 
 /*
  * This gets called before relocation loop in generic loader
- * Make a note of the section index of unwinding section
+ * Make a yeste of the section index of unwinding section
  */
 int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			      char *secstr, struct module *mod)
@@ -118,7 +118,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 	return 0;
 
 relo_err:
-	pr_err("%s: unknown relocation: %u\n",
+	pr_err("%s: unkyeswn relocation: %u\n",
 		module->name, ELF32_R_TYPE(rel_entry[i].r_info));
 	return -ENOEXEC;
 
@@ -127,7 +127,7 @@ relo_err:
 /* Just before lift off: After sections have been relocated, we add the
  * dwarf section to unwinder table pool
  * This couldn't be done in module_frob_arch_sections() because
- * relocations had not been applied by then
+ * relocations had yest been applied by then
  */
 int module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
 		    struct module *mod)

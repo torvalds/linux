@@ -6,7 +6,7 @@
   G PHY LO (LocalOscillator) Measuring and Control routines
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-  Copyright (c) 2005, 2006 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (c) 2005, 2006 Stefayes Brivio <stefayes.brivio@polimi.it>
   Copyright (c) 2005-2007 Michael Buesch <m@bues.ch>
   Copyright (c) 2005, 2006 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005, 2006 Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -794,7 +794,7 @@ struct b43_lo_calib *b43_get_calib_lo_settings(struct b43_wldev *dev,
 	if (c)
 		return c;
 	/* Not in the list of calibrated LO settings.
-	 * Calibrate it now. */
+	 * Calibrate it yesw. */
 	c = b43_calibrate_lo_setting(dev, bbatt, rfatt);
 	if (!c)
 		return NULL;
@@ -822,7 +822,7 @@ void b43_gphy_dc_lt_init(struct b43_wldev *dev, bool update_all)
 	if (!update_all && !power_vector)
 		return; /* Nothing to do. */
 
-	/* Suspend the MAC now to avoid continuous suspend/enable
+	/* Suspend the MAC yesw to avoid continuous suspend/enable
 	 * cycles in the loop. */
 	b43_mac_suspend(dev);
 
@@ -842,7 +842,7 @@ void b43_gphy_dc_lt_init(struct b43_wldev *dev, bool update_all)
 
 		cal = b43_calibrate_lo_setting(dev, bbatt, rfatt);
 		if (!cal) {
-			b43warn(dev->wl, "LO: Could not "
+			b43warn(dev->wl, "LO: Could yest "
 				"calibrate DC table entry\n");
 			continue;
 		}
@@ -922,7 +922,7 @@ void b43_lo_g_maintenance_work(struct b43_wldev *dev)
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;
 	struct b43_txpower_lo_control *lo = gphy->lo_control;
-	unsigned long now;
+	unsigned long yesw;
 	unsigned long expire;
 	struct b43_lo_calib *cal, *tmp;
 	bool current_item_expired = false;
@@ -930,12 +930,12 @@ void b43_lo_g_maintenance_work(struct b43_wldev *dev)
 
 	if (!lo)
 		return;
-	now = jiffies;
+	yesw = jiffies;
 	hwpctl = b43_has_hardware_pctl(dev);
 
 	if (hwpctl) {
 		/* Read the power vector and update it, if needed. */
-		expire = now - B43_LO_PWRVEC_EXPIRE;
+		expire = yesw - B43_LO_PWRVEC_EXPIRE;
 		if (time_before(lo->pwr_vec_read_time, expire)) {
 			lo_read_power_vector(dev);
 			b43_gphy_dc_lt_init(dev, 0);
@@ -947,7 +947,7 @@ void b43_lo_g_maintenance_work(struct b43_wldev *dev)
 		return;
 	/* Search for expired LO settings. Remove them.
 	 * Recalibrate the current setting, if expired. */
-	expire = now - B43_LO_CALIB_EXPIRE;
+	expire = yesw - B43_LO_CALIB_EXPIRE;
 	list_for_each_entry_safe(cal, tmp, &lo->calib_list, list) {
 		if (!time_before(cal->calib_time, expire))
 			continue;

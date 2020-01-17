@@ -28,7 +28,7 @@ int rtw_enter_ips(struct rtw_dev *rtwdev)
 {
 	set_bit(RTW_FLAG_INACTIVE_PS, rtwdev->flags);
 
-	rtw_coex_ips_notify(rtwdev, COEX_IPS_ENTER);
+	rtw_coex_ips_yestify(rtwdev, COEX_IPS_ENTER);
 
 	rtw_core_stop(rtwdev);
 	rtw_hci_link_ps(rtwdev, true);
@@ -60,7 +60,7 @@ int rtw_leave_ips(struct rtw_dev *rtwdev)
 
 	rtw_iterate_vifs_atomic(rtwdev, rtw_restore_port_cfg_iter, rtwdev);
 
-	rtw_coex_ips_notify(rtwdev, COEX_IPS_LEAVE);
+	rtw_coex_ips_yestify(rtwdev, COEX_IPS_LEAVE);
 
 	return 0;
 }
@@ -105,7 +105,7 @@ void rtw_power_mode_change(struct rtw_dev *rtwdev, bool enter)
 
 	/* Hit here means that driver failed to change hardware power mode to
 	 * active state after retry 3 times. If the power state is locked at
-	 * Deep sleep, most of the hardware circuits is not working, even
+	 * Deep sleep, most of the hardware circuits is yest working, even
 	 * register read/write. It should be treated as fatal error and
 	 * requires an entire analysis about the firmware/hardware
 	 */
@@ -127,10 +127,10 @@ static void rtw_fw_leave_lps_state_check(struct rtw_dev *rtwdev)
 	 * and see if AP sends an ACK back, then firmware will restore
 	 * the REG_TCR register.
 	 *
-	 * If driver does not wait for firmware, null packet with
+	 * If driver does yest wait for firmware, null packet with
 	 * PS bit could be sent due to incorrect REG_TCR setting.
 	 *
-	 * In our test, 100ms should be enough for firmware to finish
+	 * In our test, 100ms should be eyesugh for firmware to finish
 	 * the flow. If REG_TCR Register is still incorrect after 100ms,
 	 * just modify it directly, and throw a warn message.
 	 */
@@ -159,7 +159,7 @@ static void rtw_leave_lps_core(struct rtw_dev *rtwdev)
 
 	clear_bit(RTW_FLAG_LEISURE_PS, rtwdev->flags);
 
-	rtw_coex_lps_notify(rtwdev, COEX_LPS_DISABLE);
+	rtw_coex_lps_yestify(rtwdev, COEX_LPS_DISABLE);
 }
 
 static void __rtw_enter_lps_deep(struct rtw_dev *rtwdev)
@@ -188,7 +188,7 @@ static void rtw_enter_lps_core(struct rtw_dev *rtwdev)
 	conf->rlbm = 1;
 	conf->smart_ps = 2;
 
-	rtw_coex_lps_notify(rtwdev, COEX_LPS_ENABLE);
+	rtw_coex_lps_yestify(rtwdev, COEX_LPS_ENABLE);
 
 	rtw_fw_set_pwr_mode(rtwdev);
 	rtw_hci_link_ps(rtwdev, true);

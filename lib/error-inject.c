@@ -124,8 +124,8 @@ static void module_unload_ei_list(struct module *mod)
 	mutex_unlock(&ei_mutex);
 }
 
-/* Module notifier call back, checking error injection table on the module */
-static int ei_module_callback(struct notifier_block *nb,
+/* Module yestifier call back, checking error injection table on the module */
+static int ei_module_callback(struct yestifier_block *nb,
 			      unsigned long val, void *data)
 {
 	struct module *mod = data;
@@ -138,14 +138,14 @@ static int ei_module_callback(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block ei_module_nb = {
-	.notifier_call = ei_module_callback,
+static struct yestifier_block ei_module_nb = {
+	.yestifier_call = ei_module_callback,
 	.priority = 0
 };
 
 static __init int module_ei_init(void)
 {
-	return register_module_notifier(&ei_module_nb);
+	return register_module_yestifier(&ei_module_nb);
 }
 #else /* !CONFIG_MODULES */
 #define module_ei_init()	(0)
@@ -181,7 +181,7 @@ static const char *error_type_string(int etype)
 	case EI_ETYPE_ERRNO_NULL:
 		return "ERRNO_NULL";
 	default:
-		return "(unknown)";
+		return "(unkyeswn)";
 	}
 }
 
@@ -201,7 +201,7 @@ static const struct seq_operations ei_seq_ops = {
 	.show  = ei_seq_show,
 };
 
-static int ei_open(struct inode *inode, struct file *filp)
+static int ei_open(struct iyesde *iyesde, struct file *filp)
 {
 	return seq_open(filp, &ei_seq_ops);
 }

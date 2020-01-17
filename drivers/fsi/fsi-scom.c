@@ -61,7 +61,7 @@
 
 /* Retries */
 #define SCOM_MAX_RETRIES		100	/* Retries on busy */
-#define SCOM_MAX_IND_RETRIES		10	/* Retries indirect not ready */
+#define SCOM_MAX_IND_RETRIES		10	/* Retries indirect yest ready */
 
 struct scom_device {
 	struct list_head link;
@@ -540,9 +540,9 @@ static long scom_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return rc;
 }
 
-static int scom_open(struct inode *inode, struct file *file)
+static int scom_open(struct iyesde *iyesde, struct file *file)
 {
-	struct scom_device *scom = container_of(inode->i_cdev, struct scom_device, cdev);
+	struct scom_device *scom = container_of(iyesde->i_cdev, struct scom_device, cdev);
 
 	file->private_data = scom;
 
@@ -591,8 +591,8 @@ static int scom_probe(struct device *dev)
 	scom->dev.release = scom_free;
 	device_initialize(&scom->dev);
 
-	/* Allocate a minor in the FSI space */
-	rc = fsi_get_new_minor(fsi_dev, fsi_dev_scom, &scom->dev.devt, &didx);
+	/* Allocate a miyesr in the FSI space */
+	rc = fsi_get_new_miyesr(fsi_dev, fsi_dev_scom, &scom->dev.devt, &didx);
 	if (rc)
 		goto err;
 
@@ -602,12 +602,12 @@ static int scom_probe(struct device *dev)
 	if (rc) {
 		dev_err(dev, "Error %d creating char device %s\n",
 			rc, dev_name(&scom->dev));
-		goto err_free_minor;
+		goto err_free_miyesr;
 	}
 
 	return 0;
- err_free_minor:
-	fsi_free_minor(scom->dev.devt);
+ err_free_miyesr:
+	fsi_free_miyesr(scom->dev.devt);
  err:
 	put_device(&scom->dev);
 	return rc;
@@ -621,7 +621,7 @@ static int scom_remove(struct device *dev)
 	scom->dead = true;
 	mutex_unlock(&scom->lock);
 	cdev_device_del(&scom->cdev, &scom->dev);
-	fsi_free_minor(scom->dev.devt);
+	fsi_free_miyesr(scom->dev.devt);
 	put_device(&scom->dev);
 
 	return 0;

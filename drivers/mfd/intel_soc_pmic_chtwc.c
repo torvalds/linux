@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  *
- * Based on various non upstream patches to support the CHT Whiskey Cove PMIC:
+ * Based on various yesn upstream patches to support the CHT Whiskey Cove PMIC:
  * Copyright (C) 2013-2015 Intel Corporation. All rights reserved.
  */
 
@@ -37,7 +37,7 @@ enum {
 	CHT_WC_ADC_IRQ,
 	CHT_WC_EXT_CHGR_IRQ,
 	CHT_WC_GPIO_IRQ,
-	/* There is no irq 6 */
+	/* There is yes irq 6 */
 	CHT_WC_CRIT_IRQ = 7,
 };
 
@@ -75,7 +75,7 @@ static int cht_wc_byte_reg_read(void *context, unsigned int reg,
 	int ret, orig_addr = client->addr;
 
 	if (!(reg & REG_ADDR_MASK)) {
-		dev_err(&client->dev, "Error I2C address not specified\n");
+		dev_err(&client->dev, "Error I2C address yest specified\n");
 		return -EINVAL;
 	}
 
@@ -97,7 +97,7 @@ static int cht_wc_byte_reg_write(void *context, unsigned int reg,
 	int ret, orig_addr = client->addr;
 
 	if (!(reg & REG_ADDR_MASK)) {
-		dev_err(&client->dev, "Error I2C address not specified\n");
+		dev_err(&client->dev, "Error I2C address yest specified\n");
 		return -EINVAL;
 	}
 

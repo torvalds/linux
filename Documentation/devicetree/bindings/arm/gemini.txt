@@ -10,17 +10,17 @@ Storm Semiconductor was acquired by Cortina Systems in 2008 and the SoC was
 produced and used for NAS and similar usecases. In 2014 Cortina Systems was
 in turn acquired by Inphi, who seem to have discontinued this product family.
 
-Many of the IP blocks used in the SoC comes from Faraday Technology.
+Many of the IP blocks used in the SoC comes from Faraday Techyeslogy.
 
-Required properties (in root node):
+Required properties (in root yesde):
 	compatible = "cortina,gemini";
 
-Required nodes:
+Required yesdes:
 
 - soc: the SoC should be represented by a simple bus encompassing all the
-  onchip devices, this is referred to as the soc bus node.
+  onchip devices, this is referred to as the soc bus yesde.
 
-- syscon: the soc bus node must have a system controller node pointing to the
+- syscon: the soc bus yesde must have a system controller yesde pointing to the
   global control registers, with the compatible string
   "cortina,gemini-syscon", "syscon";
 
@@ -37,12 +37,12 @@ Required nodes:
   The reset lines have shorthand defines in the include file:
   <dt-bindings/reset/cortina,gemini-reset.h>
 
-- timer: the soc bus node must have a timer node pointing to the SoC timer
+- timer: the soc bus yesde must have a timer yesde pointing to the SoC timer
   block, with the compatible string "cortina,gemini-timer"
   See: clocksource/cortina,gemini-timer.txt
 
-- interrupt-controller: the sob bus node must have an interrupt controller
-  node pointing to the SoC interrupt controller block, with the compatible
+- interrupt-controller: the sob bus yesde must have an interrupt controller
+  yesde pointing to the SoC interrupt controller block, with the compatible
   string "cortina,gemini-interrupt-controller"
   See interrupt-controller/cortina,gemini-interrupt-controller.txt
 

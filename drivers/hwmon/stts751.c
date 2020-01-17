@@ -2,7 +2,7 @@
 /*
  * STTS751 sensor driver
  *
- * Copyright (C) 2016-2017 Istituto Italiano di Tecnologia - RBCS - EDL
+ * Copyright (C) 2016-2017 Istituto Italiayes di Tecyeslogia - RBCS - EDL
  * Robotics, Brain and Cognitive Sciences department
  * Electronic Design Laboratory
  *
@@ -28,7 +28,7 @@
 
 #define DEVNAME "stts751"
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short yesrmal_i2c[] = {
 	0x48, 0x49, 0x38, 0x39,  /* STTS751-0 */
 	0x4A, 0x4B, 0x3A, 0x3B,  /* STTS751-1 */
 	I2C_CLIENT_END };
@@ -64,7 +64,7 @@ static const unsigned short normal_i2c[] = {
 /*
  * Possible update intervals are (in mS):
  * 16000, 8000, 4000, 2000, 1000, 500, 250, 125, 62.5, 31.25
- * However we are not going to complicate things too much and we stick to the
+ * However we are yest going to complicate things too much and we stick to the
  * approx value in mS.
  */
 static const int stts751_intervals[] = {
@@ -97,7 +97,7 @@ struct stts751_priv {
 	u8 config;
 	bool min_alert, max_alert, therm_trip;
 	bool data_valid, alert_valid;
-	bool notify_max, notify_min;
+	bool yestify_max, yestify_min;
 };
 
 /*
@@ -158,7 +158,7 @@ static int stts751_update_temp(struct stts751_priv *priv)
 	 * hardware monitoring). So the solution used here is to read the high
 	 * byte once, then the low byte, then the high byte again. If the new
 	 * high byte matches the old one, then we have a valid reading. Else we
-	 * have to read the low byte again, and now we believe we have a correct
+	 * have to read the low byte again, and yesw we believe we have a correct
 	 * reading.
 	 */
 	integer1 = i2c_smbus_read_byte_data(priv->client, STTS751_REG_TEMP_H);
@@ -264,7 +264,7 @@ static int stts751_update_alert(struct stts751_priv *priv)
 	int cache_time = msecs_to_jiffies(stts751_intervals[priv->interval]);
 
 	/*
-	 * Add another 10% because if we run faster than the HW conversion
+	 * Add ayesther 10% because if we run faster than the HW conversion
 	 * rate we will end up in reporting incorrectly alarms.
 	 */
 	cache_time += cache_time / 10;
@@ -277,7 +277,7 @@ static int stts751_update_alert(struct stts751_priv *priv)
 	conv_done = ret & (STTS751_STATUS_TRIPH | STTS751_STATUS_TRIPL);
 	/*
 	 * Reset the cache if the cache time expired, or if we are sure
-	 * we have valid data from a device conversion, or if we know
+	 * we have valid data from a device conversion, or if we kyesw
 	 * our cache has been never written.
 	 *
 	 * Note that when the cache has been never written the point is
@@ -329,21 +329,21 @@ static void stts751_alert(struct i2c_client *client,
 	}
 
 	if (priv->max_alert) {
-		if (priv->notify_max)
-			dev_notice(priv->dev, "got alert for HIGH temperature");
-		priv->notify_max = false;
+		if (priv->yestify_max)
+			dev_yestice(priv->dev, "got alert for HIGH temperature");
+		priv->yestify_max = false;
 
 		/* unblock alert poll */
-		sysfs_notify(&priv->dev->kobj, NULL, "temp1_max_alarm");
+		sysfs_yestify(&priv->dev->kobj, NULL, "temp1_max_alarm");
 	}
 
 	if (priv->min_alert) {
-		if (priv->notify_min)
-			dev_notice(priv->dev, "got alert for LOW temperature");
-		priv->notify_min = false;
+		if (priv->yestify_min)
+			dev_yestice(priv->dev, "got alert for LOW temperature");
+		priv->yestify_min = false;
 
 		/* unblock alert poll */
-		sysfs_notify(&priv->dev->kobj, NULL, "temp1_min_alarm");
+		sysfs_yestify(&priv->dev->kobj, NULL, "temp1_min_alarm");
 	}
 
 	if (priv->min_alert || priv->max_alert)
@@ -382,7 +382,7 @@ static ssize_t max_alarm_show(struct device *dev,
 	mutex_lock(&priv->access_lock);
 	ret = stts751_update(priv);
 	if (!ret)
-		priv->notify_max = true;
+		priv->yestify_max = true;
 	mutex_unlock(&priv->access_lock);
 	if (ret < 0)
 		return ret;
@@ -399,7 +399,7 @@ static ssize_t min_alarm_show(struct device *dev,
 	mutex_lock(&priv->access_lock);
 	ret = stts751_update(priv);
 	if (!ret)
-		priv->notify_min = true;
+		priv->yestify_min = true;
 	mutex_unlock(&priv->access_lock);
 	if (ret < 0)
 		return ret;
@@ -450,7 +450,7 @@ static ssize_t therm_store(struct device *dev, struct device_attribute *attr,
 	dev_dbg(&priv->client->dev, "setting therm %ld", temp);
 
 	/*
-	 * hysteresis reg is relative to therm, so the HW does not need to be
+	 * hysteresis reg is relative to therm, so the HW does yest need to be
 	 * adjusted, we need to update our local copy only.
 	 */
 	priv->hyst = temp - (priv->therm - priv->hyst);
@@ -614,7 +614,7 @@ static ssize_t interval_store(struct device *dev,
 	/*
 	 * In early development stages I've become suspicious about the chip
 	 * starting to misbehave if I ever set, even briefly, an invalid
-	 * configuration. While I'm not sure this is really needed, be
+	 * configuration. While I'm yest sure this is really needed, be
 	 * conservative and set rate/resolution in such an order that avoids
 	 * passing through an invalid configuration.
 	 */
@@ -775,8 +775,8 @@ static int stts751_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	priv->client = client;
-	priv->notify_max = true;
-	priv->notify_min = true;
+	priv->yestify_max = true;
+	priv->yestify_min = true;
 	i2c_set_clientdata(client, priv);
 	mutex_init(&priv->access_lock);
 
@@ -826,7 +826,7 @@ static struct i2c_driver stts751_driver = {
 	.id_table	= stts751_id,
 	.detect		= stts751_detect,
 	.alert		= stts751_alert,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(stts751_driver);

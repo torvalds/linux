@@ -91,7 +91,7 @@ static void coh901327_enable(u16 timeout)
 	if (val == U300_WDOG_D2R_DISABLE_STATUS_DISABLED)
 		writew(U300_WDOG_RR_RESTART_VALUE_RESUME,
 		       virtbase + U300_WDOG_RR);
-	/* Acknowledge any pending interrupt so it doesn't just fire off */
+	/* Ackyeswledge any pending interrupt so it doesn't just fire off */
 	writew(U300_WDOG_IER_WILL_BARK_IRQ_ACK_ENABLE,
 	       virtbase + U300_WDOG_IER);
 	/*
@@ -115,7 +115,7 @@ static void coh901327_enable(u16 timeout)
 	val = readw(virtbase + U300_WDOG_D2R);
 	if (val != U300_WDOG_D2R_DISABLE_STATUS_ENABLED)
 		dev_err(parent,
-			"%s(): watchdog not enabled! D2R value %04x\n",
+			"%s(): watchdog yest enabled! D2R value %04x\n",
 			__func__, val);
 }
 
@@ -139,7 +139,7 @@ static void coh901327_disable(void)
 	val = readw(virtbase + U300_WDOG_D2R);
 	if (val != U300_WDOG_D2R_DISABLE_STATUS_DISABLED)
 		dev_err(parent,
-			"%s(): watchdog not disabled! D2R value %04x\n",
+			"%s(): watchdog yest disabled! D2R value %04x\n",
 			__func__, val);
 }
 
@@ -199,7 +199,7 @@ static irqreturn_t coh901327_interrupt(int irq, void *data)
 
 	/*
 	 * Ack IRQ? If this occurs we're FUBAR anyway, so
-	 * just acknowledge, disable the interrupt and await the imminent end.
+	 * just ackyeswledge, disable the interrupt and await the imminent end.
 	 * If you at some point need a host of callbacks to be called
 	 * when the system is about to watchdog-reset, add them here!
 	 *
@@ -258,13 +258,13 @@ static int __init coh901327_probe(struct platform_device *pdev)
 	clk = clk_get(dev, NULL);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		dev_err(dev, "could not get clock\n");
+		dev_err(dev, "could yest get clock\n");
 		return ret;
 	}
 	ret = clk_prepare_enable(clk);
 	if (ret) {
-		dev_err(dev, "could not prepare and enable clock\n");
-		goto out_no_clk_enable;
+		dev_err(dev, "could yest prepare and enable clock\n");
+		goto out_yes_clk_enable;
 	}
 
 	val = readw(virtbase + U300_WDOG_SR);
@@ -275,7 +275,7 @@ static int __init coh901327_probe(struct platform_device *pdev)
 		/* Status will be cleared below */
 		break;
 	case U300_WDOG_SR_STATUS_NORMAL:
-		dev_info(dev, "in normal status, no timeouts have occurred.\n");
+		dev_info(dev, "in yesrmal status, yes timeouts have occurred.\n");
 		break;
 	default:
 		dev_info(dev, "contains an illegal status code (%08x)\n", val);
@@ -288,7 +288,7 @@ static int __init coh901327_probe(struct platform_device *pdev)
 		dev_info(dev, "currently disabled.\n");
 		break;
 	case U300_WDOG_D2R_DISABLE_STATUS_ENABLED:
-		dev_info(dev, "currently enabled! (disabling it now)\n");
+		dev_info(dev, "currently enabled! (disabling it yesw)\n");
 		coh901327_disable();
 		break;
 	default:
@@ -304,7 +304,7 @@ static int __init coh901327_probe(struct platform_device *pdev)
 	if (request_irq(irq, coh901327_interrupt, 0,
 			DRV_NAME " Bark", pdev)) {
 		ret = -EIO;
-		goto out_no_irq;
+		goto out_yes_irq;
 	}
 
 	watchdog_init_timeout(&coh901327_wdt, margin, dev);
@@ -312,17 +312,17 @@ static int __init coh901327_probe(struct platform_device *pdev)
 	coh901327_wdt.parent = dev;
 	ret = watchdog_register_device(&coh901327_wdt);
 	if (ret)
-		goto out_no_wdog;
+		goto out_yes_wdog;
 
 	dev_info(dev, "initialized. (timeout=%d sec)\n",
 			coh901327_wdt.timeout);
 	return 0;
 
-out_no_wdog:
+out_yes_wdog:
 	free_irq(irq, pdev);
-out_no_irq:
+out_yes_irq:
 	clk_disable_unprepare(clk);
-out_no_clk_enable:
+out_yes_clk_enable:
 	clk_put(clk);
 	return ret;
 }
@@ -336,7 +336,7 @@ static int coh901327_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	irqmaskstore = readw(virtbase + U300_WDOG_IMR) & 0x0001U;
 	wdogenablestore = readw(virtbase + U300_WDOG_D2R);
-	/* If watchdog is on, disable it here and now */
+	/* If watchdog is on, disable it here and yesw */
 	if (wdogenablestore == U300_WDOG_D2R_DISABLE_STATUS_ENABLED)
 		coh901327_disable();
 	return 0;
@@ -375,7 +375,7 @@ void coh901327_watchdog_reset(void)
 	 * default value immediately, so we HAVE to reboot and get back
 	 * into the kernel in 30s, or the device will reboot again!
 	 * The boot loader will typically deactivate the watchdog, so we
-	 * need time enough for the boot loader to get to the point of
+	 * need time eyesugh for the boot loader to get to the point of
 	 * deactivating the watchdog before it is shut down by it.
 	 *
 	 * NOTE: on future versions of the watchdog, this restriction is
@@ -403,6 +403,6 @@ static struct platform_driver coh901327_driver = {
 };
 builtin_platform_driver_probe(coh901327_driver, coh901327_probe);
 
-/* not really modular, but ... */
+/* yest really modular, but ... */
 module_param(margin, uint, 0);
 MODULE_PARM_DESC(margin, "Watchdog margin in seconds (default 60s)");

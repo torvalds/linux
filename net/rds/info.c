@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -45,12 +45,12 @@
  *
  * For a given information source there are a given number of fixed sized
  * structs at a given time.  The structs are only copied if the user-specified
- * buffer is big enough.  The destination pages that make up the buffer
+ * buffer is big eyesugh.  The destination pages that make up the buffer
  * are pinned for the duration of the copy.
  *
  * This gives us the following benefits:
  *
- * - simple implementation, no copy "position" across multiple calls
+ * - simple implementation, yes copy "position" across multiple calls
  * - consistent snapshot of an info source
  * - atomic copy works well with whatever locking info source has
  * - one portable tool to get rds info across implementations
@@ -150,8 +150,8 @@ EXPORT_SYMBOL_GPL(rds_info_copy);
  * @optlen on input is the size of the buffer in userspace.  @optlen
  * on output is the size of the requested snapshot in bytes.
  *
- * This function returns -errno if there is a failure, particularly -ENOSPC
- * if the given userspace buffer was not large enough to fit the snapshot.
+ * This function returns -erryes if there is a failure, particularly -ENOSPC
+ * if the given userspace buffer was yest large eyesugh to fit the snapshot.
  * On success it returns the positive number of bytes of each array element
  * in the snapshot.
  */

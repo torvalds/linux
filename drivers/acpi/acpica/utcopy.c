@@ -146,12 +146,12 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 		case ACPI_REFCLASS_NAME:
 			/*
 			 * For namepath, return the object handle ("reference")
-			 * We are referring to the namespace node
+			 * We are referring to the namespace yesde
 			 */
 			external_object->reference.handle =
-			    internal_object->reference.node;
+			    internal_object->reference.yesde;
 			external_object->reference.actual_type =
-			    acpi_ns_get_type(internal_object->reference.node);
+			    acpi_ns_get_type(internal_object->reference.yesde);
 			break;
 
 		default:
@@ -183,10 +183,10 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 
 	default:
 		/*
-		 * There is no corresponding external object type
+		 * There is yes corresponding external object type
 		 */
 		ACPI_ERROR((AE_INFO,
-			    "Unsupported object type, cannot convert to external object: %s",
+			    "Unsupported object type, canyest convert to external object: %s",
 			    acpi_ut_get_type_name(internal_object->common.
 						  type)));
 
@@ -204,7 +204,7 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Copy one package element to another package element
+ * DESCRIPTION: Copy one package element to ayesther package element
  *
  ******************************************************************************/
 
@@ -373,7 +373,7 @@ acpi_ut_copy_iobject_to_eobject(union acpi_operand_object *internal_object,
 							   &ret_buffer->length);
 	} else {
 		/*
-		 * Build a simple object (no nested objects)
+		 * Build a simple object (yes nested objects)
 		 */
 		status = acpi_ut_copy_isimple_to_esimple(internal_object,
 							 ACPI_CAST_PTR(union
@@ -389,7 +389,7 @@ acpi_ut_copy_iobject_to_eobject(union acpi_operand_object *internal_object,
 									acpi_object))),
 							 &ret_buffer->length);
 		/*
-		 * build simple does not include the object size in the length
+		 * build simple does yest include the object size in the length
 		 * so we add it in here
 		 */
 		ret_buffer->length += sizeof(union acpi_object);
@@ -409,7 +409,7 @@ acpi_ut_copy_iobject_to_eobject(union acpi_operand_object *internal_object,
  *
  * DESCRIPTION: This function copies an external object to an internal one.
  *              NOTE: Pointers can be copied, we don't need to copy data.
- *              (The pointers have to be valid in our address space no matter
+ *              (The pointers have to be valid in our address space yes matter
  *              what we do with them!)
  *
  ******************************************************************************/
@@ -446,10 +446,10 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 
 	default:
 
-		/* All other types are not supported */
+		/* All other types are yest supported */
 
 		ACPI_ERROR((AE_INFO,
-			    "Unsupported object type, cannot convert to internal object: %s",
+			    "Unsupported object type, canyest convert to internal object: %s",
 			    acpi_ut_get_type_name(external_object->type)));
 
 		return_ACPI_STATUS(AE_SUPPORT);
@@ -501,7 +501,7 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
-		/* An incoming reference is defined to be a namespace node */
+		/* An incoming reference is defined to be a namespace yesde */
 
 		internal_object->reference.class = ACPI_REFCLASS_REFOF;
 		internal_object->reference.object =
@@ -613,7 +613,7 @@ acpi_ut_copy_eobject_to_iobject(union acpi_object *external_object,
 						      internal_object);
 	} else {
 		/*
-		 * Build a simple object (no nested objects)
+		 * Build a simple object (yes nested objects)
 		 */
 		status = acpi_ut_copy_esimple_to_isimple(external_object,
 							 internal_object);
@@ -631,7 +631,7 @@ acpi_ut_copy_eobject_to_iobject(union acpi_object *external_object,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Simple copy of one internal object to another. Reference count
+ * DESCRIPTION: Simple copy of one internal object to ayesther. Reference count
  *              of the destination object is preserved.
  *
  ******************************************************************************/
@@ -652,11 +652,11 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 
 	/*
 	 * Copy the entire source object over the destination object.
-	 * Note: Source can be either an operand object or namespace node.
+	 * Note: Source can be either an operand object or namespace yesde.
 	 */
 	copy_size = sizeof(union acpi_operand_object);
 	if (ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_NAMED) {
-		copy_size = sizeof(struct acpi_namespace_node);
+		copy_size = sizeof(struct acpi_namespace_yesde);
 	}
 
 	memcpy(ACPI_CAST_PTR(char, dest_desc),
@@ -667,7 +667,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 	dest_desc->common.reference_count = reference_count;
 	dest_desc->common.next_object = next_object;
 
-	/* New object is not static, regardless of source */
+	/* New object is yest static, regardless of source */
 
 	dest_desc->common.flags &= ~AOPOBJ_STATIC_POINTER;
 
@@ -720,11 +720,11 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 		/*
-		 * We copied the reference object, so we now must add a reference
+		 * We copied the reference object, so we yesw must add a reference
 		 * to the object pointed to by the reference
 		 *
 		 * DDBHandle reference (from Load/load_table) is a special reference,
-		 * it does not have a Reference.Object, so does not need to
+		 * it does yest have a Reference.Object, so does yest need to
 		 * increase the reference count
 		 */
 		if (source_desc->reference.class == ACPI_REFCLASS_TABLE) {
@@ -736,7 +736,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 
 	case ACPI_TYPE_REGION:
 		/*
-		 * We copied the Region Handler, so we now must add a reference
+		 * We copied the Region Handler, so we yesw must add a reference
 		 */
 		if (dest_desc->region.handler) {
 			acpi_ut_add_reference(dest_desc->region.handler);
@@ -744,7 +744,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 		break;
 
 		/*
-		 * For Mutex and Event objects, we cannot simply copy the underlying
+		 * For Mutex and Event objects, we canyest simply copy the underlying
 		 * OS object. We must create a new one.
 		 */
 	case ACPI_TYPE_MUTEX:
@@ -783,7 +783,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Copy one package element to another package element
+ * DESCRIPTION: Copy one package element to ayesther package element
  *
  ******************************************************************************/
 
@@ -837,7 +837,7 @@ acpi_ut_copy_ielement_to_ielement(u8 object_type,
 
 	case ACPI_COPY_TYPE_PACKAGE:
 		/*
-		 * This object is a package - go down another nesting level
+		 * This object is a package - go down ayesther nesting level
 		 * Create and build the package object
 		 */
 		target_object =
@@ -880,7 +880,7 @@ error_exit:
  * RETURN:      Status
  *
  * DESCRIPTION: This function is called to copy an internal package object
- *              into another internal package object.
+ *              into ayesther internal package object.
  *
  ******************************************************************************/
 

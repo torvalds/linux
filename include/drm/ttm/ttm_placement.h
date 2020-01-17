@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -52,7 +52,7 @@
  * Other flags that affects data placement.
  * TTM_PL_FLAG_CACHED indicates cache-coherent mappings
  * if available.
- * TTM_PL_FLAG_SHARED means that another application may
+ * TTM_PL_FLAG_SHARED means that ayesther application may
  * reference the buffer.
  * TTM_PL_FLAG_NO_EVICT means that the buffer may never
  * be evicted to make room for other buffers.

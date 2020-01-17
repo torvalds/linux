@@ -15,7 +15,7 @@
  * 10/22/01: Phap Nguyen - v2.1 Added disk partitioning
  * 29oct2001:NeilBrown   - Use make_request_fn instead of request_fn
  *                       - use stand disk partitioning (so fdisk works).
- * 08nov2001:NeilBrown	 - change driver name from "mm" to "umem"
+ * 08yesv2001:NeilBrown	 - change driver name from "mm" to "umem"
  *			 - incorporate into main kernel
  * 08apr2002:NeilBrown   - Move some of interrupt handle to tasklet
  *			 - use spin_lock_bh instead of _irq
@@ -101,7 +101,7 @@ struct cardinfo {
 	unsigned int	mm_size;  /* size in kbytes */
 
 	unsigned int	init_size; /* initial segment, in sectors,
-				    * that we know to
+				    * that we kyesw to
 				    * have been written
 				    */
 	struct bio	*bio, *currentbio, **biotail;
@@ -229,7 +229,7 @@ static void dump_dmastat(struct cardinfo *card, unsigned int dmastat)
 /*
  * Theory of request handling
  *
- * Each bio is assigned to one mm_dma_desc - which may not be enough FIXME
+ * Each bio is assigned to one mm_dma_desc - which may yest be eyesugh FIXME
  * We have two pages of mm_dma_desc, holding about 64 descriptors
  * each.  These are allocated at init time.
  * One page is "Ready" and is either full, or can have request added.
@@ -248,8 +248,8 @@ static void dump_dmastat(struct cardinfo *card, unsigned int dmastat)
 
 static void mm_start_io(struct cardinfo *card)
 {
-	/* we have the lock, we know there is
-	 * no IO active, and we know that card->Active
+	/* we have the lock, we kyesw there is
+	 * yes IO active, and we kyesw that card->Active
 	 * is set
 	 */
 	struct mm_dma_desc *desc;
@@ -287,7 +287,7 @@ static void mm_start_io(struct cardinfo *card)
 	writel(cpu_to_le32((page->page_dma+offset) & 0xffffffff),
 	       card->csr_remap + DMA_DESCRIPTOR_ADDR);
 	/* Force the value to u64 before shifting otherwise >> 32 is undefined C
-	 * and on some ports will do nothing ! */
+	 * and on some ports will do yesthing ! */
 	writel(cpu_to_le32(((u64)page->page_dma)>>32),
 	       card->csr_remap + DMA_DESCRIPTOR_ADDR + 4);
 
@@ -301,7 +301,7 @@ static int add_bio(struct cardinfo *card);
 static void activate(struct cardinfo *card)
 {
 	/* if No page is Active, and Ready is
-	 * not empty, then switch Ready page
+	 * yest empty, then switch Ready page
 	 * to active and start IO.
 	 * Then add any bh's that are available to Ready
 	 */
@@ -463,7 +463,7 @@ static void process_page(unsigned long data)
 			card->init_size += le32_to_cpu(desc->transfer_size) >> 9;
 			if (card->init_size >> 1 >= card->mm_size) {
 				dev_printk(KERN_INFO, &card->dev->dev,
-					"memory now initialised\n");
+					"memory yesw initialised\n");
 				set_userbit(card, MEMORY_INITIALIZED, 1);
 			}
 		}
@@ -644,7 +644,7 @@ HW_TRACE(0x36);
 }
 
 /*
- * If both batteries are good, no LED
+ * If both batteries are good, yes LED
  * If either battery has been warned, solid LED
  * If both batteries are bad, flash the LED quickly
  * If either battery is bad, flash the LED semi quickly
@@ -671,11 +671,11 @@ static int check_battery(struct cardinfo *card, int battery, int status)
 
 		if (card->battery[battery].good) {
 			dev_printk(KERN_ERR, &card->dev->dev,
-				"Battery %d now good\n", battery + 1);
+				"Battery %d yesw good\n", battery + 1);
 			card->battery[battery].warned = 0;
 		} else
 			dev_printk(KERN_ERR, &card->dev->dev,
-				"Battery %d now FAILED\n", battery + 1);
+				"Battery %d yesw FAILED\n", battery + 1);
 
 		return 1;
 	} else if (!card->battery[battery].good &&
@@ -746,7 +746,7 @@ static void del_battery_timer(void)
 }
 
 /*
- * Note no locks taken out here.  In a worst case scenario, we could drop
+ * Note yes locks taken out here.  In a worst case scenario, we could drop
  * a chunk of system memory.  But that should never happen, since validation
  * happens at open or mount time, when locks are held.
  *
@@ -827,7 +827,7 @@ static int mm_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto failed_req_csr;
 	}
 
-	card->csr_remap = ioremap_nocache(csr_base, csr_len);
+	card->csr_remap = ioremap_yescache(csr_base, csr_len);
 	if (!card->csr_remap) {
 		dev_printk(KERN_ERR, &card->dev->dev,
 			"Unable to remap memory region\n");
@@ -880,12 +880,12 @@ static int mm_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	reset_page(&card->mm_pages[0]);
 	reset_page(&card->mm_pages[1]);
 	card->Ready = 0;	/* page 0 is ready */
-	card->Active = -1;	/* no page is active */
+	card->Active = -1;	/* yes page is active */
 	card->bio = NULL;
 	card->biotail = &card->bio;
 	spin_lock_init(&card->lock);
 
-	card->queue = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE);
+	card->queue = blk_alloc_queue_yesde(GFP_KERNEL, NUMA_NO_NODE);
 	if (!card->queue)
 		goto failed_alloc;
 
@@ -965,7 +965,7 @@ static int mm_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	pci_set_drvdata(dev, card);
 
-	if (pci_write_cmd != 0x0F) 	/* If not Memory Write & Invalidate */
+	if (pci_write_cmd != 0x0F) 	/* If yest Memory Write & Invalidate */
 		pci_write_cmd = 0x07;	/* then Memory Write command */
 
 	if (pci_write_cmd & 0x08) { /* use Memory Write and Invalidate */
@@ -1083,7 +1083,7 @@ static int __init mm_init(void)
 		sprintf(disk->disk_name, "umem%c", 'a'+i);
 		spin_lock_init(&cards[i].lock);
 		disk->major = major_nr;
-		disk->first_minor  = i << MM_SHIFT;
+		disk->first_miyesr  = i << MM_SHIFT;
 		disk->fops = &mm_fops;
 		disk->private_data = &cards[i];
 		disk->queue = cards[i].queue;

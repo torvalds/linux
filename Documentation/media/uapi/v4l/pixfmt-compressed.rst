@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 ******************
 Compressed Formats
@@ -45,7 +45,7 @@ Compressed Formats
 	The decoder expects one Access Unit per buffer.
 	The encoder generates one Access Unit per buffer.
 	If :ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
-	then the decoder has no requirements since it can parse all the
+	then the decoder has yes requirements since it can parse all the
 	information from the raw bytestream.
     * .. _V4L2-PIX-FMT-H264-NO-SC:
 
@@ -84,9 +84,9 @@ Compressed Formats
 	7.3.2.8 "Slice layer without partitioning RBSP syntax" and the following
 	sections.
 
-	.. note::
+	.. yeste::
 
-	   This format is not yet part of the public kernel API and it
+	   This format is yest yet part of the public kernel API and it
 	   is expected to change.
 
     * .. _V4L2-PIX-FMT-H263:
@@ -101,7 +101,7 @@ Compressed Formats
       - MPEG1 Picture. Each buffer starts with a Picture header, followed
 	by other headers as needed and ending with the Picture data.
 	If :ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
-	then the decoder has no requirements since it can parse all the
+	then the decoder has yes requirements since it can parse all the
 	information from the raw bytestream.
     * .. _V4L2-PIX-FMT-MPEG2:
 
@@ -110,7 +110,7 @@ Compressed Formats
       - MPEG2 Picture. Each buffer starts with a Picture header, followed
 	by other headers as needed and ending with the Picture data.
 	If :ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
-	then the decoder has no requirements since it can parse all the
+	then the decoder has yes requirements since it can parse all the
 	information from the raw bytestream.
     * .. _V4L2-PIX-FMT-MPEG2-SLICE:
 
@@ -170,9 +170,9 @@ Compressed Formats
 	of macroblocks to decode a full corresponding frame to the matching
 	capture buffer.
 
-	.. note::
+	.. yeste::
 
-	   This format is not yet part of the public kernel API and it
+	   This format is yest yet part of the public kernel API and it
 	   is expected to change.
 
     * .. _V4L2-PIX-FMT-VP9:
@@ -190,7 +190,7 @@ Compressed Formats
 	The decoder expects one Access Unit per buffer.
 	The encoder generates one Access Unit per buffer.
 	If :ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
-	then the decoder has no	requirements since it can parse all the
+	then the decoder has yes	requirements since it can parse all the
 	information from the raw bytestream.
     * .. _V4L2-PIX-FMT-HEVC-SLICE:
 
@@ -211,9 +211,9 @@ Compressed Formats
 	Buffers associated with this pixel format must contain the appropriate
 	number of macroblocks to decode a full corresponding frame.
 
-	.. note::
+	.. yeste::
 
-	   This format is not yet part of the public kernel API and it
+	   This format is yest yet part of the public kernel API and it
 	   is expected to change.
     * .. _V4L2-PIX-FMT-FWHT:
 

@@ -39,7 +39,7 @@
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 
-		/* This is normally 1/4 of cpuclock */
+		/* This is yesrmally 1/4 of cpuclock */
 		clock-frequency = <220000000>;
 	};
 
@@ -163,7 +163,7 @@
 
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			no-loopback-test;
+			yes-loopback-test;
 		};
 
 		spi0: spi@b00 {

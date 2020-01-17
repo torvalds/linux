@@ -8,7 +8,7 @@
  *   Dudley Du <dudl@cypress.com>
  *
  * Additional contributors include:
- *   Kamal Mostafa <kamal@canonical.com>
+ *   Kamal Mostafa <kamal@cayesnical.com>
  *   Kyle Fazzari <git@status.e4ward.com>
  */
 
@@ -234,7 +234,7 @@ static int cypress_read_fw_version(struct psmouse *psmouse)
 
 	/*
 	 * Trackpad fw_version 11 (in Dell XPS12) yields a bogus response to
-	 * CYTP_CMD_READ_TP_METRICS so do not try to use it. LP: #1103594.
+	 * CYTP_CMD_READ_TP_METRICS so do yest try to use it. LP: #1103594.
 	 */
 	if (cytp->fw_version >= 11)
 		cytp->tp_metrics_supported = 0;
@@ -431,7 +431,7 @@ static int cypress_get_finger_count(unsigned char header_byte)
 			case 0:	return 4;
 			case 2: return 5;
 			default:
-				/* Invalid contact (e.g. palm). Ignore it. */
+				/* Invalid contact (e.g. palm). Igyesre it. */
 				return 0;
 		}
 	}
@@ -579,7 +579,7 @@ static psmouse_ret_t cypress_validate_byte(struct psmouse *psmouse)
 		return PSMOUSE_GOOD_DATA;
 
 	/*
-	 * If absolute/relative mode bit has not been set yet, just pass
+	 * If absolute/relative mode bit has yest been set yet, just pass
 	 * the byte through.
 	 */
 	if ((cytp->mode & CYTP_BIT_ABS_REL_MASK) == 0)

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -65,7 +65,7 @@ enum {
 static int aq100x_reset(struct cphy *phy, int wait)
 {
 	/*
-	 * Ignore the caller specified wait time; always wait for the reset to
+	 * Igyesre the caller specified wait time; always wait for the reset to
 	 * complete. Can take up to 3s.
 	 */
 	int err = t3_phy_reset(phy, MDIO_MMD_VEND1, 3000);
@@ -200,7 +200,7 @@ static int aq100x_set_loopback(struct cphy *phy, int mmd, int dir, int enable)
 
 static int aq100x_set_speed_duplex(struct cphy *phy, int speed, int duplex)
 {
-	/* no can do */
+	/* yes can do */
 	return -1;
 }
 
@@ -284,7 +284,7 @@ int t3_aq100x_phy_prep(struct cphy *phy, struct adapter *adapter, int phy_addr,
 	t3_set_reg_field(adapter, A_T3DBG_GPIO_EN, gpio, gpio);
 
 	/*
-	 * Give it enough time to load the firmware and get ready for mdio.
+	 * Give it eyesugh time to load the firmware and get ready for mdio.
 	 */
 	msleep(1000);
 	wait = 500; /* in 10ms increments */
@@ -322,7 +322,7 @@ int t3_aq100x_phy_prep(struct cphy *phy, struct adapter *adapter, int phy_addr,
 			phy_addr, v);
 
 	/*
-	 * The PHY should start in really-low-power mode.  Prepare it for normal
+	 * The PHY should start in really-low-power mode.  Prepare it for yesrmal
 	 * operations.
 	 */
 	err = t3_mdio_read(phy, MDIO_MMD_VEND1, MDIO_CTRL1, &v);
@@ -335,11 +335,11 @@ int t3_aq100x_phy_prep(struct cphy *phy, struct adapter *adapter, int phy_addr,
 			return err;
 		msleep(10);
 	} else
-		CH_WARN(adapter, "PHY%d does not start in low power mode.\n",
+		CH_WARN(adapter, "PHY%d does yest start in low power mode.\n",
 			phy_addr);
 
 	/*
-	 * Verify XAUI settings, but let prep succeed no matter what.
+	 * Verify XAUI settings, but let prep succeed yes matter what.
 	 */
 	v = v2 = 0;
 	t3_mdio_read(phy, MDIO_MMD_PHYXS, AQ_XAUI_RX_CFG, &v);

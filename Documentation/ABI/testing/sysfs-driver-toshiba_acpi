@@ -11,7 +11,7 @@ Description:	This file controls the keyboard backlight operation mode, valid
 		Note that from kernel 3.16 onwards this file accepts all listed
 		parameters, kernel 3.15 only accepts the first two (FN-Z and
 		AUTO).
-		Also note that toggling this value on type 1 devices, requires
+		Also yeste that toggling this value on type 1 devices, requires
 		a reboot for changes to take effect.
 Users:		KToshiba
 
@@ -55,7 +55,7 @@ Description:	This file shows the supported keyboard backlight modes
 			* 0x2  -> AUTO (also called TIMER)
 			* 0x8  -> ON
 			* 0x10 -> OFF
-		Note that not all keyboard types support the listed modes.
+		Note that yest all keyboard types support the listed modes.
 		See the entry named "available_kbd_modes"
 Users:		KToshiba
 

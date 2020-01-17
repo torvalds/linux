@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 
 =================================================
-Mellanox ConnectX(R) mlx5 core VPI Network Driver
+Mellayesx ConnectX(R) mlx5 core VPI Network Driver
 =================================================
 
-Copyright (c) 2019, Mellanox Technologies LTD.
+Copyright (c) 2019, Mellayesx Techyeslogies LTD.
 
 Contents
 ========
@@ -40,7 +40,7 @@ Enabling the driver and kconfig options
 **CONFIG_MLX5_EN_ARFS=(y/n)**
 
 |     Enables Hardware-accelerated receive flow steering (arfs) support, and ntuple filtering.
-|     https://community.mellanox.com/s/article/howto-configure-arfs-on-connectx-4
+|     https://community.mellayesx.com/s/article/howto-configure-arfs-on-connectx-4
 
 
 **CONFIG_MLX5_EN_RXNFC=(y/n)**
@@ -51,13 +51,13 @@ Enabling the driver and kconfig options
 
 **CONFIG_MLX5_CORE_EN_DCB=(y/n)**:
 
-|    Enables `Data Center Bridging (DCB) Support <https://community.mellanox.com/s/article/howto-auto-config-pfc-and-ets-on-connectx-4-via-lldp-dcbx>`_.
+|    Enables `Data Center Bridging (DCB) Support <https://community.mellayesx.com/s/article/howto-auto-config-pfc-and-ets-on-connectx-4-via-lldp-dcbx>`_.
 
 
 **CONFIG_MLX5_MPFS=(y/n)**
 
 |    Ethernet Multi-Physical Function Switch (MPFS) support in ConnectX NIC.
-|    MPFs is required for when `Multi-Host <http://www.mellanox.com/page/multihost>`_ configuration is enabled to allow passing
+|    MPFs is required for when `Multi-Host <http://www.mellayesx.com/page/multihost>`_ configuration is enabled to allow passing
 |    user configured unicast MAC addresses to the requesting PF.
 
 
@@ -65,8 +65,8 @@ Enabling the driver and kconfig options
 
 |    Ethernet SRIOV E-Switch support in ConnectX NIC. E-Switch provides internal SRIOV packet steering
 |    and switching for the enabled VFs and PF in two available modes:
-|           1) `Legacy SRIOV mode (L2 mac vlan steering based) <https://community.mellanox.com/s/article/howto-configure-sr-iov-for-connectx-4-connectx-5-with-kvm--ethernet-x>`_.
-|           2) `Switchdev mode (eswitch offloads) <https://www.mellanox.com/related-docs/prod_software/ASAP2_Hardware_Offloading_for_vSwitches_User_Manual_v4.4.pdf>`_.
+|           1) `Legacy SRIOV mode (L2 mac vlan steering based) <https://community.mellayesx.com/s/article/howto-configure-sr-iov-for-connectx-4-connectx-5-with-kvm--ethernet-x>`_.
+|           2) `Switchdev mode (eswitch offloads) <https://www.mellayesx.com/related-docs/prod_software/ASAP2_Hardware_Offloading_for_vSwitches_User_Manual_v4.4.pdf>`_.
 
 
 **CONFIG_MLX5_CORE_IPOIB=(y/n)**
@@ -78,15 +78,15 @@ Enabling the driver and kconfig options
 
 **CONFIG_MLX5_FPGA=(y/n)**
 
-|    Build support for the Innova family of network cards by Mellanox Technologies.
-|    Innova network cards are comprised of a ConnectX chip and an FPGA chip on one board.
-|    If you select this option, the mlx5_core driver will include the Innova FPGA core and allow
+|    Build support for the Inyesva family of network cards by Mellayesx Techyeslogies.
+|    Inyesva network cards are comprised of a ConnectX chip and an FPGA chip on one board.
+|    If you select this option, the mlx5_core driver will include the Inyesva FPGA core and allow
 |    building sandbox-specific client drivers.
 
 
 **CONFIG_MLX5_EN_IPSEC=(y/n)**
 
-|    Enables `IPSec XFRM cryptography-offload accelaration <http://www.mellanox.com/related-docs/prod_software/Mellanox_Innova_IPsec_Ethernet_Adapter_Card_User_Manual.pdf>`_.
+|    Enables `IPSec XFRM cryptography-offload accelaration <http://www.mellayesx.com/related-docs/prod_software/Mellayesx_Inyesva_IPsec_Ethernet_Adapter_Card_User_Manual.pdf>`_.
 
 **CONFIG_MLX5_EN_TLS=(y/n)**
 
@@ -95,7 +95,7 @@ Enabling the driver and kconfig options
 
 **CONFIG_MLX5_INFINIBAND=(y/n/m)** (module mlx5_ib.ko)
 
-|   Provides low-level InfiniBand/RDMA and `RoCE <https://community.mellanox.com/s/article/recommended-network-configuration-examples-for-roce-deployment>`_ support.
+|   Provides low-level InfiniBand/RDMA and `RoCE <https://community.mellayesx.com/s/article/recommended-network-configuration-examples-for-roce-deployment>`_ support.
 
 
 **External options** ( Choose if the corresponding mlx5 feature is required )
@@ -157,7 +157,7 @@ User command examples:
 enable_roce: RoCE enablement state
 ----------------------------------
 RoCE enablement state controls driver support for RoCE traffic.
-When RoCE is disabled, there is no gid table, only raw ethernet QPs are supported and traffic on the well known UDP RoCE port is handled as raw ethernet traffic.
+When RoCE is disabled, there is yes gid table, only raw ethernet QPs are supported and traffic on the well kyeswn UDP RoCE port is handled as raw ethernet traffic.
 
 To change RoCE enablement state a user must change the driverinit cmode value and run devlink reload.
 
@@ -190,14 +190,14 @@ The tx reporter is responsible for reporting and recovering of the following two
     Report on error tx completion.
     Recover by flushing the TX queue and reset it.
 
-TX reporter also support on demand diagnose callback, on which it provides
+TX reporter also support on demand diagyesse callback, on which it provides
 real time information of its send queues status.
 
 User commands examples:
 
-- Diagnose send queues status::
+- Diagyesse send queues status::
 
-    $ devlink health diagnose pci/0000:82:00.0 reporter tx
+    $ devlink health diagyesse pci/0000:82:00.0 reporter tx
 
 NOTE: This command has valid output only when interface is up, otherwise the command has empty output.
 
@@ -219,12 +219,12 @@ The rx reporter is responsible for reporting and recovering of the following two
     Report on rx completion error.
     Recover (if needed) by flushing the related queue and reset it.
 
-RX reporter also supports on demand diagnose callback, on which it
+RX reporter also supports on demand diagyesse callback, on which it
 provides real time information of its receive queues status.
 
-- Diagnose rx queues status, and corresponding completion queue::
+- Diagyesse rx queues status, and corresponding completion queue::
 
-    $ devlink health diagnose pci/0000:82:00.0 reporter rx
+    $ devlink health diagyesse pci/0000:82:00.0 reporter rx
 
 NOTE: This command has valid output only when interface is up, otherwise the command has empty output.
 
@@ -235,31 +235,31 @@ NOTE: This command has valid output only when interface is up, otherwise the com
 
 fw reporter
 -----------
-The fw reporter implements diagnose and dump callbacks.
+The fw reporter implements diagyesse and dump callbacks.
 It follows symptoms of fw error such as fw syndrome by triggering
 fw core dump and storing it into the dump buffer.
-The fw reporter diagnose command can be triggered any time by the user to check
+The fw reporter diagyesse command can be triggered any time by the user to check
 current fw status.
 
 User commands examples:
 
 - Check fw heath status::
 
-    $ devlink health diagnose pci/0000:82:00.0 reporter fw
+    $ devlink health diagyesse pci/0000:82:00.0 reporter fw
 
 - Read FW core dump if already stored or trigger new one::
 
     $ devlink health dump show pci/0000:82:00.0 reporter fw
 
 NOTE: This command can run only on the PF which has fw tracer ownership,
-running it on other PF or any VF will return "Operation not permitted".
+running it on other PF or any VF will return "Operation yest permitted".
 
 fw fatal reporter
 -----------------
 The fw fatal reporter implements dump and recover callbacks.
 It follows fatal errors indications by CR-space dump and recover flow.
 The CR-space dump uses vsc interface which is valid even if the FW command
-interface is not functional, which is the case in most FW fatal errors.
+interface is yest functional, which is the case in most FW fatal errors.
 The recover function runs recover flow which reloads the driver and triggers fw
 reset if needed.
 

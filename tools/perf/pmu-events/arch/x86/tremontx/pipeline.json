@@ -12,7 +12,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of core cycles while the core is not in a halt state.  The core enters the halt state when it is running the HLT instruction. The core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time.  This event uses fixed counter 1.",
+        "PublicDescription": "Counts the number of core cycles while the core is yest in a halt state.  The core enters the halt state when it is running the HLT instruction. The core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time.  This event uses fixed counter 1.",
         "Counter": "33",
         "UMask": "0x2",
         "PEBScounters": "33",
@@ -23,7 +23,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of reference cycles that the core is not in a halt state. The core enters the halt state when it is running the HLT instruction.  The core frequency may change from time.  This event is not affected by core frequency changes and at a fixed frequency.  This event uses fixed counter 2.",
+        "PublicDescription": "Counts the number of reference cycles that the core is yest in a halt state. The core enters the halt state when it is running the HLT instruction.  The core frequency may change from time.  This event is yest affected by core frequency changes and at a fixed frequency.  This event uses fixed counter 2.",
         "Counter": "34",
         "UMask": "0x3",
         "PEBScounters": "34",
@@ -34,7 +34,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of core cycles while the core is not in a halt state.  The core enters the halt state when it is running the HLT instruction. The core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time.  This event uses a programmable general purpose performance counter.",
+        "PublicDescription": "Counts the number of core cycles while the core is yest in a halt state.  The core enters the halt state when it is running the HLT instruction. The core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time.  This event uses a programmable general purpose performance counter.",
         "EventCode": "0x3c",
         "Counter": "0,1,2,3",
         "PEBScounters": "0,1,2,3",
@@ -45,7 +45,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts reference cycles (at TSC frequency) when core is not halted.  This event uses a programmable general purpose perfmon counter.",
+        "PublicDescription": "Counts reference cycles (at TSC frequency) when core is yest halted.  This event uses a programmable general purpose perfmon counter.",
         "EventCode": "0x3c",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -74,7 +74,7 @@
         "EventName": "MACHINE_CLEARS.ANY",
         "PDIR_COUNTER": "na",
         "SampleAfterValue": "20003",
-        "BriefDescription": "Counts all machine clears due to, but not limited to memory ordering, memory disambiguation, SMC, page faults and FP assist."
+        "BriefDescription": "Counts all machine clears due to, but yest limited to memory ordering, memory disambiguation, SMC, page faults and FP assist."
     },
     {
         "PEBS": "1",
@@ -106,6 +106,6 @@
         "EventName": "CYCLES_DIV_BUSY.ANY",
         "PDIR_COUNTER": "na",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Counts cycles the floating point divider or integer divider or both are busy.  Does not imply a stall waiting for either divider."
+        "BriefDescription": "Counts cycles the floating point divider or integer divider or both are busy.  Does yest imply a stall waiting for either divider."
     }
 ]

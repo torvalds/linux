@@ -66,7 +66,7 @@ static int wilco_ec_probe(struct platform_device *pdev)
 
 	/*
 	 * Register a child device that will be found by the debugfs driver.
-	 * Ignore failure.
+	 * Igyesre failure.
 	 */
 	ec->debugfs_pdev = platform_device_register_data(dev,
 							 "wilco-ec-debugfs",

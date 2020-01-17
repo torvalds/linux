@@ -146,7 +146,7 @@ static int reg_read(struct i2c_client *client, const u16 addr)
 		return ret;
 	}
 
-	return buf[0] & 0xff; /* no sign-extension */
+	return buf[0] & 0xff; /* yes sign-extension */
 }
 
 static int imx074_set_fmt(struct v4l2_subdev *sd,

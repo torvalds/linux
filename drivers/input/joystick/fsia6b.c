@@ -21,7 +21,7 @@
 
 #define DRIVER_DESC		"FS-iA6B iBus RC receiver"
 
-MODULE_AUTHOR("Markus Koch <markus@notsyncing.net>");
+MODULE_AUTHOR("Markus Koch <markus@yestsyncing.net>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 

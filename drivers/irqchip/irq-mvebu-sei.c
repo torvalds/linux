@@ -216,7 +216,7 @@ static int mvebu_sei_ap_alloc(struct irq_domain *domain, unsigned int virq,
 
 	mvebu_sei_ap_translate(domain, arg, &hwirq, &type);
 
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwyesde = domain->parent->fwyesde;
 	fwspec.param_count = 1;
 	fwspec.param[0] = hwirq + sei->caps->ap_range.first;
 
@@ -254,7 +254,7 @@ static int mvebu_sei_cp_domain_alloc(struct irq_domain *domain,
 	unsigned long hwirq;
 	int ret;
 
-	/* The software only supports single allocations for now */
+	/* The software only supports single allocations for yesw */
 	if (nr_irqs != 1)
 		return -ENOTSUPP;
 
@@ -268,7 +268,7 @@ static int mvebu_sei_cp_domain_alloc(struct irq_domain *domain,
 	if (hwirq == sei->caps->cp_range.size)
 		return -ENOSPC;
 
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwyesde = domain->parent->fwyesde;
 	fwspec.param_count = 1;
 	fwspec.param[0] = hwirq + sei->caps->cp_range.first;
 
@@ -367,7 +367,7 @@ static void mvebu_sei_reset(struct mvebu_sei *sei)
 
 static int mvebu_sei_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct irq_domain *plat_domain;
 	struct mvebu_sei *sei;
 	u32 parent_irq;
@@ -393,7 +393,7 @@ static int mvebu_sei_probe(struct platform_device *pdev)
 	sei->caps = of_device_get_match_data(&pdev->dev);
 	if (!sei->caps) {
 		dev_err(sei->dev,
-			"Could not retrieve controller capabilities\n");
+			"Could yest retrieve controller capabilities\n");
 		return -EINVAL;
 	}
 
@@ -401,14 +401,14 @@ static int mvebu_sei_probe(struct platform_device *pdev)
 	 * Reserve the single (top-level) parent SPI IRQ from which all the
 	 * interrupts handled by this driver will be signaled.
 	 */
-	parent_irq = irq_of_parse_and_map(node, 0);
+	parent_irq = irq_of_parse_and_map(yesde, 0);
 	if (parent_irq <= 0) {
 		dev_err(sei->dev, "Failed to retrieve top-level SPI IRQ\n");
 		return -ENODEV;
 	}
 
 	/* Create the root SEI domain */
-	sei->sei_domain = irq_domain_create_linear(of_node_to_fwnode(node),
+	sei->sei_domain = irq_domain_create_linear(of_yesde_to_fwyesde(yesde),
 						   (sei->caps->ap_range.size +
 						    sei->caps->cp_range.size),
 						   &mvebu_sei_domain_ops,
@@ -424,7 +424,7 @@ static int mvebu_sei_probe(struct platform_device *pdev)
 	/* Create the 'wired' domain */
 	sei->ap_domain = irq_domain_create_hierarchy(sei->sei_domain, 0,
 						     sei->caps->ap_range.size,
-						     of_node_to_fwnode(node),
+						     of_yesde_to_fwyesde(yesde),
 						     &mvebu_sei_ap_domain_ops,
 						     sei);
 	if (!sei->ap_domain) {
@@ -438,7 +438,7 @@ static int mvebu_sei_probe(struct platform_device *pdev)
 	/* Create the 'MSI' domain */
 	sei->cp_domain = irq_domain_create_hierarchy(sei->sei_domain, 0,
 						     sei->caps->cp_range.size,
-						     of_node_to_fwnode(node),
+						     of_yesde_to_fwyesde(yesde),
 						     &mvebu_sei_cp_domain_ops,
 						     sei);
 	if (!sei->cp_domain) {
@@ -449,7 +449,7 @@ static int mvebu_sei_probe(struct platform_device *pdev)
 
 	irq_domain_update_bus_token(sei->cp_domain, DOMAIN_BUS_GENERIC_MSI);
 
-	plat_domain = platform_msi_create_irq_domain(of_node_to_fwnode(node),
+	plat_domain = platform_msi_create_irq_domain(of_yesde_to_fwyesde(yesde),
 						     &mvebu_sei_msi_domain_info,
 						     sei->cp_domain);
 	if (!plat_domain) {

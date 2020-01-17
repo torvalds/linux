@@ -23,7 +23,7 @@
 
 /*
  * Memory and IO mappings. We use a 1:1 mapping for local host memory to
- * PCI bus memory (no reason not to really). IO space is mapped in its own
+ * PCI bus memory (yes reason yest to really). IO space is mapped in its own
  * separate address region. The device configuration space is mapped over
  * the IO map space when we enable it in the PCICAR register.
  */
@@ -33,7 +33,7 @@ static unsigned long iospace;
 /*
  * We need to be carefull probing on bus 0 (directly connected to host
  * bridge). We should only access the well defined possible devices in
- * use, ignore aliases and the like.
+ * use, igyesre aliases and the like.
  */
 static unsigned char mcf_host_slot2sid[32] = {
 	0, 0, 0, 0, 0, 0, 0, 0,

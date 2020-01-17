@@ -86,7 +86,7 @@ enum bpf_field_info_kind {
  * Convenience macro to check that field actually exists in target kernel's.
  * Returns:
  *    1, if matching field is present in target kernel;
- *    0, if no matching field found.
+ *    0, if yes matching field found.
  */
 #define bpf_core_field_exists(field)					    \
 	__builtin_preserve_field_info(field, BPF_FIELD_EXISTS)
@@ -137,7 +137,7 @@ enum bpf_field_info_kind {
  */
 #define ___narg(...) ___nth(_, ##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 /*
- * return 0 if no arguments are passed, N - otherwise; used for
+ * return 0 if yes arguments are passed, N - otherwise; used for
  * recursively-defined macros to specify termination (0) case, and generic
  * (N) case (e.g., ___read_ptrs, ___core_read)
  */
@@ -155,16 +155,16 @@ enum bpf_field_info_kind {
 #define ___last10(a, b, c, d, e, f, g, h, i, x) x
 #define ___last(...) ___apply(___last, ___narg(__VA_ARGS__))(__VA_ARGS__)
 
-#define ___nolast2(a, _) a
-#define ___nolast3(a, b, _) a, b
-#define ___nolast4(a, b, c, _) a, b, c
-#define ___nolast5(a, b, c, d, _) a, b, c, d
-#define ___nolast6(a, b, c, d, e, _) a, b, c, d, e
-#define ___nolast7(a, b, c, d, e, f, _) a, b, c, d, e, f
-#define ___nolast8(a, b, c, d, e, f, g, _) a, b, c, d, e, f, g
-#define ___nolast9(a, b, c, d, e, f, g, h, _) a, b, c, d, e, f, g, h
-#define ___nolast10(a, b, c, d, e, f, g, h, i, _) a, b, c, d, e, f, g, h, i
-#define ___nolast(...) ___apply(___nolast, ___narg(__VA_ARGS__))(__VA_ARGS__)
+#define ___yeslast2(a, _) a
+#define ___yeslast3(a, b, _) a, b
+#define ___yeslast4(a, b, c, _) a, b, c
+#define ___yeslast5(a, b, c, d, _) a, b, c, d
+#define ___yeslast6(a, b, c, d, e, _) a, b, c, d, e
+#define ___yeslast7(a, b, c, d, e, f, _) a, b, c, d, e, f
+#define ___yeslast8(a, b, c, d, e, f, g, _) a, b, c, d, e, f, g
+#define ___yeslast9(a, b, c, d, e, f, g, h, _) a, b, c, d, e, f, g, h
+#define ___yeslast10(a, b, c, d, e, f, g, h, i, _) a, b, c, d, e, f, g, h, i
+#define ___yeslast(...) ___apply(___yeslast, ___narg(__VA_ARGS__))(__VA_ARGS__)
 
 #define ___arrow1(a) a
 #define ___arrow2(a, b) a->b
@@ -187,24 +187,24 @@ enum bpf_field_info_kind {
 #define ___rd_first(src, a) ___read(bpf_core_read, &__t, ___type(src), src, a);
 #define ___rd_last(...)							    \
 	___read(bpf_core_read, &__t,					    \
-		___type(___nolast(__VA_ARGS__)), __t, ___last(__VA_ARGS__));
+		___type(___yeslast(__VA_ARGS__)), __t, ___last(__VA_ARGS__));
 #define ___rd_p1(...) const void *__t; ___rd_first(__VA_ARGS__)
-#define ___rd_p2(...) ___rd_p1(___nolast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
-#define ___rd_p3(...) ___rd_p2(___nolast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
-#define ___rd_p4(...) ___rd_p3(___nolast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
-#define ___rd_p5(...) ___rd_p4(___nolast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
-#define ___rd_p6(...) ___rd_p5(___nolast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
-#define ___rd_p7(...) ___rd_p6(___nolast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
-#define ___rd_p8(...) ___rd_p7(___nolast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
-#define ___rd_p9(...) ___rd_p8(___nolast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
+#define ___rd_p2(...) ___rd_p1(___yeslast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
+#define ___rd_p3(...) ___rd_p2(___yeslast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
+#define ___rd_p4(...) ___rd_p3(___yeslast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
+#define ___rd_p5(...) ___rd_p4(___yeslast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
+#define ___rd_p6(...) ___rd_p5(___yeslast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
+#define ___rd_p7(...) ___rd_p6(___yeslast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
+#define ___rd_p8(...) ___rd_p7(___yeslast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
+#define ___rd_p9(...) ___rd_p8(___yeslast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
 #define ___read_ptrs(src, ...)						    \
 	___apply(___rd_p, ___narg(__VA_ARGS__))(src, __VA_ARGS__)
 
 #define ___core_read0(fn, dst, src, a)					    \
 	___read(fn, dst, ___type(src), src, a);
 #define ___core_readN(fn, dst, src, ...)				    \
-	___read_ptrs(src, ___nolast(__VA_ARGS__))			    \
-	___read(fn, dst, ___type(src, ___nolast(__VA_ARGS__)), __t,	    \
+	___read_ptrs(src, ___yeslast(__VA_ARGS__))			    \
+	___read(fn, dst, ___type(src, ___yeslast(__VA_ARGS__)), __t,	    \
 		___last(__VA_ARGS__));
 #define ___core_read(fn, dst, src, a, ...)				    \
 	___apply(___core_read, ___empty(__VA_ARGS__))(fn, dst,		    \
@@ -233,7 +233,7 @@ enum bpf_field_info_kind {
 /*
  * BPF_CORE_READ() is used to simplify BPF CO-RE relocatable read, especially
  * when there are few pointer chasing steps.
- * E.g., what in non-BPF world (or in BPF w/ BCC) would be something like:
+ * E.g., what in yesn-BPF world (or in BPF w/ BCC) would be something like:
  *	int x = s->a.b.c->d.e->f->g;
  * can be succinctly achieved using BPF_CORE_READ as:
  *	int x = BPF_CORE_READ(s, a.b.c, d.e, f, g);
@@ -250,7 +250,7 @@ enum bpf_field_info_kind {
  * calls using __builtin_preserve_access_index() to emit CO-RE relocations.
  *
  * N.B. Only up to 9 "field accessors" are supported, which should be more
- * than enough for any practical purpose.
+ * than eyesugh for any practical purpose.
  */
 #define BPF_CORE_READ(src, a, ...)					    \
 	({								    \

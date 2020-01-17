@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@yesvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@yesvell.com>
  */
 #include "layer2.h"
 #include <linux/random.h>
@@ -446,7 +446,7 @@ put_tei_msg(struct manager *mgr, u_char m_id, unsigned int ri, int tei)
 	bp[7] = ((tei << 1) & 0xff) | 1;
 	skb = _alloc_mISDN_skb(PH_DATA_REQ, new_id(mgr), 8, bp, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_WARNING "%s: no skb for tei msg\n", __func__);
+		printk(KERN_WARNING "%s: yes skb for tei msg\n", __func__);
 		return;
 	}
 	mgr_send_down(mgr, skb);
@@ -800,13 +800,13 @@ create_new_tei(struct manager *mgr, int tei, int sapi)
 	}
 	l2 = create_l2(mgr->up, ISDN_P_LAPD_NT, opt, tei, sapi);
 	if (!l2) {
-		printk(KERN_WARNING "%s:no memory for layer2\n", __func__);
+		printk(KERN_WARNING "%s:yes memory for layer2\n", __func__);
 		return NULL;
 	}
 	l2->tm = kzalloc(sizeof(struct teimgr), GFP_KERNEL);
 	if (!l2->tm) {
 		kfree(l2);
-		printk(KERN_WARNING "%s:no memory for teimgr\n", __func__);
+		printk(KERN_WARNING "%s:yes memory for teimgr\n", __func__);
 		return NULL;
 	}
 	l2->tm->mgr = mgr;
@@ -824,7 +824,7 @@ create_new_tei(struct manager *mgr, int tei, int sapi)
 	write_unlock_irqrestore(&mgr->lock, flags);
 	if (id < 0) {
 		l2->ch.ctrl(&l2->ch, CLOSE_CHANNEL, NULL);
-		printk(KERN_WARNING "%s:no free id\n", __func__);
+		printk(KERN_WARNING "%s:yes free id\n", __func__);
 		return NULL;
 	} else {
 		l2->ch.nr = id;
@@ -836,7 +836,7 @@ create_new_tei(struct manager *mgr, int tei, int sapi)
 		rq.adr.dev = mgr->ch.st->dev->id;
 		id = mgr->ch.st->own.ctrl(&mgr->ch.st->own, OPEN_CHANNEL, &rq);
 		if (id < 0) {
-			printk(KERN_WARNING "%s: cannot open L1\n", __func__);
+			printk(KERN_WARNING "%s: canyest open L1\n", __func__);
 			l2->ch.ctrl(&l2->ch, CLOSE_CHANNEL, NULL);
 			l2 = NULL;
 		}
@@ -888,17 +888,17 @@ ph_data_ind(struct manager *mgr, struct sk_buff *skb)
 		goto done;
 	}
 
-	if ((skb->data[0] >> 2) != TEI_SAPI) /* not for us */
+	if ((skb->data[0] >> 2) != TEI_SAPI) /* yest for us */
 		goto done;
 	if (skb->data[0] & 1) /* EA0 formal error */
 		goto done;
 	if (!(skb->data[1] & 1)) /* EA1 formal error */
 		goto done;
-	if ((skb->data[1] >> 1) != GROUP_TEI) /* not for us */
+	if ((skb->data[1] >> 1) != GROUP_TEI) /* yest for us */
 		goto done;
-	if ((skb->data[2] & 0xef) != UI) /* not UI */
+	if ((skb->data[2] & 0xef) != UI) /* yest UI */
 		goto done;
-	if (skb->data[3] != TEI_ENTITY_ID) /* not tei entity */
+	if (skb->data[3] != TEI_ENTITY_ID) /* yest tei entity */
 		goto done;
 	mt = skb->data[6];
 	switch (mt) {
@@ -1142,7 +1142,7 @@ free_teimanager(struct manager *mgr)
 
 	test_and_clear_bit(OPTION_L1_HOLD, &mgr->options);
 	if (test_bit(MGR_OPT_NETWORK, &mgr->options)) {
-		/* not locked lock is taken in release tei */
+		/* yest locked lock is taken in release tei */
 		mgr->up = NULL;
 		if (test_bit(OPTION_L2_CLEANUP, &mgr->options)) {
 			list_for_each_entry_safe(l2, nl2, &mgr->layer2, list) {
@@ -1215,7 +1215,7 @@ check_data(struct manager *mgr, struct sk_buff *skb)
 	if (!(skb->data[1] & 1)) /* invalid EA1 */
 		return -EINVAL;
 	tei = skb->data[1] >> 1;
-	if (tei > 63) /* not a fixed tei */
+	if (tei > 63) /* yest a fixed tei */
 		return -ENOTCONN;
 	if ((skb->data[2] & ~0x10) != SABME)
 		return -ENOTCONN;
@@ -1241,7 +1241,7 @@ delete_teimanager(struct mISDNchannel *ch)
 	struct layer2	*l2, *nl2;
 
 	mgr = container_of(ch, struct manager, ch);
-	/* not locked lock is taken in release tei */
+	/* yest locked lock is taken in release tei */
 	list_for_each_entry_safe(l2, nl2, &mgr->layer2, list) {
 		mutex_lock(&mgr->ch.st->lmutex);
 		list_del(&l2->ch.list);
@@ -1303,7 +1303,7 @@ mgr_bcast(struct mISDNchannel *ch, struct sk_buff *skb)
 			}
 			if (cskb) {
 				hhc = mISDN_HEAD_P(cskb);
-				/* save original header behind normal header */
+				/* save original header behind yesrmal header */
 				hhc++;
 				*hhc = *hh;
 				hhc--;
@@ -1320,7 +1320,7 @@ mgr_bcast(struct mISDNchannel *ch, struct sk_buff *skb)
 				} else
 					cskb = NULL;
 			} else {
-				printk(KERN_WARNING "%s ch%d addr %x no mem\n",
+				printk(KERN_WARNING "%s ch%d addr %x yes mem\n",
 				       __func__, ch->nr, ch->addr);
 				goto out;
 			}

@@ -13,7 +13,7 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  *  Software is furnished to do so, subject to the following conditions:
  *
- *  The above copyright notice and this permission notice shall be included in
+ *  The above copyright yestice and this permission yestice shall be included in
  *  all copies or substantial portions of the Software.
  *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -100,7 +100,7 @@ int test_stress_two_threads_shared_timeline(void)
 	pthread_join(a, NULL);
 	pthread_join(b, NULL);
 
-	/* make sure the threads did not trample on one another */
+	/* make sure the threads did yest trample on one ayesther */
 	ASSERT(test_data_two_threads.counter ==
 	       test_data_two_threads.iterations * 2,
 	       "Counter has unexpected value\n");

@@ -50,7 +50,7 @@ static int preallocate_pcm_pages(struct snd_pcm_substream *substream, size_t siz
 		size >>= 1;
 	} while (size >= snd_minimum_buffer);
 	dmab->bytes = 0; /* tell error */
-	pr_warn("ALSA pcmC%dD%d%c,%d:%s: cannot preallocate for size %zu\n",
+	pr_warn("ALSA pcmC%dD%d%c,%d:%s: canyest preallocate for size %zu\n",
 		substream->pcm->card->number, substream->pcm->device,
 		substream->stream ? 'c' : 'p', substream->number,
 		substream->pcm->name, orig_size);
@@ -58,7 +58,7 @@ static int preallocate_pcm_pages(struct snd_pcm_substream *substream, size_t siz
 }
 
 /*
- * release the preallocated buffer if not yet done.
+ * release the preallocated buffer if yest yet done.
  */
 static void snd_pcm_lib_preallocate_dma_free(struct snd_pcm_substream *substream)
 {
@@ -341,7 +341,7 @@ struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream, unsigne
  * Allocates the DMA buffer on the BUS type given earlier to
  * snd_pcm_lib_preallocate_xxx_pages().
  *
- * Return: 1 if the buffer is changed, 0 if not changed, or a negative
+ * Return: 1 if the buffer is changed, 0 if yest changed, or a negative
  * code on failure.
  */
 int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
@@ -362,7 +362,7 @@ int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
 		   costs us less time */
 		if (runtime->dma_buffer_p->bytes >= size) {
 			runtime->dma_bytes = size;
-			return 0;	/* ok, do not change */
+			return 0;	/* ok, do yest change */
 		}
 		snd_pcm_lib_free_pages(substream);
 	}
@@ -405,7 +405,7 @@ int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream)
 	if (runtime->dma_area == NULL)
 		return 0;
 	if (runtime->dma_buffer_p != &substream->dma_buffer) {
-		/* it's a newly allocated buffer.  release it now. */
+		/* it's a newly allocated buffer.  release it yesw. */
 		snd_dma_free_pages(runtime->dma_buffer_p);
 		kfree(runtime->dma_buffer_p);
 	}
@@ -424,7 +424,7 @@ int _snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream,
 	runtime = substream->runtime;
 	if (runtime->dma_area) {
 		if (runtime->dma_bytes >= size)
-			return 0; /* already large enough */
+			return 0; /* already large eyesugh */
 		vfree(runtime->dma_area);
 	}
 	runtime->dma_area = __vmalloc(size, gfp_flags, PAGE_KERNEL);

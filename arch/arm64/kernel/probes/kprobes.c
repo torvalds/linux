@@ -65,7 +65,7 @@ static void __kprobes arch_prepare_ss_slot(struct kprobe *p)
 
 static void __kprobes arch_prepare_simulate(struct kprobe *p)
 {
-	/* This instructions is not executed xol. No need to adjust the PC */
+	/* This instructions is yest executed xol. No need to adjust the PC */
 	p->ainsn.api.restore = 0;
 }
 
@@ -76,7 +76,7 @@ static void __kprobes arch_simulate_insn(struct kprobe *p, struct pt_regs *regs)
 	if (p->ainsn.api.handler)
 		p->ainsn.api.handler((u32)p->opcode, (long)p->addr, regs);
 
-	/* single step simulated, now go for post processing */
+	/* single step simulated, yesw go for post processing */
 	post_kprobe_handler(kcb, regs);
 }
 
@@ -95,7 +95,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 
 	/* decode instruction */
 	switch (arm_kprobe_decode_insn(p->addr, &p->ainsn)) {
-	case INSN_REJECTED:	/* insn not supported */
+	case INSN_REJECTED:	/* insn yest supported */
 		return -EINVAL;
 
 	case INSN_GOOD_NO_SLOT:	/* insn need simulation */
@@ -169,7 +169,7 @@ static void __kprobes set_current_kprobe(struct kprobe *p)
 }
 
 /*
- * Interrupts need to be disabled before single-step mode is set, and not
+ * Interrupts need to be disabled before single-step mode is set, and yest
  * reenabled until after single-step mode ends.
  * Without disabling interrupt on local CPU, there is a chance of
  * interrupt occurrence in the period of exception return and  start of
@@ -226,7 +226,7 @@ static void __kprobes setup_singlestep(struct kprobe *p,
 
 		set_ss_context(kcb, slot);	/* mark pending ss */
 
-		/* IRQs and single stepping do not mix well. */
+		/* IRQs and single stepping do yest mix well. */
 		kprobes_save_local_irqflag(kcb, regs);
 		kernel_enable_single_step(regs);
 		instruction_pointer_set(regs, slot);
@@ -268,7 +268,7 @@ post_kprobe_handler(struct kprobe_ctlblk *kcb, struct pt_regs *regs)
 	if (!cur)
 		return;
 
-	/* return addr restore if non-branching insn */
+	/* return addr restore if yesn-branching insn */
 	if (cur->ainsn.api.restore != 0)
 		instruction_pointer_set(regs, cur->ainsn.api.restore);
 
@@ -302,7 +302,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr)
 		 * stepped caused a page fault. We reset the current
 		 * kprobe and the ip points back to the probe address
 		 * and allow the page fault handler to continue as a
-		 * normal page fault.
+		 * yesrmal page fault.
 		 */
 		instruction_pointer_set(regs, (unsigned long) cur->addr);
 		if (!instruction_pointer(regs))
@@ -366,10 +366,10 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
 			/*
-			 * If we have no pre-handler or it returned 0, we
-			 * continue with normal processing.  If we have a
-			 * pre-handler and it returned non-zero, it will
-			 * modify the execution path and no need to single
+			 * If we have yes pre-handler or it returned 0, we
+			 * continue with yesrmal processing.  If we have a
+			 * pre-handler and it returned yesn-zero, it will
+			 * modify the execution path and yes need to single
 			 * stepping. Let's just reset current kprobe and exit.
 			 *
 			 * pre_handler can hit a breakpoint and can step thru
@@ -384,9 +384,9 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 	}
 	/*
 	 * The breakpoint instruction was removed right
-	 * after we hit it.  Another cpu has removed
+	 * after we hit it.  Ayesther cpu has removed
 	 * either a probepoint or a debugger breakpoint
-	 * at this address.  In either case, no further
+	 * at this address.  In either case, yes further
 	 * handling of this interrupt is appropriate.
 	 * Return back to original instruction, and continue.
 	 */
@@ -400,7 +400,7 @@ kprobe_ss_hit(struct kprobe_ctlblk *kcb, unsigned long addr)
 		clear_ss_context(kcb);	/* clear pending ss */
 		return DBG_HOOK_HANDLED;
 	}
-	/* not ours, kprobes should ignore it */
+	/* yest ours, kprobes should igyesre it */
 	return DBG_HOOK_ERROR;
 }
 
@@ -410,7 +410,7 @@ kprobe_single_step_handler(struct pt_regs *regs, unsigned int esr)
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	int retval;
 
-	/* return error if this is not our step */
+	/* return error if this is yest our step */
 	retval = kprobe_ss_hit(kcb, instruction_pointer(regs));
 
 	if (retval == DBG_HOOK_HANDLED) {
@@ -440,7 +440,7 @@ static struct break_hook kprobes_break_hook = {
 };
 
 /*
- * Provide a blacklist of symbols identifying ranges which cannot be kprobed.
+ * Provide a blacklist of symbols identifying ranges which canyest be kprobed.
  * This blacklist is exposed to userspace via debugfs (kprobes/blacklist).
  */
 int __init arch_populate_kprobe_blacklist(void)
@@ -472,7 +472,7 @@ void __kprobes __used *trampoline_probe_handler(struct pt_regs *regs)
 {
 	struct kretprobe_instance *ri = NULL;
 	struct hlist_head *head, empty_rp;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address =
 		(unsigned long)&kretprobe_trampoline;
@@ -490,13 +490,13 @@ void __kprobes __used *trampoline_probe_handler(struct pt_regs *regs)
 	 * We can handle this because:
 	 *     - instances are always pushed into the head of the list
 	 *     - when multiple return probes are registered for the same
-	 *	 function, the (chronologically) first instance's ret_addr
+	 *	 function, the (chroyeslogically) first instance's ret_addr
 	 *	 will be the real return address, and all the rest will
 	 *	 point to kretprobe_trampoline.
 	 */
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
-			/* another task is sharing our hash bucket */
+			/* ayesther task is sharing our hash bucket */
 			continue;
 
 		orig_ret_address = (unsigned long)ri->ret_addr;
@@ -515,7 +515,7 @@ void __kprobes __used *trampoline_probe_handler(struct pt_regs *regs)
 	correct_ret_addr = ri->ret_addr;
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
-			/* another task is sharing our hash bucket */
+			/* ayesther task is sharing our hash bucket */
 			continue;
 
 		orig_ret_address = (unsigned long)ri->ret_addr;

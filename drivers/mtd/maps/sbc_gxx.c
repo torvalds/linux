@@ -26,7 +26,7 @@ The flash is accessed as follows:
 The single flash device is divided into 3 partition which appear as
 separate MTD devices.
 
-25/04/2001 AJL (Arcom)  Modified signon strings and partition sizes
+25/04/2001 AJL (Arcom)  Modified sigyesn strings and partition sizes
                         (to support bzImages up to 638KiB-ish)
 */
 

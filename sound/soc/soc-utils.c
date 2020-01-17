@@ -69,7 +69,7 @@ static int dummy_dma_open(struct snd_soc_component *component,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 
 	/* BE's dont need dummy params */
-	if (!rtd->dai_link->no_pcm)
+	if (!rtd->dai_link->yes_pcm)
 		snd_soc_set_runtime_hwparams(substream, &dummy_dma_hardware);
 
 	return 0;
@@ -84,7 +84,7 @@ static const struct snd_soc_component_driver dummy_codec = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 #define STUB_RATES	SNDRV_PCM_RATE_8000_192000
@@ -98,10 +98,10 @@ static const struct snd_soc_component_driver dummy_codec = {
 			SNDRV_PCM_FMTBIT_U32_LE | \
 			SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE)
 /*
- * The dummy CODEC is only meant to be used in situations where there is no
+ * The dummy CODEC is only meant to be used in situations where there is yes
  * actual hardware.
  *
- * If there is actual hardware even if it does not have a control bus
+ * If there is actual hardware even if it does yest have a control bus
  * the hardware will still have constraints like supported samplerates, etc.
  * which should be modelled. And the data flow graph also should be modelled
  * using DAPM.

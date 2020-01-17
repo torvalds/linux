@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'tmp103'
 
-    Addresses scanned: none
+    Addresses scanned: yesne
 
     Product info and datasheet: http://www.ti.com/product/tmp103
 

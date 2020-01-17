@@ -303,7 +303,7 @@ nlmsvc_encode_res(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nlmsvc_decode_notify(struct svc_rqst *rqstp, __be32 *p)
+nlmsvc_decode_yestify(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nlm_args *argp = rqstp->rq_argp;
 	struct nlm_lock	*lock = &argp->lock;

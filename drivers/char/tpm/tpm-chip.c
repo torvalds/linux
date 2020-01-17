@@ -95,7 +95,7 @@ static void tpm_clk_disable(struct tpm_chip *chip)
  *
  * Return:
  * * The response length	- OK
- * * -errno			- A system error
+ * * -erryes			- A system error
  */
 int tpm_chip_start(struct tpm_chip *chip)
 {
@@ -128,7 +128,7 @@ EXPORT_SYMBOL_GPL(tpm_chip_start);
  *
  * Return:
  * * The response length	- OK
- * * -errno			- A system error
+ * * -erryes			- A system error
  */
 void tpm_chip_stop(struct tpm_chip *chip)
 {
@@ -145,9 +145,9 @@ EXPORT_SYMBOL_GPL(tpm_chip_stop);
  * The caller must already have some kind of locking to ensure that chip is
  * valid. This function will lock the chip so that the ops member can be
  * accessed safely. The locking prevents tpm_chip_unregister from
- * completing, so it should not be held for long periods.
+ * completing, so it should yest be held for long periods.
  *
- * Returns -ERRNO if the chip could not be got.
+ * Returns -ERRNO if the chip could yest be got.
  */
 int tpm_try_get_ops(struct tpm_chip *chip)
 {
@@ -229,8 +229,8 @@ EXPORT_SYMBOL_GPL(tpm_default_chip);
  *
  * Return:
  * A reserved &struct tpm_chip instance.
- * %NULL if a chip is not found.
- * %NULL if the chip is not available.
+ * %NULL if a chip is yest found.
+ * %NULL if the chip is yest available.
  */
 struct tpm_chip *tpm_find_get_ops(struct tpm_chip *chip)
 {
@@ -311,7 +311,7 @@ static int tpm_class_shutdown(struct device *dev)
 /**
  * tpm_chip_alloc() - allocate a new struct tpm_chip instance
  * @pdev: device to which the chip is associated
- *        At this point pdev mst be initialized, but does not have to
+ *        At this point pdev mst be initialized, but does yest have to
  *        be registered
  * @ops: struct tpm_class_ops instance
  *
@@ -443,7 +443,7 @@ static int tpm_add_char_device(struct tpm_chip *chip)
 	rc = cdev_device_add(&chip->cdev, &chip->dev);
 	if (rc) {
 		dev_err(&chip->dev,
-			"unable to cdev_device_add() %s, major %d, minor %d, err=%d\n",
+			"unable to cdev_device_add() %s, major %d, miyesr %d, err=%d\n",
 			dev_name(&chip->dev), MAJOR(chip->dev.devt),
 			MINOR(chip->dev.devt), rc);
 		return rc;
@@ -453,7 +453,7 @@ static int tpm_add_char_device(struct tpm_chip *chip)
 		rc = cdev_device_add(&chip->cdevs, &chip->devs);
 		if (rc) {
 			dev_err(&chip->devs,
-				"unable to cdev_device_add() %s, major %d, minor %d, err=%d\n",
+				"unable to cdev_device_add() %s, major %d, miyesr %d, err=%d\n",
 				dev_name(&chip->devs), MAJOR(chip->devs.devt),
 				MINOR(chip->devs.devt), rc);
 			return rc;
@@ -635,8 +635,8 @@ EXPORT_SYMBOL_GPL(tpm_chip_register);
  * Takes the chip first away from the list of available TPM chips and then
  * cleans up all the resources reserved by tpm_chip_register().
  *
- * Once this function returns the driver call backs in 'op's will not be
- * running and will no longer start.
+ * Once this function returns the driver call backs in 'op's will yest be
+ * running and will yes longer start.
  *
  * NOTE: This function should be only called before deinitializing chip
  * resources.

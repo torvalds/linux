@@ -52,7 +52,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_USB,
 /*
  * Prevent the PCI layer from seeing the resources allocated to this device
  * if it is the host bridge by marking it as such.  These resources are of
- * no consequence to the PCI layer (they are handled elsewhere).
+ * yes consequence to the PCI layer (they are handled elsewhere).
  */
 static void emma2rh_pci_host_fixup(struct pci_dev *dev)
 {

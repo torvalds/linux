@@ -18,7 +18,7 @@ static int errors, handler_errors, num_tests;
 static u32 (*target)(u32 value);
 static u32 (*target2)(u32 value);
 
-static noinline u32 kprobe_target(u32 value)
+static yesinline u32 kprobe_target(u32 value)
 {
 	return (value / div_factor);
 }
@@ -67,19 +67,19 @@ static int test_kprobe(void)
 	unregister_kprobe(&kp);
 
 	if (preh_val == 0) {
-		pr_err("kprobe pre_handler not called\n");
+		pr_err("kprobe pre_handler yest called\n");
 		handler_errors++;
 	}
 
 	if (posth_val == 0) {
-		pr_err("kprobe post_handler not called\n");
+		pr_err("kprobe post_handler yest called\n");
 		handler_errors++;
 	}
 
 	return 0;
 }
 
-static noinline u32 kprobe_target2(u32 value)
+static yesinline u32 kprobe_target2(u32 value)
 {
 	return (value / div_factor) + 1;
 }
@@ -125,12 +125,12 @@ static int test_kprobes(void)
 	ret = target(rand1);
 
 	if (preh_val == 0) {
-		pr_err("kprobe pre_handler not called\n");
+		pr_err("kprobe pre_handler yest called\n");
 		handler_errors++;
 	}
 
 	if (posth_val == 0) {
-		pr_err("kprobe post_handler not called\n");
+		pr_err("kprobe post_handler yest called\n");
 		handler_errors++;
 	}
 
@@ -139,12 +139,12 @@ static int test_kprobes(void)
 	ret = target2(rand1);
 
 	if (preh_val == 0) {
-		pr_err("kprobe pre_handler2 not called\n");
+		pr_err("kprobe pre_handler2 yest called\n");
 		handler_errors++;
 	}
 
 	if (posth_val == 0) {
-		pr_err("kprobe post_handler2 not called\n");
+		pr_err("kprobe post_handler2 yest called\n");
 		handler_errors++;
 	}
 
@@ -206,7 +206,7 @@ static int test_kretprobe(void)
 	ret = target(rand1);
 	unregister_kretprobe(&rp);
 	if (krph_val != rand1) {
-		pr_err("kretprobe handler not called\n");
+		pr_err("kretprobe handler yest called\n");
 		handler_errors++;
 	}
 
@@ -253,14 +253,14 @@ static int test_kretprobes(void)
 	krph_val = 0;
 	ret = target(rand1);
 	if (krph_val != rand1) {
-		pr_err("kretprobe handler not called\n");
+		pr_err("kretprobe handler yest called\n");
 		handler_errors++;
 	}
 
 	krph_val = 0;
 	ret = target2(rand1);
 	if (krph_val != rand1) {
-		pr_err("kretprobe handler2 not called\n");
+		pr_err("kretprobe handler2 yest called\n");
 		handler_errors++;
 	}
 	unregister_kretprobes(rps, 2);

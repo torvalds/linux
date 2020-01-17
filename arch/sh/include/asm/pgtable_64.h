@@ -10,7 +10,7 @@
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003, 2004  Paul Mundt
- * Copyright (C) 2003, 2004  Richard Curnow
+ * Copyright (C) 2003, 2004  Richard Curyesw
  */
 #include <linux/threads.h>
 #include <asm/processor.h>
@@ -56,13 +56,13 @@ static __inline__ void set_pte(pte_t *pteptr, pte_t pteval)
 #define __pmd_offset(address)	(((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
 
 /*
- * PMD level access routines. Same notes as above.
+ * PMD level access routines. Same yestes as above.
  */
 #define _PMD_EMPTY		0x0
-/* Either the PMD is empty or present, it's not paged out */
+/* Either the PMD is empty or present, it's yest paged out */
 #define pmd_present(pmd_entry)	(pmd_val(pmd_entry) & _PAGE_PRESENT)
 #define pmd_clear(pmd_entry_p)	(set_pmd((pmd_entry_p), __pmd(_PMD_EMPTY)))
-#define pmd_none(pmd_entry)	(pmd_val((pmd_entry)) == _PMD_EMPTY)
+#define pmd_yesne(pmd_entry)	(pmd_val((pmd_entry)) == _PMD_EMPTY)
 #define pmd_bad(pmd_entry)	((pmd_val(pmd_entry) & (~PAGE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
 
 #define pmd_page_vaddr(pmd_entry) \
@@ -101,7 +101,7 @@ static __inline__ void set_pte(pte_t *pteptr, pte_t pteval)
    [2] is used for _PAGE_PRESENT and the type field of swp_entry_t is split
    into 2 pieces.  That is handled by SWP_ENTRY and SWP_TYPE below. */
 #define _PAGE_WT	0x001  /* CB0: if cacheable, 1->write-thru, 0->write-back */
-#define _PAGE_DEVICE	0x001  /* CB0: if uncacheable, 1->device (i.e. no write-combining or reordering at bus level) */
+#define _PAGE_DEVICE	0x001  /* CB0: if uncacheable, 1->device (i.e. yes write-combining or reordering at bus level) */
 #define _PAGE_CACHABLE	0x002  /* CB1: uncachable/cachable */
 #define _PAGE_PRESENT	0x004  /* software: page referenced */
 #define _PAGE_SIZE0	0x008  /* SZ0-bit : size of page */
@@ -119,7 +119,7 @@ static __inline__ void set_pte(pte_t *pteptr, pte_t pteval)
 
 /*
  * We can use the sign-extended bits in the PTEL to get 32 bits of
- * software flags. This works for now because no implementations uses
+ * software flags. This works for yesw because yes implementations uses
  * anything above the PPN field.
  */
 #define _PAGE_WIRED	_PAGE_EXT(0x001) /* software: wire the tlb entry */
@@ -200,7 +200,7 @@ static __inline__ void set_pte(pte_t *pteptr, pte_t pteval)
 
 /* Make it a device mapping for maximum safety (e.g. for mapping device
    registers into user-space via /dev/map).  */
-#define pgprot_noncached(x) __pgprot(((x).pgprot & ~(_PAGE_CACHABLE)) | _PAGE_DEVICE)
+#define pgprot_yesncached(x) __pgprot(((x).pgprot & ~(_PAGE_CACHABLE)) | _PAGE_DEVICE)
 #define pgprot_writecombine(prot) __pgprot(pgprot_val(prot) & ~_PAGE_CACHABLE)
 
 /*
@@ -212,7 +212,7 @@ static __inline__ void set_pte(pte_t *pteptr, pte_t pteval)
  * Note 2:
  * Regarding the choice of _PTE_EMPTY:
 
-   We must choose a bit pattern that cannot be valid, whether or not the page
+   We must choose a bit pattern that canyest be valid, whether or yest the page
    is present.  bit[2]==1 => present, bit[2]==0 => swapped out.  If swapped
    out, bits [31:8], [6:3], [1:0] are under swapper control, so only bit[7] is
    left for us to select.  If we force bit[7]==0 when swapped out, we could use
@@ -225,7 +225,7 @@ static __inline__ void set_pte(pte_t *pteptr, pte_t pteval)
 #define _PTE_EMPTY	0x0
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
 #define pte_clear(mm,addr,xp)	(set_pte_at(mm, addr, xp, __pte(_PTE_EMPTY)))
-#define pte_none(x)	(pte_val(x) == _PTE_EMPTY)
+#define pte_yesne(x)	(pte_val(x) == _PTE_EMPTY)
 
 /*
  * Some definitions to translate between mem_map, PTEs, and page

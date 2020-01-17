@@ -38,7 +38,7 @@ static ssize_t afu_version_show(struct device *device,
 
 	return scnprintf(buf, PAGE_SIZE, "%hhu:%hhu\n",
 			afu->config.version_major,
-			afu->config.version_minor);
+			afu->config.version_miyesr);
 }
 
 static ssize_t contexts_show(struct device *device,
@@ -100,7 +100,7 @@ static int global_mmio_mmap(struct file *filp, struct kobject *kobj,
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	vma->vm_ops = &global_mmio_vmops;
 	vma->vm_private_data = afu;
 	return 0;
@@ -142,8 +142,8 @@ void ocxl_sysfs_unregister_afu(struct ocxl_file_info *info)
 	int i;
 
 	/*
-	 * device_remove_bin_file is safe to call if the file is not added as
-	 * the files are removed by name, and early exit if not found
+	 * device_remove_bin_file is safe to call if the file is yest added as
+	 * the files are removed by name, and early exit if yest found
 	 */
 	for (i = 0; i < ARRAY_SIZE(afu_attrs); i++)
 		device_remove_file(&info->dev, &afu_attrs[i]);

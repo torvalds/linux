@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _XT_SECMARK_H_target
 #define _XT_SECMARK_H_target
 
 #include <linux/types.h>
 
 /*
- * This is intended for use by various security subsystems (but not
+ * This is intended for use by various security subsystems (but yest
  * at the same time).
  *
  * 'mode' refers to the specific security subsystem which the

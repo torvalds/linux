@@ -142,7 +142,7 @@ static void cpsw_gmii_sel_dra7xx(struct cpsw_phy_sel_priv *priv,
 	}
 
 	if (priv->rmii_clock_external)
-		dev_err(priv->dev, "RMII External clock is not supported\n");
+		dev_err(priv->dev, "RMII External clock is yest supported\n");
 
 	reg &= ~mask;
 	reg |= mode;
@@ -153,28 +153,28 @@ static void cpsw_gmii_sel_dra7xx(struct cpsw_phy_sel_priv *priv,
 static struct platform_driver cpsw_phy_sel_driver;
 static int match(struct device *dev, const void *data)
 {
-	const struct device_node *node = (const struct device_node *)data;
-	return dev->of_node == node &&
+	const struct device_yesde *yesde = (const struct device_yesde *)data;
+	return dev->of_yesde == yesde &&
 		dev->driver == &cpsw_phy_sel_driver.driver;
 }
 
 void cpsw_phy_sel(struct device *dev, phy_interface_t phy_mode, int slave)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct cpsw_phy_sel_priv *priv;
 
-	node = of_parse_phandle(dev->of_node, "cpsw-phy-sel", 0);
-	if (!node) {
-		node = of_get_child_by_name(dev->of_node, "cpsw-phy-sel");
-		if (!node) {
-			dev_err(dev, "Phy mode driver DT not found\n");
+	yesde = of_parse_phandle(dev->of_yesde, "cpsw-phy-sel", 0);
+	if (!yesde) {
+		yesde = of_get_child_by_name(dev->of_yesde, "cpsw-phy-sel");
+		if (!yesde) {
+			dev_err(dev, "Phy mode driver DT yest found\n");
 			return;
 		}
 	}
 
-	dev = bus_find_device(&platform_bus_type, NULL, node, match);
+	dev = bus_find_device(&platform_bus_type, NULL, yesde, match);
 	if (!dev) {
-		dev_err(dev, "unable to find platform device for %pOF\n", node);
+		dev_err(dev, "unable to find platform device for %pOF\n", yesde);
 		goto out;
 	}
 
@@ -184,7 +184,7 @@ void cpsw_phy_sel(struct device *dev, phy_interface_t phy_mode, int slave)
 
 	put_device(dev);
 out:
-	of_node_put(node);
+	of_yesde_put(yesde);
 }
 EXPORT_SYMBOL_GPL(cpsw_phy_sel);
 
@@ -210,7 +210,7 @@ static int cpsw_phy_sel_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	struct cpsw_phy_sel_priv *priv;
 
-	of_id = of_match_node(cpsw_phy_sel_id_table, pdev->dev.of_node);
+	of_id = of_match_yesde(cpsw_phy_sel_id_table, pdev->dev.of_yesde);
 	if (!of_id)
 		return -EINVAL;
 
@@ -228,7 +228,7 @@ static int cpsw_phy_sel_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->gmii_sel))
 		return PTR_ERR(priv->gmii_sel);
 
-	if (of_find_property(pdev->dev.of_node, "rmii-clock-ext", NULL))
+	if (of_find_property(pdev->dev.of_yesde, "rmii-clock-ext", NULL))
 		priv->rmii_clock_external = true;
 
 	dev_set_drvdata(&pdev->dev, priv);

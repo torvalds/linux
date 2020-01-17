@@ -204,7 +204,7 @@ static void mtk_iommu_tlb_flush_range_sync(unsigned long iova, size_t size,
 	}
 }
 
-static void mtk_iommu_tlb_flush_page_nosync(struct iommu_iotlb_gather *gather,
+static void mtk_iommu_tlb_flush_page_yessync(struct iommu_iotlb_gather *gather,
 					    unsigned long iova, size_t granule,
 					    void *cookie)
 {
@@ -218,7 +218,7 @@ static const struct iommu_flush_ops mtk_iommu_flush_ops = {
 	.tlb_flush_all = mtk_iommu_tlb_flush_all,
 	.tlb_flush_walk = mtk_iommu_tlb_flush_range_sync,
 	.tlb_flush_leaf = mtk_iommu_tlb_flush_range_sync,
-	.tlb_add_page = mtk_iommu_tlb_flush_page_nosync,
+	.tlb_add_page = mtk_iommu_tlb_flush_page_yessync,
 };
 
 static irqreturn_t mtk_iommu_isr(int irq, void *dev_id)
@@ -392,7 +392,7 @@ static int mtk_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
 	struct mtk_iommu_data *data = mtk_iommu_get_m4u_data();
 
-	/* The "4GB mode" M4U physically can not use the lower remap of Dram. */
+	/* The "4GB mode" M4U physically can yest use the lower remap of Dram. */
 	if (data->enable_4GB)
 		paddr |= BIT_ULL(32);
 
@@ -507,7 +507,7 @@ static int mtk_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 
 	if (!fwspec->iommu_priv) {
 		/* Get the m4u device */
-		m4updev = of_find_device_by_node(args->np);
+		m4updev = of_find_device_by_yesde(args->np);
 		if (WARN_ON(!m4updev))
 			return -EINVAL;
 
@@ -648,38 +648,38 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 			return PTR_ERR(data->bclk);
 	}
 
-	larb_nr = of_count_phandle_with_args(dev->of_node,
+	larb_nr = of_count_phandle_with_args(dev->of_yesde,
 					     "mediatek,larbs", NULL);
 	if (larb_nr < 0)
 		return larb_nr;
 
 	for (i = 0; i < larb_nr; i++) {
-		struct device_node *larbnode;
+		struct device_yesde *larbyesde;
 		struct platform_device *plarbdev;
 		u32 id;
 
-		larbnode = of_parse_phandle(dev->of_node, "mediatek,larbs", i);
-		if (!larbnode)
+		larbyesde = of_parse_phandle(dev->of_yesde, "mediatek,larbs", i);
+		if (!larbyesde)
 			return -EINVAL;
 
-		if (!of_device_is_available(larbnode)) {
-			of_node_put(larbnode);
+		if (!of_device_is_available(larbyesde)) {
+			of_yesde_put(larbyesde);
 			continue;
 		}
 
-		ret = of_property_read_u32(larbnode, "mediatek,larb-id", &id);
-		if (ret)/* The id is consecutive if there is no this property */
+		ret = of_property_read_u32(larbyesde, "mediatek,larb-id", &id);
+		if (ret)/* The id is consecutive if there is yes this property */
 			id = i;
 
-		plarbdev = of_find_device_by_node(larbnode);
+		plarbdev = of_find_device_by_yesde(larbyesde);
 		if (!plarbdev) {
-			of_node_put(larbnode);
+			of_yesde_put(larbyesde);
 			return -EPROBE_DEFER;
 		}
 		data->larb_imu[id].dev = &plarbdev->dev;
 
 		component_match_add_release(dev, &match, release_of,
-					    compare_of, larbnode);
+					    compare_of, larbyesde);
 	}
 
 	platform_set_drvdata(pdev, data);
@@ -694,7 +694,7 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 		return ret;
 
 	iommu_device_set_ops(&data->iommu, &mtk_iommu_ops);
-	iommu_device_set_fwnode(&data->iommu, &pdev->dev.of_node->fwnode);
+	iommu_device_set_fwyesde(&data->iommu, &pdev->dev.of_yesde->fwyesde);
 
 	ret = iommu_device_register(&data->iommu);
 	if (ret)

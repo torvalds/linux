@@ -148,7 +148,7 @@
 #define E2P_CMD_ERASE_		(0x50000000)	/* Erase Location */
 #define E2P_CMD_ERAL_		(0x60000000)	/* Erase All */
 #define E2P_CMD_RELOAD_		(0x70000000)	/* Data Reload */
-#define E2P_CMD_TIMEOUT_	(0x00000400)	/* Set if no resp within 30ms */
+#define E2P_CMD_TIMEOUT_	(0x00000400)	/* Set if yes resp within 30ms */
 #define E2P_CMD_LOADED_		(0x00000200)	/* Valid EEPROM found */
 #define E2P_CMD_ADDR_		(0x000001FF)	/* Byte aligned address */
 

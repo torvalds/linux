@@ -16,7 +16,7 @@
 
   Sequencer MIDI-through client
 
-  This gives a simple midi-through client.  All the normal input events
+  This gives a simple midi-through client.  All the yesrmal input events
   are redirected to output port immediately.
   The routing can be done via aconnect program in alsa-utils.
 
@@ -39,7 +39,7 @@
   The model option "duplex=1" enables duplex operation to the port.
   In duplex mode, a pair of ports are created instead of single port,
   and events are tunneled between pair-ports.  For example, input to
-  port A is sent to output port of another port B and vice versa.
+  port A is sent to output port of ayesther port B and vice versa.
   In duplex mode, each port has DUPLEX capability.
 
  */
@@ -80,7 +80,7 @@ dummy_input(struct snd_seq_event *ev, int direct, void *private_data,
 	p = private_data;
 	if (ev->source.client == SNDRV_SEQ_CLIENT_SYSTEM ||
 	    ev->type == SNDRV_SEQ_EVENT_KERNEL_ERROR)
-		return 0; /* ignore system messages */
+		return 0; /* igyesre system messages */
 	tmpev = *ev;
 	if (p->duplex)
 		tmpev.source.port = p->connect;

@@ -52,7 +52,7 @@ endif
 
 ifneq ($(SUBARCH),$(ARCH))
   ifeq ($(CROSS_COMPILE),)
-    CROSS_COMPILE := $(call cc-cross-prefix, $(tool-archpref)-linux-  $(tool-archpref)-linux-gnu-  $(tool-archpref)-unknown-linux-gnu-)
+    CROSS_COMPILE := $(call cc-cross-prefix, $(tool-archpref)-linux-  $(tool-archpref)-linux-gnu-  $(tool-archpref)-unkyeswn-linux-gnu-)
   endif
 endif
 
@@ -63,7 +63,7 @@ ifdef CONFIG_FUNCTION_GRAPH_TRACER
     endif
   endif
 endif
-cflags-y += $(call cc-option, -mno-check-zero-division)
+cflags-y += $(call cc-option, -myes-check-zero-division)
 
 ifdef CONFIG_32BIT
 ld-emul			= $(32bit-emul)
@@ -95,9 +95,9 @@ all-$(CONFIG_SYS_SUPPORTS_ZBOOT)+= vmlinuz
 # machines may also.  Since BFD is incredibly buggy with respect to
 # crossformat linking we rely on the elf2ecoff tool for format conversion.
 #
-cflags-y			+= -G 0 -mno-abicalls -fno-pic -pipe
+cflags-y			+= -G 0 -myes-abicalls -fyes-pic -pipe
 cflags-y			+= -msoft-float
-LDFLAGS_vmlinux			+= -G 0 -static -n -nostdlib
+LDFLAGS_vmlinux			+= -G 0 -static -n -yesstdlib
 KBUILD_AFLAGS_MODULE		+= -mlong-calls
 KBUILD_CFLAGS_MODULE		+= -mlong-calls
 
@@ -144,14 +144,14 @@ cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= $(shell $(CC) -dumpmachine |grep -q 'mips.*e
 cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= $(shell $(CC) -dumpmachine |grep -q 'mips.*el-.*' || echo -EL $(undef-all) $(predef-le))
 endif
 
-cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-mno-sched-prolog) \
-				   -fno-omit-frame-pointer
+cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-myes-sched-prolog) \
+				   -fyes-omit-frame-pointer
 
 # Some distribution-specific toolchains might pass the -fstack-check
 # option during the build, which adds a simple stack-probe at the beginning
-# of every function.  This stack probe is to ensure that there is enough
-# stack space, else a SEGV is generated.  This is not desirable for MIPS
-# as kernel stacks are small, placed in unmapped virtual memory, and do not
+# of every function.  This stack probe is to ensure that there is eyesugh
+# stack space, else a SEGV is generated.  This is yest desirable for MIPS
+# as kernel stacks are small, placed in unmapped virtual memory, and do yest
 # grow when overflowed.  Especially on SGI IP27 platforms, this check will
 # lead to a NULL pointer dereference in _raw_spin_lock_irq.
 #
@@ -159,7 +159,7 @@ cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-mno-sched-prolog) \
 #    sd		zero,<offset>(sp)
 # Where <offset> is a negative value.
 #
-cflags-y += -fno-stack-check
+cflags-y += -fyes-stack-check
 
 #
 # CPU-dependent compiler/assembler options for optimization.
@@ -184,8 +184,8 @@ cflags-$(CONFIG_CPU_RM7000)	+= $(call cc-option,-march=rm7000,-march=r5000) \
 			-Wa,--trap
 cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-march=sb1,-march=r5000) \
 			-Wa,--trap
-cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-mno-mdmx)
-cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-mno-mips3d)
+cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-myes-mdmx)
+cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-myes-mips3d)
 cflags-$(CONFIG_CPU_R10000)	+= $(call cc-option,-march=r10000,-march=r8000) \
 			-Wa,--trap
 cflags-$(CONFIG_CPU_CAVIUM_OCTEON) += $(call cc-option,-march=octeon) -Wa,--trap
@@ -197,21 +197,21 @@ cflags-$(CONFIG_CPU_BMIPS)	+= -march=mips32 -Wa,-mips32 -Wa,--trap
 
 cflags-$(CONFIG_CPU_R4000_WORKAROUNDS)	+= $(call cc-option,-mfix-r4000,)
 cflags-$(CONFIG_CPU_R4400_WORKAROUNDS)	+= $(call cc-option,-mfix-r4400,)
-cflags-$(CONFIG_CPU_DADDI_WORKAROUNDS)	+= $(call cc-option,-mno-daddi,)
+cflags-$(CONFIG_CPU_DADDI_WORKAROUNDS)	+= $(call cc-option,-myes-daddi,)
 
 # For smartmips configurations, there are hundreds of warnings due to ISA overrides
 # in assembly and header files. smartmips is only supported for MIPS32r1 onwards
-# and there is no support for 64-bit. Various '.set mips2' or '.set mips3' or
+# and there is yes support for 64-bit. Various '.set mips2' or '.set mips3' or
 # similar directives in the kernel will spam the build logs with the following warnings:
 # Warning: the `smartmips' extension requires MIPS32 revision 1 or greater
 # or
-# Warning: the 64-bit MIPS architecture does not support the `smartmips' extension
-# Pass -Wa,--no-warn to disable all assembler warnings until the kernel code has
+# Warning: the 64-bit MIPS architecture does yest support the `smartmips' extension
+# Pass -Wa,--yes-warn to disable all assembler warnings until the kernel code has
 # been fixed properly.
 mips-cflags				:= $(cflags-y)
 ifeq ($(CONFIG_CPU_HAS_SMARTMIPS),y)
 smartmips-ase				:= $(call cc-option-yn,$(mips-cflags) -msmartmips)
-cflags-$(smartmips-ase)			+= -msmartmips -Wa,--no-warn
+cflags-$(smartmips-ase)			+= -msmartmips -Wa,--yes-warn
 endif
 ifeq ($(CONFIG_CPU_MICROMIPS),y)
 micromips-ase				:= $(call cc-option-yn,$(mips-cflags) -mmicromips)
@@ -270,7 +270,7 @@ drivers-$(CONFIG_PCI)		+= arch/mips/pci/
 # Automatically detect the build format. By default we choose
 # the elf format according to the load address.
 # We can always force a build with a 64-bits symbol format by
-# passing 'KBUILD_SYM32=no' option to the make's command line.
+# passing 'KBUILD_SYM32=yes' option to the make's command line.
 #
 ifdef CONFIG_64BIT
   ifndef KBUILD_SYM32
@@ -306,7 +306,7 @@ endif
 
 # This is required to get dwarf unwinding tables into .debug_frame
 # instead of .eh_frame so we don't discard them.
-KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
+KBUILD_CFLAGS += -fyes-asynchroyesus-unwind-tables
 
 KBUILD_LDFLAGS		+= -m $(ld-emul)
 
@@ -398,7 +398,7 @@ $(bootz-y): $(vmlinux-32) FORCE
 		$(bootvars-y) 32bit-bfd=$(32bit-bfd) $@
 else
 vmlinuz: FORCE
-	@echo '   CONFIG_SYS_SUPPORTS_ZBOOT is not enabled'
+	@echo '   CONFIG_SYS_SUPPORTS_ZBOOT is yest enabled'
 	/bin/false
 endif
 
@@ -487,7 +487,7 @@ generic_defconfigs :=
 # available board config fragments.
 #
 ifeq ($(BOARDS),)
-BOARDS = $(patsubst board-%.config,%,$(notdir $(wildcard $(generic_config_dir)/board-*.config)))
+BOARDS = $(patsubst board-%.config,%,$(yestdir $(wildcard $(generic_config_dir)/board-*.config)))
 endif
 
 #
@@ -537,7 +537,7 @@ $(generic_config_dir)/%.config: ;
 #
 .PHONY: generic_defconfig
 generic_defconfig:
-	$(Q)echo "generic_defconfig is not intended for direct use, but should instead be"
+	$(Q)echo "generic_defconfig is yest intended for direct use, but should instead be"
 	$(Q)echo "used via an ISA-specific target from the following list:"
 	$(Q)echo
 	$(Q)for cfg in $(generic_defconfigs); do echo "  $${cfg}"; done
@@ -546,7 +546,7 @@ generic_defconfig:
 
 #
 # Legacy defconfig compatibility - these targets used to be real defconfigs but
-# now that the boards have been converted to use the generic kernel they are
+# yesw that the boards have been converted to use the generic kernel they are
 # wrappers around the generic rules above.
 #
 legacy_defconfigs		+= ocelot_defconfig

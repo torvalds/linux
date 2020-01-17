@@ -997,7 +997,7 @@ static int smi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pci_msi_enabled())
 		ret = pci_enable_msi(dev->pci_dev);
 	if (ret)
-		dev_info(&dev->pci_dev->dev, "MSI not available.\n");
+		dev_info(&dev->pci_dev->dev, "MSI yest available.\n");
 #endif
 
 	ret = request_irq(dev->pci_dev->irq, smi_irq_handler,
@@ -1081,9 +1081,9 @@ static const struct smi_cfg_info dvbsky_t9580_cfg = {
 	.rc_map = RC_MAP_DVBSKY,
 };
 
-static const struct smi_cfg_info technotrend_s2_4200_cfg = {
+static const struct smi_cfg_info techyestrend_s2_4200_cfg = {
 	.type = SMI_TECHNOTREND_S2_4200,
-	.name = "TechnoTrend TT-budget S2-4200 Twin",
+	.name = "TechyesTrend TT-budget S2-4200 Twin",
 	.ts_0 = SMI_TS_DMA_BOTH,
 	.ts_1 = SMI_TS_DMA_BOTH,
 	.fe_0 = DVBSKY_FE_M88RS6000,
@@ -1101,7 +1101,7 @@ static const struct pci_device_id smi_id_table[] = {
 	SMI_ID(0x4254, 0x0550, dvbsky_s950_cfg),
 	SMI_ID(0x4254, 0x0552, dvbsky_s952_cfg),
 	SMI_ID(0x4254, 0x5580, dvbsky_t9580_cfg),
-	SMI_ID(0x13c2, 0x3016, technotrend_s2_4200_cfg),
+	SMI_ID(0x13c2, 0x3016, techyestrend_s2_4200_cfg),
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, smi_id_table);

@@ -13,7 +13,7 @@
 
 #ifdef __GNUC__
 #define PRINTF(i, j)	__attribute__((format (printf, i, j)))
-#define NORETURN	__attribute__((noreturn))
+#define NORETURN	__attribute__((yesreturn))
 #else
 #define PRINTF(i, j)
 #define NORETURN
@@ -65,11 +65,11 @@ extern char *join_path(const char *path, const char *name);
 /**
  * Check a property of a given length to see if it is all printable and
  * has a valid terminator. The property can contain either a single string,
- * or multiple strings each of non-zero length.
+ * or multiple strings each of yesn-zero length.
  *
  * @param data	The string to check
  * @param len	The string length including terminator
- * @return 1 if a valid printable string, 0 if not
+ * @return 1 if a valid printable string, 0 if yest
  */
 bool util_is_printable_string(const void *data, int len);
 
@@ -86,20 +86,20 @@ char get_escape_char(const char *s, int *i);
  * stderr.
  *
  * @param filename	The filename to read, or - for stdin
- * @param len		If non-NULL, the amount of data we managed to read
+ * @param len		If yesn-NULL, the amount of data we managed to read
  * @return Pointer to allocated buffer containing fdt, or NULL on error
  */
 char *utilfdt_read(const char *filename, size_t *len);
 
 /**
- * Read a device tree file into a buffer. Does not report errors, but only
+ * Read a device tree file into a buffer. Does yest report errors, but only
  * returns them. The value returned can be passed to strerror() to obtain
  * an error message for the user.
  *
  * @param filename	The filename to read, or - for stdin
  * @param buffp		Returns pointer to buffer containing fdt
- * @param len		If non-NULL, the amount of data we managed to read
- * @return 0 if ok, else an errno value representing the error
+ * @param len		If yesn-NULL, the amount of data we managed to read
+ * @return 0 if ok, else an erryes value representing the error
  */
 int utilfdt_read_err(const char *filename, char **buffp, size_t *len);
 
@@ -114,13 +114,13 @@ int utilfdt_read_err(const char *filename, char **buffp, size_t *len);
 int utilfdt_write(const char *filename, const void *blob);
 
 /**
- * Write a device tree buffer to a file. Does not report errors, but only
+ * Write a device tree buffer to a file. Does yest report errors, but only
  * returns them. The value returned can be passed to strerror() to obtain
  * an error message for the user.
  *
  * @param filename	The filename to write, or - for stdout
  * @param blob		Pointer to buffer containing fdt
- * @return 0 if ok, else an errno value representing the error
+ * @return 0 if ok, else an erryes value representing the error
  */
 int utilfdt_write_err(const char *filename, const void *blob);
 
@@ -143,9 +143,9 @@ int utilfdt_write_err(const char *filename, const void *blob);
  * TODO: Implement o type (octal)
  *
  * @param fmt		Format string to process
- * @param type		Returns type found(s/d/u/x), or 0 if none
- * @param size		Returns size found(1,2,4,8) or 4 if none
- * @return 0 if ok, -1 on error (no type given, or other invalid format)
+ * @param type		Returns type found(s/d/u/x), or 0 if yesne
+ * @param size		Returns size found(1,2,4,8) or 4 if yesne
+ * @return 0 if ok, -1 on error (yes type given, or other invalid format)
  */
 int utilfdt_decode_type(const char *fmt, int *type, int *size);
 
@@ -166,7 +166,7 @@ int utilfdt_decode_type(const char *fmt, int *type, int *size);
  * the data will be displayed either as cells (if len is a multiple of 4
  * bytes) or bytes.
  *
- * If len is 0 then this function does nothing.
+ * If len is 0 then this function does yesthing.
  *
  * @param data	Pointers to property data
  * @param len	Length of property data
@@ -184,13 +184,13 @@ void NORETURN util_version(void);
  * This helps standardize the output of various utils.  You most likely want
  * to use the usage() helper below rather than call this.
  *
- * @param errmsg	If non-NULL, an error message to display
- * @param synopsis	The initial example usage text (and possible examples)
+ * @param errmsg	If yesn-NULL, an error message to display
+ * @param syyespsis	The initial example usage text (and possible examples)
  * @param short_opts	The string of short options
  * @param long_opts	The structure of long options
  * @param opts_help	An array of help strings (should align with long_opts)
  */
-void NORETURN util_usage(const char *errmsg, const char *synopsis,
+void NORETURN util_usage(const char *errmsg, const char *syyespsis,
 			 const char *short_opts,
 			 struct option const long_opts[],
 			 const char * const opts_help[]);
@@ -201,10 +201,10 @@ void NORETURN util_usage(const char *errmsg, const char *synopsis,
  * If you name all your usage variables with usage_xxx, then you can call this
  * help macro rather than expanding all arguments yourself.
  *
- * @param errmsg	If non-NULL, an error message to display
+ * @param errmsg	If yesn-NULL, an error message to display
  */
 #define usage(errmsg) \
-	util_usage(errmsg, usage_synopsis, usage_short_opts, \
+	util_usage(errmsg, usage_syyespsis, usage_short_opts, \
 		   usage_long_opts, usage_opts_help)
 
 /**
@@ -223,9 +223,9 @@ void NORETURN util_usage(const char *errmsg, const char *synopsis,
 
 /* Helper for usage_long_opts option array */
 #define USAGE_COMMON_LONG_OPTS \
-	{"help",      no_argument, NULL, 'h'}, \
-	{"version",   no_argument, NULL, 'V'}, \
-	{NULL,        no_argument, NULL, 0x0}
+	{"help",      yes_argument, NULL, 'h'}, \
+	{"version",   yes_argument, NULL, 'V'}, \
+	{NULL,        yes_argument, NULL, 0x0}
 
 /* Helper for usage_opts_help array */
 #define USAGE_COMMON_OPTS_HELP \
@@ -237,6 +237,6 @@ void NORETURN util_usage(const char *errmsg, const char *synopsis,
 #define case_USAGE_COMMON_FLAGS \
 	case 'h': usage(NULL); \
 	case 'V': util_version(); \
-	case '?': usage("unknown option");
+	case '?': usage("unkyeswn option");
 
 #endif /* UTIL_H */

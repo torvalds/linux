@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -298,7 +298,7 @@ static void vchnl_pf_send_error_resp(struct i40iw_sc_dev *dev, u32 vf_id,
 /**
  * pf_cqp_get_hmc_fcn_callback - Callback for Get HMC Fcn
  * @cqp_req_param: CQP Request param value
- * @not_used: unused CQP callback parameter
+ * @yest_used: unused CQP callback parameter
  */
 static void pf_cqp_get_hmc_fcn_callback(struct i40iw_sc_dev *dev, void *callback_param,
 					struct i40iw_ccq_cqe_info *cqe_info)
@@ -308,7 +308,7 @@ static void pf_cqp_get_hmc_fcn_callback(struct i40iw_sc_dev *dev, void *callback
 
 	if (cqe_info->error) {
 		i40iw_debug(dev, I40IW_DEBUG_VIRT,
-			    "CQP Completion Error on Get HMC Function.  Maj = 0x%04x, Minor = 0x%04x\n",
+			    "CQP Completion Error on Get HMC Function.  Maj = 0x%04x, Miyesr = 0x%04x\n",
 			    cqe_info->maj_err_code, cqe_info->min_err_code);
 		dev->vf_dev[vf_dev->iw_vf_idx] = NULL;
 		vchnl_pf_send_error_resp(dev, vf_dev->vf_id, &vf_dev->vf_msg_buffer.vchnl_msg,

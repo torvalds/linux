@@ -146,7 +146,7 @@ struct msc {
 	u32			orig_addr;
 	u32			orig_sz;
 
-	/* <0: no buffer, 0: no users, >0: active users */
+	/* <0: yes buffer, 0: yes users, >0: active users */
 	atomic_t		user_count;
 
 	atomic_t		mmap_count;
@@ -341,13 +341,13 @@ static size_t msc_win_total_sz(struct msc_window *win)
  * msc_find_window() - find a window matching a given sg_table
  * @msc:	MSC device
  * @sgt:	SG table of the window
- * @nonempty:	skip over empty windows
+ * @yesnempty:	skip over empty windows
  *
  * Return:	MSC window structure pointer or NULL if the window
- *		could not be found.
+ *		could yest be found.
  */
 static struct msc_window *
-msc_find_window(struct msc *msc, struct sg_table *sgt, bool nonempty)
+msc_find_window(struct msc *msc, struct sg_table *sgt, bool yesnempty)
 {
 	struct msc_window *win;
 	unsigned int found = 0;
@@ -365,7 +365,7 @@ msc_find_window(struct msc *msc, struct sg_table *sgt, bool nonempty)
 			found++;
 
 		/* skip the empty ones */
-		if (nonempty && msc_block_is_empty(msc_win_base(win)))
+		if (yesnempty && msc_block_is_empty(msc_win_base(win)))
 			continue;
 
 		if (found)
@@ -493,7 +493,7 @@ static void msc_iter_block_start(struct msc_iter *iter)
 
 static int msc_iter_win_start(struct msc_iter *iter, struct msc *msc)
 {
-	/* already started, nothing to do */
+	/* already started, yesthing to do */
 	if (iter->start_win)
 		return 0;
 
@@ -536,7 +536,7 @@ static int msc_iter_block_advance(struct msc_iter *iter)
 			return msc_iter_win_advance(iter);
 	}
 
-	/* no wrapping, check for last written block */
+	/* yes wrapping, check for last written block */
 	if (!iter->wrap_count && msc_block_last_written(msc_iter_bdesc(iter)))
 		/* copied newest data for the window */
 		return msc_iter_win_advance(iter);
@@ -547,7 +547,7 @@ static int msc_iter_block_advance(struct msc_iter *iter)
 	else
 		iter->block = sg_next(iter->block);
 
-	/* no wrapping, sanity check in case there is no last written block */
+	/* yes wrapping, sanity check in case there is yes last written block */
 	if (!iter->wrap_count && iter->block == iter->start_block)
 		return msc_iter_win_advance(iter);
 
@@ -679,7 +679,7 @@ static int intel_th_msu_init(struct msc *msc)
 	mintctl |= msc->index ? M1BLIE : M0BLIE;
 	iowrite32(mintctl, msc->msu_base + REG_MSU_MINTCTL);
 	if (mintctl != ioread32(msc->msu_base + REG_MSU_MINTCTL)) {
-		dev_info(msc_dev(msc), "MINTCTL ignores writes: no usable interrupts\n");
+		dev_info(msc_dev(msc), "MINTCTL igyesres writes: yes usable interrupts\n");
 		msc->do_irq = 0;
 		return 0;
 	}
@@ -738,7 +738,7 @@ unlock:
 		if (expect == WIN_READY && old == WIN_LOCKED)
 			return -EBUSY;
 
-		/* from intel_th_msc_window_unlock(), don't warn if not locked */
+		/* from intel_th_msc_window_unlock(), don't warn if yest locked */
 		if (expect == WIN_LOCKED && old == new)
 			return 0;
 	}
@@ -902,7 +902,7 @@ static void intel_th_msc_deactivate(struct intel_th_device *thdev)
  * This modifies msc::base, which requires msc::buf_mutex to serialize, so the
  * caller is expected to hold it.
  *
- * Return:	0 on success, -errno otherwise.
+ * Return:	0 on success, -erryes otherwise.
  */
 static int msc_buffer_contig_alloc(struct msc *msc, unsigned long size)
 {
@@ -1001,14 +1001,14 @@ static int __msc_buffer_win_alloc(struct msc_window *win,
 					  PAGE_SIZE, &sg_dma_address(sg_ptr),
 					  GFP_KERNEL);
 		if (!block)
-			goto err_nomem;
+			goto err_yesmem;
 
 		sg_set_buf(sg_ptr, block, PAGE_SIZE);
 	}
 
 	return nr_segs;
 
-err_nomem:
+err_yesmem:
 	for_each_sg(win->sgt->sgl, sg_ptr, i, ret)
 		dma_free_coherent(msc_dev(win->msc)->parent->parent, PAGE_SIZE,
 				  sg_virt(sg_ptr), sg_dma_address(sg_ptr));
@@ -1056,7 +1056,7 @@ static inline void msc_buffer_set_wb(struct msc_window *win) {}
  * This modifies msc::win_list and msc::base, which requires msc::buf_mutex
  * to serialize, so the caller is expected to hold it.
  *
- * Return:	0 on success, -errno otherwise.
+ * Return:	0 on success, -erryes otherwise.
  */
 static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 {
@@ -1090,7 +1090,7 @@ static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 		ret = __msc_buffer_win_alloc(win, nr_blocks);
 
 	if (ret <= 0)
-		goto err_nomem;
+		goto err_yesmem;
 
 	msc_buffer_set_uc(win, ret);
 
@@ -1108,7 +1108,7 @@ static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 
 	return 0;
 
-err_nomem:
+err_yesmem:
 	kfree(win);
 
 	return ret;
@@ -1275,14 +1275,14 @@ static void msc_buffer_free(struct msc *msc)
  * This modifies msc::win_list and msc::base, which requires msc::buf_mutex
  * to serialize, so the caller is expected to hold it.
  *
- * Return:	0 on success, -errno otherwise.
+ * Return:	0 on success, -erryes otherwise.
  */
 static int msc_buffer_alloc(struct msc *msc, unsigned long *nr_pages,
 			    unsigned int nr_wins)
 {
 	int ret;
 
-	/* -1: buffer not allocated */
+	/* -1: buffer yest allocated */
 	if (atomic_read(&msc->user_count) != -1)
 		return -EBUSY;
 
@@ -1312,11 +1312,11 @@ static int msc_buffer_alloc(struct msc *msc, unsigned long *nr_pages,
  * msc_buffer_unlocked_free_unless_used() - free a buffer unless it's in use
  * @msc:	MSC device
  *
- * This will free MSC buffer unless it is in use or there is no allocated
+ * This will free MSC buffer unless it is in use or there is yes allocated
  * buffer.
  * Caller needs to hold msc::buf_mutex.
  *
- * Return:	0 on successful deallocation or if there was no buffer to
+ * Return:	0 on successful deallocation or if there was yes buffer to
  *		deallocate, -EBUSY if there are active users.
  */
 static int msc_buffer_unlocked_free_unless_used(struct msc *msc)
@@ -1328,10 +1328,10 @@ static int msc_buffer_unlocked_free_unless_used(struct msc *msc)
 	/* > 0: buffer is allocated and has users */
 	if (count > 0)
 		ret = -EBUSY;
-	/* 0: buffer is allocated, no users */
+	/* 0: buffer is allocated, yes users */
 	else if (!count)
 		msc_buffer_free(msc);
-	/* < 0: no buffer, nothing to do */
+	/* < 0: yes buffer, yesthing to do */
 
 	return ret;
 }
@@ -1426,7 +1426,7 @@ static unsigned long msc_win_to_user(void *data, void *src, size_t len)
  * file operations' callbacks
  */
 
-static int intel_th_msc_open(struct inode *inode, struct file *file)
+static int intel_th_msc_open(struct iyesde *iyesde, struct file *file)
 {
 	struct intel_th_device *thdev = file->private_data;
 	struct msc *msc = dev_get_drvdata(&thdev->dev);
@@ -1441,10 +1441,10 @@ static int intel_th_msc_open(struct inode *inode, struct file *file)
 
 	file->private_data = iter;
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
-static int intel_th_msc_release(struct inode *inode, struct file *file)
+static int intel_th_msc_release(struct iyesde *iyesde, struct file *file)
 {
 	struct msc_iter *iter = file->private_data;
 	struct msc *msc = iter->msc;
@@ -1629,7 +1629,7 @@ out:
 	if (ret)
 		atomic_dec(&msc->user_count);
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	vma->vm_flags |= VM_DONTEXPAND | VM_DONTCOPY;
 	vma->vm_ops = &msc_mmap_ops;
 	return ret;
@@ -1640,7 +1640,7 @@ static const struct file_operations intel_th_msc_fops = {
 	.release	= intel_th_msc_release,
 	.read		= intel_th_msc_read,
 	.mmap		= intel_th_msc_mmap,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.owner		= THIS_MODULE,
 };
 
@@ -1701,7 +1701,7 @@ static int msc_win_switch(struct msc *msc)
 /**
  * intel_th_msc_window_unlock - put the window back in rotation
  * @dev:	MSC device to which this relates
- * @sgt:	buffer's sg_table for the window, does nothing if NULL
+ * @sgt:	buffer's sg_table for the window, does yesthing if NULL
  */
 void intel_th_msc_window_unlock(struct device *dev, struct sg_table *sgt)
 {
@@ -1879,7 +1879,7 @@ found:
 	mutex_lock(&msc->buf_mutex);
 	ret = 0;
 
-	/* Same buffer: do nothing */
+	/* Same buffer: do yesthing */
 	if (mbuf && mbuf == msc->mbuf) {
 		/* put the extra reference we just got */
 		msu_buffer_put(mbuf);
@@ -2106,7 +2106,7 @@ static void intel_th_msc_remove(struct intel_th_device *thdev)
 	intel_th_msc_deactivate(thdev);
 
 	/*
-	 * Buffers should not be used at this point except if the
+	 * Buffers should yest be used at this point except if the
 	 * output character device is still open and the parent
 	 * device gets detached from its bus, which is a FIXME.
 	 */

@@ -17,7 +17,7 @@
  *
  * The alternate interface is needed because we need to be able open
  * an ioctl file descriptor on an autofs mount that may be covered by
- * another mount. This situation arises when starting automount(8)
+ * ayesther mount. This situation arises when starting automount(8)
  * or other user space daemon which uses direct mounts or offset
  * mounts (used for autofs lazy mount/umount of nested mount trees),
  * which have been left busy at at service shutdown.
@@ -56,18 +56,18 @@ static int check_dev_ioctl_version(int cmd, struct autofs_dev_ioctl *param)
 	int err = 0;
 
 	if ((param->ver_major != AUTOFS_DEV_IOCTL_VERSION_MAJOR) ||
-	    (param->ver_minor > AUTOFS_DEV_IOCTL_VERSION_MINOR)) {
+	    (param->ver_miyesr > AUTOFS_DEV_IOCTL_VERSION_MINOR)) {
 		pr_warn("ioctl control interface version mismatch: "
 			"kernel(%u.%u), user(%u.%u), cmd(0x%08x)\n",
 			AUTOFS_DEV_IOCTL_VERSION_MAJOR,
 			AUTOFS_DEV_IOCTL_VERSION_MINOR,
-			param->ver_major, param->ver_minor, cmd);
+			param->ver_major, param->ver_miyesr, cmd);
 		err = -EINVAL;
 	}
 
 	/* Fill in the kernel version. */
 	param->ver_major = AUTOFS_DEV_IOCTL_VERSION_MAJOR;
-	param->ver_minor = AUTOFS_DEV_IOCTL_VERSION_MINOR;
+	param->ver_miyesr = AUTOFS_DEV_IOCTL_VERSION_MINOR;
 
 	return err;
 }
@@ -155,7 +155,7 @@ static int autofs_dev_ioctl_version(struct file *fp,
 {
 	/* This should have already been set. */
 	param->ver_major = AUTOFS_DEV_IOCTL_VERSION_MAJOR;
-	param->ver_minor = AUTOFS_DEV_IOCTL_VERSION_MINOR;
+	param->ver_miyesr = AUTOFS_DEV_IOCTL_VERSION_MINOR;
 	return 0;
 }
 
@@ -213,9 +213,9 @@ static int test_by_dev(const struct path *path, void *p)
 
 static int test_by_type(const struct path *path, void *p)
 {
-	struct autofs_info *ino = autofs_dentry_ino(path->dentry);
+	struct autofs_info *iyes = autofs_dentry_iyes(path->dentry);
 
-	return ino && ino->sbi->type & *(unsigned *)p;
+	return iyes && iyes->sbi->type & *(unsigned *)p;
 }
 
 /*
@@ -356,7 +356,7 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 		new_pid = get_task_pid(current, PIDTYPE_PGID);
 
 		if (ns_of_pid(new_pid) != ns_of_pid(sbi->oz_pgrp)) {
-			pr_warn("not allowed to change PID namespace\n");
+			pr_warn("yest allowed to change PID namespace\n");
 			err = -EINVAL;
 			goto out;
 		}
@@ -383,7 +383,7 @@ out:
 }
 
 /*
- * Make the autofs mount point catatonic, no longer responsive to
+ * Make the autofs mount point catatonic, yes longer responsive to
  * mount requests. Also closes the kernel pipe file descriptor.
  */
 static int autofs_dev_ioctl_catatonic(struct file *fp,
@@ -419,7 +419,7 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 				      struct autofs_sb_info *sbi,
 				      struct autofs_dev_ioctl *param)
 {
-	struct autofs_info *ino;
+	struct autofs_info *iyes;
 	struct path path;
 	dev_t devid;
 	int err = -ENOENT;
@@ -434,15 +434,15 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 	if (err)
 		goto out;
 
-	ino = autofs_dentry_ino(path.dentry);
-	if (ino) {
+	iyes = autofs_dentry_iyes(path.dentry);
+	if (iyes) {
 		err = 0;
 		autofs_expire_wait(&path, 0);
 		spin_lock(&sbi->fs_lock);
 		param->requester.uid =
-			from_kuid_munged(current_user_ns(), ino->uid);
+			from_kuid_munged(current_user_ns(), iyes->uid);
 		param->requester.gid =
-			from_kgid_munged(current_user_ns(), ino->gid);
+			from_kgid_munged(current_user_ns(), iyes->gid);
 		spin_unlock(&sbi->fs_lock);
 	}
 	path_put(&path);
@@ -451,7 +451,7 @@ out:
 }
 
 /*
- * Call repeatedly until it returns -EAGAIN, meaning there's nothing
+ * Call repeatedly until it returns -EAGAIN, meaning there's yesthing
  * more that can be done.
  */
 static int autofs_dev_ioctl_expire(struct file *fp,
@@ -622,7 +622,7 @@ static int _autofs_dev_ioctl(unsigned int command,
 
 	fn = lookup_dev_ioctl(cmd);
 	if (!fn) {
-		pr_warn("unknown command 0x%08x\n", command);
+		pr_warn("unkyeswn command 0x%08x\n", command);
 		err = -ENOTTY;
 		goto out;
 	}
@@ -649,7 +649,7 @@ static int _autofs_dev_ioctl(unsigned int command,
 			goto out;
 		}
 
-		sb = file_inode(fp)->i_sb;
+		sb = file_iyesde(fp)->i_sb;
 		if (sb->s_type != &autofs_fs_type) {
 			err = -EINVAL;
 			fput(fp);
@@ -703,11 +703,11 @@ static const struct file_operations _dev_ioctl_fops = {
 	.unlocked_ioctl	 = autofs_dev_ioctl,
 	.compat_ioctl = autofs_dev_ioctl_compat,
 	.owner	 = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static struct miscdevice _autofs_dev_ioctl_misc = {
-	.minor		= AUTOFS_MINOR,
+	.miyesr		= AUTOFS_MINOR,
 	.name		= AUTOFS_DEVICE_NAME,
 	.fops		= &_dev_ioctl_fops,
 	.mode           = 0644,

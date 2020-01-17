@@ -19,7 +19,7 @@ bool *tep_is_old_format*(struct tep_handle pass:[*]_tep_);
 DESCRIPTION
 -----------
 These functions retrieve information from kernel context, stored in tracefs
-events/header_page. Old kernels do not have header page info, so default values
+events/header_page. Old kernels do yest have header page info, so default values
 from user space context are used.
 
 The _tep_get_header_page_size()_ function returns the size of a long integer,
@@ -42,7 +42,7 @@ The _tep_get_header_timestamp_size()_ function returns the size of timestamps,
 in bytes.
 
 The _tep_is_old_format()_ function returns true, if an old kernel is used to
-generate the tracing data, which has no event/header_page. If the kernel is new,
+generate the tracing data, which has yes event/header_page. If the kernel is new,
 or _tep_ is NULL, false is returned.
 
 EXAMPLE
@@ -87,7 +87,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

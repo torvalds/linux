@@ -26,10 +26,10 @@ ev4_reg_setup(struct op_register_config *reg,
 	/* Select desired events.  We've mapped the event numbers
 	   such that they fit directly into the event selection fields.
 
-	   Note that there is no "off" setting.  In both cases we select
+	   Note that there is yes "off" setting.  In both cases we select
 	   the EXTERNAL event source, hoping that it'll be the lowest
 	   frequency, and set the frequency counter to LOW.  The interrupts
-	   for these "disabled" counter overflows are ignored by the
+	   for these "disabled" counter overflows are igyesred by the
 	   interrupt handler.
 
 	   This is most irritating, because the hardware *can* enable and
@@ -39,7 +39,7 @@ ev4_reg_setup(struct op_register_config *reg,
 	ctl |= (ctr[0].enabled ? ctr[0].event << 8 : 14 << 8);
 	ctl |= (ctr[1].enabled ? (ctr[1].event - 16) << 32 : 7ul << 32);
 
-	/* EV4 can not read or write its counter registers.  The only
+	/* EV4 can yest read or write its counter registers.  The only
 	   thing one can do at all is see if you overflow and get an
 	   interrupt.  We can set the width of the counters, to some
 	   extent.  Take the interrupt count selected by the user,
@@ -65,14 +65,14 @@ ev4_reg_setup(struct op_register_config *reg,
 
 	/* Select performance monitoring options.  */
 	/* ??? Need to come up with some mechanism to trace only
-	   selected processes.  EV4 does not have a mechanism to
-	   select kernel or user mode only.  For now, enable always.  */
+	   selected processes.  EV4 does yest have a mechanism to
+	   select kernel or user mode only.  For yesw, enable always.  */
 	reg->proc_mode = 0;
 
 	/* Frequency is folded into mux_select for EV4.  */
 	reg->freq = 0;
 
-	/* See above regarding no writes.  */
+	/* See above regarding yes writes.  */
 	reg->reset_values = 0;
 	reg->need_reset = 0;
 
@@ -94,7 +94,7 @@ ev4_handle_interrupt(unsigned long which, struct pt_regs *regs,
 		     struct op_counter_config *ctr)
 {
 	/* EV4 can't properly disable counters individually.
-	   Discard "disabled" events now.  */
+	   Discard "disabled" events yesw.  */
 	if (!ctr[which].enabled)
 		return;
 

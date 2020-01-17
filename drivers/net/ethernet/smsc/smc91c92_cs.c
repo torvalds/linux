@@ -83,7 +83,7 @@ INT_MODULE_PARM(if_port, 0);
 
 /*====================================================================*/
 
-/* Operational parameter that usually are not changed. */
+/* Operational parameter that usually are yest changed. */
 
 /* Time in jiffies before concluding Tx hung */
 #define TX_TIMEOUT		((400*HZ)/1000)
@@ -92,7 +92,7 @@ INT_MODULE_PARM(if_port, 0);
 #define INTR_WORK		4
 
 /* Times to check the check the chip before concluding that it doesn't
-   currently have room for another Tx packet. */
+   currently have room for ayesther Tx packet. */
 #define MEMORY_WAIT_TIME       	8
 
 struct smc_private {
@@ -231,12 +231,12 @@ enum RxCfg { RxAllMulti = 0x0004, RxPromisc = 0x0002,
 #define  RCR_ALMUL	0x4 	/* receive all multicast packets */
 #define	 RCR_PROMISC	0x2	/* enable promiscuous mode */
 
-/* the normal settings for the RCR register : */
+/* the yesrmal settings for the RCR register : */
 #define	 RCR_NORMAL	(RCR_STRIP_CRC | RCR_ENABLE)
 #define  RCR_CLEAR	0x0		/* set it to a base state */
 #define	COUNTER		6
 
-/* BANK 3 -- not the same values as in smc9194! */
+/* BANK 3 -- yest the same values as in smc9194! */
 #define	MULTICAST0	0
 #define	MULTICAST2	2
 #define	MULTICAST4	4
@@ -491,7 +491,7 @@ static int mhz_setup(struct pcmcia_device *link)
     if (!pcmcia_loop_tuple(link, CISTPL_VERS_1, pcmcia_get_versmac, dev))
 	    return 0;
 
-    /* Another possibility: for the EM3288, in a special tuple */
+    /* Ayesther possibility: for the EM3288, in a special tuple */
     rc = -1;
     len = pcmcia_get_tuple(link, 0x81, &buf);
     if (buf && len >= 13) {
@@ -845,7 +845,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     if ((if_port >= 0) && (if_port <= 2))
 	dev->if_port = if_port;
     else
-	dev_notice(&link->dev, "invalid if_port requested\n");
+	dev_yestice(&link->dev, "invalid if_port requested\n");
 
     switch (smc->manfid) {
     case MANFID_OSITECH:
@@ -863,7 +863,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     }
 
     if (i != 0) {
-	dev_notice(&link->dev, "Unable to find hardware address.\n");
+	dev_yestice(&link->dev, "Unable to find hardware address.\n");
 	goto config_failed;
     }
 
@@ -937,7 +937,7 @@ static int smc91c92_config(struct pcmcia_device *link)
 	    netdev_dbg(dev, "  MII transceiver at index %d, status %x\n",
 		       smc->mii_if.phy_id, j);
 	} else {
-	    netdev_notice(dev, "  No MII transceivers found!\n");
+	    netdev_yestice(dev, "  No MII transceivers found!\n");
 	}
     }
     return 0;
@@ -1023,7 +1023,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int loc, int value)
 /*======================================================================
 
     The driver core code, most of which should be common with a
-    non-PCMCIA implementation.
+    yesn-PCMCIA implementation.
 
 ======================================================================*/
 
@@ -1091,7 +1091,7 @@ static int smc_close(struct net_device *dev)
 
     /* Shut off all interrupts, and turn off the Tx and Rx sections.
        Don't bother to check for chip present. */
-    SMC_SELECT_BANK(2);	/* Nominally paranoia, but do no assume... */
+    SMC_SELECT_BANK(2);	/* Nominally parayesia, but do yes assume... */
     outw(0, ioaddr + INTERRUPT);
     SMC_SELECT_BANK(0);
     mask_bits(0xff00, ioaddr + RCR);
@@ -1120,19 +1120,19 @@ static void smc_hardware_send_packet(struct net_device * dev)
     struct smc_private *smc = netdev_priv(dev);
     struct sk_buff *skb = smc->saved_skb;
     unsigned int ioaddr = dev->base_addr;
-    u_char packet_no;
+    u_char packet_yes;
 
     if (!skb) {
-	netdev_err(dev, "In XMIT with no packet to send\n");
+	netdev_err(dev, "In XMIT with yes packet to send\n");
 	return;
     }
 
     /* There should be a packet slot waiting. */
-    packet_no = inw(ioaddr + PNR_ARR) >> 8;
-    if (packet_no & 0x80) {
-	/* If not, there is a hardware problem!  Likely an ejected card. */
+    packet_yes = inw(ioaddr + PNR_ARR) >> 8;
+    if (packet_yes & 0x80) {
+	/* If yest, there is a hardware problem!  Likely an ejected card. */
 	netdev_warn(dev, "hardware Tx buffer allocation failed, status %#2.2x\n",
-		    packet_no);
+		    packet_yes);
 	dev_kfree_skb_irq(skb);
 	smc->saved_skb = NULL;
 	netif_start_queue(dev);
@@ -1141,7 +1141,7 @@ static void smc_hardware_send_packet(struct net_device * dev)
 
     dev->stats.tx_bytes += skb->len;
     /* The card should use the just-allocated buffer. */
-    outw(packet_no, ioaddr + PNR_ARR);
+    outw(packet_yes, ioaddr + PNR_ARR);
     /* point to the beginning of the packet */
     outw(PTR_AUTOINC , ioaddr + POINTER);
 
@@ -1183,7 +1183,7 @@ static void smc_tx_timeout(struct net_device *dev)
     struct smc_private *smc = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
 
-    netdev_notice(dev, "transmit timed out, Tx_status %2.2x status %4.4x.\n",
+    netdev_yestice(dev, "transmit timed out, Tx_status %2.2x status %4.4x.\n",
 		  inw(ioaddr)&0xff, inw(ioaddr + 2));
     dev->stats.tx_errors++;
     smc_reset(dev);
@@ -1221,13 +1221,13 @@ static netdev_tx_t smc_start_xmit(struct sk_buff *skb,
 	dev_kfree_skb (skb);
 	smc->saved_skb = NULL;
 	dev->stats.tx_dropped++;
-	return NETDEV_TX_OK;		/* Do not re-queue this packet. */
+	return NETDEV_TX_OK;		/* Do yest re-queue this packet. */
     }
-    /* A packet is now waiting. */
+    /* A packet is yesw waiting. */
     smc->packets_waiting++;
 
     spin_lock_irqsave(&smc->lock, flags);
-    SMC_SELECT_BANK(2);	/* Paranoia, we should always be in window 2 */
+    SMC_SELECT_BANK(2);	/* Parayesia, we should always be in window 2 */
 
     /* need MC_RESET to keep the memory consistent. errata? */
     if (smc->rx_ovrn) {
@@ -1235,14 +1235,14 @@ static netdev_tx_t smc_start_xmit(struct sk_buff *skb,
 	smc->rx_ovrn = 0;
     }
 
-    /* Allocate the memory; send the packet now if we win. */
+    /* Allocate the memory; send the packet yesw if we win. */
     outw(MC_ALLOC | num_pages, ioaddr + MMU_CMD);
     for (time_out = MEMORY_WAIT_TIME; time_out >= 0; time_out--) {
 	ir = inw(ioaddr+INTERRUPT);
 	if (ir & IM_ALLOC_INT) {
-	    /* Acknowledge the interrupt, send the packet. */
+	    /* Ackyeswledge the interrupt, send the packet. */
 	    outw((ir&0xff00) | IM_ALLOC_INT, ioaddr + INTERRUPT);
-	    smc_hardware_send_packet(dev);	/* Send the packet now.. */
+	    smc_hardware_send_packet(dev);	/* Send the packet yesw.. */
 	    spin_unlock_irqrestore(&smc->lock, flags);
 	    return NETDEV_TX_OK;
 	}
@@ -1258,7 +1258,7 @@ static netdev_tx_t smc_start_xmit(struct sk_buff *skb,
 
 /*======================================================================
 
-    Handle a Tx anomalous event.  Entered while in Window 2.
+    Handle a Tx ayesmalous event.  Entered while in Window 2.
 
 ======================================================================*/
 
@@ -1267,11 +1267,11 @@ static void smc_tx_err(struct net_device * dev)
     struct smc_private *smc = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
     int saved_packet = inw(ioaddr + PNR_ARR) & 0xff;
-    int packet_no = inw(ioaddr + FIFO_PORTS) & 0x7f;
+    int packet_yes = inw(ioaddr + FIFO_PORTS) & 0x7f;
     int tx_status;
 
     /* select this as the packet to read from */
-    outw(packet_no, ioaddr + PNR_ARR);
+    outw(packet_yes, ioaddr + PNR_ARR);
 
     /* read the first word from this packet */
     outw(PTR_AUTOINC | PTR_READ | 0, ioaddr + POINTER);
@@ -1287,7 +1287,7 @@ static void smc_tx_err(struct net_device * dev)
     }
 
     if (tx_status & TS_SUCCESS) {
-	netdev_notice(dev, "Successful packet caused error interrupt?\n");
+	netdev_yestice(dev, "Successful packet caused error interrupt?\n");
     }
     /* re-enable transmit */
     SMC_SELECT_BANK(0);
@@ -1359,9 +1359,9 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id)
     smc->watchdog = 0;
     saved_bank = inw(ioaddr + BANK_SELECT);
     if ((saved_bank & 0xff00) != 0x3300) {
-	/* The device does not exist -- the card could be off-line, or
+	/* The device does yest exist -- the card could be off-line, or
 	   maybe it has been ejected. */
-	netdev_dbg(dev, "SMC91c92 interrupt %d for non-existent/ejected device.\n",
+	netdev_dbg(dev, "SMC91c92 interrupt %d for yesn-existent/ejected device.\n",
 		   irq);
 	handled = 0;
 	goto irq_done;
@@ -1471,13 +1471,13 @@ static void smc_rx(struct net_device *dev)
 {
     unsigned int ioaddr = dev->base_addr;
     int rx_status;
-    int packet_length;	/* Caution: not frame length, rather words
+    int packet_length;	/* Caution: yest frame length, rather words
 			   to transfer from the chip. */
 
     /* Assertion: we are in Window 2. */
 
     if (inw(ioaddr + FIFO_PORTS) & FP_RXEMPTY) {
-	netdev_err(dev, "smc_rx() with nothing on Rx FIFO\n");
+	netdev_err(dev, "smc_rx() with yesthing on Rx FIFO\n");
 	return;
     }
 
@@ -1533,7 +1533,7 @@ static void smc_rx(struct net_device *dev)
 
     Set the receive mode.
 
-    This routine is used by both the protocol level to notify us of
+    This routine is used by both the protocol level to yestify us of
     promiscuous/multicast mode changes, and by the open/reset code to
     initialize the Rx registers.  We always set the multicast list and
     leave the receiver running.
@@ -1791,7 +1791,7 @@ static void media_check(struct timer_list *t)
 	goto reschedule;
     }
 
-    /* Ignore collisions unless we've had no rx's recently */
+    /* Igyesre collisions unless we've had yes rx's recently */
     if (time_after(jiffies, smc->last_rx + HZ)) {
 	if (smc->tx_err || (smc->media_status & EPH_16COL))
 	    media |= EPH_16COL;

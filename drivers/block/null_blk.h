@@ -15,7 +15,7 @@
 
 struct nullb_cmd {
 	struct list_head list;
-	struct llist_node ll_list;
+	struct llist_yesde ll_list;
 	struct __call_single_data csd;
 	struct request *rq;
 	struct bio *bio;
@@ -54,7 +54,7 @@ struct nullb_device {
 	unsigned long zone_size; /* zone size in MB if device is zoned */
 	unsigned int zone_nr_conv; /* number of conventional zones */
 	unsigned int submit_queues; /* number of submission queues */
-	unsigned int home_node; /* home node for the device */
+	unsigned int home_yesde; /* home yesde for the device */
 	unsigned int queue_mode; /* block interface */
 	unsigned int blocksize; /* block size */
 	unsigned int irqmode; /* IRQ completion handler */
@@ -62,7 +62,7 @@ struct nullb_device {
 	unsigned int index; /* index of the disk, only valid with a disk */
 	unsigned int mbps; /* Bandwidth throttle cap (in MB/s) */
 	bool blocking; /* blocking blk-mq device */
-	bool use_per_node_hctx; /* use per-node allocation for hardware context */
+	bool use_per_yesde_hctx; /* use per-yesde allocation for hardware context */
 	bool power; /* power on/off the device */
 	bool memory_backed; /* if data is stored in memory */
 	bool discard; /* if support discard */
@@ -101,7 +101,7 @@ size_t null_zone_valid_read_len(struct nullb *nullb,
 #else
 static inline int null_zone_init(struct nullb_device *dev)
 {
-	pr_err("CONFIG_BLK_DEV_ZONED not enabled\n");
+	pr_err("CONFIG_BLK_DEV_ZONED yest enabled\n");
 	return -EINVAL;
 }
 static inline void null_zone_exit(struct nullb_device *dev) {}

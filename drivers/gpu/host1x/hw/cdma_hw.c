@@ -261,7 +261,7 @@ static void cdma_timeout_handler(struct work_struct *work)
 
 	if (!cdma->timeout.client) {
 		dev_dbg(host1x->dev,
-			"cdma_timeout: expired, but has no clientid\n");
+			"cdma_timeout: expired, but has yes clientid\n");
 		mutex_unlock(&cdma->lock);
 		return;
 	}

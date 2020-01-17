@@ -60,7 +60,7 @@ static inline void apply_alternatives_module(void *start, size_t length) { }
  * be fixed in a binutils release posterior to 2.25.51.0.2 (anything
  * containing commit 4e4d08cf7399b606 or c1baaddf8861).
  *
- * Alternatives with callbacks do not generate replacement instructions.
+ * Alternatives with callbacks do yest generate replacement instructions.
  */
 #define __ALTERNATIVE_CFG(oldinstr, newinstr, feature, cfg_enabled, cb)	\
 	".if "__stringify(cfg_enabled)" == 1\n"				\
@@ -118,8 +118,8 @@ static inline void apply_alternatives_module(void *start, size_t length) { }
 /*
  * Alternative sequences
  *
- * The code for the case where the capability is not present will be
- * assembled and linked as normal. There are no restrictions on this
+ * The code for the case where the capability is yest present will be
+ * assembled and linked as yesrmal. There are yes restrictions on this
  * code.
  *
  * The code for the case where the capability is present will be
@@ -131,13 +131,13 @@ static inline void apply_alternatives_module(void *start, size_t length) { }
  *
  * 2. Not contain a branch target that is used outside of the
  *    alternative sequence it is defined in (branches into an
- *    alternative sequence are not fixed up).
+ *    alternative sequence are yest fixed up).
  */
 
 /*
  * Begin an alternative code sequence.
  */
-.macro alternative_if_not cap
+.macro alternative_if_yest cap
 	.set .Lasm_alt_mode, 0
 	.pushsection .altinstructions, "a"
 	altinstruction_entry 661f, 663f, \cap, 662f-661f, 664f-663f
@@ -151,7 +151,7 @@ static inline void apply_alternatives_module(void *start, size_t length) { }
 	altinstruction_entry 663f, 661f, \cap, 664f-663f, 662f-661f
 	.popsection
 	.pushsection .altinstr_replacement, "ax"
-	.align 2	/* So GAS knows label 661 is suitably aligned */
+	.align 2	/* So GAS kyesws label 661 is suitably aligned */
 661:
 .endm
 
@@ -200,9 +200,9 @@ static inline void apply_alternatives_module(void *start, size_t length) { }
  * of NOPs. The number of NOPs is chosen automatically to match the
  * previous case.
  */
-.macro alternative_else_nop_endif
+.macro alternative_else_yesp_endif
 alternative_else
-	nops	(662b-661b) / AARCH64_INSN_SIZE
+	yesps	(662b-661b) / AARCH64_INSN_SIZE
 alternative_endif
 .endm
 
@@ -216,15 +216,15 @@ alternative_endif
 
 /*
  * Generate the assembly for UAO alternatives with exception table entries.
- * This is complicated as there is no post-increment or pair versions of the
+ * This is complicated as there is yes post-increment or pair versions of the
  * unprivileged instructions, and USER() only works for single instructions.
  */
 #ifdef CONFIG_ARM64_UAO
 	.macro uao_ldp l, reg1, reg2, addr, post_inc
-		alternative_if_not ARM64_HAS_UAO
+		alternative_if_yest ARM64_HAS_UAO
 8888:			ldp	\reg1, \reg2, [\addr], \post_inc;
-8889:			nop;
-			nop;
+8889:			yesp;
+			yesp;
 		alternative_else
 			ldtr	\reg1, [\addr];
 			ldtr	\reg2, [\addr, #8];
@@ -236,10 +236,10 @@ alternative_endif
 	.endm
 
 	.macro uao_stp l, reg1, reg2, addr, post_inc
-		alternative_if_not ARM64_HAS_UAO
+		alternative_if_yest ARM64_HAS_UAO
 8888:			stp	\reg1, \reg2, [\addr], \post_inc;
-8889:			nop;
-			nop;
+8889:			yesp;
+			yesp;
 		alternative_else
 			sttr	\reg1, [\addr];
 			sttr	\reg2, [\addr, #8];
@@ -251,9 +251,9 @@ alternative_endif
 	.endm
 
 	.macro uao_user_alternative l, inst, alt_inst, reg, addr, post_inc
-		alternative_if_not ARM64_HAS_UAO
+		alternative_if_yest ARM64_HAS_UAO
 8888:			\inst	\reg, [\addr], \post_inc;
-			nop;
+			yesp;
 		alternative_else
 			\alt_inst	\reg, [\addr];
 			add		\addr, \addr, \post_inc;
@@ -279,7 +279,7 @@ alternative_endif
  * Usage: asm(ALTERNATIVE(oldinstr, newinstr, feature));
  *
  * Usage: asm(ALTERNATIVE(oldinstr, newinstr, feature, CONFIG_FOO));
- * N.B. If CONFIG_FOO is specified, but not selected, the whole block
+ * N.B. If CONFIG_FOO is specified, but yest selected, the whole block
  *      will be omitted, including oldinstr.
  */
 #define ALTERNATIVE(oldinstr, newinstr, ...)   \

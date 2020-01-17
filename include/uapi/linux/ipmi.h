@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * ipmi.h
  *
@@ -34,7 +34,7 @@
  * commands the user sends and tracks the responses.  The responses
  * will go back to the application that send the command.  If the
  * response doesn't come back in time, the driver will return a
- * timeout error response to the application.  Asynchronous events
+ * timeout error response to the application.  Asynchroyesus events
  * from the BMC event queue will go to all users bound to the driver.
  * The incoming event queue in the BMC will automatically be flushed
  * if it becomes full and it is queried once a second to see if
@@ -57,7 +57,7 @@ struct ipmi_addr {
 };
 
 /*
- * When the address is not used, the type will be set to this value.
+ * When the address is yest used, the type will be set to this value.
  * The channel is the BMC's channel number for the channel (usually
  * 0), or IPMC_BMC_CHANNEL if communicating directly with the BMC.
  */
@@ -82,15 +82,15 @@ struct ipmi_ipmb_addr {
 
 /*
  * A LAN Address.  This is an address to/from a LAN interface bridged
- * by the BMC, not an address actually out on the LAN.
+ * by the BMC, yest an address actually out on the LAN.
  *
  * A conscious decision was made here to deviate slightly from the IPMI
- * spec.  We do not use rqSWID and rsSWID like it shows in the
+ * spec.  We do yest use rqSWID and rsSWID like it shows in the
  * message.  Instead, we use remote_SWID and local_SWID.  This means
- * that any message (a request or response) from another device will
+ * that any message (a request or response) from ayesther device will
  * always have exactly the same address.  If you didn't do this,
  * requests and responses from the same device would have different
- * addresses, and that's not too cool.
+ * addresses, and that's yest too cool.
  *
  * In this address, the remote_SWID is always the SWID the remote
  * message came from, or the SWID we are sending the message to.
@@ -173,7 +173,7 @@ struct kernel_ipmi_msg {
 					      be returned. */
 #define IPMI_OEM_RECV_TYPE		5 /* The response for OEM Channels */
 
-/* Note that async events and received commands do not have a completion
+/* Note that async events and received commands do yest have a completion
    code as the first byte of the incoming data, unlike a response. */
 
 
@@ -195,10 +195,10 @@ struct kernel_ipmi_msg {
 
 /*
  * The userland interface for the IPMI driver is a standard character
- * device, with each instance of an interface registered as a minor
+ * device, with each instance of an interface registered as a miyesr
  * number under the major character device.
  *
- * The read and write calls do not work, to get messages in and out
+ * The read and write calls do yest work, to get messages in and out
  * requires ioctl calls because of the complexity of the data.  select
  * and poll do work, so you can wait for input using the file
  * descriptor, you just can use read to get it.
@@ -208,17 +208,17 @@ struct kernel_ipmi_msg {
  * and responses, the driver will take care of figuring out which
  * incoming messages are for which command and find the proper msgid
  * value to report.  You will only receive reponses for commands you
- * send.  Asynchronous events, however, go to all open users, so you
- * must be ready to handle these (or ignore them if you don't care).
+ * send.  Asynchroyesus events, however, go to all open users, so you
+ * must be ready to handle these (or igyesre them if you don't care).
  *
  * The address type depends upon the channel type.  When talking
- * directly to the BMC (IPMC_BMC_CHANNEL), the address is ignored
+ * directly to the BMC (IPMC_BMC_CHANNEL), the address is igyesred
  * (IPMI_UNUSED_ADDR_TYPE).  When talking to an IPMB channel, you must
  * supply a valid IPMB address with the addr_type set properly.
  *
- * When talking to normal channels, the driver takes care of the
+ * When talking to yesrmal channels, the driver takes care of the
  * details of formatting and sending messages on that channel.  You do
- * not, for instance, have to format a send command, you just send
+ * yest, for instance, have to format a send command, you just send
  * whatever command you want to the channel, the driver will create
  * the send command, automatically issue receive command and get even
  * commands, and pass those up to the proper user.
@@ -245,10 +245,10 @@ struct ipmi_req {
 /*
  * Send a message to the interfaces.  error values are:
  *   - EFAULT - an address supplied was invalid.
- *   - EINVAL - The address supplied was not valid, or the command
- *              was not allowed.
+ *   - EINVAL - The address supplied was yest valid, or the command
+ *              was yest allowed.
  *   - EMSGSIZE - The message to was too large.
- *   - ENOMEM - Buffers could not be allocated for the command.
+ *   - ENOMEM - Buffers could yest be allocated for the command.
  */
 #define IPMICTL_SEND_COMMAND		_IOR(IPMI_IOC_MAGIC, 13,	\
 					     struct ipmi_req)
@@ -267,10 +267,10 @@ struct ipmi_req_settime {
  * Send a message to the interfaces with timing parameters.  error values
  * are:
  *   - EFAULT - an address supplied was invalid.
- *   - EINVAL - The address supplied was not valid, or the command
- *              was not allowed.
+ *   - EINVAL - The address supplied was yest valid, or the command
+ *              was yest allowed.
  *   - EMSGSIZE - The message to was too large.
- *   - ENOMEM - Buffers could not be allocated for the command.
+ *   - ENOMEM - Buffers could yest be allocated for the command.
  */
 #define IPMICTL_SEND_COMMAND_SETTIME	_IOR(IPMI_IOC_MAGIC, 21,	\
 					     struct ipmi_req_settime)
@@ -278,7 +278,7 @@ struct ipmi_req_settime {
 /* Messages received from the interface are this format. */
 struct ipmi_recv {
 	int     recv_type; /* Is this a command, response or an
-			      asyncronous event. */
+			      asyncroyesus event. */
 
 	unsigned char __user *addr;    /* Address the message was from is put
 				   here.  The caller must supply the
@@ -305,9 +305,9 @@ struct ipmi_recv {
 
 /*
  * Receive a message.  error values:
- *  - EAGAIN - no messages in the queue.
+ *  - EAGAIN - yes messages in the queue.
  *  - EFAULT - an address supplied was invalid.
- *  - EINVAL - The address supplied was not valid.
+ *  - EINVAL - The address supplied was yest valid.
  *  - EMSGSIZE - The message to was too large to fit into the message buffer,
  *               the message will be left in the buffer. */
 #define IPMICTL_RECEIVE_MSG		_IOWR(IPMI_IOC_MAGIC, 12,	\
@@ -331,14 +331,14 @@ struct ipmi_cmdspec {
  * Register to receive a specific command.  error values:
  *   - EFAULT - an address supplied was invalid.
  *   - EBUSY - The netfn/cmd supplied was already in use.
- *   - ENOMEM - could not allocate memory for the entry.
+ *   - ENOMEM - could yest allocate memory for the entry.
  */
 #define IPMICTL_REGISTER_FOR_CMD	_IOR(IPMI_IOC_MAGIC, 14,	\
 					     struct ipmi_cmdspec)
 /*
  * Unregister a registered command.  error values:
  *  - EFAULT - an address supplied was invalid.
- *  - ENOENT - The netfn/cmd was not found registered for this user.
+ *  - ENOENT - The netfn/cmd was yest found registered for this user.
  */
 #define IPMICTL_UNREGISTER_FOR_CMD	_IOR(IPMI_IOC_MAGIC, 15,	\
 					     struct ipmi_cmdspec)
@@ -360,7 +360,7 @@ struct ipmi_cmdspec_chans {
  * Register to receive a specific command on specific channels.  error values:
  *   - EFAULT - an address supplied was invalid.
  *   - EBUSY - One of the netfn/cmd/chans supplied was already in use.
- *   - ENOMEM - could not allocate memory for the entry.
+ *   - ENOMEM - could yest allocate memory for the entry.
  */
 #define IPMICTL_REGISTER_FOR_CMD_CHANS	_IOR(IPMI_IOC_MAGIC, 28,	\
 					     struct ipmi_cmdspec_chans)
@@ -382,10 +382,10 @@ struct ipmi_cmdspec_chans {
 
 /*
  * Set and get the slave address and LUN that we will use for our
- * source messages.  Note that this affects the interface, not just
+ * source messages.  Note that this affects the interface, yest just
  * this user, so it will affect all users of this interface.  This is
  * so some initialization code can come in and do the OEM-specific
- * things it takes to determine your address (if not the BMC) and set
+ * things it takes to determine your address (if yest the BMC) and set
  * it for everyone else.  You should probably leave the LUN alone.
  */
 struct ipmi_channel_lun_address_set {

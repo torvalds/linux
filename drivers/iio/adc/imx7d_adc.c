@@ -442,7 +442,7 @@ static int imx7d_adc_enable(struct device *dev)
 	ret = clk_prepare_enable(info->clk);
 	if (ret) {
 		dev_err(info->dev,
-			"Could not prepare or enable clock.\n");
+			"Could yest prepare or enable clock.\n");
 		regulator_disable(info->vref);
 		return ret;
 	}

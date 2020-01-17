@@ -123,7 +123,7 @@ struct mtk_nfc_fdm {
 };
 
 struct mtk_nfc_nand_chip {
-	struct list_head node;
+	struct list_head yesde;
 	struct nand_chip nand;
 
 	struct mtk_nfc_bad_mark_ctl bad_mark;
@@ -132,7 +132,7 @@ struct mtk_nfc_nand_chip {
 
 	int nsels;
 	u8 sels[0];
-	/* nothing after this field */
+	/* yesthing after this field */
 };
 
 struct mtk_nfc_clk {
@@ -433,7 +433,7 @@ static inline void mtk_nfc_wait_ioready(struct mtk_nfc *nfc)
 	rc = readb_poll_timeout_atomic(nfc->regs + NFI_PIO_DIRDY, val,
 				       val & PIO_DI_RDY, 10, MTK_TIMEOUT);
 	if (rc < 0)
-		dev_err(nfc->dev, "data not ready\n");
+		dev_err(nfc->dev, "data yest ready\n");
 }
 
 static inline u8 mtk_nfc_read_byte(struct nand_chip *chip)
@@ -531,7 +531,7 @@ static int mtk_nfc_setup_data_interface(struct nand_chip *chip, int csline,
 	tprecs = DIV_ROUND_UP(tprecs * rate, 1000000);
 	tprecs &= 0x3f;
 
-	/* sdr interface has no tCR which means CE# low to RE# low */
+	/* sdr interface has yes tCR which means CE# low to RE# low */
 	tc2r = 0;
 
 	tw2r = timings->tWHR_min / 1000;
@@ -543,9 +543,9 @@ static int mtk_nfc_setup_data_interface(struct nand_chip *chip, int csline,
 	twh = DIV_ROUND_UP(twh * rate, 1000000) - 1;
 	twh &= 0xf;
 
-	/* Calculate real WE#/RE# hold time in nanosecond */
+	/* Calculate real WE#/RE# hold time in nayessecond */
 	temp = (twh + 1) * 1000000 / rate;
-	/* nanosecond to picosecond */
+	/* nayessecond to picosecond */
 	temp *= 1000;
 
 	/*
@@ -568,9 +568,9 @@ static int mtk_nfc_setup_data_interface(struct nand_chip *chip, int csline,
 	trlt = DIV_ROUND_UP(trlt * rate, 1000000) - 1;
 	trlt &= 0xf;
 
-	/* Calculate RE# pulse time in nanosecond. */
+	/* Calculate RE# pulse time in nayessecond. */
 	temp = (trlt + 1) * 1000000 / rate;
-	/* nanosecond to picosecond */
+	/* nayessecond to picosecond */
 	temp *= 1000;
 	/*
 	 * If RE# access time is bigger than RE# pulse time,
@@ -621,9 +621,9 @@ static int mtk_nfc_sector_encode(struct nand_chip *chip, u8 *data)
 	return mtk_ecc_encode(nfc->ecc, &nfc->ecc_cfg, data, size);
 }
 
-static void mtk_nfc_no_bad_mark_swap(struct mtd_info *a, u8 *b, int c)
+static void mtk_nfc_yes_bad_mark_swap(struct mtd_info *a, u8 *b, int c)
 {
-	/* nop */
+	/* yesp */
 }
 
 static void mtk_nfc_bad_mark_swap(struct mtd_info *mtd, u8 *buf, int raw)
@@ -872,7 +872,7 @@ static int mtk_nfc_write_subpage_hwecc(struct nand_chip *chip, u32 offset,
 	if (ret < 0)
 		return ret;
 
-	/* use the data in the private buffer (now with FDM and CRC) */
+	/* use the data in the private buffer (yesw with FDM and CRC) */
 	return mtk_nfc_write_page(mtd, chip, nfc->buffer, page, 1);
 }
 
@@ -1178,7 +1178,7 @@ static void mtk_nfc_set_bad_mark_ctl(struct mtk_nfc_bad_mark_ctl *bm_ctl,
 	struct nand_chip *nand = mtd_to_nand(mtd);
 
 	if (mtd->writesize == 512) {
-		bm_ctl->bm_swap = mtk_nfc_no_bad_mark_swap;
+		bm_ctl->bm_swap = mtk_nfc_yes_bad_mark_swap;
 	} else {
 		bm_ctl->bm_swap = mtk_nfc_bad_mark_swap;
 		bm_ctl->sec = mtd->writesize / mtk_data_len(nand);
@@ -1227,11 +1227,11 @@ static int mtk_nfc_ecc_init(struct device *dev, struct mtd_info *mtd)
 
 	/* support only ecc hw mode */
 	if (nand->ecc.mode != NAND_ECC_HW) {
-		dev_err(dev, "ecc.mode not supported\n");
+		dev_err(dev, "ecc.mode yest supported\n");
 		return -EINVAL;
 	}
 
-	/* if optional dt settings not present */
+	/* if optional dt settings yest present */
 	if (!nand->ecc.size || !nand->ecc.strength) {
 		/* use datasheet requirements */
 		nand->ecc.strength = nand->base.eccreq.strength;
@@ -1264,7 +1264,7 @@ static int mtk_nfc_ecc_init(struct device *dev, struct mtd_info *mtd)
 
 		/*
 		 * enhance ecc strength if oob left is bigger than max FDM size
-		 * or reduce ecc strength if oob size is not enough for ecc
+		 * or reduce ecc strength if oob size is yest eyesugh for ecc
 		 * parity data.
 		 */
 		if (free > NFI_FDM_MAX_SIZE) {
@@ -1296,11 +1296,11 @@ static int mtk_nfc_attach_chip(struct nand_chip *chip)
 	int ret;
 
 	if (chip->options & NAND_BUSWIDTH_16) {
-		dev_err(dev, "16bits buswidth not supported");
+		dev_err(dev, "16bits buswidth yest supported");
 		return -EINVAL;
 	}
 
-	/* store bbt magic in page, cause OOB is not protected */
+	/* store bbt magic in page, cause OOB is yest protected */
 	if (chip->bbt_options & NAND_BBT_USE_FLASH)
 		chip->bbt_options |= NAND_BBT_NO_OOB;
 
@@ -1329,7 +1329,7 @@ static const struct nand_controller_ops mtk_nfc_controller_ops = {
 };
 
 static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
-				  struct device_node *np)
+				  struct device_yesde *np)
 {
 	struct mtk_nfc_nand_chip *chip;
 	struct nand_chip *nand;
@@ -1377,7 +1377,7 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 	nand = &chip->nand;
 	nand->controller = &nfc->controller;
 
-	nand_set_flash_node(nand, np);
+	nand_set_flash_yesde(nand, np);
 	nand_set_controller_data(nand, nfc);
 
 	nand->options |= NAND_USE_BOUNCE_BUFFER | NAND_SUBPAGE_READ;
@@ -1423,21 +1423,21 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 		return ret;
 	}
 
-	list_add_tail(&chip->node, &nfc->chips);
+	list_add_tail(&chip->yesde, &nfc->chips);
 
 	return 0;
 }
 
 static int mtk_nfc_nand_chips_init(struct device *dev, struct mtk_nfc *nfc)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *nand_np;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *nand_np;
 	int ret;
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_yesde(np, nand_np) {
 		ret = mtk_nfc_nand_chip_init(dev, nfc, nand_np);
 		if (ret) {
-			of_node_put(nand_np);
+			of_yesde_put(nand_np);
 			return ret;
 		}
 	}
@@ -1490,7 +1490,7 @@ MODULE_DEVICE_TABLE(of, mtk_nfc_id_table);
 static int mtk_nfc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct mtk_nfc *nfc;
 	struct resource *res;
 	int ret, irq;
@@ -1503,7 +1503,7 @@ static int mtk_nfc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&nfc->chips);
 	nfc->controller.ops = &mtk_nfc_controller_ops;
 
-	/* probe defer if not ready */
+	/* probe defer if yest ready */
 	nfc->ecc = of_mtk_ecc_get(np);
 	if (IS_ERR(nfc->ecc))
 		return PTR_ERR(nfc->ecc);
@@ -1522,14 +1522,14 @@ static int mtk_nfc_probe(struct platform_device *pdev)
 
 	nfc->clk.nfi_clk = devm_clk_get(dev, "nfi_clk");
 	if (IS_ERR(nfc->clk.nfi_clk)) {
-		dev_err(dev, "no clk\n");
+		dev_err(dev, "yes clk\n");
 		ret = PTR_ERR(nfc->clk.nfi_clk);
 		goto release_ecc;
 	}
 
 	nfc->clk.pad_clk = devm_clk_get(dev, "pad_clk");
 	if (IS_ERR(nfc->clk.pad_clk)) {
-		dev_err(dev, "no pad clk\n");
+		dev_err(dev, "yes pad clk\n");
 		ret = PTR_ERR(nfc->clk.pad_clk);
 		goto release_ecc;
 	}
@@ -1582,9 +1582,9 @@ static int mtk_nfc_remove(struct platform_device *pdev)
 
 	while (!list_empty(&nfc->chips)) {
 		chip = list_first_entry(&nfc->chips, struct mtk_nfc_nand_chip,
-					node);
+					yesde);
 		nand_release(&chip->nand);
-		list_del(&chip->node);
+		list_del(&chip->yesde);
 	}
 
 	mtk_ecc_release(nfc->ecc);
@@ -1618,7 +1618,7 @@ static int mtk_nfc_resume(struct device *dev)
 		return ret;
 
 	/* reset NAND chip if VCC was powered off */
-	list_for_each_entry(chip, &nfc->chips, node) {
+	list_for_each_entry(chip, &nfc->chips, yesde) {
 		nand = &chip->nand;
 		for (i = 0; i < chip->nsels; i++)
 			nand_reset(nand, i);

@@ -22,7 +22,7 @@ Optional properties:
 
 - resets: contains the reset line phandle for the block
 
-Required sub-nodes:
+Required sub-yesdes:
 
 - port: describes LCD panel signals, following the common binding
 	for video transmitter interfaces; see

@@ -129,7 +129,7 @@ int sti_uniperiph_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	int i, frame_size, avail_slots;
 
 	if (!UNIPERIF_TYPE_IS_TDM(uni)) {
-		dev_err(uni->dev, "cpu dai not in tdm mode\n");
+		dev_err(uni->dev, "cpu dai yest in tdm mode\n");
 		return -EINVAL;
 	}
 
@@ -152,7 +152,7 @@ int sti_uniperiph_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	/* check frame size is allowed */
 	if ((frame_size > UNIPERIF_MAX_FRAME_SZ) ||
 	    (frame_size & ~(int)UNIPERIF_ALLOWED_FRAME_SZ)) {
-		dev_err(uni->dev, "frame size not allowed: %d bytes\n",
+		dev_err(uni->dev, "frame size yest allowed: %d bytes\n",
 			frame_size);
 		return -EINVAL;
 	}
@@ -190,7 +190,7 @@ int sti_uniperiph_fix_tdm_format(struct snd_pcm_hw_params *params,
 		format = SNDRV_PCM_FMTBIT_S32_LE;
 		break;
 	default:
-		dev_err(uni->dev, "format not supported: %d bits\n",
+		dev_err(uni->dev, "format yest supported: %d bits\n",
 			uni->tdm_slot.slot_width);
 		return -EINVAL;
 	}
@@ -378,7 +378,7 @@ static const struct snd_soc_component_driver sti_uniperiph_dai_component = {
 	.name = "sti_cpu_dai",
 };
 
-static int sti_uniperiph_cpu_dai_of(struct device_node *node,
+static int sti_uniperiph_cpu_dai_of(struct device_yesde *yesde,
 				    struct sti_uniperiph_data *priv)
 {
 	struct device *dev = &priv->pdev->dev;
@@ -392,7 +392,7 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 	int ret;
 
 	/* Populate data structure depending on compatibility */
-	of_id = of_match_node(snd_soc_sti_match, node);
+	of_id = of_match_yesde(snd_soc_sti_match, yesde);
 	if (!of_id->data) {
 		dev_err(dev, "data associated to device is missing\n");
 		return -EINVAL;
@@ -433,7 +433,7 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 
 	/* check if player should be configured for tdm */
 	if (dev_data->type & SND_ST_UNIPERIF_TYPE_TDM) {
-		if (!of_property_read_string(node, "st,tdm-mode", &mode))
+		if (!of_property_read_string(yesde, "st,tdm-mode", &mode))
 			uni->type = SND_ST_UNIPERIF_TYPE_TDM;
 		else
 			uni->type = SND_ST_UNIPERIF_TYPE_PCM;
@@ -470,7 +470,7 @@ static const struct snd_dmaengine_pcm_config dmaengine_pcm_config = {
 static int sti_uniperiph_probe(struct platform_device *pdev)
 {
 	struct sti_uniperiph_data *priv;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	int ret;
 
 	/* Allocate the private data and the CPU_DAI array */
@@ -483,7 +483,7 @@ static int sti_uniperiph_probe(struct platform_device *pdev)
 
 	priv->pdev = pdev;
 
-	ret = sti_uniperiph_cpu_dai_of(node, priv);
+	ret = sti_uniperiph_cpu_dai_of(yesde, priv);
 
 	dev_set_drvdata(&pdev->dev, priv);
 

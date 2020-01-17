@@ -1,7 +1,7 @@
 External Memory Interface
 -------------------------
 
-The emifa node describes a simple external bus controller found on some C6X
+The emifa yesde describes a simple external bus controller found on some C6X
 SoCs. This interface provides external busses with a number of chip selects.
 
 Required properties:

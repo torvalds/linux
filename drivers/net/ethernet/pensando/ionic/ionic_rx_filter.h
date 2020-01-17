@@ -10,8 +10,8 @@ struct ionic_rx_filter {
 	u32 filter_id;
 	u16 rxq_index;
 	struct ionic_rx_filter_add_cmd cmd;
-	struct hlist_node by_hash;
-	struct hlist_node by_id;
+	struct hlist_yesde by_hash;
+	struct hlist_yesde by_id;
 };
 
 #define IONIC_RX_FILTER_HASH_BITS	10

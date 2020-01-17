@@ -122,7 +122,7 @@ static struct page *efx_reuse_page(struct efx_rx_queue *rx_queue)
 		return NULL;
 
 	rx_queue->page_ring[index] = NULL;
-	/* page_remove cannot exceed page_add. */
+	/* page_remove canyest exceed page_add. */
 	if (rx_queue->page_remove != rx_queue->page_add)
 		++rx_queue->page_remove;
 
@@ -150,7 +150,7 @@ static struct page *efx_reuse_page(struct efx_rx_queue *rx_queue)
  * This allocates a batch of pages, maps them for DMA, and populates
  * struct efx_rx_buffers for each one. Return a negative error code or
  * 0 on success. If a single page can be used for multiple buffers,
- * then the page will either be inserted fully, or not at all.
+ * then the page will either be inserted fully, or yest at all.
  */
 static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue, bool atomic)
 {
@@ -325,7 +325,7 @@ static void efx_discard_rx_packet(struct efx_channel *channel,
  * @rx_queue->@max_fill. If there is insufficient atomic
  * memory to do so, a slow fill will be scheduled.
  *
- * The caller must provide serialisation (none is used here). In practise,
+ * The caller must provide serialisation (yesne is used here). In practise,
  * this means this function must run from the NAPI handler, or be called
  * when NAPI is disabled.
  */
@@ -376,8 +376,8 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue, bool atomic)
 		   rx_queue->added_count - rx_queue->removed_count);
 
  out:
-	if (rx_queue->notified_count != rx_queue->added_count)
-		efx_nic_notify_rx_desc(rx_queue);
+	if (rx_queue->yestified_count != rx_queue->added_count)
+		efx_nic_yestify_rx_desc(rx_queue);
 }
 
 void efx_rx_slow_fill(struct timer_list *t)
@@ -473,7 +473,7 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 			       efx->rx_ip_align + efx->rx_prefix_size +
 			       hdr_len);
 	if (unlikely(skb == NULL)) {
-		atomic_inc(&efx->n_rx_noskb_drops);
+		atomic_inc(&efx->n_rx_yesskb_drops);
 		return NULL;
 	}
 
@@ -622,7 +622,7 @@ static void efx_rx_deliver(struct efx_channel *channel, u8 *eh,
 	skb_record_rx_queue(skb, channel->rx_queue.core_index);
 
 	/* Set the SKB flags */
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 	if (likely(rx_buf->flags & EFX_RX_PKT_CSUMMED)) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->csum_level = !!(rx_buf->flags & EFX_RX_PKT_CSUM_LEVEL);
@@ -639,7 +639,7 @@ static void efx_rx_deliver(struct efx_channel *channel, u8 *eh,
 		/* Add to list, will pass up later */
 		list_add_tail(&skb->list, channel->rx_list);
 	else
-		/* No list, so pass it up now */
+		/* No list, so pass it up yesw */
 		netif_receive_skb(skb);
 }
 
@@ -675,7 +675,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 				    channel->rx_pkt_n_frags);
 		if (net_ratelimit())
 			netif_err(efx, rx_err, efx->net_dev,
-				  "XDP is not possible with multiple receive fragments (%d)\n",
+				  "XDP is yest possible with multiple receive fragments (%d)\n",
 				  channel->rx_pkt_n_frags);
 		channel->n_rx_xdp_bad_drops++;
 		return false;
@@ -869,7 +869,7 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 
 	/* Initialise ptr fields */
 	rx_queue->added_count = 0;
-	rx_queue->notified_count = 0;
+	rx_queue->yestified_count = 0;
 	rx_queue->removed_count = 0;
 	rx_queue->min_fill = -1U;
 	efx_init_rx_recycle_ring(efx, rx_queue);
@@ -995,7 +995,7 @@ static void efx_filter_rfs_work(struct work_struct *data)
 		rule = efx_rps_hash_find(efx, &req->spec);
 		/* The rule might have already gone, if someone else's request
 		 * for the same spec was already worked and then expired before
-		 * we got around to our work.  In that case we have nothing
+		 * we got around to our work.  In that case we have yesthing
 		 * tying us to an arfs_id, meaning that as soon as the filter
 		 * is considered for expiry it will be removed.
 		 */
@@ -1211,7 +1211,7 @@ bool __efx_filter_rfs_expire(struct efx_channel *channel, unsigned int quota)
  * efx_filter_is_mc_recipient - test whether spec is a multicast recipient
  * @spec: Specification to test
  *
- * Return: %true if the specification is a non-drop RX filter that
+ * Return: %true if the specification is a yesn-drop RX filter that
  * matches a local MAC address I/G bit value of 1 or matches a local
  * IPv4 or IPv6 address value in the respective multicast address
  * range.  Otherwise %false.

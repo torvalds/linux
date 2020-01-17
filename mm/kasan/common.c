@@ -6,7 +6,7 @@
  * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
  *
  * Some code borrowed from https://github.com/xairy/kasan-prototype by
- *        Andrey Konovalov <andreyknvl@gmail.com>
+ *        Andrey Koyesvalov <andreyknvl@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -384,7 +384,7 @@ static u8 assign_tag(struct kmem_cache *cache, const void *object,
 		return get_tag(object);
 
 	/*
-	 * If the cache neither has a constructor nor has SLAB_TYPESAFE_BY_RCU
+	 * If the cache neither has a constructor yesr has SLAB_TYPESAFE_BY_RCU
 	 * set, assign a tag when the object is being allocated (init == false).
 	 */
 	if (!cache->ctor && !(cache->flags & SLAB_TYPESAFE_BY_RCU))
@@ -504,7 +504,7 @@ static void *__kasan_kmalloc(struct kmem_cache *cache, const void *object,
 	if (IS_ENABLED(CONFIG_KASAN_SW_TAGS))
 		tag = assign_tag(cache, object, false, keep_tag);
 
-	/* Tag is ignored in set_tag without CONFIG_KASAN_SW_TAGS */
+	/* Tag is igyesred in set_tag without CONFIG_KASAN_SW_TAGS */
 	kasan_unpoison_shadow(set_tag(object, tag), size);
 	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
 		KASAN_KMALLOC_REDZONE);
@@ -608,7 +608,7 @@ int kasan_module_alloc(void *addr, size_t size)
 	if (WARN_ON(!PAGE_ALIGNED(shadow_start)))
 		return -EINVAL;
 
-	ret = __vmalloc_node_range(shadow_size, 1, shadow_start,
+	ret = __vmalloc_yesde_range(shadow_size, 1, shadow_start,
 			shadow_start + shadow_size,
 			GFP_KERNEL,
 			PAGE_KERNEL, VM_NO_GUARD, NUMA_NO_NODE,
@@ -617,7 +617,7 @@ int kasan_module_alloc(void *addr, size_t size)
 	if (ret) {
 		__memset(ret, KASAN_SHADOW_INIT, shadow_size);
 		find_vm_area(addr)->flags |= VM_KASAN;
-		kmemleak_ignore(ret);
+		kmemleak_igyesre(ret);
 		return 0;
 	}
 
@@ -649,13 +649,13 @@ static bool shadow_mapped(unsigned long addr)
 	pmd_t *pmd;
 	pte_t *pte;
 
-	if (pgd_none(*pgd))
+	if (pgd_yesne(*pgd))
 		return false;
 	p4d = p4d_offset(pgd, addr);
-	if (p4d_none(*p4d))
+	if (p4d_yesne(*p4d))
 		return false;
 	pud = pud_offset(p4d, addr);
-	if (pud_none(*pud))
+	if (pud_yesne(*pud))
 		return false;
 
 	/*
@@ -666,19 +666,19 @@ static bool shadow_mapped(unsigned long addr)
 	if (pud_bad(*pud))
 		return true;
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd))
+	if (pmd_yesne(*pmd))
 		return false;
 
 	if (pmd_bad(*pmd))
 		return true;
 	pte = pte_offset_kernel(pmd, addr);
-	return !pte_none(*pte);
+	return !pte_yesne(*pte);
 }
 
-static int __meminit kasan_mem_notifier(struct notifier_block *nb,
+static int __meminit kasan_mem_yestifier(struct yestifier_block *nb,
 			unsigned long action, void *data)
 {
-	struct memory_notify *mem_data = data;
+	struct memory_yestify *mem_data = data;
 	unsigned long nr_shadow_pages, start_kaddr, shadow_start;
 	unsigned long shadow_end, shadow_size;
 
@@ -704,7 +704,7 @@ static int __meminit kasan_mem_notifier(struct notifier_block *nb,
 		if (shadow_mapped(shadow_start))
 			return NOTIFY_OK;
 
-		ret = __vmalloc_node_range(shadow_size, PAGE_SIZE, shadow_start,
+		ret = __vmalloc_yesde_range(shadow_size, PAGE_SIZE, shadow_start,
 					shadow_end, GFP_KERNEL,
 					PAGE_KERNEL, VM_NO_GUARD,
 					pfn_to_nid(mem_data->start_pfn),
@@ -712,7 +712,7 @@ static int __meminit kasan_mem_notifier(struct notifier_block *nb,
 		if (!ret)
 			return NOTIFY_BAD;
 
-		kmemleak_ignore(ret);
+		kmemleak_igyesre(ret);
 		return NOTIFY_OK;
 	}
 	case MEM_CANCEL_ONLINE:
@@ -721,12 +721,12 @@ static int __meminit kasan_mem_notifier(struct notifier_block *nb,
 
 		/*
 		 * shadow_start was either mapped during boot by kasan_init()
-		 * or during memory online by __vmalloc_node_range().
+		 * or during memory online by __vmalloc_yesde_range().
 		 * In the latter case we can use vfree() to free shadow.
 		 * Non-NULL result of the find_vm_area() will tell us if
 		 * that was the second case.
 		 *
-		 * Currently it's not possible to free shadow mapped
+		 * Currently it's yest possible to free shadow mapped
 		 * during boot by kasan_init(). It's because the code
 		 * to do that hasn't been written yet. So we'll just
 		 * leak the memory.
@@ -742,7 +742,7 @@ static int __meminit kasan_mem_notifier(struct notifier_block *nb,
 
 static int __init kasan_memhotplug_init(void)
 {
-	hotplug_memory_notifier(kasan_mem_notifier, 0);
+	hotplug_memory_yestifier(kasan_mem_yestifier, 0);
 
 	return 0;
 }
@@ -757,7 +757,7 @@ static int kasan_populate_vmalloc_pte(pte_t *ptep, unsigned long addr,
 	unsigned long page;
 	pte_t pte;
 
-	if (likely(!pte_none(*ptep)))
+	if (likely(!pte_yesne(*ptep)))
 		return 0;
 
 	page = __get_free_page(GFP_KERNEL);
@@ -768,7 +768,7 @@ static int kasan_populate_vmalloc_pte(pte_t *ptep, unsigned long addr,
 	pte = pfn_pte(PFN_DOWN(__pa(page)), PAGE_KERNEL);
 
 	spin_lock(&init_mm.page_table_lock);
-	if (likely(pte_none(*ptep))) {
+	if (likely(pte_yesne(*ptep))) {
 		set_pte_at(&init_mm, addr, ptep, pte);
 		page = 0;
 	}
@@ -819,7 +819,7 @@ int kasan_populate_vmalloc(unsigned long addr, unsigned long size)
 	 * // rest of vmalloc process		<data dependency>
 	 * STORE p, a				LOAD shadow(x+99)
 	 *
-	 * If there is no barrier between the end of unpoisioning the shadow
+	 * If there is yes barrier between the end of unpoisioning the shadow
 	 * and the store of the result to p, the stores could be committed
 	 * in a different order by CPU#0, and CPU#1 could erroneously observe
 	 * poison in the shadow.
@@ -867,7 +867,7 @@ static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
 
 	spin_lock(&init_mm.page_table_lock);
 
-	if (likely(!pte_none(*ptep))) {
+	if (likely(!pte_yesne(*ptep))) {
 		pte_clear(&init_mm, addr, ptep);
 		free_page(page);
 	}
@@ -881,14 +881,14 @@ static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
  * lies within the free region [free_region_start, free_region_end).
  *
  * This can be run lazily, long after the region was freed. It runs
- * under vmap_area_lock, so it's not safe to interact with the vmalloc/vmap
+ * under vmap_area_lock, so it's yest safe to interact with the vmalloc/vmap
  * infrastructure.
  *
  * How does this work?
  * -------------------
  *
  * We have a region that is page aligned, labelled as A.
- * That might not map onto the shadow in a way that is page-aligned:
+ * That might yest map onto the shadow in a way that is page-aligned:
  *
  *                    start                     end
  *                    v                         v
@@ -906,7 +906,7 @@ static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
  * example, this gives us the shadow page (2). This is the shadow entirely
  * covered by this allocation.
  *
- * Then we have the tricky bits. We want to know if we can free the
+ * Then we have the tricky bits. We want to kyesw if we can free the
  * partially covered shadow pages - (1) and (3) in the example. For this,
  * we are given the start and end of the free region that contains this
  * allocation. Extending our previous example, we could have:
@@ -925,8 +925,8 @@ static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
  *
  * Once again, we align the start of the free region up, and the end of
  * the free region down so that the shadow is page aligned. So we can free
- * page (1) - we know no allocation currently uses anything in that page,
- * because all of it is in the vmalloc free region. But we cannot free
+ * page (1) - we kyesw yes allocation currently uses anything in that page,
+ * because all of it is in the vmalloc free region. But we canyest free
  * page (3), because we can't be sure that the rest of it is unused.
  *
  * We only consider pages that contain part of the original region for
@@ -936,19 +936,19 @@ static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
  * Concurrency
  * -----------
  *
- * How do we know that we're not freeing a page that is simultaneously
+ * How do we kyesw that we're yest freeing a page that is simultaneously
  * being used for a fresh allocation in kasan_populate_vmalloc(_pte)?
  *
  * We _can_ have kasan_release_vmalloc and kasan_populate_vmalloc running
  * at the same time. While we run under free_vmap_area_lock, the population
- * code does not.
+ * code does yest.
  *
  * free_vmap_area_lock instead operates to ensure that the larger range
  * [free_region_start, free_region_end) is safe: because __alloc_vmap_area and
  * the per-cpu region-finding algorithm both run under free_vmap_area_lock,
- * no space identified as free will become used while we are running. This
+ * yes space identified as free will become used while we are running. This
  * means that so long as we are careful with alignment and only free shadow
- * pages entirely covered by the free region, we will not run in to any
+ * pages entirely covered by the free region, we will yest run in to any
  * trouble - any simultaneous allocations will be for disjoint regions.
  */
 void kasan_release_vmalloc(unsigned long start, unsigned long end,

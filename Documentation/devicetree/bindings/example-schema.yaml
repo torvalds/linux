@@ -5,13 +5,13 @@
 # All the top-level keys are standard json-schema keywords except for
 # 'maintainers' and 'select'
 
-# $id is a unique identifier based on the filename. There may or may not be a
+# $id is a unique identifier based on the filename. There may or may yest be a
 # file present at the URL.
 $id: "http://devicetree.org/schemas/example-schema.yaml#"
 # $schema is the meta-schema this schema should be validated with.
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: An example schema annotated with jsonschema details
+title: An example schema anyestated with jsonschema details
 
 maintainers:
   - Rob Herring <robh@kernel.org>
@@ -22,12 +22,12 @@ description: |
   Details about the hardware device and any links to datasheets can go here.
 
   Literal blocks are marked with the '|' at the beginning. The end is marked by
-  indentation less than the first line of the literal block. Lines also cannot
+  indentation less than the first line of the literal block. Lines also canyest
   begin with a tab character.
 
 select: false
-  # 'select' is a schema applied to a DT node to determine if this binding
-  # schema should be applied to the node. It is optional and by default the
+  # 'select' is a schema applied to a DT yesde to determine if this binding
+  # schema should be applied to the yesde. It is optional and by default the
   # possible compatible strings are extracted and used to match.
 
   # In this case, a 'false' schema will never match.
@@ -38,13 +38,13 @@ properties:
     # More complicated schema can use oneOf (XOR), anyOf (OR), or allOf (AND)
     # to handle different conditions.
     # In this case, it's needed to handle a variable number of values as there
-    # isn't another way to express a constraint of the last string value.
+    # isn't ayesther way to express a constraint of the last string value.
     # The boolean schema must be a list of schemas.
     oneOf:
       - items:
           # items is a list of possible values for the property. The number of
           # values is determined by the number of elements in the list.
-          # Order in lists is significant, order in dicts is not
+          # Order in lists is significant, order in dicts is yest
           # Must be one of the 1st enums followed by the 2nd enum
           #
           # Each element in items should be 'enum' or 'const'
@@ -96,7 +96,7 @@ properties:
     description:
       A variable number of interrupts warrants a description of what conditions
       affect the number of interrupts. Otherwise, descriptions on standard
-      properties are not necessary.
+      properties are yest necessary.
 
   interrupt-names:
     # minItems must be specified here because the default would be 2
@@ -121,14 +121,14 @@ properties:
     # constraints on the possible values.
     minimum: 100
     maximum: 400000
-    # The value that should be used if the property is not present
+    # The value that should be used if the property is yest present
     default: 200
 
   foo-gpios:
     maxItems: 1
     description: A connection of the 'foo' gpio line.
 
-  # *-supply is always a single phandle, so nothing more to define.
+  # *-supply is always a single phandle, so yesthing more to define.
   foo-supply: true
 
   # Vendor specific properties
@@ -165,18 +165,18 @@ properties:
       don't need a type.
     enum: [ 100, 200, 300 ]
 
-  child-node:
-    description: Child nodes are just another property from a json-schema
+  child-yesde:
+    description: Child yesdes are just ayesther property from a json-schema
       perspective.
-    type: object  # DT nodes are json objects
+    type: object  # DT yesdes are json objects
     properties:
-      vendor,a-child-node-property:
-        description: Child node properties have all the same schema
+      vendor,a-child-yesde-property:
+        description: Child yesde properties have all the same schema
           requirements.
         type: boolean
 
     required:
-      - vendor,a-child-node-property
+      - vendor,a-child-yesde-property
 
 # Describe the relationship between different properties
 dependencies:
@@ -184,7 +184,7 @@ dependencies:
   # is present
   vendor,bool-property: [ vendor,string-array-property ]
   # Expressing 2 properties in both orders means all of the set of properties
-  # must be present or none of them.
+  # must be present or yesne of them.
   vendor,string-array-property: [ vendor,bool-property ]
 
 required:
@@ -194,7 +194,7 @@ required:
   - interrupt-controller
 
 # if/then schema can be used to handle conditions on a property affecting
-# another property. A typical case is a specific 'compatible' value changes the
+# ayesther property. A typical case is a specific 'compatible' value changes the
 # constraints on other properties.
 #
 # For multiple 'if' schema, group them under an 'allOf'.
@@ -214,20 +214,20 @@ then:
 # present are allowed. There's a few common properties such as 'status' and
 # 'pinctrl-*' which are added automatically by the tooling.
 #
-# This can't be used in cases where another schema is referenced
+# This can't be used in cases where ayesther schema is referenced
 # (i.e. allOf: [{$ref: ...}]).
 additionalProperties: false
 
 examples:
-  # Examples are now compiled with dtc and validated against the schemas
+  # Examples are yesw compiled with dtc and validated against the schemas
   #
   # Examples have a default #address-cells and #size-cells value of 1. This can
-  # be overridden or an appropriate parent bus node should be shown (such as on
+  # be overridden or an appropriate parent bus yesde should be shown (such as on
   # i2c buses).
   #
   # Any includes used have to be explicitly included.
   - |
-    node@1000 {
+    yesde@1000 {
           compatible = "vendor,soc4-ip", "vendor,soc1-ip";
           reg = <0x1000 0x80>,
                 <0x3000 0x80>;

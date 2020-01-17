@@ -425,7 +425,7 @@ void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param,
 		/*
 		 * A foreign interrupt was raised while secure world was
 		 * executing, since they are handled in Linux a dummy RPC is
-		 * performed to let Linux take the interrupt through the normal
+		 * performed to let Linux take the interrupt through the yesrmal
 		 * vector.
 		 */
 		break;
@@ -434,7 +434,7 @@ void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param,
 		handle_rpc_func_cmd(ctx, optee, shm, call_ctx);
 		break;
 	default:
-		pr_warn("Unknown RPC func 0x%x\n",
+		pr_warn("Unkyeswn RPC func 0x%x\n",
 			(u32)OPTEE_SMC_RETURN_GET_RPC_FUNC(param->a0));
 		break;
 	}

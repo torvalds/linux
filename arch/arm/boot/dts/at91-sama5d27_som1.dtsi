@@ -2,7 +2,7 @@
 /*
  * at91-sama5d27_som1.dtsi - Device Tree file for SAMA5D27 SoM1 board
  *
- *  Copyright (c) 2017, Microchip Technology Inc.
+ *  Copyright (c) 2017, Microchip Techyeslogy Inc.
  *                2017 Cristian Birsan <cristian.birsan@microchip.com>
  *                2017 Claudiu Beznea <claudiu.beznea@microchip.com>
  */
@@ -30,7 +30,7 @@
 				pinctrl-0 = <&pinctrl_qspi1_default>;
 
 				flash@0 {
-					compatible = "jedec,spi-nor";
+					compatible = "jedec,spi-yesr";
 					reg = <0>;
 					spi-max-frequency = <80000000>;
 					spi-tx-bus-width = <4>;

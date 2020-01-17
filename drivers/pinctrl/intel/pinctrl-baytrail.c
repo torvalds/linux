@@ -88,7 +88,7 @@
  * This is the function value most pins have for GPIO muxing. If the value
  * differs from the default one, it must be explicitly mentioned. Otherwise, the
  * pin control implementation will set the muxing value to default GPIO if it
- * does not find a match for the requested function.
+ * does yest find a match for the requested function.
  */
 #define BYT_DEFAULT_GPIO_MUX	0
 #define BYT_ALTER_GPIO_MUX	1
@@ -115,7 +115,7 @@ struct byt_gpio {
 	struct byt_gpio_pin_context *saved_context;
 };
 
-/* SCORE pins, aka GPIOC_<pin_no> or GPIO_S0_SC[<pin_no>] */
+/* SCORE pins, aka GPIOC_<pin_yes> or GPIO_S0_SC[<pin_yes>] */
 static const struct pinctrl_pin_desc byt_score_pins[] = {
 	PINCTRL_PIN(0, "SATA_GP0"),
 	PINCTRL_PIN(1, "SATA_GP1"),
@@ -379,7 +379,7 @@ static const struct intel_pinctrl_soc_data byt_score_soc_data = {
 	.ncommunities	= ARRAY_SIZE(byt_score_communities),
 };
 
-/* SUS pins, aka GPIOS_<pin_no> or GPIO_S5[<pin_no>]  */
+/* SUS pins, aka GPIOS_<pin_yes> or GPIO_S5[<pin_yes>]  */
 static const struct pinctrl_pin_desc byt_sus_pins[] = {
 	PINCTRL_PIN(0, "GPIO_S50"),
 	PINCTRL_PIN(1, "GPIO_S51"),
@@ -668,7 +668,7 @@ static void byt_set_group_simple_mux(struct byt_gpio *vg,
 		padcfg0 = byt_gpio_reg(vg, group.pins[i], BYT_CONF0_REG);
 		if (!padcfg0) {
 			dev_warn(&vg->pdev->dev,
-				 "Group %s, pin %i not muxed (no padcfg0)\n",
+				 "Group %s, pin %i yest muxed (yes padcfg0)\n",
 				 group.name, i);
 			continue;
 		}
@@ -698,7 +698,7 @@ static void byt_set_group_mixed_mux(struct byt_gpio *vg,
 		padcfg0 = byt_gpio_reg(vg, group.pins[i], BYT_CONF0_REG);
 		if (!padcfg0) {
 			dev_warn(&vg->pdev->dev,
-				 "Group %s, pin %i not muxed (no padcfg0)\n",
+				 "Group %s, pin %i yest muxed (yes padcfg0)\n",
 				 group.name, i);
 			continue;
 		}
@@ -773,7 +773,7 @@ static int byt_gpio_request_enable(struct pinctrl_dev *pctl_dev,
 	 * But, some pins may have func pin mux 001 represents
 	 * GPIO function.
 	 *
-	 * Because there are devices out there where some pins were not
+	 * Because there are devices out there where some pins were yest
 	 * configured correctly we allow changing the mux value from
 	 * request (but print out warning about that).
 	 */
@@ -826,7 +826,7 @@ static int byt_gpio_set_direction(struct pinctrl_dev *pctl_dev,
 		/*
 		 * Before making any direction modifications, do a check if gpio
 		 * is set for direct IRQ.  On baytrail, setting GPIO to output
-		 * does not make sense, so let's at least warn the caller before
+		 * does yest make sense, so let's at least warn the caller before
 		 * they shoot themselves in the foot.
 		 */
 		WARN(readl(conf_reg) & BYT_DIRECT_IRQ_EN,
@@ -1001,13 +1001,13 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 			conf &= ~BYT_PULL_ASSIGN_MASK;
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
-			/* Set default strength value in case none is given */
+			/* Set default strength value in case yesne is given */
 			if (arg == 1)
 				arg = 2000;
 
 			/*
 			 * Pull assignment is only applicable in input mode. If
-			 * chip is not in input mode, set it and warn about it.
+			 * chip is yest in input mode, set it and warn about it.
 			 */
 			if (val & BYT_INPUT_EN) {
 				val &= ~BYT_INPUT_EN;
@@ -1023,13 +1023,13 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
-			/* Set default strength value in case none is given */
+			/* Set default strength value in case yesne is given */
 			if (arg == 1)
 				arg = 2000;
 
 			/*
 			 * Pull assignment is only applicable in input mode. If
-			 * chip is not in input mode, set it and warn about it.
+			 * chip is yest in input mode, set it and warn about it.
 			 */
 			if (val & BYT_INPUT_EN) {
 				val &= ~BYT_INPUT_EN;
@@ -1206,7 +1206,7 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		reg = byt_gpio_reg(vg, pin, BYT_CONF0_REG);
 		if (!reg) {
 			seq_printf(s,
-				   "Could not retrieve pin %i conf0 reg\n",
+				   "Could yest retrieve pin %i conf0 reg\n",
 				   pin);
 			raw_spin_unlock_irqrestore(&byt_lock, flags);
 			continue;
@@ -1216,7 +1216,7 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		reg = byt_gpio_reg(vg, pin, BYT_VAL_REG);
 		if (!reg) {
 			seq_printf(s,
-				   "Could not retrieve pin %i val reg\n", pin);
+				   "Could yest retrieve pin %i val reg\n", pin);
 			raw_spin_unlock_irqrestore(&byt_lock, flags);
 			continue;
 		}
@@ -1226,7 +1226,7 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		comm = byt_get_community(vg, pin);
 		if (!comm) {
 			seq_printf(s,
-				   "Could not get community for pin %i\n", pin);
+				   "Could yest get community for pin %i\n", pin);
 			continue;
 		}
 		label = gpiochip_is_requested(chip, i);
@@ -1421,7 +1421,7 @@ static void byt_gpio_irq_handler(struct irq_desc *desc)
 
 		if (!reg) {
 			dev_warn(&vg->pdev->dev,
-				 "Pin %i: could not retrieve interrupt status register\n",
+				 "Pin %i: could yest retrieve interrupt status register\n",
 				 base);
 			continue;
 		}
@@ -1446,7 +1446,7 @@ static void byt_init_irq_valid_mask(struct gpio_chip *chip,
 	 * initializing the irq_chip below in byt_gpio_irq_init_hw().
 	 * when converting this driver to the new way of passing the
 	 * gpio_irq_chip along when adding the gpio_chip, move the
-	 * mask initialization into this callback instead. Right now
+	 * mask initialization into this callback instead. Right yesw
 	 * this callback is here to make sure the mask gets allocated.
 	 */
 }
@@ -1461,7 +1461,7 @@ static int byt_gpio_irq_init_hw(struct gpio_chip *chip)
 
 	/*
 	 * Clear interrupt triggers for all pins that are GPIOs and
-	 * do not use direct IRQ mode. This will prevent spurious
+	 * do yest use direct IRQ mode. This will prevent spurious
 	 * interrupts from misconfigured pins.
 	 */
 	for (i = 0; i < vg->soc_data->npins; i++) {
@@ -1470,7 +1470,7 @@ static int byt_gpio_irq_init_hw(struct gpio_chip *chip)
 		reg = byt_gpio_reg(vg, pin, BYT_CONF0_REG);
 		if (!reg) {
 			dev_warn(&vg->pdev->dev,
-				 "Pin %i: could not retrieve conf0 register\n",
+				 "Pin %i: could yest retrieve conf0 register\n",
 				 i);
 			continue;
 		}
@@ -1491,13 +1491,13 @@ static int byt_gpio_irq_init_hw(struct gpio_chip *chip)
 
 		if (!reg) {
 			dev_warn(&vg->pdev->dev,
-				 "Pin %i: could not retrieve irq status reg\n",
+				 "Pin %i: could yest retrieve irq status reg\n",
 				 base);
 			continue;
 		}
 
 		writel(0xffffffff, reg);
-		/* make sure trigger bits are cleared, if not then a pin
+		/* make sure trigger bits are cleared, if yest then a pin
 		   might be misconfigured in bios */
 		value = readl(reg);
 		if (value)
@@ -1679,7 +1679,7 @@ static int byt_gpio_suspend(struct device *dev)
 		reg = byt_gpio_reg(vg, pin, BYT_CONF0_REG);
 		if (!reg) {
 			dev_warn(&vg->pdev->dev,
-				 "Pin %i: could not retrieve conf0 register\n",
+				 "Pin %i: could yest retrieve conf0 register\n",
 				 i);
 			continue;
 		}
@@ -1711,7 +1711,7 @@ static int byt_gpio_resume(struct device *dev)
 		reg = byt_gpio_reg(vg, pin, BYT_CONF0_REG);
 		if (!reg) {
 			dev_warn(&vg->pdev->dev,
-				 "Pin %i: could not retrieve conf0 register\n",
+				 "Pin %i: could yest retrieve conf0 register\n",
 				 i);
 			continue;
 		}

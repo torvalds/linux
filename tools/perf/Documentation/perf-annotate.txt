@@ -1,22 +1,22 @@
-perf-annotate(1)
+perf-anyestate(1)
 ================
 
 NAME
 ----
-perf-annotate - Read perf.data (created by perf record) and display annotated code
+perf-anyestate - Read perf.data (created by perf record) and display anyestated code
 
 SYNOPSIS
 --------
 [verse]
-'perf annotate' [-i <file> | --input=file] [symbol_name]
+'perf anyestate' [-i <file> | --input=file] [symbol_name]
 
 DESCRIPTION
 -----------
-This command reads the input file and displays an annotated version of the
+This command reads the input file and displays an anyestated version of the
 code. If the object file has debug symbols then the source code will be
 displayed alongside assembly code.
 
-If there is no debug info in the object, then annotated assembly is displayed.
+If there is yes debug info in the object, then anyestated assembly is displayed.
 
 OPTIONS
 -------
@@ -29,7 +29,7 @@ OPTIONS
         Only consider symbols in these dsos.
 -s::
 --symbol=<symbol>::
-        Symbol to annotate.
+        Symbol to anyestate.
 
 -f::
 --force::
@@ -41,7 +41,7 @@ OPTIONS
 
 -q::
 --quiet::
-	Do not show any message.  (Suppress -v)
+	Do yest show any message.  (Suppress -v)
 
 -n::
 --show-nr-samples::
@@ -55,8 +55,8 @@ OPTIONS
 --vmlinux=<file>::
         vmlinux pathname.
 
---ignore-vmlinux::
-	Ignore vmlinux files.
+--igyesre-vmlinux::
+	Igyesre vmlinux files.
 
 -m::
 --modules::
@@ -72,7 +72,7 @@ OPTIONS
 
 --stdio:: Use the stdio interface.
 
---stdio2:: Use the stdio2 interface, non-interactive, uses the TUI formatting.
+--stdio2:: Use the stdio2 interface, yesn-interactive, uses the TUI formatting.
 
 --stdio-color=<mode>::
 	'always', 'never' or 'auto', allowing configuring color output
@@ -81,7 +81,7 @@ OPTIONS
 	to a pipe or file. Using just '--stdio-color' is equivalent to
 	using 'always'.
 
---tui:: Use the TUI interface. Use of --tui requires a tty, if one is not
+--tui:: Use the TUI interface. Use of --tui requires a tty, if one is yest
 	present, as when piping to other commands, the stdio interface is
 	used. This interfaces starts by centering on the line with more
 	samples, TAB/UNTAB cycles through the lines with more samples.
@@ -90,7 +90,7 @@ OPTIONS
 
 -C::
 --cpu=<cpu>:: Only report samples for the list of CPUs provided. Multiple CPUs can
-	be provided as a comma-separated list with no space: 0,1. Ranges of
+	be provided as a comma-separated list with yes space: 0,1. Ranges of
 	CPUs are specified with -: 0-2. Default is to report samples on all
 	CPUs.
 
@@ -101,7 +101,7 @@ OPTIONS
 
 --source::
 	Interleave source code with assembly code. Enabled by default,
-	disable with --no-source.
+	disable with --yes-source.
 
 --symfs=<directory>::
         Look for files with symbols relative to this directory.
@@ -113,13 +113,13 @@ OPTIONS
         Path to objdump binary.
 
 --skip-missing::
-	Skip symbols that cannot be annotated.
+	Skip symbols that canyest be anyestated.
 
 --group::
 	Show event group information together
 
 --percent-type::
-	Set annotation percent type from following choices:
+	Set anyestation percent type from following choices:
 	  global-period, local-period, global-hits, local-hits
 
 	The local/global keywords set if the percentage is computed

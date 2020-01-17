@@ -28,7 +28,7 @@
 #include <asm/cacheflush.h>
 #include <asm/dis.h>
 #include <asm/facility.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 #include <asm/set_memory.h>
 #include "bpf_jit.h"
 
@@ -328,7 +328,7 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 
 /*
  * Return whether this is the first pass. The first pass is special, since we
- * don't know any sizes yet, and thus must be conservative.
+ * don't kyesw any sizes yet, and thus must be conservative.
  */
 static bool is_first_pass(struct bpf_jit *jit)
 {
@@ -469,7 +469,7 @@ static void save_restore_regs(struct bpf_jit *jit, int op, u32 stack_depth)
 
 	if (is_first_pass(jit)) {
 		/*
-		 * We don't know yet which registers are used. Reserve space
+		 * We don't kyesw yet which registers are used. Reserve space
 		 * conservatively.
 		 */
 		jit->prg += (last - re + 1) * save_restore_size;
@@ -501,7 +501,7 @@ static void bpf_jit_prologue(struct bpf_jit *jit, u32 stack_depth)
 		/* xc STK_OFF_TCCNT(4,%r15),STK_OFF_TCCNT(%r15) */
 		_EMIT6(0xd703f000 | STK_OFF_TCCNT, 0xf000 | STK_OFF_TCCNT);
 	} else {
-		/* j tail_call_start: NOP if no tail calls are used */
+		/* j tail_call_start: NOP if yes tail calls are used */
 		EMIT4_PCREL(0xa7f40000, 6);
 		_EMIT2(0);
 	}
@@ -548,7 +548,7 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	EMIT4(0xb9040000, REG_2, BPF_REG_0);
 	/* Restore registers */
 	save_restore_regs(jit, REGS_RESTORE, stack_depth);
-	if (__is_defined(CC_USING_EXPOLINE) && !nospec_disable) {
+	if (__is_defined(CC_USING_EXPOLINE) && !yesspec_disable) {
 		jit->r14_thunk_ip = jit->prg;
 		/* Generate __s390_indirect_jump_r14 thunk */
 		if (test_facility(35)) {
@@ -566,7 +566,7 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	/* br %r14 */
 	_EMIT2(0x07fe);
 
-	if (__is_defined(CC_USING_EXPOLINE) && !nospec_disable &&
+	if (__is_defined(CC_USING_EXPOLINE) && !yesspec_disable &&
 	    (is_first_pass(jit) || (jit->seen & SEEN_FUNC))) {
 		jit->r1_thunk_ip = jit->prg;
 		/* Generate __s390_indirect_jump_r1 thunk */
@@ -590,10 +590,10 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 /*
  * Compile one eBPF instruction into s390x code
  *
- * NOTE: Use noinline because for gcov (-fprofile-arcs) gcc allocates a lot of
+ * NOTE: Use yesinline because for gcov (-fprofile-arcs) gcc allocates a lot of
  * stack space for the large switch statement.
  */
-static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
+static yesinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 				 int i, bool extra_pass)
 {
 	struct bpf_insn *insn = &fp->insnsi[i];
@@ -1161,7 +1161,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		jit->seen |= SEEN_FUNC;
 		/* lgrl %w1,func */
 		EMIT6_PCREL_RILB(0xc4080000, REG_W1, _EMIT_CONST_U64(func));
-		if (__is_defined(CC_USING_EXPOLINE) && !nospec_disable) {
+		if (__is_defined(CC_USING_EXPOLINE) && !yesspec_disable) {
 			/* brasl %r14,__s390_indirect_jump_r1 */
 			EMIT6_PCREL_RILB(0xc0050000, REG_14, jit->r1_thunk_ip);
 		} else {
@@ -1481,14 +1481,14 @@ branch_oc:
 		break;
 	}
 	default: /* too complex, give up */
-		pr_err("Unknown opcode %02x\n", insn->code);
+		pr_err("Unkyeswn opcode %02x\n", insn->code);
 		return -1;
 	}
 	return insn_count;
 }
 
 /*
- * Return whether new i-th instruction address does not violate any invariant
+ * Return whether new i-th instruction address does yest violate any invariant
  */
 static bool bpf_is_new_addr_sane(struct bpf_jit *jit, int i)
 {
@@ -1496,11 +1496,11 @@ static bool bpf_is_new_addr_sane(struct bpf_jit *jit, int i)
 	if (is_first_pass(jit))
 		return true;
 
-	/* The codegen pass must not change anything */
+	/* The codegen pass must yest change anything */
 	if (is_codegen_pass(jit))
 		return jit->addrs[i] == jit->prg;
 
-	/* Passes in between must not increase code size */
+	/* Passes in between must yest increase code size */
 	return jit->addrs[i] >= jit->prg;
 }
 

@@ -60,7 +60,7 @@ _ENTRY(_start);
 	 * Reserve a word at a fixed location to store the address
 	 * of abatron_pteptrs
 	 */
-	nop
+	yesp
 
 	/* Translate device tree address to physical, save in r30/r31 */
 	bl	get_phys_addr
@@ -135,7 +135,7 @@ _ENTRY(_start);
 	beq	set_ivor
 #endif
 
-/* We try to not make any assumptions about how the boot loader
+/* We try to yest make any assumptions about how the boot loader
  * setup or used the TLBs.  We invalidate all mappings from the
  * boot loader and load a single entry in TLB1[0] to map the
  * first 64M of kernel memory.  Any boot info passed from the
@@ -143,7 +143,7 @@ _ENTRY(_start);
  *
  * Requirement on bootloader:
  *  - The page we're executing in needs to reside in TLB1 and
- *    have IPROT=1.  If not an invalidate broadcast could
+ *    have IPROT=1.  If yest an invalidate broadcast could
  *    evict the entry we're currently executing in.
  *
  *  r3 = Index of TLB1 were executing in
@@ -194,7 +194,7 @@ set_ivor:
 
 #if !defined(CONFIG_BDI_SWITCH)
 	/*
-	 * The Abatron BDI JTAG debugger does not tolerate others
+	 * The Abatron BDI JTAG debugger does yest tolerate others
 	 * mucking with the debug registers.
 	 */
 	lis	r2,DBCR0_IDM@h
@@ -312,8 +312,8 @@ set_ivor:
 	rlwinm	r12, r10, 13, 19, 29;	/* Compute pgdir/pmd offset */	\
 	lwzx	r11, r12, r11;		/* Get pgd/pmd entry */		\
 	rlwinm.	r12, r11, 0, 0, 20;	/* Extract pt base address */	\
-	blt	1000f;			/* Normal non-huge page */	\
-	beq	2f;			/* Bail if no table */		\
+	blt	1000f;			/* Normal yesn-huge page */	\
+	beq	2f;			/* Bail if yes table */		\
 	oris	r11, r11, PD_HUGE@h;	/* Put back address bit */	\
 	andi.	r10, r11, HUGEPD_SHIFT_MASK@l; /* extract size field */	\
 	xor	r12, r10, r11;		/* drop size bits from pointer */ \
@@ -326,7 +326,7 @@ set_ivor:
 	rlwinm	r12, r10, 13, 19, 29;	/* Compute pgdir/pmd offset */	\
 	lwzx	r11, r12, r11;		/* Get pgd/pmd entry */		\
 	rlwinm.	r12, r11, 0, 0, 20;	/* Extract pt base address */	\
-	beq	2f;			/* Bail if no table */		\
+	beq	2f;			/* Bail if yes table */		\
 	rlwimi	r12, r10, 23, 20, 28;	/* Compute pte address */	\
 	lwz	r11, 4(r12);		/* Get pte entry */
 #endif /* HUGEPAGE */
@@ -335,7 +335,7 @@ set_ivor:
 	rlwimi	r11, r10, 12, 20, 29;	/* Create L1 (pgdir/pmd) address */	\
 	lwz	r11, 0(r11);		/* Get L1 entry */			\
 	rlwinm.	r12, r11, 0, 0, 19;	/* Extract L2 (pte) base address */	\
-	beq	2f;			/* Bail if no table */			\
+	beq	2f;			/* Bail if yes table */			\
 	rlwimi	r12, r10, 22, 20, 29;	/* Compute PTE address */		\
 	lwz	r11, 0(r12);		/* Get Linux PTE */
 #endif
@@ -359,11 +359,11 @@ set_ivor:
 
 interrupt_base:
 	/* Critical Input Interrupt */
-	CRITICAL_EXCEPTION(0x0100, CRITICAL, CriticalInput, unknown_exception)
+	CRITICAL_EXCEPTION(0x0100, CRITICAL, CriticalInput, unkyeswn_exception)
 
 	/* Machine Check Interrupt */
 #ifdef CONFIG_E200
-	/* no RFMCI, MCSRRs on E200 */
+	/* yes RFMCI, MCSRRs on E200 */
 	CRITICAL_EXCEPTION(0x0200, MACHINE_CHECK, MachineCheck, \
 			   machine_check_exception)
 #else
@@ -400,12 +400,12 @@ interrupt_base:
 	FP_UNAVAILABLE_EXCEPTION
 #else
 #ifdef CONFIG_E200
-	/* E200 treats 'normal' floating point instructions as FP Unavail exception */
+	/* E200 treats 'yesrmal' floating point instructions as FP Unavail exception */
 	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, \
 		  program_check_exception, EXC_XFER_STD)
 #else
 	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, \
-		  unknown_exception, EXC_XFER_STD)
+		  unkyeswn_exception, EXC_XFER_STD)
 #endif
 #endif
 
@@ -415,7 +415,7 @@ interrupt_base:
 
 	/* Auxiliary Processor Unavailable Interrupt */
 	EXCEPTION(0x2900, AP_UNAVAIL, AuxillaryProcessorUnavailable, \
-		  unknown_exception, EXC_XFER_STD)
+		  unkyeswn_exception, EXC_XFER_STD)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
@@ -423,13 +423,13 @@ interrupt_base:
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
 	EXCEPTION(0x3100, FIT, FixedIntervalTimer, \
-		  unknown_exception, EXC_XFER_STD)
+		  unkyeswn_exception, EXC_XFER_STD)
 
 	/* Watchdog Timer Interrupt */
 #ifdef CONFIG_BOOKE_WDT
 	CRITICAL_EXCEPTION(0x3200, WATCHDOG, WatchdogTimer, WatchdogException)
 #else
-	CRITICAL_EXCEPTION(0x3200, WATCHDOG, WatchdogTimer, unknown_exception)
+	CRITICAL_EXCEPTION(0x3200, WATCHDOG, WatchdogTimer, unkyeswn_exception)
 #endif
 
 	/* Data TLB Error Interrupt */
@@ -636,7 +636,7 @@ END_BTB_FLUSH_SECTION
 	EXC_XFER_LITE(0x2010, KernelSPE)
 #elif defined(CONFIG_SPE_POSSIBLE)
 	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, \
-		  unknown_exception, EXC_XFER_STD)
+		  unkyeswn_exception, EXC_XFER_STD)
 #endif /* CONFIG_SPE_POSSIBLE */
 
 	/* SPE Floating Point Data */
@@ -649,9 +649,9 @@ END_BTB_FLUSH_SECTION
 		  SPEFloatingPointRoundException, EXC_XFER_STD)
 #elif defined(CONFIG_SPE_POSSIBLE)
 	EXCEPTION(0x2040, SPE_FP_DATA, SPEFloatingPointData,
-		  unknown_exception, EXC_XFER_STD)
+		  unkyeswn_exception, EXC_XFER_STD)
 	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
-		  unknown_exception, EXC_XFER_STD)
+		  unkyeswn_exception, EXC_XFER_STD)
 #endif /* CONFIG_SPE_POSSIBLE */
 
 
@@ -662,7 +662,7 @@ END_BTB_FLUSH_SECTION
 	EXCEPTION(0x2070, DOORBELL, Doorbell, doorbell_exception, EXC_XFER_STD)
 
 	CRITICAL_EXCEPTION(0x2080, DOORBELL_CRITICAL, \
-			   CriticalDoorbell, unknown_exception)
+			   CriticalDoorbell, unkyeswn_exception)
 
 	/* Debug Interrupt */
 	DEBUG_DEBUG_EXCEPTION
@@ -671,13 +671,13 @@ END_BTB_FLUSH_SECTION
 	GUEST_DOORBELL_EXCEPTION
 
 	CRITICAL_EXCEPTION(0, GUEST_DBELL_CRIT, CriticalGuestDoorbell, \
-			   unknown_exception)
+			   unkyeswn_exception)
 
 	/* Hypercall */
-	EXCEPTION(0, HV_SYSCALL, Hypercall, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0, HV_SYSCALL, Hypercall, unkyeswn_exception, EXC_XFER_STD)
 
 	/* Embedded Hypervisor Privilege */
-	EXCEPTION(0, HV_PRIV, Ehvpriv, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0, HV_PRIV, Ehvpriv, unkyeswn_exception, EXC_XFER_STD)
 
 interrupt_end:
 
@@ -860,12 +860,12 @@ _GLOBAL(load_up_spe)
  * Disable SPE for the task which had SPE previously,
  * and save its SPE registers in its thread_struct.
  * Enables SPE for use in the kernel on return.
- * On SMP we know the SPE units are free, since we give it up every
+ * On SMP we kyesw the SPE units are free, since we give it up every
  * switch.  -- Kumar
  */
 	mfmsr	r5
 	oris	r5,r5,MSR_SPE@h
-	mtmsr	r5			/* enable use of SPE now */
+	mtmsr	r5			/* enable use of SPE yesw */
 	isync
 	/* enable use of SPE after return */
 	oris	r9,r9,MSR_SPE@h
@@ -1074,13 +1074,13 @@ __secondary_start:
 	cmpw	r20,r7		/* if kernstart_virt_addr != KERNELBASE, randomized */
 	beq	2f
 	li	r4,0
-2:	li	r5,0		/* no device tree */
-	li	r6,0		/* not boot cpu */
+2:	li	r5,0		/* yes device tree */
+	li	r6,0		/* yest boot cpu */
 	bl	restore_to_as0
 
 
-	lis	r3,__secondary_hold_acknowledge@h
-	ori	r3,r3,__secondary_hold_acknowledge@l
+	lis	r3,__secondary_hold_ackyeswledge@h
+	ori	r3,r3,__secondary_hold_ackyeswledge@l
 	stw	r24,0(r3)
 
 	li	r3,0
@@ -1116,8 +1116,8 @@ __secondary_start:
 	rfi
 	sync
 
-	.globl __secondary_hold_acknowledge
-__secondary_hold_acknowledge:
+	.globl __secondary_hold_ackyeswledge
+__secondary_hold_ackyeswledge:
 	.long	-1
 #endif
 
@@ -1178,7 +1178,7 @@ _GLOBAL(reloc_kernel_entry)
 _GLOBAL(switch_to_as1)
 	mflr	r5
 
-	/* Find a entry not used */
+	/* Find a entry yest used */
 	mfspr	r3,SPRN_TLB1CFG
 	andi.	r3,r3,0xfff
 	mfspr	r4,SPRN_PID
@@ -1222,7 +1222,7 @@ _GLOBAL(switch_to_as1)
  * by switch_to_as1.
  * r3 - the tlb entry which should be invalidated
  * r4 - __pa(PAGE_OFFSET in AS1) - __pa(PAGE_OFFSET in AS0)
- * r5 - device tree virtual address. If r4 is 0, r5 is ignored.
+ * r5 - device tree virtual address. If r4 is 0, r5 is igyesred.
  * r6 - boot cpu
 */
 _GLOBAL(restore_to_as0)
@@ -1270,7 +1270,7 @@ _GLOBAL(restore_to_as0)
 
 	/*
 	 * The PAGE_OFFSET will map to a different physical address,
-	 * jump to _start to do another relocation again.
+	 * jump to _start to do ayesther relocation again.
 	*/
 3:	mr	r3,r5
 	bl	_start

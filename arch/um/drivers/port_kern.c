@@ -68,7 +68,7 @@ static irqreturn_t pipe_interrupt(int irq, void *data)
 
 #define NO_WAITER_MSG \
     "****\n" \
-    "There are currently no UML consoles waiting for port connections.\n" \
+    "There are currently yes UML consoles waiting for port connections.\n" \
     "Either disconnect from one to make it available or activate some more\n" \
     "by enabling more consoles in the UML /etc/inittab.\n" \
     "****\n"
@@ -176,7 +176,7 @@ void *port_data(int port_num)
 
 	fd = port_listen_fd(port_num);
 	if (fd < 0) {
-		printk(KERN_ERR "binding to port %d failed, errno = %d\n",
+		printk(KERN_ERR "binding to port %d failed, erryes = %d\n",
 		       port_num, -fd);
 		goto out_free;
 	}

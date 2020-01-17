@@ -167,7 +167,7 @@ static int command_abort(struct scsi_cmnd *srb)
 	/* Is this command still active? */
 	if (chip->srb != srb) {
 		scsi_unlock(host);
-		dev_info(&dev->pci->dev, "-- nothing to abort\n");
+		dev_info(&dev->pci->dev, "-- yesthing to abort\n");
 		return FAILED;
 	}
 
@@ -176,7 +176,7 @@ static int command_abort(struct scsi_cmnd *srb)
 	scsi_unlock(host);
 
 	/* Wait for the aborted command to finish */
-	wait_for_completion(&dev->notify);
+	wait_for_completion(&dev->yestify);
 
 	return SUCCESS;
 }
@@ -214,7 +214,7 @@ static struct scsi_host_template rtsx_host_template = {
 	/* queue commands only, only one command per LUN */
 	.can_queue =			1,
 
-	/* unknown initiator id */
+	/* unkyeswn initiator id */
 	.this_id =			-1,
 
 	.slave_alloc =			slave_alloc,
@@ -405,7 +405,7 @@ static int rtsx_control_thread(void *__dev)
 		}
 
 		/* reject if target != 0 or if LUN is higher than
-		 * the maximum known LUN
+		 * the maximum kyeswn LUN
 		 */
 		else if (chip->srb->device->id) {
 			dev_err(&dev->pci->dev, "Bad target number (%d:%d)\n",
@@ -432,7 +432,7 @@ static int rtsx_control_thread(void *__dev)
 
 		/* did the command already complete because of a disconnect? */
 		if (!chip->srb)
-			;		/* nothing to do */
+			;		/* yesthing to do */
 
 		/* indicate that the command is done */
 		else if (chip->srb->result != DID_ABORT << 16) {
@@ -443,7 +443,7 @@ skip_for_abort:
 		}
 
 		if (rtsx_chk_stat(chip, RTSX_STAT_ABORT)) {
-			complete(&dev->notify);
+			complete(&dev->yestify);
 
 			rtsx_set_stat(chip, RTSX_STAT_IDLE);
 		}
@@ -456,7 +456,7 @@ skip_for_abort:
 		mutex_unlock(&dev->dev_mutex);
 	} /* for (;;) */
 
-	/* notify the exit routine that we're actually exiting now
+	/* yestify the exit routine that we're actually exiting yesw
 	 *
 	 * complete()/wait_for_completion() is similar to up()/down(),
 	 * except that complete() is safe in the case where the structure
@@ -465,7 +465,7 @@ skip_for_abort:
 	 * case.
 	 *
 	 * complete_and_exit() goes even further than this -- it is safe in
-	 * the case that the thread of the caller is going away (not just
+	 * the case that the thread of the caller is going away (yest just
 	 * the structure) -- this is necessary for the module-remove case.
 	 * This is important in preemption kernels, which transfer the flow
 	 * of execution immediately upon a complete().
@@ -550,7 +550,7 @@ static irqreturn_t rtsx_interrupt(int irq, void *dev_id)
 
 	if (dev->check_card_cd) {
 		if (!(dev->check_card_cd & status)) {
-			/* card not exist, return TRANS_RESULT_FAIL */
+			/* card yest exist, return TRANS_RESULT_FAIL */
 			dev->trans_result = TRANS_RESULT_FAIL;
 			if (dev->done)
 				complete(dev->done);
@@ -654,7 +654,7 @@ static void quiesce_and_remove_host(struct rtsx_dev *dev)
 	}
 	mutex_unlock(&dev->dev_mutex);
 
-	/* Now we own no commands so it's safe to remove the SCSI host */
+	/* Now we own yes commands so it's safe to remove the SCSI host */
 	scsi_remove_host(host);
 }
 
@@ -693,7 +693,7 @@ static int rtsx_scan_thread(void *__dev)
 		dev_info(&dev->pci->dev, "%s: device scan complete\n",
 			 CR_DRIVER_NAME);
 
-		/* Should we unbind if no devices were detected? */
+		/* Should we unbind if yes devices were detected? */
 	}
 
 	complete_and_exit(&dev->scanning_done, 0);
@@ -711,7 +711,7 @@ static void rtsx_init_options(struct rtsx_chip *chip)
 #endif
 
 	chip->mspro_formatter_enable = 1;
-	chip->ignore_sd = 0;
+	chip->igyesre_sd = 0;
 	chip->use_hw_setting = 0;
 	chip->lun_mode = DEFAULT_SINGLE;
 	chip->auto_delink_en = auto_delink_en;
@@ -848,7 +848,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	init_completion(&dev->cmnd_ready);
 	init_completion(&dev->control_exit);
 	init_completion(&dev->polling_exit);
-	init_completion(&dev->notify);
+	init_completion(&dev->yestify);
 	init_completion(&dev->scanning_done);
 	init_waitqueue_head(&dev->delay_wait);
 
@@ -858,7 +858,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	dev_info(&pci->dev, "Resource length: 0x%x\n",
 		 (unsigned int)pci_resource_len(pci, 0));
 	dev->addr = pci_resource_start(pci, 0);
-	dev->remap_addr = ioremap_nocache(dev->addr, pci_resource_len(pci, 0));
+	dev->remap_addr = ioremap_yescache(dev->addr, pci_resource_len(pci, 0));
 	if (!dev->remap_addr) {
 		dev_err(&pci->dev, "ioremap error\n");
 		err = -ENXIO;

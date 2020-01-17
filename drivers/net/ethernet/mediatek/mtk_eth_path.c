@@ -36,7 +36,7 @@ static const char *mtk_eth_path_name(int path)
 	case MTK_ETH_PATH_GDM1_ESW:
 		return "gdm1_esw";
 	default:
-		return "unknown path";
+		return "unkyeswn path";
 	}
 }
 

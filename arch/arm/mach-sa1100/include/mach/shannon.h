@@ -2,7 +2,7 @@
 #ifndef _INCLUDE_SHANNON_H
 #define _INCLUDE_SHANNON_H
 
-/* taken from comp.os.inferno Tue, 12 Sep 2000 09:21:50 GMT,
+/* taken from comp.os.inferyes Tue, 12 Sep 2000 09:21:50 GMT,
  * written by <forsyth@vitanuova.com> */
 
 #define SHANNON_GPIO_SPI_FLASH		GPIO_GPIO (0)	/* Output - Driven low, enables SPI to flash */
@@ -11,7 +11,7 @@
 #define SHANNON_GPIO_SPI_OUTPUT		GPIO_GPIO (10)	/* Output - SPI output to DSP */
 #define SHANNON_GPIO_SPI_INPUT		GPIO_GPIO (11)	/* Input  - SPI input from DSP */
 #define SHANNON_GPIO_SPI_CLOCK		GPIO_GPIO (12)	/* Output - Clock for SPI */
-#define SHANNON_GPIO_SPI_FRAME		GPIO_GPIO (13)	/* Output - Frame marker - not used */
+#define SHANNON_GPIO_SPI_FRAME		GPIO_GPIO (13)	/* Output - Frame marker - yest used */
 #define SHANNON_GPIO_SPI_RTS		GPIO_GPIO (14)	/* Input  - SPI Ready to Send */
 #define SHANNON_IRQ_GPIO_SPI_RTS	IRQ_GPIO14
 #define SHANNON_GPIO_SPI_CTS		GPIO_GPIO (15)	/* Output - SPI Clear to Send */

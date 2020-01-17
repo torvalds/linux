@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * The platform specific code for virtex devices since a boot loader is not
+ * The platform specific code for virtex devices since a boot loader is yest
  * always used.
  *
  * (C) Copyright 2008 Xilinx, Inc.
@@ -58,7 +58,7 @@ static int virtex_ns16550_console_init(void *devp)
 	out_8(reg_base + (UART_DLL << reg_shift), divisor & 0xFF);
 	out_8(reg_base + (UART_DLM << reg_shift), divisor >> 8);
 
-	/* 8 data, 1 stop, no parity */
+	/* 8 data, 1 stop, yes parity */
 	out_8(reg_base + (UART_LCR << reg_shift), UART_LCR_WLEN8);
 
 	/* RTS/DTR */
@@ -71,7 +71,7 @@ static int virtex_ns16550_console_init(void *devp)
 }
 
 /* For virtex, the kernel may be loaded without using a bootloader and if so
-   some UARTs need more setup than is provided in the normal console init
+   some UARTs need more setup than is provided in the yesrmal console init
 */
 int platform_specific_init(void)
 {

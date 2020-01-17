@@ -30,9 +30,9 @@ jiffies = jiffies_64 + 4;
 SECTIONS
 {
 	/*
-	 * XXX: The linker does not define how output sections are
+	 * XXX: The linker does yest define how output sections are
 	 * assigned to input sections when there are multiple statements
-	 * matching the same input section name.  There is no documented
+	 * matching the same input section name.  There is yes documented
 	 * order of matching.
 	 *
 	 * unwind exit sections must be discarded before the rest of the
@@ -136,7 +136,7 @@ SECTIONS
 
 	/*
 	 * End of copied data. We need a dummy section to get its LMA.
-	 * Also located before final ALIGN() as trailing padding is not stored
+	 * Also located before final ALIGN() as trailing padding is yest stored
 	 * in the resulting binary file and useless to copy.
 	 */
 	.data.endmark : AT(ADDR(.data.endmark) - LOAD_OFFSET) { }
@@ -160,11 +160,11 @@ SECTIONS
  * binutils is too old (for other reasons as well)
  */
 ASSERT((__proc_info_end - __proc_info_begin), "missing CPU support")
-ASSERT((__arch_info_end - __arch_info_begin), "no machine record defined")
+ASSERT((__arch_info_end - __arch_info_begin), "yes machine record defined")
 
 /*
  * The HYP init code can't be more than a page long,
- * and should not cross a page boundary.
+ * and should yest cross a page boundary.
  * The above comment applies as well.
  */
 ASSERT(__hyp_idmap_text_end - (__hyp_idmap_text_start & PAGE_MASK) <= PAGE_SIZE,

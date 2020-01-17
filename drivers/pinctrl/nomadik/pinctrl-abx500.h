@@ -76,7 +76,7 @@ struct abx500_pingroup {
  * @alt_bit2:		Second AlternateFunction bit used to select the
  *			alternate function
  *
- *			these 3 following fields are necessary due to none
+ *			these 3 following fields are necessary due to yesne
  *			coherency on how to select the altA, altB and altC
  *			function between the ABx500 SOC family when using
  *			alternatfunc register.

@@ -283,8 +283,8 @@ static int mvebu_comphy_get_mode(bool fw_mode, int lane, int port,
 				 enum phy_mode mode, int submode)
 {
 	int i, n = ARRAY_SIZE(mvebu_comphy_cp110_modes);
-	/* Ignore PCIe submode: it represents the width */
-	bool ignore_submode = (mode == PHY_MODE_PCIE);
+	/* Igyesre PCIe submode: it represents the width */
+	bool igyesre_submode = (mode == PHY_MODE_PCIE);
 	const struct mvebu_comphy_conf *conf;
 
 	/* Unused PHY mux value is 0x0 */
@@ -296,7 +296,7 @@ static int mvebu_comphy_get_mode(bool fw_mode, int lane, int port,
 		if (conf->lane == lane &&
 		    conf->port == port &&
 		    conf->mode == mode &&
-		    (conf->submode == submode || ignore_submode))
+		    (conf->submode == submode || igyesre_submode))
 			break;
 	}
 
@@ -385,7 +385,7 @@ static int mvebu_comphy_ethernet_init_reset(struct mvebu_comphy_lane *lane)
 			break;
 		default:
 			dev_err(priv->dev,
-				"RXAUI is not supported on comphy lane %d\n",
+				"RXAUI is yest supported on comphy lane %d\n",
 				lane->id);
 			return -EINVAL;
 		}
@@ -824,7 +824,7 @@ static int mvebu_comphy_power_on(struct phy *phy)
 			"unsupported SMC call, try updating your firmware\n");
 
 	dev_warn(priv->dev,
-		 "Firmware could not configure PHY %d with mode %d (ret: %d), trying legacy method\n",
+		 "Firmware could yest configure PHY %d with mode %d (ret: %d), trying legacy method\n",
 		 lane->id, lane->mode, ret);
 
 try_legacy:
@@ -980,7 +980,7 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 {
 	struct mvebu_comphy_priv *priv;
 	struct phy_provider *provider;
-	struct device_node *child;
+	struct device_yesde *child;
 	struct resource *res;
 	int ret;
 
@@ -990,7 +990,7 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 
 	priv->dev = &pdev->dev;
 	priv->regmap =
-		syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+		syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 						"marvell,system-controller");
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
@@ -1000,14 +1000,14 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->base);
 
 	/*
-	 * Ignore error if clocks have not been initialized properly for DT
+	 * Igyesre error if clocks have yest been initialized properly for DT
 	 * compatibility reasons.
 	 */
 	ret = mvebu_comphy_init_clks(priv);
 	if (ret) {
 		if (ret == -EPROBE_DEFER)
 			return ret;
-		dev_warn(&pdev->dev, "cannot initialize clocks\n");
+		dev_warn(&pdev->dev, "canyest initialize clocks\n");
 	}
 
 	/*
@@ -1016,7 +1016,7 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 	 */
 	priv->cp_phys = res->start;
 
-	for_each_available_child_of_node(pdev->dev.of_node, child) {
+	for_each_available_child_of_yesde(pdev->dev.of_yesde, child) {
 		struct mvebu_comphy_lane *lane;
 		struct phy *phy;
 		u32 val;
@@ -1035,14 +1035,14 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 
 		lane = devm_kzalloc(&pdev->dev, sizeof(*lane), GFP_KERNEL);
 		if (!lane) {
-			of_node_put(child);
+			of_yesde_put(child);
 			ret = -ENOMEM;
 			goto disable_clks;
 		}
 
 		phy = devm_phy_create(&pdev->dev, child, &mvebu_comphy_ops);
 		if (IS_ERR(phy)) {
-			of_node_put(child);
+			of_yesde_put(child);
 			ret = PTR_ERR(phy);
 			goto disable_clks;
 		}
@@ -1058,7 +1058,7 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 		 * All modes are supported in this driver so we could call
 		 * mvebu_comphy_power_off(phy) here to avoid relying on the
 		 * bootloader/firmware configuration, but for compatibility
-		 * reasons we cannot de-configure the COMPHY without being sure
+		 * reasons we canyest de-configure the COMPHY without being sure
 		 * that the firmware is up-to-date and fully-featured.
 		 */
 	}

@@ -7,7 +7,7 @@
  * Based on Omnivision OV7670 Camera Driver
  * Copyright (C) 2006-7 Jonathan Corbet <corbet@lwn.net>
  *
- * Copyright (C) 2016, Synopsys, Inc.
+ * Copyright (C) 2016, Syyespsys, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-mediabus.h>
 
@@ -374,7 +374,7 @@ static int ov5647_sensor_power(struct v4l2_subdev *sd, int on)
 		if (ret < 0) {
 			clk_disable_unprepare(ov5647->xclk);
 			dev_err(&client->dev,
-				"Camera not available, check Power\n");
+				"Camera yest available, check Power\n");
 			goto out;
 		}
 	} else if (!on && ov5647->power_count == 1) {
@@ -530,10 +530,10 @@ static const struct v4l2_subdev_internal_ops ov5647_subdev_internal_ops = {
 	.open = ov5647_open,
 };
 
-static int ov5647_parse_dt(struct device_node *np)
+static int ov5647_parse_dt(struct device_yesde *np)
 {
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
-	struct device_node *ep;
+	struct v4l2_fwyesde_endpoint bus_cfg = { .bus_type = 0 };
+	struct device_yesde *ep;
 
 	int ret;
 
@@ -541,9 +541,9 @@ static int ov5647_parse_dt(struct device_node *np)
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &bus_cfg);
+	ret = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(ep), &bus_cfg);
 
-	of_node_put(ep);
+	of_yesde_put(ep);
 	return ret;
 }
 
@@ -553,7 +553,7 @@ static int ov5647_probe(struct i2c_client *client)
 	struct ov5647 *sensor;
 	int ret;
 	struct v4l2_subdev *sd;
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	u32 xclk_freq;
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
@@ -571,7 +571,7 @@ static int ov5647_probe(struct i2c_client *client)
 	/* get system clock (xclk) */
 	sensor->xclk = devm_clk_get(dev, NULL);
 	if (IS_ERR(sensor->xclk)) {
-		dev_err(dev, "could not get xclk");
+		dev_err(dev, "could yest get xclk");
 		return PTR_ERR(sensor->xclk);
 	}
 
@@ -650,6 +650,6 @@ static struct i2c_driver ov5647_driver = {
 
 module_i2c_driver(ov5647_driver);
 
-MODULE_AUTHOR("Ramiro Oliveira <roliveir@synopsys.com>");
+MODULE_AUTHOR("Ramiro Oliveira <roliveir@syyespsys.com>");
 MODULE_DESCRIPTION("A low-level driver for OmniVision ov5647 sensors");
 MODULE_LICENSE("GPL v2");

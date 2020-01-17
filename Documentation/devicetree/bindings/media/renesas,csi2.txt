@@ -23,17 +23,17 @@ Mandatory properties
  - clocks: A phandle + clock specifier for the module clock
  - resets: A phandle + reset specifier for the module reset
 
-The device node shall contain two 'port' child nodes according to the
+The device yesde shall contain two 'port' child yesdes according to the
 bindings defined in Documentation/devicetree/bindings/media/
 video-interfaces.txt. port@0 shall connect to the CSI-2 source. port@1
 shall connect to all the R-Car VIN modules that have a hardware
 connection to the CSI-2 receiver.
 
 - port@0- Video source (mandatory)
-	- endpoint@0 - sub-node describing the endpoint that is the video source
+	- endpoint@0 - sub-yesde describing the endpoint that is the video source
 
 - port@1 - VIN instances (optional)
-	- One endpoint sub-node for every R-Car VIN instance which is connected
+	- One endpoint sub-yesde for every R-Car VIN instance which is connected
 	  to the R-Car CSI-2 receiver.
 
 Example:

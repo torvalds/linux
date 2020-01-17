@@ -239,7 +239,7 @@ static unsigned extract_freq(struct cpufreq_policy *policy, u32 val)
 	}
 }
 
-static u32 cpu_freq_read_intel(struct acpi_pct_register *not_used)
+static u32 cpu_freq_read_intel(struct acpi_pct_register *yest_used)
 {
 	u32 val, dummy;
 
@@ -247,7 +247,7 @@ static u32 cpu_freq_read_intel(struct acpi_pct_register *not_used)
 	return val;
 }
 
-static void cpu_freq_write_intel(struct acpi_pct_register *not_used, u32 val)
+static void cpu_freq_write_intel(struct acpi_pct_register *yest_used, u32 val)
 {
 	u32 lo, hi;
 
@@ -256,7 +256,7 @@ static void cpu_freq_write_intel(struct acpi_pct_register *not_used, u32 val)
 	wrmsr(MSR_IA32_PERF_CTL, lo, hi);
 }
 
-static u32 cpu_freq_read_amd(struct acpi_pct_register *not_used)
+static u32 cpu_freq_read_amd(struct acpi_pct_register *yest_used)
 {
 	u32 val, dummy;
 
@@ -264,7 +264,7 @@ static u32 cpu_freq_read_amd(struct acpi_pct_register *not_used)
 	return val;
 }
 
-static void cpu_freq_write_amd(struct acpi_pct_register *not_used, u32 val)
+static void cpu_freq_write_amd(struct acpi_pct_register *yest_used, u32 val)
 {
 	wrmsr(MSR_AMD_PERF_CTL, val, 0);
 }
@@ -430,7 +430,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	}
 
 	/*
-	 * The core won't allow CPUs to go away until the governor has been
+	 * The core won't allow CPUs to go away until the goveryesr has been
 	 * stopped, so we can rely on the stability of policy->cpus.
 	 */
 	mask = policy->shared_type == CPUFREQ_SHARED_TYPE_ANY ?
@@ -539,7 +539,7 @@ static int cpufreq_boost_down_prep(unsigned int cpu)
 {
 	/*
 	 * Clear the boost-disable bit on the CPU_DOWN path so that
-	 * this cpu cannot block the remaining ones from boosting.
+	 * this cpu canyest block the remaining ones from boosting.
 	 */
 	return boost_set_msr(1);
 }
@@ -563,9 +563,9 @@ static int __init acpi_cpufreq_early_init(void)
 		return -ENOMEM;
 	}
 	for_each_possible_cpu(i) {
-		if (!zalloc_cpumask_var_node(
+		if (!zalloc_cpumask_var_yesde(
 			&per_cpu_ptr(acpi_perf_data, i)->shared_cpu_map,
-			GFP_KERNEL, cpu_to_node(i))) {
+			GFP_KERNEL, cpu_to_yesde(i))) {
 
 			/* Freeing a NULL pointer is OK: alloc_percpu zeroes. */
 			free_acpi_perf_data();
@@ -581,7 +581,7 @@ static int __init acpi_cpufreq_early_init(void)
 #ifdef CONFIG_SMP
 /*
  * Some BIOSes do SW_ANY coordination internally, either set it up in hw
- * or do it in BIOS firmware and won't inform about it to OS. If not
+ * or do it in BIOS firmware and won't inform about it to OS. If yest
  * detected, this has a side effect of making CPU run at a different speed
  * than OS intended it to run at. Detect it and handle it cleanly.
  */
@@ -611,7 +611,7 @@ static int acpi_cpufreq_blacklist(struct cpuinfo_x86 *c)
 	/* Intel Xeon Processor 7100 Series Specification Update
 	 * http://www.intel.com/Assets/PDF/specupdate/314554.pdf
 	 * AL30: A Machine Check Exception (MCE) Occurring during an
-	 * Enhanced Intel SpeedStep Technology Ratio Change May Cause
+	 * Enhanced Intel SpeedStep Techyeslogy Ratio Change May Cause
 	 * Both Processor Cores to Lock Up. */
 	if (c->x86_vendor == X86_VENDOR_INTEL) {
 		if ((c->x86 == 15) &&
@@ -672,7 +672,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->shared_type = perf->shared_type;
 
 	/*
-	 * Will let policy->cpus know about dependency only when software
+	 * Will let policy->cpus kyesw about dependency only when software
 	 * coordination is required.
 	 */
 	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL ||
@@ -740,7 +740,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		result = -ENODEV;
 		goto err_unreg;
 	default:
-		pr_debug("Unknown addr space %d\n",
+		pr_debug("Unkyeswn addr space %d\n",
 			(u32) (perf->control_register.space_id));
 		result = -ENODEV;
 		goto err_unreg;
@@ -787,10 +787,10 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	switch (perf->control_register.space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 		/*
-		 * The core will not set policy->cur, because
+		 * The core will yest set policy->cur, because
 		 * cpufreq_driver->get is NULL, so we need to set it here.
 		 * However, we have to guess it, because the current speed is
-		 * unknown and not detectable via IO ports.
+		 * unkyeswn and yest detectable via IO ports.
 		 */
 		policy->cur = acpi_cpufreq_guess_freq(data, policy->cpu);
 		break;
@@ -801,8 +801,8 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		break;
 	}
 
-	/* notify BIOS that we exist */
-	acpi_processor_notify_smm(THIS_MODULE);
+	/* yestify BIOS that we exist */
+	acpi_processor_yestify_smm(THIS_MODULE);
 
 	pr_debug("CPU%u - ACPI performance management activated.\n", cpu);
 	for (i = 0; i < perf->state_count; i++)
@@ -856,7 +856,7 @@ static void acpi_cpufreq_cpu_ready(struct cpufreq_policy *policy)
 							      policy->cpu);
 
 	if (perf->states[0].core_frequency * 1000 != policy->cpuinfo.max_freq)
-		pr_warn(FW_WARN "P-state 0 is not max freq\n");
+		pr_warn(FW_WARN "P-state 0 is yest max freq\n");
 }
 
 static int acpi_cpufreq_resume(struct cpufreq_policy *policy)
@@ -899,7 +899,7 @@ static void __init acpi_cpufreq_boost_init(void)
 	int ret;
 
 	if (!(boot_cpu_has(X86_FEATURE_CPB) || boot_cpu_has(X86_FEATURE_IDA))) {
-		pr_debug("Boost capabilities not present in the processor\n");
+		pr_debug("Boost capabilities yest present in the processor\n");
 		return;
 	}
 
@@ -922,7 +922,7 @@ static void __init acpi_cpufreq_boost_init(void)
 static void acpi_cpufreq_boost_exit(void)
 {
 	if (acpi_cpufreq_online > 0)
-		cpuhp_remove_state_nocalls(acpi_cpufreq_online);
+		cpuhp_remove_state_yescalls(acpi_cpufreq_online);
 }
 
 static int __init acpi_cpufreq_init(void)
@@ -952,7 +952,7 @@ static int __init acpi_cpufreq_init(void)
 	if (!check_amd_hwpstate_cpu(0)) {
 		struct freq_attr **attr;
 
-		pr_debug("CPB unsupported, do not expose it\n");
+		pr_debug("CPB unsupported, do yest expose it\n");
 
 		for (attr = acpi_cpufreq_attr; *attr; attr++)
 			if (*attr == &cpb) {
@@ -984,7 +984,7 @@ static void __exit acpi_cpufreq_exit(void)
 
 module_param(acpi_pstate_strict, uint, 0644);
 MODULE_PARM_DESC(acpi_pstate_strict,
-	"value 0 or non-zero. non-zero -> strict ACPI checks are "
+	"value 0 or yesn-zero. yesn-zero -> strict ACPI checks are "
 	"performed during frequency changes.");
 
 late_initcall(acpi_cpufreq_init);

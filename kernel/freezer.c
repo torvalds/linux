@@ -20,7 +20,7 @@ EXPORT_SYMBOL(system_freezing_cnt);
  * system_transition_mutex
  */
 bool pm_freezing;
-bool pm_nosig_freezing;
+bool pm_yessig_freezing;
 
 /* protects freezing and frozen transitions */
 static DEFINE_SPINLOCK(freezer_lock);
@@ -42,7 +42,7 @@ bool freezing_slow_path(struct task_struct *p)
 	if (test_tsk_thread_flag(p, TIF_MEMDIE))
 		return false;
 
-	if (pm_nosig_freezing || cgroup_freezing(p))
+	if (pm_yessig_freezing || cgroup_freezing(p))
 		return true;
 
 	if (pm_freezing && !(p->flags & PF_KTHREAD))
@@ -106,24 +106,24 @@ static void fake_signal_wake_up(struct task_struct *p)
  * @p: task to send the request to
  *
  * If @p is freezing, the freeze request is sent either by sending a fake
- * signal (if it's not a kernel thread) or waking it up (if it's a kernel
+ * signal (if it's yest a kernel thread) or waking it up (if it's a kernel
  * thread).
  *
  * RETURNS:
- * %false, if @p is not freezing or already frozen; %true, otherwise
+ * %false, if @p is yest freezing or already frozen; %true, otherwise
  */
 bool freeze_task(struct task_struct *p)
 {
 	unsigned long flags;
 
 	/*
-	 * This check can race with freezer_do_not_count, but worst case that
-	 * will result in an extra wakeup being sent to the task.  It does not
+	 * This check can race with freezer_do_yest_count, but worst case that
+	 * will result in an extra wakeup being sent to the task.  It does yest
 	 * race with freezer_count(), the barriers in freezer_count() and
 	 * freezer_should_skip() ensure that either freezer_count() sees
 	 * freezing == true in try_to_freeze() and freezes, or
 	 * freezer_should_skip() sees !PF_FREEZE_SKIP and freezes the task
-	 * normally.
+	 * yesrmally.
 	 */
 	if (freezer_should_skip(p))
 		return false;
@@ -164,7 +164,7 @@ bool set_freezable(void)
 
 	/*
 	 * Modify flags while holding freezer_lock.  This ensures the
-	 * freezer notices that we aren't frozen yet or the freezing
+	 * freezer yestices that we aren't frozen yet or the freezing
 	 * condition is visible to try_to_freeze() below.
 	 */
 	spin_lock_irq(&freezer_lock);

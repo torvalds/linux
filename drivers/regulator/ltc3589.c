@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// Linear Technology LTC3589,LTC3589-1 regulator support
+// Linear Techyeslogy LTC3589,LTC3589-1 regulator support
 //
 // Copyright (c) 2014 Philipp Zabel <p.zabel@pengutronix.de>, Pengutronix
 
@@ -188,7 +188,7 @@ static inline unsigned int ltc3589_scale(unsigned int uV, u32 r1, u32 r2)
 	return uV + (unsigned int)tmp;
 }
 
-static int ltc3589_of_parse_cb(struct device_node *np,
+static int ltc3589_of_parse_cb(struct device_yesde *np,
 			       const struct regulator_desc *desc,
 			       struct regulator_config *config)
 {
@@ -222,7 +222,7 @@ static int ltc3589_of_parse_cb(struct device_node *np,
 	[LTC3589_ ## _name] = {						\
 		.name = #_name,						\
 		.of_match = of_match_ptr(#_of_name),			\
-		.regulators_node = of_match_ptr("regulators"),		\
+		.regulators_yesde = of_match_ptr("regulators"),		\
 		.of_parse_cb = ltc3589_of_parse_cb,			\
 		.n_voltages = (dtv_mask) + 1,				\
 		.min_uV = (go_bit) ? 362500 : 0,			\
@@ -359,7 +359,7 @@ static irqreturn_t ltc3589_isr(int irq, void *dev_id)
 		event = REGULATOR_EVENT_OVER_TEMP;
 		for (i = 0; i < LTC3589_NUM_REGULATORS; i++) {
 		        regulator_lock(ltc3589->regulators[i]);
-			regulator_notifier_call_chain(ltc3589->regulators[i],
+			regulator_yestifier_call_chain(ltc3589->regulators[i],
 						      event, NULL);
 		        regulator_unlock(ltc3589->regulators[i]);
 		}
@@ -369,7 +369,7 @@ static irqreturn_t ltc3589_isr(int irq, void *dev_id)
 		event = REGULATOR_EVENT_UNDER_VOLTAGE;
 		for (i = 0; i < LTC3589_NUM_REGULATORS; i++) {
 		        regulator_lock(ltc3589->regulators[i]);
-			regulator_notifier_call_chain(ltc3589->regulators[i],
+			regulator_yestifier_call_chain(ltc3589->regulators[i],
 						      event, NULL);
 		        regulator_unlock(ltc3589->regulators[i]);
 		}
@@ -394,7 +394,7 @@ static int ltc3589_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, ltc3589);
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		ltc3589->variant = (enum ltc3589_variant)
 			of_device_get_match_data(&client->dev);
 	else
@@ -485,5 +485,5 @@ static struct i2c_driver ltc3589_driver = {
 module_i2c_driver(ltc3589_driver);
 
 MODULE_AUTHOR("Philipp Zabel <p.zabel@pengutronix.de>");
-MODULE_DESCRIPTION("Regulator driver for Linear Technology LTC3589(-1,2)");
+MODULE_DESCRIPTION("Regulator driver for Linear Techyeslogy LTC3589(-1,2)");
 MODULE_LICENSE("GPL v2");

@@ -32,12 +32,12 @@ static u64 hv_sched_clock_offset __ro_after_init;
  * that don't support Direct Mode. While Hyper-V provides
  * four stimer's per CPU, Linux uses only stimer0.
  *
- * Because Direct Mode does not require processing a VMbus
+ * Because Direct Mode does yest require processing a VMbus
  * message, stimer interrupts can be enabled earlier in the
  * process of booting a CPU, and consistent with when timer
  * interrupts are enabled for other clocksource drivers.
  * However, for legacy versions of Hyper-V when Direct Mode
- * is not enabled, setting up stimer interrupts must be
+ * is yest enabled, setting up stimer interrupts must be
  * delayed until VMbus is initialized and can process the
  * interrupt message.
  */
@@ -49,7 +49,7 @@ static int stimer0_message_sint;
 
 /*
  * ISR for when stimer0 is operating in Direct Mode.  Direct Mode
- * does not use VMbus or any VMbus messages, so process here and not
+ * does yest use VMbus or any VMbus messages, so process here and yest
  * in the VMbus driver code.
  */
 void hv_stimer0_isr(void)
@@ -100,7 +100,7 @@ static int hv_ce_set_oneshot(struct clock_event_device *evt)
 	} else {
 		/*
 		 * When it expires, the timer will generate a VMbus message,
-		 * to be handled by the normal VMbus interrupt handler.
+		 * to be handled by the yesrmal VMbus interrupt handler.
 		 */
 		timer_cfg.direct_mode = 0;
 		timer_cfg.sintx = stimer0_message_sint;
@@ -146,18 +146,18 @@ int hv_stimer_cleanup(unsigned int cpu)
 		return 0;
 
 	/*
-	 * In the legacy case where Direct Mode is not enabled
+	 * In the legacy case where Direct Mode is yest enabled
 	 * (which can only be on x86/64), stimer cleanup happens
 	 * relatively early in the CPU offlining process. We
 	 * must unbind the stimer-based clockevent device so
 	 * that the LAPIC timer can take over until clockevents
-	 * are no longer needed in the offlining process. Note
+	 * are yes longer needed in the offlining process. Note
 	 * that clockevents_unbind_device() eventually calls
 	 * hv_ce_shutdown().
 	 *
-	 * The unbind should not be done when Direct Mode is
+	 * The unbind should yest be done when Direct Mode is
 	 * enabled because we may be on an architecture where
-	 * there are no other clockevent devices to fallback to.
+	 * there are yes other clockevent devices to fallback to.
 	 */
 	ce = per_cpu_ptr(hv_clock_event, cpu);
 	if (direct_mode_enabled)
@@ -196,7 +196,7 @@ int hv_stimer_alloc(void)
 
 		/*
 		 * Since we are in Direct Mode, stimer initialization
-		 * can be done now with a CPUHP value in the same range
+		 * can be done yesw with a CPUHP value in the same range
 		 * as other clockevent devices.
 		 */
 		ret = cpuhp_setup_state(CPUHP_AP_HYPERV_TIMER_STARTING,
@@ -219,7 +219,7 @@ EXPORT_SYMBOL_GPL(hv_stimer_alloc);
 
 /*
  * hv_stimer_legacy_init -- Called from the VMbus driver to handle
- * the case when Direct Mode is not enabled, and the stimer
+ * the case when Direct Mode is yest enabled, and the stimer
  * must be initialized late in the CPU onlining process.
  *
  */
@@ -231,8 +231,8 @@ void hv_stimer_legacy_init(unsigned int cpu, int sint)
 	/*
 	 * This function gets called by each vCPU, so setting the
 	 * global stimer_message_sint value each time is conceptually
-	 * not ideal, but the value passed in is always the same and
-	 * it avoids introducing yet another interface into this
+	 * yest ideal, but the value passed in is always the same and
+	 * it avoids introducing yet ayesther interface into this
 	 * clocksource driver just to set the sint in the legacy case.
 	 */
 	stimer0_message_sint = sint;
@@ -242,7 +242,7 @@ EXPORT_SYMBOL_GPL(hv_stimer_legacy_init);
 
 /*
  * hv_stimer_legacy_cleanup -- Called from the VMbus driver to
- * handle the case when Direct Mode is not enabled, and the
+ * handle the case when Direct Mode is yest enabled, and the
  * stimer must be cleaned up early in the CPU offlining
  * process.
  */
@@ -281,7 +281,7 @@ void hv_stimer_global_cleanup(void)
 
 	/*
 	 * hv_stime_legacy_cleanup() will stop the stimer if Direct
-	 * Mode is not enabled, and fallback to the LAPIC timer.
+	 * Mode is yest enabled, and fallback to the LAPIC timer.
 	 */
 	for_each_present_cpu(cpu) {
 		hv_stimer_legacy_cleanup(cpu);
@@ -315,7 +315,7 @@ struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
 }
 EXPORT_SYMBOL_GPL(hv_get_tsc_page);
 
-static u64 notrace read_hv_clock_tsc(struct clocksource *arg)
+static u64 yestrace read_hv_clock_tsc(struct clocksource *arg)
 {
 	u64 current_tick = hv_read_tsc_page(&tsc_pg);
 
@@ -338,13 +338,13 @@ static struct clocksource hyperv_cs_tsc = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static u64 notrace read_hv_clock_msr(struct clocksource *arg)
+static u64 yestrace read_hv_clock_msr(struct clocksource *arg)
 {
 	u64 current_tick;
 	/*
 	 * Read the partition counter to get the current tick count. This count
 	 * is set to 0 when the partition is created and is incremented in
-	 * 100 nanosecond units.
+	 * 100 nayessecond units.
 	 */
 	hv_get_time_ref_count(current_tick);
 	return current_tick;

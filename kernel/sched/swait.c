@@ -14,7 +14,7 @@ void __init_swait_queue_head(struct swait_queue_head *q, const char *name,
 EXPORT_SYMBOL(__init_swait_queue_head);
 
 /*
- * The thing about the wake_up_state() return value; I think we can ignore it.
+ * The thing about the wake_up_state() return value; I think we can igyesre it.
  *
  * If for some reason it would return 0, that means the previously waiting
  * task is already running, so it will observe condition true (or has already).
@@ -43,7 +43,7 @@ void swake_up_one(struct swait_queue_head *q)
 EXPORT_SYMBOL(swake_up_one);
 
 /*
- * Does not allow usage from IRQ disabled, since we must be able to
+ * Does yest allow usage from IRQ disabled, since we must be able to
  * release IRQs to guarantee bounded hold time.
  */
 void swake_up_all(struct swait_queue_head *q)
@@ -96,7 +96,7 @@ long prepare_to_swait_event(struct swait_queue_head *q, struct swait_queue *wait
 	if (signal_pending_state(state, current)) {
 		/*
 		 * See prepare_to_wait_event(). TL;DR, subsequent swake_up_one()
-		 * must not see us.
+		 * must yest see us.
 		 */
 		list_del_init(&wait->task_list);
 		ret = -ERESTARTSYS;

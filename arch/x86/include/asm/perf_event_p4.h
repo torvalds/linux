@@ -13,11 +13,11 @@
  * NetBurst has performance MSRs shared between
  * threads if HT is turned on, ie for both logical
  * processors (mem: in turn in Atom with HT support
- * perf-MSRs are not shared and every thread has its
+ * perf-MSRs are yest shared and every thread has its
  * own perf-MSRs set)
  */
 #define ARCH_P4_TOTAL_ESCR	(46)
-#define ARCH_P4_RESERVED_ESCR	(2) /* IQ_ESCR(0,1) not always present */
+#define ARCH_P4_RESERVED_ESCR	(2) /* IQ_ESCR(0,1) yest always present */
 #define ARCH_P4_MAX_ESCR	(ARCH_P4_TOTAL_ESCR - ARCH_P4_RESERVED_ESCR)
 #define ARCH_P4_MAX_CCCR	(18)
 
@@ -72,7 +72,7 @@
  * where HT is HyperThreading bit (since ESCR
  * has it reserved we may use it for own purpose)
  *
- * note that this is NOT the addresses of respective
+ * yeste that this is NOT the addresses of respective
  * ESCR and CCCR but rather an only packed value should
  * be unpacked and written to a proper addresses
  *
@@ -204,7 +204,7 @@ static inline u32 p4_default_cccr_conf(int cpu)
 {
 	/*
 	 * Note that P4_CCCR_THREAD_ANY is "required" on
-	 * non-HT machines (on HT machines we count TS events
+	 * yesn-HT machines (on HT machines we count TS events
 	 * regardless the state of second logical processor
 	 */
 	u32 cccr = P4_CCCR_THREAD_ANY;
@@ -302,11 +302,11 @@ enum P4_EVENTS {
  *
  * MSR_P4_IQ_ESCR0 and MSR_P4_IQ_ESCR1 are available only on early
  * processor builds (family 0FH, models 01H-02H). These MSRs
- * are not available on later versions, so that we don't use
+ * are yest available on later versions, so that we don't use
  * them completely
  *
- * Also note that CCCR1 do not have P4_CCCR_ENABLE bit properly
- * working so that we should not use this CCCR and respective
+ * Also yeste that CCCR1 do yest have P4_CCCR_ENABLE bit properly
+ * working so that we should yest use this CCCR and respective
  * counter as result
  */
 enum P4_EVENT_OPCODES {
@@ -394,7 +394,7 @@ enum P4_EVENT_OPCODES {
 
 	P4_OPCODE(P4_EVENT_BSQ_ACTIVE_ENTRIES)		= P4_OPCODE_PACK(0x06, 0x07),
 	/*
-	 * NOTE: no ESCR name in docs, it's guessed
+	 * NOTE: yes ESCR name in docs, it's guessed
 	 * MSR_P4_BSU_ESCR1:	2, 3
 	 */
 
@@ -782,7 +782,7 @@ enum P4_ESCR_EMASKS {
 };
 
 /*
- * Note we have UOP and PEBS bits reserved for now
+ * Note we have UOP and PEBS bits reserved for yesw
  * just in case if we will need them once
  */
 #define P4_PEBS_CONFIG_ENABLE		(1ULL << 7)
@@ -803,7 +803,7 @@ enum P4_ESCR_EMASKS {
 #define p4_config_pebs_has(v, mask)	(p4_config_unpack_pebs(v) & (mask))
 
 enum P4_PEBS_METRIC {
-	P4_PEBS_METRIC__none,
+	P4_PEBS_METRIC__yesne,
 
 	P4_PEBS_METRIC__1stl_cache_load_miss_retired,
 	P4_PEBS_METRIC__2ndl_cache_load_miss_retired,
@@ -833,7 +833,7 @@ enum P4_PEBS_METRIC {
  *    correspond to low 32 bits of ESCR register.
  *
  * 2) The meaning of every bit of such config field can
- *    be found in Intel SDM but it should be noted that
+ *    be found in Intel SDM but it should be yested that
  *    we "borrow" some reserved bits for own usage and
  *    clean them or set to a proper value when we do
  *    a real write to hardware registers.

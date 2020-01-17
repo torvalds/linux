@@ -2,7 +2,7 @@
 /*
  * JMicron JMC2x0 series PCIe Ethernet Linux Device Driver
  *
- * Copyright 2008 JMicron Technology Corporation
+ * Copyright 2008 JMicron Techyeslogy Corporation
  * http://www.jmicron.com/
  * Copyright (c) 2009 - 2010 Guo-Fu Tseng <cooldavid@cooldavid.org>
  *
@@ -32,16 +32,16 @@
 #include "jme.h"
 
 static int force_pseudohp = -1;
-static int no_pseudohp = -1;
-static int no_extplug = -1;
+static int yes_pseudohp = -1;
+static int yes_extplug = -1;
 module_param(force_pseudohp, int, 0);
 MODULE_PARM_DESC(force_pseudohp,
 	"Enable pseudo hot-plug feature manually by driver instead of BIOS.");
-module_param(no_pseudohp, int, 0);
-MODULE_PARM_DESC(no_pseudohp, "Disable pseudo hot-plug feature.");
-module_param(no_extplug, int, 0);
-MODULE_PARM_DESC(no_extplug,
-	"Do not use external plug signal for pseudo hot-plug.");
+module_param(yes_pseudohp, int, 0);
+MODULE_PARM_DESC(yes_pseudohp, "Disable pseudo hot-plug feature.");
+module_param(yes_extplug, int, 0);
+MODULE_PARM_DESC(yes_extplug,
+	"Do yest use external plug signal for pseudo hot-plug.");
 
 static int
 jme_mdio_read(struct net_device *netdev, int phy, int reg)
@@ -424,7 +424,7 @@ jme_check_link(struct net_device *netdev, int testonly)
 	if (phylink & PHY_LINK_UP) {
 		if (!(phylink & PHY_LINK_AUTONEG_COMPLETE)) {
 			/*
-			 * If we did not enable AN
+			 * If we did yest enable AN
 			 * Speed/Duplex Info should be obtained from SMI
 			 */
 			phylink = PHY_LINK_UP;
@@ -1028,7 +1028,7 @@ jme_alloc_and_feed_skb(struct jme_adapter *jme, int idx)
 		if (jme_rxsum_ok(jme, le16_to_cpu(rxdesc->descwb.flags), skb))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
-			skb_checksum_none_assert(skb);
+			skb_checksum_yesne_assert(skb);
 
 		if (rxdesc->descwb.flags & cpu_to_le16(RXWBFLAG_TAGON)) {
 			u16 vid = le16_to_cpu(rxdesc->descwb.vlan);
@@ -1237,7 +1237,7 @@ jme_start_shutdown_timer(struct jme_adapter *jme)
 
 	apmc = jread32(jme, JME_APMC) | JME_APMC_PCIE_SD_EN;
 	apmc &= ~JME_APMC_EPIEN_CTRL;
-	if (!no_extplug) {
+	if (!yes_extplug) {
 		jwrite32f(jme, JME_APMC, apmc | JME_APMC_EPIEN_CTRL_EN);
 		wmb();
 	}
@@ -1509,7 +1509,7 @@ jme_intr_msi(struct jme_adapter *jme, u32 intrstat)
 	if (intrstat & (INTR_LINKCH | INTR_SWINTR)) {
 		/*
 		 * Link change event is critical
-		 * all other events are ignored
+		 * all other events are igyesred
 		 */
 		jwrite32(jme, JME_IEVE, intrstat);
 		tasklet_schedule(&jme->linkch_task);
@@ -2047,7 +2047,7 @@ jme_map_tx_skb(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 		}
 	}
 
-	len = skb_is_nonlinear(skb) ? skb_headlen(skb) : skb->len;
+	len = skb_is_yesnlinear(skb) ? skb_headlen(skb) : skb->len;
 	ctxdesc = txdesc + ((idx + 1) & (mask));
 	ctxbi = txbi + ((idx + 1) & (mask));
 	ret = jme_fill_tx_map(jme->pdev, ctxdesc, ctxbi, virt_to_page(skb->data),
@@ -2159,7 +2159,7 @@ jme_fill_tx_desc(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 	wmb();
 	flags = TXFLAG_OWN | TXFLAG_INT;
 	/*
-	 * Set checksum flags while not tso
+	 * Set checksum flags while yest tso
 	 */
 	if (jme_tx_tso(skb, &txdesc->desc1.mss, &flags))
 		jme_tx_csum(jme, skb, &flags);
@@ -2611,7 +2611,7 @@ jme_set_link_ksettings(struct net_device *netdev,
 
 	/*
 	 * Check If user changed duplex only while force_media.
-	 * Hardware would not generate link change interrupt.
+	 * Hardware would yest generate link change interrupt.
 	 */
 	if (jme->mii_if.force_media &&
 	    cmd->base.autoneg != AUTONEG_ENABLE &&
@@ -2941,13 +2941,13 @@ jme_init_one(struct pci_dev *pdev,
 
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		pr_err("Cannot enable PCI device\n");
+		pr_err("Canyest enable PCI device\n");
 		goto err_out;
 	}
 
 	using_dac = jme_pci_dma64(pdev);
 	if (using_dac < 0) {
-		pr_err("Cannot set PCI DMA Mask\n");
+		pr_err("Canyest set PCI DMA Mask\n");
 		rc = -EIO;
 		goto err_out_disable_pdev;
 	}
@@ -2960,7 +2960,7 @@ jme_init_one(struct pci_dev *pdev,
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc) {
-		pr_err("Cannot obtain PCI resource region\n");
+		pr_err("Canyest obtain PCI resource region\n");
 		goto err_out_disable_pdev;
 	}
 
@@ -3023,7 +3023,7 @@ jme_init_one(struct pci_dev *pdev,
 		goto err_out_free_netdev;
 	}
 
-	if (no_pseudohp) {
+	if (yes_pseudohp) {
 		apmc = jread32(jme, JME_APMC) & ~JME_APMC_PSEUDO_HP_EN;
 		jwrite32(jme, JME_APMC, apmc);
 	} else if (force_pseudohp) {
@@ -3092,7 +3092,7 @@ jme_init_one(struct pci_dev *pdev,
 
 		if (!jme->mii_if.phy_id) {
 			rc = -EIO;
-			pr_err("Can not find phy_id\n");
+			pr_err("Can yest find phy_id\n");
 			goto err_out_unmap;
 		}
 
@@ -3130,13 +3130,13 @@ jme_init_one(struct pci_dev *pdev,
 	jme_load_macaddr(netdev);
 
 	/*
-	 * Tell stack that we are not ready to work until open()
+	 * Tell stack that we are yest ready to work until open()
 	 */
 	netif_carrier_off(netdev);
 
 	rc = register_netdev(netdev);
 	if (rc) {
-		pr_err("Cannot register net device\n");
+		pr_err("Canyest register net device\n");
 		goto err_out_unmap;
 	}
 
@@ -3144,7 +3144,7 @@ jme_init_one(struct pci_dev *pdev,
 		   (jme->pdev->device == PCI_DEVICE_ID_JMICRON_JMC250) ?
 		   "JMC250 Gigabit Ethernet" :
 		   (jme->pdev->device == PCI_DEVICE_ID_JMICRON_JMC260) ?
-		   "JMC260 Fast Ethernet" : "Unknown",
+		   "JMC260 Fast Ethernet" : "Unkyeswn",
 		   (jme->fpgaver != 0) ? " (FPGA)" : "",
 		   (jme->fpgaver != 0) ? jme->fpgaver : jme->chiprev,
 		   jme->pcirev, netdev->dev_addr);

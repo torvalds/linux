@@ -6,7 +6,7 @@
 
 #include <libudev.h>
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,7 +48,7 @@ static int bind_usbip(char *busid)
 	rc = write_sysfs_attribute(bind_attr_path, busid, strlen(busid));
 	if (rc < 0) {
 		err("error binding device %s to driver: %s", busid,
-		    strerror(errno));
+		    strerror(erryes));
 		return -1;
 	}
 
@@ -138,7 +138,7 @@ static int bind_device(char *busid)
 	udev = udev_new();
 	dev = udev_device_new_from_subsystem_sysname(udev, "usb", busid);
 	if (!dev) {
-		err("device with the specified bus ID does not exist");
+		err("device with the specified bus ID does yest exist");
 		return -1;
 	}
 	devpath = udev_device_get_devpath(dev);
@@ -153,7 +153,7 @@ static int bind_device(char *busid)
 
 	rc = unbind_other(busid);
 	if (rc == UNBIND_ST_FAILED) {
-		err("could not unbind driver from device on busid %s", busid);
+		err("could yest unbind driver from device on busid %s", busid);
 		return -1;
 	} else if (rc == UNBIND_ST_USBIP_HOST) {
 		err("device on busid %s is already bound to %s", busid,
@@ -169,7 +169,7 @@ static int bind_device(char *busid)
 
 	rc = bind_usbip(busid);
 	if (rc < 0) {
-		err("could not bind device to %s", USBIP_HOST_DRV_NAME);
+		err("could yest bind device to %s", USBIP_HOST_DRV_NAME);
 		modify_match_busid(busid, 0);
 		return -1;
 	}

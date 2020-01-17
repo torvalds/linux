@@ -36,7 +36,7 @@ static const struct i2c_algorithm fimc_is_i2c_algorithm = {
 
 static int fimc_is_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct fimc_is_i2c *isp_i2c;
 	struct i2c_adapter *i2c_adap;
 	int ret;
@@ -52,9 +52,9 @@ static int fimc_is_i2c_probe(struct platform_device *pdev)
 	}
 
 	i2c_adap = &isp_i2c->adapter;
-	i2c_adap->dev.of_node = node;
+	i2c_adap->dev.of_yesde = yesde;
 	i2c_adap->dev.parent = &pdev->dev;
-	strscpy(i2c_adap->name, "exynos4x12-isp-i2c", sizeof(i2c_adap->name));
+	strscpy(i2c_adap->name, "exyyess4x12-isp-i2c", sizeof(i2c_adap->name));
 	i2c_adap->owner = THIS_MODULE;
 	i2c_adap->algo = &fimc_is_i2c_algorithm;
 	i2c_adap->class = I2C_CLASS_SPD;
@@ -69,12 +69,12 @@ static int fimc_is_i2c_probe(struct platform_device *pdev)
 	 * Client drivers of this adapter don't do any I2C transfers as that
 	 * is handled by the ISP firmware.  But we rely on the runtime PM
 	 * state propagation from the clients up to the adapter driver so
-	 * clear the ignore_children flags here.  PM rutnime calls are not
+	 * clear the igyesre_children flags here.  PM rutnime calls are yest
 	 * used in probe() handler of clients of this adapter so there is
-	 * no issues with clearing the flag right after registering the I2C
+	 * yes issues with clearing the flag right after registering the I2C
 	 * adapter.
 	 */
-	pm_suspend_ignore_children(&i2c_adap->dev, false);
+	pm_suspend_igyesre_children(&i2c_adap->dev, false);
 	return 0;
 
 err_pm_dis:

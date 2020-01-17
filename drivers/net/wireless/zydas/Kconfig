@@ -22,7 +22,7 @@ config USB_ZD1201
 	  Say Y if you want to use wireless LAN adapters based on the ZyDAS
 	  ZD1201 chip.
 
-	  This driver makes the adapter appear as a normal Ethernet interface,
+	  This driver makes the adapter appear as a yesrmal Ethernet interface,
 	  typically on wlan0.
 
 	  The zd1201 device requires external firmware to be loaded.

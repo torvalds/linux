@@ -77,7 +77,7 @@ union acpi_generic_state *acpi_ut_pop_generic_state(union acpi_generic_state
  * RETURN:      The new state object. NULL on failure.
  *
  * DESCRIPTION: Create a generic state object. Attempt to obtain one from
- *              the global state cache;  If none available, create a new one.
+ *              the global state cache;  If yesne available, create a new one.
  *
  ******************************************************************************/
 
@@ -257,7 +257,7 @@ union acpi_generic_state *acpi_ut_create_control_state(void)
  * RETURN:      None
  *
  * DESCRIPTION: Release a state object to the state cache. NULL state objects
- *              are ignored.
+ *              are igyesred.
  *
  ******************************************************************************/
 
@@ -265,7 +265,7 @@ void acpi_ut_delete_generic_state(union acpi_generic_state *state)
 {
 	ACPI_FUNCTION_ENTRY();
 
-	/* Ignore null state */
+	/* Igyesre null state */
 
 	if (state) {
 		(void)acpi_os_release_object(acpi_gbl_state_cache, state);

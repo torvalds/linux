@@ -36,7 +36,7 @@
 #define KVMPPC_INST_SW_BREAKPOINT	0x00dddd00
 
 enum emulation_result {
-	EMULATE_DONE,         /* no further processing */
+	EMULATE_DONE,         /* yes further processing */
 	EMULATE_DO_MMIO,      /* kvm_run filled with MMIO request */
 	EMULATE_FAIL,         /* can't emulate this instruction */
 	EMULATE_AGAIN,        /* something went wrong. go again */
@@ -495,7 +495,7 @@ static inline u32 kvmppc_get_xics_latch(void)
  *    ->105:   message[CALL_FUNCTION] = 1
  *      105:   ppc_msgsnd_sync()/smp_mb()
  *      105:   ppc_msgsnd() -> 42
- *       42: local_paca->kvm_hstate.host_ipi == 0 // IPI ignored
+ *       42: local_paca->kvm_hstate.host_ipi == 0 // IPI igyesred
  *      105: // hangs waiting on 42 to process messages/call_single_queue
  *
  * We also issue an smp_mb() at the end of kvmppc_clear_host_ipi(). This is
@@ -525,7 +525,7 @@ static inline u32 kvmppc_get_xics_latch(void)
  *       42: // returns to executing guest
  *      105:   ppc_msgsnd_sync()/smp_mb()
  *      105:   ppc_msgsnd() -> 42
- *       42: local_paca->kvm_hstate.host_ipi == 0 // IPI ignored
+ *       42: local_paca->kvm_hstate.host_ipi == 0 // IPI igyesred
  *      105: // hangs waiting on 42 to process messages/call_single_queue
  */
 static inline void kvmppc_set_host_ipi(int cpu)
@@ -903,7 +903,7 @@ static inline void kvmppc_mmu_flush_icache(kvm_pfn_t pfn)
 static inline bool kvmppc_shared_big_endian(struct kvm_vcpu *vcpu)
 {
 #if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_KVM_BOOK3S_PR_POSSIBLE)
-	/* Only Book3S_64 PR supports bi-endian for now */
+	/* Only Book3S_64 PR supports bi-endian for yesw */
 	return vcpu->arch.shared_big_endian;
 #elif defined(CONFIG_PPC_BOOK3S_64) && defined(__LITTLE_ENDIAN__)
 	/* Book3s_64 HV on little endian is always little endian */
@@ -1005,7 +1005,7 @@ static inline void kvmppc_set_sr(struct kvm_vcpu *vcpu, int nr, u32 val)
 
 /*
  * Please call after prepare_to_enter. This function puts the lazy ee and irq
- * disabled tracking state back to normal mode, without actually enabling
+ * disabled tracking state back to yesrmal mode, without actually enabling
  * interrupts.
  */
 static inline void kvmppc_fix_ee_before_entry(void)

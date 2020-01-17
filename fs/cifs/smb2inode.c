@@ -1,5 +1,5 @@
 /*
- *   fs/cifs/smb2inode.c
+ *   fs/cifs/smb2iyesde.c
  *
  *   Copyright (C) International Business Machines  Corp., 2002, 2011
  *                 Etersoft, 2012
@@ -17,7 +17,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
@@ -444,7 +444,7 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	struct smb2_file_all_info *smb2_data;
 	__u32 create_options = 0;
 	struct cifs_fid fid;
-	bool no_cached_open = tcon->nohandlecache;
+	bool yes_cached_open = tcon->yeshandlecache;
 	struct cifsFileInfo *cfile;
 
 	*adjust_tz = false;
@@ -456,7 +456,7 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		return -ENOMEM;
 
 	/* If it is a root and its handle is cached then use it */
-	if (!strlen(full_path) && !no_cached_open) {
+	if (!strlen(full_path) && !yes_cached_open) {
 		rc = open_shroot(xid, tcon, &fid);
 		if (rc)
 			goto out;
@@ -501,7 +501,7 @@ out:
 }
 
 int
-smb2_mkdir(const unsigned int xid, struct inode *parent_inode, umode_t mode,
+smb2_mkdir(const unsigned int xid, struct iyesde *parent_iyesde, umode_t mode,
 	   struct cifs_tcon *tcon, const char *name,
 	   struct cifs_sb_info *cifs_sb)
 {
@@ -512,18 +512,18 @@ smb2_mkdir(const unsigned int xid, struct inode *parent_inode, umode_t mode,
 }
 
 void
-smb2_mkdir_setinfo(struct inode *inode, const char *name,
+smb2_mkdir_setinfo(struct iyesde *iyesde, const char *name,
 		   struct cifs_sb_info *cifs_sb, struct cifs_tcon *tcon,
 		   const unsigned int xid)
 {
 	FILE_BASIC_INFO data;
-	struct cifsInodeInfo *cifs_i;
+	struct cifsIyesdeInfo *cifs_i;
 	struct cifsFileInfo *cfile;
 	u32 dosattrs;
 	int tmprc;
 
 	memset(&data, 0, sizeof(data));
-	cifs_i = CIFS_I(inode);
+	cifs_i = CIFS_I(iyesde);
 	dosattrs = cifs_i->cifsAttrs | ATTR_READONLY;
 	data.Attributes = cpu_to_le32(dosattrs);
 	cifs_get_writable_path(tcon, name, &cfile);
@@ -611,17 +611,17 @@ smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 int
-smb2_set_file_info(struct inode *inode, const char *full_path,
+smb2_set_file_info(struct iyesde *iyesde, const char *full_path,
 		   FILE_BASIC_INFO *buf, const unsigned int xid)
 {
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(iyesde->i_sb);
 	struct tcon_link *tlink;
 	int rc;
 
 	if ((buf->CreationTime == 0) && (buf->LastAccessTime == 0) &&
 	    (buf->LastWriteTime == 0) && (buf->ChangeTime == 0) &&
 	    (buf->Attributes == 0))
-		return 0; /* would be a no op, no sense sending this */
+		return 0; /* would be a yes op, yes sense sending this */
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))

@@ -23,7 +23,7 @@
 
 static struct bau_operations ops __ro_after_init;
 
-/* timeouts in nanoseconds (indexed by UVH_AGING_PRESCALE_SEL urgency7 30:28) */
+/* timeouts in nayesseconds (indexed by UVH_AGING_PRESCALE_SEL urgency7 30:28) */
 static const int timeout_base_ns[] = {
 		20,
 		160,
@@ -36,8 +36,8 @@ static const int timeout_base_ns[] = {
 };
 
 static int timeout_us;
-static bool nobau = true;
-static int nobau_perm;
+static bool yesbau = true;
+static int yesbau_perm;
 
 /* tunables: */
 static int max_concurr		= MAX_BAU_CONCURRENT;
@@ -93,10 +93,10 @@ static char *stat_description[] = {
 	"all:      shootdown all-tlb messages",
 	"one:      shootdown one-tlb messages",
 	"mult:     interrupts that found multiple messages",
-	"none:     interrupts that found no messages",
+	"yesne:     interrupts that found yes messages",
 	"retry:    number of retry messages processed",
 	"canc:     number messages canceled by retries",
-	"nocan:    number retries that found nothing to cancel",
+	"yescan:    number retries that found yesthing to cancel",
 	"reset:    number of ipi-style reset requests processed",
 	"rcan:     number messages canceled by reset requests",
 	"disable:  number times use of the BAU was disabled",
@@ -110,14 +110,14 @@ static int __init setup_bau(char *arg)
 	if (!arg)
 		return -EINVAL;
 
-	result = strtobool(arg, &nobau);
+	result = strtobool(arg, &yesbau);
 	if (result)
 		return result;
 
-	/* we need to flip the logic here, so that bau=y sets nobau to false */
-	nobau = !nobau;
+	/* we need to flip the logic here, so that bau=y sets yesbau to false */
+	yesbau = !yesbau;
 
-	if (!nobau)
+	if (!yesbau)
 		pr_info("UV BAU Enabled\n");
 	else
 		pr_info("UV BAU Disabled\n");
@@ -126,8 +126,8 @@ static int __init setup_bau(char *arg)
 }
 early_param("bau", setup_bau);
 
-/* base pnode in this partition */
-static int uv_base_pnode __read_mostly;
+/* base pyesde in this partition */
+static int uv_base_pyesde __read_mostly;
 
 static DEFINE_PER_CPU(struct ptc_stats, ptcstats);
 static DEFINE_PER_CPU(struct bau_control, bau_control);
@@ -139,14 +139,14 @@ set_bau_on(void)
 	int cpu;
 	struct bau_control *bcp;
 
-	if (nobau_perm) {
-		pr_info("BAU not initialized; cannot be turned on\n");
+	if (yesbau_perm) {
+		pr_info("BAU yest initialized; canyest be turned on\n");
 		return;
 	}
-	nobau = false;
+	yesbau = false;
 	for_each_present_cpu(cpu) {
 		bcp = &per_cpu(bau_control, cpu);
-		bcp->nobau = false;
+		bcp->yesbau = false;
 	}
 	pr_info("BAU turned on\n");
 	return;
@@ -158,27 +158,27 @@ set_bau_off(void)
 	int cpu;
 	struct bau_control *bcp;
 
-	nobau = true;
+	yesbau = true;
 	for_each_present_cpu(cpu) {
 		bcp = &per_cpu(bau_control, cpu);
-		bcp->nobau = true;
+		bcp->yesbau = true;
 	}
 	pr_info("BAU turned off\n");
 	return;
 }
 
 /*
- * Determine the first node on a uvhub. 'Nodes' are used for kernel
+ * Determine the first yesde on a uvhub. 'Nodes' are used for kernel
  * memory allocation.
  */
-static int __init uvhub_to_first_node(int uvhub)
+static int __init uvhub_to_first_yesde(int uvhub)
 {
-	int node, b;
+	int yesde, b;
 
-	for_each_online_node(node) {
-		b = uv_node_to_blade_id(node);
+	for_each_online_yesde(yesde) {
+		b = uv_yesde_to_blade_id(yesde);
 		if (uvhub == b)
-			return node;
+			return yesde;
 	}
 	return -1;
 }
@@ -197,21 +197,21 @@ static int __init uvhub_to_first_apicid(int uvhub)
 }
 
 /*
- * Free a software acknowledge hardware resource by clearing its Pending
+ * Free a software ackyeswledge hardware resource by clearing its Pending
  * bit. This will return a reply to the sender.
  * If the message has timed out, a reply has already been sent by the
- * hardware but the resource has not been released. In that case our
+ * hardware but the resource has yest been released. In that case our
  * clear of the Timeout bit (as well) will free the resource. No reply will
  * be sent (the hardware will only do one reply per message).
  */
 static void reply_to_message(struct msg_desc *mdp, struct bau_control *bcp,
-						int do_acknowledge)
+						int do_ackyeswledge)
 {
 	unsigned long dw;
 	struct bau_pq_entry *msg;
 
 	msg = mdp->msg;
-	if (!msg->canceled && do_acknowledge) {
+	if (!msg->canceled && do_ackyeswledge) {
 		dw = (msg->swack_vec << UV_SW_ACK_NPENDING) | msg->swack_vec;
 		ops.write_l_sw_ack(dw);
 	}
@@ -254,14 +254,14 @@ static void bau_process_retry_msg(struct msg_desc *mdp,
 			/*
 			 * This is a message retry; clear the resources held
 			 * by the previous message only if they timed out.
-			 * If it has not timed out we have an unexpected
+			 * If it has yest timed out we have an unexpected
 			 * situation to report.
 			 */
 			if (mmr & (msg_res << UV_SW_ACK_NPENDING)) {
 				unsigned long mr;
 				/*
 				 * Is the resource timed out?
-				 * Make everyone ignore the cancelled message.
+				 * Make everyone igyesre the cancelled message.
 				 */
 				msg2->canceled = 1;
 				stat->d_canceled++;
@@ -272,7 +272,7 @@ static void bau_process_retry_msg(struct msg_desc *mdp,
 		}
 	}
 	if (!cancel_count)
-		stat->d_nocanceled++;
+		stat->d_yescanceled++;
 }
 
 /*
@@ -280,7 +280,7 @@ static void bau_process_retry_msg(struct msg_desc *mdp,
  * Other cpu's may come here at the same time for this message.
  */
 static void bau_process_message(struct msg_desc *mdp, struct bau_control *bcp,
-						int do_acknowledge)
+						int do_ackyeswledge)
 {
 	short socket_ack_count = 0;
 	short *sp;
@@ -290,7 +290,7 @@ static void bau_process_message(struct msg_desc *mdp, struct bau_control *bcp,
 	struct bau_control *smaster = bcp->socket_master;
 
 	/*
-	 * This must be a normal message, or retry of a normal message
+	 * This must be a yesrmal message, or retry of a yesrmal message
 	 */
 	if (msg->address == TLB_FLUSH_ALL) {
 		local_flush_tlb();
@@ -316,7 +316,7 @@ static void bau_process_message(struct msg_desc *mdp, struct bau_control *bcp,
 	 * pinging the count's cache line back and forth between
 	 * the sockets.
 	 */
-	sp = &smaster->socket_acknowledge_count[mdp->msg_slot];
+	sp = &smaster->socket_ackyeswledge_count[mdp->msg_slot];
 	asp = (struct atomic_short *)sp;
 	socket_ack_count = atom_asr(1, asp);
 	if (socket_ack_count == bcp->cpus_in_socket) {
@@ -326,7 +326,7 @@ static void bau_process_message(struct msg_desc *mdp, struct bau_control *bcp,
 		 * the message's count.
 		 */
 		*sp = 0;
-		asp = (struct atomic_short *)&msg->acknowledge_count;
+		asp = (struct atomic_short *)&msg->ackyeswledge_count;
 		msg_ack_count = atom_asr(socket_ack_count, asp);
 
 		if (msg_ack_count == bcp->cpus_in_uvhub) {
@@ -334,7 +334,7 @@ static void bau_process_message(struct msg_desc *mdp, struct bau_control *bcp,
 			 * All cpus in uvhub saw it; reply
 			 * (unless we are in the UV2 workaround)
 			 */
-			reply_to_message(mdp, bcp, do_acknowledge);
+			reply_to_message(mdp, bcp, do_ackyeswledge);
 		}
 	}
 
@@ -342,16 +342,16 @@ static void bau_process_message(struct msg_desc *mdp, struct bau_control *bcp,
 }
 
 /*
- * Determine the first cpu on a pnode.
+ * Determine the first cpu on a pyesde.
  */
-static int pnode_to_first_cpu(int pnode, struct bau_control *smaster)
+static int pyesde_to_first_cpu(int pyesde, struct bau_control *smaster)
 {
 	int cpu;
-	struct hub_and_pnode *hpp;
+	struct hub_and_pyesde *hpp;
 
 	for_each_present_cpu(cpu) {
 		hpp = &smaster->thp[cpu];
-		if (pnode == hpp->pnode)
+		if (pyesde == hpp->pyesde)
 			return cpu;
 	}
 	return -1;
@@ -361,7 +361,7 @@ static int pnode_to_first_cpu(int pnode, struct bau_control *smaster)
  * Last resort when we get a large number of destination timeouts is
  * to clear resources held by a given cpu.
  * Do this with IPI so that all messages in the BAU message queue
- * can be identified by their nonzero swack_vec field.
+ * can be identified by their yesnzero swack_vec field.
  *
  * This is entered for a single cpu on the uvhub.
  * The sender want's this uvhub to free a specific message's
@@ -394,7 +394,7 @@ static void do_reset(void *ptr)
 			unsigned long mmr;
 			unsigned long mr;
 			/*
-			 * make everyone else ignore this message
+			 * make everyone else igyesre this message
 			 */
 			msg->canceled = 1;
 			/*
@@ -418,8 +418,8 @@ static void do_reset(void *ptr)
  */
 static void reset_with_ipi(struct pnmask *distribution, struct bau_control *bcp)
 {
-	int pnode;
-	int apnode;
+	int pyesde;
+	int apyesde;
 	int maskbits;
 	int sender = bcp->cpu;
 	cpumask_t *mask = bcp->uvhub_master->cpumask;
@@ -430,13 +430,13 @@ static void reset_with_ipi(struct pnmask *distribution, struct bau_control *bcp)
 	cpumask_clear(mask);
 	/* find a single cpu for each uvhub in this distribution mask */
 	maskbits = sizeof(struct pnmask) * BITSPERBYTE;
-	/* each bit is a pnode relative to the partition base pnode */
-	for (pnode = 0; pnode < maskbits; pnode++) {
+	/* each bit is a pyesde relative to the partition base pyesde */
+	for (pyesde = 0; pyesde < maskbits; pyesde++) {
 		int cpu;
-		if (!bau_uvhub_isset(pnode, distribution))
+		if (!bau_uvhub_isset(pyesde, distribution))
 			continue;
-		apnode = pnode + bcp->partition_base_pnode;
-		cpu = pnode_to_first_cpu(apnode, smaster);
+		apyesde = pyesde + bcp->partition_base_pyesde;
+		cpu = pyesde_to_first_cpu(apyesde, smaster);
 		cpumask_set_cpu(cpu, mask);
 	}
 
@@ -447,7 +447,7 @@ static void reset_with_ipi(struct pnmask *distribution, struct bau_control *bcp)
 
 /*
  * Not to be confused with cycles_2_ns() from tsc.c; this gives a relative
- * number, not an absolute. It converts a duration in cycles to a duration in
+ * number, yest an absolute. It converts a duration in cycles to a duration in
  * ns.
  */
 static inline unsigned long long cycles_2_ns(unsigned long long cyc)
@@ -494,7 +494,7 @@ static inline unsigned long long usec_2_cycles(unsigned long usec)
 
 /*
  * wait for all cpus on this hub to finish their sends and go quiet
- * leaves uvhub_quiesce set so that no new broadcasts are started by
+ * leaves uvhub_quiesce set so that yes new broadcasts are started by
  * bau_flush_send_and_wait()
  */
 static inline void quiesce_local_uvhub(struct bau_control *hmaster)
@@ -538,8 +538,8 @@ static int uv1_wait_completion(struct bau_desc *bau_desc,
 	while ((descriptor_status != DS_IDLE)) {
 		/*
 		 * Our software ack messages may be blocked because
-		 * there are no swack resources available.  As long
-		 * as none of them has timed out hardware will NACK
+		 * there are yes swack resources available.  As long
+		 * as yesne of them has timed out hardware will NACK
 		 * our message and its state will stay IDLE.
 		 */
 		if (descriptor_status == DS_SOURCE_TIMEOUT) {
@@ -576,7 +576,7 @@ static int uv1_wait_completion(struct bau_desc *bau_desc,
 
 /*
  * UV2 could have an extra bit of status in the ACTIVATION_STATUS_2 register.
- * But not currently used.
+ * But yest currently used.
  */
 static unsigned long uv2_3_read_status(unsigned long offset, int rshft, int desc)
 {
@@ -647,7 +647,7 @@ static int uv2_3_wait_completion(struct bau_desc *bau_desc,
 		} else {
 			busy_reps++;
 			if (busy_reps > 1000000) {
-				/* not to hammer on the clock */
+				/* yest to hammer on the clock */
 				busy_reps = 0;
 				ttm = get_cycles();
 				if ((ttm - bcp->send_message) > bcp->timeout_interval)
@@ -1049,20 +1049,20 @@ static int set_distrib_bits(struct cpumask *flush_mask, struct bau_control *bcp,
 			struct bau_desc *bau_desc, int *localsp, int *remotesp)
 {
 	int cpu;
-	int pnode;
+	int pyesde;
 	int cnt = 0;
-	struct hub_and_pnode *hpp;
+	struct hub_and_pyesde *hpp;
 
 	for_each_cpu(cpu, flush_mask) {
 		/*
-		 * The distribution vector is a bit map of pnodes, relative
-		 * to the partition base pnode (and the partition base nasid
+		 * The distribution vector is a bit map of pyesdes, relative
+		 * to the partition base pyesde (and the partition base nasid
 		 * in the header).
-		 * Translate cpu to pnode and hub using a local memory array.
+		 * Translate cpu to pyesde and hub using a local memory array.
 		 */
 		hpp = &bcp->socket_master->thp[cpu];
-		pnode = hpp->pnode - bcp->partition_base_pnode;
-		bau_uvhub_set(pnode, &bau_desc->distribution);
+		pyesde = hpp->pyesde - bcp->partition_base_pyesde;
+		bau_uvhub_set(pyesde, &bau_desc->distribution);
 		cnt++;
 		if (hpp->uvhub == bcp->uvhub)
 			(*localsp)++;
@@ -1112,7 +1112,7 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 
 	bcp = &per_cpu(bau_control, cpu);
 
-	if (bcp->nobau)
+	if (bcp->yesbau)
 		return cpumask;
 
 	stat = bcp->statp;
@@ -1143,7 +1143,7 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 	 */
 	flush_mask = (struct cpumask *)per_cpu(uv_flush_tlb_mask, cpu);
 	/* don't actually do a shootdown of the local cpu */
-	cpumask_andnot(flush_mask, cpumask, cpumask_of(cpu));
+	cpumask_andyest(flush_mask, cpumask, cpumask_of(cpu));
 
 	if (cpumask_test_cpu(cpu, cpumask))
 		stat->s_ntargself++;
@@ -1187,9 +1187,9 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 
 /*
  * Search the message queue for any 'other' unprocessed message with the
- * same software acknowledge resource bit vector as the 'msg' message.
+ * same software ackyeswledge resource bit vector as the 'msg' message.
  */
-static struct bau_pq_entry *find_another_by_swack(struct bau_pq_entry *msg,
+static struct bau_pq_entry *find_ayesther_by_swack(struct bau_pq_entry *msg,
 						  struct bau_control *bcp)
 {
 	struct bau_pq_entry *msg_next = msg + 1;
@@ -1209,9 +1209,9 @@ static struct bau_pq_entry *find_another_by_swack(struct bau_pq_entry *msg,
 }
 
 /*
- * UV2 needs to work around a bug in which an arriving message has not
+ * UV2 needs to work around a bug in which an arriving message has yest
  * set a bit in the UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE register.
- * Such a message must be ignored.
+ * Such a message must be igyesred.
  */
 static void process_uv2_message(struct msg_desc *mdp, struct bau_control *bcp)
 {
@@ -1225,24 +1225,24 @@ static void process_uv2_message(struct msg_desc *mdp, struct bau_control *bcp)
 
 	if ((swack_vec & mmr_image) == 0) {
 		/*
-		 * This message was assigned a swack resource, but no
-		 * reserved acknowlegment is pending.
+		 * This message was assigned a swack resource, but yes
+		 * reserved ackyeswlegment is pending.
 		 * The bug has prevented this message from setting the MMR.
 		 */
 		/*
 		 * Some message has set the MMR 'pending' bit; it might have
-		 * been another message.  Look for that message.
+		 * been ayesther message.  Look for that message.
 		 */
-		other_msg = find_another_by_swack(msg, bcp);
+		other_msg = find_ayesther_by_swack(msg, bcp);
 		if (other_msg) {
 			/*
-			 * There is another. Process this one but do not
+			 * There is ayesther. Process this one but do yest
 			 * ack it.
 			 */
 			bau_process_message(mdp, bcp, 0);
 			/*
 			 * Let the natural processing of that other message
-			 * acknowledge it. Don't get the processing of sw_ack's
+			 * ackyeswledge it. Don't get the processing of sw_ack's
 			 * out of order.
 			 */
 			return;
@@ -1250,8 +1250,8 @@ static void process_uv2_message(struct msg_desc *mdp, struct bau_control *bcp)
 	}
 
 	/*
-	 * Either the MMR shows this one pending a reply or there is no
-	 * other message using this sw_ack, so it is safe to acknowledge it.
+	 * Either the MMR shows this one pending a reply or there is yes
+	 * other message using this sw_ack, so it is safe to ackyeswledge it.
 	 */
 	bau_process_message(mdp, bcp, 1);
 
@@ -1269,7 +1269,7 @@ static void process_uv2_message(struct msg_desc *mdp, struct bau_control *bcp)
  *
  * All cores/threads on this hub get this interrupt.
  * The last one to see it does the software ack.
- * (the resource will not be freed until noninterruptable cpus see this
+ * (the resource will yest be freed until yesninterruptable cpus see this
  *  interrupt; hardware may timeout the s/w ack and reply ERROR)
  */
 void uv_bau_message_interrupt(struct pt_regs *regs)
@@ -1300,7 +1300,7 @@ void uv_bau_message_interrupt(struct pt_regs *regs)
 		if (bcp->uvhub_version == UV_BAU_V2)
 			process_uv2_message(&msgdesc, bcp);
 		else
-			/* no error workaround for uv1 or uv3 */
+			/* yes error workaround for uv1 or uv3 */
 			bau_process_message(&msgdesc, bcp, 1);
 
 		msg++;
@@ -1310,14 +1310,14 @@ void uv_bau_message_interrupt(struct pt_regs *regs)
 	}
 	stat->d_time += (get_cycles() - time_start);
 	if (!count)
-		stat->d_nomsg++;
+		stat->d_yesmsg++;
 	else if (count > 1)
 		stat->d_multmsg++;
 }
 
 /*
  * Each target uvhub (i.e. a uvhub that has cpu's) needs to have
- * shootdown message timeouts enabled.  The timeout does not cause
+ * shootdown message timeouts enabled.  The timeout does yest cause
  * an interrupt, but causes an error message to be returned to
  * the sender.
  */
@@ -1325,7 +1325,7 @@ static void __init enable_timeouts(void)
 {
 	int uvhub;
 	int nuvhubs;
-	int pnode;
+	int pyesde;
 	unsigned long mmr_image;
 
 	nuvhubs = uv_num_possible_blades();
@@ -1334,8 +1334,8 @@ static void __init enable_timeouts(void)
 		if (!uv_blade_nr_possible_cpus(uvhub))
 			continue;
 
-		pnode = uv_blade_to_pnode(uvhub);
-		mmr_image = read_mmr_misc_control(pnode);
+		pyesde = uv_blade_to_pyesde(uvhub);
+		mmr_image = read_mmr_misc_control(pyesde);
 		/*
 		 * Set the timeout period and then lock it in, in three
 		 * steps; captures and locks in the period.
@@ -1343,13 +1343,13 @@ static void __init enable_timeouts(void)
 		 * To program the period, the SOFT_ACK_MODE must be off.
 		 */
 		mmr_image &= ~(1L << SOFTACK_MSHIFT);
-		write_mmr_misc_control(pnode, mmr_image);
+		write_mmr_misc_control(pyesde, mmr_image);
 		/*
 		 * Set the 4-bit period.
 		 */
 		mmr_image &= ~((unsigned long)0xf << SOFTACK_PSHIFT);
 		mmr_image |= (SOFTACK_TIMEOUT_PERIOD << SOFTACK_PSHIFT);
-		write_mmr_misc_control(pnode, mmr_image);
+		write_mmr_misc_control(pyesde, mmr_image);
 		/*
 		 * UV1:
 		 * Subsequent reversals of the timebase bit (3) cause an
@@ -1358,14 +1358,14 @@ static void __init enable_timeouts(void)
 		 */
 		mmr_image |= (1L << SOFTACK_MSHIFT);
 		if (is_uv2_hub()) {
-			/* do not touch the legacy mode bit */
-			/* hw bug workaround; do not use extended status */
+			/* do yest touch the legacy mode bit */
+			/* hw bug workaround; do yest use extended status */
 			mmr_image &= ~(1L << UV2_EXT_SHFT);
 		} else if (is_uv3_hub()) {
 			mmr_image &= ~(1L << PREFETCH_HINT_SHFT);
 			mmr_image |= (1L << SB_STATUS_SHFT);
 		}
-		write_mmr_misc_control(pnode, mmr_image);
+		write_mmr_misc_control(pyesde, mmr_image);
 	}
 }
 
@@ -1412,11 +1412,11 @@ static int ptc_seq_show(struct seq_file *file, void *data)
 			 "enable wars warshw warwaits enters ipidis plugged ");
 		seq_puts(file,
 			 "ipiover glim cong swack recv rtime all one mult ");
-		seq_puts(file, "none retry canc nocan reset rcan\n");
+		seq_puts(file, "yesne retry canc yescan reset rcan\n");
 	}
 	if (cpu < num_possible_cpus() && cpu_online(cpu)) {
 		bcp = &per_cpu(bau_control, cpu);
-		if (bcp->nobau) {
+		if (bcp->yesbau) {
 			seq_printf(file, "cpu %d bau disabled\n", cpu);
 			return 0;
 		}
@@ -1424,7 +1424,7 @@ static int ptc_seq_show(struct seq_file *file, void *data)
 		/* source side statistics */
 		seq_printf(file,
 			"cpu %d %d %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld ",
-			   cpu, bcp->nobau, stat->s_requestor,
+			   cpu, bcp->yesbau, stat->s_requestor,
 			   cycles_2_us(stat->s_time),
 			   stat->s_ntargself, stat->s_ntarglocals,
 			   stat->s_ntargremotes, stat->s_ntargcpu,
@@ -1450,11 +1450,11 @@ static int ptc_seq_show(struct seq_file *file, void *data)
 		/* destination side statistics */
 		seq_printf(file,
 			"%lx %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld\n",
-			   ops.read_g_sw_ack(uv_cpu_to_pnode(cpu)),
+			   ops.read_g_sw_ack(uv_cpu_to_pyesde(cpu)),
 			   stat->d_requestee, cycles_2_us(stat->d_time),
 			   stat->d_alltlb, stat->d_onetlb, stat->d_multmsg,
-			   stat->d_nomsg, stat->d_retries, stat->d_canceled,
-			   stat->d_nocanceled, stat->d_resets,
+			   stat->d_yesmsg, stat->d_retries, stat->d_canceled,
+			   stat->d_yescanceled, stat->d_resets,
 			   stat->d_rcanceled);
 	}
 	return 0;
@@ -1658,12 +1658,12 @@ static const struct seq_operations uv_ptc_seq_ops = {
 	.show		= ptc_seq_show
 };
 
-static int ptc_proc_open(struct inode *inode, struct file *file)
+static int ptc_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &uv_ptc_seq_ops);
 }
 
-static int tunables_open(struct inode *inode, struct file *file)
+static int tunables_open(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
@@ -1707,7 +1707,7 @@ static int __init uv_ptc_init(void)
 /*
  * Initialize the sending side's sending buffers.
  */
-static void activation_descriptor_init(int node, int pnode, int base_pnode)
+static void activation_descriptor_init(int yesde, int pyesde, int base_pyesde)
 {
 	int i;
 	int cpu;
@@ -1727,17 +1727,17 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 	 * per cpu; and one per cpu on the uvhub (ADP_SZ)
 	 */
 	dsize = sizeof(struct bau_desc) * ADP_SZ * ITEMS_PER_DESC;
-	bau_desc = kmalloc_node(dsize, GFP_KERNEL, node);
+	bau_desc = kmalloc_yesde(dsize, GFP_KERNEL, yesde);
 	BUG_ON(!bau_desc);
 
 	gpa = uv_gpa(bau_desc);
-	n = uv_gpa_to_gnode(gpa);
+	n = uv_gpa_to_gyesde(gpa);
 	m = ops.bau_gpa_to_offset(gpa);
 	if (is_uv1_hub())
 		uv1 = 1;
 
-	/* the 14-bit pnode */
-	write_mmr_descriptor_base(pnode,
+	/* the 14-bit pyesde */
+	write_mmr_descriptor_base(pyesde,
 		(n << UVH_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT | m));
 	/*
 	 * Initializing all 8 (ITEMS_PER_DESC) descriptors for each
@@ -1752,13 +1752,13 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 			/*
 			 * The base_dest_nasid set in the message header
 			 * is the nasid of the first uvhub in the partition.
-			 * The bit map will indicate destination pnode numbers
-			 * relative to that base. They may not be consecutive
+			 * The bit map will indicate destination pyesde numbers
+			 * relative to that base. They may yest be consecutive
 			 * if nasid striding is being used.
 			 */
 			uv1_hdr->base_dest_nasid =
-			                          UV_PNODE_TO_NASID(base_pnode);
-			uv1_hdr->dest_subnodeid  = UV_LB_SUBNODEID;
+			                          UV_PNODE_TO_NASID(base_pyesde);
+			uv1_hdr->dest_subyesdeid  = UV_LB_SUBNODEID;
 			uv1_hdr->command         = UV_NET_ENDPOINT_INTD;
 			uv1_hdr->int_both        = 1;
 			/*
@@ -1773,13 +1773,13 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 			uv2_3_hdr = &bd2->header.uv2_3_hdr;
 			uv2_3_hdr->swack_flag      = 1;
 			uv2_3_hdr->base_dest_nasid =
-			                          UV_PNODE_TO_NASID(base_pnode);
-			uv2_3_hdr->dest_subnodeid  = UV_LB_SUBNODEID;
+			                          UV_PNODE_TO_NASID(base_pyesde);
+			uv2_3_hdr->dest_subyesdeid  = UV_LB_SUBNODEID;
 			uv2_3_hdr->command         = UV_NET_ENDPOINT_INTD;
 		}
 	}
 	for_each_present_cpu(cpu) {
-		if (pnode != uv_blade_to_pnode(uv_cpu_to_blade_id(cpu)))
+		if (pyesde != uv_blade_to_pyesde(uv_cpu_to_blade_id(cpu)))
 			continue;
 		bcp = &per_cpu(bau_control, cpu);
 		bcp->descriptor_base = bau_desc;
@@ -1789,21 +1789,21 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 /*
  * initialize the destination side's receiving buffers
  * entered for each uvhub in the partition
- * - node is first node (kernel memory notion) on the uvhub
- * - pnode is the uvhub's physical identifier
+ * - yesde is first yesde (kernel memory yestion) on the uvhub
+ * - pyesde is the uvhub's physical identifier
  */
-static void pq_init(int node, int pnode)
+static void pq_init(int yesde, int pyesde)
 {
 	int cpu;
 	size_t plsize;
 	char *cp;
 	void *vp;
-	unsigned long gnode, first, last, tail;
+	unsigned long gyesde, first, last, tail;
 	struct bau_pq_entry *pqp;
 	struct bau_control *bcp;
 
 	plsize = (DEST_Q_SIZE + 1) * sizeof(struct bau_pq_entry);
-	vp = kmalloc_node(plsize, GFP_KERNEL, node);
+	vp = kmalloc_yesde(plsize, GFP_KERNEL, yesde);
 	BUG_ON(!vp);
 
 	pqp = (struct bau_pq_entry *)vp;
@@ -1811,9 +1811,9 @@ static void pq_init(int node, int pnode)
 	pqp = (struct bau_pq_entry *)(((unsigned long)cp >> 5) << 5);
 
 	for_each_present_cpu(cpu) {
-		if (pnode != uv_cpu_to_pnode(cpu))
+		if (pyesde != uv_cpu_to_pyesde(cpu))
 			continue;
-		/* for every cpu on this pnode: */
+		/* for every cpu on this pyesde: */
 		bcp = &per_cpu(bau_control, cpu);
 		bcp->queue_first	= pqp;
 		bcp->bau_msg_head	= pqp;
@@ -1824,19 +1824,19 @@ static void pq_init(int node, int pnode)
 	last = ops.bau_gpa_to_offset(uv_gpa(pqp + (DEST_Q_SIZE - 1)));
 
 	/*
-	 * Pre UV4, the gnode is required to locate the payload queue
+	 * Pre UV4, the gyesde is required to locate the payload queue
 	 * and the payload queue tail must be maintained by the kernel.
 	 */
 	bcp = &per_cpu(bau_control, smp_processor_id());
 	if (bcp->uvhub_version <= UV_BAU_V3) {
 		tail = first;
-		gnode = uv_gpa_to_gnode(uv_gpa(pqp));
-		first = (gnode << UV_PAYLOADQ_GNODE_SHIFT) | tail;
-		write_mmr_payload_tail(pnode, tail);
+		gyesde = uv_gpa_to_gyesde(uv_gpa(pqp));
+		first = (gyesde << UV_PAYLOADQ_GNODE_SHIFT) | tail;
+		write_mmr_payload_tail(pyesde, tail);
 	}
 
-	ops.write_payload_first(pnode, first);
-	ops.write_payload_last(pnode, last);
+	ops.write_payload_first(pyesde, first);
+	ops.write_payload_last(pyesde, last);
 
 	/* in effect, all msg_type's are set to MSG_NOOP */
 	memset(pqp, 0, sizeof(struct bau_pq_entry) * DEST_Q_SIZE);
@@ -1845,24 +1845,24 @@ static void pq_init(int node, int pnode)
 /*
  * Initialization of each UV hub's structures
  */
-static void __init init_uvhub(int uvhub, int vector, int base_pnode)
+static void __init init_uvhub(int uvhub, int vector, int base_pyesde)
 {
-	int node;
-	int pnode;
+	int yesde;
+	int pyesde;
 	unsigned long apicid;
 
-	node = uvhub_to_first_node(uvhub);
-	pnode = uv_blade_to_pnode(uvhub);
+	yesde = uvhub_to_first_yesde(uvhub);
+	pyesde = uv_blade_to_pyesde(uvhub);
 
-	activation_descriptor_init(node, pnode, base_pnode);
+	activation_descriptor_init(yesde, pyesde, base_pyesde);
 
-	pq_init(node, pnode);
+	pq_init(yesde, pyesde);
 	/*
 	 * The below initialization can't be in firmware because the
 	 * messaging IRQ will be determined by the OS.
 	 */
 	apicid = uvhub_to_first_apicid(uvhub) | uv_apicid_hibits;
-	write_mmr_data_config(pnode, ((apicid << 32) | vector));
+	write_mmr_data_config(pyesde, ((apicid << 32) | vector));
 }
 
 /*
@@ -1912,8 +1912,8 @@ static void __init init_per_cpu_tunables(void)
 	for_each_present_cpu(cpu) {
 		bcp = &per_cpu(bau_control, cpu);
 		bcp->baudisabled		= 0;
-		if (nobau)
-			bcp->nobau		= true;
+		if (yesbau)
+			bcp->yesbau		= true;
 		bcp->statp			= &per_cpu(ptcstats, cpu);
 		/* time interval to catch a hardware stay-busy bug */
 		bcp->timeout_interval		= usec_2_cycles(2*timeout_us);
@@ -1937,12 +1937,12 @@ static void __init init_per_cpu_tunables(void)
 /*
  * Scan all cpus to collect blade and socket summaries.
  */
-static int __init get_cpu_topology(int base_pnode,
+static int __init get_cpu_topology(int base_pyesde,
 					struct uvhub_desc *uvhub_descs,
 					unsigned char *uvhub_mask)
 {
 	int cpu;
-	int pnode;
+	int pyesde;
 	int uvhub;
 	int socket;
 	struct bau_control *bcp;
@@ -1954,16 +1954,16 @@ static int __init get_cpu_topology(int base_pnode,
 
 		memset(bcp, 0, sizeof(struct bau_control));
 
-		pnode = uv_cpu_hub_info(cpu)->pnode;
-		if ((pnode - base_pnode) >= UV_DISTRIBUTION_SIZE) {
+		pyesde = uv_cpu_hub_info(cpu)->pyesde;
+		if ((pyesde - base_pyesde) >= UV_DISTRIBUTION_SIZE) {
 			pr_emerg(
-				"cpu %d pnode %d-%d beyond %d; BAU disabled\n",
-				cpu, pnode, base_pnode, UV_DISTRIBUTION_SIZE);
+				"cpu %d pyesde %d-%d beyond %d; BAU disabled\n",
+				cpu, pyesde, base_pyesde, UV_DISTRIBUTION_SIZE);
 			return 1;
 		}
 
-		bcp->osnode = cpu_to_node(cpu);
-		bcp->partition_base_pnode = base_pnode;
+		bcp->osyesde = cpu_to_yesde(cpu);
+		bcp->partition_base_pyesde = base_pyesde;
 
 		uvhub = uv_cpu_hub_info(cpu)->numa_blade_id;
 		*(uvhub_mask + (uvhub/8)) |= (1 << (uvhub%8));
@@ -1971,11 +1971,11 @@ static int __init get_cpu_topology(int base_pnode,
 
 		bdp->num_cpus++;
 		bdp->uvhub = uvhub;
-		bdp->pnode = pnode;
+		bdp->pyesde = pyesde;
 
-		/* kludge: 'assuming' one node per socket, and assuming that
-		   disabling a socket just leaves a gap in node numbers */
-		socket = bcp->osnode & 1;
+		/* kludge: 'assuming' one yesde per socket, and assuming that
+		   disabling a socket just leaves a gap in yesde numbers */
+		socket = bcp->osyesde & 1;
 		bdp->socket_mask |= (1 << socket);
 		sdp = &bdp->socket[socket];
 		sdp->cpu_number[sdp->num_cpus] = cpu;
@@ -1990,16 +1990,16 @@ static int __init get_cpu_topology(int base_pnode,
 }
 
 /*
- * Each socket is to get a local array of pnodes/hubs.
+ * Each socket is to get a local array of pyesdes/hubs.
  */
 static void make_per_cpu_thp(struct bau_control *smaster)
 {
 	int cpu;
-	size_t hpsz = sizeof(struct hub_and_pnode) * num_possible_cpus();
+	size_t hpsz = sizeof(struct hub_and_pyesde) * num_possible_cpus();
 
-	smaster->thp = kzalloc_node(hpsz, GFP_KERNEL, smaster->osnode);
+	smaster->thp = kzalloc_yesde(hpsz, GFP_KERNEL, smaster->osyesde);
 	for_each_present_cpu(cpu) {
-		smaster->thp[cpu].pnode = uv_cpu_hub_info(cpu)->pnode;
+		smaster->thp[cpu].pyesde = uv_cpu_hub_info(cpu)->pyesde;
 		smaster->thp[cpu].uvhub = uv_cpu_hub_info(cpu)->numa_blade_id;
 	}
 }
@@ -2011,7 +2011,7 @@ static void make_per_hub_cpumask(struct bau_control *hmaster)
 {
 	int sz = sizeof(cpumask_t);
 
-	hmaster->cpumask = kzalloc_node(sz, GFP_KERNEL, hmaster->osnode);
+	hmaster->cpumask = kzalloc_yesde(sz, GFP_KERNEL, hmaster->osyesde);
 }
 
 /*
@@ -2048,7 +2048,7 @@ static int scan_sock(struct socket_desc *sdp, struct uvhub_desc *bdp,
 		else if (is_uv4_hub())
 			bcp->uvhub_version = UV_BAU_V4;
 		else {
-			pr_emerg("uvhub version not 1, 2, 3, or 4\n");
+			pr_emerg("uvhub version yest 1, 2, 3, or 4\n");
 			return 1;
 		}
 		bcp->uvhub_master = *hmasterp;
@@ -2118,7 +2118,7 @@ static int __init summarize_uvhub_sockets(int nuvhubs,
 /*
  * initialize the bau_control structure for each cpu
  */
-static int __init init_per_cpu(int nuvhubs, int base_part_pnode)
+static int __init init_per_cpu(int nuvhubs, int base_part_pyesde)
 {
 	struct uvhub_desc *uvhub_descs;
 	unsigned char *uvhub_mask = NULL;
@@ -2134,7 +2134,7 @@ static int __init init_per_cpu(int nuvhubs, int base_part_pnode)
 	if (!uvhub_mask)
 		goto fail;
 
-	if (get_cpu_topology(base_part_pnode, uvhub_descs, uvhub_mask))
+	if (get_cpu_topology(base_part_pyesde, uvhub_descs, uvhub_mask))
 		goto fail;
 
 	if (summarize_uvhub_sockets(nuvhubs, uvhub_descs, uvhub_mask))
@@ -2190,7 +2190,7 @@ static const struct bau_operations uv4_bau_ops __initconst = {
 static int __init uv_bau_init(void)
 {
 	int uvhub;
-	int pnode;
+	int pyesde;
 	int nuvhubs;
 	int cur_cpu;
 	int cpus;
@@ -2217,21 +2217,21 @@ static int __init uv_bau_init(void)
 
 	for_each_possible_cpu(cur_cpu) {
 		mask = &per_cpu(uv_flush_tlb_mask, cur_cpu);
-		zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_node(cur_cpu));
+		zalloc_cpumask_var_yesde(mask, GFP_KERNEL, cpu_to_yesde(cur_cpu));
 	}
 
-	uv_base_pnode = 0x7fffffff;
+	uv_base_pyesde = 0x7fffffff;
 	for (uvhub = 0; uvhub < nuvhubs; uvhub++) {
 		cpus = uv_blade_nr_possible_cpus(uvhub);
-		if (cpus && (uv_blade_to_pnode(uvhub) < uv_base_pnode))
-			uv_base_pnode = uv_blade_to_pnode(uvhub);
+		if (cpus && (uv_blade_to_pyesde(uvhub) < uv_base_pyesde))
+			uv_base_pyesde = uv_blade_to_pyesde(uvhub);
 	}
 
-	/* software timeouts are not supported on UV4 */
+	/* software timeouts are yest supported on UV4 */
 	if (is_uv3_hub() || is_uv2_hub() || is_uv1_hub())
 		enable_timeouts();
 
-	if (init_per_cpu(nuvhubs, uv_base_pnode)) {
+	if (init_per_cpu(nuvhubs, uv_base_pyesde)) {
 		pr_crit("UV: BAU disabled - per CPU init failed\n");
 		goto err_bau_disable;
 	}
@@ -2239,20 +2239,20 @@ static int __init uv_bau_init(void)
 	vector = UV_BAU_MESSAGE;
 	for_each_possible_blade(uvhub) {
 		if (uv_blade_nr_possible_cpus(uvhub))
-			init_uvhub(uvhub, vector, uv_base_pnode);
+			init_uvhub(uvhub, vector, uv_base_pyesde);
 	}
 
 	for_each_possible_blade(uvhub) {
 		if (uv_blade_nr_possible_cpus(uvhub)) {
 			unsigned long val;
 			unsigned long mmr;
-			pnode = uv_blade_to_pnode(uvhub);
+			pyesde = uv_blade_to_pyesde(uvhub);
 			/* INIT the bau */
 			val = 1L << 63;
-			write_gmmr_activation(pnode, val);
+			write_gmmr_activation(pyesde, val);
 			mmr = 1; /* should be 1 to broadcast to both sockets */
 			if (!is_uv1_hub())
-				write_mmr_data_broadcast(pnode, mmr);
+				write_mmr_data_broadcast(pyesde, mmr);
 		}
 	}
 
@@ -2264,7 +2264,7 @@ err_bau_disable:
 		free_cpumask_var(per_cpu(uv_flush_tlb_mask, cur_cpu));
 
 	set_bau_off();
-	nobau_perm = 1;
+	yesbau_perm = 1;
 
 	return -EINVAL;
 }

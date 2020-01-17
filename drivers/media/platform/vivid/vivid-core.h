@@ -46,7 +46,7 @@
 /* The number of samples returned in every SDR buffer */
 #define SDR_CAP_SAMPLES_PER_BUF 0x4000
 
-/* used by the threads to know when to resync internal counters */
+/* used by the threads to kyesw when to resync internal counters */
 #define JIFFIES_PER_DAY (3600U * 24U * HZ)
 #define JIFFIES_RESYNC (JIFFIES_PER_DAY * (0xf0000000U / JIFFIES_PER_DAY))
 
@@ -256,7 +256,7 @@ struct vivid_dev {
 
 	struct v4l2_ctrl		*radio_tx_rds_pi;
 	struct v4l2_ctrl		*radio_tx_rds_pty;
-	struct v4l2_ctrl		*radio_tx_rds_mono_stereo;
+	struct v4l2_ctrl		*radio_tx_rds_moyes_stereo;
 	struct v4l2_ctrl		*radio_tx_rds_art_head;
 	struct v4l2_ctrl		*radio_tx_rds_compressed;
 	struct v4l2_ctrl		*radio_tx_rds_dyn_pty;

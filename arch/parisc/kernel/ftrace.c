@@ -48,7 +48,7 @@ static void __hot prepare_ftrace_return(unsigned long *parent,
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
-void notrace __hot ftrace_function_trampoline(unsigned long parent,
+void yestrace __hot ftrace_function_trampoline(unsigned long parent,
 				unsigned long self_addr,
 				unsigned long org_sp_gr3,
 				struct pt_regs *regs)
@@ -185,7 +185,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	return 0;
 }
 
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
+int ftrace_make_yesp(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
 	u32 insn[FTRACE_PATCHABLE_FUNCTION_SIZE];

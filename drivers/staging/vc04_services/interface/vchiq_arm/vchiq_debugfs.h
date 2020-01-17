@@ -6,7 +6,7 @@
 
 #include "vchiq_core.h"
 
-struct vchiq_debugfs_node {
+struct vchiq_debugfs_yesde {
     struct dentry *dentry;
 };
 

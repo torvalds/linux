@@ -5,7 +5,7 @@
 
 ret=0
 
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
+PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=yes}
 IP="ip -netns testns"
 
 RTABLE=100
@@ -31,7 +31,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "\n    TEST: %-50s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "no" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -242,7 +242,7 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could yest run test without ip tool"
 	exit 0
 fi
 
@@ -252,7 +252,7 @@ setup
 run_fibrule_tests
 cleanup
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "yesne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

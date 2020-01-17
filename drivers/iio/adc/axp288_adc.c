@@ -138,7 +138,7 @@ static int axp288_adc_set_ts(struct axp288_adc_info *info,
 	if (!info->ts_enabled)
 		return 0;
 
-	/* Channels other than GPADC do not need the current source */
+	/* Channels other than GPADC do yest need the current source */
 	if (address != AXP288_GP_ADC_H)
 		return 0;
 
@@ -189,10 +189,10 @@ static int axp288_adc_read_raw(struct iio_dev *indio_dev,
  */
 static const struct dmi_system_id axp288_adc_ts_bias_override[] = {
 	{
-		/* Lenovo Ideapad 100S (11 inch) */
+		/* Leyesvo Ideapad 100S (11 inch) */
 		.matches = {
 		  DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		  DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 100S-11IBY"),
+		  DMI_MATCH(DMI_PRODUCT_VERSION, "Leyesvo ideapad 100S-11IBY"),
 		},
 		.driver_data = (void *)(uintptr_t)AXP288_ADC_TS_BIAS_80UA,
 	},

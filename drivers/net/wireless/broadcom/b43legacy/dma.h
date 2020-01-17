@@ -89,7 +89,7 @@ struct b43legacy_dmadesc32 {
 #define B43legacy_DMA3_RX_FRAMEOFFSET	0
 
 
-/* DMA engine tuning knobs */
+/* DMA engine tuning kyesbs */
 #define B43legacy_TXRING_SLOTS		128
 #define B43legacy_RXRING_SLOTS		64
 #define B43legacy_DMA0_RX_BUFFERSIZE	(2304 + 100)

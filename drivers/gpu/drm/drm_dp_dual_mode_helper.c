@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -21,7 +21,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
@@ -169,7 +169,7 @@ static bool is_lspcon_adaptor(const char hdmi_id[DP_DUAL_MODE_HDMI_ID_LEN],
  *
  * Attempt to identify the type of the DP dual mode adaptor used.
  *
- * Note that when the answer is @DRM_DP_DUAL_MODE_UNKNOWN it's not
+ * Note that when the answer is @DRM_DP_DUAL_MODE_UNKNOWN it's yest
  * certain whether we're dealing with a native HDMI port or
  * a type 1 DVI dual mode adaptor. The driver will have to use
  * some other hardware/driver specific mechanism to make that
@@ -188,13 +188,13 @@ enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(struct i2c_adapter *adapter)
 	 * Let's see if the adaptor is there the by reading the
 	 * HDMI ID registers.
 	 *
-	 * Note that type 1 DVI adaptors are not required to implemnt
+	 * Note that type 1 DVI adaptors are yest required to implemnt
 	 * any registers, and that presents a problem for detection.
-	 * If the i2c transfer is nacked, we may or may not be dealing
+	 * If the i2c transfer is nacked, we may or may yest be dealing
 	 * with a type 1 DVI adaptor. Some other mechanism of detecting
 	 * the presence of the adaptor is required. One way would be
-	 * to check the state of the CONFIG1 pin, Another method would
-	 * simply require the driver to know whether the port is a DP++
+	 * to check the state of the CONFIG1 pin, Ayesther method would
+	 * simply require the driver to kyesw whether the port is a DP++
 	 * port or a native HDMI port. Both of these methods are entirely
 	 * hardware/driver specific so we can't deal with them here.
 	 */
@@ -207,7 +207,7 @@ enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(struct i2c_adapter *adapter)
 
 	/*
 	 * Sigh. Some (maybe all?) type 1 adaptors are broken and ack
-	 * the offset but ignore it, and instead they just always return
+	 * the offset but igyesre it, and instead they just always return
 	 * data from the start of the HDMI ID buffer. So for a broken
 	 * type 1 HDMI adaptor a single byte read will always give us
 	 * 0x44, and for a type 1 DVI adaptor it should give 0x00
@@ -231,8 +231,8 @@ enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(struct i2c_adapter *adapter)
 				return DRM_DP_DUAL_MODE_TYPE2_DVI;
 		}
 		/*
-		 * If neither a proper type 1 ID nor a broken type 1 adaptor
-		 * as described above, assume type 1, but let the user know
+		 * If neither a proper type 1 ID yesr a broken type 1 adaptor
+		 * as described above, assume type 1, but let the user kyesw
 		 * that we may have misdetected the type.
 		 */
 		if (!is_type1_adaptor(adaptor_id) && adaptor_id != hdmi_id[0])
@@ -269,7 +269,7 @@ int drm_dp_dual_mode_max_tmds_clock(enum drm_dp_dual_mode_type type,
 	uint8_t max_tmds_clock;
 	ssize_t ret;
 
-	/* native HDMI so no limit */
+	/* native HDMI so yes limit */
 	if (type == DRM_DP_DUAL_MODE_NONE)
 		return 0;
 
@@ -342,7 +342,7 @@ EXPORT_SYMBOL(drm_dp_dual_mode_get_tmds_output);
  * type2 this is set via the DP_DUAL_MODE_TMDS_OEN register. As
  * some type 1 adaptors have problems with registers (see comments
  * in drm_dp_dual_mode_detect()) we avoid touching the register,
- * making this function a no-op on type 1 adaptors.
+ * making this function a yes-op on type 1 adaptors.
  *
  * Returns:
  * 0 on success, negative error code on failure
@@ -358,7 +358,7 @@ int drm_dp_dual_mode_set_tmds_output(enum drm_dp_dual_mode_type type,
 		return 0;
 
 	/*
-	 * LSPCON adapters in low-power state may ignore the first write, so
+	 * LSPCON adapters in low-power state may igyesre the first write, so
 	 * read back and verify the written value a few times.
 	 */
 	for (retry = 0; retry < 3; retry++) {
@@ -404,7 +404,7 @@ const char *drm_dp_get_dual_mode_type_name(enum drm_dp_dual_mode_type type)
 {
 	switch (type) {
 	case DRM_DP_DUAL_MODE_NONE:
-		return "none";
+		return "yesne";
 	case DRM_DP_DUAL_MODE_TYPE1_DVI:
 		return "type 1 DVI";
 	case DRM_DP_DUAL_MODE_TYPE1_HDMI:
@@ -417,7 +417,7 @@ const char *drm_dp_get_dual_mode_type_name(enum drm_dp_dual_mode_type type)
 		return "lspcon";
 	default:
 		WARN_ON(type != DRM_DP_DUAL_MODE_UNKNOWN);
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 EXPORT_SYMBOL(drm_dp_get_dual_mode_type_name);

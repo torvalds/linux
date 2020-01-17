@@ -20,7 +20,7 @@ int phandle_format = PHANDLE_EPAPR;	/* Use linux,phandle or phandle properties *
 int generate_symbols;	/* enable symbols & fixup support */
 int generate_fixups;		/* suppress generation of fixups on symbol support */
 int auto_label_aliases;		/* auto generate labels -> aliases */
-int annotate;		/* Level of annotation: 1 for input source location
+int anyestate;		/* Level of anyestation: 1 for input source location
 			   >1 for full input source location. */
 
 static int is_power_of_2(int x)
@@ -28,9 +28,9 @@ static int is_power_of_2(int x)
 	return (x > 0) && ((x & (x - 1)) == 0);
 }
 
-static void fill_fullpaths(struct node *tree, const char *prefix)
+static void fill_fullpaths(struct yesde *tree, const char *prefix)
 {
-	struct node *child;
+	struct yesde *child;
 	const char *unit;
 
 	tree->fullpath = join_path(prefix, tree->name);
@@ -46,10 +46,10 @@ static void fill_fullpaths(struct node *tree, const char *prefix)
 }
 
 /* Usage related data. */
-static const char usage_synopsis[] = "dtc [options] <input file>";
+static const char usage_syyespsis[] = "dtc [options] <input file>";
 static const char usage_short_opts[] = "qI:O:o:V:d:R:S:p:a:fb:i:H:sW:E:@AThv";
 static struct option const usage_long_opts[] = {
-	{"quiet",            no_argument, NULL, 'q'},
+	{"quiet",            yes_argument, NULL, 'q'},
 	{"in-format",         a_argument, NULL, 'I'},
 	{"out",               a_argument, NULL, 'o'},
 	{"out-format",        a_argument, NULL, 'O'},
@@ -60,18 +60,18 @@ static struct option const usage_long_opts[] = {
 	{"pad",               a_argument, NULL, 'p'},
 	{"align",             a_argument, NULL, 'a'},
 	{"boot-cpu",          a_argument, NULL, 'b'},
-	{"force",            no_argument, NULL, 'f'},
+	{"force",            yes_argument, NULL, 'f'},
 	{"include",           a_argument, NULL, 'i'},
-	{"sort",             no_argument, NULL, 's'},
+	{"sort",             yes_argument, NULL, 's'},
 	{"phandle",           a_argument, NULL, 'H'},
 	{"warning",           a_argument, NULL, 'W'},
 	{"error",             a_argument, NULL, 'E'},
-	{"symbols",	     no_argument, NULL, '@'},
-	{"auto-alias",       no_argument, NULL, 'A'},
-	{"annotate",         no_argument, NULL, 'T'},
-	{"help",             no_argument, NULL, 'h'},
-	{"version",          no_argument, NULL, 'v'},
-	{NULL,               no_argument, NULL, 0x0},
+	{"symbols",	     yes_argument, NULL, '@'},
+	{"auto-alias",       yes_argument, NULL, 'A'},
+	{"anyestate",         yes_argument, NULL, 'T'},
+	{"help",             yes_argument, NULL, 'h'},
+	{"version",          yes_argument, NULL, 'v'},
+	{NULL,               yes_argument, NULL, 0x0},
 };
 static const char * const usage_opts_help[] = {
 	"\n\tQuiet: -q suppress warnings, -qq errors, -qqq all",
@@ -96,16 +96,16 @@ static const char * const usage_opts_help[] = {
 	"\n\tSet the physical boot cpu",
 	"\n\tTry to produce output even if the input tree has errors",
 	"\n\tAdd a path to search for include files",
-	"\n\tSort nodes and properties before outputting (useful for comparing trees)",
+	"\n\tSort yesdes and properties before outputting (useful for comparing trees)",
 	"\n\tValid phandle formats are:\n"
 	 "\t\tlegacy - \"linux,phandle\" properties only\n"
 	 "\t\tepapr  - \"phandle\" properties only\n"
 	 "\t\tboth   - Both \"linux,phandle\" and \"phandle\" properties",
-	"\n\tEnable/disable warnings (prefix with \"no-\")",
-	"\n\tEnable/disable errors (prefix with \"no-\")",
+	"\n\tEnable/disable warnings (prefix with \"yes-\")",
+	"\n\tEnable/disable errors (prefix with \"yes-\")",
 	"\n\tEnable generation of symbols",
 	"\n\tEnable auto-alias of labels",
-	"\n\tAnnotate output .dts with input source file and line (-T -T for more details)",
+	"\n\tAnyestate output .dts with input source file and line (-T -T for more details)",
 	"\n\tPrint this help and exit",
 	"\n\tPrint version and exit",
 	NULL,
@@ -254,13 +254,13 @@ int main(int argc, char *argv[])
 			auto_label_aliases = 1;
 			break;
 		case 'T':
-			annotate++;
+			anyestate++;
 			break;
 
 		case 'h':
 			usage(NULL);
 		default:
-			usage("unknown option");
+			usage("unkyeswn option");
 		}
 	}
 
@@ -279,7 +279,7 @@ int main(int argc, char *argv[])
 		depfile = fopen(depname, "w");
 		if (!depfile)
 			die("Couldn't open dependency file %s: %s\n", depname,
-			    strerror(errno));
+			    strerror(erryes));
 		fprintf(depfile, "%s:", outname);
 	}
 
@@ -294,8 +294,8 @@ int main(int argc, char *argv[])
 				outform = "dts";
 		}
 	}
-	if (annotate && (!streq(inform, "dts") || !streq(outform, "dts")))
-		die("--annotate requires -I dts -O dts\n");
+	if (anyestate && (!streq(inform, "dts") || !streq(outform, "dts")))
+		die("--anyestate requires -I dts -O dts\n");
 	if (streq(inform, "dts"))
 		dti = dt_from_source(arg);
 	else if (streq(inform, "fs"))
@@ -303,7 +303,7 @@ int main(int argc, char *argv[])
 	else if(streq(inform, "dtb"))
 		dti = dt_from_blob(arg);
 	else
-		die("Unknown input format \"%s\"\n", inform);
+		die("Unkyeswn input format \"%s\"\n", inform);
 
 	dti->outname = outname;
 
@@ -344,7 +344,7 @@ int main(int argc, char *argv[])
 		outf = fopen(outname, "wb");
 		if (! outf)
 			die("Couldn't open output file %s: %s\n",
-			    outname, strerror(errno));
+			    outname, strerror(erryes));
 	}
 
 	if (streq(outform, "dts")) {
@@ -360,9 +360,9 @@ int main(int argc, char *argv[])
 	} else if (streq(outform, "asm")) {
 		dt_to_asm(outf, dti, outversion);
 	} else if (streq(outform, "null")) {
-		/* do nothing */
+		/* do yesthing */
 	} else {
-		die("Unknown output format \"%s\"\n", outform);
+		die("Unkyeswn output format \"%s\"\n", outform);
 	}
 
 	exit(0);

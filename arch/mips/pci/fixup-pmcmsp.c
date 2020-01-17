@@ -24,7 +24,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -124,7 +124,7 @@ static char irq_tab[][5] = {
 
 #else
 
-/* Unknown board -- don't assign any IRQs */
+/* Unkyeswn board -- don't assign any IRQs */
 static char irq_tab[][5] = {
 	/* INTA	   INTB	   INTC	   INTD */
 	{0,	0,	0,	0,	0 },	/*    (AD[0]): Unused */
@@ -173,7 +173,7 @@ static char irq_tab[][5] = {
  *
  *  INPUTS:	 dev	 - structure describing the PCI device
  *
- *  OUTPUTS:	 none
+ *  OUTPUTS:	 yesne
  *
  *  RETURNS:	 PCIBIOS_SUCCESSFUL
  *
@@ -197,7 +197,7 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
  *		 pin	 - numbered using the scheme of the PCI_INTERRUPT_PIN
  *			   field of the config header.
  *
- *  OUTPUTS:	 none
+ *  OUTPUTS:	 yesne
  *
  *  RETURNS:	 IRQ number
  *
@@ -205,7 +205,7 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 #if !defined(CONFIG_PMC_MSP7120_GW) && !defined(CONFIG_PMC_MSP7120_EVAL)
-	printk(KERN_WARNING "PCI: unknown board, no PCI IRQs assigned.\n");
+	printk(KERN_WARNING "PCI: unkyeswn board, yes PCI IRQs assigned.\n");
 #endif
 	printk(KERN_WARNING "PCI: irq_tab returned %d for slot=%d pin=%d\n",
 		irq_tab[slot][pin], slot, pin);

@@ -3,7 +3,7 @@
 #define __ASMARM_ARCH_TIMER_H
 
 #include <asm/barrier.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/hwcap.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
@@ -12,7 +12,7 @@
 #include <clocksource/arm_arch_timer.h>
 
 #ifdef CONFIG_ARM_ARCH_TIMER
-/* 32bit ARM doesn't know anything about timer errata... */
+/* 32bit ARM doesn't kyesw anything about timer errata... */
 #define has_erratum_handler(h)		(false)
 #define erratum_handler(h)		(arch_timer_##h)
 

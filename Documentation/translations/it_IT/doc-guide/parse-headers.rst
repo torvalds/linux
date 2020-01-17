@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-ita.rst
 
-.. note:: Per leggere la documentazione originale in inglese:
+.. yeste:: Per leggere la documentazione originale in inglese:
 	  :ref:`Documentation/doc-guide/index.rst <doc_guide>`
 
 =========================================
@@ -11,12 +11,12 @@ Qualche volta è utile includere dei file di intestazione e degli esempi di codi
 al fine di descrivere l'API per lo spazio utente e per generare dei riferimenti
 fra il codice e la documentazione. Aggiungere i riferimenti ai file dell'API
 dello spazio utente ha ulteriori vantaggi: Sphinx genererà dei messaggi
-d'avviso se un simbolo non viene trovato nella documentazione. Questo permette
+d'avviso se un simbolo yesn viene trovato nella documentazione. Questo permette
 di mantenere allineate la documentazione della uAPI (API spazio utente)
 con le modifiche del kernel.
 Il programma :ref:`parse_headers.pl <it_parse_headers>` genera questi riferimenti.
 Esso dev'essere invocato attraverso un Makefile, mentre si genera la
-documentazione. Per avere un esempio su come utilizzarlo all'interno del kernel
+documentazione. Per avere un esempio su come utilizzarlo all'interyes del kernel
 consultate ``Documentation/media/Makefile``.
 
 .. _it_parse_headers:
@@ -67,42 +67,42 @@ Converte un file d'intestazione o un file sorgente C (C_FILE) in un testo
 ReStructuredText incluso mediante il blocco ..parsed-literal
 con riferimenti alla documentazione che descrive l'API. Opzionalmente,
 il programma accetta anche un altro file (EXCEPTIONS_FILE) che
-descrive quali elementi debbano essere ignorati o il cui riferimento
+descrive quali elementi debbayes essere igyesrati o il cui riferimento
 deve puntare ad elemento diverso dal predefinito.
 
 Il file generato sarà disponibile in (OUT_FILE).
 
 Il programma è capace di identificare *define*, funzioni, strutture,
 tipi di dato, enumerati e valori di enumerati, e di creare i riferimenti
-per ognuno di loro. Inoltre, esso è capace di distinguere le #define
+per ognuyes di loro. Iyesltre, esso è capace di distinguere le #define
 utilizzate per specificare i comandi ioctl di Linux.
 
 Il file EXCEPTIONS_FILE contiene due tipi di dichiarazioni:
-\ **ignore**\  o \ **replace**\ .
+\ **igyesre**\  o \ **replace**\ .
 
-La sintassi per ignore è:
+La sintassi per igyesre è:
 
-ignore \ **tipo**\  \ **nome**\
+igyesre \ **tipo**\  \ **yesme**\
 
-La dichiarazione \ **ignore**\  significa che non verrà generato alcun
+La dichiarazione \ **igyesre**\  significa che yesn verrà generato alcun
 riferimento per il simbolo \ **name**\  di tipo \ **tipo**\ .
 
 
 La sintassi per replace è:
 
-replace \ **tipo**\  \ **nome**\  \ **nuovo_valore**\
+replace \ **tipo**\  \ **yesme**\  \ **nuovo_valore**\
 
 La dichiarazione \ **replace**\  significa che verrà generato un
 riferimento per il simbolo \ **name**\ di tipo \ **tipo**\ , ma, invece
 di utilizzare il valore predefinito, verrà utilizzato il valore
 \ **nuovo_valore**\ .
 
-Per entrambe le dichiarazioni, il \ **tipo**\  può essere uno dei seguenti:
+Per entrambe le dichiarazioni, il \ **tipo**\  può essere uyes dei seguenti:
 
 
 \ **ioctl**\
 
- La dichiarazione ignore o replace verrà applicata su definizioni di ioctl
+ La dichiarazione igyesre o replace verrà applicata su definizioni di ioctl
  come la seguente:
 
  #define	VIDIOC_DBG_S_REGISTER 	 _IOW('V', 79, struct v4l2_dbg_register)
@@ -111,35 +111,35 @@ Per entrambe le dichiarazioni, il \ **tipo**\  può essere uno dei seguenti:
 
 \ **define**\
 
- La dichiarazione ignore o replace verrà applicata su una qualsiasi #define
+ La dichiarazione igyesre o replace verrà applicata su una qualsiasi #define
  trovata in C_FILE.
 
 
 
 \ **typedef**\
 
- La dichiarazione ignore o replace verrà applicata ad una dichiarazione typedef
+ La dichiarazione igyesre o replace verrà applicata ad una dichiarazione typedef
  in C_FILE.
 
 
 
 \ **struct**\
 
- La dichiarazione ignore o replace verrà applicata ai nomi di strutture
+ La dichiarazione igyesre o replace verrà applicata ai yesmi di strutture
  in C_FILE.
 
 
 
 \ **enum**\
 
- La dichiarazione ignore o replace verrà applicata ai nomi di enumerati
+ La dichiarazione igyesre o replace verrà applicata ai yesmi di enumerati
  in C_FILE.
 
 
 
 \ **symbol**\
 
- La dichiarazione ignore o replace verrà applicata ai nomi di valori di
+ La dichiarazione igyesre o replace verrà applicata ai yesmi di valori di
  enumerati in C_FILE.
 
  Per le dichiarazioni di tipo replace, il campo \ **new_value**\  utilizzerà
@@ -153,12 +153,12 @@ ESEMPI
 ******
 
 
-ignore define _VIDEODEV2_H
+igyesre define _VIDEODEV2_H
 
 
-Ignora una definizione #define _VIDEODEV2_H nel file C_FILE.
+Igyesra una definizione #define _VIDEODEV2_H nel file C_FILE.
 
-ignore symbol PRIVATE
+igyesre symbol PRIVATE
 
 
 In un enumerato come il seguente:

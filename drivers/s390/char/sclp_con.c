@@ -22,7 +22,7 @@
 #include "sclp_tty.h"
 
 #define sclp_console_major 4		/* TTYAUX_MAJOR */
-#define sclp_console_minor 64
+#define sclp_console_miyesr 64
 #define sclp_console_name  "ttyS"
 
 /* Lock to guard over changes to global variables */
@@ -260,20 +260,20 @@ static void sclp_console_suspend(void)
 	sclp_console_flush();
 }
 
-static int sclp_console_notify(struct notifier_block *self,
+static int sclp_console_yestify(struct yestifier_block *self,
 			       unsigned long event, void *data)
 {
 	sclp_console_flush();
 	return NOTIFY_OK;
 }
 
-static struct notifier_block on_panic_nb = {
-	.notifier_call = sclp_console_notify,
+static struct yestifier_block on_panic_nb = {
+	.yestifier_call = sclp_console_yestify,
 	.priority = SCLP_PANIC_PRIO_CLIENT,
 };
 
-static struct notifier_block on_reboot_nb = {
-	.notifier_call = sclp_console_notify,
+static struct yestifier_block on_reboot_nb = {
+	.yestifier_call = sclp_console_yestify,
 	.priority = 1,
 };
 
@@ -345,8 +345,8 @@ sclp_console_init(void)
 	sclp_con_width_htab = 8;
 
 	/* enable printk-access to this driver */
-	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
-	register_reboot_notifier(&on_reboot_nb);
+	atomic_yestifier_chain_register(&panic_yestifier_list, &on_panic_nb);
+	register_reboot_yestifier(&on_reboot_nb);
 	register_console(&sclp_console);
 	return 0;
 }

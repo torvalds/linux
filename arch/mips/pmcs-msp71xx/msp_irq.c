@@ -64,7 +64,7 @@ asmlinkage void plat_irq_dispatch(void)
 	 * comes first!
 	 */
 
-#ifdef CONFIG_IRQ_MSP_CIC	/* break out the CIC stuff for now */
+#ifdef CONFIG_IRQ_MSP_CIC	/* break out the CIC stuff for yesw */
 	if (pending & C_IRQ4)	/* do the peripherals first, that's the timer */
 		msp_cic_irq_dispatch();
 
@@ -108,13 +108,13 @@ asmlinkage void plat_irq_dispatch(void)
 }
 
 static struct irqaction cic_cascade_msp = {
-	.handler = no_action,
+	.handler = yes_action,
 	.name	 = "MSP CIC cascade",
 	.flags	 = IRQF_NO_THREAD,
 };
 
 static struct irqaction per_cascade_msp = {
-	.handler = no_action,
+	.handler = yes_action,
 	.name	 = "MSP PER cascade",
 	.flags	 = IRQF_NO_THREAD,
 };
@@ -148,7 +148,7 @@ void __init arch_init_irq(void)
 #else
 	/*
 	 * Setup the 2nd-level SLP register based interrupt controller.
-	 * VSMP support support is not enabled for SLP.
+	 * VSMP support support is yest enabled for SLP.
 	 */
 	msp_slp_irq_init();
 

@@ -34,7 +34,7 @@ TRACE_EVENT(mpx_bounds_register_exception,
 	 * gibberish when printed out, so print out the 1's
 	 * complement instead of the actual value here.  Note
 	 * though that you still need to specify filters for the
-	 * actual value, not the displayed one.
+	 * actual value, yest the displayed one.
 	 */
 	TP_printk("address referenced: 0x%p bounds: lower: 0x%llx ~upper: 0x%llx",
 		__entry->addr_referenced,

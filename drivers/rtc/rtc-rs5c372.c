@@ -3,7 +3,7 @@
  * An I2C driver for Ricoh RS5C372, R2025S/D and RV5C38[67] RTCs
  *
  * Copyright (C) 2005 Pavel Mironchik <pmironchik@optifacio.net>
- * Copyright (C) 2006 Tower Technologies
+ * Copyright (C) 2006 Tower Techyeslogies
  * Copyright (C) 2008 Paul Mundt
  */
 
@@ -16,7 +16,7 @@
 
 /*
  * Ricoh has a family of I2C based RTCs, which differ only slightly from
- * each other.  Differences center on pinout (e.g. how many interrupts,
+ * each other.  Differences center on piyesut (e.g. how many interrupts,
  * output clock, etc) and how the control registers are used.  The '372
  * is significant only because that's the one this driver first supported.
  */
@@ -45,7 +45,7 @@
 #	define RV5C387_CTRL1_24		(1 << 5)
 #	define RS5C372A_CTRL1_SL1	(1 << 5)
 #	define RS5C_CTRL1_CT_MASK	(7 << 0)
-#	define RS5C_CTRL1_CT0		(0 << 0)	/* no periodic irq */
+#	define RS5C_CTRL1_CT0		(0 << 0)	/* yes periodic irq */
 #	define RS5C_CTRL1_CT4		(4 << 0)	/* 1 Hz level irq */
 #define RS5C_REG_CTRL2		15
 #	define RS5C372_CTRL2_24		(1 << 5)
@@ -113,9 +113,9 @@ static const struct of_device_id rs5c372_of_match[] = {
 MODULE_DEVICE_TABLE(of, rs5c372_of_match);
 
 /* REVISIT:  this assumes that:
- *  - we're in the 21st century, so it's safe to ignore the century
+ *  - we're in the 21st century, so it's safe to igyesre the century
  *    bit for rv5c38[67] (REG_MONTH bit 7);
- *  - we should use ALARM_A not ALARM_B (may be wrong on some boards)
+ *  - we should use ALARM_A yest ALARM_B (may be wrong on some boards)
  */
 struct rs5c372 {
 	struct i2c_client	*client;
@@ -550,7 +550,7 @@ static int rs5c_sysfs_register(struct device *dev)
 
 static void rs5c_sysfs_unregister(struct device *dev)
 {
-	/* nothing */
+	/* yesthing */
 }
 #endif	/* SYSFS */
 
@@ -632,7 +632,7 @@ static int rs5c372_probe(struct i2c_client *client,
 				I2C_FUNC_SMBUS_I2C_BLOCK))
 			smbus_mode = 1;
 		else {
-			/* Still no good, give up */
+			/* Still yes good, give up */
 			err = -ENODEV;
 			goto exit;
 		}
@@ -647,7 +647,7 @@ static int rs5c372_probe(struct i2c_client *client,
 
 	rs5c372->client = client;
 	i2c_set_clientdata(client, rs5c372);
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		rs5c372->type = (enum rtc_type)
 			of_device_get_match_data(&client->dev);
 	else
@@ -682,11 +682,11 @@ static int rs5c372_probe(struct i2c_client *client,
 		 */
 		break;
 	default:
-		dev_err(&client->dev, "unknown RTC type\n");
+		dev_err(&client->dev, "unkyeswn RTC type\n");
 		goto exit;
 	}
 
-	/* if the oscillator lost power and no other software (like
+	/* if the oscillator lost power and yes other software (like
 	 * the bootloader) set it up, do it here.
 	 *
 	 * The R2025S/D does this a little differently than the other

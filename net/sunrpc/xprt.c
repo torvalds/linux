@@ -3,7 +3,7 @@
  *  linux/net/sunrpc/xprt.c
  *
  *  This is a generic RPC call interface supporting congestion avoidance,
- *  and asynchronous calls.
+ *  and asynchroyesus calls.
  *
  *  The interface works like this:
  *
@@ -19,11 +19,11 @@
  *  -	When a packet arrives, the data_ready handler walks the list of
  *	pending requests for that transport. If a matching XID is found, the
  *	caller is woken up, and the timer removed.
- *  -	When no reply arrives within the timeout interval, the timer is
+ *  -	When yes reply arrives within the timeout interval, the timer is
  *	fired by the kernel and runs xprt_timer(). It either adjusts the
- *	timeout values (minor timeout) or wakes up the caller with a status
+ *	timeout values (miyesr timeout) or wakes up the caller with a status
  *	of -ETIMEDOUT.
- *  -	When the caller receives a notification from RPC that a reply arrived,
+ *  -	When the caller receives a yestification from RPC that a reply arrived,
  *	it should release the RPC slot, and process the reply.
  *	If the call timed out, it may choose to retry the operation by
  *	adjusting the initial timeout value, and simply calling rpc_call
@@ -88,7 +88,7 @@ static unsigned long xprt_request_timeout(const struct rpc_rqst *req)
  * @transport: transport to register
  *
  * If a transport implementation is loaded as a kernel module, it can
- * call this interface to make itself known to the RPC client.
+ * call this interface to make itself kyeswn to the RPC client.
  *
  * Returns:
  * 0:		transport successfully registered
@@ -157,7 +157,7 @@ EXPORT_SYMBOL_GPL(xprt_unregister_transport);
  *
  * Returns:
  * 0:		transport successfully loaded
- * -ENOENT:	transport module not available
+ * -ENOENT:	transport module yest available
  */
 int xprt_load_transport(const char *transport_name)
 {
@@ -261,7 +261,7 @@ xprt_test_and_clear_congestion_window_wait(struct rpc_xprt *xprt)
  * Same as xprt_reserve_xprt, but Van Jacobson congestion control is
  * integrated into the decision of whether a request is allowed to be
  * woken up and given access to the transport.
- * Note that the lock is only granted if we know there are free slots.
+ * Note that the lock is only granted if we kyesw there are free slots.
  */
 int xprt_reserve_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task)
 {
@@ -368,7 +368,7 @@ EXPORT_SYMBOL_GPL(xprt_release_xprt);
  * @xprt: transport with other tasks potentially waiting
  * @task: task that is releasing access to the transport
  *
- * Note that "task" can be NULL.  Another task is awoken to use the
+ * Note that "task" can be NULL.  Ayesther task is awoken to use the
  * transport if the transport's congestion window allows it.
  */
 void xprt_release_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task)
@@ -513,7 +513,7 @@ void xprt_adjust_cwnd(struct rpc_xprt *xprt, struct rpc_task *task, int result)
 		if (cwnd < RPC_CWNDSCALE)
 			cwnd = RPC_CWNDSCALE;
 	}
-	dprintk("RPC:       cong %ld, cwnd was %ld, now %ld\n",
+	dprintk("RPC:       cong %ld, cwnd was %ld, yesw %ld\n",
 			xprt->cong, xprt->cwnd, cwnd);
 	xprt->cwnd = cwnd;
 	__xprt_put_cong(xprt, req);
@@ -661,13 +661,13 @@ static void xprt_autoclose(struct work_struct *work)
 {
 	struct rpc_xprt *xprt =
 		container_of(work, struct rpc_xprt, task_cleanup);
-	unsigned int pflags = memalloc_nofs_save();
+	unsigned int pflags = memalloc_yesfs_save();
 
 	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
 	xprt->ops->close(xprt);
 	xprt_release_write(xprt, NULL);
 	wake_up_bit(&xprt->state, XPRT_LOCKED);
-	memalloc_nofs_restore(pflags);
+	memalloc_yesfs_restore(pflags);
 }
 
 /**
@@ -823,7 +823,7 @@ void xprt_connect(struct rpc_task *task)
 	struct rpc_xprt	*xprt = task->tk_rqstp->rq_xprt;
 
 	dprintk("RPC: %5u xprt_connect xprt %p %s connected\n", task->tk_pid,
-			xprt, (xprt_connected(xprt) ? "is" : "is not"));
+			xprt, (xprt_connected(xprt) ? "is" : "is yest"));
 
 	if (!xprt_bound(xprt)) {
 		task->tk_status = -EAGAIN;
@@ -864,11 +864,11 @@ void xprt_connect(struct rpc_task *task)
  */
 unsigned long xprt_reconnect_delay(const struct rpc_xprt *xprt)
 {
-	unsigned long start, now = jiffies;
+	unsigned long start, yesw = jiffies;
 
 	start = xprt->stat.connect_start + xprt->reestablish_timeout;
-	if (time_after(start, now))
-		return start - now;
+	if (time_after(start, yesw))
+		return start - yesw;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xprt_reconnect_delay);
@@ -907,7 +907,7 @@ xprt_xid_cmp(__be32 xid1, __be32 xid2)
 static struct rpc_rqst *
 xprt_request_rb_find(struct rpc_xprt *xprt, __be32 xid)
 {
-	struct rb_node *n = xprt->recv_queue.rb_node;
+	struct rb_yesde *n = xprt->recv_queue.rb_yesde;
 	struct rpc_rqst *req;
 
 	while (n != NULL) {
@@ -929,8 +929,8 @@ xprt_request_rb_find(struct rpc_xprt *xprt, __be32 xid)
 static void
 xprt_request_rb_insert(struct rpc_xprt *xprt, struct rpc_rqst *new)
 {
-	struct rb_node **p = &xprt->recv_queue.rb_node;
-	struct rb_node *n = NULL;
+	struct rb_yesde **p = &xprt->recv_queue.rb_yesde;
+	struct rb_yesde *n = NULL;
 	struct rpc_rqst *req;
 
 	while (*p != NULL) {
@@ -948,7 +948,7 @@ xprt_request_rb_insert(struct rpc_xprt *xprt, struct rpc_rqst *new)
 			return;
 		}
 	}
-	rb_link_node(&new->rq_recv, n, p);
+	rb_link_yesde(&new->rq_recv, n, p);
 	rb_insert_color(&new->rq_recv, &xprt->recv_queue);
 }
 
@@ -976,7 +976,7 @@ struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid)
 		return entry;
 	}
 
-	dprintk("RPC:       xprt_lookup_rqst did not find xid %08x\n",
+	dprintk("RPC:       xprt_lookup_rqst did yest find xid %08x\n",
 			ntohl(xid));
 	trace_xprt_lookup_rqst(xprt, xid, -ENOENT);
 	xprt->stat.bad_xids++;
@@ -1272,7 +1272,7 @@ xprt_request_enqueue_transmit(struct rpc_task *task)
 				trace_xprt_enq_xmit(task, 2);
 				goto out;
 			}
-		} else if (!req->rq_seqno) {
+		} else if (!req->rq_seqyes) {
 			list_for_each_entry(pos, &xprt->xmit_queue, rq_xmit) {
 				if (pos->rq_task->tk_owner != task->tk_owner)
 					continue;
@@ -1339,7 +1339,7 @@ xprt_request_dequeue_transmit(struct rpc_task *task)
  * @task: pointer to rpc_task
  *
  * Remove a task from the transmit and receive queues, and ensure that
- * it is not pinned by the receive work item.
+ * it is yest pinned by the receive work item.
  */
 void
 xprt_request_dequeue_xprt(struct rpc_task *task)
@@ -1426,7 +1426,7 @@ void xprt_end_transmit(struct rpc_task *task)
  * @snd_task: RPC task that owns the transport lock
  *
  * This performs the transmission of a single request.
- * Note that if the request is not the same as snd_task, then it
+ * Note that if the request is yest the same as snd_task, then it
  * does need to be pinned.
  * Returns '0' on success.
  */
@@ -1457,7 +1457,7 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 
 	/*
 	 * Update req->rq_ntrans before transmitting to avoid races with
-	 * xprt_update_rtt(), which needs to know that it is recording a
+	 * xprt_update_rtt(), which needs to kyesw that it is recording a
 	 * reply to the first transmission.
 	 */
 	req->rq_ntrans++;
@@ -1750,7 +1750,7 @@ xprt_do_reserve(struct rpc_xprt *xprt, struct rpc_task *task)
  * xprt_reserve - allocate an RPC request slot
  * @task: RPC task requesting a slot allocation
  *
- * If the transport is marked as being congested, or if no more
+ * If the transport is marked as being congested, or if yes more
  * slots are available, place the task on the transport's
  * backlog queue.
  */
@@ -1771,10 +1771,10 @@ void xprt_reserve(struct rpc_task *task)
  * xprt_retry_reserve - allocate an RPC request slot
  * @task: RPC task requesting a slot allocation
  *
- * If no more slots are available, place the task on the transport's
+ * If yes more slots are available, place the task on the transport's
  * backlog queue.
- * Note that the only difference with xprt_reserve is that we now
- * ignore the value of the XPRT_CONGESTED flag.
+ * Note that the only difference with xprt_reserve is that we yesw
+ * igyesre the value of the XPRT_CONGESTED flag.
  */
 void xprt_retry_reserve(struct rpc_task *task)
 {
@@ -1899,7 +1899,7 @@ struct rpc_xprt *xprt_create_transport(struct xprt_create *args)
 		}
 	}
 	spin_unlock(&xprt_list_lock);
-	dprintk("RPC: transport (%d) not supported\n", args->ident);
+	dprintk("RPC: transport (%d) yest supported\n", args->ident);
 	return ERR_PTR(-EIO);
 
 found:

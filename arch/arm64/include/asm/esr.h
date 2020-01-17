@@ -77,7 +77,7 @@
 #define ESR_ELx_WNR_SHIFT	(6)
 #define ESR_ELx_WNR		(UL(1) << ESR_ELx_WNR_SHIFT)
 
-/* Asynchronous Error Type */
+/* Asynchroyesus Error Type */
 #define ESR_ELx_IDS_SHIFT	(24)
 #define ESR_ELx_IDS		(UL(1) << ESR_ELx_IDS_SHIFT)
 #define ESR_ELx_AET_SHIFT	(10)

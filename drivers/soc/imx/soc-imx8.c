@@ -50,12 +50,12 @@ static inline u32 imx8mq_soc_revision_from_atf(void) { return 0; };
 
 static u32 __init imx8mq_soc_revision(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *ocotp_base;
 	u32 magic;
 	u32 rev = 0;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mq-ocotp");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx8mq-ocotp");
 	if (!np)
 		goto out;
 
@@ -63,7 +63,7 @@ static u32 __init imx8mq_soc_revision(void)
 	WARN_ON(!ocotp_base);
 
 	/*
-	 * SOC revision on older imx8mq is not available in fuses so query
+	 * SOC revision on older imx8mq is yest available in fuses so query
 	 * the value from ATF instead.
 	 */
 	rev = imx8mq_soc_revision_from_atf();
@@ -80,16 +80,16 @@ static u32 __init imx8mq_soc_revision(void)
 	iounmap(ocotp_base);
 
 out:
-	of_node_put(np);
+	of_yesde_put(np);
 	return rev;
 }
 
 static void __init imx8mm_soc_uid(void)
 {
 	void __iomem *ocotp_base;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mm-ocotp");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx8mm-ocotp");
 	if (!np)
 		return;
 
@@ -101,16 +101,16 @@ static void __init imx8mm_soc_uid(void)
 	soc_uid |= readl_relaxed(ocotp_base + OCOTP_UID_LOW);
 
 	iounmap(ocotp_base);
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 static u32 __init imx8mm_soc_revision(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *anatop_base;
 	u32 rev;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mm-anatop");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx8mm-anatop");
 	if (!np)
 		return 0;
 
@@ -120,7 +120,7 @@ static u32 __init imx8mm_soc_revision(void)
 	rev = readl_relaxed(anatop_base + ANADIG_DIGPROG_IMX8MM);
 
 	iounmap(anatop_base);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	imx8mm_soc_uid();
 
@@ -152,7 +152,7 @@ static const struct of_device_id imx8_soc_match[] = {
 #define imx8_revision(soc_rev) \
 	soc_rev ? \
 	kasprintf(GFP_KERNEL, "%d.%d", (soc_rev >> 4) & 0xf,  soc_rev & 0xf) : \
-	"unknown"
+	"unkyeswn"
 
 static int __init imx8_soc_init(void)
 {
@@ -173,7 +173,7 @@ static int __init imx8_soc_init(void)
 	if (ret)
 		goto free_soc;
 
-	id = of_match_node(imx8_soc_match, of_root);
+	id = of_match_yesde(imx8_soc_match, of_root);
 	if (!id) {
 		ret = -ENODEV;
 		goto free_soc;
@@ -212,7 +212,7 @@ static int __init imx8_soc_init(void)
 free_serial_number:
 	kfree(soc_dev_attr->serial_number);
 free_rev:
-	if (strcmp(soc_dev_attr->revision, "unknown"))
+	if (strcmp(soc_dev_attr->revision, "unkyeswn"))
 		kfree(soc_dev_attr->revision);
 free_soc:
 	kfree(soc_dev_attr);

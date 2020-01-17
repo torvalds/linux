@@ -117,7 +117,7 @@ static void process_queued_bios(struct work_struct *work);
 #define MPATHF_QUEUE_IF_NO_PATH 1		/* Queue I/O if last path fails? */
 #define MPATHF_SAVED_QUEUE_IF_NO_PATH 2		/* Saved state during suspension */
 #define MPATHF_RETAIN_ATTACHED_HW_HANDLER 3	/* If there's already a hw_handler present, don't change it. */
-#define MPATHF_PG_INIT_DISABLED 4		/* pg_init is not currently allowed */
+#define MPATHF_PG_INIT_DISABLED 4		/* pg_init is yest currently allowed */
 #define MPATHF_PG_INIT_REQUIRED 5		/* pg_init needs calling? */
 #define MPATHF_PG_INIT_DELAY_RETRY 6		/* Delay pg_init retry? */
 
@@ -217,7 +217,7 @@ static int alloc_multipath_stage2(struct dm_target *ti, struct multipath *m)
 
 	/*
 	 * Init fields that are only used when a scsi_dh is attached
-	 * - must do this unconditionally (really doesn't hurt non-SCSI uses)
+	 * - must do this unconditionally (really doesn't hurt yesn-SCSI uses)
 	 */
 	set_bit(MPATHF_QUEUE_IO, &m->flags);
 	atomic_set(&m->pg_init_in_progress, 0);
@@ -392,7 +392,7 @@ static struct pgpath *choose_pgpath(struct multipath *m, size_t nr_bytes)
 			return pgpath;
 	}
 
-	/* Don't change PG until it has no remaining paths */
+	/* Don't change PG until it has yes remaining paths */
 check_current_pg:
 	pg = READ_ONCE(m->current_pg);
 	if (pg) {
@@ -405,7 +405,7 @@ check_current_pg:
 	 * Loop through priority groups until we find a valid path.
 	 * First time we skip PGs marked 'bypassed'.
 	 * Second time we only try the ones we skipped, but set
-	 * pg_init_delay_retry so we do not hammer controllers.
+	 * pg_init_delay_retry so we do yest hammer controllers.
 	 */
 	do {
 		list_for_each_entry(pg, &m->priority_groups, list) {
@@ -442,7 +442,7 @@ do {									\
 		 dm_device_name(md),					\
 		 test_bit(MPATHF_QUEUE_IF_NO_PATH, &(m)->flags),	\
 		 test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &(m)->flags),	\
-		 dm_noflush_suspending((m)->ti));			\
+		 dm_yesflush_suspending((m)->ti));			\
 } while (0)
 
 /*
@@ -450,15 +450,15 @@ do {									\
  * than here in the target.
  *
  * If MPATHF_QUEUE_IF_NO_PATH and MPATHF_SAVED_QUEUE_IF_NO_PATH hold
- * the same value then we are not between multipath_presuspend()
- * and multipath_resume() calls and we have no need to check
+ * the same value then we are yest between multipath_presuspend()
+ * and multipath_resume() calls and we have yes need to check
  * for the DMF_NOFLUSH_SUSPENDING flag.
  */
 static bool __must_push_back(struct multipath *m, unsigned long flags)
 {
 	return ((test_bit(MPATHF_QUEUE_IF_NO_PATH, &flags) !=
 		 test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &flags)) &&
-		dm_noflush_suspending(m->ti));
+		dm_yesflush_suspending(m->ti));
 }
 
 /*
@@ -549,7 +549,7 @@ static void multipath_release_clone(struct request *clone,
 {
 	if (unlikely(map_context)) {
 		/*
-		 * non-NULL map_context means caller is still map
+		 * yesn-NULL map_context means caller is still map
 		 * method; must undo multipath_clone_and_map()
 		 */
 		struct dm_mpath_io *mpio = get_mpio(map_context);
@@ -587,7 +587,7 @@ static struct pgpath *__map_bio(struct multipath *m, struct bio *bio)
 		bio_list_add(&m->queued_bios, bio);
 		spin_unlock_irqrestore(&m->lock, flags);
 
-		/* PG_INIT_REQUIRED cannot be set without QUEUE_IO */
+		/* PG_INIT_REQUIRED canyest be set without QUEUE_IO */
 		if (queue_io || test_bit(MPATHF_PG_INIT_REQUIRED, &m->flags))
 			pg_init_all_paths(m);
 		else if (!queue_io)
@@ -697,7 +697,7 @@ static void process_queued_bios(struct work_struct *work)
 /*
  * If we run out of usable paths, should we queue I/O or error it?
  */
-static int queue_if_no_path(struct multipath *m, bool queue_if_no_path,
+static int queue_if_yes_path(struct multipath *m, bool queue_if_yes_path,
 			    bool save_old_value)
 {
 	unsigned long flags;
@@ -705,11 +705,11 @@ static int queue_if_no_path(struct multipath *m, bool queue_if_no_path,
 	spin_lock_irqsave(&m->lock, flags);
 	assign_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags,
 		   (save_old_value && test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) ||
-		   (!save_old_value && queue_if_no_path));
-	assign_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags, queue_if_no_path);
+		   (!save_old_value && queue_if_yes_path));
+	assign_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags, queue_if_yes_path);
 	spin_unlock_irqrestore(&m->lock, flags);
 
-	if (!queue_if_no_path) {
+	if (!queue_if_yes_path) {
 		dm_table_run_md_queue_async(m->ti->table);
 		process_queued_io_list(m);
 	}
@@ -752,7 +752,7 @@ static int parse_path_selector(struct dm_arg_set *as, struct priority_group *pg,
 
 	pst = dm_get_path_selector(dm_shift_arg(as));
 	if (!pst) {
-		ti->error = "unknown path selector type";
+		ti->error = "unkyeswn path selector type";
 		return -EINVAL;
 	}
 
@@ -842,7 +842,7 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 
 	/* we need at least a path arg */
 	if (as->argc < 1) {
-		ti->error = "no device given";
+		ti->error = "yes device given";
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -896,7 +896,7 @@ static struct priority_group *parse_priority_group(struct dm_arg_set *as,
 
 	if (as->argc < 2) {
 		as->argc = 0;
-		ti->error = "not enough priority group arguments";
+		ti->error = "yest eyesugh priority group arguments";
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -928,7 +928,7 @@ static struct priority_group *parse_priority_group(struct dm_arg_set *as,
 		struct dm_arg_set path_args;
 
 		if (as->argc < nr_args) {
-			ti->error = "not enough path parameters";
+			ti->error = "yest eyesugh path parameters";
 			r = -EINVAL;
 			goto bad;
 		}
@@ -1029,8 +1029,8 @@ static int parse_features(struct dm_arg_set *as, struct multipath *m)
 		arg_name = dm_shift_arg(as);
 		argc--;
 
-		if (!strcasecmp(arg_name, "queue_if_no_path")) {
-			r = queue_if_no_path(m, true, false);
+		if (!strcasecmp(arg_name, "queue_if_yes_path")) {
+			r = queue_if_yes_path(m, true, false);
 			continue;
 		}
 
@@ -1063,7 +1063,7 @@ static int parse_features(struct dm_arg_set *as, struct multipath *m)
 				 !strcasecmp(queue_mode_name, "mq"))
 				m->queue_mode = DM_TYPE_REQUEST_BASED;
 			else {
-				ti->error = "Unknown 'queue_mode' requested";
+				ti->error = "Unkyeswn 'queue_mode' requested";
 				r = -EINVAL;
 			}
 			argc--;
@@ -1428,10 +1428,10 @@ static void pg_init_done(void *data, int errors)
 			errors = 0;
 			break;
 		}
-		DMERR("Could not failover the device: Handler scsi_dh_%s "
+		DMERR("Could yest failover the device: Handler scsi_dh_%s "
 		      "Error %d.", m->hw_handler_name, errors);
 		/*
-		 * Fail path for now, so we do not ping pong
+		 * Fail path for yesw, so we do yest ping pong
 		 */
 		fail_path(pgpath);
 		break;
@@ -1455,7 +1455,7 @@ static void pg_init_done(void *data, int errors)
 	case SCSI_DH_DEV_OFFLINED:
 	default:
 		/*
-		 * We probably do not want to fail the path for a device
+		 * We probably do yest want to fail the path for a device
 		 * error, but this is what the old dm did. In future
 		 * patches we can do more advanced handling.
 		 */
@@ -1465,7 +1465,7 @@ static void pg_init_done(void *data, int errors)
 	spin_lock_irqsave(&m->lock, flags);
 	if (errors) {
 		if (pgpath == m->current_pgpath) {
-			DMERR("Could not failover device. Error %d.", errors);
+			DMERR("Could yest failover device. Error %d.", errors);
 			m->current_pgpath = NULL;
 			m->current_pg = NULL;
 		}
@@ -1612,13 +1612,13 @@ done:
  * Suspend can't complete until all the I/O is processed so if
  * the last path fails we must error any remaining I/O.
  * Note that if the freeze_bdev fails while suspending, the
- * queue_if_no_path state is lost - userspace should reset it.
+ * queue_if_yes_path state is lost - userspace should reset it.
  */
 static void multipath_presuspend(struct dm_target *ti)
 {
 	struct multipath *m = ti->private;
 
-	queue_if_no_path(m, false, true);
+	queue_if_yes_path(m, false, true);
 }
 
 static void multipath_postsuspend(struct dm_target *ti)
@@ -1631,7 +1631,7 @@ static void multipath_postsuspend(struct dm_target *ti)
 }
 
 /*
- * Restore the queue_if_no_path setting.
+ * Restore the queue_if_yes_path setting.
  */
 static void multipath_resume(struct dm_target *ti)
 {
@@ -1685,7 +1685,7 @@ static void multipath_status(struct dm_target *ti, status_type_t type,
 			      (m->queue_mode != DM_TYPE_REQUEST_BASED) * 2);
 
 		if (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
-			DMEMIT("queue_if_no_path ");
+			DMEMIT("queue_if_yes_path ");
 		if (m->pg_init_retries)
 			DMEMIT("pg_init_retries %u ", m->pg_init_retries);
 		if (m->pg_init_delay_msecs != DM_PG_INIT_DELAY_DEFAULT)
@@ -1798,11 +1798,11 @@ static int multipath_message(struct dm_target *ti, unsigned argc, char **argv,
 	}
 
 	if (argc == 1) {
-		if (!strcasecmp(argv[0], "queue_if_no_path")) {
-			r = queue_if_no_path(m, true, false);
+		if (!strcasecmp(argv[0], "queue_if_yes_path")) {
+			r = queue_if_yes_path(m, true, false);
 			goto out;
-		} else if (!strcasecmp(argv[0], "fail_if_no_path")) {
-			r = queue_if_no_path(m, false, false);
+		} else if (!strcasecmp(argv[0], "fail_if_yes_path")) {
+			r = queue_if_yes_path(m, false, false);
 			goto out;
 		}
 	}
@@ -1862,7 +1862,7 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 			*bdev = current_pgpath->path.dev->bdev;
 			r = 0;
 		} else {
-			/* pg_init has not started or completed */
+			/* pg_init has yest started or completed */
 			r = -ENOTCONN;
 		}
 	} else {
@@ -1887,7 +1887,7 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 	/*
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
-	if (!r && ti->len != i_size_read((*bdev)->bd_inode) >> SECTOR_SHIFT)
+	if (!r && ti->len != i_size_read((*bdev)->bd_iyesde) >> SECTOR_SHIFT)
 		return 1;
 	return r;
 }
@@ -1921,7 +1921,7 @@ static int pgpath_busy(struct pgpath *pgpath)
 
 /*
  * We return "busy", only when we can map I/Os but underlying devices
- * are busy (so even if we map I/Os now, the I/Os will wait on
+ * are busy (so even if we map I/Os yesw, the I/Os will wait on
  * the underlying queue).
  * In other words, if we want to kill I/Os or queue them inside us
  * due to map unavailability, we don't return "busy".  Otherwise,
@@ -1938,7 +1938,7 @@ static int multipath_busy(struct dm_target *ti)
 	if (atomic_read(&m->pg_init_in_progress))
 		return true;
 
-	/* no paths available, for blk-mq: rely on IO mapping to delay requeue */
+	/* yes paths available, for blk-mq: rely on IO mapping to delay requeue */
 	if (!atomic_read(&m->nr_valid_paths) && test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
 		return (m->queue_mode != DM_TYPE_REQUEST_BASED);
 
@@ -1950,18 +1950,18 @@ static int multipath_busy(struct dm_target *ti)
 
 	if (!pg) {
 		/*
-		 * We don't know which pg will be used at next mapping time.
+		 * We don't kyesw which pg will be used at next mapping time.
 		 * We don't call choose_pgpath() here to avoid to trigger
 		 * pg_init just by busy checking.
-		 * So we don't know whether underlying devices we will be using
-		 * at next mapping time are busy or not. Just try mapping.
+		 * So we don't kyesw whether underlying devices we will be using
+		 * at next mapping time are busy or yest. Just try mapping.
 		 */
 		return busy;
 	}
 
 	/*
-	 * If there is one non-busy active path at least, the path selector
-	 * will be able to select it. So we consider such a pg as not busy.
+	 * If there is one yesn-busy active path at least, the path selector
+	 * will be able to select it. So we consider such a pg as yest busy.
 	 */
 	busy = true;
 	list_for_each_entry(pgpath, &pg->pgpaths, list) {

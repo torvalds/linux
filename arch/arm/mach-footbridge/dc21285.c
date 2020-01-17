@@ -255,7 +255,7 @@ int __init dc21285_setup(int nr, struct pci_sys_data *sys)
 	}
 
 	res[0].flags = IORESOURCE_MEM;
-	res[0].name  = "Footbridge non-prefetch";
+	res[0].name  = "Footbridge yesn-prefetch";
 	res[1].flags = IORESOURCE_MEM | IORESOURCE_PREFETCH;
 	res[1].name  = "Footbridge prefetch";
 
@@ -289,7 +289,7 @@ void __init dc21285_preinit(void)
 
 	/*
 	 * These registers need to be set up whether we're the
-	 * central function or not.
+	 * central function or yest.
 	 */
 	*CSR_SDRAMBASEMASK    = (mem_mask - 1) & 0x0ffc0000;
 	*CSR_SDRAMBASEOFFSET  = 0;
@@ -333,8 +333,8 @@ void __init dc21285_preinit(void)
 
 	if (cfn_mode) {
 		/*
-		 * Map our SDRAM at a known address in PCI space, just in case
-		 * the firmware had other ideas.  Using a nonzero base is
+		 * Map our SDRAM at a kyeswn address in PCI space, just in case
+		 * the firmware had other ideas.  Using a yesnzero base is
 		 * necessary, since some VGA cards forcefully use PCI addresses
 		 * in the range 0x000a0000 to 0x000c0000. (eg, S3 cards).
 		 */
@@ -346,9 +346,9 @@ void __init dc21285_preinit(void)
 			      PCI_COMMAND_INVALIDATE | PCICMD_ERROR_BITS;
 	} else if (footbridge_cfn_mode() != 0) {
 		/*
-		 * If we are not compiled to accept "add-in" mode, then
+		 * If we are yest compiled to accept "add-in" mode, then
 		 * we are using a constant virt_to_bus translation which
-		 * can not hope to cater for the way the host BIOS  has
+		 * can yest hope to cater for the way the host BIOS  has
 		 * set up the machine.
 		 */
 		panic("PCI: this kernel is compiled for central "

@@ -209,10 +209,10 @@ static void ssusb_vbus_work(struct work_struct *work)
 }
 
 /*
- * @ssusb_id_notifier is called in atomic context, but @ssusb_set_mailbox
+ * @ssusb_id_yestifier is called in atomic context, but @ssusb_set_mailbox
  * may sleep, so use work queue here
  */
-static int ssusb_id_notifier(struct notifier_block *nb,
+static int ssusb_id_yestifier(struct yestifier_block *nb,
 	unsigned long event, void *ptr)
 {
 	struct otg_switch_mtk *otg_sx =
@@ -224,7 +224,7 @@ static int ssusb_id_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static int ssusb_vbus_notifier(struct notifier_block *nb,
+static int ssusb_vbus_yestifier(struct yestifier_block *nb,
 	unsigned long event, void *ptr)
 {
 	struct otg_switch_mtk *otg_sx =
@@ -247,19 +247,19 @@ static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
 	if (!edev)
 		return 0;
 
-	otg_sx->vbus_nb.notifier_call = ssusb_vbus_notifier;
-	ret = devm_extcon_register_notifier(ssusb->dev, edev, EXTCON_USB,
+	otg_sx->vbus_nb.yestifier_call = ssusb_vbus_yestifier;
+	ret = devm_extcon_register_yestifier(ssusb->dev, edev, EXTCON_USB,
 					&otg_sx->vbus_nb);
 	if (ret < 0) {
-		dev_err(ssusb->dev, "failed to register notifier for USB\n");
+		dev_err(ssusb->dev, "failed to register yestifier for USB\n");
 		return ret;
 	}
 
-	otg_sx->id_nb.notifier_call = ssusb_id_notifier;
-	ret = devm_extcon_register_notifier(ssusb->dev, edev, EXTCON_USB_HOST,
+	otg_sx->id_nb.yestifier_call = ssusb_id_yestifier;
+	ret = devm_extcon_register_yestifier(ssusb->dev, edev, EXTCON_USB_HOST,
 					&otg_sx->id_nb);
 	if (ret < 0) {
-		dev_err(ssusb->dev, "failed to register notifier for USB-HOST\n");
+		dev_err(ssusb->dev, "failed to register yestifier for USB-HOST\n");
 		return ret;
 	}
 
@@ -355,7 +355,7 @@ static int ssusb_role_sw_register(struct otg_switch_mtk *otg_sx)
 
 	role_sx_desc.set = ssusb_role_sw_set;
 	role_sx_desc.get = ssusb_role_sw_get;
-	role_sx_desc.fwnode = dev_fwnode(ssusb->dev);
+	role_sx_desc.fwyesde = dev_fwyesde(ssusb->dev);
 	otg_sx->role_sw = usb_role_switch_register(ssusb->dev, &role_sx_desc);
 
 	return PTR_ERR_OR_ZERO(otg_sx->role_sw);

@@ -85,7 +85,7 @@ static int imx_gpcv2_irq_set_wake(struct irq_data *d, unsigned int on)
 	raw_spin_unlock_irqrestore(&cd->rlock, flags);
 
 	/*
-	 * Do *not* call into the parent, as the GIC doesn't have any
+	 * Do *yest* call into the parent, as the GIC doesn't have any
 	 * wake-up facility...
 	 */
 
@@ -142,7 +142,7 @@ static int imx_gpcv2_domain_translate(struct irq_domain *d,
 				      unsigned long *hwirq,
 				      unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_yesde(fwspec->fwyesde)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;
 
@@ -182,7 +182,7 @@ static int imx_gpcv2_domain_alloc(struct irq_domain *domain,
 	}
 
 	parent_fwspec = *fwspec;
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwyesde = domain->parent->fwyesde;
 	return irq_domain_alloc_irqs_parent(domain, irq, nr_irqs,
 					    &parent_fwspec);
 }
@@ -199,8 +199,8 @@ static const struct of_device_id gpcv2_of_match[] = {
 	{ /* END */ }
 };
 
-static int __init imx_gpcv2_irqchip_init(struct device_node *node,
-			       struct device_node *parent)
+static int __init imx_gpcv2_irqchip_init(struct device_yesde *yesde,
+			       struct device_yesde *parent)
 {
 	struct irq_domain *parent_domain, *domain;
 	struct gpcv2_irqchip_data *cd;
@@ -209,13 +209,13 @@ static int __init imx_gpcv2_irqchip_init(struct device_node *node,
 	int i;
 
 	if (!parent) {
-		pr_err("%pOF: no parent, giving up\n", node);
+		pr_err("%pOF: yes parent, giving up\n", yesde);
 		return -ENODEV;
 	}
 
-	id = of_match_node(gpcv2_of_match, node);
+	id = of_match_yesde(gpcv2_of_match, yesde);
 	if (!id) {
-		pr_err("%pOF: unknown compatibility string\n", node);
+		pr_err("%pOF: unkyeswn compatibility string\n", yesde);
 		return -ENODEV;
 	}
 
@@ -223,27 +223,27 @@ static int __init imx_gpcv2_irqchip_init(struct device_node *node,
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%pOF: unable to get parent domain\n", node);
+		pr_err("%pOF: unable to get parent domain\n", yesde);
 		return -ENXIO;
 	}
 
 	cd = kzalloc(sizeof(struct gpcv2_irqchip_data), GFP_KERNEL);
 	if (!cd) {
-		pr_err("%pOF: kzalloc failed!\n", node);
+		pr_err("%pOF: kzalloc failed!\n", yesde);
 		return -ENOMEM;
 	}
 
 	raw_spin_lock_init(&cd->rlock);
 
-	cd->gpc_base = of_iomap(node, 0);
+	cd->gpc_base = of_iomap(yesde, 0);
 	if (!cd->gpc_base) {
-		pr_err("%pOF: unable to map gpc registers\n", node);
+		pr_err("%pOF: unable to map gpc registers\n", yesde);
 		kfree(cd);
 		return -ENOMEM;
 	}
 
 	domain = irq_domain_add_hierarchy(parent_domain, 0, GPC_MAX_IRQS,
-				node, &gpcv2_irqchip_data_domain_ops, cd);
+				yesde, &gpcv2_irqchip_data_domain_ops, cd);
 	if (!domain) {
 		iounmap(cd->gpc_base);
 		kfree(cd);
@@ -282,9 +282,9 @@ static int __init imx_gpcv2_irqchip_init(struct device_node *node,
 
 	/*
 	 * Clear the OF_POPULATED flag set in of_irq_init so that
-	 * later the GPC power domain driver will not be skipped.
+	 * later the GPC power domain driver will yest be skipped.
 	 */
-	of_node_clear_flag(node, OF_POPULATED);
+	of_yesde_clear_flag(yesde, OF_POPULATED);
 	return 0;
 }
 

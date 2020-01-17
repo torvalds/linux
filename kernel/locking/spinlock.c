@@ -7,9 +7,9 @@
  * Copyright (2004, 2005) Ingo Molnar
  *
  * This file contains the spinlock/rwlock implementations for the
- * SMP and the DEBUG_SPINLOCK cases. (UP-nondebug inlines them)
+ * SMP and the DEBUG_SPINLOCK cases. (UP-yesndebug inlines them)
  *
- * Note that some architectures have special knowledge about the
+ * Note that some architectures have special kyeswledge about the
  * stack frames of these functions in their profile_pc. If you
  * change anything significant here that could change the stack
  * frame contact the architecture maintainers.
@@ -30,9 +30,9 @@ EXPORT_PER_CPU_SYMBOL(__mmiowb_state);
 #endif
 
 /*
- * If lockdep is enabled then we use the non-preemption spin-ops
+ * If lockdep is enabled then we use the yesn-preemption spin-ops
  * even on CONFIG_PREEMPT, because lockdep assumes that interrupts are
- * not re-enabled during lock-acquire (which the preempt-spin-ops do):
+ * yest re-enabled during lock-acquire (which the preempt-spin-ops do):
  */
 #if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DEBUG_LOCK_ALLOC)
 /*
@@ -388,7 +388,7 @@ EXPORT_SYMBOL(_raw_spin_lock_nest_lock);
 
 #endif
 
-notrace int in_lock_functions(unsigned long addr)
+yestrace int in_lock_functions(unsigned long addr)
 {
 	/* Linker adds these: start and end of __lockfunc functions */
 	extern char __lock_text_start[], __lock_text_end[];

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Platform driver for the Synopsys DesignWare DMA Controller
+ * Platform driver for the Syyespsys DesignWare DMA Controller
  *
  * Copyright (C) 2007-2008 Atmel Corporation
  * Copyright (C) 2010-2011 ST Microelectronics
@@ -121,10 +121,10 @@ static void dw_shutdown(struct platform_device *pdev)
 	/*
 	 * We have to call do_dw_dma_disable() to stop any ongoing transfer. On
 	 * some platforms we can't do that since DMA device is powered off.
-	 * Moreover we have no possibility to check if the platform is affected
-	 * or not. That's why we call pm_runtime_get_sync() / pm_runtime_put()
+	 * Moreover we have yes possibility to check if the platform is affected
+	 * or yest. That's why we call pm_runtime_get_sync() / pm_runtime_put()
 	 * unconditionally. On the other hand we can't use
-	 * pm_runtime_suspended() because runtime PM framework is not fully
+	 * pm_runtime_suspended() because runtime PM framework is yest fully
 	 * used by the driver.
 	 */
 	pm_runtime_get_sync(chip->dev);
@@ -215,5 +215,5 @@ static void __exit dw_exit(void)
 module_exit(dw_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys DesignWare DMA Controller platform driver");
+MODULE_DESCRIPTION("Syyespsys DesignWare DMA Controller platform driver");
 MODULE_ALIAS("platform:" DRV_NAME);

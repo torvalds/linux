@@ -26,7 +26,7 @@ enum fscache_cookie_trace {
 	fscache_cookie_get_attach_object,
 	fscache_cookie_get_reacquire,
 	fscache_cookie_get_register_netfs,
-	fscache_cookie_put_acquire_nobufs,
+	fscache_cookie_put_acquire_yesbufs,
 	fscache_cookie_put_dup_netfs,
 	fscache_cookie_put_relinquish,
 	fscache_cookie_put_object,
@@ -46,7 +46,7 @@ enum fscache_page_trace {
 	fscache_page_write,
 	fscache_page_write_end,
 	fscache_page_write_end_pend,
-	fscache_page_write_end_noc,
+	fscache_page_write_end_yesc,
 	fscache_page_write_wait,
 	fscache_page_trace__nr
 };
@@ -92,7 +92,7 @@ enum fscache_page_op_trace {
 	EM(fscache_cookie_get_attach_object,	"GET obj")		\
 	EM(fscache_cookie_get_reacquire,	"GET raq")		\
 	EM(fscache_cookie_get_register_netfs,	"GET net")		\
-	EM(fscache_cookie_put_acquire_nobufs,	"PUT nbf")		\
+	EM(fscache_cookie_put_acquire_yesbufs,	"PUT nbf")		\
 	EM(fscache_cookie_put_dup_netfs,	"PUT dnt")		\
 	EM(fscache_cookie_put_relinquish,	"PUT rlq")		\
 	EM(fscache_cookie_put_object,		"PUT obj")		\
@@ -111,7 +111,7 @@ enum fscache_page_op_trace {
 	EM(fscache_page_write,			"WritePg")		\
 	EM(fscache_page_write_end,		"EndPgWr")		\
 	EM(fscache_page_write_end_pend,		"EndPgWP")		\
-	EM(fscache_page_write_end_noc,		"EndPgNC")		\
+	EM(fscache_page_write_end_yesc,		"EndPgNC")		\
 	E_(fscache_page_write_wait,		"WtOnWrt")
 
 #define fscache_op_traces						\

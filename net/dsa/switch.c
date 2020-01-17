@@ -8,7 +8,7 @@
 
 #include <linux/if_bridge.h>
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/if_vlan.h>
 #include <net/switchdev.h>
 
@@ -30,7 +30,7 @@ static unsigned int dsa_switch_fastest_ageing_time(struct dsa_switch *ds,
 }
 
 static int dsa_switch_ageing_time(struct dsa_switch *ds,
-				  struct dsa_notifier_ageing_time_info *info)
+				  struct dsa_yestifier_ageing_time_info *info)
 {
 	unsigned int ageing_time = info->ageing_time;
 	struct switchdev_trans *trans = info->trans;
@@ -53,7 +53,7 @@ static int dsa_switch_ageing_time(struct dsa_switch *ds,
 }
 
 static int dsa_switch_bridge_join(struct dsa_switch *ds,
-				  struct dsa_notifier_bridge_info *info)
+				  struct dsa_yestifier_bridge_info *info)
 {
 	if (ds->index == info->sw_index && ds->ops->port_bridge_join)
 		return ds->ops->port_bridge_join(ds, info->port, info->br);
@@ -66,7 +66,7 @@ static int dsa_switch_bridge_join(struct dsa_switch *ds,
 }
 
 static int dsa_switch_bridge_leave(struct dsa_switch *ds,
-				   struct dsa_notifier_bridge_info *info)
+				   struct dsa_yestifier_bridge_info *info)
 {
 	bool unset_vlan_filtering = br_vlan_enabled(info->br);
 	int err, i;
@@ -82,7 +82,7 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 	 * event for changing vlan_filtering setting upon slave ports leaving
 	 * it. That is a good thing, because that lets us handle it and also
 	 * handle the case where the switch's vlan_filtering setting is global
-	 * (not per port). When that happens, the correct moment to trigger the
+	 * (yest per port). When that happens, the correct moment to trigger the
 	 * vlan_filtering callback is only when the last port left this bridge.
 	 */
 	if (unset_vlan_filtering && ds->vlan_filtering_is_global) {
@@ -107,7 +107,7 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 }
 
 static int dsa_switch_fdb_add(struct dsa_switch *ds,
-			      struct dsa_notifier_fdb_info *info)
+			      struct dsa_yestifier_fdb_info *info)
 {
 	int port = dsa_towards_port(ds, info->sw_index, info->port);
 
@@ -118,7 +118,7 @@ static int dsa_switch_fdb_add(struct dsa_switch *ds,
 }
 
 static int dsa_switch_fdb_del(struct dsa_switch *ds,
-			      struct dsa_notifier_fdb_info *info)
+			      struct dsa_yestifier_fdb_info *info)
 {
 	int port = dsa_towards_port(ds, info->sw_index, info->port);
 
@@ -129,7 +129,7 @@ static int dsa_switch_fdb_del(struct dsa_switch *ds,
 }
 
 static bool dsa_switch_mdb_match(struct dsa_switch *ds, int port,
-				 struct dsa_notifier_mdb_info *info)
+				 struct dsa_yestifier_mdb_info *info)
 {
 	if (ds->index == info->sw_index && port == info->port)
 		return true;
@@ -141,7 +141,7 @@ static bool dsa_switch_mdb_match(struct dsa_switch *ds, int port,
 }
 
 static int dsa_switch_mdb_prepare(struct dsa_switch *ds,
-				  struct dsa_notifier_mdb_info *info)
+				  struct dsa_yestifier_mdb_info *info)
 {
 	int port, err;
 
@@ -160,7 +160,7 @@ static int dsa_switch_mdb_prepare(struct dsa_switch *ds,
 }
 
 static int dsa_switch_mdb_add(struct dsa_switch *ds,
-			      struct dsa_notifier_mdb_info *info)
+			      struct dsa_yestifier_mdb_info *info)
 {
 	int port;
 
@@ -178,7 +178,7 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 }
 
 static int dsa_switch_mdb_del(struct dsa_switch *ds,
-			      struct dsa_notifier_mdb_info *info)
+			      struct dsa_yestifier_mdb_info *info)
 {
 	if (!ds->ops->port_mdb_del)
 		return -EOPNOTSUPP;
@@ -210,16 +210,16 @@ static int dsa_port_vlan_check(struct dsa_switch *ds, int port,
 	const struct dsa_port *dp = dsa_to_port(ds, port);
 	int err = 0;
 
-	/* Device is not bridged, let it proceed with the VLAN device
+	/* Device is yest bridged, let it proceed with the VLAN device
 	 * creation.
 	 */
 	if (!dp->bridge_dev)
 		return err;
 
-	/* dsa_slave_vlan_rx_{add,kill}_vid() cannot use the prepare phase and
+	/* dsa_slave_vlan_rx_{add,kill}_vid() canyest use the prepare phase and
 	 * already checks whether there is an overlapping bridge VLAN entry
 	 * with the same VID, so here we only need to check that if we are
-	 * adding a bridge VLAN entry there is not an overlapping VLAN device
+	 * adding a bridge VLAN entry there is yest an overlapping VLAN device
 	 * claiming that VID.
 	 */
 	return vlan_for_each(dp->slave, dsa_port_vlan_device_check,
@@ -227,7 +227,7 @@ static int dsa_port_vlan_check(struct dsa_switch *ds, int port,
 }
 
 static bool dsa_switch_vlan_match(struct dsa_switch *ds, int port,
-				  struct dsa_notifier_vlan_info *info)
+				  struct dsa_yestifier_vlan_info *info)
 {
 	if (ds->index == info->sw_index && port == info->port)
 		return true;
@@ -239,7 +239,7 @@ static bool dsa_switch_vlan_match(struct dsa_switch *ds, int port,
 }
 
 static int dsa_switch_vlan_prepare(struct dsa_switch *ds,
-				   struct dsa_notifier_vlan_info *info)
+				   struct dsa_yestifier_vlan_info *info)
 {
 	int port, err;
 
@@ -262,7 +262,7 @@ static int dsa_switch_vlan_prepare(struct dsa_switch *ds,
 }
 
 static int dsa_switch_vlan_add(struct dsa_switch *ds,
-			       struct dsa_notifier_vlan_info *info)
+			       struct dsa_yestifier_vlan_info *info)
 {
 	int port;
 
@@ -280,7 +280,7 @@ static int dsa_switch_vlan_add(struct dsa_switch *ds,
 }
 
 static int dsa_switch_vlan_del(struct dsa_switch *ds,
-			       struct dsa_notifier_vlan_info *info)
+			       struct dsa_yestifier_vlan_info *info)
 {
 	if (!ds->ops->port_vlan_del)
 		return -EOPNOTSUPP;
@@ -288,13 +288,13 @@ static int dsa_switch_vlan_del(struct dsa_switch *ds,
 	if (ds->index == info->sw_index)
 		return ds->ops->port_vlan_del(ds, info->port, info->vlan);
 
-	/* Do not deprogram the DSA links as they may be used as conduit
+	/* Do yest deprogram the DSA links as they may be used as conduit
 	 * for other VLAN members in the fabric.
 	 */
 	return 0;
 }
 
-static int dsa_switch_event(struct notifier_block *nb,
+static int dsa_switch_event(struct yestifier_block *nb,
 			    unsigned long event, void *info)
 {
 	struct dsa_switch *ds = container_of(nb, struct dsa_switch, nb);
@@ -333,7 +333,7 @@ static int dsa_switch_event(struct notifier_block *nb,
 		break;
 	}
 
-	/* Non-switchdev operations cannot be rolled back. If a DSA driver
+	/* Non-switchdev operations canyest be rolled back. If a DSA driver
 	 * returns an error during the chained call, switch chips may be in an
 	 * inconsistent state.
 	 */
@@ -341,21 +341,21 @@ static int dsa_switch_event(struct notifier_block *nb,
 		dev_dbg(ds->dev, "breaking chain for DSA event %lu (%d)\n",
 			event, err);
 
-	return notifier_from_errno(err);
+	return yestifier_from_erryes(err);
 }
 
-int dsa_switch_register_notifier(struct dsa_switch *ds)
+int dsa_switch_register_yestifier(struct dsa_switch *ds)
 {
-	ds->nb.notifier_call = dsa_switch_event;
+	ds->nb.yestifier_call = dsa_switch_event;
 
-	return raw_notifier_chain_register(&ds->dst->nh, &ds->nb);
+	return raw_yestifier_chain_register(&ds->dst->nh, &ds->nb);
 }
 
-void dsa_switch_unregister_notifier(struct dsa_switch *ds)
+void dsa_switch_unregister_yestifier(struct dsa_switch *ds)
 {
 	int err;
 
-	err = raw_notifier_chain_unregister(&ds->dst->nh, &ds->nb);
+	err = raw_yestifier_chain_unregister(&ds->dst->nh, &ds->nb);
 	if (err)
-		dev_err(ds->dev, "failed to unregister notifier (%d)\n", err);
+		dev_err(ds->dev, "failed to unregister yestifier (%d)\n", err);
 }

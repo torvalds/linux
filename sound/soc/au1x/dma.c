@@ -74,7 +74,7 @@ static int au1000_setup_dma_link(struct audio_stream *stream,
 
 	if (stream->period_size == period_bytes &&
 	    stream->periods == periods)
-		return 0; /* not changed */
+		return 0; /* yest changed */
 
 	au1000_release_dma_link(stream);
 

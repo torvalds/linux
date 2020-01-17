@@ -31,7 +31,7 @@ static void snd_malloc_dev_pages(struct snd_dma_buffer *dmab, size_t size)
 	gfp_flags = GFP_KERNEL
 		| __GFP_COMP	/* compound page lets parts be mapped */
 		| __GFP_NORETRY /* don't trigger OOM-killer */
-		| __GFP_NOWARN; /* no stack trace print - this call is non-critical */
+		| __GFP_NOWARN; /* yes stack trace print - this call is yesn-critical */
 	dmab->area = dma_alloc_coherent(dmab->dev.dev, size, &dmab->addr,
 					gfp_flags);
 #ifdef CONFIG_X86
@@ -58,7 +58,7 @@ static void snd_free_dev_pages(struct snd_dma_buffer *dmab)
  * @dmab: buffer allocation record to store the allocated data
  * @size: number of bytes to allocate from the iram
  *
- * This function requires iram phandle provided via of_node
+ * This function requires iram phandle provided via of_yesde
  */
 static void snd_malloc_dev_iram(struct snd_dma_buffer *dmab, size_t size)
 {
@@ -68,8 +68,8 @@ static void snd_malloc_dev_iram(struct snd_dma_buffer *dmab, size_t size)
 	dmab->area = NULL;
 	dmab->addr = 0;
 
-	if (dev->of_node)
-		pool = of_gen_pool_get(dev->of_node, "iram", 0);
+	if (dev->of_yesde)
+		pool = of_gen_pool_get(dev->of_yesde, "iram", 0);
 
 	if (!pool)
 		return;
@@ -152,7 +152,7 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		snd_malloc_dev_iram(dmab, size);
 		if (dmab->area)
 			break;
-		/* Internal memory might have limited size and no enough space,
+		/* Internal memory might have limited size and yes eyesugh space,
 		 * so if we fail to malloc, try to fetch memory traditionally.
 		 */
 		dmab->dev.type = SNDRV_DMA_TYPE_DEV;
@@ -190,7 +190,7 @@ EXPORT_SYMBOL(snd_dma_alloc_pages);
  * @dmab: buffer allocation record to store the allocated data
  *
  * Calls the memory-allocator function for the corresponding
- * buffer type.  When no space is left, this function reduces the size and
+ * buffer type.  When yes space is left, this function reduces the size and
  * tries to allocate again.  The size actually allocated is stored in
  * res_size argument.
  *

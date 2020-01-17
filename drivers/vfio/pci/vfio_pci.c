@@ -18,7 +18,7 @@
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -26,7 +26,7 @@
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
 #include <linux/vgaarb.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include "vfio_pci_private.h"
 
@@ -38,9 +38,9 @@ static char ids[1024] __initdata;
 module_param_string(ids, ids, sizeof(ids), 0);
 MODULE_PARM_DESC(ids, "Initial PCI IDs to add to the vfio driver, format is \"vendor:device[:subvendor[:subdevice[:class[:class_mask]]]]\" and multiple comma separated entries can be specified");
 
-static bool nointxmask;
-module_param_named(nointxmask, nointxmask, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(nointxmask,
+static bool yesintxmask;
+module_param_named(yesintxmask, yesintxmask, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(yesintxmask,
 		  "Disable support for PCI 2.3 style INTx masking.  If this resolves problems for specific devices, report lspci -vvvxxx to linux-pci@vger.kernel.org so the device can be fixed automatically via the broken_intx_masking flag.");
 
 #ifdef CONFIG_VFIO_PCI_VGA
@@ -64,11 +64,11 @@ static inline bool vfio_vga_disabled(void)
 }
 
 /*
- * Our VGA arbiter participation is limited since we don't know anything
+ * Our VGA arbiter participation is limited since we don't kyesw anything
  * about the device itself.  However, if the device is the only VGA device
  * downstream of a bridge and VFIO VGA support is disabled, then we can
- * safely return legacy VGA IO and memory as not decoded since the user
- * has no way to get to it and routing can be disabled externally at the
+ * safely return legacy VGA IO and memory as yest decoded since the user
+ * has yes way to get to it and routing can be disabled externally at the
  * bridge.
  */
 static unsigned int vfio_pci_set_vga_decode(void *opaque, bool single_vga)
@@ -121,10 +121,10 @@ static void vfio_pci_probe_mmaps(struct vfio_pci_device *vdev)
 		res = &vdev->pdev->resource[bar];
 
 		if (!IS_ENABLED(CONFIG_VFIO_PCI_MMAP))
-			goto no_mmap;
+			goto yes_mmap;
 
 		if (!(res->flags & IORESOURCE_MEM))
-			goto no_mmap;
+			goto yes_mmap;
 
 		/*
 		 * The PCI core shouldn't set up a resource with a
@@ -132,7 +132,7 @@ static void vfio_pci_probe_mmaps(struct vfio_pci_device *vdev)
 		 * cause us to do that.
 		 */
 		if (!resource_size(res))
-			goto no_mmap;
+			goto yes_mmap;
 
 		if (resource_size(res) >= PAGE_SIZE) {
 			vdev->bar_mmap_supported[bar] = true;
@@ -147,7 +147,7 @@ static void vfio_pci_probe_mmaps(struct vfio_pci_device *vdev)
 			 */
 			dummy_res = kzalloc(sizeof(*dummy_res), GFP_KERNEL);
 			if (dummy_res == NULL)
-				goto no_mmap;
+				goto yes_mmap;
 
 			dummy_res->resource.name = "vfio sub-page reserved";
 			dummy_res->resource.start = res->end + 1;
@@ -156,7 +156,7 @@ static void vfio_pci_probe_mmaps(struct vfio_pci_device *vdev)
 			if (request_resource(res->parent,
 						&dummy_res->resource)) {
 				kfree(dummy_res);
-				goto no_mmap;
+				goto yes_mmap;
 			}
 			dummy_res->index = bar;
 			list_add(&dummy_res->res_next,
@@ -165,14 +165,14 @@ static void vfio_pci_probe_mmaps(struct vfio_pci_device *vdev)
 			continue;
 		}
 		/*
-		 * Here we don't handle the case when the BAR is not page
+		 * Here we don't handle the case when the BAR is yest page
 		 * aligned because we can't expect the BAR will be
 		 * assigned into the same location in a page in guest
 		 * when we passthrough the BAR. And it's hard to access
-		 * this BAR in userspace because we have no way to get
+		 * this BAR in userspace because we have yes way to get
 		 * the BAR's location in a page.
 		 */
-no_mmap:
+yes_mmap:
 		vdev->bar_mmap_supported[bar] = false;
 	}
 }
@@ -183,13 +183,13 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev);
 /*
  * INTx masking requires the ability to disable INTx signaling via PCI_COMMAND
  * _and_ the ability detect when the device is asserting INTx via PCI_STATUS.
- * If a device implements the former but not the latter we would typically
+ * If a device implements the former but yest the latter we would typically
  * expect broken_intx_masking be set and require an exclusive interrupt.
  * However since we do have control of the device's ability to assert INTx,
- * we can instead pretend that the device does not implement INTx, virtualizing
+ * we can instead pretend that the device does yest implement INTx, virtualizing
  * the pin register to report zero and maintaining DisINTx set on the host.
  */
-static bool vfio_pci_nointx(struct pci_dev *pdev)
+static bool vfio_pci_yesintx(struct pci_dev *pdev)
 {
 	switch (pdev->vendor) {
 	case PCI_VENDOR_ID_INTEL:
@@ -289,10 +289,10 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	if (!vdev->pci_saved_state)
 		pci_dbg(pdev, "%s: Couldn't store saved state\n", __func__);
 
-	if (likely(!nointxmask)) {
-		if (vfio_pci_nointx(pdev)) {
+	if (likely(!yesintxmask)) {
+		if (vfio_pci_yesintx(pdev)) {
 			pci_info(pdev, "Masking broken INTx support\n");
-			vdev->nointx = true;
+			vdev->yesintx = true;
 			pci_intx(pdev, 0);
 		} else
 			vdev->pci_2_3 = pci_intx_mask_supported(pdev);
@@ -422,7 +422,7 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 	/*
 	 * If we have saved state, restore it.  If we can reset the device,
 	 * even better.  Resetting with current state seems better than
-	 * nothing, but saving and restoring current state without reset
+	 * yesthing, but saving and restoring current state without reset
 	 * is just busy work.
 	 */
 	if (pci_load_and_free_saved_state(pdev, &vdev->pci_saved_state)) {
@@ -443,8 +443,8 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 	/*
 	 * Try to get the locks ourselves to prevent a deadlock. The
 	 * success of this is dependent on being able to lock the device,
-	 * which is not always possible.
-	 * We can not use the "try" reset interface here, which will
+	 * which is yest always possible.
+	 * We can yest use the "try" reset interface here, which will
 	 * overwrite the previously restored configuration information.
 	 */
 	if (vdev->reset_works && pci_cfg_access_trylock(pdev)) {
@@ -513,7 +513,7 @@ static int vfio_pci_get_irq_count(struct vfio_pci_device *vdev, int irq_type)
 		u8 pin;
 
 		if (!IS_ENABLED(CONFIG_VFIO_PCI_INTX) ||
-		    vdev->nointx || vdev->pdev->is_virtfn)
+		    vdev->yesintx || vdev->pdev->is_virtfn)
 			return 0;
 
 		pci_read_config_byte(vdev->pdev, PCI_INTERRUPT_PIN, &pin);
@@ -572,7 +572,7 @@ static int vfio_pci_fill_devs(struct pci_dev *pdev, void *data)
 
 	iommu_group = iommu_group_get(&pdev->dev);
 	if (!iommu_group)
-		return -EPERM; /* Cannot reset non-isolated devices */
+		return -EPERM; /* Canyest reset yesn-isolated devices */
 
 	fill->devices[fill->cur].group_id = iommu_group_id(iommu_group);
 	fill->devices[fill->cur].segment = pci_domain_nr(pdev->bus);
@@ -769,7 +769,7 @@ static long vfio_pci_ioctl(void *device_data,
 			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
 			info.flags = 0;
 
-			/* Report the BAR size, not the ROM size */
+			/* Report the BAR size, yest the ROM size */
 			info.size = pci_resource_len(pdev, info.index);
 			if (!info.size) {
 				/* Shadow ROMs appear as PCI option ROMs */
@@ -818,7 +818,7 @@ static long vfio_pci_ioctl(void *device_data,
 			if (info.index >=
 			    VFIO_PCI_NUM_REGIONS + vdev->num_regions)
 				return -EINVAL;
-			info.index = array_index_nospec(info.index,
+			info.index = array_index_yesspec(info.index,
 							VFIO_PCI_NUM_REGIONS +
 							vdev->num_regions);
 
@@ -975,7 +975,7 @@ static long vfio_pci_ioctl(void *device_data,
 		WARN_ON(!fill.max); /* Should always be at least one */
 
 		/*
-		 * If there's enough space, fill it now, otherwise return
+		 * If there's eyesugh space, fill it yesw, otherwise return
 		 * -ENOSPC and the number of devices affected.
 		 */
 		if (hdr.argsz < sizeof(hdr) + (fill.max * sizeof(*devices))) {
@@ -1250,7 +1250,7 @@ static int vfio_pci_mmap(void *device_data, struct vm_area_struct *vma)
 	}
 
 	vma->vm_private_data = vdev;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	vma->vm_pgoff = (pci_resource_start(pdev, index) >> PAGE_SHIFT) + pgoff;
 
 	return remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
@@ -1266,7 +1266,7 @@ static void vfio_pci_request(void *device_data, unsigned int count)
 
 	if (vdev->req_trigger) {
 		if (!(count % 10))
-			pci_notice_ratelimited(pdev,
+			pci_yestice_ratelimited(pdev,
 				"Relaying device request to user (#%u)\n",
 				count);
 		eventfd_signal(vdev->req_trigger, 1);
@@ -1304,13 +1304,13 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/*
 	 * Prevent binding to PFs with VFs enabled, this too easily allows
 	 * userspace instance with VFs and PFs from the same device, which
-	 * cannot work.  Disabling SR-IOV here would initiate removing the
+	 * canyest work.  Disabling SR-IOV here would initiate removing the
 	 * VFs, which would unbind the driver, which is prone to blocking
 	 * if that VF is also in use by vfio-pci.  Just reject these PFs
 	 * and let the user sort it out.
 	 */
 	if (pci_num_vf(pdev)) {
-		pci_warn(pdev, "Cannot bind to PF with SR-IOV enabled\n");
+		pci_warn(pdev, "Canyest bind to PF with SR-IOV enabled\n");
 		return -EBUSY;
 	}
 
@@ -1356,11 +1356,11 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (!disable_idle_d3) {
 		/*
-		 * pci-core sets the device power state to an unknown value at
+		 * pci-core sets the device power state to an unkyeswn value at
 		 * bootup and after being removed from a driver.  The only
-		 * transition it allows from this unknown state is to D0, which
+		 * transition it allows from this unkyeswn state is to D0, which
 		 * typically happens when a driver calls pci_enable_device().
-		 * We're not ready to enable the device yet, but we do want to
+		 * We're yest ready to enable the device yet, but we do want to
 		 * be able to get to D3.  Therefore first do a D0 transition
 		 * before going to D3.
 		 */
@@ -1545,7 +1545,7 @@ static int vfio_pci_get_unused_devs(struct pci_dev *pdev, void *data)
 
 	vdev = vfio_device_data(device);
 
-	/* Fault if the device is not unused */
+	/* Fault if the device is yest unused */
 	if (vdev->refcnt) {
 		vfio_device_put(device);
 		return -EBUSY;
@@ -1611,10 +1611,10 @@ put_devs:
 		tmp = vfio_device_data(devs.devices[i]);
 
 		/*
-		 * If reset was successful, affected devices no longer need
+		 * If reset was successful, affected devices yes longer need
 		 * a reset and we should return all the collateral devices
-		 * to low power.  If not successful, we either didn't reset
-		 * the bus or timed out waiting for it, so let's not touch
+		 * to low power.  If yest successful, we either didn't reset
+		 * the bus or timed out waiting for it, so let's yest touch
 		 * the power state.
 		 */
 		if (!ret) {
@@ -1641,7 +1641,7 @@ static void __init vfio_pci_fill_ids(void)
 	char *p, *id;
 	int rc;
 
-	/* no ids passed actually */
+	/* yes ids passed actually */
 	if (ids[0] == '\0')
 		return;
 

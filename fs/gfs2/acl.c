@@ -19,7 +19,7 @@
 #include "acl.h"
 #include "xattr.h"
 #include "glock.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "meta_io.h"
 #include "rgrp.h"
 #include "trans.h"
@@ -36,9 +36,9 @@ static const char *gfs2_acl_name(int type)
 	return NULL;
 }
 
-static struct posix_acl *__gfs2_get_acl(struct inode *inode, int type)
+static struct posix_acl *__gfs2_get_acl(struct iyesde *iyesde, int type)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_iyesde *ip = GFS2_I(iyesde);
 	struct posix_acl *acl;
 	const char *name;
 	char *data;
@@ -56,9 +56,9 @@ static struct posix_acl *__gfs2_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-struct posix_acl *gfs2_get_acl(struct inode *inode, int type)
+struct posix_acl *gfs2_get_acl(struct iyesde *iyesde, int type)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_iyesde *ip = GFS2_I(iyesde);
 	struct gfs2_holder gh;
 	bool need_unlock = false;
 	struct posix_acl *acl;
@@ -70,13 +70,13 @@ struct posix_acl *gfs2_get_acl(struct inode *inode, int type)
 			return ERR_PTR(ret);
 		need_unlock = true;
 	}
-	acl = __gfs2_get_acl(inode, type);
+	acl = __gfs2_get_acl(iyesde, type);
 	if (need_unlock)
 		gfs2_glock_dq_uninit(&gh);
 	return acl;
 }
 
-int __gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int __gfs2_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type)
 {
 	int error;
 	size_t len;
@@ -96,24 +96,24 @@ int __gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		len = 0;
 	}
 
-	error = __gfs2_xattr_set(inode, name, data, len, 0, GFS2_EATYPE_SYS);
+	error = __gfs2_xattr_set(iyesde, name, data, len, 0, GFS2_EATYPE_SYS);
 	if (error)
 		goto out;
-	set_cached_acl(inode, type, acl);
+	set_cached_acl(iyesde, type, acl);
 out:
 	kfree(data);
 	return error;
 }
 
-int gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int gfs2_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_iyesde *ip = GFS2_I(iyesde);
 	struct gfs2_holder gh;
 	bool need_unlock = false;
 	int ret;
 	umode_t mode;
 
-	if (acl && acl->a_count > GFS2_ACL_MAX_ENTRIES(GFS2_SB(inode)))
+	if (acl && acl->a_count > GFS2_ACL_MAX_ENTRIES(GFS2_SB(iyesde)))
 		return -E2BIG;
 
 	ret = gfs2_rsqa_alloc(ip);
@@ -127,18 +127,18 @@ int gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		need_unlock = true;
 	}
 
-	mode = inode->i_mode;
+	mode = iyesde->i_mode;
 	if (type == ACL_TYPE_ACCESS && acl) {
-		ret = posix_acl_update_mode(inode, &mode, &acl);
+		ret = posix_acl_update_mode(iyesde, &mode, &acl);
 		if (ret)
 			goto unlock;
 	}
 
-	ret = __gfs2_set_acl(inode, acl, type);
-	if (!ret && mode != inode->i_mode) {
-		inode->i_ctime = current_time(inode);
-		inode->i_mode = mode;
-		mark_inode_dirty(inode);
+	ret = __gfs2_set_acl(iyesde, acl, type);
+	if (!ret && mode != iyesde->i_mode) {
+		iyesde->i_ctime = current_time(iyesde);
+		iyesde->i_mode = mode;
+		mark_iyesde_dirty(iyesde);
 	}
 unlock:
 	if (need_unlock)

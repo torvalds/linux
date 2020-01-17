@@ -131,7 +131,7 @@
 /* Exception Interrupt Port/Queue Cause register
  *
  * Their behavior depend of the mapping done using the PCPX2Q
- * registers. For a given CPU if the bit associated to a queue is not
+ * registers. For a given CPU if the bit associated to a queue is yest
  * set, then for the register a read from this CPU will always return
  * 0 and a write won't do anything
  */
@@ -269,7 +269,7 @@
 #define MVNETA_RX_COAL_USEC		100
 
 /* The two bytes Marvell header. Either contains a special value used
- * by Marvell switches when a specific hardware mode is enabled (not
+ * by Marvell switches when a specific hardware mode is enabled (yest
  * supported by this driver) or is filled automatically by zeroes on
  * the RX side. Those two bytes being at the front of the Ethernet
  * header, they allow to have the IP header aligned on a 4 bytes
@@ -294,7 +294,7 @@
 
 #define MVNETA_TX_MTU_MAX		0x3ffff
 
-/* The RSS lookup table actually has 256 entries but we do not use
+/* The RSS lookup table actually has 256 entries but we do yest use
  * them yet
  */
 #define MVNETA_RSS_LU_TABLE_SIZE	1
@@ -427,8 +427,8 @@ struct mvneta_port {
 	struct mvneta_rx_queue *rxqs;
 	struct mvneta_tx_queue *txqs;
 	struct net_device *dev;
-	struct hlist_node node_online;
-	struct hlist_node node_dead;
+	struct hlist_yesde yesde_online;
+	struct hlist_yesde yesde_dead;
 	int rxq_def;
 	/* Protect the access to the percpu interrupt registers,
 	 * ensuring that the configuration remains coherent.
@@ -450,7 +450,7 @@ struct mvneta_port {
 	u16 rx_ring_size;
 
 	phy_interface_t phy_interface;
-	struct device_node *dn;
+	struct device_yesde *dn;
 	unsigned int tx_csum_limit;
 	struct phylink *phylink;
 	struct phylink_config phylink_config;
@@ -767,7 +767,7 @@ mvneta_get_stats64(struct net_device *dev,
 
 /* Checks whether the RX descriptor having this status is both the first
  * and the last descriptor for the RX packet. Each RX packet is currently
- * received through a single RX descriptor, so not having each RX
+ * received through a single RX descriptor, so yest having each RX
  * descriptor with its first and last bits set is an error
  */
 static int mvneta_rxq_desc_is_first_last(u32 status)
@@ -777,7 +777,7 @@ static int mvneta_rxq_desc_is_first_last(u32 status)
 }
 
 /* Add number of descriptors ready to receive new packets */
-static void mvneta_rxq_non_occup_desc_add(struct mvneta_port *pp,
+static void mvneta_rxq_yesn_occup_desc_add(struct mvneta_port *pp,
 					  struct mvneta_rx_queue *rxq,
 					  int ndescs)
 {
@@ -1014,7 +1014,7 @@ static int mvneta_mbus_io_win_set(struct mvneta_port *pp, u32 base, u32 wsize,
 	win_enable = mvreg_read(pp, MVNETA_BASE_ADDR_ENABLE);
 
 	if (pp->bm_win_id < 0) {
-		/* Find first not occupied window */
+		/* Find first yest occupied window */
 		for (i = 0; i < MVNETA_MAX_DECODE_WIN; i++) {
 			if (win_enable & (1 << i)) {
 				pp->bm_win_id = i;
@@ -1078,7 +1078,7 @@ static  int mvneta_bm_port_mbus_init(struct mvneta_port *pp)
 static int mvneta_bm_port_init(struct platform_device *pdev,
 			       struct mvneta_port *pp)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	u32 long_pool_id, short_pool_id;
 
 	if (!pp->neta_armada3700) {
@@ -1108,7 +1108,7 @@ static int mvneta_bm_port_init(struct platform_device *pdev,
 	mvneta_bm_pool_bufsize_set(pp, pp->pool_long->buf_size,
 				   pp->pool_long->id);
 
-	/* If short pool id is not defined, assume using single pool */
+	/* If short pool id is yest defined, assume using single pool */
 	if (of_property_read_u32(dn, "bm,pool-short", &short_pool_id))
 		short_pool_id = long_pool_id;
 
@@ -1141,7 +1141,7 @@ static void mvneta_bm_update_mtu(struct mvneta_port *pp, int mtu)
 	/* Release all buffers from long pool */
 	mvneta_bm_bufs_free(pp->bm_priv, bm_pool, 1 << pp->id);
 	if (hwbm_pool->buf_num) {
-		WARN(1, "cannot free all buffers in pool %d\n",
+		WARN(1, "canyest free all buffers in pool %d\n",
 		     bm_pool->id);
 		goto bm_mtu_err;
 	}
@@ -1774,7 +1774,7 @@ static void mvneta_rx_csum(struct mvneta_port *pp, u32 status,
 }
 
 /* Return tx queue pointer (find last set bit) according to <cause> returned
- * form tx_done reg. <cause> must not be null. The return value is always a
+ * form tx_done reg. <cause> must yest be null. The return value is always a
  * valid queue for matching the first one found in <cause>.
  */
 static struct mvneta_tx_queue *mvneta_tx_done_policy(struct mvneta_port *pp,
@@ -2280,7 +2280,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 				continue;
 		} else {
 			if (unlikely(!rxq->skb)) {
-				pr_debug("no skb for rx_status 0x%x\n",
+				pr_debug("yes skb for rx_status 0x%x\n",
 					 rx_status);
 				continue;
 			}
@@ -2288,7 +2288,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 		} /* Middle or Last descriptor */
 
 		if (!(rx_status & MVNETA_RXD_LAST_DESC))
-			/* no last descriptor this time */
+			/* yes last descriptor this time */
 			continue;
 
 		if (rxq->left_size) {
@@ -2378,7 +2378,7 @@ err_drop_frame:
 		}
 
 		if (rx_bytes <= rx_copybreak) {
-			/* better copy a small frame and not unmap the DMA region */
+			/* better copy a small frame and yest unmap the DMA region */
 			skb = netdev_alloc_skb_ip_align(dev, rx_bytes);
 			if (unlikely(!skb))
 				goto err_drop_frame_ret_pool;
@@ -2419,7 +2419,7 @@ err_drop_frame:
 		skb = build_skb(data, frag_size > PAGE_SIZE ? 0 : frag_size);
 
 		/* After refill old buffer has to be unmapped regardless
-		 * the skb is successfully built or not.
+		 * the skb is successfully built or yest.
 		 */
 		dma_unmap_single(&pp->bm_priv->pdev->dev, phys_addr,
 				 bm_pool->buf_size, DMA_FROM_DEVICE);
@@ -2559,7 +2559,7 @@ static int mvneta_tx_tso(struct sk_buff *skb, struct net_device *dev,
 	return desc_count;
 
 err_release:
-	/* Release all used data descriptors; header descriptors must not
+	/* Release all used data descriptors; header descriptors must yest
 	 * be DMA-unmapped.
 	 */
 	for (i = desc_count - 1; i >= 0; i--) {
@@ -2677,7 +2677,7 @@ static netdev_tx_t mvneta_tx(struct sk_buff *skb, struct net_device *dev)
 		buf->skb = skb;
 		mvneta_txq_inc_put(txq);
 	} else {
-		/* First but not Last */
+		/* First but yest Last */
 		tx_cmd |= MVNETA_TXD_F_DESC;
 		buf->skb = NULL;
 		mvneta_txq_inc_put(txq);
@@ -2815,7 +2815,7 @@ static void mvneta_set_special_mcast_addr(struct mvneta_port *pp,
 }
 
 /* This method controls the network device Other MAC multicast support.
- * The Other Multicast Table is used for multicast of another type.
+ * The Other Multicast Table is used for multicast of ayesther type.
  * A CRC-8 is used as an index to the Other Multicast Table entries
  * in the DA-Filter table.
  * The method gets the CRC-8 value from the calling routine and
@@ -2851,7 +2851,7 @@ static void mvneta_set_other_mcast_addr(struct mvneta_port *pp,
  *       0x01-00-5E-00-00-XX (where XX is between 0x00 and 0xFF).
  *       The MAC DA[7:0] bits are used as a pointer to the Special Multicast
  *       Table entries in the DA-Filter table.
- *    2) Other Multicast Table for multicast of another type. A CRC-8 value
+ *    2) Other Multicast Table for multicast of ayesther type. A CRC-8 value
  *       is used as an index to the Other Multicast Table entries in the
  *       DA-Filter table.
  */
@@ -3019,7 +3019,7 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 		cause_rx_tx &= ~MVNETA_TX_INTR_MASK_ALL;
 	}
 
-	/* For the case where the last mvneta_poll did not process all
+	/* For the case where the last mvneta_poll did yest process all
 	 * RX packets
 	 */
 	rx_queue = fls(((cause_rx_tx >> 8) & 0xff));
@@ -3071,7 +3071,7 @@ static int mvneta_create_page_pool(struct mvneta_port *pp,
 		.order = 0,
 		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
 		.pool_size = size,
-		.nid = cpu_to_node(0),
+		.nid = cpu_to_yesde(0),
 		.dev = pp->dev->dev.parent,
 		.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE,
 		.offset = pp->rx_offset_correction,
@@ -3126,10 +3126,10 @@ static int mvneta_rxq_fill(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 		}
 	}
 
-	/* Add this number of RX descriptors as non occupied (ready to
+	/* Add this number of RX descriptors as yesn occupied (ready to
 	 * get packets)
 	 */
-	mvneta_rxq_non_occup_desc_add(pp, rxq, i);
+	mvneta_rxq_yesn_occup_desc_add(pp, rxq, i);
 
 	return i;
 }
@@ -3200,7 +3200,7 @@ static void mvneta_rxq_hw_init(struct mvneta_port *pp,
 		/* Fill RXQ with buffers from RX pool */
 		mvneta_rxq_long_pool_set(pp, rxq);
 		mvneta_rxq_short_pool_set(pp, rxq);
-		mvneta_rxq_non_occup_desc_add(pp, rxq, rxq->size);
+		mvneta_rxq_yesn_occup_desc_add(pp, rxq, rxq->size);
 	}
 }
 
@@ -3676,7 +3676,7 @@ static void mvneta_validate(struct phylink_config *config,
 	}
 
 	if (!phy_interface_mode_is_8023z(state->interface)) {
-		/* 10M and 100M are only supported in non-802.3z mode */
+		/* 10M and 100M are only supported in yesn-802.3z mode */
 		phylink_set(mask, 10baseT_Half);
 		phylink_set(mask, 10baseT_Full);
 		phylink_set(mask, 100baseT_Half);
@@ -3926,7 +3926,7 @@ static int mvneta_mdio_probe(struct mvneta_port *pp)
 	int err = phylink_of_phy_connect(pp->phylink, pp->dn, 0);
 
 	if (err)
-		netdev_err(pp->dev, "could not attach PHY: %d\n", err);
+		netdev_err(pp->dev, "could yest attach PHY: %d\n", err);
 
 	phylink_ethtool_get_wol(pp->phylink, &wol);
 	device_set_wakeup_capable(&pp->dev->dev, !!wol.supported);
@@ -3941,7 +3941,7 @@ static void mvneta_mdio_remove(struct mvneta_port *pp)
 
 /* Electing a CPU must be done in an atomic way: it should be done
  * after or before the removal/insertion of a CPU and this function is
- * not reentrant.
+ * yest reentrant.
  */
 static void mvneta_percpu_elect(struct mvneta_port *pp)
 {
@@ -3992,11 +3992,11 @@ static void mvneta_percpu_elect(struct mvneta_port *pp)
 	}
 };
 
-static int mvneta_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int mvneta_cpu_online(unsigned int cpu, struct hlist_yesde *yesde)
 {
 	int other_cpu;
-	struct mvneta_port *pp = hlist_entry_safe(node, struct mvneta_port,
-						  node_online);
+	struct mvneta_port *pp = hlist_entry_safe(yesde, struct mvneta_port,
+						  yesde_online);
 	struct mvneta_pcpu_port *port = per_cpu_ptr(pp->ports, cpu);
 
 
@@ -4050,10 +4050,10 @@ static int mvneta_cpu_online(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int mvneta_cpu_down_prepare(unsigned int cpu, struct hlist_node *node)
+static int mvneta_cpu_down_prepare(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct mvneta_port *pp = hlist_entry_safe(node, struct mvneta_port,
-						  node_online);
+	struct mvneta_port *pp = hlist_entry_safe(yesde, struct mvneta_port,
+						  yesde_online);
 	struct mvneta_pcpu_port *port = per_cpu_ptr(pp->ports, cpu);
 
 	/*
@@ -4072,12 +4072,12 @@ static int mvneta_cpu_down_prepare(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int mvneta_cpu_dead(unsigned int cpu, struct hlist_node *node)
+static int mvneta_cpu_dead(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct mvneta_port *pp = hlist_entry_safe(node, struct mvneta_port,
-						  node_dead);
+	struct mvneta_port *pp = hlist_entry_safe(yesde, struct mvneta_port,
+						  yesde_dead);
 
-	/* Check if a new CPU must be elected now this on is down */
+	/* Check if a new CPU must be elected yesw this on is down */
 	spin_lock(&pp->lock);
 	mvneta_percpu_elect(pp);
 	spin_unlock(&pp->lock);
@@ -4113,7 +4113,7 @@ static int mvneta_open(struct net_device *dev)
 		ret = request_percpu_irq(pp->dev->irq, mvneta_percpu_isr,
 					 dev->name, pp->ports);
 	if (ret) {
-		netdev_err(pp->dev, "cannot request irq %d\n", pp->dev->irq);
+		netdev_err(pp->dev, "canyest request irq %d\n", pp->dev->irq);
 		goto err_cleanup_txqs;
 	}
 
@@ -4124,23 +4124,23 @@ static int mvneta_open(struct net_device *dev)
 		on_each_cpu(mvneta_percpu_enable, pp, true);
 
 		pp->is_stopped = false;
-		/* Register a CPU notifier to handle the case where our CPU
+		/* Register a CPU yestifier to handle the case where our CPU
 		 * might be taken offline.
 		 */
-		ret = cpuhp_state_add_instance_nocalls(online_hpstate,
-						       &pp->node_online);
+		ret = cpuhp_state_add_instance_yescalls(online_hpstate,
+						       &pp->yesde_online);
 		if (ret)
 			goto err_free_irq;
 
-		ret = cpuhp_state_add_instance_nocalls(CPUHP_NET_MVNETA_DEAD,
-						       &pp->node_dead);
+		ret = cpuhp_state_add_instance_yescalls(CPUHP_NET_MVNETA_DEAD,
+						       &pp->yesde_dead);
 		if (ret)
 			goto err_free_online_hp;
 	}
 
 	ret = mvneta_mdio_probe(pp);
 	if (ret < 0) {
-		netdev_err(dev, "cannot probe MDIO bus\n");
+		netdev_err(dev, "canyest probe MDIO bus\n");
 		goto err_free_dead_hp;
 	}
 
@@ -4150,12 +4150,12 @@ static int mvneta_open(struct net_device *dev)
 
 err_free_dead_hp:
 	if (!pp->neta_armada3700)
-		cpuhp_state_remove_instance_nocalls(CPUHP_NET_MVNETA_DEAD,
-						    &pp->node_dead);
+		cpuhp_state_remove_instance_yescalls(CPUHP_NET_MVNETA_DEAD,
+						    &pp->yesde_dead);
 err_free_online_hp:
 	if (!pp->neta_armada3700)
-		cpuhp_state_remove_instance_nocalls(online_hpstate,
-						    &pp->node_online);
+		cpuhp_state_remove_instance_yescalls(online_hpstate,
+						    &pp->yesde_online);
 err_free_irq:
 	if (pp->neta_armada3700) {
 		free_irq(pp->dev->irq, pp);
@@ -4177,9 +4177,9 @@ static int mvneta_stop(struct net_device *dev)
 
 	if (!pp->neta_armada3700) {
 		/* Inform that we are stopping so we don't want to setup the
-		 * driver for new CPUs in the notifiers. The code of the
-		 * notifier for CPU online is protected by the same spinlock,
-		 * so when we get the lock, the notifer work is done.
+		 * driver for new CPUs in the yestifiers. The code of the
+		 * yestifier for CPU online is protected by the same spinlock,
+		 * so when we get the lock, the yestifer work is done.
 		 */
 		spin_lock(&pp->lock);
 		pp->is_stopped = true;
@@ -4188,10 +4188,10 @@ static int mvneta_stop(struct net_device *dev)
 		mvneta_stop_dev(pp);
 		mvneta_mdio_remove(pp);
 
-		cpuhp_state_remove_instance_nocalls(online_hpstate,
-						    &pp->node_online);
-		cpuhp_state_remove_instance_nocalls(CPUHP_NET_MVNETA_DEAD,
-						    &pp->node_dead);
+		cpuhp_state_remove_instance_yescalls(online_hpstate,
+						    &pp->yesde_online);
+		cpuhp_state_remove_instance_yescalls(CPUHP_NET_MVNETA_DEAD,
+						    &pp->yesde_dead);
 		on_each_cpu(mvneta_percpu_disable, pp, true);
 		free_percpu_irq(dev->irq, pp->ports);
 	} else {
@@ -4221,7 +4221,7 @@ static int mvneta_xdp_setup(struct net_device *dev, struct bpf_prog *prog,
 	struct bpf_prog *old_prog;
 
 	if (prog && dev->mtu > MVNETA_MAX_RX_BUF_SIZE) {
-		NL_SET_ERR_MSG_MOD(extack, "Jumbo frames not supported on XDP");
+		NL_SET_ERR_MSG_MOD(extack, "Jumbo frames yest supported on XDP");
 		return -EOPNOTSUPP;
 	}
 
@@ -4545,7 +4545,7 @@ static int mvneta_ethtool_set_rxfh(struct net_device *dev, const u32 *indir,
 		return -EOPNOTSUPP;
 
 	/* We require at least one supported parameter to be changed
-	 * and no change in any of the unsupported parameters
+	 * and yes change in any of the unsupported parameters
 	 */
 	if (key ||
 	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
@@ -4622,7 +4622,7 @@ static int mvneta_ethtool_set_eee(struct net_device *dev,
 	struct mvneta_port *pp = netdev_priv(dev);
 	u32 lpi_ctl0;
 
-	/* The Armada 37x documents do not give limits for this other than
+	/* The Armada 37x documents do yest give limits for this other than
 	 * it being an 8-bit register. */
 	if (eee->tx_lpi_enabled && eee->tx_lpi_timer > 255)
 		return -EINVAL;
@@ -4793,8 +4793,8 @@ static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 /* Device initialization routine */
 static int mvneta_probe(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
-	struct device_node *bm_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
+	struct device_yesde *bm_yesde;
 	struct mvneta_port *pp;
 	struct net_device *dev;
 	struct phylink *phylink;
@@ -4836,7 +4836,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	pp->phylink_config.dev = &dev->dev;
 	pp->phylink_config.type = PHYLINK_NETDEV;
 
-	phylink = phylink_create(&pp->phylink_config, pdev->dev.fwnode,
+	phylink = phylink_create(&pp->phylink_config, pdev->dev.fwyesde,
 				 phy_mode, &mvneta_phylink_ops);
 	if (IS_ERR(phylink)) {
 		err = PTR_ERR(phylink);
@@ -4944,9 +4944,9 @@ static int mvneta_probe(struct platform_device *pdev)
 	pp->rx_offset_correction = MVNETA_SKB_HEADROOM;
 
 	/* Obtain access to BM resources if enabled and already initialized */
-	bm_node = of_parse_phandle(dn, "buffer-manager", 0);
-	if (bm_node) {
-		pp->bm_priv = mvneta_bm_get(bm_node);
+	bm_yesde = of_parse_phandle(dn, "buffer-manager", 0);
+	if (bm_yesde) {
+		pp->bm_priv = mvneta_bm_get(bm_yesde);
 		if (pp->bm_priv) {
 			err = mvneta_bm_port_init(pdev, pp);
 			if (err < 0) {
@@ -4964,7 +4964,7 @@ static int mvneta_probe(struct platform_device *pdev)
 					       NET_SKB_PAD -
 					       MVNETA_RX_PKT_OFFSET_CORRECTION);
 	}
-	of_node_put(bm_node);
+	of_yesde_put(bm_yesde);
 
 	err = mvneta_init(&pdev->dev, pp);
 	if (err < 0)
@@ -4976,7 +4976,7 @@ static int mvneta_probe(struct platform_device *pdev)
 		goto err_netdev;
 	}
 
-	/* Armada3700 network controller does not support per-cpu
+	/* Armada3700 network controller does yest support per-cpu
 	 * operation, so only single NAPI should be initialized.
 	 */
 	if (pp->neta_armada3700) {
@@ -5077,10 +5077,10 @@ static int mvneta_suspend(struct device *device)
 		pp->is_stopped = true;
 		spin_unlock(&pp->lock);
 
-		cpuhp_state_remove_instance_nocalls(online_hpstate,
-						    &pp->node_online);
-		cpuhp_state_remove_instance_nocalls(CPUHP_NET_MVNETA_DEAD,
-						    &pp->node_dead);
+		cpuhp_state_remove_instance_yescalls(online_hpstate,
+						    &pp->yesde_online);
+		cpuhp_state_remove_instance_yescalls(CPUHP_NET_MVNETA_DEAD,
+						    &pp->yesde_dead);
 	}
 
 	rtnl_lock();
@@ -5156,10 +5156,10 @@ static int mvneta_resume(struct device *device)
 		spin_lock(&pp->lock);
 		pp->is_stopped = false;
 		spin_unlock(&pp->lock);
-		cpuhp_state_add_instance_nocalls(online_hpstate,
-						 &pp->node_online);
-		cpuhp_state_add_instance_nocalls(CPUHP_NET_MVNETA_DEAD,
-						 &pp->node_dead);
+		cpuhp_state_add_instance_yescalls(online_hpstate,
+						 &pp->yesde_online);
+		cpuhp_state_add_instance_yescalls(CPUHP_NET_MVNETA_DEAD,
+						 &pp->yesde_dead);
 	}
 
 	rtnl_lock();

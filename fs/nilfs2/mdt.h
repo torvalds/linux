@@ -19,13 +19,13 @@
  * struct nilfs_shadow_map - shadow mapping of meta data file
  * @bmap_store: shadow copy of bmap state
  * @frozen_data: shadowed dirty data pages
- * @frozen_btnodes: shadowed dirty b-tree nodes' pages
+ * @frozen_btyesdes: shadowed dirty b-tree yesdes' pages
  * @frozen_buffers: list of frozen buffers
  */
 struct nilfs_shadow_map {
 	struct nilfs_bmap_store bmap_store;
 	struct address_space frozen_data;
-	struct address_space frozen_btnodes;
+	struct address_space frozen_btyesdes;
 	struct list_head frozen_buffers;
 };
 
@@ -53,65 +53,65 @@ struct nilfs_mdt_info {
 	unsigned long		mi_blocks_per_desc_block;
 };
 
-static inline struct nilfs_mdt_info *NILFS_MDT(const struct inode *inode)
+static inline struct nilfs_mdt_info *NILFS_MDT(const struct iyesde *iyesde)
 {
-	return inode->i_private;
+	return iyesde->i_private;
 }
 
-static inline int nilfs_is_metadata_file_inode(const struct inode *inode)
+static inline int nilfs_is_metadata_file_iyesde(const struct iyesde *iyesde)
 {
-	return inode->i_private != NULL;
+	return iyesde->i_private != NULL;
 }
 
 /* Default GFP flags using highmem */
 #define NILFS_MDT_GFP      (__GFP_RECLAIM | __GFP_IO | __GFP_HIGHMEM)
 
-int nilfs_mdt_get_block(struct inode *, unsigned long, int,
-			void (*init_block)(struct inode *,
+int nilfs_mdt_get_block(struct iyesde *, unsigned long, int,
+			void (*init_block)(struct iyesde *,
 					   struct buffer_head *, void *),
 			struct buffer_head **);
-int nilfs_mdt_find_block(struct inode *inode, unsigned long start,
+int nilfs_mdt_find_block(struct iyesde *iyesde, unsigned long start,
 			 unsigned long end, unsigned long *blkoff,
 			 struct buffer_head **out_bh);
-int nilfs_mdt_delete_block(struct inode *, unsigned long);
-int nilfs_mdt_forget_block(struct inode *, unsigned long);
-int nilfs_mdt_fetch_dirty(struct inode *);
+int nilfs_mdt_delete_block(struct iyesde *, unsigned long);
+int nilfs_mdt_forget_block(struct iyesde *, unsigned long);
+int nilfs_mdt_fetch_dirty(struct iyesde *);
 
-int nilfs_mdt_init(struct inode *inode, gfp_t gfp_mask, size_t objsz);
-void nilfs_mdt_clear(struct inode *inode);
-void nilfs_mdt_destroy(struct inode *inode);
+int nilfs_mdt_init(struct iyesde *iyesde, gfp_t gfp_mask, size_t objsz);
+void nilfs_mdt_clear(struct iyesde *iyesde);
+void nilfs_mdt_destroy(struct iyesde *iyesde);
 
-void nilfs_mdt_set_entry_size(struct inode *, unsigned int, unsigned int);
+void nilfs_mdt_set_entry_size(struct iyesde *, unsigned int, unsigned int);
 
-int nilfs_mdt_setup_shadow_map(struct inode *inode,
+int nilfs_mdt_setup_shadow_map(struct iyesde *iyesde,
 			       struct nilfs_shadow_map *shadow);
-int nilfs_mdt_save_to_shadow_map(struct inode *inode);
-void nilfs_mdt_restore_from_shadow_map(struct inode *inode);
-void nilfs_mdt_clear_shadow_map(struct inode *inode);
-int nilfs_mdt_freeze_buffer(struct inode *inode, struct buffer_head *bh);
-struct buffer_head *nilfs_mdt_get_frozen_buffer(struct inode *inode,
+int nilfs_mdt_save_to_shadow_map(struct iyesde *iyesde);
+void nilfs_mdt_restore_from_shadow_map(struct iyesde *iyesde);
+void nilfs_mdt_clear_shadow_map(struct iyesde *iyesde);
+int nilfs_mdt_freeze_buffer(struct iyesde *iyesde, struct buffer_head *bh);
+struct buffer_head *nilfs_mdt_get_frozen_buffer(struct iyesde *iyesde,
 						struct buffer_head *bh);
 
-static inline void nilfs_mdt_mark_dirty(struct inode *inode)
+static inline void nilfs_mdt_mark_dirty(struct iyesde *iyesde)
 {
-	if (!test_bit(NILFS_I_DIRTY, &NILFS_I(inode)->i_state))
-		set_bit(NILFS_I_DIRTY, &NILFS_I(inode)->i_state);
+	if (!test_bit(NILFS_I_DIRTY, &NILFS_I(iyesde)->i_state))
+		set_bit(NILFS_I_DIRTY, &NILFS_I(iyesde)->i_state);
 }
 
-static inline void nilfs_mdt_clear_dirty(struct inode *inode)
+static inline void nilfs_mdt_clear_dirty(struct iyesde *iyesde)
 {
-	clear_bit(NILFS_I_DIRTY, &NILFS_I(inode)->i_state);
+	clear_bit(NILFS_I_DIRTY, &NILFS_I(iyesde)->i_state);
 }
 
-static inline __u64 nilfs_mdt_cno(struct inode *inode)
+static inline __u64 nilfs_mdt_cyes(struct iyesde *iyesde)
 {
-	return ((struct the_nilfs *)inode->i_sb->s_fs_info)->ns_cno;
+	return ((struct the_nilfs *)iyesde->i_sb->s_fs_info)->ns_cyes;
 }
 
 static inline spinlock_t *
-nilfs_mdt_bgl_lock(struct inode *inode, unsigned int block_group)
+nilfs_mdt_bgl_lock(struct iyesde *iyesde, unsigned int block_group)
 {
-	return bgl_lock_ptr(NILFS_MDT(inode)->mi_bgl, block_group);
+	return bgl_lock_ptr(NILFS_MDT(iyesde)->mi_bgl, block_group);
 }
 
 #endif /* _NILFS_MDT_H */

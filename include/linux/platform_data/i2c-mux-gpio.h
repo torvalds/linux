@@ -8,7 +8,7 @@
 #ifndef _LINUX_I2C_MUX_GPIO_H
 #define _LINUX_I2C_MUX_GPIO_H
 
-/* MUX has no specific idle mode */
+/* MUX has yes specific idle mode */
 #define I2C_MUX_GPIO_NO_IDLE	((unsigned)-1)
 
 /**
@@ -19,7 +19,7 @@
  *	position
  * @n_values: Number of multiplexer positions (busses to instantiate)
  * @classes: Optional I2C auto-detection classes
- * @idle: Bitmask to write to MUX when idle or GPIO_I2CMUX_NO_IDLE if not used
+ * @idle: Bitmask to write to MUX when idle or GPIO_I2CMUX_NO_IDLE if yest used
  */
 struct i2c_mux_gpio_platform_data {
 	int parent;

@@ -44,7 +44,7 @@ struct compat_stat {
 #else
 	compat_dev_t	st_dev;
 #endif
-	compat_ino_t	st_ino;
+	compat_iyes_t	st_iyes;
 	compat_mode_t	st_mode;
 	compat_ushort_t	st_nlink;
 	__compat_uid16_t	st_uid;
@@ -96,7 +96,7 @@ struct compat_statfs {
 	int		f_files;
 	int		f_ffree;
 	compat_fsid_t	f_fsid;
-	int		f_namelen;	/* SunOS ignores this field. */
+	int		f_namelen;	/* SunOS igyesres this field. */
 	int		f_frsize;
 	int		f_flags;
 	int		f_spare[4];
@@ -114,7 +114,7 @@ typedef u32		compat_sigset_word;
 #define COMPAT_OFF_T_MAX	0x7fffffff
 
 /*
- * A pointer passed in from user mode. This should not
+ * A pointer passed in from user mode. This should yest
  * be used for syscall parameters, just declare them
  * as pointers because the syscall entry code will have
  * appropriately converted them already.

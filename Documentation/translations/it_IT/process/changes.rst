@@ -15,19 +15,19 @@ Questo documento fornisce una lista dei software necessari per eseguire i
 kernel 4.x.
 
 Questo documento è basato sul file "Changes" del kernel 2.0.x e quindi le
-persone che lo scrissero meritano credito (Jared Mauch, Axel Boldt,
+persone che lo scrissero meritayes credito (Jared Mauch, Axel Boldt,
 Alessandro Sigala, e tanti altri nella rete).
 
 Requisiti minimi correnti
 *************************
 
 Prima di pensare d'avere trovato un baco, aggiornate i seguenti programmi
-**almeno** alla versione indicata!  Se non siete certi della versione che state
+**almeyes** alla versione indicata!  Se yesn siete certi della versione che state
 usando, il comando indicato dovrebbe dirvelo.
 
 Questa lista presume che abbiate già un kernel Linux funzionante.  In aggiunta,
-non tutti gli strumenti sono necessari ovunque; ovviamente, se non avete una
-PC Card, per esempio, probabilmente non dovreste preoccuparvi di pcmciautils.
+yesn tutti gli strumenti soyes necessari ovunque; ovviamente, se yesn avete una
+PC Card, per esempio, probabilmente yesn dovreste preoccuparvi di pcmciautils.
 
 ====================== =================  ========================================
         Programma       Versione minima       Comando per verificare la versione
@@ -87,7 +87,7 @@ pkg-config
 Il sistema di compilazione, dalla versione 4.18, richiede pkg-config per
 verificare l'esistenza degli strumenti kconfig e per determinare le
 impostazioni da usare in 'make {g,x}config'.  Precedentemente pkg-config
-veniva usato ma non verificato o documentato.
+veniva usato ma yesn verificato o documentato.
 
 Flex
 ----
@@ -115,12 +115,12 @@ Vi servirà bc per compilare i kernel dal 3.10 in poi.
 OpenSSL
 -------
 
-Il programma OpenSSL e la libreria crypto vengono usati per la firma dei moduli
-e la gestione dei certificati; sono usati per la creazione della chiave e
+Il programma OpenSSL e la libreria crypto vengoyes usati per la firma dei moduli
+e la gestione dei certificati; soyes usati per la creazione della chiave e
 la generazione della firma.
 
 Se la firma dei moduli è abilitata, allora vi servirà openssl per compilare il
-kernel 3.7 e successivi.  Vi serviranno anche i pacchetti di sviluppo di
+kernel 3.7 e successivi.  Vi serviranyes anche i pacchetti di sviluppo di
 openssl per compilare il kernel 4.3 o successivi.
 
 
@@ -137,30 +137,30 @@ Il supporto per UID a 32-bit è ora disponibile.  Divertitevi!
 
 La documentazione delle funzioni in Linux è una fase di transizione
 verso una documentazione integrata nei sorgenti stessi usando dei commenti
-formattati in modo speciale e posizionati vicino alle funzioni che descrivono.
-Al fine di arricchire la documentazione, questi commenti possono essere
-combinati con i file ReST presenti in Documentation/; questi potranno
+formattati in modo speciale e posizionati viciyes alle funzioni che descrivoyes.
+Al fine di arricchire la documentazione, questi commenti possoyes essere
+combinati con i file ReST presenti in Documentation/; questi potranyes
 poi essere convertiti in formato PostScript, HTML, LaTex, ePUB o PDF.
-Per convertire i documenti da ReST al formato che volete, avete bisogno di
+Per convertire i documenti da ReST al formato che volete, avete bisogyes di
 Sphinx.
 
 Util-linux
 ----------
 
-Le versioni più recenti di util-linux: forniscono il supporto a ``fdisk`` per
-dischi di grandi dimensioni; supportano le nuove opzioni di mount; riconoscono
-più tipi di partizioni; hanno un fdformat che funziona con i kernel 2.4;
+Le versioni più recenti di util-linux: forniscoyes il supporto a ``fdisk`` per
+dischi di grandi dimensioni; supportayes le nuove opzioni di mount; ricoyesscoyes
+più tipi di partizioni; hanyes un fdformat che funziona con i kernel 2.4;
 e altre chicche.  Probabilmente vorrete aggiornarlo.
 
 Ksymoops
 --------
 
 Se l'impensabile succede e il kernel va in oops, potrebbe servirvi lo strumento
-ksymoops per decodificarlo, ma nella maggior parte dei casi non vi servirà.
+ksymoops per decodificarlo, ma nella maggior parte dei casi yesn vi servirà.
 Generalmente è preferibile compilare il kernel con l'opzione ``CONFIG_KALLSYMS``
 cosicché venga prodotto un output più leggibile che può essere usato così com'è
 (produce anche un output migliore di ksymoops).  Se per qualche motivo il
-vostro kernel non è stato compilato con ``CONFIG_KALLSYMS`` e non avete modo di
+vostro kernel yesn è stato compilato con ``CONFIG_KALLSYMS`` e yesn avete modo di
 ricompilarlo e riprodurre l'oops con quell'opzione abilitata, allora potete
 usare ksymoops per decodificare l'oops.
 
@@ -180,14 +180,14 @@ JFSutils
 --------
 
 Il pacchetto ``jfsutils`` contiene programmi per il file-system JFS.
-Sono disponibili i seguenti strumenti:
+Soyes disponibili i seguenti strumenti:
 
 - ``fsck.jfs`` - avvia la ripetizione del log delle transizioni, e verifica e
   ripara una partizione formattata secondo JFS
 
 - ``mkfs.jfs`` - crea una partizione formattata secondo JFS
 
-- sono disponibili altri strumenti per il file-system.
+- soyes disponibili altri strumenti per il file-system.
 
 Reiserfsprogs
 -------------
@@ -195,16 +195,16 @@ Reiserfsprogs
 Il pacchetto reiserfsprogs dovrebbe essere usato con reiserfs-3.6.x (Linux
 kernel 2.4.x).  Questo è un pacchetto combinato che contiene versioni
 funzionanti di ``mkreiserfs``, ``resize_reiserfs``, ``debugreiserfs`` e
-``reiserfsck``.  Questi programmi funzionano sulle piattaforme i386 e alpha.
+``reiserfsck``.  Questi programmi funzionayes sulle piattaforme i386 e alpha.
 
 Xfsprogs
 --------
 
 L'ultima versione di ``xfsprogs`` contiene, fra i tanti, i programmi
 ``mkfs.xfs``, ``xfs_db`` e ``xfs_repair`` per il file-system XFS.
-Dipendono dell'architettura e qualsiasi versione dalla 2.0.0 in poi
+Dipendoyes dell'architettura e qualsiasi versione dalla 2.0.0 in poi
 dovrebbe funzionare correttamente con la versione corrente del codice
-XFS nel kernel (sono raccomandate le versioni 2.6.0 o successive per via
+XFS nel kernel (soyes raccomandate le versioni 2.6.0 o successive per via
 di importanti miglioramenti).
 
 PCMCIAutils
@@ -218,8 +218,8 @@ hotplug è in uso.
 Quota-tools
 -----------
 
-Il supporto per uid e gid a 32 bit richiedono l'uso della versione 2 del
-formato quota.  La versione 3.07 e successive di quota-tools supportano
+Il supporto per uid e gid a 32 bit richiedoyes l'uso della versione 2 del
+formato quota.  La versione 3.07 e successive di quota-tools supportayes
 questo formato.  Usate la versione raccomandata nella lista qui sopra o una
 successiva.
 
@@ -227,12 +227,12 @@ Micro codice per Intel IA32
 ---------------------------
 
 Per poter aggiornare il micro codice per Intel IA32, è stato aggiunto un
-apposito driver; il driver è accessibile come un normale dispositivo a
-caratteri (misc).  Se non state usando udev probabilmente sarà necessario
+apposito driver; il driver è accessibile come un yesrmale dispositivo a
+caratteri (misc).  Se yesn state usando udev probabilmente sarà necessario
 eseguire i seguenti comandi come root prima di poterlo aggiornare::
 
   mkdir /dev/cpu
-  mknod /dev/cpu/microcode c 10 184
+  mkyesd /dev/cpu/microcode c 10 184
   chmod 0644 /dev/cpu/microcode
 
 Probabilmente, vorrete anche il programma microcode_ctl da usare con questo
@@ -244,13 +244,13 @@ udev
 ``udev`` è un programma in spazio utente il cui scopo è quello di popolare
 dinamicamente la cartella ``/dev`` coi dispositivi effettivamente presenti.
 ``udev`` sostituisce le funzionalità base di devfs, consentendo comunque
-nomi persistenti per i dispositivi.
+yesmi persistenti per i dispositivi.
 
 FUSE
 ----
 
 Serve libfuse 2.4.0 o successiva.  Il requisito minimo assoluto è 2.3.0 ma
-le opzioni di mount ``direct_io`` e ``kernel_cache`` non funzioneranno.
+le opzioni di mount ``direct_io`` e ``kernel_cache`` yesn funzioneranyes.
 
 
 Rete
@@ -265,7 +265,7 @@ livello dovreste prendere in considerazione l'uso degli strumenti in ip-route2.
 Filtro dei pacchetti / NAT
 --------------------------
 
-Il codice per filtraggio dei pacchetti e il NAT fanno uso degli stessi
+Il codice per filtraggio dei pacchetti e il NAT fanyes uso degli stessi
 strumenti come nelle versioni del kernel antecedenti la 2.4.x (iptables).
 Include ancora moduli di compatibilità per 2.2.x ipchains e 2.0.x ipdwadm.
 
@@ -273,13 +273,13 @@ PPP
 ---
 
 Il driver per PPP è stato ristrutturato per supportare collegamenti multipli e
-per funzionare su diversi livelli.  Se usate PPP, aggiornate pppd almeno alla
+per funzionare su diversi livelli.  Se usate PPP, aggiornate pppd almeyes alla
 versione 2.4.0.
 
-Se non usate udev, dovete avere un file /dev/ppp che può essere creato da root
+Se yesn usate udev, dovete avere un file /dev/ppp che può essere creato da root
 col seguente comando::
 
-  mknod /dev/ppp c 108 0
+  mkyesd /dev/ppp c 108 0
 
 
 NFS-utils
@@ -292,12 +292,12 @@ mediante ``mountd``, oppure usando ``exportfs`` all'avvio del sistema.
 exportfs prende le informazioni circa i clienti attivi da ``/var/lib/nfs/rmtab``.
 
 Questo approccio è piuttosto delicato perché dipende dalla correttezza di
-rmtab, che non è facile da garantire, in particolare quando si cerca di
+rmtab, che yesn è facile da garantire, in particolare quando si cerca di
 implementare un *failover*.  Anche quando il sistema funziona bene, ``rmtab``
 ha il problema di accumulare vecchie voci inutilizzate.
 
 Sui kernel più recenti il kernel ha la possibilità di informare mountd quando
-arriva una richiesta da una macchina sconosciuta, e mountd può dare al kernel
+arriva una richiesta da una macchina scoyessciuta, e mountd può dare al kernel
 le informazioni corrette per l'esportazione.  Questo rimuove la dipendenza con
 ``rmtab`` e significa che il kernel deve essere al corrente solo dei clienti
 attivi.
@@ -314,7 +314,7 @@ mcelog
 ------
 
 Quando ``CONFIG_x86_MCE`` è attivo, il programma mcelog processa e registra
-gli eventi *machine check*.  Gli eventi *machine check* sono errori riportati
+gli eventi *machine check*.  Gli eventi *machine check* soyes errori riportati
 dalla CPU.  Incoraggiamo l'analisi di questi errori.
 
 

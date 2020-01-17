@@ -16,7 +16,7 @@
 #include "../seq_lock.h"
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 
 /*
@@ -76,7 +76,7 @@ snd_seq_oss_midi_lookup_ports(int client)
 	clinfo->client = -1;
 	while (snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_QUERY_NEXT_CLIENT, clinfo) == 0) {
 		if (clinfo->client == client)
-			continue; /* ignore myself */
+			continue; /* igyesre myself */
 		pinfo->addr.client = clinfo->client;
 		pinfo->addr.port = -1;
 		while (snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_QUERY_NEXT_PORT, pinfo) == 0)
@@ -182,7 +182,7 @@ snd_seq_oss_midi_check_new_port(struct snd_seq_port_info *pinfo)
 		return -ENOMEM;
 	}
 	/* OSS sequencer adds running status to all sequences */
-	snd_midi_event_no_status(mdev->coder, 1);
+	snd_midi_event_yes_status(mdev->coder, 1);
 
 	/*
 	 * look for en empty slot
@@ -284,7 +284,7 @@ snd_seq_oss_midi_cleanup(struct seq_oss_devinfo *dp)
 
 
 /*
- * open all midi devices.  ignore errors.
+ * open all midi devices.  igyesre errors.
  */
 void
 snd_seq_oss_midi_open_all(struct seq_oss_devinfo *dp, int file_mode)
@@ -303,13 +303,13 @@ get_mididev(struct seq_oss_devinfo *dp, int dev)
 {
 	if (dev < 0 || dev >= dp->max_mididev)
 		return NULL;
-	dev = array_index_nospec(dev, dp->max_mididev);
+	dev = array_index_yesspec(dev, dp->max_mididev);
 	return get_mdev(dev);
 }
 
 
 /*
- * open the midi device if not opened yet
+ * open the midi device if yest opened yet
  */
 int
 snd_seq_oss_midi_open(struct seq_oss_devinfo *dp, int dev, int fmode)
@@ -553,7 +553,7 @@ send_synth_event(struct seq_oss_devinfo *dp, struct snd_seq_event *ev, int dev)
 	case SNDRV_SEQ_EVENT_PITCHBEND:
 		ossev.l.cmd = MIDI_PITCH_BEND; break;
 	default:
-		return 0; /* not supported */
+		return 0; /* yest supported */
 	}
 
 	ossev.v.dev = dev;
@@ -563,9 +563,9 @@ send_synth_event(struct seq_oss_devinfo *dp, struct snd_seq_event *ev, int dev)
 	case SNDRV_SEQ_EVENT_NOTEOFF:
 	case SNDRV_SEQ_EVENT_KEYPRESS:
 		ossev.v.code = EV_CHN_VOICE;
-		ossev.v.note = ev->data.note.note;
-		ossev.v.parm = ev->data.note.velocity;
-		ossev.v.chn = ev->data.note.channel;
+		ossev.v.yeste = ev->data.yeste.yeste;
+		ossev.v.parm = ev->data.yeste.velocity;
+		ossev.v.chn = ev->data.yeste.channel;
 		break;
 	case SNDRV_SEQ_EVENT_CONTROLLER:
 	case SNDRV_SEQ_EVENT_PGMCHANGE:
@@ -615,7 +615,7 @@ send_midi_event(struct seq_oss_devinfo *dp, struct snd_seq_event *ev, struct seq
 /*
  * dump midi data
  * return 0 : enqueued
- *        non-zero : invalid - ignored
+ *        yesn-zero : invalid - igyesred
  */
 int
 snd_seq_oss_midi_putc(struct seq_oss_devinfo *dp, int dev, unsigned char c, struct snd_seq_event *ev)
@@ -667,7 +667,7 @@ capmode_str(int val)
 	else if (val == PERM_WRITE)
 		return "write";
 	else
-		return "none";
+		return "yesne";
 }
 
 void

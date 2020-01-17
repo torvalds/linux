@@ -298,7 +298,7 @@ static int cc_cipher_sethkey(struct crypto_skcipher *sktfm, const u8 *key,
 	memcpy(&hki, key, keylen);
 
 	/* The real key len for crypto op is the size of the HW key
-	 * referenced by the HW key slot, not the hardware key token
+	 * referenced by the HW key slot, yest the hardware key token
 	 */
 	keylen = hki.keylen;
 
@@ -348,7 +348,7 @@ static int cc_cipher_sethkey(struct crypto_skcipher *sktfm, const u8 *key,
 
 	case CC_POLICY_PROTECTED_KEY:
 		if (ctx_p->drvdata->hw_rev < CC_HW_REV_713) {
-			dev_err(dev, "CPP keys not supported in this hardware revision.\n");
+			dev_err(dev, "CPP keys yest supported in this hardware revision.\n");
 			return -EINVAL;
 		}
 
@@ -800,7 +800,7 @@ static void cc_cipher_complete(struct device *dev, void *cc_req, int err)
 	unsigned int ivsize = crypto_skcipher_ivsize(sk_tfm);
 
 	if (err != -EINPROGRESS) {
-		/* Not a BACKLOG notification */
+		/* Not a BACKLOG yestification */
 		cc_unmap_cipher_request(dev, req_ctx, ivsize, src, dst);
 		memcpy(req->iv, req_ctx->iv, ivsize);
 		kzfree(req_ctx->iv);
@@ -898,7 +898,7 @@ static int cc_cipher_process(struct skcipher_request *req,
 			     &req->base);
 	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		/* Failed to send the request or request completed
-		 * synchronously
+		 * synchroyesusly
 		 */
 		cc_unmap_cipher_request(dev, req_ctx, ivsize, src, dst);
 	}

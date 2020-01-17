@@ -24,7 +24,7 @@ these functions (see arch/arm{,64}/include/asm/virt.h):
 
   Set HVBAR/VBAR_EL2 to 'vectors' to enable a hypervisor. 'vectors'
   must be a physical address, and respect the alignment requirements
-  of the architecture. Only implemented by the initial stubs, not by
+  of the architecture. Only implemented by the initial stubs, yest by
   Linux hypervisors.
 
 * r0/x0 = HVC_RESET_VECTORS
@@ -41,10 +41,10 @@ these functions (see arch/arm{,64}/include/asm/virt.h):
 
   Mask all exceptions, disable the MMU, move the arguments into place
   (arm64 only), and jump to the restart address while at HYP/EL2. This
-  hypercall is not expected to return to its caller.
+  hypercall is yest expected to return to its caller.
 
 Any other value of r0/x0 triggers a hypervisor-specific handling,
-which is not documented here.
+which is yest documented here.
 
 The return value of a stub hypercall is held by r0/x0, and is 0 on
 success, and HVC_STUB_ERR on error. A stub hypercall is allowed to

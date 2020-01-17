@@ -26,12 +26,12 @@
  * are met:
  *
  * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ *   yestice, this list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the
  *   distribution.
- * * Neither the name of Intel Corporation nor the names of its
+ * * Neither the name of Intel Corporation yesr the names of its
  *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
  *
@@ -104,7 +104,7 @@ typedef struct scif_pinned_pages *scif_pinned_pages_t;
  * @va: Array of kernel virtual addresses backed by the pages in the phys_addr
  *	array. The va is populated only when called on the host for a remote
  *	SCIF connection on MIC. This is required to support the use case of DMA
- *	between MIC and another device which is not a SCIF node e.g., an IB or
+ *	between MIC and ayesther device which is yest a SCIF yesde e.g., an IB or
  *	ethernet NIC.
  */
 struct scif_range {
@@ -130,18 +130,18 @@ struct scif_pollepd {
 /**
  * scif_peer_dev - representation of a peer SCIF device
  *
- * Peer devices show up as PCIe devices for the mgmt node but not the cards.
- * The mgmt node discovers all the cards on the PCIe bus and informs the other
- * cards about their peers. Upon notification of a peer a node adds a peer
+ * Peer devices show up as PCIe devices for the mgmt yesde but yest the cards.
+ * The mgmt yesde discovers all the cards on the PCIe bus and informs the other
+ * cards about their peers. Upon yestification of a peer a yesde adds a peer
  * device to the peer bus to maintain symmetry in the way devices are
- * discovered across all nodes in the SCIF network.
+ * discovered across all yesdes in the SCIF network.
  *
  * @dev: underlying device
- * @dnode - The destination node which this device will communicate with.
+ * @dyesde - The destination yesde which this device will communicate with.
  */
 struct scif_peer_dev {
 	struct device dev;
-	u8 dnode;
+	u8 dyesde;
 };
 
 /**
@@ -169,7 +169,7 @@ struct scif_client {
  * Upon successful completion, scif_open() returns an endpoint descriptor to
  * be used in subsequent SCIF functions calls to refer to that endpoint;
  * otherwise in user mode SCIF_OPEN_FAILED (that is ((scif_epd_t)-1)) is
- * returned and errno is set to indicate the error; in kernel mode a NULL
+ * returned and erryes is set to indicate the error; in kernel mode a NULL
  * scif_epd_t is returned.
  *
  * Errors:
@@ -183,23 +183,23 @@ scif_epd_t scif_open(void);
  * @pn:		port number
  *
  * scif_bind() binds endpoint epd to port pn, where pn is a port number on the
- * local node. If pn is zero, a port number greater than or equal to
+ * local yesde. If pn is zero, a port number greater than or equal to
  * SCIF_PORT_RSVD is assigned and returned. Each endpoint may be bound to
  * exactly one local port. Ports less than 1024 when requested can only be bound
  * by system (or root) processes or by processes executed by privileged users.
  *
  * Return:
  * Upon successful completion, scif_bind() returns the port number to which epd
- * is bound; otherwise in user mode -1 is returned and errno is set to
+ * is bound; otherwise in user mode -1 is returned and erryes is set to
  * indicate the error; in kernel mode the negative of one of the following
  * errors is returned.
  *
  * Errors:
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  * EINVAL - the endpoint or the port is already bound
  * EISCONN - The endpoint is already connected
  * ENOSPC - No port number available for assignment
- * EACCES - The port requested is protected and the user is not the superuser
+ * EACCES - The port requested is protected and the user is yest the superuser
  */
 int scif_bind(scif_epd_t epd, u16 pn);
 
@@ -210,7 +210,7 @@ int scif_bind(scif_epd_t epd, u16 pn);
  *
  * scif_listen() marks the endpoint epd as a listening endpoint - that is, as
  * an endpoint that will be used to accept incoming connection requests. Once
- * so marked, the endpoint is said to be in the listening state and may not be
+ * so marked, the endpoint is said to be in the listening state and may yest be
  * used as the endpoint of a connection.
  *
  * The endpoint, epd, must have been bound to a port.
@@ -222,12 +222,12 @@ int scif_bind(scif_epd_t epd, u16 pn);
  *
  * Return:
  * Upon successful completion, scif_listen() returns 0; otherwise in user mode
- * -1 is returned and errno is set to indicate the error; in kernel mode the
+ * -1 is returned and erryes is set to indicate the error; in kernel mode the
  * negative of one of the following errors is returned.
  *
  * Errors:
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
- * EINVAL - the endpoint is not bound to a port
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
+ * EINVAL - the endpoint is yest bound to a port
  * EISCONN - The endpoint is already connected or listening
  */
 int scif_listen(scif_epd_t epd, int backlog);
@@ -239,37 +239,37 @@ int scif_listen(scif_epd_t epd, int backlog);
  *
  * The scif_connect() function requests the connection of endpoint epd to remote
  * port dst. If the connection is successful, a peer endpoint, bound to dst, is
- * created on node dst.node. On successful return, the connection is complete.
+ * created on yesde dst.yesde. On successful return, the connection is complete.
  *
- * If the endpoint epd has not already been bound to a port, scif_connect()
+ * If the endpoint epd has yest already been bound to a port, scif_connect()
  * will bind it to an unused local port.
  *
  * A connection is terminated when an endpoint of the connection is closed,
  * either explicitly by scif_close(), or when a process that owns one of the
  * endpoints of the connection is terminated.
  *
- * In user space, scif_connect() supports an asynchronous connection mode
+ * In user space, scif_connect() supports an asynchroyesus connection mode
  * if the application has set the O_NONBLOCK flag on the endpoint via the
  * fcntl() system call. Setting this flag will result in the calling process
- * not to wait during scif_connect().
+ * yest to wait during scif_connect().
  *
  * Return:
  * Upon successful completion, scif_connect() returns the port ID to which the
- * endpoint, epd, is bound; otherwise in user mode -1 is returned and errno is
+ * endpoint, epd, is bound; otherwise in user mode -1 is returned and erryes is
  * set to indicate the error; in kernel mode the negative of one of the
  * following errors is returned.
  *
  * Errors:
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
- * ECONNREFUSED - The destination was not listening for connections or refused
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
+ * ECONNREFUSED - The destination was yest listening for connections or refused
  * the connection request
- * EINVAL - dst.port is not a valid port ID
+ * EINVAL - dst.port is yest a valid port ID
  * EISCONN - The endpoint is already connected
  * ENOMEM - No buffer space is available
- * ENODEV - The destination node does not exist, or the node is lost or existed,
- * but is not currently in the network since it may have crashed
+ * ENODEV - The destination yesde does yest exist, or the yesde is lost or existed,
+ * but is yest currently in the network since it may have crashed
  * ENOSPC - No port number available for assignment
- * EOPNOTSUPP - The endpoint is listening and cannot be connected
+ * EOPNOTSUPP - The endpoint is listening and canyest be connected
  */
 int scif_connect(scif_epd_t epd, struct scif_port_id *dst);
 
@@ -288,7 +288,7 @@ int scif_connect(scif_epd_t epd, struct scif_port_id *dst);
  * requested. epd is unaffected by this call, and remains in the listening
  * state.
  *
- * On successful return, peer holds the global port identifier (node id and
+ * On successful return, peer holds the global port identifier (yesde id and
  * local port number) of the port which requested the connection.
  *
  * A connection is terminated when an endpoint of the connection is closed,
@@ -301,7 +301,7 @@ int scif_connect(scif_epd_t epd, struct scif_port_id *dst);
  * The flags argument is formed by OR'ing together zero or more of the
  * following values.
  * SCIF_ACCEPT_SYNC - block until a connection request is presented. If
- *			SCIF_ACCEPT_SYNC is not in flags, and no pending
+ *			SCIF_ACCEPT_SYNC is yest in flags, and yes pending
  *			connections are present on the queue, scif_accept()
  *			fails with an EAGAIN error
  *
@@ -312,20 +312,20 @@ int scif_connect(scif_epd_t epd, struct scif_port_id *dst);
  *
  * Return:
  * Upon successful completion, scif_accept() returns 0; otherwise in user mode
- * -1 is returned and errno is set to indicate the error; in kernel mode the
+ * -1 is returned and erryes is set to indicate the error; in kernel mode the
  *	negative of one of the following errors is returned.
  *
  * Errors:
- * EAGAIN - SCIF_ACCEPT_SYNC is not set and no connections are present to be
- * accepted or SCIF_ACCEPT_SYNC is not set and remote node failed to complete
+ * EAGAIN - SCIF_ACCEPT_SYNC is yest set and yes connections are present to be
+ * accepted or SCIF_ACCEPT_SYNC is yest set and remote yesde failed to complete
  * its connection request
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  * EINTR - Interrupted function
- * EINVAL - epd is not a listening endpoint, or flags is invalid, or peer is
+ * EINVAL - epd is yest a listening endpoint, or flags is invalid, or peer is
  * NULL, or newepd is NULL
- * ENODEV - The requesting node is lost or existed, but is not currently in the
+ * ENODEV - The requesting yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOMEM - Not enough space
+ * ENOMEM - Not eyesugh space
  * ENOENT - Secondary part of epd registration failed
  */
 int scif_accept(scif_epd_t epd, struct scif_port_id *peer, scif_epd_t
@@ -338,7 +338,7 @@ int scif_accept(scif_epd_t epd, struct scif_port_id *peer, scif_epd_t
  * scif_close() closes an endpoint and performs necessary teardown of
  * facilities associated with that endpoint.
  *
- * If epd is a listening endpoint then it will no longer accept connection
+ * If epd is a listening endpoint then it will yes longer accept connection
  * requests on the port to which it is bound. Any pending connection requests
  * are rejected.
  *
@@ -347,23 +347,23 @@ int scif_accept(scif_epd_t epd, struct scif_port_id *peer, scif_epd_t
  * scif_close() returns. Registered windows of the local and peer endpoints are
  * released as if scif_unregister() was called against each window.
  *
- * Closing a SCIF endpoint does not affect local registered memory mapped by
- * a SCIF endpoint on a remote node. The local memory remains mapped by the peer
+ * Closing a SCIF endpoint does yest affect local registered memory mapped by
+ * a SCIF endpoint on a remote yesde. The local memory remains mapped by the peer
  * SCIF endpoint explicitly removed by calling munmap(..) by the peer.
  *
- * If the peer endpoint's receive queue is not empty at the time that epd is
+ * If the peer endpoint's receive queue is yest empty at the time that epd is
  * closed, then the peer endpoint can be passed as the endpoint parameter to
  * scif_recv() until the receive queue is empty.
  *
- * epd is freed and may no longer be accessed.
+ * epd is freed and may yes longer be accessed.
  *
  * Return:
  * Upon successful completion, scif_close() returns 0; otherwise in user mode
- * -1 is returned and errno is set to indicate the error; in kernel mode the
+ * -1 is returned and erryes is set to indicate the error; in kernel mode the
  * negative of one of the following errors is returned.
  *
  * Errors:
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  */
 int scif_close(scif_epd_t epd);
 
@@ -377,19 +377,19 @@ int scif_close(scif_epd_t epd);
  * scif_send() sends data to the peer of endpoint epd. Up to len bytes of data
  * are copied from memory starting at address msg. On successful execution the
  * return value of scif_send() is the number of bytes that were sent, and is
- * zero if no bytes were sent because len was zero. scif_send() may be called
+ * zero if yes bytes were sent because len was zero. scif_send() may be called
  * only when the endpoint is in a connected state.
  *
- * If a scif_send() call is non-blocking, then it sends only those bytes which
+ * If a scif_send() call is yesn-blocking, then it sends only those bytes which
  * can be sent without waiting, up to a maximum of len bytes.
  *
- * If a scif_send() call is blocking, then it normally returns after sending
+ * If a scif_send() call is blocking, then it yesrmally returns after sending
  * all len bytes. If a blocking call is interrupted or the connection is
  * reset, the call is considered successful if some bytes were sent or len is
  * zero, otherwise the call is considered unsuccessful.
  *
  * In user mode, the select() and poll() functions can be used to determine
- * when the send queue is not full. In kernel mode, the scif_poll() function
+ * when the send queue is yest full. In kernel mode, the scif_poll() function
  * may be used for this purpose.
  *
  * It is recommended that scif_send()/scif_recv() only be used for short
@@ -403,18 +403,18 @@ int scif_close(scif_epd_t epd);
  *
  * Return:
  * Upon successful completion, scif_send() returns the number of bytes sent;
- * otherwise in user mode -1 is returned and errno is set to indicate the
+ * otherwise in user mode -1 is returned and erryes is set to indicate the
  * error; in kernel mode the negative of one of the following errors is
  * returned.
  *
  * Errors:
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
  * EINVAL - flags is invalid, or len is negative
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOMEM - Not enough space
- * ENOTCONN - The endpoint is not connected
+ * ENOMEM - Not eyesugh space
+ * ENOTCONN - The endpoint is yest connected
  */
 int scif_send(scif_epd_t epd, void *msg, int len, int flags);
 
@@ -428,13 +428,13 @@ int scif_send(scif_epd_t epd, void *msg, int len, int flags);
  * scif_recv() receives data from the peer of endpoint epd. Up to len bytes of
  * data are copied to memory starting at address msg. On successful execution
  * the return value of scif_recv() is the number of bytes that were received,
- * and is zero if no bytes were received because len was zero. scif_recv() may
+ * and is zero if yes bytes were received because len was zero. scif_recv() may
  * be called only when the endpoint is in a connected state.
  *
- * If a scif_recv() call is non-blocking, then it receives only those bytes
+ * If a scif_recv() call is yesn-blocking, then it receives only those bytes
  * which can be received without waiting, up to a maximum of len bytes.
  *
- * If a scif_recv() call is blocking, then it normally returns after receiving
+ * If a scif_recv() call is blocking, then it yesrmally returns after receiving
  * all len bytes. If the blocking call was interrupted due to a disconnection,
  * subsequent calls to scif_recv() will copy all bytes received upto the point
  * of disconnection.
@@ -454,19 +454,19 @@ int scif_send(scif_epd_t epd, void *msg, int len, int flags);
  *
  * Return:
  * Upon successful completion, scif_recv() returns the number of bytes
- * received; otherwise in user mode -1 is returned and errno is set to
+ * received; otherwise in user mode -1 is returned and erryes is set to
  * indicate the error; in kernel mode the negative of one of the following
  * errors is returned.
  *
  * Errors:
- * EAGAIN - The destination node is returning from a low power state
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EAGAIN - The destination yesde is returning from a low power state
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
  * EINVAL - flags is invalid, or len is negative
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOMEM - Not enough space
- * ENOTCONN - The endpoint is not connected
+ * ENOMEM - Not eyesugh space
+ * ENOTCONN - The endpoint is yest connected
  */
 int scif_recv(scif_epd_t epd, void *msg, int len, int flags);
 
@@ -490,29 +490,29 @@ int scif_recv(scif_epd_t epd, void *msg, int len, int flags);
  *
  * When SCIF_MAP_FIXED is set in the map_flags argument, po will be offset
  * exactly, and offset is constrained to be a multiple of the page size. The
- * mapping established by scif_register() will not replace any existing
+ * mapping established by scif_register() will yest replace any existing
  * registration; an error is returned if any page within the range [offset,
  * offset + len - 1] intersects an existing window.
  *
- * When SCIF_MAP_FIXED is not set, the implementation uses offset in an
+ * When SCIF_MAP_FIXED is yest set, the implementation uses offset in an
  * implementation-defined manner to arrive at po. The po value so chosen will
  * be an area of the registered address space that the implementation deems
  * suitable for a mapping of len bytes. An offset value of 0 is interpreted as
  * granting the implementation complete freedom in selecting po, subject to
- * constraints described below. A non-zero value of offset is taken to be a
+ * constraints described below. A yesn-zero value of offset is taken to be a
  * suggestion of an offset near which the mapping should be placed. When the
- * implementation selects a value for po, it does not replace any extant
+ * implementation selects a value for po, it does yest replace any extant
  * window. In all cases, po will be a multiple of the page size.
  *
  * The physical pages which are so represented by a window are available for
  * access in calls to mmap(), scif_readfrom(), scif_writeto(),
  * scif_vreadfrom(), and scif_vwriteto(). While a window is registered, the
- * physical pages represented by the window will not be reused by the memory
+ * physical pages represented by the window will yest be reused by the memory
  * subsystem for any other purpose. Note that the same physical page may be
  * represented by multiple windows.
  *
  * Subsequent operations which change the memory pages to which virtual
- * addresses are mapped (such as mmap(), munmap()) have no effect on
+ * addresses are mapped (such as mmap(), munmap()) have yes effect on
  * existing window.
  *
  * If the process will fork(), it is recommended that the registered
@@ -527,23 +527,23 @@ int scif_recv(scif_epd_t epd, void *msg, int len, int flags);
  * Return:
  * Upon successful completion, scif_register() returns the offset at which the
  * mapping was placed (po); otherwise in user mode SCIF_REGISTER_FAILED (that
- * is (off_t *)-1) is returned and errno is set to indicate the error; in
+ * is (off_t *)-1) is returned and erryes is set to indicate the error; in
  * kernel mode the negative of one of the following errors is returned.
  *
  * Errors:
  * EADDRINUSE - SCIF_MAP_FIXED is set in map_flags, and pages in the range
  * [offset, offset + len -1] are already registered
- * EAGAIN - The mapping could not be performed due to lack of resources
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EAGAIN - The mapping could yest be performed due to lack of resources
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
  * EINVAL - map_flags is invalid, or prot_flags is invalid, or SCIF_MAP_FIXED is
- * set in flags, and offset is not a multiple of the page size, or addr is not a
- * multiple of the page size, or len is not a multiple of the page size, or is
+ * set in flags, and offset is yest a multiple of the page size, or addr is yest a
+ * multiple of the page size, or len is yest a multiple of the page size, or is
  * 0, or offset is negative
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOMEM - Not enough space
- * ENOTCONN -The endpoint is not connected
+ * ENOMEM - Not eyesugh space
+ * ENOTCONN -The endpoint is yest connected
  */
 off_t scif_register(scif_epd_t epd, void *addr, size_t len, off_t offset,
 		    int prot_flags, int map_flags);
@@ -558,18 +558,18 @@ off_t scif_register(scif_epd_t epd, void *addr, size_t len, off_t offset,
  * which are entirely within the range [offset, offset + len - 1]. It is an
  * error to specify a range which intersects only a subrange of a window.
  *
- * On a successful return, pages within the window may no longer be specified
+ * On a successful return, pages within the window may yes longer be specified
  * in calls to mmap(), scif_readfrom(), scif_writeto(), scif_vreadfrom(),
  * scif_vwriteto(), scif_get_pages, and scif_fence_signal(). The window,
  * however, continues to exist until all previous references against it are
  * removed. A window is referenced if there is a mapping to it created by
  * mmap(), or if scif_get_pages() was called against the window
- * (and the pages have not been returned via scif_put_pages()). A window is
+ * (and the pages have yest been returned via scif_put_pages()). A window is
  * also referenced while an RMA, in which some range of the window is a source
  * or destination, is in progress. Finally a window is referenced while some
  * offset in that window was specified to scif_fence_signal(), and the RMAs
- * marked by that call to scif_fence_signal() have not completed. While a
- * window is in this state, its registered address space pages are not
+ * marked by that call to scif_fence_signal() have yest completed. While a
+ * window is in this state, its registered address space pages are yest
  * available for use in a new registered window.
  *
  * When all such references to the window have been removed, its references to
@@ -579,18 +579,18 @@ off_t scif_register(scif_epd_t epd, void *addr, size_t len, off_t offset,
  *
  * Return:
  * Upon successful completion, scif_unregister() returns 0; otherwise in user
- * mode -1 is returned and errno is set to indicate the error; in kernel mode
+ * mode -1 is returned and erryes is set to indicate the error; in kernel mode
  * the negative of one of the following errors is returned. In the event of an
- * error, no windows are unregistered.
+ * error, yes windows are unregistered.
  *
  * Errors:
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
  * EINVAL - the range [offset, offset + len - 1] intersects a subrange of a
  * window, or offset is negative
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOTCONN - The endpoint is not connected
+ * ENOTCONN - The endpoint is yest connected
  * ENXIO - Offsets in the range [offset, offset + len - 1] are invalid for the
  * registered address space of epd
  */
@@ -612,58 +612,58 @@ int scif_unregister(scif_epd_t epd, off_t offset, size_t len);
  *
  * Each of the specified ranges [loffset, loffset + len - 1] and [roffset,
  * roffset + len - 1] must be within some registered window or windows of the
- * local and remote nodes. A range may intersect multiple registered windows,
+ * local and remote yesdes. A range may intersect multiple registered windows,
  * but only if those windows are contiguous in the registered address space.
  *
  * If rma_flags includes SCIF_RMA_USECPU, then the data is copied using
  * programmed read/writes. Otherwise the data is copied using DMA. If rma_-
  * flags includes SCIF_RMA_SYNC, then scif_readfrom() will return after the
  * transfer is complete. Otherwise, the transfer may be performed asynchron-
- * ously. The order in which any two asynchronous RMA operations complete
- * is non-deterministic. The synchronization functions, scif_fence_mark()/
+ * ously. The order in which any two asynchroyesus RMA operations complete
+ * is yesn-deterministic. The synchronization functions, scif_fence_mark()/
  * scif_fence_wait() and scif_fence_signal(), can be used to synchronize to
- * the completion of asynchronous RMA operations on the same endpoint.
+ * the completion of asynchroyesus RMA operations on the same endpoint.
  *
- * The DMA transfer of individual bytes is not guaranteed to complete in
+ * The DMA transfer of individual bytes is yest guaranteed to complete in
  * address order. If rma_flags includes SCIF_RMA_ORDERED, then the last
  * cacheline or partial cacheline of the source range will become visible on
- * the destination node after all other transferred data in the source
- * range has become visible on the destination node.
+ * the destination yesde after all other transferred data in the source
+ * range has become visible on the destination yesde.
  *
  * The optimal DMA performance will likely be realized if both
  * loffset and roffset are cacheline aligned (are a multiple of 64). Lower
- * performance will likely be realized if loffset and roffset are not
+ * performance will likely be realized if loffset and roffset are yest
  * cacheline aligned but are separated by some multiple of 64. The lowest level
- * of performance is likely if loffset and roffset are not separated by a
+ * of performance is likely if loffset and roffset are yest separated by a
  * multiple of 64.
  *
  * The rma_flags argument is formed by ORing together zero or more of the
  * following values.
  * SCIF_RMA_USECPU - perform the transfer using the CPU, otherwise use the DMA
  *	engine.
- * SCIF_RMA_SYNC - perform the transfer synchronously, returning after the
+ * SCIF_RMA_SYNC - perform the transfer synchroyesusly, returning after the
  *		transfer has completed. Passing this flag results in the
  *		current implementation busy waiting and consuming CPU cycles
  *		while the DMA transfer is in progress for best performance by
  *		avoiding the interrupt latency.
  * SCIF_RMA_ORDERED - ensure that the last cacheline or partial cacheline of
- *		the source range becomes visible on the destination node
+ *		the source range becomes visible on the destination yesde
  *		after all other transferred data in the source range has
  *		become visible on the destination
  *
  * Return:
  * Upon successful completion, scif_readfrom() returns 0; otherwise in user
- * mode -1 is returned and errno is set to indicate the error; in kernel mode
+ * mode -1 is returned and erryes is set to indicate the error; in kernel mode
  * the negative of one of the following errors is returned.
  *
  * Errors:
  * EACCESS - Attempt to write to a read-only range
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
  * EINVAL - rma_flags is invalid
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOTCONN - The endpoint is not connected
+ * ENOTCONN - The endpoint is yest connected
  * ENXIO - The range [loffset, loffset + len - 1] is invalid for the registered
  * address space of epd, or, The range [roffset, roffset + len - 1] is invalid
  * for the registered address space of the peer of epd, or loffset or roffset
@@ -688,58 +688,58 @@ int scif_readfrom(scif_epd_t epd, off_t loffset, size_t len, off_t
  *
  * Each of the specified ranges [loffset, loffset + len - 1] and [roffset,
  * roffset + len - 1] must be within some registered window or windows of the
- * local and remote nodes. A range may intersect multiple registered windows,
+ * local and remote yesdes. A range may intersect multiple registered windows,
  * but only if those windows are contiguous in the registered address space.
  *
  * If rma_flags includes SCIF_RMA_USECPU, then the data is copied using
  * programmed read/writes. Otherwise the data is copied using DMA. If rma_-
  * flags includes SCIF_RMA_SYNC, then scif_writeto() will return after the
  * transfer is complete. Otherwise, the transfer may be performed asynchron-
- * ously. The order in which any two asynchronous RMA operations complete
- * is non-deterministic. The synchronization functions, scif_fence_mark()/
+ * ously. The order in which any two asynchroyesus RMA operations complete
+ * is yesn-deterministic. The synchronization functions, scif_fence_mark()/
  * scif_fence_wait() and scif_fence_signal(), can be used to synchronize to
- * the completion of asynchronous RMA operations on the same endpoint.
+ * the completion of asynchroyesus RMA operations on the same endpoint.
  *
- * The DMA transfer of individual bytes is not guaranteed to complete in
+ * The DMA transfer of individual bytes is yest guaranteed to complete in
  * address order. If rma_flags includes SCIF_RMA_ORDERED, then the last
  * cacheline or partial cacheline of the source range will become visible on
- * the destination node after all other transferred data in the source
- * range has become visible on the destination node.
+ * the destination yesde after all other transferred data in the source
+ * range has become visible on the destination yesde.
  *
  * The optimal DMA performance will likely be realized if both
  * loffset and roffset are cacheline aligned (are a multiple of 64). Lower
- * performance will likely be realized if loffset and roffset are not cacheline
+ * performance will likely be realized if loffset and roffset are yest cacheline
  * aligned but are separated by some multiple of 64. The lowest level of
- * performance is likely if loffset and roffset are not separated by a multiple
+ * performance is likely if loffset and roffset are yest separated by a multiple
  * of 64.
  *
  * The rma_flags argument is formed by ORing together zero or more of the
  * following values.
  * SCIF_RMA_USECPU - perform the transfer using the CPU, otherwise use the DMA
  *			engine.
- * SCIF_RMA_SYNC - perform the transfer synchronously, returning after the
+ * SCIF_RMA_SYNC - perform the transfer synchroyesusly, returning after the
  *		transfer has completed. Passing this flag results in the
  *		current implementation busy waiting and consuming CPU cycles
  *		while the DMA transfer is in progress for best performance by
  *		avoiding the interrupt latency.
  * SCIF_RMA_ORDERED - ensure that the last cacheline or partial cacheline of
- *		the source range becomes visible on the destination node
+ *		the source range becomes visible on the destination yesde
  *		after all other transferred data in the source range has
  *		become visible on the destination
  *
  * Return:
  * Upon successful completion, scif_readfrom() returns 0; otherwise in user
- * mode -1 is returned and errno is set to indicate the error; in kernel mode
+ * mode -1 is returned and erryes is set to indicate the error; in kernel mode
  * the negative of one of the following errors is returned.
  *
  * Errors:
  * EACCESS - Attempt to write to a read-only range
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
  * EINVAL - rma_flags is invalid
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOTCONN - The endpoint is not connected
+ * ENOTCONN - The endpoint is yest connected
  * ENXIO - The range [loffset, loffset + len - 1] is invalid for the registered
  * address space of epd, or, The range [roffset , roffset + len -1] is invalid
  * for the registered address space of the peer of epd, or loffset or roffset
@@ -762,7 +762,7 @@ int scif_writeto(scif_epd_t epd, off_t loffset, size_t len, off_t
  * memory, starting at addr.
  *
  * The specified range [roffset, roffset + len - 1] must be within some
- * registered window or windows of the remote nodes. The range may
+ * registered window or windows of the remote yesdes. The range may
  * intersect multiple registered windows, but only if those windows are
  * contiguous in the registered address space.
  *
@@ -770,16 +770,16 @@ int scif_writeto(scif_epd_t epd, off_t loffset, size_t len, off_t
  * programmed read/writes. Otherwise the data is copied using DMA. If rma_-
  * flags includes SCIF_RMA_SYNC, then scif_vreadfrom() will return after the
  * transfer is complete. Otherwise, the transfer may be performed asynchron-
- * ously. The order in which any two asynchronous RMA operations complete
- * is non-deterministic. The synchronization functions, scif_fence_mark()/
+ * ously. The order in which any two asynchroyesus RMA operations complete
+ * is yesn-deterministic. The synchronization functions, scif_fence_mark()/
  * scif_fence_wait() and scif_fence_signal(), can be used to synchronize to
- * the completion of asynchronous RMA operations on the same endpoint.
+ * the completion of asynchroyesus RMA operations on the same endpoint.
  *
- * The DMA transfer of individual bytes is not guaranteed to complete in
+ * The DMA transfer of individual bytes is yest guaranteed to complete in
  * address order. If rma_flags includes SCIF_RMA_ORDERED, then the last
  * cacheline or partial cacheline of the source range will become visible on
- * the destination node after all other transferred data in the source
- * range has become visible on the destination node.
+ * the destination yesde after all other transferred data in the source
+ * range has become visible on the destination yesde.
  *
  * If rma_flags includes SCIF_RMA_USECACHE, then the physical pages which back
  * the specified local memory range may be remain in a pinned state even after
@@ -789,9 +789,9 @@ int scif_writeto(scif_epd_t epd, off_t loffset, size_t len, off_t
  *
  * The optimal DMA performance will likely be realized if both
  * addr and roffset are cacheline aligned (are a multiple of 64). Lower
- * performance will likely be realized if addr and roffset are not
+ * performance will likely be realized if addr and roffset are yest
  * cacheline aligned but are separated by some multiple of 64. The lowest level
- * of performance is likely if addr and roffset are not separated by a
+ * of performance is likely if addr and roffset are yest separated by a
  * multiple of 64.
  *
  * The rma_flags argument is formed by ORing together zero or more of the
@@ -799,29 +799,29 @@ int scif_writeto(scif_epd_t epd, off_t loffset, size_t len, off_t
  * SCIF_RMA_USECPU - perform the transfer using the CPU, otherwise use the DMA
  *	engine.
  * SCIF_RMA_USECACHE - enable registration caching
- * SCIF_RMA_SYNC - perform the transfer synchronously, returning after the
+ * SCIF_RMA_SYNC - perform the transfer synchroyesusly, returning after the
  *		transfer has completed. Passing this flag results in the
  *		current implementation busy waiting and consuming CPU cycles
  *		while the DMA transfer is in progress for best performance by
  *		avoiding the interrupt latency.
  * SCIF_RMA_ORDERED - ensure that the last cacheline or partial cacheline of
- *	the source range becomes visible on the destination node
+ *	the source range becomes visible on the destination yesde
  *	after all other transferred data in the source range has
  *	become visible on the destination
  *
  * Return:
  * Upon successful completion, scif_vreadfrom() returns 0; otherwise in user
- * mode -1 is returned and errno is set to indicate the error; in kernel mode
+ * mode -1 is returned and erryes is set to indicate the error; in kernel mode
  * the negative of one of the following errors is returned.
  *
  * Errors:
  * EACCESS - Attempt to write to a read-only range
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
  * EINVAL - rma_flags is invalid
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOTCONN - The endpoint is not connected
+ * ENOTCONN - The endpoint is yest connected
  * ENXIO - Offsets in the range [roffset, roffset + len - 1] are invalid for the
  * registered address space of epd
  */
@@ -842,7 +842,7 @@ int scif_vreadfrom(scif_epd_t epd, void *addr, size_t len, off_t roffset,
  * the offset roffset.
  *
  * The specified range [roffset, roffset + len - 1] must be within some
- * registered window or windows of the remote nodes. The range may intersect
+ * registered window or windows of the remote yesdes. The range may intersect
  * multiple registered windows, but only if those windows are contiguous in the
  * registered address space.
  *
@@ -850,16 +850,16 @@ int scif_vreadfrom(scif_epd_t epd, void *addr, size_t len, off_t roffset,
  * programmed read/writes. Otherwise the data is copied using DMA. If rma_-
  * flags includes SCIF_RMA_SYNC, then scif_vwriteto() will return after the
  * transfer is complete. Otherwise, the transfer may be performed asynchron-
- * ously. The order in which any two asynchronous RMA operations complete
- * is non-deterministic. The synchronization functions, scif_fence_mark()/
+ * ously. The order in which any two asynchroyesus RMA operations complete
+ * is yesn-deterministic. The synchronization functions, scif_fence_mark()/
  * scif_fence_wait() and scif_fence_signal(), can be used to synchronize to
- * the completion of asynchronous RMA operations on the same endpoint.
+ * the completion of asynchroyesus RMA operations on the same endpoint.
  *
- * The DMA transfer of individual bytes is not guaranteed to complete in
+ * The DMA transfer of individual bytes is yest guaranteed to complete in
  * address order. If rma_flags includes SCIF_RMA_ORDERED, then the last
  * cacheline or partial cacheline of the source range will become visible on
- * the destination node after all other transferred data in the source
- * range has become visible on the destination node.
+ * the destination yesde after all other transferred data in the source
+ * range has become visible on the destination yesde.
  *
  * If rma_flags includes SCIF_RMA_USECACHE, then the physical pages which back
  * the specified local memory range may be remain in a pinned state even after
@@ -869,9 +869,9 @@ int scif_vreadfrom(scif_epd_t epd, void *addr, size_t len, off_t roffset,
  *
  * The optimal DMA performance will likely be realized if both
  * addr and offset are cacheline aligned (are a multiple of 64). Lower
- * performance will likely be realized if addr and offset are not cacheline
+ * performance will likely be realized if addr and offset are yest cacheline
  * aligned but are separated by some multiple of 64. The lowest level of
- * performance is likely if addr and offset are not separated by a multiple of
+ * performance is likely if addr and offset are yest separated by a multiple of
  * 64.
  *
  * The rma_flags argument is formed by ORing together zero or more of the
@@ -879,29 +879,29 @@ int scif_vreadfrom(scif_epd_t epd, void *addr, size_t len, off_t roffset,
  * SCIF_RMA_USECPU - perform the transfer using the CPU, otherwise use the DMA
  *	engine.
  * SCIF_RMA_USECACHE - allow registration caching
- * SCIF_RMA_SYNC - perform the transfer synchronously, returning after the
+ * SCIF_RMA_SYNC - perform the transfer synchroyesusly, returning after the
  *		transfer has completed. Passing this flag results in the
  *		current implementation busy waiting and consuming CPU cycles
  *		while the DMA transfer is in progress for best performance by
  *		avoiding the interrupt latency.
  * SCIF_RMA_ORDERED - ensure that the last cacheline or partial cacheline of
- *		the source range becomes visible on the destination node
+ *		the source range becomes visible on the destination yesde
  *		after all other transferred data in the source range has
  *		become visible on the destination
  *
  * Return:
  * Upon successful completion, scif_vwriteto() returns 0; otherwise in user
- * mode -1 is returned and errno is set to indicate the error; in kernel mode
+ * mode -1 is returned and erryes is set to indicate the error; in kernel mode
  * the negative of one of the following errors is returned.
  *
  * Errors:
  * EACCESS - Attempt to write to a read-only range
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
  * EINVAL - rma_flags is invalid
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOTCONN - The endpoint is not connected
+ * ENOTCONN - The endpoint is yest connected
  * ENXIO - Offsets in the range [roffset, roffset + len - 1] are invalid for the
  * registered address space of epd
  */
@@ -929,16 +929,16 @@ int scif_vwriteto(scif_epd_t epd, void *addr, size_t len, off_t roffset,
  *
  * Return:
  * Upon successful completion, scif_fence_mark() returns 0; otherwise in user
- * mode -1 is returned and errno is set to indicate the error; in kernel mode
+ * mode -1 is returned and erryes is set to indicate the error; in kernel mode
  * the negative of one of the following errors is returned.
  *
  * Errors:
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
  * EINVAL - flags is invalid
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOTCONN - The endpoint is not connected
+ * ENOTCONN - The endpoint is yest connected
  * ENOMEM - Insufficient kernel memory was available
  */
 int scif_fence_mark(scif_epd_t epd, int flags, int *mark);
@@ -954,15 +954,15 @@ int scif_fence_mark(scif_epd_t epd, int flags, int *mark);
  *
  * Return:
  * Upon successful completion, scif_fence_wait() returns 0; otherwise in user
- * mode -1 is returned and errno is set to indicate the error; in kernel mode
+ * mode -1 is returned and erryes is set to indicate the error; in kernel mode
  * the negative of one of the following errors is returned.
  *
  * Errors:
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOTCONN - The endpoint is not connected
+ * ENOTCONN - The endpoint is yest connected
  * ENOMEM - Insufficient kernel memory was available
  */
 int scif_fence_wait(scif_epd_t epd, int mark);
@@ -1005,16 +1005,16 @@ int scif_fence_wait(scif_epd_t epd, int mark);
  *
  * Return:
  * Upon successful completion, scif_fence_signal() returns 0; otherwise in
- * user mode -1 is returned and errno is set to indicate the error; in kernel
+ * user mode -1 is returned and erryes is set to indicate the error; in kernel
  * mode the negative of one of the following errors is returned.
  *
  * Errors:
- * EBADF, ENOTTY - epd is not a valid endpoint descriptor
+ * EBADF, ENOTTY - epd is yest a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
- * EINVAL - flags is invalid, or loff or roff are not DWORD aligned
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * EINVAL - flags is invalid, or loff or roff are yest DWORD aligned
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOTCONN - The endpoint is not connected
+ * ENOTCONN - The endpoint is yest connected
  * ENXIO - loff is invalid for the registered address of epd, or roff is invalid
  * for the registered address space, of the peer of epd
  */
@@ -1022,27 +1022,27 @@ int scif_fence_signal(scif_epd_t epd, off_t loff, u64 lval, off_t roff,
 		      u64 rval, int flags);
 
 /**
- * scif_get_node_ids() - Return information about online nodes
- * @nodes:	array in which to return online node IDs
- * @len:	number of entries in the nodes array
- * @self:	address to place the node ID of the local node
+ * scif_get_yesde_ids() - Return information about online yesdes
+ * @yesdes:	array in which to return online yesde IDs
+ * @len:	number of entries in the yesdes array
+ * @self:	address to place the yesde ID of the local yesde
  *
- * scif_get_node_ids() fills in the nodes array with up to len node IDs of the
- * nodes in the SCIF network. If there is not enough space in nodes, as
- * indicated by the len parameter, only len node IDs are returned in nodes. The
- * return value of scif_get_node_ids() is the total number of nodes currently in
+ * scif_get_yesde_ids() fills in the yesdes array with up to len yesde IDs of the
+ * yesdes in the SCIF network. If there is yest eyesugh space in yesdes, as
+ * indicated by the len parameter, only len yesde IDs are returned in yesdes. The
+ * return value of scif_get_yesde_ids() is the total number of yesdes currently in
  * the SCIF network. By checking the return value against the len parameter,
- * the user may determine if enough space for nodes was allocated.
+ * the user may determine if eyesugh space for yesdes was allocated.
  *
- * The node ID of the local node is returned at self.
+ * The yesde ID of the local yesde is returned at self.
  *
  * Return:
- * Upon successful completion, scif_get_node_ids() returns the actual number of
- * online nodes in the SCIF network including 'self'; otherwise in user mode
- * -1 is returned and errno is set to indicate the error; in kernel mode no
+ * Upon successful completion, scif_get_yesde_ids() returns the actual number of
+ * online yesdes in the SCIF network including 'self'; otherwise in user mode
+ * -1 is returned and erryes is set to indicate the error; in kernel mode yes
  * errors are returned.
  */
-int scif_get_node_ids(u16 *nodes, int len, u16 *self);
+int scif_get_yesde_ids(u16 *yesdes, int len, u16 *self);
 
 /**
  * scif_pin_pages() - Pin a set of pages
@@ -1067,7 +1067,7 @@ int scif_get_node_ids(u16 *nodes, int len, u16 *self);
  * scif_pinned_pages_t value each time such a window is deleted.
  *
  * Subsequent operations which change the memory pages to which virtual
- * addresses are mapped (such as mmap(), munmap()) have no effect on the
+ * addresses are mapped (such as mmap(), munmap()) have yes effect on the
  * scif_pinned_pages_t value or windows created against it.
  *
  * If the process will fork(), it is recommended that the registered
@@ -1088,7 +1088,7 @@ int scif_get_node_ids(u16 *nodes, int len, u16 *self);
  *
  * Errors:
  * EINVAL - prot_flags is invalid, map_flags is invalid, or offset is negative
- * ENOMEM - Not enough space
+ * ENOMEM - Not eyesugh space
  */
 int scif_pin_pages(void *addr, size_t len, int prot_flags, int map_flags,
 		   scif_pinned_pages_t *pinned_pages);
@@ -1112,7 +1112,7 @@ int scif_pin_pages(void *addr, size_t len, int prot_flags, int map_flags,
  * negative of one of the following errors is returned.
  *
  * Errors:
- * EINVAL - pinned_pages is not valid
+ * EINVAL - pinned_pages is yest valid
  */
 int scif_unpin_pages(scif_pinned_pages_t pinned_pages);
 
@@ -1134,24 +1134,24 @@ int scif_unpin_pages(scif_pinned_pages_t pinned_pages);
  *
  * When SCIF_MAP_FIXED is set in the map_flags argument, po will be offset
  * exactly, and offset is constrained to be a multiple of the page size. The
- * mapping established by scif_register_pinned_pages() will not replace any
+ * mapping established by scif_register_pinned_pages() will yest replace any
  * existing registration; an error is returned if any page of the new window
  * would intersect an existing window.
  *
- * When SCIF_MAP_FIXED is not set, the implementation uses offset in an
+ * When SCIF_MAP_FIXED is yest set, the implementation uses offset in an
  * implementation-defined manner to arrive at po. The po so chosen will be an
  * area of the registered address space that the implementation deems suitable
  * for a mapping of the required size. An offset value of 0 is interpreted as
  * granting the implementation complete freedom in selecting po, subject to
- * constraints described below. A non-zero value of offset is taken to be a
+ * constraints described below. A yesn-zero value of offset is taken to be a
  * suggestion of an offset near which the mapping should be placed. When the
- * implementation selects a value for po, it does not replace any extant
+ * implementation selects a value for po, it does yest replace any extant
  * window. In all cases, po will be a multiple of the page size.
  *
  * The physical pages which are so represented by a window are available for
  * access in calls to scif_get_pages(), scif_readfrom(), scif_writeto(),
  * scif_vreadfrom(), and scif_vwriteto(). While a window is registered, the
- * physical pages represented by the window will not be reused by the memory
+ * physical pages represented by the window will yest be reused by the memory
  * subsystem for any other purpose. Note that the same physical page may be
  * represented by multiple windows.
  *
@@ -1169,14 +1169,14 @@ int scif_unpin_pages(scif_pinned_pages_t pinned_pages);
  * Errors:
  * EADDRINUSE - SCIF_MAP_FIXED is set in map_flags and pages in the new window
  * would intersect an existing window
- * EAGAIN - The mapping could not be performed due to lack of resources
+ * EAGAIN - The mapping could yest be performed due to lack of resources
  * ECONNRESET - Connection reset by peer
  * EINVAL - map_flags is invalid, or SCIF_MAP_FIXED is set in map_flags, and
- * offset is not a multiple of the page size, or offset is negative
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * offset is yest a multiple of the page size, or offset is negative
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOMEM - Not enough space
- * ENOTCONN - The endpoint is not connected
+ * ENOMEM - Not eyesugh space
+ * ENOTCONN - The endpoint is yest connected
  */
 off_t scif_register_pinned_pages(scif_epd_t epd,
 				 scif_pinned_pages_t pinned_pages,
@@ -1204,23 +1204,23 @@ off_t scif_register_pinned_pages(scif_epd_t epd,
  * when the pages were registered.
  *
  * Each physical page whose address is returned by scif_get_pages() remains
- * available and will not be released for reuse until the scif_range structure
+ * available and will yest be released for reuse until the scif_range structure
  * is returned in a call to scif_put_pages(). The scif_range structure returned
  * by scif_get_pages() must be unmodified.
  *
  * It is an error to call scif_close() on an endpoint on which a scif_range
- * structure of that endpoint has not been returned to scif_put_pages().
+ * structure of that endpoint has yest been returned to scif_put_pages().
  *
  * Return:
  * Upon successful completion, scif_get_pages() returns 0; otherwise the
  * negative of one of the following errors is returned.
  * Errors:
  * ECONNRESET - Connection reset by peer.
- * EINVAL - offset is not a multiple of the page size, or offset is negative, or
- * len is not a multiple of the page size
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * EINVAL - offset is yest a multiple of the page size, or offset is negative, or
+ * len is yest a multiple of the page size
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOTCONN - The endpoint is not connected
+ * ENOTCONN - The endpoint is yest connected
  * ENXIO - Offsets in the range [offset, offset + len - 1] are invalid
  * for the registered address space of the peer epd
  */
@@ -1234,17 +1234,17 @@ int scif_get_pages(scif_epd_t epd, off_t offset, size_t len,
  * scif_put_pages() releases a scif_range structure previously obtained by
  * calling scif_get_pages(). The physical pages represented by pages may
  * be reused when the window which represented those pages is unregistered.
- * Therefore, those pages must not be accessed after calling scif_put_pages().
+ * Therefore, those pages must yest be accessed after calling scif_put_pages().
  *
  * Return:
  * Upon successful completion, scif_put_pages() returns 0; otherwise the
  * negative of one of the following errors is returned.
  * Errors:
- * EINVAL - pages does not point to a valid scif_range structure, or
+ * EINVAL - pages does yest point to a valid scif_range structure, or
  * the scif_range structure pointed to by pages was already returned
- * ENODEV - The remote node is lost or existed, but is not currently in the
+ * ENODEV - The remote yesde is lost or existed, but is yest currently in the
  * network since it may have crashed
- * ENOTCONN - The endpoint is not connected
+ * ENOTCONN - The endpoint is yest connected
  */
 int scif_put_pages(struct scif_range *pages);
 
@@ -1271,7 +1271,7 @@ int scif_put_pages(struct scif_range *pages);
  * field, and will be set in the revents field whenever the corresponding
  * condition is true.)
  *
- * If none of the events requested (and no error) has occurred for any of the
+ * If yesne of the events requested (and yes error) has occurred for any of the
  * endpoint descriptors, then scif_poll() blocks until one of the events occurs.
  *
  * The timeout argument specifies an upper limit on the time for which
@@ -1285,28 +1285,28 @@ int scif_put_pages(struct scif_range *pages);
  * blocking.
  * EPOLLOUT - Data may be sent without blocking. For a connected endpoint, this
  * means that scif_send() may be called without blocking. EPOLLOUT may also be
- * used to block waiting for a non-blocking connect to complete. This bit value
- * has no meaning for a listening endpoint and is ignored if specified.
+ * used to block waiting for a yesn-blocking connect to complete. This bit value
+ * has yes meaning for a listening endpoint and is igyesred if specified.
  *
- * The following bits are only returned in revents, and are ignored if set in
+ * The following bits are only returned in revents, and are igyesred if set in
  * events.
  * EPOLLERR - An error occurred on the endpoint
  * EPOLLHUP - The connection to the peer endpoint was disconnected
  * EPOLLNVAL - The specified endpoint descriptor is invalid.
  *
  * Return:
- * Upon successful completion, scif_poll() returns a non-negative value. A
+ * Upon successful completion, scif_poll() returns a yesn-negative value. A
  * positive value indicates the total number of endpoint descriptors that have
  * been selected (that is, endpoint descriptors for which the revents member is
- * non-zero). A value of 0 indicates that the call timed out and no endpoint
+ * yesn-zero). A value of 0 indicates that the call timed out and yes endpoint
  * descriptors have been selected. Otherwise in user mode -1 is returned and
- * errno is set to indicate the error; in kernel mode the negative of one of
+ * erryes is set to indicate the error; in kernel mode the negative of one of
  * the following errors is returned.
  *
  * Errors:
  * EINTR - A signal occurred before any requested event
  * EINVAL - The nepds argument is greater than {OPEN_MAX}
- * ENOMEM - There was no space to allocate file descriptor tables
+ * ENOMEM - There was yes space to allocate file descriptor tables
  */
 int scif_poll(struct scif_pollepd *epds, unsigned int nepds, long timeout);
 
@@ -1319,7 +1319,7 @@ int scif_poll(struct scif_pollepd *epds, unsigned int nepds, long timeout);
  * remove() method is called when the peer devices disappear.
  *
  * Return:
- * Upon successful completion, scif_client_register() returns a non-negative
+ * Upon successful completion, scif_client_register() returns a yesn-negative
  * value. Otherwise the return value is the same as subsys_interface_register()
  * in the kernel.
  */

@@ -355,7 +355,7 @@
 &pm8998_gpio {
 	vol_up_pin_a: vol-up-active {
 		pins = "gpio6";
-		function = "normal";
+		function = "yesrmal";
 		input-enable;
 		bias-pull-up;
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
@@ -409,7 +409,7 @@
 
 			/*
 			 * It seems that mmc_test reports errors if drive
-			 * strength is not 16 on clk, cmd, and data pins.
+			 * strength is yest 16 on clk, cmd, and data pins.
 			 */
 			drive-strength = <16>;
 		};
@@ -531,7 +531,7 @@
 	vdd-3.3-ch0-supply = <&vreg_l25a_3p3>;
 };
 
-/* PINCTRL - additions to nodes defined in sdm845.dtsi */
+/* PINCTRL - additions to yesdes defined in sdm845.dtsi */
 
 &qup_uart6_default {
 	pinmux {

@@ -10,7 +10,7 @@ Required properties:
 	- reg: Should contain the DAC I2C address
 
 Optional properties:
-	- vcc-supply: Power supply is optional. If not defined, driver will ignore it.
+	- vcc-supply: Power supply is optional. If yest defined, driver will igyesre it.
 
 Example:
 	ds4224@10 {

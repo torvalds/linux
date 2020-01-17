@@ -197,7 +197,7 @@ static irqreturn_t owl_i2c_interrupt(int irq, void *_dev)
 							     OWL_I2C_REG_RXDAT);
 		}
 	} else {
-		/* Handle the remaining bytes which were not sent */
+		/* Handle the remaining bytes which were yest sent */
 		while (!(readl(i2c_dev->base + OWL_I2C_REG_FIFOSTAT) &
 			 OWL_I2C_FIFOSTAT_TFF) && i2c_dev->msg_ptr < msg->len) {
 			writel(msg->buf[i2c_dev->msg_ptr++],
@@ -342,7 +342,7 @@ static int owl_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		i2c_dev->msg_ptr = idx;
 	}
 
-	/* Ignore the NACK if needed */
+	/* Igyesre the NACK if needed */
 	if (msg->flags & I2C_M_IGNORE_NAK)
 		owl_i2c_update_reg(i2c_dev->base + OWL_I2C_REG_FIFOCTL,
 				   OWL_I2C_FIFOCTL_NIB, true);
@@ -417,11 +417,11 @@ static int owl_i2c_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	if (of_property_read_u32(dev->of_node, "clock-frequency",
+	if (of_property_read_u32(dev->of_yesde, "clock-frequency",
 				 &i2c_dev->bus_freq))
 		i2c_dev->bus_freq = OWL_I2C_DEF_SPEED_HZ;
 
-	/* We support only frequencies of 100k and 400k for now */
+	/* We support only frequencies of 100k and 400k for yesw */
 	if (i2c_dev->bus_freq != OWL_I2C_DEF_SPEED_HZ &&
 	    i2c_dev->bus_freq != OWL_I2C_MAX_SPEED_HZ) {
 		dev_err(dev, "invalid clock-frequency %d\n", i2c_dev->bus_freq);
@@ -440,7 +440,7 @@ static int owl_i2c_probe(struct platform_device *pdev)
 
 	i2c_dev->clk_rate = clk_get_rate(i2c_dev->clk);
 	if (!i2c_dev->clk_rate) {
-		dev_err(dev, "input clock rate should not be zero\n");
+		dev_err(dev, "input clock rate should yest be zero\n");
 		ret = -EINVAL;
 		goto disable_clk;
 	}
@@ -452,7 +452,7 @@ static int owl_i2c_probe(struct platform_device *pdev)
 	i2c_dev->adap.timeout = OWL_I2C_TIMEOUT;
 	i2c_dev->adap.quirks = &owl_i2c_quirks;
 	i2c_dev->adap.dev.parent = dev;
-	i2c_dev->adap.dev.of_node = dev->of_node;
+	i2c_dev->adap.dev.of_yesde = dev->of_yesde;
 	snprintf(i2c_dev->adap.name, sizeof(i2c_dev->adap.name),
 		 "%s", "OWL I2C adapter");
 	i2c_set_adapdata(&i2c_dev->adap, i2c_dev);

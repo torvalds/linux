@@ -107,8 +107,8 @@ static const struct mctl maven_controls[] =
 #define MAVCTRLS ARRAY_SIZE(maven_controls)
 
 /* Return: positive number: id found
-           -EINVAL:         id not found, return failure
-	   -ENOENT:         id not found, create fake disabled control */
+           -EINVAL:         id yest found, return failure
+	   -ENOENT:         id yest found, create fake disabled control */
 static int get_ctrl_id(__u32 v4l2_id) {
 	int i;
 
@@ -287,7 +287,7 @@ static int matroxfb_PLL_mavenclock(const struct matrox_pll_features2* pll,
 		}
 	}
 
-	/* if h2/post/in/feed have not been assigned, return zero (error) */
+	/* if h2/post/in/feed have yest been assigned, return zero (error) */
 	if (besth2 < 2)
 		return 0;
 
@@ -373,15 +373,15 @@ static void maven_init_TVdata(const struct maven_data* md, struct mavenregs* dat
 	static struct mavenregs palregs = { {
 		0x2A, 0x09, 0x8A, 0xCB,	/* 00: chroma subcarrier */
 		0x00,
-		0x00,	/* ? not written */
+		0x00,	/* ? yest written */
 		0x00,	/* modified by code (F9 written...) */
-		0x00,	/* ? not written */
+		0x00,	/* ? yest written */
 		0x7E,	/* 08 */
 		0x44,	/* 09 */
 		0x9C,	/* 0A */
 		0x2E,	/* 0B */
 		0x21,	/* 0C */
-		0x00,	/* ? not written */
+		0x00,	/* ? yest written */
 		0x3F, 0x03, /* 0E-0F */
 		0x3F, 0x03, /* 10-11 */
 		0x1A,	/* 12 */
@@ -412,7 +412,7 @@ static void maven_init_TVdata(const struct maven_data* md, struct mavenregs* dat
 		0x14,	/* 33 */
 		0x49,	/* 34 */
 		0x00,	/* 35 written multiple times */
-		0x00,	/* 36 not written */
+		0x00,	/* 36 yest written */
 		0xA3,	/* 37 */
 		0xC8,	/* 38 */
 		0x22,	/* 39 */
@@ -420,20 +420,20 @@ static void maven_init_TVdata(const struct maven_data* md, struct mavenregs* dat
 		0x22,	/* 3B */
 		0x3F, 0x03, /* 3C-3D */
 		0x00,	/* 3E written multiple times */
-		0x00,	/* 3F not written */
+		0x00,	/* 3F yest written */
 	}, MATROXFB_OUTPUT_MODE_PAL, 625, 50 };
 	static struct mavenregs ntscregs = { {
 		0x21, 0xF0, 0x7C, 0x1F,	/* 00: chroma subcarrier */
 		0x00,
-		0x00,	/* ? not written */
+		0x00,	/* ? yest written */
 		0x00,	/* modified by code (F9 written...) */
-		0x00,	/* ? not written */
+		0x00,	/* ? yest written */
 		0x7E,	/* 08 */
 		0x43,	/* 09 */
 		0x7E,	/* 0A */
 		0x3D,	/* 0B */
 		0x00,	/* 0C */
-		0x00,	/* ? not written */
+		0x00,	/* ? yest written */
 		0x41, 0x00, /* 0E-0F */
 		0x3C, 0x00, /* 10-11 */
 		0x17,	/* 12 */
@@ -464,7 +464,7 @@ static void maven_init_TVdata(const struct maven_data* md, struct mavenregs* dat
 		0x14,	/* 33 */
 		0x02,	/* 34 */
 		0x00,	/* 35 written multiple times */
-		0x00,	/* 36 not written */
+		0x00,	/* 36 yest written */
 		0xA3,	/* 37 */
 		0xC8,	/* 38 */
 		0x15,	/* 39 */
@@ -656,7 +656,7 @@ static void maven_init_TV(struct i2c_client* c, const struct mavenregs* m) {
 	LRP(0x0E);
 	LRP(0x1E);
 	LRP(0x0E);	/* problems with memory? */
-	LRP(0x1E);	/* yes, matrox must have problems in memory area... */
+	LRP(0x1E);	/* no, matrox must have problems in memory area... */
 
 	/* load gamma correction stuff */
 	LR(0x83);
@@ -794,7 +794,7 @@ static inline int maven_compute_timming(struct maven_data* md,
 		/* hblanking end */
 		m->regs[0x9A] = lmargin;	/* 100% */
 		m->regs[0x9B] = lmargin >> 8;	/* 100% */
-		/* who knows */
+		/* who kyesws */
 		m->regs[0x9C] = 0x04;
 		m->regs[0x9D] = 0x00;
 		/* htotal - 2 */
@@ -953,11 +953,11 @@ static inline int maven_compute_timming(struct maven_data* md,
 	tmpi = mt->VSyncEnd - mt->VSyncStart - 1;
 	m->regs[0xA2] = tmpi;
 	m->regs[0xA3] = tmpi >> 8;
-	/* ignored? */
+	/* igyesred? */
 	tmpi = mt->VTotal - mt->VSyncStart;
 	m->regs[0xA4] = tmpi;
 	m->regs[0xA5] = tmpi >> 8;
-	/* ignored? */
+	/* igyesred? */
 	tmpi = mt->VTotal - 1;
 	m->regs[0xA6] = tmpi;
 	m->regs[0xA7] = tmpi >> 8;
@@ -972,7 +972,7 @@ static inline int maven_compute_timming(struct maven_data* md,
 	tmpi = mt->VTotal - 2;
 	m->regs[0xAC] = tmpi;
 	m->regs[0xAD] = tmpi >> 8;
-	/* ignored? */
+	/* igyesred? */
 	m->regs[0xAE] = 0x00;
 	m->regs[0xAF] = 0x00;
 

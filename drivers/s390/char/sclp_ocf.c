@@ -34,7 +34,7 @@ static struct work_struct sclp_ocf_change_work;
 
 static struct kset *ocf_kset;
 
-static void sclp_ocf_change_notify(struct work_struct *work)
+static void sclp_ocf_change_yestify(struct work_struct *work)
 {
 	kobject_uevent(&ocf_kset->kobj, KOBJ_CHANGE);
 }
@@ -135,7 +135,7 @@ static int __init ocf_init(void)
 {
 	int rc;
 
-	INIT_WORK(&sclp_ocf_change_work, sclp_ocf_change_notify);
+	INIT_WORK(&sclp_ocf_change_work, sclp_ocf_change_yestify);
 	ocf_kset = kset_create_and_add("ocf", NULL, firmware_kobj);
 	if (!ocf_kset)
 		return -ENOMEM;

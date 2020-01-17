@@ -5,7 +5,7 @@
 // Copyright (C) 2012 Samsung Electronics
 // SangYoung Son <hello.son@samsung.com>
 //
-// This program is not provided / owned by Maxim Integrated Products.
+// This program is yest provided / owned by Maxim Integrated Products.
 //
 // This driver is based on max8997.c
 
@@ -178,7 +178,7 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 	ret = regmap_read(max77693->regmap, MAX77693_PMIC_REG_PMIC_ID2,
 				&reg_data);
 	if (ret < 0) {
-		dev_err(max77693->dev, "device not found on this channel\n");
+		dev_err(max77693->dev, "device yest found on this channel\n");
 		return ret;
 	} else
 		dev_info(max77693->dev, "device ID: 0x%x\n", reg_data);
@@ -267,7 +267,7 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 				SRC_IRQ_ALL, (unsigned int)~SRC_IRQ_ALL);
 	if (ret < 0) {
 		dev_err(max77693->dev,
-			"Could not unmask interrupts in INTSRC: %d\n",
+			"Could yest unmask interrupts in INTSRC: %d\n",
 			ret);
 		goto err_intsrc;
 	}

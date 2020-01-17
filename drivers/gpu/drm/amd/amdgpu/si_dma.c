@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -579,7 +579,7 @@ static int si_dma_wait_for_idle(void *handle)
 
 static int si_dma_soft_reset(void *handle)
 {
-	DRM_INFO("si_dma_soft_reset --- not implemented !!!!!!!\n");
+	DRM_INFO("si_dma_soft_reset --- yest implemented !!!!!!!\n");
 	return 0;
 }
 
@@ -719,7 +719,7 @@ static const struct amd_ip_funcs si_dma_ip_funcs = {
 static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_SDMA,
 	.align_mask = 0xf,
-	.nop = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0),
+	.yesp = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0),
 	.support_64bit_ptrs = false,
 	.get_rptr = si_dma_ring_get_rptr,
 	.get_wptr = si_dma_ring_get_wptr,
@@ -736,7 +736,7 @@ static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.emit_vm_flush = si_dma_ring_emit_vm_flush,
 	.test_ring = si_dma_ring_test_ring,
 	.test_ib = si_dma_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_yesp = amdgpu_ring_insert_yesp,
 	.pad_ib = si_dma_ring_pad_ib,
 	.emit_wreg = si_dma_ring_emit_wreg,
 };
@@ -850,7 +850,7 @@ const struct amdgpu_ip_block_version si_dma_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_SDMA,
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &si_dma_ip_funcs,
 };

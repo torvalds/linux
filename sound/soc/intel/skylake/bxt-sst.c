@@ -258,13 +258,13 @@ sst_load_base_firmware_failed:
  *
  * Decision Matrix:  (X= dont care; state = target state)
  *
- * DSP state != SKL_DSP_RUNNING ; state = no d0i3
+ * DSP state != SKL_DSP_RUNNING ; state = yes d0i3
  *
  * DSP state == SKL_DSP_RUNNING , the following matrix applies
- * non_d0i3 >0; streaming =X; non_streaming =X; state = no d0i3
- * non_d0i3 =X; streaming =0; non_streaming =0; state = no d0i3
- * non_d0i3 =0; streaming >0; non_streaming =X; state = streaming d0i3
- * non_d0i3 =0; streaming =0; non_streaming =X; state = non-streaming d0i3
+ * yesn_d0i3 >0; streaming =X; yesn_streaming =X; state = yes d0i3
+ * yesn_d0i3 =X; streaming =0; yesn_streaming =0; state = yes d0i3
+ * yesn_d0i3 =0; streaming >0; yesn_streaming =X; state = streaming d0i3
+ * yesn_d0i3 =0; streaming =0; yesn_streaming =X; state = yesn-streaming d0i3
  */
 static int bxt_d0i3_target_state(struct sst_dsp *ctx)
 {
@@ -274,11 +274,11 @@ static int bxt_d0i3_target_state(struct sst_dsp *ctx)
 	if (skl->cores.state[SKL_DSP_CORE0_ID] != SKL_DSP_RUNNING)
 		return SKL_DSP_D0I3_NONE;
 
-	if (d0i3->non_d0i3)
+	if (d0i3->yesn_d0i3)
 		return SKL_DSP_D0I3_NONE;
 	else if (d0i3->streaming)
 		return SKL_DSP_D0I3_STREAMING;
-	else if (d0i3->non_streaming)
+	else if (d0i3->yesn_streaming)
 		return SKL_DSP_D0I3_NON_STREAMING;
 	else
 		return SKL_DSP_D0I3_NONE;
@@ -457,7 +457,7 @@ static int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 		}
 	}
 
-	/* Tell FW if additional core in now On */
+	/* Tell FW if additional core in yesw On */
 
 	if (core_id != SKL_DSP_CORE0_ID) {
 		dx.core_mask = core_mask;
@@ -556,7 +556,7 @@ int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 
 	ret = skl_sst_ctx_init(dev, irq, fw_name, dsp_ops, dsp, &skl_dev);
 	if (ret < 0) {
-		dev_err(dev, "%s: no device\n", __func__);
+		dev_err(dev, "%s: yes device\n", __func__);
 		return ret;
 	}
 

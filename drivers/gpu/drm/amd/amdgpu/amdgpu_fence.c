@@ -18,7 +18,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -45,7 +45,7 @@
  * Fences mark an event in the GPUs pipeline and are used
  * for GPU/CPU synchronization.  When the fence is written,
  * it is expected that all buffers associated with that fence
- * are no longer in use by the associated ring on the GPU and
+ * are yes longer in use by the associated ring on the GPU and
  * that the the relevant GPU caches have been flushed.
  */
 
@@ -335,7 +335,7 @@ int amdgpu_fence_wait_empty(struct amdgpu_ring *ring)
  * @timeout: the timeout for waiting in usecs
  *
  * Wait for all fences on the requested ring to signal (all asics).
- * Returns left time if no timeout, 0 or minus if timeout.
+ * Returns left time if yes timeout, 0 or minus if timeout.
  */
 signed long amdgpu_fence_wait_polling(struct amdgpu_ring *ring,
 				      uint32_t wait_seq,
@@ -364,7 +364,7 @@ unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring)
 {
 	uint64_t emitted;
 
-	/* We are not protected by ring lock when reading the last sequence
+	/* We are yest protected by ring lock when reading the last sequence
 	 * but it's ok to report slightly wrong fence count here.
 	 */
 	amdgpu_fence_process(ring);
@@ -525,7 +525,7 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 			continue;
 		r = amdgpu_fence_wait_empty(ring);
 		if (r) {
-			/* no need to trigger GPU reset as we are unloading */
+			/* yes need to trigger GPU reset as we are unloading */
 			amdgpu_fence_driver_force_completion(ring);
 		}
 		amdgpu_irq_put(adev, ring->fence_drv.irq_src,
@@ -685,8 +685,8 @@ static const struct dma_fence_ops amdgpu_fence_ops = {
 #if defined(CONFIG_DEBUG_FS)
 static int amdgpu_debugfs_fence_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	int i;
 
@@ -734,8 +734,8 @@ static int amdgpu_debugfs_fence_info(struct seq_file *m, void *data)
  */
 static int amdgpu_debugfs_gpu_recover(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 
 	seq_printf(m, "gpu recover\n");

@@ -2,7 +2,7 @@
 /* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  */
 
-/* Qualcomm Technologies, Inc. EMAC Gigabit Ethernet Driver */
+/* Qualcomm Techyeslogies, Inc. EMAC Gigabit Ethernet Driver */
 
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
@@ -233,7 +233,7 @@ static int emac_open(struct net_device *netdev)
 
 	ret = request_irq(irq->irq, emac_isr, 0, "emac-core0", irq);
 	if (ret) {
-		netdev_err(adpt->netdev, "could not request emac-core0 irq\n");
+		netdev_err(adpt->netdev, "could yest request emac-core0 irq\n");
 		return ret;
 	}
 
@@ -451,7 +451,7 @@ static int emac_clks_get(struct platform_device *pdev,
 
 		if (IS_ERR(clk)) {
 			dev_err(&pdev->dev,
-				"could not claim clock %s (error=%li)\n",
+				"could yest claim clock %s (error=%li)\n",
 				emac_clk_name[i], PTR_ERR(clk));
 
 			return PTR_ERR(clk);
@@ -470,7 +470,7 @@ static int emac_clks_phase1_init(struct platform_device *pdev,
 	int ret;
 
 	/* On ACPI platforms, clocks are controlled by firmware and/or
-	 * ACPI, not by drivers.
+	 * ACPI, yest by drivers.
 	 */
 	if (has_acpi_companion(&pdev->dev))
 		return 0;
@@ -607,7 +607,7 @@ static int emac_probe(struct platform_device *pdev)
 	 */
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(46));
 	if (ret) {
-		dev_err(&pdev->dev, "could not set DMA mask\n");
+		dev_err(&pdev->dev, "could yest set DMA mask\n");
 		return ret;
 	}
 
@@ -638,7 +638,7 @@ static int emac_probe(struct platform_device *pdev)
 	/* initialize clocks */
 	ret = emac_clks_phase1_init(pdev, adpt);
 	if (ret) {
-		dev_err(&pdev->dev, "could not initialize clocks\n");
+		dev_err(&pdev->dev, "could yest initialize clocks\n");
 		goto err_undo_netdev;
 	}
 
@@ -662,7 +662,7 @@ static int emac_probe(struct platform_device *pdev)
 	/* enable clocks */
 	ret = emac_clks_phase2_init(pdev, adpt);
 	if (ret) {
-		dev_err(&pdev->dev, "could not initialize clocks\n");
+		dev_err(&pdev->dev, "could yest initialize clocks\n");
 		goto err_undo_mdiobus;
 	}
 
@@ -691,7 +691,7 @@ static int emac_probe(struct platform_device *pdev)
 
 	ret = register_netdev(netdev);
 	if (ret) {
-		dev_err(&pdev->dev, "could not register net device\n");
+		dev_err(&pdev->dev, "could yest register net device\n");
 		goto err_undo_napi;
 	}
 

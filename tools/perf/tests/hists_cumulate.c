@@ -94,7 +94,7 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 		if (symbol_conf.cumulate_callchain)
 			iter.ops = &hist_iter_cumulative;
 		else
-			iter.ops = &hist_iter_normal;
+			iter.ops = &hist_iter_yesrmal;
 
 		sample.cpumode = PERF_RECORD_MISC_USER;
 		sample.pid = fake_samples[i].pid;
@@ -119,7 +119,7 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 	return TEST_OK;
 
 out:
-	pr_debug("Not enough memory for adding a hist entry\n");
+	pr_debug("Not eyesugh memory for adding a hist entry\n");
 	return TEST_FAIL;
 }
 
@@ -128,7 +128,7 @@ static void del_hist_entries(struct hists *hists)
 	struct hist_entry *he;
 	struct rb_root_cached *root_in;
 	struct rb_root_cached *root_out;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	if (hists__has(hists, need_collapse))
 		root_in = &hists->entries_collapsed;
@@ -138,11 +138,11 @@ static void del_hist_entries(struct hists *hists)
 	root_out = &hists->entries;
 
 	while (!RB_EMPTY_ROOT(&root_out->rb_root)) {
-		node = rb_first_cached(root_out);
+		yesde = rb_first_cached(root_out);
 
-		he = rb_entry(node, struct hist_entry, rb_node);
-		rb_erase_cached(node, root_out);
-		rb_erase_cached(&he->rb_node_in, root_in);
+		he = rb_entry(yesde, struct hist_entry, rb_yesde);
+		rb_erase_cached(yesde, root_out);
+		rb_erase_cached(&he->rb_yesde_in, root_in);
 		hist_entry__delete(he);
 	}
 }
@@ -171,7 +171,7 @@ struct callchain_result {
 	struct {
 		const char *dso;
 		const char *sym;
-	} node[10];
+	} yesde[10];
 };
 
 static int do_test(struct hists *hists, struct result *expected, size_t nr_expected,
@@ -181,8 +181,8 @@ static int do_test(struct hists *hists, struct result *expected, size_t nr_expec
 	size_t i, c;
 	struct hist_entry *he;
 	struct rb_root *root;
-	struct rb_node *node;
-	struct callchain_node *cnode;
+	struct rb_yesde *yesde;
+	struct callchain_yesde *cyesde;
 	struct callchain_list *clist;
 
 	/*
@@ -200,9 +200,9 @@ static int do_test(struct hists *hists, struct result *expected, size_t nr_expec
 	}
 
 	root = &hists->entries.rb_root;
-	for (node = rb_first(root), i = 0;
-	     node && (he = rb_entry(node, struct hist_entry, rb_node));
-	     node = rb_next(node), i++) {
+	for (yesde = rb_first(root), i = 0;
+	     yesde && (he = rb_entry(yesde, struct hist_entry, rb_yesde));
+	     yesde = rb_next(yesde), i++) {
 		scnprintf(buf, sizeof(buf), "Invalid hist entry #%zd", i);
 
 		TEST_ASSERT_VAL("Incorrect number of hist entry",
@@ -219,23 +219,23 @@ static int do_test(struct hists *hists, struct result *expected, size_t nr_expec
 			continue;
 
 		/* check callchain entries */
-		root = &he->callchain->node.rb_root;
+		root = &he->callchain->yesde.rb_root;
 
 		TEST_ASSERT_VAL("callchains expected", !RB_EMPTY_ROOT(root));
-		cnode = rb_entry(rb_first(root), struct callchain_node, rb_node);
+		cyesde = rb_entry(rb_first(root), struct callchain_yesde, rb_yesde);
 
 		c = 0;
-		list_for_each_entry(clist, &cnode->val, list) {
+		list_for_each_entry(clist, &cyesde->val, list) {
 			scnprintf(buf, sizeof(buf), "Invalid callchain entry #%zd/%zd", i, c);
 
 			TEST_ASSERT_VAL("Incorrect number of callchain entry",
 					c < expected_callchain[i].nr);
 			TEST_ASSERT_VAL(buf,
-				!strcmp(CDSO(clist), expected_callchain[i].node[c].dso) &&
-				!strcmp(CSYM(clist), expected_callchain[i].node[c].sym));
+				!strcmp(CDSO(clist), expected_callchain[i].yesde[c].dso) &&
+				!strcmp(CSYM(clist), expected_callchain[i].yesde[c].sym));
 			c++;
 		}
-		/* TODO: handle multiple child nodes properly */
+		/* TODO: handle multiple child yesdes properly */
 		TEST_ASSERT_VAL("Incorrect number of callchain entry",
 				c <= expected_callchain[i].nr);
 	}

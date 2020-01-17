@@ -58,8 +58,8 @@ kernel mode and then when returning to user-space, and precisely
 so. If we mess that up even slightly, we crash.
 
 So when we have a secondary entry, already in kernel mode, we *must
-not* use SWAPGS blindly - nor must we forget doing a SWAPGS when it's
-not switched/swapped yet.
+yest* use SWAPGS blindly - yesr must we forget doing a SWAPGS when it's
+yest switched/swapped yet.
 
 Now, there's a secondary complication: there's a cheap way to test
 which mode the CPU is in and an expensive way.
@@ -72,7 +72,7 @@ stack, from the CS of the ptregs area of the kernel stack::
 	je error_kernelspace
 	SWAPGS
 
-The expensive (paranoid) way is to read back the MSR_GS_BASE value
+The expensive (parayesid) way is to read back the MSR_GS_BASE value
 (which is what SWAPGS modifies)::
 
 	movl $1,%ebx
@@ -87,24 +87,24 @@ The expensive (paranoid) way is to read back the MSR_GS_BASE value
 If we are at an interrupt or user-trap/gate-alike boundary then we can
 use the faster check: the stack will be a reliable indicator of
 whether SWAPGS was already done: if we see that we are a secondary
-entry interrupting kernel mode execution, then we know that the GS
+entry interrupting kernel mode execution, then we kyesw that the GS
 base has already been switched. If it says that we interrupted
 user-space execution then we must do the SWAPGS.
 
 But if we are in an NMI/MCE/DEBUG/whatever super-atomic entry context,
-which might have triggered right after a normal entry wrote CS to the
+which might have triggered right after a yesrmal entry wrote CS to the
 stack but before we executed SWAPGS, then the only safe way to check
 for GS is the slower method: the RDMSR.
 
 Therefore, super-atomic entries (except NMI, which is handled separately)
-must use idtentry with paranoid=1 to handle gsbase correctly.  This
+must use idtentry with parayesid=1 to handle gsbase correctly.  This
 triggers three main behavior changes:
 
  - Interrupt entry will use the slower gsbase check.
  - Interrupt entry from user mode will switch off the IST stack.
- - Interrupt exit to kernel mode will not attempt to reschedule.
+ - Interrupt exit to kernel mode will yest attempt to reschedule.
 
-We try to only use IST entries and the paranoid entry code for vectors
+We try to only use IST entries and the parayesid entry code for vectors
 that absolutely need the more expensive check for the GS base - and we
-generate all 'normal' entry points with the regular (faster) paranoid=0
+generate all 'yesrmal' entry points with the regular (faster) parayesid=0
 variant.

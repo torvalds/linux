@@ -5,6 +5,6 @@ Boards with Cavium's Thunder SoC shall have following properties.
 
 Root Node
 ---------
-Required root node properties:
+Required root yesde properties:
 
   - compatible = "cavium,thunder-88xx";

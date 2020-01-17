@@ -12,7 +12,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/security.h>
@@ -126,7 +126,7 @@ void user_disable_single_step(struct task_struct *child)
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure single step bits etc are not set.
+ * Make sure single step bits etc are yest set.
  */
 void ptrace_disable(struct task_struct *child)
 {
@@ -174,7 +174,7 @@ static int genregs_set(struct task_struct *target,
 					 offsetof(struct pt_regs, pc),
 					 sizeof(struct pt_regs));
 	if (!ret)
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		ret = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 						sizeof(struct pt_regs), -1);
 
 	return ret;
@@ -259,7 +259,7 @@ static int dspregs_set(struct task_struct *target,
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, regs,
 				 0, sizeof(struct pt_dspregs));
 	if (!ret)
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		ret = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 						sizeof(struct pt_dspregs), -1);
 
 	return ret;
@@ -321,7 +321,7 @@ static const struct user_regset sh_regsets[] = {
 	 *	PC, PR, SR, GBR, MACH, MACL, TRA
 	 */
 	[REGSET_GENERAL] = {
-		.core_note_type	= NT_PRSTATUS,
+		.core_yeste_type	= NT_PRSTATUS,
 		.n		= ELF_NGREG,
 		.size		= sizeof(long),
 		.align		= sizeof(long),
@@ -331,7 +331,7 @@ static const struct user_regset sh_regsets[] = {
 
 #ifdef CONFIG_SH_FPU
 	[REGSET_FPU] = {
-		.core_note_type	= NT_PRFPREG,
+		.core_yeste_type	= NT_PRFPREG,
 		.n		= sizeof(struct user_fpu_struct) / sizeof(long),
 		.size		= sizeof(long),
 		.align		= sizeof(long),
@@ -491,7 +491,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    tracehook_report_syscall_entry(regs))
 		/*
-		 * Tracing decided this syscall should not happen.
+		 * Tracing decided this syscall should yest happen.
 		 * We'll return a bogus call number to get an ENOSYS
 		 * error, but leave the original number in regs->regs[0].
 		 */

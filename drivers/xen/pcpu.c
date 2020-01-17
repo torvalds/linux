@@ -19,7 +19,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -52,7 +52,7 @@
  * @cpu_id: Xen physical cpu logic number
  * @flags: Xen physical cpu status flag
  * - XEN_PCPU_FLAGS_ONLINE: cpu is online
- * - XEN_PCPU_FLAGS_INVALID: cpu is not present
+ * - XEN_PCPU_FLAGS_INVALID: cpu is yest present
  */
 struct pcpu {
 	struct list_head list;
@@ -144,7 +144,7 @@ static umode_t pcpu_dev_is_visible(struct kobject *kobj,
 	/*
 	 * Xen never offline cpu0 due to several restrictions
 	 * and assumptions. This basically doesn't add a sys control
-	 * to user, one cannot attempt to offline BSP.
+	 * to user, one canyest attempt to offline BSP.
 	 */
 	return dev->id ? attr->mode : 0;
 }
@@ -354,7 +354,7 @@ EXPORT_SYMBOL_GPL(xen_pcpu_hotplug_sync);
 
 /*
  * For hypervisor presented cpu, return logic cpu id;
- * For hypervisor non-presented cpu, return -ENODEV.
+ * For hypervisor yesn-presented cpu, return -ENODEV.
  */
 int xen_pcpu_id(uint32_t acpi_id)
 {

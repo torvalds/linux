@@ -102,7 +102,7 @@
  *  10-11-06  01.05.12  Added MPI_IOCFACTS_EXCEPT_METADATA_UNSUPPORTED.
  *                      Added MaxInitiators field to PortFacts reply.
  *                      Added SAS Device Status Change ReasonCode for
- *                      asynchronous notificaiton.
+ *                      asynchroyesus yestificaiton.
  *                      Added MPI_EVENT_SAS_EXPANDER_STATUS_CHANGE and event
  *                      data structure.
  *                      Added new ImageType values for FWDownload and FWUpload
@@ -227,7 +227,7 @@ typedef struct _MPI_FW_VERSION_STRUCT
 {
     U8                      Dev;                        /* 00h */
     U8                      Unit;                       /* 01h */
-    U8                      Minor;                      /* 02h */
+    U8                      Miyesr;                      /* 02h */
     U8                      Major;                      /* 03h */
 } MPI_FW_VERSION_STRUCT;
 
@@ -452,7 +452,7 @@ typedef struct _MSG_EVENT_NOTIFY_REPLY
 } MSG_EVENT_NOTIFY_REPLY, MPI_POINTER PTR_MSG_EVENT_NOTIFY_REPLY,
   EventNotificationReply_t, MPI_POINTER pEventNotificationReply_t;
 
-/* Event Acknowledge */
+/* Event Ackyeswledge */
 
 typedef struct _MSG_EVENT_ACK
 {

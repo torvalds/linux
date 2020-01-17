@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Sleepable Read-Copy Update mechanism for mutual exclusion,
- *	tiny version for non-preemptible single-CPU use.
+ *	tiny version for yesn-preemptible single-CPU use.
  *
  * Copyright (C) IBM Corporation, 2017
  *
@@ -16,7 +16,7 @@
 #include <linux/delay.h>
 #include <linux/srcu.h>
 
-#include <linux/rcu_node_tree.h>
+#include <linux/rcu_yesde_tree.h>
 #include "rcu_segcblist.h"
 #include "rcu.h"
 
@@ -45,7 +45,7 @@ int __init_srcu_struct(struct srcu_struct *ssp, const char *name,
 		       struct lock_class_key *key)
 {
 	/* Don't re-initialize a lock while it is held. */
-	debug_check_no_locks_freed((void *)ssp, sizeof(*ssp));
+	debug_check_yes_locks_freed((void *)ssp, sizeof(*ssp));
 	lockdep_init_map(&ssp->dep_map, name, key, 0);
 	return init_srcu_struct_fields(ssp);
 }
@@ -115,7 +115,7 @@ void srcu_drive_gp(struct work_struct *wp)
 
 	ssp = container_of(wp, struct srcu_struct, srcu_work);
 	if (ssp->srcu_gp_running || !READ_ONCE(ssp->srcu_cb_head))
-		return; /* Already running or nothing to do. */
+		return; /* Already running or yesthing to do. */
 
 	/* Remove recently arrived callbacks and wait for readers. */
 	WRITE_ONCE(ssp->srcu_gp_running, true);
@@ -153,7 +153,7 @@ EXPORT_SYMBOL_GPL(srcu_drive_gp);
 
 /*
  * Enqueue an SRCU callback on the specified srcu_struct structure,
- * initiating grace-period processing if it is not already running.
+ * initiating grace-period processing if it is yest already running.
  */
 void call_srcu(struct srcu_struct *ssp, struct rcu_head *rhp,
 	       rcu_callback_t func)
@@ -190,7 +190,7 @@ void synchronize_srcu(struct srcu_struct *ssp)
 }
 EXPORT_SYMBOL_GPL(synchronize_srcu);
 
-/* Lockdep diagnostics.  */
+/* Lockdep diagyesstics.  */
 void __init rcu_scheduler_starting(void)
 {
 	rcu_scheduler_active = RCU_SCHEDULER_RUNNING;

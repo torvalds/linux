@@ -91,9 +91,9 @@ static const int uart_clk_ids[] __initconst = {
 
 static struct clk **uart_clks[ARRAY_SIZE(uart_clk_ids) + 1] __initdata;
 
-static void __init imx6sll_clocks_init(struct device_node *ccm_node)
+static void __init imx6sll_clocks_init(struct device_yesde *ccm_yesde)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *base;
 	int i;
 
@@ -107,19 +107,19 @@ static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 
 	hws[IMX6SLL_CLK_DUMMY] = imx_clk_hw_fixed("dummy", 0);
 
-	hws[IMX6SLL_CLK_CKIL] = imx_obtain_fixed_clk_hw(ccm_node, "ckil");
-	hws[IMX6SLL_CLK_OSC] = imx_obtain_fixed_clk_hw(ccm_node, "osc");
+	hws[IMX6SLL_CLK_CKIL] = imx_obtain_fixed_clk_hw(ccm_yesde, "ckil");
+	hws[IMX6SLL_CLK_OSC] = imx_obtain_fixed_clk_hw(ccm_yesde, "osc");
 
 	/* ipp_di clock is external input */
-	hws[IMX6SLL_CLK_IPP_DI0] = imx_obtain_fixed_clk_hw(ccm_node, "ipp_di0");
-	hws[IMX6SLL_CLK_IPP_DI1] = imx_obtain_fixed_clk_hw(ccm_node, "ipp_di1");
+	hws[IMX6SLL_CLK_IPP_DI0] = imx_obtain_fixed_clk_hw(ccm_yesde, "ipp_di0");
+	hws[IMX6SLL_CLK_IPP_DI1] = imx_obtain_fixed_clk_hw(ccm_yesde, "ipp_di1");
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6sll-anatop");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx6sll-anatop");
 	base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	WARN_ON(!base);
 
-	/* Do not bypass PLLs initially */
+	/* Do yest bypass PLLs initially */
 	writel_relaxed(CCM_ANALOG_PLL_BYPASS, base + xPLL_CLR(0x0));
 	writel_relaxed(CCM_ANALOG_PLL_BYPASS, base + xPLL_CLR(0x10));
 	writel_relaxed(CCM_ANALOG_PLL_BYPASS, base + xPLL_CLR(0x20));
@@ -162,7 +162,7 @@ static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 
 	/*
 	 * Bit 20 is the reserved and read-only bit, we do this only for:
-	 * - Do nothing for usbphy clk_enable/disable
+	 * - Do yesthing for usbphy clk_enable/disable
 	 * - Keep refcount when do usbphy clk_enable/disable, in that case,
 	 * the clk framework many need to enable/disable usbphy's parent
 	 */
@@ -203,7 +203,7 @@ static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 	hws[IMX6SLL_CLK_PLL3_80M]  = imx_clk_hw_fixed_factor("pll3_80m",  "pll3_usb_otg",   1, 6);
 	hws[IMX6SLL_CLK_PLL3_60M]  = imx_clk_hw_fixed_factor("pll3_60m",  "pll3_usb_otg",   1, 8);
 
-	np = ccm_node;
+	np = ccm_yesde;
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
 

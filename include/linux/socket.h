@@ -34,7 +34,7 @@ struct sockaddr {
 };
 
 struct linger {
-	int		l_onoff;	/* Linger active		*/
+	int		l_oyesff;	/* Linger active		*/
 	int		l_linger;	/* How long to linger for	*/
 };
 
@@ -42,7 +42,7 @@ struct linger {
 
 /*
  *	As we do 4.4BSD message passing we use a 4.4BSD message passing
- *	system, not 4.3. Thus msg_accrights(len) are now missing. They
+ *	system, yest 4.3. Thus msg_accrights(len) are yesw missing. They
  *	belong in an obscure libc emulation or the bin.
  */
 
@@ -114,11 +114,11 @@ struct cmsghdr {
 /*
  *	Get the next cmsg header
  *
- *	PLEASE, do not touch this function. If you think, that it is
+ *	PLEASE, do yest touch this function. If you think, that it is
  *	incorrect, grep kernel sources and think about consequences
  *	before trying to improve it.
  *
- *	Now it always returns valid, not truncated ancillary object
+ *	Now it always returns valid, yest truncated ancillary object
  *	HEADER. But caller still MUST check, that cmsg->cmsg_len is
  *	inside range, given by msg->msg_controllen before using
  *	ancillary object DATA.				--ANK (980731)
@@ -210,7 +210,7 @@ struct ucred {
 				 */
 #define AF_XDP		44	/* XDP sockets			*/
 
-#define AF_MAX		45	/* For now.. */
+#define AF_MAX		45	/* For yesw.. */
 
 /* Protocol families, same as address families. */
 #define PF_UNSPEC	AF_UNSPEC
@@ -266,15 +266,15 @@ struct ucred {
 #define SOMAXCONN	4096
 
 /* Flags we can use with send/ and recv.
-   Added those for 1003.1g not all are supported yet
+   Added those for 1003.1g yest all are supported yet
  */
 
 #define MSG_OOB		1
 #define MSG_PEEK	2
 #define MSG_DONTROUTE	4
-#define MSG_TRYHARD     4       /* Synonym for MSG_DONTROUTE for DECnet */
+#define MSG_TRYHARD     4       /* Syyesnym for MSG_DONTROUTE for DECnet */
 #define MSG_CTRUNC	8
-#define MSG_PROBE	0x10	/* Do not send. Only probe path f.e. for MTU */
+#define MSG_PROBE	0x10	/* Do yest send. Only probe path f.e. for MTU */
 #define MSG_TRUNC	0x20
 #define MSG_DONTWAIT	0x40	/* Nonblocking io		 */
 #define MSG_EOR         0x80	/* End of record */
@@ -284,14 +284,14 @@ struct ucred {
 #define MSG_CONFIRM	0x800	/* Confirm path validity */
 #define MSG_RST		0x1000
 #define MSG_ERRQUEUE	0x2000	/* Fetch message from error queue */
-#define MSG_NOSIGNAL	0x4000	/* Do not generate SIGPIPE */
+#define MSG_NOSIGNAL	0x4000	/* Do yest generate SIGPIPE */
 #define MSG_MORE	0x8000	/* Sender will send more */
 #define MSG_WAITFORONE	0x10000	/* recvmmsg(): block until 1+ packets avail */
-#define MSG_SENDPAGE_NOPOLICY 0x10000 /* sendpage() internal : do no apply policy */
-#define MSG_SENDPAGE_NOTLAST 0x20000 /* sendpage() internal : not the last page */
+#define MSG_SENDPAGE_NOPOLICY 0x10000 /* sendpage() internal : do yes apply policy */
+#define MSG_SENDPAGE_NOTLAST 0x20000 /* sendpage() internal : yest the last page */
 #define MSG_BATCH	0x40000 /* sendmmsg(): more messages coming */
 #define MSG_EOF         MSG_FIN
-#define MSG_NO_SHARED_FRAGS 0x80000 /* sendpage() internal : page frags are not shared */
+#define MSG_NO_SHARED_FRAGS 0x80000 /* sendpage() internal : page frags are yest shared */
 #define MSG_SENDPAGE_DECRYPTED	0x100000 /* sendpage() internal : page may carry
 					  * plain text and require encryption
 					  */
@@ -310,7 +310,7 @@ struct ucred {
 
 /* Setsockoptions(2) level. Thanks to BSD these must match IPPROTO_xxx */
 #define SOL_IP		0
-/* #define SOL_ICMP	1	No-no-no! Due to Linux :-) we cannot use SOL_ICMP=1 */
+/* #define SOL_ICMP	1	No-yes-yes! Due to Linux :-) we canyest use SOL_ICMP=1 */
 #define SOL_TCP		6
 #define SOL_UDP		17
 #define SOL_IPV6	41

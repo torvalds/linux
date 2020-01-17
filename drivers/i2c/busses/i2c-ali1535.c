@@ -32,7 +32,7 @@
 
     This driver controls the SMB Host only.
 
-    This driver does not use interrupts.
+    This driver does yest use interrupts.
 */
 
 
@@ -174,7 +174,7 @@ static int ali1535_setup(struct pci_dev *dev)
 	/* check if whole device is enabled */
 	pci_read_config_byte(dev, SMBCFG, &temp);
 	if ((temp & ALI1535_SMBIO_EN) == 0) {
-		dev_err(&dev->dev, "SMB device not enabled - upgrade BIOS?\n");
+		dev_err(&dev->dev, "SMB device yest enabled - upgrade BIOS?\n");
 		retval = -ENODEV;
 		goto exit_free;
 	}
@@ -182,7 +182,7 @@ static int ali1535_setup(struct pci_dev *dev)
 	/* Is SMB Host controller enabled? */
 	pci_read_config_byte(dev, SMBHSTCFG, &temp);
 	if ((temp & 1) == 0) {
-		dev_err(&dev->dev, "SMBus controller not enabled - upgrade BIOS?\n");
+		dev_err(&dev->dev, "SMBus controller yest enabled - upgrade BIOS?\n");
 		retval = -ENODEV;
 		goto exit_free;
 	}
@@ -237,11 +237,11 @@ static int ali1535_transaction(struct i2c_adapter *adap)
 		 *      external device is hung, but it comes back upon a new
 		 *      access to a device)
 		 *   3. Disable and reenable the controller in SMBHSTCFG. Worst
-		 *      case, nothing seems to work except power reset.
+		 *      case, yesthing seems to work except power reset.
 		 */
 
 		/* Try resetting entire SMB bus, including other devices - This
-		 * may not work either - it clears the BUSY bit but then the
+		 * may yest work either - it clears the BUSY bit but then the
 		 * BUSY bit may come back on when you try and use the chip
 		 * again.  If that's the case you are stuck.
 		 */
@@ -252,14 +252,14 @@ static int ali1535_transaction(struct i2c_adapter *adap)
 		temp = inb_p(SMBHSTSTS);
 	}
 
-	/* now check the error bits and the busy bit */
+	/* yesw check the error bits and the busy bit */
 	if (temp & (ALI1535_STS_ERR | ALI1535_STS_BUSY)) {
 		/* do a clear-on-write */
 		outb_p(0xFF, SMBHSTSTS);
 		temp = inb_p(SMBHSTSTS);
 		if (temp & (ALI1535_STS_ERR | ALI1535_STS_BUSY)) {
 			/* This is probably going to be correctable only by a
-			 * power reset as one of the bits now appears to be
+			 * power reset as one of the bits yesw appears to be
 			 * stuck */
 			/* This may be a bus or device with electrical problems. */
 			dev_err(&adap->dev,
@@ -295,14 +295,14 @@ static int ali1535_transaction(struct i2c_adapter *adap)
 		dev_dbg(&adap->dev, "Error: Failed bus transaction\n");
 	}
 
-	/* Unfortunately the ALI SMB controller maps "no response" and "bus
+	/* Unfortunately the ALI SMB controller maps "yes response" and "bus
 	 * collision" into a single bit. No response is the usual case so don't
 	 * do a printk.  This means that bus collisions go unreported.
 	 */
 	if (temp & ALI1535_STS_BUSERR) {
 		result = -ENXIO;
 		dev_dbg(&adap->dev,
-			"Error: no response or bus collision ADD=%02x\n",
+			"Error: yes response or bus collision ADD=%02x\n",
 			inb_p(SMBHSTADD));
 	}
 
@@ -337,7 +337,7 @@ static int ali1535_transaction(struct i2c_adapter *adap)
 	return result;
 }
 
-/* Return negative errno on error. */
+/* Return negative erryes on error. */
 static s32 ali1535_access(struct i2c_adapter *adap, u16 addr,
 			  unsigned short flags, char read_write, u8 command,
 			  int size, union i2c_smbus_data *data)
@@ -492,7 +492,7 @@ static int ali1535_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	if (ali1535_setup(dev)) {
 		dev_warn(&dev->dev,
-			"ALI1535 not detected, module not inserted.\n");
+			"ALI1535 yest detected, module yest inserted.\n");
 		return -ENODEV;
 	}
 

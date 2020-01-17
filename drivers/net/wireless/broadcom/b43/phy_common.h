@@ -79,64 +79,64 @@ enum b43_txpwr_result {
  * struct b43_phy_operations - Function pointers for PHY ops.
  *
  * @allocate:		Allocate and initialise the PHY data structures.
- * 			Must not be NULL.
+ * 			Must yest be NULL.
  * @free:		Destroy and free the PHY data structures.
- * 			Must not be NULL.
+ * 			Must yest be NULL.
  *
  * @prepare_structs:	Prepare the PHY data structures.
  * 			The data structures allocated in @allocate are
  * 			initialized here.
- * 			Must not be NULL.
+ * 			Must yest be NULL.
  * @prepare_hardware:	Prepare the PHY. This is called before b43_chip_init to
  * 			do some early early PHY hardware init.
- * 			Can be NULL, if not required.
+ * 			Can be NULL, if yest required.
  * @init:		Initialize the PHY.
- * 			Must not be NULL.
+ * 			Must yest be NULL.
  * @exit:		Shutdown the PHY.
- * 			Can be NULL, if not required.
+ * 			Can be NULL, if yest required.
  *
  * @phy_read:		Read from a PHY register.
- * 			Must not be NULL.
+ * 			Must yest be NULL.
  * @phy_write:		Write to a PHY register.
- * 			Must not be NULL.
+ * 			Must yest be NULL.
  * @phy_maskset:	Maskset a PHY register, taking shortcuts.
  *			If it is NULL, a generic algorithm is used.
  * @radio_read:		Read from a Radio register.
- * 			Must not be NULL.
+ * 			Must yest be NULL.
  * @radio_write:	Write to a Radio register.
- * 			Must not be NULL.
+ * 			Must yest be NULL.
  *
  * @supports_hwpctl:	Returns a boolean whether Hardware Power Control
- * 			is supported or not.
+ * 			is supported or yest.
  * 			If NULL, hwpctl is assumed to be never supported.
  * @software_rfkill:	Turn the radio ON or OFF.
  * 			Possible state values are
  * 			RFKILL_STATE_SOFT_BLOCKED or
  * 			RFKILL_STATE_UNBLOCKED
- * 			Must not be NULL.
+ * 			Must yest be NULL.
  * @switch_analog:	Turn the Analog on/off.
- * 			Must not be NULL.
- * @switch_channel:	Switch the radio to another channel.
- * 			Must not be NULL.
+ * 			Must yest be NULL.
+ * @switch_channel:	Switch the radio to ayesther channel.
+ * 			Must yest be NULL.
  * @get_default_chan:	Just returns the default channel number.
- * 			Must not be NULL.
+ * 			Must yest be NULL.
  * @set_rx_antenna:	Set the antenna used for RX.
- * 			Can be NULL, if not supported.
+ * 			Can be NULL, if yest supported.
  * @interf_mitigation:	Switch the Interference Mitigation mode.
- * 			Can be NULL, if not supported.
+ * 			Can be NULL, if yest supported.
  *
  * @recalc_txpower:	Recalculate the transmission power parameters.
  * 			This callback has to recalculate the TX power settings,
- * 			but does not need to write them to the hardware, yet.
+ * 			but does yest need to write them to the hardware, yet.
  * 			Returns enum b43_txpwr_result to indicate whether the hardware
  * 			needs to be adjusted.
  * 			If B43_TXPWR_NEED_ADJUST is returned, @adjust_txpower
  * 			will be called later.
- * 			If the parameter "ignore_tssi" is true, the TSSI values should
- * 			be ignored and a recalculation of the power settings should be
- * 			done even if the TSSI values did not change.
- * 			This function may sleep, but should not.
- * 			Must not be NULL.
+ * 			If the parameter "igyesre_tssi" is true, the TSSI values should
+ * 			be igyesred and a recalculation of the power settings should be
+ * 			done even if the TSSI values did yest change.
+ * 			This function may sleep, but should yest.
+ * 			Must yest be NULL.
  * @adjust_txpower:	Write the previously calculated TX power settings
  * 			(from @recalc_txpower) to the hardware.
  * 			This function may sleep.
@@ -144,9 +144,9 @@ enum b43_txpwr_result {
  * 			returns B43_TXPWR_RES_DONE.
  *
  * @pwork_15sec:	Periodic work. Called every 15 seconds.
- * 			Can be NULL, if not required.
+ * 			Can be NULL, if yest required.
  * @pwork_60sec:	Periodic work. Called every 60 seconds.
- * 			Can be NULL, if not required.
+ * 			Can be NULL, if yest required.
  */
 struct b43_phy_operations {
 	/* Initialisation */
@@ -176,7 +176,7 @@ struct b43_phy_operations {
 
 	/* Transmission power adjustment */
 	enum b43_txpwr_result (*recalc_txpower)(struct b43_wldev *dev,
-						bool ignore_tssi);
+						bool igyesre_tssi);
 	void (*adjust_txpower)(struct b43_wldev *dev);
 
 	/* Misc */
@@ -310,7 +310,7 @@ u16 b43_phy_read(struct b43_wldev *dev, u16 reg);
 void b43_phy_write(struct b43_wldev *dev, u16 reg, u16 value);
 
 /**
- * b43_phy_copy - copy contents of 16bit PHY register to another
+ * b43_phy_copy - copy contents of 16bit PHY register to ayesther
  */
 void b43_phy_copy(struct b43_wldev *dev, u16 destreg, u16 srcreg);
 
@@ -386,7 +386,7 @@ void b43_phy_put_into_reset(struct b43_wldev *dev);
 void b43_phy_take_out_of_reset(struct b43_wldev *dev);
 
 /**
- * b43_switch_channel - Switch to another channel
+ * b43_switch_channel - Switch to ayesther channel
  */
 int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel);
 
@@ -408,10 +408,10 @@ void b43_phy_txpower_check(struct b43_wldev *dev, unsigned int flags);
 /**
  * enum b43_phy_txpower_check_flags - Flags for b43_phy_txpower_check()
  *
- * @B43_TXPWR_IGNORE_TIME: Ignore the schedule time and force-redo
- *                         the check now.
+ * @B43_TXPWR_IGNORE_TIME: Igyesre the schedule time and force-redo
+ *                         the check yesw.
  * @B43_TXPWR_IGNORE_TSSI: Redo the recalculation, even if the average
- *                         TSSI did not change.
+ *                         TSSI did yest change.
  */
 enum b43_phy_txpower_check_flags {
 	B43_TXPWR_IGNORE_TIME		= (1 << 0),
@@ -434,7 +434,7 @@ int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset);
  * b43_phy_switch_analog_generic - Generic PHY operation for switching the Analog.
  *
  * It does the switching based on the PHY0 core register.
- * Do _not_ call this directly. Only use it as a switch_analog callback
+ * Do _yest_ call this directly. Only use it as a switch_analog callback
  * for struct b43_phy_operations.
  */
 void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on);

@@ -53,7 +53,7 @@ ATOMIC64_DECL(sub_return);
 ATOMIC64_DECL(inc_return);
 ATOMIC64_DECL(dec_return);
 ATOMIC64_DECL(dec_if_positive);
-ATOMIC64_DECL(inc_not_zero);
+ATOMIC64_DECL(inc_yest_zero);
 ATOMIC64_DECL(add_unless);
 
 #undef ATOMIC64_DECL
@@ -106,7 +106,7 @@ static inline void arch_atomic64_set(atomic64_t *v, s64 i)
 {
 	unsigned high = (unsigned)(i >> 32);
 	unsigned low = (unsigned)i;
-	alternative_atomic64(set, /* no output */,
+	alternative_atomic64(set, /* yes output */,
 			     "S" (v), "b" (low), "c" (high)
 			     : "eax", "edx", "memory");
 }
@@ -206,7 +206,7 @@ static inline s64 arch_atomic64_sub(s64 i, atomic64_t *v)
  */
 static inline void arch_atomic64_inc(atomic64_t *v)
 {
-	__alternative_atomic64(inc, inc_return, /* no output */,
+	__alternative_atomic64(inc, inc_return, /* yes output */,
 			       "S" (v) : "memory", "eax", "ecx", "edx");
 }
 #define arch_atomic64_inc arch_atomic64_inc
@@ -219,7 +219,7 @@ static inline void arch_atomic64_inc(atomic64_t *v)
  */
 static inline void arch_atomic64_dec(atomic64_t *v)
 {
-	__alternative_atomic64(dec, dec_return, /* no output */,
+	__alternative_atomic64(dec, dec_return, /* yes output */,
 			       "S" (v) : "memory", "eax", "ecx", "edx");
 }
 #define arch_atomic64_dec arch_atomic64_dec
@@ -230,8 +230,8 @@ static inline void arch_atomic64_dec(atomic64_t *v)
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @v, so long as it was not @u.
- * Returns non-zero if the add was done, zero otherwise.
+ * Atomically adds @a to @v, so long as it was yest @u.
+ * Returns yesn-zero if the add was done, zero otherwise.
  */
 static inline int arch_atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
 {
@@ -243,14 +243,14 @@ static inline int arch_atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
 	return (int)a;
 }
 
-static inline int arch_atomic64_inc_not_zero(atomic64_t *v)
+static inline int arch_atomic64_inc_yest_zero(atomic64_t *v)
 {
 	int r;
-	alternative_atomic64(inc_not_zero, "=&a" (r),
+	alternative_atomic64(inc_yest_zero, "=&a" (r),
 			     "S" (v) : "ecx", "edx", "memory");
 	return r;
 }
-#define arch_atomic64_inc_not_zero arch_atomic64_inc_not_zero
+#define arch_atomic64_inc_yest_zero arch_atomic64_inc_yest_zero
 
 static inline s64 arch_atomic64_dec_if_positive(atomic64_t *v)
 {

@@ -2,8 +2,8 @@
 /*
  * Connection tracking protocol helper module for GRE.
  *
- * GRE is a generic encapsulation protocol, which is generally not very
- * suited for NAT, as it has no protocol-specific part as port numbers.
+ * GRE is a generic encapsulation protocol, which is generally yest very
+ * suited for NAT, as it has yes protocol-specific part as port numbers.
  *
  * It has an optional key field, which may help us distinguishing two
  * connections between the same two hosts.
@@ -238,7 +238,7 @@ int nf_conntrack_gre_packet(struct nf_conn *ct,
 	if (ct->status & IPS_SEEN_REPLY) {
 		nf_ct_refresh_acct(ct, ctinfo, skb,
 				   ct->proto.gre.stream_timeout);
-		/* Also, more likely to be important, and not a probe. */
+		/* Also, more likely to be important, and yest a probe. */
 		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
 			nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	} else

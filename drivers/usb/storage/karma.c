@@ -140,7 +140,7 @@ err:
 
 /*
  * Trap START_STOP and READ_10 to leave/re-enter storage mode.
- * Everything else is propagated to the normal bulk layer.
+ * Everything else is propagated to the yesrmal bulk layer.
  */
 static int rio_karma_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
@@ -227,7 +227,7 @@ static struct usb_driver karma_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	karma_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 };
 
 module_usb_stor_driver(karma_driver, karma_host_template, DRV_NAME);

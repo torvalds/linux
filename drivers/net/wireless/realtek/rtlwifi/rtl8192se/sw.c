@@ -70,7 +70,7 @@ static void rtl92se_fw_cb(const struct firmware *firmware, void *context)
 			 "Firmware callback routine entered!\n");
 	complete(&rtlpriv->firmware_loading_complete);
 	if (!firmware) {
-		pr_err("Firmware %s not available\n", fw_name);
+		pr_err("Firmware %s yest available\n", fw_name);
 		rtlpriv->max_fw_size = 0;
 		return;
 	}
@@ -188,7 +188,7 @@ static int rtl92s_init_sw_vars(struct ieee80211_hw *hw)
 	pr_info("Driver for Realtek RTL8192SE/RTL8191SE\n"
 		"Loading firmware %s\n", fw_name);
 	/* request fw */
-	err = request_firmware_nowait(THIS_MODULE, 1, fw_name,
+	err = request_firmware_yeswait(THIS_MODULE, 1, fw_name,
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl92se_fw_cb);
 	if (err) {
@@ -248,7 +248,7 @@ static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.fill_tx_cmddesc = rtl92se_tx_fill_cmddesc,
 	.query_rx_desc = rtl92se_rx_query_desc,
 	.set_channel_access = rtl92se_update_channel_access_setting,
-	.radio_onoff_checking = rtl92se_gpio_radio_on_off_checking,
+	.radio_oyesff_checking = rtl92se_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl92s_phy_set_bw_mode,
 	.switch_channel = rtl92s_phy_sw_chnl,
 	.dm_watchdog = rtl92s_dm_watchdog,
@@ -303,9 +303,9 @@ static const struct rtl_hal_cfg rtl92se_hal_cfg = {
 	.maps[EFUSE_CTRL] = REG_EFUSE_CTRL,
 	.maps[EFUSE_CLK] = REG_EFUSE_CLK,
 	.maps[EFUSE_CLK_CTRL] = REG_EFUSE_CTRL,
-	.maps[EFUSE_PWC_EV12V] = 0, /* nouse for 8192se */
-	.maps[EFUSE_FEN_ELDR] = 0, /* nouse for 8192se */
-	.maps[EFUSE_LOADER_CLK_EN] = 0,/* nouse for 8192se */
+	.maps[EFUSE_PWC_EV12V] = 0, /* yesuse for 8192se */
+	.maps[EFUSE_FEN_ELDR] = 0, /* yesuse for 8192se */
+	.maps[EFUSE_LOADER_CLK_EN] = 0,/* yesuse for 8192se */
 	.maps[EFUSE_ANA8M] = EFUSE_ANA8M,
 	.maps[EFUSE_HWSET_MAX_SIZE] = HWSET_MAX_SIZE_92S,
 	.maps[EFUSE_MAX_SECTION_MAP] = EFUSE_MAX_SECTION,
@@ -402,7 +402,7 @@ module_param_named(swlps, rtl92se_mod_params.swctrl_lps, bool, 0444);
 module_param_named(fwlps, rtl92se_mod_params.fwctrl_lps, bool, 0444);
 module_param_named(aspm, rtl92se_mod_params.aspm_support, int, 0444);
 MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
-MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
+MODULE_PARM_DESC(ips, "Set to 0 to yest use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 1)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 0)\n");
 MODULE_PARM_DESC(aspm, "Set to 1 to enable ASPM (default 1)\n");

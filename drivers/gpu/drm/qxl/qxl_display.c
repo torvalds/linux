@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -80,7 +80,7 @@ static int qxl_display_copy_rom_client_monitors_config(struct qxl_device *qdev)
 	if (crc != qdev->rom->client_monitors_config_crc)
 		return MONITORS_CONFIG_BAD_CRC;
 	if (!num_monitors) {
-		DRM_DEBUG_KMS("no client monitors configured\n");
+		DRM_DEBUG_KMS("yes client monitors configured\n");
 		return status;
 	}
 	if (num_monitors > qxl_num_crtc) {
@@ -171,15 +171,15 @@ void qxl_display_read_client_monitors_config(struct qxl_device *qdev)
 		udelay(5);
 	}
 	if (status == MONITORS_CONFIG_ERROR) {
-		DRM_DEBUG_KMS("ignoring client monitors config: error");
+		DRM_DEBUG_KMS("igyesring client monitors config: error");
 		return;
 	}
 	if (status == MONITORS_CONFIG_BAD_CRC) {
-		DRM_DEBUG_KMS("ignoring client monitors config: bad crc");
+		DRM_DEBUG_KMS("igyesring client monitors config: bad crc");
 		return;
 	}
 	if (status == MONITORS_CONFIG_UNCHANGED) {
-		DRM_DEBUG_KMS("ignoring client monitors config: unchanged");
+		DRM_DEBUG_KMS("igyesring client monitors config: unchanged");
 		return;
 	}
 
@@ -187,7 +187,7 @@ void qxl_display_read_client_monitors_config(struct qxl_device *qdev)
 	qxl_update_offset_props(qdev);
 	drm_modeset_unlock_all(dev);
 	if (!drm_helper_hpd_irq_event(dev)) {
-		/* notify that the monitor configuration changed, to
+		/* yestify that the monitor configuration changed, to
 		   adjust at the arbitrary resolution */
 		drm_kms_helper_hotplug_event(dev);
 	}
@@ -316,7 +316,7 @@ static void qxl_crtc_update_monitors_config(struct drm_crtc *crtc,
 	int oldcount, i = qcrtc->index;
 
 	if (!qdev->primary_bo) {
-		DRM_DEBUG_KMS("no primary surface, skip (%s)\n", reason);
+		DRM_DEBUG_KMS("yes primary surface, skip (%s)\n", reason);
 		return;
 	}
 
@@ -414,7 +414,7 @@ static int qxl_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 {
 	/* TODO: vmwgfx where this was cribbed from had locking. Why? */
 	struct qxl_device *qdev = fb->dev->dev_private;
-	struct drm_clip_rect norect;
+	struct drm_clip_rect yesrect;
 	struct qxl_bo *qobj;
 	bool is_primary;
 	int inc = 1;
@@ -422,7 +422,7 @@ static int qxl_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 	drm_modeset_lock_all(fb->dev);
 
 	qobj = gem_to_qxl_bo(fb->obj[0]);
-	/* if we aren't primary surface ignore this */
+	/* if we aren't primary surface igyesre this */
 	is_primary = qobj->shadow ? qobj->shadow->is_primary : qobj->is_primary;
 	if (!is_primary) {
 		drm_modeset_unlock_all(fb->dev);
@@ -431,10 +431,10 @@ static int qxl_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 
 	if (!num_clips) {
 		num_clips = 1;
-		clips = &norect;
-		norect.x1 = norect.y1 = 0;
-		norect.x2 = fb->width;
-		norect.y2 = fb->height;
+		clips = &yesrect;
+		yesrect.x1 = yesrect.y1 = 0;
+		yesrect.x2 = fb->width;
+		yesrect.y2 = fb->height;
 	} else if (flags & DRM_MODE_FB_DIRTY_ANNOTATE_COPY) {
 		num_clips /= 2;
 		inc = 2; /* skip source rects */
@@ -539,7 +539,7 @@ static void qxl_primary_atomic_update(struct drm_plane *plane,
 	struct qxl_device *qdev = plane->dev->dev_private;
 	struct qxl_bo *bo = gem_to_qxl_bo(plane->state->fb->obj[0]);
 	struct qxl_bo *primary;
-	struct drm_clip_rect norect = {
+	struct drm_clip_rect yesrect = {
 	    .x1 = 0,
 	    .y1 = 0,
 	    .x2 = plane->state->fb->width,
@@ -560,7 +560,7 @@ static void qxl_primary_atomic_update(struct drm_plane *plane,
 		dumb_shadow_offset =
 			qdev->dumb_heads[plane->state->crtc->index].x;
 
-	qxl_draw_dirty_fb(qdev, plane->state->fb, bo, 0, 0, &norect, 1, 1,
+	qxl_draw_dirty_fb(qdev, plane->state->fb, bo, 0, 0, &yesrect, 1, 1,
 			  dumb_shadow_offset);
 }
 
@@ -830,7 +830,7 @@ static void qxl_plane_cleanup_fb(struct drm_plane *plane,
 
 	if (!old_state->fb) {
 		/*
-		 * we never executed prepare_fb, so there's nothing to
+		 * we never executed prepare_fb, so there's yesthing to
 		 * unpin.
 		 */
 		return;
@@ -993,7 +993,7 @@ static int qxl_conn_get_modes(struct drm_connector *connector)
 			pheight = head->height;
 	}
 
-	ret += drm_add_modes_noedid(connector, 8192, 8192);
+	ret += drm_add_modes_yesedid(connector, 8192, 8192);
 	ret += qxl_add_extra_modes(connector);
 	ret += qxl_add_monitors_config_modes(connector);
 	drm_set_preferred_mode(connector, pwidth, pheight);

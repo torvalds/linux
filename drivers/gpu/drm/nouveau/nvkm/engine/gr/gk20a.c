@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -224,7 +224,7 @@ gk20a_gr_init(struct gf100_gr *gr)
 	/* Clear SCC RAM */
 	nvkm_wr32(device, 0x40802c, 0x1);
 
-	gf100_gr_mmio(gr, gr->fuc_sw_nonctx);
+	gf100_gr_mmio(gr, gr->fuc_sw_yesnctx);
 
 	ret = gk20a_gr_wait_mem_scrubbing(gr);
 	if (ret)
@@ -322,7 +322,7 @@ gk20a_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 	    gf100_gr_ctor_fw(gr, "gpccs_data", &gr->fuc41ad))
 		return -ENODEV;
 
-	ret = gk20a_gr_av_to_init(gr, "sw_nonctx", &gr->fuc_sw_nonctx);
+	ret = gk20a_gr_av_to_init(gr, "sw_yesnctx", &gr->fuc_sw_yesnctx);
 	if (ret)
 		return ret;
 

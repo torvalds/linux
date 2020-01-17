@@ -13,11 +13,11 @@ also be used to protect arrays.  Three situations are as follows:
 Each of these three situations involves an RCU-protected pointer to an
 array that is separately indexed.  It might be tempting to consider use
 of RCU to instead protect the index into an array, however, this use
-case is -not- supported.  The problem with RCU-protected indexes into
+case is -yest- supported.  The problem with RCU-protected indexes into
 arrays is that compilers can play way too many optimization games with
 integers, which means that the rules governing handling of these indexes
 are far more trouble than they are worth.  If RCU-protected indexes into
-arrays prove to be particularly valuable (which they have not thus far),
+arrays prove to be particularly valuable (which they have yest thus far),
 explicit cooperation from the compiler will be required to permit them
 to be safely used.
 
@@ -37,7 +37,7 @@ Situation 2: Static Arrays
 
 Static arrays, where the data (rather than a pointer to the data) is
 located in each array element, and where the array is never resized,
-have not been used with RCU.  Rik van Riel recommends using seqlock in
+have yest been used with RCU.  Rik van Riel recommends using seqlock in
 this situation, which would also have minimal read-side overhead as long
 as updates are rare.
 
@@ -51,7 +51,7 @@ Use of RCU for resizeable arrays is demonstrated by the grow_ary()
 function formerly used by the System V IPC code.  The array is used
 to map from semaphore, message-queue, and shared-memory IDs to the data
 structure that represents the corresponding IPC construct.  The grow_ary()
-function does not acquire any locks; instead its caller must hold the
+function does yest acquire any locks; instead its caller must hold the
 ids->sem semaphore.
 
 The grow_ary() function, shown below, does some limit checks, allocates a
@@ -107,12 +107,12 @@ indexes into the array under the protection of rcu_read_lock(),
 using rcu_dereference() to pick up the pointer to the array so
 that it may later safely be dereferenced -- memory barriers are
 required on the Alpha CPU.  Since the size of the array is stored
-with the array itself, there can be no array-size mismatches, so
+with the array itself, there can be yes array-size mismatches, so
 a simple check suffices.  The pointer to the structure corresponding
 to the desired IPC object is placed in "out", with NULL indicating
-a non-existent entry.  After acquiring "out->lock", the "out->deleted"
+a yesn-existent entry.  After acquiring "out->lock", the "out->deleted"
 flag indicates whether the IPC object is in the process of being
-deleted, and, if not, the pointer is returned.
+deleted, and, if yest, the pointer is returned.
 
 	struct kern_ipc_perm* ipc_lock(struct ipc_ids* ids, int id)
 	{

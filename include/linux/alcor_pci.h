@@ -31,13 +31,13 @@
 #define AU6601_DMA_LOCAL_SEGMENTS		1
 
 /* registers spotter by reverse engineering but still
- * with unknown functionality:
+ * with unkyeswn functionality:
  * 0x10 - ADMA phy address. AU6621 only?
  * 0x51 - LED ctrl?
- * 0x52 - unknown
+ * 0x52 - unkyeswn
  * 0x61 - LED related? Always toggled BIT0
  * 0x63 - Same as 0x61?
- * 0x77 - unknown
+ * 0x77 - unkyeswn
  */
 
 /* SDMA phy address. Higher then 0x0800.0000?
@@ -147,7 +147,7 @@
 #define AU6601_DATA_PIN_STATE			0x84
 #define AU6601_BUS_STAT_CMD			BIT(15)
 /* BIT(4) - BIT(7) are permanently 1.
- * May be reserved or not attached DAT4-DAT7
+ * May be reserved or yest attached DAT4-DAT7
  */
 #define AU6601_BUS_STAT_DAT3			BIT(3)
 #define AU6601_BUS_STAT_DAT2			BIT(2)

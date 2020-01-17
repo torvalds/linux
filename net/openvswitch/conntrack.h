@@ -35,7 +35,7 @@ void ovs_ct_free_action(const struct nlattr *a);
 			   OVS_CS_F_INVALID | OVS_CS_F_TRACKED | \
 			   OVS_CS_F_SRC_NAT | OVS_CS_F_DST_NAT)
 #else
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 static inline int ovs_ct_init(struct net *net) { return 0; }
 
@@ -80,7 +80,7 @@ static inline void ovs_ct_fill_key(const struct sk_buff *skb,
 	key->ct_zone = 0;
 	key->ct.mark = 0;
 	memset(&key->ct.labels, 0, sizeof(key->ct.labels));
-	/* Clear 'ct_orig_proto' to mark the non-existence of original
+	/* Clear 'ct_orig_proto' to mark the yesn-existence of original
 	 * direction key fields.
 	 */
 	key->ct_orig_proto = 0;

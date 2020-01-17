@@ -9,10 +9,10 @@
  * Originally written by MontaVista Software, Inc.
  * Additional contributions by:
  *	Tony Lindgren <tony@atomide.com>
- *	Imre Deak <imre.deak@nokia.com>
+ *	Imre Deak <imre.deak@yeskia.com>
  *	Juha Yrjölä <juha.yrjola@solidboot.com>
  *	Syed Khasim <x0khasim@ti.com>
- *	Nishant Menon <nm@ti.com>
+ *	Nishant Meyesn <nm@ti.com>
  */
 
 #include <linux/module.h>
@@ -109,7 +109,7 @@ enum {
 #define OMAP_I2C_WE_GC_WE	(1 << 5)	/* General call wakeup */
 #define OMAP_I2C_WE_DRDY_WE	(1 << 3)	/* TX/RX data ready wakeup */
 #define OMAP_I2C_WE_ARDY_WE	(1 << 2)	/* Reg access ready wakeup */
-#define OMAP_I2C_WE_NACK_WE	(1 << 1)	/* No acknowledgment wakeup */
+#define OMAP_I2C_WE_NACK_WE	(1 << 1)	/* No ackyeswledgment wakeup */
 #define OMAP_I2C_WE_AL_WE	(1 << 0)	/* Arbitration lost wakeup */
 
 #define OMAP_I2C_WE_ALL		(OMAP_I2C_WE_XDR_WE | OMAP_I2C_WE_RDR_WE | \
@@ -195,7 +195,7 @@ struct omap_i2c_dev {
 	struct i2c_adapter	adapter;
 	u8			threshold;
 	u8			fifo_size;	/* use as flag and value
-						 * fifo_size==0 implies no fifo
+						 * fifo_size==0 implies yes fifo
 						 * if set, should be trsh+1
 						 */
 	u32			rev;
@@ -295,7 +295,7 @@ static void __omap_i2c_init(struct omap_i2c_dev *omap)
 	/*
 	 * NOTE: right after setting CON_EN, STAT_BB could be 0 while the
 	 * bus is busy. It will be changed to 1 on the next IP FCLK clock.
-	 * udelay(1) will be enough to fix that.
+	 * udelay(1) will be eyesugh to fix that.
 	 */
 
 	/*
@@ -359,7 +359,7 @@ static int omap_i2c_init(struct omap_i2c_dev *omap)
 		/*
 		 * Enabling all wakup sources to stop I2C freezing on
 		 * WFI instruction.
-		 * REVISIT: Some wkup sources might not be needed.
+		 * REVISIT: Some wkup sources might yest be needed.
 		 */
 		omap->westate = OMAP_I2C_WE_ALL;
 	}
@@ -367,14 +367,14 @@ static int omap_i2c_init(struct omap_i2c_dev *omap)
 	if (omap->flags & OMAP_I2C_FLAG_ALWAYS_ARMXOR_CLK) {
 		/*
 		 * The I2C functional clock is the armxor_ck, so there's
-		 * no need to get "armxor_ck" separately.  Now, if OMAP2420
+		 * yes need to get "armxor_ck" separately.  Now, if OMAP2420
 		 * always returns 12MHz for the functional clock, we can
 		 * do this bit unconditionally.
 		 */
 		fclk = clk_get(omap->dev, "fck");
 		if (IS_ERR(fclk)) {
 			error = PTR_ERR(fclk);
-			dev_err(omap->dev, "could not get fck: %i\n", error);
+			dev_err(omap->dev, "could yest get fck: %i\n", error);
 
 			return error;
 		}
@@ -400,7 +400,7 @@ static int omap_i2c_init(struct omap_i2c_dev *omap)
 		/*
 		 * HSI2C controller internal clk rate should be 19.2 Mhz for
 		 * HS and for all modes on 2430. On 34xx we can use lower rate
-		 * to get longer filter period for better noise suppression.
+		 * to get longer filter period for better yesise suppression.
 		 * The filter is iclk (fclk for HS) period.
 		 */
 		if (omap->speed > 400 ||
@@ -413,7 +413,7 @@ static int omap_i2c_init(struct omap_i2c_dev *omap)
 		fclk = clk_get(omap->dev, "fck");
 		if (IS_ERR(fclk)) {
 			error = PTR_ERR(fclk);
-			dev_err(omap->dev, "could not get fck: %i\n", error);
+			dev_err(omap->dev, "could yest get fck: %i\n", error);
 
 			return error;
 		}
@@ -491,7 +491,7 @@ static int omap_i2c_recover_bus(struct omap_i2c_dev *omap)
 	    (systest & OMAP_I2C_SYSTEST_SDA_I_FUNC))
 		return 0; /* bus seems to already be fine */
 	if (!(systest & OMAP_I2C_SYSTEST_SCL_I_FUNC))
-		return -EBUSY; /* recovery would not fix SCL */
+		return -EBUSY; /* recovery would yest fix SCL */
 	return i2c_recover_bus(&omap->adapter);
 }
 
@@ -517,7 +517,7 @@ static int omap_i2c_wait_for_bb(struct omap_i2c_dev *omap)
  *
  * In a multimaster environment, after IP software reset, BB-bit value doesn't
  * correspond to the current bus state. It may happen what BB-bit will be 0,
- * while the bus is busy due to another I2C master activity.
+ * while the bus is busy due to ayesther I2C master activity.
  * Here are BB-bit values after reset:
  *     SDA   SCL   BB   NOTES
  *       0     0    0   1, 2
@@ -537,7 +537,7 @@ static int omap_i2c_wait_for_bb(struct omap_i2c_dev *omap)
  * 2. Any transfer started when BB=0 and SCL=0 results in IP
  *    starting to drive SDA low. In that case IP corrupt data
  *    on the bus.
- * 3. Any transfer started in the middle of another master's transfer
+ * 3. Any transfer started in the middle of ayesther master's transfer
  *    results in unpredictable results and data corruption
  */
 static int omap_i2c_wait_for_bb_valid(struct omap_i2c_dev *omap)
@@ -589,7 +589,7 @@ static int omap_i2c_wait_for_bb_valid(struct omap_i2c_dev *omap)
 			/*
 			 * SDA or SCL were low for the entire timeout without
 			 * any activity detected. Most likely, a slave is
-			 * locking up the bus with no master driving the clock.
+			 * locking up the bus with yes master driving the clock.
 			 */
 			dev_warn(omap->dev, "timeout waiting for bus ready\n");
 			return omap_i2c_recover_bus(omap);
@@ -610,7 +610,7 @@ static void omap_i2c_resize_fifo(struct omap_i2c_dev *omap, u8 size, bool is_rx)
 		return;
 
 	/*
-	 * Set up notification threshold based on message size. We're doing
+	 * Set up yestification threshold based on message size. We're doing
 	 * this to try and avoid draining feature as much as possible. Whenever
 	 * we have big messages to transfer (bigger than our total fifo size)
 	 * then we might use draining feature to transfer the remaining bytes.
@@ -706,7 +706,7 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 	if (!omap->b_hw && stop)
 		w |= OMAP_I2C_CON_STP;
 	/*
-	 * NOTE: STAT_BB bit could became 1 here if another master occupy
+	 * NOTE: STAT_BB bit could became 1 here if ayesther master occupy
 	 * the bus. IP successfully complete transfer when the bus will be
 	 * free again (BB reset to 0).
 	 */
@@ -721,7 +721,7 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 		while (con & OMAP_I2C_CON_STT) {
 			con = omap_i2c_read_reg(omap, OMAP_I2C_CON_REG);
 
-			/* Let the user know if i2c is in a bad state */
+			/* Let the user kyesw if i2c is in a bad state */
 			if (time_after(jiffies, delay)) {
 				dev_err(omap->dev, "controller timed out "
 				"waiting for start condition to finish\n");
@@ -870,7 +870,7 @@ static inline void i2c_omap_errata_i207(struct omap_i2c_dev *omap, u16 stat)
 	 * I2C Errata(Errata Nos. OMAP2: 1.67, OMAP3: 1.8)
 	 * Not applicable for OMAP4.
 	 * Under certain rare conditions, RDR could be set again
-	 * when the bus is busy, then ignore the interrupt and
+	 * when the bus is busy, then igyesre the interrupt and
 	 * clear the interrupt.
 	 */
 	if (stat & OMAP_I2C_STAT_RDR) {
@@ -912,7 +912,7 @@ omap_i2c_omap1_isr(int this_irq, void *dev_id)
 		dev_err(omap->dev, "Arbitration lost\n");
 		omap_i2c_complete_cmd(omap, OMAP_I2C_STAT_AL);
 		break;
-	case 0x02:	/* No acknowledgement */
+	case 0x02:	/* No ackyeswledgement */
 		omap_i2c_complete_cmd(omap, OMAP_I2C_STAT_NACK);
 		omap_i2c_write_reg(omap, OMAP_I2C_CON_REG, OMAP_I2C_CON_STP);
 		break;
@@ -929,7 +929,7 @@ omap_i2c_omap1_isr(int this_irq, void *dev_id)
 				omap->buf_len--;
 			}
 		} else
-			dev_err(omap->dev, "RRDY IRQ while no data requested\n");
+			dev_err(omap->dev, "RRDY IRQ while yes data requested\n");
 		break;
 	case 0x05:	/* Transmit data ready */
 		if (omap->buf_len) {
@@ -941,7 +941,7 @@ omap_i2c_omap1_isr(int this_irq, void *dev_id)
 			}
 			omap_i2c_write_reg(omap, OMAP_I2C_DATA_REG, w);
 		} else
-			dev_err(omap->dev, "XRDY IRQ while no data to send\n");
+			dev_err(omap->dev, "XRDY IRQ while yes data to send\n");
 		break;
 	default:
 		return IRQ_NONE;
@@ -1077,7 +1077,7 @@ static int omap_i2c_xfer_data(struct omap_i2c_dev *omap)
 		stat = omap_i2c_read_reg(omap, OMAP_I2C_STAT_REG);
 		stat &= bits;
 
-		/* If we're in receiver mode, ignore XDR/XRDY */
+		/* If we're in receiver mode, igyesre XDR/XRDY */
 		if (omap->receiver)
 			stat &= ~(OMAP_I2C_STAT_XDR | OMAP_I2C_STAT_XRDY);
 		else
@@ -1358,16 +1358,16 @@ omap_i2c_probe(struct platform_device *pdev)
 	struct resource		*mem;
 	const struct omap_i2c_bus_platform_data *pdata =
 		dev_get_platdata(&pdev->dev);
-	struct device_node	*node = pdev->dev.of_node;
+	struct device_yesde	*yesde = pdev->dev.of_yesde;
 	const struct of_device_id *match;
 	int irq;
 	int r;
 	u32 rev;
-	u16 minor, major;
+	u16 miyesr, major;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "no irq resource?\n");
+		dev_err(&pdev->dev, "yes irq resource?\n");
 		return irq;
 	}
 
@@ -1387,7 +1387,7 @@ omap_i2c_probe(struct platform_device *pdev)
 		pdata = match->data;
 		omap->flags = pdata->flags;
 
-		of_property_read_u32(node, "clock-frequency", &freq);
+		of_property_read_u32(yesde, "clock-frequency", &freq);
 		/* convert DT freq value in Hz into kHz for speed */
 		omap->speed = freq / 1000;
 	} else if (pdata != NULL) {
@@ -1425,7 +1425,7 @@ omap_i2c_probe(struct platform_device *pdev)
 	case OMAP_I2C_SCHEME_0:
 		omap->regs = (u8 *)reg_map_ip_v1;
 		omap->rev = omap_i2c_read_reg(omap, OMAP_I2C_REV_REG);
-		minor = OMAP_I2C_REV_SCHEME_0_MAJOR(omap->rev);
+		miyesr = OMAP_I2C_REV_SCHEME_0_MAJOR(omap->rev);
 		major = OMAP_I2C_REV_SCHEME_0_MAJOR(omap->rev);
 		break;
 	case OMAP_I2C_SCHEME_1:
@@ -1434,7 +1434,7 @@ omap_i2c_probe(struct platform_device *pdev)
 		omap->regs = (u8 *)reg_map_ip_v2;
 		rev = (rev << 16) |
 			omap_i2c_read_reg(omap, OMAP_I2C_IP_V2_REVNB_LO);
-		minor = OMAP_I2C_REV_SCHEME_1_MINOR(rev);
+		miyesr = OMAP_I2C_REV_SCHEME_1_MINOR(rev);
 		major = OMAP_I2C_REV_SCHEME_1_MAJOR(rev);
 		omap->rev = rev;
 	}
@@ -1456,7 +1456,7 @@ omap_i2c_probe(struct platform_device *pdev)
 		omap->fifo_size = 0x8 << s;
 
 		/*
-		 * Set up notification threshold as half the total available
+		 * Set up yestification threshold as half the total available
 		 * size. This is to ensure that we can handle the status on int
 		 * call back latencies.
 		 */
@@ -1497,7 +1497,7 @@ omap_i2c_probe(struct platform_device *pdev)
 	adap->algo = &omap_i2c_algo;
 	adap->quirks = &omap_i2c_quirks;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 	adap->bus_recovery_info = &omap_i2c_bus_recovery_info;
 
 	/* i2c device drivers may be active on return from add_adapter() */
@@ -1507,7 +1507,7 @@ omap_i2c_probe(struct platform_device *pdev)
 		goto err_unuse_clocks;
 
 	dev_info(omap->dev, "bus %d rev%d.%d at %d kHz\n", adap->nr,
-		 major, minor, omap->speed);
+		 major, miyesr, omap->speed);
 
 	pm_runtime_mark_last_busy(omap->dev);
 	pm_runtime_put_autosuspend(omap->dev);

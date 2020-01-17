@@ -132,7 +132,7 @@ static int hi3660_stub_clk_probe(struct platform_device *pdev)
 	stub_clk_chan.cl.dev = dev;
 	stub_clk_chan.cl.tx_done = NULL;
 	stub_clk_chan.cl.tx_block = false;
-	stub_clk_chan.cl.knows_txdone = false;
+	stub_clk_chan.cl.kyesws_txdone = false;
 
 	/* Allocate mailbox channel */
 	stub_clk_chan.mbox = mbox_request_channel(&stub_clk_chan.cl, 0);

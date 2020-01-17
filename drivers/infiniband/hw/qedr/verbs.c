@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -382,7 +382,7 @@ int qedr_mmap(struct ib_ucontext *ucontext, struct vm_area_struct *vma)
 
 	rdma_entry = rdma_user_mmap_entry_get(ucontext, vma);
 	if (!rdma_entry) {
-		ibdev_dbg(dev, "pgoff[%#lx] does not have valid entry\n",
+		ibdev_dbg(dev, "pgoff[%#lx] does yest have valid entry\n",
 			  vma->vm_pgoff);
 		return -EINVAL;
 	}
@@ -606,7 +606,7 @@ static void qedr_populate_pbls(struct qedr_dev *dev, struct ib_umem *umem,
 
 	pbe = (struct regpair *)pbl_tbl->va;
 	if (!pbe) {
-		DP_ERR(dev, "cannot populate PBL due to a NULL PBE\n");
+		DP_ERR(dev, "canyest populate PBL due to a NULL PBE\n");
 		return;
 	}
 
@@ -666,7 +666,7 @@ static void qedr_db_recovery_del(struct qedr_dev *dev,
 		return;
 	}
 
-	/* Ignore return code as there is not much we can do about it. Error
+	/* Igyesre return code as there is yest much we can do about it. Error
 	 * log will be printed inside.
 	 */
 	dev->ops->common->db_recovery_del(dev->cdev, db_addr, db_data);
@@ -723,7 +723,7 @@ static int qedr_init_user_db_rec(struct ib_udata *udata,
 	struct qedr_user_mmap_entry *entry;
 	int rc;
 
-	/* Aborting for non doorbell userqueue (SRQ) or non-supporting lib */
+	/* Aborting for yesn doorbell userqueue (SRQ) or yesn-supporting lib */
 	if (requires_db_rec == 0 || !uctx->db_rec)
 		return 0;
 
@@ -838,7 +838,7 @@ static void doorbell_cq(struct qedr_cq *cq, u32 cons, u8 flags)
 	writeq(cq->db.raw, cq->db_addr);
 }
 
-int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
+int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_yestify_flags flags)
 {
 	struct qedr_cq *cq = get_qedr_cq(ibcq);
 	unsigned long sflags;
@@ -922,7 +922,7 @@ int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 		if (!ureq.len) {
 			DP_ERR(dev,
-			       "create cq: cannot create a cq with 0 entries\n");
+			       "create cq: canyest create a cq with 0 entries\n");
 			goto err0;
 		}
 
@@ -1071,25 +1071,25 @@ void qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		qedr_db_recovery_del(dev, cq->db_addr, &cq->db.data);
 	}
 
-	/* We don't want the IRQ handler to handle a non-existing CQ so we
+	/* We don't want the IRQ handler to handle a yesn-existing CQ so we
 	 * wait until all CNQ interrupts, if any, are received. This will always
-	 * happen and will always happen very fast. If not, then a serious error
+	 * happen and will always happen very fast. If yest, then a serious error
 	 * has occured. That is why we can use a long delay.
 	 * We spin for a short time so we don’t lose time on context switching
 	 * in case all the completions are handled in that span. Otherwise
 	 * we sleep for a while and check again. Since the CNQ may be
 	 * associated with (only) the current CPU we use msleep to allow the
 	 * current CPU to be freed.
-	 * The CNQ notification is increased in qedr_irq_handler().
+	 * The CNQ yestification is increased in qedr_irq_handler().
 	 */
 	iter = QEDR_DESTROY_CQ_MAX_ITERATIONS;
-	while (oparams.num_cq_notif != READ_ONCE(cq->cnq_notif) && iter) {
+	while (oparams.num_cq_yestif != READ_ONCE(cq->cnq_yestif) && iter) {
 		udelay(QEDR_DESTROY_CQ_ITER_DURATION);
 		iter--;
 	}
 
 	iter = QEDR_DESTROY_CQ_MAX_ITERATIONS;
-	while (oparams.num_cq_notif != READ_ONCE(cq->cnq_notif) && iter) {
+	while (oparams.num_cq_yestif != READ_ONCE(cq->cnq_yestif) && iter) {
 		msleep(QEDR_DESTROY_CQ_ITER_DURATION);
 		iter--;
 	}
@@ -1097,7 +1097,7 @@ void qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	/* Note that we don't need to have explicit code to wait for the
 	 * completion of the event handler because it is invoked from the EQ.
 	 * Since the destroy CQ ramrod has also been received on the EQ we can
-	 * be certain that there's no event handler in process.
+	 * be certain that there's yes event handler in process.
 	 */
 }
 
@@ -1180,7 +1180,7 @@ static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
 
 	if (attrs->cap.max_send_wr > qattr->max_sqe) {
 		DP_ERR(dev,
-		       "create qp: cannot create a SQ with %d elements (max_send_wr=0x%x)\n",
+		       "create qp: canyest create a SQ with %d elements (max_send_wr=0x%x)\n",
 		       attrs->cap.max_send_wr, qattr->max_sqe);
 		return -EINVAL;
 	}
@@ -1206,7 +1206,7 @@ static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
 		return -EINVAL;
 	}
 
-	/* Unprivileged user space cannot create special QP */
+	/* Unprivileged user space canyest create special QP */
 	if (udata && attrs->qp_type == IB_QPT_GSI) {
 		DP_ERR(dev,
 		       "create qp: userspace can't create special QPs of type=0x%x\n",
@@ -1798,7 +1798,7 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 	if (rc)
 		goto err;
 
-	/* db offset was calculated in copy_qp_uresp, now set in the user q */
+	/* db offset was calculated in copy_qp_uresp, yesw set in the user q */
 	ctx = pd->uctx;
 	qp->usq.db_addr = ctx->dpi_addr + uresp.sq_db_offset;
 	qp->urq.db_addr = ctx->dpi_addr + uresp.rq_db_offset;
@@ -1806,7 +1806,7 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 	if (rdma_protocol_iwarp(&dev->ibdev, 1)) {
 		qp->urq.db_rec_db2_addr = ctx->dpi_addr + uresp.rq_db2_offset;
 
-		/* calculate the db_rec_db2 data since it is constant so no
+		/* calculate the db_rec_db2 data since it is constant so yes
 		 *  need to reflect from user
 		 */
 		qp->urq.db_rec_db2_data.data.icid = cpu_to_le16(qp->icid);
@@ -2005,7 +2005,7 @@ static void qedr_cleanup_kernel(struct qedr_dev *dev, struct qedr_qp *qp)
 	dev->ops->common->chain_free(dev->cdev, &qp->rq.pbl);
 	kfree(qp->rqe_wr_id);
 
-	/* GSI qp is not registered to db mechanism so no need to delete */
+	/* GSI qp is yest registered to db mechanism so yes need to delete */
 	if (qp->qp_type == IB_QPT_GSI)
 		return;
 
@@ -2037,7 +2037,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 
 	/* A single work request may take up to QEDR_MAX_SQ_WQE_SIZE elements in
 	 * the ring. The ring should allow at least a single WR, even if the
-	 * user requested none, due to allocation issues.
+	 * user requested yesne, due to allocation issues.
 	 * We should add an extra WR since the prod and cons indices of
 	 * wqe_wr_id are managed in such a way that the WQ is considered full
 	 * when (prod+1)%max_wr==cons. We currently don't do that because we
@@ -2061,7 +2061,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 
 	/* A single work request may take up to QEDR_MAX_RQ_WQE_SIZE elements in
 	 * the ring. There ring should allow at least a single WR, even if the
-	 * user requested none, due to allocation issues.
+	 * user requested yesne, due to allocation issues.
 	 */
 	qp->rq.max_wr = (u16) max_t(u32, attrs->cap.max_recv_wr, 1);
 
@@ -2298,7 +2298,7 @@ static int qedr_update_qp_state(struct qedr_dev *dev,
 			if ((qp->rq.prod != qp->rq.cons) ||
 			    (qp->sq.prod != qp->sq.cons)) {
 				DP_NOTICE(dev,
-					  "Error->Reset with rq/sq not empty rq.prod=%x rq.cons=%x sq.prod=%x sq.cons=%x\n",
+					  "Error->Reset with rq/sq yest empty rq.prod=%x rq.cons=%x sq.prod=%x sq.cons=%x\n",
 					  qp->rq.prod, qp->rq.cons, qp->sq.prod,
 					  qp->sq.cons);
 				status = -EINVAL;
@@ -2646,7 +2646,7 @@ int qedr_query_qp(struct ib_qp *ibqp,
 	qp_attr->sq_draining = (params.state == QED_ROCE_QP_STATE_SQD) ? 1 : 0;
 	qp_attr->max_dest_rd_atomic = params.max_dest_rd_atomic;
 	qp_attr->max_rd_atomic = params.max_rd_atomic;
-	qp_attr->en_sqd_async_notify = (params.sqd_async) ? 1 : 0;
+	qp_attr->en_sqd_async_yestify = (params.sqd_async) ? 1 : 0;
 
 	DP_DEBUG(dev, QEDR_MSG_QP, "QEDR_QUERY_QP: max_inline_data=%d\n",
 		 qp_attr->cap.max_inline_data);
@@ -2798,11 +2798,11 @@ static int init_mr_info(struct qedr_dev *dev, struct mr_info *info,
 		 &info->pbl_table->pa);
 
 	/* in usual case we use 2 PBLs, so we add one to free
-	 * list and allocating another one
+	 * list and allocating ayesther one
 	 */
 	tmp = qedr_alloc_pbl_tbl(dev, &info->pbl_info, GFP_KERNEL);
 	if (IS_ERR(tmp)) {
-		DP_DEBUG(dev, QEDR_MSG_MR, "Extra PBL is not allocated\n");
+		DP_DEBUG(dev, QEDR_MSG_MR, "Extra PBL is yest allocated\n");
 		goto done;
 	}
 
@@ -3200,7 +3200,7 @@ static u32 qedr_prepare_sq_inline_data(struct qedr_dev *dev,
 		}
 	}
 
-	/* swap last not completed segment */
+	/* swap last yest completed segment */
 	if (seg_siz)
 		swap_wqe_data64((u64 *)wqe);
 
@@ -3651,7 +3651,7 @@ int qedr_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 
 	/* Trigger doorbell
 	 * If there was a failure in the first WR then it will be triggered in
-	 * vane. However this is not harmful (as long as the producer value is
+	 * vane. However this is yest harmful (as long as the producer value is
 	 * unchanged). For performance reasons we avoid checking for this
 	 * redundant doorbell.
 	 *
@@ -3818,7 +3818,7 @@ int qedr_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 				   wr->sg_list[i].length, flags);
 		}
 
-		/* Special case of no sges. FW requires between 1-4 sges...
+		/* Special case of yes sges. FW requires between 1-4 sges...
 		 * in this case we need to post 1 sge with length zero. this is
 		 * because rdma write with immediate consumes an RQ.
 		 */
@@ -3900,11 +3900,11 @@ static union rdma_cqe *get_cqe(struct qedr_cq *cq)
 }
 
 /* In fmr we need to increase the number of fmr completed counter for the fmr
- * algorithm determining whether we can free a pbl or not.
- * we need to perform this whether the work request was signaled or not. for
+ * algorithm determining whether we can free a pbl or yest.
+ * we need to perform this whether the work request was signaled or yest. for
  * this purpose we call this function from the condition that checks if a wr
  * should be skipped, to make sure we don't miss it ( possibly this fmr
- * operation was not signalted)
+ * operation was yest signalted)
  */
 static inline void qedr_chk_if_fmr(struct qedr_qp *qp)
 {
@@ -4338,7 +4338,7 @@ int qedr_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	cq->cq_cons += new_cons - old_cons;
 
 	if (update)
-		/* doorbell notifies abount latest VALID entry,
+		/* doorbell yestifies abount latest VALID entry,
 		 * but chain already point to the next INVALID one
 		 */
 		doorbell_cq(cq, cq->cq_cons - 1, cq->arm_flags);

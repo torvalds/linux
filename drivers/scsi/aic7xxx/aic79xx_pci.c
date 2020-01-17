@@ -10,14 +10,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -180,7 +180,7 @@ static const struct ahd_pci_identity ahd_pci_ident_table[] =
 		"Adaptec (HP OEM) 39320D Ultra320 SCSI adapter",
 		ahd_aic7902_setup
 	},
-	/* Generic chip probes for devices we don't know 'exactly' */
+	/* Generic chip probes for devices we don't kyesw 'exactly' */
 	{
 		ID_AIC7901 & ID_9005_GENERIC_MASK,
 		ID_9005_GENERIC_MASK,
@@ -213,10 +213,10 @@ static const u_int ahd_num_pci_devs = ARRAY_SIZE(ahd_pci_ident_table);
 	(((devconfig) & PCIXINITPAT) >> 13)
 static const char *pci_bus_modes[] =
 {
-	"PCI bus mode unknown",
-	"PCI bus mode unknown",
-	"PCI bus mode unknown",
-	"PCI bus mode unknown",
+	"PCI bus mode unkyeswn",
+	"PCI bus mode unkyeswn",
+	"PCI bus mode unkyeswn",
+	"PCI bus mode unkyeswn",
 	"PCI-X 101-133MHz",
 	"PCI-X 67-100MHz",
 	"PCI-X 50-66MHz",
@@ -276,7 +276,7 @@ ahd_find_pci_device(ahd_dev_softc_t pci)
 	for (i = 0; i < ahd_num_pci_devs; i++) {
 		entry = &ahd_pci_ident_table[i];
 		if (entry->full_id == (full_id & entry->id_mask)) {
-			/* Honor exclusion entries. */
+			/* Hoyesr exclusion entries. */
 			if (entry->name == NULL)
 				return (NULL);
 			return (entry);
@@ -372,7 +372,7 @@ ahd_pci_config(struct ahd_softc *ahd, const struct ahd_pci_identity *entry)
 	ahd->init_level++;
 
 	/*
-	 * Allow interrupts now that we are completely setup.
+	 * Allow interrupts yesw that we are completely setup.
 	 */
 	return ahd_pci_map_int(ahd);
 }
@@ -432,7 +432,7 @@ ahd_pci_test_register_access(struct ahd_softc *ahd)
 	/*
 	 * First a simple test to see if any
 	 * registers can be read.  Reading
-	 * HCNTRL has no side effects and has
+	 * HCNTRL has yes side effects and has
 	 * at least one bit that is guaranteed to
 	 * be zero so it is a good register to
 	 * use for this test.
@@ -444,9 +444,9 @@ ahd_pci_test_register_access(struct ahd_softc *ahd)
 	/*
 	 * Next create a situation where write combining
 	 * or read prefetching could be initiated by the
-	 * CPU or host bridge.  Our device does not support
+	 * CPU or host bridge.  Our device does yest support
 	 * either, so look for data corruption and/or flaged
-	 * PCI errors.  First pause without causing another
+	 * PCI errors.  First pause without causing ayesther
 	 * chip reset.
 	 */
 	hcntrl &= ~CHIPRST;
@@ -760,7 +760,7 @@ static const char *split_status_strings[] =
 	"%s: Received split response in %s.\n",
 	"%s: Received split completion error message in %s\n",
 	"%s: Receive overrun in %s\n",
-	"%s: Count not complete in %s\n",
+	"%s: Count yest complete in %s\n",
 	"%s: Split completion data bucket in %s\n",
 	"%s: Split completion address error in %s\n",
 	"%s: Split completion byte count error in %s\n",

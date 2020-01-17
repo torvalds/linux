@@ -48,7 +48,7 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 			/*
 			 * Some programs that use the taskfile interface
 			 * (smartctl in particular) can cause underrun
-			 * problems.  Ignore these errors, perhaps at our
+			 * problems.  Igyesre these errors, perhaps at our
 			 * peril.
 			 */
 			return 0;
@@ -114,7 +114,7 @@ static void sas_ata_task_done(struct sas_task *task)
 		if (qc->scsicmd)
 			goto qc_already_gone;
 		else {
-			/* if eh is not involved and the port is frozen then the
+			/* if eh is yest involved and the port is frozen then the
 			 * ata internal abort process has taken responsibility
 			 * for this sas_task
 			 */
@@ -174,7 +174,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
 
-	/* If the device fell off, no sense in issuing commands */
+	/* If the device fell off, yes sense in issuing commands */
 	if (test_bit(SAS_DEV_GONE, &dev->state))
 		goto out;
 
@@ -283,7 +283,7 @@ static int sas_ata_clear_pending(struct domain_device *dev, struct ex_phy *phy)
 {
 	int res;
 
-	/* we weren't pending, so successfully end the reset sequence now */
+	/* we weren't pending, so successfully end the reset sequence yesw */
 	if (dev->dev_type != SAS_SATA_PENDING)
 		return 1;
 
@@ -339,7 +339,7 @@ static int local_ata_check_ready(struct ata_link *link)
 		return i->dft->lldd_ata_check_ready(dev);
 	else {
 		/* lldd's that don't implement 'ready' checking get the
-		 * old default behavior of not coordinating reset
+		 * old default behavior of yest coordinating reset
 		 * recovery with libata
 		 */
 		return 1;
@@ -394,7 +394,7 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 
 	ret = ata_wait_after_reset(link, deadline, check_ready);
 	if (ret && ret != -EAGAIN)
-		sas_ata_printk(KERN_ERR, dev, "reset failed (errno=%d)\n", ret);
+		sas_ata_printk(KERN_ERR, dev, "reset failed (erryes=%d)\n", ret);
 
 	*class = dev->sata_dev.class;
 
@@ -403,7 +403,7 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 }
 
 /*
- * notify the lldd to forget the sas_task for this internal ata command
+ * yestify the lldd to forget the sas_task for this internal ata command
  * that bypasses scsi-eh
  */
 static void sas_ata_internal_abort(struct sas_task *task)
@@ -431,7 +431,7 @@ static void sas_ata_internal_abort(struct sas_task *task)
 		goto out;
 	}
 
-	/* XXX we are not prepared to deal with ->lldd_abort_task()
+	/* XXX we are yest prepared to deal with ->lldd_abort_task()
 	 * failures.  TODO: lldds need to unconditionally forget about
 	 * aborted ata tasks, otherwise we (likely) leak the sas task
 	 * here
@@ -456,8 +456,8 @@ static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 		/*
 		 * Find the sas_task and kill it.  By this point, libata
 		 * has decided to kill the qc and has frozen the port.
-		 * In this state sas_ata_task_done() will no longer free
-		 * the sas_task, so we need to notify the lldd (via
+		 * In this state sas_ata_task_done() will yes longer free
+		 * the sas_task, so we need to yestify the lldd (via
 		 * ->lldd_abort_task) that the task is dead and free it
 		 *  ourselves.
 		 */
@@ -513,7 +513,7 @@ static struct ata_port_operations sas_sata_ops = {
 	.error_handler		= ata_std_error_handler,
 	.post_internal_cmd	= sas_ata_post_internal,
 	.qc_defer               = ata_std_qc_defer,
-	.qc_prep		= ata_noop_qc_prep,
+	.qc_prep		= ata_yesop_qc_prep,
 	.qc_issue		= sas_ata_qc_issue,
 	.qc_fill_rtf		= sas_ata_qc_fill_rtf,
 	.port_start		= ata_sas_port_start,
@@ -616,7 +616,7 @@ void sas_probe_sata(struct asd_sas_port *port)
 	struct domain_device *dev, *n;
 
 	mutex_lock(&port->ha->disco_mutex);
-	list_for_each_entry(dev, &port->disco_list, disco_list_node) {
+	list_for_each_entry(dev, &port->disco_list, disco_list_yesde) {
 		if (!dev_is_sata(dev))
 			continue;
 
@@ -624,13 +624,13 @@ void sas_probe_sata(struct asd_sas_port *port)
 	}
 	mutex_unlock(&port->ha->disco_mutex);
 
-	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_node) {
+	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_yesde) {
 		if (!dev_is_sata(dev))
 			continue;
 
 		sas_ata_wait_eh(dev);
 
-		/* if libata could not bring the link up, don't surface
+		/* if libata could yest bring the link up, don't surface
 		 * the device
 		 */
 		if (!ata_dev_enabled(sas_to_ata_dev(dev)))
@@ -643,7 +643,7 @@ static void sas_ata_flush_pm_eh(struct asd_sas_port *port, const char *func)
 {
 	struct domain_device *dev, *n;
 
-	list_for_each_entry_safe(dev, n, &port->dev_list, dev_list_node) {
+	list_for_each_entry_safe(dev, n, &port->dev_list, dev_list_yesde) {
 		if (!dev_is_sata(dev))
 			continue;
 
@@ -660,7 +660,7 @@ void sas_suspend_sata(struct asd_sas_port *port)
 	struct domain_device *dev;
 
 	mutex_lock(&port->ha->disco_mutex);
-	list_for_each_entry(dev, &port->dev_list, dev_list_node) {
+	list_for_each_entry(dev, &port->dev_list, dev_list_yesde) {
 		struct sata_device *sata;
 
 		if (!dev_is_sata(dev))
@@ -682,7 +682,7 @@ void sas_resume_sata(struct asd_sas_port *port)
 	struct domain_device *dev;
 
 	mutex_lock(&port->ha->disco_mutex);
-	list_for_each_entry(dev, &port->dev_list, dev_list_node) {
+	list_for_each_entry(dev, &port->dev_list, dev_list_yesde) {
 		struct sata_device *sata;
 
 		if (!dev_is_sata(dev))
@@ -703,7 +703,7 @@ void sas_resume_sata(struct asd_sas_port *port)
  * sas_discover_sata - discover an STP/SATA domain device
  * @dev: pointer to struct domain_device of interest
  *
- * Devices directly attached to a HA port, have no parents.  All other
+ * Devices directly attached to a HA port, have yes parents.  All other
  * devices do, and should have their "parent" pointer set appropriately
  * before calling this function.
  */
@@ -717,7 +717,7 @@ int sas_discover_sata(struct domain_device *dev)
 	dev->sata_dev.class = sas_get_ata_command_set(dev);
 	sas_fill_in_rphy(dev, dev->rphy);
 
-	res = sas_notify_lldd_dev_found(dev);
+	res = sas_yestify_lldd_dev_found(dev);
 	if (res)
 		return res;
 
@@ -757,7 +757,7 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 		struct domain_device *dev;
 
 		spin_lock(&port->dev_list_lock);
-		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
+		list_for_each_entry(dev, &port->dev_list, dev_list_yesde) {
 			if (!dev_is_sata(dev))
 				continue;
 
@@ -810,9 +810,9 @@ void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
 			 * about to go out of scope.
 			 *
 			 * This looks strange, since the commands are
-			 * now part of no list, but the next error
+			 * yesw part of yes list, but the next error
 			 * action will be ata_port_error_handler()
-			 * which takes no list and sweeps them up
+			 * which takes yes list and sweeps them up
 			 * anyway from the ata tag array.
 			 */
 			while (!list_empty(&sata_q))

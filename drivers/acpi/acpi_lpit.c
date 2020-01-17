@@ -104,7 +104,7 @@ static void lpit_update_residency(struct lpit_residency_info *info,
 
 	info->gaddr = lpit_native->residency_counter;
 	if (info->gaddr.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
-		info->iomem_addr = ioremap_nocache(info->gaddr.address,
+		info->iomem_addr = ioremap_yescache(info->gaddr.address,
 						   info->gaddr.bit_width / 8);
 		if (!info->iomem_addr)
 			return;
@@ -112,7 +112,7 @@ static void lpit_update_residency(struct lpit_residency_info *info,
 		if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
 			return;
 
-		/* Silently fail, if cpuidle attribute group is not present */
+		/* Silently fail, if cpuidle attribute group is yest present */
 		sysfs_add_file_to_group(&cpu_subsys.dev_root->kobj,
 					&dev_attr_low_power_idle_system_residency_us.attr,
 					"cpuidle");
@@ -120,7 +120,7 @@ static void lpit_update_residency(struct lpit_residency_info *info,
 		if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
 			return;
 
-		/* Silently fail, if cpuidle attribute group is not present */
+		/* Silently fail, if cpuidle attribute group is yest present */
 		sysfs_add_file_to_group(&cpu_subsys.dev_root->kobj,
 					&dev_attr_low_power_idle_cpu_residency_us.attr,
 					"cpuidle");

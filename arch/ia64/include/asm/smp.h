@@ -31,7 +31,7 @@ ia64_get_lid (void)
 			unsigned long reserved : 16;
 			unsigned long eid : 8;
 			unsigned long id : 8;
-			unsigned long ignored : 32;
+			unsigned long igyesred : 32;
 		} f;
 		unsigned long bits;
 	} lid;
@@ -56,7 +56,7 @@ extern struct smp_boot_data {
 	int cpu_phys_id[NR_CPUS];
 } smp_boot_data __initdata;
 
-extern char no_int_routing;
+extern char yes_int_routing;
 
 extern cpumask_t cpu_core_map[NR_CPUS];
 DECLARE_PER_CPU_SHARED_ALIGNED(cpumask_t, cpu_sibling_map);
@@ -87,7 +87,7 @@ cpu_logical_id (int cpuid)
 /*
  * XTP control functions:
  *	min_xtp   : route all interrupts to this CPU
- *	normal_xtp: nominal XTP value
+ *	yesrmal_xtp: yesminal XTP value
  *	max_xtp   : never deliver interrupts to this CPU.
  */
 
@@ -99,10 +99,10 @@ min_xtp (void)
 }
 
 static inline void
-normal_xtp (void)
+yesrmal_xtp (void)
 {
 	if (smp_int_redirect & SMP_IRQ_REDIRECTION)
-		writeb(0x08, ipi_base_addr + XTP_OFFSET); /* XTP normal */
+		writeb(0x08, ipi_base_addr + XTP_OFFSET); /* XTP yesrmal */
 }
 
 static inline void
@@ -115,7 +115,7 @@ max_xtp (void)
 /* Upping and downing of CPUs */
 extern int __cpu_disable (void);
 extern void __cpu_die (unsigned int cpu);
-extern void cpu_die (void) __attribute__ ((noreturn));
+extern void cpu_die (void) __attribute__ ((yesreturn));
 extern void __init smp_build_cpu_map(void);
 
 extern void __init init_smp_config (void);

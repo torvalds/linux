@@ -59,7 +59,7 @@ static int tegra_rt5677_asoc_hw_params(struct snd_pcm_substream *substream,
 	err = snd_soc_dai_set_sysclk(codec_dai, RT5677_SCLK_S_MCLK, mclk,
 					SND_SOC_CLOCK_IN);
 	if (err < 0) {
-		dev_err(card->dev, "codec_dai clock not set\n");
+		dev_err(card->dev, "codec_dai clock yest set\n");
 		return err;
 	}
 
@@ -187,7 +187,7 @@ static struct snd_soc_card snd_soc_tegra_rt5677 = {
 
 static int tegra_rt5677_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct snd_soc_card *card = &snd_soc_tegra_rt5677;
 	struct tegra_rt5677 *machine;
 	int ret;
@@ -216,7 +216,7 @@ static int tegra_rt5677_probe(struct platform_device *pdev)
 		ret = devm_gpio_request_one(&pdev->dev, machine->gpio_hp_en,
 				GPIOF_OUT_INIT_LOW, "hp_en");
 		if (ret) {
-			dev_err(card->dev, "cannot get hp_en gpio\n");
+			dev_err(card->dev, "canyest get hp_en gpio\n");
 			return ret;
 		}
 	}
@@ -230,7 +230,7 @@ static int tegra_rt5677_probe(struct platform_device *pdev)
 				machine->gpio_dmic_clk_en,
 				GPIOF_OUT_INIT_HIGH, "dmic_clk_en");
 		if (ret) {
-			dev_err(card->dev, "cannot get dmic_clk_en gpio\n");
+			dev_err(card->dev, "canyest get dmic_clk_en gpio\n");
 			return ret;
 		}
 	}
@@ -243,28 +243,28 @@ static int tegra_rt5677_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	tegra_rt5677_dai.codecs->of_node = of_parse_phandle(np,
+	tegra_rt5677_dai.codecs->of_yesde = of_parse_phandle(np,
 			"nvidia,audio-codec", 0);
-	if (!tegra_rt5677_dai.codecs->of_node) {
+	if (!tegra_rt5677_dai.codecs->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,audio-codec' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	tegra_rt5677_dai.cpus->of_node = of_parse_phandle(np,
+	tegra_rt5677_dai.cpus->of_yesde = of_parse_phandle(np,
 			"nvidia,i2s-controller", 0);
-	if (!tegra_rt5677_dai.cpus->of_node) {
+	if (!tegra_rt5677_dai.cpus->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
-		goto err_put_codec_of_node;
+		goto err_put_codec_of_yesde;
 	}
-	tegra_rt5677_dai.platforms->of_node = tegra_rt5677_dai.cpus->of_node;
+	tegra_rt5677_dai.platforms->of_yesde = tegra_rt5677_dai.cpus->of_yesde;
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)
-		goto err_put_cpu_of_node;
+		goto err_put_cpu_of_yesde;
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
@@ -277,13 +277,13 @@ static int tegra_rt5677_probe(struct platform_device *pdev)
 
 err_fini_utils:
 	tegra_asoc_utils_fini(&machine->util_data);
-err_put_cpu_of_node:
-	of_node_put(tegra_rt5677_dai.cpus->of_node);
-	tegra_rt5677_dai.cpus->of_node = NULL;
-	tegra_rt5677_dai.platforms->of_node = NULL;
-err_put_codec_of_node:
-	of_node_put(tegra_rt5677_dai.codecs->of_node);
-	tegra_rt5677_dai.codecs->of_node = NULL;
+err_put_cpu_of_yesde:
+	of_yesde_put(tegra_rt5677_dai.cpus->of_yesde);
+	tegra_rt5677_dai.cpus->of_yesde = NULL;
+	tegra_rt5677_dai.platforms->of_yesde = NULL;
+err_put_codec_of_yesde:
+	of_yesde_put(tegra_rt5677_dai.codecs->of_yesde);
+	tegra_rt5677_dai.codecs->of_yesde = NULL;
 err:
 	return ret;
 }
@@ -297,11 +297,11 @@ static int tegra_rt5677_remove(struct platform_device *pdev)
 
 	tegra_asoc_utils_fini(&machine->util_data);
 
-	tegra_rt5677_dai.platforms->of_node = NULL;
-	of_node_put(tegra_rt5677_dai.codecs->of_node);
-	tegra_rt5677_dai.codecs->of_node = NULL;
-	of_node_put(tegra_rt5677_dai.cpus->of_node);
-	tegra_rt5677_dai.cpus->of_node = NULL;
+	tegra_rt5677_dai.platforms->of_yesde = NULL;
+	of_yesde_put(tegra_rt5677_dai.codecs->of_yesde);
+	tegra_rt5677_dai.codecs->of_yesde = NULL;
+	of_yesde_put(tegra_rt5677_dai.cpus->of_yesde);
+	tegra_rt5677_dai.cpus->of_yesde = NULL;
 
 	return 0;
 }

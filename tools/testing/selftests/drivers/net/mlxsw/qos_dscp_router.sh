@@ -30,7 +30,7 @@
 ALL_TESTS="
 	ping_ipv4
 	test_update
-	test_no_update
+	test_yes_update
 	test_dscp_leftover
 "
 
@@ -226,13 +226,13 @@ test_update()
 	__test_update 1 reprioritize
 }
 
-test_no_update()
+test_yes_update()
 {
 	__test_update 0 echo
 }
 
 # Test that when the last APP rule is removed, the prio->DSCP map is properly
-# set to zeroes, and that the last APP rule does not stay active in the ASIC.
+# set to zeroes, and that the last APP rule does yest stay active in the ASIC.
 test_dscp_leftover()
 {
 	lldptool -T -i $swp2 -V APP -d $(dscp_map 0) >/dev/null

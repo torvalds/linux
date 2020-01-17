@@ -2,7 +2,7 @@
 /*
  * Clock driver for TI Davinci PSC controllers
  *
- * Copyright (C) 2017 David Lechner <david@lechnology.com>
+ * Copyright (C) 2017 David Lechner <david@lechyeslogy.com>
  *
  * Based on: drivers/clk/keystone/gate.c
  * Copyright (C) 2013 Texas Instruments.
@@ -91,7 +91,7 @@ struct davinci_lpsc_clk {
  * best_dev_name - get the "best" device name.
  * @dev: the device
  *
- * Returns the device tree compatible name if the device has a DT node,
+ * Returns the device tree compatible name if the device has a DT yesde,
  * otherwise return the device name. This is mainly needed because clkdev
  * lookups are limited to 20 chars for dev_id and when using device tree,
  * dev_name(dev) is much longer than that.
@@ -100,7 +100,7 @@ static inline const char *best_dev_name(struct device *dev)
 {
 	const char *compatible;
 
-	if (!of_property_read_string(dev->of_node, "compatible", &compatible))
+	if (!of_property_read_string(dev->of_yesde, "compatible", &compatible))
 		return compatible;
 
 	return dev_name(dev);
@@ -269,8 +269,8 @@ davinci_lpsc_clk_register(struct device *dev, const char *name,
 		return ERR_PTR(ret);
 	}
 
-	/* for now, genpd is only registered when using device-tree */
-	if (!dev || !dev->of_node)
+	/* for yesw, genpd is only registered when using device-tree */
+	if (!dev || !dev->of_yesde)
 		return lpsc;
 
 	/* genpd attach needs a way to look up this clock */
@@ -334,7 +334,7 @@ static int davinci_psc_reset_of_xlate(struct reset_controller_dev *rcdev,
 	struct clk_hw *hw;
 	struct davinci_lpsc_clk *lpsc;
 
-	/* the clock node is the same as the reset node */
+	/* the clock yesde is the same as the reset yesde */
 	clk = of_clk_get_from_provider(&clkspec);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
@@ -343,7 +343,7 @@ static int davinci_psc_reset_of_xlate(struct reset_controller_dev *rcdev,
 	lpsc = to_davinci_lpsc_clk(hw);
 	clk_put(clk);
 
-	/* not all modules support local reset */
+	/* yest all modules support local reset */
 	if (!(lpsc->flags & LPSC_LOCAL_RESET))
 		return -EINVAL;
 
@@ -420,7 +420,7 @@ __davinci_psc_register_clocks(struct device *dev,
 	}
 
 	/*
-	 * for now, a reset controller is only registered when there is a device
+	 * for yesw, a reset controller is only registered when there is a device
 	 * to associate it with.
 	 */
 	if (!dev)
@@ -429,7 +429,7 @@ __davinci_psc_register_clocks(struct device *dev,
 	psc->rcdev.ops = &davinci_psc_reset_ops;
 	psc->rcdev.owner = THIS_MODULE;
 	psc->rcdev.dev = dev;
-	psc->rcdev.of_node = dev->of_node;
+	psc->rcdev.of_yesde = dev->of_yesde;
 	psc->rcdev.of_reset_n_cells = 1;
 	psc->rcdev.of_xlate = davinci_psc_reset_of_xlate;
 	psc->rcdev.nr_resets = num_clks;
@@ -480,16 +480,16 @@ int of_davinci_psc_clk_init(struct device *dev,
 			    u8 num_clks,
 			    void __iomem *base)
 {
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct davinci_psc_data *psc;
 
 	psc = __davinci_psc_register_clocks(dev, info, num_clks, base);
 	if (IS_ERR(psc))
 		return PTR_ERR(psc);
 
-	of_genpd_add_provider_onecell(node, &psc->pm_data);
+	of_genpd_add_provider_onecell(yesde, &psc->pm_data);
 
-	of_clk_add_provider(node, of_clk_src_onecell_get, &psc->clk_data);
+	of_clk_add_provider(yesde, of_clk_src_onecell_get, &psc->clk_data);
 
 	return 0;
 }

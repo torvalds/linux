@@ -22,7 +22,7 @@
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
 {
-	"bounded loop, count from positive unknown to 4",
+	"bounded loop, count from positive unkyeswn to 4",
 	.insns = {
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_prandom_u32),
 	BPF_JMP_IMM(BPF_JSLT, BPF_REG_0, 0, 2),
@@ -35,7 +35,7 @@
 	.retval = 4,
 },
 {
-	"bounded loop, count from totally unknown to 4",
+	"bounded loop, count from totally unkyeswn to 4",
 	.insns = {
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_prandom_u32),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 1),
@@ -160,7 +160,7 @@
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
 {
-	"not-taken loop with back jump to 1st insn",
+	"yest-taken loop with back jump to 1st insn",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 123),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 4, -2),

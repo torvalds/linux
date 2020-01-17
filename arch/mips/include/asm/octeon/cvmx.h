@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -327,11 +327,11 @@ static inline int cvmx_octeon_is_pass1(void)
 #if OCTEON_IS_COMMON_BINARY()
 	return 0;	/* Pass 1 isn't supported for common binaries */
 #else
-/* Now that we know we're built for a specific model, only check CN38XX */
+/* Now that we kyesw we're built for a specific model, only check CN38XX */
 #if OCTEON_IS_MODEL(OCTEON_CN38XX)
 	return cvmx_get_proc_id() == OCTEON_CN38XX_PASS1;
 #else
-	return 0;	/* Built for non CN38XX chip, we're not CN38XX pass1 */
+	return 0;	/* Built for yesn CN38XX chip, we're yest CN38XX pass1 */
 #endif
 #endif
 }
@@ -343,10 +343,10 @@ static inline unsigned int cvmx_get_core_num(void)
 	return core_num;
 }
 
-/* Maximum # of bits to define core in node */
+/* Maximum # of bits to define core in yesde */
 #define CVMX_NODE_NO_SHIFT	7
 #define CVMX_NODE_MASK		0x3
-static inline unsigned int cvmx_get_node_num(void)
+static inline unsigned int cvmx_get_yesde_num(void)
 {
 	unsigned int core_num = cvmx_get_core_num();
 
@@ -358,32 +358,32 @@ static inline unsigned int cvmx_get_local_core_num(void)
 	return cvmx_get_core_num() & ((1 << CVMX_NODE_NO_SHIFT) - 1);
 }
 
-#define CVMX_NODE_BITS         (2)     /* Number of bits to define a node */
+#define CVMX_NODE_BITS         (2)     /* Number of bits to define a yesde */
 #define CVMX_MAX_NODES         (1 << CVMX_NODE_BITS)
 #define CVMX_NODE_IO_SHIFT     (36)
 #define CVMX_NODE_MEM_SHIFT    (40)
 #define CVMX_NODE_IO_MASK      ((uint64_t)CVMX_NODE_MASK << CVMX_NODE_IO_SHIFT)
 
-static inline void cvmx_write_csr_node(uint64_t node, uint64_t csr_addr,
+static inline void cvmx_write_csr_yesde(uint64_t yesde, uint64_t csr_addr,
 				       uint64_t val)
 {
-	uint64_t composite_csr_addr, node_addr;
+	uint64_t composite_csr_addr, yesde_addr;
 
-	node_addr = (node & CVMX_NODE_MASK) << CVMX_NODE_IO_SHIFT;
-	composite_csr_addr = (csr_addr & ~CVMX_NODE_IO_MASK) | node_addr;
+	yesde_addr = (yesde & CVMX_NODE_MASK) << CVMX_NODE_IO_SHIFT;
+	composite_csr_addr = (csr_addr & ~CVMX_NODE_IO_MASK) | yesde_addr;
 
 	cvmx_write64_uint64(composite_csr_addr, val);
 	if (((csr_addr >> 40) & 0x7ffff) == (0x118))
-		cvmx_read64_uint64(CVMX_MIO_BOOT_BIST_STAT | node_addr);
+		cvmx_read64_uint64(CVMX_MIO_BOOT_BIST_STAT | yesde_addr);
 }
 
-static inline uint64_t cvmx_read_csr_node(uint64_t node, uint64_t csr_addr)
+static inline uint64_t cvmx_read_csr_yesde(uint64_t yesde, uint64_t csr_addr)
 {
-	uint64_t node_addr;
+	uint64_t yesde_addr;
 
-	node_addr = (csr_addr & ~CVMX_NODE_IO_MASK) |
-		    (node & CVMX_NODE_MASK) << CVMX_NODE_IO_SHIFT;
-	return cvmx_read_csr(node_addr);
+	yesde_addr = (csr_addr & ~CVMX_NODE_IO_MASK) |
+		    (yesde & CVMX_NODE_MASK) << CVMX_NODE_IO_SHIFT;
+	return cvmx_read_csr(yesde_addr);
 }
 
 /**
@@ -432,7 +432,7 @@ static inline uint64_t cvmx_get_cycle(void)
 /**
  * Reads a chip global cycle counter.  This counts CPU cycles since
  * chip reset.	The counter is 64 bit.
- * This register does not exist on CN38XX pass 1 silicion
+ * This register does yest exist on CN38XX pass 1 silicion
  *
  * Returns Global chip cycle count since chip reset.
  */

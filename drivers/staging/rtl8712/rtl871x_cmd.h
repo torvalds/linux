@@ -42,9 +42,9 @@ struct cmd_priv {
 	struct completion terminate_cmdthread_comp;
 	struct  __queue	cmd_queue;
 	u8 cmd_seq;
-	u8 *cmd_buf;	/*shall be non-paged, and 4 bytes aligned*/
+	u8 *cmd_buf;	/*shall be yesn-paged, and 4 bytes aligned*/
 	u8 *cmd_allocated_buf;
-	u8 *rsp_buf;	/*shall be non-paged, and 4 bytes aligned*/
+	u8 *rsp_buf;	/*shall be yesn-paged, and 4 bytes aligned*/
 	u8 *rsp_allocated_buf;
 	u32 cmd_issued_cnt;
 	u32 cmd_done_cnt;
@@ -63,13 +63,13 @@ struct evt_obj {
 struct	evt_priv {
 	struct  __queue	evt_queue;
 	u8	event_seq;
-	u8	*evt_buf;	/*shall be non-paged, and 4 bytes aligned*/
+	u8	*evt_buf;	/*shall be yesn-paged, and 4 bytes aligned*/
 	u8	*evt_allocated_buf;
 	u32	evt_done_cnt;
 	struct tasklet_struct event_tasklet;
 };
 
-#define init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code) \
+#define init_h2fwcmd_w_parm_yes_rsp(pcmd, pparm, code) \
 do {\
 	INIT_LIST_HEAD(&pcmd->list);\
 	pcmd->cmdcode = code;\
@@ -172,7 +172,7 @@ struct setauth_parm {
  * when 802.1x ==> keyid > 2 ==> unicast key
  */
 struct setkey_parm {
-	u8	algorithm;	/* encryption algorithm, could be none, wep40,
+	u8	algorithm;	/* encryption algorithm, could be yesne, wep40,
 				 * TKIP, CCMP, wep104
 				 */
 	u8	keyid;
@@ -240,7 +240,7 @@ struct del_assocsta_parm {
 /*
  *	Caller Mode: AP/Ad-HoC(M)
  *
- *	Notes: To notify fw that given staid has changed its power state
+ *	Notes: To yestify fw that given staid has changed its power state
  *
  *	Command Mode
  *
@@ -562,7 +562,7 @@ struct setpwrmode_parm  {
 				   * driver  when it receives bcn_pass_cnt
 				   * beacons.
 				   */
-	u8	bcn_to;		  /* beacon TO (ms). ¡§=0¡¨ no limit.*/
+	u8	bcn_to;		  /* beacon TO (ms). ¡§=0¡¨ yes limit.*/
 	u16	bcn_itv;
 	u8	app_itv; /* only for VOIP mode. */
 	u8	awake_bcn_itv;
@@ -610,12 +610,12 @@ struct getrxretrycnt_rsp {
 };
 
 /*to get BCNOK,BCNERR count*/
-struct getbcnokcnt_parm {
+struct getbcyeskcnt_parm {
 	unsigned int rsvd;
 };
 
-struct getbcnokcnt_rsp {
-	unsigned long bcnokcnt;
+struct getbcyeskcnt_rsp {
+	unsigned long bcyeskcnt;
 };
 
 struct getbcnerrcnt_parm {
@@ -693,7 +693,7 @@ struct DisconnectCtrlEx_param {
  * Result:
  * 0x00: success
  * 0x01: success, and check Response.
- * 0x02: cmd ignored due to duplicated sequence number
+ * 0x02: cmd igyesred due to duplicated sequence number
  * 0x03: cmd dropped due to invalid cmd code
  * 0x04: reserved.
  */

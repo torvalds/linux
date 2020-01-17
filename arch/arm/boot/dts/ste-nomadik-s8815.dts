@@ -6,7 +6,7 @@
 
 /dts-v1/;
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "ste-nomadik-stn8815.dtsi"
+#include "ste-yesmadik-stn8815.dtsi"
 
 / {
 	model = "Calao Systems USB-S8815";
@@ -32,7 +32,7 @@
 	};
 
 	src@101e0000 {
-		/* These chrystal drivers are not used on this board */
+		/* These chrystal drivers are yest used on this board */
 		disable-sxtalo;
 		disable-mxtalo;
 	};

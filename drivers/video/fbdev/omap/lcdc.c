@@ -3,7 +3,7 @@
  * OMAP1 internal LCD controller
  *
  * Copyright (C) 2004 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Author: Imre Deak <imre.deak@yeskia.com>
  */
 #include <linux/module.h>
 #include <linux/device.h>
@@ -270,7 +270,7 @@ static irqreturn_t lcdc_irq_handler(int irq, void *dev_id)
 
 /*
  * Change to a new video mode. We defer this to a later time to avoid any
- * flicker and not to mess up the current LCD DMA context. For this we disable
+ * flicker and yest to mess up the current LCD DMA context. For this we disable
  * the LCD controller, which will generate a DONE irq after the last frame has
  * been transferred. Then it'll be safe to reconfigure both the LCD controller
  * as well as the LCD DMA.
@@ -375,7 +375,7 @@ static int omap_lcdc_enable_plane(int plane, int enable)
 
 /*
  * Configure the LCD DMA for a palette load operation and do the palette
- * downloading synchronously. We don't use the frame+palette load mode of
+ * downloading synchroyesusly. We don't use the frame+palette load mode of
  * the controller, since the palette can always be downloaded separately.
  */
 static void load_palette(void)
@@ -408,18 +408,18 @@ static void load_palette(void)
 }
 
 /* Used only in internal controller mode */
-static int omap_lcdc_setcolreg(u_int regno, u16 red, u16 green, u16 blue,
+static int omap_lcdc_setcolreg(u_int regyes, u16 red, u16 green, u16 blue,
 			       u16 transp, int update_hw_pal)
 {
 	u16 *palette;
 
-	if (lcdc.color_mode != OMAPFB_COLOR_CLUT_8BPP || regno > 255)
+	if (lcdc.color_mode != OMAPFB_COLOR_CLUT_8BPP || regyes > 255)
 		return -EINVAL;
 
 	palette = (u16 *)lcdc.palette_virt;
 
-	palette[regno] &= ~0x0fff;
-	palette[regno] |= ((red >> 12) << 8) | ((green >> 12) << 4 ) |
+	palette[regyes] &= ~0x0fff;
+	palette[regyes] |= ((red >> 12) << 8) | ((green >> 12) << 4 ) |
 			   (blue >> 12);
 
 	if (update_hw_pal) {
@@ -654,7 +654,7 @@ static void free_fbmem(void)
 static int setup_fbmem(struct omapfb_mem_desc *req_md)
 {
 	if (!req_md->region_cnt) {
-		dev_err(lcdc.fbdev->dev, "no memory regions defined\n");
+		dev_err(lcdc.fbdev->dev, "yes memory regions defined\n");
 		return -EINVAL;
 	}
 

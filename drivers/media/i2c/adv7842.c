@@ -96,7 +96,7 @@ struct adv7842_state {
 
 	const struct adv7842_format_info *format;
 
-	v4l2_std_id norm;
+	v4l2_std_id yesrm;
 	struct {
 		u8 edid[256];
 		u32 present;
@@ -138,7 +138,7 @@ struct adv7842_state {
 	bool cec_enabled_adap;
 };
 
-/* Unsupported timings. This device cannot support 720p30. */
+/* Unsupported timings. This device canyest support 720p30. */
 static const struct v4l2_dv_timings adv7842_timings_exceptions[] = {
 	V4L2_DV_BT_CEA_1280X720P30,
 	{ }
@@ -196,10 +196,10 @@ static const struct adv7842_video_standards adv7842_prim_mode_gr[] = {
 	{ V4L2_DV_BT_DMT_1366X768P60, 0x13, 0x00 },
 	{ V4L2_DV_BT_DMT_1400X1050P60, 0x14, 0x00 },
 	{ V4L2_DV_BT_DMT_1400X1050P75, 0x15, 0x00 },
-	{ V4L2_DV_BT_DMT_1600X1200P60, 0x16, 0x00 }, /* TODO not tested */
-	/* TODO add 1600X1200P60_RB (not a DMT timing) */
+	{ V4L2_DV_BT_DMT_1600X1200P60, 0x16, 0x00 }, /* TODO yest tested */
+	/* TODO add 1600X1200P60_RB (yest a DMT timing) */
 	{ V4L2_DV_BT_DMT_1680X1050P60, 0x18, 0x00 },
-	{ V4L2_DV_BT_DMT_1920X1200P60_RB, 0x19, 0x00 }, /* TODO not tested */
+	{ V4L2_DV_BT_DMT_1920X1200P60_RB, 0x19, 0x00 }, /* TODO yest tested */
 	{ },
 };
 
@@ -331,7 +331,7 @@ static s32 adv_smbus_write_byte_data(struct i2c_client *client,
 	return err;
 }
 
-static void adv_smbus_write_byte_no_check(struct i2c_client *client,
+static void adv_smbus_write_byte_yes_check(struct i2c_client *client,
 					  u8 command, u8 value)
 {
 	union i2c_smbus_data data;
@@ -579,7 +579,7 @@ static void main_reset(struct v4l2_subdev *sd)
 
 	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
 
-	adv_smbus_write_byte_no_check(client, 0xff, 0x80);
+	adv_smbus_write_byte_yes_check(client, 0xff, 0x80);
 
 	mdelay(5);
 }
@@ -797,7 +797,7 @@ static int edid_write_hdmi_segment(struct v4l2_subdev *sd, u8 port)
 		return err;
 
 	/*
-	 * Return an error if no location of the source physical address
+	 * Return an error if yes location of the source physical address
 	 * was found.
 	 */
 	if (spa_loc == 0)
@@ -906,7 +906,7 @@ static int adv7842_g_register(struct v4l2_subdev *sd,
 		reg->val = vdp_read(sd, reg->reg & 0xff);
 		break;
 	default:
-		v4l2_info(sd, "Register %03llx not supported\n", reg->reg);
+		v4l2_info(sd, "Register %03llx yest supported\n", reg->reg);
 		adv7842_inv_register(sd);
 		break;
 	}
@@ -956,7 +956,7 @@ static int adv7842_s_register(struct v4l2_subdev *sd,
 		vdp_write(sd, reg->reg & 0xff, val);
 		break;
 	default:
-		v4l2_info(sd, "Register %03llx not supported\n", reg->reg);
+		v4l2_info(sd, "Register %03llx yest supported\n", reg->reg);
 		adv7842_inv_register(sd);
 		break;
 	}
@@ -1037,7 +1037,7 @@ static int configure_predefined_video_timings(struct v4l2_subdev *sd,
 					0x06, adv7842_prim_mode_hdmi_gr, timings);
 		break;
 	default:
-		v4l2_dbg(2, debug, sd, "%s: Unknown mode %d\n",
+		v4l2_dbg(2, debug, sd, "%s: Unkyeswn mode %d\n",
 				__func__, state->mode);
 		err = -1;
 		break;
@@ -1103,7 +1103,7 @@ static void configure_custom_video_timings(struct v4l2_subdev *sd,
 		io_write(sd, 0x01, 0x06); /* prim mode */
 		break;
 	default:
-		v4l2_dbg(2, debug, sd, "%s: Unknown mode %d\n",
+		v4l2_dbg(2, debug, sd, "%s: Unkyeswn mode %d\n",
 				__func__, state->mode);
 		break;
 	}
@@ -1134,7 +1134,7 @@ static void adv7842_set_offset(struct v4l2_subdev *sd, bool auto_offset, u16 off
 	offset_buf[2] = ((offset_b & 0x03f) << 2) | ((offset_c & 0x300) >> 8);
 	offset_buf[3] = offset_c & 0x0ff;
 
-	/* Registers must be written in this order with no i2c access in between */
+	/* Registers must be written in this order with yes i2c access in between */
 	if (adv_smbus_write_i2c_block_data(state->i2c_cp, 0x77, 4, offset_buf))
 		v4l2_err(sd, "%s: i2c error writing to CP reg 0x77, 0x78, 0x79, 0x7a\n", __func__);
 }
@@ -1163,7 +1163,7 @@ static void adv7842_set_gain(struct v4l2_subdev *sd, bool auto_gain, u16 gain_a,
 	gain_buf[2] = (((gain_b & 0x03f) << 2) | ((gain_c & 0x300) >> 8));
 	gain_buf[3] = ((gain_c & 0x0ff));
 
-	/* Registers must be written in this order with no i2c access in between */
+	/* Registers must be written in this order with yes i2c access in between */
 	if (adv_smbus_write_i2c_block_data(state->i2c_cp, 0x73, 4, gain_buf))
 		v4l2_err(sd, "%s: i2c error writing to CP reg 0x73, 0x74, 0x75, 0x76\n", __func__);
 }
@@ -1275,29 +1275,29 @@ static int adv7842_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	/* TODO SDP ctrls
 	   contrast/brightness/hue/free run is acting a bit strange,
-	   not sure if sdp csc is correct.
+	   yest sure if sdp csc is correct.
 	 */
 	switch (ctrl->id) {
 	/* standard ctrls */
 	case V4L2_CID_BRIGHTNESS:
 		cp_write(sd, 0x3c, ctrl->val);
 		sdp_write(sd, 0x14, ctrl->val);
-		/* ignore lsb sdp 0x17[3:2] */
+		/* igyesre lsb sdp 0x17[3:2] */
 		return 0;
 	case V4L2_CID_CONTRAST:
 		cp_write(sd, 0x3a, ctrl->val);
 		sdp_write(sd, 0x13, ctrl->val);
-		/* ignore lsb sdp 0x17[1:0] */
+		/* igyesre lsb sdp 0x17[1:0] */
 		return 0;
 	case V4L2_CID_SATURATION:
 		cp_write(sd, 0x3b, ctrl->val);
 		sdp_write(sd, 0x15, ctrl->val);
-		/* ignore lsb sdp 0x17[5:4] */
+		/* igyesre lsb sdp 0x17[5:4] */
 		return 0;
 	case V4L2_CID_HUE:
 		cp_write(sd, 0x3d, ctrl->val);
 		sdp_write(sd, 0x16, ctrl->val);
-		/* ignore lsb sdp 0x17[7:6] */
+		/* igyesre lsb sdp 0x17[7:6] */
 		return 0;
 		/* custom ctrls */
 	case V4L2_CID_ADV_RX_ANALOG_SAMPLING_PHASE:
@@ -1358,12 +1358,12 @@ static int adv7842_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
-static inline bool no_power(struct v4l2_subdev *sd)
+static inline bool yes_power(struct v4l2_subdev *sd)
 {
 	return io_read(sd, 0x0c) & 0x24;
 }
 
-static inline bool no_cp_signal(struct v4l2_subdev *sd)
+static inline bool yes_cp_signal(struct v4l2_subdev *sd)
 {
 	return ((cp_read(sd, 0xb5) & 0xd0) != 0xd0) || !(cp_read(sd, 0xb1) & 0x80);
 }
@@ -1466,7 +1466,7 @@ static int read_stdi(struct v4l2_subdev *sd, struct stdi_readback *stdi)
 
 	adv7842_g_input_status(sd, &status);
 	if (status & V4L2_IN_ST_NO_SIGNAL) {
-		v4l2_dbg(2, debug, sd, "%s: no signal\n", __func__);
+		v4l2_dbg(2, debug, sd, "%s: yes signal\n", __func__);
 		return -ENOLINK;
 	}
 
@@ -1548,7 +1548,7 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 	/* read STDI */
 	if (read_stdi(sd, &stdi)) {
 		state->restart_stdi_once = true;
-		v4l2_dbg(1, debug, sd, "%s: no valid signal\n", __func__);
+		v4l2_dbg(1, debug, sd, "%s: yes valid signal\n", __func__);
 		return -ENOLINK;
 	}
 	bt->interlaced = stdi.interlaced ?
@@ -1623,7 +1623,7 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 		if (stdi2dv_timings(sd, &stdi, timings)) {
 			/*
 			 * The STDI block may measure wrong values, especially
-			 * for lcvs and lcf. If the driver can not find any
+			 * for lcvs and lcf. If the driver can yest find any
 			 * valid timing, the STDI block is restarted to measure
 			 * the video timings again. The function will return an
 			 * error, but the restart of STDI will generate a new
@@ -1642,7 +1642,7 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 				state->restart_stdi_once = false;
 				return -ENOLINK;
 			}
-			v4l2_dbg(1, debug, sd, "%s: format not supported\n", __func__);
+			v4l2_dbg(1, debug, sd, "%s: format yest supported\n", __func__);
 			return -ERANGE;
 		}
 		state->restart_stdi_once = true;
@@ -1668,7 +1668,7 @@ static int adv7842_s_dv_timings(struct v4l2_subdev *sd,
 		return -ENODATA;
 
 	if (v4l2_match_dv_timings(&state->timings, timings, 0, false)) {
-		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
+		v4l2_dbg(1, debug, sd, "%s: yes change\n", __func__);
 		return 0;
 	}
 
@@ -1688,7 +1688,7 @@ static int adv7842_s_dv_timings(struct v4l2_subdev *sd,
 	err = configure_predefined_video_timings(sd, timings);
 	if (err) {
 		/* custom settings when the video format
-		  does not have prim_mode/vid_std */
+		  does yest have prim_mode/vid_std */
 		configure_custom_video_timings(sd, bt);
 	}
 
@@ -1721,7 +1721,7 @@ static void enable_input(struct v4l2_subdev *sd)
 	case ADV7842_MODE_SDP:
 	case ADV7842_MODE_COMP:
 	case ADV7842_MODE_RGB:
-		io_write(sd, 0x15, 0xb0);   /* Disable Tristate of Pins (no audio) */
+		io_write(sd, 0x15, 0xb0);   /* Disable Tristate of Pins (yes audio) */
 		break;
 	case ADV7842_MODE_HDMI:
 		hdmi_write(sd, 0x01, 0x00); /* Enable HDMI clock terminators */
@@ -1729,7 +1729,7 @@ static void enable_input(struct v4l2_subdev *sd)
 		hdmi_write_and_or(sd, 0x1a, 0xef, 0x00); /* Unmute audio */
 		break;
 	default:
-		v4l2_dbg(2, debug, sd, "%s: Unknown mode %d\n",
+		v4l2_dbg(2, debug, sd, "%s: Unkyeswn mode %d\n",
 			 __func__, state->mode);
 		break;
 	}
@@ -1826,7 +1826,7 @@ static void select_input(struct v4l2_subdev *sd,
 		sdp_io_write(sd, 0xc8, 0xe3); /* Disable Ancillary data */
 
 		/* SDP recommended settings */
-		sdp_write(sd, 0x00, 0x3F); /* Autodetect PAL NTSC (not SECAM) */
+		sdp_write(sd, 0x00, 0x3F); /* Autodetect PAL NTSC (yest SECAM) */
 		sdp_write(sd, 0x01, 0x00); /* Pedestal Off */
 
 		sdp_write(sd, 0x03, 0xE4); /* Manual VCR Gain Luma 0x40B */
@@ -1929,7 +1929,7 @@ static void select_input(struct v4l2_subdev *sd,
 		/* reset ADI recommended settings for digitizer */
 		/* "ADV7842 Register Settings Recommendations
 		 * (rev. 2.5, June 2010)" p. 17. */
-		afe_write(sd, 0x12, 0xfb); /* ADC noise shaping filter controls */
+		afe_write(sd, 0x12, 0xfb); /* ADC yesise shaping filter controls */
 		afe_write(sd, 0x0c, 0x0d); /* CP core gain controls */
 		cp_write(sd, 0x3e, 0x00); /* CP core pre-gain control */
 
@@ -1941,7 +1941,7 @@ static void select_input(struct v4l2_subdev *sd,
 		break;
 
 	default:
-		v4l2_dbg(2, debug, sd, "%s: Unknown mode %d\n",
+		v4l2_dbg(2, debug, sd, "%s: Unkyeswn mode %d\n",
 			 __func__, state->mode);
 		break;
 	}
@@ -1989,7 +1989,7 @@ static int adv7842_s_routing(struct v4l2_subdev *sd,
 	select_input(sd, state->vid_std_select);
 	enable_input(sd);
 
-	v4l2_subdev_notify_event(sd, &adv7842_ev_fmt);
+	v4l2_subdev_yestify_event(sd, &adv7842_ev_fmt);
 
 	return 0;
 }
@@ -2086,7 +2086,7 @@ static int adv7842_get_format(struct v4l2_subdev *sd,
 		format->format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 		format->format.width = 720;
 		/* valid signal */
-		if (state->norm & V4L2_STD_525_60)
+		if (state->yesrm & V4L2_STD_525_60)
 			format->format.height = 480;
 		else
 			format->format.height = 576;
@@ -2339,7 +2339,7 @@ static int adv7842_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 
 	/*
 	 * The number of retries is the number of attempts - 1, but retry
-	 * at least once. It's not clear if a value of 0 is allowed, so
+	 * at least once. It's yest clear if a value of 0 is allowed, so
 	 * let's do at least one retry.
 	 */
 	cec_write_clr_set(sd, 0x12, 0x70, max(1, attempts - 1) << 4);
@@ -2424,7 +2424,7 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 			 "%s: fmt_change_cp = 0x%x, fmt_change_digital = 0x%x, fmt_change_sdp = 0x%x\n",
 			 __func__, fmt_change_cp, fmt_change_digital,
 			 fmt_change_sdp);
-		v4l2_subdev_notify_event(sd, &adv7842_ev_fmt);
+		v4l2_subdev_yestify_event(sd, &adv7842_ev_fmt);
 		if (handled)
 			*handled = true;
 	}
@@ -2557,7 +2557,7 @@ static void log_infoframe(struct v4l2_subdev *sd, const struct adv7842_cfg_read_
 	struct device *dev = &client->dev;
 
 	if (!(io_read(sd, 0x60) & cri->present_mask)) {
-		v4l2_info(sd, "%s infoframe not received\n", cri->desc);
+		v4l2_info(sd, "%s infoframe yest received\n", cri->desc);
 		return;
 	}
 
@@ -2593,7 +2593,7 @@ static void adv7842_log_infoframes(struct v4l2_subdev *sd)
 	};
 
 	if (!(hdmi_read(sd, 0x05) & 0x80)) {
-		v4l2_info(sd, "receive DVI-D signal, no infoframes\n");
+		v4l2_info(sd, "receive DVI-D signal, yes infoframes\n");
 		return;
 	}
 
@@ -2602,7 +2602,7 @@ static void adv7842_log_infoframes(struct v4l2_subdev *sd)
 }
 
 #if 0
-/* Let's keep it here for now, as it could be useful for debug */
+/* Let's keep it here for yesw, as it could be useful for debug */
 static const char * const prim_mode_txt[] = {
 	"SDP",
 	"Component",
@@ -2628,14 +2628,14 @@ static int adv7842_sdp_log_status(struct v4l2_subdev *sd)
 	/* SDP (Standard definition processor) block */
 	u8 sdp_signal_detected = sdp_read(sd, 0x5A) & 0x01;
 
-	v4l2_info(sd, "Chip powered %s\n", no_power(sd) ? "off" : "on");
+	v4l2_info(sd, "Chip powered %s\n", yes_power(sd) ? "off" : "on");
 	v4l2_info(sd, "Prim-mode = 0x%x, video std = 0x%x\n",
 		  io_read(sd, 0x01) & 0x0f, io_read(sd, 0x00) & 0x3f);
 
 	v4l2_info(sd, "SDP: free run: %s\n",
 		(sdp_read(sd, 0x56) & 0x01) ? "on" : "off");
 	v4l2_info(sd, "SDP: %s\n", sdp_signal_detected ?
-		"valid SD/PR signal detected" : "invalid/no signal");
+		"valid SD/PR signal detected" : "invalid/yes signal");
 	if (sdp_signal_detected) {
 		static const char * const sdp_std_txt[] = {
 			"NTSC-M/J",
@@ -2701,11 +2701,11 @@ static int adv7842_cp_log_status(struct v4l2_subdev *sd)
 		"8-bits per channel",
 		"10-bits per channel",
 		"12-bits per channel",
-		"16-bits per channel (not supported)"
+		"16-bits per channel (yest supported)"
 	};
 
 	v4l2_info(sd, "-----Chip status-----\n");
-	v4l2_info(sd, "Chip power: %s\n", no_power(sd) ? "off" : "on");
+	v4l2_info(sd, "Chip power: %s\n", yes_power(sd) ? "off" : "on");
 	v4l2_info(sd, "HDMI/DVI-D port selected: %s\n",
 			state->hdmi_port_a ? "A" : "B");
 	v4l2_info(sd, "EDID A %s, B %s\n",
@@ -2753,8 +2753,8 @@ static int adv7842_cp_log_status(struct v4l2_subdev *sd)
 		  (io_read(sd, 0x01) & 0x70) >> 4);
 
 	v4l2_info(sd, "-----Video Timings-----\n");
-	if (no_cp_signal(sd)) {
-		v4l2_info(sd, "STDI: not locked\n");
+	if (yes_cp_signal(sd)) {
+		v4l2_info(sd, "STDI: yest locked\n");
 	} else {
 		u32 bl = ((cp_read(sd, 0xb1) & 0x3f) << 8) | cp_read(sd, 0xb2);
 		u32 lcf = ((cp_read(sd, 0xb3) & 0x7) << 8) | cp_read(sd, 0xb4);
@@ -2779,7 +2779,7 @@ static int adv7842_cp_log_status(struct v4l2_subdev *sd)
 	v4l2_print_dv_timings(sd->name, "Configured format: ",
 			&state->timings, true);
 
-	if (no_cp_signal(sd))
+	if (yes_cp_signal(sd))
 		return 0;
 
 	v4l2_info(sd, "-----Color space-----\n");
@@ -2802,14 +2802,14 @@ static int adv7842_cp_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "HDCP encrypted content: %s\n",
 			(hdmi_read(sd, 0x05) & 0x40) ? "true" : "false");
 	v4l2_info(sd, "HDCP keys read: %s%s\n",
-			(hdmi_read(sd, 0x04) & 0x20) ? "yes" : "no",
+			(hdmi_read(sd, 0x04) & 0x20) ? "no" : "yes",
 			(hdmi_read(sd, 0x04) & 0x10) ? "ERROR" : "");
 	if (!is_hdmi(sd))
 		return 0;
 
 	v4l2_info(sd, "Audio: pll %s, samples %s, %s\n",
-			audio_pll_locked ? "locked" : "not locked",
-			audio_sample_packet_detect ? "detected" : "not detected",
+			audio_pll_locked ? "locked" : "yest locked",
+			audio_sample_packet_detect ? "detected" : "yest detected",
 			audio_mute ? "muted" : "enabled");
 	if (audio_pll_locked && audio_sample_packet_detect) {
 		v4l2_info(sd, "Audio format: %s\n",
@@ -2851,7 +2851,7 @@ static int adv7842_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 
 	if (!(sdp_read(sd, 0x5A) & 0x01)) {
 		*std = 0;
-		v4l2_dbg(1, debug, sd, "%s: no valid signal\n", __func__);
+		v4l2_dbg(1, debug, sd, "%s: yes valid signal\n", __func__);
 		return 0;
 	}
 
@@ -2935,7 +2935,7 @@ static void adv7842_s_sdp_io(struct v4l2_subdev *sd, struct adv7842_sdp_io_sync_
 	}
 }
 
-static int adv7842_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int adv7842_s_std(struct v4l2_subdev *sd, v4l2_std_id yesrm)
 {
 	struct adv7842_state *state = to_state(sd);
 	struct adv7842_platform_data *pdata = &state->pdata;
@@ -2945,21 +2945,21 @@ static int adv7842_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	if (state->mode != ADV7842_MODE_SDP)
 		return -ENODATA;
 
-	if (norm & V4L2_STD_625_50)
+	if (yesrm & V4L2_STD_625_50)
 		adv7842_s_sdp_io(sd, &pdata->sdp_io_sync_625);
-	else if (norm & V4L2_STD_525_60)
+	else if (yesrm & V4L2_STD_525_60)
 		adv7842_s_sdp_io(sd, &pdata->sdp_io_sync_525);
 	else
 		adv7842_s_sdp_io(sd, NULL);
 
-	if (norm & V4L2_STD_ALL) {
-		state->norm = norm;
+	if (yesrm & V4L2_STD_ALL) {
+		state->yesrm = yesrm;
 		return 0;
 	}
 	return -EINVAL;
 }
 
-static int adv7842_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
+static int adv7842_g_std(struct v4l2_subdev *sd, v4l2_std_id *yesrm)
 {
 	struct adv7842_state *state = to_state(sd);
 
@@ -2968,7 +2968,7 @@ static int adv7842_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
 	if (state->mode != ADV7842_MODE_SDP)
 		return -ENODATA;
 
-	*norm = state->norm;
+	*yesrm = state->yesrm;
 	return 0;
 }
 
@@ -3185,7 +3185,7 @@ static int adv7842_command_ram_test(struct v4l2_subdev *sd)
 		return -ENODEV;
 
 	if (!pdata->sd_ram_size || !pdata->sd_ram_ddr) {
-		v4l2_info(sd, "no sdram or no ddr sdram\n");
+		v4l2_info(sd, "yes sdram or yes ddr sdram\n");
 		return -EINVAL;
 	}
 
@@ -3385,7 +3385,7 @@ static struct i2c_client *adv7842_dummy_client(struct v4l2_subdev *sd, const cha
 	io_write(sd, io_reg, addr << 1);
 
 	if (addr == 0) {
-		v4l2_err(sd, "no %s i2c addr configured\n", desc);
+		v4l2_err(sd, "yes %s i2c addr configured\n", desc);
 		return NULL;
 	}
 
@@ -3484,7 +3484,7 @@ static int adv7842_probe(struct i2c_client *client,
 			adv_smbus_read_byte_data_check(client, 0xeb, false);
 	}
 	if (rev != 0x2012) {
-		v4l2_info(sd, "not an adv7842 on address 0x%x (rev=0x%04x)\n",
+		v4l2_info(sd, "yest an adv7842 on address 0x%x (rev=0x%04x)\n",
 			  client->addr << 1, rev);
 		return -ENODEV;
 	}

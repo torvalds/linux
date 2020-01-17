@@ -19,7 +19,7 @@
  *		Alan Cox	: Generic queue tidyup (very tiny here)
  *		Alan Cox	: eth_header ntohs should be htons
  *		Alan Cox	: eth_rebuild_header missing an htons and
- *				  minor other things.
+ *				  miyesr other things.
  *		Tegge		: Arp bug fixes.
  *		Florian		: Removed many unnecessary functions, code cleanup
  *				  and changes for new arp and skbuff.
@@ -46,7 +46,7 @@
 #include <linux/nvmem-consumer.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/if_ether.h>
 #include <linux/of_net.h>
@@ -149,8 +149,8 @@ EXPORT_SYMBOL(eth_get_headlen);
  * @dev: receiving network device
  *
  * The rule here is that we
- * assume 802.3 if the type field is short enough to be a length.
- * This is normal practice and works for any 'now in use' protocol.
+ * assume 802.3 if the type field is short eyesugh to be a length.
+ * This is yesrmal practice and works for any 'yesw in use' protocol.
  */
 __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
@@ -181,7 +181,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 * at all, so we check here whether one of those tagging
 	 * variants has been configured on the receiving interface,
 	 * and if so, set skb->protocol without looking at the packet.
-	 * The DSA tagging protocol may be able to decode some but not all
+	 * The DSA tagging protocol may be able to decode some but yest all
 	 * traffic (for example only for management). In that case give it the
 	 * option to filter the packets from which it can decode source port
 	 * information.
@@ -260,7 +260,7 @@ EXPORT_SYMBOL(eth_header_cache);
  * @dev: network device
  * @haddr: new hardware address
  *
- * Called by Address Resolution module to notify changes in address.
+ * Called by Address Resolution module to yestify changes in address.
  */
 void eth_header_cache_update(struct hh_cache *hh,
 			     const struct net_device *dev,
@@ -404,7 +404,7 @@ EXPORT_SYMBOL(ether_setup);
  * values. Basically does everything except registering the device.
  *
  * Constructs a new net device, complete with a private data area of
- * size (sizeof_priv).  A 32-byte (not bit) alignment is enforced for
+ * size (sizeof_priv).  A 32-byte (yest bit) alignment is enforced for
  * this private data area.
  */
 
@@ -552,8 +552,8 @@ int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr)
 {
 	const unsigned char *addr = NULL;
 
-	if (dev->of_node)
-		addr = of_get_mac_address(dev->of_node);
+	if (dev->of_yesde)
+		addr = of_get_mac_address(dev->of_yesde);
 	if (IS_ERR_OR_NULL(addr))
 		addr = arch_get_platform_mac_address();
 

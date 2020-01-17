@@ -18,13 +18,13 @@ union ps3_firmware_version {
 	struct {
 		u16 pad;
 		u16 major;
-		u16 minor;
+		u16 miyesr;
 		u16 rev;
 	};
 };
 
 void ps3_get_firmware_version(union ps3_firmware_version *v);
-int ps3_compare_firmware_version(u16 major, u16 minor, u16 rev);
+int ps3_compare_firmware_version(u16 major, u16 miyesr, u16 rev);
 
 /* 'Other OS' area */
 
@@ -201,7 +201,7 @@ int ps3_sb_event_receive_port_destroy(struct ps3_system_bus_device *dev,
 
 enum lv1_result {
 	LV1_SUCCESS                     = 0,
-	/* not used                       -1 */
+	/* yest used                       -1 */
 	LV1_RESOURCE_SHORTAGE           = -2,
 	LV1_NO_PRIVILEGE                = -3,
 	LV1_DENIED_BY_POLICY            = -4,
@@ -212,7 +212,7 @@ enum lv1_result {
 	LV1_BUSY                        = -9,
 	LV1_EMPTY                       = -10,
 	LV1_WRONG_STATE                 = -11,
-	/* not used                       -12 */
+	/* yest used                       -12 */
 	LV1_NO_MATCH                    = -13,
 	LV1_ALREADY_CONNECTED           = -14,
 	LV1_UNSUPPORTED_PARAMETER_VALUE = -15,
@@ -237,7 +237,7 @@ static inline const char* ps3_result(int result)
 	case LV1_SUCCESS:
 		return "LV1_SUCCESS (0)";
 	case -1:
-		return "** unknown result ** (-1)";
+		return "** unkyeswn result ** (-1)";
 	case LV1_RESOURCE_SHORTAGE:
 		return "LV1_RESOURCE_SHORTAGE (-2)";
 	case LV1_NO_PRIVILEGE:
@@ -259,7 +259,7 @@ static inline const char* ps3_result(int result)
 	case LV1_WRONG_STATE:
 		return "LV1_WRONG_STATE (-11)";
 	case -12:
-		return "** unknown result ** (-12)";
+		return "** unkyeswn result ** (-12)";
 	case LV1_NO_MATCH:
 		return "LV1_NO_MATCH (-13)";
 	case LV1_ALREADY_CONNECTED:
@@ -292,7 +292,7 @@ static inline const char* ps3_result(int result)
 		return "LV1_INTERNAL_ERROR (-32768)";
 	default:
 		BUG();
-		return "** unknown result **";
+		return "** unkyeswn result **";
 	};
 #else
 	return "";
@@ -356,7 +356,7 @@ struct ps3_system_bus_device {
 	struct ps3_mmio_region *m_region; /* SB, IOC0*/
 	unsigned int port_number;         /* VUART */
 	struct {                          /* LPM */
-		u64 node_id;
+		u64 yesde_id;
 		u64 pu_id;
 		u64 rights;
 	} lpm;
@@ -436,9 +436,9 @@ struct ps3_sys_manager_ops {
 };
 
 void ps3_sys_manager_register_ops(const struct ps3_sys_manager_ops *ops);
-void __noreturn ps3_sys_manager_power_off(void);
-void __noreturn ps3_sys_manager_restart(void);
-void __noreturn ps3_sys_manager_halt(void);
+void __yesreturn ps3_sys_manager_power_off(void);
+void __yesreturn ps3_sys_manager_restart(void);
+void __yesreturn ps3_sys_manager_halt(void);
 int ps3_sys_manager_get_wol(void);
 void ps3_sys_manager_set_wol(int state);
 
@@ -469,7 +469,7 @@ enum ps3_lpm_rights {
 /**
  * enum ps3_lpm_tb_type - Type of trace buffer lv1 should use.
  *
- * @PS3_LPM_TB_TYPE_NONE: Do not use a trace buffer.
+ * @PS3_LPM_TB_TYPE_NONE: Do yest use a trace buffer.
  * @PS3_LPM_RIGHTS_USE_TB: Use the lv1 internal trace buffer.  Must have
  *  rights @PS3_LPM_RIGHTS_USE_TB.
  */
@@ -510,7 +510,7 @@ void ps3_enable_pm_interrupts(u32 cpu, u32 thread, u32 mask);
 void ps3_disable_pm_interrupts(u32 cpu);
 
 u32 ps3_get_and_clear_pm_interrupts(u32 cpu);
-void ps3_sync_irq(int node);
+void ps3_sync_irq(int yesde);
 u32 ps3_get_hw_thread_id(int cpu);
 u64 ps3_get_spe_id(void *arg);
 

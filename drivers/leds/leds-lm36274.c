@@ -69,20 +69,20 @@ static int lm36274_init(struct lm36274 *lm36274_data)
 
 static int lm36274_parse_dt(struct lm36274 *lm36274_data)
 {
-	struct fwnode_handle *child = NULL;
+	struct fwyesde_handle *child = NULL;
 	char label[LED_MAX_NAME_SIZE];
 	struct device *dev = &lm36274_data->pdev->dev;
 	const char *name;
 	int child_cnt;
 	int ret = -EINVAL;
 
-	/* There should only be 1 node */
-	child_cnt = device_get_child_node_count(dev);
+	/* There should only be 1 yesde */
+	child_cnt = device_get_child_yesde_count(dev);
 	if (child_cnt != 1)
 		return -EINVAL;
 
-	device_for_each_child_node(dev, child) {
-		ret = fwnode_property_read_string(child, "label", &name);
+	device_for_each_child_yesde(dev, child) {
+		ret = fwyesde_property_read_string(child, "label", &name);
 		if (ret)
 			snprintf(label, sizeof(label),
 				"%s::", lm36274_data->pdev->name);
@@ -90,11 +90,11 @@ static int lm36274_parse_dt(struct lm36274 *lm36274_data)
 			snprintf(label, sizeof(label),
 				 "%s:%s", lm36274_data->pdev->name, name);
 
-		lm36274_data->num_leds = fwnode_property_count_u32(child, "led-sources");
+		lm36274_data->num_leds = fwyesde_property_count_u32(child, "led-sources");
 		if (lm36274_data->num_leds <= 0)
 			return -ENODEV;
 
-		ret = fwnode_property_read_u32_array(child, "led-sources",
+		ret = fwyesde_property_read_u32_array(child, "led-sources",
 						     lm36274_data->led_sources,
 						     lm36274_data->num_leds);
 		if (ret) {
@@ -102,7 +102,7 @@ static int lm36274_parse_dt(struct lm36274 *lm36274_data)
 			return ret;
 		}
 
-		fwnode_property_read_string(child, "linux,default-trigger",
+		fwyesde_property_read_string(child, "linux,default-trigger",
 					&lm36274_data->led_dev.default_trigger);
 
 	}
@@ -137,7 +137,7 @@ static int lm36274_probe(struct platform_device *pdev)
 
 	ret = lm36274_parse_dt(lm36274_data);
 	if (ret) {
-		dev_err(lm36274_data->dev, "Failed to parse DT node\n");
+		dev_err(lm36274_data->dev, "Failed to parse DT yesde\n");
 		return ret;
 	}
 

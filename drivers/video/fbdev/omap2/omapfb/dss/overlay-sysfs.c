@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@yeskia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -28,7 +28,7 @@ static ssize_t overlay_name_show(struct omap_overlay *ovl, char *buf)
 static ssize_t overlay_manager_show(struct omap_overlay *ovl, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%s\n",
-			ovl->manager ? ovl->manager->name : "<none>");
+			ovl->manager ? ovl->manager->name : "<yesne>");
 }
 
 static ssize_t overlay_manager_store(struct omap_overlay *ovl, const char *buf,

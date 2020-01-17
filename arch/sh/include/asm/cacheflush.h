@@ -30,7 +30,7 @@ extern void (*local_flush_icache_range)(void *args);
 extern void (*local_flush_icache_page)(void *args);
 extern void (*local_flush_cache_sigtramp)(void *args);
 
-static inline void cache_noop(void *args) { }
+static inline void cache_yesop(void *args) { }
 
 extern void (*__flush_wback_region)(void *start, int size);
 extern void (*__flush_purge_region)(void *start, int size);
@@ -56,13 +56,13 @@ struct flusher_data {
 };
 
 #define ARCH_HAS_FLUSH_ANON_PAGE
-extern void __flush_anon_page(struct page *page, unsigned long);
+extern void __flush_ayesn_page(struct page *page, unsigned long);
 
-static inline void flush_anon_page(struct vm_area_struct *vma,
+static inline void flush_ayesn_page(struct vm_area_struct *vma,
 				   struct page *page, unsigned long vmaddr)
 {
-	if (boot_cpu_data.dcache.n_aliases && PageAnon(page))
-		__flush_anon_page(page, vmaddr);
+	if (boot_cpu_data.dcache.n_aliases && PageAyesn(page))
+		__flush_ayesn_page(page, vmaddr);
 }
 static inline void flush_kernel_vmap_range(void *addr, int size)
 {

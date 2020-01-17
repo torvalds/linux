@@ -16,7 +16,7 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 {
 	int ctrl1, ctrl2, ret;
 
-	/* Half duplex is not supported */
+	/* Half duplex is yest supported */
 	if (phydev->duplex != DUPLEX_FULL)
 		return -EINVAL;
 
@@ -30,7 +30,7 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 
 	ctrl1 &= ~MDIO_CTRL1_SPEEDSEL;
 	/*
-	 * PMA/PMD type selection is 1.7.5:0 not 1.7.3:0.  See 45.2.1.6.1
+	 * PMA/PMD type selection is 1.7.5:0 yest 1.7.3:0.  See 45.2.1.6.1
 	 * in 802.3-2012 and 802.3-2015.
 	 */
 	ctrl2 &= ~(MDIO_PMA_CTRL2_TYPE | 0x30);
@@ -85,7 +85,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_pma_setup_forced);
  *
  * Configure advertisement registers based on modes set in phydev->advertising
  *
- * Returns negative errno code on failure, 0 if advertisement didn't change,
+ * Returns negative erryes code on failure, 0 if advertisement didn't change,
  * or 1 if advertised modes changed.
  */
 int genphy_c45_an_config_aneg(struct phy_device *phydev)
@@ -131,7 +131,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_an_config_aneg);
  * Disable auto-negotiation in the Clause 45 PHY. The link parameters
  * parameters are controlled through the PMA/PMD MMD registers.
  *
- * Returns zero on success, negative errno code on failure.
+ * Returns zero on success, negative erryes code on failure.
  */
 int genphy_c45_an_disable_aneg(struct phy_device *phydev)
 {
@@ -194,7 +194,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_check_and_restart_aneg);
  *
  * Reads the status register from the auto-negotiation MMD, returning:
  * - positive if auto-negotiation is complete
- * - negative errno code on error
+ * - negative erryes code on error
  * - zero otherwise
  */
 int genphy_c45_aneg_done(struct phy_device *phydev)
@@ -211,7 +211,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_aneg_done);
  *
  * Read the link status from the specified MMDs, and if they all indicate
  * that the link is up, set phydev->link to 1.  If an error is encountered,
- * a negative errno will be returned, otherwise zero.
+ * a negative erryes will be returned, otherwise zero.
  */
 int genphy_c45_read_link(struct phy_device *phydev)
 {
@@ -238,7 +238,7 @@ int genphy_c45_read_link(struct phy_device *phydev)
 		mmd_mask &= ~BIT(devad);
 
 		/* The link state is latched low so that momentary link
-		 * drops can be detected. Do not double-read the status
+		 * drops can be detected. Do yest double-read the status
 		 * in polling mode to detect such short link drops.
 		 */
 		if (!phy_polling_mode(phydev)) {
@@ -530,7 +530,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_read_status);
  * @phydev: target phy_device struct
  *
  * Description: If auto-negotiation is enabled, we configure the
- *   advertising, and then restart auto-negotiation.  If it is not
+ *   advertising, and then restart auto-negotiation.  If it is yest
  *   enabled, then we force a configuration.
  */
 int genphy_c45_config_aneg(struct phy_device *phydev)
@@ -563,6 +563,6 @@ struct phy_driver genphy_c45_driver = {
 	.phy_id         = 0xffffffff,
 	.phy_id_mask    = 0xffffffff,
 	.name           = "Generic Clause 45 PHY",
-	.soft_reset	= genphy_no_soft_reset,
+	.soft_reset	= genphy_yes_soft_reset,
 	.read_status    = genphy_c45_read_status,
 };

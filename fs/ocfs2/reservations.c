@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * reservations.c
  *
@@ -78,23 +78,23 @@ static inline int ocfs2_resmap_disabled(struct ocfs2_reservation_map *resmap)
 static void ocfs2_dump_resv(struct ocfs2_reservation_map *resmap)
 {
 	struct ocfs2_super *osb = resmap->m_osb;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct ocfs2_alloc_reservation *resv;
 	int i = 0;
 
 	mlog(ML_NOTICE, "Dumping resmap for device %s. Bitmap length: %u\n",
 	     osb->dev_str, resmap->m_bitmap_len);
 
-	node = rb_first(&resmap->m_reservations);
-	while (node) {
-		resv = rb_entry(node, struct ocfs2_alloc_reservation, r_node);
+	yesde = rb_first(&resmap->m_reservations);
+	while (yesde) {
+		resv = rb_entry(yesde, struct ocfs2_alloc_reservation, r_yesde);
 
 		mlog(ML_NOTICE, "start: %u\tend: %u\tlen: %u\tlast_start: %u"
 		     "\tlast_len: %u\n", resv->r_start,
 		     ocfs2_resv_end(resv), resv->r_len, resv->r_last_start,
 		     resv->r_last_len);
 
-		node = rb_next(node);
+		yesde = rb_next(yesde);
 		i++;
 	}
 
@@ -137,12 +137,12 @@ static void ocfs2_check_resmap(struct ocfs2_reservation_map *resmap)
 {
 	unsigned int off = 0;
 	int i = 0;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct ocfs2_alloc_reservation *resv;
 
-	node = rb_first(&resmap->m_reservations);
-	while (node) {
-		resv = rb_entry(node, struct ocfs2_alloc_reservation, r_node);
+	yesde = rb_first(&resmap->m_reservations);
+	while (yesde) {
+		resv = rb_entry(yesde, struct ocfs2_alloc_reservation, r_yesde);
 
 		if (i > 0 && resv->r_start <= off) {
 			mlog(ML_ERROR, "reservation %d has bad start off!\n",
@@ -151,7 +151,7 @@ static void ocfs2_check_resmap(struct ocfs2_reservation_map *resmap)
 		}
 
 		if (resv->r_len == 0) {
-			mlog(ML_ERROR, "reservation %d has no length!\n",
+			mlog(ML_ERROR, "reservation %d has yes length!\n",
 			     i);
 			goto bad;
 		}
@@ -172,7 +172,7 @@ static void ocfs2_check_resmap(struct ocfs2_reservation_map *resmap)
 			goto bad;
 
 		off = ocfs2_resv_end(resv);
-		node = rb_next(node);
+		yesde = rb_next(yesde);
 
 		i++;
 	}
@@ -238,7 +238,7 @@ static void ocfs2_resv_remove(struct ocfs2_reservation_map *resmap,
 {
 	if (resv->r_flags & OCFS2_RESV_FLAG_INUSE) {
 		list_del_init(&resv->r_lru);
-		rb_erase(&resv->r_node, &resmap->m_reservations);
+		rb_erase(&resv->r_yesde, &resmap->m_reservations);
 		resv->r_flags &= ~OCFS2_RESV_FLAG_INUSE;
 	}
 }
@@ -250,7 +250,7 @@ static void __ocfs2_resv_discard(struct ocfs2_reservation_map *resmap,
 
 	__ocfs2_resv_trunc(resv);
 	/*
-	 * last_len and last_start no longer make sense if
+	 * last_len and last_start yes longer make sense if
 	 * we're changing the range of our allocations.
 	 */
 	resv->r_last_len = resv->r_last_start = 0;
@@ -258,7 +258,7 @@ static void __ocfs2_resv_discard(struct ocfs2_reservation_map *resmap,
 	ocfs2_resv_remove(resmap, resv);
 }
 
-/* does nothing if 'resv' is null */
+/* does yesthing if 'resv' is null */
 void ocfs2_resv_discard(struct ocfs2_reservation_map *resmap,
 			struct ocfs2_alloc_reservation *resv)
 {
@@ -271,13 +271,13 @@ void ocfs2_resv_discard(struct ocfs2_reservation_map *resmap,
 
 static void ocfs2_resmap_clear_all_resv(struct ocfs2_reservation_map *resmap)
 {
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct ocfs2_alloc_reservation *resv;
 
 	assert_spin_locked(&resv_lock);
 
-	while ((node = rb_last(&resmap->m_reservations)) != NULL) {
-		resv = rb_entry(node, struct ocfs2_alloc_reservation, r_node);
+	while ((yesde = rb_last(&resmap->m_reservations)) != NULL) {
+		resv = rb_entry(yesde, struct ocfs2_alloc_reservation, r_yesde);
 
 		__ocfs2_resv_discard(resmap, resv);
 	}
@@ -300,15 +300,15 @@ void ocfs2_resmap_restart(struct ocfs2_reservation_map *resmap,
 
 void ocfs2_resmap_uninit(struct ocfs2_reservation_map *resmap)
 {
-	/* Does nothing for now. Keep this around for API symmetry */
+	/* Does yesthing for yesw. Keep this around for API symmetry */
 }
 
 static void ocfs2_resv_insert(struct ocfs2_reservation_map *resmap,
 			      struct ocfs2_alloc_reservation *new)
 {
 	struct rb_root *root = &resmap->m_reservations;
-	struct rb_node *parent = NULL;
-	struct rb_node **p = &root->rb_node;
+	struct rb_yesde *parent = NULL;
+	struct rb_yesde **p = &root->rb_yesde;
 	struct ocfs2_alloc_reservation *tmp;
 
 	assert_spin_locked(&resv_lock);
@@ -318,7 +318,7 @@ static void ocfs2_resv_insert(struct ocfs2_reservation_map *resmap,
 	while (*p) {
 		parent = *p;
 
-		tmp = rb_entry(parent, struct ocfs2_alloc_reservation, r_node);
+		tmp = rb_entry(parent, struct ocfs2_alloc_reservation, r_yesde);
 
 		if (new->r_start < tmp->r_start) {
 			p = &(*p)->rb_left;
@@ -337,8 +337,8 @@ static void ocfs2_resv_insert(struct ocfs2_reservation_map *resmap,
 		}
 	}
 
-	rb_link_node(&new->r_node, parent, p);
-	rb_insert_color(&new->r_node, root);
+	rb_link_yesde(&new->r_yesde, parent, p);
+	rb_insert_color(&new->r_yesde, root);
 	new->r_flags |= OCFS2_RESV_FLAG_INUSE;
 
 	ocfs2_resv_mark_lru(resmap, new);
@@ -351,8 +351,8 @@ static void ocfs2_resv_insert(struct ocfs2_reservation_map *resmap,
  * @resmap: reservation map to search
  * @goal: which bit to search for
  *
- * If a window containing that goal is not found, we return the window
- * which comes before goal. Returns NULL on empty rbtree or no window
+ * If a window containing that goal is yest found, we return the window
+ * which comes before goal. Returns NULL on empty rbtree or yes window
  * before goal.
  */
 static struct ocfs2_alloc_reservation *
@@ -360,16 +360,16 @@ ocfs2_find_resv_lhs(struct ocfs2_reservation_map *resmap, unsigned int goal)
 {
 	struct ocfs2_alloc_reservation *resv = NULL;
 	struct ocfs2_alloc_reservation *prev_resv = NULL;
-	struct rb_node *node = resmap->m_reservations.rb_node;
+	struct rb_yesde *yesde = resmap->m_reservations.rb_yesde;
 
 	assert_spin_locked(&resv_lock);
 
-	if (!node)
+	if (!yesde)
 		return NULL;
 
-	node = rb_first(&resmap->m_reservations);
-	while (node) {
-		resv = rb_entry(node, struct ocfs2_alloc_reservation, r_node);
+	yesde = rb_first(&resmap->m_reservations);
+	while (yesde) {
+		resv = rb_entry(yesde, struct ocfs2_alloc_reservation, r_yesde);
 
 		if (resv->r_start <= goal && ocfs2_resv_end(resv) >= goal)
 			break;
@@ -381,7 +381,7 @@ ocfs2_find_resv_lhs(struct ocfs2_reservation_map *resmap, unsigned int goal)
 		}
 
 		prev_resv = resv;
-		node = rb_next(node);
+		yesde = rb_next(yesde);
 	}
 
 	return resv;
@@ -399,7 +399,7 @@ ocfs2_find_resv_lhs(struct ocfs2_reservation_map *resmap, unsigned int goal)
  * with length search_len for a set of contiguous free bits. We try
  * to find up to 'wanted' bits, but can sometimes return less.
  *
- * Returns the length of allocation, 0 if no free bits are found.
+ * Returns the length of allocation, 0 if yes free bits are found.
  *
  * *cstart and *clen will also be populated with the result.
  */
@@ -466,7 +466,7 @@ static void __ocfs2_resv_find_window(struct ocfs2_reservation_map *resmap,
 	struct rb_root *root = &resmap->m_reservations;
 	unsigned int gap_start, gap_end, gap_len;
 	struct ocfs2_alloc_reservation *prev_resv, *next_resv;
-	struct rb_node *prev, *next;
+	struct rb_yesde *prev, *next;
 	unsigned int cstart, clen;
 	unsigned int best_start = 0, best_len = 0;
 
@@ -528,7 +528,7 @@ static void __ocfs2_resv_find_window(struct ocfs2_reservation_map *resmap,
 
 		next = rb_first(root);
 		next_resv = rb_entry(next, struct ocfs2_alloc_reservation,
-				     r_node);
+				     r_yesde);
 
 		/*
 		 * The search should never return such a window. (see
@@ -558,7 +558,7 @@ static void __ocfs2_resv_find_window(struct ocfs2_reservation_map *resmap,
 	trace_ocfs2_resv_find_window_prev(prev_resv->r_start,
 					  ocfs2_resv_end(prev_resv));
 
-	prev = &prev_resv->r_node;
+	prev = &prev_resv->r_yesde;
 
 	/* Now we do a linear search for a window, starting at 'prev_rsv' */
 	while (1) {
@@ -566,7 +566,7 @@ static void __ocfs2_resv_find_window(struct ocfs2_reservation_map *resmap,
 		if (next) {
 			next_resv = rb_entry(next,
 					     struct ocfs2_alloc_reservation,
-					     r_node);
+					     r_yesde);
 
 			gap_start = ocfs2_resv_end(prev_resv) + 1;
 			gap_end = next_resv->r_start - 1;
@@ -608,7 +608,7 @@ next_resv:
 
 		prev = next;
 		prev_resv = rb_entry(prev, struct ocfs2_alloc_reservation,
-				     r_node);
+				     r_yesde);
 	}
 
 out_insert:
@@ -630,13 +630,13 @@ static void ocfs2_cannibalize_resv(struct ocfs2_reservation_map *resmap,
 	if (!tmpwindow)
 		min_bits = ocfs2_resv_window_bits(resmap, resv) >> 1;
 	else
-		min_bits = wanted; /* We at know the temp window will use all
+		min_bits = wanted; /* We at kyesw the temp window will use all
 				    * of these bits */
 
 	/*
 	 * Take the first reservation off the LRU as our 'target'. We
 	 * don't try to be smart about it. There might be a case for
-	 * searching based on size but I don't have enough data to be
+	 * searching based on size but I don't have eyesugh data to be
 	 * sure. --Mark (3/16/2010)
 	 */
 	lru_resv = list_first_entry(&resmap->m_lru,
@@ -653,7 +653,7 @@ static void ocfs2_cannibalize_resv(struct ocfs2_reservation_map *resmap,
 	if (lru_resv->r_len <= min_bits) {
 		/*
 		 * Discard completely if size is less than or equal to a
-		 * reasonable threshold - 50% of window bits for non temporary
+		 * reasonable threshold - 50% of window bits for yesn temporary
 		 * windows.
 		 */
 		resv->r_start = lru_resv->r_start;
@@ -739,9 +739,9 @@ int ocfs2_resmap_resv_bits(struct ocfs2_reservation_map *resmap,
 		/*
 		 * Try to get a window here. If it works, we must fall
 		 * through and test the bitmap . This avoids some
-		 * ping-ponging of windows due to non-reserved space
+		 * ping-ponging of windows due to yesn-reserved space
 		 * being allocation before we initialize a window for
-		 * that inode.
+		 * that iyesde.
 		 */
 		ocfs2_resv_find_window(resmap, resv, wanted);
 		trace_ocfs2_resmap_resv_bits(resv->r_start, resv->r_len);

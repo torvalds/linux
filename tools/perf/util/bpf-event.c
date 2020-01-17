@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
@@ -35,19 +35,19 @@ static int machine__process_bpf_event_load(struct machine *machine,
 					   struct perf_sample *sample __maybe_unused)
 {
 	struct bpf_prog_info_linear *info_linear;
-	struct bpf_prog_info_node *info_node;
+	struct bpf_prog_info_yesde *info_yesde;
 	struct perf_env *env = machine->env;
 	int id = event->bpf.id;
 	unsigned int i;
 
-	/* perf-record, no need to handle bpf-event */
+	/* perf-record, yes need to handle bpf-event */
 	if (env == NULL)
 		return 0;
 
-	info_node = perf_env__find_bpf_prog_info(env, id);
-	if (!info_node)
+	info_yesde = perf_env__find_bpf_prog_info(env, id);
+	if (!info_yesde)
 		return 0;
-	info_linear = info_node->info_linear;
+	info_linear = info_yesde->info_linear;
 
 	for (i = 0; i < info_linear->info.nr_jited_ksyms; i++) {
 		u64 *addrs = (u64 *)(uintptr_t)(info_linear->info.jited_ksyms);
@@ -76,8 +76,8 @@ int machine__process_bpf(struct machine *machine, union perf_event *event,
 
 	case PERF_BPF_EVENT_PROG_UNLOAD:
 		/*
-		 * Do not free bpf_prog_info and btf of the program here,
-		 * as annotation still need them. They will be freed at
+		 * Do yest free bpf_prog_info and btf of the program here,
+		 * as anyestation still need them. They will be freed at
 		 * the end of the session.
 		 */
 		break;
@@ -92,21 +92,21 @@ static int perf_env__fetch_btf(struct perf_env *env,
 			       u32 btf_id,
 			       struct btf *btf)
 {
-	struct btf_node *node;
+	struct btf_yesde *yesde;
 	u32 data_size;
 	const void *data;
 
 	data = btf__get_raw_data(btf, &data_size);
 
-	node = malloc(data_size + sizeof(struct btf_node));
-	if (!node)
+	yesde = malloc(data_size + sizeof(struct btf_yesde));
+	if (!yesde)
 		return -1;
 
-	node->id = btf_id;
-	node->data_size = data_size;
-	memcpy(node->data, data, data_size);
+	yesde->id = btf_id;
+	yesde->data_size = data_size;
+	memcpy(yesde->data, data, data_size);
 
-	perf_env__insert_btf(env, node);
+	perf_env__insert_btf(env, yesde);
 	return 0;
 }
 
@@ -131,7 +131,7 @@ static int synthesize_bpf_prog_name(char *buf, int size,
 		t = btf__type_by_id(btf, finfo->type_id);
 		short_name = btf__name_by_offset(btf, t->name_off);
 	} else if (sub_id == 0 && sub_prog_cnt == 1) {
-		/* no subprog */
+		/* yes subprog */
 		if (info->name[0])
 			short_name = info->name;
 	} else
@@ -163,7 +163,7 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 	struct perf_record_bpf_event *bpf_event = &event->bpf;
 	struct bpf_prog_info_linear *info_linear;
 	struct perf_tool *tool = session->tool;
-	struct bpf_prog_info_node *info_node;
+	struct bpf_prog_info_yesde *info_yesde;
 	struct bpf_prog_info *info;
 	struct btf *btf = NULL;
 	struct perf_env *env;
@@ -250,7 +250,7 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 						     machine, process);
 	}
 
-	if (!opts->no_bpf_event) {
+	if (!opts->yes_bpf_event) {
 		/* Synthesize PERF_RECORD_BPF_EVENT */
 		*bpf_event = (struct perf_record_bpf_event) {
 			.header = {
@@ -266,14 +266,14 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 		event->header.size += machine->id_hdr_size;
 
 		/* save bpf_prog_info to env */
-		info_node = malloc(sizeof(struct bpf_prog_info_node));
-		if (!info_node) {
+		info_yesde = malloc(sizeof(struct bpf_prog_info_yesde));
+		if (!info_yesde) {
 			err = -1;
 			goto out;
 		}
 
-		info_node->info_linear = info_linear;
-		perf_env__insert_bpf_prog_info(env, info_node);
+		info_yesde->info_linear = info_linear;
+		perf_env__insert_bpf_prog_info(env, info_yesde);
 		info_linear = NULL;
 
 		/*
@@ -306,15 +306,15 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 	while (true) {
 		err = bpf_prog_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT) {
+			if (erryes == ENOENT) {
 				err = 0;
 				break;
 			}
 			pr_debug("%s: can't get next program: %s%s\n",
-				 __func__, strerror(errno),
-				 errno == EINVAL ? " -- kernel too old?" : "");
+				 __func__, strerror(erryes),
+				 erryes == EINVAL ? " -- kernel too old?" : "");
 			/* don't report error on old kernel or EPERM  */
-			err = (errno == EINVAL || errno == EPERM) ? 0 : -1;
+			err = (erryes == EINVAL || erryes == EPERM) ? 0 : -1;
 			break;
 		}
 		fd = bpf_prog_get_fd_by_id(id);
@@ -329,7 +329,7 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 							  event, opts);
 		close(fd);
 		if (err) {
-			/* do not return error for old kernel */
+			/* do yest return error for old kernel */
 			if (err == -2)
 				err = 0;
 			break;
@@ -342,7 +342,7 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 static void perf_env__add_bpf_info(struct perf_env *env, u32 id)
 {
 	struct bpf_prog_info_linear *info_linear;
-	struct bpf_prog_info_node *info_node;
+	struct bpf_prog_info_yesde *info_yesde;
 	struct btf *btf = NULL;
 	u64 arrays;
 	u32 btf_id;
@@ -368,10 +368,10 @@ static void perf_env__add_bpf_info(struct perf_env *env, u32 id)
 
 	btf_id = info_linear->info.btf_id;
 
-	info_node = malloc(sizeof(struct bpf_prog_info_node));
-	if (info_node) {
-		info_node->info_linear = info_linear;
-		perf_env__insert_bpf_prog_info(env, info_node);
+	info_yesde = malloc(sizeof(struct bpf_prog_info_yesde));
+	if (info_yesde) {
+		info_yesde->info_linear = info_linear;
+		perf_env__insert_bpf_prog_info(env, info_yesde);
 	} else
 		free(info_linear);
 
@@ -403,8 +403,8 @@ static int bpf_event__sb_cb(union perf_event *event, void *data)
 
 	case PERF_BPF_EVENT_PROG_UNLOAD:
 		/*
-		 * Do not free bpf_prog_info and btf of the program here,
-		 * as annotation still need them. They will be freed at
+		 * Do yest free bpf_prog_info and btf of the program here,
+		 * as anyestation still need them. They will be freed at
 		 * the end of the session.
 		 */
 		break;
@@ -453,12 +453,12 @@ void bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
 		return;
 
 	if (info->btf_id) {
-		struct btf_node *node;
+		struct btf_yesde *yesde;
 
-		node = perf_env__find_btf(env, info->btf_id);
-		if (node)
-			btf = btf__new((__u8 *)(node->data),
-				       node->data_size);
+		yesde = perf_env__find_btf(env, info->btf_id);
+		if (yesde)
+			btf = btf__new((__u8 *)(yesde->data),
+				       yesde->data_size);
 	}
 
 	if (sub_prog_cnt == 1) {

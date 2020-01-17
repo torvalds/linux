@@ -109,7 +109,7 @@ void machine_restart(char *cmd)
 			"	cmpsub.a	r0, #0\n\t"
 			"	bne	201b\n\t"
 			"	stw	%3, [%2]\n\t"
-			"	nop; nop; nop\n\t"
+			"	yesp; yesp; yesp\n\t"
 			/* prefetch 3 instructions at most */
 			:
 			: "r" (PM_PMCR),

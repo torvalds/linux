@@ -8,7 +8,7 @@
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/irq.h>
 
 #include <asm/irq.h>
@@ -22,7 +22,7 @@
  * Enable/disable a particular machine specific interrupt source.
  * Note that this may affect other interrupts in case of a shared interrupt.
  * This function should only be called for a _very_ short time to change some
- * internal data, that may not be changed by the interrupt at the same time.
+ * internal data, that may yest be changed by the interrupt at the same time.
  */
 
 static void amiga_irq_enable(struct irq_data *data)
@@ -127,7 +127,7 @@ static void ami_int5(struct irq_desc *desc)
 
 	/* if serial receive buffer full interrupt */
 	if (ints & IF_RBF) {
-		/* acknowledge of IF_RBF must be done by the serial interrupt */
+		/* ackyeswledge of IF_RBF must be done by the serial interrupt */
 		generic_handle_irq(IRQ_AMIGA_RBF);
 	}
 

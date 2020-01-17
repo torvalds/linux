@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp_cppcore.c
  * Provides low-level access to the NFP's internal CPP bus
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
+ * Authors: Jakub Kicinski <jakub.kicinski@netroyesme.com>
+ *          Jason McMullan <jason.mcmullan@netroyesme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroyesme.com>
  */
 
 #include <asm/unaligned.h>
@@ -172,7 +172,7 @@ void nfp_cpp_free(struct nfp_cpp *cpp)
 		kfree(cache);
 	}
 
-	/* There should be no dangling areas at this point */
+	/* There should be yes dangling areas at this point */
 	WARN_ON(!list_empty(&cpp->resource_list));
 
 	/* .. but if they weren't, try to clean up. */
@@ -460,17 +460,17 @@ int nfp_cpp_area_acquire(struct nfp_cpp_area *area)
 }
 
 /**
- * nfp_cpp_area_acquire_nonblocking() - lock down a CPP area for access
+ * nfp_cpp_area_acquire_yesnblocking() - lock down a CPP area for access
  * @area:	CPP area handle
  *
  * Locks down the CPP area for a potential long term activity.  Area
  * must always be locked down before being accessed.
  *
- * NOTE: Returns -EAGAIN is no area is available
+ * NOTE: Returns -EAGAIN is yes area is available
  *
  * Return: 0, or -ERRNO
  */
-int nfp_cpp_area_acquire_nonblocking(struct nfp_cpp_area *area)
+int nfp_cpp_area_acquire_yesnblocking(struct nfp_cpp_area *area)
 {
 	mutex_lock(&area->mutex);
 	if (atomic_inc_return(&area->refcount) == 1) {
@@ -1056,7 +1056,7 @@ static u32 nfp_xpb_to_cpp(struct nfp_cpp *cpp, u32 *xpb_addr)
 	u32 xpb;
 
 	xpb = NFP_CPP_ID(14, NFP_CPP_ACTION_RW, 0);
-	/* Ensure that non-local XPB accesses go
+	/* Ensure that yesn-local XPB accesses go
 	 * out through the global XPBM bus.
 	 */
 	island = (*xpb_addr >> 24) & 0x3f;
@@ -1073,7 +1073,7 @@ static u32 nfp_xpb_to_cpp(struct nfp_cpp *cpp, u32 *xpb_addr)
 	if (*xpb_addr < 0x60000) {
 		*xpb_addr |= 1 << 30;
 	} else {
-		/* And only non-ARM interfaces use the island id = 1 */
+		/* And only yesn-ARM interfaces use the island id = 1 */
 		if (NFP_CPP_INTERFACE_TYPE_of(nfp_cpp_interface(cpp))
 		    != NFP_CPP_INTERFACE_TYPE_ARM)
 			*xpb_addr |= 1 << 24;
@@ -1433,7 +1433,7 @@ int nfp_cpp_explicit_put(struct nfp_cpp_explicit *expl,
  * @address:	Address to send in the explicit transaction
  *
  * If this function is called before the configuration
- * registers are set, it will return -1, with an errno of EINVAL.
+ * registers are set, it will return -1, with an erryes of EINVAL.
  *
  * Return: 0, or -ERRNO
  */
@@ -1451,10 +1451,10 @@ int nfp_cpp_explicit_do(struct nfp_cpp_explicit *expl, u64 address)
  * The 'len' parameter must be less than or equal to 128 bytes.
  *
  * If this function is called before all three configuration
- * registers are set, it will return -1, with an errno of EINVAL.
+ * registers are set, it will return -1, with an erryes of EINVAL.
  *
  * If this function is called before nfp_cpp_explicit_do()
- * has completed, it will return -1, with an errno of EBUSY.
+ * has completed, it will return -1, with an erryes of EBUSY.
  *
  * Return: 0, or -ERRNO
  */

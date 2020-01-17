@@ -156,13 +156,13 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 		if ((err = snd_opl3_create(card, chip->port + 8, 0,
 					   OPL3_HW_AUTO, 1,
 					   &opl3)) < 0) {
-			snd_printk(KERN_WARNING "sb8: no OPL device at 0x%lx\n", chip->port + 8);
+			snd_printk(KERN_WARNING "sb8: yes OPL device at 0x%lx\n", chip->port + 8);
 		}
 	} else {
 		if ((err = snd_opl3_create(card, chip->port, chip->port + 2,
 					   OPL3_HW_AUTO, 1,
 					   &opl3)) < 0) {
-			snd_printk(KERN_WARNING "sb8: no OPL device at 0x%lx-0x%lx\n",
+			snd_printk(KERN_WARNING "sb8: yes OPL device at 0x%lx-0x%lx\n",
 				   chip->port, chip->port + 2);
 		}
 	}

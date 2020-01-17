@@ -27,7 +27,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
@@ -217,9 +217,9 @@ static void channel_remove(struct channel *ch)
 				fsm_deltimer(&ch->sweep_timer);
 
 			kfree_fsm(ch->fsm);
-			clear_normalized_cda(&ch->ccw[4]);
+			clear_yesrmalized_cda(&ch->ccw[4]);
 			if (ch->trans_skb != NULL) {
-				clear_normalized_cda(&ch->ccw[1]);
+				clear_yesrmalized_cda(&ch->ccw[1]);
 				dev_kfree_skb_any(ch->trans_skb);
 			}
 			if (IS_MPC(ch)) {
@@ -247,7 +247,7 @@ static void channel_remove(struct channel *ch)
  *  id		Id of channel we are interested in.
  *  direction	Direction we want to use this channel for.
  *
- * returns Pointer to a channel or NULL if no matching channel available.
+ * returns Pointer to a channel or NULL if yes matching channel available.
  */
 static struct channel *channel_get(enum ctcm_channel_types type,
 					char *id, int direction)
@@ -258,7 +258,7 @@ static struct channel *channel_get(enum ctcm_channel_types type,
 		ch = ch->next;
 	if (!ch) {
 		CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
-				"%s(%d, %s, %d) not found in channel list\n",
+				"%s(%d, %s, %d) yest found in channel list\n",
 				CTCM_FUNTAIL, type, id, direction);
 	} else {
 		if (ch->flags & CHANNEL_FLAGS_INUSE)
@@ -315,7 +315,7 @@ static void ccw_unit_check(struct channel *ch, __u8 sense)
 	if (sense & SNS0_INTERVENTION_REQ) {
 		if (sense & 0x01) {
 			if (ch->sense_rc != 0x01) {
-				pr_notice(
+				pr_yestice(
 					"%s: The communication peer has "
 					"disconnected\n", ch->id);
 				ch->sense_rc = 0x01;
@@ -323,9 +323,9 @@ static void ccw_unit_check(struct channel *ch, __u8 sense)
 			fsm_event(ch->fsm, CTC_EVENT_UC_RCRESET, ch);
 		} else {
 			if (ch->sense_rc != SNS0_INTERVENTION_REQ) {
-				pr_notice(
+				pr_yestice(
 					"%s: The remote operating system is "
-					"not available\n", ch->id);
+					"yest available\n", ch->id);
 				ch->sense_rc = SNS0_INTERVENTION_REQ;
 			}
 			fsm_event(ch->fsm, CTC_EVENT_UC_RSRESET, ch);
@@ -373,7 +373,7 @@ static void ccw_unit_check(struct channel *ch, __u8 sense)
 		fsm_event(ch->fsm, CTC_EVENT_UC_ZERO, ch);
 	} else {
 		CTCM_DBF_TEXT_(TRACE, CTC_DBF_WARN,
-			"%s(%s): Unit check code %02x unknown",
+			"%s(%s): Unit check code %02x unkyeswn",
 					CTCM_FUNTAIL, ch->id, sense);
 		fsm_event(ch->fsm, CTC_EVENT_UC_UNKNOWN, ch);
 	}
@@ -381,7 +381,7 @@ static void ccw_unit_check(struct channel *ch, __u8 sense)
 
 int ctcm_ch_alloc_buffer(struct channel *ch)
 {
-	clear_normalized_cda(&ch->ccw[1]);
+	clear_yesrmalized_cda(&ch->ccw[1]);
 	ch->trans_skb = __dev_alloc_skb(ch->max_bufsize, GFP_ATOMIC | GFP_DMA);
 	if (ch->trans_skb == NULL) {
 		CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
@@ -393,11 +393,11 @@ int ctcm_ch_alloc_buffer(struct channel *ch)
 	}
 
 	ch->ccw[1].count = ch->max_bufsize;
-	if (set_normalized_cda(&ch->ccw[1], ch->trans_skb->data)) {
+	if (set_yesrmalized_cda(&ch->ccw[1], ch->trans_skb->data)) {
 		dev_kfree_skb(ch->trans_skb);
 		ch->trans_skb = NULL;
 		CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
-			"%s(%s): %s set norm_cda failed",
+			"%s(%s): %s set yesrm_cda failed",
 			CTCM_FUNTAIL, ch->id,
 			(CHANNEL_DIRECTION(ch->flags) == CTCM_READ) ?
 				"RX" : "TX");
@@ -532,7 +532,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	}
 
 	ch->ccw[4].count = block_len;
-	if (set_normalized_cda(&ch->ccw[4], skb->data)) {
+	if (set_yesrmalized_cda(&ch->ccw[4], skb->data)) {
 		/*
 		 * idal allocation failed, try via copying to
 		 * trans_skb. trans_skb usually has a pre-allocated
@@ -608,7 +608,7 @@ static void ctcmpc_send_sweep_req(struct channel *rch)
 	grp = priv->mpcg;
 	ch = priv->channel[CTCM_WRITE];
 
-	/* sweep processing is not complete until response and request */
+	/* sweep processing is yest complete until response and request */
 	/* has completed for all read channels in group		       */
 	if (grp->in_sweep == 0) {
 		grp->in_sweep = 1;
@@ -620,7 +620,7 @@ static void ctcmpc_send_sweep_req(struct channel *rch)
 
 	if (sweep_skb == NULL)	{
 		/* rc = -ENOMEM; */
-				goto nomem;
+				goto yesmem;
 	}
 
 	header = kmalloc(TH_SWEEP_LENGTH, gfp_type());
@@ -628,7 +628,7 @@ static void ctcmpc_send_sweep_req(struct channel *rch)
 	if (!header) {
 		dev_kfree_skb_any(sweep_skb);
 		/* rc = -ENOMEM; */
-				goto nomem;
+				goto yesmem;
 	}
 
 	header->th.th_seg	= 0x00 ;
@@ -649,7 +649,7 @@ static void ctcmpc_send_sweep_req(struct channel *rch)
 
 	return;
 
-nomem:
+yesmem:
 	grp->in_sweep = 0;
 	ctcm_clear_busy(dev);
 	fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
@@ -684,7 +684,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 
 		if (!p_header) {
 			spin_unlock_irqrestore(&ch->collect_lock, saveflags);
-				goto nomem_exit;
+				goto yesmem_exit;
 		}
 
 		p_header->pdu_offset = skb->len;
@@ -726,7 +726,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	if (hi) {
 		nskb = __dev_alloc_skb(skb->len, GFP_ATOMIC | GFP_DMA);
 		if (!nskb) {
-			goto nomem_exit;
+			goto yesmem_exit;
 		} else {
 			skb_put_data(nskb, skb->data, skb->len);
 			refcount_inc(&nskb->users);
@@ -739,7 +739,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	p_header = kmalloc(PDU_HEADER_LENGTH, gfp_type());
 
 	if (!p_header)
-		goto nomem_exit;
+		goto yesmem_exit;
 
 	p_header->pdu_offset = skb->len;
 	p_header->pdu_proto = 0x01;
@@ -770,7 +770,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 
 	header = kmalloc(TH_HEADER_LENGTH, gfp_type());
 	if (!header)
-		goto nomem_exit;
+		goto yesmem_exit;
 
 	header->th_seg = 0x00;
 	header->th_ch_flag = TH_HAS_PDU;  /* Normal data */
@@ -793,7 +793,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	CTCM_D3_DUMP((char *)skb->data, min_t(int, 32, skb->len));
 
 	ch->ccw[4].count = skb->len;
-	if (set_normalized_cda(&ch->ccw[4], skb->data)) {
+	if (set_yesrmalized_cda(&ch->ccw[4], skb->data)) {
 		/*
 		 * idal allocation failed, try via copying to trans_skb.
 		 * trans_skb usually has a pre-allocated idal.
@@ -803,7 +803,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 			 * Remove our header.
 			 * It gets added again on retransmit.
 			 */
-				goto nomem_exit;
+				goto yesmem_exit;
 		}
 
 		skb_reset_tail_pointer(ch->trans_skb);
@@ -849,7 +849,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 		ctcmpc_send_sweep_req(ch);
 
 	goto done;
-nomem_exit:
+yesmem_exit:
 	CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_CRIT,
 			"%s(%s): MEMORY allocation ERROR\n",
 			CTCM_FUNTAIL, ch->id);
@@ -895,7 +895,7 @@ static int ctcm_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/*
-	 * If channels are not running, try to restart them
+	 * If channels are yest running, try to restart them
 	 * and throw away packet.
 	 */
 	if (fsm_getstate(priv->fsm) != DEV_STATE_RUNNING) {
@@ -965,8 +965,8 @@ static int ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/*
-	 * If channels are not running,
-	 * notify anybody about a link failure and throw
+	 * If channels are yest running,
+	 * yestify anybody about a link failure and throw
 	 * away packet.
 	 */
 	if ((fsm_getstate(priv->fsm) != DEV_STATE_RUNNING) ||
@@ -1024,7 +1024,7 @@ done:
  * returns 0 on success, -EINVAL if MTU is out of valid range.
  *         (valid range is 576 .. 65527). If VM is on the
  *         remote side, maximum MTU is 32760, however this is
- *         not checked here.
+ *         yest checked here.
  */
 static int ctcm_change_mtu(struct net_device *dev, int new_mtu)
 {
@@ -1218,7 +1218,7 @@ static void ctcm_irq_handler(struct ccw_device *cdev,
 			"%s(%s) unsolicited irq: c-%02x d-%02x\n",
 			CTCM_FUNTAIL, dev_name(&cdev->dev), cstat, dstat);
 		dev_warn(&cdev->dev,
-			"The adapter received a non-specific IRQ\n");
+			"The adapter received a yesn-specific IRQ\n");
 		return;
 	}
 
@@ -1363,7 +1363,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 	if (IS_MPC(priv)) {
 		ch->discontact_th = kzalloc(TH_HEADER_LENGTH, gfp_type());
 		if (ch->discontact_th == NULL)
-					goto nomem_return;
+					goto yesmem_return;
 
 		ch->discontact_th->th_blk_flag = TH_DISCONTACT;
 		tasklet_init(&ch->ch_disc_tasklet,
@@ -1377,7 +1377,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 
 	ch->ccw = kcalloc(ccw_num, sizeof(struct ccw1), GFP_KERNEL | GFP_DMA);
 	if (ch->ccw == NULL)
-					goto nomem_return;
+					goto yesmem_return;
 
 	ch->cdev = cdev;
 	snprintf(ch->id, CTCM_ID_SIZE, "ch-%s", dev_name(&cdev->dev));
@@ -1390,17 +1390,17 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 	 *           0: prepare
 	 *           1: read or write (depending on direction) with fixed
 	 *              buffer (idal allocated once when buffer is allocated)
-	 *           2: nop
+	 *           2: yesp
 	 * ccw[3..5] (Channel program for direct write of packets)
 	 *           3: prepare
 	 *           4: write (idal allocated on every write).
-	 *           5: nop
+	 *           5: yesp
 	 * ccw[6..7] (Channel program for initial channel setup):
 	 *           6: set extended mode
-	 *           7: nop
+	 *           7: yesp
 	 *
 	 * ch->ccw[0..5] are initialized in ch_action_start because
-	 * the channel's direction is yet unknown here.
+	 * the channel's direction is yet unkyeswn here.
 	 *
 	 * ccws used for xid2 negotiations
 	 *  ch-ccw[8-14] need to be used for the XID exchange either
@@ -1411,7 +1411,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 	 *	     11: read th from secondary
 	 *	     12: read XID   from secondary
 	 *	     13: read 4 byte ID
-	 *	     14: nop
+	 *	     14: yesp
 	 *    Y side XID Processing
 	 *	     8:  sense
 	 *       9:  read th
@@ -1419,12 +1419,12 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 	 *	     11: write th
 	 *	     12: write XID
 	 *	     13: write 4 byte ID
-	 *	     14: nop
+	 *	     14: yesp
 	 *
-	 *  ccws used for double noop due to VM timing issues
+	 *  ccws used for double yesop due to VM timing issues
 	 *  which result in unrecoverable Busy on channel
-	 *       15: nop
-	 *       16: nop
+	 *       15: yesp
+	 *       16: yesp
 	 */
 	ch->ccw[6].cmd_code	= CCW_CMD_SET_EXTENDED;
 	ch->ccw[6].flags	= CCW_FLAG_SLI;
@@ -1452,13 +1452,13 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 				ch_fsm_len, GFP_KERNEL);
 	}
 	if (ch->fsm == NULL)
-				goto nomem_return;
+				goto yesmem_return;
 
 	fsm_newstate(ch->fsm, CTC_STATE_IDLE);
 
 	ch->irb = kzalloc(sizeof(struct irb), GFP_KERNEL);
 	if (ch->irb == NULL)
-				goto nomem_return;
+				goto yesmem_return;
 
 	while (*c && ctcm_less_than((*c)->id, ch->id))
 		c = &(*c)->next;
@@ -1485,10 +1485,10 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 	*c = ch;
 	return 0;
 
-nomem_return:
+yesmem_return:
 	rc = -ENOMEM;
 
-free_return:	/* note that all channel pointers are 0 or valid */
+free_return:	/* yeste that all channel pointers are 0 or valid */
 	kfree(ch->ccw);
 	kfree(ch->discontact_th);
 	kfree_fsm(ch->fsm);
@@ -1798,7 +1798,7 @@ static const struct attribute_group *ctcm_drv_attr_groups[] = {
 /*
  * Prepare to be unloaded. Free IRQ's and release all resources.
  * This is called just before this module is unloaded. It is
- * not called, if the usage count is !0, so we don't need to check
+ * yest called, if the usage count is !0, so we don't need to check
  * for that.
  */
 static void __exit ctcm_exit(void)

@@ -8,7 +8,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <linux/list_sort.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include <asm/kvm_hyp.h>
 
@@ -92,13 +92,13 @@ struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 {
 	/* SGIs and PPIs */
 	if (intid <= VGIC_MAX_PRIVATE) {
-		intid = array_index_nospec(intid, VGIC_MAX_PRIVATE + 1);
+		intid = array_index_yesspec(intid, VGIC_MAX_PRIVATE + 1);
 		return &vcpu->arch.vgic_cpu.private_irqs[intid];
 	}
 
 	/* SPIs */
 	if (intid < (kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS)) {
-		intid = array_index_nospec(intid, kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS);
+		intid = array_index_yesspec(intid, kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS);
 		return &kvm->arch.vgic.spis[intid - VGIC_NR_PRIVATE_IRQS];
 	}
 
@@ -221,7 +221,7 @@ static struct kvm_vcpu *vgic_target_oracle(struct vgic_irq *irq)
 		return irq->vcpu ? : irq->target_vcpu;
 
 	/*
-	 * If the IRQ is not active but enabled and pending, we should direct
+	 * If the IRQ is yest active but enabled and pending, we should direct
 	 * it to its configured target VCPU.
 	 * If the distributor is disabled, pending interrupts shouldn't be
 	 * forwarded.
@@ -234,7 +234,7 @@ static struct kvm_vcpu *vgic_target_oracle(struct vgic_irq *irq)
 		return irq->target_vcpu;
 	}
 
-	/* If neither active nor pending and enabled, then this IRQ should not
+	/* If neither active yesr pending and enabled, then this IRQ should yest
 	 * be queued to any VCPU.
 	 */
 	return NULL;
@@ -246,7 +246,7 @@ static struct kvm_vcpu *vgic_target_oracle(struct vgic_irq *irq)
  * LRs.
  *
  * A hard rule is that active interrupts can never be pushed out of the LRs
- * (and therefore take priority) since we cannot reliably trap on deactivation
+ * (and therefore take priority) since we canyest reliably trap on deactivation
  * of IRQs and therefore they have to be present in the LRs.
  *
  * Otherwise things should be sorted by the priority field and the GIC
@@ -343,19 +343,19 @@ retry:
 	if (irq->vcpu || !vcpu) {
 		/*
 		 * If this IRQ is already on a VCPU's ap_list, then it
-		 * cannot be moved or modified and there is no more work for
+		 * canyest be moved or modified and there is yes more work for
 		 * us to do.
 		 *
-		 * Otherwise, if the irq is not pending and enabled, it does
-		 * not need to be inserted into an ap_list and there is also
-		 * no more work for us to do.
+		 * Otherwise, if the irq is yest pending and enabled, it does
+		 * yest need to be inserted into an ap_list and there is also
+		 * yes more work for us to do.
 		 */
 		raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
 
 		/*
 		 * We have to kick the VCPU here, because we could be
 		 * queueing an edge-triggered interrupt for which we
-		 * get no EOI maintenance interrupt. In that case,
+		 * get yes EOI maintenance interrupt. In that case,
 		 * while the IRQ is already on the VCPU's AP list, the
 		 * VCPU could have EOI'ed the original interrupt and
 		 * won't see this one until it exits for some other
@@ -384,9 +384,9 @@ retry:
 	 *
 	 * There are two cases:
 	 * 1) The irq lost its pending state or was disabled behind our
-	 *    backs and/or it was queued to another VCPU's ap_list.
+	 *    backs and/or it was queued to ayesther VCPU's ap_list.
 	 * 2) Someone changed the affinity on this irq behind our
-	 *    backs and we are now holding the wrong ap_list_lock.
+	 *    backs and we are yesw holding the wrong ap_list_lock.
 	 *
 	 * In both cases, drop the locks and retry.
 	 */
@@ -402,7 +402,7 @@ retry:
 
 	/*
 	 * Grab a reference to the irq to reflect the fact that it is
-	 * now in the ap_list.
+	 * yesw in the ap_list.
 	 */
 	vgic_get_irq_kref(irq);
 	list_add_tail(&irq->ap_list, &vcpu->arch.vgic_cpu.ap_list_head);
@@ -423,14 +423,14 @@ retry:
  * @cpuid:   The CPU for PPIs
  * @intid:   The INTID to inject a new state to.
  * @level:   Edge-triggered:  true:  to trigger the interrupt
- *			      false: to ignore the call
+ *			      false: to igyesre the call
  *	     Level-sensitive  true:  raise the input signal
  *			      false: lower the input signal
  * @owner:   The opaque pointer to the owner of the IRQ being raised to verify
  *           that the caller is allowed to inject this IRQ.  Userspace
  *           injections will have owner == NULL.
  *
- * The VGIC is not concerned with devices being active-LOW or active-HIGH for
+ * The VGIC is yest concerned with devices being active-LOW or active-HIGH for
  * level-sensitive interrupts.  You can think of the level parameter as 1
  * being HIGH and 0 being LOW and all devices being active-HIGH.
  */
@@ -489,7 +489,7 @@ static int kvm_vgic_map_irq(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
 	 */
 	desc = irq_to_desc(host_irq);
 	if (!desc) {
-		kvm_err("%s: no interrupt descriptor\n", __func__);
+		kvm_err("%s: yes interrupt descriptor\n", __func__);
 		return -EINVAL;
 	}
 	data = irq_desc_get_irq_data(desc);
@@ -580,7 +580,7 @@ int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, unsigned int vintid)
  * @intid:  The virtual INTID identifying the interrupt (PPI or SPI)
  * @owner:  Opaque pointer to the owner
  *
- * Returns 0 if intid is not already used by another in-kernel device and the
+ * Returns 0 if intid is yest already used by ayesther in-kernel device and the
  * owner is set, otherwise returns an error code.
  */
 int kvm_vgic_set_owner(struct kvm_vcpu *vcpu, unsigned int intid, void *owner)
@@ -592,7 +592,7 @@ int kvm_vgic_set_owner(struct kvm_vcpu *vcpu, unsigned int intid, void *owner)
 	if (!vgic_initialized(vcpu->kvm))
 		return -EAGAIN;
 
-	/* SGIs and LPIs cannot be wired up to any device */
+	/* SGIs and LPIs canyest be wired up to any device */
 	if (!irq_is_ppi(intid) && !vgic_valid_spi(vcpu->kvm, intid))
 		return -EINVAL;
 
@@ -608,7 +608,7 @@ int kvm_vgic_set_owner(struct kvm_vcpu *vcpu, unsigned int intid, void *owner)
 }
 
 /**
- * vgic_prune_ap_list - Remove non-relevant interrupts from the list
+ * vgic_prune_ap_list - Remove yesn-relevant interrupts from the list
  *
  * @vcpu: The VCPU pointer
  *
@@ -689,7 +689,7 @@ retry:
 		 * changed while the interrupt was unlocked, and we
 		 * need to replay this.
 		 *
-		 * In all cases, we cannot trust the list not to have
+		 * In all cases, we canyest trust the list yest to have
 		 * changed, so we restart from the beginning.
 		 */
 		if (target_vcpu == vgic_target_oracle(irq)) {
@@ -881,8 +881,8 @@ static inline void vgic_restore_state(struct kvm_vcpu *vcpu)
 void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * If there are no virtual interrupts active or pending for this
-	 * VCPU, then there is no work to do and we can bail out without
+	 * If there are yes virtual interrupts active or pending for this
+	 * VCPU, then there is yes work to do and we can bail out without
 	 * taking any lock.  There is a potential race with someone injecting
 	 * interrupts to the VCPU, but it is a benign race as the VCPU will
 	 * either observe the new interrupt before or after doing this check,

@@ -18,12 +18,12 @@ config BLK_DEV_MD
 	---help---
 	  This driver lets you combine several hard disk partitions into one
 	  logical block device. This can be used to simply append one
-	  partition to another one or to combine several redundant hard disks
+	  partition to ayesther one or to combine several redundant hard disks
 	  into a RAID1/4/5 device so as to provide protection against hard
 	  disk failures. This is called "Software RAID" since the combining of
 	  the partitions is done by the kernel. "Hardware RAID" means that the
 	  combining is done by a dedicated controller; if you have such a
-	  controller, you do not need to say Y here.
+	  controller, you do yest need to say Y here.
 
 	  More information about Software RAID on Linux is contained in the
 	  Software RAID mini-HOWTO, available from
@@ -162,7 +162,7 @@ config MD_MULTIPATH
 	depends on BLK_DEV_MD
 	help
 	  MD_MULTIPATH provides a simple multi-path personality for use
-	  the MD framework.  It is not under active development.  New
+	  the MD framework.  It is yest under active development.  New
 	  projects should consider using DM_MULTIPATH which has more
 	  features and more testing.
 
@@ -186,10 +186,10 @@ config MD_CLUSTER
 	---help---
 	Clustering support for MD devices. This enables locking and
 	synchronization across multiple systems on the cluster, so all
-	nodes in the cluster can access the MD devices simultaneously.
+	yesdes in the cluster can access the MD devices simultaneously.
 
 	This brings the redundancy (and uptime) of RAID levels across the
-	nodes of the cluster. Currently, it can work with raid1 and raid10
+	yesdes of the cluster. Currently, it can work with raid1 and raid10
 	(limited support).
 
 	If unsure, say N.
@@ -548,7 +548,7 @@ config DM_LOG_WRITES
 	depends on BLK_DEV_DM
 	---help---
 	  This device-mapper target takes two devices, one device to use
-	  normally, one to log all write operations done to the first device.
+	  yesrmally, one to log all write operations done to the first device.
 	  This is for use by file system developers wishing to verify that
 	  their fs is writing a consistent file system at all times by allowing
 	  them to replay the log in a variety of ways and to check the
@@ -587,7 +587,7 @@ config DM_ZONED
 	  block device and exposes most of its capacity as a regular block
 	  device (drive-managed zoned block device) without any write
 	  constraints. This is mainly intended for use with file systems that
-	  do not natively support zoned block devices but still want to
+	  do yest natively support zoned block devices but still want to
 	  benefit from the increased capacity offered by SMR disks. Other uses
 	  by applications using raw block devices (for example object stores)
 	  are also possible.

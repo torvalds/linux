@@ -16,7 +16,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/printk.h>
 #include <linux/atomic.h>
  
@@ -96,8 +96,8 @@ void oprofile_arch_exit(void);
 void oprofile_add_sample(struct pt_regs * const regs, unsigned long event);
 
 /**
- * Add an extended sample.  Use this when the PC is not from the regs, and
- * we cannot determine if we're in kernel mode from the regs.
+ * Add an extended sample.  Use this when the PC is yest from the regs, and
+ * we canyest determine if we're in kernel mode from the regs.
  *
  * This function does perform a backtrace.
  *
@@ -112,7 +112,7 @@ void oprofile_add_ext_hw_sample(unsigned long pc, struct pt_regs * const regs,
 	unsigned long event, int is_kernel,
 	struct task_struct *task);
 
-/* Use this instead when the PC value is not from the regs. Doesn't
+/* Use this instead when the PC value is yest from the regs. Doesn't
  * backtrace. */
 void oprofile_add_pc(unsigned long pc, int is_kernel, unsigned long event);
 
@@ -200,7 +200,7 @@ char *op_name_from_perf_id(void);
 #else
 static inline int __init oprofile_perf_init(struct oprofile_operations *ops)
 {
-	pr_info("oprofile: hardware counters not available\n");
+	pr_info("oprofile: hardware counters yest available\n");
 	return -ENODEV;
 }
 static inline void oprofile_perf_exit(void) { }

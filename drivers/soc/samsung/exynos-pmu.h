@@ -13,13 +13,13 @@
 
 #define PMU_TABLE_END	(-1U)
 
-struct exynos_pmu_conf {
+struct exyyess_pmu_conf {
 	unsigned int offset;
 	u8 val[NUM_SYS_POWERDOWN];
 };
 
-struct exynos_pmu_data {
-	const struct exynos_pmu_conf *pmu_config;
+struct exyyess_pmu_data {
+	const struct exyyess_pmu_conf *pmu_config;
 
 	void (*pmu_init)(void);
 	void (*powerdown_conf)(enum sys_powerdown);
@@ -30,11 +30,11 @@ extern void __iomem *pmu_base_addr;
 
 #ifdef CONFIG_EXYNOS_PMU_ARM_DRIVERS
 /* list of all exported SoC specific data */
-extern const struct exynos_pmu_data exynos3250_pmu_data;
-extern const struct exynos_pmu_data exynos4210_pmu_data;
-extern const struct exynos_pmu_data exynos4412_pmu_data;
-extern const struct exynos_pmu_data exynos5250_pmu_data;
-extern const struct exynos_pmu_data exynos5420_pmu_data;
+extern const struct exyyess_pmu_data exyyess3250_pmu_data;
+extern const struct exyyess_pmu_data exyyess4210_pmu_data;
+extern const struct exyyess_pmu_data exyyess4412_pmu_data;
+extern const struct exyyess_pmu_data exyyess5250_pmu_data;
+extern const struct exyyess_pmu_data exyyess5420_pmu_data;
 #endif
 
 extern void pmu_raw_writel(u32 val, u32 offset);

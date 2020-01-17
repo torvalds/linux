@@ -411,7 +411,7 @@ static ssize_t cpufv_disabled_store(struct device *dev,
 	switch (value) {
 	case 0:
 		if (eeepc->cpufv_disabled)
-			pr_warn("cpufv enabled (not officially supported on this model)\n");
+			pr_warn("cpufv enabled (yest officially supported on this model)\n");
 		eeepc->cpufv_disabled = false;
 		return count;
 	case 1:
@@ -631,18 +631,18 @@ out_unlock:
 	mutex_unlock(&eeepc->hotplug_lock);
 }
 
-static void eeepc_rfkill_hotplug_update(struct eeepc_laptop *eeepc, char *node)
+static void eeepc_rfkill_hotplug_update(struct eeepc_laptop *eeepc, char *yesde)
 {
 	acpi_status status = AE_OK;
 	acpi_handle handle;
 
-	status = acpi_get_handle(NULL, node, &handle);
+	status = acpi_get_handle(NULL, yesde, &handle);
 
 	if (ACPI_SUCCESS(status))
 		eeepc_rfkill_hotplug(eeepc, handle);
 }
 
-static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
+static void eeepc_rfkill_yestify(acpi_handle handle, u32 event, void *data)
 {
 	struct eeepc_laptop *eeepc = data;
 
@@ -652,23 +652,23 @@ static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
 	eeepc_rfkill_hotplug(eeepc, handle);
 }
 
-static int eeepc_register_rfkill_notifier(struct eeepc_laptop *eeepc,
-					  char *node)
+static int eeepc_register_rfkill_yestifier(struct eeepc_laptop *eeepc,
+					  char *yesde)
 {
 	acpi_status status;
 	acpi_handle handle;
 
-	status = acpi_get_handle(NULL, node, &handle);
+	status = acpi_get_handle(NULL, yesde, &handle);
 
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	status = acpi_install_notify_handler(handle,
+	status = acpi_install_yestify_handler(handle,
 					     ACPI_SYSTEM_NOTIFY,
-					     eeepc_rfkill_notify,
+					     eeepc_rfkill_yestify,
 					     eeepc);
 	if (ACPI_FAILURE(status))
-		pr_warn("Failed to register notify on %s\n", node);
+		pr_warn("Failed to register yestify on %s\n", yesde);
 
 	/*
 	 * Refresh pci hotplug in case the rfkill state was
@@ -678,27 +678,27 @@ static int eeepc_register_rfkill_notifier(struct eeepc_laptop *eeepc,
 	return 0;
 }
 
-static void eeepc_unregister_rfkill_notifier(struct eeepc_laptop *eeepc,
-					     char *node)
+static void eeepc_unregister_rfkill_yestifier(struct eeepc_laptop *eeepc,
+					     char *yesde)
 {
 	acpi_status status = AE_OK;
 	acpi_handle handle;
 
-	status = acpi_get_handle(NULL, node, &handle);
+	status = acpi_get_handle(NULL, yesde, &handle);
 
 	if (ACPI_FAILURE(status))
 		return;
 
-	status = acpi_remove_notify_handler(handle,
+	status = acpi_remove_yestify_handler(handle,
 					     ACPI_SYSTEM_NOTIFY,
-					     eeepc_rfkill_notify);
+					     eeepc_rfkill_yestify);
 	if (ACPI_FAILURE(status))
-		pr_err("Error removing rfkill notify handler %s\n",
-			node);
+		pr_err("Error removing rfkill yestify handler %s\n",
+			yesde);
 		/*
 		 * Refresh pci hotplug in case the rfkill
 		 * state was changed after
-		 * eeepc_unregister_rfkill_notifier()
+		 * eeepc_unregister_rfkill_yestifier()
 		 */
 	eeepc_rfkill_hotplug(eeepc, handle);
 }
@@ -798,9 +798,9 @@ static char EEEPC_RFKILL_NODE_3[] = "\\_SB.PCI0.P0P7";
 
 static void eeepc_rfkill_exit(struct eeepc_laptop *eeepc)
 {
-	eeepc_unregister_rfkill_notifier(eeepc, EEEPC_RFKILL_NODE_1);
-	eeepc_unregister_rfkill_notifier(eeepc, EEEPC_RFKILL_NODE_2);
-	eeepc_unregister_rfkill_notifier(eeepc, EEEPC_RFKILL_NODE_3);
+	eeepc_unregister_rfkill_yestifier(eeepc, EEEPC_RFKILL_NODE_1);
+	eeepc_unregister_rfkill_yestifier(eeepc, EEEPC_RFKILL_NODE_2);
+	eeepc_unregister_rfkill_yestifier(eeepc, EEEPC_RFKILL_NODE_3);
 	if (eeepc->wlan_rfkill) {
 		rfkill_unregister(eeepc->wlan_rfkill);
 		rfkill_destroy(eeepc->wlan_rfkill);
@@ -872,9 +872,9 @@ static int eeepc_rfkill_init(struct eeepc_laptop *eeepc)
 	if (result == -EBUSY)
 		result = 0;
 
-	eeepc_register_rfkill_notifier(eeepc, EEEPC_RFKILL_NODE_1);
-	eeepc_register_rfkill_notifier(eeepc, EEEPC_RFKILL_NODE_2);
-	eeepc_register_rfkill_notifier(eeepc, EEEPC_RFKILL_NODE_3);
+	eeepc_register_rfkill_yestifier(eeepc, EEEPC_RFKILL_NODE_1);
+	eeepc_register_rfkill_yestifier(eeepc, EEEPC_RFKILL_NODE_2);
+	eeepc_register_rfkill_yestifier(eeepc, EEEPC_RFKILL_NODE_3);
 
 exit:
 	if (result && result != -ENODEV)
@@ -1078,7 +1078,7 @@ static int eeepc_hwmon_init(struct eeepc_laptop *eeepc)
 	hwmon = devm_hwmon_device_register_with_groups(dev, "eeepc", NULL,
 						       hwmon_groups);
 	if (IS_ERR(hwmon)) {
-		pr_err("Could not register eeepc hwmon device\n");
+		pr_err("Could yest register eeepc hwmon device\n");
 		return PTR_ERR(hwmon);
 	}
 	return 0;
@@ -1111,7 +1111,7 @@ static const struct backlight_ops eeepcbl_ops = {
 	.update_status = update_bl_status,
 };
 
-static int eeepc_backlight_notify(struct eeepc_laptop *eeepc)
+static int eeepc_backlight_yestify(struct eeepc_laptop *eeepc)
 {
 	struct backlight_device *bd = eeepc->backlight_device;
 	int old = bd->props.brightness;
@@ -1133,7 +1133,7 @@ static int eeepc_backlight_init(struct eeepc_laptop *eeepc)
 				       &eeepc->platform_device->dev, eeepc,
 				       &eeepcbl_ops, &props);
 	if (IS_ERR(bd)) {
-		pr_err("Could not register eeepc backlight device\n");
+		pr_err("Could yest register eeepc backlight device\n");
 		eeepc->backlight_device = NULL;
 		return PTR_ERR(bd);
 	}
@@ -1198,15 +1198,15 @@ static void eeepc_input_exit(struct eeepc_laptop *eeepc)
 /*
  * ACPI driver
  */
-static void eeepc_input_notify(struct eeepc_laptop *eeepc, int event)
+static void eeepc_input_yestify(struct eeepc_laptop *eeepc, int event)
 {
 	if (!eeepc->inputdev)
 		return;
 	if (!sparse_keymap_report_event(eeepc->inputdev, event, 1, true))
-		pr_info("Unknown key %x pressed\n", event);
+		pr_info("Unkyeswn key %x pressed\n", event);
 }
 
-static void eeepc_acpi_notify(struct acpi_device *device, u32 event)
+static void eeepc_acpi_yestify(struct acpi_device *device, u32 event)
 {
 	struct eeepc_laptop *eeepc = acpi_driver_data(device);
 	int old_brightness, new_brightness;
@@ -1221,16 +1221,16 @@ static void eeepc_acpi_notify(struct acpi_device *device, u32 event)
 
 	/* Brightness events are special */
 	if (event < NOTIFY_BRN_MIN || event > NOTIFY_BRN_MAX) {
-		eeepc_input_notify(eeepc, event);
+		eeepc_input_yestify(eeepc, event);
 		return;
 	}
 
-	/* Ignore them completely if the acpi video driver is used */
+	/* Igyesre them completely if the acpi video driver is used */
 	if (!eeepc->backlight_device)
 		return;
 
 	/* Update the backlight device. */
-	old_brightness = eeepc_backlight_notify(eeepc);
+	old_brightness = eeepc_backlight_yestify(eeepc);
 
 	/* Convert event to keypress (obsolescent hack) */
 	new_brightness = event - NOTIFY_BRN_MIN;
@@ -1241,11 +1241,11 @@ static void eeepc_acpi_notify(struct acpi_device *device, u32 event)
 		event = NOTIFY_BRN_MAX; /* brightness up */
 	} else {
 		/*
-		 * no change in brightness - already at min/max,
-		 * event will be desired value (or else ignored)
+		 * yes change in brightness - already at min/max,
+		 * event will be desired value (or else igyesred)
 		 */
 	}
-	eeepc_input_notify(eeepc, event);
+	eeepc_input_yestify(eeepc, event);
 }
 
 static void eeepc_dmi_check(struct eeepc_laptop *eeepc)
@@ -1259,14 +1259,14 @@ static void eeepc_dmi_check(struct eeepc_laptop *eeepc)
 	/*
 	 * Blacklist for setting cpufv (cpu speed).
 	 *
-	 * EeePC 4G ("701") implements CFVS, but it is not supported
+	 * EeePC 4G ("701") implements CFVS, but it is yest supported
 	 * by the pre-installed OS, and the original option to change it
 	 * in the BIOS setup screen was removed in later versions.
 	 *
 	 * Judging by the lack of "Super Hybrid Engine" on Asus product pages,
 	 * this applies to all "701" models (4G/4G Surf/2G Surf).
 	 *
-	 * So Asus made a deliberate decision not to support it on this model.
+	 * So Asus made a deliberate decision yest to support it on this model.
 	 * We have several reports that using it can cause the system to hang
 	 *
 	 * The hang has also been reported on a "702" (Model name "8G"?).
@@ -1277,7 +1277,7 @@ static void eeepc_dmi_check(struct eeepc_laptop *eeepc)
 	 */
 	if (strcmp(model, "701") == 0 || strcmp(model, "702") == 0) {
 		eeepc->cpufv_disabled = true;
-		pr_info("model %s does not officially support setting cpu speed\n",
+		pr_info("model %s does yest officially support setting cpu speed\n",
 			model);
 		pr_info("cpufv disabled to avoid instability\n");
 	}
@@ -1286,7 +1286,7 @@ static void eeepc_dmi_check(struct eeepc_laptop *eeepc)
 	 * Blacklist for wlan hotplug
 	 *
 	 * Eeepc 1005HA doesn't work like others models and don't need the
-	 * hotplug code. In fact, current hotplug code seems to unplug another
+	 * hotplug code. In fact, current hotplug code seems to unplug ayesther
 	 * device...
 	 */
 	if (strcmp(model, "1005HA") == 0 || strcmp(model, "1201N") == 0 ||
@@ -1300,11 +1300,11 @@ static void cmsg_quirk(struct eeepc_laptop *eeepc, int cm, const char *name)
 {
 	int dummy;
 
-	/* Some BIOSes do not report cm although it is available.
-	   Check if cm_getv[cm] works and, if yes, assume cm should be set. */
+	/* Some BIOSes do yest report cm although it is available.
+	   Check if cm_getv[cm] works and, if no, assume cm should be set. */
 	if (!(eeepc->cm_supported & (1 << cm))
 	    && !read_acpi_int(eeepc->handle, cm_getv[cm], &dummy)) {
-		pr_info("%s (%x) not reported by BIOS, enabling anyway\n",
+		pr_info("%s (%x) yest reported by BIOS, enabling anyway\n",
 			name, 1 << cm);
 		eeepc->cm_supported |= 1 << cm;
 	}
@@ -1327,12 +1327,12 @@ static int eeepc_acpi_init(struct eeepc_laptop *eeepc)
 	if (result)
 		return result;
 	if (!eeepc->device->status.present) {
-		pr_err("Hotkey device not present, aborting\n");
+		pr_err("Hotkey device yest present, aborting\n");
 		return -ENODEV;
 	}
 
 	init_flags = DISABLE_ASL_WLAN | DISABLE_ASL_DISPLAYSWITCH;
-	pr_notice("Hotkey init flags 0x%x\n", init_flags);
+	pr_yestice("Hotkey init flags 0x%x\n", init_flags);
 
 	if (write_acpi_int(eeepc->handle, "INIT", init_flags)) {
 		pr_err("Hotkey initialization failed\n");
@@ -1353,8 +1353,8 @@ static int eeepc_acpi_init(struct eeepc_laptop *eeepc)
 static void eeepc_enable_camera(struct eeepc_laptop *eeepc)
 {
 	/*
-	 * If the following call to set_acpi() fails, it's because there's no
-	 * camera so we can ignore the error.
+	 * If the following call to set_acpi() fails, it's because there's yes
+	 * camera so we can igyesre the error.
 	 */
 	if (get_acpi(eeepc, CM_ASL_CAMERA) == 0)
 		set_acpi(eeepc, CM_ASL_CAMERA, 1);
@@ -1367,7 +1367,7 @@ static int eeepc_acpi_add(struct acpi_device *device)
 	struct eeepc_laptop *eeepc;
 	int result;
 
-	pr_notice(EEEPC_LAPTOP_NAME "\n");
+	pr_yestice(EEEPC_LAPTOP_NAME "\n");
 	eeepc = kzalloc(sizeof(struct eeepc_laptop), GFP_KERNEL);
 	if (!eeepc)
 		return -ENOMEM;
@@ -1472,7 +1472,7 @@ static struct acpi_driver eeepc_acpi_driver = {
 	.ops = {
 		.add = eeepc_acpi_add,
 		.remove = eeepc_acpi_remove,
-		.notify = eeepc_acpi_notify,
+		.yestify = eeepc_acpi_yestify,
 	},
 };
 
@@ -1491,12 +1491,12 @@ static int __init eeepc_laptop_init(void)
 
 	if (!eeepc_device_present) {
 		result = -ENODEV;
-		goto fail_no_device;
+		goto fail_yes_device;
 	}
 
 	return 0;
 
-fail_no_device:
+fail_yes_device:
 	acpi_bus_unregister_driver(&eeepc_acpi_driver);
 fail_acpi_driver:
 	platform_driver_unregister(&platform_driver);

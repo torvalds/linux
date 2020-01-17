@@ -169,12 +169,12 @@ static int __init omapdss_init_fbdev(void)
 		.dsi_enable_pads = omap_dsi_enable_pads,
 		.dsi_disable_pads = omap_dsi_disable_pads,
 	};
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int r;
 
 	board_data.version = omap_display_get_version();
 	if (board_data.version == OMAPDSS_VER_UNKNOWN) {
-		pr_err("DSS not supported on this SoC\n");
+		pr_err("DSS yest supported on this SoC\n");
 		return -ENODEV;
 	}
 
@@ -208,9 +208,9 @@ static int __init omapdss_init_fbdev(void)
 	}
 
 	/* add DSI info for omap4 */
-	node = of_find_node_by_name(NULL, "omap4_padconf_global");
-	if (node)
-		omap4_dsi_mux_syscon = syscon_node_to_regmap(node);
+	yesde = of_find_yesde_by_name(NULL, "omap4_padconf_global");
+	if (yesde)
+		omap4_dsi_mux_syscon = syscon_yesde_to_regmap(yesde);
 
 	return 0;
 }
@@ -223,16 +223,16 @@ static const char * const omapdss_compat_names[] __initconst = {
 	"ti,dra7-dss",
 };
 
-static struct device_node * __init omapdss_find_dss_of_node(void)
+static struct device_yesde * __init omapdss_find_dss_of_yesde(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(omapdss_compat_names); ++i) {
-		node = of_find_compatible_node(NULL, NULL,
+		yesde = of_find_compatible_yesde(NULL, NULL,
 			omapdss_compat_names[i]);
-		if (node)
-			return node;
+		if (yesde)
+			return yesde;
 	}
 
 	return NULL;
@@ -241,28 +241,28 @@ static struct device_node * __init omapdss_find_dss_of_node(void)
 static int __init omapdss_init_of(void)
 {
 	int r;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct platform_device *pdev;
 
 	/* only create dss helper devices if dss is enabled in the .dts */
 
-	node = omapdss_find_dss_of_node();
-	if (!node)
+	yesde = omapdss_find_dss_of_yesde();
+	if (!yesde)
 		return 0;
 
-	if (!of_device_is_available(node)) {
-		of_node_put(node);
+	if (!of_device_is_available(yesde)) {
+		of_yesde_put(yesde);
 		return 0;
 	}
 
-	pdev = of_find_device_by_node(node);
+	pdev = of_find_device_by_yesde(yesde);
 
 	if (!pdev) {
 		pr_err("Unable to find DSS platform device\n");
 		return -ENODEV;
 	}
 
-	r = of_platform_populate(node, NULL, NULL, &pdev->dev);
+	r = of_platform_populate(yesde, NULL, NULL, &pdev->dev);
 	if (r) {
 		pr_err("Unable to populate DSS submodule devices\n");
 		put_device(&pdev->dev);
@@ -284,12 +284,12 @@ static void dispc_disable_outputs(void)
 
 	oh = omap_hwmod_lookup("dss_dispc");
 	if (!oh) {
-		WARN(1, "display: could not disable outputs during reset - could not find dss_dispc hwmod\n");
+		WARN(1, "display: could yest disable outputs during reset - could yest find dss_dispc hwmod\n");
 		return;
 	}
 
 	if (!oh->dev_attr) {
-		pr_err("display: could not disable outputs during reset due to missing dev_attr\n");
+		pr_err("display: could yest disable outputs during reset due to missing dev_attr\n");
 		return;
 	}
 
@@ -313,7 +313,7 @@ static void dispc_disable_outputs(void)
 	}
 
 	if (!(lcd_en | digit_en | lcd2_en | lcd3_en))
-		return; /* no managers currently enabled */
+		return; /* yes managers currently enabled */
 
 	/*
 	 * If any manager was enabled, we need to disable it before

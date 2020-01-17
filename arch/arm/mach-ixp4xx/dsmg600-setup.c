@@ -3,12 +3,12 @@
  * DSM-G600 board-setup
  *
  * Copyright (C) 2008 Rod Whitby <rod@whitby.id.au>
- * Copyright (C) 2006 Tower Technologies
+ * Copyright (C) 2006 Tower Techyeslogies
  *
  * based on ixdp425-setup.c:
  *      Copyright (C) 2003-2004 MontaVista Software, Inc.
  * based on nslu2-power.c:
- *	Copyright (C) 2005 Tower Technologies
+ *	Copyright (C) 2005 Tower Techyeslogies
  * based on nslu2-io.c:
  *	Copyright (C) 2004 Karen Spearel
  *
@@ -226,7 +226,7 @@ static irqreturn_t dsmg600_reset_handler(int irq, void *dev_id)
 
 static void __init dsmg600_timer_init(void)
 {
-    /* The xtal on this machine is non-standard. */
+    /* The xtal on this machine is yesn-standard. */
     ixp4xx_timer_freq = DSMG600_FREQ;
 
     /* Call standard timer_init function. */
@@ -242,13 +242,13 @@ static int __init dsmg600_gpio_init(void)
 	if (request_irq(gpio_to_irq(DSMG600_RB_GPIO), &dsmg600_reset_handler,
 		IRQF_TRIGGER_LOW, "DSM-G600 reset button", NULL) < 0) {
 
-		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
+		printk(KERN_DEBUG "Reset Button IRQ %d yest available\n",
 			gpio_to_irq(DSMG600_RB_GPIO));
 	}
 
 	/*
 	 * The power button on the D-Link DSM-G600 is on GPIO 15, but
-	 * it cannot handle interrupts on that GPIO line.  So we'll
+	 * it canyest handle interrupts on that GPIO line.  So we'll
 	 * have to poll it with a kernel timer.
 	 */
 
@@ -278,8 +278,8 @@ static void __init dsmg600_init(void)
 	i2c_register_board_info(0, dsmg600_i2c_board_info,
 				ARRAY_SIZE(dsmg600_i2c_board_info));
 
-	/* The UART is required on the DSM-G600 (Redboot cannot use the
-	 * NIC) -- do it here so that it does *not* get removed if
+	/* The UART is required on the DSM-G600 (Redboot canyest use the
+	 * NIC) -- do it here so that it does *yest* get removed if
 	 * platform_add_devices fails!
          */
         (void)platform_device_register(&dsmg600_uart);

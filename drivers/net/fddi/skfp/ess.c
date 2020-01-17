@@ -12,13 +12,13 @@
 
 /*
  * *******************************************************************
- * This SBA code implements the Synchronous Bandwidth Allocation
- * functions described in the "FDDI Synchronous Forum Implementer's
+ * This SBA code implements the Synchroyesus Bandwidth Allocation
+ * functions described in the "FDDI Synchroyesus Forum Implementer's
  * Agreement" dated December 1th, 1993.
  * *******************************************************************
  *
  *	PURPOSE: The purpose of this function is to control
- *		 synchronous allocations on a single FDDI segment.
+ *		 synchroyesus allocations on a single FDDI segment.
  *		 Allocations are limited to the primary FDDI ring.
  *		 The SBM provides recovery mechanisms to recover
  *		 unused bandwidth also resolves T_Neg and
@@ -130,7 +130,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 	 * get the resource type
 	 */
 	if (!(p = (void *) sm_to_para(smc,sm,SMT_P0015))) {
-		DB_ESS("ESS: RAF frame error, parameter type not found");
+		DB_ESS("ESS: RAF frame error, parameter type yest found");
 		return fs;
 	}
 	msg_res_type = ((struct smt_p_0015 *)p)->res_type ;
@@ -140,9 +140,9 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 	 */
 	if (!(cmd = (struct smt_p_0016 *) sm_to_para(smc,sm,SMT_P0016))) {
 		/*
-		 * error in frame: para ESS command was not found
+		 * error in frame: para ESS command was yest found
 		 */
-		 DB_ESS("ESS: RAF frame error, parameter command not found");
+		 DB_ESS("ESS: RAF frame error, parameter command yest found");
 		 return fs;
 	}
 
@@ -168,7 +168,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		if (sm->smt_type == SMT_REQUEST) {
 			/*
 			 * process the Allocation request only if the frame is
-			 * local and no static allocation is used
+			 * local and yes static allocation is used
 			 */
 			if (!local || smc->mib.fddiESSPayload)
 				return fs;
@@ -182,7 +182,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 
 			/*
 			 * Note: The Application should send a LAN_LOC_FRAME.
-			 *	 The ESS do not send the Frame to the network!
+			 *	 The ESS do yest send the Frame to the network!
 			 */
 			smc->ess.alloc_trans_id = sm->smt_tid ;
 			DB_ESS("ESS: save Alloc Req Trans ID %x", sm->smt_tid);
@@ -216,7 +216,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 * check the parameters
 		 */
 		if (smt_check_para(smc,sm,plist_raf_alc_res)) {
-			DB_ESS("ESS: RAF with para problem, ignoring");
+			DB_ESS("ESS: RAF with para problem, igyesring");
 			return fs;
 		}
 
@@ -237,7 +237,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 			!= SMT_RDF_SUCCESS) ||
 			(sm->smt_tid != smc->ess.alloc_trans_id)) {
 
-			DB_ESS("ESS: Allocation Response not accepted");
+			DB_ESS("ESS: Allocation Response yest accepted");
 			return fs;
 		}
 
@@ -276,7 +276,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 * except only replies
 		 */
 		if (sm->smt_type != SMT_REQUEST) {
-			DB_ESS("ESS: Do not process Change Responses");
+			DB_ESS("ESS: Do yest process Change Responses");
 			return fs;
 		}
 
@@ -284,7 +284,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 * check the para for the Change Request
 		 */
 		if (smt_check_para(smc,sm,plist_raf_chg_req)) {
-			DB_ESS("ESS: RAF with para problem, ignoring");
+			DB_ESS("ESS: RAF with para problem, igyesring");
 			return fs;
 		}
 
@@ -296,7 +296,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 */
 		if ((((struct smt_p_320b *)sm_to_para(smc,sm,SMT_P320B))->path_index
 			!= PRIMARY_RING) || (msg_res_type != SYNC_BW)) {
-			DB_ESS("ESS: RAF frame with para problem, ignoring");
+			DB_ESS("ESS: RAF frame with para problem, igyesring");
 			return fs;
 		}
 
@@ -335,7 +335,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 * except only requests
 		 */
 		if (sm->smt_type != SMT_REQUEST) {
-			DB_ESS("ESS: Do not process a Report Reply");
+			DB_ESS("ESS: Do yest process a Report Reply");
 			return fs;
 		}
 
@@ -346,7 +346,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		 * verify that the resource type is sync bw only
 		 */
 		if (msg_res_type != SYNC_BW) {
-			DB_ESS("ESS: ignoring RAF with para problem");
+			DB_ESS("ESS: igyesring RAF with para problem");
 			return fs;
 		}
 
@@ -362,7 +362,7 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 		/*
 		 * error in frame
 		 */
-		DB_ESS("ESS: ignoring RAF with bad sba_cmd");
+		DB_ESS("ESS: igyesring RAF with bad sba_cmd");
 		break ;
 	}
 
@@ -370,13 +370,13 @@ int ess_raf_received_pack(struct s_smc *smc, SMbuf *mb, struct smt_header *sm,
 }
 
 /*
- * determines the synchronous bandwidth, set the TSYNC register and the
+ * determines the synchroyesus bandwidth, set the TSYNC register and the
  * mib variables SBAPayload, SBAOverhead and fddiMACT-NEG.
  */
 static int process_bw_alloc(struct s_smc *smc, long int payload, long int overhead)
 {
 	/*
-	 * determine the synchronous bandwidth (sync_bw) in bytes per T-NEG,
+	 * determine the synchroyesus bandwidth (sync_bw) in bytes per T-NEG,
 	 * if the payload is greater than zero.
 	 * For the SBAPayload and the SBAOverhead we have the following
 	 * unite quations
@@ -415,17 +415,17 @@ static int process_bw_alloc(struct s_smc *smc, long int payload, long int overhe
 	 * set the mib attributes fddiPATHSbaOverhead, fddiPATHSbaPayload
 	 */
 /*	if (smt_set_obj(smc,SMT_P320F,payload,S_SET)) {
-		DB_ESS("ESS: SMT does not accept the payload value");
+		DB_ESS("ESS: SMT does yest accept the payload value");
 		return FALSE;
 	}
 	if (smt_set_obj(smc,SMT_P3210,overhead,S_SET)) {
-		DB_ESS("ESS: SMT does not accept the overhead value");
+		DB_ESS("ESS: SMT does yest accept the overhead value");
 		return FALSE;
 	} */
 
 	/* premliminary */
 	if (payload > MAX_PAYLOAD || overhead > 5000) {
-		DB_ESS("ESS: payload / overhead not accepted");
+		DB_ESS("ESS: payload / overhead yest accepted");
 		return FALSE;
 	}
 
@@ -555,7 +555,7 @@ static void ess_send_alc_req(struct s_smc *smc)
 
 	/*
 	 * send never allocation request where the requested payload and
-	 * overhead is zero or deallocate bandwidth when no bandwidth is
+	 * overhead is zero or deallocate bandwidth when yes bandwidth is
 	 * parsed
 	 */
 	if (!smc->mib.fddiESSPayload) {
@@ -669,7 +669,7 @@ static void ess_send_frame(struct s_smc *smc, SMbuf *mb)
 		if (!smc->ess.sba_reply_pend)
 			smc->ess.sba_reply_pend = mb ;
 		else {
-			DB_ESS("Frame is lost - another frame was pending");
+			DB_ESS("Frame is lost - ayesther frame was pending");
 			smt_free_mbuf(smc,mb) ;
 		}
 	}
@@ -691,7 +691,7 @@ void ess_para_change(struct s_smc *smc)
 static void ess_config_fifo(struct s_smc *smc)
 {
 	/*
-	 * if nothing to do exit 
+	 * if yesthing to do exit 
 	 */
 	if (smc->mib.a[PATH0].fddiPATHSbaPayload) {
 		if (smc->hw.fp.fifo.fifo_config_mode & SYNC_TRAFFIC_ON &&
@@ -714,5 +714,5 @@ static void ess_config_fifo(struct s_smc *smc)
 
 #endif /* ESS */
 
-#endif	/* no SLIM_SMT */
+#endif	/* yes SLIM_SMT */
 

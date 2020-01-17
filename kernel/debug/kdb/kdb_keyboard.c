@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 
-/* Keyboard Controller Registers on normal PCs. */
+/* Keyboard Controller Registers on yesrmal PCs. */
 
 #define KBD_STATUS_REG		0x64	/* Status register (R) */
 #define KBD_DATA_REG		0x60	/* Keyboard data register (R/W) */
@@ -57,13 +57,13 @@ int kdb_get_kbd_char(void)
 	scanstatus = inb(KBD_STATUS_REG);
 
 	/*
-	 * Ignore mouse events.
+	 * Igyesre mouse events.
 	 */
 	if (scanstatus & KBD_STAT_MOUSE_OBF)
 		return -1;
 
 	/*
-	 * Ignore release, trigger on make
+	 * Igyesre release, trigger on make
 	 * (except for shift keys, where we want to
 	 *  keep the shift state so long as the key is
 	 *  held down).
@@ -163,7 +163,7 @@ int kdb_get_kbd_char(void)
 		keychar = key_maps[4][scancode];
 	} else {
 		keychar = 0x0020;
-		kdb_printf("Unknown state/scancode (%d)\n", scancode);
+		kdb_printf("Unkyeswn state/scancode (%d)\n", scancode);
 	}
 	keychar &= 0x0fff;
 	if (keychar == '\t')
@@ -179,7 +179,7 @@ int kdb_get_kbd_char(void)
 			break;
 		/* fall through */
 	default:
-		return -1;	/* ignore unprintables */
+		return -1;	/* igyesre unprintables */
 	}
 
 	if (scancode == 0x1c) {
@@ -193,7 +193,7 @@ EXPORT_SYMBOL_GPL(kdb_get_kbd_char);
 
 /*
  * Best effort cleanup of ENTER break codes on leaving KDB. Called on
- * exiting KDB, when we know we processed an ENTER or KP ENTER scan
+ * exiting KDB, when we kyesw we processed an ENTER or KP ENTER scan
  * code.
  */
 void kdb_kbd_cleanup_state(void)

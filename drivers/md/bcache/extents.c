@@ -14,9 +14,9 @@
  * Buckets have an 8 bit counter; freeing is accomplished by incrementing the
  * counter. Garbage collection is used to remove stale pointers.
  *
- * Indexing is done via a btree; nodes are not necessarily fully sorted, rather
- * as keys are inserted we only sort the pages that have not yet been written.
- * When garbage collection is run, we resort the entire node.
+ * Indexing is done via a btree; yesdes are yest necessarily fully sorted, rather
+ * as keys are inserted we only sort the pages that have yest yet been written.
+ * When garbage collection is run, we resort the entire yesde.
  *
  * All configuration is done via sysfs; see Documentation/admin-guide/bcache.rst.
  */
@@ -88,7 +88,7 @@ static const char *bch_ptr_status(struct cache_set *c, const struct bkey *k)
 	if (!bkey_cmp(k, &ZERO_KEY))
 		return "bad, null key";
 	if (!KEY_PTRS(k))
-		return "bad, no pointers";
+		return "bad, yes pointers";
 	if (!KEY_SIZE(k))
 		return "zeroed key";
 	return "";
@@ -593,7 +593,7 @@ static bool bch_extent_merge(struct btree_keys *bk,
 		    PTR_BUCKET_NR(b->c, l, i) != PTR_BUCKET_NR(b->c, r, i))
 			return false;
 
-	/* Keys with no pointers aren't restricted to one bucket and could
+	/* Keys with yes pointers aren't restricted to one bucket and could
 	 * overflow KEY_SIZE
 	 */
 	if (KEY_SIZE(l) + KEY_SIZE(r) > USHRT_MAX) {

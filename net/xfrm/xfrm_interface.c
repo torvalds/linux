@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/sockios.h>
 #include <linux/icmp.h>
@@ -183,7 +183,7 @@ static void xfrmi_scrub_packet(struct sk_buff *skb, bool xnet)
 	skb->tstamp = 0;
 	skb->pkt_type = PACKET_HOST;
 	skb->skb_iif = 0;
-	skb->ignore_df = 0;
+	skb->igyesre_df = 0;
 	skb_dst_drop(skb);
 	nf_reset_ct(skb);
 	nf_reset_trace(skb);
@@ -296,7 +296,7 @@ xfrmi_xmit2(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 	}
 
 	mtu = dst_mtu(dst);
-	if (!skb->ignore_df && skb->len > mtu) {
+	if (!skb->igyesre_df && skb->len > mtu) {
 		skb_dst_update_pmtu(skb, mtu);
 
 		if (skb->protocol == htons(ETH_P_IPV6)) {

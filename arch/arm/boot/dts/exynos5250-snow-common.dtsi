@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Google Snow board device tree source
+ * Google Syesw board device tree source
  *
  * Copyright (c) 2012 Google, Inc
  */
@@ -10,7 +10,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/sound/samsung-i2s.h>
-#include "exynos5250.dtsi"
+#include "exyyess5250.dtsi"
 
 / {
 	aliases {
@@ -541,7 +541,7 @@
 /* eMMC flash */
 &mmc_0 {
 	status = "okay";
-	non-removable;
+	yesn-removable;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <2 3>;
 	samsung,dw-mshc-ddr-timing = <1 2>;
@@ -566,14 +566,14 @@
 };
 
 /*
- * On Snow we've got SIP WiFi and so can keep drive strengths low to
+ * On Syesw we've got SIP WiFi and so can keep drive strengths low to
  * reduce EMI.
  *
  * WiFi SDIO module
  */
 &mmc_3 {
 	status = "okay";
-	non-removable;
+	yesn-removable;
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	samsung,dw-mshc-ciu-div = <3>;

@@ -8,7 +8,7 @@
  *
  * usage: insmod kretprobe_example.ko func=<func_name>
  *
- * If no func_name is specified, _do_fork is instrumented
+ * If yes func_name is specified, _do_fork is instrumented
  *
  * For more information on theory of operation of kretprobes, see
  * Documentation/kprobes.txt
@@ -59,10 +59,10 @@ static int ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 	unsigned long retval = regs_return_value(regs);
 	struct my_data *data = (struct my_data *)ri->data;
 	s64 delta;
-	ktime_t now;
+	ktime_t yesw;
 
-	now = ktime_get();
-	delta = ktime_to_ns(ktime_sub(now, data->entry_stamp));
+	yesw = ktime_get();
+	delta = ktime_to_ns(ktime_sub(yesw, data->entry_stamp));
 	pr_info("%s returned %lu and took %lld ns to execute\n",
 			func_name, retval, (long long)delta);
 	return 0;

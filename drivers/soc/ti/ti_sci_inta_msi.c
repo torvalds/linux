@@ -44,7 +44,7 @@ static void ti_sci_inta_msi_update_chip_ops(struct msi_domain_info *info)
 	chip->irq_ack = irq_chip_ack_parent;
 }
 
-struct irq_domain *ti_sci_inta_msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *ti_sci_inta_msi_create_irq_domain(struct fwyesde_handle *fwyesde,
 						     struct msi_domain_info *info,
 						     struct irq_domain *parent)
 {
@@ -52,7 +52,7 @@ struct irq_domain *ti_sci_inta_msi_create_irq_domain(struct fwnode_handle *fwnod
 
 	ti_sci_inta_msi_update_chip_ops(info);
 
-	domain = msi_create_irq_domain(fwnode, info, parent);
+	domain = msi_create_irq_domain(fwyesde, info, parent);
 	if (domain)
 		irq_domain_update_bus_token(domain, DOMAIN_BUS_TI_SCI_INTA_MSI);
 

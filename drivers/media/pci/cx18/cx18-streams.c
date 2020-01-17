@@ -32,11 +32,11 @@ static const struct v4l2_file_operations cx18_v4l2_enc_fops = {
 	.mmap = cx18_v4l2_mmap,
 };
 
-/* offset from 0 to register ts v4l2 minors on */
+/* offset from 0 to register ts v4l2 miyesrs on */
 #define CX18_V4L2_ENC_TS_OFFSET   16
-/* offset from 0 to register pcm v4l2 minors on */
+/* offset from 0 to register pcm v4l2 miyesrs on */
 #define CX18_V4L2_ENC_PCM_OFFSET  24
-/* offset from 0 to register yuv v4l2 minors on */
+/* offset from 0 to register yuv v4l2 miyesrs on */
 #define CX18_V4L2_ENC_YUV_OFFSET  32
 
 static struct {
@@ -123,12 +123,12 @@ static int cx18_prepare_buffer(struct videobuf_queue *q,
 	/* alloc + fill struct (if changed) */
 	if (buf->vb.width != width || buf->vb.height != height ||
 	    buf->vb.field != field || s->pixelformat != pixelformat ||
-	    buf->tvnorm != cx->std) {
+	    buf->tvyesrm != cx->std) {
 
 		buf->vb.width  = width;
 		buf->vb.height = height;
 		buf->vb.field  = field;
-		buf->tvnorm    = cx->std;
+		buf->tvyesrm    = cx->std;
 		s->pixelformat = pixelformat;
 
 		/* HM12 YUV size is (Y=(h*720) + UV=(h*(720/2)))
@@ -150,7 +150,7 @@ static int cx18_prepare_buffer(struct videobuf_queue *q,
 		buf->vb.width  = width;
 		buf->vb.height = height;
 		buf->vb.field  = field;
-		buf->tvnorm    = cx->std;
+		buf->tvyesrm    = cx->std;
 		s->pixelformat = pixelformat;
 
 		/* HM12 YUV size is (Y=(h*720) + UV=(h*(720/2)))
@@ -298,14 +298,14 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	struct cx18_stream *s = &cx->streams[type];
 	u32 cap = cx->v4l2_cap;
 	int num_offset = cx18_stream_info[type].num_offset;
-	int num = cx->instance + cx18_first_minor + num_offset;
+	int num = cx->instance + cx18_first_miyesr + num_offset;
 
 	/*
 	 * These five fields are always initialized.
 	 * For analog capture related streams, if video_dev.v4l2_dev == NULL then the
-	 * stream is not in use.
-	 * For the TS stream, if dvb == NULL then the stream is not in use.
-	 * In those cases no other fields but these four can be used.
+	 * stream is yest in use.
+	 * For the TS stream, if dvb == NULL then the stream is yest in use.
+	 * In those cases yes other fields but these four can be used.
 	 */
 	s->video_dev.v4l2_dev = NULL;
 	s->dvb = NULL;
@@ -342,7 +342,7 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 				return -ENOMEM;
 			}
 		} else {
-			/* Don't need buffers for the TS, if there is no DVB */
+			/* Don't need buffers for the TS, if there is yes DVB */
 			s->buffers = 0;
 		}
 	}
@@ -359,9 +359,9 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	s->video_dev.fops = &cx18_v4l2_enc_fops;
 	s->video_dev.release = video_device_release_empty;
 	if (cx->card->video_inputs->video_type == CX18_CARD_INPUT_VID_TUNER)
-		s->video_dev.tvnorms = cx->tuner_std;
+		s->video_dev.tvyesrms = cx->tuner_std;
 	else
-		s->video_dev.tvnorms = V4L2_STD_ALL;
+		s->video_dev.tvyesrms = V4L2_STD_ALL;
 	s->video_dev.lock = &cx->serialize_lock;
 	cx18_set_funcs(&s->video_dev);
 	return 0;
@@ -387,7 +387,7 @@ int cx18_streams_setup(struct cx18 *cx)
 	if (type == CX18_MAX_STREAMS)
 		return 0;
 
-	/* One or more streams could not be initialized. Clean 'em all up. */
+	/* One or more streams could yest be initialized. Clean 'em all up. */
 	cx18_streams_cleanup(cx, 0);
 	return ret;
 }
@@ -422,16 +422,16 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 	}
 	video_set_drvdata(&s->video_dev, s);
 
-	/* Register device. First try the desired minor, then any free one. */
-	ret = video_register_device_no_warn(&s->video_dev, vfl_type, num);
+	/* Register device. First try the desired miyesr, then any free one. */
+	ret = video_register_device_yes_warn(&s->video_dev, vfl_type, num);
 	if (ret < 0) {
-		CX18_ERR("Couldn't register v4l2 device for %s (device node number %d)\n",
+		CX18_ERR("Couldn't register v4l2 device for %s (device yesde number %d)\n",
 			s->name, num);
 		s->video_dev.v4l2_dev = NULL;
 		return ret;
 	}
 
-	name = video_device_node_name(&s->video_dev);
+	name = video_device_yesde_name(&s->video_dev);
 
 	switch (vfl_type) {
 	case VFL_TYPE_GRABBER:
@@ -476,7 +476,7 @@ int cx18_streams_register(struct cx18 *cx)
 	if (ret == 0)
 		return 0;
 
-	/* One or more streams could not be initialized. Clean 'em all up. */
+	/* One or more streams could yest be initialized. Clean 'em all up. */
 	cx18_streams_cleanup(cx, 1);
 	return ret;
 }
@@ -490,7 +490,7 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 	/* Teardown all streams */
 	for (type = 0; type < CX18_MAX_STREAMS; type++) {
 
-		/* The TS has a cx18_dvb structure, not a video_device */
+		/* The TS has a cx18_dvb structure, yest a video_device */
 		if (type == CX18_ENC_STREAM_TYPE_TS) {
 			if (cx->streams[type].dvb != NULL) {
 				if (unregister)
@@ -511,7 +511,7 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 				 * Before calling cx18_stream_free(),
 				 * check if the IDX stream was actually set up.
 				 * Needed, since the cx18_probe() error path
-				 * exits through here as well as normal clean up
+				 * exits through here as well as yesrmal clean up
 				 */
 				if (cx->streams[type].buffers != 0)
 					cx18_stream_free(&cx->streams[type]);
@@ -652,12 +652,12 @@ void cx18_stream_rotate_idx_mdls(struct cx18 *cx)
 	if (!cx18_stream_enabled(s))
 		return;
 
-	/* Return if the firmware is not running low on MDLs */
+	/* Return if the firmware is yest running low on MDLs */
 	if ((atomic_read(&s->q_free.depth) + atomic_read(&s->q_busy.depth)) >=
 					    CX18_ENC_STREAM_TYPE_IDX_FW_MDL_MIN)
 		return;
 
-	/* Return if there are no MDLs to rotate back to the firmware */
+	/* Return if there are yes MDLs to rotate back to the firmware */
 	if (atomic_read(&s->q_full.depth) < 2)
 		return;
 
@@ -677,7 +677,7 @@ struct cx18_queue *_cx18_stream_put_mdl_fw(struct cx18_stream *s,
 	struct cx18 *cx = s->cx;
 	struct cx18_queue *q;
 
-	/* Don't give it to the firmware, if we're not running a capture */
+	/* Don't give it to the firmware, if we're yest running a capture */
 	if (s->handle == CX18_INVALID_TASK_HANDLE ||
 	    test_bit(CX18_F_S_STOPPING, &s->s_flags) ||
 	    !test_bit(CX18_F_S_STREAMING, &s->s_flags))
@@ -704,7 +704,7 @@ void _cx18_stream_load_fw_queue(struct cx18_stream *s)
 	    atomic_read(&s->q_busy.depth) >= CX18_MAX_FW_MDLS_PER_STREAM)
 		return;
 
-	/* Move from q_free to q_busy notifying the firmware, until the limit */
+	/* Move from q_free to q_busy yestifying the firmware, until the limit */
 	do {
 		mdl = cx18_dequeue(s, &s->q_free);
 		if (mdl == NULL)
@@ -731,7 +731,7 @@ static void cx18_stream_configure_mdls(struct cx18_stream *s)
 		/*
 		 * Height should be a multiple of 32 lines.
 		 * Set the MDL size to the exact size needed for one frame.
-		 * Use enough buffers per MDL to cover the MDL size
+		 * Use eyesugh buffers per MDL to cover the MDL size
 		 */
 		if (s->pixelformat == V4L2_PIX_FMT_HM12)
 			s->mdl_size = 720 * s->cx->cxhdl.height * 3 / 2;
@@ -828,13 +828,13 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 
 	/*
 	 * For everything but CAPTURE_CHANNEL_TYPE_TS, play it safe and
-	 * set up all the parameters, as it is not obvious which parameters the
-	 * firmware shares across capture channel types and which it does not.
+	 * set up all the parameters, as it is yest obvious which parameters the
+	 * firmware shares across capture channel types and which it does yest.
 	 *
 	 * Some of the cx18_vapi() calls below apply to only certain capture
-	 * channel types.  We're hoping there's no harm in calling most of them
+	 * channel types.  We're hoping there's yes harm in calling most of them
 	 * anyway, as long as the values are all consistent.  Setting some
-	 * shared parameters will have no effect once an analog capture channel
+	 * shared parameters will have yes effect once an analog capture channel
 	 * has started streaming.
 	 */
 	if (captype != CAPTURE_CHANNEL_TYPE_TS) {
@@ -916,7 +916,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	/* begin_capture */
 	if (cx18_vapi(cx, CX18_CPU_CAPTURE_START, 1, s->handle)) {
 		CX18_DEBUG_WARN("Error starting capture!\n");
-		/* Ensure we're really not capturing before releasing MDLs */
+		/* Ensure we're really yest capturing before releasing MDLs */
 		set_bit(CX18_F_S_STOPPING, &s->s_flags);
 		if (s->type == CX18_ENC_STREAM_TYPE_MPG)
 			cx18_vapi(cx, CX18_CPU_CAPTURE_STOP, 2, s->handle, 1);
@@ -979,14 +979,14 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 		cx18_vapi(cx, CX18_CPU_CAPTURE_STOP, 1, s->handle);
 
 	if (s->type == CX18_ENC_STREAM_TYPE_MPG && gop_end) {
-		CX18_INFO("ignoring gop_end: not (yet?) supported by the firmware\n");
+		CX18_INFO("igyesring gop_end: yest (yet?) supported by the firmware\n");
 	}
 
 	if (s->type != CX18_ENC_STREAM_TYPE_TS)
 		atomic_dec(&cx->ana_capturing);
 	atomic_dec(&cx->tot_capturing);
 
-	/* Clear capture and no-read bits */
+	/* Clear capture and yes-read bits */
 	clear_bit(CX18_F_S_STREAMING, &s->s_flags);
 
 	/* Tell the CX23418 it can't use our buffers anymore */

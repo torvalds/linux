@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -33,7 +33,7 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -198,7 +198,7 @@ static int qed_load_mcp_offsets(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	p_info->public_base = qed_rd(p_hwfn, p_ptt, MISC_REG_SHARED_MEM_ADDR);
 	if (!p_info->public_base) {
 		DP_NOTICE(p_hwfn,
-			  "The address of the MCP scratch-pad is not configured\n");
+			  "The address of the MCP scratch-pad is yest configured\n");
 		return -EINVAL;
 	}
 
@@ -214,7 +214,7 @@ static int qed_load_mcp_offsets(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 					    offsetof(struct public_mfw_mb,
 						     sup_msgs));
 
-	/* The driver can notify that there was an MCP reset, and might read the
+	/* The driver can yestify that there was an MCP reset, and might read the
 	 * SHMEM values before the MFW has completed initializing them.
 	 * To avoid this, the "sup_msgs" field in the MFW mailbox is used as a
 	 * data ready indication.
@@ -229,7 +229,7 @@ static int qed_load_mcp_offsets(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	if (!cnt) {
 		DP_NOTICE(p_hwfn,
-			  "Failed to get the SHMEM ready notification after %d msec\n",
+			  "Failed to get the SHMEM ready yestification after %d msec\n",
 			  QED_MCP_SHMEM_RDY_MAX_RETRIES * msec);
 		return -EBUSY;
 	}
@@ -276,9 +276,9 @@ int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	INIT_LIST_HEAD(&p_info->cmd_list);
 
 	if (qed_load_mcp_offsets(p_hwfn, p_ptt) != 0) {
-		DP_NOTICE(p_hwfn, "MCP is not initialized\n");
-		/* Do not free mcp_info here, since public_base indicate that
-		 * the MCP is not initialized
+		DP_NOTICE(p_hwfn, "MCP is yest initialized\n");
+		/* Do yest free mcp_info here, since public_base indicate that
+		 * the MCP is yest initialized
 		 */
 		return 0;
 	}
@@ -302,7 +302,7 @@ static void qed_mcp_reread_offsets(struct qed_hwfn *p_hwfn,
 	u32 generic_por_0 = qed_rd(p_hwfn, p_ptt, MISCS_REG_GENERIC_POR_0);
 
 	/* Use MCP history register to check if MCP reset occurred between init
-	 * time and now.
+	 * time and yesw.
 	 */
 	if (p_hwfn->mcp_info->mcp_hist != generic_por_0) {
 		DP_VERBOSE(p_hwfn,
@@ -322,7 +322,7 @@ int qed_mcp_reset(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	if (p_hwfn->mcp_info->b_block_cmd) {
 		DP_NOTICE(p_hwfn,
-			  "The MFW is not responsive. Avoid sending MCP_RESET mailbox command.\n");
+			  "The MFW is yest responsive. Avoid sending MCP_RESET mailbox command.\n");
 		return -EBUSY;
 	}
 
@@ -387,7 +387,7 @@ qed_mcp_update_pending_cmd(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	mcp_resp = DRV_MB_RD(p_hwfn, p_ptt, fw_mb_header);
 	seq_num = (u16)(mcp_resp & FW_MSG_SEQ_NUMBER_MASK);
 
-	/* Return if no new non-handled response has been received */
+	/* Return if yes new yesn-handled response has been received */
 	if (seq_num != p_hwfn->mcp_info->drv_mb_seq)
 		return -EAGAIN;
 
@@ -489,9 +489,9 @@ _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 	u16 seq_num;
 	int rc = 0;
 
-	/* Wait until the mailbox is non-occupied */
+	/* Wait until the mailbox is yesn-occupied */
 	do {
-		/* Exit the loop if there is no pending command, or if the
+		/* Exit the loop if there is yes pending command, or if the
 		 * pending command is completed during this iteration.
 		 * The spinlock stays locked until the command is sent.
 		 */
@@ -604,15 +604,15 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 	u32 max_retries = QED_DRV_MB_MAX_RETRIES;
 	u32 usecs = QED_MCP_RESP_ITER_US;
 
-	/* MCP not initialized */
+	/* MCP yest initialized */
 	if (!qed_mcp_is_init(p_hwfn)) {
-		DP_NOTICE(p_hwfn, "MFW is not initialized!\n");
+		DP_NOTICE(p_hwfn, "MFW is yest initialized!\n");
 		return -EBUSY;
 	}
 
 	if (p_hwfn->mcp_info->b_block_cmd) {
 		DP_NOTICE(p_hwfn,
-			  "The MFW is not responsive. Avoid sending mailbox command 0x%08x [param 0x%08x].\n",
+			  "The MFW is yest responsive. Avoid sending mailbox command 0x%08x [param 0x%08x].\n",
 			  p_mb_params->cmd, p_mb_params->param);
 		return -EBUSY;
 	}
@@ -986,7 +986,7 @@ int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
-	/* First handle cases where another load request should/might be sent:
+	/* First handle cases where ayesther load request should/might be sent:
 	 * - MFW expects the old interface [HSI version = 1]
 	 * - MFW responds that a force load request is required
 	 */
@@ -1041,7 +1041,7 @@ int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 	}
 
 	/* Now handle the other types of responses.
-	 * The "REFUSED_HSI_1" and "REFUSED_REQUIRES_FORCE" responses are not
+	 * The "REFUSED_HSI_1" and "REFUSED_REQUIRES_FORCE" responses are yest
 	 * expected here after the additional revised load requests were sent.
 	 */
 	switch (out_params.load_code) {
@@ -1051,7 +1051,7 @@ int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 		if (out_params.mfw_hsi_ver != QED_LOAD_REQ_HSI_VER_1 &&
 		    out_params.drv_exists) {
 			/* The role and fw/driver version match, but the PF is
-			 * already loaded and has not been unloaded gracefully.
+			 * already loaded and has yest been unloaded gracefully.
 			 */
 			DP_NOTICE(p_hwfn,
 				  "PF is already loaded\n");
@@ -1086,7 +1086,7 @@ int qed_mcp_load_done(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	/* Check if there is a DID mismatch between nvm-cfg/efuse */
 	if (param & FW_MB_PARAM_LOAD_DONE_DID_EFUSE_ERROR)
 		DP_NOTICE(p_hwfn,
-			  "warning: device configuration is not supported on this board type. The device may not function as expected.\n");
+			  "warning: device configuration is yest supported on this board type. The device may yest function as expected.\n");
 
 	return 0;
 }
@@ -1105,7 +1105,7 @@ int qed_mcp_unload_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		break;
 	default:
 		DP_NOTICE(p_hwfn,
-			  "Unknown WoL configuration %02x\n",
+			  "Unkyeswn WoL configuration %02x\n",
 			  p_hwfn->cdev->wol_config);
 		/* Fallthrough */
 	case QED_OV_WOL_DEFAULT:
@@ -1493,7 +1493,7 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 	phy_cfg.loopback_mode = params->loopback_mode;
 
 	/* There are MFWs that share this capability regardless of whether
-	 * this is feasible or not. And given that at the very least adv_caps
+	 * this is feasible or yest. And given that at the very least adv_caps
 	 * would be set internally by qed, we want to make sure LFA would
 	 * still work.
 	 */
@@ -1539,9 +1539,9 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 	}
 
 	/* Mimic link-change attention, done for several reasons:
-	 *  - On reset, there's no guarantee MFW would trigger
+	 *  - On reset, there's yes guarantee MFW would trigger
 	 *    an attention.
-	 *  - On initialization, older MFWs might not indicate link change
+	 *  - On initialization, older MFWs might yest indicate link change
 	 *    during LFA, so we'll never get an UP indication.
 	 */
 	qed_mcp_handle_link_change(p_hwfn, p_ptt, !b_up);
@@ -1591,7 +1591,7 @@ static void qed_mcp_handle_process_kill(struct qed_hwfn *p_hwfn,
 
 	if (cdev->recov_in_prog) {
 		DP_NOTICE(p_hwfn,
-			  "Ignoring the indication since a recovery process is already in progress\n");
+			  "Igyesring the indication since a recovery process is already in progress\n");
 		return;
 	}
 
@@ -1659,7 +1659,7 @@ static void qed_mcp_update_bw(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	qed_configure_pf_min_bandwidth(p_hwfn->cdev, p_info->bandwidth_min);
 	qed_configure_pf_max_bandwidth(p_hwfn->cdev, p_info->bandwidth_max);
 
-	/* Acknowledge the MFW */
+	/* Ackyeswledge the MFW */
 	qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_BW_UPDATE_ACK, 0, &resp,
 		    &param);
 }
@@ -1697,7 +1697,7 @@ static void qed_mcp_update_stag(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	DP_VERBOSE(p_hwfn, QED_MSG_SP, "ovlan = %d hw_mode = 0x%x\n",
 		   p_hwfn->mcp_info->func_info.ovlan, p_hwfn->hw_info.hw_mode);
 
-	/* Acknowledge the MFW */
+	/* Ackyeswledge the MFW */
 	qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_S_TAG_UPDATE_ACK, 0,
 		    &resp, &param);
 }
@@ -1728,7 +1728,7 @@ void qed_mcp_read_ufp_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	} else {
 		p_hwfn->ufp_info.mode = QED_UFP_MODE_UNKNOWN;
 		DP_NOTICE(p_hwfn,
-			  "Unknown UFP scheduling mode %d port_id 0x%02x\n",
+			  "Unkyeswn UFP scheduling mode %d port_id 0x%02x\n",
 			  val, MFW_PORT(p_hwfn));
 	}
 
@@ -1745,7 +1745,7 @@ void qed_mcp_read_ufp_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	} else {
 		p_hwfn->ufp_info.pri_type = QED_UFP_PRI_UNKNOWN;
 		DP_NOTICE(p_hwfn,
-			  "Unknown Host priority control %d port_id 0x%02x\n",
+			  "Unkyeswn Host priority control %d port_id 0x%02x\n",
 			  val, MFW_PORT(p_hwfn));
 	}
 
@@ -1871,7 +1871,7 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 
 	if (!found) {
 		DP_NOTICE(p_hwfn,
-			  "Received an MFW message indication but no new message!\n");
+			  "Received an MFW message indication but yes new message!\n");
 		rc = -EINVAL;
 	}
 
@@ -1932,7 +1932,7 @@ int qed_mcp_get_mbi_ver(struct qed_hwfn *p_hwfn,
 	/* Read the address of the nvm_cfg */
 	nvm_cfg_addr = qed_rd(p_hwfn, p_ptt, MISC_REG_GEN_PURP_CR0);
 	if (!nvm_cfg_addr) {
-		DP_NOTICE(p_hwfn, "Shared memory not initialized\n");
+		DP_NOTICE(p_hwfn, "Shared memory yest initialized\n");
 		return -EINVAL;
 	}
 
@@ -1960,7 +1960,7 @@ int qed_mcp_get_media_type(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 
 	if (!qed_mcp_is_init(p_hwfn)) {
-		DP_NOTICE(p_hwfn, "MFW is not initialized!\n");
+		DP_NOTICE(p_hwfn, "MFW is yest initialized!\n");
 		return -EBUSY;
 	}
 
@@ -1991,7 +1991,7 @@ int qed_mcp_get_transceiver_data(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 
 	if (!qed_mcp_is_init(p_hwfn)) {
-		DP_NOTICE(p_hwfn, "MFW is not initialized!\n");
+		DP_NOTICE(p_hwfn, "MFW is yest initialized!\n");
 		return -EBUSY;
 	}
 
@@ -2122,7 +2122,7 @@ int qed_mcp_trans_speed_mask(struct qed_hwfn *p_hwfn,
 		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
 		break;
 	default:
-		DP_INFO(p_hwfn, "Unknown transceiver type 0x%x\n",
+		DP_INFO(p_hwfn, "Unkyeswn transceiver type 0x%x\n",
 			transceiver_type);
 		*p_speed_mask = 0xff;
 		break;
@@ -2140,7 +2140,7 @@ int qed_mcp_get_board_config(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 
 	if (!qed_mcp_is_init(p_hwfn)) {
-		DP_NOTICE(p_hwfn, "MFW is not initialized!\n");
+		DP_NOTICE(p_hwfn, "MFW is yest initialized!\n");
 		return -EBUSY;
 	}
 	if (!p_ptt) {
@@ -2246,7 +2246,7 @@ qed_mcp_get_shmem_proto(struct qed_hwfn *p_hwfn,
 		*p_proto = QED_PCI_FCOE;
 		break;
 	case FUNC_MF_CFG_PROTOCOL_ROCE:
-		DP_NOTICE(p_hwfn, "RoCE personality is not a valid value!\n");
+		DP_NOTICE(p_hwfn, "RoCE personality is yest a valid value!\n");
 	/* Fallthrough */
 	default:
 		rc = -EINVAL;
@@ -2269,7 +2269,7 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 
 	if (qed_mcp_get_shmem_proto(p_hwfn, &shmem_info, p_ptt,
 				    &info->protocol)) {
-		DP_ERR(p_hwfn, "Unknown personality %08x\n",
+		DP_ERR(p_hwfn, "Unkyeswn personality %08x\n",
 		       (u32)(shmem_info.config & FUNC_MF_CFG_PROTOCOL_MASK));
 		return -EINVAL;
 	}
@@ -2292,8 +2292,8 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 
 	info->wwn_port = (u64)shmem_info.fcoe_wwn_port_name_lower |
 			 (((u64)shmem_info.fcoe_wwn_port_name_upper) << 32);
-	info->wwn_node = (u64)shmem_info.fcoe_wwn_node_name_lower |
-			 (((u64)shmem_info.fcoe_wwn_node_name_upper) << 32);
+	info->wwn_yesde = (u64)shmem_info.fcoe_wwn_yesde_name_lower |
+			 (((u64)shmem_info.fcoe_wwn_yesde_name_upper) << 32);
 
 	info->ovlan = (u16)(shmem_info.ovlan_stag & FUNC_MF_CFG_OV_STAG_MASK);
 
@@ -2314,12 +2314,12 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 	}
 
 	DP_VERBOSE(p_hwfn, (QED_MSG_SP | NETIF_MSG_IFUP),
-		   "Read configuration from shmem: pause_on_host %02x protocol %02x BW [%02x - %02x] MAC %02x:%02x:%02x:%02x:%02x:%02x wwn port %llx node %llx ovlan %04x wol %02x\n",
+		   "Read configuration from shmem: pause_on_host %02x protocol %02x BW [%02x - %02x] MAC %02x:%02x:%02x:%02x:%02x:%02x wwn port %llx yesde %llx ovlan %04x wol %02x\n",
 		info->pause_on_host, info->protocol,
 		info->bandwidth_min, info->bandwidth_max,
 		info->mac[0], info->mac[1], info->mac[2],
 		info->mac[3], info->mac[4], info->mac[5],
-		info->wwn_port, info->wwn_node,
+		info->wwn_port, info->wwn_yesde,
 		info->ovlan, (u8)p_hwfn->hw_info.b_wol_support);
 
 	return 0;
@@ -2663,7 +2663,7 @@ int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
 
 	/* MCP is BE, and on LE platforms PCI would swap access to SHMEM
 	 * in 32-bit granularity.
-	 * So the MAC has to be set in native order [and not byte order],
+	 * So the MAC has to be set in native order [and yest byte order],
 	 * otherwise it would be read incorrectly by MFW after swap.
 	 */
 	mfw_mac[0] = mac[0] << 24 | mac[1] << 16 | mac[2] << 8 | mac[3];
@@ -2792,7 +2792,7 @@ int qed_mcp_mask_parities(struct qed_hwfn *p_hwfn,
 		       "MCP response failure for mask parities, aborting\n");
 	} else if (resp != FW_MSG_CODE_OK) {
 		DP_ERR(p_hwfn,
-		       "MCP did not acknowledge mask parity request. Old MFW?\n");
+		       "MCP did yest ackyeswledge mask parity request. Old MFW?\n");
 		rc = -EINVAL;
 	}
 
@@ -3102,7 +3102,7 @@ int qed_mcp_nvm_info_populate(struct qed_hwfn *p_hwfn)
 	rc = qed_mcp_bist_nvm_get_num_images(p_hwfn,
 					     p_ptt, &nvm_info.num_images);
 	if (rc == -EOPNOTSUPP) {
-		DP_INFO(p_hwfn, "DRV_MSG_CODE_BIST_TEST is not supported\n");
+		DP_INFO(p_hwfn, "DRV_MSG_CODE_BIST_TEST is yest supported\n");
 		goto out;
 	} else if (rc || !nvm_info.num_images) {
 		DP_ERR(p_hwfn, "Failed getting number of images\n");
@@ -3175,7 +3175,7 @@ qed_mcp_get_nvm_image_att(struct qed_hwfn *p_hwfn,
 		type = NVM_TYPE_META;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown request of image_id %08x\n",
+		DP_NOTICE(p_hwfn, "Unkyeswn request of image_id %08x\n",
 			  image_id);
 		return -EINVAL;
 	}
@@ -3469,7 +3469,7 @@ static int qed_mcp_resource_cmd(struct qed_hwfn *p_hwfn,
 		u8 opcode = QED_MFW_GET_FIELD(param, RESOURCE_CMD_REQ_OPCODE);
 
 		DP_NOTICE(p_hwfn,
-			  "The resource command is unknown to the MFW [param 0x%08x, opcode %d]\n",
+			  "The resource command is unkyeswn to the MFW [param 0x%08x, opcode %d]\n",
 			  param, opcode);
 		return -EINVAL;
 	}
@@ -3632,9 +3632,9 @@ void qed_mcp_resc_lock_default_init(struct qed_resc_lock_params *p_lock,
 	if (p_lock) {
 		memset(p_lock, 0, sizeof(*p_lock));
 
-		/* Permanent resources don't require aging, and there's no
+		/* Permanent resources don't require aging, and there's yes
 		 * point in trying to acquire them more than once since it's
-		 * unexpected another entity would release them.
+		 * unexpected ayesther entity would release them.
 		 */
 		if (b_is_permanent) {
 			p_lock->timeout = QED_MCP_RESC_LOCK_TO_NONE;

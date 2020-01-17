@@ -55,7 +55,7 @@ static void efi_power_off(void)
 {
 	efi.reset_system(EFI_RESET_SHUTDOWN, EFI_SUCCESS, 0, NULL);
 	/*
-	 * The above call should not return, if it does fall back to
+	 * The above call should yest return, if it does fall back to
 	 * the original power off method (typically ACPI poweroff).
 	 */
 	if (orig_pm_power_off)

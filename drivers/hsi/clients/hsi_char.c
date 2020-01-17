@@ -5,10 +5,10 @@
  *
  * Copyright (C) 2010 Nokia Corporation. All rights reserved.
  *
- * Contact: Andras Domokos <andras.domokos@nokia.com>
+ * Contact: Andras Domokos <andras.domokos@yeskia.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/atomic.h>
 #include <linux/kernel.h>
@@ -43,7 +43,7 @@
 
 /*
  * We support up to 4 controllers that can have up to 4
- * ports, which should currently be more than enough.
+ * ports, which should currently be more than eyesugh.
  */
 #define HSC_BASEMINOR(id, port_id) \
 		((((id) & HSC_ID_MASK) << HSC_ID_BITS) | \
@@ -184,8 +184,8 @@ static inline struct hsi_msg *hsc_msg_alloc(unsigned int alloc_size)
 		goto out;
 	}
 	sg_init_one(msg->sgt.sgl, buf, alloc_size);
-	/* Ignore false positive, due to sg pointer handling */
-	kmemleak_ignore(buf);
+	/* Igyesre false positive, due to sg pointer handling */
+	kmemleak_igyesre(buf);
 
 	return msg;
 out:
@@ -586,17 +586,17 @@ static inline void __hsc_port_release(struct hsc_client_data *cl_data)
 	}
 }
 
-static int hsc_open(struct inode *inode, struct file *file)
+static int hsc_open(struct iyesde *iyesde, struct file *file)
 {
 	struct hsc_client_data *cl_data;
 	struct hsc_channel *channel;
 	int ret = 0;
 
-	pr_debug("open, minor = %d\n", iminor(inode));
+	pr_debug("open, miyesr = %d\n", imiyesr(iyesde));
 
-	cl_data = container_of(inode->i_cdev, struct hsc_client_data, cdev);
+	cl_data = container_of(iyesde->i_cdev, struct hsc_client_data, cdev);
 	mutex_lock(&cl_data->lock);
-	channel = cl_data->channels + (iminor(inode) & HSC_CH_MASK);
+	channel = cl_data->channels + (imiyesr(iyesde) & HSC_CH_MASK);
 
 	if (test_and_set_bit(HSC_CH_OPEN, &channel->flags)) {
 		ret = -EBUSY;
@@ -604,7 +604,7 @@ static int hsc_open(struct inode *inode, struct file *file)
 	}
 	/*
 	 * Check if we have already claimed the port associated to the HSI
-	 * client. If not then try to claim it, else increase its refcount
+	 * client. If yest then try to claim it, else increase its refcount
 	 */
 	if (cl_data->usecnt == 0) {
 		ret = hsi_claim_port(cl_data->cl, 0);
@@ -630,7 +630,7 @@ out:
 	return ret;
 }
 
-static int hsc_release(struct inode *inode __maybe_unused, struct file *file)
+static int hsc_release(struct iyesde *iyesde __maybe_unused, struct file *file)
 {
 	struct hsc_channel *channel = file->private_data;
 	struct hsc_client_data *cl_data = channel->cl_data;
@@ -678,7 +678,7 @@ static int hsc_probe(struct device *dev)
 	struct hsc_client_data *cl_data;
 	struct hsc_channel *channel;
 	struct hsi_client *cl = to_hsi_client(dev);
-	unsigned int hsc_baseminor;
+	unsigned int hsc_basemiyesr;
 	dev_t hsc_dev;
 	int ret;
 	int i;
@@ -687,19 +687,19 @@ static int hsc_probe(struct device *dev)
 	if (!cl_data)
 		return -ENOMEM;
 
-	hsc_baseminor = HSC_BASEMINOR(hsi_id(cl), hsi_port_id(cl));
+	hsc_basemiyesr = HSC_BASEMINOR(hsi_id(cl), hsi_port_id(cl));
 	if (!hsc_major) {
-		ret = alloc_chrdev_region(&hsc_dev, hsc_baseminor,
+		ret = alloc_chrdev_region(&hsc_dev, hsc_basemiyesr,
 						HSC_DEVS, devname);
 		if (ret == 0)
 			hsc_major = MAJOR(hsc_dev);
 	} else {
-		hsc_dev = MKDEV(hsc_major, hsc_baseminor);
+		hsc_dev = MKDEV(hsc_major, hsc_basemiyesr);
 		ret = register_chrdev_region(hsc_dev, HSC_DEVS, devname);
 	}
 	if (ret < 0) {
 		dev_err(dev, "Device %s allocation failed %d\n",
-					hsc_major ? "minor" : "major", ret);
+					hsc_major ? "miyesr" : "major", ret);
 		goto out1;
 	}
 	mutex_init(&cl_data->lock);
@@ -717,7 +717,7 @@ static int hsc_probe(struct device *dev)
 	/* 1 hsi client -> N char devices (one for each channel) */
 	ret = cdev_add(&cl_data->cdev, hsc_dev, HSC_DEVS);
 	if (ret) {
-		dev_err(dev, "Could not add char device %d\n", ret);
+		dev_err(dev, "Could yest add char device %d\n", ret);
 		goto out2;
 	}
 
@@ -782,7 +782,7 @@ static void __exit hsc_exit(void)
 }
 module_exit(hsc_exit);
 
-MODULE_AUTHOR("Andras Domokos <andras.domokos@nokia.com>");
+MODULE_AUTHOR("Andras Domokos <andras.domokos@yeskia.com>");
 MODULE_ALIAS("hsi:hsi_char");
 MODULE_DESCRIPTION("HSI character device");
 MODULE_LICENSE("GPL v2");

@@ -9,7 +9,7 @@ menuconfig NET
 	select GENERIC_NET_UTILS
 	select BPF
 	---help---
-	  Unless you really know what you are doing, you should say Y here.
+	  Unless you really kyesw what you are doing, you should say Y here.
 	  The reason is that some programs need kernel networking support even
 	  when running on a stand-alone machine that isn't connected to any
 	  other computer.
@@ -38,7 +38,7 @@ config COMPAT_NETLINK_MESSAGES
 	depends on WEXT_CORE || WANT_COMPAT_NETLINK_MESSAGES
 	help
 	  This option makes it possible to send different netlink messages
-	  to tasks depending on whether the task is a compat task or not. To
+	  to tasks depending on whether the task is a compat task or yest. To
 	  achieve this, you need to set skb_shinfo(skb)->frag_list to the
 	  compat skb before sending the skb, the netlink code will sort out
 	  which message to actually pass to the task.
@@ -71,7 +71,7 @@ config INET
 	  These are the protocols used on the Internet and on most local
 	  Ethernets. It is highly recommended to say Y here (this will enlarge
 	  your kernel by about 400 KB), since some programs (e.g. the X window
-	  system) use TCP/IP even if your machine is not connected to any
+	  system) use TCP/IP even if your machine is yest connected to any
 	  other computer. You will get the so-called loopback device which
 	  allows you to ping yourself (great fun, that!).
 
@@ -127,7 +127,7 @@ menuconfig NETFILTER
 	  based on type, source, destination etc. The other kind of firewall,
 	  a "proxy-based" one, is more secure but more intrusive and more
 	  bothersome to set up; it inspects the network traffic much more
-	  closely, modifies it and has knowledge about the higher level
+	  closely, modifies it and has kyeswledge about the higher level
 	  protocols, which a packet filter lacks. Moreover, proxy-based
 	  firewalls often require changes to the programs running on the local
 	  clients. Proxy-based firewalls don't need support by the kernel, but
@@ -150,12 +150,12 @@ menuconfig NETFILTER
 	  using a mechanism called portforwarding. Masquerading is also often
 	  called NAT (Network Address Translation).
 
-	  Another use of Netfilter is in transparent proxying: if a machine on
+	  Ayesther use of Netfilter is in transparent proxying: if a machine on
 	  the local network tries to connect to an outside host, your Linux
 	  box can transparently forward the traffic to a local server,
 	  typically a caching proxy server.
 
-	  Yet another use of Netfilter is building a bridging firewall. Using
+	  Yet ayesther use of Netfilter is building a bridging firewall. Using
 	  a bridge with Network packet filtering enabled makes iptables "see"
 	  the bridged traffic. For filtering on the lower network and Ethernet
 	  protocols over the bridge, use ebtables (under bridge netfilter
@@ -175,7 +175,7 @@ config NETFILTER_ADVANCED
 	default y
 	help
 	  If you say Y here you can select between all the netfilter modules.
-	  If you say N the more unusual ones will not be shown and the
+	  If you say N the more unusual ones will yest be shown and the
 	  basic ones needed by most people will default to 'M'.
 
 	  If unsure, say Y.
@@ -291,7 +291,7 @@ config BPF_JIT
 	depends on HAVE_CBPF_JIT || HAVE_EBPF_JIT
 	depends on MODULES
 	---help---
-	  Berkeley Packet Filter filtering capabilities are normally handled
+	  Berkeley Packet Filter filtering capabilities are yesrmally handled
 	  by an interpreter. This option allows kernel to generate a native
 	  code when filter is loaded in memory. This should speedup
 	  packet sniffing (libpcap/tcpdump).
@@ -396,7 +396,7 @@ config LWTUNNEL
 	bool "Network light weight tunnels"
 	---help---
 	  This feature provides an infrastructure to support light weight
-	  tunnels like mpls. There is no netdevice associated with a light
+	  tunnels like mpls. There is yes netdevice associated with a light
 	  weight tunnel endpoint. Tunnel encapsulation parameters are stored
 	  with light weight tunnel state associated with fib routes.
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include "string2.h"
 #include <sys/param.h>
@@ -336,7 +336,7 @@ static int write_hostname(struct feat_fd *ff,
 	if (ret < 0)
 		return -1;
 
-	return do_write_string(ff, uts.nodename);
+	return do_write_string(ff, uts.yesdename);
 }
 
 static int write_osrelease(struct feat_fd *ff,
@@ -684,9 +684,9 @@ static int write_numa_topology(struct feat_fd *ff,
 		goto err;
 
 	for (i = 0; i < tp->nr; i++) {
-		struct numa_topology_node *n = &tp->nodes[i];
+		struct numa_topology_yesde *n = &tp->yesdes[i];
 
-		ret = do_write(ff, &n->node, sizeof(u32));
+		ret = do_write(ff, &n->yesde, sizeof(u32));
 		if (ret < 0)
 			goto err;
 
@@ -785,7 +785,7 @@ static int write_group_desc(struct feat_fd *ff,
 	evlist__for_each_entry(evlist, evsel) {
 		if (perf_evsel__is_group_leader(evsel) &&
 		    evsel->core.nr_members > 1) {
-			const char *name = evsel->group_name ?: "{anon_group}";
+			const char *name = evsel->group_name ?: "{ayesn_group}";
 			u32 leader_idx = evsel->idx;
 			u32 nr_members = evsel->core.nr_members;
 
@@ -818,7 +818,7 @@ char * __weak get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
 
 /* Return zero when the cpuid from the mapfile.csv matches the
  * cpuid string generated on this platform.
- * Otherwise return non-zero.
+ * Otherwise return yesn-zero.
  */
 int __weak strcmp_cpuid_str(const char *mapcpuid, const char *cpuid)
 {
@@ -845,7 +845,7 @@ int __weak strcmp_cpuid_str(const char *mapcpuid, const char *cpuid)
 }
 
 /*
- * default get_cpuid(): nothing gets recorded
+ * default get_cpuid(): yesthing gets recorded
  * actual implementation must be in arch/$(SRCARCH)/util/header.c
  */
 int __weak get_cpuid(char *buffer __maybe_unused, size_t sz __maybe_unused)
@@ -917,7 +917,7 @@ static int write_bpf_prog_info(struct feat_fd *ff,
 {
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
-	struct rb_node *next;
+	struct rb_yesde *next;
 	int ret;
 
 	down_read(&env->bpf_progs.lock);
@@ -930,22 +930,22 @@ static int write_bpf_prog_info(struct feat_fd *ff,
 	root = &env->bpf_progs.infos;
 	next = rb_first(root);
 	while (next) {
-		struct bpf_prog_info_node *node;
+		struct bpf_prog_info_yesde *yesde;
 		size_t len;
 
-		node = rb_entry(next, struct bpf_prog_info_node, rb_node);
-		next = rb_next(&node->rb_node);
+		yesde = rb_entry(next, struct bpf_prog_info_yesde, rb_yesde);
+		next = rb_next(&yesde->rb_yesde);
 		len = sizeof(struct bpf_prog_info_linear) +
-			node->info_linear->data_len;
+			yesde->info_linear->data_len;
 
 		/* before writing to file, translate address to offset */
-		bpf_program__bpil_addr_to_offs(node->info_linear);
-		ret = do_write(ff, node->info_linear, len);
+		bpf_program__bpil_addr_to_offs(yesde->info_linear);
+		ret = do_write(ff, yesde->info_linear, len);
 		/*
 		 * translate back to address even when do_write() fails,
 		 * so that this function never changes the data.
 		 */
-		bpf_program__bpil_offs_to_addr(node->info_linear);
+		bpf_program__bpil_offs_to_addr(yesde->info_linear);
 		if (ret < 0)
 			goto out;
 	}
@@ -966,7 +966,7 @@ static int write_bpf_btf(struct feat_fd *ff,
 {
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
-	struct rb_node *next;
+	struct rb_yesde *next;
 	int ret;
 
 	down_read(&env->bpf_progs.lock);
@@ -980,12 +980,12 @@ static int write_bpf_btf(struct feat_fd *ff,
 	root = &env->bpf_progs.btfs;
 	next = rb_first(root);
 	while (next) {
-		struct btf_node *node;
+		struct btf_yesde *yesde;
 
-		node = rb_entry(next, struct btf_node, rb_node);
-		next = rb_next(&node->rb_node);
-		ret = do_write(ff, &node->id,
-			       sizeof(u32) * 2 + node->data_size);
+		yesde = rb_entry(next, struct btf_yesde, rb_yesde);
+		next = rb_next(&yesde->rb_yesde);
+		ret = do_write(ff, &yesde->id,
+			       sizeof(u32) * 2 + yesde->data_size);
 		if (ret < 0)
 			goto out;
 	}
@@ -1200,7 +1200,7 @@ static int write_sample_time(struct feat_fd *ff,
 }
 
 
-static int memory_node__read(struct memory_node *n, unsigned long idx)
+static int memory_yesde__read(struct memory_yesde *n, unsigned long idx)
 {
 	unsigned int phys, size = 0;
 	char path[PATH_MAX];
@@ -1214,7 +1214,7 @@ static int memory_node__read(struct memory_node *n, unsigned long idx)
 		    sscanf(ent->d_name, "memory%u", &mem) == 1)
 
 	scnprintf(path, PATH_MAX,
-		  "%s/devices/system/node/node%lu",
+		  "%s/devices/system/yesde/yesde%lu",
 		  sysfs__mountpoint(), idx);
 
 	dir = opendir(path);
@@ -1235,7 +1235,7 @@ static int memory_node__read(struct memory_node *n, unsigned long idx)
 		return -ENOMEM;
 	}
 
-	n->node = idx;
+	n->yesde = idx;
 	n->size = size;
 
 	rewinddir(dir);
@@ -1248,15 +1248,15 @@ static int memory_node__read(struct memory_node *n, unsigned long idx)
 	return 0;
 }
 
-static int memory_node__sort(const void *a, const void *b)
+static int memory_yesde__sort(const void *a, const void *b)
 {
-	const struct memory_node *na = a;
-	const struct memory_node *nb = b;
+	const struct memory_yesde *na = a;
+	const struct memory_yesde *nb = b;
 
-	return na->node - nb->node;
+	return na->yesde - nb->yesde;
 }
 
-static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
+static int build_mem_topology(struct memory_yesde *yesdes, u64 size, u64 *cntp)
 {
 	char path[PATH_MAX];
 	struct dirent *ent;
@@ -1264,7 +1264,7 @@ static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
 	u64 cnt = 0;
 	int ret = 0;
 
-	scnprintf(path, PATH_MAX, "%s/devices/system/node/",
+	scnprintf(path, PATH_MAX, "%s/devices/system/yesde/",
 		  sysfs__mountpoint());
 
 	dir = opendir(path);
@@ -1282,24 +1282,24 @@ static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
 		    !strcmp(ent->d_name, ".."))
 			continue;
 
-		r = sscanf(ent->d_name, "node%u", &idx);
+		r = sscanf(ent->d_name, "yesde%u", &idx);
 		if (r != 1)
 			continue;
 
 		if (WARN_ONCE(cnt >= size,
-			"failed to write MEM_TOPOLOGY, way too many nodes\n")) {
+			"failed to write MEM_TOPOLOGY, way too many yesdes\n")) {
 			closedir(dir);
 			return -1;
 		}
 
-		ret = memory_node__read(&nodes[cnt++], idx);
+		ret = memory_yesde__read(&yesdes[cnt++], idx);
 	}
 
 	*cntp = cnt;
 	closedir(dir);
 
 	if (!ret)
-		qsort(nodes, cnt, sizeof(nodes[0]), memory_node__sort);
+		qsort(yesdes, cnt, sizeof(yesdes[0]), memory_yesde__sort);
 
 	return ret;
 }
@@ -1308,23 +1308,23 @@ static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
 
 /*
  * The MEM_TOPOLOGY holds physical memory map for every
- * node in system. The format of data is as follows:
+ * yesde in system. The format of data is as follows:
  *
  *  0 - version          | for future changes
  *  8 - block_size_bytes | /sys/devices/system/memory/block_size_bytes
- * 16 - count            | number of nodes
+ * 16 - count            | number of yesdes
  *
- * For each node we store map of physical indexes for
- * each node:
+ * For each yesde we store map of physical indexes for
+ * each yesde:
  *
- * 32 - node id          | node index
+ * 32 - yesde id          | yesde index
  * 40 - size             | size of bitmap
- * 48 - bitmap           | bitmap of memory indexes that belongs to node
+ * 48 - bitmap           | bitmap of memory indexes that belongs to yesde
  */
 static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 			      struct evlist *evlist __maybe_unused)
 {
-	static struct memory_node nodes[MAX_MEMORY_NODES];
+	static struct memory_yesde yesdes[MAX_MEMORY_NODES];
 	u64 bsize, version = 1, i, nr;
 	int ret;
 
@@ -1333,7 +1333,7 @@ static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 	if (ret)
 		return ret;
 
-	ret = build_mem_topology(&nodes[0], MAX_MEMORY_NODES, &nr);
+	ret = build_mem_topology(&yesdes[0], MAX_MEMORY_NODES, &nr);
 	if (ret)
 		return ret;
 
@@ -1350,14 +1350,14 @@ static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 		goto out;
 
 	for (i = 0; i < nr; i++) {
-		struct memory_node *n = &nodes[i];
+		struct memory_yesde *n = &yesdes[i];
 
 		#define _W(v)						\
 			ret = do_write(ff, &n->v, sizeof(n->v));	\
 			if (ret < 0)					\
 				goto out;
 
-		_W(node)
+		_W(yesde)
 		_W(size)
 
 		#undef _W
@@ -1498,7 +1498,7 @@ static void print_cpu_topology(struct feat_fd *ff, FILE *fp)
 					    ph->env.cpu[i].socket_id);
 		} else
 			fprintf(fp, "# Core ID, Die ID and Socket ID "
-				    "information is not available\n");
+				    "information is yest available\n");
 	} else {
 		if (ph->env.cpu != NULL) {
 			for (i = 0; i < cpu_nr; i++)
@@ -1508,7 +1508,7 @@ static void print_cpu_topology(struct feat_fd *ff, FILE *fp)
 					    ph->env.cpu[i].socket_id);
 		} else
 			fprintf(fp, "# Core ID and Socket ID "
-				    "information is not available\n");
+				    "information is yest available\n");
 	}
 }
 
@@ -1533,7 +1533,7 @@ static void print_bpf_prog_info(struct feat_fd *ff, FILE *fp)
 {
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
-	struct rb_node *next;
+	struct rb_yesde *next;
 
 	down_read(&env->bpf_progs.lock);
 
@@ -1541,12 +1541,12 @@ static void print_bpf_prog_info(struct feat_fd *ff, FILE *fp)
 	next = rb_first(root);
 
 	while (next) {
-		struct bpf_prog_info_node *node;
+		struct bpf_prog_info_yesde *yesde;
 
-		node = rb_entry(next, struct bpf_prog_info_node, rb_node);
-		next = rb_next(&node->rb_node);
+		yesde = rb_entry(next, struct bpf_prog_info_yesde, rb_yesde);
+		next = rb_next(&yesde->rb_yesde);
 
-		bpf_event__print_bpf_prog_info(&node->info_linear->info,
+		bpf_event__print_bpf_prog_info(&yesde->info_linear->info,
 					       env, fp);
 	}
 
@@ -1557,7 +1557,7 @@ static void print_bpf_btf(struct feat_fd *ff, FILE *fp)
 {
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
-	struct rb_node *next;
+	struct rb_yesde *next;
 
 	down_read(&env->bpf_progs.lock);
 
@@ -1565,11 +1565,11 @@ static void print_bpf_btf(struct feat_fd *ff, FILE *fp)
 	next = rb_first(root);
 
 	while (next) {
-		struct btf_node *node;
+		struct btf_yesde *yesde;
 
-		node = rb_entry(next, struct btf_node, rb_node);
-		next = rb_next(&node->rb_node);
-		fprintf(fp, "# btf info of id %u\n", node->id);
+		yesde = rb_entry(next, struct btf_yesde, rb_yesde);
+		next = rb_next(&yesde->rb_yesde);
+		fprintf(fp, "# btf info of id %u\n", yesde->id);
 	}
 
 	up_read(&env->bpf_progs.lock);
@@ -1686,7 +1686,7 @@ static void print_event_desc(struct feat_fd *ff, FILE *fp)
 		events = read_event_desc(ff);
 
 	if (!events) {
-		fprintf(fp, "# event desc: not available or unable to read\n");
+		fprintf(fp, "# event desc: yest available or unable to read\n");
 		return;
 	}
 
@@ -1720,16 +1720,16 @@ static void print_total_mem(struct feat_fd *ff, FILE *fp)
 static void print_numa_topology(struct feat_fd *ff, FILE *fp)
 {
 	int i;
-	struct numa_node *n;
+	struct numa_yesde *n;
 
-	for (i = 0; i < ff->ph->env.nr_numa_nodes; i++) {
-		n = &ff->ph->env.numa_nodes[i];
+	for (i = 0; i < ff->ph->env.nr_numa_yesdes; i++) {
+		n = &ff->ph->env.numa_yesdes[i];
 
-		fprintf(fp, "# node%u meminfo  : total = %"PRIu64" kB,"
+		fprintf(fp, "# yesde%u meminfo  : total = %"PRIu64" kB,"
 			    " free = %"PRIu64" kB\n",
-			n->node, n->mem_total, n->mem_free);
+			n->yesde, n->mem_total, n->mem_free);
 
-		fprintf(fp, "# node%u cpu list : ", n->node);
+		fprintf(fp, "# yesde%u cpu list : ", n->yesde);
 		cpu_map__fprintf(n->map, fp);
 	}
 }
@@ -1768,7 +1768,7 @@ static void print_cache(struct feat_fd *ff, FILE *fp __maybe_unused)
 static void print_compressed(struct feat_fd *ff, FILE *fp)
 {
 	fprintf(fp, "# compressed : %s, level = %d, ratio = %d\n",
-		ff->ph->env.comp_type == PERF_COMP_ZSTD ? "Zstd" : "Unknown",
+		ff->ph->env.comp_type == PERF_COMP_ZSTD ? "Zstd" : "Unkyeswn",
 		ff->ph->env.comp_level, ff->ph->env.comp_ratio);
 }
 
@@ -1781,7 +1781,7 @@ static void print_pmu_mappings(struct feat_fd *ff, FILE *fp)
 
 	pmu_num = ff->ph->env.nr_pmu_mappings;
 	if (!pmu_num) {
-		fprintf(fp, "# pmu mappings: not available\n");
+		fprintf(fp, "# pmu mappings: yest available\n");
 		return;
 	}
 
@@ -1854,7 +1854,7 @@ static void print_sample_time(struct feat_fd *ff, FILE *fp)
 	fprintf(fp, "# sample duration : %10.3f ms\n", d);
 }
 
-static void memory_node__fprintf(struct memory_node *n,
+static void memory_yesde__fprintf(struct memory_yesde *n,
 				 unsigned long long bsize, FILE *fp)
 {
 	char buf_map[100], buf_size[50];
@@ -1864,22 +1864,22 @@ static void memory_node__fprintf(struct memory_node *n,
 	unit_number__scnprintf(buf_size, 50, size);
 
 	bitmap_scnprintf(n->set, n->size, buf_map, 100);
-	fprintf(fp, "#  %3" PRIu64 " [%s]: %s\n", n->node, buf_size, buf_map);
+	fprintf(fp, "#  %3" PRIu64 " [%s]: %s\n", n->yesde, buf_size, buf_map);
 }
 
 static void print_mem_topology(struct feat_fd *ff, FILE *fp)
 {
-	struct memory_node *nodes;
+	struct memory_yesde *yesdes;
 	int i, nr;
 
-	nodes = ff->ph->env.memory_nodes;
-	nr    = ff->ph->env.nr_memory_nodes;
+	yesdes = ff->ph->env.memory_yesdes;
+	nr    = ff->ph->env.nr_memory_yesdes;
 
-	fprintf(fp, "# memory nodes (nr %d, block size 0x%llx):\n",
+	fprintf(fp, "# memory yesdes (nr %d, block size 0x%llx):\n",
 		nr, ff->ph->env.memory_bsize);
 
 	for (i = 0; i < nr; i++) {
-		memory_node__fprintf(&nodes[i], ff->ph->env.memory_bsize, fp);
+		memory_yesde__fprintf(&yesdes[i], ff->ph->env.memory_bsize, fp);
 	}
 }
 
@@ -2019,7 +2019,7 @@ static int perf_header__read_build_ids(struct perf_header *header,
 		 * format.
 		 *
 		 * Since the kernel build-id is the first entry, process the
-		 * table using the old format if the well known
+		 * table using the old format if the well kyeswn
 		 * '[kernel.kallsyms]' string for the kernel build-id has the
 		 * first 4 characters chopped off (where the pid_t sits).
 		 */
@@ -2255,7 +2255,7 @@ static int process_cpu_topology(struct feat_fd *ff, void *data __maybe_unused)
 		return 0;
 	}
 
-	/* On s390 the socket_id number is not related to the numbers of cpus.
+	/* On s390 the socket_id number is yest related to the numbers of cpus.
 	 * The socket_id number might be higher than the numbers of cpus.
 	 * This depends on the configuration.
 	 * AArch64 is the same.
@@ -2328,23 +2328,23 @@ free_cpu:
 
 static int process_numa_topology(struct feat_fd *ff, void *data __maybe_unused)
 {
-	struct numa_node *nodes, *n;
+	struct numa_yesde *yesdes, *n;
 	u32 nr, i;
 	char *str;
 
-	/* nr nodes */
+	/* nr yesdes */
 	if (do_read_u32(ff, &nr))
 		return -1;
 
-	nodes = zalloc(sizeof(*nodes) * nr);
-	if (!nodes)
+	yesdes = zalloc(sizeof(*yesdes) * nr);
+	if (!yesdes)
 		return -ENOMEM;
 
 	for (i = 0; i < nr; i++) {
-		n = &nodes[i];
+		n = &yesdes[i];
 
-		/* node number */
-		if (do_read_u32(ff, &n->node))
+		/* yesde number */
+		if (do_read_u32(ff, &n->yesde))
 			goto error;
 
 		if (do_read_u64(ff, &n->mem_total))
@@ -2363,12 +2363,12 @@ static int process_numa_topology(struct feat_fd *ff, void *data __maybe_unused)
 
 		free(str);
 	}
-	ff->ph->env.nr_numa_nodes = nr;
-	ff->ph->env.numa_nodes = nodes;
+	ff->ph->env.nr_numa_yesdes = nr;
+	ff->ph->env.numa_yesdes = yesdes;
 	return 0;
 
 error:
-	free(nodes);
+	free(yesdes);
 	return -1;
 }
 
@@ -2383,7 +2383,7 @@ static int process_pmu_mappings(struct feat_fd *ff, void *data __maybe_unused)
 		return -1;
 
 	if (!pmu_num) {
-		pr_debug("pmu mappings not available\n");
+		pr_debug("pmu mappings yest available\n");
 		return 0;
 	}
 
@@ -2436,7 +2436,7 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 
 	ff->ph->env.nr_groups = nr_groups;
 	if (!nr_groups) {
-		pr_debug("group desc not available\n");
+		pr_debug("group desc yest available\n");
 		return 0;
 	}
 
@@ -2466,8 +2466,8 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 	evlist__for_each_entry(session->evlist, evsel) {
 		if (evsel->idx == (int) desc[i].leader_idx) {
 			evsel->leader = evsel;
-			/* {anon_group} is a dummy name */
-			if (strcmp(desc[i].name, "{anon_group}")) {
+			/* {ayesn_group} is a dummy name */
+			if (strcmp(desc[i].name, "{ayesn_group}")) {
 				evsel->group_name = desc[i].name;
 				desc[i].name = NULL;
 			}
@@ -2593,7 +2593,7 @@ static int process_sample_time(struct feat_fd *ff, void *data __maybe_unused)
 static int process_mem_topology(struct feat_fd *ff,
 				void *data __maybe_unused)
 {
-	struct memory_node *nodes;
+	struct memory_yesde *yesdes;
 	u64 version, i, nr, bsize;
 	int ret = -1;
 
@@ -2609,18 +2609,18 @@ static int process_mem_topology(struct feat_fd *ff,
 	if (do_read_u64(ff, &nr))
 		return -1;
 
-	nodes = zalloc(sizeof(*nodes) * nr);
-	if (!nodes)
+	yesdes = zalloc(sizeof(*yesdes) * nr);
+	if (!yesdes)
 		return -1;
 
 	for (i = 0; i < nr; i++) {
-		struct memory_node n;
+		struct memory_yesde n;
 
 		#define _R(v)				\
 			if (do_read_u64(ff, &n.v))	\
 				goto out;		\
 
-		_R(node)
+		_R(yesde)
 		_R(size)
 
 		#undef _R
@@ -2628,17 +2628,17 @@ static int process_mem_topology(struct feat_fd *ff,
 		if (do_read_bitmap(ff, &n.set, &n.size))
 			goto out;
 
-		nodes[i] = n;
+		yesdes[i] = n;
 	}
 
 	ff->ph->env.memory_bsize    = bsize;
-	ff->ph->env.memory_nodes    = nodes;
-	ff->ph->env.nr_memory_nodes = nr;
+	ff->ph->env.memory_yesdes    = yesdes;
+	ff->ph->env.nr_memory_yesdes = nr;
 	ret = 0;
 
 out:
 	if (ret)
-		free(nodes);
+		free(yesdes);
 	return ret;
 }
 
@@ -2670,13 +2670,13 @@ static int process_dir_format(struct feat_fd *ff,
 static int process_bpf_prog_info(struct feat_fd *ff, void *data __maybe_unused)
 {
 	struct bpf_prog_info_linear *info_linear;
-	struct bpf_prog_info_node *info_node;
+	struct bpf_prog_info_yesde *info_yesde;
 	struct perf_env *env = &ff->ph->env;
 	u32 count, i;
 	int err = -1;
 
 	if (ff->ph->needs_swap) {
-		pr_warning("interpreting bpf_prog_info from systems with endianity is not yet supported\n");
+		pr_warning("interpreting bpf_prog_info from systems with endianity is yest yet supported\n");
 		return 0;
 	}
 
@@ -2689,7 +2689,7 @@ static int process_bpf_prog_info(struct feat_fd *ff, void *data __maybe_unused)
 		u32 info_len, data_len;
 
 		info_linear = NULL;
-		info_node = NULL;
+		info_yesde = NULL;
 		if (do_read_u32(ff, &info_len))
 			goto out;
 		if (do_read_u32(ff, &data_len))
@@ -2717,21 +2717,21 @@ static int process_bpf_prog_info(struct feat_fd *ff, void *data __maybe_unused)
 		if (__do_read(ff, info_linear->data, data_len))
 			goto out;
 
-		info_node = malloc(sizeof(struct bpf_prog_info_node));
-		if (!info_node)
+		info_yesde = malloc(sizeof(struct bpf_prog_info_yesde));
+		if (!info_yesde)
 			goto out;
 
 		/* after reading from file, translate offset to address */
 		bpf_program__bpil_offs_to_addr(info_linear);
-		info_node->info_linear = info_linear;
-		perf_env__insert_bpf_prog_info(env, info_node);
+		info_yesde->info_linear = info_linear;
+		perf_env__insert_bpf_prog_info(env, info_yesde);
 	}
 
 	up_write(&env->bpf_progs.lock);
 	return 0;
 out:
 	free(info_linear);
-	free(info_node);
+	free(info_yesde);
 	up_write(&env->bpf_progs.lock);
 	return err;
 }
@@ -2745,12 +2745,12 @@ static int process_bpf_prog_info(struct feat_fd *ff __maybe_unused, void *data _
 static int process_bpf_btf(struct feat_fd *ff, void *data __maybe_unused)
 {
 	struct perf_env *env = &ff->ph->env;
-	struct btf_node *node = NULL;
+	struct btf_yesde *yesde = NULL;
 	u32 count, i;
 	int err = -1;
 
 	if (ff->ph->needs_swap) {
-		pr_warning("interpreting btf from systems with endianity is not yet supported\n");
+		pr_warning("interpreting btf from systems with endianity is yest yet supported\n");
 		return 0;
 	}
 
@@ -2767,24 +2767,24 @@ static int process_bpf_btf(struct feat_fd *ff, void *data __maybe_unused)
 		if (do_read_u32(ff, &data_size))
 			goto out;
 
-		node = malloc(sizeof(struct btf_node) + data_size);
-		if (!node)
+		yesde = malloc(sizeof(struct btf_yesde) + data_size);
+		if (!yesde)
 			goto out;
 
-		node->id = id;
-		node->data_size = data_size;
+		yesde->id = id;
+		yesde->data_size = data_size;
 
-		if (__do_read(ff, node->data, data_size))
+		if (__do_read(ff, yesde->data, data_size))
 			goto out;
 
-		perf_env__insert_btf(env, node);
-		node = NULL;
+		perf_env__insert_btf(env, yesde);
+		yesde = NULL;
 	}
 
 	err = 0;
 out:
 	up_write(&env->bpf_progs.lock);
-	free(node);
+	free(yesde);
 	return err;
 }
 
@@ -2828,7 +2828,7 @@ static int process_compressed(struct feat_fd *ff,
 		.process    = process_##func			\
 	}
 
-/* feature_ops not implemented: */
+/* feature_ops yest implemented: */
 #define print_tracing_data	NULL
 #define print_build_id		NULL
 
@@ -2886,7 +2886,7 @@ static int perf_file_section__fprintf_info(struct perf_file_section *section,
 		return 0;
 	}
 	if (feat >= HEADER_LAST_FEATURE) {
-		pr_warning("unknown feature %d\n", feat);
+		pr_warning("unkyeswn feature %d\n", feat);
 		return 0;
 	}
 	if (!feat_ops[feat].print)
@@ -3108,7 +3108,7 @@ int perf_session__write_header(struct perf_session *session,
 			.offset = header->data_offset,
 			.size	= header->data_size,
 		},
-		/* event_types is ignored, store zeros */
+		/* event_types is igyesred, store zeros */
 	};
 
 	memcpy(&f_header.adds_features, &header->adds_features, sizeof(header->adds_features));
@@ -3185,7 +3185,7 @@ static const int attr_file_abi_sizes[] = {
 };
 
 /*
- * In the legacy file format, the magic number is not used to encode endianness.
+ * In the legacy file format, the magic number is yest used to encode endianness.
  * hdr_sz was used to encode endianness. But given that hdr_sz can vary based
  * on ABI revisions, we need to try all combinations for all endianness to
  * detect the endianness.
@@ -3210,7 +3210,7 @@ static int try_all_file_abis(uint64_t hdr_sz, struct perf_header *ph)
 			 ph->needs_swap);
 		return 0;
 	}
-	/* could not determine endianness */
+	/* could yest determine endianness */
 	return -1;
 }
 
@@ -3224,7 +3224,7 @@ static const size_t attr_pipe_abi_sizes[] = {
 /*
  * In the legacy pipe format, there is an implicit assumption that endiannesss
  * between host recording the samples, and host parsing the samples is the
- * same. This is not always the case given that the pipe output may always be
+ * same. This is yest always the case given that the pipe output may always be
  * redirected into a file and analyzed on a different machine with possibly a
  * different endianness and perf_event ABI revsions in the perf tool itself.
  */
@@ -3323,16 +3323,16 @@ int perf_file_header__read(struct perf_file_header *header,
 	} else if (ph->needs_swap) {
 		/*
 		 * feature bitmap is declared as an array of unsigned longs --
-		 * not good since its size can differ between the host that
+		 * yest good since its size can differ between the host that
 		 * generated the data file and the host analyzing the file.
 		 *
-		 * We need to handle endianness, but we don't know the size of
+		 * We need to handle endianness, but we don't kyesw the size of
 		 * the unsigned long where the file was generated. Take a best
 		 * guess at determining it: try 64-bit swap first (ie., file
 		 * created on a 64-bit host), and check if the hostname feature
 		 * bit is set (this feature bit is forced on as of fbe96f2).
-		 * If the bit is not, undo the 64-bit swap and try a 32-bit
-		 * swap. If the hostname bit is still not set (e.g., older data
+		 * If the bit is yest, undo the 64-bit swap and try a 32-bit
+		 * swap. If the hostname bit is still yest set (e.g., older data
 		 * file), punt and fallback to the original behavior --
 		 * clearing all feature bits and setting buildid.
 		 */
@@ -3382,7 +3382,7 @@ static int perf_file_section__process(struct perf_file_section *section,
 	}
 
 	if (feat >= HEADER_LAST_FEATURE) {
-		pr_debug("unknown feature %d, continuing...\n", feat);
+		pr_debug("unkyeswn feature %d, continuing...\n", feat);
 		return 0;
 	}
 
@@ -3448,7 +3448,7 @@ static int read_attr(int fd, struct perf_header *ph,
 	/* read minimal guaranteed structure */
 	ret = readn(fd, attr, PERF_ATTR_SIZE_VER0);
 	if (ret <= 0) {
-		pr_debug("cannot read %d bytes of header attr\n",
+		pr_debug("canyest read %d bytes of header attr\n",
 			 PERF_ATTR_SIZE_VER0);
 		return -1;
 	}
@@ -3467,7 +3467,7 @@ static int read_attr(int fd, struct perf_header *ph,
 			 " (%zu bytes extra)\n", sz - our_sz);
 		return -1;
 	}
-	/* what we have not yet read and that we know about */
+	/* what we have yest yet read and that we kyesw about */
 	left = sz - PERF_ATTR_SIZE_VER0;
 	if (left) {
 		void *ptr = attr;
@@ -3498,7 +3498,7 @@ static int perf_evsel__prepare_tracepoint_event(struct evsel *evsel,
 
 	event = tep_find_event(pevent, evsel->core.attr.config);
 	if (event == NULL) {
-		pr_debug("cannot find event format for %d\n", (int)evsel->core.attr.config);
+		pr_debug("canyest find event format for %d\n", (int)evsel->core.attr.config);
 		return -1;
 	}
 
@@ -3576,7 +3576,7 @@ int perf_session__read_header(struct perf_session *session)
 		off_t tmp;
 
 		if (read_attr(fd, header, &f_attr) < 0)
-			goto out_errno;
+			goto out_erryes;
 
 		if (header->needs_swap) {
 			f_attr.ids.size   = bswap_64(f_attr.ids.size);
@@ -3610,7 +3610,7 @@ int perf_session__read_header(struct perf_session *session)
 
 		for (j = 0; j < nr_ids; j++) {
 			if (perf_header__getbuffer64(header, fd, &f_id, sizeof(f_id)))
-				goto out_errno;
+				goto out_erryes;
 
 			perf_evlist__id_add(&session->evlist->core, &evsel->core, 0, j, f_id);
 		}
@@ -3626,8 +3626,8 @@ int perf_session__read_header(struct perf_session *session)
 		goto out_delete_evlist;
 
 	return 0;
-out_errno:
-	return -errno;
+out_erryes:
+	return -erryes;
 
 out_delete_evlist:
 	evlist__delete(session->evlist);
@@ -3709,7 +3709,7 @@ size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 			ret += fprintf(fp, "failed to get cpus\n");
 		break;
 	default:
-		ret += fprintf(fp, "... unknown type\n");
+		ret += fprintf(fp, "... unkyeswn type\n");
 		break;
 	}
 

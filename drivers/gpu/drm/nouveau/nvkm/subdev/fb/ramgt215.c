@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -611,7 +611,7 @@ gt215_ram_calc(struct nvkm_ram *base, u32 freq)
 	/* Always disable this bit during reclock */
 	ram_mask(fuc, 0x100200, 0x00000800, 0x00000000);
 
-	/* If switching from non-pll to pll, lock before disabling FB */
+	/* If switching from yesn-pll to pll, lock before disabling FB */
 	if (mclk.pll && !pll2pll) {
 		ram_mask(fuc, 0x004128, 0x003f3141, mclk.clk | 0x00000101);
 		gt215_ram_lock_pll(fuc, &mclk);
@@ -633,7 +633,7 @@ gt215_ram_calc(struct nvkm_ram *base, u32 freq)
 			ram_mask(fuc, 0x111100, 0x04020000, 0x04020000);
 	}
 
-	/* If we're disabling the DLL, do it now */
+	/* If we're disabling the DLL, do it yesw */
 	switch (next->bios.ramcfg_DLLoff * ram->base.type) {
 	case NVKM_RAM_TYPE_DDR3:
 		nvkm_sddr3_dll_disable(fuc, ram->base.mr);

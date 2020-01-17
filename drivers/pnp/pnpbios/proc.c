@@ -5,7 +5,7 @@
  * Written by David Hinds, dahinds@users.sourceforge.net
  * Modified by Thomas Hood
  *
- * The .../devices and .../<node> and .../boot/<node> files are
+ * The .../devices and .../<yesde> and .../boot/<yesde> files are
  * utilized by the lspnp and setpnp utilities, supplied with the
  * pcmcia-cs package.
  *     http://pcmcia-cs.sourceforge.net
@@ -13,7 +13,7 @@
  * The .../escd file is utilized by the lsescd utility written by
  * Gunther Mayer.
  *
- * The .../legacy_device_resources file is not used yet.
+ * The .../legacy_device_resources file is yest used yet.
  *
  * The other files are human-readable.
  */
@@ -43,7 +43,7 @@ static int pnpconfig_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "structure_revision %d\n"
 		      "number_of_CSNs %d\n"
 		      "ISA_read_data_port 0x%x\n",
-		   pnps.revision, pnps.no_csns, pnps.isa_rd_data_port);
+		   pnps.revision, pnps.yes_csns, pnps.isa_rd_data_port);
 	return 0;
 }
 
@@ -122,91 +122,91 @@ static int pnp_legacyres_proc_show(struct seq_file *m, void *v)
 
 static int pnp_devices_proc_show(struct seq_file *m, void *v)
 {
-	struct pnp_bios_node *node;
-	u8 nodenum;
+	struct pnp_bios_yesde *yesde;
+	u8 yesdenum;
 
-	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(yesde_info.max_yesde_size, GFP_KERNEL);
+	if (!yesde)
 		return -ENOMEM;
 
-	for (nodenum = 0; nodenum < 0xff;) {
-		u8 thisnodenum = nodenum;
+	for (yesdenum = 0; yesdenum < 0xff;) {
+		u8 thisyesdenum = yesdenum;
 
-		if (pnp_bios_get_dev_node(&nodenum, PNPMODE_DYNAMIC, node))
+		if (pnp_bios_get_dev_yesde(&yesdenum, PNPMODE_DYNAMIC, yesde))
 			break;
 		seq_printf(m, "%02x\t%08x\t%3phC\t%04x\n",
-			     node->handle, node->eisa_id,
-			     node->type_code, node->flags);
-		if (nodenum <= thisnodenum) {
+			     yesde->handle, yesde->eisa_id,
+			     yesde->type_code, yesde->flags);
+		if (yesdenum <= thisyesdenum) {
 			printk(KERN_ERR
-			       "%s Node number 0x%x is out of sequence following node 0x%x. Aborting.\n",
+			       "%s Node number 0x%x is out of sequence following yesde 0x%x. Aborting.\n",
 			       "PnPBIOS: proc_read_devices:",
-			       (unsigned int)nodenum,
-			       (unsigned int)thisnodenum);
+			       (unsigned int)yesdenum,
+			       (unsigned int)thisyesdenum);
 			break;
 		}
 	}
-	kfree(node);
+	kfree(yesde);
 	return 0;
 }
 
 static int pnpbios_proc_show(struct seq_file *m, void *v)
 {
 	void *data = m->private;
-	struct pnp_bios_node *node;
+	struct pnp_bios_yesde *yesde;
 	int boot = (long)data >> 8;
-	u8 nodenum = (long)data;
+	u8 yesdenum = (long)data;
 	int len;
 
-	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(yesde_info.max_yesde_size, GFP_KERNEL);
+	if (!yesde)
 		return -ENOMEM;
-	if (pnp_bios_get_dev_node(&nodenum, boot, node)) {
-		kfree(node);
+	if (pnp_bios_get_dev_yesde(&yesdenum, boot, yesde)) {
+		kfree(yesde);
 		return -EIO;
 	}
-	len = node->size - sizeof(struct pnp_bios_node);
-	seq_write(m, node->data, len);
-	kfree(node);
+	len = yesde->size - sizeof(struct pnp_bios_yesde);
+	seq_write(m, yesde->data, len);
+	kfree(yesde);
 	return 0;
 }
 
-static int pnpbios_proc_open(struct inode *inode, struct file *file)
+static int pnpbios_proc_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, pnpbios_proc_show, PDE_DATA(inode));
+	return single_open(file, pnpbios_proc_show, PDE_DATA(iyesde));
 }
 
 static ssize_t pnpbios_proc_write(struct file *file, const char __user *buf,
 				  size_t count, loff_t *pos)
 {
-	void *data = PDE_DATA(file_inode(file));
-	struct pnp_bios_node *node;
+	void *data = PDE_DATA(file_iyesde(file));
+	struct pnp_bios_yesde *yesde;
 	int boot = (long)data >> 8;
-	u8 nodenum = (long)data;
+	u8 yesdenum = (long)data;
 	int ret = count;
 
-	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(yesde_info.max_yesde_size, GFP_KERNEL);
+	if (!yesde)
 		return -ENOMEM;
-	if (pnp_bios_get_dev_node(&nodenum, boot, node)) {
+	if (pnp_bios_get_dev_yesde(&yesdenum, boot, yesde)) {
 		ret = -EIO;
 		goto out;
 	}
-	if (count != node->size - sizeof(struct pnp_bios_node)) {
+	if (count != yesde->size - sizeof(struct pnp_bios_yesde)) {
 		ret = -EINVAL;
 		goto out;
 	}
-	if (copy_from_user(node->data, buf, count)) {
+	if (copy_from_user(yesde->data, buf, count)) {
 		ret = -EFAULT;
 		goto out;
 	}
-	if (pnp_bios_set_dev_node(node->handle, boot, node) != 0) {
+	if (pnp_bios_set_dev_yesde(yesde->handle, boot, yesde) != 0) {
 		ret = -EINVAL;
 		goto out;
 	}
 	ret = count;
 out:
-	kfree(node);
+	kfree(yesde);
 	return ret;
 }
 
@@ -219,23 +219,23 @@ static const struct file_operations pnpbios_proc_fops = {
 	.write		= pnpbios_proc_write,
 };
 
-int pnpbios_interface_attach_device(struct pnp_bios_node *node)
+int pnpbios_interface_attach_device(struct pnp_bios_yesde *yesde)
 {
 	char name[3];
 
-	sprintf(name, "%02x", node->handle);
+	sprintf(name, "%02x", yesde->handle);
 
 	if (!proc_pnp)
 		return -EIO;
 	if (!pnpbios_dont_use_current_config) {
 		proc_create_data(name, 0644, proc_pnp, &pnpbios_proc_fops,
-				 (void *)(long)(node->handle));
+				 (void *)(long)(yesde->handle));
 	}
 
 	if (!proc_pnp_boot)
 		return -EIO;
 	if (proc_create_data(name, 0644, proc_pnp_boot, &pnpbios_proc_fops,
-			     (void *)(long)(node->handle + 0x100)))
+			     (void *)(long)(yesde->handle + 0x100)))
 		return 0;
 	return -EIO;
 }

@@ -15,7 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <net/if.h>
 #include <linux/bpf.h>
@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 
 	cg_fd = open(argv[1], O_DIRECTORY | O_RDONLY);
 	if (cg_fd < 0) {
-		printf("Failed to open cgroup path: '%s'\n", strerror(errno));
+		printf("Failed to open cgroup path: '%s'\n", strerror(erryes));
 		return EXIT_FAILURE;
 	}
 
@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 		filter_id = atoi(argv[3]);
 
 	if (filter_id >= prog_cnt) {
-		printf("Invalid program id; program not found in file\n");
+		printf("Invalid program id; program yest found in file\n");
 		return EXIT_FAILURE;
 	}
 
@@ -60,7 +60,7 @@ int main(int argc, char **argv)
 			      BPF_CGROUP_INET_SOCK_CREATE, 0);
 	if (ret < 0) {
 		printf("Failed to attach prog to cgroup: '%s'\n",
-		       strerror(errno));
+		       strerror(erryes));
 		return EXIT_FAILURE;
 	}
 

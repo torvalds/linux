@@ -12,7 +12,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
@@ -60,7 +60,7 @@ struct vm_area_struct *gru_find_vma(unsigned long vaddr)
  *
  * Returns:
  * 	- *gts with the mmap_sem locked for read and the GTS locked.
- *	- NULL if vaddr invalid OR is not a valid GSEG vaddr.
+ *	- NULL if vaddr invalid OR is yest a valid GSEG vaddr.
  */
 
 static struct gru_thread_state *gru_find_lock_gts(unsigned long vaddr)
@@ -135,7 +135,7 @@ static void gru_cb_set_istatus_active(struct gru_instruction_bits *cbk)
  *
  * This function scans the cpu-private fault map & clears all bits that
  * are set. The function returns a bitmap that indicates the bits that
- * were cleared. Note that sense the maps may be updated asynchronously by
+ * were cleared. Note that sense the maps may be updated asynchroyesusly by
  * the GRU, atomic operations must be used to clear bits.
  */
 static void get_clear_fault_map(struct gru_state *gru,
@@ -166,15 +166,15 @@ static void get_clear_fault_map(struct gru_state *gru,
 }
 
 /*
- * Atomic (interrupt context) & non-atomic (user context) functions to
+ * Atomic (interrupt context) & yesn-atomic (user context) functions to
  * convert a vaddr into a physical address. The size of the page
  * is returned in pageshift.
  * 	returns:
  * 		  0 - successful
  * 		< 0 - error code
- * 		  1 - (atomic only) try again in non-atomic context
+ * 		  1 - (atomic only) try again in yesn-atomic context
  */
-static int non_atomic_pte_lookup(struct vm_area_struct *vma,
+static int yesn_atomic_pte_lookup(struct vm_area_struct *vma,
 				 unsigned long vaddr, int write,
 				 unsigned long *paddr, int *pageshift)
 {
@@ -212,19 +212,19 @@ static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
 	pte_t pte;
 
 	pgdp = pgd_offset(vma->vm_mm, vaddr);
-	if (unlikely(pgd_none(*pgdp)))
+	if (unlikely(pgd_yesne(*pgdp)))
 		goto err;
 
 	p4dp = p4d_offset(pgdp, vaddr);
-	if (unlikely(p4d_none(*p4dp)))
+	if (unlikely(p4d_yesne(*p4dp)))
 		goto err;
 
 	pudp = pud_offset(p4dp, vaddr);
-	if (unlikely(pud_none(*pudp)))
+	if (unlikely(pud_yesne(*pudp)))
 		goto err;
 
 	pmdp = pmd_offset(pudp, vaddr);
-	if (unlikely(pmd_none(*pmdp)))
+	if (unlikely(pmd_yesne(*pmdp)))
 		goto err;
 #ifdef CONFIG_X86_64
 	if (unlikely(pmd_large(*pmdp)))
@@ -262,7 +262,7 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
 		goto inval;
 
 	/*
-	 * Atomic lookup is faster & usually works even if called in non-atomic
+	 * Atomic lookup is faster & usually works even if called in yesn-atomic
 	 * context.
 	 */
 	rmb();	/* Must/check ms_range_active before loading PTEs */
@@ -270,7 +270,7 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
 	if (ret) {
 		if (atomic)
 			goto upm;
-		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
+		if (yesn_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
 			goto inval;
 	}
 	if (is_gru_paddr(paddr))
@@ -290,7 +290,7 @@ upm:
 /*
  * Flush a CBE from cache. The CBE is clean in the cache. Dirty the
  * CBE cacheline so that the line will be written back to home agent.
- * Otherwise the line may be silently dropped. This has no impact
+ * Otherwise the line may be silently dropped. This has yes impact
  * except on performance.
  */
 static void gru_flush_cache_cbe(struct gru_control_block_extended *cbe)
@@ -335,7 +335,7 @@ static void gru_preload_tlb(struct gru_state *gru,
 			return;
 		gru_dbg(grudev,
 			"%s: gid %d, gts 0x%p, tfh 0x%p, vaddr 0x%lx, asid 0x%x, rw %d, ps %d, gpa 0x%lx\n",
-			atomic ? "atomic" : "non-atomic", gru->gs_gid, gts, tfh,
+			atomic ? "atomic" : "yesn-atomic", gru->gs_gid, gts, tfh,
 			vaddr, asid, write, pageshift, gpa);
 		vaddr -= PAGE_SIZE;
 		STAT(tlb_preload_page);
@@ -345,7 +345,7 @@ static void gru_preload_tlb(struct gru_state *gru,
 /*
  * Drop a TLB entry into the GRU. The fault is described by info in an TFH.
  *	Input:
- *		cb    Address of user CBR. Null if not running in user context
+ *		cb    Address of user CBR. Null if yest running in user context
  * 	Return:
  * 		  0 = dropin, exception, or switch to UPM successful
  * 		  1 = range invalidate active
@@ -366,7 +366,7 @@ static int gru_try_dropin(struct gru_state *gru,
 	 * NOTE: The GRU contains magic hardware that eliminates races between
 	 * TLB invalidates and TLB dropins. If an invalidate occurs
 	 * in the window between reading the TFH and the subsequent TLB dropin,
-	 * the dropin is ignored. This eliminates the need for additional locks.
+	 * the dropin is igyesred. This eliminates the need for additional locks.
 	 */
 
 	/*
@@ -379,14 +379,14 @@ static int gru_try_dropin(struct gru_state *gru,
 
 	/*
 	 * Error if TFH state is IDLE or FMM mode & the user issuing a UPM call.
-	 * Might be a hardware race OR a stupid user. Ignore FMM because FMM
+	 * Might be a hardware race OR a stupid user. Igyesre FMM because FMM
 	 * is a transient state.
 	 */
 	if (tfh->status != TFHSTATUS_EXCEPTION) {
 		gru_flush_cache(tfh);
 		sync_core();
 		if (tfh->status != TFHSTATUS_EXCEPTION)
-			goto failnoexception;
+			goto failyesexception;
 		STAT(tfh_stale_on_fault);
 	}
 	if (tfh->state == TFHSTATE_IDLE)
@@ -399,7 +399,7 @@ static int gru_try_dropin(struct gru_state *gru,
 	asid = tfh->missasid;
 	indexway = tfh->indexway;
 	if (asid == 0)
-		goto failnoasid;
+		goto failyesasid;
 
 	rmb();	/* TFH must be cache resident before reading ms_range_active */
 
@@ -436,15 +436,15 @@ static int gru_try_dropin(struct gru_state *gru,
 	gru_dbg(grudev,
 		"%s: gid %d, gts 0x%p, tfh 0x%p, vaddr 0x%lx, asid 0x%x, indexway 0x%x,"
 		" rw %d, ps %d, gpa 0x%lx\n",
-		atomic ? "atomic" : "non-atomic", gru->gs_gid, gts, tfh, vaddr, asid,
+		atomic ? "atomic" : "yesn-atomic", gru->gs_gid, gts, tfh, vaddr, asid,
 		indexway, write, pageshift, gpa);
 	STAT(tlb_dropin);
 	return 0;
 
-failnoasid:
+failyesasid:
 	/* No asid (delayed unload). */
-	STAT(tlb_dropin_fail_no_asid);
-	gru_dbg(grudev, "FAILED no_asid tfh: 0x%p, vaddr 0x%lx\n", tfh, vaddr);
+	STAT(tlb_dropin_fail_yes_asid);
+	gru_dbg(grudev, "FAILED yes_asid tfh: 0x%p, vaddr 0x%lx\n", tfh, vaddr);
 	if (!cbk)
 		tfh_user_polling_mode(tfh);
 	else
@@ -468,19 +468,19 @@ failfmm:
 	gru_dbg(grudev, "FAILED fmm tfh: 0x%p, state %d\n", tfh, tfh->state);
 	return 0;
 
-failnoexception:
-	/* TFH status did not show exception pending */
+failyesexception:
+	/* TFH status did yest show exception pending */
 	gru_flush_cache(tfh);
 	gru_flush_cache_cbe(cbe);
 	if (cbk)
 		gru_flush_cache(cbk);
-	STAT(tlb_dropin_fail_no_exception);
-	gru_dbg(grudev, "FAILED non-exception tfh: 0x%p, status %d, state %d\n",
+	STAT(tlb_dropin_fail_yes_exception);
+	gru_dbg(grudev, "FAILED yesn-exception tfh: 0x%p, status %d, state %d\n",
 		tfh, tfh->status, tfh->state);
 	return 0;
 
 failidle:
-	/* TFH state was idle  - no miss pending */
+	/* TFH state was idle  - yes miss pending */
 	gru_flush_cache(tfh);
 	gru_flush_cache_cbe(cbe);
 	if (cbk)
@@ -490,7 +490,7 @@ failidle:
 	return 0;
 
 failinval:
-	/* All errors (atomic & non-atomic) switch CBR to EXCEPTION state */
+	/* All errors (atomic & yesn-atomic) switch CBR to EXCEPTION state */
 	tfh_exception(tfh);
 	gru_flush_cache_cbe(cbe);
 	STAT(tlb_dropin_fail_invalid);
@@ -556,14 +556,14 @@ static irqreturn_t gru_intr(int chiplet, int blade)
 
 		/*
 		 * When hardware sets a bit in the faultmap, it implicitly
-		 * locks the GRU context so that it cannot be unloaded.
-		 * The gts cannot change until a TFH start/writestart command
+		 * locks the GRU context so that it canyest be unloaded.
+		 * The gts canyest change until a TFH start/writestart command
 		 * is issued.
 		 */
 		ctxnum = tfh->ctxnum;
 		gts = gru->gs_gts[ctxnum];
 
-		/* Spurious interrupts can cause this. Ignore. */
+		/* Spurious interrupts can cause this. Igyesre. */
 		if (!gts) {
 			STAT(intr_spurious);
 			continue;
@@ -705,7 +705,7 @@ int gru_get_exception_detail(unsigned long arg)
 	} else if (gts->ts_gru) {
 		cbrnum = thread_cbr_number(gts, ucbnum);
 		cbe = get_cbe_by_index(gts->ts_gru, cbrnum);
-		gru_flush_cache(cbe);	/* CBE not coherent */
+		gru_flush_cache(cbe);	/* CBE yest coherent */
 		sync_core();		/* make sure we are have current data */
 		excdet.opc = cbe->opccpy;
 		excdet.exopc = cbe->exopccpy;
@@ -825,7 +825,7 @@ long gru_get_gseg_statistics(unsigned long arg)
 
 	/*
 	 * The library creates arrays of contexts for threaded programs.
-	 * If no gts exists in the array, the context has never been used & all
+	 * If yes gts exists in the array, the context has never been used & all
 	 * statistics are implicitly 0.
 	 */
 	gts = gru_find_lock_gts(req.gseg);

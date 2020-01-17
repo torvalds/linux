@@ -5,8 +5,8 @@
  *----------------------------------------------------------------------------
  *----------------------------------------------------------------------------
  *
- * MCA card detection code by Trent McNair. (now deleted)
- * Fixes to not explicitly nul bss data from Xavier Bestel.
+ * MCA card detection code by Trent McNair. (yesw deleted)
+ * Fixes to yest explicitly nul bss data from Xavier Bestel.
  * Some multiboard fixes from Rolf Eike Beer.
  * Auto probing of EISA config space from Trevor Hemsley.
  *
@@ -29,7 +29,7 @@
 #include "53c700.h"
 
 
-/* Must be enough for EISA */
+/* Must be eyesugh for EISA */
 #define MAX_SLOTS 8
 static __u8 __initdata id_array[MAX_SLOTS] = { [0 ... MAX_SLOTS-1] = 7 };
 
@@ -224,7 +224,7 @@ static int __init sim710_init(void)
 	err = eisa_driver_register(&sim710_eisa_driver);
 #endif
 	/* FIXME: what we'd really like to return here is -ENODEV if
-	 * no devices have actually been found.  Instead, the err
+	 * yes devices have actually been found.  Instead, the err
 	 * above actually only reports problems with kobject_register,
 	 * so for the moment return success */
 

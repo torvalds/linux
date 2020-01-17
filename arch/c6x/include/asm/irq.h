@@ -16,7 +16,7 @@
 #include <linux/radix-tree.h>
 #include <asm/percpu.h>
 
-#define irq_canonicalize(irq)  (irq)
+#define irq_cayesnicalize(irq)  (irq)
 
 /*
  * The C64X+ core has 16 IRQ vectors. One each is used by Reset and NMI. Two
@@ -34,7 +34,7 @@
 /* Total number of virq in the platform */
 #define NR_IRQS		256
 
-/* This number is used when no interrupt has been assigned */
+/* This number is used when yes interrupt has been assigned */
 #define NO_IRQ		0
 
 extern void __init init_pic_c64xplus(void);

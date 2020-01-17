@@ -119,7 +119,7 @@ static int stm32_lptim_write_raw(struct iio_dev *indio_dev,
 		if (val < 0 || val > 1)
 			return -EINVAL;
 
-		/* Check nobody uses the timer, or already disabled/enabled */
+		/* Check yesbody uses the timer, or already disabled/enabled */
 		ret = stm32_lptim_is_enabled(priv);
 		if ((ret < 0) || (!ret && !val))
 			return ret;
@@ -187,7 +187,7 @@ static const struct iio_info stm32_lptim_cnt_iio_info = {
 };
 
 static const char *const stm32_lptim_quadrature_modes[] = {
-	"non-quadrature",
+	"yesn-quadrature",
 	"quadrature",
 };
 
@@ -460,7 +460,7 @@ static ssize_t stm32_lptim_cnt_enable_write(struct counter_device *counter,
 	if (ret)
 		return ret;
 
-	/* Check nobody uses the timer, or already disabled/enabled */
+	/* Check yesbody uses the timer, or already disabled/enabled */
 	ret = stm32_lptim_is_enabled(priv);
 	if ((ret < 0) || (!ret && !enable))
 		return ret;
@@ -649,7 +649,7 @@ static int stm32_lptim_cnt_probe(struct platform_device *pdev)
 	/* Initialize IIO device */
 	indio_dev->name = dev_name(&pdev->dev);
 	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
+	indio_dev->dev.of_yesde = pdev->dev.of_yesde;
 	indio_dev->info = &stm32_lptim_cnt_iio_info;
 	if (ddata->has_encoder)
 		indio_dev->channels = &stm32_lptim_enc_channels;

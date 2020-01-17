@@ -158,7 +158,7 @@ static int cpcap_init_irq_chip(struct cpcap_ddata *cpcap, int irq_chip,
 				       IRQF_SHARED, -1,
 				       chip, &cpcap->irqdata[irq_chip]);
 	if (ret) {
-		dev_err(&cpcap->spi->dev, "could not add irq chip %i: %i\n",
+		dev_err(&cpcap->spi->dev, "could yest add irq chip %i: %i\n",
 			irq_chip, ret);
 		return ret;
 	}

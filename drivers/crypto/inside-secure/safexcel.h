@@ -183,7 +183,7 @@
 #define EIP197_OPTIONS				0xfff8
 #define EIP197_VERSION				0xfffc
 
-/* EIP197-specific registers, no indirection */
+/* EIP197-specific registers, yes indirection */
 #define EIP197_CLASSIFICATION_RAMS		0xe0000
 #define EIP197_TRC_CTRL				0xf0800
 #define EIP197_TRC_LASTRES			0xf0804
@@ -518,7 +518,7 @@ struct safexcel_result_desc {
 
 /*
  * The EIP(1)97 only needs to fetch the descriptor part of
- * the result descriptor, not the result token part!
+ * the result descriptor, yest the result token part!
  */
 #define EIP197_RD64_FETCH_SIZE		(sizeof(struct safexcel_result_desc) /\
 					 sizeof(u32))
@@ -549,7 +549,7 @@ struct safexcel_token {
 #define EIP197_TOKEN_OPCODE_CTX_ACCESS		0xe
 #define EIP197_TOKEN_OPCODE_BYPASS		GENMASK(3, 0)
 
-static inline void eip197_noop_token(struct safexcel_token *token)
+static inline void eip197_yesop_token(struct safexcel_token *token)
 {
 	token->opcode = EIP197_TOKEN_OPCODE_NOOP;
 	token->packet_length = BIT(2);
@@ -688,7 +688,7 @@ struct safexcel_ring {
 	bool busy;
 
 	/* Store for current requests when bailing out of the dequeueing
-	 * function when no enough resources are available.
+	 * function when yes eyesugh resources are available.
 	 */
 	struct crypto_async_request *req;
 	struct crypto_async_request *backlog;
@@ -823,7 +823,7 @@ struct safexcel_ahash_export_state {
 /*
  * Template structure to describe the algorithms in order to register them.
  * It also has the purpose to contain our private structure and is actually
- * the only way I know in this framework to avoid having global pointers...
+ * the only way I kyesw in this framework to avoid having global pointers...
  */
 struct safexcel_alg_template {
 	struct safexcel_crypto_priv *priv;

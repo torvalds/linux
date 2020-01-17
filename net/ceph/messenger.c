@@ -46,7 +46,7 @@
  *          | con_sock_state_init()
  *          v
  *      ----------
- *      | CLOSED |  initialized, but no socket (and no
+ *      | CLOSED |  initialized, but yes socket (and yes
  *      ----------  TCP connection)
  *       ^      \
  *       |       \ con_sock_state_connecting()
@@ -179,7 +179,7 @@ static void con_fault(struct ceph_connection *con);
 #define ADDR_STR_COUNT_LOG	5	/* log2(# address strings in array) */
 #define ADDR_STR_COUNT		(1 << ADDR_STR_COUNT_LOG)
 #define ADDR_STR_COUNT_MASK	(ADDR_STR_COUNT - 1)
-#define MAX_ADDR_STR_LEN	64	/* 54 is enough */
+#define MAX_ADDR_STR_LEN	64	/* 54 is eyesugh */
 
 static char addr_str[ADDR_STR_COUNT][MAX_ADDR_STR_LEN];
 static atomic_t addr_str_seq = ATOMIC_INIT(0);
@@ -211,7 +211,7 @@ const char *ceph_pr_addr(const struct ceph_entity_addr *addr)
 		break;
 
 	default:
-		snprintf(s, MAX_ADDR_STR_LEN, "(unknown sockaddr family %hu)",
+		snprintf(s, MAX_ADDR_STR_LEN, "(unkyeswn sockaddr family %hu)",
 			 ss.ss_family);
 	}
 
@@ -397,7 +397,7 @@ static void ceph_sock_write_space(struct sock *sk)
 			queue_con(con);
 		}
 	} else {
-		dout("%s %p nothing to write\n", __func__, con);
+		dout("%s %p yesthing to write\n", __func__, con);
 	}
 }
 
@@ -454,16 +454,16 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 {
 	struct sockaddr_storage ss = con->peer_addr.in_addr; /* align */
 	struct socket *sock;
-	unsigned int noio_flag;
+	unsigned int yesio_flag;
 	int ret;
 
 	BUG_ON(con->sock);
 
 	/* sock_create_kern() allocates with GFP_KERNEL */
-	noio_flag = memalloc_noio_save();
+	yesio_flag = memalloc_yesio_save();
 	ret = sock_create_kern(read_pnet(&con->msgr->net), ss.ss_family,
 			       SOCK_STREAM, IPPROTO_TCP, &sock);
-	memalloc_noio_restore(noio_flag);
+	memalloc_yesio_restore(yesio_flag);
 	if (ret)
 		return ret;
 	sock->sk->sk_allocation = GFP_NOFS;
@@ -575,7 +575,7 @@ static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
 	int ret;
 
 	/*
-	 * sendpage cannot properly handle pages with page_count == 0,
+	 * sendpage canyest properly handle pages with page_count == 0,
 	 * we need to fall back to sendmsg if that's the case.
 	 *
 	 * Same goes for slab pages: skb_can_coalesce() allows
@@ -585,7 +585,7 @@ static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
 	if (page_count(page) >= 1 && !PageSlab(page))
 		sendpage = sock->ops->sendpage;
 	else
-		sendpage = sock_no_sendpage;
+		sendpage = sock_yes_sendpage;
 
 	ret = sendpage(sock, page, offset, size, flags);
 	if (ret == -EAGAIN)
@@ -851,7 +851,7 @@ static bool ceph_msg_data_bio_advance(struct ceph_msg_data_cursor *cursor,
 
 	if (!cursor->resid) {
 		BUG_ON(!cursor->last_piece);
-		return false;   /* no more data */
+		return false;   /* yes more data */
 	}
 
 	if (!bytes || (it->iter.bi_size && it->iter.bi_bvec_done &&
@@ -912,7 +912,7 @@ static bool ceph_msg_data_bvecs_advance(struct ceph_msg_data_cursor *cursor,
 
 	if (!cursor->resid) {
 		BUG_ON(!cursor->last_piece);
-		return false;   /* no more data */
+		return false;   /* yes more data */
 	}
 
 	if (!bytes || (cursor->bvec_iter.bi_bvec_done &&
@@ -928,7 +928,7 @@ static bool ceph_msg_data_bvecs_advance(struct ceph_msg_data_cursor *cursor,
 
 /*
  * For a page array, a piece comes from the first page in the array
- * that has not already been fully consumed.
+ * that has yest already been fully consumed.
  */
 static void ceph_msg_data_pages_cursor_init(struct ceph_msg_data_cursor *cursor,
 					size_t length)
@@ -986,7 +986,7 @@ static bool ceph_msg_data_pages_advance(struct ceph_msg_data_cursor *cursor,
 		return false;	/* more bytes to process in the current page */
 
 	if (!cursor->resid)
-		return false;   /* no more data */
+		return false;   /* yes more data */
 
 	/* Move on to the next page; offset is already at 0 */
 
@@ -1074,7 +1074,7 @@ static bool ceph_msg_data_pagelist_advance(struct ceph_msg_data_cursor *cursor,
 		return false;	/* more bytes to process in the current page */
 
 	if (!cursor->resid)
-		return false;   /* no more data */
+		return false;   /* yes more data */
 
 	/* Move on to the next page */
 
@@ -1087,7 +1087,7 @@ static bool ceph_msg_data_pagelist_advance(struct ceph_msg_data_cursor *cursor,
 
 /*
  * Message data is handled (sent or received) in pieces, where each
- * piece resides on a single page.  The network layer might not
+ * piece resides on a single page.  The network layer might yest
  * consume an entire piece at once.  A data item's cursor keeps
  * track of which piece is next to process and how much remains to
  * be processed in that piece.  It also tracks whether the current
@@ -1338,7 +1338,7 @@ static void prepare_write_message(struct ceph_connection *con)
 		prepare_message_data(con->out_msg, m->data_length);
 		con->out_more = 1;  /* data + footer will follow */
 	} else {
-		/* no, queue up footer too and be done */
+		/* yes, queue up footer too and be done */
 		prepare_write_message_footer(con);
 	}
 
@@ -1392,11 +1392,11 @@ static void prepare_write_keepalive(struct ceph_connection *con)
 	dout("prepare_write_keepalive %p\n", con);
 	con_out_kvec_reset(con);
 	if (con->peer_features & CEPH_FEATURE_MSGR_KEEPALIVE2) {
-		struct timespec64 now;
+		struct timespec64 yesw;
 
-		ktime_get_real_ts64(&now);
+		ktime_get_real_ts64(&yesw);
 		con_out_kvec_add(con, sizeof(tag_keepalive2), &tag_keepalive2);
-		ceph_encode_timespec64(&con->out_temp_keepalive2, &now);
+		ceph_encode_timespec64(&con->out_temp_keepalive2, &yesw);
 		con_out_kvec_add(con, sizeof(con->out_temp_keepalive2),
 				 &con->out_temp_keepalive2);
 	} else {
@@ -1552,7 +1552,7 @@ static u32 ceph_crc32c_page(u32 crc, struct page *page,
 /*
  * Write as much message data payload as we can.  If we finish, queue
  * up the footer.
- *  1 -> done, footer is now queued in out_kvec[].
+ *  1 -> done, footer is yesw queued in out_kvec[].
  *  0 -> socket full, but more to do
  * <0 -> error
  */
@@ -1574,7 +1574,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 	 * written, and send as much as possible for each.
 	 *
 	 * If we are calculating the data crc (the default), we will
-	 * need to map the page.  If we have no pages, they have
+	 * need to map the page.  If we have yes pages, they have
 	 * been revoked, so use the zero page.
 	 */
 	crc = do_datacrc ? le32_to_cpu(msg->footer.data_crc) : 0;
@@ -1916,7 +1916,7 @@ static inline int ceph_dns_resolve_name(const char *name, size_t namelen,
 #endif
 
 /*
- * Parse a server name (IP or hostname). If a valid IP address is not found
+ * Parse a server name (IP or hostname). If a valid IP address is yest found
  * then try to extract a hostname to resolve using userspace DNS upcall.
  */
 static int ceph_parse_server_name(const char *name, size_t namelen,
@@ -2015,19 +2015,19 @@ static int process_banner(struct ceph_connection *con)
 		return -1;
 
 	/*
-	 * Make sure the other end is who we wanted.  note that the other
-	 * end may not yet know their ip address, so if it's 0.0.0.0, give
+	 * Make sure the other end is who we wanted.  yeste that the other
+	 * end may yest yet kyesw their ip address, so if it's 0.0.0.0, give
 	 * them the benefit of the doubt.
 	 */
 	if (memcmp(&con->peer_addr, &con->actual_peer_addr,
 		   sizeof(con->peer_addr)) != 0 &&
 	    !(addr_is_blank(&con->actual_peer_addr) &&
-	      con->actual_peer_addr.nonce == con->peer_addr.nonce)) {
+	      con->actual_peer_addr.yesnce == con->peer_addr.yesnce)) {
 		pr_warn("wrong peer, want %s/%d, got %s/%d\n",
 			ceph_pr_addr(&con->peer_addr),
-			(int)le32_to_cpu(con->peer_addr.nonce),
+			(int)le32_to_cpu(con->peer_addr.yesnce),
 			ceph_pr_addr(&con->actual_peer_addr),
-			(int)le32_to_cpu(con->actual_peer_addr.nonce));
+			(int)le32_to_cpu(con->actual_peer_addr.yesnce));
 		con->error_msg = "wrong peer at address";
 		return -1;
 	}
@@ -2130,7 +2130,7 @@ static int process_connect(struct ceph_connection *con)
 	case CEPH_MSGR_TAG_RESETSESSION:
 		/*
 		 * If we connected with a large connect_seq but the peer
-		 * has no record of a session with us (no connection, or
+		 * has yes record of a session with us (yes connection, or
 		 * connect_seq == 0), they will send RESETSESION to indicate
 		 * that they must have reset their session, and may have
 		 * dropped messages.
@@ -2518,7 +2518,7 @@ static int read_partial_message(struct ceph_connection *con)
 
 /*
  * Process message.  This happens in the worker thread.  The callback should
- * be careful not to do anything that waits on other incoming messages or it
+ * be careful yest to do anything that waits on other incoming messages or it
  * may deadlock.
  */
 static void process_message(struct ceph_connection *con)
@@ -2650,7 +2650,7 @@ do_next:
 
 	/* Nothing to do! */
 	con_flag_clear(con, CON_FLAG_WRITE_PENDING);
-	dout("try_write nothing else to write.\n");
+	dout("try_write yesthing else to write.\n");
 	ret = 0;
 out:
 	dout("try_write done on %p ret %d\n", con, ret);
@@ -2689,7 +2689,7 @@ more:
 
 		/*
 		 * Received banner is good, exchange connection info.
-		 * Do not reset out_kvec, as sending our banner raced
+		 * Do yest reset out_kvec, as sending our banner raced
 		 * with receiving peer banner after connect completed.
 		 */
 		ret = prepare_write_connect(con);
@@ -2888,7 +2888,7 @@ static bool con_backoff(struct ceph_connection *con)
 	return true;
 }
 
-/* Finish fault handling; con->mutex must *not* be held here */
+/* Finish fault handling; con->mutex must *yest* be held here */
 
 static void con_fault_finish(struct ceph_connection *con)
 {
@@ -3009,7 +3009,7 @@ static void con_fault(struct ceph_connection *con)
 	/* Requeue anything that hasn't been acked */
 	list_splice_init(&con->out_sent, &con->out_queue);
 
-	/* If there are no messages queued or keepalive pending, place
+	/* If there are yes messages queued or keepalive pending, place
 	 * the connection in a STANDBY state */
 	if (list_empty(&con->out_queue) &&
 	    !con_flag_test(con, CON_FLAG_KEEPALIVE_PENDING)) {
@@ -3029,10 +3029,10 @@ static void con_fault(struct ceph_connection *con)
 }
 
 
-void ceph_messenger_reset_nonce(struct ceph_messenger *msgr)
+void ceph_messenger_reset_yesnce(struct ceph_messenger *msgr)
 {
-	u32 nonce = le32_to_cpu(msgr->inst.addr.nonce) + 1000000;
-	msgr->inst.addr.nonce = cpu_to_le32(nonce);
+	u32 yesnce = le32_to_cpu(msgr->inst.addr.yesnce) + 1000000;
+	msgr->inst.addr.yesnce = cpu_to_le32(yesnce);
 	encode_my_addr(msgr);
 }
 
@@ -3047,9 +3047,9 @@ void ceph_messenger_init(struct ceph_messenger *msgr,
 	if (myaddr)
 		msgr->inst.addr = *myaddr;
 
-	/* select a random nonce */
+	/* select a random yesnce */
 	msgr->inst.addr.type = 0;
-	get_random_bytes(&msgr->inst.addr.nonce, sizeof(msgr->inst.addr.nonce));
+	get_random_bytes(&msgr->inst.addr.yesnce, sizeof(msgr->inst.addr.yesnce));
 	encode_my_addr(msgr);
 
 	atomic_set(&msgr->stopping, 0);
@@ -3135,7 +3135,7 @@ void ceph_msg_revoke(struct ceph_msg *msg)
 
 	if (!con) {
 		dout("%s msg %p null con\n", __func__, msg);
-		return;		/* Message not in our possession */
+		return;		/* Message yest in our possession */
 	}
 
 	mutex_lock(&con->mutex);
@@ -3181,7 +3181,7 @@ void ceph_msg_revoke_incoming(struct ceph_msg *msg)
 
 	if (!con) {
 		dout("%s msg %p null con\n", __func__, msg);
-		return;		/* Message not in our possession */
+		return;		/* Message yest in our possession */
 	}
 
 	mutex_lock(&con->mutex);
@@ -3203,7 +3203,7 @@ void ceph_msg_revoke_incoming(struct ceph_msg *msg)
 		con->in_tag = CEPH_MSGR_TAG_READY;
 		con->in_seq++;
 	} else {
-		dout("%s %p in_msg %p msg %p no-op\n",
+		dout("%s %p in_msg %p msg %p yes-op\n",
 		     __func__, con, con->in_msg, msg);
 	}
 	mutex_unlock(&con->mutex);
@@ -3230,12 +3230,12 @@ bool ceph_con_keepalive_expired(struct ceph_connection *con,
 {
 	if (interval > 0 &&
 	    (con->peer_features & CEPH_FEATURE_MSGR_KEEPALIVE2)) {
-		struct timespec64 now;
+		struct timespec64 yesw;
 		struct timespec64 ts;
-		ktime_get_real_ts64(&now);
+		ktime_get_real_ts64(&yesw);
 		jiffies_to_timespec64(interval, &ts);
 		ts = timespec64_add(con->last_keepalive_ack, ts);
-		return timespec64_compare(&now, &ts) >= 0;
+		return timespec64_compare(&yesw, &ts) >= 0;
 	}
 	return false;
 }
@@ -3414,10 +3414,10 @@ static int ceph_alloc_middle(struct ceph_connection *con, struct ceph_msg *msg)
  * Returns 0 on success, or a negative error code.
  *
  * On success, if we set *skip = 1:
- *  - the next message should be skipped and ignored.
+ *  - the next message should be skipped and igyesred.
  *  - con->in_msg == NULL
  * or if we set *skip = 0:
- *  - con->in_msg is non-null.
+ *  - con->in_msg is yesn-null.
  * On error (ENOMEM, EAGAIN, ...),
  *  - con->in_msg == NULL
  */
@@ -3447,7 +3447,7 @@ static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
 		/*
 		 * Null message pointer means either we should skip
 		 * this message or we couldn't allocate memory.  The
-		 * former is not an error.
+		 * former is yest an error.
 		 */
 		if (*skip)
 			return 0;

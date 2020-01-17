@@ -202,7 +202,7 @@ struct s5p_mfc_pm {
 
 struct s5p_mfc_buf_size_v5 {
 	unsigned int h264_ctx;
-	unsigned int non_h264_ctx;
+	unsigned int yesn_h264_ctx;
 	unsigned int dsc;
 	unsigned int shm;
 };
@@ -474,7 +474,7 @@ struct s5p_mfc_hevc_enc_params {
 	u8 tmv_prediction_disable;
 	u8 max_num_merge_mv;
 	u8 eco_mode_enable;
-	u8 encoding_nostartcode_enable;
+	u8 encoding_yesstartcode_enable;
 	u8 size_of_length_field;
 	u8 prepend_sps_pps_to_idr;
 };
@@ -510,7 +510,7 @@ struct s5p_mfc_enc_params {
 
 	u8 num_b_frame;
 	u32 rc_framerate_num;
-	u32 rc_framerate_denom;
+	u32 rc_framerate_deyesm;
 
 	struct {
 		struct s5p_mfc_h264_enc_params h264;
@@ -558,7 +558,7 @@ struct s5p_mfc_codec_ops {
  * @dst_queue_cnt:	number of buffers queued on the dest internal queue
  * @type:		type of the instance - decoder or encoder
  * @state:		state of the context
- * @inst_no:		number of hw instance associated with the context
+ * @inst_yes:		number of hw instance associated with the context
  * @img_width:		width of the image that is decoded or encoded
  * @img_height:		height of the image that is decoded or encoded
  * @buf_width:		width of the buffer for processed image
@@ -571,7 +571,7 @@ struct s5p_mfc_codec_ops {
  * @dpb_flush_flag:	flag used to indicate that a DPB buffers are being
  *			flushed
  * @head_processed:	flag mentioning whether the header data is processed
- *			completely or not
+ *			completely or yest
  * @bank1:		handle to memory allocated for temporary buffers from
  *			memory bank 1
  * @bank2:		handle to memory allocated for temporary buffers from
@@ -637,7 +637,7 @@ struct s5p_mfc_ctx {
 
 	enum s5p_mfc_inst_type type;
 	enum s5p_mfc_inst_state state;
-	int inst_no;
+	int inst_yes;
 
 	/* Image parameters */
 	int img_width;

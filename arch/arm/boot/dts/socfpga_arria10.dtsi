@@ -125,7 +125,7 @@
 							div-reg = <0x140 0 11>;
 						};
 
-						main_noc_base_clk: main_noc_base_clk {
+						main_yesc_base_clk: main_yesc_base_clk {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&main_pll>;
@@ -213,7 +213,7 @@
 							div-reg = <0x140 16 11>;
 						};
 
-						peri_noc_base_clk: peri_noc_base_clk {
+						peri_yesc_base_clk: peri_yesc_base_clk {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&periph_pll>;
@@ -286,10 +286,10 @@
 						reg = <0x60>;
 					};
 
-					noc_free_clk: noc_free_clk@64 {
+					yesc_free_clk: yesc_free_clk@64 {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-a10-perip-clk";
-						clocks = <&main_noc_base_clk>, <&peri_noc_base_clk>,
+						clocks = <&main_yesc_base_clk>, <&peri_yesc_base_clk>,
 							 <&osc1>, <&cb_intosc_hs_div2_clk>,
 							 <&f2s_free_clk>;
 						reg = <0x64>;
@@ -317,14 +317,14 @@
 					l4_sys_free_clk: l4_sys_free_clk {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-a10-perip-clk";
-						clocks = <&noc_free_clk>;
+						clocks = <&yesc_free_clk>;
 						fixed-divider = <4>;
 					};
 
 					l4_main_clk: l4_main_clk {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-a10-gate-clk";
-						clocks = <&noc_free_clk>;
+						clocks = <&yesc_free_clk>;
 						div-reg = <0xA8 0 2>;
 						clk-gate = <0x48 1>;
 					};
@@ -332,7 +332,7 @@
 					l4_mp_clk: l4_mp_clk {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-a10-gate-clk";
-						clocks = <&noc_free_clk>;
+						clocks = <&yesc_free_clk>;
 						div-reg = <0xA8 8 2>;
 						clk-gate = <0x48 2>;
 					};
@@ -340,7 +340,7 @@
 					l4_sp_clk: l4_sp_clk {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-a10-gate-clk";
-						clocks = <&noc_free_clk>;
+						clocks = <&yesc_free_clk>;
 						div-reg = <0xA8 16 2>;
 						clk-gate = <0x48 3>;
 					};
@@ -745,7 +745,7 @@
 		};
 
 		qspi: spi@ff809000 {
-			compatible = "cdns,qspi-nor";
+			compatible = "cdns,qspi-yesr";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xff809000 0x100>,
@@ -767,7 +767,7 @@
 			altr,modrst-offset = <0x20>;
 		};
 
-		scu: snoop-control-unit@ffffc000 {
+		scu: syesop-control-unit@ffffc000 {
 			compatible = "arm,cortex-a9-scu";
 			reg = <0xffffc000 0x100>;
 		};
@@ -850,7 +850,7 @@
 
 		usbphy0: usbphy {
 			#phy-cells = <0>;
-			compatible = "usb-nop-xceiv";
+			compatible = "usb-yesp-xceiv";
 			status = "okay";
 		};
 

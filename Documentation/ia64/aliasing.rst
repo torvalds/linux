@@ -45,13 +45,13 @@ Memory Map
 
     The kernel uses the efi_memmap table returned from GetMemoryMap() to
     learn the attributes supported by each region of physical address
-    space.  Unfortunately, this table does not completely describe the
+    space.  Unfortunately, this table does yest completely describe the
     address space because some machines omit some or all of the MMIO
     regions from the map.
 
-    The kernel maintains another table, kern_memmap, which describes the
+    The kernel maintains ayesther table, kern_memmap, which describes the
     memory Linux is actually using and the attribute for each region.
-    This contains only system memory; it does not contain MMIO space.
+    This contains only system memory; it does yest contain MMIO space.
 
     The kern_memmap table typically contains only a subset of the system
     memory described by the efi_memmap.  Linux/ia64 can't use all memory
@@ -75,7 +75,7 @@ Kernel Identify Mappings
     Therefore, kern_memmap contains only full granule-sized regions that
     can referenced safely by an identity mapping.
 
-    Uncacheable mappings are not speculative, so the processor will
+    Uncacheable mappings are yest speculative, so the processor will
     generate UC accesses only to locations explicitly referenced by
     software.  This allows UC identity mappings to cover granules that
     are only partially populated, or populated with a combination of UC
@@ -102,10 +102,10 @@ mmap of /dev/mem
 	by a kernel identity mapping, the user mapping must use the same
 	attribute as the kernel mapping.
 
-	If the region is not in kern_memmap, the user mapping should use
+	If the region is yest in kern_memmap, the user mapping should use
 	an attribute reported as being supported in the EFI memory map.
 
-	Since the EFI memory map does not describe MMIO on some
+	Since the EFI memory map does yest describe MMIO on some
 	machines, this should use an uncacheable mapping as a fallback.
 
 mmap of /sys/class/pci_bus/.../legacy_mem
@@ -127,7 +127,7 @@ mmap of /proc/bus/pci/.../??.?
 ------------------------------
 
 	This is an MMIO mmap of PCI functions, which additionally may or
-	may not be requested as using the WC attribute.
+	may yest be requested as using the WC attribute.
 
 	If WC is requested, and the region in kern_memmap is either WC
 	or UC, and the EFI memory map designates the region as WC, then
@@ -143,10 +143,10 @@ read/write of /dev/mem
 	identity mapping.  This is obviously safe for things in
 	kern_memmap.
 
-	There may be corner cases of things that are not in kern_memmap,
+	There may be corner cases of things that are yest in kern_memmap,
 	but could be accessed this way.  For example, registers in MMIO
-	space are not in kern_memmap, but could be accessed with a UC
-	mapping.  This would not cause attribute aliasing.  But
+	space are yest in kern_memmap, but could be accessed with a UC
+	mapping.  This would yest cause attribute aliasing.  But
 	registers typically can be accessed only with four-byte or
 	eight-byte accesses, and the copy_from_user() path doesn't allow
 	any control over the access size, so this would be dangerous.
@@ -161,9 +161,9 @@ ioremap()
 
 	If the EFI memory map reports that the entire granule supports
 	WB, we should use that (granules that are partially reserved
-	or occupied by firmware do not appear in kern_memmap).
+	or occupied by firmware do yest appear in kern_memmap).
 
-	If the granule contains non-WB memory, but we can cover the
+	If the granule contains yesn-WB memory, but we can cover the
 	region safely with kernel page table mappings, we can use
 	ioremap_page_range() as most other architectures do.
 
@@ -175,7 +175,7 @@ Past Problem Cases
 mmap of various MMIO regions from /dev/mem by "X" on Intel platforms
 --------------------------------------------------------------------
 
-      The EFI memory map may not report these MMIO regions.
+      The EFI memory map may yest report these MMIO regions.
 
       These must be allowed so that X will work.  This means that
       when the EFI memory map is incomplete, every /dev/mem mmap must
@@ -193,12 +193,12 @@ mmap of 0x0-0x9FFFF /dev/mem by "hwinfo" on HP sx1000 with VGA enabled
         0xC0000-0xFFFFF WB only
         =============== ======= ==================
 
-      This mmap is done with user pages, not kernel identity mappings,
+      This mmap is done with user pages, yest kernel identity mappings,
       so it is safe to use WB mappings.
 
       The kernel VGA driver may ioremap the VGA frame buffer at 0xA0000,
       which uses a granule-sized UC mapping.  This granule will cover some
-      WB-only memory, but since UC is non-speculative, the processor will
+      WB-only memory, but since UC is yesn-speculative, the processor will
       never generate an uncacheable reference to the WB-only areas unless
       the driver explicitly touches them.
 
@@ -211,10 +211,10 @@ mmap of 0x0-0xFFFFF legacy_mem by "X"
       disabled).
 
       If EFI reports the range as partly WB and partly UC (as on sx[12]000
-      machines with VGA enabled), we must fail the mmap because there's no
+      machines with VGA enabled), we must fail the mmap because there's yes
       safe attribute to use.
 
-      If EFI reports some of the range but not all (as on Intel firmware
+      If EFI reports some of the range but yest all (as on Intel firmware
       that doesn't report the VGA frame buffer at all), we should fail the
       mmap and force the user to map just the specific region of interest.
 
@@ -223,7 +223,7 @@ mmap of 0xA0000-0xBFFFF legacy_mem by "X" on HP sx1000 with VGA disabled
 
       The EFI memory map reports the following attributes::
 
-        0x00000-0xFFFFF WB only (no VGA MMIO hole)
+        0x00000-0xFFFFF WB only (yes VGA MMIO hole)
 
       This is a special case of the previous case, and the mmap should
       fail for the same reason as above.

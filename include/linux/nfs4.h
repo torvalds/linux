@@ -247,27 +247,27 @@ enum nfsstat4 {
 	NFS4ERR_RECALLCONFLICT	= 10061,
 	NFS4ERR_UNKNOWN_LAYOUTTYPE = 10062,
 	NFS4ERR_SEQ_MISORDERED = 10063, 	/* unexpected seq.id in req */
-	NFS4ERR_SEQUENCE_POS	= 10064,	/* [CB_]SEQ. op not 1st op */
+	NFS4ERR_SEQUENCE_POS	= 10064,	/* [CB_]SEQ. op yest 1st op */
 	NFS4ERR_REQ_TOO_BIG	= 10065,	/* request too big */
 	NFS4ERR_REP_TOO_BIG	= 10066,	/* reply too big */
-	NFS4ERR_REP_TOO_BIG_TO_CACHE = 10067,	/* rep. not all cached */
+	NFS4ERR_REP_TOO_BIG_TO_CACHE = 10067,	/* rep. yest all cached */
 	NFS4ERR_RETRY_UNCACHED_REP = 10068,	/* retry & rep. uncached */
 	NFS4ERR_UNSAFE_COMPOUND = 10069,	/* retry/recovery too hard */
 	NFS4ERR_TOO_MANY_OPS	= 10070,	/* too many ops in [CB_]COMP */
 	NFS4ERR_OP_NOT_IN_SESSION = 10071,	/* op needs [CB_]SEQ. op */
-	NFS4ERR_HASH_ALG_UNSUPP = 10072,	/* hash alg. not supp. */
+	NFS4ERR_HASH_ALG_UNSUPP = 10072,	/* hash alg. yest supp. */
 						/* Error 10073 is unused. */
 	NFS4ERR_CLIENTID_BUSY	= 10074,	/* clientid has state */
 	NFS4ERR_PNFS_IO_HOLE	= 10075,	/* IO to _SPARSE file hole */
-	NFS4ERR_SEQ_FALSE_RETRY	= 10076,	/* retry not original */
+	NFS4ERR_SEQ_FALSE_RETRY	= 10076,	/* retry yest original */
 	NFS4ERR_BAD_HIGH_SLOT	= 10077,	/* sequence arg bad */
 	NFS4ERR_DEADSESSION	= 10078,	/* persistent session dead */
 	NFS4ERR_ENCR_ALG_UNSUPP = 10079,	/* SSV alg mismatch */
-	NFS4ERR_PNFS_NO_LAYOUT	= 10080,	/* direct I/O with no layout */
+	NFS4ERR_PNFS_NO_LAYOUT	= 10080,	/* direct I/O with yes layout */
 	NFS4ERR_NOT_ONLY_OP	= 10081,	/* bad compound */
 	NFS4ERR_WRONG_CRED	= 10082,	/* permissions:state change */
 	NFS4ERR_WRONG_TYPE	= 10083,	/* current operation mismatch */
-	NFS4ERR_DIRDELEG_UNAVAIL = 10084,	/* no directory delegation */
+	NFS4ERR_DIRDELEG_UNAVAIL = 10084,	/* yes directory delegation */
 	NFS4ERR_REJECT_DELEG	= 10085,	/* on callback */
 	NFS4ERR_RETURNCONFLICT	= 10086,	/* outstanding layoutreturn */
 	NFS4ERR_DELEG_REVOKED	= 10087,	/* deleg./layout revoked */
@@ -300,7 +300,7 @@ static inline bool seqid_mutating_err(u32 err)
 }
 
 /*
- * Note: NF4BAD is not actually part of the protocol; it is just used
+ * Note: NF4BAD is yest actually part of the protocol; it is just used
  * internally by nfsd.
  */
 enum nfs_ftype4 {
@@ -355,7 +355,7 @@ enum open_delegation_type4 {
 	NFS4_OPEN_DELEGATE_NONE_EXT = 3, /* 4.1 */
 };
 
-enum why_no_delegation4 { /* new to v4.1 */
+enum why_yes_delegation4 { /* new to v4.1 */
 	WND4_NOT_WANTED = 0,
 	WND4_CONTENTION = 1,
 	WND4_RESOURCE = 2,
@@ -584,7 +584,7 @@ enum pnfs_iomode {
 	IOMODE_ANY = 3,
 };
 
-enum pnfs_notify_deviceid_type4 {
+enum pnfs_yestify_deviceid_type4 {
 	NOTIFY_DEVICEID4_CHANGE = 1 << 1,
 	NOTIFY_DEVICEID4_DELETE = 1 << 2,
 };

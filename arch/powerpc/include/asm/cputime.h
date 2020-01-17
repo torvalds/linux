@@ -20,8 +20,8 @@
 #include <asm/time.h>
 #include <asm/param.h>
 
-typedef u64 __nocast cputime_t;
-typedef u64 __nocast cputime64_t;
+typedef u64 __yescast cputime_t;
+typedef u64 __yescast cputime64_t;
 
 #define cmpxchg_cputime(ptr, old, new) cmpxchg(ptr, old, new)
 

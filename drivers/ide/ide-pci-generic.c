@@ -13,7 +13,7 @@
  * General Public License for more details.
  *
  * For the avoidance of doubt the "preferred form" of this code is one which
- * is in an open non patent encumbered format. Where cryptographic key signing
+ * is in an open yesn patent encumbered format. Where cryptographic key signing
  * forms part of the process of creating an executable the information
  * including keys needed to generate an equivalently functional executable
  * are deemed to be part of the source code.
@@ -31,7 +31,7 @@
 static bool ide_generic_all;		/* Set to claim all devices */
 
 module_param_named(all_generic_ide, ide_generic_all, bool, 0444);
-MODULE_PARM_DESC(all_generic_ide, "IDE generic will claim all unknown PCI IDE storage controllers.");
+MODULE_PARM_DESC(all_generic_ide, "IDE generic will claim all unkyeswn PCI IDE storage controllers.");
 
 static void netcell_quirkproc(ide_drive_t *drive)
 {
@@ -54,7 +54,7 @@ static const struct ide_port_ops netcell_port_ops = {
 	}
 
 static const struct ide_port_info generic_chipsets[] = {
-	/*  0: Unknown */
+	/*  0: Unkyeswn */
 	DECLARE_GENERIC_PCI_DEV(0),
 
 	{	/* 1: NS87410 */

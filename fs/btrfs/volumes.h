@@ -248,7 +248,7 @@ struct btrfs_fs_devices {
 	int opened;
 
 	/* set when we find or add a device that doesn't have the
-	 * nonrot flag set
+	 * yesnrot flag set
 	 */
 	bool rotating;
 
@@ -274,7 +274,7 @@ struct btrfs_fs_devices {
  * we need the mirror number and stripe index to be passed around
  * the call chain while we are processing end_io (especially errors).
  * Really, what we need is a btrfs_bio structure that has this info
- * and is properly sized with its stripe array, but we're not there
+ * and is properly sized with its stripe array, but we're yest there
  * quite yet.  We have our own btrfs bioset, and all of the bios
  * we allocate are actually btrfs_io_bios.  We'll cram as much of
  * struct btrfs_bio as we can into this over time.
@@ -287,7 +287,7 @@ struct btrfs_io_bio {
 	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
 	struct bvec_iter iter;
 	/*
-	 * This member must come last, bio_alloc_bioset will allocate enough
+	 * This member must come last, bio_alloc_bioset will allocate eyesugh
 	 * bytes for entire btrfs_io_bio but relies on bio being last.
 	 */
 	struct bio bio;

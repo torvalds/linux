@@ -15,7 +15,7 @@
 
 /*
  * This is only to be defined if we have PC-like DMA.
- * By default this is not true on an Xtensa processor,
+ * By default this is yest true on an Xtensa processor,
  * however on boards with a PCI bus, such functionality
  * might be emulated externally.
  *
@@ -28,7 +28,7 @@
  * The maximum virtual address to which DMA transfers
  * can be performed on this platform.
  *
- * NOTE: This is board (platform) specific, not processor-specific!
+ * NOTE: This is board (platform) specific, yest processor-specific!
  *
  * NOTE: This assumes DMA transfers can only be performed on
  *	the section of physical memory contiguously mapped in virtual
@@ -40,7 +40,7 @@
  * NOTE: When the entire KSEG area is DMA capable, we subtract
  *	one from the max address so that the virt_to_phys() macro
  *	works correctly on the address (otherwise the address
- *	enters another area, and virt_to_phys() may not return
+ *	enters ayesther area, and virt_to_phys() may yest return
  *	the value desired).
  */
 

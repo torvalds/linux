@@ -75,7 +75,7 @@ struct kunit_resource {
 	kunit_resource_free_t free;
 
 	/* private: internal use only. */
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct kunit;
@@ -145,7 +145,7 @@ struct kunit_case {
  *
  * A kunit_suite is a collection of related &struct kunit_case s, such that
  * @init is called before every test case and @exit is called after every
- * test case, similar to the notion of a *test fixture* or a *test class*
+ * test case, similar to the yestion of a *test fixture* or a *test class*
  * in other unit testing frameworks like JUnit or Googletest.
  *
  * Every &struct kunit_case must be associated with a kunit_suite for KUnit
@@ -205,10 +205,10 @@ int kunit_run_tests(struct kunit_suite *suite);
  * more information.
  *
  * NOTE: Currently KUnit tests are all run as late_initcalls; this means
- * that they cannot test anything where tests must run at a different init
+ * that they canyest test anything where tests must run at a different init
  * phase. One significant restriction resulting from this is that KUnit
- * cannot reliably test anything that is initialize in the late_init phase;
- * another is that KUnit is useless to test things that need to be run in
+ * canyest reliably test anything that is initialize in the late_init phase;
+ * ayesther is that KUnit is useless to test things that need to be run in
  * an earlier init phase.
  *
  * TODO(brendanhiggins@google.com): Don't run all KUnit tests as
@@ -298,7 +298,7 @@ static inline bool kunit_resource_instance_match(struct kunit *test,
  * returns true.
  *
  * RETURNS:
- * 0 if kunit_resource is found and freed, -ENOENT if not found.
+ * 0 if kunit_resource is found and freed, -ENOENT if yest found.
  */
 int kunit_resource_destroy(struct kunit *test,
 			   kunit_resource_match_t match,
@@ -377,11 +377,11 @@ void kunit_cleanup(struct kunit *test);
 	kunit_printk(KERN_ERR, test, fmt, ##__VA_ARGS__)
 
 /**
- * KUNIT_SUCCEED() - A no-op expectation. Only exists for code clarity.
+ * KUNIT_SUCCEED() - A yes-op expectation. Only exists for code clarity.
  * @test: The test context object.
  *
- * The opposite of KUNIT_FAIL(), it is an expectation that cannot fail. In other
- * words, it does nothing and only exists for code clarity. See
+ * The opposite of KUNIT_FAIL(), it is an expectation that canyest fail. In other
+ * words, it does yesthing and only exists for code clarity. See
  * KUNIT_EXPECT_TRUE() for more information.
  */
 #define KUNIT_SUCCEED(test) do {} while (0)
@@ -468,9 +468,9 @@ void kunit_do_assertion(struct kunit *test,
  * A factory macro for defining the assertions and expectations for the basic
  * comparisons defined for the built in types.
  *
- * Unfortunately, there is no common type that all types can be promoted to for
+ * Unfortunately, there is yes common type that all types can be promoted to for
  * which all the binary operators behave the same way as for the actual types
- * (for example, there is no type that long long and unsigned long long can
+ * (for example, there is yes type that long long and unsigned long long can
  * both be cast to where the comparison result is preserved for all values). So
  * the best we can do is do the comparison in the original types and then coerce
  * everything to long long for printing; this way, the comparison behaves
@@ -909,7 +909,7 @@ do {									       \
 									       \
 	KUNIT_ASSERTION(test,						       \
 			!IS_ERR_OR_NULL(__ptr),				       \
-			kunit_ptr_not_err_assert,			       \
+			kunit_ptr_yest_err_assert,			       \
 			KUNIT_INIT_PTR_NOT_ERR_STRUCT(test,		       \
 						      assert_type,	       \
 						      #ptr,		       \
@@ -925,14 +925,14 @@ do {									       \
 						NULL)
 
 /**
- * KUNIT_EXPECT_TRUE() - Causes a test failure when the expression is not true.
+ * KUNIT_EXPECT_TRUE() - Causes a test failure when the expression is yest true.
  * @test: The test context object.
  * @condition: an arbitrary boolean expression. The test fails when this does
- * not evaluate to true.
+ * yest evaluate to true.
  *
  * This and expectations of the form `KUNIT_EXPECT_*` will cause the test case
- * to fail when the specified condition is not met; however, it will not prevent
- * the test case from continuing to run; this is otherwise known as an
+ * to fail when the specified condition is yest met; however, it will yest prevent
+ * the test case from continuing to run; this is otherwise kyeswn as an
  * *expectation failure*.
  */
 #define KUNIT_EXPECT_TRUE(test, condition) \
@@ -946,10 +946,10 @@ do {									       \
 				 ##__VA_ARGS__)
 
 /**
- * KUNIT_EXPECT_FALSE() - Makes a test failure when the expression is not false.
+ * KUNIT_EXPECT_FALSE() - Makes a test failure when the expression is yest false.
  * @test: The test context object.
  * @condition: an arbitrary boolean expression. The test fails when this does
- * not evaluate to false.
+ * yest evaluate to false.
  *
  * Sets an expectation that @condition evaluates to false. See
  * KUNIT_EXPECT_TRUE() for more information.
@@ -1012,12 +1012,12 @@ do {									       \
 					  ##__VA_ARGS__)
 
 /**
- * KUNIT_EXPECT_NE() - An expectation that @left and @right are not equal.
+ * KUNIT_EXPECT_NE() - An expectation that @left and @right are yest equal.
  * @test: The test context object.
  * @left: an arbitrary expression that evaluates to a primitive C type.
  * @right: an arbitrary expression that evaluates to a primitive C type.
  *
- * Sets an expectation that the values that @left and @right evaluate to are not
+ * Sets an expectation that the values that @left and @right evaluate to are yest
  * equal. This is semantically equivalent to
  * KUNIT_EXPECT_TRUE(@test, (@left) != (@right)). See KUNIT_EXPECT_TRUE() for
  * more information.
@@ -1034,12 +1034,12 @@ do {									       \
 				      ##__VA_ARGS__)
 
 /**
- * KUNIT_EXPECT_PTR_NE() - Expects that pointers @left and @right are not equal.
+ * KUNIT_EXPECT_PTR_NE() - Expects that pointers @left and @right are yest equal.
  * @test: The test context object.
  * @left: an arbitrary expression that evaluates to a pointer.
  * @right: an arbitrary expression that evaluates to a pointer.
  *
- * Sets an expectation that the values that @left and @right evaluate to are not
+ * Sets an expectation that the values that @left and @right evaluate to are yest
  * equal. This is semantically equivalent to
  * KUNIT_EXPECT_TRUE(@test, (@left) != (@right)). See KUNIT_EXPECT_TRUE() for
  * more information.
@@ -1169,13 +1169,13 @@ do {									       \
 					  ##__VA_ARGS__)
 
 /**
- * KUNIT_EXPECT_STRNEQ() - Expects that strings @left and @right are not equal.
+ * KUNIT_EXPECT_STRNEQ() - Expects that strings @left and @right are yest equal.
  * @test: The test context object.
  * @left: an arbitrary expression that evaluates to a null terminated string.
  * @right: an arbitrary expression that evaluates to a null terminated string.
  *
  * Sets an expectation that the values that @left and @right evaluate to are
- * not equal. This is semantically equivalent to
+ * yest equal. This is semantically equivalent to
  * KUNIT_EXPECT_TRUE(@test, strcmp((@left), (@right))). See KUNIT_EXPECT_TRUE()
  * for more information.
  */
@@ -1191,12 +1191,12 @@ do {									       \
 					  ##__VA_ARGS__)
 
 /**
- * KUNIT_EXPECT_NOT_ERR_OR_NULL() - Expects that @ptr is not null and not err.
+ * KUNIT_EXPECT_NOT_ERR_OR_NULL() - Expects that @ptr is yest null and yest err.
  * @test: The test context object.
  * @ptr: an arbitrary pointer.
  *
- * Sets an expectation that the value that @ptr evaluates to is not null and not
- * an errno stored in a pointer. This is semantically equivalent to
+ * Sets an expectation that the value that @ptr evaluates to is yest null and yest
+ * an erryes stored in a pointer. This is semantically equivalent to
  * KUNIT_EXPECT_TRUE(@test, !IS_ERR_OR_NULL(@ptr)). See KUNIT_EXPECT_TRUE() for
  * more information.
  */
@@ -1217,12 +1217,12 @@ do {									       \
  * KUNIT_ASSERT_TRUE() - Sets an assertion that @condition is true.
  * @test: The test context object.
  * @condition: an arbitrary boolean expression. The test fails and aborts when
- * this does not evaluate to true.
+ * this does yest evaluate to true.
  *
  * This and assertions of the form `KUNIT_ASSERT_*` will cause the test case to
- * fail *and immediately abort* when the specified condition is not met. Unlike
+ * fail *and immediately abort* when the specified condition is yest met. Unlike
  * an expectation failure, it will prevent the test case from continuing to run;
- * this is otherwise known as an *assertion failure*.
+ * this is otherwise kyeswn as an *assertion failure*.
  */
 #define KUNIT_ASSERT_TRUE(test, condition) \
 	KUNIT_TRUE_ASSERTION(test, KUNIT_ASSERTION, condition)
@@ -1241,7 +1241,7 @@ do {									       \
  *
  * Sets an assertion that the value that @condition evaluates to is false. This
  * is the same as KUNIT_EXPECT_FALSE(), except it causes an assertion failure
- * (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * (see KUNIT_ASSERT_TRUE()) when the assertion is yest met.
  */
 #define KUNIT_ASSERT_FALSE(test, condition) \
 	KUNIT_FALSE_ASSERTION(test, KUNIT_ASSERTION, condition)
@@ -1261,7 +1261,7 @@ do {									       \
  *
  * Sets an assertion that the values that @left and @right evaluate to are
  * equal. This is the same as KUNIT_EXPECT_EQ(), except it causes an assertion
- * failure (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * failure (see KUNIT_ASSERT_TRUE()) when the assertion is yest met.
  */
 #define KUNIT_ASSERT_EQ(test, left, right) \
 	KUNIT_BINARY_EQ_ASSERTION(test, KUNIT_ASSERTION, left, right)
@@ -1282,7 +1282,7 @@ do {									       \
  *
  * Sets an assertion that the values that @left and @right evaluate to are
  * equal. This is the same as KUNIT_EXPECT_EQ(), except it causes an assertion
- * failure (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * failure (see KUNIT_ASSERT_TRUE()) when the assertion is yest met.
  */
 #define KUNIT_ASSERT_PTR_EQ(test, left, right) \
 	KUNIT_BINARY_PTR_EQ_ASSERTION(test, KUNIT_ASSERTION, left, right)
@@ -1296,14 +1296,14 @@ do {									       \
 					  ##__VA_ARGS__)
 
 /**
- * KUNIT_ASSERT_NE() - An assertion that @left and @right are not equal.
+ * KUNIT_ASSERT_NE() - An assertion that @left and @right are yest equal.
  * @test: The test context object.
  * @left: an arbitrary expression that evaluates to a primitive C type.
  * @right: an arbitrary expression that evaluates to a primitive C type.
  *
- * Sets an assertion that the values that @left and @right evaluate to are not
+ * Sets an assertion that the values that @left and @right evaluate to are yest
  * equal. This is the same as KUNIT_EXPECT_NE(), except it causes an assertion
- * failure (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * failure (see KUNIT_ASSERT_TRUE()) when the assertion is yest met.
  */
 #define KUNIT_ASSERT_NE(test, left, right) \
 	KUNIT_BINARY_NE_ASSERTION(test, KUNIT_ASSERTION, left, right)
@@ -1317,15 +1317,15 @@ do {									       \
 				      ##__VA_ARGS__)
 
 /**
- * KUNIT_ASSERT_PTR_NE() - Asserts that pointers @left and @right are not equal.
+ * KUNIT_ASSERT_PTR_NE() - Asserts that pointers @left and @right are yest equal.
  * KUNIT_ASSERT_PTR_EQ() - Asserts that pointers @left and @right are equal.
  * @test: The test context object.
  * @left: an arbitrary expression that evaluates to a pointer.
  * @right: an arbitrary expression that evaluates to a pointer.
  *
- * Sets an assertion that the values that @left and @right evaluate to are not
+ * Sets an assertion that the values that @left and @right evaluate to are yest
  * equal. This is the same as KUNIT_EXPECT_NE(), except it causes an assertion
- * failure (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * failure (see KUNIT_ASSERT_TRUE()) when the assertion is yest met.
  */
 #define KUNIT_ASSERT_PTR_NE(test, left, right) \
 	KUNIT_BINARY_PTR_NE_ASSERTION(test, KUNIT_ASSERTION, left, right)
@@ -1346,7 +1346,7 @@ do {									       \
  * Sets an assertion that the value that @left evaluates to is less than the
  * value that @right evaluates to. This is the same as KUNIT_EXPECT_LT(), except
  * it causes an assertion failure (see KUNIT_ASSERT_TRUE()) when the assertion
- * is not met.
+ * is yest met.
  */
 #define KUNIT_ASSERT_LT(test, left, right) \
 	KUNIT_BINARY_LT_ASSERTION(test, KUNIT_ASSERTION, left, right)
@@ -1367,7 +1367,7 @@ do {									       \
  * Sets an assertion that the value that @left evaluates to is less than or
  * equal to the value that @right evaluates to. This is the same as
  * KUNIT_EXPECT_LE(), except it causes an assertion failure (see
- * KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * KUNIT_ASSERT_TRUE()) when the assertion is yest met.
  */
 #define KUNIT_ASSERT_LE(test, left, right) \
 	KUNIT_BINARY_LE_ASSERTION(test, KUNIT_ASSERTION, left, right)
@@ -1389,7 +1389,7 @@ do {									       \
  * Sets an assertion that the value that @left evaluates to is greater than the
  * value that @right evaluates to. This is the same as KUNIT_EXPECT_GT(), except
  * it causes an assertion failure (see KUNIT_ASSERT_TRUE()) when the assertion
- * is not met.
+ * is yest met.
  */
 #define KUNIT_ASSERT_GT(test, left, right) \
 	KUNIT_BINARY_GT_ASSERTION(test, KUNIT_ASSERTION, left, right)
@@ -1411,7 +1411,7 @@ do {									       \
  * Sets an assertion that the value that @left evaluates to is greater than the
  * value that @right evaluates to. This is the same as KUNIT_EXPECT_GE(), except
  * it causes an assertion failure (see KUNIT_ASSERT_TRUE()) when the assertion
- * is not met.
+ * is yest met.
  */
 #define KUNIT_ASSERT_GE(test, left, right) \
 	KUNIT_BINARY_GE_ASSERTION(test, KUNIT_ASSERTION, left, right)
@@ -1432,7 +1432,7 @@ do {									       \
  *
  * Sets an assertion that the values that @left and @right evaluate to are
  * equal. This is the same as KUNIT_EXPECT_STREQ(), except it causes an
- * assertion failure (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * assertion failure (see KUNIT_ASSERT_TRUE()) when the assertion is yest met.
  */
 #define KUNIT_ASSERT_STREQ(test, left, right) \
 	KUNIT_BINARY_STR_EQ_ASSERTION(test, KUNIT_ASSERTION, left, right)
@@ -1446,13 +1446,13 @@ do {									       \
 					  ##__VA_ARGS__)
 
 /**
- * KUNIT_ASSERT_STRNEQ() - Expects that strings @left and @right are not equal.
+ * KUNIT_ASSERT_STRNEQ() - Expects that strings @left and @right are yest equal.
  * @test: The test context object.
  * @left: an arbitrary expression that evaluates to a null terminated string.
  * @right: an arbitrary expression that evaluates to a null terminated string.
  *
  * Sets an expectation that the values that @left and @right evaluate to are
- * not equal. This is semantically equivalent to
+ * yest equal. This is semantically equivalent to
  * KUNIT_ASSERT_TRUE(@test, strcmp((@left), (@right))). See KUNIT_ASSERT_TRUE()
  * for more information.
  */
@@ -1468,14 +1468,14 @@ do {									       \
 					  ##__VA_ARGS__)
 
 /**
- * KUNIT_ASSERT_NOT_ERR_OR_NULL() - Assertion that @ptr is not null and not err.
+ * KUNIT_ASSERT_NOT_ERR_OR_NULL() - Assertion that @ptr is yest null and yest err.
  * @test: The test context object.
  * @ptr: an arbitrary pointer.
  *
- * Sets an assertion that the value that @ptr evaluates to is not null and not
- * an errno stored in a pointer. This is the same as
+ * Sets an assertion that the value that @ptr evaluates to is yest null and yest
+ * an erryes stored in a pointer. This is the same as
  * KUNIT_EXPECT_NOT_ERR_OR_NULL(), except it causes an assertion failure (see
- * KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * KUNIT_ASSERT_TRUE()) when the assertion is yest met.
  */
 #define KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr) \
 	KUNIT_PTR_NOT_ERR_OR_NULL_ASSERTION(test, KUNIT_ASSERTION, ptr)

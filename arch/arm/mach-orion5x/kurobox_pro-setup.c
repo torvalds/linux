@@ -94,24 +94,24 @@ static struct platform_device kurobox_pro_nand_flash = {
  * 256KB NOR Flash on BOOT Device
  ****************************************************************************/
 
-static struct physmap_flash_data kurobox_pro_nor_flash_data = {
+static struct physmap_flash_data kurobox_pro_yesr_flash_data = {
 	.width		= 1,
 };
 
-static struct resource kurobox_pro_nor_flash_resource = {
+static struct resource kurobox_pro_yesr_flash_resource = {
 	.flags			= IORESOURCE_MEM,
 	.start			= KUROBOX_PRO_NOR_BOOT_BASE,
 	.end			= KUROBOX_PRO_NOR_BOOT_BASE + KUROBOX_PRO_NOR_BOOT_SIZE - 1,
 };
 
-static struct platform_device kurobox_pro_nor_flash = {
+static struct platform_device kurobox_pro_yesr_flash = {
 	.name			= "physmap-flash",
 	.id			= 0,
 	.dev		= {
-		.platform_data	= &kurobox_pro_nor_flash_data,
+		.platform_data	= &kurobox_pro_yesr_flash_data,
 	},
 	.num_resources		= 1,
-	.resource		= &kurobox_pro_nor_flash_resource,
+	.resource		= &kurobox_pro_yesr_flash_resource,
 };
 
 /*****************************************************************************
@@ -363,7 +363,7 @@ static void __init kurobox_pro_init(void)
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
 				    KUROBOX_PRO_NOR_BOOT_BASE,
 				    KUROBOX_PRO_NOR_BOOT_SIZE);
-	platform_device_register(&kurobox_pro_nor_flash);
+	platform_device_register(&kurobox_pro_yesr_flash);
 
 	if (machine_is_kurobox_pro()) {
 		mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_TARGET(0),

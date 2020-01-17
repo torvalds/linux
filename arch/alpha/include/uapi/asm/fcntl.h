@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _ALPHA_FCNTL_H
 #define _ALPHA_FCNTL_H
 
-#define O_CREAT		 01000	/* not fcntl */
-#define O_TRUNC		 02000	/* not fcntl */
-#define O_EXCL		 04000	/* not fcntl */
-#define O_NOCTTY	010000	/* not fcntl */
+#define O_CREAT		 01000	/* yest fcntl */
+#define O_TRUNC		 02000	/* yest fcntl */
+#define O_EXCL		 04000	/* yest fcntl */
+#define O_NOCTTY	010000	/* yest fcntl */
 
 #define O_NONBLOCK	 00004
 #define O_APPEND	 00010
@@ -19,13 +19,13 @@
 /*
  * Before Linux 2.6.33 only O_DSYNC semantics were implemented, but using
  * the O_SYNC flag.  We continue to use the existing numerical value
- * for O_DSYNC semantics now, but using the correct symbolic name for it.
+ * for O_DSYNC semantics yesw, but using the correct symbolic name for it.
  * This new value is used to request true Posix O_SYNC semantics.  It is
  * defined in this strange way to make sure applications compiled against
  * new headers get at least O_DSYNC semantics on older kernels.
  *
  * This has the nice side-effect that we can simply test for O_DSYNC
- * wherever we do not care if O_DSYNC or O_SYNC is used.
+ * wherever we do yest care if O_DSYNC or O_SYNC is used.
  *
  * Note: __O_SYNC must never be used directly.
  */

@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/parport.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -282,7 +282,7 @@ static int parport_ax88796_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(_dev, "no MEM specified\n");
+		dev_err(_dev, "yes MEM specified\n");
 		ret = -ENXIO;
 		goto exit_mem;
 	}
@@ -292,14 +292,14 @@ static int parport_ax88796_probe(struct platform_device *pdev)
 
 	dd->io = request_mem_region(res->start, size, pdev->name);
 	if (dd->io == NULL) {
-		dev_err(_dev, "cannot reserve memory\n");
+		dev_err(_dev, "canyest reserve memory\n");
 		ret = -ENXIO;
 		goto exit_mem;
 	}
 
 	dd->base = ioremap(res->start, size);
 	if (dd->base == NULL) {
-		dev_err(_dev, "cannot ioremap region\n");
+		dev_err(_dev, "canyest ioremap region\n");
 		ret = -ENXIO;
 		goto exit_res;
 	}
@@ -343,7 +343,7 @@ static int parport_ax88796_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pp);
 
 	dev_info(_dev, "attached parallel port driver\n");
-	parport_announce_port(pp);
+	parport_anyesunce_port(pp);
 
 	return 0;
 

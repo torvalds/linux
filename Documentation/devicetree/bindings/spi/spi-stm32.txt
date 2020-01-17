@@ -2,7 +2,7 @@ STMicroelectronics STM32 SPI Controller
 
 The STM32 SPI controller is used to communicate with external devices using
 the Serial Peripheral Interface. It supports full-duplex, half-duplex and
-simplex synchronous serial communication with external devices. It supports
+simplex synchroyesus serial communication with external devices. It supports
 from 4 to 32-bit data size. Although it can be configured as master or slave,
 only master is supported by the driver.
 
@@ -28,12 +28,12 @@ Optional properties:
   Documentation/devicetree/bindings/spi/spi-bus.txt
 
 
-Child nodes represent devices on the SPI bus
+Child yesdes represent devices on the SPI bus
   See ../spi/spi-bus.txt
 
 Optional properties:
 - st,spi-midi-ns: Only for STM32H7, (Master Inter-Data Idleness) minimum time
-		  delay in nanoseconds inserted between two consecutive data
+		  delay in nayesseconds inserted between two consecutive data
 		  frames.
 
 

@@ -7,7 +7,7 @@
 #include <asm/assembler.h>
 #include <asm/kexec.h>
 
-	.align	3	/* not needed for this code, but keeps fncpy() happy */
+	.align	3	/* yest needed for this code, but keeps fncpy() happy */
 
 ENTRY(relocate_new_kernel)
 
@@ -15,13 +15,13 @@ ENTRY(relocate_new_kernel)
 	ldr	r1,kexec_start_address
 
 	/*
-	 * If there is no indirection page (we are doing crashdumps)
+	 * If there is yes indirection page (we are doing crashdumps)
 	 * skip any relocation.
 	 */
 	cmp	r0, #0
 	beq	2f
 
-0:	/* top, read another word for the indirection page */
+0:	/* top, read ayesther word for the indirection page */
 	ldr	r3, [r0],#4
 
 	/* Is it a destination page. Put destination address to r4 */

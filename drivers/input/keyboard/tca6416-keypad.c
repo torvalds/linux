@@ -205,14 +205,14 @@ static int tca6416_keypad_probe(struct i2c_client *client,
 
 	/* Check functionality */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE)) {
-		dev_err(&client->dev, "%s adapter not supported\n",
+		dev_err(&client->dev, "%s adapter yest supported\n",
 			dev_driver_string(&client->adapter->dev));
 		return -ENODEV;
 	}
 
 	pdata = dev_get_platdata(&client->dev);
 	if (!pdata) {
-		dev_dbg(&client->dev, "no platform data\n");
+		dev_dbg(&client->dev, "yes platform data\n");
 		return -EINVAL;
 	}
 
@@ -259,7 +259,7 @@ static int tca6416_keypad_probe(struct i2c_client *client,
 
 	/*
 	 * Initialize cached registers from their original values.
-	 * we can't share this chip with another i2c master.
+	 * we can't share this chip with ayesther i2c master.
 	 */
 	error = tca6416_setup_registers(chip);
 	if (error)

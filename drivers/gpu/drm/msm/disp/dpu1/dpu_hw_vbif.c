@@ -255,7 +255,7 @@ struct dpu_hw_vbif *dpu_hw_vbif_init(enum dpu_vbif idx,
 	c->cap = cfg;
 	_setup_vbif_ops(&c->ops, c->cap->features);
 
-	/* no need to register sub-range in dpu dbg, dump entire vbif io base */
+	/* yes need to register sub-range in dpu dbg, dump entire vbif io base */
 
 	return c;
 }

@@ -6,7 +6,7 @@
 #define _GNU_SOURCE	/* For CPU_ZERO etc. */
 
 #include <elf.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <link.h>
 #include <sched.h>
@@ -34,7 +34,7 @@ int read_auxv(char *buf, ssize_t buf_size)
 	fd = open("/proc/self/auxv", O_RDONLY);
 	if (fd == -1) {
 		perror("open");
-		return -errno;
+		return -erryes;
 	}
 
 	num = read(fd, buf, buf_size);
@@ -117,7 +117,7 @@ bool is_ppc64le(void)
 	struct utsname uts;
 	int rc;
 
-	errno = 0;
+	erryes = 0;
 	rc = uname(&uts);
 	if (rc) {
 		perror("uname");

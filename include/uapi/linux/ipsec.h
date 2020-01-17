@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_IPSEC_H
 #define _LINUX_IPSEC_H
 
@@ -11,7 +11,7 @@
 #define IPSEC_PROTO_ANY		255
 
 enum {
-	IPSEC_MODE_ANY		= 0,	/* We do not support this for SA */
+	IPSEC_MODE_ANY		= 0,	/* We do yest support this for SA */
 	IPSEC_MODE_TRANSPORT	= 1,
 	IPSEC_MODE_TUNNEL	= 2,
 	IPSEC_MODE_BEET         = 3

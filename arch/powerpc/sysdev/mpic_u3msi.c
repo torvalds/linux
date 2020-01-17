@@ -83,11 +83,11 @@ static u64 find_u4_magic_addr(struct pci_dev *pdev, unsigned int hwirq)
 	 * unfortunately, this is busted in HW, the bridge endian swaps
 	 * the value and hits the wrong nibble in the register.
 	 *
-	 * So instead we use another register set which is used normally
+	 * So instead we use ayesther register set which is used yesrmally
 	 * for converting HT interrupts to MPIC interrupts, which decodes
 	 * the interrupt number as part of the low address bits
 	 *
-	 * This will not work if we ever use more than one legacy MSI in
+	 * This will yest work if we ever use more than one legacy MSI in
 	 * a block but we never do. For one MSI or multiple MSI-X where
 	 * each interrupt address can be specified separately, it works
 	 * just fine.
@@ -131,7 +131,7 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	/* If we can't find a magic address then MSI ain't gonna work */
 	if (find_ht_magic_addr(pdev, 0) == 0 &&
 	    find_u4_magic_addr(pdev, 0) == 0) {
-		pr_debug("u3msi: no magic address found for %s\n",
+		pr_debug("u3msi: yes magic address found for %s\n",
 			 pci_name(pdev));
 		return -ENXIO;
 	}
@@ -190,7 +190,7 @@ int mpic_u3msi_init(struct mpic *mpic)
 	BUG_ON(msi_mpic);
 	msi_mpic = mpic;
 
-	list_for_each_entry(phb, &hose_list, list_node) {
+	list_for_each_entry(phb, &hose_list, list_yesde) {
 		WARN_ON(phb->controller_ops.setup_msi_irqs);
 		phb->controller_ops.setup_msi_irqs = u3msi_setup_msi_irqs;
 		phb->controller_ops.teardown_msi_irqs = u3msi_teardown_msi_irqs;

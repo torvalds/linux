@@ -22,6 +22,6 @@
   {
         "EventCode": "0xC8",
         "EventName": "EXT_SNOOP",
-        "BriefDescription": "SCU Snooped data from another CPU for this CPU"
+        "BriefDescription": "SCU Syesoped data from ayesther CPU for this CPU"
   }
 ]

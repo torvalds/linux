@@ -29,7 +29,7 @@ available in the Linux kernel source under
 Glossary
 --------
 
-The regulator API uses a number of terms which may not be familiar:
+The regulator API uses a number of terms which may yest be familiar:
 
 Regulator
 
@@ -70,7 +70,7 @@ supplies, such as "Vcc", which are mapped into actual regulator devices
 by the machine interface.
 
 A stub version of this API is provided when the regulator framework is
-not in use in order to minimise the need to use ifdefs.
+yest in use in order to minimise the need to use ifdefs.
 
 Enabling and disabling
 ----------------------
@@ -81,7 +81,7 @@ regulators. Consumer devices use the :c:func:`regulator_enable()` and
 regulators. Calls to the two functions must be balanced.
 
 Note that since multiple consumers may be using a regulator and machine
-constraints may not allow the regulator to be disabled there is no
+constraints may yest allow the regulator to be disabled there is yes
 guarantee that calling :c:func:`regulator_disable()` will actually
 cause the supply provided by the regulator to be disabled. Consumer
 drivers should assume that the regulator may be enabled at all times.
@@ -97,9 +97,9 @@ is enabled or disabled.
 The :c:func:`regulator_set_voltage()` and
 :c:func:`regulator_set_current_limit()` functions provide the primary
 interface for this. Both take ranges of voltages and currents, supporting
-drivers that do not require a specific value (eg, CPU frequency scaling
-normally permits the CPU to use a wider range of supply voltages at lower
-frequencies but does not require that the supply voltage be lowered). Where
+drivers that do yest require a specific value (eg, CPU frequency scaling
+yesrmally permits the CPU to use a wider range of supply voltages at lower
+frequencies but does yest require that the supply voltage be lowered). Where
 an exact value is required both minimum and maximum values should be
 identical.
 
@@ -112,7 +112,7 @@ Regulator driver interface
 ==========================
 
 Drivers for regulator chips register the regulators with the regulator
-core, providing operations structures to the core. A notifier interface
+core, providing operations structures to the core. A yestifier interface
 allows error conditions to be reported to the core.
 
 Registration should be triggered by explicit setup done by the platform,

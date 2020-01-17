@@ -12,7 +12,7 @@
 #include <poll.h>
 #include <sys/types.h>
 #include <signal.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stddef.h>
 
 static inline pid_t rseq_gettid(void)
@@ -276,13 +276,13 @@ struct inc_thread_test_data {
 	int reg;
 };
 
-struct percpu_list_node {
+struct percpu_list_yesde {
 	intptr_t data;
-	struct percpu_list_node *next;
+	struct percpu_list_yesde *next;
 };
 
 struct percpu_list_entry {
-	struct percpu_list_node *head;
+	struct percpu_list_yesde *head;
 } __attribute__((aligned(128)));
 
 struct percpu_list {
@@ -291,14 +291,14 @@ struct percpu_list {
 
 #define BUFFER_ITEM_PER_CPU	100
 
-struct percpu_buffer_node {
+struct percpu_buffer_yesde {
 	intptr_t data;
 };
 
 struct percpu_buffer_entry {
 	intptr_t offset;
 	intptr_t buflen;
-	struct percpu_buffer_node **array;
+	struct percpu_buffer_yesde **array;
 } __attribute__((aligned(128)));
 
 struct percpu_buffer {
@@ -307,7 +307,7 @@ struct percpu_buffer {
 
 #define MEMCPY_BUFFER_ITEM_PER_CPU	100
 
-struct percpu_memcpy_buffer_node {
+struct percpu_memcpy_buffer_yesde {
 	intptr_t data1;
 	uint64_t data2;
 };
@@ -315,7 +315,7 @@ struct percpu_memcpy_buffer_node {
 struct percpu_memcpy_buffer_entry {
 	intptr_t offset;
 	intptr_t buflen;
-	struct percpu_memcpy_buffer_node *array;
+	struct percpu_memcpy_buffer_yesde *array;
 } __attribute__((aligned(128)));
 
 struct percpu_memcpy_buffer {
@@ -412,7 +412,7 @@ void test_percpu_spinlock(void)
 				     test_percpu_spinlock_thread,
 				     &thread_data[i]);
 		if (ret) {
-			errno = ret;
+			erryes = ret;
 			perror("pthread_create");
 			abort();
 		}
@@ -421,7 +421,7 @@ void test_percpu_spinlock(void)
 	for (i = 0; i < num_threads; i++) {
 		ret = pthread_join(test_threads[i], NULL);
 		if (ret) {
-			errno = ret;
+			erryes = ret;
 			perror("pthread_join");
 			abort();
 		}
@@ -488,7 +488,7 @@ void test_percpu_inc(void)
 				     test_percpu_inc_thread,
 				     &thread_data[i]);
 		if (ret) {
-			errno = ret;
+			erryes = ret;
 			perror("pthread_create");
 			abort();
 		}
@@ -497,7 +497,7 @@ void test_percpu_inc(void)
 	for (i = 0; i < num_threads; i++) {
 		ret = pthread_join(test_threads[i], NULL);
 		if (ret) {
-			errno = ret;
+			erryes = ret;
 			perror("pthread_join");
 			abort();
 		}
@@ -511,7 +511,7 @@ void test_percpu_inc(void)
 }
 
 void this_cpu_list_push(struct percpu_list *list,
-			struct percpu_list_node *node,
+			struct percpu_list_yesde *yesde,
 			int *_cpu)
 {
 	int cpu;
@@ -523,9 +523,9 @@ void this_cpu_list_push(struct percpu_list *list,
 		cpu = rseq_cpu_start();
 		/* Load list->c[cpu].head with single-copy atomicity. */
 		expect = (intptr_t)RSEQ_READ_ONCE(list->c[cpu].head);
-		newval = (intptr_t)node;
+		newval = (intptr_t)yesde;
 		targetptr = (intptr_t *)&list->c[cpu].head;
-		node->next = (struct percpu_list_node *)expect;
+		yesde->next = (struct percpu_list_yesde *)expect;
 		ret = rseq_cmpeqv_storev(targetptr, expect, newval, cpu);
 		if (rseq_likely(!ret))
 			break;
@@ -540,27 +540,27 @@ void this_cpu_list_push(struct percpu_list *list,
  * rseq primitive allows us to implement pop without concerns over
  * ABA-type races.
  */
-struct percpu_list_node *this_cpu_list_pop(struct percpu_list *list,
+struct percpu_list_yesde *this_cpu_list_pop(struct percpu_list *list,
 					   int *_cpu)
 {
-	struct percpu_list_node *node = NULL;
+	struct percpu_list_yesde *yesde = NULL;
 	int cpu;
 
 	for (;;) {
-		struct percpu_list_node *head;
-		intptr_t *targetptr, expectnot, *load;
+		struct percpu_list_yesde *head;
+		intptr_t *targetptr, expectyest, *load;
 		off_t offset;
 		int ret;
 
 		cpu = rseq_cpu_start();
 		targetptr = (intptr_t *)&list->c[cpu].head;
-		expectnot = (intptr_t)NULL;
-		offset = offsetof(struct percpu_list_node, next);
+		expectyest = (intptr_t)NULL;
+		offset = offsetof(struct percpu_list_yesde, next);
 		load = (intptr_t *)&head;
-		ret = rseq_cmpnev_storeoffp_load(targetptr, expectnot,
+		ret = rseq_cmpnev_storeoffp_load(targetptr, expectyest,
 						   offset, load, cpu);
 		if (rseq_likely(!ret)) {
-			node = head;
+			yesde = head;
 			break;
 		}
 		if (ret > 0)
@@ -569,22 +569,22 @@ struct percpu_list_node *this_cpu_list_pop(struct percpu_list *list,
 	}
 	if (_cpu)
 		*_cpu = cpu;
-	return node;
+	return yesde;
 }
 
 /*
- * __percpu_list_pop is not safe against concurrent accesses. Should
- * only be used on lists that are not concurrently modified.
+ * __percpu_list_pop is yest safe against concurrent accesses. Should
+ * only be used on lists that are yest concurrently modified.
  */
-struct percpu_list_node *__percpu_list_pop(struct percpu_list *list, int cpu)
+struct percpu_list_yesde *__percpu_list_pop(struct percpu_list *list, int cpu)
 {
-	struct percpu_list_node *node;
+	struct percpu_list_yesde *yesde;
 
-	node = list->c[cpu].head;
-	if (!node)
+	yesde = list->c[cpu].head;
+	if (!yesde)
 		return NULL;
-	list->c[cpu].head = node->next;
-	return node;
+	list->c[cpu].head = yesde->next;
+	return yesde;
 }
 
 void *test_percpu_list_thread(void *arg)
@@ -597,13 +597,13 @@ void *test_percpu_list_thread(void *arg)
 
 	reps = opt_reps;
 	for (i = 0; i < reps; i++) {
-		struct percpu_list_node *node;
+		struct percpu_list_yesde *yesde;
 
-		node = this_cpu_list_pop(list, NULL);
+		yesde = this_cpu_list_pop(list, NULL);
 		if (opt_yield)
 			sched_yield();  /* encourage shuffling */
-		if (node)
-			this_cpu_list_push(list, node, NULL);
+		if (yesde)
+			this_cpu_list_push(list, yesde, NULL);
 	}
 
 	printf_verbose("tid %d: number of rseq abort: %d, signals delivered: %u\n",
@@ -632,15 +632,15 @@ void test_percpu_list(void)
 		if (!CPU_ISSET(i, &allowed_cpus))
 			continue;
 		for (j = 1; j <= 100; j++) {
-			struct percpu_list_node *node;
+			struct percpu_list_yesde *yesde;
 
 			expected_sum += j;
 
-			node = malloc(sizeof(*node));
-			assert(node);
-			node->data = j;
-			node->next = list.c[i].head;
-			list.c[i].head = node;
+			yesde = malloc(sizeof(*yesde));
+			assert(yesde);
+			yesde->data = j;
+			yesde->next = list.c[i].head;
+			list.c[i].head = yesde;
 		}
 	}
 
@@ -648,7 +648,7 @@ void test_percpu_list(void)
 		ret = pthread_create(&test_threads[i], NULL,
 				     test_percpu_list_thread, &list);
 		if (ret) {
-			errno = ret;
+			erryes = ret;
 			perror("pthread_create");
 			abort();
 		}
@@ -657,26 +657,26 @@ void test_percpu_list(void)
 	for (i = 0; i < num_threads; i++) {
 		ret = pthread_join(test_threads[i], NULL);
 		if (ret) {
-			errno = ret;
+			erryes = ret;
 			perror("pthread_join");
 			abort();
 		}
 	}
 
 	for (i = 0; i < CPU_SETSIZE; i++) {
-		struct percpu_list_node *node;
+		struct percpu_list_yesde *yesde;
 
 		if (!CPU_ISSET(i, &allowed_cpus))
 			continue;
 
-		while ((node = __percpu_list_pop(&list, i))) {
-			sum += node->data;
-			free(node);
+		while ((yesde = __percpu_list_pop(&list, i))) {
+			sum += yesde->data;
+			free(yesde);
 		}
 	}
 
 	/*
-	 * All entries should now be accounted for (unless some external
+	 * All entries should yesw be accounted for (unless some external
 	 * actor is interfering with our allowed affinity while this
 	 * test is running).
 	 */
@@ -684,7 +684,7 @@ void test_percpu_list(void)
 }
 
 bool this_cpu_buffer_push(struct percpu_buffer *buffer,
-			  struct percpu_buffer_node *node,
+			  struct percpu_buffer_yesde *yesde,
 			  int *_cpu)
 {
 	bool result = false;
@@ -700,7 +700,7 @@ bool this_cpu_buffer_push(struct percpu_buffer *buffer,
 		offset = RSEQ_READ_ONCE(buffer->c[cpu].offset);
 		if (offset == buffer->c[cpu].buflen)
 			break;
-		newval_spec = (intptr_t)node;
+		newval_spec = (intptr_t)yesde;
 		targetptr_spec = (intptr_t *)&buffer->c[cpu].array[offset];
 		newval_final = offset + 1;
 		targetptr_final = &buffer->c[cpu].offset;
@@ -723,10 +723,10 @@ bool this_cpu_buffer_push(struct percpu_buffer *buffer,
 	return result;
 }
 
-struct percpu_buffer_node *this_cpu_buffer_pop(struct percpu_buffer *buffer,
+struct percpu_buffer_yesde *this_cpu_buffer_pop(struct percpu_buffer *buffer,
 					       int *_cpu)
 {
-	struct percpu_buffer_node *head;
+	struct percpu_buffer_yesde *head;
 	int cpu;
 
 	for (;;) {
@@ -757,13 +757,13 @@ struct percpu_buffer_node *this_cpu_buffer_pop(struct percpu_buffer *buffer,
 }
 
 /*
- * __percpu_buffer_pop is not safe against concurrent accesses. Should
- * only be used on buffers that are not concurrently modified.
+ * __percpu_buffer_pop is yest safe against concurrent accesses. Should
+ * only be used on buffers that are yest concurrently modified.
  */
-struct percpu_buffer_node *__percpu_buffer_pop(struct percpu_buffer *buffer,
+struct percpu_buffer_yesde *__percpu_buffer_pop(struct percpu_buffer *buffer,
 					       int cpu)
 {
-	struct percpu_buffer_node *head;
+	struct percpu_buffer_yesde *head;
 	intptr_t offset;
 
 	offset = buffer->c[cpu].offset;
@@ -784,13 +784,13 @@ void *test_percpu_buffer_thread(void *arg)
 
 	reps = opt_reps;
 	for (i = 0; i < reps; i++) {
-		struct percpu_buffer_node *node;
+		struct percpu_buffer_yesde *yesde;
 
-		node = this_cpu_buffer_pop(buffer, NULL);
+		yesde = this_cpu_buffer_pop(buffer, NULL);
 		if (opt_yield)
 			sched_yield();  /* encourage shuffling */
-		if (node) {
-			if (!this_cpu_buffer_push(buffer, node, NULL)) {
+		if (yesde) {
+			if (!this_cpu_buffer_push(buffer, yesde, NULL)) {
 				/* Should increase buffer size. */
 				abort();
 			}
@@ -829,21 +829,21 @@ void test_percpu_buffer(void)
 		assert(buffer.c[i].array);
 		buffer.c[i].buflen = CPU_SETSIZE * BUFFER_ITEM_PER_CPU;
 		for (j = 1; j <= BUFFER_ITEM_PER_CPU; j++) {
-			struct percpu_buffer_node *node;
+			struct percpu_buffer_yesde *yesde;
 
 			expected_sum += j;
 
 			/*
 			 * We could theoretically put the word-sized
 			 * "data" directly in the buffer. However, we
-			 * want to model objects that would not fit
+			 * want to model objects that would yest fit
 			 * within a single word, so allocate an object
-			 * for each node.
+			 * for each yesde.
 			 */
-			node = malloc(sizeof(*node));
-			assert(node);
-			node->data = j;
-			buffer.c[i].array[j - 1] = node;
+			yesde = malloc(sizeof(*yesde));
+			assert(yesde);
+			yesde->data = j;
+			buffer.c[i].array[j - 1] = yesde;
 			buffer.c[i].offset++;
 		}
 	}
@@ -852,7 +852,7 @@ void test_percpu_buffer(void)
 		ret = pthread_create(&test_threads[i], NULL,
 				     test_percpu_buffer_thread, &buffer);
 		if (ret) {
-			errno = ret;
+			erryes = ret;
 			perror("pthread_create");
 			abort();
 		}
@@ -861,27 +861,27 @@ void test_percpu_buffer(void)
 	for (i = 0; i < num_threads; i++) {
 		ret = pthread_join(test_threads[i], NULL);
 		if (ret) {
-			errno = ret;
+			erryes = ret;
 			perror("pthread_join");
 			abort();
 		}
 	}
 
 	for (i = 0; i < CPU_SETSIZE; i++) {
-		struct percpu_buffer_node *node;
+		struct percpu_buffer_yesde *yesde;
 
 		if (!CPU_ISSET(i, &allowed_cpus))
 			continue;
 
-		while ((node = __percpu_buffer_pop(&buffer, i))) {
-			sum += node->data;
-			free(node);
+		while ((yesde = __percpu_buffer_pop(&buffer, i))) {
+			sum += yesde->data;
+			free(yesde);
 		}
 		free(buffer.c[i].array);
 	}
 
 	/*
-	 * All entries should now be accounted for (unless some external
+	 * All entries should yesw be accounted for (unless some external
 	 * actor is interfering with our allowed affinity while this
 	 * test is running).
 	 */
@@ -889,7 +889,7 @@ void test_percpu_buffer(void)
 }
 
 bool this_cpu_memcpy_buffer_push(struct percpu_memcpy_buffer *buffer,
-				 struct percpu_memcpy_buffer_node item,
+				 struct percpu_memcpy_buffer_yesde item,
 				 int *_cpu)
 {
 	bool result = false;
@@ -933,7 +933,7 @@ bool this_cpu_memcpy_buffer_push(struct percpu_memcpy_buffer *buffer,
 }
 
 bool this_cpu_memcpy_buffer_pop(struct percpu_memcpy_buffer *buffer,
-				struct percpu_memcpy_buffer_node *item,
+				struct percpu_memcpy_buffer_yesde *item,
 				int *_cpu)
 {
 	bool result = false;
@@ -971,11 +971,11 @@ bool this_cpu_memcpy_buffer_pop(struct percpu_memcpy_buffer *buffer,
 }
 
 /*
- * __percpu_memcpy_buffer_pop is not safe against concurrent accesses. Should
- * only be used on buffers that are not concurrently modified.
+ * __percpu_memcpy_buffer_pop is yest safe against concurrent accesses. Should
+ * only be used on buffers that are yest concurrently modified.
  */
 bool __percpu_memcpy_buffer_pop(struct percpu_memcpy_buffer *buffer,
-				struct percpu_memcpy_buffer_node *item,
+				struct percpu_memcpy_buffer_yesde *item,
 				int cpu)
 {
 	intptr_t offset;
@@ -998,7 +998,7 @@ void *test_percpu_memcpy_buffer_thread(void *arg)
 
 	reps = opt_reps;
 	for (i = 0; i < reps; i++) {
-		struct percpu_memcpy_buffer_node item;
+		struct percpu_memcpy_buffer_yesde item;
 		bool result;
 
 		result = this_cpu_memcpy_buffer_pop(buffer, &item, NULL);
@@ -1049,9 +1049,9 @@ void test_percpu_memcpy_buffer(void)
 			/*
 			 * We could theoretically put the word-sized
 			 * "data" directly in the buffer. However, we
-			 * want to model objects that would not fit
+			 * want to model objects that would yest fit
 			 * within a single word, so allocate an object
-			 * for each node.
+			 * for each yesde.
 			 */
 			buffer.c[i].array[j - 1].data1 = j;
 			buffer.c[i].array[j - 1].data2 = j + 1;
@@ -1064,7 +1064,7 @@ void test_percpu_memcpy_buffer(void)
 				     test_percpu_memcpy_buffer_thread,
 				     &buffer);
 		if (ret) {
-			errno = ret;
+			erryes = ret;
 			perror("pthread_create");
 			abort();
 		}
@@ -1073,14 +1073,14 @@ void test_percpu_memcpy_buffer(void)
 	for (i = 0; i < num_threads; i++) {
 		ret = pthread_join(test_threads[i], NULL);
 		if (ret) {
-			errno = ret;
+			erryes = ret;
 			perror("pthread_join");
 			abort();
 		}
 	}
 
 	for (i = 0; i < CPU_SETSIZE; i++) {
-		struct percpu_memcpy_buffer_node item;
+		struct percpu_memcpy_buffer_yesde item;
 
 		if (!CPU_ISSET(i, &allowed_cpus))
 			continue;
@@ -1093,14 +1093,14 @@ void test_percpu_memcpy_buffer(void)
 	}
 
 	/*
-	 * All entries should now be accounted for (unless some external
+	 * All entries should yesw be accounted for (unless some external
 	 * actor is interfering with our allowed affinity while this
 	 * test is running).
 	 */
 	assert(sum == expected_sum);
 }
 
-static void test_signal_interrupt_handler(int signo)
+static void test_signal_interrupt_handler(int sigyes)
 {
 	signals_delivered++;
 }
@@ -1151,7 +1151,7 @@ static void show_usage(int argc, char **argv)
 	printf("	[-s S] S: =0: disabled (default), >0: sleep time (ms)\n");
 	printf("	[-t N] Number of threads (default 200)\n");
 	printf("	[-r N] Number of repetitions per thread (default 5000)\n");
-	printf("	[-d] Disable rseq system call (no initialization)\n");
+	printf("	[-d] Disable rseq system call (yes initialization)\n");
 	printf("	[-D M] Disable rseq for each M threads\n");
 	printf("	[-T test] Choose test: (s)pinlock, (l)ist, (b)uffer, (m)emcpy, (i)ncrement\n");
 	printf("	[-M] Push into buffer and memcpy buffer with memory barriers.\n");

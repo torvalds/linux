@@ -17,8 +17,8 @@ struct machine;
 
 struct map {
 	union {
-		struct rb_node	rb_node;
-		struct list_head node;
+		struct rb_yesde	rb_yesde;
+		struct list_head yesde;
 	};
 	u64			start;
 	u64			end;
@@ -77,8 +77,8 @@ struct thread;
  *
  * @map: the 'struct map *' in which symbols itereated
  * @pos: the 'struct symbol *' to use as a loop cursor
- * @n: the 'struct rb_node *' to use as a temporary storage
- * Note: caller must ensure map->dso is not NULL (map is loaded).
+ * @n: the 'struct rb_yesde *' to use as a temporary storage
+ * Note: caller must ensure map->dso is yest NULL (map is loaded).
  */
 #define map__for_each_symbol(map, pos, n)	\
 	dso__for_each_symbol(map->dso, pos, n)

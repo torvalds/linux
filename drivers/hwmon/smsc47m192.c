@@ -21,7 +21,7 @@
 #include <linux/mutex.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
 /* SMSC47M192 registers */
 #define SMSC47M192_REG_IN(nr)		((nr) < 6 ? (0x20 + (nr)) : \
@@ -55,17 +55,17 @@ static inline int SCALE(long val, int mul, int div)
 /* Conversions */
 
 /* smsc47m192 internally scales voltage measurements */
-static const u16 nom_mv[] = { 2500, 2250, 3300, 5000, 12000, 3300, 1500, 1800 };
+static const u16 yesm_mv[] = { 2500, 2250, 3300, 5000, 12000, 3300, 1500, 1800 };
 
 static inline unsigned int IN_FROM_REG(u8 reg, int n)
 {
-	return SCALE(reg, nom_mv[n], 192);
+	return SCALE(reg, yesm_mv[n], 192);
 }
 
 static inline u8 IN_TO_REG(unsigned long val, int n)
 {
-	val = clamp_val(val, 0, nom_mv[n] * 255 / 192);
-	return SCALE(val, 192, nom_mv[n]);
+	val = clamp_val(val, 0, yesm_mv[n] * 255 / 192);
+	return SCALE(val, 192, yesm_mv[n]);
 }
 
 /*
@@ -632,7 +632,7 @@ static struct i2c_driver smsc47m192_driver = {
 	.probe		= smsc47m192_probe,
 	.id_table	= smsc47m192_id,
 	.detect		= smsc47m192_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(smsc47m192_driver);

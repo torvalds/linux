@@ -177,8 +177,8 @@ static int i10nm_get_dimm_config(struct mem_ctl_info *mci)
 	return 0;
 }
 
-static struct notifier_block i10nm_mce_dec = {
-	.notifier_call	= skx_mce_check_error,
+static struct yestifier_block i10nm_mce_dec = {
+	.yestifier_call	= skx_mce_check_error,
 	.priority	= MCE_PRIO_EDAC,
 };
 
@@ -197,7 +197,7 @@ static int debugfs_u64_set(void *data, u64 val)
 	pr_warn_once("Fake error to 0x%llx injected via debugfs\n", val);
 
 	memset(&m, 0, sizeof(m));
-	/* ADDRV + MemRd + Unknown channel */
+	/* ADDRV + MemRd + Unkyeswn channel */
 	m.status = MCI_STATUS_ADDRV + 0x90;
 	/* One corrected error */
 	m.status |= BIT_ULL(MCI_STATUS_CEC_SHIFT);
@@ -232,7 +232,7 @@ static inline void teardown_i10nm_debug(void) {}
 
 static int __init i10nm_init(void)
 {
-	u8 mc = 0, src_id = 0, node_id = 0;
+	u8 mc = 0, src_id = 0, yesde_id = 0;
 	const struct x86_cpu_id *id;
 	const char *owner;
 	struct skx_dev *d;
@@ -270,11 +270,11 @@ static int __init i10nm_init(void)
 		if (rc < 0)
 			goto fail;
 
-		rc = skx_get_node_id(d, &node_id);
+		rc = skx_get_yesde_id(d, &yesde_id);
 		if (rc < 0)
 			goto fail;
 
-		edac_dbg(2, "src_id = %d node_id = %d\n", src_id, node_id);
+		edac_dbg(2, "src_id = %d yesde_id = %d\n", src_id, yesde_id);
 		for (i = 0; i < I10NM_NUM_IMC; i++) {
 			if (!d->imc[i].mdev)
 				continue;
@@ -282,7 +282,7 @@ static int __init i10nm_init(void)
 			d->imc[i].mc  = mc++;
 			d->imc[i].lmc = i;
 			d->imc[i].src_id  = src_id;
-			d->imc[i].node_id = node_id;
+			d->imc[i].yesde_id = yesde_id;
 
 			rc = skx_register_mci(&d->imc[i], d->imc[i].mdev,
 					      "Intel_10nm Socket", EDAC_MOD_STR,

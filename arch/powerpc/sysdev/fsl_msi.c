@@ -55,7 +55,7 @@ static inline u32 fsl_msi_read(u32 __iomem *base, unsigned int reg)
 }
 
 /*
- * We do not need this actually. The MSIR register has been read once
+ * We do yest need this actually. The MSIR register has been read once
  * in the cascade interrupt. So, this MSI interrupt has been acked
 */
 static void fsl_msi_end_irq(struct irq_data *d)
@@ -105,7 +105,7 @@ static int fsl_msi_init_allocator(struct fsl_msi *msi_data)
 	int rc, hwirq;
 
 	rc = msi_bitmap_alloc(&msi_data->bitmap, NR_MSI_IRQS_MAX,
-			      irq_domain_get_of_node(msi_data->irqhost));
+			      irq_domain_get_of_yesde(msi_data->irqhost));
 	if (rc)
 		return rc;
 
@@ -160,7 +160,7 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 
 	/*
 	 * MPIC version 2.0 has erratum PIC1. It causes
-	 * that neither MSI nor MSI-X can work fine.
+	 * that neither MSI yesr MSI-X can work fine.
 	 * This is a workaround to allow MSI-X to function
 	 * properly. It only works for MSI-X, we prevent
 	 * MSI on buggy chips in fsl_setup_msi_irqs().
@@ -178,7 +178,7 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
-	struct device_node *np;
+	struct device_yesde *np;
 	phandle phandle = 0;
 	int rc, hwirq = -ENOMEM;
 	unsigned int virq;
@@ -188,8 +188,8 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 
 	if (type == PCI_CAP_ID_MSI) {
 		/*
-		 * MPIC version 2.0 has erratum PIC1. For now MSI
-		 * could not work. So check to prevent MSI from
+		 * MPIC version 2.0 has erratum PIC1. For yesw MSI
+		 * could yest work. So check to prevent MSI from
 		 * being used on the board with this erratum.
 		 */
 		list_for_each_entry(msi_data, &msi_head, list)
@@ -198,7 +198,7 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	}
 
 	/*
-	 * If the PCI node has an fsl,msi property, then we need to use it
+	 * If the PCI yesde has an fsl,msi property, then we need to use it
 	 * to find the specific MSI.
 	 */
 	np = of_parse_phandle(hose->dn, "fsl,msi", 0);
@@ -209,7 +209,7 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			phandle = np->phandle;
 		else {
 			dev_err(&pdev->dev,
-				"node %pOF has an invalid fsl,msi phandle %u\n",
+				"yesde %pOF has an invalid fsl,msi phandle %u\n",
 				hose->dn, np->phandle);
 			return -EINVAL;
 		}
@@ -222,12 +222,12 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		 */
 		list_for_each_entry(msi_data, &msi_head, list) {
 			/*
-			 * If the PCI node has an fsl,msi property, then we
-			 * restrict our search to the corresponding MSI node.
-			 * The simplest way is to skip over MSI nodes with the
+			 * If the PCI yesde has an fsl,msi property, then we
+			 * restrict our search to the corresponding MSI yesde.
+			 * The simplest way is to skip over MSI yesdes with the
 			 * wrong phandle. Under the Freescale hypervisor, this
 			 * has the additional benefit of skipping over MSI
-			 * nodes that are not mapped in the PAMU.
+			 * yesdes that are yest mapped in the PAMU.
 			 */
 			if (phandle && (phandle != msi_data->phandle))
 				continue;
@@ -239,7 +239,7 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 
 		if (hwirq < 0) {
 			rc = hwirq;
-			dev_err(&pdev->dev, "could not allocate MSI interrupt\n");
+			dev_err(&pdev->dev, "could yest allocate MSI interrupt\n");
 			goto out_free;
 		}
 
@@ -357,9 +357,9 @@ static int fsl_msi_setup_hwirq(struct fsl_msi *msi, struct platform_device *dev,
 	struct fsl_msi_cascade_data *cascade_data = NULL;
 	int virt_msir, i, ret;
 
-	virt_msir = irq_of_parse_and_map(dev->dev.of_node, irq_index);
+	virt_msir = irq_of_parse_and_map(dev->dev.of_yesde, irq_index);
 	if (!virt_msir) {
-		dev_err(&dev->dev, "%s: Cannot translate IRQ index %d\n",
+		dev_err(&dev->dev, "%s: Canyest translate IRQ index %d\n",
 			__func__, irq_index);
 		return 0;
 	}
@@ -419,7 +419,7 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 	}
 	platform_set_drvdata(dev, msi);
 
-	msi->irqhost = irq_domain_add_linear(dev->dev.of_node,
+	msi->irqhost = irq_domain_add_linear(dev->dev.of_yesde,
 				      NR_MSI_IRQS_MAX, &fsl_msi_host_ops, msi);
 
 	if (msi->irqhost == NULL) {
@@ -429,22 +429,22 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 	}
 
 	/*
-	 * Under the Freescale hypervisor, the msi nodes don't have a 'reg'
+	 * Under the Freescale hypervisor, the msi yesdes don't have a 'reg'
 	 * property.  Instead, we use hypercalls to access the MSI.
 	 */
 	if ((features->fsl_pic_ip & FSL_PIC_IP_MASK) != FSL_PIC_IP_VMPIC) {
-		err = of_address_to_resource(dev->dev.of_node, 0, &res);
+		err = of_address_to_resource(dev->dev.of_yesde, 0, &res);
 		if (err) {
-			dev_err(&dev->dev, "invalid resource for node %pOF\n",
-				dev->dev.of_node);
+			dev_err(&dev->dev, "invalid resource for yesde %pOF\n",
+				dev->dev.of_yesde);
 			goto error_out;
 		}
 
 		msi->msi_regs = ioremap(res.start, resource_size(&res));
 		if (!msi->msi_regs) {
 			err = -ENOMEM;
-			dev_err(&dev->dev, "could not map node %pOF\n",
-				dev->dev.of_node);
+			dev_err(&dev->dev, "could yest map yesde %pOF\n",
+				dev->dev.of_yesde);
 			goto error_out;
 		}
 		msi->msiir_offset =
@@ -454,7 +454,7 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 		 * First read the MSIIR/MSIIR1 offset from dts
 		 * On failure use the hardcode MSIIR offset
 		 */
-		if (of_address_to_resource(dev->dev.of_node, 1, &msiir))
+		if (of_address_to_resource(dev->dev.of_yesde, 1, &msiir))
 			msi->msiir_offset = features->msiir_offset +
 					    (res.start & MSIIR_OFFSET_MASK);
 		else
@@ -469,10 +469,10 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 		msi->feature |= MSI_HW_ERRATA_ENDIAN;
 
 	/*
-	 * Remember the phandle, so that we can match with any PCI nodes
+	 * Remember the phandle, so that we can match with any PCI yesdes
 	 * that have an "fsl,msi" property.
 	 */
-	msi->phandle = dev->dev.of_node->phandle;
+	msi->phandle = dev->dev.of_yesde->phandle;
 
 	err = fsl_msi_init_allocator(msi);
 	if (err) {
@@ -480,14 +480,14 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 		goto error_out;
 	}
 
-	p = of_get_property(dev->dev.of_node, "msi-available-ranges", &len);
+	p = of_get_property(dev->dev.of_yesde, "msi-available-ranges", &len);
 
-	if (of_device_is_compatible(dev->dev.of_node, "fsl,mpic-msi-v4.3") ||
-	    of_device_is_compatible(dev->dev.of_node, "fsl,vmpic-msi-v4.3")) {
+	if (of_device_is_compatible(dev->dev.of_yesde, "fsl,mpic-msi-v4.3") ||
+	    of_device_is_compatible(dev->dev.of_yesde, "fsl,vmpic-msi-v4.3")) {
 		msi->srs_shift = MSIIR1_SRS_SHIFT;
 		msi->ibs_shift = MSIIR1_IBS_SHIFT;
 		if (p)
-			dev_warn(&dev->dev, "%s: dose not support msi-available-ranges property\n",
+			dev_warn(&dev->dev, "%s: dose yest support msi-available-ranges property\n",
 				__func__);
 
 		for (irq_index = 0; irq_index < NR_MSI_REG_MSIIR1;
@@ -519,8 +519,8 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 		for (irq_index = 0, i = 0; i < len / (2 * sizeof(u32)); i++) {
 			if (p[i * 2] % IRQS_PER_MSI_REG ||
 			    p[i * 2 + 1] % IRQS_PER_MSI_REG) {
-				pr_warn("%s: %pOF: msi available range of %u at %u is not IRQ-aligned\n",
-				       __func__, dev->dev.of_node,
+				pr_warn("%s: %pOF: msi available range of %u at %u is yest IRQ-aligned\n",
+				       __func__, dev->dev.of_yesde,
 				       p[i * 2 + 1], p[i * 2]);
 				err = -EINVAL;
 				goto error_out;
@@ -543,9 +543,9 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 	/*
 	 * Apply the MSI ops to all the controllers.
 	 * It doesn't hurt to reassign the same ops,
-	 * but bail out if we find another MSI driver.
+	 * but bail out if we find ayesther MSI driver.
 	 */
-	list_for_each_entry(phb, &hose_list, list_node) {
+	list_for_each_entry(phb, &hose_list, list_yesde) {
 		if (!phb->controller_ops.setup_msi_irqs) {
 			phb->controller_ops.setup_msi_irqs = fsl_setup_msi_irqs;
 			phb->controller_ops.teardown_msi_irqs = fsl_teardown_msi_irqs;

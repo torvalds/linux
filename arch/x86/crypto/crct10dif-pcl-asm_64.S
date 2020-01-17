@@ -5,7 +5,7 @@
 #
 # Authors:
 #     Erdinc Ozturk <erdinc.ozturk@intel.com>
-#     Vinodh Gopal <vinodh.gopal@intel.com>
+#     Viyesdh Gopal <viyesdh.gopal@intel.com>
 #     James Guilford <james.guilford@intel.com>
 #     Tim Chen <tim.c.chen@linux.intel.com>
 #
@@ -20,14 +20,14 @@
 # met:
 #
 # * Redistributions of source code must retain the above copyright
-#   notice, this list of conditions and the following disclaimer.
+#   yestice, this list of conditions and the following disclaimer.
 #
 # * Redistributions in binary form must reproduce the above copyright
-#   notice, this list of conditions and the following disclaimer in the
+#   yestice, this list of conditions and the following disclaimer in the
 #   documentation and/or other materials provided with the
 #   distribution.
 #
-# * Neither the name of the Intel Corporation nor the names of its
+# * Neither the name of the Intel Corporation yesr the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
 #
@@ -45,9 +45,9 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #       Reference paper titled "Fast CRC Computation for Generic
-#	Polynomials Using PCLMULQDQ Instruction"
+#	Polyyesmials Using PCLMULQDQ Instruction"
 #       URL: http://www.intel.com/content/dam/www/public/us/en/documents
-#  /white-papers/fast-crc-computation-generic-polynomials-pclmulqdq-paper.pdf
+#  /white-papers/fast-crc-computation-generic-polyyesmials-pclmulqdq-paper.pdf
 #
 
 #include <linux/linkage.h>
@@ -104,7 +104,7 @@ SYM_FUNC_START(crc_t10dif_pcl)
 	jl	.Lless_than_256_bytes
 
 	# Load the first 128 data bytes.  Byte swapping is necessary to make the
-	# bit order match the polynomial coefficient order.
+	# bit order match the polyyesmial coefficient order.
 	movdqu	16*0(buf), %xmm0
 	movdqu	16*1(buf), %xmm1
 	movdqu	16*2(buf), %xmm2
@@ -130,11 +130,11 @@ SYM_FUNC_START(crc_t10dif_pcl)
 
 	movdqa	.Lfold_across_128_bytes_consts(%rip), FOLD_CONSTS
 
-	# Subtract 128 for the 128 data bytes just consumed.  Subtract another
+	# Subtract 128 for the 128 data bytes just consumed.  Subtract ayesther
 	# 128 to simplify the termination condition of the following loop.
 	sub	$256, len
 
-	# While >= 128 data bytes remain (not counting xmm0-7), fold the 128
+	# While >= 128 data bytes remain (yest counting xmm0-7), fold the 128
 	# bytes xmm0-7 into them, storing the result back into xmm0-7.
 .Lfold_128_bytes_loop:
 	fold_32_bytes	0, %xmm0, %xmm1
@@ -162,12 +162,12 @@ SYM_FUNC_START(crc_t10dif_pcl)
 	fold_16_bytes	%xmm6, %xmm7
 
 	# Add 128 to get the correct number of data bytes remaining in 0...127
-	# (not counting xmm7), following the previous extra subtraction by 128.
+	# (yest counting xmm7), following the previous extra subtraction by 128.
 	# Then subtract 16 to simplify the termination condition of the
 	# following loop.
 	add	$128-16, len
 
-	# While >= 16 data bytes remain (not counting xmm7), fold the 16 bytes
+	# While >= 16 data bytes remain (yest counting xmm7), fold the 16 bytes
 	# xmm7 into them, storing the result back into xmm7.
 	jl	.Lfold_16_bytes_loop_done
 .Lfold_16_bytes_loop:
@@ -184,7 +184,7 @@ SYM_FUNC_START(crc_t10dif_pcl)
 
 .Lfold_16_bytes_loop_done:
 	# Add 16 to get the correct number of data bytes remaining in 0...15
-	# (not counting xmm7), following the previous extra subtraction by 16.
+	# (yest counting xmm7), following the previous extra subtraction by 16.
 	add	$16, len
 	je	.Lreduce_final_16_bytes
 
@@ -253,7 +253,7 @@ SYM_FUNC_START(crc_t10dif_pcl)
 	psrlq	$32, %xmm7			  # /= x^32
 	pclmulqdq	$0x00, FOLD_CONSTS, %xmm7 # *= G(x)
 	psrlq	$48, %xmm0
-	pxor	%xmm7, %xmm0		     # + low 16 nonzero bits
+	pxor	%xmm7, %xmm0		     # + low 16 yesnzero bits
 	# Final CRC value (x^16 * M(x)) mod G(x) is in low 16 bits of xmm0.
 
 	pextrw	$0, %xmm0, %eax
@@ -285,7 +285,7 @@ SYM_FUNC_END(crc_t10dif_pcl)
 .section	.rodata, "a", @progbits
 .align 16
 
-# Fold constants precomputed from the polynomial 0x18bb7
+# Fold constants precomputed from the polyyesmial 0x18bb7
 # G(x) = x^16 + x^15 + x^11 + x^9 + x^8 + x^7 + x^5 + x^4 + x^2 + x^1 + x^0
 .Lfold_across_128_bytes_consts:
 	.quad		0x0000000000006123	# x^(8*128)	mod G(x)

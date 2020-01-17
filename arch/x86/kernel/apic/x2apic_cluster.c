@@ -11,7 +11,7 @@
 
 struct cluster_mask {
 	unsigned int	clusterid;
-	int		node;
+	int		yesde;
 	struct cpumask	mask;
 };
 
@@ -46,7 +46,7 @@ __x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
 
 	tmpmsk = this_cpu_cpumask_var_ptr(ipi_mask);
 	cpumask_copy(tmpmsk, mask);
-	/* If IPI should not be sent to self, clear current CPU */
+	/* If IPI should yest be sent to self, clear current CPU */
 	if (apic_dest != APIC_DEST_ALLINC)
 		__cpumask_clear_cpu(smp_processor_id(), tmpmsk);
 
@@ -63,7 +63,7 @@ __x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
 
 		__x2apic_send_IPI_dest(dest, vector, apic->dest_logical);
 		/* Remove cluster CPUs from tmpmask */
-		cpumask_andnot(tmpmsk, tmpmsk, &cmsk->mask);
+		cpumask_andyest(tmpmsk, tmpmsk, &cmsk->mask);
 	}
 
 	local_irq_restore(flags);
@@ -121,31 +121,31 @@ update:
 	cpumask_set_cpu(smp_processor_id(), &cmsk->mask);
 }
 
-static int alloc_clustermask(unsigned int cpu, int node)
+static int alloc_clustermask(unsigned int cpu, int yesde)
 {
 	if (per_cpu(cluster_masks, cpu))
 		return 0;
 	/*
 	 * If a hotplug spare mask exists, check whether it's on the right
-	 * node. If not, free it and allocate a new one.
+	 * yesde. If yest, free it and allocate a new one.
 	 */
 	if (cluster_hotplug_mask) {
-		if (cluster_hotplug_mask->node == node)
+		if (cluster_hotplug_mask->yesde == yesde)
 			return 0;
 		kfree(cluster_hotplug_mask);
 	}
 
-	cluster_hotplug_mask = kzalloc_node(sizeof(*cluster_hotplug_mask),
-					    GFP_KERNEL, node);
+	cluster_hotplug_mask = kzalloc_yesde(sizeof(*cluster_hotplug_mask),
+					    GFP_KERNEL, yesde);
 	if (!cluster_hotplug_mask)
 		return -ENOMEM;
-	cluster_hotplug_mask->node = node;
+	cluster_hotplug_mask->yesde = yesde;
 	return 0;
 }
 
 static int x2apic_prepare_cpu(unsigned int cpu)
 {
-	if (alloc_clustermask(cpu, cpu_to_node(cpu)) < 0)
+	if (alloc_clustermask(cpu, cpu_to_yesde(cpu)) < 0)
 		return -ENOMEM;
 	if (!zalloc_cpumask_var(&per_cpu(ipi_mask, cpu), GFP_KERNEL))
 		return -ENOMEM;

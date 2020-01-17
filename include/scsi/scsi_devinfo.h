@@ -7,14 +7,14 @@
 
 /* Only scan LUN 0 */
 #define BLIST_NOLUN		((__force blist_flags_t)(1ULL << 0))
-/* Known to have LUNs, force scanning.
+/* Kyeswn to have LUNs, force scanning.
  * DEPRECATED: Use max_luns=N */
 #define BLIST_FORCELUN		((__force blist_flags_t)(1ULL << 1))
 /* Flag for broken handshaking */
 #define BLIST_BORKEN		((__force blist_flags_t)(1ULL << 2))
 /* unlock by special command */
 #define BLIST_KEY		((__force blist_flags_t)(1ULL << 3))
-/* Do not use LUNs in parallel */
+/* Do yest use LUNs in parallel */
 #define BLIST_SINGLELUN		((__force blist_flags_t)(1ULL << 4))
 /* Buggy Tagged Command Queuing */
 #define BLIST_NOTQ		((__force blist_flags_t)(1ULL << 5))
@@ -29,7 +29,7 @@
 /* override additional length field */
 #define BLIST_INQUIRY_36	((__force blist_flags_t)(1ULL << 10))
 #define __BLIST_UNUSED_11	((__force blist_flags_t)(1ULL << 11))
-/* do not do automatic start on add */
+/* do yest do automatic start on add */
 #define BLIST_NOSTARTONADD	((__force blist_flags_t)(1ULL << 12))
 #define __BLIST_UNUSED_13	((__force blist_flags_t)(1ULL << 13))
 #define __BLIST_UNUSED_14	((__force blist_flags_t)(1ULL << 14))
@@ -52,7 +52,7 @@
 #define __BLIST_UNUSED_24	((__force blist_flags_t)(1ULL << 24))
 /* Disable T10 PI (DIF) */
 #define BLIST_NO_DIF		((__force blist_flags_t)(1ULL << 25))
-/* Ignore SBC-3 VPD pages */
+/* Igyesre SBC-3 VPD pages */
 #define BLIST_SKIP_VPD_PAGES	((__force blist_flags_t)(1ULL << 26))
 #define __BLIST_UNUSED_27	((__force blist_flags_t)(1ULL << 27))
 /* Attempt to read VPD pages */

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * Copyright (C) 2005 Oracle.  All rights reserved.
  */
@@ -9,7 +9,7 @@
 #define O2CLUSTER_MASKLOG_H
 
 /*
- * For now this is a trivial wrapper around printk() that gives the critical
+ * For yesw this is a trivial wrapper around printk() that gives the critical
  * ability to enable sets of debugging output at run-time.  In the future this
  * will almost certainly be redirected to relayfs so that it can pay a
  * substantially lower heisenberg tax.
@@ -34,7 +34,7 @@
  * only emit the appropriage printk() when the caller passes in a constant
  * mask, as is almost always the case.
  *
- * All this bitmask nonsense is managed from the files under
+ * All this bitmask yesnsense is managed from the files under
  * /sys/fs/o2cb/logmask/.  Reading the files gives a straightforward
  * indication of which bits are allowed (allow) or denied (off/deny).
  * 	ENTRY deny
@@ -54,8 +54,8 @@
  * on or off as expected; here is the bash script for example:
  *
  * log_mask="/sys/fs/o2cb/log_mask"
- * for node in ENTRY EXIT TCP MSG SOCKET ERROR NOTICE; do
- *	echo allow >"$log_mask"/"$node"
+ * for yesde in ENTRY EXIT TCP MSG SOCKET ERROR NOTICE; do
+ *	echo allow >"$log_mask"/"$yesde"
  * done
  *
  * The debugfs.ocfs2 tool can also flip the bits with the -l option:
@@ -80,7 +80,7 @@
 #define ML_DLM_MASTER	0x0000000000000200ULL /* dlm master functions */
 #define ML_DLM_RECOVERY	0x0000000000000400ULL /* dlm master functions */
 #define ML_DLM_GLUE	0x0000000000000800ULL /* ocfs2 dlm glue layer */
-#define ML_VOTE		0x0000000000001000ULL /* ocfs2 node messaging  */
+#define ML_VOTE		0x0000000000001000ULL /* ocfs2 yesde messaging  */
 #define ML_CONN		0x0000000000002000ULL /* net connection management */
 #define ML_QUORUM	0x0000000000004000ULL /* net connection quorum */
 #define ML_BASTS	0x0000000000008000ULL /* dlmglue asts and basts */
@@ -98,7 +98,7 @@
 
 /*
  * When logging is disabled, force the bit test to 0 for anything other
- * than errors and notices, allowing gcc to remove the code completely.
+ * than errors and yestices, allowing gcc to remove the code completely.
  * When enabled, allow all masks.
  */
 #if defined(CONFIG_OCFS2_DEBUG_MASKLOG)
@@ -113,7 +113,7 @@ struct mlog_bits {
 	unsigned long words[MLOG_MAX_BITS / BITS_PER_LONG];
 };
 
-extern struct mlog_bits mlog_and_bits, mlog_not_bits;
+extern struct mlog_bits mlog_and_bits, mlog_yest_bits;
 
 #if BITS_PER_LONG == 32
 
@@ -173,7 +173,7 @@ do {									\
 		mlog(mask, fmt, ##__VA_ARGS__);				\
 } while (0)
 
-#define mlog_errno(st) ({						\
+#define mlog_erryes(st) ({						\
 	int _st = (st);							\
 	if (_st != -ERESTARTSYS && _st != -EINTR &&			\
 	    _st != AOP_TRUNCATED_PAGE && _st != -ENOSPC &&		\

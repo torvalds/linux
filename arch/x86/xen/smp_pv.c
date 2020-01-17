@@ -8,7 +8,7 @@
  *
  * IPIs are handled through the Xen event mechanism.
  *
- * Because virtual CPUs can be scheduled onto any real CPU, there's no
+ * Because virtual CPUs can be scheduled onto any real CPU, there's yes
  * useful topology information for the kernel to make use of.  As a
  * result, all CPUs are treated as if they're single-core and
  * single-threaded.
@@ -77,13 +77,13 @@ static void cpu_bringup(void)
 
 	xen_setup_cpu_clockevents();
 
-	notify_cpu_starting(cpu);
+	yestify_cpu_starting(cpu);
 
 	set_cpu_online(cpu, true);
 
 	cpu_set_state_online(cpu);  /* Implies full memory barrier. */
 
-	/* We can take interrupts now: we're officially "up". */
+	/* We can take interrupts yesw: we're officially "up". */
 	local_irq_enable();
 }
 
@@ -188,9 +188,9 @@ static void __init xen_filter_cpu_maps(void)
 	/* This is akin to using 'nr_cpus' on the Linux command line.
 	 * Which is OK as when we use 'dom0_max_vcpus=X' we can only
 	 * have up to X, while nr_cpu_ids is greater than X. This
-	 * normally is not a problem, except when CPU hotplugging
+	 * yesrmally is yest a problem, except when CPU hotplugging
 	 * is involved and then there might be more than X CPUs
-	 * in the guest - which will not work as there is no
+	 * in the guest - which will yest work as there is yes
 	 * hypercall to expand the max number of VCPUs an already
 	 * running guest has. So cap it up to X. */
 	if (subtract)
@@ -225,7 +225,7 @@ static void __init xen_pv_smp_prepare_boot_cpu(void)
 	 * The alternative logic (which patches the unlock/lock) runs before
 	 * the smp bootup up code is activated. Hence we need to set this up
 	 * the core kernel is being patched. Otherwise we will have only
-	 * modules patched but not core code.
+	 * modules patched but yest core code.
 	 */
 	xen_init_spinlocks();
 }
@@ -237,9 +237,9 @@ static void __init xen_pv_smp_prepare_cpus(unsigned int max_cpus)
 
 	if (skip_ioapic_setup) {
 		char *m = (max_cpus == 0) ?
-			"The nosmp parameter is incompatible with Xen; " \
+			"The yessmp parameter is incompatible with Xen; " \
 			"use Xen dom0_max_vcpus=1 parameter" :
-			"The noapic parameter is incompatible with Xen";
+			"The yesapic parameter is incompatible with Xen";
 
 		xen_raw_printk(m);
 		panic(m);
@@ -265,7 +265,7 @@ static void __init xen_pv_smp_prepare_cpus(unsigned int max_cpus)
 		BUG();
 
 	if (!alloc_cpumask_var(&xen_cpu_initialized_map, GFP_KERNEL))
-		panic("could not allocate xen_cpu_initialized_map\n");
+		panic("could yest allocate xen_cpu_initialized_map\n");
 
 	cpumask_copy(xen_cpu_initialized_map, cpumask_of(0));
 
@@ -306,7 +306,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 
 	/*
 	 * Bring up the CPU in cpu_bringup_and_idle() with the stack
-	 * pointing just below where pt_regs would be if it were a normal
+	 * pointing just below where pt_regs would be if it were a yesrmal
 	 * kernel entry.
 	 */
 	ctxt->user_regs.eip = (unsigned long)cpu_bringup_and_idle;
@@ -435,8 +435,8 @@ static void xen_pv_play_dead(void) /* used only with HOTPLUG_CPU */
 	 * and that we return from) expects. The only way to get that
 	 * data back is to call:
 	 */
-	tick_nohz_idle_enter();
-	tick_nohz_idle_stop_tick_protected();
+	tick_yeshz_idle_enter();
+	tick_yeshz_idle_stop_tick_protected();
 
 	cpuhp_online_idle(CPUHP_AP_ONLINE_IDLE);
 }
@@ -462,7 +462,7 @@ static void stop_self(void *v)
 {
 	int cpu = smp_processor_id();
 
-	/* make sure we're not pinning something down */
+	/* make sure we're yest pinning something down */
 	load_cr3(swapper_pg_dir);
 	/* should set up a minimal gdt */
 

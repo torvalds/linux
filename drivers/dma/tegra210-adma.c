@@ -357,12 +357,12 @@ static void tegra_adma_start(struct tegra_adma_chan *tdc)
 	if (!vd)
 		return;
 
-	list_del(&vd->node);
+	list_del(&vd->yesde);
 
 	desc = to_tegra_adma_desc(&vd->tx);
 
 	if (!desc) {
-		dev_warn(tdc2dev(tdc), "unable to start DMA, no descriptor\n");
+		dev_warn(tdc2dev(tdc), "unable to start DMA, yes descriptor\n");
 		return;
 	}
 
@@ -588,7 +588,7 @@ static int tegra_adma_set_xfer_params(struct tegra_adma_chan *tdc,
 		break;
 
 	default:
-		dev_err(tdc2dev(tdc), "DMA direction is not supported\n");
+		dev_err(tdc2dev(tdc), "DMA direction is yest supported\n");
 		return -EINVAL;
 	}
 
@@ -619,7 +619,7 @@ static struct dma_async_tx_descriptor *tegra_adma_prep_dma_cyclic(
 	}
 
 	if (buf_len % period_len) {
-		dev_err(tdc2dev(tdc), "buf_len not a multiple of period_len\n");
+		dev_err(tdc2dev(tdc), "buf_len yest a multiple of period_len\n");
 		return NULL;
 	}
 
@@ -695,7 +695,7 @@ static struct dma_chan *tegra_dma_of_xlate(struct of_phandle_args *dma_spec,
 	sreq_index = dma_spec->args[0];
 
 	if (sreq_index == 0) {
-		dev_err(tdma->dev, "DMA request must not be 0\n");
+		dev_err(tdma->dev, "DMA request must yest be 0\n");
 		return NULL;
 	}
 
@@ -724,7 +724,7 @@ static int __maybe_unused tegra_adma_runtime_suspend(struct device *dev)
 		tdc = &tdma->channels[i];
 		ch_reg = &tdc->ch_regs;
 		ch_reg->cmd = tdma_ch_read(tdc, ADMA_CH_CMD);
-		/* skip if channel is not active */
+		/* skip if channel is yest active */
 		if (!ch_reg->cmd)
 			continue;
 		ch_reg->tc = tdma_ch_read(tdc, ADMA_CH_TC);
@@ -761,7 +761,7 @@ static int __maybe_unused tegra_adma_runtime_resume(struct device *dev)
 	for (i = 0; i < tdma->nr_channels; i++) {
 		tdc = &tdma->channels[i];
 		ch_reg = &tdc->ch_regs;
-		/* skip if channel was not active earlier */
+		/* skip if channel was yest active earlier */
 		if (!ch_reg->cmd)
 			continue;
 		tdma_ch_write(tdc, ADMA_CH_TC, ch_reg->tc);
@@ -822,7 +822,7 @@ static int tegra_adma_probe(struct platform_device *pdev)
 
 	cdata = of_device_get_match_data(&pdev->dev);
 	if (!cdata) {
-		dev_err(&pdev->dev, "device match data not found\n");
+		dev_err(&pdev->dev, "device match data yest found\n");
 		return -ENODEV;
 	}
 
@@ -855,7 +855,7 @@ static int tegra_adma_probe(struct platform_device *pdev)
 		tdc->chan_addr = tdma->base_addr + cdata->ch_base_offset
 				 + (cdata->ch_reg_size * i);
 
-		tdc->irq = of_irq_get(pdev->dev.of_node, i);
+		tdc->irq = of_irq_get(pdev->dev.of_yesde, i);
 		if (tdc->irq <= 0) {
 			ret = tdc->irq ?: -ENXIO;
 			goto irq_dispose;
@@ -903,7 +903,7 @@ static int tegra_adma_probe(struct platform_device *pdev)
 		goto irq_dispose;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_yesde,
 					 tegra_dma_of_xlate, tdma);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "ADMA OF registration failed %d\n", ret);
@@ -935,7 +935,7 @@ static int tegra_adma_remove(struct platform_device *pdev)
 	struct tegra_adma *tdma = platform_get_drvdata(pdev);
 	int i;
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 	dma_async_device_unregister(&tdma->dma_dev);
 
 	for (i = 0; i < tdma->nr_channels; ++i)

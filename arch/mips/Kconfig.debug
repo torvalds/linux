@@ -13,9 +13,9 @@ config EARLY_PRINTK
 	  to print messages very early in the bootup process.
 
 	  This is useful for kernel debugging when your machine crashes very
-	  early before the console code is initialized. For normal operation,
-	  it is not recommended because it looks ugly on some machines and
-	  doesn't cooperate with an X server. You should normally say N here,
+	  early before the console code is initialized. For yesrmal operation,
+	  it is yest recommended because it looks ugly on some machines and
+	  doesn't cooperate with an X server. You should yesrmally say N here,
 	  unless you want to debug such a crash.
 
 config EARLY_PRINTK_8250
@@ -44,18 +44,18 @@ config CMDLINE_BOOL
 
 	  The built-in options will be concatenated to the default command
 	  line if CMDLINE_OVERRIDE is set to 'N'. Otherwise, the default
-	  command line will be ignored and replaced by the built-in string.
+	  command line will be igyesred and replaced by the built-in string.
 
-	  Most MIPS systems will normally expect 'N' here and rely upon
+	  Most MIPS systems will yesrmally expect 'N' here and rely upon
 	  the command line from the firmware or the second-stage bootloader.
 
 config CMDLINE
 	string "Default kernel command string"
 	depends on CMDLINE_BOOL
 	help
-	  On some platforms, there is currently no way for the boot loader to
+	  On some platforms, there is currently yes way for the boot loader to
 	  pass arguments to the kernel.  For these platforms, and for the cases
-	  when you want to add some extra options to the command line or ignore
+	  when you want to add some extra options to the command line or igyesre
 	  the default command line, you can supply some command-line options at
 	  build time by entering them here.  In other cases you can specify
 	  kernel args so that you don't have to set them up in board prom
@@ -68,7 +68,7 @@ config CMDLINE_OVERRIDE
 	bool "Built-in command line overrides firmware arguments"
 	depends on CMDLINE_BOOL
 	help
-	  By setting this option to 'Y' you will have your kernel ignore
+	  By setting this option to 'Y' you will have your kernel igyesre
 	  command line arguments from firmware or second stage bootloader.
 	  Instead, the built-in command line will be used exclusively.
 
@@ -113,7 +113,7 @@ config SCACHE_DEBUGFS
 	depends on DEBUG_FS
 	help
 	  Enable this to allow parts of the L2 cache configuration, such as
-	  whether or not prefetching is enabled, to be exposed to userland
+	  whether or yest prefetching is enabled, to be exposed to userland
 	  via debugfs.
 
 	  If unsure, say N.
@@ -138,7 +138,7 @@ config MIPS_CPS_NS16550_BASE
 	  The base address of the ns16550 compatible UART on which to output
 	  debug information from the early stages of core startup.
 
-	  This is only used if non-zero.
+	  This is only used if yesn-zero.
 
 config MIPS_CPS_NS16550_SHIFT
 	int "UART Register Shift"

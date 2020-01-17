@@ -18,12 +18,12 @@
 
 /**
  * enum hmcdrv_ftp_cmdid - HMC drive FTP commands
- * @HMCDRV_FTP_NOOP: do nothing (only for probing)
+ * @HMCDRV_FTP_NOOP: do yesthing (only for probing)
  * @HMCDRV_FTP_GET: read a file
  * @HMCDRV_FTP_PUT: (over-) write a file
  * @HMCDRV_FTP_APPEND: append to a file
  * @HMCDRV_FTP_DIR: list directory long (ls -l)
- * @HMCDRV_FTP_NLIST: list files, no directories (name list)
+ * @HMCDRV_FTP_NLIST: list files, yes directories (name list)
  * @HMCDRV_FTP_DELETE: delete a file
  * @HMCDRV_FTP_CANCEL: cancel operation (SCLP/LPAR only)
  */

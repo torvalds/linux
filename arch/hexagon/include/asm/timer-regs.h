@@ -14,8 +14,8 @@
 #define TIMER_CLR_ON_MATCH	1
 
 /*
- * 8x50 HDD Specs 5-8.  Simulator co-sim not fixed until
- * release 1.1, and then it's "adjustable" and probably not defaulted.
+ * 8x50 HDD Specs 5-8.  Simulator co-sim yest fixed until
+ * release 1.1, and then it's "adjustable" and probably yest defaulted.
  */
 #define RTOS_TIMER_INT		3
 #ifdef CONFIG_HEXAGON_COMET

@@ -20,7 +20,7 @@ ocfs2-objs := \
 	extent_map.o 		\
 	file.o 			\
 	heartbeat.o 		\
-	inode.o 		\
+	iyesde.o 		\
 	ioctl.o 		\
 	journal.o 		\
 	localalloc.o 		\

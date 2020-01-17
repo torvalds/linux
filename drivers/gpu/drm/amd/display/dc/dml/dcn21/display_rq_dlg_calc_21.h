@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -55,7 +55,7 @@ void dml21_rq_dlg_get_rq_reg(
 //  e2e_pipe_param - "compacted" array of e2e pipe param struct
 //  num_pipes - num of active "pipe" or "route"
 //  pipe_idx - index that identifies the e2e_pipe_param that corresponding to this dlg
-//  cstate - 0: when calculate min_ttu_vblank it is assumed cstate is not required. 1: Normal mode, cstate is considered.
+//  cstate - 0: when calculate min_ttu_vblank it is assumed cstate is yest required. 1: Normal mode, cstate is considered.
 //           Added for legacy or unrealistic timing tests.
 void dml21_rq_dlg_get_dlg_reg(
 		struct display_mode_lib *mode_lib,
@@ -67,7 +67,7 @@ void dml21_rq_dlg_get_dlg_reg(
 		const bool cstate_en,
 		const bool pstate_en,
 		const bool vm_en,
-		const bool ignore_viewport_pos,
+		const bool igyesre_viewport_pos,
 		const bool immediate_flip_support);
 
 #endif

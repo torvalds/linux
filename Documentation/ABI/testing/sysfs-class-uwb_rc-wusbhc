@@ -21,7 +21,7 @@ Description:
                 specification.
 
                 Since this relates to security (specifically, the
-                lifetime of PTKs and GTKs) it should not be changed
+                lifetime of PTKs and GTKs) it should yest be changed
                 from the default.
 
 What:           /sys/class/uwb_rc/uwbN/wusbhc/wusb_phy_rate
@@ -42,10 +42,10 @@ Date:           June 2013
 KernelVersion:  3.11
 Contact:        Thomas Pugliese <thomas.pugliese@gmail.com>
 Description:
-                The device notification time slot (DNTS) count and inverval in
+                The device yestification time slot (DNTS) count and inverval in
                 milliseconds that the WUSB host should use.  This controls how
                 often the devices will have the opportunity to send
-                notifications to the host.
+                yestifications to the host.
 
 What:           /sys/class/uwb_rc/uwbN/wusbhc/wusb_retry_count
 Date:           June 2013

@@ -75,7 +75,7 @@ static int tegra_wm8903_hw_params(struct snd_pcm_substream *substream,
 	err = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 					SND_SOC_CLOCK_IN);
 	if (err < 0) {
-		dev_err(card->dev, "codec_dai clock not set\n");
+		dev_err(card->dev, "codec_dai clock yest set\n");
 		return err;
 	}
 
@@ -226,7 +226,7 @@ static struct snd_soc_card snd_soc_tegra_wm8903 = {
 
 static int tegra_wm8903_driver_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct snd_soc_card *card = &snd_soc_tegra_wm8903;
 	struct tegra_wm8903 *machine;
 	int ret;
@@ -247,7 +247,7 @@ static int tegra_wm8903_driver_probe(struct platform_device *pdev)
 		ret = devm_gpio_request_one(&pdev->dev, machine->gpio_spkr_en,
 					    GPIOF_OUT_INIT_LOW, "spkr_en");
 		if (ret) {
-			dev_err(card->dev, "cannot get spkr_en gpio\n");
+			dev_err(card->dev, "canyest get spkr_en gpio\n");
 			return ret;
 		}
 	}
@@ -260,7 +260,7 @@ static int tegra_wm8903_driver_probe(struct platform_device *pdev)
 		ret = devm_gpio_request_one(&pdev->dev, machine->gpio_hp_mute,
 					    GPIOF_OUT_INIT_HIGH, "hp_mute");
 		if (ret) {
-			dev_err(card->dev, "cannot get hp_mute gpio\n");
+			dev_err(card->dev, "canyest get hp_mute gpio\n");
 			return ret;
 		}
 	}
@@ -279,7 +279,7 @@ static int tegra_wm8903_driver_probe(struct platform_device *pdev)
 					    machine->gpio_int_mic_en,
 					    GPIOF_OUT_INIT_LOW, "int_mic_en");
 		if (ret) {
-			dev_err(card->dev, "cannot get int_mic_en gpio\n");
+			dev_err(card->dev, "canyest get int_mic_en gpio\n");
 			return ret;
 		}
 	}
@@ -294,7 +294,7 @@ static int tegra_wm8903_driver_probe(struct platform_device *pdev)
 					    machine->gpio_ext_mic_en,
 					    GPIOF_OUT_INIT_LOW, "ext_mic_en");
 		if (ret) {
-			dev_err(card->dev, "cannot get ext_mic_en gpio\n");
+			dev_err(card->dev, "canyest get ext_mic_en gpio\n");
 			return ret;
 		}
 	}
@@ -307,25 +307,25 @@ static int tegra_wm8903_driver_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	tegra_wm8903_dai.codecs->of_node = of_parse_phandle(np,
+	tegra_wm8903_dai.codecs->of_yesde = of_parse_phandle(np,
 						"nvidia,audio-codec", 0);
-	if (!tegra_wm8903_dai.codecs->of_node) {
+	if (!tegra_wm8903_dai.codecs->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,audio-codec' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	tegra_wm8903_dai.cpus->of_node = of_parse_phandle(np,
+	tegra_wm8903_dai.cpus->of_yesde = of_parse_phandle(np,
 			"nvidia,i2s-controller", 0);
-	if (!tegra_wm8903_dai.cpus->of_node) {
+	if (!tegra_wm8903_dai.cpus->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	tegra_wm8903_dai.platforms->of_node = tegra_wm8903_dai.cpus->of_node;
+	tegra_wm8903_dai.platforms->of_yesde = tegra_wm8903_dai.cpus->of_yesde;
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)

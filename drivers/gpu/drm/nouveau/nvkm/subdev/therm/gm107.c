@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -26,7 +26,7 @@
 static int
 gm107_fan_pwm_ctrl(struct nvkm_therm *therm, int line, bool enable)
 {
-	/* nothing to do, it seems hardwired */
+	/* yesthing to do, it seems hardwired */
 	return 0;
 }
 

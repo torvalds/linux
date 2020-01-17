@@ -439,7 +439,7 @@ int regulator_map_voltage_linear_range(struct regulator_dev *rdev,
 
 		/*
 		 * Map back into a voltage to verify we're still in bounds.
-		 * If we are not, then continue checking rest of the ranges.
+		 * If we are yest, then continue checking rest of the ranges.
 		 */
 		voltage = rdev->desc->ops->list_voltage(rdev, ret);
 		if (voltage >= min_uV && voltage <= max_uV)

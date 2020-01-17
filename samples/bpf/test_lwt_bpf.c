@@ -33,8 +33,8 @@
 #define CB_MAGIC 1234
 
 /* Test: Pass all packets through */
-SEC("nop")
-int do_nop(struct __sk_buff *skb)
+SEC("yesp")
+int do_yesp(struct __sk_buff *skb)
 {
 	return BPF_OK;
 }

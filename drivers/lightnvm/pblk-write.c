@@ -238,7 +238,7 @@ static void pblk_end_w_fail(struct pblk *pblk, struct nvm_rq *rqd)
 
 	recovery = mempool_alloc(&pblk->rec_pool, GFP_ATOMIC);
 	if (!recovery) {
-		pblk_err(pblk, "could not allocate recovery work\n");
+		pblk_err(pblk, "could yest allocate recovery work\n");
 		return;
 	}
 
@@ -448,7 +448,7 @@ static inline bool pblk_valid_meta_ppa(struct pblk *pblk,
 	 *
 	 * When the LUN configuration changes (e.g., due to GC), this distance
 	 * can align, which would result on metadata and data I/Os colliding. In
-	 * this case, modify the distance to not be optimal, but move the
+	 * this case, modify the distance to yest be optimal, but move the
 	 * optimal in the right direction.
 	 */
 	paddr = pblk_lookup_page(pblk, meta_line);
@@ -502,7 +502,7 @@ static int pblk_submit_io_set(struct pblk *pblk, struct nvm_rq *rqd)
 	/* Assign lbas to ppas and populate request structure */
 	err = pblk_setup_w_rq(pblk, rqd, &erase_ppa);
 	if (err) {
-		pblk_err(pblk, "could not setup write request: %d\n", err);
+		pblk_err(pblk, "could yest setup write request: %d\n", err);
 		return NVM_IO_ERR;
 	}
 
@@ -586,7 +586,7 @@ static int pblk_submit_write(struct pblk *pblk, int *secs_left)
 
 		kfree(r_ctx);
 	} else {
-		/* If there are no sectors in the cache,
+		/* If there are yes sectors in the cache,
 		 * flushes (bios without data) will be cleared on
 		 * the cache threads
 		 */

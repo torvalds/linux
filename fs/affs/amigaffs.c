@@ -23,46 +23,46 @@
  */
 
 int
-affs_insert_hash(struct inode *dir, struct buffer_head *bh)
+affs_insert_hash(struct iyesde *dir, struct buffer_head *bh)
 {
 	struct super_block *sb = dir->i_sb;
 	struct buffer_head *dir_bh;
-	u32 ino, hash_ino;
+	u32 iyes, hash_iyes;
 	int offset;
 
-	ino = bh->b_blocknr;
+	iyes = bh->b_blocknr;
 	offset = affs_hash_name(sb, AFFS_TAIL(sb, bh)->name + 1, AFFS_TAIL(sb, bh)->name[0]);
 
-	pr_debug("%s(dir=%lu, ino=%d)\n", __func__, dir->i_ino, ino);
+	pr_debug("%s(dir=%lu, iyes=%d)\n", __func__, dir->i_iyes, iyes);
 
-	dir_bh = affs_bread(sb, dir->i_ino);
+	dir_bh = affs_bread(sb, dir->i_iyes);
 	if (!dir_bh)
 		return -EIO;
 
-	hash_ino = be32_to_cpu(AFFS_HEAD(dir_bh)->table[offset]);
-	while (hash_ino) {
+	hash_iyes = be32_to_cpu(AFFS_HEAD(dir_bh)->table[offset]);
+	while (hash_iyes) {
 		affs_brelse(dir_bh);
-		dir_bh = affs_bread(sb, hash_ino);
+		dir_bh = affs_bread(sb, hash_iyes);
 		if (!dir_bh)
 			return -EIO;
-		hash_ino = be32_to_cpu(AFFS_TAIL(sb, dir_bh)->hash_chain);
+		hash_iyes = be32_to_cpu(AFFS_TAIL(sb, dir_bh)->hash_chain);
 	}
-	AFFS_TAIL(sb, bh)->parent = cpu_to_be32(dir->i_ino);
+	AFFS_TAIL(sb, bh)->parent = cpu_to_be32(dir->i_iyes);
 	AFFS_TAIL(sb, bh)->hash_chain = 0;
 	affs_fix_checksum(sb, bh);
 
-	if (dir->i_ino == dir_bh->b_blocknr)
-		AFFS_HEAD(dir_bh)->table[offset] = cpu_to_be32(ino);
+	if (dir->i_iyes == dir_bh->b_blocknr)
+		AFFS_HEAD(dir_bh)->table[offset] = cpu_to_be32(iyes);
 	else
-		AFFS_TAIL(sb, dir_bh)->hash_chain = cpu_to_be32(ino);
+		AFFS_TAIL(sb, dir_bh)->hash_chain = cpu_to_be32(iyes);
 
-	affs_adjust_checksum(dir_bh, ino);
-	mark_buffer_dirty_inode(dir_bh, dir);
+	affs_adjust_checksum(dir_bh, iyes);
+	mark_buffer_dirty_iyesde(dir_bh, dir);
 	affs_brelse(dir_bh);
 
 	dir->i_mtime = dir->i_ctime = current_time(dir);
-	inode_inc_iversion(dir);
-	mark_inode_dirty(dir);
+	iyesde_inc_iversion(dir);
+	mark_iyesde_dirty(dir);
 
 	return 0;
 }
@@ -72,67 +72,67 @@ affs_insert_hash(struct inode *dir, struct buffer_head *bh)
  */
 
 int
-affs_remove_hash(struct inode *dir, struct buffer_head *rem_bh)
+affs_remove_hash(struct iyesde *dir, struct buffer_head *rem_bh)
 {
 	struct super_block *sb;
 	struct buffer_head *bh;
-	u32 rem_ino, hash_ino;
-	__be32 ino;
+	u32 rem_iyes, hash_iyes;
+	__be32 iyes;
 	int offset, retval;
 
 	sb = dir->i_sb;
-	rem_ino = rem_bh->b_blocknr;
+	rem_iyes = rem_bh->b_blocknr;
 	offset = affs_hash_name(sb, AFFS_TAIL(sb, rem_bh)->name+1, AFFS_TAIL(sb, rem_bh)->name[0]);
-	pr_debug("%s(dir=%lu, ino=%d, hashval=%d)\n", __func__, dir->i_ino,
-		 rem_ino, offset);
+	pr_debug("%s(dir=%lu, iyes=%d, hashval=%d)\n", __func__, dir->i_iyes,
+		 rem_iyes, offset);
 
-	bh = affs_bread(sb, dir->i_ino);
+	bh = affs_bread(sb, dir->i_iyes);
 	if (!bh)
 		return -EIO;
 
 	retval = -ENOENT;
-	hash_ino = be32_to_cpu(AFFS_HEAD(bh)->table[offset]);
-	while (hash_ino) {
-		if (hash_ino == rem_ino) {
-			ino = AFFS_TAIL(sb, rem_bh)->hash_chain;
-			if (dir->i_ino == bh->b_blocknr)
-				AFFS_HEAD(bh)->table[offset] = ino;
+	hash_iyes = be32_to_cpu(AFFS_HEAD(bh)->table[offset]);
+	while (hash_iyes) {
+		if (hash_iyes == rem_iyes) {
+			iyes = AFFS_TAIL(sb, rem_bh)->hash_chain;
+			if (dir->i_iyes == bh->b_blocknr)
+				AFFS_HEAD(bh)->table[offset] = iyes;
 			else
-				AFFS_TAIL(sb, bh)->hash_chain = ino;
-			affs_adjust_checksum(bh, be32_to_cpu(ino) - hash_ino);
-			mark_buffer_dirty_inode(bh, dir);
+				AFFS_TAIL(sb, bh)->hash_chain = iyes;
+			affs_adjust_checksum(bh, be32_to_cpu(iyes) - hash_iyes);
+			mark_buffer_dirty_iyesde(bh, dir);
 			AFFS_TAIL(sb, rem_bh)->parent = 0;
 			retval = 0;
 			break;
 		}
 		affs_brelse(bh);
-		bh = affs_bread(sb, hash_ino);
+		bh = affs_bread(sb, hash_iyes);
 		if (!bh)
 			return -EIO;
-		hash_ino = be32_to_cpu(AFFS_TAIL(sb, bh)->hash_chain);
+		hash_iyes = be32_to_cpu(AFFS_TAIL(sb, bh)->hash_chain);
 	}
 
 	affs_brelse(bh);
 
 	dir->i_mtime = dir->i_ctime = current_time(dir);
-	inode_inc_iversion(dir);
-	mark_inode_dirty(dir);
+	iyesde_inc_iversion(dir);
+	mark_iyesde_dirty(dir);
 
 	return retval;
 }
 
 static void
-affs_fix_dcache(struct inode *inode, u32 entry_ino)
+affs_fix_dcache(struct iyesde *iyesde, u32 entry_iyes)
 {
 	struct dentry *dentry;
-	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
-		if (entry_ino == (u32)(long)dentry->d_fsdata) {
-			dentry->d_fsdata = (void *)inode->i_ino;
+	spin_lock(&iyesde->i_lock);
+	hlist_for_each_entry(dentry, &iyesde->i_dentry, d_u.d_alias) {
+		if (entry_iyes == (u32)(long)dentry->d_fsdata) {
+			dentry->d_fsdata = (void *)iyesde->i_iyes;
 			break;
 		}
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&iyesde->i_lock);
 }
 
 
@@ -141,25 +141,25 @@ affs_fix_dcache(struct inode *inode, u32 entry_ino)
 static int
 affs_remove_link(struct dentry *dentry)
 {
-	struct inode *dir, *inode = d_inode(dentry);
-	struct super_block *sb = inode->i_sb;
+	struct iyesde *dir, *iyesde = d_iyesde(dentry);
+	struct super_block *sb = iyesde->i_sb;
 	struct buffer_head *bh, *link_bh = NULL;
-	u32 link_ino, ino;
+	u32 link_iyes, iyes;
 	int retval;
 
-	pr_debug("%s(key=%ld)\n", __func__, inode->i_ino);
+	pr_debug("%s(key=%ld)\n", __func__, iyesde->i_iyes);
 	retval = -EIO;
-	bh = affs_bread(sb, inode->i_ino);
+	bh = affs_bread(sb, iyesde->i_iyes);
 	if (!bh)
 		goto done;
 
-	link_ino = (u32)(long)dentry->d_fsdata;
-	if (inode->i_ino == link_ino) {
-		/* we can't remove the head of the link, as its blocknr is still used as ino,
+	link_iyes = (u32)(long)dentry->d_fsdata;
+	if (iyesde->i_iyes == link_iyes) {
+		/* we can't remove the head of the link, as its blocknr is still used as iyes,
 		 * so we remove the block of the first link instead.
 		 */ 
-		link_ino = be32_to_cpu(AFFS_TAIL(sb, bh)->link_chain);
-		link_bh = affs_bread(sb, link_ino);
+		link_iyes = be32_to_cpu(AFFS_TAIL(sb, bh)->link_chain);
+		link_bh = affs_bread(sb, link_iyes);
 		if (!link_bh)
 			goto done;
 
@@ -172,15 +172,15 @@ affs_remove_link(struct dentry *dentry)
 		affs_lock_dir(dir);
 		/*
 		 * if there's a dentry for that block, make it
-		 * refer to inode itself.
+		 * refer to iyesde itself.
 		 */
-		affs_fix_dcache(inode, link_ino);
+		affs_fix_dcache(iyesde, link_iyes);
 		retval = affs_remove_hash(dir, link_bh);
 		if (retval) {
 			affs_unlock_dir(dir);
 			goto done;
 		}
-		mark_buffer_dirty_inode(link_bh, inode);
+		mark_buffer_dirty_iyesde(link_bh, iyesde);
 
 		memcpy(AFFS_TAIL(sb, bh)->name, AFFS_TAIL(sb, link_bh)->name, 32);
 		retval = affs_insert_hash(dir, bh);
@@ -188,37 +188,37 @@ affs_remove_link(struct dentry *dentry)
 			affs_unlock_dir(dir);
 			goto done;
 		}
-		mark_buffer_dirty_inode(bh, inode);
+		mark_buffer_dirty_iyesde(bh, iyesde);
 
 		affs_unlock_dir(dir);
 		iput(dir);
 	} else {
-		link_bh = affs_bread(sb, link_ino);
+		link_bh = affs_bread(sb, link_iyes);
 		if (!link_bh)
 			goto done;
 	}
 
-	while ((ino = be32_to_cpu(AFFS_TAIL(sb, bh)->link_chain)) != 0) {
-		if (ino == link_ino) {
-			__be32 ino2 = AFFS_TAIL(sb, link_bh)->link_chain;
-			AFFS_TAIL(sb, bh)->link_chain = ino2;
-			affs_adjust_checksum(bh, be32_to_cpu(ino2) - link_ino);
-			mark_buffer_dirty_inode(bh, inode);
+	while ((iyes = be32_to_cpu(AFFS_TAIL(sb, bh)->link_chain)) != 0) {
+		if (iyes == link_iyes) {
+			__be32 iyes2 = AFFS_TAIL(sb, link_bh)->link_chain;
+			AFFS_TAIL(sb, bh)->link_chain = iyes2;
+			affs_adjust_checksum(bh, be32_to_cpu(iyes2) - link_iyes);
+			mark_buffer_dirty_iyesde(bh, iyesde);
 			retval = 0;
-			/* Fix the link count, if bh is a normal header block without links */
+			/* Fix the link count, if bh is a yesrmal header block without links */
 			switch (be32_to_cpu(AFFS_TAIL(sb, bh)->stype)) {
 			case ST_LINKDIR:
 			case ST_LINKFILE:
 				break;
 			default:
 				if (!AFFS_TAIL(sb, bh)->link_chain)
-					set_nlink(inode, 1);
+					set_nlink(iyesde, 1);
 			}
-			affs_free_block(sb, link_ino);
+			affs_free_block(sb, link_iyes);
 			goto done;
 		}
 		affs_brelse(bh);
-		bh = affs_bread(sb, ino);
+		bh = affs_bread(sb, iyes);
 		if (!bh)
 			goto done;
 	}
@@ -231,23 +231,23 @@ done:
 
 
 static int
-affs_empty_dir(struct inode *inode)
+affs_empty_dir(struct iyesde *iyesde)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct buffer_head *bh;
 	int retval, size;
 
 	retval = -EIO;
-	bh = affs_bread(sb, inode->i_ino);
+	bh = affs_bread(sb, iyesde->i_iyes);
 	if (!bh)
 		goto done;
 
 	retval = -ENOTEMPTY;
 	for (size = AFFS_SB(sb)->s_hashsize - 1; size >= 0; size--)
 		if (AFFS_HEAD(bh)->table[size])
-			goto not_empty;
+			goto yest_empty;
 	retval = 0;
-not_empty:
+yest_empty:
 	affs_brelse(bh);
 done:
 	return retval;
@@ -256,46 +256,46 @@ done:
 
 /* Remove a filesystem object. If the object to be removed has
  * links to it, one of the links must be changed to inherit
- * the file or directory. As above, any inode will do.
- * The buffer will not be freed. If the header is a link, the
+ * the file or directory. As above, any iyesde will do.
+ * The buffer will yest be freed. If the header is a link, the
  * block will be marked as free.
  * This function returns a negative error number in case of
- * an error, else 0 if the inode is to be deleted or 1 if not.
+ * an error, else 0 if the iyesde is to be deleted or 1 if yest.
  */
 
 int
 affs_remove_header(struct dentry *dentry)
 {
 	struct super_block *sb;
-	struct inode *inode, *dir;
+	struct iyesde *iyesde, *dir;
 	struct buffer_head *bh = NULL;
 	int retval;
 
-	dir = d_inode(dentry->d_parent);
+	dir = d_iyesde(dentry->d_parent);
 	sb = dir->i_sb;
 
 	retval = -ENOENT;
-	inode = d_inode(dentry);
-	if (!inode)
+	iyesde = d_iyesde(dentry);
+	if (!iyesde)
 		goto done;
 
-	pr_debug("%s(key=%ld)\n", __func__, inode->i_ino);
+	pr_debug("%s(key=%ld)\n", __func__, iyesde->i_iyes);
 	retval = -EIO;
 	bh = affs_bread(sb, (u32)(long)dentry->d_fsdata);
 	if (!bh)
 		goto done;
 
-	affs_lock_link(inode);
+	affs_lock_link(iyesde);
 	affs_lock_dir(dir);
 	switch (be32_to_cpu(AFFS_TAIL(sb, bh)->stype)) {
 	case ST_USERDIR:
 		/* if we ever want to support links to dirs
-		 * i_hash_lock of the inode must only be
+		 * i_hash_lock of the iyesde must only be
 		 * taken after some checks
 		 */
-		affs_lock_dir(inode);
-		retval = affs_empty_dir(inode);
-		affs_unlock_dir(inode);
+		affs_lock_dir(iyesde);
+		retval = affs_empty_dir(iyesde);
+		affs_unlock_dir(iyesde);
 		if (retval)
 			goto done_unlock;
 		break;
@@ -306,17 +306,17 @@ affs_remove_header(struct dentry *dentry)
 	retval = affs_remove_hash(dir, bh);
 	if (retval)
 		goto done_unlock;
-	mark_buffer_dirty_inode(bh, inode);
+	mark_buffer_dirty_iyesde(bh, iyesde);
 
 	affs_unlock_dir(dir);
 
-	if (inode->i_nlink > 1)
+	if (iyesde->i_nlink > 1)
 		retval = affs_remove_link(dentry);
 	else
-		clear_nlink(inode);
-	affs_unlock_link(inode);
-	inode->i_ctime = current_time(inode);
-	mark_inode_dirty(inode);
+		clear_nlink(iyesde);
+	affs_unlock_link(iyesde);
+	iyesde->i_ctime = current_time(iyesde);
+	mark_iyesde_dirty(iyesde);
 
 done:
 	affs_brelse(bh);
@@ -324,16 +324,16 @@ done:
 
 done_unlock:
 	affs_unlock_dir(dir);
-	affs_unlock_link(inode);
+	affs_unlock_link(iyesde);
 	goto done;
 }
 
 /* Checksum a block, do various consistency checks and optionally return
    the blocks type number.  DATA points to the block.  If their pointers
-   are non-null, *PTYPE and *STYPE are set to the primary and secondary
+   are yesn-null, *PTYPE and *STYPE are set to the primary and secondary
    block types respectively, *HASHSIZE is set to the size of the hashtable
    (which lets us calculate the block size).
-   Returns non-zero if the block is not consistent. */
+   Returns yesn-zero if the block is yest consistent. */
 
 u32
 affs_checksum_block(struct super_block *sb, struct buffer_head *bh)
@@ -415,10 +415,10 @@ affs_prot_to_mode(u32 prot)
 }
 
 void
-affs_mode_to_prot(struct inode *inode)
+affs_mode_to_prot(struct iyesde *iyesde)
 {
-	u32 prot = AFFS_I(inode)->i_protect;
-	umode_t mode = inode->i_mode;
+	u32 prot = AFFS_I(iyesde)->i_protect;
+	umode_t mode = iyesde->i_mode;
 
 	if (!(mode & 0100))
 		prot |= FIBF_NOEXECUTE;
@@ -439,7 +439,7 @@ affs_mode_to_prot(struct inode *inode)
 	if (mode & 0002)
 		prot |= FIBF_OTR_WRITE;
 
-	AFFS_I(inode)->i_protect = prot;
+	AFFS_I(iyesde)->i_protect = prot;
 }
 
 void
@@ -472,7 +472,7 @@ affs_warning(struct super_block *sb, const char *function, const char *fmt, ...)
 }
 
 bool
-affs_nofilenametruncate(const struct dentry *dentry)
+affs_yesfilenametruncate(const struct dentry *dentry)
 {
 	return affs_test_opt(AFFS_SB(dentry->d_sb)->s_flags, SF_NO_TRUNCATE);
 }
@@ -480,12 +480,12 @@ affs_nofilenametruncate(const struct dentry *dentry)
 /* Check if the name is valid for a affs object. */
 
 int
-affs_check_name(const unsigned char *name, int len, bool notruncate)
+affs_check_name(const unsigned char *name, int len, bool yestruncate)
 {
 	int	 i;
 
 	if (len > AFFSNAMEMAX) {
-		if (notruncate)
+		if (yestruncate)
 			return -ENAMETOOLONG;
 		len = AFFSNAMEMAX;
 	}

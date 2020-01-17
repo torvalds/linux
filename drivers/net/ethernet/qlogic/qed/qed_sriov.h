@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -167,8 +167,8 @@ struct qed_vf_queue {
 };
 
 enum vf_state {
-	VF_FREE = 0,		/* VF ready to be acquired holds no resc */
-	VF_ACQUIRED,		/* VF, acquired, but not initalized */
+	VF_FREE = 0,		/* VF ready to be acquired holds yes resc */
+	VF_ACQUIRED,		/* VF, acquired, but yest initalized */
 	VF_ENABLED,		/* VF, Enabled */
 	VF_RESET,		/* VF, FLR'd, pending cleanup */
 	VF_STOPPED		/* VF, Stopped */
@@ -282,13 +282,13 @@ enum qed_iov_wq_flag {
  * @param p_hwfn
  * @param rel_vf_id - Relative VF ID
  * @param b_enabled_only - consider only enabled VF
- * @param b_non_malicious - true iff we want to validate vf isn't malicious.
+ * @param b_yesn_malicious - true iff we want to validate vf isn't malicious.
  *
  * @return bool - true for valid VF ID
  */
 bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
 			   int rel_vf_id,
-			   bool b_enabled_only, bool b_non_malicious);
+			   bool b_enabled_only, bool b_yesn_malicious);
 
 /**
  * @brief - Given a VF index, return index of next [including that] active VF.
@@ -296,7 +296,7 @@ bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
  * @param p_hwfn
  * @param rel_vf_id
  *
- * @return MAX_NUM_VFS in case no further active VFs, otherwise index.
+ * @return MAX_NUM_VFS in case yes further active VFs, otherwise index.
  */
 u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn, u16 rel_vf_id);
 
@@ -395,7 +395,7 @@ void qed_inform_vf_link_state(struct qed_hwfn *hwfn);
 #else
 static inline bool
 qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
-		      int rel_vf_id, bool b_enabled_only, bool b_non_malicious)
+		      int rel_vf_id, bool b_enabled_only, bool b_yesn_malicious)
 {
 	return false;
 }

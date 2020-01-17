@@ -12,7 +12,7 @@
 #include <linux/device.h>
 
 /* We use `virtual` dma channels to hide the fact we have only a limited
- * number of DMA channels, and not of all of them (dependent on the device)
+ * number of DMA channels, and yest of all of them (dependent on the device)
  * can be attached to any DMA source. We therefore let the DMA core handle
  * the allocation of hardware channels to clients.
 */

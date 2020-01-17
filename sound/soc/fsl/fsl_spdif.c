@@ -5,7 +5,7 @@
 // Copyright (C) 2013 Freescale Semiconductor, Inc.
 //
 // Based on stmp3xxx_spdif_dai.c
-// Vladimir Barinov <vbarinov@embeddedalley.com>
+// Vladimir Bariyesv <vbariyesv@embeddedalley.com>
 // Copyright 2008 SigmaTel, Inc
 // Copyright 2008 Embedded Alley Solutions, Inc
 
@@ -134,7 +134,7 @@ static void spdif_irq_sym_error(struct fsl_spdif_priv *spdif_priv)
 
 	dev_dbg(&pdev->dev, "isr: receiver found illegal symbol\n");
 
-	/* Clear illegal symbol if DPLL unlocked since no audio stream */
+	/* Clear illegal symbol if DPLL unlocked since yes audio stream */
 	if (!spdif_priv->dpll_locked)
 		regmap_update_bits(regmap, REG_SPDIF_SIE, INT_SYM_ERR, 0);
 }
@@ -249,7 +249,7 @@ static irqreturn_t spdif_isr(int irq, void *devid)
 		dev_dbg(&pdev->dev, "isr: cstatus new\n");
 
 	if (sis & INT_VAL_NOGOOD)
-		dev_dbg(&pdev->dev, "isr: validity flag no good\n");
+		dev_dbg(&pdev->dev, "isr: validity flag yes good\n");
 
 	if (sis & INT_SYM_ERR)
 		spdif_irq_sym_error(spdif_priv);
@@ -844,7 +844,7 @@ static int spdif_get_rxclk_rate(struct fsl_spdif_priv *spdif_priv,
 }
 
 /*
- * Get DPLL lock or not info from stable interrupt status register.
+ * Get DPLL lock or yest info from stable interrupt status register.
  * User application must use this control to get locked,
  * then can do next PCM operation
  */
@@ -1179,7 +1179,7 @@ static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 		sprintf(tmp, "rxtx%d", i);
 		clk = devm_clk_get(&pdev->dev, tmp);
 		if (IS_ERR(clk)) {
-			dev_err(dev, "no rxtx%d clock in devicetree\n", i);
+			dev_err(dev, "yes rxtx%d clock in devicetree\n", i);
 			return PTR_ERR(clk);
 		}
 		if (!clk_get_rate(clk))
@@ -1214,7 +1214,7 @@ static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 
 static int fsl_spdif_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct fsl_spdif_priv *spdif_priv;
 	struct spdif_mixer_control *ctrl;
 	struct resource *res;
@@ -1254,32 +1254,32 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, spdif_isr, 0,
 			       dev_name(&pdev->dev), spdif_priv);
 	if (ret) {
-		dev_err(&pdev->dev, "could not claim irq %u\n", irq);
+		dev_err(&pdev->dev, "could yest claim irq %u\n", irq);
 		return ret;
 	}
 
 	/* Get system clock for rx clock rate calculation */
 	spdif_priv->sysclk = devm_clk_get(&pdev->dev, "rxtx5");
 	if (IS_ERR(spdif_priv->sysclk)) {
-		dev_err(&pdev->dev, "no sys clock (rxtx5) in devicetree\n");
+		dev_err(&pdev->dev, "yes sys clock (rxtx5) in devicetree\n");
 		return PTR_ERR(spdif_priv->sysclk);
 	}
 
 	/* Get core clock for data register access via DMA */
 	spdif_priv->coreclk = devm_clk_get(&pdev->dev, "core");
 	if (IS_ERR(spdif_priv->coreclk)) {
-		dev_err(&pdev->dev, "no core clock in devicetree\n");
+		dev_err(&pdev->dev, "yes core clock in devicetree\n");
 		return PTR_ERR(spdif_priv->coreclk);
 	}
 
 	spdif_priv->spbaclk = devm_clk_get(&pdev->dev, "spba");
 	if (IS_ERR(spdif_priv->spbaclk))
-		dev_warn(&pdev->dev, "no spba clock in devicetree\n");
+		dev_warn(&pdev->dev, "yes spba clock in devicetree\n");
 
 	/* Select clock source for rx/tx clock */
 	spdif_priv->rxclk = devm_clk_get(&pdev->dev, "rxtx1");
 	if (IS_ERR(spdif_priv->rxclk)) {
-		dev_err(&pdev->dev, "no rxtx1 clock in devicetree\n");
+		dev_err(&pdev->dev, "yes rxtx1 clock in devicetree\n");
 		return PTR_ERR(spdif_priv->rxclk);
 	}
 	spdif_priv->rxclk_src = DEFAULT_RXCLK_SRC;

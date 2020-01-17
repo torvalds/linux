@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1 WITH Linux-syscall-yeste */
 /*
  * cn_proc.h - process events connector
  *
@@ -64,7 +64,7 @@ struct proc_event {
 	} what;
 	__u32 cpu;
 	__u64 __attribute__((aligned(8))) timestamp_ns;
-		/* Number of nano seconds since system boot */
+		/* Number of nayes seconds since system boot */
 	union { /* must be last field of proc_event struct */
 		struct {
 			__u32 err;

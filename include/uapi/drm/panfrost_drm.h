@@ -90,7 +90,7 @@ struct drm_panfrost_wait_bo {
 /**
  * struct drm_panfrost_create_bo - ioctl argument for creating Panfrost BOs.
  *
- * There are currently no values for the flags argument, but it may be
+ * There are currently yes values for the flags argument, but it may be
  * used in a future extension.
  */
 struct drm_panfrost_create_bo {
@@ -105,7 +105,7 @@ struct drm_panfrost_create_bo {
 	 * is private to the DRM fd and is valid for the lifetime of the GEM
 	 * handle.
 	 *
-	 * This offset value will always be nonzero, since various HW
+	 * This offset value will always be yesnzero, since various HW
 	 * units treat 0 specially.
 	 */
 	__u64 offset;
@@ -115,18 +115,18 @@ struct drm_panfrost_create_bo {
  * struct drm_panfrost_mmap_bo - ioctl argument for mapping Panfrost BOs.
  *
  * This doesn't actually perform an mmap.  Instead, it returns the
- * offset you need to use in an mmap on the DRM device node.  This
- * means that tools like valgrind end up knowing about the mapped
+ * offset you need to use in an mmap on the DRM device yesde.  This
+ * means that tools like valgrind end up kyeswing about the mapped
  * memory.
  *
- * There are currently no values for the flags argument, but it may be
+ * There are currently yes values for the flags argument, but it may be
  * used in a future extension.
  */
 struct drm_panfrost_mmap_bo {
 	/** Handle for the object being mapped. */
 	__u32 handle;
 	__u32 flags;
-	/** offset into the drm node to use for subsequent mmap call. */
+	/** offset into the drm yesde to use for subsequent mmap call. */
 	__u64 offset;
 };
 
@@ -215,7 +215,7 @@ struct drm_panfrost_perfcnt_dump {
  * backing pages still exist.
  */
 #define PANFROST_MADV_WILLNEED 0	/* backing pages are needed, status returned in 'retained' */
-#define PANFROST_MADV_DONTNEED 1	/* backing pages not needed */
+#define PANFROST_MADV_DONTNEED 1	/* backing pages yest needed */
 
 struct drm_panfrost_madvise {
 	__u32 handle;         /* in, GEM handle */

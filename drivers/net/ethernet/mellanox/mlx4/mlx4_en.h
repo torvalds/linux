@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -314,7 +314,7 @@ struct mlx4_en_tx_ring {
 	u8			*bounce_buf;
 
 	/* Not used in fast path
-	 * Only queue_stopped might be used if BQL is not properly working.
+	 * Only queue_stopped might be used if BQL is yest properly working.
 	 */
 	unsigned long		queue_stopped;
 	struct mlx4_hwq_resources sp_wqres;
@@ -350,7 +350,7 @@ struct mlx4_en_rx_ring {
 	unsigned long bytes;
 	unsigned long packets;
 	unsigned long csum_ok;
-	unsigned long csum_none;
+	unsigned long csum_yesne;
 	unsigned long csum_complete;
 	unsigned long rx_alloc_pages;
 	unsigned long xdp_drop;
@@ -405,7 +405,7 @@ struct mlx4_en_profile {
 	u8 rss_mask;
 	u32 active_ports;
 	u32 small_pkt_int;
-	u8 no_reset;
+	u8 yes_reset;
 	u8 max_num_tx_rings_p_up;
 	struct mlx4_en_port_profile prof[MLX4_MAX_PORTS + 1];
 };
@@ -428,14 +428,14 @@ struct mlx4_en_dev {
 	u32                     priv_pdn;
 	spinlock_t              uar_lock;
 	u8			mac_removed[MLX4_MAX_PORTS + 1];
-	u32			nominal_c_mult;
+	u32			yesminal_c_mult;
 	struct cyclecounter	cycles;
 	seqlock_t		clock_lock;
 	struct timecounter	clock;
 	unsigned long		last_overflow_check;
 	struct ptp_clock	*ptp_clock;
 	struct ptp_clock_info	ptp_clock_info;
-	struct notifier_block	nb;
+	struct yestifier_block	nb;
 };
 
 
@@ -651,7 +651,7 @@ enum mlx4_en_wol {
 };
 
 struct mlx4_mac_entry {
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 	unsigned char mac[ETH_ALEN + 2];
 	u64 reg_id;
 	struct rcu_head rcu;
@@ -688,7 +688,7 @@ void mlx4_en_safe_replace_resources(struct mlx4_en_priv *priv,
 				    struct mlx4_en_priv *tmp);
 
 int mlx4_en_create_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq **pcq,
-		      int entries, int ring, enum cq_type mode, int node);
+		      int entries, int ring, enum cq_type mode, int yesde);
 void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq **pcq);
 int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 			int cq_idx);
@@ -711,7 +711,7 @@ bool mlx4_en_rx_recycle(struct mlx4_en_rx_ring *ring,
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring **pring,
 			   u32 size, u16 stride,
-			   int node, int queue_index);
+			   int yesde, int queue_index);
 void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring **pring);
 void mlx4_en_init_tx_xdp_ring_descs(struct mlx4_en_priv *priv,
@@ -725,7 +725,7 @@ void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev);
 void mlx4_en_recover_from_oom(struct mlx4_en_priv *priv);
 int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_rx_ring **pring,
-			   u32 size, u16 stride, int node, int queue_index);
+			   u32 size, u16 stride, int yesde, int queue_index);
 void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_rx_ring **pring,
 			     u32 size, u16 stride);
@@ -794,7 +794,7 @@ void mlx4_en_update_pfc_stats_bitmap(struct mlx4_dev *dev,
 				     struct mlx4_en_stats_bitmap *stats_bitmap,
 				     u8 rx_ppp, u8 rx_pause,
 				     u8 tx_ppp, u8 tx_pause);
-int mlx4_en_netdev_event(struct notifier_block *this,
+int mlx4_en_netdev_event(struct yestifier_block *this,
 			 unsigned long event, void *ptr);
 
 /*

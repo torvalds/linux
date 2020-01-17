@@ -11,10 +11,10 @@
  *	Fixes:
  *	Hideaki YOSHIFUJI	:	sin6_scope_id support
  *	YOSHIFUJI,H.@USAGI	:	raw checksum (RFC2292(bis) compliance)
- *	Kazunori MIYAZAWA @USAGI:	change process style to use ip6_append_data
+ *	Kazuyesri MIYAZAWA @USAGI:	change process style to use ip6_append_data
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/slab.h>
@@ -111,7 +111,7 @@ static int icmpv6_filter(const struct sock *sk, const struct sk_buff *skb)
 	struct icmp6hdr _hdr;
 	const struct icmp6hdr *hdr;
 
-	/* We require only the four bytes of the ICMPv6 header, not any
+	/* We require only the four bytes of the ICMPv6 header, yest any
 	 * additional bytes of message body in "struct icmp6hdr".
 	 */
 	hdr = skb_header_pointer(skb, skb_transport_offset(skb),
@@ -274,7 +274,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		if (__ipv6_addr_needs_scope_id(addr_type)) {
 			if (addr_len >= sizeof(struct sockaddr_in6) &&
 			    addr->sin6_scope_id) {
-				/* Override any existing binding, if another
+				/* Override any existing binding, if ayesther
 				 * one is supplied by user.
 				 */
 				sk->sk_bound_dev_if = addr->sin6_scope_id;
@@ -298,7 +298,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		 */
 		v4addr = LOOPBACK4_IPV6;
 		if (!(addr_type & IPV6_ADDR_MULTICAST) &&
-		    !sock_net(sk)->ipv6.sysctl.ip_nonlocal_bind) {
+		    !sock_net(sk)->ipv6.sysctl.ip_yesnlocal_bind) {
 			err = -EADDRNOTAVAIL;
 			if (!ipv6_chk_addr(sock_net(sk), &addr->sin6_addr,
 					   dev, 0)) {
@@ -460,7 +460,7 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
  */
 
 static int rawv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-			 int noblock, int flags, int *addr_len)
+			 int yesblock, int flags, int *addr_len)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	DECLARE_SOCKADDR(struct sockaddr_in6 *, sin6, msg->msg_name);
@@ -477,7 +477,7 @@ static int rawv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	if (np->rxpmtu && np->rxopt.bits.rxpmtu)
 		return ipv6_recv_rxpmtu(sk, msg, len, addr_len);
 
-	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	skb = skb_recv_datagram(sk, flags, yesblock, &err);
 	if (!skb)
 		goto out;
 
@@ -530,7 +530,7 @@ csum_copy_err:
 	skb_kill_datagram(sk, skb, flags);
 
 	/* Error for blocking case is chosen to masquerade
-	   as some normal condition.
+	   as some yesrmal condition.
 	 */
 	err = (flags&MSG_DONTWAIT) ? -EAGAIN : -EHOSTUNREACH;
 	goto out;
@@ -597,7 +597,7 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
 		goto out;
 	}
 
-	/* in case cksum was not initialized */
+	/* in case cksum was yest initialized */
 	if (unlikely(csum))
 		tmp_csum = csum_sub(tmp_csum, csum_unfold(csum));
 
@@ -687,7 +687,7 @@ static int rawv6_send_hdrinc(struct sock *sk, struct msghdr *msg, int length,
 	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, net, sk, skb,
 		      NULL, rt->dst.dev, dst_output);
 	if (err > 0)
-		err = net_xmit_errno(err);
+		err = net_xmit_erryes(err);
 	if (err) {
 		IP6_INC_STATS(net, rt->rt6i_idev, IPSTATS_MIB_OUTDISCARDS);
 		rcu_read_unlock();
@@ -745,7 +745,7 @@ static int raw6_getfrag(void *from, char *to, int offset, int len, int odd,
 		else
 			skb->csum = csum_block_add(
 				skb->csum,
-				csum_partial_copy_nocheck(rfv->c + offset,
+				csum_partial_copy_yescheck(rfv->c + offset,
 							  to, copy, 0),
 				odd);
 
@@ -1034,7 +1034,7 @@ static int do_rawv6_setsockopt(struct sock *sk, int level, int optname,
 		    level == IPPROTO_IPV6) {
 			/*
 			 * RFC3542 tells that IPV6_CHECKSUM socket
-			 * option in the IPPROTO_IPV6 level is not
+			 * option in the IPPROTO_IPV6 level is yest
 			 * allowed on ICMPv6 sockets.
 			 * If you want to set it, use IPPROTO_RAW
 			 * level IPV6_CHECKSUM socket option
@@ -1362,20 +1362,20 @@ const struct proto_ops inet6_sockraw_ops = {
 	.release	   = inet6_release,
 	.bind		   = inet6_bind,
 	.connect	   = inet_dgram_connect,	/* ok		*/
-	.socketpair	   = sock_no_socketpair,	/* a do nothing	*/
-	.accept		   = sock_no_accept,		/* a do nothing	*/
+	.socketpair	   = sock_yes_socketpair,	/* a do yesthing	*/
+	.accept		   = sock_yes_accept,		/* a do yesthing	*/
 	.getname	   = inet6_getname,
 	.poll		   = datagram_poll,		/* ok		*/
 	.ioctl		   = inet6_ioctl,		/* must change  */
 	.gettstamp	   = sock_gettstamp,
-	.listen		   = sock_no_listen,		/* ok		*/
+	.listen		   = sock_yes_listen,		/* ok		*/
 	.shutdown	   = inet_shutdown,		/* ok		*/
 	.setsockopt	   = sock_common_setsockopt,	/* ok		*/
 	.getsockopt	   = sock_common_getsockopt,	/* ok		*/
 	.sendmsg	   = inet_sendmsg,		/* ok		*/
 	.recvmsg	   = sock_common_recvmsg,	/* ok		*/
-	.mmap		   = sock_no_mmap,
-	.sendpage	   = sock_no_sendpage,
+	.mmap		   = sock_yes_mmap,
+	.sendpage	   = sock_yes_sendpage,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,

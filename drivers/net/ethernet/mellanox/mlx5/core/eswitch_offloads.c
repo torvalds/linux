@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -104,7 +104,7 @@ mlx5_eswitch_set_rule_source_port(struct mlx5_eswitch *esw,
 	void *misc2;
 	void *misc;
 
-	/* Use metadata matching because vport is not represented by single
+	/* Use metadata matching because vport is yest represented by single
 	 * VHCA in dual-port RoCE mode, and matching on source vport may fail.
 	 */
 	if (mlx5_eswitch_vport_match_metadata_enabled(esw)) {
@@ -362,7 +362,7 @@ static int esw_set_global_vlan_pop(struct mlx5_eswitch *esw, u8 val)
 	struct mlx5_eswitch_rep *rep;
 	int i, err = 0;
 
-	esw_debug(esw->dev, "%s applying global %s policy\n", __func__, val ? "pop" : "none");
+	esw_debug(esw->dev, "%s applying global %s policy\n", __func__, val ? "pop" : "yesne");
 	mlx5_esw_for_each_host_func_rep(esw, i, rep, esw->esw_funcs.num_vfs) {
 		if (atomic_read(&rep->rep_data[REP_ETH].state) != REP_LOADED)
 			continue;
@@ -400,31 +400,31 @@ static int esw_add_vlan_action_check(struct mlx5_esw_flow_attr *attr,
 	struct mlx5_eswitch_rep *in_rep, *out_rep;
 
 	if ((push || pop) && !fwd)
-		goto out_notsupp;
+		goto out_yestsupp;
 
 	in_rep  = attr->in_rep;
 	out_rep = attr->dests[0].rep;
 
 	if (push && in_rep->vport == MLX5_VPORT_UPLINK)
-		goto out_notsupp;
+		goto out_yestsupp;
 
 	if (pop && out_rep->vport == MLX5_VPORT_UPLINK)
-		goto out_notsupp;
+		goto out_yestsupp;
 
 	/* vport has vlan push configured, can't offload VF --> wire rules w.o it */
 	if (!push && !pop && fwd)
 		if (in_rep->vlan && out_rep->vport == MLX5_VPORT_UPLINK)
-			goto out_notsupp;
+			goto out_yestsupp;
 
 	/* protects against (1) setting rules with different vlans to push and
 	 * (2) setting rules w.o vlans (attr->vlan = 0) && w. vlans to push (!= 0)
 	 */
 	if (push && in_rep->vlan_refcount && (in_rep->vlan != attr->vlan_vid[0]))
-		goto out_notsupp;
+		goto out_yestsupp;
 
 	return 0;
 
-out_notsupp:
+out_yestsupp:
 	return -EOPNOTSUPP;
 }
 
@@ -436,7 +436,7 @@ int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 	bool push, pop, fwd;
 	int err = 0;
 
-	/* nop if we're on the vlan push/pop non emulation mode */
+	/* yesp if we're on the vlan push/pop yesn emulation mode */
 	if (mlx5_eswitch_vlan_actions_supported(esw->dev, 1))
 		return 0;
 
@@ -504,7 +504,7 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 	bool push, pop, fwd;
 	int err = 0;
 
-	/* nop if we're on the vlan push/pop non emulation mode */
+	/* yesp if we're on the vlan push/pop yesn emulation mode */
 	if (mlx5_eswitch_vlan_actions_supported(esw->dev, 1))
 		return 0;
 
@@ -544,7 +544,7 @@ skip_unset_push:
 	if (offloads->vlan_push_pop_refcount)
 		goto out;
 
-	/* no more vlan rules, stop global vlan pop policy */
+	/* yes more vlan rules, stop global vlan pop policy */
 	err = esw_set_global_vlan_pop(esw, 0);
 
 out:
@@ -861,7 +861,7 @@ out:
  * and a virtual memory region of 16M (ESW_SIZE), this region is duplicated
  * for each flow table pool. We can allocate up to 16M of each pool,
  * and we keep track of how much we used via put/get_sz_to_pool.
- * Firmware doesn't report any of this for now.
+ * Firmware doesn't report any of this for yesw.
  * ESW_POOL is expected to be sorted from large to small
  */
 #define ESW_SIZE (16 * 1024 * 1024)
@@ -1118,11 +1118,11 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 	}
 	esw->fdb_table.offloads.slow_fdb = fdb;
 
-	/* If lazy creation isn't supported, open the fast path tables now */
+	/* If lazy creation isn't supported, open the fast path tables yesw */
 	if (!MLX5_CAP_ESW_FLOWTABLE(esw->dev, multi_fdb_encap) &&
 	    esw->offloads.encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE) {
 		esw->fdb_table.flags &= ~ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED;
-		esw_warn(dev, "Lazy creation of flow tables isn't supported, ignoring priorities\n");
+		esw_warn(dev, "Lazy creation of flow tables isn't supported, igyesring priorities\n");
 		esw_get_prio_table(esw, 0, 1, 0);
 		esw_get_prio_table(esw, 0, 1, 1);
 	} else {
@@ -1373,7 +1373,7 @@ static int esw_offloads_start(struct mlx5_eswitch *esw,
 	if (esw->mode != MLX5_ESWITCH_LEGACY &&
 	    !mlx5_core_is_ecpf_esw_manager(esw->dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Can't set offloads mode, SRIOV legacy not enabled");
+				   "Can't set offloads mode, SRIOV legacy yest enabled");
 		return -EINVAL;
 	}
 
@@ -1893,7 +1893,7 @@ static int esw_vport_create_ingress_acl_group(struct mlx5_eswitch *esw,
 	}
 
 	if (mlx5_eswitch_vport_match_metadata_enabled(esw)) {
-		/* This group holds an FTE with no matches for add metadata for
+		/* This group holds an FTE with yes matches for add metadata for
 		 * tagged packets, if prio-tag is enabled (as a fallthrough),
 		 * or all traffic in case prio-tag is disabled.
 		 */
@@ -2197,7 +2197,7 @@ out:
 	kfree(host_work);
 }
 
-int mlx5_esw_funcs_changed_handler(struct notifier_block *nb, unsigned long type, void *data)
+int mlx5_esw_funcs_changed_handler(struct yestifier_block *nb, unsigned long type, void *data)
 {
 	struct mlx5_esw_functions *esw_funcs;
 	struct mlx5_host_work *host_work;

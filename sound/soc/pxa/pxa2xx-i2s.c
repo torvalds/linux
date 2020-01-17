@@ -172,7 +172,7 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	snd_soc_dai_set_dma_data(dai, substream, dma_data);
 
-	/* is port used by another stream */
+	/* is port used by ayesther stream */
 	if (!(SACR0 & SACR0_ENB)) {
 		SACR0 = 0;
 		if (pxa_i2s.master)
@@ -205,7 +205,7 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	case 48000:
 		SADIV = 0xc;
 		break;
-	case 96000: /* not in manual and possibly slightly inaccurate */
+	case 96000: /* yest in manual and possibly slightly inaccurate */
 		SADIV = 0x6;
 		break;
 	}
@@ -302,7 +302,7 @@ static int pxa2xx_i2s_probe(struct snd_soc_dai *dai)
 
 	/*
 	 * PXA Developer's Manual:
-	 * If SACR0[ENB] is toggled in the middle of a normal operation,
+	 * If SACR0[ENB] is toggled in the middle of a yesrmal operation,
 	 * the SACR0[RST] bit must also be set and cleared to reset all
 	 * I2S controller registers.
 	 */

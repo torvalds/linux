@@ -9,7 +9,7 @@ Small Page NAND
 ---------------
 
 The driver uses a 512 byte (1 page) ECC code for this setup. The
-ECC code is not directly compatible with the default kernel ECC
+ECC code is yest directly compatible with the default kernel ECC
 code, so the driver enforces its own OOB layout and ECC parameters
 
 Large Page NAND

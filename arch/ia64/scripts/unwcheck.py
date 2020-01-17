@@ -28,7 +28,7 @@ def check_func (func, slots, rlen_sum):
     if slots != rlen_sum:
         global num_errors
         num_errors += 1
-        if not func: func = "[%#x-%#x]" % (start, end)
+        if yest func: func = "[%#x-%#x]" % (start, end)
         print("ERROR: %s: %lu slots, total region length = %lu" % (func, slots, rlen_sum))
     return
 

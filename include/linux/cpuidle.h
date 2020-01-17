@@ -3,7 +3,7 @@
  *
  * (C) 2007 Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
  *          Shaohua Li <shaohua.li@intel.com>
- *          Adam Belay <abelay@novell.com>
+ *          Adam Belay <abelay@yesvell.com>
  *
  * This code is licenced under the GPL.
  */
@@ -63,7 +63,7 @@ struct cpuidle_state {
 
 	/*
 	 * CPUs execute ->enter_s2idle with the local tick or entire timekeeping
-	 * suspended, so it must not re-enable interrupts at any point (even
+	 * suspended, so it must yest re-enable interrupts at any point (even
 	 * temporarily) or attempt to change states of clock event devices.
 	 */
 	void (*enter_s2idle) (struct cpuidle_device *dev,
@@ -127,13 +127,13 @@ struct cpuidle_driver {
 	/* the driver handles the cpus in cpumask */
 	struct cpumask		*cpumask;
 
-	/* preferred governor to switch at register time */
-	const char		*governor;
+	/* preferred goveryesr to switch at register time */
+	const char		*goveryesr;
 };
 
 #ifdef CONFIG_CPU_IDLE
 extern void disable_cpuidle(void);
-extern bool cpuidle_not_available(struct cpuidle_driver *drv,
+extern bool cpuidle_yest_available(struct cpuidle_driver *drv,
 				  struct cpuidle_device *dev);
 
 extern int cpuidle_select(struct cpuidle_driver *drv,
@@ -170,7 +170,7 @@ static inline struct cpuidle_device *cpuidle_get_device(void)
 {return __this_cpu_read(cpuidle_devices); }
 #else
 static inline void disable_cpuidle(void) { }
-static inline bool cpuidle_not_available(struct cpuidle_driver *drv,
+static inline bool cpuidle_yest_available(struct cpuidle_driver *drv,
 					 struct cpuidle_device *dev)
 {return true; }
 static inline int cpuidle_select(struct cpuidle_driver *drv,
@@ -253,9 +253,9 @@ static inline void cpuidle_poll_state_init(struct cpuidle_driver *drv) {}
  * CPUIDLE GOVERNOR INTERFACE *
  ******************************/
 
-struct cpuidle_governor {
+struct cpuidle_goveryesr {
 	char			name[CPUIDLE_NAME_LEN];
-	struct list_head 	governor_list;
+	struct list_head 	goveryesr_list;
 	unsigned int		rating;
 
 	int  (*enable)		(struct cpuidle_driver *drv,
@@ -270,10 +270,10 @@ struct cpuidle_governor {
 };
 
 #ifdef CONFIG_CPU_IDLE
-extern int cpuidle_register_governor(struct cpuidle_governor *gov);
-extern s64 cpuidle_governor_latency_req(unsigned int cpu);
+extern int cpuidle_register_goveryesr(struct cpuidle_goveryesr *gov);
+extern s64 cpuidle_goveryesr_latency_req(unsigned int cpu);
 #else
-static inline int cpuidle_register_governor(struct cpuidle_governor *gov)
+static inline int cpuidle_register_goveryesr(struct cpuidle_goveryesr *gov)
 {return 0;}
 #endif
 

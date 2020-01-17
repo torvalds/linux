@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_DV_TIMINGS_CAP:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_DV_TIMINGS_CAP - VIDIOC_SUBDEV_DV_TIMINGS_CAP - The capabilities of the Digital Video receiver/transmitter
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_DV_TIMINGS_CAP, struct v4l2_dv_timings_cap *argp )
@@ -45,17 +45,17 @@ Description
 To query the capabilities of the DV receiver/transmitter applications
 initialize the ``pad`` field to 0, zero the reserved array of struct
 :c:type:`v4l2_dv_timings_cap` and call the
-``VIDIOC_DV_TIMINGS_CAP`` ioctl on a video node and the driver will fill
+``VIDIOC_DV_TIMINGS_CAP`` ioctl on a video yesde and the driver will fill
 in the structure.
 
-.. note::
+.. yeste::
 
    Drivers may return different values after
    switching the video input or output.
 
 When implemented by the driver DV capabilities of subdevices can be
 queried by calling the ``VIDIOC_SUBDEV_DV_TIMINGS_CAP`` ioctl directly
-on a subdevice node. The capabilities are specific to inputs (for DV
+on a subdevice yesde. The capabilities are specific to inputs (for DV
 receivers) or outputs (for DV transmitters), applications must specify
 the desired pad number in the struct
 :c:type:`v4l2_dv_timings_cap` ``pad`` field and
@@ -120,8 +120,8 @@ that doesn't support them will return an ``EINVAL`` error code.
     * - __u32
       - ``pad``
       - Pad number as reported by the media controller API. This field is
-	only used when operating on a subdevice node. When operating on a
-	video node applications must set this field to zero.
+	only used when operating on a subdevice yesde. When operating on a
+	video yesde applications must set this field to zero.
     * - __u32
       - ``reserved``\ [2]
       - Reserved for future extensions.
@@ -159,13 +159,13 @@ that doesn't support them will return an ``EINVAL`` error code.
       - CVT/GTF specific: the timings can make use of reduced blanking
 	(CVT) or the 'Secondary GTF' curve (GTF).
     * - ``V4L2_DV_BT_CAP_CUSTOM``
-      - Can support non-standard timings, i.e. timings not belonging to
+      - Can support yesn-standard timings, i.e. timings yest belonging to
 	the standards set in the ``standards`` field.
 
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

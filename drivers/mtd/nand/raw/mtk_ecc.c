@@ -142,7 +142,7 @@ static irqreturn_t mtk_ecc_irq(int irq, void *id)
 		if (dec & ecc->sectors) {
 			/*
 			 * Clear decode IRQ status once again to ensure that
-			 * there will be no extra IRQ.
+			 * there will be yes extra IRQ.
 			 */
 			readw(ecc->regs + ecc->caps->ecc_regs[ECC_DECIRQ_STA]);
 			ecc->sectors = 0;
@@ -253,12 +253,12 @@ static void mtk_ecc_hw_init(struct mtk_ecc *ecc)
 	writel(ECC_OP_DISABLE, ecc->regs + ECC_DECCON);
 }
 
-static struct mtk_ecc *mtk_ecc_get(struct device_node *np)
+static struct mtk_ecc *mtk_ecc_get(struct device_yesde *np)
 {
 	struct platform_device *pdev;
 	struct mtk_ecc *ecc;
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_yesde(np);
 	if (!pdev)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -274,15 +274,15 @@ static struct mtk_ecc *mtk_ecc_get(struct device_node *np)
 	return ecc;
 }
 
-struct mtk_ecc *of_mtk_ecc_get(struct device_node *of_node)
+struct mtk_ecc *of_mtk_ecc_get(struct device_yesde *of_yesde)
 {
 	struct mtk_ecc *ecc = NULL;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_parse_phandle(of_node, "ecc-engine", 0);
+	np = of_parse_phandle(of_yesde, "ecc-engine", 0);
 	if (np) {
 		ecc = mtk_ecc_get(np);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 
 	return ecc;
@@ -366,7 +366,7 @@ int mtk_ecc_wait_done(struct mtk_ecc *ecc, enum mtk_ecc_operation op)
 
 	ret = wait_for_completion_timeout(&ecc->done, msecs_to_jiffies(500));
 	if (!ret) {
-		dev_err(ecc->dev, "%s timeout - interrupt did not arrive)\n",
+		dev_err(ecc->dev, "%s timeout - interrupt did yest arrive)\n",
 			(op == ECC_ENCODE) ? "encoder" : "decoder");
 		return -ETIMEDOUT;
 	}

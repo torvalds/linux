@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* Copyright (C) 2019 ASPEED Technology Inc. */
+/* Copyright (C) 2019 ASPEED Techyeslogy Inc. */
 /* Copyright (C) 2019 IBM Corp. */
 
 #include <linux/clk.h>
@@ -249,7 +249,7 @@ static struct platform_driver aspeed_sdhci_driver = {
 static int aspeed_sdc_probe(struct platform_device *pdev)
 
 {
-	struct device_node *parent, *child;
+	struct device_yesde *parent, *child;
 	struct aspeed_sdc *sdc;
 	int ret;
 
@@ -278,13 +278,13 @@ static int aspeed_sdc_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, sdc);
 
-	parent = pdev->dev.of_node;
-	for_each_available_child_of_node(parent, child) {
+	parent = pdev->dev.of_yesde;
+	for_each_available_child_of_yesde(parent, child) {
 		struct platform_device *cpdev;
 
 		cpdev = of_platform_device_create(child, NULL, &pdev->dev);
 		if (!cpdev) {
-			of_node_put(child);
+			of_yesde_put(child);
 			ret = -ENODEV;
 			goto err_clk;
 		}

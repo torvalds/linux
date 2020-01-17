@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2019 Mellanox Technologies.
+// Copyright (c) 2019 Mellayesx Techyeslogies.
 
 #include <linux/mlx5/fs.h>
 #include "eswitch.h"
 
 struct mlx5_termtbl_handle {
-	struct hlist_node termtbl_hlist;
+	struct hlist_yesde termtbl_hlist;
 
 	struct mlx5_flow_table *termtbl;
 	struct mlx5_flow_act flow_act;

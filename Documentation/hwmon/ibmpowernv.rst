@@ -18,11 +18,11 @@ for sensor devices during the __init phase and registers them with the 'hwmon'.
 'hwmon' populates the 'sysfs' tree having attribute files, each for a given
 sensor type and its attribute data.
 
-All the nodes in the DT appear under "/ibm,opal/sensors" and each valid node in
-the DT maps to an attribute file in 'sysfs'. The node exports unique 'sensor-id'
+All the yesdes in the DT appear under "/ibm,opal/sensors" and each valid yesde in
+the DT maps to an attribute file in 'sysfs'. The yesde exports unique 'sensor-id'
 which the driver uses to make an OPAL call to the firmware.
 
-Usage notes
+Usage yestes
 -----------
 The driver is built statically with the kernel by enabling the config
 CONFIG_SENSORS_IBMPOWERNV. It can also be built as module 'ibmpowernv'.

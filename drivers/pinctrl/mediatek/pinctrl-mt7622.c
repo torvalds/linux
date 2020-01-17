@@ -260,7 +260,7 @@ static const struct mtk_pin_desc mt7622_pins[] = {
 
 /* List all groups consisting of these pins dedicated to the enablement of
  * certain hardware block and the corresponding mode for all of the pins. The
- * hardware probably has multiple combinations of these pinouts.
+ * hardware probably has multiple combinations of these piyesuts.
  */
 
 /* EMMC */
@@ -617,7 +617,7 @@ static const struct group_desc mt7622_groups[] = {
 	PINCTRL_PIN_GROUP("sd_0", mt7622_sd_0),
 	PINCTRL_PIN_GROUP("sd_1", mt7622_sd_1),
 	PINCTRL_PIN_GROUP("snfi", mt7622_snfi),
-	PINCTRL_PIN_GROUP("spi_nor", mt7622_spi),
+	PINCTRL_PIN_GROUP("spi_yesr", mt7622_spi),
 	PINCTRL_PIN_GROUP("spic0_0", mt7622_spic0_0),
 	PINCTRL_PIN_GROUP("spic0_1", mt7622_spic0_1),
 	PINCTRL_PIN_GROUP("spic1_0", mt7622_spic1_0),
@@ -684,7 +684,7 @@ static const char *mt7622_led_groups[] = { "ephy_leds", "ephy0_led",
 					   "ephy1_led", "ephy2_led",
 					   "ephy3_led", "ephy4_led",
 					   "wled", };
-static const char *mt7622_flash_groups[] = { "par_nand", "snfi", "spi_nor"};
+static const char *mt7622_flash_groups[] = { "par_nand", "snfi", "spi_yesr"};
 static const char *mt7622_pcie_groups[] = { "pcie0_0_waken", "pcie0_0_clkreq",
 					    "pcie0_1_waken", "pcie0_1_clkreq",
 					    "pcie1_0_waken", "pcie1_0_clkreq",

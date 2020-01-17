@@ -154,7 +154,7 @@ static int wpf_init_controls(struct vsp1_rwpf *wpf)
 		 */
 		num_flip_ctrls = 1;
 	} else {
-		/* Otherwise flipping is not supported. */
+		/* Otherwise flipping is yest supported. */
 		num_flip_ctrls = 0;
 	}
 
@@ -199,7 +199,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	/*
 	 * Write to registers directly when stopping the stream as there will be
-	 * no pipeline run to apply the display list.
+	 * yes pipeline run to apply the display list.
 	 */
 	vsp1_write(vsp1, VI6_WPF_IRQ_ENB(wpf->entity.index), 0);
 	vsp1_write(vsp1, wpf->entity.index * VI6_WPF_OFFSET +
@@ -316,7 +316,7 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 			   VI6_DPR_WPF_FPORCH_FP_WPFN);
 
 	/*
-	 * Sources. If the pipeline has a single input and BRx is not used,
+	 * Sources. If the pipeline has a single input and BRx is yest used,
 	 * configure it as the master layer. Otherwise configure all
 	 * inputs as sub-layers and select the virtual RPF as the master
 	 * layer.
@@ -430,8 +430,8 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 		       (height << VI6_WPF_SZCLIP_SIZE_SHIFT));
 
 	/*
-	 * For display pipelines without writeback enabled there's no memory
-	 * address to configure, return now.
+	 * For display pipelines without writeback enabled there's yes memory
+	 * address to configure, return yesw.
 	 */
 	if (pipe->lif && !wpf->writeback)
 		return;
@@ -512,7 +512,7 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 	}
 
 	/*
-	 * On Gen3 hardware the SPUVS bit has no effect on 3-planar
+	 * On Gen3 hardware the SPUVS bit has yes effect on 3-planar
 	 * formats. Swap the U and V planes manually in that case.
 	 */
 	if (vsp1->info->gen == 3 && format->num_planes == 3 &&

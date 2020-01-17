@@ -2,7 +2,7 @@
  *  linux/drivers/message/fusion/mptlan.c
  *      IP Over Fibre Channel device driver.
  *      For use with LSI Fibre Channel PCI chip/adapters
- *      running LSI Fusion MPT (Message Passing Technology) firmware.
+ *      running LSI Fusion MPT (Message Passing Techyeslogy) firmware.
  *
  *  Copyright (c) 2000-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
@@ -26,7 +26,7 @@
     MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
     solely responsible for determining the appropriateness of using and
     distributing the Program and assumes all risks associated with its
-    exercise of rights under this Agreement, including but not limited to
+    exercise of rights under this Agreement, including but yest limited to
     the risks and costs of program errors, damage to or loss of data,
     programs or equipment, and unavailability or interruption of operations.
 
@@ -40,7 +40,7 @@
     HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if yest, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
@@ -87,7 +87,7 @@ struct BufferControl {
 
 struct mpt_lan_priv {
 	MPT_ADAPTER *mpt_dev;
-	u8 pnum; /* Port number in the IOC. This is not a Unix network port! */
+	u8 pnum; /* Port number in the IOC. This is yest a Unix network port! */
 
 	atomic_t buckets_out;		/* number of unused buckets on IOC */
 	int bucketthresh;		/* Send more when this many left */
@@ -185,9 +185,9 @@ lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 
 		switch (GET_LAN_FORM(tmsg)) {
 
-		// NOTE!  (Optimization) First case here is now caught in
+		// NOTE!  (Optimization) First case here is yesw caught in
 		//  mptbase.c::mpt_interrupt() routine and callcack here
-		//  is now skipped for this case!
+		//  is yesw skipped for this case!
 #if 0
 		case LAN_REPLY_FORM_MESSAGE_CONTEXT:
 //			dioprintk((KERN_INFO MYNAM "/lan_reply: "
@@ -224,7 +224,7 @@ lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 
 		default:
 			printk (KERN_ERR MYNAM "/lan_reply: Got a turbo reply "
-				"that I don't know what to do with\n");
+				"that I don't kyesw what to do with\n");
 
 			/* CHECKME!  Hmmm...  FreeReqFrame is 0 here; is that right? */
 
@@ -283,8 +283,8 @@ lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 		break;
 
 	default:
-		printk (KERN_ERR MYNAM "/lan_reply: Got a non-turbo "
-			"reply that I don't know what to do with\n");
+		printk (KERN_ERR MYNAM "/lan_reply: Got a yesn-turbo "
+			"reply that I don't kyesw what to do with\n");
 
 		/* CHECKME!  Hmmm...  FreeReqFrame is 0 here; is that right? */
 		FreeReqFrame = 1;
@@ -366,8 +366,8 @@ mpt_lan_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	}
 
 	/*
-	 *  NOTE: pEvent->AckRequired handling now done in mptbase.c;
-	 *  Do NOT do it here now!
+	 *  NOTE: pEvent->AckRequired handling yesw done in mptbase.c;
+	 *  Do NOT do it here yesw!
 	 */
 
 	return 1;
@@ -436,7 +436,7 @@ mpt_lan_open(struct net_device *dev)
 
 	if (mpt_event_register(LanCtx, mpt_lan_event_process) != 0) {
 		printk (KERN_WARNING MYNAM "/lo: Unable to register for Event"
-			" Notifications. This is a bad thing! We're not going "
+			" Notifications. This is a bad thing! We're yest going "
 			"to go ahead, but I'd be leery of system stability at "
 			"this point.\n");
 	}
@@ -694,7 +694,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 		spin_unlock_irqrestore(&priv->txfidx_lock, flags);
 
-		printk (KERN_ERR "%s: no tx context available: %u\n",
+		printk (KERN_ERR "%s: yes tx context available: %u\n",
 			__func__, priv->mpt_txfidx_tail);
 		return NETDEV_TX_BUSY;
 	}
@@ -978,7 +978,7 @@ mpt_lan_receive_post_reply(struct net_device *dev,
 
 	len = le32_to_cpu(pRecvRep->PacketLength);
 	if (len == 0) {
-		printk (KERN_ERR MYNAM ": %s/%s: ERROR - Got a non-TURBO "
+		printk (KERN_ERR MYNAM ": %s/%s: ERROR - Got a yesn-TURBO "
 			"ReceivePostReply w/ PacketLength zero!\n",
 				IOC_AND_NETDEV_NAMES_s_s(dev));
 		printk (KERN_ERR MYNAM ": MsgFlags = %02x, IOCStatus = %04x\n",
@@ -1123,7 +1123,7 @@ mpt_lan_receive_post_reply(struct net_device *dev,
 			"count has crossed the threshold, issuing a "
 			"LanReset to clear the fw's hashtable. You may "
 			"want to check your /var/log/messages for \"CRC "
-			"error\" event notifications.\n");
+			"error\" event yestifications.\n");
 		
 		mpt_lan_reset(dev);
 		mpt_lan_wake_post_buckets_task(dev, 0);
@@ -1462,7 +1462,7 @@ static int __init mpt_lan_init (void)
 		return -EBUSY;
 	}
 
-	dlprintk((KERN_INFO MYNAM ": Registered for IOC reset notifications\n"));
+	dlprintk((KERN_INFO MYNAM ": Registered for IOC reset yestifications\n"));
 	
 	mpt_device_driver_register(&mptlan_driver, MPTLAN_DRIVER);
 	return 0;

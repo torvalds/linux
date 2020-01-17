@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  step_wise.c - A step-by-step Thermal throttling governor
+ *  step_wise.c - A step-by-step Thermal throttling goveryesr
  *
  *  Copyright (C) 2012 Intel Corp
  *  Copyright (C) 2012 Durgadoss R <durgadoss.r@intel.com>
@@ -19,17 +19,17 @@
  * If the temperature is higher than a trip point,
  *    a. if the trend is THERMAL_TREND_RAISING, use higher cooling
  *       state for this trip point
- *    b. if the trend is THERMAL_TREND_DROPPING, do nothing
+ *    b. if the trend is THERMAL_TREND_DROPPING, do yesthing
  *    c. if the trend is THERMAL_TREND_RAISE_FULL, use upper limit
  *       for this trip point
  *    d. if the trend is THERMAL_TREND_DROP_FULL, use lower limit
  *       for this trip point
  * If the temperature is lower than a trip point,
- *    a. if the trend is THERMAL_TREND_RAISING, do nothing
+ *    a. if the trend is THERMAL_TREND_RAISING, do yesthing
  *    b. if the trend is THERMAL_TREND_DROPPING, use lower cooling
  *       state for this trip point, if the cooling state already
  *       equals lower limit, deactivate the thermal instance
- *    c. if the trend is THERMAL_TREND_RAISE_FULL, do nothing
+ *    c. if the trend is THERMAL_TREND_RAISE_FULL, do yesthing
  *    d. if the trend is THERMAL_TREND_DROP_FULL, use lower limit,
  *       if the cooling state already equals lower limit,
  *       deactivate the thermal instance
@@ -142,7 +142,7 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 
 	mutex_lock(&tz->lock);
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(instance, &tz->thermal_instances, tz_yesde) {
 		if (instance->trip != trip)
 			continue;
 
@@ -194,7 +194,7 @@ static int step_wise_throttle(struct thermal_zone_device *tz, int trip)
 
 	mutex_lock(&tz->lock);
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node)
+	list_for_each_entry(instance, &tz->thermal_instances, tz_yesde)
 		thermal_cdev_update(instance->cdev);
 
 	mutex_unlock(&tz->lock);
@@ -202,7 +202,7 @@ static int step_wise_throttle(struct thermal_zone_device *tz, int trip)
 	return 0;
 }
 
-static struct thermal_governor thermal_gov_step_wise = {
+static struct thermal_goveryesr thermal_gov_step_wise = {
 	.name		= "step_wise",
 	.throttle	= step_wise_throttle,
 };

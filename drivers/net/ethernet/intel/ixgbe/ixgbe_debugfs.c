@@ -104,7 +104,7 @@ static ssize_t ixgbe_dbg_reg_ops_write(struct file *filp,
 			e_dev_info("read <reg>\n");
 		}
 	} else {
-		e_dev_info("Unknown command %s\n", ixgbe_dbg_reg_ops_buf);
+		e_dev_info("Unkyeswn command %s\n", ixgbe_dbg_reg_ops_buf);
 		e_dev_info("Available commands:\n");
 		e_dev_info("   read <reg>\n");
 		e_dev_info("   write <reg> <value>\n");
@@ -169,7 +169,7 @@ static ssize_t ixgbe_dbg_netdev_ops_write(struct file *filp,
 		adapter->netdev->netdev_ops->ndo_tx_timeout(adapter->netdev);
 		e_dev_info("tx_timeout called\n");
 	} else {
-		e_dev_info("Unknown command: %s\n", ixgbe_dbg_netdev_ops_buf);
+		e_dev_info("Unkyeswn command: %s\n", ixgbe_dbg_netdev_ops_buf);
 		e_dev_info("Available commands:\n");
 		e_dev_info("    tx_timeout\n");
 	}

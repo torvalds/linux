@@ -124,8 +124,8 @@ Contact:        oded.gabbay@gmail.com
 Description:    Power management profile. Values are "auto", "manual". In "auto"
                 mode, the driver will set the maximum clock frequency to a high
                 value when a user-space process opens the device's file (unless
-                it was already opened by another process). The driver will set
-                the max clock frequency to a low value when there are no user
+                it was already opened by ayesther process). The driver will set
+                the max clock frequency to a low value when there are yes user
                 processes that are opened on the device's file. In "manual"
                 mode, the user sets the maximum clock frequency by writing to
                 ic_clk, mme_clk and tpc_clk. This property is valid only for

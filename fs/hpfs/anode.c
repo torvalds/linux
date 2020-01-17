@@ -1,148 +1,148 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/fs/hpfs/anode.c
+ *  linux/fs/hpfs/ayesde.c
  *
  *  Mikulas Patocka (mikulas@artax.karlin.mff.cuni.cz), 1998-1999
  *
- *  handling HPFS anode tree that contains file allocation info
+ *  handling HPFS ayesde tree that contains file allocation info
  */
 
 #include "hpfs_fn.h"
 
 /* Find a sector in allocation tree */
 
-secno hpfs_bplus_lookup(struct super_block *s, struct inode *inode,
+secyes hpfs_bplus_lookup(struct super_block *s, struct iyesde *iyesde,
 		   struct bplus_header *btree, unsigned sec,
 		   struct buffer_head *bh)
 {
-	anode_secno a = -1;
-	struct anode *anode;
+	ayesde_secyes a = -1;
+	struct ayesde *ayesde;
 	int i;
 	int c1, c2 = 0;
 	go_down:
 	if (hpfs_sb(s)->sb_chk) if (hpfs_stop_cycles(s, a, &c1, &c2, "hpfs_bplus_lookup")) return -1;
 	if (bp_internal(btree)) {
-		for (i = 0; i < btree->n_used_nodes; i++)
-			if (le32_to_cpu(btree->u.internal[i].file_secno) > sec) {
+		for (i = 0; i < btree->n_used_yesdes; i++)
+			if (le32_to_cpu(btree->u.internal[i].file_secyes) > sec) {
 				a = le32_to_cpu(btree->u.internal[i].down);
 				brelse(bh);
-				if (!(anode = hpfs_map_anode(s, a, &bh))) return -1;
-				btree = &anode->btree;
+				if (!(ayesde = hpfs_map_ayesde(s, a, &bh))) return -1;
+				btree = &ayesde->btree;
 				goto go_down;
 			}
-		hpfs_error(s, "sector %08x not found in internal anode %08x", sec, a);
+		hpfs_error(s, "sector %08x yest found in internal ayesde %08x", sec, a);
 		brelse(bh);
 		return -1;
 	}
-	for (i = 0; i < btree->n_used_nodes; i++)
-		if (le32_to_cpu(btree->u.external[i].file_secno) <= sec &&
-		    le32_to_cpu(btree->u.external[i].file_secno) + le32_to_cpu(btree->u.external[i].length) > sec) {
-			a = le32_to_cpu(btree->u.external[i].disk_secno) + sec - le32_to_cpu(btree->u.external[i].file_secno);
+	for (i = 0; i < btree->n_used_yesdes; i++)
+		if (le32_to_cpu(btree->u.external[i].file_secyes) <= sec &&
+		    le32_to_cpu(btree->u.external[i].file_secyes) + le32_to_cpu(btree->u.external[i].length) > sec) {
+			a = le32_to_cpu(btree->u.external[i].disk_secyes) + sec - le32_to_cpu(btree->u.external[i].file_secyes);
 			if (hpfs_sb(s)->sb_chk) if (hpfs_chk_sectors(s, a, 1, "data")) {
 				brelse(bh);
 				return -1;
 			}
-			if (inode) {
-				struct hpfs_inode_info *hpfs_inode = hpfs_i(inode);
-				hpfs_inode->i_file_sec = le32_to_cpu(btree->u.external[i].file_secno);
-				hpfs_inode->i_disk_sec = le32_to_cpu(btree->u.external[i].disk_secno);
-				hpfs_inode->i_n_secs = le32_to_cpu(btree->u.external[i].length);
+			if (iyesde) {
+				struct hpfs_iyesde_info *hpfs_iyesde = hpfs_i(iyesde);
+				hpfs_iyesde->i_file_sec = le32_to_cpu(btree->u.external[i].file_secyes);
+				hpfs_iyesde->i_disk_sec = le32_to_cpu(btree->u.external[i].disk_secyes);
+				hpfs_iyesde->i_n_secs = le32_to_cpu(btree->u.external[i].length);
 			}
 			brelse(bh);
 			return a;
 		}
-	hpfs_error(s, "sector %08x not found in external anode %08x", sec, a);
+	hpfs_error(s, "sector %08x yest found in external ayesde %08x", sec, a);
 	brelse(bh);
 	return -1;
 }
 
 /* Add a sector to tree */
 
-secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsigned fsecno)
+secyes hpfs_add_sector_to_btree(struct super_block *s, secyes yesde, int fyesd, unsigned fsecyes)
 {
 	struct bplus_header *btree;
-	struct anode *anode = NULL, *ranode = NULL;
-	struct fnode *fnode;
-	anode_secno a, na = -1, ra, up = -1;
-	secno se;
+	struct ayesde *ayesde = NULL, *rayesde = NULL;
+	struct fyesde *fyesde;
+	ayesde_secyes a, na = -1, ra, up = -1;
+	secyes se;
 	struct buffer_head *bh, *bh1, *bh2;
 	int n;
 	unsigned fs;
 	int c1, c2 = 0;
-	if (fnod) {
-		if (!(fnode = hpfs_map_fnode(s, node, &bh))) return -1;
-		btree = &fnode->btree;
+	if (fyesd) {
+		if (!(fyesde = hpfs_map_fyesde(s, yesde, &bh))) return -1;
+		btree = &fyesde->btree;
 	} else {
-		if (!(anode = hpfs_map_anode(s, node, &bh))) return -1;
-		btree = &anode->btree;
+		if (!(ayesde = hpfs_map_ayesde(s, yesde, &bh))) return -1;
+		btree = &ayesde->btree;
 	}
-	a = node;
+	a = yesde;
 	go_down:
-	if ((n = btree->n_used_nodes - 1) < -!!fnod) {
-		hpfs_error(s, "anode %08x has no entries", a);
+	if ((n = btree->n_used_yesdes - 1) < -!!fyesd) {
+		hpfs_error(s, "ayesde %08x has yes entries", a);
 		brelse(bh);
 		return -1;
 	}
 	if (bp_internal(btree)) {
 		a = le32_to_cpu(btree->u.internal[n].down);
-		btree->u.internal[n].file_secno = cpu_to_le32(-1);
+		btree->u.internal[n].file_secyes = cpu_to_le32(-1);
 		mark_buffer_dirty(bh);
 		brelse(bh);
 		if (hpfs_sb(s)->sb_chk)
 			if (hpfs_stop_cycles(s, a, &c1, &c2, "hpfs_add_sector_to_btree #1")) return -1;
-		if (!(anode = hpfs_map_anode(s, a, &bh))) return -1;
-		btree = &anode->btree;
+		if (!(ayesde = hpfs_map_ayesde(s, a, &bh))) return -1;
+		btree = &ayesde->btree;
 		goto go_down;
 	}
 	if (n >= 0) {
-		if (le32_to_cpu(btree->u.external[n].file_secno) + le32_to_cpu(btree->u.external[n].length) != fsecno) {
-			hpfs_error(s, "allocated size %08x, trying to add sector %08x, %cnode %08x",
-				le32_to_cpu(btree->u.external[n].file_secno) + le32_to_cpu(btree->u.external[n].length), fsecno,
-				fnod?'f':'a', node);
+		if (le32_to_cpu(btree->u.external[n].file_secyes) + le32_to_cpu(btree->u.external[n].length) != fsecyes) {
+			hpfs_error(s, "allocated size %08x, trying to add sector %08x, %cyesde %08x",
+				le32_to_cpu(btree->u.external[n].file_secyes) + le32_to_cpu(btree->u.external[n].length), fsecyes,
+				fyesd?'f':'a', yesde);
 			brelse(bh);
 			return -1;
 		}
-		if (hpfs_alloc_if_possible(s, se = le32_to_cpu(btree->u.external[n].disk_secno) + le32_to_cpu(btree->u.external[n].length))) {
+		if (hpfs_alloc_if_possible(s, se = le32_to_cpu(btree->u.external[n].disk_secyes) + le32_to_cpu(btree->u.external[n].length))) {
 			le32_add_cpu(&btree->u.external[n].length, 1);
 			mark_buffer_dirty(bh);
 			brelse(bh);
 			return se;
 		}
 	} else {
-		if (fsecno) {
-			hpfs_error(s, "empty file %08x, trying to add sector %08x", node, fsecno);
+		if (fsecyes) {
+			hpfs_error(s, "empty file %08x, trying to add sector %08x", yesde, fsecyes);
 			brelse(bh);
 			return -1;
 		}
-		se = !fnod ? node : (node + 16384) & ~16383;
+		se = !fyesd ? yesde : (yesde + 16384) & ~16383;
 	}	
-	if (!(se = hpfs_alloc_sector(s, se, 1, fsecno*ALLOC_M>ALLOC_FWD_MAX ? ALLOC_FWD_MAX : fsecno*ALLOC_M<ALLOC_FWD_MIN ? ALLOC_FWD_MIN : fsecno*ALLOC_M))) {
+	if (!(se = hpfs_alloc_sector(s, se, 1, fsecyes*ALLOC_M>ALLOC_FWD_MAX ? ALLOC_FWD_MAX : fsecyes*ALLOC_M<ALLOC_FWD_MIN ? ALLOC_FWD_MIN : fsecyes*ALLOC_M))) {
 		brelse(bh);
 		return -1;
 	}
-	fs = n < 0 ? 0 : le32_to_cpu(btree->u.external[n].file_secno) + le32_to_cpu(btree->u.external[n].length);
-	if (!btree->n_free_nodes) {
-		up = a != node ? le32_to_cpu(anode->up) : -1;
-		if (!(anode = hpfs_alloc_anode(s, a, &na, &bh1))) {
+	fs = n < 0 ? 0 : le32_to_cpu(btree->u.external[n].file_secyes) + le32_to_cpu(btree->u.external[n].length);
+	if (!btree->n_free_yesdes) {
+		up = a != yesde ? le32_to_cpu(ayesde->up) : -1;
+		if (!(ayesde = hpfs_alloc_ayesde(s, a, &na, &bh1))) {
 			brelse(bh);
 			hpfs_free_sectors(s, se, 1);
 			return -1;
 		}
-		if (a == node && fnod) {
-			anode->up = cpu_to_le32(node);
-			anode->btree.flags |= BP_fnode_parent;
-			anode->btree.n_used_nodes = btree->n_used_nodes;
-			anode->btree.first_free = btree->first_free;
-			anode->btree.n_free_nodes = 40 - anode->btree.n_used_nodes;
-			memcpy(&anode->u, &btree->u, btree->n_used_nodes * 12);
+		if (a == yesde && fyesd) {
+			ayesde->up = cpu_to_le32(yesde);
+			ayesde->btree.flags |= BP_fyesde_parent;
+			ayesde->btree.n_used_yesdes = btree->n_used_yesdes;
+			ayesde->btree.first_free = btree->first_free;
+			ayesde->btree.n_free_yesdes = 40 - ayesde->btree.n_used_yesdes;
+			memcpy(&ayesde->u, &btree->u, btree->n_used_yesdes * 12);
 			btree->flags |= BP_internal;
-			btree->n_free_nodes = 11;
-			btree->n_used_nodes = 1;
+			btree->n_free_yesdes = 11;
+			btree->n_used_yesdes = 1;
 			btree->first_free = cpu_to_le16((char *)&(btree->u.internal[1]) - (char *)btree);
-			btree->u.internal[0].file_secno = cpu_to_le32(-1);
+			btree->u.internal[0].file_secyes = cpu_to_le32(-1);
 			btree->u.internal[0].down = cpu_to_le32(na);
 			mark_buffer_dirty(bh);
-		} else if (!(ranode = hpfs_alloc_anode(s, /*a*/0, &ra, &bh2))) {
+		} else if (!(rayesde = hpfs_alloc_ayesde(s, /*a*/0, &ra, &bh2))) {
 			brelse(bh);
 			brelse(bh1);
 			hpfs_free_sectors(s, se, 1);
@@ -151,113 +151,113 @@ secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsi
 		}
 		brelse(bh);
 		bh = bh1;
-		btree = &anode->btree;
+		btree = &ayesde->btree;
 	}
-	btree->n_free_nodes--; n = btree->n_used_nodes++;
+	btree->n_free_yesdes--; n = btree->n_used_yesdes++;
 	le16_add_cpu(&btree->first_free, 12);
-	btree->u.external[n].disk_secno = cpu_to_le32(se);
-	btree->u.external[n].file_secno = cpu_to_le32(fs);
+	btree->u.external[n].disk_secyes = cpu_to_le32(se);
+	btree->u.external[n].file_secyes = cpu_to_le32(fs);
 	btree->u.external[n].length = cpu_to_le32(1);
 	mark_buffer_dirty(bh);
 	brelse(bh);
-	if ((a == node && fnod) || na == -1) return se;
+	if ((a == yesde && fyesd) || na == -1) return se;
 	c2 = 0;
-	while (up != (anode_secno)-1) {
-		struct anode *new_anode;
+	while (up != (ayesde_secyes)-1) {
+		struct ayesde *new_ayesde;
 		if (hpfs_sb(s)->sb_chk)
 			if (hpfs_stop_cycles(s, up, &c1, &c2, "hpfs_add_sector_to_btree #2")) return -1;
-		if (up != node || !fnod) {
-			if (!(anode = hpfs_map_anode(s, up, &bh))) return -1;
-			btree = &anode->btree;
+		if (up != yesde || !fyesd) {
+			if (!(ayesde = hpfs_map_ayesde(s, up, &bh))) return -1;
+			btree = &ayesde->btree;
 		} else {
-			if (!(fnode = hpfs_map_fnode(s, up, &bh))) return -1;
-			btree = &fnode->btree;
+			if (!(fyesde = hpfs_map_fyesde(s, up, &bh))) return -1;
+			btree = &fyesde->btree;
 		}
-		if (btree->n_free_nodes) {
-			btree->n_free_nodes--; n = btree->n_used_nodes++;
+		if (btree->n_free_yesdes) {
+			btree->n_free_yesdes--; n = btree->n_used_yesdes++;
 			le16_add_cpu(&btree->first_free, 8);
-			btree->u.internal[n].file_secno = cpu_to_le32(-1);
+			btree->u.internal[n].file_secyes = cpu_to_le32(-1);
 			btree->u.internal[n].down = cpu_to_le32(na);
-			btree->u.internal[n-1].file_secno = cpu_to_le32(fs);
+			btree->u.internal[n-1].file_secyes = cpu_to_le32(fs);
 			mark_buffer_dirty(bh);
 			brelse(bh);
 			brelse(bh2);
 			hpfs_free_sectors(s, ra, 1);
-			if ((anode = hpfs_map_anode(s, na, &bh))) {
-				anode->up = cpu_to_le32(up);
-				if (up == node && fnod)
-					anode->btree.flags |= BP_fnode_parent;
+			if ((ayesde = hpfs_map_ayesde(s, na, &bh))) {
+				ayesde->up = cpu_to_le32(up);
+				if (up == yesde && fyesd)
+					ayesde->btree.flags |= BP_fyesde_parent;
 				else
-					anode->btree.flags &= ~BP_fnode_parent;
+					ayesde->btree.flags &= ~BP_fyesde_parent;
 				mark_buffer_dirty(bh);
 				brelse(bh);
 			}
 			return se;
 		}
-		up = up != node ? le32_to_cpu(anode->up) : -1;
-		btree->u.internal[btree->n_used_nodes - 1].file_secno = cpu_to_le32(/*fs*/-1);
+		up = up != yesde ? le32_to_cpu(ayesde->up) : -1;
+		btree->u.internal[btree->n_used_yesdes - 1].file_secyes = cpu_to_le32(/*fs*/-1);
 		mark_buffer_dirty(bh);
 		brelse(bh);
 		a = na;
-		if ((new_anode = hpfs_alloc_anode(s, a, &na, &bh))) {
-			anode = new_anode;
-			/*anode->up = cpu_to_le32(up != -1 ? up : ra);*/
-			anode->btree.flags |= BP_internal;
-			anode->btree.n_used_nodes = 1;
-			anode->btree.n_free_nodes = 59;
-			anode->btree.first_free = cpu_to_le16(16);
-			anode->btree.u.internal[0].down = cpu_to_le32(a);
-			anode->btree.u.internal[0].file_secno = cpu_to_le32(-1);
+		if ((new_ayesde = hpfs_alloc_ayesde(s, a, &na, &bh))) {
+			ayesde = new_ayesde;
+			/*ayesde->up = cpu_to_le32(up != -1 ? up : ra);*/
+			ayesde->btree.flags |= BP_internal;
+			ayesde->btree.n_used_yesdes = 1;
+			ayesde->btree.n_free_yesdes = 59;
+			ayesde->btree.first_free = cpu_to_le16(16);
+			ayesde->btree.u.internal[0].down = cpu_to_le32(a);
+			ayesde->btree.u.internal[0].file_secyes = cpu_to_le32(-1);
 			mark_buffer_dirty(bh);
 			brelse(bh);
-			if ((anode = hpfs_map_anode(s, a, &bh))) {
-				anode->up = cpu_to_le32(na);
+			if ((ayesde = hpfs_map_ayesde(s, a, &bh))) {
+				ayesde->up = cpu_to_le32(na);
 				mark_buffer_dirty(bh);
 				brelse(bh);
 			}
 		} else na = a;
 	}
-	if ((anode = hpfs_map_anode(s, na, &bh))) {
-		anode->up = cpu_to_le32(node);
-		if (fnod)
-			anode->btree.flags |= BP_fnode_parent;
+	if ((ayesde = hpfs_map_ayesde(s, na, &bh))) {
+		ayesde->up = cpu_to_le32(yesde);
+		if (fyesd)
+			ayesde->btree.flags |= BP_fyesde_parent;
 		mark_buffer_dirty(bh);
 		brelse(bh);
 	}
-	if (!fnod) {
-		if (!(anode = hpfs_map_anode(s, node, &bh))) {
+	if (!fyesd) {
+		if (!(ayesde = hpfs_map_ayesde(s, yesde, &bh))) {
 			brelse(bh2);
 			return -1;
 		}
-		btree = &anode->btree;
+		btree = &ayesde->btree;
 	} else {
-		if (!(fnode = hpfs_map_fnode(s, node, &bh))) {
+		if (!(fyesde = hpfs_map_fyesde(s, yesde, &bh))) {
 			brelse(bh2);
 			return -1;
 		}
-		btree = &fnode->btree;
+		btree = &fyesde->btree;
 	}
-	ranode->up = cpu_to_le32(node);
-	memcpy(&ranode->btree, btree, le16_to_cpu(btree->first_free));
-	if (fnod)
-		ranode->btree.flags |= BP_fnode_parent;
-	ranode->btree.n_free_nodes = (bp_internal(&ranode->btree) ? 60 : 40) - ranode->btree.n_used_nodes;
-	if (bp_internal(&ranode->btree)) for (n = 0; n < ranode->btree.n_used_nodes; n++) {
-		struct anode *unode;
-		if ((unode = hpfs_map_anode(s, le32_to_cpu(ranode->u.internal[n].down), &bh1))) {
-			unode->up = cpu_to_le32(ra);
-			unode->btree.flags &= ~BP_fnode_parent;
+	rayesde->up = cpu_to_le32(yesde);
+	memcpy(&rayesde->btree, btree, le16_to_cpu(btree->first_free));
+	if (fyesd)
+		rayesde->btree.flags |= BP_fyesde_parent;
+	rayesde->btree.n_free_yesdes = (bp_internal(&rayesde->btree) ? 60 : 40) - rayesde->btree.n_used_yesdes;
+	if (bp_internal(&rayesde->btree)) for (n = 0; n < rayesde->btree.n_used_yesdes; n++) {
+		struct ayesde *uyesde;
+		if ((uyesde = hpfs_map_ayesde(s, le32_to_cpu(rayesde->u.internal[n].down), &bh1))) {
+			uyesde->up = cpu_to_le32(ra);
+			uyesde->btree.flags &= ~BP_fyesde_parent;
 			mark_buffer_dirty(bh1);
 			brelse(bh1);
 		}
 	}
 	btree->flags |= BP_internal;
-	btree->n_free_nodes = fnod ? 10 : 58;
-	btree->n_used_nodes = 2;
+	btree->n_free_yesdes = fyesd ? 10 : 58;
+	btree->n_used_yesdes = 2;
 	btree->first_free = cpu_to_le16((char *)&btree->u.internal[2] - (char *)btree);
-	btree->u.internal[0].file_secno = cpu_to_le32(fs);
+	btree->u.internal[0].file_secyes = cpu_to_le32(fs);
 	btree->u.internal[0].down = cpu_to_le32(ra);
-	btree->u.internal[1].file_secno = cpu_to_le32(-1);
+	btree->u.internal[1].file_secyes = cpu_to_le32(-1);
 	btree->u.internal[1].down = cpu_to_le32(na);
 	mark_buffer_dirty(bh);
 	brelse(bh);
@@ -274,8 +274,8 @@ secno hpfs_add_sector_to_btree(struct super_block *s, secno node, int fnod, unsi
 void hpfs_remove_btree(struct super_block *s, struct bplus_header *btree)
 {
 	struct bplus_header *btree1 = btree;
-	struct anode *anode = NULL;
-	anode_secno ano = 0, oano;
+	struct ayesde *ayesde = NULL;
+	ayesde_secyes ayes = 0, oayes;
 	struct buffer_head *bh;
 	int level = 0;
 	int pos = 0;
@@ -285,66 +285,66 @@ void hpfs_remove_btree(struct super_block *s, struct bplus_header *btree)
 	go_down:
 	d2 = 0;
 	while (bp_internal(btree1)) {
-		ano = le32_to_cpu(btree1->u.internal[pos].down);
+		ayes = le32_to_cpu(btree1->u.internal[pos].down);
 		if (level) brelse(bh);
 		if (hpfs_sb(s)->sb_chk)
-			if (hpfs_stop_cycles(s, ano, &d1, &d2, "hpfs_remove_btree #1"))
+			if (hpfs_stop_cycles(s, ayes, &d1, &d2, "hpfs_remove_btree #1"))
 				return;
-		if (!(anode = hpfs_map_anode(s, ano, &bh))) return;
-		btree1 = &anode->btree;
+		if (!(ayesde = hpfs_map_ayesde(s, ayes, &bh))) return;
+		btree1 = &ayesde->btree;
 		level++;
 		pos = 0;
 	}
-	for (i = 0; i < btree1->n_used_nodes; i++)
-		hpfs_free_sectors(s, le32_to_cpu(btree1->u.external[i].disk_secno), le32_to_cpu(btree1->u.external[i].length));
+	for (i = 0; i < btree1->n_used_yesdes; i++)
+		hpfs_free_sectors(s, le32_to_cpu(btree1->u.external[i].disk_secyes), le32_to_cpu(btree1->u.external[i].length));
 	go_up:
 	if (!level) return;
 	brelse(bh);
 	if (hpfs_sb(s)->sb_chk)
-		if (hpfs_stop_cycles(s, ano, &c1, &c2, "hpfs_remove_btree #2")) return;
-	hpfs_free_sectors(s, ano, 1);
-	oano = ano;
-	ano = le32_to_cpu(anode->up);
+		if (hpfs_stop_cycles(s, ayes, &c1, &c2, "hpfs_remove_btree #2")) return;
+	hpfs_free_sectors(s, ayes, 1);
+	oayes = ayes;
+	ayes = le32_to_cpu(ayesde->up);
 	if (--level) {
-		if (!(anode = hpfs_map_anode(s, ano, &bh))) return;
-		btree1 = &anode->btree;
+		if (!(ayesde = hpfs_map_ayesde(s, ayes, &bh))) return;
+		btree1 = &ayesde->btree;
 	} else btree1 = btree;
-	for (i = 0; i < btree1->n_used_nodes; i++) {
-		if (le32_to_cpu(btree1->u.internal[i].down) == oano) {
-			if ((pos = i + 1) < btree1->n_used_nodes)
+	for (i = 0; i < btree1->n_used_yesdes; i++) {
+		if (le32_to_cpu(btree1->u.internal[i].down) == oayes) {
+			if ((pos = i + 1) < btree1->n_used_yesdes)
 				goto go_down;
 			else
 				goto go_up;
 		}
 	}
 	hpfs_error(s,
-		   "reference to anode %08x not found in anode %08x "
+		   "reference to ayesde %08x yest found in ayesde %08x "
 		   "(probably bad up pointer)",
-		   oano, level ? ano : -1);
+		   oayes, level ? ayes : -1);
 	if (level)
 		brelse(bh);
 }
 
 /* Just a wrapper around hpfs_bplus_lookup .. used for reading eas */
 
-static secno anode_lookup(struct super_block *s, anode_secno a, unsigned sec)
+static secyes ayesde_lookup(struct super_block *s, ayesde_secyes a, unsigned sec)
 {
-	struct anode *anode;
+	struct ayesde *ayesde;
 	struct buffer_head *bh;
-	if (!(anode = hpfs_map_anode(s, a, &bh))) return -1;
-	return hpfs_bplus_lookup(s, NULL, &anode->btree, sec, bh);
+	if (!(ayesde = hpfs_map_ayesde(s, a, &bh))) return -1;
+	return hpfs_bplus_lookup(s, NULL, &ayesde->btree, sec, bh);
 }
 
-int hpfs_ea_read(struct super_block *s, secno a, int ano, unsigned pos,
+int hpfs_ea_read(struct super_block *s, secyes a, int ayes, unsigned pos,
 	    unsigned len, char *buf)
 {
 	struct buffer_head *bh;
 	char *data;
-	secno sec;
+	secyes sec;
 	unsigned l;
 	while (len) {
-		if (ano) {
-			if ((sec = anode_lookup(s, a, pos >> 9)) == -1)
+		if (ayes) {
+			if ((sec = ayesde_lookup(s, a, pos >> 9)) == -1)
 				return -1;
 		} else sec = a + (pos >> 9);
 		if (hpfs_sb(s)->sb_chk) if (hpfs_chk_sectors(s, sec, 1, "ea #1")) return -1;
@@ -358,16 +358,16 @@ int hpfs_ea_read(struct super_block *s, secno a, int ano, unsigned pos,
 	return 0;
 }
 
-int hpfs_ea_write(struct super_block *s, secno a, int ano, unsigned pos,
+int hpfs_ea_write(struct super_block *s, secyes a, int ayes, unsigned pos,
 	     unsigned len, const char *buf)
 {
 	struct buffer_head *bh;
 	char *data;
-	secno sec;
+	secyes sec;
 	unsigned l;
 	while (len) {
-		if (ano) {
-			if ((sec = anode_lookup(s, a, pos >> 9)) == -1)
+		if (ayes) {
+			if ((sec = ayesde_lookup(s, a, pos >> 9)) == -1)
 				return -1;
 		} else sec = a + (pos >> 9);
 		if (hpfs_sb(s)->sb_chk) if (hpfs_chk_sectors(s, sec, 1, "ea #2")) return -1;
@@ -382,41 +382,41 @@ int hpfs_ea_write(struct super_block *s, secno a, int ano, unsigned pos,
 	return 0;
 }
 
-void hpfs_ea_remove(struct super_block *s, secno a, int ano, unsigned len)
+void hpfs_ea_remove(struct super_block *s, secyes a, int ayes, unsigned len)
 {
-	struct anode *anode;
+	struct ayesde *ayesde;
 	struct buffer_head *bh;
-	if (ano) {
-		if (!(anode = hpfs_map_anode(s, a, &bh))) return;
-		hpfs_remove_btree(s, &anode->btree);
+	if (ayes) {
+		if (!(ayesde = hpfs_map_ayesde(s, a, &bh))) return;
+		hpfs_remove_btree(s, &ayesde->btree);
 		brelse(bh);
 		hpfs_free_sectors(s, a, 1);
 	} else hpfs_free_sectors(s, a, (len + 511) >> 9);
 }
 
-/* Truncate allocation tree. Doesn't join anodes - I hope it doesn't matter */
+/* Truncate allocation tree. Doesn't join ayesdes - I hope it doesn't matter */
 
-void hpfs_truncate_btree(struct super_block *s, secno f, int fno, unsigned secs)
+void hpfs_truncate_btree(struct super_block *s, secyes f, int fyes, unsigned secs)
 {
-	struct fnode *fnode;
-	struct anode *anode;
+	struct fyesde *fyesde;
+	struct ayesde *ayesde;
 	struct buffer_head *bh;
 	struct bplus_header *btree;
-	anode_secno node = f;
-	int i, j, nodes;
+	ayesde_secyes yesde = f;
+	int i, j, yesdes;
 	int c1, c2 = 0;
-	if (fno) {
-		if (!(fnode = hpfs_map_fnode(s, f, &bh))) return;
-		btree = &fnode->btree;
+	if (fyes) {
+		if (!(fyesde = hpfs_map_fyesde(s, f, &bh))) return;
+		btree = &fyesde->btree;
 	} else {
-		if (!(anode = hpfs_map_anode(s, f, &bh))) return;
-		btree = &anode->btree;
+		if (!(ayesde = hpfs_map_ayesde(s, f, &bh))) return;
+		btree = &ayesde->btree;
 	}
 	if (!secs) {
 		hpfs_remove_btree(s, btree);
-		if (fno) {
-			btree->n_free_nodes = 8;
-			btree->n_used_nodes = 0;
+		if (fyes) {
+			btree->n_free_yesdes = 8;
+			btree->n_used_yesdes = 0;
 			btree->first_free = cpu_to_le16(8);
 			btree->flags &= ~BP_internal;
 			mark_buffer_dirty(bh);
@@ -425,73 +425,73 @@ void hpfs_truncate_btree(struct super_block *s, secno f, int fno, unsigned secs)
 		return;
 	}
 	while (bp_internal(btree)) {
-		nodes = btree->n_used_nodes + btree->n_free_nodes;
-		for (i = 0; i < btree->n_used_nodes; i++)
-			if (le32_to_cpu(btree->u.internal[i].file_secno) >= secs) goto f;
+		yesdes = btree->n_used_yesdes + btree->n_free_yesdes;
+		for (i = 0; i < btree->n_used_yesdes; i++)
+			if (le32_to_cpu(btree->u.internal[i].file_secyes) >= secs) goto f;
 		brelse(bh);
-		hpfs_error(s, "internal btree %08x doesn't end with -1", node);
+		hpfs_error(s, "internal btree %08x doesn't end with -1", yesde);
 		return;
 		f:
-		for (j = i + 1; j < btree->n_used_nodes; j++)
+		for (j = i + 1; j < btree->n_used_yesdes; j++)
 			hpfs_ea_remove(s, le32_to_cpu(btree->u.internal[j].down), 1, 0);
-		btree->n_used_nodes = i + 1;
-		btree->n_free_nodes = nodes - btree->n_used_nodes;
-		btree->first_free = cpu_to_le16(8 + 8 * btree->n_used_nodes);
+		btree->n_used_yesdes = i + 1;
+		btree->n_free_yesdes = yesdes - btree->n_used_yesdes;
+		btree->first_free = cpu_to_le16(8 + 8 * btree->n_used_yesdes);
 		mark_buffer_dirty(bh);
-		if (btree->u.internal[i].file_secno == cpu_to_le32(secs)) {
+		if (btree->u.internal[i].file_secyes == cpu_to_le32(secs)) {
 			brelse(bh);
 			return;
 		}
-		node = le32_to_cpu(btree->u.internal[i].down);
+		yesde = le32_to_cpu(btree->u.internal[i].down);
 		brelse(bh);
 		if (hpfs_sb(s)->sb_chk)
-			if (hpfs_stop_cycles(s, node, &c1, &c2, "hpfs_truncate_btree"))
+			if (hpfs_stop_cycles(s, yesde, &c1, &c2, "hpfs_truncate_btree"))
 				return;
-		if (!(anode = hpfs_map_anode(s, node, &bh))) return;
-		btree = &anode->btree;
+		if (!(ayesde = hpfs_map_ayesde(s, yesde, &bh))) return;
+		btree = &ayesde->btree;
 	}	
-	nodes = btree->n_used_nodes + btree->n_free_nodes;
-	for (i = 0; i < btree->n_used_nodes; i++)
-		if (le32_to_cpu(btree->u.external[i].file_secno) + le32_to_cpu(btree->u.external[i].length) >= secs) goto ff;
+	yesdes = btree->n_used_yesdes + btree->n_free_yesdes;
+	for (i = 0; i < btree->n_used_yesdes; i++)
+		if (le32_to_cpu(btree->u.external[i].file_secyes) + le32_to_cpu(btree->u.external[i].length) >= secs) goto ff;
 	brelse(bh);
 	return;
 	ff:
-	if (secs <= le32_to_cpu(btree->u.external[i].file_secno)) {
+	if (secs <= le32_to_cpu(btree->u.external[i].file_secyes)) {
 		hpfs_error(s, "there is an allocation error in file %08x, sector %08x", f, secs);
 		if (i) i--;
 	}
-	else if (le32_to_cpu(btree->u.external[i].file_secno) + le32_to_cpu(btree->u.external[i].length) > secs) {
-		hpfs_free_sectors(s, le32_to_cpu(btree->u.external[i].disk_secno) + secs -
-			le32_to_cpu(btree->u.external[i].file_secno), le32_to_cpu(btree->u.external[i].length)
-			- secs + le32_to_cpu(btree->u.external[i].file_secno)); /* I hope gcc optimizes this :-) */
-		btree->u.external[i].length = cpu_to_le32(secs - le32_to_cpu(btree->u.external[i].file_secno));
+	else if (le32_to_cpu(btree->u.external[i].file_secyes) + le32_to_cpu(btree->u.external[i].length) > secs) {
+		hpfs_free_sectors(s, le32_to_cpu(btree->u.external[i].disk_secyes) + secs -
+			le32_to_cpu(btree->u.external[i].file_secyes), le32_to_cpu(btree->u.external[i].length)
+			- secs + le32_to_cpu(btree->u.external[i].file_secyes)); /* I hope gcc optimizes this :-) */
+		btree->u.external[i].length = cpu_to_le32(secs - le32_to_cpu(btree->u.external[i].file_secyes));
 	}
-	for (j = i + 1; j < btree->n_used_nodes; j++)
-		hpfs_free_sectors(s, le32_to_cpu(btree->u.external[j].disk_secno), le32_to_cpu(btree->u.external[j].length));
-	btree->n_used_nodes = i + 1;
-	btree->n_free_nodes = nodes - btree->n_used_nodes;
-	btree->first_free = cpu_to_le16(8 + 12 * btree->n_used_nodes);
+	for (j = i + 1; j < btree->n_used_yesdes; j++)
+		hpfs_free_sectors(s, le32_to_cpu(btree->u.external[j].disk_secyes), le32_to_cpu(btree->u.external[j].length));
+	btree->n_used_yesdes = i + 1;
+	btree->n_free_yesdes = yesdes - btree->n_used_yesdes;
+	btree->first_free = cpu_to_le16(8 + 12 * btree->n_used_yesdes);
 	mark_buffer_dirty(bh);
 	brelse(bh);
 }
 
-/* Remove file or directory and it's eas - note that directory must
+/* Remove file or directory and it's eas - yeste that directory must
    be empty when this is called. */
 
-void hpfs_remove_fnode(struct super_block *s, fnode_secno fno)
+void hpfs_remove_fyesde(struct super_block *s, fyesde_secyes fyes)
 {
 	struct buffer_head *bh;
-	struct fnode *fnode;
+	struct fyesde *fyesde;
 	struct extended_attribute *ea;
 	struct extended_attribute *ea_end;
-	if (!(fnode = hpfs_map_fnode(s, fno, &bh))) return;
-	if (!fnode_is_dir(fnode)) hpfs_remove_btree(s, &fnode->btree);
-	else hpfs_remove_dtree(s, le32_to_cpu(fnode->u.external[0].disk_secno));
-	ea_end = fnode_end_ea(fnode);
-	for (ea = fnode_ea(fnode); ea < ea_end; ea = next_ea(ea))
+	if (!(fyesde = hpfs_map_fyesde(s, fyes, &bh))) return;
+	if (!fyesde_is_dir(fyesde)) hpfs_remove_btree(s, &fyesde->btree);
+	else hpfs_remove_dtree(s, le32_to_cpu(fyesde->u.external[0].disk_secyes));
+	ea_end = fyesde_end_ea(fyesde);
+	for (ea = fyesde_ea(fyesde); ea < ea_end; ea = next_ea(ea))
 		if (ea_indirect(ea))
-			hpfs_ea_remove(s, ea_sec(ea), ea_in_anode(ea), ea_len(ea));
-	hpfs_ea_ext_remove(s, le32_to_cpu(fnode->ea_secno), fnode_in_anode(fnode), le32_to_cpu(fnode->ea_size_l));
+			hpfs_ea_remove(s, ea_sec(ea), ea_in_ayesde(ea), ea_len(ea));
+	hpfs_ea_ext_remove(s, le32_to_cpu(fyesde->ea_secyes), fyesde_in_ayesde(fyesde), le32_to_cpu(fyesde->ea_size_l));
 	brelse(bh);
-	hpfs_free_sectors(s, fno, 1);
+	hpfs_free_sectors(s, fyes, 1);
 }

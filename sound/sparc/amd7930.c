@@ -20,14 +20,14 @@
  *
  * Advanced Micro Devices' Am79C30A is an ISDN/audio chip used in the
  * SparcStation 1+.  The chip provides microphone and speaker interfaces
- * which provide mono-channel audio at 8K samples per second via either
+ * which provide moyes-channel audio at 8K samples per second via either
  * 8-bit A-law or 8-bit mu-law encoding.  Also, the chip features an
  * ISDN BRI Line Interface Unit (LIU), I.430 S/T physical interface,
  * which performs basic D channel LAPD processing and provides raw
  * B channel data.  The digital audio channel, the two ISDN B channels,
  * and two 64 Kbps channels to the microprocessor are all interconnected
  * via a multiplexer.
- * --- End of notes from Thoamas's original driver ---
+ * --- End of yestes from Thoamas's original driver ---
  */
 
 #include <linux/module.h>
@@ -344,7 +344,7 @@ struct snd_amd7930 {
 
 static struct snd_amd7930 *amd7930_list;
 
-/* Idle the AMD7930 chip.  The amd->lock is not held.  */
+/* Idle the AMD7930 chip.  The amd->lock is yest held.  */
 static __inline__ void amd7930_idle(struct snd_amd7930 *amd)
 {
 	unsigned long flags;
@@ -355,7 +355,7 @@ static __inline__ void amd7930_idle(struct snd_amd7930 *amd)
 	spin_unlock_irqrestore(&amd->lock, flags);
 }
 
-/* Enable chip interrupts.  The amd->lock is not held.  */
+/* Enable chip interrupts.  The amd->lock is yest held.  */
 static __inline__ void amd7930_enable_ints(struct snd_amd7930 *amd)
 {
 	unsigned long flags;
@@ -366,7 +366,7 @@ static __inline__ void amd7930_enable_ints(struct snd_amd7930 *amd)
 	spin_unlock_irqrestore(&amd->lock, flags);
 }
 
-/* Disable chip interrupts.  The amd->lock is not held.  */
+/* Disable chip interrupts.  The amd->lock is yest held.  */
 static __inline__ void amd7930_disable_ints(struct snd_amd7930 *amd)
 {
 	unsigned long flags;

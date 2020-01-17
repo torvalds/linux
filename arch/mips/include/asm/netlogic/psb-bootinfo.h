@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -68,7 +68,7 @@ struct psb_info {
 	uint64_t wakeup_os;
 	uint64_t psb_mem_map;
 	uint64_t board_major_version;
-	uint64_t board_minor_version;
+	uint64_t board_miyesr_version;
 	uint64_t board_manf_revision;
 	uint64_t board_serial_number;
 	uint64_t psb_physaddr_map;

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -157,10 +157,10 @@ static bool program_hpd_filter(
 	case SIGNAL_TYPE_DISPLAY_PORT:
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 		/* Program hpd filter to allow DP signal to settle */
-		/* 500:	not able to detect MST <-> SST switch as HPD is low for
+		/* 500:	yest able to detect MST <-> SST switch as HPD is low for
 		 * 	only 100ms on DELL U2413
 		 * 0:	some passive dongle still show aux mode instead of i2c
-		 * 20-50:not enough to hide bouncing HPD with passive dongle.
+		 * 20-50:yest eyesugh to hide bouncing HPD with passive dongle.
 		 * 	also see intermittent i2c read issues.
 		 */
 		delay_on_connect_in_ms = 80;
@@ -205,7 +205,7 @@ static bool program_hpd_filter(
  * dc_link_detect_sink() - Determine if there is a sink connected
  *
  * @type: Returned connection type
- * Does not detect downstream devices, such as MST sinks
+ * Does yest detect downstream devices, such as MST sinks
  * or display connected through active dongles
  */
 bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
@@ -219,7 +219,7 @@ bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 	}
 
 	if (link->connector_signal == SIGNAL_TYPE_EDP) {
-		/*in case it is not on*/
+		/*in case it is yest on*/
 		link->dc->hwss.edp_power_control(link, true);
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	}
@@ -238,7 +238,7 @@ bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 		*type = dc_connection_single;
 		/* TODO: need to do the actual detection */
 	} else {
-		*type = dc_connection_none;
+		*type = dc_connection_yesne;
 	}
 
 	return true;
@@ -267,7 +267,7 @@ static enum ddc_transaction_type get_ddc_transaction_type(
 		break;
 
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
-		/* MST does not use I2COverAux, but there is the
+		/* MST does yest use I2COverAux, but there is the
 		 * SPECIAL use case for "immediate dwnstrm device
 		 * access" (EPR#370830). */
 		transaction_type = DDC_TRANSACTION_TYPE_I2C_OVER_AUX;
@@ -431,7 +431,7 @@ static enum signal_type link_detect_sink(
 	switch (link->link_id.id) {
 	case CONNECTOR_ID_HDMI_TYPE_A: {
 		/* check audio support:
-		 * if native HDMI is not supported, switch to DVI */
+		 * if native HDMI is yest supported, switch to DVI */
 		struct audio_support *aud_support = &link->dc->res_pool->audio_support;
 
 		if (!aud_support->hdmi_audio_native)
@@ -440,11 +440,11 @@ static enum signal_type link_detect_sink(
 	}
 	break;
 	case CONNECTOR_ID_DISPLAY_PORT: {
-		/* DP HPD short pulse. Passive DP dongle will not
+		/* DP HPD short pulse. Passive DP dongle will yest
 		 * have short pulse
 		 */
 		if (reason != DETECT_REASON_HPDRX) {
-			/* Check whether DP signal detected: if not -
+			/* Check whether DP signal detected: if yest -
 			 * we assume signal is DVI; it could be corrected
 			 * to HDMI after dongle detection
 			 */
@@ -537,7 +537,7 @@ static void read_current_link_settings_on_detect(struct dc_link *link)
 				&lane_count_set.raw,
 				sizeof(lane_count_set));
 		/* First DPCD read after VDD ON can fail if the particular board
-		 * does not have HPD pin wired correctly. So if DPCD read fails,
+		 * does yest have HPD pin wired correctly. So if DPCD read fails,
 		 * which it should never happen, retry a few times. Target worst
 		 * case scenario of 80 ms.
 		 */
@@ -555,7 +555,7 @@ static void read_current_link_settings_on_detect(struct dc_link *link)
 
 	if (link_bw_set == 0) {
 		if (link->connector_signal == SIGNAL_TYPE_EDP) {
-			/* If standard link rates are not being used,
+			/* If standard link rates are yest being used,
 			 * Read DPCD 00115h to find the edp link rate set used
 			 */
 			core_link_read_dpcd(link, DP_LINK_RATE_SET,
@@ -569,7 +569,7 @@ static void read_current_link_settings_on_detect(struct dc_link *link)
 				link->cur_link_settings.use_link_rate_set = true;
 			}
 		} else {
-			// Link Rate not found. Seamless boot may not work.
+			// Link Rate yest found. Seamless boot may yest work.
 			ASSERT(false);
 		}
 	} else {
@@ -613,7 +613,7 @@ static bool detect_dp(
 			 * This call will initiate MST topology discovery. Which
 			 * will detect MST ports and add new DRM connector DRM
 			 * framework. Then read EDID via remote i2c over aux. In
-			 * the end, will notify DRM detect result and save EDID
+			 * the end, will yestify DRM detect result and save EDID
 			 * into DRM framework.
 			 *
 			 * .detect is called by .fill_modes.
@@ -626,7 +626,7 @@ static bool detect_dp(
 			 * new dc_sink and add to dc_link. For long HPD plug
 			 * in/out, MST has its own handle.
 			 *
-			 * Therefore, just after dc_create, link->sink is not
+			 * Therefore, just after dc_create, link->sink is yest
 			 * created for MST until user mode app calls
 			 * DRM_IOCTL_MODE_GETCONNECTOR.
 			 *
@@ -643,7 +643,7 @@ static bool detect_dp(
 			if (!dm_helpers_dp_mst_start_top_mgr(
 				link->ctx,
 				link, boot)) {
-				/* MST not supported */
+				/* MST yest supported */
 				link->type = dc_connection_single;
 				sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
 			}
@@ -740,7 +740,7 @@ static bool wait_for_alt_mode(struct dc_link *link)
  *
  * link->local_sink is created or destroyed as needed.
  *
- * This does not create remote sinks but will trigger DM
+ * This does yest create remote sinks but will trigger DM
  * to start MST detection if a branch is detected.
  */
 static bool dc_link_detect_helper(struct dc_link *link,
@@ -758,7 +758,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 	struct dc_sink *prev_sink = NULL;
 	struct dpcd_caps prev_dpcd_caps;
 	bool same_dpcd = true;
-	enum dc_connection_type new_connection_type = dc_connection_none;
+	enum dc_connection_type new_connection_type = dc_connection_yesne;
 	bool perform_dp_seamless_boot = false;
 
 	DC_LOGGER_INIT(link->ctx->logger);
@@ -783,7 +783,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 	}
 	link_disconnect_sink(link);
 
-	if (new_connection_type != dc_connection_none) {
+	if (new_connection_type != dc_connection_yesne) {
 		link->type = new_connection_type;
 		link->link_state_valid = false;
 
@@ -866,7 +866,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			}
 
 			if (link->type == dc_connection_mst_branch) {
-				LINK_INFO("link=%d, mst branch is now Connected\n",
+				LINK_INFO("link=%d, mst branch is yesw Connected\n",
 					link->link_index);
 				/* Need to setup mst link_cap struct here
 				 * otherwise dc_link_detect() will leave mst link_cap
@@ -945,11 +945,11 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			DC_LOG_ERROR("No EDID read.\n");
 
 			/*
-			 * Abort detection for non-DP connectors if we have
-			 * no EDID
+			 * Abort detection for yesn-DP connectors if we have
+			 * yes EDID
 			 *
 			 * DP needs to report as connected if HDP is high
-			 * even if we have no EDID in order to go to
+			 * even if we have yes EDID in order to go to
 			 * fail-safe mode
 			 */
 			if (dc_is_hdmi_signal(link->connector_signal) ||
@@ -975,7 +975,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			 *  two link trainings
 			 */
 
-			// verify link cap for SST non-seamless boot
+			// verify link cap for SST yesn-seamless boot
 			if (!perform_dp_seamless_boot)
 				dp_verify_link_cap_with_retries(link,
 						&link->reported_link_cap,
@@ -1039,7 +1039,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 	} else {
 		/* From Connected-to-Disconnected. */
 		if (link->type == dc_connection_mst_branch) {
-			LINK_INFO("link=%d, mst branch is now Disconnected\n",
+			LINK_INFO("link=%d, mst branch is yesw Disconnected\n",
 				link->link_index);
 
 			dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
@@ -1048,17 +1048,17 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			memset(link->mst_stream_alloc_table.stream_allocations, 0, sizeof(link->mst_stream_alloc_table.stream_allocations));
 		}
 
-		link->type = dc_connection_none;
+		link->type = dc_connection_yesne;
 		sink_caps.signal = SIGNAL_TYPE_NONE;
 		/* When we unplug a passive DP-HDMI dongle connection, dongle_max_pix_clk
-		 *  is not cleared. If we emulate a DP signal on this connection, it thinks
+		 *  is yest cleared. If we emulate a DP signal on this connection, it thinks
 		 *  the dongle is still there and limits the number of modes we can emulate.
 		 *  Clear dongle_max_pix_clk on disconnect to fix this
 		 */
 		link->dongle_max_pix_clk = 0;
 	}
 
-	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p dpcd same=%d edid same=%d\n",
+	LINK_INFO("link=%d, dc_sink_in=%p is yesw %s prev_sink=%p dpcd same=%d edid same=%d\n",
 		link->link_index, sink,
 		(sink_caps.signal == SIGNAL_TYPE_NONE ?
 			"Disconnected":"Connected"), prev_sink,
@@ -1374,7 +1374,7 @@ static bool construct(
 		}
 
 		/* Look for device tag that matches connector signal,
-		 * CRT for rgb, LCD for other supported signal tyes
+		 * CRT for rgb, LCD for other supported signal tno
 		 */
 		if (!bp_funcs->is_device_id_supported(dc_ctx->dc_bios, link->device_tag.dev_id))
 			continue;
@@ -1414,8 +1414,8 @@ static bool construct(
 	/*
 	 * TODO check if GPIO programmed correctly
 	 *
-	 * If GPIO isn't programmed correctly HPD might not rise or drain
-	 * fast enough, leading to bounces.
+	 * If GPIO isn't programmed correctly HPD might yest rise or drain
+	 * fast eyesugh, leading to bounces.
 	 */
 	program_hpd_filter(link);
 
@@ -1478,7 +1478,7 @@ static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 	new_downspread.raw = old_downspread.raw;
 
 	new_downspread.bits.IGNORE_MSA_TIMING_PARAM =
-			(stream->ignore_msa_timing_param) ? 1 : 0;
+			(stream->igyesre_msa_timing_param) ? 1 : 0;
 
 	if (new_downspread.raw != old_downspread.raw) {
 		core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
@@ -1523,7 +1523,7 @@ static enum dc_status enable_link_dp(
 			dp_disable_link_phy(link, pipe_ctx->stream->signal);
 		}
 
-		/*in case it is not on*/
+		/*in case it is yest on*/
 		link->dc->hwss.edp_power_control(link, true);
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	}
@@ -2213,7 +2213,7 @@ static void disable_link(struct dc_link *link, enum signal_type signal)
 	}
 
 	if (signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-		/* MST disable link only when no stream use the link */
+		/* MST disable link only when yes stream use the link */
 		if (link->mst_stream_alloc_table.stream_count <= 0)
 			link->link_status.link_active = false;
 	} else {
@@ -2295,7 +2295,7 @@ static bool dp_active_dongle_validate_timing(
 	case COLOR_DEPTH_141414:
 	case COLOR_DEPTH_161616:
 	default:
-		/* These color depths are currently not supported */
+		/* These color depths are currently yest supported */
 		return false;
 	}
 
@@ -2476,7 +2476,7 @@ transmitter_to_phy_id(enum transmitter transmitter_value)
 	case TRANSMITTER_UNKNOWN:
 		return PHYLD_UNKNOWN;
 	default:
-		WARN_ONCE(1, "Unknown transmitter value %d\n",
+		WARN_ONCE(1, "Unkyeswn transmitter value %d\n",
 			  transmitter_value);
 		return PHYLD_UNKNOWN;
 	}
@@ -2549,7 +2549,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 		}
 	}
 
-	/* Hardcoded for now.  Can be Pcie or Uniphy (or Unknown)*/
+	/* Hardcoded for yesw.  Can be Pcie or Uniphy (or Unkyeswn)*/
 	psr_context->phyType = PHY_TYPE_UNIPHY;
 	/*PhyId is associated with the transmitter id*/
 	psr_context->smuPhyId =
@@ -2594,8 +2594,8 @@ bool dc_link_setup_psr(struct dc_link *link,
 
 	/* SMU will perform additional powerdown sequence.
 	 * For unsupported ASICs, set psr_level flag to skip PSR
-	 *  static screen notification to SMU.
-	 *  (Always set for DAL2, did not check ASIC)
+	 *  static screen yestification to SMU.
+	 *  (Always set for DAL2, did yest check ASIC)
 	 */
 	psr_context->allow_smu_optimizations = psr_config->allow_smu_optimizations;
 
@@ -2611,8 +2611,8 @@ bool dc_link_setup_psr(struct dc_link *link,
 
 	link->psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
 
-	/* psr_enabled == 0 indicates setup_psr did not succeed, but this
-	 * should not happen since firmware should be running at this point
+	/* psr_enabled == 0 indicates setup_psr did yest succeed, but this
+	 * should yest happen since firmware should be running at this point
 	 */
 	if (link->psr_feature_enabled == 0)
 		ASSERT(0);
@@ -2663,7 +2663,7 @@ static struct fixed31_32 get_pbn_from_timing(struct pipe_ctx *pipe_ctx)
 	uint64_t kbps;
 	struct fixed31_32 peak_kbps;
 	uint32_t numerator;
-	uint32_t denominator;
+	uint32_t deyesminator;
 
 	bpc = get_color_depth(pipe_ctx->stream_res.pix_clk_params.color_depth);
 	kbps = dc_bandwidth_in_kbps_from_timing(&pipe_ctx->stream->timing);
@@ -2680,9 +2680,9 @@ static struct fixed31_32 get_pbn_from_timing(struct pipe_ctx *pipe_ctx)
 	 */
 
 	numerator = 64 * PEAK_FACTOR_X1000;
-	denominator = 54 * 8 * 1000 * 1000;
+	deyesminator = 54 * 8 * 1000 * 1000;
 	kbps *= numerator;
-	peak_kbps = dc_fixpt_from_fraction(kbps, denominator);
+	peak_kbps = dc_fixpt_from_fraction(kbps, deyesminator);
 
 	return peak_kbps;
 }
@@ -2737,7 +2737,7 @@ static void update_mst_stream_alloc_table(
 }
 
 /* convert link_mst_stream_alloc_table to dm dp_mst_stream_alloc_table
- * because stream_encoder is not exposed to dm
+ * because stream_encoder is yest exposed to dm
  */
 enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
@@ -2835,9 +2835,9 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* deallocate_mst_payload is called before disable link. When mode or
-	 * disable/enable monitor, new stream is created which is not in link
-	 * stream[] yet. For this, payload is not allocated yet, so de-alloc
-	 * should not done. For new mode set, map_resources will get engine
+	 * disable/enable monitor, new stream is created which is yest in link
+	 * stream[] yet. For this, payload is yest allocated yet, so de-alloc
+	 * should yest done. For new mode set, map_resources will get engine
 	 * for new stream, so stream_enc->id should be validated until here.
 	 */
 
@@ -2978,7 +2978,7 @@ void core_link_enable_stream(
 		resource_build_info_frame(pipe_ctx);
 		core_dc->hwss.update_info_frame(pipe_ctx);
 
-		/* Do not touch link on seamless boot optimization. */
+		/* Do yest touch link on seamless boot optimization. */
 		if (pipe_ctx->stream->apply_seamless_boot_optimization) {
 			pipe_ctx->stream->dpms_off = false;
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
@@ -2987,7 +2987,7 @@ void core_link_enable_stream(
 			return;
 		}
 
-		/* eDP lit up by bios already, no need to enable again. */
+		/* eDP lit up by bios already, yes need to enable again. */
 		if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
 					apply_edp_fast_boot_optimization) {
 			pipe_ctx->stream->dpms_off = false;
@@ -3140,7 +3140,7 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
  *     delay_on_disconnect/delay_on_connect values dependent on
  *     link->connector_signal
  *
- *     If enable is false, programs HPD filter on associated HPD line with no
+ *     If enable is false, programs HPD filter on associated HPD line with yes
  *     delays on connect or disconnect
  *
  *  @param [in] link: pointer to the dc link
@@ -3279,7 +3279,7 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 
 	/* Retrain with preferred link settings only relevant for
 	 * DP signal type
-	 * Check for non-DP signal or if passive dongle present
+	 * Check for yesn-DP signal or if passive dongle present
 	 */
 	if (!dc_is_dp_signal(link->connector_signal) ||
 		link->dongle_max_pix_clk > 0)
@@ -3295,11 +3295,11 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 		}
 	}
 
-	/* Stream not found */
+	/* Stream yest found */
 	if (i == MAX_PIPES)
 		return;
 
-	/* Cannot retrain link if backend is off */
+	/* Canyest retrain link if backend is off */
 	if (link_stream->dpms_off)
 		return;
 
@@ -3328,7 +3328,7 @@ void dc_link_set_preferred_training_settings(struct dc *dc,
 		link->preferred_link_setting.link_rate = LINK_RATE_UNKNOWN;
 	}
 
-	/* Retrain now, or wait until next stream update to apply */
+	/* Retrain yesw, or wait until next stream update to apply */
 	if (skip_immediate_retrain == false)
 		dc_link_set_preferred_link_settings(dc, &link->preferred_link_setting, link);
 }
@@ -3372,19 +3372,19 @@ uint32_t dc_link_bandwidth_kbps(
 	if (link->dpcd_caps.fec_cap.bits.FEC_CAPABLE) {
 		/* Account for FEC overhead.
 		 * We have to do it based on caps,
-		 * and not based on FEC being set ready,
+		 * and yest based on FEC being set ready,
 		 * because FEC is set ready too late in
 		 * the process to correctly be picked up
 		 * by mode enumeration.
 		 *
-		 * There's enough zeros at the end of 'kbps'
+		 * There's eyesugh zeros at the end of 'kbps'
 		 * that make the below operation 100% precise
 		 * for our purposes.
 		 * 'long long' makes it work even for HDMI 2.1
 		 * max bandwidth (and much, much bigger bandwidths
 		 * than that, actually).
 		 *
-		 * NOTE: Reducing link BW by 3% may not be precise
+		 * NOTE: Reducing link BW by 3% may yest be precise
 		 * because it may be a stream BT that increases by 3%, and so
 		 * 1/1.03 = 0.970873 factor should have been used instead,
 		 * but the difference is minimal and is in a safe direction,

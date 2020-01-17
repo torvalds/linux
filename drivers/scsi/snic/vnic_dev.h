@@ -88,8 +88,8 @@ int svnic_dev_spec(struct vnic_dev *vdev, unsigned int offset,
 		  unsigned int size, void *value);
 int svnic_dev_stats_clear(struct vnic_dev *vdev);
 int svnic_dev_stats_dump(struct vnic_dev *vdev, struct vnic_stats **stats);
-int svnic_dev_notify_set(struct vnic_dev *vdev, u16 intr);
-void svnic_dev_notify_unset(struct vnic_dev *vdev);
+int svnic_dev_yestify_set(struct vnic_dev *vdev, u16 intr);
+void svnic_dev_yestify_unset(struct vnic_dev *vdev);
 int svnic_dev_link_status(struct vnic_dev *vdev);
 u32 svnic_dev_link_down_cnt(struct vnic_dev *vdev);
 int svnic_dev_close(struct vnic_dev *vdev);

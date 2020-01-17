@@ -47,7 +47,7 @@ static struct et8ek8_reglist mode1_poweron_mode2_16vga_2592x1968_12_07fps = {
 		.ext_clock = 9600000,
 		.timeperframe = {
 			.numerator = 100,
-			.denominator = 1207
+			.deyesminator = 1207
 		},
 		.max_exp = 2012,
 		/* .max_gain = 0, */
@@ -83,7 +83,7 @@ static struct et8ek8_reglist mode1_poweron_mode2_16vga_2592x1968_12_07fps = {
 		{ ET8EK8_REG_8BIT, 0x1011, 0x24 },
 		{ ET8EK8_REG_8BIT, 0x1151, 0x80 },
 		{ ET8EK8_REG_8BIT, 0x1152, 0x23 },
-		/* Initial setting for improvement2 of lower frequency noise */
+		/* Initial setting for improvement2 of lower frequency yesise */
 		{ ET8EK8_REG_8BIT, 0x1014, 0x05 },
 		{ ET8EK8_REG_8BIT, 0x1033, 0x06 },
 		{ ET8EK8_REG_8BIT, 0x1034, 0x79 },
@@ -94,7 +94,7 @@ static struct et8ek8_reglist mode1_poweron_mode2_16vga_2592x1968_12_07fps = {
 		{ ET8EK8_REG_8BIT, 0x1439, 0x00 },
 		/* Switch of blemish correction (0d:disable / 1d:enable) */
 		{ ET8EK8_REG_8BIT, 0x161F, 0x60 },
-		/* Switch of auto noise correction (0d:disable / 1d:enable) */
+		/* Switch of auto yesise correction (0d:disable / 1d:enable) */
 		{ ET8EK8_REG_8BIT, 0x1634, 0x00 },
 		{ ET8EK8_REG_8BIT, 0x1646, 0x00 },
 		{ ET8EK8_REG_8BIT, 0x1648, 0x00 },
@@ -148,7 +148,7 @@ static struct et8ek8_reglist mode1_16vga_2592x1968_13_12fps_dpcm10_8 = {
 		.ext_clock = 9600000,
 		.timeperframe = {
 			.numerator = 100,
-			.denominator = 1292
+			.deyesminator = 1292
 		},
 		.max_exp = 2012,
 		/* .max_gain = 0, */
@@ -204,7 +204,7 @@ static struct et8ek8_reglist mode3_4vga_1296x984_29_99fps_dpcm10_8 = {
 		.ext_clock = 9600000,
 		.timeperframe = {
 			.numerator = 100,
-			.denominator = 3000
+			.deyesminator = 3000
 		},
 		.max_exp = 1004,
 		/* .max_gain = 0, */
@@ -260,7 +260,7 @@ static struct et8ek8_reglist mode4_svga_864x656_29_88fps = {
 		.ext_clock = 9600000,
 		.timeperframe = {
 			.numerator = 100,
-			.denominator = 2988
+			.deyesminator = 2988
 		},
 		.max_exp = 668,
 		/* .max_gain = 0, */
@@ -316,7 +316,7 @@ static struct et8ek8_reglist mode5_vga_648x492_29_93fps = {
 		.ext_clock = 9600000,
 		.timeperframe = {
 			.numerator = 100,
-			.denominator = 2993
+			.deyesminator = 2993
 		},
 		.max_exp = 500,
 		/* .max_gain = 0, */
@@ -372,7 +372,7 @@ static struct et8ek8_reglist mode2_16vga_2592x1968_3_99fps = {
 		.ext_clock = 9600000,
 		.timeperframe = {
 			.numerator = 100,
-			.denominator = 399
+			.deyesminator = 399
 		},
 		.max_exp = 6092,
 		/* .max_gain = 0, */
@@ -427,7 +427,7 @@ static struct et8ek8_reglist mode_648x492_5fps = {
 		.ext_clock = 9600000,
 		.timeperframe = {
 			.numerator = 100,
-			.denominator = 499
+			.deyesminator = 499
 		},
 		.max_exp = 500,
 		/* .max_gain = 0, */
@@ -483,7 +483,7 @@ static struct et8ek8_reglist mode3_4vga_1296x984_5fps = {
 		.ext_clock = 9600000,
 		.timeperframe = {
 			.numerator = 100,
-			.denominator = 501
+			.deyesminator = 501
 		},
 		.max_exp = 2996,
 		/* .max_gain = 0, */
@@ -539,7 +539,7 @@ static struct et8ek8_reglist mode_4vga_1296x984_25fps_dpcm10_8 = {
 		.ext_clock = 9600000,
 		.timeperframe = {
 			.numerator = 100,
-			.denominator = 2500
+			.deyesminator = 2500
 		},
 		.max_exp = 1052,
 		/* .max_gain = 0, */

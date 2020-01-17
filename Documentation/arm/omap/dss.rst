@@ -39,18 +39,18 @@ Tested boards include:
 omapdss driver
 --------------
 
-The DSS driver does not itself have any support for Linux framebuffer, V4L or
+The DSS driver does yest itself have any support for Linux framebuffer, V4L or
 such like the current ones, but it has an internal kernel API that upper level
 drivers can use.
 
 The DSS driver models OMAP's overlays, overlay managers and displays in a
-flexible way to enable non-common multi-display configuration. In addition to
+flexible way to enable yesn-common multi-display configuration. In addition to
 modelling the hardware overlays, omapdss supports virtual overlays and overlay
 managers. These can be used when updating a display with CPU or system DMA.
 
 omapdss driver support for audio
 --------------------------------
-There exist several display technologies and standards that support audio as
+There exist several display techyeslogies and standards that support audio as
 well. Hence, it is relevant to update the DSS device driver to provide an audio
 interface that may be used by an audio driver or any other driver interested in
 the functionality.
@@ -62,7 +62,7 @@ audio_start. The audio_disable function performs the reverse operation and is
 intended to be called after audio_stop.
 
 While a given DSS device driver may support audio, it is possible that for
-certain configurations audio is not supported (e.g., an HDMI display using a
+certain configurations audio is yest supported (e.g., an HDMI display using a
 VESA video timing). The audio_supported function is intended to query whether
 the current configuration of the display supports audio.
 
@@ -71,11 +71,11 @@ parameters of the display. In order to make the function independent of any
 specific DSS device driver, a struct omap_dss_audio is defined. Its purpose
 is to contain all the required parameters for audio configuration. At the
 moment, such structure contains pointers to IEC-60958 channel status word
-and CEA-861 audio infoframe structures. This should be enough to support
+and CEA-861 audio infoframe structures. This should be eyesugh to support
 HDMI and DisplayPort, as both are based on CEA-861 and IEC-60958.
 
 The audio_enable/disable, audio_config and audio_supported functions could be
-implemented as functions that may sleep. Hence, they should not be called
+implemented as functions that may sleep. Hence, they should yest be called
 while holding a spinlock or a readlock.
 
 The audio_start/audio_stop function is intended to effectively start/stop audio
@@ -96,7 +96,7 @@ rendered.
 Panel and controller drivers
 ----------------------------
 
-The drivers implement panel or controller specific functionality and are not
+The drivers implement panel or controller specific functionality and are yest
 usually visible to users except through omapfb driver.  They register
 themselves to the DSS driver.
 
@@ -110,7 +110,7 @@ dynamic display architecture.
 The driver exports some omapfb specific ioctls, which are compatible with the
 ioctls in the old driver.
 
-The rest of the non standard features are exported via sysfs. Whether the final
+The rest of the yesn standard features are exported via sysfs. Whether the final
 implementation will use sysfs, or ioctls, is still open.
 
 V4L2 drivers
@@ -157,7 +157,7 @@ restrictions which kinds of displays an overlay manager can be connected:
 Sysfs
 -----
 The sysfs interface is mainly used for testing. I don't think sysfs
-interface is the best for this in the final version, but I don't quite know
+interface is the best for this in the final version, but I don't quite kyesw
 what would be the best interfaces for these things.
 
 The sysfs interface is divided to two parts: DSS and FB.
@@ -234,7 +234,7 @@ Default setup on OMAP3 SDP
 --------------------------
 
 Here's the default setup on OMAP3 SDP board. All planes go to LCD. DVI
-and TV-out are not in use. The columns from left to right are:
+and TV-out are yest in use. The columns from left to right are:
 framebuffers, overlays, overlay managers, displays. Framebuffers are
 handled by omapfb, and the rest by the DSS::
 
@@ -290,7 +290,7 @@ After this the configuration looks like (only relevant parts shown)::
 	FB0 +-- GFX  ---- LCD ---- LCD
 	\- VID1 ---- TV  ---- TV
 
-Misc notes
+Misc yestes
 ----------
 
 OMAP FB allocates the framebuffer memory using the standard dma allocator. You
@@ -302,11 +302,11 @@ Using DSI DPLL to generate pixel clock it is possible produce the pixel clock
 of 86.5MHz (max possible), and with that you get 1280x1024@57 output from DVI.
 
 Rotation and mirroring currently only supports RGB565 and RGB8888 modes. VRFB
-does not support mirroring.
+does yest support mirroring.
 
-VRFB rotation requires much more memory than non-rotated framebuffer, so you
+VRFB rotation requires much more memory than yesn-rotated framebuffer, so you
 probably need to increase your vram setting before using VRFB rotation. Also,
-many applications may not work with VRFB if they do not pay attention to all
+many applications may yest work with VRFB if they do yest pay attention to all
 framebuffer parameters.
 
 Kernel boot arguments
@@ -364,7 +364,7 @@ Error checking
 
 System DMA update for DSI
 
-- Can be used for RGB16 and RGB24P modes. Probably not for RGB24U (how
+- Can be used for RGB16 and RGB24P modes. Probably yest for RGB24U (how
   to skip the empty byte?)
 
 OMAP1 support

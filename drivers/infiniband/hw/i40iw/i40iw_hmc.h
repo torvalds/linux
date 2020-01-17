@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -219,7 +219,7 @@ enum i40iw_status_code i40iw_sc_del_hmc_obj(struct i40iw_sc_dev *dev,
 enum i40iw_status_code i40iw_hmc_sd_one(struct i40iw_sc_dev *dev, u8 hmc_fn_id,
 					u64 pa, u32 sd_idx, enum i40iw_sd_entry_type type,
 					bool setsd);
-enum i40iw_status_code i40iw_update_sds_noccq(struct i40iw_sc_dev *dev,
+enum i40iw_status_code i40iw_update_sds_yesccq(struct i40iw_sc_dev *dev,
 					      struct i40iw_update_sds_info *info);
 struct i40iw_vfdev *i40iw_vfdev_from_fpm(struct i40iw_sc_dev *dev, u8 hmc_fn_id);
 struct i40iw_hmc_info *i40iw_vf_hmcinfo_from_fpm(struct i40iw_sc_dev *dev,

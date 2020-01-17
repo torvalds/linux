@@ -2,7 +2,7 @@
 //
 // Driver for Amlogic Meson SPI flash controller (SPIFC)
 //
-// Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+// Copyright (C) 2014 Beniamiyes Galvani <b.galvani@gmail.com>
 //
 
 #include <linux/clk.h>
@@ -328,7 +328,7 @@ static int meson_spifc_probe(struct platform_device *pdev)
 	rate = clk_get_rate(spifc->clk);
 
 	master->num_chipselect = 1;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->auto_runtime_pm = true;
 	master->transfer_one = meson_spifc_transfer_one;
@@ -451,6 +451,6 @@ static struct platform_driver meson_spifc_driver = {
 
 module_platform_driver(meson_spifc_driver);
 
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_AUTHOR("Beniamiyes Galvani <b.galvani@gmail.com>");
 MODULE_DESCRIPTION("Amlogic Meson SPIFC driver");
 MODULE_LICENSE("GPL v2");

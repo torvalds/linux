@@ -8,7 +8,7 @@ digital encoder (DVI or HDMI).
 Required properties:
   - compatible: "arm,hdlcd"
   - reg: Physical base address and length of the controller's registers.
-  - interrupts: One interrupt used by the display controller to notify the
+  - interrupts: One interrupt used by the display controller to yestify the
     interrupt controller when any of the interrupt sources programmed in
     the interrupt mask register have activated.
   - clocks: A list of phandle + clock-specifier pairs, one for each
@@ -16,15 +16,15 @@ Required properties:
   - clock-names: A list of clock names. For HDLCD it should contain:
       - "pxlclk" for the clock feeding the output PLL of the controller.
 
-Required sub-nodes:
+Required sub-yesdes:
   - port: The HDLCD connection to an encoder chip. The connection is modeled
     using the OF graph bindings specified in
     Documentation/devicetree/bindings/graph.txt.
 
 Optional properties:
-  - memory-region: phandle to a node describing memory (see
+  - memory-region: phandle to a yesde describing memory (see
     Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt) to be
-    used for the framebuffer; if not present, the framebuffer may be located
+    used for the framebuffer; if yest present, the framebuffer may be located
     anywhere in memory.
 
 

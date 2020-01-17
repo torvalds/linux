@@ -96,7 +96,7 @@ config CMDLINE
 	string "Default kernel command string"
 	default ""
 	help
-	  On some platforms, there is currently no way for the boot loader
+	  On some platforms, there is currently yes way for the boot loader
 	  to pass arguments to the kernel. For these, you should supply some
 	  command-line options at build time by entering them here.  At a
 	  minimum, you should specify the memory size and the root device

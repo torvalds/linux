@@ -269,7 +269,7 @@ gss_import_v1_context(const void *p, const void *end, struct krb5_ctx *ctx)
 
 	/* The downcall format was designed before we completely understood
 	 * the uses of the context fields; so it includes some stuff we
-	 * just give some minimal sanity-checking, and some we ignore
+	 * just give some minimal sanity-checking, and some we igyesre
 	 * completely (like the next twenty bytes): */
 	if (unlikely(p + 20 > end || p + 20 < p)) {
 		p = ERR_PTR(-EFAULT);
@@ -401,7 +401,7 @@ out_err:
 /*
  * Note that RC4 depends on deriving keys using the sequence
  * number or the checksum of a token.  Therefore, the final keys
- * cannot be calculated until the token is being constructed!
+ * canyest be calculated until the token is being constructed!
  */
 static int
 context_derive_keys_rc4(struct krb5_ctx *ctx)

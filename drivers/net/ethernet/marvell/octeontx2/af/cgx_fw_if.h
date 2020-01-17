@@ -112,7 +112,7 @@ enum cgx_cmd_own {
 	(((x) & ~(m)) |			\
 	FIELD_PREP((m), (y)))
 
-/* scratchx(0) CSR used for ATF->non-secure SW communication.
+/* scratchx(0) CSR used for ATF->yesn-secure SW communication.
  * This acts as the status register
  * Provides details on command ack/status, command response, error details
  */
@@ -173,7 +173,7 @@ struct cgx_lnk_sts {
 #define RESP_LINKSTAT_SPEED		GENMASK_ULL(14, 11)
 #define RESP_LINKSTAT_ERRTYPE		GENMASK_ULL(24, 15)
 
-/* scratchx(1) CSR used for non-secure SW->ATF communication
+/* scratchx(1) CSR used for yesn-secure SW->ATF communication
  * This CSR acts as a command register
  */
 #define CMDREG_OWN	BIT_ULL(0)

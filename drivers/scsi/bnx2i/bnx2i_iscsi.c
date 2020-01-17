@@ -90,7 +90,7 @@ static void bnx2i_setup_write_cmd_bd_info(struct iscsi_task *task)
 	u32 cmd_len = cmd->req.total_data_transfer_length;
 
 	/* if ImmediateData is turned off & IntialR2T is turned on,
-	 * there will be no immediate or unsolicited data, just return.
+	 * there will be yes immediate or unsolicited data, just return.
 	 */
 	if (!iscsi_task_has_unsol_data(task) && !task->imm_count)
 		return;
@@ -241,7 +241,7 @@ static int bnx2i_bind_conn_to_iscsi_cid(struct bnx2i_hba *hba,
 {
 	if (hba && hba->cid_que.conn_cid_tbl[iscsi_cid]) {
 		iscsi_conn_printk(KERN_ALERT, bnx2i_conn->cls_conn->dd_data,
-				 "conn bind - entry #%d not free\n", iscsi_cid);
+				 "conn bind - entry #%d yest free\n", iscsi_cid);
 		return -EBUSY;
 	}
 
@@ -386,7 +386,7 @@ static struct iscsi_endpoint *bnx2i_alloc_ep(struct bnx2i_hba *hba)
 
 	ep = iscsi_create_endpoint(sizeof(*bnx2i_ep));
 	if (!ep) {
-		printk(KERN_ERR "bnx2i: Could not allocate ep\n");
+		printk(KERN_ERR "bnx2i: Could yest allocate ep\n");
 		return NULL;
 	}
 
@@ -451,7 +451,7 @@ static int bnx2i_alloc_bdt(struct bnx2i_hba *hba, struct iscsi_session *session,
 					ISCSI_MAX_BDS_PER_CMD * sizeof(*bd),
 					&io->bd_tbl_dma, GFP_KERNEL);
 	if (!io->bd_tbl) {
-		iscsi_session_printk(KERN_ERR, session, "Could not "
+		iscsi_session_printk(KERN_ERR, session, "Could yest "
 				     "allocate bdt.\n");
 		return -ENOMEM;
 	}
@@ -581,15 +581,15 @@ static void bnx2i_free_mp_bdt(struct bnx2i_hba *hba)
 }
 
 /**
- * bnx2i_drop_session - notifies iscsid of connection error.
+ * bnx2i_drop_session - yestifies iscsid of connection error.
  * @hba:	adapter instance pointer
  * @session:	iscsi session pointer
  *
- * This notifies iscsid that there is a error, so it can initiate
+ * This yestifies iscsid that there is a error, so it can initiate
  * recovery.
  *
  * This relies on caller using the iscsi class iterator so the object
- * is refcounted and does not disapper from under us.
+ * is refcounted and does yest disapper from under us.
  */
 void bnx2i_drop_session(struct iscsi_cls_session *cls_session)
 {
@@ -688,7 +688,7 @@ bnx2i_find_ep_in_ofld_list(struct bnx2i_hba *hba, u32 iscsi_cid)
 	read_unlock_bh(&hba->ep_rdwr_lock);
 
 	if (!ep)
-		printk(KERN_ERR "l5 cid %d not found\n", iscsi_cid);
+		printk(KERN_ERR "l5 cid %d yest found\n", iscsi_cid);
 	return ep;
 }
 
@@ -716,7 +716,7 @@ bnx2i_find_ep_in_destroy_list(struct bnx2i_hba *hba, u32 iscsi_cid)
 	read_unlock_bh(&hba->ep_rdwr_lock);
 
 	if (!ep)
-		printk(KERN_ERR "l5 cid %d not found\n", iscsi_cid);
+		printk(KERN_ERR "l5 cid %d yest found\n", iscsi_cid);
 
 	return ep;
 }
@@ -809,7 +809,7 @@ struct bnx2i_hba *bnx2i_alloc_hba(struct cnic_dev *cnic)
 	hba->pci_sdid = hba->pcidev->subsystem_device;
 	hba->pci_svid = hba->pcidev->subsystem_vendor;
 	hba->pci_func = PCI_FUNC(hba->pcidev->devfn);
-	hba->pci_devno = PCI_SLOT(hba->pcidev->devfn);
+	hba->pci_devyes = PCI_SLOT(hba->pcidev->devfn);
 
 	bnx2i_identify_device(hba, cnic);
 	bnx2i_setup_host_queue_size(hba, shost);
@@ -968,7 +968,7 @@ static void bnx2i_conn_free_login_resources(struct bnx2i_hba *hba,
 }
 
 /**
- * bnx2i_conn_alloc_login_resources - alloc DMA resources for login/nop.
+ * bnx2i_conn_alloc_login_resources - alloc DMA resources for login/yesp.
  * @hba:		pointer to adapter instance
  * @bnx2i_conn:		iscsi connection pointer
  *
@@ -1095,10 +1095,10 @@ static int bnx2i_iscsi_send_generic_request(struct iscsi_task *task)
 		data_len = bnx2i_conn->gen_pdu.req_buf_size;
 		buf = bnx2i_conn->gen_pdu.req_buf;
 		if (data_len)
-			rc = bnx2i_send_iscsi_nopout(bnx2i_conn, task,
+			rc = bnx2i_send_iscsi_yespout(bnx2i_conn, task,
 						     buf, data_len, 1);
 		else
-			rc = bnx2i_send_iscsi_nopout(bnx2i_conn, task,
+			rc = bnx2i_send_iscsi_yespout(bnx2i_conn, task,
 						     NULL, 0, 1);
 		break;
 	case ISCSI_OP_LOGOUT:
@@ -1236,7 +1236,7 @@ static int bnx2i_task_xmit(struct iscsi_task *task)
 		return -ENOMEM;
 
 	/*
-	 * If there is no scsi_cmnd this must be a mgmt task
+	 * If there is yes scsi_cmnd this must be a mgmt task
 	 */
 	if (!sc)
 		return bnx2i_mtask_xmit(conn, task);
@@ -1350,7 +1350,7 @@ static void bnx2i_session_destroy(struct iscsi_cls_session *cls_session)
 /**
  * bnx2i_conn_create - create iscsi connection instance
  * @cls_session:	pointer to iscsi cls session
- * @cid:		iscsi cid as per rfc (not NX2's CID terminology)
+ * @cid:		iscsi cid as per rfc (yest NX2's CID termiyeslogy)
  *
  * Creates a new iSCSI connection instance for a given session
  */
@@ -1401,7 +1401,7 @@ free_conn:
  *
  * Binds together iSCSI session instance, iSCSI connection instance
  *	and the TCP connection. This routine returns error code if
- *	TCP connection does not belong on the device iSCSI sess/conn
+ *	TCP connection does yest belong on the device iSCSI sess/conn
  *	is bound
  */
 static int bnx2i_conn_bind(struct iscsi_cls_session *cls_session,
@@ -1436,10 +1436,10 @@ static int bnx2i_conn_bind(struct iscsi_cls_session *cls_session,
 		return -EINVAL;
 
 	if (bnx2i_ep->hba != hba) {
-		/* Error - TCP connection does not belong to this device
+		/* Error - TCP connection does yest belong to this device
 		 */
 		iscsi_conn_printk(KERN_ALERT, cls_conn->dd_data,
-				  "conn bind, ep=0x%p (%s) does not",
+				  "conn bind, ep=0x%p (%s) does yest",
 				  bnx2i_ep, bnx2i_ep->hba->netdev->name);
 		iscsi_conn_printk(KERN_ALERT, cls_conn->dd_data,
 				  "belong to hba (%s)\n",
@@ -1608,8 +1608,8 @@ static int bnx2i_conn_start(struct iscsi_cls_conn *cls_conn)
 	bnx2i_update_iscsi_conn(conn);
 
 	/*
-	 * this should normally not sleep for a long time so it should
-	 * not disrupt the caller.
+	 * this should yesrmally yest sleep for a long time so it should
+	 * yest disrupt the caller.
 	 */
 	timer_setup(&bnx2i_conn->ep->ofld_timer, bnx2i_ep_ofld_timer, 0);
 	bnx2i_conn->ep->ofld_timer.expires = 1 * HZ + jiffies;
@@ -1670,27 +1670,27 @@ static struct bnx2i_hba *bnx2i_check_route(struct sockaddr *dst_addr)
 	if (hba && hba->cnic)
 		cnic = hba->cnic->cm_select_dev(desti, CNIC_ULP_ISCSI);
 	if (!cnic) {
-		printk(KERN_ALERT "bnx2i: no route,"
+		printk(KERN_ALERT "bnx2i: yes route,"
 		       "can't connect using cnic\n");
-		goto no_nx2_route;
+		goto yes_nx2_route;
 	}
 	hba = bnx2i_find_hba_for_cnic(cnic);
 	if (!hba)
-		goto no_nx2_route;
+		goto yes_nx2_route;
 
 	if (bnx2i_adapter_ready(hba)) {
-		printk(KERN_ALERT "bnx2i: check route, hba not found\n");
-		goto no_nx2_route;
+		printk(KERN_ALERT "bnx2i: check route, hba yest found\n");
+		goto yes_nx2_route;
 	}
 	if (hba->netdev->mtu > hba->mtu_supported) {
 		printk(KERN_ALERT "bnx2i: %s network i/f mtu is set to %d\n",
 				  hba->netdev->name, hba->netdev->mtu);
 		printk(KERN_ALERT "bnx2i: iSCSI HBA can support mtu of %d\n",
 				  hba->mtu_supported);
-		goto no_nx2_route;
+		goto yes_nx2_route;
 	}
 	return hba;
-no_nx2_route:
+yes_nx2_route:
 	return NULL;
 }
 
@@ -1717,7 +1717,7 @@ static int bnx2i_tear_down_conn(struct bnx2i_hba *hba,
 			/* Must suspend all rx queue activity for this ep */
 			set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
 		}
-		/* CONN_DISCONNECT timeout may or may not be an issue depending
+		/* CONN_DISCONNECT timeout may or may yest be an issue depending
 		 * on what transcribed in TCP layer, different targets behave
 		 * differently
 		 */
@@ -1759,7 +1759,7 @@ static int bnx2i_tear_down_conn(struct bnx2i_hba *hba,
  * bnx2i_ep_connect - establish TCP connection to target portal
  * @shost:		scsi host
  * @dst_addr:		target IP address
- * @non_blocking:	blocking or non-blocking call
+ * @yesn_blocking:	blocking or yesn-blocking call
  *
  * this routine initiates the TCP/IP connection by invoking Option-2 i/f
  *	with l5_core and the CNIC. This is a multi-step process of resolving
@@ -1769,7 +1769,7 @@ static int bnx2i_tear_down_conn(struct bnx2i_hba *hba,
  */
 static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 					       struct sockaddr *dst_addr,
-					       int non_blocking)
+					       int yesn_blocking)
 {
 	u32 iscsi_cid = BNX2I_CID_RESERVED;
 	struct sockaddr_in *desti = (struct sockaddr_in *) dst_addr;
@@ -1793,7 +1793,7 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 
 	if (!hba) {
 		rc = -EINVAL;
-		goto nohba;
+		goto yeshba;
 	}
 	mutex_lock(&hba->net_dev_lock);
 
@@ -1924,7 +1924,7 @@ qp_resc_err:
 	bnx2i_free_ep(ep);
 check_busy:
 	mutex_unlock(&hba->net_dev_lock);
-nohba:
+yeshba:
 	return ERR_PTR(rc);
 }
 
@@ -2061,9 +2061,9 @@ int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
 		if (bnx2i_ep->state != EP_STATE_TCP_FIN_RCVD) {
 			if (session->state == ISCSI_STATE_LOGGING_OUT) {
 				if (bnx2i_ep->state == EP_STATE_LOGOUT_SENT) {
-					/* Logout sent, but no resp */
+					/* Logout sent, but yes resp */
 					printk(KERN_ALERT "bnx2i (%s): WARNING"
-						" logout response was not "
+						" logout response was yest "
 						"received!\n",
 						bnx2i_ep->hba->netdev->name);
 				} else if (bnx2i_ep->state ==
@@ -2121,7 +2121,7 @@ static void bnx2i_ep_disconnect(struct iscsi_endpoint *ep)
 
 	bnx2i_ep = ep->dd_data;
 
-	/* driver should not attempt connection cleanup until TCP_CONNECT
+	/* driver should yest attempt connection cleanup until TCP_CONNECT
 	 * completes either successfully or fails. Timeout is 9-secs, so
 	 * wait for it to complete
 	 */

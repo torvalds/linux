@@ -4,7 +4,7 @@
  *
  * Author: Baruch Siach <baruch@tkos.co.il>
  *
- * Copyright (C) 2015 Paradox Innovation Ltd.
+ * Copyright (C) 2015 Paradox Inyesvation Ltd.
  */
 
 #include <linux/clk.h>
@@ -289,7 +289,7 @@ static const struct i2c_algorithm dc_i2c_algorithm = {
 
 static int dc_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct dc_i2c *i2c;
 	struct resource *r;
 	int ret = 0, irq;
@@ -298,7 +298,7 @@ static int dc_i2c_probe(struct platform_device *pdev)
 	if (!i2c)
 		return -ENOMEM;
 
-	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	if (of_property_read_u32(pdev->dev.of_yesde, "clock-frequency",
 				 &i2c->frequency))
 		i2c->frequency = DEFAULT_FREQ;
 
@@ -331,7 +331,7 @@ static int dc_i2c_probe(struct platform_device *pdev)
 	i2c->adap.owner = THIS_MODULE;
 	i2c->adap.algo = &dc_i2c_algorithm;
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = np;
+	i2c->adap.dev.of_yesde = np;
 	i2c->adap.algo_data = i2c;
 
 	ret = dc_i2c_init_hw(i2c);

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
 
 /*
- * ARCH specific callbacks for generic noncoherent DMA ops
- *  - hardware IOC not available (or "dma-coherent" not set for device in DT)
- *  - But still handle both coherent and non-coherent requests from caller
+ * ARCH specific callbacks for generic yesncoherent DMA ops
+ *  - hardware IOC yest available (or "dma-coherent" yest set for device in DT)
+ *  - But still handle both coherent and yesn-coherent requests from caller
  *
  * For DMA coherent hardware (IOC) generic code suffices
  */
@@ -19,7 +19,7 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 {
 	/*
 	 * Evict any existing L1 and/or L2 lines for the backing page
-	 * in case it was used earlier as a normal "cached" page.
+	 * in case it was used earlier as a yesrmal "cached" page.
 	 * Yeah this bit us - STAR 9000898266
 	 *
 	 * Although core does call flush_cache_vmap(), it gets kvaddr hence
@@ -34,11 +34,11 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
  * Cache operations depending on function and direction argument, inspired by
  * https://lkml.org/lkml/2018/5/18/979
  * "dma_sync_*_for_cpu and direction=TO_DEVICE (was Re: [PATCH 02/20]
- * dma-mapping: provide a generic dma-noncoherent implementation)"
+ * dma-mapping: provide a generic dma-yesncoherent implementation)"
  *
  *          |   map          ==  for_device     |   unmap     ==  for_cpu
  *          |----------------------------------------------------------------
- * TO_DEV   |   writeback        writeback      |   none          none
+ * TO_DEV   |   writeback        writeback      |   yesne          yesne
  * FROM_DEV |   invalidate       invalidate     |   invalidate*   invalidate*
  * BIDIR    |   writeback+inv    writeback+inv  |   invalidate    invalidate
  *
@@ -94,7 +94,7 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 			const struct iommu_ops *iommu, bool coherent)
 {
 	/*
-	 * IOC hardware snoops all DMA traffic keeping the caches consistent
+	 * IOC hardware syesops all DMA traffic keeping the caches consistent
 	 * with memory - eliding need for any explicit cache maintenance of
 	 * DMA buffers.
 	 */
@@ -102,5 +102,5 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 		dev->dma_coherent = true;
 
 	dev_info(dev, "use %scoherent DMA ops\n",
-		 dev->dma_coherent ? "" : "non");
+		 dev->dma_coherent ? "" : "yesn");
 }

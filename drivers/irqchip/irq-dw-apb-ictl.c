@@ -1,5 +1,5 @@
 /*
- * Synopsys DW APB ICTL irqchip driver.
+ * Syyespsys DW APB ICTL irqchip driver.
  *
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
  *
@@ -65,8 +65,8 @@ static void dw_apb_ictl_resume(struct irq_data *d)
 #define dw_apb_ictl_resume	NULL
 #endif /* CONFIG_PM */
 
-static int __init dw_apb_ictl_init(struct device_node *np,
-				   struct device_node *parent)
+static int __init dw_apb_ictl_init(struct device_yesde *np,
+				   struct device_yesde *parent)
 {
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 	struct resource r;
@@ -104,7 +104,7 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 	/*
 	 * DW IP can be configured to allow 2-64 irqs. We can determine
 	 * the number of irqs supported by writing into enable register
-	 * and look for bits not set, as corresponding flip-flops will
+	 * and look for bits yest set, as corresponding flip-flops will
 	 * have been removed by synthesis tool.
 	 */
 

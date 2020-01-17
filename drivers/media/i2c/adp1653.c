@@ -410,17 +410,17 @@ static int adp1653_resume(struct device *dev)
 
 static int adp1653_of_init(struct i2c_client *client,
 			   struct adp1653_flash *flash,
-			   struct device_node *node)
+			   struct device_yesde *yesde)
 {
 	struct adp1653_platform_data *pd;
-	struct device_node *child;
+	struct device_yesde *child;
 
 	pd = devm_kzalloc(&client->dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return -ENOMEM;
 	flash->platform_data = pd;
 
-	child = of_get_child_by_name(node, "flash");
+	child = of_get_child_by_name(yesde, "flash");
 	if (!child)
 		return -EINVAL;
 
@@ -439,9 +439,9 @@ static int adp1653_of_init(struct i2c_client *client,
 		goto err;
 
 	pd->max_torch_intensity /= 1000;
-	of_node_put(child);
+	of_yesde_put(child);
 
-	child = of_get_child_by_name(node, "indicator");
+	child = of_get_child_by_name(yesde, "indicator");
 	if (!child)
 		return -EINVAL;
 
@@ -449,7 +449,7 @@ static int adp1653_of_init(struct i2c_client *client,
 				 &pd->max_indicator_intensity))
 		goto err;
 
-	of_node_put(child);
+	of_yesde_put(child);
 
 	pd->enable_gpio = devm_gpiod_get(&client->dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(pd->enable_gpio)) {
@@ -459,8 +459,8 @@ static int adp1653_of_init(struct i2c_client *client,
 
 	return 0;
 err:
-	dev_err(&client->dev, "Required property not found\n");
-	of_node_put(child);
+	dev_err(&client->dev, "Required property yest found\n");
+	of_yesde_put(child);
 	return -EINVAL;
 }
 
@@ -475,14 +475,14 @@ static int adp1653_probe(struct i2c_client *client,
 	if (flash == NULL)
 		return -ENOMEM;
 
-	if (client->dev.of_node) {
-		ret = adp1653_of_init(client, flash, client->dev.of_node);
+	if (client->dev.of_yesde) {
+		ret = adp1653_of_init(client, flash, client->dev.of_yesde);
 		if (ret)
 			return ret;
 	} else {
 		if (!client->dev.platform_data) {
 			dev_err(&client->dev,
-				"Neither DT not platform data provided\n");
+				"Neither DT yest platform data provided\n");
 			return -EINVAL;
 		}
 		flash->platform_data = client->dev.platform_data;
@@ -547,6 +547,6 @@ static struct i2c_driver adp1653_i2c_driver = {
 
 module_i2c_driver(adp1653_i2c_driver);
 
-MODULE_AUTHOR("Sakari Ailus <sakari.ailus@nokia.com>");
+MODULE_AUTHOR("Sakari Ailus <sakari.ailus@yeskia.com>");
 MODULE_DESCRIPTION("Analog Devices ADP1653 LED flash driver");
 MODULE_LICENSE("GPL");

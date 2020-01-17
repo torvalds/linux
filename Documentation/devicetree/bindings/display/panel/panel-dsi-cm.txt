@@ -9,7 +9,7 @@ Optional properties:
 - reset-gpios: panel reset gpio
 - te-gpios: panel TE gpio
 
-Required nodes:
+Required yesdes:
 - Video port for DSI input
 
 Example

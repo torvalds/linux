@@ -55,14 +55,14 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 #define  MODEL_ECHO_AUDIOFIRE_4		0x000af4
 /* AudioFire9 is applied for AudioFire8(since 2009 July) and AudioFirePre8 */
 #define  MODEL_ECHO_AUDIOFIRE_9		0x000af9
-/* unknown as product */
+/* unkyeswn as product */
 #define  MODEL_ECHO_FIREWORKS_8		0x0000f8
 #define  MODEL_ECHO_FIREWORKS_HDMI	0x00afd1
 
 #define VENDOR_GIBSON			0x00075b
 /* for Robot Interface Pack of Dark Fire, Dusk Tiger, Les Paul Standard 2010 */
 #define  MODEL_GIBSON_RIP		0x00afb2
-/* unknown as product */
+/* unkyeswn as product */
 #define  MODEL_GIBSON_GOLDTOP		0x00afb9
 
 /* part of hardware capability flags */
@@ -128,7 +128,7 @@ get_hardware_info(struct snd_efw *efw)
 	 && (192000 <= hwinfo->max_sample_rate))
 		efw->supported_sampling_rate |= SNDRV_PCM_RATE_192000;
 
-	/* the number of MIDI ports, not of MIDI conformant data channels */
+	/* the number of MIDI ports, yest of MIDI conformant data channels */
 	if (hwinfo->midi_out_ports > SND_EFW_MAX_MIDI_OUT_PORTS ||
 	    hwinfo->midi_in_ports > SND_EFW_MAX_MIDI_IN_PORTS) {
 		err = -EIO;
@@ -327,8 +327,8 @@ static void efw_remove(struct fw_unit *unit)
 
 	/*
 	 * Confirm to stop the work for registration before the sound card is
-	 * going to be released. The work is not scheduled again because bus
-	 * reset handler is not called anymore.
+	 * going to be released. The work is yest scheduled again because bus
+	 * reset handler is yest called anymore.
 	 */
 	cancel_delayed_work_sync(&efw->dwork);
 

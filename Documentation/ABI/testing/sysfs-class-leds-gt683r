@@ -3,11 +3,11 @@ Date:		Jun 2014
 KernelVersion:	3.17
 Contact:	Janne Kanniainen <janne.kanniainen@gmail.com>
 Description:
-		Set the mode of LEDs. You should notice that changing the mode
+		Set the mode of LEDs. You should yestice that changing the mode
 		of one LED will update the mode of its two sibling devices as
 		well. Possible values are:
 
-		0 - normal
+		0 - yesrmal
 		1 - audio
 		2 - breathing
 

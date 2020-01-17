@@ -22,14 +22,14 @@ static void *efi_fb;
 
 /*
  * EFI earlycon needs to use early_memremap() to map the framebuffer.
- * But early_memremap() is not usable for 'earlycon=efifb keep_bootcon',
+ * But early_memremap() is yest usable for 'earlycon=efifb keep_bootcon',
  * memremap() should be used instead. memremap() will be available after
  * paging_init() which is earlier than initcall callbacks. Thus adding this
  * early initcall function early_efi_map_fb() to map the whole EFI framebuffer.
  */
 static int __init efi_earlycon_remap_fb(void)
 {
-	/* bail if there is no bootconsole or it has been disabled already */
+	/* bail if there is yes bootconsole or it has been disabled already */
 	if (!earlycon_console || !(earlycon_console->flags & CON_ENABLED))
 		return 0;
 

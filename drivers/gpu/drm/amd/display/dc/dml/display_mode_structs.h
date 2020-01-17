@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -77,8 +77,8 @@ struct _vcs_dpi_soc_bounding_box_st {
 	double pct_ideal_dram_sdp_bw_after_urgent_pixel_only; // PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyPixelDataOnly
 	double pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm;
 	double pct_ideal_dram_sdp_bw_after_urgent_vm_only;
-	double max_avg_sdp_bw_use_normal_percent;
-	double max_avg_dram_bw_use_normal_percent;
+	double max_avg_sdp_bw_use_yesrmal_percent;
+	double max_avg_dram_bw_use_yesrmal_percent;
 	unsigned int max_request_size_bytes;
 	double downspread_percent;
 	double dram_page_open_time_ns;
@@ -429,14 +429,14 @@ struct _vcs_dpi_display_dlg_regs_st {
 	unsigned int refcyc_per_pte_group_flip_c;
 	unsigned int refcyc_per_meta_chunk_flip_l;
 	unsigned int refcyc_per_meta_chunk_flip_c;
-	unsigned int dst_y_per_pte_row_nom_l;
-	unsigned int dst_y_per_pte_row_nom_c;
-	unsigned int refcyc_per_pte_group_nom_l;
-	unsigned int refcyc_per_pte_group_nom_c;
-	unsigned int dst_y_per_meta_row_nom_l;
-	unsigned int dst_y_per_meta_row_nom_c;
-	unsigned int refcyc_per_meta_chunk_nom_l;
-	unsigned int refcyc_per_meta_chunk_nom_c;
+	unsigned int dst_y_per_pte_row_yesm_l;
+	unsigned int dst_y_per_pte_row_yesm_c;
+	unsigned int refcyc_per_pte_group_yesm_l;
+	unsigned int refcyc_per_pte_group_yesm_c;
+	unsigned int dst_y_per_meta_row_yesm_l;
+	unsigned int dst_y_per_meta_row_yesm_c;
+	unsigned int refcyc_per_meta_chunk_yesm_l;
+	unsigned int refcyc_per_meta_chunk_yesm_c;
 	unsigned int refcyc_per_line_delivery_pre_l;
 	unsigned int refcyc_per_line_delivery_pre_c;
 	unsigned int refcyc_per_line_delivery_l;

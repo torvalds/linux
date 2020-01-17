@@ -34,7 +34,7 @@ enum ta_cmd {
 	/*
 	 * TA_CMD_BNXT_COPY_COREDUMP - copy the core dump into shm
 	 *
-	 *	param[0] (inout memref) - Coredump buffer memory reference
+	 *	param[0] (iyesut memref) - Coredump buffer memory reference
 	 *	param[1] (in value) - value.a: offset, data to be copied from
 	 *			      value.b: size of data to be copied
 	 *	param[2] unused
@@ -94,7 +94,7 @@ static void prepare_args(int cmd,
  * tee_bnxt_fw_load() - Load the bnxt firmware
  *		    Uses an OP-TEE call to start a secure
  *		    boot process.
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erryes otherwise.
  */
 int tee_bnxt_fw_load(void)
 {
@@ -126,7 +126,7 @@ EXPORT_SYMBOL(tee_bnxt_fw_load);
  * @offset:	offset from the base address of core dump area
  * @size:	size of the dump
  *
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erryes otherwise.
  */
 int tee_bnxt_copy_coredump(void *buf, u32 offset, u32 size)
 {

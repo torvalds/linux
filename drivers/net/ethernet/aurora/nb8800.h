@@ -284,7 +284,7 @@ struct nb8800_priv {
 	spinlock_t			tx_lock;
 
 	struct mii_bus			*mii_bus;
-	struct device_node		*phy_node;
+	struct device_yesde		*phy_yesde;
 
 	/* PHY connection type from DT */
 	phy_interface_t			phy_mode;

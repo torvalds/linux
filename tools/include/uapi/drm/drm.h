@@ -4,7 +4,7 @@
  *
  * \author Rickard E. (Rik) Faith <faith@valinux.com>
  *
- * \par Acknowledgments:
+ * \par Ackyeswledgments:
  * Dec 1999, Richard Henderson <rth@twiddle.net>, move to generic \c cmpxchg.
  */
 
@@ -20,7 +20,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -91,7 +91,7 @@ typedef unsigned int drm_magic_t;
  * \warning: If you change this structure, make sure you change
  * XF86DRIClipRectRec in the server as well
  *
- * \note KW: Actually it's illegal to change either for
+ * \yeste KW: Actually it's illegal to change either for
  * backwards-compatibility reasons.
  */
 struct drm_clip_rect {
@@ -124,7 +124,7 @@ struct drm_tex_region {
  * Hardware lock.
  *
  * The lock structure is a simple cache-line aligned integer.  To avoid
- * processor bus contention on a multiprocessor system, there should not be any
+ * processor bus contention on a multiprocessor system, there should yest be any
  * other data stored in the same cache line.
  */
 struct drm_hw_lock {
@@ -139,7 +139,7 @@ struct drm_hw_lock {
  */
 struct drm_version {
 	int version_major;	  /**< Major version */
-	int version_minor;	  /**< Minor version */
+	int version_miyesr;	  /**< Miyesr version */
 	int version_patchlevel;	  /**< Patch level */
 	__kernel_size_t name_len;	  /**< Length of name buffer */
 	char __user *name;	  /**< Name of driver */
@@ -187,8 +187,8 @@ struct drm_control {
  * Type of memory to map.
  */
 enum drm_map_type {
-	_DRM_FRAME_BUFFER = 0,	  /**< WC (no caching), no core dump */
-	_DRM_REGISTERS = 1,	  /**< no caching, no core dump */
+	_DRM_FRAME_BUFFER = 0,	  /**< WC (yes caching), yes core dump */
+	_DRM_REGISTERS = 1,	  /**< yes caching, yes core dump */
 	_DRM_SHM = 2,		  /**< shared, cached */
 	_DRM_AGP = 3,		  /**< AGP/GART */
 	_DRM_SCATTER_GATHER = 4,  /**< Scatter/gather memory for PCI DMA */
@@ -199,7 +199,7 @@ enum drm_map_type {
  * Memory mapping flags.
  */
 enum drm_map_flags {
-	_DRM_RESTRICTED = 0x01,	     /**< Cannot be mapped to user-virtual */
+	_DRM_RESTRICTED = 0x01,	     /**< Canyest be mapped to user-virtual */
 	_DRM_READ_ONLY = 0x02,
 	_DRM_LOCKED = 0x04,	     /**< shared, cached, locked */
 	_DRM_KERNEL = 0x08,	     /**< kernel requires access */
@@ -252,7 +252,7 @@ enum drm_stat_type {
 	_DRM_STAT_UNLOCKS,
 	_DRM_STAT_VALUE,	/**< Generic value */
 	_DRM_STAT_BYTE,		/**< Generic byte counter (1024bytes/K) */
-	_DRM_STAT_COUNT,	/**< Generic non-byte counter (1000/k) */
+	_DRM_STAT_COUNT,	/**< Generic yesn-byte counter (1000/k) */
 
 	_DRM_STAT_IRQ,		/**< IRQ */
 	_DRM_STAT_PRIMARY,	/**< Primary DMA bytes */
@@ -312,7 +312,7 @@ enum drm_dma_flags {
 	_DRM_DMA_BLOCK = 0x01,	      /**<
 				       * Block until buffer dispatched.
 				       *
-				       * \note The buffer may not yet have
+				       * \yeste The buffer may yest yet have
 				       * been processed by the hardware --
 				       * getting a hardware lock with the
 				       * hardware quiescent will ensure
@@ -562,13 +562,13 @@ struct drm_agp_binding {
 /**
  * DRM_IOCTL_AGP_INFO ioctl argument type.
  *
- * \sa drmAgpVersionMajor(), drmAgpVersionMinor(), drmAgpGetMode(),
+ * \sa drmAgpVersionMajor(), drmAgpVersionMiyesr(), drmAgpGetMode(),
  * drmAgpBase(), drmAgpSize(), drmAgpMemoryUsed(), drmAgpMemoryAvail(),
  * drmAgpVendorId() and drmAgpDeviceId().
  */
 struct drm_agp_info {
 	int agp_version_major;
-	int agp_version_minor;
+	int agp_version_miyesr;
 	unsigned long mode;
 	unsigned long aperture_base;	/* physical address */
 	unsigned long aperture_size;	/* bytes */
@@ -593,9 +593,9 @@ struct drm_scatter_gather {
  */
 struct drm_set_version {
 	int drm_di_major;
-	int drm_di_minor;
+	int drm_di_miyesr;
 	int drm_dd_major;
-	int drm_dd_minor;
+	int drm_dd_miyesr;
 };
 
 /** DRM_IOCTL_GEM_CLOSE ioctl argument type */
@@ -638,10 +638,10 @@ struct drm_gem_open {
 /*
  * The CURSOR_WIDTH and CURSOR_HEIGHT capabilities return a valid widthxheight
  * combination for the hardware cursor. The intention is that a hardware
- * agnostic userspace can query a cursor plane size to use.
+ * agyesstic userspace can query a cursor plane size to use.
  *
  * Note that the cross-driver contract is to merely return a valid size;
- * drivers are free to attach another meaning on top, eg. i915 returns the
+ * drivers are free to attach ayesther meaning on top, eg. i915 returns the
  * maximum plane size.
  */
 #define DRM_CAP_CURSOR_WIDTH		0x8
@@ -755,7 +755,7 @@ struct drm_syncobj_wait {
 	__s64 timeout_nsec;
 	__u32 count_handles;
 	__u32 flags;
-	__u32 first_signaled; /* only valid when not waiting all */
+	__u32 first_signaled; /* only valid when yest waiting all */
 	__u32 pad;
 };
 
@@ -767,7 +767,7 @@ struct drm_syncobj_timeline_wait {
 	__s64 timeout_nsec;
 	__u32 count_handles;
 	__u32 flags;
-	__u32 first_signaled; /* only valid when not waiting all */
+	__u32 first_signaled; /* only valid when yest waiting all */
 	__u32 pad;
 };
 
@@ -787,7 +787,7 @@ struct drm_syncobj_timeline_array {
 };
 
 
-/* Query current scanout sequence number */
+/* Query current scayesut sequence number */
 struct drm_crtc_get_sequence {
 	__u32 crtc_id;		/* requested crtc_id */
 	__u32 active;		/* return: crtc output is active */
@@ -986,7 +986,7 @@ struct drm_event_vblank {
 	__u32 tv_sec;
 	__u32 tv_usec;
 	__u32 sequence;
-	__u32 crtc_id; /* 0 on older kernels that do not support this */
+	__u32 crtc_id; /* 0 on older kernels that do yest support this */
 };
 
 /* Event delivered at sequence. Time stamp marks when the first pixel

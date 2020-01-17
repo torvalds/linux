@@ -167,7 +167,7 @@ static int blake2b_init(struct shash_desc *desc)
 	memset(state, 0, sizeof(*state));
 	memcpy(state->h, blake2b_IV, sizeof(state->h));
 
-	/* Parameter block is all zeros except index 0, no xor for 1..7 */
+	/* Parameter block is all zeros except index 0, yes xor for 1..7 */
 	state->h[0] ^= 0x01010000 | tctx->keylen << 8 | digestsize;
 
 	if (tctx->keylen) {

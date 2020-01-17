@@ -487,7 +487,7 @@
 &mmc2 {
 	vmmc-supply = <&vaux1>;
 	bus-width = <8>;
-	ti,non-removable;
+	ti,yesn-removable;
 };
 
 &mmc3 {
@@ -502,7 +502,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&wl12xx_pins>;
 	vmmc-supply = <&wl12xx_vmmc>;
-	non-removable;
+	yesn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 
@@ -595,7 +595,7 @@
 			0x070500f0	/* KEY_UNKNOWN */
 			0x07060160	/* KEY_OK */
 			0x0707006c>;	/* KEY_DOWN */
-	linux,input-no-autorepeat;
+	linux,input-yes-autorepeat;
 };
 
 &uart2 {

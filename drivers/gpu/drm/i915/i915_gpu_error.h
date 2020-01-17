@@ -146,7 +146,7 @@ struct i915_gpu_state {
 			long jiffies;
 			pid_t pid;
 			u32 context;
-			u32 seqno;
+			u32 seqyes;
 			u32 start;
 			u32 head;
 			u32 tail;

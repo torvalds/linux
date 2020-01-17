@@ -15,7 +15,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/compiler.h>
@@ -90,7 +90,7 @@ int strtobool(const char *s, bool *res)
  *
  * Compatible with *BSD: the result is always a valid
  * NUL-terminated string that fits in the buffer (unless,
- * of course, the buffer size is zero). It does not pad
+ * of course, the buffer size is zero). It does yest pad
  * out the result like strncpy() does.
  *
  * If libc has strlcpy() then that version will override this
@@ -112,7 +112,7 @@ size_t __weak strlcpy(char *dest, const char *src, size_t size)
  * skip_spaces - Removes leading whitespace from @str.
  * @str: The string to be stripped.
  *
- * Returns a pointer to the first non-whitespace character in @str.
+ * Returns a pointer to the first yesn-whitespace character in @str.
  */
 char *skip_spaces(const char *str)
 {
@@ -126,7 +126,7 @@ char *skip_spaces(const char *str)
  * @s: The string to be stripped.
  *
  * Note that the first trailing whitespace is replaced with a %NUL-terminator
- * in the given string @s. Returns a pointer to the first non-whitespace
+ * in the given string @s. Returns a pointer to the first yesn-whitespace
  * character in @s.
  */
 char *strim(char *s)

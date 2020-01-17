@@ -41,8 +41,8 @@
 
    980825:  Changed to receive directly in to sk_buffs which are
    allocated at open() time.  Eliminates copy on incoming frames
-   (small ones are still copied).  Shared data now held in a
-   non-cached page, so we can run on 68060 in copyback mode.
+   (small ones are still copied).  Shared data yesw held in a
+   yesn-cached page, so we can run on 68060 in copyback mode.
 
    TBD:
    * look at deferring rx frames rather than discarding (as per tulip)
@@ -71,7 +71,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -143,7 +143,7 @@ static int rx_copybreak = 100;
 
 enum commands {
 	CmdNOp = 0, CmdSASetup = 1, CmdConfigure = 2, CmdMulticastList = 3,
-	CmdTx = 4, CmdTDR = 5, CmdDump = 6, CmdDiagnose = 7
+	CmdTx = 4, CmdTDR = 5, CmdDump = 6, CmdDiagyesse = 7
 };
 
 #define STAT_C		0x8000	/* Set to 0 after execution */
@@ -185,7 +185,7 @@ struct i596_tbd {
  * command as seen by the 82596.  The b_next pointer, as used by the 82596
  * always references the status field of the next command, rather than the
  * v_next field, because the 82596 is unaware of v_next.  It may seem more
- * logical to put v_next at the end of the structure, but we cannot do that
+ * logical to put v_next at the end of the structure, but we canyest do that
  * because the 82596 expects other fields to be there, depending on command
  * type.
  */
@@ -588,7 +588,7 @@ static int init_i596_mem(struct net_device *dev)
 			     dev->name));
 
 	if (request_irq(dev->irq, i596_interrupt, 0, "i82596", dev)) {
-		printk(KERN_ERR "%s: IRQ %d not free\n", dev->name, dev->irq);
+		printk(KERN_ERR "%s: IRQ %d yest free\n", dev->name, dev->irq);
 		goto failed;
 	}
 
@@ -630,7 +630,7 @@ static int init_i596_mem(struct net_device *dev)
 	ca(dev);
 
 	spin_unlock_irqrestore (&lp->lock, flags);
-	if (wait_cmd(dev, dma, 1000, "RX_START not processed"))
+	if (wait_cmd(dev, dma, 1000, "RX_START yest processed"))
 		goto failed_free_irq;
 	DEB(DEB_INIT, printk(KERN_DEBUG
 			     "%s: Receive unit started OK\n", dev->name));
@@ -684,7 +684,7 @@ static inline int i596_rx(struct net_device *dev)
 			DEB(DEB_RXADDR, print_eth(rbd->v_data, "received"));
 			frames++;
 
-			/* Check if the packet is long enough to just accept
+			/* Check if the packet is long eyesugh to just accept
 			 * without copying to a properly sized skbuff.
 			 */
 
@@ -1134,7 +1134,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 
 	if (!ack_cmd) {
 		DEB(DEB_ERRORS, printk(KERN_DEBUG
-				       "%s: interrupt with no events\n",
+				       "%s: interrupt with yes events\n",
 				       dev->name));
 		spin_unlock (&lp->lock);
 		return IRQ_NONE;
@@ -1229,7 +1229,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 			    }
 			case CmdConfigure:
 				/*
-				 * Zap command so set_multicast_list() know
+				 * Zap command so set_multicast_list() kyesw
 				 * it is free
 				 */
 				ptr->command = 0;
@@ -1285,7 +1285,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 	DMA_WBACK(dev, &dma->scb, sizeof(struct i596_scb));
 
 	/* DANGER: I suspect that some kind of interrupt
-	 acknowledgement aside from acking the 82596 might be needed
+	 ackyeswledgement aside from acking the 82596 might be needed
 	 here...  but it's running acceptably without */
 
 	ca(dev);

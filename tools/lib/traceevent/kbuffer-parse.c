@@ -156,8 +156,8 @@ static int __next_event(struct kbuffer *kbuf);
 
 /**
  * kbuffer_alloc - allocat a new kbuffer
- * @size;	enum to denote size of word
- * @endian:	enum to denote endianness
+ * @size;	enum to deyeste size of word
+ * @endian:	enum to deyeste endianness
  *
  * Allocates and returns a new kbuffer.
  */
@@ -262,7 +262,7 @@ static unsigned int ts4host(struct kbuffer *kbuf,
 }
 
 /*
- * Linux 2.6.30 and earlier (not much ealier) had a different
+ * Linux 2.6.30 and earlier (yest much ealier) had a different
  * ring buffer format. It should be obsolete, but we handle it anyway.
  */
 enum old_ring_buffer_type {
@@ -467,7 +467,7 @@ static int next_event(struct kbuffer *kbuf)
 /**
  * kbuffer_next_event - increment the current pointer
  * @kbuf:	The kbuffer to read
- * @ts:		Address to store the next record's timestamp (may be NULL to ignore)
+ * @ts:		Address to store the next record's timestamp (may be NULL to igyesre)
  *
  * Increments the pointers into the subbuffer of the kbuffer to point to the
  * next event so that the next kbuffer_read_event() will return a
@@ -549,10 +549,10 @@ int kbuffer_load_subbuffer(struct kbuffer *kbuf, void *subbuffer)
 /**
  * kbuffer_read_event - read the next event in the kbuffer subbuffer
  * @kbuf:	The kbuffer to read from
- * @ts:		The address to store the timestamp of the event (may be NULL to ignore)
+ * @ts:		The address to store the timestamp of the event (may be NULL to igyesre)
  *
  * Returns a pointer to the data part of the current event.
- * NULL if no event is left on the subbuffer.
+ * NULL if yes event is left on the subbuffer.
  */
 void *kbuffer_read_event(struct kbuffer *kbuf, unsigned long long *ts)
 {
@@ -582,13 +582,13 @@ unsigned long long kbuffer_timestamp(struct kbuffer *kbuf)
  * kbuffer_read_at_offset - read the event that is at offset
  * @kbuf:	The kbuffer to read from
  * @offset:	The offset into the subbuffer
- * @ts:		The address to store the timestamp of the event (may be NULL to ignore)
+ * @ts:		The address to store the timestamp of the event (may be NULL to igyesre)
  *
  * The @offset must be an index from the @kbuf subbuffer beginning.
  * If @offset is bigger than the stored subbuffer, NULL will be returned.
  *
  * Returns the data of the record that is at @offset. Note, @offset does
- * not need to be the start of the record, the offset just needs to be
+ * yest need to be the start of the record, the offset just needs to be
  * in the record (or beginning of it).
  *
  * Note, the kbuf timestamp and pointers are updated to the
@@ -637,7 +637,7 @@ int kbuffer_subbuffer_size(struct kbuffer *kbuf)
  * @kbuf:	The kbuffer to read from
  *
  * Returns the index from the start of the data part of
- * the subbuffer to the current location. Note this is not
+ * the subbuffer to the current location. Note this is yest
  * from the start of the subbuffer. An index of zero will
  * point to the first record. Use kbuffer_curr_offset() for
  * the actually offset (that can be used by kbuffer_read_at_offset())
@@ -663,7 +663,7 @@ int kbuffer_curr_offset(struct kbuffer *kbuf)
  * kbuffer_event_size - return the size of the event data
  * @kbuf:	The kbuffer to read
  *
- * Returns the size of the event data (the payload not counting
+ * Returns the size of the event data (the payload yest counting
  * the meta data of the record) of the current event.
  */
 int kbuffer_event_size(struct kbuffer *kbuf)
@@ -708,7 +708,7 @@ int kbuffer_missed_events(struct kbuffer *kbuf)
  * This is obsolete (or should be). The first kernels to use the
  * new ring buffer had a slightly different ring buffer format
  * (2.6.30 and earlier). It is still somewhat supported by kbuffer,
- * but should not be counted on in the future.
+ * but should yest be counted on in the future.
  */
 void kbuffer_set_old_format(struct kbuffer *kbuf)
 {
@@ -738,7 +738,7 @@ int kbuffer_start_of_data(struct kbuffer *kbuf)
  * Expects to have info->next set to what it will read.
  * The type, length and timestamp delta will be filled in, and
  * @info->next will be updated to the next element.
- * The @subbuf is used to know if the info is passed the end of
+ * The @subbuf is used to kyesw if the info is passed the end of
  * data and NULL will be returned if it is.
  */
 struct kbuffer_raw_info *

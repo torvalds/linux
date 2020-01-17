@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *  BSD Process Accounting for Linux - Definitions
  *
@@ -25,7 +25,7 @@
  *  comp_t is a 16-bit "floating" point number with a 3-bit base 8
  *  exponent and a 13-bit fraction.
  *  comp2_t is 24-bit with 5-bit base 2 exponent and 20 bit fraction
- *  (leading 1 not stored).
+ *  (leading 1 yest stored).
  *  See linux/kernel/acct.c for the specific encoding systems used.
  */
 
@@ -56,10 +56,10 @@ struct acct
 	comp_t		ac_mem;			/* Average Memory Usage */
 	comp_t		ac_io;			/* Chars Transferred */
 	comp_t		ac_rw;			/* Blocks Read or Written */
-	comp_t		ac_minflt;		/* Minor Pagefaults */
+	comp_t		ac_minflt;		/* Miyesr Pagefaults */
 	comp_t		ac_majflt;		/* Major Pagefaults */
 	comp_t		ac_swaps;		/* Number of Swaps */
-/* m68k had no padding here. */
+/* m68k had yes padding here. */
 #if !defined(CONFIG_M68K) || !defined(__KERNEL__)
 	__u16		ac_ahz;			/* AHZ */
 #endif
@@ -92,7 +92,7 @@ struct acct_v3
 	comp_t		ac_mem;			/* Average Memory Usage */
 	comp_t		ac_io;			/* Chars Transferred */
 	comp_t		ac_rw;			/* Blocks Read or Written */
-	comp_t		ac_minflt;		/* Minor Pagefaults */
+	comp_t		ac_minflt;		/* Miyesr Pagefaults */
 	comp_t		ac_majflt;		/* Major Pagefaults */
 	comp_t		ac_swaps;		/* Number of Swaps */
 	char		ac_comm[ACCT_COMM];	/* Command Name */
@@ -102,9 +102,9 @@ struct acct_v3
  *  accounting flags
  */
 				/* bit set when the process ... */
-#define AFORK		0x01	/* ... executed fork, but did not exec */
+#define AFORK		0x01	/* ... executed fork, but did yest exec */
 #define ASU		0x02	/* ... used super-user privileges */
-#define ACOMPAT		0x04	/* ... used compatibility mode (VAX only not used) */
+#define ACOMPAT		0x04	/* ... used compatibility mode (VAX only yest used) */
 #define ACORE		0x08	/* ... dumped core */
 #define AXSIG		0x10	/* ... was killed by a signal */
 

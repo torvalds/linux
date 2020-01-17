@@ -18,9 +18,9 @@
 #include <asm/setup.h>
 #endif
 
-static bool nologo;
-module_param(nologo, bool, 0);
-MODULE_PARM_DESC(nologo, "Disables startup logo");
+static bool yeslogo;
+module_param(yeslogo, bool, 0);
+MODULE_PARM_DESC(yeslogo, "Disables startup logo");
 
 /*
  * Logos are located in the initdata, and will be freed in kernel_init.
@@ -45,17 +45,17 @@ const struct linux_logo * __ref fb_find_logo(int depth)
 {
 	const struct linux_logo *logo = NULL;
 
-	if (nologo || logos_freed)
+	if (yeslogo || logos_freed)
 		return NULL;
 
 	if (depth >= 1) {
 #ifdef CONFIG_LOGO_LINUX_MONO
 		/* Generic Linux logo */
-		logo = &logo_linux_mono;
+		logo = &logo_linux_moyes;
 #endif
 #ifdef CONFIG_LOGO_SUPERH_MONO
 		/* SuperH Linux logo */
-		logo = &logo_superh_mono;
+		logo = &logo_superh_moyes;
 #endif
 	}
 	

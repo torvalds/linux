@@ -236,7 +236,7 @@ static irqreturn_t ps3disk_interrupt(int irq, void *data)
 	req = priv->req;
 	if (!req) {
 		dev_dbg(&dev->sbd.core,
-			"%s:%u non-block layer request completed\n", __func__,
+			"%s:%u yesn-block layer request completed\n", __func__,
 			__LINE__);
 		dev->lv1_status = status;
 		complete(&dev->done);
@@ -402,7 +402,7 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 
 	if (dev->blk_size < 512) {
 		dev_err(&dev->sbd.core,
-			"%s:%u: cannot handle block size %llu\n", __func__,
+			"%s:%u: canyest handle block size %llu\n", __func__,
 			__LINE__, dev->blk_size);
 		return -EINVAL;
 	}
@@ -473,7 +473,7 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 
 	priv->gendisk = gendisk;
 	gendisk->major = ps3disk_major;
-	gendisk->first_minor = devidx * PS3DISK_MINORS;
+	gendisk->first_miyesr = devidx * PS3DISK_MINORS;
 	gendisk->fops = &ps3disk_fops;
 	gendisk->queue = queue;
 	gendisk->private_data = dev;
@@ -521,7 +521,7 @@ static int ps3disk_remove(struct ps3_system_bus_device *_dev)
 	blk_cleanup_queue(priv->queue);
 	blk_mq_free_tag_set(&priv->tag_set);
 	put_disk(priv->gendisk);
-	dev_notice(&dev->sbd.core, "Synchronizing disk cache\n");
+	dev_yestice(&dev->sbd.core, "Synchronizing disk cache\n");
 	ps3disk_sync_cache(dev);
 	ps3stor_teardown(dev);
 	kfree(dev->bounce_buf);

@@ -153,7 +153,7 @@ int module_trampoline_target(struct module *mod, unsigned long addr,
 	u32 magic;
 
 	if (!within_module_core(addr, mod)) {
-		pr_err("%s: stub %lx not in module %s\n", __func__, addr, mod->name);
+		pr_err("%s: stub %lx yest in module %s\n", __func__, addr, mod->name);
 		return -EFAULT;
 	}
 
@@ -469,7 +469,7 @@ static bool is_mprofile_mcount_callsite(const char *name, u32 *instruction)
 }
 
 /*
- * In case of _mcount calls, do not save the current callee's TOC (in r2) into
+ * In case of _mcount calls, do yest save the current callee's TOC (in r2) into
  * the original caller's stack frame. If we did we would clobber the saved TOC
  * value of the original caller.
  */
@@ -492,7 +492,7 @@ static bool is_mprofile_mcount_callsite(const char *name, u32 *instruction)
 }
 #endif
 
-/* We expect a noop next: if it is, replace it with instruction to
+/* We expect a yesop next: if it is, replace it with instruction to
    restore r2. */
 static int restore_r2(const char *name, u32 *instruction, struct module *me)
 {
@@ -510,7 +510,7 @@ static int restore_r2(const char *name, u32 *instruction, struct module *me)
 		return 1;
 
 	if (*instruction != PPC_INST_NOP) {
-		pr_err("%s: Expected nop after call, got %08x at %pS\n",
+		pr_err("%s: Expected yesp after call, got %08x at %pS\n",
 			me->name, *instruction, instruction);
 		return 0;
 	}
@@ -681,7 +681,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		case R_PPC64_TOCSAVE:
 			/*
 			 * Marker reloc indicates we don't have to save r2.
-			 * That would only save us one instruction, so ignore
+			 * That would only save us one instruction, so igyesre
 			 * it.
 			 */
 			break;
@@ -734,7 +734,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			break;
 
 		default:
-			pr_err("%s: Unknown ADD relocation: %lu\n",
+			pr_err("%s: Unkyeswn ADD relocation: %lu\n",
 			       me->name,
 			       (unsigned long)ELF64_R_TYPE(rela[i].r_info));
 			return -ENOEXEC;
@@ -756,7 +756,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
  *
  * That can happen if the function calling us didn't need to use the toc. In
  * that case it won't have setup r2, and the r2 value will be either the
- * kernel's toc, or possibly another modules toc.
+ * kernel's toc, or possibly ayesther modules toc.
  *
  * To deal with that this stub uses the kernel toc, which is always accessible
  * via the paca (in r13). The target (ftrace_caller()) is responsible for

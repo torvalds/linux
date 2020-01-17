@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -37,7 +37,7 @@
 
 struct qpn_to_netdev {
 	struct net_device *netdev;
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 	u32 underlay_qpn;
 };
 
@@ -68,15 +68,15 @@ void mlx5i_pkey_qpn_ht_cleanup(struct net_device *netdev)
 	kfree(ipriv->qpn_htbl);
 }
 
-static struct qpn_to_netdev *mlx5i_find_qpn_to_netdev_node(struct hlist_head *buckets,
+static struct qpn_to_netdev *mlx5i_find_qpn_to_netdev_yesde(struct hlist_head *buckets,
 							   u32 qpn)
 {
 	struct hlist_head *h = &buckets[hash_32(qpn, MLX5I_MAX_LOG_PKEY_SUP)];
-	struct qpn_to_netdev *node;
+	struct qpn_to_netdev *yesde;
 
-	hlist_for_each_entry(node, h, hlist) {
-		if (node->underlay_qpn == qpn)
-			return node;
+	hlist_for_each_entry(yesde, h, hlist) {
+		if (yesde->underlay_qpn == qpn)
+			return yesde;
 	}
 
 	return NULL;
@@ -87,16 +87,16 @@ int mlx5i_pkey_add_qpn(struct net_device *netdev, u32 qpn)
 	struct mlx5i_priv *ipriv = netdev_priv(netdev);
 	struct mlx5i_pkey_qpn_ht *ht = ipriv->qpn_htbl;
 	u8 key = hash_32(qpn, MLX5I_MAX_LOG_PKEY_SUP);
-	struct qpn_to_netdev *new_node;
+	struct qpn_to_netdev *new_yesde;
 
-	new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
-	if (!new_node)
+	new_yesde = kzalloc(sizeof(*new_yesde), GFP_KERNEL);
+	if (!new_yesde)
 		return -ENOMEM;
 
-	new_node->netdev = netdev;
-	new_node->underlay_qpn = qpn;
+	new_yesde->netdev = netdev;
+	new_yesde->underlay_qpn = qpn;
 	spin_lock_bh(&ht->ht_lock);
-	hlist_add_head(&new_node->hlist, &ht->buckets[key]);
+	hlist_add_head(&new_yesde->hlist, &ht->buckets[key]);
 	spin_unlock_bh(&ht->ht_lock);
 
 	return 0;
@@ -107,18 +107,18 @@ int mlx5i_pkey_del_qpn(struct net_device *netdev, u32 qpn)
 	struct mlx5e_priv *epriv = mlx5i_epriv(netdev);
 	struct mlx5i_priv *ipriv = epriv->ppriv;
 	struct mlx5i_pkey_qpn_ht *ht = ipriv->qpn_htbl;
-	struct qpn_to_netdev *node;
+	struct qpn_to_netdev *yesde;
 
-	node = mlx5i_find_qpn_to_netdev_node(ht->buckets, qpn);
-	if (!node) {
+	yesde = mlx5i_find_qpn_to_netdev_yesde(ht->buckets, qpn);
+	if (!yesde) {
 		mlx5_core_warn(epriv->mdev, "QPN to netdev delete from HT failed\n");
 		return -EINVAL;
 	}
 
 	spin_lock_bh(&ht->ht_lock);
-	hlist_del_init(&node->hlist);
+	hlist_del_init(&yesde->hlist);
 	spin_unlock_bh(&ht->ht_lock);
-	kfree(node);
+	kfree(yesde);
 
 	return 0;
 }
@@ -126,13 +126,13 @@ int mlx5i_pkey_del_qpn(struct net_device *netdev, u32 qpn)
 struct net_device *mlx5i_pkey_get_netdev(struct net_device *netdev, u32 qpn)
 {
 	struct mlx5i_priv *ipriv = netdev_priv(netdev);
-	struct qpn_to_netdev *node;
+	struct qpn_to_netdev *yesde;
 
-	node = mlx5i_find_qpn_to_netdev_node(ipriv->qpn_htbl->buckets, qpn);
-	if (!node)
+	yesde = mlx5i_find_qpn_to_netdev_yesde(ipriv->qpn_htbl->buckets, qpn);
+	if (!yesde)
 		return NULL;
 
-	return node->netdev;
+	return yesde->netdev;
 }
 
 static int mlx5i_pkey_open(struct net_device *netdev);

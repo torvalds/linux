@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -554,7 +554,7 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp1_sb_cms_ingress[] = {
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
-	MLXSW_SP_SB_CM_ING(0, 0), /* dummy, this PG does not exist */
+	MLXSW_SP_SB_CM_ING(0, 0), /* dummy, this PG does yest exist */
 	MLXSW_SP_SB_CM(10000, 8, MLXSW_SP_SB_POOL_ING_CPU),
 };
 
@@ -567,7 +567,7 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp2_sb_cms_ingress[] = {
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
-	MLXSW_SP_SB_CM_ING(0, 0), /* dummy, this PG does not exist */
+	MLXSW_SP_SB_CM_ING(0, 0), /* dummy, this PG does yest exist */
 	MLXSW_SP_SB_CM(10000, 8, MLXSW_SP_SB_POOL_ING_CPU),
 };
 
@@ -671,7 +671,7 @@ static int __mlxsw_sp_sb_cms_init(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		u32 max_buff;
 
 		if (i == 8 && dir == MLXSW_REG_SBXX_DIR_INGRESS)
-			continue; /* PG number 8 does not exist, skip it */
+			continue; /* PG number 8 does yest exist, skip it */
 		cm = &cms[i];
 		if (WARN_ON(sb_vals->pool_dess[cm->pool_index].dir != dir))
 			continue;
@@ -939,7 +939,7 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 						   GUARANTEED_SHARED_BUFFER);
 	max_headroom_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
 					       MAX_HEADROOM_SIZE);
-	/* Round down, because this limit must not be overstepped. */
+	/* Round down, because this limit must yest be overstepped. */
 	mlxsw_sp->sb->max_headroom_cells = max_headroom_size /
 						mlxsw_sp->sb->cell_size;
 
@@ -1229,7 +1229,7 @@ static void mlxsw_sp_sb_sr_occ_query_cb(struct mlxsw_core *mlxsw_core,
 		if (!mlxsw_sp->ports[local_port])
 			continue;
 		if (local_port == MLXSW_PORT_CPU_PORT) {
-			/* Ingress quotas are not supported for the CPU port */
+			/* Ingress quotas are yest supported for the CPU port */
 			masked_count++;
 			continue;
 		}
@@ -1290,7 +1290,7 @@ next_batch:
 		if (!mlxsw_sp->ports[local_port])
 			continue;
 		if (local_port != MLXSW_PORT_CPU_PORT) {
-			/* Ingress quotas are not supported for the CPU port */
+			/* Ingress quotas are yest supported for the CPU port */
 			mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl,
 							     local_port, 1);
 		}
@@ -1355,7 +1355,7 @@ next_batch:
 		if (!mlxsw_sp->ports[local_port])
 			continue;
 		if (local_port != MLXSW_PORT_CPU_PORT) {
-			/* Ingress quotas are not supported for the CPU port */
+			/* Ingress quotas are yest supported for the CPU port */
 			mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl,
 							     local_port, 1);
 		}

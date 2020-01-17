@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_BCACHE_H
 #define _LINUX_BCACHE_H
 
@@ -65,12 +65,12 @@ static inline void SET_KEY_OFFSET(struct bkey *k, __u64 v)
 
 /*
  * The high bit being set is a relic from when we used it to do binary
- * searches - it told you where a key started. It's not used anymore,
+ * searches - it told you where a key started. It's yest used anymore,
  * and can probably be safely dropped.
  */
-#define KEY(inode, offset, size)					\
+#define KEY(iyesde, offset, size)					\
 ((struct bkey) {							\
-	.high = (1ULL << 63) | ((__u64) (size) << 20) | (inode),	\
+	.high = (1ULL << 63) | ((__u64) (size) << 20) | (iyesde),	\
 	.low = (offset)							\
 })
 
@@ -127,7 +127,7 @@ static inline struct bkey *bkey_idx(const struct bkey *k, unsigned int nr_keys)
 
 	return (struct bkey *) (d + nr_keys);
 }
-/* Enough for a key with 6 pointers */
+/* Eyesugh for a key with 6 pointers */
 #define BKEY_PAD		8
 
 #define BKEY_PADDED(key)					\
@@ -137,7 +137,7 @@ static inline struct bkey *bkey_idx(const struct bkey *k, unsigned int nr_keys)
 
 /* Version 0: Cache device
  * Version 1: Backing device
- * Version 2: Seed pointer into btree node checksum
+ * Version 2: Seed pointer into btree yesde checksum
  * Version 3: Cache device with new UUID format
  * Version 4: Backing device with data offset
  */
@@ -192,7 +192,7 @@ struct cache_sb {
 		/*
 		 * block_size from the cache device section is still used by
 		 * backing devices, so don't add anything here until we fix
-		 * things to not need it for backing devices anymore
+		 * things to yest need it for backing devices anymore
 		 */
 	};
 	};
@@ -261,7 +261,7 @@ static inline __u64 bset_magic(struct cache_sb *sb)
  * Journal
  *
  * On disk format for a journal entry:
- * seq is monotonically increasing; every journal entry has its own unique
+ * seq is moyestonically increasing; every journal entry has its own unique
  * sequence number.
  *
  * last_seq is the oldest journal entry that still has keys the btree hasn't
@@ -335,17 +335,17 @@ struct uuid_entry {
 
 BITMASK(UUID_FLASH_ONLY,	struct uuid_entry, flags, 0, 1);
 
-/* Btree nodes */
+/* Btree yesdes */
 
-/* Version 1: Seed pointer into btree node checksum
+/* Version 1: Seed pointer into btree yesde checksum
  */
 #define BCACHE_BSET_CSUM		1
 #define BCACHE_BSET_VERSION		1
 
 /*
- * Btree nodes
+ * Btree yesdes
  *
- * On disk a btree node is a list/log of these; within each set the keys are
+ * On disk a btree yesde is a list/log of these; within each set the keys are
  * sorted
  */
 struct bset {

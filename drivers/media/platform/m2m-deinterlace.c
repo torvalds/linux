@@ -157,7 +157,7 @@ static int deinterlace_job_ready(void *priv)
 		return 1;
 	}
 
-	dprintk(pcdev, "Task not ready to run\n");
+	dprintk(pcdev, "Task yest ready to run\n");
 
 	return 0;
 }
@@ -462,7 +462,7 @@ static int enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 		return 0;
 	}
 
-	/* Format not found */
+	/* Format yest found */
 	return -EINVAL;
 }
 
@@ -675,7 +675,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 		if (d_q_data->field != V4L2_FIELD_NONE &&
 			d_q_data->field != V4L2_FIELD_INTERLACED_BT) {
 			v4l2_err(&ctx->dev->v4l2_dev,
-			 "src and dst field conversion [(%d)->(%d)] not supported.\n",
+			 "src and dst field conversion [(%d)->(%d)] yest supported.\n",
 				s_q_data->field, d_q_data->field);
 			return -EINVAL;
 		}
@@ -684,7 +684,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 		if (d_q_data->field != V4L2_FIELD_NONE &&
 			d_q_data->field != V4L2_FIELD_INTERLACED_TB) {
 			v4l2_err(&ctx->dev->v4l2_dev,
-			 "src and dst field conversion [(%d)->(%d)] not supported.\n",
+			 "src and dst field conversion [(%d)->(%d)] yest supported.\n",
 				s_q_data->field, d_q_data->field);
 			return -EINVAL;
 		}
@@ -766,7 +766,7 @@ static int deinterlace_buf_prepare(struct vb2_buffer *vb)
 	q_data = get_q_data(vb->vb2_queue->type);
 
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
-		dprintk(ctx->dev, "%s data will not fit into plane (%lu < %lu)\n",
+		dprintk(ctx->dev, "%s data will yest fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0), (long)q_data->sizeimage);
 		return -EINVAL;
 	}
@@ -904,7 +904,7 @@ static const struct video_device deinterlace_videodev = {
 	.name		= MEM2MEM_NAME,
 	.fops		= &deinterlace_fops,
 	.ioctl_ops	= &deinterlace_ioctl_ops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.release	= video_device_release_empty,
 	.vfl_dir	= VFL_DIR_M2M,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
@@ -936,7 +936,7 @@ static int deinterlace_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	if (!dma_has_cap(DMA_INTERLEAVE, pcdev->dma_chan->device->cap_mask)) {
-		dev_err(&pdev->dev, "DMA does not support INTERLEAVE\n");
+		dev_err(&pdev->dev, "DMA does yest support INTERLEAVE\n");
 		ret = -ENODEV;
 		goto rel_dma;
 	}

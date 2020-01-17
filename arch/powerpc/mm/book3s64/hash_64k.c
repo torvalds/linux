@@ -78,7 +78,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	    !cpu_has_feature(CPU_FTR_COHERENT_ICACHE)) {
 
 		/*
-		 * No CPU has hugepages but lacks no execute, so we
+		 * No CPU has hugepages but lacks yes execute, so we
 		 * don't need to worry about that case
 		 */
 		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
@@ -175,9 +175,9 @@ repeat:
 		if (unlikely(soft_invalid)) {
 			/*
 			 * We got a valid slot from a hardware point of view.
-			 * but we cannot use it, because we use this special
+			 * but we canyest use it, because we use this special
 			 * value; as defined by hpte_soft_invalid(), to track
-			 * invalid slots. We cannot use it. So invalidate it.
+			 * invalid slots. We canyest use it. So invalidate it.
 			 */
 			gslot = slot & _PTEIDX_GROUP_IX;
 			mmu_hash_ops.hpte_invalidate(hpte_group + gslot, vpn,
@@ -190,7 +190,7 @@ repeat:
 			 * For soft invalid slot, let's ensure that we release a
 			 * slot from the primary, with the hope that we will
 			 * acquire that slot next time we try. This will ensure
-			 * that we do not get the same soft-invalid slot.
+			 * that we do yest get the same soft-invalid slot.
 			 */
 			if (soft_invalid || (mftb() & 0x1))
 				hpte_group = (hash & htab_hash_mask) * HPTES_PER_GROUP;

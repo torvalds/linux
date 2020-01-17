@@ -14,7 +14,7 @@
 #include <linux/pm.h>
 
 static void __iomem *msm_ps_hold;
-static int deassert_pshold(struct notifier_block *nb, unsigned long action,
+static int deassert_pshold(struct yestifier_block *nb, unsigned long action,
 			   void *data)
 {
 	writel(0, msm_ps_hold);
@@ -23,8 +23,8 @@ static int deassert_pshold(struct notifier_block *nb, unsigned long action,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block restart_nb = {
-	.notifier_call = deassert_pshold,
+static struct yestifier_block restart_nb = {
+	.yestifier_call = deassert_pshold,
 	.priority = 128,
 };
 

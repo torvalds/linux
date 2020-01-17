@@ -18,18 +18,18 @@
 struct rq_entry {
 	struct list_head list;
 	uint32_t recover_seq;
-	int nodeid;
+	int yesdeid;
 	struct dlm_message request;
 };
 
 /*
  * Requests received while the lockspace is in recovery get added to the
  * request queue and processed when recovery is complete.  This happens when
- * the lockspace is suspended on some nodes before it is on others, or the
+ * the lockspace is suspended on some yesdes before it is on others, or the
  * lockspace is enabled on some while still suspended on others.
  */
 
-void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_message *ms)
+void dlm_add_requestqueue(struct dlm_ls *ls, int yesdeid, struct dlm_message *ms)
 {
 	struct rq_entry *e;
 	int length = ms->m_header.h_length - sizeof(struct dlm_message);
@@ -41,7 +41,7 @@ void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_message *ms)
 	}
 
 	e->recover_seq = ls->ls_recover_seq & 0xFFFFFFFF;
-	e->nodeid = nodeid;
+	e->yesdeid = yesdeid;
 	memcpy(&e->request, ms, ms->m_header.h_length);
 
 	mutex_lock(&ls->ls_requestqueue_mutex);
@@ -50,13 +50,13 @@ void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_message *ms)
 }
 
 /*
- * Called by dlm_recoverd to process normal messages saved while recovery was
+ * Called by dlm_recoverd to process yesrmal messages saved while recovery was
  * happening.  Normal locking has been enabled before this is called.  dlm_recv
  * upon receiving a message, will wait for all saved messages to be drained
  * here before processing the message it got.  If a new dlm_ls_stop() arrives
  * while we're processing these saved messages, it may block trying to suspend
  * dlm_recv if dlm_recv is waiting for us in dlm_wait_requestqueue.  In that
- * case, we don't abort since locking_stopped is still 0.  If dlm_recv is not
+ * case, we don't abort since locking_stopped is still 0.  If dlm_recv is yest
  * waiting for us, then this processing may be aborted due to locking_stopped.
  */
 
@@ -81,7 +81,7 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 
 		log_limit(ls, "dlm_process_requestqueue msg %d from %d "
 			  "lkid %x remid %x result %d seq %u",
-			  ms->m_type, ms->m_header.h_nodeid,
+			  ms->m_type, ms->m_header.h_yesdeid,
 			  ms->m_lkid, ms->m_remid, ms->m_result,
 			  e->recover_seq);
 
@@ -106,7 +106,7 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 /*
  * After recovery is done, locking is resumed and dlm_recoverd takes all the
  * saved requests and processes them as they would have been by dlm_recv.  At
- * the same time, dlm_recv will start receiving new requests from remote nodes.
+ * the same time, dlm_recv will start receiving new requests from remote yesdes.
  * We want to delay dlm_recv processing new requests until dlm_recoverd has
  * finished processing the old saved requests.  We don't check for locking
  * stopped here because dlm_ls_stop won't stop locking until it's suspended us
@@ -125,7 +125,7 @@ void dlm_wait_requestqueue(struct dlm_ls *ls)
 	mutex_unlock(&ls->ls_requestqueue_mutex);
 }
 
-static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int nodeid)
+static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int yesdeid)
 {
 	uint32_t type = ms->m_type;
 
@@ -133,7 +133,7 @@ static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int nodeid)
 	if (!ls->ls_count)
 		return 1;
 
-	if (dlm_is_removed(ls, nodeid))
+	if (dlm_is_removed(ls, yesdeid))
 		return 1;
 
 	/* directory operations are always purged because the directory is
@@ -144,7 +144,7 @@ static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int nodeid)
 	    type == DLM_MSG_LOOKUP_REPLY)
 		return 1;
 
-	if (!dlm_no_directory(ls))
+	if (!dlm_yes_directory(ls))
 		return 0;
 
 	return 1;
@@ -159,7 +159,7 @@ void dlm_purge_requestqueue(struct dlm_ls *ls)
 	list_for_each_entry_safe(e, safe, &ls->ls_requestqueue, list) {
 		ms =  &e->request;
 
-		if (purge_request(ls, ms, e->nodeid)) {
+		if (purge_request(ls, ms, e->yesdeid)) {
 			list_del(&e->list);
 			kfree(e);
 		}

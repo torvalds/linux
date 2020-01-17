@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -19,9 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include "nouveau_platform.h"
+#include "yesuveau_platform.h"
 
-static int nouveau_platform_probe(struct platform_device *pdev)
+static int yesuveau_platform_probe(struct platform_device *pdev)
 {
 	const struct nvkm_device_tegra_func *func;
 	struct nvkm_device *device = NULL;
@@ -30,7 +30,7 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 
 	func = of_device_get_match_data(&pdev->dev);
 
-	drm = nouveau_platform_device_create(func, pdev, &device);
+	drm = yesuveau_platform_device_create(func, pdev, &device);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
@@ -43,10 +43,10 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int nouveau_platform_remove(struct platform_device *pdev)
+static int yesuveau_platform_remove(struct platform_device *pdev)
 {
 	struct drm_device *dev = platform_get_drvdata(pdev);
-	nouveau_drm_device_remove(dev);
+	yesuveau_drm_device_remove(dev);
 	return 0;
 }
 
@@ -68,7 +68,7 @@ static const struct nvkm_device_tegra_func gp10b_platform_data = {
 	.require_vdd = false,
 };
 
-static const struct of_device_id nouveau_platform_match[] = {
+static const struct of_device_id yesuveau_platform_match[] = {
 	{
 		.compatible = "nvidia,gk20a",
 		.data = &gk20a_platform_data,
@@ -84,16 +84,16 @@ static const struct of_device_id nouveau_platform_match[] = {
 	{ }
 };
 
-MODULE_DEVICE_TABLE(of, nouveau_platform_match);
+MODULE_DEVICE_TABLE(of, yesuveau_platform_match);
 #endif
 
-struct platform_driver nouveau_platform_driver = {
+struct platform_driver yesuveau_platform_driver = {
 	.driver = {
-		.name = "nouveau",
-		.of_match_table = of_match_ptr(nouveau_platform_match),
+		.name = "yesuveau",
+		.of_match_table = of_match_ptr(yesuveau_platform_match),
 	},
-	.probe = nouveau_platform_probe,
-	.remove = nouveau_platform_remove,
+	.probe = yesuveau_platform_probe,
+	.remove = yesuveau_platform_remove,
 };
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_124_SOC) || IS_ENABLED(CONFIG_ARCH_TEGRA_132_SOC)
@@ -104,5 +104,5 @@ MODULE_FIRMWARE("nvidia/gk20a/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/gk20a/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gk20a/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/gk20a/sw_method_init.bin");
-MODULE_FIRMWARE("nvidia/gk20a/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gk20a/sw_yesnctx.bin");
 #endif

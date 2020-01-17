@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -156,8 +156,8 @@ typedef struct _ATOM_Vega10_GFXCLK_Dependency_Record_V2 {
 typedef struct _ATOM_Vega10_MCLK_Dependency_Record {
 	ULONG  ulMemClk;                                            /* Clock Frequency */
 	UCHAR  ucVddInd;                                            /* SOC_VDD index */
-	UCHAR  ucVddMemInd;                                         /* MEM_VDD - only non zero for MCLK record */
-	UCHAR  ucVddciInd;                                          /* VDDCI   = only non zero for MCLK record */
+	UCHAR  ucVddMemInd;                                         /* MEM_VDD - only yesn zero for MCLK record */
+	UCHAR  ucVddciInd;                                          /* VDDCI   = only yesn zero for MCLK record */
 } ATOM_Vega10_MCLK_Dependency_Record;
 
 typedef struct _ATOM_Vega10_GFXCLK_Dependency_Table {
@@ -239,7 +239,7 @@ typedef struct _ATOM_Vega10_Voltage_Lookup_Table {
 } ATOM_Vega10_Voltage_Lookup_Table;
 
 typedef struct _ATOM_Vega10_Fan_Table {
-	UCHAR   ucRevId;                         /* Change this if the table format changes or version changes so that the other fields are not the same. */
+	UCHAR   ucRevId;                         /* Change this if the table format changes or version changes so that the other fields are yest the same. */
 	USHORT  usFanOutputSensitivity;          /* Sensitivity of fan reaction to temepature changes. */
 	USHORT  usFanRPMMax;                     /* The default value in RPM. */
 	USHORT  usThrottlingRPM;

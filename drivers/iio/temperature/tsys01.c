@@ -187,7 +187,7 @@ static int tsys01_i2c_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_WRITE_BYTE |
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
 		dev_err(&client->dev,
-			"Adapter does not support some i2c transaction\n");
+			"Adapter does yest support some i2c transaction\n");
 		return -EOPNOTSUPP;
 	}
 

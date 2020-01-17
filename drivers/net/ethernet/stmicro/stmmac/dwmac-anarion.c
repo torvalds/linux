@@ -68,7 +68,7 @@ static struct anarion_gmac *anarion_config_dt(struct platform_device *pdev)
 
 	ctl_block = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(ctl_block)) {
-		dev_err(&pdev->dev, "Cannot get reset region (%ld)!\n",
+		dev_err(&pdev->dev, "Canyest get reset region (%ld)!\n",
 			PTR_ERR(ctl_block));
 		return ctl_block;
 	}
@@ -79,7 +79,7 @@ static struct anarion_gmac *anarion_config_dt(struct platform_device *pdev)
 
 	gmac->ctl_block = (uintptr_t)ctl_block;
 
-	err = of_get_phy_mode(pdev->dev.of_node, &phy_mode);
+	err = of_get_phy_mode(pdev->dev.of_yesde, &phy_mode);
 	if (err)
 		return ERR_PTR(err);
 

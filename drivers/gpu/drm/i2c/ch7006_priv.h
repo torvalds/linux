@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -35,7 +35,7 @@
 typedef int64_t fixed;
 #define fixed1 (1LL << 32)
 
-enum ch7006_tv_norm {
+enum ch7006_tv_yesrm {
 	TV_NORM_PAL,
 	TV_NORM_PAL_M,
 	TV_NORM_PAL_N,
@@ -46,7 +46,7 @@ enum ch7006_tv_norm {
 	NUM_TV_NORMS
 };
 
-struct ch7006_tv_norm_info {
+struct ch7006_tv_yesrm_info {
 	fixed vrefresh;
 	int vdisplay;
 	int vtotal;
@@ -69,7 +69,7 @@ struct ch7006_mode {
 	uint32_t dispmode;
 
 	uint32_t valid_scales;
-	uint32_t valid_norms;
+	uint32_t valid_yesrms;
 };
 
 struct ch7006_state {
@@ -89,7 +89,7 @@ struct ch7006_priv {
 	int subconnector;
 	int hmargin;
 	int vmargin;
-	enum ch7006_tv_norm norm;
+	enum ch7006_tv_yesrm yesrm;
 	int brightness;
 	int contrast;
 	int flicker;
@@ -103,11 +103,11 @@ struct ch7006_priv {
 	((struct ch7006_priv *)to_encoder_slave(x)->slave_priv)
 
 extern int ch7006_debug;
-extern char *ch7006_tv_norm;
+extern char *ch7006_tv_yesrm;
 extern int ch7006_scale;
 
-extern const char * const ch7006_tv_norm_names[];
-extern const struct ch7006_tv_norm_info ch7006_tv_norms[];
+extern const char * const ch7006_tv_yesrm_names[];
+extern const struct ch7006_tv_yesrm_info ch7006_tv_yesrms[];
 extern const struct ch7006_mode ch7006_modes[];
 
 const struct ch7006_mode *ch7006_lookup_mode(struct drm_encoder *encoder,

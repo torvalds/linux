@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2014 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -38,12 +38,12 @@
 
 struct ib_umem_odp {
 	struct ib_umem umem;
-	struct mmu_interval_notifier notifier;
+	struct mmu_interval_yestifier yestifier;
 	struct pid *tgid;
 
 	/*
 	 * An array of the pages included in the on-demand paging umem.
-	 * Indices of pages that are currently not mapped into the device will
+	 * Indices of pages that are currently yest mapped into the device will
 	 * contain NULL.
 	 */
 	struct page		**page_list;
@@ -57,7 +57,7 @@ struct ib_umem_odp {
 	/*
 	 * The umem_mutex protects the page_list and dma_list fields of an ODP
 	 * umem, allowing only a single thread to map/unmap pages. The mutex
-	 * also protects access to the mmu notifier counters.
+	 * also protects access to the mmu yestifier counters.
 	 */
 	struct mutex		umem_mutex;
 	void			*private; /* for the HW driver to use. */
@@ -65,7 +65,7 @@ struct ib_umem_odp {
 	int npages;
 
 	/*
-	 * An implicit odp umem cannot be DMA mapped, has 0 length, and serves
+	 * An implicit odp umem canyest be DMA mapped, has 0 length, and serves
 	 * only as an anchor for the driver to hold onto the per_mm. FIXME:
 	 * This should be removed and drivers should work with the per_mm
 	 * directly.
@@ -83,13 +83,13 @@ static inline struct ib_umem_odp *to_ib_umem_odp(struct ib_umem *umem)
 /* Returns the first page of an ODP umem. */
 static inline unsigned long ib_umem_start(struct ib_umem_odp *umem_odp)
 {
-	return umem_odp->notifier.interval_tree.start;
+	return umem_odp->yestifier.interval_tree.start;
 }
 
 /* Returns the address of the page after the last one of an ODP umem. */
 static inline unsigned long ib_umem_end(struct ib_umem_odp *umem_odp)
 {
-	return umem_odp->notifier.interval_tree.last + 1;
+	return umem_odp->yestifier.interval_tree.last + 1;
 }
 
 static inline size_t ib_umem_odp_num_pages(struct ib_umem_odp *umem_odp)
@@ -115,13 +115,13 @@ static inline size_t ib_umem_odp_num_pages(struct ib_umem_odp *umem_odp)
 
 struct ib_umem_odp *
 ib_umem_odp_get(struct ib_udata *udata, unsigned long addr, size_t size,
-		int access, const struct mmu_interval_notifier_ops *ops);
+		int access, const struct mmu_interval_yestifier_ops *ops);
 struct ib_umem_odp *ib_umem_odp_alloc_implicit(struct ib_udata *udata,
 					       int access);
 struct ib_umem_odp *
 ib_umem_odp_alloc_child(struct ib_umem_odp *root_umem, unsigned long addr,
 			size_t size,
-			const struct mmu_interval_notifier_ops *ops);
+			const struct mmu_interval_yestifier_ops *ops);
 void ib_umem_odp_release(struct ib_umem_odp *umem_odp);
 
 int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 start_offset,
@@ -135,7 +135,7 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem_odp *umem_odp, u64 start_offset,
 
 static inline struct ib_umem_odp *
 ib_umem_odp_get(struct ib_udata *udata, unsigned long addr, size_t size,
-		int access, const struct mmu_interval_notifier_ops *ops)
+		int access, const struct mmu_interval_yestifier_ops *ops)
 {
 	return ERR_PTR(-EINVAL);
 }

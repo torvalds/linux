@@ -26,7 +26,7 @@
  * We do this so that most of the NFQUEUE code can be modular.
  *
  * Once the queue is registered it must reinject all packets it
- * receives, no matter what.
+ * receives, yes matter what.
  */
 
 /* return EBUSY when somebody else is registered, return EEXIST if the
@@ -164,7 +164,7 @@ static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
 	struct net *net = state->net;
 	unsigned int route_key_size;
 
-	/* QUEUE == DROP if no one is waiting, to be safe. */
+	/* QUEUE == DROP if yes one is waiting, to be safe. */
 	qh = rcu_dereference(net->nf.queue_handler);
 	if (!qh) {
 		status = -ESRCH;

@@ -62,7 +62,7 @@
  * [  6] rxsense_rise starting from G12A
  * [  5] err_i2c_timeout starting from G12A
  * [  4] hdcp22_rndnum_err
- * [  3] nonce_rfrsh_rise
+ * [  3] yesnce_rfrsh_rise
  * [  2] hpd_fall_intr
  * [  1] hpd_rise_intr
  * [  0] core_intr
@@ -87,7 +87,7 @@
  * [6]    rxsense_rise starting from G12A
  * [5]    err_i2c_timeout starting from G12A
  * [4]	  hdcp22_rndnum_err
- * [3]	  nonce_rfrsh_rise
+ * [3]	  yesnce_rfrsh_rise
  * [2]	  hpd_fall
  * [1]	  hpd_rise
  * [0]	  core_intr_rise
@@ -101,7 +101,7 @@
 #define HDMITX_TOP_INTR_RXSENSE_FALL	BIT(7)
 
 /*
- * Bit 14:12 RW tmds_sel: 3'b000=Output zero; 3'b001=Output normal TMDS data;
+ * Bit 14:12 RW tmds_sel: 3'b000=Output zero; 3'b001=Output yesrmal TMDS data;
  *     3'b010=Output PRBS data; 3'b100=Output shift pattern. Default 0.
  * Bit 11: 9 RW shift_pttn_repeat: 0=New pattern every clk cycle; 1=New pattern
  *     every 2 clk cycles; ...; 7=New pattern every 8 clk cycles. Default 0.

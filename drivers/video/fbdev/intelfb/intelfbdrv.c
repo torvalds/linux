@@ -23,7 +23,7 @@
 
 /*
  * Changes:
- *    01/2003 - Initial driver (0.1.0), no mode switching, no acceleration.
+ *    01/2003 - Initial driver (0.1.0), yes mode switching, yes acceleration.
  *		This initial version is a basic core that works a lot like
  *		the vesafb driver.  It must be built-in to the kernel,
  *		and the initial video mode must be set with vga=XXX at
@@ -41,7 +41,7 @@
  *    01/2003 - Version 0.4.1: Add auto-generation of built-in modes.
  *		(David Dawes)
  *
- *    02/2003 - Version 0.4.2: Add check for active non-CRT devices, and
+ *    02/2003 - Version 0.4.2: Add check for active yesn-CRT devices, and
  *		mode validation checks.  (David Dawes)
  *
  *    02/2003 - Version 0.4.3: Check when the VC is in graphics mode so that
@@ -98,7 +98,7 @@
  *    11/2004 - Version 0.9.2
  *              Add vram option to reserve more memory than stolen by BIOS
  *              Fix intelfbhw_pan_display typo
- *              Add __initdata annotations
+ *              Add __initdata anyestations
  *
  *    04/2008 - Version 0.9.5
  *              Add support for 965G/965GM. (Maik Broemme <mbroemme@plusserver.de>)
@@ -109,7 +109,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -136,7 +136,7 @@ static int intelfb_release(struct fb_info *info, int user);
 static int intelfb_check_var(struct fb_var_screeninfo *var,
 			     struct fb_info *info);
 static int intelfb_set_par(struct fb_info *info);
-static int intelfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int intelfb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			     unsigned blue, unsigned transp,
 			     struct fb_info *info);
 
@@ -231,8 +231,8 @@ static int vram         = 4;
 static bool hwcursor    = 0;
 static bool mtrr        = 1;
 static bool fixed       = 0;
-static bool noinit      = 0;
-static bool noregister  = 0;
+static bool yesinit      = 0;
+static bool yesregister  = 0;
 static bool probeonly   = 0;
 static bool idonly      = 0;
 static int bailearly    = 0;
@@ -251,10 +251,10 @@ module_param(mtrr, bool, S_IRUGO);
 MODULE_PARM_DESC(mtrr, "Enable MTRR support");
 module_param(fixed, bool, S_IRUGO);
 MODULE_PARM_DESC(fixed, "Disable mode switching");
-module_param(noinit, bool, 0);
-MODULE_PARM_DESC(noinit, "Don't initialise graphics mode when loading");
-module_param(noregister, bool, 0);
-MODULE_PARM_DESC(noregister, "Don't register, just probe and exit (debug)");
+module_param(yesinit, bool, 0);
+MODULE_PARM_DESC(yesinit, "Don't initialise graphics mode when loading");
+module_param(yesregister, bool, 0);
+MODULE_PARM_DESC(yesregister, "Don't register, just probe and exit (debug)");
 module_param(probeonly, bool, 0);
 MODULE_PARM_DESC(probeonly, "Do a minimal probe (debug)");
 module_param(idonly, bool, 0);
@@ -314,7 +314,7 @@ static __inline__ int get_opt_bool(const char *this_opt, const char *name,
 		else
 			*ret = 1;
 	} else {
-		if (OPT_EQUAL(this_opt, "no") && OPT_EQUAL(this_opt + 2, name))
+		if (OPT_EQUAL(this_opt, "yes") && OPT_EQUAL(this_opt + 2, name))
 			*ret = 0;
 		else
 			return 0;
@@ -329,7 +329,7 @@ static int __init intelfb_setup(char *options)
 	DBG_MSG("intelfb_setup\n");
 
 	if (!options || !*options) {
-		DBG_MSG("no options\n");
+		DBG_MSG("yes options\n");
 		return 0;
 	} else
 		DBG_MSG("options: %s\n", options);
@@ -360,8 +360,8 @@ static int __init intelfb_setup(char *options)
 			;
 		else if (get_opt_bool(this_opt, "fixed", &fixed))
 			;
-		else if (get_opt_bool(this_opt, "init", &noinit))
-			noinit = !noinit;
+		else if (get_opt_bool(this_opt, "init", &yesinit))
+			yesinit = !yesinit;
 		else if (OPT_EQUAL(this_opt, "mode="))
 			mode = get_opt_string(this_opt, "mode=");
 		else
@@ -495,7 +495,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 		return -ENOMEM;
 
 	if (fb_alloc_cmap(&info->cmap, 256, 1) < 0) {
-		ERR_MSG("Could not allocate cmap for intelfb_info.\n");
+		ERR_MSG("Could yest allocate cmap for intelfb_info.\n");
 		goto err_out_cmap;
 	}
 
@@ -507,7 +507,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 	/* Reserve pixmap space. */
 	info->pixmap.addr = kzalloc(64 * 1024, GFP_KERNEL);
 	if (info->pixmap.addr == NULL) {
-		ERR_MSG("Cannot reserve pixmap memory.\n");
+		ERR_MSG("Canyest reserve pixmap memory.\n");
 		goto err_out_pixmap;
 	}
 
@@ -517,7 +517,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 
 	/* Enable device. */
 	if ((err = pci_enable_device(pdev))) {
-		ERR_MSG("Cannot enable device.\n");
+		ERR_MSG("Canyest enable device.\n");
 		cleanup(dinfo);
 		return -ENODEV;
 	}
@@ -546,7 +546,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 	/* Reserve the fb and MMIO regions */
 	if (!request_mem_region(dinfo->aperture.physical, dinfo->aperture.size,
 				INTELFB_MODULE_NAME)) {
-		ERR_MSG("Cannot reserve FB region.\n");
+		ERR_MSG("Canyest reserve FB region.\n");
 		cleanup(dinfo);
 		return -ENODEV;
 	}
@@ -556,7 +556,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 	if (!request_mem_region(dinfo->mmio_base_phys,
 				INTEL_REG_SIZE,
 				INTELFB_MODULE_NAME)) {
-		ERR_MSG("Cannot reserve MMIO region.\n");
+		ERR_MSG("Canyest reserve MMIO region.\n");
 		cleanup(dinfo);
 		return -ENODEV;
 	}
@@ -587,7 +587,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 	dinfo->hwcursor = hwcursor;
 
 	if (NOACCEL_CHIPSET(dinfo) && dinfo->accel == 1) {
-		INF_MSG("Acceleration is not supported for the %s chipset.\n",
+		INF_MSG("Acceleration is yest supported for the %s chipset.\n",
 			dinfo->name);
 		dinfo->accel = 0;
 	}
@@ -611,14 +611,14 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 
 	/* Use agpgart to manage the GATT */
 	if (!(bridge = agp_backend_acquire(pdev))) {
-		ERR_MSG("cannot acquire agp\n");
+		ERR_MSG("canyest acquire agp\n");
 		cleanup(dinfo);
 		return -ENODEV;
 	}
 
 	/* get the current gatt info */
 	if (agp_copy_info(bridge, &gtt_info)) {
-		ERR_MSG("cannot get agp info\n");
+		ERR_MSG("canyest get agp info\n");
 		agp_backend_release(bridge);
 		cleanup(dinfo);
 		return -ENODEV;
@@ -647,17 +647,17 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 		(dinfo->aperture.physical, ((offset + dinfo->fb.offset) << 12)
 		 + dinfo->fb.size);
 	if (!dinfo->aperture.virtual) {
-		ERR_MSG("Cannot remap FB region.\n");
+		ERR_MSG("Canyest remap FB region.\n");
 		agp_backend_release(bridge);
 		cleanup(dinfo);
 		return -ENODEV;
 	}
 
 	dinfo->mmio_base =
-		(u8 __iomem *)ioremap_nocache(dinfo->mmio_base_phys,
+		(u8 __iomem *)ioremap_yescache(dinfo->mmio_base_phys,
 					      INTEL_REG_SIZE);
 	if (!dinfo->mmio_base) {
-		ERR_MSG("Cannot remap MMIO region.\n");
+		ERR_MSG("Canyest remap MMIO region.\n");
 		agp_backend_release(bridge);
 		cleanup(dinfo);
 		return -ENODEV;
@@ -667,14 +667,14 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 		if (!(dinfo->gtt_ring_mem =
 		      agp_allocate_memory(bridge, dinfo->ring.size >> 12,
 					  AGP_NORMAL_MEMORY))) {
-			ERR_MSG("cannot allocate ring buffer memory\n");
+			ERR_MSG("canyest allocate ring buffer memory\n");
 			agp_backend_release(bridge);
 			cleanup(dinfo);
 			return -ENOMEM;
 		}
 		if (agp_bind_memory(dinfo->gtt_ring_mem,
 				    dinfo->ring.offset)) {
-			ERR_MSG("cannot bind ring buffer memory\n");
+			ERR_MSG("canyest bind ring buffer memory\n");
 			agp_backend_release(bridge);
 			cleanup(dinfo);
 			return -EBUSY;
@@ -691,14 +691,14 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 		if (!(dinfo->gtt_cursor_mem =
 		      agp_allocate_memory(bridge, dinfo->cursor.size >> 12,
 					  agp_memtype))) {
-			ERR_MSG("cannot allocate cursor memory\n");
+			ERR_MSG("canyest allocate cursor memory\n");
 			agp_backend_release(bridge);
 			cleanup(dinfo);
 			return -ENOMEM;
 		}
 		if (agp_bind_memory(dinfo->gtt_cursor_mem,
 				    dinfo->cursor.offset)) {
-			ERR_MSG("cannot bind cursor memory\n");
+			ERR_MSG("canyest bind cursor memory\n");
 			agp_backend_release(bridge);
 			cleanup(dinfo);
 			return -EBUSY;
@@ -716,13 +716,13 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 		if (!(dinfo->gtt_fb_mem =
 		      agp_allocate_memory(bridge, dinfo->fb.size >> 12,
 					  AGP_NORMAL_MEMORY))) {
-			WRN_MSG("cannot allocate framebuffer memory - use "
+			WRN_MSG("canyest allocate framebuffer memory - use "
 				"the stolen one\n");
 			dinfo->fbmem_gart = 0;
 		}
 		if (agp_bind_memory(dinfo->gtt_fb_mem,
 				    dinfo->fb.offset)) {
-			WRN_MSG("cannot bind framebuffer memory - use "
+			WRN_MSG("canyest bind framebuffer memory - use "
 				"the stolen one\n");
 			dinfo->fbmem_gart = 0;
 		}
@@ -758,7 +758,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 		dinfo->cursor.physical);
 
 	DBG_MSG("options: vram = %d, accel = %d, hwcursor = %d, fixed = %d, "
-		"noinit = %d\n", vram, accel, hwcursor, fixed, noinit);
+		"yesinit = %d\n", vram, accel, hwcursor, fixed, yesinit);
 	DBG_MSG("options: mode = \"%s\"\n", mode ? mode : "");
 
 	if (probeonly)
@@ -768,7 +768,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 	 * Check if the LVDS port or any DVO ports are enabled.  If so,
 	 * don't allow mode switching
 	 */
-	dvo = intelfbhw_check_non_crt(dinfo);
+	dvo = intelfbhw_check_yesn_crt(dinfo);
 	if (dvo) {
 		dinfo->fixed_mode = 1;
 		WRN_MSG("Non-CRT device is enabled ( ");
@@ -863,11 +863,11 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 	if (bailearly == 20)
 		bailout(dinfo);
 
-	if (noregister)
+	if (yesregister)
 		bailout(dinfo);
 
 	if (register_framebuffer(dinfo->info) < 0) {
-		ERR_MSG("Cannot register framebuffer.\n");
+		ERR_MSG("Canyest register framebuffer.\n");
 		cleanup(dinfo);
 		return -ENODEV;
 	}
@@ -1056,7 +1056,7 @@ static int intelfb_init_var(struct intelfb_info *dinfo)
 	}
 
 	if (!msrc) {
-		ERR_MSG("Cannot find a suitable video mode.\n");
+		ERR_MSG("Canyest find a suitable video mode.\n");
 		return 1;
 	}
 
@@ -1253,9 +1253,9 @@ static int intelfb_check_var(struct fb_var_screeninfo *var,
 	    (change_var ||
 	     var->yres_virtual > dinfo->initial_var.yres_virtual ||
 	     var->yres_virtual < dinfo->initial_var.yres ||
-	     var->xoffset || var->nonstd)) {
+	     var->xoffset || var->yesnstd)) {
 		if (first) {
-			ERR_MSG("Changing the video mode is not supported.\n");
+			ERR_MSG("Changing the video mode is yest supported.\n");
 			first = 0;
 		}
 		return -EINVAL;
@@ -1319,7 +1319,7 @@ static int intelfb_set_par(struct fb_info *info)
         struct intelfb_info *dinfo = GET_DINFO(info);
 
 	if (FIXED_MODE(dinfo)) {
-		ERR_MSG("Changing the video mode is not supported.\n");
+		ERR_MSG("Changing the video mode is yest supported.\n");
 		return -EINVAL;
 	}
 
@@ -1374,17 +1374,17 @@ invalid_mode:
 	return -EINVAL;
 }
 
-static int intelfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int intelfb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			     unsigned blue, unsigned transp,
 			     struct fb_info *info)
 {
 	struct intelfb_info *dinfo = GET_DINFO(info);
 
 #if VERBOSE > 0
-	DBG_MSG("intelfb_setcolreg: regno %d, depth %d\n", regno, dinfo->depth);
+	DBG_MSG("intelfb_setcolreg: regyes %d, depth %d\n", regyes, dinfo->depth);
 #endif
 
-	if (regno > 255)
+	if (regyes > 255)
 		return 1;
 
 	if (dinfo->depth == 8) {
@@ -1392,24 +1392,24 @@ static int intelfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		green >>= 8;
 		blue >>= 8;
 
-		intelfbhw_setcolreg(dinfo, regno, red, green, blue,
+		intelfbhw_setcolreg(dinfo, regyes, red, green, blue,
 				    transp);
 	}
 
-	if (regno < 16) {
+	if (regyes < 16) {
 		switch (dinfo->depth) {
 		case 15:
-			dinfo->pseudo_palette[regno] = ((red & 0xf800) >>  1) |
+			dinfo->pseudo_palette[regyes] = ((red & 0xf800) >>  1) |
 				((green & 0xf800) >>  6) |
 				((blue & 0xf800) >> 11);
 			break;
 		case 16:
-			dinfo->pseudo_palette[regno] = (red & 0xf800) |
+			dinfo->pseudo_palette[regyes] = (red & 0xf800) |
 				((green & 0xfc00) >>  5) |
 				((blue  & 0xf800) >> 11);
 			break;
 		case 24:
-			dinfo->pseudo_palette[regno] = ((red & 0xff00) << 8) |
+			dinfo->pseudo_palette[regyes] = ((red & 0xff00) << 8) |
 				(green & 0xff00) |
 				((blue  & 0xff00) >> 8);
 			break;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Copyright (C) 2015 Nikolay Martynov <mar.kolya@gmail.com>
+ * Copyright (C) 2015 Nikolay Martyyesv <mar.kolya@gmail.com>
  * Copyright (C) 2015 John Crispin <john@phrozen.org>
  */
 
@@ -110,7 +110,7 @@ static struct rt2880_pmx_group mt7621_pinmux_data[] = {
 
 phys_addr_t mips_cpc_default_phys_base(void)
 {
-	panic("Cannot detect cpc address");
+	panic("Canyest detect cpc address");
 }
 
 void __init ralink_clk_init(void)
@@ -153,8 +153,8 @@ void __init ralink_clk_init(void)
 
 void __init ralink_of_remap(void)
 {
-	rt_sysc_membase = plat_of_remap_node("mtk,mt7621-sysc");
-	rt_memc_membase = plat_of_remap_node("mtk,mt7621-memc");
+	rt_sysc_membase = plat_of_remap_yesde("mtk,mt7621-sysc");
+	rt_memc_membase = plat_of_remap_yesde("mtk,mt7621-memc");
 
 	if (!rt_sysc_membase || !rt_memc_membase)
 		panic("Failed to remap core resources");
@@ -176,12 +176,12 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		/*
 		 * mips_cm_probe() wipes out bootloader
 		 * config for CM regions and we have to configure them
-		 * again. This SoC cannot talk to pamlbus devices
+		 * again. This SoC canyest talk to pamlbus devices
 		 * witout proper iocu region set up.
 		 *
 		 * FIXME: it would be better to do this with values
 		 * from DT, but we need this very early because
-		 * without this we cannot talk to pretty much anything
+		 * without this we canyest talk to pretty much anything
 		 * including serial.
 		 */
 		write_gcr_reg0_base(MT7621_PALMBUS_BASE);
@@ -197,7 +197,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		name = "MT7621";
 		soc_info->compatible = "mtk,mt7621-soc";
 	} else {
-		panic("mt7621: unknown SoC, n0:%08x n1:%08x\n", n0, n1);
+		panic("mt7621: unkyeswn SoC, n0:%08x n1:%08x\n", n0, n1);
 	}
 	ralink_soc = MT762X_SOC_MT7621AT;
 	rev = __raw_readl(sysc + SYSC_REG_CHIP_REV);

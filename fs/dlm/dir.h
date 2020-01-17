@@ -12,12 +12,12 @@
 #ifndef __DIR_DOT_H__
 #define __DIR_DOT_H__
 
-int dlm_dir_nodeid(struct dlm_rsb *rsb);
-int dlm_hash2nodeid(struct dlm_ls *ls, uint32_t hash);
-void dlm_recover_dir_nodeid(struct dlm_ls *ls);
+int dlm_dir_yesdeid(struct dlm_rsb *rsb);
+int dlm_hash2yesdeid(struct dlm_ls *ls, uint32_t hash);
+void dlm_recover_dir_yesdeid(struct dlm_ls *ls);
 int dlm_recover_directory(struct dlm_ls *ls);
 void dlm_copy_master_names(struct dlm_ls *ls, char *inbuf, int inlen,
-	char *outbuf, int outlen, int nodeid);
+	char *outbuf, int outlen, int yesdeid);
 
 #endif				/* __DIR_DOT_H__ */
 

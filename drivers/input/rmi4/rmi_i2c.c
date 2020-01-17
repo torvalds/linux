@@ -53,7 +53,7 @@ struct rmi_i2c_xport {
  *
  * The page_mutex lock must be held when this function is entered.
  *
- * Returns zero on success, non-zero on failure.
+ * Returns zero on success, yesn-zero on failure.
  */
 static int rmi_set_page(struct rmi_i2c_xport *rmi_i2c, u8 page)
 {
@@ -210,7 +210,7 @@ static int rmi_i2c_probe(struct i2c_client *client,
 
 	pdata = &rmi_i2c->xport.pdata;
 
-	if (!client->dev.of_node && client_pdata)
+	if (!client->dev.of_yesde && client_pdata)
 		*pdata = *client_pdata;
 
 	pdata->irq = client->irq;
@@ -220,7 +220,7 @@ static int rmi_i2c_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev,
-			"adapter does not support required functionality\n");
+			"adapter does yest support required functionality\n");
 		return -ENODEV;
 	}
 
@@ -243,7 +243,7 @@ static int rmi_i2c_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
-	of_property_read_u32(client->dev.of_node, "syna,startup-delay-ms",
+	of_property_read_u32(client->dev.of_yesde, "syna,startup-delay-ms",
 			     &rmi_i2c->startup_delay);
 
 	msleep(rmi_i2c->startup_delay);
@@ -259,7 +259,7 @@ static int rmi_i2c_probe(struct i2c_client *client,
 
 	/*
 	 * Setting the page to zero will (a) make sure the PSR is in a
-	 * known state, and (b) make sure we can talk to the device.
+	 * kyeswn state, and (b) make sure we can talk to the device.
 	 */
 	error = rmi_set_page(rmi_i2c, 0);
 	if (error) {

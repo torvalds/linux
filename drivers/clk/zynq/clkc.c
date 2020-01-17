@@ -212,7 +212,7 @@ err:
 		clks[clk1] = ERR_PTR(-ENOMEM);
 }
 
-static void __init zynq_clk_setup(struct device_node *np)
+static void __init zynq_clk_setup(struct device_yesde *np)
 {
 	int i;
 	u32 tmp;
@@ -233,7 +233,7 @@ static void __init zynq_clk_setup(struct device_node *np)
 	for (i = 0; i < clk_max; i++) {
 		if (of_property_read_string_index(np, "clock-output-names",
 				  i, &clk_output_name[i])) {
-			pr_err("%s: clock output name not in DT\n", __func__);
+			pr_err("%s: clock output name yest in DT\n", __func__);
 			BUG();
 		}
 	}
@@ -251,7 +251,7 @@ static void __init zynq_clk_setup(struct device_node *np)
 	/* ps_clk */
 	ret = of_property_read_u32(np, "ps-clk-frequency", &tmp);
 	if (ret) {
-		pr_warn("ps_clk frequency not specified, using 33 MHz.\n");
+		pr_warn("ps_clk frequency yest specified, using 33 MHz.\n");
 		tmp = 33333333;
 	}
 	ps_clk = clk_register_fixed_rate(NULL, "ps_clk", NULL, 0, tmp);
@@ -580,13 +580,13 @@ CLK_OF_DECLARE(zynq_clkc, "xlnx,ps7-clkc", zynq_clk_setup);
 
 void __init zynq_clock_init(void)
 {
-	struct device_node *np;
-	struct device_node *slcr;
+	struct device_yesde *np;
+	struct device_yesde *slcr;
 	struct resource res;
 
-	np = of_find_compatible_node(NULL, NULL, "xlnx,ps7-clkc");
+	np = of_find_compatible_yesde(NULL, NULL, "xlnx,ps7-clkc");
 	if (!np) {
-		pr_err("%s: clkc node not found\n", __func__);
+		pr_err("%s: clkc yesde yest found\n", __func__);
 		goto np_err;
 	}
 
@@ -601,18 +601,18 @@ void __init zynq_clock_init(void)
 		zynq_clkc_base = (__force void __iomem *)slcr->data + res.start;
 	} else {
 		pr_err("%pOFn: Unable to get I/O memory\n", np);
-		of_node_put(slcr);
+		of_yesde_put(slcr);
 		goto np_err;
 	}
 
 	pr_info("%s: clkc starts at %p\n", __func__, zynq_clkc_base);
 
-	of_node_put(slcr);
-	of_node_put(np);
+	of_yesde_put(slcr);
+	of_yesde_put(np);
 
 	return;
 
 np_err:
-	of_node_put(np);
+	of_yesde_put(np);
 	BUG();
 }

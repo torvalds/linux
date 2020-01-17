@@ -4,7 +4,7 @@
  * Description of event functions and actions there is in 802.2 LLC standard,
  * or in "llc_c_ac.c" and "llc_c_ev.c" modules.
  *
- * Copyright (c) 1997 by Procom Technology, Inc.
+ * Copyright (c) 1997 by Procom Techyeslogy, Inc.
  * 		 2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -609,111 +609,111 @@ static struct llc_conn_state_trans *llc_setup_state_transitions[] = {
 
 /* LLC_CONN_STATE_NORMAL transitions */
 /* State transitions for LLC_CONN_EV_DATA_REQ event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_1[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_1[] = {
 	[0] = llc_conn_ev_qlfy_remote_busy_eq_0,
 	[1] = llc_conn_ev_qlfy_p_flag_eq_0,
 	[2] = llc_conn_ev_qlfy_last_frame_eq_0,
 	[3] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_1[] = {
+static const llc_conn_action_t llc_yesrmal_actions_1[] = {
 	[0] = llc_conn_ac_send_i_as_ack,
-	[1] = llc_conn_ac_start_ack_tmr_if_not_running,
+	[1] = llc_conn_ac_start_ack_tmr_if_yest_running,
 	[2] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_1 = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_1 = {
 	.ev	       = llc_conn_ev_data_req,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_1,
-	.ev_actions    = llc_normal_actions_1,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_1,
+	.ev_actions    = llc_yesrmal_actions_1,
 };
 
 /* State transitions for LLC_CONN_EV_DATA_REQ event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_2[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_2[] = {
 	[0] = llc_conn_ev_qlfy_remote_busy_eq_0,
 	[1] = llc_conn_ev_qlfy_p_flag_eq_0,
 	[2] = llc_conn_ev_qlfy_last_frame_eq_1,
 	[3] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_2[] = {
+static const llc_conn_action_t llc_yesrmal_actions_2[] = {
 	[0] = llc_conn_ac_send_i_cmd_p_set_1,
 	[1] = llc_conn_ac_start_p_timer,
 	[2] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_2 = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_2 = {
 	.ev	       = llc_conn_ev_data_req,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_2,
-	.ev_actions    = llc_normal_actions_2,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_2,
+	.ev_actions    = llc_yesrmal_actions_2,
 };
 
 /* State transitions for LLC_CONN_EV_DATA_REQ event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_2_1[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_2_1[] = {
 	[0] = llc_conn_ev_qlfy_remote_busy_eq_1,
 	[1] = llc_conn_ev_qlfy_set_status_remote_busy,
 	[2] = NULL,
 };
 
 /* just one member, NULL, .bss zeroes it */
-static const llc_conn_action_t llc_normal_actions_2_1[1];
+static const llc_conn_action_t llc_yesrmal_actions_2_1[1];
 
-static struct llc_conn_state_trans llc_normal_state_trans_2_1 = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_2_1 = {
 	.ev	       = llc_conn_ev_data_req,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_2_1,
-	.ev_actions    = llc_normal_actions_2_1,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_2_1,
+	.ev_actions    = llc_yesrmal_actions_2_1,
 };
 
 /* State transitions for LLC_CONN_EV_LOCAL_BUSY_DETECTED event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_3[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_3[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_0,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_3[] = {
+static const llc_conn_action_t llc_yesrmal_actions_3[] = {
 	[0] = llc_conn_ac_rst_sendack_flag,
 	[1] = llc_conn_ac_send_rnr_xxx_x_set_0,
 	[2] = llc_conn_ac_set_data_flag_0,
 	[3] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_3 = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_3 = {
 	.ev	       = llc_conn_ev_local_busy_detected,
 	.next_state    = LLC_CONN_STATE_BUSY,
-	.ev_qualifiers = llc_normal_ev_qfyrs_3,
-	.ev_actions    = llc_normal_actions_3,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_3,
+	.ev_actions    = llc_yesrmal_actions_3,
 };
 
 /* State transitions for LLC_CONN_EV_LOCAL_BUSY_DETECTED event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_4[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_4[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_1,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_4[] = {
+static const llc_conn_action_t llc_yesrmal_actions_4[] = {
 	[0] = llc_conn_ac_rst_sendack_flag,
 	[1] = llc_conn_ac_send_rnr_xxx_x_set_0,
 	[2] = llc_conn_ac_set_data_flag_0,
 	[3] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_4 = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_4 = {
 	.ev	       = llc_conn_ev_local_busy_detected,
 	.next_state    = LLC_CONN_STATE_BUSY,
-	.ev_qualifiers = llc_normal_ev_qfyrs_4,
-	.ev_actions    = llc_normal_actions_4,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_4,
+	.ev_actions    = llc_yesrmal_actions_4,
 };
 
 /* State transitions for LLC_CONN_EV_RX_I_CMD_Pbit_SET_0_UNEXPD_Ns event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_5a[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_5a[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_0,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_5a[] = {
+static const llc_conn_action_t llc_yesrmal_actions_5a[] = {
 	[0] = llc_conn_ac_rst_sendack_flag,
 	[1] = llc_conn_ac_send_rej_xxx_x_set_0,
 	[2] = llc_conn_ac_upd_nr_received,
@@ -723,20 +723,20 @@ static const llc_conn_action_t llc_normal_actions_5a[] = {
 	[6] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_5a = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_5a = {
 	.ev	       = llc_conn_ev_rx_i_cmd_pbit_set_0_unexpd_ns,
 	.next_state    = LLC_CONN_STATE_REJ,
-	.ev_qualifiers = llc_normal_ev_qfyrs_5a,
-	.ev_actions    = llc_normal_actions_5a,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_5a,
+	.ev_actions    = llc_yesrmal_actions_5a,
 };
 
 /* State transitions for LLC_CONN_EV_RX_I_RSP_Fbit_SET_0_UNEXPD_Ns event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_5b[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_5b[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_0,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_5b[] = {
+static const llc_conn_action_t llc_yesrmal_actions_5b[] = {
 	[0] = llc_conn_ac_rst_sendack_flag,
 	[1] = llc_conn_ac_send_rej_xxx_x_set_0,
 	[2] = llc_conn_ac_upd_nr_received,
@@ -746,20 +746,20 @@ static const llc_conn_action_t llc_normal_actions_5b[] = {
 	[6] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_5b = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_5b = {
 	.ev	       = llc_conn_ev_rx_i_rsp_fbit_set_0_unexpd_ns,
 	.next_state    = LLC_CONN_STATE_REJ,
-	.ev_qualifiers = llc_normal_ev_qfyrs_5b,
-	.ev_actions    = llc_normal_actions_5b,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_5b,
+	.ev_actions    = llc_yesrmal_actions_5b,
 };
 
 /* State transitions for LLC_CONN_EV_RX_I_RSP_Fbit_SET_1_UNEXPD_Ns event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_5c[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_5c[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_1,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_5c[] = {
+static const llc_conn_action_t llc_yesrmal_actions_5c[] = {
 	[0] = llc_conn_ac_rst_sendack_flag,
 	[1] = llc_conn_ac_send_rej_xxx_x_set_0,
 	[2] = llc_conn_ac_upd_nr_received,
@@ -769,20 +769,20 @@ static const llc_conn_action_t llc_normal_actions_5c[] = {
 	[6] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_5c = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_5c = {
 	.ev	       = llc_conn_ev_rx_i_rsp_fbit_set_1_unexpd_ns,
 	.next_state    = LLC_CONN_STATE_REJ,
-	.ev_qualifiers = llc_normal_ev_qfyrs_5c,
-	.ev_actions    = llc_normal_actions_5c,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_5c,
+	.ev_actions    = llc_yesrmal_actions_5c,
 };
 
 /* State transitions for LLC_CONN_EV_RX_I_CMD_Pbit_SET_0_UNEXPD_Ns event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_6a[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_6a[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_1,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_6a[] = {
+static const llc_conn_action_t llc_yesrmal_actions_6a[] = {
 	[0] = llc_conn_ac_rst_sendack_flag,
 	[1] = llc_conn_ac_send_rej_xxx_x_set_0,
 	[2] = llc_conn_ac_upd_nr_received,
@@ -790,20 +790,20 @@ static const llc_conn_action_t llc_normal_actions_6a[] = {
 	[4] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_6a = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_6a = {
 	.ev	       = llc_conn_ev_rx_i_cmd_pbit_set_0_unexpd_ns,
 	.next_state    = LLC_CONN_STATE_REJ,
-	.ev_qualifiers = llc_normal_ev_qfyrs_6a,
-	.ev_actions    = llc_normal_actions_6a,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_6a,
+	.ev_actions    = llc_yesrmal_actions_6a,
 };
 
 /* State transitions for LLC_CONN_EV_RX_I_RSP_Fbit_SET_0_UNEXPD_Ns event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_6b[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_6b[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_1,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_6b[] = {
+static const llc_conn_action_t llc_yesrmal_actions_6b[] = {
 	[0] = llc_conn_ac_rst_sendack_flag,
 	[1] = llc_conn_ac_send_rej_xxx_x_set_0,
 	[2] = llc_conn_ac_upd_nr_received,
@@ -811,15 +811,15 @@ static const llc_conn_action_t llc_normal_actions_6b[] = {
 	[4] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_6b = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_6b = {
 	.ev	       = llc_conn_ev_rx_i_rsp_fbit_set_0_unexpd_ns,
 	.next_state    = LLC_CONN_STATE_REJ,
-	.ev_qualifiers = llc_normal_ev_qfyrs_6b,
-	.ev_actions    = llc_normal_actions_6b,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_6b,
+	.ev_actions    = llc_yesrmal_actions_6b,
 };
 
 /* State transitions for LLC_CONN_EV_RX_I_CMD_Pbit_SET_1_UNEXPD_Ns event */
-static const llc_conn_action_t llc_normal_actions_7[] = {
+static const llc_conn_action_t llc_yesrmal_actions_7[] = {
 	[0] = llc_conn_ac_rst_sendack_flag,
 	[1] = llc_conn_ac_send_rej_rsp_f_set_1,
 	[2] = llc_conn_ac_upd_nr_received,
@@ -827,20 +827,20 @@ static const llc_conn_action_t llc_normal_actions_7[] = {
 	[4] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_7 = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_7 = {
 	.ev	       = llc_conn_ev_rx_i_cmd_pbit_set_1_unexpd_ns,
 	.next_state    = LLC_CONN_STATE_REJ,
 	.ev_qualifiers = NONE,
-	.ev_actions    = llc_normal_actions_7,
+	.ev_actions    = llc_yesrmal_actions_7,
 };
 
 /* State transitions for LLC_CONN_EV_RX_I_RSP_Fbit_SET_X event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_8a[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_8a[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_f,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_8[] = {
+static const llc_conn_action_t llc_yesrmal_actions_8[] = {
 	[0] = llc_conn_ac_inc_vr_by_1,
 	[1] = llc_conn_ac_data_ind,
 	[2] = llc_conn_ac_upd_p_flag,
@@ -850,33 +850,33 @@ static const llc_conn_action_t llc_normal_actions_8[] = {
 	[6] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_8a = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_8a = {
 	.ev	       = llc_conn_ev_rx_i_rsp_fbit_set_x,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_8a,
-	.ev_actions    = llc_normal_actions_8,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_8a,
+	.ev_actions    = llc_yesrmal_actions_8,
 };
 
 /* State transitions for LLC_CONN_EV_RX_I_CMD_Pbit_SET_0 event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_8b[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_8b[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_0,
 	[1] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_8b = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_8b = {
 	.ev	       = llc_conn_ev_rx_i_cmd_pbit_set_0,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_8b,
-	.ev_actions    = llc_normal_actions_8,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_8b,
+	.ev_actions    = llc_yesrmal_actions_8,
 };
 
 /* State transitions for LLC_CONN_EV_RX_I_RSP_Fbit_SET_0 event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_9a[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_9a[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_1,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_9a[] = {
+static const llc_conn_action_t llc_yesrmal_actions_9a[] = {
 	[0] = llc_conn_ac_inc_vr_by_1,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_data_ind,
@@ -884,20 +884,20 @@ static const llc_conn_action_t llc_normal_actions_9a[] = {
 	[4] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_9a = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_9a = {
 	.ev	       = llc_conn_ev_rx_i_rsp_fbit_set_0,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_9a,
-	.ev_actions    = llc_normal_actions_9a,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_9a,
+	.ev_actions    = llc_yesrmal_actions_9a,
 };
 
 /* State transitions for LLC_CONN_EV_RX_I_CMD_Pbit_SET_0 event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_9b[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_9b[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_1,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_9b[] = {
+static const llc_conn_action_t llc_yesrmal_actions_9b[] = {
 	[0] = llc_conn_ac_inc_vr_by_1,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_data_ind,
@@ -905,15 +905,15 @@ static const llc_conn_action_t llc_normal_actions_9b[] = {
 	[4] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_9b = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_9b = {
 	.ev	       = llc_conn_ev_rx_i_cmd_pbit_set_0,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_9b,
-	.ev_actions    = llc_normal_actions_9b,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_9b,
+	.ev_actions    = llc_yesrmal_actions_9b,
 };
 
 /* State transitions for LLC_CONN_EV_RX_I_CMD_Pbit_SET_1 event */
-static const llc_conn_action_t llc_normal_actions_10[] = {
+static const llc_conn_action_t llc_yesrmal_actions_10[] = {
 	[0] = llc_conn_ac_inc_vr_by_1,
 	[1] = llc_conn_ac_send_ack_rsp_f_set_1,
 	[2] = llc_conn_ac_rst_sendack_flag,
@@ -922,50 +922,50 @@ static const llc_conn_action_t llc_normal_actions_10[] = {
 	[5] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_10 = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_10 = {
 	.ev	       = llc_conn_ev_rx_i_cmd_pbit_set_1,
 	.next_state    = LLC_CONN_STATE_NORMAL,
 	.ev_qualifiers = NONE,
-	.ev_actions    = llc_normal_actions_10,
+	.ev_actions    = llc_yesrmal_actions_10,
 };
 
 /* State transitions for * LLC_CONN_EV_RX_RR_CMD_Pbit_SET_0 event */
-static const llc_conn_action_t llc_normal_actions_11a[] = {
+static const llc_conn_action_t llc_yesrmal_actions_11a[] = {
 	[0] = llc_conn_ac_upd_p_flag,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_clear_remote_busy,
 	[3] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_11a = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_11a = {
 	.ev	       = llc_conn_ev_rx_rr_cmd_pbit_set_0,
 	.next_state    = LLC_CONN_STATE_NORMAL,
 	.ev_qualifiers = NONE,
-	.ev_actions    = llc_normal_actions_11a,
+	.ev_actions    = llc_yesrmal_actions_11a,
 };
 
 /* State transitions for LLC_CONN_EV_RX_RR_RSP_Fbit_SET_0 event */
-static const llc_conn_action_t llc_normal_actions_11b[] = {
+static const llc_conn_action_t llc_yesrmal_actions_11b[] = {
 	[0] = llc_conn_ac_upd_p_flag,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_clear_remote_busy,
 	[3] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_11b = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_11b = {
 	.ev	       = llc_conn_ev_rx_rr_rsp_fbit_set_0,
 	.next_state    = LLC_CONN_STATE_NORMAL,
 	.ev_qualifiers = NONE,
-	.ev_actions    = llc_normal_actions_11b,
+	.ev_actions    = llc_yesrmal_actions_11b,
 };
 
 /* State transitions for LLC_CONN_EV_RX_RR_RSP_Fbit_SET_1 event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_11c[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_11c[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_1,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_11c[] = {
+static const llc_conn_action_t llc_yesrmal_actions_11c[] = {
 	[0] = llc_conn_ac_upd_p_flag,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_inc_tx_win_size,
@@ -973,15 +973,15 @@ static const llc_conn_action_t llc_normal_actions_11c[] = {
 	[4] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_11c = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_11c = {
 	.ev	       = llc_conn_ev_rx_rr_rsp_fbit_set_1,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_11c,
-	.ev_actions    = llc_normal_actions_11c,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_11c,
+	.ev_actions    = llc_yesrmal_actions_11c,
 };
 
 /* State transitions for LLC_CONN_EV_RX_RR_CMD_Pbit_SET_1 event */
-static const llc_conn_action_t llc_normal_actions_12[] = {
+static const llc_conn_action_t llc_yesrmal_actions_12[] = {
 	[0] = llc_conn_ac_send_ack_rsp_f_set_1,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_adjust_npta_by_rr,
@@ -990,65 +990,65 @@ static const llc_conn_action_t llc_normal_actions_12[] = {
 	[5] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_12 = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_12 = {
 	.ev	       = llc_conn_ev_rx_rr_cmd_pbit_set_1,
 	.next_state    = LLC_CONN_STATE_NORMAL,
 	.ev_qualifiers = NONE,
-	.ev_actions    = llc_normal_actions_12,
+	.ev_actions    = llc_yesrmal_actions_12,
 };
 
 /* State transitions for LLC_CONN_EV_RX_RNR_CMD_Pbit_SET_0 event */
-static const llc_conn_action_t llc_normal_actions_13a[] = {
+static const llc_conn_action_t llc_yesrmal_actions_13a[] = {
 	[0] = llc_conn_ac_upd_p_flag,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_set_remote_busy,
 	[3] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_13a = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_13a = {
 	.ev	       = llc_conn_ev_rx_rnr_cmd_pbit_set_0,
 	.next_state    = LLC_CONN_STATE_NORMAL,
 	.ev_qualifiers = NONE,
-	.ev_actions    = llc_normal_actions_13a,
+	.ev_actions    = llc_yesrmal_actions_13a,
 };
 
 /* State transitions for LLC_CONN_EV_RX_RNR_RSP_Fbit_SET_0 event */
-static const llc_conn_action_t llc_normal_actions_13b[] = {
+static const llc_conn_action_t llc_yesrmal_actions_13b[] = {
 	[0] = llc_conn_ac_upd_p_flag,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_set_remote_busy,
 	[3] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_13b = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_13b = {
 	.ev	       = llc_conn_ev_rx_rnr_rsp_fbit_set_0,
 	.next_state    = LLC_CONN_STATE_NORMAL,
 	.ev_qualifiers = NONE,
-	.ev_actions    = llc_normal_actions_13b,
+	.ev_actions    = llc_yesrmal_actions_13b,
 };
 
 /* State transitions for LLC_CONN_EV_RX_RNR_RSP_Fbit_SET_1 event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_13c[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_13c[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_1,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_13c[] = {
+static const llc_conn_action_t llc_yesrmal_actions_13c[] = {
 	[0] = llc_conn_ac_upd_p_flag,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_set_remote_busy,
 	[3] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_13c = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_13c = {
 	.ev	       = llc_conn_ev_rx_rnr_rsp_fbit_set_1,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_13c,
-	.ev_actions    = llc_normal_actions_13c,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_13c,
+	.ev_actions    = llc_yesrmal_actions_13c,
 };
 
 /* State transitions for LLC_CONN_EV_RX_RNR_CMD_Pbit_SET_1 event */
-static const llc_conn_action_t llc_normal_actions_14[] = {
+static const llc_conn_action_t llc_yesrmal_actions_14[] = {
 	[0] = llc_conn_ac_send_rr_rsp_f_set_1,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_adjust_npta_by_rnr,
@@ -1057,20 +1057,20 @@ static const llc_conn_action_t llc_normal_actions_14[] = {
 	[5] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_14 = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_14 = {
 	.ev	       = llc_conn_ev_rx_rnr_cmd_pbit_set_1,
 	.next_state    = LLC_CONN_STATE_NORMAL,
 	.ev_qualifiers = NONE,
-	.ev_actions    = llc_normal_actions_14,
+	.ev_actions    = llc_yesrmal_actions_14,
 };
 
 /* State transitions for LLC_CONN_EV_RX_REJ_CMD_Pbit_SET_0 event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_15a[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_15a[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_0,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_15a[] = {
+static const llc_conn_action_t llc_yesrmal_actions_15a[] = {
 	[0] = llc_conn_ac_set_vs_nr,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_upd_p_flag,
@@ -1080,20 +1080,20 @@ static const llc_conn_action_t llc_normal_actions_15a[] = {
 	[6] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_15a = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_15a = {
 	.ev	       = llc_conn_ev_rx_rej_cmd_pbit_set_0,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_15a,
-	.ev_actions    = llc_normal_actions_15a,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_15a,
+	.ev_actions    = llc_yesrmal_actions_15a,
 };
 
 /* State transitions for LLC_CONN_EV_RX_REJ_RSP_Fbit_SET_X event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_15b[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_15b[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_f,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_15b[] = {
+static const llc_conn_action_t llc_yesrmal_actions_15b[] = {
 	[0] = llc_conn_ac_set_vs_nr,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_upd_p_flag,
@@ -1103,20 +1103,20 @@ static const llc_conn_action_t llc_normal_actions_15b[] = {
 	[6] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_15b = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_15b = {
 	.ev	       = llc_conn_ev_rx_rej_rsp_fbit_set_x,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_15b,
-	.ev_actions    = llc_normal_actions_15b,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_15b,
+	.ev_actions    = llc_yesrmal_actions_15b,
 };
 
 /* State transitions for LLC_CONN_EV_RX_REJ_CMD_Pbit_SET_0 event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_16a[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_16a[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_1,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_16a[] = {
+static const llc_conn_action_t llc_yesrmal_actions_16a[] = {
 	[0] = llc_conn_ac_set_vs_nr,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_dec_tx_win_size,
@@ -1125,20 +1125,20 @@ static const llc_conn_action_t llc_normal_actions_16a[] = {
 	[5] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_16a = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_16a = {
 	.ev	       = llc_conn_ev_rx_rej_cmd_pbit_set_0,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_16a,
-	.ev_actions    = llc_normal_actions_16a,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_16a,
+	.ev_actions    = llc_yesrmal_actions_16a,
 };
 
 /* State transitions for LLC_CONN_EV_RX_REJ_RSP_Fbit_SET_0 event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_16b[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_16b[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_1,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_16b[] = {
+static const llc_conn_action_t llc_yesrmal_actions_16b[] = {
 	[0] = llc_conn_ac_set_vs_nr,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_dec_tx_win_size,
@@ -1147,15 +1147,15 @@ static const llc_conn_action_t llc_normal_actions_16b[] = {
 	[5] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_16b = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_16b = {
 	.ev	       = llc_conn_ev_rx_rej_rsp_fbit_set_0,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_16b,
-	.ev_actions    = llc_normal_actions_16b,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_16b,
+	.ev_actions    = llc_yesrmal_actions_16b,
 };
 
 /* State transitions for LLC_CONN_EV_RX_REJ_CMD_Pbit_SET_1 event */
-static const llc_conn_action_t llc_normal_actions_17[] = {
+static const llc_conn_action_t llc_yesrmal_actions_17[] = {
 	[0] = llc_conn_ac_set_vs_nr,
 	[1] = llc_conn_ac_upd_nr_received,
 	[2] = llc_conn_ac_dec_tx_win_size,
@@ -1164,39 +1164,39 @@ static const llc_conn_action_t llc_normal_actions_17[] = {
 	[5] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_17 = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_17 = {
 	.ev	       = llc_conn_ev_rx_rej_cmd_pbit_set_1,
 	.next_state    = LLC_CONN_STATE_NORMAL,
 	.ev_qualifiers = NONE,
-	.ev_actions    = llc_normal_actions_17,
+	.ev_actions    = llc_yesrmal_actions_17,
 };
 
 /* State transitions for LLC_CONN_EV_INIT_P_F_CYCLE event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_18[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_18[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_0,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_18[] = {
+static const llc_conn_action_t llc_yesrmal_actions_18[] = {
 	[0] = llc_conn_ac_send_rr_cmd_p_set_1,
 	[1] = llc_conn_ac_start_p_timer,
 	[2] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_18 = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_18 = {
 	.ev	       = llc_conn_ev_init_p_f_cycle,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_18,
-	.ev_actions    = llc_normal_actions_18,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_18,
+	.ev_actions    = llc_yesrmal_actions_18,
 };
 
 /* State transitions for LLC_CONN_EV_P_TMR_EXP event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_19[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_19[] = {
 	[0] = llc_conn_ev_qlfy_retry_cnt_lt_n2,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_19[] = {
+static const llc_conn_action_t llc_yesrmal_actions_19[] = {
 	[0] = llc_conn_ac_rst_sendack_flag,
 	[1] = llc_conn_ac_send_rr_cmd_p_set_1,
 	[2] = llc_conn_ac_rst_vs,
@@ -1205,21 +1205,21 @@ static const llc_conn_action_t llc_normal_actions_19[] = {
 	[5] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_19 = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_19 = {
 	.ev	       = llc_conn_ev_p_tmr_exp,
 	.next_state    = LLC_CONN_STATE_AWAIT,
-	.ev_qualifiers = llc_normal_ev_qfyrs_19,
-	.ev_actions    = llc_normal_actions_19,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_19,
+	.ev_actions    = llc_yesrmal_actions_19,
 };
 
 /* State transitions for LLC_CONN_EV_ACK_TMR_EXP event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_20a[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_20a[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_0,
 	[1] = llc_conn_ev_qlfy_retry_cnt_lt_n2,
 	[2] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_20a[] = {
+static const llc_conn_action_t llc_yesrmal_actions_20a[] = {
 	[0] = llc_conn_ac_rst_sendack_flag,
 	[1] = llc_conn_ac_send_rr_cmd_p_set_1,
 	[2] = llc_conn_ac_rst_vs,
@@ -1228,21 +1228,21 @@ static const llc_conn_action_t llc_normal_actions_20a[] = {
 	[5] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_20a = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_20a = {
 	.ev	       = llc_conn_ev_ack_tmr_exp,
 	.next_state    = LLC_CONN_STATE_AWAIT,
-	.ev_qualifiers = llc_normal_ev_qfyrs_20a,
-	.ev_actions    = llc_normal_actions_20a,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_20a,
+	.ev_actions    = llc_yesrmal_actions_20a,
 };
 
 /* State transitions for LLC_CONN_EV_BUSY_TMR_EXP event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_20b[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_20b[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_0,
 	[1] = llc_conn_ev_qlfy_retry_cnt_lt_n2,
 	[2] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_20b[] = {
+static const llc_conn_action_t llc_yesrmal_actions_20b[] = {
 	[0] = llc_conn_ac_rst_sendack_flag,
 	[1] = llc_conn_ac_send_rr_cmd_p_set_1,
 	[2] = llc_conn_ac_rst_vs,
@@ -1251,81 +1251,81 @@ static const llc_conn_action_t llc_normal_actions_20b[] = {
 	[5] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_20b = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_20b = {
 	.ev	       = llc_conn_ev_busy_tmr_exp,
 	.next_state    = LLC_CONN_STATE_AWAIT,
-	.ev_qualifiers = llc_normal_ev_qfyrs_20b,
-	.ev_actions    = llc_normal_actions_20b,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_20b,
+	.ev_actions    = llc_yesrmal_actions_20b,
 };
 
 /* State transitions for LLC_CONN_EV_TX_BUFF_FULL event */
-static const llc_conn_ev_qfyr_t llc_normal_ev_qfyrs_21[] = {
+static const llc_conn_ev_qfyr_t llc_yesrmal_ev_qfyrs_21[] = {
 	[0] = llc_conn_ev_qlfy_p_flag_eq_0,
 	[1] = NULL,
 };
 
-static const llc_conn_action_t llc_normal_actions_21[] = {
+static const llc_conn_action_t llc_yesrmal_actions_21[] = {
 	[0] = llc_conn_ac_send_rr_cmd_p_set_1,
 	[1] = llc_conn_ac_start_p_timer,
 	[2] = NULL,
 };
 
-static struct llc_conn_state_trans llc_normal_state_trans_21 = {
+static struct llc_conn_state_trans llc_yesrmal_state_trans_21 = {
 	.ev	       = llc_conn_ev_tx_buffer_full,
 	.next_state    = LLC_CONN_STATE_NORMAL,
-	.ev_qualifiers = llc_normal_ev_qfyrs_21,
-	.ev_actions    = llc_normal_actions_21,
+	.ev_qualifiers = llc_yesrmal_ev_qfyrs_21,
+	.ev_actions    = llc_yesrmal_actions_21,
 };
 
 /*
  * Array of pointers;
  * one to each transition
  */
-static struct llc_conn_state_trans *llc_normal_state_transitions[] = {
-	 [0] = &llc_normal_state_trans_1,	/* Requests */
-	 [1] = &llc_normal_state_trans_2,
-	 [2] = &llc_normal_state_trans_2_1,
+static struct llc_conn_state_trans *llc_yesrmal_state_transitions[] = {
+	 [0] = &llc_yesrmal_state_trans_1,	/* Requests */
+	 [1] = &llc_yesrmal_state_trans_2,
+	 [2] = &llc_yesrmal_state_trans_2_1,
 	 [3] = &llc_common_state_trans_1,
 	 [4] = &llc_common_state_trans_2,
 	 [5] = &llc_common_state_trans_end,
-	 [6] = &llc_normal_state_trans_21,
-	 [7] = &llc_normal_state_trans_3,	/* Local busy */
-	 [8] = &llc_normal_state_trans_4,
+	 [6] = &llc_yesrmal_state_trans_21,
+	 [7] = &llc_yesrmal_state_trans_3,	/* Local busy */
+	 [8] = &llc_yesrmal_state_trans_4,
 	 [9] = &llc_common_state_trans_end,
-	[10] = &llc_normal_state_trans_18,	/* Init pf cycle */
+	[10] = &llc_yesrmal_state_trans_18,	/* Init pf cycle */
 	[11] = &llc_common_state_trans_end,
 	[12] = &llc_common_state_trans_11a,	/* Timers */
 	[13] = &llc_common_state_trans_11b,
 	[14] = &llc_common_state_trans_11c,
 	[15] = &llc_common_state_trans_11d,
-	[16] = &llc_normal_state_trans_19,
-	[17] = &llc_normal_state_trans_20a,
-	[18] = &llc_normal_state_trans_20b,
+	[16] = &llc_yesrmal_state_trans_19,
+	[17] = &llc_yesrmal_state_trans_20a,
+	[18] = &llc_yesrmal_state_trans_20b,
 	[19] = &llc_common_state_trans_end,
-	[20] = &llc_normal_state_trans_8b,	/* Receive frames */
-	[21] = &llc_normal_state_trans_9b,
-	[22] = &llc_normal_state_trans_10,
-	[23] = &llc_normal_state_trans_11b,
-	[24] = &llc_normal_state_trans_11c,
-	[25] = &llc_normal_state_trans_5a,
-	[26] = &llc_normal_state_trans_5b,
-	[27] = &llc_normal_state_trans_5c,
-	[28] = &llc_normal_state_trans_6a,
-	[29] = &llc_normal_state_trans_6b,
-	[30] = &llc_normal_state_trans_7,
-	[31] = &llc_normal_state_trans_8a,
-	[32] = &llc_normal_state_trans_9a,
-	[33] = &llc_normal_state_trans_11a,
-	[34] = &llc_normal_state_trans_12,
-	[35] = &llc_normal_state_trans_13a,
-	[36] = &llc_normal_state_trans_13b,
-	[37] = &llc_normal_state_trans_13c,
-	[38] = &llc_normal_state_trans_14,
-	[39] = &llc_normal_state_trans_15a,
-	[40] = &llc_normal_state_trans_15b,
-	[41] = &llc_normal_state_trans_16a,
-	[42] = &llc_normal_state_trans_16b,
-	[43] = &llc_normal_state_trans_17,
+	[20] = &llc_yesrmal_state_trans_8b,	/* Receive frames */
+	[21] = &llc_yesrmal_state_trans_9b,
+	[22] = &llc_yesrmal_state_trans_10,
+	[23] = &llc_yesrmal_state_trans_11b,
+	[24] = &llc_yesrmal_state_trans_11c,
+	[25] = &llc_yesrmal_state_trans_5a,
+	[26] = &llc_yesrmal_state_trans_5b,
+	[27] = &llc_yesrmal_state_trans_5c,
+	[28] = &llc_yesrmal_state_trans_6a,
+	[29] = &llc_yesrmal_state_trans_6b,
+	[30] = &llc_yesrmal_state_trans_7,
+	[31] = &llc_yesrmal_state_trans_8a,
+	[32] = &llc_yesrmal_state_trans_9a,
+	[33] = &llc_yesrmal_state_trans_11a,
+	[34] = &llc_yesrmal_state_trans_12,
+	[35] = &llc_yesrmal_state_trans_13a,
+	[36] = &llc_yesrmal_state_trans_13b,
+	[37] = &llc_yesrmal_state_trans_13c,
+	[38] = &llc_yesrmal_state_trans_14,
+	[39] = &llc_yesrmal_state_trans_15a,
+	[40] = &llc_yesrmal_state_trans_15b,
+	[41] = &llc_yesrmal_state_trans_16a,
+	[42] = &llc_yesrmal_state_trans_16b,
+	[43] = &llc_yesrmal_state_trans_17,
 	[44] = &llc_common_state_trans_3,
 	[45] = &llc_common_state_trans_4,
 	[46] = &llc_common_state_trans_5,
@@ -1350,7 +1350,7 @@ static const llc_conn_ev_qfyr_t llc_busy_ev_qfyrs_1[] = {
 
 static const llc_conn_action_t llc_busy_actions_1[] = {
 	[0] = llc_conn_ac_send_i_xxx_x_set_0,
-	[1] = llc_conn_ac_start_ack_tmr_if_not_running,
+	[1] = llc_conn_ac_start_ack_tmr_if_yest_running,
 	[2] = NULL,
 };
 
@@ -1370,7 +1370,7 @@ static const llc_conn_ev_qfyr_t llc_busy_ev_qfyrs_2[] = {
 
 static const llc_conn_action_t llc_busy_actions_2[] = {
 	[0] = llc_conn_ac_send_i_xxx_x_set_0,
-	[1] = llc_conn_ac_start_ack_tmr_if_not_running,
+	[1] = llc_conn_ac_start_ack_tmr_if_yest_running,
 	[2] = NULL,
 };
 
@@ -4905,7 +4905,7 @@ struct llc_conn_state llc_conn_state_table[NBR_CONN_STATES] = {
 	},
 	[LLC_CONN_STATE_NORMAL - 1] = {
 		.current_state	= LLC_CONN_STATE_NORMAL,
-		.transitions	= llc_normal_state_transitions,
+		.transitions	= llc_yesrmal_state_transitions,
 	},
 	[LLC_CONN_STATE_BUSY - 1] = {
 		.current_state	= LLC_CONN_STATE_BUSY,

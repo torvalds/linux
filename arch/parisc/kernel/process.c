@@ -21,7 +21,7 @@
 #include <stdarg.h>
 
 #include <linux/elf.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -61,10 +61,10 @@
 ** to perform a "safe", platform specific broadcast reset instead
 ** of kludging up all the code.
 **
-** Older machines which do not implement PDC_BROADCAST_RESET will
+** Older machines which do yest implement PDC_BROADCAST_RESET will
 ** return (with an error) and the regular broadcast reset can be
 ** issued. Obviously, if the PDC does implement PDC_BROADCAST_RESET
-** the PDC call will not return (the system will be reset).
+** the PDC call will yest return (the system will be reset).
 */
 void machine_restart(char *cmd)
 {
@@ -90,7 +90,7 @@ void machine_restart(char *cmd)
 	/* "Normal" system reset */
 	pdc_do_reset();
 
-	/* Nope...box should reset with just CMD_RESET now */
+	/* Nope...box should reset with just CMD_RESET yesw */
 	gsc_writel(CMD_RESET, COMMAND_GLOBAL);
 
 	/* Wait for RESET to lay us to rest. */
@@ -121,11 +121,11 @@ void machine_power_off(void)
 	if (pm_power_off)
 		pm_power_off();
 		
-	/* It seems we have no way to power the system off via
+	/* It seems we have yes way to power the system off via
 	 * software. The user has to press the button himself. */
 
 	printk(KERN_EMERG "System shut down completed.\n"
-	       "Please power this system off now.");
+	       "Please power this system off yesw.");
 
 	/* prevent soft lockup/stalled CPU messages for endless loop. */
 	rcu_sysrq_start();
@@ -183,7 +183,7 @@ EXPORT_SYMBOL(running_on_qemu);
 
 void __cpuidle arch_cpu_idle_dead(void)
 {
-	/* nop on real hardware, qemu will offline CPU. */
+	/* yesp on real hardware, qemu will offline CPU. */
 	asm volatile("or %%r31,%%r31,%%r31\n":::);
 }
 
@@ -191,7 +191,7 @@ void __cpuidle arch_cpu_idle(void)
 {
 	local_irq_enable();
 
-	/* nop on real hardware, qemu will idle sleep. */
+	/* yesp on real hardware, qemu will idle sleep. */
 	asm volatile("or %%r10,%%r10,%%r10\n":::);
 }
 
@@ -216,7 +216,7 @@ copy_thread_tls(unsigned long clone_flags, unsigned long usp,
 	
 	/* We have to use void * instead of a function pointer, because
 	 * function pointers aren't a pointer to the function on 64-bit.
-	 * Make them const so the compiler knows they live in .text */
+	 * Make them const so the compiler kyesws they live in .text */
 	extern void * const ret_from_kernel_thread;
 	extern void * const child_return;
 

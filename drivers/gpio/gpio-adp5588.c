@@ -300,7 +300,7 @@ static int adp5588_irq_setup(struct adp5588_gpio *dev)
 					  IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(&client->dev,
-			"could not connect irqchip to gpiochip\n");
+			"could yest connect irqchip to gpiochip\n");
 		return ret;
 	}
 	gpiochip_set_nested_irqchip(&dev->gpio_chip,
@@ -317,7 +317,7 @@ static int adp5588_irq_setup(struct adp5588_gpio *dev)
 static int adp5588_irq_setup(struct adp5588_gpio *dev)
 {
 	struct i2c_client *client = dev->client;
-	dev_warn(&client->dev, "interrupt support not compiled in\n");
+	dev_warn(&client->dev, "interrupt support yest compiled in\n");
 
 	return 0;
 }
@@ -335,7 +335,7 @@ static int adp5588_gpio_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 					I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(&client->dev, "SMBUS Byte Data not Supported\n");
+		dev_err(&client->dev, "SMBUS Byte Data yest Supported\n");
 		return -EIO;
 	}
 
@@ -385,7 +385,7 @@ static int adp5588_gpio_probe(struct i2c_client *client)
 
 	if (client->irq) {
 		if (WA_DELAYED_READOUT_REVID(revid)) {
-			dev_warn(&client->dev, "GPIO int not supported\n");
+			dev_warn(&client->dev, "GPIO int yest supported\n");
 		} else {
 			ret = adp5588_irq_setup(dev);
 			if (ret)

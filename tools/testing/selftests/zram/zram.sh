@@ -25,7 +25,7 @@ if [ -f $MODULE_PATH ]; then
 elif [ -b /dev/zram0 ]; then
 	run_zram
 else
-	echo "$TCID : No zram.ko module or /dev/zram0 device file not found"
-	echo "$TCID : CONFIG_ZRAM is not set"
+	echo "$TCID : No zram.ko module or /dev/zram0 device file yest found"
+	echo "$TCID : CONFIG_ZRAM is yest set"
 	exit $ksft_skip
 fi

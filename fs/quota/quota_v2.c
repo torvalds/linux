@@ -3,7 +3,7 @@
  *	vfsv0 quota IO operations on file
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/dqblk_v2.h>
@@ -130,7 +130,7 @@ static int v2_read_file_info(struct super_block *sb, int type)
 	if (version == 0) {
 		/* limits are stored as unsigned 32-bit data */
 		info->dqi_max_spc_limit = 0xffffffffLL << QUOTABLOCK_BITS;
-		info->dqi_max_ino_limit = 0xffffffff;
+		info->dqi_max_iyes_limit = 0xffffffff;
 	} else {
 		/*
 		 * Used space is stored as unsigned 64-bit value in bytes but
@@ -138,7 +138,7 @@ static int v2_read_file_info(struct super_block *sb, int type)
 		 * as a limit
 		 */
 		info->dqi_max_spc_limit = 0x7fffffffffffffffLL; /* 2^63-1 */
-		info->dqi_max_ino_limit = 0x7fffffffffffffffLL;
+		info->dqi_max_iyes_limit = 0x7fffffffffffffffLL;
 	}
 	info->dqi_bgrace = le32_to_cpu(dinfo.dqi_bgrace);
 	info->dqi_igrace = le32_to_cpu(dinfo.dqi_igrace);
@@ -202,7 +202,7 @@ static void v2r0_disk2memdqb(struct dquot *dquot, void *dp)
 
 	m->dqb_ihardlimit = le32_to_cpu(d->dqb_ihardlimit);
 	m->dqb_isoftlimit = le32_to_cpu(d->dqb_isoftlimit);
-	m->dqb_curinodes = le32_to_cpu(d->dqb_curinodes);
+	m->dqb_curiyesdes = le32_to_cpu(d->dqb_curiyesdes);
 	m->dqb_itime = le64_to_cpu(d->dqb_itime);
 	m->dqb_bhardlimit = v2_qbtos(le32_to_cpu(d->dqb_bhardlimit));
 	m->dqb_bsoftlimit = v2_qbtos(le32_to_cpu(d->dqb_bsoftlimit));
@@ -224,7 +224,7 @@ static void v2r0_mem2diskdqb(void *dp, struct dquot *dquot)
 
 	d->dqb_ihardlimit = cpu_to_le32(m->dqb_ihardlimit);
 	d->dqb_isoftlimit = cpu_to_le32(m->dqb_isoftlimit);
-	d->dqb_curinodes = cpu_to_le32(m->dqb_curinodes);
+	d->dqb_curiyesdes = cpu_to_le32(m->dqb_curiyesdes);
 	d->dqb_itime = cpu_to_le64(m->dqb_itime);
 	d->dqb_bhardlimit = cpu_to_le32(v2_stoqb(m->dqb_bhardlimit));
 	d->dqb_bsoftlimit = cpu_to_le32(v2_stoqb(m->dqb_bsoftlimit));
@@ -255,7 +255,7 @@ static void v2r1_disk2memdqb(struct dquot *dquot, void *dp)
 
 	m->dqb_ihardlimit = le64_to_cpu(d->dqb_ihardlimit);
 	m->dqb_isoftlimit = le64_to_cpu(d->dqb_isoftlimit);
-	m->dqb_curinodes = le64_to_cpu(d->dqb_curinodes);
+	m->dqb_curiyesdes = le64_to_cpu(d->dqb_curiyesdes);
 	m->dqb_itime = le64_to_cpu(d->dqb_itime);
 	m->dqb_bhardlimit = v2_qbtos(le64_to_cpu(d->dqb_bhardlimit));
 	m->dqb_bsoftlimit = v2_qbtos(le64_to_cpu(d->dqb_bsoftlimit));
@@ -277,7 +277,7 @@ static void v2r1_mem2diskdqb(void *dp, struct dquot *dquot)
 
 	d->dqb_ihardlimit = cpu_to_le64(m->dqb_ihardlimit);
 	d->dqb_isoftlimit = cpu_to_le64(m->dqb_isoftlimit);
-	d->dqb_curinodes = cpu_to_le64(m->dqb_curinodes);
+	d->dqb_curiyesdes = cpu_to_le64(m->dqb_curiyesdes);
 	d->dqb_itime = cpu_to_le64(m->dqb_itime);
 	d->dqb_bhardlimit = cpu_to_le64(v2_stoqb(m->dqb_bhardlimit));
 	d->dqb_bsoftlimit = cpu_to_le64(v2_stoqb(m->dqb_bsoftlimit));

@@ -69,9 +69,9 @@ struct mace_data {
 };
 
 /*
- * Number of bytes of private data per MACE: allow enough for
+ * Number of bytes of private data per MACE: allow eyesugh for
  * the rx and tx dma commands plus a branch dma command each,
- * and another 16 bytes to allow us to align the dma command
+ * and ayesther 16 bytes to allow us to align the dma command
  * buffers on a 16 byte boundary.
  */
 #define PRIV_BYTES	(sizeof(struct mace_data) \
@@ -108,7 +108,7 @@ static const struct net_device_ops mace_netdev_ops = {
 
 static int mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
-	struct device_node *mace = macio_get_of_node(mdev);
+	struct device_yesde *mace = macio_get_of_yesde(mdev);
 	struct net_device *dev;
 	struct mace_data *mp;
 	const unsigned char *addr;
@@ -241,7 +241,7 @@ static int mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 
 	rc = register_netdev(dev);
 	if (rc) {
-		printk(KERN_ERR "MACE: Cannot register net device, aborting.\n");
+		printk(KERN_ERR "MACE: Canyest register net device, aborting.\n");
 		goto err_free_rx_irq;
 	}
 
@@ -331,11 +331,11 @@ static void mace_reset(struct net_device *dev)
 	break;
     }
     if (!i) {
-	printk(KERN_ERR "mace: cannot reset chip!\n");
+	printk(KERN_ERR "mace: canyest reset chip!\n");
 	return;
     }
 
-    out_8(&mb->imr, 0xff);	/* disable all intrs for now */
+    out_8(&mb->imr, 0xff);	/* disable all intrs for yesw */
     i = in_8(&mb->ir);
     out_8(&mb->maccc, 0);	/* turn off tx, rx */
 
@@ -400,7 +400,7 @@ static int mace_set_address(struct net_device *dev, void *addr)
 
     __mace_set_address(dev, addr);
 
-    /* note: setting ADDRCHG clears ENRCV */
+    /* yeste: setting ADDRCHG clears ENRCV */
     out_8(&mb->maccc, mp->maccc);
 
     spin_unlock_irqrestore(&mp->lock, flags);
@@ -694,7 +694,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	out_le32(&td->control, RUN << 16);
 	/*
 	 * xcount is the number of complete frames which have been
-	 * written to the fifo but for which status has not been read.
+	 * written to the fifo but for which status has yest been read.
 	 */
 	xcount = (in_8(&mb->fifofc) >> XMTFC_SH) & XMTFC_MASK;
 	if (xcount == 0 || (dstat & DEAD)) {
@@ -707,13 +707,13 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	     * off the DMA controller and/or resetting the MACE doesn't
 	     * help.  So we disable auto-padding and FCS transmission
 	     * so the two bytes will only be a runt packet which should
-	     * be ignored by other stations.
+	     * be igyesred by other stations.
 	     */
 	    out_8(&mb->xmtfc, DXMTFCS);
 	}
 	fs = in_8(&mb->xmtfs);
 	if ((fs & XMTSV) == 0) {
-	    printk(KERN_ERR "mace: xmtfs not valid! (fs=%x xc=%d ds=%x)\n",
+	    printk(KERN_ERR "mace: xmtfs yest valid! (fs=%x xc=%d ds=%x)\n",
 		   fs, xcount, dstat);
 	    mace_reset(dev);
 		/*

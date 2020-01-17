@@ -13,7 +13,7 @@
 #define MAX_CONNECTOR	2
 
 struct device;
-struct device_node;
+struct device_yesde;
 struct drm_crtc;
 struct drm_device;
 struct drm_fb_helper;
@@ -37,10 +37,10 @@ struct mtk_drm_private {
 
 	unsigned int num_pipes;
 
-	struct device_node *mutex_node;
+	struct device_yesde *mutex_yesde;
 	struct device *mutex_dev;
 	void __iomem *config_regs;
-	struct device_node *comp_node[DDP_COMPONENT_ID_MAX];
+	struct device_yesde *comp_yesde[DDP_COMPONENT_ID_MAX];
 	struct mtk_ddp_comp *ddp_comp[DDP_COMPONENT_ID_MAX];
 	const struct mtk_mmsys_driver_data *data;
 

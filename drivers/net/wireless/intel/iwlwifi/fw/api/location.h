@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -101,7 +101,7 @@ enum iwl_location_subcmd_ids {
 	CSI_HEADER_NOTIFICATION = 0xFA,
 	/**
 	 * @CSI_CHUNKS_NOTIFICATION: CSI chunk,
-	 *	uses &struct iwl_csi_chunk_notification
+	 *	uses &struct iwl_csi_chunk_yestification
 	 */
 	CSI_CHUNKS_NOTIFICATION = 0xFB,
 	/**
@@ -110,13 +110,13 @@ enum iwl_location_subcmd_ids {
 	 */
 	TOF_LC_NOTIF = 0xFC,
 	/**
-	 * @TOF_RESPONDER_STATS: FTM responder statistics notification,
+	 * @TOF_RESPONDER_STATS: FTM responder statistics yestification,
 	 *	uses &struct iwl_ftm_responder_stats
 	 */
 	TOF_RESPONDER_STATS = 0xFD,
 	/**
-	 * @TOF_MCSI_DEBUG_NOTIF: MCSI debug notification, uses
-	 *	&struct iwl_tof_mcsi_notif
+	 * @TOF_MCSI_DEBUG_NOTIF: MCSI debug yestification, uses
+	 *	&struct iwl_tof_mcsi_yestif
 	 */
 	TOF_MCSI_DEBUG_NOTIF = 0xFE,
 	/**
@@ -128,8 +128,8 @@ enum iwl_location_subcmd_ids {
 
 /**
  * struct iwl_tof_config_cmd - ToF configuration
- * @tof_disabled: indicates if ToF is disabled (or not)
- * @one_sided_disabled: indicates if one-sided is disabled (or not)
+ * @tof_disabled: indicates if ToF is disabled (or yest)
+ * @one_sided_disabled: indicates if one-sided is disabled (or yest)
  * @is_debug_mode: indiciates if debug mode is active
  * @is_buf_required: indicates if channel estimation buffer is required
  */
@@ -142,7 +142,7 @@ struct iwl_tof_config_cmd {
 
 /**
  * enum iwl_tof_bandwidth - values for iwl_tof_range_req_ap_entry.bandwidth
- * @IWL_TOF_BW_20_LEGACY: 20 MHz non-HT
+ * @IWL_TOF_BW_20_LEGACY: 20 MHz yesn-HT
  * @IWL_TOF_BW_20_HT: 20 MHz HT
  * @IWL_TOF_BW_40: 40 MHz
  * @IWL_TOF_BW_80: 80 MHz
@@ -169,7 +169,7 @@ enum iwl_tof_algo_type {
 }; /* ALGO_TYPE_E */
 
 /*
- * enum iwl_tof_mcsi_ntfy - Enable/Disable MCSI notifications
+ * enum iwl_tof_mcsi_ntfy - Enable/Disable MCSI yestifications
  */
 enum iwl_tof_mcsi_enable {
 	IWL_TOF_MCSI_DISABLED = 0,
@@ -186,10 +186,10 @@ enum iwl_tof_mcsi_enable {
  * @IWL_TOF_RESPONDER_CMD_VALID_BSSID: BSSID is valid
  * @IWL_TOF_RESPONDER_CMD_VALID_TX_ANT: TX antenna is valid
  * @IWL_TOF_RESPONDER_CMD_VALID_ALGO_TYPE: algorithm type is valid
- * @IWL_TOF_RESPONDER_CMD_VALID_NON_ASAP_SUPPORT: non-ASAP support is valid
+ * @IWL_TOF_RESPONDER_CMD_VALID_NON_ASAP_SUPPORT: yesn-ASAP support is valid
  * @IWL_TOF_RESPONDER_CMD_VALID_STATISTICS_REPORT_SUPPORT: statistics report
  *	support is valid
- * @IWL_TOF_RESPONDER_CMD_VALID_MCSI_NOTIF_SUPPORT: MCSI notification support
+ * @IWL_TOF_RESPONDER_CMD_VALID_MCSI_NOTIF_SUPPORT: MCSI yestification support
  *	is valid
  * @IWL_TOF_RESPONDER_CMD_VALID_FAST_ALGO_SUPPORT: fast algorithm support
  *	is valid
@@ -215,7 +215,7 @@ enum iwl_tof_responder_cmd_valid_field {
 
 /**
  * enum iwl_tof_responder_cfg_flags - responder configuration flags
- * @IWL_TOF_RESPONDER_FLAGS_NON_ASAP_SUPPORT: non-ASAP support
+ * @IWL_TOF_RESPONDER_FLAGS_NON_ASAP_SUPPORT: yesn-ASAP support
  * @IWL_TOF_RESPONDER_FLAGS_REPORT_STATISTICS: report statistics
  * @IWL_TOF_RESPONDER_FLAGS_REPORT_MCSI: report MCSI
  * @IWL_TOF_RESPONDER_FLAGS_ALGO_TYPE: algorithm type
@@ -296,7 +296,7 @@ struct iwl_tof_responder_dyn_config_cmd {
  * @tsf_timer_offset_msec: the recommended time offset (mSec) from the AP's TSF
  * @reserved: reserved
  * @min_delta_ftm: Minimal time between two consecutive measurements,
- *		   in units of 100us. 0 means no preference by station
+ *		   in units of 100us. 0 means yes preference by station
  * @ftm_format_and_bw20M: FTM Channel Spacing/Format for 20MHz: recommended
  *			value be sent to the AP
  * @ftm_format_and_bw40M: FTM Channel Spacing/Format for 40MHz: recommended
@@ -335,16 +335,16 @@ enum iwl_tof_location_query {
  * @num_of_bursts: Recommended value to be sent to the AP.  2s Exponent of the
  *	number of measurement iterations (min 2^0 = 1, max 2^14)
  * @burst_period: Recommended value to be sent to the AP. Measurement
- *	periodicity In units of 100ms. ignored if num_of_bursts = 0
+ *	periodicity In units of 100ms. igyesred if num_of_bursts = 0
  * @samples_per_burst: 2-sided: the number of FTMs pairs in single Burst (1-31);
  *	1-sided: how many rts/cts pairs should be used per burst.
  * @retries_per_sample: Max number of retries that the LMAC should send
- *	in case of no replies by the AP.
+ *	in case of yes replies by the AP.
  * @tsf_delta: TSF Delta in units of microseconds.
  *	The difference between the AP TSF and the device local clock.
  * @location_req: Location Request Bit[0] LCI should be sent in the FTMR;
  *	Bit[1] Civic should be sent in the FTMR
- * @asap_mode: 0 - non asap mode, 1 - asap mode (not relevant for one sided)
+ * @asap_mode: 0 - yesn asap mode, 1 - asap mode (yest relevant for one sided)
  * @enable_dyn_ack: Enable Dynamic ACK BW.
  *	0: Initiator interact with regular AP;
  *	1: Initiator interact with Responder machine: need to send the
@@ -354,7 +354,7 @@ enum iwl_tof_location_query {
  * @rssi: Last received value
  *	legal values: -128-0 (0x7f). above 0x0 indicating an invalid value.
  * @algo_type: &enum iwl_tof_algo_type
- * @notify_mcsi: &enum iwl_tof_mcsi_ntfy.
+ * @yestify_mcsi: &enum iwl_tof_mcsi_ntfy.
  * @reserved: For alignment and future use
  */
 struct iwl_tof_range_req_ap_entry_v2 {
@@ -374,7 +374,7 @@ struct iwl_tof_range_req_ap_entry_v2 {
 	u8 enable_dyn_ack;
 	s8 rssi;
 	u8 algo_type;
-	u8 notify_mcsi;
+	u8 yestify_mcsi;
 	__le16 reserved;
 } __packed; /* LOCATION_RANGE_REQ_AP_ENTRY_CMD_API_S_VER_2 */
 
@@ -383,7 +383,7 @@ struct iwl_tof_range_req_ap_entry_v2 {
  * @IWL_INITIATOR_AP_FLAGS_ASAP: Request for ASAP measurement.
  * @IWL_INITIATOR_AP_FLAGS_LCI_REQUEST: Request for LCI information
  * @IWL_INITIATOR_AP_FLAGS_CIVIC_REQUEST: Request for CIVIC information
- * @IWL_INITIATOR_AP_FLAGS_DYN_ACK: Send HT/VHT ack for FTM frames. If not set,
+ * @IWL_INITIATOR_AP_FLAGS_DYN_ACK: Send HT/VHT ack for FTM frames. If yest set,
  *	20Mhz dup acks will be sent.
  * @IWL_INITIATOR_AP_FLAGS_ALGO_LR: Use LR algo type for rtt calculation.
  *	Default algo type is ML.
@@ -409,16 +409,16 @@ enum iwl_initiator_ap_flags {
  * @bandwidth: AP bandwidth. One of iwl_tof_bandwidth.
  * @ctrl_ch_position: Coding of the control channel position relative to the
  *	center frequency, see iwl_mvm_get_ctrl_pos().
- * @ftmr_max_retries: Max number of retries to send the FTMR in case of no
+ * @ftmr_max_retries: Max number of retries to send the FTMR in case of yes
  *	reply from the AP.
  * @bssid: AP's BSSID
  * @burst_period: Recommended value to be sent to the AP. Measurement
- *	periodicity In units of 100ms. ignored if num_of_bursts_exp = 0
+ *	periodicity In units of 100ms. igyesred if num_of_bursts_exp = 0
  * @samples_per_burst: the number of FTMs pairs in single Burst (1-31);
  * @num_of_bursts: Recommended value to be sent to the AP. 2s Exponent of
  *	the number of measurement iterations (min 2^0 = 1, max 2^14)
  * @reserved: For alignment and future use
- * @tsf_delta: not in use
+ * @tsf_delta: yest in use
  */
 struct iwl_tof_range_req_ap_entry {
 	__le32 initiator_ap_flags;
@@ -437,7 +437,7 @@ struct iwl_tof_range_req_ap_entry {
 /**
  * enum iwl_tof_response_mode
  * @IWL_MVM_TOF_RESPONSE_ASAP: report each AP measurement separately as soon as
- *			       possible (not supported for this release)
+ *			       possible (yest supported for this release)
  * @IWL_MVM_TOF_RESPONSE_TIMEOUT: report all AP measurements as a batch upon
  *				  timeout expiration
  * @IWL_MVM_TOF_RESPONSE_COMPLETE: report all AP measurements as a batch at the
@@ -466,7 +466,7 @@ enum iwl_tof_response_mode {
  *	the range request command
  * @IWL_TOF_INITIATOR_FLAGS_COMMON_CALIB: use the common calib value from the
  *	ragne request command
- * @IWL_TOF_INITIATOR_FLAGS_NON_ASAP_SUPPORT: support non-asap measurements
+ * @IWL_TOF_INITIATOR_FLAGS_NON_ASAP_SUPPORT: support yesn-asap measurements
  */
 enum iwl_tof_initiator_flags {
 	IWL_TOF_INITIATOR_FLAGS_FAST_ALGO_DISABLED = BIT(0),
@@ -505,7 +505,7 @@ enum iwl_tof_initiator_flags {
  * @macaddr_random: '0' Use default source MAC address (i.e. p2_p),
  *	            '1' Use MAC Address randomization according to the below
  * @range_req_bssid: ranging request BSSID
- * @macaddr_template: MAC address template to use for non-randomized bits
+ * @macaddr_template: MAC address template to use for yesn-randomized bits
  * @macaddr_mask: Bits set to 0 shall be copied from the MAC address template.
  *		  Bits set to 1 shall be randomized by the UMAC
  * @ftm_rx_chains: Rx chain to open to receive Responder's FTMs (XVT)
@@ -544,7 +544,7 @@ struct iwl_tof_range_req_cmd_v5 {
  * @range_req_bssid: ranging request BSSID
  * @macaddr_mask: Bits set to 0 shall be copied from the MAC address template.
  *		  Bits set to 1 shall be randomized by the UMAC
- * @macaddr_template: MAC address template to use for non-randomized bits
+ * @macaddr_template: MAC address template to use for yesn-randomized bits
  * @req_timeout_ms: Requested timeout of the response in units of milliseconds.
  *	This is the session time for completing the measurement.
  * @tsf_mac_id: report the measurement start time for each ap in terms of the
@@ -572,7 +572,7 @@ struct iwl_tof_range_req_cmd {
  * @IWL_TOF_RANGE_REQUEST_STATUS_SUCCESSFUL - FW successfully received the
  *	request
  * @IWL_TOF_RANGE_REQUEST_STATUS_BUSY - FW is busy with a previous request, the
- *	sent request will not be handled
+ *	sent request will yest be handled
  */
 enum iwl_tof_range_request_status {
 	IWL_TOF_RANGE_REQUEST_STATUS_SUCCESS,
@@ -586,23 +586,23 @@ enum iwl_tof_range_request_status {
  * @IWL_TOF_ENTRY_GENERAL_FAILURE: General failure.
  * @IWL_TOF_ENTRY_NO_RESPONSE: Responder didn't reply to the request.
  * @IWL_TOF_ENTRY_REQUEST_REJECTED: Responder rejected the request.
- * @IWL_TOF_ENTRY_NOT_SCHEDULED: Time event was scheduled but not called yet.
- * @IWL_TOF_ENTRY_TIMING_MEASURE_TIMEOUT: Time event triggered but no
+ * @IWL_TOF_ENTRY_NOT_SCHEDULED: Time event was scheduled but yest called yet.
+ * @IWL_TOF_ENTRY_TIMING_MEASURE_TIMEOUT: Time event triggered but yes
  *	measurement was completed.
  * @IWL_TOF_ENTRY_TARGET_DIFF_CH_CANNOT_CHANGE: No range due inability to switch
  *	from the primary channel.
  * @IWL_TOF_ENTRY_RANGE_NOT_SUPPORTED: Device doesn't support FTM.
- * @IWL_TOF_ENTRY_REQUEST_ABORT_UNKNOWN_REASON: Request aborted due to unknown
+ * @IWL_TOF_ENTRY_REQUEST_ABORT_UNKNOWN_REASON: Request aborted due to unkyeswn
  *	reason.
  * @IWL_TOF_ENTRY_LOCATION_INVALID_T1_T4_TIME_STAMP: Failure due to invalid
  *	T1/T4.
  * @IWL_TOF_ENTRY_11MC_PROTOCOL_FAILURE: Failure due to invalid FTM frame
  *	structure.
- * @IWL_TOF_ENTRY_REQUEST_CANNOT_SCHED: Request cannot be scheduled.
- * @IWL_TOF_ENTRY_RESPONDER_CANNOT_COLABORATE: Responder cannot serve the
+ * @IWL_TOF_ENTRY_REQUEST_CANNOT_SCHED: Request canyest be scheduled.
+ * @IWL_TOF_ENTRY_RESPONDER_CANNOT_COLABORATE: Responder canyest serve the
  *	initiator for some period, period supplied in @refusal_period.
  * @IWL_TOF_ENTRY_BAD_REQUEST_ARGS: Bad request arguments.
- * @IWL_TOF_ENTRY_WIFI_NOT_ENABLED: Wifi not enabled.
+ * @IWL_TOF_ENTRY_WIFI_NOT_ENABLED: Wifi yest enabled.
  * @IWL_TOF_ENTRY_RESPONDER_OVERRIDE_PARAMS: Responder override the original
  *	parameters within the current session.
  */
@@ -636,7 +636,7 @@ enum iwl_tof_entry_status {
  * @rtt_variance: The Variance of the RTT values measured for current AP
  * @rtt_spread: The Difference between the maximum and the minimum RTT
  *	values measured for current AP in the current session [pSec]
- * @rssi: RSSI as uploaded in the Channel Estimation notification
+ * @rssi: RSSI as uploaded in the Channel Estimation yestification
  * @rssi_spread: The Difference between the maximum and the minimum RSSI values
  *	measured for current AP in the current session
  * @reserved: reserved
@@ -644,7 +644,7 @@ enum iwl_tof_entry_status {
  *	@IWL_TOF_ENTRY_RESPONDER_CANNOT_COLABORATE [sec]
  * @range: Measured range [cm]
  * @range_variance: Measured range variance [cm]
- * @timestamp: The GP2 Clock [usec] where Channel Estimation notification was
+ * @timestamp: The GP2 Clock [usec] where Channel Estimation yestification was
  *	uploaded by the LMAC
  * @t2t3_initiator: as calculated from the algo in the initiator
  * @t1t4_responder: as calculated from the algo in the responder
@@ -685,13 +685,13 @@ struct iwl_tof_range_rsp_ap_entry_ntfy_v3 {
  * @rtt_variance: The Variance of the RTT values measured for current AP
  * @rtt_spread: The Difference between the maximum and the minimum RTT
  *	values measured for current AP in the current session [pSec]
- * @rssi: RSSI as uploaded in the Channel Estimation notification
+ * @rssi: RSSI as uploaded in the Channel Estimation yestification
  * @rssi_spread: The Difference between the maximum and the minimum RSSI values
  *	measured for current AP in the current session
- * @last_burst: 1 if no more FTM sessions are scheduled for this responder
+ * @last_burst: 1 if yes more FTM sessions are scheduled for this responder
  * @refusal_period: refusal period in case of
  *	@IWL_TOF_ENTRY_RESPONDER_CANNOT_COLABORATE [sec]
- * @timestamp: The GP2 Clock [usec] where Channel Estimation notification was
+ * @timestamp: The GP2 Clock [usec] where Channel Estimation yestification was
  *	uploaded by the LMAC
  * @start_tsf: measurement start time in TSF of the mac specified in the range
  *	request
@@ -738,13 +738,13 @@ struct iwl_tof_range_rsp_ap_entry_ntfy_v4 {
  * @rtt_variance: The Variance of the RTT values measured for current AP
  * @rtt_spread: The Difference between the maximum and the minimum RTT
  *	values measured for current AP in the current session [pSec]
- * @rssi: RSSI as uploaded in the Channel Estimation notification
+ * @rssi: RSSI as uploaded in the Channel Estimation yestification
  * @rssi_spread: The Difference between the maximum and the minimum RSSI values
  *	measured for current AP in the current session
- * @last_burst: 1 if no more FTM sessions are scheduled for this responder
+ * @last_burst: 1 if yes more FTM sessions are scheduled for this responder
  * @refusal_period: refusal period in case of
  *	@IWL_TOF_ENTRY_RESPONDER_CANNOT_COLABORATE [sec]
- * @timestamp: The GP2 Clock [usec] where Channel Estimation notification was
+ * @timestamp: The GP2 Clock [usec] where Channel Estimation yestification was
  *	uploaded by the LMAC
  * @start_tsf: measurement start time in TSF of the mac specified in the range
  *	request
@@ -801,11 +801,11 @@ enum iwl_tof_response_status {
 }; /* LOCATION_RNG_RSP_STATUS */
 
 /**
- * struct iwl_tof_range_rsp_ntfy_v5 - ranging response notification
+ * struct iwl_tof_range_rsp_ntfy_v5 - ranging response yestification
  * @request_id: A Token ID of the corresponding Range request
  * @request_status: status of current measurement session, one of
  *	&enum iwl_tof_response_status.
- * @last_in_batch: reprot policy (when not all responses are uploaded at once)
+ * @last_in_batch: reprot policy (when yest all responses are uploaded at once)
  * @num_of_aps: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
  * @ap: per-AP data
  */
@@ -818,10 +818,10 @@ struct iwl_tof_range_rsp_ntfy_v5 {
 } __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_5 */
 
 /**
- * struct iwl_tof_range_rsp_ntfy_v6 - ranging response notification
+ * struct iwl_tof_range_rsp_ntfy_v6 - ranging response yestification
  * @request_id: A Token ID of the corresponding Range request
  * @num_of_aps: Number of APs results
- * @last_report: 1 if no more FTM sessions are scheduled, 0 otherwise.
+ * @last_report: 1 if yes more FTM sessions are scheduled, 0 otherwise.
  * @reserved: reserved
  * @ap: per-AP data
  */
@@ -834,10 +834,10 @@ struct iwl_tof_range_rsp_ntfy_v6 {
 } __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_6 */
 
 /**
- * struct iwl_tof_range_rsp_ntfy - ranging response notification
+ * struct iwl_tof_range_rsp_ntfy - ranging response yestification
  * @request_id: A Token ID of the corresponding Range request
  * @num_of_aps: Number of APs results
- * @last_report: 1 if no more FTM sessions are scheduled, 0 otherwise.
+ * @last_report: 1 if yes more FTM sessions are scheduled, 0 otherwise.
  * @reserved: reserved
  * @ap: per-AP data
  */
@@ -851,7 +851,7 @@ struct iwl_tof_range_rsp_ntfy {
 
 #define IWL_MVM_TOF_MCSI_BUF_SIZE  (245)
 /**
- * struct iwl_tof_mcsi_notif - used for debug
+ * struct iwl_tof_mcsi_yestif - used for debug
  * @token: token ID for the current session
  * @role: '0' - initiator, '1' - responder
  * @reserved: reserved
@@ -859,7 +859,7 @@ struct iwl_tof_range_rsp_ntfy {
  * @responder_bssid: responder machine
  * @mcsi_buffer: debug data
  */
-struct iwl_tof_mcsi_notif {
+struct iwl_tof_mcsi_yestif {
 	u8 token;
 	u8 role;
 	__le16 reserved;
@@ -945,7 +945,7 @@ struct iwl_ftm_responder_stats {
 #define IWL_CSI_CHUNK_CTL_NUM_MASK_VER_2	0x00ff
 #define IWL_CSI_CHUNK_CTL_IDX_MASK_VER_2	0xff00
 
-struct iwl_csi_chunk_notification {
+struct iwl_csi_chunk_yestification {
 	__le32 token;
 	__le16 seq;
 	__le16 ctl;

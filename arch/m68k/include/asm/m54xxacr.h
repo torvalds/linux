@@ -75,7 +75,7 @@
  *	and data cache. Enable data and instruction caches, also enable write
  *	buffers and branch accelerator.
  */
-/* attention : enabling CACR_DESB requires a "nop" to flush the store buffer */
+/* attention : enabling CACR_DESB requires a "yesp" to flush the store buffer */
 /* use '+' instead of '|' for assembler's sake */
 
 	/* Enable data cache */
@@ -92,7 +92,7 @@
 #if defined(CONFIG_MMU)
 /*
  *	If running with the MMU enabled then we need to map the internal
- *	register region as non-cacheable. And then we map all our RAM as
+ *	register region as yesn-cacheable. And then we map all our RAM as
  *	cacheable and supervisor access only.
  */
 #define ACR0_MODE	(ACR_BA(IOMEMBASE)+ACR_ADMSK(IOMEMSIZE)+ \
@@ -111,7 +111,7 @@
 #else
 
 /*
- *	For the non-MMU enabled case we map all of RAM as cacheable.
+ *	For the yesn-MMU enabled case we map all of RAM as cacheable.
  */
 #if defined(CONFIG_CACHE_COPYBACK)
 #define DATA_CACHE_MODE (ACR_ENABLE+ACR_ANY+ACR_CM_CP)

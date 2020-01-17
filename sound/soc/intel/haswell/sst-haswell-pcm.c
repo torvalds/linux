@@ -147,7 +147,7 @@ static struct hsw_pcm_module_map mod_map[] = {
 	{HSW_PCM_DAI_ID_SYSTEM, 1, SST_HSW_MODULE_PCM_CAPTURE},
 };
 
-static u32 hsw_notify_pointer(struct sst_hsw_stream *stream, void *data);
+static u32 hsw_yestify_pointer(struct sst_hsw_stream *stream, void *data);
 
 static inline u32 hsw_mixer_to_ipc(unsigned int value)
 {
@@ -335,7 +335,7 @@ static int hsw_waves_switch_put(struct snd_kcontrol *kcontrol,
 	bool switch_on = (bool)ucontrol->value.integer.value[0];
 
 	/* if module is in RAM on the DSP, apply user settings to module through
-	 * ipc. If module is not in RAM on the DSP, store user setting for
+	 * ipc. If module is yest in RAM on the DSP, store user setting for
 	 * track */
 	if (sst_hsw_is_module_loaded(hsw, id)) {
 		if (switch_on == sst_hsw_is_module_active(hsw, id))
@@ -400,7 +400,7 @@ static int hsw_waves_param_put(struct snd_kcontrol *kcontrol,
 /* TLV used by both global and stream volumes */
 static const DECLARE_TLV_DB_SCALE(hsw_vol_tlv, -9000, 300, 1);
 
-/* System Pin has no volume control */
+/* System Pin has yes volume control */
 static const struct snd_kcontrol_new hsw_volume_controls[] = {
 	/* Global DSP volume */
 	SOC_DOUBLE_EXT_TLV("Master Playback Volume", 0, 0, 8,
@@ -495,7 +495,7 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 		pcm_data->allocated = false;
 
 		pcm_data->stream = sst_hsw_stream_new(hsw, rtd->cpu_dai->id,
-			hsw_notify_pointer, pcm_data);
+			hsw_yestify_pointer, pcm_data);
 		if (pcm_data->stream == NULL) {
 			dev_err(rtd->dev, "error: failed to create stream\n");
 			return -EINVAL;
@@ -547,7 +547,7 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 	rate = params_rate(params);
 	ret = sst_hsw_stream_set_rate(hsw, pcm_data->stream, rate);
 	if (ret < 0) {
-		dev_err(rtd->dev, "error: could not set rate %d\n", rate);
+		dev_err(rtd->dev, "error: could yest set rate %d\n", rate);
 		return ret;
 	}
 
@@ -576,7 +576,7 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 
 	ret = sst_hsw_stream_set_bits(hsw, pcm_data->stream, bits);
 	if (ret < 0) {
-		dev_err(rtd->dev, "error: could not set bits %d\n", bits);
+		dev_err(rtd->dev, "error: could yest set bits %d\n", bits);
 		return ret;
 	}
 
@@ -587,14 +587,14 @@ static int hsw_pcm_hw_params(struct snd_soc_component *component,
 
 	ret = sst_hsw_stream_set_channels(hsw, pcm_data->stream, channels);
 	if (ret < 0) {
-		dev_err(rtd->dev, "error: could not set channels %d\n",
+		dev_err(rtd->dev, "error: could yest set channels %d\n",
 			channels);
 		return ret;
 	}
 
 	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 	if (ret < 0) {
-		dev_err(rtd->dev, "error: could not allocate %d bytes for PCM %d\n",
+		dev_err(rtd->dev, "error: could yest allocate %d bytes for PCM %d\n",
 			params_buffer_bytes(params), ret);
 		return ret;
 	}
@@ -704,7 +704,7 @@ static int hsw_pcm_trigger(struct snd_soc_component *component,
 	return 0;
 }
 
-static u32 hsw_notify_pointer(struct sst_hsw_stream *stream, void *data)
+static u32 hsw_yestify_pointer(struct sst_hsw_stream *stream, void *data)
 {
 	struct hsw_pcm_data *pcm_data = data;
 	struct snd_pcm_substream *substream = pcm_data->substream;
@@ -727,7 +727,7 @@ static u32 hsw_notify_pointer(struct sst_hsw_stream *stream, void *data)
 
 	dev_vdbg(rtd->dev, "PCM: App pointer %d bytes\n", pos);
 
-	/* SST fw don't know where to stop dma
+	/* SST fw don't kyesw where to stop dma
 	 * So, SST driver need to clean the data which has been consumed
 	 */
 	if (dma_area == NULL || dma_frames <= 0
@@ -766,7 +766,7 @@ static u32 hsw_notify_pointer(struct sst_hsw_stream *stream, void *data)
 	}
 	sst_hsw_stream_set_old_position(hsw, stream, position);
 
-	/* let alsa know we have play a period */
+	/* let alsa kyesw we have play a period */
 	snd_pcm_period_elapsed(substream);
 	return pos;
 }
@@ -816,7 +816,7 @@ static int hsw_pcm_open(struct snd_soc_component *component,
 	snd_soc_set_runtime_hwparams(substream, &hsw_pcm_hardware);
 
 	pcm_data->stream = sst_hsw_stream_new(hsw, rtd->cpu_dai->id,
-		hsw_notify_pointer, pcm_data);
+		hsw_yestify_pointer, pcm_data);
 	if (pcm_data->stream == NULL) {
 		dev_err(rtd->dev, "error: failed to create stream\n");
 		pm_runtime_mark_last_busy(pdata->dev);
@@ -1235,7 +1235,7 @@ static int hsw_pcm_runtime_resume(struct device *dev)
 	ret = sst_hsw_dsp_runtime_resume(hsw);
 	if (ret < 0)
 		return ret;
-	else if (ret == 1) /* no action required */
+	else if (ret == 1) /* yes action required */
 		return 0;
 
 	/* check flag when resume */
@@ -1302,7 +1302,7 @@ static void hsw_pcm_complete(struct device *dev)
 	err = sst_hsw_dsp_runtime_resume(hsw);
 	if (err < 0)
 		return;
-	else if (err == 1) /* no action required */
+	else if (err == 1) /* yes action required */
 		return;
 
 	pdata->pm_state = HSW_PM_STATE_D0;

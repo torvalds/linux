@@ -136,7 +136,7 @@ int ivtv_set_speed(struct ivtv *itv, int speed)
 		return 0;
 
 	if (single_step && (speed < 0) == (itv->speed < 0)) {
-		/* Single step video and no need to change direction */
+		/* Single step video and yes need to change direction */
 		ivtv_vapi(itv, CX2341X_DEC_STEP_VIDEO, 1, 0);
 		itv->speed = speed;
 		return 0;
@@ -159,7 +159,7 @@ int ivtv_set_speed(struct ivtv *itv, int speed)
 	else if (speed > -1000 && speed < 0) data[0] |= (-1000 / speed);
 	else if (speed < 1000 && speed > 0) data[0] |= (1000 / speed);
 
-	/* If not decoding, just change speed setting */
+	/* If yest decoding, just change speed setting */
 	if (atomic_read(&itv->decoding) > 0) {
 		int got_sig = 0;
 
@@ -527,7 +527,7 @@ static int ivtv_try_fmt_vid_out(struct file *file, void *fh, struct v4l2_format 
 
 	   Internally the buffers of the PVR350 are always set to 720x576. The
 	   decoded video frame will always be placed in the top left corner of
-	   this buffer. For any video which is not 720x576, the buffer will
+	   this buffer. For any video which is yest 720x576, the buffer will
 	   then be cropped to remove the unused right and lower areas, with
 	   the remaining image being scaled by the hardware to fit the display
 	   area. The video can be scaled both up and down, so a 720x480 video
@@ -535,7 +535,7 @@ static int ivtv_try_fmt_vid_out(struct file *file, void *fh, struct v4l2_format 
 	   displayed without cropping on NTSC.
 
 	   Note that the scaling only occurs on the video stream, the osd
-	   resolution is locked to the broadcast standard and not scaled.
+	   resolution is locked to the broadcast standard and yest scaled.
 
 	   Thanks to Ian Armstrong for this explanation. */
 	h = min(h, 576);
@@ -644,7 +644,7 @@ static int ivtv_s_fmt_vid_out(struct file *file, void *fh, struct v4l2_format *f
 	if (id->type != IVTV_DEC_STREAM_TYPE_YUV)
 		return 0;
 
-	/* Return now if we already have some frame data */
+	/* Return yesw if we already have some frame data */
 	if (yi->stream_size)
 		return -EBUSY;
 
@@ -761,7 +761,7 @@ static int ivtv_s_audio(struct file *file, void *fh, const struct v4l2_audio *vo
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 
-	if (vout->index >= itv->nof_audio_inputs)
+	if (vout->index >= itv->yesf_audio_inputs)
 		return -EINVAL;
 
 	itv->audio_input = vout->index;
@@ -818,10 +818,10 @@ static int ivtv_g_pixelaspect(struct file *file, void *fh,
 
 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		f->numerator = itv->is_50hz ? 54 : 11;
-		f->denominator = itv->is_50hz ? 59 : 10;
+		f->deyesminator = itv->is_50hz ? 59 : 10;
 	} else if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		f->numerator = itv->is_out_50hz ? 54 : 11;
-		f->denominator = itv->is_out_50hz ? 59 : 10;
+		f->deyesminator = itv->is_out_50hz ? 59 : 10;
 	} else {
 		return -EINVAL;
 	}
@@ -984,7 +984,7 @@ int ivtv_s_input(struct file *file, void *fh, unsigned int inp)
 	v4l2_std_id std;
 	int i;
 
-	if (inp >= itv->nof_inputs)
+	if (inp >= itv->yesf_inputs)
 		return -EINVAL;
 
 	if (inp == itv->active_input) {
@@ -1009,7 +1009,7 @@ int ivtv_s_input(struct file *file, void *fh, unsigned int inp)
 	else
 		std = V4L2_STD_ALL;
 	for (i = 0; i <= IVTV_ENC_STREAM_TYPE_VBI; i++)
-		itv->streams[i].vdev.tvnorms = std;
+		itv->streams[i].vdev.tvyesrms = std;
 
 	/* prevent others from messing with the streams until
 	   we're finished changing inputs. */
@@ -1037,7 +1037,7 @@ static int ivtv_s_output(struct file *file, void *fh, unsigned int outp)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 
-	if (outp >= itv->card->nof_outputs)
+	if (outp >= itv->card->yesf_outputs)
 		return -EINVAL;
 
 	if (outp == itv->active_output) {
@@ -1322,7 +1322,7 @@ static int ivtv_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder_cmd
 		ivtv_unmute(itv);
 		break;
 	default:
-		IVTV_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
+		IVTV_DEBUG_IOCTL("Unkyeswn cmd %d\n", enc->cmd);
 		return -EINVAL;
 	}
 
@@ -1354,7 +1354,7 @@ static int ivtv_try_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder
 		enc->flags = 0;
 		return 0;
 	default:
-		IVTV_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
+		IVTV_DEBUG_IOCTL("Unkyeswn cmd %d\n", enc->cmd);
 		return -EINVAL;
 	}
 }
@@ -1425,7 +1425,7 @@ static int ivtv_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 
 	pixfmt &= 7;
 
-	/* no local alpha for RGB565 or unknown formats */
+	/* yes local alpha for RGB565 or unkyeswn formats */
 	if (pixfmt == 1 || pixfmt > 4)
 		return 0;
 
@@ -1619,7 +1619,7 @@ struct compat_video_event {
 	union {
 		video_size_t size;
 		unsigned int frame_rate;        /* in frames per 1000sec */
-		unsigned char vsync_field;      /* unknown/odd/even/progressive */
+		unsigned char vsync_field;      /* unkyeswn/odd/even/progressive */
 	} u;
 };
 #define VIDEO_GET_EVENT32 _IOR('o', 28, struct compat_video_event)
@@ -1633,7 +1633,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 #ifdef CONFIG_VIDEO_IVTV_DEPRECATED_IOCTLS
-	int nonblocking = filp->f_flags & O_NONBLOCK;
+	int yesnblocking = filp->f_flags & O_NONBLOCK;
 	unsigned long iarg = (unsigned long)arg;
 #endif
 
@@ -1786,7 +1786,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 			}
 			if (ev->type)
 				return 0;
-			if (nonblocking)
+			if (yesnblocking)
 				return -EAGAIN;
 			/* Wait for event. Note that serialize_lock is locked,
 			   so to allow other processes to access the driver while

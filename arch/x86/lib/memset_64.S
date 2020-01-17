@@ -23,7 +23,7 @@ SYM_FUNC_START_ALIAS(memset)
 SYM_FUNC_START(__memset)
 	/*
 	 * Some CPUs support enhanced REP MOVSB/STOSB feature. It is recommended
-	 * to use it when possible. If not available, use fast string instructions.
+	 * to use it when possible. If yest available, use fast string instructions.
 	 *
 	 * Otherwise, use original memset function.
 	 */

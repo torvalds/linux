@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <libelf.h>
 #include <gelf.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
@@ -121,7 +121,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	} else if (is_sk_msg) {
 		prog_type = BPF_PROG_TYPE_SK_MSG;
 	} else {
-		printf("Unknown event '%s'\n", event);
+		printf("Unkyeswn event '%s'\n", event);
 		return -1;
 	}
 
@@ -131,7 +131,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	fd = bpf_load_program(prog_type, prog, insns_cnt, license, kern_version,
 			      bpf_log_buf, BPF_LOG_BUF_SIZE);
 	if (fd < 0) {
-		printf("bpf_load_program() err=%d\n%s", errno, bpf_log_buf);
+		printf("bpf_load_program() err=%d\n%s", erryes, bpf_log_buf);
 		return -1;
 	}
 
@@ -158,7 +158,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	if (is_raw_tracepoint) {
 		efd = bpf_raw_tracepoint_open(event + 15, fd);
 		if (efd < 0) {
-			printf("tracepoint %s %s\n", event + 15, strerror(errno));
+			printf("tracepoint %s %s\n", event + 15, strerror(erryes));
 			return -1;
 		}
 		event_fd[prog_cnt - 1] = efd;
@@ -166,7 +166,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	}
 
 	if (is_kprobe || is_kretprobe) {
-		bool need_normal_check = true;
+		bool need_yesrmal_check = true;
 		const char *event_prefix = "";
 
 		if (is_kprobe)
@@ -175,7 +175,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 			event += 10;
 
 		if (*event == 0) {
-			printf("event name cannot be empty\n");
+			printf("event name canyest be empty\n");
 			return -1;
 		}
 
@@ -188,18 +188,18 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 				is_kprobe ? 'p' : 'r', event, event);
 			err = write_kprobe_events(buf);
 			if (err >= 0) {
-				need_normal_check = false;
+				need_yesrmal_check = false;
 				event_prefix = "__x64_";
 			}
 		}
 #endif
-		if (need_normal_check) {
+		if (need_yesrmal_check) {
 			snprintf(buf, sizeof(buf), "%c:%s %s",
 				is_kprobe ? 'p' : 'r', event, event);
 			err = write_kprobe_events(buf);
 			if (err < 0) {
 				printf("failed to create kprobe '%s' error '%s'\n",
-				       event, strerror(errno));
+				       event, strerror(erryes));
 				return -1;
 			}
 		}
@@ -213,7 +213,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		event += 11;
 
 		if (*event == 0) {
-			printf("event name cannot be empty\n");
+			printf("event name canyest be empty\n");
 			return -1;
 		}
 		strcpy(buf, DEBUGFS);
@@ -230,7 +230,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 
 	err = read(efd, buf, sizeof(buf));
 	if (err < 0 || err >= sizeof(buf)) {
-		printf("read from '%s' failed '%s'\n", event, strerror(errno));
+		printf("read from '%s' failed '%s'\n", event, strerror(erryes));
 		return -1;
 	}
 
@@ -242,20 +242,20 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 
 	efd = sys_perf_event_open(&attr, -1/*pid*/, 0/*cpu*/, -1/*group_fd*/, 0);
 	if (efd < 0) {
-		printf("event %d fd %d err %s\n", id, efd, strerror(errno));
+		printf("event %d fd %d err %s\n", id, efd, strerror(erryes));
 		return -1;
 	}
 	event_fd[prog_cnt - 1] = efd;
 	err = ioctl(efd, PERF_EVENT_IOC_ENABLE, 0);
 	if (err < 0) {
 		printf("ioctl PERF_EVENT_IOC_ENABLE failed err %s\n",
-		       strerror(errno));
+		       strerror(erryes));
 		return -1;
 	}
 	err = ioctl(efd, PERF_EVENT_IOC_SET_BPF, fd);
 	if (err < 0) {
 		printf("ioctl PERF_EVENT_IOC_SET_BPF failed err %s\n",
-		       strerror(errno));
+		       strerror(erryes));
 		return -1;
 	}
 
@@ -265,7 +265,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 static int load_maps(struct bpf_map_data *maps, int nr_maps,
 		     fixup_map_cb fixup_map)
 {
-	int i, numa_node;
+	int i, numa_yesde;
 
 	for (i = 0; i < nr_maps; i++) {
 		if (fixup_map) {
@@ -277,32 +277,32 @@ static int load_maps(struct bpf_map_data *maps, int nr_maps,
 			}
 		}
 
-		numa_node = maps[i].def.map_flags & BPF_F_NUMA_NODE ?
-			maps[i].def.numa_node : -1;
+		numa_yesde = maps[i].def.map_flags & BPF_F_NUMA_NODE ?
+			maps[i].def.numa_yesde : -1;
 
 		if (maps[i].def.type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
 		    maps[i].def.type == BPF_MAP_TYPE_HASH_OF_MAPS) {
 			int inner_map_fd = map_fd[maps[i].def.inner_map_idx];
 
-			map_fd[i] = bpf_create_map_in_map_node(maps[i].def.type,
+			map_fd[i] = bpf_create_map_in_map_yesde(maps[i].def.type,
 							maps[i].name,
 							maps[i].def.key_size,
 							inner_map_fd,
 							maps[i].def.max_entries,
 							maps[i].def.map_flags,
-							numa_node);
+							numa_yesde);
 		} else {
-			map_fd[i] = bpf_create_map_node(maps[i].def.type,
+			map_fd[i] = bpf_create_map_yesde(maps[i].def.type,
 							maps[i].name,
 							maps[i].def.key_size,
 							maps[i].def.value_size,
 							maps[i].def.max_entries,
 							maps[i].def.map_flags,
-							numa_node);
+							numa_yesde);
 		}
 		if (map_fd[i] < 0) {
 			printf("failed to create map %d (%s): %d %s\n",
-			       i, maps[i].name, errno, strerror(errno));
+			       i, maps[i].name, erryes, strerror(erryes));
 			return 1;
 		}
 		maps[i].fd = map_fd[i];
@@ -374,7 +374,7 @@ static int parse_relo_and_apply(Elf_Data *data, Elf_Data *symbols,
 		if (match) {
 			insn[insn_idx].imm = maps[map_idx].fd;
 		} else {
-			printf("invalid relo for insn[%d] no map_data match\n",
+			printf("invalid relo for insn[%d] yes map_data match\n",
 			       insn_idx);
 			return 1;
 		}
@@ -439,7 +439,7 @@ static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
 
 	/* Keeping compatible with ELF maps section changes
 	 * ------------------------------------------------
-	 * The program size of struct bpf_load_map_def is known by loader
+	 * The program size of struct bpf_load_map_def is kyeswn by loader
 	 * code, but struct stored in ELF file can be different.
 	 *
 	 * Unfortunately sym[i].st_size is zero.  To calculate the
@@ -458,8 +458,8 @@ static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
 	} else if (map_sz_elf > map_sz_copy) {
 		/*
 		 * Forward compat, loading newer ELF file with larger
-		 * struct with unknown features. Assume zero means
-		 * feature not used.  Thus, validate rest of struct
+		 * struct with unkyeswn features. Assume zero means
+		 * feature yest used.  Thus, validate rest of struct
 		 * data is zero.
 		 */
 		validate_zero = true;
@@ -476,9 +476,9 @@ static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
 		maps[i].name = strdup(map_name);
 		if (!maps[i].name) {
 			printf("strdup(%s): %s(%d)\n", map_name,
-			       strerror(errno), errno);
+			       strerror(erryes), erryes);
 			free(sym);
-			return -errno;
+			return -erryes;
 		}
 
 		/* Symbol value is offset into ELF maps section data area */
@@ -488,7 +488,7 @@ static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
 		memset(&maps[i].def, 0, sizeof(struct bpf_load_map_def));
 		memcpy(&maps[i].def, def, map_sz_copy);
 
-		/* Verify no newer features were requested */
+		/* Verify yes newer features were requested */
 		if (validate_zero) {
 			addr = (unsigned char *) def + map_sz_copy;
 			end  = (unsigned char *) def + map_sz_elf;
@@ -584,7 +584,7 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		nr_maps = load_elf_maps_section(map_data, maps_shndx,
 						elf, symbols, strtabidx);
 		if (nr_maps < 0) {
-			printf("Error: Failed loading ELF maps (errno:%d):%s\n",
+			printf("Error: Failed loading ELF maps (erryes:%d):%s\n",
 			       nr_maps, strerror(-nr_maps));
 			goto done;
 		}

@@ -13,7 +13,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <poll.h>
 #include <fcntl.h>
@@ -80,7 +80,7 @@ int list_device(const char *device_name)
 
 	fd = open(chrdev_name, 0);
 	if (fd == -1) {
-		ret = -errno;
+		ret = -erryes;
 		fprintf(stderr, "Failed to open %s\n", chrdev_name);
 		goto exit_close_error;
 	}
@@ -88,7 +88,7 @@ int list_device(const char *device_name)
 	/* Inspect this GPIO chip */
 	ret = ioctl(fd, GPIO_GET_CHIPINFO_IOCTL, &cinfo);
 	if (ret == -1) {
-		ret = -errno;
+		ret = -erryes;
 		perror("Failed to issue CHIPINFO IOCTL\n");
 		goto exit_close_error;
 	}
@@ -104,7 +104,7 @@ int list_device(const char *device_name)
 
 		ret = ioctl(fd, GPIO_GET_LINEINFO_IOCTL, &linfo);
 		if (ret == -1) {
-			ret = -errno;
+			ret = -erryes;
 			perror("Failed to issue LINEINFO IOCTL\n");
 			goto exit_close_error;
 		}
@@ -168,7 +168,7 @@ int main(int argc, char **argv)
 		/* List all GPIO devices one at a time */
 		dp = opendir("/dev");
 		if (!dp) {
-			ret = -errno;
+			ret = -erryes;
 			goto error_out;
 		}
 
@@ -184,7 +184,7 @@ int main(int argc, char **argv)
 		ret = 0;
 		if (closedir(dp) == -1) {
 			perror("scanning devices: Failed to close directory");
-			ret = -errno;
+			ret = -erryes;
 		}
 	}
 error_out:

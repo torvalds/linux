@@ -286,7 +286,7 @@ static void dpaa2_qdma_issue_pending(struct dma_chan *chan)
 
 		fd = dpaa2_comp->fd_virt_addr;
 
-		list_del(&vdesc->node);
+		list_del(&vdesc->yesde);
 		list_add_tail(&dpaa2_comp->list, &dpaa2_chan->comp_used);
 
 		err = dpaa2_io_service_enqueue_fq(NULL, dpaa2_chan->fqid, fd);
@@ -335,16 +335,16 @@ static int __cold dpaa2_qdma_setup(struct fsl_mc_device *ls_dev)
 		dev_err(dev, "DPDMAI major version mismatch\n"
 			     "Found %u.%u, supported version is %u.%u\n",
 				priv->dpdmai_attr.version.major,
-				priv->dpdmai_attr.version.minor,
+				priv->dpdmai_attr.version.miyesr,
 				DPDMAI_VER_MAJOR, DPDMAI_VER_MINOR);
 		goto exit;
 	}
 
-	if (priv->dpdmai_attr.version.minor > DPDMAI_VER_MINOR) {
-		dev_err(dev, "DPDMAI minor version mismatch\n"
+	if (priv->dpdmai_attr.version.miyesr > DPDMAI_VER_MINOR) {
+		dev_err(dev, "DPDMAI miyesr version mismatch\n"
 			     "Found %u.%u, supported version is %u.%u\n",
 				priv->dpdmai_attr.version.major,
-				priv->dpdmai_attr.version.minor,
+				priv->dpdmai_attr.version.miyesr,
 				DPDMAI_VER_MAJOR, DPDMAI_VER_MINOR);
 		goto exit;
 	}
@@ -384,7 +384,7 @@ exit:
 	return err;
 }
 
-static void dpaa2_qdma_fqdan_cb(struct dpaa2_io_notification_ctx *ctx)
+static void dpaa2_qdma_fqdan_cb(struct dpaa2_io_yestification_ctx *ctx)
 {
 	struct dpaa2_qdma_priv_per_prio *ppriv = container_of(ctx,
 			struct dpaa2_qdma_priv_per_prio, nctx);
@@ -411,7 +411,7 @@ static void dpaa2_qdma_fqdan_cb(struct dpaa2_io_notification_ctx *ctx)
 			dq = dpaa2_io_store_next(ppriv->store, &is_last);
 		} while (!is_last && !dq);
 		if (!dq) {
-			dev_err(priv->dev, "FQID returned no valid frames!\n");
+			dev_err(priv->dev, "FQID returned yes valid frames!\n");
 			continue;
 		}
 

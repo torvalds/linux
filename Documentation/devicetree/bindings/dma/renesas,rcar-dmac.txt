@@ -10,7 +10,7 @@ an 8-bit port number called the MID/RID. A DMA controller can thus serve up to
 256 clients in total. When the number of hardware channels is lower than the
 number of clients to be served, channels must be shared between multiple DMA
 clients. The association of DMA clients to DMAC channels is fully dynamic and
-not described in these device tree bindings.
+yest described in these device tree bindings.
 
 Required Properties:
 

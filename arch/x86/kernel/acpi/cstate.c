@@ -19,7 +19,7 @@
 /*
  * Initialize bm_flags based on the CPU cache properties
  * On SMP it depends on cache configuration
- * - When cache is not shared among all CPUs, we flush cache
+ * - When cache is yest shared among all CPUs, we flush cache
  *   before entering C3.
  * - When cache is shared among all CPUs, we use bm_check
  *   mechanism as in UP case
@@ -37,16 +37,16 @@ void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
 	else if (c->x86_vendor == X86_VENDOR_INTEL) {
 		/*
 		 * Today all MP CPUs that support C3 share cache.
-		 * And caches should not be flushed by software while
+		 * And caches should yest be flushed by software while
 		 * entering C3 type state.
 		 */
 		flags->bm_check = 1;
 	}
 
 	/*
-	 * On all recent Intel platforms, ARB_DISABLE is a nop.
+	 * On all recent Intel platforms, ARB_DISABLE is a yesp.
 	 * So, set bm_control to zero to indicate that ARB_DISABLE
-	 * is not required while entering C3 type state on
+	 * is yest required while entering C3 type state on
 	 * P4, Core and beyond CPUs
 	 */
 	if (c->x86_vendor == X86_VENDOR_INTEL &&
@@ -68,14 +68,14 @@ void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
 	if (c->x86_vendor == X86_VENDOR_ZHAOXIN) {
 		/*
 		 * All Zhaoxin CPUs that support C3 share cache.
-		 * And caches should not be flushed by software while
+		 * And caches should yest be flushed by software while
 		 * entering C3 type state.
 		 */
 		flags->bm_check = 1;
 		/*
-		 * On all recent Zhaoxin platforms, ARB_DISABLE is a nop.
+		 * On all recent Zhaoxin platforms, ARB_DISABLE is a yesp.
 		 * So, set bm_control to zero to indicate that ARB_DISABLE
-		 * is not required while entering C3 type state.
+		 * is yest required while entering C3 type state.
 		 */
 		flags->bm_control = 0;
 	}
@@ -102,21 +102,21 @@ static long acpi_processor_ffh_cstate_probe_cpu(void *_cx)
 	long retval;
 	unsigned int eax, ebx, ecx, edx;
 	unsigned int edx_part;
-	unsigned int cstate_type; /* C-state type and not ACPI C-state type */
+	unsigned int cstate_type; /* C-state type and yest ACPI C-state type */
 	unsigned int num_cstate_subtype;
 
 	cpuid(CPUID_MWAIT_LEAF, &eax, &ebx, &ecx, &edx);
 
-	/* Check whether this particular cx_type (in CST) is supported or not */
+	/* Check whether this particular cx_type (in CST) is supported or yest */
 	cstate_type = ((cx->address >> MWAIT_SUBSTATE_SIZE) &
 			MWAIT_CSTATE_MASK) + 1;
 	edx_part = edx >> (cstate_type * MWAIT_SUBSTATE_SIZE);
 	num_cstate_subtype = edx_part & MWAIT_SUBSTATE_MASK;
 
 	retval = 0;
-	/* If the HW does not support any sub-states in this C-state */
+	/* If the HW does yest support any sub-states in this C-state */
 	if (num_cstate_subtype == 0) {
-		pr_warn(FW_BUG "ACPI MWAIT C-state 0x%x not supported by HW (0x%x)\n",
+		pr_warn(FW_BUG "ACPI MWAIT C-state 0x%x yest supported by HW (0x%x)\n",
 				cx->address, edx_part);
 		retval = -1;
 		goto out;

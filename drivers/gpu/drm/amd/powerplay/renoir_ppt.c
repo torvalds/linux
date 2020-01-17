@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -28,7 +28,7 @@
 #include "smu_v12_0_ppsmc.h"
 #include "smu12_driver_if.h"
 #include "smu_v12_0.h"
-#include "renoir_ppt.h"
+#include "reyesir_ppt.h"
 
 
 #define MSG_MAP(msg, index) \
@@ -40,7 +40,7 @@
 #define TAB_MAP_INVALID(tab) \
 	[SMU_TABLE_##tab] = {0, TABLE_##tab}
 
-static struct smu_12_0_cmn2aisc_mapping renoir_message_map[SMU_MSG_MAX_COUNT] = {
+static struct smu_12_0_cmn2aisc_mapping reyesir_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage),
 	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion),
 	MSG_MAP(GetDriverIfVersion,             PPSMC_MSG_GetDriverIfVersion),
@@ -104,42 +104,42 @@ static struct smu_12_0_cmn2aisc_mapping renoir_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(SetHardMinFclkByFreq,           PPSMC_MSG_SetHardMinFclkByFreq),
 };
 
-static struct smu_12_0_cmn2aisc_mapping renoir_table_map[SMU_TABLE_COUNT] = {
+static struct smu_12_0_cmn2aisc_mapping reyesir_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP_VALID(WATERMARKS),
 	TAB_MAP_INVALID(CUSTOM_DPM),
 	TAB_MAP_VALID(DPMCLOCKS),
 	TAB_MAP_VALID(SMU_METRICS),
 };
 
-static int renoir_get_smu_msg_index(struct smu_context *smc, uint32_t index)
+static int reyesir_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
 	struct smu_12_0_cmn2aisc_mapping mapping;
 
 	if (index >= SMU_MSG_MAX_COUNT)
 		return -EINVAL;
 
-	mapping = renoir_message_map[index];
+	mapping = reyesir_message_map[index];
 	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
 	return mapping.map_to;
 }
 
-static int renoir_get_smu_table_index(struct smu_context *smc, uint32_t index)
+static int reyesir_get_smu_table_index(struct smu_context *smc, uint32_t index)
 {
 	struct smu_12_0_cmn2aisc_mapping mapping;
 
 	if (index >= SMU_TABLE_COUNT)
 		return -EINVAL;
 
-	mapping = renoir_table_map[index];
+	mapping = reyesir_table_map[index];
 	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
 	return mapping.map_to;
 }
 
-static int renoir_tables_init(struct smu_context *smu, struct smu_table *tables)
+static int reyesir_tables_init(struct smu_context *smu, struct smu_table *tables)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 
@@ -161,7 +161,7 @@ static int renoir_tables_init(struct smu_context *smu, struct smu_table *tables)
  * This interface just for getting uclk ultimate freq and should't introduce
  * other likewise function result in overmuch callback.
  */
-static int renoir_get_dpm_clk_limited(struct smu_context *smu, enum smu_clk_type clk_type,
+static int reyesir_get_dpm_clk_limited(struct smu_context *smu, enum smu_clk_type clk_type,
 						uint32_t dpm_level, uint32_t *freq)
 {
 	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
@@ -174,7 +174,7 @@ static int renoir_get_dpm_clk_limited(struct smu_context *smu, enum smu_clk_type
 	return 0;
 }
 
-static int renoir_print_clk_levels(struct smu_context *smu,
+static int reyesir_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type clk_type, char *buf)
 {
 	int i, size = 0, ret = 0;
@@ -199,7 +199,7 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 		cur_value = metrics.ClockFrequency[CLOCK_GFXCLK];
 		ret = smu_get_dpm_freq_range(smu, SMU_GFXCLK, &min, &max, false);
 		if (!ret) {
-			/* driver only know min/max gfx_clk, Add level 1 for all other gfx clks */
+			/* driver only kyesw min/max gfx_clk, Add level 1 for all other gfx clks */
 			if (cur_value  == max)
 				i = 2;
 			else if (cur_value == min)
@@ -245,7 +245,7 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 	return size;
 }
 
-static enum amd_pm_state_type renoir_get_current_power_state(struct smu_context *smu)
+static enum amd_pm_state_type reyesir_get_current_power_state(struct smu_context *smu)
 {
 	enum amd_pm_state_type pm_type;
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
@@ -275,7 +275,7 @@ static enum amd_pm_state_type renoir_get_current_power_state(struct smu_context 
 	return pm_type;
 }
 
-static int renoir_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
+static int reyesir_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 	struct smu_power_gate *power_gate = &smu_power->power_gate;
@@ -301,7 +301,7 @@ static int renoir_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 	return ret;
 }
 
-static int renoir_force_dpm_limit_value(struct smu_context *smu, bool highest)
+static int reyesir_force_dpm_limit_value(struct smu_context *smu, bool highest)
 {
 	int ret = 0, i = 0;
 	uint32_t min_freq, max_freq, force_freq;
@@ -328,7 +328,7 @@ static int renoir_force_dpm_limit_value(struct smu_context *smu, bool highest)
 	return ret;
 }
 
-static int renoir_unforce_dpm_levels(struct smu_context *smu) {
+static int reyesir_unforce_dpm_levels(struct smu_context *smu) {
 
 	int ret = 0, i = 0;
 	uint32_t min_freq, max_freq;
@@ -361,7 +361,7 @@ static int renoir_unforce_dpm_levels(struct smu_context *smu) {
 	return ret;
 }
 
-static int renoir_get_workload_type(struct smu_context *smu, uint32_t profile)
+static int reyesir_get_workload_type(struct smu_context *smu, uint32_t profile)
 {
 
 	uint32_t  pplib_workload = 0;
@@ -389,7 +389,7 @@ static int renoir_get_workload_type(struct smu_context *smu, uint32_t profile)
 	return pplib_workload;
 }
 
-static int renoir_get_profiling_clk_mask(struct smu_context *smu,
+static int reyesir_get_profiling_clk_mask(struct smu_context *smu,
 					 enum amd_dpm_forced_level level,
 					 uint32_t *sclk_mask,
 					 uint32_t *mclk_mask,
@@ -420,7 +420,7 @@ static int renoir_get_profiling_clk_mask(struct smu_context *smu,
 /**
  * This interface get dpm clock table for dc
  */
-static int renoir_get_dpm_clock_table(struct smu_context *smu, struct dpm_clocks *clock_table)
+static int reyesir_get_dpm_clock_table(struct smu_context *smu, struct dpm_clocks *clock_table)
 {
 	DpmClocks_t *table = smu->smu_table.clocks_table;
 	int i;
@@ -451,7 +451,7 @@ static int renoir_get_dpm_clock_table(struct smu_context *smu, struct dpm_clocks
 	return 0;
 }
 
-static int renoir_force_clk_levels(struct smu_context *smu,
+static int reyesir_force_clk_levels(struct smu_context *smu,
 				   enum smu_clk_type clk_type, uint32_t mask)
 {
 
@@ -512,7 +512,7 @@ static int renoir_force_clk_levels(struct smu_context *smu,
 	return ret;
 }
 
-static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
+static int reyesir_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
 {
 	int workload_type, ret;
 	uint32_t profile_mode = input[size];
@@ -541,7 +541,7 @@ static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, u
 	return 0;
 }
 
-static int renoir_set_peak_clock_by_device(struct smu_context *smu)
+static int reyesir_set_peak_clock_by_device(struct smu_context *smu)
 {
 	int ret = 0;
 	uint32_t sclk_freq = 0, uclk_freq = 0;
@@ -565,13 +565,13 @@ static int renoir_set_peak_clock_by_device(struct smu_context *smu)
 	return ret;
 }
 
-static int renoir_set_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
+static int reyesir_set_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
 {
 	int ret = 0;
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
-		ret = renoir_set_peak_clock_by_device(smu);
+		ret = reyesir_set_peak_clock_by_device(smu);
 		break;
 	default:
 		ret = -EINVAL;
@@ -584,7 +584,7 @@ static int renoir_set_performance_level(struct smu_context *smu, enum amd_dpm_fo
 /* save watermark settings into pplib smu structure,
  * also pass data to smu controller
  */
-static int renoir_set_watermarks_table(
+static int reyesir_set_watermarks_table(
 		struct smu_context *smu,
 		void *watermarks,
 		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges)
@@ -641,7 +641,7 @@ static int renoir_set_watermarks_table(
 	return ret;
 }
 
-static int renoir_get_power_profile_mode(struct smu_context *smu,
+static int reyesir_get_power_profile_mode(struct smu_context *smu,
 					   char *buf)
 {
 	static const char *profile_name[] = {
@@ -674,25 +674,25 @@ static int renoir_get_power_profile_mode(struct smu_context *smu,
 	return size;
 }
 
-static const struct pptable_funcs renoir_ppt_funcs = {
-	.get_smu_msg_index = renoir_get_smu_msg_index,
-	.get_smu_table_index = renoir_get_smu_table_index,
-	.tables_init = renoir_tables_init,
+static const struct pptable_funcs reyesir_ppt_funcs = {
+	.get_smu_msg_index = reyesir_get_smu_msg_index,
+	.get_smu_table_index = reyesir_get_smu_table_index,
+	.tables_init = reyesir_tables_init,
 	.set_power_state = NULL,
-	.get_dpm_clk_limited = renoir_get_dpm_clk_limited,
-	.print_clk_levels = renoir_print_clk_levels,
-	.get_current_power_state = renoir_get_current_power_state,
-	.dpm_set_uvd_enable = renoir_dpm_set_uvd_enable,
-	.force_dpm_limit_value = renoir_force_dpm_limit_value,
-	.unforce_dpm_levels = renoir_unforce_dpm_levels,
-	.get_workload_type = renoir_get_workload_type,
-	.get_profiling_clk_mask = renoir_get_profiling_clk_mask,
-	.force_clk_levels = renoir_force_clk_levels,
-	.set_power_profile_mode = renoir_set_power_profile_mode,
-	.set_performance_level = renoir_set_performance_level,
-	.get_dpm_clock_table = renoir_get_dpm_clock_table,
-	.set_watermarks_table = renoir_set_watermarks_table,
-	.get_power_profile_mode = renoir_get_power_profile_mode,
+	.get_dpm_clk_limited = reyesir_get_dpm_clk_limited,
+	.print_clk_levels = reyesir_print_clk_levels,
+	.get_current_power_state = reyesir_get_current_power_state,
+	.dpm_set_uvd_enable = reyesir_dpm_set_uvd_enable,
+	.force_dpm_limit_value = reyesir_force_dpm_limit_value,
+	.unforce_dpm_levels = reyesir_unforce_dpm_levels,
+	.get_workload_type = reyesir_get_workload_type,
+	.get_profiling_clk_mask = reyesir_get_profiling_clk_mask,
+	.force_clk_levels = reyesir_force_clk_levels,
+	.set_power_profile_mode = reyesir_set_power_profile_mode,
+	.set_performance_level = reyesir_set_performance_level,
+	.get_dpm_clock_table = reyesir_get_dpm_clock_table,
+	.set_watermarks_table = reyesir_set_watermarks_table,
+	.get_power_profile_mode = reyesir_get_power_profile_mode,
 	.check_fw_status = smu_v12_0_check_fw_status,
 	.check_fw_version = smu_v12_0_check_fw_version,
 	.powergate_sdma = smu_v12_0_powergate_sdma,
@@ -709,9 +709,9 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.set_soft_freq_limited_range = smu_v12_0_set_soft_freq_limited_range,
 };
 
-void renoir_set_ppt_funcs(struct smu_context *smu)
+void reyesir_set_ppt_funcs(struct smu_context *smu)
 {
-	smu->ppt_funcs = &renoir_ppt_funcs;
+	smu->ppt_funcs = &reyesir_ppt_funcs;
 	smu->smc_if_version = SMU12_DRIVER_IF_VERSION;
 	smu->is_apu = true;
 }

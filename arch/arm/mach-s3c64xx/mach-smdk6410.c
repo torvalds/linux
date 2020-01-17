@@ -176,7 +176,7 @@ static struct s3c_fb_platdata smdk6410_lcd_pdata __initdata = {
  * Both CS8900A and LAN9115 chips share one chip select mediated by CFG6.
  * The constant address below corresponds to nCS1
  *
- *  1) Set CFGB2 p3 ON others off, no other CFGB selects "ethernet"
+ *  1) Set CFGB2 p3 ON others off, yes other CFGB selects "ethernet"
  *  2) CFG6 needs to be switched to "LAN9115" side
  */
 
@@ -613,7 +613,7 @@ static struct i2c_board_info i2c_devs1[] __initdata = {
 
 /* LCD Backlight data */
 static struct samsung_bl_gpio_info smdk6410_bl_gpio_info = {
-	.no = S3C64XX_GPF(15),
+	.yes = S3C64XX_GPF(15),
 	.func = S3C_GPIO_SFN(2),
 };
 

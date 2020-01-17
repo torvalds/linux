@@ -25,7 +25,7 @@
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/xive.h>
 #include <asm/xive-regs.h>
 #include <asm/xmon.h>
@@ -46,7 +46,7 @@ bool __xive_enabled;
 EXPORT_SYMBOL_GPL(__xive_enabled);
 bool xive_cmdline_disabled;
 
-/* We use only one priority for now */
+/* We use only one priority for yesw */
 static u8 xive_irq_priority;
 
 /* TIMA exported to KVM */
@@ -80,7 +80,7 @@ static DEFINE_PER_CPU(struct xive_cpu *, xive_cpu);
 
 /*
  * Read the next entry in a queue, return its content if it's valid
- * or 0 if there is no new entry.
+ * or 0 if there is yes new entry.
  *
  * The queue pointer is moved forward unless "just_peek" is set
  */
@@ -116,7 +116,7 @@ static u32 xive_read_eq(struct xive_q *q, bool just_peek)
  *
  * Then updates the CPPR (Current Processor Priority
  * Register) based on the most favored interrupt found
- * (0xff if none) and return what was found (0 if none).
+ * (0xff if yesne) and return what was found (0 if yesne).
  *
  * If just_peek is set, return the most favored pending
  * interrupt if any but don't update the queue pointers.
@@ -180,7 +180,7 @@ static u32 xive_scan_interrupts(struct xive_cpu *xc, bool just_peek)
 		}
 	}
 
-	/* If nothing was found, set CPPR to 0xff */
+	/* If yesthing was found, set CPPR to 0xff */
 	if (irq == 0)
 		prio = 0xff;
 
@@ -198,7 +198,7 @@ static u32 xive_scan_interrupts(struct xive_cpu *xc, bool just_peek)
  * This is used to perform the magic loads from an ESB
  * described in xive-regs.h
  */
-static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
+static yestrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 {
 	u64 val;
 
@@ -227,7 +227,7 @@ static void xive_esb_write(struct xive_irq_data *xd, u32 offset, u64 data)
 }
 
 #ifdef CONFIG_XMON
-static notrace void xive_dump_eq(const char *name, struct xive_q *q)
+static yestrace void xive_dump_eq(const char *name, struct xive_q *q)
 {
 	u32 i0, i1, idx;
 
@@ -241,7 +241,7 @@ static notrace void xive_dump_eq(const char *name, struct xive_q *q)
 		     q->idx, q->toggle, i0, i1);
 }
 
-notrace void xmon_xive_do_dump(int cpu)
+yestrace void xmon_xive_do_dump(int cpu)
 {
 	struct xive_cpu *xc = per_cpu(xive_cpu, cpu);
 
@@ -272,7 +272,7 @@ int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d)
 
 	rc = xive_ops->get_irq_config(hw_irq, &target, &prio, &lirq);
 	if (rc) {
-		xmon_printf("IRQ 0x%08x : no config rc=%d\n", hw_irq, rc);
+		xmon_printf("IRQ 0x%08x : yes config rc=%d\n", hw_irq, rc);
 		return rc;
 	}
 
@@ -331,8 +331,8 @@ static unsigned int xive_get_irq(void)
 
 /*
  * After EOI'ing an interrupt, we need to re-check the queue
- * to see if another interrupt is pending since multiple
- * interrupts can coalesce into a single notification to the
+ * to see if ayesther interrupt is pending since multiple
+ * interrupts can coalesce into a single yestification to the
  * CPU.
  *
  * If we find that there is indeed more in there, we call
@@ -417,7 +417,7 @@ static void xive_irq_eoi(struct irq_data *d)
 		xd->stale_p = true;
 
 	/*
-	 * Clear saved_p to indicate that it's no longer occupying
+	 * Clear saved_p to indicate that it's yes longer occupying
 	 * a queue slot on the target queue
 	 */
 	xd->saved_p = false;
@@ -428,7 +428,7 @@ static void xive_irq_eoi(struct irq_data *d)
 
 /*
  * Helper used to mask and unmask an interrupt source. This
- * is only called for normal interrupts that do not require
+ * is only called for yesrmal interrupts that do yest require
  * masking/unmasking via firmware.
  */
 static void xive_do_source_set_mask(struct xive_irq_data *xd,
@@ -460,7 +460,7 @@ static void xive_do_source_set_mask(struct xive_irq_data *xd,
 
 /*
  * Try to chose "cpu" as a new interrupt target. Increments
- * the queue accounting for that target if it's not already
+ * the queue accounting for that target if it's yest already
  * full.
  */
 static bool xive_try_pick_target(int cpu)
@@ -680,7 +680,7 @@ static void xive_irq_unmask(struct irq_data *d)
 	 * This is a workaround for PCI LSI problems on P9, for
 	 * these, we call FW to set the mask. The problems might
 	 * be fixed by P9 DD2.0, if that is the case, firmware
-	 * will no longer set that flag.
+	 * will yes longer set that flag.
 	 */
 	if (xd->flags & XIVE_IRQ_FLAG_MASK_FW) {
 		unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
@@ -703,7 +703,7 @@ static void xive_irq_mask(struct irq_data *d)
 	 * This is a workaround for PCI LSI problems on P9, for
 	 * these, we call OPAL to set the mask. The problems might
 	 * be fixed by P9 DD2.0, if that is the case, firmware
-	 * will no longer set that flag.
+	 * will yes longer set that flag.
 	 */
 	if (xd->flags & XIVE_IRQ_FLAG_MASK_FW) {
 		unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
@@ -737,7 +737,7 @@ static int xive_irq_set_affinity(struct irq_data *d,
 
 	/*
 	 * If existing target is already in the new mask, and is
-	 * online then do nothing.
+	 * online then do yesthing.
 	 */
 	if (xd->target != XIVE_INVALID_TARGET &&
 	    cpu_online(xd->target) &&
@@ -758,7 +758,7 @@ static int xive_irq_set_affinity(struct irq_data *d,
 	old_target = xd->target;
 
 	/*
-	 * Only configure the irq if it's not currently passed-through to
+	 * Only configure the irq if it's yest currently passed-through to
 	 * a KVM guest
 	 */
 	if (!irqd_is_forwarded_to_vcpu(d))
@@ -785,7 +785,7 @@ static int xive_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
 
 	/*
-	 * We only support these. This has really no effect other than setting
+	 * We only support these. This has really yes effect other than setting
 	 * the corresponding descriptor bits mind you but those will in turn
 	 * affect the resend function when re-enabling an edge interrupt.
 	 *
@@ -803,7 +803,7 @@ static int xive_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	/*
 	 * Double check it matches what the FW thinks
 	 *
-	 * NOTE: We don't know yet if the PAPR interface will provide
+	 * NOTE: We don't kyesw yet if the PAPR interface will provide
 	 * the LSI vs MSI information apart from the device-tree so
 	 * this check might have to move into an optional backend call
 	 * that is specific to the native backend
@@ -856,14 +856,14 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 	u8 pq;
 
 	/*
-	 * We only support this on interrupts that do not require
+	 * We only support this on interrupts that do yest require
 	 * firmware calls for masking and unmasking
 	 */
 	if (xd->flags & XIVE_IRQ_FLAG_MASK_FW)
 		return -EIO;
 
 	/*
-	 * This is called by KVM with state non-NULL for enabling
+	 * This is called by KVM with state yesn-NULL for enabling
 	 * pass-through or NULL for disabling it
 	 */
 	if (state) {
@@ -876,7 +876,7 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 			xd->stale_p = !xd->saved_p;
 		}
 
-		/* No target ? nothing to do */
+		/* No target ? yesthing to do */
 		if (xd->target == XIVE_INVALID_TARGET) {
 			/*
 			 * An untargetted interrupt should have been
@@ -895,12 +895,12 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 		 * This also tells us that it's in flight to a host queue
 		 * or has already been fetched but hasn't been EOIed yet
 		 * by the host. This it's potentially using up a host
-		 * queue slot. This is important to know because as long
-		 * as this is the case, we must not hard-unmask it when
+		 * queue slot. This is important to kyesw because as long
+		 * as this is the case, we must yest hard-unmask it when
 		 * "returning" that interrupt to the host.
 		 *
-		 * This saved_p is cleared by the host EOI, when we know
-		 * for sure the queue slot is no longer in use.
+		 * This saved_p is cleared by the host EOI, when we kyesw
+		 * for sure the queue slot is yes longer in use.
 		 */
 		if (xd->saved_p) {
 			xive_esb_read(xd, XIVE_ESB_SET_PQ_11);
@@ -938,7 +938,7 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 		 * By convention we are called with the interrupt in
 		 * a PQ=10 or PQ=11 state, ie, it won't fire and will
 		 * have latched in Q whether there's a pending HW
-		 * interrupt or not.
+		 * interrupt or yest.
 		 *
 		 * First reconfigure the target.
 		 */
@@ -949,8 +949,8 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 			return rc;
 
 		/*
-		 * Then if saved_p is not set, effectively re-enable the
-		 * interrupt with an EOI. If it is set, we know there is
+		 * Then if saved_p is yest set, effectively re-enable the
+		 * interrupt with an EOI. If it is set, we kyesw there is
 		 * still a message in a host queue somewhere that will be
 		 * EOId eventually.
 		 *
@@ -1096,7 +1096,7 @@ static void xive_ipi_eoi(struct irq_data *d)
 	xive_do_queue_eoi(xc);
 }
 
-static void xive_ipi_do_nothing(struct irq_data *d)
+static void xive_ipi_do_yesthing(struct irq_data *d)
 {
 	/*
 	 * Nothing to do, we never mask/unmask IPIs, but the callback
@@ -1107,8 +1107,8 @@ static void xive_ipi_do_nothing(struct irq_data *d)
 static struct irq_chip xive_ipi_chip = {
 	.name = "XIVE-IPI",
 	.irq_eoi = xive_ipi_eoi,
-	.irq_mask = xive_ipi_do_nothing,
-	.irq_unmask = xive_ipi_do_nothing,
+	.irq_mask = xive_ipi_do_yesthing,
+	.irq_unmask = xive_ipi_do_yesthing,
 };
 
 static void __init xive_request_ipi(void)
@@ -1187,7 +1187,7 @@ static void xive_cleanup_cpu_ipi(unsigned int cpu, struct xive_cpu *xc)
 	/*
 	 * Note: We don't call xive_cleanup_irq_data() to free
 	 * the mappings as this is called from an IPI on kexec
-	 * which is not a safe environment to call iounmap()
+	 * which is yest a safe environment to call iounmap()
 	 */
 
 	/* Deconfigure/mask in the backend */
@@ -1257,7 +1257,7 @@ static void xive_irq_domain_unmap(struct irq_domain *d, unsigned int virq)
 		xive_irq_free_data(virq);
 }
 
-static int xive_irq_domain_xlate(struct irq_domain *h, struct device_node *ct,
+static int xive_irq_domain_xlate(struct irq_domain *h, struct device_yesde *ct,
 				 const u32 *intspec, unsigned int intsize,
 				 irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
@@ -1279,10 +1279,10 @@ static int xive_irq_domain_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-static int xive_irq_domain_match(struct irq_domain *h, struct device_node *node,
+static int xive_irq_domain_match(struct irq_domain *h, struct device_yesde *yesde,
 				 enum irq_domain_bus_token bus_token)
 {
-	return xive_ops->match(node);
+	return xive_ops->match(yesde);
 }
 
 static const struct irq_domain_ops xive_irq_domain_ops = {
@@ -1294,7 +1294,7 @@ static const struct irq_domain_ops xive_irq_domain_ops = {
 
 static void __init xive_init_host(void)
 {
-	xive_irq_domain = irq_domain_add_nomap(NULL, XIVE_MAX_IRQ,
+	xive_irq_domain = irq_domain_add_yesmap(NULL, XIVE_MAX_IRQ,
 					       &xive_irq_domain_ops, NULL);
 	if (WARN_ON(xive_irq_domain == NULL))
 		return;
@@ -1311,7 +1311,7 @@ static int xive_setup_cpu_queues(unsigned int cpu, struct xive_cpu *xc)
 {
 	int rc = 0;
 
-	/* We setup 1 queues for now with a 64k page */
+	/* We setup 1 queues for yesw with a 64k page */
 	if (!xc->queue[xive_irq_priority].qpage)
 		rc = xive_ops->setup_queue(cpu, xc, xive_irq_priority);
 
@@ -1324,21 +1324,21 @@ static int xive_prepare_cpu(unsigned int cpu)
 
 	xc = per_cpu(xive_cpu, cpu);
 	if (!xc) {
-		struct device_node *np;
+		struct device_yesde *np;
 
-		xc = kzalloc_node(sizeof(struct xive_cpu),
-				  GFP_KERNEL, cpu_to_node(cpu));
+		xc = kzalloc_yesde(sizeof(struct xive_cpu),
+				  GFP_KERNEL, cpu_to_yesde(cpu));
 		if (!xc)
 			return -ENOMEM;
-		np = of_get_cpu_node(cpu, NULL);
+		np = of_get_cpu_yesde(cpu, NULL);
 		if (np)
 			xc->chip_id = of_get_ibm_chip_id(np);
-		of_node_put(np);
+		of_yesde_put(np);
 
 		per_cpu(xive_cpu, cpu) = xc;
 	}
 
-	/* Setup EQs if not already */
+	/* Setup EQs if yest already */
 	return xive_setup_cpu_queues(cpu, xc);
 }
 
@@ -1399,7 +1399,7 @@ static void xive_flush_cpu_queue(unsigned int cpu, struct xive_cpu *xc)
 		unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 
 		/*
-		 * Ignore anything that isn't a XIVE irq and ignore
+		 * Igyesre anything that isn't a XIVE irq and igyesre
 		 * IPIs, so can just be dropped.
 		 */
 		if (d->domain != xive_irq_domain || hw_irq == 0)
@@ -1418,7 +1418,7 @@ static void xive_flush_cpu_queue(unsigned int cpu, struct xive_cpu *xc)
 		xd = irq_desc_get_handler_data(desc);
 
 		/*
-		 * Clear saved_p to indicate that it's no longer pending
+		 * Clear saved_p to indicate that it's yes longer pending
 		 */
 		xd->saved_p = false;
 
@@ -1530,7 +1530,7 @@ __be32 *xive_queue_page_alloc(unsigned int cpu, u32 queue_shift)
 	__be32 *qpage;
 
 	alloc_order = xive_alloc_order(queue_shift);
-	pages = alloc_pages_node(cpu_to_node(cpu), GFP_KERNEL, alloc_order);
+	pages = alloc_pages_yesde(cpu_to_yesde(cpu), GFP_KERNEL, alloc_order);
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 	qpage = (__be32 *)page_address(pages);

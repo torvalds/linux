@@ -12,7 +12,7 @@
  *
  * TRACE_INCLUDE_PATH if the path is something other than core kernel include/trace
  *     then this macro can define the path to use. Note, the path is relative to
- *     define_trace.h, not the file including it. Full path names for out of tree
+ *     define_trace.h, yest the file including it. Full path names for out of tree
  *     modules must be used.
  */
 
@@ -94,7 +94,7 @@
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-/* Make all open coded DECLARE_TRACE nops */
+/* Make all open coded DECLARE_TRACE yesps */
 #undef DECLARE_TRACE
 #define DECLARE_TRACE(name, proto, args)
 

@@ -128,7 +128,7 @@ asmlinkage int swsusp_arch_resume(void)
 {
 	int error;
 
-	/* We have got enough memory and from now on we cannot recover */
+	/* We have got eyesugh memory and from yesw on we canyest recover */
 	error = set_up_temporary_mappings();
 	if (error)
 		return error;

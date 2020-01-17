@@ -30,15 +30,15 @@ void test_xdp(void)
 
 	CHECK(err || retval != XDP_TX || size != 74 ||
 	      iph->protocol != IPPROTO_IPIP, "ipv4",
-	      "err %d errno %d retval %d size %d\n",
-	      err, errno, retval, size);
+	      "err %d erryes %d retval %d size %d\n",
+	      err, erryes, retval, size);
 
 	err = bpf_prog_test_run(prog_fd, 1, &pkt_v6, sizeof(pkt_v6),
 				buf, &size, &retval, &duration);
 	CHECK(err || retval != XDP_TX || size != 114 ||
 	      iph6->nexthdr != IPPROTO_IPV6, "ipv6",
-	      "err %d errno %d retval %d size %d\n",
-	      err, errno, retval, size);
+	      "err %d erryes %d retval %d size %d\n",
+	      err, erryes, retval, size);
 out:
 	bpf_object__close(obj);
 }

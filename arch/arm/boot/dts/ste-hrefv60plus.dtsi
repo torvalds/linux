@@ -309,7 +309,7 @@
 					/*
 					 * Display Interface 1 uses GPIO 65 for RST (reset).
 					 * Display Interface 2 uses GPIO 66 for RST (reset).
-					 * Drive DISP1 reset high (not reset), driver DISP2 reset low (reset)
+					 * Drive DISP1 reset high (yest reset), driver DISP2 reset low (reset)
 					 */
 					hrefv60_cfg1 {
 						pins ="GPIO65_F1";
@@ -325,7 +325,7 @@
 				/* Dangling GPIO pins */
 				gpios_hrefv60_mode: gpios_hrefv60 {
 					default_cfg1 {
-						/* Normally UART1 RXD, now dangling */
+						/* Normally UART1 RXD, yesw dangling */
 						pins = "GPIO4_AH6";
 						ste,config = <&in_pu>;
 					};

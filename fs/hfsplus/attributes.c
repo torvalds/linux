@@ -66,7 +66,7 @@ int hfsplus_attr_build_key(struct super_block *sb, hfsplus_btree_key *key,
 		len = 0;
 	}
 
-	/* The length of the key, as stored in key_len field, does not include
+	/* The length of the key, as stored in key_len field, does yest include
 	 * the size of the key_len field itself.
 	 * So, offsetof(hfsplus_attr_key, key_name) is a trick because
 	 * it takes into consideration key_len field (__be16) of
@@ -99,14 +99,14 @@ static int hfsplus_attr_build_record(hfsplus_attr_entry *entry, int record_type,
 	if (record_type == HFSPLUS_ATTR_FORK_DATA) {
 		/*
 		 * Mac OS X supports only inline data attributes.
-		 * Do nothing
+		 * Do yesthing
 		 */
 		memset(entry, 0, sizeof(*entry));
 		return sizeof(struct hfsplus_attr_fork_data);
 	} else if (record_type == HFSPLUS_ATTR_EXTENTS) {
 		/*
 		 * Mac OS X supports only inline data attributes.
-		 * Do nothing.
+		 * Do yesthing.
 		 */
 		memset(entry, 0, sizeof(*entry));
 		return sizeof(struct hfsplus_attr_extents);
@@ -166,10 +166,10 @@ failed_find_attr:
 	return err;
 }
 
-int hfsplus_attr_exists(struct inode *inode, const char *name)
+int hfsplus_attr_exists(struct iyesde *iyesde, const char *name)
 {
 	int err = 0;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct hfs_find_data fd;
 
 	if (!HFSPLUS_SB(sb)->attr_tree)
@@ -179,30 +179,30 @@ int hfsplus_attr_exists(struct inode *inode, const char *name)
 	if (err)
 		return 0;
 
-	err = hfsplus_find_attr(sb, inode->i_ino, name, &fd);
+	err = hfsplus_find_attr(sb, iyesde->i_iyes, name, &fd);
 	if (err)
-		goto attr_not_found;
+		goto attr_yest_found;
 
 	hfs_find_exit(&fd);
 	return 1;
 
-attr_not_found:
+attr_yest_found:
 	hfs_find_exit(&fd);
 	return 0;
 }
 
-int hfsplus_create_attr(struct inode *inode,
+int hfsplus_create_attr(struct iyesde *iyesde,
 				const char *name,
 				const void *value, size_t size)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct hfs_find_data fd;
 	hfsplus_attr_entry *entry_ptr;
 	int entry_size;
 	int err;
 
 	hfs_dbg(ATTR_MOD, "create_attr: %s,%ld\n",
-		name ? name : NULL, inode->i_ino);
+		name ? name : NULL, iyesde->i_iyes);
 
 	if (!HFSPLUS_SB(sb)->attr_tree) {
 		pr_err("attributes file doesn't exist\n");
@@ -224,7 +224,7 @@ int hfsplus_create_attr(struct inode *inode,
 
 	if (name) {
 		err = hfsplus_attr_build_key(sb, fd.search_key,
-						inode->i_ino, name);
+						iyesde->i_iyes, name);
 		if (err)
 			goto failed_create_attr;
 	} else {
@@ -235,7 +235,7 @@ int hfsplus_create_attr(struct inode *inode,
 	/* Mac OS X supports only inline data attributes. */
 	entry_size = hfsplus_attr_build_record(entry_ptr,
 					HFSPLUS_ATTR_INLINE_DATA,
-					inode->i_ino,
+					iyesde->i_iyes,
 					value, size);
 	if (entry_size == HFSPLUS_INVALID_ATTR_RECORD) {
 		err = -EINVAL;
@@ -253,7 +253,7 @@ int hfsplus_create_attr(struct inode *inode,
 	if (err)
 		goto failed_create_attr;
 
-	hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ATTR_DIRTY);
+	hfsplus_mark_iyesde_dirty(iyesde, HFSPLUS_I_ATTR_DIRTY);
 
 failed_create_attr:
 	hfs_find_exit(&fd);
@@ -263,25 +263,25 @@ failed_init_create_attr:
 	return err;
 }
 
-static int __hfsplus_delete_attr(struct inode *inode, u32 cnid,
+static int __hfsplus_delete_attr(struct iyesde *iyesde, u32 cnid,
 					struct hfs_find_data *fd)
 {
 	int err = 0;
 	__be32 found_cnid, record_type;
 
-	hfs_bnode_read(fd->bnode, &found_cnid,
+	hfs_byesde_read(fd->byesde, &found_cnid,
 			fd->keyoffset +
 			offsetof(struct hfsplus_attr_key, cnid),
 			sizeof(__be32));
 	if (cnid != be32_to_cpu(found_cnid))
 		return -ENOENT;
 
-	hfs_bnode_read(fd->bnode, &record_type,
+	hfs_byesde_read(fd->byesde, &record_type,
 			fd->entryoffset, sizeof(record_type));
 
 	switch (be32_to_cpu(record_type)) {
 	case HFSPLUS_ATTR_INLINE_DATA:
-		/* All is OK. Do nothing. */
+		/* All is OK. Do yesthing. */
 		break;
 	case HFSPLUS_ATTR_FORK_DATA:
 	case HFSPLUS_ATTR_EXTENTS:
@@ -296,18 +296,18 @@ static int __hfsplus_delete_attr(struct inode *inode, u32 cnid,
 	if (err)
 		return err;
 
-	hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ATTR_DIRTY);
+	hfsplus_mark_iyesde_dirty(iyesde, HFSPLUS_I_ATTR_DIRTY);
 	return err;
 }
 
-int hfsplus_delete_attr(struct inode *inode, const char *name)
+int hfsplus_delete_attr(struct iyesde *iyesde, const char *name)
 {
 	int err = 0;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct hfs_find_data fd;
 
 	hfs_dbg(ATTR_MOD, "delete_attr: %s,%ld\n",
-		name ? name : NULL, inode->i_ino);
+		name ? name : NULL, iyesde->i_iyes);
 
 	if (!HFSPLUS_SB(sb)->attr_tree) {
 		pr_err("attributes file doesn't exist\n");
@@ -325,7 +325,7 @@ int hfsplus_delete_attr(struct inode *inode, const char *name)
 
 	if (name) {
 		err = hfsplus_attr_build_key(sb, fd.search_key,
-						inode->i_ino, name);
+						iyesde->i_iyes, name);
 		if (err)
 			goto out;
 	} else {
@@ -338,7 +338,7 @@ int hfsplus_delete_attr(struct inode *inode, const char *name)
 	if (err)
 		goto out;
 
-	err = __hfsplus_delete_attr(inode, inode->i_ino, &fd);
+	err = __hfsplus_delete_attr(iyesde, iyesde->i_iyes, &fd);
 	if (err)
 		goto out;
 
@@ -347,7 +347,7 @@ out:
 	return err;
 }
 
-int hfsplus_delete_all_attrs(struct inode *dir, u32 cnid)
+int hfsplus_delete_all_attrs(struct iyesde *dir, u32 cnid)
 {
 	int err = 0;
 	struct hfs_find_data fd;

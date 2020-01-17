@@ -383,7 +383,7 @@ webcam_bind(struct usb_composite_dev *cdev)
 	uvc_opts->hs_streaming = uvc_hs_streaming_cls;
 	uvc_opts->ss_streaming = uvc_ss_streaming_cls;
 
-	/* Allocate string descriptor numbers ... note that string contents
+	/* Allocate string descriptor numbers ... yeste that string contents
 	 * can be overridden by the composite_dev glue.
 	 */
 	ret = usb_string_ids_tab(cdev, webcam_strings);

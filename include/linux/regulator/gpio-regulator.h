@@ -11,7 +11,7 @@
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
  * Copyright (c) 2009 Nokia Corporation
- * Roger Quadros <ext-roger.quadros@nokia.com>
+ * Roger Quadros <ext-roger.quadros@yeskia.com>
  */
 
 #ifndef __REGULATOR_GPIO_H
@@ -43,7 +43,7 @@ struct gpio_regulator_state {
  * struct gpio_regulator_config - config structure
  * @supply_name:	Name of the regulator supply
  * @enabled_at_boot:	Whether regulator has been enabled at
- *			boot or not. 1 = Yes, 0 = No
+ *			boot or yest. 1 = Yes, 0 = No
  *			This is used to keep the regulator at
  *			the default state
  * @startup_delay:	Start-up time in microseconds

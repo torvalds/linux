@@ -2,7 +2,7 @@
 #define pr_fmt(fmt)	"OF: " fmt
 
 #include <linux/device.h>
-#include <linux/fwnode.h>
+#include <linux/fwyesde.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/logic_pio.h>
@@ -21,8 +21,8 @@
 #define OF_CHECK_ADDR_COUNT(na)	((na) > 0 && (na) <= OF_MAX_ADDR_CELLS)
 #define OF_CHECK_COUNTS(na, ns)	(OF_CHECK_ADDR_COUNT(na) && (ns) > 0)
 
-static struct of_bus *of_match_bus(struct device_node *np);
-static int __of_address_to_resource(struct device_node *dev,
+static struct of_bus *of_match_bus(struct device_yesde *np);
+static int __of_address_to_resource(struct device_yesde *dev,
 		const __be32 *addrp, u64 size, unsigned int flags,
 		const char *name, struct resource *r);
 
@@ -43,8 +43,8 @@ static void of_dump_addr(const char *s, const __be32 *addr, int na) { }
 struct of_bus {
 	const char	*name;
 	const char	*addresses;
-	int		(*match)(struct device_node *parent);
-	void		(*count_cells)(struct device_node *child,
+	int		(*match)(struct device_yesde *parent);
+	void		(*count_cells)(struct device_yesde *child,
 				       int *addrc, int *sizec);
 	u64		(*map)(__be32 *addr, const __be32 *range,
 				int na, int ns, int pna);
@@ -56,7 +56,7 @@ struct of_bus {
  * Default translator (generic bus)
  */
 
-static void of_bus_default_count_cells(struct device_node *dev,
+static void of_bus_default_count_cells(struct device_yesde *dev,
 				       int *addrc, int *sizec)
 {
 	if (addrc)
@@ -105,18 +105,18 @@ static unsigned int of_bus_default_get_flags(const __be32 *addr)
  * PCI bus specific translator
  */
 
-static int of_bus_pci_match(struct device_node *np)
+static int of_bus_pci_match(struct device_yesde *np)
 {
 	/*
  	 * "pciex" is PCI Express
 	 * "vci" is for the /chaos bridge on 1st-gen PCI powermacs
 	 * "ht" is hypertransport
 	 */
-	return of_node_is_type(np, "pci") || of_node_is_type(np, "pciex") ||
-		of_node_is_type(np, "vci") || of_node_is_type(np, "ht");
+	return of_yesde_is_type(np, "pci") || of_yesde_is_type(np, "pciex") ||
+		of_yesde_is_type(np, "vci") || of_yesde_is_type(np, "ht");
 }
 
-static void of_bus_pci_count_cells(struct device_node *np,
+static void of_bus_pci_count_cells(struct device_yesde *np,
 				   int *addrc, int *sizec)
 {
 	if (addrc)
@@ -176,12 +176,12 @@ static int of_bus_pci_translate(__be32 *addr, u64 offset, int na)
 	return of_bus_default_translate(addr + 1, offset, na - 1);
 }
 
-const __be32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
+const __be32 *of_get_pci_address(struct device_yesde *dev, int bar_yes, u64 *size,
 			unsigned int *flags)
 {
 	const __be32 *prop;
 	unsigned int psize;
-	struct device_node *parent;
+	struct device_yesde *parent;
 	struct of_bus *bus;
 	int onesize, i, na, ns;
 
@@ -191,11 +191,11 @@ const __be32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 		return NULL;
 	bus = of_match_bus(parent);
 	if (strcmp(bus->name, "pci")) {
-		of_node_put(parent);
+		of_yesde_put(parent);
 		return NULL;
 	}
 	bus->count_cells(dev, &na, &ns);
-	of_node_put(parent);
+	of_yesde_put(parent);
 	if (!OF_CHECK_ADDR_COUNT(na))
 		return NULL;
 
@@ -208,7 +208,7 @@ const __be32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 	onesize = na + ns;
 	for (i = 0; psize >= onesize; psize -= onesize, prop += onesize, i++) {
 		u32 val = be32_to_cpu(prop[0]);
-		if ((val & 0xff) == ((bar_no * 4) + PCI_BASE_ADDRESS_0)) {
+		if ((val & 0xff) == ((bar_yes * 4) + PCI_BASE_ADDRESS_0)) {
 			if (size)
 				*size = of_read_number(prop + na, ns);
 			if (flags)
@@ -220,7 +220,7 @@ const __be32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 }
 EXPORT_SYMBOL(of_get_pci_address);
 
-int of_pci_address_to_resource(struct device_node *dev, int bar,
+int of_pci_address_to_resource(struct device_yesde *dev, int bar,
 			       struct resource *r)
 {
 	const __be32	*addrp;
@@ -235,17 +235,17 @@ int of_pci_address_to_resource(struct device_node *dev, int bar,
 EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
 
 static int parser_init(struct of_pci_range_parser *parser,
-			struct device_node *node, const char *name)
+			struct device_yesde *yesde, const char *name)
 {
 	const int na = 3, ns = 2;
 	int rlen;
 
-	parser->node = node;
-	parser->pna = of_n_addr_cells(node);
+	parser->yesde = yesde;
+	parser->pna = of_n_addr_cells(yesde);
 	parser->np = parser->pna + na + ns;
 	parser->dma = !strcmp(name, "dma-ranges");
 
-	parser->range = of_get_property(node, name, &rlen);
+	parser->range = of_get_property(yesde, name, &rlen);
 	if (parser->range == NULL)
 		return -ENOENT;
 
@@ -255,16 +255,16 @@ static int parser_init(struct of_pci_range_parser *parser,
 }
 
 int of_pci_range_parser_init(struct of_pci_range_parser *parser,
-				struct device_node *node)
+				struct device_yesde *yesde)
 {
-	return parser_init(parser, node, "ranges");
+	return parser_init(parser, yesde, "ranges");
 }
 EXPORT_SYMBOL_GPL(of_pci_range_parser_init);
 
 int of_pci_dma_range_parser_init(struct of_pci_range_parser *parser,
-				struct device_node *node)
+				struct device_yesde *yesde)
 {
-	return parser_init(parser, node, "dma-ranges");
+	return parser_init(parser, yesde, "dma-ranges");
 }
 EXPORT_SYMBOL_GPL(of_pci_dma_range_parser_init);
 
@@ -283,10 +283,10 @@ struct of_pci_range *of_pci_range_parser_one(struct of_pci_range_parser *parser,
 	range->flags = of_bus_pci_get_flags(parser->range);
 	range->pci_addr = of_read_number(parser->range + 1, ns);
 	if (parser->dma)
-		range->cpu_addr = of_translate_dma_address(parser->node,
+		range->cpu_addr = of_translate_dma_address(parser->yesde,
 				parser->range + na);
 	else
-		range->cpu_addr = of_translate_address(parser->node,
+		range->cpu_addr = of_translate_address(parser->yesde,
 				parser->range + na);
 	range->size = of_read_number(parser->range + parser->pna + na, ns);
 
@@ -300,10 +300,10 @@ struct of_pci_range *of_pci_range_parser_one(struct of_pci_range_parser *parser,
 		flags = of_bus_pci_get_flags(parser->range);
 		pci_addr = of_read_number(parser->range + 1, ns);
 		if (parser->dma)
-			cpu_addr = of_translate_dma_address(parser->node,
+			cpu_addr = of_translate_dma_address(parser->yesde,
 					parser->range + na);
 		else
-			cpu_addr = of_translate_address(parser->node,
+			cpu_addr = of_translate_address(parser->yesde,
 					parser->range + na);
 		size = of_read_number(parser->range + parser->pna + na, ns);
 
@@ -324,20 +324,20 @@ EXPORT_SYMBOL_GPL(of_pci_range_parser_one);
 /*
  * of_pci_range_to_resource - Create a resource from an of_pci_range
  * @range:	the PCI range that describes the resource
- * @np:		device node where the range belongs to
+ * @np:		device yesde where the range belongs to
  * @res:	pointer to a valid resource that will be updated to
  *              reflect the values contained in the range.
  *
- * Returns EINVAL if the range cannot be converted to resource.
+ * Returns EINVAL if the range canyest be converted to resource.
  *
  * Note that if the range is an IO range, the resource will be converted
  * using pci_address_to_pio() which can fail if it is called too early or
- * if the range cannot be matched to any host bridge IO space (our case here).
+ * if the range canyest be matched to any host bridge IO space (our case here).
  * To guard against that we try to register the IO range first.
- * If that fails we know that pci_address_to_pio() will do too.
+ * If that fails we kyesw that pci_address_to_pio() will do too.
  */
 int of_pci_range_to_resource(struct of_pci_range *range,
-			     struct device_node *np, struct resource *res)
+			     struct device_yesde *np, struct resource *res)
 {
 	int err;
 	res->flags = range->flags;
@@ -346,7 +346,7 @@ int of_pci_range_to_resource(struct of_pci_range *range,
 
 	if (res->flags & IORESOURCE_IO) {
 		unsigned long port;
-		err = pci_register_io_range(&np->fwnode, range->cpu_addr,
+		err = pci_register_io_range(&np->fwyesde, range->cpu_addr,
 				range->size);
 		if (err)
 			goto invalid_range;
@@ -380,12 +380,12 @@ EXPORT_SYMBOL(of_pci_range_to_resource);
  * ISA bus specific translator
  */
 
-static int of_bus_isa_match(struct device_node *np)
+static int of_bus_isa_match(struct device_yesde *np)
 {
-	return of_node_name_eq(np, "isa");
+	return of_yesde_name_eq(np, "isa");
 }
 
-static void of_bus_isa_count_cells(struct device_node *child,
+static void of_bus_isa_count_cells(struct device_yesde *child,
 				   int *addrc, int *sizec)
 {
 	if (addrc)
@@ -473,7 +473,7 @@ static struct of_bus of_busses[] = {
 	},
 };
 
-static struct of_bus *of_match_bus(struct device_node *np)
+static struct of_bus *of_match_bus(struct device_yesde *np)
 {
 	int i;
 
@@ -484,7 +484,7 @@ static struct of_bus *of_match_bus(struct device_node *np)
 	return NULL;
 }
 
-static int of_empty_ranges_quirk(struct device_node *np)
+static int of_empty_ranges_quirk(struct device_yesde *np)
 {
 	if (IS_ENABLED(CONFIG_PPC)) {
 		/* To save cycles, we cache the result for global "Mac" setting */
@@ -504,7 +504,7 @@ static int of_empty_ranges_quirk(struct device_node *np)
 	return false;
 }
 
-static int of_translate_one(struct device_node *parent, struct of_bus *bus,
+static int of_translate_one(struct device_yesde *parent, struct of_bus *bus,
 			    struct of_bus *pbus, __be32 *addr,
 			    int na, int ns, int pna, const char *rprop)
 {
@@ -515,27 +515,27 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 
 	/*
 	 * Normally, an absence of a "ranges" property means we are
-	 * crossing a non-translatable boundary, and thus the addresses
-	 * below the current cannot be converted to CPU physical ones.
-	 * Unfortunately, while this is very clear in the spec, it's not
+	 * crossing a yesn-translatable boundary, and thus the addresses
+	 * below the current canyest be converted to CPU physical ones.
+	 * Unfortunately, while this is very clear in the spec, it's yest
 	 * what Apple understood, and they do have things like /uni-n or
-	 * /ht nodes with no "ranges" property and a lot of perfectly
+	 * /ht yesdes with yes "ranges" property and a lot of perfectly
 	 * useable mapped devices below them. Thus we treat the absence of
 	 * "ranges" as equivalent to an empty "ranges" property which means
-	 * a 1:1 translation at that level. It's up to the caller not to try
+	 * a 1:1 translation at that level. It's up to the caller yest to try
 	 * to translate addresses that aren't supposed to be translated in
 	 * the first place. --BenH.
 	 *
-	 * As far as we know, this damage only exists on Apple machines, so
+	 * As far as we kyesw, this damage only exists on Apple machines, so
 	 * This code is only enabled on powerpc. --gcl
 	 *
 	 * This quirk also applies for 'dma-ranges' which frequently exist in
-	 * child nodes without 'dma-ranges' in the parent nodes. --RobH
+	 * child yesdes without 'dma-ranges' in the parent yesdes. --RobH
 	 */
 	ranges = of_get_property(parent, rprop, &rlen);
 	if (ranges == NULL && !of_empty_ranges_quirk(parent) &&
 	    strcmp(rprop, "dma-ranges")) {
-		pr_debug("no ranges; cannot translate\n");
+		pr_debug("yes ranges; canyest translate\n");
 		return 1;
 	}
 	if (ranges == NULL || rlen == 0) {
@@ -556,7 +556,7 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 			break;
 	}
 	if (offset == OF_BAD_ADDR) {
-		pr_debug("not found !\n");
+		pr_debug("yest found !\n");
 		return 1;
 	}
 	memcpy(addr, ranges + na, 4 * pna);
@@ -575,20 +575,20 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
  * way.
  *
  * Note: We consider that crossing any level with #size-cells == 0 to mean
- * that translation is impossible (that is we are not dealing with a value
- * that can be mapped to a cpu physical address). This is not really specified
+ * that translation is impossible (that is we are yest dealing with a value
+ * that can be mapped to a cpu physical address). This is yest really specified
  * that way, but this is traditionally the way IBM at least do things
  *
  * Whenever the translation fails, the *host pointer will be set to the
  * device that had registered logical PIO mapping, and the return code is
- * relative to that node.
+ * relative to that yesde.
  */
-static u64 __of_translate_address(struct device_node *dev,
-				  struct device_node *(*get_parent)(const struct device_node *),
+static u64 __of_translate_address(struct device_yesde *dev,
+				  struct device_yesde *(*get_parent)(const struct device_yesde *),
 				  const __be32 *in_addr, const char *rprop,
-				  struct device_node **host)
+				  struct device_yesde **host)
 {
-	struct device_node *parent = NULL;
+	struct device_yesde *parent = NULL;
 	struct of_bus *bus, *pbus;
 	__be32 addr[OF_MAX_ADDR_CELLS];
 	int na, ns, pna, pns;
@@ -597,7 +597,7 @@ static u64 __of_translate_address(struct device_node *dev,
 	pr_debug("** translation for device %pOF **\n", dev);
 
 	/* Increase refcount at current level */
-	of_node_get(dev);
+	of_yesde_get(dev);
 
 	*host = NULL;
 	/* Get parent & match bus type */
@@ -623,27 +623,27 @@ static u64 __of_translate_address(struct device_node *dev,
 		struct logic_pio_hwaddr *iorange;
 
 		/* Switch to parent bus */
-		of_node_put(dev);
+		of_yesde_put(dev);
 		dev = parent;
 		parent = get_parent(dev);
 
 		/* If root, we have finished */
 		if (parent == NULL) {
-			pr_debug("reached root node\n");
+			pr_debug("reached root yesde\n");
 			result = of_read_number(addr, na);
 			break;
 		}
 
 		/*
-		 * For indirectIO device which has no ranges property, get
+		 * For indirectIO device which has yes ranges property, get
 		 * the address from reg directly.
 		 */
-		iorange = find_io_range_by_fwnode(&dev->fwnode);
+		iorange = find_io_range_by_fwyesde(&dev->fwyesde);
 		if (iorange && (iorange->flags != LOGIC_PIO_CPU_MMIO)) {
 			result = of_read_number(addr + 1, na - 1);
 			pr_debug("indirectIO matched(%pOF) 0x%llx\n",
 				 dev, result);
-			*host = of_node_get(dev);
+			*host = of_yesde_get(dev);
 			break;
 		}
 
@@ -670,21 +670,21 @@ static u64 __of_translate_address(struct device_node *dev,
 		of_dump_addr("one level translation:", addr, na);
 	}
  bail:
-	of_node_put(parent);
-	of_node_put(dev);
+	of_yesde_put(parent);
+	of_yesde_put(dev);
 
 	return result;
 }
 
-u64 of_translate_address(struct device_node *dev, const __be32 *in_addr)
+u64 of_translate_address(struct device_yesde *dev, const __be32 *in_addr)
 {
-	struct device_node *host;
+	struct device_yesde *host;
 	u64 ret;
 
 	ret = __of_translate_address(dev, of_get_parent,
 				     in_addr, "ranges", &host);
 	if (host) {
-		of_node_put(host);
+		of_yesde_put(host);
 		return OF_BAD_ADDR;
 	}
 
@@ -692,7 +692,7 @@ u64 of_translate_address(struct device_node *dev, const __be32 *in_addr)
 }
 EXPORT_SYMBOL(of_translate_address);
 
-static struct device_node *__of_get_dma_parent(const struct device_node *np)
+static struct device_yesde *__of_get_dma_parent(const struct device_yesde *np)
 {
 	struct of_phandle_args args;
 	int ret, index;
@@ -707,29 +707,29 @@ static struct device_node *__of_get_dma_parent(const struct device_node *np)
 	if (ret < 0)
 		return of_get_parent(np);
 
-	return of_node_get(args.np);
+	return of_yesde_get(args.np);
 }
 
-static struct device_node *of_get_next_dma_parent(struct device_node *np)
+static struct device_yesde *of_get_next_dma_parent(struct device_yesde *np)
 {
-	struct device_node *parent;
+	struct device_yesde *parent;
 
 	parent = __of_get_dma_parent(np);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return parent;
 }
 
-u64 of_translate_dma_address(struct device_node *dev, const __be32 *in_addr)
+u64 of_translate_dma_address(struct device_yesde *dev, const __be32 *in_addr)
 {
-	struct device_node *host;
+	struct device_yesde *host;
 	u64 ret;
 
 	ret = __of_translate_address(dev, __of_get_dma_parent,
 				     in_addr, "dma-ranges", &host);
 
 	if (host) {
-		of_node_put(host);
+		of_yesde_put(host);
 		return OF_BAD_ADDR;
 	}
 
@@ -737,12 +737,12 @@ u64 of_translate_dma_address(struct device_node *dev, const __be32 *in_addr)
 }
 EXPORT_SYMBOL(of_translate_dma_address);
 
-const __be32 *of_get_address(struct device_node *dev, int index, u64 *size,
+const __be32 *of_get_address(struct device_yesde *dev, int index, u64 *size,
 		    unsigned int *flags)
 {
 	const __be32 *prop;
 	unsigned int psize;
-	struct device_node *parent;
+	struct device_yesde *parent;
 	struct of_bus *bus;
 	int onesize, i, na, ns;
 
@@ -752,7 +752,7 @@ const __be32 *of_get_address(struct device_node *dev, int index, u64 *size,
 		return NULL;
 	bus = of_match_bus(parent);
 	bus->count_cells(dev, &na, &ns);
-	of_node_put(parent);
+	of_yesde_put(parent);
 	if (!OF_CHECK_ADDR_COUNT(na))
 		return NULL;
 
@@ -775,19 +775,19 @@ const __be32 *of_get_address(struct device_node *dev, int index, u64 *size,
 }
 EXPORT_SYMBOL(of_get_address);
 
-static u64 of_translate_ioport(struct device_node *dev, const __be32 *in_addr,
+static u64 of_translate_ioport(struct device_yesde *dev, const __be32 *in_addr,
 			u64 size)
 {
 	u64 taddr;
 	unsigned long port;
-	struct device_node *host;
+	struct device_yesde *host;
 
 	taddr = __of_translate_address(dev, of_get_parent,
 				       in_addr, "ranges", &host);
 	if (host) {
 		/* host-specific port access */
-		port = logic_pio_trans_hwaddr(&host->fwnode, taddr, size);
-		of_node_put(host);
+		port = logic_pio_trans_hwaddr(&host->fwyesde, taddr, size);
+		of_yesde_put(host);
 	} else {
 		/* memory-mapped I/O range */
 		port = pci_address_to_pio(taddr);
@@ -799,7 +799,7 @@ static u64 of_translate_ioport(struct device_node *dev, const __be32 *in_addr,
 	return port;
 }
 
-static int __of_address_to_resource(struct device_node *dev,
+static int __of_address_to_resource(struct device_yesde *dev,
 		const __be32 *addrp, u64 size, unsigned int flags,
 		const char *name, struct resource *r)
 {
@@ -832,7 +832,7 @@ static int __of_address_to_resource(struct device_node *dev,
  * pci_address_to_pio(), that is because it's either called too early or it
  * can't be matched to any host bridge IO space
  */
-int of_address_to_resource(struct device_node *dev, int index,
+int of_address_to_resource(struct device_yesde *dev, int index,
 			   struct resource *r)
 {
 	const __be32	*addrp;
@@ -852,13 +852,13 @@ int of_address_to_resource(struct device_node *dev, int index,
 EXPORT_SYMBOL_GPL(of_address_to_resource);
 
 /**
- * of_iomap - Maps the memory mapped IO for a given device_node
+ * of_iomap - Maps the memory mapped IO for a given device_yesde
  * @device:	the device whose io range will be mapped
  * @index:	index of the io range
  *
  * Returns a pointer to the mapped memory
  */
-void __iomem *of_iomap(struct device_node *np, int index)
+void __iomem *of_iomap(struct device_yesde *np, int index)
 {
 	struct resource res;
 
@@ -871,7 +871,7 @@ EXPORT_SYMBOL(of_iomap);
 
 /*
  * of_io_request_and_map - Requests a resource and maps the memory mapped IO
- *			   for a given device_node
+ *			   for a given device_yesde
  * @device:	the device whose io range will be mapped
  * @index:	index of the io range
  * @name:	name "override" for the memory region request or NULL
@@ -879,11 +879,11 @@ EXPORT_SYMBOL(of_iomap);
  * Returns a pointer to the requested and mapped memory or an ERR_PTR() encoded
  * error code on failure. Usage example:
  *
- *	base = of_io_request_and_map(node, 0, "foo");
+ *	base = of_io_request_and_map(yesde, 0, "foo");
  *	if (IS_ERR(base))
  *		return PTR_ERR(base);
  */
-void __iomem *of_io_request_and_map(struct device_node *np, int index,
+void __iomem *of_io_request_and_map(struct device_yesde *np, int index,
 				    const char *name)
 {
 	struct resource res;
@@ -909,7 +909,7 @@ EXPORT_SYMBOL(of_io_request_and_map);
 
 /**
  * of_dma_get_range - Get DMA range info
- * @np:		device node to get DMA range info
+ * @np:		device yesde to get DMA range info
  * @dma_addr:	pointer to store initial DMA address of DMA range
  * @paddr:	pointer to store initial CPU address of DMA range
  * @size:	pointer to store size of DMA range
@@ -921,22 +921,22 @@ EXPORT_SYMBOL(of_io_request_and_map);
  *	CPU addr (phys_addr_t)	: pna cells
  *	size			: nsize cells
  *
- * It returns -ENODEV if "dma-ranges" property was not found
+ * It returns -ENODEV if "dma-ranges" property was yest found
  * for this device in DT.
  */
-int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *size)
+int of_dma_get_range(struct device_yesde *np, u64 *dma_addr, u64 *paddr, u64 *size)
 {
-	struct device_node *node = of_node_get(np);
+	struct device_yesde *yesde = of_yesde_get(np);
 	const __be32 *ranges = NULL;
 	int len, naddr, nsize, pna;
 	int ret = 0;
 	bool found_dma_ranges = false;
 	u64 dmaaddr;
 
-	while (node) {
-		ranges = of_get_property(node, "dma-ranges", &len);
+	while (yesde) {
+		ranges = of_get_property(yesde, "dma-ranges", &len);
 
-		/* Ignore empty ranges, they imply no translation required */
+		/* Igyesre empty ranges, they imply yes translation required */
 		if (ranges && len > 0)
 			break;
 
@@ -947,18 +947,18 @@ int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *siz
 		}
 		found_dma_ranges = true;
 
-		node = of_get_next_dma_parent(node);
+		yesde = of_get_next_dma_parent(yesde);
 	}
 
-	if (!node || !ranges) {
-		pr_debug("no dma-ranges found for node(%pOF)\n", np);
+	if (!yesde || !ranges) {
+		pr_debug("yes dma-ranges found for yesde(%pOF)\n", np);
 		ret = -ENODEV;
 		goto out;
 	}
 
-	naddr = of_bus_n_addr_cells(node);
-	nsize = of_bus_n_size_cells(node);
-	pna = of_n_addr_cells(node);
+	naddr = of_bus_n_addr_cells(yesde);
+	nsize = of_bus_n_size_cells(yesde);
+	pna = of_n_addr_cells(yesde);
 	if ((len / sizeof(__be32)) % (pna + naddr + nsize)) {
 		ret = -EINVAL;
 		goto out;
@@ -970,9 +970,9 @@ int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *siz
 	 * size		: nsize cells
 	 */
 	dmaaddr = of_read_number(ranges, naddr);
-	*paddr = of_translate_dma_address(node, ranges + naddr);
+	*paddr = of_translate_dma_address(yesde, ranges + naddr);
 	if (*paddr == OF_BAD_ADDR) {
-		pr_err("translation of DMA address(%llx) to CPU address failed node(%pOF)\n",
+		pr_err("translation of DMA address(%llx) to CPU address failed yesde(%pOF)\n",
 		       dmaaddr, np);
 		ret = -EINVAL;
 		goto out;
@@ -985,30 +985,30 @@ int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *siz
 		 *dma_addr, *paddr, *size);
 
 out:
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	return ret;
 }
 
 /**
  * of_dma_is_coherent - Check if device is coherent
- * @np:	device node
+ * @np:	device yesde
  *
  * It returns true if "dma-coherent" property was found
  * for this device in DT.
  */
-bool of_dma_is_coherent(struct device_node *np)
+bool of_dma_is_coherent(struct device_yesde *np)
 {
-	struct device_node *node = of_node_get(np);
+	struct device_yesde *yesde = of_yesde_get(np);
 
-	while (node) {
-		if (of_property_read_bool(node, "dma-coherent")) {
-			of_node_put(node);
+	while (yesde) {
+		if (of_property_read_bool(yesde, "dma-coherent")) {
+			of_yesde_put(yesde);
 			return true;
 		}
-		node = of_get_next_dma_parent(node);
+		yesde = of_get_next_dma_parent(yesde);
 	}
-	of_node_put(node);
+	of_yesde_put(yesde);
 	return false;
 }
 EXPORT_SYMBOL_GPL(of_dma_is_coherent);

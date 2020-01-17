@@ -87,7 +87,7 @@ struct bt_power {
 #define BT_CHANNEL_POLICY	10
 
 /* BR/EDR only (default policy)
- *   AMP controllers cannot be used.
+ *   AMP controllers canyest be used.
  *   Channel move requests from the remote device are denied.
  *   If the L2CAP channel is currently using AMP, move the channel to BR/EDR.
  */
@@ -105,7 +105,7 @@ struct bt_power {
  *   If the L2CAP channel is currently on BR/EDR and AMP controller
  *     resources are available, initiate a channel move to AMP.
  *   Channel move requests from the remote device are allowed.
- *   If the L2CAP socket has not been connected yet, try to create
+ *   If the L2CAP socket has yest been connected yet, try to create
  *     and configure the channel directly on an AMP controller rather
  *     than BR/EDR.
  */
@@ -370,7 +370,7 @@ out:
 	return NULL;
 }
 
-int bt_to_errno(u16 code);
+int bt_to_erryes(u16 code);
 
 void hci_sock_set_flag(struct sock *sk, int nr);
 void hci_sock_clear_flag(struct sock *sk, int nr);

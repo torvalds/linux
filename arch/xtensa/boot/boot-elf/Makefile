@@ -27,7 +27,7 @@ $(obj)/Image.o: vmlinux.bin $(OBJS)
 $(obj)/../Image.elf: $(obj)/Image.o $(obj)/boot.lds
 	$(Q)$(LD) $(KBUILD_LDFLAGS) $(LDFLAGS_vmlinux) \
 		-T $(obj)/boot.lds \
-		--build-id=none \
+		--build-id=yesne \
 		-o $@ $(obj)/Image.o
 	$(Q)$(kecho) '  Kernel: $@ is ready'
 

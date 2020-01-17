@@ -73,7 +73,7 @@ static void handle_options(int *argc, const char ***argv)
 			help = true;
 			break;
 		} else {
-			fprintf(stderr, "Unknown option: %s\n", cmd);
+			fprintf(stderr, "Unkyeswn option: %s\n", cmd);
 			cmd_usage();
 		}
 

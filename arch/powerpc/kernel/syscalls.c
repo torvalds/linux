@@ -10,11 +10,11 @@
  * and Paul Mackerras (paulus@cs.anu.edu.au).
  *
  * This file contains various random system calls that
- * have a non-standard calling sequence on the Linux/PPC
+ * have a yesn-standard calling sequence on the Linux/PPC
  * platform.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/syscalls.h>
 #include <linux/mm.h>
@@ -126,7 +126,7 @@ SYSCALL_DEFINE0(switch_endian)
 
 	/*
 	 * Set TIF_RESTOREALL so that r3 isn't clobbered on return to
-	 * userspace. That also has the effect of restoring the non-volatile
+	 * userspace. That also has the effect of restoring the yesn-volatile
 	 * GPRs, so we saved them on the way in here.
 	 */
 	ti = current_thread_info();

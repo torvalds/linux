@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -38,7 +38,7 @@
 
 /* @umem: umem object to scan
  * @addr: ib virtual address requested by the user
- * @max_page_shift: high limit for page_shift - 0 means no limit
+ * @max_page_shift: high limit for page_shift - 0 means yes limit
  * @count: number of PAGE_SIZE pages covered by umem
  * @shift: page shift for the compound pages found in the region
  * @ncont: number of compund pages
@@ -222,7 +222,7 @@ int mlx5_ib_get_buf_offset(u64 addr, int page_shift, u32 *offset)
 #define WR_ID_END 0xBAD
 #define TEST_WC_NUM_WQES 255
 #define TEST_WC_POLLING_MAX_TIME_JIFFIES msecs_to_jiffies(100)
-static int post_send_nop(struct mlx5_ib_dev *dev, struct ib_qp *ibqp, u64 wr_id,
+static int post_send_yesp(struct mlx5_ib_dev *dev, struct ib_qp *ibqp, u64 wr_id,
 			 bool signaled)
 {
 	struct mlx5_ib_qp *qp = to_mqp(ibqp);
@@ -310,12 +310,12 @@ static int test_wc_do_send(struct mlx5_ib_dev *dev, struct ib_qp *qp)
 	int err, i;
 
 	for (i = 0; i < TEST_WC_NUM_WQES; i++) {
-		err = post_send_nop(dev, qp, WR_ID_BF, false);
+		err = post_send_yesp(dev, qp, WR_ID_BF, false);
 		if (err)
 			return err;
 	}
 
-	return post_send_nop(dev, qp, WR_ID_END, true);
+	return post_send_yesp(dev, qp, WR_ID_END, true);
 }
 
 int mlx5_ib_test_wc(struct mlx5_ib_dev *dev)

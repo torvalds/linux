@@ -17,7 +17,7 @@
  *  INFRINGEMENT. See the GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -52,7 +52,7 @@ interface.
 
 OS utilizes the PCC interface to inform platform firmware what frequency the
 OS wants for a logical processor. The platform firmware attempts to achieve
-the requested frequency. If the request for the target frequency could not be
+the requested frequency. If the request for the target frequency could yest be
 satisfied by platform firmware, then it usually means that power budget
 conditions are in place, and "power capping" is taking place.
 
@@ -79,12 +79,12 @@ The ACPI PCCP() method is implemented for each logical processor and is
 used to discover the offsets for the input and output buffers in the shared
 memory region.
 
-When PCC mode is enabled, the platform will not expose processor performance
+When PCC mode is enabled, the platform will yest expose processor performance
 or throttle states (_PSS, _TSS and related ACPI objects) to OSPM. Therefore,
-the native P-state driver (such as acpi-cpufreq for Intel, powernow-k8 for
-AMD) will not load.
+the native P-state driver (such as acpi-cpufreq for Intel, poweryesw-k8 for
+AMD) will yest load.
 
-However, OSPM remains in control of policy. The governor (eg: "ondemand")
+However, OSPM remains in control of policy. The goveryesr (eg: "ondemand")
 computes the required performance for each processor based on server workload.
 The PCC driver fills in the command interface, and the input buffer and
 communicates the request to the platform firmware. The platform firmware is
@@ -100,15 +100,15 @@ the system with a single call to the BIOS.
 This command is used by the OSPM to query the running frequency of the
 processor since the last time this command was completed. The output buffer
 indicates the average unhalted frequency of the logical processor expressed as
-a percentage of the nominal (ie: maximum) CPU frequency. The output buffer
+a percentage of the yesminal (ie: maximum) CPU frequency. The output buffer
 also signifies if the CPU frequency is limited by a power budget condition.
 
 1.1.2 Set Desired Frequency:
 ----------------------------
 This command is used by the OSPM to communicate to the platform firmware the
 desired frequency for a logical processor. The output buffer is currently
-ignored by OSPM. The next invocation of "Get Average Frequency" will inform
-OSPM if the desired frequency was achieved or not.
+igyesred by OSPM. The next invocation of "Get Average Frequency" will inform
+OSPM if the desired frequency was achieved or yest.
 
 1.2 Platforms affected:
 -----------------------
@@ -122,7 +122,7 @@ platforms PCC is the "default" choice.
 
 However, it is possible to disable this interface via a BIOS setting. In
 such an instance, as is also the case on platforms where the PCC interface
-is not implemented, the PCC driver will fail to load silently.
+is yest implemented, the PCC driver will fail to load silently.
 
 2. Driver and /sys details:
 ---------------------------
@@ -136,7 +136,7 @@ MHz
 This means that the OPSM can request the CPU to run at any frequency in
 between the limits (1600 MHz, and 2933 MHz) specified in the message.
 
-Internally, there is no need for the driver to convert the "target" frequency
+Internally, there is yes need for the driver to convert the "target" frequency
 to a corresponding P-state.
 
 The VERSION number for the driver will be of the format v.xy.ab.
@@ -152,15 +152,15 @@ The following is a brief discussion on some of the fields exported via the
 
 2.1 scaling_available_frequencies:
 ----------------------------------
-scaling_available_frequencies is not created in /sys. No intermediate
+scaling_available_frequencies is yest created in /sys. No intermediate
 frequencies need to be listed because the BIOS will try to achieve any
-frequency, within limits, requested by the governor. A frequency does not have
+frequency, within limits, requested by the goveryesr. A frequency does yest have
 to be strictly associated with a P-state.
 
 2.2 cpuinfo_transition_latency:
 -------------------------------
 The cpuinfo_transition_latency field is 0. The PCC specification does
-not include a field to expose this value currently.
+yest include a field to expose this value currently.
 
 2.3 cpuinfo_cur_freq:
 ---------------------
@@ -175,14 +175,14 @@ cpuinfo_cur_freq	: 3196000
 
 B) There is a round-off error associated with the cpuinfo_cur_freq value.
 Since the driver obtains the current frequency as a "percentage" (%) of the
-nominal frequency from the BIOS, sometimes, the values displayed by
-scaling_cur_freq and cpuinfo_cur_freq may not match. An example:
+yesminal frequency from the BIOS, sometimes, the values displayed by
+scaling_cur_freq and cpuinfo_cur_freq may yest match. An example:
 
 scaling_cur_freq	: 1600000
 cpuinfo_cur_freq	: 1583000
 
-In this example, the nominal frequency is 2933 MHz. The driver obtains the
-current frequency, cpuinfo_cur_freq, as 54% of the nominal frequency:
+In this example, the yesminal frequency is 2933 MHz. The driver obtains the
+current frequency, cpuinfo_cur_freq, as 54% of the yesminal frequency:
 
 	54% of 2933 MHz = 1583 MHz
 
@@ -196,12 +196,12 @@ The related_cpus field is identical to affected_cpus.
 affected_cpus	: 4
 related_cpus	: 4
 
-Currently, the PCC driver does not evaluate _PSD. The platforms that support
-PCC do not implement SW_ALL. So OSPM doesn't need to perform any coordination
+Currently, the PCC driver does yest evaluate _PSD. The platforms that support
+PCC do yest implement SW_ALL. So OSPM doesn't need to perform any coordination
 to ensure that the same frequency is requested of all dependent CPUs.
 
 3. Caveats:
 -----------
-The "cpufreq_stats" module in its present form cannot be loaded and
+The "cpufreq_stats" module in its present form canyest be loaded and
 expected to work with the PCC driver. Since the "cpufreq_stats" module
-provides information wrt each P-state, it is not applicable to the PCC driver.
+provides information wrt each P-state, it is yest applicable to the PCC driver.

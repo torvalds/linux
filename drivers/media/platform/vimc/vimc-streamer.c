@@ -109,7 +109,7 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 			/* the first entity of the pipe should be source only */
 			if (!vimc_is_source(ved->ent)) {
 				dev_err(ved->dev,
-					"first entity in the pipe '%s' is not a source\n",
+					"first entity in the pipe '%s' is yest a source\n",
 					ved->ent->name);
 				vimc_streamer_pipeline_terminate(stream);
 				return -EPIPE;
@@ -179,7 +179,7 @@ static int vimc_streamer_thread(void *data)
  * @ved:	pointer to the vimc entity of the entity of the stream
  * @enable:	flag to determine if stream should start/stop
  *
- * When starting, check if there is no ``stream->kthread`` allocated. This
+ * When starting, check if there is yes ``stream->kthread`` allocated. This
  * should indicate that a stream is already running. Then, it initializes the
  * pipeline, creates and runs a kthread to consume buffers through the pipeline.
  * When stopping, analogously check if there is a stream running, stop the

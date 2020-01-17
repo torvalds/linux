@@ -22,7 +22,7 @@
  *
  * Dec 2004: hl/ws v2: Implementing draft-ietf-ipdvb-ule-03.txt:
  *                       ULE Extension header handling.
- *                     Bugreports by Moritz Vieth and Hanno Tersteegen,
+ *                     Bugreports by Moritz Vieth and Hanyes Tersteegen,
  *                       Fraunhofer Institute for Open Communication Systems
  *                       Competence Center for Advanced Satellite Communications.
  *                     Bugfixes and robustness improvements.
@@ -36,7 +36,7 @@
 /*
  * FIXME / TODO (dvb_net.c):
  *
- * Unloading does not work for 2.6.9 kernels: a refcount doesn't go to zero.
+ * Unloading does yest work for 2.6.9 kernels: a refcount doesn't go to zero.
  *
  */
 
@@ -109,7 +109,7 @@ struct dvb_net_priv {
 	unsigned short ule_sndu_type;		/* ULE SNDU type field, complete. */
 	unsigned char ule_sndu_type_1;		/* ULE SNDU type field, if split across 2 TS cells. */
 	unsigned char ule_dbit;			/* Whether the DestMAC address present
-						 * or not (bit is set). */
+						 * or yest (bit is set). */
 	unsigned char ule_bridged;		/* Whether the ULE_BRIDGED extension header was found. */
 	int ule_sndu_remain;			/* Nr. of bytes still required for current ULE SNDU. */
 	unsigned long ts_count;			/* Current ts cell counter. */
@@ -119,8 +119,8 @@ struct dvb_net_priv {
 
 /*
  *	Determine the packet's protocol ID. The rule here is that we
- *	assume 802.3 if the type field is short enough to be a length.
- *	This is normal practice and works for any 'now in use' protocol.
+ *	assume 802.3 if the type field is short eyesugh to be a length.
+ *	This is yesrmal practice and works for any 'yesw in use' protocol.
  *
  *  stolen from eth.c out of the linux kernel, hacked for dvb-device
  *  by Michael Holzt <kju@debian.org>
@@ -211,7 +211,7 @@ static int ule_exthdr_padding(struct dvb_net_priv *p)
  * Handle ULE extension headers.
  *  Function is called after a successful CRC32 verification of an ULE SNDU to complete its decoding.
  *  Returns: >= 0: nr. of bytes consumed by next extension header
- *	     -1:   Mandatory extension header that is not recognized or TEST SNDU; discard.
+ *	     -1:   Mandatory extension header that is yest recognized or TEST SNDU; discard.
  */
 static int handle_one_ule_extension( struct dvb_net_priv *p )
 {
@@ -254,7 +254,7 @@ static int handle_one_ule_extension( struct dvb_net_priv *p )
 		p->ule_next_hdr += ext_len;
 		p->ule_sndu_type = ntohs( *(__be16 *)(p->ule_next_hdr-2) );
 		/*
-		 * note: the length of the next header type is included in the
+		 * yeste: the length of the next header type is included in the
 		 * length of THIS optional extension header
 		 */
 	}
@@ -506,7 +506,7 @@ static int dvb_net_ule_new_payload(struct dvb_net_ule_handle *h)
 		h->priv->ule_sndu_len = h->from_where[0] << 8 |
 					h->from_where[1];
 		if (h->priv->ule_sndu_len & 0x8000) {
-			/* D-Bit is set: no dest mac present. */
+			/* D-Bit is set: yes dest mac present. */
 			h->priv->ule_sndu_len &= 0x7FFF;
 			h->priv->ule_dbit = 1;
 		} else
@@ -533,7 +533,7 @@ static int dvb_net_ule_new_payload(struct dvb_net_ule_handle *h)
 	/*
 	 * State of current TS:
 	 *   h->ts_remain (remaining bytes in the current TS cell)
-	 *   0	ule_type is not available now, we need the next TS cell
+	 *   0	ule_type is yest available yesw, we need the next TS cell
 	 *   1	the first byte of the ule_type is present
 	 * >=2	full ULE header present, maybe some payload data as well.
 	 */
@@ -580,7 +580,7 @@ static int dvb_net_ule_new_payload(struct dvb_net_ule_handle *h)
 	h->priv->ule_skb = dev_alloc_skb(h->priv->ule_sndu_len +
 					 ETH_HLEN + ETH_ALEN);
 	if (!h->priv->ule_skb) {
-		pr_notice("%s: Memory squeeze, dropping packet.\n",
+		pr_yestice("%s: Memory squeeze, dropping packet.\n",
 			  h->dev->name);
 		h->dev->stats.rx_dropped++;
 		return -1;
@@ -627,7 +627,7 @@ static int dvb_net_ule_should_drop(struct dvb_net_ule_handle *h)
 				if (i == h->priv->multi_num)
 					return 1;
 			} else if (h->priv->rx_mode != RX_MODE_ALL_MULTI)
-				return 1; /* no broadcast; */
+				return 1; /* yes broadcast; */
 			/*
 			 * else:
 			 * all multicast mode: accept all multicast packets
@@ -689,7 +689,7 @@ static void dvb_net_ule_check_crc(struct dvb_net_ule_handle *h,
 	if (!h->priv->ule_dbit) {
 		if (dvb_net_ule_should_drop(h)) {
 			netdev_dbg(h->dev,
-				   "Dropping SNDU: MAC destination address does not match: dest addr: %pM, h->dev addr: %pM\n",
+				   "Dropping SNDU: MAC destination address does yest match: dest addr: %pM, h->dev addr: %pM\n",
 				   h->priv->ule_skb->data, h->dev->dev_addr);
 			dev_kfree_skb(h->priv->ule_skb);
 			return;
@@ -710,7 +710,7 @@ static void dvb_net_ule_check_crc(struct dvb_net_ule_handle *h,
 
 		if (l < 0) {
 			/*
-			 * Mandatory extension header unknown or TEST SNDU.
+			 * Mandatory extension header unkyeswn or TEST SNDU.
 			 * Drop it.
 			 */
 
@@ -736,14 +736,14 @@ static void dvb_net_ule_check_crc(struct dvb_net_ule_handle *h,
 		eth_zero_addr(h->ethh->h_source);
 		h->ethh->h_proto = htons(h->priv->ule_sndu_type);
 	}
-	/* else:  skb is in correct state; nothing to do. */
+	/* else:  skb is in correct state; yesthing to do. */
 	h->priv->ule_bridged = 0;
 
 	/* Stuff into kernel's protocol stack. */
 	h->priv->ule_skb->protocol = dvb_net_eth_type_trans(h->priv->ule_skb,
 							   h->dev);
 	/*
-	 * If D-bit is set (i.e. destination MAC address not present),
+	 * If D-bit is set (i.e. destination MAC address yest present),
 	 * receive the packet anyhow.
 	 */
 #if 0
@@ -779,7 +779,7 @@ static void dvb_net_ule(struct net_device *dev, const u8 *buf, size_t buf_len)
 	 * Appearently, we are called for every single TS cell.
 	 */
 	for (h.ts = h.buf, h.ts_end = h.buf + h.buf_len;
-	     h.ts < h.ts_end; /* no incr. */) {
+	     h.ts < h.ts_end; /* yes incr. */) {
 		if (h.new_ts) {
 			/* We are about to process a new TS cell. */
 			if (dvb_net_ule_new_ts_cell(&h))
@@ -878,7 +878,7 @@ static int dvb_net_ts_callback(const u8 *buffer1, size_t buffer1_len,
 	struct net_device *dev = feed->priv;
 
 	if (buffer2)
-		pr_warn("buffer2 not NULL: %p.\n", buffer2);
+		pr_warn("buffer2 yest NULL: %p.\n", buffer2);
 	if (buffer1_len > 32768)
 		pr_warn("length > 32k: %zu.\n", buffer1_len);
 	/* pr_info("TS callback: %u bytes, %u TS cells @ %p.\n",
@@ -896,7 +896,7 @@ static void dvb_net_sec(struct net_device *dev,
 	struct net_device_stats *stats = &dev->stats;
 	int snap = 0;
 
-	/* note: pkt_len includes a 32bit checksum */
+	/* yeste: pkt_len includes a 32bit checksum */
 	if (pkt_len < 16) {
 		pr_warn("%s: IP/MPE packet length = %d too small.\n",
 			dev->name, pkt_len);
@@ -936,7 +936,7 @@ static void dvb_net_sec(struct net_device *dev,
 	 * 12 byte MPE header; 4 byte checksum; + 2 byte alignment, 8 byte LLC/SNAP
 	 */
 	if (!(skb = dev_alloc_skb(pkt_len - 4 - 12 + 14 + 2 - snap))) {
-		//pr_notice("%s: Memory squeeze, dropping packet.\n", dev->name);
+		//pr_yestice("%s: Memory squeeze, dropping packet.\n", dev->name);
 		stats->rx_dropped++;
 		return;
 	}
@@ -1000,7 +1000,7 @@ static netdev_tx_t dvb_net_tx(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static u8 mask_normal[6]={0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+static u8 mask_yesrmal[6]={0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static u8 mask_allmulti[6]={0xff, 0xff, 0xff, 0x00, 0x00, 0x00};
 static u8 mac_allmulti[6]={0x01, 0x00, 0x5e, 0x00, 0x00, 0x00};
 static u8 mask_promisc[6]={0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -1015,7 +1015,7 @@ static int dvb_net_filter_sec_set(struct net_device *dev,
 	*secfilter=NULL;
 	ret = priv->secfeed->allocate_filter(priv->secfeed, secfilter);
 	if (ret<0) {
-		pr_err("%s: could not get filter\n", dev->name);
+		pr_err("%s: could yest get filter\n", dev->name);
 		return ret;
 	}
 
@@ -1067,7 +1067,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 		ret=demux->allocate_section_feed(demux, &priv->secfeed,
 					 dvb_net_sec_callback);
 		if (ret<0) {
-			pr_err("%s: could not allocate section feed\n",
+			pr_err("%s: could yest allocate section feed\n",
 			       dev->name);
 			goto error;
 		}
@@ -1075,7 +1075,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 		ret = priv->secfeed->set(priv->secfeed, priv->pid, 1);
 
 		if (ret<0) {
-			pr_err("%s: could not set section feed\n", dev->name);
+			pr_err("%s: could yest set section feed\n", dev->name);
 			priv->demux->release_section_feed(priv->demux, priv->secfeed);
 			priv->secfeed=NULL;
 			goto error;
@@ -1083,7 +1083,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 
 		if (priv->rx_mode != RX_MODE_PROMISC) {
 			netdev_dbg(dev, "set secfilter\n");
-			dvb_net_filter_sec_set(dev, &priv->secfilter, mac, mask_normal);
+			dvb_net_filter_sec_set(dev, &priv->secfilter, mac, mask_yesrmal);
 		}
 
 		switch (priv->rx_mode) {
@@ -1091,7 +1091,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 			for (i = 0; i < priv->multi_num; i++) {
 				netdev_dbg(dev, "set multi_secfilter[%d]\n", i);
 				dvb_net_filter_sec_set(dev, &priv->multi_secfilter[i],
-						       priv->multi_macs[i], mask_normal);
+						       priv->multi_macs[i], mask_yesrmal);
 			}
 			break;
 		case RX_MODE_ALL_MULTI:
@@ -1116,7 +1116,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 		netdev_dbg(dev, "alloc tsfeed\n");
 		ret = demux->allocate_ts_feed(demux, &priv->tsfeed, dvb_net_ts_callback);
 		if (ret < 0) {
-			pr_err("%s: could not allocate ts feed\n", dev->name);
+			pr_err("%s: could yest allocate ts feed\n", dev->name);
 			goto error;
 		}
 
@@ -1130,7 +1130,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 					);
 
 		if (ret < 0) {
-			pr_err("%s: could not set ts feed\n", dev->name);
+			pr_err("%s: could yest set ts feed\n", dev->name);
 			priv->demux->release_ts_feed(priv->demux, priv->tsfeed);
 			priv->tsfeed = NULL;
 			goto error;
@@ -1179,7 +1179,7 @@ static int dvb_net_feed_stop(struct net_device *dev)
 			priv->demux->release_section_feed(priv->demux, priv->secfeed);
 			priv->secfeed = NULL;
 		} else
-			pr_err("%s: no feed to stop\n", dev->name);
+			pr_err("%s: yes feed to stop\n", dev->name);
 	} else if (priv->feedtype == DVB_NET_FEEDTYPE_ULE) {
 		if (priv->tsfeed) {
 			if (priv->tsfeed->is_filtering) {
@@ -1190,7 +1190,7 @@ static int dvb_net_feed_stop(struct net_device *dev)
 			priv->tsfeed = NULL;
 		}
 		else
-			pr_err("%s: no ts feed to stop\n", dev->name);
+			pr_err("%s: yes ts feed to stop\n", dev->name);
 	} else
 		ret = -EINVAL;
 	mutex_unlock(&priv->mutex);
@@ -1551,12 +1551,12 @@ static long dvb_net_ioctl(struct file *file,
 	return dvb_usercopy(file, cmd, arg, dvb_net_do_ioctl);
 }
 
-static int dvb_net_close(struct inode *inode, struct file *file)
+static int dvb_net_close(struct iyesde *iyesde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_net *dvbnet = dvbdev->priv;
 
-	dvb_generic_release(inode, file);
+	dvb_generic_release(iyesde, file);
 
 	if(dvbdev->users == 1 && dvbnet->exit == 1)
 		wake_up(&dvbdev->wait_queue);
@@ -1569,7 +1569,7 @@ static const struct file_operations dvb_net_fops = {
 	.unlocked_ioctl = dvb_net_ioctl,
 	.open =	dvb_generic_open,
 	.release = dvb_net_close,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static const struct dvb_device dvbdev_net = {

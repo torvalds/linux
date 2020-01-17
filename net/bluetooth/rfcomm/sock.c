@@ -179,7 +179,7 @@ static void rfcomm_sock_cleanup_listen(struct sock *parent)
 
 	BT_DBG("parent %p", parent);
 
-	/* Close not yet accepted dlcs */
+	/* Close yest yet accepted dlcs */
 	while ((sk = bt_accept_dequeue(parent, NULL))) {
 		rfcomm_sock_close(sk);
 		rfcomm_sock_kill(sk);
@@ -510,7 +510,7 @@ static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock, int f
 		}
 
 		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erryes(timeo);
 			break;
 		}
 
@@ -1048,8 +1048,8 @@ static const struct proto_ops rfcomm_sock_ops = {
 	.ioctl		= rfcomm_sock_ioctl,
 	.gettstamp	= sock_gettstamp,
 	.poll		= bt_sock_poll,
-	.socketpair	= sock_no_socketpair,
-	.mmap		= sock_no_mmap,
+	.socketpair	= sock_yes_socketpair,
+	.mmap		= sock_yes_mmap,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= rfcomm_sock_compat_ioctl,
 #endif

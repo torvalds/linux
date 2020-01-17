@@ -169,7 +169,7 @@
 		/* 2 MiB reserved for Hardware ROM Firmware? */
 		hwrom@0 {
 			reg = <0x0 0x200000>;
-			no-map;
+			yes-map;
 		};
 
 		/*
@@ -184,7 +184,7 @@
 		 */
 		power-firmware@4f00000 {
 			reg = <0x4f00000 0x100000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -376,10 +376,10 @@
 			};
 		};
 
-		spi_nor_pins: nor {
+		spi_yesr_pins: yesr {
 			mux {
-				groups = "nor_d", "nor_q", "nor_c", "nor_cs";
-				function = "nor";
+				groups = "yesr_d", "yesr_q", "yesr_c", "yesr_cs";
+				function = "yesr";
 				bias-disable;
 			};
 		};
@@ -500,8 +500,8 @@
 		clocks = <&clkc CLKID_PERIPH>;
 
 		/*
-		 * the arm_global_timer driver currently does not handle clock
-		 * rate changes. Keep it disabled for now.
+		 * the arm_global_timer driver currently does yest handle clock
+		 * rate changes. Keep it disabled for yesw.
 		 */
 		status = "disabled";
 	};

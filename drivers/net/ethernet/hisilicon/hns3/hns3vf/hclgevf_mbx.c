@@ -49,7 +49,7 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 
 	if (i >= HCLGEVF_MAX_TRY_TIMES) {
 		dev_err(&hdev->pdev->dev,
-			"VF could not get mbx(%u,%u) resp(=%d) from PF in %d tries\n",
+			"VF could yest get mbx(%u,%u) resp(=%d) from PF in %d tries\n",
 			code0, code1, hdev->mbx_resp.received_resp, i);
 		return -EIO;
 	}
@@ -68,10 +68,10 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 
 	if (!(r_code0 == code0 && r_code1 == code1 && !mbx_resp->resp_status)) {
 		dev_err(&hdev->pdev->dev,
-			"VF could not match resp code(code0=%u,code1=%u), %d\n",
+			"VF could yest match resp code(code0=%u,code1=%u), %d\n",
 			code0, code1, mbx_resp->resp_status);
 		dev_err(&hdev->pdev->dev,
-			"VF could not match resp r_code(r_code0=%u,r_code1=%u)\n",
+			"VF could yest match resp r_code(r_code0=%u,r_code1=%u)\n",
 			r_code0, r_code1);
 		return -EIO;
 	}
@@ -105,7 +105,7 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 	if (msg_data)
 		memcpy(&req->msg[2], msg_data, msg_len);
 
-	/* synchronous send */
+	/* synchroyesus send */
 	if (need_resp) {
 		mutex_lock(&hdev->mbx_resp.mbx_mutex);
 		hclgevf_reset_mbx_resp_status(hdev);
@@ -122,7 +122,7 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 					      resp_len);
 		mutex_unlock(&hdev->mbx_resp.mbx_mutex);
 	} else {
-		/* asynchronous send */
+		/* asynchroyesus send */
 		status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 		if (status) {
 			dev_err(&hdev->pdev->dev,
@@ -171,15 +171,15 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 				 "dropped invalid mailbox message, code = %u\n",
 				 req->msg[0]);
 
-			/* dropping/not processing this invalid message */
+			/* dropping/yest processing this invalid message */
 			crq->desc[crq->next_to_use].flag = 0;
 			hclge_mbx_ring_ptr_move_crq(crq);
 			continue;
 		}
 
-		/* synchronous messages are time critical and need preferential
-		 * treatment. Therefore, we need to acknowledge all the sync
-		 * responses as quickly as possible so that waiting tasks do not
+		/* synchroyesus messages are time critical and need preferential
+		 * treatment. Therefore, we need to ackyeswledge all the sync
+		 * responses as quickly as possible so that waiting tasks do yest
 		 * timeout and simultaneously queue the async messages for later
 		 * prcessing in context of mailbox task i.e. the slow path.
 		 */
@@ -187,7 +187,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 		case HCLGE_MBX_PF_VF_RESP:
 			if (resp->received_resp)
 				dev_warn(&hdev->pdev->dev,
-					 "VF mbx resp flag not clear(%u)\n",
+					 "VF mbx resp flag yest clear(%u)\n",
 					 req->msg[1]);
 			resp->received_resp = true;
 
@@ -267,7 +267,7 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 	u32 tail;
 	u8 idx;
 
-	/* we can safely clear it now as we are at start of the async message
+	/* we can safely clear it yesw as we are at start of the async message
 	 * processing
 	 */
 	hdev->mbx_event_pending = false;

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synchronous Compression operations
+ * Synchroyesus Compression operations
  *
  * Copyright 2015 LG Electronics Inc.
  * Copyright (c) 2016, Intel Corporation
  * Author: Giovanni Cabiddu <giovanni.cabiddu@intel.com>
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
@@ -90,11 +90,11 @@ static int crypto_scomp_alloc_scratches(void)
 
 		scratch = per_cpu_ptr(&scomp_scratch, i);
 
-		mem = vmalloc_node(SCOMP_SCRATCH_SIZE, cpu_to_node(i));
+		mem = vmalloc_yesde(SCOMP_SCRATCH_SIZE, cpu_to_yesde(i));
 		if (!mem)
 			goto error;
 		scratch->src = mem;
-		mem = vmalloc_node(SCOMP_SCRATCH_SIZE, cpu_to_node(i));
+		mem = vmalloc_yesde(SCOMP_SCRATCH_SIZE, cpu_to_yesde(i));
 		if (!mem)
 			goto error;
 		scratch->dst = mem;
@@ -302,4 +302,4 @@ void crypto_unregister_scomps(struct scomp_alg *algs, int count)
 EXPORT_SYMBOL_GPL(crypto_unregister_scomps);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Synchronous compression type");
+MODULE_DESCRIPTION("Synchroyesus compression type");

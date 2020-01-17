@@ -315,7 +315,7 @@ static const struct iio_info ad7791_info = {
 	.validate_trigger = ad_sd_validate_trigger,
 };
 
-static const struct iio_info ad7791_no_filter_info = {
+static const struct iio_info ad7791_yes_filter_info = {
 	.read_raw = &ad7791_read_raw,
 	.write_raw = &ad7791_write_raw,
 	.validate_trigger = ad_sd_validate_trigger,
@@ -335,7 +335,7 @@ static int ad7791_setup(struct ad7791_state *st,
 		st->mode &= ~AD7791_MODE_BUFFER;
 
 	if ((st->info->flags & AD7791_FLAG_HAS_BURNOUT) &&
-		pdata->burnout_current)
+		pdata->buryesut_current)
 		st->mode |= AD7791_MODE_BURNOUT;
 
 	if ((st->info->flags & AD7791_FLAG_HAS_UNIPOLAR) && pdata->unipolar)
@@ -377,7 +377,7 @@ static int ad7791_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->info->channels;
@@ -385,7 +385,7 @@ static int ad7791_probe(struct spi_device *spi)
 	if (st->info->flags & AD7791_FLAG_HAS_FILTER)
 		indio_dev->info = &ad7791_info;
 	else
-		indio_dev->info = &ad7791_no_filter_info;
+		indio_dev->info = &ad7791_yes_filter_info;
 
 	ret = ad_sd_setup_buffer_and_trigger(indio_dev);
 	if (ret)

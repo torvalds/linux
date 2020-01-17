@@ -103,13 +103,13 @@ static void parse_user_hints(struct hda_codec *codec)
 
 	val = snd_hda_get_bool_hint(codec, "jack_detect");
 	if (val >= 0)
-		codec->no_jack_detect = !val;
+		codec->yes_jack_detect = !val;
 	val = snd_hda_get_bool_hint(codec, "inv_jack_detect");
 	if (val >= 0)
 		codec->inv_jack_detect = !!val;
 	val = snd_hda_get_bool_hint(codec, "trigger_sense");
 	if (val >= 0)
-		codec->no_trigger_sense = !val;
+		codec->yes_trigger_sense = !val;
 	val = snd_hda_get_bool_hint(codec, "inv_eapd");
 	if (val >= 0)
 		codec->inv_eapd = !!val;
@@ -118,7 +118,7 @@ static void parse_user_hints(struct hda_codec *codec)
 		codec->pcm_format_first = !!val;
 	val = snd_hda_get_bool_hint(codec, "sticky_stream");
 	if (val >= 0)
-		codec->no_sticky_stream = !val;
+		codec->yes_sticky_stream = !val;
 	val = snd_hda_get_bool_hint(codec, "spdif_status_reset");
 	if (val >= 0)
 		codec->spdif_status_reset = !!val;
@@ -128,9 +128,9 @@ static void parse_user_hints(struct hda_codec *codec)
 	val = snd_hda_get_bool_hint(codec, "single_adc_amp");
 	if (val >= 0)
 		codec->single_adc_amp = !!val;
-	val = snd_hda_get_bool_hint(codec, "power_save_node");
+	val = snd_hda_get_bool_hint(codec, "power_save_yesde");
 	if (val >= 0)
-		codec->power_save_node = !!val;
+		codec->power_save_yesde = !!val;
 
 	val = snd_hda_get_bool_hint(codec, "auto_mute");
 	if (val >= 0)
@@ -149,10 +149,10 @@ static void parse_user_hints(struct hda_codec *codec)
 		spec->need_dac_fix = !!val;
 	val = snd_hda_get_bool_hint(codec, "primary_hp");
 	if (val >= 0)
-		spec->no_primary_hp = !val;
+		spec->yes_primary_hp = !val;
 	val = snd_hda_get_bool_hint(codec, "multi_io");
 	if (val >= 0)
-		spec->no_multi_io = !val;
+		spec->yes_multi_io = !val;
 	val = snd_hda_get_bool_hint(codec, "multi_cap_vol");
 	if (val >= 0)
 		spec->multi_cap_vol = !!val;
@@ -231,7 +231,7 @@ static void set_pin_targets(struct hda_codec *codec, int num_pins,
  * parsing paths
  */
 
-/* return the position of NID in the list, or -1 if not found */
+/* return the position of NID in the list, or -1 if yest found */
 static int find_idx_in_nid_list(hda_nid_t nid, const hda_nid_t *list, int nums)
 {
 	int i;
@@ -399,7 +399,7 @@ static bool __parse_nid_path(struct hda_codec *codec,
 			    is_dac_already_used(codec, conn[i]))
 				continue;
 		}
-		/* anchor is not requested or already passed? */
+		/* anchor is yest requested or already passed? */
 		if (anchor_nid <= 0)
 			goto found;
 	}
@@ -443,7 +443,7 @@ static bool __parse_nid_path(struct hda_codec *codec,
  * with the given value are evaluated.
  * when @anchor_nid is set to a negative value, paths through the widget
  * with the negative of given value are excluded, only other paths are chosen.
- * when @anchor_nid is zero, no special handling about path selection.
+ * when @anchor_nid is zero, yes special handling about path selection.
  */
 static bool snd_hda_parse_nid_path(struct hda_codec *codec, hda_nid_t from_nid,
 			    hda_nid_t to_nid, int anchor_nid,
@@ -465,7 +465,7 @@ static bool snd_hda_parse_nid_path(struct hda_codec *codec, hda_nid_t from_nid,
  * @to_nid: the NID where the path ends at
  * @anchor_nid: the anchor indication, see snd_hda_parse_nid_path()
  *
- * If no valid path is found, returns NULL.
+ * If yes valid path is found, returns NULL.
  */
 struct nid_path *
 snd_hda_add_new_path(struct hda_codec *codec, hda_nid_t from_nid,
@@ -635,10 +635,10 @@ static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
 	snd_array_for_each(&spec->paths, n, path) {
 		if (!path->active)
 			continue;
-		if (codec->power_save_node) {
+		if (codec->power_save_yesde) {
 			if (!path->stream_enabled)
 				continue;
-			/* ignore unplugged paths except for DAC/ADC */
+			/* igyesre unplugged paths except for DAC/ADC */
 			if (!(path->pin_enabled || path->pin_fixed) &&
 			    type != AC_WID_AUD_OUT && type != AC_WID_AUD_IN)
 				continue;
@@ -677,7 +677,7 @@ static int get_amp_val_to_activate(struct hda_codec *codec, hda_nid_t nid,
 	return val;
 }
 
-/* is this a stereo widget or a stereo-to-mono mix? */
+/* is this a stereo widget or a stereo-to-moyes mix? */
 static bool is_stereo_amps(struct hda_codec *codec, hda_nid_t nid, int dir)
 {
 	unsigned int wcaps = get_wcaps(codec, nid);
@@ -706,7 +706,7 @@ static void init_amp(struct hda_codec *codec, hda_nid_t nid, int dir, int idx)
 		snd_hda_codec_amp_init(codec, nid, 0, dir, idx, 0xff, val);
 }
 
-/* update the amp, doing in stereo or mono depending on NID */
+/* update the amp, doing in stereo or moyes depending on NID */
 static int update_amp(struct hda_codec *codec, hda_nid_t nid, int dir, int idx,
 		      unsigned int mask, unsigned int val)
 {
@@ -837,7 +837,7 @@ static hda_nid_t path_power_update(struct hda_codec *codec,
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_POWER_STATE, state);
 			changed = nid;
-			/* all known codecs seem to be capable to handl
+			/* all kyeswn codecs seem to be capable to handl
 			 * widgets state even in D3, so far.
 			 * if any new codecs need to restore the widget
 			 * states after D0 transition, call the function
@@ -845,7 +845,7 @@ static hda_nid_t path_power_update(struct hda_codec *codec,
 			 */
 #if 0 /* disabled */
 			if (state == AC_PWRST_D0)
-				snd_hdac_regmap_sync_node(&codec->core, nid);
+				snd_hdac_regmap_sync_yesde(&codec->core, nid);
 #endif
 		}
 	}
@@ -865,7 +865,7 @@ static void sync_power_state_change(struct hda_codec *codec, hda_nid_t nid)
  * snd_hda_activate_path - activate or deactivate the given path
  * @codec: the HDA codec
  * @path: the path to activate/deactivate
- * @enable: flag to activate or not
+ * @enable: flag to activate or yest
  * @add_aamix: enable the input from aamix NID
  *
  * If @add_aamix is set, enable the input from aa-mix NID as well (if any).
@@ -879,8 +879,8 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 	path->active = enable;
 
 	/* make sure the widget is powered up */
-	if (enable && (spec->power_down_unused || codec->power_save_node))
-		path_power_update(codec, path, codec->power_save_node);
+	if (enable && (spec->power_down_unused || codec->power_save_yesde))
+		path_power_update(codec, path, codec->power_save_yesde);
 
 	for (i = path->depth - 1; i >= 0; i--) {
 		hda_nid_t nid = path->path[i];
@@ -902,7 +902,7 @@ static void path_power_down_sync(struct hda_codec *codec, struct nid_path *path)
 {
 	struct hda_gen_spec *spec = codec->spec;
 
-	if (!(spec->power_down_unused || codec->power_save_node) || path->active)
+	if (!(spec->power_down_unused || codec->power_save_yesde) || path->active)
 		return;
 	sync_power_state_change(codec, path_power_update(codec, path, true));
 }
@@ -1022,7 +1022,7 @@ static int add_vol_ctl(struct hda_codec *codec, const char *pfx, int cidx,
 static int get_default_ch_nums(struct hda_codec *codec, struct nid_path *path,
 			       int type)
 {
-	int chs = 1; /* mono (left only) */
+	int chs = 1; /* moyes (left only) */
 	if (path) {
 		hda_nid_t nid = get_amp_nid_(path->ctls[type]);
 		if (nid && (get_wcaps(codec, nid) & AC_WCAP_STEREO))
@@ -1259,7 +1259,7 @@ enum {
 /* look for widgets in the given path which are appropriate for
  * volume and mute controls, and assign the values to ctls[].
  *
- * When no appropriate widget is found in the path, the badness value
+ * When yes appropriate widget is found in the path, the badness value
  * is incremented depending on the situation.  The function returns the
  * total badness for both volume and mute controls.
  */
@@ -1306,8 +1306,8 @@ static int assign_out_path_ctls(struct hda_codec *codec, struct nid_path *path)
 }
 
 const struct badness_table hda_main_out_badness = {
-	.no_primary_dac = BAD_NO_PRIMARY_DAC,
-	.no_dac = BAD_NO_DAC,
+	.yes_primary_dac = BAD_NO_PRIMARY_DAC,
+	.yes_dac = BAD_NO_DAC,
 	.shared_primary = BAD_NO_PRIMARY_DAC,
 	.shared_surr = BAD_SHARED_SURROUND,
 	.shared_clfe = BAD_SHARED_CLFE,
@@ -1316,8 +1316,8 @@ const struct badness_table hda_main_out_badness = {
 EXPORT_SYMBOL_GPL(hda_main_out_badness);
 
 const struct badness_table hda_extra_out_badness = {
-	.no_primary_dac = BAD_NO_DAC,
-	.no_dac = BAD_NO_DAC,
+	.yes_primary_dac = BAD_NO_DAC,
+	.yes_dac = BAD_NO_DAC,
 	.shared_primary = BAD_NO_EXTRA_DAC,
 	.shared_surr = BAD_SHARED_EXTRA_SURROUND,
 	.shared_clfe = BAD_SHARED_EXTRA_SURROUND,
@@ -1409,9 +1409,9 @@ static int try_assign_dacs(struct hda_codec *codec, int num_outs,
 				dac = spec->private_dac_nids[0];
 				badness += bad->shared_surr_main;
 			} else if (!i)
-				badness += bad->no_primary_dac;
+				badness += bad->yes_primary_dac;
 			else
-				badness += bad->no_dac;
+				badness += bad->yes_dac;
 		}
 		if (!dac)
 			continue;
@@ -1422,7 +1422,7 @@ static int try_assign_dacs(struct hda_codec *codec, int num_outs,
 		}
 		if (!path) {
 			dac = dacs[i] = 0;
-			badness += bad->no_dac;
+			badness += bad->yes_dac;
 		} else {
 			/* print_nid_path(codec, "output", path); */
 			path->active = true;
@@ -1497,7 +1497,7 @@ static int count_multiio_pins(struct hda_codec *codec, hda_nid_t reference_pin)
  * multi-io helper
  *
  * When hardwired is set, try to fill ony hardwired pins, and returns
- * zero if any pins are filled, non-zero if nothing found.
+ * zero if any pins are filled, yesn-zero if yesthing found.
  * When hardwired is off, try to fill possible input pins, and returns
  * the badness value.
  */
@@ -1566,9 +1566,9 @@ static int fill_multi_ios(struct hda_codec *codec,
 		badness = BAD_MULTI_IO;
 	if (old_pins == spec->multi_ios) {
 		if (hardwired)
-			return 1; /* nothing found */
+			return 1; /* yesthing found */
 		else
-			return badness; /* no badness if nothing found */
+			return badness; /* yes badness if yesthing found */
 	}
 	if (!hardwired && spec->multi_ios < 2) {
 		/* cancel newly assigned paths */
@@ -1674,7 +1674,7 @@ static bool indep_hp_possible(struct hda_codec *codec)
 	if (!path)
 		return false;
 
-	/* assume no path conflicts unless aamix is involved */
+	/* assume yes path conflicts unless aamix is involved */
 	if (!spec->mixer_nid || !is_nid_contained(path, spec->mixer_nid))
 		return true;
 
@@ -1760,7 +1760,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 					      cfg->speaker_pins,
 					      spec->multiout.extra_out_nid,
 					      spec->speaker_paths);
-			if (!spec->no_multi_io &&
+			if (!spec->yes_multi_io &&
 			    fill_mio_first && cfg->line_outs == 1 &&
 			    cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
 				err = fill_multi_ios(codec, cfg->line_out_pins[0], true);
@@ -1774,7 +1774,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 				   spec->private_dac_nids, spec->out_paths,
 				   spec->main_out_badness);
 
-	if (!spec->no_multi_io && fill_mio_first &&
+	if (!spec->yes_multi_io && fill_mio_first &&
 	    cfg->line_outs == 1 && cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
 		/* try to fill multi-io first */
 		err = fill_multi_ios(codec, cfg->line_out_pins[0], false);
@@ -1802,7 +1802,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 			return err;
 		badness += err;
 	}
-	if (!spec->no_multi_io &&
+	if (!spec->yes_multi_io &&
 	    cfg->line_outs == 1 && cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
 		err = fill_multi_ios(codec, cfg->line_out_pins[0], false);
 		if (err < 0)
@@ -1821,7 +1821,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 				check_aamix_out_path(codec, spec->speaker_paths[0]);
 	}
 
-	if (!spec->no_multi_io &&
+	if (!spec->yes_multi_io &&
 	    cfg->hp_outs && cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
 		if (count_multiio_pins(codec, cfg->hp_pins[0]) >= 2)
 			spec->multi_ios = 1; /* give badness */
@@ -1948,7 +1948,7 @@ static void fill_all_dac_nids(struct hda_codec *codec)
 
 	spec->num_all_dacs = 0;
 	memset(spec->all_dacs, 0, sizeof(spec->all_dacs));
-	for_each_hda_codec_node(nid, codec) {
+	for_each_hda_codec_yesde(nid, codec) {
 		if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_AUD_OUT)
 			continue;
 		if (spec->num_all_dacs >= ARRAY_SIZE(spec->all_dacs)) {
@@ -2071,7 +2071,7 @@ static int parse_output_paths(struct hda_codec *codec)
 				cfg->speaker_pins, val);
 	}
 
-	/* clear indep_hp flag if not available */
+	/* clear indep_hp flag if yest available */
 	if (spec->indep_hp && !indep_hp_possible(codec))
 		spec->indep_hp = 0;
 
@@ -2084,13 +2084,13 @@ static int create_multi_out_ctls(struct hda_codec *codec,
 				 const struct auto_pin_cfg *cfg)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	int i, err, noutputs;
+	int i, err, yesutputs;
 
-	noutputs = cfg->line_outs;
+	yesutputs = cfg->line_outs;
 	if (spec->multi_ios > 0 && cfg->line_outs < 3)
-		noutputs += spec->multi_ios;
+		yesutputs += spec->multi_ios;
 
-	for (i = 0; i < noutputs; i++) {
+	for (i = 0; i < yesutputs; i++) {
 		const char *name;
 		int index;
 		struct nid_path *path;
@@ -2215,7 +2215,7 @@ static int indep_hp_get(struct snd_kcontrol *kcontrol,
 }
 
 static void update_aamix_paths(struct hda_codec *codec, bool do_mix,
-			       int nomix_path_idx, int mix_path_idx,
+			       int yesmix_path_idx, int mix_path_idx,
 			       int out_type);
 
 static int indep_hp_put(struct snd_kcontrol *kcontrol,
@@ -2435,15 +2435,15 @@ static int loopback_mixing_get(struct snd_kcontrol *kcontrol,
 }
 
 static void update_aamix_paths(struct hda_codec *codec, bool do_mix,
-			       int nomix_path_idx, int mix_path_idx,
+			       int yesmix_path_idx, int mix_path_idx,
 			       int out_type)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	struct nid_path *nomix_path, *mix_path;
+	struct nid_path *yesmix_path, *mix_path;
 
-	nomix_path = snd_hda_get_path_from_idx(codec, nomix_path_idx);
+	yesmix_path = snd_hda_get_path_from_idx(codec, yesmix_path_idx);
 	mix_path = snd_hda_get_path_from_idx(codec, mix_path_idx);
-	if (!nomix_path || !mix_path)
+	if (!yesmix_path || !mix_path)
 		return;
 
 	/* if HP aamix path is driven from a different DAC and the
@@ -2454,12 +2454,12 @@ static void update_aamix_paths(struct hda_codec *codec, bool do_mix,
 		do_mix = false;
 
 	if (do_mix) {
-		snd_hda_activate_path(codec, nomix_path, false, true);
+		snd_hda_activate_path(codec, yesmix_path, false, true);
 		snd_hda_activate_path(codec, mix_path, true, true);
-		path_power_down_sync(codec, nomix_path);
+		path_power_down_sync(codec, yesmix_path);
 	} else {
 		snd_hda_activate_path(codec, mix_path, false, false);
-		snd_hda_activate_path(codec, nomix_path, true, false);
+		snd_hda_activate_path(codec, yesmix_path, true, false);
 		path_power_down_sync(codec, mix_path);
 	}
 }
@@ -2593,7 +2593,7 @@ static int create_hp_mic(struct hda_codec *codec)
 	if (!spec->hp_mic) {
 		if (spec->suppress_hp_mic_detect)
 			return 0;
-		/* automatic detection: only if no input or a single internal
+		/* automatic detection: only if yes input or a single internal
 		 * input pin is found, try to detect the shared hp/mic
 		 */
 		if (cfg->num_inputs > 1)
@@ -2618,7 +2618,7 @@ static int create_hp_mic(struct hda_codec *codec)
 		return 0;
 
 	if (!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_IN))
-		return 0; /* no input */
+		return 0; /* yes input */
 
 	cfg->inputs[cfg->num_inputs].pin = nid;
 	cfg->inputs[cfg->num_inputs].type = AUTO_PIN_MIC;
@@ -2868,12 +2868,12 @@ static int create_in_jack_mode(struct hda_codec *codec, hda_nid_t pin)
 	if (pin == spec->hp_mic_pin)
 		return 0; /* already done in create_out_jack_mode() */
 
-	/* no jack mode for fixed pins */
+	/* yes jack mode for fixed pins */
 	defcfg = snd_hda_codec_get_pincfg(codec, pin);
 	if (snd_hda_get_input_pin_attr(defcfg) == INPUT_PIN_ATTR_INT)
 		return 0;
 
-	/* no multiple vref caps? */
+	/* yes multiple vref caps? */
 	if (get_in_jack_num_items(codec, pin) <= 1)
 		return 0;
 
@@ -3029,7 +3029,7 @@ static int add_loopback_list(struct hda_gen_spec *spec, hda_nid_t mix, int idx)
 }
 
 /* return true if either a volume or a mute amp is found for the given
- * aamix path; the amp has to be either in the mixer node or its direct leaf
+ * aamix path; the amp has to be either in the mixer yesde or its direct leaf
  */
 static bool look_for_mix_leaf_ctls(struct hda_codec *codec, hda_nid_t mix_nid,
 				   hda_nid_t pin, unsigned int *mix_val,
@@ -3051,7 +3051,7 @@ static bool look_for_mix_leaf_ctls(struct hda_codec *codec, hda_nid_t mix_nid,
 	if (*mix_val && *mute_val)
 		return true;
 
-	/* check leaf node */
+	/* check leaf yesde */
 	num_conns = snd_hda_get_conn_list(codec, mix_nid, &list);
 	if (num_conns < idx)
 		return false;
@@ -3101,7 +3101,7 @@ static int new_analog_input(struct hda_codec *codec, int input_idx,
 	}
 
 	path->active = true;
-	path->stream_enabled = true; /* no DAC/ADC involved */
+	path->stream_enabled = true; /* yes DAC/ADC involved */
 	err = add_loopback_list(spec, mix_nid, idx);
 	if (err < 0)
 		return err;
@@ -3114,7 +3114,7 @@ static int new_analog_input(struct hda_codec *codec, int input_idx,
 			print_nid_path(codec, "loopback-merge", path);
 			path->active = true;
 			path->pin_fixed = true; /* static route */
-			path->stream_enabled = true; /* no DAC/ADC involved */
+			path->stream_enabled = true; /* yes DAC/ADC involved */
 			spec->loopback_merge_path =
 				snd_hda_get_path_idx(codec, path);
 		}
@@ -3138,7 +3138,7 @@ static int fill_adc_nids(struct hda_codec *codec)
 	int max_nums = ARRAY_SIZE(spec->adc_nids);
 	int nums = 0;
 
-	for_each_hda_codec_node(nid, codec) {
+	for_each_hda_codec_yesde(nid, codec) {
 		unsigned int caps = get_wcaps(codec, nid);
 		int type = get_wcaps_type(caps);
 
@@ -3939,7 +3939,7 @@ static void update_micmute_led(struct hda_codec *codec,
 		return;
 	mask = 1U << snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	if (!strcmp("Capture Switch", ucontrol->id.name)) {
-		/* TODO: How do I verify if it's a mono or stereo here? */
+		/* TODO: How do I verify if it's a moyes or stereo here? */
 		if (ucontrol->value.integer.value[0] ||
 		    ucontrol->value.integer.value[1])
 			spec->micmute_led.capture |= mask;
@@ -4036,7 +4036,7 @@ static void call_ledtrig_micmute(struct hda_codec *codec)
 /**
  * snd_hda_gen_fixup_micmute_led - A fixup for mic-mute LED trigger
  *
- * Pass this function to the quirk entry if another driver supports the
+ * Pass this function to the quirk entry if ayesther driver supports the
  * audio mic-mute LED trigger.  Then this will bind the mixer capture switch
  * change with the LED.
  *
@@ -4075,7 +4075,7 @@ static void parse_digital(struct hda_codec *codec)
 			continue;
 		print_nid_path(codec, "digout", path);
 		path->active = true;
-		path->pin_fixed = true; /* no jack detection */
+		path->pin_fixed = true; /* yes jack detection */
 		spec->digout_paths[i] = snd_hda_get_path_idx(codec, path);
 		set_pin_target(codec, pin, PIN_OUT, false);
 		if (!nums) {
@@ -4092,7 +4092,7 @@ static void parse_digital(struct hda_codec *codec)
 
 	if (spec->autocfg.dig_in_pin) {
 		pin = spec->autocfg.dig_in_pin;
-		for_each_hda_codec_node(dig_nid, codec) {
+		for_each_hda_codec_yesde(dig_nid, codec) {
 			unsigned int wcaps = get_wcaps(codec, dig_nid);
 			if (get_wcaps_type(wcaps) != AC_WID_AUD_IN)
 				continue;
@@ -4102,7 +4102,7 @@ static void parse_digital(struct hda_codec *codec)
 			if (path) {
 				print_nid_path(codec, "digin", path);
 				path->active = true;
-				path->pin_fixed = true; /* no jack */
+				path->pin_fixed = true; /* yes jack */
 				spec->dig_in_nid = dig_nid;
 				spec->digin_path = snd_hda_get_path_idx(codec, path);
 				set_pin_target(codec, pin, PIN_IN, false);
@@ -4217,7 +4217,7 @@ static hda_nid_t set_pin_power_jack(struct hda_codec *codec, hda_nid_t pin,
 {
 	bool on;
 
-	if (!codec->power_save_node)
+	if (!codec->power_save_yesde)
 		return 0;
 
 	on = detect_pin_state(codec, pin);
@@ -4275,7 +4275,7 @@ static void add_all_pin_power_ctls(struct hda_codec *codec, bool on)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	if (!codec->power_save_node)
+	if (!codec->power_save_yesde)
 		return;
 	add_pin_power_ctls(codec, cfg->line_outs, cfg->line_out_pins, on);
 	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
@@ -4304,7 +4304,7 @@ static void sync_all_pin_power_ctls(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	if (!codec->power_save_node)
+	if (!codec->power_save_yesde)
 		return;
 	sync_pin_power_ctls(codec, cfg->line_outs, cfg->line_out_pins);
 	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
@@ -4315,7 +4315,7 @@ static void sync_all_pin_power_ctls(struct hda_codec *codec)
 		sync_pin_power_ctls(codec, 1, &cfg->inputs[i].pin);
 }
 
-/* add fake paths if not present yet */
+/* add fake paths if yest present yet */
 static int add_fake_paths(struct hda_codec *codec, hda_nid_t nid,
 			   int num_pins, const hda_nid_t *pins)
 {
@@ -4348,7 +4348,7 @@ static int add_fake_beep_paths(struct hda_codec *codec)
 	hda_nid_t nid = spec->beep_nid;
 	int err;
 
-	if (!codec->power_save_node || !nid)
+	if (!codec->power_save_yesde || !nid)
 		return 0;
 	err = add_fake_paths(codec, nid, cfg->line_outs, cfg->line_out_pins);
 	if (err < 0)
@@ -4434,7 +4434,7 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 
 		oldval = snd_hda_codec_get_pin_target(codec, nid);
 		if (oldval & PIN_IN)
-			continue; /* no mute for inputs */
+			continue; /* yes mute for inputs */
 
 		if (spec->auto_mute_via_amp) {
 			struct nid_path *path;
@@ -4470,7 +4470,7 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 		}
 
 		set_pin_eapd(codec, nid, !mute);
-		if (codec->power_save_node) {
+		if (codec->power_save_yesde) {
 			bool on = !mute;
 			if (on)
 				on = detect_pin_state(codec, nid);
@@ -4841,7 +4841,7 @@ static bool auto_mic_check_imux(struct hda_codec *codec)
 			find_idx_in_nid_list(spec->am_entry[i].pin,
 					     spec->imux_pins, imux->num_items);
 		if (spec->am_entry[i].idx < 0)
-			return false; /* no corresponding imux */
+			return false; /* yes corresponding imux */
 	}
 
 	/* we don't need the jack detection for the first pin */
@@ -4896,7 +4896,7 @@ static int check_auto_mic_availability(struct hda_codec *codec)
 			    cfg->inputs[i].type != AUTO_PIN_MIC)
 				return 0; /* only mic is allowed */
 			if (!is_jack_detectable(codec, nid))
-				return 0; /* no unsol support */
+				return 0; /* yes unsol support */
 			break;
 		}
 		if (num_pins >= MAX_AUTO_MIC_PINS)
@@ -4944,7 +4944,7 @@ unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
 {
 	struct hda_gen_spec *spec = codec->spec;
 
-	if (!spec->power_down_unused && !codec->power_save_node)
+	if (!spec->power_down_unused && !codec->power_save_yesde)
 		return power_state;
 	if (power_state != AC_PWRST_D0 || nid == codec->core.afg)
 		return power_state;
@@ -4981,11 +4981,11 @@ static void mute_all_mixer_nid(struct hda_codec *codec, hda_nid_t mix)
  * @nid: audio widget
  * @on: power on/off flag
  *
- * Set this in patch_ops.stream_pm.  Only valid with power_save_node flag.
+ * Set this in patch_ops.stream_pm.  Only valid with power_save_yesde flag.
  */
 void snd_hda_gen_stream_pm(struct hda_codec *codec, hda_nid_t nid, bool on)
 {
-	if (codec->power_save_node)
+	if (codec->power_save_yesde)
 		set_path_power(codec, nid, -1, on);
 }
 EXPORT_SYMBOL_GPL(snd_hda_gen_stream_pm);
@@ -4996,7 +4996,7 @@ EXPORT_SYMBOL_GPL(snd_hda_gen_stream_pm);
  * @codec: the HDA codec
  * @cfg: Parsed pin configuration
  *
- * return 1 if successful, 0 if the proper config is not found,
+ * return 1 if successful, 0 if the proper config is yest found,
  * or a negative error code
  */
 int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
@@ -5025,14 +5025,14 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 	if (!cfg->line_outs) {
 		if (cfg->dig_outs || cfg->dig_in_pin) {
 			spec->multiout.max_channels = 2;
-			spec->no_analog = 1;
+			spec->yes_analog = 1;
 			goto dig_only;
 		}
 		if (!cfg->num_inputs && !cfg->dig_in_pin)
 			return 0; /* can't find valid BIOS pin config */
 	}
 
-	if (!spec->no_primary_hp &&
+	if (!spec->yes_primary_hp &&
 	    cfg->line_out_type == AUTO_PIN_SPEAKER_OUT &&
 	    cfg->line_outs <= cfg->hp_outs) {
 		/* use HP as primary out */
@@ -5100,7 +5100,7 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 	if (err < 0)
 		return err;
 
-	/* add stereo mix if available and not enabled yet */
+	/* add stereo mix if available and yest enabled yet */
 	if (!spec->auto_mic && spec->mixer_nid &&
 	    spec->add_stereo_mix_input == HDA_HINT_STEREO_MIX_AUTO &&
 	    spec->input_mux.num_items > 1) {
@@ -5120,7 +5120,7 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 	if (err < 0)
 		return err;
 
-	/* create "Headphone Mic Jack Mode" if no input selection is
+	/* create "Headphone Mic Jack Mode" if yes input selection is
 	 * available (or user specifies add_jack_modes hint)
 	 */
 	if (spec->hp_mic_pin &&
@@ -5156,18 +5156,18 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
  dig_only:
 	parse_digital(codec);
 
-	if (spec->power_down_unused || codec->power_save_node) {
+	if (spec->power_down_unused || codec->power_save_yesde) {
 		if (!codec->power_filter)
 			codec->power_filter = snd_hda_gen_path_power_filter;
 		if (!codec->patch_ops.stream_pm)
 			codec->patch_ops.stream_pm = snd_hda_gen_stream_pm;
 	}
 
-	if (!spec->no_analog && spec->beep_nid) {
+	if (!spec->yes_analog && spec->beep_nid) {
 		err = snd_hda_attach_beep_device(codec, spec->beep_nid);
 		if (err < 0)
 			return err;
-		if (codec->beep && codec->power_save_node) {
+		if (codec->beep && codec->power_save_yesde) {
 			err = add_fake_beep_paths(codec);
 			if (err < 0)
 				return err;
@@ -5187,7 +5187,7 @@ EXPORT_SYMBOL_GPL(snd_hda_gen_parse_auto_config);
 /* slave controls for virtual master */
 static const char * const slave_pfxs[] = {
 	"Front", "Surround", "Center", "LFE", "Side",
-	"Headphone", "Speaker", "Mono", "Line Out",
+	"Headphone", "Speaker", "Moyes", "Line Out",
 	"CLFE", "Bass Speaker", "PCM",
 	"Speaker Front", "Speaker Surround", "Speaker CLFE", "Speaker Side",
 	"Headphone Front", "Headphone Surround", "Headphone CLFE",
@@ -5219,7 +5219,7 @@ int snd_hda_gen_build_controls(struct hda_codec *codec)
 						  spec->pcm_rec[1]->pcm_type);
 		if (err < 0)
 			return err;
-		if (!spec->no_analog) {
+		if (!spec->yes_analog) {
 			err = snd_hda_create_spdif_share_sw(codec,
 							    &spec->multiout);
 			if (err < 0)
@@ -5233,8 +5233,8 @@ int snd_hda_gen_build_controls(struct hda_codec *codec)
 			return err;
 	}
 
-	/* if we have no master control, let's create it */
-	if (!spec->no_analog && !spec->suppress_vmaster &&
+	/* if we have yes master control, let's create it */
+	if (!spec->yes_analog && !spec->suppress_vmaster &&
 	    !snd_hda_find_mixer_ctl(codec, "Master Playback Volume")) {
 		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
 					  spec->vmaster_tlv, slave_pfxs,
@@ -5242,7 +5242,7 @@ int snd_hda_gen_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
-	if (!spec->no_analog && !spec->suppress_vmaster &&
+	if (!spec->yes_analog && !spec->suppress_vmaster &&
 	    !snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
 		err = __snd_hda_add_vmaster(codec, "Master Playback Switch",
 					    NULL, slave_pfxs,
@@ -5257,7 +5257,7 @@ int snd_hda_gen_build_controls(struct hda_codec *codec)
 		}
 	}
 
-	free_kctls(spec); /* no longer needed */
+	free_kctls(spec); /* yes longer needed */
 
 	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
 	if (err < 0)
@@ -5596,7 +5596,7 @@ static const struct hda_pcm_stream pcm_digital_capture = {
 	/* NID is set in build_pcms */
 };
 
-/* Used by build_pcms to flag that a PCM has no playback stream */
+/* Used by build_pcms to flag that a PCM has yes playback stream */
 static const struct hda_pcm_stream pcm_null_stream = {
 	.substreams = 0,
 	.channels_min = 0,
@@ -5670,7 +5670,7 @@ static void fill_pcm_stream_name(char *str, size_t len, const char *sfx,
 		return;
 	strlcpy(str, chip_name, len);
 
-	/* drop non-alnum chars after a space */
+	/* drop yesn-alnum chars after a space */
 	for (p = strchr(str, ' '); p; p = strchr(p + 1, ' ')) {
 		if (!isalnum(p[1])) {
 			*p = 0;
@@ -5680,7 +5680,7 @@ static void fill_pcm_stream_name(char *str, size_t len, const char *sfx,
 	strlcat(str, sfx, len);
 }
 
-/* copy PCM stream info from @default_str, and override non-NULL entries
+/* copy PCM stream info from @default_str, and override yesn-NULL entries
  * from @spec_str and @nid
  */
 static void setup_pcm_stream(struct hda_pcm_stream *str,
@@ -5719,7 +5719,7 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 	struct hda_pcm *info;
 	bool have_multi_adcs;
 
-	if (spec->no_analog)
+	if (spec->yes_analog)
 		goto skip_analog;
 
 	fill_pcm_stream_name(spec->stream_name_analog,
@@ -5778,7 +5778,7 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 					 spec->dig_in_nid);
 	}
 
-	if (spec->no_analog)
+	if (spec->yes_analog)
 		return 0;
 
 	/* If the use of more than one ADC is requested for the current
@@ -6053,14 +6053,14 @@ void snd_hda_gen_free(struct hda_codec *codec)
 EXPORT_SYMBOL_GPL(snd_hda_gen_free);
 
 /**
- * snd_hda_gen_reboot_notify - Make codec enter D3 before rebooting
+ * snd_hda_gen_reboot_yestify - Make codec enter D3 before rebooting
  * @codec: the HDA codec
  *
- * This can be put as patch_ops reboot_notify function.
+ * This can be put as patch_ops reboot_yestify function.
  */
-void snd_hda_gen_reboot_notify(struct hda_codec *codec)
+void snd_hda_gen_reboot_yestify(struct hda_codec *codec)
 {
-	/* Make the codec enter D3 to avoid spurious noises from the internal
+	/* Make the codec enter D3 to avoid spurious yesises from the internal
 	 * speaker during (and after) reboot
 	 */
 	snd_hda_codec_set_power_to_all(codec, codec->core.afg, AC_PWRST_D3);
@@ -6068,7 +6068,7 @@ void snd_hda_gen_reboot_notify(struct hda_codec *codec)
 			    AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
 	msleep(10);
 }
-EXPORT_SYMBOL_GPL(snd_hda_gen_reboot_notify);
+EXPORT_SYMBOL_GPL(snd_hda_gen_reboot_yestify);
 
 #ifdef CONFIG_PM
 /**
@@ -6097,7 +6097,7 @@ static const struct hda_codec_ops generic_patch_ops = {
 	.init = snd_hda_gen_init,
 	.free = snd_hda_gen_free,
 	.unsol_event = snd_hda_jack_unsol_event,
-	.reboot_notify = snd_hda_gen_reboot_notify,
+	.reboot_yestify = snd_hda_gen_reboot_yestify,
 #ifdef CONFIG_PM
 	.check_power_status = snd_hda_gen_check_power_status,
 #endif

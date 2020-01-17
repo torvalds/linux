@@ -14,7 +14,7 @@ from the forward chain via the 'flow offload' action available in nftables.
 
 Packets that find an entry in the flowtable (ie. flowtable hit) are sent to the
 output netdevice via neigh_xmit(), hence, they bypass the classic forwarding
-path (the visible effect is that you do not see these packets from any of the
+path (the visible effect is that you do yest see these packets from any of the
 netfilter hooks coming after the ingress). In case of flowtable miss, the packet
 follows the classic forward path.
 
@@ -54,10 +54,10 @@ including the Netfilter hooks and the flowtable fastpath bypass.
     |_____|   |                     flowtable                             |
        |      |                                                           |
       / \     |                                                           |
-     /hit\_no_|                                                           |
+     /hit\_yes_|                                                           |
      \ ? /                                                                |
       \ /                                                                 |
-       |__yes_________________fastpath bypass ____________________________|
+       |__no_________________fastpath bypass ____________________________|
 
                Fig.1 Netfilter hooks and flowtable interactions
 
@@ -66,7 +66,7 @@ mangled according to the NAT policy that matches the initial packets that went
 through the classic forwarding path. The TTL is decremented before calling
 neigh_xmit(). Fragmented traffic is passed up to follow the classic forwarding
 path given that the transport selectors are missing, therefore flowtable lookup
-is not possible.
+is yest possible.
 
 Example configuration
 ---------------------
@@ -95,7 +95,7 @@ nftables ingress chain hence the flowtable runs before in the pipeline).
 The 'flow offload' action from the forward chain 'y' adds an entry to the
 flowtable for the TCP syn-ack packet coming in the reply direction. Once the
 flow is offloaded, you will observe that the counter rule in the example above
-does not get updated for the packets that are being forwarded through the
+does yest get updated for the packets that are being forwarded through the
 forwarding bypass.
 
 More reading

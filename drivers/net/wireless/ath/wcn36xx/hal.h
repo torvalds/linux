@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -23,7 +23,7 @@
   The RIVA API is versioned as MAJOR.MINOR.VERSION.REVISION
   The MAJOR is incremented for major product/architecture changes
       (and then MINOR/VERSION/REVISION are zeroed)
-  The MINOR is incremented for minor product/architecture changes
+  The MINOR is incremented for miyesr product/architecture changes
       (and then VERSION/REVISION are zeroed)
   The VERSION is incremented if a significant API change occurs
       (and then REVISION is zeroed)
@@ -40,7 +40,7 @@
 #define WCN36XX_HAL_MAX_ENUM_SIZE    0x7FFFFFFF
 #define WCN36XX_HAL_MSG_TYPE_MAX_ENUM_SIZE    0x7FFF
 
-/* Max no. of transmit categories */
+/* Max yes. of transmit categories */
 #define STACFG_MAX_TC    8
 
 /* The maximum value of access category */
@@ -734,7 +734,7 @@ enum pe_stats_mask {
 struct wcnss_wlan_version {
 	u8 revision;
 	u8 version;
-	u8 minor;
+	u8 miyesr;
 	u8 major;
 } __packed;
 
@@ -747,7 +747,7 @@ struct wcn36xx_hal_keys {
 
 	enum ani_key_direction direction;
 
-	/* Usage is unknown */
+	/* Usage is unkyeswn */
 	u8 rsc[WLAN_MAX_KEY_RSC_LEN];
 
 	/* =1 for authenticator,=0 for supplicant */
@@ -774,7 +774,7 @@ struct wcn36xx_hal_set_sta_key_params {
 	/* Default WEP key, valid only for static WEP, must between 0 and 3. */
 	u8 def_wep_idx;
 
-	/* valid only for non-static WEP encyrptions */
+	/* valid only for yesn-static WEP encyrptions */
 	struct wcn36xx_hal_keys key[WCN36XX_HAL_MAC_MAX_NUM_OF_DEFAULT_KEYS];
 
 	/*
@@ -979,21 +979,21 @@ struct wcn36xx_hal_init_scan_req_msg {
 	/* BSSID of the BSS */
 	u8 bssid[ETH_ALEN];
 
-	/* Whether BSS needs to be notified */
-	u8 notify;
+	/* Whether BSS needs to be yestified */
+	u8 yestify;
 
-	/* Kind of frame to be used for notifying the BSS (Data Null, QoS
+	/* Kind of frame to be used for yestifying the BSS (Data Null, QoS
 	 * Null, or CTS to Self). Must always be a valid frame type. */
 	u8 frame_type;
 
 	/* UMAC has the option of passing the MAC frame to be used for
-	 * notifying the BSS. If non-zero, HAL will use the MAC frame
+	 * yestifying the BSS. If yesn-zero, HAL will use the MAC frame
 	 * buffer pointed to by macMgmtHdr. If zero, HAL will generate the
 	 * appropriate MAC frame based on frameType. */
 	u8 frame_len;
 
 	/* Following the framelength there is a MAC frame buffer if
-	 * frameLength is non-zero. */
+	 * frameLength is yesn-zero. */
 	struct wcn36xx_hal_mac_mgmt_hdr mac_mgmt_hdr;
 
 	/* Entry to hold number of active BSS idx's */
@@ -1010,28 +1010,28 @@ struct wcn36xx_hal_init_scan_con_req_msg {
 	/* BSSID of the BSS */
 	u8 bssid[ETH_ALEN];
 
-	/* Whether BSS needs to be notified */
-	u8 notify;
+	/* Whether BSS needs to be yestified */
+	u8 yestify;
 
-	/* Kind of frame to be used for notifying the BSS (Data Null, QoS
+	/* Kind of frame to be used for yestifying the BSS (Data Null, QoS
 	 * Null, or CTS to Self). Must always be a valid frame type. */
 	u8 frame_type;
 
 	/* UMAC has the option of passing the MAC frame to be used for
-	 * notifying the BSS. If non-zero, HAL will use the MAC frame
+	 * yestifying the BSS. If yesn-zero, HAL will use the MAC frame
 	 * buffer pointed to by macMgmtHdr. If zero, HAL will generate the
 	 * appropriate MAC frame based on frameType. */
 	u8 frame_length;
 
 	/* Following the framelength there is a MAC frame buffer if
-	 * frameLength is non-zero. */
+	 * frameLength is yesn-zero. */
 	struct wcn36xx_hal_mac_mgmt_hdr mac_mgmt_hdr;
 
 	/* Entry to hold number of active BSS idx's */
 	struct wcn36xx_hal_scan_entry scan_entry;
 
 	/* Single NoA usage in Scanning */
-	u8 use_noa;
+	u8 use_yesa;
 
 	/* Indicates the scan duration (in ms) */
 	u16 scan_duration;
@@ -1098,21 +1098,21 @@ struct wcn36xx_hal_finish_scan_req_msg {
 	/* BSSID of the BSS */
 	u8 bssid[ETH_ALEN];
 
-	/* Whether BSS needs to be notified */
-	u8 notify;
+	/* Whether BSS needs to be yestified */
+	u8 yestify;
 
-	/* Kind of frame to be used for notifying the BSS (Data Null, QoS
+	/* Kind of frame to be used for yestifying the BSS (Data Null, QoS
 	 * Null, or CTS to Self). Must always be a valid frame type. */
 	u8 frame_type;
 
 	/* UMAC has the option of passing the MAC frame to be used for
-	 * notifying the BSS. If non-zero, HAL will use the MAC frame
+	 * yestifying the BSS. If yesn-zero, HAL will use the MAC frame
 	 * buffer pointed to by macMgmtHdr. If zero, HAL will generate the
 	 * appropriate MAC frame based on frameType. */
 	u8 frame_length;
 
 	/* Following the framelength there is a MAC frame buffer if
-	 * frameLength is non-zero. */
+	 * frameLength is yesn-zero. */
 	struct wcn36xx_hal_mac_mgmt_hdr mac_mgmt_hdr;
 
 	/* Entry to hold number of active BSS idx's */
@@ -1267,7 +1267,7 @@ struct wcn36xx_hal_supported_rates {
 	u16 legacy_rates[WCN36XX_HAL_NUM_POLARIS_RATES];
 	u16 reserved;
 
-	/* Taurus only supports 26 Titan Rates(no ESF/concat Rates will be
+	/* Taurus only supports 26 Titan Rates(yes ESF/concat Rates will be
 	 * supported) First 26 bits are reserved for those Titan rates and
 	 * the last 4 bits(bit28-31) for Taurus, 2(bit26-27) bits are
 	 * reserved. */
@@ -1379,7 +1379,7 @@ struct wcn36xx_hal_config_sta_params {
 	u8 max_ampdu_duration;
 
 	/* HT STA should set it to 1 if it is enabled in BSS. HT STA should
-	 * set it to 0 if AP does not support it. This indication is sent
+	 * set it to 0 if AP does yest support it. This indication is sent
 	 * to HAL and HAL uses this flag to pickup up appropriate 40Mhz
 	 * rates. */
 	u8 dsss_cck_mode_40mhz;
@@ -1490,7 +1490,7 @@ struct wcn36xx_hal_config_sta_params_v1 {
 	u8 max_ampdu_duration;
 
 	/* HT STA should set it to 1 if it is enabled in BSS. HT STA should
-	 * set it to 0 if AP does not support it. This indication is sent
+	 * set it to 0 if AP does yest support it. This indication is sent
 	 * to HAL and HAL uses this flag to pickup up appropriate 40Mhz
 	 * rates. */
 	u8 dsss_cck_mode_40mhz;
@@ -1678,7 +1678,7 @@ struct wcn36xx_hal_config_bss_params {
 	u8 ht20_coexist;
 
 	/* Non GF coexist flag */
-	u8 lln_non_gf_coexist;
+	u8 lln_yesn_gf_coexist;
 
 	/* TXOP protection support */
 	u8 lsig_tx_op_protection_full_support;
@@ -1750,8 +1750,8 @@ struct wcn36xx_hal_config_bss_params {
 	/* To Enable Disable FW Proxy Probe Resp */
 	u8 proxy_probe_resp;
 
-	/* Boolean to indicate if EDCA params are valid. UMAC might not
-	 * have valid EDCA params or might not desire to apply EDCA params
+	/* Boolean to indicate if EDCA params are valid. UMAC might yest
+	 * have valid EDCA params or might yest desire to apply EDCA params
 	 * during config BSS. 0 implies Not Valid ; Non-Zero implies
 	 * valid */
 	u8 edca_params_valid;
@@ -1825,7 +1825,7 @@ struct wcn36xx_hal_config_bss_params_v1 {
 	u8 ht20_coexist;
 
 	/* Non GF coexist flag */
-	u8 lln_non_gf_coexist;
+	u8 lln_yesn_gf_coexist;
 
 	/* TXOP protection support */
 	u8 lsig_tx_op_protection_full_support;
@@ -1887,8 +1887,8 @@ struct wcn36xx_hal_config_bss_params_v1 {
 	/* To Enable Disable FW Proxy Probe Resp */
 	u8 proxy_probe_resp;
 
-	/* Boolean to indicate if EDCA params are valid. UMAC might not
-	 * have valid EDCA params or might not desire to apply EDCA params
+	/* Boolean to indicate if EDCA params are valid. UMAC might yest
+	 * have valid EDCA params or might yest desire to apply EDCA params
 	 * during config BSS. 0 implies Not Valid ; Non-Zero implies
 	 * valid */
 	u8 edca_params_valid;
@@ -2213,7 +2213,7 @@ struct wcn36xx_hal_switch_channel_req_msg {
 	 * struct needs to be sessionized and bssid needs to be out of the
 	 * VOWifi feature flag V IMP: Keep bssId field at the end of this
 	 * msg. It is used to mantain backward compatbility by way of
-	 * ignoring if using new host/old FW or old host/new FW since it is
+	 * igyesring if using new host/old FW or old host/new FW since it is
 	 * at the end of this struct
 	 */
 	u8 bssid[ETH_ALEN];
@@ -2339,7 +2339,7 @@ struct ani_summary_stats_info {
 	 * packet */
 	u32 rts_fail_cnt;
 
-	/* Total number packets failed transmit because of no ACK from the
+	/* Total number packets failed transmit because of yes ACK from the
 	 * remote entity */
 	u32 ack_fail_cnt;
 
@@ -2446,7 +2446,7 @@ struct ani_global_security_stats {
 	u32 aes_ccmp_decrpt_err;
 
 	/* The number of encrypted MPDU frames received for which a WEP
-	 * decryption key was not available on the 802.11 station */
+	 * decryption key was yest available on the 802.11 station */
 	u32 wep_undecryptable_cnt;
 
 	/* The number of encrypted MPDU frames that the 802.11 station
@@ -2497,7 +2497,7 @@ struct ani_global_class_c_stats_info {
 
 struct ani_per_sta_stats_info {
 	/* The number of MPDU frames that the 802.11 station transmitted
-	 * and acknowledged through a received 802.11 ACK frame */
+	 * and ackyeswledged through a received 802.11 ACK frame */
 	u32 tx_frag_cnt[4];
 
 	/* This counter shall be incremented when an A-MPDU is transmitted */
@@ -2588,7 +2588,7 @@ struct wcn36xx_hal_tspec_ie {
 	u8 type;
 	u8 length;
 	struct wcn36xx_hal_ts_info ts_info;
-	u16 nom_msdu_size;
+	u16 yesm_msdu_size;
 	u16 max_msdu_size;
 	u32 min_svc_interval;
 	u32 max_svc_interval;
@@ -2675,7 +2675,7 @@ struct wcn36xx_hal_add_ba_session_req_msg {
 	u8 mac_addr[ETH_ALEN];
 
 	/* ADDBA Action Frame dialog token
-	   HAL will not interpret this object */
+	   HAL will yest interpret this object */
 	u8 dialog_token;
 
 	/* TID for which the BA is being setup
@@ -2690,11 +2690,11 @@ struct wcn36xx_hal_add_ba_session_req_msg {
 	   NOTE - This is the requested buffer size. When this
 	   is processed by HAL and subsequently by HDD, it is
 	   possible that HDD may change this buffer size. Any
-	   change in the buffer size should be noted by PE and
+	   change in the buffer size should be yested by PE and
 	   advertized appropriately in the ADDBA response */
 	u16 buffer_size;
 
-	/* BA timeout in TU's 0 means no timeout will occur */
+	/* BA timeout in TU's 0 means yes timeout will occur */
 	u16 timeout;
 
 	/* b0..b3 - Fragment Number - Always set to 0
@@ -2743,7 +2743,7 @@ struct wcn36xx_hal_add_ba_req_msg {
 
 	/* Reorder Window Size */
 	u8 win_size;
-/* Old FW 1.2.2.4 does not support this*/
+/* Old FW 1.2.2.4 does yest support this*/
 #ifdef FEATURE_ON_CHIP_REORDERING
 	u8 reordering_done_on_chip;
 #endif
@@ -2878,7 +2878,7 @@ struct wcn36xx_hal_nv_img_download_req_msg {
 	struct wcn36xx_hal_msg_header header;
 
 	/* Fragment sequence number of the NV Image. Note that NV Image
-	 * might not fit into one message due to size limitation of the SMD
+	 * might yest fit into one message due to size limitation of the SMD
 	 * channel FIFO. UMAC can hence choose to chop the NV blob into
 	 * multiple fragments starting with seqeunce number 0, 1, 2 etc.
 	 * The last fragment MUST be indicated by marking the
@@ -2887,7 +2887,7 @@ struct wcn36xx_hal_nv_img_download_req_msg {
 	 * between.*/
 	u16 frag_number;
 
-	/* Is this the last fragment? When set to 1 it indicates that no
+	/* Is this the last fragment? When set to 1 it indicates that yes
 	 * more fragments will be sent by UMAC and HAL can concatenate all
 	 * the NV blobs rcvd & proceed with the parsing. HAL would generate
 	 * a WCN36XX_HAL_DOWNLOAD_NV_RSP to the WCN36XX_HAL_DOWNLOAD_NV_REQ
@@ -2993,7 +2993,7 @@ struct update_beacon_req_msg {
 	u8 llb_coexist;
 	u8 llg_coexist;
 	u8 ht20_coexist;
-	u8 lln_non_gf_coexist;
+	u8 lln_yesn_gf_coexist;
 	u8 lsig_tx_op_protection_full_support;
 	u8 rifs_mode;
 
@@ -3008,7 +3008,7 @@ struct update_beacon_rsp_msg {
 struct wcn36xx_hal_send_beacon_req_msg {
 	struct wcn36xx_hal_msg_header header;
 
-	/* length of the template + 6. Only qcom knows why */
+	/* length of the template + 6. Only qcom kyesws why */
 	u32 beacon_length6;
 
 	/* length of the template. */
@@ -3098,7 +3098,7 @@ struct send_probe_resp_rsp_msg {
 	u32 status;
 };
 
-struct send_unknown_frame_rx_ind_msg {
+struct send_unkyeswn_frame_rx_ind_msg {
 	struct wcn36xx_hal_msg_header header;
 
 	/* success or failure */
@@ -3117,7 +3117,7 @@ struct wcn36xx_hal_delete_sta_context_ind_msg {
 	/* HAL copies bssid from the sta table. */
 	u8 addr2[ETH_ALEN];
 
-	/* To unify the keepalive / unknown A2 / tim-based disa */
+	/* To unify the keepalive / unkyeswn A2 / tim-based disa */
 	u16 reason_code;
 } __packed;
 
@@ -3185,7 +3185,7 @@ struct wcn36xx_hal_enter_bmps_req_msg {
 #endif
 	u8 dtim_count;
 
-	/* DTIM period given to HAL during association may not be valid, if
+	/* DTIM period given to HAL during association may yest be valid, if
 	 * association is based on ProbeRsp instead of beacon. */
 	u8 dtim_period;
 
@@ -3318,12 +3318,12 @@ struct wcn36xx_hal_rssi_threshold_req_msg {
 	s8 threshold1:8;
 	s8 threshold2:8;
 	s8 threshold3:8;
-	u8 thres1_pos_notify:1;
-	u8 thres1_neg_notify:1;
-	u8 thres2_pos_notify:1;
-	u8 thres2_neg_notify:1;
-	u8 thres3_pos_notify:1;
-	u8 thres3_neg_notify:1;
+	u8 thres1_pos_yestify:1;
+	u8 thres1_neg_yestify:1;
+	u8 thres2_pos_yestify:1;
+	u8 thres2_neg_yestify:1;
+	u8 thres3_pos_yestify:1;
+	u8 thres3_neg_yestify:1;
 	u8 reserved10:2;
 };
 
@@ -3406,7 +3406,7 @@ struct wcn36xx_hal_wowl_enter_req_msg {
 
 	/* Enables/disables unicast packet pattern filtering. This flag
 	 * specifies whether we want to do pattern match on unicast packets
-	 * as well and not just broadcast packets. This flag has no effect
+	 * as well and yest just broadcast packets. This flag has yes effect
 	 * if the ucPatternFilteringEnable (main controlling flag) is set
 	 * to false
 	 */
@@ -3568,7 +3568,7 @@ struct wcn36xx_hal_exit_uapsd_rsp_msg {
 	u8 bss_index;
 };
 
-struct wcn36xx_hal_rssi_notification_ind_msg {
+struct wcn36xx_hal_rssi_yestification_ind_msg {
 	struct wcn36xx_hal_msg_header header;
 
 	u32 rssi_thres1_pos_cross:1;
@@ -3738,7 +3738,7 @@ struct get_tx_pwr_rsp_msg {
 	u32 tx_power;
 };
 
-struct set_p2p_gonoa_req_msg {
+struct set_p2p_goyesa_req_msg {
 	struct wcn36xx_hal_msg_header header;
 
 	u8 opp_ps;
@@ -3746,11 +3746,11 @@ struct set_p2p_gonoa_req_msg {
 	u8 count;
 	u32 duration;
 	u32 interval;
-	u32 single_noa_duration;
+	u32 single_yesa_duration;
 	u8 ps_selection;
 };
 
-struct set_p2p_gonoa_rsp_msg {
+struct set_p2p_goyesa_rsp_msg {
 	struct wcn36xx_hal_msg_header header;
 
 	/* success or failure */
@@ -3908,29 +3908,29 @@ struct wcn36xx_hal_wlan_exclude_unencrpted_ind_msg {
 	u8 bssid[ETH_ALEN];
 };
 
-struct noa_attr_ind_msg {
+struct yesa_attr_ind_msg {
 	struct wcn36xx_hal_msg_header header;
 
 	u8 index;
 	u8 opp_ps_flag;
 	u16 ctwin;
 
-	u16 noa1_interval_count;
+	u16 yesa1_interval_count;
 	u16 bss_index;
-	u32 noa1_duration;
-	u32 noa1_interval;
-	u32 noa1_starttime;
+	u32 yesa1_duration;
+	u32 yesa1_interval;
+	u32 yesa1_starttime;
 
-	u16 noa2_interval_count;
+	u16 yesa2_interval_count;
 	u16 reserved2;
-	u32 noa2_duration;
-	u32 noa2_interval;
-	u32 noa2_start_time;
+	u32 yesa2_duration;
+	u32 yesa2_interval;
+	u32 yesa2_start_time;
 
 	u32 status;
 };
 
-struct noa_start_ind_msg {
+struct yesa_start_ind_msg {
 	struct wcn36xx_hal_msg_header header;
 
 	u32 status;
@@ -3999,7 +3999,7 @@ struct wcn36xx_hal_del_ba_ind_msg {
  *
  * Resume - scanning will start on system resume
  */
-enum pno_mode {
+enum pyes_mode {
 	PNO_MODE_IMMEDIATE,
 	PNO_MODE_ON_SUSPEND,
 	PNO_MODE_ON_RESUME,
@@ -4102,7 +4102,7 @@ struct set_pref_netw_list_req {
 	u32 enable;
 
 	/* Immediate,  On Suspend,   On Resume */
-	enum pno_mode mode;
+	enum pyes_mode mode;
 
 	/* Number of networks sent for PNO */
 	u32 networks_count;
@@ -4133,7 +4133,7 @@ struct network_type_new {
 	/* Encryption type for the network */
 	enum ed_type encryption;
 
-	/* SSID broadcast type, normal, hidden or unknown */
+	/* SSID broadcast type, yesrmal, hidden or unkyeswn */
 	enum ssid_bcast_type bcast_network_type;
 
 	/* Indicate the channel on which the Network can be found 0 - if
@@ -4153,7 +4153,7 @@ struct set_pref_netw_list_req_new {
 	u32 enable;
 
 	/* Immediate,  On Suspend,   On Resume */
-	enum pno_mode mode;
+	enum pyes_mode mode;
 
 	/* Number of networks sent for PNO */
 	u32 networks_count;
@@ -4178,7 +4178,7 @@ struct set_pref_netw_list_resp {
 	struct wcn36xx_hal_msg_header header;
 
 	/* status of the request - just to indicate that PNO has
-	 * acknowledged the request and will start scanning */
+	 * ackyeswledged the request and will start scanning */
 	u32 status;
 };
 
@@ -4219,7 +4219,7 @@ struct wcn36xx_hal_update_scan_params_req {
 	/* Host setting for 11d */
 	u8 dot11d_enabled;
 
-	/* Lets PNO know that host has determined the regulatory domain */
+	/* Lets PNO kyesw that host has determined the regulatory domain */
 	u8 dot11d_resolved;
 
 	/* Channels on which PNO is allowed to scan */
@@ -4251,7 +4251,7 @@ struct wcn36xx_hal_update_scan_params_req_ex {
 	/* Host setting for 11d */
 	u8 dot11d_enabled;
 
-	/* Lets PNO know that host has determined the regulatory domain */
+	/* Lets PNO kyesw that host has determined the regulatory domain */
 	u8 dot11d_resolved;
 
 	/* Channels on which PNO is allowed to scan */
@@ -4457,8 +4457,8 @@ struct wcn36xx_hal_rcv_flt_pkt_set_mc_list_rsp_msg {
 struct wcn36xx_hal_set_power_params_req_msg {
 	struct wcn36xx_hal_msg_header header;
 
-	/*  Ignore DTIM */
-	u32 ignore_dtim;
+	/*  Igyesre DTIM */
+	u32 igyesre_dtim;
 
 	/* DTIM Period */
 	u32 dtim_period;
@@ -4565,7 +4565,7 @@ struct wcn36xx_hal_feat_caps_msg {
 enum gtk_rekey_status {
 	WCN36XX_HAL_GTK_REKEY_STATUS_SUCCESS = 0,
 
-	/* rekey detected, but not handled */
+	/* rekey detected, but yest handled */
 	WCN36XX_HAL_GTK_REKEY_STATUS_NOT_HANDLED = 1,
 
 	/* MIC check error on M1 */
@@ -4592,7 +4592,7 @@ enum gtk_rekey_status {
 	/* GTK rekey M2 response TX error */
 	WCN36XX_HAL_GTK_REKEY_STATUS_RESP_TX_ERROR = 9,
 
-	/* non-specific general error */
+	/* yesn-specific general error */
 	WCN36XX_HAL_GTK_REKEY_STATUS_GEN_ERROR = 255
 };
 
@@ -4764,7 +4764,7 @@ enum wcn36xx_hal_thermal_mitigation_mode_type {
  * WCN36XX_HAL_THERMAL_MITIGATION_LEVEL_1
  *
  * WCN36XX_HAL_THERMAL_MITIGATION_LEVEL_0 - lowest level of thermal mitigation.
- * This level indicates normal mode of operation
+ * This level indicates yesrmal mode of operation
  *
  * WCN36XX_HAL_THERMAL_MITIGATION_LEVEL_1 - 1st level of thermal mitigation
  *

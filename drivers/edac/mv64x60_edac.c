@@ -71,7 +71,7 @@ static irqreturn_t mv64x60_pci_isr(int irq, void *dev_id)
 }
 
 /*
- * Bit 0 of MV64x60_PCIx_ERR_MASK does not exist on the 64360 and because of
+ * Bit 0 of MV64x60_PCIx_ERR_MASK does yest exist on the 64360 and because of
  * errata FEr-#11 and FEr-##16 for the 64460, it should be 0 on that chip as
  * well.  IOW, don't set bit 0.
  */
@@ -641,10 +641,10 @@ static irqreturn_t mv64x60_mc_isr(int irq, void *dev_id)
 
 static void get_total_mem(struct mv64x60_mc_pdata *pdata)
 {
-	struct device_node *np = NULL;
+	struct device_yesde *np = NULL;
 	const unsigned int *reg;
 
-	np = of_find_node_by_type(NULL, "memory");
+	np = of_find_yesde_by_type(NULL, "memory");
 	if (!np)
 		return;
 
@@ -679,7 +679,7 @@ static void mv64x60_init_csrows(struct mem_ctl_info *mci,
 	case 0x0:
 		dimm->dtype = DEV_X32;
 		break;
-	case 0x2:		/* could be X8 too, but no way to tell */
+	case 0x2:		/* could be X8 too, but yes way to tell */
 		dimm->dtype = DEV_X16;
 		break;
 	case 0x3:

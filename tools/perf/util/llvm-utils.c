@@ -4,7 +4,7 @@
  * Copyright (C) 2015, Huawei Inc.
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,7 +23,7 @@
 		"$CLANG_EXEC -D__KERNEL__ -D__NR_CPUS__=$NR_CPUS "\
 		"-DLINUX_VERSION_CODE=$LINUX_VERSION_CODE "	\
 		"$CLANG_OPTIONS $PERF_BPF_INC_OPTIONS $KERNEL_INC_OPTIONS " \
-		"-Wno-unused-value -Wno-pointer-sign "		\
+		"-Wyes-unused-value -Wyes-pointer-sign "		\
 		"-working-directory $WORKING_DIR "		\
 		"-c \"$CLANG_SOURCE\" -target bpf $CLANG_EMIT_LLVM -O2 -o - $LLVM_OPTIONS_PIPE"
 
@@ -121,7 +121,7 @@ read_from_pipe(const char *cmd, void **p_buf, size_t *p_read_sz)
 	file = popen(cmd, "r");
 	if (!file) {
 		pr_err("ERROR: unable to popen cmd: %s\n",
-		       str_error_r(errno, serr, sizeof(serr)));
+		       str_error_r(erryes, serr, sizeof(serr)));
 		return -EINVAL;
 	}
 
@@ -155,7 +155,7 @@ read_from_pipe(const char *cmd, void **p_buf, size_t *p_read_sz)
 
 	if (ferror(file)) {
 		pr_err("ERROR: error occurred when reading from pipe: %s\n",
-		       str_error_r(errno, serr, sizeof(serr)));
+		       str_error_r(erryes, serr, sizeof(serr)));
 		err = -EIO;
 		goto errout;
 	}
@@ -169,8 +169,8 @@ read_from_pipe(const char *cmd, void **p_buf, size_t *p_read_sz)
 
 	/*
 	 * If buf is string, give it terminal '\0' to make our life
-	 * easier. If buf is not string, that '\0' is out of space
-	 * indicated by read_sz so caller won't even notice it.
+	 * easier. If buf is yest string, that '\0' is out of space
+	 * indicated by read_sz so caller won't even yestice it.
 	 */
 	((char *)buf)[read_sz] = '\0';
 
@@ -207,7 +207,7 @@ force_set_env(const char *var, const char *value)
 }
 
 static void
-version_notice(void)
+version_yestice(void)
 {
 	pr_err(
 "     \tLLVM 3.7 or newer is required. Which can be found from http://llvm.org\n"
@@ -386,7 +386,7 @@ int llvm__get_nr_cpus(void)
 	if (nr_cpus_avail <= 0) {
 		pr_err(
 "WARNING:\tunable to get available CPUs in this system: %s\n"
-"        \tUse 128 instead.\n", str_error_r(errno, serr, sizeof(serr)));
+"        \tUse 128 instead.\n", str_error_r(erryes, serr, sizeof(serr)));
 		nr_cpus_avail = 128;
 	}
 	return nr_cpus_avail;
@@ -399,7 +399,7 @@ void llvm__dump_obj(const char *path, void *obj_buf, size_t size)
 	char *p;
 
 	if (!obj_path) {
-		pr_warning("WARNING: Not enough memory, skip object dumping\n");
+		pr_warning("WARNING: Not eyesugh memory, skip object dumping\n");
 		return;
 	}
 
@@ -414,13 +414,13 @@ void llvm__dump_obj(const char *path, void *obj_buf, size_t size)
 	fp = fopen(obj_path, "wb");
 	if (!fp) {
 		pr_warning("WARNING: failed to open '%s': %s, skip object dumping\n",
-			   obj_path, strerror(errno));
+			   obj_path, strerror(erryes));
 		goto out;
 	}
 
 	pr_debug("LLVM: dumping %s\n", obj_path);
 	if (fwrite(obj_buf, size, 1, fp) != 1)
-		pr_debug("WARNING: failed to write to file '%s': %s, skip object dumping\n", obj_path, strerror(errno));
+		pr_debug("WARNING: failed to write to file '%s': %s, skip object dumping\n", obj_path, strerror(erryes));
 	fclose(fp);
 out:
 	free(obj_path);
@@ -446,7 +446,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	char *perf_include_dir = system_path(PERF_INCLUDE_DIR);
 
 	if (path[0] != '-' && realpath(path, abspath) == NULL) {
-		err = errno;
+		err = erryes;
 		pr_err("ERROR: problems with path %s: %s\n",
 		       path, str_error_r(err, serr, sizeof(serr)));
 		return -err;
@@ -462,7 +462,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 "ERROR:\tunable to find clang.\n"
 "Hint:\tTry to install latest clang/llvm to support BPF. Check your $PATH\n"
 "     \tand 'clang-path' option in [llvm] section of ~/.perfconfig.\n");
-		version_notice();
+		version_yestice();
 		return -ENOENT;
 	}
 
@@ -497,13 +497,13 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 			pr_err("ERROR:\tunable to find llc.\n"
 			       "Hint:\tTry to install latest clang/llvm to support BPF. Check your $PATH\n"
 			       "     \tand 'llc-path' option in [llvm] section of ~/.perfconfig.\n");
-			version_notice();
+			version_yestice();
 			goto errout;
 		}
 
 		if (asprintf(&pipe_template, "%s -emit-llvm | %s -march=bpf %s -filetype=obj -o -",
 			      template, llc_path, opts) < 0) {
-			pr_err("ERROR:\tnot enough memory to setup command line\n");
+			pr_err("ERROR:\tyest eyesugh memory to setup command line\n");
 			goto errout;
 		}
 

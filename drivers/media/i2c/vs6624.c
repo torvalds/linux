@@ -6,7 +6,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -654,8 +654,8 @@ static int vs6624_g_frame_interval(struct v4l2_subdev *sd,
 {
 	struct vs6624 *sensor = to_vs6624(sd);
 
-	ival->interval.numerator = sensor->frame_rate.denominator;
-	ival->interval.denominator = sensor->frame_rate.numerator;
+	ival->interval.numerator = sensor->frame_rate.deyesminator;
+	ival->interval.deyesminator = sensor->frame_rate.numerator;
 	return 0;
 }
 
@@ -666,21 +666,21 @@ static int vs6624_s_frame_interval(struct v4l2_subdev *sd,
 	struct v4l2_fract *tpf = &ival->interval;
 
 
-	if (tpf->numerator == 0 || tpf->denominator == 0
-		|| (tpf->denominator > tpf->numerator * MAX_FRAME_RATE)) {
+	if (tpf->numerator == 0 || tpf->deyesminator == 0
+		|| (tpf->deyesminator > tpf->numerator * MAX_FRAME_RATE)) {
 		/* reset to max frame rate */
 		tpf->numerator = 1;
-		tpf->denominator = MAX_FRAME_RATE;
+		tpf->deyesminator = MAX_FRAME_RATE;
 	}
-	sensor->frame_rate.numerator = tpf->denominator;
-	sensor->frame_rate.denominator = tpf->numerator;
+	sensor->frame_rate.numerator = tpf->deyesminator;
+	sensor->frame_rate.deyesminator = tpf->numerator;
 	vs6624_write(sd, VS6624_DISABLE_FR_DAMPER, 0x0);
 	vs6624_write(sd, VS6624_FR_NUM_MSB,
 			sensor->frame_rate.numerator >> 8);
 	vs6624_write(sd, VS6624_FR_NUM_LSB,
 			sensor->frame_rate.numerator & 0xFF);
 	vs6624_write(sd, VS6624_FR_DEN,
-			sensor->frame_rate.denominator & 0xFF);
+			sensor->frame_rate.deyesminator & 0xFF);
 	return 0;
 }
 
@@ -783,14 +783,14 @@ static int vs6624_probe(struct i2c_client *client,
 
 	/* set frame rate */
 	sensor->frame_rate.numerator = MAX_FRAME_RATE;
-	sensor->frame_rate.denominator = 1;
+	sensor->frame_rate.deyesminator = 1;
 	vs6624_write(sd, VS6624_DISABLE_FR_DAMPER, 0x0);
 	vs6624_write(sd, VS6624_FR_NUM_MSB,
 			sensor->frame_rate.numerator >> 8);
 	vs6624_write(sd, VS6624_FR_NUM_LSB,
 			sensor->frame_rate.numerator & 0xFF);
 	vs6624_write(sd, VS6624_FR_DEN,
-			sensor->frame_rate.denominator & 0xFF);
+			sensor->frame_rate.deyesminator & 0xFF);
 
 	sensor->fmt = vs6624_default_fmt;
 	sensor->ce_pin = *ce;

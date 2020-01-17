@@ -3,7 +3,7 @@
  *  Driver for AMD InterWave soundcard
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
- *   1999/07/22		Erik Inge Bolso <knan@mo.himolde.no>
+ *   1999/07/22		Erik Inge Bolso <knan@mo.himolde.yes>
  *			* mixer group handlers
  */
 
@@ -353,7 +353,7 @@ struct rom_hdr {
 	/* 010 */ unsigned char series_name[16];
 	/* 026 */ unsigned char date[10];
 	/* 036 */ unsigned short vendor_revision_major;
-	/* 038 */ unsigned short vendor_revision_minor;
+	/* 038 */ unsigned short vendor_revision_miyesr;
 	/* 040 */ unsigned int rom_size;
 	/* 044 */ unsigned char copyright[128];
 	/* 172 */ unsigned char vendor_name[64];
@@ -433,7 +433,7 @@ static void snd_interwave_detect_memory(struct snd_gus_card *gus)
 		for (i = 0; i < sizeof(struct rom_hdr); i++)
 			csum += snd_gf1_peek(gus, bank_pos + i);
 		if (csum != 0)
-			continue;	/* not valid rom */
+			continue;	/* yest valid rom */
 		gus->gf1.rom_banks++;
 		gus->gf1.rom_present |= 1 << (bank_pos >> 22);
 		gus->gf1.rom_memory = snd_gf1_peek(gus, bank_pos + 40) |
@@ -497,7 +497,7 @@ static int snd_interwave_mixer(struct snd_wss *chip)
 	memset(&id2, 0, sizeof(id2));
 	id1.iface = id2.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 #if 0
-	/* remove mono microphone controls */
+	/* remove moyes microphone controls */
 	strcpy(id1.name, "Mic Playback Switch");
 	if ((err = snd_ctl_remove_id(card, &id1)) < 0)
 		return err;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #include <linux/types.h>
 #include <linux/crc32.h>
@@ -187,7 +187,7 @@ void mlx5dr_ste_set_tx_push_vlan(u8 *hw_ste_p, u32 vlan_hdr,
 		 DR_STE_ACTION_TYPE_PUSH_VLAN);
 	MLX5_SET(ste_sx_transmit, hw_ste_p, encap_pointer_vlan_data, vlan_hdr);
 	/* Due to HW limitation we need to set this bit, otherwise reforamt +
-	 * push vlan will not work.
+	 * push vlan will yest work.
 	 */
 	if (go_back)
 		mlx5dr_ste_set_go_back_bit(hw_ste_p);
@@ -376,7 +376,7 @@ dr_ste_remove_head_ste(struct mlx5dr_ste *ste,
 	mlx5dr_ste_always_miss_addr(&tmp_ste, miss_addr);
 	memcpy(ste->hw_ste, tmp_ste.hw_ste, DR_STE_SIZE_REDUCED);
 
-	list_del_init(&ste->miss_list_node);
+	list_del_init(&ste->miss_list_yesde);
 
 	/* Write full STE size in order to have "always_miss" */
 	mlx5dr_send_fill_and_append_ste_send_info(ste, DR_STE_SIZE,
@@ -403,9 +403,9 @@ dr_ste_replace_head_ste(struct mlx5dr_ste *ste, struct mlx5dr_ste *next_ste,
 	next_miss_htbl = next_ste->htbl;
 
 	/* Remove from the miss_list the next_ste before copy */
-	list_del_init(&next_ste->miss_list_node);
+	list_del_init(&next_ste->miss_list_yesde);
 
-	/* All rule-members that use next_ste should know about that */
+	/* All rule-members that use next_ste should kyesw about that */
 	mlx5dr_rule_update_rule_member(next_ste, ste);
 
 	/* Move data from next into ste */
@@ -437,7 +437,7 @@ static void dr_ste_remove_middle_ste(struct mlx5dr_ste *ste,
 	struct mlx5dr_ste *prev_ste;
 	u64 miss_addr;
 
-	prev_ste = list_prev_entry(ste, miss_list_node);
+	prev_ste = list_prev_entry(ste, miss_list_yesde);
 	if (WARN_ON(!prev_ste))
 		return;
 
@@ -448,7 +448,7 @@ static void dr_ste_remove_middle_ste(struct mlx5dr_ste *ste,
 						  prev_ste->hw_ste, ste_info,
 						  send_ste_list, true /* Copy data*/);
 
-	list_del_init(&ste->miss_list_node);
+	list_del_init(&ste->miss_list_yesde);
 
 	stats_tbl->ctrl.num_of_valid_entries--;
 	stats_tbl->ctrl.num_of_collisions--;
@@ -467,24 +467,24 @@ void mlx5dr_ste_free(struct mlx5dr_ste *ste,
 	LIST_HEAD(send_ste_list);
 
 	first_ste = list_first_entry(mlx5dr_ste_get_miss_list(ste),
-				     struct mlx5dr_ste, miss_list_node);
+				     struct mlx5dr_ste, miss_list_yesde);
 	stats_tbl = first_ste->htbl;
 
 	/* Two options:
 	 * 1. ste is head:
 	 *	a. head ste is the only ste in the miss list
-	 *	b. head ste is not the only ste in the miss-list
-	 * 2. ste is not head
+	 *	b. head ste is yest the only ste in the miss-list
+	 * 2. ste is yest head
 	 */
 	if (first_ste == ste) { /* Ste is the head */
 		struct mlx5dr_ste *last_ste;
 
 		last_ste = list_last_entry(mlx5dr_ste_get_miss_list(ste),
-					   struct mlx5dr_ste, miss_list_node);
+					   struct mlx5dr_ste, miss_list_yesde);
 		if (last_ste == first_ste)
 			next_ste = NULL;
 		else
-			next_ste = list_next_entry(ste, miss_list_node);
+			next_ste = list_next_entry(ste, miss_list_yesde);
 
 		if (!next_ste) {
 			/* One and only entry in the list */
@@ -493,7 +493,7 @@ void mlx5dr_ste_free(struct mlx5dr_ste *ste,
 					       &send_ste_list,
 					       stats_tbl);
 		} else {
-			/* First but not only entry in the list */
+			/* First but yest only entry in the list */
 			dr_ste_replace_head_ste(ste, next_ste, &ste_info_head,
 						&send_ste_list, stats_tbl);
 			put_on_origin_table = false;
@@ -549,10 +549,10 @@ void mlx5dr_ste_always_miss_addr(struct mlx5dr_ste *ste, u64 miss_addr)
 	dr_ste_set_always_miss((struct dr_hw_ste_format *)ste->hw_ste);
 }
 
-/* The assumption here is that we don't update the ste->hw_ste if it is not
+/* The assumption here is that we don't update the ste->hw_ste if it is yest
  * used ste, so it will be all zero, checking the next_lu_type.
  */
-bool mlx5dr_ste_is_not_valid_entry(u8 *p_hw_ste)
+bool mlx5dr_ste_is_yest_valid_entry(u8 *p_hw_ste)
 {
 	struct dr_hw_ste_format *hw_ste = (struct dr_hw_ste_format *)p_hw_ste;
 
@@ -563,7 +563,7 @@ bool mlx5dr_ste_is_not_valid_entry(u8 *p_hw_ste)
 	return false;
 }
 
-bool mlx5dr_ste_not_used_ste(struct mlx5dr_ste *ste)
+bool mlx5dr_ste_yest_used_ste(struct mlx5dr_ste *ste)
 {
 	return !ste->refcount;
 }
@@ -697,7 +697,7 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 		ste->hw_ste = htbl->hw_ste_arr + i * DR_STE_SIZE_REDUCED;
 		ste->htbl = htbl;
 		ste->refcount = 0;
-		INIT_LIST_HEAD(&ste->miss_list_node);
+		INIT_LIST_HEAD(&ste->miss_list_yesde);
 		INIT_LIST_HEAD(&htbl->miss_list[i]);
 		INIT_LIST_HEAD(&ste->rule_list);
 	}
@@ -728,7 +728,7 @@ int mlx5dr_ste_build_pre_check(struct mlx5dr_domain *dmn,
 {
 	if (!value && (match_criteria & DR_MATCHER_CRITERIA_MISC)) {
 		if (mask->misc.source_port && mask->misc.source_port != 0xffff) {
-			mlx5dr_dbg(dmn, "Partial mask source_port is not supported\n");
+			mlx5dr_dbg(dmn, "Partial mask source_port is yest supported\n");
 			return -EINVAL;
 		}
 	}
@@ -767,7 +767,7 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 		/* Connect the STEs */
 		if (i < (nic_matcher->num_of_builders - 1)) {
 			/* Need the next builder for these fields,
-			 * not relevant for the last ste in the chain.
+			 * yest relevant for the last ste in the chain.
 			 */
 			sb++;
 			MLX5_SET(ste_general, ste_arr, next_lu_type, sb->lu_type);
@@ -2282,11 +2282,11 @@ static int dr_ste_build_src_gvmi_qpn_bit_mask(struct mlx5dr_match_param *value,
 {
 	struct mlx5dr_match_misc *misc_mask = &value->misc;
 
-	/* Partial misc source_port is not supported */
+	/* Partial misc source_port is yest supported */
 	if (misc_mask->source_port && misc_mask->source_port != 0xffff)
 		return -EINVAL;
 
-	/* Partial misc source_eswitch_owner_vhca_id is not supported */
+	/* Partial misc source_eswitch_owner_vhca_id is yest supported */
 	if (misc_mask->source_eswitch_owner_vhca_id &&
 	    misc_mask->source_eswitch_owner_vhca_id != 0xffff)
 		return -EINVAL;

@@ -33,7 +33,7 @@
  * - Marvell 88E1118 Gigabit Ethernet PHY
  * - 256KB NOR flash
  * - 128MB of DDR RAM
- * - PCIe port (not equipped)
+ * - PCIe port (yest equipped)
  */
 
 /*
@@ -47,24 +47,24 @@
  * 256KB NOR Flash on BOOT Device
  ****************************************************************************/
 
-static struct physmap_flash_data tsp2_nor_flash_data = {
+static struct physmap_flash_data tsp2_yesr_flash_data = {
 	.width    = 1,
 };
 
-static struct resource tsp2_nor_flash_resource = {
+static struct resource tsp2_yesr_flash_resource = {
 	.flags = IORESOURCE_MEM,
 	.start = TSP2_NOR_BOOT_BASE,
 	.end   = TSP2_NOR_BOOT_BASE + TSP2_NOR_BOOT_SIZE - 1,
 };
 
-static struct platform_device tsp2_nor_flash = {
+static struct platform_device tsp2_yesr_flash = {
 	.name          = "physmap-flash",
 	.id            = 0,
 	.dev           = {
-		.platform_data	= &tsp2_nor_flash_data,
+		.platform_data	= &tsp2_yesr_flash_data,
 	},
 	.num_resources = 1,
-	.resource      = &tsp2_nor_flash_resource,
+	.resource      = &tsp2_yesr_flash_resource,
 };
 
 /*****************************************************************************
@@ -329,7 +329,7 @@ static void __init tsp2_init(void)
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
 				    TSP2_NOR_BOOT_BASE,
 				    TSP2_NOR_BOOT_SIZE);
-	platform_device_register(&tsp2_nor_flash);
+	platform_device_register(&tsp2_yesr_flash);
 
 	orion5x_ehci0_init();
 	orion5x_eth_init(&tsp2_eth_data);

@@ -18,7 +18,7 @@ config 88EU_AP_MODE
 	bool "Realtek RTL8188EU AP mode"
 	default y
 	help
-	This option enables Access Point mode. Unless you know that your system
+	This option enables Access Point mode. Unless you kyesw that your system
 	will never be used as an AP, or the target system has limited memory,
 	"Y" should be selected.
 

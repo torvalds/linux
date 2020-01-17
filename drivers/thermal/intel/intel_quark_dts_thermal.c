@@ -30,12 +30,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -95,9 +95,9 @@
 
 /* Quark DTS has 2 trip points: hot & catastrophic */
 #define QRK_MAX_DTS_TRIPS	2
-/* If DTS not locked, all trip points are configurable */
+/* If DTS yest locked, all trip points are configurable */
 #define QRK_DTS_WR_MASK_SET	0x3
-/* If DTS locked, all trip points are not configurable */
+/* If DTS locked, all trip points are yest configurable */
 #define QRK_DTS_WR_MASK_CLR	0
 
 #define DEFAULT_POLL_DELAY	2000
@@ -145,7 +145,7 @@ static int soc_dts_enable(struct thermal_zone_device *tzd)
 		aux_entry->mode = THERMAL_DEVICE_ENABLED;
 	} else {
 		aux_entry->mode = THERMAL_DEVICE_DISABLED;
-		pr_info("DTS is locked. Cannot enable DTS\n");
+		pr_info("DTS is locked. Canyest enable DTS\n");
 		ret = -EPERM;
 	}
 
@@ -179,7 +179,7 @@ static int soc_dts_disable(struct thermal_zone_device *tzd)
 		aux_entry->mode = THERMAL_DEVICE_DISABLED;
 	} else {
 		aux_entry->mode = THERMAL_DEVICE_ENABLED;
-		pr_info("DTS is locked. Cannot disable DTS\n");
+		pr_info("DTS is locked. Canyest disable DTS\n");
 		ret = -EPERM;
 	}
 
@@ -243,7 +243,7 @@ static int update_trip_temp(struct soc_sensor_entry *aux_entry,
 
 	/*
 	 * Protection against unsafe trip point thresdhold value.
-	 * As Quark X1000 data-sheet does not provide any recommendation
+	 * As Quark X1000 data-sheet does yest provide any recommendation
 	 * regarding the safe trip point threshold value to use, we choose
 	 * the safe value according to the threshold value set by UEFI BIOS.
 	 */
@@ -391,7 +391,7 @@ static struct soc_sensor_entry *alloc_soc_dts(void)
 		wr_mask = QRK_DTS_WR_MASK_SET;
 	}
 
-	/* Store DTS default state if DTS registers are not locked */
+	/* Store DTS default state if DTS registers are yest locked */
 	if (!aux_entry->locked) {
 		/* Store DTS default enable for restore on exit */
 		err = iosf_mbi_read(QRK_MBI_UNIT_RMU, MBI_REG_READ,

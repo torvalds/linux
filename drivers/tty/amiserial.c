@@ -9,9 +9,9 @@
  * associated with the registers and bits of 16550 compatible UARTS -
  * but only to keep track of status, etc in the state variables. It
  * was done this was to make it easier to keep the code in line with
- * (non hardware specific) changes to serial.c.
+ * (yesn hardware specific) changes to serial.c.
  *
- * The port is registered with the tty driver as minor device 64, and
+ * The port is registered with the tty driver as miyesr device 64, and
  * therefore other ports should should only use 65 upwards.
  *
  * Richard Lucock 28/12/99
@@ -51,7 +51,7 @@
 #include <linux/serial_reg.h>
 static char *serial_version = "4.30";
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -91,7 +91,7 @@ struct serial_state {
 	int			xmit_fifo_size;
 	int			custom_divisor;
 	int			read_status_mask;
-	int			ignore_status_mask;
+	int			igyesre_status_mask;
 	int			timeout;
 	int			quot;
 	int			IER; 	/* Interrupt Enable Register */
@@ -181,7 +181,7 @@ static void rs_start(struct tty_struct *tty)
 		info->IER |= UART_IER_THRI;
 		custom.intena = IF_SETCLR | IF_TBE;
 		mb();
-		/* set a pending Tx Interrupt, transmitter should restart now */
+		/* set a pending Tx Interrupt, transmitter should restart yesw */
 		custom.intreq = IF_SETCLR | IF_TBE;
 		mb();
 	}
@@ -198,7 +198,7 @@ static void rs_start(struct tty_struct *tty)
  * Note: rs_interrupt() is a "fast" interrupt, which means that it
  * runs with interrupts turned off.  People who may want to modify
  * rs_interrupt() should try to keep the interrupt handler as fast as
- * possible.  After you are done making modifications, it is not a bad
+ * possible.  After you are done making modifications, it is yest a bad
  * idea to do:
  * 
  * gcc -S -DKERNEL -Wall -Wstrict-prototypes -O6 -fomit-frame-pointer serial.c
@@ -240,7 +240,7 @@ static void receive_chars(struct serial_state *info)
 
 	/*
 	 * We don't handle parity or frame errors - but I have left
-	 * the code in, since I'm not sure that the errors can't be
+	 * the code in, since I'm yest sure that the errors can't be
 	 * detected.
 	 */
 
@@ -261,10 +261,10 @@ static void receive_chars(struct serial_state *info)
 
 	  /*
 	   * Now check to see if character should be
-	   * ignored, and mask off conditions which
-	   * should be ignored.
+	   * igyesred, and mask off conditions which
+	   * should be igyesred.
 	   */
-	  if (status & info->ignore_status_mask)
+	  if (status & info->igyesre_status_mask)
 	    goto out;
 
 	  status &= info->read_status_mask;
@@ -363,7 +363,7 @@ static void check_modem_status(struct serial_state *info)
 
 	if (tty_port_check_carrier(port) && (dstatus & SER_DCD)) {
 #if (defined(SERIAL_DEBUG_OPEN) || defined(SERIAL_DEBUG_INTR))
-		printk("ttyS%d CD now %s...", info->line,
+		printk("ttyS%d CD yesw %s...", info->line,
 		       (!(status & SER_DCD)) ? "on" : "off");
 #endif
 		if (!(status & SER_DCD))
@@ -386,7 +386,7 @@ static void check_modem_status(struct serial_state *info)
 				info->IER |= UART_IER_THRI;
 				custom.intena = IF_SETCLR | IF_TBE;
 				mb();
-				/* set a pending Tx Interrupt, transmitter should restart now */
+				/* set a pending Tx Interrupt, transmitter should restart yesw */
 				custom.intreq = IF_SETCLR | IF_TBE;
 				mb();
 				tty_wakeup(port->tty);
@@ -415,7 +415,7 @@ static irqreturn_t ser_vbl_int( int irq, void *data)
 	struct serial_state *info = data;
 	/*
 	 * TBD - is it better to unregister from this interrupt or to
-	 * ignore it if MSI is clear ?
+	 * igyesre it if MSI is clear ?
 	 */
 	if(info->IER & UART_IER_MSI)
 	  check_modem_status(info);
@@ -699,25 +699,25 @@ static void change_speed(struct tty_struct *tty, struct serial_state *info,
 		info->read_status_mask |= UART_LSR_BI;
 
 	/*
-	 * Characters to ignore
+	 * Characters to igyesre
 	 */
-	info->ignore_status_mask = 0;
+	info->igyesre_status_mask = 0;
 	if (I_IGNPAR(tty))
-		info->ignore_status_mask |= UART_LSR_PE | UART_LSR_FE;
+		info->igyesre_status_mask |= UART_LSR_PE | UART_LSR_FE;
 	if (I_IGNBRK(tty)) {
-		info->ignore_status_mask |= UART_LSR_BI;
+		info->igyesre_status_mask |= UART_LSR_BI;
 		/*
-		 * If we're ignore parity and break indicators, ignore 
+		 * If we're igyesre parity and break indicators, igyesre 
 		 * overruns too.  (For real raw support).
 		 */
 		if (I_IGNPAR(tty))
-			info->ignore_status_mask |= UART_LSR_OE;
+			info->igyesre_status_mask |= UART_LSR_OE;
 	}
 	/*
-	 * !!! ignore all characters if CREAD is not set
+	 * !!! igyesre all characters if CREAD is yest set
 	 */
 	if ((cflag & CREAD) == 0)
-		info->ignore_status_mask |= UART_LSR_DR;
+		info->igyesre_status_mask |= UART_LSR_DR;
 	local_irq_save(flags);
 
 	{
@@ -777,7 +777,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 	info->IER |= UART_IER_THRI;
 	custom.intena = IF_SETCLR | IF_TBE;
 	mb();
-	/* set a pending Tx Interrupt, transmitter should restart now */
+	/* set a pending Tx Interrupt, transmitter should restart yesw */
 	custom.intreq = IF_SETCLR | IF_TBE;
 	mb();
 	local_irq_restore(flags);
@@ -819,7 +819,7 @@ static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count
 		local_irq_disable();
 		custom.intena = IF_SETCLR | IF_TBE;
 		mb();
-		/* set a pending Tx Interrupt, transmitter should restart now */
+		/* set a pending Tx Interrupt, transmitter should restart yesw */
 		custom.intreq = IF_SETCLR | IF_TBE;
 		mb();
 		local_irq_restore(flags);
@@ -870,7 +870,7 @@ static void rs_send_xchar(struct tty_struct *tty, char ch)
 		if(!(custom.intenar & IF_TBE)) {
 		    custom.intena = IF_SETCLR | IF_TBE;
 		    mb();
-		    /* set a pending Tx Interrupt, transmitter should restart now */
+		    /* set a pending Tx Interrupt, transmitter should restart yesw */
 		    custom.intreq = IF_SETCLR | IF_TBE;
 		    mb();
 		}
@@ -1020,7 +1020,7 @@ check_and_exit:
  * Purpose: Let user call ioctl() to get info when the UART physically
  * 	    is emptied.  On bus types like RS485, the transmitter must
  * 	    release the bus after transmitting. This must be done when
- * 	    the transmit shift register is empty, not be done when the
+ * 	    the transmit shift register is empty, yest be done when the
  * 	    transmit holding register is empty.  This functionality
  * 	    allows an RS485 driver to be written in user space. 
  */
@@ -1111,23 +1111,23 @@ static int rs_get_icount(struct tty_struct *tty,
 				struct serial_icounter_struct *icount)
 {
 	struct serial_state *info = tty->driver_data;
-	struct async_icount cnow;
+	struct async_icount cyesw;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	cnow = info->icount;
+	cyesw = info->icount;
 	local_irq_restore(flags);
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
+	icount->cts = cyesw.cts;
+	icount->dsr = cyesw.dsr;
+	icount->rng = cyesw.rng;
+	icount->dcd = cyesw.dcd;
+	icount->rx = cyesw.rx;
+	icount->tx = cyesw.tx;
+	icount->frame = cyesw.frame;
+	icount->overrun = cyesw.overrun;
+	icount->parity = cyesw.parity;
+	icount->brk = cyesw.brk;
+	icount->buf_overrun = cyesw.buf_overrun;
 
 	return 0;
 }
@@ -1136,7 +1136,7 @@ static int rs_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct serial_state *info = tty->driver_data;
-	struct async_icount cprev, cnow;	/* kernel counter temps */
+	struct async_icount cprev, cyesw;	/* kernel counter temps */
 	void __user *argp = (void __user *)arg;
 	unsigned long flags;
 	DEFINE_WAIT(wait);
@@ -1163,24 +1163,24 @@ static int rs_ioctl(struct tty_struct *tty,
 		 */
 		case TIOCMIWAIT:
 			local_irq_save(flags);
-			/* note the counters on entry */
+			/* yeste the counters on entry */
 			cprev = info->icount;
 			local_irq_restore(flags);
 			while (1) {
 				prepare_to_wait(&info->tport.delta_msr_wait,
 						&wait, TASK_INTERRUPTIBLE);
 				local_irq_save(flags);
-				cnow = info->icount; /* atomic copy */
+				cyesw = info->icount; /* atomic copy */
 				local_irq_restore(flags);
-				if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr && 
-				    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts) {
-					ret = -EIO; /* no change => error */
+				if (cyesw.rng == cprev.rng && cyesw.dsr == cprev.dsr && 
+				    cyesw.dcd == cprev.dcd && cyesw.cts == cprev.cts) {
+					ret = -EIO; /* yes change => error */
 					break;
 				}
-				if ( ((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
-				     ((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
-				     ((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
-				     ((arg & TIOCM_CTS) && (cnow.cts != cprev.cts)) ) {
+				if ( ((arg & TIOCM_RNG) && (cyesw.rng != cprev.rng)) ||
+				     ((arg & TIOCM_DSR) && (cyesw.dsr != cprev.dsr)) ||
+				     ((arg & TIOCM_CD)  && (cyesw.dcd != cprev.dcd)) ||
+				     ((arg & TIOCM_CTS) && (cyesw.cts != cprev.cts)) ) {
 					ret = 0;
 					break;
 				}
@@ -1190,7 +1190,7 @@ static int rs_ioctl(struct tty_struct *tty,
 					ret = -ERESTARTSYS;
 					break;
 				}
-				cprev = cnow;
+				cprev = cyesw;
 			}
 			finish_wait(&info->tport.delta_msr_wait, &wait);
 			return ret;
@@ -1237,8 +1237,8 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	/*
 	 * No need to wake up processes in open wait, since they
 	 * sample the CLOCAL flag once, and don't recheck it.
-	 * XXX  It's not clear whether the current behavior is correct
-	 * or not.  Hence, this may change.....
+	 * XXX  It's yest clear whether the current behavior is correct
+	 * or yest.  Hence, this may change.....
 	 */
 	if (!(old_termios->c_cflag & CLOCAL) && C_CLOCAL(tty))
 		wake_up_interruptible(&info->open_wait);
@@ -1252,7 +1252,7 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
  * This routine is called when the serial port gets closed.  First, we
  * wait for the last remaining data to be sent.  Then, we unlink its
  * async structure from the interrupt chain if necessary, and we free
- * that IRQ if nothing is left in the chain.
+ * that IRQ if yesthing is left in the chain.
  * ------------------------------------------------------------
  */
 static void rs_close(struct tty_struct *tty, struct file * filp)
@@ -1548,7 +1548,7 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	serial_driver->driver_name = "amiserial";
 	serial_driver->name = "ttyS";
 	serial_driver->major = TTY_MAJOR;
-	serial_driver->minor_start = 64;
+	serial_driver->miyesr_start = 64;
 	serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	serial_driver->subtype = SERIAL_TYPE_NORMAL;
 	serial_driver->init_termios = tty_std_termios;
@@ -1668,7 +1668,7 @@ static void amiga_serial_putc(char c)
 }
 
 /*
- *	Print a string to the serial port trying not to disturb
+ *	Print a string to the serial port trying yest to disturb
  *	any possible real use of the port...
  *
  *	The console must be locked when we get here.

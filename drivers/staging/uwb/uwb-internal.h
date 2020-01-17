@@ -7,7 +7,7 @@
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
  *
  * This contains most of the internal API for UWB. This is stuff used
- * across the stack that of course, is of no interest to the rest.
+ * across the stack that of course, is of yes interest to the rest.
  *
  * Some parts might end up going public (like uwb_rc_*())...
  */
@@ -30,7 +30,7 @@ extern int uwb_dev_add(struct uwb_dev *uwb_dev, struct device *parent_dev,
 extern void uwb_dev_rm(struct uwb_dev *uwb_dev);
 extern void uwbd_dev_onair(struct uwb_rc *, struct uwb_beca_e *);
 extern void uwbd_dev_offair(struct uwb_beca_e *);
-void uwb_notify(struct uwb_rc *rc, struct uwb_dev *uwb_dev, enum uwb_notifs event);
+void uwb_yestify(struct uwb_rc *rc, struct uwb_dev *uwb_dev, enum uwb_yestifs event);
 
 /* General UWB Radio Controller Internal API */
 extern struct uwb_rc *__uwb_rc_try_get(struct uwb_rc *);
@@ -104,7 +104,7 @@ extern void uwb_est_destroy(void);
  */
 struct uwb_cnflt_alien {
 	struct uwb_rc *rc;
-	struct list_head rc_node;
+	struct list_head rc_yesde;
 	struct uwb_mas_bm mas;
 	struct timer_list timer;
 	struct work_struct cnflt_update_work;
@@ -148,7 +148,7 @@ struct uwb_rsv_alloc_info {
 	unsigned char bm[UWB_MAS_PER_ZONE * UWB_NUM_ZONES];
 	struct uwb_rsv_col_info ci[UWB_NUM_ZONES];
 	struct uwb_rsv_row_info ri;
-	struct uwb_mas_bm *not_available;
+	struct uwb_mas_bm *yest_available;
 	struct uwb_mas_bm *result;
 	int min_mas;
 	int max_mas;
@@ -171,7 +171,7 @@ void uwb_rsv_handle_drp_avail_change(struct uwb_rc *rc);
  * enum uwb_event_type - types of UWB management daemon events
  *
  * The UWB management daemon (uwbd) can receive two types of events:
- *   UWB_EVT_TYPE_NOTIF - notification from the radio controller.
+ *   UWB_EVT_TYPE_NOTIF - yestification from the radio controller.
  *   UWB_EVT_TYPE_MSG   - a simple message.
  */
 enum uwb_event_type {
@@ -180,18 +180,18 @@ enum uwb_event_type {
 };
 
 /**
- * struct uwb_event_notif - an event for a radio controller notification
+ * struct uwb_event_yestif - an event for a radio controller yestification
  * @size: Size of the buffer (ie: Guaranteed to contain at least
  *        a full 'struct uwb_rceb')
  * @rceb: Pointer to a kmalloced() event payload
  */
-struct uwb_event_notif {
+struct uwb_event_yestif {
 	size_t size;
 	struct uwb_rceb *rceb;
 };
 
 /**
- * enum uwb_event_message - an event for a message for asynchronous processing
+ * enum uwb_event_message - an event for a message for asynchroyesus processing
  *
  * UWB_EVT_MSG_RESET - reset the radio controller and all PAL hardware.
  */
@@ -206,12 +206,12 @@ enum uwb_event_message {
  * @type:       This event's type.
  */
 struct uwb_event {
-	struct list_head list_node;
+	struct list_head list_yesde;
 	struct uwb_rc *rc;
 	unsigned long ts_jiffies;
 	enum uwb_event_type type;
 	union {
-		struct uwb_event_notif notif;
+		struct uwb_event_yestif yestif;
 		enum uwb_event_message message;
 	};
 };
@@ -255,7 +255,7 @@ extern unsigned long beacon_timeout_ms;
  *
  * @jiffies_refresh: last time a beacon was  received that refreshed
  *                   this cache entry.
- * @uwb_dev: device connected to this beacon. This pointer is not
+ * @uwb_dev: device connected to this beacon. This pointer is yest
  *           safe, you need to get it with uwb_dev_try_get()
  *
  * @hits: how many time we have seen this beacon since last time we
@@ -264,7 +264,7 @@ extern unsigned long beacon_timeout_ms;
 struct uwb_beca_e {
 	struct mutex mutex;
 	struct kref refcnt;
-	struct list_head node;
+	struct list_head yesde;
 	struct uwb_mac_addr *mac_addr;
 	struct uwb_dev_addr dev_addr;
 	u8 hits;

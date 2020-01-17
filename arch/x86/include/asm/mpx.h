@@ -82,7 +82,7 @@ static inline void mpx_mm_init(struct mm_struct *mm)
 	mm->context.bd_addr = MPX_INVALID_BOUNDS_DIR;
 }
 
-extern void mpx_notify_unmap(struct mm_struct *mm, unsigned long start, unsigned long end);
+extern void mpx_yestify_unmap(struct mm_struct *mm, unsigned long start, unsigned long end);
 extern unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len, unsigned long flags);
 
 #else
@@ -101,7 +101,7 @@ static inline int kernel_managing_mpx_tables(struct mm_struct *mm)
 static inline void mpx_mm_init(struct mm_struct *mm)
 {
 }
-static inline void mpx_notify_unmap(struct mm_struct *mm,
+static inline void mpx_yestify_unmap(struct mm_struct *mm,
 				    unsigned long start, unsigned long end)
 {
 }

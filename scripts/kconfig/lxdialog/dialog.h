@@ -19,17 +19,17 @@
 #include <ncurses.h>
 
 /*
- * Colors in ncurses 1.9.9e do not work properly since foreground and
+ * Colors in ncurses 1.9.9e do yest work properly since foreground and
  * background colors are OR'd rather than separately masked.  This version
  * of dialog was hacked to work with ncurses 1.9.9e, making it incompatible
  * with standard curses.  The simplest fix (to make this work with standard
- * curses) uses the wbkgdset() function, not used in the original hack.
+ * curses) uses the wbkgdset() function, yest used in the original hack.
  * Turn it off if we're building with 1.9.9e, since it just confuses things.
  */
 #if defined(NCURSES_VERSION) && defined(_NEED_WRAP) && !defined(GCC_PRINTFLIKE)
 #define OLD_NCURSES 1
 #undef  wbkgdset
-#define wbkgdset(w,p)		/*nothing */
+#define wbkgdset(w,p)		/*yesthing */
 #else
 #define OLD_NCURSES 0
 #endif
@@ -159,7 +159,7 @@ struct dialog_item {
 
 /* list of lialog_items */
 struct dialog_list {
-	struct dialog_item node;
+	struct dialog_item yesde;
 	struct dialog_list *next;
 };
 
@@ -190,7 +190,7 @@ int on_key_resize(void);
 #define MENUBOX_WIDTH_MIN 65
 #define TEXTBOX_HEIGTH_MIN 8	/* For dialog_textbox() */
 #define TEXTBOX_WIDTH_MIN 8
-#define YESNO_HEIGTH_MIN 4	/* For dialog_yesno() */
+#define YESNO_HEIGTH_MIN 4	/* For dialog_noyes() */
 #define YESNO_WIDTH_MIN 4
 #define WINDOW_HEIGTH_MIN 19	/* For init_dialog() */
 #define WINDOW_WIDTH_MIN 80
@@ -209,7 +209,7 @@ void draw_box(WINDOW * win, int y, int x, int height, int width, chtype box,
 void draw_shadow(WINDOW * win, int y, int x, int height, int width);
 
 int first_alpha(const char *string, const char *exempt);
-int dialog_yesno(const char *title, const char *prompt, int height, int width);
+int dialog_noyes(const char *title, const char *prompt, int height, int width);
 int dialog_msgbox(const char *title, const char *prompt, int height,
 		  int width, int pause);
 

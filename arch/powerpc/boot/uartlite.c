@@ -1,7 +1,7 @@
 /*
  * Xilinx UARTLITE bootloader driver
  *
- * Copyright (C) 2007 Secret Lab Technologies Ltd.
+ * Copyright (C) 2007 Secret Lab Techyeslogies Ltd.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any

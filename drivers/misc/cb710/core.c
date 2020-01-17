@@ -87,7 +87,7 @@ static void cb710_release_slot(struct device *dev)
 	struct cb710_slot *slot = cb710_pdev_to_slot(to_platform_device(dev));
 	struct cb710_chip *chip = cb710_slot_to_chip(slot);
 
-	/* slot struct can be freed now */
+	/* slot struct can be freed yesw */
 	atomic_dec(&chip->slot_refs_count);
 #endif
 }
@@ -125,7 +125,7 @@ static int cb710_register_slot(struct cb710_chip *chip,
 		 * wants this on error path */
 		platform_device_put(&slot->pdev);
 
-		/* slot->irq_handler == NULL here anyway, so no lock needed */
+		/* slot->irq_handler == NULL here anyway, so yes lock needed */
 		--chip->slots;
 		return err;
 	}
@@ -149,7 +149,7 @@ static void cb710_unregister_slot(struct cb710_chip *chip,
 	smp_rmb();
 	BUG_ON(chip->slot[nr].irq_handler != NULL);
 
-	/* slot->irq_handler == NULL here, so no lock needed */
+	/* slot->irq_handler == NULL here, so yes lock needed */
 	--chip->slots;
 	chip->slot_mask &= ~slot_mask;
 }

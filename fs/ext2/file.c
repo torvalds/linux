@@ -32,15 +32,15 @@
 #ifdef CONFIG_FS_DAX
 static ssize_t ext2_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct inode *inode = iocb->ki_filp->f_mapping->host;
+	struct iyesde *iyesde = iocb->ki_filp->f_mapping->host;
 	ssize_t ret;
 
 	if (!iov_iter_count(to))
 		return 0; /* skip atime */
 
-	inode_lock_shared(inode);
+	iyesde_lock_shared(iyesde);
 	ret = dax_iomap_rw(iocb, to, &ext2_iomap_ops);
-	inode_unlock_shared(inode);
+	iyesde_unlock_shared(iyesde);
 
 	file_accessed(iocb->ki_filp);
 	return ret;
@@ -49,10 +49,10 @@ static ssize_t ext2_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
 static ssize_t ext2_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
+	struct iyesde *iyesde = file->f_mapping->host;
 	ssize_t ret;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 	ret = generic_write_checks(iocb, from);
 	if (ret <= 0)
 		goto out_unlock;
@@ -64,13 +64,13 @@ static ssize_t ext2_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		goto out_unlock;
 
 	ret = dax_iomap_rw(iocb, from, &ext2_iomap_ops);
-	if (ret > 0 && iocb->ki_pos > i_size_read(inode)) {
-		i_size_write(inode, iocb->ki_pos);
-		mark_inode_dirty(inode);
+	if (ret > 0 && iocb->ki_pos > i_size_read(iyesde)) {
+		i_size_write(iyesde, iocb->ki_pos);
+		mark_iyesde_dirty(iyesde);
 	}
 
 out_unlock:
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	if (ret > 0)
 		ret = generic_write_sync(iocb, ret);
 	return ret;
@@ -81,21 +81,21 @@ out_unlock:
  *
  * mmap_sem (MM)
  *   sb_start_pagefault (vfs, freeze)
- *     ext2_inode_info->dax_sem
+ *     ext2_iyesde_info->dax_sem
  *       address_space->i_mmap_rwsem or page_lock (mutually exclusive in DAX)
- *         ext2_inode_info->truncate_mutex
+ *         ext2_iyesde_info->truncate_mutex
  *
- * The default page_lock and i_size verification done by non-DAX fault paths
+ * The default page_lock and i_size verification done by yesn-DAX fault paths
  * is sufficient because ext2 doesn't support hole punching.
  */
 static vm_fault_t ext2_dax_fault(struct vm_fault *vmf)
 {
-	struct inode *inode = file_inode(vmf->vma->vm_file);
-	struct ext2_inode_info *ei = EXT2_I(inode);
+	struct iyesde *iyesde = file_iyesde(vmf->vma->vm_file);
+	struct ext2_iyesde_info *ei = EXT2_I(iyesde);
 	vm_fault_t ret;
 
 	if (vmf->flags & FAULT_FLAG_WRITE) {
-		sb_start_pagefault(inode->i_sb);
+		sb_start_pagefault(iyesde->i_sb);
 		file_update_time(vmf->vma->vm_file);
 	}
 	down_read(&ei->dax_sem);
@@ -104,15 +104,15 @@ static vm_fault_t ext2_dax_fault(struct vm_fault *vmf)
 
 	up_read(&ei->dax_sem);
 	if (vmf->flags & FAULT_FLAG_WRITE)
-		sb_end_pagefault(inode->i_sb);
+		sb_end_pagefault(iyesde->i_sb);
 	return ret;
 }
 
 static const struct vm_operations_struct ext2_dax_vm_ops = {
 	.fault		= ext2_dax_fault,
 	/*
-	 * .huge_fault is not supported for DAX because allocation in ext2
-	 * cannot be reliably aligned to huge page sizes and so pmd faults
+	 * .huge_fault is yest supported for DAX because allocation in ext2
+	 * canyest be reliably aligned to huge page sizes and so pmd faults
 	 * will always fail and fail back to regular faults.
 	 */
 	.page_mkwrite	= ext2_dax_fault,
@@ -121,7 +121,7 @@ static const struct vm_operations_struct ext2_dax_vm_ops = {
 
 static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	if (!IS_DAX(file_inode(file)))
+	if (!IS_DAX(file_iyesde(file)))
 		return generic_file_mmap(file, vma);
 
 	file_accessed(file);
@@ -137,12 +137,12 @@ static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)
  * for a single struct file are closed. Note that different open() calls
  * for the same file yield different struct file structures.
  */
-static int ext2_release_file (struct inode * inode, struct file * filp)
+static int ext2_release_file (struct iyesde * iyesde, struct file * filp)
 {
 	if (filp->f_mode & FMODE_WRITE) {
-		mutex_lock(&EXT2_I(inode)->truncate_mutex);
-		ext2_discard_reservation(inode);
-		mutex_unlock(&EXT2_I(inode)->truncate_mutex);
+		mutex_lock(&EXT2_I(iyesde)->truncate_mutex);
+		ext2_discard_reservation(iyesde);
+		mutex_unlock(&EXT2_I(iyesde)->truncate_mutex);
 	}
 	return 0;
 }
@@ -154,7 +154,7 @@ int ext2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 	ret = generic_file_fsync(file, start, end, datasync);
 	if (ret == -EIO)
-		/* We don't really know where the IO error happened... */
+		/* We don't really kyesw where the IO error happened... */
 		ext2_error(sb, __func__,
 			   "detected IO error when writing metadata buffers");
 	return ret;
@@ -195,7 +195,7 @@ const struct file_operations ext2_file_operations = {
 	.splice_write	= iter_file_splice_write,
 };
 
-const struct inode_operations ext2_file_inode_operations = {
+const struct iyesde_operations ext2_file_iyesde_operations = {
 #ifdef CONFIG_EXT2_FS_XATTR
 	.listxattr	= ext2_listxattr,
 #endif

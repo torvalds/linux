@@ -7,7 +7,7 @@
  *    Author(s): David Hildenbrand <dahi@linux.vnet.ibm.com>
  */
 #include <linux/kvm_host.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 
@@ -27,7 +27,7 @@ static void extend_address_range(u64 *start, u64 *stop, u64 estart, int len)
 
 	estop = estart + len;
 
-	/* 0-0 range represents "not set" */
+	/* 0-0 range represents "yest set" */
 	if ((*start == 0) && (*stop == 0)) {
 		*start = estart;
 		*stop = estop;
@@ -69,7 +69,7 @@ static void enable_all_hw_bp(struct kvm_vcpu *vcpu)
 		return;
 
 	/*
-	 * If the guest is not interested in branching events, we can safely
+	 * If the guest is yest interested in branching events, we can safely
 	 * limit them to the PER address range.
 	 */
 	if (!(*cr9 & PER_EVENT_BRANCH))
@@ -164,7 +164,7 @@ void kvm_s390_patch_guest_per_regs(struct kvm_vcpu *vcpu)
 		enable_all_hw_wp(vcpu);
 	}
 
-	/* TODO: Instruction-fetching-nullification not allowed for now */
+	/* TODO: Instruction-fetching-nullification yest allowed for yesw */
 	if (vcpu->arch.sie_block->gcr[9] & PER_EVENT_NULLIFICATION)
 		vcpu->arch.sie_block->gcr[9] &= ~PER_EVENT_NULLIFICATION;
 }
@@ -598,7 +598,7 @@ int kvm_s390_handle_per_event(struct kvm_vcpu *vcpu)
 	/*
 	 * Only RP, SAC, SACF, PT, PTI, PR, PC instructions can trigger
 	 * a space-switch event. PER events enforce space-switch events
-	 * for these instructions. So if no PER event for the guest is left,
+	 * for these instructions. So if yes PER event for the guest is left,
 	 * we might have to filter the space-switch element out, too.
 	 */
 	if (vcpu->arch.sie_block->iprcc == PGM_SPACE_SWITCH) {
@@ -608,7 +608,7 @@ int kvm_s390_handle_per_event(struct kvm_vcpu *vcpu)
 		/*
 		 * If the AS changed from / to home, we had RP, SAC or SACF
 		 * instruction. Check primary and home space-switch-event
-		 * controls. (theoretically home -> home produced no event)
+		 * controls. (theoretically home -> home produced yes event)
 		 */
 		if (((new_as == PSW_BITS_AS_HOME) ^ old_as_is_home(vcpu)) &&
 		    (pssec(vcpu) || hssec(vcpu)))

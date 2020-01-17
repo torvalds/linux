@@ -151,7 +151,7 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 		}
 	}
 
-	/* Calculate Average ThermalValue after average enough times */
+	/* Calculate Average ThermalValue after average eyesugh times */
 	if (ThermalValue_AVG_count) {
 		ThermalValue = (u8)(ThermalValue_AVG / ThermalValue_AVG_count);
 		ODM_RT_TRACE(
@@ -167,7 +167,7 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 	}
 
 	/* 4 5. Calculate delta, delta_LCK, delta_IQK. */
-	/* delta" here is used to determine whether thermal value changes or not. */
+	/* delta" here is used to determine whether thermal value changes or yest. */
 	delta =
 		(ThermalValue > pDM_Odm->RFCalibrateInfo.ThermalValue) ?
 		(ThermalValue - pDM_Odm->RFCalibrateInfo.ThermalValue) :
@@ -486,7 +486,7 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 
 		pDM_Odm->RFCalibrateInfo.bTxPowerChanged = true; /*  Always true after Tx Power is adjusted by power tracking. */
 		/*  */
-		/*  2012/04/23 MH According to Luke's suggestion, we can not write BB digital */
+		/*  2012/04/23 MH According to Luke's suggestion, we can yest write BB digital */
 		/*  to increase TX power. Otherwise, EVM will be bad. */
 		/*  */
 		/*  2012/04/25 MH Add for tx power tracking to set tx power in tx agc for 88E. */

@@ -304,13 +304,13 @@ static int __init fmi_init(void)
 			return -EBUSY;
 		}
 		if (inb(io) == 0xff) {
-			printk(KERN_ERR "radio-sf16fmi: card not present at %#x\n", io);
+			printk(KERN_ERR "radio-sf16fmi: card yest present at %#x\n", io);
 			release_region(io, 2);
 			return -ENODEV;
 		}
 	}
 	if (io < 0) {
-		printk(KERN_ERR "radio-sf16fmi: no cards found\n");
+		printk(KERN_ERR "radio-sf16fmi: yes cards found\n");
 		return -ENODEV;
 	}
 
@@ -322,7 +322,7 @@ static int __init fmi_init(void)
 		release_region(fmi->io, 2);
 		if (pnp_attached)
 			pnp_device_detach(dev);
-		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
+		v4l2_err(v4l2_dev, "Could yest register v4l2_device\n");
 		return res;
 	}
 
@@ -332,7 +332,7 @@ static int __init fmi_init(void)
 	v4l2_dev->ctrl_handler = hdl;
 	if (hdl->error) {
 		res = hdl->error;
-		v4l2_err(v4l2_dev, "Could not register controls\n");
+		v4l2_err(v4l2_dev, "Could yest register controls\n");
 		v4l2_ctrl_handler_free(hdl);
 		v4l2_device_unregister(v4l2_dev);
 		return res;

@@ -168,7 +168,7 @@
 /*
  * Timeout in us, for setting the stream RUN bit, during
  * start/stop the stream. The timeout expires if new RUN bit
- * value cannot be read back within the specified time.
+ * value canyest be read back within the specified time.
  */
 #define HDA_DSP_STREAM_RUN_TIMEOUT		300
 #define HDA_DSP_CL_TRIGGER_TIMEOUT		300
@@ -305,7 +305,7 @@
  */
 #define SOF_DSP_CORES_MASK(nc)	GENMASK(((nc) - 1), 0)
 
-/* Intel HD Audio Inter-Processor Communication Registers for Cannonlake*/
+/* Intel HD Audio Inter-Processor Communication Registers for Canyesnlake*/
 #define CNL_DSP_IPC_BASE		0xc0
 #define CNL_DSP_REG_HIPCTDR		(CNL_DSP_IPC_BASE + 0x00)
 #define CNL_DSP_REG_HIPCTDA		(CNL_DSP_IPC_BASE + 0x04)
@@ -401,7 +401,7 @@ struct sof_intel_hda_dev {
 	struct hdac_ext_stream *dtrace_stream;
 
 	/* if position update IPC needed */
-	u32 no_ipc_position;
+	u32 yes_ipc_position;
 
 	/* the maximum number of streams (playback + capture) supported */
 	u32 stream_max;
@@ -409,7 +409,7 @@ struct sof_intel_hda_dev {
 	int irq;
 
 	/* PM related */
-	bool l1_support_changed;/* during suspend, is L1SEN changed or not */
+	bool l1_support_changed;/* during suspend, is L1SEN changed or yest */
 
 	/* DMIC device */
 	struct platform_device *dmic_dev;

@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _media_ioc_enum_links:
 
@@ -19,7 +19,7 @@ Name
 MEDIA_IOC_ENUM_LINKS - Enumerate all pads and links for a given entity
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, MEDIA_IOC_ENUM_LINKS, struct media_links_enum *argp )
@@ -47,14 +47,14 @@ structure and initialize the struct
 the ``pads`` and ``links`` fields. They then call the
 MEDIA_IOC_ENUM_LINKS ioctl with a pointer to this structure.
 
-If the ``pads`` field is not NULL, the driver fills the ``pads`` array
-with information about the entity's pads. The array must have enough
+If the ``pads`` field is yest NULL, the driver fills the ``pads`` array
+with information about the entity's pads. The array must have eyesugh
 room to store all the entity's pads. The number of pads can be retrieved
 with :ref:`MEDIA_IOC_ENUM_ENTITIES`.
 
-If the ``links`` field is not NULL, the driver fills the ``links`` array
+If the ``links`` field is yest NULL, the driver fills the ``links`` array
 with information about the entity's outbound links. The array must have
-enough room to store all the entity's outbound links. The number of
+eyesugh room to store all the entity's outbound links. The number of
 outbound links can be retrieved with :ref:`MEDIA_IOC_ENUM_ENTITIES`.
 
 Only forward links that originate at one of the entity's source pads are
@@ -76,12 +76,12 @@ returned during the enumeration process.
 
     *  -  struct :c:type:`media_pad_desc`
        -  \*\ ``pads``
-       -  Pointer to a pads array allocated by the application. Ignored if
+       -  Pointer to a pads array allocated by the application. Igyesred if
 	  NULL.
 
     *  -  struct :c:type:`media_link_desc`
        -  \*\ ``links``
-       -  Pointer to a links array allocated by the application. Ignored if
+       -  Pointer to a links array allocated by the application. Igyesred if
 	  NULL.
 
     *  -  __u32
@@ -148,10 +148,10 @@ returned during the enumeration process.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The struct :c:type:`media_links_enum` ``id``
-    references a non-existing entity.
+    references a yesn-existing entity.

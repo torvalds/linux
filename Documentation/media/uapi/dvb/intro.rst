@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _dvb_introdution:
 
@@ -16,13 +16,13 @@ Introduction
 
 .. _requisites:
 
-What you need to know
+What you need to kyesw
 =====================
 
-The reader of this document is required to have some knowledge in the
+The reader of this document is required to have some kyeswledge in the
 area of digital video broadcasting (Digital TV) and should be familiar with
 part I of the MPEG2 specification ISO/IEC 13818 (aka ITU-T H.222), i.e
-you should know what a program/transport stream (PS/TS) is and what is
+you should kyesw what a program/transport stream (PS/TS) is and what is
 meant by a packetized elementary stream (PES) or an I-frame.
 
 Various Digital TV standards documents are available for download at:
@@ -31,8 +31,8 @@ Various Digital TV standards documents are available for download at:
 - American standards (ATSC): https://www.atsc.org/standards/
 - Japanese standards (ISDB): http://www.dibeg.org/
 
-It is also necessary to know how to access Linux devices and how to
-use ioctl calls. This also includes the knowledge of C or C++.
+It is also necessary to kyesw how to access Linux devices and how to
+use ioctl calls. This also includes the kyeswledge of C or C++.
 
 
 .. _history:
@@ -42,7 +42,7 @@ History
 
 The first API for Digital TV cards we used at Convergence in late 1999 was an
 extension of the Video4Linux API which was primarily developed for frame
-grabber cards. As such it was not really well suited to be used for Digital
+grabber cards. As such it was yest really well suited to be used for Digital
 TV cards and their new features like recording MPEG streams and filtering
 several section and PES data streams at the same time.
 
@@ -91,7 +91,7 @@ Conditional Access (CA) hardware like CI adapters and smartcard slots
    the user has access (controlled by the smart card) are decoded in
    real time and re-inserted into the TS.
 
-   .. note::
+   .. yeste::
 
       Not every digital TV hardware provides conditional access hardware.
 
@@ -106,14 +106,14 @@ Audio and video decoder
    decoders. After decoding, they pass on the uncompressed audio and
    video to the computer screen or to a TV set.
 
-   .. note::
+   .. yeste::
 
       Modern hardware usually doesn't have a separate decoder hardware, as
       such functionality can be provided by the main CPU, by the graphics
       adapter of the system or by a signal processing hardware embedded on
       a Systems on a Chip (SoC) integrated circuit.
 
-      It may also not be needed for certain usages (e.g. for data-only
+      It may also yest be needed for certain usages (e.g. for data-only
       uses like “internet over satellite”).
 
 :ref:`stb_components` shows a crude schematic of the control and data
@@ -131,7 +131,7 @@ currently six Unix-style character devices for video, audio, frontend,
 demux, CA and IP-over-DVB networking. The video and audio devices
 control the MPEG2 decoder hardware, the frontend device the tuner and
 the Digital TV demodulator. The demux device gives you control over the PES
-and section filters of the hardware. If the hardware does not support
+and section filters of the hardware. If the hardware does yest support
 filtering these filters can be implemented in software. Finally, the CA
 device controls all the conditional access capabilities of the hardware.
 It can depend on the individual security requirements of the platform,

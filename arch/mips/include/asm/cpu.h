@@ -369,7 +369,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_CACHE_CDEX_S	BIT_ULL(12)	/* ... same for seconary cache ... */
 #define MIPS_CPU_MCHECK		BIT_ULL(13)	/* Machine check exception */
 #define MIPS_CPU_EJTAG		BIT_ULL(14)	/* EJTAG exception */
-#define MIPS_CPU_NOFPUEX	BIT_ULL(15)	/* no FPU exception */
+#define MIPS_CPU_NOFPUEX	BIT_ULL(15)	/* yes FPU exception */
 #define MIPS_CPU_LLSC		BIT_ULL(16)	/* CPU has ll/sc instructions */
 #define MIPS_CPU_INCLUSIVE_CACHES BIT_ULL(17)	/* P-cache subset enforced */
 #define MIPS_CPU_PREFETCH	BIT_ULL(18)	/* CPU has usable prefetch */
@@ -409,9 +409,9 @@ enum cpu_type_enum {
 #define MIPS_CPU_DRG		BIT_ULL(52)	/* CPU has VZ Direct Root to Guest (DRG) */
 #define MIPS_CPU_UFR		BIT_ULL(53)	/* CPU supports User mode FR switching */
 #define MIPS_CPU_SHARED_FTLB_RAM \
-				BIT_ULL(54)	/* CPU shares FTLB RAM with another */
+				BIT_ULL(54)	/* CPU shares FTLB RAM with ayesther */
 #define MIPS_CPU_SHARED_FTLB_ENTRIES \
-				BIT_ULL(55)	/* CPU shares FTLB entries with another */
+				BIT_ULL(55)	/* CPU shares FTLB entries with ayesther */
 #define MIPS_CPU_MT_PER_TC_PERF_COUNTERS \
 				BIT_ULL(56)	/* CPU has perf counters implemented per TC (MIPSMT ASE) */
 #define MIPS_CPU_MMID		BIT_ULL(57)	/* CPU supports MemoryMapIDs */

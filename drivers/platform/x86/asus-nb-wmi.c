@@ -63,7 +63,7 @@ static bool asus_q500a_i8042_filter(unsigned char data, unsigned char str,
 	return ret;
 }
 
-static struct quirk_entry quirk_asus_unknown = {
+static struct quirk_entry quirk_asus_unkyeswn = {
 	.wapf = 0,
 	.wmi_backlight_set_devstate = true,
 };
@@ -82,7 +82,7 @@ static struct quirk_entry quirk_asus_x55u = {
 	.wapf = 4,
 	.wmi_backlight_power = true,
 	.wmi_backlight_set_devstate = true,
-	.no_display_toggle = true,
+	.yes_display_toggle = true,
 };
 
 static struct quirk_entry quirk_asus_wapf4 = {
@@ -418,7 +418,7 @@ static void asus_nb_wmi_quirks(struct asus_wmi_driver *driver)
 {
 	int ret;
 
-	quirks = &quirk_asus_unknown;
+	quirks = &quirk_asus_unkyeswn;
 	dmi_check_system(asus_quirks);
 
 	driver->quirks = quirks;
@@ -470,7 +470,7 @@ static const struct key_entry asus_nb_wmi_keymap[] = {
 	{ KE_KEY, 0x66, { KEY_SWITCHVIDEOMODE } }, /* SDSP CRT + TV */
 	{ KE_KEY, 0x67, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD + CRT + TV */
 	{ KE_KEY, 0x6B, { KEY_TOUCHPAD_TOGGLE } },
-	{ KE_IGNORE, 0x6E, },  /* Low Battery notification */
+	{ KE_IGNORE, 0x6E, },  /* Low Battery yestification */
 	{ KE_KEY, 0x7a, { KEY_ALS_TOGGLE } }, /* Ambient Light Sensor Toggle */
 	{ KE_KEY, 0x7c, { KEY_MICMUTE } },
 	{ KE_KEY, 0x7D, { KEY_BLUETOOTH } }, /* Bluetooth Enable */
@@ -499,7 +499,7 @@ static const struct key_entry asus_nb_wmi_keymap[] = {
 	{ KE_KEY, 0xB5, { KEY_CALC } },
 	{ KE_KEY, 0xC4, { KEY_KBDILLUMUP } },
 	{ KE_KEY, 0xC5, { KEY_KBDILLUMDOWN } },
-	{ KE_IGNORE, 0xC6, },  /* Ambient Light Sensor notification */
+	{ KE_IGNORE, 0xC6, },  /* Ambient Light Sensor yestification */
 	{ KE_KEY, 0xFA, { KEY_PROG2 } },           /* Lid flip action */
 	{ KE_END, 0},
 };

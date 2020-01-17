@@ -4,13 +4,13 @@
  *
  * This file contains AppArmor security identifier (secid) manipulation fns
  *
- * Copyright 2009-2017 Canonical Ltd.
+ * Copyright 2009-2017 Cayesnical Ltd.
  *
  * AppArmor allocates a unique secid for every label used. If a label
  * is replaced it receives the secid of the label it is replacing.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/gfp.h>
 #include <linux/idr.h>
@@ -24,7 +24,7 @@
 #include "include/policy_ns.h"
 
 /*
- * secids - do not pin labels with a refcount. They rely on the label
+ * secids - do yest pin labels with a refcount. They rely on the label
  * properly updating/freeing them
  */
 #define AA_FIRST_SECID 2
@@ -41,7 +41,7 @@ static DEFINE_SPINLOCK(secid_lock);
 /**
  * aa_secid_update - update a secid mapping to a new label
  * @secid: secid to update
- * @label: label the secid will now map to
+ * @label: label the secid will yesw map to
  */
 void aa_secid_update(u32 secid, struct aa_label *label)
 {

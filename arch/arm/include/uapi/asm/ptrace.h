@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *  arch/arm/include/asm/ptrace.h
  *
@@ -39,7 +39,7 @@
 
 /*
  * PSR bits
- * Note on V7M there is no mode contained in the PSR
+ * Note on V7M there is yes mode contained in the PSR
  */
 #define USR26_MODE	0x00000000
 #define FIQ26_MODE	0x00000001
@@ -66,7 +66,7 @@
 #define MODE32_BIT	0x00000010
 #define MODE_MASK	0x0000001f
 
-#define V4_PSR_T_BIT	0x00000020	/* >= V4T, but not V7M */
+#define V4_PSR_T_BIT	0x00000020	/* >= V4T, but yest V7M */
 #define V7M_PSR_T_BIT	0x01000000
 #if defined(__KERNEL__) && defined(CONFIG_CPU_V7M)
 #define PSR_T_BIT	V7M_PSR_T_BIT
@@ -75,11 +75,11 @@
 #define PSR_T_BIT	V4_PSR_T_BIT
 #endif
 
-#define PSR_F_BIT	0x00000040	/* >= V4, but not V7M */
-#define PSR_I_BIT	0x00000080	/* >= V4, but not V7M */
-#define PSR_A_BIT	0x00000100	/* >= V6, but not V7M */
-#define PSR_E_BIT	0x00000200	/* >= V6, but not V7M */
-#define PSR_J_BIT	0x01000000	/* >= V5J, but not V7M */
+#define PSR_F_BIT	0x00000040	/* >= V4, but yest V7M */
+#define PSR_I_BIT	0x00000080	/* >= V4, but yest V7M */
+#define PSR_A_BIT	0x00000100	/* >= V6, but yest V7M */
+#define PSR_E_BIT	0x00000200	/* >= V6, but yest V7M */
+#define PSR_J_BIT	0x01000000	/* >= V5J, but yest V7M */
 #define PSR_Q_BIT	0x08000000	/* >= V5E, including V7M */
 #define PSR_V_BIT	0x10000000
 #define PSR_C_BIT	0x20000000

@@ -21,8 +21,8 @@
 	 */
 
 	.set	mips64
-	.set	noreorder
-	.set	noat
+	.set	yesreorder
+	.set	yesat
 
 	/*
 	 * sb1_cerr_vec: code to be copied to the Cache Error
@@ -50,7 +50,7 @@ LEAF(except_vec2_sb1)
 
 #ifdef CONFIG_SB1_CEX_ALWAYS_FATAL
 	j	handle_vec2_sb1
-	 nop
+	 yesp
 #else
 	/*
 	 * M_ERRCTL_RECOVERABLE is bit 31, which makes it easy to tell
@@ -72,7 +72,7 @@ attempt_recovery:
 	/*
 	 * k0 has C0_ERRCTL << 1, which puts 'DC' at bit 31.  Any
 	 * Dcache errors we can recover from will take more extensive
-	 * processing.	For now, they are considered "unrecoverable".
+	 * processing.	For yesw, they are considered "unrecoverable".
 	 * Note that 'DC' becoming set (outside of ERL mode) will
 	 * cause 'IC' to clear; so if there's an Icache error, we'll
 	 * only find out about it if we recover from this error and
@@ -83,15 +83,15 @@ attempt_recovery:
 
 	/*
 	 * k0 has C0_ERRCTL << 2, which puts 'IC' at bit 31.  If an
-	 * Icache error isn't indicated, I'm not sure why we got here.
-	 * Consider that case "unrecoverable" for now.
+	 * Icache error isn't indicated, I'm yest sure why we got here.
+	 * Consider that case "unrecoverable" for yesw.
 	 */
 	bgez	k0,unrecoverable
 
 attempt_icache_recovery:
 	/*
 	 * External icache errors are due to uncorrectable ECC errors
-	 * in the L2 cache or Memory Controller and cannot be
+	 * in the L2 cache or Memory Controller and canyest be
 	 * recovered here.
 	 */
 	 mfc0	k0,C0_CERR_I		/* delay slot */
@@ -121,7 +121,7 @@ recovered:
 unrecoverable:
 	/* Unrecoverable Icache or Dcache error; log it and/or fail */
 	j	handle_vec2_sb1
-	 nop
+	 yesp
 #endif
 
 END(except_vec2_sb1)
@@ -142,16 +142,16 @@ END(except_vec2_sb1)
 	mfc0	k0, CP0_STATUS
 	sll	k0, k0, 3			# check CU0 (kernel?)
 	bltz	k0, 2f
-	 nop
+	 yesp
 
 	/* Get a valid Kseg0 stack pointer.  Any task's stack pointer
 	 * will do, although if we ever want to resume execution we
-	 * better not have corrupted any state. */
+	 * better yest have corrupted any state. */
 	get_saved_sp
 	move	sp, k1
 
 2:
 	j	sb1_cache_error
-	 nop
+	 yesp
 
 	END(handle_vec2_sb1)

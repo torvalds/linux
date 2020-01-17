@@ -14,7 +14,7 @@
 #include <linux/stringify.h>
 #include "iwl-config.h"
 #include "iwl-agn-hw.h"
-#include "dvm/commands.h" /* needed for BT for now */
+#include "dvm/commands.h" /* needed for BT for yesw */
 
 /* Highest firmware API version supported */
 #define IWL2030_UCODE_API_MAX 6
@@ -108,13 +108,13 @@ static const struct iwl_eeprom_params iwl20x0_eeprom_params = {
 
 
 const struct iwl_cfg iwl2000_2bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 2200 BGN",
+	.name = "Intel(R) Centriyes(R) Wireless-N 2200 BGN",
 	IWL_DEVICE_2000,
 	.ht_params = &iwl2000_ht_params,
 };
 
 const struct iwl_cfg iwl2000_2bgn_d_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 2200D BGN",
+	.name = "Intel(R) Centriyes(R) Wireless-N 2200D BGN",
 	IWL_DEVICE_2000,
 	.ht_params = &iwl2000_ht_params,
 };
@@ -135,7 +135,7 @@ const struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.trans.csr = &iwl_csr_v1
 
 const struct iwl_cfg iwl2030_2bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 2230 BGN",
+	.name = "Intel(R) Centriyes(R) Wireless-N 2230 BGN",
 	IWL_DEVICE_2030,
 	.ht_params = &iwl2000_ht_params,
 };
@@ -157,13 +157,13 @@ const struct iwl_cfg iwl2030_2bgn_cfg = {
 	.trans.csr = &iwl_csr_v1
 
 const struct iwl_cfg iwl105_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 105 BGN",
+	.name = "Intel(R) Centriyes(R) Wireless-N 105 BGN",
 	IWL_DEVICE_105,
 	.ht_params = &iwl2000_ht_params,
 };
 
 const struct iwl_cfg iwl105_bgn_d_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 105D BGN",
+	.name = "Intel(R) Centriyes(R) Wireless-N 105D BGN",
 	IWL_DEVICE_105,
 	.ht_params = &iwl2000_ht_params,
 };
@@ -185,7 +185,7 @@ const struct iwl_cfg iwl105_bgn_d_cfg = {
 	.trans.csr = &iwl_csr_v1
 
 const struct iwl_cfg iwl135_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 135 BGN",
+	.name = "Intel(R) Centriyes(R) Wireless-N 135 BGN",
 	IWL_DEVICE_135,
 	.ht_params = &iwl2000_ht_params,
 };

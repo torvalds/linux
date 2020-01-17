@@ -34,7 +34,7 @@ static int __init file_caps_disable(char *str)
 	file_caps_enabled = 0;
 	return 1;
 }
-__setup("no_file_caps", file_caps_disable);
+__setup("yes_file_caps", file_caps_disable);
 
 #ifdef CONFIG_MULTIUSER
 /*
@@ -111,7 +111,7 @@ static int cap_validate_magic(cap_user_header_t header, unsigned *tocopy)
  * process is the current process. As such, we can't be in this code
  * at the same time as we are in the process of setting capabilities
  * in this process. The net result is that we can limit our use of
- * locks to when we are reading the caps of another process.
+ * locks to when we are reading the caps of ayesther process.
  */
 static inline int cap_get_target_pid(pid_t pid, kernel_cap_t *pEp,
 				     kernel_cap_t *pIp, kernel_cap_t *pPp)
@@ -235,7 +235,7 @@ SYSCALL_DEFINE2(capset, cap_user_header_t, header, const cap_user_data_t, data)
 	if (get_user(pid, &header->pid))
 		return -EFAULT;
 
-	/* may only affect current now */
+	/* may only affect current yesw */
 	if (pid != 0 && pid != task_pid_vnr(current))
 		return -EPERM;
 
@@ -287,9 +287,9 @@ error:
  * @cap: The capability to be tested for
  *
  * Return true if the specified task has the given superior capability
- * currently in effect to the specified user namespace, false if not.
+ * currently in effect to the specified user namespace, false if yest.
  *
- * Note that this does not set PF_SUPERPRIV on the task.
+ * Note that this does yest set PF_SUPERPRIV on the task.
  */
 bool has_ns_capability(struct task_struct *t,
 		       struct user_namespace *ns, int cap)
@@ -309,9 +309,9 @@ bool has_ns_capability(struct task_struct *t,
  * @cap: The capability to be tested for
  *
  * Return true if the specified task has the given superior capability
- * currently in effect to the initial user namespace, false if not.
+ * currently in effect to the initial user namespace, false if yest.
  *
- * Note that this does not set PF_SUPERPRIV on the task.
+ * Note that this does yest set PF_SUPERPRIV on the task.
  */
 bool has_capability(struct task_struct *t, int cap)
 {
@@ -320,19 +320,19 @@ bool has_capability(struct task_struct *t, int cap)
 EXPORT_SYMBOL(has_capability);
 
 /**
- * has_ns_capability_noaudit - Does a task have a capability (unaudited)
+ * has_ns_capability_yesaudit - Does a task have a capability (unaudited)
  * in a specific user ns.
  * @t: The task in question
  * @ns: target user namespace
  * @cap: The capability to be tested for
  *
  * Return true if the specified task has the given superior capability
- * currently in effect to the specified user namespace, false if not.
- * Do not write an audit message for the check.
+ * currently in effect to the specified user namespace, false if yest.
+ * Do yest write an audit message for the check.
  *
- * Note that this does not set PF_SUPERPRIV on the task.
+ * Note that this does yest set PF_SUPERPRIV on the task.
  */
-bool has_ns_capability_noaudit(struct task_struct *t,
+bool has_ns_capability_yesaudit(struct task_struct *t,
 			       struct user_namespace *ns, int cap)
 {
 	int ret;
@@ -345,20 +345,20 @@ bool has_ns_capability_noaudit(struct task_struct *t,
 }
 
 /**
- * has_capability_noaudit - Does a task have a capability (unaudited) in the
+ * has_capability_yesaudit - Does a task have a capability (unaudited) in the
  * initial user ns
  * @t: The task in question
  * @cap: The capability to be tested for
  *
  * Return true if the specified task has the given superior capability
- * currently in effect to init_user_ns, false if not.  Don't write an
+ * currently in effect to init_user_ns, false if yest.  Don't write an
  * audit message for the check.
  *
- * Note that this does not set PF_SUPERPRIV on the task.
+ * Note that this does yest set PF_SUPERPRIV on the task.
  */
-bool has_capability_noaudit(struct task_struct *t, int cap)
+bool has_capability_yesaudit(struct task_struct *t, int cap)
 {
-	return has_ns_capability_noaudit(t, &init_user_ns, cap);
+	return has_ns_capability_yesaudit(t, &init_user_ns, cap);
 }
 
 static bool ns_capable_common(struct user_namespace *ns,
@@ -386,7 +386,7 @@ static bool ns_capable_common(struct user_namespace *ns,
  * @cap: The capability to be tested for
  *
  * Return true if the current task has the given superior capability currently
- * available for use, false if not.
+ * available for use, false if yest.
  *
  * This sets PF_SUPERPRIV on the task if the capability is available on the
  * assumption that it's about to be used.
@@ -398,22 +398,22 @@ bool ns_capable(struct user_namespace *ns, int cap)
 EXPORT_SYMBOL(ns_capable);
 
 /**
- * ns_capable_noaudit - Determine if the current task has a superior capability
+ * ns_capable_yesaudit - Determine if the current task has a superior capability
  * (unaudited) in effect
  * @ns:  The usernamespace we want the capability in
  * @cap: The capability to be tested for
  *
  * Return true if the current task has the given superior capability currently
- * available for use, false if not.
+ * available for use, false if yest.
  *
  * This sets PF_SUPERPRIV on the task if the capability is available on the
  * assumption that it's about to be used.
  */
-bool ns_capable_noaudit(struct user_namespace *ns, int cap)
+bool ns_capable_yesaudit(struct user_namespace *ns, int cap)
 {
 	return ns_capable_common(ns, cap, CAP_OPT_NOAUDIT);
 }
-EXPORT_SYMBOL(ns_capable_noaudit);
+EXPORT_SYMBOL(ns_capable_yesaudit);
 
 /**
  * ns_capable_setid - Determine if the current task has a superior capability
@@ -423,7 +423,7 @@ EXPORT_SYMBOL(ns_capable_noaudit);
  * @cap: The capability to be tested for
  *
  * Return true if the current task has the given superior capability currently
- * available for use, false if not.
+ * available for use, false if yest.
  *
  * This sets PF_SUPERPRIV on the task if the capability is available on the
  * assumption that it's about to be used.
@@ -439,7 +439,7 @@ EXPORT_SYMBOL(ns_capable_setid);
  * @cap: The capability to be tested for
  *
  * Return true if the current task has the given superior capability currently
- * available for use, false if not.
+ * available for use, false if yest.
  *
  * This sets PF_SUPERPRIV on the task if the capability is available on the
  * assumption that it's about to be used.
@@ -460,7 +460,7 @@ EXPORT_SYMBOL(capable);
  * Return true if task that opened the file had a capability in effect
  * when the file was opened.
  *
- * This does not set PF_SUPERPRIV because the caller may not
+ * This does yest set PF_SUPERPRIV because the caller may yest
  * actually be privileged.
  */
 bool file_ns_capable(const struct file *file, struct user_namespace *ns,
@@ -478,34 +478,34 @@ bool file_ns_capable(const struct file *file, struct user_namespace *ns,
 EXPORT_SYMBOL(file_ns_capable);
 
 /**
- * privileged_wrt_inode_uidgid - Do capabilities in the namespace work over the inode?
+ * privileged_wrt_iyesde_uidgid - Do capabilities in the namespace work over the iyesde?
  * @ns: The user namespace in question
- * @inode: The inode in question
+ * @iyesde: The iyesde in question
  *
- * Return true if the inode uid and gid are within the namespace.
+ * Return true if the iyesde uid and gid are within the namespace.
  */
-bool privileged_wrt_inode_uidgid(struct user_namespace *ns, const struct inode *inode)
+bool privileged_wrt_iyesde_uidgid(struct user_namespace *ns, const struct iyesde *iyesde)
 {
-	return kuid_has_mapping(ns, inode->i_uid) &&
-		kgid_has_mapping(ns, inode->i_gid);
+	return kuid_has_mapping(ns, iyesde->i_uid) &&
+		kgid_has_mapping(ns, iyesde->i_gid);
 }
 
 /**
- * capable_wrt_inode_uidgid - Check nsown_capable and uid and gid mapped
- * @inode: The inode in question
+ * capable_wrt_iyesde_uidgid - Check nsown_capable and uid and gid mapped
+ * @iyesde: The iyesde in question
  * @cap: The capability in question
  *
  * Return true if the current task has the given capability targeted at
- * its own user namespace and that the given inode's uid and gid are
+ * its own user namespace and that the given iyesde's uid and gid are
  * mapped into the current user namespace.
  */
-bool capable_wrt_inode_uidgid(const struct inode *inode, int cap)
+bool capable_wrt_iyesde_uidgid(const struct iyesde *iyesde, int cap)
 {
 	struct user_namespace *ns = current_user_ns();
 
-	return ns_capable(ns, cap) && privileged_wrt_inode_uidgid(ns, inode);
+	return ns_capable(ns, cap) && privileged_wrt_iyesde_uidgid(ns, iyesde);
 }
-EXPORT_SYMBOL(capable_wrt_inode_uidgid);
+EXPORT_SYMBOL(capable_wrt_iyesde_uidgid);
 
 /**
  * ptracer_capable - Determine if the ptracer holds CAP_SYS_PTRACE in the namespace
@@ -517,7 +517,7 @@ EXPORT_SYMBOL(capable_wrt_inode_uidgid);
  */
 bool ptracer_capable(struct task_struct *tsk, struct user_namespace *ns)
 {
-	int ret = 0;  /* An absent tracer adds no restrictions */
+	int ret = 0;  /* An absent tracer adds yes restrictions */
 	const struct cred *cred;
 
 	rcu_read_lock();

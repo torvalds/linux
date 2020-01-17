@@ -41,7 +41,7 @@ static int rcar_du_wb_conn_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 
-	return drm_add_modes_noedid(connector, dev->mode_config.max_width,
+	return drm_add_modes_yesedid(connector, dev->mode_config.max_width,
 				    dev->mode_config.max_height);
 }
 

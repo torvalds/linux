@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -109,7 +109,7 @@ struct iwl_lmac_debug_addrs {
 
 struct iwl_lmac_alive {
 	__le32 ucode_major;
-	__le32 ucode_minor;
+	__le32 ucode_miyesr;
 	u8 ver_subtype;
 	u8 ver_type;
 	u8 mac;
@@ -125,7 +125,7 @@ struct iwl_umac_debug_addrs {
 
 struct iwl_umac_alive {
 	__le32 umac_major;		/* UMAC version: major */
-	__le32 umac_minor;		/* UMAC version: minor */
+	__le32 umac_miyesr;		/* UMAC version: miyesr */
 	struct iwl_umac_debug_addrs dbg_ptrs;
 } __packed; /* UMAC_ALIVE_DATA_API_S_VER_2 */
 
@@ -166,13 +166,13 @@ struct iwl_init_extended_cfg_cmd {
 } __packed; /* INIT_EXTENDED_CFG_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_radio_version_notif - information on the radio version
+ * struct iwl_radio_version_yestif - information on the radio version
  * ( RADIO_VERSION_NOTIFICATION = 0x68 )
  * @radio_flavor: radio flavor
  * @radio_step: radio version step
  * @radio_dash: radio version dash
  */
-struct iwl_radio_version_notif {
+struct iwl_radio_version_yestif {
 	__le32 radio_flavor;
 	__le32 radio_step;
 	__le32 radio_dash;
@@ -189,11 +189,11 @@ enum iwl_card_state_flags {
 };
 
 /**
- * struct iwl_radio_version_notif - information on the card state
+ * struct iwl_radio_version_yestif - information on the card state
  * ( CARD_STATE_NOTIFICATION = 0xa1 )
  * @flags: &enum iwl_card_state_flags
  */
-struct iwl_card_state_notif {
+struct iwl_card_state_yestif {
 	__le32 flags;
 } __packed; /* CARD_STATE_NTFY_API_S_VER_1 */
 

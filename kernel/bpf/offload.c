@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netroyesme Systems, Inc.
  *
  * This software is licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -28,7 +28,7 @@
 
 /* Protects offdevs, members of bpf_offload_netdev and offload members
  * of all progs.
- * RTNL lock cannot be taken when holding this lock.
+ * RTNL lock canyest be taken when holding this lock.
  */
 static DECLARE_RWSEM(bpf_devs_lock);
 
@@ -299,7 +299,7 @@ int bpf_prog_offload_info_fill(struct bpf_prog_info *info,
 		.info	= info,
 	};
 	struct bpf_prog_aux *aux = prog->aux;
-	struct inode *ns_inode;
+	struct iyesde *ns_iyesde;
 	struct path ns_path;
 	char __user *uinsns;
 	void *res;
@@ -332,9 +332,9 @@ int bpf_prog_offload_info_fill(struct bpf_prog_info *info,
 
 	up_read(&bpf_devs_lock);
 
-	ns_inode = ns_path.dentry->d_inode;
-	info->netns_dev = new_encode_dev(ns_inode->i_sb->s_dev);
-	info->netns_ino = ns_inode->i_ino;
+	ns_iyesde = ns_path.dentry->d_iyesde;
+	info->netns_dev = new_encode_dev(ns_iyesde->i_sb->s_dev);
+	info->netns_iyes = ns_iyesde->i_iyes;
 	path_put(&ns_path);
 
 	return 0;
@@ -524,7 +524,7 @@ int bpf_map_offload_info_fill(struct bpf_map_info *info, struct bpf_map *map)
 		.offmap	= map_to_offmap(map),
 		.info	= info,
 	};
-	struct inode *ns_inode;
+	struct iyesde *ns_iyesde;
 	struct path ns_path;
 	void *res;
 
@@ -535,9 +535,9 @@ int bpf_map_offload_info_fill(struct bpf_map_info *info, struct bpf_map *map)
 		return PTR_ERR(res);
 	}
 
-	ns_inode = ns_path.dentry->d_inode;
-	info->netns_dev = new_encode_dev(ns_inode->i_sb->s_dev);
-	info->netns_ino = ns_inode->i_ino;
+	ns_iyesde = ns_path.dentry->d_iyesde;
+	info->netns_dev = new_encode_dev(ns_iyesde->i_sb->s_dev);
+	info->netns_iyes = ns_iyesde->i_iyes;
 	path_put(&ns_path);
 
 	return 0;
@@ -642,7 +642,7 @@ void bpf_offload_dev_netdev_unregister(struct bpf_offload_dev *offdev,
 	WARN_ON(rhashtable_remove_fast(&offdevs, &ondev->l, offdevs_params));
 	list_del(&ondev->offdev_netdevs);
 
-	/* Try to move the objects to another netdev of the device */
+	/* Try to move the objects to ayesther netdev of the device */
 	altdev = list_first_entry_or_null(&offdev->netdevs,
 					  struct bpf_offload_netdev,
 					  offdev_netdevs);

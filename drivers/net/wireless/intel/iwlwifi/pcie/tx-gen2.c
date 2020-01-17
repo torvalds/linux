@@ -28,12 +28,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -140,8 +140,8 @@ void iwl_pcie_gen2_txq_inc_wr_ptr(struct iwl_trans *trans,
 	IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq->id, txq->write_ptr);
 
 	/*
-	 * if not in power-save mode, uCode will never sleep when we're
-	 * trying to tx (during RFKILL, we're not trying to tx).
+	 * if yest in power-save mode, uCode will never sleep when we're
+	 * trying to tx (during RFKILL, we're yest trying to tx).
 	 */
 	iwl_write32(trans, HBUS_TARG_WRPTR, txq->write_ptr | (txq->id << 16));
 }
@@ -203,8 +203,8 @@ static void iwl_pcie_gen2_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 		skb = txq->entries[idx].skb;
 
 		/* Can be called from irqs-disabled context
-		 * If skb is not NULL, it means that the whole queue is being
-		 * freed and that the queue is not empty - free the skb
+		 * If skb is yest NULL, it means that the whole queue is being
+		 * freed and that the queue is yest empty - free the skb
 		 */
 		if (skb) {
 			iwl_op_mode_free_skb(trans->op_mode, skb);
@@ -227,7 +227,7 @@ static int iwl_pcie_gen2_set_tb(struct iwl_trans *trans,
 
 	/* Each TFD can point to a maximum max_tbs Tx buffers */
 	if (le16_to_cpu(tfd->num_tbs) >= trans_pcie->max_tbs) {
-		IWL_ERR(trans, "Error can not send more than %d chunks\n",
+		IWL_ERR(trans, "Error can yest send more than %d chunks\n",
 			trans_pcie->max_tbs);
 		return -EINVAL;
 	}
@@ -397,7 +397,7 @@ iwl_tfh_tfd *iwl_pcie_gen2_build_tx_amsdu(struct iwl_trans *trans,
 	len = tx_cmd_len + sizeof(struct iwl_cmd_header) + hdr_len -
 	      IWL_FIRST_TB_SIZE;
 
-	/* do not align A-MSDU to dword as the subframe header aligns it */
+	/* do yest align A-MSDU to dword as the subframe header aligns it */
 
 	/* map the data for TB1 */
 	tb1_addr = ((u8 *)&dev_cmd->hdr) + IWL_FIRST_TB_SIZE;
@@ -411,7 +411,7 @@ iwl_tfh_tfd *iwl_pcie_gen2_build_tx_amsdu(struct iwl_trans *trans,
 				      hdr_len, dev_cmd))
 		goto out_err;
 
-	/* building the A-MSDU might have changed this data, memcpy it now */
+	/* building the A-MSDU might have changed this data, memcpy it yesw */
 	memcpy(&txq->first_tb_bufs[idx], dev_cmd, IWL_FIRST_TB_SIZE);
 	return tfd;
 
@@ -591,7 +591,7 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      "TX on unused queue %d\n", txq_id))
 		return -EINVAL;
 
-	if (skb_is_nonlinear(skb) &&
+	if (skb_is_yesnlinear(skb) &&
 	    skb_shinfo(skb)->nr_frags > IWL_PCIE_MAX_FRAGS(trans_pcie) &&
 	    __skb_linearize(skb))
 		return -ENOMEM;
@@ -601,7 +601,7 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	if (iwl_queue_space(trans, txq) < txq->high_mark) {
 		iwl_stop_queue(trans, txq);
 
-		/* don't put the packet on the ring, if there is no room */
+		/* don't put the packet on the ring, if there is yes room */
 		if (unlikely(iwl_queue_space(trans, txq) < 3)) {
 			struct iwl_device_cmd **dev_cmd_ptr;
 
@@ -660,7 +660,7 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	iwl_pcie_gen2_txq_inc_wr_ptr(trans, txq);
 	/*
 	 * At this point the frame is "transmitted" successfully
-	 * and we will get a TX status notification eventually.
+	 * and we will get a TX status yestification eventually.
 	 */
 	spin_unlock(&txq->lock);
 	return 0;
@@ -689,7 +689,7 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	dma_addr_t phys_addr;
 	int i, cmd_pos, idx;
 	u16 copy_size, cmd_size, tb0_size;
-	bool had_nocopy = false;
+	bool had_yescopy = false;
 	u8 group_id = iwl_cmd_groupid(cmd->id);
 	const u8 *cmddata[IWL_MAX_CMD_TBS_PER_TFD];
 	u16 cmdlen[IWL_MAX_CMD_TBS_PER_TFD];
@@ -717,7 +717,7 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 		}
 
 		if (cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY) {
-			had_nocopy = true;
+			had_yescopy = true;
 			if (WARN_ON(cmd->dataflags[i] & IWL_HCMD_DFL_DUP)) {
 				idx = -EINVAL;
 				goto free_dup_buf;
@@ -725,9 +725,9 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 		} else if (cmd->dataflags[i] & IWL_HCMD_DFL_DUP) {
 			/*
 			 * This is also a chunk that isn't copied
-			 * to the static buffer so set had_nocopy.
+			 * to the static buffer so set had_yescopy.
 			 */
-			had_nocopy = true;
+			had_yescopy = true;
 
 			/* only allowed once */
 			if (WARN_ON(dup_buf)) {
@@ -740,8 +740,8 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 			if (!dup_buf)
 				return -ENOMEM;
 		} else {
-			/* NOCOPY must not be followed by normal! */
-			if (WARN_ON(had_nocopy)) {
+			/* NOCOPY must yest be followed by yesrmal! */
+			if (WARN_ON(had_yescopy)) {
 				idx = -EINVAL;
 				goto free_dup_buf;
 			}
@@ -806,7 +806,7 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 		if (!cmd->len[i])
 			continue;
 
-		/* copy everything if not nocopy/dup */
+		/* copy everything if yest yescopy/dup */
 		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_NOCOPY |
 					   IWL_HCMD_DFL_DUP))) {
 			copy = cmd->len[i];
@@ -864,7 +864,7 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 				     copy_size - tb0_size);
 	}
 
-	/* map the remaining (adjusted) nocopy/dup fragments */
+	/* map the remaining (adjusted) yescopy/dup fragments */
 	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
 		const void *data = cmddata[i];
 
@@ -969,7 +969,7 @@ static int iwl_pcie_gen2_send_hcmd_sync(struct iwl_trans *trans,
 
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
 	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
-		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
+		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... yes rsp\n");
 		ret = -ERFKILL;
 		goto cancel;
 	}
@@ -1014,7 +1014,7 @@ int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
 	if (cmd->flags & CMD_ASYNC) {
 		int ret;
 
-		/* An asynchronous command can not expect an SKB to be set. */
+		/* An asynchroyesus command can yest expect an SKB to be set. */
 		if (WARN_ON(cmd->flags & CMD_WANT_SKB))
 			return -EINVAL;
 
@@ -1096,7 +1096,7 @@ void iwl_pcie_gen2_txq_free_memory(struct iwl_trans *trans,
  *
  * Empty queue by removing and destroying all BD's.
  * Free all buffers.
- * 0-fill, but do not free "txq" descriptor structure.
+ * 0-fill, but do yest free "txq" descriptor structure.
  */
 static void iwl_pcie_gen2_txq_free(struct iwl_trans *trans, int txq_id)
 {
@@ -1266,7 +1266,7 @@ void iwl_trans_pcie_dyn_txq_free(struct iwl_trans *trans, int queue)
 	 */
 	if (!test_and_clear_bit(queue, trans_pcie->queue_used)) {
 		WARN_ONCE(test_bit(STATUS_DEVICE_ENABLED, &trans->status),
-			  "queue %d not used", queue);
+			  "queue %d yest used", queue);
 		return;
 	}
 
@@ -1301,7 +1301,7 @@ int iwl_pcie_gen2_tx_init(struct iwl_trans *trans, int txq_id, int queue_size)
 	if (!trans_pcie->txq[txq_id]) {
 		queue = kzalloc(sizeof(*queue), GFP_KERNEL);
 		if (!queue) {
-			IWL_ERR(trans, "Not enough memory for tx queue\n");
+			IWL_ERR(trans, "Not eyesugh memory for tx queue\n");
 			return -ENOMEM;
 		}
 		trans_pcie->txq[txq_id] = queue;

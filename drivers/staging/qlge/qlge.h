@@ -153,7 +153,7 @@ enum {
 	SYS_EVW = (1 << 5),
 	SYS_OMP_DLY_MASK = 0x3f000000,
 	/*
-	 * There are no values defined as of edit #15.
+	 * There are yes values defined as of edit #15.
 	 */
 	SYS_ODI = (1 << 14),
 };
@@ -209,7 +209,7 @@ enum {
 enum {
 	CSR_ERR_STS_MASK = 0x0000003f,
 	/*
-	 * There are no valued defined as of edit #15.
+	 * There are yes valued defined as of edit #15.
 	 */
 	CSR_RR = (1 << 8),
 	CSR_HRI = (1 << 9),
@@ -902,7 +902,7 @@ enum {
  * Mailbox  definitions
  */
 enum {
-	/* Asynchronous Event Notifications */
+	/* Asynchroyesus Event Notifications */
 	AEN_SYS_ERR = 0x00008002,
 	AEN_LINK_UP = 0x00008011,
 	AEN_LINK_DOWN = 0x00008012,
@@ -1445,7 +1445,7 @@ struct qlge_bq {
 					  offsetof(struct rx_ring, lbq))); \
 })
 
-/* Experience shows that the device ignores the low 4 bits of the tail index.
+/* Experience shows that the device igyesres the low 4 bits of the tail index.
  * Refill up to a x16 multiple.
  */
 #define QLGE_BQ_ALIGN(index) ALIGN_DOWN(index, 16)

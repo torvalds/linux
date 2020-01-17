@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Wireless Host Controller (WHC) asynchronous schedule management.
+ * Wireless Host Controller (WHC) asynchroyesus schedule management.
  *
  * Copyright (C) 2007 Cambridge Silicon Radio Ltd.
  */
@@ -21,21 +21,21 @@ static void qset_get_next_prev(struct whc *whc, struct whc_qset *qset,
 
 	BUG_ON(list_empty(&whc->async_list));
 
-	n = qset->list_node.next;
+	n = qset->list_yesde.next;
 	if (n == &whc->async_list)
 		n = n->next;
-	p = qset->list_node.prev;
+	p = qset->list_yesde.prev;
 	if (p == &whc->async_list)
 		p = p->prev;
 
-	*next = container_of(n, struct whc_qset, list_node);
-	*prev = container_of(p, struct whc_qset, list_node);
+	*next = container_of(n, struct whc_qset, list_yesde);
+	*prev = container_of(p, struct whc_qset, list_yesde);
 
 }
 
 static void asl_qset_insert_begin(struct whc *whc, struct whc_qset *qset)
 {
-	list_move(&qset->list_node, &whc->async_list);
+	list_move(&qset->list_yesde, &whc->async_list);
 	qset->in_sw_list = true;
 }
 
@@ -58,12 +58,12 @@ static void asl_qset_remove(struct whc *whc, struct whc_qset *qset)
 
 	qset_get_next_prev(whc, qset, &next, &prev);
 
-	list_move(&qset->list_node, &whc->async_removed_list);
+	list_move(&qset->list_yesde, &whc->async_removed_list);
 	qset->in_sw_list = false;
 
 	/*
 	 * No more qsets in the ASL?  The caller must stop the ASL as
-	 * it's no longer valid.
+	 * it's yes longer valid.
 	 */
 	if (list_empty(&whc->async_list))
 		return;
@@ -120,7 +120,7 @@ static uint32_t process_qset(struct whc *whc, struct whc_qset *qset)
 done:
 	/*
 	 * Remove this qset from the ASL if requested, but only if has
-	 * no qTDs.
+	 * yes qTDs.
 	 */
 	if (qset->remove && qset->ntds == 0) {
 		asl_qset_remove(whc, qset);
@@ -133,7 +133,7 @@ void asl_start(struct whc *whc)
 {
 	struct whc_qset *qset;
 
-	qset = list_first_entry(&whc->async_list, struct whc_qset, list_node);
+	qset = list_first_entry(&whc->async_list, struct whc_qset, list_yesde);
 
 	le_writeq(qset->qset_dma | QH_LINK_NTDS(8), whc->base + WUSBASYNCLISTADDR);
 
@@ -157,7 +157,7 @@ void asl_stop(struct whc *whc)
  * @wusbcmd: WUSBCMD value to start the update.
  *
  * If the WUSB HC is inactive (i.e., the ASL is stopped) then the
- * update must be skipped as the hardware may not respond to update
+ * update must be skipped as the hardware may yest respond to update
  * requests.
  */
 void asl_update(struct whc *whc, uint32_t wusbcmd)
@@ -184,7 +184,7 @@ void asl_update(struct whc *whc, uint32_t wusbcmd)
  * Process each qset in the ASL in turn and then signal the WHC that
  * the ASL has been updated.
  *
- * Then start, stop or update the asynchronous schedule as required.
+ * Then start, stop or update the asynchroyesus schedule as required.
  */
 void scan_async_work(struct work_struct *work)
 {
@@ -196,9 +196,9 @@ void scan_async_work(struct work_struct *work)
 
 	/*
 	 * Transerve the software list backwards so new qsets can be
-	 * safely inserted into the ASL without making it non-circular.
+	 * safely inserted into the ASL without making it yesn-circular.
 	 */
-	list_for_each_entry_safe_reverse(qset, t, &whc->async_list, list_node) {
+	list_for_each_entry_safe_reverse(qset, t, &whc->async_list, list_yesde) {
 		if (!qset->in_hw_list) {
 			asl_qset_insert(whc, qset);
 			update |= WHC_UPDATE_ADDED;
@@ -225,7 +225,7 @@ void scan_async_work(struct work_struct *work)
 	 */
 	spin_lock_irq(&whc->lock);
 
-	list_for_each_entry_safe(qset, t, &whc->async_removed_list, list_node) {
+	list_for_each_entry_safe(qset, t, &whc->async_removed_list, list_yesde) {
 		qset_remove_complete(whc, qset);
 		if (qset->reset) {
 			qset_reset(whc, qset);
@@ -240,7 +240,7 @@ void scan_async_work(struct work_struct *work)
 }
 
 /**
- * asl_urb_enqueue - queue an URB onto the asynchronous list (ASL).
+ * asl_urb_enqueue - queue an URB onto the asynchroyesus list (ASL).
  * @whc: the WHCI host controller
  * @urb: the URB to enqueue
  * @mem_flags: flags for any memory allocations
@@ -307,7 +307,7 @@ int asl_urb_dequeue(struct whc *whc, struct urb *urb, int status)
 	if (ret < 0)
 		goto out;
 
-	list_for_each_entry_safe(std, t, &qset->stds, list_node) {
+	list_for_each_entry_safe(std, t, &qset->stds, list_yesde) {
 		if (std->urb == urb) {
 			if (std->qtd)
 				has_qtd = true;
@@ -340,10 +340,10 @@ void asl_qset_delete(struct whc *whc, struct whc_qset *qset)
 }
 
 /**
- * asl_init - initialize the asynchronous schedule list
+ * asl_init - initialize the asynchroyesus schedule list
  *
- * A dummy qset with no qTDs is added to the ASL to simplify removing
- * qsets (no need to stop the ASL when the last qset is removed).
+ * A dummy qset with yes qTDs is added to the ASL to simplify removing
+ * qsets (yes need to stop the ASL when the last qset is removed).
  */
 int asl_init(struct whc *whc)
 {
@@ -369,8 +369,8 @@ void asl_clean_up(struct whc *whc)
 	struct whc_qset *qset;
 
 	if (!list_empty(&whc->async_list)) {
-		qset = list_first_entry(&whc->async_list, struct whc_qset, list_node);
-		list_del(&qset->list_node);
+		qset = list_first_entry(&whc->async_list, struct whc_qset, list_yesde);
+		list_del(&qset->list_yesde);
 		qset_free(whc, qset);
 	}
 }

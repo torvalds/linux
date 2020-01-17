@@ -438,7 +438,7 @@ static void ethqos_fix_mac_speed(void *priv, unsigned int speed)
 
 static int qcom_ethqos_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
 	struct qcom_ethqos *ethqos;

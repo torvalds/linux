@@ -12,19 +12,19 @@ maintainers:
   - Heiner Kallweit <hkallweit1@gmail.com>
 
 # The dt-schema tools will generate a select statement first by using
-# the compatible, and second by using the node name if any. In our
-# case, the node name is the one we want to match on, while the
+# the compatible, and second by using the yesde name if any. In our
+# case, the yesde name is the one we want to match on, while the
 # compatible is optional.
 select:
   properties:
-    $nodename:
+    $yesdename:
       pattern: "^ethernet-phy(@[a-f0-9]+)?$"
 
   required:
-    - $nodename
+    - $yesdename
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^ethernet-phy(@[a-f0-9]+)?$"
 
   compatible:
@@ -35,7 +35,7 @@ properties:
         description: PHYs that implement IEEE802.3 clause 45
       - pattern: "^ethernet-phy-id[a-f0-9]{4}\\.[a-f0-9]{4}$"
         description:
-          If the PHY reports an incorrect ID (or none at all) then the
+          If the PHY reports an incorrect ID (or yesne at all) then the
           compatible list may contain an entry with the correct PHY ID
           in the above form.
           The first group of digits is the 16 bit Phy Identifier 1
@@ -77,7 +77,7 @@ properties:
   broken-turn-around:
     $ref: /schemas/types.yaml#definitions/flag
     description:
-      If set, indicates the PHY device does not correctly release
+      If set, indicates the PHY device does yest correctly release
       the turn around line low at the end of a MDIO transaction.
 
   enet-phy-lane-swap:
@@ -156,7 +156,7 @@ properties:
   sfp:
     $ref: /schemas/types.yaml#definitions/phandle
     description:
-      Specifies a reference to a node representing a SFP cage.
+      Specifies a reference to a yesde representing a SFP cage.
 
 required:
   - reg

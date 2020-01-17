@@ -21,7 +21,7 @@
         "UMask": "0x2",
         "EventName": "ICACHE.MISSES",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts all instruction fetches that miss the instruction cache or produce memory requests. An instruction fetch miss is counted only once and not once for every cycle it is outstanding."
+        "BriefDescription": "Counts all instruction fetches that miss the instruction cache or produce memory requests. An instruction fetch miss is counted only once and yest once for every cycle it is outstanding."
     },
     {
         "EventCode": "0xE7",

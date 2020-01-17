@@ -63,7 +63,7 @@ ENTRY(pm_enter_standby_start)
 
 	mcr	p14, 0, r0, c7, c0, 0
 	.rept	8
-	nop
+	yesp
 	.endr
 
 	ldr	r0, [r1, #PXA3_DDR_HCAL]	@ Clear (and wait for) HCEN

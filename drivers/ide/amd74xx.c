@@ -112,7 +112,7 @@ static void amd_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 static void amd7409_cable_detect(struct pci_dev *dev)
 {
-	/* no host side cable detection */
+	/* yes host side cable detection */
 	amd_80w = 0x03;
 }
 
@@ -148,7 +148,7 @@ static int init_chipset_amd74xx(struct pci_dev *dev)
 
 	if (dev->vendor == PCI_VENDOR_ID_AMD &&
 	    dev->device == PCI_DEVICE_ID_AMD_COBRA_7401)
-		; /* no UDMA > 2 */
+		; /* yes UDMA > 2 */
 	else if (dev->vendor == PCI_VENDOR_ID_AMD &&
 		 dev->device == PCI_DEVICE_ID_AMD_VIPER_7409)
 		amd7409_cable_detect(dev);

@@ -182,7 +182,7 @@ static struct b43legacy_dmaring *priority_to_txring(
 {
 	struct b43legacy_dmaring *ring;
 
-/*FIXME: For now we always run on TX-ring-1 */
+/*FIXME: For yesw we always run on TX-ring-1 */
 return dev->dma.tx_ring1;
 
 	/* 0 = highest priority */
@@ -219,7 +219,7 @@ static inline int txring_to_priority(struct b43legacy_dmaring *ring)
 	static const u8 idx_to_prio[] =
 		{ 3, 2, 1, 0, 4, 5, };
 
-/*FIXME: have only one queue, for now */
+/*FIXME: have only one queue, for yesw */
 return 0;
 
 	return idx_to_prio[ring->index];
@@ -735,7 +735,7 @@ static void b43legacy_destroy_dmaring(struct b43legacy_dmaring *ring)
 		     (ring->tx) ? "TX" : "RX", ring->max_used_slots,
 		     ring->nr_slots);
 	/* Device IRQs are disabled prior entering this function,
-	 * so no need to take care of concurrency with rx handler stuff.
+	 * so yes need to take care of concurrency with rx handler stuff.
 	 */
 	dmacontroller_cleanup(ring);
 	free_all_descbuffers(ring);
@@ -783,13 +783,13 @@ int b43legacy_dma_init(struct b43legacy_wldev *dev)
 	err = dma_set_mask_and_coherent(dev->dev->dma_dev, DMA_BIT_MASK(type));
 	if (err) {
 #ifdef CONFIG_B43LEGACY_PIO
-		b43legacywarn(dev->wl, "DMA for this device not supported. "
+		b43legacywarn(dev->wl, "DMA for this device yest supported. "
 			"Falling back to PIO\n");
 		dev->__using_pio = true;
 		return -EAGAIN;
 #else
-		b43legacyerr(dev->wl, "DMA for this device not supported and "
-		       "no PIO support compiled in\n");
+		b43legacyerr(dev->wl, "DMA for this device yest supported and "
+		       "yes PIO support compiled in\n");
 		return -EOPNOTSUPP;
 #endif
 	}
@@ -1049,7 +1049,7 @@ int should_inject_overflow(struct b43legacy_dmaring *ring)
 #ifdef CONFIG_B43LEGACY_DEBUG
 	if (unlikely(b43legacy_debug(ring->dev,
 				     B43legacy_DBG_DMAOVERFLOW))) {
-		/* Check if we should inject another ringbuffer overflow
+		/* Check if we should inject ayesther ringbuffer overflow
 		 * to test handling of this situation in the stack. */
 		unsigned long next_overflow;
 
@@ -1079,7 +1079,7 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		/* We get here only because of a bug in mac80211.
 		 * Because of a race, one packet may be queued after
 		 * the queue is stopped, thus we got called when we shouldn't.
-		 * For now, just refuse the transmit. */
+		 * For yesw, just refuse the transmit. */
 		if (b43legacy_debug(dev, B43legacy_DBG_DMAVERBOSE))
 			b43legacyerr(dev->wl, "Packet after queue stopped\n");
 		return -ENOSPC;
@@ -1087,17 +1087,17 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 
 	if (WARN_ON(free_slots(ring) < SLOTS_PER_PACKET)) {
 		/* If we get here, we have a real error with the queue
-		 * full, but queues not stopped. */
+		 * full, but queues yest stopped. */
 		b43legacyerr(dev->wl, "DMA queue overflow\n");
 		return -ENOSPC;
 	}
 
 	/* dma_tx_fragment might reallocate the skb, so invalidate pointers pointing
-	 * into the skb data or cb now. */
+	 * into the skb data or cb yesw. */
 	err = dma_tx_fragment(ring, &skb);
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
-		 * anymore and must not transmit it unencrypted. */
+		 * anymore and must yest transmit it unencrypted. */
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
@@ -1177,8 +1177,8 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 
 			if (status->rts_count > dev->wl->hw->conf.short_frame_max_tx_count) {
 				/*
-				 * If the short retries (RTS, not data frame) have exceeded
-				 * the limit, the hw will not have tried the selected rate,
+				 * If the short retries (RTS, yest data frame) have exceeded
+				 * the limit, the hw will yest have tried the selected rate,
 				 * but will have used the fallback rate instead.
 				 * Don't let the rate control count attempts for the selected
 				 * rate in this case, otherwise the statistics will be off.
@@ -1206,12 +1206,12 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 			meta->skb = NULL;
 		} else {
 			/* No need to call free_descriptor_buffer here, as
-			 * this is only the txhdr, which is not allocated.
+			 * this is only the txhdr, which is yest allocated.
 			 */
 			B43legacy_WARN_ON(meta->skb != NULL);
 		}
 
-		/* Everything unmapped and free'd. So it's not used anymore. */
+		/* Everything unmapped and free'd. So it's yest used anymore. */
 		ring->used_slots--;
 
 		if (meta->is_last_fragment)
@@ -1292,10 +1292,10 @@ static void dma_rx(struct b43legacy_dmaring *ring,
 		}
 	}
 	if (unlikely(len > ring->rx_buffersize)) {
-		/* The data did not fit into one descriptor buffer
+		/* The data did yest fit into one descriptor buffer
 		 * and is split over multiple buffers.
 		 * This should never happen, as we try to allocate buffers
-		 * big enough. So simply ignore this packet.
+		 * big eyesugh. So simply igyesre this packet.
 		 */
 		int cnt = 0;
 		s32 tmp = len;

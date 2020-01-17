@@ -2,7 +2,7 @@ Allwinnner SoC SRAM controllers
 -----------------------------------------------------
 
 The SRAM controller found on most Allwinner devices is represented by
-a regular node for the SRAM controller itself, with sub-nodes
+a regular yesde for the SRAM controller itself, with sub-yesdes
 reprensenting the SRAM handled by the SRAM controller.
 
 Controller Node
@@ -23,14 +23,14 @@ Required properties:
     - "allwinner,suniv-f1c100s-system-control", "allwinner,sun4i-a10-system-control"
 - reg : sram controller register offset + length
 
-SRAM nodes
+SRAM yesdes
 ----------
 
 Each SRAM is described using the mmio-sram bindings documented in
 Documentation/devicetree/bindings/sram/sram.txt
 
 Each SRAM will have SRAM sections that are going to be handled by the
-SRAM controller as subnodes. These sections are represented following
+SRAM controller as subyesdes. These sections are represented following
 once again the representation described in the mmio-sram binding.
 
 The valid sections compatible for A10 are:

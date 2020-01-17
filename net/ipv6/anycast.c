@@ -11,7 +11,7 @@
 
 #include <linux/capability.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/random.h>
 #include <linux/string.h>
@@ -100,7 +100,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 			err = -EADDRNOTAVAIL;
 			goto error;
 		} else {
-			/* router, no matching interface: just pick one */
+			/* router, yes matching interface: just pick one */
 			dev = __dev_get_by_flags(net, IFF_UP,
 						 IFF_UP | IFF_LOOPBACK);
 		}
@@ -119,7 +119,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 			err = -EADDRNOTAVAIL;
 		goto error;
 	}
-	/* reset ishost, now that we have a specific device */
+	/* reset ishost, yesw that we have a specific device */
 	ishost = !idev->cnf.forwarding;
 
 	pac->acl_ifindex = dev->ifindex;
@@ -127,7 +127,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	/* XXX
 	 * For hosts, allow link-local or matching prefix anycasts.
 	 * This obviates the need for propagating anycast routes while
-	 * still allowing some non-router anycast participation.
+	 * still allowing some yesn-router anycast participation.
 	 */
 	if (!ipv6_chk_prefix(addr, dev)) {
 		if (ishost)
@@ -272,7 +272,7 @@ static struct ifacaddr6 *aca_alloc(struct fib6_info *f6i,
 }
 
 /*
- *	device anycast group inc (add if not found)
+ *	device anycast group inc (add if yest found)
  */
 int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 {

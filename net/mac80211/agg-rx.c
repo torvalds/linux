@@ -20,7 +20,7 @@
  * block-ack sessions for RX aggregation.
  *
  * When RX aggregation is started by the peer, the driver is
- * notified via @ampdu_action function, with the
+ * yestified via @ampdu_action function, with the
  * %IEEE80211_AMPDU_RX_START action, and may reject the request
  * in which case a negative response is sent to the peer, if it
  * accepts it a positive response is sent.
@@ -32,7 +32,7 @@
  * When the aggregation session is stopped again by the peer or
  * ourselves, the driver's @ampdu_action function will be called
  * with the action %IEEE80211_AMPDU_RX_STOP. In this case, the
- * call must not fail.
+ * call must yest fail.
  */
 
 #include <linux/ieee80211.h>
@@ -88,7 +88,7 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 
 	if (drv_ampdu_action(local, sta->sdata, &params))
 		sdata_info(sta->sdata,
-			   "HW problem - can not stop rx aggregation for %pM tid %d\n",
+			   "HW problem - can yest stop rx aggregation for %pM tid %d\n",
 			   sta->sta.addr, tid);
 
 	/* check if this is a self generated aggregation halt */
@@ -97,7 +97,7 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				     tid, WLAN_BACK_RECIPIENT, reason);
 
 	/*
-	 * return here in case tid_rx is not assigned - which will happen if
+	 * return here in case tid_rx is yest assigned - which will happen if
 	 * IEEE80211_HW_SUPPORTS_REORDERING_BUFFER is set.
 	 */
 	if (!tid_rx)
@@ -314,7 +314,7 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 
 	/* sanity check for incoming parameters:
 	 * check if configuration can support the BA policy
-	 * and if buffer size does not exceeds max value */
+	 * and if buffer size does yest exceeds max value */
 	/* XXX: check own ht delayed BA capability?? */
 	if (((ba_policy != 1) &&
 	     (!(sta->sta.ht_cap.cap & IEEE80211_HT_CAP_DELAY_BA))) ||
@@ -347,9 +347,9 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 			ht_dbg_ratelimited(sta->sdata,
 					   "updated AddBA Req from %pM on tid %u\n",
 					   sta->sta.addr, tid);
-			/* We have no API to update the timeout value in the
+			/* We have yes API to update the timeout value in the
 			 * driver so reject the timeout update if the timeout
-			 * changed. If if did not change, i.e., no real update,
+			 * changed. If if did yest change, i.e., yes real update,
 			 * just reply with success.
 			 */
 			rcu_read_lock();

@@ -141,7 +141,7 @@ static const u32 qlcnic_reg_tbl[] = {
 	0x1B214C,	/* dev partition info */
 	0x1B2174,	/* drv idc ver */
 	0x1B2150,	/* fw version major */
-	0x1B2154,	/* fw version minor */
+	0x1B2154,	/* fw version miyesr */
 	0x1B2158,	/* fw version sub */
 	0x1B219C,	/* npar state */
 	0x1B21FC,	/* FW_IMG_VALID */
@@ -407,7 +407,7 @@ static int qlcnic_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 
 	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED) &&
 	    !qlcnic_sriov_check(adapter)) {
-		pr_info("%s: FDB e-switch is not enabled\n", __func__);
+		pr_info("%s: FDB e-switch is yest enabled\n", __func__);
 		return -EOPNOTSUPP;
 	}
 
@@ -585,7 +585,7 @@ static struct qlcnic_hardware_ops qlcnic_hw_ops = {
 	.setup_intr			= qlcnic_82xx_setup_intr,
 	.alloc_mbx_args			= qlcnic_82xx_alloc_mbx_args,
 	.mbx_cmd			= qlcnic_82xx_issue_cmd,
-	.get_func_no			= qlcnic_82xx_get_func_no,
+	.get_func_yes			= qlcnic_82xx_get_func_yes,
 	.api_lock			= qlcnic_82xx_api_lock,
 	.api_unlock			= qlcnic_82xx_api_unlock,
 	.add_sysfs			= qlcnic_82xx_add_sysfs,
@@ -665,7 +665,7 @@ static int qlcnic_max_rings(struct qlcnic_adapter *adapter, u8 ring_cnt,
 
 void qlcnic_set_tx_ring_count(struct qlcnic_adapter *adapter, u8 tx_cnt)
 {
-	/* 83xx adapter does not have max_tx_rings intialized in probe */
+	/* 83xx adapter does yest have max_tx_rings intialized in probe */
 	if (adapter->max_tx_rings)
 		adapter->drv_tx_rings = qlcnic_max_rings(adapter, tx_cnt,
 							 QLCNIC_TX_QUEUE);
@@ -675,7 +675,7 @@ void qlcnic_set_tx_ring_count(struct qlcnic_adapter *adapter, u8 tx_cnt)
 
 void qlcnic_set_sds_ring_count(struct qlcnic_adapter *adapter, u8 rx_cnt)
 {
-	/* 83xx adapter does not have max_sds_rings intialized in probe */
+	/* 83xx adapter does yest have max_sds_rings intialized in probe */
 	if (adapter->max_sds_rings)
 		adapter->drv_sds_rings = qlcnic_max_rings(adapter, rx_cnt,
 							  QLCNIC_RX_QUEUE);
@@ -1127,7 +1127,7 @@ static void qlcnic_check_vf(struct qlcnic_adapter *adapter,
 							   QLCNIC_FW_API);
 
 	/* Find PCI function number */
-	qlcnic_get_func_no(adapter);
+	qlcnic_get_func_yes(adapter);
 
 	/* Determine function privilege level */
 	op_mode = QLC_SHARED_REG_RD32(adapter, QLCNIC_DRV_OP_MODE);
@@ -1246,7 +1246,7 @@ static void
 qlcnic_check_options(struct qlcnic_adapter *adapter)
 {
 	int err;
-	u32 fw_major, fw_minor, fw_build, prev_fw_version;
+	u32 fw_major, fw_miyesr, fw_build, prev_fw_version;
 	struct pci_dev *pdev = adapter->pdev;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_fw_dump *fw_dump = &ahw->fw_dump;
@@ -1254,10 +1254,10 @@ qlcnic_check_options(struct qlcnic_adapter *adapter)
 	prev_fw_version = adapter->fw_version;
 
 	fw_major = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_MAJOR);
-	fw_minor = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_MINOR);
+	fw_miyesr = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_MINOR);
 	fw_build = QLC_SHARED_REG_RD32(adapter, QLCNIC_FW_VERSION_SUB);
 
-	adapter->fw_version = QLCNIC_VERSION_CODE(fw_major, fw_minor, fw_build);
+	adapter->fw_version = QLCNIC_VERSION_CODE(fw_major, fw_miyesr, fw_build);
 
 	err = qlcnic_get_board_info(adapter);
 	if (err) {
@@ -1275,7 +1275,7 @@ qlcnic_check_options(struct qlcnic_adapter *adapter)
 	}
 
 	dev_info(&pdev->dev, "Driver v%s, firmware v%d.%d.%d\n",
-		 QLCNIC_LINUX_VERSIONID, fw_major, fw_minor, fw_build);
+		 QLCNIC_LINUX_VERSIONID, fw_major, fw_miyesr, fw_build);
 
 	if (adapter->ahw->port_type == QLCNIC_XGBE) {
 		if (adapter->flags & QLCNIC_ESWITCH_ENABLED) {
@@ -1377,7 +1377,7 @@ qlcnic_vlan_rx_add(struct net_device *netdev, __be16 proto, u16 vid)
 		err = qlcnic_sriov_cfg_vf_guest_vlan(adapter, vid, 1);
 		if (err) {
 			netdev_err(netdev,
-				   "Cannot add VLAN filter for VLAN id %d, err=%d",
+				   "Canyest add VLAN filter for VLAN id %d, err=%d",
 				   vid, err);
 			return err;
 		}
@@ -1397,7 +1397,7 @@ qlcnic_vlan_rx_del(struct net_device *netdev, __be16 proto, u16 vid)
 		err = qlcnic_sriov_cfg_vf_guest_vlan(adapter, vid, 0);
 		if (err) {
 			netdev_err(netdev,
-				   "Cannot delete VLAN filter for VLAN id %d, err=%d",
+				   "Canyest delete VLAN filter for VLAN id %d, err=%d",
 				   vid, err);
 			return err;
 		}
@@ -2635,7 +2635,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (qlcnic_83xx_check(adapter) && !qlcnic_use_msi_x &&
 	    !!qlcnic_use_msi)
 		dev_warn(&pdev->dev,
-			 "Device does not support MSI interrupts\n");
+			 "Device does yest support MSI interrupts\n");
 
 	if (qlcnic_82xx_check(adapter)) {
 		qlcnic_dcb_enable(adapter->dcb);
@@ -2847,7 +2847,7 @@ static int qlcnic_open(struct net_device *netdev)
 	int err;
 
 	if (test_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state)) {
-		netdev_err(netdev, "%s: Device is in non-operational state\n",
+		netdev_err(netdev, "%s: Device is in yesn-operational state\n",
 			   __func__);
 
 		return -EIO;
@@ -2983,8 +2983,8 @@ int qlcnic_check_temp(struct qlcnic_adapter *adapter)
 	} else {
 		if (adapter->ahw->temp == QLCNIC_TEMP_WARN) {
 			dev_info(&netdev->dev,
-			       "Device temperature is now %d degrees C"
-			       " in normal range.\n", temp_val);
+			       "Device temperature is yesw %d degrees C"
+			       " in yesrmal range.\n", temp_val);
 		}
 	}
 	adapter->ahw->temp = temp_state;
@@ -3570,7 +3570,7 @@ err_ret:
 
 /*Transit NPAR state to NON Operational */
 static void
-qlcnic_set_npar_non_operational(struct qlcnic_adapter *adapter)
+qlcnic_set_npar_yesn_operational(struct qlcnic_adapter *adapter)
 {
 	u32 state;
 
@@ -3608,7 +3608,7 @@ static void qlcnic_82xx_dev_request_reset(struct qlcnic_adapter *adapter,
 	state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
 
 	if (test_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state)) {
-		netdev_err(adapter->netdev, "%s: Device is in non-operational state\n",
+		netdev_err(adapter->netdev, "%s: Device is in yesn-operational state\n",
 			   __func__);
 		qlcnic_api_unlock(adapter);
 
@@ -3714,7 +3714,7 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 
 	state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
 	if (state == QLCNIC_DEV_NEED_RESET) {
-		qlcnic_set_npar_non_operational(adapter);
+		qlcnic_set_npar_yesn_operational(adapter);
 		adapter->need_fw_reset = 1;
 	} else if (state == QLCNIC_DEV_NEED_QUISCENT)
 		goto detach;
@@ -3823,7 +3823,7 @@ static int qlcnic_attach_func(struct pci_dev *pdev)
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
 
-	pdev->error_state = pci_channel_io_normal;
+	pdev->error_state = pci_channel_io_yesrmal;
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -3890,7 +3890,7 @@ static pci_ers_result_t qlcnic_82xx_io_error_detected(struct pci_dev *pdev,
 	if (state == pci_channel_io_perm_failure)
 		return PCI_ERS_RESULT_DISCONNECT;
 
-	if (state == pci_channel_io_normal)
+	if (state == pci_channel_io_yesrmal)
 		return PCI_ERS_RESULT_RECOVERED;
 
 	set_bit(__QLCNIC_AER, &adapter->state);
@@ -3945,7 +3945,7 @@ static pci_ers_result_t qlcnic_io_error_detected(struct pci_dev *pdev,
 	if (hw_ops->io_error_detected) {
 		return hw_ops->io_error_detected(pdev, state);
 	} else {
-		dev_err(&pdev->dev, "AER error_detected handler not registered.\n");
+		dev_err(&pdev->dev, "AER error_detected handler yest registered.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 }
@@ -3958,7 +3958,7 @@ static pci_ers_result_t qlcnic_io_slot_reset(struct pci_dev *pdev)
 	if (hw_ops->io_slot_reset) {
 		return hw_ops->io_slot_reset(pdev);
 	} else {
-		dev_err(&pdev->dev, "AER slot_reset handler not registered.\n");
+		dev_err(&pdev->dev, "AER slot_reset handler yest registered.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 }
@@ -3971,7 +3971,7 @@ static void qlcnic_io_resume(struct pci_dev *pdev)
 	if (hw_ops->io_resume)
 		hw_ops->io_resume(pdev);
 	else
-		dev_err(&pdev->dev, "AER resume handler not registered.\n");
+		dev_err(&pdev->dev, "AER resume handler yest registered.\n");
 }
 
 
@@ -4028,7 +4028,7 @@ int qlcnic_validate_rings(struct qlcnic_adapter *adapter, __u32 ring_cnt,
 
 	if (ring_cnt > num_online_cpus()) {
 		netdev_err(netdev,
-			   "%s value[%u] should not be higher than, number of online CPUs\n",
+			   "%s value[%u] should yest be higher than, number of online CPUs\n",
 			   buf, num_online_cpus());
 		return -EINVAL;
 	}
@@ -4162,11 +4162,11 @@ void qlcnic_restore_indev_addr(struct net_device *netdev, unsigned long event)
 	rcu_read_unlock();
 }
 
-static int qlcnic_netdev_event(struct notifier_block *this,
+static int qlcnic_netdev_event(struct yestifier_block *this,
 				 unsigned long event, void *ptr)
 {
 	struct qlcnic_adapter *adapter;
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 recheck:
 	if (dev == NULL)
@@ -4194,7 +4194,7 @@ done:
 }
 
 static int
-qlcnic_inetaddr_event(struct notifier_block *this,
+qlcnic_inetaddr_event(struct yestifier_block *this,
 		unsigned long event, void *ptr)
 {
 	struct qlcnic_adapter *adapter;
@@ -4241,12 +4241,12 @@ done:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block	qlcnic_netdev_cb = {
-	.notifier_call = qlcnic_netdev_event,
+static struct yestifier_block	qlcnic_netdev_cb = {
+	.yestifier_call = qlcnic_netdev_event,
 };
 
-static struct notifier_block qlcnic_inetaddr_cb = {
-	.notifier_call = qlcnic_inetaddr_event,
+static struct yestifier_block qlcnic_inetaddr_cb = {
+	.yestifier_call = qlcnic_inetaddr_event,
 };
 #else
 void qlcnic_restore_indev_addr(struct net_device *dev, unsigned long event)
@@ -4282,15 +4282,15 @@ static int __init qlcnic_init_module(void)
 	printk(KERN_INFO "%s\n", qlcnic_driver_string);
 
 #ifdef CONFIG_INET
-	register_netdevice_notifier(&qlcnic_netdev_cb);
-	register_inetaddr_notifier(&qlcnic_inetaddr_cb);
+	register_netdevice_yestifier(&qlcnic_netdev_cb);
+	register_inetaddr_yestifier(&qlcnic_inetaddr_cb);
 #endif
 
 	ret = pci_register_driver(&qlcnic_driver);
 	if (ret) {
 #ifdef CONFIG_INET
-		unregister_inetaddr_notifier(&qlcnic_inetaddr_cb);
-		unregister_netdevice_notifier(&qlcnic_netdev_cb);
+		unregister_inetaddr_yestifier(&qlcnic_inetaddr_cb);
+		unregister_netdevice_yestifier(&qlcnic_netdev_cb);
 #endif
 	}
 
@@ -4304,8 +4304,8 @@ static void __exit qlcnic_exit_module(void)
 	pci_unregister_driver(&qlcnic_driver);
 
 #ifdef CONFIG_INET
-	unregister_inetaddr_notifier(&qlcnic_inetaddr_cb);
-	unregister_netdevice_notifier(&qlcnic_netdev_cb);
+	unregister_inetaddr_yestifier(&qlcnic_inetaddr_cb);
+	unregister_netdevice_yestifier(&qlcnic_netdev_cb);
 #endif
 }
 

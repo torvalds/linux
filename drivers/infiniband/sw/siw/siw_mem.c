@@ -215,9 +215,9 @@ int siw_check_mem(struct ib_pd *pd, struct siw_mem *mem, u64 addr,
  * @len:	len of memory interval to be checked
  *
  * NOTE: Function references SGE's memory object (mem->obj)
- * if not yet done. New reference is kept if check went ok and
- * released if check failed. If mem->obj is already valid, no new
- * lookup is being done and mem is not released it check fails.
+ * if yest yet done. New reference is kept if check went ok and
+ * released if check failed. If mem->obj is already valid, yes new
+ * lookup is being done and mem is yest released it check fails.
  */
 int siw_check_sge(struct ib_pd *pd, struct siw_sge *sge, struct siw_mem *mem[],
 		  enum ib_access_flags perms, u32 off, int len)
@@ -233,7 +233,7 @@ int siw_check_sge(struct ib_pd *pd, struct siw_sge *sge, struct siw_mem *mem[],
 	if (*mem == NULL) {
 		new = siw_mem_id2obj(sdev, sge->lkey >> 8);
 		if (unlikely(!new)) {
-			siw_dbg_pd(pd, "STag unknown: 0x%08x\n", sge->lkey);
+			siw_dbg_pd(pd, "STag unkyeswn: 0x%08x\n", sge->lkey);
 			rv = -E_STAG_INVALID;
 			goto fail;
 		}
@@ -283,7 +283,7 @@ void siw_wqe_put_mem(struct siw_wqe *wqe, enum siw_opcode op)
 	default:
 		/*
 		 * SIW_OP_INVAL_STAG and SIW_OP_REG_MR
-		 * do not hold memory references
+		 * do yest hold memory references
 		 */
 		break;
 	}
@@ -296,7 +296,7 @@ int siw_invalidate_stag(struct ib_pd *pd, u32 stag)
 	int rv = 0;
 
 	if (unlikely(!mem)) {
-		siw_dbg_pd(pd, "STag 0x%08x unknown\n", stag);
+		siw_dbg_pd(pd, "STag 0x%08x unkyeswn\n", stag);
 		return -EINVAL;
 	}
 	if (unlikely(mem->pd != pd)) {
@@ -306,11 +306,11 @@ int siw_invalidate_stag(struct ib_pd *pd, u32 stag)
 	}
 	/*
 	 * Per RDMA verbs definition, an STag may already be in invalid
-	 * state if invalidation is requested. So no state check here.
+	 * state if invalidation is requested. So yes state check here.
 	 */
 	mem->stag_valid = 0;
 
-	siw_dbg_pd(pd, "STag 0x%08x now invalid\n", stag);
+	siw_dbg_pd(pd, "STag 0x%08x yesw invalid\n", stag);
 out:
 	siw_mem_put(mem);
 	return rv;

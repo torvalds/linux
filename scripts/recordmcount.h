@@ -23,7 +23,7 @@
 #undef MIPS_is_fake_mcount
 #undef mcount_adjust
 #undef sift_rel_mcount
-#undef nop_mcount
+#undef yesp_mcount
 #undef find_secsym_ndx
 #undef __has_rel_mcount
 #undef has_rel_mcount
@@ -53,7 +53,7 @@
 #ifdef RECORD_MCOUNT_64
 # define append_func		append64
 # define sift_rel_mcount	sift64_rel_mcount
-# define nop_mcount		nop_mcount_64
+# define yesp_mcount		yesp_mcount_64
 # define find_secsym_ndx	find64_secsym_ndx
 # define __has_rel_mcount	__has64_rel_mcount
 # define has_rel_mcount		has64_rel_mcount
@@ -86,7 +86,7 @@
 #else
 # define append_func		append32
 # define sift_rel_mcount	sift32_rel_mcount
-# define nop_mcount		nop_mcount_32
+# define yesp_mcount		yesp_mcount_32
 # define find_secsym_ndx	find32_secsym_ndx
 # define __has_rel_mcount	__has32_rel_mcount
 # define has_rel_mcount		has32_rel_mcount
@@ -142,7 +142,7 @@ static int mcount_adjust = 0;
 /*
  * MIPS mcount long call has 2 _mcount symbols, only the position of the 1st
  * _mcount symbol is needed for dynamic function tracer, with it, to disable
- * tracing(ftrace_make_nop), the instruction in the position is replaced with
+ * tracing(ftrace_make_yesp), the instruction in the position is replaced with
  * the "b label" instruction, to enable tracing(ftrace_make_call), replace the
  * instruction back. So, here, we set the 2nd one as fake and filter it.
  *
@@ -361,10 +361,10 @@ static uint_t *sift_rel_mcount(uint_t *mlocp,
 
 /*
  * Read the relocation table again, but this time its called on sections
- * that are not going to be traced. The mcount calls here will be converted
- * into nops.
+ * that are yest going to be traced. The mcount calls here will be converted
+ * into yesps.
  */
-static int nop_mcount(Elf_Shdr const *const relhdr,
+static int yesp_mcount(Elf_Shdr const *const relhdr,
 		      Elf_Ehdr const *const ehdr,
 		      const char *const txtname)
 {
@@ -389,26 +389,26 @@ static int nop_mcount(Elf_Shdr const *const relhdr,
 			mcountsym = get_mcountsym(sym0, relp, str0);
 
 		if (mcountsym == Elf_r_sym(relp) && !is_fake_mcount(relp)) {
-			if (make_nop)
-				ret = make_nop((void *)ehdr, _w(shdr->sh_offset) + _w(relp->r_offset));
-			if (warn_on_notrace_sect && !once) {
-				printf("Section %s has mcount callers being ignored\n",
+			if (make_yesp)
+				ret = make_yesp((void *)ehdr, _w(shdr->sh_offset) + _w(relp->r_offset));
+			if (warn_on_yestrace_sect && !once) {
+				printf("Section %s has mcount callers being igyesred\n",
 				       txtname);
 				once = 1;
 				/* just warn? */
-				if (!make_nop)
+				if (!make_yesp)
 					return 0;
 			}
 		}
 
 		/*
 		 * If we successfully removed the mcount, mark the relocation
-		 * as a nop (don't do anything with it).
+		 * as a yesp (don't do anything with it).
 		 */
 		if (!ret) {
 			Elf_Rel rel;
 			rel = *(Elf_Rel *)relp;
-			Elf_r_info(&rel, Elf_r_sym(relp), rel_type_nop);
+			Elf_r_info(&rel, Elf_r_sym(relp), rel_type_yesp);
 			if (ulseek((void *)relp - (void *)ehdr, SEEK_SET) < 0)
 				return -1;
 			if (uwrite(&rel, sizeof(rel)) < 0)
@@ -458,12 +458,12 @@ static int find_secsym_ndx(unsigned const txtndx,
 			return 0;
 		}
 	}
-	fprintf(stderr, "Cannot find symbol for section %u: %s.\n",
+	fprintf(stderr, "Canyest find symbol for section %u: %s.\n",
 		txtndx, txtname);
 	return -1;
 }
 
-/* Evade ISO C restriction: no declaration after statement in has_rel_mcount. */
+/* Evade ISO C restriction: yes declaration after statement in has_rel_mcount. */
 static char const * __has_rel_mcount(Elf_Shdr const *const relhdr, /* reltype */
 				     Elf_Shdr const *const shdr0,
 				     char const *const shstrtab,
@@ -585,12 +585,12 @@ static int do_func(Elf_Ehdr *const ehdr, char const *const fname,
 			mlocp = sift_rel_mcount(mlocp,
 				(void *)mlocp - (void *)mloc0, &mrelp,
 				relhdr, ehdr, recsym, recval, reltype);
-		} else if (txtname && (warn_on_notrace_sect || make_nop)) {
+		} else if (txtname && (warn_on_yestrace_sect || make_yesp)) {
 			/*
-			 * This section is ignored by ftrace, but still
-			 * has mcount calls. Convert them to nops now.
+			 * This section is igyesred by ftrace, but still
+			 * has mcount calls. Convert them to yesps yesw.
 			 */
-			if (nop_mcount(relhdr, ehdr, txtname) < 0) {
+			if (yesp_mcount(relhdr, ehdr, txtname) < 0) {
 				result = -1;
 				goto out;
 			}

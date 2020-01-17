@@ -10,12 +10,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -43,7 +43,7 @@
  *
  * This handles the RX path on USB.
  *
- * When a notification is received that says 'there is RX data ready',
+ * When a yestification is received that says 'there is RX data ready',
  * we call i2400mu_rx_kick(); that wakes up the RX kthread, which
  * reads a buffer from USB and passes it to i2400m_rx() in the generic
  * handling code. The RX buffer has an specific format that is
@@ -54,17 +54,17 @@
  *  - we want to be able to call the USB power management get/put
  *    functions (blocking) before each transaction.
  *
- *  - We might get a lot of notifications and we don't want to submit
+ *  - We might get a lot of yestifications and we don't want to submit
  *    a zillion reads; by serializing, we are throttling.
  *
- *  - RX data processing can get heavy enough so that it is not
+ *  - RX data processing can get heavy eyesugh so that it is yest
  *    appropriate for doing it in the USB callback; thus we run it in a
  *    process context.
  *
  * We provide a read buffer of an arbitrary size (short of a page); if
  * the callback reports -EOVERFLOW, it means it was too small, so we
  * just double the size and retry (being careful to append, as
- * sometimes the device provided some data). Every now and then we
+ * sometimes the device provided some data). Every yesw and then we
  * check if the average packet size is smaller than the current packet
  * size and if so, we halve it. At the end, the size of the
  * preallocated buffer should be following the average received
@@ -72,8 +72,8 @@
  *
  * ROADMAP
  *
- * i2400mu_rx_kick()		   Called from notif.c when we get a
- *   			           'data ready' notification
+ * i2400mu_rx_kick()		   Called from yestif.c when we get a
+ *   			           'data ready' yestification
  * i2400mu_rxd()                   Kernel RX daemon
  *   i2400mu_rx()                  Receive USB data
  *   i2400m_rx()                   Send data to generic i2400m RX handling
@@ -110,7 +110,7 @@
  * first read, we are sure we won't hit this spot because
  * i240mm->rx_size has been set properly. However, if we have to
  * double because of -EOVERFLOW, when we launch the read to get the
- * rest of the data, we *have* to make sure that also is not a
+ * rest of the data, we *have* to make sure that also is yest a
  * multiple of the max_pkt_size.
  */
 
@@ -185,7 +185,7 @@ void i2400mu_rx_size_maybe_shrink(struct i2400mu *i2400mu)
  *   NOTE: this function might realloc the skb (if it is too small),
  *   so always update with the one returned.
  *   ERR_PTR() is < 0 on error.
- *   Will return NULL if it cannot reallocate -- this can be
+ *   Will return NULL if it canyest reallocate -- this can be
  *   considered a transient retryable error.
  */
 static
@@ -227,7 +227,7 @@ retry:
 		/*
 		 * Stall -- maybe the device is choking with our
 		 * requests. Clear it and give it some time. If they
-		 * happen to often, it might be another symptom, so we
+		 * happen to often, it might be ayesther symptom, so we
 		 * reset.
 		 *
 		 * No error handling for usb_clear_halt(0; if it
@@ -245,7 +245,7 @@ retry:
 		goto retry;
 	case -EINVAL:			/* while removing driver */
 	case -ENODEV:			/* dev disconnect ... */
-	case -ENOENT:			/* just ignore it */
+	case -ENOENT:			/* just igyesre it */
 	case -ESHUTDOWN:
 	case -ECONNRESET:
 		break;
@@ -278,8 +278,8 @@ retry:
 		goto retry;
 	}
 		/* In most cases, it happens due to the hardware scheduling a
-		 * read when there was no data - unfortunately, we have no way
-		 * to tell this timeout from a USB timeout. So we just ignore
+		 * read when there was yes data - unfortunately, we have yes way
+		 * to tell this timeout from a USB timeout. So we just igyesre
 		 * it. */
 	case -ETIMEDOUT:
 		dev_err(dev, "RX: timeout: %d\n", result);
@@ -371,7 +371,7 @@ int i2400mu_rxd(void *_i2400mu)
 			goto out;
 		atomic_dec(&i2400mu->rx_pending_count);
 		if (rx_skb == NULL || rx_skb->len == 0) {
-			/* some "ignorable" condition */
+			/* some "igyesrable" condition */
 			kfree_skb(rx_skb);
 			continue;
 		}
@@ -437,7 +437,7 @@ int i2400mu_rx_setup(struct i2400mu *i2400mu)
 	/* the kthread function sets i2400mu->rx_thread */
 	if (IS_ERR(kthread)) {
 		result = PTR_ERR(kthread);
-		dev_err(dev, "RX: cannot start thread: %d\n", result);
+		dev_err(dev, "RX: canyest start thread: %d\n", result);
 	}
 	return result;
 }

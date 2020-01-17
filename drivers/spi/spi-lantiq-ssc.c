@@ -55,7 +55,7 @@
 
 #define LTQ_SPI_CLC_SMC_S	16	/* Clock divider for sleep mode */
 #define LTQ_SPI_CLC_SMC_M	(0xFF << LTQ_SPI_CLC_SMC_S)
-#define LTQ_SPI_CLC_RMC_S	8	/* Clock divider for normal run mode */
+#define LTQ_SPI_CLC_RMC_S	8	/* Clock divider for yesrmal run mode */
 #define LTQ_SPI_CLC_RMC_M	(0xFF << LTQ_SPI_CLC_RMC_S)
 #define LTQ_SPI_CLC_DISS	BIT(1)	/* Disable status bit */
 #define LTQ_SPI_CLC_DISR	BIT(0)	/* Disable request bit */
@@ -559,7 +559,7 @@ static void rx_fifo_read_half_duplex(struct lantiq_ssc_spi *spi)
 	unsigned int rx_fill = rx_fifo_level(spi);
 
 	/*
-	 * In RX-only mode the bits per word value is ignored by HW. A value
+	 * In RX-only mode the bits per word value is igyesred by HW. A value
 	 * of 32 is used instead. Thus all 4 bytes per FIFO must be read.
 	 * If remaining RX bytes are less than 4, the FIFO must be read
 	 * differently. The amount of received and valid bytes is indicated
@@ -709,7 +709,7 @@ static int transfer_start(struct lantiq_ssc_spi *spi, struct spi_device *spidev,
  * The driver only gets an interrupt when the FIFO is empty, but there
  * is an additional shift register from which the data is written to
  * the wire. We get the last interrupt when the controller starts to
- * write the last word to the wire, not when it is finished. Do busy
+ * write the last word to the wire, yest when it is finished. Do busy
  * waiting till it finishes.
  */
 static void lantiq_ssc_bussy_work(struct work_struct *work)
@@ -806,7 +806,7 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 
 	match = of_match_device(lantiq_ssc_match, dev);
 	if (!match) {
-		dev_err(dev, "no device match\n");
+		dev_err(dev, "yes device match\n");
 		return -EINVAL;
 	}
 	hwcfg = match->data;
@@ -877,16 +877,16 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 	}
 
 	num_cs = 8;
-	of_property_read_u32(pdev->dev.of_node, "num-cs", &num_cs);
+	of_property_read_u32(pdev->dev.of_yesde, "num-cs", &num_cs);
 
 	spi->base_cs = 1;
-	of_property_read_u32(pdev->dev.of_node, "base-cs", &spi->base_cs);
+	of_property_read_u32(pdev->dev.of_yesde, "base-cs", &spi->base_cs);
 
 	spin_lock_init(&spi->lock);
 	spi->bits_per_word = 8;
 	spi->speed_hz = 0;
 
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->num_chipselect = num_cs;
 	master->setup = lantiq_ssc_setup;
 	master->set_cs = lantiq_ssc_set_cs;

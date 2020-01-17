@@ -23,7 +23,7 @@ struct ams {
 	struct mutex lock;
 
 	/* General properties */
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 	struct platform_device *of_dev;
 	char has_device;
 	char vflag;
@@ -64,8 +64,8 @@ extern void ams_sensors(s8 *x, s8 *y, s8 *z);
 extern int ams_sensor_attach(void);
 extern void ams_sensor_detach(void);
 
-extern int ams_pmu_init(struct device_node *np);
-extern int ams_i2c_init(struct device_node *np);
+extern int ams_pmu_init(struct device_yesde *np);
+extern int ams_i2c_init(struct device_yesde *np);
 
 extern int ams_input_init(void);
 extern void ams_input_exit(void);

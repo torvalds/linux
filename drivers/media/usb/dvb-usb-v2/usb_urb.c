@@ -69,7 +69,7 @@ static void usb_urb_complete(struct urb *urb)
 		break;
 	default:
 		dev_err(&stream->udev->dev,
-				"%s: unknown endpoint type in completion handler\n",
+				"%s: unkyeswn endpoint type in completion handler\n",
 				KBUILD_MODNAME);
 		return;
 	}
@@ -104,7 +104,7 @@ int usb_urb_submitv2(struct usb_data_stream *stream,
 		ret = usb_submit_urb(stream->urb_list[i], GFP_ATOMIC);
 		if (ret) {
 			dev_err(&stream->udev->dev,
-					"%s: could not submit urb no. %d - get them all back\n",
+					"%s: could yest submit urb yes. %d - get them all back\n",
 					KBUILD_MODNAME, i);
 			usb_urb_killv2(stream);
 			return ret;
@@ -255,7 +255,7 @@ int usb_urb_reconfig(struct usb_data_stream *stream,
 	if (!props)
 		return 0;
 
-	/* check allocated buffers are large enough for the request */
+	/* check allocated buffers are large eyesugh for the request */
 	if (props->type == USB_BULK) {
 		buf_size = stream->props.u.bulk.buffersize;
 	} else if (props->type == USB_ISOC) {
@@ -268,7 +268,7 @@ int usb_urb_reconfig(struct usb_data_stream *stream,
 
 	if (stream->buf_num < props->count || stream->buf_size < buf_size) {
 		dev_err(&stream->udev->dev,
-				"%s: cannot reconfigure as allocated buffers are too small\n",
+				"%s: canyest reconfigure as allocated buffers are too small\n",
 				KBUILD_MODNAME);
 		return -EINVAL;
 	}
@@ -315,7 +315,7 @@ int usb_urb_initv2(struct usb_data_stream *stream,
 
 	if (!stream->complete) {
 		dev_err(&stream->udev->dev,
-				"%s: there is no data callback - this doesn't make sense\n",
+				"%s: there is yes data callback - this doesn't make sense\n",
 				KBUILD_MODNAME);
 		return -EINVAL;
 	}
@@ -338,7 +338,7 @@ int usb_urb_initv2(struct usb_data_stream *stream,
 		return usb_urb_alloc_isoc_urbs(stream);
 	default:
 		dev_err(&stream->udev->dev,
-				"%s: unknown urb-type for data transfer\n",
+				"%s: unkyeswn urb-type for data transfer\n",
 				KBUILD_MODNAME);
 		return -EINVAL;
 	}

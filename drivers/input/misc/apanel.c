@@ -45,7 +45,7 @@ enum apanel_chip {
 	CHIP_OZ711M3 = 4,
 };
 
-/* Result of BIOS snooping/probing -- what features are supported */
+/* Result of BIOS syesoping/probing -- what features are supported */
 static enum apanel_chip device_chip[APANEL_DEV_MAX];
 
 #define MAX_PANEL_KEYS	12
@@ -97,7 +97,7 @@ static void apanel_poll(struct input_dev *idev)
 
 	data = i2c_smbus_read_word_data(ap->client, cmd);
 	if (data < 0)
-		return;	/* ignore errors (due to ACPI??) */
+		return;	/* igyesre errors (due to ACPI??) */
 
 	/* write back to clear latch */
 	i2c_smbus_write_word_data(ap->client, cmd, 0);
@@ -218,7 +218,7 @@ static __init const void __iomem *bios_signature(const void __iomem *bios)
 				    sizeof(signature)-1))
 			return bios + offset;
 	}
-	pr_notice(APANEL ": Fujitsu BIOS signature '%s' not found...\n",
+	pr_yestice(APANEL ": Fujitsu BIOS signature '%s' yest found...\n",
 		  signature);
 	return NULL;
 }
@@ -227,7 +227,7 @@ static int __init apanel_init(void)
 {
 	void __iomem *bios;
 	const void __iomem *p;
-	u8 devno;
+	u8 devyes;
 	unsigned char i2c_addr;
 	int found = 0;
 
@@ -243,7 +243,7 @@ static int __init apanel_init(void)
 	p += 8;
 	i2c_addr = readb(p + 3) >> 1;
 
-	for ( ; (devno = readb(p)) & 0x7f; p += 4) {
+	for ( ; (devyes = readb(p)) & 0x7f; p += 4) {
 		unsigned char method, slave, chip;
 
 		method = readb(p + 1);
@@ -251,39 +251,39 @@ static int __init apanel_init(void)
 		slave = readb(p + 3) >> 1;
 
 		if (slave != i2c_addr) {
-			pr_notice(APANEL ": only one SMBus slave "
+			pr_yestice(APANEL ": only one SMBus slave "
 				  "address supported, skipping device...\n");
 			continue;
 		}
 
 		/* translate alternative device numbers */
-		switch (devno) {
+		switch (devyes) {
 		case 6:
-			devno = APANEL_DEV_APPBTN;
+			devyes = APANEL_DEV_APPBTN;
 			break;
 		case 7:
-			devno = APANEL_DEV_LED;
+			devyes = APANEL_DEV_LED;
 			break;
 		}
 
-		if (devno >= APANEL_DEV_MAX)
-			pr_notice(APANEL ": unknown device %u found\n", devno);
-		else if (device_chip[devno] != CHIP_NONE)
-			pr_warn(APANEL ": duplicate entry for devno %u\n",
-				devno);
+		if (devyes >= APANEL_DEV_MAX)
+			pr_yestice(APANEL ": unkyeswn device %u found\n", devyes);
+		else if (device_chip[devyes] != CHIP_NONE)
+			pr_warn(APANEL ": duplicate entry for devyes %u\n",
+				devyes);
 
 		else if (method != 1 && method != 2 && method != 4) {
-			pr_notice(APANEL ": unknown method %u for devno %u\n",
-				  method, devno);
+			pr_yestice(APANEL ": unkyeswn method %u for devyes %u\n",
+				  method, devyes);
 		} else {
-			device_chip[devno] = (enum apanel_chip) chip;
+			device_chip[devyes] = (enum apanel_chip) chip;
 			++found;
 		}
 	}
 	iounmap(bios);
 
 	if (found == 0) {
-		pr_info(APANEL ": no input devices reported by BIOS\n");
+		pr_info(APANEL ": yes input devices reported by BIOS\n");
 		return -EIO;
 	}
 

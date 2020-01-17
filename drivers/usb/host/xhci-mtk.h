@@ -39,7 +39,7 @@ struct mu3h_sch_tt {
  * @bw_ep_list: eps in the bandwidth domain
  *
  * treat a HS root port as a bandwidth domain, but treat a SS root port as
- * two bandwidth domains, one for IN eps and another for OUT eps.
+ * two bandwidth domains, one for IN eps and ayesther for OUT eps.
  */
 struct mu3h_sch_bw_info {
 	u32 bus_bw[XHCI_MTK_MAX_ESIT];
@@ -68,11 +68,11 @@ struct mu3h_sch_bw_info {
  *		continuous uframes
  * @pkts: number of packets to be transferred in the scheduled uframes
  * @cs_count: number of CS that host will trigger
- * @burst_mode: burst mode for scheduling. 0: normal burst mode,
+ * @burst_mode: burst mode for scheduling. 0: yesrmal burst mode,
  *		distribute the bMaxBurst+1 packets for a single burst
  *		according to @pkts and @repeat, repeate the burst multiple
  *		times; 1: distribute the (bMaxBurst+1)*(Mult+1) packets
- *		according to @pkts and @repeat. normal mode is used by
+ *		according to @pkts and @repeat. yesrmal mode is used by
  *		default
  * @bw_budget_table: table to record bandwidth budget per microframe
  */

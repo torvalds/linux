@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -123,7 +123,7 @@ nvkm_uvmm_mthd_unmap(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		return ret;
 
 	mutex_lock(&vmm->mutex);
-	vma = nvkm_vmm_node_search(vmm, addr);
+	vma = nvkm_vmm_yesde_search(vmm, addr);
 	if (ret = -ENOENT, !vma || vma->addr != addr) {
 		VMM_DEBUG(vmm, "lookup %016llx: %016llx",
 			  addr, vma ? vma->addr : ~0ULL);
@@ -176,7 +176,7 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	}
 
 	mutex_lock(&vmm->mutex);
-	if (ret = -ENOENT, !(vma = nvkm_vmm_node_search(vmm, addr))) {
+	if (ret = -ENOENT, !(vma = nvkm_vmm_yesde_search(vmm, addr))) {
 		VMM_DEBUG(vmm, "lookup %016llx", addr);
 		goto fail;
 	}
@@ -202,7 +202,7 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 			goto fail;
 		}
 
-		vma = nvkm_vmm_node_split(vmm, vma, addr, size);
+		vma = nvkm_vmm_yesde_split(vmm, vma, addr, size);
 		if (!vma) {
 			ret = -ENOMEM;
 			goto fail;
@@ -245,7 +245,7 @@ nvkm_uvmm_mthd_put(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		return ret;
 
 	mutex_lock(&vmm->mutex);
-	vma = nvkm_vmm_node_search(vmm, args->v0.addr);
+	vma = nvkm_vmm_yesde_search(vmm, args->v0.addr);
 	if (ret = -ENOENT, !vma || vma->addr != addr || vma->part) {
 		VMM_DEBUG(vmm, "lookup %016llx: %016llx %d", addr,
 			  vma ? vma->addr : ~0ULL, vma ? vma->part : 0);

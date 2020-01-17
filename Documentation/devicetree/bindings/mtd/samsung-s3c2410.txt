@@ -10,15 +10,15 @@ Required properties:
 - clocks : phandle to the nand controller clock
 - clock-names : must contain "nand"
 
-Optional child nodes:
-Child nodes representing the available nand chips.
+Optional child yesdes:
+Child yesdes representing the available nand chips.
 
 Optional child properties:
 - nand-ecc-mode : see nand-controller.yaml
 - nand-on-flash-bbt : see nand-controller.yaml
 
-Each child device node may optionally contain a 'partitions' sub-node,
-which further contains sub-nodes describing the flash partition mapping.
+Each child device yesde may optionally contain a 'partitions' sub-yesde,
+which further contains sub-yesdes describing the flash partition mapping.
 See partition.txt for more detail.
 
 Example:

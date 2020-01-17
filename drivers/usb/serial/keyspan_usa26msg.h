@@ -2,7 +2,7 @@
 /*
 	usa26msg.h
 
-	Copyright (C) 1998-2000 InnoSys Incorporated.  All Rights Reserved
+	Copyright (C) 1998-2000 InyesSys Incorporated.  All Rights Reserved
 	This file is available under a BSD-style copyright
 
 	Keyspan USB Async Message Formats for the USA28X
@@ -13,14 +13,14 @@
 
 	1. Redistributions of source code must retain this licence text
    	without modification, this list of conditions, and the following
-   	disclaimer.  The following copyright notice must appear immediately at
+   	disclaimer.  The following copyright yestice must appear immediately at
    	the beginning of all source files:
 
-        	Copyright (C) 1998-2000 InnoSys Incorporated.  All Rights Reserved
+        	Copyright (C) 1998-2000 InyesSys Incorporated.  All Rights Reserved
 
         	This file is available under a BSD-style copyright
 
-	2. The name of InnoSys Incorporated may not be used to endorse or promote
+	2. The name of InyesSys Incorporated may yest be used to endorse or promote
    	products derived from this software without specific prior written
    	permission.
 
@@ -38,7 +38,7 @@
 
 	Third revision: USA28X version (aka USA26)
 
-	Buffer formats for RX/TX data messages are not defined by
+	Buffer formats for RX/TX data messages are yest defined by
 	a structure, but are described here:
 
 	USB OUT (host -> USAxx, transmit) messages contain a 
@@ -94,7 +94,7 @@
 
 	revision history:
 
-	1999feb10	add reportHskiaChanges to allow us to ignore them
+	1999feb10	add reportHskiaChanges to allow us to igyesre them
 	1999feb10	add txAckThreshold for fast+loose throughput enhancement
 	1999mar30	beef up support for RX error reporting
 	1999apr14	add resetDataToggle to control message
@@ -144,7 +144,7 @@ struct keyspan_usa26_portControlMessage
 		setTxTriState_setRts,
 					// USA26: host requests TX tri-state be set
 					// USA17: host requests RTS output be set
-		txTriState_rts,		// BOTH: 1=active (normal), 0=tristate (off)
+		txTriState_rts,		// BOTH: 1=active (yesrmal), 0=tristate (off)
 
 		setHskoa_setDtr,
 					// USA26: host requests HSKOA output be set
@@ -154,25 +154,25 @@ struct keyspan_usa26_portControlMessage
 		setPrescaler,		// USA26: host requests prescalar be set (default: 13)
 		prescaler;		// BOTH: specified as N/8; values 8-ff are valid
 					// must be set any time internal baud rate is set;
-					// must not be set when external clocking is used
-					// note: in USA17, prescaler is applied whenever
+					// must yest be set when external clocking is used
+					// yeste: in USA17, prescaler is applied whenever
 					// setClocking is requested
 
 	/*
-		3.	configuration data which is simply used as is (no overhead,
+		3.	configuration data which is simply used as is (yes overhead,
 			but must be specified correctly in every host message).
 	*/
 	u8	forwardingLength,  // BOTH: forward when this number of chars available
 		reportHskiaChanges_dsrFlowControl,
-						// USA26: 1=normal; 0=ignore external clock
+						// USA26: 1=yesrmal; 0=igyesre external clock
 						// USA17: 1=use DSR flow control, 0=don't
-		txAckThreshold,	// BOTH: 0=not allowed, 1=normal, 2-255 deliver ACK faster
-		loopbackMode;	// BOTH: 0=no loopback, 1=loopback enabled
+		txAckThreshold,	// BOTH: 0=yest allowed, 1=yesrmal, 2-255 deliver ACK faster
+		loopbackMode;	// BOTH: 0=yes loopback, 1=loopback enabled
 
 	/*
 		4.	commands which are flags only; these are processed in order
 			(so that, e.g., if both _txOn and _txOff flags are set, the
-			port ends in a TX_OFF state); any non-zero value is respected
+			port ends in a TX_OFF state); any yesn-zero value is respected
 	*/
 	u8	_txOn,			// BOTH: enable transmitting (and continue if there's data)
 		_txOff,			// BOTH: stop transmitting

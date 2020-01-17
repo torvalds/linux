@@ -20,7 +20,7 @@
 #include "debug.h"
 #include "fwil_types.h"
 #include "p2p.h"
-#include "pno.h"
+#include "pyes.h"
 #include "cfg80211.h"
 #include "fwil.h"
 #include "feature.h"
@@ -49,7 +49,7 @@ struct d11rxhdr_le {
 	__le16 RxStatus2;
 	__le16 RxTSFTime;
 	__le16 RxChan;
-	u8 unknown[12];
+	u8 unkyeswn[12];
 } __packed;
 
 struct wlc_d11rxhdr {
@@ -70,7 +70,7 @@ char *brcmf_ifname(struct brcmf_if *ifp)
 	if (ifp->ndev)
 		return ifp->ndev->name;
 
-	return "<if_none>";
+	return "<if_yesne>";
 }
 
 struct brcmf_if *brcmf_get_ifp(struct brcmf_pub *drvr, int ifidx)
@@ -102,7 +102,7 @@ void brcmf_configure_arp_nd_offload(struct brcmf_if *ifp, bool enable)
 		mode = 0;
 
 	/* Try to set and enable ARP offload feature, this may fail, then it  */
-	/* is simply not supported and err 0 will be returned                 */
+	/* is simply yest supported and err 0 will be returned                 */
 	err = brcmf_fil_iovar_int_set(ifp, "arp_ol", mode);
 	if (err) {
 		brcmf_dbg(TRACE, "failed to set ARP offload mode to 0x%x, err = %d\n",
@@ -319,7 +319,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 		goto done;
 	}
 
-	/* Make sure there's enough writeable headroom */
+	/* Make sure there's eyesugh writeable headroom */
 	if (skb_headroom(skb) < drvr->hdrlen || skb_header_cloned(skb)) {
 		head_delta = max_t(int, drvr->hdrlen - skb_headroom(skb), 0);
 
@@ -418,7 +418,7 @@ void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 	if (in_interrupt())
 		netif_rx(skb);
 	else
-		/* If the receive is not processed inside an ISR,
+		/* If the receive is yest processed inside an ISR,
 		 * the softirqd must be woken explicitly to service
 		 * the NET_RX_SOFTIRQ.  This is handled by netif_rx_ni().
 		 */
@@ -428,7 +428,7 @@ void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 void brcmf_netif_mon_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 {
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MONITOR_FMT_RADIOTAP)) {
-		/* Do nothing */
+		/* Do yesthing */
 	} else if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MONITOR_FMT_HW_RX_HDR)) {
 		struct wlc_d11rxhdr *wlc_rxhdr = (struct wlc_d11rxhdr *)skb->data;
 		struct ieee80211_radiotap_header *radiotap;
@@ -596,9 +596,9 @@ static int brcmf_netdev_open(struct net_device *ndev)
 
 	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
 
-	/* If bus is not ready, can't continue */
+	/* If bus is yest ready, can't continue */
 	if (bus_if->state != BRCMF_BUS_UP) {
-		bphy_err(drvr, "failed bus is not ready\n");
+		bphy_err(drvr, "failed bus is yest ready\n");
 		return -EAGAIN;
 	}
 
@@ -782,7 +782,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 			brcmf_net_detach(ifp->ndev, false);
 			drvr->iflist[bsscfgidx] = NULL;
 		} else {
-			brcmf_dbg(INFO, "netdev:%s ignore IF event\n",
+			brcmf_dbg(INFO, "netdev:%s igyesre IF event\n",
 				  ifp->ndev->name);
 			return ERR_PTR(-EINVAL);
 		}
@@ -790,7 +790,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 
 	if (!drvr->settings->p2p_enable && is_p2pdev) {
 		/* this is P2P_DEVICE interface */
-		brcmf_dbg(INFO, "allocate non-netdev interface\n");
+		brcmf_dbg(INFO, "allocate yesn-netdev interface\n");
 		ifp = kzalloc(sizeof(*ifp), GFP_KERNEL);
 		if (!ifp)
 			return ERR_PTR(-ENOMEM);
@@ -862,7 +862,7 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx,
 		/* Only p2p device interfaces which get dynamically created
 		 * end up here. In this case the p2p module should be informed
 		 * about the removal of the interface within the firmware. If
-		 * not then p2p commands towards the firmware will cause some
+		 * yest then p2p commands towards the firmware will cause some
 		 * serious troublesome side effects. The p2p module will clean
 		 * up the ifp if needed.
 		 */
@@ -885,7 +885,7 @@ void brcmf_remove_interface(struct brcmf_if *ifp, bool rtnl_locked)
 	brcmf_del_if(ifp->drvr, ifp->bsscfgidx, rtnl_locked);
 }
 
-static int brcmf_psm_watchdog_notify(struct brcmf_if *ifp,
+static int brcmf_psm_watchdog_yestify(struct brcmf_if *ifp,
 				     const struct brcmf_event_msg *evtmsg,
 				     void *data)
 {
@@ -906,11 +906,11 @@ static int brcmf_psm_watchdog_notify(struct brcmf_if *ifp,
 
 #ifdef CONFIG_INET
 #define ARPOL_MAX_ENTRIES	8
-static int brcmf_inetaddr_changed(struct notifier_block *nb,
+static int brcmf_inetaddr_changed(struct yestifier_block *nb,
 				  unsigned long action, void *data)
 {
 	struct brcmf_pub *drvr = container_of(nb, struct brcmf_pub,
-					      inetaddr_notifier);
+					      inetaddr_yestifier);
 	struct in_ifaddr *ifa = data;
 	struct net_device *ndev = ifa->ifa_dev->dev;
 	struct brcmf_if *ifp;
@@ -918,7 +918,7 @@ static int brcmf_inetaddr_changed(struct notifier_block *nb,
 	u32 val;
 	__be32 addr_table[ARPOL_MAX_ENTRIES] = {0};
 
-	/* Find out if the notification is meant for us */
+	/* Find out if the yestification is meant for us */
 	for (idx = 0; idx < BRCMF_MAX_IFS; idx++) {
 		ifp = drvr->iflist[idx];
 		if (ifp && ifp->ndev == ndev)
@@ -997,11 +997,11 @@ static int brcmf_inetaddr_changed(struct notifier_block *nb,
 #endif
 
 #if IS_ENABLED(CONFIG_IPV6)
-static int brcmf_inet6addr_changed(struct notifier_block *nb,
+static int brcmf_inet6addr_changed(struct yestifier_block *nb,
 				   unsigned long action, void *data)
 {
 	struct brcmf_pub *drvr = container_of(nb, struct brcmf_pub,
-					      inet6addr_notifier);
+					      inet6addr_yestifier);
 	struct inet6_ifaddr *ifa = data;
 	struct brcmf_if *ifp;
 	int i;
@@ -1105,7 +1105,7 @@ static ssize_t bus_reset_write(struct file *file, const char __user *user_buf,
 
 static const struct file_operations bus_reset_fops = {
 	.open	= simple_open,
-	.llseek	= no_llseek,
+	.llseek	= yes_llseek,
 	.write	= bus_reset_write,
 };
 
@@ -1165,16 +1165,16 @@ static int brcmf_bus_started(struct brcmf_pub *drvr, struct cfg80211_ops *ops)
 		goto fail;
 
 #ifdef CONFIG_INET
-	drvr->inetaddr_notifier.notifier_call = brcmf_inetaddr_changed;
-	ret = register_inetaddr_notifier(&drvr->inetaddr_notifier);
+	drvr->inetaddr_yestifier.yestifier_call = brcmf_inetaddr_changed;
+	ret = register_inetaddr_yestifier(&drvr->inetaddr_yestifier);
 	if (ret)
 		goto fail;
 
 #if IS_ENABLED(CONFIG_IPV6)
-	drvr->inet6addr_notifier.notifier_call = brcmf_inet6addr_changed;
-	ret = register_inet6addr_notifier(&drvr->inet6addr_notifier);
+	drvr->inet6addr_yestifier.yestifier_call = brcmf_inet6addr_changed;
+	ret = register_inet6addr_yestifier(&drvr->inet6addr_yestifier);
 	if (ret) {
-		unregister_inetaddr_notifier(&drvr->inetaddr_notifier);
+		unregister_inetaddr_yestifier(&drvr->inetaddr_yestifier);
 		goto fail;
 	}
 #endif
@@ -1203,7 +1203,7 @@ fail:
 		brcmf_net_detach(p2p_ifp->ndev, false);
 	drvr->iflist[0] = NULL;
 	drvr->iflist[1] = NULL;
-	if (drvr->settings->ignore_probe_fail)
+	if (drvr->settings->igyesre_probe_fail)
 		ret = 0;
 
 	return ret;
@@ -1264,14 +1264,14 @@ int brcmf_attach(struct device *dev)
 
 	/* Attach to events important for core code */
 	brcmf_fweh_register(drvr, BRCMF_E_PSM_WATCHDOG,
-			    brcmf_psm_watchdog_notify);
+			    brcmf_psm_watchdog_yestify);
 
 	/* attach firmware event handler */
 	brcmf_fweh_attach(drvr);
 
 	ret = brcmf_bus_started(drvr, drvr->ops);
 	if (ret != 0) {
-		bphy_err(drvr, "dongle is not responding: err=%d\n", ret);
+		bphy_err(drvr, "dongle is yest responding: err=%d\n", ret);
 		goto fail;
 	}
 
@@ -1337,11 +1337,11 @@ void brcmf_detach(struct device *dev)
 		return;
 
 #ifdef CONFIG_INET
-	unregister_inetaddr_notifier(&drvr->inetaddr_notifier);
+	unregister_inetaddr_yestifier(&drvr->inetaddr_yestifier);
 #endif
 
 #if IS_ENABLED(CONFIG_IPV6)
-	unregister_inet6addr_notifier(&drvr->inet6addr_notifier);
+	unregister_inet6addr_yestifier(&drvr->inet6addr_yestifier);
 #endif
 
 	brcmf_bus_change_state(bus_if, BRCMF_BUS_DOWN);
@@ -1406,7 +1406,7 @@ int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp)
 				 MAX_WAIT_FOR_8021X_TX);
 
 	if (!err)
-		bphy_err(drvr, "Timed out waiting for no pending 802.1x packets\n");
+		bphy_err(drvr, "Timed out waiting for yes pending 802.1x packets\n");
 
 	return !err;
 }
@@ -1420,7 +1420,7 @@ void brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state)
 	brcmf_dbg(TRACE, "%d -> %d\n", bus->state, state);
 
 	if (!drvr) {
-		brcmf_dbg(INFO, "ignoring transition, bus not attached yet\n");
+		brcmf_dbg(INFO, "igyesring transition, bus yest attached yet\n");
 		return;
 	}
 

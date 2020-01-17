@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -24,7 +24,7 @@
 #define KFD_PRIV_H_INCLUDED
 
 #include <linux/hashtable.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/atomic.h>
@@ -147,21 +147,21 @@ extern int cwsr_enable;
 extern int send_sigterm;
 
 /*
- * This kernel module is used to simulate large bar machine on non-large bar
+ * This kernel module is used to simulate large bar machine on yesn-large bar
  * enabled machines.
  */
 extern int debug_largebar;
 
 /*
- * Ignore CRAT table during KFD initialization, can be used to work around
+ * Igyesre CRAT table during KFD initialization, can be used to work around
  * broken CRAT tables on some AMD systems
  */
-extern int ignore_crat;
+extern int igyesre_crat;
 
 /*
  * Set sh_mem_config.retry_disable on Vega10
  */
-extern int amdgpu_noretry;
+extern int amdgpu_yesretry;
 
 /*
  * Halt if HWS hang is detected
@@ -180,7 +180,7 @@ extern int queue_preemption_timeout_ms;
 
 enum cache_policy {
 	cache_policy_coherent,
-	cache_policy_noncoherent
+	cache_policy_yesncoherent
 };
 
 #define KFD_IS_SOC15(chip) ((chip) >= CHIP_VEGA10)
@@ -198,7 +198,7 @@ struct kfd_device_info {
 	const char *asic_name;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
-	unsigned int max_no_of_hqd;
+	unsigned int max_yes_of_hqd;
 	unsigned int doorbell_size;
 	size_t ih_ring_entry_size;
 	uint8_t num_of_watch_points;
@@ -386,14 +386,14 @@ enum KFD_QUEUE_PRIORITY {
  * currently all queues are initialized with the highest priority.
  *
  * @queue_percent: This field is partially implemented and currently a zero in
- * this field defines that the queue is non active.
+ * this field defines that the queue is yesn active.
  *
  * @read_ptr: User space address which points to the number of dwords the
  * cp read from the ring buffer. This field updates automatically by the H/W.
  *
  * @write_ptr: Defines the number of dwords written to the ring buffer.
  *
- * @doorbell_ptr: This field aim is to notify the H/W of new packet written to
+ * @doorbell_ptr: This field aim is to yestify the H/W of new packet written to
  * the queue ring buffer. This field should be similar to write_ptr and the
  * user should update this field after he updated the write_ptr.
  *
@@ -405,13 +405,13 @@ enum KFD_QUEUE_PRIORITY {
  * @is_evicted: Defines if the queue is evicted. Only active queues
  * are evicted, rendering them inactive.
  *
- * @is_active: Defines if the queue is active or not. @is_active and
+ * @is_active: Defines if the queue is active or yest. @is_active and
  * @is_evicted are protected by the DQM lock.
  *
- * @vmid: If the scheduling mode is no cp scheduling the field defines the vmid
+ * @vmid: If the scheduling mode is yes cp scheduling the field defines the vmid
  * of the queue.
  *
- * This structure represents the queue properties for each queue no matter if
+ * This structure represents the queue properties for each queue yes matter if
  * it's user mode or kernel mode queue.
  *
  */
@@ -467,13 +467,13 @@ struct queue_properties {
  *
  * @properties: The queue properties.
  *
- * @mec: Used only in no cp scheduling mode and identifies to micro engine id
+ * @mec: Used only in yes cp scheduling mode and identifies to micro engine id
  *	 that the queue should be execute on.
  *
- * @pipe: Used only in no cp scheduling mode and identifies the queue's pipe
+ * @pipe: Used only in yes cp scheduling mode and identifies the queue's pipe
  *	  id.
  *
- * @queue: Used only in no cp scheduliong mode and identifies the queue's slot.
+ * @queue: Used only in yes cp scheduliong mode and identifies the queue's slot.
  *
  * @process: The kfd process that created this queue.
  *
@@ -510,7 +510,7 @@ struct queue {
  * Please read the kfd_mqd_manager.h description.
  */
 enum KFD_MQD_TYPE {
-	KFD_MQD_TYPE_COMPUTE = 0,	/* for no cp scheduling */
+	KFD_MQD_TYPE_COMPUTE = 0,	/* for yes cp scheduling */
 	KFD_MQD_TYPE_HIQ,		/* for hiq */
 	KFD_MQD_TYPE_CP,		/* for cp queues and diq */
 	KFD_MQD_TYPE_SDMA,		/* for sdma queues */
@@ -662,7 +662,7 @@ struct kfd_process {
 	 * kfd_process are stored in an mm_struct*->kfd_process*
 	 * hash table (kfd_processes in kfd_process.c)
 	 */
-	struct hlist_node kfd_processes;
+	struct hlist_yesde kfd_processes;
 
 	/*
 	 * Opaque pointer to mm_struct. We don't hold a reference to
@@ -685,8 +685,8 @@ struct kfd_process {
 	 */
 	struct task_struct *lead_thread;
 
-	/* We want to receive a notification when the mm_struct is destroyed */
-	struct mmu_notifier mmu_notifier;
+	/* We want to receive a yestification when the mm_struct is destroyed */
+	struct mmu_yestifier mmu_yestifier;
 
 	uint16_t pasid;
 	unsigned int doorbell_index;
@@ -723,8 +723,8 @@ struct kfd_process {
 	/* Work items for evicting and restoring BOs */
 	struct delayed_work eviction_work;
 	struct delayed_work restore_work;
-	/* seqno of the last scheduled eviction */
-	unsigned int last_eviction_seqno;
+	/* seqyes of the last scheduled eviction */
+	unsigned int last_eviction_seqyes;
 	/* Approx. the last timestamp (in jiffies) when the process was
 	 * restored after an eviction
 	 */
@@ -851,7 +851,7 @@ struct kfd_dev *kfd_device_by_id(uint32_t gpu_id);
 struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev);
 struct kfd_dev *kfd_device_by_kgd(const struct kgd_dev *kgd);
 int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_dev **kdev);
-int kfd_numa_node_to_apic_id(int numa_node_id);
+int kfd_numa_yesde_to_apic_id(int numa_yesde_id);
 
 /* Interrupts */
 int kfd_interrupt_init(struct kfd_dev *dev);
@@ -890,7 +890,7 @@ void kernel_queue_uninit(struct kernel_queue *kq);
 int kfd_process_vm_fault(struct device_queue_manager *dqm, unsigned int pasid);
 
 /* Process Queue Manager */
-struct process_queue_node {
+struct process_queue_yesde {
 	struct queue *q;
 	struct kernel_queue *kq;
 	struct list_head process_queue_list;
@@ -1021,7 +1021,7 @@ int kfd_reset_event(struct kfd_process *p, uint32_t event_id);
 int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
 		       uint64_t size);
 int kfd_event_create(struct file *devkfd, struct kfd_process *p,
-		     uint32_t event_type, bool auto_reset, uint32_t node_id,
+		     uint32_t event_type, bool auto_reset, uint32_t yesde_id,
 		     uint32_t *event_id, uint32_t *event_trigger_data,
 		     uint64_t *event_page_offset, uint32_t *event_slot_index);
 int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);

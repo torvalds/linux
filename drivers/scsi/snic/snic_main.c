@@ -19,7 +19,7 @@
 #include <linux/mempool.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
@@ -155,13 +155,13 @@ snic_handle_link_event(struct snic *snic)
 } /* end of snic_handle_link_event */
 
 /*
- * snic_notify_set : sets notification area
- * This notification area is to receive events from fw
+ * snic_yestify_set : sets yestification area
+ * This yestification area is to receive events from fw
  * Note: snic supports only MSIX interrupts, in which we can just call
- *  svnic_dev_notify_set directly
+ *  svnic_dev_yestify_set directly
  */
 static int
-snic_notify_set(struct snic *snic)
+snic_yestify_set(struct snic *snic)
 {
 	int ret = 0;
 	enum vnic_dev_intr_mode intr_mode;
@@ -169,16 +169,16 @@ snic_notify_set(struct snic *snic)
 	intr_mode = svnic_dev_get_intr_mode(snic->vdev);
 
 	if (intr_mode == VNIC_DEV_INTR_MODE_MSIX) {
-		ret = svnic_dev_notify_set(snic->vdev, SNIC_MSIX_ERR_NOTIFY);
+		ret = svnic_dev_yestify_set(snic->vdev, SNIC_MSIX_ERR_NOTIFY);
 	} else {
 		SNIC_HOST_ERR(snic->shost,
-			      "Interrupt mode should be setup before devcmd notify set %d\n",
+			      "Interrupt mode should be setup before devcmd yestify set %d\n",
 			      intr_mode);
 		ret = -1;
 	}
 
 	return ret;
-} /* end of snic_notify_set */
+} /* end of snic_yestify_set */
 
 /*
  * snic_dev_wait : polls vnic open status.
@@ -245,7 +245,7 @@ snic_cleanup(struct snic *snic)
 
 	snic_wq_cmpl_handler(snic, -1);
 
-	/* Clean up the IOs that have not completed */
+	/* Clean up the IOs that have yest completed */
 	for (i = 0; i < snic->wq_count; i++)
 		svnic_wq_clean(&snic->wq[i], snic_free_wq_buf);
 
@@ -315,7 +315,7 @@ snic_add_host(struct Scsi_Host *shost, struct pci_dev *pdev)
 
 	SNIC_BUG_ON(shost->work_q != NULL);
 	snprintf(shost->work_q_name, sizeof(shost->work_q_name), "scsi_wq_%d",
-		 shost->host_no);
+		 shost->host_yes);
 	shost->work_q = create_singlethread_workqueue(shost->work_q_name);
 	if (!shost->work_q) {
 		SNIC_HOST_ERR(shost, "Failed to Create ScsiHost wq.\n");
@@ -389,11 +389,11 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	snic->shost = shost;
 
 	snprintf(snic->name, sizeof(snic->name) - 1, "%s%d", SNIC_DRV_NAME,
-		 shost->host_no);
+		 shost->host_yes);
 
 	SNIC_HOST_INFO(shost,
 		       "snic%d = %p shost = %p device bus %x: slot %x: fn %x\n",
-		       shost->host_no, snic, shost, pdev->bus->number,
+		       shost->host_yes, snic, shost, pdev->bus->number,
 		       PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 #ifdef CONFIG_SCSI_SNIC_DEBUG_FS
 	/* Per snic debugfs init */
@@ -407,7 +407,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = pci_enable_device(pdev);
 	if (ret) {
 		SNIC_HOST_ERR(shost,
-			      "Cannot enable PCI Resources, aborting : %d\n",
+			      "Canyest enable PCI Resources, aborting : %d\n",
 			      ret);
 
 		goto err_free_snic;
@@ -416,7 +416,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = pci_request_regions(pdev, SNIC_DRV_NAME);
 	if (ret) {
 		SNIC_HOST_ERR(shost,
-			      "Cannot obtain PCI Resources, aborting : %d\n",
+			      "Canyest obtain PCI Resources, aborting : %d\n",
 			      ret);
 
 		goto err_pci_disable;
@@ -442,7 +442,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Map vNIC resources from BAR0 */
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		SNIC_HOST_ERR(shost, "BAR0 not memory mappable aborting.\n");
+		SNIC_HOST_ERR(shost, "BAR0 yest memory mappable aborting.\n");
 
 		ret = -ENODEV;
 		goto err_rel_regions;
@@ -451,7 +451,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	snic->bar0.vaddr = pci_iomap(pdev, 0, 0);
 	if (!snic->bar0.vaddr) {
 		SNIC_HOST_ERR(shost,
-			      "Cannot memory map BAR0 res hdr aborting.\n");
+			      "Canyest memory map BAR0 res hdr aborting.\n");
 
 		ret = -ENODEV;
 		goto err_rel_regions;
@@ -598,11 +598,11 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	atomic_set(&snic->ios_inflight, 0);
 
-	/* Setup notification buffer area */
-	ret = snic_notify_set(snic);
+	/* Setup yestification buffer area */
+	ret = snic_yestify_set(snic);
 	if (ret) {
 		SNIC_HOST_ERR(shost,
-			      "Failed to alloc notify buffer aborting. %d\n",
+			      "Failed to alloc yestify buffer aborting. %d\n",
 			      ret);
 
 		goto err_free_tmreq_pool;
@@ -689,7 +689,7 @@ err_req_intr:
 	svnic_dev_disable(snic->vdev);
 
 err_vdev_enable:
-	svnic_dev_notify_unset(snic->vdev);
+	svnic_dev_yestify_unset(snic->vdev);
 
 	for (i = 0; i < snic->wq_count; i++) {
 		int rc = 0;
@@ -803,7 +803,7 @@ snic_remove(struct pci_dev *pdev)
 #endif
 	snic_del_host(snic->shost);
 
-	svnic_dev_notify_unset(snic->vdev);
+	svnic_dev_yestify_unset(snic->vdev);
 	snic_free_intr(snic);
 	snic_free_vnic_res(snic);
 	snic_clear_intr_mode(snic);

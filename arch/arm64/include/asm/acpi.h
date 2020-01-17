@@ -49,12 +49,12 @@ pgprot_t __acpi_get_mem_attribute(phys_addr_t addr);
 static inline void __iomem *acpi_os_ioremap(acpi_physical_address phys,
 					    acpi_size size)
 {
-	/* For normal memory we already have a cacheable mapping. */
+	/* For yesrmal memory we already have a cacheable mapping. */
 	if (memblock_is_map_memory(phys))
 		return (void __iomem *)__phys_to_virt(phys);
 
 	/*
-	 * We should still honor the memory's attribute here because
+	 * We should still hoyesr the memory's attribute here because
 	 * crash dump kernel possibly excludes some ACPI (reclaim)
 	 * regions from memblock list.
 	 */
@@ -67,34 +67,34 @@ typedef u64 phys_cpuid_t;
 
 #define acpi_strict 1	/* No out-of-spec workarounds on ARM64 */
 extern int acpi_disabled;
-extern int acpi_noirq;
+extern int acpi_yesirq;
 extern int acpi_pci_disabled;
 
 static inline void disable_acpi(void)
 {
 	acpi_disabled = 1;
 	acpi_pci_disabled = 1;
-	acpi_noirq = 1;
+	acpi_yesirq = 1;
 }
 
 static inline void enable_acpi(void)
 {
 	acpi_disabled = 0;
 	acpi_pci_disabled = 0;
-	acpi_noirq = 0;
+	acpi_yesirq = 0;
 }
 
 /*
  * The ACPI processor driver for ACPI core code needs this macro
  * to find out this cpu was already mapped (mapping from CPU hardware
- * ID to CPU logical ID) or not.
+ * ID to CPU logical ID) or yest.
  */
 #define cpu_physical_id(cpu) cpu_logical_map(cpu)
 
 /*
  * It's used from ACPI core in kdump to boot UP system with SMP kernel,
- * with this check the ACPI core will not override the CPU index
- * obtained from GICC with 0 and not print some error message as well.
+ * with this check the ACPI core will yest override the CPU index
+ * obtained from GICC with 0 and yest print some error message as well.
  * Since MADT must provide at least one GICC structure for GIC
  * initialization, CPU will be always available in MADT on ARM64.
  */
@@ -143,7 +143,7 @@ static inline const char *acpi_get_enable_method(int cpu)
 /*
  * acpi_disable_cmcff is used in drivers/acpi/apei/hest.c for disabling
  * IA-32 Architecture Corrected Machine Check (CMC) Firmware-First mode
- * with a kernel command line parameter "acpi=nocmcoff". But we don't
+ * with a kernel command line parameter "acpi=yescmcoff". But we don't
  * have this IA-32 specific feature on ARM64, this definition is only
  * for compatibility.
  */
@@ -157,11 +157,11 @@ static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
 #ifdef CONFIG_ACPI_NUMA
 int arm64_acpi_numa_init(void);
 int acpi_numa_get_nid(unsigned int cpu);
-void acpi_map_cpus_to_nodes(void);
+void acpi_map_cpus_to_yesdes(void);
 #else
 static inline int arm64_acpi_numa_init(void) { return -ENOSYS; }
 static inline int acpi_numa_get_nid(unsigned int cpu) { return NUMA_NO_NODE; }
-static inline void acpi_map_cpus_to_nodes(void) { }
+static inline void acpi_map_cpus_to_yesdes(void) { }
 #endif /* CONFIG_ACPI_NUMA */
 
 #define ACPI_TABLE_UPGRADE_MAX_PHYS MEMBLOCK_ALLOC_ACCESSIBLE

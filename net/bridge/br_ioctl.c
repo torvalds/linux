@@ -40,8 +40,8 @@ static void get_port_ifindices(struct net_bridge *br, int *ifindices, int num)
 	struct net_bridge_port *p;
 
 	list_for_each_entry(p, &br->port_list, list) {
-		if (p->port_no < num)
-			ifindices[p->port_no] = p->dev->ifindex;
+		if (p->port_yes < num)
+			ifindices[p->port_yes] = p->dev->ifindex;
 	}
 }
 
@@ -289,7 +289,7 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	if (!ret) {
 		if (p)
-			br_ifinfo_notify(RTM_NEWLINK, NULL, p);
+			br_ifinfo_yestify(RTM_NEWLINK, NULL, p);
 		else
 			netdev_state_change(br->dev);
 	}
@@ -393,6 +393,6 @@ int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	}
 
-	br_debug(br, "Bridge does not support ioctl 0x%x\n", cmd);
+	br_debug(br, "Bridge does yest support ioctl 0x%x\n", cmd);
 	return -EOPNOTSUPP;
 }

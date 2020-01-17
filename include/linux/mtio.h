@@ -18,13 +18,13 @@ struct	mtget32 {
 	s32	mt_dsreg;
 	s32	mt_gstat;
 	s32	mt_erreg;
-	s32	mt_fileno;
-	s32	mt_blkno;
+	s32	mt_fileyes;
+	s32	mt_blkyes;
 };
 #define	MTIOCGET32	_IOR('m', 2, struct mtget32)
 
 struct	mtpos32 {
-	s32 	mt_blkno;
+	s32 	mt_blkyes;
 };
 #define	MTIOCPOS32	_IOR('m', 3, struct mtpos32)
 
@@ -36,8 +36,8 @@ static inline int put_user_mtget(void __user *u, struct mtget *k)
 		.mt_dsreg  = k->mt_dsreg,
 		.mt_gstat  = k->mt_gstat,
 		.mt_erreg  = k->mt_erreg,
-		.mt_fileno = k->mt_fileno,
-		.mt_blkno  = k->mt_blkno,
+		.mt_fileyes = k->mt_fileyes,
+		.mt_blkyes  = k->mt_blkyes,
 	};
 	int ret;
 
@@ -52,9 +52,9 @@ static inline int put_user_mtget(void __user *u, struct mtget *k)
 static inline int put_user_mtpos(void __user *u, struct mtpos *k)
 {
 	if (in_compat_syscall())
-		return put_user(k->mt_blkno, (u32 __user *)u);
+		return put_user(k->mt_blkyes, (u32 __user *)u);
 	else
-		return put_user(k->mt_blkno, (long __user *)u);
+		return put_user(k->mt_blkyes, (long __user *)u);
 }
 
 #endif

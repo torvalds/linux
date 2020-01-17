@@ -15,7 +15,7 @@
  * Author: Dan Christian
  * Status: Works. Only tested on DM7520-8. Not SMP safe.
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: yest applicable, uses PCI auto config
  */
 
 /*
@@ -74,7 +74,7 @@
  * (single channel, 64K read buffer). I get random system lockups when
  * using DMA with ALI-15xx based systems. I haven't been able to test
  * any other chipsets. The lockups happen soon after the start of an
- * acquistion, not in the middle of a long run.
+ * acquistion, yest in the middle of a long run.
  *
  * Without DMA, you can do 620Khz sampling with 20% idle on a 400Mhz K6-2
  * (with a 256K read buffer).
@@ -96,18 +96,18 @@
  */
 #define LAS0_USER_IO		0x0008	/* User I/O */
 #define LAS0_ADC		0x0010	/* FIFO Status/Software A/D Start */
-#define FS_DAC1_NOT_EMPTY	BIT(0)	/* DAC1 FIFO not empty */
+#define FS_DAC1_NOT_EMPTY	BIT(0)	/* DAC1 FIFO yest empty */
 #define FS_DAC1_HEMPTY		BIT(1)	/* DAC1 FIFO half empty */
-#define FS_DAC1_NOT_FULL	BIT(2)	/* DAC1 FIFO not full */
-#define FS_DAC2_NOT_EMPTY	BIT(4)	/* DAC2 FIFO not empty */
+#define FS_DAC1_NOT_FULL	BIT(2)	/* DAC1 FIFO yest full */
+#define FS_DAC2_NOT_EMPTY	BIT(4)	/* DAC2 FIFO yest empty */
 #define FS_DAC2_HEMPTY		BIT(5)	/* DAC2 FIFO half empty */
-#define FS_DAC2_NOT_FULL	BIT(6)	/* DAC2 FIFO not full */
-#define FS_ADC_NOT_EMPTY	BIT(8)	/* ADC FIFO not empty */
+#define FS_DAC2_NOT_FULL	BIT(6)	/* DAC2 FIFO yest full */
+#define FS_ADC_NOT_EMPTY	BIT(8)	/* ADC FIFO yest empty */
 #define FS_ADC_HEMPTY		BIT(9)	/* ADC FIFO half empty */
-#define FS_ADC_NOT_FULL		BIT(10)	/* ADC FIFO not full */
-#define FS_DIN_NOT_EMPTY	BIT(12)	/* DIN FIFO not empty */
+#define FS_ADC_NOT_FULL		BIT(10)	/* ADC FIFO yest full */
+#define FS_DIN_NOT_EMPTY	BIT(12)	/* DIN FIFO yest empty */
 #define FS_DIN_HEMPTY		BIT(13)	/* DIN FIFO half empty */
-#define FS_DIN_NOT_FULL		BIT(14)	/* DIN FIFO not full */
+#define FS_DIN_NOT_FULL		BIT(14)	/* DIN FIFO yest full */
 #define LAS0_UPDATE_DAC(x)	(0x0014 + ((x) * 0x4))	/* D/Ax Update (w) */
 #define LAS0_DAC		0x0024	/* Software Simultaneous Update (w) */
 #define LAS0_PACER		0x0028	/* Software Pacer Start/Stop */
@@ -198,14 +198,14 @@
 
 /*
  * We really only need 2 buffers.  More than that means being much
- * smarter about knowing which ones are full.
+ * smarter about kyeswing which ones are full.
  */
 #define DMA_CHAIN_COUNT 2	/* max DMA segments/buffers in a ring (min 2) */
 
 /* Target period for periodic transfers.  This sets the user read latency. */
 /* Note: There are certain rates where we give this up and transfer 1/2 FIFO */
 /* If this is too low, efficiency is poor */
-#define TRANS_TARGET_PERIOD 10000000	/* 10 ms (in nanoseconds) */
+#define TRANS_TARGET_PERIOD 10000000	/* 10 ms (in nayesseconds) */
 
 /* Set a practical limit on how long a list to support (affects memory use) */
 /* The board support a channel list up to the FIFO length (1K or 8K) */
@@ -219,13 +219,13 @@
 #define RTD_CLOCK_BASE	125	/* clock period in ns */
 
 /* Note: these speed are slower than the spec, but fit the counter resolution*/
-#define RTD_MAX_SPEED	1625	/* when sampling, in nanoseconds */
+#define RTD_MAX_SPEED	1625	/* when sampling, in nayesseconds */
 /* max speed if we don't have to wait for settling */
-#define RTD_MAX_SPEED_1	875	/* if single channel, in nanoseconds */
+#define RTD_MAX_SPEED_1	875	/* if single channel, in nayesseconds */
 
-#define RTD_MIN_SPEED	2097151875	/* (24bit counter) in nanoseconds */
-/* min speed when only 1 channel (no burst counter) */
-#define RTD_MIN_SPEED_1	5000000	/* 200Hz, in nanoseconds */
+#define RTD_MIN_SPEED	2097151875	/* (24bit counter) in nayesseconds */
+/* min speed when only 1 channel (yes burst counter) */
+#define RTD_MIN_SPEED_1	5000000	/* 200Hz, in nayesseconds */
 
 /* Setup continuous ring of 1/2 FIFO transfers.  See RTD manual p91 */
 #define DMA_MODE_BITS (\
@@ -371,7 +371,7 @@ struct rtd_private {
  * true value.
  * Note: you have to check if the value is larger than the counter range!
  */
-static int rtd_ns_to_timer_base(unsigned int *nanosec,
+static int rtd_ns_to_timer_base(unsigned int *nayessec,
 				unsigned int flags, int base)
 {
 	int divider;
@@ -379,13 +379,13 @@ static int rtd_ns_to_timer_base(unsigned int *nanosec,
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		divider = DIV_ROUND_CLOSEST(*nanosec, base);
+		divider = DIV_ROUND_CLOSEST(*nayessec, base);
 		break;
 	case CMDF_ROUND_DOWN:
-		divider = (*nanosec) / base;
+		divider = (*nayessec) / base;
 		break;
 	case CMDF_ROUND_UP:
-		divider = DIV_ROUND_UP(*nanosec, base);
+		divider = DIV_ROUND_UP(*nayessec, base);
 		break;
 	}
 	if (divider < 2)
@@ -396,7 +396,7 @@ static int rtd_ns_to_timer_base(unsigned int *nanosec,
 	 * have different ranges
 	 */
 
-	*nanosec = base * divider;
+	*nayessec = base * divider;
 	return divider - 1;	/* countdown is divisor+1 */
 }
 
@@ -624,7 +624,7 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 		goto xfer_abort;
 
 	status = readw(dev->mmio + LAS0_IT);
-	/* if interrupt was not caused by our board, or handled above */
+	/* if interrupt was yest caused by our board, or handled above */
 	if (status == 0)
 		return IRQ_HANDLED;
 
@@ -633,7 +633,7 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 		 * since the priority interrupt controller may have queued
 		 * a sample counter interrupt, even though we have already
 		 * finished, we must handle the possibility that there is
-		 * no data here
+		 * yes data here
 		 */
 		if (!(fifo_status & FS_ADC_HEMPTY)) {
 			/* FIFO half full */
@@ -644,7 +644,7 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 				goto xfer_done;
 		} else if (devpriv->xfer_count > 0) {
 			if (fifo_status & FS_ADC_NOT_EMPTY) {
-				/* FIFO not empty */
+				/* FIFO yest empty */
 				if (ai_read_n(dev, s, devpriv->xfer_count) < 0)
 					goto xfer_abort;
 
@@ -720,8 +720,8 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/* Note: these are time periods, not actual rates */
-		if (cmd->chanlist_len == 1) {	/* no scanning */
+		/* Note: these are time periods, yest actual rates */
+		if (cmd->chanlist_len == 1) {	/* yes scanning */
 			if (comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
 							 RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
@@ -756,7 +756,7 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->chanlist_len == 1) {	/* no scanning */
+		if (cmd->chanlist_len == 1) {	/* yes scanning */
 			if (comedi_check_trigger_arg_min(&cmd->convert_arg,
 							 RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
@@ -863,7 +863,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writel((devpriv->fifosz / 2 - 1) & 0xffff, dev->mmio + LAS0_ACNT);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/* scan_begin_arg is in nanoseconds */
+		/* scan_begin_arg is in nayesseconds */
 		/* find out how many samples to wait before transferring */
 		if (cmd->flags & CMDF_WAKE_EOS) {
 			/*
@@ -898,7 +898,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			writel((devpriv->xfer_count - 1) & 0xffff,
 			       dev->mmio + LAS0_ACNT);
 		}
-	} else {		/* unknown timing, just use 1/2 FIFO */
+	} else {		/* unkyeswn timing, just use 1/2 FIFO */
 		devpriv->xfer_count = 0;
 		devpriv->flags &= ~SEND_EOS;
 	}
@@ -961,7 +961,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* end configuration */
 
 	/*
-	 * This doesn't seem to work.  There is no way to clear an interrupt
+	 * This doesn't seem to work.  There is yes way to clear an interrupt
 	 * that the priority controller has queued!
 	 */
 	writew(~0, dev->mmio + LAS0_CLEAR);
@@ -1282,7 +1282,7 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	/* digital i/o subdevice */
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
-	/* we only support port 0 right now.  Ignoring port 1 and user IO */
+	/* we only support port 0 right yesw.  Igyesring port 1 and user IO */
 	s->n_chan	= 8;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;

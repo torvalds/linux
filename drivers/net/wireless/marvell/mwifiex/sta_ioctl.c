@@ -32,8 +32,8 @@ module_param(disconnect_on_suspend, int, 0644);
 /*
  * Copies the multicast address list from device to driver.
  *
- * This function does not validate the destination memory for
- * size, and the calling function must ensure enough memory is
+ * This function does yest validate the destination memory for
+ * size, and the calling function must ensure eyesugh memory is
  * available.
  */
 int mwifiex_copy_mcast_addr(struct mwifiex_multicast_list *mlist,
@@ -55,7 +55,7 @@ int mwifiex_copy_mcast_addr(struct mwifiex_multicast_list *mlist,
  * request after waking up, in case of errors.
  */
 int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter,
-				struct cmd_ctrl_node *cmd_queued)
+				struct cmd_ctrl_yesde *cmd_queued)
 {
 	int status;
 
@@ -194,11 +194,11 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 
 void mwifiex_dnld_txpwr_table(struct mwifiex_private *priv)
 {
-	if (priv->adapter->dt_node) {
+	if (priv->adapter->dt_yesde) {
 		char txpwr[] = {"marvell,00_txpwrlimit"};
 
 		memcpy(&txpwr[8], priv->adapter->country_code, 2);
-		mwifiex_dnld_dt_cfgdata(priv, priv->adapter->dt_node, txpwr);
+		mwifiex_dnld_dt_cfgdata(priv, priv->adapter->dt_yesde, txpwr);
 	}
 }
 
@@ -245,7 +245,7 @@ static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 
 	country_ie_len -= IEEE80211_COUNTRY_STRING_LEN;
 
-	domain_info->no_of_triplet =
+	domain_info->yes_of_triplet =
 		country_ie_len / sizeof(struct ieee80211_country_ie_triplet);
 
 	memcpy((u8 *)domain_info->triplet,
@@ -266,7 +266,7 @@ static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 }
 
 /*
- * In Ad-Hoc mode, the IBSS is created if not found in scan list.
+ * In Ad-Hoc mode, the IBSS is created if yest found in scan list.
  * In both Ad-Hoc and infra mode, an deauthentication is performed
  * first.
  */
@@ -379,7 +379,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 				cfg80211_put_bss(priv->adapter->wiphy, bss);
 		} else {
 			mwifiex_dbg(adapter, INFO,
-				    "info: Network not found in\t"
+				    "info: Network yest found in\t"
 				    "the list, creating adhoc with ssid = %s\n",
 				    req_ssid->ssid);
 			ret = mwifiex_adhoc_start(priv, req_ssid);
@@ -388,7 +388,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 
 done:
 	/* beacon_ie buffer was allocated in function
-	 * mwifiex_fill_new_bss_desc(). Free it now.
+	 * mwifiex_fill_new_bss_desc(). Free it yesw.
 	 */
 	if (bss_desc)
 		kfree(bss_desc->beacon_buf);
@@ -445,7 +445,7 @@ int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
 					adapter->hs_cfg.gap = (u8)hs_cfg->gap;
 			} else if (adapter->hs_cfg.conditions ==
 				   cpu_to_le32(HS_CFG_CANCEL)) {
-				/* Return failure if no parameters for HS
+				/* Return failure if yes parameters for HS
 				   enable */
 				status = -1;
 				break;
@@ -662,7 +662,7 @@ int mwifiex_drv_get_data_rate(struct mwifiex_private *priv, u32 *rate)
  * This function prepares the correct firmware command and
  * issues it.
  *
- * For non-auto power mode, all the following power groups are set -
+ * For yesn-auto power mode, all the following power groups are set -
  *      - Modulation class HR/DSSS
  *      - Modulation class OFDM
  *      - Modulation class HTBW20
@@ -929,7 +929,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 		wep_key = &priv->wep_key[index];
 		if (!wep_key->key_length) {
 			mwifiex_dbg(adapter, ERROR,
-				    "key not set, so cannot enable it\n");
+				    "key yest set, so canyest enable it\n");
 			return -1;
 		}
 
@@ -1219,29 +1219,29 @@ static int mwifiex_reg_mem_ioctl_reg_rw(struct mwifiex_private *priv,
 					struct mwifiex_ds_reg_rw *reg_rw,
 					u16 action)
 {
-	u16 cmd_no;
+	u16 cmd_yes;
 
 	switch (reg_rw->type) {
 	case MWIFIEX_REG_MAC:
-		cmd_no = HostCmd_CMD_MAC_REG_ACCESS;
+		cmd_yes = HostCmd_CMD_MAC_REG_ACCESS;
 		break;
 	case MWIFIEX_REG_BBP:
-		cmd_no = HostCmd_CMD_BBP_REG_ACCESS;
+		cmd_yes = HostCmd_CMD_BBP_REG_ACCESS;
 		break;
 	case MWIFIEX_REG_RF:
-		cmd_no = HostCmd_CMD_RF_REG_ACCESS;
+		cmd_yes = HostCmd_CMD_RF_REG_ACCESS;
 		break;
 	case MWIFIEX_REG_PMIC:
-		cmd_no = HostCmd_CMD_PMIC_REG_ACCESS;
+		cmd_yes = HostCmd_CMD_PMIC_REG_ACCESS;
 		break;
 	case MWIFIEX_REG_CAU:
-		cmd_no = HostCmd_CMD_CAU_REG_ACCESS;
+		cmd_yes = HostCmd_CMD_CAU_REG_ACCESS;
 		break;
 	default:
 		return -1;
 	}
 
-	return mwifiex_send_cmd(priv, cmd_no, action, 0, reg_rw, true);
+	return mwifiex_send_cmd(priv, cmd_yes, action, 0, reg_rw, true);
 }
 
 /*
@@ -1357,7 +1357,7 @@ mwifiex_set_gen_ie_helper(struct mwifiex_private *priv, u8 *ie_data_ptr,
 		}
 
 		if (pvendor_ie->element_id == WLAN_EID_VENDOR_SPECIFIC) {
-			/* Test to see if it is a WPA IE, if not, then
+			/* Test to see if it is a WPA IE, if yest, then
 			 * it is a gen IE
 			 */
 			if (!memcmp(&pvendor_ie->oui, wpa_oui,
@@ -1386,7 +1386,7 @@ mwifiex_set_gen_ie_helper(struct mwifiex_private *priv, u8 *ie_data_ptr,
 
 		/* Saved in gen_ie, such as P2P IE.etc.*/
 
-		/* Verify that the passed length is not larger than the
+		/* Verify that the passed length is yest larger than the
 		 * available space remaining in the buffer
 		 */
 		if (cur_ie_len <

@@ -24,21 +24,21 @@ struct ulist_iterator {
 /*
  * element of the list
  */
-struct ulist_node {
+struct ulist_yesde {
 	u64 val;		/* value to store */
 	u64 aux;		/* auxiliary value saved along with the val */
 
-	struct list_head list;  /* used to link node */
-	struct rb_node rb_node;	/* used to speed up search */
+	struct list_head list;  /* used to link yesde */
+	struct rb_yesde rb_yesde;	/* used to speed up search */
 };
 
 struct ulist {
 	/*
 	 * number of elements stored in list
 	 */
-	unsigned long nnodes;
+	unsigned long nyesdes;
 
-	struct list_head nodes;
+	struct list_head yesdes;
 	struct rb_root root;
 };
 
@@ -66,7 +66,7 @@ static inline int ulist_add_merge_ptr(struct ulist *ulist, u64 val, void *aux,
 #endif
 }
 
-struct ulist_node *ulist_next(struct ulist *ulist,
+struct ulist_yesde *ulist_next(struct ulist *ulist,
 			      struct ulist_iterator *uiter);
 
 #define ULIST_ITER_INIT(uiter) ((uiter)->cur_list = NULL)

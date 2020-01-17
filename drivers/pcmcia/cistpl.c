@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/major.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
@@ -40,7 +40,7 @@ static const u_int exponent[] = {
     1, 10, 100, 1000, 10000, 100000, 1000000, 10000000
 };
 
-/* Convert an extended speed byte to a time in nanoseconds */
+/* Convert an extended speed byte to a time in nayesseconds */
 #define SPEED_CVT(v) \
     (mantissa[(((v)>>3)&15)-1] * exponent[(v)&7] / 10)
 /* Convert a power byte to a current in 0.1 microamps */
@@ -93,7 +93,7 @@ static void __iomem *set_cis_map(struct pcmcia_socket *s,
 		mem->res = pcmcia_find_mem_region(0, s->map_size,
 						s->map_size, 0, s);
 		if (mem->res == NULL) {
-			dev_notice(&s->dev, "cs: unable to map card memory!\n");
+			dev_yestice(&s->dev, "cs: unable to map card memory!\n");
 			return NULL;
 		}
 		s->cis_virt = NULL;
@@ -151,7 +151,7 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 		sys = set_cis_map(s, 0, MAP_ACTIVE |
 				((cis_width) ? MAP_16BIT : 0));
 		if (!sys) {
-			dev_dbg(&s->dev, "could not map memory\n");
+			dev_dbg(&s->dev, "could yest map memory\n");
 			memset(ptr, 0xff, len);
 			return -1;
 		}
@@ -184,7 +184,7 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 		while (len) {
 			sys = set_cis_map(s, card_offset, flags);
 			if (!sys) {
-				dev_dbg(&s->dev, "could not map memory\n");
+				dev_dbg(&s->dev, "could yest map memory\n");
 				memset(ptr, 0xff, len);
 				return -1;
 			}
@@ -233,7 +233,7 @@ int pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 		sys = set_cis_map(s, 0, MAP_ACTIVE |
 				((cis_width) ? MAP_16BIT : 0));
 		if (!sys) {
-			dev_dbg(&s->dev, "could not map memory\n");
+			dev_dbg(&s->dev, "could yest map memory\n");
 			return -EINVAL;
 		}
 
@@ -258,7 +258,7 @@ int pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 		while (len) {
 			sys = set_cis_map(s, card_offset, flags);
 			if (!sys) {
-				dev_dbg(&s->dev, "could not map memory\n");
+				dev_dbg(&s->dev, "could yest map memory\n");
 				return -EINVAL;
 			}
 
@@ -281,7 +281,7 @@ int pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
  * read_cis_cache() - read CIS memory or its associated cache
  *
  * This is a wrapper around read_cis_mem, with the same interface,
- * but which caches information, for cards whose CIS may not be
+ * but which caches information, for cards whose CIS may yest be
  * readable all the time.
  */
 static int read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
@@ -305,7 +305,7 @@ static int read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
 		return ret;
 	}
 
-	list_for_each_entry(cis, &s->cis_cache, node) {
+	list_for_each_entry(cis, &s->cis_cache, yesde) {
 		if (cis->addr == addr && cis->len == len && cis->attr == attr) {
 			memcpy(ptr, cis->cache, len);
 			mutex_unlock(&s->ops_mutex);
@@ -323,7 +323,7 @@ static int read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
 			cis->len = len;
 			cis->attr = attr;
 			memcpy(cis->cache, ptr, len);
-			list_add(&cis->node, &s->cis_cache);
+			list_add(&cis->yesde, &s->cis_cache);
 		}
 	}
 	mutex_unlock(&s->ops_mutex);
@@ -337,9 +337,9 @@ remove_cis_cache(struct pcmcia_socket *s, int attr, u_int addr, u_int len)
 	struct cis_cache_entry *cis;
 
 	mutex_lock(&s->ops_mutex);
-	list_for_each_entry(cis, &s->cis_cache, node)
+	list_for_each_entry(cis, &s->cis_cache, yesde)
 		if (cis->addr == addr && cis->len == len && cis->attr == attr) {
-			list_del(&cis->node);
+			list_del(&cis->yesde);
 			kfree(cis);
 			break;
 		}
@@ -359,8 +359,8 @@ void destroy_cis_cache(struct pcmcia_socket *s)
 	struct cis_cache_entry *cis;
 
 	list_for_each_safe(l, n, &s->cis_cache) {
-		cis = list_entry(l, struct cis_cache_entry, node);
-		list_del(&cis->node);
+		cis = list_entry(l, struct cis_cache_entry, yesde);
+		list_del(&cis->yesde);
 		kfree(cis);
 	}
 }
@@ -379,11 +379,11 @@ int verify_cis_cache(struct pcmcia_socket *s)
 
 	buf = kmalloc(256, GFP_KERNEL);
 	if (buf == NULL) {
-		dev_warn(&s->dev, "no memory for verifying CIS\n");
+		dev_warn(&s->dev, "yes memory for verifying CIS\n");
 		return -ENOMEM;
 	}
 	mutex_lock(&s->ops_mutex);
-	list_for_each_entry(cis, &s->cis_cache, node) {
+	list_for_each_entry(cis, &s->cis_cache, yesde) {
 		int len = cis->len;
 
 		if (len > 256)
@@ -418,7 +418,7 @@ int pcmcia_replace_cis(struct pcmcia_socket *s,
 	kfree(s->fake_cis);
 	s->fake_cis = kmalloc(len, GFP_KERNEL);
 	if (s->fake_cis == NULL) {
-		dev_warn(&s->dev, "no memory to replace CIS\n");
+		dev_warn(&s->dev, "yes memory to replace CIS\n");
 		mutex_unlock(&s->ops_mutex);
 		return -ENOMEM;
 	}
@@ -558,7 +558,7 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function,
 				return -1;
 		}
 
-		/* Is this a link tuple?  Make a note of it */
+		/* Is this a link tuple?  Make a yeste of it */
 		if ((link[0] == CISTPL_LONGLINK_A) ||
 			(link[0] == CISTPL_LONGLINK_C) ||
 			(link[0] == CISTPL_LONGLINK_MFC) ||
@@ -798,7 +798,7 @@ static int parse_vers_1(tuple_t *tuple, cistpl_vers_1_t *vers_1)
 	q = p + tuple->TupleDataLen;
 
 	vers_1->major = *p; p++;
-	vers_1->minor = *p; p++;
+	vers_1->miyesr = *p; p++;
 	if (p >= q)
 		return -EINVAL;
 
@@ -1388,20 +1388,20 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *info)
 		return -EINVAL;
 	}
 
-	/* We do not want to validate the CIS cache... */
+	/* We do yest want to validate the CIS cache... */
 	mutex_lock(&s->ops_mutex);
 	destroy_cis_cache(s);
 	mutex_unlock(&s->ops_mutex);
 
 	tuple = kmalloc(sizeof(*tuple), GFP_KERNEL);
 	if (tuple == NULL) {
-		dev_warn(&s->dev, "no memory to validate CIS\n");
+		dev_warn(&s->dev, "yes memory to validate CIS\n");
 		return -ENOMEM;
 	}
 	p = kmalloc(sizeof(*p), GFP_KERNEL);
 	if (p == NULL) {
 		kfree(tuple);
-		dev_warn(&s->dev, "no memory to validate CIS\n");
+		dev_warn(&s->dev, "yes memory to validate CIS\n");
 		return -ENOMEM;
 	}
 
@@ -1452,7 +1452,7 @@ done:
 		destroy_cis_cache(s);
 		mutex_unlock(&s->ops_mutex);
 		/* We differentiate between dev_ok, ident_ok and count
-		   failures to allow for an override for anonymous cards
+		   failures to allow for an override for ayesnymous cards
 		   in ds.c */
 		if (!dev_ok || !ident_ok)
 			ret = -EIO;

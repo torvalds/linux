@@ -145,7 +145,7 @@ static inline int qtnf_cmd_send(struct qtnf_bus *bus, struct sk_buff *cmd_skb)
 					sizeof(struct qlink_resp), NULL);
 }
 
-static struct sk_buff *qtnf_cmd_alloc_new_cmdskb(u8 macid, u8 vifid, u16 cmd_no,
+static struct sk_buff *qtnf_cmd_alloc_new_cmdskb(u8 macid, u8 vifid, u16 cmd_yes,
 						 size_t cmd_size)
 {
 	struct qlink_cmd *cmd;
@@ -154,7 +154,7 @@ static struct sk_buff *qtnf_cmd_alloc_new_cmdskb(u8 macid, u8 vifid, u16 cmd_no,
 	cmd_skb = __dev_alloc_skb(sizeof(*cmd) +
 				  QTNF_MAX_CMD_BUF_SIZE, GFP_KERNEL);
 	if (unlikely(!cmd_skb)) {
-		pr_err("VIF%u.%u CMD %u: alloc failed\n", macid, vifid, cmd_no);
+		pr_err("VIF%u.%u CMD %u: alloc failed\n", macid, vifid, cmd_yes);
 		return NULL;
 	}
 
@@ -163,7 +163,7 @@ static struct sk_buff *qtnf_cmd_alloc_new_cmdskb(u8 macid, u8 vifid, u16 cmd_no,
 	cmd = (struct qlink_cmd *)cmd_skb->data;
 	cmd->mhdr.len = cpu_to_le16(cmd_skb->len);
 	cmd->mhdr.type = cpu_to_le16(QLINK_MSG_TYPE_CMD);
-	cmd->cmd_id = cpu_to_le16(cmd_no);
+	cmd->cmd_id = cpu_to_le16(cmd_yes);
 	cmd->macid = macid;
 	cmd->vifid = vifid;
 
@@ -206,7 +206,7 @@ static bool qtnf_cmd_start_ap_can_fit(const struct qtnf_vif *vif,
 		       struct_size(s->acl, mac_addrs, s->acl->n_acl_entries);
 
 	if (len > (sizeof(struct qlink_cmd) + QTNF_MAX_CMD_BUF_SIZE)) {
-		pr_err("VIF%u.%u: can not fit AP settings: %u\n",
+		pr_err("VIF%u.%u: can yest fit AP settings: %u\n",
 		       vif->mac->macid, vif->vifid, len);
 		return false;
 	}
@@ -271,7 +271,7 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 	for (i = 0; i < QLINK_MAX_NR_AKM_SUITES; i++)
 		aen->akm_suites[i] = cpu_to_le32(s->crypto.akm_suites[i]);
 	aen->control_port = s->crypto.control_port;
-	aen->control_port_no_encrypt = s->crypto.control_port_no_encrypt;
+	aen->control_port_yes_encrypt = s->crypto.control_port_yes_encrypt;
 	aen->control_port_ethertype =
 		cpu_to_le16(be16_to_cpu(s->crypto.control_port_ethertype));
 
@@ -1096,7 +1096,7 @@ qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 			break;
 		case QTN_TLV_ID_IFACE_LIMIT:
 			if (unlikely(!comb)) {
-				pr_warn("MAC%u: no combinations advertised\n",
+				pr_warn("MAC%u: yes combinations advertised\n",
 					mac->macid);
 				return -EINVAL;
 			}
@@ -1193,7 +1193,7 @@ qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 			qlink_utils_regrule_q2nl(rule, tlv_rule);
 			break;
 		default:
-			pr_warn("MAC%u: unknown TLV type %u\n",
+			pr_warn("MAC%u: unkyeswn TLV type %u\n",
 				mac->macid, tlv_type);
 			break;
 		}
@@ -1266,7 +1266,7 @@ qtnf_cmd_resp_proc_mac_info(struct qtnf_wmac *mac,
 	if (vif)
 		ether_addr_copy(vif->mac_addr, mac->macaddr);
 	else
-		pr_err("could not get valid base vif\n");
+		pr_err("could yest get valid base vif\n");
 
 	mac_info->num_tx_chain = resp_info->num_tx_chain;
 	mac_info->num_rx_chain = resp_info->num_rx_chain;
@@ -1531,7 +1531,7 @@ qtnf_cmd_resp_fill_band_info(struct ieee80211_supported_band *band,
 				goto error_ret;
 			break;
 		default:
-			pr_warn("unknown TLV type: %#x\n", tlv_type);
+			pr_warn("unkyeswn TLV type: %#x\n", tlv_type);
 			break;
 		}
 
@@ -1608,7 +1608,7 @@ static int qtnf_cmd_resp_proc_phy_params(struct qtnf_wmac *mac,
 			mac_info->coverage_class = class->cclass;
 			break;
 		default:
-			pr_err("MAC%u: Unknown TLV type: %#x\n", mac->macid,
+			pr_err("MAC%u: Unkyeswn TLV type: %#x\n", mac->macid,
 			       le16_to_cpu(tlv->type));
 			break;
 		}
@@ -1660,14 +1660,14 @@ qtnf_cmd_resp_proc_chan_stat_info(struct qtnf_chan_stats *stats,
 			stats->cca_rx = le32_to_cpu(qlink_stats->cca_rx);
 			stats->cca_busy = le32_to_cpu(qlink_stats->cca_busy);
 			stats->cca_try = le32_to_cpu(qlink_stats->cca_try);
-			stats->chan_noise = qlink_stats->chan_noise;
+			stats->chan_yesise = qlink_stats->chan_yesise;
 
-			pr_debug("chan(%u) try(%u) busy(%u) noise(%d)\n",
+			pr_debug("chan(%u) try(%u) busy(%u) yesise(%d)\n",
 				 stats->chan_num, stats->cca_try,
-				 stats->cca_busy, stats->chan_noise);
+				 stats->cca_busy, stats->chan_yesise);
 			break;
 		default:
-			pr_warn("Unknown TLV type: %#x\n",
+			pr_warn("Unkyeswn TLV type: %#x\n",
 				le16_to_cpu(tlv->type));
 		}
 		payload_len -= tlv_full_len;
@@ -2345,8 +2345,8 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 		aen->akm_suites[i] = cpu_to_le32(sme->crypto.akm_suites[i]);
 
 	aen->control_port = sme->crypto.control_port;
-	aen->control_port_no_encrypt =
-		sme->crypto.control_port_no_encrypt;
+	aen->control_port_yes_encrypt =
+		sme->crypto.control_port_yes_encrypt;
 	aen->control_port_ethertype =
 		cpu_to_le16(be16_to_cpu(sme->crypto.control_port_ethertype));
 
@@ -2453,14 +2453,14 @@ out:
 	return ret;
 }
 
-int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req,
+int qtnf_cmd_reg_yestify(struct qtnf_wmac *mac, struct regulatory_request *req,
 			bool slave_radar)
 {
 	struct wiphy *wiphy = priv_to_wiphy(mac);
 	struct qtnf_bus *bus = mac->bus;
 	struct sk_buff *cmd_skb;
 	int ret;
-	struct qlink_cmd_reg_notify *cmd;
+	struct qlink_cmd_reg_yestify *cmd;
 	enum nl80211_band band;
 	const struct ieee80211_supported_band *cfg_band;
 
@@ -2470,7 +2470,7 @@ int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req,
 	if (!cmd_skb)
 		return -ENOMEM;
 
-	cmd = (struct qlink_cmd_reg_notify *)cmd_skb->data;
+	cmd = (struct qlink_cmd_reg_yestify *)cmd_skb->data;
 	cmd->alpha2[0] = req->alpha2[0];
 	cmd->alpha2[1] = req->alpha2[1];
 

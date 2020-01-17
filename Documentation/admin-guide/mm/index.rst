@@ -15,7 +15,7 @@ are described in Documentation/admin-guide/sysctl/vm.rst and in `man 5 proc`_.
 
 .. _man 5 proc: http://man7.org/linux/man-pages/man5/proc.5.html
 
-Linux memory management has its own jargon and if you are not yet
+Linux memory management has its own jargon and if you are yest yet
 familiar with it, consider reading
 :ref:`Documentation/admin-guide/mm/concepts.rst <mm_concepts>`.
 

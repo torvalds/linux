@@ -7,7 +7,7 @@
  *	Copyright (C) 1998 Frederic Rible F1OAT (frible@teaser.fr)
  *	Adapted from baycom.c driver written by Thomas Sailer (sailer@ife.ee.ethz.ch)
  *
- *  Please note that the GPL allows you to use the driver, NOT the radio.
+ *  Please yeste that the GPL allows you to use the driver, NOT the radio.
  *  In order to use the radio, you need a license from the communications
  *  authority of your country.
  */

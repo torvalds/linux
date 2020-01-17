@@ -40,7 +40,7 @@ ancestors of object hierarchies; i.e. the subsystems the objects
 belong to. 
 
 Sysfs internally stores a pointer to the kobject that implements a
-directory in the kernfs_node object associated with the directory. In
+directory in the kernfs_yesde object associated with the directory. In
 the past this kobject pointer has been used by sysfs to do reference
 counting directly on the kobject whenever the file is opened or closed.
 With the current sysfs implementation the kobject reference count is
@@ -56,13 +56,13 @@ for the attributes, providing a means to read and write kernel
 attributes.
 
 Attributes should be ASCII text files, preferably with only one value
-per file. It is noted that it may not be efficient to contain only one
+per file. It is yested that it may yest be efficient to contain only one
 value per file, so it is socially acceptable to express an array of
 values of the same type. 
 
 Mixing types, expressing multiple lines of data, and doing fancy
 formatting of data is heavily frowned upon. Doing these things may get
-you publicly humiliated and your code rewritten without notice. 
+you publicly humiliated and your code rewritten without yestice. 
 
 
 An attribute definition is simply:
@@ -78,7 +78,7 @@ int sysfs_create_file(struct kobject * kobj, const struct attribute * attr);
 void sysfs_remove_file(struct kobject * kobj, const struct attribute * attr);
 
 
-A bare attribute contains no means to read or write the value of the
+A bare attribute contains yes means to read or write the value of the
 attribute. Subsystems are encouraged to define their own attribute
 structure and wrapper functions for adding and removing attributes for
 a specific object type. 
@@ -223,7 +223,7 @@ implementations:
   Attribute method implementations should operate on an identical
   buffer when reading and writing values. 
 
-Other notes:
+Other yestes:
 
 - Writing causes the show() method to be rearmed regardless of current
   file position.
@@ -234,7 +234,7 @@ Other notes:
 - show() methods should return the number of bytes printed into the
   buffer. This is the return value of scnprintf().
 
-- show() must not use snprintf() when formatting the value to be
+- show() must yest use snprintf() when formatting the value to be
   returned to user space. If you can guarantee that an overflow
   will never happen you can use sprintf() otherwise you must use
   scnprintf().
@@ -247,7 +247,7 @@ Other notes:
 
 - The object passed to the methods will be pinned in memory via sysfs
   referencing counting its embedded object. However, the physical 
-  entity (e.g. device) the object represents may not be present. Be 
+  entity (e.g. device) the object represents may yest be present. Be 
   sure to have a way to check this, if necessary. 
 
 
@@ -305,7 +305,7 @@ devices/ contains symlinks for each device discovered in the system
 that point to the device's directory under root/.
 
 drivers/ contains a directory for each device driver that is loaded
-for devices on that particular bus (this assumes that drivers do not
+for devices on that particular bus (this assumes that drivers do yest
 span multiple bus types).
 
 fs/ contains a directory for some filesystems.  Currently each
@@ -313,7 +313,7 @@ filesystem wanting to export attributes must create its own hierarchy
 below fs/ (see ./fuse.txt for an example).
 
 dev/ contains two directories char/ and block/. Inside these two
-directories there are symlinks named <major>:<minor>.  These symlinks
+directories there are symlinks named <major>:<miyesr>.  These symlinks
 point to the sysfs directory for the given device.  /sys/dev provides a
 quick way to lookup the sysfs interface for a device from the result of
 a stat(2) operation.

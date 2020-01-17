@@ -79,8 +79,8 @@ void __dump_page(struct page *page, const char *reason)
 			page->mapping, page_to_pgoff(page));
 	if (PageKsm(page))
 		pr_warn("ksm flags: %#lx(%pGp)\n", page->flags, &page->flags);
-	else if (PageAnon(page))
-		pr_warn("anon flags: %#lx(%pGp)\n", page->flags, &page->flags);
+	else if (PageAyesn(page))
+		pr_warn("ayesn flags: %#lx(%pGp)\n", page->flags, &page->flags);
 	else if (mapping) {
 		if (mapping->host && mapping->host->i_dentry.first) {
 			struct dentry *dentry;
@@ -119,13 +119,13 @@ void dump_vma(const struct vm_area_struct *vma)
 {
 	pr_emerg("vma %px start %px end %px\n"
 		"next %px prev %px mm %px\n"
-		"prot %lx anon_vma %px vm_ops %px\n"
+		"prot %lx ayesn_vma %px vm_ops %px\n"
 		"pgoff %lx file %px private_data %px\n"
 		"flags: %#lx(%pGv)\n",
 		vma, (void *)vma->vm_start, (void *)vma->vm_end, vma->vm_next,
 		vma->vm_prev, vma->vm_mm,
 		(unsigned long)pgprot_val(vma->vm_page_prot),
-		vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
+		vma->ayesn_vma, vma->vm_ops, vma->vm_pgoff,
 		vma->vm_file, vma->vm_private_data,
 		vma->vm_flags, &vma->vm_flags);
 }
@@ -153,7 +153,7 @@ void dump_mm(const struct mm_struct *mm)
 #endif
 		"exe_file %px\n"
 #ifdef CONFIG_MMU_NOTIFIER
-		"mmu_notifier_mm %px\n"
+		"mmu_yestifier_mm %px\n"
 #endif
 #ifdef CONFIG_NUMA_BALANCING
 		"numa_next_scan %lu numa_scan_offset %lu numa_scan_seq %d\n"
@@ -185,7 +185,7 @@ void dump_mm(const struct mm_struct *mm)
 #endif
 		mm->exe_file,
 #ifdef CONFIG_MMU_NOTIFIER
-		mm->mmu_notifier_mm,
+		mm->mmu_yestifier_mm,
 #endif
 #ifdef CONFIG_NUMA_BALANCING
 		mm->numa_next_scan, mm->numa_scan_offset, mm->numa_scan_seq,
@@ -202,7 +202,7 @@ static int __init setup_vm_debug(char *str)
 	bool __page_init_poisoning = true;
 
 	/*
-	 * Calling vm_debug with no arguments is equivalent to requesting
+	 * Calling vm_debug with yes arguments is equivalent to requesting
 	 * to enable all debugging options we can control.
 	 */
 	if (*str++ != '=' || !*str)
@@ -218,7 +218,7 @@ static int __init setup_vm_debug(char *str)
 			__page_init_poisoning = true;
 			break;
 		default:
-			pr_err("vm_debug option '%c' unknown. skipped\n",
+			pr_err("vm_debug option '%c' unkyeswn. skipped\n",
 			       *str);
 		}
 

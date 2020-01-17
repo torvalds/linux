@@ -21,7 +21,7 @@ Clock handling:
   polling period of EMAC and "macref" for the reference clock needed to transfer
   data to and from the phy.
 
-Child nodes of the driver are the individual PHY devices connected to the
+Child yesdes of the driver are the individual PHY devices connected to the
 MDIO bus. They must have a "reg" property given the PHY address on the MDIO bus.
 
 Examples:

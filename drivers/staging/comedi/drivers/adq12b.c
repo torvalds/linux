@@ -43,7 +43,7 @@
  * - Analog input is subdevice 0 (16 channels single-ended or 8 differential)
  * - Digital input is subdevice 1 (5 channels)
  * - Digital output is subdevice 1 (8 channels)
- * - The PACER is not supported in this version
+ * - The PACER is yest supported in this version
  */
 
 #include <linux/module.h>

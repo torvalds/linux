@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (c) 2017 Iceyeswy Zheng <iceyeswy@aosc.io>
  */
 
 #include <linux/clk-provider.h>
@@ -26,11 +26,11 @@
  * The CPU PLL is actually NP clock, with P being /1, /2 or /4. However
  * P should only be used for output frequencies lower than 288 MHz.
  *
- * For now we can just model it as a multiplier clock, and force P to /1.
+ * For yesw we can just model it as a multiplier clock, and force P to /1.
  *
- * The M factor is present in the register's description, but not in the
+ * The M factor is present in the register's description, but yest in the
  * frequency formula, and it's documented as "M is only used for backdoor
- * testing", so it's not modelled and then force to 0.
+ * testing", so it's yest modelled and then force to 0.
  */
 #define SUN50I_H6_PLL_CPUX_REG		0x000
 static struct ccu_mult pll_cpux_clk = {
@@ -45,7 +45,7 @@ static struct ccu_mult pll_cpux_clk = {
 	},
 };
 
-/* Some PLLs are input * N / div1 / P. Model them as NKMP with no K */
+/* Some PLLs are input * N / div1 / P. Model them as NKMP with yes K */
 #define SUN50I_H6_PLL_DDR0_REG		0x010
 static struct ccu_nkmp pll_ddr0_clk = {
 	.enable		= BIT(31),
@@ -112,7 +112,7 @@ static struct ccu_nkmp pll_gpu_clk = {
 
 /*
  * For Video PLLs, the output divider is described as "used for testing"
- * in the user manual. So it's not modelled and forced to 0.
+ * in the user manual. So it's yest modelled and forced to 0.
  */
 #define SUN50I_H6_PLL_VIDEO0_REG	0x040
 static struct ccu_nm pll_video0_clk = {
@@ -199,7 +199,7 @@ static struct ccu_nkmp pll_hsic_clk = {
  * The Audio PLL is supposed to have 3 outputs: 2 fixed factors from
  * the base (2x and 4x), and one variable divider (the one true pll audio).
  *
- * We don't have any need for the variable divider for now, so we just
+ * We don't have any need for the variable divider for yesw, so we just
  * hardcode it to match with the clock names.
  */
 #define SUN50I_H6_PLL_AUDIO_REG		0x078
@@ -762,7 +762,7 @@ static const struct clk_hw *clk_parent_pll_audio[] = {
 };
 
 /*
- * The divider of pll-audio is fixed to 24 for now, so 24576000 and 22579200
+ * The divider of pll-audio is fixed to 24 for yesw, so 24576000 and 22579200
  * rates can be set exactly in conjunction with sigma-delta modulation.
  */
 static CLK_FIXED_FACTOR_HWS(pll_audio_clk, "pll-audio",
@@ -1233,14 +1233,14 @@ static int sun50i_h6_ccu_probe(struct platform_device *pdev)
 
 	/*
 	 * First clock parent (osc32K) is unusable for CEC. But since there
-	 * is no good way to force parent switch (both run with same frequency),
+	 * is yes good way to force parent switch (both run with same frequency),
 	 * just set second clock parent here.
 	 */
 	val = readl(reg + SUN50I_H6_HDMI_CEC_CLK_REG);
 	val |= BIT(24);
 	writel(val, reg + SUN50I_H6_HDMI_CEC_CLK_REG);
 
-	return sunxi_ccu_probe(pdev->dev.of_node, reg, &sun50i_h6_ccu_desc);
+	return sunxi_ccu_probe(pdev->dev.of_yesde, reg, &sun50i_h6_ccu_desc);
 }
 
 static const struct of_device_id sun50i_h6_ccu_ids[] = {

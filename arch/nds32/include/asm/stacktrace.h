@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2008-2018 Andes Technology Corporation */
+/* Copyright (C) 2008-2018 Andes Techyeslogy Corporation */
 
 #ifndef __ASM_STACKTRACE_H
 #define __ASM_STACKTRACE_H
@@ -16,7 +16,7 @@ struct stackframe {
  * IMPORTANT:
  * This struct is used for call-stack walking,
  * the order and types matters.
- * Do not use array, it only stores sizeof(pointer)
+ * Do yest use array, it only stores sizeof(pointer)
  *
  * The details can refer to arch/arm/kernel/perf_event.c
  */

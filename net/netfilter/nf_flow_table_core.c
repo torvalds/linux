@@ -48,7 +48,7 @@ struct flow_offload *flow_offload_alloc(struct nf_conn *ct)
 	struct flow_offload *flow;
 
 	if (unlikely(nf_ct_is_dying(ct) ||
-	    !atomic_inc_not_zero(&ct->ct_general.use)))
+	    !atomic_inc_yest_zero(&ct->ct_general.use)))
 		return NULL;
 
 	flow = kzalloc(sizeof(*flow), GFP_ATOMIC);
@@ -216,7 +216,7 @@ static int flow_offload_hash_cmp(struct rhashtable_compare_arg *arg,
 }
 
 static const struct rhashtable_params nf_flow_offload_rhash_params = {
-	.head_offset		= offsetof(struct flow_offload_tuple_rhash, node),
+	.head_offset		= offsetof(struct flow_offload_tuple_rhash, yesde),
 	.hashfn			= flow_offload_hash,
 	.obj_hashfn		= flow_offload_hash_obj,
 	.obj_cmpfn		= flow_offload_hash_cmp,
@@ -230,17 +230,17 @@ int flow_offload_add(struct nf_flowtable *flow_table, struct flow_offload *flow)
 	flow->timeout = nf_flowtable_time_stamp + NF_FLOW_TIMEOUT;
 
 	err = rhashtable_insert_fast(&flow_table->rhashtable,
-				     &flow->tuplehash[0].node,
+				     &flow->tuplehash[0].yesde,
 				     nf_flow_offload_rhash_params);
 	if (err < 0)
 		return err;
 
 	err = rhashtable_insert_fast(&flow_table->rhashtable,
-				     &flow->tuplehash[1].node,
+				     &flow->tuplehash[1].yesde,
 				     nf_flow_offload_rhash_params);
 	if (err < 0) {
 		rhashtable_remove_fast(&flow_table->rhashtable,
-				       &flow->tuplehash[0].node,
+				       &flow->tuplehash[0].yesde,
 				       nf_flow_offload_rhash_params);
 		return err;
 	}
@@ -261,10 +261,10 @@ static void flow_offload_del(struct nf_flowtable *flow_table,
 			     struct flow_offload *flow)
 {
 	rhashtable_remove_fast(&flow_table->rhashtable,
-			       &flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].node,
+			       &flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].yesde,
 			       nf_flow_offload_rhash_params);
 	rhashtable_remove_fast(&flow_table->rhashtable,
-			       &flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].node,
+			       &flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].yesde,
 			       nf_flow_offload_rhash_params);
 
 	clear_bit(IPS_OFFLOAD_BIT, &flow->ct->status);

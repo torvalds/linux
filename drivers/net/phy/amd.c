@@ -7,7 +7,7 @@
  * Copyright (c) 2011 DENX Software Engineering GmbH
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mii.h>

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -38,7 +38,7 @@ static bool vc4_fence_signaled(struct dma_fence *fence)
 	struct vc4_fence *f = to_vc4_fence(fence);
 	struct vc4_dev *vc4 = to_vc4_dev(f->dev);
 
-	return vc4->finished_seqno >= f->seqno;
+	return vc4->finished_seqyes >= f->seqyes;
 }
 
 const struct dma_fence_ops vc4_fence_ops = {

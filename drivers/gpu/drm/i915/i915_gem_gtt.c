@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -23,7 +23,7 @@
  *
  */
 
-#include <linux/slab.h> /* fault-inject.h is not standalone! */
+#include <linux/slab.h> /* fault-inject.h is yest standalone! */
 
 #include <linux/fault-inject.h>
 #include <linux/log2.h>
@@ -60,11 +60,11 @@
  *
  * Historically objects could exists (be bound) in global GTT space only as
  * singular instances with a view representing all of the object's backing pages
- * in a linear fashion. This view will be called a normal view.
+ * in a linear fashion. This view will be called a yesrmal view.
  *
  * To support multiple views of the same object, where the number of mapped
- * pages is not equal to the backing store, or where the layout of the pages
- * is not linear, concept of a GGTT view was added.
+ * pages is yest equal to the backing store, or where the layout of the pages
+ * is yest linear, concept of a GGTT view was added.
  *
  * One example of an alternative view is a stereo display driven by a single
  * image. In this case we would have a framebuffer looking like this
@@ -73,7 +73,7 @@
  *    12
  *    34
  *
- * Above would represent a normal GGTT view as normally mapped for GPU or CPU
+ * Above would represent a yesrmal GGTT view as yesrmally mapped for GPU or CPU
  * rendering. In contrast, fed to the display engine would be an alternative
  * view which could look something like this:
  *
@@ -81,7 +81,7 @@
  *   3434
  *
  * In this example both the size and layout of pages in the alternative view is
- * different from the normal view.
+ * different from the yesrmal view.
  *
  * Implementation and usage
  *
@@ -93,10 +93,10 @@
  * renaming  in large amounts of code. They take the struct i915_ggtt_view
  * parameter encapsulating all metadata required to implement a view.
  *
- * As a helper for callers which are only interested in the normal view,
- * globally const i915_ggtt_view_normal singleton instance exists. All old core
- * GEM API functions, the ones not taking the view parameter, are operating on,
- * or with the normal GGTT view.
+ * As a helper for callers which are only interested in the yesrmal view,
+ * globally const i915_ggtt_view_yesrmal singleton instance exists. All old core
+ * GEM API functions, the ones yest taking the view parameter, are operating on,
+ * or with the yesrmal GGTT view.
  *
  * Code wanting to add or use a new GGTT view needs to:
  *
@@ -109,7 +109,7 @@
  * exists for the lifetime of an VMA.
  *
  * Core API is designed to have copy semantics which means that passed in
- * struct i915_ggtt_view does not need to be persistent (left around after
+ * struct i915_ggtt_view does yest need to be persistent (left around after
  * calling the core API functions).
  *
  */
@@ -158,7 +158,7 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 
 	if (flags & I915_VMA_ALLOC) {
 		err = vma->vm->allocate_va_range(vma->vm,
-						 vma->node.start, vma->size);
+						 vma->yesde.start, vma->size);
 		if (err)
 			return err;
 
@@ -180,7 +180,7 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 static void ppgtt_unbind_vma(struct i915_vma *vma)
 {
 	if (test_and_clear_bit(I915_VMA_ALLOC_BIT, __i915_vma_flags(vma)))
-		vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
+		vma->vm->clear_range(vma->vm, vma->yesde.start, vma->size);
 }
 
 static int ppgtt_set_pages(struct i915_vma *vma)
@@ -560,7 +560,7 @@ static void i915_address_space_init(struct i915_address_space *vm, int subclass)
 
 	/*
 	 * The vm->mutex must be reclaim safe (for use in the shrinker).
-	 * Do a dummy acquire now under fs_reclaim so that any allocation
+	 * Do a dummy acquire yesw under fs_reclaim so that any allocation
 	 * attempt holding the lock is immediately reported by lockdep.
 	 */
 	mutex_init(&vm->mutex);
@@ -569,7 +569,7 @@ static void i915_address_space_init(struct i915_address_space *vm, int subclass)
 
 	GEM_BUG_ON(!vm->total);
 	drm_mm_init(&vm->mm, 0, vm->total);
-	vm->mm.head_node.color = I915_COLOR_UNEVICTABLE;
+	vm->mm.head_yesde.color = I915_COLOR_UNEVICTABLE;
 
 	stash_init(&vm->free_pages);
 
@@ -826,7 +826,7 @@ release_pd_entry(struct i915_page_directory * const pd,
 	return free;
 }
 
-static void gen8_ppgtt_notify_vgt(struct i915_ppgtt *ppgtt, bool create)
+static void gen8_ppgtt_yestify_vgt(struct i915_ppgtt *ppgtt, bool create)
 {
 	struct drm_i915_private *dev_priv = ppgtt->vm.i915;
 	enum vgt_g2v_type msg;
@@ -859,8 +859,8 @@ static void gen8_ppgtt_notify_vgt(struct i915_ppgtt *ppgtt, bool create)
 				VGT_G2V_PPGTT_L3_PAGE_TABLE_DESTROY);
 	}
 
-	/* g2v_notify atomically (via hv trap) consumes the message packet. */
-	I915_WRITE(vgtif_reg(g2v_notify), msg);
+	/* g2v_yestify atomically (via hv trap) consumes the message packet. */
+	I915_WRITE(vgtif_reg(g2v_yestify), msg);
 
 	mutex_unlock(&dev_priv->vgpu.lock);
 }
@@ -953,7 +953,7 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 
 	if (intel_vgpu_active(vm->i915))
-		gen8_ppgtt_notify_vgt(ppgtt, false);
+		gen8_ppgtt_yestify_vgt(ppgtt, false);
 
 	__gen8_ppgtt_cleanup(vm, ppgtt->pd, gen8_pd_top_count(vm), vm->top);
 	free_scratch(vm);
@@ -1215,7 +1215,7 @@ static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
 				   u32 flags)
 {
 	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level, flags);
-	u64 start = vma->node.start;
+	u64 start = vma->yesde.start;
 	dma_addr_t rem = iter->sg->length;
 
 	GEM_BUG_ON(!i915_vm_is_4lvl(vma->vm));
@@ -1290,13 +1290,13 @@ static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
 		 * Is it safe to mark the 2M block as 64K? -- Either we have
 		 * filled whole page-table with 64K entries, or filled part of
 		 * it and have reached the end of the sg table and we have
-		 * enough padding.
+		 * eyesugh padding.
 		 */
 		if (maybe_64K != -1 &&
 		    (index == I915_PDES ||
 		     (i915_vm_has_scratch_64K(vma->vm) &&
-		      !iter->sg && IS_ALIGNED(vma->node.start +
-					      vma->node.size,
+		      !iter->sg && IS_ALIGNED(vma->yesde.start +
+					      vma->yesde.size,
 					      I915_GTT_PAGE_SIZE_2M)))) {
 			vaddr = kmap_atomic_px(pd);
 			vaddr[maybe_64K] |= GEN8_PDE_IPS_64K;
@@ -1340,7 +1340,7 @@ static void gen8_ppgtt_insert(struct i915_address_space *vm,
 	if (vma->page_sizes.sg > I915_GTT_PAGE_SIZE) {
 		gen8_ppgtt_insert_huge(vma, &iter, cache_level, flags);
 	} else  {
-		u64 idx = vma->node.start >> GEN8_PTE_SHIFT;
+		u64 idx = vma->yesde.start >> GEN8_PTE_SHIFT;
 
 		do {
 			struct i915_page_directory * const pdp =
@@ -1360,7 +1360,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 	int i;
 
 	/*
-	 * If everybody agrees to not to write into the scratch page,
+	 * If everybody agrees to yest to write into the scratch page,
 	 * we can reuse it for all vm, keeping contexts and processes separate.
 	 */
 	if (vm->has_read_only &&
@@ -1374,7 +1374,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 
 		vm->scratch_order = clone->scratch_order;
 		memcpy(vm->scratch, clone->scratch, sizeof(vm->scratch));
-		px_dma(&vm->scratch[0]) = 0; /* no xfer of ownership */
+		px_dma(&vm->scratch[0]) = 0; /* yes xfer of ownership */
 		return 0;
 	}
 
@@ -1469,7 +1469,7 @@ gen8_alloc_top_pd(struct i915_address_space *vm)
 
 /*
  * GEN8 legacy ppgtt programming is accomplished through a max 4 PDP registers
- * with a net effect resembling a 2-level page table in normal x86 terms. Each
+ * with a net effect resembling a 2-level page table in yesrmal x86 terms. Each
  * PDP represents 1GB of memory 4 * 512 * 512 * 4096 = 4GB legacy 32b address
  * space.
  *
@@ -1490,14 +1490,14 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	 * From bdw, there is hw support for read-only pages in the PPGTT.
 	 *
 	 * Gen11 has HSDES#:1807136187 unresolved. Disable ro support
-	 * for now.
+	 * for yesw.
 	 *
 	 * Gen12 has inherited the same read-only fault issue from gen11.
 	 */
 	ppgtt->vm.has_read_only = !IS_GEN_RANGE(i915, 11, 12);
 
 	/* There are only few exceptions for gen >=6. chv and bxt.
-	 * And we are not sure about the latter so play safe for now.
+	 * And we are yest sure about the latter so play safe for yesw.
 	 */
 	if (IS_CHERRYVIEW(i915) || IS_BROXTON(i915))
 		ppgtt->vm.pt_kmap_wc = true;
@@ -1524,7 +1524,7 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	ppgtt->vm.clear_range = gen8_ppgtt_clear;
 
 	if (intel_vgpu_active(i915))
-		gen8_ppgtt_notify_vgt(ppgtt, true);
+		gen8_ppgtt_yestify_vgt(ppgtt, true);
 
 	ppgtt->vm.cleanup = gen8_ppgtt_cleanup;
 
@@ -1629,7 +1629,7 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 
 		/*
 		 * Note that the hw doesn't support removing PDE on the fly
-		 * (they are cached inside the context with no means to
+		 * (they are cached inside the context with yes means to
 		 * invalidate the cache), so we can only reset the PTE
 		 * entries back to scratch.
 		 */
@@ -1649,7 +1649,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 {
 	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct i915_page_directory * const pd = ppgtt->pd;
-	unsigned first_entry = vma->node.start / I915_GTT_PAGE_SIZE;
+	unsigned first_entry = vma->yesde.start / I915_GTT_PAGE_SIZE;
 	unsigned act_pt = first_entry / GEN6_PTES;
 	unsigned act_pte = first_entry % GEN6_PTES;
 	const u32 pte_encode = vm->pte_encode(0, cache_level, flags);
@@ -1843,7 +1843,7 @@ static void pd_vma_unbind(struct i915_vma *vma)
 	if (!ppgtt->scan_for_unused_pt)
 		return;
 
-	/* Free all no longer used page tables */
+	/* Free all yes longer used page tables */
 	gen6_for_all_pdes(pt, ppgtt->base.pd, pde) {
 		if (px_base(pt) == scratch || atomic_read(&pt->used))
 			continue;
@@ -2028,7 +2028,7 @@ static void gtt_write_workarounds(struct intel_gt *gt)
 	/*
 	 * To support 64K PTEs we need to first enable the use of the
 	 * Intermediate-Page-Size(IPS) bit of the PDE field via some magical
-	 * mmio, otherwise the page-walker will simply ignore the IPS bit. This
+	 * mmio, otherwise the page-walker will simply igyesre the IPS bit. This
 	 * shouldn't be needed after GEN10.
 	 *
 	 * 64K pages were first introduced from BDW+, although technically they
@@ -2049,7 +2049,7 @@ static void gtt_write_workarounds(struct intel_gt *gt)
 		/*
 		 * According to the BSpec if we use 2M/1G pages then we also
 		 * need to disable the GTT cache. At least on BDW we can see
-		 * visual corruption when using 2M pages, and not disabling the
+		 * visual corruption when using 2M pages, and yest disabling the
 		 * GTT cache.
 		 */
 		if (HAS_PAGE_SIZES(i915, I915_GTT_PAGE_SIZE_2M))
@@ -2149,7 +2149,7 @@ int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 		 * If the DMA remap fails, one cause can be that we have
 		 * too many objects pinned in a small remapping table,
 		 * such as swiotlb. Incrementally purge all other objects and
-		 * try again - if there are no more pages to remove from
+		 * try again - if there are yes more pages to remove from
 		 * the DMA remapper, i915_gem_shrink will return 0.
 		 */
 		GEM_BUG_ON(obj->mm.pages == pages);
@@ -2193,12 +2193,12 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	dma_addr_t addr;
 
 	/*
-	 * Note that we ignore PTE_READ_ONLY here. The caller must be careful
-	 * not to allow the user to override access to a read only page.
+	 * Note that we igyesre PTE_READ_ONLY here. The caller must be careful
+	 * yest to allow the user to override access to a read only page.
 	 */
 
 	gtt_entries = (gen8_pte_t __iomem *)ggtt->gsm;
-	gtt_entries += vma->node.start / I915_GTT_PAGE_SIZE;
+	gtt_entries += vma->yesde.start / I915_GTT_PAGE_SIZE;
 	for_each_sgt_daddr(addr, sgt_iter, vma->pages)
 		gen8_set_pte(gtt_entries++, pte_encode | addr);
 
@@ -2237,7 +2237,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	gen6_pte_t __iomem *entries = (gen6_pte_t __iomem *)ggtt->gsm;
-	unsigned int i = vma->node.start / I915_GTT_PAGE_SIZE;
+	unsigned int i = vma->yesde.start / I915_GTT_PAGE_SIZE;
 	struct sgt_iter iter;
 	dma_addr_t addr;
 	for_each_sgt_daddr(addr, iter, vma->pages)
@@ -2250,7 +2250,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	ggtt->invalidate(ggtt);
 }
 
-static void nop_clear_range(struct i915_address_space *vm,
+static void yesp_clear_range(struct i915_address_space *vm,
 			    u64 start, u64 length)
 {
 }
@@ -2283,8 +2283,8 @@ static void bxt_vtd_ggtt_wa(struct i915_address_space *vm)
 	/*
 	 * Make sure the internal GAM fifo has been cleared of all GTT
 	 * writes before exiting stop_machine(). This guarantees that
-	 * any aperture accesses waiting to start in another process
-	 * cannot back up behind the GTT writes causing a hang.
+	 * any aperture accesses waiting to start in ayesther process
+	 * canyest back up behind the GTT writes causing a hang.
 	 * The register can be any arbitrary GAM register.
 	 */
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
@@ -2411,7 +2411,7 @@ static void i915_ggtt_insert_entries(struct i915_address_space *vm,
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
-	intel_gtt_insert_sg_entries(vma->pages, vma->node.start >> PAGE_SHIFT,
+	intel_gtt_insert_sg_entries(vma->pages, vma->yesde.start >> PAGE_SHIFT,
 				    flags);
 }
 
@@ -2430,7 +2430,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	intel_wakeref_t wakeref;
 	u32 pte_flags;
 
-	/* Applicable to VLV (gen8+ do not support RO in the GGTT) */
+	/* Applicable to VLV (gen8+ do yest support RO in the GGTT) */
 	pte_flags = 0;
 	if (i915_gem_object_is_readonly(obj))
 		pte_flags |= PTE_READ_ONLY;
@@ -2441,7 +2441,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 
 	/*
-	 * Without aliasing PPGTT there's no difference between
+	 * Without aliasing PPGTT there's yes difference between
 	 * GLOBAL/LOCAL_BIND, it's all the same ptes. Hence unconditionally
 	 * upgrade to both bound if we bind either to avoid double-binding.
 	 */
@@ -2456,7 +2456,7 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 	intel_wakeref_t wakeref;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
+		vma->vm->clear_range(vma->vm, vma->yesde.start, vma->size);
 }
 
 static int aliasing_gtt_bind_vma(struct i915_vma *vma,
@@ -2477,7 +2477,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 
 		if (flags & I915_VMA_ALLOC) {
 			ret = alias->vm.allocate_va_range(&alias->vm,
-							  vma->node.start,
+							  vma->yesde.start,
 							  vma->size);
 			if (ret)
 				return ret;
@@ -2512,14 +2512,14 @@ static void aliasing_gtt_unbind_vma(struct i915_vma *vma)
 		intel_wakeref_t wakeref;
 
 		with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-			vm->clear_range(vm, vma->node.start, vma->size);
+			vm->clear_range(vm, vma->yesde.start, vma->size);
 	}
 
 	if (test_and_clear_bit(I915_VMA_ALLOC_BIT, __i915_vma_flags(vma))) {
 		struct i915_address_space *vm =
 			&i915_vm_to_ggtt(vma->vm)->alias->vm;
 
-		vm->clear_range(vm, vma->node.start, vma->size);
+		vm->clear_range(vm, vma->yesde.start, vma->size);
 	}
 }
 
@@ -2531,7 +2531,7 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 
 	if (unlikely(ggtt->do_idle_maps)) {
-		/* XXX This does not prevent more requests being submitted! */
+		/* XXX This does yest prevent more requests being submitted! */
 		if (intel_gt_retire_requests_timeout(ggtt->vm.gt,
 						     -MAX_SCHEDULE_TIMEOUT)) {
 			DRM_ERROR("Failed to wait for idle; VT'd may hang.\n");
@@ -2558,21 +2558,21 @@ static int ggtt_set_pages(struct i915_vma *vma)
 	return 0;
 }
 
-static void i915_ggtt_color_adjust(const struct drm_mm_node *node,
+static void i915_ggtt_color_adjust(const struct drm_mm_yesde *yesde,
 				   unsigned long color,
 				   u64 *start,
 				   u64 *end)
 {
-	if (i915_node_color_differs(node, color))
+	if (i915_yesde_color_differs(yesde, color))
 		*start += I915_GTT_PAGE_SIZE;
 
-	/* Also leave a space between the unallocated reserved node after the
+	/* Also leave a space between the unallocated reserved yesde after the
 	 * GTT and any objects within the GTT, i.e. we use the color adjustment
 	 * to insert a guard page to prevent prefetches crossing over the
 	 * GTT boundary.
 	 */
-	node = list_next_entry(node, node_list);
-	if (node->color != color)
+	yesde = list_next_entry(yesde, yesde_list);
+	if (yesde->color != color)
 		*end -= I915_GTT_PAGE_SIZE;
 }
 
@@ -2594,7 +2594,7 @@ static int init_aliasing_ppgtt(struct i915_ggtt *ggtt)
 	 * Note we only pre-allocate as far as the end of the global
 	 * GTT. On 48b / 4-level page-tables, the difference is very,
 	 * very significant! We have to preallocate as GVT/vgpu does
-	 * not like the page directory disappearing.
+	 * yest like the page directory disappearing.
 	 */
 	err = ppgtt->vm.allocate_va_range(&ppgtt->vm, 0, ggtt->vm.total);
 	if (err)
@@ -2652,15 +2652,15 @@ static int ggtt_reserve_guc_top(struct i915_ggtt *ggtt)
 
 static void ggtt_release_guc_top(struct i915_ggtt *ggtt)
 {
-	if (drm_mm_node_allocated(&ggtt->uc_fw))
-		drm_mm_remove_node(&ggtt->uc_fw);
+	if (drm_mm_yesde_allocated(&ggtt->uc_fw))
+		drm_mm_remove_yesde(&ggtt->uc_fw);
 }
 
 static void cleanup_init_ggtt(struct i915_ggtt *ggtt)
 {
 	ggtt_release_guc_top(ggtt);
-	if (drm_mm_node_allocated(&ggtt->error_capture))
-		drm_mm_remove_node(&ggtt->error_capture);
+	if (drm_mm_yesde_allocated(&ggtt->error_capture))
+		drm_mm_remove_yesde(&ggtt->error_capture);
 }
 
 static int init_ggtt(struct i915_ggtt *ggtt)
@@ -2671,16 +2671,16 @@ static int init_ggtt(struct i915_ggtt *ggtt)
 	 * There are a number of places where the hardware apparently prefetches
 	 * past the end of the object, and we've seen multiple hangs with the
 	 * GPU head pointer stuck in a batchbuffer bound at the last page of the
-	 * aperture.  One page should be enough to keep any prefetching inside
+	 * aperture.  One page should be eyesugh to keep any prefetching inside
 	 * of the aperture.
 	 */
 	unsigned long hole_start, hole_end;
-	struct drm_mm_node *entry;
+	struct drm_mm_yesde *entry;
 	int ret;
 
 	/*
 	 * GuC requires all resources that we're sharing with it to be placed in
-	 * non-WOPCM memory. If GuC is not present or not in use we still need a
+	 * yesn-WOPCM memory. If GuC is yest present or yest in use we still need a
 	 * small bias as ring wraparound at offset 0 sometimes hangs. No idea
 	 * why.
 	 */
@@ -2693,7 +2693,7 @@ static int init_ggtt(struct i915_ggtt *ggtt)
 
 	if (ggtt->mappable_end) {
 		/* Reserve a mappable slot for our lockless error capture */
-		ret = drm_mm_insert_node_in_range(&ggtt->vm.mm, &ggtt->error_capture,
+		ret = drm_mm_insert_yesde_in_range(&ggtt->vm.mm, &ggtt->error_capture,
 						  PAGE_SIZE, 0, I915_COLOR_UNEVICTABLE,
 						  0, ggtt->mappable_end,
 						  DRM_MM_INSERT_LOW);
@@ -2710,7 +2710,7 @@ static int init_ggtt(struct i915_ggtt *ggtt)
 	if (ret)
 		goto err;
 
-	/* Clear any non-preallocated blocks */
+	/* Clear any yesn-preallocated blocks */
 	drm_mm_for_each_hole(entry, &ggtt->vm.mm, hole_start, hole_end) {
 		DRM_DEBUG_KMS("clearing unused GTT space: [%lx, %lx]\n",
 			      hole_start, hole_end);
@@ -2759,8 +2759,8 @@ static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
 	list_for_each_entry_safe(vma, vn, &ggtt->vm.bound_list, vm_link)
 		WARN_ON(__i915_vma_unbind(vma));
 
-	if (drm_mm_node_allocated(&ggtt->error_capture))
-		drm_mm_remove_node(&ggtt->error_capture);
+	if (drm_mm_yesde_allocated(&ggtt->error_capture))
+		drm_mm_remove_yesde(&ggtt->error_capture);
 
 	ggtt_release_guc_top(ggtt);
 	intel_vgt_deballoon(ggtt);
@@ -2847,7 +2847,7 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 	 * readback check when writing GTT PTE entries.
 	 */
 	if (IS_GEN9_LP(dev_priv) || INTEL_GEN(dev_priv) >= 10)
-		ggtt->gsm = ioremap_nocache(phys_addr, size);
+		ggtt->gsm = ioremap_yescache(phys_addr, size);
 	else
 		ggtt->gsm = ioremap_wc(phys_addr, size);
 	if (!ggtt->gsm) {
@@ -2918,10 +2918,10 @@ static void bdw_setup_private_ppat(struct intel_uncore *uncore)
 {
 	u64 pat;
 
-	pat = GEN8_PPAT(0, GEN8_PPAT_WB | GEN8_PPAT_LLC) |	/* for normal objects, no eLLC */
+	pat = GEN8_PPAT(0, GEN8_PPAT_WB | GEN8_PPAT_LLC) |	/* for yesrmal objects, yes eLLC */
 	      GEN8_PPAT(1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC) |	/* for something pointing to ptes? */
-	      GEN8_PPAT(2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC) |	/* for scanout with eLLC */
-	      GEN8_PPAT(3, GEN8_PPAT_UC) |			/* Uncached objects, mostly for scanout */
+	      GEN8_PPAT(2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC) |	/* for scayesut with eLLC */
+	      GEN8_PPAT(3, GEN8_PPAT_UC) |			/* Uncached objects, mostly for scayesut */
 	      GEN8_PPAT(4, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0)) |
 	      GEN8_PPAT(5, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1)) |
 	      GEN8_PPAT(6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2)) |
@@ -2936,13 +2936,13 @@ static void chv_setup_private_ppat(struct intel_uncore *uncore)
 	u64 pat;
 
 	/*
-	 * Map WB on BDW to snooped on CHV.
+	 * Map WB on BDW to syesoped on CHV.
 	 *
-	 * Only the snoop bit has meaning for CHV, the rest is
-	 * ignored.
+	 * Only the syesop bit has meaning for CHV, the rest is
+	 * igyesred.
 	 *
-	 * The hardware will never snoop for certain types of accesses:
-	 * - CPU GTT (GMADR->GGTT->no snoop->memory)
+	 * The hardware will never syesop for certain types of accesses:
+	 * - CPU GTT (GMADR->GGTT->yes syesop->memory)
 	 * - PPGTT page tables
 	 * - some other special cycles
 	 *
@@ -2950,7 +2950,7 @@ static void chv_setup_private_ppat(struct intel_uncore *uncore)
 	 * "For GGTT, there is NO pat_sel[2:0] from the entry,
 	 * so RTL will always use the value corresponding to
 	 * pat_sel = 000".
-	 * Which means we must set the snoop bit in PAT entry 0
+	 * Which means we must set the syesop bit in PAT entry 0
 	 * in order to keep the global status page working.
 	 */
 
@@ -3005,7 +3005,7 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	u16 snb_gmch_ctl;
 	int err;
 
-	/* TODO: We're not aware of mappable constraints on gen8 yet */
+	/* TODO: We're yest aware of mappable constraints on gen8 yet */
 	if (!IS_DGFX(dev_priv)) {
 		ggtt->gmadr = pci_resource(pdev, 2);
 		ggtt->mappable_end = resource_size(&ggtt->gmadr);
@@ -3026,8 +3026,8 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->vm.total = (size / sizeof(gen8_pte_t)) * I915_GTT_PAGE_SIZE;
 	ggtt->vm.cleanup = gen6_gmch_remove;
 	ggtt->vm.insert_page = gen8_ggtt_insert_page;
-	ggtt->vm.clear_range = nop_clear_range;
-	if (intel_scanout_needs_vtd_wa(dev_priv))
+	ggtt->vm.clear_range = yesp_clear_range;
+	if (intel_scayesut_needs_vtd_wa(dev_priv))
 		ggtt->vm.clear_range = gen8_ggtt_clear_range;
 
 	ggtt->vm.insert_entries = gen8_ggtt_insert_entries;
@@ -3037,7 +3037,7 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	    IS_CHERRYVIEW(dev_priv) /* fails with concurrent use/update */) {
 		ggtt->vm.insert_entries = bxt_vtd_ggtt_insert_entries__BKL;
 		ggtt->vm.insert_page    = bxt_vtd_ggtt_insert_page__BKL;
-		if (ggtt->vm.clear_range != nop_clear_range)
+		if (ggtt->vm.clear_range != yesp_clear_range)
 			ggtt->vm.clear_range = bxt_vtd_ggtt_clear_range__BKL;
 	}
 
@@ -3068,11 +3068,11 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 						 pci_resource_len(pdev, 2));
 	ggtt->mappable_end = resource_size(&ggtt->gmadr);
 
-	/* 64/512MB is the current min/max we actually know of, but this is just
+	/* 64/512MB is the current min/max we actually kyesw of, but this is just
 	 * a coarse sanity check.
 	 */
 	if (ggtt->mappable_end < (64<<20) || ggtt->mappable_end > (512<<20)) {
-		DRM_ERROR("Unknown GMADR size (%pa)\n", &ggtt->mappable_end);
+		DRM_ERROR("Unkyeswn GMADR size (%pa)\n", &ggtt->mappable_end);
 		return -ENXIO;
 	}
 
@@ -3086,8 +3086,8 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 	size = gen6_get_total_gtt_size(snb_gmch_ctl);
 	ggtt->vm.total = (size / sizeof(gen6_pte_t)) * I915_GTT_PAGE_SIZE;
 
-	ggtt->vm.clear_range = nop_clear_range;
-	if (!HAS_FULL_PPGTT(dev_priv) || intel_scanout_needs_vtd_wa(dev_priv))
+	ggtt->vm.clear_range = yesp_clear_range;
+	if (!HAS_FULL_PPGTT(dev_priv) || intel_scayesut_needs_vtd_wa(dev_priv))
 		ggtt->vm.clear_range = gen6_ggtt_clear_range;
 	ggtt->vm.insert_page = gen6_ggtt_insert_page;
 	ggtt->vm.insert_entries = gen6_ggtt_insert_entries;
@@ -3151,7 +3151,7 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->vm.vma_ops.clear_pages = clear_pages;
 
 	if (unlikely(ggtt->do_idle_maps))
-		dev_notice(dev_priv->drm.dev,
+		dev_yestice(dev_priv->drm.dev,
 			   "Applying Ironlake quirks for intel_iommu\n");
 
 	return 0;
@@ -3262,7 +3262,7 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	/* Note that we use page colouring to enforce a guard page at the
 	 * end of the address space. This is required as the CS may prefetch
 	 * beyond the end of the batch buffer, across the page boundary,
-	 * and beyond the end of the GTT if we do not provide a guard.
+	 * and beyond the end of the GTT if we do yest provide a guard.
 	 */
 	ret = ggtt_init_hw(&dev_priv->ggtt);
 	if (ret)
@@ -3386,7 +3386,7 @@ rotate_pages(struct drm_i915_gem_object *obj, unsigned int offset,
 	return sg;
 }
 
-static noinline struct sg_table *
+static yesinline struct sg_table *
 intel_rotate_pages(struct intel_rotation_info *rot_info,
 		   struct drm_i915_gem_object *obj)
 {
@@ -3467,7 +3467,7 @@ remap_pages(struct drm_i915_gem_object *obj, unsigned int offset,
 	return sg;
 }
 
-static noinline struct sg_table *
+static yesinline struct sg_table *
 intel_remap_pages(struct intel_remapped_info *rem_info,
 		  struct drm_i915_gem_object *obj)
 {
@@ -3509,7 +3509,7 @@ err_st_alloc:
 	return ERR_PTR(ret);
 }
 
-static noinline struct sg_table *
+static yesinline struct sg_table *
 intel_partial_pages(const struct i915_ggtt_view *view,
 		    struct drm_i915_gem_object *obj)
 {
@@ -3608,32 +3608,32 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 }
 
 /**
- * i915_gem_gtt_reserve - reserve a node in an address_space (GTT)
+ * i915_gem_gtt_reserve - reserve a yesde in an address_space (GTT)
  * @vm: the &struct i915_address_space
- * @node: the &struct drm_mm_node (typically i915_vma.mode)
+ * @yesde: the &struct drm_mm_yesde (typically i915_vma.mode)
  * @size: how much space to allocate inside the GTT,
  *        must be #I915_GTT_PAGE_SIZE aligned
  * @offset: where to insert inside the GTT,
- *          must be #I915_GTT_MIN_ALIGNMENT aligned, and the node
+ *          must be #I915_GTT_MIN_ALIGNMENT aligned, and the yesde
  *          (@offset + @size) must fit within the address space
- * @color: color to apply to node, if this node is not from a VMA,
+ * @color: color to apply to yesde, if this yesde is yest from a VMA,
  *         color must be #I915_COLOR_UNEVICTABLE
  * @flags: control search and eviction behaviour
  *
- * i915_gem_gtt_reserve() tries to insert the @node at the exact @offset inside
- * the address space (using @size and @color). If the @node does not fit, it
- * tries to evict any overlapping nodes from the GTT, including any
- * neighbouring nodes if the colors do not match (to ensure guard pages between
- * differing domains). See i915_gem_evict_for_node() for the gory details
+ * i915_gem_gtt_reserve() tries to insert the @yesde at the exact @offset inside
+ * the address space (using @size and @color). If the @yesde does yest fit, it
+ * tries to evict any overlapping yesdes from the GTT, including any
+ * neighbouring yesdes if the colors do yest match (to ensure guard pages between
+ * differing domains). See i915_gem_evict_for_yesde() for the gory details
  * on the eviction algorithm. #PIN_NONBLOCK may used to prevent waiting on
- * evicting active overlapping objects, and any overlapping node that is pinned
+ * evicting active overlapping objects, and any overlapping yesde that is pinned
  * or marked as unevictable will also result in failure.
  *
- * Returns: 0 on success, -ENOSPC if no suitable hole is found, -EINTR if
+ * Returns: 0 on success, -ENOSPC if yes suitable hole is found, -EINTR if
  * asked to wait for eviction and interrupted.
  */
 int i915_gem_gtt_reserve(struct i915_address_space *vm,
-			 struct drm_mm_node *node,
+			 struct drm_mm_yesde *yesde,
 			 u64 size, u64 offset, unsigned long color,
 			 unsigned int flags)
 {
@@ -3644,22 +3644,22 @@ int i915_gem_gtt_reserve(struct i915_address_space *vm,
 	GEM_BUG_ON(!IS_ALIGNED(offset, I915_GTT_MIN_ALIGNMENT));
 	GEM_BUG_ON(range_overflows(offset, size, vm->total));
 	GEM_BUG_ON(vm == &vm->i915->ggtt.alias->vm);
-	GEM_BUG_ON(drm_mm_node_allocated(node));
+	GEM_BUG_ON(drm_mm_yesde_allocated(yesde));
 
-	node->size = size;
-	node->start = offset;
-	node->color = color;
+	yesde->size = size;
+	yesde->start = offset;
+	yesde->color = color;
 
-	err = drm_mm_reserve_node(&vm->mm, node);
+	err = drm_mm_reserve_yesde(&vm->mm, yesde);
 	if (err != -ENOSPC)
 		return err;
 
 	if (flags & PIN_NOEVICT)
 		return -ENOSPC;
 
-	err = i915_gem_evict_for_node(vm, node, flags);
+	err = i915_gem_evict_for_yesde(vm, yesde, flags);
 	if (err == 0)
-		err = drm_mm_reserve_node(&vm->mm, node);
+		err = drm_mm_reserve_yesde(&vm->mm, yesde);
 
 	return err;
 }
@@ -3690,41 +3690,41 @@ static u64 random_offset(u64 start, u64 end, u64 len, u64 align)
 }
 
 /**
- * i915_gem_gtt_insert - insert a node into an address_space (GTT)
+ * i915_gem_gtt_insert - insert a yesde into an address_space (GTT)
  * @vm: the &struct i915_address_space
- * @node: the &struct drm_mm_node (typically i915_vma.node)
+ * @yesde: the &struct drm_mm_yesde (typically i915_vma.yesde)
  * @size: how much space to allocate inside the GTT,
  *        must be #I915_GTT_PAGE_SIZE aligned
  * @alignment: required alignment of starting offset, may be 0 but
  *             if specified, this must be a power-of-two and at least
  *             #I915_GTT_MIN_ALIGNMENT
- * @color: color to apply to node
+ * @color: color to apply to yesde
  * @start: start of any range restriction inside GTT (0 for all),
  *         must be #I915_GTT_PAGE_SIZE aligned
  * @end: end of any range restriction inside GTT (U64_MAX for all),
- *       must be #I915_GTT_PAGE_SIZE aligned if not U64_MAX
+ *       must be #I915_GTT_PAGE_SIZE aligned if yest U64_MAX
  * @flags: control search and eviction behaviour
  *
  * i915_gem_gtt_insert() first searches for an available hole into which
- * is can insert the node. The hole address is aligned to @alignment and
+ * is can insert the yesde. The hole address is aligned to @alignment and
  * its @size must then fit entirely within the [@start, @end] bounds. The
- * nodes on either side of the hole must match @color, or else a guard page
- * will be inserted between the two nodes (or the node evicted). If no
+ * yesdes on either side of the hole must match @color, or else a guard page
+ * will be inserted between the two yesdes (or the yesde evicted). If yes
  * suitable hole is found, first a victim is randomly selected and tested
  * for eviction, otherwise then the LRU list of objects within the GTT
- * is scanned to find the first set of replacement nodes to create the hole.
- * Those old overlapping nodes are evicted from the GTT (and so must be
- * rebound before any future use). Any node that is currently pinned cannot
- * be evicted (see i915_vma_pin()). Similar if the node's VMA is currently
- * active and #PIN_NONBLOCK is specified, that node is also skipped when
+ * is scanned to find the first set of replacement yesdes to create the hole.
+ * Those old overlapping yesdes are evicted from the GTT (and so must be
+ * rebound before any future use). Any yesde that is currently pinned canyest
+ * be evicted (see i915_vma_pin()). Similar if the yesde's VMA is currently
+ * active and #PIN_NONBLOCK is specified, that yesde is also skipped when
  * searching for an eviction candidate. See i915_gem_evict_something() for
  * the gory details on the eviction algorithm.
  *
- * Returns: 0 on success, -ENOSPC if no suitable hole is found, -EINTR if
+ * Returns: 0 on success, -ENOSPC if yes suitable hole is found, -EINTR if
  * asked to wait for eviction and interrupted.
  */
 int i915_gem_gtt_insert(struct i915_address_space *vm,
-			struct drm_mm_node *node,
+			struct drm_mm_yesde *yesde,
 			u64 size, u64 alignment, unsigned long color,
 			u64 start, u64 end, unsigned int flags)
 {
@@ -3742,7 +3742,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	GEM_BUG_ON(start > 0  && !IS_ALIGNED(start, I915_GTT_PAGE_SIZE));
 	GEM_BUG_ON(end < U64_MAX && !IS_ALIGNED(end, I915_GTT_PAGE_SIZE));
 	GEM_BUG_ON(vm == &vm->i915->ggtt.alias->vm);
-	GEM_BUG_ON(drm_mm_node_allocated(node));
+	GEM_BUG_ON(drm_mm_yesde_allocated(yesde));
 
 	if (unlikely(range_overflows(start, size, end)))
 		return -ENOSPC;
@@ -3757,7 +3757,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 		mode = DRM_MM_INSERT_LOW;
 
 	/* We only allocate in PAGE_SIZE/GTT_PAGE_SIZE (4096) chunks,
-	 * so we know that we always have a minimum alignment of 4096.
+	 * so we kyesw that we always have a minimum alignment of 4096.
 	 * The drm_mm range manager is optimised to return results
 	 * with zero alignment, so where possible use the optimal
 	 * path.
@@ -3766,14 +3766,14 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	if (alignment <= I915_GTT_MIN_ALIGNMENT)
 		alignment = 0;
 
-	err = drm_mm_insert_node_in_range(&vm->mm, node,
+	err = drm_mm_insert_yesde_in_range(&vm->mm, yesde,
 					  size, alignment, color,
 					  start, end, mode);
 	if (err != -ENOSPC)
 		return err;
 
 	if (mode & DRM_MM_INSERT_ONCE) {
-		err = drm_mm_insert_node_in_range(&vm->mm, node,
+		err = drm_mm_insert_yesde_in_range(&vm->mm, yesde,
 						  size, alignment, color,
 						  start, end,
 						  DRM_MM_INSERT_BEST);
@@ -3788,7 +3788,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	 * No free space, pick a slot at random.
 	 *
 	 * There is a pathological case here using a GTT shared between
-	 * mmap and GPU (i.e. ggtt/aliasing_ppgtt but not full-ppgtt):
+	 * mmap and GPU (i.e. ggtt/aliasing_ppgtt but yest full-ppgtt):
 	 *
 	 *    |<-- 256 MiB aperture -->||<-- 1792 MiB unmappable -->|
 	 *         (64k objects)             (448k objects)
@@ -3796,7 +3796,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	 * Now imagine that the eviction LRU is ordered top-down (just because
 	 * pathology meets real life), and that we need to evict an object to
 	 * make room inside the aperture. The eviction scan then has to walk
-	 * the 448k list before it finds one within range. And now imagine that
+	 * the 448k list before it finds one within range. And yesw imagine that
 	 * it has to search for a new hole between every byte inside the memcpy,
 	 * for several simultaneous clients.
 	 *
@@ -3809,7 +3809,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	 */
 	offset = random_offset(start, end,
 			       size, alignment ?: I915_GTT_MIN_ALIGNMENT);
-	err = i915_gem_gtt_reserve(vm, node, size, offset, color, flags);
+	err = i915_gem_gtt_reserve(vm, yesde, size, offset, color, flags);
 	if (err != -ENOSPC)
 		return err;
 
@@ -3822,7 +3822,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	if (err)
 		return err;
 
-	return drm_mm_insert_node_in_range(&vm->mm, node,
+	return drm_mm_insert_yesde_in_range(&vm->mm, yesde,
 					   size, alignment, color,
 					   start, end, DRM_MM_INSERT_EVICT);
 }

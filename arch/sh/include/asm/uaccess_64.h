@@ -40,7 +40,7 @@ do {								\
 					  (long)ptr);		\
 		break;						\
 	default:						\
-		__get_user_unknown();				\
+		__get_user_unkyeswn();				\
 		break;						\
 	}							\
 } while (0)
@@ -49,7 +49,7 @@ extern long __get_user_asm_b(void *, long);
 extern long __get_user_asm_w(void *, long);
 extern long __get_user_asm_l(void *, long);
 extern long __get_user_asm_q(void *, long);
-extern void __get_user_unknown(void);
+extern void __get_user_unkyeswn(void);
 
 #define __put_user_size(x,ptr,size,retval)			\
 do {								\
@@ -72,7 +72,7 @@ do {								\
 					  (__force long)ptr);	\
 		break;						\
 	default:						\
-		__put_user_unknown();				\
+		__put_user_unkyeswn();				\
 	}							\
 } while (0)
 
@@ -80,6 +80,6 @@ extern long __put_user_asm_b(void *, long);
 extern long __put_user_asm_w(void *, long);
 extern long __put_user_asm_l(void *, long);
 extern long __put_user_asm_q(void *, long);
-extern void __put_user_unknown(void);
+extern void __put_user_unkyeswn(void);
 
 #endif /* __ASM_SH_UACCESS_64_H */

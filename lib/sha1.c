@@ -68,10 +68,10 @@
  *
  * @digest: 160 bit digest to update
  * @data:   512 bits of data to hash
- * @array:  16 words of workspace (see note)
+ * @array:  16 words of workspace (see yeste)
  *
  * This function generates a SHA1 digest for a single 512-bit block.
- * Be warned, it does not handle padding and message digest, do not
+ * Be warned, it does yest handle padding and message digest, do yest
  * confuse it with the full FIPS 180-1 digest algorithm for variable
  * length messages.
  *

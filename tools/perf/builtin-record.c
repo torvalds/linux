@@ -46,7 +46,7 @@
 #include "asm/bug.h"
 #include "perf.h"
 
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <locale.h>
 #include <poll.h>
@@ -84,10 +84,10 @@ struct record {
 	struct evlist	*evlist;
 	struct perf_session	*session;
 	int			realtime_prio;
-	bool			no_buildid;
-	bool			no_buildid_set;
-	bool			no_buildid_cache;
-	bool			no_buildid_cache_set;
+	bool			yes_buildid;
+	bool			yes_buildid_set;
+	bool			yes_buildid_cache;
+	bool			yes_buildid_cache_set;
 	bool			buildid_all;
 	bool			timestamp_filename;
 	bool			timestamp_boundary;
@@ -172,13 +172,13 @@ static int record__aio_write(struct aiocb *cblock, int trace_fd,
 	cblock->aio_buf    = buf;
 	cblock->aio_nbytes = size;
 	cblock->aio_offset = off;
-	cblock->aio_sigevent.sigev_notify = SIGEV_NONE;
+	cblock->aio_sigevent.sigev_yestify = SIGEV_NONE;
 
 	do {
 		rc = aio_write(cblock);
 		if (rc == 0) {
 			break;
-		} else if (errno != EAGAIN) {
+		} else if (erryes != EAGAIN) {
 			cblock->aio_fildes = -1;
 			pr_err("failed to queue perf data, error: %m\n");
 			break;
@@ -193,16 +193,16 @@ static int record__aio_complete(struct mmap *md, struct aiocb *cblock)
 	void *rem_buf;
 	off_t rem_off;
 	size_t rem_size;
-	int rc, aio_errno;
+	int rc, aio_erryes;
 	ssize_t aio_ret, written;
 
-	aio_errno = aio_error(cblock);
-	if (aio_errno == EINPROGRESS)
+	aio_erryes = aio_error(cblock);
+	if (aio_erryes == EINPROGRESS)
 		return 0;
 
 	written = aio_ret = aio_return(cblock);
 	if (aio_ret < 0) {
-		if (aio_errno != EINTR)
+		if (aio_erryes != EINTR)
 			pr_err("failed to write perf data, error: %m\n");
 		written = 0;
 	}
@@ -214,7 +214,7 @@ static int record__aio_complete(struct mmap *md, struct aiocb *cblock)
 		/*
 		 * md->refcount is incremented in record__aio_pushfn() for
 		 * every aio write request started in record__aio_push() so
-		 * decrement it because the request is now complete.
+		 * decrement it because the request is yesw complete.
 		 */
 		perf_mmap__put(&md->core);
 		rc = 1;
@@ -251,7 +251,7 @@ static int record__aio_sync(struct mmap *md, bool sync_all)
 					return i;
 			} else {
 				/*
-				 * Started aio write is not complete yet
+				 * Started aio write is yest complete yet
 				 * so it has to be waited before the
 				 * next allocation.
 				 */
@@ -263,7 +263,7 @@ static int record__aio_sync(struct mmap *md, bool sync_all)
 			return -1;
 
 		while (aio_suspend((const struct aiocb **)aiocb, md->aio.nr_cblocks, &timeout)) {
-			if (!(errno == EAGAIN || errno == EINTR))
+			if (!(erryes == EAGAIN || erryes == EINTR))
 				pr_err("failed to sync perf data, error: %m\n");
 		}
 	} while (1);
@@ -334,7 +334,7 @@ static int record__aio_push(struct record *rec, struct mmap *map, off_t *off)
 	idx = record__aio_sync(map, false);
 	aio.data = map->aio.data[idx];
 	ret = perf_mmap__push(map, &aio, record__aio_pushfn);
-	if (ret != 0) /* ret > 0 - no data, ret < 0 - error */
+	if (ret != 0) /* ret > 0 - yes data, ret < 0 - error */
 		return ret;
 
 	rec->samples++;
@@ -762,26 +762,26 @@ static int record__mmap_evlist(struct record *rec,
 	char msg[512];
 
 	if (opts->affinity != PERF_AFFINITY_SYS)
-		cpu__setup_cpunode_map();
+		cpu__setup_cpuyesde_map();
 
 	if (evlist__mmap_ex(evlist, opts->mmap_pages,
 				 opts->auxtrace_mmap_pages,
 				 auxtrace_overwrite,
 				 opts->nr_cblocks, opts->affinity,
 				 opts->mmap_flush, opts->comp_level) < 0) {
-		if (errno == EPERM) {
+		if (erryes == EPERM) {
 			pr_err("Permission error mapping pages.\n"
 			       "Consider increasing "
 			       "/proc/sys/kernel/perf_event_mlock_kb,\n"
 			       "or try again with a smaller value of -m/--mmap_pages.\n"
 			       "(current value: %u,%u)\n",
 			       opts->mmap_pages, opts->auxtrace_mmap_pages);
-			return -errno;
+			return -erryes;
 		} else {
-			pr_err("failed to mmap with %d (%s)\n", errno,
-				str_error_r(errno, msg, sizeof(msg)));
-			if (errno)
-				return -errno;
+			pr_err("failed to mmap with %d (%s)\n", erryes,
+				str_error_r(erryes, msg, sizeof(msg)));
+			if (erryes)
+				return -erryes;
 			else
 				return -EINVAL;
 		}
@@ -824,20 +824,20 @@ static int record__open(struct record *rec)
 	evlist__for_each_entry(evlist, pos) {
 try_again:
 		if (evsel__open(pos, pos->core.cpus, pos->core.threads) < 0) {
-			if (perf_evsel__fallback(pos, errno, msg, sizeof(msg))) {
+			if (perf_evsel__fallback(pos, erryes, msg, sizeof(msg))) {
 				if (verbose > 0)
 					ui__warning("%s\n", msg);
 				goto try_again;
 			}
-			if ((errno == EINVAL || errno == EBADF) &&
+			if ((erryes == EINVAL || erryes == EBADF) &&
 			    pos->leader != pos &&
 			    pos->weak_group) {
 			        pos = perf_evlist__reset_weak_group(evlist, pos, true);
 				goto try_again;
 			}
-			rc = -errno;
+			rc = -erryes;
 			perf_evsel__open_strerror(pos, &opts->target,
-						  errno, msg, sizeof(msg));
+						  erryes, msg, sizeof(msg));
 			ui__error("%s\n", msg);
 			goto out;
 		}
@@ -848,9 +848,9 @@ try_again:
 	if (symbol_conf.kptr_restrict && !perf_evlist__exclude_kernel(evlist)) {
 		pr_warning(
 "WARNING: Kernel address maps (/proc/{kallsyms,modules}) are restricted,\n"
-"check /proc/sys/kernel/kptr_restrict and /proc/sys/kernel/perf_event_paranoid.\n\n"
-"Samples in kernel functions may not be resolved if a suitable vmlinux\n"
-"file is not found in the buildid cache or in the vmlinux path.\n\n"
+"check /proc/sys/kernel/kptr_restrict and /proc/sys/kernel/perf_event_parayesid.\n\n"
+"Samples in kernel functions may yest be resolved if a suitable vmlinux\n"
+"file is yest found in the buildid cache or in the vmlinux path.\n\n"
 "Samples in kernel modules won't be resolved at all.\n\n"
 "If some relocation was applied (e.g. kexec) symbols may be misresolved\n"
 "even with a suitable vmlinux or kallsyms file.\n\n");
@@ -858,8 +858,8 @@ try_again:
 
 	if (perf_evlist__apply_filters(evlist, &pos)) {
 		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
-			pos->filter, perf_evsel__name(pos), errno,
-			str_error_r(errno, msg, sizeof(msg)));
+			pos->filter, perf_evsel__name(pos), erryes,
+			str_error_r(erryes, msg, sizeof(msg)));
 		rc = -1;
 		goto out;
 	}
@@ -910,11 +910,11 @@ static int process_buildids(struct record *rec)
 	 * rather than build-id path (in debug directory).
 	 *   $HOME/.debug/.build-id/f0/6e17aa50adf4d00b88925e03775de107611551
 	 */
-	symbol_conf.ignore_vmlinux_buildid = true;
+	symbol_conf.igyesre_vmlinux_buildid = true;
 
 	/*
 	 * If --buildid-all is given, it marks all DSO regardless of hits,
-	 * so no need to process samples. But if timestamp_boundary is enabled,
+	 * so yes need to process samples. But if timestamp_boundary is enabled,
 	 * it still needs to walk on all samples to get the timestamps of
 	 * first/last samples.
 	 */
@@ -944,7 +944,7 @@ static void perf_event__synthesize_guest_os(struct machine *machine, void *data)
 
 	/*
 	 * We use _stext for guest kernel because guest kernel's /proc/kallsyms
-	 * have no _text sometimes.
+	 * have yes _text sometimes.
 	 */
 	err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
 						 machine);
@@ -1095,7 +1095,7 @@ static void record__init_features(struct record *rec)
 	for (feat = HEADER_FIRST_FEATURE; feat < HEADER_LAST_FEATURE; feat++)
 		perf_header__set_feat(&session->header, feat);
 
-	if (rec->no_buildid)
+	if (rec->yes_buildid)
 		perf_header__clear_feat(&session->header, HEADER_BUILD_ID);
 
 	if (!have_tracepoints(&rec->evlist->core.entries))
@@ -1129,7 +1129,7 @@ record__finish_output(struct record *rec)
 	rec->session->header.data_size += rec->bytes_written;
 	data->file.size = lseek(perf_data__fd(data), 0, SEEK_CUR);
 
-	if (!rec->no_buildid) {
+	if (!rec->yes_buildid) {
 		process_buildids(rec);
 
 		if (rec->buildid_all)
@@ -1175,7 +1175,7 @@ record__switch_output(struct record *rec, bool at_exit)
 	record__aio_mmap_read_sync(rec);
 
 	record__synthesize(rec, true);
-	if (target__none(&rec->opts.target))
+	if (target__yesne(&rec->opts.target))
 		record__synthesize_workload(rec, true);
 
 	rec->samples = 0;
@@ -1220,30 +1220,30 @@ record__switch_output(struct record *rec, bool at_exit)
 		/*
 		 * In 'perf record --switch-output' without -a,
 		 * record__synthesize() in record__switch_output() won't
-		 * generate tracking events because there's no thread_map
+		 * generate tracking events because there's yes thread_map
 		 * in evlist. Which causes newly created perf.data doesn't
 		 * contain map and comm information.
 		 * Create a fake thread_map and directly call
 		 * perf_event__synthesize_thread_map() for those events.
 		 */
-		if (target__none(&rec->opts.target))
+		if (target__yesne(&rec->opts.target))
 			record__synthesize_workload(rec, false);
 	}
 	return fd;
 }
 
-static volatile int workload_exec_errno;
+static volatile int workload_exec_erryes;
 
 /*
  * perf_evlist__prepare_workload will send a SIGUSR1
  * if the fork fails, since we asked by setting its
  * want_signal to true.
  */
-static void workload_exec_failed_signal(int signo __maybe_unused,
+static void workload_exec_failed_signal(int sigyes __maybe_unused,
 					siginfo_t *info,
 					void *ucontext __maybe_unused)
 {
-	workload_exec_errno = info->si_value.sival_int;
+	workload_exec_erryes = info->si_value.sival_int;
 	done = 1;
 	child_finished = 1;
 }
@@ -1308,11 +1308,11 @@ static int record__synthesize(struct record *rec, bool tail)
 		if (have_tracepoints(&rec->evlist->core.entries)) {
 			/*
 			 * FIXME err <= 0 here actually means that
-			 * there were no tracepoints so its not really
+			 * there were yes tracepoints so its yest really
 			 * an error, just that we don't need to
 			 * synthesize anything.  We really have to
 			 * return this more properly and also
-			 * propagate errors that now are calling die()
+			 * propagate errors that yesw are calling die()
 			 */
 			err = perf_event__synthesize_tracing_data(tool,	fd, rec->evlist,
 								  process_synthesized_event);
@@ -1451,7 +1451,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	if (rec->opts.kcore &&
 	    !record__kcore_readable(&session->machines.host)) {
-		pr_err("ERROR: kcore is not readable.\n");
+		pr_err("ERROR: kcore is yest readable.\n");
 		return -1;
 	}
 
@@ -1509,7 +1509,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 * evlist.
 	 */
 	if (rec->tool.ordered_events && !perf_evlist__sample_id_all(rec->evlist)) {
-		pr_warning("WARNING: No sample_id_all support, falling back to unordered processing\n");
+		pr_warning("WARNING: No sample_id_all support, falling back to uyesrdered processing\n");
 		rec->tool.ordered_events = false;
 	}
 
@@ -1526,20 +1526,20 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			goto out_child;
 	}
 
-	if (!rec->no_buildid
+	if (!rec->yes_buildid
 	    && !perf_header__has_feat(&session->header, HEADER_BUILD_ID)) {
 		pr_err("Couldn't generate buildids. "
-		       "Use --no-buildid to profile anyway.\n");
+		       "Use --yes-buildid to profile anyway.\n");
 		err = -1;
 		goto out_child;
 	}
 
-	if (!opts->no_bpf_event)
+	if (!opts->yes_bpf_event)
 		bpf_event__add_sb_event(&sb_evlist, &session->header.env);
 
 	if (perf_evlist__start_sb_thread(sb_evlist, &rec->opts.target)) {
-		pr_debug("Couldn't start the BPF side band thread:\nBPF programs starting from now on won't be annotatable\n");
-		opts->no_bpf_event = true;
+		pr_debug("Couldn't start the BPF side band thread:\nBPF programs starting from yesw on won't be anyestatable\n");
+		opts->yes_bpf_event = true;
 	}
 
 	err = record__synthesize(rec, false);
@@ -1551,7 +1551,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 		param.sched_priority = rec->realtime_prio;
 		if (sched_setscheduler(0, SCHED_FIFO, &param)) {
-			pr_err("Could not set realtime priority.\n");
+			pr_err("Could yest set realtime priority.\n");
 			err = -1;
 			goto out_child;
 		}
@@ -1562,7 +1562,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 * (apart from group members) have enable_on_exec=1 set,
 	 * so don't spoil it by prematurely enabling them.
 	 */
-	if (!target__none(&opts->target) && !opts->initial_delay)
+	if (!target__yesne(&opts->target) && !opts->initial_delay)
 		evlist__enable(rec->evlist);
 
 	/*
@@ -1582,7 +1582,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		/*
 		 * Some H/W events are generated before COMM event
 		 * which is emitted during exec(), so perf script
-		 * cannot see a correct process name for those events.
+		 * canyest see a correct process name for those events.
 		 * Synthesize COMM event to prevent it.
 		 */
 		tgid = perf_event__synthesize_comm(tool, event,
@@ -1697,10 +1697,10 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 				break;
 			err = evlist__poll(rec->evlist, -1);
 			/*
-			 * Propagate error, only if there's any. Ignore positive
+			 * Propagate error, only if there's any. Igyesre positive
 			 * number of returned events and interrupt error.
 			 */
-			if (err > 0 || (err < 0 && errno == EINTR))
+			if (err > 0 || (err < 0 && erryes == EINTR))
 				err = 0;
 			waking++;
 
@@ -1710,10 +1710,10 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 		/*
 		 * When perf is starting the traced process, at the end events
-		 * die with the process and we wait for that. Thus no need to
+		 * die with the process and we wait for that. Thus yes need to
 		 * disable events in this case.
 		 */
-		if (done && !disabled && !target__none(&opts->target)) {
+		if (done && !disabled && !target__yesne(&opts->target)) {
 			trigger_off(&auxtrace_snapshot_trigger);
 			evlist__disable(rec->evlist);
 			disabled = true;
@@ -1726,9 +1726,9 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	if (opts->auxtrace_snapshot_on_exit)
 		record__auxtrace_snapshot_exit(rec);
 
-	if (forks && workload_exec_errno) {
+	if (forks && workload_exec_erryes) {
 		char msg[STRERR_BUFSIZE];
-		const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
+		const char *emsg = str_error_r(workload_exec_erryes, msg, sizeof(msg));
 		pr_err("Workload failed: %s\n", emsg);
 		err = -1;
 		goto out_child;
@@ -1737,7 +1737,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	if (!quiet)
 		fprintf(stderr, "[ perf record: Woken up %ld times to write data ]\n", waking);
 
-	if (target__none(&rec->opts.target))
+	if (target__yesne(&rec->opts.target))
 		record__synthesize_workload(rec, true);
 
 out_child:
@@ -1810,7 +1810,7 @@ out_delete_session:
 	zstd_fini(&session->zstd_data);
 	perf_session__delete(session);
 
-	if (!opts->no_bpf_event)
+	if (!opts->yes_bpf_event)
 		perf_evlist__stop_sb_thread(sb_evlist);
 	return status;
 }
@@ -1833,7 +1833,7 @@ int record_opts__parse_callchain(struct record_opts *record,
 	int ret;
 	callchain->enabled = !unset;
 
-	/* --no-call-graph */
+	/* --yes-call-graph */
 	if (unset) {
 		callchain->record_mode = CALLCHAIN_NONE;
 		pr_debug("callchain: disabled\n");
@@ -1879,11 +1879,11 @@ static int perf_record_config(const char *var, const char *value, void *cb)
 
 	if (!strcmp(var, "record.build-id")) {
 		if (!strcmp(value, "cache"))
-			rec->no_buildid_cache = false;
-		else if (!strcmp(value, "no-cache"))
-			rec->no_buildid_cache = true;
+			rec->yes_buildid_cache = false;
+		else if (!strcmp(value, "yes-cache"))
+			rec->yes_buildid_cache = true;
 		else if (!strcmp(value, "skip"))
-			rec->no_buildid = true;
+			rec->yes_buildid = true;
 		else
 			return -1;
 		return 0;
@@ -1929,8 +1929,8 @@ struct clockid_map {
 
 static const struct clockid_map clockids[] = {
 	/* available for all events, NMI safe */
-	CLOCKID_MAP("monotonic", CLOCK_MONOTONIC),
-	CLOCKID_MAP("monotonic_raw", CLOCK_MONOTONIC_RAW),
+	CLOCKID_MAP("moyestonic", CLOCK_MONOTONIC),
+	CLOCKID_MAP("moyestonic_raw", CLOCK_MONOTONIC_RAW),
 
 	/* available for some events */
 	CLOCKID_MAP("realtime", CLOCK_REALTIME),
@@ -1938,7 +1938,7 @@ static const struct clockid_map clockids[] = {
 	CLOCKID_MAP("tai", CLOCK_TAI),
 
 	/* available for the lazy */
-	CLOCKID_MAP("mono", CLOCK_MONOTONIC),
+	CLOCKID_MAP("moyes", CLOCK_MONOTONIC),
 	CLOCKID_MAP("raw", CLOCK_MONOTONIC_RAW),
 	CLOCKID_MAP("real", CLOCK_REALTIME),
 	CLOCKID_MAP("boot", CLOCK_BOOTTIME),
@@ -1970,11 +1970,11 @@ static int parse_clockid(const struct option *opt, const char *str, int unset)
 		return 0;
 	}
 
-	/* no arg passed */
+	/* yes arg passed */
 	if (!str)
 		return 0;
 
-	/* no setting it twice */
+	/* yes setting it twice */
 	if (opts->use_clockid)
 		return -1;
 
@@ -1997,7 +1997,7 @@ static int parse_clockid(const struct option *opt, const char *str, int unset)
 	}
 
 	opts->use_clockid = false;
-	ui__warning("unknown clockid %s, check man page\n", ostr);
+	ui__warning("unkyeswn clockid %s, check man page\n", ostr);
 	return -1;
 }
 
@@ -2008,7 +2008,7 @@ static int record__parse_affinity(const struct option *opt, const char *str, int
 	if (unset || !str)
 		return 0;
 
-	if (!strcasecmp(str, "node"))
+	if (!strcasecmp(str, "yesde"))
 		opts->affinity = PERF_AFFINITY_NODE;
 	else if (!strcasecmp(str, "cpu"))
 		opts->affinity = PERF_AFFINITY_CPU;
@@ -2152,7 +2152,7 @@ enabled:
 	rec->timestamp_filename = true;
 	s->enabled              = true;
 
-	if (s->size && !rec->opts.no_buffering)
+	if (s->size && !rec->opts.yes_buffering)
 		switch_output_size_warn(rec);
 
 	return 0;
@@ -2170,7 +2170,7 @@ static int build_id__process_mmap(struct perf_tool *tool, union perf_event *even
 {
 	/*
 	 * We already have the kernel maps, put in place via perf_session__create_kernel_maps()
-	 * no need to add them twice.
+	 * yes need to add them twice.
 	 */
 	if (!(event->header.misc & PERF_RECORD_MISC_USER))
 		return 0;
@@ -2182,7 +2182,7 @@ static int build_id__process_mmap2(struct perf_tool *tool, union perf_event *eve
 {
 	/*
 	 * We already have the kernel maps, put in place via perf_session__create_kernel_maps()
-	 * no need to add them twice.
+	 * yes need to add them twice.
 	 */
 	if (!(event->header.misc & PERF_RECORD_MISC_USER))
 		return 0;
@@ -2198,7 +2198,7 @@ static int build_id__process_mmap2(struct perf_tool *tool, union perf_event *eve
  *
  * At least we don't ouch it in all the other functions here directly.
  *
- * Just say no to tons of global variables, sigh.
+ * Just say yes to tons of global variables, sigh.
  */
 static struct record record = {
 	.opts = {
@@ -2252,7 +2252,7 @@ static struct option __record_options[] = {
 		    "record events on existing thread id"),
 	OPT_INTEGER('r', "realtime", &record.realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
-	OPT_BOOLEAN(0, "no-buffering", &record.opts.no_buffering,
+	OPT_BOOLEAN(0, "yes-buffering", &record.opts.yes_buffering,
 		    "collect data without buffering"),
 	OPT_BOOLEAN('R', "raw-samples", &record.opts.raw_samples,
 		    "collect raw sample records from all opened counters"),
@@ -2263,13 +2263,13 @@ static struct option __record_options[] = {
 	OPT_U64('c', "count", &record.opts.user_interval, "event period to sample"),
 	OPT_STRING('o', "output", &record.data.path, "file",
 		    "output file name"),
-	OPT_BOOLEAN_SET('i', "no-inherit", &record.opts.no_inherit,
-			&record.opts.no_inherit_set,
-			"child tasks do not inherit counters"),
+	OPT_BOOLEAN_SET('i', "yes-inherit", &record.opts.yes_inherit,
+			&record.opts.yes_inherit_set,
+			"child tasks do yest inherit counters"),
 	OPT_BOOLEAN(0, "tail-synthesize", &record.opts.tail_synthesize,
-		    "synthesize non-sample events at the end of output"),
+		    "synthesize yesn-sample events at the end of output"),
 	OPT_BOOLEAN(0, "overwrite", &record.opts.overwrite, "use overwrite mode"),
-	OPT_BOOLEAN(0, "no-bpf-event", &record.opts.no_bpf_event, "record bpf events"),
+	OPT_BOOLEAN(0, "yes-bpf-event", &record.opts.yes_bpf_event, "record bpf events"),
 	OPT_BOOLEAN(0, "strict-freq", &record.opts.strict_freq,
 		    "Fail if the specified frequency can't be used"),
 	OPT_CALLBACK('F', "freq", &record.opts, "freq or 'max'",
@@ -2303,14 +2303,14 @@ static struct option __record_options[] = {
 			"Record the sample timestamps"),
 	OPT_BOOLEAN_SET('P', "period", &record.opts.period, &record.opts.period_set,
 			"Record the sample period"),
-	OPT_BOOLEAN('n', "no-samples", &record.opts.no_samples,
+	OPT_BOOLEAN('n', "yes-samples", &record.opts.yes_samples,
 		    "don't sample"),
-	OPT_BOOLEAN_SET('N', "no-buildid-cache", &record.no_buildid_cache,
-			&record.no_buildid_cache_set,
-			"do not update the buildid cache"),
-	OPT_BOOLEAN_SET('B', "no-buildid", &record.no_buildid,
-			&record.no_buildid_set,
-			"do not collect buildids in perf.data"),
+	OPT_BOOLEAN_SET('N', "yes-buildid-cache", &record.yes_buildid_cache,
+			&record.yes_buildid_cache_set,
+			"do yest update the buildid cache"),
+	OPT_BOOLEAN_SET('B', "yes-buildid", &record.yes_buildid,
+			&record.yes_buildid_set,
+			"do yest collect buildids in perf.data"),
 	OPT_CALLBACK('G', "cgroup", &record.evlist, "name",
 		     "monitor event in cgroup name only",
 		     parse_cgroups),
@@ -2386,11 +2386,11 @@ static struct option __record_options[] = {
 		    "Parse options then exit"),
 #ifdef HAVE_AIO_SUPPORT
 	OPT_CALLBACK_OPTARG(0, "aio", &record.opts,
-		     &nr_cblocks_default, "n", "Use <n> control blocks in asynchronous trace writing mode (default: 1, max: 4)",
+		     &nr_cblocks_default, "n", "Use <n> control blocks in asynchroyesus trace writing mode (default: 1, max: 4)",
 		     record__aio_parse),
 #endif
-	OPT_CALLBACK(0, "affinity", &record.opts, "node|cpu",
-		     "Set affinity mask of trace reading thread to NUMA node cpu mask or cpu of processed mmap buffer",
+	OPT_CALLBACK(0, "affinity", &record.opts, "yesde|cpu",
+		     "Set affinity mask of trace reading thread to NUMA yesde cpu mask or cpu of processed mmap buffer",
 		     record__parse_affinity),
 #ifdef HAVE_ZSTD_SUPPORT
 	OPT_CALLBACK_OPTARG('z', "compression-level", &record.opts, &comp_level_default,
@@ -2413,10 +2413,10 @@ int cmd_record(int argc, const char **argv)
 	setlocale(LC_ALL, "");
 
 #ifndef HAVE_LIBBPF_SUPPORT
-# define set_nobuild(s, l, c) set_option_nobuild(record_options, s, l, "NO_LIBBPF=1", c)
-	set_nobuild('\0', "clang-path", true);
-	set_nobuild('\0', "clang-opt", true);
-# undef set_nobuild
+# define set_yesbuild(s, l, c) set_option_yesbuild(record_options, s, l, "NO_LIBBPF=1", c)
+	set_yesbuild('\0', "clang-path", true);
+	set_yesbuild('\0', "clang-opt", true);
+# undef set_yesbuild
 #endif
 
 #ifndef HAVE_BPF_PROLOGUE
@@ -2427,9 +2427,9 @@ int cmd_record(int argc, const char **argv)
 # else
 #  define REASON  "this architecture doesn't support BPF prologue"
 # endif
-# define set_nobuild(s, l, c) set_option_nobuild(record_options, s, l, REASON, c)
-	set_nobuild('\0', "vmlinux", true);
-# undef set_nobuild
+# define set_yesbuild(s, l, c) set_option_yesbuild(record_options, s, l, REASON, c)
+	set_yesbuild('\0', "vmlinux", true);
+# undef set_yesbuild
 # undef REASON
 #endif
 
@@ -2450,7 +2450,7 @@ int cmd_record(int argc, const char **argv)
 		perf_quiet_option();
 
 	/* Make system wide (-a) the default target. */
-	if (!argc && target__none(&rec->opts.target))
+	if (!argc && target__yesne(&rec->opts.target))
 		rec->opts.target.system_wide = true;
 
 	if (nr_cgroups && !rec->opts.target.system_wide) {
@@ -2464,12 +2464,12 @@ int cmd_record(int argc, const char **argv)
 
 	if (rec->opts.comp_level != 0) {
 		pr_debug("Compression enabled, disabling build id collection at the end of the session.\n");
-		rec->no_buildid = true;
+		rec->yes_buildid = true;
 	}
 
 	if (rec->opts.record_switch_events &&
 	    !perf_can_record_switch_events()) {
-		ui__error("kernel does not support recording context switch events\n");
+		ui__error("kernel does yest support recording context switch events\n");
 		parse_options_usage(record_usage, record_options, "switch-events", 0);
 		return -EINVAL;
 	}
@@ -2516,7 +2516,7 @@ int cmd_record(int argc, const char **argv)
 
 	err = -ENOMEM;
 
-	if (rec->no_buildid_cache || rec->no_buildid) {
+	if (rec->yes_buildid_cache || rec->yes_buildid) {
 		disable_buildid_cache();
 	} else if (rec->switch_output.enabled) {
 		/*
@@ -2525,24 +2525,24 @@ int cmd_record(int argc, const char **argv)
 		 * overhead. Still generate buildid if they are required
 		 * explicitly using
 		 *
-		 *  perf record --switch-output --no-no-buildid \
-		 *              --no-no-buildid-cache
+		 *  perf record --switch-output --yes-yes-buildid \
+		 *              --yes-yes-buildid-cache
 		 *
 		 * Following code equals to:
 		 *
-		 * if ((rec->no_buildid || !rec->no_buildid_set) &&
-		 *     (rec->no_buildid_cache || !rec->no_buildid_cache_set))
+		 * if ((rec->yes_buildid || !rec->yes_buildid_set) &&
+		 *     (rec->yes_buildid_cache || !rec->yes_buildid_cache_set))
 		 *         disable_buildid_cache();
 		 */
 		bool disable = true;
 
-		if (rec->no_buildid_set && !rec->no_buildid)
+		if (rec->yes_buildid_set && !rec->yes_buildid)
 			disable = false;
-		if (rec->no_buildid_cache_set && !rec->no_buildid_cache)
+		if (rec->yes_buildid_cache_set && !rec->yes_buildid_cache)
 			disable = false;
 		if (disable) {
-			rec->no_buildid = true;
-			rec->no_buildid_cache = true;
+			rec->yes_buildid = true;
+			rec->yes_buildid_cache = true;
 			disable_buildid_cache();
 		}
 	}
@@ -2551,13 +2551,13 @@ int cmd_record(int argc, const char **argv)
 		record.opts.tail_synthesize = true;
 
 	if (rec->evlist->core.nr_entries == 0 &&
-	    __perf_evlist__add_default(rec->evlist, !record.opts.no_samples) < 0) {
-		pr_err("Not enough memory for event selector list\n");
+	    __perf_evlist__add_default(rec->evlist, !record.opts.yes_samples) < 0) {
+		pr_err("Not eyesugh memory for event selector list\n");
 		goto out;
 	}
 
-	if (rec->opts.target.tid && !rec->opts.no_inherit_set)
-		rec->opts.no_inherit = true;
+	if (rec->opts.target.tid && !rec->opts.yes_inherit_set)
+		rec->opts.yes_inherit = true;
 
 	err = target__validate(&rec->opts.target);
 	if (err) {
@@ -2567,17 +2567,17 @@ int cmd_record(int argc, const char **argv)
 
 	err = target__parse_uid(&rec->opts.target);
 	if (err) {
-		int saved_errno = errno;
+		int saved_erryes = erryes;
 
 		target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
 		ui__error("%s", errbuf);
 
-		err = -saved_errno;
+		err = -saved_erryes;
 		goto out;
 	}
 
-	/* Enable ignoring missing threads when -u/-p option is defined. */
-	rec->opts.ignore_missing_thread = rec->opts.target.uid != UINT_MAX || rec->opts.target.pid;
+	/* Enable igyesring missing threads when -u/-p option is defined. */
+	rec->opts.igyesre_missing_thread = rec->opts.target.uid != UINT_MAX || rec->opts.target.pid;
 
 	err = -ENOMEM;
 	if (perf_evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
@@ -2589,7 +2589,7 @@ int cmd_record(int argc, const char **argv)
 
 	/*
 	 * We take all buildids when the file contains
-	 * AUX area tracing data because we do not decode the
+	 * AUX area tracing data because we do yest decode the
 	 * trace because it would take too long.
 	 */
 	if (rec->opts.full_auxtrace)

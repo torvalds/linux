@@ -34,9 +34,9 @@ MODULE_SUPPORTED_DEVICE("Intersil Prism2-based WLAN cards (PLX)");
 MODULE_LICENSE("GPL");
 
 
-static int ignore_cis;
-module_param(ignore_cis, int, 0444);
-MODULE_PARM_DESC(ignore_cis, "Do not verify manfid information in CIS");
+static int igyesre_cis;
+module_param(igyesre_cis, int, 0444);
+MODULE_PARM_DESC(igyesre_cis, "Do yest verify manfid information in CIS");
 
 
 /* struct local_info::hw_priv */
@@ -80,12 +80,12 @@ static const struct pci_device_id prism2_plx_id_table[] = {
 };
 
 
-/* Array of known Prism2/2.5 PC Card manufactured ids. If your card's manfid
- * is not listed here, you will need to add it here to get the driver
+/* Array of kyeswn Prism2/2.5 PC Card manufactured ids. If your card's manfid
+ * is yest listed here, you will need to add it here to get the driver
  * initialized. */
 static struct prism2_plx_manfid {
 	u16 manfid1, manfid2;
-} prism2_plx_known_manfids[] = {
+} prism2_plx_kyeswn_manfids[] = {
 	{ 0x000b, 0x7110 } /* D-Link DWL-650 Rev. P1 */,
 	{ 0x000b, 0x7300 } /* Philips 802.11b WLAN PCMCIA */,
 	{ 0x0101, 0x0777 } /* 3Com AirConnect PCI 777A */,
@@ -381,7 +381,7 @@ static int prism2_plx_check_cis(void __iomem *attr_mem, int attr_len,
 			       "cor_offset=0x%x\n", dev_info,
 			       *cor_index, *cor_offset);
 			if (*cor_offset > attr_len) {
-				printk(KERN_ERR "%s: COR offset not within "
+				printk(KERN_ERR "%s: COR offset yest within "
 				       "attr_mem\n", dev_info);
 				kfree(cis);
 				return -1;
@@ -404,14 +404,14 @@ static int prism2_plx_check_cis(void __iomem *attr_mem, int attr_len,
 	if (pos >= CIS_MAX_LEN || cis[pos] != CISTPL_END)
 		goto cis_error;
 
-	for (manfid = prism2_plx_known_manfids; manfid->manfid1 != 0; manfid++)
+	for (manfid = prism2_plx_kyeswn_manfids; manfid->manfid1 != 0; manfid++)
 		if (manfid1 == manfid->manfid1 && manfid2 == manfid->manfid2) {
 			kfree(cis);
 			return 0;
 		}
 
-	printk(KERN_INFO "%s: unknown manfid 0x%04x, 0x%04x - assuming this is"
-	       " not supported card\n", dev_info, manfid1, manfid2);
+	printk(KERN_INFO "%s: unkyeswn manfid 0x%04x, 0x%04x - assuming this is"
+	       " yest supported card\n", dev_info, manfid1, manfid2);
 	goto fail;
 
  cis_error:
@@ -419,8 +419,8 @@ static int prism2_plx_check_cis(void __iomem *attr_mem, int attr_len,
 
  fail:
 	kfree(cis);
-	if (ignore_cis) {
-		printk(KERN_INFO "%s: ignore_cis parameter set - ignoring "
+	if (igyesre_cis) {
+		printk(KERN_INFO "%s: igyesre_cis parameter set - igyesring "
 		       "errors during CIS verification\n", dev_info);
 		return 0;
 	}
@@ -452,7 +452,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 	if (pci_enable_device(pdev))
 		goto err_out_free;
 
-	/* National Datacomm NCP130 based on TMD7160, not PLX9052. */
+	/* National Datacomm NCP130 based on TMD7160, yest PLX9052. */
 	tmd7160 = (pdev->vendor == 0x15e8) && (pdev->device == 0x0131);
 
 	plx_ioaddr = pci_resource_start(pdev, 1);
@@ -460,7 +460,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 
 	if (tmd7160) {
 		/* TMD7160 */
-		attr_mem = NULL; /* no access to PC Card attribute memory */
+		attr_mem = NULL; /* yes access to PC Card attribute memory */
 
 		printk(KERN_INFO "TMD7160 PCI/PCMCIA adapter: io=0x%x, "
 		       "irq=%d, pccard_io=0x%x\n",
@@ -488,7 +488,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 
 		attr_mem = ioremap(pccard_attr_mem, pccard_attr_len);
 		if (attr_mem == NULL) {
-			printk(KERN_ERR "%s: cannot remap attr_mem\n",
+			printk(KERN_ERR "%s: canyest remap attr_mem\n",
 			       dev_info);
 			goto fail;
 		}
@@ -499,7 +499,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 
 		if (prism2_plx_check_cis(attr_mem, pccard_attr_len,
 					 &cor_offset, &cor_index)) {
-			printk(KERN_INFO "Unknown PC Card CIS - not a "
+			printk(KERN_INFO "Unkyeswn PC Card CIS - yest a "
 			       "Prism2/2.5 card?\n");
 			goto fail;
 		}
@@ -511,7 +511,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 		writeb(cor_index | COR_LEVLREQ | COR_ENABLE_FUNC,
 		       attr_mem + cor_offset);
 
-		/* Enable PCI interrupts if they are not already enabled */
+		/* Enable PCI interrupts if they are yest already enabled */
 		reg = inl(plx_ioaddr + PLX_INTCSR);
 		printk(KERN_DEBUG "PLX_INTCSR=0x%x\n", reg);
 		if (!(reg & PLX_INTCSR_PCI_INTEN)) {
@@ -519,7 +519,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 			     plx_ioaddr + PLX_INTCSR);
 			if (!(inl(plx_ioaddr + PLX_INTCSR) &
 			      PLX_INTCSR_PCI_INTEN)) {
-				printk(KERN_WARNING "%s: Could not enable "
+				printk(KERN_WARNING "%s: Could yest enable "
 				       "Local Interrupts\n", dev_info);
 				goto fail;
 			}
@@ -530,7 +530,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 		       "present=%d)\n",
 		       reg, (reg & PLX_CNTRL_SERIAL_EEPROM_PRESENT) != 0);
 		/* should set PLX_PCIIPR to 0x01 (INTA#) if Serial EEPROM is
-		 * not present; but are there really such cards in use(?) */
+		 * yest present; but are there really such cards in use(?) */
 	}
 
 	dev = prism2_init_local_data(&prism2_plx_funcs, cards_found,

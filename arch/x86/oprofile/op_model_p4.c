@@ -429,7 +429,7 @@ static int p4_fill_in_addresses(struct op_msrs * const msrs)
 			msrs->controls[i].addr = addr;
 	}
 
-	/* no IQ_ESCR0/1 on some models, we save a seconde time BSU_ESCR0/1
+	/* yes IQ_ESCR0/1 on some models, we save a seconde time BSU_ESCR0/1
 	 * to avoid special case in nmi_{save|restore}_registers() */
 	if (boot_cpu_data.x86_model >= 0x3) {
 		for (addr = MSR_P4_BSU_ESCR0 + stag;
@@ -463,10 +463,10 @@ static int p4_fill_in_addresses(struct op_msrs * const msrs)
 			msrs->controls[i].addr = addr;
 	}
 
-	/* there are 2 remaining non-contiguously located ESCRs */
+	/* there are 2 remaining yesn-contiguously located ESCRs */
 
 	if (num_counters == NUM_COUNTERS_NON_HT) {
-		/* standard non-HT CPUs handle both remaining ESCRs*/
+		/* standard yesn-HT CPUs handle both remaining ESCRs*/
 		if (reserve_evntsel_nmi(MSR_P4_CRU_ESCR5))
 			msrs->controls[i++].addr = MSR_P4_CRU_ESCR5;
 		if (reserve_evntsel_nmi(MSR_P4_CRU_ESCR4))
@@ -561,7 +561,7 @@ static void pmc_setup_one_p4_counter(unsigned int ctr)
 	}
 
 	printk(KERN_ERR
-	       "oprofile: P4 event code 0x%lx no binding, stag %d ctr %d\n",
+	       "oprofile: P4 event code 0x%lx yes binding, stag %d ctr %d\n",
 	       counter_config[ctr].event, stag, ctr);
 }
 
@@ -577,7 +577,7 @@ static void p4_setup_ctrs(struct op_x86_model_spec const *model,
 
 	rdmsr(MSR_IA32_MISC_ENABLE, low, high);
 	if (!MISC_PMC_ENABLED_P(low)) {
-		printk(KERN_ERR "oprofile: P4 PMC not available\n");
+		printk(KERN_ERR "oprofile: P4 PMC yest available\n");
 		return;
 	}
 
@@ -638,7 +638,7 @@ static int p4_check_ctrs(struct pt_regs * const regs,
 		 * the former seems to be related to extra NMIs happening
 		 * during the current NMI; the latter is reported as errata
 		 * N15 in intel doc 249199-029, pentium 4 specification
-		 * update, though their suggested work-around does not
+		 * update, though their suggested work-around does yest
 		 * appear to solve the problem.
 		 */
 

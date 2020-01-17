@@ -23,7 +23,7 @@ Frame Buffer
     internals
     lxfb
     matroxfb
-    metronomefb
+    metroyesmefb
     modedb
     pvr2fb
     pxafb

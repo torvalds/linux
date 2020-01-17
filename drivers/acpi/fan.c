@@ -48,7 +48,7 @@ struct acpi_fan_fps {
 	u64 control;
 	u64 trip_point;
 	u64 speed;
-	u64 noise_level;
+	u64 yesise_level;
 	u64 power;
 };
 
@@ -56,7 +56,7 @@ struct acpi_fan_fif {
 	u64 revision;
 	u64 fine_grain_ctrl;
 	u64 step_size;
-	u64 low_speed_notification;
+	u64 low_speed_yestification;
 };
 
 struct acpi_fan {
@@ -289,7 +289,7 @@ static int acpi_fan_get_fps(struct acpi_device *device)
 				fan->fps_count, sizeof(struct acpi_fan_fps),
 				GFP_KERNEL);
 	if (!fan->fps) {
-		dev_err(&device->dev, "Not enough memory\n");
+		dev_err(&device->dev, "Not eyesugh memory\n");
 		status = -ENOMEM;
 		goto err;
 	}

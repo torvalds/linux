@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/isapnp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -149,10 +149,10 @@ static void ax_reset_8390(struct net_device *dev)
 	ei_local->txing = 0;
 	ei_local->dmaing = 0;
 
-	/* This check _should_not_ be necessary, omit eventually. */
+	/* This check _should_yest_ be necessary, omit eventually. */
 	while ((ei_inb(addr + EN0_ISR) & ENISR_RESET) == 0) {
 		if (time_after(jiffies, reset_start_time + 2 * HZ / 100)) {
-			netdev_warn(dev, "%s: did not complete.\n", __func__);
+			netdev_warn(dev, "%s: did yest complete.\n", __func__);
 			break;
 		}
 	}
@@ -287,7 +287,7 @@ static void ax_block_output(struct net_device *dev, int count,
 
 	ei_outb(ENISR_RDC, nic_base + EN0_ISR);
 
-	/* Now the normal output. */
+	/* Now the yesrmal output. */
 	ei_outb(count & 0xff, nic_base + EN0_RCNTLO);
 	ei_outb(count >> 8, nic_base + EN0_RCNTHI);
 	ei_outb(0x00, nic_base + EN0_RSARLO);
@@ -363,14 +363,14 @@ static int ax_mii_probe(struct net_device *dev)
 	/* find the first phy */
 	phy_dev = phy_find_first(ax->mii_bus);
 	if (!phy_dev) {
-		netdev_err(dev, "no PHY found\n");
+		netdev_err(dev, "yes PHY found\n");
 		return -ENODEV;
 	}
 
 	ret = phy_connect_direct(dev, phy_dev, ax_handle_link_change,
 				 PHY_INTERFACE_MODE_MII);
 	if (ret) {
-		netdev_err(dev, "Could not attach to PHY\n");
+		netdev_err(dev, "Could yest attach to PHY\n");
 		return ret;
 	}
 
@@ -666,7 +666,7 @@ static void ax_initial_setup(struct net_device *dev, struct ei_device *ei_local)
 /*
  * ax_init_dev
  *
- * initialise the specified device, taking care to note the MAC
+ * initialise the specified device, taking care to yeste the MAC
  * address it may already have (if configured), ensure
  * the device is ready to be used by lib8390.c and registerd with
  * the network layer.
@@ -767,7 +767,7 @@ static int ax_init_dev(struct net_device *dev)
 	ei_local->rx_start_page = start_page + TX_PAGES;
 
 #ifdef PACKETBUF_MEMSIZE
-	/* Allow the packet buffer size to be overridden by know-it-alls. */
+	/* Allow the packet buffer size to be overridden by kyesw-it-alls. */
 	ei_local->stop_page = ei_local->tx_start_page + PACKETBUF_MEMSIZE;
 #endif
 
@@ -831,7 +831,7 @@ static int ax_remove(struct platform_device *pdev)
  * ax_probe
  *
  * This is the entry point when the platform device system uses to
- * notify us of a new device to attach to. Allocate memory, find the
+ * yestify us of a new device to attach to. Allocate memory, find the
  * resources and information passed, and map the necessary registers.
  */
 static int ax_probe(struct platform_device *pdev)
@@ -860,7 +860,7 @@ static int ax_probe(struct platform_device *pdev)
 	/* find the platform resources */
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq) {
-		dev_err(&pdev->dev, "no IRQ specified\n");
+		dev_err(&pdev->dev, "yes IRQ specified\n");
 		ret = -ENXIO;
 		goto exit_mem;
 	}
@@ -873,7 +873,7 @@ static int ax_probe(struct platform_device *pdev)
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
-		dev_err(&pdev->dev, "no MEM specified\n");
+		dev_err(&pdev->dev, "yes MEM specified\n");
 		ret = -ENXIO;
 		goto exit_mem;
 	}
@@ -893,7 +893,7 @@ static int ax_probe(struct platform_device *pdev)
 	}
 
 	if (!request_mem_region(mem->start, mem_size, pdev->name)) {
-		dev_err(&pdev->dev, "cannot reserve registers\n");
+		dev_err(&pdev->dev, "canyest reserve registers\n");
 		ret = -ENXIO;
 		goto exit_mem;
 	}
@@ -902,7 +902,7 @@ static int ax_probe(struct platform_device *pdev)
 	dev->base_addr = (unsigned long)ei_local->mem;
 
 	if (ei_local->mem == NULL) {
-		dev_err(&pdev->dev, "Cannot ioremap area %pR\n", mem);
+		dev_err(&pdev->dev, "Canyest ioremap area %pR\n", mem);
 
 		ret = -ENXIO;
 		goto exit_req;
@@ -919,14 +919,14 @@ static int ax_probe(struct platform_device *pdev)
 		mem2_size = resource_size(mem2);
 
 		if (!request_mem_region(mem2->start, mem2_size, pdev->name)) {
-			dev_err(&pdev->dev, "cannot reserve registers\n");
+			dev_err(&pdev->dev, "canyest reserve registers\n");
 			ret = -ENXIO;
 			goto exit_mem1;
 		}
 
 		ax->map2 = ioremap(mem2->start, mem2_size);
 		if (!ax->map2) {
-			dev_err(&pdev->dev, "cannot map reset register\n");
+			dev_err(&pdev->dev, "canyest map reset register\n");
 			ret = -ENXIO;
 			goto exit_mem2;
 		}
@@ -934,7 +934,7 @@ static int ax_probe(struct platform_device *pdev)
 		ei_local->reg_offset[0x1f] = ax->map2 - ei_local->mem;
 	}
 
-	/* got resources, now initialise and register device */
+	/* got resources, yesw initialise and register device */
 	ret = ax_init_dev(dev);
 	if (!ret)
 		return 0;

@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -60,7 +60,7 @@ static u32 pde_get_multiple(u32 val, u32 fraction, u32 tolerance)
 	factor = val / fraction;
 	remainder = val % fraction;
 	if (remainder > tolerance) {
-		/* no exact match */
+		/* yes exact match */
 		if ((fraction - remainder) <= tolerance)
 			/* remainder is within tolerance */
 			factor++;
@@ -98,7 +98,7 @@ static void pool_deregister_ref(void)
 	singleton_pool_references--;
 	DFS_POOL_STAT_DEC(pool_reference);
 	if (singleton_pool_references == 0) {
-		/* free singleton pools with no references left */
+		/* free singleton pools with yes references left */
 		struct pri_sequence *ps, *ps0;
 		struct pulse_elem *p, *p0;
 
@@ -184,7 +184,7 @@ static void pulse_queue_check_window(struct pri_detector *pde)
 	u64 min_valid_ts;
 	struct pulse_elem *p;
 
-	/* there is no delta time with less than 2 pulses */
+	/* there is yes delta time with less than 2 pulses */
 	if (pde->count < 2)
 		return;
 
@@ -234,7 +234,7 @@ static bool pseq_handler_create_sequences(struct pri_detector *pde,
 		u32 delta_ts = ts - p->ts;
 
 		if (delta_ts < pde->rs->pri_min)
-			/* ignore too small pri */
+			/* igyesre too small pri */
 			continue;
 
 		if (delta_ts > pde->rs->pri_max)
@@ -278,7 +278,7 @@ static bool pseq_handler_create_sequences(struct pri_detector *pde,
 			}
 		}
 		if (ps.count <= min_count)
-			/* did not reach minimum count, drop sequence */
+			/* did yest reach minimum count, drop sequence */
 			continue;
 
 		/* this is a valid one, add it */
@@ -343,8 +343,8 @@ pseq_handler_check_detection(struct pri_detector *pde)
 
 	list_for_each_entry(ps, &pde->sequences, head) {
 		/*
-		 * we assume to have enough matching confidence if we
-		 * 1) have enough pulses
+		 * we assume to have eyesugh matching confidence if we
+		 * 1) have eyesugh pulses
 		 * 2) have more matching than false pulses
 		 */
 		if ((ps->count >= pde->rs->ppb_thresh) &&
@@ -387,14 +387,14 @@ static struct pri_sequence *pri_detector_add_pulse(struct pri_detector *de,
 	u64 ts = event->ts;
 	const struct radar_detector_specs *rs = de->rs;
 
-	/* ignore pulses not within width range */
+	/* igyesre pulses yest within width range */
 	if ((rs->width_min > event->width) || (rs->width_max < event->width))
 		return NULL;
 
 	if ((ts - de->last_ts) < rs->max_pri_tolerance)
 		/* if delta to last pulse is too short, don't use this pulse */
 		return NULL;
-	/* radar detector spec needs chirp, but not detected */
+	/* radar detector spec needs chirp, but yest detected */
 	if (rs->chirp && rs->chirp != event->chirp)
 		return NULL;
 

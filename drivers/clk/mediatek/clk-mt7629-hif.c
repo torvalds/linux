@@ -22,7 +22,7 @@
 		.parent_name = _parent,			\
 		.regs = &pcie_cg_regs,			\
 		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
+		.ops = &mtk_clk_gate_ops_yes_setclr_inv,	\
 	}
 
 #define GATE_SSUSB(_id, _name, _parent, _shift) {	\
@@ -31,7 +31,7 @@
 		.parent_name = _parent,			\
 		.regs = &ssusb_cg_regs,			\
 		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
+		.ops = &mtk_clk_gate_ops_yes_setclr_inv,	\
 	}
 
 static const struct mtk_gate_regs pcie_cg_regs = {
@@ -74,21 +74,21 @@ static const struct mtk_gate pcie_clks[] = {
 static int clk_mt7629_ssusbsys_init(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_SSUSB_NR_CLK);
 
-	mtk_clk_register_gates(node, ssusb_clks, ARRAY_SIZE(ssusb_clks),
+	mtk_clk_register_gates(yesde, ssusb_clks, ARRAY_SIZE(ssusb_clks),
 			       clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could yest register clock provider: %s: %d\n",
 			pdev->name, r);
 
-	mtk_register_reset_controller(node, 1, 0x34);
+	mtk_register_reset_controller(yesde, 1, 0x34);
 
 	return r;
 }
@@ -96,21 +96,21 @@ static int clk_mt7629_ssusbsys_init(struct platform_device *pdev)
 static int clk_mt7629_pciesys_init(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_PCIE_NR_CLK);
 
-	mtk_clk_register_gates(node, pcie_clks, ARRAY_SIZE(pcie_clks),
+	mtk_clk_register_gates(yesde, pcie_clks, ARRAY_SIZE(pcie_clks),
 			       clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could yest register clock provider: %s: %d\n",
 			pdev->name, r);
 
-	mtk_register_reset_controller(node, 1, 0x34);
+	mtk_register_reset_controller(yesde, 1, 0x34);
 
 	return r;
 }
@@ -139,7 +139,7 @@ static int clk_mt7629_hif_probe(struct platform_device *pdev)
 	r = clk_init(pdev);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could yest register clock provider: %s: %d\n",
 			pdev->name, r);
 
 	return r;

@@ -21,13 +21,13 @@ struct binder_transaction;
 /**
  * struct binder_buffer - buffer used for binder transactions
  * @entry:              entry alloc->buffers
- * @rb_node:            node for allocated_buffers/free_buffers rb trees
+ * @rb_yesde:            yesde for allocated_buffers/free_buffers rb trees
  * @free:               %true if buffer is free
  * @allow_user_free:    %true if user is allowed to free buffer
  * @async_transaction:  %true if buffer is in use for an async txn
  * @debug_id:           unique ID for debugging
  * @transaction:        pointer to associated struct binder_transaction
- * @target_node:        struct binder_node associated with this buffer
+ * @target_yesde:        struct binder_yesde associated with this buffer
  * @data_size:          size of @transaction data
  * @offsets_size:       size of array of offsets
  * @extra_buffers_size: size of space for other objects (like sg lists)
@@ -37,7 +37,7 @@ struct binder_transaction;
  */
 struct binder_buffer {
 	struct list_head entry; /* free and allocated entries by address */
-	struct rb_node rb_node; /* free entry by size or allocated entry */
+	struct rb_yesde rb_yesde; /* free entry by size or allocated entry */
 				/* by address */
 	unsigned free:1;
 	unsigned allow_user_free:1;
@@ -46,7 +46,7 @@ struct binder_buffer {
 
 	struct binder_transaction *transaction;
 
-	struct binder_node *target_node;
+	struct binder_yesde *target_yesde;
 	size_t data_size;
 	size_t offsets_size;
 	size_t extra_buffers_size;
@@ -85,7 +85,7 @@ struct binder_lru_page {
  * @pages_high:         high watermark of offset in @pages
  *
  * Bookkeeping structure for per-proc address space management for binder
- * buffers. It is normally initialized during binder_init() and binder_mmap()
+ * buffers. It is yesrmally initialized during binder_init() and binder_mmap()
  * calls. The address space is used for both user-visible buffers and for
  * struct binder_buffer objects used to track the user buffers
  */

@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -237,7 +237,7 @@ amdgpu_atombios_get_hpd_info_from_gpio(struct amdgpu_device *adev,
 }
 
 static const int object_connector_convert[] = {
-	DRM_MODE_CONNECTOR_Unknown,
+	DRM_MODE_CONNECTOR_Unkyeswn,
 	DRM_MODE_CONNECTOR_DVII,
 	DRM_MODE_CONNECTOR_DVII,
 	DRM_MODE_CONNECTOR_DVID,
@@ -245,20 +245,20 @@ static const int object_connector_convert[] = {
 	DRM_MODE_CONNECTOR_VGA,
 	DRM_MODE_CONNECTOR_Composite,
 	DRM_MODE_CONNECTOR_SVIDEO,
-	DRM_MODE_CONNECTOR_Unknown,
-	DRM_MODE_CONNECTOR_Unknown,
+	DRM_MODE_CONNECTOR_Unkyeswn,
+	DRM_MODE_CONNECTOR_Unkyeswn,
 	DRM_MODE_CONNECTOR_9PinDIN,
-	DRM_MODE_CONNECTOR_Unknown,
+	DRM_MODE_CONNECTOR_Unkyeswn,
 	DRM_MODE_CONNECTOR_HDMIA,
 	DRM_MODE_CONNECTOR_HDMIB,
 	DRM_MODE_CONNECTOR_LVDS,
 	DRM_MODE_CONNECTOR_9PinDIN,
-	DRM_MODE_CONNECTOR_Unknown,
-	DRM_MODE_CONNECTOR_Unknown,
-	DRM_MODE_CONNECTOR_Unknown,
+	DRM_MODE_CONNECTOR_Unkyeswn,
+	DRM_MODE_CONNECTOR_Unkyeswn,
+	DRM_MODE_CONNECTOR_Unkyeswn,
 	DRM_MODE_CONNECTOR_DisplayPort,
 	DRM_MODE_CONNECTOR_eDP,
-	DRM_MODE_CONNECTOR_Unknown
+	DRM_MODE_CONNECTOR_Unkyeswn
 };
 
 bool amdgpu_atombios_has_dce_engine_info(struct amdgpu_device *adev)
@@ -367,7 +367,7 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 				object_connector_convert[con_obj_id];
 			connector_object_id = con_obj_id;
 
-			if (connector_type == DRM_MODE_CONNECTOR_Unknown)
+			if (connector_type == DRM_MODE_CONNECTOR_Unkyeswn)
 				continue;
 
 			router.ddc_valid = false;
@@ -708,7 +708,7 @@ int amdgpu_atombios_get_clock_info(struct amdgpu_device *adev)
 		if (adev->clock.max_pixel_clock == 0)
 			adev->clock.max_pixel_clock = 40000;
 
-		/* not technically a clock, but... */
+		/* yest technically a clock, but... */
 		adev->mode_info.firmware_flags =
 			le16_to_cpu(firmware_info->info.usFirmwareCapability.susAccess);
 
@@ -762,7 +762,7 @@ union igp_info {
 
 /*
  * Return vram width from integrated system info table, if available,
- * or 0 if not.
+ * or 0 if yest.
  */
 int amdgpu_atombios_get_vram_width(struct amdgpu_device *adev)
 {
@@ -1234,7 +1234,7 @@ int amdgpu_atombios_get_max_vddc(struct amdgpu_device *adev, u8 voltage_type,
 		*voltage = le16_to_cpu(args.v3.usVoltageLevel);
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 		return -EINVAL;
 	}
 
@@ -1270,7 +1270,7 @@ int amdgpu_atombios_get_leakage_id_from_vbios(struct amdgpu_device *adev,
 		*leakage_id = le16_to_cpu(args.v3.usVoltageLevel);
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 		return -EINVAL;
 	}
 
@@ -1351,12 +1351,12 @@ int amdgpu_atombios_get_leakage_vddc_based_on_leakage_params(struct amdgpu_devic
 			}
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 			return -EINVAL;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 		return -EINVAL;
 	}
 
@@ -1460,12 +1460,12 @@ int amdgpu_atombios_get_svi2_info(struct amdgpu_device *adev,
 				}
 				break;
 			default:
-				DRM_ERROR("unknown voltage object table\n");
+				DRM_ERROR("unkyeswn voltage object table\n");
 				return -EINVAL;
 			}
 			break;
 		default:
-			DRM_ERROR("unknown voltage object table\n");
+			DRM_ERROR("unkyeswn voltage object table\n");
 			return -EINVAL;
 		}
 
@@ -1496,12 +1496,12 @@ amdgpu_atombios_is_voltage_gpio(struct amdgpu_device *adev,
 					return true;
 				break;
 			default:
-				DRM_ERROR("unknown voltage object table\n");
+				DRM_ERROR("unkyeswn voltage object table\n");
 				return false;
 			}
 			break;
 		default:
-			DRM_ERROR("unknown voltage object table\n");
+			DRM_ERROR("unkyeswn voltage object table\n");
 			return false;
 		}
 
@@ -1554,12 +1554,12 @@ int amdgpu_atombios_get_voltage_table(struct amdgpu_device *adev,
 				}
 				break;
 			default:
-				DRM_ERROR("unknown voltage object table\n");
+				DRM_ERROR("unkyeswn voltage object table\n");
 				return -EINVAL;
 			}
 			break;
 		default:
-			DRM_ERROR("unknown voltage object table\n");
+			DRM_ERROR("unkyeswn voltage object table\n");
 			return -EINVAL;
 		}
 	}
@@ -1658,12 +1658,12 @@ int amdgpu_atombios_init_mc_reg_table(struct amdgpu_device *adev,
 					return -EINVAL;
 				break;
 			default:
-				DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+				DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 				return -EINVAL;
 			}
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 			return -EINVAL;
 		}
 		return 0;
@@ -1713,7 +1713,7 @@ static void amdgpu_atombios_scratch_regs_init(struct amdgpu_device *adev)
 	/* let the bios control the backlight */
 	bios_2_scratch &= ~ATOM_S2_VRI_BRIGHT_ENABLE;
 
-	/* tell the bios not to handle mode switching */
+	/* tell the bios yest to handle mode switching */
 	bios_6_scratch |= ATOM_S6_ACC_BLOCK_DISPLAY_SWITCH;
 
 	/* clear the vbios dpms state */
@@ -1753,7 +1753,7 @@ bool amdgpu_atombios_scratch_need_asic_init(struct amdgpu_device *adev)
  * ALIGN(num_bytes,4) bytes in the dst buffer.
  *
  * Use to_le=false when receiving data from atom and provide ALIGN(num_bytes,4)
- * byes in the src buffer.
+ * bno in the src buffer.
  */
 void amdgpu_atombios_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le)
 {
@@ -2019,7 +2019,7 @@ int amdgpu_atombios_init(struct amdgpu_device *adev)
 		atom_card_info->ioreg_read = cail_ioreg_read;
 		atom_card_info->ioreg_write = cail_ioreg_write;
 	} else {
-		DRM_DEBUG("PCI I/O BAR is not found. Using MMIO to access ATOM BIOS\n");
+		DRM_DEBUG("PCI I/O BAR is yest found. Using MMIO to access ATOM BIOS\n");
 		atom_card_info->ioreg_read = cail_reg_read;
 		atom_card_info->ioreg_write = cail_reg_write;
 	}

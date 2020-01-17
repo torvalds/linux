@@ -1,4 +1,4 @@
-Qualcomm adreno/snapdragon MDP4 display controller
+Qualcomm adreyes/snapdragon MDP4 display controller
 
 Description:
 

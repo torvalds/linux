@@ -9,7 +9,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/reboot.h>
 #include <linux/pci.h>
 #include <linux/kdev_t.h>
@@ -51,31 +51,31 @@
  */
 static void __init mpc832x_sys_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u8 __iomem *bcsr_regs = NULL;
 
 	mpc83xx_setup_arch();
 
 	/* Map BCSR area */
-	np = of_find_node_by_name(NULL, "bcsr");
+	np = of_find_yesde_by_name(NULL, "bcsr");
 	if (np) {
 		struct resource res;
 
 		of_address_to_resource(np, 0, &res);
 		bcsr_regs = ioremap(res.start, resource_size(&res));
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 
 #ifdef CONFIG_QUICC_ENGINE
-	if ((np = of_find_node_by_name(NULL, "par_io")) != NULL) {
+	if ((np = of_find_yesde_by_name(NULL, "par_io")) != NULL) {
 		par_io_init(np);
-		of_node_put(np);
+		of_yesde_put(np);
 
-		for_each_node_by_name(np, "ucc")
+		for_each_yesde_by_name(np, "ucc")
 			par_io_of_config(np);
 	}
 
-	if ((np = of_find_compatible_node(NULL, "network", "ucc_geth"))
+	if ((np = of_find_compatible_yesde(NULL, "network", "ucc_geth"))
 			!= NULL){
 		/* Reset the Ethernet PHYs */
 #define BCSR8_FETH_RST 0x50
@@ -83,7 +83,7 @@ static void __init mpc832x_sys_setup_arch(void)
 		udelay(1000);
 		setbits8(&bcsr_regs[8], BCSR8_FETH_RST);
 		iounmap(bcsr_regs);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 #endif				/* CONFIG_QUICC_ENGINE */
 }

@@ -70,8 +70,8 @@ static const struct snd_soc_dapm_widget imx_es8328_dapm_widgets[] = {
 
 static int imx_es8328_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *ssi_np = NULL, *codec_np = NULL;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *ssi_np = NULL, *codec_np = NULL;
 	struct platform_device *ssi_pdev;
 	struct imx_es8328_data *data;
 	struct snd_soc_dai_link_component *comp;
@@ -127,15 +127,15 @@ static int imx_es8328_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ssi_np = of_parse_phandle(pdev->dev.of_node, "ssi-controller", 0);
-	codec_np = of_parse_phandle(pdev->dev.of_node, "audio-codec", 0);
+	ssi_np = of_parse_phandle(pdev->dev.of_yesde, "ssi-controller", 0);
+	codec_np = of_parse_phandle(pdev->dev.of_yesde, "audio-codec", 0);
 	if (!ssi_np || !codec_np) {
 		dev_err(dev, "phandle missing or invalid\n");
 		ret = -EINVAL;
 		goto fail;
 	}
 
-	ssi_pdev = of_find_device_by_node(ssi_np);
+	ssi_pdev = of_find_device_by_yesde(ssi_np);
 	if (!ssi_pdev) {
 		dev_err(dev, "failed to find SSI platform device\n");
 		ret = -EINVAL;
@@ -156,7 +156,7 @@ static int imx_es8328_probe(struct platform_device *pdev)
 
 	data->dev = dev;
 
-	data->jack_gpio = of_get_named_gpio(pdev->dev.of_node, "jack-gpio", 0);
+	data->jack_gpio = of_get_named_gpio(pdev->dev.of_yesde, "jack-gpio", 0);
 
 	data->dai.cpus		= &comp[0];
 	data->dai.codecs	= &comp[1];
@@ -169,9 +169,9 @@ static int imx_es8328_probe(struct platform_device *pdev)
 	data->dai.name = "hifi";
 	data->dai.stream_name = "hifi";
 	data->dai.codecs->dai_name = "es8328-hifi-analog";
-	data->dai.codecs->of_node = codec_np;
-	data->dai.cpus->of_node = ssi_np;
-	data->dai.platforms->of_node = ssi_np;
+	data->dai.codecs->of_yesde = codec_np;
+	data->dai.cpus->of_yesde = ssi_np;
+	data->dai.platforms->of_yesde = ssi_np;
 	data->dai.init = &imx_es8328_dai_init;
 	data->dai.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			    SND_SOC_DAIFMT_CBM_CFM;
@@ -201,8 +201,8 @@ static int imx_es8328_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 fail:
-	of_node_put(ssi_np);
-	of_node_put(codec_np);
+	of_yesde_put(ssi_np);
+	of_yesde_put(codec_np);
 
 	return ret;
 }

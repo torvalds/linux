@@ -32,8 +32,8 @@
  * @prepare_crypt_hardware: a request will soon arrive from the queue
  * so the subsystem requests the driver to prepare the hardware
  * by issuing this call
- * @unprepare_crypt_hardware: there are currently no more requests on the
- * queue so the subsystem notifies the driver that it may relax the
+ * @unprepare_crypt_hardware: there are currently yes more requests on the
+ * queue so the subsystem yestifies the driver that it may relax the
  * hardware by issuing this call
  * @kworker: kthread worker struct for request pump
  * @pump_requests: work struct for scheduling work to the request pump

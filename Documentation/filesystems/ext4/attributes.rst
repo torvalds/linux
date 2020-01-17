@@ -4,7 +4,7 @@ Extended Attributes
 -------------------
 
 Extended attributes (xattrs) are typically stored in a separate data
-block on the disk and referenced from inodes via ``inode.i_file_acl*``.
+block on the disk and referenced from iyesdes via ``iyesde.i_file_acl*``.
 The first use of extended attributes seems to have been for storing file
 ACLs and other security data (selinux). With the ``user_xattr`` mount
 option it is possible for users to store extended attributes so long as
@@ -12,21 +12,21 @@ all attribute names begin with “user”; this restriction seems to have
 disappeared as of Linux 3.0.
 
 There are two places where extended attributes can be found. The first
-place is between the end of each inode entry and the beginning of the
-next inode entry. For example, if inode.i\_extra\_isize = 28 and
-sb.inode\_size = 256, then there are 256 - (128 + 28) = 100 bytes
-available for in-inode extended attribute storage. The second place
+place is between the end of each iyesde entry and the beginning of the
+next iyesde entry. For example, if iyesde.i\_extra\_isize = 28 and
+sb.iyesde\_size = 256, then there are 256 - (128 + 28) = 100 bytes
+available for in-iyesde extended attribute storage. The second place
 where extended attributes can be found is in the block pointed to by
-``inode.i_file_acl``. As of Linux 3.11, it is not possible for this
+``iyesde.i_file_acl``. As of Linux 3.11, it is yest possible for this
 block to contain a pointer to a second extended attribute block (or even
 the remaining blocks of a cluster). In theory it is possible for each
 attribute's value to be stored in a separate data block, though as of
-Linux 3.11 the code does not permit this.
+Linux 3.11 the code does yest permit this.
 
 Keys are generally assumed to be ASCIIZ strings, whereas values can be
 strings or binary data.
 
-Extended attributes, when stored after the inode, have a header
+Extended attributes, when stored after the iyesde, have a header
 ``ext4_xattr_ibody_header`` that is 4 bytes long:
 
 .. list-table::
@@ -89,7 +89,7 @@ Following the ``struct ext4_xattr_header`` or
 long. When stored in an external block, the ``struct ext4_xattr_entry``
 entries must be stored in sorted order. The sort order is
 ``e_name_index``, then ``e_name_len``, and finally ``e_name``.
-Attributes stored inside an inode do not need be stored in sorted order.
+Attributes stored inside an iyesde do yest need be stored in sorted order.
 
 .. list-table::
    :widths: 8 8 24 40
@@ -111,13 +111,13 @@ Attributes stored inside an inode do not need be stored in sorted order.
      - \_\_le16
      - e\_value\_offs
      - Location of this attribute's value on the disk block where it is stored.
-       Multiple attributes can share the same value. For an inode attribute
+       Multiple attributes can share the same value. For an iyesde attribute
        this value is relative to the start of the first entry; for a block this
        value is relative to the start of the block (i.e. the header).
    * - 0x4
      - \_\_le32
      - e\_value\_inum
-     - The inode where the value is stored. Zero indicates the value is in the
+     - The iyesde where the value is stored. Zero indicates the value is in the
        same block as this entry. This field is only used if the
        INCOMPAT\_EA\_INODE feature is enabled.
    * - 0x8
@@ -128,13 +128,13 @@ Attributes stored inside an inode do not need be stored in sorted order.
      - \_\_le32
      - e\_hash
      - Hash value of attribute name and attribute value. The kernel doesn't
-       update the hash for in-inode attributes, so for that case this value
-       must be zero, because e2fsck validates any non-zero hash regardless of
+       update the hash for in-iyesde attributes, so for that case this value
+       must be zero, because e2fsck validates any yesn-zero hash regardless of
        where the xattr lives.
    * - 0x10
      - char
      - e\_name[e\_name\_len]
-     - Attribute name. Does not include trailing NULL.
+     - Attribute name. Does yest include trailing NULL.
 
 Attribute values can follow the end of the entry table. There appears to
 be a requirement that they be aligned to 4-byte boundaries. The values
@@ -163,7 +163,7 @@ the key name. Here is a map of name index values to key prefixes:
    * - Name Index
      - Key Prefix
    * - 0
-     - (no prefix)
+     - (yes prefix)
    * - 1
      - “user.”
    * - 2

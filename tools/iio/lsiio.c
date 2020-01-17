@@ -8,7 +8,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -44,7 +44,7 @@ static int dump_channels(const char *dev_dir_name)
 
 	dp = opendir(dev_dir_name);
 	if (!dp)
-		return -errno;
+		return -erryes;
 
 	while (ent = readdir(dp), ent)
 		if (check_prefix(ent->d_name, "in_") &&
@@ -52,7 +52,7 @@ static int dump_channels(const char *dev_dir_name)
 		    check_postfix(ent->d_name, "_input")))
 			printf("   %-10s\n", ent->d_name);
 
-	return (closedir(dp) == -1) ? -errno : 0;
+	return (closedir(dp) == -1) ? -erryes : 0;
 }
 
 static int dump_one_device(const char *dev_dir_name)
@@ -152,7 +152,7 @@ static int dump_devices(void)
 		}
 	}
 
-	return (closedir(dp) == -1) ? -errno : 0;
+	return (closedir(dp) == -1) ? -erryes : 0;
 
 error_close_dir:
 	if (closedir(dp) == -1)

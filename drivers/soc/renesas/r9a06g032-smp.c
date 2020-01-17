@@ -19,12 +19,12 @@
  *
  * So the default value of the "cpu-release-addr" corresponds to BOOTADDR...
  *
- * *However* the BOOTADDR register is not available when the kernel
+ * *However* the BOOTADDR register is yest available when the kernel
  * starts in NONSEC mode.
  *
  * So for NONSEC mode, the bootloader re-parks the second CPU into a pen
  * in SRAM, and changes the "cpu-release-addr" of linux's DT to a SRAM address,
- * which is not restricted.
+ * which is yest restricted.
  */
 
 static void __iomem *cpu_bootaddr;
@@ -50,13 +50,13 @@ r9a06g032_smp_boot_secondary(unsigned int cpu,
 
 static void __init r9a06g032_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int ret = -EINVAL, dns;
 	u32 bootaddr;
 
-	dn = of_get_cpu_node(1, NULL);
+	dn = of_get_cpu_yesde(1, NULL);
 	if (!dn) {
-		pr_err("CPU#1: missing device tree node\n");
+		pr_err("CPU#1: missing device tree yesde\n");
 		return;
 	}
 	/*
@@ -77,7 +77,7 @@ static void __init r9a06g032_smp_prepare_cpus(unsigned int max_cpus)
 						   &bootaddr);
 		}
 	}
-	of_node_put(dn);
+	of_yesde_put(dn);
 	if (ret) {
 		pr_err("CPU#1: invalid cpu-release-addr property\n");
 		return;

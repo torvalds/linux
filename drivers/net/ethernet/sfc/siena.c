@@ -153,10 +153,10 @@ static int siena_ptp_set_ts_config(struct efx_nic *efx,
 		init->rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
 		rc = efx_ptp_change_mode(efx, true,
 					 MC_CMD_PTP_MODE_V2_ENHANCED);
-		/* bug 33070 - old versions of the firmware do not support the
+		/* bug 33070 - old versions of the firmware do yest support the
 		 * improved UUID filtering option. Similarly old versions of the
-		 * application do not expect it to be enabled. If the firmware
-		 * does not accept the enhanced mode, fall back to the standard
+		 * application do yest expect it to be enabled. If the firmware
+		 * does yest accept the enhanced mode, fall back to the standard
 		 * PTP v2 UUID filtering. */
 		if (rc != 0)
 			rc = efx_ptp_change_mode(efx, true, MC_CMD_PTP_MODE_V2);
@@ -193,14 +193,14 @@ static int siena_map_reset_flags(u32 *flags)
 		return RESET_TYPE_ALL;
 	}
 
-	/* no invisible reset implemented */
+	/* yes invisible reset implemented */
 
 	return -EINVAL;
 }
 
 #ifdef CONFIG_EEH
 /* When a PCI device is isolated from the bus, a subsequent MMIO read is
- * required for the kernel EEH mechanisms to notice. As the Solarflare driver
+ * required for the kernel EEH mechanisms to yestice. As the Solarflare driver
  * was written to minimise MMIO read (for latency) then a periodic call to check
  * the EEH status of the device is required so that device recovery can happen
  * in a timely fashion.
@@ -268,7 +268,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 
 	if (efx_farch_fpga_ver(efx) != 0) {
 		netif_err(efx, probe, efx->net_dev,
-			  "Siena FPGA not supported\n");
+			  "Siena FPGA yest supported\n");
 		rc = -ENODEV;
 		goto fail1;
 	}
@@ -305,7 +305,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 		  efx->irq_status.addr,
 		  (unsigned long long)virt_to_phys(efx->irq_status.addr));
 
-	/* Read in the non-volatile configuration */
+	/* Read in the yesn-volatile configuration */
 	rc = siena_probe_nvconfig(efx);
 	if (rc == -EINVAL) {
 		netif_err(efx, probe, efx->net_dev,
@@ -391,7 +391,7 @@ static int siena_rx_push_rss_config(struct efx_nic *efx, bool user,
 
 /* This call performs hardware-specific global initialisation, such as
  * defining the descriptor cache sizes and number of RSS channels.
- * It does not set up any buffers, descriptor rings or event queues.
+ * It does yest set up any buffers, descriptor rings or event queues.
  */
 static int siena_init_nic(struct efx_nic *efx)
 {
@@ -408,7 +408,7 @@ static int siena_init_nic(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(temp, FRF_BZ_TX_FLUSH_MIN_LEN_EN, 1);
 	efx_writeo(efx, &temp, FR_AZ_TX_RESERVED);
 
-	/* Do not enable TX_NO_EOP_DISC_EN, since it limits packets to 16
+	/* Do yest enable TX_NO_EOP_DISC_EN, since it limits packets to 16
 	 * descriptors (which is bad).
 	 */
 	efx_reado(efx, &temp, FR_AZ_TX_CFG);
@@ -499,7 +499,7 @@ static const struct efx_hw_stat_desc siena_stat_desc[SIENA_STAT_COUNT] = {
 	SIENA_DMA_STAT(tx_deferred, TX_DEFERRED_PKTS),
 	SIENA_DMA_STAT(tx_late_collision, TX_LATE_COLLISION_PKTS),
 	SIENA_DMA_STAT(tx_excessive_deferred, TX_EXCESSIVE_DEFERRED_PKTS),
-	SIENA_DMA_STAT(tx_non_tcpudp, TX_NON_TCPUDP_PKTS),
+	SIENA_DMA_STAT(tx_yesn_tcpudp, TX_NON_TCPUDP_PKTS),
 	SIENA_DMA_STAT(tx_mac_src_error, TX_MAC_SRC_ERR_PKTS),
 	SIENA_DMA_STAT(tx_ip_src_error, TX_IP_SRC_ERR_PKTS),
 	SIENA_DMA_STAT(rx_bytes, RX_BYTES),
@@ -529,9 +529,9 @@ static const struct efx_hw_stat_desc siena_stat_desc[SIENA_STAT_COUNT] = {
 	SIENA_DMA_STAT(rx_align_error, RX_ALIGN_ERROR_PKTS),
 	SIENA_DMA_STAT(rx_length_error, RX_LENGTH_ERROR_PKTS),
 	SIENA_DMA_STAT(rx_internal_error, RX_INTERNAL_ERROR_PKTS),
-	SIENA_DMA_STAT(rx_nodesc_drop_cnt, RX_NODESC_DROPS),
-	GENERIC_SW_STAT(rx_nodesc_trunc),
-	GENERIC_SW_STAT(rx_noskb_drops),
+	SIENA_DMA_STAT(rx_yesdesc_drop_cnt, RX_NODESC_DROPS),
+	GENERIC_SW_STAT(rx_yesdesc_trunc),
+	GENERIC_SW_STAT(rx_yesskb_drops),
 };
 static const unsigned long siena_stat_mask[] = {
 	[0 ... BITS_TO_LONGS(SIENA_STAT_COUNT) - 1] = ~0UL,
@@ -564,8 +564,8 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 		return -EAGAIN;
 
 	/* Update derived statistics */
-	efx_nic_fix_nodesc_drop_stat(efx,
-				     &stats[SIENA_STAT_rx_nodesc_drop_cnt]);
+	efx_nic_fix_yesdesc_drop_stat(efx,
+				     &stats[SIENA_STAT_rx_yesdesc_drop_cnt]);
 	efx_update_diff_stat(&stats[SIENA_STAT_tx_good_bytes],
 			     stats[SIENA_STAT_tx_bytes] -
 			     stats[SIENA_STAT_tx_bad_bytes]);
@@ -588,7 +588,7 @@ static size_t siena_update_nic_stats(struct efx_nic *efx, u64 *full_stats,
 	u64 *stats = nic_data->stats;
 	int retry;
 
-	/* If we're unlucky enough to read statistics wduring the DMA, wait
+	/* If we're unlucky eyesugh to read statistics wduring the DMA, wait
 	 * up to 10ms for it to finish (typically takes <500us) */
 	for (retry = 0; retry < 100; ++retry) {
 		if (siena_try_update_nic_stats(efx) == 0)
@@ -604,9 +604,9 @@ static size_t siena_update_nic_stats(struct efx_nic *efx, u64 *full_stats,
 		core_stats->tx_packets = stats[SIENA_STAT_tx_packets];
 		core_stats->rx_bytes = stats[SIENA_STAT_rx_bytes];
 		core_stats->tx_bytes = stats[SIENA_STAT_tx_bytes];
-		core_stats->rx_dropped = stats[SIENA_STAT_rx_nodesc_drop_cnt] +
-					 stats[GENERIC_STAT_rx_nodesc_trunc] +
-					 stats[GENERIC_STAT_rx_noskb_drops];
+		core_stats->rx_dropped = stats[SIENA_STAT_rx_yesdesc_drop_cnt] +
+					 stats[GENERIC_STAT_rx_yesdesc_trunc] +
+					 stats[GENERIC_STAT_rx_yesskb_drops];
 		core_stats->multicast = stats[SIENA_STAT_rx_multicast];
 		core_stats->collisions = stats[SIENA_STAT_tx_collision];
 		core_stats->rx_length_errors =
@@ -768,7 +768,7 @@ static bool siena_mcdi_poll_response(struct efx_nic *efx)
 	efx_readd(efx, &hdr, pdu);
 
 	/* All 1's indicates that shared memory is in reset (and is
-	 * not a valid hdr). Wait for it to come out reset before
+	 * yest a valid hdr). Wait for it to come out reset before
 	 * completing the command
 	 */
 	return EFX_DWORD_FIELD(hdr, EFX_DWORD_0) != 0xffffffff &&
@@ -998,7 +998,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.mcdi_poll_reboot = siena_mcdi_poll_reboot,
 	.irq_enable_master = efx_farch_irq_enable_master,
 	.irq_test_generate = efx_farch_irq_test_generate,
-	.irq_disable_non_ev = efx_farch_irq_disable_master,
+	.irq_disable_yesn_ev = efx_farch_irq_disable_master,
 	.irq_handle_msi = efx_farch_msi_interrupt,
 	.irq_handle_legacy = efx_farch_legacy_interrupt,
 	.tx_probe = efx_farch_tx_probe,

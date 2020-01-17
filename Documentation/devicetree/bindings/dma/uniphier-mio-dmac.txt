@@ -21,5 +21,5 @@ Example:
 	};
 
 Note:
-In the example above, "interrupts = <0 68 4>, <0 68 4>, ..." is not a typo.
+In the example above, "interrupts = <0 68 4>, <0 68 4>, ..." is yest a typo.
 The first two channels share a single interrupt line.

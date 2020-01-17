@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -76,7 +76,7 @@ int ssp_write_word(u16 data)
  * Wait for a data word in the SSP receive FIFO, and return the
  * received data.  Data is LSB justified.
  *
- * Note: Currently, if data is not expected to be received, this
+ * Note: Currently, if data is yest expected to be received, this
  * function will wait for ever.
  *
  * The caller is expected to perform the necessary locking.

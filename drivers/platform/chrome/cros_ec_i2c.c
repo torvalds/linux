@@ -133,7 +133,7 @@ static int cros_ec_pkt_xfer_i2c(struct cros_ec_device *ec_dev,
 
 	if (ec_response_i2c->packet_length < sizeof(struct ec_host_response)) {
 		dev_err(ec_dev->dev,
-			"response of %u bytes too short; not a full header\n",
+			"response of %u bytes too short; yest a full header\n",
 			ec_response_i2c->packet_length);
 		ret = -EBADMSG;
 		goto done;
@@ -300,7 +300,7 @@ static int cros_ec_i2c_probe(struct i2c_client *client,
 
 	err = cros_ec_register(ec_dev);
 	if (err) {
-		dev_err(dev, "cannot register EC\n");
+		dev_err(dev, "canyest register EC\n");
 		return err;
 	}
 

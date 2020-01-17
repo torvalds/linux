@@ -1,28 +1,28 @@
 ST-Ericsson Nomadik Device Tree Bindings
 
-For various board the "board" node may contain specific properties
+For various board the "board" yesde may contain specific properties
 that pertain to this particular board, such as board-specific GPIOs.
 
-Required root node property: src
+Required root yesde property: src
 - Nomadik System and reset controller used for basic chip control, clock
   and reset line control.
-- compatible: must be "stericsson,nomadik,src"
+- compatible: must be "stericsson,yesmadik,src"
 
 Boards with the Nomadik SoC include:
 
 Nomadik NHK-15 board manufactured by ST Microelectronics:
 
-Required root node property:
+Required root yesde property:
 
-compatible="st,nomadik-nhk-15";
+compatible="st,yesmadik-nhk-15";
 
 S8815 "MiniKit" manufactured by Calao Systems:
 
-Required root node property:
+Required root yesde property:
 
 compatible="calaosystems,usb-s8815";
 
-Required node: usb-s8815
+Required yesde: usb-s8815
 
 Example:
 

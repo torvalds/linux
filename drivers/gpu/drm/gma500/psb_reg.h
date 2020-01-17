@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /**************************************************************************
  *
- * Copyright (c) (2005-2007) Imagination Technologies Limited.
+ * Copyright (c) (2005-2007) Imagination Techyeslogies Limited.
  * Copyright (c) 2007, Intel Corporation.
  * All Rights Reserved.
  *
@@ -287,7 +287,7 @@
 #define PSB_2D_MASKOFF_YSTART_SHIFT	(0)
 
 /*
- * 2D Fence (see PSB_2D_FENCE_BH): bits 0:27 are ignored
+ * 2D Fence (see PSB_2D_FENCE_BH): bits 0:27 are igyesred
  */
 
 /*
@@ -327,8 +327,8 @@
 #define PSB_2D_USE_PAT			(0x00010000)
 #define PSB_2D_USE_FILL			(0x00000000)
 /*
- * Tungsten Graphics note on rop codes: If rop A and rop B are
- * identical, the mask surface will not be read and need not be
+ * Tungsten Graphics yeste on rop codes: If rop A and rop B are
+ * identical, the mask surface will yest be read and need yest be
  * set up.
  */
 

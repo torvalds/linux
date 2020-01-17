@@ -7,7 +7,7 @@
 #include <linux/bitfield.h>
 #include <linux/circ_buf.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <sound/core.h>
@@ -136,12 +136,12 @@ static int uniphier_aio_compr_set_params(struct snd_compr_stream *cstream,
 	int ret;
 
 	if (params->codec.id != SND_AUDIOCODEC_IEC61937) {
-		dev_err(dev, "Codec ID is not supported(%d)\n",
+		dev_err(dev, "Codec ID is yest supported(%d)\n",
 			params->codec.id);
 		return -EINVAL;
 	}
 	if (params->codec.profile != SND_AUDIOPROFILE_IEC61937_SPDIF) {
-		dev_err(dev, "Codec profile is not supported(%d)\n",
+		dev_err(dev, "Codec profile is yest supported(%d)\n",
 			params->codec.profile);
 		return -EINVAL;
 	}
@@ -235,7 +235,7 @@ static int uniphier_aio_compr_trigger(struct snd_compr_stream *cstream,
 
 		break;
 	default:
-		dev_warn(dev, "Unknown trigger(%d)\n", cmd);
+		dev_warn(dev, "Unkyeswn trigger(%d)\n", cmd);
 		ret = -EINVAL;
 	}
 	spin_unlock_irqrestore(&sub->lock, flags);

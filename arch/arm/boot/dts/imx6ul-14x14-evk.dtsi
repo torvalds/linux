@@ -117,7 +117,7 @@
 	};
 
 	panel {
-		compatible = "innolux,at043tn24";
+		compatible = "inyeslux,at043tn24";
 		backlight = <&backlight_display>;
 
 		port {
@@ -241,7 +241,7 @@
 	flash0: n25q256a@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q256a", "jedec,spi-nor";
+		compatible = "micron,n25q256a", "jedec,spi-yesr";
 		spi-max-frequency = <29000000>;
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <4>;
@@ -326,7 +326,7 @@
 &usdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	no-1-8-v;
+	yes-1-8-v;
 	keep-power-in-suspend;
 	wakeup-source;
 	status = "okay";

@@ -393,7 +393,7 @@ static void adv7511_set_rgb_quantization_mode(struct v4l2_subdev *sd, struct v4l
 			/* CE format, RGB limited range (16-235) */
 			adv7511_csc_rgb_full2limit(sd, true);
 		} else {
-			/* not CE format, RGB full range (0-255) */
+			/* yest CE format, RGB full range (0-255) */
 			adv7511_csc_rgb_full2limit(sd, false);
 		}
 		break;
@@ -472,7 +472,7 @@ static int adv7511_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 		}
 		/* fall through */
 	default:
-		v4l2_info(sd, "Register %03llx not supported\n", reg->reg);
+		v4l2_info(sd, "Register %03llx yest supported\n", reg->reg);
 		adv7511_inv_register(sd);
 		break;
 	}
@@ -494,7 +494,7 @@ static int adv7511_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regi
 		}
 		/* fall through */
 	default:
-		v4l2_info(sd, "Register %03llx not supported\n", reg->reg);
+		v4l2_info(sd, "Register %03llx yest supported\n", reg->reg);
 		adv7511_inv_register(sd);
 		break;
 	}
@@ -532,7 +532,7 @@ static void log_infoframe(struct v4l2_subdev *sd, const struct adv7511_cfg_read_
 	int i;
 
 	if (!(adv7511_rd(sd, cri->present_reg) & cri->present_mask)) {
-		v4l2_info(sd, "%s infoframe not transmitted\n", cri->desc);
+		v4l2_info(sd, "%s infoframe yest transmitted\n", cri->desc);
 		return;
 	}
 
@@ -592,7 +592,7 @@ static int adv7511_log_status(struct v4l2_subdev *sd)
 		"6", "7", "8", "9", "A", "B", "C", "D", "E", "F"
 	};
 	static const char * const errors[] = {
-		"no error",
+		"yes error",
 		"bad receiver BKSV",
 		"Ri mismatch",
 		"Pj mismatch",
@@ -606,9 +606,9 @@ static int adv7511_log_status(struct v4l2_subdev *sd)
 
 	v4l2_info(sd, "power %s\n", state->power_on ? "on" : "off");
 	v4l2_info(sd, "%s hotplug, %s Rx Sense, %s EDID (%d block(s))\n",
-		  (adv7511_rd(sd, 0x42) & MASK_ADV7511_HPD_DETECT) ? "detected" : "no",
-		  (adv7511_rd(sd, 0x42) & MASK_ADV7511_MSEN_DETECT) ? "detected" : "no",
-		  edid->segments ? "found" : "no",
+		  (adv7511_rd(sd, 0x42) & MASK_ADV7511_HPD_DETECT) ? "detected" : "yes",
+		  (adv7511_rd(sd, 0x42) & MASK_ADV7511_MSEN_DETECT) ? "detected" : "yes",
+		  edid->segments ? "found" : "yes",
 		  edid->blocks);
 	v4l2_info(sd, "%s output %s\n",
 		  (adv7511_rd(sd, 0xaf) & 0x02) ?
@@ -648,7 +648,7 @@ static int adv7511_log_status(struct v4l2_subdev *sd)
 		v4l2_print_dv_timings(sd->name, "timings: ",
 				&state->dv_timings, false);
 	else
-		v4l2_info(sd, "no timings set\n");
+		v4l2_info(sd, "yes timings set\n");
 	v4l2_info(sd, "i2c edid addr: 0x%x\n", state->i2c_edid_addr);
 
 	if (state->i2c_cec == NULL)
@@ -689,7 +689,7 @@ static int adv7511_s_power(struct v4l2_subdev *sd, int on)
 	}
 
 	/* Power up */
-	/* The adv7511 does not always come up immediately.
+	/* The adv7511 does yest always come up immediately.
 	   Retry multiple times. */
 	for (i = 0; i < retries; i++) {
 		adv7511_wr_and_or(sd, 0x41, 0xbf, 0x0);
@@ -831,7 +831,7 @@ static int adv7511_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 
 	/*
 	 * The number of retries is the number of attempts - 1, but retry
-	 * at least once. It's not clear if a value of 0 is allowed, so
+	 * at least once. It's yest clear if a value of 0 is allowed, so
 	 * let's do at least one retry.
 	 */
 	adv7511_cec_write_and_or(sd, 0x12, ~0x70, max(1, attempts - 1) << 4);
@@ -916,7 +916,7 @@ static void adv7511_set_isr(struct v4l2_subdev *sd, bool enable)
 	state->enabled_irq = enable;
 
 	/* The datasheet says that the EDID ready interrupt should be
-	   disabled if there is no hotplug. */
+	   disabled if there is yes hotplug. */
 	if (!enable)
 		irqs = 0;
 	else if (adv7511_have_hotplug(sd))
@@ -927,7 +927,7 @@ static void adv7511_set_isr(struct v4l2_subdev *sd, bool enable)
 	 * is essential that this register is correct, so retry it
 	 * multiple times.
 	 *
-	 * Note that the i2c write does not report an error, but the readback
+	 * Note that the i2c write does yest report an error, but the readback
 	 * clearly shows the wrong value.
 	 */
 	do {
@@ -936,7 +936,7 @@ static void adv7511_set_isr(struct v4l2_subdev *sd, bool enable)
 	} while (retries-- && irqs_rd != irqs);
 
 	if (irqs_rd != irqs)
-		v4l2_err(sd, "Could not set interrupts: hw failure?\n");
+		v4l2_err(sd, "Could yest set interrupts: hw failure?\n");
 
 	adv7511_wr_and_or(sd, 0x95, 0xc0,
 			  (state->cec_enabled_adap && enable) ? 0x39 : 0x00);
@@ -1397,14 +1397,14 @@ static int adv7511_set_fmt(struct v4l2_subdev *sd,
 
 	/*
 	 * CEA-861-F says that for RGB formats the YCC range must match the
-	 * RGB range, although sources should ignore the YCC range.
+	 * RGB range, although sources should igyesre the YCC range.
 	 *
-	 * The RGB quantization range shouldn't be non-zero if the EDID doesn't
+	 * The RGB quantization range shouldn't be yesn-zero if the EDID doesn't
 	 * have the Q bit set in the Video Capabilities Data Block, however this
 	 * isn't checked at the moment. The assumption is that the application
-	 * knows the EDID and can detect this.
+	 * kyesws the EDID and can detect this.
 	 *
-	 * The same is true for the YCC quantization range: non-standard YCC
+	 * The same is true for the YCC quantization range: yesn-standard YCC
 	 * quantization ranges should only be sent if the EDID has the YQ bit
 	 * set in the Video Capabilities Data Block.
 	 */
@@ -1471,7 +1471,7 @@ static void adv7511_dbg_dump_edid(int lvl, int debug, struct v4l2_subdev *sd, in
 	}
 }
 
-static void adv7511_notify_no_edid(struct v4l2_subdev *sd)
+static void adv7511_yestify_yes_edid(struct v4l2_subdev *sd)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
 	struct adv7511_edid_detect ed;
@@ -1481,7 +1481,7 @@ static void adv7511_notify_no_edid(struct v4l2_subdev *sd)
 	ed.segment = adv7511_rd(sd, 0xc4);
 	ed.phys_addr = CEC_PHYS_ADDR_INVALID;
 	cec_s_phys_addr(state->cec_adap, ed.phys_addr, false);
-	v4l2_subdev_notify(sd, ADV7511_EDID_DETECT, (void *)&ed);
+	v4l2_subdev_yestify(sd, ADV7511_EDID_DETECT, (void *)&ed);
 	v4l2_ctrl_s_ctrl(state->have_edid0_ctrl, 0x0);
 }
 
@@ -1514,8 +1514,8 @@ static void adv7511_edid_handler(struct work_struct *work)
 	}
 
 	/* We failed to read the EDID, so send an event for this. */
-	adv7511_notify_no_edid(sd);
-	v4l2_dbg(1, debug, sd, "%s: no edid found\n", __func__);
+	adv7511_yestify_yes_edid(sd);
+	v4l2_dbg(1, debug, sd, "%s: yes edid found\n", __func__);
 }
 
 static void adv7511_audio_setup(struct v4l2_subdev *sd)
@@ -1561,13 +1561,13 @@ static void adv7511_setup(struct v4l2_subdev *sd)
 	v4l2_ctrl_handler_setup(&state->hdl);
 }
 
-static void adv7511_notify_monitor_detect(struct v4l2_subdev *sd)
+static void adv7511_yestify_monitor_detect(struct v4l2_subdev *sd)
 {
 	struct adv7511_monitor_detect mdt;
 	struct adv7511_state *state = get_adv7511_state(sd);
 
 	mdt.present = state->have_monitor;
-	v4l2_subdev_notify(sd, ADV7511_MONITOR_DETECT, (void *)&mdt);
+	v4l2_subdev_yestify(sd, ADV7511_MONITOR_DETECT, (void *)&mdt);
 }
 
 static void adv7511_check_monitor_present_status(struct v4l2_subdev *sd)
@@ -1597,7 +1597,7 @@ static void adv7511_check_monitor_present_status(struct v4l2_subdev *sd)
 				return;
 			}
 			adv7511_setup(sd);
-			adv7511_notify_monitor_detect(sd);
+			adv7511_yestify_monitor_detect(sd);
 			state->edid.read_retries = EDID_MAX_RETRIES;
 			queue_delayed_work(state->work_queue, &state->edid_handler, EDID_DELAY);
 		}
@@ -1606,15 +1606,15 @@ static void adv7511_check_monitor_present_status(struct v4l2_subdev *sd)
 		state->edid.read_retries = EDID_MAX_RETRIES;
 		queue_delayed_work(state->work_queue, &state->edid_handler, EDID_DELAY);
 	} else if (!(status & MASK_ADV7511_HPD_DETECT)) {
-		v4l2_dbg(1, debug, sd, "%s: hotplug not detected\n", __func__);
+		v4l2_dbg(1, debug, sd, "%s: hotplug yest detected\n", __func__);
 		if (state->have_monitor) {
-			v4l2_dbg(1, debug, sd, "%s: monitor not detected\n", __func__);
+			v4l2_dbg(1, debug, sd, "%s: monitor yest detected\n", __func__);
 			state->have_monitor = false;
-			adv7511_notify_monitor_detect(sd);
+			adv7511_yestify_monitor_detect(sd);
 		}
 		adv7511_s_power(sd, false);
 		memset(&state->edid, 0, sizeof(struct adv7511_state_edid));
-		adv7511_notify_no_edid(sd);
+		adv7511_yestify_yes_edid(sd);
 	}
 }
 
@@ -1714,7 +1714,7 @@ static bool adv7511_check_edid_status(struct v4l2_subdev *sd)
 		ed.segment = 0;
 		state->edid_detect_counter++;
 		cec_s_phys_addr(state->cec_adap, ed.phys_addr, false);
-		v4l2_subdev_notify(sd, ADV7511_EDID_DETECT, (void *)&ed);
+		v4l2_subdev_yestify(sd, ADV7511_EDID_DETECT, (void *)&ed);
 		return ed.present;
 	}
 
@@ -1785,7 +1785,7 @@ static void adv7511_init_setup(struct v4l2_subdev *sd)
 	adv7511_cec_write(sd, 0x4a, 0x07);
 
 	if (cec_clk % 750000 != 0)
-		v4l2_err(sd, "%s: cec_clk %d, not multiple of 750 Khz\n",
+		v4l2_err(sd, "%s: cec_clk %d, yest multiple of 750 Khz\n",
 			 __func__, cec_clk);
 
 	ratio = (cec_clk / 750000) - 1;
@@ -1910,7 +1910,7 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 
 	state->work_queue = create_singlethread_workqueue(sd->name);
 	if (state->work_queue == NULL) {
-		v4l2_err(sd, "could not create workqueue\n");
+		v4l2_err(sd, "could yest create workqueue\n");
 		err = -ENOMEM;
 		goto err_unreg_pktmem;
 	}

@@ -45,7 +45,7 @@ static int mmapped;
 /* vdovikin: removed static struct i2c_pcf_isa gpi; code -
   this module in real supports only one device, due to missing arguments
   in some functions, called from the algo-pcf module. Sometimes it's
-  need to be rewriten - but for now just remove this for simpler reading */
+  need to be rewriten - but for yesw just remove this for simpler reading */
 
 static wait_queue_head_t pcf_wait;
 static int pcf_pending;
@@ -312,7 +312,7 @@ static struct isa_driver i2c_elektor_driver = {
 	},
 };
 
-MODULE_AUTHOR("Hans Berglund <hb@spacetec.no>");
+MODULE_AUTHOR("Hans Berglund <hb@spacetec.yes>");
 MODULE_DESCRIPTION("I2C-Bus adapter routines for PCF8584 ISA bus adapter");
 MODULE_LICENSE("GPL");
 

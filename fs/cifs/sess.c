@@ -17,7 +17,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -52,7 +52,7 @@ is_server_using_iface(struct TCP_Server_Info *server,
 			   sizeof(i6->sin6_addr)) != 0)
 			return false;
 	} else {
-		/* unknown family.. */
+		/* unkyeswn family.. */
 		return false;
 	}
 	return true;
@@ -82,26 +82,26 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 
 	if (left <= 0) {
 		cifs_dbg(FYI,
-			 "ses already at max_channels (%zu), nothing to open\n",
+			 "ses already at max_channels (%zu), yesthing to open\n",
 			 ses->chan_max);
 		return 0;
 	}
 
 	if (ses->server->dialect < SMB30_PROT_ID) {
-		cifs_dbg(VFS, "multichannel is not supported on this protocol version, use 3.0 or above\n");
+		cifs_dbg(VFS, "multichannel is yest supported on this protocol version, use 3.0 or above\n");
 		return 0;
 	}
 
 	/*
 	 * Make a copy of the iface list at the time and use that
-	 * instead so as to not hold the iface spinlock for opening
+	 * instead so as to yest hold the iface spinlock for opening
 	 * channels
 	 */
 	spin_lock(&ses->iface_lock);
 	iface_count = ses->iface_count;
 	if (iface_count <= 0) {
 		spin_unlock(&ses->iface_lock);
-		cifs_dbg(FYI, "no iface list available to open channels\n");
+		cifs_dbg(FYI, "yes iface list available to open channels\n");
 		return 0;
 	}
 	ifaces = kmemdup(ses->iface_list, iface_count*sizeof(*ifaces),
@@ -114,7 +114,7 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 
 	/*
 	 * Keep connecting to same, fastest, iface for all channels as
-	 * long as its RSS. Try next fastest one if not RSS or channel
+	 * long as its RSS. Try next fastest one if yest RSS or channel
 	 * creation fails.
 	 */
 	while (left > 0) {
@@ -163,7 +163,7 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	unsigned int xid = get_xid();
 
 	cifs_dbg(FYI, "adding channel to ses %p (speed:%zu bps rdma:%s ",
-		 ses, iface->speed, iface->rdma_capable ? "yes" : "no");
+		 ses, iface->speed, iface->rdma_capable ? "no" : "yes");
 	if (iface->sockaddr.ss_family == AF_INET)
 		cifs_dbg(FYI, "ip:%pI4)\n", &ipv4->sin_addr);
 	else
@@ -181,8 +181,8 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	 * management.
 	 */
 
-	/* Always make new connection for now (TODO?) */
-	vol.nosharesock = true;
+	/* Always make new connection for yesw (TODO?) */
+	vol.yessharesock = true;
 
 	/* Auth */
 	vol.domainauto = ses->domainAuto;
@@ -202,9 +202,9 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	vol.vals = ses->server->vals;
 	vol.ops = ses->server->ops;
 
-	vol.noblocksnd = ses->server->noblocksnd;
-	vol.noautotune = ses->server->noautotune;
-	vol.sockopt_tcp_nodelay = ses->server->tcp_nodelay;
+	vol.yesblocksnd = ses->server->yesblocksnd;
+	vol.yesautotune = ses->server->yesautotune;
+	vol.sockopt_tcp_yesdelay = ses->server->tcp_yesdelay;
 	vol.echo_interval = ses->server->echo_interval / HZ;
 
 	/*
@@ -212,8 +212,8 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	 * during sess setup auth.
 	 *
 	 * XXX: We use the default for simplicity but the proper way
-	 * would be to use the one that ses used, which is not
-	 * stored. This might break when dealing with non-ascii
+	 * would be to use the one that ses used, which is yest
+	 * stored. This might break when dealing with yesn-ascii
 	 * strings.
 	 */
 	vol.local_nls = load_nls_default();
@@ -241,7 +241,7 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	/*
-	 * We need to allocate the server crypto now as we will need
+	 * We need to allocate the server crypto yesw as we will need
 	 * to sign packets before we generate the channel signing key
 	 * (we sign with the session key)
 	 */
@@ -261,12 +261,12 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 		goto out;
 
 	/* success, put it on the list
-	 * XXX: sharing ses between 2 tcp server is not possible, the
+	 * XXX: sharing ses between 2 tcp server is yest possible, the
 	 * way "internal" linked lists works in linux makes element
 	 * only able to belong to one list
 	 *
 	 * the binding session is already established so the rest of
-	 * the code should be able to look it up, no need to add the
+	 * the code should be able to look it up, yes need to add the
 	 * ses to the new server.
 	 */
 
@@ -289,7 +289,7 @@ static __u32 cifs_ssetup_hdr(struct cifs_ses *ses, SESSION_SETUP_ANDX *pSMB)
 
 	/* init fields common to all four types of SessSetup */
 	/* Note that offsets for first seven fields in req struct are same  */
-	/*	in CIFS Specs so does not matter which of 3 forms of struct */
+	/*	in CIFS Specs so does yest matter which of 3 forms of struct */
 	/*	that we use in next few lines                               */
 	/* Note that header is initialized to zero in header_assemble */
 	pSMB->req.AndXCommand = 0xFF;
@@ -299,7 +299,7 @@ static __u32 cifs_ssetup_hdr(struct cifs_ses *ses, SESSION_SETUP_ANDX *pSMB)
 	pSMB->req.MaxMpxCount = cpu_to_le16(ses->server->maxReq);
 	pSMB->req.VcNumber = cpu_to_le16(1);
 
-	/* Now no need to set SMBFLG_CASELESS or obsolete CANONICAL PATH */
+	/* Now yes need to set SMBFLG_CASELESS or obsolete CANONICAL PATH */
 
 	/* BB verify whether signing required on neg or just on auth frame
 	   (and NTLM case) */
@@ -530,9 +530,9 @@ static void decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 
 	/* No domain field in LANMAN case. Domain is
 	   returned by old servers in the SMB negprot response */
-	/* BB For newer servers which do not support Unicode,
+	/* BB For newer servers which do yest support Unicode,
 	   but thus do return domain here we could add parsing
-	   for it later, but it is not very important */
+	   for it later, but it is yest very important */
 	cifs_dbg(FYI, "ascii: bytes left %d\n", bleft);
 }
 
@@ -588,7 +588,7 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 
 /* BB Move to ntlmssp.c eventually */
 
-/* We do not malloc the blob, it is passed in pbuffer, because
+/* We do yest malloc the blob, it is passed in pbuffer, because
    it is fixed size, and small, making this approach cleaner */
 void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 					 struct cifs_ses *ses)
@@ -617,7 +617,7 @@ void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 	sec_blob->WorkstationName.Length = 0;
 	sec_blob->WorkstationName.MaximumLength = 0;
 
-	/* Domain name is sent on the Challenge not Negotiate NTLMSSP request */
+	/* Domain name is sent on the Challenge yest Negotiate NTLMSSP request */
 	sec_blob->DomainName.BufferOffset = 0;
 	sec_blob->DomainName.Length = 0;
 	sec_blob->DomainName.MaximumLength = 0;
@@ -700,7 +700,7 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 				cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
 	} else {
 		/*
-		 * don't send an NT Response for anonymous access
+		 * don't send an NT Response for ayesnymous access
 		 */
 		sec_blob->NtChallengeResponse.Length = 0;
 		sec_blob->NtChallengeResponse.MaximumLength = 0;
@@ -838,7 +838,7 @@ sess_alloc_buffer(struct sess_data *sess_data, int wct)
 	struct cifs_ses *ses = sess_data->ses;
 	struct smb_hdr *smb_buf;
 
-	rc = small_smb_init_no_tc(SMB_COM_SESSION_SETUP_ANDX, wct, ses,
+	rc = small_smb_init_yes_tc(SMB_COM_SESSION_SETUP_ANDX, wct, ses,
 				  (void **)&smb_buf);
 
 	if (rc)
@@ -852,7 +852,7 @@ sess_alloc_buffer(struct sess_data *sess_data, int wct)
 	 */
 	sess_data->buf0_type = CIFS_SMALL_BUFFER;
 
-	/* 2000 big enough to fit max user, domain, NOS name etc. */
+	/* 2000 big eyesugh to fit max user, domain, NOS name etc. */
 	sess_data->iov[2].iov_base = kmalloc(2000, GFP_KERNEL);
 	if (!sess_data->iov[2].iov_base) {
 		rc = -ENOMEM;
@@ -965,7 +965,7 @@ sess_auth_lanman(struct sess_data *sess_data)
 	pSMB->req.hdr.Flags2 &= ~SMBFLG2_UNICODE;
 
 	if (ses->user_name != NULL) {
-		/* no capabilities flags in old lanman negotiation */
+		/* yes capabilities flags in old lanman negotiation */
 		pSMB->old_req.PasswordLength = cpu_to_le16(CIFS_AUTH_RESP_SIZE);
 
 		/* Calculate hash with password and copy into bcc_ptr.
@@ -986,14 +986,14 @@ sess_auth_lanman(struct sess_data *sess_data)
 	}
 
 	/*
-	 * can not sign if LANMAN negotiated so no need
+	 * can yest sign if LANMAN negotiated so yes need
 	 * to calculate signing key? but what if server
 	 * changed to do higher than lanman dialect and
 	 * we reconnected would we ever calc signing_key?
 	 */
 
 	cifs_dbg(FYI, "Negotiating LANMAN setting up strings\n");
-	/* Unicode not allowed for LANMAN dialects */
+	/* Unicode yest allowed for LANMAN dialects */
 	ascii_ssetup_strings(&bcc_ptr, ses, sess_data->nls_cp);
 
 	sess_data->iov[2].iov_len = (long) bcc_ptr -
@@ -1024,7 +1024,7 @@ sess_auth_lanman(struct sess_data *sess_data)
 
 	/* BB check if Unicode and decode strings */
 	if (bytes_remaining == 0) {
-		/* no string area to decode, do nothing */
+		/* yes string area to decode, do yesthing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
 		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
@@ -1068,11 +1068,11 @@ sess_auth_ntlm(struct sess_data *sess_data)
 	bcc_ptr = sess_data->iov[2].iov_base;
 	capabilities = cifs_ssetup_hdr(ses, pSMB);
 
-	pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
+	pSMB->req_yes_secext.Capabilities = cpu_to_le32(capabilities);
 	if (ses->user_name != NULL) {
-		pSMB->req_no_secext.CaseInsensitivePasswordLength =
+		pSMB->req_yes_secext.CaseInsensitivePasswordLength =
 				cpu_to_le16(CIFS_AUTH_RESP_SIZE);
-		pSMB->req_no_secext.CaseSensitivePasswordLength =
+		pSMB->req_yes_secext.CaseSensitivePasswordLength =
 				cpu_to_le16(CIFS_AUTH_RESP_SIZE);
 
 		/* calculate ntlm response and session key */
@@ -1091,8 +1091,8 @@ sess_auth_ntlm(struct sess_data *sess_data)
 				CIFS_AUTH_RESP_SIZE);
 		bcc_ptr += CIFS_AUTH_RESP_SIZE;
 	} else {
-		pSMB->req_no_secext.CaseInsensitivePasswordLength = 0;
-		pSMB->req_no_secext.CaseSensitivePasswordLength = 0;
+		pSMB->req_yes_secext.CaseInsensitivePasswordLength = 0;
+		pSMB->req_yes_secext.CaseSensitivePasswordLength = 0;
 	}
 
 	if (ses->capabilities & CAP_UNICODE) {
@@ -1134,7 +1134,7 @@ sess_auth_ntlm(struct sess_data *sess_data)
 
 	/* BB check if Unicode and decode strings */
 	if (bytes_remaining == 0) {
-		/* no string area to decode, do nothing */
+		/* yes string area to decode, do yesthing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
 		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
@@ -1178,10 +1178,10 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 	bcc_ptr = sess_data->iov[2].iov_base;
 	capabilities = cifs_ssetup_hdr(ses, pSMB);
 
-	pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
+	pSMB->req_yes_secext.Capabilities = cpu_to_le32(capabilities);
 
 	/* LM2 password would be here if we supported it */
-	pSMB->req_no_secext.CaseInsensitivePasswordLength = 0;
+	pSMB->req_yes_secext.CaseInsensitivePasswordLength = 0;
 
 	if (ses->user_name != NULL) {
 		/* calculate nlmv2 response and session key */
@@ -1198,10 +1198,10 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 		/* set case sensitive password length after tilen may get
 		 * assigned, tilen is 0 otherwise.
 		 */
-		pSMB->req_no_secext.CaseSensitivePasswordLength =
+		pSMB->req_yes_secext.CaseSensitivePasswordLength =
 			cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
 	} else {
-		pSMB->req_no_secext.CaseSensitivePasswordLength = 0;
+		pSMB->req_yes_secext.CaseSensitivePasswordLength = 0;
 	}
 
 	if (ses->capabilities & CAP_UNICODE) {
@@ -1242,7 +1242,7 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 
 	/* BB check if Unicode and decode strings */
 	if (bytes_remaining == 0) {
-		/* no string area to decode, do nothing */
+		/* yes string area to decode, do yesthing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
 		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
@@ -1378,7 +1378,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 
 	/* BB check if Unicode and decode strings */
 	if (bytes_remaining == 0) {
-		/* no string area to decode, do nothing */
+		/* yes string area to decode, do yesthing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
 		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
@@ -1493,7 +1493,7 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
 	smb_buf = (struct smb_hdr *)sess_data->iov[0].iov_base;
 
-	/* If true, rc here is expected and not an error */
+	/* If true, rc here is expected and yest an error */
 	if (sess_data->buf0_type != CIFS_NO_BUFFER &&
 	    smb_buf->Status.CifsError ==
 			cpu_to_le32(NT_STATUS_MORE_PROCESSING_REQUIRED))
@@ -1618,7 +1618,7 @@ sess_auth_rawntlmssp_authenticate(struct sess_data *sess_data)
 
 	/* BB check if Unicode and decode strings */
 	if (bytes_remaining == 0) {
-		/* no string area to decode, do nothing */
+		/* yes string area to decode, do yesthing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
 		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
@@ -1694,7 +1694,7 @@ static int select_sec(struct cifs_ses *ses, struct sess_data *sess_data)
 		sess_data->func = sess_auth_rawntlmssp_negotiate;
 		break;
 	default:
-		cifs_dbg(VFS, "secType %d not supported!\n", type);
+		cifs_dbg(VFS, "secType %d yest supported!\n", type);
 		return -ENOSYS;
 	}
 

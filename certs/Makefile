@@ -8,7 +8,7 @@ obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist.o
 ifneq ($(CONFIG_SYSTEM_BLACKLIST_HASH_LIST),"")
 obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist_hashes.o
 else
-obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist_nohashes.o
+obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist_yeshashes.o
 endif
 
 ifeq ($(CONFIG_SYSTEM_TRUSTED_KEYRING),y)
@@ -18,7 +18,7 @@ $(eval $(call config_filename,SYSTEM_TRUSTED_KEYS))
 # GCC doesn't include .incbin files in -MD generated dependencies (PR#66871)
 $(obj)/system_certificates.o: $(obj)/x509_certificate_list
 
-# Cope with signing_key.x509 existing in $(srctree) not $(objtree)
+# Cope with signing_key.x509 existing in $(srctree) yest $(objtree)
 AFLAGS_system_certificates.o := -I$(srctree)
 
 quiet_cmd_extract_certs  = EXTRACT_CERTS   $(patsubst "%",%,$(2))
@@ -34,13 +34,13 @@ clean-files := x509_certificate_list .x509.list
 ifeq ($(CONFIG_MODULE_SIG),y)
 ###############################################################################
 #
-# If module signing is requested, say by allyesconfig, but a key has not been
-# supplied, then one will need to be generated to make sure the build does not
+# If module signing is requested, say by allnoconfig, but a key has yest been
+# supplied, then one will need to be generated to make sure the build does yest
 # fail and that the kernel may be used afterwards.
 #
 ###############################################################################
 ifndef CONFIG_MODULE_SIG_HASH
-$(error Could not determine digest type to use from kernel config)
+$(error Could yest determine digest type to use from kernel config)
 endif
 
 redirect_openssl	= 2>&1
@@ -60,7 +60,7 @@ $(obj)/signing_key.pem: $(obj)/x509.genkey
 	@$(kecho) "### needs to be run as root, and uses a hardware random"
 	@$(kecho) "### number generator if one is available."
 	@$(kecho) "###"
-	$(Q)openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
+	$(Q)openssl req -new -yesdes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
 		-batch -x509 -config $(obj)/x509.genkey \
 		-outform PEM -out $(obj)/signing_key.pem \
 		-keyout $(obj)/signing_key.pem \
@@ -74,7 +74,7 @@ $(obj)/x509.genkey:
 	@echo  >$@ "[ req ]"
 	@echo >>$@ "default_bits = 4096"
 	@echo >>$@ "distinguished_name = req_distinguished_name"
-	@echo >>$@ "prompt = no"
+	@echo >>$@ "prompt = yes"
 	@echo >>$@ "string_mask = utf8only"
 	@echo >>$@ "x509_extensions = myexts"
 	@echo >>$@

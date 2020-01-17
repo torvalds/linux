@@ -18,7 +18,7 @@ ACPI_MODULE_NAME("utids")
  *
  * FUNCTION:    acpi_ut_execute_HID
  *
- * PARAMETERS:  device_node         - Node for the device
+ * PARAMETERS:  device_yesde         - Node for the device
  *              return_id           - Where the string HID is returned
  *
  * RETURN:      Status
@@ -28,11 +28,11 @@ ACPI_MODULE_NAME("utids")
  *              Integer or a String. A string is always returned. An EISAID
  *              is converted to a string.
  *
- *              NOTE: Internal function, no parameter validation
+ *              NOTE: Internal function, yes parameter validation
  *
  ******************************************************************************/
 acpi_status
-acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
+acpi_ut_execute_HID(struct acpi_namespace_yesde *device_yesde,
 		    struct acpi_pnp_device_id **return_id)
 {
 	union acpi_operand_object *obj_desc;
@@ -42,7 +42,7 @@ acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
 
 	ACPI_FUNCTION_TRACE(ut_execute_HID);
 
-	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__HID,
+	status = acpi_ut_evaluate_object(device_yesde, METHOD_NAME__HID,
 					 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING,
 					 &obj_desc);
 	if (ACPI_FAILURE(status)) {
@@ -95,7 +95,7 @@ cleanup:
  *
  * FUNCTION:    acpi_ut_execute_UID
  *
- * PARAMETERS:  device_node         - Node for the device
+ * PARAMETERS:  device_yesde         - Node for the device
  *              return_id           - Where the string UID is returned
  *
  * RETURN:      Status
@@ -105,12 +105,12 @@ cleanup:
  *              EISAID) or a string. Always returns a string. A 64-bit integer
  *              is converted to a decimal string.
  *
- *              NOTE: Internal function, no parameter validation
+ *              NOTE: Internal function, yes parameter validation
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
+acpi_ut_execute_UID(struct acpi_namespace_yesde *device_yesde,
 		    struct acpi_pnp_device_id **return_id)
 {
 	union acpi_operand_object *obj_desc;
@@ -120,7 +120,7 @@ acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
 
 	ACPI_FUNCTION_TRACE(ut_execute_UID);
 
-	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__UID,
+	status = acpi_ut_evaluate_object(device_yesde, METHOD_NAME__UID,
 					 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING,
 					 &obj_desc);
 	if (ACPI_FAILURE(status)) {
@@ -173,7 +173,7 @@ cleanup:
  *
  * FUNCTION:    acpi_ut_execute_CID
  *
- * PARAMETERS:  device_node         - Node for the device
+ * PARAMETERS:  device_yesde         - Node for the device
  *              return_cid_list     - Where the CID list is returned
  *
  * RETURN:      Status, list of CID strings
@@ -181,7 +181,7 @@ cleanup:
  * DESCRIPTION: Executes the _CID control method that returns one or more
  *              compatible hardware IDs for the device.
  *
- *              NOTE: Internal function, no parameter validation
+ *              NOTE: Internal function, yes parameter validation
  *
  * A _CID method can return either a single compatible ID or a package of
  * compatible IDs. Each compatible ID can be one of the following:
@@ -193,7 +193,7 @@ cleanup:
  ******************************************************************************/
 
 acpi_status
-acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
+acpi_ut_execute_CID(struct acpi_namespace_yesde *device_yesde,
 		    struct acpi_pnp_device_id_list **return_cid_list)
 {
 	union acpi_operand_object **cid_objects;
@@ -211,7 +211,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 
 	/* Evaluate the _CID method for this device */
 
-	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__CID,
+	status = acpi_ut_evaluate_object(device_yesde, METHOD_NAME__CID,
 					 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING
 					 | ACPI_BTYPE_PACKAGE, &obj_desc);
 	if (ACPI_FAILURE(status)) {
@@ -257,7 +257,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 	}
 
 	/*
-	 * Now that we know the length of the CIDs, allocate return buffer:
+	 * Now that we kyesw the length of the CIDs, allocate return buffer:
 	 * 1) Size of the base structure +
 	 * 2) Size of the CID PNP_DEVICE_ID array +
 	 * 3) Size of the actual CID strings
@@ -317,7 +317,7 @@ cleanup:
  *
  * FUNCTION:    acpi_ut_execute_CLS
  *
- * PARAMETERS:  device_node         - Node for the device
+ * PARAMETERS:  device_yesde         - Node for the device
  *              return_id           - Where the _CLS is returned
  *
  * RETURN:      Status
@@ -333,7 +333,7 @@ cleanup:
  ******************************************************************************/
 
 acpi_status
-acpi_ut_execute_CLS(struct acpi_namespace_node *device_node,
+acpi_ut_execute_CLS(struct acpi_namespace_yesde *device_yesde,
 		    struct acpi_pnp_device_id **return_id)
 {
 	union acpi_operand_object *obj_desc;
@@ -346,7 +346,7 @@ acpi_ut_execute_CLS(struct acpi_namespace_node *device_node,
 
 	ACPI_FUNCTION_TRACE(ut_execute_CLS);
 
-	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__CLS,
+	status = acpi_ut_evaluate_object(device_yesde, METHOD_NAME__CLS,
 					 ACPI_BTYPE_PACKAGE, &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);

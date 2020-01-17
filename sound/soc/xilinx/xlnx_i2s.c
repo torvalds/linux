@@ -100,7 +100,7 @@ static int xlnx_i2s_probe(struct platform_device *pdev)
 	int ret;
 	u32 ch, format, data_width;
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 
 	dai_drv = devm_kzalloc(&pdev->dev, sizeof(*dai_drv), GFP_KERNEL);
 	if (!dai_drv)
@@ -110,16 +110,16 @@ static int xlnx_i2s_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	ret = of_property_read_u32(node, "xlnx,num-channels", &ch);
+	ret = of_property_read_u32(yesde, "xlnx,num-channels", &ch);
 	if (ret < 0) {
-		dev_err(dev, "cannot get supported channels\n");
+		dev_err(dev, "canyest get supported channels\n");
 		return ret;
 	}
 	ch = ch * 2;
 
-	ret = of_property_read_u32(node, "xlnx,dwidth", &data_width);
+	ret = of_property_read_u32(yesde, "xlnx,dwidth", &data_width);
 	if (ret < 0) {
-		dev_err(dev, "cannot get data width\n");
+		dev_err(dev, "canyest get data width\n");
 		return ret;
 	}
 	switch (data_width) {
@@ -133,7 +133,7 @@ static int xlnx_i2s_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (of_device_is_compatible(node, "xlnx,i2s-transmitter-1.0")) {
+	if (of_device_is_compatible(yesde, "xlnx,i2s-transmitter-1.0")) {
 		dai_drv->name = "xlnx_i2s_playback";
 		dai_drv->playback.stream_name = "Playback";
 		dai_drv->playback.formats = format;
@@ -141,7 +141,7 @@ static int xlnx_i2s_probe(struct platform_device *pdev)
 		dai_drv->playback.channels_max = ch;
 		dai_drv->playback.rates	= SNDRV_PCM_RATE_8000_192000;
 		dai_drv->ops = &xlnx_i2s_dai_ops;
-	} else if (of_device_is_compatible(node, "xlnx,i2s-receiver-1.0")) {
+	} else if (of_device_is_compatible(yesde, "xlnx,i2s-receiver-1.0")) {
 		dai_drv->name = "xlnx_i2s_capture";
 		dai_drv->capture.stream_name = "Capture";
 		dai_drv->capture.formats = format;

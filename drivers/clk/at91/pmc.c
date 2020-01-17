@@ -21,7 +21,7 @@
 #define PMC_MAX_IDS 128
 #define PMC_MAX_PCKS 8
 
-int of_at91_get_clk_range(struct device_node *np, const char *propname,
+int of_at91_get_clk_range(struct device_yesde *np, const char *propname,
 			  struct clk_range *range)
 {
 	u32 min, max;
@@ -228,10 +228,10 @@ static void pmc_resume(void)
 
 	regmap_read(pmcreg, AT91_PMC_MCKR, &tmp);
 	if (pmc_cache.mckr != tmp)
-		pr_warn("MCKR was not configured properly by the firmware\n");
+		pr_warn("MCKR was yest configured properly by the firmware\n");
 	regmap_read(pmcreg, AT91_CKGR_PLLAR, &tmp);
 	if (pmc_cache.pllar != tmp)
-		pr_warn("PLLAR was not configured properly by the firmware\n");
+		pr_warn("PLLAR was yest configured properly by the firmware\n");
 
 	regmap_write(pmcreg, AT91_PMC_SCER, pmc_cache.scsr);
 	regmap_write(pmcreg, AT91_PMC_PCER, pmc_cache.pcsr0);
@@ -271,11 +271,11 @@ static const struct of_device_id sama5d2_pmc_dt_ids[] = {
 
 static int __init pmc_register_ops(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_matching_node(NULL, sama5d2_pmc_dt_ids);
+	np = of_find_matching_yesde(NULL, sama5d2_pmc_dt_ids);
 
-	pmcreg = device_node_to_regmap(np);
+	pmcreg = device_yesde_to_regmap(np);
 	if (IS_ERR(pmcreg))
 		return PTR_ERR(pmcreg);
 

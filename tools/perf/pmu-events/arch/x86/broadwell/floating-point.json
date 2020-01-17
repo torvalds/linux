@@ -126,13 +126,13 @@
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts x87 floating point (FP) micro-code assist (invalid operation, denormal operand, SNaN operand) when the input value (one of the source operands to an FP instruction) is invalid.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts x87 floating point (FP) micro-code assist (invalid operation, deyesrmal operand, SNaN operand) when the input value (one of the source operands to an FP instruction) is invalid.",
         "EventCode": "0xCA",
         "Counter": "0,1,2,3",
         "UMask": "0x4",
         "EventName": "FP_ASSIST.X87_INPUT",
         "SampleAfterValue": "100003",
-        "BriefDescription": "input - Invalid Operation, Denormal Operand, SNaN Operand  (Precise Event)",
+        "BriefDescription": "input - Invalid Operation, Deyesrmal Operand, SNaN Operand  (Precise Event)",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -148,7 +148,7 @@
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts any input SSE* floating-point (FP) assist - invalid operation, denormal operand, dividing by zero, SNaN operand. Counting includes only cases involving penalties that required micro-code assist intervention.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts any input SSE* floating-point (FP) assist - invalid operation, deyesrmal operand, dividing by zero, SNaN operand. Counting includes only cases involving penalties that required micro-code assist intervention.",
         "EventCode": "0xCA",
         "Counter": "0,1,2,3",
         "UMask": "0x10",

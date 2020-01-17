@@ -5,7 +5,7 @@
  * Copyright (C) 2011 Texas Instruments. All rights reserved.
  * Copyright (C) 2008-2009 Nokia Corporation
  *
- * Contact: Luciano Coelho <coelho@ti.com>
+ * Contact: Luciayes Coelho <coelho@ti.com>
  */
 
 #ifndef __DEBUG_H__
@@ -53,7 +53,7 @@ extern u32 wl12xx_debug_level;
 #define wl1271_warning(fmt, arg...) \
 	pr_warn(DRIVER_PREFIX "WARNING " fmt "\n", ##arg)
 
-#define wl1271_notice(fmt, arg...) \
+#define wl1271_yestice(fmt, arg...) \
 	pr_info(DRIVER_PREFIX fmt "\n", ##arg)
 
 #define wl1271_info(fmt, arg...) \

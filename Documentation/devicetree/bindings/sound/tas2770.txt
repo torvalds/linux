@@ -1,6 +1,6 @@
 Texas Instruments TAS2770 Smart PA
 
-The TAS2770 is a mono, digital input Class-D audio amplifier optimized for
+The TAS2770 is a moyes, digital input Class-D audio amplifier optimized for
 efficiently driving high peak power into small loudspeakers.
 Integrated speaker voltage and current sense provides for
 real time monitoring of loudspeaker behavior.
@@ -12,8 +12,8 @@ Required properties:
  - #address-cells  - Should be <1>.
  - #size-cells     - Should be <0>.
  - ti,asi-format:  - Sets TDM RX capture edge. 0->Rising; 1->Falling.
- - ti,imon-slot-no:- TDM TX current sense time slot.
- - ti,vmon-slot-no:- TDM TX voltage sense time slot.
+ - ti,imon-slot-yes:- TDM TX current sense time slot.
+ - ti,vmon-slot-yes:- TDM TX voltage sense time slot.
 
 Optional properties:
 
@@ -31,7 +31,7 @@ Examples:
                 interrupt-parent = <&msm_gpio>;
                 interrupts = <97 0>;
                 ti,asi-format = <0>;
-                ti,imon-slot-no = <0>;
-                ti,vmon-slot-no = <2>;
+                ti,imon-slot-yes = <0>;
+                ti,vmon-slot-yes = <2>;
         };
 

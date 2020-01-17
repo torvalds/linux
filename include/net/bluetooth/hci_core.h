@@ -48,7 +48,7 @@ struct inquiry_data {
 
 struct inquiry_entry {
 	struct list_head	all;		/* inq_cache.all */
-	struct list_head	list;		/* unknown or resolve */
+	struct list_head	list;		/* unkyeswn or resolve */
 	enum {
 		NAME_NOT_KNOWN,
 		NAME_NEEDED,
@@ -69,7 +69,7 @@ struct discovery_state {
 		DISCOVERY_STOPPING,
 	} state;
 	struct list_head	all;	/* All devices found during inquiry */
-	struct list_head	unknown;	/* Name state not known */
+	struct list_head	unkyeswn;	/* Name state yest kyeswn */
 	struct list_head	resolve;	/* Name needs to be resolved */
 	__u32			timestamp;
 	bdaddr_t		last_adv_addr;
@@ -233,7 +233,7 @@ struct hci_dev {
 	__u16		appearance;
 	__u8		dev_class[3];
 	__u8		major_class;
-	__u8		minor_class;
+	__u8		miyesr_class;
 	__u8		max_page;
 	__u8		features[HCI_MAX_PAGES][8];
 	__u8		le_features[8];
@@ -439,7 +439,7 @@ struct hci_dev {
 	int (*setup)(struct hci_dev *hdev);
 	int (*shutdown)(struct hci_dev *hdev);
 	int (*send)(struct hci_dev *hdev, struct sk_buff *skb);
-	void (*notify)(struct hci_dev *hdev, unsigned int evt);
+	void (*yestify)(struct hci_dev *hdev, unsigned int evt);
 	void (*hw_error)(struct hci_dev *hdev, u8 code);
 	int (*post_init)(struct hci_dev *hdev);
 	int (*set_diag)(struct hci_dev *hdev, bool enable);
@@ -480,7 +480,7 @@ struct hci_conn {
 	__u8		pin_length;
 	__u8		enc_key_size;
 	__u8		io_capability;
-	__u32		passkey_notify;
+	__u32		passkey_yestify;
 	__u8		passkey_entered;
 	__u16		disc_timeout;
 	__u16		conn_timeout;
@@ -615,7 +615,7 @@ static inline void discovery_init(struct hci_dev *hdev)
 {
 	hdev->discovery.state = DISCOVERY_STOPPED;
 	INIT_LIST_HEAD(&hdev->discovery.all);
-	INIT_LIST_HEAD(&hdev->discovery.unknown);
+	INIT_LIST_HEAD(&hdev->discovery.unkyeswn);
 	INIT_LIST_HEAD(&hdev->discovery.resolve);
 	hdev->discovery.report_invalid_rssi = true;
 	hdev->discovery.rssi = HCI_RSSI_INVALID;
@@ -655,7 +655,7 @@ static inline long inquiry_entry_age(struct inquiry_entry *e)
 
 struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev,
 					       bdaddr_t *bdaddr);
-struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
+struct inquiry_entry *hci_inquiry_cache_lookup_unkyeswn(struct hci_dev *hdev,
 						       bdaddr_t *bdaddr);
 struct inquiry_entry *hci_inquiry_cache_lookup_resolve(struct hci_dev *hdev,
 						       bdaddr_t *bdaddr,
@@ -663,7 +663,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup_resolve(struct hci_dev *hdev,
 void hci_inquiry_cache_update_resolve(struct hci_dev *hdev,
 				      struct inquiry_entry *ie);
 u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
-			     bool name_known);
+			     bool name_kyeswn);
 void hci_inquiry_cache_flush(struct hci_dev *hdev);
 
 /* ----- HCI Connections ----- */
@@ -941,7 +941,7 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status);
 
 /*
  * hci_conn_get() and hci_conn_put() are used to control the life-time of an
- * "hci_conn" object. They do not guarantee that the hci_conn object is running,
+ * "hci_conn" object. They do yest guarantee that the hci_conn object is running,
  * working or anything else. They just guarantee that the object is available
  * and can be dereferenced. So you can use its locks, local variables and any
  * other constant data.
@@ -955,8 +955,8 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status);
  * long as you hold a device, you must also guarantee that you have a valid
  * reference to the device via hci_conn_get() (or the initial reference from
  * hci_conn_add()).
- * The hold()/drop() ref-count is known to drop below 0 sometimes, which doesn't
- * break because nobody cares for that. But this means, we cannot use
+ * The hold()/drop() ref-count is kyeswn to drop below 0 sometimes, which doesn't
+ * break because yesbody cares for that. But this means, we canyest use
  * _get()/_drop() in it, but require the caller to have a valid ref (FIXME).
  */
 
@@ -1168,7 +1168,7 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_ext_inq_capable(dev)   ((dev)->features[0][6] & LMP_EXT_INQ)
 #define lmp_le_br_capable(dev)     (!!((dev)->features[0][6] & LMP_SIMUL_LE_BR))
 #define lmp_ssp_capable(dev)       ((dev)->features[0][6] & LMP_SIMPLE_PAIR)
-#define lmp_no_flush_capable(dev)  ((dev)->features[0][6] & LMP_NO_FLUSH)
+#define lmp_yes_flush_capable(dev)  ((dev)->features[0][6] & LMP_NO_FLUSH)
 #define lmp_lsto_capable(dev)      ((dev)->features[0][7] & LMP_LSTO)
 #define lmp_inq_tx_pwr_capable(dev) ((dev)->features[0][7] & LMP_INQ_TX_PWR)
 #define lmp_ext_feat_capable(dev)  ((dev)->features[0][7] & LMP_EXTFEATURES)
@@ -1230,7 +1230,7 @@ static inline int hci_proto_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr,
 		return sco_connect_ind(hdev, bdaddr, flags);
 
 	default:
-		BT_ERR("unknown link type %d", type);
+		BT_ERR("unkyeswn link type %d", type);
 		return -EINVAL;
 	}
 }
@@ -1556,7 +1556,7 @@ int mgmt_user_passkey_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 				     u8 link_type, u8 addr_type, u8 status);
 int mgmt_user_passkey_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 					 u8 link_type, u8 addr_type, u8 status);
-int mgmt_user_passkey_notify(struct hci_dev *hdev, bdaddr_t *bdaddr,
+int mgmt_user_passkey_yestify(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			     u8 link_type, u8 addr_type, u32 passkey,
 			     u8 entered);
 void mgmt_auth_failed(struct hci_conn *conn, u8 status);

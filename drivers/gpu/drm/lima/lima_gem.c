@@ -45,7 +45,7 @@ int lima_gem_create_handle(struct drm_device *dev, struct drm_file *file,
 	err = drm_gem_handle_create(file, obj, handle);
 
 out:
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it yesw */
 	drm_gem_object_put_unlocked(obj);
 
 	return err;
@@ -123,7 +123,7 @@ int lima_gem_get_info(struct drm_file *file, u32 handle, u32 *va, u64 *offset)
 
 	*va = lima_vm_get_va(vm, bo);
 
-	*offset = drm_vma_node_offset_addr(&obj->vma_node);
+	*offset = drm_vma_yesde_offset_addr(&obj->vma_yesde);
 
 	drm_gem_object_put_unlocked(obj);
 	return 0;

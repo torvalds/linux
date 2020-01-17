@@ -105,18 +105,18 @@ static void zpool_put_driver(struct zpool_driver *driver)
  * @type:	The type of the zpool to check (e.g. zbud, zsmalloc)
  *
  * This checks if the @type pool driver is available.  This will try to load
- * the requested module, if needed, but there is no guarantee the module will
+ * the requested module, if needed, but there is yes guarantee the module will
  * still be loaded and available immediately after calling.  If this returns
  * true, the caller should assume the pool is available, but must be prepared
  * to handle the @zpool_create_pool() returning failure.  However if this
- * returns false, the caller should assume the requested pool type is not
- * available; either the requested pool type module does not exist, or could
- * not be loaded, and calling @zpool_create_pool() with the pool type will
+ * returns false, the caller should assume the requested pool type is yest
+ * available; either the requested pool type module does yest exist, or could
+ * yest be loaded, and calling @zpool_create_pool() with the pool type will
  * fail.
  *
  * The @type string must be null-terminated.
  *
- * Returns: true if @type pool is available, false if not
+ * Returns: true if @type pool is available, false if yest
  */
 bool zpool_has_pool(char *type)
 {
@@ -144,7 +144,7 @@ EXPORT_SYMBOL(zpool_has_pool);
  *
  * This creates a new zpool of the specified type.  The gfp flags will be
  * used when allocating memory, if the implementation supports it.  If the
- * ops param is NULL, then the created zpool will not be evictable.
+ * ops param is NULL, then the created zpool will yest be evictable.
  *
  * Implementations must guarantee this to be thread-safe.
  *
@@ -168,7 +168,7 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
 	}
 
 	if (!driver) {
-		pr_err("no driver for type %s\n", type);
+		pr_err("yes driver for type %s\n", type);
 		return NULL;
 	}
 
@@ -206,10 +206,10 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
  *
  * Implementations must guarantee this to be thread-safe,
  * however only when destroying different pools.  The same
- * pool should only be destroyed once, and should not be used
+ * pool should only be destroyed once, and should yest be used
  * after it is destroyed.
  *
- * This destroys an existing zpool.  The zpool should not be in use.
+ * This destroys an existing zpool.  The zpool should yest be in use.
  */
 void zpool_destroy_pool(struct zpool *zpool)
 {
@@ -247,7 +247,7 @@ const char *zpool_get_type(struct zpool *zpool)
  *
  * Implementations must guarantee this to be thread-safe.
  *
- * Returns: true if if the zpool support allocate movable memory, false if not
+ * Returns: true if if the zpool support allocate movable memory, false if yest
  */
 bool zpool_malloc_support_movable(struct zpool *zpool)
 {
@@ -281,13 +281,13 @@ int zpool_malloc(struct zpool *zpool, size_t size, gfp_t gfp,
  * @zpool:	The zpool that allocated the memory.
  * @handle:	The handle to the memory to free.
  *
- * This frees previously allocated memory.  This does not guarantee
+ * This frees previously allocated memory.  This does yest guarantee
  * that the pool will actually free memory, only that the memory
  * in the pool will become available for use by the pool.
  *
  * Implementations must guarantee this to be thread-safe,
  * however only when freeing different handles.  The same
- * handle should only be freed once, and should not be used
+ * handle should only be freed once, and should yest be used
  * after freeing.
  */
 void zpool_free(struct zpool *zpool, unsigned long handle)
@@ -303,8 +303,8 @@ void zpool_free(struct zpool *zpool, unsigned long handle)
  *
  * This attempts to shrink the actual memory size of the pool
  * by evicting currently used handle(s).  If the pool was
- * created with no zpool_ops, or the evict call fails for any
- * of the handles, this will fail.  If non-NULL, the @reclaimed
+ * created with yes zpool_ops, or the evict call fails for any
+ * of the handles, this will fail.  If yesn-NULL, the @reclaimed
  * parameter will be set to the number of pages reclaimed,
  * which may be more than the number of pages requested.
  *
@@ -328,7 +328,7 @@ int zpool_shrink(struct zpool *zpool, unsigned int pages,
  * This maps a previously allocated handle into memory.  The @mapmode
  * param indicates to the implementation how the memory will be
  * used, i.e. read-only, write-only, read-write.  If the
- * implementation does not support it, the memory will be treated
+ * implementation does yest support it, the memory will be treated
  * as read-write.
  *
  * This may hold locks, disable interrupts, and/or preemption,
@@ -336,7 +336,7 @@ int zpool_shrink(struct zpool *zpool, unsigned int pages,
  * actions.  The code that uses the mapped handle should complete
  * its operatons on the mapped handle memory quickly and unmap
  * as soon as possible.  As the implementation may use per-cpu
- * data, multiple handles should not be mapped concurrently on
+ * data, multiple handles should yest be mapped concurrently on
  * any cpu.
  *
  * Returns: A pointer to the handle's mapped memory area.
@@ -355,7 +355,7 @@ void *zpool_map_handle(struct zpool *zpool, unsigned long handle,
  * This unmaps a previously mapped handle.  Any locks or other
  * actions that the implementation took in zpool_map_handle()
  * will be undone here.  The memory area returned from
- * zpool_map_handle() should no longer be used after this.
+ * zpool_map_handle() should yes longer be used after this.
  */
 void zpool_unmap_handle(struct zpool *zpool, unsigned long handle)
 {

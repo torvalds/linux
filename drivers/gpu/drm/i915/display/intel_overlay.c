@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -61,11 +61,11 @@
 #define OCMD_Y_SWAP		(0x2<<14) /* UYVY or FOURCC UYVY */
 #define OCMD_Y_AND_UV_SWAP	(0x3<<14) /* VYUY */
 #define OCMD_SOURCE_FORMAT_MASK (0xf<<10)
-#define OCMD_RGB_888		(0x1<<10) /* not in i965 Intel docs */
-#define OCMD_RGB_555		(0x2<<10) /* not in i965 Intel docs */
-#define OCMD_RGB_565		(0x3<<10) /* not in i965 Intel docs */
+#define OCMD_RGB_888		(0x1<<10) /* yest in i965 Intel docs */
+#define OCMD_RGB_555		(0x2<<10) /* yest in i965 Intel docs */
+#define OCMD_RGB_565		(0x3<<10) /* yest in i965 Intel docs */
 #define OCMD_YUV_422_PACKED	(0x8<<10)
-#define OCMD_YUV_411_PACKED	(0x9<<10) /* not in i965 Intel docs */
+#define OCMD_YUV_411_PACKED	(0x9<<10) /* yest in i965 Intel docs */
 #define OCMD_YUV_420_PLANAR	(0xc<<10)
 #define OCMD_YUV_422_PLANAR	(0xd<<10)
 #define OCMD_YUV_410_PLANAR	(0xe<<10) /* also 411 */
@@ -433,7 +433,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 }
 
 /* recover from an interruption due to a signal
- * We have to be careful not to repeat work forever an make forward progess. */
+ * We have to be careful yest to repeat work forever an make forward progess. */
 static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay)
 {
 	return i915_active_wait(&overlay->last_flip);
@@ -499,7 +499,7 @@ static int packed_depth_bytes(u32 format)
 	case I915_OVERLAY_YUV422:
 		return 4;
 	case I915_OVERLAY_YUV411:
-		/* return 6; not implemented */
+		/* return 6; yest implemented */
 	default:
 		return -EINVAL;
 	}
@@ -896,7 +896,7 @@ static void update_pfit_vscale_ratio(struct intel_overlay *overlay)
 	u32 pfit_control = I915_READ(PFIT_CONTROL);
 	u32 ratio;
 
-	/* XXX: This is not the same logic as in the xorg driver, but more in
+	/* XXX: This is yest the same logic as in the xorg driver, but more in
 	 * line with the intel documentation for the i965
 	 */
 	if (INTEL_GEN(dev_priv) >= 4) {
@@ -973,7 +973,7 @@ static int check_overlay_src(struct drm_i915_private *dev_priv,
 	/* check alignment constraints */
 	switch (rec->flags & I915_OVERLAY_TYPE_MASK) {
 	case I915_OVERLAY_RGB:
-		/* not implemented */
+		/* yest implemented */
 		return -EINVAL;
 
 	case I915_OVERLAY_YUV_PACKED:
@@ -984,7 +984,7 @@ static int check_overlay_src(struct drm_i915_private *dev_priv,
 		if (depth < 0)
 			return depth;
 
-		/* ignore UV planes */
+		/* igyesre UV planes */
 		rec->stride_UV = 0;
 		rec->offset_U = 0;
 		rec->offset_V = 0;
@@ -996,7 +996,7 @@ static int check_overlay_src(struct drm_i915_private *dev_priv,
 	case I915_OVERLAY_YUV_PLANAR:
 		if (uv_vscale < 0 || uv_hscale < 0)
 			return -EINVAL;
-		/* no offset restrictions for planar formats */
+		/* yes offset restrictions for planar formats */
 		break;
 
 	default:
@@ -1068,7 +1068,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 
 	overlay = dev_priv->overlay;
 	if (!overlay) {
-		DRM_DEBUG("userspace bug: no overlay\n");
+		DRM_DEBUG("userspace bug: yes overlay\n");
 		return -ENODEV;
 	}
 
@@ -1092,7 +1092,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 	drm_modeset_lock_all(dev);
 
 	if (i915_gem_object_is_tiled(new_bo)) {
-		DRM_DEBUG_KMS("buffer used for overlay image can not be tiled\n");
+		DRM_DEBUG_KMS("buffer used for overlay image can yest be tiled\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -1227,7 +1227,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 
 	overlay = dev_priv->overlay;
 	if (!overlay) {
-		DRM_DEBUG("userspace bug: no overlay\n");
+		DRM_DEBUG("userspace bug: yes overlay\n");
 		return -ENODEV;
 	}
 

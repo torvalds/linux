@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Basic HP/COMPAQ MSA 1000 support. This is only needed if your HW cannot be
+ * Basic HP/COMPAQ MSA 1000 support. This is only needed if your HW canyest be
  * upgraded.
  *
  * Copyright (C) 2006 Red Hat, Inc.  All rights reserved.
@@ -52,7 +52,7 @@ static int tur_done(struct scsi_device *sdev, struct hp_sw_dh_data *h,
 	case NOT_READY:
 		if (sshdr->asc == 0x04 && sshdr->ascq == 2) {
 			/*
-			 * LUN not ready - Initialization command required
+			 * LUN yest ready - Initialization command required
 			 *
 			 * This is the passive path
 			 */
@@ -131,14 +131,14 @@ retry:
 		if (!scsi_sense_valid(&sshdr)) {
 			sdev_printk(KERN_WARNING, sdev,
 				    "%s: sending start_stop_unit failed, "
-				    "no sense available\n", HP_SW_NAME);
+				    "yes sense available\n", HP_SW_NAME);
 			return SCSI_DH_IO;
 		}
 		switch (sshdr.sense_key) {
 		case NOT_READY:
 			if (sshdr.asc == 0x04 && sshdr.ascq == 3) {
 				/*
-				 * LUN not ready - manual intervention required
+				 * LUN yest ready - manual intervention required
 				 *
 				 * Switch-over in progress, retry.
 				 */

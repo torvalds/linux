@@ -17,7 +17,7 @@
 #include <linux/miscdevice.h>
 #include <linux/vtpm_proxy.h>
 #include <linux/file.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/poll.h>
 #include <linux/compat.h>
 
@@ -195,7 +195,7 @@ static __poll_t vtpm_proxy_fops_poll(struct file *filp, poll_table *wait)
  *
  * @filp: file pointer
  *
- * Called when setting up the anonymous file descriptor
+ * Called when setting up the ayesnymous file descriptor
  */
 static void vtpm_proxy_fops_open(struct file *filp)
 {
@@ -218,19 +218,19 @@ static void vtpm_proxy_fops_undo_open(struct proxy_dev *proxy_dev)
 
 	mutex_unlock(&proxy_dev->buf_lock);
 
-	/* no more TPM responses -- wake up anyone waiting for them */
+	/* yes more TPM responses -- wake up anyone waiting for them */
 	wake_up_interruptible(&proxy_dev->wq);
 }
 
 /*
  * vtpm_proxy_fops_release - Close 'server side'
  *
- * @inode: inode
+ * @iyesde: iyesde
  * @filp: file pointer
  * Return:
  *      Always returns 0.
  */
-static int vtpm_proxy_fops_release(struct inode *inode, struct file *filp)
+static int vtpm_proxy_fops_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct proxy_dev *proxy_dev = filp->private_data;
 
@@ -243,7 +243,7 @@ static int vtpm_proxy_fops_release(struct inode *inode, struct file *filp)
 
 static const struct file_operations vtpm_proxy_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.read = vtpm_proxy_fops_read,
 	.write = vtpm_proxy_fops_write,
 	.poll = vtpm_proxy_fops_poll,
@@ -365,7 +365,7 @@ static int vtpm_proxy_tpm_op_send(struct tpm_chip *chip, u8 *buf, size_t count)
 
 static void vtpm_proxy_tpm_op_cancel(struct tpm_chip *chip)
 {
-	/* not supported */
+	/* yest supported */
 }
 
 static u8 vtpm_proxy_tpm_op_status(struct tpm_chip *chip)
@@ -546,21 +546,21 @@ static struct file *vtpm_proxy_create_device(
 
 	proxy_dev->flags = vtpm_new_dev->flags;
 
-	/* setup an anonymous file for the server-side */
+	/* setup an ayesnymous file for the server-side */
 	fd = get_unused_fd_flags(O_RDWR);
 	if (fd < 0) {
 		rc = fd;
 		goto err_delete_proxy_dev;
 	}
 
-	file = anon_inode_getfile("[vtpms]", &vtpm_proxy_fops, proxy_dev,
+	file = ayesn_iyesde_getfile("[vtpms]", &vtpm_proxy_fops, proxy_dev,
 				  O_RDWR);
 	if (IS_ERR(file)) {
 		rc = PTR_ERR(file);
 		goto err_put_unused_fd;
 	}
 
-	/* from now on we can unwind with put_unused_fd() + fput() */
+	/* from yesw on we can unwind with put_unused_fd() + fput() */
 	/* simulate an open() on the server side */
 	vtpm_proxy_fops_open(file);
 
@@ -571,7 +571,7 @@ static struct file *vtpm_proxy_create_device(
 
 	vtpm_new_dev->fd = fd;
 	vtpm_new_dev->major = MAJOR(proxy_dev->chip->dev.devt);
-	vtpm_new_dev->minor = MINOR(proxy_dev->chip->dev.devt);
+	vtpm_new_dev->miyesr = MINOR(proxy_dev->chip->dev.devt);
 	vtpm_new_dev->tpm_num = proxy_dev->chip->dev_num;
 
 	return file;
@@ -593,7 +593,7 @@ static void vtpm_proxy_delete_device(struct proxy_dev *proxy_dev)
 	vtpm_proxy_work_stop(proxy_dev);
 
 	/*
-	 * A client may hold the 'ops' lock, so let it know that the server
+	 * A client may hold the 'ops' lock, so let it kyesw that the server
 	 * side shuts down before we try to grab the 'ops' lock when
 	 * unregistering the chip.
 	 */
@@ -615,11 +615,11 @@ static void vtpm_proxy_delete_device(struct proxy_dev *proxy_dev)
  * @ioctl:	the ioctl number
  * @arg:	pointer to the struct vtpmx_proxy_new_dev
  *
- * Creates an anonymous file that is used by the process acting as a TPM to
+ * Creates an ayesnymous file that is used by the process acting as a TPM to
  * communicate with the client processes. The function will also add a new TPM
  * device through which data is proxied to this TPM acting process. The caller
  * will be provided with a file descriptor to communicate with the clients and
- * major and minor numbers for the TPM device.
+ * major and miyesr numbers for the TPM device.
  */
 static long vtpmx_ioc_new_dev(struct file *file, unsigned int ioctl,
 			      unsigned long arg)
@@ -674,11 +674,11 @@ static const struct file_operations vtpmx_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = vtpmx_fops_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static struct miscdevice vtpmx_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "vtpmx",
 	.fops = &vtpmx_fops,
 };

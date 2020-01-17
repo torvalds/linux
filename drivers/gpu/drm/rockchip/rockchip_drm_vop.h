@@ -9,9 +9,9 @@
 
 /*
  * major: IP major version, used for IP structure
- * minor: big feature change under same structure
+ * miyesr: big feature change under same structure
  */
-#define VOP_VERSION(major, minor)	((major) << 8 | (minor))
+#define VOP_VERSION(major, miyesr)	((major) << 8 | (miyesr))
 #define VOP_MAJOR(version)		((version) >> 8)
 #define VOP_MINOR(version)		((version) & 0xff)
 

@@ -24,7 +24,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/console.h>
 #include <linux/cpu.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
@@ -40,15 +40,15 @@
 #include <linux/sysrq.h>
 #include <linux/reboot.h>
 #endif
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <asm/setup.h>
 #include <asm/io.h>
 #include <linux/log2.h>
 #include <linux/export.h>
 
-extern struct atomic_notifier_head panic_notifier_list;
-static int alpha_panic_event(struct notifier_block *, unsigned long, void *);
-static struct notifier_block alpha_panic_block = {
+extern struct atomic_yestifier_head panic_yestifier_list;
+static int alpha_panic_event(struct yestifier_block *, unsigned long, void *);
+static struct yestifier_block alpha_panic_block = {
 	alpha_panic_event,
         NULL,
         INT_MAX /* try to do it first */
@@ -81,8 +81,8 @@ unsigned long alpha_verbose_mcheck = CONFIG_VERBOSE_MCHECK_ON;
 #endif
 
 #ifdef CONFIG_NUMA
-struct cpumask node_to_cpumask_map[MAX_NUMNODES] __read_mostly;
-EXPORT_SYMBOL(node_to_cpumask_map);
+struct cpumask yesde_to_cpumask_map[MAX_NUMNODES] __read_mostly;
+EXPORT_SYMBOL(yesde_to_cpumask_map);
 #endif
 
 /* Which processor we booted from.  */
@@ -108,7 +108,7 @@ int boot_cpuid;
  */
 int srmcons_output = 0;
 
-/* Enforce a memory size limit; useful for testing. By default, none. */
+/* Enforce a memory size limit; useful for testing. By default, yesne. */
 unsigned long mem_size_limit = 0;
 
 /* Set AGP GART window size (0 means disabled). */
@@ -139,7 +139,7 @@ static char __initdata command_line[COMMAND_LINE_SIZE];
 
 /*
  * The format of "screen_info" is strange, and due to early
- * i386-setup code. This is just enough to make the console
+ * i386-setup code. This is just eyesugh to make the console
  * code think we're on a VGA color display.
  */
 
@@ -168,7 +168,7 @@ EXPORT_SYMBOL(__direct_map_size);
  * Declare all of the machine vectors.
  */
 
-/* GCC 2.7.2 (on alpha at least) is lame.  It does not support either 
+/* GCC 2.7.2 (on alpha at least) is lame.  It does yest support either 
    __attribute__((weak)) or #pragma weak.  Bypass it and talk directly
    to the assembler.  */
 
@@ -196,9 +196,9 @@ WEAK(mikasa_mv);
 WEAK(mikasa_primo_mv);
 WEAK(monet_mv);
 WEAK(nautilus_mv);
-WEAK(noname_mv);
-WEAK(noritake_mv);
-WEAK(noritake_primo_mv);
+WEAK(yesname_mv);
+WEAK(yesritake_mv);
+WEAK(yesritake_primo_mv);
 WEAK(p2k_mv);
 WEAK(pc164_mv);
 WEAK(privateer_mv);
@@ -327,7 +327,7 @@ setup_memory(void *kernel_end)
 		       cluster->start_pfn + cluster->numpages);
 
 		/* Bit 0 is console/PALcode reserved.  Bit 1 is
-		   non-volatile memory -- we might want to mark
+		   yesn-volatile memory -- we might want to mark
 		   this for later.  */
 		if (cluster->usage & 3)
 			continue;
@@ -344,12 +344,12 @@ setup_memory(void *kernel_end)
 	 * Except for the NUMA systems (wildfire, marvel) all of the 
 	 * Alpha systems we run on support 32GB of memory or less.
 	 * Since the NUMA systems introduce large holes in memory addressing,
-	 * we can get into a situation where there is not enough contiguous
+	 * we can get into a situation where there is yest eyesugh contiguous
 	 * memory for the memory map. 
 	 *
 	 * Limit memory to the first 32GB to limit the NUMA systems to 
-	 * memory on their first node (wildfire) or 2 (marvel) to avoid 
-	 * not being able to produce the memory map. In order to access 
+	 * memory on their first yesde (wildfire) or 2 (marvel) to avoid 
+	 * yest being able to produce the memory map. In order to access 
 	 * all of the memory on the NUMA systems, build with discontiguous
 	 * memory support.
 	 *
@@ -460,7 +460,7 @@ setup_arch(char **cmdline_p)
 	}
 
 	/* Register a call for panic conditions. */
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_yestifier_chain_register(&panic_yestifier_list,
 			&alpha_panic_block);
 
 #ifndef alpha_using_srm
@@ -531,16 +531,16 @@ setup_arch(char **cmdline_p)
 #endif
 	}
 
-	/* Replace the command line, now that we've killed it with strsep.  */
+	/* Replace the command line, yesw that we've killed it with strsep.  */
 	strcpy(command_line, boot_command_line);
 
-	/* If we want SRM console printk echoing early, do it now. */
+	/* If we want SRM console printk echoing early, do it yesw. */
 	if (alpha_using_srm && srmcons_output) {
 		register_srm_console();
 
 		/*
 		 * If "console=srm" was specified, clear the srmcons_output
-		 * flag now so that time.c won't unregister_srm_console
+		 * flag yesw so that time.c won't unregister_srm_console
 		 */
 		if (srmcons_output & 2)
 			srmcons_output = 0;
@@ -548,7 +548,7 @@ setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_MAGIC_SYSRQ
 	/* If we're using SRM, make sysrq-b halt back to the prom,
-	   not auto-reboot.  */
+	   yest auto-reboot.  */
 	if (alpha_using_srm) {
 		struct sysrq_key_op *op = __sysrq_get_key_op('b');
 		op->handler = (void *) machine_halt;
@@ -648,7 +648,7 @@ setup_arch(char **cmdline_p)
 	reserve_std_resources();
 
 	/* 
-	 * Give us a default console.  TGA users will see nothing until
+	 * Give us a default console.  TGA users will see yesthing until
 	 * chr_dev_init is called, rather late in the boot sequence.
 	 */
 
@@ -688,7 +688,7 @@ setup_arch(char **cmdline_p)
 	paging_init();
 }
 
-static char sys_unknown[] = "Unknown";
+static char sys_unkyeswn[] = "Unkyeswn";
 static char systype_names[][16] = {
 	"0",
 	"ADU", "Cobra", "Ruby", "Flamingo", "Mannequin", "Jensen",
@@ -700,7 +700,7 @@ static char systype_names[][16] = {
 	"Tsunami", "Wildfire", "CUSCO", "Eiger", "Titan", "Marvel"
 };
 
-static char unofficial_names[][8] = {"100", "Ruffian"};
+static char uyesfficial_names[][8] = {"100", "Ruffian"};
 
 static char api_names[][16] = {"200", "Nautilus"};
 
@@ -754,7 +754,7 @@ get_sysvec(unsigned long type, unsigned long variation, unsigned long cpu)
 		NULL,		/* Morgan */
 		NULL,		/* Sable -- see below.  */
 		NULL,		/* Medulla */
-		&noname_mv,
+		&yesname_mv,
 		NULL,		/* Turbolaser */
 		&avanti_mv,
 		NULL,		/* Mustang */
@@ -785,7 +785,7 @@ get_sysvec(unsigned long type, unsigned long variation, unsigned long cpu)
 		NULL,		/* Marvel */
 	};
 
-	static struct alpha_machine_vector *unofficial_vecs[] __initdata =
+	static struct alpha_machine_vector *uyesfficial_vecs[] __initdata =
 	{
 		NULL,		/* 100 */
 		&ruffian_mv,
@@ -862,11 +862,11 @@ get_sysvec(unsigned long type, unsigned long variation, unsigned long cpu)
 		   (type - ST_API_BIAS) < ARRAY_SIZE(api_vecs)) {
 		vec = api_vecs[type - ST_API_BIAS];
 	} else if ((type > ST_UNOFFICIAL_BIAS) &&
-		   (type - ST_UNOFFICIAL_BIAS) < ARRAY_SIZE(unofficial_vecs)) {
-		vec = unofficial_vecs[type - ST_UNOFFICIAL_BIAS];
+		   (type - ST_UNOFFICIAL_BIAS) < ARRAY_SIZE(uyesfficial_vecs)) {
+		vec = uyesfficial_vecs[type - ST_UNOFFICIAL_BIAS];
 	}
 
-	/* If we've not found one, try for a variation.  */
+	/* If we've yest found one, try for a variation.  */
 
 	if (!vec) {
 		/* Member ID is a bit-field. */
@@ -883,7 +883,7 @@ get_sysvec(unsigned long type, unsigned long variation, unsigned long cpu)
 			if (member < ARRAY_SIZE(eb164_indices))
 				vec = eb164_vecs[eb164_indices[member]];
 			/* PC164 may show as EB164 variation with EV56 CPU,
-			   but, since no true EB164 had anything but EV5... */
+			   but, since yes true EB164 had anything but EV5... */
 			if (vec == &eb164_mv && cpu == EV56_CPU)
 				vec = &pc164_mv;
 			break;
@@ -916,9 +916,9 @@ get_sysvec(unsigned long type, unsigned long variation, unsigned long cpu)
 			break;
 		case ST_DEC_NORITAKE:
 			if (cpu == EV5_CPU || cpu == EV56_CPU)
-				vec = &noritake_primo_mv;
+				vec = &yesritake_primo_mv;
 			else
-				vec = &noritake_mv;
+				vec = &yesritake_mv;
 			break;
 		case ST_DEC_2100_A500:
 			if (cpu == EV5_CPU || cpu == EV56_CPU)
@@ -955,9 +955,9 @@ get_sysvec_byname(const char *name)
 		&mikasa_primo_mv,
 		&monet_mv,
 		&nautilus_mv,
-		&noname_mv,
-		&noritake_mv,
-		&noritake_primo_mv,
+		&yesname_mv,
+		&yesritake_mv,
+		&yesritake_primo_mv,
 		&p2k_mv,
 		&pc164_mv,
 		&privateer_mv,
@@ -991,7 +991,7 @@ get_sysnames(unsigned long type, unsigned long variation, unsigned long cpu,
 {
 	unsigned long member;
 
-	/* If not in the tables, make it UNKNOWN,
+	/* If yest in the tables, make it UNKNOWN,
 	   else set type name to family */
 	if (type < ARRAY_SIZE(systype_names)) {
 		*type_name = systype_names[type];
@@ -999,11 +999,11 @@ get_sysnames(unsigned long type, unsigned long variation, unsigned long cpu,
 		   (type - ST_API_BIAS) < ARRAY_SIZE(api_names)) {
 		*type_name = api_names[type - ST_API_BIAS];
 	} else if ((type > ST_UNOFFICIAL_BIAS) &&
-		   (type - ST_UNOFFICIAL_BIAS) < ARRAY_SIZE(unofficial_names)) {
-		*type_name = unofficial_names[type - ST_UNOFFICIAL_BIAS];
+		   (type - ST_UNOFFICIAL_BIAS) < ARRAY_SIZE(uyesfficial_names)) {
+		*type_name = uyesfficial_names[type - ST_UNOFFICIAL_BIAS];
 	} else {
-		*type_name = sys_unknown;
-		*variation_name = sys_unknown;
+		*type_name = sys_unkyeswn;
+		*variation_name = sys_unkyeswn;
 		return;
 	}
 
@@ -1018,14 +1018,14 @@ get_sysnames(unsigned long type, unsigned long variation, unsigned long cpu,
 	cpu &= 0xffffffff; /* make it usable */
 
 	switch (type) { /* select by family */
-	default: /* default to variation "0" for now */
+	default: /* default to variation "0" for yesw */
 		break;
 	case ST_DEC_EB164:
 		if (member >= ARRAY_SIZE(eb164_indices))
 			break;
 		*variation_name = eb164_names[eb164_indices[member]];
 		/* PC164 may show as EB164 variation, but with EV56 CPU,
-		   so, since no true EB164 had anything but EV5... */
+		   so, since yes true EB164 had anything but EV5... */
 		if (eb164_indices[member] == 0 && cpu == EV56_CPU)
 			*variation_name = eb164_names[1]; /* make it PC164 */
 		break;
@@ -1064,7 +1064,7 @@ get_sysnames(unsigned long type, unsigned long variation, unsigned long cpu,
 /*
  * A change was made to the HWRPB via an ECO and the following code
  * tracks a part of the ECO.  In HWRPB versions less than 5, the ECO
- * was not implemented in the console firmware.  If it's revision 5 or
+ * was yest implemented in the console firmware.  If it's revision 5 or
  * greater we can get the name of the platform as an ASCII string from
  * the HWRPB.  That's what this function does.  It checks the revision
  * level and if the string is in the HWRPB it returns the address of
@@ -1072,7 +1072,7 @@ get_sysnames(unsigned long type, unsigned long variation, unsigned long cpu,
  *
  * Returns:
  *      - Pointer to a ASCII string if it's in the HWRPB
- *      - Pointer to a blank string if the data is not in the HWRPB.
+ *      - Pointer to a blank string if the data is yest in the HWRPB.
  */
 
 static char *
@@ -1082,8 +1082,8 @@ platform_string(void)
 	static char unk_system_string[] = "N/A";
 
 	/* Go to the console for the string pointer.
-	 * If the rpb_vers is not 5 or greater the rpb
-	 * is old and does not have this data in it.
+	 * If the rpb_vers is yest 5 or greater the rpb
+	 * is old and does yest have this data in it.
 	 */
 	if (hwrpb->revision < 5)
 		return (unk_system_string);
@@ -1121,7 +1121,7 @@ show_cache_size (struct seq_file *f, const char *which, int shape)
 	if (shape == -1)
 		seq_printf (f, "%s\t\t: n/a\n", which);
 	else if (shape == 0)
-		seq_printf (f, "%s\t\t: unknown\n", which);
+		seq_printf (f, "%s\t\t: unkyeswn\n", which);
 	else
 		seq_printf (f, "%s\t\t: %dK, %d-way, %db line\n",
 			    which, shape >> 10, shape & 15,
@@ -1150,7 +1150,7 @@ show_cpuinfo(struct seq_file *f, void *slot)
 	unsigned long timer_freq;
 
 	cpu_index = (unsigned) (cpu->type - 1);
-	cpu_name = "Unknown";
+	cpu_name = "Unkyeswn";
 	if (cpu_index < ARRAY_SIZE(cpu_names))
 		cpu_name = cpu_names[cpu_index];
 
@@ -1185,7 +1185,7 @@ show_cpuinfo(struct seq_file *f, void *slot)
 		      "platform string\t\t: %s\n"
 		      "cpus detected\t\t: %d\n",
 		       cpu_name, cpu->variation, cpu->revision,
-		       (char*)cpu->serial_no,
+		       (char*)cpu->serial_yes,
 		       systype_name, sysvariation_name, hwrpb->sys_revision,
 		       (char*)hwrpb->ssn,
 		       est_cycle_freq ? : hwrpb->cycle_freq,
@@ -1391,7 +1391,7 @@ determine_cpu_caches (unsigned int cpu_type)
 		break;
 
 	default:
-		/* Nothing known about this cpu type.  */
+		/* Nothing kyeswn about this cpu type.  */
 		L1I = L1D = L2 = L3 = 0;
 		break;
 	}
@@ -1431,7 +1431,7 @@ const struct seq_operations cpuinfo_op = {
 
 
 static int
-alpha_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
+alpha_panic_event(struct yestifier_block *this, unsigned long event, void *ptr)
 {
 #if 1
 	/* FIXME FIXME FIXME */

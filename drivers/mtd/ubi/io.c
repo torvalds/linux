@@ -13,7 +13,7 @@
  * underlying MTD devices. It also implements handy functions for reading and
  * writing UBI headers.
  *
- * We are trying to have a paranoid mindset and not to trust to what we read
+ * We are trying to have a parayesid mindset and yest to trust to what we read
  * from the flash media in order to be more secure and robust. So this
  * sub-system validates every single header it reads from the flash media.
  *
@@ -32,7 +32,7 @@
  * About minimal I/O units. In general, UBI assumes flash device model where
  * there is only one minimal I/O unit size. E.g., in case of NOR flash it is 1,
  * in case of NAND flash it is a NAND page, etc. This is reported by MTD in the
- * @ubi->mtd->writesize field. But as an exception, UBI admits use of another
+ * @ubi->mtd->writesize field. But as an exception, UBI admits use of ayesther
  * (smaller) minimal I/O unit size for EC and VID headers to make it possible
  * to do different optimizations.
  *
@@ -47,15 +47,15 @@
  * although the minimal I/O unit is 2K, UBI uses 512 bytes for EC and VID
  * headers.
  *
- * Q: why not just to treat sub-page as a minimal I/O unit of this flash
+ * Q: why yest just to treat sub-page as a minimal I/O unit of this flash
  * device, e.g., make @ubi->min_io_size = 512 in the example above?
  *
  * A: because when writing a sub-page, MTD still writes a full 2K page but the
- * bytes which are not relevant to the sub-page are 0xFF. So, basically,
+ * bytes which are yest relevant to the sub-page are 0xFF. So, basically,
  * writing 4x512 sub-pages is 4 times slower than writing one 2KiB NAND page.
  * Thus, we prefer to use sub-pages only for EC and VID headers.
  *
- * As it was noted above, the VID header may start at a non-aligned offset.
+ * As it was yested above, the VID header may start at a yesn-aligned offset.
  * For example, in case of a 2KiB page NAND flash with a 512 bytes sub-page,
  * the VID header may reside at offset 1984 which is the last 64 bytes of the
  * last sub-page (EC header is always at offset zero). This causes some
@@ -78,7 +78,7 @@
 #include <linux/slab.h>
 #include "ubi.h"
 
-static int self_check_not_bad(const struct ubi_device *ubi, int pnum);
+static int self_check_yest_bad(const struct ubi_device *ubi, int pnum);
 static int self_check_peb_ec_hdr(const struct ubi_device *ubi, int pnum);
 static int self_check_ec_hdr(const struct ubi_device *ubi, int pnum,
 			     const struct ubi_ec_hdr *ec_hdr);
@@ -103,7 +103,7 @@ static int self_check_write(struct ubi_device *ubi, const void *buf, int pnum,
  * o %0 if all the requested data were successfully read;
  * o %UBI_IO_BITFLIPS if all the requested data were successfully read, but
  *   correctable bit-flips were detected; this is harmless but may indicate
- *   that this eraseblock may become bad soon (but do not have to);
+ *   that this eraseblock may become bad soon (but do yest have to);
  * o %-EBADMSG if the MTD subsystem reported about data integrity problems, for
  *   example it can be an ECC error in case of NAND; this most probably means
  *   that the data is corrupted;
@@ -123,20 +123,20 @@ int ubi_io_read(const struct ubi_device *ubi, void *buf, int pnum, int offset,
 	ubi_assert(offset >= 0 && offset + len <= ubi->peb_size);
 	ubi_assert(len > 0);
 
-	err = self_check_not_bad(ubi, pnum);
+	err = self_check_yest_bad(ubi, pnum);
 	if (err)
 		return err;
 
 	/*
 	 * Deliberately corrupt the buffer to improve robustness. Indeed, if we
-	 * do not do this, the following may happen:
+	 * do yest do this, the following may happen:
 	 * 1. The buffer contains data from previous operation, e.g., read from
-	 *    another PEB previously. The data looks like expected, e.g., if we
-	 *    just do not read anything and return - the caller would not
-	 *    notice this. E.g., if we are reading a VID header, the buffer may
-	 *    contain a valid VID header from another PEB.
+	 *    ayesther PEB previously. The data looks like expected, e.g., if we
+	 *    just do yest read anything and return - the caller would yest
+	 *    yestice this. E.g., if we are reading a VID header, the buffer may
+	 *    contain a valid VID header from ayesther PEB.
 	 * 2. The driver is buggy and returns us success or -EBADMSG or
-	 *    -EUCLEAN, but it does not actually put any data to the buffer.
+	 *    -EUCLEAN, but it does yest actually put any data to the buffer.
 	 *
 	 * This may confuse UBI or upper layers - they may think the buffer
 	 * contains valid data while in fact it is just old data. This is
@@ -160,7 +160,7 @@ retry:
 			 * -EUCLEAN is reported if there was a bit-flip which
 			 * was corrected, so this is harmless.
 			 *
-			 * We do not report about it here unless debugging is
+			 * We do yest report about it here unless debugging is
 			 * enabled. A corresponding message will be printed
 			 * later, when it is has been scrubbed.
 			 */
@@ -238,7 +238,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 		return -EROFS;
 	}
 
-	err = self_check_not_bad(ubi, pnum);
+	err = self_check_yest_bad(ubi, pnum);
 	if (err)
 		return err;
 
@@ -261,7 +261,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 	}
 
 	if (ubi_dbg_is_write_failure(ubi)) {
-		ubi_err(ubi, "cannot write %d bytes to PEB %d:%d (emulated)",
+		ubi_err(ubi, "canyest write %d bytes to PEB %d:%d (emulated)",
 			len, pnum, offset);
 		dump_stack();
 		return -EIO;
@@ -296,11 +296,11 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 }
 
 /**
- * do_sync_erase - synchronously erase a physical eraseblock.
+ * do_sync_erase - synchroyesusly erase a physical eraseblock.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to erase
  *
- * This function synchronously erases physical eraseblock @pnum and returns
+ * This function synchroyesusly erases physical eraseblock @pnum and returns
  * zero in case of success and a negative error code in case of failure. If
  * %-EIO is returned, the physical eraseblock most probably went bad.
  */
@@ -331,7 +331,7 @@ retry:
 			yield();
 			goto retry;
 		}
-		ubi_err(ubi, "cannot erase PEB %d, error %d", pnum, err);
+		ubi_err(ubi, "canyest erase PEB %d, error %d", pnum, err);
 		dump_stack();
 		return err;
 	}
@@ -341,7 +341,7 @@ retry:
 		return err;
 
 	if (ubi_dbg_is_erase_failure(ubi)) {
-		ubi_err(ubi, "cannot erase PEB %d (emulated)", pnum);
+		ubi_err(ubi, "canyest erase PEB %d (emulated)", pnum);
 		return -EIO;
 	}
 
@@ -356,7 +356,7 @@ static uint8_t patterns[] = {0xa5, 0x5a, 0x0};
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to test
  *
- * This function returns %-EIO if the physical eraseblock did not pass the
+ * This function returns %-EIO if the physical eraseblock did yest pass the
  * test, a positive number of erase operations done if the test was
  * successfully passed, and other negative error codes in case of other errors.
  */
@@ -381,7 +381,7 @@ static int torture_peb(struct ubi_device *ubi, int pnum)
 
 		err = ubi_check_pattern(ubi->peb_buf, 0xFF, ubi->peb_size);
 		if (err == 0) {
-			ubi_err(ubi, "erased PEB %d, but a non-0xFF byte found",
+			ubi_err(ubi, "erased PEB %d, but a yesn-0xFF byte found",
 				pnum);
 			err = -EIO;
 			goto out;
@@ -409,14 +409,14 @@ static int torture_peb(struct ubi_device *ubi, int pnum)
 	}
 
 	err = patt_count;
-	ubi_msg(ubi, "PEB %d passed torture test, do not mark it as bad", pnum);
+	ubi_msg(ubi, "PEB %d passed torture test, do yest mark it as bad", pnum);
 
 out:
 	mutex_unlock(&ubi->buf_mutex);
 	if (err == UBI_IO_BITFLIPS || mtd_is_eccerr(err)) {
 		/*
 		 * If a bit-flip or data integrity error was detected, the test
-		 * has not passed because it happened on a freshly erased
+		 * has yest passed because it happened on a freshly erased
 		 * physical eraseblock which means something is wrong with it.
 		 */
 		ubi_err(ubi, "read problems on freshly erased PEB %d, must be bad",
@@ -427,7 +427,7 @@ out:
 }
 
 /**
- * nor_erase_prepare - prepare a NOR flash PEB for erasure.
+ * yesr_erase_prepare - prepare a NOR flash PEB for erasure.
  * @ubi: UBI device description object
  * @pnum: physical eraseblock number to prepare
  *
@@ -446,7 +446,7 @@ out:
  * magic numbers in order to invalidate them and prevent the failures. Returns
  * zero in case of success and a negative error code in case of failure.
  */
-static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
+static int yesr_erase_prepare(struct ubi_device *ubi, int pnum)
 {
 	int err;
 	size_t written;
@@ -456,10 +456,10 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	struct ubi_vid_io_buf vidb;
 
 	/*
-	 * Note, we cannot generally define VID header buffers on stack,
+	 * Note, we canyest generally define VID header buffers on stack,
 	 * because of the way we deal with these buffers (see the header
-	 * comment in this file). But we know this is a NOR-specific piece of
-	 * code, so we can do this. But yes, this is error-prone and we should
+	 * comment in this file). But we kyesw this is a NOR-specific piece of
+	 * code, so we can do this. But no, this is error-prone and we should
 	 * (pre-)allocate VID header buffer instead.
 	 */
 	struct ubi_vid_hdr vid_hdr;
@@ -495,23 +495,23 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 
 error:
 	/*
-	 * The PEB contains a valid VID or EC header, but we cannot invalidate
+	 * The PEB contains a valid VID or EC header, but we canyest invalidate
 	 * it. Supposedly the flash media or the driver is screwed up, so
 	 * return an error.
 	 */
-	ubi_err(ubi, "cannot invalidate PEB %d, write returned %d", pnum, err);
+	ubi_err(ubi, "canyest invalidate PEB %d, write returned %d", pnum, err);
 	ubi_dump_flash(ubi, pnum, 0, ubi->peb_size);
 	return -EIO;
 }
 
 /**
- * ubi_io_sync_erase - synchronously erase a physical eraseblock.
+ * ubi_io_sync_erase - synchroyesusly erase a physical eraseblock.
  * @ubi: UBI device description object
  * @pnum: physical eraseblock number to erase
  * @torture: if this physical eraseblock has to be tortured
  *
- * This function synchronously erases physical eraseblock @pnum. If @torture
- * flag is not zero, the physical eraseblock is checked by means of writing
+ * This function synchroyesusly erases physical eraseblock @pnum. If @torture
+ * flag is yest zero, the physical eraseblock is checked by means of writing
  * different patterns to it and reading them back. If the torturing is enabled,
  * the physical eraseblock is erased more than once.
  *
@@ -526,7 +526,7 @@ int ubi_io_sync_erase(struct ubi_device *ubi, int pnum, int torture)
 
 	ubi_assert(pnum >= 0 && pnum < ubi->peb_count);
 
-	err = self_check_not_bad(ubi, pnum);
+	err = self_check_yest_bad(ubi, pnum);
 	if (err != 0)
 		return err;
 
@@ -535,8 +535,8 @@ int ubi_io_sync_erase(struct ubi_device *ubi, int pnum, int torture)
 		return -EROFS;
 	}
 
-	if (ubi->nor_flash) {
-		err = nor_erase_prepare(ubi, pnum);
+	if (ubi->yesr_flash) {
+		err = yesr_erase_prepare(ubi, pnum);
 		if (err)
 			return err;
 	}
@@ -560,7 +560,7 @@ int ubi_io_sync_erase(struct ubi_device *ubi, int pnum, int torture)
  * @pnum: the physical eraseblock number to check
  *
  * This function returns a positive number if the physical eraseblock is bad,
- * zero if not, and a negative error code if an error occurred.
+ * zero if yest, and a negative error code if an error occurred.
  */
 int ubi_io_is_bad(const struct ubi_device *ubi, int pnum)
 {
@@ -608,7 +608,7 @@ int ubi_io_mark_bad(const struct ubi_device *ubi, int pnum)
 
 	err = mtd_block_markbad(mtd, (loff_t)pnum * ubi->peb_size);
 	if (err)
-		ubi_err(ubi, "cannot mark PEB %d bad, error %d", pnum, err);
+		ubi_err(ubi, "canyest mark PEB %d bad, error %d", pnum, err);
 	return err;
 }
 
@@ -618,7 +618,7 @@ int ubi_io_mark_bad(const struct ubi_device *ubi, int pnum)
  * @ec_hdr: the erase counter header to check
  *
  * This function returns zero if the erase counter header is OK, and %1 if
- * not.
+ * yest.
  */
 static int validate_ec_hdr(const struct ubi_device *ubi,
 			   const struct ubi_ec_hdr *ec_hdr)
@@ -631,7 +631,7 @@ static int validate_ec_hdr(const struct ubi_device *ubi,
 	leb_start = be32_to_cpu(ec_hdr->data_offset);
 
 	if (ec_hdr->version != UBI_VERSION) {
-		ubi_err(ubi, "node with incompatible UBI version found: this UBI version is %d, image version is %d",
+		ubi_err(ubi, "yesde with incompatible UBI version found: this UBI version is %d, image version is %d",
 			UBI_VERSION, (int)ec_hdr->version);
 		goto bad;
 	}
@@ -668,7 +668,7 @@ bad:
  * @pnum: physical eraseblock to read from
  * @ec_hdr: a &struct ubi_ec_hdr object where to store the read erase counter
  * header
- * @verbose: be verbose if the header is corrupted or was not found
+ * @verbose: be verbose if the header is corrupted or was yest found
  *
  * This function reads erase counter header from physical eraseblock @pnum and
  * stores it in @ec_hdr. This function also checks CRC checksum of the read
@@ -677,7 +677,7 @@ bad:
  * o %0 if the CRC checksum is correct and the header was successfully read;
  * o %UBI_IO_BITFLIPS if the CRC is correct, but bit-flips were detected
  *   and corrected by the flash driver; this is harmless but may indicate that
- *   this eraseblock may become bad soon (but may be not);
+ *   this eraseblock may become bad soon (but may be yest);
  * o %UBI_IO_BAD_HDR if the erase counter header is corrupted (a CRC error);
  * o %UBI_IO_BAD_HDR_EBADMSG is the same as %UBI_IO_BAD_HDR, but there also was
  *   a data integrity error (uncorrectable ECC error in case of NAND);
@@ -716,15 +716,15 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 
 		/*
 		 * The magic field is wrong. Let's check if we have read all
-		 * 0xFF. If yes, this physical eraseblock is assumed to be
+		 * 0xFF. If no, this physical eraseblock is assumed to be
 		 * empty.
 		 */
 		if (ubi_check_pattern(ec_hdr, 0xFF, UBI_EC_HDR_SIZE)) {
 			/* The physical eraseblock is supposedly empty */
 			if (verbose)
-				ubi_warn(ubi, "no EC header found at PEB %d, only 0xFF bytes",
+				ubi_warn(ubi, "yes EC header found at PEB %d, only 0xFF bytes",
 					 pnum);
-			dbg_bld("no EC header found at PEB %d, only 0xFF bytes",
+			dbg_bld("yes EC header found at PEB %d, only 0xFF bytes",
 				pnum);
 			if (!read_err)
 				return UBI_IO_FF;
@@ -733,7 +733,7 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		}
 
 		/*
-		 * This is not a valid erase counter header, and these are not
+		 * This is yest a valid erase counter header, and these are yest
 		 * 0xFF bytes. Report that the header is corrupted.
 		 */
 		if (verbose) {
@@ -786,7 +786,7 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
  *
  * This function writes erase counter header described by @ec_hdr to physical
  * eraseblock @pnum. It also fills most fields of @ec_hdr before writing, so
- * the caller do not have to fill them. Callers must only fill the @ec_hdr->ec
+ * the caller do yest have to fill them. Callers must only fill the @ec_hdr->ec
  * field.
  *
  * This function returns zero in case of success and a negative error code in
@@ -827,7 +827,7 @@ int ubi_io_write_ec_hdr(struct ubi_device *ubi, int pnum,
  * @vid_hdr: the volume identifier header to check
  *
  * This function checks that data stored in the volume identifier header
- * @vid_hdr. Returns zero if the VID header is OK and %1 if not.
+ * @vid_hdr. Returns zero if the VID header is OK and %1 if yest.
  */
 static int validate_vid_hdr(const struct ubi_device *ubi,
 			    const struct ubi_vid_hdr *vid_hdr)
@@ -889,8 +889,8 @@ static int validate_vid_hdr(const struct ubi_device *ubi,
 	if (vol_type == UBI_VID_STATIC) {
 		/*
 		 * Although from high-level point of view static volumes may
-		 * contain zero bytes of data, but no VID headers can contain
-		 * zero at these fields, because they empty volumes do not have
+		 * contain zero bytes of data, but yes VID headers can contain
+		 * zero at these fields, because they empty volumes do yest have
 		 * mapped logical eraseblocks.
 		 */
 		if (used_ebs == 0) {
@@ -918,11 +918,11 @@ static int validate_vid_hdr(const struct ubi_device *ubi,
 	} else {
 		if (copy_flag == 0) {
 			if (data_crc != 0) {
-				ubi_err(ubi, "non-zero data CRC");
+				ubi_err(ubi, "yesn-zero data CRC");
 				goto bad;
 			}
 			if (data_size != 0) {
-				ubi_err(ubi, "non-zero data_size");
+				ubi_err(ubi, "yesn-zero data_size");
 				goto bad;
 			}
 		} else {
@@ -984,9 +984,9 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 
 		if (ubi_check_pattern(vid_hdr, 0xFF, UBI_VID_HDR_SIZE)) {
 			if (verbose)
-				ubi_warn(ubi, "no VID header found at PEB %d, only 0xFF bytes",
+				ubi_warn(ubi, "yes VID header found at PEB %d, only 0xFF bytes",
 					 pnum);
-			dbg_bld("no VID header found at PEB %d, only 0xFF bytes",
+			dbg_bld("yes VID header found at PEB %d, only 0xFF bytes",
 				pnum);
 			if (!read_err)
 				return UBI_IO_FF;
@@ -1078,14 +1078,14 @@ int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 }
 
 /**
- * self_check_not_bad - ensure that a physical eraseblock is not bad.
+ * self_check_yest_bad - ensure that a physical eraseblock is yest bad.
  * @ubi: UBI device description object
  * @pnum: physical eraseblock number to check
  *
  * This function returns zero if the physical eraseblock is good, %-EINVAL if
  * it is bad and a negative error code if an error occurred.
  */
-static int self_check_not_bad(const struct ubi_device *ubi, int pnum)
+static int self_check_yest_bad(const struct ubi_device *ubi, int pnum)
 {
 	int err;
 
@@ -1108,7 +1108,7 @@ static int self_check_not_bad(const struct ubi_device *ubi, int pnum)
  * @ec_hdr: the erase counter header to check
  *
  * This function returns zero if the erase counter header contains valid
- * values, and %-EINVAL if not.
+ * values, and %-EINVAL if yest.
  */
 static int self_check_ec_hdr(const struct ubi_device *ubi, int pnum,
 			     const struct ubi_ec_hdr *ec_hdr)
@@ -1146,7 +1146,7 @@ fail:
  * @pnum: the physical eraseblock number to check
  *
  * This function returns zero if the erase counter header is all right and and
- * a negative error code if not or if an error occurred.
+ * a negative error code if yest or if an error occurred.
  */
 static int self_check_peb_ec_hdr(const struct ubi_device *ubi, int pnum)
 {
@@ -1191,7 +1191,7 @@ exit:
  * @vid_hdr: the volume identifier header to check
  *
  * This function returns zero if the volume identifier header is all right, and
- * %-EINVAL if not.
+ * %-EINVAL if yest.
  */
 static int self_check_vid_hdr(const struct ubi_device *ubi, int pnum,
 			      const struct ubi_vid_hdr *vid_hdr)
@@ -1231,7 +1231,7 @@ fail:
  * @pnum: the physical eraseblock number to check
  *
  * This function returns zero if the volume identifier header is all right,
- * and a negative error code if not or if an error occurred.
+ * and a negative error code if yest or if an error occurred.
  */
 static int self_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum)
 {
@@ -1284,7 +1284,7 @@ exit:
  *
  * This functions reads data which were recently written and compares it with
  * the original data buffer - the data have to match. Returns zero if the data
- * match and a negative error code if not or in case of failure.
+ * match and a negative error code if yest or in case of failure.
  */
 static int self_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 			    int offset, int len)
@@ -1299,7 +1299,7 @@ static int self_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 
 	buf1 = __vmalloc(len, GFP_NOFS, PAGE_KERNEL);
 	if (!buf1) {
-		ubi_err(ubi, "cannot allocate memory to check writes");
+		ubi_err(ubi, "canyest allocate memory to check writes");
 		return 0;
 	}
 
@@ -1348,7 +1348,7 @@ out_free:
  * @len: the length of the region to check
  *
  * This function returns zero if only 0xFF bytes are present at offset
- * @offset of the physical eraseblock @pnum, and a negative error code if not
+ * @offset of the physical eraseblock @pnum, and a negative error code if yest
  * or if an error occurred.
  */
 int ubi_self_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
@@ -1363,7 +1363,7 @@ int ubi_self_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 
 	buf = __vmalloc(len, GFP_NOFS, PAGE_KERNEL);
 	if (!buf) {
-		ubi_err(ubi, "cannot allocate memory to check for 0xFFs");
+		ubi_err(ubi, "canyest allocate memory to check for 0xFFs");
 		return 0;
 	}
 
@@ -1376,7 +1376,7 @@ int ubi_self_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 
 	err = ubi_check_pattern(buf, 0xFF, len);
 	if (err == 0) {
-		ubi_err(ubi, "flash region at PEB %d:%d, length %d does not contain all 0xFF bytes",
+		ubi_err(ubi, "flash region at PEB %d:%d, length %d does yest contain all 0xFF bytes",
 			pnum, offset, len);
 		goto fail;
 	}

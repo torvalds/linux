@@ -84,7 +84,7 @@
  * response data is included in the event.
  *
  * The protocol requires one response to be delivered for every request, a
- * request should not be sent unless the response for the previous request
+ * request should yest be sent unless the response for the previous request
  * has been received (either by polling shared memory, or by receiving
  * an event).
  */
@@ -123,7 +123,7 @@
 
 /* The MC can generate events for two reasons:
  *   - To advance a shared memory request if XFLAGS_EVREQ was set
- *   - As a notification (link state, i2c event), controlled
+ *   - As a yestification (link state, i2c event), controlled
  *     via MC_CMD_LOG_CTRL
  *
  * Both events share a common structure:
@@ -131,7 +131,7 @@
  *  0      32     33      36    44     52     60
  * | Data | Cont | Level | Src | Code | Rsvd |
  *           |
- *           \ There is another event pending in this notification
+ *           \ There is ayesther event pending in this yestification
  *
  * If Code==CMDDONE, then the fields are further interpreted as:
  *
@@ -139,7 +139,7 @@
  *   - LEVEL==ERR     Command failed
  *
  *    0     8         16      24     32
- *   | Seq | Datalen | Errno | Rsvd |
+ *   | Seq | Datalen | Erryes | Rsvd |
  *
  *   These fields are taken directly out of the standard MCDI header, i.e.,
  *   LEVEL==ERR, Datalen == 0 => Reboot
@@ -147,7 +147,7 @@
  * Events can be squirted out of the UART (using LOG_CTRL) without a
  * MCDI header.  An event can be distinguished from a MCDI response by
  * examining the first byte which is 0xc0.  This corresponds to the
- * non-existent MCDI command MC_CMD_DEBUG_LOG.
+ * yesn-existent MCDI command MC_CMD_DEBUG_LOG.
  *
  *      0         7        8
  *     | command | Resync |     = 0xc0
@@ -164,7 +164,7 @@
 #define FSE_AZ_EV_CODE_MCDI_EVRESPONSE 0xc
 
 
-/* Operation not permitted. */
+/* Operation yest permitted. */
 #define MC_CMD_ERR_EPERM 1
 /* Non-existent command target */
 #define MC_CMD_ERR_ENOENT 2
@@ -178,7 +178,7 @@
 #define MC_CMD_ERR_EAGAIN 11
 /* Out of memory */
 #define MC_CMD_ERR_ENOMEM 12
-/* Caller does not hold required locks */
+/* Caller does yest hold required locks */
 #define MC_CMD_ERR_EACCES 13
 /* Resource is currently unavailable (e.g. lock contention) */
 #define MC_CMD_ERR_EBUSY 16
@@ -194,7 +194,7 @@
 #define MC_CMD_ERR_ERANGE 34
 /* Non-recursive resource is already acquired */
 #define MC_CMD_ERR_EDEADLK 35
-/* Operation not implemented */
+/* Operation yest implemented */
 #define MC_CMD_ERR_ENOSYS 38
 /* Operation timed out */
 #define MC_CMD_ERR_ETIME 62
@@ -202,9 +202,9 @@
 #define MC_CMD_ERR_ENOLINK 67
 /* Protocol error */
 #define MC_CMD_ERR_EPROTO 71
-/* Operation not supported */
+/* Operation yest supported */
 #define MC_CMD_ERR_ENOTSUP 95
-/* Address not available */
+/* Address yest available */
 #define MC_CMD_ERR_EADDRNOTAVAIL 99
 /* Not connected */
 #define MC_CMD_ERR_ENOTCONN 107
@@ -213,11 +213,11 @@
 
 /* Resource allocation failed. */
 #define MC_CMD_ERR_ALLOC_FAIL  0x1000
-/* V-adaptor not found. */
+/* V-adaptor yest found. */
 #define MC_CMD_ERR_NO_VADAPTOR 0x1001
-/* EVB port not found. */
+/* EVB port yest found. */
 #define MC_CMD_ERR_NO_EVB_PORT 0x1002
-/* V-switch not found. */
+/* V-switch yest found. */
 #define MC_CMD_ERR_NO_VSWITCH  0x1003
 /* Too many VLAN tags. */
 #define MC_CMD_ERR_VLAN_LIMIT  0x1004
@@ -231,11 +231,11 @@
 #define MC_CMD_ERR_BAD_VPORT_TYPE 0x1008
 /* MAC address exists. */
 #define MC_CMD_ERR_MAC_EXIST 0x1009
-/* Slave core not present */
+/* Slave core yest present */
 #define MC_CMD_ERR_SLAVE_NOT_PRESENT 0x100a
 /* The datapath is disabled. */
 #define MC_CMD_ERR_DATAPATH_DISABLED 0x100b
-/* The requesting client is not a function */
+/* The requesting client is yest a function */
 #define MC_CMD_ERR_CLIENT_NOT_FN  0x100c
 /* The requested operation might require the
    command to be passed between MCs, and the
@@ -253,11 +253,11 @@
  * helps matching it with the respective PROXY_RESPONSE event. */
 #define MC_CMD_ERR_PROXY_PENDING 0x1010
 #define MC_CMD_ERR_PROXY_PENDING_HANDLE_OFST 4
-/* The request cannot be passed for authorization because
- * another request from the same function is currently being
+/* The request canyest be passed for authorization because
+ * ayesther request from the same function is currently being
  * authorized. The drvier should try again later. */
 #define MC_CMD_ERR_PROXY_INPROGRESS 0x1011
-/* Returned by MC_CMD_PROXY_COMPLETE if the caller is not the function
+/* Returned by MC_CMD_PROXY_COMPLETE if the caller is yest the function
  * that has enabled proxying or BLOCK_INDEX points to a function that
  * doesn't await an authorization. */
 #define MC_CMD_ERR_PROXY_UNEXPECTED 0x1012
@@ -268,7 +268,7 @@
  * for handling such case, e.g. to relay the failed request
  * to a designated admin function for authorization. */
 #define MC_CMD_ERR_NO_PRIVILEGE 0x1013
-/* Workaround 26807 could not be turned on/off because some functions
+/* Workaround 26807 could yest be turned on/off because some functions
  * have already installed filters. See the comment at
  * MC_CMD_WORKAROUND_BUG26807.
  * May also returned for other operations such as sub-variant switching. */
@@ -279,20 +279,20 @@
 /* Returned by MC_CMD_TESTASSERT if the action that should
  * have caused an assertion failed to do so.  */
 #define MC_CMD_ERR_UNREACHABLE 0x1016
-/* This command needs to be processed in the background but there were no
+/* This command needs to be processed in the background but there were yes
  * resources to do so. Send it again after a command has completed. */
 #define MC_CMD_ERR_QUEUE_FULL 0x1017
-/* The operation could not be completed because the PCIe link has gone
+/* The operation could yest be completed because the PCIe link has gone
  * away.  This error code is never expected to be returned over the TLP
  * transport. */
 #define MC_CMD_ERR_NO_PCIE 0x1018
-/* The operation could not be completed because the datapath has gone
+/* The operation could yest be completed because the datapath has gone
  * away.  This is distinct from MC_CMD_ERR_DATAPATH_DISABLED in that the
  * datapath absence may be temporary*/
 #define MC_CMD_ERR_NO_DATAPATH 0x1019
-/* The operation could not complete because some VIs are allocated */
+/* The operation could yest complete because some VIs are allocated */
 #define MC_CMD_ERR_VIS_PRESENT 0x101a
-/* The operation could not complete because some PIO buffers are allocated */
+/* The operation could yest complete because some PIO buffers are allocated */
 #define MC_CMD_ERR_PIOBUFS_PRESENT 0x101b
 
 #define MC_CMD_ERR_CODE_OFST 0
@@ -323,7 +323,7 @@
 #define HUNT_MC_BOOTROM_RECOVERY_VEC (0x8000 - 2 * 0x4)
 #define MEDFORD_MC_BOOTROM_RECOVERY_VEC (0x10000 - 2 * 0x4)
 
-/* Points to noflash mode entry point. */
+/* Points to yesflash mode entry point. */
 #define MEDFORD_MC_BOOTROM_REAL_NOFLASH_VEC (0x10000 - 4 * 0x4)
 
 /* The command set exported by the boot ROM (MCDI v0) */
@@ -352,15 +352,15 @@
 	 MC_CMD_DBIWROP_TYPEDEF_VALUE_OFST +		\
 	 (n) * MC_CMD_DBIWROP_TYPEDEF_LEN)
 
-/* This may be ORed with an EVB_PORT_ID_xxx constant to pass a non-default
+/* This may be ORed with an EVB_PORT_ID_xxx constant to pass a yesn-default
  * stack ID (which must be in the range 1-255) along with an EVB port ID.
  */
 #define EVB_STACK_ID(n)  (((n) & 0xff) << 16)
 
 
-/* Version 2 adds an optional argument to error returns: the errno value
+/* Version 2 adds an optional argument to error returns: the erryes value
  * may be followed by the (0-based) number of the first argument that
- * could not be processed.
+ * could yest be processed.
  */
 #define MC_CMD_ERR_ARG_OFST 4
 
@@ -393,7 +393,7 @@
 #define        MCDI_EVENT_LINKCHANGE_LP_CAP_WIDTH 16
 #define        MCDI_EVENT_LINKCHANGE_SPEED_LBN 16
 #define        MCDI_EVENT_LINKCHANGE_SPEED_WIDTH 4
-/* enum: Link is down or link speed could not be determined */
+/* enum: Link is down or link speed could yest be determined */
 #define          MCDI_EVENT_LINKCHANGE_SPEED_UNKNOWN 0x0
 /* enum: 100Mbs */
 #define          MCDI_EVENT_LINKCHANGE_SPEED_100M 0x1
@@ -433,7 +433,7 @@
 #define        MCDI_EVENT_TX_ERR_TYPE_WIDTH 4
 /* enum: Descriptor loader reported failure */
 #define          MCDI_EVENT_TX_ERR_DL_FAIL 0x1
-/* enum: Descriptor ring empty and no EOP seen for packet */
+/* enum: Descriptor ring empty and yes EOP seen for packet */
 #define          MCDI_EVENT_TX_ERR_NO_EOP 0x2
 /* enum: Overlength packet */
 #define          MCDI_EVENT_TX_ERR_2BIG 0x3
@@ -461,7 +461,7 @@
 #define          MCDI_EVENT_PTP_ERR_QUEUE 0x4
 #define        MCDI_EVENT_AOE_ERR_TYPE_LBN 0
 #define        MCDI_EVENT_AOE_ERR_TYPE_WIDTH 8
-/* enum: AOE failed to load - no valid image? */
+/* enum: AOE failed to load - yes valid image? */
 #define          MCDI_EVENT_AOE_NO_LOAD 0x1
 /* enum: AOE FC reported an exception */
 #define          MCDI_EVENT_AOE_FC_ASSERT 0x2
@@ -509,7 +509,7 @@
 #define        MCDI_EVENT_AOE_ERR_DATA_WIDTH 8
 #define        MCDI_EVENT_AOE_ERR_FC_ASSERT_INFO_LBN 8
 #define        MCDI_EVENT_AOE_ERR_FC_ASSERT_INFO_WIDTH 8
-/* enum: FC Assert happened, but the register information is not available */
+/* enum: FC Assert happened, but the register information is yest available */
 #define          MCDI_EVENT_AOE_ERR_FC_ASSERT_SEEN 0x0
 /* enum: The register information for FC Assert is ready for readinng by driver
  */
@@ -558,11 +558,11 @@
 #define        MCDI_EVENT_MC_REBOOT_COUNT_WIDTH 16
 #define        MCDI_EVENT_MUM_ERR_TYPE_LBN 0
 #define        MCDI_EVENT_MUM_ERR_TYPE_WIDTH 8
-/* enum: MUM failed to load - no valid image? */
+/* enum: MUM failed to load - yes valid image? */
 #define          MCDI_EVENT_MUM_NO_LOAD 0x1
 /* enum: MUM f/w reported an exception */
 #define          MCDI_EVENT_MUM_ASSERT 0x2
-/* enum: MUM not kicking watchdog */
+/* enum: MUM yest kicking watchdog */
 #define          MCDI_EVENT_MUM_WATCHDOG 0x3
 #define        MCDI_EVENT_MUM_ERR_DATA_LBN 8
 #define        MCDI_EVENT_MUM_ERR_DATA_WIDTH 8
@@ -648,14 +648,14 @@
 #define          MCDI_EVENT_CODE_PTP_TIME 0x1a
 /* enum: MUM fault */
 #define          MCDI_EVENT_CODE_MUM 0x1b
-/* enum: notify the designated PF of a new authorization request */
+/* enum: yestify the designated PF of a new authorization request */
 #define          MCDI_EVENT_CODE_PROXY_REQUEST 0x1c
-/* enum: notify a function that awaits an authorization that its request has
- * been processed and it may now resend the command
+/* enum: yestify a function that awaits an authorization that its request has
+ * been processed and it may yesw resend the command
  */
 #define          MCDI_EVENT_CODE_PROXY_RESPONSE 0x1d
 /* enum: MCDI command accepted. New commands can be issued but this command is
- * not done yet.
+ * yest done yet.
  */
 #define          MCDI_EVENT_CODE_DBRET 0x1e
 /* enum: The MC has detected a fault on the SUC */
@@ -698,14 +698,14 @@
 #define       MCDI_EVENT_PTP_MAJOR_LEN 4
 #define       MCDI_EVENT_PTP_MAJOR_LBN 0
 #define       MCDI_EVENT_PTP_MAJOR_WIDTH 32
-/* For CODE_PTP_RX, CODE_PTP_PPS and CODE_HW_PPS events the nanoseconds field
+/* For CODE_PTP_RX, CODE_PTP_PPS and CODE_HW_PPS events the nayesseconds field
  * of timestamp
  */
 #define       MCDI_EVENT_PTP_NANOSECONDS_OFST 0
 #define       MCDI_EVENT_PTP_NANOSECONDS_LEN 4
 #define       MCDI_EVENT_PTP_NANOSECONDS_LBN 0
 #define       MCDI_EVENT_PTP_NANOSECONDS_WIDTH 32
-/* For CODE_PTP_RX, CODE_PTP_PPS and CODE_HW_PPS events the minor field of
+/* For CODE_PTP_RX, CODE_PTP_PPS and CODE_HW_PPS events the miyesr field of
  * timestamp
  */
 #define       MCDI_EVENT_PTP_MINOR_OFST 0
@@ -739,10 +739,10 @@
 #define       MCDI_EVENT_PTP_TIME_MAJOR_LEN 4
 #define       MCDI_EVENT_PTP_TIME_MAJOR_LBN 0
 #define       MCDI_EVENT_PTP_TIME_MAJOR_WIDTH 32
-/* For CODE_PTP_TIME events, bits 19-26 of the minor value of the PTP clock */
+/* For CODE_PTP_TIME events, bits 19-26 of the miyesr value of the PTP clock */
 #define       MCDI_EVENT_PTP_TIME_MINOR_26_19_LBN 36
 #define       MCDI_EVENT_PTP_TIME_MINOR_26_19_WIDTH 8
-/* For CODE_PTP_TIME events, most significant bits of the minor value of the
+/* For CODE_PTP_TIME events, most significant bits of the miyesr value of the
  * PTP clock. This is a more generic equivalent of PTP_TIME_MINOR_26_19.
  */
 #define       MCDI_EVENT_PTP_TIME_MINOR_MS_8BITS_LBN 36
@@ -758,11 +758,11 @@
 #define       MCDI_EVENT_PTP_TIME_HOST_NIC_IN_SYNC_LBN 37
 #define       MCDI_EVENT_PTP_TIME_HOST_NIC_IN_SYNC_WIDTH 1
 /* For CODE_PTP_TIME events where report sync status is enabled, bits 21-26 of
- * the minor value of the PTP clock
+ * the miyesr value of the PTP clock
  */
 #define       MCDI_EVENT_PTP_TIME_MINOR_26_21_LBN 38
 #define       MCDI_EVENT_PTP_TIME_MINOR_26_21_WIDTH 6
-/* For CODE_PTP_TIME events, most significant bits of the minor value of the
+/* For CODE_PTP_TIME events, most significant bits of the miyesr value of the
  * PTP clock. This is a more generic equivalent of PTP_TIME_MINOR_26_21.
  */
 #define       MCDI_EVENT_PTP_TIME_MINOR_MS_6BITS_LBN 38
@@ -776,7 +776,7 @@
 #define       MCDI_EVENT_PROXY_RESPONSE_HANDLE_LBN 0
 #define       MCDI_EVENT_PROXY_RESPONSE_HANDLE_WIDTH 32
 /* Zero means that the request has been completed or authorized, and the driver
- * should resend it. A non-zero value means that the authorization has been
+ * should resend it. A yesn-zero value means that the authorization has been
  * denied, and gives the reason. Typically it will be EPERM.
  */
 #define       MCDI_EVENT_PROXY_RESPONSE_RC_LBN 36
@@ -885,7 +885,7 @@
 #define       FCDI_EVENT_BOOT_RESULT_WIDTH 32
 
 /* FCDI_EXTENDED_EVENT_PPS structuredef: Extended FCDI event to send PPS events
- * to the MC. Note that this structure | is overlayed over a normal FCDI event
+ * to the MC. Note that this structure | is overlayed over a yesrmal FCDI event
  * such that bits 32-63 containing | event code, level, source etc remain the
  * same. In this case the data | field of the header is defined to be the
  * number of timestamps
@@ -903,7 +903,7 @@
 #define       FCDI_EXTENDED_EVENT_PPS_SECONDS_LEN 4
 #define       FCDI_EXTENDED_EVENT_PPS_SECONDS_LBN 64
 #define       FCDI_EXTENDED_EVENT_PPS_SECONDS_WIDTH 32
-/* Nanoseconds field of a timestamp record */
+/* Nayesseconds field of a timestamp record */
 #define       FCDI_EXTENDED_EVENT_PPS_NANOSECONDS_OFST 12
 #define       FCDI_EXTENDED_EVENT_PPS_NANOSECONDS_LEN 4
 #define       FCDI_EXTENDED_EVENT_PPS_NANOSECONDS_LBN 96
@@ -1215,7 +1215,7 @@
 /***********************************/
 /* MC_CMD_LOG_CTRL
  * Configure the output stream for log events such as link state changes,
- * sensor notifications and MCDI completions
+ * sensor yestifications and MCDI completions
  */
 #define MC_CMD_LOG_CTRL 0x7
 
@@ -1322,7 +1322,7 @@
 /* enum: Disable PTP packet timestamping operation. */
 #define          MC_CMD_PTP_OP_DISABLE 0x2
 /* enum: Send a PTP packet. This operation is used on Siena and Huntington.
- * From Medford onwards it is not supported: on those platforms PTP transmit
+ * From Medford onwards it is yest supported: on those platforms PTP transmit
  * timestamping is done using the fast path.
  */
 #define          MC_CMD_PTP_OP_TRANSMIT 0x3
@@ -1493,10 +1493,10 @@
 /* Time adjustment major value */
 #define       MC_CMD_PTP_IN_ADJUST_MAJOR_OFST 16
 #define       MC_CMD_PTP_IN_ADJUST_MAJOR_LEN 4
-/* Time adjustment in nanoseconds */
+/* Time adjustment in nayesseconds */
 #define       MC_CMD_PTP_IN_ADJUST_NANOSECONDS_OFST 20
 #define       MC_CMD_PTP_IN_ADJUST_NANOSECONDS_LEN 4
-/* Time adjustment minor value */
+/* Time adjustment miyesr value */
 #define       MC_CMD_PTP_IN_ADJUST_MINOR_OFST 20
 #define       MC_CMD_PTP_IN_ADJUST_MINOR_LEN 4
 
@@ -1524,10 +1524,10 @@
 /* Time adjustment major value */
 #define       MC_CMD_PTP_IN_ADJUST_V2_MAJOR_OFST 16
 #define       MC_CMD_PTP_IN_ADJUST_V2_MAJOR_LEN 4
-/* Time adjustment in nanoseconds */
+/* Time adjustment in nayesseconds */
 #define       MC_CMD_PTP_IN_ADJUST_V2_NANOSECONDS_OFST 20
 #define       MC_CMD_PTP_IN_ADJUST_V2_NANOSECONDS_LEN 4
-/* Time adjustment minor value */
+/* Time adjustment miyesr value */
 #define       MC_CMD_PTP_IN_ADJUST_V2_MINOR_OFST 20
 #define       MC_CMD_PTP_IN_ADJUST_V2_MINOR_LEN 4
 /* Upper 32bits of major time offset adjustment */
@@ -1623,10 +1623,10 @@
 /* Time adjustment major value */
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_MAJOR_OFST 8
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_MAJOR_LEN 4
-/* Time adjustment in nanoseconds */
+/* Time adjustment in nayesseconds */
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_NANOSECONDS_OFST 12
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_NANOSECONDS_LEN 4
-/* Time adjustment minor value */
+/* Time adjustment miyesr value */
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_MINOR_OFST 12
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_MINOR_LEN 4
 
@@ -1642,10 +1642,10 @@
 /* Time adjustment major value */
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_V2_MAJOR_OFST 8
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_V2_MAJOR_LEN 4
-/* Time adjustment in nanoseconds */
+/* Time adjustment in nayesseconds */
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_V2_NANOSECONDS_OFST 12
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_V2_NANOSECONDS_LEN 4
-/* Time adjustment minor value */
+/* Time adjustment miyesr value */
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_V2_MINOR_OFST 12
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_V2_MINOR_LEN 4
 /* Upper 32bits of major time offset adjustment */
@@ -1672,7 +1672,7 @@
 /*            MC_CMD_PTP_IN_CMD_LEN 4 */
 /*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
 /*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Number of VLAN tags, 0 if not VLAN */
+/* Number of VLAN tags, 0 if yest VLAN */
 #define       MC_CMD_PTP_IN_RX_SET_VLAN_FILTER_NUM_VLAN_TAGS_OFST 8
 #define       MC_CMD_PTP_IN_RX_SET_VLAN_FILTER_NUM_VLAN_TAGS_LEN 4
 /* Set of VLAN tags to filter against */
@@ -1815,12 +1815,12 @@
 /* NIC - Host System Clock Synchronization status */
 #define       MC_CMD_PTP_IN_SET_SYNC_STATUS_STATUS_OFST 8
 #define       MC_CMD_PTP_IN_SET_SYNC_STATUS_STATUS_LEN 4
-/* enum: Host System clock and NIC clock are not in sync */
+/* enum: Host System clock and NIC clock are yest in sync */
 #define          MC_CMD_PTP_IN_SET_SYNC_STATUS_NOT_IN_SYNC 0x0
 /* enum: Host System clock and NIC clock are synchronized */
 #define          MC_CMD_PTP_IN_SET_SYNC_STATUS_IN_SYNC 0x1
 /* If synchronized, number of seconds until clocks should be considered to be
- * no longer in sync.
+ * yes longer in sync.
  */
 #define       MC_CMD_PTP_IN_SET_SYNC_STATUS_TIMEOUT_OFST 12
 #define       MC_CMD_PTP_IN_SET_SYNC_STATUS_TIMEOUT_LEN 4
@@ -1840,10 +1840,10 @@
 /* Timestamp major value */
 #define       MC_CMD_PTP_OUT_TRANSMIT_MAJOR_OFST 0
 #define       MC_CMD_PTP_OUT_TRANSMIT_MAJOR_LEN 4
-/* Value of nanoseconds timestamp */
+/* Value of nayesseconds timestamp */
 #define       MC_CMD_PTP_OUT_TRANSMIT_NANOSECONDS_OFST 4
 #define       MC_CMD_PTP_OUT_TRANSMIT_NANOSECONDS_LEN 4
-/* Timestamp minor value */
+/* Timestamp miyesr value */
 #define       MC_CMD_PTP_OUT_TRANSMIT_MINOR_OFST 4
 #define       MC_CMD_PTP_OUT_TRANSMIT_MINOR_LEN 4
 
@@ -1861,10 +1861,10 @@
 /* Timestamp major value */
 #define       MC_CMD_PTP_OUT_READ_NIC_TIME_MAJOR_OFST 0
 #define       MC_CMD_PTP_OUT_READ_NIC_TIME_MAJOR_LEN 4
-/* Value of nanoseconds timestamp */
+/* Value of nayesseconds timestamp */
 #define       MC_CMD_PTP_OUT_READ_NIC_TIME_NANOSECONDS_OFST 4
 #define       MC_CMD_PTP_OUT_READ_NIC_TIME_NANOSECONDS_LEN 4
-/* Timestamp minor value */
+/* Timestamp miyesr value */
 #define       MC_CMD_PTP_OUT_READ_NIC_TIME_MINOR_OFST 4
 #define       MC_CMD_PTP_OUT_READ_NIC_TIME_MINOR_LEN 4
 
@@ -1876,10 +1876,10 @@
 /* Timestamp major value */
 #define       MC_CMD_PTP_OUT_READ_NIC_TIME_V2_MAJOR_OFST 0
 #define       MC_CMD_PTP_OUT_READ_NIC_TIME_V2_MAJOR_LEN 4
-/* Value of nanoseconds timestamp */
+/* Value of nayesseconds timestamp */
 #define       MC_CMD_PTP_OUT_READ_NIC_TIME_V2_NANOSECONDS_OFST 4
 #define       MC_CMD_PTP_OUT_READ_NIC_TIME_V2_NANOSECONDS_LEN 4
-/* Timestamp minor value */
+/* Timestamp miyesr value */
 #define       MC_CMD_PTP_OUT_READ_NIC_TIME_V2_MINOR_OFST 4
 #define       MC_CMD_PTP_OUT_READ_NIC_TIME_V2_MINOR_LEN 4
 /* Upper 32bits of major timestamp value */
@@ -1903,37 +1903,37 @@
 /* Number of packets filter matched */
 #define       MC_CMD_PTP_OUT_STATUS_STATS_FM_OFST 16
 #define       MC_CMD_PTP_OUT_STATUS_STATS_FM_LEN 4
-/* Number of packets not filter matched */
+/* Number of packets yest filter matched */
 #define       MC_CMD_PTP_OUT_STATUS_STATS_NFM_OFST 20
 #define       MC_CMD_PTP_OUT_STATUS_STATS_NFM_LEN 4
-/* Number of PPS overflows (noise on input?) */
+/* Number of PPS overflows (yesise on input?) */
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_OFLOW_OFST 24
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_OFLOW_LEN 4
 /* Number of PPS bad periods */
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_BAD_OFST 28
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_BAD_LEN 4
-/* Minimum period of PPS pulse in nanoseconds */
+/* Minimum period of PPS pulse in nayesseconds */
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_PER_MIN_OFST 32
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_PER_MIN_LEN 4
-/* Maximum period of PPS pulse in nanoseconds */
+/* Maximum period of PPS pulse in nayesseconds */
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_PER_MAX_OFST 36
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_PER_MAX_LEN 4
-/* Last period of PPS pulse in nanoseconds */
+/* Last period of PPS pulse in nayesseconds */
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_PER_LAST_OFST 40
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_PER_LAST_LEN 4
-/* Mean period of PPS pulse in nanoseconds */
+/* Mean period of PPS pulse in nayesseconds */
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_PER_MEAN_OFST 44
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_PER_MEAN_LEN 4
-/* Minimum offset of PPS pulse in nanoseconds (signed) */
+/* Minimum offset of PPS pulse in nayesseconds (signed) */
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_OFF_MIN_OFST 48
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_OFF_MIN_LEN 4
-/* Maximum offset of PPS pulse in nanoseconds (signed) */
+/* Maximum offset of PPS pulse in nayesseconds (signed) */
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_OFF_MAX_OFST 52
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_OFF_MAX_LEN 4
-/* Last offset of PPS pulse in nanoseconds (signed) */
+/* Last offset of PPS pulse in nayesseconds (signed) */
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_OFF_LAST_OFST 56
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_OFF_LAST_LEN 4
-/* Mean offset of PPS pulse in nanoseconds (signed) */
+/* Mean offset of PPS pulse in nayesseconds (signed) */
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_OFF_MEAN_OFST 60
 #define       MC_CMD_PTP_OUT_STATUS_STATS_PPS_OFF_MEAN_LEN 4
 
@@ -1955,16 +1955,16 @@
 /* Timestamp major value */
 #define       MC_CMD_PTP_OUT_SYNCHRONIZE_MAJOR_OFST 4
 #define       MC_CMD_PTP_OUT_SYNCHRONIZE_MAJOR_LEN 4
-/* Value of nanoseconds timestamp */
+/* Value of nayesseconds timestamp */
 #define       MC_CMD_PTP_OUT_SYNCHRONIZE_NANOSECONDS_OFST 8
 #define       MC_CMD_PTP_OUT_SYNCHRONIZE_NANOSECONDS_LEN 4
-/* Timestamp minor value */
+/* Timestamp miyesr value */
 #define       MC_CMD_PTP_OUT_SYNCHRONIZE_MINOR_OFST 8
 #define       MC_CMD_PTP_OUT_SYNCHRONIZE_MINOR_LEN 4
 /* Host time immediately after NIC's hardware clock read */
 #define       MC_CMD_PTP_OUT_SYNCHRONIZE_HOSTEND_OFST 12
 #define       MC_CMD_PTP_OUT_SYNCHRONIZE_HOSTEND_LEN 4
-/* Number of nanoseconds waited after reading NIC's hardware clock */
+/* Number of nayesseconds waited after reading NIC's hardware clock */
 #define       MC_CMD_PTP_OUT_SYNCHRONIZE_WAITNS_OFST 16
 #define       MC_CMD_PTP_OUT_SYNCHRONIZE_WAITNS_LEN 4
 
@@ -1981,23 +1981,23 @@
 #define          MC_CMD_PTP_MANF_FPGA_VERSION 0x2
 /* enum: FPGA registers incorrect */
 #define          MC_CMD_PTP_MANF_FPGA_REGISTERS 0x3
-/* enum: Oscillator possibly not working? */
+/* enum: Oscillator possibly yest working? */
 #define          MC_CMD_PTP_MANF_OSCILLATOR 0x4
-/* enum: Timestamps not increasing */
+/* enum: Timestamps yest increasing */
 #define          MC_CMD_PTP_MANF_TIMESTAMPS 0x5
 /* enum: Mismatched packet count */
 #define          MC_CMD_PTP_MANF_PACKET_COUNT 0x6
 /* enum: Mismatched packet count (Siena filter and FPGA) */
 #define          MC_CMD_PTP_MANF_FILTER_COUNT 0x7
-/* enum: Not enough packets to perform timestamp check */
+/* enum: Not eyesugh packets to perform timestamp check */
 #define          MC_CMD_PTP_MANF_PACKET_ENOUGH 0x8
-/* enum: Timestamp trigger GPIO not working */
+/* enum: Timestamp trigger GPIO yest working */
 #define          MC_CMD_PTP_MANF_GPIO_TRIGGER 0x9
 /* enum: Insufficient PPS events to perform checks */
 #define          MC_CMD_PTP_MANF_PPS_ENOUGH 0xa
-/* enum: PPS time event period not sufficiently close to 1s. */
+/* enum: PPS time event period yest sufficiently close to 1s. */
 #define          MC_CMD_PTP_MANF_PPS_PERIOD 0xb
-/* enum: PPS time event nS reading not sufficiently close to zero. */
+/* enum: PPS time event nS reading yest sufficiently close to zero. */
 #define          MC_CMD_PTP_MANF_PPS_NS 0xc
 /* enum: PTP peripheral registers incorrect */
 #define          MC_CMD_PTP_MANF_REGISTERS 0xd
@@ -2032,35 +2032,35 @@
 #define    MC_CMD_PTP_OUT_GET_TIME_FORMAT_LEN 4
 /* Time format required/used by for this NIC. Applies to all PTP MCDI
  * operations that pass times between the host and firmware. If this operation
- * is not supported (older firmware) a format of seconds and nanoseconds should
- * be assumed. Note this enum is deprecated. Do not add to it- use the
+ * is yest supported (older firmware) a format of seconds and nayesseconds should
+ * be assumed. Note this enum is deprecated. Do yest add to it- use the
  * TIME_FORMAT field in MC_CMD_PTP_OUT_GET_ATTRIBUTES instead.
  */
 #define       MC_CMD_PTP_OUT_GET_TIME_FORMAT_FORMAT_OFST 0
 #define       MC_CMD_PTP_OUT_GET_TIME_FORMAT_FORMAT_LEN 4
-/* enum: Times are in seconds and nanoseconds */
+/* enum: Times are in seconds and nayesseconds */
 #define          MC_CMD_PTP_OUT_GET_TIME_FORMAT_SECONDS_NANOSECONDS 0x0
-/* enum: Major register has units of 16 second per tick, minor 8 ns per tick */
+/* enum: Major register has units of 16 second per tick, miyesr 8 ns per tick */
 #define          MC_CMD_PTP_OUT_GET_TIME_FORMAT_16SECONDS_8NANOSECONDS 0x1
-/* enum: Major register has units of seconds, minor 2^-27s per tick */
+/* enum: Major register has units of seconds, miyesr 2^-27s per tick */
 #define          MC_CMD_PTP_OUT_GET_TIME_FORMAT_SECONDS_27FRACTION 0x2
 
 /* MC_CMD_PTP_OUT_GET_ATTRIBUTES msgresponse */
 #define    MC_CMD_PTP_OUT_GET_ATTRIBUTES_LEN 24
 /* Time format required/used by for this NIC. Applies to all PTP MCDI
  * operations that pass times between the host and firmware. If this operation
- * is not supported (older firmware) a format of seconds and nanoseconds should
+ * is yest supported (older firmware) a format of seconds and nayesseconds should
  * be assumed.
  */
 #define       MC_CMD_PTP_OUT_GET_ATTRIBUTES_TIME_FORMAT_OFST 0
 #define       MC_CMD_PTP_OUT_GET_ATTRIBUTES_TIME_FORMAT_LEN 4
-/* enum: Times are in seconds and nanoseconds */
+/* enum: Times are in seconds and nayesseconds */
 #define          MC_CMD_PTP_OUT_GET_ATTRIBUTES_SECONDS_NANOSECONDS 0x0
-/* enum: Major register has units of 16 second per tick, minor 8 ns per tick */
+/* enum: Major register has units of 16 second per tick, miyesr 8 ns per tick */
 #define          MC_CMD_PTP_OUT_GET_ATTRIBUTES_16SECONDS_8NANOSECONDS 0x1
-/* enum: Major register has units of seconds, minor 2^-27s per tick */
+/* enum: Major register has units of seconds, miyesr 2^-27s per tick */
 #define          MC_CMD_PTP_OUT_GET_ATTRIBUTES_SECONDS_27FRACTION 0x2
-/* enum: Major register units are seconds, minor units are quarter nanoseconds
+/* enum: Major register units are seconds, miyesr units are quarter nayesseconds
  */
 #define          MC_CMD_PTP_OUT_GET_ATTRIBUTES_SECONDS_QTR_NANOSECONDS 0x3
 /* Minimum acceptable value for a corrected synchronization timeset. When
@@ -2119,10 +2119,10 @@
 /* Uncorrected error on PPS input in NIC clock format */
 #define       MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_PPS_IN_OFST 12
 #define       MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_PPS_IN_LEN 4
-/* Uncorrected error on non-PTP transmit timestamps in NIC clock format */
+/* Uncorrected error on yesn-PTP transmit timestamps in NIC clock format */
 #define       MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_GENERAL_TX_OFST 16
 #define       MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_GENERAL_TX_LEN 4
-/* Uncorrected error on non-PTP receive timestamps in NIC clock format */
+/* Uncorrected error on yesn-PTP receive timestamps in NIC clock format */
 #define       MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_GENERAL_RX_OFST 20
 #define       MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_GENERAL_RX_LEN 4
 
@@ -2160,7 +2160,7 @@
 #define    MC_CMD_CSR_READ32_OUT_LENMIN 4
 #define    MC_CMD_CSR_READ32_OUT_LENMAX 252
 #define    MC_CMD_CSR_READ32_OUT_LEN(num) (0+4*(num))
-/* The last dword is the status, not a value read */
+/* The last dword is the status, yest a value read */
 #define       MC_CMD_CSR_READ32_OUT_BUFFER_OFST 0
 #define       MC_CMD_CSR_READ32_OUT_BUFFER_LEN 4
 #define       MC_CMD_CSR_READ32_OUT_BUFFER_MINNUM 1
@@ -2206,7 +2206,7 @@
 
 /* MC_CMD_HP_IN msgrequest */
 #define    MC_CMD_HP_IN_LEN 16
-/* HP OCSD sub-command. When address is not NULL, request activation of OCSD at
+/* HP OCSD sub-command. When address is yest NULL, request activation of OCSD at
  * the specified address with the specified interval.When address is NULL,
  * INTERVAL is interpreted as a command: 0: stop OCSD / 1: Report OCSD current
  * state / 2: (debug) Show temperature reported by one of the supported
@@ -2216,7 +2216,7 @@
 #define       MC_CMD_HP_IN_SUBCMD_LEN 4
 /* enum: OCSD (Option Card Sensor Data) sub-command. */
 #define          MC_CMD_HP_IN_OCSD_SUBCMD 0x0
-/* enum: Last known valid HP sub-command. */
+/* enum: Last kyeswn valid HP sub-command. */
 #define          MC_CMD_HP_IN_LAST_SUBCMD 0x0
 /* The address to the array of sensor fields. (Or NULL to use a sub-command.)
  */
@@ -2582,7 +2582,7 @@
 #define       MC_CMD_GET_BOARD_CFG_OUT_MAC_STRIDE_PORT1_LEN 4
 /* Siena only. This field contains a 16-bit value for each of the types of
  * NVRAM area. The values are defined in the firmware/mc/platform/.c file for a
- * specific board type, but otherwise have no meaning to the MC; they are used
+ * specific board type, but otherwise have yes meaning to the MC; they are used
  * by the driver to manage selection of appropriate firmware updates. Unused on
  * EF10 and later (use MC_CMD_NVRAM_METADATA).
  */
@@ -2682,9 +2682,9 @@
 /* MC_CMD_DRV_ATTACH
  * Inform MCPU that this port is managed on the host (i.e. driver active). For
  * Huntington, also request the preferred datapath firmware to use if possible
- * (it may not be possible for this request to be fulfilled; the driver must
+ * (it may yest be possible for this request to be fulfilled; the driver must
  * issue a subsequent MC_CMD_GET_CAPABILITIES command to determine which
- * features are actually available). The FIRMWARE_ID field is ignored by older
+ * features are actually available). The FIRMWARE_ID field is igyesred by older
  * platforms.
  */
 #define MC_CMD_DRV_ATTACH 0x1c
@@ -2711,7 +2711,7 @@
 /* 1 to set new state, or 0 to just report the existing state */
 #define       MC_CMD_DRV_ATTACH_IN_UPDATE_OFST 4
 #define       MC_CMD_DRV_ATTACH_IN_UPDATE_LEN 4
-/* preferred datapath firmware (for Huntington; ignored for Siena) */
+/* preferred datapath firmware (for Huntington; igyesred for Siena) */
 #define       MC_CMD_DRV_ATTACH_IN_FIRMWARE_ID_OFST 8
 #define       MC_CMD_DRV_ATTACH_IN_FIRMWARE_ID_LEN 4
 /* enum: Prefer to use full featured firmware */
@@ -2736,7 +2736,7 @@
  * bug69716)
  */
 #define          MC_CMD_FW_L3XUDP 0x7
-/* enum: Only this option is allowed for non-admin functions */
+/* enum: Only this option is allowed for yesn-admin functions */
 #define          MC_CMD_FW_DONT_CARE 0xffffffff
 
 /* MC_CMD_DRV_ATTACH_OUT msgresponse */
@@ -2761,7 +2761,7 @@
 #define          MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_LINKCTRL 0x1
 /* enum: The function can perform privileged operations */
 #define          MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_TRUSTED 0x2
-/* enum: The function does not have an active port associated with it. The port
+/* enum: The function does yest have an active port associated with it. The port
  * refers to the Sorrento external FPGA port.
  */
 #define          MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_NO_ACTIVE_PORT 0x3
@@ -2790,7 +2790,7 @@
 
 /***********************************/
 /* MC_CMD_PORT_RESET
- * Generic per-port reset. There is no equivalent for per-board reset. Locks
+ * Generic per-port reset. There is yes equivalent for per-board reset. Locks
  * required: None; Return code: 0, ETIME. NOTE: This command is deprecated -
  * use MC_CMD_ENTITY_RESET instead.
  */
@@ -2807,7 +2807,7 @@
 
 /***********************************/
 /* MC_CMD_ENTITY_RESET
- * Generic per-resource reset. There is no equivalent for per-board reset.
+ * Generic per-resource reset. There is yes equivalent for per-board reset.
  * Locks required: None; Return code: 0, ETIME. NOTE: This command is an
  * extended version of the deprecated MC_CMD_PORT_RESET with added fields.
  */
@@ -3081,7 +3081,7 @@
 /***********************************/
 /* MC_CMD_START_BIST
  * Start a BIST test on the PHY. Locks required: PHY_LOCK if doing a PHY BIST
- * Return code: 0, EINVAL, EACCES (if PHY_LOCK is not held)
+ * Return code: 0, EINVAL, EACCES (if PHY_LOCK is yest held)
  */
 #define MC_CMD_START_BIST 0x25
 
@@ -3120,7 +3120,7 @@
  * after validating OUTLEN and MC_CMD_GET_PHY_CFG.TYPE. If a driver can't
  * successfully parse the BIST output, it should still respect the pass/Fail in
  * OUT.RESULT. Locks required: PHY_LOCK if doing a PHY BIST. Return code: 0,
- * EACCES (if PHY_LOCK is not held).
+ * EACCES (if PHY_LOCK is yest held).
  */
 #define MC_CMD_POLL_BIST 0x26
 
@@ -3202,13 +3202,13 @@
 #define          MC_CMD_POLL_BIST_MRSFP_TEST_COMPLETE 0x0
 /* enum: Bus switch off I2C write. */
 #define          MC_CMD_POLL_BIST_MRSFP_TEST_BUS_SWITCH_OFF_I2C_WRITE 0x1
-/* enum: Bus switch off I2C no access IO exp. */
+/* enum: Bus switch off I2C yes access IO exp. */
 #define          MC_CMD_POLL_BIST_MRSFP_TEST_BUS_SWITCH_OFF_I2C_NO_ACCESS_IO_EXP 0x2
-/* enum: Bus switch off I2C no access module. */
+/* enum: Bus switch off I2C yes access module. */
 #define          MC_CMD_POLL_BIST_MRSFP_TEST_BUS_SWITCH_OFF_I2C_NO_ACCESS_MODULE 0x3
 /* enum: IO exp I2C configure. */
 #define          MC_CMD_POLL_BIST_MRSFP_TEST_IO_EXP_I2C_CONFIGURE 0x4
-/* enum: Bus switch I2C no cross talk. */
+/* enum: Bus switch I2C yes cross talk. */
 #define          MC_CMD_POLL_BIST_MRSFP_TEST_BUS_SWITCH_I2C_NO_CROSSTALK 0x5
 /* enum: Module presence. */
 #define          MC_CMD_POLL_BIST_MRSFP_TEST_MODULE_PRESENCE 0x6
@@ -3287,7 +3287,7 @@
  * flushes should be initiated via this MCDI operation, rather than via
  * directly writing FLUSH_CMD.
  *
- * The flush is completed (either done/fail) asynchronously (after this command
+ * The flush is completed (either done/fail) asynchroyesusly (after this command
  * returns). The driver must still wait for flush done/failure events as usual.
  */
 #define MC_CMD_FLUSH_RX_QUEUES 0x27
@@ -3571,7 +3571,7 @@
 #define    AN_TYPE_LEN 4
 #define       AN_TYPE_TYPE_OFST 0
 #define       AN_TYPE_TYPE_LEN 4
-/* enum: None, AN disabled or not supported */
+/* enum: None, AN disabled or yest supported */
 #define          MC_CMD_AN_NONE 0x0
 /* enum: Clause 28 - BASE-T */
 #define          MC_CMD_AN_CLAUSE28 0x1
@@ -3624,7 +3624,7 @@
 #define       MC_CMD_GET_LINK_OUT_LP_CAP_OFST 4
 #define       MC_CMD_GET_LINK_OUT_LP_CAP_LEN 4
 /* Autonegotiated speed in mbit/s. The link may still be down even if this
- * reads non-zero.
+ * reads yesn-zero.
  */
 #define       MC_CMD_GET_LINK_OUT_LINK_SPEED_OFST 8
 #define       MC_CMD_GET_LINK_OUT_LINK_SPEED_LEN 4
@@ -3676,7 +3676,7 @@
 #define       MC_CMD_GET_LINK_OUT_V2_LP_CAP_OFST 4
 #define       MC_CMD_GET_LINK_OUT_V2_LP_CAP_LEN 4
 /* Autonegotiated speed in mbit/s. The link may still be down even if this
- * reads non-zero.
+ * reads yesn-zero.
  */
 #define       MC_CMD_GET_LINK_OUT_V2_LINK_SPEED_OFST 8
 #define       MC_CMD_GET_LINK_OUT_V2_LINK_SPEED_LEN 4
@@ -3717,8 +3717,8 @@
 /* True local device capabilities (taking into account currently used PMD/MDI,
  * e.g. plugged-in module). In general, subset of
  * MC_CMD_GET_PHY_CFG_OUT/SUPPORTED_CAP, but may include extra _FEC_REQUEST
- * bits, if the PMD requires FEC. 0 if unknown (e.g. module unplugged). Equal
- * to SUPPORTED_CAP for non-pluggable PMDs. Refer to
+ * bits, if the PMD requires FEC. 0 if unkyeswn (e.g. module unplugged). Equal
+ * to SUPPORTED_CAP for yesn-pluggable PMDs. Refer to
  * MC_CMD_GET_PHY_CFG_OUT/SUPPORTED_CAP for bit definitions.
  */
 #define       MC_CMD_GET_LINK_OUT_V2_LD_CAP_OFST 28
@@ -3900,8 +3900,8 @@
 #define        MC_CMD_SET_MAC_EXT_IN_FLAG_INCLUDE_FCS_LBN 0
 #define        MC_CMD_SET_MAC_EXT_IN_FLAG_INCLUDE_FCS_WIDTH 1
 /* Select which parameters to configure. A parameter will only be modified if
- * the corresponding control flag is set. If SET_MAC_ENHANCED is not set in
- * capabilities then this field is ignored (and all flags are assumed to be
+ * the corresponding control flag is set. If SET_MAC_ENHANCED is yest set in
+ * capabilities then this field is igyesred (and all flags are assumed to be
  * set).
  */
 #define       MC_CMD_SET_MAC_EXT_IN_CONTROL_OFST 28
@@ -3934,7 +3934,7 @@
 /* MC_CMD_PHY_STATS
  * Get generic PHY statistics. This call returns the statistics for a generic
  * PHY in a sparse array (indexed by the enumerate). Each value is represented
- * by a 32bit number. If the DMA_ADDR is 0, then no DMA is performed, and the
+ * by a 32bit number. If the DMA_ADDR is 0, then yes DMA is performed, and the
  * statistics may be read from the message response. If DMA_ADDR != 0, then the
  * statistics are dmad to that (page-aligned location). Locks required: None.
  * Returns: 0, ETIME
@@ -4014,10 +4014,10 @@
  * Get generic MAC statistics. This call returns unified statistics maintained
  * by the MC as it switches between the GMAC and XMAC. The MC will write out
  * all supported stats. The driver should zero initialise the buffer to
- * guarantee consistent results. If the DMA_ADDR is 0, then no DMA is
+ * guarantee consistent results. If the DMA_ADDR is 0, then yes DMA is
  * performed, and the statistics may be read from the message response. If
  * DMA_ADDR != 0, then the statistics are dmad to that (page-aligned location).
- * Locks required: None. The PERIODIC_CLEAR option is not used and now has no
+ * Locks required: None. The PERIODIC_CLEAR option is yest used and yesw has yes
  * effect. Returns: 0, ETIME
  */
 #define MC_CMD_MAC_STATS 0x2e
@@ -4048,7 +4048,7 @@
 #define        MC_CMD_MAC_STATS_IN_PERIOD_MS_LBN 16
 #define        MC_CMD_MAC_STATS_IN_PERIOD_MS_WIDTH 16
 /* DMA length. Should be set to MAC_STATS_NUM_STATS * sizeof(uint64_t), as
- * returned by MC_CMD_GET_CAPABILITIES_V4_OUT. For legacy firmware not
+ * returned by MC_CMD_GET_CAPABILITIES_V4_OUT. For legacy firmware yest
  * supporting MC_CMD_GET_CAPABILITIES_V4_OUT, DMA_LEN should be set to
  * MC_CMD_MAC_NSTATS * sizeof(uint64_t)
  */
@@ -4165,7 +4165,7 @@
  * with PM_AND_RXDP_COUNTERS capability only.
  */
 #define          MC_CMD_MAC_RXDP_DI_DROPPED_PKTS 0x45
-/* enum: RXDP counter: Number of non-host packets. Valid for EF10 with
+/* enum: RXDP counter: Number of yesn-host packets. Valid for EF10 with
  * PM_AND_RXDP_COUNTERS capability only.
  */
 #define          MC_CMD_MAC_RXDP_STREAMING_PKTS 0x46
@@ -4273,11 +4273,11 @@
 #define          MC_CMD_MAC_CTPIO_MISSING_DBELL_FAIL 0x6a
 /* enum: Number of CTPIO failures because the internal FIFO overflowed */
 #define          MC_CMD_MAC_CTPIO_OVERFLOW_FAIL 0x6b
-/* enum: Number of CTPIO failures because the host did not deliver data fast
- * enough to avoid MAC underflow
+/* enum: Number of CTPIO failures because the host did yest deliver data fast
+ * eyesugh to avoid MAC underflow
  */
 #define          MC_CMD_MAC_CTPIO_UNDERFLOW_FAIL 0x6c
-/* enum: Number of CTPIO failures because the host did not deliver all the
+/* enum: Number of CTPIO failures because the host did yest deliver all the
  * frame data within the timeout
  */
 #define          MC_CMD_MAC_CTPIO_TIMEOUT_FAIL 0x6d
@@ -4289,15 +4289,15 @@
  * completing the previous one
  */
 #define          MC_CMD_MAC_CTPIO_FRM_CLOBBER_FAIL 0x6f
-/* enum: Number of CTPIO failures because a write was not a multiple of 32 bits
- * or not 32-bit aligned
+/* enum: Number of CTPIO failures because a write was yest a multiple of 32 bits
+ * or yest 32-bit aligned
  */
 #define          MC_CMD_MAC_CTPIO_INVALID_WR_FAIL 0x70
-/* enum: Number of CTPIO fallbacks because another VI on the same port was
+/* enum: Number of CTPIO fallbacks because ayesther VI on the same port was
  * sending a CTPIO frame
  */
 #define          MC_CMD_MAC_CTPIO_VI_CLOBBER_FALLBACK 0x71
-/* enum: Number of CTPIO fallbacks because target VI did not have CTPIO enabled
+/* enum: Number of CTPIO fallbacks because target VI did yest have CTPIO enabled
  */
 #define          MC_CMD_MAC_CTPIO_UNQUALIFIED_FALLBACK 0x72
 /* enum: Number of CTPIO fallbacks because length in header was less than 29
@@ -4309,7 +4309,7 @@
 /* enum: Total number of CTPIO fallbacks on this port */
 #define          MC_CMD_MAC_CTPIO_FALLBACK 0x75
 /* enum: Total number of CTPIO poisoned frames on this port, whether erased or
- * not
+ * yest
  */
 #define          MC_CMD_MAC_CTPIO_POISON 0x76
 /* enum: Total number of CTPIO erased frames on this port */
@@ -4387,7 +4387,7 @@
  * update of a datastructure. To facilitate this, this MCDI operation can
  * contain multiple requests which are executed in strict order. Requests take
  * the form of duplicating the entire MCDI request continuously (including the
- * requests record, which is ignored in all but the first structure)
+ * requests record, which is igyesred in all but the first structure)
  *
  * The source data can either come from a DMA from the host, or it can be
  * embedded within the request directly, thereby eliminating a DMA read. To
@@ -4583,7 +4583,7 @@
 /***********************************/
 /* MC_CMD_NVRAM_TYPES
  * Return bitfield indicating available types of virtual NVRAM partitions.
- * Locks required: none. Returns: 0
+ * Locks required: yesne. Returns: 0
  */
 #define MC_CMD_NVRAM_TYPES 0x36
 
@@ -4643,7 +4643,7 @@
 
 /***********************************/
 /* MC_CMD_NVRAM_INFO
- * Read info about a virtual NVRAM partition. Locks required: none. Returns: 0,
+ * Read info about a virtual NVRAM partition. Locks required: yesne. Returns: 0,
  * EINVAL (bad type).
  */
 #define MC_CMD_NVRAM_INFO 0x37
@@ -4722,7 +4722,7 @@
 /* MC_CMD_NVRAM_UPDATE_START
  * Start a group of update operations on a virtual NVRAM partition. Locks
  * required: PHY_LOCK if type==*PHY*. Returns: 0, EINVAL (bad type), EACCES (if
- * PHY_LOCK required and not held). In an adapter bound to a TSA controller,
+ * PHY_LOCK required and yest held). In an adapter bound to a TSA controller,
  * MC_CMD_NVRAM_UPDATE_START can only be used on a subset of partition types
  * i.e. static config, dynamic config and expansion ROM config. Attempting to
  * perform this operation on a restricted partition will return the error
@@ -4764,7 +4764,7 @@
 /* MC_CMD_NVRAM_READ
  * Read data from a virtual NVRAM partition. Locks required: PHY_LOCK if
  * type==*PHY*. Returns: 0, EINVAL (bad type/offset/length), EACCES (if
- * PHY_LOCK required and not held)
+ * PHY_LOCK required and yest held)
  */
 #define MC_CMD_NVRAM_READ 0x39
 
@@ -4812,7 +4812,7 @@
  * write lock.
  */
 #define          MC_CMD_NVRAM_READ_IN_V2_TARGET_CURRENT 0x1
-/* enum: Read from the non-current (i.e. to be updated) partition of an A/B
+/* enum: Read from the yesn-current (i.e. to be updated) partition of an A/B
  * pair
  */
 #define          MC_CMD_NVRAM_READ_IN_V2_TARGET_BACKUP 0x2
@@ -4831,7 +4831,7 @@
 /* MC_CMD_NVRAM_WRITE
  * Write data to a virtual NVRAM partition. Locks required: PHY_LOCK if
  * type==*PHY*. Returns: 0, EINVAL (bad type/offset/length), EACCES (if
- * PHY_LOCK required and not held)
+ * PHY_LOCK required and yest held)
  */
 #define MC_CMD_NVRAM_WRITE 0x3a
 
@@ -4862,7 +4862,7 @@
 /* MC_CMD_NVRAM_ERASE
  * Erase sector(s) from a virtual NVRAM partition. Locks required: PHY_LOCK if
  * type==*PHY*. Returns: 0, EINVAL (bad type/offset/length), EACCES (if
- * PHY_LOCK required and not held)
+ * PHY_LOCK required and yest held)
  */
 #define MC_CMD_NVRAM_ERASE 0x3b
 
@@ -4887,7 +4887,7 @@
 /* MC_CMD_NVRAM_UPDATE_FINISH
  * Finish a group of update operations on a virtual NVRAM partition. Locks
  * required: PHY_LOCK if type==*PHY*. Returns: 0, EINVAL (bad type/offset/
- * length), EACCES (if PHY_LOCK required and not held). In an adapter bound to
+ * length), EACCES (if PHY_LOCK required and yest held). In an adapter bound to
  * a TSA controller, MC_CMD_NVRAM_UPDATE_FINISH can only be used on a subset of
  * partition types i.e. static config, dynamic config and expansion ROM config.
  * Attempting to perform this operation on a restricted partition will return
@@ -4949,8 +4949,8 @@
 /* Result of nvram update completion processing */
 #define       MC_CMD_NVRAM_UPDATE_FINISH_V2_OUT_RESULT_CODE_OFST 0
 #define       MC_CMD_NVRAM_UPDATE_FINISH_V2_OUT_RESULT_CODE_LEN 4
-/* enum: Invalid return code; only non-zero values are defined. Defined as
- * unknown for backwards compatibility with NVRAM_UPDATE_FINISH_OUT.
+/* enum: Invalid return code; only yesn-zero values are defined. Defined as
+ * unkyeswn for backwards compatibility with NVRAM_UPDATE_FINISH_OUT.
  */
 #define          MC_CMD_NVRAM_VERIFY_RC_UNKNOWN 0x0
 /* enum: Verify succeeded without any errors. */
@@ -4967,7 +4967,7 @@
 #define          MC_CMD_NVRAM_VERIFY_RC_BAD_MESSAGE_DIGEST 0x5
 /* enum: Signature verification failed due to an internal error. */
 #define          MC_CMD_NVRAM_VERIFY_RC_SIGNATURE_CHECK_FAILED 0x6
-/* enum: There are no valid signatures in the image. */
+/* enum: There are yes valid signatures in the image. */
 #define          MC_CMD_NVRAM_VERIFY_RC_NO_VALID_SIGNATURES 0x7
 /* enum: Trusted approvers verification failed due to an internal error. */
 #define          MC_CMD_NVRAM_VERIFY_RC_TRUSTED_APPROVERS_CHECK_FAILED 0x8
@@ -4975,7 +4975,7 @@
 #define          MC_CMD_NVRAM_VERIFY_RC_NO_TRUSTED_APPROVERS 0x9
 /* enum: Signature chain verification failed due to an internal error. */
 #define          MC_CMD_NVRAM_VERIFY_RC_SIGNATURE_CHAIN_CHECK_FAILED 0xa
-/* enum: The signers of the signatures in the image are not listed in the
+/* enum: The signers of the signatures in the image are yest listed in the
  * Trusted approver's list.
  */
 #define          MC_CMD_NVRAM_VERIFY_RC_NO_SIGNATURE_MATCH 0xb
@@ -4991,7 +4991,7 @@
 /* MC_CMD_REBOOT
  * Reboot the MC.
  *
- * The AFTER_ASSERTION flag is intended to be used when the driver notices an
+ * The AFTER_ASSERTION flag is intended to be used when the driver yestices an
  * assertion failure (at which point it is expected to perform a complete tear
  * down and reinitialise), to allow both ports to reset the MC once in an
  * atomic fashion.
@@ -5077,7 +5077,7 @@
  * Returns information about every available sensor.
  *
  * Each sensor has a single (16bit) value, and a corresponding state. The
- * mapping between value and state is nominally determined by the MC, but may
+ * mapping between value and state is yesminally determined by the MC, but may
  * be implemented using up to 2 ranges per sensor.
  *
  * This call returns a mask (32bit) of the sensors that are supported by this
@@ -5091,15 +5091,15 @@
  *
  * Sensor masks and sensor information arrays are organised into pages. For
  * backward compatibility, older host software can only use sensors in page 0.
- * Bit 32 in the sensor mask was previously unused, and is no reserved for use
+ * Bit 32 in the sensor mask was previously unused, and is yes reserved for use
  * as the next page flag.
  *
- * If the request does not contain a PAGE value then firmware will only return
+ * If the request does yest contain a PAGE value then firmware will only return
  * page 0 of sensor information, with bit 31 in the sensor mask cleared.
  *
  * If the request contains a PAGE value then firmware responds with the sensor
  * mask and sensor information array for that page of sensors. In this case bit
- * 31 in the mask is set if another page exists.
+ * 31 in the mask is set if ayesther page exists.
  *
  * Locks required: None Returns: 0
  */
@@ -5356,15 +5356,15 @@
  * sensors), into host memory. Each array element is a
  * MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF dword.
  *
- * If the request does not contain the LENGTH field then only sensors 0 to 30
+ * If the request does yest contain the LENGTH field then only sensors 0 to 30
  * are reported, to avoid DMA buffer overflow in older host software. If the
  * sensor reading require more space than the LENGTH allows, then return
  * EINVAL.
  *
  * The MC will send a SENSOREVT event every time any sensor changes state. The
  * driver is responsible for ensuring that it doesn't miss any events. The
- * board will function normally if all sensors are in STATE_OK or
- * STATE_WARNING. Otherwise the board should not be expected to function.
+ * board will function yesrmally if all sensors are in STATE_OK or
+ * STATE_WARNING. Otherwise the board should yest be expected to function.
  */
 #define MC_CMD_READ_SENSORS 0x42
 
@@ -5411,7 +5411,7 @@
 #define          MC_CMD_SENSOR_STATE_FATAL 0x2
 /* enum: Fault with sensor. */
 #define          MC_CMD_SENSOR_STATE_BROKEN 0x3
-/* enum: Sensor is working but does not currently have a reading. */
+/* enum: Sensor is working but does yest currently have a reading. */
 #define          MC_CMD_SENSOR_STATE_NO_READING 0x4
 /* enum: Sensor initialisation failed. */
 #define          MC_CMD_SENSOR_STATE_INIT_FAILED 0x5
@@ -5605,8 +5605,8 @@
 /***********************************/
 /* MC_CMD_WORKAROUND
  * Enable/Disable a given workaround. The mcfw will return EINVAL if it doesn't
- * understand the given workaround number - which should not be treated as a
- * hard error by client code. This op does not imply any semantics about each
+ * understand the given workaround number - which should yest be treated as a
+ * hard error by client code. This op does yest imply any semantics about each
  * workaround, that's between the driver and the mcfw on a per-workaround
  * basis. Locks required: None. Returns: 0, EINVAL .
  */
@@ -5634,7 +5634,7 @@
  */
 #define          MC_CMD_WORKAROUND_BUG42008 0x5
 /* enum: Bug 26807 features present in firmware (multicast filter chaining)
- * This feature cannot be turned on/off while there are any filters already
+ * This feature canyest be turned on/off while there are any filters already
  * present. The behaviour in such case depends on the acting client's privilege
  * level. If the client has the admin privilege, then all functions that have
  * filters installed will be FLRed and the FLR_DONE flag will be set. Otherwise
@@ -5643,7 +5643,7 @@
 #define          MC_CMD_WORKAROUND_BUG26807 0x6
 /* enum: Bug 61265 work around (broken EVQ TMR writes). */
 #define          MC_CMD_WORKAROUND_BUG61265 0x7
-/* 0 = disable the workaround indicated by TYPE; any non-zero value = enable
+/* 0 = disable the workaround indicated by TYPE; any yesn-zero value = enable
  * the workaround
  */
 #define       MC_CMD_WORKAROUND_IN_ENABLED_OFST 4
@@ -5767,7 +5767,7 @@
 /***********************************/
 /* MC_CMD_SENSOR_SET_LIMS
  * Adjusts the sensor limits. This is a warranty-voiding operation. Returns:
- * ENOENT if the sensor specified does not exist, EINVAL if the limits are out
+ * ENOENT if the sensor specified does yest exist, EINVAL if the limits are out
  * of range.
  */
 #define MC_CMD_SENSOR_SET_LIMS 0x4e
@@ -5820,7 +5820,7 @@
 /***********************************/
 /* MC_CMD_NVRAM_PARTITIONS
  * Reads the list of available virtual NVRAM partition types. Locks required:
- * none. Returns: 0, EINVAL (bad type).
+ * yesne. Returns: 0, EINVAL (bad type).
  */
 #define MC_CMD_NVRAM_PARTITIONS 0x51
 
@@ -5846,7 +5846,7 @@
 /***********************************/
 /* MC_CMD_NVRAM_METADATA
  * Reads soft metadata for a virtual NVRAM partition type. Locks required:
- * none. Returns: 0, EINVAL (bad type).
+ * yesne. Returns: 0, EINVAL (bad type).
  */
 #define MC_CMD_NVRAM_METADATA 0x52
 
@@ -6613,11 +6613,11 @@
 #define          MC_CMD_MUM_OUT_READ_DDR_INFO_PRESENT_BAD_TYPE 0x2
 /* enum: Module present but incompatible voltage */
 #define          MC_CMD_MUM_OUT_READ_DDR_INFO_PRESENT_BAD_VOLTAGE 0x3
-/* enum: Module present but unknown SPD */
+/* enum: Module present but unkyeswn SPD */
 #define          MC_CMD_MUM_OUT_READ_DDR_INFO_PRESENT_BAD_SPD 0x4
-/* enum: Module present but slot cannot support it */
+/* enum: Module present but slot canyest support it */
 #define          MC_CMD_MUM_OUT_READ_DDR_INFO_PRESENT_BAD_SLOT 0x5
-/* enum: Modules may or may not be present, but cannot establish contact by I2C
+/* enum: Modules may or may yest be present, but canyest establish contact by I2C
  */
 #define          MC_CMD_MUM_OUT_READ_DDR_INFO_NOT_REACHABLE 0x6
 #define        MC_CMD_MUM_OUT_READ_DDR_INFO_RESERVED2_LBN 52
@@ -6672,7 +6672,7 @@
 #define       BUFTBL_ENTRY_PGSZ_LEN 2
 #define       BUFTBL_ENTRY_PGSZ_LBN 16
 #define       BUFTBL_ENTRY_PGSZ_WIDTH 16
-/* the raw 64-bit address field from the SMC, not adjusted for page size */
+/* the raw 64-bit address field from the SMC, yest adjusted for page size */
 #define       BUFTBL_ENTRY_RAWADDR_OFST 4
 #define       BUFTBL_ENTRY_RAWADDR_LEN 8
 #define       BUFTBL_ENTRY_RAWADDR_LO_OFST 4
@@ -6696,7 +6696,7 @@
 #define          NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG 0x500
 /* enum: Expansion ROM configuration data for port 0 */
 #define          NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT0 0x600
-/* enum: Synonym for EXPROM_CONFIG_PORT0 as used in pmap files */
+/* enum: Syyesnym for EXPROM_CONFIG_PORT0 as used in pmap files */
 #define          NVRAM_PARTITION_TYPE_EXPROM_CONFIG 0x600
 /* enum: Expansion ROM configuration data for port 1 */
 #define          NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT1 0x601
@@ -6787,7 +6787,7 @@
  * a bundle update in TLV format
  */
 #define          NVRAM_PARTITION_TYPE_BUNDLE_METADATA 0x1e01
-/* enum: Bundle update non-volatile log output partition */
+/* enum: Bundle update yesn-volatile log output partition */
 #define          NVRAM_PARTITION_TYPE_BUNDLE_LOG 0x1e02
 /* enum: Start of reserved value range (firmware may use for any purpose) */
 #define          NVRAM_PARTITION_TYPE_RESERVED_VALUES_MIN 0xff00
@@ -6952,7 +6952,7 @@
  */
 #define       TX_TIMESTAMP_EVENT_TX_EV_TYPE_OFST 3
 #define       TX_TIMESTAMP_EVENT_TX_EV_TYPE_LEN 1
-/* enum: This is a TX completion event, not a timestamp */
+/* enum: This is a TX completion event, yest a timestamp */
 #define          TX_TIMESTAMP_EVENT_TX_EV_COMPLETION 0x0
 /* enum: This is a TX completion event for a CTPIO transmit. The event format
  * is the same as for TX_EV_COMPLETION.
@@ -7058,11 +7058,11 @@
  */
 #define       MC_CMD_INIT_EVQ_IN_INSTANCE_OFST 4
 #define       MC_CMD_INIT_EVQ_IN_INSTANCE_LEN 4
-/* The initial timer value. The load value is ignored if the timer mode is DIS.
+/* The initial timer value. The load value is igyesred if the timer mode is DIS.
  */
 #define       MC_CMD_INIT_EVQ_IN_TMR_LOAD_OFST 8
 #define       MC_CMD_INIT_EVQ_IN_TMR_LOAD_LEN 4
-/* The reload value is ignored in one-shot modes */
+/* The reload value is igyesred in one-shot modes */
 #define       MC_CMD_INIT_EVQ_IN_TMR_RELOAD_OFST 12
 #define       MC_CMD_INIT_EVQ_IN_TMR_RELOAD_LEN 4
 /* tbd */
@@ -7095,7 +7095,7 @@
 /* Target EVQ for wakeups if in wakeup mode. */
 #define       MC_CMD_INIT_EVQ_IN_TARGET_EVQ_OFST 24
 #define       MC_CMD_INIT_EVQ_IN_TARGET_EVQ_LEN 4
-/* Target interrupt if in interrupting mode (note union with target EVQ). Use
+/* Target interrupt if in interrupting mode (yeste union with target EVQ). Use
  * MC_CMD_RESOURCE_INSTANCE_ANY unless a specific one required for test
  * purposes.
  */
@@ -7141,11 +7141,11 @@
  */
 #define       MC_CMD_INIT_EVQ_V2_IN_INSTANCE_OFST 4
 #define       MC_CMD_INIT_EVQ_V2_IN_INSTANCE_LEN 4
-/* The initial timer value. The load value is ignored if the timer mode is DIS.
+/* The initial timer value. The load value is igyesred if the timer mode is DIS.
  */
 #define       MC_CMD_INIT_EVQ_V2_IN_TMR_LOAD_OFST 8
 #define       MC_CMD_INIT_EVQ_V2_IN_TMR_LOAD_LEN 4
-/* The reload value is ignored in one-shot modes */
+/* The reload value is igyesred in one-shot modes */
 #define       MC_CMD_INIT_EVQ_V2_IN_TMR_RELOAD_OFST 12
 #define       MC_CMD_INIT_EVQ_V2_IN_TMR_RELOAD_LEN 4
 /* tbd */
@@ -7199,7 +7199,7 @@
 /* Target EVQ for wakeups if in wakeup mode. */
 #define       MC_CMD_INIT_EVQ_V2_IN_TARGET_EVQ_OFST 24
 #define       MC_CMD_INIT_EVQ_V2_IN_TARGET_EVQ_LEN 4
-/* Target interrupt if in interrupting mode (note union with target EVQ). Use
+/* Target interrupt if in interrupting mode (yeste union with target EVQ). Use
  * MC_CMD_RESOURCE_INSTANCE_ANY unless a specific one required for test
  * purposes.
  */
@@ -7341,7 +7341,7 @@
 #define       MC_CMD_INIT_RXQ_EXT_IN_TARGET_EVQ_OFST 4
 #define       MC_CMD_INIT_RXQ_EXT_IN_TARGET_EVQ_LEN 4
 /* The value to put in the event data. Check hardware spec. for valid range.
- * This field is ignored if DMA_MODE == EQUAL_STRIDE_PACKED_STREAM or DMA_MODE
+ * This field is igyesred if DMA_MODE == EQUAL_STRIDE_PACKED_STREAM or DMA_MODE
  * == PACKED_STREAM.
  */
 #define       MC_CMD_INIT_RXQ_EXT_IN_LABEL_OFST 8
@@ -7370,7 +7370,7 @@
 #define        MC_CMD_INIT_RXQ_EXT_IN_FLAG_DISABLE_SCATTER_WIDTH 1
 #define        MC_CMD_INIT_RXQ_EXT_IN_DMA_MODE_LBN 10
 #define        MC_CMD_INIT_RXQ_EXT_IN_DMA_MODE_WIDTH 4
-/* enum: One packet per descriptor (for normal networking) */
+/* enum: One packet per descriptor (for yesrmal networking) */
 #define          MC_CMD_INIT_RXQ_EXT_IN_SINGLE_PACKET 0x0
 /* enum: Pack multiple packets into large descriptors (for SolarCapture) */
 #define          MC_CMD_INIT_RXQ_EXT_IN_PACKED_STREAM 0x1
@@ -7421,7 +7421,7 @@
 #define       MC_CMD_INIT_RXQ_V3_IN_TARGET_EVQ_OFST 4
 #define       MC_CMD_INIT_RXQ_V3_IN_TARGET_EVQ_LEN 4
 /* The value to put in the event data. Check hardware spec. for valid range.
- * This field is ignored if DMA_MODE == EQUAL_STRIDE_PACKED_STREAM or DMA_MODE
+ * This field is igyesred if DMA_MODE == EQUAL_STRIDE_PACKED_STREAM or DMA_MODE
  * == PACKED_STREAM.
  */
 #define       MC_CMD_INIT_RXQ_V3_IN_LABEL_OFST 8
@@ -7450,7 +7450,7 @@
 #define        MC_CMD_INIT_RXQ_V3_IN_FLAG_DISABLE_SCATTER_WIDTH 1
 #define        MC_CMD_INIT_RXQ_V3_IN_DMA_MODE_LBN 10
 #define        MC_CMD_INIT_RXQ_V3_IN_DMA_MODE_WIDTH 4
-/* enum: One packet per descriptor (for normal networking) */
+/* enum: One packet per descriptor (for yesrmal networking) */
 #define          MC_CMD_INIT_RXQ_V3_IN_SINGLE_PACKET 0x0
 /* enum: Pack multiple packets into large descriptors (for SolarCapture) */
 #define          MC_CMD_INIT_RXQ_V3_IN_PACKED_STREAM 0x1
@@ -7491,27 +7491,27 @@
 #define       MC_CMD_INIT_RXQ_V3_IN_SNAPSHOT_LENGTH_LEN 4
 /* The number of packet buffers that will be contained within each
  * EQUAL_STRIDE_PACKED_STREAM format bucket supplied by the driver. This field
- * is ignored unless DMA_MODE == EQUAL_STRIDE_PACKED_STREAM.
+ * is igyesred unless DMA_MODE == EQUAL_STRIDE_PACKED_STREAM.
  */
 #define       MC_CMD_INIT_RXQ_V3_IN_ES_PACKET_BUFFERS_PER_BUCKET_OFST 544
 #define       MC_CMD_INIT_RXQ_V3_IN_ES_PACKET_BUFFERS_PER_BUCKET_LEN 4
 /* The length in bytes of the area in each packet buffer that can be written to
  * by the adapter. This is used to store the packet prefix and the packet
- * payload. This length does not include any end padding added by the driver.
- * This field is ignored unless DMA_MODE == EQUAL_STRIDE_PACKED_STREAM.
+ * payload. This length does yest include any end padding added by the driver.
+ * This field is igyesred unless DMA_MODE == EQUAL_STRIDE_PACKED_STREAM.
  */
 #define       MC_CMD_INIT_RXQ_V3_IN_ES_MAX_DMA_LEN_OFST 548
 #define       MC_CMD_INIT_RXQ_V3_IN_ES_MAX_DMA_LEN_LEN 4
 /* The length in bytes of a single packet buffer within a
- * EQUAL_STRIDE_PACKED_STREAM format bucket. This field is ignored unless
+ * EQUAL_STRIDE_PACKED_STREAM format bucket. This field is igyesred unless
  * DMA_MODE == EQUAL_STRIDE_PACKED_STREAM.
  */
 #define       MC_CMD_INIT_RXQ_V3_IN_ES_PACKET_STRIDE_OFST 552
 #define       MC_CMD_INIT_RXQ_V3_IN_ES_PACKET_STRIDE_LEN 4
-/* The maximum time in nanoseconds that the datapath will be backpressured if
- * there are no RX descriptors available. If the timeout is reached and there
- * are still no descriptors then the packet will be dropped. A timeout of 0
- * means the datapath will never be blocked. This field is ignored unless
+/* The maximum time in nayesseconds that the datapath will be backpressured if
+ * there are yes RX descriptors available. If the timeout is reached and there
+ * are still yes descriptors then the packet will be dropped. A timeout of 0
+ * means the datapath will never be blocked. This field is igyesred unless
  * DMA_MODE == EQUAL_STRIDE_PACKED_STREAM.
  */
 #define       MC_CMD_INIT_RXQ_V3_IN_ES_HEAD_OF_LINE_BLOCK_TIMEOUT_OFST 556
@@ -7750,7 +7750,7 @@
  * Execute an arbitrary MCDI command on behalf of a different function, subject
  * to security restrictions. The command to be proxied follows immediately
  * afterward in the host buffer (or on the UART). This command supercedes
- * MC_CMD_SET_FUNC, which remains available for Siena but now deprecated.
+ * MC_CMD_SET_FUNC, which remains available for Siena but yesw deprecated.
  */
 #define MC_CMD_PROXY_CMD 0x5b
 
@@ -7855,7 +7855,7 @@
 #define       MC_CMD_PROXY_CONFIGURE_IN_REPLY_BUFF_ADDR_LEN 8
 #define       MC_CMD_PROXY_CONFIGURE_IN_REPLY_BUFF_ADDR_LO_OFST 28
 #define       MC_CMD_PROXY_CONFIGURE_IN_REPLY_BUFF_ADDR_HI_OFST 32
-/* Must be a power of 2, or zero if this buffer is not provided */
+/* Must be a power of 2, or zero if this buffer is yest provided */
 #define       MC_CMD_PROXY_CONFIGURE_IN_REPLY_BLOCK_SIZE_OFST 36
 #define       MC_CMD_PROXY_CONFIGURE_IN_REPLY_BLOCK_SIZE_LEN 4
 /* Applies to all three buffers */
@@ -7899,7 +7899,7 @@
 #define       MC_CMD_PROXY_CONFIGURE_EXT_IN_REPLY_BUFF_ADDR_LEN 8
 #define       MC_CMD_PROXY_CONFIGURE_EXT_IN_REPLY_BUFF_ADDR_LO_OFST 28
 #define       MC_CMD_PROXY_CONFIGURE_EXT_IN_REPLY_BUFF_ADDR_HI_OFST 32
-/* Must be a power of 2, or zero if this buffer is not provided */
+/* Must be a power of 2, or zero if this buffer is yest provided */
 #define       MC_CMD_PROXY_CONFIGURE_EXT_IN_REPLY_BLOCK_SIZE_OFST 36
 #define       MC_CMD_PROXY_CONFIGURE_EXT_IN_REPLY_BLOCK_SIZE_LEN 4
 /* Applies to all three buffers */
@@ -7936,13 +7936,13 @@
  * is stored in the REPLY_BUFF.
  */
 #define          MC_CMD_PROXY_COMPLETE_IN_COMPLETE 0x0
-/* enum: The operation has been authorized. The originating function may now
+/* enum: The operation has been authorized. The originating function may yesw
  * try again.
  */
 #define          MC_CMD_PROXY_COMPLETE_IN_AUTHORIZED 0x1
 /* enum: The operation has been declined. */
 #define          MC_CMD_PROXY_COMPLETE_IN_DECLINED 0x2
-/* enum: The authorization failed because the relevant application did not
+/* enum: The authorization failed because the relevant application did yest
  * respond in time.
  */
 #define          MC_CMD_PROXY_COMPLETE_IN_TIMEDOUT 0x3
@@ -7957,7 +7957,7 @@
 /* MC_CMD_ALLOC_BUFTBL_CHUNK
  * Allocate a set of buffer table entries using the specified owner ID. This
  * operation allocates the required buffer table entries (and fails if it
- * cannot do so). The buffer table entries will initially be zeroed.
+ * canyest do so). The buffer table entries will initially be zeroed.
  */
 #define MC_CMD_ALLOC_BUFTBL_CHUNK 0x87
 
@@ -7968,7 +7968,7 @@
 /* Owner ID to use */
 #define       MC_CMD_ALLOC_BUFTBL_CHUNK_IN_OWNER_OFST 0
 #define       MC_CMD_ALLOC_BUFTBL_CHUNK_IN_OWNER_LEN 4
-/* Size of buffer table pages to use, in bytes (note that only a few values are
+/* Size of buffer table pages to use, in bytes (yeste that only a few values are
  * legal on any specific hardware).
  */
 #define       MC_CMD_ALLOC_BUFTBL_CHUNK_IN_PAGE_SIZE_OFST 4
@@ -8054,7 +8054,7 @@
 #define          MC_CMD_FILTER_OP_IN_OP_SUBSCRIBE 0x2
 /* enum: multi-recipient filter unsubscribe */
 #define          MC_CMD_FILTER_OP_IN_OP_UNSUBSCRIBE 0x3
-/* enum: replace one recipient with another (warning - the filter handle may
+/* enum: replace one recipient with ayesther (warning - the filter handle may
  * change)
  */
 #define          MC_CMD_FILTER_OP_IN_OP_REPLACE 0x4
@@ -8676,12 +8676,12 @@
 /* Set an action for all packets matching this filter. The DPDK driver and dpdk
  * f/w variant use their own specific delivery structures, which are documented
  * in the DPDK Firmware Driver Interface (SF-119419-TC). Requesting anything
- * other than MATCH_ACTION_NONE when the NIC is running another f/w variant
+ * other than MATCH_ACTION_NONE when the NIC is running ayesther f/w variant
  * will cause the filter insertion to fail with ENOTSUP.
  */
 #define       MC_CMD_FILTER_OP_V3_IN_MATCH_ACTION_OFST 172
 #define       MC_CMD_FILTER_OP_V3_IN_MATCH_ACTION_LEN 4
-/* enum: do nothing extra */
+/* enum: do yesthing extra */
 #define          MC_CMD_FILTER_OP_V3_IN_MATCH_ACTION_NONE 0x0
 /* enum: Set the match flag in the packet prefix for packets matching the
  * filter (only with dpdk firmware, otherwise fails with ENOTSUP). Used to
@@ -8756,11 +8756,11 @@
  */
 #define          MC_CMD_GET_PARSER_DISP_INFO_IN_OP_GET_RESTRICTIONS 0x2
 /* enum: read properties relating to security rules (Medford-only; for use by
- * SolarSecure apps, not directly by drivers. See SF-114946-SW.)
+ * SolarSecure apps, yest directly by drivers. See SF-114946-SW.)
  */
 #define          MC_CMD_GET_PARSER_DISP_INFO_IN_OP_GET_SECURITY_RULE_INFO 0x3
 /* enum: read the list of supported RX filter matches for VXLAN/NVGRE
- * encapsulated frames, which follow a different match sequence to normal
+ * encapsulated frames, which follow a different match sequence to yesrmal
  * frames (Medford only)
  */
 #define          MC_CMD_GET_PARSER_DISP_INFO_IN_OP_GET_SUPPORTED_ENCAP_RX_MATCHES 0x4
@@ -8802,9 +8802,9 @@
 /***********************************/
 /* MC_CMD_PARSER_DISP_RW
  * Direct read/write of parser-dispatcher state (DICPUs and LUE) for debugging.
- * Please note that this interface is only of use to debug tools which have
- * knowledge of firmware and hardware data structures; nothing here is intended
- * for use by normal driver code. Note that although this command is in the
+ * Please yeste that this interface is only of use to debug tools which have
+ * kyeswledge of firmware and hardware data structures; yesthing here is intended
+ * for use by yesrmal driver code. Note that although this command is in the
  * Admin privilege group, in tamperproof adapters, only read operations are
  * permitted.
  */
@@ -8822,7 +8822,7 @@
 /* enum: TX dispatcher CPU */
 #define          MC_CMD_PARSER_DISP_RW_IN_TX_DICPU 0x1
 /* enum: Lookup engine (with original metadata format). Deprecated; used only
- * by cmdclient as a fallback for very old Huntington firmware, and not
+ * by cmdclient as a fallback for very old Huntington firmware, and yest
  * supported in firmware beyond v6.4.0.1005. Use LUE_VERSIONED_METADATA
  * instead.
  */
@@ -8844,7 +8844,7 @@
  * tamperproof adapters.
  */
 #define          MC_CMD_PARSER_DISP_RW_IN_WRITE 0x1
-/* enum: Read-modify-write a word of DICPU DMEM (not valid for LUE). Not
+/* enum: Read-modify-write a word of DICPU DMEM (yest valid for LUE). Not
  * permitted on tamperproof adapters.
  */
 #define          MC_CMD_PARSER_DISP_RW_IN_RMW 0x2
@@ -9011,7 +9011,7 @@
 /***********************************/
 /* MC_CMD_FREE_VIS
  * Free VIs for current PCI function. Any linked PIO buffers will be unlinked,
- * but not freed.
+ * but yest freed.
  */
 #define MC_CMD_FREE_VIS 0x8c
 
@@ -9075,12 +9075,12 @@
 #define       MC_CMD_SET_SRIOV_CFG_IN_FLAGS_LEN 4
 #define        MC_CMD_SET_SRIOV_CFG_IN_VF_ENABLED_LBN 0
 #define        MC_CMD_SET_SRIOV_CFG_IN_VF_ENABLED_WIDTH 1
-/* RID offset of first VF from PF, or 0 for no change, or
+/* RID offset of first VF from PF, or 0 for yes change, or
  * MC_CMD_RESOURCE_INSTANCE_ANY to allow the system to allocate an offset.
  */
 #define       MC_CMD_SET_SRIOV_CFG_IN_VF_OFFSET_OFST 12
 #define       MC_CMD_SET_SRIOV_CFG_IN_VF_OFFSET_LEN 4
-/* RID offset of each subsequent VF from the previous, 0 for no change, or
+/* RID offset of each subsequent VF from the previous, 0 for yes change, or
  * MC_CMD_RESOURCE_INSTANCE_ANY to allow the system to allocate a stride.
  */
 #define       MC_CMD_SET_SRIOV_CFG_IN_VF_STRIDE_OFST 16
@@ -9294,7 +9294,7 @@
 /* Use ID based ordering for TLPs on this VI. */
 #define       MC_CMD_GET_VI_TLP_PROCESSING_OUT_ID_BASED_ORDERING_LBN 17
 #define       MC_CMD_GET_VI_TLP_PROCESSING_OUT_ID_BASED_ORDERING_WIDTH 1
-/* Set no snoop bit for TLPs on this VI. */
+/* Set yes syesop bit for TLPs on this VI. */
 #define       MC_CMD_GET_VI_TLP_PROCESSING_OUT_NO_SNOOP_LBN 18
 #define       MC_CMD_GET_VI_TLP_PROCESSING_OUT_NO_SNOOP_WIDTH 1
 /* Enable TPH for TLPs on this VI. */
@@ -9329,7 +9329,7 @@
 /* Use ID based ordering for TLPs on this VI. */
 #define       MC_CMD_SET_VI_TLP_PROCESSING_IN_ID_BASED_ORDERING_LBN 49
 #define       MC_CMD_SET_VI_TLP_PROCESSING_IN_ID_BASED_ORDERING_WIDTH 1
-/* Set the no snoop bit for TLPs on this VI. */
+/* Set the yes syesop bit for TLPs on this VI. */
 #define       MC_CMD_SET_VI_TLP_PROCESSING_IN_NO_SNOOP_LBN 50
 #define       MC_CMD_SET_VI_TLP_PROCESSING_IN_NO_SNOOP_WIDTH 1
 /* Enable TPH for TLPs on this VI. */
@@ -9481,7 +9481,7 @@
  *
  * 4) PHASE_READY with a target of TARGET_ALL and chunk ID/length of 0.
  *
- * After any error (a requested abort is not considered to be an error) the
+ * After any error (a requested abort is yest considered to be an error) the
  * sequence must be restarted from PHASE_RESET.
  */
 #define    MC_CMD_SATELLITE_DOWNLOAD_IN_LENMIN 20
@@ -9717,7 +9717,7 @@
 #define        MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_VERSION_REV_WIDTH 12
 #define        MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_VERSION_TYPE_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_VERSION_TYPE_WIDTH 4
-/* enum: reserved value - do not use (may indicate alternative interpretation
+/* enum: reserved value - do yest use (may indicate alternative interpretation
  * of REV field in future)
  */
 #define          MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_RESERVED 0x0
@@ -9753,7 +9753,7 @@
 #define          MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
 #define          MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
-/* enum: RX PD firmware parsing but not filtering network overlay tunnel
+/* enum: RX PD firmware parsing but yest filtering network overlay tunnel
  * encapsulations (Medford development only)
  */
 #define          MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
@@ -9763,7 +9763,7 @@
 #define        MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_VERSION_REV_WIDTH 12
 #define        MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_VERSION_TYPE_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_VERSION_TYPE_WIDTH 4
-/* enum: reserved value - do not use (may indicate alternative interpretation
+/* enum: reserved value - do yest use (may indicate alternative interpretation
  * of REV field in future)
  */
 #define          MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_RESERVED 0x0
@@ -9931,7 +9931,7 @@
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_VERSION_REV_WIDTH 12
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_VERSION_TYPE_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_VERSION_TYPE_WIDTH 4
-/* enum: reserved value - do not use (may indicate alternative interpretation
+/* enum: reserved value - do yest use (may indicate alternative interpretation
  * of REV field in future)
  */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_RESERVED 0x0
@@ -9967,7 +9967,7 @@
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
-/* enum: RX PD firmware parsing but not filtering network overlay tunnel
+/* enum: RX PD firmware parsing but yest filtering network overlay tunnel
  * encapsulations (Medford development only)
  */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
@@ -9977,7 +9977,7 @@
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_VERSION_REV_WIDTH 12
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_VERSION_TYPE_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_VERSION_TYPE_WIDTH 4
-/* enum: reserved value - do not use (may indicate alternative interpretation
+/* enum: reserved value - do yest use (may indicate alternative interpretation
  * of REV field in future)
  */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_RESERVED 0x0
@@ -10075,19 +10075,19 @@
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_N_CONTEXTS_OFST 24
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_N_CONTEXTS_LEN 2
 /* One byte per PF containing the number of the external port assigned to this
- * PF, indexed by PF number. Special values indicate that a PF is either not
- * present or not assigned.
+ * PF, indexed by PF number. Special values indicate that a PF is either yest
+ * present or yest assigned.
  */
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_PFS_TO_PORTS_ASSIGNMENT_OFST 26
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_PFS_TO_PORTS_ASSIGNMENT_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_PFS_TO_PORTS_ASSIGNMENT_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
+/* enum: The caller is yest permitted to access information on this PF. */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_ACCESS_NOT_PERMITTED 0xff
-/* enum: PF does not exist. */
+/* enum: PF does yest exist. */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_PF_NOT_PRESENT 0xfe
-/* enum: PF does exist but is not assigned to any external port. */
+/* enum: PF does exist but is yest assigned to any external port. */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_PF_NOT_ASSIGNED 0xfd
-/* enum: This value indicates that PF is assigned, but it cannot be expressed
+/* enum: This value indicates that PF is assigned, but it canyest be expressed
  * in this field. It is intended for a possible future situation where a more
  * complex scheme of PFs to ports mapping is being used. The future driver
  * should look for a new field supporting the new scheme. The current/old
@@ -10095,14 +10095,14 @@
  */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_INCOMPATIBLE_ASSIGNMENT 0xfc
 /* One byte per PF containing the number of its VFs, indexed by PF number. A
- * special value indicates that a PF is not present.
+ * special value indicates that a PF is yest present.
  */
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VFS_PER_PF_OFST 42
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VFS_PER_PF_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VFS_PER_PF_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
+/* enum: The caller is yest permitted to access information on this PF. */
 /*               MC_CMD_GET_CAPABILITIES_V2_OUT_ACCESS_NOT_PERMITTED 0xff */
-/* enum: PF does not exist. */
+/* enum: PF does yest exist. */
 /*               MC_CMD_GET_CAPABILITIES_V2_OUT_PF_NOT_PRESENT 0xfe */
 /* Number of VIs available for each external port */
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VIS_PER_PORT_OFST 58
@@ -10250,7 +10250,7 @@
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_VERSION_REV_WIDTH 12
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_VERSION_TYPE_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_VERSION_TYPE_WIDTH 4
-/* enum: reserved value - do not use (may indicate alternative interpretation
+/* enum: reserved value - do yest use (may indicate alternative interpretation
  * of REV field in future)
  */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_RESERVED 0x0
@@ -10286,7 +10286,7 @@
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
-/* enum: RX PD firmware parsing but not filtering network overlay tunnel
+/* enum: RX PD firmware parsing but yest filtering network overlay tunnel
  * encapsulations (Medford development only)
  */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
@@ -10296,7 +10296,7 @@
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_VERSION_REV_WIDTH 12
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_VERSION_TYPE_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_VERSION_TYPE_WIDTH 4
-/* enum: reserved value - do not use (may indicate alternative interpretation
+/* enum: reserved value - do yest use (may indicate alternative interpretation
  * of REV field in future)
  */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_RESERVED 0x0
@@ -10394,19 +10394,19 @@
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_TX_TSO_V2_N_CONTEXTS_OFST 24
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_TX_TSO_V2_N_CONTEXTS_LEN 2
 /* One byte per PF containing the number of the external port assigned to this
- * PF, indexed by PF number. Special values indicate that a PF is either not
- * present or not assigned.
+ * PF, indexed by PF number. Special values indicate that a PF is either yest
+ * present or yest assigned.
  */
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_PFS_TO_PORTS_ASSIGNMENT_OFST 26
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_PFS_TO_PORTS_ASSIGNMENT_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_PFS_TO_PORTS_ASSIGNMENT_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
+/* enum: The caller is yest permitted to access information on this PF. */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_ACCESS_NOT_PERMITTED 0xff
-/* enum: PF does not exist. */
+/* enum: PF does yest exist. */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_PF_NOT_PRESENT 0xfe
-/* enum: PF does exist but is not assigned to any external port. */
+/* enum: PF does exist but is yest assigned to any external port. */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_PF_NOT_ASSIGNED 0xfd
-/* enum: This value indicates that PF is assigned, but it cannot be expressed
+/* enum: This value indicates that PF is assigned, but it canyest be expressed
  * in this field. It is intended for a possible future situation where a more
  * complex scheme of PFs to ports mapping is being used. The future driver
  * should look for a new field supporting the new scheme. The current/old
@@ -10414,14 +10414,14 @@
  */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_INCOMPATIBLE_ASSIGNMENT 0xfc
 /* One byte per PF containing the number of its VFs, indexed by PF number. A
- * special value indicates that a PF is not present.
+ * special value indicates that a PF is yest present.
  */
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_NUM_VFS_PER_PF_OFST 42
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_NUM_VFS_PER_PF_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_NUM_VFS_PER_PF_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
+/* enum: The caller is yest permitted to access information on this PF. */
 /*               MC_CMD_GET_CAPABILITIES_V3_OUT_ACCESS_NOT_PERMITTED 0xff */
-/* enum: PF does not exist. */
+/* enum: PF does yest exist. */
 /*               MC_CMD_GET_CAPABILITIES_V3_OUT_PF_NOT_PRESENT 0xfe */
 /* Number of VIs available for each external port */
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_NUM_VIS_PER_PORT_OFST 58
@@ -10445,13 +10445,13 @@
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_SIZE_PIO_BUFF_LEN 2
 /* On chips later than Medford the amount of address space assigned to each VI
  * is configurable. This is a global setting that the driver must query to
- * discover the VI to address mapping. Cut-through PIO (CTPIO) is not available
+ * discover the VI to address mapping. Cut-through PIO (CTPIO) is yest available
  * with 8k VI windows.
  */
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_OFST 72
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_LEN 1
 /* enum: Each VI occupies 8k as on Huntington and Medford. PIO is at offset 4k.
- * CTPIO is not mapped.
+ * CTPIO is yest mapped.
  */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_8K 0x0
 /* enum: Each VI occupies 16k. PIO is at offset 4k. CTPIO is at offset 12k. */
@@ -10594,7 +10594,7 @@
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_VERSION_REV_WIDTH 12
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_VERSION_TYPE_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_VERSION_TYPE_WIDTH 4
-/* enum: reserved value - do not use (may indicate alternative interpretation
+/* enum: reserved value - do yest use (may indicate alternative interpretation
  * of REV field in future)
  */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_RESERVED 0x0
@@ -10630,7 +10630,7 @@
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
-/* enum: RX PD firmware parsing but not filtering network overlay tunnel
+/* enum: RX PD firmware parsing but yest filtering network overlay tunnel
  * encapsulations (Medford development only)
  */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
@@ -10640,7 +10640,7 @@
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_VERSION_REV_WIDTH 12
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_VERSION_TYPE_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_VERSION_TYPE_WIDTH 4
-/* enum: reserved value - do not use (may indicate alternative interpretation
+/* enum: reserved value - do yest use (may indicate alternative interpretation
  * of REV field in future)
  */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_RESERVED 0x0
@@ -10738,19 +10738,19 @@
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_TX_TSO_V2_N_CONTEXTS_OFST 24
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_TX_TSO_V2_N_CONTEXTS_LEN 2
 /* One byte per PF containing the number of the external port assigned to this
- * PF, indexed by PF number. Special values indicate that a PF is either not
- * present or not assigned.
+ * PF, indexed by PF number. Special values indicate that a PF is either yest
+ * present or yest assigned.
  */
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_PFS_TO_PORTS_ASSIGNMENT_OFST 26
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_PFS_TO_PORTS_ASSIGNMENT_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_PFS_TO_PORTS_ASSIGNMENT_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
+/* enum: The caller is yest permitted to access information on this PF. */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_ACCESS_NOT_PERMITTED 0xff
-/* enum: PF does not exist. */
+/* enum: PF does yest exist. */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_PF_NOT_PRESENT 0xfe
-/* enum: PF does exist but is not assigned to any external port. */
+/* enum: PF does exist but is yest assigned to any external port. */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_PF_NOT_ASSIGNED 0xfd
-/* enum: This value indicates that PF is assigned, but it cannot be expressed
+/* enum: This value indicates that PF is assigned, but it canyest be expressed
  * in this field. It is intended for a possible future situation where a more
  * complex scheme of PFs to ports mapping is being used. The future driver
  * should look for a new field supporting the new scheme. The current/old
@@ -10758,14 +10758,14 @@
  */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_INCOMPATIBLE_ASSIGNMENT 0xfc
 /* One byte per PF containing the number of its VFs, indexed by PF number. A
- * special value indicates that a PF is not present.
+ * special value indicates that a PF is yest present.
  */
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_NUM_VFS_PER_PF_OFST 42
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_NUM_VFS_PER_PF_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_NUM_VFS_PER_PF_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
+/* enum: The caller is yest permitted to access information on this PF. */
 /*               MC_CMD_GET_CAPABILITIES_V4_OUT_ACCESS_NOT_PERMITTED 0xff */
-/* enum: PF does not exist. */
+/* enum: PF does yest exist. */
 /*               MC_CMD_GET_CAPABILITIES_V4_OUT_PF_NOT_PRESENT 0xfe */
 /* Number of VIs available for each external port */
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_NUM_VIS_PER_PORT_OFST 58
@@ -10789,13 +10789,13 @@
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_SIZE_PIO_BUFF_LEN 2
 /* On chips later than Medford the amount of address space assigned to each VI
  * is configurable. This is a global setting that the driver must query to
- * discover the VI to address mapping. Cut-through PIO (CTPIO) is not available
+ * discover the VI to address mapping. Cut-through PIO (CTPIO) is yest available
  * with 8k VI windows.
  */
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_VI_WINDOW_MODE_OFST 72
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_VI_WINDOW_MODE_LEN 1
 /* enum: Each VI occupies 8k as on Huntington and Medford. PIO is at offset 4k.
- * CTPIO is not mapped.
+ * CTPIO is yest mapped.
  */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_VI_WINDOW_MODE_8K 0x0
 /* enum: Each VI occupies 16k. PIO is at offset 4k. CTPIO is at offset 12k. */
@@ -10813,7 +10813,7 @@
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST 74
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_LEN 2
 /* Entry count in the MAC stats array, including the final GENERATION_END
- * entry. For MAC stats DMA, drivers should allocate a buffer large enough to
+ * entry. For MAC stats DMA, drivers should allocate a buffer large eyesugh to
  * hold at least this many 64-bit stats values, if they wish to receive all
  * available stats. If the buffer is shorter than MAC_STATS_NUM_STATS * 8, the
  * stats array returned will be truncated.
@@ -10835,7 +10835,7 @@
 #define       MC_CMD_V2_EXTN_IN_EXTENDED_CMD_WIDTH 15
 #define       MC_CMD_V2_EXTN_IN_UNUSED_LBN 15
 #define       MC_CMD_V2_EXTN_IN_UNUSED_WIDTH 1
-/* the actual length of the encapsulated command (which is not in the v1
+/* the actual length of the encapsulated command (which is yest in the v1
  * header)
  */
 #define       MC_CMD_V2_EXTN_IN_ACTUAL_LEN_LBN 16
@@ -10848,7 +10848,7 @@
 /* enum: MCDI command directed to or response originating from the MC. */
 #define          MC_CMD_V2_EXTN_IN_MCDI_MESSAGE_TYPE_MC 0x0
 /* enum: MCDI command directed to a TSA controller. MCDI responses of this type
- * are not defined.
+ * are yest defined.
  */
 #define          MC_CMD_V2_EXTN_IN_MCDI_MESSAGE_TYPE_TSA 0x1
 
@@ -11109,9 +11109,9 @@
 
 /***********************************/
 /* MC_CMD_VSWITCH_QUERY
- * read some config of v-switch. For now this command is an empty placeholder.
+ * read some config of v-switch. For yesw this command is an empty placeholder.
  * It may be used to check if a v-switch is connected to a given EVB port (if
- * not, then the command returns ENOENT).
+ * yest, then the command returns ENOENT).
  */
 #define MC_CMD_VSWITCH_QUERY 0x63
 
@@ -11149,7 +11149,7 @@
 #define          MC_CMD_VPORT_ALLOC_IN_VPORT_TYPE_VEB 0x2
 /* enum: VEPA (obsolete) */
 #define          MC_CMD_VPORT_ALLOC_IN_VPORT_TYPE_VEPA 0x3
-/* enum: A normal v-port receives packets which match a specified MAC and/or
+/* enum: A yesrmal v-port receives packets which match a specified MAC and/or
  * VLAN.
  */
 #define          MC_CMD_VPORT_ALLOC_IN_VPORT_TYPE_NORMAL 0x4
@@ -11460,7 +11460,7 @@
  */
 #define          MC_CMD_RSS_CONTEXT_ALLOC_IN_TYPE_EXCLUSIVE 0x0
 /* enum: Allocate a context for shared use; this will spread across a range of
- * queues, but the key and indirection table are pre-configured and may not be
+ * queues, but the key and indirection table are pre-configured and may yest be
  * changed. For this mode, NUM_QUEUES must 2, 4, 8, 16, 32 or 64.
  */
 #define          MC_CMD_RSS_CONTEXT_ALLOC_IN_TYPE_SHARED 0x1
@@ -11599,7 +11599,7 @@
 #define       MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_RSS_CONTEXT_ID_LEN 4
 /* Hash control flags. The _EN bits are always supported, but new modes are
  * available when ADDITIONAL_RSS_MODES is reported by MC_CMD_GET_CAPABILITIES:
- * in this case, the MODE fields may be set to non-zero values, and will take
+ * in this case, the MODE fields may be set to yesn-zero values, and will take
  * effect regardless of the settings of the _EN flags. See the RSS_MODE
  * structure for the meaning of the mode bits. Drivers must check the
  * capability before trying to set any _MODE fields, as older firmware will
@@ -11655,15 +11655,15 @@
 /* MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT msgresponse */
 #define    MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_LEN 8
 /* Hash control flags. If all _MODE bits are zero (which will always be true
- * for older firmware which does not report the ADDITIONAL_RSS_MODES
- * capability), the _EN bits report the state. If any _MODE bits are non-zero
+ * for older firmware which does yest report the ADDITIONAL_RSS_MODES
+ * capability), the _EN bits report the state. If any _MODE bits are yesn-zero
  * (which will only be true when the firmware reports ADDITIONAL_RSS_MODES)
  * then the _EN bits should be disregarded, although the _MODE flags are
  * guaranteed to be consistent with the _EN flags for a freshly-allocated RSS
  * context and in the case where the _EN flags were used in the SET. This
- * provides backward compatibility: old drivers will not be attempting to
+ * provides backward compatibility: old drivers will yest be attempting to
  * derive any meaning from the _MODE bits (and can never set them to any value
- * not representable by the _EN bits); new drivers can always determine the
+ * yest representable by the _EN bits); new drivers can always determine the
  * mode by looking only at the _MODE bits; the value returned by a GET can
  * always be used for a SET regardless of old/new driver vs. old/new firmware.
  */
@@ -11708,7 +11708,7 @@
 #define       MC_CMD_DOT1P_MAPPING_ALLOC_IN_UPSTREAM_PORT_ID_LEN 4
 /* Number of queues spanned by this mapping, in the range 1-64; valid fixed
  * offsets in the mapping table will be in the range 0 to NUM_QUEUES-1, and
- * referenced RSS contexts must span no more than this number.
+ * referenced RSS contexts must span yes more than this number.
  */
 #define       MC_CMD_DOT1P_MAPPING_ALLOC_IN_NUM_QUEUES_OFST 4
 #define       MC_CMD_DOT1P_MAPPING_ALLOC_IN_NUM_QUEUES_LEN 4
@@ -11912,7 +11912,7 @@
 /***********************************/
 /* MC_CMD_VPORT_RECONFIGURE
  * Replace VLAN tags and/or MAC addresses of an existing v-port. If the v-port
- * has already been passed to another function (v-port's user), then that
+ * has already been passed to ayesther function (v-port's user), then that
  * function will be reset before applying the changes.
  */
 #define MC_CMD_VPORT_RECONFIGURE 0xeb
@@ -11989,7 +11989,7 @@
 /***********************************/
 /* MC_CMD_DUMP_BUFTBL_ENTRIES
  * Dump buffer table entries, mainly for command client debug use. Dumps
- * absolute entries, and does not use chunk handles. All entries must be in
+ * absolute entries, and does yest use chunk handles. All entries must be in
  * range, and used for q page mapping, Although the latter restriction may be
  * lifted in future.
  */
@@ -12193,11 +12193,11 @@
 #define          MC_CMD_DPCPU_RPC_IN_DPCPU_TX1 0x2
 /* enum: RxDPCPU1 (Medford only) */
 #define          MC_CMD_DPCPU_RPC_IN_DPCPU_RX1 0x3
-/* enum: RxDPCPU (will be for the calling function; for now, just an alias of
+/* enum: RxDPCPU (will be for the calling function; for yesw, just an alias of
  * DPCPU_RX0)
  */
 #define          MC_CMD_DPCPU_RPC_IN_DPCPU_RX 0x80
-/* enum: TxDPCPU (will be for the calling function; for now, just an alias of
+/* enum: TxDPCPU (will be for the calling function; for yesw, just an alias of
  * DPCPU_TX0)
  */
 #define          MC_CMD_DPCPU_RPC_IN_DPCPU_TX 0x81
@@ -12297,7 +12297,7 @@
 
 /***********************************/
 /* MC_CMD_SHMBOOT_OP
- * Special operations to support (for now) shmboot.
+ * Special operations to support (for yesw) shmboot.
  */
 #define MC_CMD_SHMBOOT_OP 0xe6
 
@@ -12492,7 +12492,7 @@
 /***********************************/
 /* MC_CMD_SET_PSU
  * Adjusts power supply parameters. This is a warranty-voiding operation.
- * Returns: ENOENT if the parameter or rail specified does not exist, EINVAL if
+ * Returns: ENOENT if the parameter or rail specified does yest exist, EINVAL if
  * the parameter is out of range.
  */
 #define MC_CMD_SET_PSU 0xea
@@ -12590,7 +12590,7 @@
 /***********************************/
 /* MC_CMD_UART_RECV_DATA
  * Request checksummed[sic] block of data over the uart. Only a placeholder,
- * subject to change and not currently implemented.
+ * subject to change and yest currently implemented.
  */
 #define MC_CMD_UART_RECV_DATA 0xef
 
@@ -12694,7 +12694,7 @@
  */
 #define          MC_CMD_KR_TUNE_IN_START_EYE_PLOT 0x5
 /* enum: Poll KR Serdes Eye diagram plot. Returns one row of BER data. The
- * caller should call this command repeatedly after starting eye plot, until no
+ * caller should call this command repeatedly after starting eye plot, until yes
  * more data is returned.
  */
 #define          MC_CMD_KR_TUNE_IN_POLL_EYE_PLOT 0x6
@@ -13151,7 +13151,7 @@
 /* enum: Start PCIe Serdes Eye diagram plot on a given lane. */
 #define          MC_CMD_PCIE_TUNE_IN_START_EYE_PLOT 0x5
 /* enum: Poll PCIe Serdes Eye diagram plot. Returns one row of BER data. The
- * caller should call this command repeatedly after starting eye plot, until no
+ * caller should call this command repeatedly after starting eye plot, until yes
  * more data is returned.
  */
 #define          MC_CMD_PCIE_TUNE_IN_POLL_EYE_PLOT 0x6
@@ -13353,7 +13353,7 @@
 /***********************************/
 /* MC_CMD_LICENSING
  * Operations on the NVRAM_PARTITION_TYPE_LICENSE application license partition
- * - not used for V3 licensing
+ * - yest used for V3 licensing
  */
 #define MC_CMD_LICENSING 0xf3
 
@@ -13364,7 +13364,7 @@
 /* identifies the type of operation requested */
 #define       MC_CMD_LICENSING_IN_OP_OFST 0
 #define       MC_CMD_LICENSING_IN_OP_LEN 4
-/* enum: re-read and apply licenses after a license key partition update; note
+/* enum: re-read and apply licenses after a license key partition update; yeste
  * that this operation returns a zero-length response
  */
 #define          MC_CMD_LICENSING_IN_OP_UPDATE_LICENSE 0x0
@@ -13387,11 +13387,11 @@
 /* count of application keys which are invalid due to being unverifiable */
 #define       MC_CMD_LICENSING_OUT_UNVERIFIABLE_APP_KEYS_OFST 12
 #define       MC_CMD_LICENSING_OUT_UNVERIFIABLE_APP_KEYS_LEN 4
-/* count of application keys which are invalid due to being for the wrong node
+/* count of application keys which are invalid due to being for the wrong yesde
  */
 #define       MC_CMD_LICENSING_OUT_WRONG_NODE_APP_KEYS_OFST 16
 #define       MC_CMD_LICENSING_OUT_WRONG_NODE_APP_KEYS_LEN 4
-/* licensing state (for diagnostics; the exact meaning of the bits in this
+/* licensing state (for diagyesstics; the exact meaning of the bits in this
  * field are private to the firmware)
  */
 #define       MC_CMD_LICENSING_OUT_LICENSING_STATE_OFST 20
@@ -13419,12 +13419,12 @@
 /* identifies the type of operation requested */
 #define       MC_CMD_LICENSING_V3_IN_OP_OFST 0
 #define       MC_CMD_LICENSING_V3_IN_OP_LEN 4
-/* enum: re-read and apply licenses after a license key partition update; note
+/* enum: re-read and apply licenses after a license key partition update; yeste
  * that this operation returns a zero-length response
  */
 #define          MC_CMD_LICENSING_V3_IN_OP_UPDATE_LICENSE 0x0
 /* enum: report counts of installed licenses Returns EAGAIN if license
- * processing (updating) has been started but not yet completed.
+ * processing (updating) has been started but yest yet completed.
  */
 #define          MC_CMD_LICENSING_V3_IN_OP_REPORT_LICENSE 0x1
 
@@ -13441,10 +13441,10 @@
 /* count of keys which are invalid due to being unverifiable */
 #define       MC_CMD_LICENSING_V3_OUT_UNVERIFIABLE_KEYS_OFST 8
 #define       MC_CMD_LICENSING_V3_OUT_UNVERIFIABLE_KEYS_LEN 4
-/* count of keys which are invalid due to being for the wrong node */
+/* count of keys which are invalid due to being for the wrong yesde */
 #define       MC_CMD_LICENSING_V3_OUT_WRONG_NODE_KEYS_OFST 12
 #define       MC_CMD_LICENSING_V3_OUT_WRONG_NODE_KEYS_LEN 4
-/* licensing state (for diagnostics; the exact meaning of the bits in this
+/* licensing state (for diagyesstics; the exact meaning of the bits in this
  * field are private to the firmware)
  */
 #define       MC_CMD_LICENSING_V3_OUT_LICENSING_STATE_OFST 16
@@ -13540,7 +13540,7 @@
 /* state of this application */
 #define       MC_CMD_GET_LICENSED_APP_STATE_OUT_STATE_OFST 0
 #define       MC_CMD_GET_LICENSED_APP_STATE_OUT_STATE_LEN 4
-/* enum: no (or invalid) license is present for the application */
+/* enum: yes (or invalid) license is present for the application */
 #define          MC_CMD_GET_LICENSED_APP_STATE_OUT_NOT_LICENSED 0x0
 /* enum: a valid license is present for the application */
 #define          MC_CMD_GET_LICENSED_APP_STATE_OUT_LICENSED 0x1
@@ -13571,7 +13571,7 @@
 /* state of this application */
 #define       MC_CMD_GET_LICENSED_V3_APP_STATE_OUT_STATE_OFST 0
 #define       MC_CMD_GET_LICENSED_V3_APP_STATE_OUT_STATE_LEN 4
-/* enum: no (or invalid) license is present for the application */
+/* enum: yes (or invalid) license is present for the application */
 #define          MC_CMD_GET_LICENSED_V3_APP_STATE_OUT_NOT_LICENSED 0x0
 /* enum: a valid license is present for the application */
 #define          MC_CMD_GET_LICENSED_V3_APP_STATE_OUT_LICENSED 0x1
@@ -13599,7 +13599,7 @@
 
 /* MC_CMD_GET_LICENSED_V3_FEATURE_STATES_OUT msgresponse */
 #define    MC_CMD_GET_LICENSED_V3_FEATURE_STATES_OUT_LEN 8
-/* states of these features - bit set for licensed, clear for not licensed */
+/* states of these features - bit set for licensed, clear for yest licensed */
 #define       MC_CMD_GET_LICENSED_V3_FEATURE_STATES_OUT_STATES_OFST 0
 #define       MC_CMD_GET_LICENSED_V3_FEATURE_STATES_OUT_STATES_LEN 8
 #define       MC_CMD_GET_LICENSED_V3_FEATURE_STATES_OUT_STATES_LO_OFST 0
@@ -13608,7 +13608,7 @@
 
 /***********************************/
 /* MC_CMD_LICENSED_APP_OP
- * Perform an action for an individual licensed application - not used for V3
+ * Perform an action for an individual licensed application - yest used for V3
  * licensing.
  */
 #define MC_CMD_LICENSED_APP_OP 0xf6
@@ -13722,13 +13722,13 @@
 #define          MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_EXPIRY_UNIT_ACC 0x0
 /* enum: expiry units are calendar days */
 #define          MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_EXPIRY_UNIT_DAYS 0x1
-/* base MAC address of the NIC stored in NVRAM (note that this is a constant
+/* base MAC address of the NIC stored in NVRAM (yeste that this is a constant
  * value for a given NIC regardless which function is calling, effectively this
  * is PF0 base MAC address)
  */
 #define       MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_BASE_MACADDR_OFST 104
 #define       MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_BASE_MACADDR_LEN 6
-/* MAC address of v-adaptor associated with the client. If no such v-adapator
+/* MAC address of v-adaptor associated with the client. If yes such v-adapator
  * exists, then the field is filled with 0xFF.
  */
 #define       MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_VADAPTOR_MACADDR_OFST 110
@@ -13780,7 +13780,7 @@
 #define       MC_CMD_LICENSING_V3_TEMPORARY_IN_OP_OFST 0
 #define       MC_CMD_LICENSING_V3_TEMPORARY_IN_OP_LEN 4
 /* enum: install a new license, overwriting any existing temporary license.
- * This is an asynchronous operation owing to the time taken to validate an
+ * This is an asynchroyesus operation owing to the time taken to validate an
  * ECDSA license
  */
 #define          MC_CMD_LICENSING_V3_TEMPORARY_SET 0x0
@@ -13788,7 +13788,7 @@
  * cycle
  */
 #define          MC_CMD_LICENSING_V3_TEMPORARY_CLEAR 0x1
-/* enum: get the status of the asynchronous MC_CMD_LICENSING_V3_TEMPORARY_SET
+/* enum: get the status of the asynchroyesus MC_CMD_LICENSING_V3_TEMPORARY_SET
  * operation
  */
 #define          MC_CMD_LICENSING_V3_TEMPORARY_STATUS 0x2
@@ -13820,7 +13820,7 @@
 #define          MC_CMD_LICENSING_V3_TEMPORARY_STATUS_OK 0x0
 /* enum: license validation and installation in progress */
 #define          MC_CMD_LICENSING_V3_TEMPORARY_STATUS_IN_PROGRESS 0x1
-/* enum: licensing error. More specific error messages are not provided to
+/* enum: licensing error. More specific error messages are yest provided to
  * avoid exposing details of the licensing system to the client
  */
 #define          MC_CMD_LICENSING_V3_TEMPORARY_STATUS_ERROR 0x2
@@ -13835,7 +13835,7 @@
 /* MC_CMD_SET_PORT_SNIFF_CONFIG
  * Configure RX port sniffing for the physical port associated with the calling
  * function. Only a privileged function may change the port sniffing
- * configuration. A copy of all traffic delivered to the host (non-promiscuous
+ * configuration. A copy of all traffic delivered to the host (yesn-promiscuous
  * mode) or all traffic arriving at the port (promiscuous mode) may be
  * delivered to a specific queue, or a set of queues with RSS.
  */
@@ -13991,7 +13991,7 @@
  * function. Only a privileged function may change the port sniffing
  * configuration. A copy of all traffic transmitted through the port may be
  * delivered to a specific queue, or a set of queues with RSS. Note that these
- * packets are delivered with transmit timestamps in the packet prefix, not
+ * packets are delivered with transmit timestamps in the packet prefix, yest
  * receive timestamps, so it is likely that the queue(s) will need to be
  * dedicated as TX sniff receivers.
  */
@@ -14146,7 +14146,7 @@
 /* Bitmask of port modes available on the board (indexed by TLV_PORT_MODE_*) */
 #define       MC_CMD_GET_PORT_MODES_OUT_MODES_OFST 0
 #define       MC_CMD_GET_PORT_MODES_OUT_MODES_LEN 4
-/* Default (canonical) board mode */
+/* Default (cayesnical) board mode */
 #define       MC_CMD_GET_PORT_MODES_OUT_DEFAULT_MODE_OFST 4
 #define       MC_CMD_GET_PORT_MODES_OUT_DEFAULT_MODE_LEN 4
 /* Current board mode */
@@ -14265,13 +14265,13 @@
  */
 #define          MC_CMD_PRIVILEGE_MASK_IN_GRP_CHANGE_MAC 0x1000
 /* enum: Privilege that allows a Function to install filters that specify VLANs
- * that are not in the permit list for the associated vPort. This privilege is
+ * that are yest in the permit list for the associated vPort. This privilege is
  * primarily to support ESX where vPorts are created that restrict traffic to
  * only a set of permitted VLANs. See the vPort flag FLAG_VLAN_RESTRICT.
  */
 #define          MC_CMD_PRIVILEGE_MASK_IN_GRP_UNRESTRICTED_VLAN 0x2000
 /* enum: Privilege for insecure commands. Commands that belong to this group
- * are not permitted on secure adapters regardless of the privilege mask.
+ * are yest permitted on secure adapters regardless of the privilege mask.
  */
 #define          MC_CMD_PRIVILEGE_MASK_IN_GRP_INSECURE 0x4000
 /* enum: Set this bit to indicate that a new privilege mask is to be set,
@@ -14345,7 +14345,7 @@
 
 /***********************************/
 /* MC_CMD_FUSE_DIAGS
- * Additional fuse diagnostics
+ * Additional fuse diagyesstics
  */
 #define MC_CMD_FUSE_DIAGS 0x102
 
@@ -14359,10 +14359,10 @@
 /* Total number of mismatched bits between pairs in area 0 */
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA0_MISMATCH_BITS_OFST 0
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA0_MISMATCH_BITS_LEN 4
-/* Total number of unexpectedly clear (set in B but not A) bits in area 0 */
+/* Total number of unexpectedly clear (set in B but yest A) bits in area 0 */
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA0_PAIR_A_BAD_BITS_OFST 4
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA0_PAIR_A_BAD_BITS_LEN 4
-/* Total number of unexpectedly clear (set in A but not B) bits in area 0 */
+/* Total number of unexpectedly clear (set in A but yest B) bits in area 0 */
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA0_PAIR_B_BAD_BITS_OFST 8
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA0_PAIR_B_BAD_BITS_LEN 4
 /* Checksum of data after logical OR of pairs in area 0 */
@@ -14371,10 +14371,10 @@
 /* Total number of mismatched bits between pairs in area 1 */
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA1_MISMATCH_BITS_OFST 16
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA1_MISMATCH_BITS_LEN 4
-/* Total number of unexpectedly clear (set in B but not A) bits in area 1 */
+/* Total number of unexpectedly clear (set in B but yest A) bits in area 1 */
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA1_PAIR_A_BAD_BITS_OFST 20
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA1_PAIR_A_BAD_BITS_LEN 4
-/* Total number of unexpectedly clear (set in A but not B) bits in area 1 */
+/* Total number of unexpectedly clear (set in A but yest B) bits in area 1 */
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA1_PAIR_B_BAD_BITS_OFST 24
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA1_PAIR_B_BAD_BITS_LEN 4
 /* Checksum of data after logical OR of pairs in area 1 */
@@ -14383,10 +14383,10 @@
 /* Total number of mismatched bits between pairs in area 2 */
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA2_MISMATCH_BITS_OFST 32
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA2_MISMATCH_BITS_LEN 4
-/* Total number of unexpectedly clear (set in B but not A) bits in area 2 */
+/* Total number of unexpectedly clear (set in B but yest A) bits in area 2 */
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA2_PAIR_A_BAD_BITS_OFST 36
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA2_PAIR_A_BAD_BITS_LEN 4
-/* Total number of unexpectedly clear (set in A but not B) bits in area 2 */
+/* Total number of unexpectedly clear (set in A but yest B) bits in area 2 */
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA2_PAIR_B_BAD_BITS_OFST 40
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA2_PAIR_B_BAD_BITS_LEN 4
 /* Checksum of data after logical OR of pairs in area 2 */
@@ -14397,7 +14397,7 @@
 /***********************************/
 /* MC_CMD_PRIVILEGE_MODIFY
  * Modify the privileges of a set of PCIe functions. Note that this operation
- * only effects non-admin functions unless the admin privilege itself is
+ * only effects yesn-admin functions unless the admin privilege itself is
  * included in one of the masks provided.
  */
 #define MC_CMD_PRIVILEGE_MODIFY 0x60
@@ -14542,7 +14542,7 @@
 #define    MC_CMD_XPM_WRITE_SECTOR_IN_LENMAX 44
 #define    MC_CMD_XPM_WRITE_SECTOR_IN_LEN(num) (12+1*(num))
 /* If writing fails due to an uncorrectable error, try up to RETRIES following
- * sectors (or until no more space available). If 0, only one write attempt is
+ * sectors (or until yes more space available). If 0, only one write attempt is
  * made. Note that uncorrectable errors are unlikely, thanks to XPM self-repair
  * mechanism.
  */
@@ -14610,10 +14610,10 @@
 #define    MC_CMD_XPM_BLANK_CHECK_OUT_LENMIN 4
 #define    MC_CMD_XPM_BLANK_CHECK_OUT_LENMAX 252
 #define    MC_CMD_XPM_BLANK_CHECK_OUT_LEN(num) (4+2*(num))
-/* Total number of bad (non-blank) locations */
+/* Total number of bad (yesn-blank) locations */
 #define       MC_CMD_XPM_BLANK_CHECK_OUT_BAD_COUNT_OFST 0
 #define       MC_CMD_XPM_BLANK_CHECK_OUT_BAD_COUNT_LEN 4
-/* Addresses of bad locations (may be less than BAD_COUNT, if all cannot fit
+/* Addresses of bad locations (may be less than BAD_COUNT, if all canyest fit
  * into MCDI response)
  */
 #define       MC_CMD_XPM_BLANK_CHECK_OUT_BAD_ADDR_OFST 4
@@ -14663,9 +14663,9 @@
 /* MC_CMD_XPM_WRITE_TEST
  * XPM memory write test. Test XPM write logic for gross manufacturing defects
  * by writing to a dedicated test row. There are 16 locations in the test row
- * and the test can only be performed on locations that have not been
+ * and the test can only be performed on locations that have yest been
  * previously used (i.e. can be run at most 16 times). The test will pick the
- * first available location to use, or fail with ENOSPC if none left.
+ * first available location to use, or fail with ENOSPC if yesne left.
  */
 #define MC_CMD_XPM_WRITE_TEST 0x10b
 
@@ -14906,10 +14906,10 @@
 /* Function-relative queue instance */
 #define       MC_CMD_SET_EVQ_TMR_IN_INSTANCE_OFST 0
 #define       MC_CMD_SET_EVQ_TMR_IN_INSTANCE_LEN 4
-/* Requested value for timer load (in nanoseconds) */
+/* Requested value for timer load (in nayesseconds) */
 #define       MC_CMD_SET_EVQ_TMR_IN_TMR_LOAD_REQ_NS_OFST 4
 #define       MC_CMD_SET_EVQ_TMR_IN_TMR_LOAD_REQ_NS_LEN 4
-/* Requested value for timer reload (in nanoseconds) */
+/* Requested value for timer reload (in nayesseconds) */
 #define       MC_CMD_SET_EVQ_TMR_IN_TMR_RELOAD_REQ_NS_OFST 8
 #define       MC_CMD_SET_EVQ_TMR_IN_TMR_RELOAD_REQ_NS_LEN 4
 /* Timer mode. Meanings as per EVQ_TMR_REG.TC_TIMER_VAL */
@@ -14922,10 +14922,10 @@
 
 /* MC_CMD_SET_EVQ_TMR_OUT msgresponse */
 #define    MC_CMD_SET_EVQ_TMR_OUT_LEN 8
-/* Actual value for timer load (in nanoseconds) */
+/* Actual value for timer load (in nayesseconds) */
 #define       MC_CMD_SET_EVQ_TMR_OUT_TMR_LOAD_ACT_NS_OFST 0
 #define       MC_CMD_SET_EVQ_TMR_OUT_TMR_LOAD_ACT_NS_LEN 4
-/* Actual value for timer reload (in nanoseconds) */
+/* Actual value for timer reload (in nayesseconds) */
 #define       MC_CMD_SET_EVQ_TMR_OUT_TMR_RELOAD_ACT_NS_OFST 4
 #define       MC_CMD_SET_EVQ_TMR_OUT_TMR_RELOAD_ACT_NS_LEN 4
 
@@ -14947,7 +14947,7 @@
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_FLAGS_OFST 0
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_FLAGS_LEN 4
 /* For timers updated via writes to EVQ_TMR_REG, this is the time interval (in
- * nanoseconds) for each increment of the timer load/reload count. The
+ * nayesseconds) for each increment of the timer load/reload count. The
  * requested duration of a timer is this value multiplied by the timer
  * load/reload count.
  */
@@ -14958,24 +14958,24 @@
  */
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_TMR_REG_MAX_COUNT_OFST 8
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_TMR_REG_MAX_COUNT_LEN 4
-/* For timers updated via writes to EVQ_TMR_REG, timer load/reload counts not a
+/* For timers updated via writes to EVQ_TMR_REG, timer load/reload counts yest a
  * multiple of this step size will be rounded in an implementation defined
  * manner.
  */
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_TMR_REG_STEP_OFST 12
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_TMR_REG_STEP_LEN 4
-/* Maximum timer duration (in nanoseconds) for timers updated via MCDI. Only
+/* Maximum timer duration (in nayesseconds) for timers updated via MCDI. Only
  * meaningful if MC_CMD_SET_EVQ_TMR is implemented.
  */
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_MCDI_TMR_MAX_NS_OFST 16
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_MCDI_TMR_MAX_NS_LEN 4
-/* Timer durations requested via MCDI that are not a multiple of this step size
+/* Timer durations requested via MCDI that are yest a multiple of this step size
  * will be rounded up. Only meaningful if MC_CMD_SET_EVQ_TMR is implemented.
  */
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_MCDI_TMR_STEP_NS_OFST 20
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_MCDI_TMR_STEP_NS_LEN 4
 /* For timers updated using the bug35388 workaround, this is the time interval
- * (in nanoseconds) for each increment of the timer load/reload count. The
+ * (in nayesseconds) for each increment of the timer load/reload count. The
  * requested duration of a timer is this value multiplied by the timer
  * load/reload count. This field is only meaningful if the bug35388 workaround
  * is enabled.
@@ -14989,7 +14989,7 @@
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_MAX_COUNT_OFST 28
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_MAX_COUNT_LEN 4
 /* For timers updated using the bug35388 workaround, timer load/reload counts
- * not a multiple of this step size will be rounded in an implementation
+ * yest a multiple of this step size will be rounded in an implementation
  * defined manner. This field is only meaningful if the bug35388 workaround is
  * enabled.
  */
@@ -15000,7 +15000,7 @@
 /***********************************/
 /* MC_CMD_ALLOCATE_TX_VFIFO_CP
  * When we use the TX_vFIFO_ULL mode, we can allocate common pools using the
- * non used switch buffers.
+ * yesn used switch buffers.
  */
 #define MC_CMD_ALLOCATE_TX_VFIFO_CP 0x11d
 
@@ -15017,7 +15017,7 @@
 #define       MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_MODE_OFST 4
 #define       MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_MODE_LEN 4
 #define          MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_ENABLED 0x1 /* enum */
-/* enum: Using this interface without TX_vFIFO_ULL is not supported for now */
+/* enum: Using this interface without TX_vFIFO_ULL is yest supported for yesw */
 #define          MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_DISABLED 0x0
 /* Number of buffers to reserve for the common pool */
 #define       MC_CMD_ALLOCATE_TX_VFIFO_CP_IN_SIZE_OFST 8
@@ -15079,7 +15079,7 @@
 /* Minimum number of buffers that the pool must have */
 #define       MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_SIZE_OFST 8
 #define       MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_SIZE_LEN 4
-/* enum: Do not check the space available */
+/* enum: Do yest check the space available */
 #define          MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_NO_MINIMUM 0x0
 /* Will the vFIFO be used as TX_vFIFO_ULL */
 #define       MC_CMD_ALLOCATE_TX_VFIFO_VFIFO_IN_MODE_OFST 12
@@ -15141,7 +15141,7 @@
 /***********************************/
 /* MC_CMD_SWITCH_GET_UNASSIGNED_BUFFERS
  * This interface allows the host to find out how many common pool buffers are
- * not yet assigned.
+ * yest yet assigned.
  */
 #define MC_CMD_SWITCH_GET_UNASSIGNED_BUFFERS 0x124
 

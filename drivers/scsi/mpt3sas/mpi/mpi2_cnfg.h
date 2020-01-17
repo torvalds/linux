@@ -10,8 +10,8 @@
  *    mpi2_cnfg.h Version:  02.00.47
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
- *       prefix are for use only on MPI v2.5 products, and must not be used
- *       with MPI v2.0 products. Unless otherwise noted, names beginning with
+ *       prefix are for use only on MPI v2.5 products, and must yest be used
+ *       with MPI v2.0 products. Unless otherwise yested, names beginning with
  *       MPI2 or Mpi2 are for use with both MPI v2.0 and MPI v2.5 products.
  *
  * Version History
@@ -135,7 +135,7 @@
  *                     defines.
  * 11-10-10  02.00.17  Added ReceptacleID field (replacing Reserved1) to
  *                     MPI2_MANPAGE7_CONNECTOR_INFO and reworked defines for
- *                     the Pinout field.
+ *                     the Piyesut field.
  *                     Added BoardTemperature and BoardTemperatureUnits fields
  *                     to MPI2_CONFIG_PAGE_IO_UNIT_7.
  *                     Added MPI2_CONFIG_EXTPAGETYPE_EXT_MANUFACTURING define
@@ -810,7 +810,7 @@ typedef struct _MPI2_CONFIG_PAGE_MAN_6 {
 /*Manufacturing Page 7 */
 
 typedef struct _MPI2_MANPAGE7_CONNECTOR_INFO {
-	U32                         Pinout;                 /*0x00 */
+	U32                         Piyesut;                 /*0x00 */
 	U8                          Connector[16];          /*0x04 */
 	U8                          Location;               /*0x14 */
 	U8                          ReceptacleID;           /*0x15 */
@@ -822,7 +822,7 @@ typedef struct _MPI2_MANPAGE7_CONNECTOR_INFO {
 	Mpi2ManPage7ConnectorInfo_t,
 	*pMpi2ManPage7ConnectorInfo_t;
 
-/*defines for the Pinout field */
+/*defines for the Piyesut field */
 #define MPI2_MANPAGE7_PINOUT_LANE_MASK                  (0x0000FF00)
 #define MPI2_MANPAGE7_PINOUT_LANE_SHIFT                 (8)
 

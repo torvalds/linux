@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -53,7 +53,7 @@ struct ixgb_adapter;
 #define MAX_TXD         4096
 #define MIN_TXD           64
 
-/* hardware cannot reliably support more than 512 descriptors owned by
+/* hardware canyest reliably support more than 512 descriptors owned by
  * hardware descriptor cache otherwise an unreliable ring under heavy
  * receive load may result */
 #define DEFAULT_RXD      512

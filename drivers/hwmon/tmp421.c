@@ -24,7 +24,7 @@
 #include <linux/sysfs.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2a, 0x4c, 0x4d, 0x4e, 0x4f,
+static const unsigned short yesrmal_i2c[] = { 0x2a, 0x4c, 0x4d, 0x4e, 0x4f,
 					     I2C_CLIENT_END };
 
 enum chips { tmp421, tmp422, tmp423, tmp441, tmp442 };
@@ -198,7 +198,7 @@ static int tmp421_init_client(struct i2c_client *client)
 	config = i2c_smbus_read_byte_data(client, TMP421_CONFIG_REG_1);
 	if (config < 0) {
 		dev_err(&client->dev,
-			"Could not read configuration register (%d)\n", config);
+			"Could yest read configuration register (%d)\n", config);
 		return config;
 	}
 
@@ -292,7 +292,7 @@ static int tmp421_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	mutex_init(&data->update_lock);
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		data->channels = (unsigned long)
 			of_device_get_match_data(&client->dev);
 	else
@@ -330,7 +330,7 @@ static struct i2c_driver tmp421_driver = {
 	.probe = tmp421_probe,
 	.id_table = tmp421_id,
 	.detect = tmp421_detect,
-	.address_list = normal_i2c,
+	.address_list = yesrmal_i2c,
 };
 
 module_i2c_driver(tmp421_driver);

@@ -21,7 +21,7 @@
 #include <err.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sys/vm86.h>
 
 static unsigned long load_addr = 0x10000;
@@ -57,7 +57,7 @@ static void sighandler(int sig, siginfo_t *info, void *ctx_void)
 
 	if (ctx->uc_mcontext.gregs[REG_EFL] & X86_EFLAGS_VM ||
 	    (ctx->uc_mcontext.gregs[REG_CS] & 3) != 3) {
-		printf("[FAIL]\tSignal frame should not reflect vm86 mode\n");
+		printf("[FAIL]\tSignal frame should yest reflect vm86 mode\n");
 		nerrs++;
 	}
 
@@ -141,23 +141,23 @@ static bool do_test(struct vm86plus_struct *v86, unsigned long eip,
 	v86->regs.eip = eip;
 	ret = vm86(VM86_ENTER, v86);
 
-	if (ret == -1 && (errno == ENOSYS || errno == EPERM)) {
+	if (ret == -1 && (erryes == ENOSYS || erryes == EPERM)) {
 		printf("[SKIP]\tvm86 %s\n",
-		       errno == ENOSYS ? "not supported" : "not allowed");
+		       erryes == ENOSYS ? "yest supported" : "yest allowed");
 		return false;
 	}
 
 	if (VM86_TYPE(ret) == VM86_INTx) {
 		char trapname[32];
-		int trapno = VM86_ARG(ret);
-		if (trapno == 13)
+		int trapyes = VM86_ARG(ret);
+		if (trapyes == 13)
 			strcpy(trapname, "GP");
-		else if (trapno == 5)
+		else if (trapyes == 5)
 			strcpy(trapname, "BR");
-		else if (trapno == 14)
+		else if (trapyes == 14)
 			strcpy(trapname, "PF");
 		else
-			sprintf(trapname, "%d", trapno);
+			sprintf(trapname, "%d", trapyes);
 
 		printf("[INFO]\tExited vm86 mode due to #%s\n", trapname);
 	} else if (VM86_TYPE(ret) == VM86_UNKNOWN) {
@@ -199,7 +199,7 @@ void do_umip_tests(struct vm86plus_struct *vm86, unsigned char *test_mem)
 	struct table_desc idt2 = { .base = 0x89898989, .limit = 0x1313 };
 	unsigned short msw1 = 0x1414, msw2 = 0x2525, msw3 = 3737;
 
-	/* UMIP -- exit with INT3 unless kernel emulation did not trap #GP */
+	/* UMIP -- exit with INT3 unless kernel emulation did yest trap #GP */
 	do_test(vm86, vmcode_umip - vmcode, VM86_TRAP, 3, "UMIP tests");
 
 	/* Results from displacement-only addressing */
@@ -278,7 +278,7 @@ int main(void)
 	/*
 	 * SYSENTER -- should cause #GP or #UD depending on CPU.
 	 * Expected return type -1 means that we shouldn't validate
-	 * the vm86 return value.  This will avoid problems on non-SEP
+	 * the vm86 return value.  This will avoid problems on yesn-SEP
 	 * CPUs.
 	 */
 	sethandler(SIGILL, sighandler, 0);
@@ -287,7 +287,7 @@ int main(void)
 
 	/*
 	 * SYSCALL would be a disaster in VM86 mode.  Fortunately,
-	 * there is no kernel that both enables SYSCALL and sets
+	 * there is yes kernel that both enables SYSCALL and sets
 	 * EFER.SCE, so it's #UD on all systems.  But vm86 is
 	 * buggy (or has a "feature"), so the SIGILL will actually
 	 * be delivered.
@@ -301,7 +301,7 @@ int main(void)
 	v86.regs.eflags &= ~X86_EFLAGS_IF;
 	do_test(&v86, vmcode_sti - vmcode, VM86_STI, 0, "STI with VIP set");
 
-	/* POPF with VIP set but IF clear: should not trap */
+	/* POPF with VIP set but IF clear: should yest trap */
 	v86.regs.eflags = X86_EFLAGS_VIP;
 	v86.regs.eax = 0;
 	do_test(&v86, vmcode_popf_hlt - vmcode, VM86_UNKNOWN, 0, "POPF with VIP set and IF clear");
@@ -311,7 +311,7 @@ int main(void)
 	v86.regs.eax = X86_EFLAGS_IF;
 	do_test(&v86, vmcode_popf_hlt - vmcode, VM86_STI, 0, "POPF with VIP and IF set");
 
-	/* POPF with VIP clear and IF set: should not trap */
+	/* POPF with VIP clear and IF set: should yest trap */
 	v86.regs.eflags = 0;
 	v86.regs.eax = X86_EFLAGS_IF;
 	do_test(&v86, vmcode_popf_hlt - vmcode, VM86_UNKNOWN, 0, "POPF with VIP clear and IF set");
@@ -325,7 +325,7 @@ int main(void)
 	v86.regs.eax = (unsigned int)-1;
 	do_test(&v86, vmcode_int80 - vmcode, VM86_INTx, 0x80, "int80");
 
-	/* UMIP -- should exit with INTx 0x80 unless UMIP was not disabled */
+	/* UMIP -- should exit with INTx 0x80 unless UMIP was yest disabled */
 	do_umip_tests(&v86, addr);
 
 	/* Execute a null pointer */
@@ -335,12 +335,12 @@ int main(void)
 	got_signal = 0;
 	if (do_test(&v86, 0, VM86_SIGNAL, 0, "Execute null pointer") &&
 	    !got_signal) {
-		printf("[FAIL]\tDid not receive SIGSEGV\n");
+		printf("[FAIL]\tDid yest receive SIGSEGV\n");
 		nerrs++;
 	}
 	clearhandler(SIGSEGV);
 
-	/* Make sure nothing explodes if we fork. */
+	/* Make sure yesthing explodes if we fork. */
 	if (fork() == 0)
 		return 0;
 

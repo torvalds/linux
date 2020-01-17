@@ -16,7 +16,7 @@ corresponding module has to be loaded.
 
 These modules are loaded automatically when the corresponding service
 is called.  The alias is defined ``sound-service-x-y``, where x and y are
-the card number and the minor unit number.  Usually you don't have to
+the card number and the miyesr unit number.  Usually you don't have to
 define these aliases by yourself.
 
 Only necessary step for auto-loading of OSS modules is to define the
@@ -34,7 +34,7 @@ The currently available OSS configuration is shown in
 /dev/sndstat, which is available on the commercial OSS driver.
 On ALSA, you can symlink /dev/sndstat to this proc file.
 
-Please note that the devices listed in this proc file appear only
+Please yeste that the devices listed in this proc file appear only
 after the corresponding OSS-emulation module is loaded.  Don't worry
 even if "NOT ENABLED IN CONFIG" is shown in it.
 
@@ -66,8 +66,8 @@ where X is the card number from 0 to 7.
 /dev/midi1.  They are NOT for OSS but for tclmidi, which is
 a totally different thing.)
 
-Unlike the real OSS, ALSA cannot use the device files more than the
-assigned ones.  For example, the first card cannot use /dev/dsp1 or
+Unlike the real OSS, ALSA canyest use the device files more than the
+assigned ones.  For example, the first card canyest use /dev/dsp1 or
 /dev/dsp2, but only /dev/dsp0 and /dev/adsp0.
 
 As seen above, PCM and MIDI may have two devices.  Usually, the first
@@ -139,28 +139,28 @@ The command sequence has the following syntax:
 
 ``app_name`` is the name of application with (higher priority) or without
 path.
-``fragments`` specifies the number of fragments or zero if no specific
+``fragments`` specifies the number of fragments or zero if yes specific
 number is given.
-``fragment_size`` is the size of fragment in bytes or zero if not given.
+``fragment_size`` is the size of fragment in bytes or zero if yest given.
 ``options`` is the optional parameters.  The following options are
 available:
 
 disable
 	the application tries to open a pcm device for
-	this channel but does not want to use it.
+	this channel but does yest want to use it.
 direct
 	don't use plugins
 block
 	force block open mode
-non-block
-	force non-block open mode
+yesn-block
+	force yesn-block open mode
 partial-frag
 	write also partial fragments (affects playback only)
-no-silence
-	do not fill silence ahead to avoid clicks
+yes-silence
+	do yest fill silence ahead to avoid clicks
 
 The ``disable`` option is useful when one stream direction (playback or
-capture) is not handled correctly by the application although the
+capture) is yest handled correctly by the application although the
 hardware itself does support both directions.
 The ``direct`` option is used, as mentioned above, to bypass the automatic
 conversion and useful for MMAP-applications.
@@ -171,7 +171,7 @@ quake, send a command via echo like the following:
 	% echo "quake 0 0 direct" > /proc/asound/card0/pcm0p/oss
 
 While quake wants only playback, you may append the second command
-to notify driver that only this direction is about to be allocated:
+to yestify driver that only this direction is about to be allocated:
 ::
 
 	% echo "quake 0 0 disable" > /proc/asound/card0/pcm0c/oss
@@ -180,20 +180,20 @@ The permission of proc files depend on the module options of snd.
 As default it's set as root, so you'll likely need to be superuser for
 sending the command above.
 
-The block and non-block options are used to change the behavior of
+The block and yesn-block options are used to change the behavior of
 opening the device file.
 
-As default, ALSA behaves as original OSS drivers, i.e. does not block
+As default, ALSA behaves as original OSS drivers, i.e. does yest block
 the file when it's busy. The -EBUSY error is returned in this case.
 
-This blocking behavior can be changed globally via nonblock_open
+This blocking behavior can be changed globally via yesnblock_open
 module option of snd-pcm-oss.  For using the blocking mode as default
 for OSS devices, define like the following:
 ::
 
-	options snd-pcm-oss nonblock_open=0
+	options snd-pcm-oss yesnblock_open=0
 
-The ``partial-frag`` and ``no-silence`` commands have been added recently.
+The ``partial-frag`` and ``yes-silence`` commands have been added recently.
 Both commands are for optimization use only.  The former command
 specifies to invoke the write transfer only when the whole fragment is
 filled.  The latter stops writing the silence data ahead
@@ -247,7 +247,7 @@ SOUND_MIXER_MIC		Mic 			0
 SOUND_MIXER_CD		CD 			0
 SOUND_MIXER_IMIX	Monitor Mix 		0
 SOUND_MIXER_ALTPCM	PCM			1
-SOUND_MIXER_RECLEV	(not assigned)
+SOUND_MIXER_RECLEV	(yest assigned)
 SOUND_MIXER_IGAIN	Capture			0
 SOUND_MIXER_OGAIN	Playback		0
 SOUND_MIXER_LINE1	Aux			0
@@ -281,7 +281,7 @@ file, /proc/asound/cardX/oss_mixer, which will be like the following
 where the first column is the OSS volume element, the second column
 the base-string of the corresponding ALSA control, and the third the
 control index.  When the string is empty, it means that the
-corresponding OSS control is not available.
+corresponding OSS control is yest available.
 
 For changing the assignment, you can write the configuration to this
 proc file.  For example, to map "Wave Playback" to the PCM volume,
@@ -308,7 +308,7 @@ Duplex Streams
 ==============
 
 Note that when attempting to use a single device file for playback and
-capture, the OSS API provides no way to set the format, sample rate or
+capture, the OSS API provides yes way to set the format, sample rate or
 number of channels different in each direction.  Thus
 ::
 
@@ -331,6 +331,6 @@ Unsupported Features
 MMAP on ICE1712 driver
 ----------------------
 ICE1712 supports only the unconventional format, interleaved
-10-channels 24bit (packed in 32bit) format.  Therefore you cannot mmap
-the buffer as the conventional (mono or 2-channels, 8 or 16bit) format
+10-channels 24bit (packed in 32bit) format.  Therefore you canyest mmap
+the buffer as the conventional (moyes or 2-channels, 8 or 16bit) format
 on OSS.

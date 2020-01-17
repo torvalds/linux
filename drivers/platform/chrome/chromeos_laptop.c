@@ -30,7 +30,7 @@ static const char *i2c_adapter_names[] = {
 	"SMBus I801 adapter",
 	"i915 gmbus vga",
 	"i915 gmbus panel",
-	"Synopsys DesignWare I2C adapter",
+	"Syyespsys DesignWare I2C adapter",
 };
 
 /* Keep this enum consistent with i2c_adapter_names */
@@ -202,7 +202,7 @@ static void chromeos_laptop_detach_i2c_client(struct i2c_client *client)
 	}
 }
 
-static int chromeos_laptop_i2c_notifier_call(struct notifier_block *nb,
+static int chromeos_laptop_i2c_yestifier_call(struct yestifier_block *nb,
 					     unsigned long action, void *data)
 {
 	struct device *dev = data;
@@ -224,8 +224,8 @@ static int chromeos_laptop_i2c_notifier_call(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block chromeos_laptop_i2c_notifier = {
-	.notifier_call = chromeos_laptop_i2c_notifier_call,
+static struct yestifier_block chromeos_laptop_i2c_yestifier = {
+	.yestifier_call = chromeos_laptop_i2c_yestifier_call,
 };
 
 #define DECLARE_CROS_LAPTOP(_name)					\
@@ -637,7 +637,7 @@ static const struct dmi_system_id chromeos_laptop_dmi_table[] __initconst = {
 		.ident = "Other Chromebook",
 		.matches = {
 			/*
-			 * This will match all Google devices, not only devices
+			 * This will match all Google devices, yest only devices
 			 * with Atmel, but we will validate that the device
 			 * actually has matching peripherals.
 			 */
@@ -895,23 +895,23 @@ static int __init chromeos_laptop_init(void)
 
 	if (!cros_laptop->num_i2c_peripherals &&
 	    !cros_laptop->num_acpi_peripherals) {
-		pr_debug("no relevant devices detected\n");
+		pr_debug("yes relevant devices detected\n");
 		error = -ENODEV;
 		goto err_destroy_cros_laptop;
 	}
 
-	error = bus_register_notifier(&i2c_bus_type,
-				      &chromeos_laptop_i2c_notifier);
+	error = bus_register_yestifier(&i2c_bus_type,
+				      &chromeos_laptop_i2c_yestifier);
 	if (error) {
-		pr_err("failed to register i2c bus notifier: %d\n",
+		pr_err("failed to register i2c bus yestifier: %d\n",
 		       error);
 		goto err_destroy_cros_laptop;
 	}
 
 	/*
 	 * Scan adapters that have been registered and clients that have
-	 * been created before we installed the notifier to make sure
-	 * we do not miss any devices.
+	 * been created before we installed the yestifier to make sure
+	 * we do yest miss any devices.
 	 */
 	i2c_for_each_dev(NULL, chromeos_laptop_scan_peripherals);
 
@@ -924,7 +924,7 @@ err_destroy_cros_laptop:
 
 static void __exit chromeos_laptop_exit(void)
 {
-	bus_unregister_notifier(&i2c_bus_type, &chromeos_laptop_i2c_notifier);
+	bus_unregister_yestifier(&i2c_bus_type, &chromeos_laptop_i2c_yestifier);
 	chromeos_laptop_destroy(cros_laptop);
 }
 

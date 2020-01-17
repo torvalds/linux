@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2015 Anton Ivanov (aivanov@{brocade.com,kot-begemot.co.uk})
+ * Copyright (C) 2015 Anton Ivayesv (aivayesv@{brocade.com,kot-begemot.co.uk})
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2012-2014 Cisco Systems
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike{addtoit,linux.intel}.com)
  */
 
 #include <stddef.h>
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
@@ -61,7 +61,7 @@ int os_timer_set_interval(unsigned long long nsecs)
 	its.it_interval.tv_nsec = nsecs % UM_NSEC_PER_SEC;
 
 	if (timer_settime(event_high_res_timer, 0, &its, NULL) == -1)
-		return -errno;
+		return -erryes;
 
 	return 0;
 }
@@ -101,7 +101,7 @@ long long os_nsecs(void)
 
 /**
  * os_idle_sleep() - sleep for a given time of nsecs
- * @nsecs: nanoseconds to sleep
+ * @nsecs: nayesseconds to sleep
  */
 void os_idle_sleep(unsigned long long nsecs)
 {
@@ -111,8 +111,8 @@ void os_idle_sleep(unsigned long long nsecs)
 	};
 
 	/*
-	 * Relay the signal if clock_nanosleep is interrupted.
+	 * Relay the signal if clock_nayessleep is interrupted.
 	 */
-	if (clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL))
+	if (clock_nayessleep(CLOCK_MONOTONIC, 0, &ts, NULL))
 		deliver_alarm();
 }

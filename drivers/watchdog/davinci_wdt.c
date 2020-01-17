@@ -209,7 +209,7 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 
 	if (IS_ERR(davinci_wdt->clk)) {
 		if (PTR_ERR(davinci_wdt->clk) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get clock node\n");
+			dev_err(dev, "failed to get clock yesde\n");
 		return PTR_ERR(davinci_wdt->clk);
 	}
 
@@ -238,7 +238,7 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 	dev_info(dev, "heartbeat %d sec\n", wdd->timeout);
 
 	watchdog_set_drvdata(wdd, davinci_wdt);
-	watchdog_set_nowayout(wdd, 1);
+	watchdog_set_yeswayout(wdd, 1);
 	watchdog_set_restart_priority(wdd, 128);
 
 	davinci_wdt->base = devm_platform_ioremap_resource(pdev, 0);

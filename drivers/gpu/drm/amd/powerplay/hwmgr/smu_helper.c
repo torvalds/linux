@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -500,7 +500,7 @@ int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr
 	table_clk_vlt = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
-		pr_err("Can not allocate space for vddc_dep_on_dal_pwrl! \n");
+		pr_err("Can yest allocate space for vddc_dep_on_dal_pwrl! \n");
 		return -ENOMEM;
 	} else {
 		table_clk_vlt->count = 4;
@@ -561,7 +561,7 @@ void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr)
 			return;
 		}
 	}
-	pr_err("DAL requested level can not"
+	pr_err("DAL requested level can yest"
 			" found a available voltage in VDDC DPM Table \n");
 }
 

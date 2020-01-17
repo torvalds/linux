@@ -11,7 +11,7 @@
 #ifndef _ASM_GENERIC__TLB_H
 #define _ASM_GENERIC__TLB_H
 
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/swap.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
@@ -40,7 +40,7 @@
  *  2) TLB invalidate page
  *  3) free page
  *
- * That is, we must never free a page before we have ensured there are no live
+ * That is, we must never free a page before we have ensured there are yes live
  * translations left to it. Otherwise it might be possible to observe (or
  * worse, change) the page content after it has been reused.
  *
@@ -61,11 +61,11 @@
  *
  *    __tlb_remove_page_size() is the basic primitive that queues a page for
  *    freeing. __tlb_remove_page() assumes PAGE_SIZE. Both will return a
- *    boolean indicating if the queue is (now) full and a call to
+ *    boolean indicating if the queue is (yesw) full and a call to
  *    tlb_flush_mmu() is required.
  *
  *    tlb_remove_page() and tlb_remove_page_size() imply the call to
- *    tlb_flush_mmu() when required and has no return value.
+ *    tlb_flush_mmu() when required and has yes return value.
  *
  *  - tlb_change_page_size()
  *
@@ -85,7 +85,7 @@
  *    A flag set by tlb_gather_mmu() to indicate we're going to free
  *    the entire mm; this allows a number of optimizations.
  *
- *    - We can ignore tlb_{start,end}_vma(); because we don't
+ *    - We can igyesre tlb_{start,end}_vma(); because we don't
  *      care about ranges. Everything will be shot down.
  *
  *    - (RISC) architectures that use ASIDs can cycle to a new ASID
@@ -115,7 +115,7 @@
  *
  *    returns the smallest TLB entry size unmapped in this range.
  *
- * If an architecture does not provide tlb_flush() a default implementation
+ * If an architecture does yest provide tlb_flush() a default implementation
  * based on flush_tlb_range() will be used, unless MMU_GATHER_NO_RANGE is
  * specified, in which case we'll default to flush_tlb_mm().
  *
@@ -165,7 +165,7 @@
  * IRQs delays the completion of the TLB flush we can never observe an already
  * freed page.
  *
- * Architectures that do not have this (PPC) need to delay the freeing by some
+ * Architectures that do yest have this (PPC) need to delay the freeing by some
  * other means, this is that means.
  *
  * What we do is batch the freed directory pages (tables) and RCU free them.
@@ -210,7 +210,7 @@ struct mmu_gather_batch {
 
 /*
  * Limit the maximum number of mmu_gather batches to reduce a risk of soft
- * lockups for non-preemptible kernels on huge machines when a lot of memory
+ * lockups for yesn-preemptible kernels on huge machines when a lot of memory
  * is zapped during unmapping.
  * 10K pages freed at once should be safe even without a preemption point.
  */
@@ -305,7 +305,7 @@ static inline void __tlb_reset_range(struct mmu_gather *tlb)
 	tlb->cleared_puds = 0;
 	tlb->cleared_p4ds = 0;
 	/*
-	 * Do not reset mmu_gather::vma_* fields here, we do not
+	 * Do yest reset mmu_gather::vma_* fields here, we do yest
 	 * call into tlb_start_vma() again to set them if there is an
 	 * intermediate flush.
 	 */
@@ -318,8 +318,8 @@ static inline void __tlb_reset_range(struct mmu_gather *tlb)
 #endif
 
 /*
- * When an architecture does not have efficient means of range flushing TLBs
- * there is no point in doing intermediate flushes on tlb_end_vma() to keep the
+ * When an architecture does yest have efficient means of range flushing TLBs
+ * there is yes point in doing intermediate flushes on tlb_end_vma() to keep the
  * range small. We equally don't have to worry about page granularity or other
  * things.
  *
@@ -346,7 +346,7 @@ static inline void tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vm
 #endif
 
 /*
- * When an architecture does not provide its own tlb_flush() implementation
+ * When an architecture does yest provide its own tlb_flush() implementation
  * but does have a reasonably efficient flush_vma_range() implementation
  * use that.
  */
@@ -398,7 +398,7 @@ static inline void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
 		return;
 
 	tlb_flush(tlb);
-	mmu_notifier_invalidate_range(tlb->mm, tlb->start, tlb->end);
+	mmu_yestifier_invalidate_range(tlb->mm, tlb->start, tlb->end);
 	__tlb_reset_range(tlb);
 }
 
@@ -518,7 +518,7 @@ static inline void tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vm
 
 /**
  * tlb_remove_pmd_tlb_entry - remember a pmd mapping for later tlb invalidation
- * This is a nop so far, because only x86 needs it.
+ * This is a yesp so far, because only x86 needs it.
  */
 #ifndef __tlb_remove_pmd_tlb_entry
 #define __tlb_remove_pmd_tlb_entry(tlb, pmdp, address) do {} while (0)
@@ -533,7 +533,7 @@ static inline void tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vm
 
 /**
  * tlb_remove_pud_tlb_entry - remember a pud mapping for later tlb
- * invalidation. This is a nop so far, because only x86 needs it.
+ * invalidation. This is a yesp so far, because only x86 needs it.
  */
 #ifndef __tlb_remove_pud_tlb_entry
 #define __tlb_remove_pud_tlb_entry(tlb, pudp, address) do {} while (0)
@@ -551,17 +551,17 @@ static inline void tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vm
  * page tables, like x86 does), for legacy reasons, flushing an
  * individual page had better flush the page table caches behind it. This
  * is definitely how x86 works, for example. And if you have an
- * architected non-legacy page table cache (which I'm not aware of
+ * architected yesn-legacy page table cache (which I'm yest aware of
  * anybody actually doing), you're going to have some architecturally
  * explicit flushing for that, likely *separate* from a regular TLB entry
  * flush, and thus you'd need more than just some range expansion..
  *
  * So if we ever find an architecture
  * that would want something that odd, I think it is up to that
- * architecture to do its own odd thing, not cause pain for others
+ * architecture to do its own odd thing, yest cause pain for others
  * http://lkml.kernel.org/r/CA+55aFzBggoXtNXQeng5d_mRoDnaMBE5Y+URs+PHR67nUpMtaw@mail.gmail.com
  *
- * For now w.r.t page table cache, mark the range_size as PAGE_SIZE
+ * For yesw w.r.t page table cache, mark the range_size as PAGE_SIZE
  */
 
 #ifndef pte_free_tlb

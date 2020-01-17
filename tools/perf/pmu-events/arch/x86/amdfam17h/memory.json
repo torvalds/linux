@@ -143,20 +143,20 @@
   {
     "EventName": "ls_inef_sw_pref.mab_mch_cnt",
     "EventCode": "0x52",
-    "BriefDescription": "The number of software prefetches that did not fetch data outside of the processor core.",
-    "PublicDescription": "The number of software prefetches that did not fetch data outside of the processor core.",
+    "BriefDescription": "The number of software prefetches that did yest fetch data outside of the processor core.",
+    "PublicDescription": "The number of software prefetches that did yest fetch data outside of the processor core.",
     "UMask": "0x2"
   },
   {
     "EventName": "ls_inef_sw_pref.data_pipe_sw_pf_dc_hit",
     "EventCode": "0x52",
-    "BriefDescription": "The number of software prefetches that did not fetch data outside of the processor core.",
-    "PublicDescription": "The number of software prefetches that did not fetch data outside of the processor core.",
+    "BriefDescription": "The number of software prefetches that did yest fetch data outside of the processor core.",
+    "PublicDescription": "The number of software prefetches that did yest fetch data outside of the processor core.",
     "UMask": "0x1"
   },
   {
-    "EventName": "ls_not_halted_cyc",
+    "EventName": "ls_yest_halted_cyc",
     "EventCode": "0x76",
-    "BriefDescription": "Cycles not in Halt."
+    "BriefDescription": "Cycles yest in Halt."
   }
 ]

@@ -20,10 +20,10 @@ Optional property:
 - big-endian: If present the dspi device's registers are implemented
   in big endian mode.
 
-Optional SPI slave node properties:
-- fsl,spi-cs-sck-delay: a delay in nanoseconds between activating chip
+Optional SPI slave yesde properties:
+- fsl,spi-cs-sck-delay: a delay in nayesseconds between activating chip
   select and the start of clock signal, at the start of a transfer.
-- fsl,spi-sck-cs-delay: a delay in nanoseconds between stopping the clock
+- fsl,spi-sck-cs-delay: a delay in nayesseconds between stopping the clock
   signal and deactivating chip select, at the end of a transfer.
 
 Example:

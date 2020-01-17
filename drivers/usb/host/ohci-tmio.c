@@ -10,7 +10,7 @@
  * (C) Copyright 2005 Chris Humbert <mahadri-usb@drigon.com>
  * (C) Copyright 2007, 2008 Dmitry Baryshkov <dbaryshkov@gmail.com>
  *
- * This is known to work with the following variants:
+ * This is kyeswn to work with the following variants:
  *	TC6393XB revision 3	(32kB SRAM)
  *
  * The TMIO's OHCI core DMAs through a small internal buffer that

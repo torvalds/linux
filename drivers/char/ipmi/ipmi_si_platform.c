@@ -115,7 +115,7 @@ ipmi_get_info_from_resources(struct platform_device *pdev,
 			io->addr_space = IPMI_MEM_ADDR_SPACE;
 	}
 	if (!res) {
-		dev_err(&pdev->dev, "no I/O or memory address\n");
+		dev_err(&pdev->dev, "yes I/O or memory address\n");
 		return NULL;
 	}
 	io->addr_data = res->start;
@@ -230,7 +230,7 @@ static int of_ipmi_probe(struct platform_device *pdev)
 	struct si_sm_io io;
 	struct resource resource;
 	const __be32 *regsize, *regspacing, *regshift;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 	int proplen;
 
@@ -286,7 +286,7 @@ static int of_ipmi_probe(struct platform_device *pdev)
 	io.regspacing	= regspacing ? be32_to_cpup(regspacing) : DEFAULT_REGSPACING;
 	io.regshift	= regshift ? be32_to_cpup(regshift) : 0;
 
-	io.irq		= irq_of_parse_and_map(pdev->dev.of_node, 0);
+	io.irq		= irq_of_parse_and_map(pdev->dev.of_yesde, 0);
 	io.dev		= &pdev->dev;
 
 	dev_dbg(&pdev->dev, "addr 0x%lx regsize %d spacing %d irq %d\n",
@@ -341,7 +341,7 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 	status = acpi_evaluate_integer(handle, "_IFT", NULL, &tmp);
 	if (ACPI_FAILURE(status)) {
 		dev_err(&pdev->dev,
-			"Could not find ACPI IPMI interface type\n");
+			"Could yest find ACPI IPMI interface type\n");
 		goto err_free;
 	}
 
@@ -355,11 +355,11 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 	case 3:
 		io.si_type = SI_BT;
 		break;
-	case 4: /* SSIF, just ignore */
+	case 4: /* SSIF, just igyesre */
 		rv = -ENODEV;
 		goto err_free;
 	default:
-		dev_info(&pdev->dev, "unknown IPMI type %lld\n", tmp);
+		dev_info(&pdev->dev, "unkyeswn IPMI type %lld\n", tmp);
 		goto err_free;
 	}
 
@@ -413,7 +413,7 @@ static int acpi_ipmi_probe(struct platform_device *dev)
 
 static int ipmi_probe(struct platform_device *pdev)
 {
-	if (pdev->dev.of_node && of_ipmi_probe(pdev) == 0)
+	if (pdev->dev.of_yesde && of_ipmi_probe(pdev) == 0)
 		return 0;
 
 	if (acpi_ipmi_probe(pdev) == 0)

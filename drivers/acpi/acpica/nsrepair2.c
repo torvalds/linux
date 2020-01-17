@@ -33,8 +33,8 @@ typedef struct acpi_repair_info {
 /* Local prototypes */
 
 static const struct acpi_repair_info *acpi_ns_match_complex_repair(struct
-								   acpi_namespace_node
-								   *node);
+								   acpi_namespace_yesde
+								   *yesde);
 
 static acpi_status
 acpi_ns_repair_ALR(struct acpi_evaluate_info *info,
@@ -104,9 +104,9 @@ acpi_ns_sort_list(union acpi_operand_object **elements,
  * _PSS: Sort the list descending by Power
  * _TSS: Sort the list descending by Power
  *
- * Names that must be packages, but cannot be sorted:
+ * Names that must be packages, but canyest be sorted:
  *
- * _BCL: Values are tied to the Package index where they appear, and cannot
+ * _BCL: Values are tied to the Package index where they appear, and canyest
  * be moved or sorted. These index values are used for _BQC and _BCM.
  * However, we can fix the case where a buffer is returned, by converting
  * it to a Package of integers.
@@ -133,22 +133,22 @@ static const struct acpi_repair_info acpi_ns_repairable_names[] = {
  * FUNCTION:    acpi_ns_complex_repairs
  *
  * PARAMETERS:  info                - Method execution information block
- *              node                - Namespace node for the method/object
+ *              yesde                - Namespace yesde for the method/object
  *              validate_status     - Original status of earlier validation
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
- * RETURN:      Status. AE_OK if repair was successful. If name is not
+ * RETURN:      Status. AE_OK if repair was successful. If name is yest
  *              matched, validate_status is returned.
  *
  * DESCRIPTION: Attempt to repair/convert a return object of a type that was
- *              not expected.
+ *              yest expected.
  *
  *****************************************************************************/
 
 acpi_status
 acpi_ns_complex_repairs(struct acpi_evaluate_info *info,
-			struct acpi_namespace_node *node,
+			struct acpi_namespace_yesde *yesde,
 			acpi_status validate_status,
 			union acpi_operand_object **return_object_ptr)
 {
@@ -157,7 +157,7 @@ acpi_ns_complex_repairs(struct acpi_evaluate_info *info,
 
 	/* Check if this name is in the list of repairable names */
 
-	predefined = acpi_ns_match_complex_repair(node);
+	predefined = acpi_ns_match_complex_repair(yesde);
 	if (!predefined) {
 		return (validate_status);
 	}
@@ -170,17 +170,17 @@ acpi_ns_complex_repairs(struct acpi_evaluate_info *info,
  *
  * FUNCTION:    acpi_ns_match_complex_repair
  *
- * PARAMETERS:  node                - Namespace node for the method/object
+ * PARAMETERS:  yesde                - Namespace yesde for the method/object
  *
- * RETURN:      Pointer to entry in repair table. NULL indicates not found.
+ * RETURN:      Pointer to entry in repair table. NULL indicates yest found.
  *
  * DESCRIPTION: Check an object name against the repairable object list.
  *
  *****************************************************************************/
 
 static const struct acpi_repair_info *acpi_ns_match_complex_repair(struct
-								   acpi_namespace_node
-								   *node)
+								   acpi_namespace_yesde
+								   *yesde)
 {
 	const struct acpi_repair_info *this_name;
 
@@ -188,7 +188,7 @@ static const struct acpi_repair_info *acpi_ns_match_complex_repair(struct
 
 	this_name = acpi_ns_repairable_names;
 	while (this_name->repair_function) {
-		if (ACPI_COMPARE_NAMESEG(node->name.ascii, this_name->name)) {
+		if (ACPI_COMPARE_NAMESEG(yesde->name.ascii, this_name->name)) {
 			return (this_name);
 		}
 
@@ -239,7 +239,7 @@ acpi_ns_repair_ALR(struct acpi_evaluate_info *info,
  *
  * DESCRIPTION: Repair for the _FDE and _GTM objects. The expected return
  *              value is a Buffer of 5 DWORDs. This function repairs a common
- *              problem where the return value is a Buffer of BYTEs, not
+ *              problem where the return value is a Buffer of BYTEs, yest
  *              DWORDs.
  *
  *****************************************************************************/
@@ -270,7 +270,7 @@ acpi_ns_repair_FDE(struct acpi_evaluate_info *info,
 		if (return_object->buffer.length != ACPI_FDE_BYTE_BUFFER_SIZE) {
 			ACPI_WARN_PREDEFINED((AE_INFO,
 					      info->full_pathname,
-					      info->node_flags,
+					      info->yesde_flags,
 					      "Incorrect return buffer length %u, expected %u",
 					      return_object->buffer.length,
 					      ACPI_FDE_DWORD_BUFFER_SIZE));
@@ -328,7 +328,7 @@ acpi_ns_repair_FDE(struct acpi_evaluate_info *info,
  * RETURN:      Status. AE_OK if object is OK or was repaired successfully
  *
  * DESCRIPTION: Repair for the _CID object. If a string, ensure that all
- *              letters are uppercase and that there is no leading asterisk.
+ *              letters are uppercase and that there is yes leading asterisk.
  *              If a Package, ensure same for all string elements.
  *
  *****************************************************************************/
@@ -351,7 +351,7 @@ acpi_ns_repair_CID(struct acpi_evaluate_info *info,
 		return (status);
 	}
 
-	/* Exit if not a Package */
+	/* Exit if yest a Package */
 
 	if (return_object->common.type != ACPI_TYPE_PACKAGE) {
 		return (AE_OK);
@@ -395,7 +395,7 @@ acpi_ns_repair_CID(struct acpi_evaluate_info *info,
  *
  * DESCRIPTION: Repair for the _CST object:
  *              1. Sort the list ascending by C state type
- *              2. Ensure type cannot be zero
+ *              2. Ensure type canyest be zero
  *              3. A subpackage count of zero means _CST is meaningless
  *              4. Count must match the number of C state subpackages
  *
@@ -427,7 +427,7 @@ acpi_ns_repair_CST(struct acpi_evaluate_info *info,
 		if ((*outer_elements)->package.count == 0) {
 			ACPI_WARN_PREDEFINED((AE_INFO,
 					      info->full_pathname,
-					      info->node_flags,
+					      info->yesde_flags,
 					      "SubPackage[%u] - removing entry due to zero count",
 					      i));
 			removing = TRUE;
@@ -438,7 +438,7 @@ acpi_ns_repair_CST(struct acpi_evaluate_info *info,
 		if ((u32)obj_desc->integer.value == 0) {
 			ACPI_WARN_PREDEFINED((AE_INFO,
 					      info->full_pathname,
-					      info->node_flags,
+					      info->yesde_flags,
 					      "SubPackage[%u] - removing entry due to invalid Type(0)",
 					      i));
 			removing = TRUE;
@@ -482,7 +482,7 @@ remove_element:
  * RETURN:      Status. AE_OK if object is OK or was repaired successfully
  *
  * DESCRIPTION: Repair for the _HID object. If a string, ensure that all
- *              letters are uppercase and that there is no leading asterisk.
+ *              letters are uppercase and that there is yes leading asterisk.
  *
  *****************************************************************************/
 
@@ -497,7 +497,7 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 
 	ACPI_FUNCTION_NAME(ns_repair_HID);
 
-	/* We only care about string _HID objects (not integers) */
+	/* We only care about string _HID objects (yest integers) */
 
 	if (return_object->common.type != ACPI_TYPE_STRING) {
 		return (AE_OK);
@@ -505,7 +505,7 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 
 	if (return_object->string.length == 0) {
 		ACPI_WARN_PREDEFINED((AE_INFO,
-				      info->full_pathname, info->node_flags,
+				      info->full_pathname, info->yesde_flags,
 				      "Invalid zero-length _HID or _CID string"));
 
 		/* Return AE_OK anyway, let driver handle it */
@@ -522,7 +522,7 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 	}
 
 	/*
-	 * Remove a leading asterisk if present. For some unknown reason, there
+	 * Remove a leading asterisk if present. For some unkyeswn reason, there
 	 * are many machines in the field that contains IDs like this.
 	 *
 	 * Examples: "*PNP0C03", "*ACPI0003"
@@ -600,7 +600,7 @@ acpi_ns_repair_PRT(struct acpi_evaluate_info *info,
 
 		/*
 		 * If the BIOS has erroneously reversed the _PRT source_name (index 2)
-		 * and the source_index (index 3), fix it. _PRT is important enough to
+		 * and the source_index (index 3), fix it. _PRT is important eyesugh to
 		 * workaround this BIOS error. This also provides compatibility with
 		 * other ACPI implementations.
 		 */
@@ -612,7 +612,7 @@ acpi_ns_repair_PRT(struct acpi_evaluate_info *info,
 
 			ACPI_WARN_PREDEFINED((AE_INFO,
 					      info->full_pathname,
-					      info->node_flags,
+					      info->yesde_flags,
 					      "PRT[%X]: Fixed reversed SourceName and SourceIndex",
 					      index));
 		}
@@ -665,7 +665,7 @@ acpi_ns_repair_PSS(struct acpi_evaluate_info *info,
 	}
 
 	/*
-	 * We now know the list is correctly sorted by CPU frequency. Check if
+	 * We yesw kyesw the list is correctly sorted by CPU frequency. Check if
 	 * the power dissipation values are proportional.
 	 */
 	previous_value = ACPI_UINT32_MAX;
@@ -679,7 +679,7 @@ acpi_ns_repair_PSS(struct acpi_evaluate_info *info,
 		if ((u32)obj_desc->integer.value > previous_value) {
 			ACPI_WARN_PREDEFINED((AE_INFO,
 					      info->full_pathname,
-					      info->node_flags,
+					      info->yesde_flags,
 					      "SubPackage[%u,%u] - suspicious power dissipation values",
 					      i - 1, i));
 		}
@@ -712,18 +712,18 @@ acpi_ns_repair_TSS(struct acpi_evaluate_info *info,
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 
 	/*
-	 * We can only sort the _TSS return package if there is no _PSS in the
+	 * We can only sort the _TSS return package if there is yes _PSS in the
 	 * same scope. This is because if _PSS is present, the ACPI specification
-	 * dictates that the _TSS Power Dissipation field is to be ignored, and
+	 * dictates that the _TSS Power Dissipation field is to be igyesred, and
 	 * therefore some BIOSs leave garbage values in the _TSS Power field(s).
 	 * In this case, it is best to just return the _TSS package as-is.
 	 * (May, 2011)
 	 */
-	status = acpi_ns_get_node(info->node, "^_PSS",
-				  ACPI_NS_NO_UPSEARCH, &node);
+	status = acpi_ns_get_yesde(info->yesde, "^_PSS",
+				  ACPI_NS_NO_UPSEARCH, &yesde);
 	if (ACPI_SUCCESS(status)) {
 		return (AE_OK);
 	}
@@ -751,7 +751,7 @@ acpi_ns_repair_TSS(struct acpi_evaluate_info *info,
  *              has been repaired by sorting the list.
  *
  * DESCRIPTION: Check if the package list is valid and sorted correctly by the
- *              sort_index. If not, then sort the list.
+ *              sort_index. If yest, then sort the list.
  *
  *****************************************************************************/
 
@@ -779,7 +779,7 @@ acpi_ns_check_sorted_list(struct acpi_evaluate_info *info,
 	}
 
 	/*
-	 * NOTE: assumes list of subpackages contains no NULL elements.
+	 * NOTE: assumes list of subpackages contains yes NULL elements.
 	 * Any NULL elements should have been removed by earlier call
 	 * to acpi_ns_remove_null_elements.
 	 */
@@ -835,7 +835,7 @@ acpi_ns_check_sorted_list(struct acpi_evaluate_info *info,
 			info->return_flags |= ACPI_OBJECT_REPAIRED;
 
 			ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
-					  "%s: Repaired unsorted list - now sorted by %s\n",
+					  "%s: Repaired unsorted list - yesw sorted by %s\n",
 					  info->full_pathname, sort_key_name));
 			return (AE_OK);
 		}

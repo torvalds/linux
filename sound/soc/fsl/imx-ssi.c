@@ -9,20 +9,20 @@
 //
 // The i.MX SSI core has some nasty limitations in AC97 mode. While most
 // sane processor vendors have a FIFO per AC97 slot, the i.MX has only
-// one FIFO which combines all valid receive slots. We cannot even select
+// one FIFO which combines all valid receive slots. We canyest even select
 // which slots we want to receive. The WM9712 with which this driver
 // was developed with always sends GPIO status data in slot 12 which
 // we receive in our (PCM-) data stream. The only chance we have is to
 // manually skip this data in the FIQ handler. With sampling rates different
-// from 48000Hz not every frame has valid receive data, so the ratio
-// between pcm data and GPIO status data changes. Our FIQ handler is not
+// from 48000Hz yest every frame has valid receive data, so the ratio
+// between pcm data and GPIO status data changes. Our FIQ handler is yest
 // able to handle this, hence this driver only works with 48000Hz sampling
 // rate.
-// Reading and writing AC97 registers is another challenge. The core
-// provides us status bits when the read register is updated with *another*
+// Reading and writing AC97 registers is ayesther challenge. The core
+// provides us status bits when the read register is updated with *ayesther*
 // value. When we read the same register two times (and the register still
-// contains the same value) these status bits are not set. We work
-// around this by not polling these bits but only wait a fixed delay.
+// contains the same value) these status bits are yest set. We work
+// around this by yest polling these bits but only wait a fixed delay.
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -131,7 +131,7 @@ static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_CBM_CFM:
 		break;
 	default:
-		/* Master mode not implemented, needs handling of clocks. */
+		/* Master mode yest implemented, needs handling of clocks. */
 		return -EINVAL;
 	}
 
@@ -526,7 +526,7 @@ static int imx_ssi_probe(struct platform_device *pdev)
 	ssi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ssi->clk)) {
 		ret = PTR_ERR(ssi->clk);
-		dev_err(&pdev->dev, "Cannot get the clock: %d\n",
+		dev_err(&pdev->dev, "Canyest get the clock: %d\n",
 			ret);
 		goto failed_clk;
 	}

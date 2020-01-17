@@ -147,8 +147,8 @@ static void mixer_dbg_mxn(struct seq_file *s, void *addr)
 
 static int mixer_dbg_show(struct seq_file *s, void *arg)
 {
-	struct drm_info_node *node = s->private;
-	struct sti_mixer *mixer = (struct sti_mixer *)node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct sti_mixer *mixer = (struct sti_mixer *)yesde->info_ent->data;
 
 	seq_printf(s, "%s: (vaddr = 0x%p)",
 		   sti_mixer_to_str(mixer), mixer->regs);
@@ -178,7 +178,7 @@ static struct drm_info_list mixer1_debugfs_files[] = {
 	{ "mixer_aux", mixer_dbg_show, 0, NULL },
 };
 
-int sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_minor *minor)
+int sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_miyesr *miyesr)
 {
 	unsigned int i;
 	struct drm_info_list *mixer_debugfs_files;
@@ -202,7 +202,7 @@ int sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_minor *minor)
 
 	return drm_debugfs_create_files(mixer_debugfs_files,
 					nb_files,
-					minor->debugfs_root, minor);
+					miyesr->debugfs_root, miyesr);
 }
 
 void sti_mixer_set_background_status(struct sti_mixer *mixer, bool enable)
@@ -236,7 +236,7 @@ static void sti_mixer_set_background_area(struct sti_mixer *mixer,
 
 int sti_mixer_set_plane_depth(struct sti_mixer *mixer, struct sti_plane *plane)
 {
-	int plane_id, depth = plane->drm_plane.state->normalized_zpos;
+	int plane_id, depth = plane->drm_plane.state->yesrmalized_zpos;
 	unsigned int i;
 	u32 mask, val;
 
@@ -257,10 +257,10 @@ int sti_mixer_set_plane_depth(struct sti_mixer *mixer, struct sti_plane *plane)
 		plane_id = GAM_DEPTH_VID0_ID;
 		break;
 	case STI_CURSOR:
-		/* no need to set depth for cursor */
+		/* yes need to set depth for cursor */
 		return 0;
 	default:
-		DRM_ERROR("Unknown plane %d\n", plane->desc);
+		DRM_ERROR("Unkyeswn plane %d\n", plane->desc);
 		return 1;
 	}
 

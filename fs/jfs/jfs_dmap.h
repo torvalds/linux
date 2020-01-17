@@ -22,11 +22,11 @@
 #define LPERCTL		1024	/* num of leaves per dmapctl tree */
 #define L2LPERCTL	10	/* l2 num of leaves per dmapctl tree */
 #define	ROOT		0	/* index of the root of a tree */
-#define	NOFREE		((s8) -1)	/* no blocks free */
+#define	NOFREE		((s8) -1)	/* yes blocks free */
 #define	MAXAG		128	/* max number of allocation groups */
 #define L2MAXAG		7	/* l2 max num of AG */
 #define L2MINAGSZ	25	/* l2 of minimum AG size in bytes */
-#define	BMAPBLKNO	0	/* lblkno of bmap within the map */
+#define	BMAPBLKNO	0	/* lblkyes of bmap within the map */
 
 /*
  * maximum l2 number of disk blocks at the various dmapctl levels.
@@ -45,7 +45,7 @@
 #define	MAXMAPSIZE	MAXL2SIZE	/* maximum aggregate map size */
 
 /*
- * determine the maximum free string for four (lower level) nodes
+ * determine the maximum free string for four (lower level) yesdes
  * of the tree.
  */
 static inline signed char TREEMAX(signed char *cp)
@@ -147,7 +147,7 @@ struct dmaptree {
 struct dmap {
 	__le32 nblocks;		/* 4: num blks covered by this dmap	*/
 	__le32 nfree;		/* 4: num of free blks in this dmap	*/
-	__le64 start;		/* 8: starting blkno for this dmap	*/
+	__le64 start;		/* 8: starting blkyes for this dmap	*/
 	struct dmaptree tree;	/* 360: dmap tree			*/
 	u8 pad[1672];		/* 1672: pad to 2048 bytes		*/
 	__le32 wmap[LPERDMAP];	/* 1024: bits of the working map	*/
@@ -229,7 +229,7 @@ struct dbmap {
  */
 struct bmap {
 	struct dbmap db_bmap;		/* on-disk aggregate map descriptor */
-	struct inode *db_ipbmap;	/* ptr to aggregate map incore inode */
+	struct iyesde *db_ipbmap;	/* ptr to aggregate map incore iyesde */
 	struct mutex db_bmaplock;	/* aggregate map lock */
 	atomic_t db_active[MAXAG];	/* count of active, open files in AG */
 	u32 *db_DBmap;
@@ -257,7 +257,7 @@ struct bmap {
  * blkstol2(), cntlz(), and cnttz() are operating system dependent functions.
  */
 /* convert number of blocks to log2 number of blocks, rounding up to
- * the next log2 value if blocks is not a l2 multiple.
+ * the next log2 value if blocks is yest a l2 multiple.
  */
 #define	BLKSTOL2(d)		(blkstol2(d))
 
@@ -277,27 +277,27 @@ struct bmap {
 /*
  *	external references.
  */
-extern int dbMount(struct inode *ipbmap);
+extern int dbMount(struct iyesde *ipbmap);
 
-extern int dbUnmount(struct inode *ipbmap, int mounterror);
+extern int dbUnmount(struct iyesde *ipbmap, int mounterror);
 
-extern int dbFree(struct inode *ipbmap, s64 blkno, s64 nblocks);
+extern int dbFree(struct iyesde *ipbmap, s64 blkyes, s64 nblocks);
 
-extern int dbUpdatePMap(struct inode *ipbmap,
-			int free, s64 blkno, s64 nblocks, struct tblock * tblk);
+extern int dbUpdatePMap(struct iyesde *ipbmap,
+			int free, s64 blkyes, s64 nblocks, struct tblock * tblk);
 
-extern int dbNextAG(struct inode *ipbmap);
+extern int dbNextAG(struct iyesde *ipbmap);
 
-extern int dbAlloc(struct inode *ipbmap, s64 hint, s64 nblocks, s64 * results);
+extern int dbAlloc(struct iyesde *ipbmap, s64 hint, s64 nblocks, s64 * results);
 
-extern int dbReAlloc(struct inode *ipbmap,
-		     s64 blkno, s64 nblocks, s64 addnblocks, s64 * results);
+extern int dbReAlloc(struct iyesde *ipbmap,
+		     s64 blkyes, s64 nblocks, s64 addnblocks, s64 * results);
 
-extern int dbSync(struct inode *ipbmap);
-extern int dbAllocBottomUp(struct inode *ip, s64 blkno, s64 nblocks);
-extern int dbExtendFS(struct inode *ipbmap, s64 blkno, s64 nblocks);
-extern void dbFinalizeBmap(struct inode *ipbmap);
-extern s64 dbMapFileSizeToMapSize(struct inode *ipbmap);
-extern s64 dbDiscardAG(struct inode *ip, int agno, s64 minlen);
+extern int dbSync(struct iyesde *ipbmap);
+extern int dbAllocBottomUp(struct iyesde *ip, s64 blkyes, s64 nblocks);
+extern int dbExtendFS(struct iyesde *ipbmap, s64 blkyes, s64 nblocks);
+extern void dbFinalizeBmap(struct iyesde *ipbmap);
+extern s64 dbMapFileSizeToMapSize(struct iyesde *ipbmap);
+extern s64 dbDiscardAG(struct iyesde *ip, int agyes, s64 minlen);
 
 #endif				/* _H_JFS_DMAP */

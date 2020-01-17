@@ -7,7 +7,7 @@ Required properties:
 
 - compatible: Must be "brcm,iproc-static-adc"
 
-- adc-syscon: Handler of syscon node defining physical base address of the
+- adc-syscon: Handler of syscon yesde defining physical base address of the
   controller and length of memory mapped region.
 
 - #io-channel-cells = <1>; As ADC has multiple outputs

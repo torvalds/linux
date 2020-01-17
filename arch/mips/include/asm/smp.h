@@ -3,7 +3,7 @@
  * Public License.  See the file "COPYING" in the main directory of this
  * archive for more details.
  *
- * Copyright (C) 2000 - 2001 by Kanoj Sarcar (kanoj@sgi.com)
+ * Copyright (C) 2000 - 2001 by Kayesj Sarcar (kayesj@sgi.com)
  * Copyright (C) 2000 - 2001 by Silicon Graphics, Inc.
  * Copyright (C) 2000, 2001, 2002 Ralf Baechle
  * Copyright (C) 2000, 2001 Broadcom Corporation
@@ -29,7 +29,7 @@ static inline int raw_smp_processor_id(void)
 {
 #if defined(__VDSO__)
 	extern int vdso_smp_processor_id(void)
-		__compiletime_error("VDSO should not call smp_processor_id()");
+		__compiletime_error("VDSO should yest call smp_processor_id()");
 	return vdso_smp_processor_id();
 #else
 	return current_thread_info()->cpu;
@@ -38,7 +38,7 @@ static inline int raw_smp_processor_id(void)
 #define raw_smp_processor_id raw_smp_processor_id
 
 /* Map from cpu id to sequential logical cpu number.  This will only
-   not be idempotent when cpus failed to come on-line.	*/
+   yest be idempotent when cpus failed to come on-line.	*/
 extern int __cpu_number_map[CONFIG_MIPS_NR_CPU_NR_MAP];
 #define cpu_number_map(cpu)  __cpu_number_map[cpu]
 
@@ -50,7 +50,7 @@ extern int __cpu_logical_map[NR_CPUS];
 
 #define SMP_RESCHEDULE_YOURSELF 0x1	/* XXX braindead */
 #define SMP_CALL_FUNCTION	0x2
-/* Octeon - Tell another core to flush its icache */
+/* Octeon - Tell ayesther core to flush its icache */
 #define SMP_ICACHE_FLUSH	0x4
 #define SMP_ASK_C0COUNT		0x8
 
@@ -62,8 +62,8 @@ extern asmlinkage void smp_bootstrap(void);
 extern void calculate_cpu_foreign_map(void);
 
 /*
- * this function sends a 'reschedule' IPI to another CPU.
- * it goes straight through and wastes no time serializing
+ * this function sends a 'reschedule' IPI to ayesther CPU.
+ * it goes straight through and wastes yes time serializing
  * anything. Worst case is that we lose a reschedule ...
  */
 static inline void smp_send_reschedule(int cpu)
@@ -92,18 +92,18 @@ extern void play_dead(void);
 #endif
 
 #ifdef CONFIG_KEXEC
-static inline void kexec_nonboot_cpu(void)
+static inline void kexec_yesnboot_cpu(void)
 {
 	extern const struct plat_smp_ops *mp_ops;	/* private */
 
-	return mp_ops->kexec_nonboot_cpu();
+	return mp_ops->kexec_yesnboot_cpu();
 }
 
-static inline void *kexec_nonboot_cpu_func(void)
+static inline void *kexec_yesnboot_cpu_func(void)
 {
 	extern const struct plat_smp_ops *mp_ops;	/* private */
 
-	return mp_ops->kexec_nonboot_cpu;
+	return mp_ops->kexec_yesnboot_cpu;
 }
 #endif
 

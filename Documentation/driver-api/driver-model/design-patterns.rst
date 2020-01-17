@@ -108,7 +108,7 @@ container_of() is a macro defined in <linux/kernel.h>
 What container_of() does is to obtain a pointer to the containing struct from
 a pointer to a member by a simple subtraction using the offsetof() macro from
 standard C, which allows something similar to object oriented behaviours.
-Notice that the contained member must not be a pointer, but an actual member
+Notice that the contained member must yest be a pointer, but an actual member
 for this to work.
 
 We can see here that we avoid having global pointers to our struct foo *

@@ -20,14 +20,14 @@ static void kunit_test_successful_try(void *data)
 	ctx->function_called = true;
 }
 
-static void kunit_test_no_catch(void *data)
+static void kunit_test_yes_catch(void *data)
 {
 	struct kunit *test = data;
 
-	KUNIT_FAIL(test, "Catch should not be called\n");
+	KUNIT_FAIL(test, "Catch should yest be called\n");
 }
 
-static void kunit_test_try_catch_successful_try_no_catch(struct kunit *test)
+static void kunit_test_try_catch_successful_try_yes_catch(struct kunit *test)
 {
 	struct kunit_try_catch_test_context *ctx = test->priv;
 	struct kunit_try_catch *try_catch = ctx->try_catch;
@@ -35,7 +35,7 @@ static void kunit_test_try_catch_successful_try_no_catch(struct kunit *test)
 	kunit_try_catch_init(try_catch,
 			     test,
 			     kunit_test_successful_try,
-			     kunit_test_no_catch);
+			     kunit_test_yes_catch);
 	kunit_try_catch_run(try_catch, test);
 
 	KUNIT_EXPECT_TRUE(test, ctx->function_called);
@@ -90,7 +90,7 @@ static int kunit_try_catch_test_init(struct kunit *test)
 }
 
 static struct kunit_case kunit_try_catch_test_cases[] = {
-	KUNIT_CASE(kunit_test_try_catch_successful_try_no_catch),
+	KUNIT_CASE(kunit_test_try_catch_successful_try_yes_catch),
 	KUNIT_CASE(kunit_test_try_catch_unsuccessful_try_does_catch),
 	{}
 };
@@ -154,7 +154,7 @@ static void kunit_resource_test_alloc_resource(struct kunit *test)
 	KUNIT_EXPECT_PTR_EQ(test,
 			    &ctx->is_resource_initialized,
 			    (bool *) res->allocation);
-	KUNIT_EXPECT_TRUE(test, list_is_last(&res->node, &ctx->test.resources));
+	KUNIT_EXPECT_TRUE(test, list_is_last(&res->yesde, &ctx->test.resources));
 	KUNIT_EXPECT_PTR_EQ(test, free, res->free);
 }
 

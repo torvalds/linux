@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <asm/sclp.h>
 #include <asm/sections.h>
@@ -18,7 +18,7 @@ struct mem_detect_info __bootdata(mem_detect);
 /*
  * To avoid corrupting old kernel memory during dump, find lowest memory
  * chunk possible either right after the kernel end (decompressed kernel) or
- * after initrd (if it is present and there is no hole between the kernel end
+ * after initrd (if it is present and there is yes hole between the kernel end
  * and initrd)
  */
 static void *mem_detect_alloc_extended(void)

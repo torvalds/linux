@@ -49,7 +49,7 @@ Events / state machine
 In half-period mode, state a) and c) above are used to determine the
 rotational direction based on the last stable state. Events are reported in
 states b) and d) given that the new stable state is different from the last
-(i.e. the rotation was not reversed half-way).
+(i.e. the rotation was yest reversed half-way).
 
 Otherwise, the following apply:
 
@@ -71,8 +71,8 @@ d) Falling edge on channel B, channel A in low state
 Platform requirements
 ---------------------
 
-As there is no hardware dependent call in this driver, the platform it is
-used with must support gpiolib. Another requirement is that IRQs must be
+As there is yes hardware dependent call in this driver, the platform it is
+used with must support gpiolib. Ayesther requirement is that IRQs must be
 able to fire on both edges.
 
 

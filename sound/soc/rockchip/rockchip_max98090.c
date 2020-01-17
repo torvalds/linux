@@ -107,7 +107,7 @@ static const struct snd_kcontrol_new rk_max98090_hdmi_controls[] = {
 	RK_HDMI_CONTROLS,
 };
 
-static int rk_jack_event(struct notifier_block *nb, unsigned long event,
+static int rk_jack_event(struct yestifier_block *nb, unsigned long event,
 			 void *data)
 {
 	struct snd_soc_jack *jack = (struct snd_soc_jack *)data;
@@ -126,8 +126,8 @@ static int rk_jack_event(struct notifier_block *nb, unsigned long event,
 	return 0;
 }
 
-static struct notifier_block rk_jack_nb = {
-	.notifier_call = rk_jack_event,
+static struct yestifier_block rk_jack_nb = {
+	.yestifier_call = rk_jack_event,
 };
 
 static int rk_init(struct snd_soc_pcm_runtime *runtime)
@@ -136,7 +136,7 @@ static int rk_init(struct snd_soc_pcm_runtime *runtime)
 	 * The jack has already been created in the rk_98090_headset_init()
 	 * function.
 	 */
-	snd_soc_jack_notifier_register(&headset_jack, &rk_jack_nb);
+	snd_soc_jack_yestifier_register(&headset_jack, &rk_jack_nb);
 
 	return 0;
 }
@@ -180,7 +180,7 @@ static int rk_aif1_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 				     SND_SOC_CLOCK_IN);
 
-	/* HDMI codec dai does not need to set sysclk. */
+	/* HDMI codec dai does yest need to set sysclk. */
 	if (!strcmp(rtd->dai_link->name, "HDMI"))
 		return 0;
 
@@ -361,11 +361,11 @@ static int rk_98090_headset_init(struct snd_soc_component *component)
 	return ret;
 }
 
-static int rk_parse_headset_from_of(struct device *dev, struct device_node *np)
+static int rk_parse_headset_from_of(struct device *dev, struct device_yesde *np)
 {
-	rk_98090_headset_dev.dlc.of_node = of_parse_phandle(
+	rk_98090_headset_dev.dlc.of_yesde = of_parse_phandle(
 			np, "rockchip,headset-codec", 0);
-	if (!rk_98090_headset_dev.dlc.of_node) {
+	if (!rk_98090_headset_dev.dlc.of_yesde) {
 		dev_err(dev,
 			"Property 'rockchip,headset-codec' missing/invalid\n");
 		return -EINVAL;
@@ -378,9 +378,9 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct snd_soc_card *card;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *np_cpu;
-	struct device_node *np_audio, *np_hdmi;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *np_cpu;
+	struct device_yesde *np_audio, *np_hdmi;
 
 	/* Parse DTS for I2S controller. */
 	np_cpu = of_parse_phandle(np, "rockchip,i2s-controller", 0);
@@ -393,28 +393,28 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 
 	/*
 	 * Find the card to use based on the presences of audio codec
-	 * and hdmi codec in device property. Set their of_node accordingly.
+	 * and hdmi codec in device property. Set their of_yesde accordingly.
 	 */
 	np_audio = of_parse_phandle(np, "rockchip,audio-codec", 0);
 	np_hdmi = of_parse_phandle(np, "rockchip,hdmi-codec", 0);
 	if (np_audio && np_hdmi) {
 		card = &rockchip_max98090_hdmi_card;
-		card->dai_link[DAILINK_MAX98090].codecs->of_node = np_audio;
-		card->dai_link[DAILINK_HDMI].codecs->of_node = np_hdmi;
-		card->dai_link[DAILINK_MAX98090].cpus->of_node = np_cpu;
-		card->dai_link[DAILINK_MAX98090].platforms->of_node = np_cpu;
-		card->dai_link[DAILINK_HDMI].cpus->of_node = np_cpu;
-		card->dai_link[DAILINK_HDMI].platforms->of_node = np_cpu;
+		card->dai_link[DAILINK_MAX98090].codecs->of_yesde = np_audio;
+		card->dai_link[DAILINK_HDMI].codecs->of_yesde = np_hdmi;
+		card->dai_link[DAILINK_MAX98090].cpus->of_yesde = np_cpu;
+		card->dai_link[DAILINK_MAX98090].platforms->of_yesde = np_cpu;
+		card->dai_link[DAILINK_HDMI].cpus->of_yesde = np_cpu;
+		card->dai_link[DAILINK_HDMI].platforms->of_yesde = np_cpu;
 	} else if (np_audio) {
 		card = &rockchip_max98090_card;
-		card->dai_link[0].codecs->of_node = np_audio;
-		card->dai_link[0].cpus->of_node = np_cpu;
-		card->dai_link[0].platforms->of_node = np_cpu;
+		card->dai_link[0].codecs->of_yesde = np_audio;
+		card->dai_link[0].cpus->of_yesde = np_cpu;
+		card->dai_link[0].platforms->of_yesde = np_cpu;
 	} else if (np_hdmi) {
 		card = &rockchip_hdmi_card;
-		card->dai_link[0].codecs->of_node = np_hdmi;
-		card->dai_link[0].cpus->of_node = np_cpu;
-		card->dai_link[0].platforms->of_node = np_cpu;
+		card->dai_link[0].codecs->of_yesde = np_hdmi;
+		card->dai_link[0].cpus->of_yesde = np_cpu;
+		card->dai_link[0].platforms->of_yesde = np_cpu;
 	} else {
 		dev_err(dev, "At least one of codecs should be specified\n");
 		return -EINVAL;

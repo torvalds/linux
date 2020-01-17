@@ -1,13 +1,13 @@
 /*
  * Bonito Register Map
  *
- * This file is the original bonito.h from Algorithmics with minor changes
+ * This file is the original bonito.h from Algorithmics with miyesr changes
  * to fit into linux.
  *
  * Copyright (c) 1999 Algorithmics Ltd
  *
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2001 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2001 MIPS Techyeslogies, Inc.  All rights reserved.
  *
  * Algorithmics gives permission for anyone to use and modify this file
  * without any obligation or license condition except that you retain

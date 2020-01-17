@@ -37,8 +37,8 @@ torture_param(int, nwriters_stress, -1,
 	     "Number of write-locking stress-test threads");
 torture_param(int, nreaders_stress, -1,
 	     "Number of read-locking stress-test threads");
-torture_param(int, onoff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
-torture_param(int, onoff_interval, 0,
+torture_param(int, oyesff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
+torture_param(int, oyesff_interval, 0,
 	     "Time between CPU hotplugs (s), 0=disable");
 torture_param(int, shuffle_interval, 3,
 	     "Number of jiffies between shuffles, 0=disable");
@@ -104,7 +104,7 @@ static struct lock_torture_cxt cxt = { 0, 0, false,
 
 static int torture_lock_busted_write_lock(void)
 {
-	return 0;  /* BUGGY, do not use in real life!!! */
+	return 0;  /* BUGGY, do yest use in real life!!! */
 }
 
 static void torture_lock_busted_write_delay(struct torture_random_state *trsp)
@@ -121,7 +121,7 @@ static void torture_lock_busted_write_delay(struct torture_random_state *trsp)
 
 static void torture_lock_busted_write_unlock(void)
 {
-	  /* BUGGY, do not use in real life!!! */
+	  /* BUGGY, do yest use in real life!!! */
 }
 
 static void torture_boost_dummy(struct torture_random_state *trsp)
@@ -438,7 +438,7 @@ static void torture_rtmutex_boost(struct torture_random_state *trsp)
 {
 	int policy;
 	struct sched_param param;
-	const unsigned int factor = 50000; /* yes, quite arbitrary */
+	const unsigned int factor = 50000; /* no, quite arbitrary */
 
 	if (!rt_task(current)) {
 		/*
@@ -450,11 +450,11 @@ static void torture_rtmutex_boost(struct torture_random_state *trsp)
 			      (cxt.nrealwriters_stress * factor))) {
 			policy = SCHED_FIFO;
 			param.sched_priority = MAX_RT_PRIO - 1;
-		} else /* common case, do nothing */
+		} else /* common case, do yesthing */
 			return;
 	} else {
 		/*
-		 * The task will remain boosted for another ~500k operations,
+		 * The task will remain boosted for ayesther ~500k operations,
 		 * then restored back to its original prio, and so forth.
 		 *
 		 * When @trsp is nil, we want to force-reset the task for
@@ -464,11 +464,11 @@ static void torture_rtmutex_boost(struct torture_random_state *trsp)
 			       (cxt.nrealwriters_stress * factor * 2))) {
 			policy = SCHED_NORMAL;
 			param.sched_priority = 0;
-		} else /* common case, do nothing */
+		} else /* common case, do yesthing */
 			return;
 	}
 
-	sched_setscheduler_nocheck(current, policy, &param);
+	sched_setscheduler_yescheck(current, policy, &param);
 }
 
 static void torture_rtmutex_delay(struct torture_random_state *trsp)
@@ -712,10 +712,10 @@ static void __torture_print_stats(char *page,
 
 /*
  * Print torture statistics.  Caller must ensure that there is only one
- * call to this function at a given time!!!  This is normally accomplished
+ * call to this function at a given time!!!  This is yesrmally accomplished
  * by relying on the module system to only have one copy of the module
  * loaded, and then by giving the lock_torture_stats kthread full control
- * (or the init/cleanup functions when lock_torture_stats thread is not
+ * (or the init/cleanup functions when lock_torture_stats thread is yest
  * running).
  */
 static void lock_torture_stats_print(void)
@@ -775,11 +775,11 @@ lock_torture_print_module_parms(struct lock_torture_ops *cur_ops,
 				const char *tag)
 {
 	pr_alert("%s" TORTURE_FLAG
-		 "--- %s%s: nwriters_stress=%d nreaders_stress=%d stat_interval=%d verbose=%d shuffle_interval=%d stutter=%d shutdown_secs=%d onoff_interval=%d onoff_holdoff=%d\n",
+		 "--- %s%s: nwriters_stress=%d nreaders_stress=%d stat_interval=%d verbose=%d shuffle_interval=%d stutter=%d shutdown_secs=%d oyesff_interval=%d oyesff_holdoff=%d\n",
 		 torture_type, tag, cxt.debug_lock ? " [debug]": "",
 		 cxt.nrealwriters_stress, cxt.nrealreaders_stress, stat_interval,
 		 verbose, shuffle_interval, stutter, shutdown_secs,
-		 onoff_interval, onoff_holdoff);
+		 oyesff_interval, oyesff_holdoff);
 }
 
 static void lock_torture_cleanup(void)
@@ -790,7 +790,7 @@ static void lock_torture_cleanup(void)
 		return;
 
 	/*
-	 * Indicates early cleanup, meaning that the test has not run,
+	 * Indicates early cleanup, meaning that the test has yest run,
 	 * such as when passing bogus args when loading the module. As
 	 * such, only perform the underlying torture-specific cleanups,
 	 * and avoid anything related to locktorture.
@@ -820,7 +820,7 @@ static void lock_torture_cleanup(void)
 	if (atomic_read(&cxt.n_lock_torture_errors))
 		lock_torture_print_module_parms(cxt.cur_ops,
 						"End of test: FAILURE");
-	else if (torture_onoff_failures())
+	else if (torture_oyesff_failures())
 		lock_torture_print_module_parms(cxt.cur_ops,
 						"End of test: LOCK_HOTPLUG");
 	else
@@ -956,9 +956,9 @@ static int __init lock_torture_init(void)
 	lock_torture_print_module_parms(cxt.cur_ops, "Start of test");
 
 	/* Prepare torture context. */
-	if (onoff_interval > 0) {
-		firsterr = torture_onoff_init(onoff_holdoff * HZ,
-					      onoff_interval * HZ, NULL);
+	if (oyesff_interval > 0) {
+		firsterr = torture_oyesff_init(oyesff_holdoff * HZ,
+					      oyesff_interval * HZ, NULL);
 		if (firsterr)
 			goto unwind;
 	}

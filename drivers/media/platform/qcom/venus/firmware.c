@@ -59,7 +59,7 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 			 phys_addr_t *mem_phys, size_t *mem_size)
 {
 	const struct firmware *mdt;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct device *dev;
 	struct resource r;
 	ssize_t fw_size;
@@ -70,19 +70,19 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 	*mem_size = 0;
 
 	dev = core->dev;
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!node) {
-		dev_err(dev, "no memory-region specified\n");
+	yesde = of_parse_phandle(dev->of_yesde, "memory-region", 0);
+	if (!yesde) {
+		dev_err(dev, "yes memory-region specified\n");
 		return -EINVAL;
 	}
 
-	ret = of_address_to_resource(node, 0, &r);
+	ret = of_address_to_resource(yesde, 0, &r);
 	if (ret)
-		goto err_put_node;
+		goto err_put_yesde;
 
 	ret = request_firmware(&mdt, fwname, dev);
 	if (ret < 0)
-		goto err_put_node;
+		goto err_put_yesde;
 
 	fw_size = qcom_mdt_get_size(mdt);
 	if (fw_size < 0) {
@@ -110,18 +110,18 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 		ret = qcom_mdt_load(dev, mdt, fwname, VENUS_PAS_ID,
 				    mem_va, *mem_phys, *mem_size, NULL);
 	else
-		ret = qcom_mdt_load_no_init(dev, mdt, fwname, VENUS_PAS_ID,
+		ret = qcom_mdt_load_yes_init(dev, mdt, fwname, VENUS_PAS_ID,
 					    mem_va, *mem_phys, *mem_size, NULL);
 
 	memunmap(mem_va);
 err_release_fw:
 	release_firmware(mdt);
-err_put_node:
-	of_node_put(node);
+err_put_yesde:
+	of_yesde_put(yesde);
 	return ret;
 }
 
-static int venus_boot_no_tz(struct venus_core *core, phys_addr_t mem_phys,
+static int venus_boot_yes_tz(struct venus_core *core, phys_addr_t mem_phys,
 			    size_t mem_size)
 {
 	struct iommu_domain *iommu;
@@ -138,7 +138,7 @@ static int venus_boot_no_tz(struct venus_core *core, phys_addr_t mem_phys,
 	ret = iommu_map(iommu, VENUS_FW_START_ADDR, mem_phys, mem_size,
 			IOMMU_READ | IOMMU_WRITE | IOMMU_PRIV);
 	if (ret) {
-		dev_err(dev, "could not map video firmware region\n");
+		dev_err(dev, "could yest map video firmware region\n");
 		return ret;
 	}
 
@@ -147,7 +147,7 @@ static int venus_boot_no_tz(struct venus_core *core, phys_addr_t mem_phys,
 	return 0;
 }
 
-static int venus_shutdown_no_tz(struct venus_core *core)
+static int venus_shutdown_yes_tz(struct venus_core *core)
 {
 	const size_t mapped = core->fw.mapped_mem_size;
 	struct iommu_domain *iommu;
@@ -193,7 +193,7 @@ int venus_boot(struct venus_core *core)
 	if (core->use_tz)
 		ret = qcom_scm_pas_auth_and_reset(VENUS_PAS_ID);
 	else
-		ret = venus_boot_no_tz(core, mem_phys, mem_size);
+		ret = venus_boot_yes_tz(core, mem_phys, mem_size);
 
 	return ret;
 }
@@ -205,7 +205,7 @@ int venus_shutdown(struct venus_core *core)
 	if (core->use_tz)
 		ret = qcom_scm_pas_shutdown(VENUS_PAS_ID);
 	else
-		ret = venus_shutdown_no_tz(core);
+		ret = venus_shutdown_yes_tz(core);
 
 	return ret;
 }
@@ -215,28 +215,28 @@ int venus_firmware_init(struct venus_core *core)
 	struct platform_device_info info;
 	struct iommu_domain *iommu_dom;
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
-	np = of_get_child_by_name(core->dev->of_node, "video-firmware");
+	np = of_get_child_by_name(core->dev->of_yesde, "video-firmware");
 	if (!np) {
 		core->use_tz = true;
 		return 0;
 	}
 
 	memset(&info, 0, sizeof(info));
-	info.fwnode = &np->fwnode;
+	info.fwyesde = &np->fwyesde;
 	info.parent = core->dev;
 	info.name = np->name;
 	info.dma_mask = DMA_BIT_MASK(32);
 
 	pdev = platform_device_register_full(&info);
 	if (IS_ERR(pdev)) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return PTR_ERR(pdev);
 	}
 
-	pdev->dev.of_node = np;
+	pdev->dev.of_yesde = np;
 
 	ret = of_dma_configure(&pdev->dev, np, true);
 	if (ret) {
@@ -255,13 +255,13 @@ int venus_firmware_init(struct venus_core *core)
 
 	ret = iommu_attach_device(iommu_dom, core->fw.dev);
 	if (ret) {
-		dev_err(core->fw.dev, "could not attach device\n");
+		dev_err(core->fw.dev, "could yest attach device\n");
 		goto err_iommu_free;
 	}
 
 	core->fw.iommu_domain = iommu_dom;
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return 0;
 
@@ -269,7 +269,7 @@ err_iommu_free:
 	iommu_domain_free(iommu_dom);
 err_unregister:
 	platform_device_unregister(pdev);
-	of_node_put(np);
+	of_yesde_put(np);
 	return ret;
 }
 

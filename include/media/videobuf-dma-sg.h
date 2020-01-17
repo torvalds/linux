@@ -3,14 +3,14 @@
  * helper functions for SG DMA video4linux capture buffers
  *
  * The functions expect the hardware being able to scatter gather
- * (i.e. the buffers are not linear in physical memory, but fragmented
- * into PAGE_SIZE chunks).  They also assume the driver does not need
+ * (i.e. the buffers are yest linear in physical memory, but fragmented
+ * into PAGE_SIZE chunks).  They also assume the driver does yest need
  * to touch the video data.
  *
  * (c) 2007 Mauro Carvalho Chehab, <mchehab@kernel.org>
  *
  * Highly based on video-buf written originally by:
- * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
+ * (c) 2001,02 Gerd Kyesrr <kraxel@bytesex.org>
  * (c) 2006 Mauro Carvalho Chehab, <mchehab@kernel.org>
  * (c) 2006 Ted Walther and John Sokol
  */
@@ -36,7 +36,7 @@
  *	scatterlist for the buffer (and unmap frees it ...)
  *
  * videobuf_dma_free()
- *	no comment ...
+ *	yes comment ...
  *
  */
 

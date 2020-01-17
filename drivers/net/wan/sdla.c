@@ -8,7 +8,7 @@
  *
  * Version:	@(#)sdla.c   0.30	12 Sep 1996
  *
- * Credits:	Sangoma Technologies, for the use of 2 cards for an extended
+ * Credits:	Sangoma Techyeslogies, for the use of 2 cards for an extended
  *			period of time.
  *		David Mandelstam <dm@sangoma.com> for getting me started on 
  *			this project, and incentive to complete it.
@@ -21,9 +21,9 @@
  *		0.15	Mike McLagan	Improved error handling, packet dropping
  *		0.20	Mike McLagan	New transmit/receive flags for config
  *					If in FR mode, don't accept packets from
- *					non DLCI devices.
+ *					yesn DLCI devices.
  *		0.25	Mike McLagan	Fixed problem with rejecting packets
- *					from non DLCI devices.
+ *					from yesn DLCI devices.
  *		0.30	Mike McLagan	Fixed kernel panic when used with modified
  *					ifconfig
  */
@@ -41,7 +41,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -245,10 +245,10 @@ static void sdla_start(struct net_device *dev)
 
 static int sdla_z80_poll(struct net_device *dev, int z80_addr, int jiffs, char resp1, char resp2)
 {
-	unsigned long start, done, now;
+	unsigned long start, done, yesw;
 	char          resp, *temp;
 
-	start = now = jiffies;
+	start = yesw = jiffies;
 	done = jiffies + jiffs;
 
 	temp = (void *)dev->mem_start;
@@ -257,10 +257,10 @@ static int sdla_z80_poll(struct net_device *dev, int z80_addr, int jiffs, char r
 	resp = ~resp1;
 	while (time_before(jiffies, done) && (resp != resp1) && (!resp2 || (resp != resp2)))
 	{
-		if (jiffies != now)
+		if (jiffies != yesw)
 		{
 			SDLA_WINDOW(dev, z80_addr);
-			now = jiffies;
+			yesw = jiffies;
 			resp = *temp;
 		}
 	}
@@ -271,7 +271,7 @@ static int sdla_z80_poll(struct net_device *dev, int z80_addr, int jiffs, char r
 #define Z80_READY 		'1'	/* Z80 is ready to begin */
 #define LOADER_READY 		'2'	/* driver is ready to begin */
 #define Z80_SCC_OK 		'3'	/* SCC is on board */
-#define Z80_SCC_BAD	 	'4'	/* SCC was not found */
+#define Z80_SCC_BAD	 	'4'	/* SCC was yest found */
 
 static int sdla_cpuspeed(struct net_device *dev, struct ifreq *ifr)
 {
@@ -354,7 +354,7 @@ static void sdla_errors(struct net_device *dev, int cmd, int dlci, int ret, int 
 			break;
 
 		case SDLA_RET_CHANNEL_OFF:
-			netdev_info(dev, "Channel became inoperative!\n");
+			netdev_info(dev, "Channel became iyesperative!\n");
 			/* same here */
 			break;
 
@@ -376,7 +376,7 @@ static void sdla_errors(struct net_device *dev, int cmd, int dlci, int ret, int 
 					state = "active";
 				else
 				{
-					sprintf(line, "unknown status: %02X", pstatus->flags);
+					sprintf(line, "unkyeswn status: %02X", pstatus->flags);
 					state = line;
 				}
 				netdev_info(dev, "DLCI %i: %s\n",
@@ -386,7 +386,7 @@ static void sdla_errors(struct net_device *dev, int cmd, int dlci, int ret, int 
 			break;
 
 		case SDLA_RET_DLCI_UNKNOWN:
-			netdev_info(dev, "Received unknown DLCIs:");
+			netdev_info(dev, "Received unkyeswn DLCIs:");
 			len /= sizeof(short);
 			for(pdlci = data,i=0;i < len;i++,pdlci++)
 				pr_cont(" %i", *pdlci);
@@ -648,7 +648,7 @@ static int sdla_dlci_conf(struct net_device *slave, struct net_device *master, i
 
 /**************************
  *
- * now for the Linux driver 
+ * yesw for the Linux driver 
  *
  **************************/
 
@@ -670,7 +670,7 @@ static netdev_tx_t sdla_transmit(struct sk_buff *skb,
 
 	/*
 	 * stupid GateD insists on setting up the multicast router thru us
-	 * and we're ill equipped to handle a non Frame Relay packet at this
+	 * and we're ill equipped to handle a yesn Frame Relay packet at this
 	 * time!
 	 */
 
@@ -686,7 +686,7 @@ static netdev_tx_t sdla_transmit(struct sk_buff *skb,
 			}
 			break;
 		default:
-			netdev_warn(dev, "unknown firmware type 0x%04X\n",
+			netdev_warn(dev, "unkyeswn firmware type 0x%04X\n",
 				    dev->type);
 			accept = 0;
 			break;
@@ -811,7 +811,7 @@ static void sdla_receive(struct net_device *dev)
 
 		if (i == CONFIG_DLCI_MAX)
 		{
-			netdev_notice(dev, "Received packet from invalid DLCI %i, ignoring\n",
+			netdev_yestice(dev, "Received packet from invalid DLCI %i, igyesring\n",
 				      dlci);
 			dev->stats.rx_errors++;
 			success = 0;
@@ -824,7 +824,7 @@ static void sdla_receive(struct net_device *dev)
 		skb = dev_alloc_skb(len + sizeof(struct frhdr));
 		if (skb == NULL) 
 		{
-			netdev_notice(dev, "Memory squeeze, dropping packet\n");
+			netdev_yestice(dev, "Memory squeeze, dropping packet\n");
 			dev->stats.rx_dropped++;
 			success = 0;
 		}
@@ -909,7 +909,7 @@ static irqreturn_t sdla_isr(int dummy, void *dev_id)
 			break;
 	}
 
-	/* the S502E requires a manual acknowledgement of the interrupt */ 
+	/* the S502E requires a manual ackyeswledgement of the interrupt */ 
 	if (flp->type == SDLA_S502E)
 	{
 		flp->state &= ~SDLA_S502E_INTACK;
@@ -1167,7 +1167,7 @@ static int sdla_config(struct net_device *dev, struct frad_conf __user *conf, in
 	}
 	else
 	{
-		/* no sense reading if the CPU isn't started */
+		/* yes sense reading if the CPU isn't started */
 		if (netif_running(dev))
 		{
 			size = sizeof(data);
@@ -1271,8 +1271,8 @@ static int sdla_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return sdla_cpuspeed(dev, ifr);
 
 /* ==========================================================
-NOTE:  This is rather a useless action right now, as the
-       current driver does not support protocols other than
+NOTE:  This is rather a useless action right yesw, as the
+       current driver does yest support protocols other than
        FR.  However, Sangoma has modules for a number of
        other protocols in the works.
 ============================================================*/
@@ -1319,7 +1319,7 @@ static int sdla_change_mtu(struct net_device *dev, int new_mtu)
 	if (netif_running(dev))
 		return -EBUSY;
 
-	/* for now, you can't change the MTU! */
+	/* for yesw, you can't change the MTU! */
 	return -EOPNOTSUPP;
 }
 
@@ -1409,7 +1409,7 @@ static int sdla_set_config(struct net_device *dev, struct ifmap *map)
 		}
 	}
 
-	netdev_notice(dev, "Unknown card type\n");
+	netdev_yestice(dev, "Unkyeswn card type\n");
 	err = -ENODEV;
 	goto fail;
 

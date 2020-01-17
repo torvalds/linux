@@ -40,7 +40,7 @@ struct lpfc_hba;
 
 /* per-port data that is allocated in the FC transport for us */
 struct lpfc_rport_data {
-	struct lpfc_nodelist *pnode;	/* Pointer to the node structure. */
+	struct lpfc_yesdelist *pyesde;	/* Pointer to the yesde structure. */
 };
 
 struct lpfc_device_id {
@@ -88,8 +88,8 @@ struct fcp_rsp {
 #define RSP_DATA_BURST_ERR   0x01
 #define RSP_CMD_FIELD_ERR    0x02
 #define RSP_RO_MISMATCH_ERR  0x03
-#define RSP_TM_NOT_SUPPORTED 0x04	/* Task mgmt function not supported */
-#define RSP_TM_NOT_COMPLETED 0x05	/* Task mgmt function not performed */
+#define RSP_TM_NOT_SUPPORTED 0x04	/* Task mgmt function yest supported */
+#define RSP_TM_NOT_COMPLETED 0x05	/* Task mgmt function yest performed */
 #define RSP_TM_INVALID_LU    0x09	/* Task mgmt function to invalid LU */
 
 	uint32_t rspInfoRsvd;	/* FCP_RSP_INFO bytes 4-7 (reserved) */

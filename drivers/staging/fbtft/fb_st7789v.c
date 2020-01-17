@@ -38,7 +38,7 @@
  * looking up their semantics and usage.
  *
  * Note that the ST7789V display controller offers quite a few more commands
- * which have been omitted from this list as they are not used at the moment.
+ * which have been omitted from this list as they are yest used at the moment.
  * Furthermore, commands that are compliant with the MIPI DCS have been left
  * out as well to avoid duplicate entries.
  */
@@ -164,7 +164,7 @@ static int set_var(struct fbtft_par *par)
  * Before the gamma curves are applied, they are preprocessed with a bitmask
  * to ensure syntactically correct input for the display controller.
  * This implies that the curves input parameter might be changed by this
- * function and that illegal gamma values are auto-corrected and not
+ * function and that illegal gamma values are auto-corrected and yest
  * reported as errors.
  *
  * Return: 0 on success, < 0 if error occurred.

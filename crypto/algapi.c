@@ -7,7 +7,7 @@
 
 #include <crypto/algapi.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fips.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -169,7 +169,7 @@ void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 			 * being registered.  An unregistered instance will have
 			 * NULL ->cra_users.next, since ->cra_users isn't
 			 * properly initialized until registration.  But an
-			 * unregistered instance cannot have any users, so treat
+			 * unregistered instance canyest have any users, so treat
 			 * it the same as ->cra_users being empty.
 			 */
 			if (spawns->next == NULL)
@@ -346,7 +346,7 @@ static void crypto_wait_for_test(struct crypto_larval *larval)
 {
 	int err;
 
-	err = crypto_probing_notify(CRYPTO_MSG_ALG_REGISTER, larval->adult);
+	err = crypto_probing_yestify(CRYPTO_MSG_ALG_REGISTER, larval->adult);
 	if (err != NOTIFY_STOP) {
 		if (WARN_ON(err != NOTIFY_DONE))
 			goto out;
@@ -356,7 +356,7 @@ static void crypto_wait_for_test(struct crypto_larval *larval)
 	err = wait_for_completion_killable(&larval->completion);
 	WARN_ON(err);
 	if (!err)
-		crypto_probing_notify(CRYPTO_MSG_ALG_LOADED, larval);
+		crypto_probing_yestify(CRYPTO_MSG_ALG_LOADED, larval);
 
 out:
 	crypto_larval_kill(&larval->alg);
@@ -496,7 +496,7 @@ EXPORT_SYMBOL_GPL(crypto_register_templates);
 void crypto_unregister_template(struct crypto_template *tmpl)
 {
 	struct crypto_instance *inst;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	struct hlist_head *list;
 	LIST_HEAD(users);
 
@@ -746,17 +746,17 @@ out_put_alg:
 }
 EXPORT_SYMBOL_GPL(crypto_spawn_tfm2);
 
-int crypto_register_notifier(struct notifier_block *nb)
+int crypto_register_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&crypto_chain, nb);
+	return blocking_yestifier_chain_register(&crypto_chain, nb);
 }
-EXPORT_SYMBOL_GPL(crypto_register_notifier);
+EXPORT_SYMBOL_GPL(crypto_register_yestifier);
 
-int crypto_unregister_notifier(struct notifier_block *nb)
+int crypto_unregister_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&crypto_chain, nb);
+	return blocking_yestifier_chain_unregister(&crypto_chain, nb);
 }
-EXPORT_SYMBOL_GPL(crypto_unregister_notifier);
+EXPORT_SYMBOL_GPL(crypto_unregister_yestifier);
 
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb)
 {
@@ -952,7 +952,7 @@ void crypto_inc(u8 *a, unsigned int size)
 	u32 c;
 
 	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ||
-	    IS_ALIGNED((unsigned long)b, __alignof__(*b)))
+	    IS_ALIGNED((unsigned long)b, __aligyesf__(*b)))
 		for (; size >= 4; size -= 4) {
 			c = be32_to_cpu(*--b) + 1;
 			*b = cpu_to_be32(c);

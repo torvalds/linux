@@ -1,5 +1,5 @@
 /*
- * Copyright 2004 ATI Technologies Inc., Markham, Ontario
+ * Copyright 2004 ATI Techyeslogies Inc., Markham, Ontario
  * Copyright 2007-8 Advanced Micro Devices, Inc.
  * Copyright 2008 Red Hat Inc.
  *
@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,7 +33,7 @@
 #include "atom.h"
 
 #ifdef CONFIG_PPC_PMAC
-/* not sure which of these are needed */
+/* yest sure which of these are needed */
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/prom.h>
@@ -119,14 +119,14 @@ enum radeon_combios_connector {
 };
 
 static const int legacy_connector_convert[] = {
-	DRM_MODE_CONNECTOR_Unknown,
+	DRM_MODE_CONNECTOR_Unkyeswn,
 	DRM_MODE_CONNECTOR_DVID,
 	DRM_MODE_CONNECTOR_VGA,
 	DRM_MODE_CONNECTOR_DVII,
 	DRM_MODE_CONNECTOR_DVID,
 	DRM_MODE_CONNECTOR_Composite,
 	DRM_MODE_CONNECTOR_SVIDEO,
-	DRM_MODE_CONNECTOR_Unknown,
+	DRM_MODE_CONNECTOR_Unkyeswn,
 };
 
 static uint16_t combios_get_table_offset(struct drm_device *dev,
@@ -423,7 +423,7 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 	int ddc_line = 0;
 
 	/* ddc id            = mask reg
-	 * DDC_NONE_DETECTED = none
+	 * DDC_NONE_DETECTED = yesne
 	 * DDC_DVI           = RADEON_GPIO_DVI_DDC
 	 * DDC_VGA           = RADEON_GPIO_VGA_DDC
 	 * DDC_LCD           = RADEON_GPIOPAD_MASK
@@ -616,7 +616,7 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 			break;
 		case RADEON_GPIO_MONID:
 			/* hw i2c on RADEON_GPIO_MONID doesn't seem to work
-			 * reliably on some pre-r4xx hardware; not sure why.
+			 * reliably on some pre-r4xx hardware; yest sure why.
 			 */
 			i2c.hw_capable = false;
 			break;
@@ -952,7 +952,7 @@ radeon_combios_get_tv_info(struct radeon_device *rdev)
 			default:
 				tv_std = TV_STD_NTSC;
 				DRM_DEBUG_KMS
-				    ("Unknown TV standard; defaulting to NTSC\n");
+				    ("Unkyeswn TV standard; defaulting to NTSC\n");
 				break;
 			}
 
@@ -2234,7 +2234,7 @@ static bool radeon_apply_legacy_quirks(struct drm_device *dev,
 			return false;
 	}
 
-	/* X300 card with extra non-existent DVI port */
+	/* X300 card with extra yesn-existent DVI port */
 	if (dev->pdev->device == 0x5B60 &&
 	    dev->pdev->subsystem_vendor == 0x17af &&
 	    dev->pdev->subsystem_device == 0x201e && bios_index == 2) {
@@ -2247,19 +2247,19 @@ static bool radeon_apply_legacy_quirks(struct drm_device *dev,
 
 static bool radeon_apply_legacy_tv_quirks(struct drm_device *dev)
 {
-	/* Acer 5102 has non-existent TV port */
+	/* Acer 5102 has yesn-existent TV port */
 	if (dev->pdev->device == 0x5975 &&
 	    dev->pdev->subsystem_vendor == 0x1025 &&
 	    dev->pdev->subsystem_device == 0x009f)
 		return false;
 
-	/* HP dc5750 has non-existent TV port */
+	/* HP dc5750 has yesn-existent TV port */
 	if (dev->pdev->device == 0x5974 &&
 	    dev->pdev->subsystem_vendor == 0x103c &&
 	    dev->pdev->subsystem_device == 0x280a)
 		return false;
 
-	/* MSI S270 has non-existent TV port */
+	/* MSI S270 has yesn-existent TV port */
 	if (dev->pdev->device == 0x5955 &&
 	    dev->pdev->subsystem_vendor == 0x1462 &&
 	    dev->pdev->subsystem_device == 0x0131)
@@ -2485,7 +2485,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 							    &hpd);
 				break;
 			default:
-				DRM_ERROR("Unknown connector type: %d\n",
+				DRM_ERROR("Unkyeswn connector type: %d\n",
 					  connector);
 				continue;
 			}
@@ -2707,7 +2707,7 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 			}
 		}
 	} else {
-		/* boards with a thermal chip, but no overdrive table */
+		/* boards with a thermal chip, but yes overdrive table */
 
 		/* Asus 9600xt has an f75375 on the monid bus */
 		if ((dev->pdev->device == 0x4152) &&
@@ -2946,7 +2946,7 @@ bool radeon_combios_external_tmds_setup(struct drm_encoder *encoder)
 								    reg, val);
 						break;
 					default:
-						DRM_ERROR("Unknown id %d\n", id >> 13);
+						DRM_ERROR("Unkyeswn id %d\n", id >> 13);
 						break;
 					}
 					blocks--;
@@ -3001,7 +3001,7 @@ bool radeon_combios_external_tmds_setup(struct drm_encoder *encoder)
 							    reg, val);
 					break;
 				default:
-					DRM_ERROR("Unknown id %d\n", id >> 13);
+					DRM_ERROR("Unkyeswn id %d\n", id >> 13);
 					break;
 				}
 				id = RBIOS16(index);
@@ -3426,7 +3426,7 @@ void radeon_combios_initialize_bios_scratch_regs(struct drm_device *dev)
 	/* let the bios control the backlight */
 	bios_0_scratch &= ~RADEON_DRIVER_BRIGHTNESS_EN;
 
-	/* tell the bios not to handle mode switching */
+	/* tell the bios yest to handle mode switching */
 	bios_6_scratch |= (RADEON_DISPLAY_SWITCHING_DIS |
 			   RADEON_ACC_MODE_CHANGE);
 

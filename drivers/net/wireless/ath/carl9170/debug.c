@@ -17,16 +17,16 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If yest, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission yestice:
  *    Copyright (c) 2008-2009 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright yestice and this permission yestice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -239,7 +239,7 @@ DEBUGFS_DECLARE_RO_FILE(mem_usage, 512);
 static char *carl9170_debugfs_qos_stat_read(struct ar9170 *ar, char *buf,
 					    size_t bufsize, ssize_t *len)
 {
-	ADD(buf, *len, bufsize, "%s QoS AC\n", modparam_noht ? "Hardware" :
+	ADD(buf, *len, bufsize, "%s QoS AC\n", modparam_yesht ? "Hardware" :
 	    "Software");
 
 	ADD(buf, *len, bufsize, "[     VO            VI       "
@@ -413,25 +413,25 @@ static char *carl9170_debugfs_tx_stuck_read(struct ar9170 *ar, char *buf,
 }
 DEBUGFS_DECLARE_RO_FILE(tx_stuck, 180);
 
-static char *carl9170_debugfs_phy_noise_read(struct ar9170 *ar, char *buf,
+static char *carl9170_debugfs_phy_yesise_read(struct ar9170 *ar, char *buf,
 					     size_t bufsize, ssize_t *len)
 {
 	int err;
 
-	err = carl9170_get_noisefloor(ar);
+	err = carl9170_get_yesisefloor(ar);
 	if (err) {
 		*len = err;
 		return buf;
 	}
 
 	ADD(buf, *len, bufsize, "Chain 0: %10d dBm, ext. chan.:%10d dBm\n",
-	    ar->noise[0], ar->noise[2]);
+	    ar->yesise[0], ar->yesise[2]);
 	ADD(buf, *len, bufsize, "Chain 2: %10d dBm, ext. chan.:%10d dBm\n",
-	    ar->noise[1], ar->noise[3]);
+	    ar->yesise[1], ar->yesise[3]);
 
 	return buf;
 }
-DEBUGFS_DECLARE_RO_FILE(phy_noise, 180);
+DEBUGFS_DECLARE_RO_FILE(phy_yesise, 180);
 
 static char *carl9170_debugfs_vif_dump_read(struct ar9170 *ar, char *buf,
 					    size_t bufsize, ssize_t *len)
@@ -845,7 +845,7 @@ void carl9170_debugfs_register(struct ar9170 *ar)
 	DEBUGFS_ADD(hw_tx_tally);
 	DEBUGFS_ADD(hw_rx_tally);
 	DEBUGFS_ADD(hw_phy_errors);
-	DEBUGFS_ADD(phy_noise);
+	DEBUGFS_ADD(phy_yesise);
 
 	DEBUGFS_ADD(hw_wlan_queue);
 	DEBUGFS_ADD(hw_pta_queue);

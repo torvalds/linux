@@ -218,7 +218,7 @@ static int as3722_check_device_id(struct as3722 *as3722)
 	}
 
 	if (val != AS3722_DEVICE_ID) {
-		dev_err(as3722->dev, "Device is not AS3722, ID is 0x%x\n", val);
+		dev_err(as3722->dev, "Device is yest AS3722, ID is 0x%x\n", val);
 		return -ENODEV;
 	}
 
@@ -268,8 +268,8 @@ static const struct regmap_range as3722_readable_ranges[] = {
 };
 
 static const struct regmap_access_table as3722_readable_table = {
-	.yes_ranges = as3722_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(as3722_readable_ranges),
+	.no_ranges = as3722_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(as3722_readable_ranges),
 };
 
 static const struct regmap_range as3722_writable_ranges[] = {
@@ -291,8 +291,8 @@ static const struct regmap_range as3722_writable_ranges[] = {
 };
 
 static const struct regmap_access_table as3722_writable_table = {
-	.yes_ranges = as3722_writable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(as3722_writable_ranges),
+	.no_ranges = as3722_writable_ranges,
+	.n_no_ranges = ARRAY_SIZE(as3722_writable_ranges),
 };
 
 static const struct regmap_range as3722_cacheable_ranges[] = {
@@ -301,8 +301,8 @@ static const struct regmap_range as3722_cacheable_ranges[] = {
 };
 
 static const struct regmap_access_table as3722_volatile_table = {
-	.no_ranges = as3722_cacheable_ranges,
-	.n_no_ranges = ARRAY_SIZE(as3722_cacheable_ranges),
+	.yes_ranges = as3722_cacheable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(as3722_cacheable_ranges),
 };
 
 static const struct regmap_config as3722_regmap_config = {
@@ -318,11 +318,11 @@ static const struct regmap_config as3722_regmap_config = {
 static int as3722_i2c_of_probe(struct i2c_client *i2c,
 			struct as3722 *as3722)
 {
-	struct device_node *np = i2c->dev.of_node;
+	struct device_yesde *np = i2c->dev.of_yesde;
 	struct irq_data *irq_data;
 
 	if (!np) {
-		dev_err(&i2c->dev, "Device Tree not found\n");
+		dev_err(&i2c->dev, "Device Tree yest found\n");
 		return -EINVAL;
 	}
 

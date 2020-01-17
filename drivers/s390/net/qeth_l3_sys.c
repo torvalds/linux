@@ -51,7 +51,7 @@ static ssize_t qeth_l3_dev_route_show(struct qeth_card *card,
 		else
 			return sprintf(buf, "%s\n", "secondary connector");
 	default:
-		return sprintf(buf, "%s\n", "no");
+		return sprintf(buf, "%s\n", "yes");
 	}
 }
 
@@ -71,7 +71,7 @@ static ssize_t qeth_l3_dev_route_store(struct qeth_card *card,
 	int rc = 0;
 
 	mutex_lock(&card->conf_mutex);
-	if (sysfs_streq(buf, "no_router")) {
+	if (sysfs_streq(buf, "yes_router")) {
 		route->type = NO_ROUTER;
 	} else if (sysfs_streq(buf, "primary_connector")) {
 		route->type = PRIMARY_CONNECTOR;
@@ -413,7 +413,7 @@ static ssize_t qeth_l3_dev_ipato_add_show(char *buf, struct qeth_card *card,
 	list_for_each_entry(ipatoe, &card->ipato.entries, entry) {
 		if (ipatoe->proto != proto)
 			continue;
-		/* String must not be longer than PAGE_SIZE. So we check if
+		/* String must yest be longer than PAGE_SIZE. So we check if
 		 * string length gets near PAGE_SIZE. Then we can savely display
 		 * the next IPv6 address (worst case, compared to IPv4) */
 		if ((PAGE_SIZE - i) <= entry_len)
@@ -631,10 +631,10 @@ static ssize_t qeth_l3_dev_ip_add_show(struct device *dev, char *buf,
 	entry_len = (proto == QETH_PROT_IPV4)? 12 : 40;
 	entry_len += 2; /* \n + terminator */
 	mutex_lock(&card->ip_lock);
-	hash_for_each(card->ip_htable, i, ipaddr, hnode) {
+	hash_for_each(card->ip_htable, i, ipaddr, hyesde) {
 		if (ipaddr->proto != proto || ipaddr->type != type)
 			continue;
-		/* String must not be longer than PAGE_SIZE. So we check if
+		/* String must yest be longer than PAGE_SIZE. So we check if
 		 * string length gets near PAGE_SIZE. Then we can savely display
 		 * the next IPv6 address (worst case, compared to IPv4) */
 		if ((PAGE_SIZE - str_len) <= entry_len)
@@ -784,13 +784,13 @@ static int qeth_l3_parse_rxipe(const char *buf, enum qeth_prot_versions proto,
 	if (proto == QETH_PROT_IPV4) {
 		memcpy(&ipv4_addr, addr, sizeof(ipv4_addr));
 		if (ipv4_is_multicast(ipv4_addr)) {
-			QETH_DBF_MESSAGE(2, "multicast rxip not supported.\n");
+			QETH_DBF_MESSAGE(2, "multicast rxip yest supported.\n");
 			return -EINVAL;
 		}
 	} else if (proto == QETH_PROT_IPV6) {
 		memcpy(&ipv6_addr, addr, sizeof(ipv6_addr));
 		if (ipv6_addr_is_multicast(&ipv6_addr)) {
-			QETH_DBF_MESSAGE(2, "multicast rxip not supported.\n");
+			QETH_DBF_MESSAGE(2, "multicast rxip yest supported.\n");
 			return -EINVAL;
 		}
 	}

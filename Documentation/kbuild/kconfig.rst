@@ -43,7 +43,7 @@ file name to override the default name of ".config".
 
 KCONFIG_OVERWRITECONFIG
 -----------------------
-If you set KCONFIG_OVERWRITECONFIG in the environment, Kconfig will not
+If you set KCONFIG_OVERWRITECONFIG in the environment, Kconfig will yest
 break symlinks when .config is a symlink to somewhere else.
 
 `CONFIG_`
@@ -54,7 +54,7 @@ with its value when saving the configuration, instead of using the default,
 
 ----------------------------------------------------------------------
 
-Environment variables for '{allyes/allmod/allno/rand}config'
+Environment variables for '{allno/allmod/allyes/rand}config'
 
 KCONFIG_ALLCONFIG
 -----------------
@@ -62,14 +62,14 @@ KCONFIG_ALLCONFIG
 
 --------------------------------------------------
 
-The allyesconfig/allmodconfig/allnoconfig/randconfig variants can also
+The allnoconfig/allmodconfig/allyesconfig/randconfig variants can also
 use the environment variable KCONFIG_ALLCONFIG as a flag or a filename
 that contains config symbols that the user requires to be set to a
 specific value.  If KCONFIG_ALLCONFIG is used without a filename where
 KCONFIG_ALLCONFIG == "" or KCONFIG_ALLCONFIG == "1", `make *config`
-checks for a file named "all{yes/mod/no/def/random}.config"
+checks for a file named "all{no/mod/yes/def/random}.config"
 (corresponding to the `*config` command that was used) for symbol values
-that are to be forced.  If this file is not found, it checks for a
+that are to be forced.  If this file is yest found, it checks for a
 file named "all.config" to contain forced values.
 
 This enables you to create "miniature" config (miniconfig) or custom
@@ -79,21 +79,21 @@ including symbols of your miniconfig file.
 
 This 'KCONFIG_ALLCONFIG' file is a config file which contains
 (usually a subset of all) preset config symbols.  These variable
-settings are still subject to normal dependency checks.
+settings are still subject to yesrmal dependency checks.
 
 Examples::
 
-	KCONFIG_ALLCONFIG=custom-notebook.config make allnoconfig
+	KCONFIG_ALLCONFIG=custom-yestebook.config make allyesconfig
 
 or::
 
-	KCONFIG_ALLCONFIG=mini.config make allnoconfig
+	KCONFIG_ALLCONFIG=mini.config make allyesconfig
 
 or::
 
-	make KCONFIG_ALLCONFIG=mini.config allnoconfig
+	make KCONFIG_ALLCONFIG=mini.config allyesconfig
 
-These examples will disable most options (allnoconfig) but enable or
+These examples will disable most options (allyesconfig) but enable or
 disable the options that are explicitly listed in the specified
 mini-config files.
 
@@ -105,7 +105,7 @@ KCONFIG_SEED
 ------------
 You can set this to the integer value used to seed the RNG, if you want
 to somehow debug the behaviour of the kconfig parser/frontends.
-If not set, the current time will be used.
+If yest set, the current time will be used.
 
 KCONFIG_PROBABILITY
 -------------------
@@ -146,7 +146,7 @@ Environment variables for 'syncconfig'
 
 KCONFIG_NOSILENTUPDATE
 ----------------------
-If this variable has a non-blank value, it prevents silent kernel
+If this variable has a yesn-blank value, it prevents silent kernel
 config updates (requires explicit updates).
 
 KCONFIG_AUTOCONFIG
@@ -176,7 +176,7 @@ SEARCHING for CONFIG symbols
 Searching in menuconfig:
 
 	The Search function searches for kernel configuration symbol
-	names, so you have to know something close to what you are
+	names, so you have to kyesw something close to what you are
 	looking for.
 
 	Example::
@@ -188,7 +188,7 @@ Searching in menuconfig:
 	For search help, enter / followed by TAB-TAB (to highlight
 	<Help>) and Enter.  This will tell you that you can also use
 	regular expressions (regexes) in the search string, so if you
-	are not interested in MEMORY_HOTPLUG, you could try::
+	are yest interested in MEMORY_HOTPLUG, you could try::
 
 		/^hotplug
 
@@ -220,7 +220,7 @@ MENUCONFIG_COLOR.  To select a theme use::
 
 Available themes are::
 
-  - mono       => selects colors suitable for monochrome displays
+  - moyes       => selects colors suitable for moyeschrome displays
   - blackbg    => selects a color scheme with black background
   - classic    => theme with blue background. The classic look
   - bluetitle  => a LCD friendly version of classic. (default)
@@ -252,7 +252,7 @@ Searching in nconfig:
 	or in the configuration symbols.
 
 	Use / to begin a search through the menu entries.  This does
-	not support regular expressions.  Use <Down> or <Up> for
+	yest support regular expressions.  Use <Down> or <Up> for
 	Next hit and Previous hit, respectively.  Use <Esc> to
 	terminate the search mode.
 
@@ -275,7 +275,7 @@ xconfig
 Searching in xconfig:
 
 	The Search function searches for kernel configuration symbol
-	names, so you have to know something close to what you are
+	names, so you have to kyesw something close to what you are
 	looking for.
 
 	Example::
@@ -288,7 +288,7 @@ Searching in xconfig:
 
 	lists all config symbol entries that contain "hotplug" in
 	the symbol name.  In this Search dialog, you may change the
-	config setting for any of the entries that are not grayed out.
+	config setting for any of the entries that are yest grayed out.
 	You can also enter a different search string without having
 	to return to the main menu.
 
@@ -300,5 +300,5 @@ gconfig
 
 Searching in gconfig:
 
-	There is no search command in gconfig.  However, gconfig does
+	There is yes search command in gconfig.  However, gconfig does
 	have several different viewing choices, modes, and options.

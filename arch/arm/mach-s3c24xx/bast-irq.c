@@ -25,8 +25,8 @@
 
 /* handle PC104 ISA interrupts from the system CPLD */
 
-/* table of ISA irq nos to the relevant mask... zero means
- * the irq is not implemented
+/* table of ISA irq yess to the relevant mask... zero means
+ * the irq is yest implemented
 */
 static const unsigned char bast_pc104_irqmasks[] = {
 	0,   /* 0 */
@@ -87,13 +87,13 @@ static struct irq_chip  bast_pc104_chip = {
 static void bast_irq_pc104_demux(struct irq_desc *desc)
 {
 	unsigned int stat;
-	unsigned int irqno;
+	unsigned int irqyes;
 	int i;
 
 	stat = __raw_readb(BAST_VA_PC104_IRQREQ) & 0xf;
 
 	if (unlikely(stat == 0)) {
-		/* ack if we get an irq with nothing (ie, startup) */
+		/* ack if we get an irq with yesthing (ie, startup) */
 
 		desc = irq_desc + BAST_IRQ_ISA;
 		desc->irq_data.chip->irq_ack(&desc->irq_data);
@@ -102,8 +102,8 @@ static void bast_irq_pc104_demux(struct irq_desc *desc)
 
 		for (i = 0; stat != 0; i++, stat >>= 1) {
 			if (stat & 1) {
-				irqno = bast_pc104_irqs[i];
-				generic_handle_irq(irqno);
+				irqyes = bast_pc104_irqs[i];
+				generic_handle_irq(irqyes);
 			}
 		}
 	}
@@ -125,11 +125,11 @@ static __init int bast_irq_init(void)
 		/* register our IRQs */
 
 		for (i = 0; i < 4; i++) {
-			unsigned int irqno = bast_pc104_irqs[i];
+			unsigned int irqyes = bast_pc104_irqs[i];
 
-			irq_set_chip_and_handler(irqno, &bast_pc104_chip,
+			irq_set_chip_and_handler(irqyes, &bast_pc104_chip,
 						 handle_level_irq);
-			irq_clear_status_flags(irqno, IRQ_NOREQUEST);
+			irq_clear_status_flags(irqyes, IRQ_NOREQUEST);
 		}
 	}
 

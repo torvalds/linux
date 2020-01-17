@@ -4,19 +4,19 @@ The Freescale PORT/GPIO modules are two adjacent modules providing GPIO
 functionality. Each pair serves 32 GPIOs. The VF610 has 5 instances of
 each, and each PORT module has its own interrupt.
 
-Required properties for GPIO node:
+Required properties for GPIO yesde:
 - compatible : Should be "fsl,<soc>-gpio", below is supported list:
 	       "fsl,vf610-gpio"
 	       "fsl,imx7ulp-gpio"
 - reg : The first reg tuple represents the PORT module, the second tuple
   the GPIO module.
 - interrupts : Should be the port interrupt shared by all 32 pins.
-- gpio-controller : Marks the device node as a gpio controller.
+- gpio-controller : Marks the device yesde as a gpio controller.
 - #gpio-cells : Should be two. The first cell is the pin number and
   the second cell is used to specify the gpio polarity:
       0 = active high
       1 = active low
-- interrupt-controller: Marks the device node as an interrupt controller.
+- interrupt-controller: Marks the device yesde as an interrupt controller.
 - #interrupt-cells : Should be 2.  The first cell is the GPIO number.
   The second cell bits[3:0] is used to specify trigger type and level flags:
       1 = low-to-high edge triggered.
@@ -31,7 +31,7 @@ Optional properties:
 		"gpio", "port".
 
 Note: Each GPIO port should have an alias correctly numbered in "aliases"
-node.
+yesde.
 
 Examples:
 

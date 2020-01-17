@@ -45,8 +45,8 @@ static const struct sof_dev_desc sof_acpi_haswell_desc = {
 	.chip_info = &hsw_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-hsw.ri",
-	.nocodec_tplg_filename = "sof-hsw-nocodec.tplg",
+	.yescodec_fw_filename = "sof-hsw.ri",
+	.yescodec_tplg_filename = "sof-hsw-yescodec.tplg",
 	.ops = &sof_hsw_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -62,8 +62,8 @@ static const struct sof_dev_desc sof_acpi_broadwell_desc = {
 	.chip_info = &bdw_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-bdw.ri",
-	.nocodec_tplg_filename = "sof-bdw-nocodec.tplg",
+	.yescodec_fw_filename = "sof-bdw.ri",
+	.yescodec_tplg_filename = "sof-bdw-yescodec.tplg",
 	.ops = &sof_bdw_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -81,8 +81,8 @@ static const struct sof_dev_desc sof_acpi_baytrailcr_desc = {
 	.chip_info = &byt_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-byt.ri",
-	.nocodec_tplg_filename = "sof-byt-nocodec.tplg",
+	.yescodec_fw_filename = "sof-byt.ri",
+	.yescodec_tplg_filename = "sof-byt-yescodec.tplg",
 	.ops = &sof_byt_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -96,8 +96,8 @@ static const struct sof_dev_desc sof_acpi_baytrail_desc = {
 	.chip_info = &byt_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-byt.ri",
-	.nocodec_tplg_filename = "sof-byt-nocodec.tplg",
+	.yescodec_fw_filename = "sof-byt.ri",
+	.yescodec_tplg_filename = "sof-byt-yescodec.tplg",
 	.ops = &sof_byt_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -111,8 +111,8 @@ static const struct sof_dev_desc sof_acpi_cherrytrail_desc = {
 	.chip_info = &cht_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-cht.ri",
-	.nocodec_tplg_filename = "sof-cht-nocodec.tplg",
+	.yescodec_fw_filename = "sof-cht.ri",
+	.yescodec_tplg_filename = "sof-cht-yescodec.tplg",
 	.ops = &sof_cht_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -163,17 +163,17 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	/* get ops for platform */
 	ops = desc->ops;
 	if (!ops) {
-		dev_err(dev, "error: no matching ACPI descriptor ops\n");
+		dev_err(dev, "error: yes matching ACPI descriptor ops\n");
 		return -ENODEV;
 	}
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)
-	/* force nocodec mode */
-	dev_warn(dev, "Force to use nocodec mode\n");
+	/* force yescodec mode */
+	dev_warn(dev, "Force to use yescodec mode\n");
 	mach = devm_kzalloc(dev, sizeof(*mach), GFP_KERNEL);
 	if (!mach)
 		return -ENOMEM;
-	ret = sof_nocodec_setup(dev, sof_pdata, mach, desc, ops);
+	ret = sof_yescodec_setup(dev, sof_pdata, mach, desc, ops);
 	if (ret < 0)
 		return ret;
 #else

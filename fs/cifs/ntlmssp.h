@@ -15,7 +15,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -24,7 +24,7 @@
 #define NtLmNegotiate     cpu_to_le32(1)
 #define NtLmChallenge     cpu_to_le32(2)
 #define NtLmAuthenticate  cpu_to_le32(3)
-#define UnknownMessage    cpu_to_le32(8)
+#define UnkyeswnMessage    cpu_to_le32(8)
 
 /* Negotiate Flags */
 #define NTLMSSP_NEGOTIATE_UNICODE         0x01 /* Text strings are unicode */
@@ -37,7 +37,7 @@
 #define NTLMSSP_NEGOTIATE_LM_KEY        0x0080 /* Use LM session key */
 /* defined reserved 8                   0x0100 */
 #define NTLMSSP_NEGOTIATE_NTLM          0x0200 /* NTLM authentication */
-#define NTLMSSP_NEGOTIATE_NT_ONLY       0x0400 /* Lanman not allowed */
+#define NTLMSSP_NEGOTIATE_NT_ONLY       0x0400 /* Lanman yest allowed */
 #define NTLMSSP_ANONYMOUS               0x0800
 #define NTLMSSP_NEGOTIATE_DOMAIN_SUPPLIED 0x1000 /* reserved6 */
 #define NTLMSSP_NEGOTIATE_WORKSTATION_SUPPLIED 0x2000
@@ -46,14 +46,14 @@
 #define NTLMSSP_TARGET_TYPE_DOMAIN     0x10000
 #define NTLMSSP_TARGET_TYPE_SERVER     0x20000
 #define NTLMSSP_TARGET_TYPE_SHARE      0x40000
-#define NTLMSSP_NEGOTIATE_EXTENDED_SEC 0x80000 /* NB:not related to NTLMv2 pwd*/
+#define NTLMSSP_NEGOTIATE_EXTENDED_SEC 0x80000 /* NB:yest related to NTLMv2 pwd*/
 /* #define NTLMSSP_REQUEST_INIT_RESP     0x100000 */
 #define NTLMSSP_NEGOTIATE_IDENTIFY    0x100000
 #define NTLMSSP_REQUEST_ACCEPT_RESP   0x200000 /* reserved5 */
 #define NTLMSSP_REQUEST_NON_NT_KEY    0x400000
 #define NTLMSSP_NEGOTIATE_TARGET_INFO 0x800000
 /* #define reserved4                 0x1000000 */
-#define NTLMSSP_NEGOTIATE_VERSION    0x2000000 /* we do not set */
+#define NTLMSSP_NEGOTIATE_VERSION    0x2000000 /* we do yest set */
 /* #define reserved3                 0x4000000 */
 /* #define reserved2                 0x8000000 */
 /* #define reserved1                0x10000000 */
@@ -76,7 +76,7 @@ enum av_field_type {
 	NTLMSSP_AV_CHANNEL_BINDINGS
 };
 
-/* Although typedefs are not commonly used for structure definitions */
+/* Although typedefs are yest commonly used for structure definitions */
 /* in the Linux kernel, in this particular case they are useful      */
 /* to more closely match the standards document for NTLMSSP from     */
 /* OpenGroup and to make the code more closely match the standard in */
@@ -94,8 +94,8 @@ typedef struct _NEGOTIATE_MESSAGE {
 	__le32 NegotiateFlags;
 	SECURITY_BUFFER DomainName;	/* RFC 1001 style and ASCII */
 	SECURITY_BUFFER WorkstationName;	/* RFC 1001 and ASCII */
-	/* SECURITY_BUFFER for version info not present since we
-	   do not set the version is present flag */
+	/* SECURITY_BUFFER for version info yest present since we
+	   do yest set the version is present flag */
 	char DomainString[0];
 	/* followed by WorkstationString */
 } __attribute__((packed)) NEGOTIATE_MESSAGE, *PNEGOTIATE_MESSAGE;
@@ -108,8 +108,8 @@ typedef struct _CHALLENGE_MESSAGE {
 	__u8 Challenge[CIFS_CRYPTO_KEY_SIZE];
 	__u8 Reserved[8];
 	SECURITY_BUFFER TargetInfoArray;
-	/* SECURITY_BUFFER for version info not present since we
-	   do not set the version is present flag */
+	/* SECURITY_BUFFER for version info yest present since we
+	   do yest set the version is present flag */
 } __attribute__((packed)) CHALLENGE_MESSAGE, *PCHALLENGE_MESSAGE;
 
 typedef struct _AUTHENTICATE_MESSAGE {
@@ -122,8 +122,8 @@ typedef struct _AUTHENTICATE_MESSAGE {
 	SECURITY_BUFFER WorkstationName;
 	SECURITY_BUFFER SessionKey;
 	__le32 NegotiateFlags;
-	/* SECURITY_BUFFER for version info not present since we
-	   do not set the version is present flag */
+	/* SECURITY_BUFFER for version info yest present since we
+	   do yest set the version is present flag */
 	char UserString[0];
 } __attribute__((packed)) AUTHENTICATE_MESSAGE, *PAUTHENTICATE_MESSAGE;
 

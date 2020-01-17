@@ -9,14 +9,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -142,7 +142,7 @@ do {								\
 
 /*
  * The maximum number of supported luns.
- * The identify message only supports 64 luns in non-packetized transfers.
+ * The identify message only supports 64 luns in yesn-packetized transfers.
  * You can have 2^64 luns when information unit transfers are enabled,
  * but until we see a need to support that many, we support 256.
  */
@@ -157,7 +157,7 @@ do {								\
 /*
  * The maximum amount of SCB storage in hardware on a controller.
  * This value represents an upper bound.  Due to software design,
- * we may not be able to use this number.
+ * we may yest be able to use this number.
  */
 #define AHD_SCB_MAX	512
 
@@ -217,7 +217,7 @@ typedef enum {
 	AHD_TARGETMODE		= 0x01000,/* Has tested target mode support */
 	AHD_MULTIROLE		= 0x02000,/* Space for two roles at a time */
 	AHD_RTI			= 0x04000,/* Retained Training Support */
-	AHD_NEW_IOCELL_OPTS	= 0x08000,/* More Signal knobs in the IOCELL */
+	AHD_NEW_IOCELL_OPTS	= 0x08000,/* More Signal kyesbs in the IOCELL */
 	AHD_NEW_DFCNTRL_OPTS	= 0x10000,/* SCSIENWRDIS bit */
 	AHD_FAST_CDB_DELIVERY	= 0x20000,/* CDB acks released to Output Sync */
 	AHD_REMOVABLE		= 0x00000,/* Hot-Swap supported - None so far*/
@@ -248,38 +248,38 @@ typedef enum {
 	AHD_SCSIRST_BUG		= 0x0020,
 	/* Some PCIX fields must be saved and restored across chip reset. */
 	AHD_PCIX_CHIPRST_BUG	= 0x0040,
-	/* MMAPIO is not functional in PCI-X mode.  */
+	/* MMAPIO is yest functional in PCI-X mode.  */
 	AHD_PCIX_MMAPIO_BUG	= 0x0080,
 	/* Reads to SCBRAM fail to reset the discard timer. */
 	AHD_PCIX_SCBRAM_RD_BUG  = 0x0100,
-	/* Bug workarounds that can be disabled on non-PCIX busses. */
+	/* Bug workarounds that can be disabled on yesn-PCIX busses. */
 	AHD_PCIX_BUG_MASK	= AHD_PCIX_CHIPRST_BUG
 				| AHD_PCIX_MMAPIO_BUG
 				| AHD_PCIX_SCBRAM_RD_BUG,
 	/*
 	 * LQOSTOP0 status set even for forced selections with ATN
-	 * to perform non-packetized message delivery.
+	 * to perform yesn-packetized message delivery.
 	 */
 	AHD_LQO_ATNO_BUG	= 0x0200,
-	/* FIFO auto-flush does not always trigger.  */
+	/* FIFO auto-flush does yest always trigger.  */
 	AHD_AUTOFLUSH_BUG	= 0x0400,
-	/* The CLRLQO registers are not self-clearing. */
+	/* The CLRLQO registers are yest self-clearing. */
 	AHD_CLRLQO_AUTOCLR_BUG	= 0x0800,
 	/* The PACKETIZED status bit refers to the previous connection. */
 	AHD_PKTIZED_STATUS_BUG  = 0x1000,
-	/* "Short Luns" are not placed into outgoing LQ packets correctly. */
+	/* "Short Luns" are yest placed into outgoing LQ packets correctly. */
 	AHD_PKT_LUN_BUG		= 0x2000,
 	/*
-	 * Only the FIFO allocated to the non-packetized connection may
-	 * be in use during a non-packetzied connection.
+	 * Only the FIFO allocated to the yesn-packetized connection may
+	 * be in use during a yesn-packetzied connection.
 	 */
 	AHD_NONPACKFIFO_BUG	= 0x4000,
 	/*
 	 * Writing to a DFF SCBPTR register may fail if concurent with
 	 * a hardware write to the other DFF SCBPTR register.  This is
-	 * not currently a concern in our sequencer since all chips with
+	 * yest currently a concern in our sequencer since all chips with
 	 * this bug have the AHD_NONPACKFIFO_BUG and all writes of concern
-	 * occur in non-packetized connections.
+	 * occur in yesn-packetized connections.
 	 */
 	AHD_MDFF_WSCBPTR_BUG	= 0x8000,
 	/* SGHADDR updates are slow. */
@@ -290,10 +290,10 @@ typedef enum {
 	 * be in the mode written outside of interrupt context.
 	 */
 	AHD_SET_MODE_BUG	= 0x20000,
-	/* Non-packetized busfree revision does not work. */
+	/* Non-packetized busfree revision does yest work. */
 	AHD_BUSFREEREV_BUG	= 0x40000,
 	/*
-	 * Paced transfers are indicated with a non-standard PPR
+	 * Paced transfers are indicated with a yesn-standard PPR
 	 * option bit in the neg table, 160MHz is indicated by
 	 * sync factor 0x7, and the offset if off by a factor of 2.
 	 */
@@ -306,7 +306,7 @@ typedef enum {
 	 */
 	AHD_INTCOLLISION_BUG	= 0x200000,
 	/*
-	 * The GEM318 violates the SCSI spec by not waiting
+	 * The GEM318 violates the SCSI spec by yest waiting
 	 * the mandated bus settle delay between phase changes
 	 * in some situations.  Some aic79xx chip revs. are more
 	 * strict in this regard and will treat REQ assertions
@@ -316,7 +316,7 @@ typedef enum {
 	 */
 	AHD_EARLY_REQ_BUG	= 0x400000,
 	/*
-	 * The LED does not stay on long enough in packetized modes.
+	 * The LED does yest stay on long eyesugh in packetized modes.
 	 */
 	AHD_FAINT_LED_BUG	= 0x800000
 } ahd_bug;
@@ -381,7 +381,7 @@ typedef enum {
  * contains the SCSI cdb (or a pointer to the  cdb) to be executed.  After
  * the cdb has been presented to the target, this area serves to store
  * residual transfer information and the SCSI status byte.
- * For the target role, the contents of this area do not change, but
+ * For the target role, the contents of this area do yest change, but
  * still serve a different purpose than for the initiator role.  See
  * struct target_data for details.
  */
@@ -390,7 +390,7 @@ typedef enum {
  * Status information embedded in the shared poriton of
  * an SCB after passing the cdb to the target.  The kernel
  * driver will only read this data for transactions that
- * complete abnormally.
+ * complete abyesrmally.
  */
 struct initiator_status {
 	uint32_t residual_datacnt;	/* Residual in the current S/G seg */
@@ -456,9 +456,9 @@ struct hardware_scb {
  * or'ed with the SG_FULL_RESID flag.  Sgptr may point to an invalid
  * S/G entry for this transfer (single S/G element transfer with the
  * first elements address and length preloaded in the dataptr/datacnt
- * fields).  If no transfer is to occur, sgptr is set to SG_LIST_NULL.
+ * fields).  If yes transfer is to occur, sgptr is set to SG_LIST_NULL.
  * The SG_FULL_RESID flag ensures that the residual will be correctly
- * noted even if no data transfers occur.  Once the data phase is entered,
+ * yested even if yes data transfers occur.  Once the data phase is entered,
  * the residual sgptr and datacnt are loaded from the sgptr and the
  * datacnt fields.  After each S/G element's dataptr and length are
  * loaded into the hardware, the residual sgptr is advanced.  After
@@ -466,12 +466,12 @@ struct hardware_scb {
  * if the LAST_SEG flag is set.  If so, SG_LIST_NULL is set in the
  * residual sg ptr and the transfer is considered complete.  If the
  * sequencer determines that there is a residual in the tranfer, or
- * there is non-zero status, it will set the SG_STATUS_VALID flag in
+ * there is yesn-zero status, it will set the SG_STATUS_VALID flag in
  * sgptr and dma the scb back into host memory.  To sumarize:
  *
  * Sequencer:
  *	o A residual has occurred if SG_FULL_RESID is set in sgptr,
- *	  or residual_sgptr does not have SG_LIST_NULL set.
+ *	  or residual_sgptr does yest have SG_LIST_NULL set.
  *
  *	o We are transferring the last segment if residual_datacnt has
  *	  the SG_LAST_SEG flag set.
@@ -504,7 +504,7 @@ struct hardware_scb {
 /*44*/	uint32_t next_hscb_busaddr;
 /********** Long lun field only downloaded for full 8 byte lun support ********/
 /*48*/  uint8_t	 pkt_long_lun[8];
-/******* Fields below are not Downloaded (Sequencer may use for scratch) ******/
+/******* Fields below are yest Downloaded (Sequencer may use for scratch) ******/
 /*56*/  uint8_t	 spare[8];
 };
 
@@ -537,11 +537,11 @@ struct ahd_dma64_seg {
 	uint32_t	pad;
 };
 
-struct map_node {
+struct map_yesde {
 	bus_dmamap_t		 dmamap;
 	dma_addr_t		 physaddr;
 	uint8_t			*vaddr;
-	SLIST_ENTRY(map_node)	 links;
+	SLIST_ENTRY(map_yesde)	 links;
 };
 
 /*
@@ -553,14 +553,14 @@ typedef enum {
 					   * We detected a parity or CRC
 					   * error that has effected the
 					   * payload of the command.  This
-					   * flag is checked when normal
+					   * flag is checked when yesrmal
 					   * status is returned to catch
-					   * the case of a target not
+					   * the case of a target yest
 					   * responding to our attempt
 					   * to report the error.
 					   */
 	SCB_OTHERTCL_TIMEOUT	= 0x00002,/*
-					   * Another device was active
+					   * Ayesther device was active
 					   * during the first timeout for
 					   * this SCB so we gave ourselves
 					   * an additional timeout period
@@ -608,9 +608,9 @@ struct scb {
 	struct ahd_softc	 *ahd_softc;
 	scb_flag		  flags;
 	struct scb_platform_data *platform_data;
-	struct map_node	 	 *hscb_map;
-	struct map_node	 	 *sg_map;
-	struct map_node	 	 *sense_map;
+	struct map_yesde	 	 *hscb_map;
+	struct map_yesde	 	 *sg_map;
+	struct map_yesde	 	 *sense_map;
 	void			 *sg_list;
 	uint8_t			 *sense_data;
 	dma_addr_t		  sg_list_busaddr;
@@ -637,7 +637,7 @@ struct scb_data {
 	struct scb_list free_scb_lists[AHD_NUM_TARGETS * AHD_NUM_LUNS_NONPKT];
 
 	/*
-	 * SCBs that will not collide with any active device.
+	 * SCBs that will yest collide with any active device.
 	 */
 	struct scb_list any_dev_free_scb_list;
 
@@ -652,12 +652,12 @@ struct scb_data {
 	bus_dma_tag_t	 hscb_dmat;	/* dmat for our hardware SCB array */
 	bus_dma_tag_t	 sg_dmat;	/* dmat for our sg segments */
 	bus_dma_tag_t	 sense_dmat;	/* dmat for our sense buffers */
-	SLIST_HEAD(, map_node) hscb_maps;
-	SLIST_HEAD(, map_node) sg_maps;
-	SLIST_HEAD(, map_node) sense_maps;
-	int		 scbs_left;	/* unallocated scbs in head map_node */
-	int		 sgs_left;	/* unallocated sgs in head map_node */
-	int		 sense_left;	/* unallocated sense in head map_node */
+	SLIST_HEAD(, map_yesde) hscb_maps;
+	SLIST_HEAD(, map_yesde) sg_maps;
+	SLIST_HEAD(, map_yesde) sense_maps;
+	int		 scbs_left;	/* unallocated scbs in head map_yesde */
+	int		 sgs_left;	/* unallocated sgs in head map_yesde */
+	int		 sense_left;	/* unallocated sense in head map_yesde */
 	uint16_t	 numscbs;
 	uint16_t	 maxhscbs;	/* Number of SCBs on the card */
 	uint8_t		 init_level;	/*
@@ -695,7 +695,7 @@ struct target_cmd {
 
 /*
  * Number of events we can buffer up if we run out
- * of immediate notify ccbs.
+ * of immediate yestify ccbs.
  */
 #define AHD_TMODE_EVENT_BUFFER_SIZE 8
 struct ahd_tmode_event {
@@ -716,7 +716,7 @@ struct ahd_tmode_event {
 struct ahd_tmode_lstate {
 	struct cam_path *path;
 	struct ccb_hdr_slist accept_tios;
-	struct ccb_hdr_slist immed_notifies;
+	struct ccb_hdr_slist immed_yestifies;
 	struct ahd_tmode_event event_buffer[AHD_TMODE_EVENT_BUFFER_SIZE];
 	uint8_t event_r_idx;
 	uint8_t event_w_idx;
@@ -822,7 +822,7 @@ struct seeprom_config {
  * Per SCSI ID Configuration Flags
  */
 	uint16_t device_flags[16];	/* words 0-15 */
-#define		CFXFER		0x003F	/* synchronous transfer rate */
+#define		CFXFER		0x003F	/* synchroyesus transfer rate */
 #define			CFXFER_ASYNC	0x3F
 #define		CFQAS		0x0040	/* Negotiate QAS */
 #define		CFPACKETIZED	0x0080	/* Negotiate Packetized Transfers */
@@ -1056,7 +1056,7 @@ struct ahd_softc {
 	struct scb_data		  scb_data;
 
 	struct hardware_scb	 *next_queued_hscb;
-	struct map_node		 *next_queued_hscb_map;
+	struct map_yesde		 *next_queued_hscb_map;
 
 	/*
 	 * SCBs that have been sent to the controller
@@ -1093,7 +1093,7 @@ struct ahd_softc {
 
 	/*
 	 * Target mode related state kept on a per enabled lun basis.
-	 * Targets that are not enabled will have null entries.
+	 * Targets that are yest enabled will have null entries.
 	 * As an initiator, we keep one target entry for our initiator
 	 * ID to store our sync/wide transfer settings.
 	 */
@@ -1107,7 +1107,7 @@ struct ahd_softc {
 
 	/*
 	 * Device instance currently on the bus awaiting a continue TIO
-	 * for a command that was not given the disconnect priveledge.
+	 * for a command that was yest given the disconnect priveledge.
 	 */
 	struct ahd_tmode_lstate  *pending_device;
 
@@ -1198,7 +1198,7 @@ struct ahd_softc {
 	 */
 	bus_dma_tag_t		  parent_dmat;
 	bus_dma_tag_t		  shared_data_dmat;
-	struct map_node		  shared_data_map;
+	struct map_yesde		  shared_data_map;
 
 	/* Information saved through suspend/resume cycles */
 	struct ahd_suspend_state  suspend_state;
@@ -1290,7 +1290,7 @@ struct ahd_devinfo {
 	u_int	 lun;
 	char	 channel;
 	role_t	 role;		/*
-				 * Only guaranteed to be correct if not
+				 * Only guaranteed to be correct if yest
 				 * in the busfree state.
 				 */
 };
@@ -1397,7 +1397,7 @@ void			ahd_find_syncrate(struct ahd_softc *ahd, u_int *period,
  */
 typedef enum {
 	AHD_NEG_TO_GOAL,	/* Renegotiate only if goal and curr differ. */
-	AHD_NEG_IF_NON_ASYNC,	/* Renegotiate so long as goal is non-async. */
+	AHD_NEG_IF_NON_ASYNC,	/* Renegotiate so long as goal is yesn-async. */
 	AHD_NEG_ALWAYS		/* Renegotiat even if goal is async. */
 } ahd_neg_type;
 int			ahd_update_neg_request(struct ahd_softc*,
@@ -1429,7 +1429,7 @@ cam_status	ahd_find_tmode_devs(struct ahd_softc *ahd,
 				    struct cam_sim *sim, union ccb *ccb,
 				    struct ahd_tmode_tstate **tstate,
 				    struct ahd_tmode_lstate **lstate,
-				    int notfound_failure);
+				    int yestfound_failure);
 #ifndef AHD_TMODE_ENABLE
 #define AHD_TMODE_ENABLE 0
 #endif

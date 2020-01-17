@@ -43,7 +43,7 @@
  * highger than 1) use fixmap_set(idx,phys) to associate
  * physical memory with fixmap indices.
  *
- * TLB entries of such buffers will not be flushed across
+ * TLB entries of such buffers will yest be flushed across
  * task switches.
  */
 enum fixed_addresses {

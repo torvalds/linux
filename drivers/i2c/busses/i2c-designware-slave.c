@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Synopsys DesignWare I2C adapter driver (slave only).
+ * Syyespsys DesignWare I2C adapter driver (slave only).
  *
- * Based on the Synopsys DesignWare I2C adapter driver (master).
+ * Based on the Syyespsys DesignWare I2C adapter driver (master).
  *
- * Copyright (C) 2016 Synopsys Inc.
+ * Copyright (C) 2016 Syyespsys Inc.
  */
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -71,7 +71,7 @@ static int i2c_dw_reg_slave(struct i2c_client *slave)
 	 * Set slave address in the IC_SAR register,
 	 * the address to which the DW_apb_i2c responds.
 	 */
-	__i2c_dw_disable_nowait(dev);
+	__i2c_dw_disable_yeswait(dev);
 	dw_writel(dev, slave->addr, DW_IC_SAR);
 	dev->slave = slave;
 
@@ -120,7 +120,7 @@ static u32 i2c_dw_read_clear_intrbits_slave(struct dw_i2c_dev *dev)
 	stat = dw_readl(dev, DW_IC_INTR_STAT);
 
 	/*
-	 * Do not use the IC_CLR_INTR register to clear interrupts, or
+	 * Do yest use the IC_CLR_INTR register to clear interrupts, or
 	 * you'll miss some interrupts, triggered during the period from
 	 * dw_readl(IC_INTR_STAT) to dw_readl(IC_CLR_INTR).
 	 *
@@ -265,7 +265,7 @@ int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
 		return ret;
 
 	snprintf(adap->name, sizeof(adap->name),
-		 "Synopsys DesignWare I2C Slave adapter");
+		 "Syyespsys DesignWare I2C Slave adapter");
 	adap->retries = 3;
 	adap->algo = &i2c_dw_algo;
 	adap->dev.parent = dev->dev;
@@ -287,6 +287,6 @@ int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
 }
 EXPORT_SYMBOL_GPL(i2c_dw_probe_slave);
 
-MODULE_AUTHOR("Luis Oliveira <lolivei@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys DesignWare I2C bus slave adapter");
+MODULE_AUTHOR("Luis Oliveira <lolivei@syyespsys.com>");
+MODULE_DESCRIPTION("Syyespsys DesignWare I2C bus slave adapter");
 MODULE_LICENSE("GPL v2");

@@ -14,7 +14,7 @@ the card during suspend and reboots the card OS during resume.
 The card OS as shipped by Intel is a Linux kernel with modifications
 for the X100 devices.
 
-Since it is a PCIe card, it does not have the ability to host hardware
+Since it is a PCIe card, it does yest have the ability to host hardware
 devices for networking, storage and console. We provide these devices
 on X100 coprocessors thus enabling a self-bootable equivalent
 environment for applications. A key benefit of our solution is that it
@@ -37,7 +37,7 @@ a virtual bus called mic bus is created and virtual dma devices are
 created on it by the host/card drivers. On host the channels are private
 and used only by the host driver to transfer data for the virtio devices.
 
-The Symmetric Communication Interface (SCIF (pronounced as skiff)) is a
+The Symmetric Communication Interface (SCIF (proyesunced as skiff)) is a
 low level communications API across PCIe currently implemented for MIC.
 More details are available at scif_overview.txt.
 

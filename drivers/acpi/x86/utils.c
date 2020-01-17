@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  *
- * Based on various non upstream patches to support the CHT Whiskey Cove PMIC:
+ * Based on various yesn upstream patches to support the CHT Whiskey Cove PMIC:
  * Copyright (C) 2013-2015 Intel Corporation. All rights reserved.
  */
 
@@ -20,7 +20,7 @@
  * devices at the same time, so the others get hidden.
  *
  * Some BIOS-es (temporarily) hide specific APCI devices to work around Windows
- * driver bugs. We use DMI matching to match known cases of this.
+ * driver bugs. We use DMI matching to match kyeswn cases of this.
  *
  * We work around this by always reporting ACPI_STA_DEFAULT for these
  * devices. Note this MUST only be done for devices where this is safe.
@@ -49,18 +49,18 @@ struct always_present_id {
 static const struct always_present_id always_present_ids[] = {
 	/*
 	 * Bay / Cherry Trail PWM directly poked by GPU driver in win10,
-	 * but Linux uses a separate PWM driver, harmless if not used.
+	 * but Linux uses a separate PWM driver, harmless if yest used.
 	 */
 	ENTRY("80860F09", "1", ICPU(INTEL_FAM6_ATOM_SILVERMONT), {}),
 	ENTRY("80862288", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {}),
 
-	/* Lenovo Yoga Book uses PWM2 for keyboard backlight control */
+	/* Leyesvo Yoga Book uses PWM2 for keyboard backlight control */
 	ENTRY("80862289", "2", ICPU(INTEL_FAM6_ATOM_AIRMONT), {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X9"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Leyesvo YB1-X9"),
 		}),
 	/*
 	 * The INT0002 device is necessary to clear wakeup interrupt sources
-	 * on Cherry Trail devices, without it we get nobody cared IRQ msgs.
+	 * on Cherry Trail devices, without it we get yesbody cared IRQ msgs.
 	 */
 	ENTRY("INT0002", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {}),
 	/*
@@ -87,7 +87,7 @@ static const struct always_present_id always_present_ids[] = {
 	 *
 	 * Unfortunately the GPD pocket also uses these strings and its BIOS
 	 * was copy-pasted from the GPD win, so it has a disabled KIOX000A
-	 * node which we should not enable, thus we also check the BIOS date.
+	 * yesde which we should yest enable, thus we also check the BIOS date.
 	 */
 	ENTRY("KIOX000A", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {
 		DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),

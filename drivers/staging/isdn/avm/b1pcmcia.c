@@ -67,7 +67,7 @@ static int b1pcmcia_add_card(unsigned int port, unsigned irq,
 
 	card = b1_alloc_card(1);
 	if (!card) {
-		printk(KERN_WARNING "b1pcmcia: no memory.\n");
+		printk(KERN_WARNING "b1pcmcia: yes memory.\n");
 		retval = -ENOMEM;
 		goto err;
 	}

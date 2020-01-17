@@ -13,7 +13,7 @@
 
 static int sk_diag_dump_name(struct sock *sk, struct sk_buff *nlskb)
 {
-	/* might or might not have unix_table_lock */
+	/* might or might yest have unix_table_lock */
 	struct unix_address *addr = smp_load_acquire(&unix_sk(sk)->addr);
 
 	if (!addr)
@@ -29,7 +29,7 @@ static int sk_diag_dump_vfs(struct sock *sk, struct sk_buff *nlskb)
 
 	if (dentry) {
 		struct unix_diag_vfs uv = {
-			.udiag_vfs_ino = d_backing_inode(dentry)->i_ino,
+			.udiag_vfs_iyes = d_backing_iyesde(dentry)->i_iyes,
 			.udiag_vfs_dev = dentry->d_sb->s_dev,
 		};
 
@@ -42,16 +42,16 @@ static int sk_diag_dump_vfs(struct sock *sk, struct sk_buff *nlskb)
 static int sk_diag_dump_peer(struct sock *sk, struct sk_buff *nlskb)
 {
 	struct sock *peer;
-	int ino;
+	int iyes;
 
 	peer = unix_peer_get(sk);
 	if (peer) {
 		unix_state_lock(peer);
-		ino = sock_i_ino(peer);
+		iyes = sock_i_iyes(peer);
 		unix_state_unlock(peer);
 		sock_put(peer);
 
-		return nla_put_u32(nlskb, UNIX_DIAG_PEER, ino);
+		return nla_put_u32(nlskb, UNIX_DIAG_PEER, iyes);
 	}
 
 	return 0;
@@ -85,7 +85,7 @@ static int sk_diag_dump_icons(struct sock *sk, struct sk_buff *nlskb)
 			 */
 			unix_state_lock_nested(req);
 			peer = unix_sk(req)->peer;
-			buf[i++] = (peer ? sock_i_ino(peer) : 0);
+			buf[i++] = (peer ? sock_i_iyes(peer) : 0);
 			unix_state_unlock(req);
 		}
 		spin_unlock(&sk->sk_receive_queue.lock);
@@ -120,7 +120,7 @@ static int sk_diag_dump_uid(struct sock *sk, struct sk_buff *nlskb)
 }
 
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_req *req,
-		u32 portid, u32 seq, u32 flags, int sk_ino)
+		u32 portid, u32 seq, u32 flags, int sk_iyes)
 {
 	struct nlmsghdr *nlh;
 	struct unix_diag_msg *rep;
@@ -135,7 +135,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 	rep->udiag_type = sk->sk_type;
 	rep->udiag_state = sk->sk_state;
 	rep->pad = 0;
-	rep->udiag_ino = sk_ino;
+	rep->udiag_iyes = sk_iyes;
 	sock_diag_save_cookie(sk, rep->udiag_cookie);
 
 	if ((req->udiag_show & UDIAG_SHOW_NAME) &&
@@ -180,16 +180,16 @@ out_nlmsg_trim:
 static int sk_diag_dump(struct sock *sk, struct sk_buff *skb, struct unix_diag_req *req,
 		u32 portid, u32 seq, u32 flags)
 {
-	int sk_ino;
+	int sk_iyes;
 
 	unix_state_lock(sk);
-	sk_ino = sock_i_ino(sk);
+	sk_iyes = sock_i_iyes(sk);
 	unix_state_unlock(sk);
 
-	if (!sk_ino)
+	if (!sk_iyes)
 		return 0;
 
-	return sk_diag_fill(sk, skb, req, portid, seq, flags, sk_ino);
+	return sk_diag_fill(sk, skb, req, portid, seq, flags, sk_iyes);
 }
 
 static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
@@ -234,7 +234,7 @@ done:
 	return skb->len;
 }
 
-static struct sock *unix_lookup_by_ino(unsigned int ino)
+static struct sock *unix_lookup_by_iyes(unsigned int iyes)
 {
 	int i;
 	struct sock *sk;
@@ -242,7 +242,7 @@ static struct sock *unix_lookup_by_ino(unsigned int ino)
 	spin_lock(&unix_table_lock);
 	for (i = 0; i < ARRAY_SIZE(unix_socket_table); i++) {
 		sk_for_each(sk, &unix_socket_table[i])
-			if (ino == sock_i_ino(sk)) {
+			if (iyes == sock_i_iyes(sk)) {
 				sock_hold(sk);
 				spin_unlock(&unix_table_lock);
 
@@ -264,13 +264,13 @@ static int unix_diag_get_exact(struct sk_buff *in_skb,
 	unsigned int extra_len;
 	struct net *net = sock_net(in_skb->sk);
 
-	if (req->udiag_ino == 0)
-		goto out_nosk;
+	if (req->udiag_iyes == 0)
+		goto out_yessk;
 
-	sk = unix_lookup_by_ino(req->udiag_ino);
+	sk = unix_lookup_by_iyes(req->udiag_iyes);
 	err = -ENOENT;
 	if (sk == NULL)
-		goto out_nosk;
+		goto out_yessk;
 	if (!net_eq(sock_net(sk), net))
 		goto out;
 
@@ -286,7 +286,7 @@ again:
 		goto out;
 
 	err = sk_diag_fill(sk, rep, req, NETLINK_CB(in_skb).portid,
-			   nlh->nlmsg_seq, 0, req->udiag_ino);
+			   nlh->nlmsg_seq, 0, req->udiag_iyes);
 	if (err < 0) {
 		nlmsg_free(rep);
 		extra_len += 256;
@@ -302,7 +302,7 @@ again:
 out:
 	if (sk)
 		sock_put(sk);
-out_nosk:
+out_yessk:
 	return err;
 }
 

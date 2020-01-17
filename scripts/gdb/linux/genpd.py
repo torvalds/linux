@@ -53,7 +53,7 @@ Output is similar to /sys/kernel/debug/pm_genpd/pm_genpd_summary'''
         for link in list_for_each_entry(
                 genpd['master_links'],
                 device_link_type.get_type().pointer(),
-                'master_node'):
+                'master_yesde'):
             slave_names.apend(link['slave']['name'])
 
         gdb.write('%-30s  %-15s %s\n' % (
@@ -64,7 +64,7 @@ Output is similar to /sys/kernel/debug/pm_genpd/pm_genpd_summary'''
         # Print devices in domain
         for pm_data in list_for_each_entry(genpd['dev_list'],
                         pm_domain_data_type.get_type().pointer(),
-                        'list_node'):
+                        'list_yesde'):
             dev = pm_data['dev']
             kobj_path = kobject_get_path(dev['kobj'])
             gdb.write('    %-50s  %s\n' % (kobj_path, rtpm_status_str(dev)))
@@ -76,7 +76,7 @@ Output is similar to /sys/kernel/debug/pm_genpd/pm_genpd_summary'''
         for genpd in list_for_each_entry(
                 gdb.parse_and_eval('&gpd_list'),
                 generic_pm_domain_type.get_type().pointer(),
-                'gpd_list_node'):
+                'gpd_list_yesde'):
             self.summary_one(genpd)
 
 

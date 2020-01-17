@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/driver.h>
@@ -588,7 +588,7 @@ static int pmic_probe(struct spi_device *spi)
 
 	init_data = dev_get_platdata(dev);
 	if (!init_data) {
-		dev_err(dev, "could not find regulator platform data\n");
+		dev_err(dev, "could yest find regulator platform data\n");
 		return -EINVAL;
 	}
 

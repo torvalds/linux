@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
@@ -83,10 +83,10 @@ static struct tps65910_board *tps65910_parse_dt_for_gpio(struct device *dev,
 	int idx;
 
 	tps65910_board->gpio_base = -1;
-	ret = of_property_read_u32_array(tps65910->dev->of_node,
+	ret = of_property_read_u32_array(tps65910->dev->of_yesde,
 			"ti,en-gpio-sleep", prop_array, ngpio);
 	if (ret < 0) {
-		dev_dbg(dev, "ti,en-gpio-sleep not specified\n");
+		dev_dbg(dev, "ti,en-gpio-sleep yest specified\n");
 		return tps65910_board;
 	}
 
@@ -138,14 +138,14 @@ static int tps65910_gpio_probe(struct platform_device *pdev)
 	tps65910_gpio->gpio_chip.get	= tps65910_gpio_get;
 	tps65910_gpio->gpio_chip.parent = &pdev->dev;
 #ifdef CONFIG_OF_GPIO
-	tps65910_gpio->gpio_chip.of_node = tps65910->dev->of_node;
+	tps65910_gpio->gpio_chip.of_yesde = tps65910->dev->of_yesde;
 #endif
 	if (pdata && pdata->gpio_base)
 		tps65910_gpio->gpio_chip.base = pdata->gpio_base;
 	else
 		tps65910_gpio->gpio_chip.base = -1;
 
-	if (!pdata && tps65910->dev->of_node)
+	if (!pdata && tps65910->dev->of_yesde)
 		pdata = tps65910_parse_dt_for_gpio(&pdev->dev, tps65910,
 			tps65910_gpio->gpio_chip.ngpio);
 
@@ -168,7 +168,7 @@ skip_init:
 	ret = devm_gpiochip_add_data(&pdev->dev, &tps65910_gpio->gpio_chip,
 				     tps65910_gpio);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "Could yest register gpiochip, %d\n", ret);
 		return ret;
 	}
 

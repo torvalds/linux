@@ -23,7 +23,7 @@ static const s16 default_init_sequence[] = {
 	-1, MIPI_DCS_EXIT_SLEEP_MODE,
 	-2, 500,                               /* delay */
 
-	/* FRMCTR1 - frame rate control: normal mode
+	/* FRMCTR1 - frame rate control: yesrmal mode
 	 * frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D)
 	 */
 	-1, 0xB1, 0x01, 0x2C, 0x2D,
@@ -39,7 +39,7 @@ static const s16 default_init_sequence[] = {
 	-1, 0xB3, 0x01, 0x2C, 0x2D, 0x01, 0x2C, 0x2D,
 
 	/* INVCTR - display inversion control
-	 * no inversion
+	 * yes inversion
 	 */
 	-1, 0xB4, 0x07,
 

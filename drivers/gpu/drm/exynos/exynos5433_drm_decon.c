@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* drivers/gpu/drm/exynos5433_drm_decon.c
+/* drivers/gpu/drm/exyyess5433_drm_decon.c
  *
  * Copyright (C) 2015 Samsung Electronics Co.Ltd
  * Authors:
@@ -21,10 +21,10 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_vblank.h>
 
-#include "exynos_drm_crtc.h"
-#include "exynos_drm_drv.h"
-#include "exynos_drm_fb.h"
-#include "exynos_drm_plane.h"
+#include "exyyess_drm_crtc.h"
+#include "exyyess_drm_drv.h"
+#include "exyyess_drm_fb.h"
+#include "exyyess_drm_plane.h"
 #include "regs-decon5433.h"
 
 #define DSD_CFG_MUX 0x1004
@@ -55,9 +55,9 @@ static const char * const decon_clks_name[] = {
 struct decon_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
-	struct exynos_drm_crtc		*crtc;
-	struct exynos_drm_plane		planes[WINDOWS_NR];
-	struct exynos_drm_plane_config	configs[WINDOWS_NR];
+	struct exyyess_drm_crtc		*crtc;
+	struct exyyess_drm_plane		planes[WINDOWS_NR];
+	struct exyyess_drm_plane_config	configs[WINDOWS_NR];
 	void __iomem			*addr;
 	struct regmap			*sysreg;
 	struct clk			*clks[ARRAY_SIZE(decon_clks_name)];
@@ -98,7 +98,7 @@ static inline void decon_set_bits(struct decon_context *ctx, u32 reg, u32 mask,
 	writel(val, ctx->addr + reg);
 }
 
-static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
+static int decon_enable_vblank(struct exyyess_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 	u32 val;
@@ -118,13 +118,13 @@ static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 	return 0;
 }
 
-static void decon_disable_vblank(struct exynos_drm_crtc *crtc)
+static void decon_disable_vblank(struct exyyess_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 
 	if (!(ctx->out_type & I80_HW_TRG))
-		disable_irq_nosync(ctx->te_irq);
-	disable_irq_nosync(ctx->irq);
+		disable_irq_yessync(ctx->te_irq);
+	disable_irq_yessync(ctx->irq);
 
 	writel(0, ctx->addr + DECON_VIDINTCON0);
 }
@@ -188,10 +188,10 @@ static void decon_setup_trigger(struct decon_context *ctx)
 
 	if (regmap_update_bits(ctx->sysreg, DSD_CFG_MUX,
 			       DSD_CFG_MUX_TE_UNMASK_GLOBAL, ~0))
-		DRM_DEV_ERROR(ctx->dev, "Cannot update sysreg.\n");
+		DRM_DEV_ERROR(ctx->dev, "Canyest update sysreg.\n");
 }
 
-static void decon_commit(struct exynos_drm_crtc *crtc)
+static void decon_commit(struct exyyess_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 	struct drm_display_mode *m = &crtc->base.mode;
@@ -317,9 +317,9 @@ static void decon_win_set_bldmod(struct decon_context *ctx, unsigned int win,
 static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 				 struct drm_framebuffer *fb)
 {
-	struct exynos_drm_plane plane = ctx->planes[win];
-	struct exynos_drm_plane_state *state =
-		to_exynos_plane_state(plane.base.state);
+	struct exyyess_drm_plane plane = ctx->planes[win];
+	struct exyyess_drm_plane_state *state =
+		to_exyyess_plane_state(plane.base.state);
 	unsigned int alpha = state->base.alpha;
 	unsigned int pixel_alpha;
 	unsigned long val;
@@ -359,9 +359,9 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 	DRM_DEV_DEBUG_KMS(ctx->dev, "cpp = %u\n", fb->format->cpp[0]);
 
 	/*
-	 * In case of exynos, setting dma-burst to 16Word causes permanent
+	 * In case of exyyess, setting dma-burst to 16Word causes permanent
 	 * tearing for very small buffers, e.g. cursor buffer. Burst Mode
-	 * switching which is based on plane size is not recommended as
+	 * switching which is based on plane size is yest recommended as
 	 * plane size varies a lot towards the end of the screen and rapid
 	 * movement causes unstable DMA which results into iommu crash/tear.
 	 */
@@ -384,7 +384,7 @@ static void decon_shadow_protect(struct decon_context *ctx, bool protect)
 		       protect ? ~0 : 0);
 }
 
-static void decon_atomic_begin(struct exynos_drm_crtc *crtc)
+static void decon_atomic_begin(struct exyyess_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 
@@ -395,17 +395,17 @@ static void decon_atomic_begin(struct exynos_drm_crtc *crtc)
 #define COORDINATE_X(x) BIT_VAL((x), 23, 12)
 #define COORDINATE_Y(x) BIT_VAL((x), 11, 0)
 
-static void decon_update_plane(struct exynos_drm_crtc *crtc,
-			       struct exynos_drm_plane *plane)
+static void decon_update_plane(struct exyyess_drm_crtc *crtc,
+			       struct exyyess_drm_plane *plane)
 {
-	struct exynos_drm_plane_state *state =
-				to_exynos_plane_state(plane->base.state);
+	struct exyyess_drm_plane_state *state =
+				to_exyyess_plane_state(plane->base.state);
 	struct decon_context *ctx = crtc->ctx;
 	struct drm_framebuffer *fb = state->base.fb;
 	unsigned int win = plane->index;
 	unsigned int cpp = fb->format->cpp[0];
 	unsigned int pitch = fb->pitches[0];
-	dma_addr_t dma_addr = exynos_drm_fb_dma_addr(fb, 0);
+	dma_addr_t dma_addr = exyyess_drm_fb_dma_addr(fb, 0);
 	u32 val;
 
 	if (crtc->base.mode.flags & DRM_MODE_FLAG_INTERLACE) {
@@ -452,8 +452,8 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	decon_set_bits(ctx, DECON_WINCONx(win), WINCONx_ENWIN_F, ~0);
 }
 
-static void decon_disable_plane(struct exynos_drm_crtc *crtc,
-				struct exynos_drm_plane *plane)
+static void decon_disable_plane(struct exyyess_drm_crtc *crtc,
+				struct exyyess_drm_plane *plane)
 {
 	struct decon_context *ctx = crtc->ctx;
 	unsigned int win = plane->index;
@@ -461,7 +461,7 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	decon_set_bits(ctx, DECON_WINCONx(win), WINCONx_ENWIN_F, 0);
 }
 
-static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
+static void decon_atomic_flush(struct exyyess_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 	unsigned long flags;
@@ -474,7 +474,7 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 
 	ctx->frame_id = decon_get_frame_count(ctx, true);
 
-	exynos_crtc_handle_event(crtc);
+	exyyess_crtc_handle_event(crtc);
 
 	spin_unlock_irqrestore(&ctx->vblank_lock, flags);
 }
@@ -510,20 +510,20 @@ static void decon_swreset(struct decon_context *ctx)
 	       ctx->addr + DECON_CRCCTRL);
 }
 
-static void decon_enable(struct exynos_drm_crtc *crtc)
+static void decon_enable(struct exyyess_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 
 	pm_runtime_get_sync(ctx->dev);
 
-	exynos_drm_pipe_clk_enable(crtc, true);
+	exyyess_drm_pipe_clk_enable(crtc, true);
 
 	decon_swreset(ctx);
 
 	decon_commit(ctx->crtc);
 }
 
-static void decon_disable(struct exynos_drm_crtc *crtc)
+static void decon_disable(struct exyyess_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 	int i;
@@ -542,7 +542,7 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 
 	decon_swreset(ctx);
 
-	exynos_drm_pipe_clk_enable(crtc, false);
+	exyyess_drm_pipe_clk_enable(crtc, false);
 
 	pm_runtime_put_sync(ctx->dev);
 }
@@ -556,7 +556,7 @@ static irqreturn_t decon_te_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void decon_clear_channels(struct exynos_drm_crtc *crtc)
+static void decon_clear_channels(struct exyyess_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 	int win, i, ret;
@@ -582,7 +582,7 @@ err:
 		clk_disable_unprepare(ctx->clks[i]);
 }
 
-static enum drm_mode_status decon_mode_valid(struct exynos_drm_crtc *crtc,
+static enum drm_mode_status decon_mode_valid(struct exyyess_drm_crtc *crtc,
 		const struct drm_display_mode *mode)
 {
 	struct decon_context *ctx = crtc->ctx;
@@ -592,13 +592,13 @@ static enum drm_mode_status decon_mode_valid(struct exynos_drm_crtc *crtc,
 	if (ctx->irq)
 		return MODE_OK;
 
-	dev_info(ctx->dev, "Sink requires %s mode, but appropriate interrupt is not provided.\n",
+	dev_info(ctx->dev, "Sink requires %s mode, but appropriate interrupt is yest provided.\n",
 			crtc->i80_mode ? "command" : "video");
 
 	return MODE_BAD;
 }
 
-static const struct exynos_drm_crtc_ops decon_crtc_ops = {
+static const struct exyyess_drm_crtc_ops decon_crtc_ops = {
 	.enable			= decon_enable,
 	.disable		= decon_disable,
 	.enable_vblank		= decon_enable_vblank,
@@ -614,8 +614,8 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 {
 	struct decon_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_plane *exynos_plane;
-	enum exynos_drm_output_type out_type;
+	struct exyyess_drm_plane *exyyess_plane;
+	enum exyyess_drm_output_type out_type;
 	unsigned int win;
 	int ret;
 
@@ -628,23 +628,23 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		ctx->configs[win].type = decon_win_types[win];
 		ctx->configs[win].capabilities = capabilities[win];
 
-		ret = exynos_plane_init(drm_dev, &ctx->planes[win], win,
+		ret = exyyess_plane_init(drm_dev, &ctx->planes[win], win,
 					&ctx->configs[win]);
 		if (ret)
 			return ret;
 	}
 
-	exynos_plane = &ctx->planes[PRIMARY_WIN];
+	exyyess_plane = &ctx->planes[PRIMARY_WIN];
 	out_type = (ctx->out_type & IFTYPE_HDMI) ? EXYNOS_DISPLAY_TYPE_HDMI
 						  : EXYNOS_DISPLAY_TYPE_LCD;
-	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
+	ctx->crtc = exyyess_drm_crtc_create(drm_dev, &exyyess_plane->base,
 			out_type, &decon_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc))
 		return PTR_ERR(ctx->crtc);
 
 	decon_clear_channels(ctx->crtc);
 
-	return exynos_drm_register_dma(drm_dev, dev);
+	return exyyess_drm_register_dma(drm_dev, dev);
 }
 
 static void decon_unbind(struct device *dev, struct device *master, void *data)
@@ -654,7 +654,7 @@ static void decon_unbind(struct device *dev, struct device *master, void *data)
 	decon_disable(ctx->crtc);
 
 	/* detach this sub driver from iommu mapping if supported. */
-	exynos_drm_unregister_dma(ctx->drm_dev, ctx->dev);
+	exyyess_drm_unregister_dma(ctx->drm_dev, ctx->dev);
 }
 
 static const struct component_ops decon_component_ops = {
@@ -704,7 +704,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 }
 
 #ifdef CONFIG_PM
-static int exynos5433_decon_suspend(struct device *dev)
+static int exyyess5433_decon_suspend(struct device *dev)
 {
 	struct decon_context *ctx = dev_get_drvdata(dev);
 	int i = ARRAY_SIZE(decon_clks_name);
@@ -715,7 +715,7 @@ static int exynos5433_decon_suspend(struct device *dev)
 	return 0;
 }
 
-static int exynos5433_decon_resume(struct device *dev)
+static int exyyess5433_decon_resume(struct device *dev)
 {
 	struct decon_context *ctx = dev_get_drvdata(dev);
 	int i, ret;
@@ -736,25 +736,25 @@ err:
 }
 #endif
 
-static const struct dev_pm_ops exynos5433_decon_pm_ops = {
-	SET_RUNTIME_PM_OPS(exynos5433_decon_suspend, exynos5433_decon_resume,
+static const struct dev_pm_ops exyyess5433_decon_pm_ops = {
+	SET_RUNTIME_PM_OPS(exyyess5433_decon_suspend, exyyess5433_decon_resume,
 			   NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				     pm_runtime_force_resume)
 };
 
-static const struct of_device_id exynos5433_decon_driver_dt_match[] = {
+static const struct of_device_id exyyess5433_decon_driver_dt_match[] = {
 	{
-		.compatible = "samsung,exynos5433-decon",
+		.compatible = "samsung,exyyess5433-decon",
 		.data = (void *)I80_HW_TRG
 	},
 	{
-		.compatible = "samsung,exynos5433-decon-tv",
+		.compatible = "samsung,exyyess5433-decon-tv",
 		.data = (void *)(I80_HW_TRG | IFTYPE_HDMI)
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos5433_decon_driver_dt_match);
+MODULE_DEVICE_TABLE(of, exyyess5433_decon_driver_dt_match);
 
 static int decon_conf_irq(struct decon_context *ctx, const char *name,
 		irq_handler_t handler, unsigned long int flags)
@@ -784,7 +784,7 @@ static int decon_conf_irq(struct decon_context *ctx, const char *name,
 	return irq;
 }
 
-static int exynos5433_decon_probe(struct platform_device *pdev)
+static int exyyess5433_decon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct decon_context *ctx;
@@ -840,7 +840,7 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 	}
 
 	if (ctx->out_type & I80_HW_TRG) {
-		ctx->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
+		ctx->sysreg = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 							"samsung,disp-sysreg");
 		if (IS_ERR(ctx->sysreg)) {
 			dev_err(dev, "failed to get system register\n");
@@ -864,7 +864,7 @@ err_disable_pm_runtime:
 	return ret;
 }
 
-static int exynos5433_decon_remove(struct platform_device *pdev)
+static int exyyess5433_decon_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 
@@ -873,12 +873,12 @@ static int exynos5433_decon_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver exynos5433_decon_driver = {
-	.probe		= exynos5433_decon_probe,
-	.remove		= exynos5433_decon_remove,
+struct platform_driver exyyess5433_decon_driver = {
+	.probe		= exyyess5433_decon_probe,
+	.remove		= exyyess5433_decon_remove,
 	.driver		= {
-		.name	= "exynos5433-decon",
-		.pm	= &exynos5433_decon_pm_ops,
-		.of_match_table = exynos5433_decon_driver_dt_match,
+		.name	= "exyyess5433-decon",
+		.pm	= &exyyess5433_decon_pm_ops,
+		.of_match_table = exyyess5433_decon_driver_dt_match,
 	},
 };

@@ -32,7 +32,7 @@
    Redistributable under terms of the GNU General Public License
 
    For the avoidance of doubt the "preferred form" of this code is one which
-   is in an open non patent encumbered format. Where cryptographic key signing
+   is in an open yesn patent encumbered format. Where cryptographic key signing
    forms part of the process of creating an executable the information
    including keys needed to generate an equivalently functional executable
    are deemed to be part of the source code.
@@ -125,7 +125,7 @@ static int ql_pdma(struct qlogicfas408_priv *priv, int phase, char *request, int
 		j = 0;
 		while (reqlen && !((j & 0x10) && (j & 0xc0))) 
 		{
-			/* while bytes to receive and not empty */
+			/* while bytes to receive and yest empty */
 			j &= 0xc0;
 			while (reqlen && !((j = inb(qbase + 8)) & 0x10)) 
 			{
@@ -160,7 +160,7 @@ static int ql_pdma(struct qlogicfas408_priv *priv, int phase, char *request, int
 		rtrc(7)
 		    j = 0;
 		while (reqlen && !((j & 2) && (j & 0xc0))) {
-			/* while bytes to send and not full */
+			/* while bytes to send and yest full */
 			while (reqlen && !((j = inb(qbase + 8)) & 2)) 
 			{
 				outb(*request++, qbase + 4);
@@ -175,7 +175,7 @@ static int ql_pdma(struct qlogicfas408_priv *priv, int phase, char *request, int
 }
 
 /*
- *	Wait for interrupt flag (polled - not real hardware interrupt) 
+ *	Wait for interrupt flag (polled - yest real hardware interrupt) 
  */
 
 static int ql_wai(struct qlogicfas408_priv *priv)
@@ -236,7 +236,7 @@ static void ql_icmd(struct scsi_cmnd *cmd)
 
 	/* configurables */
 	outb(qlcfgc, qbase + 0xc);
-	/* config: no reset interrupt, (initiator) bus id */
+	/* config: yes reset interrupt, (initiator) bus id */
 	outb(0x40 | qlcfg8 | priv->qinitid, qbase + 8);
 	outb(qlcfg7, qbase + 7);
 	outb(qlcfg6, qbase + 6);
@@ -298,9 +298,9 @@ static unsigned int ql_pcmd(struct scsi_cmnd *cmd)
 	result = DID_OK;
 	if (inb(qbase + 7) & 0x1f)	/* if some bytes in fifo */
 		outb(1, qbase + 3);	/* clear fifo */
-	/* note that request_bufflen is the total xfer size when sg is used */
+	/* yeste that request_bufflen is the total xfer size when sg is used */
 	reqlen = scsi_bufflen(cmd);
-	/* note that it won't work if transfers > 16M are requested */
+	/* yeste that it won't work if transfers > 16M are requested */
 	if (reqlen && !((phase = inb(qbase + 4)) & 6)) {	/* data phase */
 		struct scatterlist *sg;
 		rtrc(2)
@@ -408,7 +408,7 @@ static void ql_ihandl(void *dev_id)
 	if (!(inb(qbase + 4) & 0x80))	/* false alarm? */
 		return;
 
-	if (priv->qlcmd == NULL) {	/* no command to process? */
+	if (priv->qlcmd == NULL) {	/* yes command to process? */
 		int i;
 		i = 16;
 		while (i-- && inb(qbase + 5));	/* maybe also ql_zap() */

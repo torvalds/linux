@@ -35,15 +35,15 @@ enum scsi_timeouts {
  * @status: the status passed up from the driver (including host and
  *          driver components)
  *
- * This returns true for known good conditions that may be treated as
- * command completed normally
+ * This returns true for kyeswn good conditions that may be treated as
+ * command completed yesrmally
  */
 static inline int scsi_status_is_good(int status)
 {
 	/*
 	 * FIXME: bit0 is listed as reserved in SCSI-2, but is
-	 * significant in SCSI-3.  For now, we follow the SCSI-2
-	 * behaviour and ignore reserved bits.
+	 * significant in SCSI-3.  For yesw, we follow the SCSI-2
+	 * behaviour and igyesre reserved bits.
 	 */
 	status &= 0xfe;
 	return ((status == SAM_STAT_GOOD) ||
@@ -76,7 +76,7 @@ struct ccs_modesel_head {
 };
 
 /*
- * The Well Known LUNS (SAM-3) in our int representation of a LUN
+ * The Well Kyeswn LUNS (SAM-3) in our int representation of a LUN
  */
 #define SCSI_W_LUN_BASE 0xc100
 #define SCSI_W_LUN_REPORT_LUNS (SCSI_W_LUN_BASE + 1)
@@ -146,14 +146,14 @@ static inline int scsi_is_wlun(u64 lun)
 #define DID_PASSTHROUGH 0x0a	/* Force command past mid-layer            */
 #define DID_SOFT_ERROR  0x0b	/* The low level driver just wish a retry  */
 #define DID_IMM_RETRY   0x0c	/* Retry without decrementing retry count  */
-#define DID_REQUEUE	0x0d	/* Requeue command (no immediate retry) also
+#define DID_REQUEUE	0x0d	/* Requeue command (yes immediate retry) also
 				 * without decrementing the retry count	   */
 #define DID_TRANSPORT_DISRUPTED 0x0e /* Transport error disrupted execution
 				      * and the driver blocked the port to
 				      * recover the link. Transport class will
 				      * retry or fail IO */
 #define DID_TRANSPORT_FAILFAST	0x0f /* Transport class fastfailed the io */
-#define DID_TARGET_FAILURE 0x10 /* Permanent target failure, do not retry on
+#define DID_TARGET_FAILURE 0x10 /* Permanent target failure, do yest retry on
 				 * other paths */
 #define DID_NEXUS_FAILURE 0x11  /* Permanent nexus failure, retry on other
 				 * paths might yield different results */

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -228,7 +228,7 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	    !hwmgr->pptable_func->pptable_init ||
 	    !hwmgr->hwmgr_func->backend_init) {
 		hwmgr->pm_en = false;
-		pr_info("dpm not supported \n");
+		pr_info("dpm yest supported \n");
 		return 0;
 	}
 
@@ -236,7 +236,7 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	if (ret)
 		goto err;
 
-	((struct amdgpu_device *)hwmgr->adev)->pm.no_fan =
+	((struct amdgpu_device *)hwmgr->adev)->pm.yes_fan =
 				hwmgr->thermal_controller.fanInfo.bNoFan;
 
 	ret = hwmgr->hwmgr_func->backend_init(hwmgr);

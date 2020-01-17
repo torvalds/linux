@@ -15,7 +15,7 @@
  * The following code assumes the serial port has already been
  * initialized by the bootloader.  We search for the first enabled
  * port in the most probable order.  If you didn't setup a port in
- * your bootloader then nothing will appear (which might be desired).
+ * your bootloader then yesthing will appear (which might be desired).
  */
 
 #define UART(x)		(*(volatile unsigned long *)(serial_port + (x)))

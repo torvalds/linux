@@ -5,9 +5,9 @@
 #ifndef __ASSEMBLY__
 
 #ifdef __ARCH_USE_5LEVEL_HACK
-#include <asm-generic/pgtable-nop4d-hack.h>
+#include <asm-generic/pgtable-yesp4d-hack.h>
 #else
-#include <asm-generic/pgtable-nop4d.h>
+#include <asm-generic/pgtable-yesp4d.h>
 
 #define __PAGETABLE_PUD_FOLDED 1
 
@@ -28,7 +28,7 @@ typedef struct { p4d_t p4d; } pud_t;
  * setup: the pud is never bad, and a pud always exists (as it's folded
  * into the p4d entry)
  */
-static inline int p4d_none(p4d_t p4d)		{ return 0; }
+static inline int p4d_yesne(p4d_t p4d)		{ return 0; }
 static inline int p4d_bad(p4d_t p4d)		{ return 0; }
 static inline int p4d_present(p4d_t p4d)	{ return 1; }
 static inline void p4d_clear(p4d_t *p4d)	{ }
@@ -55,7 +55,7 @@ static inline pud_t *pud_offset(p4d_t *p4d, unsigned long address)
 
 /*
  * allocating and freeing a pud is trivial: the 1-entry pud is
- * inside the p4d, so has no extra memory associated with it.
+ * inside the p4d, so has yes extra memory associated with it.
  */
 #define pud_alloc_one(mm, address)		NULL
 #define pud_free(mm, x)				do { } while (0)

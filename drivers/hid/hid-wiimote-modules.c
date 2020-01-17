@@ -23,8 +23,8 @@
  * module registration. If at least one registered module is marked as
  * WIIMOD_FLAG_INPUT, then the input device will get registered after all
  * modules were registered.
- * Please note that it is unregistered _before_ the "remove" callbacks are
- * called. This guarantees that no input interaction is done, anymore. However,
+ * Please yeste that it is unregistered _before_ the "remove" callbacks are
+ * called. This guarantees that yes input interaction is done, anymore. However,
  * the wiimote core keeps a reference to the input device so it is freed only
  * after all modules were removed. It is safe to send events to unregistered
  * input devices.
@@ -135,7 +135,7 @@ static int wiimod_rumble_play(struct input_dev *dev, void *data,
 
 	/*
 	 * The wiimote supports only a single rumble motor so if any magnitude
-	 * is set to non-zero then we start the rumble motor. If both are set to
+	 * is set to yesn-zero then we start the rumble motor. If both are set to
 	 * zero, we stop the rumble motor.
 	 */
 
@@ -251,7 +251,7 @@ static int wiimod_battery_probe(const struct wiimod_ops *ops,
 					       &wdata->battery_desc,
 					       &psy_cfg);
 	if (IS_ERR(wdata->battery)) {
-		hid_err(wdata->hdev, "cannot register battery device\n");
+		hid_err(wdata->hdev, "canyest register battery device\n");
 		ret = PTR_ERR(wdata->battery);
 		goto err_free;
 	}
@@ -417,7 +417,7 @@ static const struct wiimod_ops wiimod_leds[4] = {
 
 /*
  * Accelerometer
- * 3 axis accelerometer data is part of nearly all DRMs. If not supported by a
+ * 3 axis accelerometer data is part of nearly all DRMs. If yest supported by a
  * device, it's mostly cleared to 0. This module parses this data and provides
  * it via a separate input device.
  */
@@ -438,8 +438,8 @@ static void wiimod_accel_in_accel(struct wiimote_data *wdata,
 	 * Bits 6 and 7 of the first buttons byte BB is the lower 2 bits of the
 	 * X accel value. Bit 5 of the second buttons byte is the 2nd bit of Y
 	 * accel value and bit 6 is the second bit of the Z value.
-	 * The first bit of Y and Z values is not available and always set to 0.
-	 * 0x200 is returned on no movement.
+	 * The first bit of Y and Z values is yest available and always set to 0.
+	 * 0x200 is returned on yes movement.
 	 */
 
 	x = accel[2] << 2;
@@ -507,7 +507,7 @@ static int wiimod_accel_probe(const struct wiimod_ops *ops,
 
 	ret = input_register_device(wdata->accel);
 	if (ret) {
-		hid_err(wdata->hdev, "cannot register input device\n");
+		hid_err(wdata->hdev, "canyest register input device\n");
 		goto err_free;
 	}
 
@@ -539,11 +539,11 @@ static const struct wiimod_ops wiimod_accel = {
 
 /*
  * IR Cam
- * Up to 4 IR sources can be tracked by a normal Wii Remote. The IR cam needs
+ * Up to 4 IR sources can be tracked by a yesrmal Wii Remote. The IR cam needs
  * to be initialized with a fairly complex procedure and consumes a lot of
- * power. Therefore, as long as no application uses the IR input device, it is
+ * power. Therefore, as long as yes application uses the IR input device, it is
  * kept offline.
- * Nearly no other device than the normal Wii Remotes supports the IR cam so
+ * Nearly yes other device than the yesrmal Wii Remotes supports the IR cam so
  * you can disable this module for these devices.
  */
 
@@ -584,7 +584,7 @@ static void wiimod_ir_in_ir(struct wiimote_data *wdata, const __u8 *ir,
 	 * lower 8 bit of the X/Y data, the 3rd byte contains the upper 2 bits
 	 * of both.
 	 * If data is packed, then the 3rd byte is put first and slightly
-	 * reordered. This allows to interleave packed and non-packed data to
+	 * reordered. This allows to interleave packed and yesn-packed data to
 	 * have two IR sets in 5 bytes instead of 6.
 	 * The resulting 10bit X/Y values are passed to the ABS_HAT? input dev.
 	 */
@@ -665,7 +665,7 @@ static int wiimod_ir_change(struct wiimote_data *wdata, __u16 mode)
 		goto unlock;
 	}
 
-	/* enable IR cam but do not make it send data, yet */
+	/* enable IR cam but do yest make it send data, yet */
 	ret = wiimote_cmd_write(wdata, 0xb00030, data_enable,
 							sizeof(data_enable));
 	if (ret)
@@ -769,7 +769,7 @@ static int wiimod_ir_probe(const struct wiimod_ops *ops,
 
 	ret = input_register_device(wdata->ir);
 	if (ret) {
-		hid_err(wdata->hdev, "cannot register input device\n");
+		hid_err(wdata->hdev, "canyest register input device\n");
 		goto err_free;
 	}
 
@@ -998,10 +998,10 @@ static const struct wiimod_ops wiimod_nunchuk = {
 
 /*
  * Classic Controller
- * Another official extension from Nintendo. It provides a classic
+ * Ayesther official extension from Nintendo. It provides a classic
  * gamecube-like controller that can be hotplugged on the Wii Remote.
  * It has several hardware buttons and switches that are all reported via
- * a normal extension device.
+ * a yesrmal extension device.
  */
 
 enum wiimod_classic_keys {
@@ -1068,7 +1068,7 @@ static void wiimod_classic_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 	 * BZL is left Z button and BZR is right Z button
 	 * B-, BH, B+ are +, HOME and - buttons
 	 * BB, BY, BA, BX are A, B, X, Y buttons
-	 * LSB of RX, RY, LT, and RT are not transmitted and always 0.
+	 * LSB of RX, RY, LT, and RT are yest transmitted and always 0.
 	 *
 	 * With motionp enabled it changes slightly to this:
 	 *   Byte |  8  |  7  |  6  |  5  |  4  |  3  |  2  |  1  |
@@ -1279,8 +1279,8 @@ static const struct wiimod_ops wiimod_classic = {
  * The Nintendo Wii Balance Board provides four hardware weight sensor plus a
  * single push button. No other peripherals are available. However, the
  * balance-board data is sent via a standard Wii Remote extension. All other
- * data for non-present hardware is zeroed out.
- * Some 3rd party devices react allergic if we try to access normal Wii Remote
+ * data for yesn-present hardware is zeroed out.
+ * Some 3rd party devices react allergic if we try to access yesrmal Wii Remote
  * hardware, so this extension module should be the only module that is loaded
  * on balance boards.
  * The balance board needs 8 bytes extension data instead of basic 6 bytes so
@@ -1451,7 +1451,7 @@ static int wiimod_bboard_probe(const struct wiimod_ops *ops,
 	int ret, i, j;
 	__u8 buf[24], offs;
 
-	wiimote_cmd_acquire_noint(wdata);
+	wiimote_cmd_acquire_yesint(wdata);
 
 	ret = wiimote_cmd_read(wdata, 0xa40024, buf, 12);
 	if (ret != 12) {
@@ -1483,7 +1483,7 @@ static int wiimod_bboard_probe(const struct wiimod_ops *ops,
 	ret = device_create_file(&wdata->hdev->dev,
 				 &dev_attr_bboard_calib);
 	if (ret) {
-		hid_err(wdata->hdev, "cannot create sysfs attribute\n");
+		hid_err(wdata->hdev, "canyest create sysfs attribute\n");
 		goto err_free;
 	}
 
@@ -1552,7 +1552,7 @@ static const struct wiimod_ops wiimod_bboard = {
 
 /*
  * Pro Controller
- * Released with the Wii U was the Nintendo Wii U Pro Controller. It does not
+ * Released with the Wii U was the Nintendo Wii U Pro Controller. It does yest
  * work together with the classic Wii, but only with the new Wii U. However, it
  * uses the same protocol and provides a builtin "classic controller pro"
  * extension, few standard buttons, a rumble motor, 4 LEDs and a battery.
@@ -1638,11 +1638,11 @@ static void wiimod_pro_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 	 * B-, BH, B+ are +, HOME and - buttons
 	 * BB, BY, BA, BX are A, B, X, Y buttons
 	 *
-	 * Bits marked as 0/1 are unknown and never changed during tests.
+	 * Bits marked as 0/1 are unkyeswn and never changed during tests.
 	 *
 	 * Not entirely verified:
 	 *   CHARG: 1 if uncharging, 0 if charging
-	 *   USB: 1 if not connected, 0 if connected
+	 *   USB: 1 if yest connected, 0 if connected
 	 *   BATTERY: battery capacity from 000 (empty) to 100 (full)
 	 */
 
@@ -1657,7 +1657,7 @@ static void wiimod_pro_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 	rx -= 0x800;
 	ry = 0x800 - ry;
 
-	/* Trivial automatic calibration. We don't know any calibration data
+	/* Trivial automatic calibration. We don't kyesw any calibration data
 	 * in the EEPROM so we must use the first report to calibrate the
 	 * null-position of the analog sticks. Users can retrigger calibration
 	 * via sysfs, or set it explicitly. If data is off more than abs(500),
@@ -1774,7 +1774,7 @@ static int wiimod_pro_play(struct input_dev *dev, void *data,
 
 	/*
 	 * The wiimote supports only a single rumble motor so if any magnitude
-	 * is set to non-zero then we start the rumble motor. If both are set to
+	 * is set to yesn-zero then we start the rumble motor. If both are set to
 	 * zero, we stop the rumble motor.
 	 */
 
@@ -1872,7 +1872,7 @@ static int wiimod_pro_probe(const struct wiimod_ops *ops,
 	ret = device_create_file(&wdata->hdev->dev,
 				 &dev_attr_pro_calib);
 	if (ret) {
-		hid_err(wdata->hdev, "cannot create sysfs attribute\n");
+		hid_err(wdata->hdev, "canyest create sysfs attribute\n");
 		goto err_free;
 	}
 
@@ -1949,32 +1949,32 @@ static const struct wiimod_ops wiimod_pro = {
 /*
  * Drums
  * Guitar-Hero, Rock-Band and other games came bundled with drums which can
- * be plugged as extension to a Wiimote. Drum-reports are still not entirely
- * figured out, but the most important information is known.
+ * be plugged as extension to a Wiimote. Drum-reports are still yest entirely
+ * figured out, but the most important information is kyeswn.
  * We create a separate device for drums and report all information via this
  * input device.
  */
 
 static inline void wiimod_drums_report_pressure(struct wiimote_data *wdata,
-						__u8 none, __u8 which,
-						__u8 pressure, __u8 onoff,
+						__u8 yesne, __u8 which,
+						__u8 pressure, __u8 oyesff,
 						__u8 *store, __u16 code,
 						__u8 which_code)
 {
 	static const __u8 default_pressure = 3;
 
-	if (!none && which == which_code) {
+	if (!yesne && which == which_code) {
 		*store = pressure;
 		input_report_abs(wdata->extension.input, code, *store);
-	} else if (onoff != !!*store) {
-		*store = onoff ? default_pressure : 0;
+	} else if (oyesff != !!*store) {
+		*store = oyesff ? default_pressure : 0;
 		input_report_abs(wdata->extension.input, code, *store);
 	}
 }
 
 static void wiimod_drums_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 {
-	__u8 pressure, which, none, hhp, sx, sy;
+	__u8 pressure, which, yesne, hhp, sx, sy;
 	__u8 o, r, y, g, b, bass, bm, bp;
 
 	/*   Byte |  8  |  7  |  6  |  5  |  4  |  3  |  2  |  1  |
@@ -2010,7 +2010,7 @@ static void wiimod_drums_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 
 	pressure = 7 - (ext[3] >> 5);
 	which = (ext[2] >> 1) & 0x1f;
-	none = !!(ext[2] & 0x40);
+	yesne = !!(ext[2] & 0x40);
 	hhp = !(ext[2] & 0x80);
 	sx = ext[0] & 0x3f;
 	sy = ext[1] & 0x3f;
@@ -2028,28 +2028,28 @@ static void wiimod_drums_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 		sy &= 0x3e;
 	}
 
-	wiimod_drums_report_pressure(wdata, none, which, pressure,
+	wiimod_drums_report_pressure(wdata, yesne, which, pressure,
 				     o, &wdata->state.pressure_drums[0],
 				     ABS_HAT2Y, 0x0e);
-	wiimod_drums_report_pressure(wdata, none, which, pressure,
+	wiimod_drums_report_pressure(wdata, yesne, which, pressure,
 				     r, &wdata->state.pressure_drums[1],
 				     ABS_HAT0X, 0x19);
-	wiimod_drums_report_pressure(wdata, none, which, pressure,
+	wiimod_drums_report_pressure(wdata, yesne, which, pressure,
 				     y, &wdata->state.pressure_drums[2],
 				     ABS_HAT2X, 0x11);
-	wiimod_drums_report_pressure(wdata, none, which, pressure,
+	wiimod_drums_report_pressure(wdata, yesne, which, pressure,
 				     g, &wdata->state.pressure_drums[3],
 				     ABS_HAT1X, 0x12);
-	wiimod_drums_report_pressure(wdata, none, which, pressure,
+	wiimod_drums_report_pressure(wdata, yesne, which, pressure,
 				     b, &wdata->state.pressure_drums[4],
 				     ABS_HAT0Y, 0x0f);
 
 	/* Bass shares pressure with hi-hat (set via hhp) */
-	wiimod_drums_report_pressure(wdata, none, hhp ? 0xff : which, pressure,
+	wiimod_drums_report_pressure(wdata, yesne, hhp ? 0xff : which, pressure,
 				     bass, &wdata->state.pressure_drums[5],
 				     ABS_HAT3X, 0x1b);
-	/* Hi-hat has no on/off values, just pressure. Force to off/0. */
-	wiimod_drums_report_pressure(wdata, none, hhp ? which : 0xff, pressure,
+	/* Hi-hat has yes on/off values, just pressure. Force to off/0. */
+	wiimod_drums_report_pressure(wdata, yesne, hhp ? which : 0xff, pressure,
 				     0, &wdata->state.pressure_drums[6],
 				     ABS_HAT3Y, 0x0e);
 
@@ -2424,10 +2424,10 @@ static const struct wiimod_ops wiimod_builtin_mp = {
  * No Motion Plus
  * This module simply sets the WIIPROTO_FLAG_NO_MP protocol flag which
  * disables motion-plus. This is needed for devices that advertise this but we
- * don't know how to use it (or whether it is actually present).
+ * don't kyesw how to use it (or whether it is actually present).
  */
 
-static int wiimod_no_mp_probe(const struct wiimod_ops *ops,
+static int wiimod_yes_mp_probe(const struct wiimod_ops *ops,
 			      struct wiimote_data *wdata)
 {
 	unsigned long flags;
@@ -2439,7 +2439,7 @@ static int wiimod_no_mp_probe(const struct wiimod_ops *ops,
 	return 0;
 }
 
-static void wiimod_no_mp_remove(const struct wiimod_ops *ops,
+static void wiimod_yes_mp_remove(const struct wiimod_ops *ops,
 				struct wiimote_data *wdata)
 {
 	unsigned long flags;
@@ -2449,18 +2449,18 @@ static void wiimod_no_mp_remove(const struct wiimod_ops *ops,
 	spin_unlock_irqrestore(&wdata->state.lock, flags);
 }
 
-static const struct wiimod_ops wiimod_no_mp = {
+static const struct wiimod_ops wiimod_yes_mp = {
 	.flags = 0,
 	.arg = 0,
-	.probe = wiimod_no_mp_probe,
-	.remove = wiimod_no_mp_remove,
+	.probe = wiimod_yes_mp_probe,
+	.remove = wiimod_yes_mp_remove,
 };
 
 /*
  * Motion Plus
  * The Motion Plus extension provides rotation sensors (gyro) as a small
  * extension device for Wii Remotes. Many devices have them built-in so
- * you cannot see them from the outside.
+ * you canyest see them from the outside.
  * Motion Plus extensions are special because they are on a separate extension
  * port and allow other extensions to be used simultaneously. This is all
  * handled by the Wiimote Core so we don't have to deal with it.
@@ -2489,7 +2489,7 @@ static void wiimod_mp_in_mp(struct wiimote_data *wdata, const __u8 *ext)
 	 * by 2000/440 = ~4.5454 and scale both fast and slow by 9 to match the
 	 * previous scale reported by this driver.
 	 * This leaves a linear scale with 8192*9/440 (~167.564) units / deg/s.
-	 * If the wiimote is not rotating the sensor reports 2^13 = 8192.
+	 * If the wiimote is yest rotating the sensor reports 2^13 = 8192.
 	 * Ext specifies whether an extension is connected to the motionp.
 	 * which is parsed by wiimote-core.
 	 */
@@ -2626,7 +2626,7 @@ const struct wiimod_ops *wiimod_table[WIIMOD_NUM] = {
 	[WIIMOD_ACCEL] = &wiimod_accel,
 	[WIIMOD_IR] = &wiimod_ir,
 	[WIIMOD_BUILTIN_MP] = &wiimod_builtin_mp,
-	[WIIMOD_NO_MP] = &wiimod_no_mp,
+	[WIIMOD_NO_MP] = &wiimod_yes_mp,
 };
 
 const struct wiimod_ops *wiimod_ext_table[WIIMOTE_EXT_NUM] = {

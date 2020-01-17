@@ -11,7 +11,7 @@
 #include <linux/blkdev.h>
 #include "hpfs_fn.h"
 
-secno hpfs_search_hotfix_map(struct super_block *s, secno sec)
+secyes hpfs_search_hotfix_map(struct super_block *s, secyes sec)
 {
 	unsigned i;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
@@ -23,7 +23,7 @@ secno hpfs_search_hotfix_map(struct super_block *s, secno sec)
 	return sec;
 }
 
-unsigned hpfs_search_hotfix_map_for_range(struct super_block *s, secno sec, unsigned n)
+unsigned hpfs_search_hotfix_map_for_range(struct super_block *s, secyes sec, unsigned n)
 {
 	unsigned i;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
@@ -35,18 +35,18 @@ unsigned hpfs_search_hotfix_map_for_range(struct super_block *s, secno sec, unsi
 	return n;
 }
 
-void hpfs_prefetch_sectors(struct super_block *s, unsigned secno, int n)
+void hpfs_prefetch_sectors(struct super_block *s, unsigned secyes, int n)
 {
 	struct buffer_head *bh;
 	struct blk_plug plug;
 
-	if (n <= 0 || unlikely(secno >= hpfs_sb(s)->sb_fs_size))
+	if (n <= 0 || unlikely(secyes >= hpfs_sb(s)->sb_fs_size))
 		return;
 
-	if (unlikely(hpfs_search_hotfix_map_for_range(s, secno, n) != n))
+	if (unlikely(hpfs_search_hotfix_map_for_range(s, secyes, n) != n))
 		return;
 
-	bh = sb_find_get_block(s, secno);
+	bh = sb_find_get_block(s, secyes);
 	if (bh) {
 		if (buffer_uptodate(bh)) {
 			brelse(bh);
@@ -57,10 +57,10 @@ void hpfs_prefetch_sectors(struct super_block *s, unsigned secno, int n)
 
 	blk_start_plug(&plug);
 	while (n > 0) {
-		if (unlikely(secno >= hpfs_sb(s)->sb_fs_size))
+		if (unlikely(secyes >= hpfs_sb(s)->sb_fs_size))
 			break;
-		sb_breadahead(s, secno);
-		secno++;
+		sb_breadahead(s, secyes);
+		secyes++;
 		n--;
 	}
 	blk_finish_plug(&plug);
@@ -68,18 +68,18 @@ void hpfs_prefetch_sectors(struct super_block *s, unsigned secno, int n)
 
 /* Map a sector into a buffer and return pointers to it and to the buffer. */
 
-void *hpfs_map_sector(struct super_block *s, unsigned secno, struct buffer_head **bhp,
+void *hpfs_map_sector(struct super_block *s, unsigned secyes, struct buffer_head **bhp,
 		 int ahead)
 {
 	struct buffer_head *bh;
 
 	hpfs_lock_assert(s);
 
-	hpfs_prefetch_sectors(s, secno, ahead);
+	hpfs_prefetch_sectors(s, secyes, ahead);
 
 	cond_resched();
 
-	*bhp = bh = sb_bread(s, hpfs_search_hotfix_map(s, secno));
+	*bhp = bh = sb_bread(s, hpfs_search_hotfix_map(s, secyes));
 	if (bh != NULL)
 		return bh->b_data;
 	else {
@@ -90,16 +90,16 @@ void *hpfs_map_sector(struct super_block *s, unsigned secno, struct buffer_head 
 
 /* Like hpfs_map_sector but don't read anything */
 
-void *hpfs_get_sector(struct super_block *s, unsigned secno, struct buffer_head **bhp)
+void *hpfs_get_sector(struct super_block *s, unsigned secyes, struct buffer_head **bhp)
 {
 	struct buffer_head *bh;
-	/*return hpfs_map_sector(s, secno, bhp, 0);*/
+	/*return hpfs_map_sector(s, secyes, bhp, 0);*/
 
 	hpfs_lock_assert(s);
 
 	cond_resched();
 
-	if ((*bhp = bh = sb_getblk(s, hpfs_search_hotfix_map(s, secno))) != NULL) {
+	if ((*bhp = bh = sb_getblk(s, hpfs_search_hotfix_map(s, secyes))) != NULL) {
 		if (!buffer_uptodate(bh)) wait_on_buffer(bh);
 		set_buffer_uptodate(bh);
 		return bh->b_data;
@@ -111,7 +111,7 @@ void *hpfs_get_sector(struct super_block *s, unsigned secno, struct buffer_head 
 
 /* Map 4 sectors into a 4buffer and return pointers to it and to the buffer. */
 
-void *hpfs_map_4sectors(struct super_block *s, unsigned secno, struct quad_buffer_head *qbh,
+void *hpfs_map_4sectors(struct super_block *s, unsigned secyes, struct quad_buffer_head *qbh,
 		   int ahead)
 {
 	char *data;
@@ -120,17 +120,17 @@ void *hpfs_map_4sectors(struct super_block *s, unsigned secno, struct quad_buffe
 
 	cond_resched();
 
-	if (secno & 3) {
+	if (secyes & 3) {
 		pr_err("%s(): unaligned read\n", __func__);
 		return NULL;
 	}
 
-	hpfs_prefetch_sectors(s, secno, 4 + ahead);
+	hpfs_prefetch_sectors(s, secyes, 4 + ahead);
 
-	if (!hpfs_map_sector(s, secno + 0, &qbh->bh[0], 0)) goto bail0;
-	if (!hpfs_map_sector(s, secno + 1, &qbh->bh[1], 0)) goto bail1;
-	if (!hpfs_map_sector(s, secno + 2, &qbh->bh[2], 0)) goto bail2;
-	if (!hpfs_map_sector(s, secno + 3, &qbh->bh[3], 0)) goto bail3;
+	if (!hpfs_map_sector(s, secyes + 0, &qbh->bh[0], 0)) goto bail0;
+	if (!hpfs_map_sector(s, secyes + 1, &qbh->bh[1], 0)) goto bail1;
+	if (!hpfs_map_sector(s, secyes + 2, &qbh->bh[2], 0)) goto bail2;
+	if (!hpfs_map_sector(s, secyes + 3, &qbh->bh[3], 0)) goto bail3;
 
 	if (likely(qbh->bh[1]->b_data == qbh->bh[0]->b_data + 1 * 512) &&
 	    likely(qbh->bh[2]->b_data == qbh->bh[0]->b_data + 2 * 512) &&
@@ -165,22 +165,22 @@ void *hpfs_map_4sectors(struct super_block *s, unsigned secno, struct quad_buffe
 
 /* Don't read sectors */
 
-void *hpfs_get_4sectors(struct super_block *s, unsigned secno,
+void *hpfs_get_4sectors(struct super_block *s, unsigned secyes,
                           struct quad_buffer_head *qbh)
 {
 	cond_resched();
 
 	hpfs_lock_assert(s);
 
-	if (secno & 3) {
+	if (secyes & 3) {
 		pr_err("%s(): unaligned read\n", __func__);
 		return NULL;
 	}
 
-	if (!hpfs_get_sector(s, secno + 0, &qbh->bh[0])) goto bail0;
-	if (!hpfs_get_sector(s, secno + 1, &qbh->bh[1])) goto bail1;
-	if (!hpfs_get_sector(s, secno + 2, &qbh->bh[2])) goto bail2;
-	if (!hpfs_get_sector(s, secno + 3, &qbh->bh[3])) goto bail3;
+	if (!hpfs_get_sector(s, secyes + 0, &qbh->bh[0])) goto bail0;
+	if (!hpfs_get_sector(s, secyes + 1, &qbh->bh[1])) goto bail1;
+	if (!hpfs_get_sector(s, secyes + 2, &qbh->bh[2])) goto bail2;
+	if (!hpfs_get_sector(s, secyes + 3, &qbh->bh[3])) goto bail3;
 
 	if (likely(qbh->bh[1]->b_data == qbh->bh[0]->b_data + 1 * 512) &&
 	    likely(qbh->bh[2]->b_data == qbh->bh[0]->b_data + 2 * 512) &&

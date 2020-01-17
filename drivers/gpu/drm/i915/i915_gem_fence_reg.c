@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -30,7 +30,7 @@
 /**
  * DOC: fence register handling
  *
- * Important to avoid confusions: "fences" in the i915 driver are not execution
+ * Important to avoid confusions: "fences" in the i915 driver are yest execution
  * fences used to track command completion but hardware detiler objects which
  * wrap a given range of the global GTT. Each platform has only a fairly limited
  * set of these objects.
@@ -43,18 +43,18 @@
  * commands. But on gen4+ both display (with the exception of fbc) and rendering
  * have their own tiling state bits and don't need fences.
  *
- * Also note that fences only support X and Y tiling and hence can't be used for
+ * Also yeste that fences only support X and Y tiling and hence can't be used for
  * the fancier new tiling formats like W, Ys and Yf.
  *
- * Finally note that because fences are such a restricted resource they're
+ * Finally yeste that because fences are such a restricted resource they're
  * dynamically associated with objects. Furthermore fence state is committed to
  * the hardware lazily to avoid unnecessary stalls on gen2/3. Therefore code must
  * explicitly call i915_gem_object_get_fence() to synchronize fencing status
- * for cpu access. Also note that some code wants an unfenced view, for those
+ * for cpu access. Also yeste that some code wants an unfenced view, for those
  * cases the fence can be removed forcefully with i915_gem_object_put_fence().
  *
  * Internally these functions will synchronize with userspace access by removing
- * CPU ptes into GTT mmaps (not the GTT ptes themselves) as needed.
+ * CPU ptes into GTT mmaps (yest the GTT ptes themselves) as needed.
  */
 
 #define pipelined 0
@@ -92,12 +92,12 @@ static void i965_write_fence_reg(struct i915_fence_reg *fence,
 		unsigned int stride = i915_gem_object_get_stride(vma->obj);
 
 		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
-		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, I965_FENCE_PAGE));
+		GEM_BUG_ON(!IS_ALIGNED(vma->yesde.start, I965_FENCE_PAGE));
 		GEM_BUG_ON(!IS_ALIGNED(vma->fence_size, I965_FENCE_PAGE));
 		GEM_BUG_ON(!IS_ALIGNED(stride, 128));
 
-		val = (vma->node.start + vma->fence_size - I965_FENCE_PAGE) << 32;
-		val |= vma->node.start;
+		val = (vma->yesde.start + vma->fence_size - I965_FENCE_PAGE) << 32;
+		val |= vma->yesde.start;
 		val |= (u64)((stride / 128) - 1) << fence_pitch_shift;
 		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)
 			val |= BIT(I965_FENCE_TILING_Y_SHIFT);
@@ -108,13 +108,13 @@ static void i965_write_fence_reg(struct i915_fence_reg *fence,
 		struct intel_uncore *uncore = fence_to_uncore(fence);
 
 		/*
-		 * To w/a incoherency with non-atomic 64-bit register updates,
+		 * To w/a incoherency with yesn-atomic 64-bit register updates,
 		 * we split the 64-bit update into two 32-bit writes. In order
-		 * for a partial fence not to be evaluated between writes, we
+		 * for a partial fence yest to be evaluated between writes, we
 		 * precede the update with write to turn off the fence register,
 		 * and only enable the fence as the last step.
 		 *
-		 * For extra levels of paranoia, we make sure each step lands
+		 * For extra levels of parayesia, we make sure each step lands
 		 * before applying the next step.
 		 */
 		intel_uncore_write_fw(uncore, fence_reg_lo, 0);
@@ -138,9 +138,9 @@ static void i915_write_fence_reg(struct i915_fence_reg *fence,
 		unsigned int stride = i915_gem_object_get_stride(vma->obj);
 
 		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
-		GEM_BUG_ON(vma->node.start & ~I915_FENCE_START_MASK);
+		GEM_BUG_ON(vma->yesde.start & ~I915_FENCE_START_MASK);
 		GEM_BUG_ON(!is_power_of_2(vma->fence_size));
-		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, vma->fence_size));
+		GEM_BUG_ON(!IS_ALIGNED(vma->yesde.start, vma->fence_size));
 
 		if (is_y_tiled && HAS_128_BYTE_Y_TILING(fence_to_i915(fence)))
 			stride /= 128;
@@ -148,7 +148,7 @@ static void i915_write_fence_reg(struct i915_fence_reg *fence,
 			stride /= 512;
 		GEM_BUG_ON(!is_power_of_2(stride));
 
-		val = vma->node.start;
+		val = vma->yesde.start;
 		if (is_y_tiled)
 			val |= BIT(I830_FENCE_TILING_Y_SHIFT);
 		val |= I915_FENCE_SIZE_BITS(vma->fence_size);
@@ -176,12 +176,12 @@ static void i830_write_fence_reg(struct i915_fence_reg *fence,
 		unsigned int stride = i915_gem_object_get_stride(vma->obj);
 
 		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
-		GEM_BUG_ON(vma->node.start & ~I830_FENCE_START_MASK);
+		GEM_BUG_ON(vma->yesde.start & ~I830_FENCE_START_MASK);
 		GEM_BUG_ON(!is_power_of_2(vma->fence_size));
 		GEM_BUG_ON(!is_power_of_2(stride / 128));
-		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, vma->fence_size));
+		GEM_BUG_ON(!IS_ALIGNED(vma->yesde.start, vma->fence_size));
 
-		val = vma->node.start;
+		val = vma->yesde.start;
 		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)
 			val |= BIT(I830_FENCE_TILING_Y_SHIFT);
 		val |= I830_FENCE_SIZE_BITS(vma->fence_size);
@@ -281,7 +281,7 @@ static int fence_update(struct i915_fence_reg *fence,
 	 * This only works for removing the fence register, on acquisition
 	 * the caller must hold the rpm wakeref. The fence register must
 	 * be cleared before we can use any other fences to ensure that
-	 * the new fences do not overlap the elided clears, confusing HW.
+	 * the new fences do yest overlap the elided clears, confusing HW.
 	 */
 	wakeref = intel_runtime_pm_get_if_in_use(uncore->rpm);
 	if (!wakeref) {
@@ -303,7 +303,7 @@ static int fence_update(struct i915_fence_reg *fence,
 
 /**
  * i915_vma_revoke_fence - force-remove fence for a VMA
- * @vma: vma to map linearly (not through a fence reg)
+ * @vma: vma to map linearly (yest through a fence reg)
  *
  * This function force-removes any fence from the given object, which is useful
  * if the kernel wants to do untiled GTT access.
@@ -529,8 +529,8 @@ void i915_gem_restore_fences(struct i915_ggtt *ggtt)
  * to an alternate memory channel so it can get the bandwidth from both.
  *
  * The GPU also rearranges its accesses for increased bandwidth to interleaved
- * memory, and it matches what the CPU does for non-tiled.  However, when tiled
- * it does it a little differently, since one walks addresses not just in the
+ * memory, and it matches what the CPU does for yesn-tiled.  However, when tiled
+ * it does it a little differently, since one walks addresses yest just in the
  * X direction but also Y.  So, along with alternating channels when bit
  * 6 of the address flips, it also alternates when other bits flip --  Bits 9
  * (every 512 bytes, an X tile scanline) and 10 (every two X tile scanlines)
@@ -546,11 +546,11 @@ void i915_gem_restore_fences(struct i915_ggtt *ggtt)
  * as we need to make sure that the 3d driver can correctly address object
  * contents.
  *
- * If we don't have interleaved memory, all tiling is safe and no swizzling is
+ * If we don't have interleaved memory, all tiling is safe and yes swizzling is
  * required.
  *
  * When bit 17 is XORed in, we simply refuse to tile at all.  Bit
- * 17 is not just a page offset, so as we page an object out and back in,
+ * 17 is yest just a page offset, so as we page an object out and back in,
  * individual pages in it will have different bit 17 addresses, resulting in
  * each 64 bytes being swapped with its neighbor!
  *
@@ -578,7 +578,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 
 	if (INTEL_GEN(i915) >= 8 || IS_VALLEYVIEW(i915)) {
 		/*
-		 * On BDW+, swizzling is not used. We leave the CPU memory
+		 * On BDW+, swizzling is yest used. We leave the CPU memory
 		 * controller in charge of optimizing memory accesses without
 		 * the extra address manipulation GPU side.
 		 *
@@ -605,7 +605,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 			/*
 			 * Enable swizzling when the channels are populated
 			 * with identically sized dimms. We don't need to check
-			 * the 3rd channel because no cpu with gpu attached
+			 * the 3rd channel because yes cpu with gpu attached
 			 * ships in that configuration. Also, swizzling only
 			 * makes sense for 2 channels anyway.
 			 */
@@ -626,7 +626,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		swizzle_y = I915_BIT_6_SWIZZLE_9;
 	} else if (IS_GEN(i915, 2)) {
 		/*
-		 * As far as we know, the 865 doesn't have these bit 6
+		 * As far as we kyesw, the 865 doesn't have these bit 6
 		 * swizzling issues.
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
@@ -657,7 +657,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		 * varies depending upon page placement inside the
 		 * channels, i.e. we see swizzled pages where the
 		 * banks of memory are paired and unswizzled on the
-		 * uneven portion, so leave that as unknown.
+		 * uneven portion, so leave that as unkyeswn.
 		 */
 		if (intel_uncore_read(uncore, C0DRB3) ==
 		    intel_uncore_read(uncore, C1DRB3)) {
@@ -670,7 +670,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		/*
 		 * On 9xx chipsets, channel interleave by the CPU is
 		 * determined by DCC.  For single-channel, neither the CPU
-		 * nor the GPU do swizzling.  For dual channel interleaved,
+		 * yesr the GPU do swizzling.  For dual channel interleaved,
 		 * the GPU's interleave is bit 9 and 10 for X tiled, and bit
 		 * 9 for Y tiled.  The CPU's interleave is independent, and
 		 * can be based on either bit 11 (haven't seen this yet) or
@@ -720,12 +720,12 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 	if (swizzle_x == I915_BIT_6_SWIZZLE_UNKNOWN ||
 	    swizzle_y == I915_BIT_6_SWIZZLE_UNKNOWN) {
 		/*
-		 * Userspace likes to explode if it sees unknown swizzling,
+		 * Userspace likes to explode if it sees unkyeswn swizzling,
 		 * so lie. We will finish the lie when reporting through
 		 * the get-tiling-ioctl by reporting the physical swizzle
-		 * mode as unknown instead.
+		 * mode as unkyeswn instead.
 		 *
-		 * As we don't strictly know what the swizzling is, it may be
+		 * As we don't strictly kyesw what the swizzling is, it may be
 		 * bit17 dependent, and so we need to also prevent the pages
 		 * from being moved.
 		 */

@@ -8,7 +8,7 @@
  */
 
 #include <linux/compat.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -124,7 +124,7 @@ static long hypfs_sprp_ioctl(struct file *file, unsigned int cmd,
 	switch (cmd) {
 	case HYPFS_DIAG304:
 		return __hypfs_sprp_ioctl(argp);
-	default: /* unknown ioctl number */
+	default: /* unkyeswn ioctl number */
 		return -ENOTTY;
 	}
 	return 0;

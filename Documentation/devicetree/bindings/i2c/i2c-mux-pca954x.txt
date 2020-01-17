@@ -20,7 +20,7 @@ Required Properties:
   The following required properties are defined externally:
 
   - Standard I2C mux properties. See i2c-mux.txt in this directory.
-  - I2C child bus nodes. See i2c-mux.txt in this directory.
+  - I2C child bus yesdes. See i2c-mux.txt in this directory.
 
 Optional Properties:
 
@@ -29,7 +29,7 @@ Optional Properties:
     children in idle state. This is necessary for example, if there are several
     multiplexers on the bus and the devices behind them use same I2C addresses.
   - interrupts: Interrupt mapping for IRQ.
-  - interrupt-controller: Marks the device node as an interrupt controller.
+  - interrupt-controller: Marks the device yesde as an interrupt controller.
   - #interrupt-cells : Should be two.
     - first cell is the pin number
     - second cell is used to specify flags.

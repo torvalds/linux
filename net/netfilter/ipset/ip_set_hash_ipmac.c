@@ -9,7 +9,7 @@
 #include <linux/ip.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/random.h>
 #include <linux/if_ether.h>
 #include <net/ip.h>
@@ -37,7 +37,7 @@ MODULE_ALIAS("ip_set_hash:ip,mac");
 
 /* Member elements */
 struct hash_ipmac4_elem {
-	/* Zero valued IP addresses cannot be stored */
+	/* Zero valued IP addresses canyest be stored */
 	__be32 ip;
 	union {
 		unsigned char ether[ETH_ALEN];
@@ -108,7 +108,7 @@ hash_ipmac4_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_ipmac4_uadt(struct ip_set *set, struct nlattr *tb[],
-		 enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+		 enum ipset_adt adt, u32 *lineyes, u32 flags, bool retried)
 {
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipmac4_elem e = { .ip = 0, { .foo[0] = 0, .foo[1] = 0 } };
@@ -127,7 +127,7 @@ hash_ipmac4_uadt(struct ip_set *set, struct nlattr *tb[],
 		return -IPSET_ERR_PROTOCOL;
 
 	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+		*lineyes = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
 	ret = ip_set_get_ipaddr4(tb[IPSET_ATTR_IP], &e.ip) ||
 		ip_set_get_extensions(set, tb, &ext);
@@ -144,7 +144,7 @@ hash_ipmac4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 /* Member elements */
 struct hash_ipmac6_elem {
-	/* Zero valued IP addresses cannot be stored */
+	/* Zero valued IP addresses canyest be stored */
 	union nf_inet_addr ip;
 	union {
 		unsigned char ether[ETH_ALEN];
@@ -224,7 +224,7 @@ hash_ipmac6_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_ipmac6_uadt(struct ip_set *set, struct nlattr *tb[],
-		 enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+		 enum ipset_adt adt, u32 *lineyes, u32 flags, bool retried)
 {
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipmac6_elem e = {
@@ -246,7 +246,7 @@ hash_ipmac6_uadt(struct ip_set *set, struct nlattr *tb[],
 		return -IPSET_ERR_PROTOCOL;
 
 	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+		*lineyes = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
 	ret = ip_set_get_ipaddr6(tb[IPSET_ATTR_IP], &e.ip) ||
 		ip_set_get_extensions(set, tb, &ext);

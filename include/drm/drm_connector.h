@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -46,14 +46,14 @@ struct i2c_adapter;
 enum drm_connector_force {
 	DRM_FORCE_UNSPECIFIED,
 	DRM_FORCE_OFF,
-	DRM_FORCE_ON,         /* force on analog part normally */
+	DRM_FORCE_ON,         /* force on analog part yesrmally */
 	DRM_FORCE_ON_DIGITAL, /* for DVI-I use digital connector */
 };
 
 /**
  * enum drm_connector_status - status for a &drm_connector
  *
- * This enum is used to track the connector status. There are no separate
+ * This enum is used to track the connector status. There are yes separate
  * #defines for the uapi!
  */
 enum drm_connector_status {
@@ -66,21 +66,21 @@ enum drm_connector_status {
 	 * @connector_status_disconnected: The connector isn't connected to a
 	 * sink device which can be autodetect. For digital outputs like DP or
 	 * HDMI (which can be realiable probed) this means there's really
-	 * nothing there. It is driver-dependent whether a connector with this
-	 * status can be lit up or not.
+	 * yesthing there. It is driver-dependent whether a connector with this
+	 * status can be lit up or yest.
 	 */
 	connector_status_disconnected = 2,
 	/**
-	 * @connector_status_unknown: The connector's status could not be
+	 * @connector_status_unkyeswn: The connector's status could yest be
 	 * reliably detected. This happens when probing would either cause
 	 * flicker (like load-detection when the connector is in use), or when a
 	 * hardware resource isn't available (like when load-detection needs a
 	 * free CRTC). It should be possible to light up the connector with one
 	 * of the listed fallback modes. For default configuration userspace
-	 * should only try to light up connectors with unknown status when
-	 * there's not connector with @connector_status_connected.
+	 * should only try to light up connectors with unkyeswn status when
+	 * there's yest connector with @connector_status_connected.
 	 */
-	connector_status_unknown = 3,
+	connector_status_unkyeswn = 3,
 };
 
 /**
@@ -89,12 +89,12 @@ enum drm_connector_status {
  *
  * This enum is used to track the status of initializing a connector and
  * registering it with userspace, so that DRM can prevent bogus modesets on
- * connectors that no longer exist.
+ * connectors that yes longer exist.
  */
 enum drm_connector_registration_state {
 	/**
 	 * @DRM_CONNECTOR_INITIALIZING: The connector has just been created,
-	 * but has yet to be exposed to userspace. There should be no
+	 * but has yet to be exposed to userspace. There should be yes
 	 * additional restrictions to how the state of this connector may be
 	 * modified.
 	 */
@@ -103,7 +103,7 @@ enum drm_connector_registration_state {
 	/**
 	 * @DRM_CONNECTOR_REGISTERED: The connector has been fully initialized
 	 * and registered with sysfs, as such it has been exposed to
-	 * userspace. There should be no additional restrictions to how the
+	 * userspace. There should be yes additional restrictions to how the
 	 * state of this connector may be modified.
 	 */
 	DRM_CONNECTOR_REGISTERED = 1,
@@ -118,12 +118,12 @@ enum drm_connector_registration_state {
 	 * may be modified:
 	 *
 	 * - An unregistered connector may only have its DPMS changed from
-	 *   On->Off. Once DPMS is changed to Off, it may not be switched back
+	 *   On->Off. Once DPMS is changed to Off, it may yest be switched back
 	 *   to On.
-	 * - Modesets are not allowed on unregistered connectors, unless they
+	 * - Modesets are yest allowed on unregistered connectors, unless they
 	 *   would result in disabling its assigned CRTCs. This means
 	 *   disabling a CRTC on an unregistered connector is OK, but enabling
-	 *   one is not.
+	 *   one is yest.
 	 * - Removing a CRTC from an unregistered connector is OK, but new
 	 *   CRTCs may never be assigned to an unregistered connector.
 	 */
@@ -131,7 +131,7 @@ enum drm_connector_registration_state {
 };
 
 enum subpixel_order {
-	SubPixelUnknown = 0,
+	SubPixelUnkyeswn = 0,
 	SubPixelHorizontalRGB,
 	SubPixelHorizontalBGR,
 	SubPixelVerticalRGB,
@@ -188,7 +188,7 @@ struct drm_hdmi_info {
 
 	/**
 	 * @y420_vdb_modes: bitmap of modes which can support ycbcr420
-	 * output only (not normal RGB/YCBCR444/422 outputs). There are total
+	 * output only (yest yesrmal RGB/YCBCR444/422 outputs). There are total
 	 * 107 VICs defined by CEA-861-F spec, so the size is 128 bits to map
 	 * upto 128 VICs;
 	 */
@@ -196,7 +196,7 @@ struct drm_hdmi_info {
 
 	/**
 	 * @y420_cmdb_modes: bitmap of modes which can support ycbcr420
-	 * output also, along with normal HDMI outputs. There are total 107
+	 * output also, along with yesrmal HDMI outputs. There are total 107
 	 * VICs defined by CEA-861-F spec, so the size is 128 bits to map upto
 	 * 128 VICs;
 	 */
@@ -228,13 +228,13 @@ enum drm_link_status {
 /**
  * enum drm_panel_orientation - panel_orientation info for &drm_display_info
  *
- * This enum is used to track the (LCD) panel orientation. There are no
+ * This enum is used to track the (LCD) panel orientation. There are yes
  * separate #defines for the uapi!
  *
- * @DRM_MODE_PANEL_ORIENTATION_UNKNOWN: The drm driver has not provided any
- *					panel orientation information (normal
- *					for non panels) in this case the "panel
- *					orientation" connector prop will not be
+ * @DRM_MODE_PANEL_ORIENTATION_UNKNOWN: The drm driver has yest provided any
+ *					panel orientation information (yesrmal
+ *					for yesn panels) in this case the "panel
+ *					orientation" connector prop will yest be
  *					attached.
  * @DRM_MODE_PANEL_ORIENTATION_NORMAL:	The top side of the panel matches the
  *					top side of the device's casing.
@@ -306,8 +306,8 @@ enum drm_panel_orientation {
  *
  * @DRM_BUS_FLAG_DE_LOW:		The Data Enable signal is active low
  * @DRM_BUS_FLAG_DE_HIGH:		The Data Enable signal is active high
- * @DRM_BUS_FLAG_PIXDATA_POSEDGE:	Legacy value, do not use
- * @DRM_BUS_FLAG_PIXDATA_NEGEDGE:	Legacy value, do not use
+ * @DRM_BUS_FLAG_PIXDATA_POSEDGE:	Legacy value, do yest use
+ * @DRM_BUS_FLAG_PIXDATA_NEGEDGE:	Legacy value, do yest use
  * @DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE:	Data is driven on the rising edge of
  *					the pixel clock
  * @DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE:	Data is driven on the falling edge of
@@ -318,8 +318,8 @@ enum drm_panel_orientation {
  *					the pixel clock
  * @DRM_BUS_FLAG_DATA_MSB_TO_LSB:	Data is transmitted MSB to LSB on the bus
  * @DRM_BUS_FLAG_DATA_LSB_TO_MSB:	Data is transmitted LSB to MSB on the bus
- * @DRM_BUS_FLAG_SYNC_POSEDGE:		Legacy value, do not use
- * @DRM_BUS_FLAG_SYNC_NEGEDGE:		Legacy value, do not use
+ * @DRM_BUS_FLAG_SYNC_POSEDGE:		Legacy value, do yest use
+ * @DRM_BUS_FLAG_SYNC_NEGEDGE:		Legacy value, do yest use
  * @DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE:	Sync signals are driven on the rising
  *					edge of the pixel clock
  * @DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE:	Sync signals are driven on the falling
@@ -355,7 +355,7 @@ enum drm_bus_flags {
  * struct drm_display_info - runtime data about the connected sink
  *
  * Describes a given display (e.g. CRT or flat panel) and its limitations. For
- * fixed display sinks like built-in panels there's not much difference between
+ * fixed display sinks like built-in panels there's yest much difference between
  * this and &struct drm_connector. But for sinks with a real cable this
  * structure is meant to describe all the things at the other end of the cable.
  *
@@ -392,14 +392,14 @@ struct drm_display_info {
 	 * @panel_orientation: Read only connector property for built-in panels,
 	 * indicating the orientation of the panel vs the device's casing.
 	 * drm_connector_init() sets this to DRM_MODE_PANEL_ORIENTATION_UNKNOWN.
-	 * When not UNKNOWN this gets used by the drm_fb_helpers to rotate the
+	 * When yest UNKNOWN this gets used by the drm_fb_helpers to rotate the
 	 * fb to compensate and gets exported as prop to userspace.
 	 */
 	int panel_orientation;
 
 	/**
 	 * @color_formats: HDMI Color formats, selects between RGB and YCrCb
-	 * modes. Used DRM_COLOR_FORMAT\_ defines, which are _not_ the same ones
+	 * modes. Used DRM_COLOR_FORMAT\_ defines, which are _yest_ the same ones
 	 * as used to describe the pixel format in framebuffers, and also don't
 	 * match the formats in @bus_formats which are shared with v4l.
 	 */
@@ -462,9 +462,9 @@ struct drm_display_info {
 	struct drm_hdmi_info hdmi;
 
 	/**
-	 * @non_desktop: Non desktop display (HMD).
+	 * @yesn_desktop: Non desktop display (HMD).
 	 */
-	bool non_desktop;
+	bool yesn_desktop;
 };
 
 int drm_display_info_set_bus_formats(struct drm_display_info *info,
@@ -533,7 +533,7 @@ struct drm_connector_state {
 	/**
 	 * @crtc: CRTC to connect connector to, NULL if disabled.
 	 *
-	 * Do not change this directly, use drm_atomic_set_crtc_for_connector()
+	 * Do yest change this directly, use drm_atomic_set_crtc_for_connector()
 	 * instead.
 	 */
 	struct drm_crtc *crtc;
@@ -552,13 +552,13 @@ struct drm_connector_state {
 	 *
 	 * NOTE: Atomic drivers must fill this out (either themselves or through
 	 * helpers), for otherwise the GETCONNECTOR and GETENCODER IOCTLs will
-	 * not return correct data to userspace.
+	 * yest return correct data to userspace.
 	 */
 	struct drm_encoder *best_encoder;
 
 	/**
 	 * @link_status: Connector link_status to keep track of whether link is
-	 * GOOD or BAD to notify userspace if retraining is necessary.
+	 * GOOD or BAD to yestify userspace if retraining is necessary.
 	 */
 	enum drm_link_status link_status;
 
@@ -581,10 +581,10 @@ struct drm_connector_state {
 	 * This tracks whether a connector is aware of the self refresh state.
 	 * It should be set to true for those connector implementations which
 	 * understand the self refresh state. This is needed since the crtc
-	 * registers the self refresh helpers and it doesn't know if the
+	 * registers the self refresh helpers and it doesn't kyesw if the
 	 * connectors downstream have implemented self refresh entry/exit.
 	 *
-	 * Drivers should set this to true in atomic_check if they know how to
+	 * Drivers should set this to true in atomic_check if they kyesw how to
 	 * handle self_refresh requests.
 	 */
 	bool self_refresh_aware;
@@ -635,9 +635,9 @@ struct drm_connector_state {
 	 * @writeback_job: Writeback job for writeback connectors
 	 *
 	 * Holds the framebuffer and out-fence for a writeback connector. As
-	 * the writeback completion may be asynchronous to the normal commit
+	 * the writeback completion may be asynchroyesus to the yesrmal commit
 	 * cycle, the writeback job lifetime is managed separately from the
-	 * normal atomic state by this object.
+	 * yesrmal atomic state by this object.
 	 *
 	 * See also: drm_writeback_queue_job() and
 	 * drm_writeback_signal_completion()
@@ -680,7 +680,7 @@ struct drm_connector_funcs {
 	 * implement the 4 level DPMS support on the connector any more, but
 	 * instead only have an on/off "ACTIVE" property on the CRTC object.
 	 *
-	 * This hook is not used by atomic drivers, remapping of the legacy DPMS
+	 * This hook is yest used by atomic drivers, remapping of the legacy DPMS
 	 * property is entirely handled in the DRM core.
 	 *
 	 * RETURNS:
@@ -694,7 +694,7 @@ struct drm_connector_funcs {
 	 *
 	 * Reset connector hardware and software state to off. This function isn't
 	 * called by the core directly, only through drm_mode_config_reset().
-	 * It's not a helper hook only for historical reasons.
+	 * It's yest a helper hook only for historical reasons.
 	 *
 	 * Atomic drivers can use drm_atomic_helper_connector_reset() to reset
 	 * atomic state using this hook.
@@ -709,12 +709,12 @@ struct drm_connector_funcs {
 	 * connector due to a user request. force can be used by the driver to
 	 * avoid expensive, destructive operations during automated probing.
 	 *
-	 * This callback is optional, if not implemented the connector will be
+	 * This callback is optional, if yest implemented the connector will be
 	 * considered as always being attached.
 	 *
 	 * FIXME:
 	 *
-	 * Note that this hook is only called by the probe helper. It's not in
+	 * Note that this hook is only called by the probe helper. It's yest in
 	 * the helper library vtable purely for historical reasons. The only DRM
 	 * core	entry point to probe connector state is @fill_modes.
 	 *
@@ -740,7 +740,7 @@ struct drm_connector_funcs {
 	 *
 	 * FIXME:
 	 *
-	 * Note that this hook is only called by the probe helper. It's not in
+	 * Note that this hook is only called by the probe helper. It's yest in
 	 * the helper library vtable purely for historical reasons. The only DRM
 	 * core	entry point to probe connector state is @fill_modes.
 	 */
@@ -756,9 +756,9 @@ struct drm_connector_funcs {
 	 * also needs to filter out any modes wider or higher than the
 	 * parameters max_width and max_height indicate.
 	 *
-	 * The drivers must also prune any modes no longer valid from
+	 * The drivers must also prune any modes yes longer valid from
 	 * &drm_connector.modes. Furthermore it must update
-	 * &drm_connector.status and &drm_connector.edid.  If no EDID has been
+	 * &drm_connector.status and &drm_connector.edid.  If yes EDID has been
 	 * received for this output connector->edid must be NULL.
 	 *
 	 * Drivers using the probe helpers should use
@@ -777,8 +777,8 @@ struct drm_connector_funcs {
 	 * This is the legacy entry point to update a property attached to the
 	 * connector.
 	 *
-	 * This callback is optional if the driver does not support any legacy
-	 * driver-private properties. For atomic drivers it is not used because
+	 * This callback is optional if the driver does yest support any legacy
+	 * driver-private properties. For atomic drivers it is yest used because
 	 * property handling is done entirely in the DRM core.
 	 *
 	 * RETURNS:
@@ -834,7 +834,7 @@ struct drm_connector_funcs {
 	 *
 	 * Duplicate the current atomic state for this connector and return it.
 	 * The core and helpers guarantee that any atomic state duplicated with
-	 * this hook and still owned by the caller (i.e. not transferred to the
+	 * this hook and still owned by the caller (i.e. yest transferred to the
 	 * driver by calling &drm_mode_config_funcs.atomic_commit) will be
 	 * cleaned up by calling the @atomic_destroy_state hook in this
 	 * structure.
@@ -879,7 +879,7 @@ struct drm_connector_funcs {
 	 * Decode a driver-private property value and store the decoded value
 	 * into the passed-in state structure. Since the atomic core decodes all
 	 * standardized properties (even for extensions beyond the core set of
-	 * properties which might not be implemented by all drivers) this
+	 * properties which might yest be implemented by all drivers) this
 	 * requires drivers to subclass the state structure.
 	 *
 	 * Such driver-private properties should really only be implemented for
@@ -887,10 +887,10 @@ struct drm_connector_funcs {
 	 * standardize atomic extension and decode the properties used to expose
 	 * such an extension in the core.
 	 *
-	 * Do not call this function directly, use
+	 * Do yest call this function directly, use
 	 * drm_atomic_connector_set_property() instead.
 	 *
-	 * This callback is optional if the driver does not support any
+	 * This callback is optional if the driver does yest support any
 	 * driver-private atomic properties.
 	 *
 	 * NOTE:
@@ -902,7 +902,7 @@ struct drm_connector_funcs {
 	 * software) or data structures except the passed in @state parameter.
 	 *
 	 * Also since userspace controls in which order properties are set this
-	 * function must not do any input validation (since the state update is
+	 * function must yest do any input validation (since the state update is
 	 * incomplete and hence likely inconsistent). Instead any such input
 	 * validation must be done in the various atomic_check callbacks.
 	 *
@@ -926,10 +926,10 @@ struct drm_connector_funcs {
 	 * Reads out the decoded driver-private property. This is used to
 	 * implement the GETCONNECTOR IOCTL.
 	 *
-	 * Do not call this function directly, use
+	 * Do yest call this function directly, use
 	 * drm_atomic_connector_get_property() instead.
 	 *
-	 * This callback is optional if the driver does not support any
+	 * This callback is optional if the driver does yest support any
 	 * driver-private atomic properties.
 	 *
 	 * RETURNS:
@@ -949,7 +949,7 @@ struct drm_connector_funcs {
 	 * If driver subclasses &struct drm_connector_state, it should implement
 	 * this optional hook for printing additional driver specific state.
 	 *
-	 * Do not call this directly, use drm_atomic_connector_print_state()
+	 * Do yest call this directly, use drm_atomic_connector_print_state()
 	 * instead.
 	 */
 	void (*atomic_print_state)(struct drm_printer *p,
@@ -1054,7 +1054,7 @@ struct drm_cmdline_mode {
 	/**
 	 * @force:
 	 *
-	 * Ignore the hotplug state of the connector, and force its
+	 * Igyesre the hotplug state of the connector, and force its
 	 * state to one of the DRM_FORCE_* values.
 	 */
 	enum drm_connector_force force;
@@ -1079,7 +1079,7 @@ struct drm_cmdline_mode {
  * struct drm_connector - central DRM connector control structure
  *
  * Each connector may be connected to one or more CRTCs, or may be clonable by
- * another connector if they can share a CRTC.  Each connector also has a specific
+ * ayesther connector if they can share a CRTC.  Each connector also has a specific
  * position in the broader display (referred to as a 'screen' though it could
  * span multiple monitors).
  */
@@ -1116,7 +1116,7 @@ struct drm_connector {
 
 	/**
 	 * @index: Compacted connector index, which matches the position inside
-	 * the mode_config.list for drivers not supporting hot-add/removing. Can
+	 * the mode_config.list for drivers yest supporting hot-add/removing. Can
 	 * be used as an array index. It is invariant over the lifetime of the
 	 * connector.
 	 */
@@ -1151,7 +1151,7 @@ struct drm_connector {
 	/**
 	 * @ycbcr_420_allowed : This bool indicates if this connector is
 	 * capable of handling YCBCR 420 output. While parsing the EDID
-	 * blocks it's very helpful to know if the source is capable of
+	 * blocks it's very helpful to kyesw if the source is capable of
 	 * handling YCBCR 420 outputs.
 	 */
 	bool ycbcr_420_allowed;
@@ -1173,7 +1173,7 @@ struct drm_connector {
 
 	/**
 	 * @status:
-	 * One of the drm_connector_status enums (connected, not, or unknown).
+	 * One of the drm_connector_status enums (connected, yest, or unkyeswn).
 	 * Protected by &drm_mode_config.mutex.
 	 */
 	enum drm_connector_status status;
@@ -1188,7 +1188,7 @@ struct drm_connector {
 
 	/**
 	 * @display_info: Display information is filled from EDID information
-	 * when a display is detected. For non hot-pluggable displays such as
+	 * when a display is detected. For yesn hot-pluggable displays such as
 	 * flat panels in embedded systems, the driver should initialize the
 	 * &drm_display_info.width_mm and &drm_display_info.height_mm fields
 	 * with the physical size of the display.
@@ -1258,7 +1258,7 @@ struct drm_connector {
 	 *
 	 * DRM_CONNECTOR_POLL_HPD
 	 *     The connector generates hotplug events and doesn't need to be
-	 *     periodically polled. The CONNECT and DISCONNECT flags must not
+	 *     periodically polled. The CONNECT and DISCONNECT flags must yest
 	 *     be set together with the HPD flag.
 	 *
 	 * DRM_CONNECTOR_POLL_CONNECT
@@ -1301,7 +1301,7 @@ struct drm_connector {
 
 	/**
 	 * @encoder: Currently bound encoder driving this connector, if any.
-	 * Only really meaningful for non-atomic drivers. Atomic drivers should
+	 * Only really meaningful for yesn-atomic drivers. Atomic drivers should
 	 * instead look at &drm_connector_state.best_encoder, and in case they
 	 * need the CRTC driving this output, &drm_connector_state.crtc.
 	 */
@@ -1359,7 +1359,7 @@ struct drm_connector {
 	 * Current atomic state for this connector.
 	 *
 	 * This is protected by &drm_mode_config.connection_mutex. Note that
-	 * nonblocking atomic commits access the current connector state without
+	 * yesnblocking atomic commits access the current connector state without
 	 * taking locks. Either by going through the &struct drm_atomic_state
 	 * pointers, see for_each_oldnew_connector_in_state(),
 	 * for_each_old_connector_in_state() and
@@ -1376,9 +1376,9 @@ struct drm_connector {
 	 *
 	 * DRM blob property data for the tile property (used mostly by DP MST).
 	 * This is meant for screens which are driven through separate display
-	 * pipelines represented by &drm_crtc, which might not be running with
+	 * pipelines represented by &drm_crtc, which might yest be running with
 	 * genlocked clocks. For tiled panels which are genlocked, like
-	 * dual-link LVDS or dual-link DSI, the driver should try to not expose
+	 * dual-link LVDS or dual-link DSI, the driver should try to yest expose
 	 * the tiling and virtualize both &drm_crtc and &drm_plane if needed.
 	 *
 	 * This should only be updated by calling
@@ -1404,13 +1404,13 @@ struct drm_connector {
 	uint16_t tile_h_size, tile_v_size;
 
 	/**
-	 * @free_node:
+	 * @free_yesde:
 	 *
 	 * List used only by &drm_connector_list_iter to be able to clean up a
 	 * connector from any context, in conjunction with
 	 * &drm_mode_config.connector_free_work.
 	 */
-	struct llist_node free_node;
+	struct llist_yesde free_yesde;
 
 	/** @hdr_sink_metadata: HDR Metadata Information read from sink */
 	struct hdr_sink_metadata hdr_sink_metadata;
@@ -1491,11 +1491,11 @@ static inline void drm_connector_put(struct drm_connector *connector)
  * userspace?
  * @connector: DRM connector
  *
- * Checks whether or not @connector has been unregistered from userspace.
+ * Checks whether or yest @connector has been unregistered from userspace.
  *
  * Returns:
  * True if the connector was unregistered, false if the connector is
- * registered or has not yet been registered with userspace.
+ * registered or has yest yet been registered with userspace.
  */
 static inline bool
 drm_connector_is_unregistered(struct drm_connector *connector)

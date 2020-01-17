@@ -25,7 +25,7 @@
  *     All rights reserved.
  *
  *     You should have received a copy of the GNU General Public License along
- *     with this program; if not, write to the Free Software Foundation, Inc.,
+ *     with this program; if yest, write to the Free Software Foundation, Inc.,
  *     675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *****************************************************************************/
@@ -88,7 +88,7 @@ struct hwicap_driver_config {
 };
 
 /* Number of times to poll the done register. This has to be large
- * enough to allow an entire configuration to complete. If an entire
+ * eyesugh to allow an entire configuration to complete. If an entire
  * page (4kb) is configured at once, that could take up to 4k cycles
  * with a byte-wide icap interface. In most cases, this driver is
  * used with a much smaller fifo, but this should be sufficient in the

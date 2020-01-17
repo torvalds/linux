@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -23,9 +23,9 @@ static int set_immutable(const char *path, int immutable)
 
 	rc = ioctl(fd, FS_IOC_GETFLAGS, &flags);
 	if (rc < 0) {
-		error = errno;
+		error = erryes;
 		close(fd);
-		errno = error;
+		erryes = error;
 		return rc;
 	}
 
@@ -35,9 +35,9 @@ static int set_immutable(const char *path, int immutable)
 		flags &= ~FS_IMMUTABLE_FL;
 
 	rc = ioctl(fd, FS_IOC_SETFLAGS, &flags);
-	error = errno;
+	error = erryes;
 	close(fd);
-	errno = error;
+	erryes = error;
 	return rc;
 }
 
@@ -54,9 +54,9 @@ static int get_immutable(const char *path)
 
 	rc = ioctl(fd, FS_IOC_GETFLAGS, &flags);
 	if (rc < 0) {
-		error = errno;
+		error = erryes;
 		close(fd);
-		errno = error;
+		erryes = error;
 		return rc;
 	}
 	close(fd);

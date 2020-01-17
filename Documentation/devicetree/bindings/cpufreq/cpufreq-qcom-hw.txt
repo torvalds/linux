@@ -1,6 +1,6 @@
-Qualcomm Technologies, Inc. CPUFREQ Bindings
+Qualcomm Techyeslogies, Inc. CPUFREQ Bindings
 
-CPUFREQ HW is a hardware engine used by some Qualcomm Technologies, Inc. (QTI)
+CPUFREQ HW is a hardware engine used by some Qualcomm Techyeslogies, Inc. (QTI)
 SoCs to manage frequency in hardware. It is capable of controlling frequency
 for multiple clusters.
 
@@ -37,7 +37,7 @@ Properties:
 
 * Property qcom,freq-domain
 Devices supporting freq-domain must set their "qcom,freq-domain" property with
-phandle to a cpufreq_hw followed by the Domain ID(0/1) in the CPU DT node.
+phandle to a cpufreq_hw followed by the Domain ID(0/1) in the CPU DT yesde.
 
 
 Example:

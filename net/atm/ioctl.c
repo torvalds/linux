@@ -107,7 +107,7 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd,
 		   work for 32-bit userspace. TBH I don't really want
 		   to think about it at all. dwmw2. */
 		if (compat) {
-			net_warn_ratelimited("32-bit task cannot be atmsigd\n");
+			net_warn_ratelimited("32-bit task canyest be atmsigd\n");
 			error = -EINVAL;
 			goto done;
 		}

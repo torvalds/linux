@@ -6,7 +6,7 @@
  *  linux/drivers/ide/pdc202xx.c	Version 0.35	Mar. 30, 2002
  *  Copyright (C) 1998-2002		Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2005-2007		MontaVista Software, Inc.
- *  Portions Copyright (C) 1999 Promise Technology, Inc.
+ *  Portions Copyright (C) 1999 Promise Techyeslogy, Inc.
  *  Author: Frank Tiernan (frankt@promise.com)
  *  Released under terms of General Public License
  */
@@ -281,7 +281,7 @@ static long detect_pll_input_clock(unsigned long dma_base)
 #ifdef CONFIG_PPC_PMAC
 static void apple_kiwi_init(struct pci_dev *pdev)
 {
-	struct device_node *np = pci_device_to_OF_node(pdev);
+	struct device_yesde *np = pci_device_to_OF_yesde(pdev);
 	u8 conf;
 
 	if (np == NULL || !of_device_is_compatible(np, "kiwi-root"))
@@ -324,7 +324,7 @@ static int init_chipset_pdcnew(struct pci_dev *dev)
 
 	/*
 	 * Detect PLL input clock.
-	 * On some systems, where PCI bus is running at non-standard clock rate
+	 * On some systems, where PCI bus is running at yesn-standard clock rate
 	 * (e.g. 25 or 40 MHz), we have to adjust the cycle time.
 	 * PDC20268 and newer chips employ PLL circuit to help correct timing
 	 * registers setting.

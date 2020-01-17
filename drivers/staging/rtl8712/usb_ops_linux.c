@@ -370,7 +370,7 @@ static void usb_write_port_complete(struct urb *purb)
 				"r8712u: pipe error: (%d)\n", purb->status);
 		break;
 	}
-	/* not to consider tx fragment */
+	/* yest to consider tx fragment */
 	r8712_free_xmitframe_ex(pxmitpriv, pxmitframe);
 	r8712_free_xmitbuf(pxmitpriv, pxmitbuf);
 	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);

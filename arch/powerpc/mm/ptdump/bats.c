@@ -48,7 +48,7 @@ static void bat_show_601(struct seq_file *m, int idx, u32 lower, u32 upper)
 	if (lower & _PAGE_WRITETHRU)
 		seq_puts(m, "write through ");
 	if (lower & _PAGE_NO_CACHE)
-		seq_puts(m, "no cache ");
+		seq_puts(m, "yes cache ");
 	if (lower & _PAGE_COHERENT)
 		seq_puts(m, "coherent ");
 	seq_puts(m, "\n");
@@ -106,7 +106,7 @@ static void bat_show_603(struct seq_file *m, int idx, u32 lower, u32 upper, bool
 	if (lower & _PAGE_WRITETHRU)
 		seq_puts(m, "write through ");
 	if (lower & _PAGE_NO_CACHE)
-		seq_puts(m, "no cache ");
+		seq_puts(m, "yes cache ");
 	if (lower & _PAGE_COHERENT)
 		seq_puts(m, "coherent ");
 	if (lower & _PAGE_GUARDED)
@@ -147,7 +147,7 @@ static int bats_show_603(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int bats_open(struct inode *inode, struct file *file)
+static int bats_open(struct iyesde *iyesde, struct file *file)
 {
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601))
 		return single_open(file, bats_show_601, NULL);

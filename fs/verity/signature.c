@@ -32,13 +32,13 @@ static struct key *fsverity_keyring;
  * If the file's fs-verity descriptor includes a signature of the file
  * measurement, verify it against the certificates in the fs-verity keyring.
  *
- * Return: 0 on success (signature valid or not required); -errno on failure
+ * Return: 0 on success (signature valid or yest required); -erryes on failure
  */
 int fsverity_verify_signature(const struct fsverity_info *vi,
 			      const struct fsverity_descriptor *desc,
 			      size_t desc_size)
 {
-	const struct inode *inode = vi->inode;
+	const struct iyesde *iyesde = vi->iyesde;
 	const struct fsverity_hash_alg *hash_alg = vi->tree_params.hash_alg;
 	const u32 sig_size = le32_to_cpu(desc->sig_size);
 	struct fsverity_signed_digest *d;
@@ -46,7 +46,7 @@ int fsverity_verify_signature(const struct fsverity_info *vi,
 
 	if (sig_size == 0) {
 		if (fsverity_require_signatures) {
-			fsverity_err(inode,
+			fsverity_err(iyesde,
 				     "require_signatures=1, rejecting unsigned file!");
 			return -EPERM;
 		}
@@ -54,7 +54,7 @@ int fsverity_verify_signature(const struct fsverity_info *vi,
 	}
 
 	if (sig_size > desc_size - sizeof(*desc)) {
-		fsverity_err(inode, "Signature overflows verity descriptor");
+		fsverity_err(iyesde, "Signature overflows verity descriptor");
 		return -EBADMSG;
 	}
 
@@ -75,14 +75,14 @@ int fsverity_verify_signature(const struct fsverity_info *vi,
 
 	if (err) {
 		if (err == -ENOKEY)
-			fsverity_err(inode,
+			fsverity_err(iyesde,
 				     "File's signing cert isn't in the fs-verity keyring");
 		else if (err == -EKEYREJECTED)
-			fsverity_err(inode, "Incorrect file signature");
+			fsverity_err(iyesde, "Incorrect file signature");
 		else if (err == -EBADMSG)
-			fsverity_err(inode, "Malformed file signature");
+			fsverity_err(iyesde, "Malformed file signature");
 		else
-			fsverity_err(inode, "Error %d verifying file signature",
+			fsverity_err(iyesde, "Error %d verifying file signature",
 				     err);
 		return err;
 	}

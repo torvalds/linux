@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -35,7 +35,7 @@
  * don't follow the standard programming model using direct MMIO
  * registers, and instead their registers must be accessed trough IOSF
  * sideband. VLV has one such PHY for driving ports B and C, and CHV
- * adds another PHY for driving port D. Each PHY responds to specific
+ * adds ayesther PHY for driving port D. Each PHY responds to specific
  * IOSF-SB port.
  *
  * Each display PHY is made up of one or two channels. Each channel
@@ -84,7 +84,7 @@
  *  port D == PCS/TX CH0
  *
  * On BXT the entire PHY channel corresponds to the port. That means
- * the PLL is also now associated with the port rather than the pipe,
+ * the PLL is also yesw associated with the port rather than the pipe,
  * and so the clock needs to be routed to the appropriate transcoder.
  * Port A PLL is directly connected to transcoder EDP and port B/C
  * PLLs can be routed to any transcoder A/B/C.
@@ -259,7 +259,7 @@ void bxt_port_to_phy_channel(struct drm_i915_private *dev_priv, enum port port,
 		}
 	}
 
-	WARN(1, "PHY not found for PORT %c", port_name(port));
+	WARN(1, "PHY yest found for PORT %c", port_name(port));
 	*phy = DPIO_PHY0;
 	*ch = DPIO_CH0;
 }
@@ -707,7 +707,7 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 	/*
 	 * The document said it needs to set bit 27 for ch0 and bit 26
 	 * for ch1. Might be a typo in the doc.
-	 * For now, for this unique transition scale selection, set bit
+	 * For yesw, for this unique transition scale selection, set bit
 	 * 27 for ch0 and ch1.
 	 */
 	for (i = 0; i < intel_crtc->config->lane_count; i++) {

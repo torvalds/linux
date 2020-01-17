@@ -111,9 +111,9 @@ void aac_fib_vector_assign(struct aac_dev *dev)
 		if ((dev->max_msix == 1) ||
 		  (i > ((dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB - 1)
 			- dev->vector_cap))) {
-			fibptr->vector_no = 0;
+			fibptr->vector_yes = 0;
 		} else {
-			fibptr->vector_no = vector;
+			fibptr->vector_yes = vector;
 			vector++;
 			if (vector == dev->max_msix)
 				vector = 1;
@@ -258,7 +258,7 @@ struct fib *aac_fib_alloc(struct aac_dev *dev)
 	dev->free_fib = fibptr->next;
 	spin_unlock_irqrestore(&dev->fib_lock, flags);
 	/*
-	 *	Set the proper node type code and node byte size
+	 *	Set the proper yesde type code and yesde byte size
 	 */
 	fibptr->type = FSAFS_NTC_FIB_CONTEXT;
 	fibptr->size = sizeof(struct fib);
@@ -338,7 +338,7 @@ static void fib_dealloc(struct fib * fibptr)
 /*
  *	Commuication primitives define and support the queuing method we use to
  *	support host to adapter commuication. All queue accesses happen through
- *	these routines and are the only routines which have a knowledge of the
+ *	these routines and are the only routines which have a kyeswledge of the
  *	 how these queues are implemented.
  */
 
@@ -348,14 +348,14 @@ static void fib_dealloc(struct fib * fibptr)
  *	@qid: Queue Number
  *	@entry: Entry return
  *	@index: Index return
- *	@nonotify: notification control
+ *	@yesyestify: yestification control
  *
  *	With a priority the routine returns a queue entry if the queue has free entries. If the queue
- *	is full(no free entries) than no entry is returned and the function returns 0 otherwise 1 is
+ *	is full(yes free entries) than yes entry is returned and the function returns 0 otherwise 1 is
  *	returned.
  */
 
-static int aac_get_entry (struct aac_dev * dev, u32 qid, struct aac_entry **entry, u32 * index, unsigned long *nonotify)
+static int aac_get_entry (struct aac_dev * dev, u32 qid, struct aac_entry **entry, u32 * index, unsigned long *yesyestify)
 {
 	struct aac_queue * q;
 	unsigned long idx;
@@ -379,7 +379,7 @@ static int aac_get_entry (struct aac_dev * dev, u32 qid, struct aac_entry **entr
 				idx = ADAP_NORM_RESP_ENTRIES;
 		}
 		if (idx != le32_to_cpu(*(q->headers.consumer)))
-			*nonotify = 1;
+			*yesyestify = 1;
 	}
 
 	if (qid == AdapNormCmdQueue) {
@@ -409,7 +409,7 @@ static int aac_get_entry (struct aac_dev * dev, u32 qid, struct aac_entry **entr
  *	@fib: Fib to associate with the queue entry
  *	@wait: Wait if queue full
  *	@fibptr: Driver fib object to go with fib
- *	@nonotify: Don't notify the adapter
+ *	@yesyestify: Don't yestify the adapter
  *
  *	Gets the next free QE off the requested priorty adapter command
  *	queue and associates the Fib with the QE. The QE represented by
@@ -417,14 +417,14 @@ static int aac_get_entry (struct aac_dev * dev, u32 qid, struct aac_entry **entr
  *	success.
  */
 
-int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw_fib, int wait, struct fib * fibptr, unsigned long *nonotify)
+int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw_fib, int wait, struct fib * fibptr, unsigned long *yesyestify)
 {
 	struct aac_entry * entry = NULL;
 	int map = 0;
 
 	if (qid == AdapNormCmdQueue) {
-		/*  if no entries wait for some if caller wants to */
-		while (!aac_get_entry(dev, qid, &entry, index, nonotify)) {
+		/*  if yes entries wait for some if caller wants to */
+		while (!aac_get_entry(dev, qid, &entry, index, yesyestify)) {
 			printk(KERN_ERR "GetEntries failed\n");
 		}
 		/*
@@ -433,8 +433,8 @@ int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw
 		entry->size = cpu_to_le32(le16_to_cpu(hw_fib->header.Size));
 		map = 1;
 	} else {
-		while (!aac_get_entry(dev, qid, &entry, index, nonotify)) {
-			/* if no entries wait for some if caller wants to */
+		while (!aac_get_entry(dev, qid, &entry, index, yesyestify)) {
+			/* if yes entries wait for some if caller wants to */
 		}
 		/*
 		 *	Setup queue entry with command, status and fib mapped
@@ -442,7 +442,7 @@ int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw
 		entry->size = cpu_to_le32(le16_to_cpu(hw_fib->header.Size));
 		entry->addr = hw_fib->header.SenderFibAddress;
 			/* Restore adapters pointer to the FIB */
-		hw_fib->header.u.ReceiverFibAddress = hw_fib->header.SenderFibAddress;  /* Let the adapter now where to find its data */
+		hw_fib->header.u.ReceiverFibAddress = hw_fib->header.SenderFibAddress;  /* Let the adapter yesw where to find its data */
 		map = 0;
 	}
 	/*
@@ -457,8 +457,8 @@ int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw
 /*
  *	Define the highest level of host to adapter communication routines.
  *	These routines will support host to adapter FS commuication. These
- *	routines have no knowledge of the commuication method used. This level
- *	sends and receives FIBs. This level has no knowledge of how these FIBs
+ *	routines have yes kyeswledge of the commuication method used. This level
+ *	sends and receives FIBs. This level has yes kyeswledge of how these FIBs
  *	get passed back and forth.
  */
 
@@ -474,7 +474,7 @@ int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw
  *	@callback_data: Passed to callback
  *
  *	Sends the requested FIB to the adapter and optionally will wait for a
- *	response FIB. If the caller does not wish to wait for a response than
+ *	response FIB. If the caller does yest wish to wait for a response than
  *	an event to wait on must be supplied. This event will be set when a
  *	response FIB is received from the adapter.
  */
@@ -498,12 +498,12 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	/*
 	 *	There are 5 cases with the wait and response requested flags.
 	 *	The only invalid cases are if the caller requests to wait and
-	 *	does not request a response and if the caller does not want a
-	 *	response and the Fib is not allocated from pool. If a response
-	 *	is not requested the Fib will just be deallocaed by the DPC
+	 *	does yest request a response and if the caller does yest want a
+	 *	response and the Fib is yest allocated from pool. If a response
+	 *	is yest requested the Fib will just be deallocaed by the DPC
 	 *	routine when the response comes back from the adapter. No
 	 *	further processing will be done besides deleting the Fib. We
-	 *	will have a debug mode where the adapter can notify the host
+	 *	will have a debug mode where the adapter can yestify the host
 	 *	it had a problem and the host can log that fact.
 	 */
 	fibptr->flags = 0;
@@ -549,13 +549,13 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 		return -EMSGSIZE;
 	}
 	/*
-	 *	Get a queue entry connect the FIB to it and send an notify
+	 *	Get a queue entry connect the FIB to it and send an yestify
 	 *	the adapter a command is ready.
 	 */
 	hw_fib->header.XferState |= cpu_to_le32(NormalPriority);
 
 	/*
-	 *	Fill in the Callback and CallbackContext if we are not
+	 *	Fill in the Callback and CallbackContext if we are yest
 	 *	going to wait.
 	 */
 	if (!wait) {
@@ -631,16 +631,16 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 
 
 	/*
-	 *	If the caller wanted us to wait for response wait now.
+	 *	If the caller wanted us to wait for response wait yesw.
 	 */
 
 	if (wait) {
 		spin_unlock_irqrestore(&fibptr->event_lock, flags);
-		/* Only set for first known interruptable command */
+		/* Only set for first kyeswn interruptable command */
 		if (wait < 0) {
 			/*
 			 * *VERY* Dangerous to time out a command, the
-			 * assumption is made that we have no hope of
+			 * assumption is made that we have yes hope of
 			 * functioning because an interrupt routing or other
 			 * hardware failure has occurred.
 			 */
@@ -651,7 +651,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 					struct aac_queue * q = &dev->queues->queue[AdapNormCmdQueue];
 					atomic_dec(&q->numpending);
 					if (wait == -1) {
-	        				printk(KERN_ERR "aacraid: aac_fib_send: first asynchronous command timed out.\n"
+	        				printk(KERN_ERR "aacraid: aac_fib_send: first asynchroyesus command timed out.\n"
 						  "Usually a result of a PCI interrupt routing problem;\n"
 						  "update mother board BIOS or consider utilizing one of\n"
 						  "the SAFE mode kernel options (acpi, apic etc)\n");
@@ -676,7 +676,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 				schedule();
 			}
 		} else if (wait_for_completion_interruptible(&fibptr->event_wait)) {
-			/* Do nothing ... satisfy
+			/* Do yesthing ... satisfy
 			 * wait_for_completion_interruptible must_check */
 		}
 
@@ -694,7 +694,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 		return 0;
 	}
 	/*
-	 *	If the user does not want a response than return success otherwise
+	 *	If the user does yest want a response than return success otherwise
 	 *	return pending
 	 */
 	if (reply)
@@ -793,7 +793,7 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
  *
  *	Will return a pointer to the entry on the top of the queue requested that
  *	we are a consumer of, and return the address of the queue entry. It does
- *	not change the state of the queue.
+ *	yest change the state of the queue.
  */
 
 int aac_consumer_get(struct aac_dev * dev, struct aac_queue * q, struct aac_entry **entry)
@@ -825,13 +825,13 @@ int aac_consumer_get(struct aac_dev * dev, struct aac_queue * q, struct aac_entr
  *	@qid: Queue ident
  *
  *	Frees up the current top of the queue we are a consumer of. If the
- *	queue was full notify the producer that the queue is no longer full.
+ *	queue was full yestify the producer that the queue is yes longer full.
  */
 
 void aac_consumer_free(struct aac_dev * dev, struct aac_queue *q, u32 qid)
 {
 	int wasfull = 0;
-	u32 notify;
+	u32 yestify;
 
 	if ((le32_to_cpu(*q->headers.producer)+1) == le32_to_cpu(*q->headers.consumer))
 		wasfull = 1;
@@ -845,16 +845,16 @@ void aac_consumer_free(struct aac_dev * dev, struct aac_queue *q, u32 qid)
 		switch (qid) {
 
 		case HostNormCmdQueue:
-			notify = HostNormCmdNotFull;
+			yestify = HostNormCmdNotFull;
 			break;
 		case HostNormRespQueue:
-			notify = HostNormRespNotFull;
+			yestify = HostNormRespNotFull;
 			break;
 		default:
 			BUG();
 			return;
 		}
-		aac_adapter_notify(dev, notify);
+		aac_adapter_yestify(dev, yestify);
 	}
 }
 
@@ -872,7 +872,7 @@ int aac_fib_adapter_complete(struct fib *fibptr, unsigned short size)
 	struct hw_fib * hw_fib = fibptr->hw_fib_va;
 	struct aac_dev * dev = fibptr->dev;
 	struct aac_queue * q;
-	unsigned long nointr = 0;
+	unsigned long yesintr = 0;
 	unsigned long qflags;
 
 	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1 ||
@@ -918,15 +918,15 @@ int aac_fib_adapter_complete(struct fib *fibptr, unsigned short size)
 			}
 			q = &dev->queues->queue[AdapNormRespQueue];
 			spin_lock_irqsave(q->lock, qflags);
-			aac_queue_get(dev, &index, AdapNormRespQueue, hw_fib, 1, NULL, &nointr);
+			aac_queue_get(dev, &index, AdapNormRespQueue, hw_fib, 1, NULL, &yesintr);
 			*(q->headers.producer) = cpu_to_le32(index + 1);
 			spin_unlock_irqrestore(q->lock, qflags);
-			if (!(nointr & (int)aac_config.irq_mod))
-				aac_adapter_notify(dev, AdapNormRespQueue);
+			if (!(yesintr & (int)aac_config.irq_mod))
+				aac_adapter_yestify(dev, AdapNormRespQueue);
 		}
 	} else {
 		printk(KERN_WARNING "aac_fib_adapter_complete: "
-			"Unknown xferstate detected.\n");
+			"Unkyeswn xferstate detected.\n");
 		BUG();
 	}
 	return 0;
@@ -979,7 +979,7 @@ int aac_fib_complete(struct fib *fibptr)
 	{
 		/*
 		 *	This handles the case when the host has aborted the I/O
-		 *	to the adapter because the adapter is not responding
+		 *	to the adapter because the adapter is yest responding
 		 */
 		fib_dealloc(fibptr);
 	} else if(hw_fib->header.XferState & cpu_to_le32(HostOwned)) {
@@ -1009,7 +1009,7 @@ void aac_printf(struct aac_dev *dev, u32 val)
 
 		/*
 		 *	The size of the printfbuf is set in port.c
-		 *	There is no variable or define for it
+		 *	There is yes variable or define for it
 		 */
 		if (length > 255)
 			length = 255;
@@ -1054,7 +1054,7 @@ static void aac_handle_aif_bu(struct aac_dev *dev, struct aac_aifcmd *aifcmd)
  *	@dev: Which adapter this fib is from
  *	@fibptr: Pointer to fibptr from adapter
  *
- *	This routine handles a driver notify fib from the adapter and
+ *	This routine handles a driver yestify fib from the adapter and
  *	dispatches it to the appropriate routine for handling.
  */
 
@@ -1081,7 +1081,7 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 	/*
 	 *	We have set this up to try and minimize the number of
 	 * re-configures that take place. As a result of this when
-	 * certain AIF's come in we will set a flag waiting for another
+	 * certain AIF's come in we will set a flag waiting for ayesther
 	 * type of AIF before setting the re-config flag.
 	 */
 	switch (le32_to_cpu(aifcmd->command)) {
@@ -1192,7 +1192,7 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 			break;
 
 		/*
-		 *	Container change detected. If we currently are not
+		 *	Container change detected. If we currently are yest
 		 * waiting on something else, setup to wait on a Config Change.
 		 */
 		case AifEnContainerChange:
@@ -1490,9 +1490,9 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	 *	- host is locked, unless called by the aacraid thread.
 	 *	  (a matter of convenience, due to legacy issues surrounding
 	 *	  eh_host_adapter_reset).
-	 *	- in_reset is asserted, so no new i/o is getting to the
+	 *	- in_reset is asserted, so yes new i/o is getting to the
 	 *	  card.
-	 *	- The card is dead, or will be very shortly ;-/ so no new
+	 *	- The card is dead, or will be very shortly ;-/ so yes new
 	 *	  commands are completing in the interrupt service.
 	 */
 	host = aac->scsi_host_ptr;
@@ -1506,7 +1506,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	}
 
 	/*
-	 *	If a positive health, means in a known DEAD PANIC
+	 *	If a positive health, means in a kyeswn DEAD PANIC
 	 * state and the adapter could be reset to `try again'.
 	 */
 	bled = forced ? 0 : aac_adapter_check_health(aac);
@@ -1516,7 +1516,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 		goto out;
 
 	/*
-	 *	Loop through the fibs, close the synchronous FIBS
+	 *	Loop through the fibs, close the synchroyesus FIBS
 	 */
 	retval = 1;
 	num_of_fibs = aac->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB;
@@ -1675,7 +1675,7 @@ int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 
 	/*
 	 * Wait for all commands to complete to this specific
-	 * target (block maximum 60 seconds). Although not necessary,
+	 * target (block maximum 60 seconds). Although yest necessary,
 	 * it does make us a good storage citizen.
 	 */
 	host = aac->scsi_host_ptr;
@@ -1705,7 +1705,7 @@ int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 			cmd->type = cpu_to_le32(CT_PAUSE_IO);
 			cmd->timeout = cpu_to_le32(1);
 			cmd->min = cpu_to_le32(1);
-			cmd->noRescan = cpu_to_le32(1);
+			cmd->yesRescan = cpu_to_le32(1);
 			cmd->count = cpu_to_le32(0);
 
 			status = aac_fib_send(ContainerCommand,
@@ -1730,7 +1730,7 @@ int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 int aac_check_health(struct aac_dev * aac)
 {
 	int BlinkLED;
-	unsigned long time_now, flagv = 0;
+	unsigned long time_yesw, flagv = 0;
 	struct list_head * entry;
 
 	/* Extending the scope of fib_lock slightly to protect aac->in_reset */
@@ -1753,7 +1753,7 @@ int aac_check_health(struct aac_dev * aac)
 	 *	aac.aifcmd.data[3] = BlinkLED
 	 */
 
-	time_now = jiffies/HZ;
+	time_yesw = jiffies/HZ;
 	entry = aac->fib_list.next;
 
 	/*
@@ -1775,8 +1775,8 @@ int aac_check_health(struct aac_dev * aac)
 		 */
 		if (fibctx->count > 20) {
 			/*
-			 * It's *not* jiffies folks,
-			 * but jiffies / HZ, so do not
+			 * It's *yest* jiffies folks,
+			 * but jiffies / HZ, so do yest
 			 * panic ...
 			 */
 			u32 time_last = fibctx->jiffies;
@@ -1785,14 +1785,14 @@ int aac_check_health(struct aac_dev * aac)
 			 * since the last read off
 			 * the queue?
 			 */
-			if ((time_now - time_last) > aif_timeout) {
+			if ((time_yesw - time_last) > aif_timeout) {
 				entry = entry->next;
 				aac_close_fib_context(aac, fibctx);
 				continue;
 			}
 		}
 		/*
-		 * Warning: no sleep allowed while
+		 * Warning: yes sleep allowed while
 		 * holding spinlock
 		 */
 		hw_fib = kzalloc(sizeof(struct hw_fib), GFP_ATOMIC);
@@ -1983,7 +1983,7 @@ void aac_src_reinit_aif_worker(struct work_struct *work)
  *	@dev: Which adapter this fib is from
  *	@fibptr: Pointer to fibptr from adapter
  *
- *	This routine handles a driver notify fib from the adapter and
+ *	This routine handles a driver yestify fib from the adapter and
  *	dispatches it to the appropriate routine for handling.
  */
 static void aac_handle_sa_aif(struct aac_dev *dev, struct fib *fibptr)
@@ -2016,14 +2016,14 @@ static void aac_handle_sa_aif(struct aac_dev *dev, struct fib *fibptr)
 		break;
 
 	case SA_AIF_BPSTAT_CHANGE:
-		/* currently do nothing */
+		/* currently do yesthing */
 		break;
 	}
 
 	for (i = 1; i <= 10; ++i) {
 		events = src_readl(dev, MUnit.IDR);
 		if (events & (1<<23)) {
-			pr_warn(" AIF not cleared by firmware - %d/%d)\n",
+			pr_warn(" AIF yest cleared by firmware - %d/%d)\n",
 				i, 10);
 			ssleep(1);
 		}
@@ -2037,7 +2037,7 @@ static int get_fib_count(struct aac_dev *dev)
 	unsigned long flagv;
 
 	/*
-	 * Warning: no sleep allowed while
+	 * Warning: yes sleep allowed while
 	 * holding spinlock. We take the estimate
 	 * and pre-allocate a set of fibs outside the
 	 * lock.
@@ -2096,12 +2096,12 @@ static void wakeup_fibctx_threads(struct aac_dev *dev,
 	struct list_head *entry;
 	struct hw_fib **hw_fib_p;
 	struct fib **fib_p;
-	u32 time_now, time_last;
+	u32 time_yesw, time_last;
 	struct hw_fib *hw_newfib;
 	struct fib *newfib;
 	struct aac_fib_context *fibctx;
 
-	time_now = jiffies/HZ;
+	time_yesw = jiffies/HZ;
 	spin_lock_irqsave(&dev->fib_lock, flagv);
 	entry = dev->fib_list.next;
 	/*
@@ -2125,8 +2125,8 @@ static void wakeup_fibctx_threads(struct aac_dev *dev,
 		 */
 		if (fibctx->count > 20) {
 			/*
-			 * It's *not* jiffies folks,
-			 * but jiffies / HZ so do not
+			 * It's *yest* jiffies folks,
+			 * but jiffies / HZ so do yest
 			 * panic ...
 			 */
 			time_last = fibctx->jiffies;
@@ -2135,14 +2135,14 @@ static void wakeup_fibctx_threads(struct aac_dev *dev,
 			 * since the last read off
 			 * the queue?
 			 */
-			if ((time_now - time_last) > aif_timeout) {
+			if ((time_yesw - time_last) > aif_timeout) {
 				entry = entry->next;
 				aac_close_fib_context(dev, fibctx);
 				continue;
 			}
 		}
 		/*
-		 * Warning: no sleep allowed while
+		 * Warning: yes sleep allowed while
 		 * holding spinlock
 		 */
 		if (hw_fib_p >= &hw_fib_pool[num]) {
@@ -2302,7 +2302,7 @@ free_fib:
 		spin_lock_irqsave(t_lock, flags);
 	}
 	/*
-	 *	There are no more AIF's
+	 *	There are yes more AIF's
 	 */
 	t_lock = dev->queues->queue[HostNormCmdQueue].lock;
 	spin_unlock_irqrestore(t_lock, flags);
@@ -2362,7 +2362,7 @@ static int aac_send_wellness_command(struct aac_dev *dev, char *wellness_str,
 	dma_free_coherent(&dev->pdev->dev, datasize, dma_buf, addr);
 
 	/*
-	 * Do not set XferState to zero unless
+	 * Do yest set XferState to zero unless
 	 * receives a response from F/W
 	 */
 	if (ret >= 0)
@@ -2382,7 +2382,7 @@ fib_free_out:
 	goto out;
 }
 
-int aac_send_safw_hostttime(struct aac_dev *dev, struct timespec64 *now)
+int aac_send_safw_hostttime(struct aac_dev *dev, struct timespec64 *yesw)
 {
 	struct tm cur_tm;
 	char wellness_str[] = "<HW>TD\010\0\0\0\0\0\0\0\0\0DW\0\0ZZ";
@@ -2393,7 +2393,7 @@ int aac_send_safw_hostttime(struct aac_dev *dev, struct timespec64 *now)
 	if (!dev->sa_firmware)
 		goto out;
 
-	local_time = (now->tv_sec - (sys_tz.tz_minuteswest * 60));
+	local_time = (yesw->tv_sec - (sys_tz.tz_minuteswest * 60));
 	time64_to_tm(local_time, 0, &cur_tm);
 	cur_tm.tm_mon += 1;
 	cur_tm.tm_year += 1900;
@@ -2411,7 +2411,7 @@ out:
 	return ret;
 }
 
-int aac_send_hosttime(struct aac_dev *dev, struct timespec64 *now)
+int aac_send_hosttime(struct aac_dev *dev, struct timespec64 *yesw)
 {
 	int ret = -ENOMEM;
 	struct fib *fibptr;
@@ -2423,12 +2423,12 @@ int aac_send_hosttime(struct aac_dev *dev, struct timespec64 *now)
 
 	aac_fib_init(fibptr);
 	info = (__le32 *)fib_data(fibptr);
-	*info = cpu_to_le32(now->tv_sec); /* overflow in y2106 */
+	*info = cpu_to_le32(yesw->tv_sec); /* overflow in y2106 */
 	ret = aac_fib_send(SendHostTime, fibptr, sizeof(*info), FsaNormal,
 					1, 1, NULL, NULL);
 
 	/*
-	 * Do not set XferState to zero unless
+	 * Do yest set XferState to zero unless
 	 * receives a response from F/W
 	 */
 	if (ret >= 0)
@@ -2470,7 +2470,7 @@ int aac_command_thread(void *data)
 		return -EINVAL;
 
 	/*
-	 *	Let the DPC know it has a place to send the AIF's to.
+	 *	Let the DPC kyesw it has a place to send the AIF's to.
 	 */
 	dev->aif_thread = 1;
 	add_wait_queue(&dev->queues->queue[HostNormCmdQueue].cmdready, &wait);
@@ -2495,7 +2495,7 @@ int aac_command_thread(void *data)
 		}
 		if (!time_before(next_check_jiffies,next_jiffies)
 		 && ((difference = next_jiffies - jiffies) <= 0)) {
-			struct timespec64 now;
+			struct timespec64 yesw;
 			int ret;
 
 			/* Don't even try to talk to adapter if its sick */
@@ -2505,22 +2505,22 @@ int aac_command_thread(void *data)
 			next_check_jiffies = jiffies
 					   + ((long)(unsigned)check_interval)
 					   * HZ;
-			ktime_get_real_ts64(&now);
+			ktime_get_real_ts64(&yesw);
 
 			/* Synchronize our watches */
-			if (((NSEC_PER_SEC - (NSEC_PER_SEC / HZ)) > now.tv_nsec)
-			 && (now.tv_nsec > (NSEC_PER_SEC / HZ)))
+			if (((NSEC_PER_SEC - (NSEC_PER_SEC / HZ)) > yesw.tv_nsec)
+			 && (yesw.tv_nsec > (NSEC_PER_SEC / HZ)))
 				difference = HZ + HZ / 2 -
-					     now.tv_nsec / (NSEC_PER_SEC / HZ);
+					     yesw.tv_nsec / (NSEC_PER_SEC / HZ);
 			else {
-				if (now.tv_nsec > NSEC_PER_SEC / 2)
-					++now.tv_sec;
+				if (yesw.tv_nsec > NSEC_PER_SEC / 2)
+					++yesw.tv_sec;
 
 				if (dev->sa_firmware)
 					ret =
-					aac_send_safw_hostttime(dev, &now);
+					aac_send_safw_hostttime(dev, &yesw);
 				else
-					ret = aac_send_hosttime(dev, &now);
+					ret = aac_send_hosttime(dev, &yesw);
 
 				difference = (long)(unsigned)update_interval*HZ;
 			}
@@ -2558,7 +2558,7 @@ int aac_acquire_irq(struct aac_dev *dev)
 
 	if (!dev->sync_mode && dev->msi_enabled && dev->max_msix > 1) {
 		for (i = 0; i < dev->max_msix; i++) {
-			dev->aac_msix[i].vector_no = i;
+			dev->aac_msix[i].vector_yes = i;
 			dev->aac_msix[i].dev = dev;
 			if (request_irq(pci_irq_vector(dev->pdev, i),
 					dev->a_ops.adapter_intr,
@@ -2573,7 +2573,7 @@ int aac_acquire_irq(struct aac_dev *dev)
 			}
 		}
 	} else {
-		dev->aac_msix[0].vector_no = 0;
+		dev->aac_msix[0].vector_yes = 0;
 		dev->aac_msix[0].dev = dev;
 
 		if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,

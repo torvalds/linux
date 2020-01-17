@@ -13,7 +13,7 @@
         "UMask": "0x0",
         "EventName": "CORE_REJECT_L2Q.ALL",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of MEC requests that were not accepted into the L2Q because of any L2  queue reject condition. There is no concept of at-ret here. It might include requests due to instructions in the speculative path."
+        "BriefDescription": "Counts the number of MEC requests that were yest accepted into the L2Q because of any L2  queue reject condition. There is yes concept of at-ret here. It might include requests due to instructions in the speculative path."
     },
     {
         "EventCode": "0x2E",
@@ -41,7 +41,7 @@
         "BriefDescription": "Counts the number of core cycles the fetch stalls because of an icache miss. This is a cummulative count of core cycles the fetch stalled for all icache misses."
     },
     {
-        "PublicDescription": "This event counts the number of load micro-ops retired that miss in L1 Data cache. Note that prefetch misses will not be counted.",
+        "PublicDescription": "This event counts the number of load micro-ops retired that miss in L1 Data cache. Note that prefetch misses will yest be counted.",
         "EventCode": "0x04",
         "Counter": "0,1",
         "UMask": "0x1",
@@ -132,7 +132,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Prefetch requests that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts any Prefetch requests that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -143,7 +143,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Prefetch requests that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts any Prefetch requests that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -154,7 +154,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Prefetch requests that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts any Prefetch requests that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -165,7 +165,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Prefetch requests that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts any Prefetch requests that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -198,7 +198,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_READ.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Read request  that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts any Read request  that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -209,7 +209,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_READ.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Read request  that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts any Read request  that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -220,7 +220,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_READ.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Read request  that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts any Read request  that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -231,7 +231,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_READ.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Read request  that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts any Read request  that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -264,7 +264,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -275,7 +275,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -286,7 +286,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -297,7 +297,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -330,7 +330,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_RFO.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -341,7 +341,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_RFO.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -352,7 +352,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_RFO.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -363,7 +363,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_RFO.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -396,7 +396,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -407,7 +407,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -418,7 +418,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -429,7 +429,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -462,7 +462,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts any request that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -473,7 +473,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts any request that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -484,7 +484,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts any request that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -495,7 +495,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts any request that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -550,7 +550,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L1 data HW prefetches that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts L1 data HW prefetches that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -561,7 +561,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L1 data HW prefetches that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts L1 data HW prefetches that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -572,7 +572,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L1 data HW prefetches that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts L1 data HW prefetches that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -583,7 +583,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L1 data HW prefetches that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts L1 data HW prefetches that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -616,7 +616,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Software Prefetches that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts Software Prefetches that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -627,7 +627,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Software Prefetches that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts Software Prefetches that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -638,7 +638,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Software Prefetches that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts Software Prefetches that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -649,7 +649,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Software Prefetches that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts Software Prefetches that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -693,7 +693,7 @@
         "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Bus locks and split lock requests that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts Bus locks and split lock requests that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -704,7 +704,7 @@
         "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Bus locks and split lock requests that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts Bus locks and split lock requests that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -715,7 +715,7 @@
         "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Bus locks and split lock requests that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts Bus locks and split lock requests that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -726,7 +726,7 @@
         "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Bus locks and split lock requests that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts Bus locks and split lock requests that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -759,7 +759,7 @@
         "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -770,7 +770,7 @@
         "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -781,7 +781,7 @@
         "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -792,7 +792,7 @@
         "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -814,7 +814,7 @@
         "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -825,7 +825,7 @@
         "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -836,7 +836,7 @@
         "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -847,7 +847,7 @@
         "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -880,7 +880,7 @@
         "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -891,7 +891,7 @@
         "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -902,7 +902,7 @@
         "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -913,7 +913,7 @@
         "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -946,7 +946,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 code HW prefetches that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts L2 code HW prefetches that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -957,7 +957,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 code HW prefetches that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts L2 code HW prefetches that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -968,7 +968,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 code HW prefetches that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts L2 code HW prefetches that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -979,7 +979,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 code HW prefetches that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts L2 code HW prefetches that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -1001,7 +1001,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -1012,7 +1012,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -1023,7 +1023,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -1034,7 +1034,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -1045,7 +1045,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_NONE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that provides no supplier details",
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that provides yes supplier details",
         "Offcore": "1"
     },
     {
@@ -1078,7 +1078,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -1089,7 +1089,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -1100,7 +1100,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -1111,7 +1111,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -1144,7 +1144,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data writes that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts Demand cacheable data writes that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -1155,7 +1155,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data writes that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts Demand cacheable data writes that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -1166,7 +1166,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data writes that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts Demand cacheable data writes that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -1177,7 +1177,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data writes that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts Demand cacheable data writes that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -1210,7 +1210,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L2_HIT_FAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in M state.",
+        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -1221,7 +1221,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L2_HIT_FAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for responses from a snoop request hit with data forwarded from its Far(not in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
+        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for responses from a syesop request hit with data forwarded from its Far(yest in the same quadrant as the request)-other tile's L2 in E/F state. Valid only for SNC4 cluster mode.",
         "Offcore": "1"
     },
     {
@@ -1232,7 +1232,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L2_HIT_NEAR_TILE_M",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in M state.",
+        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in M state.",
         "Offcore": "1"
     },
     {
@@ -1243,7 +1243,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L2_HIT_NEAR_TILE_E_F",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for responses from a snoop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
+        "BriefDescription": "Counts demand cacheable data and L1 prefetch data reads that accounts for responses from a syesop request hit with data forwarded from its Near-other tile's L2 in E/F state.",
         "Offcore": "1"
     },
     {
@@ -1980,7 +1980,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data writes that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts Demand cacheable data writes that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -1991,7 +1991,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2002,7 +2002,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts L2 data RFO prefetches (includes PREFETCHW instruction) that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2013,7 +2013,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 code HW prefetches that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts L2 code HW prefetches that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2024,7 +2024,7 @@
         "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2035,7 +2035,7 @@
         "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2046,7 +2046,7 @@
         "EventName": "OFFCORE_RESPONSE.UC_CODE_READS.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts UC code reads (valid only for Outstanding response type)  that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2057,7 +2057,7 @@
         "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Bus locks and split lock requests that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts Bus locks and split lock requests that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2068,7 +2068,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Software Prefetches that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts Software Prefetches that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2079,7 +2079,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L1 data HW prefetches that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts L1 data HW prefetches that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2090,7 +2090,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts any request that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2101,7 +2101,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2112,7 +2112,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_RFO.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2123,7 +2123,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2134,7 +2134,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_READ.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Read request  that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts any Read request  that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2145,7 +2145,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.L2_HIT_NEAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Prefetch requests that accounts for reponses from snoop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
+        "BriefDescription": "Counts any Prefetch requests that accounts for reponses from syesop request hit with data forwarded from its Near-other tile L2 in E/F/M state",
         "Offcore": "1"
     },
     {
@@ -2156,7 +2156,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data writes that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts Demand cacheable data writes that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     },
     {
@@ -2167,7 +2167,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts demand code reads and prefetch code reads that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     },
     {
@@ -2178,7 +2178,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L2 code HW prefetches that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts L2 code HW prefetches that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     },
     {
@@ -2189,7 +2189,7 @@
         "EventName": "OFFCORE_RESPONSE.PARTIAL_READS.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts Partial reads (UC or WC and is valid only for Outstanding response type).  that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     },
     {
@@ -2200,7 +2200,7 @@
         "EventName": "OFFCORE_RESPONSE.PARTIAL_WRITES.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts Partial writes (UC or WT or WP and should be programmed on PMC1) that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     },
     {
@@ -2211,7 +2211,7 @@
         "EventName": "OFFCORE_RESPONSE.BUS_LOCKS.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Bus locks and split lock requests that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts Bus locks and split lock requests that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     },
     {
@@ -2222,7 +2222,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_SOFTWARE.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Software Prefetches that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts Software Prefetches that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     },
     {
@@ -2233,7 +2233,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts L1 data HW prefetches that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts L1 data HW prefetches that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     },
     {
@@ -2244,7 +2244,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts any request that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     },
     {
@@ -2255,7 +2255,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts Demand cacheable data and L1 prefetch data read requests  that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     },
     {
@@ -2266,7 +2266,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_RFO.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts Demand cacheable data write requests  that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     },
     {
@@ -2277,7 +2277,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts Demand code reads and prefetch code read requests  that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     },
     {
@@ -2288,7 +2288,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_READ.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Read request  that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts any Read request  that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     },
     {
@@ -2299,7 +2299,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_PF_L2.L2_HIT_FAR_TILE",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any Prefetch requests that accounts for reponses from snoop request hit with data forwarded from it Far(not in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
+        "BriefDescription": "Counts any Prefetch requests that accounts for reponses from syesop request hit with data forwarded from it Far(yest in the same quadrant as the request)-other tile L2 in E/F/M state. Valid only in SNC4 Cluster mode.",
         "Offcore": "1"
     }
 ]

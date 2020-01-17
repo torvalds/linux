@@ -68,7 +68,7 @@ static int hdlcd_load(struct drm_device *drm, unsigned long flags)
 
 	version = hdlcd_read(hdlcd, HDLCD_REG_VERSION);
 	if ((version & HDLCD_PRODUCT_MASK) != HDLCD_PRODUCT_ID) {
-		DRM_ERROR("unknown product id: 0x%x\n", version);
+		DRM_ERROR("unkyeswn product id: 0x%x\n", version);
 		return -EINVAL;
 	}
 	DRM_INFO("found ARM HDLCD version r%dp%d\n",
@@ -147,7 +147,7 @@ static irqreturn_t hdlcd_irq(int irq, void *arg)
 	if (irq_status & HDLCD_INTERRUPT_VSYNC)
 		drm_crtc_handle_vblank(&hdlcd->crtc);
 
-	/* acknowledge interrupt(s) */
+	/* ackyeswledge interrupt(s) */
 	hdlcd_write(hdlcd, HDLCD_REG_INT_CLEAR, irq_status);
 
 	return IRQ_HANDLED;
@@ -195,8 +195,8 @@ static void hdlcd_irq_uninstall(struct drm_device *drm)
 #ifdef CONFIG_DEBUG_FS
 static int hdlcd_show_underrun_count(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *drm = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *drm = yesde->miyesr->dev;
 	struct hdlcd_drm_private *hdlcd = drm->dev_private;
 
 	seq_printf(m, "underrun : %d\n", atomic_read(&hdlcd->buffer_underrun_count));
@@ -208,8 +208,8 @@ static int hdlcd_show_underrun_count(struct seq_file *m, void *arg)
 
 static int hdlcd_show_pxlclock(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *drm = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *drm = yesde->miyesr->dev;
 	struct hdlcd_drm_private *hdlcd = drm->dev_private;
 	unsigned long clkrate = clk_get_rate(hdlcd->clk);
 	unsigned long mode_clock = hdlcd->crtc.mode.crtc_clock * 1000;
@@ -224,10 +224,10 @@ static struct drm_info_list hdlcd_debugfs_list[] = {
 	{ "clocks", hdlcd_show_pxlclock, 0 },
 };
 
-static int hdlcd_debugfs_init(struct drm_minor *minor)
+static int hdlcd_debugfs_init(struct drm_miyesr *miyesr)
 {
 	return drm_debugfs_create_files(hdlcd_debugfs_list,
-		ARRAY_SIZE(hdlcd_debugfs_list),	minor->debugfs_root, minor);
+		ARRAY_SIZE(hdlcd_debugfs_list),	miyesr->debugfs_root, miyesr);
 }
 #endif
 
@@ -258,7 +258,7 @@ static struct drm_driver hdlcd_driver = {
 	.desc = "ARM HDLCD Controller DRM",
 	.date = "20151021",
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 };
 
 static int hdlcd_drm_bind(struct device *dev)
@@ -284,7 +284,7 @@ static int hdlcd_drm_bind(struct device *dev)
 		goto err_free;
 
 	/* Set the CRTC's port so that the encoder component can find it */
-	hdlcd->crtc.port = of_graph_get_port_by_id(dev->of_node, 0);
+	hdlcd->crtc.port = of_graph_get_port_by_id(dev->of_yesde, 0);
 
 	ret = component_bind_all(dev, drm);
 	if (ret) {
@@ -323,7 +323,7 @@ err_pm_active:
 	drm_atomic_helper_shutdown(drm);
 	component_unbind_all(dev, drm);
 err_unload:
-	of_node_put(hdlcd->crtc.port);
+	of_yesde_put(hdlcd->crtc.port);
 	hdlcd->crtc.port = NULL;
 	drm_irq_uninstall(drm);
 	of_reserved_mem_device_release(drm->dev);
@@ -343,7 +343,7 @@ static void hdlcd_drm_unbind(struct device *dev)
 	drm_dev_unregister(drm);
 	drm_kms_helper_poll_fini(drm);
 	component_unbind_all(dev, drm);
-	of_node_put(hdlcd->crtc.port);
+	of_yesde_put(hdlcd->crtc.port);
 	hdlcd->crtc.port = NULL;
 	pm_runtime_get_sync(dev);
 	drm_crtc_vblank_off(&hdlcd->crtc);
@@ -366,21 +366,21 @@ static const struct component_master_ops hdlcd_master_ops = {
 
 static int compare_dev(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->of_yesde == data;
 }
 
 static int hdlcd_probe(struct platform_device *pdev)
 {
-	struct device_node *port;
+	struct device_yesde *port;
 	struct component_match *match = NULL;
 
 	/* there is only one output port inside each device, find it */
-	port = of_graph_get_remote_node(pdev->dev.of_node, 0, 0);
+	port = of_graph_get_remote_yesde(pdev->dev.of_yesde, 0, 0);
 	if (!port)
 		return -ENODEV;
 
 	drm_of_component_match_add(&pdev->dev, &match, compare_dev, port);
-	of_node_put(port);
+	of_yesde_put(port);
 
 	return component_master_add_with_match(&pdev->dev, &hdlcd_master_ops,
 					       match);

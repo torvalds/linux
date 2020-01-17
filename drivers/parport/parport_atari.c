@@ -201,7 +201,7 @@ static int __init parport_atari_init(void)
 
 		this_port = p;
 		printk(KERN_INFO "%s: Atari built-in port using irq\n", p->name);
-		parport_announce_port (p);
+		parport_anyesunce_port (p);
 
 		return 0;
 	}

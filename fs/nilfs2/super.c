@@ -16,7 +16,7 @@
  *
  *  from
  *
- *  linux/fs/minix/inode.c
+ *  linux/fs/minix/iyesde.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -40,7 +40,7 @@
 #include "mdt.h"
 #include "alloc.h"
 #include "btree.h"
-#include "btnode.h"
+#include "btyesde.h"
 #include "page.h"
 #include "cpfile.h"
 #include "sufile.h" /* nilfs_sufile_resize(), nilfs_sufile_set_alloc_range() */
@@ -54,7 +54,7 @@ MODULE_DESCRIPTION("A New Implementation of the Log-structured Filesystem "
 		   "(NILFS)");
 MODULE_LICENSE("GPL");
 
-static struct kmem_cache *nilfs_inode_cachep;
+static struct kmem_cache *nilfs_iyesde_cachep;
 struct kmem_cache *nilfs_transaction_cachep;
 struct kmem_cache *nilfs_segbuf_cachep;
 struct kmem_cache *nilfs_btree_path_cache;
@@ -108,7 +108,7 @@ static void nilfs_set_error(struct super_block *sb)
  * nilfs_error() should be used.  As for sustainable errors such as a
  * single-shot I/O error, nilfs_msg() should be used instead.
  *
- * Callers should not add a trailing newline since this will do it.
+ * Callers should yest add a trailing newline since this will do it.
  */
 void __nilfs_error(struct super_block *sb, const char *function,
 		   const char *fmt, ...)
@@ -141,26 +141,26 @@ void __nilfs_error(struct super_block *sb, const char *function,
 		      sb->s_id);
 }
 
-struct inode *nilfs_alloc_inode(struct super_block *sb)
+struct iyesde *nilfs_alloc_iyesde(struct super_block *sb)
 {
-	struct nilfs_inode_info *ii;
+	struct nilfs_iyesde_info *ii;
 
-	ii = kmem_cache_alloc(nilfs_inode_cachep, GFP_NOFS);
+	ii = kmem_cache_alloc(nilfs_iyesde_cachep, GFP_NOFS);
 	if (!ii)
 		return NULL;
 	ii->i_bh = NULL;
 	ii->i_state = 0;
-	ii->i_cno = 0;
-	nilfs_mapping_init(&ii->i_btnode_cache, &ii->vfs_inode);
-	return &ii->vfs_inode;
+	ii->i_cyes = 0;
+	nilfs_mapping_init(&ii->i_btyesde_cache, &ii->vfs_iyesde);
+	return &ii->vfs_iyesde;
 }
 
-static void nilfs_free_inode(struct inode *inode)
+static void nilfs_free_iyesde(struct iyesde *iyesde)
 {
-	if (nilfs_is_metadata_file_inode(inode))
-		nilfs_mdt_destroy(inode);
+	if (nilfs_is_metadata_file_iyesde(iyesde))
+		nilfs_mdt_destroy(iyesde);
 
-	kmem_cache_free(nilfs_inode_cachep, NILFS_I(inode));
+	kmem_cache_free(nilfs_iyesde_cachep, NILFS_I(iyesde));
 }
 
 static int nilfs_sync_super(struct super_block *sb, int flag)
@@ -208,8 +208,8 @@ static int nilfs_sync_super(struct super_block *sb, int flag)
 				if (sync_dirty_buffer(nilfs->ns_sbh[1]) < 0)
 					goto out;
 			}
-			if (le64_to_cpu(nilfs->ns_sbp[1]->s_last_cno) <
-			    le64_to_cpu(nilfs->ns_sbp[0]->s_last_cno))
+			if (le64_to_cpu(nilfs->ns_sbp[1]->s_last_cyes) <
+			    le64_to_cpu(nilfs->ns_sbp[0]->s_last_cyes))
 				sbp = nilfs->ns_sbp[1];
 		}
 
@@ -233,7 +233,7 @@ void nilfs_set_log_cursor(struct nilfs_super_block *sbp,
 	spin_lock(&nilfs->ns_last_segment_lock);
 	sbp->s_last_seq = cpu_to_le64(nilfs->ns_last_seq);
 	sbp->s_last_pseg = cpu_to_le64(nilfs->ns_last_pseg);
-	sbp->s_last_cno = cpu_to_le64(nilfs->ns_last_cno);
+	sbp->s_last_cyes = cpu_to_le64(nilfs->ns_last_cyes);
 	spin_unlock(&nilfs->ns_last_segment_lock);
 }
 
@@ -286,7 +286,7 @@ int nilfs_commit_super(struct super_block *sb, int flag)
 	}
 	clear_nilfs_sb_dirty(nilfs);
 	nilfs->ns_flushed_device = 1;
-	/* make sure store to ns_flushed_device cannot be reordered */
+	/* make sure store to ns_flushed_device canyest be reordered */
 	smp_wmb();
 	return nilfs_sync_super(sb, flag);
 }
@@ -297,7 +297,7 @@ int nilfs_commit_super(struct super_block *sb, int flag)
  *
  * This function restores state flags in the on-disk super block.
  * This will set "clean" flag (i.e. NILFS_VALID_FS) unless the
- * filesystem was not clean previously.
+ * filesystem was yest clean previously.
  */
 int nilfs_cleanup_super(struct super_block *sb)
 {
@@ -310,7 +310,7 @@ int nilfs_cleanup_super(struct super_block *sb)
 	if (sbp) {
 		sbp[0]->s_state = cpu_to_le16(nilfs->ns_mount_state);
 		nilfs_set_log_cursor(sbp[0], nilfs);
-		if (sbp[1] && sbp[0]->s_last_cno == sbp[1]->s_last_cno) {
+		if (sbp[1] && sbp[0]->s_last_cyes == sbp[1]->s_last_cyes) {
 			/*
 			 * make the "clean" flag also to the opposite
 			 * super block if both super blocks point to
@@ -398,7 +398,7 @@ int nilfs_resize_fs(struct super_block *sb, __u64 newsize)
 	int ret;
 
 	ret = -ERANGE;
-	devsize = i_size_read(sb->s_bdev->bd_inode);
+	devsize = i_size_read(sb->s_bdev->bd_iyesde);
 	if (newsize > devsize)
 		goto out;
 
@@ -501,7 +501,7 @@ static int nilfs_sync_fs(struct super_block *sb, int wait)
 	return err;
 }
 
-int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
+int nilfs_attach_checkpoint(struct super_block *sb, __u64 cyes, int curr_mnt,
 			    struct nilfs_root **rootp)
 {
 	struct the_nilfs *nilfs = sb->s_fs_info;
@@ -511,7 +511,7 @@ int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
 	int err = -ENOMEM;
 
 	root = nilfs_find_or_create_root(
-		nilfs, curr_mnt ? NILFS_CPTREE_CURRENT_CNO : cno);
+		nilfs, curr_mnt ? NILFS_CPTREE_CURRENT_CNO : cyes);
 	if (!root)
 		return err;
 
@@ -519,37 +519,37 @@ int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
 		goto reuse; /* already attached checkpoint */
 
 	down_read(&nilfs->ns_segctor_sem);
-	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, cno, 0, &raw_cp,
+	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, cyes, 0, &raw_cp,
 					  &bh_cp);
 	up_read(&nilfs->ns_segctor_sem);
 	if (unlikely(err)) {
 		if (err == -ENOENT || err == -EINVAL) {
 			nilfs_msg(sb, KERN_ERR,
 				  "Invalid checkpoint (checkpoint number=%llu)",
-				  (unsigned long long)cno);
+				  (unsigned long long)cyes);
 			err = -EINVAL;
 		}
 		goto failed;
 	}
 
-	err = nilfs_ifile_read(sb, root, nilfs->ns_inode_size,
-			       &raw_cp->cp_ifile_inode, &root->ifile);
+	err = nilfs_ifile_read(sb, root, nilfs->ns_iyesde_size,
+			       &raw_cp->cp_ifile_iyesde, &root->ifile);
 	if (err)
 		goto failed_bh;
 
-	atomic64_set(&root->inodes_count,
-			le64_to_cpu(raw_cp->cp_inodes_count));
+	atomic64_set(&root->iyesdes_count,
+			le64_to_cpu(raw_cp->cp_iyesdes_count));
 	atomic64_set(&root->blocks_count,
 			le64_to_cpu(raw_cp->cp_blocks_count));
 
-	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cno, bh_cp);
+	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cyes, bh_cp);
 
  reuse:
 	*rootp = root;
 	return 0;
 
  failed_bh:
-	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cno, bh_cp);
+	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cyes, bh_cp);
  failed:
 	nilfs_put_root(root);
 
@@ -587,14 +587,14 @@ static int nilfs_unfreeze(struct super_block *sb)
 static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
-	struct nilfs_root *root = NILFS_I(d_inode(dentry))->i_root;
+	struct nilfs_root *root = NILFS_I(d_iyesde(dentry))->i_root;
 	struct the_nilfs *nilfs = root->nilfs;
 	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 	unsigned long long blocks;
 	unsigned long overhead;
 	unsigned long nrsvblocks;
 	sector_t nfreeblocks;
-	u64 nmaxinodes, nfreeinodes;
+	u64 nmaxiyesdes, nfreeiyesdes;
 	int err;
 
 	/*
@@ -619,20 +619,20 @@ static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (unlikely(err))
 		return err;
 
-	err = nilfs_ifile_count_free_inodes(root->ifile,
-					    &nmaxinodes, &nfreeinodes);
+	err = nilfs_ifile_count_free_iyesdes(root->ifile,
+					    &nmaxiyesdes, &nfreeiyesdes);
 	if (unlikely(err)) {
 		nilfs_msg(sb, KERN_WARNING,
-			  "failed to count free inodes: err=%d", err);
+			  "failed to count free iyesdes: err=%d", err);
 		if (err == -ERANGE) {
 			/*
 			 * If nilfs_palloc_count_max_entries() returns
 			 * -ERANGE error code then we simply treat
-			 * curent inodes count as maximum possible and
-			 * zero as free inodes value.
+			 * curent iyesdes count as maximum possible and
+			 * zero as free iyesdes value.
 			 */
-			nmaxinodes = atomic64_read(&root->inodes_count);
-			nfreeinodes = 0;
+			nmaxiyesdes = atomic64_read(&root->iyesdes_count);
+			nfreeiyesdes = 0;
 			err = 0;
 		} else
 			return err;
@@ -644,8 +644,8 @@ static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bfree = nfreeblocks;
 	buf->f_bavail = (buf->f_bfree >= nrsvblocks) ?
 		(buf->f_bfree - nrsvblocks) : 0;
-	buf->f_files = nmaxinodes;
-	buf->f_ffree = nfreeinodes;
+	buf->f_files = nmaxiyesdes;
+	buf->f_ffree = nfreeiyesdes;
 	buf->f_namelen = NILFS_NAME_LEN;
 	buf->f_fsid.val[0] = (u32)id;
 	buf->f_fsid.val[1] = (u32)(id >> 32);
@@ -657,12 +657,12 @@ static int nilfs_show_options(struct seq_file *seq, struct dentry *dentry)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct the_nilfs *nilfs = sb->s_fs_info;
-	struct nilfs_root *root = NILFS_I(d_inode(dentry))->i_root;
+	struct nilfs_root *root = NILFS_I(d_iyesde(dentry))->i_root;
 
 	if (!nilfs_test_opt(nilfs, BARRIER))
-		seq_puts(seq, ",nobarrier");
-	if (root->cno != NILFS_CPTREE_CURRENT_CNO)
-		seq_printf(seq, ",cp=%llu", (unsigned long long)root->cno);
+		seq_puts(seq, ",yesbarrier");
+	if (root->cyes != NILFS_CPTREE_CURRENT_CNO)
+		seq_printf(seq, ",cp=%llu", (unsigned long long)root->cyes);
 	if (nilfs_test_opt(nilfs, ERRORS_PANIC))
 		seq_puts(seq, ",errors=panic");
 	if (nilfs_test_opt(nilfs, ERRORS_CONT))
@@ -670,7 +670,7 @@ static int nilfs_show_options(struct seq_file *seq, struct dentry *dentry)
 	if (nilfs_test_opt(nilfs, STRICT_ORDER))
 		seq_puts(seq, ",order=strict");
 	if (nilfs_test_opt(nilfs, NORECOVERY))
-		seq_puts(seq, ",norecovery");
+		seq_puts(seq, ",yesrecovery");
 	if (nilfs_test_opt(nilfs, DISCARD))
 		seq_puts(seq, ",discard");
 
@@ -678,10 +678,10 @@ static int nilfs_show_options(struct seq_file *seq, struct dentry *dentry)
 }
 
 static const struct super_operations nilfs_sops = {
-	.alloc_inode    = nilfs_alloc_inode,
-	.free_inode     = nilfs_free_inode,
-	.dirty_inode    = nilfs_dirty_inode,
-	.evict_inode    = nilfs_evict_inode,
+	.alloc_iyesde    = nilfs_alloc_iyesde,
+	.free_iyesde     = nilfs_free_iyesde,
+	.dirty_iyesde    = nilfs_dirty_iyesde,
+	.evict_iyesde    = nilfs_evict_iyesde,
 	.put_super      = nilfs_put_super,
 	.sync_fs        = nilfs_sync_fs,
 	.freeze_fs	= nilfs_freeze,
@@ -693,8 +693,8 @@ static const struct super_operations nilfs_sops = {
 
 enum {
 	Opt_err_cont, Opt_err_panic, Opt_err_ro,
-	Opt_barrier, Opt_nobarrier, Opt_snapshot, Opt_order, Opt_norecovery,
-	Opt_discard, Opt_nodiscard, Opt_err,
+	Opt_barrier, Opt_yesbarrier, Opt_snapshot, Opt_order, Opt_yesrecovery,
+	Opt_discard, Opt_yesdiscard, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -702,12 +702,12 @@ static match_table_t tokens = {
 	{Opt_err_panic, "errors=panic"},
 	{Opt_err_ro, "errors=remount-ro"},
 	{Opt_barrier, "barrier"},
-	{Opt_nobarrier, "nobarrier"},
+	{Opt_yesbarrier, "yesbarrier"},
 	{Opt_snapshot, "cp=%u"},
 	{Opt_order, "order=%s"},
-	{Opt_norecovery, "norecovery"},
+	{Opt_yesrecovery, "yesrecovery"},
 	{Opt_discard, "discard"},
-	{Opt_nodiscard, "nodiscard"},
+	{Opt_yesdiscard, "yesdiscard"},
 	{Opt_err, NULL}
 };
 
@@ -731,7 +731,7 @@ static int parse_options(char *options, struct super_block *sb, int is_remount)
 		case Opt_barrier:
 			nilfs_set_opt(nilfs, BARRIER);
 			break;
-		case Opt_nobarrier:
+		case Opt_yesbarrier:
 			nilfs_clear_opt(nilfs, BARRIER);
 			break;
 		case Opt_order:
@@ -761,13 +761,13 @@ static int parse_options(char *options, struct super_block *sb, int is_remount)
 				return 0;
 			}
 			break;
-		case Opt_norecovery:
+		case Opt_yesrecovery:
 			nilfs_set_opt(nilfs, NORECOVERY);
 			break;
 		case Opt_discard:
 			nilfs_set_opt(nilfs, DISCARD);
 			break;
-		case Opt_nodiscard:
+		case Opt_yesdiscard:
 			nilfs_clear_opt(nilfs, DISCARD);
 			break;
 		default:
@@ -894,36 +894,36 @@ static int nilfs_get_root_dentry(struct super_block *sb,
 				 struct nilfs_root *root,
 				 struct dentry **root_dentry)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct dentry *dentry;
 	int ret = 0;
 
-	inode = nilfs_iget(sb, root, NILFS_ROOT_INO);
-	if (IS_ERR(inode)) {
-		ret = PTR_ERR(inode);
-		nilfs_msg(sb, KERN_ERR, "error %d getting root inode", ret);
+	iyesde = nilfs_iget(sb, root, NILFS_ROOT_INO);
+	if (IS_ERR(iyesde)) {
+		ret = PTR_ERR(iyesde);
+		nilfs_msg(sb, KERN_ERR, "error %d getting root iyesde", ret);
 		goto out;
 	}
-	if (!S_ISDIR(inode->i_mode) || !inode->i_blocks || !inode->i_size) {
-		iput(inode);
-		nilfs_msg(sb, KERN_ERR, "corrupt root inode");
+	if (!S_ISDIR(iyesde->i_mode) || !iyesde->i_blocks || !iyesde->i_size) {
+		iput(iyesde);
+		nilfs_msg(sb, KERN_ERR, "corrupt root iyesde");
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (root->cno == NILFS_CPTREE_CURRENT_CNO) {
-		dentry = d_find_alias(inode);
+	if (root->cyes == NILFS_CPTREE_CURRENT_CNO) {
+		dentry = d_find_alias(iyesde);
 		if (!dentry) {
-			dentry = d_make_root(inode);
+			dentry = d_make_root(iyesde);
 			if (!dentry) {
 				ret = -ENOMEM;
 				goto failed_dentry;
 			}
 		} else {
-			iput(inode);
+			iput(iyesde);
 		}
 	} else {
-		dentry = d_obtain_root(inode);
+		dentry = d_obtain_root(iyesde);
 		if (IS_ERR(dentry)) {
 			ret = PTR_ERR(dentry);
 			goto failed_dentry;
@@ -938,7 +938,7 @@ static int nilfs_get_root_dentry(struct super_block *sb,
 	goto out;
 }
 
-static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
+static int nilfs_attach_snapshot(struct super_block *s, __u64 cyes,
 				 struct dentry **root_dentry)
 {
 	struct the_nilfs *nilfs = s->s_fs_info;
@@ -948,24 +948,24 @@ static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
 	mutex_lock(&nilfs->ns_snapshot_mount_mutex);
 
 	down_read(&nilfs->ns_segctor_sem);
-	ret = nilfs_cpfile_is_snapshot(nilfs->ns_cpfile, cno);
+	ret = nilfs_cpfile_is_snapshot(nilfs->ns_cpfile, cyes);
 	up_read(&nilfs->ns_segctor_sem);
 	if (ret < 0) {
 		ret = (ret == -ENOENT) ? -EINVAL : ret;
 		goto out;
 	} else if (!ret) {
 		nilfs_msg(s, KERN_ERR,
-			  "The specified checkpoint is not a snapshot (checkpoint number=%llu)",
-			  (unsigned long long)cno);
+			  "The specified checkpoint is yest a snapshot (checkpoint number=%llu)",
+			  (unsigned long long)cyes);
 		ret = -EINVAL;
 		goto out;
 	}
 
-	ret = nilfs_attach_checkpoint(s, cno, false, &root);
+	ret = nilfs_attach_checkpoint(s, cyes, false, &root);
 	if (ret) {
 		nilfs_msg(s, KERN_ERR,
 			  "error %d while loading snapshot (checkpoint number=%llu)",
-			  ret, (unsigned long long)cno);
+			  ret, (unsigned long long)cyes);
 		goto out;
 	}
 	ret = nilfs_get_root_dentry(s, root, root_dentry);
@@ -987,31 +987,31 @@ static bool nilfs_tree_is_busy(struct dentry *root_dentry)
 	return d_count(root_dentry) > 1;
 }
 
-int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cno)
+int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cyes)
 {
 	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_root *root;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct dentry *dentry;
 	int ret;
 
-	if (cno > nilfs->ns_cno)
+	if (cyes > nilfs->ns_cyes)
 		return false;
 
-	if (cno >= nilfs_last_cno(nilfs))
+	if (cyes >= nilfs_last_cyes(nilfs))
 		return true;	/* protect recent checkpoints */
 
 	ret = false;
-	root = nilfs_lookup_root(nilfs, cno);
+	root = nilfs_lookup_root(nilfs, cyes);
 	if (root) {
-		inode = nilfs_ilookup(sb, root, NILFS_ROOT_INO);
-		if (inode) {
-			dentry = d_find_alias(inode);
+		iyesde = nilfs_ilookup(sb, root, NILFS_ROOT_INO);
+		if (iyesde) {
+			dentry = d_find_alias(iyesde);
 			if (dentry) {
 				ret = nilfs_tree_is_busy(dentry);
 				dput(dentry);
 			}
-			iput(inode);
+			iput(iyesde);
 		}
 		nilfs_put_root(root);
 	}
@@ -1032,7 +1032,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct the_nilfs *nilfs;
 	struct nilfs_root *fsroot;
-	__u64 cno;
+	__u64 cyes;
 	int err;
 
 	nilfs = alloc_nilfs(sb);
@@ -1057,12 +1057,12 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (err)
 		goto failed_nilfs;
 
-	cno = nilfs_last_cno(nilfs);
-	err = nilfs_attach_checkpoint(sb, cno, true, &fsroot);
+	cyes = nilfs_last_cyes(nilfs);
+	err = nilfs_attach_checkpoint(sb, cyes, true, &fsroot);
 	if (err) {
 		nilfs_msg(sb, KERN_ERR,
 			  "error %d while loading last checkpoint (checkpoint number=%llu)",
-			  err, (unsigned long long)cno);
+			  err, (unsigned long long)cyes);
 		goto failed_unload;
 	}
 
@@ -1164,7 +1164,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 
 		sb->s_flags &= ~SB_RDONLY;
 
-		root = NILFS_I(d_inode(sb->s_root))->i_root;
+		root = NILFS_I(d_iyesde(sb->s_root))->i_root;
 		err = nilfs_attach_log_writer(sb, root);
 		if (err)
 			goto restore_opts;
@@ -1184,7 +1184,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 
 struct nilfs_super_data {
 	struct block_device *bdev;
-	__u64 cno;
+	__u64 cyes;
 	int flags;
 };
 
@@ -1197,7 +1197,7 @@ static int nilfs_parse_snapshot_option(const char *option,
 	int err;
 
 	if (!(sd->flags & SB_RDONLY)) {
-		msg = "read-only option is not specified";
+		msg = "read-only option is yest specified";
 		goto parse_error;
 	}
 
@@ -1212,7 +1212,7 @@ static int nilfs_parse_snapshot_option(const char *option,
 		msg = "invalid checkpoint number 0";
 		goto parse_error;
 	}
-	sd->cno = val;
+	sd->cyes = val;
 	return 0;
 
 parse_error:
@@ -1277,7 +1277,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 	if (IS_ERR(sd.bdev))
 		return ERR_CAST(sd.bdev);
 
-	sd.cno = 0;
+	sd.cyes = 0;
 	sd.flags = flags;
 	if (nilfs_identify((char *)data, &sd)) {
 		err = -EINVAL;
@@ -1316,7 +1316,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 			goto failed_super;
 
 		s->s_flags |= SB_ACTIVE;
-	} else if (!sd.cno) {
+	} else if (!sd.cyes) {
 		if (nilfs_tree_is_busy(s->s_root)) {
 			if ((flags ^ s->s_flags) & SB_RDONLY) {
 				nilfs_msg(s, KERN_ERR,
@@ -1328,7 +1328,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 		} else {
 			/*
 			 * Try remount to setup mount states if the current
-			 * tree is not mounted and only snapshots use this sb.
+			 * tree is yest mounted and only snapshots use this sb.
 			 */
 			err = nilfs_remount(s, &flags, data);
 			if (err)
@@ -1336,8 +1336,8 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 		}
 	}
 
-	if (sd.cno) {
-		err = nilfs_attach_snapshot(s, sd.cno, &root_dentry);
+	if (sd.cyes) {
+		err = nilfs_attach_snapshot(s, sd.cyes, &root_dentry);
 		if (err)
 			goto failed_super;
 	} else {
@@ -1367,17 +1367,17 @@ struct file_system_type nilfs_fs_type = {
 };
 MODULE_ALIAS_FS("nilfs2");
 
-static void nilfs_inode_init_once(void *obj)
+static void nilfs_iyesde_init_once(void *obj)
 {
-	struct nilfs_inode_info *ii = obj;
+	struct nilfs_iyesde_info *ii = obj;
 
 	INIT_LIST_HEAD(&ii->i_dirty);
 #ifdef CONFIG_NILFS_XATTR
 	init_rwsem(&ii->xattr_sem);
 #endif
-	address_space_init_once(&ii->i_btnode_cache);
+	address_space_init_once(&ii->i_btyesde_cache);
 	ii->i_bmap = &ii->i_bmap_data;
-	inode_init_once(&ii->vfs_inode);
+	iyesde_init_once(&ii->vfs_iyesde);
 }
 
 static void nilfs_segbuf_init_once(void *obj)
@@ -1388,12 +1388,12 @@ static void nilfs_segbuf_init_once(void *obj)
 static void nilfs_destroy_cachep(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
 
-	kmem_cache_destroy(nilfs_inode_cachep);
+	kmem_cache_destroy(nilfs_iyesde_cachep);
 	kmem_cache_destroy(nilfs_transaction_cachep);
 	kmem_cache_destroy(nilfs_segbuf_cachep);
 	kmem_cache_destroy(nilfs_btree_path_cache);
@@ -1401,11 +1401,11 @@ static void nilfs_destroy_cachep(void)
 
 static int __init nilfs_init_cachep(void)
 {
-	nilfs_inode_cachep = kmem_cache_create("nilfs2_inode_cache",
-			sizeof(struct nilfs_inode_info), 0,
+	nilfs_iyesde_cachep = kmem_cache_create("nilfs2_iyesde_cache",
+			sizeof(struct nilfs_iyesde_info), 0,
 			SLAB_RECLAIM_ACCOUNT|SLAB_ACCOUNT,
-			nilfs_inode_init_once);
-	if (!nilfs_inode_cachep)
+			nilfs_iyesde_init_once);
+	if (!nilfs_iyesde_cachep)
 		goto fail;
 
 	nilfs_transaction_cachep = kmem_cache_create("nilfs2_transaction_cache",

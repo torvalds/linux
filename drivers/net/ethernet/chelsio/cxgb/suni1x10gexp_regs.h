@@ -12,7 +12,7 @@
  * published by the Free Software Foundation.                                *
  *                                                                           *
  * You should have received a copy of the GNU General Public License along   *
- * with this program; if not, see <http://www.gnu.org/licenses/>.            *
+ * with this program; if yest, see <http://www.gnu.org/licenses/>.            *
  *                                                                           *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED    *
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF      *
@@ -980,7 +980,7 @@
 #define SUNI1x10GEXP_BITMSK_LANE0_SYNC_STAT_ERR  0x0001
 
 /*----------------------------------------------------------------------------
- * Register 0x208B: XRF Diagnostic Interrupt Enable
+ * Register 0x208B: XRF Diagyesstic Interrupt Enable
  *    Bit 7-4 LANE_OVERRUNE
  *    Bit 3-0 LANE_UNDERRUNE
  *----------------------------------------------------------------------------*/
@@ -990,7 +990,7 @@
 #define SUNI1x10GEXP_BITOFF_LANE_UNDERRUNE  0
 
 /*----------------------------------------------------------------------------
- * Register 0x208C: XRF Diagnostic Interrupt Status
+ * Register 0x208C: XRF Diagyesstic Interrupt Status
  *    Bit 7-4 LANE_OVERRUNI
  *    Bit 3-0 LANE_UNDERRUNI
  *----------------------------------------------------------------------------*/

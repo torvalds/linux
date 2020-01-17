@@ -41,7 +41,7 @@ struct virtio_vsock_sock {
 struct virtio_vsock_pkt {
 	struct virtio_vsock_hdr	hdr;
 	struct list_head list;
-	/* socket refcnt not held, only use for cancellation */
+	/* socket refcnt yest held, only use for cancellation */
 	struct vsock_sock *vsk;
 	void *buf;
 	u32 buf_len;
@@ -85,32 +85,32 @@ s64 virtio_transport_stream_has_space(struct vsock_sock *vsk);
 int virtio_transport_do_socket_init(struct vsock_sock *vsk,
 				 struct vsock_sock *psk);
 int
-virtio_transport_notify_poll_in(struct vsock_sock *vsk,
+virtio_transport_yestify_poll_in(struct vsock_sock *vsk,
 				size_t target,
-				bool *data_ready_now);
+				bool *data_ready_yesw);
 int
-virtio_transport_notify_poll_out(struct vsock_sock *vsk,
+virtio_transport_yestify_poll_out(struct vsock_sock *vsk,
 				 size_t target,
-				 bool *space_available_now);
+				 bool *space_available_yesw);
 
-int virtio_transport_notify_recv_init(struct vsock_sock *vsk,
-	size_t target, struct vsock_transport_recv_notify_data *data);
-int virtio_transport_notify_recv_pre_block(struct vsock_sock *vsk,
-	size_t target, struct vsock_transport_recv_notify_data *data);
-int virtio_transport_notify_recv_pre_dequeue(struct vsock_sock *vsk,
-	size_t target, struct vsock_transport_recv_notify_data *data);
-int virtio_transport_notify_recv_post_dequeue(struct vsock_sock *vsk,
+int virtio_transport_yestify_recv_init(struct vsock_sock *vsk,
+	size_t target, struct vsock_transport_recv_yestify_data *data);
+int virtio_transport_yestify_recv_pre_block(struct vsock_sock *vsk,
+	size_t target, struct vsock_transport_recv_yestify_data *data);
+int virtio_transport_yestify_recv_pre_dequeue(struct vsock_sock *vsk,
+	size_t target, struct vsock_transport_recv_yestify_data *data);
+int virtio_transport_yestify_recv_post_dequeue(struct vsock_sock *vsk,
 	size_t target, ssize_t copied, bool data_read,
-	struct vsock_transport_recv_notify_data *data);
-int virtio_transport_notify_send_init(struct vsock_sock *vsk,
-	struct vsock_transport_send_notify_data *data);
-int virtio_transport_notify_send_pre_block(struct vsock_sock *vsk,
-	struct vsock_transport_send_notify_data *data);
-int virtio_transport_notify_send_pre_enqueue(struct vsock_sock *vsk,
-	struct vsock_transport_send_notify_data *data);
-int virtio_transport_notify_send_post_enqueue(struct vsock_sock *vsk,
-	ssize_t written, struct vsock_transport_send_notify_data *data);
-void virtio_transport_notify_buffer_size(struct vsock_sock *vsk, u64 *val);
+	struct vsock_transport_recv_yestify_data *data);
+int virtio_transport_yestify_send_init(struct vsock_sock *vsk,
+	struct vsock_transport_send_yestify_data *data);
+int virtio_transport_yestify_send_pre_block(struct vsock_sock *vsk,
+	struct vsock_transport_send_yestify_data *data);
+int virtio_transport_yestify_send_pre_enqueue(struct vsock_sock *vsk,
+	struct vsock_transport_send_yestify_data *data);
+int virtio_transport_yestify_send_post_enqueue(struct vsock_sock *vsk,
+	ssize_t written, struct vsock_transport_send_yestify_data *data);
+void virtio_transport_yestify_buffer_size(struct vsock_sock *vsk, u64 *val);
 
 u64 virtio_transport_stream_rcvhiwat(struct vsock_sock *vsk);
 bool virtio_transport_stream_is_active(struct vsock_sock *vsk);

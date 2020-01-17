@@ -370,13 +370,13 @@ mwifiex_parse_mgmt_packet(struct mwifiex_private *priv, u8 *payload, u16 len,
 			return -1;
 		default:
 			mwifiex_dbg(priv->adapter, INFO,
-				    "unknown public action frame category %d\n",
+				    "unkyeswn public action frame category %d\n",
 				    category);
 		}
 		break;
 	default:
 		mwifiex_dbg(priv->adapter, INFO,
-		    "unknown mgmt frame subtype %#x\n", stype);
+		    "unkyeswn mgmt frame subtype %#x\n", stype);
 		return 0;
 	}
 
@@ -400,7 +400,7 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 	if (!priv->mgmt_frame_mask ||
 	    priv->wdev.iftype == NL80211_IFTYPE_UNSPECIFIED) {
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "do not receive mgmt frames on uninitialized intf");
+			    "do yest receive mgmt frames on uninitialized intf");
 		return -1;
 	}
 
@@ -437,13 +437,13 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
  * kernel.
  *
  * It extracts the SKB from the received buffer and sends it to kernel.
- * In case the received buffer does not contain the data in SKB format,
+ * In case the received buffer does yest contain the data in SKB format,
  * the function creates a blank SKB, fills it with the data from the
  * received buffer and then sends this new SKB to the kernel.
  */
 int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 {
-	struct mwifiex_sta_node *src_node;
+	struct mwifiex_sta_yesde *src_yesde;
 	struct ethhdr *p_ethhdr;
 
 	if (!skb)
@@ -454,11 +454,11 @@ int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
 		p_ethhdr = (void *)skb->data;
-		src_node = mwifiex_get_sta_entry(priv, p_ethhdr->h_source);
-		if (src_node) {
-			src_node->stats.last_rx = jiffies;
-			src_node->stats.rx_bytes += skb->len;
-			src_node->stats.rx_packets++;
+		src_yesde = mwifiex_get_sta_entry(priv, p_ethhdr->h_source);
+		if (src_yesde) {
+			src_yesde->stats.last_rx = jiffies;
+			src_yesde->stats.rx_bytes += skb->len;
+			src_yesde->stats.rx_packets++;
 		}
 	}
 
@@ -469,7 +469,7 @@ int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 	/* This is required only in case of 11n and USB/PCIE as we alloc
 	 * a buffer of 4K only if its 11N (to be able to receive 4K
 	 * AMSDU packets). In case of SD we allocate buffers based
-	 * on the size of packet and hence this is not needed.
+	 * on the size of packet and hence this is yest needed.
 	 *
 	 * Modifying the truesize here as our allocation for each
 	 * skb is 4K but we only receive 2K packets and this cause
@@ -506,13 +506,13 @@ int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
  * IOCTL response and frees the response buffer.
  */
 int mwifiex_complete_cmd(struct mwifiex_adapter *adapter,
-			 struct cmd_ctrl_node *cmd_node)
+			 struct cmd_ctrl_yesde *cmd_yesde)
 {
-	WARN_ON(!cmd_node->wait_q_enabled);
+	WARN_ON(!cmd_yesde->wait_q_enabled);
 	mwifiex_dbg(adapter, CMD, "cmd completed: status=%d\n",
 		    adapter->cmd_wait_q.status);
 
-	*cmd_node->condition = true;
+	*cmd_yesde->condition = true;
 	wake_up_interruptible(&adapter->cmd_wait_q.wait);
 
 	return 0;
@@ -521,32 +521,32 @@ int mwifiex_complete_cmd(struct mwifiex_adapter *adapter,
 /* This function will return the pointer to station entry in station list
  * table which matches specified mac address.
  * This function should be called after acquiring RA list spinlock.
- * NULL is returned if station entry is not found in associated STA list.
+ * NULL is returned if station entry is yest found in associated STA list.
  */
-struct mwifiex_sta_node *
+struct mwifiex_sta_yesde *
 mwifiex_get_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 {
-	struct mwifiex_sta_node *node;
+	struct mwifiex_sta_yesde *yesde;
 
 	if (!mac)
 		return NULL;
 
-	list_for_each_entry(node, &priv->sta_list, list) {
-		if (!memcmp(node->mac_addr, mac, ETH_ALEN))
-			return node;
+	list_for_each_entry(yesde, &priv->sta_list, list) {
+		if (!memcmp(yesde->mac_addr, mac, ETH_ALEN))
+			return yesde;
 	}
 
 	return NULL;
 }
 
-static struct mwifiex_sta_node *
+static struct mwifiex_sta_yesde *
 mwifiex_get_tdls_sta_entry(struct mwifiex_private *priv, u8 status)
 {
-	struct mwifiex_sta_node *node;
+	struct mwifiex_sta_yesde *yesde;
 
-	list_for_each_entry(node, &priv->sta_list, list) {
-		if (node->tdls_status == status)
-			return node;
+	list_for_each_entry(yesde, &priv->sta_list, list) {
+		if (yesde->tdls_status == status)
+			return yesde;
 	}
 
 	return NULL;
@@ -557,7 +557,7 @@ mwifiex_get_tdls_sta_entry(struct mwifiex_private *priv, u8 status)
  */
 u8 mwifiex_is_tdls_chan_switching(struct mwifiex_private *priv)
 {
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 
 	if (!priv || !ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
 		return false;
@@ -571,7 +571,7 @@ u8 mwifiex_is_tdls_chan_switching(struct mwifiex_private *priv)
 
 u8 mwifiex_is_tdls_off_chan(struct mwifiex_private *priv)
 {
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 
 	if (!priv || !ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
 		return false;
@@ -598,34 +598,34 @@ u8 mwifiex_is_send_cmd_allowed(struct mwifiex_private *priv)
 	return true;
 }
 
-/* This function will add a sta_node entry to associated station list
+/* This function will add a sta_yesde entry to associated station list
  * table with the given mac address.
  * If entry exist already, existing entry is returned.
  * If received mac address is NULL, NULL is returned.
  */
-struct mwifiex_sta_node *
+struct mwifiex_sta_yesde *
 mwifiex_add_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 {
-	struct mwifiex_sta_node *node;
+	struct mwifiex_sta_yesde *yesde;
 
 	if (!mac)
 		return NULL;
 
 	spin_lock_bh(&priv->sta_list_spinlock);
-	node = mwifiex_get_sta_entry(priv, mac);
-	if (node)
+	yesde = mwifiex_get_sta_entry(priv, mac);
+	if (yesde)
 		goto done;
 
-	node = kzalloc(sizeof(*node), GFP_ATOMIC);
-	if (!node)
+	yesde = kzalloc(sizeof(*yesde), GFP_ATOMIC);
+	if (!yesde)
 		goto done;
 
-	memcpy(node->mac_addr, mac, ETH_ALEN);
-	list_add_tail(&node->list, &priv->sta_list);
+	memcpy(yesde->mac_addr, mac, ETH_ALEN);
+	list_add_tail(&yesde->list, &priv->sta_list);
 
 done:
 	spin_unlock_bh(&priv->sta_list_spinlock);
-	return node;
+	return yesde;
 }
 
 /* This function will search for HT IE in association request IEs
@@ -633,7 +633,7 @@ done:
  */
 void
 mwifiex_set_sta_ht_cap(struct mwifiex_private *priv, const u8 *ies,
-		       int ies_len, struct mwifiex_sta_node *node)
+		       int ies_len, struct mwifiex_sta_yesde *yesde)
 {
 	struct ieee_types_header *ht_cap_ie;
 	const struct ieee80211_ht_cap *ht_cap;
@@ -645,13 +645,13 @@ mwifiex_set_sta_ht_cap(struct mwifiex_private *priv, const u8 *ies,
 					     ies_len);
 	if (ht_cap_ie) {
 		ht_cap = (void *)(ht_cap_ie + 1);
-		node->is_11n_enabled = 1;
-		node->max_amsdu = le16_to_cpu(ht_cap->cap_info) &
+		yesde->is_11n_enabled = 1;
+		yesde->max_amsdu = le16_to_cpu(ht_cap->cap_info) &
 				  IEEE80211_HT_CAP_MAX_AMSDU ?
 				  MWIFIEX_TX_DATA_BUF_SIZE_8K :
 				  MWIFIEX_TX_DATA_BUF_SIZE_4K;
 	} else {
-		node->is_11n_enabled = 0;
+		yesde->is_11n_enabled = 0;
 	}
 
 	return;
@@ -660,14 +660,14 @@ mwifiex_set_sta_ht_cap(struct mwifiex_private *priv, const u8 *ies,
 /* This function will delete a station entry from station list */
 void mwifiex_del_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 {
-	struct mwifiex_sta_node *node;
+	struct mwifiex_sta_yesde *yesde;
 
 	spin_lock_bh(&priv->sta_list_spinlock);
 
-	node = mwifiex_get_sta_entry(priv, mac);
-	if (node) {
-		list_del(&node->list);
-		kfree(node);
+	yesde = mwifiex_get_sta_entry(priv, mac);
+	if (yesde) {
+		list_del(&yesde->list);
+		kfree(yesde);
 	}
 
 	spin_unlock_bh(&priv->sta_list_spinlock);
@@ -677,13 +677,13 @@ void mwifiex_del_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 /* This function will delete all stations from associated station list. */
 void mwifiex_del_all_sta_list(struct mwifiex_private *priv)
 {
-	struct mwifiex_sta_node *node, *tmp;
+	struct mwifiex_sta_yesde *yesde, *tmp;
 
 	spin_lock_bh(&priv->sta_list_spinlock);
 
-	list_for_each_entry_safe(node, tmp, &priv->sta_list, list) {
-		list_del(&node->list);
-		kfree(node);
+	list_for_each_entry_safe(yesde, tmp, &priv->sta_list, list) {
+		list_del(&yesde->list);
+		kfree(yesde);
 	}
 
 	INIT_LIST_HEAD(&priv->sta_list);
@@ -713,7 +713,7 @@ void mwifiex_hist_data_set(struct mwifiex_private *priv, u8 rx_rate, s8 snr,
 	atomic_inc(&phist_data->num_samples);
 	atomic_inc(&phist_data->rx_rate[rx_rate]);
 	atomic_inc(&phist_data->snr[snr + 128]);
-	atomic_inc(&phist_data->noise_flr[nf + 128]);
+	atomic_inc(&phist_data->yesise_flr[nf + 128]);
 	atomic_inc(&phist_data->sig_str[rssi + 128]);
 }
 
@@ -729,7 +729,7 @@ void mwifiex_hist_data_reset(struct mwifiex_private *priv)
 	for (ix = 0; ix < MWIFIEX_MAX_SNR; ix++)
 		atomic_set(&phist_data->snr[ix], 0);
 	for (ix = 0; ix < MWIFIEX_MAX_NOISE_FLR; ix++)
-		atomic_set(&phist_data->noise_flr[ix], 0);
+		atomic_set(&phist_data->yesise_flr[ix], 0);
 	for (ix = 0; ix < MWIFIEX_MAX_SIG_STRENGTH; ix++)
 		atomic_set(&phist_data->sig_str[ix], 0);
 }

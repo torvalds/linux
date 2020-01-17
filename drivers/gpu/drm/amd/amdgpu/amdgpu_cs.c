@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -279,10 +279,10 @@ static s64 bytes_to_us(struct amdgpu_device *adev, u64 bytes)
 	return bytes >> adev->mm_stats.log2_max_MBps;
 }
 
-/* Returns how many bytes TTM can move right now. If no bytes can be moved,
- * it returns 0. If it returns non-zero, it's OK to move at least one buffer,
+/* Returns how many bytes TTM can move right yesw. If yes bytes can be moved,
+ * it returns 0. If it returns yesn-zero, it's OK to move at least one buffer,
  * which means it can go over the threshold once. If that happens, the driver
- * will be in debt and no other buffer migrations can be done until that debt
+ * will be in debt and yes other buffer migrations can be done until that debt
  * is repaid.
  *
  * This approach allows moving a buffer of any size (it's important to allow
@@ -303,7 +303,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	 * throttling.
 	 *
 	 * It means that in order to get full max MBps, at least 5 IBs per
-	 * second must be submitted and not more than 200ms apart from each
+	 * second must be submitted and yest more than 200ms apart from each
 	 * other.
 	 */
 	const s64 us_upper_bound = 200000;
@@ -328,7 +328,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
                                       us_upper_bound);
 
 	/* This prevents the short period of low performance when the VRAM
-	 * usage is low and the driver is in debt or doesn't have enough
+	 * usage is low and the driver is in debt or doesn't have eyesugh
 	 * accumulated us to fill VRAM quickly.
 	 *
 	 * The situation can occur in these cases:
@@ -336,14 +336,14 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	 * - the presence of a big buffer causes a lot of evictions
 	 *   (solution: split buffers into smaller ones)
 	 *
-	 * If 128 MB or 1/8th of VRAM is free, start filling it now by setting
+	 * If 128 MB or 1/8th of VRAM is free, start filling it yesw by setting
 	 * accum_us to a positive number.
 	 */
 	if (free_vram >= 128 * 1024 * 1024 || free_vram >= total_vram / 8) {
 		s64 min_us;
 
 		/* Be more aggresive on dGPUs. Try to fill a portion of free
-		 * VRAM now.
+		 * VRAM yesw.
 		 */
 		if (!(adev->flags & AMD_IS_APU))
 			min_us = bytes_to_us(adev, free_vram / 4);
@@ -402,7 +402,7 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false,
+		.yes_wait_gpu = false,
 		.resv = bo->tbo.base.resv,
 		.flags = 0
 	};
@@ -526,7 +526,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		if (r)
 			return r;
 	} else if (!p->bo_list) {
-		/* Create a empty bo_list when no handle is provided */
+		/* Create a empty bo_list when yes handle is provided */
 		r = amdgpu_bo_list_create(p->adev, p->filp, NULL, 0,
 					  &p->bo_list);
 		if (r)
@@ -818,7 +818,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 	amdgpu_bo_list_for_each_entry(e, p->bo_list) {
 		struct dma_fence *f;
 
-		/* ignore duplicates */
+		/* igyesre duplicates */
 		bo = ttm_to_amdgpu_bo(e->tv.bo);
 		if (!bo)
 			continue;
@@ -856,7 +856,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 		amdgpu_bo_list_for_each_entry(e, p->bo_list) {
 			struct amdgpu_bo *bo = ttm_to_amdgpu_bo(e->tv.bo);
 
-			/* ignore duplicates */
+			/* igyesre duplicates */
 			if (!bo)
 				continue;
 
@@ -935,7 +935,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 
 	/* MM engine doesn't support user fences */
 	ring = to_amdgpu_ring(parser->entity->rq->sched);
-	if (parser->job->uf_addr && ring->funcs->no_user_fence)
+	if (parser->job->uf_addr && ring->funcs->yes_user_fence)
 		return -EINVAL;
 
 	return amdgpu_ctx_wait_prev_fence(parser->ctx, parser->entity);
@@ -1217,11 +1217,11 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	if (r)
 		goto error_unlock;
 
-	/* No memory allocation is allowed while holding the notifier lock.
+	/* No memory allocation is allowed while holding the yestifier lock.
 	 * The lock is held until amdgpu_cs_submit is finished and fence is
 	 * added to BOs.
 	 */
-	mutex_lock(&p->adev->notifier_lock);
+	mutex_lock(&p->adev->yestifier_lock);
 
 	/* If userptr are invalidated after amdgpu_cs_parser_bos(), return
 	 * -EAGAIN, drmIoctl in libdrm will restart the amdgpu_cs_ioctl.
@@ -1264,13 +1264,13 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	amdgpu_vm_move_to_lru_tail(p->adev, &fpriv->vm);
 
 	ttm_eu_fence_buffer_objects(&p->ticket, &p->validated, p->fence);
-	mutex_unlock(&p->adev->notifier_lock);
+	mutex_unlock(&p->adev->yestifier_lock);
 
 	return 0;
 
 error_abort:
 	drm_sched_job_cleanup(&job->base);
-	mutex_unlock(&p->adev->notifier_lock);
+	mutex_unlock(&p->adev->yestifier_lock);
 
 error_unlock:
 	amdgpu_job_free(job);
@@ -1313,7 +1313,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	r = amdgpu_cs_parser_bos(&parser, data);
 	if (r) {
 		if (r == -ENOMEM)
-			DRM_ERROR("Not enough memory for command submission!\n");
+			DRM_ERROR("Not eyesugh memory for command submission!\n");
 		else if (r != -ERESTARTSYS && r != -EAGAIN)
 			DRM_ERROR("Failed to process the buffer list %d!\n", r);
 		goto out;
@@ -1414,7 +1414,7 @@ static struct dma_fence *amdgpu_cs_get_fence(struct amdgpu_device *adev,
 		return ERR_PTR(r);
 	}
 
-	fence = amdgpu_ctx_get_fence(ctx, entity, user->seq_no);
+	fence = amdgpu_ctx_get_fence(ctx, entity, user->seq_yes);
 	amdgpu_ctx_put(ctx);
 
 	return fence;

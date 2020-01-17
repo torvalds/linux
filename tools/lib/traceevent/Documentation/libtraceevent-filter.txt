@@ -17,14 +17,14 @@ SYNOPSIS
 struct tep_event_filter pass:[*]*tep_filter_alloc*(struct tep_handle pass:[*]_tep_);
 void *tep_filter_free*(struct tep_event_filter pass:[*]_filter_);
 void *tep_filter_reset*(struct tep_event_filter pass:[*]_filter_);
-enum tep_errno *tep_filter_add_filter_str*(struct tep_event_filter pass:[*]_filter_, const char pass:[*]_filter_str_);
+enum tep_erryes *tep_filter_add_filter_str*(struct tep_event_filter pass:[*]_filter_, const char pass:[*]_filter_str_);
 int *tep_event_filtered*(struct tep_event_filter pass:[*]_filter_, int _event_id_);
 int *tep_filter_remove_event*(struct tep_event_filter pass:[*]_filter_, int _event_id_);
-enum tep_errno *tep_filter_match*(struct tep_event_filter pass:[*]_filter_, struct tep_record pass:[*]_record_);
+enum tep_erryes *tep_filter_match*(struct tep_event_filter pass:[*]_filter_, struct tep_record pass:[*]_record_);
 int *tep_filter_copy*(struct tep_event_filter pass:[*]_dest_, struct tep_event_filter pass:[*]_source_);
 int *tep_filter_compare*(struct tep_event_filter pass:[*]_filter1_, struct tep_event_filter pass:[*]_filter2_);
 char pass:[*]*tep_filter_make_string*(struct tep_event_filter pass:[*]_filter_, int _event_id_);
-int *tep_filter_strerror*(struct tep_event_filter pass:[*]_filter_, enum tep_errno _err_, char pass:[*]buf, size_t _buflen_);
+int *tep_filter_strerror*(struct tep_event_filter pass:[*]_filter_, enum tep_erryes _err_, char pass:[*]buf, size_t _buflen_);
 --
 
 DESCRIPTION
@@ -78,23 +78,23 @@ The _tep_event_filtered()_ function returns 1 if the filter is found for given
 event, or 0 otherwise.
 
 The _tep_filter_remove_event()_ function returns 1 if the vent was removed, or
-0 if the event was not found.
+0 if the event was yest found.
 
-The _tep_filter_match()_ function returns _tep_errno_, according to the result:
+The _tep_filter_match()_ function returns _tep_erryes_, according to the result:
 [verse]
 --
 _pass:[TEP_ERRNO__FILTER_MATCH]_	- filter found for event, the record matches.
-_pass:[TEP_ERRNO__FILTER_MISS]_		- filter found for event, the record does not match.
-_pass:[TEP_ERRNO__FILTER_NOT_FOUND]_	- no filter found for record's event.
-_pass:[TEP_ERRNO__NO_FILTER]_		- no rules in the filter.
+_pass:[TEP_ERRNO__FILTER_MISS]_		- filter found for event, the record does yest match.
+_pass:[TEP_ERRNO__FILTER_NOT_FOUND]_	- yes filter found for record's event.
+_pass:[TEP_ERRNO__NO_FILTER]_		- yes rules in the filter.
 --
-or any other _tep_errno_, if an error occurred during the test.
+or any other _tep_erryes_, if an error occurred during the test.
 
-The _tep_filter_copy()_ function returns 0 on success or -1 if not all rules
+The _tep_filter_copy()_ function returns 0 on success or -1 if yest all rules
  were copied.
 
 The _tep_filter_compare()_ function returns 1 if the two filters hold the same
-content, or 0 if they do not.
+content, or 0 if they do yest.
 
 The _tep_filter_make_string()_ function returns a string, which must be freed
 with free(), or NULL in case of an error.
@@ -149,13 +149,13 @@ void process_record(struct tep_handle *tep, struct tep_record *record)
 		/* The filter matches the record */
 		break;
 	case TEP_ERRNO__FILTER_MISS:
-		/* The filter does not match the record */
+		/* The filter does yest match the record */
 		break;
 	case TEP_ERRNO__FILTER_NOT_FOUND:
 		/* No filter found for record's event */
 		break;
 	case TEP_ERRNO__NO_FILTER:
-		/* There are no rules in the filter */
+		/* There are yes rules in the filter */
 		break
 	default:
 		/* An error occurred during the test */
@@ -194,7 +194,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

@@ -18,7 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -318,7 +318,7 @@ int bench_sched_messaging(int argc, const char **argv)
 		break;
 	default:
 		/* reaching here is something disaster */
-		fprintf(stderr, "Unknown format:%d\n", bench_format);
+		fprintf(stderr, "Unkyeswn format:%d\n", bench_format);
 		exit(1);
 		break;
 	}

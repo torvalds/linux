@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -134,7 +134,7 @@ enum hdmi_quantization_range {
 	HDMI_QUANTIZATION_RANGE_RESERVED,
 };
 
-/* non-uniform picture scaling */
+/* yesn-uniform picture scaling */
 enum hdmi_nups {
 	HDMI_NUPS_UNKNOWN,
 	HDMI_NUPS_HORIZONTAL,
@@ -297,7 +297,7 @@ enum hdmi_audio_coding_type_ext {
 
 	/*
 	 * The next three CXT values are defined in CEA-861-E only.
-	 * They do not exist in older versions, and in CEA-861-F they are
+	 * They do yest exist in older versions, and in CEA-861-F they are
 	 * defined as 'Not in use'.
 	 */
 	HDMI_AUDIO_CODING_TYPE_EXT_HE_AAC,

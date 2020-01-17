@@ -39,7 +39,7 @@ struct cmpc_accel {
 
 typedef void (*input_device_init)(struct input_dev *dev);
 
-static int cmpc_add_acpi_notify_device(struct acpi_device *acpi, char *name,
+static int cmpc_add_acpi_yestify_device(struct acpi_device *acpi, char *name,
 				       input_device_init idev_init)
 {
 	struct input_dev *inputdev;
@@ -60,7 +60,7 @@ static int cmpc_add_acpi_notify_device(struct acpi_device *acpi, char *name,
 	return 0;
 }
 
-static int cmpc_remove_acpi_notify_device(struct acpi_device *acpi)
+static int cmpc_remove_acpi_yestify_device(struct acpi_device *acpi)
 {
 	struct input_dev *inputdev = dev_get_drvdata(&acpi->dev);
 	input_unregister_device(inputdev);
@@ -399,7 +399,7 @@ static int cmpc_accel_add_v4(struct acpi_device *acpi)
 	if (error)
 		goto failed_g_select;
 
-	error = cmpc_add_acpi_notify_device(acpi, "cmpc_accel_v4",
+	error = cmpc_add_acpi_yestify_device(acpi, "cmpc_accel_v4",
 					    cmpc_accel_idev_init_v4);
 	if (error)
 		goto failed_input;
@@ -422,7 +422,7 @@ static int cmpc_accel_remove_v4(struct acpi_device *acpi)
 {
 	device_remove_file(&acpi->dev, &cmpc_accel_sensitivity_attr_v4);
 	device_remove_file(&acpi->dev, &cmpc_accel_g_select_attr_v4);
-	return cmpc_remove_acpi_notify_device(acpi);
+	return cmpc_remove_acpi_yestify_device(acpi);
 }
 
 static SIMPLE_DEV_PM_OPS(cmpc_accel_pm, cmpc_accel_suspend_v4,
@@ -441,7 +441,7 @@ static struct acpi_driver cmpc_accel_acpi_driver_v4 = {
 	.ops = {
 		.add = cmpc_accel_add_v4,
 		.remove = cmpc_accel_remove_v4,
-		.notify = cmpc_accel_handler_v4,
+		.yestify = cmpc_accel_handler_v4,
 	},
 	.drv.pm = &cmpc_accel_pm,
 };
@@ -631,7 +631,7 @@ static int cmpc_accel_add(struct acpi_device *acpi)
 	if (error)
 		goto failed_file;
 
-	error = cmpc_add_acpi_notify_device(acpi, "cmpc_accel",
+	error = cmpc_add_acpi_yestify_device(acpi, "cmpc_accel",
 					    cmpc_accel_idev_init);
 	if (error)
 		goto failed_input;
@@ -651,7 +651,7 @@ failed_file:
 static int cmpc_accel_remove(struct acpi_device *acpi)
 {
 	device_remove_file(&acpi->dev, &cmpc_accel_sensitivity_attr);
-	return cmpc_remove_acpi_notify_device(acpi);
+	return cmpc_remove_acpi_yestify_device(acpi);
 }
 
 static const struct acpi_device_id cmpc_accel_device_ids[] = {
@@ -667,7 +667,7 @@ static struct acpi_driver cmpc_accel_acpi_driver = {
 	.ops = {
 		.add = cmpc_accel_add,
 		.remove = cmpc_accel_remove,
-		.notify = cmpc_accel_handler,
+		.yestify = cmpc_accel_handler,
 	}
 };
 
@@ -723,13 +723,13 @@ static void cmpc_tablet_idev_init(struct input_dev *inputdev)
 
 static int cmpc_tablet_add(struct acpi_device *acpi)
 {
-	return cmpc_add_acpi_notify_device(acpi, "cmpc_tablet",
+	return cmpc_add_acpi_yestify_device(acpi, "cmpc_tablet",
 					   cmpc_tablet_idev_init);
 }
 
 static int cmpc_tablet_remove(struct acpi_device *acpi)
 {
-	return cmpc_remove_acpi_notify_device(acpi);
+	return cmpc_remove_acpi_yestify_device(acpi);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -761,7 +761,7 @@ static struct acpi_driver cmpc_tablet_acpi_driver = {
 	.ops = {
 		.add = cmpc_tablet_add,
 		.remove = cmpc_tablet_remove,
-		.notify = cmpc_tablet_handler,
+		.yestify = cmpc_tablet_handler,
 	},
 	.drv.pm = &cmpc_tablet_pm,
 };
@@ -955,7 +955,7 @@ static int cmpc_ipml_add(struct acpi_device *acpi)
 				&cmpc_rfkill_ops, acpi->handle);
 	/*
 	 * If RFKILL is disabled, rfkill_alloc will return ERR_PTR(-ENODEV).
-	 * This is OK, however, since all other uses of the device will not
+	 * This is OK, however, since all other uses of the device will yest
 	 * derefence it.
 	 */
 	if (ipml->rf) {
@@ -1049,13 +1049,13 @@ static void cmpc_keys_idev_init(struct input_dev *inputdev)
 
 static int cmpc_keys_add(struct acpi_device *acpi)
 {
-	return cmpc_add_acpi_notify_device(acpi, "cmpc_keys",
+	return cmpc_add_acpi_yestify_device(acpi, "cmpc_keys",
 					   cmpc_keys_idev_init);
 }
 
 static int cmpc_keys_remove(struct acpi_device *acpi)
 {
-	return cmpc_remove_acpi_notify_device(acpi);
+	return cmpc_remove_acpi_yestify_device(acpi);
 }
 
 static const struct acpi_device_id cmpc_keys_device_ids[] = {
@@ -1071,7 +1071,7 @@ static struct acpi_driver cmpc_keys_acpi_driver = {
 	.ops = {
 		.add = cmpc_keys_add,
 		.remove = cmpc_keys_remove,
-		.notify = cmpc_keys_handler,
+		.yestify = cmpc_keys_handler,
 	}
 };
 

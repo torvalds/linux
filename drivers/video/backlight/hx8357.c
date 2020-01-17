@@ -98,7 +98,7 @@ static u8 hx8357_seq_vcom[] = {
 	HX8357_SET_VCOM, 0x40, 0x10,
 };
 
-static u8 hx8357_seq_power_normal[] = {
+static u8 hx8357_seq_power_yesrmal[] = {
 	HX8357_SET_POWER_NORMAL, 0x05, 0x12,
 };
 
@@ -356,8 +356,8 @@ static int hx8357_lcd_init(struct lcd_device *lcdev)
 	if (ret < 0)
 		return ret;
 
-	ret = hx8357_spi_write_array(lcdev, hx8357_seq_power_normal,
-				ARRAY_SIZE(hx8357_seq_power_normal));
+	ret = hx8357_spi_write_array(lcdev, hx8357_seq_power_yesrmal,
+				ARRAY_SIZE(hx8357_seq_power_yesrmal));
 	if (ret < 0)
 		return ret;
 
@@ -601,7 +601,7 @@ static int hx8357_probe(struct spi_device *spi)
 	if (!match || !match->data)
 		return -EINVAL;
 
-	lcd->reset = of_get_named_gpio(spi->dev.of_node, "gpios-reset", 0);
+	lcd->reset = of_get_named_gpio(spi->dev.of_yesde, "gpios-reset", 0);
 	if (!gpio_is_valid(lcd->reset)) {
 		dev_err(&spi->dev, "Missing dt property: gpios-reset\n");
 		return -EINVAL;
@@ -617,14 +617,14 @@ static int hx8357_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	if (of_find_property(spi->dev.of_node, "im-gpios", NULL)) {
+	if (of_find_property(spi->dev.of_yesde, "im-gpios", NULL)) {
 		lcd->use_im_pins = 1;
 
 		for (i = 0; i < HX8357_NUM_IM_PINS; i++) {
-			lcd->im_pins[i] = of_get_named_gpio(spi->dev.of_node,
+			lcd->im_pins[i] = of_get_named_gpio(spi->dev.of_yesde,
 							    "im-gpios", i);
 			if (lcd->im_pins[i] == -EPROBE_DEFER) {
-				dev_info(&spi->dev, "GPIO requested is not here yet, deferring the probe\n");
+				dev_info(&spi->dev, "GPIO requested is yest here yet, deferring the probe\n");
 				return -EPROBE_DEFER;
 			}
 			if (!gpio_is_valid(lcd->im_pins[i])) {

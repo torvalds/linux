@@ -97,8 +97,8 @@ EXPORT_SYMBOL_GPL(adxl_get_component_names);
  *
  * The index of each value returned in the array matches the index of
  * each component name returned by adxl_get_component_names().
- * Components that are not defined for this address translation (e.g.
- * mirror channel number for a non-mirrored address) are set to ~0ull.
+ * Components that are yest defined for this address translation (e.g.
+ * mirror channel number for a yesn-mirrored address) are set to ~0ull.
  */
 int adxl_decode(u64 addr, u64 component_values[])
 {
@@ -156,7 +156,7 @@ static int __init adxl_init(void)
 	if (!acpi_check_dsm(handle, &adxl_guid, ADXL_REVISION,
 			    ADXL_IDX_GET_ADDR_PARAMS |
 			    ADXL_IDX_FORWARD_TRANSLATE)) {
-		pr_info("DSM method does not support forward translate\n");
+		pr_info("DSM method does yest support forward translate\n");
 		return -ENODEV;
 	}
 

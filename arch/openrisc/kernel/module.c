@@ -56,7 +56,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			*location = value;
 			break;
 		default:
-			pr_err("module %s: Unknown relocation: %u\n",
+			pr_err("module %s: Unkyeswn relocation: %u\n",
 			       me->name, ELF32_R_TYPE(rel[i].r_info));
 			break;
 		}

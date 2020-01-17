@@ -17,7 +17,7 @@
   * 	- Adhere to Kernel process/coding-style.rst
   * 	- Port to 2.6.13 "new" style PCMCIA
   * 	- Check for copy_{from,to}_user return values
-  * 	- Use nonseekable_open()
+  * 	- Use yesnseekable_open()
   * 	- add class interface for udev device creation
   *
   * All rights reserved. Licensed under dual BSD/GPL license.
@@ -45,7 +45,7 @@
 
 #define reader_to_dev(x)	(&x->p_dev->dev)
 
-/* n (debug level) is ignored */
+/* n (debug level) is igyesred */
 /* additional debug output may be enabled by re-compiling with
  * CM4000_DEBUG set */
 /* #define CM4000_DEBUG */
@@ -68,7 +68,7 @@ static void cm4000_release(struct pcmcia_device *link);
 
 static int major;		/* major number we get from the kernel */
 
-/* note: the first state has to have number 0 always */
+/* yeste: the first state has to have number 0 always */
 
 #define	M_FETCH_ATR	0
 #define	M_TIMEOUT_WAIT	1
@@ -109,14 +109,14 @@ struct cm4000_dev {
 	unsigned char rbuf[512];
 	unsigned char sbuf[512];
 
-	wait_queue_head_t devq;		/* when removing cardman must not be
+	wait_queue_head_t devq;		/* when removing cardman must yest be
 					   zeroed! */
 
 	wait_queue_head_t ioq;		/* if IO is locked, wait on this Q */
 	wait_queue_head_t atrq;		/* wait for ATR valid */
 	wait_queue_head_t readq;	/* used by write to wake blk.read */
 
-	/* warning: do not move this fields.
+	/* warning: do yest move this fields.
 	 * initialising to zero depends on it - see ZERO_DEV below.  */
 	unsigned char atr_csum;
 	unsigned char atr_len_retry;
@@ -319,7 +319,7 @@ static unsigned short io_read_num_rec_bytes(unsigned int iobase,
 static int parse_atr(struct cm4000_dev *dev)
 {
 	unsigned char any_t1, any_t0;
-	unsigned char ch, ifno;
+	unsigned char ch, ifyes;
 	int ix, done;
 
 	DEBUGP(3, dev, "-> parse_atr: dev->atr_len = %i\n", dev->atr_len);
@@ -334,24 +334,24 @@ static int parse_atr(struct cm4000_dev *dev)
 	else
 		clear_bit(IS_INVREV, &dev->flags);
 	ix = 1;
-	ifno = 1;
+	ifyes = 1;
 	ch = dev->atr[1];
 	dev->proto = 0;		/* XXX PROTO */
 	any_t1 = any_t0 = done = 0;
 	dev->ta1 = 0x11;	/* defaults to 9600 baud */
 	do {
-		if (ifno == 1 && (ch & 0x10)) {
+		if (ifyes == 1 && (ch & 0x10)) {
 			/* read first interface byte and TA1 is present */
 			dev->ta1 = dev->atr[2];
 			DEBUGP(5, dev, "Card says FiDi is 0x%.2x\n", dev->ta1);
-			ifno++;
-		} else if ((ifno == 2) && (ch & 0x10)) { /* TA(2) */
+			ifyes++;
+		} else if ((ifyes == 2) && (ch & 0x10)) { /* TA(2) */
 			dev->ta1 = 0x11;
-			ifno++;
+			ifyes++;
 		}
 
 		DEBUGP(5, dev, "Yi=%.2x\n", ch & 0xf0);
-		ix += ((ch & 0x10) >> 4)	/* no of int.face chars */
+		ix += ((ch & 0x10) >> 4)	/* yes of int.face chars */
 		    +((ch & 0x20) >> 5)
 		    + ((ch & 0x40) >> 6)
 		    + ((ch & 0x80) >> 7);
@@ -369,7 +369,7 @@ static int parse_atr(struct cm4000_dev *dev)
 			done = 1;
 	} while (!done);
 
-	DEBUGP(5, dev, "ix=%d noHist=%d any_t1=%d\n",
+	DEBUGP(5, dev, "ix=%d yesHist=%d any_t1=%d\n",
 	      ix, dev->atr[1] & 15, any_t1);
 	if (ix + 1 + (dev->atr[1] & 0x0f) + any_t1 != dev->atr_len) {
 		DEBUGP(5, dev, "length error\n");
@@ -604,7 +604,7 @@ exit_setprotocol:
 static int io_detect_cm4000(unsigned int iobase, struct cm4000_dev *dev)
 {
 
-	/* note: statemachine is assumed to be reset */
+	/* yeste: statemachine is assumed to be reset */
 	if (inb(REG_FLAGS0(iobase)) & 8) {
 		clear_bit(IS_ATR_VALID, &dev->flags);
 		set_bit(IS_CMM_ABSENT, &dev->flags);
@@ -633,7 +633,7 @@ static void terminate_monitor(struct cm4000_dev *dev)
 				 test_and_set_bit(LOCK_MONITOR,
 						  (void *)&dev->flags));
 
-	/* now, LOCK_MONITOR has been set.
+	/* yesw, LOCK_MONITOR has been set.
 	 * allow a last cycle in the monitor.
 	 * the monitor will indicate that it has
 	 * finished by clearing this bit.
@@ -653,8 +653,8 @@ static void terminate_monitor(struct cm4000_dev *dev)
 
 /*
  * monitor the card every 50msec. as a side-effect, retrieve the
- * atr once a card is inserted. another side-effect of retrieving the
- * atr is that the card will be powered on, so there is no need to
+ * atr once a card is inserted. ayesther side-effect of retrieving the
+ * atr is that the card will be powered on, so there is yes need to
  * power on the card explicitly from the application: the driver
  * is already doing that for you.
  */
@@ -672,7 +672,7 @@ static void monitor_card(struct timer_list *t)
 	/* if someone has set the lock for us: we're done! */
 	if (test_and_set_bit(LOCK_MONITOR, &dev->flags)) {
 		DEBUGP(4, dev, "About to stop monitor\n");
-		/* no */
+		/* yes */
 		dev->rlen =
 		    dev->rpos =
 		    dev->atr_csum = dev->atr_len_retry = dev->cwarn = 0;
@@ -680,11 +680,11 @@ static void monitor_card(struct timer_list *t)
 		clear_bit(LOCK_MONITOR, &dev->flags);
 		/* close et al. are sleeping on devq, so wake it */
 		wake_up_interruptible(&dev->devq);
-		DEBUGP(2, dev, "<- monitor_card (we are done now)\n");
+		DEBUGP(2, dev, "<- monitor_card (we are done yesw)\n");
 		return;
 	}
 
-	/* try to lock io: if it is already locked, just add another timer */
+	/* try to lock io: if it is already locked, just add ayesther timer */
 	if (test_and_set_bit(LOCK_IO, (void *)&dev->flags)) {
 		DEBUGP(4, dev, "Couldn't get IO lock\n");
 		goto return_with_timer;
@@ -694,13 +694,13 @@ static void monitor_card(struct timer_list *t)
 	dev->flags0 = xinb(REG_FLAGS0(iobase));
 	DEBUGP(7, dev, "dev->flags0 = 0x%2x\n", dev->flags0);
 	DEBUGP(7, dev, "smartcard present: %s\n",
-	       dev->flags0 & 1 ? "yes" : "no");
+	       dev->flags0 & 1 ? "no" : "yes");
 	DEBUGP(7, dev, "cardman present: %s\n",
-	       dev->flags0 == 0xff ? "no" : "yes");
+	       dev->flags0 == 0xff ? "yes" : "no");
 
-	if ((dev->flags0 & 1) == 0	/* no smartcard inserted */
-	    || dev->flags0 == 0xff) {	/* no cardman inserted */
-		/* no */
+	if ((dev->flags0 & 1) == 0	/* yes smartcard inserted */
+	    || dev->flags0 == 0xff) {	/* yes cardman inserted */
+		/* yes */
 		dev->rlen =
 		    dev->rpos =
 		    dev->atr_csum = dev->atr_len_retry = dev->cwarn = 0;
@@ -726,7 +726,7 @@ static void monitor_card(struct timer_list *t)
 	}
 
 	if (test_bit(IS_ATR_VALID, &dev->flags) == 1) {
-		DEBUGP(7, dev, "believe ATR is already valid (do nothing)\n");
+		DEBUGP(7, dev, "believe ATR is already valid (do yesthing)\n");
 		goto release_io;
 	}
 
@@ -739,7 +739,7 @@ static void monitor_card(struct timer_list *t)
 			/* wait until Flags0 indicate power is off */
 			dev->mdelay = T_10MSEC;
 		} else {
-			/* Flags0 indicate power off and no card inserted now;
+			/* Flags0 indicate power off and yes card inserted yesw;
 			 * Reset CARDMAN CONTROLLER */
 			xoutb(0x80, REG_FLAGS0(iobase));
 
@@ -778,7 +778,7 @@ static void monitor_card(struct timer_list *t)
 		break;
 	case M_READ_ATR_LEN:
 		DEBUGP(4, dev, "M_READ_ATR_LEN\n");
-		/* infinite loop possible, since there is no timeout */
+		/* infinite loop possible, since there is yes timeout */
 
 #define	MAX_ATR_LEN_RETRY	100
 
@@ -822,8 +822,8 @@ static void monitor_card(struct timer_list *t)
 
 		if (test_bit(IS_ATR_VALID, &dev->flags) == 1) {
 			DEBUGP(4, dev, "monitor_card: ATR valid\n");
- 			/* if ta1 == 0x11, no PPS necessary (default values) */
-			/* do not do PPS with multi protocol cards */
+ 			/* if ta1 == 0x11, yes PPS necessary (default values) */
+			/* do yest do PPS with multi protocol cards */
 			if ((test_bit(IS_AUTOPPS_ACT, &dev->flags) == 0) &&
 			    (dev->ta1 != 0x11) &&
 			    !(test_bit(IS_ANY_T0, &dev->flags) &&
@@ -901,8 +901,8 @@ static void monitor_card(struct timer_list *t)
 		dev->mstate = M_FETCH_ATR;
 		break;
 	default:
-		DEBUGP(7, dev, "Unknown action\n");
-		break;		/* nothing */
+		DEBUGP(7, dev, "Unkyeswn action\n");
+		break;		/* yesthing */
 	}
 
 release_io:
@@ -938,7 +938,7 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 	if (test_bit(IS_BAD_CSUM, &dev->flags))
 		return -EIO;
 
-	/* also see the note about this in cmm_write */
+	/* also see the yeste about this in cmm_write */
 	if (wait_event_interruptible
 	    (dev->atrq,
 	     ((filp->f_flags & O_NONBLOCK)
@@ -972,8 +972,8 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 
 	rc = 0;
 	dev->flags0 = inb(REG_FLAGS0(iobase));
-	if ((dev->flags0 & 1) == 0	/* no smartcard inserted */
-	    || dev->flags0 == 0xff) {	/* no cardman inserted */
+	if ((dev->flags0 & 1) == 0	/* yes smartcard inserted */
+	    || dev->flags0 == 0xff) {	/* yes cardman inserted */
 		clear_bit(IS_ATR_VALID, &dev->flags);
 		if (dev->flags0 & 1) {
 			set_bit(IS_CMM_ABSENT, &dev->flags);
@@ -1082,13 +1082,13 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 
 	/*
 	 * wait for atr to become valid.
-	 * note: it is important to lock this code. if we dont, the monitor
+	 * yeste: it is important to lock this code. if we dont, the monitor
 	 * could be run between test_bit and the call to sleep on the
 	 * atr-queue.  if *then* the monitor detects atr valid, it will wake up
 	 * any process on the atr-queue, *but* since we have been interrupted,
-	 * we do not yet sleep on this queue. this would result in a missed
+	 * we do yest yet sleep on this queue. this would result in a missed
 	 * wake_up and the calling process would sleep forever (until
-	 * interrupted).  also, do *not* restore_flags before sleep_on, because
+	 * interrupted).  also, do *yest* restore_flags before sleep_on, because
 	 * this could result in the same situation!
 	 */
 	if (wait_event_interruptible
@@ -1120,8 +1120,8 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 
 	rc = 0;
 	dev->flags0 = inb(REG_FLAGS0(iobase));
-	if ((dev->flags0 & 1) == 0	/* no smartcard inserted */
-	    || dev->flags0 == 0xff) {	/* no cardman inserted */
+	if ((dev->flags0 & 1) == 0	/* yes smartcard inserted */
+	    || dev->flags0 == 0xff) {	/* yes cardman inserted */
 		clear_bit(IS_ATR_VALID, &dev->flags);
 		if (dev->flags0 & 1) {
 			set_bit(IS_CMM_ABSENT, &dev->flags);
@@ -1291,11 +1291,11 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 		 *      is set and numRecBytes == bytes sent + 6
 		 *      (header bytes + data + 1 for sw2)
 		 *      except when the card replies an error
-		 *      which means, no data will be sent back.
+		 *      which means, yes data will be sent back.
 		 */
 		else if (dev->proto == 0) {
 			if ((inb(REG_BUF_ADDR(iobase)) & 0x80)) {
-				/* no procedure byte received since last read */
+				/* yes procedure byte received since last read */
 				DEBUGP(1, dev, "NoProcedure byte set\n");
 				/* i=0; */
 			} else {
@@ -1400,7 +1400,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct cm4000_dev *dev = filp->private_data;
 	unsigned int iobase = dev->p_dev->resource[0]->start;
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 	struct pcmcia_device *link;
 	int size;
 	int rc;
@@ -1413,13 +1413,13 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		[_IOC_NR(CM_IOCSPTS)] "CM_IOCSPTS",
 		[_IOC_NR(CM_IOSDBGLVL)] "CM4000_DBGLVL",
 	};
-	DEBUGP(3, dev, "cmm_ioctl(device=%d.%d) %s\n", imajor(inode),
-	       iminor(inode), ioctl_names[_IOC_NR(cmd)]);
+	DEBUGP(3, dev, "cmm_ioctl(device=%d.%d) %s\n", imajor(iyesde),
+	       imiyesr(iyesde), ioctl_names[_IOC_NR(cmd)]);
 #endif
 
 	mutex_lock(&cmm_mutex);
 	rc = -ENODEV;
-	link = dev_table[iminor(inode)];
+	link = dev_table[imiyesr(iyesde)];
 	if (!pcmcia_dev_present(link)) {
 		DEBUGP(4, dev, "DEV_OK false\n");
 		goto out;
@@ -1480,7 +1480,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		{
 			struct atreq __user *atreq = argp;
 			int tmp;
-			/* allow nonblocking io and being interrupted */
+			/* allow yesnblocking io and being interrupted */
 			if (wait_event_interruptible
 			    (dev->atrq,
 			     ((filp->f_flags & O_NONBLOCK)
@@ -1523,7 +1523,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (dev->flags0 & 0x02) {
 			DEBUGP(4, dev, "    Card powered\n");
 		} else {
-			DEBUGP(2, dev, "    Card not powered\n");
+			DEBUGP(2, dev, "    Card yest powered\n");
 		}
 #endif
 
@@ -1621,7 +1621,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 #endif
 	default:
-		DEBUGP(4, dev, "... in default (unknown IOCTL code)\n");
+		DEBUGP(4, dev, "... in default (unkyeswn IOCTL code)\n");
 		rc = -ENOTTY;
 	}
 out:
@@ -1629,18 +1629,18 @@ out:
 	return rc;
 }
 
-static int cmm_open(struct inode *inode, struct file *filp)
+static int cmm_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct cm4000_dev *dev;
 	struct pcmcia_device *link;
-	int minor = iminor(inode);
+	int miyesr = imiyesr(iyesde);
 	int ret;
 
-	if (minor >= CM4000_MAX_DEV)
+	if (miyesr >= CM4000_MAX_DEV)
 		return -ENODEV;
 
 	mutex_lock(&cmm_mutex);
-	link = dev_table[minor];
+	link = dev_table[miyesr];
 	if (link == NULL || !pcmcia_dev_present(link)) {
 		ret = -ENODEV;
 		goto out;
@@ -1655,7 +1655,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	filp->private_data = dev;
 
 	DEBUGP(2, dev, "-> cmm_open(device=%d.%d process=%s,%d)\n",
-	      imajor(inode), minor, current->comm, current->pid);
+	      imajor(iyesde), miyesr, current->comm, current->pid);
 
 	/* init device variables, they may be "polluted" after close
 	 * or, the device may never have been closed (i.e. open failed)
@@ -1682,29 +1682,29 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	link->open = 1;		/* only one open per device */
 
 	DEBUGP(2, dev, "<- cmm_open\n");
-	ret = stream_open(inode, filp);
+	ret = stream_open(iyesde, filp);
 out:
 	mutex_unlock(&cmm_mutex);
 	return ret;
 }
 
-static int cmm_close(struct inode *inode, struct file *filp)
+static int cmm_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct cm4000_dev *dev;
 	struct pcmcia_device *link;
-	int minor = iminor(inode);
+	int miyesr = imiyesr(iyesde);
 
-	if (minor >= CM4000_MAX_DEV)
+	if (miyesr >= CM4000_MAX_DEV)
 		return -ENODEV;
 
-	link = dev_table[minor];
+	link = dev_table[miyesr];
 	if (link == NULL)
 		return -ENODEV;
 
 	dev = link->priv;
 
 	DEBUGP(2, dev, "-> cmm_close(maj/min=%d.%d)\n",
-	       imajor(inode), minor);
+	       imajor(iyesde), miyesr);
 
 	stop_monitor(dev);
 
@@ -1728,13 +1728,13 @@ static void cmm_cm4000_release(struct pcmcia_device * link)
 	while (link->open) {
 		printk(KERN_INFO MODULE_NAME ": delaying release until "
 		       "process has terminated\n");
-		/* note: don't interrupt us:
+		/* yeste: don't interrupt us:
 		 * close the applications which own
 		 * the devices _first_ !
 		 */
 		wait_event(dev->devq, (link->open == 0));
 	}
-	/* dev->devq=NULL;	this cannot be zeroed earlier */
+	/* dev->devq=NULL;	this canyest be zeroed earlier */
 	DEBUGP(3, dev, "<- cmm_cm4000_release\n");
 	return;
 }
@@ -1746,7 +1746,7 @@ static int cm4000_config_check(struct pcmcia_device *p_dev, void *priv_data)
 	return pcmcia_request_io(p_dev);
 }
 
-static int cm4000_config(struct pcmcia_device * link, int devno)
+static int cm4000_config(struct pcmcia_device * link, int devyes)
 {
 	link->config_flags |= CONF_AUTO_SET_IO;
 
@@ -1834,23 +1834,23 @@ static int cm4000_probe(struct pcmcia_device *link)
 static void cm4000_detach(struct pcmcia_device *link)
 {
 	struct cm4000_dev *dev = link->priv;
-	int devno;
+	int devyes;
 
 	/* find device */
-	for (devno = 0; devno < CM4000_MAX_DEV; devno++)
-		if (dev_table[devno] == link)
+	for (devyes = 0; devyes < CM4000_MAX_DEV; devyes++)
+		if (dev_table[devyes] == link)
 			break;
-	if (devno == CM4000_MAX_DEV)
+	if (devyes == CM4000_MAX_DEV)
 		return;
 
 	stop_monitor(dev);
 
 	cm4000_release(link);
 
-	dev_table[devno] = NULL;
+	dev_table[devyes] = NULL;
 	kfree(dev);
 
-	device_destroy(cmm_class, MKDEV(major, devno));
+	device_destroy(cmm_class, MKDEV(major, devyes));
 
 	return;
 }
@@ -1862,7 +1862,7 @@ static const struct file_operations cm4000_fops = {
 	.unlocked_ioctl	= cmm_ioctl,
 	.open	= cmm_open,
 	.release= cmm_close,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static const struct pcmcia_device_id cm4000_ids[] = {
@@ -1893,7 +1893,7 @@ static int __init cmm_init(void)
 	major = register_chrdev(0, DEVICE_NAME, &cm4000_fops);
 	if (major < 0) {
 		printk(KERN_WARNING MODULE_NAME
-			": could not get major number\n");
+			": could yest get major number\n");
 		class_destroy(cmm_class);
 		return major;
 	}

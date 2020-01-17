@@ -1,6 +1,6 @@
 * Xen hypervisor device tree bindings
 
-Xen ARM virtual platforms shall have a top-level "hypervisor" node with
+Xen ARM virtual platforms shall have a top-level "hypervisor" yesde with
 the following properties:
 
 - compatible:
@@ -9,15 +9,15 @@ the following properties:
 
 - reg: specifies the base physical address and size of a region in
   memory where the grant table should be mapped to, using an
-  HYPERVISOR_memory_op hypercall. The memory region is large enough to map
+  HYPERVISOR_memory_op hypercall. The memory region is large eyesugh to map
   the whole grant table (it is larger or equal to gnttab_max_grant_frames()).
   This property is unnecessary when booting Dom0 using ACPI.
 
-- interrupts: the interrupt used by Xen to inject event notifications.
-  A GIC node is also required.
+- interrupts: the interrupt used by Xen to inject event yestifications.
+  A GIC yesde is also required.
   This property is unnecessary when booting Dom0 using ACPI.
 
-To support UEFI on Xen ARM virtual platforms, Xen populates the FDT "uefi" node
+To support UEFI on Xen ARM virtual platforms, Xen populates the FDT "uefi" yesde
 under /hypervisor with following parameters:
 
 ________________________________________________________________________________

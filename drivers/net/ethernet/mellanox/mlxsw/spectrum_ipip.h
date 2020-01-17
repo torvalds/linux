@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #ifndef _MLXSW_IPIP_H_
 #define _MLXSW_IPIP_H_
@@ -29,7 +29,7 @@ struct mlxsw_sp_ipip_entry {
 	struct net_device *ol_dev; /* Overlay. */
 	struct mlxsw_sp_rif_ipip_lb *ol_lb;
 	struct mlxsw_sp_fib_entry *decap_fib_entry;
-	struct list_head ipip_list_node;
+	struct list_head ipip_list_yesde;
 	union {
 		struct ip_tunnel_parm parms4;
 	};

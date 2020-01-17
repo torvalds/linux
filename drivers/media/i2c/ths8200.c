@@ -281,7 +281,7 @@ static void ths8200_setup(struct v4l2_subdev *sd, struct v4l2_bt_timings *bt)
 	 * corresponding line types.
 	 *
 	 * Line types:
-	 * 0x9 - Full normal sync pulse: Blocks data when dtg1_pass is off.
+	 * 0x9 - Full yesrmal sync pulse: Blocks data when dtg1_pass is off.
 	 *       Used in blanking area.
 	 * 0x0 - Active video: Video data is always passed. Used in active
 	 *       video area.
@@ -342,7 +342,7 @@ static void ths8200_setup(struct v4l2_subdev *sd, struct v4l2_bt_timings *bt)
 		polarity |= 0x10; /* VS_OUT */
 	}
 
-	/* RGB mode, no embedded timings */
+	/* RGB mode, yes embedded timings */
 	/* Timing of video input bus is derived from HS, VS, and FID dedicated
 	 * inputs
 	 */

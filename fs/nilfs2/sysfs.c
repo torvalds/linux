@@ -107,11 +107,11 @@ static void nilfs_sysfs_delete_##name##_group(struct the_nilfs *nilfs) \
  ************************************************************************/
 
 static ssize_t
-nilfs_snapshot_inodes_count_show(struct nilfs_snapshot_attr *attr,
+nilfs_snapshot_iyesdes_count_show(struct nilfs_snapshot_attr *attr,
 				 struct nilfs_root *root, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
-			(unsigned long long)atomic64_read(&root->inodes_count));
+			(unsigned long long)atomic64_read(&root->iyesdes_count));
 }
 
 static ssize_t
@@ -124,7 +124,7 @@ nilfs_snapshot_blocks_count_show(struct nilfs_snapshot_attr *attr,
 
 static const char snapshot_readme_str[] =
 	"The group contains details about mounted snapshot.\n\n"
-	"(1) inodes_count\n\tshow number of inodes for snapshot.\n\n"
+	"(1) iyesdes_count\n\tshow number of iyesdes for snapshot.\n\n"
 	"(2) blocks_count\n\tshow number of blocks for snapshot.\n\n";
 
 static ssize_t
@@ -134,12 +134,12 @@ nilfs_snapshot_README_show(struct nilfs_snapshot_attr *attr,
 	return snprintf(buf, PAGE_SIZE, snapshot_readme_str);
 }
 
-NILFS_SNAPSHOT_RO_ATTR(inodes_count);
+NILFS_SNAPSHOT_RO_ATTR(iyesdes_count);
 NILFS_SNAPSHOT_RO_ATTR(blocks_count);
 NILFS_SNAPSHOT_RO_ATTR(README);
 
 static struct attribute *nilfs_snapshot_attrs[] = {
-	NILFS_SNAPSHOT_ATTR_LIST(inodes_count),
+	NILFS_SNAPSHOT_ATTR_LIST(iyesdes_count),
 	NILFS_SNAPSHOT_ATTR_LIST(blocks_count),
 	NILFS_SNAPSHOT_ATTR_LIST(README),
 	NULL,
@@ -197,7 +197,7 @@ int nilfs_sysfs_create_snapshot_group(struct nilfs_root *root)
 	root->snapshot_kobj.kset = nilfs_kset;
 	init_completion(&root->snapshot_kobj_unregister);
 
-	if (root->cno == NILFS_CPTREE_CURRENT_CNO) {
+	if (root->cyes == NILFS_CPTREE_CURRENT_CNO) {
 		err = kobject_init_and_add(&root->snapshot_kobj,
 					    &nilfs_snapshot_ktype,
 					    &nilfs->ns_dev_kobj,
@@ -206,7 +206,7 @@ int nilfs_sysfs_create_snapshot_group(struct nilfs_root *root)
 		err = kobject_init_and_add(&root->snapshot_kobj,
 					    &nilfs_snapshot_ktype,
 					    parent,
-					    "%llu", root->cno);
+					    "%llu", root->cyes);
 	}
 
 	if (err)
@@ -301,13 +301,13 @@ nilfs_checkpoints_last_seg_checkpoint_show(struct nilfs_checkpoints_attr *attr,
 					    struct the_nilfs *nilfs,
 					    char *buf)
 {
-	__u64 last_cno;
+	__u64 last_cyes;
 
 	spin_lock(&nilfs->ns_last_segment_lock);
-	last_cno = nilfs->ns_last_cno;
+	last_cyes = nilfs->ns_last_cyes;
 	spin_unlock(&nilfs->ns_last_segment_lock);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", last_cno);
+	return snprintf(buf, PAGE_SIZE, "%llu\n", last_cyes);
 }
 
 static ssize_t
@@ -315,13 +315,13 @@ nilfs_checkpoints_next_checkpoint_show(struct nilfs_checkpoints_attr *attr,
 					struct the_nilfs *nilfs,
 					char *buf)
 {
-	__u64 cno;
+	__u64 cyes;
 
 	down_read(&nilfs->ns_segctor_sem);
-	cno = nilfs->ns_cno;
+	cyes = nilfs->ns_cyes;
 	up_read(&nilfs->ns_segctor_sem);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", cno);
+	return snprintf(buf, PAGE_SIZE, "%llu\n", cyes);
 }
 
 static const char checkpoints_readme_str[] =
@@ -486,13 +486,13 @@ nilfs_segctor_last_seg_checkpoint_show(struct nilfs_segctor_attr *attr,
 					struct the_nilfs *nilfs,
 					char *buf)
 {
-	__u64 last_cno;
+	__u64 last_cyes;
 
 	spin_lock(&nilfs->ns_last_segment_lock);
-	last_cno = nilfs->ns_last_cno;
+	last_cyes = nilfs->ns_last_cyes;
 	spin_unlock(&nilfs->ns_last_segment_lock);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", last_cno);
+	return snprintf(buf, PAGE_SIZE, "%llu\n", last_cyes);
 }
 
 static ssize_t
@@ -556,13 +556,13 @@ nilfs_segctor_next_checkpoint_show(struct nilfs_segctor_attr *attr,
 					struct the_nilfs *nilfs,
 					char *buf)
 {
-	__u64 cno;
+	__u64 cyes;
 
 	down_read(&nilfs->ns_segctor_sem);
-	cno = nilfs->ns_cno;
+	cyes = nilfs->ns_cyes;
 	up_read(&nilfs->ns_segctor_sem);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", cno);
+	return snprintf(buf, PAGE_SIZE, "%llu\n", cyes);
 }
 
 static ssize_t
@@ -594,31 +594,31 @@ nilfs_segctor_last_seg_write_time_secs_show(struct nilfs_segctor_attr *attr,
 }
 
 static ssize_t
-nilfs_segctor_last_nongc_write_time_show(struct nilfs_segctor_attr *attr,
+nilfs_segctor_last_yesngc_write_time_show(struct nilfs_segctor_attr *attr,
 					 struct the_nilfs *nilfs,
 					 char *buf)
 {
-	time64_t nongc_ctime;
+	time64_t yesngc_ctime;
 
 	down_read(&nilfs->ns_segctor_sem);
-	nongc_ctime = nilfs->ns_nongc_ctime;
+	yesngc_ctime = nilfs->ns_yesngc_ctime;
 	up_read(&nilfs->ns_segctor_sem);
 
-	return NILFS_SHOW_TIME(nongc_ctime, buf);
+	return NILFS_SHOW_TIME(yesngc_ctime, buf);
 }
 
 static ssize_t
-nilfs_segctor_last_nongc_write_time_secs_show(struct nilfs_segctor_attr *attr,
+nilfs_segctor_last_yesngc_write_time_secs_show(struct nilfs_segctor_attr *attr,
 						struct the_nilfs *nilfs,
 						char *buf)
 {
-	time64_t nongc_ctime;
+	time64_t yesngc_ctime;
 
 	down_read(&nilfs->ns_segctor_sem);
-	nongc_ctime = nilfs->ns_nongc_ctime;
+	yesngc_ctime = nilfs->ns_yesngc_ctime;
 	up_read(&nilfs->ns_segctor_sem);
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", nongc_ctime);
+	return snprintf(buf, PAGE_SIZE, "%llu\n", yesngc_ctime);
 }
 
 static ssize_t
@@ -656,11 +656,11 @@ static const char segctor_readme_str[] =
 	"\tshow write time of the last segment in human-readable format.\n\n"
 	"(10) last_seg_write_time_secs\n"
 	"\tshow write time of the last segment in seconds.\n\n"
-	"(11) last_nongc_write_time\n"
-	"\tshow write time of the last segment not for cleaner operation "
+	"(11) last_yesngc_write_time\n"
+	"\tshow write time of the last segment yest for cleaner operation "
 	"in human-readable format.\n\n"
-	"(12) last_nongc_write_time_secs\n"
-	"\tshow write time of the last segment not for cleaner operation "
+	"(12) last_yesngc_write_time_secs\n"
+	"\tshow write time of the last segment yest for cleaner operation "
 	"in seconds.\n\n"
 	"(13) dirty_data_blocks_count\n"
 	"\tshow number of dirty data blocks.\n\n";
@@ -682,8 +682,8 @@ NILFS_SEGCTOR_RO_ATTR(next_pseg_offset);
 NILFS_SEGCTOR_RO_ATTR(next_checkpoint);
 NILFS_SEGCTOR_RO_ATTR(last_seg_write_time);
 NILFS_SEGCTOR_RO_ATTR(last_seg_write_time_secs);
-NILFS_SEGCTOR_RO_ATTR(last_nongc_write_time);
-NILFS_SEGCTOR_RO_ATTR(last_nongc_write_time_secs);
+NILFS_SEGCTOR_RO_ATTR(last_yesngc_write_time);
+NILFS_SEGCTOR_RO_ATTR(last_yesngc_write_time_secs);
 NILFS_SEGCTOR_RO_ATTR(dirty_data_blocks_count);
 NILFS_SEGCTOR_RO_ATTR(README);
 
@@ -698,8 +698,8 @@ static struct attribute *nilfs_segctor_attrs[] = {
 	NILFS_SEGCTOR_ATTR_LIST(next_checkpoint),
 	NILFS_SEGCTOR_ATTR_LIST(last_seg_write_time),
 	NILFS_SEGCTOR_ATTR_LIST(last_seg_write_time_secs),
-	NILFS_SEGCTOR_ATTR_LIST(last_nongc_write_time),
-	NILFS_SEGCTOR_ATTR_LIST(last_nongc_write_time_secs),
+	NILFS_SEGCTOR_ATTR_LIST(last_yesngc_write_time),
+	NILFS_SEGCTOR_ATTR_LIST(last_yesngc_write_time_secs),
 	NILFS_SEGCTOR_ATTR_LIST(dirty_data_blocks_count),
 	NILFS_SEGCTOR_ATTR_LIST(README),
 	NULL,
@@ -787,7 +787,7 @@ nilfs_superblock_sb_update_frequency_store(struct nilfs_superblock_attr *attr,
 	if (val < NILFS_SB_FREQ) {
 		val = NILFS_SB_FREQ;
 		nilfs_msg(nilfs->ns_sb, KERN_WARNING,
-			  "superblock update frequency cannot be lesser than 10 seconds");
+			  "superblock update frequency canyest be lesser than 10 seconds");
 	}
 
 	down_write(&nilfs->ns_sem);
@@ -847,9 +847,9 @@ ssize_t nilfs_dev_revision_show(struct nilfs_dev_attr *attr,
 {
 	struct nilfs_super_block **sbp = nilfs->ns_sbp;
 	u32 major = le32_to_cpu(sbp[0]->s_rev_level);
-	u16 minor = le16_to_cpu(sbp[0]->s_minor_rev_level);
+	u16 miyesr = le16_to_cpu(sbp[0]->s_miyesr_rev_level);
 
-	return snprintf(buf, PAGE_SIZE, "%d.%d\n", major, minor);
+	return snprintf(buf, PAGE_SIZE, "%d.%d\n", major, miyesr);
 }
 
 static

@@ -13,7 +13,7 @@
 #include <sound/seq_oss_legacy.h>
 #include "seq_oss_readq.h"
 #include "seq_oss_writeq.h"
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 
 /*
@@ -25,9 +25,9 @@ static int chn_common_event(struct seq_oss_devinfo *dp, union evrec *event_rec, 
 static int timing_event(struct seq_oss_devinfo *dp, union evrec *event_rec, struct snd_seq_event *ev);
 static int local_event(struct seq_oss_devinfo *dp, union evrec *event_rec, struct snd_seq_event *ev);
 static int old_event(struct seq_oss_devinfo *dp, union evrec *q, struct snd_seq_event *ev);
-static int note_on_event(struct seq_oss_devinfo *dp, int dev, int ch, int note, int vel, struct snd_seq_event *ev);
-static int note_off_event(struct seq_oss_devinfo *dp, int dev, int ch, int note, int vel, struct snd_seq_event *ev);
-static int set_note_event(struct seq_oss_devinfo *dp, int dev, int type, int ch, int note, int vel, struct snd_seq_event *ev);
+static int yeste_on_event(struct seq_oss_devinfo *dp, int dev, int ch, int yeste, int vel, struct snd_seq_event *ev);
+static int yeste_off_event(struct seq_oss_devinfo *dp, int dev, int ch, int yeste, int vel, struct snd_seq_event *ev);
+static int set_yeste_event(struct seq_oss_devinfo *dp, int dev, int type, int ch, int yeste, int vel, struct snd_seq_event *ev);
 static int set_control_event(struct seq_oss_devinfo *dp, int dev, int type, int ch, int param, int val, struct snd_seq_event *ev);
 static int set_echo_event(struct seq_oss_devinfo *dp, union evrec *rec, struct snd_seq_event *ev);
 
@@ -35,7 +35,7 @@ static int set_echo_event(struct seq_oss_devinfo *dp, union evrec *rec, struct s
 /*
  * convert an OSS event to ALSA event
  * return 0 : enqueued
- *        non-zero : invalid - ignored
+ *        yesn-zero : invalid - igyesred
  */
 
 int
@@ -96,10 +96,10 @@ old_event(struct seq_oss_devinfo *dp, union evrec *q, struct snd_seq_event *ev)
 {
 	switch (q->s.code) {
 	case SEQ_NOTEOFF:
-		return note_off_event(dp, 0, q->n.chn, q->n.note, q->n.vel, ev);
+		return yeste_off_event(dp, 0, q->n.chn, q->n.yeste, q->n.vel, ev);
 
 	case SEQ_NOTEON:
-		return note_on_event(dp, 0, q->n.chn, q->n.note, q->n.vel, ev);
+		return yeste_on_event(dp, 0, q->n.chn, q->n.yeste, q->n.vel, ev);
 
 	case SEQ_WAIT:
 		/* skip */
@@ -107,7 +107,7 @@ old_event(struct seq_oss_devinfo *dp, union evrec *q, struct snd_seq_event *ev)
 
 	case SEQ_PGMCHANGE:
 		return set_control_event(dp, 0, SNDRV_SEQ_EVENT_PGMCHANGE,
-					 q->n.chn, 0, q->n.note, ev);
+					 q->n.chn, 0, q->n.yeste, ev);
 
 	case SEQ_SYNCTIMER:
 		return snd_seq_oss_timer_reset(dp->timer);
@@ -124,10 +124,10 @@ extended_event(struct seq_oss_devinfo *dp, union evrec *q, struct snd_seq_event 
 
 	switch (q->e.cmd) {
 	case SEQ_NOTEOFF:
-		return note_off_event(dp, q->e.dev, q->e.chn, q->e.p1, q->e.p2, ev);
+		return yeste_off_event(dp, q->e.dev, q->e.chn, q->e.p1, q->e.p2, ev);
 
 	case SEQ_NOTEON:
-		return note_on_event(dp, q->e.dev, q->e.chn, q->e.p1, q->e.p2, ev);
+		return yeste_on_event(dp, q->e.dev, q->e.chn, q->e.p1, q->e.p2, ev);
 
 	case SEQ_PGMCHANGE:
 		return set_control_event(dp, q->e.dev, SNDRV_SEQ_EVENT_PGMCHANGE,
@@ -178,14 +178,14 @@ chn_voice_event(struct seq_oss_devinfo *dp, union evrec *q, struct snd_seq_event
 		return -EINVAL;
 	switch (q->v.cmd) {
 	case MIDI_NOTEON:
-		return note_on_event(dp, q->v.dev, q->v.chn, q->v.note, q->v.parm, ev);
+		return yeste_on_event(dp, q->v.dev, q->v.chn, q->v.yeste, q->v.parm, ev);
 
 	case MIDI_NOTEOFF:
-		return note_off_event(dp, q->v.dev, q->v.chn, q->v.note, q->v.parm, ev);
+		return yeste_off_event(dp, q->v.dev, q->v.chn, q->v.yeste, q->v.parm, ev);
 
 	case MIDI_KEY_PRESSURE:
-		return set_note_event(dp, q->v.dev, SNDRV_SEQ_EVENT_KEYPRESS,
-				       q->v.chn, q->v.note, q->v.parm, ev);
+		return set_yeste_event(dp, q->v.dev, SNDRV_SEQ_EVENT_KEYPRESS,
+				       q->v.chn, q->v.yeste, q->v.parm, ev);
 
 	}
 	return -EINVAL;
@@ -261,17 +261,17 @@ local_event(struct seq_oss_devinfo *dp, union evrec *q, struct snd_seq_event *ev
 }
 
 /*
- * process note-on event for OSS synth
+ * process yeste-on event for OSS synth
  * three different modes are available:
  * - SNDRV_SEQ_OSS_PROCESS_EVENTS  (for one-voice per channel mode)
- *	Accept note 255 as volume change.
+ *	Accept yeste 255 as volume change.
  * - SNDRV_SEQ_OSS_PASS_EVENTS
  *	Pass all events to lowlevel driver anyway
  * - SNDRV_SEQ_OSS_PROCESS_KEYPRESS  (mostly for Emu8000)
- *	Use key-pressure if note >= 128
+ *	Use key-pressure if yeste >= 128
  */
 static int
-note_on_event(struct seq_oss_devinfo *dp, int dev, int ch, int note, int vel, struct snd_seq_event *ev)
+yeste_on_event(struct seq_oss_devinfo *dp, int dev, int ch, int yeste, int vel, struct snd_seq_event *ev)
 {
 	struct seq_oss_synthinfo *info;
 
@@ -283,56 +283,56 @@ note_on_event(struct seq_oss_devinfo *dp, int dev, int ch, int note, int vel, st
 	case SNDRV_SEQ_OSS_PROCESS_EVENTS:
 		if (! info->ch || ch < 0 || ch >= info->nr_voices) {
 			/* pass directly */
-			return set_note_event(dp, dev, SNDRV_SEQ_EVENT_NOTEON, ch, note, vel, ev);
+			return set_yeste_event(dp, dev, SNDRV_SEQ_EVENT_NOTEON, ch, yeste, vel, ev);
 		}
 
-		ch = array_index_nospec(ch, info->nr_voices);
-		if (note == 255 && info->ch[ch].note >= 0) {
+		ch = array_index_yesspec(ch, info->nr_voices);
+		if (yeste == 255 && info->ch[ch].yeste >= 0) {
 			/* volume control */
 			int type;
 			//if (! vel)
-				/* set volume to zero -- note off */
+				/* set volume to zero -- yeste off */
 			//	type = SNDRV_SEQ_EVENT_NOTEOFF;
 			//else
 				if (info->ch[ch].vel)
 				/* sample already started -- volume change */
 				type = SNDRV_SEQ_EVENT_KEYPRESS;
 			else
-				/* sample not started -- start now */
+				/* sample yest started -- start yesw */
 				type = SNDRV_SEQ_EVENT_NOTEON;
 			info->ch[ch].vel = vel;
-			return set_note_event(dp, dev, type, ch, info->ch[ch].note, vel, ev);
-		} else if (note >= 128)
+			return set_yeste_event(dp, dev, type, ch, info->ch[ch].yeste, vel, ev);
+		} else if (yeste >= 128)
 			return -EINVAL; /* invalid */
 
-		if (note != info->ch[ch].note && info->ch[ch].note >= 0)
-			/* note changed - note off at beginning */
-			set_note_event(dp, dev, SNDRV_SEQ_EVENT_NOTEOFF, ch, info->ch[ch].note, 0, ev);
+		if (yeste != info->ch[ch].yeste && info->ch[ch].yeste >= 0)
+			/* yeste changed - yeste off at beginning */
+			set_yeste_event(dp, dev, SNDRV_SEQ_EVENT_NOTEOFF, ch, info->ch[ch].yeste, 0, ev);
 		/* set current status */
-		info->ch[ch].note = note;
+		info->ch[ch].yeste = yeste;
 		info->ch[ch].vel = vel;
-		if (vel) /* non-zero velocity - start the note now */
-			return set_note_event(dp, dev, SNDRV_SEQ_EVENT_NOTEON, ch, note, vel, ev);
+		if (vel) /* yesn-zero velocity - start the yeste yesw */
+			return set_yeste_event(dp, dev, SNDRV_SEQ_EVENT_NOTEON, ch, yeste, vel, ev);
 		return -EINVAL;
 		
 	case SNDRV_SEQ_OSS_PASS_EVENTS:
 		/* pass the event anyway */
-		return set_note_event(dp, dev, SNDRV_SEQ_EVENT_NOTEON, ch, note, vel, ev);
+		return set_yeste_event(dp, dev, SNDRV_SEQ_EVENT_NOTEON, ch, yeste, vel, ev);
 
 	case SNDRV_SEQ_OSS_PROCESS_KEYPRESS:
-		if (note >= 128) /* key pressure: shifted by 128 */
-			return set_note_event(dp, dev, SNDRV_SEQ_EVENT_KEYPRESS, ch, note - 128, vel, ev);
-		else /* normal note-on event */
-			return set_note_event(dp, dev, SNDRV_SEQ_EVENT_NOTEON, ch, note, vel, ev);
+		if (yeste >= 128) /* key pressure: shifted by 128 */
+			return set_yeste_event(dp, dev, SNDRV_SEQ_EVENT_KEYPRESS, ch, yeste - 128, vel, ev);
+		else /* yesrmal yeste-on event */
+			return set_yeste_event(dp, dev, SNDRV_SEQ_EVENT_NOTEON, ch, yeste, vel, ev);
 	}
 	return -EINVAL;
 }
 
 /*
- * process note-off event for OSS synth
+ * process yeste-off event for OSS synth
  */
 static int
-note_off_event(struct seq_oss_devinfo *dp, int dev, int ch, int note, int vel, struct snd_seq_event *ev)
+yeste_off_event(struct seq_oss_devinfo *dp, int dev, int ch, int yeste, int vel, struct snd_seq_event *ev)
 {
 	struct seq_oss_synthinfo *info;
 
@@ -344,41 +344,41 @@ note_off_event(struct seq_oss_devinfo *dp, int dev, int ch, int note, int vel, s
 	case SNDRV_SEQ_OSS_PROCESS_EVENTS:
 		if (! info->ch || ch < 0 || ch >= info->nr_voices) {
 			/* pass directly */
-			return set_note_event(dp, dev, SNDRV_SEQ_EVENT_NOTEON, ch, note, vel, ev);
+			return set_yeste_event(dp, dev, SNDRV_SEQ_EVENT_NOTEON, ch, yeste, vel, ev);
 		}
 
-		ch = array_index_nospec(ch, info->nr_voices);
-		if (info->ch[ch].note >= 0) {
-			note = info->ch[ch].note;
+		ch = array_index_yesspec(ch, info->nr_voices);
+		if (info->ch[ch].yeste >= 0) {
+			yeste = info->ch[ch].yeste;
 			info->ch[ch].vel = 0;
-			info->ch[ch].note = -1;
-			return set_note_event(dp, dev, SNDRV_SEQ_EVENT_NOTEOFF, ch, note, vel, ev);
+			info->ch[ch].yeste = -1;
+			return set_yeste_event(dp, dev, SNDRV_SEQ_EVENT_NOTEOFF, ch, yeste, vel, ev);
 		}
 		return -EINVAL; /* invalid */
 
 	case SNDRV_SEQ_OSS_PASS_EVENTS:
 	case SNDRV_SEQ_OSS_PROCESS_KEYPRESS:
 		/* pass the event anyway */
-		return set_note_event(dp, dev, SNDRV_SEQ_EVENT_NOTEOFF, ch, note, vel, ev);
+		return set_yeste_event(dp, dev, SNDRV_SEQ_EVENT_NOTEOFF, ch, yeste, vel, ev);
 
 	}
 	return -EINVAL;
 }
 
 /*
- * create a note event
+ * create a yeste event
  */
 static int
-set_note_event(struct seq_oss_devinfo *dp, int dev, int type, int ch, int note, int vel, struct snd_seq_event *ev)
+set_yeste_event(struct seq_oss_devinfo *dp, int dev, int type, int ch, int yeste, int vel, struct snd_seq_event *ev)
 {
 	if (!snd_seq_oss_synth_info(dp, dev))
 		return -ENXIO;
 	
 	ev->type = type;
 	snd_seq_oss_synth_addr(dp, dev, ev);
-	ev->data.note.channel = ch;
-	ev->data.note.note = note;
-	ev->data.note.velocity = vel;
+	ev->data.yeste.channel = ch;
+	ev->data.yeste.yeste = yeste;
+	ev->data.yeste.velocity = vel;
 
 	return 0;
 }
@@ -429,7 +429,7 @@ snd_seq_oss_event_input(struct snd_seq_event *ev, int direct, void *private_data
 		return snd_seq_oss_midi_input(ev, direct, private_data);
 
 	if (ev->source.client != dp->cseq)
-		return 0; /* ignored */
+		return 0; /* igyesred */
 
 	rec = (union evrec*)&ev->data;
 	if (rec->s.code == SEQ_SYNCTIMER) {

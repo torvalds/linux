@@ -121,13 +121,13 @@ void arch_vtime_task_switch(struct task_struct *prev)
 static __u64 vtime_delta(struct task_struct *tsk)
 {
 	struct thread_info *ti = task_thread_info(tsk);
-	__u64 now, delta_stime;
+	__u64 yesw, delta_stime;
 
 	WARN_ON_ONCE(!irqs_disabled());
 
-	now = ia64_get_itc();
-	delta_stime = now - ti->ac_stamp;
-	ti->ac_stamp = now;
+	yesw = ia64_get_itc();
+	delta_stime = yesw - ti->ac_stamp;
+	ti->ac_stamp = yesw;
 
 	return delta_stime;
 }
@@ -202,7 +202,7 @@ timer_interrupt (int irq, void *dev_id)
 		 * update itm.next because that would force us to call
 		 * xtime_update() which in turn would let our clock run
 		 * too fast (with the potentially devastating effect
-		 * of losing monotony of time).
+		 * of losing moyestony of time).
 		 */
 		while (!time_after(new_itm, ia64_get_itc() + local_cpu_data->itm_delta/2))
 			new_itm += local_cpu_data->itm_delta;
@@ -237,16 +237,16 @@ ia64_cpu_local_tick (void)
 	ia64_set_itm(local_cpu_data->itm_next);
 }
 
-static int nojitter;
+static int yesjitter;
 
-static int __init nojitter_setup(char *str)
+static int __init yesjitter_setup(char *str)
 {
-	nojitter = 1;
+	yesjitter = 1;
 	printk("Jitter checking for ITC timers disabled\n");
 	return 1;
 }
 
-__setup("nojitter", nojitter_setup);
+__setup("yesjitter", yesjitter_setup);
 
 
 void ia64_init_itm(void)
@@ -274,7 +274,7 @@ void ia64_init_itm(void)
 		printk(KERN_ERR
 		       "SAL/PAL failed to obtain frequency info---inventing reasonable values\n");
 		platform_base_freq = 100000000;
-		platform_base_drift = -1;	/* no drift info */
+		platform_base_drift = -1;	/* yes drift info */
 		itc_ratio.num = 3;
 		itc_ratio.den = 1;
 	}
@@ -317,23 +317,23 @@ void ia64_init_itm(void)
 		 * Jitter compensation requires a cmpxchg which may limit
 		 * the scalability of the syscalls for retrieving time.
 		 * The ITC synchronization is usually successful to within a few
-		 * ITC ticks but this is not a sure thing. If you need to improve
+		 * ITC ticks but this is yest a sure thing. If you need to improve
 		 * timer performance in SMP situations then boot the kernel with the
-		 * "nojitter" option. However, doing so may result in time fluctuating (maybe
+		 * "yesjitter" option. However, doing so may result in time fluctuating (maybe
 		 * even going backward) if the ITC offsets between the individual CPUs
 		 * are too large.
 		 */
-		if (!nojitter)
+		if (!yesjitter)
 			itc_jitter_data.itc_jitter = 1;
 #endif
 	} else
 		/*
-		 * ITC is drifty and we have not synchronized the ITCs in smpboot.c.
+		 * ITC is drifty and we have yest synchronized the ITCs in smpboot.c.
 		 * ITC values may fluctuate significantly between processors.
-		 * Clock should not be used for hrtimers. Mark itc as only
+		 * Clock should yest be used for hrtimers. Mark itc as only
 		 * useful for boot and testing.
 		 *
-		 * Note that jitter compensation is off! There is no point of
+		 * Note that jitter compensation is off! There is yes point of
 		 * synchronizing ITCs since they may be large differentials
 		 * that change over time.
 		 *
@@ -357,14 +357,14 @@ void ia64_init_itm(void)
 
 static u64 itc_get_cycles(struct clocksource *cs)
 {
-	unsigned long lcycle, now, ret;
+	unsigned long lcycle, yesw, ret;
 
 	if (!itc_jitter_data.itc_jitter)
 		return get_cycles();
 
 	lcycle = itc_jitter_data.itc_lastcycle;
-	now = get_cycles();
-	if (lcycle && time_after(lcycle, now))
+	yesw = get_cycles();
+	if (lcycle && time_after(lcycle, yesw))
 		return lcycle;
 
 	/*
@@ -373,11 +373,11 @@ static u64 itc_get_cycles(struct clocksource *cs)
 	 * cmpxchg. If so, your cmpxchg returns new value which the
 	 * winner of contention updated to. Use the new value instead.
 	 */
-	ret = cmpxchg(&itc_jitter_data.itc_lastcycle, lcycle, now);
+	ret = cmpxchg(&itc_jitter_data.itc_lastcycle, lcycle, yesw);
 	if (unlikely(ret != lcycle))
 		return ret;
 
-	return now;
+	return yesw;
 }
 
 
@@ -401,7 +401,7 @@ time_init (void)
 
 /*
  * Generic udelay assumes that if preemption is allowed and the thread
- * migrates to another CPU, that the ITC values are synchronized across
+ * migrates to ayesther CPU, that the ITC values are synchronized across
  * all CPUs.
  */
 static void
@@ -433,27 +433,27 @@ void update_vsyscall(struct timekeeper *tk)
 	write_seqcount_begin(&fsyscall_gtod_data.seq);
 
 	/* copy vsyscall data */
-	fsyscall_gtod_data.clk_mask = tk->tkr_mono.mask;
-	fsyscall_gtod_data.clk_mult = tk->tkr_mono.mult;
-	fsyscall_gtod_data.clk_shift = tk->tkr_mono.shift;
-	fsyscall_gtod_data.clk_fsys_mmio = tk->tkr_mono.clock->archdata.fsys_mmio;
-	fsyscall_gtod_data.clk_cycle_last = tk->tkr_mono.cycle_last;
+	fsyscall_gtod_data.clk_mask = tk->tkr_moyes.mask;
+	fsyscall_gtod_data.clk_mult = tk->tkr_moyes.mult;
+	fsyscall_gtod_data.clk_shift = tk->tkr_moyes.shift;
+	fsyscall_gtod_data.clk_fsys_mmio = tk->tkr_moyes.clock->archdata.fsys_mmio;
+	fsyscall_gtod_data.clk_cycle_last = tk->tkr_moyes.cycle_last;
 
 	fsyscall_gtod_data.wall_time.sec = tk->xtime_sec;
-	fsyscall_gtod_data.wall_time.snsec = tk->tkr_mono.xtime_nsec;
+	fsyscall_gtod_data.wall_time.snsec = tk->tkr_moyes.xtime_nsec;
 
-	fsyscall_gtod_data.monotonic_time.sec = tk->xtime_sec
-					      + tk->wall_to_monotonic.tv_sec;
-	fsyscall_gtod_data.monotonic_time.snsec = tk->tkr_mono.xtime_nsec
-						+ ((u64)tk->wall_to_monotonic.tv_nsec
-							<< tk->tkr_mono.shift);
+	fsyscall_gtod_data.moyestonic_time.sec = tk->xtime_sec
+					      + tk->wall_to_moyestonic.tv_sec;
+	fsyscall_gtod_data.moyestonic_time.snsec = tk->tkr_moyes.xtime_nsec
+						+ ((u64)tk->wall_to_moyestonic.tv_nsec
+							<< tk->tkr_moyes.shift);
 
-	/* normalize */
-	while (fsyscall_gtod_data.monotonic_time.snsec >=
-					(((u64)NSEC_PER_SEC) << tk->tkr_mono.shift)) {
-		fsyscall_gtod_data.monotonic_time.snsec -=
-					((u64)NSEC_PER_SEC) << tk->tkr_mono.shift;
-		fsyscall_gtod_data.monotonic_time.sec++;
+	/* yesrmalize */
+	while (fsyscall_gtod_data.moyestonic_time.snsec >=
+					(((u64)NSEC_PER_SEC) << tk->tkr_moyes.shift)) {
+		fsyscall_gtod_data.moyestonic_time.snsec -=
+					((u64)NSEC_PER_SEC) << tk->tkr_moyes.shift;
+		fsyscall_gtod_data.moyestonic_time.sec++;
 	}
 
 	write_seqcount_end(&fsyscall_gtod_data.seq);

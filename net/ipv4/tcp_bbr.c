@@ -9,7 +9,7 @@
  *   pacing_rate = pacing_gain * bottleneck_bandwidth
  *   cwnd = max(cwnd_gain * bottleneck_bandwidth * min_rtt, 4)
  *
- * The core algorithm does not react directly to packet losses or delays,
+ * The core algorithm does yest react directly to packet losses or delays,
  * although BBR may adjust the size of next send per ACK when loss is
  * observed, or adjust the sending rate if it estimates there is a
  * traffic policer, in order to keep the drop rate reasonable.
@@ -67,7 +67,7 @@
  * estimation. The rate unit ~= (1500 bytes / 1 usec / 2^24) ~= 715 bps.
  * This handles bandwidths from 0.06pps (715bps) to 256Mpps (3Tbps) in a u32.
  * Since the minimum window is >=4 packets, the lower bound isn't
- * an issue. The upper bound isn't an issue with existing technologies.
+ * an issue. The upper bound isn't an issue with existing techyeslogies.
  */
 #define BW_SCALE 24
 #define BW_UNIT (1 << BW_SCALE)
@@ -99,7 +99,7 @@ struct bbr {
 		idle_restart:1,	     /* restarting after idle? */
 		probe_rtt_round_done:1,  /* a BBR_PROBE_RTT round at 4 pkts? */
 		unused:13,
-		lt_is_sampling:1,    /* taking long-term ("LT") samples now? */
+		lt_is_sampling:1,    /* taking long-term ("LT") samples yesw? */
 		lt_rtt_cnt:7,	     /* round trips in long-term interval */
 		lt_use_bw:1;	     /* use lt_bw as our bw estimate? */
 	u32	lt_bw;		     /* LT est delivery rate in pkts/uS << 24 */
@@ -147,7 +147,7 @@ static const int bbr_pacing_margin_percent = 1;
 /* We use a high_gain value of 2/ln(2) because it's the smallest pacing gain
  * that will allow a smoothly increasing pacing rate that will double each RTT
  * and send the same number of packets per RTT that an un-paced, slow-starting
- * Reno or CUBIC flow would:
+ * Reyes or CUBIC flow would:
  */
 static const int bbr_high_gain  = BBR_UNIT * 2885 / 1000 + 1;
 /* The pacing gain of 1/high_gain in BBR_DRAIN is calculated to typically drain
@@ -271,8 +271,8 @@ static void bbr_init_pacing_rate_from_rtt(struct sock *sk)
 	if (tp->srtt_us) {		/* any RTT sample yet? */
 		rtt_us = max(tp->srtt_us >> 3, 1U);
 		bbr->has_seen_rtt = 1;
-	} else {			 /* no RTT sample yet */
-		rtt_us = USEC_PER_MSEC;	 /* use nominal default RTT */
+	} else {			 /* yes RTT sample yet */
+		rtt_us = USEC_PER_MSEC;	 /* use yesminal default RTT */
 	}
 	bw = (u64)tp->snd_cwnd * BW_UNIT;
 	do_div(bw, rtt_us);
@@ -303,7 +303,7 @@ static u32 bbr_tso_segs_goal(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 segs, bytes;
 
-	/* Sort of tcp_tso_autosize() but ignoring
+	/* Sort of tcp_tso_autosize() but igyesring
 	 * driver provided sk_gso_max_size.
 	 */
 	bytes = min_t(unsigned long,
@@ -314,14 +314,14 @@ static u32 bbr_tso_segs_goal(struct sock *sk)
 	return min(segs, 0x7FU);
 }
 
-/* Save "last known good" cwnd so we can restore it after losses or PROBE_RTT */
+/* Save "last kyeswn good" cwnd so we can restore it after losses or PROBE_RTT */
 static void bbr_save_cwnd(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bbr *bbr = inet_csk_ca(sk);
 
 	if (bbr->prev_ca_state < TCP_CA_Recovery && bbr->mode != BBR_PROBE_RTT)
-		bbr->prior_cwnd = tp->snd_cwnd;  /* this cwnd is good enough */
+		bbr->prior_cwnd = tp->snd_cwnd;  /* this cwnd is good eyesugh */
 	else  /* loss recovery or BBR_PROBE_RTT have temporarily cut cwnd */
 		bbr->prior_cwnd = max(bbr->prior_cwnd, tp->snd_cwnd);
 }
@@ -350,9 +350,9 @@ static void bbr_cwnd_event(struct sock *sk, enum tcp_ca_event event)
  * bdp = ceil(bw * min_rtt * gain)
  *
  * The key factor, gain, controls the amount of queue. While a small gain
- * builds a smaller queue, it becomes more vulnerable to noise in RTT
+ * builds a smaller queue, it becomes more vulnerable to yesise in RTT
  * measurements (e.g., delayed ACKs or other ACK compression effects). This
- * noise may cause BBR to under-estimate the rate.
+ * yesise may cause BBR to under-estimate the rate.
  */
 static u32 bbr_bdp(struct sock *sk, u32 bw, int gain)
 {
@@ -361,12 +361,12 @@ static u32 bbr_bdp(struct sock *sk, u32 bw, int gain)
 	u64 w;
 
 	/* If we've never had a valid RTT sample, cap cwnd at the initial
-	 * default. This should only happen when the connection is not using TCP
+	 * default. This should only happen when the connection is yest using TCP
 	 * timestamps and has retransmitted all of the SYN/SYNACK/data packets
 	 * ACKed so far. In this case, an RTO can cut cwnd to 1, in which
 	 * case we need to slow-start up toward something safe: TCP_INIT_CWND.
 	 */
-	if (unlikely(bbr->min_rtt_us == ~0U))	 /* no valid RTT samples yet? */
+	if (unlikely(bbr->min_rtt_us == ~0U))	 /* yes valid RTT samples yet? */
 		return TCP_INIT_CWND;  /* be safe: cap at default initial cwnd*/
 
 	w = (u64)bw * bbr->min_rtt_us;
@@ -379,7 +379,7 @@ static u32 bbr_bdp(struct sock *sk, u32 bw, int gain)
 	return bdp;
 }
 
-/* To achieve full performance in high-speed paths, we budget enough cwnd to
+/* To achieve full performance in high-speed paths, we budget eyesugh cwnd to
  * fit full-sized skbs in-flight on both end hosts to fully utilize the path:
  *   - one skb in sending host Qdisc,
  *   - one skb in sending host TSO/GSO engine
@@ -393,7 +393,7 @@ static u32 bbr_quantization_budget(struct sock *sk, u32 cwnd)
 {
 	struct bbr *bbr = inet_csk_ca(sk);
 
-	/* Allow enough full-sized skbs in flight to utilize end systems. */
+	/* Allow eyesugh full-sized skbs in flight to utilize end systems. */
 	cwnd += 3 * bbr_tso_segs_goal(sk);
 
 	/* Reduce delayed ACKs by rounding up cwnd to the next even number. */
@@ -425,24 +425,24 @@ static u32 bbr_inflight(struct sock *sk, u32 bw, int gain)
  * departure time decisions. We calculate a rough estimate of the number of our
  * packets that might be in the network at the earliest departure time for the
  * next skb scheduled:
- *   in_network_at_edt = inflight_at_edt - (EDT - now) * bw
- * If we're increasing inflight, then we want to know if the transmit of the
+ *   in_network_at_edt = inflight_at_edt - (EDT - yesw) * bw
+ * If we're increasing inflight, then we want to kyesw if the transmit of the
  * EDT skb will push inflight above the target, so inflight_at_edt includes
  * bbr_tso_segs_goal() from the skb departing at EDT. If decreasing inflight,
  * then estimate if inflight will sink too low just before the EDT transmit.
  */
-static u32 bbr_packets_in_net_at_edt(struct sock *sk, u32 inflight_now)
+static u32 bbr_packets_in_net_at_edt(struct sock *sk, u32 inflight_yesw)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bbr *bbr = inet_csk_ca(sk);
-	u64 now_ns, edt_ns, interval_us;
+	u64 yesw_ns, edt_ns, interval_us;
 	u32 interval_delivered, inflight_at_edt;
 
-	now_ns = tp->tcp_clock_cache;
-	edt_ns = max(tp->tcp_wstamp_ns, now_ns);
-	interval_us = div_u64(edt_ns - now_ns, NSEC_PER_USEC);
+	yesw_ns = tp->tcp_clock_cache;
+	edt_ns = max(tp->tcp_wstamp_ns, yesw_ns);
+	interval_us = div_u64(edt_ns - yesw_ns, NSEC_PER_USEC);
 	interval_delivered = (u64)bbr_bw(sk) * interval_us >> BW_SCALE;
-	inflight_at_edt = inflight_now;
+	inflight_at_edt = inflight_yesw;
 	if (bbr->pacing_gain > BBR_UNIT)              /* increasing inflight */
 		inflight_at_edt += bbr_tso_segs_goal(sk);  /* include EDT skb */
 	if (interval_delivered >= inflight_at_edt)
@@ -492,7 +492,7 @@ static bool bbr_set_cwnd_to_recover_or_restore(
 	if (state == TCP_CA_Recovery && prev_state != TCP_CA_Recovery) {
 		/* Starting 1st round of Recovery, so do packet conservation. */
 		bbr->packet_conservation = 1;
-		bbr->next_rtt_delivered = tp->delivered;  /* start round now */
+		bbr->next_rtt_delivered = tp->delivered;  /* start round yesw */
 		/* Cut unused cwnd from app behavior, TSQ, or TSO deferral: */
 		cwnd = tcp_packets_in_flight(tp) + acked;
 	} else if (prev_state >= TCP_CA_Recovery && state < TCP_CA_Recovery) {
@@ -504,7 +504,7 @@ static bool bbr_set_cwnd_to_recover_or_restore(
 
 	if (bbr->packet_conservation) {
 		*new_cwnd = max(cwnd, tcp_packets_in_flight(tp) + acked);
-		return true;	/* yes, using packet conservation */
+		return true;	/* no, using packet conservation */
 	}
 	*new_cwnd = cwnd;
 	return false;
@@ -521,7 +521,7 @@ static void bbr_set_cwnd(struct sock *sk, const struct rate_sample *rs,
 	u32 cwnd = tp->snd_cwnd, target_cwnd = 0;
 
 	if (!acked)
-		goto done;  /* no packet fully ACKed; just apply caps */
+		goto done;  /* yes packet fully ACKed; just apply caps */
 
 	if (bbr_set_cwnd_to_recover_or_restore(sk, rs, acked, &cwnd))
 		goto done;
@@ -569,8 +569,8 @@ static bool bbr_is_next_cycle_phase(struct sock *sk,
 
 	/* A pacing_gain > 1.0 probes for bw by trying to raise inflight to at
 	 * least pacing_gain*BDP; this may take more than min_rtt if min_rtt is
-	 * small (e.g. on a LAN). We do not persist if packets are lost, since
-	 * a path with small buffers may not hold that much.
+	 * small (e.g. on a LAN). We do yest persist if packets are lost, since
+	 * a path with small buffers may yest hold that much.
 	 */
 	if (bbr->pacing_gain > BBR_UNIT)
 		return is_full_length &&
@@ -735,7 +735,7 @@ static void bbr_lt_bw_sampling(struct sock *sk, const struct rate_sample *rs)
 	/* Calculate packets lost and delivered in sampling interval. */
 	lost = tp->lost - bbr->lt_last_lost;
 	delivered = tp->delivered - bbr->lt_last_delivered;
-	/* Is loss rate (lost/delivered) >= lt_loss_thresh? If not, wait. */
+	/* Is loss rate (lost/delivered) >= lt_loss_thresh? If yest, wait. */
 	if (!delivered || (lost << BBR_SCALE) < bbr_lt_loss_thresh * delivered)
 		return;
 
@@ -790,7 +790,7 @@ static void bbr_update_bw(struct sock *sk, const struct rate_sample *rs)
 	 * they describe the path bw at least as well as our bw model.
 	 *
 	 * So the goal during app-limited phase is to proceed with the best
-	 * network rate no matter how long. We automatically leave this
+	 * network rate yes matter how long. We automatically leave this
 	 * phase when app writes faster than the network can deliver :)
 	 */
 	if (!rs->is_app_limited || bw >= bbr_max_bw(sk)) {
@@ -840,7 +840,7 @@ static void bbr_update_ack_aggregation(struct sock *sk,
 	expected_acked = ((u64)bbr_bw(sk) * epoch_us) / BW_UNIT;
 
 	/* Reset the aggregation epoch if ACK rate is below expected rate or
-	 * significantly large no. of ack received since epoch (potentially
+	 * significantly large yes. of ack received since epoch (potentially
 	 * quite old epoch).
 	 */
 	if (bbr->ack_epoch_acked <= expected_acked ||
@@ -862,10 +862,10 @@ static void bbr_update_ack_aggregation(struct sock *sk,
 
 /* Estimate when the pipe is full, using the change in delivery rate: BBR
  * estimates that STARTUP filled the pipe if the estimated bw hasn't changed by
- * at least bbr_full_bw_thresh (25%) after bbr_full_bw_cnt (3) non-app-limited
+ * at least bbr_full_bw_thresh (25%) after bbr_full_bw_cnt (3) yesn-app-limited
  * rounds. Why 3 rounds: 1: rwin autotuning grows the rwin, 2: we fill the
  * higher rwin, 3: we get higher delivery rate samples. Or transient
- * cross-traffic or radio noise can go away. CUBIC Hystart shares a similar
+ * cross-traffic or radio yesise can go away. CUBIC Hystart shares a similar
  * design goal, but uses delay and inter-ACK spacing instead of bandwidth.
  */
 static void bbr_check_full_bw_reached(struct sock *sk,
@@ -933,7 +933,7 @@ static void bbr_check_probe_rtt_done(struct sock *sk)
  * Note that flows need only pay 2% if they are busy sending over the last 10
  * seconds. Interactive applications (e.g., Web, RPCs, video chunks) often have
  * natural silences or low-rate periods within 10 seconds where the rate is low
- * enough for long enough to drain its queue in the bottleneck. We pick up
+ * eyesugh for long eyesugh to drain its queue in the bottleneck. We pick up
  * these min RTT measurements opportunistically with our min_rtt filter. :-)
  */
 static void bbr_update_min_rtt(struct sock *sk, const struct rate_sample *rs)
@@ -955,12 +955,12 @@ static void bbr_update_min_rtt(struct sock *sk, const struct rate_sample *rs)
 	if (bbr_probe_rtt_mode_ms > 0 && filter_expired &&
 	    !bbr->idle_restart && bbr->mode != BBR_PROBE_RTT) {
 		bbr->mode = BBR_PROBE_RTT;  /* dip, drain queue */
-		bbr_save_cwnd(sk);  /* note cwnd so we can restore it */
+		bbr_save_cwnd(sk);  /* yeste cwnd so we can restore it */
 		bbr->probe_rtt_done_stamp = 0;
 	}
 
 	if (bbr->mode == BBR_PROBE_RTT) {
-		/* Ignore low rate samples during this mode. */
+		/* Igyesre low rate samples during this mode. */
 		tp->app_limited =
 			(tp->delivered + tcp_packets_in_flight(tp)) ? : 1;
 		/* Maintain min packets in flight for max(200 ms, 1 round). */
@@ -1082,8 +1082,8 @@ static u32 bbr_sndbuf_expand(struct sock *sk)
 	return 3;
 }
 
-/* In theory BBR does not need to undo the cwnd since it does not
- * always reduce cwnd on losses (see bbr_main()). Keep it for now.
+/* In theory BBR does yest need to undo the cwnd since it does yest
+ * always reduce cwnd on losses (see bbr_main()). Keep it for yesw.
  */
 static u32 bbr_undo_cwnd(struct sock *sk)
 {

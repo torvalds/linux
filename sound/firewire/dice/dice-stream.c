@@ -63,7 +63,7 @@ int snd_dice_stream_get_rate_mode(struct snd_dice *dice, unsigned int rate,
  */
 static int ensure_phase_lock(struct snd_dice *dice, unsigned int rate)
 {
-	__be32 reg, nominal;
+	__be32 reg, yesminal;
 	u32 data;
 	int i;
 	int err;
@@ -96,15 +96,15 @@ static int ensure_phase_lock(struct snd_dice *dice, unsigned int rate)
 	if (wait_for_completion_timeout(&dice->clock_accepted,
 			msecs_to_jiffies(NOTIFICATION_TIMEOUT_MS)) == 0) {
 		/*
-		 * Old versions of Dice firmware transfer no notification when
+		 * Old versions of Dice firmware transfer yes yestification when
 		 * the same clock status as current one is set. In this case,
 		 * just check current clock status.
 		 */
 		err = snd_dice_transaction_read_global(dice, GLOBAL_STATUS,
-						&nominal, sizeof(nominal));
+						&yesminal, sizeof(yesminal));
 		if (err < 0)
 			return err;
-		if (!(be32_to_cpu(nominal) & STATUS_SOURCE_LOCKED))
+		if (!(be32_to_cpu(yesminal) & STATUS_SOURCE_LOCKED))
 			return -ETIMEDOUT;
 	}
 
@@ -430,7 +430,7 @@ int snd_dice_stream_start_duplex(struct snd_dice *dice)
 		}
 	}
 
-	// Check required streams are running or not.
+	// Check required streams are running or yest.
 	err = snd_dice_transaction_get_rate(dice, &rate);
 	if (err < 0)
 		return err;

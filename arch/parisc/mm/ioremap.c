@@ -8,22 +8,22 @@
  */
 
 #include <linux/vmalloc.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/io.h>
 #include <asm/pgalloc.h>
 
 /*
- * Generic mapping function (not visible outside):
+ * Generic mapping function (yest visible outside):
  */
 
 /*
  * Remap an arbitrary physical address space into the kernel virtual
  * address space.
  *
- * NOTE! We need to allow non-page-aligned mappings too: we will obviously
+ * NOTE! We need to allow yesn-page-aligned mappings too: we will obviously
  * have to convert them into an offset in a page-aligned mapping, but the
- * caller shouldn't need to know that small detail.
+ * caller shouldn't need to kyesw that small detail.
  */
 void __iomem *ioremap(unsigned long phys_addr, unsigned long size)
 {
@@ -46,7 +46,7 @@ void __iomem *ioremap(unsigned long phys_addr, unsigned long size)
 		return NULL;
 
 	/*
-	 * Don't allow anybody to remap normal RAM that we're using..
+	 * Don't allow anybody to remap yesrmal RAM that we're using..
 	 */
 	if (phys_addr < virt_to_phys(high_memory)) {
 		char *t_addr, *t_end;

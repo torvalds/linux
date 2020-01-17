@@ -15,7 +15,7 @@
 #define BNX2_H
 
 /* Hardware data structures and register definitions automatically
- * generated from RTL code. Do not modify.
+ * generated from RTL code. Do yest modify.
  */
 
 /*
@@ -7077,8 +7077,8 @@ struct bnx2_rv2p_fw_file {
 #define BNX2_DRV_PULSE_PERIOD_MS                 250
 
 /* This value (in milliseconds) determines how long the driver should
- * wait for an acknowledgement from the firmware before timing out.  Once
- * the firmware has timed out, the driver will assume there is no firmware
+ * wait for an ackyeswledgement from the firmware before timing out.  Once
+ * the firmware has timed out, the driver will assume there is yes firmware
  * running and there won't be any firmware-driver synchronization during a
  * driver reset. */
 #define BNX2_FW_ACK_TIME_OUT_MS                  1000
@@ -7154,8 +7154,8 @@ struct bnx2_rv2p_fw_file {
 #define BNX2_DRV_PULSE_MB			0x00000010
 #define BNX2_DRV_PULSE_SEQ_MASK			 0x00007fff
 
-/* Indicate to the firmware not to go into the
- * OS absent when it is not getting driver pulse.
+/* Indicate to the firmware yest to go into the
+ * OS absent when it is yest getting driver pulse.
  * This is used for debugging. */
 #define BNX2_DRV_MSG_DATA_PULSE_CODE_ALWAYS_ALIVE	 0x00080000
 

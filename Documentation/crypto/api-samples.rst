@@ -27,7 +27,7 @@ assumed the code is running in a context where it can sleep.
              *
              * In real-world use, a tfm and key are typically used for many
              * encryption/decryption operations.  But in this example, we'll just do a
-             * single encryption operation with it (which is not very efficient).
+             * single encryption operation with it (which is yest very efficient).
              */
 
             tfm = crypto_alloc_skcipher("xts(aes)", 0, 0);
@@ -65,7 +65,7 @@ assumed the code is running in a context where it can sleep.
              * Encrypt the data in-place.
              *
              * For simplicity, in this example we wait for the request to complete
-             * before proceeding, even if the underlying implementation is asynchronous.
+             * before proceeding, even if the underlying implementation is asynchroyesus.
              *
              * To decrypt instead of encrypt, just change crypto_skcipher_encrypt() to
              * crypto_skcipher_decrypt().
@@ -136,7 +136,7 @@ Code Example For Use of Operational State Memory With SHASH
                  unsigned char *digest)
     {
         struct crypto_shash *alg;
-        char *hash_alg_name = "sha1-padlock-nano";
+        char *hash_alg_name = "sha1-padlock-nayes";
         int ret;
 
         alg = crypto_alloc_shash(hash_alg_name, 0, 0);
@@ -159,7 +159,7 @@ Code Example For Random Number Generator Usage
     static int get_random_numbers(u8 *buf, unsigned int len)
     {
         struct crypto_rng *rng = NULL;
-        char *drbg = "drbg_nopr_sha256"; /* Hash DRBG with SHA-256, no PR */
+        char *drbg = "drbg_yespr_sha256"; /* Hash DRBG with SHA-256, yes PR */
         int ret;
 
         if (!buf || !len) {
@@ -169,7 +169,7 @@ Code Example For Random Number Generator Usage
 
         rng = crypto_alloc_rng(drbg, 0, 0);
         if (IS_ERR(rng)) {
-            pr_debug("could not allocate RNG handle for %s\n", drbg);
+            pr_debug("could yest allocate RNG handle for %s\n", drbg);
             return PTR_ERR(rng);
         }
 
@@ -177,7 +177,7 @@ Code Example For Random Number Generator Usage
         if (ret < 0)
             pr_debug("generation of random numbers failed\n");
         else if (ret == 0)
-            pr_debug("RNG returned no data");
+            pr_debug("RNG returned yes data");
         else
             pr_debug("RNG returned %d bytes of data\n", ret);
 

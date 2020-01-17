@@ -4,7 +4,7 @@ config SOC_CAMERA
 	depends on VIDEO_V4L2 && HAS_DMA && I2C && BROKEN
 	select VIDEOBUF2_CORE
 	help
-	  SoC Camera is a common API to several cameras, not connecting
+	  SoC Camera is a common API to several cameras, yest connecting
 	  over a bus like PCI or USB. For example some i2c camera connected
 	  directly to the data bus of an SoC.
 

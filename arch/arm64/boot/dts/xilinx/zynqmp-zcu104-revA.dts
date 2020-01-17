@@ -67,7 +67,7 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	/* Another connection to this bus via PL i2c via PCA9306 - u45 */
+	/* Ayesther connection to this bus via PL i2c via PCA9306 - u45 */
 	i2c-mux@74 { /* u34 */
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
@@ -124,7 +124,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				/*
-				 * IRQ not connected
+				 * IRQ yest connected
 				 * Lines:
 				 * 0 - IRPS5401_ALERT_B
 				 * 1 - HDMI_8T49N241_INT_ALM
@@ -133,7 +133,7 @@
 				 * 5 - IIC_MUX_RESET_B
 				 * 6 - GEM3_EXP_RESET_B
 				 * 7 - FMC_LPC_PRSNT_M2C_B
-				 * 4, 10 - 17 - not connected
+				 * 4, 10 - 17 - yest connected
 				 */
 			};
 		};
@@ -150,7 +150,7 @@
 			reg = <7>;
 		};
 
-		/* 3, 6 not connected */
+		/* 3, 6 yest connected */
 	};
 };
 
@@ -174,7 +174,7 @@
 /* SD1 with level shifter */
 &sdhci1 {
 	status = "okay";
-	no-1-8-v;
+	yes-1-8-v;
 	disable-wp;
 };
 

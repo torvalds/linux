@@ -16,7 +16,7 @@ Required properties:
   (TEGRA210_CLK_D_AUDIO).
 - clock-names: Must contain the name "d_audio" for the corresponding
   'clocks' entry.
-- #dma-cells : Must be 1. The first cell denotes the receive/transmit
+- #dma-cells : Must be 1. The first cell deyestes the receive/transmit
   request number and should be between 1 and the maximum number of
   requests supported. This value corresponds to the RX/TX_REQUEST_SELECT
   fields in the ADMA_CHn_CTRL register.

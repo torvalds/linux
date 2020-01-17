@@ -3,8 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2007 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2007 MIPS Techyeslogies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Techyeslogies Ltd.
  *
  * Arbitrary Monitor Interface
  */
@@ -27,7 +27,7 @@ int amon_cpu_avail(int cpu)
 
 	launch += cpu;
 	if (!(launch->flags & LAUNCH_FREADY)) {
-		pr_debug("avail: cpu%d is not ready\n", cpu);
+		pr_debug("avail: cpu%d is yest ready\n", cpu);
 		return 0;
 	}
 	if (launch->flags & (LAUNCH_FGO|LAUNCH_FGONE)) {
@@ -75,12 +75,12 @@ int amon_cpu_start(int cpu,
 #ifdef CONFIG_MIPS_VPE_LOADER_CMP
 int vpe_run(struct vpe *v)
 {
-	struct vpe_notifications *n;
+	struct vpe_yestifications *n;
 
 	if (amon_cpu_start(aprp_cpu_index(), v->__start, 0, 0, 0) < 0)
 		return -1;
 
-	list_for_each_entry(n, &v->notify, list)
+	list_for_each_entry(n, &v->yestify, list)
 		n->start(VPE_MODULE_MINOR);
 
 	return 0;

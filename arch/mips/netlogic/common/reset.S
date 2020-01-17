@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -95,7 +95,7 @@
 	andi	t0, t0, PRID_IMP_MASK
 	slt	t1, t0, 0x1200
 	beqz	t1, 15f
-	nop
+	yesp
 
 	/* XLP8xx low level cache flush */
 	li	t0, LSU_DEBUG_DATA0
@@ -111,7 +111,7 @@
 	mfcr	v1, t1
 	andi	v1, 0x1		/* wait for write_active == 0 */
 	bnez	v1, 12b
-	nop
+	yesp
 	mtcr	zero, t0
 	ori	v1, v0, 0x7	/* way1 | write_enable | write_active */
 	mtcr	v1, t1
@@ -119,12 +119,12 @@
 	mfcr	v1, t1
 	andi	v1, 0x1		/* wait for write_active == 0 */
 	bnez	v1, 13b
-	nop
+	yesp
 	addi	t2, 1
 	bne	t3, t2, 11b
-	nop
+	yesp
 	b	17f
-	nop
+	yesp
 
 	/* XLPII CPUs, Invalidate all 64k of L1 D-cache */
 15:
@@ -133,7 +133,7 @@
 16:	cache	Index_Writeback_Inv_D, 0(t0)
 	addiu	t0, t0, 32
 	bne	t0, t1, 16b
-	nop
+	yesp
 17:
 .endm
 
@@ -152,8 +152,8 @@
  * loops in a 'wait'. When the CPU really needs waking up, we send an NMI
  * IPI to it, with the NMI handler set to prom_boot_secondary_cpus
  */
-	.set	noreorder
-	.set	noat
+	.set	yesreorder
+	.set	yesat
 	.set	arch=xlr	/* for mfcr/mtcr, XLR is sufficient */
 
 FEXPORT(nlm_reset_entry)
@@ -163,37 +163,37 @@ FEXPORT(nlm_reset_entry)
 	li	k1, 0x80000
 	and	k1, k0, k1
 	beqz	k1, 1f		/* go to real reset entry */
-	nop
+	yesp
 	li	k1, CKSEG1ADDR(RESET_DATA_PHYS) /* NMI */
 	ld	k0, BOOT_NMI_HANDLER(k1)
 	jr	k0
-	nop
+	yesp
 
 1:	/* Entry point on core wakeup */
 	mfc0	t0, CP0_PRID		/* processor ID */
 	andi	t0, PRID_IMP_MASK
 	li	t1, 0x1500		/* XLP 9xx */
-	beq	t0, t1, 2f		/* does not need to set coherent */
-	nop
+	beq	t0, t1, 2f		/* does yest need to set coherent */
+	yesp
 
 	li	t1, 0x1300		/* XLP 5xx */
-	beq	t0, t1, 2f		/* does not need to set coherent */
-	nop
+	beq	t0, t1, 2f		/* does yest need to set coherent */
+	yesp
 
 	/* set bit in SYS coherent register for the core */
 	mfc0	t0, CP0_EBASE
 	mfc0	t1, CP0_EBASE
 	srl	t1, 5
-	andi	t1, 0x3			/* t1 <- node */
+	andi	t1, 0x3			/* t1 <- yesde */
 	li	t2, 0x40000
-	mul	t3, t2, t1		/* t3 = node * 0x40000 */
+	mul	t3, t2, t1		/* t3 = yesde * 0x40000 */
 	srl	t0, t0, 2
 	and	t0, t0, 0x7		/* t0 <- core */
 	li	t1, 0x1
 	sll	t0, t1, t0
-	nor	t0, t0, zero		/* t0 <- ~(1 << core) */
+	yesr	t0, t0, zero		/* t0 <- ~(1 << core) */
 	li	t2, SYS_CPU_COHERENT_BASE
-	add	t2, t2, t3		/* t2 <- SYS offset for node */
+	add	t2, t2, t3		/* t2 <- SYS offset for yesde */
 	lw	t1, 0(t2)
 	and	t1, t1, t0
 	sw	t1, 0(t2)
@@ -232,7 +232,7 @@ EXPORT(nlm_boot_siblings)
 	 * NOTE: All GPR contents are lost after the mtcr above!
 	 */
 	mfc0	v0, CP0_EBASE
-	andi	v0, 0x3ff		/* v0 <- node/core */
+	andi	v0, 0x3ff		/* v0 <- yesde/core */
 
 	/*
 	 * Errata: to avoid potential live lock, setup IFU_BRUB_RESERVE
@@ -240,14 +240,14 @@ EXPORT(nlm_boot_siblings)
 	 */
 	andi	v1, v0, 0x3             /* v1 <- thread id */
 	bnez	v1, 2f
-	nop
+	yesp
 
 	/* thread 0 of each core. */
 	li	t0, CKSEG1ADDR(RESET_DATA_PHYS)
 	lw	t1, BOOT_THREAD_MODE(t0)        /* t1 <- thread mode */
 	subu	t1, 0x3				/* 4-thread per core mode? */
 	bnez	t1, 2f
-	nop
+	yesp
 
 	li	t0, IFU_BRUB_RESERVE
 	li	t1, 0x55
@@ -255,7 +255,7 @@ EXPORT(nlm_boot_siblings)
 	_ehb
 2:
 	beqz	v0, 4f		/* boot cpu (cpuid == 0)? */
-	nop
+	yesp
 
 	/* setup status reg */
 	move	t1, zero
@@ -276,7 +276,7 @@ EXPORT(nlm_boot_siblings)
 	/* Wait until NMI hits */
 3:	wait
 	b	3b
-	nop
+	yesp
 
 	/*
 	 * For the boot CPU, we have to restore ra and sp and return, rest
@@ -286,7 +286,7 @@ EXPORT(nlm_boot_siblings)
 	dmfc0	ra, $22, 6
 	dmfc0	sp, $22, 7
 	jr	ra
-	nop
+	yesp
 EXPORT(nlm_reset_entry_end)
 
 LEAF(nlm_init_boot_cpu)
@@ -295,5 +295,5 @@ LEAF(nlm_init_boot_cpu)
 	xlp_early_mmu_init
 #endif
 	jr	ra
-	nop
+	yesp
 END(nlm_init_boot_cpu)

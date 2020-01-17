@@ -2,7 +2,7 @@
 #include "gtk.h"
 #include "util/sort.h"
 #include "util/debug.h"
-#include "util/annotate.h"
+#include "util/anyestate.h"
 #include "util/evsel.h"
 #include "util/map.h"
 #include "util/dso.h"
@@ -38,7 +38,7 @@ static int perf_gtk__get_percent(char *buf, size_t size, struct symbol *sym,
 	if (dl->al.offset == (s64) -1)
 		return 0;
 
-	symhist = annotation__histogram(symbol__annotation(sym), evidx);
+	symhist = anyestation__histogram(symbol__anyestation(sym), evidx);
 	if (!symbol_conf.event_group && !symhist->addr[dl->al.offset].nr_samples)
 		return 0;
 
@@ -91,13 +91,13 @@ static int perf_gtk__get_line(char *buf, size_t size, struct disasm_line *dl)
 	return ret;
 }
 
-static int perf_gtk__annotate_symbol(GtkWidget *window, struct map_symbol *ms,
+static int perf_gtk__anyestate_symbol(GtkWidget *window, struct map_symbol *ms,
 				struct evsel *evsel,
 				struct hist_browser_timer *hbt __maybe_unused)
 {
 	struct symbol *sym = ms->sym;
 	struct disasm_line *pos, *n;
-	struct annotation *notes;
+	struct anyestation *yestes;
 	GType col_types[MAX_ANN_COLS];
 	GtkCellRenderer *renderer;
 	GtkListStore *store;
@@ -105,7 +105,7 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct map_symbol *ms,
 	int i;
 	char s[512];
 
-	notes = symbol__annotation(sym);
+	yestes = symbol__anyestation(sym);
 
 	for (i = 0; i < MAX_ANN_COLS; i++) {
 		col_types[i] = G_TYPE_STRING;
@@ -124,7 +124,7 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct map_symbol *ms,
 	gtk_tree_view_set_model(GTK_TREE_VIEW(view), GTK_TREE_MODEL(store));
 	g_object_unref(GTK_TREE_MODEL(store));
 
-	list_for_each_entry(pos, &notes->src->source, al.node) {
+	list_for_each_entry(pos, &yestes->src->source, al.yesde) {
 		GtkTreeIter iter;
 		int ret = 0;
 
@@ -153,32 +153,32 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct map_symbol *ms,
 
 	gtk_container_add(GTK_CONTAINER(window), view);
 
-	list_for_each_entry_safe(pos, n, &notes->src->source, al.node) {
-		list_del_init(&pos->al.node);
+	list_for_each_entry_safe(pos, n, &yestes->src->source, al.yesde) {
+		list_del_init(&pos->al.yesde);
 		disasm_line__free(pos);
 	}
 
 	return 0;
 }
 
-static int symbol__gtk_annotate(struct map_symbol *ms, struct evsel *evsel,
+static int symbol__gtk_anyestate(struct map_symbol *ms, struct evsel *evsel,
 				struct hist_browser_timer *hbt)
 {
 	struct symbol *sym = ms->sym;
 	GtkWidget *window;
-	GtkWidget *notebook;
+	GtkWidget *yestebook;
 	GtkWidget *scrolled_window;
 	GtkWidget *tab_label;
 	int err;
 
-	if (ms->map->dso->annotate_warned)
+	if (ms->map->dso->anyestate_warned)
 		return -1;
 
-	err = symbol__annotate(ms, evsel, 0, &annotation__default_options, NULL);
+	err = symbol__anyestate(ms, evsel, 0, &anyestation__default_options, NULL);
 	if (err) {
 		char msg[BUFSIZ];
 		symbol__strerror_disassemble(ms, err, msg, sizeof(msg));
-		ui__error("Couldn't annotate %s: %s\n", sym->name, msg);
+		ui__error("Couldn't anyestate %s: %s\n", sym->name, msg);
 		return -1;
 	}
 
@@ -186,7 +186,7 @@ static int symbol__gtk_annotate(struct map_symbol *ms, struct evsel *evsel,
 
 	if (perf_gtk__is_active_context(pgctx)) {
 		window = pgctx->main_window;
-		notebook = pgctx->notebook;
+		yestebook = pgctx->yestebook;
 	} else {
 		GtkWidget *vbox;
 		GtkWidget *infobar;
@@ -199,7 +199,7 @@ static int symbol__gtk_annotate(struct map_symbol *ms, struct evsel *evsel,
 		signal(SIGTERM, perf_gtk__signal);
 
 		window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-		gtk_window_set_title(GTK_WINDOW(window), "perf annotate");
+		gtk_window_set_title(GTK_WINDOW(window), "perf anyestate");
 
 		g_signal_connect(window, "delete_event", gtk_main_quit, NULL);
 
@@ -208,10 +208,10 @@ static int symbol__gtk_annotate(struct map_symbol *ms, struct evsel *evsel,
 			return -1;
 
 		vbox = gtk_vbox_new(FALSE, 0);
-		notebook = gtk_notebook_new();
-		pgctx->notebook = notebook;
+		yestebook = gtk_yestebook_new();
+		pgctx->yestebook = yestebook;
 
-		gtk_box_pack_start(GTK_BOX(vbox), notebook, TRUE, TRUE, 0);
+		gtk_box_pack_start(GTK_BOX(vbox), yestebook, TRUE, TRUE, 0);
 
 		infobar = perf_gtk__setup_info_bar();
 		if (infobar) {
@@ -232,21 +232,21 @@ static int symbol__gtk_annotate(struct map_symbol *ms, struct evsel *evsel,
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
 
-	gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scrolled_window,
+	gtk_yestebook_append_page(GTK_NOTEBOOK(yestebook), scrolled_window,
 				 tab_label);
 
-	perf_gtk__annotate_symbol(scrolled_window, ms, evsel, hbt);
+	perf_gtk__anyestate_symbol(scrolled_window, ms, evsel, hbt);
 	return 0;
 }
 
-int hist_entry__gtk_annotate(struct hist_entry *he,
+int hist_entry__gtk_anyestate(struct hist_entry *he,
 			     struct evsel *evsel,
 			     struct hist_browser_timer *hbt)
 {
-	return symbol__gtk_annotate(&he->ms, evsel, hbt);
+	return symbol__gtk_anyestate(&he->ms, evsel, hbt);
 }
 
-void perf_gtk__show_annotations(void)
+void perf_gtk__show_anyestations(void)
 {
 	GtkWidget *window;
 

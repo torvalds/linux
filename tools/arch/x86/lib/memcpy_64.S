@@ -2,7 +2,7 @@
 /* Copyright 2002 Andi Kleen */
 
 #include <linux/linkage.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/cpufeatures.h>
 #include <asm/mcsafe_test.h>
 #include <asm/alternative-asm.h>
@@ -196,7 +196,7 @@ MCSAFE_TEST_CTL
 SYM_FUNC_START(__memcpy_mcsafe)
 	cmpl $8, %edx
 	/* Less than 8 bytes? Go to byte copy loop */
-	jb .L_no_whole_words
+	jb .L_yes_whole_words
 
 	/* Check for bad alignment of source */
 	testl $7, %esi
@@ -224,7 +224,7 @@ SYM_FUNC_START(__memcpy_mcsafe)
 	movl %edx, %ecx
 	andl $7, %edx
 	shrl $3, %ecx
-	jz .L_no_whole_words
+	jz .L_yes_whole_words
 
 .L_read_words:
 	movq (%rsi), %r8
@@ -238,7 +238,7 @@ SYM_FUNC_START(__memcpy_mcsafe)
 	jnz .L_read_words
 
 	/* Any trailing bytes? */
-.L_no_whole_words:
+.L_yes_whole_words:
 	andl %edx, %edx
 	jz .L_done_memcpy_trap
 
@@ -265,8 +265,8 @@ EXPORT_SYMBOL_GPL(__memcpy_mcsafe)
 
 	.section .fixup, "ax"
 	/*
-	 * Return number of bytes not copied for any failure. Note that
-	 * there is no "tail" handling since the source buffer is 8-byte
+	 * Return number of bytes yest copied for any failure. Note that
+	 * there is yes "tail" handling since the source buffer is 8-byte
 	 * aligned and poison is cacheline aligned.
 	 */
 .E_read_words:

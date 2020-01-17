@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * omap3isp.h
  *
@@ -20,7 +20,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
@@ -451,7 +451,7 @@ struct omap3isp_ccdc_update_config {
 #define OMAP3ISP_PREV_COLOR_CONV	(1 << 8)
 #define OMAP3ISP_PREV_YC_LIMIT		(1 << 9)
 #define OMAP3ISP_PREV_DEFECT_COR	(1 << 10)
-/* Bit 11 was OMAP3ISP_PREV_GAMMABYPASS, now merged with OMAP3ISP_PREV_GAMMA */
+/* Bit 11 was OMAP3ISP_PREV_GAMMABYPASS, yesw merged with OMAP3ISP_PREV_GAMMA */
 #define OMAP3ISP_PREV_DRK_FRM_CAPTURE	(1 << 12)
 #define OMAP3ISP_PREV_DRK_FRM_SUBTRACT	(1 << 13)
 #define OMAP3ISP_PREV_LENS_SHADING	(1 << 14)

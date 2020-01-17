@@ -569,12 +569,12 @@ static int axmclk_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	return of_clk_add_hw_provider(dev->of_node, of_clk_axmclk_get, NULL);
+	return of_clk_add_hw_provider(dev->of_yesde, of_clk_axmclk_get, NULL);
 }
 
 static int axmclk_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 	return 0;
 }
 

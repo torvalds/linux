@@ -124,7 +124,7 @@ acpi_find_root_pointer(acpi_physical_address *table_address)
 				       ACPI_EBDA_PTR_LENGTH);
 	if (!table_ptr) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not map memory at 0x%8.8X for length %u",
+			    "Could yest map memory at 0x%8.8X for length %u",
 			    ACPI_EBDA_PTR_LOCATION, ACPI_EBDA_PTR_LENGTH));
 
 		return_ACPI_STATUS(AE_NO_MEMORY);
@@ -149,7 +149,7 @@ acpi_find_root_pointer(acpi_physical_address *table_address)
 					       ACPI_EBDA_WINDOW_SIZE);
 		if (!table_ptr) {
 			ACPI_ERROR((AE_INFO,
-				    "Could not map memory at 0x%8.8X for length %u",
+				    "Could yest map memory at 0x%8.8X for length %u",
 				    physical_address, ACPI_EBDA_WINDOW_SIZE));
 
 			return_ACPI_STATUS(AE_NO_MEMORY);
@@ -182,7 +182,7 @@ acpi_find_root_pointer(acpi_physical_address *table_address)
 
 	if (!table_ptr) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not map memory at 0x%8.8X for length %u",
+			    "Could yest map memory at 0x%8.8X for length %u",
 			    ACPI_HI_RSDP_WINDOW_BASE,
 			    ACPI_HI_RSDP_WINDOW_SIZE));
 
@@ -205,9 +205,9 @@ acpi_find_root_pointer(acpi_physical_address *table_address)
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* A valid RSDP was not found */
+	/* A valid RSDP was yest found */
 
-	ACPI_BIOS_ERROR((AE_INFO, "A valid RSDP was not found"));
+	ACPI_BIOS_ERROR((AE_INFO, "A valid RSDP was yest found"));
 	return_ACPI_STATUS(AE_NOT_FOUND);
 }
 
@@ -258,10 +258,10 @@ u8 *acpi_tb_scan_memory_for_rsdp(u8 *start_address, u32 length)
 		/* No sig match or bad checksum, keep searching */
 	}
 
-	/* Searched entire block, no RSDP was found */
+	/* Searched entire block, yes RSDP was found */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "Searched entire block from %p, valid RSDP was not found\n",
+			  "Searched entire block from %p, valid RSDP was yest found\n",
 			  start_address));
 	return_PTR(NULL);
 }

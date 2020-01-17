@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI__LINUX_ATALK_H__
 #define _UAPI__LINUX_ATALK_H__
 
@@ -26,7 +26,7 @@
 
 struct atalk_addr {
 	__be16	s_net;
-	__u8	s_node;
+	__u8	s_yesde;
 };
 
 struct sockaddr_at {

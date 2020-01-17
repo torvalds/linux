@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -134,7 +134,7 @@ struct pwl_params {
  */
 
 enum lb_pixel_depth {
-	/* do not change the values because it is used as bit vector */
+	/* do yest change the values because it is used as bit vector */
 	LB_PIXEL_DEPTH_18BPP = 1,
 	LB_PIXEL_DEPTH_24BPP = 2,
 	LB_PIXEL_DEPTH_30BPP = 4,

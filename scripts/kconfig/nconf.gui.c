@@ -20,7 +20,7 @@ attributes_t attributes[ATTR_MAX+1] = {0};
    COLOR_CYAN    6
    COLOR_WHITE   7
    */
-static void set_normal_colors(void)
+static void set_yesrmal_colors(void)
 {
 	init_pair(NORMAL, -1, -1);
 	init_pair(MAIN_HEADING, COLOR_MAGENTA, -1);
@@ -52,7 +52,7 @@ static void set_normal_colors(void)
 }
 
 /* available attributes:
-   A_NORMAL        Normal display (no highlight)
+   A_NORMAL        Normal display (yes highlight)
    A_STANDOUT      Best highlighting mode of the terminal.
    A_UNDERLINE     Underlining
    A_REVERSE       Reverse video
@@ -65,7 +65,7 @@ static void set_normal_colors(void)
    A_CHARTEXT      Bit-mask to extract a character
    COLOR_PAIR(n)   Color-pair number n
    */
-static void normal_color_theme(void)
+static void yesrmal_color_theme(void)
 {
 	/* automatically add color... */
 #define mkattr(name, attr) do { \
@@ -97,9 +97,9 @@ attributes[name] = attr | COLOR_PAIR(name); } while (0)
 	mkattr(FUNCTION_TEXT, A_REVERSE);
 }
 
-static void no_colors_theme(void)
+static void yes_colors_theme(void)
 {
-	/* automatically add highlight, no color */
+	/* automatically add highlight, yes color */
 #define mkattrn(name, attr) { attributes[name] = attr; }
 
 	mkattrn(NORMAL, NORMAL);
@@ -133,12 +133,12 @@ void set_colors(void)
 {
 	start_color();
 	use_default_colors();
-	set_normal_colors();
+	set_yesrmal_colors();
 	if (has_colors()) {
-		normal_color_theme();
+		yesrmal_color_theme();
 	} else {
 		/* give defaults */
-		no_colors_theme();
+		yes_colors_theme();
 	}
 }
 
@@ -172,7 +172,7 @@ void print_in_middle(WINDOW *win,
 	refresh();
 }
 
-int get_line_no(const char *text)
+int get_line_yes(const char *text)
 {
 	int i;
 	int total = 1;
@@ -186,7 +186,7 @@ int get_line_no(const char *text)
 	return total;
 }
 
-const char *get_line(const char *text, int line_no)
+const char *get_line(const char *text, int line_yes)
 {
 	int i;
 	int lines = 0;
@@ -194,7 +194,7 @@ const char *get_line(const char *text, int line_no)
 	if (!text)
 		return NULL;
 
-	for (i = 0; text[i] != '\0' && lines < line_no; i++)
+	for (i = 0; text[i] != '\0' && lines < line_yes; i++)
 		if (text[i] == '\n')
 			lines++;
 	return text+i;
@@ -214,11 +214,11 @@ int get_line_length(const char *line)
 void fill_window(WINDOW *win, const char *text)
 {
 	int x, y;
-	int total_lines = get_line_no(text);
+	int total_lines = get_line_yes(text);
 	int i;
 
 	getmaxyx(win, y, x);
-	/* do not go over end of line */
+	/* do yest go over end of line */
 	total_lines = min(total_lines, y);
 	for (i = 0; i < total_lines; i++) {
 		char tmp[x+10];
@@ -235,7 +235,7 @@ void fill_window(WINDOW *win, const char *text)
  * return the selected button
  *
  * this dialog is used for 2 different things:
- * 1) show a text box, no buttons.
+ * 1) show a text box, yes buttons.
  * 2) show a dialog, with horizontal buttons
  */
 int btn_dialog(WINDOW *main_window, const char *msg, int btn_num, ...)
@@ -266,7 +266,7 @@ int btn_dialog(WINDOW *main_window, const char *msg, int btn_num, ...)
 	btns[btn_num] = NULL;
 
 	/* find the widest line of msg: */
-	msg_lines = get_line_no(msg);
+	msg_lines = get_line_yes(msg);
 	for (i = 0; i < msg_lines; i++) {
 		const char *line = get_line(msg, i);
 		int len = get_line_length(line);
@@ -378,7 +378,7 @@ int dialog_inputbox(WINDOW *main_window,
 	}
 
 	/* find the widest line of msg: */
-	prompt_lines = get_line_no(prompt);
+	prompt_lines = get_line_yes(prompt);
 	for (i = 0; i < prompt_lines; i++) {
 		const char *line = get_line(prompt, i);
 		int len = get_line_length(line);
@@ -498,7 +498,7 @@ int dialog_inputbox(WINDOW *main_window,
 				cursor_form_win++;
 				len++;
 			} else {
-				mvprintw(0, 0, "unknown key: %d\n", res);
+				mvprintw(0, 0, "unkyeswn key: %d\n", res);
 			}
 			break;
 		}
@@ -552,7 +552,7 @@ void show_scroll_win(WINDOW *main_window,
 		const char *text)
 {
 	int res;
-	int total_lines = get_line_no(text);
+	int total_lines = get_line_yes(text);
 	int x, y, lines, columns;
 	int start_x = 0, start_y = 0;
 	int text_lines = 0, text_cols = 0;
@@ -567,7 +567,7 @@ void show_scroll_win(WINDOW *main_window,
 	getmaxyx(stdscr, lines, columns);
 
 	/* find the widest line of msg: */
-	total_lines = get_line_no(text);
+	total_lines = get_line_yes(text);
 	for (i = 0; i < total_lines; i++) {
 		const char *line = get_line(text, i);
 		int len = get_line_length(line);

@@ -80,7 +80,7 @@ static void fpu__init_system_early_generic(struct cpuinfo_x86 *c)
 
 #ifndef CONFIG_MATH_EMULATION
 	if (!test_cpu_cap(&boot_cpu_data, X86_FEATURE_FPU)) {
-		pr_emerg("x86/fpu: Giving up, no FPU found and no math emulation present\n");
+		pr_emerg("x86/fpu: Giving up, yes FPU found and yes math emulation present\n");
 		for (;;)
 			asm volatile("hlt");
 	}
@@ -98,7 +98,7 @@ static void __init fpu__init_system_mxcsr(void)
 	unsigned int mask = 0;
 
 	if (boot_cpu_has(X86_FEATURE_FXSR)) {
-		/* Static because GCC does not get 16-byte stack alignment right: */
+		/* Static because GCC does yest get 16-byte stack alignment right: */
 		static struct fxregs_state fxregs __initdata;
 
 		asm volatile("fxsave %0" : "+m" (fxregs));
@@ -108,7 +108,7 @@ static void __init fpu__init_system_mxcsr(void)
 		/*
 		 * If zero then use the default features mask,
 		 * which has all features set, except the
-		 * denormals-are-zero feature bit:
+		 * deyesrmals-are-zero feature bit:
 		 */
 		if (mask == 0)
 			mask = 0x0000ffbf;
@@ -189,7 +189,7 @@ static void __init fpu__init_task_struct_size(void)
  * Set up the user and kernel xstate sizes based on the legacy FPU context size.
  *
  * We set this up first, and later it will be overwritten by
- * fpu__init_system_xstate() if the CPU knows about xstates.
+ * fpu__init_system_xstate() if the CPU kyesws about xstates.
  */
 static void __init fpu__init_system_xstate_size_legacy(void)
 {
@@ -247,24 +247,24 @@ static void __init fpu__init_parse_early_param(void)
 	int bit;
 
 #ifdef CONFIG_X86_32
-	if (cmdline_find_option_bool(boot_command_line, "no387"))
+	if (cmdline_find_option_bool(boot_command_line, "yes387"))
 #ifdef CONFIG_MATH_EMULATION
 		setup_clear_cpu_cap(X86_FEATURE_FPU);
 #else
-		pr_err("Option 'no387' required CONFIG_MATH_EMULATION enabled.\n");
+		pr_err("Option 'yes387' required CONFIG_MATH_EMULATION enabled.\n");
 #endif
 
-	if (cmdline_find_option_bool(boot_command_line, "nofxsr"))
+	if (cmdline_find_option_bool(boot_command_line, "yesfxsr"))
 		setup_clear_cpu_cap(X86_FEATURE_FXSR);
 #endif
 
-	if (cmdline_find_option_bool(boot_command_line, "noxsave"))
+	if (cmdline_find_option_bool(boot_command_line, "yesxsave"))
 		setup_clear_cpu_cap(X86_FEATURE_XSAVE);
 
-	if (cmdline_find_option_bool(boot_command_line, "noxsaveopt"))
+	if (cmdline_find_option_bool(boot_command_line, "yesxsaveopt"))
 		setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
 
-	if (cmdline_find_option_bool(boot_command_line, "noxsaves"))
+	if (cmdline_find_option_bool(boot_command_line, "yesxsaves"))
 		setup_clear_cpu_cap(X86_FEATURE_XSAVES);
 
 	if (cmdline_find_option(boot_command_line, "clearcpuid", arg,

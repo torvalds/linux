@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
@@ -90,7 +90,7 @@ static int viper_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 {
 	struct arcom_pcmcia_pdata *pdata = viper_get_pdata();
 
-	/* Silently ignore Vpp, output enable, speaker enable. */
+	/* Silently igyesre Vpp, output enable, speaker enable. */
 	pdata->reset(state->flags & SS_RESET);
 
 	/* Apply socket voltage */
@@ -124,7 +124,7 @@ static int viper_pcmcia_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	/* I can't imagine more than one device, but you never know... */
+	/* I can't imagine more than one device, but you never kyesw... */
 	if (arcom_pcmcia_dev)
 		return -EEXIST;
 

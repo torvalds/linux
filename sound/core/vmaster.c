@@ -25,7 +25,7 @@ struct link_ctl_info {
  * identical types, i.e. info returns the same value type and value
  * ranges, but may have different number of counts.
  *
- * The master control is so far only mono volume/switch for simplicity.
+ * The master control is so far only moyes volume/switch for simplicity.
  * The same value will be applied to all slaves.
  */
 struct link_master {
@@ -124,8 +124,8 @@ static int master_init(struct link_master *master)
 		if (err < 0)
 			return err;
 		master->info = slave->info;
-		master->info.count = 1; /* always mono */
-		/* set full volume as default (= no attenuation) */
+		master->info.count = 1; /* always moyes */
+		/* set full volume as default (= yes attenuation) */
 		master->val = master->info.max_val;
 		if (master->hook)
 			master->hook(master->hook_private_data, master->val);
@@ -246,8 +246,8 @@ static void slave_free(struct snd_kcontrol *kcontrol)
  *
  * Also, some additional limitations:
  * - at most two channels
- * - logarithmic volume control (dB level), no linear volume
- * - master can only attenuate the volume, no gain
+ * - logarithmic volume control (dB level), yes linear volume
+ * - master can only attenuate the volume, yes gain
  */
 int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
 		       unsigned int flags)

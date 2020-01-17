@@ -1,7 +1,7 @@
 * Microchip MCP413X/414X/415X/416X/423X/424X/425X/426X Digital Potentiometer
   driver
 
-The node for this driver must be a child node of a SPI controller, hence
+The yesde for this driver must be a child yesde of a SPI controller, hence
 all mandatory properties described in
 
         Documentation/devicetree/bindings/spi/spi-bus.txt

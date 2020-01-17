@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -51,24 +51,24 @@
 
 struct nlm_soc_info {
 	unsigned long	coremask;	/* cores enabled on the soc */
-	unsigned long	ebase;		/* not used now */
-	uint64_t	irqmask;	/* EIMR for the node */
+	unsigned long	ebase;		/* yest used yesw */
+	uint64_t	irqmask;	/* EIMR for the yesde */
 	uint64_t	sysbase;	/* only for XLP - sys block base */
 	uint64_t	picbase;	/* PIC block base */
 	spinlock_t	piclock;	/* lock for PIC access */
-	cpumask_t	cpumask;	/* logical cpu mask for node */
+	cpumask_t	cpumask;	/* logical cpu mask for yesde */
 	unsigned int	socbus;
 };
 
-extern struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
-#define nlm_get_node(i)		(&nlm_nodes[i])
-#define nlm_node_present(n)	((n) >= 0 && (n) < NLM_NR_NODES && \
-					nlm_get_node(n)->coremask != 0)
+extern struct nlm_soc_info nlm_yesdes[NLM_NR_NODES];
+#define nlm_get_yesde(i)		(&nlm_yesdes[i])
+#define nlm_yesde_present(n)	((n) >= 0 && (n) < NLM_NR_NODES && \
+					nlm_get_yesde(n)->coremask != 0)
 #ifdef CONFIG_CPU_XLR
-#define nlm_current_node()	(&nlm_nodes[0])
+#define nlm_current_yesde()	(&nlm_yesdes[0])
 #else
-#define nlm_current_node()	(&nlm_nodes[nlm_nodeid()])
+#define nlm_current_yesde()	(&nlm_yesdes[nlm_yesdeid()])
 #endif
-void nlm_node_init(int node);
+void nlm_yesde_init(int yesde);
 
 #endif

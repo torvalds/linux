@@ -29,7 +29,7 @@ struct cmdq_client {
  * @dev:	device of CMDQ mailbox client
  * @index:	index of CMDQ mailbox channel
  * @timeout:	timeout of a pkt execution by GCE, in unit of microsecond, set
- *		CMDQ_NO_TIMEOUT if a timer is not used.
+ *		CMDQ_NO_TIMEOUT if a timer is yest used.
  *
  * Return: CMDQ mailbox client pointer
  */
@@ -100,7 +100,7 @@ int cmdq_pkt_wfe(struct cmdq_pkt *pkt, u16 event);
 int cmdq_pkt_clear_event(struct cmdq_pkt *pkt, u16 event);
 
 /**
- * cmdq_pkt_flush_async() - trigger CMDQ to asynchronously execute the CMDQ
+ * cmdq_pkt_flush_async() - trigger CMDQ to asynchroyesusly execute the CMDQ
  *                          packet and call back at the end of done packet
  * @pkt:	the CMDQ packet
  * @cb:		called at the end of done packet
@@ -108,9 +108,9 @@ int cmdq_pkt_clear_event(struct cmdq_pkt *pkt, u16 event);
  *
  * Return: 0 for success; else the error code is returned
  *
- * Trigger CMDQ to asynchronously execute the CMDQ packet and call back
+ * Trigger CMDQ to asynchroyesusly execute the CMDQ packet and call back
  * at the end of done packet. Note that this is an ASYNC function. When the
- * function returned, it may or may not be finished.
+ * function returned, it may or may yest be finished.
  */
 int cmdq_pkt_flush_async(struct cmdq_pkt *pkt, cmdq_async_flush_cb cb,
 			 void *data);
@@ -122,7 +122,7 @@ int cmdq_pkt_flush_async(struct cmdq_pkt *pkt, cmdq_async_flush_cb cb,
  * Return: 0 for success; else the error code is returned
  *
  * Trigger CMDQ to execute the CMDQ packet. Note that this is a
- * synchronous flush function. When the function returned, the recorded
+ * synchroyesus flush function. When the function returned, the recorded
  * commands have been done.
  */
 int cmdq_pkt_flush(struct cmdq_pkt *pkt);

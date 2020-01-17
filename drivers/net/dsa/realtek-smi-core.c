@@ -3,14 +3,14 @@
  * It can be discussed how "simple" this interface is.
  *
  * The SMI protocol piggy-backs the MDIO MDC and MDIO signals levels
- * but the protocol is not MDIO at all. Instead it is a Realtek
+ * but the protocol is yest MDIO at all. Instead it is a Realtek
  * pecularity that need to bit-bang the lines in a special way to
  * communicate with the switch.
  *
  * ASICs we intend to support with this driver:
  *
  * RTL8366   - The original version, apparently
- * RTL8369   - Similar enough to have the same datsheet as RTL8366
+ * RTL8369   - Similar eyesugh to have the same datsheet as RTL8366
  * RTL8366RB - Probably reads out "RTL8366 revision B", has a quite
  *             different register layout from the other two
  * RTL8366S  - Is this "RTL8366 super"?
@@ -165,7 +165,7 @@ static int realtek_smi_write_byte(struct realtek_smi *smi, u8 data)
 	return realtek_smi_wait_for_ack(smi);
 }
 
-static int realtek_smi_write_byte_noack(struct realtek_smi *smi, u8 data)
+static int realtek_smi_write_byte_yesack(struct realtek_smi *smi, u8 data)
 {
 	realtek_smi_write_bits(smi, data, 8);
 	return 0;
@@ -275,7 +275,7 @@ static int realtek_smi_write_reg(struct realtek_smi *smi,
 	if (ack)
 		ret = realtek_smi_write_byte(smi, data >> 8);
 	else
-		ret = realtek_smi_write_byte_noack(smi, data >> 8);
+		ret = realtek_smi_write_byte_yesack(smi, data >> 8);
 	if (ret)
 		goto out;
 
@@ -290,14 +290,14 @@ static int realtek_smi_write_reg(struct realtek_smi *smi,
 
 /* There is one single case when we need to use this accessor and that
  * is when issueing soft reset. Since the device reset as soon as we write
- * that bit, no ACK will come back for natural reasons.
+ * that bit, yes ACK will come back for natural reasons.
  */
-int realtek_smi_write_reg_noack(struct realtek_smi *smi, u32 addr,
+int realtek_smi_write_reg_yesack(struct realtek_smi *smi, u32 addr,
 				u32 data)
 {
 	return realtek_smi_write_reg(smi, addr, data, false);
 }
-EXPORT_SYMBOL_GPL(realtek_smi_write_reg_noack);
+EXPORT_SYMBOL_GPL(realtek_smi_write_reg_yesack);
 
 /* Regmap accessors */
 
@@ -344,19 +344,19 @@ static int realtek_smi_mdio_write(struct mii_bus *bus, int addr, int regnum,
 
 int realtek_smi_setup_mdio(struct realtek_smi *smi)
 {
-	struct device_node *mdio_np;
+	struct device_yesde *mdio_np;
 	int ret;
 
-	mdio_np = of_get_compatible_child(smi->dev->of_node, "realtek,smi-mdio");
+	mdio_np = of_get_compatible_child(smi->dev->of_yesde, "realtek,smi-mdio");
 	if (!mdio_np) {
-		dev_err(smi->dev, "no MDIO bus node\n");
+		dev_err(smi->dev, "yes MDIO bus yesde\n");
 		return -ENODEV;
 	}
 
 	smi->slave_mii_bus = devm_mdiobus_alloc(smi->dev);
 	if (!smi->slave_mii_bus) {
 		ret = -ENOMEM;
-		goto err_put_node;
+		goto err_put_yesde;
 	}
 	smi->slave_mii_bus->priv = smi;
 	smi->slave_mii_bus->name = "SMI slave MII";
@@ -364,7 +364,7 @@ int realtek_smi_setup_mdio(struct realtek_smi *smi)
 	smi->slave_mii_bus->write = realtek_smi_mdio_write;
 	snprintf(smi->slave_mii_bus->id, MII_BUS_ID_SIZE, "SMI-%d",
 		 smi->ds->index);
-	smi->slave_mii_bus->dev.of_node = mdio_np;
+	smi->slave_mii_bus->dev.of_yesde = mdio_np;
 	smi->slave_mii_bus->parent = smi->dev;
 	smi->ds->slave_mii_bus = smi->slave_mii_bus;
 
@@ -372,13 +372,13 @@ int realtek_smi_setup_mdio(struct realtek_smi *smi)
 	if (ret) {
 		dev_err(smi->dev, "unable to register MDIO bus %s\n",
 			smi->slave_mii_bus->id);
-		goto err_put_node;
+		goto err_put_yesde;
 	}
 
 	return 0;
 
-err_put_node:
-	of_node_put(mdio_np);
+err_put_yesde:
+	of_yesde_put(mdio_np);
 
 	return ret;
 }
@@ -388,11 +388,11 @@ static int realtek_smi_probe(struct platform_device *pdev)
 	const struct realtek_smi_variant *var;
 	struct device *dev = &pdev->dev;
 	struct realtek_smi *smi;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
 	var = of_device_get_match_data(dev);
-	np = dev->of_node;
+	np = dev->of_yesde;
 
 	smi = devm_kzalloc(dev, sizeof(*smi), GFP_KERNEL);
 	if (!smi)
@@ -467,7 +467,7 @@ static int realtek_smi_remove(struct platform_device *pdev)
 
 	dsa_unregister_switch(smi->ds);
 	if (smi->slave_mii_bus)
-		of_node_put(smi->slave_mii_bus->dev.of_node);
+		of_yesde_put(smi->slave_mii_bus->dev.of_yesde);
 	gpiod_set_value(smi->reset, 1);
 
 	return 0;

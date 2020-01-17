@@ -282,14 +282,14 @@ struct psb_offset {
 	u32	addr;
 	u32	base;
 	u32	status;
-	u32	linoff;
+	u32	liyesff;
 	u32	tileoff;
 	u32	palette;
 };
 
 /*
  *	Register save state. This is used to hold the context when the
- *	device is powered off. In the case of Oaktrail this can (but does not
+ *	device is powered off. In the case of Oaktrail this can (but does yest
  *	yet) include screen blank. Operations occuring during the save
  *	update the register cache instead.
  */
@@ -316,7 +316,7 @@ struct psb_pipe {
 	u32	surf;
 	u32	addr;
 	u32	status;
-	u32	linoff;
+	u32	liyesff;
 	u32	tileoff;
 	u32	palette[256];
 };
@@ -499,8 +499,8 @@ struct drm_psb_private {
 
 	/* Used by SDVO */
 	int crt_ddc_pin;
-	/* FIXME: The mappings should be parsed from bios but for now we can
-		  pretend there are no mappings available */
+	/* FIXME: The mappings should be parsed from bios but for yesw we can
+		  pretend there are yes mappings available */
 	struct sdvo_device_mapping sdvo_mappings[2];
 	u32 hotplug_supported_mask;
 	struct drm_property *broadcast_rgb_property;

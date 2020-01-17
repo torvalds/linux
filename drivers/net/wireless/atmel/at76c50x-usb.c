@@ -23,7 +23,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -199,7 +199,7 @@ static const struct usb_device_id dev_table[] = {
 	{ USB_DEVICE(0x0681, 0x001b), USB_DEVICE_DATA(BOARD_503) },
 	/* Belkin F5D6050, version 2 */
 	{ USB_DEVICE(0x050d, 0x0050), USB_DEVICE_DATA(BOARD_503) },
-	/* iBlitzz, BWU613 (not *B or *SB) */
+	/* iBlitzz, BWU613 (yest *B or *SB) */
 	{ USB_DEVICE(0x07b8, 0xb000), USB_DEVICE_DATA(BOARD_503) },
 	/* Gigabyte GN-WLBM101 */
 	{ USB_DEVICE(0x1044, 0x8003), USB_DEVICE_DATA(BOARD_503) },
@@ -316,12 +316,12 @@ static inline int at76_is_505a(enum board_type board)
 }
 
 /* Load a block of the first (internal) part of the firmware */
-static int at76_load_int_fw_block(struct usb_device *udev, int blockno,
+static int at76_load_int_fw_block(struct usb_device *udev, int blockyes,
 				  void *block, int size)
 {
 	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0), DFU_DNLOAD,
 			       USB_TYPE_CLASS | USB_DIR_OUT |
-			       USB_RECIP_INTERFACE, blockno, 0, block, size,
+			       USB_RECIP_INTERFACE, blockyes, 0, block, size,
 			       USB_CTRL_GET_TIMEOUT);
 }
 
@@ -365,7 +365,7 @@ static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 	int is_done = 0;
 	u32 dfu_timeout = 0;
 	int bsize = 0;
-	int blockno = 0;
+	int blockyes = 0;
 	struct dfu_status *dfu_stat_buf = NULL;
 	u8 *dfu_state = NULL;
 	u8 *block = NULL;
@@ -402,7 +402,7 @@ static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 			ret = at76_dfu_get_state(udev, dfu_state);
 			if (ret < 0) {
 				dev_err(&udev->dev,
-					"cannot get DFU state: %d\n", ret);
+					"canyest get DFU state: %d\n", ret);
 				goto exit;
 			}
 			need_dfu_state = 0;
@@ -439,13 +439,13 @@ static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 			bsize = min_t(int, size, FW_BLOCK_SIZE);
 			memcpy(block, buf, bsize);
 			at76_dbg(DBG_DFU, "int fw, size left = %5d, "
-				 "bsize = %4d, blockno = %2d", size, bsize,
-				 blockno);
+				 "bsize = %4d, blockyes = %2d", size, bsize,
+				 blockyes);
 			ret =
-			    at76_load_int_fw_block(udev, blockno, block, bsize);
+			    at76_load_int_fw_block(udev, blockyes, block, bsize);
 			buf += bsize;
 			size -= bsize;
-			blockno++;
+			blockyes++;
 
 			if (ret != bsize)
 				dev_err(&udev->dev,
@@ -573,12 +573,12 @@ static int at76_get_op_mode(struct usb_device *udev)
 }
 
 /* Load a block of the second ("external") part of the firmware */
-static inline int at76_load_ext_fw_block(struct usb_device *udev, int blockno,
+static inline int at76_load_ext_fw_block(struct usb_device *udev, int blockyes,
 					 void *block, int size)
 {
 	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x0e,
 			       USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE,
-			       0x0802, blockno, block, size,
+			       0x0802, blockyes, block, size,
 			       USB_CTRL_GET_TIMEOUT);
 }
 
@@ -636,7 +636,7 @@ static int at76_get_hw_config(struct at76_priv *priv)
 exit:
 	kfree(hwcfg);
 	if (ret < 0)
-		wiphy_err(priv->hw->wiphy, "cannot get HW Config (error %d)\n",
+		wiphy_err(priv->hw->wiphy, "canyest get HW Config (error %d)\n",
 			  ret);
 
 	return ret;
@@ -654,10 +654,10 @@ static struct reg_domain const *at76_get_reg_domain(u16 code)
 		{ 0x40, "MKK (Japan)", 0x2000 },	/* ch 14 */
 		{ 0x41, "MKK1 (Japan)", 0x3fff },	/* ch 1-14 */
 		{ 0x50, "Israel", 0x3fc },	/* ch 3-9 */
-		{ 0x00, "<unknown>", 0xffffffff }	/* ch 1-32 */
+		{ 0x00, "<unkyeswn>", 0xffffffff }	/* ch 1-32 */
 	};
 
-	/* Last entry is fallback for unknown domain code */
+	/* Last entry is fallback for unkyeswn domain code */
 	for (i = 0; i < ARRAY_SIZE(fd_tab) - 1; i++)
 		if (code == fd_tab[i].code)
 			break;
@@ -820,7 +820,7 @@ static int at76_set_mib(struct at76_priv *priv, struct set_mib_buffer *buf)
 	return ret;
 }
 
-/* Return < 0 on error, == 0 if no command sent, == 1 if cmd sent */
+/* Return < 0 on error, == 0 if yes command sent, == 1 if cmd sent */
 static int at76_set_radio(struct at76_priv *priv, int enable)
 {
 	int ret;
@@ -910,14 +910,14 @@ static int at76_set_rts(struct at76_priv *priv, u16 size)
 	return ret;
 }
 
-static int at76_set_autorate_fallback(struct at76_priv *priv, int onoff)
+static int at76_set_autorate_fallback(struct at76_priv *priv, int oyesff)
 {
 	int ret = 0;
 
 	priv->mib_buf.type = MIB_LOCAL;
 	priv->mib_buf.size = 1;
 	priv->mib_buf.index = offsetof(struct mib_local, txautorate_fallback);
-	priv->mib_buf.data.byte = onoff;
+	priv->mib_buf.data.byte = oyesff;
 
 	ret = at76_set_mib(priv, &priv->mib_buf);
 	if (ret < 0)
@@ -1219,7 +1219,7 @@ static int at76_submit_rx_urb(struct at76_priv *priv)
 		skb = dev_alloc_skb(sizeof(struct at76_rx_buffer));
 		if (!skb) {
 			wiphy_err(priv->hw->wiphy,
-				  "cannot allocate rx skbuff\n");
+				  "canyest allocate rx skbuff\n");
 			ret = -ENOMEM;
 			goto exit;
 		}
@@ -1245,7 +1245,7 @@ static int at76_submit_rx_urb(struct at76_priv *priv)
 exit:
 	if (ret < 0 && ret != -ENODEV)
 		wiphy_err(priv->hw->wiphy,
-			  "cannot submit rx urb - please unload the driver and/or power cycle the device\n");
+			  "canyest submit rx urb - please unload the driver and/or power cycle the device\n");
 
 	return ret;
 }
@@ -1255,7 +1255,7 @@ static int at76_load_external_fw(struct usb_device *udev, struct fwentry *fwe)
 {
 	int ret;
 	int op_mode;
-	int blockno = 0;
+	int blockyes = 0;
 	int bsize;
 	u8 *block;
 	u8 *buf = fwe->extfw;
@@ -1283,19 +1283,19 @@ static int at76_load_external_fw(struct usb_device *udev, struct fwentry *fwe)
 		bsize = min_t(int, size, FW_BLOCK_SIZE);
 		memcpy(block, buf, bsize);
 		at76_dbg(DBG_DEVSTART,
-			 "ext fw, size left = %5d, bsize = %4d, blockno = %2d",
-			 size, bsize, blockno);
-		ret = at76_load_ext_fw_block(udev, blockno, block, bsize);
+			 "ext fw, size left = %5d, bsize = %4d, blockyes = %2d",
+			 size, bsize, blockyes);
+		ret = at76_load_ext_fw_block(udev, blockyes, block, bsize);
 		if (ret != bsize) {
 			dev_err(&udev->dev,
 				"loading %dth firmware block failed: %d\n",
-				blockno, ret);
+				blockyes, ret);
 			ret = -EIO;
 			goto exit;
 		}
 		buf += bsize;
 		size -= bsize;
-		blockno++;
+		blockyes++;
 	} while (bsize > 0);
 
 	if (at76_is_505a(fwe->board_type)) {
@@ -1328,7 +1328,7 @@ static int at76_load_internal_fw(struct usb_device *udev, struct fwentry *fwe)
 
 	at76_dbg(DBG_DEVSTART, "sending REMAP");
 
-	/* no REMAP for 505A (see SF driver) */
+	/* yes REMAP for 505A (see SF driver) */
 	if (need_remap) {
 		ret = at76_remap(udev);
 		if (ret < 0) {
@@ -1500,17 +1500,17 @@ static void at76_work_submit_rx(struct work_struct *work)
 }
 
 /* This is a workaround to make scan working:
- * currently mac80211 does not process frames with no frequency
+ * currently mac80211 does yest process frames with yes frequency
  * information.
  * However during scan the HW performs a sweep by itself, and we
- * are unable to know where the radio is actually tuned.
+ * are unable to kyesw where the radio is actually tuned.
  * This function tries to do its best to guess this information..
  * During scan, If the current frame is a beacon or a probe response,
  * the channel information is extracted from it.
- * When not scanning, for other frames, or if it happens that for
+ * When yest scanning, for other frames, or if it happens that for
  * whatever reason we fail to parse beacons and probe responses, this
  * function returns the priv->channel information, that should be correct
- * at least when we are not scanning.
+ * at least when we are yest scanning.
  */
 static inline int at76_guess_freq(struct at76_priv *priv)
 {
@@ -1566,16 +1566,16 @@ static void at76_rx_tasklet(unsigned long param)
 	if (urb->status != 0) {
 		if (urb->status != -ENOENT && urb->status != -ECONNRESET)
 			at76_dbg(DBG_URB,
-				 "%s %s: - nonzero Rx bulk status received: %d",
+				 "%s %s: - yesnzero Rx bulk status received: %d",
 				 __func__, wiphy_name(priv->hw->wiphy),
 				 urb->status);
 		return;
 	}
 
 	at76_dbg(DBG_RX_ATMEL_HDR,
-		 "%s: rx frame: rate %d rssi %d noise %d link %d",
+		 "%s: rx frame: rate %d rssi %d yesise %d link %d",
 		 wiphy_name(priv->hw->wiphy), buf->rx_rate, buf->rssi,
-		 buf->noise_level, buf->link_quality);
+		 buf->yesise_level, buf->link_quality);
 
 	skb_pull(priv->rx_skb, AT76_RX_HDRLEN);
 	skb_trim(priv->rx_skb, le16_to_cpu(buf->wlength));
@@ -1618,7 +1618,7 @@ static struct fwentry *at76_load_firmware(struct usb_device *udev,
 	at76_dbg(DBG_FW, "downloading firmware %s", fwe->fwname);
 	ret = request_firmware(&fwe->fw, fwe->fwname, &udev->dev);
 	if (ret < 0) {
-		dev_err(&udev->dev, "firmware %s not found!\n",
+		dev_err(&udev->dev, "firmware %s yest found!\n",
 			fwe->fwname);
 		dev_err(&udev->dev,
 			"you may need to download the firmware from http://developer.berlios.de/projects/at76c503a/\n");
@@ -1634,7 +1634,7 @@ static struct fwentry *at76_load_firmware(struct usb_device *udev,
 		goto exit;
 	}
 
-	/* CRC currently not checked */
+	/* CRC currently yest checked */
 	fwe->board_type = le32_to_cpu(fwh->board_type);
 	if (fwe->board_type != board_type) {
 		dev_err(&udev->dev,
@@ -1644,7 +1644,7 @@ static struct fwentry *at76_load_firmware(struct usb_device *udev,
 	}
 
 	fwe->fw_version.major = fwh->major;
-	fwe->fw_version.minor = fwh->minor;
+	fwe->fw_version.miyesr = fwh->miyesr;
 	fwe->fw_version.patch = fwh->patch;
 	fwe->fw_version.build = fwh->build;
 
@@ -1658,7 +1658,7 @@ static struct fwentry *at76_load_firmware(struct usb_device *udev,
 
 	dev_printk(KERN_DEBUG, &udev->dev,
 		   "using firmware %s (version %d.%d.%d-%d)\n",
-		   fwe->fwname, fwh->major, fwh->minor, fwh->patch, fwh->build);
+		   fwe->fwname, fwh->major, fwh->miyesr, fwh->patch, fwh->build);
 
 	at76_dbg(DBG_DEVSTART, "board %u, int %d:%d, ext %d:%d", board_type,
 		 le32_to_cpu(fwh->int_fw_offset), le32_to_cpu(fwh->int_fw_len),
@@ -1744,7 +1744,7 @@ static void at76_mac80211_tx_callback(struct urb *urb)
 		/* FIXME: add error message */
 		break;
 	default:
-		at76_dbg(DBG_URB, "%s - nonzero tx status received: %d",
+		at76_dbg(DBG_URB, "%s - yesnzero tx status received: %d",
 			 __func__, urb->status);
 		break;
 	}
@@ -1780,7 +1780,7 @@ static void at76_mac80211_tx(struct ieee80211_hw *hw,
 	/* The following code lines are important when the device is going to
 	 * authenticate with a new bssid. The driver must send CMD_JOIN before
 	 * an authentication frame is transmitted. For this to succeed, the
-	 * correct bssid of the AP must be known. As mac80211 does not inform
+	 * correct bssid of the AP must be kyeswn. As mac80211 does yest inform
 	 * drivers about the bssid prior to the authentication process the
 	 * following workaround is necessary. If the TX frame is an
 	 * authentication frame extract the bssid and send the CMD_JOIN. */
@@ -1870,8 +1870,8 @@ static void at76_mac80211_stop(struct ieee80211_hw *hw)
 	mutex_lock(&priv->mtx);
 
 	if (!priv->device_unplugged) {
-		/* We are called by "ifconfig ethX down", not because the
-		 * device is not available anymore. */
+		/* We are called by "ifconfig ethX down", yest because the
+		 * device is yest available anymore. */
 		at76_set_radio(priv, 0);
 
 		/* We unlink rx_urb because at76_open() re-submits it.
@@ -2199,7 +2199,7 @@ static struct at76_priv *at76_alloc_new_device(struct usb_device *udev)
 
 	hw = ieee80211_alloc_hw(sizeof(struct at76_priv), &at76_ops);
 	if (!hw) {
-		printk(KERN_ERR DRIVER_NAME ": could not register"
+		printk(KERN_ERR DRIVER_NAME ": could yest register"
 		       " ieee80211_hw\n");
 		return NULL;
 	}
@@ -2266,7 +2266,7 @@ static int at76_alloc_urbs(struct at76_priv *priv,
 	priv->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	priv->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!priv->rx_urb || !priv->tx_urb) {
-		dev_err(&interface->dev, "cannot allocate URB\n");
+		dev_err(&interface->dev, "canyest allocate URB\n");
 		return -ENOMEM;
 	}
 
@@ -2332,7 +2332,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 	/* MAC address */
 	ret = at76_get_hw_config(priv);
 	if (ret < 0) {
-		dev_err(&interface->dev, "cannot get MAC address\n");
+		dev_err(&interface->dev, "canyest get MAC address\n");
 		goto exit;
 	}
 
@@ -2367,7 +2367,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 
 	len = sizeof(wiphy->fw_version);
 	snprintf(wiphy->fw_version, len, "%d.%d.%d-%d",
-		 priv->fw_version.major, priv->fw_version.minor,
+		 priv->fw_version.major, priv->fw_version.miyesr,
 		 priv->fw_version.patch, priv->fw_version.build);
 
 	wiphy->hw_version = priv->board_type;
@@ -2376,7 +2376,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
-		printk(KERN_ERR "cannot register mac80211 hw (status %d)!\n",
+		printk(KERN_ERR "canyest register mac80211 hw (status %d)!\n",
 		       ret);
 		goto exit;
 	}
@@ -2385,7 +2385,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 
 	wiphy_info(priv->hw->wiphy, "USB %s, MAC %pM, firmware %d.%d.%d-%d\n",
 		   dev_name(&interface->dev), priv->mac_addr,
-		   priv->fw_version.major, priv->fw_version.minor,
+		   priv->fw_version.major, priv->fw_version.miyesr,
 		   priv->fw_version.patch, priv->fw_version.build);
 	wiphy_info(priv->hw->wiphy, "regulatory domain 0x%02x: %s\n",
 		   priv->regulatory_domain, priv->domain->name);
@@ -2466,7 +2466,7 @@ static int at76_probe(struct usb_interface *interface,
 
 	if (op_mode == OPMODE_HW_CONFIG_MODE) {
 		dev_err(&interface->dev,
-			"cannot handle a device in HW_CONFIG_MODE\n");
+			"canyest handle a device in HW_CONFIG_MODE\n");
 		ret = -EBUSY;
 		goto exit;
 	}
@@ -2493,10 +2493,10 @@ static int at76_probe(struct usb_interface *interface,
 
 	/* if version >= 0.100.x.y or device with built-in flash we can
 	 * query the device for the fw version */
-	if ((fwe->fw_version.major > 0 || fwe->fw_version.minor >= 100)
+	if ((fwe->fw_version.major > 0 || fwe->fw_version.miyesr >= 100)
 	    || (op_mode == OPMODE_NORMAL_NIC_WITH_FLASH)) {
 		ret = at76_get_mib(udev, MIB_FW_VERSION, fwv, sizeof(*fwv));
-		if (ret < 0 || (fwv->major | fwv->minor) == 0)
+		if (ret < 0 || (fwv->major | fwv->miyesr) == 0)
 			need_ext_fw = 1;
 	} else
 		/* No way to check firmware version, reload to be sure */

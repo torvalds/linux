@@ -25,7 +25,7 @@ static int emac_arc_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	int err;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return -ENODEV;
 
 	ndev = alloc_etherdev(sizeof(struct arc_emac_priv));
@@ -38,7 +38,7 @@ static int emac_arc_probe(struct platform_device *pdev)
 	priv->drv_name = DRV_NAME;
 	priv->drv_version = DRV_VERSION;
 
-	err = of_get_phy_mode(dev->of_node, &interface);
+	err = of_get_phy_mode(dev->of_yesde, &interface);
 	if (err) {
 		if (err == -ENODEV)
 			interface = PHY_INTERFACE_MODE_MII;

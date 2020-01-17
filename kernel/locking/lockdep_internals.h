@@ -86,7 +86,7 @@ static const unsigned long LOCKF_USED_IN_IRQ_READ =
  *
  * We use the per-lock dependency maps in two ways: we grow it by adding
  * every to-be-taken lock to all currently held lock's own dependency
- * table (if it's not there yet), and we check it for lock order
+ * table (if it's yest there yet), and we check it for lock order
  * conflicts and deadlocks.
  */
 #define MAX_LOCKDEP_ENTRIES	16384UL

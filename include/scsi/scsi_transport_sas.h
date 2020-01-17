@@ -42,7 +42,7 @@ enum sas_linkrate {
 	SAS_LINK_RATE_6_0_GBPS = 10,
 	SAS_LINK_RATE_12_0_GBPS = 11,
 	/* These are virtual to the transport class and may never
-	 * be signalled normally since the standard defined field
+	 * be signalled yesrmally since the standard defined field
 	 * is only 4 bits */
 	SAS_LINK_RATE_FAILED = 0x10,
 	SAS_PHY_VIRTUAL = 0x11,

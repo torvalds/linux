@@ -81,7 +81,7 @@ Required Properties:
   - clock-names: must contain "fck" for the functional clock.
 
 
-Example: R8A7790 (R-Car H2) CMT0 and CMT1 nodes
+Example: R8A7790 (R-Car H2) CMT0 and CMT1 yesdes
 
 	cmt0: timer@ffca0000 {
 		compatible = "renesas,r8a7790-cmt0", "renesas,rcar-gen2-cmt0";

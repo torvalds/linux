@@ -139,7 +139,7 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 {
 	struct qcom_cpufreq_drv *drv;
 	struct nvmem_cell *speedbin_nvmem;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct device *cpu_dev;
 	unsigned cpu;
 	const struct of_device_id *match;
@@ -149,13 +149,13 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 	if (!cpu_dev)
 		return -ENODEV;
 
-	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
+	np = dev_pm_opp_of_get_opp_desc_yesde(cpu_dev);
 	if (!np)
 		return -ENOENT;
 
 	ret = of_device_is_compatible(np, "operating-points-v2-kryo-cpu");
 	if (!ret) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return -ENOENT;
 	}
 
@@ -175,7 +175,7 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 		if (IS_ERR(speedbin_nvmem)) {
 			if (PTR_ERR(speedbin_nvmem) != -EPROBE_DEFER)
 				dev_err(cpu_dev,
-					"Could not get nvmem cell: %ld\n",
+					"Could yest get nvmem cell: %ld\n",
 					PTR_ERR(speedbin_nvmem));
 			ret = PTR_ERR(speedbin_nvmem);
 			goto free_drv;
@@ -188,7 +188,7 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 		}
 		nvmem_cell_put(speedbin_nvmem);
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 
 	drv->opp_tables = kcalloc(num_possible_cpus(), sizeof(*drv->opp_tables),
 				  GFP_KERNEL);
@@ -233,7 +233,7 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 				ret = PTR_ERR(drv->genpd_opp_tables[cpu]);
 				if (ret != -EPROBE_DEFER)
 					dev_err(cpu_dev,
-						"Could not attach to pm_domain: %d\n",
+						"Could yest attach to pm_domain: %d\n",
 						ret);
 				goto free_genpd_opp;
 			}
@@ -314,15 +314,15 @@ static const struct of_device_id qcom_cpufreq_match_list[] __initconst = {
  */
 static int __init qcom_cpufreq_init(void)
 {
-	struct device_node *np = of_find_node_by_path("/");
+	struct device_yesde *np = of_find_yesde_by_path("/");
 	const struct of_device_id *match;
 	int ret;
 
 	if (!np)
 		return -ENODEV;
 
-	match = of_match_node(qcom_cpufreq_match_list, np);
-	of_node_put(np);
+	match = of_match_yesde(qcom_cpufreq_match_list, np);
+	of_yesde_put(np);
 	if (!match)
 		return -ENODEV;
 
@@ -348,5 +348,5 @@ static void __exit qcom_cpufreq_exit(void)
 }
 module_exit(qcom_cpufreq_exit);
 
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. CPUfreq driver");
+MODULE_DESCRIPTION("Qualcomm Techyeslogies, Inc. CPUfreq driver");
 MODULE_LICENSE("GPL v2");

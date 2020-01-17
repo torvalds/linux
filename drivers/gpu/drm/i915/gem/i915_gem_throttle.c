@@ -36,7 +36,7 @@ i915_gem_throttle_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
-	unsigned long recent_enough = jiffies - DRM_I915_THROTTLE_JIFFIES;
+	unsigned long recent_eyesugh = jiffies - DRM_I915_THROTTLE_JIFFIES;
 	struct i915_request *request, *target = NULL;
 	long ret;
 
@@ -47,7 +47,7 @@ i915_gem_throttle_ioctl(struct drm_device *dev, void *data,
 
 	spin_lock(&file_priv->mm.lock);
 	list_for_each_entry(request, &file_priv->mm.request_list, client_link) {
-		if (time_after_eq(request->emitted_jiffies, recent_enough))
+		if (time_after_eq(request->emitted_jiffies, recent_eyesugh))
 			break;
 
 		if (target && xchg(&target->file_priv, NULL))

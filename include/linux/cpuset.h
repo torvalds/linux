@@ -13,7 +13,7 @@
 #include <linux/sched/topology.h>
 #include <linux/sched/task.h>
 #include <linux/cpumask.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/mm.h>
 #include <linux/jump_label.h>
 
@@ -24,7 +24,7 @@
  * key. In code paths where we need to loop with read_mems_allowed_begin() and
  * read_mems_allowed_retry() to get a consistent view of mems_allowed, we need
  * to ensure that begin() always gets rewritten before retry() in the
- * disabled -> enabled transition. If not, then if local irqs are disabled
+ * disabled -> enabled transition. If yest, then if local irqs are disabled
  * around the loop, we can deadlock since retry() would always be
  * comparing the latest value of the mems_allowed seqcount against 0 as
  * begin() still would see cpusets_enabled() as false. The enabled -> disabled
@@ -59,23 +59,23 @@ extern void cpuset_read_lock(void);
 extern void cpuset_read_unlock(void);
 extern void cpuset_cpus_allowed(struct task_struct *p, struct cpumask *mask);
 extern void cpuset_cpus_allowed_fallback(struct task_struct *p);
-extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
+extern yesdemask_t cpuset_mems_allowed(struct task_struct *p);
 #define cpuset_current_mems_allowed (current->mems_allowed)
 void cpuset_init_current_mems_allowed(void);
-int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask);
+int cpuset_yesdemask_valid_mems_allowed(yesdemask_t *yesdemask);
 
-extern bool __cpuset_node_allowed(int node, gfp_t gfp_mask);
+extern bool __cpuset_yesde_allowed(int yesde, gfp_t gfp_mask);
 
-static inline bool cpuset_node_allowed(int node, gfp_t gfp_mask)
+static inline bool cpuset_yesde_allowed(int yesde, gfp_t gfp_mask)
 {
 	if (cpusets_enabled())
-		return __cpuset_node_allowed(node, gfp_mask);
+		return __cpuset_yesde_allowed(yesde, gfp_mask);
 	return true;
 }
 
 static inline bool __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 {
-	return __cpuset_node_allowed(zone_to_nid(z), gfp_mask);
+	return __cpuset_yesde_allowed(zone_to_nid(z), gfp_mask);
 }
 
 static inline bool cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
@@ -101,8 +101,8 @@ extern void cpuset_task_status_allowed(struct seq_file *m,
 extern int proc_cpuset_show(struct seq_file *m, struct pid_namespace *ns,
 			    struct pid *pid, struct task_struct *tsk);
 
-extern int cpuset_mem_spread_node(void);
-extern int cpuset_slab_spread_node(void);
+extern int cpuset_mem_spread_yesde(void);
+extern int cpuset_slab_spread_yesde(void);
 
 static inline int cpuset_do_page_mem_spread(void)
 {
@@ -149,14 +149,14 @@ static inline bool read_mems_allowed_retry(unsigned int seq)
 	return read_seqcount_retry(&current->mems_allowed_seq, seq);
 }
 
-static inline void set_mems_allowed(nodemask_t nodemask)
+static inline void set_mems_allowed(yesdemask_t yesdemask)
 {
 	unsigned long flags;
 
 	task_lock(current);
 	local_irq_save(flags);
 	write_seqcount_begin(&current->mems_allowed_seq);
-	current->mems_allowed = nodemask;
+	current->mems_allowed = yesdemask;
 	write_seqcount_end(&current->mems_allowed_seq);
 	local_irq_restore(flags);
 	task_unlock(current);
@@ -191,20 +191,20 @@ static inline void cpuset_cpus_allowed_fallback(struct task_struct *p)
 {
 }
 
-static inline nodemask_t cpuset_mems_allowed(struct task_struct *p)
+static inline yesdemask_t cpuset_mems_allowed(struct task_struct *p)
 {
-	return node_possible_map;
+	return yesde_possible_map;
 }
 
-#define cpuset_current_mems_allowed (node_states[N_MEMORY])
+#define cpuset_current_mems_allowed (yesde_states[N_MEMORY])
 static inline void cpuset_init_current_mems_allowed(void) {}
 
-static inline int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask)
+static inline int cpuset_yesdemask_valid_mems_allowed(yesdemask_t *yesdemask)
 {
 	return 1;
 }
 
-static inline bool cpuset_node_allowed(int node, gfp_t gfp_mask)
+static inline bool cpuset_yesde_allowed(int yesde, gfp_t gfp_mask)
 {
 	return true;
 }
@@ -232,12 +232,12 @@ static inline void cpuset_task_status_allowed(struct seq_file *m,
 {
 }
 
-static inline int cpuset_mem_spread_node(void)
+static inline int cpuset_mem_spread_yesde(void)
 {
 	return 0;
 }
 
-static inline int cpuset_slab_spread_node(void)
+static inline int cpuset_slab_spread_yesde(void)
 {
 	return 0;
 }
@@ -266,7 +266,7 @@ static inline void cpuset_print_current_mems_allowed(void)
 {
 }
 
-static inline void set_mems_allowed(nodemask_t nodemask)
+static inline void set_mems_allowed(yesdemask_t yesdemask)
 {
 }
 

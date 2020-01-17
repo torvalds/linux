@@ -453,7 +453,7 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 
 	m_can_class_get_clocks(mcan_class);
 	if (IS_ERR(mcan_class->cclk)) {
-		dev_err(&spi->dev, "no CAN clock source defined\n");
+		dev_err(&spi->dev, "yes CAN clock source defined\n");
 		freq = TCAN4X5X_EXT_CLK_DEF;
 	} else {
 		freq = clk_get_rate(mcan_class->cclk);

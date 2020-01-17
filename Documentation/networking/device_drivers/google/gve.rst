@@ -91,7 +91,7 @@ the workqueue to check the register and acks the irq.
 
 Notification Block Interrupts
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The notification block interrupts are used to tell the driver to poll
+The yestification block interrupts are used to tell the driver to poll
 the queues associated with that interrupt.
 
 The handler for these irqs schedule the napi for that block to run
@@ -100,7 +100,7 @@ and poll the queues.
 Traffic Queues
 --------------
 gVNIC's queues are composed of a descriptor ring and a buffer and are
-assigned to a notification block.
+assigned to a yestification block.
 
 The descriptor rings are power-of-two-sized ring buffers consisting of
 fixed-size descriptors. They advance their head pointer using a __be32

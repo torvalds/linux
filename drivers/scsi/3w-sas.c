@@ -21,7 +21,7 @@
    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
    solely responsible for determining the appropriateness of using and
    distributing the Program and assumes all risks associated with its
-   exercise of rights under this Agreement, including but not limited to
+   exercise of rights under this Agreement, including but yest limited to
    the risks and costs of program errors, damage to or loss of data,
    programs or equipment, and unavailability or interruption of operations.
 
@@ -35,7 +35,7 @@
    HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
    Controllers supported by this driver:
@@ -55,7 +55,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
@@ -233,7 +233,7 @@ static void twl_aen_queue_event(TW_Device_Extension *tw_dev, TW_Command_Apache_H
 
 	host[0] = '\0';
 	if (tw_dev->host)
-		sprintf(host, " scsi%d:", tw_dev->host->host_no);
+		sprintf(host, " scsi%d:", tw_dev->host->host_yes);
 
 	aen = le16_to_cpu(header->status_block.error);
 	memset(event, 0, sizeof(TW_Event));
@@ -553,7 +553,7 @@ out:
 } /* End twl_poll_response() */
 
 /* This function will drain the aen queue */
-static int twl_aen_drain_queue(TW_Device_Extension *tw_dev, int no_check_reset)
+static int twl_aen_drain_queue(TW_Device_Extension *tw_dev, int yes_check_reset)
 {
 	int request_id = 0;
 	unsigned char cdb[TW_MAX_CDB_LEN];
@@ -564,7 +564,7 @@ static int twl_aen_drain_queue(TW_Device_Extension *tw_dev, int no_check_reset)
 	unsigned short aen;
 	int first_reset = 0, queue = 0, retval = 1;
 
-	if (no_check_reset)
+	if (yes_check_reset)
 		first_reset = 0;
 	else
 		first_reset = 1;
@@ -720,10 +720,10 @@ static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	dma_addr_t dma_handle;
 	int request_id = 0;
 	TW_Ioctl_Driver_Command driver_command;
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	TW_Ioctl_Buf_Apache *tw_ioctl;
 	TW_Command_Full *full_command_packet;
-	TW_Device_Extension *tw_dev = twl_device_extension_list[iminor(inode)];
+	TW_Device_Extension *tw_dev = twl_device_extension_list[imiyesr(iyesde)];
 	int retval = -EFAULT;
 	void __user *argp = (void __user *)arg;
 
@@ -793,7 +793,7 @@ static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 		if (tw_dev->chrdev_request_id != TW_IOCTL_CHRDEV_FREE) {
 			/* Now we need to reset the board */
 			printk(KERN_WARNING "3w-sas: scsi%d: WARNING: (0x%02X:0x%04X): Character ioctl (0x%x) timed out, resetting card.\n",
-			       tw_dev->host->host_no, TW_DRIVER, 0x6,
+			       tw_dev->host->host_yes, TW_DRIVER, 0x6,
 			       cmd);
 			retval = -EIO;
 			twl_reset_device_extension(tw_dev, 1);
@@ -829,9 +829,9 @@ out:
 } /* End twl_chrdev_ioctl() */
 
 /* This function handles open for the character device */
-static int twl_chrdev_open(struct inode *inode, struct file *file)
+static int twl_chrdev_open(struct iyesde *iyesde, struct file *file)
 {
-	unsigned int minor_number;
+	unsigned int miyesr_number;
 	int retval = -ENODEV;
 
 	if (!capable(CAP_SYS_ADMIN)) {
@@ -839,8 +839,8 @@ static int twl_chrdev_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	minor_number = iminor(inode);
-	if (minor_number >= twl_device_extension_count)
+	miyesr_number = imiyesr(iyesde);
+	if (miyesr_number >= twl_device_extension_count)
 		goto out;
 	retval = 0;
 out:
@@ -853,7 +853,7 @@ static const struct file_operations twl_fops = {
 	.unlocked_ioctl	= twl_chrdev_ioctl,
 	.open		= twl_chrdev_open,
 	.release	= NULL,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 /* This function passes sense data from firmware to scsi layer */
@@ -871,12 +871,12 @@ static int twl_fill_sense(TW_Device_Extension *tw_dev, int i, int request_id, in
 	/* Get embedded firmware error string */
 	error_str = &(header->err_specific_desc[strlen(header->err_specific_desc) + 1]);
 
-	/* Don't print error for Logical unit not supported during rollcall */
+	/* Don't print error for Logical unit yest supported during rollcall */
 	error = le16_to_cpu(header->status_block.error);
 	if ((error != TW_ERROR_LOGICAL_UNIT_NOT_SUPPORTED) && (error != TW_ERROR_UNIT_OFFLINE) && (error != TW_ERROR_INVALID_FIELD_IN_CDB)) {
 		if (print_host)
 			printk(KERN_WARNING "3w-sas: scsi%d: ERROR: (0x%02X:0x%04X): %s:%s.\n",
-			       tw_dev->host->host_no,
+			       tw_dev->host->host_yes,
 			       TW_MESSAGE_SOURCE_CONTROLLER_ERROR,
 			       header->status_block.error,
 			       error_str, 
@@ -1226,7 +1226,7 @@ static irqreturn_t twl_interrupt(int irq, void *dev_instance)
 			tw_dev->posted_request_count--;
 		}
 
-		/* Check for another response interrupt */
+		/* Check for ayesther response interrupt */
 		reg = readl(TWL_HISTAT_REG_ADDR(tw_dev));
 	}
 
@@ -1275,12 +1275,12 @@ static int twl_reset_sequence(TW_Device_Extension *tw_dev, int soft_reset)
 
 			/* Make sure controller is in a good state */
 			if (twl_poll_register(tw_dev, TWL_SCRPD3_REG_ADDR(tw_dev), TWL_CONTROLLER_READY, 0x0, 30)) {
-				TW_PRINTK(tw_dev->host, TW_DRIVER, 0x10, "Controller never went non-ready during reset sequence");
+				TW_PRINTK(tw_dev->host, TW_DRIVER, 0x10, "Controller never went yesn-ready during reset sequence");
 				tries++;
 				continue;
 			}
 			if (twl_poll_register(tw_dev, TWL_SCRPD3_REG_ADDR(tw_dev), TWL_CONTROLLER_READY, TWL_CONTROLLER_READY, 60)) {
-				TW_PRINTK(tw_dev->host, TW_DRIVER, 0x11, "Controller not ready during reset sequence");
+				TW_PRINTK(tw_dev->host, TW_DRIVER, 0x11, "Controller yest ready during reset sequence");
 				tries++;
 				continue;
 			}
@@ -1441,7 +1441,7 @@ static int twl_scsi_eh_reset(struct scsi_cmnd *SCpnt)
 		"WARNING: (0x%02X:0x%04X): Command (0x%x) timed out, resetting card.\n",
 		TW_DRIVER, 0x2c, SCpnt->cmnd[0]);
 
-	/* Make sure we are not issuing an ioctl or resetting from ioctl */
+	/* Make sure we are yest issuing an ioctl or resetting from ioctl */
 	mutex_lock(&tw_dev->ioctl_lock);
 
 	/* Now reset the card and some of the device extension data */
@@ -1500,7 +1500,7 @@ static void __twl_shutdown(TW_Device_Extension *tw_dev)
 	/* Free up the IRQ */
 	free_irq(tw_dev->tw_pci_dev->irq, tw_dev);
 
-	printk(KERN_WARNING "3w-sas: Shutting down host %d.\n", tw_dev->host->host_no);
+	printk(KERN_WARNING "3w-sas: Shutting down host %d.\n", tw_dev->host->host_yes);
 
 	/* Tell the card we are shutting down */
 	if (twl_initconnection(tw_dev, 1, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL)) {
@@ -1553,7 +1553,7 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun		= TW_MAX_CMDS_PER_LUN,
 	.shost_attrs		= twl_host_attrs,
 	.emulated		= 1,
-	.no_write_same		= 1,
+	.yes_write_same		= 1,
 };
 
 /* This function will probe and initialize a card */
@@ -1641,7 +1641,7 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	pci_set_drvdata(pdev, host);
 
 	printk(KERN_WARNING "3w-sas: scsi%d: Found an LSI 3ware %s Controller at 0x%llx, IRQ: %d.\n",
-	       host->host_no,
+	       host->host_yes,
 	       (char *)twl_get_param(tw_dev, 1, TW_VERSION_TABLE,
 				     TW_PARAM_MODEL, TW_PARAM_MODEL_LENGTH),
 	       (u64)pci_resource_start(pdev, 1), pdev->irq);
@@ -1652,7 +1652,7 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 		phycount = le32_to_cpu(*(int *)ptr_phycount);
 
 	printk(KERN_WARNING "3w-sas: scsi%d: Firmware %s, BIOS %s, Phys: %d.\n",
-	       host->host_no,
+	       host->host_yes,
 	       (char *)twl_get_param(tw_dev, 1, TW_VERSION_TABLE,
 				     TW_PARAM_FWVER, TW_PARAM_FWVER_LENGTH),
 	       (char *)twl_get_param(tw_dev, 2, TW_VERSION_TABLE,
@@ -1763,7 +1763,7 @@ static int twl_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
 
-	printk(KERN_WARNING "3w-sas: Suspending host %d.\n", tw_dev->host->host_no);
+	printk(KERN_WARNING "3w-sas: Suspending host %d.\n", tw_dev->host->host_yes);
 	/* Disable interrupts */
 	TWL_MASK_INTERRUPTS(tw_dev);
 
@@ -1793,7 +1793,7 @@ static int twl_resume(struct pci_dev *pdev)
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
 
-	printk(KERN_WARNING "3w-sas: Resuming host %d.\n", tw_dev->host->host_no);
+	printk(KERN_WARNING "3w-sas: Resuming host %d.\n", tw_dev->host->host_yes);
 	pci_set_power_state(pdev, PCI_D0);
 	pci_enable_wake(pdev, PCI_D0, 0);
 	pci_restore_state(pdev);

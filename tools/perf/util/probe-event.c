@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -235,7 +235,7 @@ static bool kprobe_warn_out_range(const char *symbol, unsigned long address)
 	u64 etext_addr = 0;
 	int ret;
 
-	/* Get the address of _etext for checking non-probable text symbol */
+	/* Get the address of _etext for checking yesn-probable text symbol */
 	ret = kernel_get_symbol_address_by_name("_etext", &etext_addr,
 						false, false);
 
@@ -290,7 +290,7 @@ static char *find_module_name(const char *module)
 	 * '.gnu.linkonce.this_module' section of kernel module elf directly
 	 * maps to 'struct module' from linux/module.h. This section contains
 	 * actual module name which will be used by kernel after loading it.
-	 * But, we cannot use 'struct module' here since linux/module.h is not
+	 * But, we canyest use 'struct module' here since linux/module.h is yest
 	 * exposed to user-space. Offset of 'name' has remained same from long
 	 * time, so hardcoding it here.
 	 */
@@ -334,7 +334,7 @@ static int kernel_get_module_dso(const char *module, struct dso **pdso)
 	dso = map->dso;
 
 	vmlinux_name = symbol_conf.vmlinux_name;
-	dso->load_errno = 0;
+	dso->load_erryes = 0;
 	if (vmlinux_name)
 		ret = dso__load_vmlinux(dso, map, vmlinux_name, false);
 	else
@@ -346,7 +346,7 @@ found:
 
 /*
  * Some binaries like glibc have special symbols which are on the symbol
- * table, but not in the debuginfo. If we can find the address of the
+ * table, but yest in the debuginfo. If we can find the address of the
  * symbol from map, we can translate the address back to the probe point.
  */
 static int find_alternative_probe_point(struct debuginfo *dinfo,
@@ -457,14 +457,14 @@ static struct debuginfo *open_debuginfo(const char *module, struct nsinfo *nsi,
 	if (!module || !strchr(module, '/')) {
 		err = kernel_get_module_dso(module, &dso);
 		if (err < 0) {
-			if (!dso || dso->load_errno == 0) {
+			if (!dso || dso->load_erryes == 0) {
 				if (!str_error_r(-err, reason, STRERR_BUFSIZE))
-					strcpy(reason, "(unknown)");
+					strcpy(reason, "(unkyeswn)");
 			} else
 				dso__strerror_load(dso, reason, STRERR_BUFSIZE);
 			if (!silent) {
 				if (module)
-					pr_err("Module %s is not loaded, please specify its full path name.\n", module);
+					pr_err("Module %s is yest loaded, please specify its full path name.\n", module);
 				else
 					pr_err("Failed to find the path for the kernel: %s\n", reason);
 			}
@@ -475,7 +475,7 @@ static struct debuginfo *open_debuginfo(const char *module, struct nsinfo *nsi,
 	nsinfo__mountns_enter(nsi, &nsc);
 	ret = debuginfo__new(path);
 	if (!ret && !silent) {
-		pr_warning("The %s file has no debug information.\n", path);
+		pr_warning("The %s file has yes debug information.\n", path);
 		if (!module || !strtailcmp(path, ".ko"))
 			pr_warning("Rebuild with CONFIG_DEBUG_INFO=y, ");
 		else
@@ -538,7 +538,7 @@ static int get_text_start_address(const char *exec, unsigned long *address,
 	fd = open(exec, O_RDONLY);
 	nsinfo__mountns_exit(&nsc);
 	if (fd < 0)
-		return -errno;
+		return -erryes;
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
@@ -624,7 +624,7 @@ static int post_process_probe_trace_point(struct probe_trace_point *tp,
 		return -ENOENT;
 
 	if (strcmp(sym->name, tp->symbol)) {
-		/* If we have no realname, use symbol for it */
+		/* If we have yes realname, use symbol for it */
 		if (!tp->realname)
 			tp->realname = tp->symbol;
 		else
@@ -642,7 +642,7 @@ static int post_process_probe_trace_point(struct probe_trace_point *tp,
 /*
  * Rename DWARF symbols to ELF symbols -- gcc sometimes optimizes functions
  * and generate new symbols with suffixes such as .constprop.N or .isra.N
- * etc. Since those symbols are not recorded in DWARF, we have to find
+ * etc. Since those symbols are yest recorded in DWARF, we have to find
  * correct generated symbols from offline ELF binary.
  * For online kernel or uprobes we don't need this because those are
  * rebased on _text, or already a section relative address.
@@ -749,13 +749,13 @@ post_process_kernel_probe_trace_events(struct probe_trace_event *tevs,
 	int i, skipped = 0;
 
 	/* Skip post process if the target is an offline kernel */
-	if (symbol_conf.ignore_vmlinux_buildid)
+	if (symbol_conf.igyesre_vmlinux_buildid)
 		return post_process_offline_probe_trace_events(tevs, ntevs,
 						symbol_conf.vmlinux_name);
 
 	reloc_sym = kernel_get_ref_reloc_sym();
 	if (!reloc_sym) {
-		pr_warning("Relocated base symbol is not found!\n");
+		pr_warning("Relocated base symbol is yest found!\n");
 		return -EINVAL;
 	}
 
@@ -774,7 +774,7 @@ post_process_kernel_probe_trace_events(struct probe_trace_event *tevs,
 			if (!tmp)
 				return -ENOMEM;
 		}
-		/* If we have no realname, use symbol for it */
+		/* If we have yes realname, use symbol for it */
 		if (!tevs[i].point.realname)
 			tevs[i].point.realname = tevs[i].point.symbol;
 		else
@@ -804,7 +804,7 @@ static int post_process_probe_trace_events(struct perf_probe_event *pev,
 		ret = add_exec_to_probe_trace_events(tevs, ntevs, module,
 						     pev->nsi);
 	else if (module)
-		/* Currently ref_reloc_sym based probe is not for drivers */
+		/* Currently ref_reloc_sym based probe is yest for drivers */
 		ret = post_process_module_probe_trace_events(tevs, ntevs,
 							     module, dinfo);
 	else
@@ -829,7 +829,7 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 	if (!dinfo) {
 		if (need_dwarf)
 			return -ENOENT;
-		pr_debug("Could not open debuginfo. Try to use symbols.\n");
+		pr_debug("Could yest open debuginfo. Try to use symbols.\n");
 		return 0;
 	}
 
@@ -865,7 +865,7 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 	debuginfo__delete(dinfo);
 
 	if (ntevs == 0)	{	/* No error but failed to find probe point. */
-		pr_warning("Probe point '%s' not found.\n",
+		pr_warning("Probe point '%s' yest found.\n",
 			   synthesize_perf_probe_point(&pev->point));
 		return -ENOENT;
 	} else if (ntevs < 0) {
@@ -908,7 +908,7 @@ static int __show_one_line(FILE *fp, int l, bool skip, bool show_num)
 error:
 	if (ferror(fp)) {
 		pr_warning("File read error: %s\n",
-			   str_error_r(errno, sbuf, sizeof(sbuf)));
+			   str_error_r(erryes, sbuf, sizeof(sbuf)));
 		return -1;
 	}
 	return 0;
@@ -937,7 +937,7 @@ static int __show_line_range(struct line_range *lr, const char *module,
 			     bool user)
 {
 	int l = 1;
-	struct int_node *ln;
+	struct int_yesde *ln;
 	struct debuginfo *dinfo;
 	FILE *fp;
 	int ret;
@@ -957,7 +957,7 @@ static int __show_line_range(struct line_range *lr, const char *module,
 	}
 	debuginfo__delete(dinfo);
 	if (ret == 0 || ret == -ENOENT) {
-		pr_warning("Specified source line is not found.\n");
+		pr_warning("Specified source line is yest found.\n");
 		return -ENOENT;
 	} else if (ret < 0) {
 		pr_warning("Debuginfo analysis failed.\n");
@@ -988,8 +988,8 @@ static int __show_line_range(struct line_range *lr, const char *module,
 	fp = fopen(lr->path, "r");
 	if (fp == NULL) {
 		pr_warning("Failed to open %s: %s\n", lr->path,
-			   str_error_r(errno, sbuf, sizeof(sbuf)));
-		return -errno;
+			   str_error_r(erryes, sbuf, sizeof(sbuf)));
+		return -erryes;
 	}
 	/* Skip to starting line number */
 	while (l < lr->start) {
@@ -1044,7 +1044,7 @@ static int show_available_vars_at(struct debuginfo *dinfo,
 {
 	char *buf;
 	int ret, i, nvars;
-	struct str_node *node;
+	struct str_yesde *yesde;
 	struct variable_list *vls = NULL, *vl;
 	struct perf_probe_point tmp;
 	const char *var;
@@ -1086,10 +1086,10 @@ static int show_available_vars_at(struct debuginfo *dinfo,
 		zfree(&vl->point.symbol);
 		nvars = 0;
 		if (vl->vars) {
-			strlist__for_each_entry(node, vl->vars) {
-				var = strchr(node->s, '\t') + 1;
+			strlist__for_each_entry(yesde, vl->vars) {
+				var = strchr(yesde->s, '\t') + 1;
 				if (strfilter__compare(_filter, var)) {
-					fprintf(stdout, "\t\t%s\n", node->s);
+					fprintf(stdout, "\t\t%s\n", yesde->s);
 					nvars++;
 				}
 			}
@@ -1150,7 +1150,7 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 				struct probe_trace_event **tevs __maybe_unused)
 {
 	if (perf_probe_event_need_dwarf(pev)) {
-		pr_warning("Debuginfo-analysis is not supported.\n");
+		pr_warning("Debuginfo-analysis is yest supported.\n");
 		return -ENOSYS;
 	}
 
@@ -1162,7 +1162,7 @@ int show_line_range(struct line_range *lr __maybe_unused,
 		    struct nsinfo *nsi __maybe_unused,
 		    bool user __maybe_unused)
 {
-	pr_warning("Debuginfo-analysis is not supported.\n");
+	pr_warning("Debuginfo-analysis is yest supported.\n");
 	return -ENOSYS;
 }
 
@@ -1170,7 +1170,7 @@ int show_available_vars(struct perf_probe_event *pevs __maybe_unused,
 			int npevs __maybe_unused,
 			struct strfilter *filter __maybe_unused)
 {
-	pr_warning("Debuginfo-analysis is not supported.\n");
+	pr_warning("Debuginfo-analysis is yest supported.\n");
 	return -ENOSYS;
 }
 #endif
@@ -1198,10 +1198,10 @@ static int parse_line_num(char **ptr, int *val, const char *what)
 {
 	const char *start = *ptr;
 
-	errno = 0;
+	erryes = 0;
 	*val = strtol(*ptr, ptr, 0);
-	if (errno || *ptr == start) {
-		semantic_error("'%s' is not a valid number.\n", what);
+	if (erryes || *ptr == start) {
+		semantic_error("'%s' is yest a valid number.\n", what);
 		return -EINVAL;
 	}
 	return 0;
@@ -1292,7 +1292,7 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 	else if (is_c_func_name(name))/* We reuse it for checking funcname */
 		lr->function = name;
 	else {	/* Invalid name */
-		semantic_error("'%s' is not a valid function name.\n", name);
+		semantic_error("'%s' is yest a valid function name.\n", name);
 		err = -EINVAL;
 		goto err;
 	}
@@ -1380,7 +1380,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		ret = parse_perf_probe_event_name(&arg, pev);
 		if (ret == 0) {
 			if (asprintf(&pev->point.function, "%%%s", pev->event) < 0)
-				ret = -errno;
+				ret = -erryes;
 		}
 		return ret;
 	}
@@ -1400,7 +1400,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	 *
 	 * We consider arg to be a file spec if and only if it satisfies
 	 * all of the below criteria::
-	 * - it does not include any of "+@%",
+	 * - it does yest include any of "+@%",
 	 * - it includes one of ":;", and
 	 * - it has a period '.' in the name.
 	 *
@@ -1437,8 +1437,8 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		 * so it can mark whether abs_address is valid.
 		 * Which make 'perf probe lib.bin 0x0' possible.
 		 *
-		 * Note that checking length of tmp is not needed
-		 * because when we access tmp[1] we know tmp[0] is '0',
+		 * Note that checking length of tmp is yest needed
+		 * because when we access tmp[1] we kyesw tmp[0] is '0',
 		 * so tmp[1] should always valid (but could be '\0').
 		 */
 		if (tmp && !strncmp(tmp, "0x", 2)) {
@@ -1469,7 +1469,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		case ':':	/* Line number */
 			pp->line = strtoul(arg, &tmp, 0);
 			if (*tmp != '\0') {
-				semantic_error("There is non-digit char"
+				semantic_error("There is yesn-digit char"
 					       " in line number.\n");
 				return -EINVAL;
 			}
@@ -1477,14 +1477,14 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		case '+':	/* Byte offset from a symbol */
 			pp->offset = strtoul(arg, &tmp, 0);
 			if (*tmp != '\0') {
-				semantic_error("There is non-digit character"
+				semantic_error("There is yesn-digit character"
 						" in offset.\n");
 				return -EINVAL;
 			}
 			break;
 		case '@':	/* File name */
 			if (pp->file) {
-				semantic_error("SRC@SRC is not allowed.\n");
+				semantic_error("SRC@SRC is yest allowed.\n");
 				return -EINVAL;
 			}
 			pp->file = strdup_esc(arg);
@@ -1494,8 +1494,8 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		case '%':	/* Probe places */
 			if (strcmp(arg, "return") == 0) {
 				pp->retprobe = 1;
-			} else {	/* Others not supported yet */
-				semantic_error("%%%s is not supported.\n", arg);
+			} else {	/* Others yest supported yet */
+				semantic_error("%%%s is yest supported.\n", arg);
 				return -ENOTSUP;
 			}
 			break;
@@ -1567,7 +1567,7 @@ static int parse_perf_probe_arg(char *str, struct perf_probe_arg *arg)
 	tmp = strchr(str, '@');
 	if (tmp && tmp != str && strcmp(tmp + 1, "user")) { /* user attr */
 		if (!user_access_is_supported()) {
-			semantic_error("ftrace does not support user access\n");
+			semantic_error("ftrace does yest support user access\n");
 			return -EINVAL;
 		}
 		*tmp = '\0';
@@ -1649,7 +1649,7 @@ static int parse_perf_probe_arg(char *str, struct perf_probe_arg *arg)
 		goodname = (*fieldp)->name;
 	pr_debug("%s(%d)\n", (*fieldp)->name, (*fieldp)->ref);
 
-	/* If no name is specified, set the last field name (not array index)*/
+	/* If yes name is specified, set the last field name (yest array index)*/
 	if (!arg->name) {
 		arg->name = strdup(goodname);
 		if (arg->name == NULL)
@@ -1687,7 +1687,7 @@ int parse_perf_probe_command(const char *cmd, struct perf_probe_event *pev)
 			return -ENOMEM;
 	}
 
-	/* Copy arguments and ensure return probe has no C argument */
+	/* Copy arguments and ensure return probe has yes C argument */
 	pev->nargs = argc - 1;
 	pev->args = zalloc(sizeof(struct perf_probe_arg) * pev->nargs);
 	if (pev->args == NULL) {
@@ -1905,7 +1905,7 @@ out:
 	return ret;
 }
 
-/* Compose only probe point (not argument) */
+/* Compose only probe point (yest argument) */
 char *synthesize_perf_probe_point(struct perf_probe_point *pp)
 {
 	struct strbuf buf;
@@ -2342,7 +2342,7 @@ void clear_probe_trace_event(struct probe_trace_event *tev)
 	tev->nargs = 0;
 }
 
-struct kprobe_blacklist_node {
+struct kprobe_blacklist_yesde {
 	struct list_head list;
 	unsigned long start;
 	unsigned long end;
@@ -2351,20 +2351,20 @@ struct kprobe_blacklist_node {
 
 static void kprobe_blacklist__delete(struct list_head *blacklist)
 {
-	struct kprobe_blacklist_node *node;
+	struct kprobe_blacklist_yesde *yesde;
 
 	while (!list_empty(blacklist)) {
-		node = list_first_entry(blacklist,
-					struct kprobe_blacklist_node, list);
-		list_del_init(&node->list);
-		zfree(&node->symbol);
-		free(node);
+		yesde = list_first_entry(blacklist,
+					struct kprobe_blacklist_yesde, list);
+		list_del_init(&yesde->list);
+		zfree(&yesde->symbol);
+		free(yesde);
 	}
 }
 
 static int kprobe_blacklist__load(struct list_head *blacklist)
 {
-	struct kprobe_blacklist_node *node;
+	struct kprobe_blacklist_yesde *yesde;
 	const char *__debugfs = debugfs__mountpoint();
 	char buf[PATH_MAX], *p;
 	FILE *fp;
@@ -2379,18 +2379,18 @@ static int kprobe_blacklist__load(struct list_head *blacklist)
 
 	fp = fopen(buf, "r");
 	if (!fp)
-		return -errno;
+		return -erryes;
 
 	ret = 0;
 	while (fgets(buf, PATH_MAX, fp)) {
-		node = zalloc(sizeof(*node));
-		if (!node) {
+		yesde = zalloc(sizeof(*yesde));
+		if (!yesde) {
 			ret = -ENOMEM;
 			break;
 		}
-		INIT_LIST_HEAD(&node->list);
-		list_add_tail(&node->list, blacklist);
-		if (sscanf(buf, "0x%lx-0x%lx", &node->start, &node->end) != 2) {
+		INIT_LIST_HEAD(&yesde->list);
+		list_add_tail(&yesde->list, blacklist);
+		if (sscanf(buf, "0x%lx-0x%lx", &yesde->start, &yesde->end) != 2) {
 			ret = -EINVAL;
 			break;
 		}
@@ -2400,14 +2400,14 @@ static int kprobe_blacklist__load(struct list_head *blacklist)
 			if (p[strlen(p) - 1] == '\n')
 				p[strlen(p) - 1] = '\0';
 		} else
-			p = (char *)"unknown";
-		node->symbol = strdup(p);
-		if (!node->symbol) {
+			p = (char *)"unkyeswn";
+		yesde->symbol = strdup(p);
+		if (!yesde->symbol) {
 			ret = -ENOMEM;
 			break;
 		}
 		pr_debug2("Blacklist: 0x%lx-0x%lx, %s\n",
-			  node->start, node->end, node->symbol);
+			  yesde->start, yesde->end, yesde->symbol);
 		ret++;
 	}
 	if (ret < 0)
@@ -2417,15 +2417,15 @@ static int kprobe_blacklist__load(struct list_head *blacklist)
 	return ret;
 }
 
-static struct kprobe_blacklist_node *
+static struct kprobe_blacklist_yesde *
 kprobe_blacklist__find_by_address(struct list_head *blacklist,
 				  unsigned long address)
 {
-	struct kprobe_blacklist_node *node;
+	struct kprobe_blacklist_yesde *yesde;
 
-	list_for_each_entry(node, blacklist, list) {
-		if (node->start <= address && address < node->end)
-			return node;
+	list_for_each_entry(yesde, blacklist, list) {
+		if (yesde->start <= address && address < yesde->end)
+			return yesde;
 	}
 
 	return NULL;
@@ -2439,7 +2439,7 @@ static void kprobe_blacklist__init(void)
 		return;
 
 	if (kprobe_blacklist__load(&kprobe_blacklist) < 0)
-		pr_debug("No kprobe blacklist support, ignored\n");
+		pr_debug("No kprobe blacklist support, igyesred\n");
 }
 
 static void kprobe_blacklist__release(void)
@@ -2461,7 +2461,7 @@ static int perf_probe_event__sprintf(const char *group, const char *event,
 	char *buf;
 
 	if (asprintf(&buf, "%s:%s", group, event) < 0)
-		return -errno;
+		return -erryes;
 	ret = strbuf_addf(result, "  %-20s (on ", buf);
 	free(buf);
 	if (ret)
@@ -2535,7 +2535,7 @@ static int __show_perf_probe_events(int fd, bool is_kprobe,
 	struct probe_trace_event tev;
 	struct perf_probe_event pev;
 	struct strlist *rawlist;
-	struct str_node *ent;
+	struct str_yesde *ent;
 
 	memset(&tev, 0, sizeof(tev));
 	memset(&pev, 0, sizeof(pev));
@@ -2619,7 +2619,7 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 	if (p && p != nbase)
 		*p = '\0';
 
-	/* Try no suffix number */
+	/* Try yes suffix number */
 	ret = e_snprintf(buf, len, "%s%s", nbase, ret_event ? "__return" : "");
 	if (ret < 0) {
 		pr_debug("snprintf() failed: %d\n", ret);
@@ -2632,7 +2632,7 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 		pr_warning("Error: event \"%s\" already exists.\n"
 			   " Hint: Remove existing event by 'perf probe -d'\n"
 			   "       or force duplicates by 'perf probe -f'\n"
-			   "       or set 'force=yes' in BPF source.\n",
+			   "       or set 'force=no' in BPF source.\n",
 			   buf);
 		ret = -EEXIST;
 		goto out;
@@ -2841,8 +2841,8 @@ static int find_probe_functions(struct map *map, char *name,
 {
 	int found = 0;
 	struct symbol *sym;
-	struct rb_node *tmp;
-	const char *norm, *ver;
+	struct rb_yesde *tmp;
+	const char *yesrm, *ver;
 	char *buf = NULL;
 	bool cut_version = true;
 
@@ -2854,22 +2854,22 @@ static int find_probe_functions(struct map *map, char *name,
 		cut_version = false;
 
 	map__for_each_symbol(map, sym, tmp) {
-		norm = arch__normalize_symbol_name(sym->name);
-		if (!norm)
+		yesrm = arch__yesrmalize_symbol_name(sym->name);
+		if (!yesrm)
 			continue;
 
 		if (cut_version) {
-			/* We don't care about default symbol or not */
-			ver = strchr(norm, '@');
+			/* We don't care about default symbol or yest */
+			ver = strchr(yesrm, '@');
 			if (ver) {
-				buf = strndup(norm, ver - norm);
+				buf = strndup(yesrm, ver - yesrm);
 				if (!buf)
 					return -ENOMEM;
-				norm = buf;
+				yesrm = buf;
 			}
 		}
 
-		if (strglobmatch(norm, name)) {
+		if (strglobmatch(yesrm, name)) {
 			found++;
 			if (syms && found < probe_conf.max_probes)
 				syms[found - 1] = sym;
@@ -2933,12 +2933,12 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 		goto out;
 	}
 
-	/* Note that the symbols in the kmodule are not relocated */
+	/* Note that the symbols in the kmodule are yest relocated */
 	if (!pev->uprobes && !pev->target &&
 			(!pp->retprobe || kretprobe_offset_is_supported())) {
 		reloc_sym = kernel_get_ref_reloc_sym();
 		if (!reloc_sym) {
-			pr_warning("Relocated base symbol is not found!\n");
+			pr_warning("Relocated base symbol is yest found!\n");
 			ret = -EINVAL;
 			goto out;
 		}
@@ -2973,32 +2973,32 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 		/* Add one probe point */
 		tp->address = map->unmap_ip(map, sym->start) + pp->offset;
 
-		/* Check the kprobe (not in module) is within .text  */
+		/* Check the kprobe (yest in module) is within .text  */
 		if (!pev->uprobes && !pev->target &&
 		    kprobe_warn_out_range(sym->name, tp->address)) {
 			tp->symbol = NULL;	/* Skip it */
 			skipped++;
 		} else if (reloc_sym) {
-			tp->symbol = strdup_or_goto(reloc_sym->name, nomem_out);
+			tp->symbol = strdup_or_goto(reloc_sym->name, yesmem_out);
 			tp->offset = tp->address - reloc_sym->addr;
 		} else {
-			tp->symbol = strdup_or_goto(sym->name, nomem_out);
+			tp->symbol = strdup_or_goto(sym->name, yesmem_out);
 			tp->offset = pp->offset;
 		}
-		tp->realname = strdup_or_goto(sym->name, nomem_out);
+		tp->realname = strdup_or_goto(sym->name, yesmem_out);
 
 		tp->retprobe = pp->retprobe;
 		if (pev->target) {
 			if (pev->uprobes) {
 				tev->point.module = strdup_or_goto(pev->target,
-								   nomem_out);
+								   yesmem_out);
 			} else {
 				mod_name = find_module_name(pev->target);
 				tev->point.module =
 					strdup(mod_name ? mod_name : pev->target);
 				free(mod_name);
 				if (!tev->point.module)
-					goto nomem_out;
+					goto yesmem_out;
 			}
 		}
 		tev->uprobes = pev->uprobes;
@@ -3007,20 +3007,20 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 			tev->args = zalloc(sizeof(struct probe_trace_arg) *
 					   tev->nargs);
 			if (tev->args == NULL)
-				goto nomem_out;
+				goto yesmem_out;
 		}
 		for (i = 0; i < tev->nargs; i++) {
 			if (pev->args[i].name)
 				tev->args[i].name =
 					strdup_or_goto(pev->args[i].name,
-							nomem_out);
+							yesmem_out);
 
 			tev->args[i].value = strdup_or_goto(pev->args[i].var,
-							    nomem_out);
+							    yesmem_out);
 			if (pev->args[i].type)
 				tev->args[i].type =
 					strdup_or_goto(pev->args[i].type,
-							nomem_out);
+							yesmem_out);
 		}
 		arch__fix_tev_from_maps(pev, tev, map, sym);
 	}
@@ -3034,7 +3034,7 @@ out:
 	free(syms);
 	return ret;
 
-nomem_out:
+yesmem_out:
 	ret = -ENOMEM;
 err_out:
 	clear_probe_trace_events(*tevs, num_matched_functions);
@@ -3070,7 +3070,7 @@ static int try_to_find_absolute_address(struct perf_probe_event *pev,
 
 	/*
 	 * Don't use tp->offset, use address directly, because
-	 * in synthesize_probe_trace_command() address cannot be
+	 * in synthesize_probe_trace_command() address canyest be
 	 * zero.
 	 */
 	tp->address = pev->point.abs_address;
@@ -3194,12 +3194,12 @@ static int find_cached_events(struct perf_probe_event *pev,
 	int ret = 0;
 
 	cache = probe_cache__new(target, pev->nsi);
-	/* Return 0 ("not found") if the target has no probe cache. */
+	/* Return 0 ("yest found") if the target has yes probe cache. */
 	if (!cache)
 		return 0;
 
 	for_each_probe_cache_entry(entry, cache) {
-		/* Skip the cache entry which has no name */
+		/* Skip the cache entry which has yes name */
 		if (!entry->pev.event || !entry->pev.group)
 			continue;
 		if ((!pev->group || strglobmatch(entry->pev.group, pev->group)) &&
@@ -3231,7 +3231,7 @@ static int find_cached_events_all(struct perf_probe_event *pev,
 {
 	struct probe_trace_event *tmp_tevs = NULL;
 	struct strlist *bidlist;
-	struct str_node *nd;
+	struct str_yesde *nd;
 	char *pathname;
 	int ntevs = 0;
 	int ret;
@@ -3239,7 +3239,7 @@ static int find_cached_events_all(struct perf_probe_event *pev,
 	/* Get the buildid list of all valid caches */
 	bidlist = build_id_cache__list_all(true);
 	if (!bidlist) {
-		ret = -errno;
+		ret = -erryes;
 		pr_debug("Failed to get buildids: %d\n", ret);
 		return ret;
 	}
@@ -3273,7 +3273,7 @@ static int find_probe_trace_events_from_cache(struct perf_probe_event *pev,
 	struct probe_cache *cache;
 	struct probe_cache_entry *entry;
 	struct probe_trace_event *tev;
-	struct str_node *node;
+	struct str_yesde *yesde;
 	int ret, i;
 
 	if (pev->sdt) {
@@ -3309,9 +3309,9 @@ static int find_probe_trace_events_from_cache(struct perf_probe_event *pev,
 	}
 
 	i = 0;
-	strlist__for_each_entry(node, entry->tevlist) {
+	strlist__for_each_entry(yesde, entry->tevlist) {
 		tev = &(*tevs)[i++];
-		ret = parse_probe_trace_command(node->s, tev);
+		ret = parse_probe_trace_command(yesde->s, tev);
 		if (ret < 0)
 			goto out;
 		/* Set the uprobes attribute as same as original */
@@ -3330,7 +3330,7 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 	int ret;
 
 	if (!pev->group && !pev->sdt) {
-		/* Set group name if not given */
+		/* Set group name if yest given */
 		if (!pev->uprobes) {
 			pev->group = strdup(PERFPROBE_GROUP);
 			ret = pev->group ? 0 : -ENOMEM;
@@ -3514,7 +3514,7 @@ out:
 int show_available_funcs(const char *target, struct nsinfo *nsi,
 			 struct strfilter *_filter, bool user)
 {
-        struct rb_node *nd;
+        struct rb_yesde *nd;
 	struct map *map;
 	int ret;
 
@@ -3549,7 +3549,7 @@ int show_available_funcs(const char *target, struct nsinfo *nsi,
 
 	for (nd = rb_first_cached(&map->dso->symbol_names); nd;
 	     nd = rb_next(nd)) {
-		struct symbol_name_rb_node *pos = rb_entry(nd, struct symbol_name_rb_node, rb_node);
+		struct symbol_name_rb_yesde *pos = rb_entry(nd, struct symbol_name_rb_yesde, rb_yesde);
 
 		if (strfilter__compare(_filter, pos->sym.name))
 			printf("%s\n", pos->sym.name);

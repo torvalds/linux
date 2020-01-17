@@ -3,7 +3,7 @@
 #define _LINUX_CTYPE_H
 
 /*
- * NOTE! This ctype does not handle EOF like the standard C
+ * NOTE! This ctype does yest handle EOF like the standard C
  * library is required to.
  */
 
@@ -57,7 +57,7 @@ static inline unsigned char __toupper(unsigned char c)
 #define toupper(c) __toupper(c)
 
 /*
- * Fast implementation of tolower() for internal usage. Do not use in your
+ * Fast implementation of tolower() for internal usage. Do yest use in your
  * code.
  */
 static inline char _tolower(const char c)

@@ -26,9 +26,9 @@ void hostap_dump_rx_80211(const char *name, struct sk_buff *skb,
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 
-	printk(KERN_DEBUG "%s: RX signal=%d noise=%d rate=%d len=%d "
+	printk(KERN_DEBUG "%s: RX signal=%d yesise=%d rate=%d len=%d "
 	       "jiffies=%ld\n",
-	       name, rx_stats->signal, rx_stats->noise, rx_stats->rate,
+	       name, rx_stats->signal, rx_stats->yesise, rx_stats->rate,
 	       skb->len, jiffies);
 
 	if (skb->len < 2)
@@ -101,8 +101,8 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 
 	hdrlen = hostap_80211_get_hdrlen(fhdr->frame_control);
 
-	/* check if there is enough room for extra data; if not, expand skb
-	 * buffer to be large enough for the changes */
+	/* check if there is eyesugh room for extra data; if yest, expand skb
+	 * buffer to be large eyesugh for the changes */
 	head_need = phdrlen;
 	tail_need = 0;
 #ifdef PRISM2_ADD_BOGUS_CRC
@@ -123,7 +123,7 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 		}
 	}
 
-	/* We now have an skb with enough head and tail room, so just insert
+	/* We yesw have an skb with eyesugh head and tail room, so just insert
 	 * the extra data */
 
 #ifdef PRISM2_ADD_BOGUS_CRC
@@ -142,11 +142,11 @@ hdr->f.did = LWNG_CAP_DID_BASE | (i << 12); \
 hdr->f.status = s; hdr->f.len = l; hdr->f.data = d
 		LWNG_SETVAL(hosttime, 1, 0, 4, jiffies);
 		LWNG_SETVAL(mactime, 2, 0, 4, rx_stats->mac_time);
-		LWNG_SETVAL(channel, 3, 1 /* no value */, 4, 0);
-		LWNG_SETVAL(rssi, 4, 1 /* no value */, 4, 0);
-		LWNG_SETVAL(sq, 5, 1 /* no value */, 4, 0);
+		LWNG_SETVAL(channel, 3, 1 /* yes value */, 4, 0);
+		LWNG_SETVAL(rssi, 4, 1 /* yes value */, 4, 0);
+		LWNG_SETVAL(sq, 5, 1 /* yes value */, 4, 0);
 		LWNG_SETVAL(signal, 6, 0, 4, rx_stats->signal);
-		LWNG_SETVAL(noise, 7, 0, 4, rx_stats->noise);
+		LWNG_SETVAL(yesise, 7, 0, 4, rx_stats->yesise);
 		LWNG_SETVAL(rate, 8, 0, 4, rx_stats->rate / 5);
 		LWNG_SETVAL(istx, 9, 0, 4, 0);
 		LWNG_SETVAL(frmlen, 10, 0, 4, skb->len - phdrlen);
@@ -162,12 +162,12 @@ hdr->f.status = s; hdr->f.len = l; hdr->f.data = d
 		hdr->phytype    = htonl(4); /* dss_dot11_b */
 		hdr->channel    = htonl(local->channel);
 		hdr->datarate   = htonl(rx_stats->rate);
-		hdr->antenna    = htonl(0); /* unknown */
-		hdr->priority   = htonl(0); /* unknown */
+		hdr->antenna    = htonl(0); /* unkyeswn */
+		hdr->priority   = htonl(0); /* unkyeswn */
 		hdr->ssi_type   = htonl(3); /* raw */
 		hdr->ssi_signal = htonl(rx_stats->signal);
-		hdr->ssi_noise  = htonl(rx_stats->noise);
-		hdr->preamble   = htonl(0); /* unknown */
+		hdr->ssi_yesise  = htonl(rx_stats->yesise);
+		hdr->preamble   = htonl(0); /* unkyeswn */
 		hdr->encoding   = htonl(1); /* cck */
 	} else if (prism_header == 3) {
 		struct hostap_radiotap_rx *hdr;
@@ -186,7 +186,7 @@ hdr->f.status = s; hdr->f.len = l; hdr->f.data = d
 						 IEEE80211_CHAN_2GHZ);
 		hdr->rate = rx_stats->rate / 5;
 		hdr->dbm_antsignal = rx_stats->signal;
-		hdr->dbm_antnoise = rx_stats->noise;
+		hdr->dbm_antyesise = rx_stats->yesise;
 	}
 
 	ret = skb->len - phdrlen;
@@ -260,7 +260,7 @@ prism2_frag_cache_get(local_info_t *local, struct ieee80211_hdr *hdr)
 	seq = (sc & IEEE80211_SCTL_SEQ) >> 4;
 
 	if (frag == 0) {
-		/* Reserve enough space to fit maximum frame length */
+		/* Reserve eyesugh space to fit maximum frame length */
 		skb = dev_alloc_skb(local->dev->mtu +
 				    sizeof(struct ieee80211_hdr) +
 				    8 /* LLC */ +
@@ -312,7 +312,7 @@ static int prism2_frag_cache_invalidate(local_info_t *local,
 	entry = prism2_frag_cache_find(local, seq, -1, hdr->addr2, hdr->addr1);
 
 	if (entry == NULL) {
-		printk(KERN_DEBUG "%s: could not invalidate fragment cache "
+		printk(KERN_DEBUG "%s: could yest invalidate fragment cache "
 		       "entry (seq=%u)\n",
 		       local->dev->name, seq);
 		return -1;
@@ -499,7 +499,7 @@ hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 	if (local->iw_mode == IW_MODE_MASTER) {
 		if (type != IEEE80211_FTYPE_MGMT &&
 		    type != IEEE80211_FTYPE_CTL) {
-			printk(KERN_DEBUG "%s: unknown management frame "
+			printk(KERN_DEBUG "%s: unkyeswn management frame "
 			       "(type=0x%02x, stype=0x%02x) dropped\n",
 			       skb->dev->name, type >> 2, stype >> 4);
 			return -1;
@@ -515,13 +515,13 @@ hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 	} else if (type == IEEE80211_FTYPE_MGMT &&
 		   (stype == IEEE80211_STYPE_ASSOC_RESP ||
 		    stype == IEEE80211_STYPE_REASSOC_RESP)) {
-		/* Ignore (Re)AssocResp silently since these are not currently
+		/* Igyesre (Re)AssocResp silently since these are yest currently
 		 * needed but are still received when WPA/RSN mode is enabled.
 		 */
 		return -1;
 	} else {
 		printk(KERN_DEBUG "%s: hostap_rx_frame_mgmt: dropped unhandled"
-		       " management frame in non-Host AP mode (type=%d:%d)\n",
+		       " management frame in yesn-Host AP mode (type=%d:%d)\n",
 		       skb->dev->name, type >> 2, stype >> 4);
 		return -1;
 	}
@@ -558,17 +558,17 @@ hostap_rx_frame_wds(local_info_t *local, struct ieee80211_hdr *hdr, u16 fc,
 	if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) !=
 	    (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS) &&
 	    (local->iw_mode != IW_MODE_MASTER || !(fc & IEEE80211_FCTL_TODS)))
-		return 0; /* not a WDS frame */
+		return 0; /* yest a WDS frame */
 
 	/* Possible WDS frame: either IEEE 802.11 compliant (if FromDS)
-	 * or own non-standard frame with 4th address after payload */
+	 * or own yesn-standard frame with 4th address after payload */
 	if (!ether_addr_equal(hdr->addr1, local->dev->dev_addr) &&
 	    (hdr->addr1[0] != 0xff || hdr->addr1[1] != 0xff ||
 	     hdr->addr1[2] != 0xff || hdr->addr1[3] != 0xff ||
 	     hdr->addr1[4] != 0xff || hdr->addr1[5] != 0xff)) {
-		/* RA (or BSSID) is not ours - drop */
+		/* RA (or BSSID) is yest ours - drop */
 		PDEBUG(DEBUG_EXTRA2, "%s: received WDS frame with "
-		       "not own or broadcast %s=%pM\n",
+		       "yest own or broadcast %s=%pM\n",
 		       local->dev->name,
 		       fc & IEEE80211_FCTL_FROMDS ? "RA" : "BSSID",
 		       hdr->addr1);
@@ -584,7 +584,7 @@ hostap_rx_frame_wds(local_info_t *local, struct ieee80211_hdr *hdr, u16 fc,
 		/* require that WDS link has been registered with TA or the
 		 * frame is from current AP when using 'AP client mode' */
 		PDEBUG(DEBUG_EXTRA, "%s: received WDS[4 addr] frame "
-		       "from unknown TA=%pM\n",
+		       "from unkyeswn TA=%pM\n",
 		       local->dev->name, hdr->addr2);
 		if (local->ap && local->ap->autom_ap_wds)
 			hostap_wds_link_oper(local, hdr->addr2, WDS_ADD);
@@ -595,8 +595,8 @@ hostap_rx_frame_wds(local_info_t *local, struct ieee80211_hdr *hdr, u16 fc,
 	    hostap_is_sta_assoc(local->ap, hdr->addr2)) {
 		/* STA is actually associated with us even though it has a
 		 * registered WDS link. Assume it is in 'AP client' mode.
-		 * Since this is a 3-addr frame, assume it is not (bogus) WDS
-		 * frame and process it like any normal ToDS frame from
+		 * Since this is a 3-addr frame, assume it is yest (bogus) WDS
+		 * frame and process it like any yesrmal ToDS frame from
 		 * associated STA. */
 		*wds = NULL;
 	}
@@ -763,7 +763,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	if (iface->spy_data.spy_number > 0) {
 		struct iw_quality wstats;
 		wstats.level = rx_stats->signal;
-		wstats.noise = rx_stats->noise;
+		wstats.yesise = rx_stats->yesise;
 		wstats.updated = IW_QUAL_LEVEL_UPDATED | IW_QUAL_NOISE_UPDATED
 			| IW_QUAL_QUAL_INVALID | IW_QUAL_DBM;
 		/* Update spy records */
@@ -789,7 +789,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		 * bcrx_sta_key parameter is set, station specific key is used
 		 * even with broad/multicast targets (this is against IEEE
 		 * 802.11, but makes it easier to use different keys with
-		 * stations that do not support WEP key mapping). */
+		 * stations that do yest support WEP key mapping). */
 
 		if (!(hdr->addr1[0] & 0x01) || local->bcrx_sta_key)
 			(void) hostap_handle_sta_crypto(local, hdr, &crypt,
@@ -807,7 +807,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 			 * frames from other than current BSS, so just drop the
 			 * frames silently instead of filling system log with
 			 * these reports. */
-			printk(KERN_DEBUG "%s: WEP decryption failed (not set)"
+			printk(KERN_DEBUG "%s: WEP decryption failed (yest set)"
 			       " (SA=%pM)\n",
 			       local->dev->name, hdr->addr2);
 #endif
@@ -901,7 +901,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	    stype != IEEE80211_STYPE_DATA_CFACKPOLL) {
 		if (stype != IEEE80211_STYPE_NULLFUNC)
 			printk(KERN_DEBUG "%s: RX: dropped data frame "
-			       "with no data (type=0x%02x, subtype=0x%02x)\n",
+			       "with yes data (type=0x%02x, subtype=0x%02x)\n",
 			       dev->name, type >> 2, stype >> 4);
 		goto rx_dropped;
 	}
@@ -921,7 +921,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		struct sk_buff *frag_skb =
 			prism2_frag_cache_get(local, hdr);
 		if (!frag_skb) {
-			printk(KERN_DEBUG "%s: Rx cannot get skb from "
+			printk(KERN_DEBUG "%s: Rx canyest get skb from "
 			       "fragment cache (morefrag=%d seq=%u frag=%u)\n",
 			       dev->name, (fc & IEEE80211_FCTL_MOREFRAGS) != 0,
 			       (sc & IEEE80211_SCTL_SEQ) >> 4, frag);
@@ -934,7 +934,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 
 		if (frag_skb->tail + flen > frag_skb->end) {
 			printk(KERN_WARNING "%s: host decrypted and "
-			       "reassembled frame did not fit skb\n",
+			       "reassembled frame did yest fit skb\n",
 			       dev->name);
 			prism2_frag_cache_invalidate(local, hdr);
 			goto rx_dropped;
@@ -957,7 +957,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 
 		if (fc & IEEE80211_FCTL_MOREFRAGS) {
 			/* more fragments expected - leave the skb in fragment
-			 * cache for now; it will be delivered to upper layers
+			 * cache for yesw; it will be delivered to upper layers
 			 * after all fragments have been received */
 			goto rx_exit;
 		}
@@ -986,7 +986,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 			       "unencrypted EAPOL frame\n", local->dev->name);
 		} else {
 			printk(KERN_DEBUG "%s: encryption configured, but RX "
-			       "frame not encrypted (SA=%pM)\n",
+			       "frame yest encrypted (SA=%pM)\n",
 			       local->dev->name, hdr->addr2);
 			goto rx_dropped;
 		}
@@ -1077,7 +1077,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 				       "multicast frame\n", dev->name);
 		} else if (hostap_is_sta_authorized(local->ap, dst)) {
 			/* send frame directly to the associated STA using
-			 * wireless media and not passing to higher layers */
+			 * wireless media and yest passing to higher layers */
 			local->ap->bridged_unicast++;
 			skb2 = skb;
 			skb = NULL;

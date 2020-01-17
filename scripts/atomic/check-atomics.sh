@@ -9,7 +9,7 @@ LINUXDIR=${ATOMICDIR}/../..
 
 echo '' | sha1sum - > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-	printf "sha1sum not available, skipping atomic header checks.\n"
+	printf "sha1sum yest available, skipping atomic header checks.\n"
 	exit 0
 fi
 

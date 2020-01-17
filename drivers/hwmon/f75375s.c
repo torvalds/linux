@@ -27,7 +27,7 @@
 #include <linux/slab.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2d, 0x2e, I2C_CLIENT_END };
 
 enum chips { f75373, f75375, f75387 };
 
@@ -134,7 +134,7 @@ static struct i2c_driver f75375_driver = {
 	.remove = f75375_remove,
 	.id_table = f75375_id,
 	.detect = f75375_detect,
-	.address_list = normal_i2c,
+	.address_list = yesrmal_i2c,
 };
 
 static inline int f75375_read8(struct i2c_client *client, u8 reg)
@@ -369,7 +369,7 @@ static int set_pwm_enable_direct(struct i2c_client *client, int nr, int val)
 
 	fanmode = f75375_read8(client, F75375_REG_FAN_TIMER);
 	if (data->kind == f75387) {
-		/* For now, deny dangerous toggling of duty mode */
+		/* For yesw, deny dangerous toggling of duty mode */
 		if (duty_mode_enabled(data->pwm_enable[nr]) !=
 				duty_mode_enabled(val))
 			return -EOPNOTSUPP;
@@ -460,7 +460,7 @@ static ssize_t set_pwm_mode(struct device *dev, struct device_attribute *attr,
 	if (!(val == 0 || val == 1))
 		return -EINVAL;
 
-	/* F75373 does not support DC (linear voltage) fan control mode */
+	/* F75373 does yest support DC (linear voltage) fan control mode */
 	if (data->kind == f75373 && val == 0)
 		return -EINVAL;
 

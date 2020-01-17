@@ -2,7 +2,7 @@
 /*
  * Marvell Berlin SATA PHY driver
  *
- * Copyright (C) 2014 Marvell Technology Group Ltd.
+ * Copyright (C) 2014 Marvell Techyeslogy Group Ltd.
  *
  * Antoine Ténart <antoine.tenart@free-electrons.com>
  */
@@ -187,7 +187,7 @@ static u32 phy_berlin_power_down_bits[] = {
 static int phy_berlin_sata_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *child;
+	struct device_yesde *child;
 	struct phy *phy;
 	struct phy_provider *phy_provider;
 	struct phy_berlin_priv *priv;
@@ -211,7 +211,7 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk))
 		return PTR_ERR(priv->clk);
 
-	priv->nphys = of_get_child_count(dev->of_node);
+	priv->nphys = of_get_child_count(dev->of_yesde);
 	if (priv->nphys == 0)
 		return -ENODEV;
 
@@ -220,7 +220,7 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 	if (!priv->phys)
 		return -ENOMEM;
 
-	if (of_device_is_compatible(dev->of_node, "marvell,berlin2-sata-phy"))
+	if (of_device_is_compatible(dev->of_yesde, "marvell,berlin2-sata-phy"))
 		priv->phy_base = BG2_PHY_BASE;
 	else
 		priv->phy_base = BG2Q_PHY_BASE;
@@ -228,18 +228,18 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, priv);
 	spin_lock_init(&priv->lock);
 
-	for_each_available_child_of_node(dev->of_node, child) {
+	for_each_available_child_of_yesde(dev->of_yesde, child) {
 		struct phy_berlin_desc *phy_desc;
 
 		if (of_property_read_u32(child, "reg", &phy_id)) {
-			dev_err(dev, "missing reg property in node %pOFn\n",
+			dev_err(dev, "missing reg property in yesde %pOFn\n",
 				child);
 			ret = -EINVAL;
 			goto put_child;
 		}
 
 		if (phy_id >= ARRAY_SIZE(phy_berlin_power_down_bits)) {
-			dev_err(dev, "invalid reg in node %pOFn\n", child);
+			dev_err(dev, "invalid reg in yesde %pOFn\n", child);
 			ret = -EINVAL;
 			goto put_child;
 		}
@@ -272,7 +272,7 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 		devm_of_phy_provider_register(dev, phy_berlin_sata_phy_xlate);
 	return PTR_ERR_OR_ZERO(phy_provider);
 put_child:
-	of_node_put(child);
+	of_yesde_put(child);
 	return ret;
 }
 

@@ -50,7 +50,7 @@ static int btrfs_uuid_tree_lookup(struct btrfs_root *uuid_root, u8 *uuid,
 		goto out;
 	}
 
-	eb = path->nodes[0];
+	eb = path->yesdes[0];
 	slot = path->slots[0];
 	item_size = btrfs_item_size_nr(eb, slot);
 	offset = btrfs_item_ptr_offset(eb, slot);
@@ -113,7 +113,7 @@ int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 				      sizeof(subid_le));
 	if (ret >= 0) {
 		/* Add an item for the type for the first time */
-		eb = path->nodes[0];
+		eb = path->yesdes[0];
 		slot = path->slots[0];
 		offset = btrfs_item_ptr_offset(eb, slot);
 	} else if (ret == -EEXIST) {
@@ -122,7 +122,7 @@ int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 		 * Extend the item and store the new subid at the end.
 		 */
 		btrfs_extend_item(path, sizeof(subid_le));
-		eb = path->nodes[0];
+		eb = path->yesdes[0];
 		slot = path->slots[0];
 		offset = btrfs_item_ptr_offset(eb, slot);
 		offset += btrfs_item_size_nr(eb, slot) - sizeof(subid_le);
@@ -184,7 +184,7 @@ int btrfs_uuid_tree_remove(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 		goto out;
 	}
 
-	eb = path->nodes[0];
+	eb = path->yesdes[0];
 	slot = path->slots[0];
 	offset = btrfs_item_ptr_offset(eb, slot);
 	item_size = btrfs_item_size_nr(eb, slot);
@@ -279,7 +279,7 @@ again_search_slot:
 
 	while (1) {
 		cond_resched();
-		leaf = path->nodes[0];
+		leaf = path->yesdes[0];
 		slot = path->slots[0];
 		btrfs_item_key_to_cpu(leaf, &key, slot);
 

@@ -1,6 +1,6 @@
 Spreadtrum ADI controller
 
-ADI is the abbreviation of Anolog-Digital interface, which is used to access
+ADI is the abbreviation of Ayeslog-Digital interface, which is used to access
 analog chip (such as PMIC) from digital chip. ADI controller follows the SPI
 framework for its hardware implementation is alike to SPI bus and its timing
 is compatile to SPI timing.
@@ -26,7 +26,7 @@ ADI registers will make ADI controller registers chaos to lead incorrect results
 Then we need one hardware spinlock to synchronize between the multiple subsystems.
 
 The new version ADI controller supplies multiple master channels for different
-subsystem accessing, that means no need to add hardware spinlock to synchronize,
+subsystem accessing, that means yes need to add hardware spinlock to synchronize,
 thus change the hardware spinlock support to be optional to keep backward
 compatibility.
 
@@ -39,7 +39,7 @@ Required properties:
 	on the ADI-SPI bus. Should be set to 0.
 
 Optional properties:
-- hwlocks: Reference to a phandle of a hwlock provider node.
+- hwlocks: Reference to a phandle of a hwlock provider yesde.
 - hwlock-names: Reference to hwlock name strings defined in the same order
 	as the hwlocks, should be "adi".
 - sprd,hw-channels: This is an array of channel values up to 49 channels.
@@ -48,7 +48,7 @@ Optional properties:
 	value specifies the analog chip address where user want to access
 	by hardware components.
 
-SPI slave nodes must be children of the SPI controller node and can contain
+SPI slave yesdes must be children of the SPI controller yesde and can contain
 properties described in Documentation/devicetree/bindings/spi/spi-bus.txt.
 
 Example:

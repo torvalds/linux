@@ -1,12 +1,12 @@
 {
 	"variable-offset ctx access",
 	.insns = {
-	/* Get an unknown value */
+	/* Get an unkyeswn value */
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 0),
 	/* Make it small and 4-byte aligned */
 	BPF_ALU64_IMM(BPF_AND, BPF_REG_2, 4),
-	/* add it to skb.  We now have either &skb->len or
-	 * &skb->pkt_type, but we don't know which
+	/* add it to skb.  We yesw have either &skb->len or
+	 * &skb->pkt_type, but we don't kyesw which
 	 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_1, BPF_REG_2),
 	/* dereference it */
@@ -22,13 +22,13 @@
 	.insns = {
 	/* Fill the top 8 bytes of the stack */
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
-	/* Get an unknown value */
+	/* Get an unkyeswn value */
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 0),
 	/* Make it small and 4-byte aligned */
 	BPF_ALU64_IMM(BPF_AND, BPF_REG_2, 4),
 	BPF_ALU64_IMM(BPF_SUB, BPF_REG_2, 8),
-	/* add it to fp.  We now have either fp-4 or fp-8, but
-	 * we don't know which
+	/* add it to fp.  We yesw have either fp-4 or fp-8, but
+	 * we don't kyesw which
 	 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_10),
 	/* dereference it */
@@ -47,12 +47,12 @@
 	/* Fill the top 16 bytes of the stack. */
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -16, 0),
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
-	/* Get an unknown value. */
+	/* Get an unkyeswn value. */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_4, BPF_REG_1, offsetof(struct bpf_sock_ops,
 							   bytes_received)),
 	/* Check the lower bound but don't check the upper one. */
 	BPF_JMP_IMM(BPF_JSLT, BPF_REG_4, 0, 4),
-	/* Point the lower bound to initialized stack. Offset is now in range
+	/* Point the lower bound to initialized stack. Offset is yesw in range
 	 * from fp-16 to fp+0x7fffffffffffffef, i.e. max value is unbounded.
 	 */
 	BPF_ALU64_IMM(BPF_SUB, BPF_REG_4, 16),
@@ -72,13 +72,13 @@
 	.insns = {
 	/* Fill the top 8 bytes of the stack */
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
-	/* Get an unknown value */
+	/* Get an unkyeswn value */
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 0),
 	/* Make it small and 4-byte aligned */
 	BPF_ALU64_IMM(BPF_AND, BPF_REG_2, 4),
 	BPF_ALU64_IMM(BPF_SUB, BPF_REG_2, 8),
-	/* add it to fp.  We now have either fp-4 or fp-8, but
-	 * we don't know which
+	/* add it to fp.  We yesw have either fp-4 or fp-8, but
+	 * we don't kyesw which
 	 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_10),
 	/* dereference it indirectly */
@@ -97,13 +97,13 @@
 	.insns = {
 	/* Fill the top 8 bytes of the stack */
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
-	/* Get an unknown value */
+	/* Get an unkyeswn value */
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 0),
 	/* Make it small and 4-byte aligned */
 	BPF_ALU64_IMM(BPF_AND, BPF_REG_2, 4),
 	BPF_ALU64_IMM(BPF_SUB, BPF_REG_2, 516),
-	/* add it to fp.  We now have either fp-516 or fp-512, but
-	 * we don't know which
+	/* add it to fp.  We yesw have either fp-516 or fp-512, but
+	 * we don't kyesw which
 	 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_10),
 	/* dereference it indirectly */
@@ -122,12 +122,12 @@
 	.insns = {
 	/* Fill only the second from top 8 bytes of the stack. */
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -16, 0),
-	/* Get an unknown value. */
+	/* Get an unkyeswn value. */
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 0),
 	/* Make it small and 4-byte aligned. */
 	BPF_ALU64_IMM(BPF_AND, BPF_REG_2, 4),
 	BPF_ALU64_IMM(BPF_SUB, BPF_REG_2, 16),
-	/* Add it to fp.  We now have either fp-12 or fp-16, but we don't know
+	/* Add it to fp.  We yesw have either fp-12 or fp-16, but we don't kyesw
 	 * which. fp-12 size 8 is partially uninitialized stack.
 	 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_10),
@@ -147,12 +147,12 @@
 	.insns = {
 	/* Fill only the top 8 bytes of the stack. */
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
-	/* Get an unknown value */
+	/* Get an unkyeswn value */
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 0),
 	/* Make it small and 4-byte aligned. */
 	BPF_ALU64_IMM(BPF_AND, BPF_REG_2, 4),
 	BPF_ALU64_IMM(BPF_SUB, BPF_REG_2, 16),
-	/* Add it to fp.  We now have either fp-12 or fp-16, but we don't know
+	/* Add it to fp.  We yesw have either fp-12 or fp-16, but we don't kyesw
 	 * which. fp-16 size 8 is partially uninitialized stack.
 	 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_10),
@@ -173,12 +173,12 @@
 	/* Fill the top 16 bytes of the stack. */
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -16, 0),
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
-	/* Get an unknown value. */
+	/* Get an unkyeswn value. */
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 0),
 	/* Make it small and 4-byte aligned. */
 	BPF_ALU64_IMM(BPF_AND, BPF_REG_2, 4),
 	BPF_ALU64_IMM(BPF_SUB, BPF_REG_2, 16),
-	/* Add it to fp.  We now have either fp-12 or fp-16, we don't know
+	/* Add it to fp.  We yesw have either fp-12 or fp-16, we don't kyesw
 	 * which, but either way it points to initialized stack.
 	 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_10),
@@ -202,12 +202,12 @@
 	/* Fill the top 16 bytes of the stack. */
 	BPF_ST_MEM(BPF_W, BPF_REG_10, -16, 0),
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
-	/* Get an unknown value. */
+	/* Get an unkyeswn value. */
 	BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_1, 0),
 	/* Make it small and 4-byte aligned. */
 	BPF_ALU64_IMM(BPF_AND, BPF_REG_4, 4),
 	BPF_ALU64_IMM(BPF_SUB, BPF_REG_4, 16),
-	/* Add it to fp.  We now have either fp-12 or fp-16, we don't know
+	/* Add it to fp.  We yesw have either fp-12 or fp-16, we don't kyesw
 	 * which, but either way it points to initialized stack.
 	 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_4, BPF_REG_10),
@@ -227,12 +227,12 @@
 	/* Fill the top 16 bytes of the stack. */
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -16, 0),
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
-	/* Get an unknown value. */
+	/* Get an unkyeswn value. */
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 0),
 	/* Make it small and 4-byte aligned. */
 	BPF_ALU64_IMM(BPF_AND, BPF_REG_2, 4),
 	BPF_ALU64_IMM(BPF_SUB, BPF_REG_2, 16),
-	/* Add it to fp.  We now have either fp-12 or fp-16, we don't know
+	/* Add it to fp.  We yesw have either fp-12 or fp-16, we don't kyesw
 	 * which, but either way it points to initialized stack.
 	 */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_10),

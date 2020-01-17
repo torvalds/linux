@@ -57,7 +57,7 @@ void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
  *
  * A pointer to the object named by the handle if such exists on @filp, NULL
  * otherwise. This object is only valid whilst under the RCU read lock, and
- * note carefully the object may be in the process of being destroyed.
+ * yeste carefully the object may be in the process of being destroyed.
  */
 static inline struct drm_i915_gem_object *
 i915_gem_object_lookup_rcu(struct drm_file *file, u32 handle)
@@ -86,7 +86,7 @@ __deprecated
 struct drm_gem_object *
 drm_gem_object_lookup(struct drm_file *file, u32 handle);
 
-__attribute__((nonnull))
+__attribute__((yesnnull))
 static inline struct drm_i915_gem_object *
 i915_gem_object_get(struct drm_i915_gem_object *obj)
 {
@@ -94,7 +94,7 @@ i915_gem_object_get(struct drm_i915_gem_object *obj)
 	return obj;
 }
 
-__attribute__((nonnull))
+__attribute__((yesnnull))
 static inline void
 i915_gem_object_put(struct drm_i915_gem_object *obj)
 {
@@ -132,13 +132,13 @@ void i915_gem_object_unlock_fence(struct drm_i915_gem_object *obj,
 static inline void
 i915_gem_object_set_readonly(struct drm_i915_gem_object *obj)
 {
-	obj->base.vma_node.readonly = true;
+	obj->base.vma_yesde.readonly = true;
 }
 
 static inline bool
 i915_gem_object_is_readonly(const struct drm_i915_gem_object *obj)
 {
-	return obj->base.vma_node.readonly;
+	return obj->base.vma_yesde.readonly;
 }
 
 static inline bool
@@ -276,7 +276,7 @@ i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
 	might_lock(&obj->mm.lock);
 
-	if (atomic_inc_not_zero(&obj->mm.pages_pin_count))
+	if (atomic_inc_yest_zero(&obj->mm.pages_pin_count))
 		return 0;
 
 	return __i915_gem_object_get_pages(obj);
@@ -346,7 +346,7 @@ enum i915_map_type {
  * set to either WriteBack or WriteCombine (via pgprot_t).
  *
  * The caller is responsible for calling i915_gem_object_unpin_map() when the
- * mapping is no longer required.
+ * mapping is yes longer required.
  *
  * Returns the pointer through which to access the mapped object, or an
  * ERR_PTR() on error.

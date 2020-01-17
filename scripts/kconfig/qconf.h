@@ -30,13 +30,13 @@ public:
 };
 
 enum colIdx {
-	promptColIdx, nameColIdx, noColIdx, modColIdx, yesColIdx, dataColIdx, colNr
+	promptColIdx, nameColIdx, yesColIdx, modColIdx, noColIdx, dataColIdx, colNr
 };
 enum listMode {
 	singleMode, menuMode, symbolMode, fullMode, listMode
 };
 enum optionMode {
-	normalOpt = 0, allOpt, promptOpt
+	yesrmalOpt = 0, allOpt, promptOpt
 };
 
 class ConfigList : public QTreeWidget {

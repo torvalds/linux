@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Makefile.dtc
 #
-# This is not a complete Makefile of itself.  Instead, it is designed to
+# This is yest a complete Makefile of itself.  Instead, it is designed to
 # be easily embeddable into other systems of Makefiles.
 #
 DTC_SRCS = \

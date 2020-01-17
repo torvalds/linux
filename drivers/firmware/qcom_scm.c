@@ -132,7 +132,7 @@ EXPORT_SYMBOL(qcom_scm_cpu_power_down);
 /**
  * qcom_scm_hdcp_available() - Check if secure environment supports HDCP.
  *
- * Return true if HDCP is supported, false if not.
+ * Return true if HDCP is supported, false if yest.
  */
 bool qcom_scm_hdcp_available(void)
 {
@@ -252,7 +252,7 @@ int qcom_scm_pas_init_image(u32 peripheral, const void *metadata, size_t size)
 	/*
 	 * During the scm call memory protection will be enabled for the meta
 	 * data blob, so make sure it's physically contiguous, 4K aligned and
-	 * non-cachable to avoid XPU violations.
+	 * yesn-cachable to avoid XPU violations.
 	 */
 	mdata_buf = dma_alloc_coherent(__scm->dev, size, &mdata_phys,
 				       GFP_KERNEL);
@@ -371,7 +371,7 @@ static const struct reset_control_ops qcom_scm_pas_reset_ops = {
  * qcom_scm_restore_sec_cfg_available() - Check if secure environment
  * supports restore security config interface.
  *
- * Return true if restore-cfg interface is supported, false if not.
+ * Return true if restore-cfg interface is supported, false if yest.
  */
 bool qcom_scm_restore_sec_cfg_available(void)
 {
@@ -440,8 +440,8 @@ static void qcom_scm_set_download_mode(bool enable)
 
 static int qcom_scm_find_dload_address(struct device *dev, u64 *addr)
 {
-	struct device_node *tcsr;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *tcsr;
+	struct device_yesde *np = dev->of_yesde;
 	struct resource res;
 	u32 offset;
 	int ret;
@@ -451,7 +451,7 @@ static int qcom_scm_find_dload_address(struct device *dev, u64 *addr)
 		return 0;
 
 	ret = of_address_to_resource(tcsr, 0, &res);
-	of_node_put(tcsr);
+	of_yesde_put(tcsr);
 	if (ret)
 		return ret;
 
@@ -489,7 +489,7 @@ EXPORT_SYMBOL(qcom_scm_set_remote_state);
  *            flags
  * @dest_cnt: number of owners in next set.
  *
- * Return negative errno on failure or 0 on success with @srcvm updated.
+ * Return negative erryes on failure or 0 on success with @srcvm updated.
  */
 int qcom_scm_assign_mem(phys_addr_t mem_addr, size_t mem_sz,
 			unsigned int *srcvm,
@@ -618,7 +618,7 @@ static int qcom_scm_probe(struct platform_device *pdev)
 
 	scm->reset.ops = &qcom_scm_pas_reset_ops;
 	scm->reset.nr_resets = 1;
-	scm->reset.of_node = pdev->dev.of_node;
+	scm->reset.of_yesde = pdev->dev.of_yesde;
 	ret = devm_reset_controller_register(&pdev->dev, &scm->reset);
 	if (ret)
 		return ret;
@@ -646,7 +646,7 @@ static int qcom_scm_probe(struct platform_device *pdev)
 
 static void qcom_scm_shutdown(struct platform_device *pdev)
 {
-	/* Clean shutdown, disable download mode to allow normal restart */
+	/* Clean shutdown, disable download mode to allow yesrmal restart */
 	if (download_mode)
 		qcom_scm_set_download_mode(false);
 }

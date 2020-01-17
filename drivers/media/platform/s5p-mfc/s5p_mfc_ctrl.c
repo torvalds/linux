@@ -66,7 +66,7 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 	}
 
 	if (err != 0) {
-		mfc_err("Firmware is not present in the /lib/firmware directory nor compiled in kernel\n");
+		mfc_err("Firmware is yest present in the /lib/firmware directory yesr compiled in kernel\n");
 		return -EINVAL;
 	}
 	if (fw_blob->size > dev->fw_buf.size) {
@@ -86,7 +86,7 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
 {
 	/* Before calling this function one has to make sure
-	 * that MFC is no longer processing */
+	 * that MFC is yes longer processing */
 	s5p_mfc_release_priv_buf(dev, &dev->fw_buf);
 	dev->fw_get_done = false;
 	return 0;
@@ -209,7 +209,7 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 
 	mfc_debug_enter();
 	if (!dev->fw_buf.virt) {
-		mfc_err("Firmware memory is not allocated.\n");
+		mfc_err("Firmware memory is yest allocated.\n");
 		return -EINVAL;
 	}
 
@@ -239,7 +239,7 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 	if (IS_MFCV10(dev))
 		mfc_write(dev, 0x0, S5P_FIMV_MFC_CLOCK_OFF_V10);
 
-	mfc_debug(2, "Will now wait for completion of firmware transfer\n");
+	mfc_debug(2, "Will yesw wait for completion of firmware transfer\n");
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_MFC_R2H_CMD_FW_STATUS_RET)) {
 		mfc_err("Failed to load firmware\n");
 		s5p_mfc_reset(dev);
@@ -255,7 +255,7 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 		s5p_mfc_clock_off();
 		return ret;
 	}
-	mfc_debug(2, "Ok, now will wait for completion of hardware init\n");
+	mfc_debug(2, "Ok, yesw will wait for completion of hardware init\n");
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_MFC_R2H_CMD_SYS_INIT_RET)) {
 		mfc_err("Failed to init hardware\n");
 		s5p_mfc_reset(dev);
@@ -449,7 +449,7 @@ int s5p_mfc_open_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 		goto err_free_desc_buf;
 	}
 
-	mfc_debug(2, "Got instance number: %d\n", ctx->inst_no);
+	mfc_debug(2, "Got instance number: %d\n", ctx->inst_yes);
 	return ret;
 
 err_free_desc_buf:
@@ -477,6 +477,6 @@ void s5p_mfc_close_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 	if (ctx->type == MFCINST_DECODER)
 		s5p_mfc_hw_call(dev->mfc_ops, release_dec_desc_buffer, ctx);
 
-	ctx->inst_no = MFC_NO_INSTANCE_SET;
+	ctx->inst_yes = MFC_NO_INSTANCE_SET;
 	ctx->state = MFCINST_FREE;
 }

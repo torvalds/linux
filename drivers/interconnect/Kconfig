@@ -7,7 +7,7 @@ menuconfig INTERCONNECT
 	  This framework is designed to provide a generic interface for
 	  managing the interconnects in a SoC.
 
-	  If unsure, say no.
+	  If unsure, say yes.
 
 if INTERCONNECT
 

@@ -29,7 +29,7 @@
  * 28...8	RW		OD6.2...OD0.0 (3bits per port, 1 bit per LED)
  * 7		RO		SGPIO feature flag
  * 6:4		RO		Reserved
- * 3:0		RO		Number of ports (0 means no port supported)
+ * 3:0		RO		Number of ports (0 means yes port supported)
  */
 #define ACTIVITY_BIT_POS(x)		(8 + (3 * x))
 #define LOCATE_BIT_POS(x)		(ACTIVITY_BIT_POS(x) + 1)
@@ -95,19 +95,19 @@ static ssize_t seattle_transmit_led_message(struct ata_port *ap, u32 state,
 
 	val = ioread32(plat_data->sgpio_ctrl);
 	if (state & ACTIVITY_MASK)
-		val |= 1 << ACTIVITY_BIT_POS((ap->port_no));
+		val |= 1 << ACTIVITY_BIT_POS((ap->port_yes));
 	else
-		val &= ~(1 << ACTIVITY_BIT_POS((ap->port_no)));
+		val &= ~(1 << ACTIVITY_BIT_POS((ap->port_yes)));
 
 	if (state & LOCATE_MASK)
-		val |= 1 << LOCATE_BIT_POS((ap->port_no));
+		val |= 1 << LOCATE_BIT_POS((ap->port_yes));
 	else
-		val &= ~(1 << LOCATE_BIT_POS((ap->port_no)));
+		val &= ~(1 << LOCATE_BIT_POS((ap->port_yes)));
 
 	if (state & FAULT_MASK)
-		val |= 1 << FAULT_BIT_POS((ap->port_no));
+		val |= 1 << FAULT_BIT_POS((ap->port_yes));
 	else
-		val &= ~(1 << FAULT_BIT_POS((ap->port_no)));
+		val &= ~(1 << FAULT_BIT_POS((ap->port_yes)));
 
 	iowrite32(val, plat_data->sgpio_ctrl);
 

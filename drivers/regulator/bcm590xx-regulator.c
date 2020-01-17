@@ -302,7 +302,7 @@ static int bcm590xx_probe(struct platform_device *pdev)
 		/* Register the regulators */
 		pmu->desc[i].name = info->name;
 		pmu->desc[i].of_match = of_match_ptr(info->name);
-		pmu->desc[i].regulators_node = of_match_ptr("regulators");
+		pmu->desc[i].regulators_yesde = of_match_ptr("regulators");
 		pmu->desc[i].supply_name = info->vin_name;
 		pmu->desc[i].id = i;
 		pmu->desc[i].volt_table = info->volt_table;

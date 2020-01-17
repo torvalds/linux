@@ -1,17 +1,17 @@
-/* Synopsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
+/* Syyespsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
  *
- * Copyright (c) 2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (c) 2017 Syyespsys, Inc. (www.syyespsys.com)
  *
  * This program is dual-licensed; you may select either version 2 of
  * the GNU General Public License ("GPL") or BSD license ("BSD").
  *
- * This Synopsys DWC XLGMAC software driver and associated documentation
+ * This Syyespsys DWC XLGMAC software driver and associated documentation
  * (hereinafter the "Software") is an unsupported proprietary work of
- * Synopsys, Inc. unless otherwise expressly agreed to in writing between
- * Synopsys and you. The Software IS NOT an item of Licensed Software or a
+ * Syyespsys, Inc. unless otherwise expressly agreed to in writing between
+ * Syyespsys and you. The Software IS NOT an item of Licensed Software or a
  * Licensed Product under any End User Software License Agreement or
- * Agreement for Licensed Products with Synopsys or any supplement thereto.
- * Synopsys is a registered trademark of Synopsys, Inc. Other names included
+ * Agreement for Licensed Products with Syyespsys or any supplement thereto.
+ * Syyespsys is a registered trademark of Syyespsys, Inc. Other names included
  * in the SOFTWARE may be the trademarks of their respective owners.
  */
 
@@ -28,7 +28,7 @@
 
 #define XLGMAC_DRV_NAME			"dwc-xlgmac"
 #define XLGMAC_DRV_VERSION		"1.0.0"
-#define XLGMAC_DRV_DESC			"Synopsys DWC XLGMAC Driver"
+#define XLGMAC_DRV_DESC			"Syyespsys DWC XLGMAC Driver"
 
 /* Descriptor related parameters */
 #define XLGMAC_TX_DESC_CNT		1024
@@ -300,8 +300,8 @@ struct xlgmac_desc_data {
 	unsigned int mapped_as_page;
 
 	/* Incomplete receive save location.  If the budget is exhausted
-	 * or the last descriptor (last normal descriptor or a following
-	 * context descriptor) has not been DMA'd yet the current state
+	 * or the last descriptor (last yesrmal descriptor or a following
+	 * context descriptor) has yest been DMA'd yet the current state
 	 * of the receive processing needs to be saved.
 	 */
 	unsigned int state_saved;

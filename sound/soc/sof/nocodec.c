@@ -12,11 +12,11 @@
 #include <sound/sof.h>
 #include "sof-priv.h"
 
-static struct snd_soc_card sof_nocodec_card = {
-	.name = "nocodec", /* the sof- prefix is added by the core */
+static struct snd_soc_card sof_yescodec_card = {
+	.name = "yescodec", /* the sof- prefix is added by the core */
 };
 
-static int sof_nocodec_bes_setup(struct device *dev,
+static int sof_yescodec_bes_setup(struct device *dev,
 				 const struct snd_sof_dsp_ops *ops,
 				 struct snd_soc_dai_link *links,
 				 int link_num, struct snd_soc_card *card)
@@ -47,7 +47,7 @@ static int sof_nocodec_bes_setup(struct device *dev,
 		links[i].num_platforms = 1;
 
 		links[i].id = i;
-		links[i].no_pcm = 1;
+		links[i].yes_pcm = 1;
 		links[i].cpus->dai_name = ops->drv[i].name;
 		links[i].platforms->name = dev_name(dev);
 		links[i].codecs->dai_name = "snd-soc-dummy-dai";
@@ -62,7 +62,7 @@ static int sof_nocodec_bes_setup(struct device *dev,
 	return 0;
 }
 
-int sof_nocodec_setup(struct device *dev,
+int sof_yescodec_setup(struct device *dev,
 		      struct snd_sof_pdata *sof_pdata,
 		      struct snd_soc_acpi_mach *mach,
 		      const struct sof_dev_desc *desc,
@@ -74,11 +74,11 @@ int sof_nocodec_setup(struct device *dev,
 	if (!mach)
 		return -EINVAL;
 
-	sof_pdata->drv_name = "sof-nocodec";
+	sof_pdata->drv_name = "sof-yescodec";
 
-	mach->drv_name = "sof-nocodec";
-	sof_pdata->fw_filename = desc->nocodec_fw_filename;
-	sof_pdata->tplg_filename = desc->nocodec_tplg_filename;
+	mach->drv_name = "sof-yescodec";
+	sof_pdata->fw_filename = desc->yescodec_fw_filename;
+	sof_pdata->tplg_filename = desc->yescodec_tplg_filename;
 
 	/* create dummy BE dai_links */
 	links = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link) *
@@ -86,37 +86,37 @@ int sof_nocodec_setup(struct device *dev,
 	if (!links)
 		return -ENOMEM;
 
-	ret = sof_nocodec_bes_setup(dev, ops, links, ops->num_drv,
-				    &sof_nocodec_card);
+	ret = sof_yescodec_bes_setup(dev, ops, links, ops->num_drv,
+				    &sof_yescodec_card);
 	return ret;
 }
-EXPORT_SYMBOL(sof_nocodec_setup);
+EXPORT_SYMBOL(sof_yescodec_setup);
 
-static int sof_nocodec_probe(struct platform_device *pdev)
+static int sof_yescodec_probe(struct platform_device *pdev)
 {
-	struct snd_soc_card *card = &sof_nocodec_card;
+	struct snd_soc_card *card = &sof_yescodec_card;
 
 	card->dev = &pdev->dev;
 
 	return devm_snd_soc_register_card(&pdev->dev, card);
 }
 
-static int sof_nocodec_remove(struct platform_device *pdev)
+static int sof_yescodec_remove(struct platform_device *pdev)
 {
 	return 0;
 }
 
-static struct platform_driver sof_nocodec_audio = {
-	.probe = sof_nocodec_probe,
-	.remove = sof_nocodec_remove,
+static struct platform_driver sof_yescodec_audio = {
+	.probe = sof_yescodec_probe,
+	.remove = sof_yescodec_remove,
 	.driver = {
-		.name = "sof-nocodec",
+		.name = "sof-yescodec",
 		.pm = &snd_soc_pm_ops,
 	},
 };
-module_platform_driver(sof_nocodec_audio)
+module_platform_driver(sof_yescodec_audio)
 
-MODULE_DESCRIPTION("ASoC sof nocodec");
+MODULE_DESCRIPTION("ASoC sof yescodec");
 MODULE_AUTHOR("Liam Girdwood");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_ALIAS("platform:sof-nocodec");
+MODULE_ALIAS("platform:sof-yescodec");

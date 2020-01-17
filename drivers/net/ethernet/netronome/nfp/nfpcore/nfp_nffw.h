@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp_nffw.h
- * Authors: Jason McMullan <jason.mcmullan@netronome.com>
- *          Francois H. Theron <francois.theron@netronome.com>
+ * Authors: Jason McMullan <jason.mcmullan@netroyesme.com>
+ *          Francois H. Theron <francois.theron@netroyesme.com>
  */
 
 #ifndef NFP_NFFW_H

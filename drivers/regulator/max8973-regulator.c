@@ -17,7 +17,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  * 02111-1307, USA
  */
@@ -132,14 +132,14 @@ struct max8973_chip {
  * The finding of the new VOUT register will be based on the LRU mechanism.
  * Each VOUT register will have different voltage configured . This
  * Function will look if any of the VOUT register have requested voltage set
- * or not.
+ * or yest.
  *     - If it is already there then it will make that register as most
- *       recently used and return as found so that caller need not to set
+ *       recently used and return as found so that caller need yest to set
  *       the VOUT register but need to set the proper gpios to select this
  *       VOUT register.
- *     - If requested voltage is not found then it will use the least
+ *     - If requested voltage is yest found then it will use the least
  *       recently mechanism to get new VOUT register for new configuration
- *       and will return not_found so that caller need to set new VOUT
+ *       and will return yest_found so that caller need to set new VOUT
  *       register and then gpios (both).
  */
 static bool find_voltage_set_register(struct max8973_chip *tps,
@@ -555,7 +555,7 @@ static struct max8973_regulator_platform_data *max8973_parse_dt(
 		struct device *dev)
 {
 	struct max8973_regulator_platform_data *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int ret;
 	u32 pval;
 	bool etr_enable;
@@ -638,7 +638,7 @@ static int max8973_probe(struct i2c_client *client,
 
 	pdata = dev_get_platdata(&client->dev);
 
-	if (!pdata && client->dev.of_node) {
+	if (!pdata && client->dev.of_yesde) {
 		pdata = max8973_parse_dt(&client->dev);
 		pdata_from_dt = true;
 	}
@@ -662,7 +662,7 @@ static int max8973_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		const struct of_device_id *match;
 
 		match = of_match_device(of_match_ptr(of_max8973_match_tbl),
@@ -728,7 +728,7 @@ static int max8973_probe(struct i2c_client *client,
 		max->lru_index[max->curr_vout_reg] = 0;
 	} else {
 		/*
-		 * If there is no DVS GPIO, the VOUT register
+		 * If there is yes DVS GPIO, the VOUT register
 		 * address is fixed.
 		 */
 		max->ops.set_voltage_sel = regulator_set_voltage_sel_regmap;
@@ -739,7 +739,7 @@ static int max8973_probe(struct i2c_client *client,
 
 	if (pdata_from_dt)
 		pdata->reg_init_data = of_get_regulator_init_data(&client->dev,
-					client->dev.of_node, &max->desc);
+					client->dev.of_yesde, &max->desc);
 
 	ridata = pdata->reg_init_data;
 	switch (max->id) {
@@ -773,7 +773,7 @@ static int max8973_probe(struct i2c_client *client,
 
 	case MAX77621:
 		/*
-		 * We do not let the core switch this regulator on/off,
+		 * We do yest let the core switch this regulator on/off,
 		 * we just leave it on.
 		 */
 		gpiod = devm_gpiod_get_optional(&client->dev,
@@ -805,7 +805,7 @@ static int max8973_probe(struct i2c_client *client,
 	config.dev = &client->dev;
 	config.init_data = pdata->reg_init_data;
 	config.driver_data = max;
-	config.of_node = client->dev.of_node;
+	config.of_yesde = client->dev.of_yesde;
 	config.regmap = max->regmap;
 
 	/*

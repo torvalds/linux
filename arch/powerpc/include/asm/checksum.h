@@ -12,7 +12,7 @@
  * Computes the checksum of a memory block at src, length len,
  * and adds in "sum" (32-bit), while copying the block to dst.
  * If an access exception occurs on src or dst, it stores -EFAULT
- * to *src_err or *dst_err respectively (if that pointer is not
+ * to *src_err or *dst_err respectively (if that pointer is yest
  * NULL), and, for an error on src, zeroes the rest of dst.
  *
  * Like csum_partial, this must be called with even lengths,
@@ -29,7 +29,7 @@ extern __wsum csum_and_copy_from_user(const void __user *src, void *dst,
 extern __wsum csum_and_copy_to_user(const void *src, void __user *dst,
 				    int len, __wsum sum, int *err_ptr);
 
-#define csum_partial_copy_nocheck(src, dst, len, sum)   \
+#define csum_partial_copy_yescheck(src, dst, len, sum)   \
         csum_partial_copy_generic((src), (dst), (len), (sum), NULL, NULL)
 
 
@@ -54,7 +54,7 @@ static inline u32 from64to32(u64 x)
 	return (x + ror64(x, 32)) >> 32;
 }
 
-static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
+static inline __wsum csum_tcpudp_yesfold(__be32 saddr, __be32 daddr, __u32 len,
 					__u8 proto, __wsum sum)
 {
 #ifdef __powerpc64__
@@ -88,7 +88,7 @@ static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
 static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr, __u32 len,
 					__u8 proto, __wsum sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
+	return csum_fold(csum_tcpudp_yesfold(saddr, daddr, len, proto, sum));
 }
 
 #define HAVE_ARCH_CSUM_ADD
@@ -118,7 +118,7 @@ static inline __wsum csum_add(__wsum csum, __wsum addend)
  * which always checksum on 4 octet boundaries.  ihl is the number
  * of 32-bit words and is always >= 5.
  */
-static inline __wsum ip_fast_csum_nofold(const void *iph, unsigned int ihl)
+static inline __wsum ip_fast_csum_yesfold(const void *iph, unsigned int ihl)
 {
 	const u32 *ptr = (const u32 *)iph + 1;
 #ifdef __powerpc64__
@@ -147,7 +147,7 @@ static inline __wsum ip_fast_csum_nofold(const void *iph, unsigned int ihl)
 
 static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
-	return csum_fold(ip_fast_csum_nofold(iph, ihl));
+	return csum_fold(ip_fast_csum_yesfold(iph, ihl));
 }
 
 /*
@@ -190,7 +190,7 @@ static inline __wsum csum_partial(const void *buff, int len, __wsum sum)
 			sum = csum_add(sum, (__force __wsum)
 					    *(const u32 *)(buff + 12));
 	} else if (__builtin_constant_p(len) && (len & 3) == 0) {
-		sum = csum_add(sum, ip_fast_csum_nofold(buff, len >> 2));
+		sum = csum_add(sum, ip_fast_csum_yesfold(buff, len >> 2));
 	} else {
 		sum = __csum_partial(buff, len, sum);
 	}

@@ -112,7 +112,7 @@ int kvm_handle_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	}
 
 	/*
-	 * The MMIO instruction is emulated and should not be re-executed
+	 * The MMIO instruction is emulated and should yest be re-executed
 	 * in the guest.
 	 */
 	kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
@@ -174,7 +174,7 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			return 0;
 		}
 
-		kvm_pr_unimpl("Data abort outside memslots with no valid syndrome info\n");
+		kvm_pr_unimpl("Data abort outside memslots with yes valid syndrome info\n");
 		return -ENOSYS;
 	}
 

@@ -73,19 +73,19 @@ static int axg_tdm_formatter_enable(struct axg_tdm_formatter *formatter)
 	bool invert = formatter->drv->quirks->invert_sclk;
 	int ret;
 
-	/* Do nothing if the formatter is already enabled */
+	/* Do yesthing if the formatter is already enabled */
 	if (formatter->enabled)
 		return 0;
 
 	/*
 	 * On the g12a (and possibly other SoCs), when a stream using
-	 * multiple lanes is restarted, it will sometimes not start
-	 * from the first lane, but randomly from another used one.
+	 * multiple lanes is restarted, it will sometimes yest start
+	 * from the first lane, but randomly from ayesther used one.
 	 * The result is an unexpected and random channel shift.
 	 *
-	 * The hypothesis is that an HW counter is not properly reset
+	 * The hypothesis is that an HW counter is yest properly reset
 	 * and the formatter simply starts on the lane it stopped
-	 * before. Unfortunately, there does not seems to be a way to
+	 * before. Unfortunately, there does yest seems to be a way to
 	 * reset this through the registers of the block.
 	 *
 	 * However, the g12a has indenpendent reset lines for each audio
@@ -131,7 +131,7 @@ static int axg_tdm_formatter_enable(struct axg_tdm_formatter *formatter)
 
 static void axg_tdm_formatter_disable(struct axg_tdm_formatter *formatter)
 {
-	/* Do nothing if the formatter is already disabled */
+	/* Do yesthing if the formatter is already disabled */
 	if (!formatter->enabled)
 		return;
 
@@ -182,8 +182,8 @@ static int axg_tdm_formatter_power_up(struct axg_tdm_formatter *formatter,
 
 	/*
 	 * If we don't get a stream at this stage, it would mean that the
-	 * widget is powering up but is not attached to any backend DAI.
-	 * It should not happen, ever !
+	 * widget is powering up but is yest attached to any backend DAI.
+	 * It should yest happen, ever !
 	 */
 	if (WARN_ON(!ts))
 		return -ENODEV;
@@ -395,9 +395,9 @@ EXPORT_SYMBOL_GPL(axg_tdm_stream_alloc);
 void axg_tdm_stream_free(struct axg_tdm_stream *ts)
 {
 	/*
-	 * If the list is not empty, it would mean that one of the formatter
+	 * If the list is yest empty, it would mean that one of the formatter
 	 * widget is still powered and attached to the interface while we
-	 * we are removing the TDM DAI. It should not be possible
+	 * we are removing the TDM DAI. It should yest be possible
 	 */
 	WARN_ON(!list_empty(&ts->formatter_list));
 	mutex_destroy(&ts->lock);

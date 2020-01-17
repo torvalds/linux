@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -100,12 +100,12 @@ static u32 get_vintmsk_offset(u32 i)
 	return ADF_C3XXXIOV_VINTMSK_OFFSET;
 }
 
-static int adf_vf_int_noop(struct adf_accel_dev *accel_dev)
+static int adf_vf_int_yesop(struct adf_accel_dev *accel_dev)
 {
 	return 0;
 }
 
-static void adf_vf_void_noop(struct adf_accel_dev *accel_dev)
+static void adf_vf_void_yesop(struct adf_accel_dev *accel_dev)
 {
 }
 
@@ -120,12 +120,12 @@ void adf_init_hw_data_c3xxxiov(struct adf_hw_device_data *hw_data)
 	hw_data->tx_rings_mask = ADF_C3XXXIOV_TX_RINGS_MASK;
 	hw_data->alloc_irq = adf_vf_isr_resource_alloc;
 	hw_data->free_irq = adf_vf_isr_resource_free;
-	hw_data->enable_error_correction = adf_vf_void_noop;
-	hw_data->init_admin_comms = adf_vf_int_noop;
-	hw_data->exit_admin_comms = adf_vf_void_noop;
+	hw_data->enable_error_correction = adf_vf_void_yesop;
+	hw_data->init_admin_comms = adf_vf_int_yesop;
+	hw_data->exit_admin_comms = adf_vf_void_yesop;
 	hw_data->send_admin_init = adf_vf2pf_init;
-	hw_data->init_arb = adf_vf_int_noop;
-	hw_data->exit_arb = adf_vf_void_noop;
+	hw_data->init_arb = adf_vf_int_yesop;
+	hw_data->exit_arb = adf_vf_void_yesop;
 	hw_data->disable_iov = adf_vf2pf_shutdown;
 	hw_data->get_accel_mask = get_accel_mask;
 	hw_data->get_ae_mask = get_ae_mask;
@@ -136,7 +136,7 @@ void adf_init_hw_data_c3xxxiov(struct adf_hw_device_data *hw_data)
 	hw_data->get_pf2vf_offset = get_pf2vf_offset;
 	hw_data->get_vintmsk_offset = get_vintmsk_offset;
 	hw_data->get_sku = get_sku;
-	hw_data->enable_ints = adf_vf_void_noop;
+	hw_data->enable_ints = adf_vf_void_yesop;
 	hw_data->enable_vf2pf_comms = adf_enable_vf2pf_comms;
 	hw_data->min_iov_compat_ver = ADF_PFVF_COMPATIBILITY_VERSION;
 	hw_data->dev_class->instances++;

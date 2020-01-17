@@ -149,9 +149,9 @@ struct nd_region {
 	u16 ndr_mappings;
 	u64 ndr_size;
 	u64 ndr_start;
-	int id, num_lanes, ro, numa_node, target_node;
+	int id, num_lanes, ro, numa_yesde, target_yesde;
 	void *provider_data;
-	struct kernfs_node *bb_state;
+	struct kernfs_yesde *bb_state;
 	struct badblocks bb;
 	struct nd_interleave_set *nd_set;
 	struct nd_percpu_lane __percpu *lane;
@@ -188,7 +188,7 @@ struct nd_btt {
 	int id;
 	int initial_offset;
 	u16 version_major;
-	u16 version_minor;
+	u16 version_miyesr;
 };
 
 enum nd_pfn_mode {
@@ -226,7 +226,7 @@ int nd_integrity_init(struct gendisk *disk, unsigned long meta_size);
 void wait_nvdimm_bus_probe_idle(struct device *dev);
 void nd_device_register(struct device *dev);
 void nd_device_unregister(struct device *dev, enum nd_async_mode mode);
-void nd_device_notify(struct device *dev, enum nvdimm_event event);
+void nd_device_yestify(struct device *dev, enum nvdimm_event event);
 int nd_uuid_store(struct device *dev, u8 **uuid_out, const char *buf,
 		size_t len);
 ssize_t nd_size_select_show(unsigned long current_size,

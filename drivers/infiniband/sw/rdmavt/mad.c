@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -76,7 +76,7 @@ int rvt_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	/*
 	 * MAD processing is quite different between hfi1 and qib. Therefore
 	 * this is expected to be provided by the driver. Other drivers in the
-	 * future may choose to implement this but it should not be made into a
+	 * future may choose to implement this but it should yest be made into a
 	 * requirement.
 	 */
 	if (ibport_num_to_idx(ibdev, port_num) < 0)
@@ -95,7 +95,7 @@ static void rvt_send_mad_handler(struct ib_mad_agent *agent,
  * rvt_create_mad_agents - create mad agents
  * @rdi: rvt dev struct
  *
- * If driver needs to be notified of mad agent creation then call back
+ * If driver needs to be yestified of mad agent creation then call back
  *
  * Return 0 on success
  */
@@ -119,8 +119,8 @@ int rvt_create_mad_agents(struct rvt_dev_info *rdi)
 
 		rvp->send_agent = agent;
 
-		if (rdi->driver_f.notify_create_mad_agent)
-			rdi->driver_f.notify_create_mad_agent(rdi, p);
+		if (rdi->driver_f.yestify_create_mad_agent)
+			rdi->driver_f.yestify_create_mad_agent(rdi, p);
 	}
 
 	return 0;
@@ -132,8 +132,8 @@ err:
 			agent = rvp->send_agent;
 			rvp->send_agent = NULL;
 			ib_unregister_mad_agent(agent);
-			if (rdi->driver_f.notify_free_mad_agent)
-				rdi->driver_f.notify_free_mad_agent(rdi, p);
+			if (rdi->driver_f.yestify_free_mad_agent)
+				rdi->driver_f.yestify_free_mad_agent(rdi, p);
 		}
 	}
 
@@ -144,7 +144,7 @@ err:
  * rvt_free_mad_agents - free up mad agents
  * @rdi: rvt dev struct
  *
- * If driver needs notification of mad agent removal make the call back
+ * If driver needs yestification of mad agent removal make the call back
  */
 void rvt_free_mad_agents(struct rvt_dev_info *rdi)
 {
@@ -165,8 +165,8 @@ void rvt_free_mad_agents(struct rvt_dev_info *rdi)
 			rvp->sm_ah = NULL;
 		}
 
-		if (rdi->driver_f.notify_free_mad_agent)
-			rdi->driver_f.notify_free_mad_agent(rdi, p);
+		if (rdi->driver_f.yestify_free_mad_agent)
+			rdi->driver_f.yestify_free_mad_agent(rdi, p);
 	}
 }
 

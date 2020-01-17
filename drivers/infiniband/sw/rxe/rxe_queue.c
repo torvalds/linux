@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must retailuce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -71,7 +71,7 @@ inline void rxe_queue_reset(struct rxe_queue *q)
 {
 	/* queue is comprised from header and the memory
 	 * of the actual queue. See "struct rxe_queue_buf" in rxe_queue.h
-	 * reset only the queue itself and not the management header
+	 * reset only the queue itself and yest the management header
 	 */
 	memset(q->buf->data, 0, q->buf_size - sizeof(struct rxe_queue_buf));
 }

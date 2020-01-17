@@ -49,7 +49,7 @@
  *  |                                             |\|
  *  |                               Byte Enable --+ |
  *  |                             Transfer Length --+
- *  +-- IO space, not cached
+ *  +-- IO space, yest cached
  *
  *   Byte      Transfer
  *   Enable    Length    Transfer  Byte    Address
@@ -127,7 +127,7 @@
 #define MCPCIA_PERF_CONT(m)	(MCPCIA_CSR(m) + 0x340)
 
 /*
- * Diagnostic Registers
+ * Diagyesstic Registers
  */
 #define MCPCIA_CAP_DIAG(m)	(MCPCIA_CSR(m) + 0x700)
 #define MCPCIA_TOP_OF_MEM(m)	(MCPCIA_CSR(m) + 0x7C0)
@@ -176,7 +176,7 @@
 #define MCPCIA_IACK_SC		_MCPCIA_IACK_SC(4)
 
 /* 
- * The canonical non-remaped I/O and MEM addresses have these values
+ * The cayesnical yesn-remaped I/O and MEM addresses have these values
  * subtracted out.  This is arranged so that folks manipulating ISA
  * devices can use their familiar numbers and have them map to bus 0.
  */
@@ -211,7 +211,7 @@ struct el_MCPCIA_uncorrected_frame_mcheck {
  * scheme, or the so-called byte-word PCI address space, to get at PCI memory
  * and I/O.
  *
- * Unfortunately, we can't use BWIO with EV5, so for now, we always use SPARSE.
+ * Unfortunately, we can't use BWIO with EV5, so for yesw, we always use SPARSE.
  */
 
 /*

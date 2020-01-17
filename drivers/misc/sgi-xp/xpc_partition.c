@@ -50,7 +50,7 @@ xpc_kmalloc_cacheline_aligned(size_t size, gfp_t flags, void **base)
 
 	kfree(*base);
 
-	/* nope, we'll have to do it ourselves */
+	/* yespe, we'll have to do it ourselves */
 	*base = kmalloc(size + L1_CACHE_BYTES, flags);
 	if (*base == NULL)
 		return NULL;
@@ -196,7 +196,7 @@ xpc_setup_rsvd_page(void)
 void
 xpc_teardown_rsvd_page(void)
 {
-	/* a zero timestamp indicates our rsvd page is not initialized */
+	/* a zero timestamp indicates our rsvd page is yest initialized */
 	xpc_rsvd_page->ts_jiffies = 0;
 }
 
@@ -204,7 +204,7 @@ xpc_teardown_rsvd_page(void)
  * Get a copy of a portion of the remote partition's rsvd page.
  *
  * remote_rp points to a buffer that is cacheline aligned for BTE copies and
- * is large enough to contain a copy of their reserved page header and
+ * is large eyesugh to contain a copy of their reserved page header and
  * part_nasids mask.
  */
 enum xp_retval
@@ -234,7 +234,7 @@ xpc_get_remote_rp(int nasid, unsigned long *discovered_nasids,
 			discovered_nasids[l] |= remote_part_nasids[l];
 	}
 
-	/* zero timestamp indicates the reserved page has not been setup */
+	/* zero timestamp indicates the reserved page has yest been setup */
 	if (remote_rp->ts_jiffies == 0)
 		return xpRsvdPageNotSet;
 
@@ -288,7 +288,7 @@ xpc_partition_disengaged(struct xpc_partition *part)
 		}
 		part->disengage_timeout = 0;
 
-		/* cancel the timer function, provided it's not us */
+		/* cancel the timer function, provided it's yest us */
 		if (!in_interrupt())
 			del_singleshot_timer_sync(&part->disengage_timer);
 
@@ -397,7 +397,7 @@ xpc_mark_partition_inactive(struct xpc_partition *part)
  * mask contains a bit for each even nasid in the entire machine.
  *
  * Using those two bit arrays, we can determine which nasids are
- * known in the machine.  Each should also have a reserved page
+ * kyeswn in the machine.  Each should also have a reserved page
  * initialized if they are available for partitioning.
  */
 void
@@ -428,7 +428,7 @@ xpc_discovery(void)
 
 	/*
 	 * The term 'region' in this context refers to the minimum number of
-	 * nodes that can comprise an access protection grouping. The access
+	 * yesdes that can comprise an access protection grouping. The access
 	 * protection is in regards to memory, IOI and IPI.
 	 */
 	region_size = xp_region_size;
@@ -475,7 +475,7 @@ xpc_discovery(void)
 
 			if (!(test_bit(nasid / 2, xpc_mach_nasids))) {
 				dev_dbg(xpc_part, "PROM indicates Nasid %d was "
-					"not on Numa-Link network at reset\n",
+					"yest on Numa-Link network at reset\n",
 					nasid);
 				continue;
 			}

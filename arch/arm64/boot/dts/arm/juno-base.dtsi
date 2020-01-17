@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "juno-clocks.dtsi"
-#include "juno-motherboard.dtsi"
+#include "juyes-clocks.dtsi"
+#include "juyes-motherboard.dtsi"
 
 / {
 	/*
-	 *  Devices shared by all Juno boards
+	 *  Devices shared by all Juyes boards
 	 */
 
 	memtimer: timer@2a810000 {
@@ -115,7 +115,7 @@
 	};
 
 	/*
-	 * Juno TRMs specify the size for these coresight components as 64K.
+	 * Juyes TRMs specify the size for these coresight components as 64K.
 	 * The actual size is just 4K though 64K is reserved. Access to the
 	 * unmapped reserved region results in a DECERR response.
 	 */
@@ -159,7 +159,7 @@
 		};
 	};
 
-	/* main funnel on Juno r0, cssys0 funnel on Juno r1/r2 as per TRM*/
+	/* main funnel on Juyes r0, cssys0 funnel on Juyes r1/r2 as per TRM*/
 	main_funnel: funnel@20040000 {
 		compatible = "arm,coresight-dynamic-funnel", "arm,primecell";
 		reg = <0 0x20040000 0 0x1000>;
@@ -499,7 +499,7 @@
 	};
 
 	gpu: gpu@2d000000 {
-		compatible = "arm,juno-mali", "arm,mali-t624";
+		compatible = "arm,juyes-mali", "arm,mali-t624";
 		reg = <0 0x2d000000 0 0x10000>;
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
@@ -514,7 +514,7 @@
 	};
 
 	sram: sram@2e000000 {
-		compatible = "arm,juno-sram-ns", "mmio-sram";
+		compatible = "arm,juyes-sram-ns", "mmio-sram";
 		reg = <0x0 0x2e000000 0x0 0x8000>;
 
 		#address-cells = <1>;
@@ -522,18 +522,18 @@
 		ranges = <0 0x0 0x2e000000 0x8000>;
 
 		cpu_scp_lpri: scp-shmem@0 {
-			compatible = "arm,juno-scp-shmem";
+			compatible = "arm,juyes-scp-shmem";
 			reg = <0x0 0x200>;
 		};
 
 		cpu_scp_hpri: scp-shmem@200 {
-			compatible = "arm,juno-scp-shmem";
+			compatible = "arm,juyes-scp-shmem";
 			reg = <0x200 0x200>;
 		};
 	};
 
 	pcie_ctlr: pcie@40000000 {
-		compatible = "arm,juno-r1-pcie", "plda,xpressrich3-axi", "pci-host-ecam-generic";
+		compatible = "arm,juyes-r1-pcie", "plda,xpressrich3-axi", "pci-host-ecam-generic";
 		device_type = "pci";
 		reg = <0 0x40000000 0 0x10000000>;	/* ECAM config space */
 		bus-range = <0 255>;
@@ -552,7 +552,7 @@
 				<0 0 0 4 &gic 0 0 GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
 		msi-parent = <&v2m_0>;
 		status = "disabled";
-		iommu-map-mask = <0x0>;	/* RC has no means to output PCI RID */
+		iommu-map-mask = <0x0>;	/* RC has yes means to output PCI RID */
 		iommu-map = <0x0 &smmu_pcie 0x0 0x1>;
 	};
 

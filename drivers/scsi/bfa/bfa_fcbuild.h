@@ -31,7 +31,7 @@
  * Given the fc response length, this routine will return
  * the length of the actual payload bytes following the CT header.
  *
- * Assumes the input response length does not include the crc, eof, etc.
+ * Assumes the input response length does yest include the crc, eof, etc.
  */
 static inline   u32
 fc_get_ctresp_pyld_len(u32 resp_len)
@@ -128,23 +128,23 @@ struct fc_templates_s {
 void            fcbuild_init(void);
 
 u16        fc_flogi_build(struct fchs_s *fchs, struct fc_logi_s *flogi,
-			u32 s_id, u16 ox_id, wwn_t port_name, wwn_t node_name,
+			u32 s_id, u16 ox_id, wwn_t port_name, wwn_t yesde_name,
 			       u16 pdu_size, u8 set_npiv, u8 set_auth,
 			       u16 local_bb_credits);
 
 u16        fc_fdisc_build(struct fchs_s *buf, struct fc_logi_s *flogi, u32 s_id,
-			       u16 ox_id, wwn_t port_name, wwn_t node_name,
+			       u16 ox_id, wwn_t port_name, wwn_t yesde_name,
 			       u16 pdu_size);
 
 u16        fc_flogi_acc_build(struct fchs_s *fchs, struct fc_logi_s *flogi,
 				   u32 s_id, __be16 ox_id,
-				   wwn_t port_name, wwn_t node_name,
+				   wwn_t port_name, wwn_t yesde_name,
 				   u16 pdu_size,
 				   u16 local_bb_credits, u8 bb_scn);
 
 u16        fc_plogi_build(struct fchs_s *fchs, void *pld, u32 d_id,
 			       u32 s_id, u16 ox_id, wwn_t port_name,
-			       wwn_t node_name, u16 pdu_size, u16 bb_cr);
+			       wwn_t yesde_name, u16 pdu_size, u16 bb_cr);
 
 enum fc_parse_status fc_plogi_parse(struct fchs_s *fchs);
 
@@ -159,7 +159,7 @@ u16        fc_rrq_build(struct fchs_s *buf, struct fc_rrq_s *rrq, u32 d_id,
 u16        fc_rspnid_build(struct fchs_s *fchs, void *pld, u32 s_id,
 				u16 ox_id, u8 *name);
 u16	fc_rsnn_nn_build(struct fchs_s *fchs, void *pld, u32 s_id,
-				wwn_t node_name, u8 *name);
+				wwn_t yesde_name, u8 *name);
 
 u16        fc_rftid_build(struct fchs_s *fchs, void *pld, u32 s_id,
 			       u16 ox_id, enum bfa_lport_role role);
@@ -186,22 +186,22 @@ u16        fc_scr_build(struct fchs_s *fchs, struct fc_scr_s *scr,
 
 u16        fc_plogi_acc_build(struct fchs_s *fchs, void *pld, u32 d_id,
 				   u32 s_id, u16 ox_id,
-				   wwn_t port_name, wwn_t node_name,
+				   wwn_t port_name, wwn_t yesde_name,
 				   u16 pdu_size, u16 bb_cr);
 
 u16        fc_adisc_build(struct fchs_s *fchs, struct fc_adisc_s *adisc,
 			u32 d_id, u32 s_id, __be16 ox_id, wwn_t port_name,
-			       wwn_t node_name);
+			       wwn_t yesde_name);
 
 enum fc_parse_status fc_adisc_parse(struct fchs_s *fchs, void *pld,
-			u32 host_dap, wwn_t node_name, wwn_t port_name);
+			u32 host_dap, wwn_t yesde_name, wwn_t port_name);
 
 enum fc_parse_status fc_adisc_rsp_parse(struct fc_adisc_s *adisc, int len,
-				 wwn_t port_name, wwn_t node_name);
+				 wwn_t port_name, wwn_t yesde_name);
 
 u16        fc_adisc_acc_build(struct fchs_s *fchs, struct fc_adisc_s *adisc,
 				   u32 d_id, u32 s_id, __be16 ox_id,
-				   wwn_t port_name, wwn_t node_name);
+				   wwn_t port_name, wwn_t yesde_name);
 u16        fc_ls_rjt_build(struct fchs_s *fchs, struct fc_ls_rjt_s *ls_rjt,
 				u32 d_id, u32 s_id, __be16 ox_id,
 				u8 reason_code, u8 reason_code_expl);
@@ -240,7 +240,7 @@ u16        fc_rpnid_build(struct fchs_s *fchs, void *pyld, u32 s_id,
 			       u32 port_id, wwn_t port_name);
 
 u16        fc_rnnid_build(struct fchs_s *fchs, void *pyld, u32 s_id,
-			       u32 port_id, wwn_t node_name);
+			       u32 port_id, wwn_t yesde_name);
 
 u16        fc_rcsid_build(struct fchs_s *fchs, void *pyld, u32 s_id,
 			       u32 port_id, u32 cos);
@@ -272,7 +272,7 @@ enum fc_parse_status	fc_plogi_rsp_parse(struct fchs_s *fchs, int len,
 
 enum fc_parse_status	fc_prli_parse(struct fc_prli_s *prli);
 
-enum fc_parse_status	fc_pdisc_parse(struct fchs_s *fchs, wwn_t node_name,
+enum fc_parse_status	fc_pdisc_parse(struct fchs_s *fchs, wwn_t yesde_name,
 					wwn_t port_name);
 
 u16 fc_ba_acc_build(struct fchs_s *fchs, struct fc_ba_acc_s *ba_acc, u32 d_id,
@@ -287,7 +287,7 @@ u16 fc_prlo_acc_build(struct fchs_s *fchs, struct fc_prlo_acc_s *prlo_acc,
 		u32 d_id, u32 s_id, __be16 ox_id, int num_pages);
 
 u16 fc_pdisc_build(struct fchs_s *fchs, u32 d_id, u32 s_id,
-		u16 ox_id, wwn_t port_name, wwn_t node_name,
+		u16 ox_id, wwn_t port_name, wwn_t yesde_name,
 		u16 pdu_size);
 
 u16 fc_pdisc_rsp_parse(struct fchs_s *fchs, int len, wwn_t port_name);

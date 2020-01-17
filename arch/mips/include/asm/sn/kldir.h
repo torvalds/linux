@@ -13,7 +13,7 @@
 
 
 /*
- * The kldir memory area resides at a fixed place in each node's memory and
+ * The kldir memory area resides at a fixed place in each yesde's memory and
  * provides pointers to most other IP27 memory areas.  This allows us to
  * resize and/or relocate memory areas at a later time without breaking all
  * firmware and kernels that use them.	Indices in the array are
@@ -102,9 +102,9 @@
  * 0x4000 (16K)		   +-----------------------------------------+
  *			   |	  NMI Handler (Protected Page)	     |
  * 0x3000 (12K)		   +-----------------------------------------+
- *			   |	  ARCS PVECTORS (master node only)   |
+ *			   |	  ARCS PVECTORS (master yesde only)   |
  * 0x2c00 (11K)		   +-----------------------------------------+
- *			   |	  ARCS TVECTORS (master node only)   |
+ *			   |	  ARCS TVECTORS (master yesde only)   |
  * 0x2800 (10K)		   +-----------------------------------------+
  *			   |	  LAUNCH [NUM_CPU]		     |
  * 0x2400 (9K)		   +-----------------------------------------+
@@ -136,7 +136,7 @@
  * we define here.  Since it's set up in the prom.  We can't redefine it later
  * and expect more space to be allocated.  The way to find out the true size
  * of the symmon stacks is to divide SYMMON_STK_SIZE by SYMMON_STK_STRIDE
- * for a particular node.
+ * for a particular yesde.
  */
 #define SYMMON_STACK_SIZE		0x8000
 
@@ -203,11 +203,11 @@
 #ifndef __ASSEMBLY__
 typedef struct kldir_ent_s {
 	u64		magic;		/* Indicates validity of entry	    */
-	off_t		offset;		/* Offset from start of node space  */
+	off_t		offset;		/* Offset from start of yesde space  */
 	unsigned long	pointer;	/* Pointer to area in some cases    */
 	size_t		size;		/* Size in bytes		    */
-	u64		count;		/* Repeat count if array, 1 if not  */
-	size_t		stride;		/* Stride if array, 0 if not	    */
+	u64		count;		/* Repeat count if array, 1 if yest  */
+	size_t		stride;		/* Stride if array, 0 if yest	    */
 	char		rsvd[16];	/* Pad entry to 0x40 bytes	    */
 	/* NOTE: These 16 bytes are used in the Partition KLDIR
 	   entry to store partition info. Refer to klpart.h for this. */

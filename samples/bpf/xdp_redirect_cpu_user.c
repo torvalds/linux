@@ -4,7 +4,7 @@
 static const char *__doc__ =
 	" XDP redirect with a CPU-map type \"BPF_MAP_TYPE_CPUMAP\"";
 
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,16 +55,16 @@ static int exception_cnt_map_fd;
 #define EXIT_FAIL_MEM		5
 
 static const struct option long_options[] = {
-	{"help",	no_argument,		NULL, 'h' },
+	{"help",	yes_argument,		NULL, 'h' },
 	{"dev",		required_argument,	NULL, 'd' },
-	{"skb-mode",	no_argument,		NULL, 'S' },
+	{"skb-mode",	yes_argument,		NULL, 'S' },
 	{"sec",		required_argument,	NULL, 's' },
 	{"progname",	required_argument,	NULL, 'p' },
 	{"qsize",	required_argument,	NULL, 'q' },
 	{"cpu",		required_argument,	NULL, 'c' },
-	{"stress-mode", no_argument,		NULL, 'x' },
-	{"no-separators", no_argument,		NULL, 'z' },
-	{"force",	no_argument,		NULL, 'F' },
+	{"stress-mode", yes_argument,		NULL, 'x' },
+	{"yes-separators", yes_argument,		NULL, 'z' },
+	{"force",	yes_argument,		NULL, 'F' },
 	{0, 0, NULL,  0 }
 };
 
@@ -85,7 +85,7 @@ static void int_exit(int sig)
 		} else if (!curr_prog_id) {
 			printf("couldn't find a prog id on a given iface\n");
 		} else {
-			printf("program on interface changed, not removing\n");
+			printf("program on interface changed, yest removing\n");
 		}
 	}
 	exit(EXIT_OK);
@@ -124,7 +124,7 @@ static void usage(char *argv[], struct bpf_object *obj)
 	printf("\n");
 }
 
-/* gettime returns the current time of day in nanoseconds.
+/* gettime returns the current time of day in nayesseconds.
  * Cost: clock_gettime (ns) => 26ns (CLOCK_MONOTONIC)
  *       clock_gettime (ns) =>  9ns (CLOCK_MONOTONIC_COARSE)
  */
@@ -509,7 +509,7 @@ static int create_cpu_entry(__u32 cpu, __u32 queue_size,
 		exit(EXIT_FAIL_BPF);
 	}
 
-	/* When not replacing/updating existing entry, bump the count */
+	/* When yest replacing/updating existing entry, bump the count */
 	ret = bpf_map_lookup_elem(cpus_count_map_fd, &key, &curr_cpus_count);
 	if (ret) {
 		fprintf(stderr, "Failed reading curr cpus_count\n");
@@ -533,7 +533,7 @@ static int create_cpu_entry(__u32 cpu, __u32 queue_size,
 }
 
 /* CPUs are zero-indexed. Thus, add a special sentinel default value
- * in map cpus_available to mark CPU index'es not configured
+ * in map cpus_available to mark CPU index'es yest configured
  */
 static void mark_cpus_unavailable(void)
 {
@@ -659,7 +659,7 @@ int main(int argc, char **argv)
 
 	if (prog_fd < 0) {
 		fprintf(stderr, "ERR: bpf_prog_load_xattr: %s\n",
-			strerror(errno));
+			strerror(erryes));
 		return EXIT_FAIL;
 	}
 	if (init_map_fds(obj) < 0) {
@@ -682,8 +682,8 @@ int main(int argc, char **argv)
 			ifindex = if_nametoindex(ifname);
 			if (ifindex == 0) {
 				fprintf(stderr,
-					"ERR: --dev name unknown err(%d):%s\n",
-					errno, strerror(errno));
+					"ERR: --dev name unkyeswn err(%d):%s\n",
+					erryes, strerror(erryes));
 				goto error;
 			}
 			break;
@@ -709,7 +709,7 @@ int main(int argc, char **argv)
 			if (add_cpu >= MAX_CPUS) {
 				fprintf(stderr,
 				"--cpu nr too large for cpumap err(%d):%s\n",
-					errno, strerror(errno));
+					erryes, strerror(erryes));
 				goto error;
 			}
 			create_cpu_entry(add_cpu, qsize, added_cpus, true);
@@ -765,7 +765,7 @@ int main(int argc, char **argv)
 
 	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
 	if (err) {
-		printf("can't get prog info - %s\n", strerror(errno));
+		printf("can't get prog info - %s\n", strerror(erryes));
 		return err;
 	}
 	prog_id = info.id;

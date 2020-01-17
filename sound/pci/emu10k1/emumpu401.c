@@ -272,7 +272,7 @@ static void snd_emu10k1_midi_output_trigger(struct snd_rawmidi_substream *substr
 			if (mpu401_output_ready(emu, midi)) {
 				if (!(midi->midi_mode & EMU10K1_MIDI_MODE_OUTPUT) ||
 				    snd_rawmidi_transmit(substream, &byte, 1) != 1) {
-					/* no more data */
+					/* yes more data */
 					spin_unlock_irqrestore(&midi->output_lock, flags);
 					return;
 				}

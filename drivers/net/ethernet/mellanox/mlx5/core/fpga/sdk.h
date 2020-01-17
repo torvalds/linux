@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -38,8 +38,8 @@
 #include <linux/dma-direction.h>
 
 /**
- * DOC: Innova SDK
- * This header defines the in-kernel API for Innova FPGA client drivers.
+ * DOC: Inyesva SDK
+ * This header defines the in-kernel API for Inyesva FPGA client drivers.
  */
 #define SBU_QP_QUEUE_SIZE 8
 #define MLX5_FPGA_CMD_TIMEOUT_MSEC (60 * 1000)
@@ -149,7 +149,7 @@ void mlx5_fpga_sbu_conn_destroy(struct mlx5_fpga_conn *conn);
  * @buf: The packet buffer
  *
  * Queues a packet for transmission over an FPGA SBU connection.
- * The buffer should not be modified or freed until completion.
+ * The buffer should yest be modified or freed until completion.
  * Upon completion, the buf's complete() callback is invoked, indicating the
  * success or error status of the transmission.
  *
@@ -168,8 +168,8 @@ int mlx5_fpga_sbu_conn_sendmsg(struct mlx5_fpga_conn *conn,
  *
  * Reads from the specified address into the specified buffer.
  * The address may point to configuration space or to DDR.
- * Large reads may be performed internally as several non-atomic operations.
- * This function may sleep, so should not be called from atomic contexts.
+ * Large reads may be performed internally as several yesn-atomic operations.
+ * This function may sleep, so should yest be called from atomic contexts.
  *
  * Return: 0 if successful, or an error value otherwise.
  */
@@ -186,8 +186,8 @@ int mlx5_fpga_mem_read(struct mlx5_fpga_device *fdev, size_t size, u64 addr,
  *
  * Writes the specified buffer data to FPGA memory at the specified address.
  * The address may point to configuration space or to DDR.
- * Large writes may be performed internally as several non-atomic operations.
- * This function may sleep, so should not be called from atomic contexts.
+ * Large writes may be performed internally as several yesn-atomic operations.
+ * This function may sleep, so should yest be called from atomic contexts.
  *
  * Return: 0 if successful, or an error value otherwise.
  */
@@ -204,7 +204,7 @@ int mlx5_fpga_mem_write(struct mlx5_fpga_device *fdev, size_t size, u64 addr,
  * The format of the capabilities buffer is SBU-dependent.
  *
  * Return: 0 if successful
- *         -EINVAL if the buffer is not large enough to contain SBU caps
+ *         -EINVAL if the buffer is yest large eyesugh to contain SBU caps
  *         or any other error value otherwise.
  */
 int mlx5_fpga_get_sbu_caps(struct mlx5_fpga_device *fdev, int size, void *buf);

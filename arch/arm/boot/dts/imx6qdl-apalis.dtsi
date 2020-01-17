@@ -5,7 +5,7 @@
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -369,7 +369,7 @@
 		stmpe_adc {
 			compatible = "st,stmpe-adc";
 			/* forbid to use ADC channels 3-0 (touch) */
-			st,norequest-mask = <0x0F>;
+			st,yesrequest-mask = <0x0F>;
 		};
 	};
 };
@@ -466,7 +466,7 @@
 	vqmmc-supply = <&reg_module_3v3>;
 	bus-width = <8>;
 	disable-wp;
-	no-1-8-v;
+	yes-1-8-v;
 	status = "disabled";
 };
 
@@ -477,7 +477,7 @@
 	vqmmc-supply = <&reg_module_3v3>;
 	bus-width = <4>;
 	disable-wp;
-	no-1-8-v;
+	yes-1-8-v;
 	status = "disabled";
 };
 
@@ -487,8 +487,8 @@
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	vqmmc-supply = <&reg_module_3v3>;
 	bus-width = <8>;
-	no-1-8-v;
-	non-removable;
+	yes-1-8-v;
+	yesn-removable;
 	status = "okay";
 };
 

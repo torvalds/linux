@@ -53,11 +53,11 @@ struct hci_create_pipe_resp {
 	u8 pipe;
 } __packed;
 
-struct hci_delete_pipe_noti {
+struct hci_delete_pipe_yesti {
 	u8 pipe;
 } __packed;
 
-struct hci_all_pipe_cleared_noti {
+struct hci_all_pipe_cleared_yesti {
 	u8 host;
 } __packed;
 

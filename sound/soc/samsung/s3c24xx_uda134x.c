@@ -34,7 +34,7 @@ struct s3c24xx_uda134x {
   operation for embedded systems. So if you aren't very lucky or your
   hardware engineer wasn't very forward-looking it's better to leave
   this undefined. If you do so an approximate value for the requested
-  sampling rate in the range -/+ 5% will be chosen. If this in not
+  sampling rate in the range -/+ 5% will be chosen. If this in yest
   possible an error will be returned.
 */
 
@@ -59,12 +59,12 @@ static int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 	if (priv->clk_users == 0) {
 		priv->xtal = clk_get(rtd->dev, "xtal");
 		if (IS_ERR(priv->xtal)) {
-			dev_err(rtd->dev, "%s cannot get xtal\n", __func__);
+			dev_err(rtd->dev, "%s canyest get xtal\n", __func__);
 			ret = PTR_ERR(priv->xtal);
 		} else {
 			priv->pclk = clk_get(cpu_dai->dev, "iis");
 			if (IS_ERR(priv->pclk)) {
-				dev_err(rtd->dev, "%s cannot get pclk\n",
+				dev_err(rtd->dev, "%s canyest get pclk\n",
 					__func__);
 				clk_put(priv->xtal);
 				ret = PTR_ERR(priv->pclk);
@@ -92,7 +92,7 @@ static int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 						 SNDRV_PCM_HW_PARAM_RATE,
 						 &hw_constraints_rates);
 		if (ret < 0)
-			dev_err(rtd->dev, "%s cannot set constraints\n",
+			dev_err(rtd->dev, "%s canyest set constraints\n",
 				__func__);
 #endif
 	}

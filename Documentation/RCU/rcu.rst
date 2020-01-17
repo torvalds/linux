@@ -7,7 +7,7 @@ The basic idea behind RCU (read-copy update) is to split destructive
 operations into two parts, one that prevents anyone from seeing the data
 item being destroyed, and one that actually carries out the destruction.
 A "grace period" must elapse between the two parts, and this grace period
-must be long enough that any readers accessing the item being deleted have
+must be long eyesugh that any readers accessing the item being deleted have
 since dropped their references.  For example, an RCU-protected deletion
 from a linked list would first remove the item from the list, wait for
 a grace period to elapse, then free the element.  See the
@@ -20,20 +20,20 @@ Frequently Asked Questions
 - Why would anyone want to use RCU?
 
   The advantage of RCU's two-part approach is that RCU readers need
-  not acquire any locks, perform any atomic instructions, write to
+  yest acquire any locks, perform any atomic instructions, write to
   shared memory, or (on CPUs other than Alpha) execute any memory
   barriers.  The fact that these operations are quite expensive
   on modern CPUs is what gives RCU its performance advantages
-  in read-mostly situations.  The fact that RCU readers need not
+  in read-mostly situations.  The fact that RCU readers need yest
   acquire locks can also greatly simplify deadlock-avoidance code.
 
 - How can the updater tell when a grace period has completed
-  if the RCU readers give no indication when they are done?
+  if the RCU readers give yes indication when they are done?
 
-  Just as with spinlocks, RCU readers are not permitted to
+  Just as with spinlocks, RCU readers are yest permitted to
   block, switch to user-mode execution, or enter the idle loop.
   Therefore, as soon as a CPU is seen passing through any of these
-  three states, we know that that CPU has exited any previous RCU
+  three states, we kyesw that that CPU has exited any previous RCU
   read-side critical sections.  So, if we remove an item from a
   linked list, and then wait until all CPUs have switched context,
   executed in user mode, or executed in the idle loop, we can
@@ -74,11 +74,11 @@ Frequently Asked Questions
 
 - I hear that RCU is patented?  What is with that?
 
-  Yes, it is.  There are several known patents related to RCU,
+  Yes, it is.  There are several kyeswn patents related to RCU,
   search for the string "Patent" in RTFP.txt to find them.
   Of these, one was allowed to lapse by the assignee, and the
   others have been contributed to the Linux kernel under GPL.
-  There are now also LGPL implementations of user-level RCU
+  There are yesw also LGPL implementations of user-level RCU
   available (http://liburcu.org/).
 
 - I hear that RCU needs work in order to support realtime kernels?

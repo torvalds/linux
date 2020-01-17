@@ -55,9 +55,9 @@ static void print_format1_lock(struct seq_file *s, struct dlm_lkb *lkb,
 	    lkb->lkb_status == DLM_LKSTS_WAITING)
 		seq_printf(s, " (%s)", print_lockmode(lkb->lkb_rqmode));
 
-	if (lkb->lkb_nodeid) {
-		if (lkb->lkb_nodeid != res->res_nodeid)
-			seq_printf(s, " Remote: %3d %08x", lkb->lkb_nodeid,
+	if (lkb->lkb_yesdeid) {
+		if (lkb->lkb_yesdeid != res->res_yesdeid)
+			seq_printf(s, " Remote: %3d %08x", lkb->lkb_yesdeid,
 				   lkb->lkb_remid);
 		else
 			seq_printf(s, " Master:     %08x", lkb->lkb_remid);
@@ -85,16 +85,16 @@ static void print_format1(struct dlm_rsb *res, struct seq_file *s)
 			seq_printf(s, "%c", '.');
 	}
 
-	if (res->res_nodeid > 0)
-		seq_printf(s, "\"\nLocal Copy, Master is node %d\n",
-			   res->res_nodeid);
-	else if (res->res_nodeid == 0)
+	if (res->res_yesdeid > 0)
+		seq_printf(s, "\"\nLocal Copy, Master is yesde %d\n",
+			   res->res_yesdeid);
+	else if (res->res_yesdeid == 0)
 		seq_puts(s, "\"\nMaster Copy\n");
-	else if (res->res_nodeid == -1)
+	else if (res->res_yesdeid == -1)
 		seq_printf(s, "\"\nLooking up master (lkid %x)\n",
 			   res->res_first_lkid);
 	else
-		seq_printf(s, "\"\nInvalid master %d\n", res->res_nodeid);
+		seq_printf(s, "\"\nInvalid master %d\n", res->res_yesdeid);
 	if (seq_has_overflowed(s))
 		goto out;
 
@@ -176,12 +176,12 @@ static void print_format2_lock(struct seq_file *s, struct dlm_lkb *lkb,
 	/* microseconds since lkb was added to current queue */
 	us = ktime_to_us(ktime_sub(ktime_get(), lkb->lkb_timestamp));
 
-	/* id nodeid remid pid xid exflags flags sts grmode rqmode time_us
-	   r_nodeid r_len r_name */
+	/* id yesdeid remid pid xid exflags flags sts grmode rqmode time_us
+	   r_yesdeid r_len r_name */
 
 	seq_printf(s, "%x %d %x %u %llu %x %x %d %d %d %llu %u %d \"%s\"\n",
 		   lkb->lkb_id,
-		   lkb->lkb_nodeid,
+		   lkb->lkb_yesdeid,
 		   lkb->lkb_remid,
 		   lkb->lkb_ownpid,
 		   (unsigned long long)xid,
@@ -191,7 +191,7 @@ static void print_format2_lock(struct seq_file *s, struct dlm_lkb *lkb,
 		   lkb->lkb_grmode,
 		   lkb->lkb_rqmode,
 		   (unsigned long long)us,
-		   r->res_nodeid,
+		   r->res_yesdeid,
 		   r->res_length,
 		   r->res_name);
 }
@@ -235,7 +235,7 @@ static void print_format3_lock(struct seq_file *s, struct dlm_lkb *lkb,
 
 	seq_printf(s, "lkb %x %d %x %u %llu %x %x %d %d %d %d %d %d %u %llu %llu\n",
 		   lkb->lkb_id,
-		   lkb->lkb_nodeid,
+		   lkb->lkb_yesdeid,
 		   lkb->lkb_remid,
 		   lkb->lkb_ownpid,
 		   (unsigned long long)xid,
@@ -262,7 +262,7 @@ static void print_format3(struct dlm_rsb *r, struct seq_file *s)
 
 	seq_printf(s, "rsb %p %d %x %lx %d %d %u %d ",
 		   r,
-		   r->res_nodeid,
+		   r->res_yesdeid,
 		   r->res_first_lkid,
 		   r->res_flags,
 		   !list_empty(&r->res_root_list),
@@ -330,7 +330,7 @@ static void print_format3(struct dlm_rsb *r, struct seq_file *s)
 
 static void print_format4(struct dlm_rsb *r, struct seq_file *s)
 {
-	int our_nodeid = dlm_our_nodeid();
+	int our_yesdeid = dlm_our_yesdeid();
 	int print_name = 1;
 	int i;
 
@@ -338,10 +338,10 @@ static void print_format4(struct dlm_rsb *r, struct seq_file *s)
 
 	seq_printf(s, "rsb %p %d %d %d %d %lu %lx %d ",
 		   r,
-		   r->res_nodeid,
-		   r->res_master_nodeid,
-		   r->res_dir_nodeid,
-		   our_nodeid,
+		   r->res_yesdeid,
+		   r->res_master_yesdeid,
+		   r->res_dir_yesdeid,
+		   our_yesdeid,
 		   r->res_toss_time,
 		   r->res_flags,
 		   r->res_length);
@@ -372,7 +372,7 @@ struct rsbtbl_iter {
 
 /*
  * If the buffer is full, seq_printf can be called again, but it
- * does nothing.  So, the these printing routines periodically check
+ * does yesthing.  So, the these printing routines periodically check
  * seq_has_overflowed to avoid wasting too much time trying to print to
  * a full buffer.
  */
@@ -387,7 +387,7 @@ static int table_seq_show(struct seq_file *seq, void *iter_ptr)
 		break;
 	case 2:
 		if (ri->header) {
-			seq_puts(seq, "id nodeid remid pid xid exflags flags sts grmode rqmode time_ms r_nodeid r_len r_name\n");
+			seq_puts(seq, "id yesdeid remid pid xid exflags flags sts grmode rqmode time_ms r_yesdeid r_len r_name\n");
 			ri->header = 0;
 		}
 		print_format2(ri->rsb, seq);
@@ -419,7 +419,7 @@ static const struct seq_operations format4_seq_ops;
 static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct rb_root *tree;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct dlm_ls *ls = seq->private;
 	struct rsbtbl_iter *ri;
 	struct dlm_rsb *r;
@@ -451,8 +451,8 @@ static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 
 	spin_lock(&ls->ls_rsbtbl[bucket].lock);
 	if (!RB_EMPTY_ROOT(tree)) {
-		for (node = rb_first(tree); node; node = rb_next(node)) {
-			r = rb_entry(node, struct dlm_rsb, res_hashnode);
+		for (yesde = rb_first(tree); yesde; yesde = rb_next(yesde)) {
+			r = rb_entry(yesde, struct dlm_rsb, res_hashyesde);
 			if (!entry--) {
 				dlm_hold_rsb(r);
 				ri->rsb = r;
@@ -465,7 +465,7 @@ static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 
 	/*
-	 * move to the first rsb in the next non-empty bucket
+	 * move to the first rsb in the next yesn-empty bucket
 	 */
 
 	/* zero the entry */
@@ -483,8 +483,8 @@ static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 
 		spin_lock(&ls->ls_rsbtbl[bucket].lock);
 		if (!RB_EMPTY_ROOT(tree)) {
-			node = rb_first(tree);
-			r = rb_entry(node, struct dlm_rsb, res_hashnode);
+			yesde = rb_first(tree);
+			r = rb_entry(yesde, struct dlm_rsb, res_hashyesde);
 			dlm_hold_rsb(r);
 			ri->rsb = r;
 			ri->bucket = bucket;
@@ -501,7 +501,7 @@ static void *table_seq_next(struct seq_file *seq, void *iter_ptr, loff_t *pos)
 	struct dlm_ls *ls = seq->private;
 	struct rsbtbl_iter *ri = iter_ptr;
 	struct rb_root *tree;
-	struct rb_node *next;
+	struct rb_yesde *next;
 	struct dlm_rsb *r, *rp;
 	loff_t n = *pos;
 	unsigned bucket;
@@ -515,10 +515,10 @@ static void *table_seq_next(struct seq_file *seq, void *iter_ptr, loff_t *pos)
 
 	spin_lock(&ls->ls_rsbtbl[bucket].lock);
 	rp = ri->rsb;
-	next = rb_next(&rp->res_hashnode);
+	next = rb_next(&rp->res_hashyesde);
 
 	if (next) {
-		r = rb_entry(next, struct dlm_rsb, res_hashnode);
+		r = rb_entry(next, struct dlm_rsb, res_hashyesde);
 		dlm_hold_rsb(r);
 		ri->rsb = r;
 		spin_unlock(&ls->ls_rsbtbl[bucket].lock);
@@ -530,7 +530,7 @@ static void *table_seq_next(struct seq_file *seq, void *iter_ptr, loff_t *pos)
 	dlm_put_rsb(rp);
 
 	/*
-	 * move to the first rsb in the next non-empty bucket
+	 * move to the first rsb in the next yesn-empty bucket
 	 */
 
 	/* zero the entry */
@@ -549,7 +549,7 @@ static void *table_seq_next(struct seq_file *seq, void *iter_ptr, loff_t *pos)
 		spin_lock(&ls->ls_rsbtbl[bucket].lock);
 		if (!RB_EMPTY_ROOT(tree)) {
 			next = rb_first(tree);
-			r = rb_entry(next, struct dlm_rsb, res_hashnode);
+			r = rb_entry(next, struct dlm_rsb, res_hashyesde);
 			dlm_hold_rsb(r);
 			ri->rsb = r;
 			ri->bucket = bucket;
@@ -604,7 +604,7 @@ static const struct file_operations format2_fops;
 static const struct file_operations format3_fops;
 static const struct file_operations format4_fops;
 
-static int table_open1(struct inode *inode, struct file *file)
+static int table_open1(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq;
 	int ret;
@@ -614,11 +614,11 @@ static int table_open1(struct inode *inode, struct file *file)
 		return ret;
 
 	seq = file->private_data;
-	seq->private = inode->i_private; /* the dlm_ls */
+	seq->private = iyesde->i_private; /* the dlm_ls */
 	return 0;
 }
 
-static int table_open2(struct inode *inode, struct file *file)
+static int table_open2(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq;
 	int ret;
@@ -628,11 +628,11 @@ static int table_open2(struct inode *inode, struct file *file)
 		return ret;
 
 	seq = file->private_data;
-	seq->private = inode->i_private; /* the dlm_ls */
+	seq->private = iyesde->i_private; /* the dlm_ls */
 	return 0;
 }
 
-static int table_open3(struct inode *inode, struct file *file)
+static int table_open3(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq;
 	int ret;
@@ -642,11 +642,11 @@ static int table_open3(struct inode *inode, struct file *file)
 		return ret;
 
 	seq = file->private_data;
-	seq->private = inode->i_private; /* the dlm_ls */
+	seq->private = iyesde->i_private; /* the dlm_ls */
 	return 0;
 }
 
-static int table_open4(struct inode *inode, struct file *file)
+static int table_open4(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq;
 	int ret;
@@ -656,7 +656,7 @@ static int table_open4(struct inode *inode, struct file *file)
 		return ret;
 
 	seq = file->private_data;
-	seq->private = inode->i_private; /* the dlm_ls */
+	seq->private = iyesde->i_private; /* the dlm_ls */
 	return 0;
 }
 
@@ -709,7 +709,7 @@ static ssize_t waiters_read(struct file *file, char __user *userbuf,
 	list_for_each_entry(lkb, &ls->ls_waiters, lkb_wait_reply) {
 		ret = snprintf(debug_buf + pos, len - pos, "%x %d %d %s\n",
 			       lkb->lkb_id, lkb->lkb_wait_type,
-			       lkb->lkb_nodeid, lkb->lkb_resource->res_name);
+			       lkb->lkb_yesdeid, lkb->lkb_resource->res_name);
 		if (ret >= len - pos)
 			break;
 		pos += ret;

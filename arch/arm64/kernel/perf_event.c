@@ -32,7 +32,7 @@
 #define ARMV8_THUNDER_PERFCTR_L1I_CACHE_PREF_MISS		0xED
 
 /*
- * ARMv8 Architectural defined events, not all of these may
+ * ARMv8 Architectural defined events, yest all of these may
  * be supported on any given implementation. Unsupported events will
  * be disabled at run-time based on the PMCEID registers.
  */
@@ -660,7 +660,7 @@ static irqreturn_t armv8pmu_handle_irq(struct arm_pmu *cpu_pmu)
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
-		/* Ignore if we don't have an event. */
+		/* Igyesre if we don't have an event. */
 		if (!event)
 			continue;
 
@@ -687,7 +687,7 @@ static irqreturn_t armv8pmu_handle_irq(struct arm_pmu *cpu_pmu)
 	 *
 	 * Note: this call *must* be run with interrupts disabled. For
 	 * platforms that can have the PMU interrupts raised as an NMI, this
-	 * will not work.
+	 * will yest work.
 	 */
 	irq_work_run();
 
@@ -772,8 +772,8 @@ static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 
 	/*
 	 * If we're running in hyp mode, then we *are* the hypervisor.
-	 * Therefore we ignore exclude_hv in this configuration, since
-	 * there's no hypervisor to sample anyway. This is consistent
+	 * Therefore we igyesre exclude_hv in this configuration, since
+	 * there's yes hypervisor to sample anyway. This is consistent
 	 * with other architectures (x86 and Power).
 	 */
 	if (is_kernel_in_hyp_mode()) {
@@ -817,7 +817,7 @@ static void armv8pmu_reset(void *info)
 	struct arm_pmu *cpu_pmu = (struct arm_pmu *)info;
 	u32 idx, nb_cnt = cpu_pmu->num_events;
 
-	/* The counter and interrupt enable registers are unknown at reset. */
+	/* The counter and interrupt enable registers are unkyeswn at reset. */
 	for (idx = ARMV8_IDX_CYCLE_COUNTER; idx < nb_cnt; ++idx) {
 		armv8pmu_disable_counter(idx);
 		armv8pmu_disable_intens(idx);
@@ -1139,7 +1139,7 @@ static int __init armv8_pmu_driver_init(void)
 device_initcall(armv8_pmu_driver_init)
 
 void arch_perf_update_userpage(struct perf_event *event,
-			       struct perf_event_mmap_page *userpg, u64 now)
+			       struct perf_event_mmap_page *userpg, u64 yesw)
 {
 	u32 freq;
 	u32 shift;
@@ -1154,9 +1154,9 @@ void arch_perf_update_userpage(struct perf_event *event,
 	clocks_calc_mult_shift(&userpg->time_mult, &shift, freq,
 			NSEC_PER_SEC, 0);
 	/*
-	 * time_shift is not expected to be greater than 31 due to
+	 * time_shift is yest expected to be greater than 31 due to
 	 * the original published conversion algorithm shifting a
-	 * 32-bit value (now specifies a 64-bit value) - refer
+	 * 32-bit value (yesw specifies a 64-bit value) - refer
 	 * perf_event_mmap_page documentation in perf_event.h.
 	 */
 	if (shift == 32) {
@@ -1164,5 +1164,5 @@ void arch_perf_update_userpage(struct perf_event *event,
 		userpg->time_mult >>= 1;
 	}
 	userpg->time_shift = (u16)shift;
-	userpg->time_offset = -now;
+	userpg->time_offset = -yesw;
 }

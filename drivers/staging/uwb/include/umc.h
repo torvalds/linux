@@ -8,7 +8,7 @@
  * controller, host controller) are presented as devices on the "umc"
  * bus.
  *
- * The radio controller is not strictly a UMC capability but it's
+ * The radio controller is yest strictly a UMC capability but it's
  * useful to present it as such.
  *
  * References:
@@ -19,7 +19,7 @@
  * How this works is kind of convoluted but simple. The whci.ko driver
  * loads when WHCI devices are detected. These WHCI devices expose
  * many devices in the same PCI function (they couldn't have reused
- * functions, no), so for each PCI function that exposes these many
+ * functions, yes), so for each PCI function that exposes these many
  * devices, whci ceates a umc_dev [whci_probe() -> whci_add_cap()]
  * with umc_device_create() and adds it to the bus with
  * umc_device_register().
@@ -121,7 +121,7 @@ void umc_driver_unregister(struct umc_driver *umc_drv);
 int umc_match_pci_id(struct umc_driver *umc_drv, struct umc_dev *umc);
 
 /**
- * umc_parent_pci_dev - return the UMC's parent PCI device or NULL if none
+ * umc_parent_pci_dev - return the UMC's parent PCI device or NULL if yesne
  * @umc_dev: UMC device whose parent PCI device we are looking for
  *
  * DIRTY!!! DON'T RELY ON THIS
@@ -130,7 +130,7 @@ int umc_match_pci_id(struct umc_driver *umc_drv, struct umc_dev *umc);
  * the correct type of umc_dev->parent (so that for example, we can
  * cast to pci_dev). Casting to pci_dev is necessary because at some
  * point we need to request resources from the device. Mapping is
- * easily over come (ioremap and stuff are bus agnostic), but hooking
+ * easily over come (ioremap and stuff are bus agyesstic), but hooking
  * up to some error handlers (such as pci error handlers) might need
  * this.
  *

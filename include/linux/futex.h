@@ -7,7 +7,7 @@
 
 #include <uapi/linux/futex.h>
 
-struct inode;
+struct iyesde;
 struct mm_struct;
 struct task_struct;
 
@@ -19,20 +19,20 @@ struct task_struct;
  * offset is aligned to a multiple of sizeof(u32) (== 4) by definition.
  * We use the two low order bits of offset to tell what is the kind of key :
  *  00 : Private process futex (PTHREAD_PROCESS_PRIVATE)
- *       (no reference on an inode or mm)
+ *       (yes reference on an iyesde or mm)
  *  01 : Shared futex (PTHREAD_PROCESS_SHARED)
- *	mapped on a file (reference on the underlying inode)
+ *	mapped on a file (reference on the underlying iyesde)
  *  10 : Shared futex (PTHREAD_PROCESS_SHARED)
  *       (but private mapping on an mm, and reference taken on it)
 */
 
-#define FUT_OFF_INODE    1 /* We set bit 0 if key has a reference on inode */
+#define FUT_OFF_INODE    1 /* We set bit 0 if key has a reference on iyesde */
 #define FUT_OFF_MMSHARED 2 /* We set bit 1 if key has a reference on mm */
 
 union futex_key {
 	struct {
 		unsigned long pgoff;
-		struct inode *inode;
+		struct iyesde *iyesde;
 		int offset;
 	} shared;
 	struct {

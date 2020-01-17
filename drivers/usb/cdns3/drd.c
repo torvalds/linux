@@ -25,7 +25,7 @@
  * @cdns: pointer to context structure
  * @mode: selected mode from cdns_role
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erryes
  */
 int cdns3_set_mode(struct cdns3 *cdns, enum usb_dr_mode mode)
 {
@@ -129,7 +129,7 @@ static void cdns3_otg_enable_irq(struct cdns3 *cdns)
  * @cdns: Pointer to controller context structure
  * @on: 1 for start, 0 for stop
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erryes
  */
 int cdns3_drd_switch_host(struct cdns3 *cdns, int on)
 {
@@ -166,7 +166,7 @@ int cdns3_drd_switch_host(struct cdns3 *cdns, int on)
  * @cdns: Pointer to controller context structure
  * @on: 1 for start, 0 for stop
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erryes
  */
 int cdns3_drd_switch_gadget(struct cdns3 *cdns, int on)
 {
@@ -208,7 +208,7 @@ int cdns3_drd_switch_gadget(struct cdns3 *cdns, int on)
  * cdns3_init_otg_mode - initialize drd controller
  * @cdns: Pointer to controller context structure
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erryes
  */
 static int cdns3_init_otg_mode(struct cdns3 *cdns)
 {
@@ -230,7 +230,7 @@ static int cdns3_init_otg_mode(struct cdns3 *cdns)
  * cdns3_drd_update_mode - initialize mode of operation
  * @cdns: Pointer to controller context structure
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erryes
  */
 int cdns3_drd_update_mode(struct cdns3 *cdns)
 {
@@ -319,7 +319,7 @@ int cdns3_drd_init(struct cdns3 *cdns)
 	 * in register maps.
 	 * The first register in old version is command register and it's read
 	 * only, so driver should read 0 from it. On the other hand, in v1
-	 * the first register contains device ID number which is not set to 0.
+	 * the first register contains device ID number which is yest set to 0.
 	 * Driver uses this fact to detect the proper version of
 	 * controller.
 	 */
@@ -367,7 +367,7 @@ int cdns3_drd_init(struct cdns3 *cdns)
 
 	state = readl(&cdns->otg_regs->sts);
 	if (OTGSTS_OTG_NRDY(state) != 0) {
-		dev_err(cdns->dev, "Cadence USB3 OTG device not ready\n");
+		dev_err(cdns->dev, "Cadence USB3 OTG device yest ready\n");
 		return -ENODEV;
 	}
 

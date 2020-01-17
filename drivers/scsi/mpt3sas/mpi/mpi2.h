@@ -12,8 +12,8 @@
  *  mpi2.h Version:  02.00.54
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
- *       prefix are for use only on MPI v2.5 products, and must not be used
- *       with MPI v2.0 products. Unless otherwise noted, names beginning with
+ *       prefix are for use only on MPI v2.5 products, and must yest be used
+ *       with MPI v2.0 products. Unless otherwise yested, names beginning with
  *       MPI2 or Mpi2 are for use with both MPI v2.0 and MPI v2.5 products.
  *
  * Version History
@@ -39,7 +39,7 @@
  *                     product specific codes up to 0xEFFF.
  *                     Added a sixth key value for the WriteSequence register
  *                     and changed the flush value to 0x0.
- *                     Added message function codes for Diagnostic Buffer Post
+ *                     Added message function codes for Diagyesstic Buffer Post
  *                     and Diagnsotic Release.
  *                     New IOCStatus define: MPI2_IOCSTATUS_DIAGNOSTIC_RELEASED
  *                     Moved MPI2_VERSION_UNION from mpi2_ioc.h.
@@ -142,19 +142,19 @@
 /*major version for all MPI v2.x */
 #define MPI2_VERSION_MAJOR                  (0x02)
 
-/*minor version for MPI v2.0 compatible products */
+/*miyesr version for MPI v2.0 compatible products */
 #define MPI2_VERSION_MINOR                  (0x00)
 #define MPI2_VERSION ((MPI2_VERSION_MAJOR << MPI2_VERSION_MAJOR_SHIFT) | \
 					MPI2_VERSION_MINOR)
 #define MPI2_VERSION_02_00                  (0x0200)
 
-/*minor version for MPI v2.5 compatible products */
+/*miyesr version for MPI v2.5 compatible products */
 #define MPI25_VERSION_MINOR                 (0x05)
 #define MPI25_VERSION ((MPI2_VERSION_MAJOR << MPI2_VERSION_MAJOR_SHIFT) | \
 					MPI25_VERSION_MINOR)
 #define MPI2_VERSION_02_05                  (0x0205)
 
-/*minor version for MPI v2.6 compatible products */
+/*miyesr version for MPI v2.6 compatible products */
 #define MPI26_VERSION_MINOR		    (0x06)
 #define MPI26_VERSION ((MPI2_VERSION_MAJOR << MPI2_VERSION_MAJOR_SHIFT) | \
 					MPI26_VERSION_MINOR)
@@ -198,7 +198,7 @@
 typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS {
 	U32 Doorbell;		/*0x00 */
 	U32 WriteSequence;	/*0x04 */
-	U32 HostDiagnostic;	/*0x08 */
+	U32 HostDiagyesstic;	/*0x08 */
 	U32 Reserved1;		/*0x0C */
 	U32 DiagRWData;		/*0x10 */
 	U32 DiagRWAddressLow;	/*0x14 */
@@ -259,7 +259,7 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS {
 #define MPI2_WRSEQ_6TH_KEY_VALUE                (0xD)
 
 /*
- *Defines for the HostDiagnostic register
+ *Defines for the HostDiagyesstic register
  */
 #define MPI2_HOST_DIAGNOSTIC_OFFSET             (0x00000008)
 
@@ -271,7 +271,7 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS {
 #define MPI2_DIAG_BOOT_DEVICE_SELECT_DEFAULT    (0x00000000)
 #define MPI2_DIAG_BOOT_DEVICE_SELECT_HCDW       (0x00000800)
 
-/* Defines for V7A/V7R HostDiagnostic Register */
+/* Defines for V7A/V7R HostDiagyesstic Register */
 #define MPI26_DIAG_BOOT_DEVICE_SEL_64FLASH      (0x00000000)
 #define MPI26_DIAG_BOOT_DEVICE_SEL_64HCDW       (0x00000800)
 #define MPI26_DIAG_BOOT_DEVICE_SEL_32FLASH      (0x00001000)
@@ -758,7 +758,7 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION {
 #define MPI2_IOCSTATUS_SAS_SMP_DATA_OVERRUN         (0x0091)
 
 /****************************************************************************
-* Diagnostic Buffer Post / Diagnostic Release values
+* Diagyesstic Buffer Post / Diagyesstic Release values
 ****************************************************************************/
 
 #define MPI2_IOCSTATUS_DIAGNOSTIC_RELEASED          (0x00A0)
@@ -836,7 +836,7 @@ typedef struct _MPI2_DEFAULT_REPLY {
 typedef struct _MPI2_VERSION_STRUCT {
 	U8 Dev;			/*0x00 */
 	U8 Unit;		/*0x01 */
-	U8 Minor;		/*0x02 */
+	U8 Miyesr;		/*0x02 */
 	U8 Major;		/*0x03 */
 } MPI2_VERSION_STRUCT;
 

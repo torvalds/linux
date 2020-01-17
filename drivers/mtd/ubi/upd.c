@@ -199,7 +199,7 @@ int ubi_start_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
  *
  * This function writes update data to corresponding logical eraseblock. In
  * case of dynamic volume, this function checks if the data contains 0xFF bytes
- * at the end. If yes, the 0xFF bytes are cut and not written. So if the whole
+ * at the end. If no, the 0xFF bytes are cut and yest written. So if the whole
  * buffer contains only 0xFF bytes, the LEB is left unmapped.
  *
  * The reason why we skip the trailing 0xFF bytes in case of dynamic volume is
@@ -209,8 +209,8 @@ int ubi_start_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
  * to the UBI volume where 0xFFs mean free space - UBI makes sure this free
  * space is writable after the update.
  *
- * We do not do this for static volumes because they are read-only. But this
- * also cannot be done because we have to store per-LEB CRC and the correct
+ * We do yest do this for static volumes because they are read-only. But this
+ * also canyest be done because we have to store per-LEB CRC and the correct
  * data length.
  *
  * This function returns zero in case of success and a negative error code in
@@ -235,12 +235,12 @@ static int write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 	} else {
 		/*
 		 * When writing static volume, and this is the last logical
-		 * eraseblock, the length (@len) does not have to be aligned to
+		 * eraseblock, the length (@len) does yest have to be aligned to
 		 * the minimal flash I/O unit. The 'ubi_eba_write_leb_st()'
 		 * function accepts exact (unaligned) length and stores it in
 		 * the VID header. And it takes care of proper alignment by
 		 * padding the buffer. Here we just make sure the padding will
-		 * contain zeros, not random trash.
+		 * contain zeros, yest random trash.
 		 */
 		memset(buf + len, 0, vol->usable_leb_size - len);
 		err = ubi_eba_write_leb_st(ubi, vol, lnum, buf, len, used_ebs);
@@ -319,7 +319,7 @@ int ubi_more_update_data(struct ubi_device *ubi, struct ubi_volume *vol,
 	}
 
 	/*
-	 * If we've got more to write, let's continue. At this point we know we
+	 * If we've got more to write, let's continue. At this point we kyesw we
 	 * are starting from the beginning of an eraseblock.
 	 */
 	while (count) {

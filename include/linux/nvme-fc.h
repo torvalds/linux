@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2016 Avago Technologies.  All rights reserved.
+ * Copyright (c) 2016 Avago Techyeslogies.  All rights reserved.
  */
 
 /*
@@ -77,7 +77,7 @@ struct nvme_fc_ersp_iu {
 	__be32			xfrd_len;
 	__be32			rsvd12;
 	struct nvme_completion	cqe;
-	/* for now - no additional payload */
+	/* for yesw - yes additional payload */
 };
 
 
@@ -161,7 +161,7 @@ struct fcnvme_lsdesc_rqst {
 /* FC-NVME LS RJT reason_code values */
 enum fcnvme_ls_rjt_reason {
 	FCNVME_RJT_RC_NONE		= 0,
-	/* no reason - not to be sent */
+	/* yes reason - yest to be sent */
 
 	FCNVME_RJT_RC_INVAL		= 0x01,
 	/* invalid NVMe_LS command code */
@@ -173,7 +173,7 @@ enum fcnvme_ls_rjt_reason {
 	/* unable to perform command request */
 
 	FCNVME_RJT_RC_UNSUP		= 0x0b,
-	/* command not supported */
+	/* command yest supported */
 
 	FCNVME_RJT_RC_INV_ASSOC		= 0x40,
 	/* Invalid Association ID */

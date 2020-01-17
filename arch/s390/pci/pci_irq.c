@@ -43,8 +43,8 @@ static int zpci_set_airq(struct zpci_dev *zdev)
 	u8 status;
 
 	fib.fmt0.isc = PCI_ISC;
-	fib.fmt0.sum = 1;	/* enable summary notifications */
-	fib.fmt0.noi = airq_iv_end(zdev->aibv);
+	fib.fmt0.sum = 1;	/* enable summary yestifications */
+	fib.fmt0.yesi = airq_iv_end(zdev->aibv);
 	fib.fmt0.aibv = (unsigned long) zdev->aibv->vector;
 	fib.fmt0.aibvo = 0;	/* each zdev has its own interrupt vector */
 	fib.fmt0.aisb = (unsigned long) zpci_sbv->vector + (zdev->aisb/64)*8;
@@ -76,7 +76,7 @@ static int zpci_set_directed_irq(struct zpci_dev *zdev)
 	u8 status;
 
 	fib.fmt = 1;
-	fib.fmt1.noi = zdev->msi_nr_irqs;
+	fib.fmt1.yesi = zdev->msi_nr_irqs;
 	fib.fmt1.dibvo = zdev->msi_first_bit;
 
 	return zpci_mod_fc(req, &fib, &status) ? -EIO : 0;

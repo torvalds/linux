@@ -8,7 +8,7 @@
  * Common code for i.MX1, i.MX21 and i.MX27
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

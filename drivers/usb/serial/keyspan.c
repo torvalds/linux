@@ -10,7 +10,7 @@
   Code in this driver inspired by and in a number of places taken
   from Brian Warner's original Keyspan-PDA driver.
 
-  This driver has been put together with the support of Innosys, Inc.
+  This driver has been put together with the support of Inyessys, Inc.
   and Keyspan, Inc the manufacturers of the Keyspan USB-serial products.
   Thanks Guys :)
 
@@ -26,7 +26,7 @@
 
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -133,8 +133,8 @@ static int keyspan_usa67_send_setup(struct usb_serial *serial,
 
 /*
  * Product IDs post-renumeration.  Note that the 28x and 28xb have the same
- * id's post-renumeration but behave identically so it's not an issue. As
- * such, the 28xb is not listed in any of the device tables.
+ * id's post-renumeration but behave identically so it's yest an issue. As
+ * such, the 28xb is yest listed in any of the device tables.
  */
 #define keyspan_usa18x_product_id		0x0112
 #define keyspan_usa19_product_id		0x0107
@@ -161,10 +161,10 @@ struct keyspan_device_details {
 		/* Number of physical ports */
 	int	num_ports;
 
-		/* 1 if endpoint flipping used on input, 0 if not */
+		/* 1 if endpoint flipping used on input, 0 if yest */
 	int	indat_endp_flip;
 
-		/* 1 if endpoint flipping used on output, 0 if not */
+		/* 1 if endpoint flipping used on output, 0 if yest */
 	int	outdat_endp_flip;
 
 		/*
@@ -176,7 +176,7 @@ struct keyspan_device_details {
 		/* Same for output endpoints */
 	int	outdat_endpoints[KEYSPAN_MAX_NUM_PORTS];
 
-		/* Input acknowledge endpoints */
+		/* Input ackyeswledge endpoints */
 	int	inack_endpoints[KEYSPAN_MAX_NUM_PORTS];
 
 		/* Output control endpoints */
@@ -457,7 +457,7 @@ static const struct keyspan_device_details *keyspan_devices[] = {
 	&usa28x_device_details,
 	&usa28xa_device_details,
 	&usa28xg_device_details,
-	/* 28xb not required as it renumerates as a 28x */
+	/* 28xb yest required as it renumerates as a 28x */
 	&usa49w_device_details,
 	&usa49wlc_device_details,
 	&usa49wg_device_details,
@@ -595,7 +595,7 @@ struct keyspan_port_private {
 	int		old_baud;
 	unsigned int	cflag;
 	unsigned int	old_cflag;
-	enum		{flow_none, flow_cts, flow_xon} flow_control;
+	enum		{flow_yesne, flow_cts, flow_xon} flow_control;
 	int		rts_state;	/* Handshaking pins (outputs) */
 	int		dtr_state;
 	int		cts_state;	/* Handshaking pins (inputs) */
@@ -651,7 +651,7 @@ static void keyspan_set_termios(struct tty_struct *tty,
 	/* Baud rate calculation takes baud rate as an integer
 	   so other rates can be generated if desired. */
 	baud_rate = tty_get_baud_rate(tty);
-	/* If no match or invalid, don't change */
+	/* If yes match or invalid, don't change */
 	if (d_details->calculate_baud_rate(port, baud_rate, d_details->baudclk,
 				NULL, NULL, NULL, device_port) == KEYSPAN_BAUD_RATE_OK) {
 		/* FIXME - more to do here to ensure rate changes cleanly */
@@ -663,9 +663,9 @@ static void keyspan_set_termios(struct tty_struct *tty,
 	tty_encode_baud_rate(tty, baud_rate, baud_rate);
 	/* set CTS/RTS handshake etc. */
 	p_priv->cflag = cflag;
-	p_priv->flow_control = (cflag & CRTSCTS) ? flow_cts : flow_none;
+	p_priv->flow_control = (cflag & CRTSCTS) ? flow_cts : flow_yesne;
 
-	/* Mark/Space not supported */
+	/* Mark/Space yest supported */
 	tty->termios.c_cflag &= ~CMSPAR;
 
 	keyspan_send_setup(port, 0);
@@ -706,7 +706,7 @@ static int keyspan_tiocmset(struct tty_struct *tty,
 }
 
 /* Write function is similar for the four protocols used
-   with only a minor change for usa90 (usa19hs) required */
+   with only a miyesr change for usa90 (usa19hs) required */
 static int keyspan_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count)
 {
@@ -741,8 +741,8 @@ static int keyspan_write(struct tty_struct *tty,
 		/* Check we have a valid urb/endpoint before we use it... */
 		this_urb = p_priv->out_urbs[flip];
 		if (this_urb == NULL) {
-			/* no bulk out, so return 0 bytes written */
-			dev_dbg(&port->dev, "%s - no output urb :(\n", __func__);
+			/* yes bulk out, so return 0 bytes written */
+			dev_dbg(&port->dev, "%s - yes output urb :(\n", __func__);
 			return count;
 		}
 
@@ -758,7 +758,7 @@ static int keyspan_write(struct tty_struct *tty,
 		}
 
 		/* First byte in buffer is "last flag" (except for usa19hx)
-		   - unused so for now so set to zero */
+		   - unused so for yesw so set to zero */
 		((char *)this_urb->transfer_buffer)[0] = 0;
 
 		memcpy(this_urb->transfer_buffer + dataOffset, buf, todo);
@@ -773,7 +773,7 @@ static int keyspan_write(struct tty_struct *tty,
 		p_priv->tx_start_time[flip] = jiffies;
 
 		/* Flip for next time if usa26 or usa28 interface
-		   (not used on usa49) */
+		   (yest used on usa49) */
 		p_priv->out_flip = (flip + 1) & d_details->outdat_endp_flip;
 	}
 
@@ -791,7 +791,7 @@ static void	usa26_indat_callback(struct urb *urb)
 	endpoint = usb_pipeendpoint(urb->pipe);
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "%s - nonzero status %d on endpoint %x\n",
+		dev_dbg(&urb->dev->dev, "%s - yesnzero status %d on endpoint %x\n",
 			__func__, status, endpoint);
 		return;
 	}
@@ -800,7 +800,7 @@ static void	usa26_indat_callback(struct urb *urb)
 	if (urb->actual_length) {
 		/* 0x80 bit is error flag */
 		if ((data[0] & 0x80) == 0) {
-			/* no errors on individual bytes, only
+			/* yes errors on individual bytes, only
 			   possible overrun err */
 			if (data[0] & RXERROR_OVERRUN) {
 				tty_insert_flip_char(&port->port, 0,
@@ -884,7 +884,7 @@ static void	usa26_instat_callback(struct urb *urb)
 	serial =  urb->context;
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "%s - nonzero status: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - yesnzero status: %d\n",
 				__func__, status);
 		return;
 	}
@@ -944,7 +944,7 @@ static void usa28_indat_callback(struct urb *urb)
 
 	do {
 		if (status) {
-			dev_dbg(&urb->dev->dev, "%s - nonzero status %d on endpoint %x\n",
+			dev_dbg(&urb->dev->dev, "%s - yesnzero status %d on endpoint %x\n",
 				__func__, status, usb_pipeendpoint(urb->pipe));
 			return;
 		}
@@ -1003,7 +1003,7 @@ static void	usa28_instat_callback(struct urb *urb)
 	serial =  urb->context;
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "%s - nonzero status: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - yesnzero status: %d\n",
 				__func__, status);
 		return;
 	}
@@ -1084,7 +1084,7 @@ static void	usa49_instat_callback(struct urb *urb)
 	serial =  urb->context;
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "%s - nonzero status: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - yesnzero status: %d\n",
 				__func__, status);
 		return;
 	}
@@ -1140,7 +1140,7 @@ static void	usa49_indat_callback(struct urb *urb)
 	endpoint = usb_pipeendpoint(urb->pipe);
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "%s - nonzero status %d on endpoint %x\n",
+		dev_dbg(&urb->dev->dev, "%s - yesnzero status %d on endpoint %x\n",
 			__func__, status, endpoint);
 		return;
 	}
@@ -1149,7 +1149,7 @@ static void	usa49_indat_callback(struct urb *urb)
 	if (urb->actual_length) {
 		/* 0x80 bit is error flag */
 		if ((data[0] & 0x80) == 0) {
-			/* no error on any byte */
+			/* yes error on any byte */
 			tty_insert_flip_string(&port->port, data + 1,
 						urb->actual_length - 1);
 		} else {
@@ -1192,7 +1192,7 @@ static void usa49wg_indat_callback(struct urb *urb)
 	serial = urb->context;
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "%s - nonzero status: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - yesnzero status: %d\n",
 				__func__, status);
 		return;
 	}
@@ -1214,7 +1214,7 @@ static void usa49wg_indat_callback(struct urb *urb)
 
 		/* 0x80 bit is error flag */
 		if ((data[i] & 0x80) == 0) {
-			/* no error on any byte */
+			/* yes error on any byte */
 			i++;
 			for (x = 1; x < len && i < urb->actual_length; ++x)
 				tty_insert_flip_char(&port->port,
@@ -1252,7 +1252,7 @@ static void usa49wg_indat_callback(struct urb *urb)
 		dev_dbg(&urb->dev->dev, "%s - resubmit read urb failed. (%d)\n", __func__, err);
 }
 
-/* not used, usa-49 doesn't have per-port control endpoints */
+/* yest used, usa-49 doesn't have per-port control endpoints */
 static void usa49_outcont_callback(struct urb *urb)
 {
 }
@@ -1269,7 +1269,7 @@ static void usa90_indat_callback(struct urb *urb)
 	endpoint = usb_pipeendpoint(urb->pipe);
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "%s - nonzero status %d on endpoint %x\n",
+		dev_dbg(&urb->dev->dev, "%s - yesnzero status %d on endpoint %x\n",
 			__func__, status, endpoint);
 		return;
 	}
@@ -1287,7 +1287,7 @@ static void usa90_indat_callback(struct urb *urb)
 		else {
 			/* 0x80 bit is error flag */
 			if ((data[0] & 0x80) == 0) {
-				/* no errors on individual bytes, only
+				/* yes errors on individual bytes, only
 				   possible overrun err*/
 				if (data[0] & RXERROR_OVERRUN) {
 					tty_insert_flip_char(&port->port, 0,
@@ -1342,7 +1342,7 @@ static void	usa90_instat_callback(struct urb *urb)
 	serial =  urb->context;
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "%s - nonzero status: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - yesnzero status: %d\n",
 				__func__, status);
 		return;
 	}
@@ -1408,7 +1408,7 @@ static void	usa67_instat_callback(struct urb *urb)
 	serial = urb->context;
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "%s - nonzero status: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - yesnzero status: %d\n",
 				__func__, status);
 		return;
 	}
@@ -1552,7 +1552,7 @@ static int keyspan_open(struct tty_struct *tty, struct usb_serial_port *port)
 						usb_pipeout(urb->pipe), 0); */
 	}
 
-	/* get the terminal config for the setup message now so we don't
+	/* get the terminal config for the setup message yesw so we don't
 	 * need to send 2 of them */
 
 	device_port = port->port_number;
@@ -1561,7 +1561,7 @@ static int keyspan_open(struct tty_struct *tty, struct usb_serial_port *port)
 		/* Baud rate calculation takes baud rate as an integer
 		   so other rates can be generated if desired. */
 		baud_rate = tty_get_baud_rate(tty);
-		/* If no match or invalid, leave as default */
+		/* If yes match or invalid, leave as default */
 		if (baud_rate >= 0
 		    && d_details->calculate_baud_rate(port, baud_rate, d_details->baudclk,
 					NULL, NULL, NULL, device_port) == KEYSPAN_BAUD_RATE_OK) {
@@ -1570,7 +1570,7 @@ static int keyspan_open(struct tty_struct *tty, struct usb_serial_port *port)
 	}
 	/* set CTS/RTS handshake etc. */
 	p_priv->cflag = cflag;
-	p_priv->flow_control = (cflag & CRTSCTS) ? flow_cts : flow_none;
+	p_priv->flow_control = (cflag & CRTSCTS) ? flow_cts : flow_yesne;
 
 	keyspan_send_setup(port, 1);
 	/* mdelay(100); */
@@ -1678,7 +1678,7 @@ static int keyspan_fake_startup(struct usb_serial *serial)
 		break;
 
 	default:
-		dev_err(&serial->dev->dev, "Unknown product ID (%04x)\n",
+		dev_err(&serial->dev->dev, "Unkyeswn product ID (%04x)\n",
 			le16_to_cpu(serial->dev->descriptor.idProduct));
 		return 1;
 	}
@@ -1712,7 +1712,7 @@ static struct usb_endpoint_descriptor const *find_ep(struct usb_serial const *se
 		if (ep->bEndpointAddress == endpoint)
 			return ep;
 	}
-	dev_warn(&serial->interface->dev, "found no endpoint descriptor for endpoint %x\n",
+	dev_warn(&serial->interface->dev, "found yes endpoint descriptor for endpoint %x\n",
 			endpoint);
 	return NULL;
 }
@@ -1726,7 +1726,7 @@ static struct urb *keyspan_setup_urb(struct usb_serial *serial, int endpoint,
 	char const *ep_type_name;
 
 	if (endpoint == -1)
-		return NULL;		/* endpoint not needed */
+		return NULL;		/* endpoint yest needed */
 
 	dev_dbg(&serial->interface->dev, "%s - alloc for endpoint %x\n",
 			__func__, endpoint);
@@ -1881,7 +1881,7 @@ static int keyspan_usa19_calc_baud(struct usb_serial_port *port,
 	if (div > 0xffff)
 		return KEYSPAN_INVALID_BAUD_RATE;
 
-	/* return the counter values if non-null */
+	/* return the counter values if yesn-null */
 	if (rate_low)
 		*rate_low = (u8) (cnt & 0xff);
 	if (rate_hi)
@@ -1915,7 +1915,7 @@ static int keyspan_usa19hs_calc_baud(struct usb_serial_port *port,
 	if (div > 0xffff)
 		return KEYSPAN_INVALID_BAUD_RATE;
 
-	/* return the counter values if non-null */
+	/* return the counter values if yesn-null */
 	if (rate_low)
 		*rate_low = (u8) (div & 0xff);
 
@@ -1980,7 +1980,7 @@ static int keyspan_usa19w_calc_baud(struct usb_serial_port *port,
 	clk = (baudclk * 8) / (u32) best_prescaler;
 	div = clk / b16;
 
-	/* return the divisor and prescaler if non-null */
+	/* return the divisor and prescaler if yesn-null */
 	if (rate_low)
 		*rate_low = (u8) (div & 0xff);
 	if (rate_hi)
@@ -2028,8 +2028,8 @@ static int keyspan_usa28_calc_baud(struct usb_serial_port *port,
 			return KEYSPAN_INVALID_BAUD_RATE;
 	}
 
-		/* return the counter values if not NULL
-		   (port 1 will ignore retHi) */
+		/* return the counter values if yest NULL
+		   (port 1 will igyesre retHi) */
 	if (rate_low)
 		*rate_low = (u8) (cnt & 0xff);
 	if (rate_hi)
@@ -2060,7 +2060,7 @@ static int keyspan_usa26_send_setup(struct usb_serial *serial,
 
 		/* Make sure we have an urb then send the message */
 	if (this_urb == NULL) {
-		dev_dbg(&port->dev, "%s - oops no urb.\n", __func__);
+		dev_dbg(&port->dev, "%s - oops yes urb.\n", __func__);
 		return -1;
 	}
 
@@ -2111,7 +2111,7 @@ static int keyspan_usa26_send_setup(struct usb_serial *serial,
 		break;
 	}
 	if (p_priv->cflag & PARENB) {
-		/* note USA_PARITY_NONE == 0 */
+		/* yeste USA_PARITY_NONE == 0 */
 		msg.lcr |= (p_priv->cflag & PARODD) ?
 			USA_PARITY_ODD : USA_PARITY_EVEN;
 	}
@@ -2204,7 +2204,7 @@ static int keyspan_usa28_send_setup(struct usb_serial *serial,
 	/* only do something if we have a bulk out endpoint */
 	this_urb = p_priv->outcont_urb;
 	if (this_urb == NULL) {
-		dev_dbg(&port->dev, "%s - oops no urb.\n", __func__);
+		dev_dbg(&port->dev, "%s - oops yes urb.\n", __func__);
 		return -1;
 	}
 
@@ -2231,7 +2231,7 @@ static int keyspan_usa28_send_setup(struct usb_serial *serial,
 	}
 
 	/* If parity is enabled, we must calculate it ourselves. */
-	msg.parity = 0;		/* XXX for now */
+	msg.parity = 0;		/* XXX for yesw */
 
 	msg.ctsFlowControl = (p_priv->flow_control == flow_cts);
 	msg.xonFlowControl = 0;
@@ -2327,7 +2327,7 @@ static int keyspan_usa49_send_setup(struct usb_serial *serial,
 
 	/* Make sure we have an urb then send the message */
 	if (this_urb == NULL) {
-		dev_dbg(&port->dev, "%s - oops no urb for port.\n", __func__);
+		dev_dbg(&port->dev, "%s - oops yes urb for port.\n", __func__);
 		return -1;
 	}
 
@@ -2381,7 +2381,7 @@ static int keyspan_usa49_send_setup(struct usb_serial *serial,
 		break;
 	}
 	if (p_priv->cflag & PARENB) {
-		/* note USA_PARITY_NONE == 0 */
+		/* yeste USA_PARITY_NONE == 0 */
 		msg.lcr |= (p_priv->cflag & PARODD) ?
 			USA_PARITY_ODD : USA_PARITY_EVEN;
 	}
@@ -2500,7 +2500,7 @@ static int keyspan_usa90_send_setup(struct usb_serial *serial,
 	/* only do something if we have a bulk out endpoint */
 	this_urb = p_priv->outcont_urb;
 	if (this_urb == NULL) {
-		dev_dbg(&port->dev, "%s - oops no urb.\n", __func__);
+		dev_dbg(&port->dev, "%s - oops yes urb.\n", __func__);
 		return -1;
 	}
 
@@ -2557,7 +2557,7 @@ static int keyspan_usa90_send_setup(struct usb_serial *serial,
 		break;
 	}
 	if (p_priv->cflag & PARENB) {
-		/* note USA_PARITY_NONE == 0 */
+		/* yeste USA_PARITY_NONE == 0 */
 		msg.lcr |= (p_priv->cflag & PARODD) ?
 			USA_PARITY_ODD : USA_PARITY_EVEN;
 	}
@@ -2633,7 +2633,7 @@ static int keyspan_usa67_send_setup(struct usb_serial *serial,
 
 	/* Make sure we have an urb then send the message */
 	if (this_urb == NULL) {
-		dev_dbg(&port->dev, "%s - oops no urb for port.\n", __func__);
+		dev_dbg(&port->dev, "%s - oops yes urb for port.\n", __func__);
 		return -1;
 	}
 
@@ -2683,7 +2683,7 @@ static int keyspan_usa67_send_setup(struct usb_serial *serial,
 		break;
 	}
 	if (p_priv->cflag & PARENB) {
-		/* note USA_PARITY_NONE == 0 */
+		/* yeste USA_PARITY_NONE == 0 */
 		msg.lcr |= (p_priv->cflag & PARODD) ?
 					USA_PARITY_ODD : USA_PARITY_EVEN;
 	}
@@ -2796,7 +2796,7 @@ static int keyspan_startup(struct usb_serial *serial)
 				le16_to_cpu(serial->dev->descriptor.idProduct))
 			break;
 	if (d_details == NULL) {
-		dev_err(&serial->dev->dev, "%s - unknown product id %x\n",
+		dev_err(&serial->dev->dev, "%s - unkyeswn product id %x\n",
 		    __func__, le16_to_cpu(serial->dev->descriptor.idProduct));
 		return -ENODEV;
 	}
@@ -3018,7 +3018,7 @@ static int keyspan_port_remove(struct usb_serial_port *port)
 static struct usb_serial_driver keyspan_pre_device = {
 	.driver = {
 		.owner		= THIS_MODULE,
-		.name		= "keyspan_no_firm",
+		.name		= "keyspan_yes_firm",
 	},
 	.description		= "Keyspan - (without firmware)",
 	.id_table		= keyspan_pre_ids,

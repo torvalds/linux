@@ -77,7 +77,7 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 {
 	struct rockchip_rgb *rgb;
 	struct drm_encoder *encoder;
-	struct device_node *port, *endpoint;
+	struct device_yesde *port, *endpoint;
 	u32 endpoint_id;
 	int ret = 0, child_count = 0;
 	struct drm_panel *panel;
@@ -90,11 +90,11 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 	rgb->dev = dev;
 	rgb->drm_dev = drm_dev;
 
-	port = of_graph_get_port_by_id(dev->of_node, 0);
+	port = of_graph_get_port_by_id(dev->of_yesde, 0);
 	if (!port)
 		return ERR_PTR(-EINVAL);
 
-	for_each_child_of_node(port, endpoint) {
+	for_each_child_of_yesde(port, endpoint) {
 		if (of_property_read_u32(endpoint, "reg", &endpoint_id))
 			endpoint_id = 0;
 
@@ -102,17 +102,17 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 			continue;
 
 		child_count++;
-		ret = drm_of_find_panel_or_bridge(dev->of_node, 0, endpoint_id,
+		ret = drm_of_find_panel_or_bridge(dev->of_yesde, 0, endpoint_id,
 						  &panel, &bridge);
 		if (!ret) {
-			of_node_put(endpoint);
+			of_yesde_put(endpoint);
 			break;
 		}
 	}
 
-	of_node_put(port);
+	of_yesde_put(port);
 
-	/* if the rgb output is not connected to anything, just return */
+	/* if the rgb output is yest connected to anything, just return */
 	if (!child_count)
 		return NULL;
 

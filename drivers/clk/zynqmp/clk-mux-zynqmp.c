@@ -10,7 +10,7 @@
 #include "clk-zynqmp.h"
 
 /*
- * DOC: basic adjustable multiplexer clock that cannot gate
+ * DOC: basic adjustable multiplexer clock that canyest gate
  *
  * Traits of this clock:
  * prepare - clk_prepare only ensures that parents are prepared
@@ -99,14 +99,14 @@ static const struct clk_ops zynqmp_clk_mux_ro_ops = {
  * @clk_id:		Id of this clock
  * @parents:		Name of this clock's parents
  * @num_parents:	Number of parents
- * @nodes:		Clock topology node
+ * @yesdes:		Clock topology yesde
  *
  * Return: clock hardware of the registered clock mux
  */
 struct clk_hw *zynqmp_clk_register_mux(const char *name, u32 clk_id,
 				       const char * const *parents,
 				       u8 num_parents,
-				       const struct clock_topology *nodes)
+				       const struct clock_topology *yesdes)
 {
 	struct zynqmp_clk_mux *mux;
 	struct clk_hw *hw;
@@ -118,14 +118,14 @@ struct clk_hw *zynqmp_clk_register_mux(const char *name, u32 clk_id,
 		return ERR_PTR(-ENOMEM);
 
 	init.name = name;
-	if (nodes->type_flag & CLK_MUX_READ_ONLY)
+	if (yesdes->type_flag & CLK_MUX_READ_ONLY)
 		init.ops = &zynqmp_clk_mux_ro_ops;
 	else
 		init.ops = &zynqmp_clk_mux_ops;
-	init.flags = nodes->flag;
+	init.flags = yesdes->flag;
 	init.parent_names = parents;
 	init.num_parents = num_parents;
-	mux->flags = nodes->type_flag;
+	mux->flags = yesdes->type_flag;
 	mux->hw.init = &init;
 	mux->clk_id = clk_id;
 

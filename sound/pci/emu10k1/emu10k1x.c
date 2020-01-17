@@ -153,8 +153,8 @@ MODULE_PARM_DESC(enable, "Enable the EMU10K1X soundcard.");
 #define SPCS_EMPHASISMASK	0x00000038	/* Emphasis					*/
 #define SPCS_EMPHASIS_NONE	0x00000000	/* No emphasis					*/
 #define SPCS_EMPHASIS_50_15	0x00000008	/* 50/15 usec 2 channel				*/
-#define SPCS_COPYRIGHT		0x00000004	/* Copyright asserted flag -- do not modify	*/
-#define SPCS_NOTAUDIODATA	0x00000002	/* 0 = Digital audio, 1 = not audio		*/
+#define SPCS_COPYRIGHT		0x00000004	/* Copyright asserted flag -- do yest modify	*/
+#define SPCS_NOTAUDIODATA	0x00000002	/* 0 = Digital audio, 1 = yest audio		*/
 #define SPCS_PROFESSIONAL	0x00000001	/* 0 = Consumer (IEC-958), 1 = pro (AES3-1992)	*/
 
 #define SPDIF_SELECT		0x45		/* Enables SPDIF or Analogue outputs 0-Analogue, 0x700-SPDIF */
@@ -177,7 +177,7 @@ MODULE_PARM_DESC(enable, "Enable the EMU10K1X soundcard.");
  * the front/rear channel mixing in the REAR OUT jack. When using the
  * 4-Speaker Stereo, both front and rear channels will be mixed in the
  * REAR OUT.
- * The center/lfe channel has no volume control and cannot be muted during
+ * The center/lfe channel has yes volume control and canyest be muted during
  * playback.
  */
 
@@ -729,7 +729,7 @@ static int snd_emu10k1x_ac97(struct emu10k1x *chip)
   
 	if ((err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus)) < 0)
 		return err;
-	pbus->no_vra = 1; /* we don't need VRA */
+	pbus->yes_vra = 1; /* we don't need VRA */
 
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
@@ -814,7 +814,7 @@ static irqreturn_t snd_emu10k1x_interrupt(int irq, void *dev_id)
 			snd_emu10k1x_intr_disable(chip, INTE_MIDITXENABLE|INTE_MIDIRXENABLE);
 	}
 		
-	// acknowledge the interrupt if necessary
+	// ackyeswledge the interrupt if necessary
 	outl(status, chip->port + IPR);
 
 	/* dev_dbg(chip->card->dev, "interrupt %08x\n", status); */
@@ -922,7 +922,7 @@ static int snd_emu10k1x_create(struct snd_card *card,
 	chip->port = pci_resource_start(pci, 0);
 	if ((chip->res_port = request_region(chip->port, 8,
 					     "EMU10K1X")) == NULL) { 
-		dev_err(card->dev, "cannot allocate the port 0x%lx\n",
+		dev_err(card->dev, "canyest allocate the port 0x%lx\n",
 			chip->port);
 		snd_emu10k1x_free(chip);
 		return -EBUSY;
@@ -930,7 +930,7 @@ static int snd_emu10k1x_create(struct snd_card *card,
 
 	if (request_irq(pci->irq, snd_emu10k1x_interrupt,
 			IRQF_SHARED, KBUILD_MODNAME, chip)) {
-		dev_err(card->dev, "cannot grab irq %d\n", pci->irq);
+		dev_err(card->dev, "canyest grab irq %d\n", pci->irq);
 		snd_emu10k1x_free(chip);
 		return -EBUSY;
 	}
@@ -1057,7 +1057,7 @@ static int snd_emu10k1x_proc_init(struct emu10k1x *emu)
 	return 0;
 }
 
-#define snd_emu10k1x_shared_spdif_info	snd_ctl_boolean_mono_info
+#define snd_emu10k1x_shared_spdif_info	snd_ctl_boolean_moyes_info
 
 static int snd_emu10k1x_shared_spdif_get(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
@@ -1444,7 +1444,7 @@ static void snd_emu10k1x_midi_output_trigger(struct snd_rawmidi_substream *subst
 			if (mpu401_output_ready(emu, midi)) {
 				if (!(midi->midi_mode & EMU10K1X_MIDI_MODE_OUTPUT) ||
 				    snd_rawmidi_transmit(substream, &byte, 1) != 1) {
-					/* no more data */
+					/* yes more data */
 					spin_unlock_irqrestore(&midi->output_lock, flags);
 					return;
 				}

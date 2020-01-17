@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -27,7 +27,7 @@
 #define _VIA_VERIFIER_H_
 
 typedef enum {
-	no_sequence = 0,
+	yes_sequence = 0,
 	z_address,
 	dest_address,
 	tex_address

@@ -20,7 +20,7 @@
  * computations only.
  *
  * Bits from 4 to 7 - a subset of remote flags - are ensured to be in sync with
- * the other nodes in the network. To achieve this goal these flags are included
+ * the other yesdes in the network. To achieve this goal these flags are included
  * in the TT CRC computation.
  */
 enum batadv_tt_client_flags {
@@ -30,8 +30,8 @@ enum batadv_tt_client_flags {
 	BATADV_TT_CLIENT_DEL     = (1 << 0),
 
 	/**
-	 * @BATADV_TT_CLIENT_ROAM: the client roamed to/from another node and
-	 * the new update telling its new real location has not been
+	 * @BATADV_TT_CLIENT_ROAM: the client roamed to/from ayesther yesde and
+	 * the new update telling its new real location has yest been
 	 * received/sent yet
 	 */
 	BATADV_TT_CLIENT_ROAM    = (1 << 1),
@@ -56,7 +56,7 @@ enum batadv_tt_client_flags {
 
 	/**
 	 * @BATADV_TT_CLIENT_NEW: this client has been added to the local table
-	 * but has not been announced yet
+	 * but has yest been anyesunced yet
 	 */
 	BATADV_TT_CLIENT_NEW     = (1 << 9),
 
@@ -69,7 +69,7 @@ enum batadv_tt_client_flags {
 
 	/**
 	 * @BATADV_TT_CLIENT_TEMP: this global client has been detected to be
-	 * part of the network but no nnode has already announced it
+	 * part of the network but yes nyesde has already anyesunced it
 	 */
 	BATADV_TT_CLIENT_TEMP	 = (1 << 11),
 };
@@ -82,7 +82,7 @@ enum batadv_tt_client_flags {
  * mesh.
  *
  * Those attributes are used to determine the public multicast flags this
- * originator is going to announce via TT.
+ * originator is going to anyesunce via TT.
  *
  * For netlink, if BATADV_MCAST_FLAGS_BRIDGED is unset then all querier
  * related flags are undefined.
@@ -122,7 +122,7 @@ enum batadv_mcast_flags_priv {
 };
 
 /**
- * enum batadv_gw_modes - gateway mode of node
+ * enum batadv_gw_modes - gateway mode of yesde
  */
 enum batadv_gw_modes {
 	/** @BATADV_GW_MODE_OFF: gw mode disabled */
@@ -131,7 +131,7 @@ enum batadv_gw_modes {
 	/** @BATADV_GW_MODE_CLIENT: send DHCP requests to gw servers */
 	BATADV_GW_MODE_CLIENT,
 
-	/** @BATADV_GW_MODE_SERVER: announce itself as gatway server */
+	/** @BATADV_GW_MODE_SERVER: anyesunce itself as gatway server */
 	BATADV_GW_MODE_SERVER,
 };
 
@@ -170,17 +170,17 @@ enum batadv_nl_attrs {
 	BATADV_ATTR_MESH_ADDRESS,
 
 	/**
-	 * @BATADV_ATTR_HARD_IFINDEX: index of the non-batman-adv interface
+	 * @BATADV_ATTR_HARD_IFINDEX: index of the yesn-batman-adv interface
 	 */
 	BATADV_ATTR_HARD_IFINDEX,
 
 	/**
-	 * @BATADV_ATTR_HARD_IFNAME: name of the non-batman-adv interface
+	 * @BATADV_ATTR_HARD_IFNAME: name of the yesn-batman-adv interface
 	 */
 	BATADV_ATTR_HARD_IFNAME,
 
 	/**
-	 * @BATADV_ATTR_HARD_ADDRESS: mac address of the non-batman-adv
+	 * @BATADV_ATTR_HARD_ADDRESS: mac address of the yesn-batman-adv
 	 * interface
 	 */
 	BATADV_ATTR_HARD_ADDRESS,
@@ -348,13 +348,13 @@ enum batadv_nl_attrs {
 
 	/**
 	 * @BATADV_ATTR_AGGREGATED_OGMS_ENABLED: whether the batman protocol
-	 *  messages of the mesh interface shall be aggregated or not.
+	 *  messages of the mesh interface shall be aggregated or yest.
 	 */
 	BATADV_ATTR_AGGREGATED_OGMS_ENABLED,
 
 	/**
 	 * @BATADV_ATTR_AP_ISOLATION_ENABLED: whether the data traffic going
-	 *  from a wireless client to another wireless client will be silently
+	 *  from a wireless client to ayesther wireless client will be silently
 	 *  dropped.
 	 */
 	BATADV_ATTR_AP_ISOLATION_ENABLED,
@@ -401,14 +401,14 @@ enum batadv_nl_attrs {
 
 	/**
 	 * @BATADV_ATTR_GW_BANDWIDTH_DOWN: defines the download bandwidth which
-	 *  is propagated by this node if %BATADV_ATTR_GW_BANDWIDTH_MODE was set
+	 *  is propagated by this yesde if %BATADV_ATTR_GW_BANDWIDTH_MODE was set
 	 *  to 'server'.
 	 */
 	BATADV_ATTR_GW_BANDWIDTH_DOWN,
 
 	/**
 	 * @BATADV_ATTR_GW_BANDWIDTH_UP: defines the upload bandwidth which
-	 *  is propagated by this node if %BATADV_ATTR_GW_BANDWIDTH_MODE was set
+	 *  is propagated by this yesde if %BATADV_ATTR_GW_BANDWIDTH_MODE was set
 	 *  to 'server'.
 	 */
 	BATADV_ATTR_GW_BANDWIDTH_UP,
@@ -420,7 +420,7 @@ enum batadv_nl_attrs {
 	BATADV_ATTR_GW_MODE,
 
 	/**
-	 * @BATADV_ATTR_GW_SEL_CLASS: defines the selection criteria this node
+	 * @BATADV_ATTR_GW_SEL_CLASS: defines the selection criteria this yesde
 	 *  will use to choose a gateway if gw_mode was set to 'client'.
 	 */
 	BATADV_ATTR_GW_SEL_CLASS,
@@ -440,8 +440,8 @@ enum batadv_nl_attrs {
 	/**
 	 * @BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED: whether multicast
 	 *  optimizations should be replaced by simple broadcast-like flooding
-	 *  of multicast packets. If set to non-zero then all nodes in the mesh
-	 *  are going to use classic flooding for any multicast packet with no
+	 *  of multicast packets. If set to yesn-zero then all yesdes in the mesh
+	 *  are going to use classic flooding for any multicast packet with yes
 	 *  optimizations.
 	 */
 	BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED,
@@ -449,7 +449,7 @@ enum batadv_nl_attrs {
 	/**
 	 * @BATADV_ATTR_NETWORK_CODING_ENABLED: whether Network Coding (using
 	 *  some magic to send fewer wifi packets but still the same content) is
-	 *  enabled or not.
+	 *  enabled or yest.
 	 */
 	BATADV_ATTR_NETWORK_CODING_ENABLED,
 
@@ -642,7 +642,7 @@ enum batadv_tp_meter_reason {
 	/* error status >= 128 */
 
 	/**
-	 * @BATADV_TP_REASON_DST_UNREACHABLE: receiver could not be reached or
+	 * @BATADV_TP_REASON_DST_UNREACHABLE: receiver could yest be reached or
 	 * didn't answer
 	 */
 	BATADV_TP_REASON_DST_UNREACHABLE	= 128,
@@ -653,7 +653,7 @@ enum batadv_tp_meter_reason {
 	BATADV_TP_REASON_RESEND_LIMIT		= 129,
 
 	/**
-	 * @BATADV_TP_REASON_ALREADY_ONGOING: test to or from the same node
+	 * @BATADV_TP_REASON_ALREADY_ONGOING: test to or from the same yesde
 	 * already ongoing
 	 */
 	BATADV_TP_REASON_ALREADY_ONGOING	= 130,

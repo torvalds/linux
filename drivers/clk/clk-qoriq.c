@@ -64,11 +64,11 @@ struct clockgen;
 
 /*
  * cmux freq must be >= platform pll.
- * If not set, cmux freq must be >= platform pll/2
+ * If yest set, cmux freq must be >= platform pll/2
  */
 #define CG_CMUX_GE_PLAT		1
 
-#define CG_PLL_8BIT		2	/* PLLCnGSR[CFG] is 8 bits, not 6 */
+#define CG_PLL_8BIT		2	/* PLLCnGSR[CFG] is 8 bits, yest 6 */
 #define CG_VER3			4	/* version 3 cg: reg layout different */
 #define CG_LITTLE_ENDIAN	8
 
@@ -83,7 +83,7 @@ struct clockgen_chipinfo {
 };
 
 struct clockgen {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	void __iomem *regs;
 	struct clockgen_chipinfo info; /* mutable copy */
 	struct clk *sysclk, *coreclk;
@@ -820,7 +820,7 @@ static const struct clk_ops cmux_ops = {
 };
 
 /*
- * Don't allow setting for now, as the clock options haven't been
+ * Don't allow setting for yesw, as the clock options haven't been
  * sanitized for additional restrictions.
  */
 static const struct clk_ops hwaccel_ops = {
@@ -990,22 +990,22 @@ static void __init create_muxes(struct clockgen *cg)
 	}
 }
 
-static void __init clockgen_init(struct device_node *np);
+static void __init clockgen_init(struct device_yesde *np);
 
 /*
- * Legacy nodes may get probed before the parent clockgen node.
- * It is assumed that device trees with legacy nodes will not
+ * Legacy yesdes may get probed before the parent clockgen yesde.
+ * It is assumed that device trees with legacy yesdes will yest
  * contain a "clocks" property -- otherwise the input clocks may
- * not be initialized at this point.
+ * yest be initialized at this point.
  */
-static void __init legacy_init_clockgen(struct device_node *np)
+static void __init legacy_init_clockgen(struct device_yesde *np)
 {
-	if (!clockgen.node)
+	if (!clockgen.yesde)
 		clockgen_init(of_get_parent(np));
 }
 
-/* Legacy node */
-static void __init core_mux_init(struct device_node *np)
+/* Legacy yesde */
+static void __init core_mux_init(struct device_yesde *np)
 {
 	struct clk *clk;
 	struct resource res;
@@ -1021,18 +1021,18 @@ static void __init core_mux_init(struct device_node *np)
 
 	rc = of_clk_add_provider(np, of_clk_src_simple_get, clk);
 	if (rc) {
-		pr_err("%s: Couldn't register clk provider for node %pOFn: %d\n",
+		pr_err("%s: Couldn't register clk provider for yesde %pOFn: %d\n",
 		       __func__, np, rc);
 		return;
 	}
 }
 
 static struct clk __init
-*sysclk_from_fixed(struct device_node *node, const char *name)
+*sysclk_from_fixed(struct device_yesde *yesde, const char *name)
 {
 	u32 rate;
 
-	if (of_property_read_u32(node, "clock-frequency", &rate))
+	if (of_property_read_u32(yesde, "clock-frequency", &rate))
 		return ERR_PTR(-ENODEV);
 
 	return clk_register_fixed_rate(NULL, name, NULL, 0, rate);
@@ -1058,7 +1058,7 @@ static struct clk __init *input_clock_by_name(const char *name,
 {
 	struct clk *clk;
 
-	clk = of_clk_get_by_name(clockgen.node, dtname);
+	clk = of_clk_get_by_name(clockgen.yesde, dtname);
 	if (IS_ERR(clk))
 		return clk;
 
@@ -1069,7 +1069,7 @@ static struct clk __init *input_clock_by_index(const char *name, int idx)
 {
 	struct clk *clk;
 
-	clk = of_clk_get(clockgen.node, 0);
+	clk = of_clk_get(clockgen.yesde, 0);
 	if (IS_ERR(clk))
 		return clk;
 
@@ -1078,10 +1078,10 @@ static struct clk __init *input_clock_by_index(const char *name, int idx)
 
 static struct clk * __init create_sysclk(const char *name)
 {
-	struct device_node *sysclk;
+	struct device_yesde *sysclk;
 	struct clk *clk;
 
-	clk = sysclk_from_fixed(clockgen.node, name);
+	clk = sysclk_from_fixed(clockgen.yesde, name);
 	if (!IS_ERR(clk))
 		return clk;
 
@@ -1093,7 +1093,7 @@ static struct clk * __init create_sysclk(const char *name)
 	if (!IS_ERR(clk))
 		return clk;
 
-	sysclk = of_get_child_by_name(clockgen.node, "sysclk");
+	sysclk = of_get_child_by_name(clockgen.yesde, "sysclk");
 	if (sysclk) {
 		clk = sysclk_from_fixed(sysclk, name);
 		if (!IS_ERR(clk))
@@ -1113,7 +1113,7 @@ static struct clk * __init create_coreclk(const char *name)
 		return clk;
 
 	/*
-	 * This indicates a mix of legacy nodes with the new coreclk
+	 * This indicates a mix of legacy yesdes with the new coreclk
 	 * mechanism, which should never happen.  If this error occurs,
 	 * don't use the wrong input clock just because coreclk isn't
 	 * ready yet.
@@ -1124,16 +1124,16 @@ static struct clk * __init create_coreclk(const char *name)
 	return NULL;
 }
 
-/* Legacy node */
-static void __init sysclk_init(struct device_node *node)
+/* Legacy yesde */
+static void __init sysclk_init(struct device_yesde *yesde)
 {
 	struct clk *clk;
 
-	legacy_init_clockgen(node);
+	legacy_init_clockgen(yesde);
 
 	clk = clockgen.sysclk;
 	if (clk)
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 }
 
 #define PLL_KILL BIT(31)
@@ -1238,7 +1238,7 @@ static void __init create_plls(struct clockgen *cg)
 		create_one_pll(cg, i);
 }
 
-static void __init legacy_pll_init(struct device_node *np, int idx)
+static void __init legacy_pll_init(struct device_yesde *np, int idx)
 {
 	struct clockgen_pll *pll;
 	struct clk_onecell_data *onecell_data;
@@ -1275,7 +1275,7 @@ static void __init legacy_pll_init(struct device_node *np, int idx)
 
 	rc = of_clk_add_provider(np, of_clk_src_onecell_get, onecell_data);
 	if (rc) {
-		pr_err("%s: Couldn't register clk provider for node %pOFn: %d\n",
+		pr_err("%s: Couldn't register clk provider for yesde %pOFn: %d\n",
 		       __func__, np, rc);
 		goto err_cell;
 	}
@@ -1287,14 +1287,14 @@ err_clks:
 	kfree(subclks);
 }
 
-/* Legacy node */
-static void __init pltfrm_pll_init(struct device_node *np)
+/* Legacy yesde */
+static void __init pltfrm_pll_init(struct device_yesde *np)
 {
 	legacy_pll_init(np, PLATFORM_PLL);
 }
 
-/* Legacy node */
-static void __init core_pll_init(struct device_node *np)
+/* Legacy yesde */
+static void __init core_pll_init(struct device_yesde *np)
 {
 	struct resource res;
 	int idx;
@@ -1418,16 +1418,16 @@ static bool __init has_erratum_a4510(void)
 }
 #endif
 
-static void __init clockgen_init(struct device_node *np)
+static void __init clockgen_init(struct device_yesde *np)
 {
 	int i, ret;
 	bool is_old_ls1021a = false;
 
 	/* May have already been called by a legacy probe */
-	if (clockgen.node)
+	if (clockgen.yesde)
 		return;
 
-	clockgen.node = np;
+	clockgen.yesde = np;
 	clockgen.regs = of_iomap(np, 0);
 	if (!clockgen.regs &&
 	    of_device_is_compatible(of_root, "fsl,ls1021a")) {
@@ -1449,15 +1449,15 @@ static void __init clockgen_init(struct device_node *np)
 	}
 
 	if (i == ARRAY_SIZE(chipinfo)) {
-		pr_err("%s: unknown clockgen node %pOF\n", __func__, np);
+		pr_err("%s: unkyeswn clockgen yesde %pOF\n", __func__, np);
 		goto err;
 	}
 	clockgen.info = chipinfo[i];
 
 	if (clockgen.info.guts_compat) {
-		struct device_node *guts;
+		struct device_yesde *guts;
 
-		guts = of_find_compatible_node(NULL, NULL,
+		guts = of_find_compatible_yesde(NULL, NULL,
 					       clockgen.info.guts_compat);
 		if (guts) {
 			clockgen.guts = of_iomap(guts, 0);
@@ -1465,7 +1465,7 @@ static void __init clockgen_init(struct device_node *np)
 				pr_err("%s: Couldn't map %pOF regs\n", __func__,
 				       guts);
 			}
-			of_node_put(guts);
+			of_yesde_put(guts);
 		}
 
 	}
@@ -1483,7 +1483,7 @@ static void __init clockgen_init(struct device_node *np)
 
 	ret = of_clk_add_provider(np, clockgen_clk_get, &clockgen);
 	if (ret) {
-		pr_err("%s: Couldn't register clk provider for node %pOFn: %d\n",
+		pr_err("%s: Couldn't register clk provider for yesde %pOFn: %d\n",
 		       __func__, np, ret);
 	}
 
@@ -1515,7 +1515,7 @@ CLK_OF_DECLARE(qoriq_clockgen_t1040, "fsl,t1040-clockgen", clockgen_init);
 CLK_OF_DECLARE(qoriq_clockgen_t2080, "fsl,t2080-clockgen", clockgen_init);
 CLK_OF_DECLARE(qoriq_clockgen_t4240, "fsl,t4240-clockgen", clockgen_init);
 
-/* Legacy nodes */
+/* Legacy yesdes */
 CLK_OF_DECLARE(qoriq_sysclk_1, "fsl,qoriq-sysclk-1.0", sysclk_init);
 CLK_OF_DECLARE(qoriq_sysclk_2, "fsl,qoriq-sysclk-2.0", sysclk_init);
 CLK_OF_DECLARE(qoriq_core_pll_1, "fsl,qoriq-core-pll-1.0", core_pll_init);

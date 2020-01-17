@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/hyperv.h>
 #include <linux/limits.h>
 #include <syslog.h>
@@ -37,7 +37,7 @@ static int hv_start_fcopy(struct hv_start_fcopy *smsg)
 
 	syslog(LOG_INFO, "Target file name: %s", target_fname);
 	/*
-	 * Check to see if the path is already in place; if not,
+	 * Check to see if the path is already in place; if yest,
 	 * create if required.
 	 */
 	while ((q = strchr(p, '/')) != NULL) {
@@ -74,7 +74,7 @@ static int hv_start_fcopy(struct hv_start_fcopy *smsg)
 	target_fd = open(target_fname,
 			 O_RDWR | O_CREAT | O_TRUNC | O_CLOEXEC, 0744);
 	if (target_fd == -1) {
-		syslog(LOG_INFO, "Open Failed: %s", strerror(errno));
+		syslog(LOG_INFO, "Open Failed: %s", strerror(erryes));
 		goto done;
 	}
 
@@ -93,7 +93,7 @@ static int hv_copy_data(struct hv_do_fcopy *cpmsg)
 
 	filesize += cpmsg->size;
 	if (bytes_written != cpmsg->size) {
-		switch (errno) {
+		switch (erryes) {
 		case ENOSPC:
 			ret = HV_ERROR_DISK_FULL;
 			break;
@@ -102,7 +102,7 @@ static int hv_copy_data(struct hv_do_fcopy *cpmsg)
 			break;
 		}
 		syslog(LOG_ERR, "pwrite failed to write %llu bytes: %ld (%s)",
-		       filesize, (long)bytes_written, strerror(errno));
+		       filesize, (long)bytes_written, strerror(erryes));
 	}
 
 	return ret;
@@ -125,7 +125,7 @@ void print_usage(char *argv[])
 {
 	fprintf(stderr, "Usage: %s [options]\n"
 		"Options are:\n"
-		"  -n, --no-daemon        stay in foreground, don't daemonize\n"
+		"  -n, --yes-daemon        stay in foreground, don't daemonize\n"
 		"  -h, --help             print this help\n", argv[0]);
 }
 
@@ -144,8 +144,8 @@ int main(int argc, char *argv[])
 	int in_handshake = 1;
 
 	static struct option long_options[] = {
-		{"help",	no_argument,	   0,  'h' },
-		{"no-daemon",	no_argument,	   0,  'n' },
+		{"help",	yes_argument,	   0,  'h' },
+		{"yes-daemon",	yes_argument,	   0,  'n' },
 		{0,		0,		   0,  0   }
 	};
 
@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (daemonize && daemon(1, 0)) {
-		syslog(LOG_ERR, "daemon() failed; error: %s", strerror(errno));
+		syslog(LOG_ERR, "daemon() failed; error: %s", strerror(erryes));
 		exit(EXIT_FAILURE);
 	}
 
@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
 
 	if (fcopy_fd < 0) {
 		syslog(LOG_ERR, "open /dev/vmbus/hv_fcopy failed; error: %d %s",
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 		exit(EXIT_FAILURE);
 	}
 
@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
 	 * Register with the kernel.
 	 */
 	if ((write(fcopy_fd, &version, sizeof(int))) != sizeof(int)) {
-		syslog(LOG_ERR, "Registration failed: %s", strerror(errno));
+		syslog(LOG_ERR, "Registration failed: %s", strerror(erryes));
 		exit(EXIT_FAILURE);
 	}
 
@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
 
 		len = pread(fcopy_fd, &buffer, sizeof(buffer), 0);
 		if (len < 0) {
-			syslog(LOG_ERR, "pread failed: %s", strerror(errno));
+			syslog(LOG_ERR, "pread failed: %s", strerror(erryes));
 			exit(EXIT_FAILURE);
 		}
 
@@ -226,13 +226,13 @@ int main(int argc, char *argv[])
 
 		default:
 			error = HV_E_FAIL;
-			syslog(LOG_ERR, "Unknown operation: %d",
+			syslog(LOG_ERR, "Unkyeswn operation: %d",
 				buffer.hdr.operation);
 
 		}
 
 		if (pwrite(fcopy_fd, &error, sizeof(int), 0) != sizeof(int)) {
-			syslog(LOG_ERR, "pwrite failed: %s", strerror(errno));
+			syslog(LOG_ERR, "pwrite failed: %s", strerror(erryes));
 			exit(EXIT_FAILURE);
 		}
 	}

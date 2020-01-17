@@ -20,7 +20,7 @@ extern unsigned long loops_per_jiffy;
 static inline void __delay(unsigned long loops)
 {
 	if (__builtin_constant_p(loops) && loops < 2)
-		__asm__ __volatile__ ("nop");
+		__asm__ __volatile__ ("yesp");
 	else if (loops >= 2)
 		/* 2 cycles per loop. */
 		__asm__ __volatile__ ("1: addi %0, %0, -2; bgeui %0, 2, 1b"

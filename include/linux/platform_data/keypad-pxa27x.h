@@ -19,7 +19,7 @@
  *    automatically calculate this
  *
  * 2. direct_key_map is the key code map for the direct keys, if rotary
- *    encoder(s) are enabled, direct key 0/1(2/3) will be ignored
+ *    encoder(s) are enabled, direct key 0/1(2/3) will be igyesred
  *
  * 3. rotary can be either interpreted as a relative input event (e.g.
  *    REL_WHEEL/REL_HWHEEL) or specific keys (e.g. UP/DOWN/LEFT/RIGHT)

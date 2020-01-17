@@ -107,7 +107,7 @@ static irqreturn_t stm_thermal_alarm_irq(int irq, void *sdata)
 {
 	struct stm_thermal_sensor *sensor = sdata;
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	sensor->irq_enabled = false;
 
 	return IRQ_WAKE_THREAD;
@@ -616,8 +616,8 @@ static int stm_thermal_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret, i;
 
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "%s: device tree node not found\n",
+	if (!pdev->dev.of_yesde) {
+		dev_err(&pdev->dev, "%s: device tree yesde yest found\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -694,8 +694,8 @@ static int stm_thermal_probe(struct platform_device *pdev)
 
 	/*
 	 * Ensure low_temp_enabled flag is disabled.
-	 * By disabling low_temp_enabled, low threshold IT will not be
-	 * configured neither enabled because it is not needed as high
+	 * By disabling low_temp_enabled, low threshold IT will yest be
+	 * configured neither enabled because it is yest needed as high
 	 * threshold is set on the lowest temperature trip point after
 	 * probe.
 	 */
@@ -713,7 +713,7 @@ static int stm_thermal_probe(struct platform_device *pdev)
 	 * Thermal_zone doesn't enable hwmon as default,
 	 * enable it here
 	 */
-	sensor->th_dev->tzp->no_hwmon = false;
+	sensor->th_dev->tzp->yes_hwmon = false;
 	ret = thermal_add_hwmon_sysfs(sensor->th_dev);
 	if (ret)
 		goto err_tz;

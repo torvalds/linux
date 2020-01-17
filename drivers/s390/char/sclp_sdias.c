@@ -66,7 +66,7 @@ static int sdias_sclp_send(struct sclp_req *req)
 		TRACE("add request\n");
 		rc = sclp_add_request(req);
 		if (rc) {
-			/* not initiated, wait some time and retry */
+			/* yest initiated, wait some time and retry */
 			set_current_state(TASK_INTERRUPTIBLE);
 			TRACE("add request failed: rc = %i\n",rc);
 			schedule_timeout(msecs_to_jiffies(500));
@@ -78,7 +78,7 @@ static int sdias_sclp_send(struct sclp_req *req)
 			TRACE("sclp request failed\n");
 			continue;
 		}
-		/* if not accepted, retry */
+		/* if yest accepted, retry */
 		if (!(sccb->evbuf.hdr.flags & 0x80)) {
 			TRACE("sclp request failed: flags=%x\n",
 			      sccb->evbuf.hdr.flags);
@@ -154,7 +154,7 @@ out:
 }
 
 /*
- * Copy from HSA to absolute storage (not reentrant):
+ * Copy from HSA to absolute storage (yest reentrant):
  *
  * @dest     : Address of buffer where data should be copied
  * @start_blk: Start Block (beginning with 1)
@@ -213,7 +213,7 @@ int sclp_sdias_copy(void *dest, int start_blk, int nr_blks)
 		TRACE("part stored: %i\n", sdias_evbuf.blk_cnt);
 		break;
 	case SDIAS_EVSTATE_NO_DATA:
-		TRACE("no data\n");
+		TRACE("yes data\n");
 		/* fall through */
 	default:
 		pr_err("Error from SCLP while copying hsa. Event status = %x\n",
@@ -241,7 +241,7 @@ static int __init sclp_sdias_register_check(void)
 
 static int __init sclp_sdias_init_sync(void)
 {
-	TRACE("Try synchronous mode\n");
+	TRACE("Try synchroyesus mode\n");
 	sclp_sdias_register.receive_mask = 0;
 	sclp_sdias_register.receiver_fn = NULL;
 	return sclp_sdias_register_check();
@@ -249,7 +249,7 @@ static int __init sclp_sdias_init_sync(void)
 
 static int __init sclp_sdias_init_async(void)
 {
-	TRACE("Try asynchronous mode\n");
+	TRACE("Try asynchroyesus mode\n");
 	sclp_sdias_register.receive_mask = EVTYP_SDIAS_MASK;
 	sclp_sdias_register.receiver_fn = sclp_sdias_receiver_fn;
 	return sclp_sdias_register_check();

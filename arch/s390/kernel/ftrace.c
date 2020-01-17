@@ -28,13 +28,13 @@
  *	brasl	%r14,_mcount		# offset 12
  *	lg	%r14,8(%r15)		# offset 18
  * Total length is 24 bytes. Only the first instruction will be patched
- * by ftrace_make_call / ftrace_make_nop.
+ * by ftrace_make_call / ftrace_make_yesp.
  * The enabled ftrace code block looks like this:
  * >	brasl	%r0,ftrace_caller	# offset 0
  *	larl	%r1,<&counter>		# offset 6
  *	brasl	%r14,_mcount		# offset 12
  *	lg	%r14,8(%r15)		# offset 18
- * The ftrace function gets called with a non-standard C function call ABI
+ * The ftrace function gets called with a yesn-standard C function call ABI
  * where r0 contains the return address. It is also expected that the called
  * function only clobbers r0 and r1, but restores r2-r15.
  * For module code we can't directly jump to ftrace caller, but need a
@@ -81,7 +81,7 @@ static inline int is_kprobe_on_ftrace(struct ftrace_insn *insn)
 	return 0;
 }
 
-static inline void ftrace_generate_kprobe_nop_insn(struct ftrace_insn *insn)
+static inline void ftrace_generate_kprobe_yesp_insn(struct ftrace_insn *insn)
 {
 #ifdef CONFIG_KPROBES
 	insn->opc = BREAKPOINT_INSTRUCTION;
@@ -103,7 +103,7 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	return 0;
 }
 
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
+int ftrace_make_yesp(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
 	struct ftrace_insn orig, new, old;
@@ -113,21 +113,21 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 	if (addr == MCOUNT_ADDR) {
 		/* Initial code replacement */
 		ftrace_generate_orig_insn(&orig);
-		ftrace_generate_nop_insn(&new);
+		ftrace_generate_yesp_insn(&new);
 	} else if (is_kprobe_on_ftrace(&old)) {
 		/*
 		 * If we find a breakpoint instruction, a kprobe has been
 		 * placed at the beginning of the function. We write the
 		 * constant KPROBE_ON_FTRACE_NOP into the remaining four
 		 * bytes of the original instruction so that the kprobes
-		 * handler can execute a nop, if it reaches this breakpoint.
+		 * handler can execute a yesp, if it reaches this breakpoint.
 		 */
 		ftrace_generate_kprobe_call_insn(&orig);
-		ftrace_generate_kprobe_nop_insn(&new);
+		ftrace_generate_kprobe_yesp_insn(&new);
 	} else {
-		/* Replace ftrace call with a nop. */
+		/* Replace ftrace call with a yesp. */
 		ftrace_generate_call_insn(&orig, rec->ip);
-		ftrace_generate_nop_insn(&new);
+		ftrace_generate_yesp_insn(&new);
 	}
 	/* Verify that the to be replaced code matches what we expect. */
 	if (memcmp(&orig, &old, sizeof(old)))
@@ -150,11 +150,11 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		 * bytes of the original instruction so that the kprobes
 		 * handler can execute a brasl if it reaches this breakpoint.
 		 */
-		ftrace_generate_kprobe_nop_insn(&orig);
+		ftrace_generate_kprobe_yesp_insn(&orig);
 		ftrace_generate_kprobe_call_insn(&new);
 	} else {
-		/* Replace nop with an ftrace call. */
-		ftrace_generate_nop_insn(&orig);
+		/* Replace yesp with an ftrace call. */
+		ftrace_generate_yesp_insn(&orig);
 		ftrace_generate_call_insn(&new, rec->ip);
 	}
 	/* Verify that the to be replaced code matches what we expect. */
@@ -182,7 +182,7 @@ static int __init ftrace_plt_init(void)
 
 	ftrace_plt = (unsigned long) module_alloc(PAGE_SIZE);
 	if (!ftrace_plt)
-		panic("cannot allocate ftrace plt\n");
+		panic("canyest allocate ftrace plt\n");
 	ip = (unsigned int *) ftrace_plt;
 	ip[0] = 0x0d10e310; /* basr 1,0; lg 1,10(1); br 1 */
 	ip[1] = 0x100a0004;
@@ -220,7 +220,7 @@ NOKPROBE_SYMBOL(prepare_ftrace_return);
  * Patch the kernel code at ftrace_graph_caller location. The instruction
  * there is branch relative on condition. To enable the ftrace graph code
  * block, we simply patch the mask field of the instruction to zero and
- * turn the instruction into a nop.
+ * turn the instruction into a yesp.
  * To disable the ftrace graph code the mask field will be patched to
  * all ones, which turns the instruction into an unconditional branch.
  */

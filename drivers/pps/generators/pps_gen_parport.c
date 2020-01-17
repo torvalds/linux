@@ -119,7 +119,7 @@ done:
 	dts = timespec64_sub(ts1, expire_time);
 	delta = timespec64_to_ns(&dts);
 	/* If the new error value is bigger then the old, use the new
-	 * value, if not then slowly move towards the new value. This
+	 * value, if yest then slowly move towards the new value. This
 	 * way it should be safe in bad conditions and efficient in
 	 * good conditions.
 	 */
@@ -218,7 +218,7 @@ err_unregister_dev:
 static void parport_detach(struct parport *port)
 {
 	if (port->cad != device.pardev)
-		return;	/* not our port */
+		return;	/* yest our port */
 
 	hrtimer_cancel(&device.timer);
 	parport_release(device.pardev);
@@ -241,7 +241,7 @@ static int __init pps_gen_parport_init(void)
 	pr_info(DRVDESC "\n");
 
 	if (send_delay > SEND_DELAY_MAX) {
-		pr_err("delay value should be not greater"
+		pr_err("delay value should be yest greater"
 				" then %d\n", SEND_DELAY_MAX);
 		return -EINVAL;
 	}

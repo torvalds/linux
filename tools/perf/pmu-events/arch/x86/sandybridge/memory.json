@@ -23,11 +23,11 @@
         "UMask": "0x1",
         "EventName": "PAGE_WALKS.LLC_MISS",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Number of any page walk that had a miss in LLC. Does not necessary cause a SUSPEND.",
+        "BriefDescription": "Number of any page walk that had a miss in LLC. Does yest necessary cause a SUSPEND.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts the number of memory ordering Machine Clears detected. Memory Ordering Machine Clears can result from memory disambiguation, external snoops, or cross SMT-HW-thread snoop (stores) hitting load buffers.  Machine clears can have a significant performance impact if they are happening frequently.",
+        "PublicDescription": "This event counts the number of memory ordering Machine Clears detected. Memory Ordering Machine Clears can result from memory disambiguation, external syesops, or cross SMT-HW-thread syesop (stores) hitting load buffers.  Machine clears can have a significant performance impact if they are happening frequently.",
         "EventCode": "0xC3",
         "Counter": "0,1,2,3",
         "UMask": "0x2",

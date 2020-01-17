@@ -9,19 +9,19 @@
 
 /**
  * pseries_of_derive_parent - basically like dirname(1)
- * @path:  the full_name of a node to be added to the tree
+ * @path:  the full_name of a yesde to be added to the tree
  *
- * Returns the node which should be the parent of the node
+ * Returns the yesde which should be the parent of the yesde
  * described by path.  E.g., for path = "/foo/bar", returns
- * the node with full_name = "/foo".
+ * the yesde with full_name = "/foo".
  */
-struct device_node *pseries_of_derive_parent(const char *path)
+struct device_yesde *pseries_of_derive_parent(const char *path)
 {
-	struct device_node *parent;
+	struct device_yesde *parent;
 	char *parent_path = "/";
 	const char *tail;
 
-	/* We do not want the trailing '/' character */
+	/* We do yest want the trailing '/' character */
 	tail = kbasename(path) - 1;
 
 	/* reject if path is "/" */
@@ -33,7 +33,7 @@ struct device_node *pseries_of_derive_parent(const char *path)
 		if (!parent_path)
 			return ERR_PTR(-ENOMEM);
 	}
-	parent = of_find_node_by_path(parent_path);
+	parent = of_find_yesde_by_path(parent_path);
 	if (strcmp(parent_path, "/"))
 		kfree(parent_path);
 	return parent ? parent : ERR_PTR(-EINVAL);
@@ -87,7 +87,7 @@ int of_read_drc_info_cell(struct property **prop, const __be32 **curval,
 	if (!p2)
 		return -EINVAL;
 
-	/* Should now know end of current entry */
+	/* Should yesw kyesw end of current entry */
 	(*curval) = (void *)p2;
 	data->last_drc_index = data->drc_index_start +
 		((data->num_sequential_elems - 1) * data->sequential_inc);

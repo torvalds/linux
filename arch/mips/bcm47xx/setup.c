@@ -22,7 +22,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -142,7 +142,7 @@ static void __init bcm47xx_register_bcma(void)
 /*
  * Memory setup is done in the early part of MIPS's arch_mem_init. It's supposed
  * to detect memory and record it with add_memory_region.
- * Any extra initializaion performed here must not use kmalloc or bootmem.
+ * Any extra initializaion performed here must yest use kmalloc or bootmem.
  */
 void __init plat_mem_setup(void)
 {
@@ -199,8 +199,8 @@ static struct device * __init bcm47xx_setup_device(void)
 #endif
 
 /*
- * This finishes bus initialization doing things that were not possible without
- * kmalloc. Make sure to call it late enough (after mm_init).
+ * This finishes bus initialization doing things that were yest possible without
+ * kmalloc. Make sure to call it late eyesugh (after mm_init).
  */
 void __init bcm47xx_bus_setup(void)
 {
@@ -235,9 +235,9 @@ static int __init bcm47xx_cpu_fixes(void)
 	case BCM47XX_BUS_TYPE_BCMA:
 		/* The BCM4706 has a problem with the CPU wait instruction.
 		 * When r4k_wait or r4k_wait_irqoff is used will just hang and
-		 * not return from a msleep(). Removing the cpu_wait
+		 * yest return from a msleep(). Removing the cpu_wait
 		 * functionality is a workaround for this problem. The BCM4716
-		 * does not have this problem.
+		 * does yest have this problem.
 		 */
 		if (bcm47xx_bus.bcma.bus.chipinfo.id == BCMA_CHIP_ID_BCM4706)
 			cpu_wait = NULL;

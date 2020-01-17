@@ -390,7 +390,7 @@ static void i40e_parse_cee_app_tlv(struct i40e_cee_feat_tlv *tlv,
 			dcbcfg->app[i].selector = I40E_APP_SEL_TCPIP;
 			break;
 		default:
-			/* Keep selector as it is for unknown types */
+			/* Keep selector as it is for unkyeswn types */
 			dcbcfg->app[i].selector = selector;
 		}
 
@@ -419,7 +419,7 @@ static void i40e_parse_cee_tlv(struct i40e_lldp_org_tlv *tlv,
 	ouisubtype = ntohl(tlv->ouisubtype);
 	subtype = (u8)((ouisubtype & I40E_LLDP_TLV_SUBTYPE_MASK) >>
 		       I40E_LLDP_TLV_SUBTYPE_SHIFT);
-	/* Return if not CEE DCBX */
+	/* Return if yest CEE DCBX */
 	if (subtype != I40E_CEE_DCBX_TYPE)
 		return;
 
@@ -428,7 +428,7 @@ static void i40e_parse_cee_tlv(struct i40e_lldp_org_tlv *tlv,
 			I40E_LLDP_TLV_LEN_SHIFT);
 	len = sizeof(tlv->typelength) + sizeof(ouisubtype) +
 	      sizeof(struct i40e_cee_ctrl_tlv);
-	/* Return if no CEE DCBX Feature TLVs */
+	/* Return if yes CEE DCBX Feature TLVs */
 	if (tlvlen <= len)
 		return;
 
@@ -835,7 +835,7 @@ i40e_status i40e_get_dcb_config(struct i40e_hw *hw)
 		}
 	}
 
-	/* CEE mode not enabled try querying IEEE data */
+	/* CEE mode yest enabled try querying IEEE data */
 	if (hw->aq.asq_last_status == I40E_AQ_RC_ENOENT)
 		return i40e_get_ieee_dcb_config(hw);
 

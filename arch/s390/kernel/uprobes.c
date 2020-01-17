@@ -108,7 +108,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	return 0;
 }
 
-int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val,
+int arch_uprobe_exception_yestify(struct yestifier_block *self, unsigned long val,
 				 void *data)
 {
 	struct die_args *args = data;
@@ -120,11 +120,11 @@ int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val,
 		return NOTIFY_DONE;
 	switch (val) {
 	case DIE_BPT:
-		if (uprobe_pre_sstep_notifier(regs))
+		if (uprobe_pre_sstep_yestifier(regs))
 			return NOTIFY_STOP;
 		break;
 	case DIE_SSTEP:
-		if (uprobe_post_sstep_notifier(regs))
+		if (uprobe_post_sstep_yestifier(regs))
 			return NOTIFY_STOP;
 	default:
 		break;
@@ -263,7 +263,7 @@ static void sim_stor_event(struct pt_regs *regs, void *addr, int len)
 }
 
 /*
- * pc relative instructions are emulated, since parameters may not be
+ * pc relative instructions are emulated, since parameters may yest be
  * accessible from the xol area due to range limitations.
  */
 static void handle_insn_ril(struct arch_uprobe *auprobe, struct pt_regs *regs)

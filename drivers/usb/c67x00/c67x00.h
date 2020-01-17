@@ -57,7 +57,7 @@
 
 #define PREAMBLE_EN		0x0080	/* Preamble enable */
 #define SEQ_SEL			0x0040	/* Data Toggle Sequence Bit Select */
-#define ISO_EN			0x0010	/* Isochronous enable  */
+#define ISO_EN			0x0010	/* Isochroyesus enable  */
 #define ARM_EN			0x0001	/* Arm operation */
 
 /* Host n Interrupt Enable Register */
@@ -184,10 +184,10 @@ struct c67x00_device;
  * struct c67x00_sie - Common data associated with a SIE
  * @lock: lock to protect this struct and the associated chip registers
  * @private_data: subdriver dependent data
- * @irq: subdriver dependent irq handler, set NULL when not used
+ * @irq: subdriver dependent irq handler, set NULL when yest used
  * @dev: link to common driver structure
  * @sie_num: SIE number on chip, starting from 0
- * @mode: SIE mode (host/peripheral/otg/not used)
+ * @mode: SIE mode (host/peripheral/otg/yest used)
  */
 struct c67x00_sie {
 	/* Entries to be used by the subdrivers */

@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -241,7 +241,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 			/* if gds bo is created from user space, it must be
 			 * passed to bo list
 			 */
-			DRM_ERROR("GDS bo cannot be per-vm-bo\n");
+			DRM_ERROR("GDS bo canyest be per-vm-bo\n");
 			return -EINVAL;
 		}
 		flags |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
@@ -270,7 +270,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 		return r;
 
 	r = drm_gem_handle_create(filp, gobj, &handle);
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it yesw */
 	drm_gem_object_put_unlocked(gobj);
 	if (r)
 		return r;
@@ -296,7 +296,7 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	if (offset_in_page(args->addr | args->size))
 		return -EINVAL;
 
-	/* reject unknown flag values */
+	/* reject unkyeswn flag values */
 	if (args->flags & ~(AMDGPU_GEM_USERPTR_READONLY |
 	    AMDGPU_GEM_USERPTR_ANONONLY | AMDGPU_GEM_USERPTR_VALIDATE |
 	    AMDGPU_GEM_USERPTR_REGISTER))
@@ -305,7 +305,7 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	if (!(args->flags & AMDGPU_GEM_USERPTR_READONLY) &&
 	     !(args->flags & AMDGPU_GEM_USERPTR_REGISTER)) {
 
-		/* if we want to write to it we must install a MMU notifier */
+		/* if we want to write to it we must install a MMU yestifier */
 		return -EACCES;
 	}
 
@@ -438,7 +438,7 @@ int amdgpu_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	ret = dma_resv_wait_timeout_rcu(robj->tbo.base.resv, true, true,
 						  timeout);
 
-	/* ret == 0 means not signaled,
+	/* ret == 0 means yest signaled,
 	 * ret > 0 means signaled
 	 * ret < 0 means interrupted before timeout
 	 */
@@ -503,8 +503,8 @@ out:
  * @bo_va: bo_va to update
  * @operation: map, unmap or clear
  *
- * Update the bo_va directly after setting its address. Errors are not
- * vital here, so they are not reported back to userspace.
+ * Update the bo_va directly after setting its address. Errors are yest
+ * vital here, so they are yest reported back to userspace.
  */
 static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 				    struct amdgpu_vm *vm,
@@ -802,7 +802,7 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 		return -ENOMEM;
 
 	r = drm_gem_handle_create(file_priv, gobj, &handle);
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it yesw */
 	drm_gem_object_put_unlocked(gobj);
 	if (r) {
 		return r;
@@ -874,8 +874,8 @@ static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
 
 static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct drm_file *file;
 	int r;
 
@@ -888,14 +888,14 @@ static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
 
 		/*
 		 * Although we have a valid reference on file->pid, that does
-		 * not guarantee that the task_struct who called get_pid() is
+		 * yest guarantee that the task_struct who called get_pid() is
 		 * still alive (e.g. get_pid(current) => fork() => exit()).
 		 * Therefore, we need to protect this ->comm access using RCU.
 		 */
 		rcu_read_lock();
 		task = pid_task(file->pid, PIDTYPE_PID);
 		seq_printf(m, "pid %8d command %s:\n", pid_nr(file->pid),
-			   task ? task->comm : "<unknown>");
+			   task ? task->comm : "<unkyeswn>");
 		rcu_read_unlock();
 
 		spin_lock(&file->table_lock);

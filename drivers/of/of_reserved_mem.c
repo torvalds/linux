@@ -27,7 +27,7 @@ static struct reserved_mem reserved_mem[MAX_RESERVED_REGIONS];
 static int reserved_mem_count;
 
 static int __init early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
-	phys_addr_t align, phys_addr_t start, phys_addr_t end, bool nomap,
+	phys_addr_t align, phys_addr_t start, phys_addr_t end, bool yesmap,
 	phys_addr_t *res_base)
 {
 	phys_addr_t base;
@@ -39,26 +39,26 @@ static int __init early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
 		return -ENOMEM;
 
 	*res_base = base;
-	if (nomap)
+	if (yesmap)
 		return memblock_remove(base, size);
 
 	return memblock_reserve(base, size);
 }
 
 /**
- * res_mem_save_node() - save fdt node for second pass initialization
+ * res_mem_save_yesde() - save fdt yesde for second pass initialization
  */
-void __init fdt_reserved_mem_save_node(unsigned long node, const char *uname,
+void __init fdt_reserved_mem_save_yesde(unsigned long yesde, const char *uname,
 				      phys_addr_t base, phys_addr_t size)
 {
 	struct reserved_mem *rmem = &reserved_mem[reserved_mem_count];
 
 	if (reserved_mem_count == ARRAY_SIZE(reserved_mem)) {
-		pr_err("not enough space all defined regions.\n");
+		pr_err("yest eyesugh space all defined regions.\n");
 		return;
 	}
 
-	rmem->fdt_node = node;
+	rmem->fdt_yesde = yesde;
 	rmem->name = uname;
 	rmem->base = base;
 	rmem->size = size;
@@ -71,7 +71,7 @@ void __init fdt_reserved_mem_save_node(unsigned long node, const char *uname,
  * res_mem_alloc_size() - allocate reserved memory described by 'size', 'align'
  *			  and 'alloc-ranges' properties
  */
-static int __init __reserved_mem_alloc_size(unsigned long node,
+static int __init __reserved_mem_alloc_size(unsigned long yesde,
 	const char *uname, phys_addr_t *res_base, phys_addr_t *res_size)
 {
 	int t_len = (dt_root_addr_cells + dt_root_size_cells) * sizeof(__be32);
@@ -79,25 +79,25 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 	phys_addr_t base = 0, align = 0, size;
 	int len;
 	const __be32 *prop;
-	int nomap;
+	int yesmap;
 	int ret;
 
-	prop = of_get_flat_dt_prop(node, "size", &len);
+	prop = of_get_flat_dt_prop(yesde, "size", &len);
 	if (!prop)
 		return -EINVAL;
 
 	if (len != dt_root_size_cells * sizeof(__be32)) {
-		pr_err("invalid size property in '%s' node.\n", uname);
+		pr_err("invalid size property in '%s' yesde.\n", uname);
 		return -EINVAL;
 	}
 	size = dt_mem_next_cell(dt_root_size_cells, &prop);
 
-	nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
+	yesmap = of_get_flat_dt_prop(yesde, "yes-map", NULL) != NULL;
 
-	prop = of_get_flat_dt_prop(node, "alignment", &len);
+	prop = of_get_flat_dt_prop(yesde, "alignment", &len);
 	if (prop) {
 		if (len != dt_root_addr_cells * sizeof(__be32)) {
-			pr_err("invalid alignment property in '%s' node.\n",
+			pr_err("invalid alignment property in '%s' yesde.\n",
 				uname);
 			return -EINVAL;
 		}
@@ -106,20 +106,20 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 
 	/* Need adjust the alignment to satisfy the CMA requirement */
 	if (IS_ENABLED(CONFIG_CMA)
-	    && of_flat_dt_is_compatible(node, "shared-dma-pool")
-	    && of_get_flat_dt_prop(node, "reusable", NULL)
-	    && !of_get_flat_dt_prop(node, "no-map", NULL)) {
+	    && of_flat_dt_is_compatible(yesde, "shared-dma-pool")
+	    && of_get_flat_dt_prop(yesde, "reusable", NULL)
+	    && !of_get_flat_dt_prop(yesde, "yes-map", NULL)) {
 		unsigned long order =
 			max_t(unsigned long, MAX_ORDER - 1, pageblock_order);
 
 		align = max(align, (phys_addr_t)PAGE_SIZE << order);
 	}
 
-	prop = of_get_flat_dt_prop(node, "alloc-ranges", &len);
+	prop = of_get_flat_dt_prop(yesde, "alloc-ranges", &len);
 	if (prop) {
 
 		if (len % t_len != 0) {
-			pr_err("invalid alloc-ranges property in '%s', skipping node.\n",
+			pr_err("invalid alloc-ranges property in '%s', skipping yesde.\n",
 			       uname);
 			return -EINVAL;
 		}
@@ -132,9 +132,9 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 						       &prop);
 
 			ret = early_init_dt_alloc_reserved_memory_arch(size,
-					align, start, end, nomap, &base);
+					align, start, end, yesmap, &base);
 			if (ret == 0) {
-				pr_debug("allocated memory for '%s' node: base %pa, size %ld MiB\n",
+				pr_debug("allocated memory for '%s' yesde: base %pa, size %ld MiB\n",
 					uname, &base,
 					(unsigned long)size / SZ_1M);
 				break;
@@ -144,14 +144,14 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 
 	} else {
 		ret = early_init_dt_alloc_reserved_memory_arch(size, align,
-							0, 0, nomap, &base);
+							0, 0, yesmap, &base);
 		if (ret == 0)
-			pr_debug("allocated memory for '%s' node: base %pa, size %ld MiB\n",
+			pr_debug("allocated memory for '%s' yesde: base %pa, size %ld MiB\n",
 				uname, &base, (unsigned long)size / SZ_1M);
 	}
 
 	if (base == 0) {
-		pr_info("failed to allocate memory for node '%s'\n", uname);
+		pr_info("failed to allocate memory for yesde '%s'\n", uname);
 		return -ENOMEM;
 	}
 
@@ -165,9 +165,9 @@ static const struct of_device_id __rmem_of_table_sentinel
 	__used __section(__reservedmem_of_table_end);
 
 /**
- * res_mem_init_node() - call region specific reserved memory init code
+ * res_mem_init_yesde() - call region specific reserved memory init code
  */
-static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
+static int __init __reserved_mem_init_yesde(struct reserved_mem *rmem)
 {
 	extern const struct of_device_id __reservedmem_of_table[];
 	const struct of_device_id *i;
@@ -177,12 +177,12 @@ static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
 		reservedmem_of_init_fn initfn = i->data;
 		const char *compat = i->compatible;
 
-		if (!of_flat_dt_is_compatible(rmem->fdt_node, compat))
+		if (!of_flat_dt_is_compatible(rmem->fdt_yesde, compat))
 			continue;
 
 		ret = initfn(rmem);
 		if (ret == 0) {
-			pr_info("initialized node %s, compatible id %s\n",
+			pr_info("initialized yesde %s, compatible id %s\n",
 				rmem->name, compat);
 			break;
 		}
@@ -243,44 +243,44 @@ void __init fdt_init_reserved_mem(void)
 
 	for (i = 0; i < reserved_mem_count; i++) {
 		struct reserved_mem *rmem = &reserved_mem[i];
-		unsigned long node = rmem->fdt_node;
+		unsigned long yesde = rmem->fdt_yesde;
 		int len;
 		const __be32 *prop;
 		int err = 0;
-		int nomap;
+		int yesmap;
 
-		nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
-		prop = of_get_flat_dt_prop(node, "phandle", &len);
+		yesmap = of_get_flat_dt_prop(yesde, "yes-map", NULL) != NULL;
+		prop = of_get_flat_dt_prop(yesde, "phandle", &len);
 		if (!prop)
-			prop = of_get_flat_dt_prop(node, "linux,phandle", &len);
+			prop = of_get_flat_dt_prop(yesde, "linux,phandle", &len);
 		if (prop)
 			rmem->phandle = of_read_number(prop, len/4);
 
 		if (rmem->size == 0)
-			err = __reserved_mem_alloc_size(node, rmem->name,
+			err = __reserved_mem_alloc_size(yesde, rmem->name,
 						 &rmem->base, &rmem->size);
 		if (err == 0) {
-			err = __reserved_mem_init_node(rmem);
+			err = __reserved_mem_init_yesde(rmem);
 			if (err != 0 && err != -ENOENT) {
-				pr_info("node %s compatible matching fail\n",
+				pr_info("yesde %s compatible matching fail\n",
 					rmem->name);
 				memblock_free(rmem->base, rmem->size);
-				if (nomap)
+				if (yesmap)
 					memblock_add(rmem->base, rmem->size);
 			}
 		}
 	}
 }
 
-static inline struct reserved_mem *__find_rmem(struct device_node *node)
+static inline struct reserved_mem *__find_rmem(struct device_yesde *yesde)
 {
 	unsigned int i;
 
-	if (!node->phandle)
+	if (!yesde->phandle)
 		return NULL;
 
 	for (i = 0; i < reserved_mem_count; i++)
-		if (reserved_mem[i].phandle == node->phandle)
+		if (reserved_mem[i].phandle == yesde->phandle)
 			return &reserved_mem[i];
 	return NULL;
 }
@@ -298,11 +298,11 @@ static DEFINE_MUTEX(of_rmem_assigned_device_mutex);
  * of_reserved_mem_device_init_by_idx() - assign reserved memory region to
  *					  given device
  * @dev:	Pointer to the device to configure
- * @np:		Pointer to the device_node with 'reserved-memory' property
+ * @np:		Pointer to the device_yesde with 'reserved-memory' property
  * @idx:	Index of selected region
  *
  * This function assigns respective DMA-mapping operations based on reserved
- * memory region specified by 'memory-region' property in @np node to the @dev
+ * memory region specified by 'memory-region' property in @np yesde to the @dev
  * device. When driver needs to use more than one reserved memory region, it
  * should allocate child devices and initialize regions by name for each of
  * child device.
@@ -310,10 +310,10 @@ static DEFINE_MUTEX(of_rmem_assigned_device_mutex);
  * Returns error code or zero on success.
  */
 int of_reserved_mem_device_init_by_idx(struct device *dev,
-				       struct device_node *np, int idx)
+				       struct device_yesde *np, int idx)
 {
 	struct rmem_assigned_device *rd;
-	struct device_node *target;
+	struct device_yesde *target;
 	struct reserved_mem *rmem;
 	int ret;
 
@@ -325,12 +325,12 @@ int of_reserved_mem_device_init_by_idx(struct device *dev,
 		return -ENODEV;
 
 	if (!of_device_is_available(target)) {
-		of_node_put(target);
+		of_yesde_put(target);
 		return 0;
 	}
 
 	rmem = __find_rmem(target);
-	of_node_put(target);
+	of_yesde_put(target);
 
 	if (!rmem || !rmem->ops || !rmem->ops->device_init)
 		return -EINVAL;
@@ -348,7 +348,7 @@ int of_reserved_mem_device_init_by_idx(struct device *dev,
 		list_add(&rd->list, &of_rmem_assigned_device_list);
 		mutex_unlock(&of_rmem_assigned_device_mutex);
 
-		dev_info(dev, "assigned reserved memory node %s\n", rmem->name);
+		dev_info(dev, "assigned reserved memory yesde %s\n", rmem->name);
 	} else {
 		kfree(rd);
 	}
@@ -388,15 +388,15 @@ void of_reserved_mem_device_release(struct device *dev)
 EXPORT_SYMBOL_GPL(of_reserved_mem_device_release);
 
 /**
- * of_reserved_mem_lookup() - acquire reserved_mem from a device node
- * @np:		node pointer of the desired reserved-memory region
+ * of_reserved_mem_lookup() - acquire reserved_mem from a device yesde
+ * @np:		yesde pointer of the desired reserved-memory region
  *
  * This function allows drivers to acquire a reference to the reserved_mem
- * struct based on a device node handle.
+ * struct based on a device yesde handle.
  *
  * Returns a reserved_mem reference, or NULL on error.
  */
-struct reserved_mem *of_reserved_mem_lookup(struct device_node *np)
+struct reserved_mem *of_reserved_mem_lookup(struct device_yesde *np)
 {
 	const char *name;
 	int i;

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-noarg:
+yesarg:
 	$(MAKE) -C ../
 
 TEST_PROGS := eeh-basic.sh

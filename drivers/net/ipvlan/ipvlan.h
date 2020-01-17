@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/rculist.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
@@ -61,7 +61,7 @@ struct ipvl_port;
 
 struct ipvl_dev {
 	struct net_device	*dev;
-	struct list_head	pnode;
+	struct list_head	pyesde;
 	struct ipvl_port	*port;
 	struct net_device	*phy_dev;
 	struct list_head	addrs;
@@ -80,8 +80,8 @@ struct ipvl_addr {
 	} ipu;
 #define ip6addr	ipu.ip6
 #define ip4addr ipu.ip4
-	struct hlist_node	hlnode;  /* Hash-table linkage */
-	struct list_head	anode;   /* logical-interface linkage */
+	struct hlist_yesde	hlyesde;  /* Hash-table linkage */
+	struct list_head	ayesde;   /* logical-interface linkage */
 	ipvl_hdr_type		atype;
 	struct rcu_head		rcu;
 };

@@ -287,7 +287,7 @@ static void rtl92c_dm_ctrl_initgain_by_rssi(struct ieee80211_hw *hw)
 	struct dig_t *digtable = &rtlpriv->dm_digtable;
 	u32 isbt;
 
-	/* modify DIG lower bound, deal with abnormally large false alarm */
+	/* modify DIG lower bound, deal with abyesrmally large false alarm */
 	if (rtlpriv->falsealm_cnt.cnt_all > 10000) {
 		digtable->large_fa_hit++;
 		if (digtable->forbidden_igi < digtable->cur_igvalue) {
@@ -607,7 +607,7 @@ void rtl92c_dm_init_edca_turbo(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->dm.current_turbo_edca = false;
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_yesnbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
 }
 EXPORT_SYMBOL(rtl92c_dm_init_edca_turbo);
@@ -657,7 +657,7 @@ static void rtl92c_dm_check_edca_turbo(struct ieee80211_hw *hw)
 			edca_be_dl |= 0x005e0000;
 	}
 
-	if ((bt_change_edca) || ((!rtlpriv->dm.is_any_nonbepkts) &&
+	if ((bt_change_edca) || ((!rtlpriv->dm.is_any_yesnbepkts) &&
 	     (!rtlpriv->dm.disable_framebursting))) {
 		cur_txok_cnt = rtlpriv->stats.txbytesunicast - last_txok_cnt;
 		cur_rxok_cnt = rtlpriv->stats.rxbytesunicast - last_rxok_cnt;
@@ -690,7 +690,7 @@ static void rtl92c_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		}
 	}
 
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_yesnbepkts = false;
 	last_txok_cnt = rtlpriv->stats.txbytesunicast;
 	last_rxok_cnt = rtlpriv->stats.rxbytesunicast;
 }
@@ -1195,7 +1195,7 @@ static void rtl92c_dm_init_dynamic_bb_powersaving(struct ieee80211_hw *hw)
 	dm_pstable->rssi_val_min = 0;
 }
 
-void rtl92c_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal)
+void rtl92c_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_yesrmal)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct ps_t *dm_pstable = &rtlpriv->dm_pstable;
@@ -1217,7 +1217,7 @@ void rtl92c_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal)
 		rtlpriv->reg_init = true;
 	}
 
-	if (!bforce_in_normal) {
+	if (!bforce_in_yesrmal) {
 		if (dm_pstable->rssi_val_min != 0) {
 			if (dm_pstable->pre_rfstate == RF_NORMAL) {
 				if (dm_pstable->rssi_val_min >= 30)
@@ -1559,8 +1559,8 @@ static bool rtl92c_bt_state_change(struct ieee80211_hw *hw)
 			   ((rtlpriv->btcoexist.bt_service != BT_IDLE) ?
 			   0 : BIT_OFFSET_LEN_MASK_32(2, 1));
 
-			/* Add interrupt migration when bt is not ini
-			 * idle state (no traffic). */
+			/* Add interrupt migration when bt is yest ini
+			 * idle state (yes traffic). */
 			if (rtlpriv->btcoexist.bt_service != BT_IDLE) {
 				rtl_write_word(rtlpriv, 0x504, 0x0ccc);
 				rtl_write_byte(rtlpriv, 0x506, 0x54);
@@ -1597,7 +1597,7 @@ static bool rtl92c_bt_wifi_connect_change(struct ieee80211_hw *hw)
 	return false;
 }
 
-static void rtl92c_bt_set_normal(struct ieee80211_hw *hw)
+static void rtl92c_bt_set_yesrmal(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -1661,7 +1661,7 @@ static void rtl92c_bt_ant_isolation(struct ieee80211_hw *hw, u8 tmp1byte)
 
 	if (rtlpriv->btcoexist.bt_rssi_state &
 	    BT_RSSI_STATE_NORMAL_POWER) {
-		rtl92c_bt_set_normal(hw);
+		rtl92c_bt_set_yesrmal(hw);
 	} else {
 		rtlpriv->btcoexist.bt_edca_ul = 0;
 		rtlpriv->btcoexist.bt_edca_dl = 0;

@@ -172,7 +172,7 @@ do
 	    # short writes on more packets than the last one
 
 	    COUNT=100
-	    echo "test 22: $COUNT transfers, non aligned"
+	    echo "test 22: $COUNT transfers, yesn aligned"
 	    do_test -t 22 -g 8 -v 0
 
 	    ;;
@@ -182,7 +182,7 @@ do
 	    echo '** Host Read (IN) test cases:'
 
 	    # NOTE:  these "variable size" reads are just multiples
-	    # of 512 bytes, no EOVERFLOW testing is done yet
+	    # of 512 bytes, yes EOVERFLOW testing is done yet
 
 	    echo "test 2: $COUNT transfers, same size"
 	    do_test -t 2

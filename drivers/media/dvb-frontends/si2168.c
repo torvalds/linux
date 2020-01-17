@@ -294,7 +294,7 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	/* that has no big effect */
+	/* that has yes big effect */
 	if (c->delivery_system == SYS_DVBT)
 		cmd_init(&cmd, "\x89\x21\x06\x11\xff\x98", 6, 3);
 	else if (c->delivery_system == SYS_DVBC_ANNEX_A)
@@ -456,12 +456,12 @@ static int si2168_init(struct dvb_frontend *fe)
 		}
 
 		if (ret == 0) {
-			dev_notice(&client->dev,
+			dev_yestice(&client->dev,
 					"please install firmware file '%s'\n",
 					SI2168_B40_FIRMWARE);
 		} else {
 			dev_err(&client->dev,
-					"firmware file '%s' not found\n",
+					"firmware file '%s' yest found\n",
 					dev->firmware_name);
 			goto err_release_firmware;
 		}
@@ -493,7 +493,7 @@ static int si2168_init(struct dvb_frontend *fe)
 				break;
 		}
 	} else {
-		/* bad or unknown firmware format */
+		/* bad or unkyeswn firmware format */
 		ret = -EINVAL;
 	}
 
@@ -718,7 +718,7 @@ static int si2168_probe(struct i2c_client *client,
 		dev->firmware_name = SI2168_D60_FIRMWARE;
 		break;
 	default:
-		dev_dbg(&client->dev, "unknown chip version Si21%d-%c%c%c\n",
+		dev_dbg(&client->dev, "unkyeswn chip version Si21%d-%c%c%c\n",
 			cmd.args[2], cmd.args[1], cmd.args[3], cmd.args[4]);
 		ret = -ENODEV;
 		goto err_kfree;

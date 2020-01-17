@@ -7,7 +7,7 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma/sprd-dma.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -516,7 +516,7 @@ static void sprd_dma_start(struct sprd_dma_chn *schan)
 	if (!vd)
 		return;
 
-	list_del(&vd->node);
+	list_del(&vd->yesde);
 	schan->cur_desc = to_sprd_dma_desc(vd);
 
 	/*
@@ -742,7 +742,7 @@ static int sprd_dma_fill_desc(struct dma_chan *chan,
 		}
 
 		/*
-		 * For 2-stage transfer, destination channel step can not be 0,
+		 * For 2-stage transfer, destination channel step can yest be 0,
 		 * since destination device is AON IRAM.
 		 */
 		if (chn_mode == SPRD_DMA_DST_CHN0 ||
@@ -786,8 +786,8 @@ static int sprd_dma_fill_desc(struct dma_chan *chan,
 	hw->des_addr = dst & SPRD_DMA_LOW_ADDR_MASK;
 
 	/*
-	 * If the src step and dst step both are 0 or both are not 0, that means
-	 * we can not enable the fix mode. If one is 0 and another one is not,
+	 * If the src step and dst step both are 0 or both are yest 0, that means
+	 * we can yest enable the fix mode. If one is 0 and ayesther one is yest,
 	 * we can enable the fix mode.
 	 */
 	if ((src_step != 0 && dst_step != 0) || (src_step | dst_step) == 0) {
@@ -1090,7 +1090,7 @@ static bool sprd_dma_filter_fn(struct dma_chan *chan, void *param)
 
 static int sprd_dma_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct sprd_dma_dev *sdev;
 	struct sprd_dma_chn *dma_chn;
 	u32 chn_count;
@@ -1117,13 +1117,13 @@ static int sprd_dma_probe(struct platform_device *pdev)
 	/* ashb clock is optional for AGCP DMA */
 	sdev->ashb_clk = devm_clk_get(&pdev->dev, "ashb_eb");
 	if (IS_ERR(sdev->ashb_clk))
-		dev_warn(&pdev->dev, "no optional ashb eb clock\n");
+		dev_warn(&pdev->dev, "yes optional ashb eb clock\n");
 
 	/*
 	 * We have three DMA controllers: AP DMA, AON DMA and AGCP DMA. For AGCP
-	 * DMA controller, it can or do not request the irq, which will save
+	 * DMA controller, it can or do yest request the irq, which will save
 	 * system power without resuming system by DMA interrupts if AGCP DMA
-	 * does not request the irq. Thus the DMA interrupts property should
+	 * does yest request the irq. Thus the DMA interrupts property should
 	 * be optional.
 	 */
 	sdev->irq = platform_get_irq(pdev, 0);
@@ -1135,7 +1135,7 @@ static int sprd_dma_probe(struct platform_device *pdev)
 			return ret;
 		}
 	} else {
-		dev_warn(&pdev->dev, "no interrupts for the dma controller\n");
+		dev_warn(&pdev->dev, "yes interrupts for the dma controller\n");
 	}
 
 	sdev->glb_base = devm_platform_ioremap_resource(pdev, 0);
@@ -1146,7 +1146,7 @@ static int sprd_dma_probe(struct platform_device *pdev)
 	sdev->total_chns = chn_count;
 	sdev->dma_dev.chancnt = chn_count;
 	INIT_LIST_HEAD(&sdev->dma_dev.channels);
-	INIT_LIST_HEAD(&sdev->dma_dev.global_node);
+	INIT_LIST_HEAD(&sdev->dma_dev.global_yesde);
 	sdev->dma_dev.dev = &pdev->dev;
 	sdev->dma_dev.device_alloc_chan_resources = sprd_dma_alloc_chan_resources;
 	sdev->dma_dev.device_free_chan_resources = sprd_dma_free_chan_resources;
@@ -1201,7 +1201,7 @@ static int sprd_dma_probe(struct platform_device *pdev)
 err_of_register:
 	dma_async_device_unregister(&sdev->dma_dev);
 err_register:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 err_rpm:
 	sprd_dma_disable(sdev);
@@ -1223,16 +1223,16 @@ static int sprd_dma_remove(struct platform_device *pdev)
 		devm_free_irq(&pdev->dev, sdev->irq, sdev);
 
 	list_for_each_entry_safe(c, cn, &sdev->dma_dev.channels,
-				 vc.chan.device_node) {
-		list_del(&c->vc.chan.device_node);
+				 vc.chan.device_yesde) {
+		list_del(&c->vc.chan.device_yesde);
 		tasklet_kill(&c->vc.task);
 	}
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 	dma_async_device_unregister(&sdev->dma_dev);
 	sprd_dma_disable(sdev);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }

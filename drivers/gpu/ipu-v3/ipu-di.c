@@ -6,7 +6,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -262,7 +262,7 @@ static void ipu_di_sync_config_interlaced(struct ipu_di *di,
 	ipu_di_write(di, v_total / 2 - 1, DI_SCR_CONF);
 }
 
-static void ipu_di_sync_config_noninterlaced(struct ipu_di *di,
+static void ipu_di_sync_config_yesninterlaced(struct ipu_di *di,
 		struct ipu_di_signal_cfg *sig, int div)
 {
 	u32 h_total = sig->mode.hactive + sig->mode.hsync_len +
@@ -418,7 +418,7 @@ static void ipu_di_config_clock(struct ipu_di *di,
 			/*
 			 * We can use the divider.  We should really have
 			 * a flag here indicating whether the bridge can
-			 * cope with a fractional divider or not.  For the
+			 * cope with a fractional divider or yest.  For the
 			 * time being, let's go for simplicitly and
 			 * reliability.
 			 */
@@ -593,7 +593,7 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 
 		vsync_cnt = 3;
 	} else {
-		ipu_di_sync_config_noninterlaced(di, sig, div);
+		ipu_di_sync_config_yesninterlaced(di, sig, div);
 
 		vsync_cnt = 3;
 		if (di->id == 1)

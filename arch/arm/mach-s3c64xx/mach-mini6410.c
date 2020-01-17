@@ -292,7 +292,7 @@ static void mini6410_parse_features(
 		switch (f) {
 		case '0'...'9':	/* tft screen */
 			if (features->done & FEATURE_SCREEN) {
-				printk(KERN_INFO "MINI6410: '%c' ignored, "
+				printk(KERN_INFO "MINI6410: '%c' igyesred, "
 					"screen type already set\n", f);
 			} else {
 				int li = f - '0';

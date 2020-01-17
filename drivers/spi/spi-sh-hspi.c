@@ -2,7 +2,7 @@
 /*
  * SuperH HSPI bus driver
  *
- * Copyright (C) 2011  Kuninori Morimoto
+ * Copyright (C) 2011  Kuniyesri Morimoto
  *
  * Based on spi-sh.c:
  * Based on pxa2xx_spi.c:
@@ -253,7 +253,7 @@ static int hspi_probe(struct platform_device *pdev)
 
 	ctlr->bus_num = pdev->id;
 	ctlr->mode_bits	= SPI_CPOL | SPI_CPHA;
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_yesde = pdev->dev.of_yesde;
 	ctlr->auto_runtime_pm = true;
 	ctlr->transfer_one_message = hspi_transfer_one_message;
 	ctlr->bits_per_word_mask = SPI_BPW_MASK(8);
@@ -305,5 +305,5 @@ module_platform_driver(hspi_driver);
 
 MODULE_DESCRIPTION("SuperH HSPI bus driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>");
 MODULE_ALIAS("platform:sh-hspi");

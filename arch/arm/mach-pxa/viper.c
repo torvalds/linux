@@ -104,13 +104,13 @@ static struct platform_device viper_pcmcia_device = {
 };
 
 /*
- * The CPLD version register was not present on VIPER boards prior to
- * v2i1. On v1 boards where the version register is not present we
+ * The CPLD version register was yest present on VIPER boards prior to
+ * v2i1. On v1 boards where the version register is yest present we
  * will just read back the previous value from the databus.
  *
  * Therefore we do two reads. The first time we write 0 to the
  * (read-only) register before reading and the second time we write
- * 0xff first. If the two reads do not match or they read back as 0xff
+ * 0xff first. If the two reads do yest match or they read back as 0xff
  * or 0x00 then we have version 1 hardware.
  */
 static u8 viper_hw_version(void)
@@ -151,14 +151,14 @@ static struct syscore_ops viper_cpu_syscore_ops = {
 static unsigned int current_voltage_divisor;
 
 /*
- * If force is not true then step from existing to new divisor. If
+ * If force is yest true then step from existing to new divisor. If
  * force is true then jump straight to the new divisor. Stepping is
  * used because if the jump in voltage is too large, the VCC can dip
  * too low and the regulator cuts out.
  *
- * force can be used to initialize the divisor to a know state by
+ * force can be used to initialize the divisor to a kyesw state by
  * setting the value for the current clock speed, since we are already
- * running at that speed we know the voltage should be pretty close so
+ * running at that speed we kyesw the voltage should be pretty close so
  * the jump won't be too large
  */
 static void viper_set_core_cpu_voltage(unsigned long khz, int force)
@@ -387,7 +387,7 @@ err_request_bckl:
 	return ret;
 }
 
-static int viper_backlight_notify(struct device *dev, int brightness)
+static int viper_backlight_yestify(struct device *dev, int brightness)
 {
 	gpio_set_value(VIPER_LCD_EN_GPIO, !!brightness);
 	gpio_set_value(VIPER_BCKLIGHT_EN_GPIO, !!brightness);
@@ -406,7 +406,7 @@ static struct platform_pwm_backlight_data viper_backlight_data = {
 	.dft_brightness	= 100,
 	.enable_gpio	= -1,
 	.init		= viper_backlight_init,
-	.notify		= viper_backlight_notify,
+	.yestify		= viper_backlight_yestify,
 	.exit		= viper_backlight_exit,
 };
 
@@ -883,7 +883,7 @@ err_request:
 }
 
 #ifdef CONFIG_CPU_FREQ
-static int viper_cpufreq_notifier(struct notifier_block *nb,
+static int viper_cpufreq_yestifier(struct yestifier_block *nb,
 				  unsigned long val, void *data)
 {
 	struct cpufreq_freqs *freq = data;
@@ -906,22 +906,22 @@ static int viper_cpufreq_notifier(struct notifier_block *nb,
 		}
 		break;
 	default:
-		/* ignore */
+		/* igyesre */
 		break;
 	}
 
 	return 0;
 }
 
-static struct notifier_block viper_cpufreq_notifier_block = {
-	.notifier_call  = viper_cpufreq_notifier
+static struct yestifier_block viper_cpufreq_yestifier_block = {
+	.yestifier_call  = viper_cpufreq_yestifier
 };
 
 static void __init viper_init_cpufreq(void)
 {
-	if (cpufreq_register_notifier(&viper_cpufreq_notifier_block,
+	if (cpufreq_register_yestifier(&viper_cpufreq_yestifier_block,
 				      CPUFREQ_TRANSITION_NOTIFIER))
-		pr_err("viper: Failed to setup cpufreq notifier\n");
+		pr_err("viper: Failed to setup cpufreq yestifier\n");
 }
 #else
 static inline void viper_init_cpufreq(void) {}
@@ -929,7 +929,7 @@ static inline void viper_init_cpufreq(void) {}
 
 static void viper_power_off(void)
 {
-	pr_notice("Shutting off UPS\n");
+	pr_yestice("Shutting off UPS\n");
 	gpio_set_value(VIPER_UPS_GPIO, 1);
 	/* Spin to death... */
 	while (1);
@@ -952,7 +952,7 @@ static void __init viper_init(void)
 
 	pxa_set_fb_info(NULL, &fb_info);
 
-	/* v1 hardware cannot use the datacs line */
+	/* v1 hardware canyest use the datacs line */
 	version = viper_hw_version();
 	if (version == 0)
 		smc91x_device.num_resources--;

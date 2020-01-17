@@ -12,7 +12,7 @@ Required properties:
 - interrupt-map-mask,
   interrupt-map: standard PCI properties to define the mapping of the
 	PCI interface to interrupt numbers.
-- ranges: ranges for the PCI memory regions (I/O space region is not
+- ranges: ranges for the PCI memory regions (I/O space region is yest
 	supported by hardware)
 	Please refer to the standard PCI bus binding document for a more
 	detailed explanation
@@ -20,10 +20,10 @@ Required properties:
 Optional properties for Zynq/Microblaze:
 - bus-range: PCI bus numbers covered
 
-Interrupt controller child node
+Interrupt controller child yesde
 +++++++++++++++++++++++++++++++
 Required properties:
-- interrupt-controller: identifies the node as an interrupt controller
+- interrupt-controller: identifies the yesde as an interrupt controller
 - #address-cells: specifies the number of cells needed to encode an
 	address. The value must be 0.
 - #interrupt-cells: specifies the number of cells needed to encode an
@@ -31,7 +31,7 @@ Required properties:
 
 NOTE:
 The core provides a single interrupt for both INTx/MSI messages. So,
-created a interrupt controller node to support 'interrupt-map' DT
+created a interrupt controller yesde to support 'interrupt-map' DT
 functionality.  The driver will create an IRQ domain for this map, decode
 the four INTx interrupts in ISR and route them to this domain.
 

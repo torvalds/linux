@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /* $Id: capi.h,v 1.4.6.1 2001/09/23 22:25:05 kai Exp $
  * 
  * CAPI 2.0 Interface for Linux
@@ -45,9 +45,9 @@ typedef struct capi_register_params {	/* CAPI_REGISTER */
 
 typedef struct capi_version {
 	__u32 majorversion;
-	__u32 minorversion;
+	__u32 miyesrversion;
 	__u32 majormanuversion;
-	__u32 minormanuversion;
+	__u32 miyesrmanuversion;
 } capi_version;
 
 #define CAPI_GET_VERSION	_IOWR('C',0x07,struct capi_version)

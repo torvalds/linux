@@ -70,8 +70,8 @@ static const struct regmap_range bme680_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table bme680_volatile_table = {
-	.yes_ranges	= bme680_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(bme680_volatile_ranges),
+	.no_ranges	= bme680_volatile_ranges,
+	.n_no_ranges	= ARRAY_SIZE(bme680_volatile_ranges),
 };
 
 const struct regmap_config bme680_regmap_config = {

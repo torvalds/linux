@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sched.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -27,7 +27,7 @@ static int cmd_help(int argc, const char **argv);
 /* Global cpu_info object available for all binaries
  * Info only retrieved from CPU 0
  *
- * Values will be zero/unknown on non X86 archs
+ * Values will be zero/unkyeswn on yesn X86 archs
  */
 struct cpupower_cpu_info cpupower_cpu_info;
 int run_as_root;
@@ -80,7 +80,7 @@ static int print_man_page(const char *subpage)
 	int len;
 	char *page;
 
-	len = 10; /* enough for "cpupower-" */
+	len = 10; /* eyesugh for "cpupower-" */
 	if (subpage != NULL)
 		len += strlen(subpage);
 
@@ -96,7 +96,7 @@ static int print_man_page(const char *subpage)
 
 	execlp("man", "man", page, NULL);
 
-	/* should not be reached */
+	/* should yest be reached */
 	return -EINVAL;
 }
 
@@ -160,7 +160,7 @@ static void handle_options(int *argc, const char ***argv)
 			continue;
 #endif
 		} else {
-			fprintf(stderr, "Unknown option: %s\n", param);
+			fprintf(stderr, "Unkyeswn option: %s\n", param);
 			print_help();
 			exit(EXIT_FAILURE);
 		}
@@ -214,7 +214,7 @@ int main(int argc, const char *argv[])
 		if (!ret && !strcmp(uts.machine, "x86_64") &&
 		    stat(pathname, &statbuf) != 0) {
 			if (system("modprobe msr") == -1)
-	fprintf(stderr, _("MSR access not available.\n"));
+	fprintf(stderr, _("MSR access yest available.\n"));
 		}
 	}
 

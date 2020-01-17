@@ -7,7 +7,7 @@
 #ifndef __ASSEMBLY__
 
 #include <asm/asm.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/cpumask.h>
 #include <uapi/asm/msr.h>
 
@@ -22,7 +22,7 @@ struct msr {
 };
 
 struct msr_info {
-	u32 msr_no;
+	u32 msr_yes;
 	struct msr reg;
 	struct msr *msrs;
 	int err;
@@ -83,12 +83,12 @@ static inline void do_trace_rdpmc(unsigned int msr, u64 val, int failed) {}
 
 /*
  * __rdmsr() and __wrmsr() are the two primitives which are the bare minimum MSR
- * accessors and should not have any tracing or other functionality piggybacking
- * on them - those are *purely* for accessing MSRs and nothing more. So don't even
+ * accessors and should yest have any tracing or other functionality piggybacking
+ * on them - those are *purely* for accessing MSRs and yesthing more. So don't even
  * think of extending them - you will be slapped with a stinking trout or a frozen
  * shark will reach you, wherever you are! You've been warned.
  */
-static inline unsigned long long notrace __rdmsr(unsigned int msr)
+static inline unsigned long long yestrace __rdmsr(unsigned int msr)
 {
 	DECLARE_ARGS(val, low, high);
 
@@ -100,7 +100,7 @@ static inline unsigned long long notrace __rdmsr(unsigned int msr)
 	return EAX_EDX_VAL(val, low, high);
 }
 
-static inline void notrace __wrmsr(unsigned int msr, u32 low, u32 high)
+static inline void yestrace __wrmsr(unsigned int msr, u32 low, u32 high)
 {
 	asm volatile("1: wrmsr\n"
 		     "2:\n"
@@ -156,7 +156,7 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 }
 
 /* Can be uninlined because referenced by paravirt */
-static inline void notrace
+static inline void yestrace
 native_write_msr(unsigned int msr, u32 low, u32 high)
 {
 	__wrmsr(msr, low, high);
@@ -166,7 +166,7 @@ native_write_msr(unsigned int msr, u32 low, u32 high)
 }
 
 /* Can be uninlined because referenced by paravirt */
-static inline int notrace
+static inline int yestrace
 native_write_msr_safe(unsigned int msr, u32 low, u32 high)
 {
 	int err;
@@ -196,7 +196,7 @@ extern int wrmsr_safe_regs(u32 regs[8]);
  * only ordering constraint it supplies is the ordering implied by
  * "asm volatile": it will put the RDTSC in the place you expect.  The
  * CPU can and will speculatively execute that RDTSC, though, so the
- * results can be non-monotonic if compared on different CPUs.
+ * results can be yesn-moyestonic if compared on different CPUs.
  */
 static __always_inline unsigned long long rdtsc(void)
 {
@@ -212,7 +212,7 @@ static __always_inline unsigned long long rdtsc(void)
  *
  * rdtsc_ordered() returns the result of RDTSC as a 64-bit integer.
  * It is ordered like a load to a global in-memory counter.  It should
- * be impossible to observe non-monotonic rdtsc_unordered() behavior
+ * be impossible to observe yesn-moyestonic rdtsc_uyesrdered() behavior
  * across multiple CPUs as long as the TSC is synced.
  */
 static __always_inline unsigned long long rdtsc_ordered(void)
@@ -220,12 +220,12 @@ static __always_inline unsigned long long rdtsc_ordered(void)
 	DECLARE_ARGS(val, low, high);
 
 	/*
-	 * The RDTSC instruction is not ordered relative to memory
+	 * The RDTSC instruction is yest ordered relative to memory
 	 * access.  The Intel SDM and the AMD APM are both vague on this
 	 * point, but empirically an RDTSC instruction can be
 	 * speculatively executed before prior loads.  An RDTSC
 	 * immediately after an appropriate barrier appears to be
-	 * ordered as a normal load, that is, it provides the same
+	 * ordered as a yesrmal load, that is, it provides the same
 	 * ordering guarantees as reading from a global memory location
 	 * that some other imaginary CPU is updating continuously with a
 	 * time stamp.
@@ -256,7 +256,7 @@ static inline unsigned long long native_read_pmc(int counter)
 #ifdef CONFIG_PARAVIRT_XXL
 #include <asm/paravirt.h>
 #else
-#include <linux/errno.h>
+#include <linux/erryes.h>
 /*
  * Access to machine-specific registers (available on 586 and better only)
  * Note: the rd* operations modify the parameters directly (without using
@@ -336,65 +336,65 @@ int msr_set_bit(u32 msr, u8 bit);
 int msr_clear_bit(u32 msr, u8 bit);
 
 #ifdef CONFIG_SMP
-int rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
-int wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
-int rdmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 *q);
-int wrmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 q);
-void rdmsr_on_cpus(const struct cpumask *mask, u32 msr_no, struct msr *msrs);
-void wrmsr_on_cpus(const struct cpumask *mask, u32 msr_no, struct msr *msrs);
-int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
-int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
-int rdmsrl_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 *q);
-int wrmsrl_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 q);
+int rdmsr_on_cpu(unsigned int cpu, u32 msr_yes, u32 *l, u32 *h);
+int wrmsr_on_cpu(unsigned int cpu, u32 msr_yes, u32 l, u32 h);
+int rdmsrl_on_cpu(unsigned int cpu, u32 msr_yes, u64 *q);
+int wrmsrl_on_cpu(unsigned int cpu, u32 msr_yes, u64 q);
+void rdmsr_on_cpus(const struct cpumask *mask, u32 msr_yes, struct msr *msrs);
+void wrmsr_on_cpus(const struct cpumask *mask, u32 msr_yes, struct msr *msrs);
+int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_yes, u32 *l, u32 *h);
+int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_yes, u32 l, u32 h);
+int rdmsrl_safe_on_cpu(unsigned int cpu, u32 msr_yes, u64 *q);
+int wrmsrl_safe_on_cpu(unsigned int cpu, u32 msr_yes, u64 q);
 int rdmsr_safe_regs_on_cpu(unsigned int cpu, u32 regs[8]);
 int wrmsr_safe_regs_on_cpu(unsigned int cpu, u32 regs[8]);
 #else  /*  CONFIG_SMP  */
-static inline int rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
+static inline int rdmsr_on_cpu(unsigned int cpu, u32 msr_yes, u32 *l, u32 *h)
 {
-	rdmsr(msr_no, *l, *h);
+	rdmsr(msr_yes, *l, *h);
 	return 0;
 }
-static inline int wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
+static inline int wrmsr_on_cpu(unsigned int cpu, u32 msr_yes, u32 l, u32 h)
 {
-	wrmsr(msr_no, l, h);
+	wrmsr(msr_yes, l, h);
 	return 0;
 }
-static inline int rdmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 *q)
+static inline int rdmsrl_on_cpu(unsigned int cpu, u32 msr_yes, u64 *q)
 {
-	rdmsrl(msr_no, *q);
+	rdmsrl(msr_yes, *q);
 	return 0;
 }
-static inline int wrmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
+static inline int wrmsrl_on_cpu(unsigned int cpu, u32 msr_yes, u64 q)
 {
-	wrmsrl(msr_no, q);
+	wrmsrl(msr_yes, q);
 	return 0;
 }
-static inline void rdmsr_on_cpus(const struct cpumask *m, u32 msr_no,
+static inline void rdmsr_on_cpus(const struct cpumask *m, u32 msr_yes,
 				struct msr *msrs)
 {
-	rdmsr_on_cpu(0, msr_no, &(msrs[0].l), &(msrs[0].h));
+	rdmsr_on_cpu(0, msr_yes, &(msrs[0].l), &(msrs[0].h));
 }
-static inline void wrmsr_on_cpus(const struct cpumask *m, u32 msr_no,
+static inline void wrmsr_on_cpus(const struct cpumask *m, u32 msr_yes,
 				struct msr *msrs)
 {
-	wrmsr_on_cpu(0, msr_no, msrs[0].l, msrs[0].h);
+	wrmsr_on_cpu(0, msr_yes, msrs[0].l, msrs[0].h);
 }
-static inline int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no,
+static inline int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_yes,
 				    u32 *l, u32 *h)
 {
-	return rdmsr_safe(msr_no, l, h);
+	return rdmsr_safe(msr_yes, l, h);
 }
-static inline int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
+static inline int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_yes, u32 l, u32 h)
 {
-	return wrmsr_safe(msr_no, l, h);
+	return wrmsr_safe(msr_yes, l, h);
 }
-static inline int rdmsrl_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 *q)
+static inline int rdmsrl_safe_on_cpu(unsigned int cpu, u32 msr_yes, u64 *q)
 {
-	return rdmsrl_safe(msr_no, q);
+	return rdmsrl_safe(msr_yes, q);
 }
-static inline int wrmsrl_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
+static inline int wrmsrl_safe_on_cpu(unsigned int cpu, u32 msr_yes, u64 q)
 {
-	return wrmsrl_safe(msr_no, q);
+	return wrmsrl_safe(msr_yes, q);
 }
 static inline int rdmsr_safe_regs_on_cpu(unsigned int cpu, u32 regs[8])
 {

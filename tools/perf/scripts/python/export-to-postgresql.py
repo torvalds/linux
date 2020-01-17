@@ -31,7 +31,7 @@ import datetime
 #	$ sudo su - postgres -c initdb
 #	$ sudo service postgresql start
 #	$ sudo su - postgres
-#	$ createuser -s <your user id here>    # Older versions may not support -s, in which case answer the prompt below:
+#	$ createuser -s <your user id here>    # Older versions may yest support -s, in which case answer the prompt below:
 #	Shall the new role be a superuser? (y/n) y
 #	$ sudo yum install python-pyside
 #
@@ -141,10 +141,10 @@ import datetime
 #		threads_view
 #
 # More examples of browsing the database with psql:
-#   Note that some of the examples are not the most optimal SQL query.
+#   Note that some of the examples are yest the most optimal SQL query.
 #   Note that call information is only available if the script's 'calls' option has been used.
 #
-#	Top 10 function calls (not aggregated by symbol):
+#	Top 10 function calls (yest aggregated by symbol):
 #
 #		SELECT * FROM calls_view ORDER BY elapsed_time DESC LIMIT 10;
 #
@@ -199,21 +199,21 @@ import datetime
 #           call_path_id = sys.argv[2]
 #           db = QSqlDatabase.addDatabase('QPSQL')
 #           db.setDatabaseName(dbname)
-#           if not db.open():
+#           if yest db.open():
 #                   raise Exception("Failed to open database " + dbname + " error: " + db.lastError().text())
 #           query = QSqlQuery(db)
 #           print "    id          ip  symbol_id  symbol                          dso_id  dso_short_name"
 #           while call_path_id != 0 and call_path_id != 1:
 #                   ret = query.exec_('SELECT * FROM call_paths_view WHERE id = ' + str(call_path_id))
-#                   if not ret:
+#                   if yest ret:
 #                           raise Exception("Query failed: " + query.lastError().text())
-#                   if not query.next():
+#                   if yest query.next():
 #                           raise Exception("Query failed")
 #                   print "{0:>6}  {1:>10}  {2:>9}  {3:<30}  {4:>6}  {5:<30}".format(query.value(0), query.value(1), query.value(2), query.value(3), query.value(4), query.value(5))
 #                   call_path_id = query.value(6)
 
 pyside_version_1 = True
-if not "pyside-version-1" in sys.argv:
+if yest "pyside-version-1" in sys.argv:
 	try:
 		from PySide2.QtSql import *
 		pyside_version_1 = False
@@ -262,7 +262,7 @@ PQputCopyEnd.argtypes = [ c_void_p, c_void_p ]
 sys.path.append(os.environ['PERF_EXEC_PATH'] + \
 	'/scripts/python/Perf-Trace-Util/lib/Perf/Trace')
 
-# These perf imports are not used at present
+# These perf imports are yest used at present
 #from perf_trace_context import *
 #from Core import *
 
@@ -294,7 +294,7 @@ if (len(sys.argv) >= 3):
 else:
 	columns = "all"
 
-if columns not in ("all", "branches"):
+if columns yest in ("all", "branches"):
 	usage()
 
 branches = (columns == "branches")
@@ -498,7 +498,7 @@ do_query(query, 'CREATE VIEW machines_view AS '
 		'id,'
 		'pid,'
 		'root_dir,'
-		'CASE WHEN id=0 THEN \'unknown\' WHEN pid=-1 THEN \'host\' ELSE \'guest\' END AS host_or_guest'
+		'CASE WHEN id=0 THEN \'unkyeswn\' WHEN pid=-1 THEN \'host\' ELSE \'guest\' END AS host_or_guest'
 	' FROM machines')
 
 do_query(query, 'CREATE VIEW dsos_view AS '
@@ -578,7 +578,7 @@ if perf_db_export_calls:
 			'CASE WHEN cyc_count=0 THEN CAST(0 AS NUMERIC(20, 2)) ELSE CAST((CAST(insn_count AS FLOAT) / cyc_count) AS NUMERIC(20, 2)) END AS IPC,'
 			'call_id,'
 			'return_id,'
-			'CASE WHEN flags=0 THEN \'\' WHEN flags=1 THEN \'no call\' WHEN flags=2 THEN \'no return\' WHEN flags=3 THEN \'no call/return\' WHEN flags=6 THEN \'jump\' ELSE CAST ( flags AS VARCHAR(6) ) END AS flags,'
+			'CASE WHEN flags=0 THEN \'\' WHEN flags=1 THEN \'yes call\' WHEN flags=2 THEN \'yes return\' WHEN flags=3 THEN \'yes call/return\' WHEN flags=6 THEN \'jump\' ELSE CAST ( flags AS VARCHAR(6) ) END AS flags,'
 			'parent_call_path_id,'
 			'calls.parent_id'
 		' FROM calls INNER JOIN call_paths ON call_paths.id = call_path_id')
@@ -797,13 +797,13 @@ context_switches_file	= open_output_file("context_switches_table.bin")
 
 def trace_begin():
 	printdate("Writing to intermediate files...")
-	# id == 0 means unknown.  It is easier to create records for them than replace the zeroes with NULLs
-	evsel_table(0, "unknown")
-	machine_table(0, 0, "unknown")
+	# id == 0 means unkyeswn.  It is easier to create records for them than replace the zeroes with NULLs
+	evsel_table(0, "unkyeswn")
+	machine_table(0, 0, "unkyeswn")
 	thread_table(0, 0, 0, -1, -1)
-	comm_table(0, "unknown", 0, 0, 0)
-	dso_table(0, 0, "unknown", "unknown", "")
-	symbol_table(0, 0, 0, 0, 0, "unknown")
+	comm_table(0, "unkyeswn", 0, 0, 0)
+	dso_table(0, 0, "unkyeswn", "unkyeswn", "")
+	symbol_table(0, 0, 0, 0, 0, "unkyeswn")
 	sample_table(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	if perf_db_export_calls or perf_db_export_callchains:
 		call_path_table(0, 0, 0, 0)

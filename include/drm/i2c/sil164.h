@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -56,7 +56,7 @@ struct sil164_encoder_params {
 		SIL164_PLL_FILTER_OFF,
 	} pll_filter;
 
-	int input_skew; /** < Allowed range [-4, 3], use 0 for no de-skew. */
+	int input_skew; /** < Allowed range [-4, 3], use 0 for yes de-skew. */
 	int duallink_skew; /** < Allowed range [-4, 3]. */
 };
 

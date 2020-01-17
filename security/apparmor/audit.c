@@ -5,7 +5,7 @@
  * This file contains AppArmor auditing functions
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2010 Cayesnical Ltd.
  */
 
 #include <linux/audit.h>
@@ -18,10 +18,10 @@
 #include "include/secid.h"
 
 const char *const audit_mode_names[] = {
-	"normal",
+	"yesrmal",
 	"quiet_denied",
 	"quiet",
-	"noquiet",
+	"yesquiet",
 	"all"
 };
 
@@ -181,7 +181,7 @@ int aa_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 
 	switch (field) {
 	case AUDIT_SUBJ_ROLE:
-		if (op != Audit_equal && op != Audit_not_equal)
+		if (op != Audit_equal && op != Audit_yest_equal)
 			return -EINVAL;
 		break;
 	default:
@@ -205,7 +205,7 @@ int aa_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 	return 0;
 }
 
-int aa_audit_rule_known(struct audit_krule *rule)
+int aa_audit_rule_kyeswn(struct audit_krule *rule)
 {
 	int i;
 
@@ -240,7 +240,7 @@ int aa_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule)
 		switch (op) {
 		case Audit_equal:
 			return found;
-		case Audit_not_equal:
+		case Audit_yest_equal:
 			return !found;
 		}
 	}

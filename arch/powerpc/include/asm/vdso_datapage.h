@@ -27,7 +27,7 @@
 
 /*
  * If the major version changes we are incompatible.
- * Minor version changes are a hint.
+ * Miyesr version changes are a hint.
  */
 #define SYSTEMCFG_MAJOR 1
 #define SYSTEMCFG_MINOR 1
@@ -49,10 +49,10 @@ struct vdso_data {
 	__u8  eye_catcher[16];		/* Eyecatcher: SYSTEMCFG:PPC64	0x00 */
 	struct {			/* Systemcfg version numbers	     */
 		__u32 major;		/* Major number			0x10 */
-		__u32 minor;		/* Minor number			0x14 */
+		__u32 miyesr;		/* Miyesr number			0x14 */
 	} version;
 
-	/* Note about the platform flags: it now only contains the lpar
+	/* Note about the platform flags: it yesw only contains the lpar
 	 * bit. The actual platform number is dead and buried
 	 */
 	__u32 platform;			/* Platform flags		0x18 */
@@ -72,15 +72,15 @@ struct vdso_data {
 	__u32 icache_line_size;		/* L1 i-cache line size		0x6C */
 
 	/* those additional ones don't have to be located anywhere
-	 * special as they were not part of the original systemcfg
+	 * special as they were yest part of the original systemcfg
 	 */
 	__u32 dcache_block_size;		/* L1 d-cache block size     */
 	__u32 icache_block_size;		/* L1 i-cache block size     */
 	__u32 dcache_log_block_size;		/* L1 d-cache log block size */
 	__u32 icache_log_block_size;		/* L1 i-cache log block size */
 	__u32 stamp_sec_fraction;		/* fractional seconds of stamp_xtime */
-	__s32 wtom_clock_nsec;			/* Wall to monotonic clock nsec */
-	__s64 wtom_clock_sec;			/* Wall to monotonic clock sec */
+	__s32 wtom_clock_nsec;			/* Wall to moyestonic clock nsec */
+	__s64 wtom_clock_sec;			/* Wall to moyestonic clock sec */
 	__s64 stamp_xtime_sec;			/* xtime secs as at tb_orig_stamp */
 	__s64 stamp_xtime_nsec;			/* xtime nsecs as at tb_orig_stamp */
 	__u32 hrtimer_res;			/* hrtimer resolution */
@@ -101,7 +101,7 @@ struct vdso_data {
 	__u32 tb_update_count;		/* Timebase atomicity ctr	0x50 */
 	__u32 tz_minuteswest;		/* Minutes west of Greenwich	0x58 */
 	__u32 tz_dsttime;		/* Type of dst correction	0x5C */
-	__s32 wtom_clock_sec;			/* Wall to monotonic clock */
+	__s32 wtom_clock_sec;			/* Wall to moyestonic clock */
 	__s32 wtom_clock_nsec;
 	__s32 stamp_xtime_sec;		/* xtime seconds as at tb_orig_stamp */
 	__s32 stamp_xtime_nsec;		/* xtime nsecs as at tb_orig_stamp */

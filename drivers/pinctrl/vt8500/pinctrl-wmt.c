@@ -90,14 +90,14 @@ static int wmt_set_pinmux(struct wmt_pinctrl_data *data, unsigned func,
 	u32 reg_dir = data->banks[bank].reg_dir;
 
 	if (reg_dir == NO_REG) {
-		dev_err(data->dev, "pin:%d no direction register defined\n",
+		dev_err(data->dev, "pin:%d yes direction register defined\n",
 			pin);
 		return -EINVAL;
 	}
 
 	/*
-	 * If reg_en == NO_REG, we assume it is a dedicated GPIO and cannot be
-	 * disabled (as on VT8500) and that no alternate function is available.
+	 * If reg_en == NO_REG, we assume it is a dedicated GPIO and canyest be
+	 * disabled (as on VT8500) and that yes alternate function is available.
 	 */
 	switch (func) {
 	case WMT_FSEL_GPIO_IN:
@@ -112,7 +112,7 @@ static int wmt_set_pinmux(struct wmt_pinctrl_data *data, unsigned func,
 		break;
 	case WMT_FSEL_ALT:
 		if (reg_en == NO_REG) {
-			dev_err(data->dev, "pin:%d no alt function available\n",
+			dev_err(data->dev, "pin:%d yes alt function available\n",
 				pin);
 			return -EINVAL;
 		}
@@ -204,8 +204,8 @@ static int wmt_pctl_find_group_by_pin(struct wmt_pinctrl_data *data, u32 pin)
 	return -EINVAL;
 }
 
-static int wmt_pctl_dt_node_to_map_func(struct wmt_pinctrl_data *data,
-					struct device_node *np,
+static int wmt_pctl_dt_yesde_to_map_func(struct wmt_pinctrl_data *data,
+					struct device_yesde *np,
 					u32 pin, u32 fnum,
 					struct pinctrl_map **maps)
 {
@@ -231,8 +231,8 @@ static int wmt_pctl_dt_node_to_map_func(struct wmt_pinctrl_data *data,
 	return 0;
 }
 
-static int wmt_pctl_dt_node_to_map_pull(struct wmt_pinctrl_data *data,
-					struct device_node *np,
+static int wmt_pctl_dt_yesde_to_map_pull(struct wmt_pinctrl_data *data,
+					struct device_yesde *np,
 					u32 pin, u32 pull,
 					struct pinctrl_map **maps)
 {
@@ -292,8 +292,8 @@ static void wmt_pctl_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(maps);
 }
 
-static int wmt_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				   struct device_node *np,
+static int wmt_pctl_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+				   struct device_yesde *np,
 				   struct pinctrl_map **map,
 				   unsigned *num_maps)
 {
@@ -314,7 +314,7 @@ static int wmt_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	pulls = of_find_property(np, "wm,pull", NULL);
 
 	if (!funcs && !pulls) {
-		dev_err(data->dev, "neither wm,function nor wm,pull specified\n");
+		dev_err(data->dev, "neither wm,function yesr wm,pull specified\n");
 		return -EINVAL;
 	}
 
@@ -366,7 +366,7 @@ static int wmt_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 			if (err)
 				goto fail;
 
-			err = wmt_pctl_dt_node_to_map_func(data, np, pin, func,
+			err = wmt_pctl_dt_yesde_to_map_func(data, np, pin, func,
 							   &cur_map);
 			if (err)
 				goto fail;
@@ -378,7 +378,7 @@ static int wmt_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 			if (err)
 				goto fail;
 
-			err = wmt_pctl_dt_node_to_map_pull(data, np, pin, pull,
+			err = wmt_pctl_dt_yesde_to_map_pull(data, np, pin, pull,
 							   &cur_map);
 			if (err)
 				goto fail;
@@ -394,7 +394,7 @@ static int wmt_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
  * pass 'num_pins * maps_per_pin' as the map count even though we probably
  * failed before all the mappings were read as all maps are allocated at once,
  * and configs are only allocated for .type = PIN_MAP_TYPE_CONFIGS_PIN - there
- * is no failpath where a config can be allocated without .type being set.
+ * is yes failpath where a config can be allocated without .type being set.
  */
 fail:
 	wmt_pctl_dt_free_map(pctldev, maps, num_pins * maps_per_pin);
@@ -405,7 +405,7 @@ static const struct pinctrl_ops wmt_pctl_ops = {
 	.get_groups_count = wmt_get_groups_count,
 	.get_group_name	= wmt_get_group_name,
 	.get_group_pins	= wmt_get_group_pins,
-	.dt_node_to_map = wmt_pctl_dt_node_to_map,
+	.dt_yesde_to_map = wmt_pctl_dt_yesde_to_map,
 	.dt_free_map = wmt_pctl_dt_free_map,
 };
 
@@ -428,7 +428,7 @@ static int wmt_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 	int i;
 
 	if ((reg_pull_en == NO_REG) || (reg_pull_cfg == NO_REG)) {
-		dev_err(data->dev, "bias functions not supported on pin %d\n",
+		dev_err(data->dev, "bias functions yest supported on pin %d\n",
 			pin);
 		return -EINVAL;
 	}
@@ -456,7 +456,7 @@ static int wmt_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 			wmt_setbits(data, reg_pull_en, BIT(bit));
 			break;
 		default:
-			dev_err(data->dev, "unknown pinconf param\n");
+			dev_err(data->dev, "unkyeswn pinconf param\n");
 			return -EINVAL;
 		}
 	} /* for each config */
@@ -498,7 +498,7 @@ static int wmt_gpio_get_value(struct gpio_chip *chip, unsigned offset)
 	u32 reg_data_in = data->banks[bank].reg_data_in;
 
 	if (reg_data_in == NO_REG) {
-		dev_err(data->dev, "no data in register defined\n");
+		dev_err(data->dev, "yes data in register defined\n");
 		return -EINVAL;
 	}
 
@@ -514,7 +514,7 @@ static void wmt_gpio_set_value(struct gpio_chip *chip, unsigned offset,
 	u32 reg_data_out = data->banks[bank].reg_data_out;
 
 	if (reg_data_out == NO_REG) {
-		dev_err(data->dev, "no data out register defined\n");
+		dev_err(data->dev, "yes data out register defined\n");
 		return;
 	}
 
@@ -563,7 +563,7 @@ int wmt_pinctrl_probe(struct platform_device *pdev,
 
 	data->gpio_chip = wmt_gpio_chip;
 	data->gpio_chip.parent = &pdev->dev;
-	data->gpio_chip.of_node = pdev->dev.of_node;
+	data->gpio_chip.of_yesde = pdev->dev.of_yesde;
 	data->gpio_chip.ngpio = data->nbanks * 32;
 
 	platform_set_drvdata(pdev, data);
@@ -578,7 +578,7 @@ int wmt_pinctrl_probe(struct platform_device *pdev,
 
 	err = gpiochip_add_data(&data->gpio_chip, data);
 	if (err) {
-		dev_err(&pdev->dev, "could not add GPIO chip\n");
+		dev_err(&pdev->dev, "could yest add GPIO chip\n");
 		return err;
 	}
 

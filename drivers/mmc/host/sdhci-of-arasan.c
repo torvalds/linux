@@ -51,7 +51,7 @@
  *
  * @reg:	Offset within the syscon of the register containing this field
  * @width:	Number of bits for this field
- * @shift:	Bit offset within @reg of this field (or -1 if not avail)
+ * @shift:	Bit offset within @reg of this field (or -1 if yest avail)
  */
 struct sdhci_arasan_soc_ctl_field {
 	u32 reg;
@@ -79,9 +79,9 @@ struct sdhci_arasan_soc_ctl_map {
 /**
  * struct sdhci_arasan_clk_data
  * @sdcardclk_hw:	Struct for the clock we might provide to a PHY.
- * @sdcardclk:		Pointer to normal 'struct clock' for sdcardclk_hw.
+ * @sdcardclk:		Pointer to yesrmal 'struct clock' for sdcardclk_hw.
  * @sampleclk_hw:	Struct for the clock we might provide to a PHY.
- * @sampleclk:		Pointer to normal 'struct clock' for sampleclk_hw.
+ * @sampleclk:		Pointer to yesrmal 'struct clock' for sampleclk_hw.
  * @clk_phase_in:	Array of Input Clock Phase Delays for all speed modes
  * @clk_phase_out:	Array of Output Clock Phase Delays for all speed modes
  * @set_clk_delays:	Function pointer for setting Clock Delays
@@ -107,7 +107,7 @@ struct sdhci_arasan_zynqmp_clk_data {
  * @host:		Pointer to the main SDHCI host structure.
  * @clk_ahb:		Pointer to the AHB clock
  * @phy:		Pointer to the generic phy
- * @is_phy_on:		True if the PHY is on; false if not.
+ * @is_phy_on:		True if the PHY is on; false if yest.
  * @clk_data:		Struct for the Arasan Controller Clock Data.
  * @soc_ctl_base:	Pointer to regmap for syscon for soc_ctl registers.
  * @soc_ctl_map:	Map to get offsets into soc_ctl registers.
@@ -125,7 +125,7 @@ struct sdhci_arasan_data {
 	const struct sdhci_arasan_soc_ctl_map *soc_ctl_map;
 	unsigned int	quirks; /* Arasan deviations from spec */
 
-/* Controller does not have CD wired and will not function normally without */
+/* Controller does yest have CD wired and will yest function yesrmally without */
 #define SDHCI_ARASAN_QUIRK_FORCE_CDTEST	BIT(0)
 /* Controller immediately reports SDHCI_CLOCK_INT_STABLE after enabling the
  * internal clock even when the clock isn't stable */
@@ -159,8 +159,8 @@ static const struct sdhci_arasan_soc_ctl_map intel_lgm_sdxc_soc_ctl_map = {
  * sdhci_arasan_syscon_write - Write to a field in soc_ctl registers
  *
  * This function allows writing to fields in sdhci_arasan_soc_ctl_map.
- * Note that if a field is specified as not available (shift < 0) then
- * this function will silently return an error code.  It will be noisy
+ * Note that if a field is specified as yest available (shift < 0) then
+ * this function will silently return an error code.  It will be yesisy
  * and print errors for any other (unexpected) errors.
  *
  * @host:	The sdhci_host
@@ -232,7 +232,7 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 			sdhci_arasan->is_phy_on = true;
 
 			/*
-			 * We'll now fall through to the below case with
+			 * We'll yesw fall through to the below case with
 			 * ctrl_phy = false (so we won't turn off/on).  The
 			 * sdhci_set_clock() will set the real clock.
 			 */
@@ -260,7 +260,7 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (sdhci_arasan->quirks & SDHCI_ARASAN_QUIRK_CLOCK_UNSTABLE)
 		/*
 		 * Some controllers immediately report SDHCI_CLOCK_INT_STABLE
-		 * after enabling the clock even though the clock is not
+		 * after enabling the clock even though the clock is yest
 		 * stable. Trying to use a clock without waiting here results
 		 * in EILSEQ while detecting some older/slower cards. The
 		 * chosen delay is the maximum delay from sdhci_set_clock.
@@ -333,7 +333,7 @@ static void sdhci_arasan_set_power(struct sdhci_host *host, unsigned char mode,
 
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
 	}
-	sdhci_set_power_noreg(host, mode, vdd);
+	sdhci_set_power_yesreg(host, mode, vdd);
 }
 
 static const struct sdhci_ops sdhci_arasan_ops = {
@@ -460,7 +460,7 @@ static int sdhci_arasan_suspend(struct device *dev)
 	if (!IS_ERR(sdhci_arasan->phy) && sdhci_arasan->is_phy_on) {
 		ret = phy_power_off(sdhci_arasan->phy);
 		if (ret) {
-			dev_err(dev, "Cannot power off phy.\n");
+			dev_err(dev, "Canyest power off phy.\n");
 			sdhci_resume_host(host);
 			return ret;
 		}
@@ -489,20 +489,20 @@ static int sdhci_arasan_resume(struct device *dev)
 
 	ret = clk_enable(sdhci_arasan->clk_ahb);
 	if (ret) {
-		dev_err(dev, "Cannot enable AHB clock.\n");
+		dev_err(dev, "Canyest enable AHB clock.\n");
 		return ret;
 	}
 
 	ret = clk_enable(pltfm_host->clk);
 	if (ret) {
-		dev_err(dev, "Cannot enable SD clock.\n");
+		dev_err(dev, "Canyest enable SD clock.\n");
 		return ret;
 	}
 
 	if (!IS_ERR(sdhci_arasan->phy) && host->mmc->actual_clock) {
 		ret = phy_power_on(sdhci_arasan->phy);
 		if (ret) {
-			dev_err(dev, "Cannot power on phy.\n");
+			dev_err(dev, "Canyest power on phy.\n");
 			return ret;
 		}
 		sdhci_arasan->is_phy_on = true;
@@ -510,7 +510,7 @@ static int sdhci_arasan_resume(struct device *dev)
 
 	ret = sdhci_resume_host(host);
 	if (ret) {
-		dev_err(dev, "Cannot resume host.\n");
+		dev_err(dev, "Canyest resume host.\n");
 		return ret;
 	}
 
@@ -634,14 +634,14 @@ static int sdhci_zynqmp_sdcardclk_set_phase(struct clk_hw *hw, int degrees)
 		clk_data->clk_of_data;
 	const struct zynqmp_eemi_ops *eemi_ops = zynqmp_clk_data->eemi_ops;
 	const char *clk_name = clk_hw_get_name(hw);
-	u32 node_id = !strcmp(clk_name, "clk_out_sd0") ? NODE_SD_0 : NODE_SD_1;
+	u32 yesde_id = !strcmp(clk_name, "clk_out_sd0") ? NODE_SD_0 : NODE_SD_1;
 	u8 tap_delay, tap_max = 0;
 	int ret;
 
 	/*
 	 * This is applicable for SDHCI_SPEC_300 and above
-	 * ZynqMP does not set phase for <=25MHz clock.
-	 * If degrees is zero, no need to do anything.
+	 * ZynqMP does yest set phase for <=25MHz clock.
+	 * If degrees is zero, yes need to do anything.
 	 */
 	if (host->version < SDHCI_SPEC_300 ||
 	    host->timing == MMC_TIMING_LEGACY ||
@@ -672,7 +672,7 @@ static int sdhci_zynqmp_sdcardclk_set_phase(struct clk_hw *hw, int degrees)
 	tap_delay = (degrees * tap_max) / 360;
 
 	/* Set the Clock Phase */
-	ret = eemi_ops->ioctl(node_id, IOCTL_SET_SD_TAPDELAY,
+	ret = eemi_ops->ioctl(yesde_id, IOCTL_SET_SD_TAPDELAY,
 			      PM_TAPDELAY_OUTPUT, tap_delay, NULL);
 	if (ret)
 		pr_err("Error setting Output Tap Delay\n");
@@ -706,14 +706,14 @@ static int sdhci_zynqmp_sampleclk_set_phase(struct clk_hw *hw, int degrees)
 		clk_data->clk_of_data;
 	const struct zynqmp_eemi_ops *eemi_ops = zynqmp_clk_data->eemi_ops;
 	const char *clk_name = clk_hw_get_name(hw);
-	u32 node_id = !strcmp(clk_name, "clk_in_sd0") ? NODE_SD_0 : NODE_SD_1;
+	u32 yesde_id = !strcmp(clk_name, "clk_in_sd0") ? NODE_SD_0 : NODE_SD_1;
 	u8 tap_delay, tap_max = 0;
 	int ret;
 
 	/*
 	 * This is applicable for SDHCI_SPEC_300 and above
-	 * ZynqMP does not set phase for <=25MHz clock.
-	 * If degrees is zero, no need to do anything.
+	 * ZynqMP does yest set phase for <=25MHz clock.
+	 * If degrees is zero, yes need to do anything.
 	 */
 	if (host->version < SDHCI_SPEC_300 ||
 	    host->timing == MMC_TIMING_LEGACY ||
@@ -744,7 +744,7 @@ static int sdhci_zynqmp_sampleclk_set_phase(struct clk_hw *hw, int degrees)
 	tap_delay = (degrees * tap_max) / 360;
 
 	/* Set the Clock Phase */
-	ret = eemi_ops->ioctl(node_id, IOCTL_SET_SD_TAPDELAY,
+	ret = eemi_ops->ioctl(yesde_id, IOCTL_SET_SD_TAPDELAY,
 			      PM_TAPDELAY_INPUT, tap_delay, NULL);
 	if (ret)
 		pr_err("Error setting Input Tap Delay\n");
@@ -766,7 +766,7 @@ static const struct clk_ops zynqmp_sampleclk_ops = {
  * NOTES:
  * - Many existing devices don't seem to do this and work fine.  To keep
  *   compatibility for old hardware where the device tree doesn't provide a
- *   register map, this function is a noop if a soc_ctl_map hasn't been provided
+ *   register map, this function is a yesop if a soc_ctl_map hasn't been provided
  *   for this platform.
  * - The value of corecfg_clockmultiplier should sync with that of corresponding
  *   value reading from sdhci_capability_register. So this function is called
@@ -788,7 +788,7 @@ static void sdhci_arasan_update_clockmultiplier(struct sdhci_host *host,
 
 	/* If we have a map, we expect to have a syscon */
 	if (!sdhci_arasan->soc_ctl_base) {
-		pr_warn("%s: Have regmap, but no soc-ctl-syscon\n",
+		pr_warn("%s: Have regmap, but yes soc-ctl-syscon\n",
 			mmc_hostname(host->mmc));
 		return;
 	}
@@ -805,9 +805,9 @@ static void sdhci_arasan_update_clockmultiplier(struct sdhci_host *host,
  * NOTES:
  * - Many existing devices don't seem to do this and work fine.  To keep
  *   compatibility for old hardware where the device tree doesn't provide a
- *   register map, this function is a noop if a soc_ctl_map hasn't been provided
+ *   register map, this function is a yesop if a soc_ctl_map hasn't been provided
  *   for this platform.
- * - It's assumed that clk_xin is not dynamic and that we use the SDHCI divider
+ * - It's assumed that clk_xin is yest dynamic and that we use the SDHCI divider
  *   to achieve lower clock rates.  That means that this function is called once
  *   at probe time and never called again.
  *
@@ -827,7 +827,7 @@ static void sdhci_arasan_update_baseclkfreq(struct sdhci_host *host)
 
 	/* If we have a map, we expect to have a syscon */
 	if (!sdhci_arasan->soc_ctl_base) {
-		pr_warn("%s: Have regmap, but no soc-ctl-syscon\n",
+		pr_warn("%s: Have regmap, but yes soc-ctl-syscon\n",
 			mmc_hostname(host->mmc));
 		return;
 	}
@@ -851,12 +851,12 @@ static void arasan_dt_read_clk_phase(struct device *dev,
 				     struct sdhci_arasan_clk_data *clk_data,
 				     unsigned int timing, const char *prop)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	int clk_phase[2] = {0};
 
 	/*
-	 * Read Tap Delay values from DT, if the DT does not contain the
+	 * Read Tap Delay values from DT, if the DT does yest contain the
 	 * Tap Values then use the pre-defined values.
 	 */
 	if (of_property_read_variable_u32_array(np, prop, &clk_phase[0],
@@ -894,11 +894,11 @@ static void arasan_dt_parse_clk_phases(struct device *dev,
 	 */
 	clk_data->set_clk_delays = sdhci_arasan_set_clk_delays;
 
-	if (of_device_is_compatible(dev->of_node, "xlnx,zynqmp-8.9a")) {
+	if (of_device_is_compatible(dev->of_yesde, "xlnx,zynqmp-8.9a")) {
 		iclk_phase = (int [MMC_TIMING_MMC_HS400 + 1]) ZYNQMP_ICLK_PHASE;
 		oclk_phase = (int [MMC_TIMING_MMC_HS400 + 1]) ZYNQMP_OCLK_PHASE;
 
-		of_property_read_u32(dev->of_node, "xlnx,mio-bank", &mio_bank);
+		of_property_read_u32(dev->of_yesde, "xlnx,mio-bank", &mio_bank);
 		if (mio_bank == 2) {
 			oclk_phase[MMC_TIMING_UHS_SDR104] = 90;
 			oclk_phase[MMC_TIMING_MMC_HS200] = 90;
@@ -937,7 +937,7 @@ static void arasan_dt_parse_clk_phases(struct device *dev,
 /**
  * sdhci_arasan_register_sdcardclk - Register the sdcardclk for a PHY to use
  *
- * Some PHY devices need to know what the actual card clock is.  In order for
+ * Some PHY devices need to kyesw what the actual card clock is.  In order for
  * them to find out, we'll provide a clock through the common clock framework
  * for them to query.
  *
@@ -952,7 +952,7 @@ sdhci_arasan_register_sdcardclk(struct sdhci_arasan_data *sdhci_arasan,
 				struct device *dev)
 {
 	struct sdhci_arasan_clk_data *clk_data = &sdhci_arasan->clk_data;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct clk_init_data sdcardclk_init;
 	const char *parent_clk_name;
 	int ret;
@@ -960,7 +960,7 @@ sdhci_arasan_register_sdcardclk(struct sdhci_arasan_data *sdhci_arasan,
 	ret = of_property_read_string_index(np, "clock-output-names", 0,
 					    &sdcardclk_init.name);
 	if (ret) {
-		dev_err(dev, "DT has #clock-cells but no clock-output-names\n");
+		dev_err(dev, "DT has #clock-cells but yes clock-output-names\n");
 		return ret;
 	}
 
@@ -989,7 +989,7 @@ sdhci_arasan_register_sdcardclk(struct sdhci_arasan_data *sdhci_arasan,
 /**
  * sdhci_arasan_register_sampleclk - Register the sampleclk for a PHY to use
  *
- * Some PHY devices need to know what the actual card clock is.  In order for
+ * Some PHY devices need to kyesw what the actual card clock is.  In order for
  * them to find out, we'll provide a clock through the common clock framework
  * for them to query.
  *
@@ -1004,7 +1004,7 @@ sdhci_arasan_register_sampleclk(struct sdhci_arasan_data *sdhci_arasan,
 				struct device *dev)
 {
 	struct sdhci_arasan_clk_data *clk_data = &sdhci_arasan->clk_data;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct clk_init_data sampleclk_init;
 	const char *parent_clk_name;
 	int ret;
@@ -1012,7 +1012,7 @@ sdhci_arasan_register_sampleclk(struct sdhci_arasan_data *sdhci_arasan,
 	ret = of_property_read_string_index(np, "clock-output-names", 1,
 					    &sampleclk_init.name);
 	if (ret) {
-		dev_err(dev, "DT has #clock-cells but no clock-output-names\n");
+		dev_err(dev, "DT has #clock-cells but yes clock-output-names\n");
 		return ret;
 	}
 
@@ -1048,23 +1048,23 @@ sdhci_arasan_register_sampleclk(struct sdhci_arasan_data *sdhci_arasan,
  */
 static void sdhci_arasan_unregister_sdclk(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	if (!of_find_property(np, "#clock-cells", NULL))
 		return;
 
-	of_clk_del_provider(dev->of_node);
+	of_clk_del_provider(dev->of_yesde);
 }
 
 /**
  * sdhci_arasan_register_sdclk - Register the sdcardclk for a PHY to use
  *
- * Some PHY devices need to know what the actual card clock is.  In order for
+ * Some PHY devices need to kyesw what the actual card clock is.  In order for
  * them to find out, we'll provide a clock through the common clock framework
  * for them to query.
  *
  * Note: without seriously re-architecting SDHCI's clock code and testing on
- * all platforms, there's no way to create a totally beautiful clock here
+ * all platforms, there's yes way to create a totally beautiful clock here
  * with all clock ops implemented.  Instead, we'll just create a clock that can
  * be queried and set the CLK_GET_RATE_NOCACHE attribute to tell common clock
  * framework that we're doing things behind its back.  This should be sufficient
@@ -1080,11 +1080,11 @@ static int sdhci_arasan_register_sdclk(struct sdhci_arasan_data *sdhci_arasan,
 				       struct clk *clk_xin,
 				       struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	u32 num_clks = 0;
 	int ret;
 
-	/* Providing a clock to the PHY is optional; no error if missing */
+	/* Providing a clock to the PHY is optional; yes error if missing */
 	if (of_property_read_u32(np, "#clock-cells", &num_clks) < 0)
 		return 0;
 
@@ -1151,15 +1151,15 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 {
 	int ret;
 	const struct of_device_id *match;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct clk *clk_xin;
 	struct sdhci_host *host;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_arasan_data *sdhci_arasan;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct sdhci_arasan_of_data *data;
 
-	match = of_match_node(sdhci_arasan_of_match, pdev->dev.of_node);
+	match = of_match_yesde(sdhci_arasan_of_match, pdev->dev.of_yesde);
 	data = match->data;
 	host = sdhci_pltfm_init(pdev, data->pdata, sizeof(*sdhci_arasan));
 
@@ -1172,10 +1172,10 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	sdhci_arasan->soc_ctl_map = data->soc_ctl_map;
 
-	node = of_parse_phandle(pdev->dev.of_node, "arasan,soc-ctl-syscon", 0);
-	if (node) {
-		sdhci_arasan->soc_ctl_base = syscon_node_to_regmap(node);
-		of_node_put(node);
+	yesde = of_parse_phandle(pdev->dev.of_yesde, "arasan,soc-ctl-syscon", 0);
+	if (yesde) {
+		sdhci_arasan->soc_ctl_base = syscon_yesde_to_regmap(yesde);
+		of_yesde_put(yesde);
 
 		if (IS_ERR(sdhci_arasan->soc_ctl_base)) {
 			ret = PTR_ERR(sdhci_arasan->soc_ctl_base);
@@ -1188,14 +1188,14 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	sdhci_arasan->clk_ahb = devm_clk_get(&pdev->dev, "clk_ahb");
 	if (IS_ERR(sdhci_arasan->clk_ahb)) {
-		dev_err(&pdev->dev, "clk_ahb clock not found.\n");
+		dev_err(&pdev->dev, "clk_ahb clock yest found.\n");
 		ret = PTR_ERR(sdhci_arasan->clk_ahb);
 		goto err_pltfm_free;
 	}
 
 	clk_xin = devm_clk_get(&pdev->dev, "clk_xin");
 	if (IS_ERR(clk_xin)) {
-		dev_err(&pdev->dev, "clk_xin clock not found.\n");
+		dev_err(&pdev->dev, "clk_xin clock yest found.\n");
 		ret = PTR_ERR(clk_xin);
 		goto err_pltfm_free;
 	}
@@ -1222,7 +1222,7 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	pltfm_host->clk = clk_xin;
 
-	if (of_device_is_compatible(pdev->dev.of_node,
+	if (of_device_is_compatible(pdev->dev.of_yesde,
 				    "rockchip,rk3399-sdhci-5.1"))
 		sdhci_arasan_update_clockmultiplier(host, 0x0);
 
@@ -1259,7 +1259,7 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	}
 
 	sdhci_arasan->phy = ERR_PTR(-ENODEV);
-	if (of_device_is_compatible(pdev->dev.of_node,
+	if (of_device_is_compatible(pdev->dev.of_yesde,
 				    "arasan,sdhci-5.1")) {
 		sdhci_arasan->phy = devm_phy_get(&pdev->dev,
 						 "phy_arasan");

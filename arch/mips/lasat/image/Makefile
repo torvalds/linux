@@ -15,7 +15,7 @@ MKLASATIMG = mklasatimg
 MKLASATIMG_ARCH = mq2,mqpro,sp100,sp200
 KERNEL_IMAGE = vmlinux
 
-LDSCRIPT= -L$(srctree)/$(src) -Tromscript.normal
+LDSCRIPT= -L$(srctree)/$(src) -Tromscript.yesrmal
 
 HEAD_DEFINES := -D_kernel_start=$(VMLINUX_LOAD_ADDRESS) \
 		-D_kernel_entry=$(VMLINUX_ENTRY_ADDRESS) \
@@ -23,7 +23,7 @@ HEAD_DEFINES := -D_kernel_start=$(VMLINUX_LOAD_ADDRESS) \
 		-D TIMESTAMP=$(shell date +%s)
 
 $(obj)/head.o: $(obj)/head.S $(KERNEL_IMAGE)
-	$(CC) -fno-pic $(HEAD_DEFINES) $(LINUXINCLUDE) -c -o $@ $<
+	$(CC) -fyes-pic $(HEAD_DEFINES) $(LINUXINCLUDE) -c -o $@ $<
 
 OBJECTS = head.o kImage.o
 

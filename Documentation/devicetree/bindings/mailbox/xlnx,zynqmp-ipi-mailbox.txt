@@ -3,7 +3,7 @@ Xilinx IPI Mailbox Controller
 
 The Xilinx IPI(Inter Processor Interrupt) mailbox controller is to manage
 messaging between two Xilinx Zynq UltraScale+ MPSoC IPI agents. Each IPI
-agent owns registers used for notification and buffers for message.
+agent owns registers used for yestification and buffers for message.
 
                +-------------------------------------+
                | Xilinx ZynqMP IPI Controller        |
@@ -31,16 +31,16 @@ Controller Device Node:
 ===========================
 Required properties:
 --------------------
-IPI agent node:
+IPI agent yesde:
 - compatible:		Shall be: "xlnx,zynqmp-ipi-mailbox"
 - interrupt-parent:	Phandle for the interrupt controller
 - interrupts:		Interrupt information corresponding to the
 			interrupt-names property.
 - xlnx,ipi-id:		local Xilinx IPI agent ID
-- #address-cells:	number of address cells of internal IPI mailbox nodes
-- #size-cells:		number of size cells of internal IPI mailbox nodes
+- #address-cells:	number of address cells of internal IPI mailbox yesdes
+- #size-cells:		number of size cells of internal IPI mailbox yesdes
 
-Internal IPI mailbox node:
+Internal IPI mailbox yesde:
 - reg:			IPI buffers address ranges
 - reg-names:		Names of the reg resources. It should have:
 			* local_request_region

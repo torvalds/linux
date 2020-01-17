@@ -41,7 +41,7 @@ void die(struct pt_regs *regs, const char *str)
 	print_modules();
 	show_regs(regs);
 
-	ret = notify_die(DIE_OOPS, str, regs, 0, regs->cause, SIGSEGV);
+	ret = yestify_die(DIE_OOPS, str, regs, 0, regs->cause, SIGSEGV);
 
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
@@ -56,41 +56,41 @@ void die(struct pt_regs *regs, const char *str)
 		do_exit(SIGSEGV);
 }
 
-void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
+void do_trap(struct pt_regs *regs, int sigyes, int code, unsigned long addr)
 {
 	struct task_struct *tsk = current;
 
-	if (show_unhandled_signals && unhandled_signal(tsk, signo)
+	if (show_unhandled_signals && unhandled_signal(tsk, sigyes)
 	    && printk_ratelimit()) {
 		pr_info("%s[%d]: unhandled signal %d code 0x%x at 0x" REG_FMT,
-			tsk->comm, task_pid_nr(tsk), signo, code, addr);
+			tsk->comm, task_pid_nr(tsk), sigyes, code, addr);
 		print_vma_addr(KERN_CONT " in ", instruction_pointer(regs));
 		pr_cont("\n");
 		show_regs(regs);
 	}
 
-	force_sig_fault(signo, code, (void __user *)addr);
+	force_sig_fault(sigyes, code, (void __user *)addr);
 }
 
-static void do_trap_error(struct pt_regs *regs, int signo, int code,
+static void do_trap_error(struct pt_regs *regs, int sigyes, int code,
 	unsigned long addr, const char *str)
 {
 	if (user_mode(regs)) {
-		do_trap(regs, signo, code, addr);
+		do_trap(regs, sigyes, code, addr);
 	} else {
 		if (!fixup_exception(regs))
 			die(regs, str);
 	}
 }
 
-#define DO_ERROR_INFO(name, signo, code, str)				\
+#define DO_ERROR_INFO(name, sigyes, code, str)				\
 asmlinkage __visible void name(struct pt_regs *regs)			\
 {									\
-	do_trap_error(regs, signo, code, regs->epc, "Oops - " str);	\
+	do_trap_error(regs, sigyes, code, regs->epc, "Oops - " str);	\
 }
 
-DO_ERROR_INFO(do_trap_unknown,
-	SIGILL, ILL_ILLTRP, "unknown exception");
+DO_ERROR_INFO(do_trap_unkyeswn,
+	SIGILL, ILL_ILLTRP, "unkyeswn exception");
 DO_ERROR_INFO(do_trap_insn_misaligned,
 	SIGBUS, BUS_ADRALN, "instruction address misaligned");
 DO_ERROR_INFO(do_trap_insn_fault,

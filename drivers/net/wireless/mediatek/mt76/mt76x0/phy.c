@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * (c) Copyright 2002-2010, Ralink Technology, Inc.
+ * (c) Copyright 2002-2010, Ralink Techyeslogy, Inc.
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  * Copyright (C) 2018 Stanislaw Gruszka <stf_xl@wp.pl>
@@ -194,7 +194,7 @@ int mt76x0_phy_wait_bbp_ready(struct mt76x02_dev *dev)
 	} while (--i);
 
 	if (!i) {
-		dev_err(dev->mt76.dev, "Error: BBP is not ready\n");
+		dev_err(dev->mt76.dev, "Error: BBP is yest ready\n");
 		return -EIO;
 	}
 
@@ -266,7 +266,7 @@ mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel,
 			mt76x0_rf_rmw(dev, MT_RF(0, 32), 0xe0,
 				      freq_item->pllR32_b7b5);
 
-			/* R32<4:0> pll_den: (Denomina - 8) */
+			/* R32<4:0> pll_den: (Deyesmina - 8) */
 			mt76x0_rf_rmw(dev, MT_RF(0, 32), MT_RF_PLL_DEN_MASK,
 				      freq_item->pllR32_b4b0);
 

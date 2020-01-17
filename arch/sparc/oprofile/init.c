@@ -9,17 +9,17 @@
 
 #include <linux/kernel.h>
 #include <linux/oprofile.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/param.h>	/* for HZ */
  
 #ifdef CONFIG_SPARC64
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/rcupdate.h>
 #include <linux/kdebug.h>
 #include <asm/nmi.h>
 
-static int profile_timer_exceptions_notify(struct notifier_block *self,
+static int profile_timer_exceptions_yestify(struct yestifier_block *self,
 					   unsigned long val, void *data)
 {
 	struct die_args *args = data;
@@ -36,13 +36,13 @@ static int profile_timer_exceptions_notify(struct notifier_block *self,
 	return ret;
 }
 
-static struct notifier_block profile_timer_exceptions_nb = {
-	.notifier_call	= profile_timer_exceptions_notify,
+static struct yestifier_block profile_timer_exceptions_nb = {
+	.yestifier_call	= profile_timer_exceptions_yestify,
 };
 
 static int timer_start(void)
 {
-	if (register_die_notifier(&profile_timer_exceptions_nb))
+	if (register_die_yestifier(&profile_timer_exceptions_nb))
 		return 1;
 	nmi_adjust_hz(HZ);
 	return 0;
@@ -52,7 +52,7 @@ static int timer_start(void)
 static void timer_stop(void)
 {
 	nmi_adjust_hz(1);
-	unregister_die_notifier(&profile_timer_exceptions_nb);
+	unregister_die_yestifier(&profile_timer_exceptions_nb);
 	synchronize_rcu();  /* Allow already-started NMIs to complete. */
 }
 

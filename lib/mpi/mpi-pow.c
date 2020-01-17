@@ -5,7 +5,7 @@
  * This file is part of GnuPG.
  *
  * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ *	 Actually it's the same code with only miyesr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -55,7 +55,7 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 		res->nlimbs = (msize == 1 && mod->d[0] == 1) ? 0 : 1;
 		if (res->nlimbs) {
 			if (mpi_resize(res, 1) < 0)
-				goto enomem;
+				goto eyesmem;
 			rp = res->d;
 			rp[0] = 1;
 		}
@@ -69,7 +69,7 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 	 * reduction using the original MOD value.  */
 	mp = mp_marker = mpi_alloc_limb_space(msize);
 	if (!mp)
-		goto enomem;
+		goto eyesmem;
 	mod_shift_cnt = count_leading_zeros(mod->d[msize - 1]);
 	if (mod_shift_cnt)
 		mpihelp_lshift(mp, mod->d, msize, mod_shift_cnt);
@@ -83,13 +83,13 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 		 * (The quotient is (bsize - msize + 1) limbs.)  */
 		bp = bp_marker = mpi_alloc_limb_space(bsize + 1);
 		if (!bp)
-			goto enomem;
+			goto eyesmem;
 		MPN_COPY(bp, base->d, bsize);
 		/* We don't care about the quotient, store it above the remainder,
 		 * at BP + MSIZE.  */
 		mpihelp_divrem(bp + msize, 0, bp, bsize, mp, msize);
 		bsize = msize;
-		/* Canonicalize the base, since we are going to multiply with it
+		/* Cayesnicalize the base, since we are going to multiply with it
 		 * quite a few times.  */
 		MPN_NORMALIZE(bp, bsize);
 	} else
@@ -108,27 +108,27 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 		if (rp == ep || rp == mp || rp == bp) {
 			rp = mpi_alloc_limb_space(size);
 			if (!rp)
-				goto enomem;
+				goto eyesmem;
 			assign_rp = 1;
 		} else {
 			if (mpi_resize(res, size) < 0)
-				goto enomem;
+				goto eyesmem;
 			rp = res->d;
 		}
-	} else {		/* Make BASE, EXP and MOD not overlap with RES.  */
+	} else {		/* Make BASE, EXP and MOD yest overlap with RES.  */
 		if (rp == bp) {
 			/* RES and BASE are identical.  Allocate temp. space for BASE.  */
 			BUG_ON(bp_marker);
 			bp = bp_marker = mpi_alloc_limb_space(bsize);
 			if (!bp)
-				goto enomem;
+				goto eyesmem;
 			MPN_COPY(bp, rp, bsize);
 		}
 		if (rp == ep) {
 			/* RES and EXP are identical.  Allocate temp. space for EXP.  */
 			ep = ep_marker = mpi_alloc_limb_space(esize);
 			if (!ep)
-				goto enomem;
+				goto eyesmem;
 			MPN_COPY(ep, rp, esize);
 		}
 		if (rp == mp) {
@@ -136,7 +136,7 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 			BUG_ON(mp_marker);
 			mp = mp_marker = mpi_alloc_limb_space(msize);
 			if (!mp)
-				goto enomem;
+				goto eyesmem;
 			MPN_COPY(mp, rp, msize);
 		}
 	}
@@ -154,7 +154,7 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 
 		xp = xp_marker = mpi_alloc_limb_space(2 * (msize + 1));
 		if (!xp)
-			goto enomem;
+			goto eyesmem;
 
 		negative_result = (ep[0] & 1) && base->sign;
 
@@ -179,7 +179,7 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 				mpi_ptr_t tp;
 				mpi_size_t xsize;
 
-				/*if (mpihelp_mul_n(xp, rp, rp, rsize) < 0) goto enomem */
+				/*if (mpihelp_mul_n(xp, rp, rp, rsize) < 0) goto eyesmem */
 				if (rsize < KARATSUBA_THRESHOLD)
 					mpih_sqr_n_basecase(xp, rp, rsize);
 				else {
@@ -188,14 +188,14 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 						tspace =
 						    mpi_alloc_limb_space(tsize);
 						if (!tspace)
-							goto enomem;
+							goto eyesmem;
 					} else if (tsize < (2 * rsize)) {
 						mpi_free_limb_space(tspace);
 						tsize = 2 * rsize;
 						tspace =
 						    mpi_alloc_limb_space(tsize);
 						if (!tspace)
-							goto enomem;
+							goto eyesmem;
 					}
 					mpih_sqr_n(xp, rp, rsize, tspace);
 				}
@@ -219,12 +219,12 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 						if (mpihelp_mul
 						    (xp, rp, rsize, bp, bsize,
 						     &tmp) < 0)
-							goto enomem;
+							goto eyesmem;
 					} else {
 						if (mpihelp_mul_karatsuba_case
 						    (xp, rp, rsize, bp, bsize,
 						     &karactx) < 0)
-							goto enomem;
+							goto eyesmem;
 					}
 
 					xsize = rsize + bsize;
@@ -295,7 +295,7 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 
 leave:
 	rc = 0;
-enomem:
+eyesmem:
 	mpihelp_release_karatsuba_ctx(&karactx);
 	if (assign_rp)
 		mpi_assign_limb_space(res, rp, size);

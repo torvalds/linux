@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -120,16 +120,16 @@ void rds_ib_add_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *con
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
 
-	/* conn was previously on the nodev_conns_list */
-	spin_lock_irq(&ib_nodev_conns_lock);
-	BUG_ON(list_empty(&ib_nodev_conns));
-	BUG_ON(list_empty(&ic->ib_node));
-	list_del(&ic->ib_node);
+	/* conn was previously on the yesdev_conns_list */
+	spin_lock_irq(&ib_yesdev_conns_lock);
+	BUG_ON(list_empty(&ib_yesdev_conns));
+	BUG_ON(list_empty(&ic->ib_yesde));
+	list_del(&ic->ib_yesde);
 
 	spin_lock(&rds_ibdev->spinlock);
-	list_add_tail(&ic->ib_node, &rds_ibdev->conn_list);
+	list_add_tail(&ic->ib_yesde, &rds_ibdev->conn_list);
 	spin_unlock(&rds_ibdev->spinlock);
-	spin_unlock_irq(&ib_nodev_conns_lock);
+	spin_unlock_irq(&ib_yesdev_conns_lock);
 
 	ic->rds_ibdev = rds_ibdev;
 	refcount_inc(&rds_ibdev->refcount);
@@ -139,33 +139,33 @@ void rds_ib_remove_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
 
-	/* place conn on nodev_conns_list */
-	spin_lock(&ib_nodev_conns_lock);
+	/* place conn on yesdev_conns_list */
+	spin_lock(&ib_yesdev_conns_lock);
 
 	spin_lock_irq(&rds_ibdev->spinlock);
-	BUG_ON(list_empty(&ic->ib_node));
-	list_del(&ic->ib_node);
+	BUG_ON(list_empty(&ic->ib_yesde));
+	list_del(&ic->ib_yesde);
 	spin_unlock_irq(&rds_ibdev->spinlock);
 
-	list_add_tail(&ic->ib_node, &ib_nodev_conns);
+	list_add_tail(&ic->ib_yesde, &ib_yesdev_conns);
 
-	spin_unlock(&ib_nodev_conns_lock);
+	spin_unlock(&ib_yesdev_conns_lock);
 
 	ic->rds_ibdev = NULL;
 	rds_ib_dev_put(rds_ibdev);
 }
 
-void rds_ib_destroy_nodev_conns(void)
+void rds_ib_destroy_yesdev_conns(void)
 {
 	struct rds_ib_connection *ic, *_ic;
 	LIST_HEAD(tmp_list);
 
 	/* avoid calling conn_destroy with irqs off */
-	spin_lock_irq(&ib_nodev_conns_lock);
-	list_splice(&ib_nodev_conns, &tmp_list);
-	spin_unlock_irq(&ib_nodev_conns_lock);
+	spin_lock_irq(&ib_yesdev_conns_lock);
+	list_splice(&ib_yesdev_conns, &tmp_list);
+	spin_unlock_irq(&ib_yesdev_conns_lock);
 
-	list_for_each_entry_safe(ic, _ic, &tmp_list, ib_node)
+	list_for_each_entry_safe(ic, _ic, &tmp_list, ib_yesde)
 		rds_conn_destroy(ic->conn);
 }
 
@@ -191,14 +191,14 @@ void rds6_ib_get_mr_info(struct rds_ib_device *rds_ibdev,
 struct rds_ib_mr *rds_ib_reuse_mr(struct rds_ib_mr_pool *pool)
 {
 	struct rds_ib_mr *ibmr = NULL;
-	struct llist_node *ret;
+	struct llist_yesde *ret;
 	unsigned long flags;
 
 	spin_lock_irqsave(&pool->clean_lock, flags);
 	ret = llist_del_first(&pool->clean_list);
 	spin_unlock_irqrestore(&pool->clean_lock, flags);
 	if (ret) {
-		ibmr = llist_entry(ret, struct rds_ib_mr, llnode);
+		ibmr = llist_entry(ret, struct rds_ib_mr, llyesde);
 		if (pool->pool_type == RDS_IB_MR_8K_POOL)
 			rds_ib_stats_inc(s_ib_rdma_mr_8k_reused);
 		else
@@ -286,41 +286,41 @@ static unsigned int llist_append_to_list(struct llist_head *llist,
 					 struct list_head *list)
 {
 	struct rds_ib_mr *ibmr;
-	struct llist_node *node;
-	struct llist_node *next;
+	struct llist_yesde *yesde;
+	struct llist_yesde *next;
 	unsigned int count = 0;
 
-	node = llist_del_all(llist);
-	while (node) {
-		next = node->next;
-		ibmr = llist_entry(node, struct rds_ib_mr, llnode);
+	yesde = llist_del_all(llist);
+	while (yesde) {
+		next = yesde->next;
+		ibmr = llist_entry(yesde, struct rds_ib_mr, llyesde);
 		list_add_tail(&ibmr->unmap_list, list);
-		node = next;
+		yesde = next;
 		count++;
 	}
 	return count;
 }
 
 /*
- * this takes a list head of mrs and turns it into linked llist nodes
- * of clusters.  Each cluster has linked llist nodes of
+ * this takes a list head of mrs and turns it into linked llist yesdes
+ * of clusters.  Each cluster has linked llist yesdes of
  * MR_CLUSTER_SIZE mrs that are ready for reuse.
  */
-static void list_to_llist_nodes(struct list_head *list,
-				struct llist_node **nodes_head,
-				struct llist_node **nodes_tail)
+static void list_to_llist_yesdes(struct list_head *list,
+				struct llist_yesde **yesdes_head,
+				struct llist_yesde **yesdes_tail)
 {
 	struct rds_ib_mr *ibmr;
-	struct llist_node *cur = NULL;
-	struct llist_node **next = nodes_head;
+	struct llist_yesde *cur = NULL;
+	struct llist_yesde **next = yesdes_head;
 
 	list_for_each_entry(ibmr, list, unmap_list) {
-		cur = &ibmr->llnode;
+		cur = &ibmr->llyesde;
 		*next = cur;
 		next = &cur->next;
 	}
 	*next = NULL;
-	*nodes_tail = cur;
+	*yesdes_tail = cur;
 }
 
 /*
@@ -333,8 +333,8 @@ int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *pool,
 			 int free_all, struct rds_ib_mr **ibmr_ret)
 {
 	struct rds_ib_mr *ibmr;
-	struct llist_node *clean_nodes;
-	struct llist_node *clean_tail;
+	struct llist_yesde *clean_yesdes;
+	struct llist_yesde *clean_tail;
 	LIST_HEAD(unmap_list);
 	unsigned long unpinned = 0;
 	unsigned int nfreed = 0, dirty_to_clean = 0, free_goal;
@@ -351,7 +351,7 @@ int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *pool,
 			if (ibmr) {
 				*ibmr_ret = ibmr;
 				finish_wait(&pool->flush_wait, &wait);
-				goto out_nolock;
+				goto out_yeslock;
 			}
 
 			prepare_to_wait(&pool->flush_wait, &wait,
@@ -363,7 +363,7 @@ int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *pool,
 			if (ibmr) {
 				*ibmr_ret = ibmr;
 				finish_wait(&pool->flush_wait, &wait);
-				goto out_nolock;
+				goto out_yeslock;
 			}
 		}
 		finish_wait(&pool->flush_wait, &wait);
@@ -404,15 +404,15 @@ int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *pool,
 	if (!list_empty(&unmap_list)) {
 		unsigned long flags;
 
-		list_to_llist_nodes(&unmap_list, &clean_nodes, &clean_tail);
+		list_to_llist_yesdes(&unmap_list, &clean_yesdes, &clean_tail);
 		if (ibmr_ret) {
-			*ibmr_ret = llist_entry(clean_nodes, struct rds_ib_mr, llnode);
-			clean_nodes = clean_nodes->next;
+			*ibmr_ret = llist_entry(clean_yesdes, struct rds_ib_mr, llyesde);
+			clean_yesdes = clean_yesdes->next;
 		}
-		/* more than one entry in llist nodes */
-		if (clean_nodes) {
+		/* more than one entry in llist yesdes */
+		if (clean_yesdes) {
 			spin_lock_irqsave(&pool->clean_lock, flags);
-			llist_add_batch(clean_nodes, clean_tail,
+			llist_add_batch(clean_yesdes, clean_tail,
 					&pool->clean_list);
 			spin_unlock_irqrestore(&pool->clean_lock, flags);
 		}
@@ -426,7 +426,7 @@ out:
 	mutex_unlock(&pool->flush_lock);
 	if (waitqueue_active(&pool->flush_wait))
 		wake_up(&pool->flush_wait);
-out_nolock:
+out_yeslock:
 	return 0;
 }
 
@@ -555,7 +555,7 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		ibmr = rds_ib_reg_fmr(rds_ibdev, sg, nents, key_ret);
 	if (IS_ERR(ibmr)) {
 		ret = PTR_ERR(ibmr);
-		pr_warn("RDS/IB: rds_ib_get_mr failed (errno=%d)\n", ret);
+		pr_warn("RDS/IB: rds_ib_get_mr failed (erryes=%d)\n", ret);
 	} else {
 		return ibmr;
 	}

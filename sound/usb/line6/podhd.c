@@ -2,7 +2,7 @@
 /*
  * Line 6 Pod HD
  *
- * Copyright (C) 2011 Stefan Hajnoczi <stefanha@gmail.com>
+ * Copyright (C) 2011 Stefan Hajyesczi <stefanha@gmail.com>
  * Copyright (C) 2015 Andrej Krutak <dev@andree.sk>
  * Copyright (C) 2017 Hans P. Moller <hmoller@uc.cl>
  */
@@ -174,7 +174,7 @@ static const struct attribute_group podhd_dev_attr_group = {
  *
  * May be compatible with other POD HD's, since it's also similar to the
  * previous POD setup. In any case, it doesn't seem to be required for the
- * audio nor bulk interfaces to work.
+ * audio yesr bulk interfaces to work.
  */
 
 static int podhd_dev_start(struct usb_line6_podhd *pod)
@@ -269,7 +269,7 @@ static int podhd_init(struct usb_line6 *line6,
 		intf = usb_ifnum_to_if(line6->usbdev,
 					pod->line6.properties->ctrl_if);
 		if (!intf) {
-			dev_err(pod->line6.ifcdev, "interface %d not found\n",
+			dev_err(pod->line6.ifcdev, "interface %d yest found\n",
 				pod->line6.properties->ctrl_if);
 			return -ENODEV;
 		}
@@ -315,7 +315,7 @@ static int podhd_init(struct usb_line6 *line6,
 
 /* table of devices that work with this driver */
 static const struct usb_device_id podhd_id_table[] = {
-	/* TODO: no need to alloc data interfaces when only audio is used */
+	/* TODO: yes need to alloc data interfaces when only audio is used */
 	{ LINE6_DEVICE(0x5057),    .driver_info = LINE6_PODHD300 },
 	{ LINE6_DEVICE(0x5058),    .driver_info = LINE6_PODHD400 },
 	{ LINE6_IF_NUM(0x414D, 0), .driver_info = LINE6_PODHD500_0 },

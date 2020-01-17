@@ -42,7 +42,7 @@ typedef bool (*smc_wr_tx_filter)(struct smc_wr_tx_pend_priv *,
 typedef void (*smc_wr_tx_dismisser)(struct smc_wr_tx_pend_priv *);
 
 struct smc_wr_rx_handler {
-	struct hlist_node	list;	/* hash table collision resolution */
+	struct hlist_yesde	list;	/* hash table collision resolution */
 	void			(*handler)(struct ib_wc *, void *);
 	u8			type;
 };
@@ -77,7 +77,7 @@ static inline int smc_wr_rx_post(struct smc_link *link)
 	u64 wr_id, temp_wr_id;
 	u32 index;
 
-	wr_id = ++link->wr_rx_id; /* tasklet context, thus not atomic */
+	wr_id = ++link->wr_rx_id; /* tasklet context, thus yest atomic */
 	temp_wr_id = wr_id;
 	index = do_div(temp_wr_id, link->wr_rx_cnt);
 	link->wr_rx_ibs[index].wr_id = wr_id;

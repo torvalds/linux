@@ -331,7 +331,7 @@ static unsigned int pata_s3c_devchk(struct ata_port *ap,
 	if ((nsect == 0x55) && (lbal == 0xaa))
 		return 1;	/* we found a device */
 
-	return 0;		/* nothing found */
+	return 0;		/* yesthing found */
 }
 
 /*
@@ -396,7 +396,7 @@ static int pata_s3c_softreset(struct ata_link *link, unsigned int *classes,
 	rc = pata_s3c_bus_softreset(ap, deadline);
 	/* if link is occupied, -ENODEV too is an error */
 	if (rc && rc != -ENODEV) {
-		ata_link_err(link, "SRST failed (errno=%d)\n", rc);
+		ata_link_err(link, "SRST failed (erryes=%d)\n", rc);
 		return rc;
 	}
 
@@ -550,7 +550,7 @@ static int __init pata_s3c_probe(struct platform_device *pdev)
 	if (info->irq <= 0) {
 		ap->flags |= ATA_FLAG_PIO_POLLING;
 		info->irq = 0;
-		ata_port_desc(ap, "no IRQ, using PIO polling\n");
+		ata_port_desc(ap, "yes IRQ, using PIO polling\n");
 	}
 
 	ap->ioaddr.cmd_addr =  info->ide_addr + S3C_ATA_CMD;

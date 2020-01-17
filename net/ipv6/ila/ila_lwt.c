@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ip.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -52,7 +52,7 @@ static int ila_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 					true);
 
 	if (rt->rt6i_flags & (RTF_GATEWAY | RTF_CACHE)) {
-		/* Already have a next hop address in route, no need for
+		/* Already have a next hop address in route, yes need for
 		 * dest cache route.
 		 */
 		return orig_dst->lwtstate->orig_output(net, sk, skb);
@@ -186,7 +186,7 @@ static int ila_build_state(struct nlattr *nla,
 	case ILA_ATYPE_VIRT_UNI_V6:
 	case ILA_ATYPE_VIRT_MULTI_V6:
 	case ILA_ATYPE_NONLOCAL_ADDR:
-		/* These ILA formats are not supported yet. */
+		/* These ILA formats are yest supported yet. */
 	default:
 		return -EINVAL;
 	}
@@ -236,7 +236,7 @@ static int ila_build_state(struct nlattr *nla,
 	p->locator.v64 = (__force __be64)nla_get_u64(tb[ILA_ATTR_LOCATOR]);
 
 	/* Precompute checksum difference for translation since we
-	 * know both the old locator and the new one.
+	 * kyesw both the old locator and the new one.
 	 */
 	p->locator_match = iaddr->loc;
 

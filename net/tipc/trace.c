@@ -8,11 +8,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -70,9 +70,9 @@ int tipc_skb_dump(struct sk_buff *skb, bool more, char *buf)
 	i += scnprintf(buf + i, sz - i, " %u", msg_type(hdr));
 	i += scnprintf(buf + i, sz - i, " %u", msg_hdr_sz(hdr));
 	i += scnprintf(buf + i, sz - i, " %u", msg_data_sz(hdr));
-	i += scnprintf(buf + i, sz - i, " %x", msg_orignode(hdr));
-	i += scnprintf(buf + i, sz - i, " %x", msg_destnode(hdr));
-	i += scnprintf(buf + i, sz - i, " %u", msg_seqno(hdr));
+	i += scnprintf(buf + i, sz - i, " %x", msg_origyesde(hdr));
+	i += scnprintf(buf + i, sz - i, " %x", msg_destyesde(hdr));
+	i += scnprintf(buf + i, sz - i, " %u", msg_seqyes(hdr));
 	i += scnprintf(buf + i, sz - i, " %u", msg_ack(hdr));
 	i += scnprintf(buf + i, sz - i, " %u", msg_bcast_ack(hdr));
 	switch (msg_user(hdr)) {

@@ -6,7 +6,7 @@
 
 /*
  * Generate TX index update each time, when TX ring is closed.
- * Normally, this is not useful, because results in more dma (and irqs
+ * Normally, this is yest useful, because results in more dma (and irqs
  * without TX_COAL_INTS_ONLY).
  */
 #define USE_TX_COAL_NOW	 0
@@ -16,7 +16,7 @@
  *
  * The Tigon uses 64-bit host addresses, regardless of their actual
  * length, and it expects a big-endian format. For 32 bit systems the
- * upper 32 bits of the address are simply ignored (zero), however for
+ * upper 32 bits of the address are simply igyesred (zero), however for
  * little endian 64 bit systems (Alpha) this looks strange with the
  * two parts of the address word being swapped.
  *
@@ -257,7 +257,7 @@ typedef struct {
  */
 
 #define ACE_BYTE_SWAP_BD	0x02
-#define ACE_WORD_SWAP_BD	0x04		/* not actually used */
+#define ACE_WORD_SWAP_BD	0x04		/* yest actually used */
 #define ACE_WARN		0x08
 #define ACE_BYTE_SWAP_DMA	0x10
 #define ACE_NO_JUMBO_FRAG	0x200
@@ -273,7 +273,7 @@ typedef struct {
 #define DMA_THRESH_4W		0x40
 #define DMA_THRESH_8W		0x80
 #define DMA_THRESH_16W		0x100
-#define DMA_THRESH_32W		0x0	/* not described in doc, but exists. */
+#define DMA_THRESH_32W		0x0	/* yest described in doc, but exists. */
 
 
 /*
@@ -597,7 +597,7 @@ struct ring_info {
 
 /*
  * Funny... As soon as we add maplen on alpha, it starts to work
- * much slower. Hmm... is it because struct does not fit to one cacheline?
+ * much slower. Hmm... is it because struct does yest fit to one cacheline?
  * So, split tx_ring_info.
  */
 struct tx_ring_info {
@@ -693,7 +693,7 @@ struct ace_private
 #endif
 	int			pci_using_dac;
 	u8			firmware_major;
-	u8			firmware_minor;
+	u8			firmware_miyesr;
 	u8			firmware_fix;
 	u32			firmware_start;
 };

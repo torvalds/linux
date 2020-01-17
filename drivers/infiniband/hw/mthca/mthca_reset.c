@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -30,7 +30,7 @@
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -83,7 +83,7 @@ int mthca_reset(struct mthca_dev *mdev)
 		if (!bridge) {
 			/*
 			 * Didn't find a bridge for a Tavor device --
-			 * assume we're in no-bridge mode and hope for
+			 * assume we're in yes-bridge mode and hope for
 			 * the best.
 			 */
 			mthca_warn(mdev, "No bridge found for %s\n",
@@ -178,7 +178,7 @@ int mthca_reset(struct mthca_dev *mdev)
 		}
 
 		err = -ENODEV;
-		mthca_err(mdev, "PCI device did not come back after reset, "
+		mthca_err(mdev, "PCI device did yest come back after reset, "
 			  "aborting.\n");
 		goto free_bh;
 	}

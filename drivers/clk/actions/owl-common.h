@@ -15,7 +15,7 @@
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
 
-struct device_node;
+struct device_yesde;
 
 struct owl_clk_common {
 	struct regmap			*regmap;

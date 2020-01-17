@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -141,14 +141,14 @@ static void iwl_mvm_ftm_cmd_v5(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd->request_id = req->cookie;
 	cmd->num_of_ap = req->n_peers;
 
-	/* use maximum for "no timeout" or bigger than what we can do */
+	/* use maximum for "yes timeout" or bigger than what we can do */
 	if (!req->timeout || req->timeout > 255 * 100)
 		cmd->req_timeout = 255;
 	else
 		cmd->req_timeout = DIV_ROUND_UP(req->timeout, 100);
 
 	/*
-	 * We treat it always as random, since if not we'll
+	 * We treat it always as random, since if yest we'll
 	 * have filled our local address there instead.
 	 */
 	cmd->macaddr_random = 1;
@@ -175,7 +175,7 @@ static void iwl_mvm_ftm_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd->num_of_ap = req->n_peers;
 
 	/*
-	 * Use a large value for "no timeout". Don't use the maximum value
+	 * Use a large value for "yes timeout". Don't use the maximum value
 	 * because of fw limitations.
 	 */
 	if (req->timeout)
@@ -414,16 +414,16 @@ static u64 iwl_mvm_ftm_get_host_time(struct iwl_mvm *mvm, __le32 fw_gp2_ts)
 {
 	u32 gp2_ts = le32_to_cpu(fw_gp2_ts);
 	u32 curr_gp2, diff;
-	u64 now_from_boot_ns;
+	u64 yesw_from_boot_ns;
 
-	iwl_mvm_get_sync_time(mvm, &curr_gp2, &now_from_boot_ns);
+	iwl_mvm_get_sync_time(mvm, &curr_gp2, &yesw_from_boot_ns);
 
 	if (curr_gp2 >= gp2_ts)
 		diff = curr_gp2 - gp2_ts;
 	else
 		diff = curr_gp2 + (U32_MAX - gp2_ts + 1);
 
-	return now_from_boot_ns - (u64)diff * 1000;
+	return yesw_from_boot_ns - (u64)diff * 1000;
 }
 
 static void iwl_mvm_ftm_get_lci_civic(struct iwl_mvm *mvm,
@@ -502,7 +502,7 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	lockdep_assert_held(&mvm->mutex);
 
 	if (!mvm->ftm_initiator.req) {
-		IWL_ERR(mvm, "Got FTM response but have no request?\n");
+		IWL_ERR(mvm, "Got FTM response but have yes request?\n");
 		return;
 	}
 
@@ -546,7 +546,7 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 			fw_ap = (void *)&fw_resp_v5->ap[i];
 			/*
 			 * FIXME: the firmware needs to report this, we don't
-			 * even know the number of bursts the responder picked
+			 * even kyesw the number of bursts the responder picked
 			 * (if we asked it to)
 			 */
 			result.final = 0;
@@ -556,7 +556,7 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 						 fw_ap->bssid);
 		if (peer_idx < 0) {
 			IWL_WARN(mvm,
-				 "Unknown address (%pM, target #%d) in FTM response\n",
+				 "Unkyeswn address (%pM, target #%d) in FTM response\n",
 				 fw_ap->bssid, i);
 			continue;
 		}
@@ -624,7 +624,7 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	}
 }
 
-void iwl_mvm_ftm_lc_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
+void iwl_mvm_ftm_lc_yestif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	const struct ieee80211_mgmt *mgmt = (void *)pkt->data;

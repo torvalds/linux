@@ -38,7 +38,7 @@
 /* code adapted from if_drv_mb.h */
 
 #define MASK_SYS_STATUS_ERROR	(1L << 31) /* events that lead to a PCI irq if
-					    * not yet pending */
+					    * yest yet pending */
 #define MASK_SYS_STATUS_URUN	(1L << 30)
 #define MASK_SYS_STATUS_ORUN	(1L << 29)
 #define MASK_SYS_STATUS_EOBO	(1L << 28)
@@ -68,7 +68,7 @@
 						    * internal: pending XES
 						    * IRQ */
 #define MASK_SYS_STATUS_CMD_DONE	(1L << 20) /* alternate command
-						    * management: notify driver
+						    * management: yestify driver
 						    * instead of polling */
 
 
@@ -85,7 +85,7 @@
 
 /*
  the capture bit position in the object_id field in driver commands
- depends upon the number of managed channels. For now, 64 IN + 64 OUT are
+ depends upon the number of managed channels. For yesw, 64 IN + 64 OUT are
  supported. HOwever, the communication protocol forsees 1024 channels, hence
  bit 10 indicates a capture (input) object).
 */
@@ -124,15 +124,15 @@ enum cmd_mb_opcodes {
 
 /* pipe states */
 enum pipe_state_t {
-	PSTATE_IDLE	= 0,	/* the pipe is not processed in the XES_IRQ
+	PSTATE_IDLE	= 0,	/* the pipe is yest processed in the XES_IRQ
 				 * (free or stopped, or paused). */
 	PSTATE_RUN	= 1,	/* sustained play/record state. */
-	PSTATE_PURGE	= 2,	/* the ES channels are now off, render pipes do
-				 * not DMA, record pipe do a last DMA. */
-	PSTATE_ACQUIRE	= 3,	/* the ES channels are now on, render pipes do
-				 * not yet increase their sample count, record
-				 * pipes do not DMA. */
-	PSTATE_CLOSING	= 4,	/* the pipe is releasing, and may not yet
+	PSTATE_PURGE	= 2,	/* the ES channels are yesw off, render pipes do
+				 * yest DMA, record pipe do a last DMA. */
+	PSTATE_ACQUIRE	= 3,	/* the ES channels are yesw on, render pipes do
+				 * yest yet increase their sample count, record
+				 * pipes do yest DMA. */
+	PSTATE_CLOSING	= 4,	/* the pipe is releasing, and may yest yet
 				 * receive an "alloc" command. */
 };
 
@@ -155,16 +155,16 @@ enum buffer_flags {
 				 * by the end of this buffer.*/
 	BF_64BITS_ADR	= 0x08,	/* set if the hi part of the address is valid.*/
 	BF_xx		= 0x04,	/* future extension.*/
-	BF_EOB		= 0x02,	/* set if finished, but not yet free.*/
+	BF_EOB		= 0x02,	/* set if finished, but yest yet free.*/
 	BF_PAUSE	= 0x01,	/* pause stream at buffer end.*/
-	BF_ZERO		= 0x00,	/* no flags (init).*/
+	BF_ZERO		= 0x00,	/* yes flags (init).*/
 };
 
 /*
 *	Stream Flags definitions
 */
 enum stream_flags {
-	SF_ZERO		= 0x00000000, /* no flags (stream invalid). */
+	SF_ZERO		= 0x00000000, /* yes flags (stream invalid). */
 	SF_VALID	= 0x10000000, /* the stream has a valid DMA_conf
 				       * info (setstreamformat). */
 	SF_XRUN		= 0x20000000, /* the stream is un x-run state. */

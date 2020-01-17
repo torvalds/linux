@@ -9,7 +9,7 @@ config PREEMPT_NONE
 	help
 	  This is the traditional Linux preemption model, geared towards
 	  throughput. It will still provide good latencies most of the
-	  time, but there are no guarantees and occasional longer delays
+	  time, but there are yes guarantees and occasional longer delays
 	  are possible.
 
 	  Select this option if you are building a kernel for a server or
@@ -42,11 +42,11 @@ config PREEMPT
 	select UNINLINE_SPIN_UNLOCK if !ARCH_INLINE_SPIN_UNLOCK
 	help
 	  This option reduces the latency of the kernel by making
-	  all kernel code (that is not executing in a critical section)
+	  all kernel code (that is yest executing in a critical section)
 	  preemptible.  This allows reaction to interactive events by
 	  permitting a low priority process to be preempted involuntarily
 	  even if it is in kernel mode executing a system call and would
-	  otherwise not be about to reach a natural preemption point.
+	  otherwise yest be about to reach a natural preemption point.
 	  This allows applications to run more 'smoothly' even when the
 	  system is under load, at the cost of slightly lower throughput
 	  and a slight runtime overhead to kernel code.
@@ -64,7 +64,7 @@ config PREEMPT_RT
 	  various locking primitives (spinlocks, rwlocks, etc.) with
 	  preemptible priority-inheritance aware variants, enforcing
 	  interrupt threading and introducing mechanisms to break up long
-	  non-preemptible sections. This makes the kernel, except for very
+	  yesn-preemptible sections. This makes the kernel, except for very
 	  low level and critical code paths (entry code, scheduler, low
 	  level interrupt handling) fully preemptible and brings most
 	  execution contexts under scheduler control.

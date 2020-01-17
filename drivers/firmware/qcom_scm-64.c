@@ -3,7 +3,7 @@
  */
 
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -514,7 +514,7 @@ int __qcom_scm_iommu_secure_ptbl_init(struct device *dev, u64 addr, u32 size,
 	ret = qcom_scm_call(dev, QCOM_SCM_SVC_MP,
 			    QCOM_SCM_IOMMU_SECURE_PTBL_INIT, &desc, &res);
 
-	/* the pg table has been initialized already, ignore the error */
+	/* the pg table has been initialized already, igyesre the error */
 	if (ret == -EPERM)
 		ret = 0;
 

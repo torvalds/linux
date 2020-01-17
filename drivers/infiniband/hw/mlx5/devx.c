@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2018, Mellayesx Techyeslogies inc.  All rights reserved.
  */
 
 #include <rdma/ib_user_verbs.h>
@@ -136,7 +136,7 @@ int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, bool is_user)
 	u16 uid;
 	u32 cap = 0;
 
-	/* 0 means not supported */
+	/* 0 means yest supported */
 	if (!MLX5_CAP_GEN(dev->mdev, log_max_uctx))
 		return -EINVAL;
 
@@ -339,7 +339,7 @@ static u32 get_dec_obj_id(u64 obj_id)
 }
 
 /*
- * As the obj_id in the firmware is not globally unique the object type
+ * As the obj_id in the firmware is yest globally unique the object type
  * must be considered upon checking for a valid object id.
  * For that the opcode of the creator command is encoded as part of the obj_id.
  */
@@ -982,24 +982,24 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_EQN)(
 }
 
 /*
- *Security note:
+ *Security yeste:
  * The hardware protection mechanism works like this: Each device object that
  * is subject to UAR doorbells (QP/SQ/CQ) gets a UAR ID (called uar_page in
  * the device specification manual) upon its creation. Then upon doorbell,
  * hardware fetches the object context for which the doorbell was rang, and
  * validates that the UAR through which the DB was rang matches the UAR ID
  * of the object.
- * If no match the doorbell is silently ignored by the hardware. Of course,
- * the user cannot ring a doorbell on a UAR that was not mapped to it.
- * Now in devx, as the devx kernel does not manipulate the QP/SQ/CQ command
+ * If yes match the doorbell is silently igyesred by the hardware. Of course,
+ * the user canyest ring a doorbell on a UAR that was yest mapped to it.
+ * Now in devx, as the devx kernel does yest manipulate the QP/SQ/CQ command
  * mailboxes (except tagging them with UID), we expose to the user its UAR
  * ID, so it can embed it in these objects in the expected specification
  * format. So the only thing the user can do is hurt itself by creating a
  * QP/SQ/CQ with a UAR ID other than his, and then in this case other users
  * may ring a doorbell on its objects.
- * The consequence of that will be that another user can schedule a QP/SQ
+ * The consequence of that will be that ayesther user can schedule a QP/SQ
  * of the buggy user for execution (just insert it to the hardware schedule
- * queue or arm its CQ for event generation), no further harm is expected.
+ * queue or arm its CQ for event generation), yes further harm is expected.
  */
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_UAR)(
 	struct uverbs_attr_bundle *attrs)
@@ -1349,7 +1349,7 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 		/*
 		 * The pagefault_single_data_segment() does commands against
 		 * the mmkey, we must wait for that to stop before freeing the
-		 * mkey, as another allocation could get the same mkey #.
+		 * mkey, as ayesther allocation could get the same mkey #.
 		 */
 		xa_erase(&obj->ib_dev->odp_mkeys,
 			 mlx5_base_mkey(obj->devx_mr.mmkey.key));
@@ -1791,7 +1791,7 @@ subscribe_event_xa_dealloc(struct mlx5_devx_event_table *devx_event_table,
 	struct devx_event *event;
 	struct devx_obj_event *xa_val_level2;
 
-	/* Level 1 is valid for future use, no need to free */
+	/* Level 1 is valid for future use, yes need to free */
 	if (!is_level2)
 		return;
 
@@ -1843,7 +1843,7 @@ subscribe_event_xa_alloc(struct mlx5_devx_event_table *devx_event_table,
 	if (!obj_event) {
 		obj_event = kzalloc(sizeof(*obj_event), GFP_KERNEL);
 		if (!obj_event)
-			/* Level1 is valid for future use, no need to free */
+			/* Level1 is valid for future use, yes need to free */
 			return -ENOMEM;
 
 		err = xa_insert(&event->object_ids,
@@ -2375,7 +2375,7 @@ static void dispatch_event_fd(struct list_head *fd_list,
 	}
 }
 
-static int devx_event_notifier(struct notifier_block *nb,
+static int devx_event_yestifier(struct yestifier_block *nb,
 			       unsigned long event_type, void *data)
 {
 	struct mlx5_devx_event_table *table;
@@ -2430,8 +2430,8 @@ void mlx5_ib_devx_init_event_table(struct mlx5_ib_dev *dev)
 
 	xa_init(&table->event_xa);
 	mutex_init(&table->event_xa_lock);
-	MLX5_NB_INIT(&table->devx_nb, devx_event_notifier, NOTIFY_ANY);
-	mlx5_eq_notifier_register(dev->mdev, &table->devx_nb);
+	MLX5_NB_INIT(&table->devx_nb, devx_event_yestifier, NOTIFY_ANY);
+	mlx5_eq_yestifier_register(dev->mdev, &table->devx_nb);
 }
 
 void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev)
@@ -2442,7 +2442,7 @@ void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev)
 	void *entry;
 	unsigned long id;
 
-	mlx5_eq_notifier_unregister(dev->mdev, &table->devx_nb);
+	mlx5_eq_yestifier_unregister(dev->mdev, &table->devx_nb);
 	mutex_lock(&dev->devx_event_table.event_xa_lock);
 	xa_for_each(&table->event_xa, id, entry) {
 		event = entry;
@@ -2509,7 +2509,7 @@ static ssize_t devx_async_cmd_event_read(struct file *filp, char __user *buf,
 	return ret;
 }
 
-static int devx_async_cmd_event_close(struct inode *inode, struct file *filp)
+static int devx_async_cmd_event_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct ib_uobject *uobj = filp->private_data;
 	struct devx_async_cmd_event_file *comp_ev_file = container_of(
@@ -2550,7 +2550,7 @@ static const struct file_operations devx_async_cmd_event_fops = {
 	.read	 = devx_async_cmd_event_read,
 	.poll    = devx_async_cmd_event_poll,
 	.release = devx_async_cmd_event_close,
-	.llseek	 = no_llseek,
+	.llseek	 = yes_llseek,
 };
 
 static ssize_t devx_async_event_read(struct file *filp, char __user *buf,
@@ -2625,7 +2625,7 @@ static ssize_t devx_async_event_read(struct file *filp, char __user *buf,
 	spin_unlock_irq(&ev_file->lock);
 
 	if (copy_to_user(buf, event_data, eventsz))
-		/* This points to an application issue, not a kernel concern */
+		/* This points to an application issue, yest a kernel concern */
 		ret = -EFAULT;
 	else
 		ret = eventsz;
@@ -2653,7 +2653,7 @@ static __poll_t devx_async_event_poll(struct file *filp,
 	return pollflags;
 }
 
-static int devx_async_event_close(struct inode *inode, struct file *filp)
+static int devx_async_event_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct devx_async_event_file *ev_file = filp->private_data;
 	struct devx_event_subscription *event_sub, *event_sub_tmp;
@@ -2669,7 +2669,7 @@ static int devx_async_event_close(struct inode *inode, struct file *filp)
 			eventfd_ctx_put(event_sub->eventfd);
 
 		list_del_rcu(&event_sub->file_list);
-		/* subscription may not be used by the read API any more */
+		/* subscription may yest be used by the read API any more */
 		kfree_rcu(event_sub, rcu);
 	}
 
@@ -2694,7 +2694,7 @@ static const struct file_operations devx_async_event_fops = {
 	.read	 = devx_async_event_read,
 	.poll    = devx_async_event_poll,
 	.release = devx_async_event_close,
-	.llseek	 = no_llseek,
+	.llseek	 = yes_llseek,
 };
 
 static int devx_hot_unplug_async_cmd_event_file(struct ib_uobject *uobj,

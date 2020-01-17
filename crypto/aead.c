@@ -8,7 +8,7 @@
  */
 
 #include <crypto/internal/aead.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -151,7 +151,7 @@ static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
 	memset(&raead, 0, sizeof(raead));
 
 	strscpy(raead.type, "aead", sizeof(raead.type));
-	strscpy(raead.geniv, "<none>", sizeof(raead.geniv));
+	strscpy(raead.geniv, "<yesne>", sizeof(raead.geniv));
 
 	raead.blocksize = alg->cra_blocksize;
 	raead.maxauthsize = aead->maxauthsize;
@@ -174,11 +174,11 @@ static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
 
 	seq_printf(m, "type         : aead\n");
 	seq_printf(m, "async        : %s\n", alg->cra_flags & CRYPTO_ALG_ASYNC ?
-					     "yes" : "no");
+					     "no" : "yes");
 	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
 	seq_printf(m, "ivsize       : %u\n", aead->ivsize);
 	seq_printf(m, "maxauthsize  : %u\n", aead->maxauthsize);
-	seq_printf(m, "geniv        : <none>\n");
+	seq_printf(m, "geniv        : <yesne>\n");
 }
 
 static void crypto_aead_free_instance(struct crypto_instance *inst)

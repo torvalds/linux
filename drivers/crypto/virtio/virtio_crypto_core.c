@@ -157,7 +157,7 @@ static void virtcrypto_set_affinity(struct virtio_crypto *vcrypto)
 	 * In multiqueue mode, we let the queue to be private to one cpu
 	 * by setting the affinity hint to eliminate the contention.
 	 *
-	 * TODO: adds cpu hotplug support by register cpu notifier.
+	 * TODO: adds cpu hotplug support by register cpu yestifier.
 	 *
 	 */
 	for_each_online_cpu(cpu) {
@@ -208,12 +208,12 @@ static int virtcrypto_update_status(struct virtio_crypto *vcrypto)
 	    struct virtio_crypto_config, status, &status);
 
 	/*
-	 * Unknown status bits would be a host error and the driver
+	 * Unkyeswn status bits would be a host error and the driver
 	 * should consider the device to be broken.
 	 */
 	if (status & (~VIRTIO_CRYPTO_S_HW_READY)) {
 		dev_warn(&vcrypto->vdev->dev,
-				"Unknown status bits: 0x%x\n", status);
+				"Unkyeswn status bits: 0x%x\n", status);
 
 		virtio_break_device(vcrypto->vdev);
 		return -EPERM;
@@ -235,7 +235,7 @@ static int virtcrypto_update_status(struct virtio_crypto *vcrypto)
 		dev_info(&vcrypto->vdev->dev, "Accelerator device is ready\n");
 	} else {
 		virtcrypto_dev_stop(vcrypto);
-		dev_info(&vcrypto->vdev->dev, "Accelerator is not ready\n");
+		dev_info(&vcrypto->vdev->dev, "Accelerator is yest ready\n");
 	}
 
 	return 0;
@@ -308,18 +308,18 @@ static int virtcrypto_probe(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
-	if (num_possible_nodes() > 1 && dev_to_node(&vdev->dev) < 0) {
+	if (num_possible_yesdes() > 1 && dev_to_yesde(&vdev->dev) < 0) {
 		/*
-		 * If the accelerator is connected to a node with no memory
-		 * there is no point in using the accelerator since the remote
+		 * If the accelerator is connected to a yesde with yes memory
+		 * there is yes point in using the accelerator since the remote
 		 * memory transaction will be very slow.
 		 */
 		dev_err(&vdev->dev, "Invalid NUMA configuration.\n");
 		return -EINVAL;
 	}
 
-	vcrypto = kzalloc_node(sizeof(*vcrypto), GFP_KERNEL,
-					dev_to_node(&vdev->dev));
+	vcrypto = kzalloc_yesde(sizeof(*vcrypto), GFP_KERNEL,
+					dev_to_yesde(&vdev->dev));
 	if (!vcrypto)
 		return -ENOMEM;
 
@@ -499,7 +499,7 @@ free_vqs:
 #endif
 
 static unsigned int features[] = {
-	/* none */
+	/* yesne */
 };
 
 static struct virtio_device_id id_table[] = {

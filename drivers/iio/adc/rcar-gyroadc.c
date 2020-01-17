@@ -108,7 +108,7 @@ static void rcar_gyroadc_hw_start(struct rcar_gyroadc *priv)
 
 	/*
 	 * Wait for the first conversion to complete. This is longer than
-	 * the 1.25 mS in the datasheet because 1.25 mS is not enough for
+	 * the 1.25 mS in the datasheet because 1.25 mS is yest eyesugh for
 	 * the hardware to deliver the first sample and the hardware does
 	 * then return zeroes instead of valid data.
 	 */
@@ -167,7 +167,7 @@ static int rcar_gyroadc_set_power(struct rcar_gyroadc *priv, bool on)
 	if (on) {
 		ret = pm_runtime_get_sync(dev);
 		if (ret < 0)
-			pm_runtime_put_noidle(dev);
+			pm_runtime_put_yesidle(dev);
 	} else {
 		pm_runtime_mark_last_busy(dev);
 		ret = pm_runtime_put_autosuspend(dev);
@@ -200,7 +200,7 @@ static int rcar_gyroadc_read_raw(struct iio_dev *indio_dev,
 		if (chan->type != IIO_VOLTAGE)
 			return -EINVAL;
 
-		/* Channel not connected. */
+		/* Channel yest connected. */
 		if (!consumer)
 			return -EINVAL;
 
@@ -224,7 +224,7 @@ static int rcar_gyroadc_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		/* Channel not connected. */
+		/* Channel yest connected. */
 		if (!consumer)
 			return -EINVAL;
 
@@ -322,8 +322,8 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 	const struct iio_chan_spec *channels;
 	struct rcar_gyroadc *priv = iio_priv(indio_dev);
 	struct device *dev = priv->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *child;
 	struct regulator *vref;
 	unsigned int reg;
 	unsigned int adcmode = -1, childmode;
@@ -331,10 +331,10 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 	unsigned int num_channels;
 	int ret, first = 1;
 
-	for_each_child_of_node(np, child) {
-		of_id = of_match_node(rcar_gyroadc_child_match, child);
+	for_each_child_of_yesde(np, child) {
+		of_id = of_match_yesde(rcar_gyroadc_child_match, child);
 		if (!of_id) {
-			dev_err(dev, "Ignoring unsupported ADC \"%pOFn\".",
+			dev_err(dev, "Igyesring unsupported ADC \"%pOFn\".",
 				child);
 			continue;
 		}
@@ -363,7 +363,7 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 		/*
 		 * MB88101 is special in that it's only a single chip taking
 		 * up all the CHS lines. Thus, the DT binding is also special
-		 * and has no reg property. If we run into such ADC, handle
+		 * and has yes reg property. If we run into such ADC, handle
 		 * it here.
 		 */
 		if (childmode == RCAR_GYROADC_MODE_SELECT_1_MB88101A) {
@@ -386,7 +386,7 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 			}
 		}
 
-		/* Child node selected different mode than the rest. */
+		/* Child yesde selected different mode than the rest. */
 		if (!first && (adcmode != childmode)) {
 			dev_err(dev,
 				"Channel %i uses different ADC mode than the rest.\n",
@@ -395,11 +395,11 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 		}
 
 		/* Channel is valid, grab the regulator. */
-		dev->of_node = child;
+		dev->of_yesde = child;
 		vref = devm_regulator_get(dev, "vref");
-		dev->of_node = np;
+		dev->of_yesde = np;
 		if (IS_ERR(vref)) {
-			dev_dbg(dev, "Channel %i 'vref' supply not connected.\n",
+			dev_dbg(dev, "Channel %i 'vref' supply yest connected.\n",
 				reg);
 			return PTR_ERR(vref);
 		}
@@ -409,7 +409,7 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 		if (!first)
 			continue;
 
-		/* First child node which passed sanity tests. */
+		/* First child yesde which passed sanity tests. */
 		adcmode = childmode;
 		first = 0;
 
@@ -517,13 +517,13 @@ static int rcar_gyroadc_probe(struct platform_device *pdev)
 
 	indio_dev->name = DRIVER_NAME;
 	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
+	indio_dev->dev.of_yesde = pdev->dev.of_yesde;
 	indio_dev->info = &rcar_gyroadc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = clk_prepare_enable(priv->clk);
 	if (ret) {
-		dev_err(dev, "Could not prepare or enable the IF clock.\n");
+		dev_err(dev, "Could yest prepare or enable the IF clock.\n");
 		goto err_clk_if_enable;
 	}
 

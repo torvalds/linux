@@ -13,7 +13,7 @@
  * 981229 MSch:	did just that for the 68k Mac port (32 bit, big endian)
  *
  * 990611 David Huggins-Daines <dhd@debian.org>: This machine abstraction
- * does not cope with 16-bit bus sizes very well.  Therefore I have
+ * does yest cope with 16-bit bus sizes very well.  Therefore I have
  * rewritten it with ugly macros and evil inlines.
  *
  * 050625 Finn Thain: introduced more 32-bit cards and dhd's support
@@ -290,7 +290,7 @@ struct sonic_local {
 	/* Bus size.  0 == 16 bits, 1 == 32 bits. */
 	int dma_bitmode;
 	/* Register offset within the longword (independent of endianness,
-	   and varies from one type of Macintosh SONIC to another
+	   and varies from one type of Macintosh SONIC to ayesther
 	   (Aarrgh)) */
 	int reg_offset;
 	void *descriptors;

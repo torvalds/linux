@@ -21,7 +21,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -44,7 +44,7 @@ struct hwbutton_interrupt {
 	char *name;			/* Name of button */
 	int irq;			/* Actual LINUX IRQ */
 	int eirq;			/* Extended IRQ number (0-7) */
-	int initial_state;		/* The "normal" state of the switch */
+	int initial_state;		/* The "yesrmal" state of the switch */
 	void (*handle_hi)(void *);	/* Handler: switch input has gone HI */
 	void (*handle_lo)(void *);	/* Handler: switch input has gone LO */
 	void *data;			/* Optional data to pass to handler */
@@ -71,12 +71,12 @@ static void softreset_release(void *data)
 {
 	printk(KERN_WARNING "SOFTRESET switch was released\n");
 
-	/* Do nothing */
+	/* Do yesthing */
 }
 
 static void standby_on(void *data)
 {
-	printk(KERN_WARNING "STANDBY switch was set to ON (not implemented)\n");
+	printk(KERN_WARNING "STANDBY switch was set to ON (yest implemented)\n");
 
 	/* TODO: Put board in standby mode */
 }
@@ -84,7 +84,7 @@ static void standby_on(void *data)
 static void standby_off(void *data)
 {
 	printk(KERN_WARNING
-		"STANDBY switch was set to OFF (not implemented)\n");
+		"STANDBY switch was set to OFF (yest implemented)\n");
 
 	/* TODO: Take out of standby mode */
 }
@@ -116,11 +116,11 @@ static irqreturn_t hwbutton_handler(int irq, void *data)
 	unsigned long cic_ext = *CIC_EXT_CFG_REG;
 
 	if (CIC_EXT_IS_ACTIVE_HI(cic_ext, hirq->eirq)) {
-		/* Interrupt: pin is now HI */
+		/* Interrupt: pin is yesw HI */
 		CIC_EXT_SET_ACTIVE_LO(cic_ext, hirq->eirq);
 		hirq->handle_hi(hirq->data);
 	} else {
-		/* Interrupt: pin is now LO */
+		/* Interrupt: pin is yesw LO */
 		CIC_EXT_SET_ACTIVE_HI(cic_ext, hirq->eirq);
 		hirq->handle_lo(hirq->data);
 	}

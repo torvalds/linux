@@ -54,7 +54,7 @@ __setup("emac_addr=", get_mac_addr_from_cmdline);
  *
  * Before calling this function, the ethernet driver will have
  * initialized the addr with local-mac-address from the device
- * tree (if found). Allow command line to override, but not
+ * tree (if found). Allow command line to override, but yest
  * the fused address.
  */
 int soc_mac_addr(unsigned int index, u8 *addr)

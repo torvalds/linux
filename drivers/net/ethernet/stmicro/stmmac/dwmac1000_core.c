@@ -310,7 +310,7 @@ static int dwmac1000_irq_status(struct mac_device_info *hw,
 	/* Discard masked bits */
 	intr_status &= ~intr_mask;
 
-	/* Not used events (e.g. MMC interrupts) are not handled. */
+	/* Not used events (e.g. MMC interrupts) are yest handled. */
 	if ((intr_status & GMAC_INT_STATUS_MMCTIS))
 		x->mmc_tx_irq_n++;
 	if (unlikely(intr_status & GMAC_INT_STATUS_MMCRIS))
@@ -427,7 +427,7 @@ static void dwmac1000_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x,
 	if (value & GMAC_DEBUG_TXSTSFSTS)
 		x->mtl_tx_status_fifo_full++;
 	if (value & GMAC_DEBUG_TXFSTS)
-		x->mtl_tx_fifo_not_empty++;
+		x->mtl_tx_fifo_yest_empty++;
 	if (value & GMAC_DEBUG_TWCSTS)
 		x->mmtl_fifo_ctrl++;
 	if (value & GMAC_DEBUG_TRCSTS_MASK) {

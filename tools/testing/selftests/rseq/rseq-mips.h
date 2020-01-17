@@ -4,7 +4,7 @@
  * (C) Copyright 2018 MIPS Tech LLC
  *
  * Based on rseq-arm.h:
- * (C) Copyright 2016-2018 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * (C) Copyright 2016-2018 - Mathieu Desyesyers <mathieu.desyesyers@efficios.com>
  */
 
 /*
@@ -13,17 +13,17 @@
  * On MIPS:
  *	0350000d        break     0x350
  *
- * On nanoMIPS:
+ * On nayesMIPS:
  *      00100350        break     0x350
  *
  * On microMIPS:
  *      0000d407        break     0x350
  *
- * For nanoMIPS32 and microMIPS, the instruction stream is encoded as 16-bit
+ * For nayesMIPS32 and microMIPS, the instruction stream is encoded as 16-bit
  * halfwords, so the signature halfwords need to be swapped accordingly for
  * little-endian.
  */
-#if defined(__nanomips__)
+#if defined(__nayesmips__)
 # ifdef __MIPSEL__
 #  define RSEQ_SIG	0x03500010
 # else
@@ -38,7 +38,7 @@
 #elif defined(__mips__)
 # define RSEQ_SIG	0x0350000d
 #else
-/* Unknown MIPS architecture. */
+/* Unkyeswn MIPS architecture. */
 #endif
 
 #define rseq_smp_mb()	__asm__ __volatile__ ("sync" ::: "memory")
@@ -107,9 +107,9 @@ do {									\
 /*
  * Exit points of a rseq critical section consist of all instructions outside
  * of the critical section where a critical section can either branch to or
- * reach through the normal course of its execution. The abort IP and the
- * post-commit IP are already part of the __rseq_cs section and should not be
- * explicitly defined as additional exit points. Knowing all exit points is
+ * reach through the yesrmal course of its execution. The abort IP and the
+ * post-commit IP are already part of the __rseq_cs section and should yest be
+ * explicitly defined as additional exit points. Kyeswing all exit points is
  * useful to assist debuggers stepping over the critical section.
  */
 #define RSEQ_ASM_DEFINE_EXIT_POINT(start_ip, exit_ip) \
@@ -188,7 +188,7 @@ int rseq_cmpeqv_storev(intptr_t *v, intptr_t expect, intptr_t newv, int cpu)
 		"b 5f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4, "", abort, 1b, 2b, 4f)
 		"5:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -221,7 +221,7 @@ error2:
 }
 
 static inline __attribute__((always_inline))
-int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
+int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectyest,
 			       off_t voffp, intptr_t *load, int cpu)
 {
 	RSEQ_INJECT_C(9)
@@ -239,12 +239,12 @@ int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 4f)
 		RSEQ_INJECT_ASM(3)
 		LONG_L " $4, %[v]\n\t"
-		"beq $4, %[expectnot], %l[cmpfail]\n\t"
+		"beq $4, %[expectyest], %l[cmpfail]\n\t"
 		RSEQ_INJECT_ASM(4)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, %l[error1])
 		LONG_L " $4, %[v]\n\t"
-		"beq $4, %[expectnot], %l[error2]\n\t"
+		"beq $4, %[expectyest], %l[error2]\n\t"
 #endif
 		LONG_S " $4, %[load]\n\t"
 		LONG_ADDI " $4, %[voffp]\n\t"
@@ -256,13 +256,13 @@ int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
 		"b 5f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4, "", abort, 1b, 2b, 4f)
 		"5:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
 		  /* final store input */
 		  [v]			"m" (*v),
-		  [expectnot]		"r" (expectnot),
+		  [expectyest]		"r" (expectyest),
 		  [voffp]		"Ir" (voffp),
 		  [load]		"m" (*load)
 		  RSEQ_INJECT_INPUT
@@ -317,7 +317,7 @@ int rseq_addv(intptr_t *v, intptr_t count, int cpu)
 		"b 5f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4, "", abort, 1b, 2b, 4f)
 		"5:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -380,7 +380,7 @@ int rseq_cmpeqv_trystorev_storev(intptr_t *v, intptr_t expect,
 		"b 5f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4, "", abort, 1b, 2b, 4f)
 		"5:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -454,7 +454,7 @@ int rseq_cmpeqv_trystorev_storev_release(intptr_t *v, intptr_t expect,
 		"b 5f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4, "", abort, 1b, 2b, 4f)
 		"5:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -530,7 +530,7 @@ int rseq_cmpeqv_cmpeqv_storev(intptr_t *v, intptr_t expect,
 		"b 5f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4, "", abort, 1b, 2b, 4f)
 		"5:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -647,7 +647,7 @@ int rseq_cmpeqv_trymemcpy_storev(intptr_t *v, intptr_t expect,
 					error2)
 #endif
 		"8:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -769,7 +769,7 @@ int rseq_cmpeqv_trymemcpy_storev_release(intptr_t *v, intptr_t expect,
 					error2)
 #endif
 		"8:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),

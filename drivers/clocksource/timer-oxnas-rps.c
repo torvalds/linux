@@ -175,7 +175,7 @@ static int __init oxnas_rps_clockevent_init(struct oxnas_rps_timer *rps)
 
 static void __iomem *timer_sched_base;
 
-static u64 notrace oxnas_rps_read_sched_clock(void)
+static u64 yestrace oxnas_rps_read_sched_clock(void)
 {
 	return ~readl_relaxed(timer_sched_base);
 }
@@ -209,7 +209,7 @@ static int __init oxnas_rps_clocksource_init(struct oxnas_rps_timer *rps)
 	return 0;
 }
 
-static int __init oxnas_rps_timer_init(struct device_node *np)
+static int __init oxnas_rps_timer_init(struct device_yesde *np)
 {
 	struct oxnas_rps_timer *rps;
 	void __iomem *base;

@@ -1,19 +1,19 @@
-An i2c gate is useful to e.g. reduce the digital noise for RF tuners connected
+An i2c gate is useful to e.g. reduce the digital yesise for RF tuners connected
 to the i2c bus. Gates are similar to arbitrators in that you need to perform
 some kind of operation to access the i2c bus past the arbitrator/gate, but
-there are no competing masters to consider for gates and therefore there is
-no arbitration happening for gates.
+there are yes competing masters to consider for gates and therefore there is
+yes arbitration happening for gates.
 
 Common i2c gate properties.
 
-- i2c-gate child node
+- i2c-gate child yesde
 
-Required properties for the i2c-gate child node:
+Required properties for the i2c-gate child yesde:
 - #address-cells = <1>;
 - #size-cells = <0>;
 
-Optional properties for i2c-gate child node:
-- Child nodes conforming to i2c bus binding
+Optional properties for i2c-gate child yesde:
+- Child yesdes conforming to i2c bus binding
 
 
 Example :

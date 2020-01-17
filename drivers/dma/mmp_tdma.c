@@ -235,7 +235,7 @@ static int mmp_tdma_config_chan(struct dma_chan *chan)
 			tdcr |= TDCR_BURSTSZ_128B;
 			break;
 		default:
-			dev_err(tdmac->dev, "mmp_tdma: unknown burst size.\n");
+			dev_err(tdmac->dev, "mmp_tdma: unkyeswn burst size.\n");
 			return -EINVAL;
 		}
 
@@ -250,7 +250,7 @@ static int mmp_tdma_config_chan(struct dma_chan *chan)
 			tdcr |= TDCR_SSZ_32_BITS;
 			break;
 		default:
-			dev_err(tdmac->dev, "mmp_tdma: unknown bus size.\n");
+			dev_err(tdmac->dev, "mmp_tdma: unkyeswn bus size.\n");
 			return -EINVAL;
 		}
 	} else if (tdmac->type == PXA910_SQU) {
@@ -276,7 +276,7 @@ static int mmp_tdma_config_chan(struct dma_chan *chan)
 			tdcr |= TDCR_BURSTSZ_SQU_32B;
 			break;
 		default:
-			dev_err(tdmac->dev, "mmp_tdma: unknown burst size.\n");
+			dev_err(tdmac->dev, "mmp_tdma: unkyeswn burst size.\n");
 			return -EINVAL;
 		}
 	}
@@ -544,8 +544,8 @@ static void mmp_tdma_issue_pending(struct dma_chan *chan)
 
 static int mmp_tdma_remove(struct platform_device *pdev)
 {
-	if (pdev->dev.of_node)
-		of_dma_controller_free(pdev->dev.of_node);
+	if (pdev->dev.of_yesde)
+		of_dma_controller_free(pdev->dev.of_yesde);
 
 	return 0;
 }
@@ -579,7 +579,7 @@ static int mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
 	tasklet_init(&tdmac->tasklet, dma_do_tasklet, (unsigned long)tdmac);
 
 	/* add the channel to tdma_chan list */
-	list_add_tail(&tdmac->chan.device_node,
+	list_add_tail(&tdmac->chan.device_yesde,
 			&tdev->device.channels);
 	return 0;
 }
@@ -614,7 +614,7 @@ static struct dma_chan *mmp_tdma_xlate(struct of_phandle_args *dma_spec,
 		return NULL;
 
 	return __dma_request_channel(&mask, mmp_tdma_filter_fn, &param,
-				     ofdma->of_node);
+				     ofdma->of_yesde);
 }
 
 static const struct of_device_id mmp_tdma_dt_ids[] = {
@@ -660,12 +660,12 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&tdev->device.channels);
 
-	if (pdev->dev.of_node)
-		pool = of_gen_pool_get(pdev->dev.of_node, "asram", 0);
+	if (pdev->dev.of_yesde)
+		pool = of_gen_pool_get(pdev->dev.of_yesde, "asram", 0);
 	else
 		pool = sram_get_gpool("asram");
 	if (!pool) {
-		dev_err(&pdev->dev, "asram pool not available\n");
+		dev_err(&pdev->dev, "asram pool yest available\n");
 		return -ENOMEM;
 	}
 
@@ -710,8 +710,8 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (pdev->dev.of_node) {
-		ret = of_dma_controller_register(pdev->dev.of_node,
+	if (pdev->dev.of_yesde) {
+		ret = of_dma_controller_register(pdev->dev.of_yesde,
 							mmp_tdma_xlate, tdev);
 		if (ret) {
 			dev_err(tdev->device.dev,

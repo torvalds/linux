@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -227,7 +227,7 @@ setPLL_double_highregs(struct nvkm_devinit *init, u32 reg1,
 			pll2 |= 0x011f;
 	}
 	if (chip_version > 0x70)
-		/* magic bits set by the blob (but not the bios) on g71-73 */
+		/* magic bits set by the blob (but yest the bios) on g71-73 */
 		pll1 = (pll1 & 0x7fffffff) | (single_stage ? 0x4 : 0xc) << 28;
 
 	if (oldpll1 == pll1 && oldpll2 == pll2)
@@ -281,7 +281,7 @@ setPLL_double_lowregs(struct nvkm_devinit *init, u32 NMNMreg,
 	 * synthesis of six nv4x traces, nearly each card doing a subtly
 	 * different thing. With luck all the necessary bits for each card are
 	 * combined herein. Without luck it deviates from each card's formula
-	 * so as to not work on any :)
+	 * so as to yest work on any :)
 	 */
 	struct nvkm_device *device = init->subdev.device;
 	uint32_t Preg = NMNMreg - 4;
@@ -418,7 +418,7 @@ nv04_devinit_preinit(struct nvkm_devinit *base)
 		htotal |= (nvkm_rdvgac(device, 0, 0x25) & 0x01) << 10;
 		htotal |= (nvkm_rdvgac(device, 0, 0x41) & 0x01) << 11;
 		if (!htotal) {
-			nvkm_debug(subdev, "adaptor not initialised\n");
+			nvkm_debug(subdev, "adaptor yest initialised\n");
 			init->base.post = true;
 		}
 	}

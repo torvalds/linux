@@ -18,7 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/io.h>
 
@@ -37,7 +37,7 @@
  *                 abortion
  *   0x2 idle:     Module is in Idle mode (only OCP part). It is functional if
  *                 using separate functional clock
- *   0x3 disabled: Module is disabled and cannot be accessed
+ *   0x3 disabled: Module is disabled and canyest be accessed
  *
  */
 #define CLKCTRL_IDLEST_FUNCTIONAL		0x0
@@ -216,14 +216,14 @@ static void am33xx_cm_clkdm_force_wakeup(u16 inst, u16 cdoffs)
 
 /**
  * am33xx_cm_wait_module_ready - wait for a module to be in 'func' state
- * @part: PRCM partition, ignored for AM33xx
+ * @part: PRCM partition, igyesred for AM33xx
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
- * @bit_shift: bit shift for the register, ignored for AM33xx
+ * @bit_shift: bit shift for the register, igyesred for AM33xx
  *
  * Wait for the module IDLEST to be functional. If the idle state is in any
- * the non functional state (trans, idle or disabled), module and thus the
- * sysconfig cannot be accessed and will probably lead to an "imprecise
+ * the yesn functional state (trans, idle or disabled), module and thus the
+ * sysconfig canyest be accessed and will probably lead to an "imprecise
  * external abort"
  */
 static int am33xx_cm_wait_module_ready(u8 part, s16 inst, u16 clkctrl_offs,
@@ -240,10 +240,10 @@ static int am33xx_cm_wait_module_ready(u8 part, s16 inst, u16 clkctrl_offs,
 /**
  * am33xx_cm_wait_module_idle - wait for a module to be in 'disabled'
  * state
- * @part: CM partition, ignored for AM33xx
+ * @part: CM partition, igyesred for AM33xx
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
- * @bit_shift: bit shift for the register, ignored for AM33xx
+ * @bit_shift: bit shift for the register, igyesred for AM33xx
  *
  * Wait for the module IDLEST to be disabled. Some PRCM transition,
  * like reset assertion or parent clock de-activation must wait the
@@ -264,7 +264,7 @@ static int am33xx_cm_wait_module_idle(u8 part, s16 inst, u16 clkctrl_offs,
 /**
  * am33xx_cm_module_enable - Enable the modulemode inside CLKCTRL
  * @mode: Module mode (SW or HW)
- * @part: CM partition, ignored for AM33xx
+ * @part: CM partition, igyesred for AM33xx
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
@@ -283,7 +283,7 @@ static void am33xx_cm_module_enable(u8 mode, u8 part, u16 inst,
 
 /**
  * am33xx_cm_module_disable - Disable the module inside CLKCTRL
- * @part: CM partition, ignored for AM33xx
+ * @part: CM partition, igyesred for AM33xx
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *

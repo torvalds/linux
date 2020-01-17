@@ -21,12 +21,12 @@ struct dpaa2_io {
 	struct dpaa2_io_desc dpio_desc;
 	struct qbman_swp_desc swp_desc;
 	struct qbman_swp *swp;
-	struct list_head node;
+	struct list_head yesde;
 	/* protect against multiple management commands */
 	spinlock_t lock_mgmt_cmd;
-	/* protect notifications list */
-	spinlock_t lock_notifications;
-	struct list_head notifications;
+	/* protect yestifications list */
+	spinlock_t lock_yestifications;
+	struct list_head yestifications;
 	struct device *dev;
 };
 
@@ -55,7 +55,7 @@ static inline struct dpaa2_io *service_select_by_cpu(struct dpaa2_io *d,
 		return NULL;
 
 	/*
-	 * If cpu == -1, choose the current cpu, with no guarantees about
+	 * If cpu == -1, choose the current cpu, with yes guarantees about
 	 * potentially being migrated away.
 	 */
 	if (unlikely(cpu < 0))
@@ -71,9 +71,9 @@ static inline struct dpaa2_io *service_select(struct dpaa2_io *d)
 		return d;
 
 	spin_lock(&dpio_list_lock);
-	d = list_entry(dpio_list.next, struct dpaa2_io, node);
-	list_del(&d->node);
-	list_add_tail(&d->node, &dpio_list);
+	d = list_entry(dpio_list.next, struct dpaa2_io, yesde);
+	list_del(&d->yesde);
+	list_add_tail(&d->yesde, &dpio_list);
 	spin_unlock(&dpio_list_lock);
 
 	return d;
@@ -83,7 +83,7 @@ static inline struct dpaa2_io *service_select(struct dpaa2_io *d)
  * dpaa2_io_service_select() - return a dpaa2_io service affined to this cpu
  * @cpu: the cpu id
  *
- * Return the affine dpaa2_io service, or NULL if there is no service affined
+ * Return the affine dpaa2_io service, or NULL if there is yes service affined
  * to the specified cpu. If DPAA2_IO_ANY_CPU is used, return the next available
  * service.
  */
@@ -131,20 +131,20 @@ struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc,
 		return NULL;
 	}
 
-	INIT_LIST_HEAD(&obj->node);
+	INIT_LIST_HEAD(&obj->yesde);
 	spin_lock_init(&obj->lock_mgmt_cmd);
-	spin_lock_init(&obj->lock_notifications);
-	INIT_LIST_HEAD(&obj->notifications);
+	spin_lock_init(&obj->lock_yestifications);
+	INIT_LIST_HEAD(&obj->yestifications);
 
-	/* For now only enable DQRR interrupts */
+	/* For yesw only enable DQRR interrupts */
 	qbman_swp_interrupt_set_trigger(obj->swp,
 					QBMAN_SWP_INTERRUPT_DQRI);
 	qbman_swp_interrupt_clear_status(obj->swp, 0xffffffff);
-	if (obj->dpio_desc.receives_notifications)
+	if (obj->dpio_desc.receives_yestifications)
 		qbman_swp_push_set(obj->swp, 0, 1);
 
 	spin_lock(&dpio_list_lock);
-	list_add_tail(&obj->node, &dpio_list);
+	list_add_tail(&obj->yesde, &dpio_list);
 	if (desc->cpu >= 0 && !dpio_by_cpu[desc->cpu])
 		dpio_by_cpu[desc->cpu] = obj;
 	spin_unlock(&dpio_list_lock);
@@ -167,7 +167,7 @@ void dpaa2_io_down(struct dpaa2_io *d)
 {
 	spin_lock(&dpio_list_lock);
 	dpio_by_cpu[d->dpio_desc.cpu] = NULL;
-	list_del(&d->node);
+	list_del(&d->yesde);
 	spin_unlock(&dpio_list_lock);
 
 	kfree(d);
@@ -181,7 +181,7 @@ void dpaa2_io_down(struct dpaa2_io *d)
  * @obj: the given DPIO object.
  *
  * Return IRQ_HANDLED for success or IRQ_NONE if there
- * were no pending interrupts.
+ * were yes pending interrupts.
  */
 irqreturn_t dpaa2_io_irq(struct dpaa2_io *obj)
 {
@@ -198,14 +198,14 @@ irqreturn_t dpaa2_io_irq(struct dpaa2_io *obj)
 	dq = qbman_swp_dqrr_next(swp);
 	while (dq) {
 		if (qbman_result_is_SCN(dq)) {
-			struct dpaa2_io_notification_ctx *ctx;
+			struct dpaa2_io_yestification_ctx *ctx;
 			u64 q64;
 
 			q64 = qbman_result_SCN_ctx(dq);
 			ctx = (void *)(uintptr_t)q64;
 			ctx->cb(ctx);
 		} else {
-			pr_crit("fsl-mc-dpio: Unrecognised/ignored DQRR entry\n");
+			pr_crit("fsl-mc-dpio: Unrecognised/igyesred DQRR entry\n");
 		}
 		qbman_swp_dqrr_consume(swp, dq);
 		++max;
@@ -234,25 +234,25 @@ EXPORT_SYMBOL(dpaa2_io_get_cpu);
 
 /**
  * dpaa2_io_service_register() - Prepare for servicing of FQDAN or CDAN
- *                               notifications on the given DPIO service.
+ *                               yestifications on the given DPIO service.
  * @d:   the given DPIO service.
- * @ctx: the notification context.
+ * @ctx: the yestification context.
  * @dev: the device that requests the register
  *
  * The caller should make the MC command to attach a DPAA2 object to
  * a DPIO after this function completes successfully.  In that way:
- *    (a) The DPIO service is "ready" to handle a notification arrival
+ *    (a) The DPIO service is "ready" to handle a yestification arrival
  *        (which might happen before the "attach" command to MC has
  *        returned control of execution back to the caller)
  *    (b) The DPIO service can provide back to the caller the 'dpio_id' and
  *        'qman64' parameters that it should pass along in the MC command
  *        in order for the object to be configured to produce the right
- *        notification fields to the DPIO service.
+ *        yestification fields to the DPIO service.
  *
  * Return 0 for success, or -ENODEV for failure.
  */
 int dpaa2_io_service_register(struct dpaa2_io *d,
-			      struct dpaa2_io_notification_ctx *ctx,
+			      struct dpaa2_io_yestification_ctx *ctx,
 			      struct device *dev)
 {
 	struct device_link *link;
@@ -269,11 +269,11 @@ int dpaa2_io_service_register(struct dpaa2_io *d,
 	ctx->dpio_id = d->dpio_desc.dpio_id;
 	ctx->qman64 = (u64)(uintptr_t)ctx;
 	ctx->dpio_private = d;
-	spin_lock_irqsave(&d->lock_notifications, irqflags);
-	list_add(&ctx->node, &d->notifications);
-	spin_unlock_irqrestore(&d->lock_notifications, irqflags);
+	spin_lock_irqsave(&d->lock_yestifications, irqflags);
+	list_add(&ctx->yesde, &d->yestifications);
+	spin_unlock_irqrestore(&d->lock_yestifications, irqflags);
 
-	/* Enable the generation of CDAN notifications */
+	/* Enable the generation of CDAN yestifications */
 	if (ctx->is_cdan)
 		return qbman_swp_CDAN_set_context_enable(d->swp,
 							 (u16)ctx->id,
@@ -285,14 +285,14 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_register);
 /**
  * dpaa2_io_service_deregister - The opposite of 'register'.
  * @service: the given DPIO service.
- * @ctx: the notification context.
+ * @ctx: the yestification context.
  * @dev: the device that requests to be deregistered
  *
  * This function should be called only after sending the MC command to
- * to detach the notification-producing device from the DPIO.
+ * to detach the yestification-producing device from the DPIO.
  */
 void dpaa2_io_service_deregister(struct dpaa2_io *service,
-				 struct dpaa2_io_notification_ctx *ctx,
+				 struct dpaa2_io_yestification_ctx *ctx,
 				 struct device *dev)
 {
 	struct dpaa2_io *d = ctx->dpio_private;
@@ -301,28 +301,28 @@ void dpaa2_io_service_deregister(struct dpaa2_io *service,
 	if (ctx->is_cdan)
 		qbman_swp_CDAN_disable(d->swp, (u16)ctx->id);
 
-	spin_lock_irqsave(&d->lock_notifications, irqflags);
-	list_del(&ctx->node);
-	spin_unlock_irqrestore(&d->lock_notifications, irqflags);
+	spin_lock_irqsave(&d->lock_yestifications, irqflags);
+	list_del(&ctx->yesde);
+	spin_unlock_irqrestore(&d->lock_yestifications, irqflags);
 
 }
 EXPORT_SYMBOL_GPL(dpaa2_io_service_deregister);
 
 /**
- * dpaa2_io_service_rearm() - Rearm the notification for the given DPIO service.
+ * dpaa2_io_service_rearm() - Rearm the yestification for the given DPIO service.
  * @d: the given DPIO service.
- * @ctx: the notification context.
+ * @ctx: the yestification context.
  *
  * Once a FQDAN/CDAN has been produced, the corresponding FQ/channel is
  * considered "disarmed". Ie. the user can issue pull dequeue operations on that
  * traffic source for as long as it likes. Eventually it may wish to "rearm"
- * that source to allow it to produce another FQDAN/CDAN, that's what this
+ * that source to allow it to produce ayesther FQDAN/CDAN, that's what this
  * function achieves.
  *
  * Return 0 for success.
  */
 int dpaa2_io_service_rearm(struct dpaa2_io *d,
-			   struct dpaa2_io_notification_ctx *ctx)
+			   struct dpaa2_io_yestification_ctx *ctx)
 {
 	unsigned long irqflags;
 	int err;
@@ -411,8 +411,8 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_pull_channel);
  * @fqid: the given frame queue id.
  * @fd: the frame descriptor which is enqueued.
  *
- * Return 0 for successful enqueue, -EBUSY if the enqueue ring is not ready,
- * or -ENODEV if there is no dpio service.
+ * Return 0 for successful enqueue, -EBUSY if the enqueue ring is yest ready,
+ * or -ENODEV if there is yes dpio service.
  */
 int dpaa2_io_service_enqueue_fq(struct dpaa2_io *d,
 				u32 fqid,
@@ -425,7 +425,7 @@ int dpaa2_io_service_enqueue_fq(struct dpaa2_io *d,
 		return -ENODEV;
 
 	qbman_eq_desc_clear(&ed);
-	qbman_eq_desc_set_no_orp(&ed, 0);
+	qbman_eq_desc_set_yes_orp(&ed, 0);
 	qbman_eq_desc_set_fq(&ed, fqid);
 
 	return qbman_swp_enqueue(d->swp, &ed, fd);
@@ -440,8 +440,8 @@ EXPORT_SYMBOL(dpaa2_io_service_enqueue_fq);
  * @qdbin: the given queuing destination bin.
  * @fd: the frame descriptor which is enqueued.
  *
- * Return 0 for successful enqueue, or -EBUSY if the enqueue ring is not ready,
- * or -ENODEV if there is no dpio service.
+ * Return 0 for successful enqueue, or -EBUSY if the enqueue ring is yest ready,
+ * or -ENODEV if there is yes dpio service.
  */
 int dpaa2_io_service_enqueue_qd(struct dpaa2_io *d,
 				u32 qdid, u8 prio, u16 qdbin,
@@ -454,7 +454,7 @@ int dpaa2_io_service_enqueue_qd(struct dpaa2_io *d,
 		return -ENODEV;
 
 	qbman_eq_desc_clear(&ed);
-	qbman_eq_desc_set_no_orp(&ed, 0);
+	qbman_eq_desc_set_yes_orp(&ed, 0);
 	qbman_eq_desc_set_qd(&ed, qdid, qdbin, prio);
 
 	return qbman_swp_enqueue(d->swp, &ed, fd);
@@ -594,7 +594,7 @@ EXPORT_SYMBOL_GPL(dpaa2_io_store_destroy);
  *
  * When an object driver performs dequeues to a dpaa2_io_store, this function
  * can be used to determine when the next frame result is available. Once
- * this function returns non-NULL, a subsequent call to it will try to find
+ * this function returns yesn-NULL, a subsequent call to it will try to find
  * the next dequeue result.
  *
  * Note that if a pull-dequeue has a NULL result because the target FQ/channel
@@ -623,7 +623,7 @@ struct dpaa2_dq *dpaa2_io_store_next(struct dpaa2_io_store *s, int *is_last)
 		/*
 		 * If we get an empty dequeue result to terminate a zero-results
 		 * vdqcr, return NULL to the caller rather than expecting him to
-		 * check non-NULL results every time.
+		 * check yesn-NULL results every time.
 		 */
 		if (!(dpaa2_dq_flags(ret) & DPAA2_DQ_STAT_VALIDFRAME))
 			ret = NULL;
@@ -643,7 +643,7 @@ EXPORT_SYMBOL_GPL(dpaa2_io_store_next);
  * @fcnt: the queried frame count.
  * @bcnt: the queried byte count.
  *
- * Knowing the FQ count at run-time can be useful in debugging situations.
+ * Kyeswing the FQ count at run-time can be useful in debugging situations.
  * The instantaneous frame- and byte-count are hereby returned.
  *
  * Return 0 for a successful query, and negative error code if query fails.

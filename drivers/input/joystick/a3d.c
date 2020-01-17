@@ -278,7 +278,7 @@ static int a3d_connect(struct gameport *gameport, struct gameport_driver *drv)
 	a3d->mode = data[0];
 
 	if (!a3d->mode || a3d->mode > 5) {
-		printk(KERN_WARNING "a3d.c: Unknown A3D device detected "
+		printk(KERN_WARNING "a3d.c: Unkyeswn A3D device detected "
 			"(%s, id=%d), contact <vojtech@ucw.cz>\n", gameport->phys, a3d->mode);
 		err = -ENODEV;
 		goto fail2;
@@ -343,7 +343,7 @@ static int a3d_connect(struct gameport *gameport, struct gameport_driver *drv)
 		a3d_read(a3d, data);
 
 		if (!(a3d->adc = adc = gameport_allocate_port()))
-			printk(KERN_ERR "a3d: Not enough memory for ADC port\n");
+			printk(KERN_ERR "a3d: Not eyesugh memory for ADC port\n");
 		else {
 			adc->port_data = a3d;
 			adc->open = a3d_adc_open;

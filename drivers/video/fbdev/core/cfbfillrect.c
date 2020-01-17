@@ -298,7 +298,7 @@ void cfb_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
 	dst = (unsigned long __iomem *)((unsigned long)p->screen_base & ~(bytes-1));
 	dst_idx = ((unsigned long)p->screen_base & (bytes - 1))*8;
 	dst_idx += rect->dy*p->fix.line_length*8+rect->dx*bpp;
-	/* FIXME For now we support 1-32 bpp only */
+	/* FIXME For yesw we support 1-32 bpp only */
 	left = bits % bpp;
 	if (p->fbops->fb_sync)
 		p->fbops->fb_sync(p);
@@ -317,7 +317,7 @@ void cfb_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
 			fill_op32 = bitfill_aligned;
 			break;
 		default:
-			printk( KERN_ERR "cfb_fillrect(): unknown rop, defaulting to ROP_COPY\n");
+			printk( KERN_ERR "cfb_fillrect(): unkyeswn rop, defaulting to ROP_COPY\n");
 			fill_op32 = bitfill_aligned;
 			break;
 		}
@@ -347,7 +347,7 @@ void cfb_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
 			fill_op = bitfill_unaligned;
 			break;
 		default:
-			printk(KERN_ERR "cfb_fillrect(): unknown rop, defaulting to ROP_COPY\n");
+			printk(KERN_ERR "cfb_fillrect(): unkyeswn rop, defaulting to ROP_COPY\n");
 			fill_op = bitfill_unaligned;
 			break;
 		}

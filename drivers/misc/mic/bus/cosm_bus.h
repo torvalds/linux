@@ -31,7 +31,7 @@
  * @bootmode: Boot mode i.e. "linux" or "elf" for flash updates.
  * @log_buf_addr: Log buffer address for MIC.
  * @log_buf_len: Log buffer length address for MIC.
- * @state_sysfs: Sysfs dirent for notifying ring 3 about MIC state changes.
+ * @state_sysfs: Sysfs dirent for yestifying ring 3 about MIC state changes.
  * @hw_ops: the hardware bus ops for this device.
  * @dev: underlying device.
  * @index: unique position on the cosm bus
@@ -39,7 +39,7 @@
  * @newepd: new endpoint from scif accept to be assigned to this cdev
  * @epd: SCIF endpoint for this cdev
  * @heartbeat_watchdog_enable: if heartbeat watchdog is enabled for this cdev
- * @sysfs_heartbeat_enable: sysfs setting for disabling heartbeat notification
+ * @sysfs_heartbeat_enable: sysfs setting for disabling heartbeat yestification
  */
 struct cosm_device {
 	const struct attribute_group **attr_group;
@@ -57,7 +57,7 @@ struct cosm_device {
 	char *bootmode;
 	void *log_buf_addr;
 	int *log_buf_len;
-	struct kernfs_node *state_sysfs;
+	struct kernfs_yesde *state_sysfs;
 	struct cosm_hw_ops *hw_ops;
 	struct device dev;
 	int index;
@@ -72,7 +72,7 @@ struct cosm_device {
  * cosm_driver - operations for a cosm driver
  *
  * @driver: underlying device driver (populate name and owner).
- * @probe: the function to call when a device is found.  Returns 0 or -errno.
+ * @probe: the function to call when a device is found.  Returns 0 or -erryes.
  * @remove: the function to call when a device is removed.
  */
 struct cosm_driver {

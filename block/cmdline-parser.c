@@ -104,7 +104,7 @@ static int parse_parts(struct cmdline_parts **parts, const char *bdevdef)
 
 	next = strchr(bdevdef, ':');
 	if (!next) {
-		pr_warn("cmdline partition has no block device.");
+		pr_warn("cmdline partition has yes block device.");
 		goto fail;
 	}
 
@@ -134,7 +134,7 @@ static int parse_parts(struct cmdline_parts **parts, const char *bdevdef)
 	}
 
 	if (!newparts->subpart) {
-		pr_warn("cmdline partition has no valid partition.");
+		pr_warn("cmdline partition has yes valid partition.");
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -193,7 +193,7 @@ int cmdline_parts_parse(struct cmdline_parts **parts, const char *cmdline)
 	}
 
 	if (!*parts) {
-		pr_warn("cmdline partition has no valid partition.");
+		pr_warn("cmdline partition has yes valid partition.");
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -221,7 +221,7 @@ EXPORT_SYMBOL(cmdline_parts_find);
 /*
  *  add_part()
  *    0 success.
- *    1 can not add so many partitions.
+ *    1 can yest add so many partitions.
  */
 int cmdline_parts_set(struct cmdline_parts *parts, sector_t disk_size,
 		      int slot,

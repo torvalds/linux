@@ -97,15 +97,15 @@
 #define CS42L73_VSPBASPBA	0x52	/* VSP Rt. Mixer: ASP Right */
 #define CS42L73_VSPAVSPMA	0x53	/* VSP Left Mixer: VSP */
 #define CS42L73_VSPBVSPMA	0x54	/* VSP Rt. Mixer: VSP */
-#define CS42L73_MMIXCTL		0x55	/* Mono Mixer Controls. */
-#define CS42L73_SPKMIPMA	0x56	/* SPK Mono Mixer: In. Path */
-#define CS42L73_SPKMXSPA	0x57	/* SPK Mono Mixer: XSP Mono/L/R Att. */
-#define CS42L73_SPKMASPA	0x58	/* SPK Mono Mixer: ASP Mono/L/R Att. */
-#define CS42L73_SPKMVSPMA	0x59	/* SPK Mono Mixer: VSP Mono Atten. */
-#define CS42L73_ESLMIPMA	0x5A	/* Ear/SpLO Mono Mixer: */
-#define CS42L73_ESLMXSPA	0x5B	/* Ear/SpLO Mono Mixer: XSP */
-#define CS42L73_ESLMASPA	0x5C	/* Ear/SpLO Mono Mixer: ASP */
-#define CS42L73_ESLMVSPMA	0x5D	/* Ear/SpLO Mono Mixer: VSP */
+#define CS42L73_MMIXCTL		0x55	/* Moyes Mixer Controls. */
+#define CS42L73_SPKMIPMA	0x56	/* SPK Moyes Mixer: In. Path */
+#define CS42L73_SPKMXSPA	0x57	/* SPK Moyes Mixer: XSP Moyes/L/R Att. */
+#define CS42L73_SPKMASPA	0x58	/* SPK Moyes Mixer: ASP Moyes/L/R Att. */
+#define CS42L73_SPKMVSPMA	0x59	/* SPK Moyes Mixer: VSP Moyes Atten. */
+#define CS42L73_ESLMIPMA	0x5A	/* Ear/SpLO Moyes Mixer: */
+#define CS42L73_ESLMXSPA	0x5B	/* Ear/SpLO Moyes Mixer: XSP */
+#define CS42L73_ESLMASPA	0x5C	/* Ear/SpLO Moyes Mixer: ASP */
+#define CS42L73_ESLMVSPMA	0x5D	/* Ear/SpLO Moyes Mixer: VSP */
 #define CS42L73_IM1		0x5E	/* Interrupt Mask 1.  */
 #define CS42L73_IM2		0x5F	/* Interrupt Mask 2. */
 #define CS42L73_IS1		0x60	/* Interrupt Status 1 [RO]. */

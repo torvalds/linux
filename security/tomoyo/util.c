@@ -86,7 +86,7 @@ const u8 tomoyo_index2category[TOMOYO_MAX_MAC_INDEX] = {
  * @time:  Seconds since 1970/01/01 00:00:00.
  * @stamp: Pointer to "struct tomoyo_time".
  *
- * Returns nothing.
+ * Returns yesthing.
  */
 void tomoyo_convert_time(time64_t time64, struct tomoyo_time *stamp)
 {
@@ -128,7 +128,7 @@ bool tomoyo_permstr(const char *string, const char *keyword)
  * Returns a word on success, "" otherwise.
  *
  * To allow the caller to skip NULL check, this function returns "" rather than
- * NULL if there is no more words to read.
+ * NULL if there is yes more words to read.
  */
 char *tomoyo_read_token(struct tomoyo_acl_param *param)
 {
@@ -219,7 +219,7 @@ u8 tomoyo_parse_ulong(unsigned long *result, char **str)
  * @value:      An "unsigned long" value.
  * @type:       Type of @value.
  *
- * Returns nothing.
+ * Returns yesthing.
  */
 void tomoyo_print_ulong(char *buffer, const int buffer_len,
 			const unsigned long value, const u8 type)
@@ -392,16 +392,16 @@ bool tomoyo_str_starts(char **src, const char *find)
 }
 
 /**
- * tomoyo_normalize_line - Format string.
+ * tomoyo_yesrmalize_line - Format string.
  *
- * @buffer: The line to normalize.
+ * @buffer: The line to yesrmalize.
  *
  * Leading and trailing whitespaces are removed.
  * Multiple whitespaces are packed into single space.
  *
- * Returns nothing.
+ * Returns yesthing.
  */
-void tomoyo_normalize_line(unsigned char *buffer)
+void tomoyo_yesrmalize_line(unsigned char *buffer)
 {
 	unsigned char *sp = buffer;
 	unsigned char *dp = buffer;
@@ -424,7 +424,7 @@ void tomoyo_normalize_line(unsigned char *buffer)
 /**
  * tomoyo_correct_word2 - Validate a string.
  *
- * @string: The string to check. Maybe non-'\0'-terminated.
+ * @string: The string to check. Maybe yesn-'\0'-terminated.
  * @len:    Length of @string.
  *
  * Check whether the given string follows the naming rules.
@@ -853,7 +853,7 @@ static bool tomoyo_path_matches_pattern2(const char *f, const char *p)
 		if (*p)
 			p++;
 	}
-	/* Ignore trailing "\*" and "\@" in @pattern. */
+	/* Igyesre trailing "\*" and "\@" in @pattern. */
 	while (*p == '\\' &&
 	       (*(p + 1) == '*' || *(p + 1) == '@'))
 		p += 2;
@@ -863,7 +863,7 @@ static bool tomoyo_path_matches_pattern2(const char *f, const char *p)
 	 * The "\{" pattern is permitted only after '/' character.
 	 * This guarantees that below "*(p - 1)" is safe.
 	 * Also, the "\}" pattern is permitted only before '/' character
-	 * so that "\{" + "\}" pair will not break the "\-" operator.
+	 * so that "\{" + "\}" pair will yest break the "\-" operator.
 	 */
 	if (*(p - 1) != '/' || p_delimiter <= p + 3 || *p_delimiter != '/' ||
 	    *(p_delimiter - 1) != '}' || *(p_delimiter - 2) != '\\')
@@ -922,7 +922,7 @@ bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
 	/* If @pattern doesn't contain pattern, I can use strcmp(). */
 	if (!pattern->is_patterned)
 		return !tomoyo_pathcmp(filename, pattern);
-	/* Don't compare directory and non-directory. */
+	/* Don't compare directory and yesn-directory. */
 	if (filename->is_dir != pattern->is_dir)
 		return false;
 	/* Compare the initial length without patterns. */
@@ -1015,7 +1015,7 @@ int tomoyo_init_request_info(struct tomoyo_request_info *r,
  *
  * @r: Pointer to "struct tomoyo_request_info".
  *
- * Returns true if the domain is not exceeded quota, false otherwise.
+ * Returns true if the domain is yest exceeded quota, false otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */

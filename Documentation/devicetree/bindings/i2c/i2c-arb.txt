@@ -1,13 +1,13 @@
 Common i2c arbitration bus properties.
 
-- i2c-arb child node
+- i2c-arb child yesde
 
-Required properties for the i2c-arb child node:
+Required properties for the i2c-arb child yesde:
 - #address-cells = <1>;
 - #size-cells = <0>;
 
-Optional properties for i2c-arb child node:
-- Child nodes conforming to i2c bus binding
+Optional properties for i2c-arb child yesde:
+- Child yesdes conforming to i2c bus binding
 
 
 Example :

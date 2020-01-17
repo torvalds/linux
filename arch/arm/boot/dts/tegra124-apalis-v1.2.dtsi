@@ -1520,7 +1520,7 @@
 			};
 			/*
 			 * Leave SDMMC3_CLK_LB_OUT muxed as SDMMC3 with output
-			 * driver enabled aka not tristated and input driver
+			 * driver enabled aka yest tristated and input driver
 			 * enabled as well as it features some magic properties
 			 * even though the external loopback is disabled and the
 			 * internal loopback used as per
@@ -1710,7 +1710,7 @@
 					regulator-max-microvolt = <1800000>;
 				};
 
-				/* LDO5 not used */
+				/* LDO5 yest used */
 
 				vddio_sdmmc3: ldo6 {
 					regulator-name = "VDDIO_SDMMC3";
@@ -1718,7 +1718,7 @@
 					regulator-max-microvolt = <3300000>;
 				};
 
-				/* LDO7 not used */
+				/* LDO7 yest used */
 
 				ldo9 {
 					regulator-name = "+V3.3_ETH(ldo9)";
@@ -1919,7 +1919,7 @@
 	sdhci@700b0600 {
 		status = "okay";
 		bus-width = <8>;
-		non-removable;
+		yesn-removable;
 		vmmc-supply = <&reg_module_3v3>; /* VCC */
 		vqmmc-supply = <&reg_1v8_vddio>; /* VCCQ */
 		mmc-ddr-1_8v;

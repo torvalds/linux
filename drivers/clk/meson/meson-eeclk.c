@@ -24,8 +24,8 @@ int meson_eeclkc_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	/* Get the hhi system controller node */
-	map = syscon_node_to_regmap(of_get_parent(dev->of_node));
+	/* Get the hhi system controller yesde */
+	map = syscon_yesde_to_regmap(of_get_parent(dev->of_yesde));
 	if (IS_ERR(map)) {
 		dev_err(dev,
 			"failed to get HHI regmap\n");

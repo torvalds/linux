@@ -15,7 +15,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -32,7 +32,7 @@
 #include <linux/log2.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
@@ -97,7 +97,7 @@ static int drm_map_handle(struct drm_device *dev, struct drm_hash_item *hash,
 #elif (BITS_PER_LONG == 32)
 	use_hashed_handle = hashed_handle;
 #else
-#error Unsupported long size. Neither 64 nor 32 bits.
+#error Unsupported long size. Neither 64 yesr 32 bits.
 #endif
 
 	if (!use_hashed_handle) {
@@ -118,7 +118,7 @@ static int drm_map_handle(struct drm_device *dev, struct drm_hash_item *hash,
 		 * mmap().  Otherwise we run into cache aliasing problems
 		 * on some platforms.  On these platforms, the pgoff of
 		 * a mmap() request is used to pick a suitable virtual
-		 * address for the mmap() region such that it will not
+		 * address for the mmap() region such that it will yest
 		 * cause cache aliasing problems.
 		 *
 		 * Therefore, make sure the SHMLBA relevant bits of the
@@ -136,7 +136,7 @@ static int drm_map_handle(struct drm_device *dev, struct drm_hash_item *hash,
 
 /**
  * Core function to create a range of memory available for mapping by a
- * non-root process.
+ * yesn-root process.
  *
  * Adjusts the memory offset to its absolute value according to the mapping
  * type.  Adds the map to the map list drm_device::maplist. Adds MTRR's where
@@ -162,7 +162,7 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 	map->flags = flags;
 	map->type = type;
 
-	/* Only allow shared memory to be removable since we only keep enough
+	/* Only allow shared memory to be removable since we only keep eyesugh
 	 * book keeping information about shared memory to allow for removal
 	 * when processes fork.
 	 */
@@ -173,9 +173,9 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 	DRM_DEBUG("offset = 0x%08llx, size = 0x%08lx, type = %d\n",
 		  (unsigned long long)map->offset, map->size, map->type);
 
-	/* page-align _DRM_SHM maps. They are allocated here so there is no security
+	/* page-align _DRM_SHM maps. They are allocated here so there is yes security
 	 * hole created by that and it works around various broken drivers that use
-	 * a non-aligned quantity to map the SAREA. --BenH
+	 * a yesn-aligned quantity to map the SAREA. --BenH
 	 */
 	if (map->type == _DRM_SHM)
 		map->size = PAGE_ALIGN(map->size);
@@ -291,7 +291,7 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 		map->mtrr = dev->agp->agp_mtrr;	/* for getmap */
 
 		/* This assumes the DRM is in total control of AGP space.
-		 * It's not always the case as AGP can be in the control
+		 * It's yest always the case as AGP can be in the control
 		 * of user space (i.e. i810 driver). So this loop will get
 		 * skipped and we double check that dev->agp->memory is
 		 * actually set as well as being invalid before EPERM'ing
@@ -322,7 +322,7 @@ static int drm_addmap_core(struct drm_device *dev, resource_size_t offset,
 	case _DRM_CONSISTENT:
 		/* dma_addr_t is 64bit on i386 with CONFIG_HIGHMEM64G,
 		 * As we're limiting the address to 2^32-1 (or less),
-		 * casting it down to 32 bits is no problem, but we
+		 * casting it down to 32 bits is yes problem, but we
 		 * need to point to a 64bit variable first. */
 		dmah = drm_pci_alloc(dev, map->size, map->size);
 		if (!dmah) {
@@ -401,9 +401,9 @@ EXPORT_SYMBOL(drm_legacy_findmap);
 
 /**
  * Ioctl to specify a range of memory that is available for mapping by a
- * non-root process.
+ * yesn-root process.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a drm_map structure.
@@ -434,10 +434,10 @@ int drm_legacy_addmap_ioctl(struct drm_device *dev, void *data,
 	map->handle = (void *)(unsigned long)maplist->user_token;
 
 	/*
-	 * It appears that there are no users of this value whatsoever --
-	 * drmAddMap just discards it.  Let's not encourage its use.
+	 * It appears that there are yes users of this value whatsoever --
+	 * drmAddMap just discards it.  Let's yest encourage its use.
 	 * (Keeping drm_addmap_core's returned mtrr value would be wrong --
-	 *  it's not a real mtrr index anymore.)
+	 *  it's yest a real mtrr index anymore.)
 	 */
 	map->mtrr = -1;
 
@@ -447,7 +447,7 @@ int drm_legacy_addmap_ioctl(struct drm_device *dev, void *data,
 /*
  * Get a mapping information.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument, pointing to a drm_map structure.
@@ -505,7 +505,7 @@ int drm_legacy_getmap_ioctl(struct drm_device *dev, void *data,
  * isn't in use.
  *
  * Searches the map on drm_device::maplist, removes it from the list, see if
- * it's being used, and free any associated resource (such as MTRR's) if it's not
+ * it's being used, and free any associated resource (such as MTRR's) if it's yest
  * being on use.
  *
  * \sa drm_legacy_addmap
@@ -608,11 +608,11 @@ void drm_legacy_rmmaps(struct drm_device *dev)
  * exit uncleanly.  Therefore, having userland manually remove mappings seems
  * like a pointless exercise since they're going away anyway.
  *
- * One use case might be after addmap is allowed for normal users for SHM and
+ * One use case might be after addmap is allowed for yesrmal users for SHM and
  * gets used by drivers that the server doesn't need to care about.  This seems
  * unlikely.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a struct drm_map structure.
@@ -952,7 +952,7 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 		return -ENOMEM;
 	}
 
-	/* Keep the original pagelist until we know all the allocations
+	/* Keep the original pagelist until we kyesw all the allocations
 	 * have succeeded
 	 */
 	temp_pagelist = kmalloc_array(dma->page_count + (count << page_order),
@@ -1050,7 +1050,7 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 		dma->buflist[i + dma->buf_count] = &entry->buflist[i];
 	}
 
-	/* No allocations failed, so now we can replace the original pagelist
+	/* No allocations failed, so yesw we can replace the original pagelist
 	 * with the new one.
 	 */
 	if (dma->page_count) {
@@ -1235,7 +1235,7 @@ static int drm_legacy_addbufs_sg(struct drm_device *dev,
 /**
  * Add buffers for DMA transfers (ioctl).
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a struct drm_buf_desc request.
@@ -1280,7 +1280,7 @@ int drm_legacy_addbufs(struct drm_device *dev, void *data,
  * client library to determine how best to use the available buffers (e.g.,
  * large buffers can be used for image transfer).
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a drm_buf_info structure.
@@ -1367,7 +1367,7 @@ int drm_legacy_infobufs(struct drm_device *dev, void *data,
 /**
  * Specifies a low and high water mark for buffer allocation
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg a pointer to a drm_buf_desc structure.
@@ -1376,7 +1376,7 @@ int drm_legacy_infobufs(struct drm_device *dev, void *data,
  * Verifies that the size order is bounded between the admissible orders and
  * updates the respective drm_device_dma::bufs entry low and high water mark.
  *
- * \note This ioctl is deprecated and mostly never used.
+ * \yeste This ioctl is deprecated and mostly never used.
  */
 int drm_legacy_markbufs(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
@@ -1416,7 +1416,7 @@ int drm_legacy_markbufs(struct drm_device *dev, void *data,
 /**
  * Unreserve the buffers in list, previously reserved using drmDMA.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a drm_buf_free structure.
@@ -1452,10 +1452,10 @@ int drm_legacy_freebufs(struct drm_device *dev, void *data,
 				  idx, dma->buf_count - 1);
 			return -EINVAL;
 		}
-		idx = array_index_nospec(idx, dma->buf_count);
+		idx = array_index_yesspec(idx, dma->buf_count);
 		buf = dma->buflist[idx];
 		if (buf->file_priv != file_priv) {
-			DRM_ERROR("Process %d freeing buffer not owned\n",
+			DRM_ERROR("Process %d freeing buffer yest owned\n",
 				  task_pid_nr(current));
 			return -EINVAL;
 		}
@@ -1468,7 +1468,7 @@ int drm_legacy_freebufs(struct drm_device *dev, void *data,
 /**
  * Maps all of the DMA buffers into client-virtual space (ioctl).
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a drm_buf_map structure.

@@ -534,7 +534,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 	}
 
 	if (priv->rf_type == RF_1T2R) {
-		/* no matter what checkpatch says, the braces are needed */
+		/* yes matter what checkpatch says, the braces are needed */
 		RT_TRACE(COMP_INIT, "\n1T2R config\n");
 	} else if (priv->rf_type == RF_2T4R) {
 		RT_TRACE(COMP_INIT, "\n2T4R config\n");
@@ -820,7 +820,7 @@ start:
 	RT_TRACE(COMP_INIT, "priv->IC_Cut= 0x%x\n", priv->IC_Cut);
 	if (priv->IC_Cut >= IC_VersionCut_D) {
 		if (priv->IC_Cut == IC_VersionCut_D) {
-			/* no matter what checkpatch says, braces are needed */
+			/* yes matter what checkpatch says, braces are needed */
 			RT_TRACE(COMP_INIT, "D-cut\n");
 		} else if (priv->IC_Cut == IC_VersionCut_E) {
 			RT_TRACE(COMP_INIT, "E-cut\n");

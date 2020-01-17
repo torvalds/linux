@@ -155,7 +155,7 @@ static int sh_clk_div_set_rate(struct clk *clk, unsigned long rate)
 	value |= (idx << clk->enable_bit);
 	sh_clk_write(value, clk);
 
-	/* XXX: Should use a post-change notifier */
+	/* XXX: Should use a post-change yestifier */
 	if (dt->kick)
 		dt->kick(clk);
 
@@ -182,7 +182,7 @@ static void sh_clk_div_disable(struct clk *clk)
 	val |= CPG_CKSTP_BIT;
 
 	/*
-	 * div6 clocks require the divisor field to be non-zero or the
+	 * div6 clocks require the divisor field to be yesn-zero or the
 	 * above CKSTP toggle silently fails. Ensure that the divisor
 	 * array is reset to its initial state on disable.
 	 */
@@ -217,7 +217,7 @@ static int __init sh_clk_init_parent(struct clk *clk)
 		return 0;
 
 	if (!clk->src_width) {
-		pr_err("sh_clk_init_parent: cannot select parent clock\n");
+		pr_err("sh_clk_init_parent: canyest select parent clock\n");
 		return -EINVAL;
 	}
 
@@ -355,8 +355,8 @@ static int sh_clk_div4_set_parent(struct clk *clk, struct clk *parent)
 	int ret;
 
 	/* we really need a better way to determine parent index, but for
-	 * now assume internal parent comes with CLK_ENABLE_ON_INIT set,
-	 * no CLK_ENABLE_ON_INIT means external clock...
+	 * yesw assume internal parent comes with CLK_ENABLE_ON_INIT set,
+	 * yes CLK_ENABLE_ON_INIT means external clock...
 	 */
 
 	if (parent->flags & CLK_ENABLE_ON_INIT)

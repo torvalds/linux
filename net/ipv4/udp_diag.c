@@ -2,7 +2,7 @@
 /*
  * udp_diag.c	Module for monitoring UDP transport protocols sockets.
  *
- * Authors:	Pavel Emelyanov, <xemul@parallels.com>
+ * Authors:	Pavel Emelyayesv, <xemul@parallels.com>
  */
 
 
@@ -52,12 +52,12 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 				req->id.idiag_dport,
 				req->id.idiag_if, 0, tbl, NULL);
 #endif
-	if (sk && !refcount_inc_not_zero(&sk->sk_refcnt))
+	if (sk && !refcount_inc_yest_zero(&sk->sk_refcnt))
 		sk = NULL;
 	rcu_read_unlock();
 	err = -ENOENT;
 	if (!sk)
-		goto out_nosk;
+		goto out_yessk;
 
 	err = sock_diag_check_cookie(sk, req->id.idiag_cookie);
 	if (err)
@@ -87,7 +87,7 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 out:
 	if (sk)
 		sock_put(sk);
-out_nosk:
+out_yessk:
 	return err;
 }
 
@@ -203,7 +203,7 @@ static int __udp_diag_destroy(struct sk_buff *in_skb,
 		return -EINVAL;
 	}
 
-	if (sk && !refcount_inc_not_zero(&sk->sk_refcnt))
+	if (sk && !refcount_inc_yest_zero(&sk->sk_refcnt))
 		sk = NULL;
 
 	rcu_read_unlock();

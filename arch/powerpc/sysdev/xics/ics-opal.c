@@ -22,20 +22,20 @@
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/xics.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 
 static int ics_opal_mangle_server(int server)
 {
-	/* No link for now */
+	/* No link for yesw */
 	return server << 2;
 }
 
 static int ics_opal_unmangle_server(int server)
 {
-	/* No link for now */
+	/* No link for yesw */
 	return server >> 2;
 }
 
@@ -158,10 +158,10 @@ static struct irq_chip ics_opal_irq_chip = {
 };
 
 static int ics_opal_map(struct ics *ics, unsigned int virq);
-static void ics_opal_mask_unknown(struct ics *ics, unsigned long vec);
+static void ics_opal_mask_unkyeswn(struct ics *ics, unsigned long vec);
 static long ics_opal_get_server(struct ics *ics, unsigned long vec);
 
-static int ics_opal_host_match(struct ics *ics, struct device_node *node)
+static int ics_opal_host_match(struct ics *ics, struct device_yesde *yesde)
 {
 	return 1;
 }
@@ -169,7 +169,7 @@ static int ics_opal_host_match(struct ics *ics, struct device_node *node)
 /* Only one global & state struct ics */
 static struct ics ics_hal = {
 	.map		= ics_opal_map,
-	.mask_unknown	= ics_opal_mask_unknown,
+	.mask_unkyeswn	= ics_opal_mask_unkyeswn,
 	.get_server	= ics_opal_get_server,
 	.host_match	= ics_opal_host_match,
 };
@@ -184,7 +184,7 @@ static int ics_opal_map(struct ics *ics, unsigned int virq)
 	if (WARN_ON(hw_irq == XICS_IPI || hw_irq == XICS_IRQ_SPURIOUS))
 		return -EINVAL;
 
-	/* Check if HAL knows about this interrupt */
+	/* Check if HAL kyesws about this interrupt */
 	rc = opal_get_xive(hw_irq, &server, &priority);
 	if (rc != OPAL_SUCCESS)
 		return -ENXIO;
@@ -195,13 +195,13 @@ static int ics_opal_map(struct ics *ics, unsigned int virq)
 	return 0;
 }
 
-static void ics_opal_mask_unknown(struct ics *ics, unsigned long vec)
+static void ics_opal_mask_unkyeswn(struct ics *ics, unsigned long vec)
 {
 	int64_t rc;
 	__be16 server;
 	int8_t priority;
 
-	/* Check if HAL knows about this interrupt */
+	/* Check if HAL kyesws about this interrupt */
 	rc = opal_get_xive(vec, &server, &priority);
 	if (rc != OPAL_SUCCESS)
 		return;
@@ -215,7 +215,7 @@ static long ics_opal_get_server(struct ics *ics, unsigned long vec)
 	__be16 server;
 	int8_t priority;
 
-	/* Check if HAL knows about this interrupt */
+	/* Check if HAL kyesws about this interrupt */
 	rc = opal_get_xive(vec, &server, &priority);
 	if (rc != OPAL_SUCCESS)
 		return -1;

@@ -252,21 +252,21 @@ INDIRECT_CALLABLE_SCOPE struct sk_buff *ipv6_gro_receive(struct list_head *head,
 		    !ipv6_addr_equal(&iph->saddr, &iph2->saddr) ||
 		    !ipv6_addr_equal(&iph->daddr, &iph2->daddr) ||
 		    *(u16 *)&iph->nexthdr != *(u16 *)&iph2->nexthdr) {
-not_same_flow:
+yest_same_flow:
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
 		}
 		if (unlikely(nlen > sizeof(struct ipv6hdr))) {
 			if (memcmp(iph + 1, iph2 + 1,
 				   nlen - sizeof(struct ipv6hdr)))
-				goto not_same_flow;
+				goto yest_same_flow;
 		}
 		/* flush if Traffic Class fields are different */
 		NAPI_GRO_CB(p)->flush |= !!(first_word & htonl(0x0FF00000));
 		NAPI_GRO_CB(p)->flush |= flush;
 
 		/* If the previous IP ID value was based on an atomic
-		 * datagram we can overwrite the value and ignore it.
+		 * datagram we can overwrite the value and igyesre it.
 		 */
 		if (NAPI_GRO_CB(skb)->is_atomic)
 			NAPI_GRO_CB(p)->flush_id = 0;
@@ -433,9 +433,9 @@ static int __init ipv6_offload_init(void)
 {
 
 	if (tcpv6_offload_init() < 0)
-		pr_crit("%s: Cannot add TCP protocol offload\n", __func__);
+		pr_crit("%s: Canyest add TCP protocol offload\n", __func__);
 	if (ipv6_exthdrs_offload_init() < 0)
-		pr_crit("%s: Cannot add EXTHDRS protocol offload\n", __func__);
+		pr_crit("%s: Canyest add EXTHDRS protocol offload\n", __func__);
 
 	dev_add_offload(&ipv6_packet_offload);
 

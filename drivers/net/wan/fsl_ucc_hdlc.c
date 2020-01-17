@@ -142,7 +142,7 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	ret = qe_issue_cmd(QE_STOP_TX, cecr_subblock,
 			   QE_CR_PROTOCOL_UNSPECIFIED, 0);
 
-	/* Set UPSMR normal mode (need fixed)*/
+	/* Set UPSMR yesrmal mode (need fixed)*/
 	iowrite32be(0, &priv->uf_regs->upsmr);
 
 	/* hdlc_bus mode */
@@ -162,7 +162,7 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 		/* explicitly disable CDS & CTSP */
 		gumr = ioread32be(&priv->uf_regs->gumr);
 		gumr &= ~(UCC_FAST_GUMR_CDS | UCC_FAST_GUMR_CTSP);
-		/* set automatic sync to explicitly ignore CD signal */
+		/* set automatic sync to explicitly igyesre CD signal */
 		gumr |= UCC_FAST_GUMR_SYNL_AUTO;
 		iowrite32be(gumr, &priv->uf_regs->gumr);
 	}
@@ -175,7 +175,7 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 			&priv->dma_rx_bd, GFP_KERNEL);
 
 	if (!priv->rx_bd_base) {
-		dev_err(priv->dev, "Cannot allocate MURAM memory for RxBDs\n");
+		dev_err(priv->dev, "Canyest allocate MURAM memory for RxBDs\n");
 		ret = -ENOMEM;
 		goto free_uccf;
 	}
@@ -186,7 +186,7 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 			&priv->dma_tx_bd, GFP_KERNEL);
 
 	if (!priv->tx_bd_base) {
-		dev_err(priv->dev, "Cannot allocate MURAM memory for TxBDs\n");
+		dev_err(priv->dev, "Canyest allocate MURAM memory for TxBDs\n");
 		ret = -ENOMEM;
 		goto free_rx_bd;
 	}
@@ -196,7 +196,7 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 				ALIGNMENT_OF_UCC_HDLC_PRAM);
 
 	if (IS_ERR_VALUE(priv->ucc_pram_offset)) {
-		dev_err(priv->dev, "Can not allocate MURAM for hdlc parameter.\n");
+		dev_err(priv->dev, "Can yest allocate MURAM for hdlc parameter.\n");
 		ret = -ENOMEM;
 		goto free_tx_bd;
 	}
@@ -234,14 +234,14 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	/* Alloc riptr, tiptr */
 	riptr = qe_muram_alloc(32, 32);
 	if (IS_ERR_VALUE(riptr)) {
-		dev_err(priv->dev, "Cannot allocate MURAM mem for Receive internal temp data pointer\n");
+		dev_err(priv->dev, "Canyest allocate MURAM mem for Receive internal temp data pointer\n");
 		ret = -ENOMEM;
 		goto free_tx_skbuff;
 	}
 
 	tiptr = qe_muram_alloc(32, 32);
 	if (IS_ERR_VALUE(tiptr)) {
-		dev_err(priv->dev, "Cannot allocate MURAM mem for Transmit internal temp data pointer\n");
+		dev_err(priv->dev, "Canyest allocate MURAM mem for Transmit internal temp data pointer\n");
 		ret = -ENOMEM;
 		goto free_riptr;
 	}
@@ -280,7 +280,7 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 				       &bd_dma_addr, GFP_KERNEL);
 
 	if (!bd_buffer) {
-		dev_err(priv->dev, "Could not allocate buffer descriptors\n");
+		dev_err(priv->dev, "Could yest allocate buffer descriptors\n");
 		ret = -ENOMEM;
 		goto free_tiptr;
 	}
@@ -353,7 +353,7 @@ static netdev_tx_t ucc_hdlc_tx(struct sk_buff *skb, struct net_device *dev)
 		if (skb_headroom(skb) < HDLC_HEAD_LEN) {
 			dev->stats.tx_dropped++;
 			dev_kfree_skb(skb);
-			netdev_err(dev, "No enough space for hdlc head\n");
+			netdev_err(dev, "No eyesugh space for hdlc head\n");
 			return -ENOMEM;
 		}
 
@@ -485,7 +485,7 @@ static int hdlc_tx_done(struct ucc_hdlc_private *priv)
 		    (priv->skb_dirtytx +
 		     1) & TX_RING_MOD_MASK(TX_BD_RING_LEN);
 
-		/* We freed a buffer, so now we can restart transmission */
+		/* We freed a buffer, so yesw we can restart transmission */
 		if (netif_queue_stopped(dev))
 			netif_wake_queue(dev);
 
@@ -965,7 +965,7 @@ static int uhdlc_resume(struct device *dev)
 	ret = qe_issue_cmd(QE_STOP_TX, cecr_subblock,
 			   (u8)QE_CR_PROTOCOL_UNSPECIFIED, 0);
 
-	/* Set UPSMR normal mode */
+	/* Set UPSMR yesrmal mode */
 	iowrite32be(0, &uf_regs->upsmr);
 
 	/* init parameter base */
@@ -1054,24 +1054,24 @@ static const struct net_device_ops uhdlc_ops = {
 
 static int hdlc_map_iomem(char *name, int init_flag, void __iomem **ptr)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct platform_device *pdev;
 	struct resource *res;
 	static int siram_init_flag;
 	int ret = 0;
 
-	np = of_find_compatible_node(NULL, NULL, name);
+	np = of_find_compatible_yesde(NULL, NULL, name);
 	if (!np)
 		return -EINVAL;
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_yesde(np);
 	if (!pdev) {
 		pr_err("%pOFn: failed to lookup pdev\n", np);
-		of_node_put(np);
+		of_yesde_put(np);
 		return -EINVAL;
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		ret = -EINVAL;
@@ -1102,7 +1102,7 @@ error_put_device:
 
 static int ucc_hdlc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct ucc_hdlc_private *uhdlc_priv = NULL;
 	struct ucc_tdm_info *ut_info;
 	struct ucc_tdm *utdm = NULL;

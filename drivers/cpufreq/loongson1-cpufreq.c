@@ -33,7 +33,7 @@ struct ls1x_cpufreq {
 
 static struct ls1x_cpufreq *cpufreq;
 
-static int ls1x_cpufreq_notifier(struct notifier_block *nb,
+static int ls1x_cpufreq_yestifier(struct yestifier_block *nb,
 				 unsigned long val, void *data)
 {
 	if (val == CPUFREQ_POSTCHANGE)
@@ -42,8 +42,8 @@ static int ls1x_cpufreq_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block ls1x_cpufreq_notifier_block = {
-	.notifier_call = ls1x_cpufreq_notifier
+static struct yestifier_block ls1x_cpufreq_yestifier_block = {
+	.yestifier_call = ls1x_cpufreq_yestifier
 };
 
 static int ls1x_cpufreq_target(struct cpufreq_policy *policy,
@@ -127,7 +127,7 @@ static struct cpufreq_driver ls1x_cpufreq_driver = {
 
 static int ls1x_cpufreq_remove(struct platform_device *pdev)
 {
-	cpufreq_unregister_notifier(&ls1x_cpufreq_notifier_block,
+	cpufreq_unregister_yestifier(&ls1x_cpufreq_yestifier_block,
 				    CPUFREQ_TRANSITION_NOTIFIER);
 	cpufreq_unregister_driver(&ls1x_cpufreq_driver);
 
@@ -194,12 +194,12 @@ static int ls1x_cpufreq_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = cpufreq_register_notifier(&ls1x_cpufreq_notifier_block,
+	ret = cpufreq_register_yestifier(&ls1x_cpufreq_yestifier_block,
 					CPUFREQ_TRANSITION_NOTIFIER);
 
 	if (ret) {
 		dev_err(&pdev->dev,
-			"failed to register CPUFreq notifier: %d\n",ret);
+			"failed to register CPUFreq yestifier: %d\n",ret);
 		cpufreq_unregister_driver(&ls1x_cpufreq_driver);
 	}
 

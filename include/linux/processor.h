@@ -13,15 +13,15 @@
  * The loop body should be as small and fast as possible, on the order of
  * tens of instructions/cycles as a guide. It should and avoid calling
  * cpu_relax, or any "spin" or sleep type of primitive including nested uses
- * of these primitives. It should not lock or take any other resource.
- * Violations of these guidelies will not cause a bug, but may cause sub
+ * of these primitives. It should yest lock or take any other resource.
+ * Violations of these guidelies will yest cause a bug, but may cause sub
  * optimal performance.
  *
  * These loops are optimized to be used where wait times are expected to be
  * less than the cost of a context switch (and associated overhead).
  *
  * Detection of resource owner and decision to spin or sleep or guest-yield
- * (e.g., spin lock holder vcpu preempted, or mutex owner not on CPU) can be
+ * (e.g., spin lock holder vcpu preempted, or mutex owner yest on CPU) can be
  * tested within the loop body.
  */
 #ifndef spin_begin
@@ -39,7 +39,7 @@
 /*
  * spin_until_cond can be used to wait for a condition to become true. It
  * may be expected that the first iteration will true in the common case
- * (no spinning), so that callers should not require a first "likely" test
+ * (yes spinning), so that callers should yest require a first "likely" test
  * for the uncontended case before using this primitive.
  *
  * Usage and implementation guidelines are the same as for the spin_begin

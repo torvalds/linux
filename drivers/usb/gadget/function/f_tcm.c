@@ -176,7 +176,7 @@ static int bot_send_status(struct usbg_cmd *cmd, bool moved_data)
 }
 
 /*
- * Called after command (no data transfer) or after the write (to device)
+ * Called after command (yes data transfer) or after the write (to device)
  * operation is completed
  */
 static int bot_send_status_response(struct usbg_cmd *cmd)
@@ -188,7 +188,7 @@ static int bot_send_status_response(struct usbg_cmd *cmd)
 	return bot_send_status(cmd, moved_data);
 }
 
-/* Read request completed, now we have to send the CSW */
+/* Read request completed, yesw we have to send the CSW */
 static void bot_read_compl(struct usb_ep *ep, struct usb_request *req)
 {
 	struct usbg_cmd *cmd = req->context;
@@ -467,7 +467,7 @@ static int usbg_bot_setup(struct usb_function *f,
 
 static void uasp_cleanup_one_stream(struct f_uas *fu, struct uas_stream *stream)
 {
-	/* We have either all three allocated or none */
+	/* We have either all three allocated or yesne */
 	if (!stream->req_in)
 		return;
 
@@ -941,7 +941,7 @@ static int get_cmd_dir(const unsigned char *cdb)
 		ret = DMA_NONE;
 		break;
 	default:
-#define CMD_DIR_MSG "target: Unknown data direction for SCSI Opcode 0x%02x\n"
+#define CMD_DIR_MSG "target: Unkyeswn data direction for SCSI Opcode 0x%02x\n"
 		pr_warn(CMD_DIR_MSG, cdb[0]);
 #undef CMD_DIR_MSG
 		ret = -EINVAL;
@@ -1106,7 +1106,7 @@ static int usbg_submit_command(struct f_uas *fu,
 
 	tv_nexus = tpg->tpg_nexus;
 	if (!tv_nexus) {
-		pr_err("Missing nexus, ignoring command\n");
+		pr_err("Missing nexus, igyesring command\n");
 		return -EINVAL;
 	}
 
@@ -1220,7 +1220,7 @@ static int bot_submit_command(struct f_uas *fu,
 
 	tv_nexus = tpg->tpg_nexus;
 	if (!tv_nexus) {
-		pr_err("Missing nexus, ignoring command\n");
+		pr_err("Missing nexus, igyesring command\n");
 		return -ENODEV;
 	}
 
@@ -1292,7 +1292,7 @@ static u32 usbg_sess_get_index(struct se_session *se_sess)
 	return 0;
 }
 
-static void usbg_set_default_node_attrs(struct se_node_acl *nacl)
+static void usbg_set_default_yesde_attrs(struct se_yesde_acl *nacl)
 {
 }
 
@@ -1324,7 +1324,7 @@ static const char *usbg_check_wwn(const char *name)
 	return n;
 }
 
-static int usbg_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
+static int usbg_init_yesdeacl(struct se_yesde_acl *se_nacl, const char *name)
 {
 	if (!usbg_check_wwn(name))
 		return -EINVAL;
@@ -1545,7 +1545,7 @@ static ssize_t tcm_usbg_tpg_nexus_show(struct config_item *item, char *page)
 		goto out;
 	}
 	ret = snprintf(page, PAGE_SIZE, "%s\n",
-			tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+			tv_nexus->tvn_se_sess->se_yesde_acl->initiatorname);
 out:
 	mutex_unlock(&tpg->tpg_mutex);
 	return ret;
@@ -1585,7 +1585,7 @@ static int tcm_usbg_make_nexus(struct usbg_tpg *tpg, char *name)
 						     TARGET_PROT_NORMAL, name,
 						     tv_nexus, usbg_alloc_sess_cb);
 	if (IS_ERR(tv_nexus->tvn_se_sess)) {
-#define MAKE_NEXUS_MSG "core_tpg_check_initiator_node_acl() failed for %s\n"
+#define MAKE_NEXUS_MSG "core_tpg_check_initiator_yesde_acl() failed for %s\n"
 		pr_debug(MAKE_NEXUS_MSG, name);
 #undef MAKE_NEXUS_MSG
 		ret = PTR_ERR(tv_nexus->tvn_se_sess);
@@ -1621,7 +1621,7 @@ static int tcm_usbg_drop_nexus(struct usbg_tpg *tpg)
 	}
 
 	pr_debug("Removing I_T Nexus to Initiator Port: %s\n",
-			tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+			tv_nexus->tvn_se_sess->se_yesde_acl->initiatorname);
 	/*
 	 * Release the SCSI I_T Nexus to the emulated vHost Target Port
 	 */
@@ -1717,7 +1717,7 @@ static const struct target_core_fabric_ops usbg_ops = {
 	.sess_get_index			= usbg_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
 	.write_pending			= usbg_send_write_request,
-	.set_default_node_attributes	= usbg_set_default_node_attrs,
+	.set_default_yesde_attributes	= usbg_set_default_yesde_attrs,
 	.get_cmd_state			= usbg_get_cmd_state,
 	.queue_data_in			= usbg_send_read_response,
 	.queue_status			= usbg_send_status_response,
@@ -1731,7 +1731,7 @@ static const struct target_core_fabric_ops usbg_ops = {
 	.fabric_drop_tpg		= usbg_drop_tpg,
 	.fabric_post_link		= usbg_port_link,
 	.fabric_pre_unlink		= usbg_port_unlink,
-	.fabric_init_nodeacl		= usbg_init_nodeacl,
+	.fabric_init_yesdeacl		= usbg_init_yesdeacl,
 
 	.tfc_wwn_attrs			= usbg_wwn_attrs,
 	.tfc_tpg_base_attrs		= usbg_base_attrs,

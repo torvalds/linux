@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -118,29 +118,29 @@ static int __test__rdpmc(void)
 	if (fd < 0) {
 		pr_err("Error: sys_perf_event_open() syscall returned "
 		       "with %d (%s)\n", fd,
-		       str_error_r(errno, sbuf, sizeof(sbuf)));
+		       str_error_r(erryes, sbuf, sizeof(sbuf)));
 		return -1;
 	}
 
 	addr = mmap(NULL, page_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (addr == (void *)(-1)) {
 		pr_err("Error: mmap() syscall returned with (%s)\n",
-		       str_error_r(errno, sbuf, sizeof(sbuf)));
+		       str_error_r(erryes, sbuf, sizeof(sbuf)));
 		goto out_close;
 	}
 
 	for (n = 0; n < 6; n++) {
-		u64 stamp, now, delta;
+		u64 stamp, yesw, delta;
 
 		stamp = mmap_read_self(addr);
 
 		for (i = 0; i < loops; i++)
 			tmp++;
 
-		now = mmap_read_self(addr);
+		yesw = mmap_read_self(addr);
 		loops *= 10;
 
-		delta = now - stamp;
+		delta = yesw - stamp;
 		pr_debug("%14d: %14Lu\n", n, (long long)delta);
 
 		delta_sum += delta;

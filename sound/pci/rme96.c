@@ -25,7 +25,7 @@
 #include <sound/asoundef.h>
 #include <sound/initval.h>
 
-/* note, two last pcis should be equal, it is not a bug */
+/* yeste, two last pcis should be equal, it is yest a bug */
 
 MODULE_AUTHOR("Anders Torger <torger@ludd.luth.se>");
 MODULE_DESCRIPTION("RME Digi96, Digi96/8, Digi96/8 PRO, Digi96/8 PST, "
@@ -238,8 +238,8 @@ struct rme96 {
 	int playback_frlog; /* log2 of framesize */
 	int capture_frlog;
 	
-        size_t playback_periodsize; /* in bytes, zero if not used */
-	size_t capture_periodsize; /* in bytes, zero if not used */
+        size_t playback_periodsize; /* in bytes, zero if yest used */
+	size_t capture_periodsize; /* in bytes, zero if yest used */
 
 	struct snd_card *card;
 	struct snd_pcm *spdif_pcm;
@@ -489,7 +489,7 @@ static const struct snd_pcm_hardware snd_rme96_capture_adat_info =
  * on the falling edge of CCLK and be stable on the rising edge.  The rising
  * edge of CLATCH after the last data bit clocks in the whole data word.
  * A fast processor could probably drive the SPI interface faster than the
- * DAC can handle (3MHz for the 1855, unknown for the 1852).  The udelay(1)
+ * DAC can handle (3MHz for the 1855, unkyeswn for the 1852).  The udelay(1)
  * limits the data rate to 500KHz and only causes a delay of 33 microsecs.
  *
  * NOTE: increased delay from 1 to 10, since there where problems setting
@@ -867,7 +867,7 @@ snd_rme96_setinputtype(struct rme96 *rme96,
 		writel(rme96->areg, rme96->iobase + RME96_IO_ADDITIONAL_REG);
 		if (rme96->rev < 4) {
 			/*
-			 * Revision less than 004 does not support 64 and
+			 * Revision less than 004 does yest support 64 and
 			 * 88.2 kHz
 			 */
 			if (snd_rme96_capture_getrate(rme96, &n) == 88200) {
@@ -1208,7 +1208,7 @@ snd_rme96_playback_spdif_open(struct snd_pcm_substream *substream)
 
 	rme96->wcreg_spdif_stream = rme96->wcreg_spdif;
 	rme96->spdif_ctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-	snd_ctl_notify(rme96->card, SNDRV_CTL_EVENT_MASK_VALUE |
+	snd_ctl_yestify(rme96->card, SNDRV_CTL_EVENT_MASK_VALUE |
 		       SNDRV_CTL_EVENT_MASK_INFO, &rme96->spdif_ctl->id);
 	return 0;
 }
@@ -1287,7 +1287,7 @@ snd_rme96_capture_adat_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 	runtime->hw = snd_rme96_capture_adat_info;
         if (snd_rme96_getinputtype(rme96) == RME96_INPUT_ANALOG) {
-                /* makes no sense to use analog input. Note that analog
+                /* makes yes sense to use analog input. Note that analog
                    expension cards AEB4/8-I are RME96_INPUT_INTERNAL */
                 return -EIO;
         }
@@ -1328,7 +1328,7 @@ snd_rme96_playback_close(struct snd_pcm_substream *substream)
 	spin_unlock_irq(&rme96->lock);
 	if (spdif) {
 		rme96->spdif_ctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-		snd_ctl_notify(rme96->card, SNDRV_CTL_EVENT_MASK_VALUE |
+		snd_ctl_yestify(rme96->card, SNDRV_CTL_EVENT_MASK_VALUE |
 			       SNDRV_CTL_EVENT_MASK_INFO, &rme96->spdif_ctl->id);
 	}
 	return 0;
@@ -1619,7 +1619,7 @@ snd_rme96_create(struct rme96 *rme96)
 		return err;
 	rme96->port = pci_resource_start(rme96->pci, 0);
 
-	rme96->iobase = ioremap_nocache(rme96->port, RME96_IO_SIZE);
+	rme96->iobase = ioremap_yescache(rme96->port, RME96_IO_SIZE);
 	if (!rme96->iobase) {
 		dev_err(rme96->card->dev,
 			"unable to remap memory region 0x%lx-0x%lx\n",
@@ -1653,7 +1653,7 @@ snd_rme96_create(struct rme96 *rme96)
 
 	/* set up ALSA pcm device for ADAT */
 	if (pci->device == PCI_DEVICE_ID_RME_DIGI96) {
-		/* ADAT is not available on the base model */
+		/* ADAT is yest available on the base model */
 		rme96->adat_pcm = NULL;
 	} else {
 		if ((err = snd_pcm_new(rme96->card, "Digi96 ADAT", 1,
@@ -1679,7 +1679,7 @@ snd_rme96_create(struct rme96 *rme96)
 	/* set default values in registers */
 	rme96->wcreg =
 		RME96_WCR_FREQ_1 | /* set 44.1 kHz playback */
-		RME96_WCR_SEL |    /* normal playback */
+		RME96_WCR_SEL |    /* yesrmal playback */
 		RME96_WCR_MASTER | /* set to master clock mode */
 		RME96_WCR_INP_0;   /* set coaxial input */
 
@@ -1762,7 +1762,7 @@ snd_rme96_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer
 		break;
 	}
 	if (snd_rme96_capture_getrate(rme96, &n) < 0) {
-		snd_iprintf(buffer, "\n  sample rate: no valid signal\n");
+		snd_iprintf(buffer, "\n  sample rate: yes valid signal\n");
 	} else {
 		if (n) {
 			snd_iprintf(buffer, " (8 channels)\n");
@@ -1780,7 +1780,7 @@ snd_rme96_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer
 	
 	snd_iprintf(buffer, "\nOutput settings\n");
 	if (rme96->wcreg & RME96_WCR_SEL) {
-		snd_iprintf(buffer, "  output signal: normal playback\n");
+		snd_iprintf(buffer, "  output signal: yesrmal playback\n");
 	} else {
 		snd_iprintf(buffer, "  output signal: same as input\n");
 	}
@@ -1798,7 +1798,7 @@ snd_rme96_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer
 	} else if (snd_rme96_getinputtype(rme96) == RME96_INPUT_ANALOG) {
 		snd_iprintf(buffer, "  sample clock source: autosync (internal anyway due to analog input setting)\n");
 	} else if (snd_rme96_capture_getrate(rme96, &n) < 0) {
-		snd_iprintf(buffer, "  sample clock source: autosync (internal anyway due to no valid signal)\n");
+		snd_iprintf(buffer, "  sample clock source: autosync (internal anyway due to yes valid signal)\n");
 	} else {
 		snd_iprintf(buffer, "  sample clock source: autosync\n");
 	}
@@ -1813,9 +1813,9 @@ snd_rme96_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer
 		snd_iprintf(buffer, "  emphasis: off\n");
 	}
 	if (rme96->wcreg & RME96_WCR_DOLBY) {
-		snd_iprintf(buffer, "  non-audio (dolby): on\n");
+		snd_iprintf(buffer, "  yesn-audio (dolby): on\n");
 	} else {
-		snd_iprintf(buffer, "  non-audio (dolby): off\n");
+		snd_iprintf(buffer, "  yesn-audio (dolby): off\n");
 	}
 	if (RME96_HAS_ANALOG_IN(rme96)) {
 		snd_iprintf(buffer, "\nAnalog output settings\n");
@@ -1861,7 +1861,7 @@ static void snd_rme96_proc_init(struct rme96 *rme96)
  * control interface
  */
 
-#define snd_rme96_info_loopback_control		snd_ctl_boolean_mono_info
+#define snd_rme96_info_loopback_control		snd_ctl_boolean_moyes_info
 
 static int
 snd_rme96_get_loopback_control(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)

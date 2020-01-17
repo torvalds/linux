@@ -117,11 +117,11 @@ static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op 
 	 * Check for supported code set, association, and designator type
 	 */
 	if ((desc[4] & 0x0f) != 0x1) {
-		pr_err("XCOPY 0xe4: code set of non binary type not supported\n");
+		pr_err("XCOPY 0xe4: code set of yesn binary type yest supported\n");
 		return -EINVAL;
 	}
 	if ((desc[5] & 0x30) != 0x00) {
-		pr_err("XCOPY 0xe4: association other than LUN not supported\n");
+		pr_err("XCOPY 0xe4: association other than LUN yest supported\n");
 		return -EINVAL;
 	}
 	if ((desc[5] & 0x0f) != 0x3) {
@@ -149,7 +149,7 @@ static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op 
 	}
 
 	if (cscd_index != xop->stdi && cscd_index != xop->dtdi) {
-		pr_debug("XCOPY 0xe4: ignoring CSCD entry %d - neither src nor "
+		pr_debug("XCOPY 0xe4: igyesring CSCD entry %d - neither src yesr "
 			 "dest\n", cscd_index);
 		return 0;
 	}
@@ -201,7 +201,7 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 	*sense_ret = TCM_INVALID_PARAMETER_LIST;
 
 	if (offset != 0) {
-		pr_err("XCOPY target descriptor list length is not"
+		pr_err("XCOPY target descriptor list length is yest"
 			" multiple of %d\n", XCOPY_TARGET_DESC_LEN);
 		*sense_ret = TCM_UNSUPPORTED_TARGET_DESC_TYPE_CODE;
 		return -EINVAL;
@@ -254,16 +254,16 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 						&xop->src_dev);
 		break;
 	default:
-		pr_err("XCOPY CSCD descriptor IDs not found in CSCD list - "
+		pr_err("XCOPY CSCD descriptor IDs yest found in CSCD list - "
 			"stdi: %hu dtdi: %hu\n", xop->stdi, xop->dtdi);
 		rc = -EINVAL;
 		break;
 	}
 	/*
 	 * If a matching IEEE NAA 0x83 descriptor for the requested device
-	 * is not located on this node, return COPY_ABORTED with ASQ/ASQC
+	 * is yest located on this yesde, return COPY_ABORTED with ASQ/ASQC
 	 * 0x0d/0x02 - COPY_TARGET_DEVICE_NOT_REACHABLE to request the
-	 * initiator to fall back to normal copy method.
+	 * initiator to fall back to yesrmal copy method.
 	 */
 	if (rc < 0) {
 		*sense_ret = TCM_COPY_TARGET_DEVICE_NOT_REACHABLE;
@@ -308,11 +308,11 @@ static int target_xcopy_parse_segdesc_02(struct se_cmd *se_cmd, struct xcopy_op 
 	pr_debug("XCOPY seg desc 0x02: desc_len: %hu stdi: %hu dtdi: %hu, DC: %d\n",
 		desc_len, xop->stdi, xop->dtdi, dc);
 
-	xop->nolb = get_unaligned_be16(&desc[10]);
+	xop->yeslb = get_unaligned_be16(&desc[10]);
 	xop->src_lba = get_unaligned_be64(&desc[12]);
 	xop->dst_lba = get_unaligned_be64(&desc[20]);
-	pr_debug("XCOPY seg desc 0x02: nolb: %hu src_lba: %llu dst_lba: %llu\n",
-		xop->nolb, (unsigned long long)xop->src_lba,
+	pr_debug("XCOPY seg desc 0x02: yeslb: %hu src_lba: %llu dst_lba: %llu\n",
+		xop->yeslb, (unsigned long long)xop->src_lba,
 		(unsigned long long)xop->dst_lba);
 
 	if (dc != 0) {
@@ -334,7 +334,7 @@ static int target_xcopy_parse_segment_descriptors(struct se_cmd *se_cmd,
 	*sense_ret = TCM_INVALID_PARAMETER_LIST;
 
 	if (offset != 0) {
-		pr_err("XCOPY segment descriptor list length is not"
+		pr_err("XCOPY segment descriptor list length is yest"
 			" multiple of %d\n", XCOPY_SEGMENT_DESC_LEN);
 		*sense_ret = TCM_UNSUPPORTED_SEGMENT_DESC_TYPE_CODE;
 		return -EINVAL;
@@ -387,7 +387,7 @@ struct xcopy_pt_cmd {
 
 struct se_portal_group xcopy_pt_tpg;
 static struct se_session xcopy_pt_sess;
-static struct se_node_acl xcopy_pt_nacl;
+static struct se_yesde_acl xcopy_pt_nacl;
 
 static int xcopy_pt_get_cmd_state(struct se_cmd *se_cmd)
 {
@@ -467,12 +467,12 @@ int target_xcopy_setup_pt(void)
 	}
 
 	memset(&xcopy_pt_tpg, 0, sizeof(struct se_portal_group));
-	INIT_LIST_HEAD(&xcopy_pt_tpg.acl_node_list);
+	INIT_LIST_HEAD(&xcopy_pt_tpg.acl_yesde_list);
 	INIT_LIST_HEAD(&xcopy_pt_tpg.tpg_sess_list);
 
 	xcopy_pt_tpg.se_tpg_tfo = &xcopy_pt_tfo;
 
-	memset(&xcopy_pt_nacl, 0, sizeof(struct se_node_acl));
+	memset(&xcopy_pt_nacl, 0, sizeof(struct se_yesde_acl));
 	INIT_LIST_HEAD(&xcopy_pt_nacl.acl_list);
 	INIT_LIST_HEAD(&xcopy_pt_nacl.acl_sess_list);
 	memset(&xcopy_pt_sess, 0, sizeof(struct se_session));
@@ -484,7 +484,7 @@ int target_xcopy_setup_pt(void)
 	xcopy_pt_nacl.nacl_sess = &xcopy_pt_sess;
 
 	xcopy_pt_sess.se_tpg = &xcopy_pt_tpg;
-	xcopy_pt_sess.se_node_acl = &xcopy_pt_nacl;
+	xcopy_pt_sess.se_yesde_acl = &xcopy_pt_nacl;
 
 	return 0;
 }
@@ -504,7 +504,7 @@ void target_xcopy_release_pt(void)
  * @cdb:	 SCSI CDB to be copied into @xpt_cmd.
  * @remote_port: If false, use the LUN through which the XCOPY command has
  *		 been received. If true, use @se_dev->xcopy_lun.
- * @alloc_mem:	 Whether or not to allocate an SGL list.
+ * @alloc_mem:	 Whether or yest to allocate an SGL list.
  *
  * Set up a SCSI command (READ or WRITE) that will be used to execute an
  * XCOPY command.
@@ -522,7 +522,7 @@ static int target_xcopy_setup_pt_cmd(
 	int ret = 0, rc;
 
 	/*
-	 * Setup LUN+port to honor reservations based upon xop->op_origin for
+	 * Setup LUN+port to hoyesr reservations based upon xop->op_origin for
 	 * X-COPY PUSH or X-COPY PULL based upon where the CDB was received.
 	 */
 	if (remote_port) {
@@ -729,7 +729,7 @@ static void target_xcopy_do_work(struct work_struct *work)
 	sector_t src_lba, dst_lba, end_lba;
 	unsigned int max_sectors;
 	int rc = 0;
-	unsigned short nolb, cur_nolb, max_nolb, copied_nolb = 0;
+	unsigned short yeslb, cur_yeslb, max_yeslb, copied_yeslb = 0;
 
 	if (target_parse_xcopy_cmd(xop) != TCM_NO_SENSE)
 		goto err_free;
@@ -741,8 +741,8 @@ static void target_xcopy_do_work(struct work_struct *work)
 	dst_dev = xop->dst_dev;
 	src_lba = xop->src_lba;
 	dst_lba = xop->dst_lba;
-	nolb = xop->nolb;
-	end_lba = src_lba + nolb;
+	yeslb = xop->yeslb;
+	end_lba = src_lba + yeslb;
 	/*
 	 * Break up XCOPY I/O into hw_max_sectors sized I/O based on the
 	 * smallest max_sectors between src_dev + dev_dev, or
@@ -751,43 +751,43 @@ static void target_xcopy_do_work(struct work_struct *work)
 			  dst_dev->dev_attrib.hw_max_sectors);
 	max_sectors = min_t(u32, max_sectors, XCOPY_MAX_SECTORS);
 
-	max_nolb = min_t(u16, max_sectors, ((u16)(~0U)));
+	max_yeslb = min_t(u16, max_sectors, ((u16)(~0U)));
 
-	pr_debug("target_xcopy_do_work: nolb: %hu, max_nolb: %hu end_lba: %llu\n",
-			nolb, max_nolb, (unsigned long long)end_lba);
+	pr_debug("target_xcopy_do_work: yeslb: %hu, max_yeslb: %hu end_lba: %llu\n",
+			yeslb, max_yeslb, (unsigned long long)end_lba);
 	pr_debug("target_xcopy_do_work: Starting src_lba: %llu, dst_lba: %llu\n",
 			(unsigned long long)src_lba, (unsigned long long)dst_lba);
 
 	while (src_lba < end_lba) {
-		cur_nolb = min(nolb, max_nolb);
+		cur_yeslb = min(yeslb, max_yeslb);
 
 		pr_debug("target_xcopy_do_work: Calling read src_dev: %p src_lba: %llu,"
-			" cur_nolb: %hu\n", src_dev, (unsigned long long)src_lba, cur_nolb);
+			" cur_yeslb: %hu\n", src_dev, (unsigned long long)src_lba, cur_yeslb);
 
-		rc = target_xcopy_read_source(ec_cmd, xop, src_dev, src_lba, cur_nolb);
+		rc = target_xcopy_read_source(ec_cmd, xop, src_dev, src_lba, cur_yeslb);
 		if (rc < 0)
 			goto out;
 
-		src_lba += cur_nolb;
+		src_lba += cur_yeslb;
 		pr_debug("target_xcopy_do_work: Incremented READ src_lba to %llu\n",
 				(unsigned long long)src_lba);
 
 		pr_debug("target_xcopy_do_work: Calling write dst_dev: %p dst_lba: %llu,"
-			" cur_nolb: %hu\n", dst_dev, (unsigned long long)dst_lba, cur_nolb);
+			" cur_yeslb: %hu\n", dst_dev, (unsigned long long)dst_lba, cur_yeslb);
 
 		rc = target_xcopy_write_destination(ec_cmd, xop, dst_dev,
-						dst_lba, cur_nolb);
+						dst_lba, cur_yeslb);
 		if (rc < 0) {
 			transport_generic_free_cmd(&xop->src_pt_cmd->se_cmd, 0);
 			goto out;
 		}
 
-		dst_lba += cur_nolb;
+		dst_lba += cur_yeslb;
 		pr_debug("target_xcopy_do_work: Incremented WRITE dst_lba to %llu\n",
 				(unsigned long long)dst_lba);
 
-		copied_nolb += cur_nolb;
-		nolb -= cur_nolb;
+		copied_yeslb += cur_yeslb;
+		yeslb -= cur_yeslb;
 
 		transport_generic_free_cmd(&xop->src_pt_cmd->se_cmd, 0);
 		xop->dst_pt_cmd->se_cmd.se_cmd_flags &= ~SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
@@ -801,7 +801,7 @@ static void target_xcopy_do_work(struct work_struct *work)
 	pr_debug("target_xcopy_do_work: Final src_lba: %llu, dst_lba: %llu\n",
 		(unsigned long long)src_lba, (unsigned long long)dst_lba);
 	pr_debug("target_xcopy_do_work: Blocks copied: %hu, Bytes Copied: %u\n",
-		copied_nolb, copied_nolb * dst_dev->dev_attrib.block_size);
+		copied_yeslb, copied_yeslb * dst_dev->dev_attrib.block_size);
 
 	pr_debug("target_xcopy_do_work: Setting X-COPY GOOD status -> sending response\n");
 	target_complete_cmd(ec_cmd, SAM_STAT_GOOD);
@@ -859,7 +859,7 @@ static sense_reason_t target_parse_xcopy_cmd(struct xcopy_op *xop)
 
 	inline_dl = get_unaligned_be32(&p[12]);
 	if (inline_dl != 0) {
-		pr_err("XCOPY with non zero inline data length\n");
+		pr_err("XCOPY with yesn zero inline data length\n");
 		goto out;
 	}
 
@@ -928,7 +928,7 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 
 	sa = se_cmd->t_task_cdb[1] & 0x1f;
 	if (sa != 0x00) {
-		pr_err("EXTENDED_COPY(LID4) not supported\n");
+		pr_err("EXTENDED_COPY(LID4) yest supported\n");
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
@@ -976,7 +976,7 @@ static sense_reason_t target_rcr_operating_parameters(struct se_cmd *se_cmd)
 		return TCM_INVALID_CDB_FIELD;
 	}
 	/*
-	 * Set SNLID=1 (Supports no List ID)
+	 * Set SNLID=1 (Supports yes List ID)
 	 */
 	p[4] = 0x1;
 	/*
@@ -1058,8 +1058,8 @@ sense_reason_t target_do_receive_copy_results(struct se_cmd *se_cmd)
 		" 0x%02x, AL: %u\n", sa, list_id, se_cmd->data_length);
 
 	if (list_id != 0) {
-		pr_err("Receive Copy Results with non zero list identifier"
-		       " not supported\n");
+		pr_err("Receive Copy Results with yesn zero list identifier"
+		       " yest supported\n");
 		return TCM_INVALID_CDB_FIELD;
 	}
 

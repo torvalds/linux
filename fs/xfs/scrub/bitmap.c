@@ -13,7 +13,7 @@
 #include "scrub/bitmap.h"
 
 /*
- * Set a range of this bitmap.  Caller must ensure the range is not set.
+ * Set a range of this bitmap.  Caller must ensure the range is yest set.
  *
  * This is the logical equivalent of bitmap |= mask(start, len).
  */
@@ -84,10 +84,10 @@ xfs_bitmap_range_cmp(
  *
  * The intent is that callers will iterate the rmapbt for all of its records
  * for a given owner to generate @bitmap; and iterate all the blocks of the
- * metadata structures that are not being rebuilt and have the same rmapbt
+ * metadata structures that are yest being rebuilt and have the same rmapbt
  * owner to generate @sub.  This routine subtracts all the extents
  * mentioned in sub from all the extents linked in @bitmap, which leaves
- * @bitmap as the list of blocks that are not accounted for, which we assume
+ * @bitmap as the list of blocks that are yest accounted for, which we assume
  * are the dead blocks of the old metadata structure.  The blocks mentioned in
  * @bitmap can be reaped.
  *
@@ -119,8 +119,8 @@ xfs_bitmap_disunion(
 	/*
 	 * Now that we've sorted both lists, we iterate bitmap once, rolling
 	 * forward through sub and/or bitmap as necessary until we find an
-	 * overlap or reach the end of either list.  We do not reset lp to the
-	 * head of bitmap nor do we reset sub_br to the head of sub.  The
+	 * overlap or reach the end of either list.  We do yest reset lp to the
+	 * head of bitmap yesr do we reset sub_br to the head of sub.  The
 	 * list traversal is similar to merge sort, but we're deleting
 	 * instead.  In this manner we avoid O(n^2) operations.
 	 */
@@ -209,8 +209,8 @@ out:
 /*
  * Record all btree blocks seen while iterating all records of a btree.
  *
- * We know that the btree query_all function starts at the left edge and walks
- * towards the right edge of the tree.  Therefore, we know that we can walk up
+ * We kyesw that the btree query_all function starts at the left edge and walks
+ * towards the right edge of the tree.  Therefore, we kyesw that we can walk up
  * the btree cursor towards the root; if the pointer for a given level points
  * to the first record/key in that block, we haven't seen this block before;
  * and therefore we need to remember that we saw this block in the btree.
@@ -231,7 +231,7 @@ out:
  *
  * For the 101st btree record, we've moved onto leaf block 2.  Now
  * bc_ptrs[0] == 1 again, so we record that we saw block 2.  We see that
- * bc_ptrs[1] == 2, so we exit the loop.  The list is now [1, 4, 2].
+ * bc_ptrs[1] == 2, so we exit the loop.  The list is yesw [1, 4, 2].
  *
  * For the 102nd record, bc_ptrs[0] == 2, so we continue.
  *
@@ -278,14 +278,14 @@ xfs_bitmap_collect_btblock(
 {
 	struct xfs_bitmap	*bitmap = priv;
 	struct xfs_buf		*bp;
-	xfs_fsblock_t		fsbno;
+	xfs_fsblock_t		fsbyes;
 
 	xfs_btree_get_block(cur, level, &bp);
 	if (!bp)
 		return 0;
 
-	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, bp->b_bn);
-	return xfs_bitmap_set(bitmap, fsbno, 1);
+	fsbyes = XFS_DADDR_TO_FSB(cur->bc_mp, bp->b_bn);
+	return xfs_bitmap_set(bitmap, fsbyes, 1);
 }
 
 /* Walk the btree and mark the bitmap wherever a btree block is found. */

@@ -17,7 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/mempool.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
 #include <linux/time.h>
@@ -142,7 +142,7 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 				  (trace_max_pages * PAGE_SIZE * 3) - len,
 				  "%16llu.%09lu %-50s %8x %8x %16llx %16llx "
 				  "%16llx %16llx %16llx\n", (u64)val.tv_sec,
-				  val.tv_nsec, str, tbp->host_no, tbp->tag,
+				  val.tv_nsec, str, tbp->host_yes, tbp->tag,
 				  tbp->data[0], tbp->data[1], tbp->data[2],
 				  tbp->data[3], tbp->data[4]);
 			rd_idx++;
@@ -184,7 +184,7 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 				  (trace_max_pages * PAGE_SIZE * 3) - len,
 				  "%16llu.%09lu %-50s %8x %8x %16llx %16llx "
 				  "%16llx %16llx %16llx\n", (u64)val.tv_sec,
-				  val.tv_nsec, str, tbp->host_no, tbp->tag,
+				  val.tv_nsec, str, tbp->host_yes, tbp->tag,
 				  tbp->data[0], tbp->data[1], tbp->data[2],
 				  tbp->data[3], tbp->data[4]);
 			rd_idx++;
@@ -268,7 +268,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->io_stats.num_ios),
 		  (u64)atomic64_read(&stats->io_stats.io_completions),
 		  (u64)atomic64_read(&stats->io_stats.io_failures),
-		  (u64)atomic64_read(&stats->io_stats.io_not_found),
+		  (u64)atomic64_read(&stats->io_stats.io_yest_found),
 		  (u64)atomic64_read(&stats->io_stats.alloc_failures),
 		  (u64)atomic64_read(&stats->io_stats.ioreq_null),
 		  (u64)atomic64_read(&stats->io_stats.sc_null),
@@ -309,7 +309,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->abts_stats.abort_failures),
 		  (u64)atomic64_read(&stats->abts_stats.abort_drv_timeouts),
 		  (u64)atomic64_read(&stats->abts_stats.abort_fw_timeouts),
-		  (u64)atomic64_read(&stats->abts_stats.abort_io_not_found),
+		  (u64)atomic64_read(&stats->abts_stats.abort_io_yest_found),
 		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_0_to_6_sec),
 		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_6_to_20_sec),
 		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_20_to_30_sec),
@@ -334,7 +334,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->term_stats.max_terminates),
 		  (u64)atomic64_read(&stats->term_stats.terminate_drv_timeouts),
 		  (u64)atomic64_read(&stats->term_stats.terminate_fw_timeouts),
-		  (u64)atomic64_read(&stats->term_stats.terminate_io_not_found),
+		  (u64)atomic64_read(&stats->term_stats.terminate_io_yest_found),
 		  (u64)atomic64_read(&stats->term_stats.terminate_failures));
 
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
@@ -390,11 +390,11 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
 		  "Number of Vlan Discovery Requests Sent %lld\n"
-		  "Vlan Response Received with no FCF VLAN ID: %lld\n"
+		  "Vlan Response Received with yes FCF VLAN ID: %lld\n"
 		  "No solicitations recvd after vlan set, expiry count: %lld\n"
 		  "Flogi rejects count: %lld\n",
 		  (u64)atomic64_read(&stats->vlan_stats.vlan_disc_reqs),
-		  (u64)atomic64_read(&stats->vlan_stats.resp_withno_vlanID),
+		  (u64)atomic64_read(&stats->vlan_stats.resp_withyes_vlanID),
 		  (u64)atomic64_read(&stats->vlan_stats.sol_expiry_count),
 		  (u64)atomic64_read(&stats->vlan_stats.flogi_rejects));
 
@@ -410,7 +410,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  "Last ISR time: %llu (%8llu.%09lu)\n"
 		  "Last ACK time: %llu (%8llu.%09lu)\n"
 		  "Max ISR jiffies: %llu\n"
-		  "Max ISR time (ms) (0 denotes < 1 ms): %llu\n"
+		  "Max ISR time (ms) (0 deyestes < 1 ms): %llu\n"
 		  "Corr. work done: %llu\n"
 		  "Number of ISRs: %lld\n"
 		  "Maximum CQ Entries: %lld\n"
@@ -422,10 +422,10 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  "Number of Copy WQ Alloc Failures for ABTs: %lld\n"
 		  "Number of Copy WQ Alloc Failures for Device Reset: %lld\n"
 		  "Number of Copy WQ Alloc Failures for IOs: %lld\n"
-		  "Number of no icmnd itmf Completions: %lld\n"
+		  "Number of yes icmnd itmf Completions: %lld\n"
 		  "Number of Check Conditions encountered: %lld\n"
 		  "Number of QUEUE Fulls: %lld\n"
-		  "Number of rport not ready: %lld\n"
+		  "Number of rport yest ready: %lld\n"
 		  "Number of receive frame errors: %lld\n",
 		  (u64)stats->misc_stats.last_isr_time,
 		  (s64)val1.tv_sec, val1.tv_nsec,
@@ -446,10 +446,10 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(
 			  &stats->misc_stats.devrst_cpwq_alloc_failures),
 		  (u64)atomic64_read(&stats->misc_stats.io_cpwq_alloc_failures),
-		  (u64)atomic64_read(&stats->misc_stats.no_icmnd_itmf_cmpls),
+		  (u64)atomic64_read(&stats->misc_stats.yes_icmnd_itmf_cmpls),
 		  (u64)atomic64_read(&stats->misc_stats.check_condition),
 		  (u64)atomic64_read(&stats->misc_stats.queue_fulls),
-		  (u64)atomic64_read(&stats->misc_stats.rport_not_ready),
+		  (u64)atomic64_read(&stats->misc_stats.rport_yest_ready),
 		  (u64)atomic64_read(&stats->misc_stats.frame_errors));
 
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
@@ -632,7 +632,7 @@ void fnic_fc_trace_free(void)
  * fnic_fc_ctlr_set_trace_data:
  *       Maintain rd & wr idx accordingly and set data
  * Passed parameters:
- *       host_no: host number accociated with fnic
+ *       host_yes: host number accociated with fnic
  *       frame_type: send_frame, rece_frame or link event
  *       fc_frame: pointer to fc_frame
  *       frame_len: Length of the fc_frame
@@ -645,7 +645,7 @@ void fnic_fc_trace_free(void)
  * Returned Value:
  *   It will return 0 for success or -1 for failure
  */
-int fnic_fc_trace_set_data(u32 host_no, u8 frame_type,
+int fnic_fc_trace_set_data(u32 host_yes, u8 frame_type,
 				char *frame, u32 fc_trc_frame_len)
 {
 	unsigned long flags;
@@ -681,12 +681,12 @@ int fnic_fc_trace_set_data(u32 host_no, u8 frame_type,
 	}
 
 	ktime_get_real_ts64(&fc_buf->time_stamp);
-	fc_buf->host_no = host_no;
+	fc_buf->host_yes = host_yes;
 	fc_buf->frame_type = frame_type;
 
 	fc_trace = (char *)FC_TRACE_ADDRESS(fc_buf);
 
-	/* During the receive path, we do not have eth hdr as well as fcoe hdr
+	/* During the receive path, we do yest have eth hdr as well as fcoe hdr
 	 * at trace entry point so we will stuff 0xff just to make it generic.
 	 */
 	if (frame_type == FNIC_FC_RECV) {
@@ -719,7 +719,7 @@ int fnic_fc_trace_set_data(u32 host_no, u8 frame_type,
  *                   0 => formated file
  * Description:
  *       This routine will copy the trace data to memory file with
- *       proper formatting and also copy to another memory
+ *       proper formatting and also copy to ayesther memory
  *       file without formatting for further procesing.
  * Retrun Value:
  *       Number of bytes that were dumped into fnic_dbgfs_t
@@ -815,7 +815,7 @@ void copy_and_format_trace_data(struct fc_trace_hdr *tdata,
 		fmt,
 		tm.tm_mon + 1, tm.tm_mday, tm.tm_year + 1900,
 		tm.tm_hour, tm.tm_min, tm.tm_sec,
-		tdata->time_stamp.tv_nsec, tdata->host_no,
+		tdata->time_stamp.tv_nsec, tdata->host_yes,
 		tdata->frame_type, tdata->frame_len);
 
 	fc_trace = (char *)FC_TRACE_ADDRESS(tdata);

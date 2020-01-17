@@ -74,8 +74,8 @@ void blake2s256_hmac(u8 *out, const u8 *in, const u8 *key, const size_t inlen,
 		     const size_t keylen)
 {
 	struct blake2s_state state;
-	u8 x_key[BLAKE2S_BLOCK_SIZE] __aligned(__alignof__(u32)) = { 0 };
-	u8 i_hash[BLAKE2S_HASH_SIZE] __aligned(__alignof__(u32));
+	u8 x_key[BLAKE2S_BLOCK_SIZE] __aligned(__aligyesf__(u32)) = { 0 };
+	u8 i_hash[BLAKE2S_HASH_SIZE] __aligned(__aligyesf__(u32));
 	int i;
 
 	if (keylen > BLAKE2S_BLOCK_SIZE) {

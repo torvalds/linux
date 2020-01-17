@@ -78,7 +78,7 @@ static bool _dpu_rm_get_hw_locked(struct dpu_rm *rm, struct dpu_rm_hw_iter *i)
 		}
 	}
 
-	DPU_DEBUG("no match, type %d for enc %d\n", i->type, i->enc_id);
+	DPU_DEBUG("yes match, type %d for enc %d\n", i->type, i->enc_id);
 
 	return false;
 }
@@ -110,9 +110,9 @@ static void _dpu_rm_hw_destroy(enum dpu_hw_blk_type type, void *hw)
 		dpu_hw_intf_destroy(hw);
 		break;
 	case DPU_HW_BLK_SSPP:
-		/* SSPPs are not managed by the resource manager */
+		/* SSPPs are yest managed by the resource manager */
 	case DPU_HW_BLK_TOP:
-		/* Top is a singleton, not managed in hw_blks list */
+		/* Top is a singleton, yest managed in hw_blks list */
 	case DPU_HW_BLK_MAX:
 	default:
 		DPU_ERROR("unsupported block type %d\n", type);
@@ -164,9 +164,9 @@ static int _dpu_rm_hw_blk_create(
 		hw = dpu_hw_intf_init(id, mmio, cat);
 		break;
 	case DPU_HW_BLK_SSPP:
-		/* SSPPs are not managed by the resource manager */
+		/* SSPPs are yest managed by the resource manager */
 	case DPU_HW_BLK_TOP:
-		/* Top is a singleton, not managed in hw_blks list */
+		/* Top is a singleton, yest managed in hw_blks list */
 	case DPU_HW_BLK_MAX:
 	default:
 		DPU_ERROR("unsupported block type %d\n", type);
@@ -225,7 +225,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 		rc = _dpu_rm_hw_blk_create(rm, cat, mmio, DPU_HW_BLK_LM,
 				cat->mixer[i].id, &cat->mixer[i]);
 		if (rc) {
-			DPU_ERROR("failed: lm hw not available\n");
+			DPU_ERROR("failed: lm hw yest available\n");
 			goto fail;
 		}
 
@@ -246,21 +246,21 @@ int dpu_rm_init(struct dpu_rm *rm,
 		rc = _dpu_rm_hw_blk_create(rm, cat, mmio, DPU_HW_BLK_PINGPONG,
 				cat->pingpong[i].id, &cat->pingpong[i]);
 		if (rc) {
-			DPU_ERROR("failed: pp hw not available\n");
+			DPU_ERROR("failed: pp hw yest available\n");
 			goto fail;
 		}
 	}
 
 	for (i = 0; i < cat->intf_count; i++) {
 		if (cat->intf[i].type == INTF_NONE) {
-			DPU_DEBUG("skip intf %d with type none\n", i);
+			DPU_DEBUG("skip intf %d with type yesne\n", i);
 			continue;
 		}
 
 		rc = _dpu_rm_hw_blk_create(rm, cat, mmio, DPU_HW_BLK_INTF,
 				cat->intf[i].id, &cat->intf[i]);
 		if (rc) {
-			DPU_ERROR("failed: intf hw not available\n");
+			DPU_ERROR("failed: intf hw yest available\n");
 			goto fail;
 		}
 	}
@@ -269,7 +269,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 		rc = _dpu_rm_hw_blk_create(rm, cat, mmio, DPU_HW_BLK_CTL,
 				cat->ctl[i].id, &cat->ctl[i]);
 		if (rc) {
-			DPU_ERROR("failed: ctl hw not available\n");
+			DPU_ERROR("failed: ctl hw yest available\n");
 			goto fail;
 		}
 	}
@@ -297,8 +297,8 @@ static bool _dpu_rm_needs_split_display(const struct msm_display_topology *top)
  * @lm: proposed layer mixer, function checks if lm, and all other hardwired
  *      blocks connected to the lm (pp) is available and appropriate
  * @pp: output parameter, pingpong block attached to the layer mixer.
- *      NULL if pp was not available, or not matching requirements.
- * @primary_lm: if non-null, this function check if lm is compatible primary_lm
+ *      NULL if pp was yest available, or yest matching requirements.
+ * @primary_lm: if yesn-null, this function check if lm is compatible primary_lm
  *              as well as satisfying all other requirements
  * @Return: true if lm matches all requirements, false otherwise
  */
@@ -324,7 +324,7 @@ static bool _dpu_rm_check_lm_and_get_connected_blks(
 				to_dpu_hw_mixer(primary_lm->hw)->cap;
 
 		if (!test_bit(lm_cfg->id, &prim_lm_cfg->lm_pair_mask)) {
-			DPU_DEBUG("lm %d not peer of lm %d\n", lm_cfg->id,
+			DPU_DEBUG("lm %d yest peer of lm %d\n", lm_cfg->id,
 					prim_lm_cfg->id);
 			return false;
 		}
@@ -486,7 +486,7 @@ static int _dpu_rm_reserve_intf(
 	struct dpu_rm_hw_iter iter;
 	int ret = 0;
 
-	/* Find the block entry in the rm, and note the reservation */
+	/* Find the block entry in the rm, and yeste the reservation */
 	dpu_rm_init_hw_iter(&iter, 0, type);
 	while (_dpu_rm_get_hw_locked(rm, &iter)) {
 		if (iter.blk->id != id)

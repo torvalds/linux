@@ -37,7 +37,7 @@ again:
 
 	/*
 	 * Assume that the backend is trusted to always write sane values
-	 * to the ring counters, so no overflow checks on frontend side
+	 * to the ring counters, so yes overflow checks on frontend side
 	 * are required.
 	 */
 	for (i = channel->u.req.ring.rsp_cons; i != rp; i++) {
@@ -66,7 +66,7 @@ again:
 
 		default:
 			dev_err(&front_info->xb_dev->dev,
-				"Operation %d is not supported\n",
+				"Operation %d is yest supported\n",
 				resp->operation);
 			break;
 		}
@@ -107,7 +107,7 @@ static irqreturn_t evtchnl_interrupt_evt(int irq, void *dev_id)
 
 	/*
 	 * Assume that the backend is trusted to always write sane values
-	 * to the ring counters, so no overflow checks on frontend side
+	 * to the ring counters, so yes overflow checks on frontend side
 	 * are required.
 	 */
 	for (cons = page->in_cons; cons != prod; cons++) {
@@ -136,12 +136,12 @@ out:
 
 void xen_snd_front_evtchnl_flush(struct xen_snd_front_evtchnl *channel)
 {
-	int notify;
+	int yestify;
 
 	channel->u.req.ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&channel->u.req.ring, notify);
-	if (notify)
-		notify_remote_via_irq(channel->irq);
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&channel->u.req.ring, yestify);
+	if (yestify)
+		yestify_remote_via_irq(channel->irq);
 }
 
 static void evtchnl_free(struct xen_snd_front_info *front_info,
@@ -362,21 +362,21 @@ fail:
 
 static int evtchnl_publish(struct xenbus_transaction xbt,
 			   struct xen_snd_front_evtchnl *channel,
-			   const char *path, const char *node_ring,
-			   const char *node_chnl)
+			   const char *path, const char *yesde_ring,
+			   const char *yesde_chnl)
 {
 	struct xenbus_device *xb_dev = channel->front_info->xb_dev;
 	int ret;
 
 	/* Write control channel ring reference. */
-	ret = xenbus_printf(xbt, path, node_ring, "%u", channel->gref);
+	ret = xenbus_printf(xbt, path, yesde_ring, "%u", channel->gref);
 	if (ret < 0) {
 		dev_err(&xb_dev->dev, "Error writing ring-ref: %d\n", ret);
 		return ret;
 	}
 
 	/* Write event channel ring reference. */
-	ret = xenbus_printf(xbt, path, node_chnl, "%u", channel->port);
+	ret = xenbus_printf(xbt, path, yesde_chnl, "%u", channel->port);
 	if (ret < 0) {
 		dev_err(&xb_dev->dev, "Error writing event channel: %d\n", ret);
 		return ret;

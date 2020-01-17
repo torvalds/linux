@@ -135,7 +135,7 @@ void mISDN_dsp_element_unregister(struct mISDN_dsp_element *elem)
 #endif
 			return;
 		}
-	printk(KERN_ERR "%s: element %s not in list.\n", __func__, elem->name);
+	printk(KERN_ERR "%s: element %s yest in list.\n", __func__, elem->name);
 }
 EXPORT_SYMBOL(mISDN_dsp_element_unregister);
 
@@ -291,7 +291,7 @@ int dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg)
 		if (found)
 			found = 0;
 		else {
-			printk(KERN_ERR "%s: element not found, skipping: "
+			printk(KERN_ERR "%s: element yest found, skipping: "
 			       "%s\n", __func__, name);
 			incomplete = 1;
 		}

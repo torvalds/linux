@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 
@@ -64,13 +64,13 @@ lubbock_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 	 *	MAX1602	Lubbock		Register
 	 *	Pin	Signal
 	 *	-----	-------		----------------------
-	 *	A0VPP	GND		VPP is not connected
-	 *	A1VPP	GND		VPP is not connected
+	 *	A0VPP	GND		VPP is yest connected
+	 *	A1VPP	GND		VPP is yest connected
 	 *	A0VCC	S1_PWR0		MISC_WR<14>
 	 *	A1VCC	S1_PWR1		MISC_WR<15>
 	 *	VX	VCC
 	 *	VY	+3.3V
-	 *	12IN	GND		VPP is not connected
+	 *	12IN	GND		VPP is yest connected
 	 *	CODE	+3.3V		Cirrus  Code, CODE = High (VY)
 	 *
 	 */
@@ -122,7 +122,7 @@ lubbock_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 			/*
 			 * We need to hack around the const qualifier as
 			 * well to keep this ugly workaround localized and
-			 * not force it to the rest of the code. Barf bags
+			 * yest force it to the rest of the code. Barf bags
 			 * available in the seat pocket in front of you!
 			 */
 			((socket_state_t *)state)->Vcc = 50;

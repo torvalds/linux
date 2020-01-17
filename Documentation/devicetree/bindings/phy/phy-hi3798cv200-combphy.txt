@@ -24,7 +24,7 @@ Optional properties:
 Notes:
 - Between hisilicon,fixed-mode and hisilicon,mode-select-bits, one and only
   one of them should be present.
-- The device node should be a child of peripheral controller that contains
+- The device yesde should be a child of peripheral controller that contains
   COMBPHY configuration/state and PERI_CTRL register used to select PHY mode.
   Refer to arm/hisilicon/hisilicon.txt for the parent peripheral controller
   bindings.

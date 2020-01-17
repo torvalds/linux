@@ -14,25 +14,25 @@
 
 static int
 ext4_xattr_security_get(const struct xattr_handler *handler,
-			struct dentry *unused, struct inode *inode,
+			struct dentry *unused, struct iyesde *iyesde,
 			const char *name, void *buffer, size_t size)
 {
-	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_SECURITY,
+	return ext4_xattr_get(iyesde, EXT4_XATTR_INDEX_SECURITY,
 			      name, buffer, size);
 }
 
 static int
 ext4_xattr_security_set(const struct xattr_handler *handler,
-			struct dentry *unused, struct inode *inode,
+			struct dentry *unused, struct iyesde *iyesde,
 			const char *name, const void *value,
 			size_t size, int flags)
 {
-	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_SECURITY,
+	return ext4_xattr_set(iyesde, EXT4_XATTR_INDEX_SECURITY,
 			      name, value, size, flags);
 }
 
 static int
-ext4_initxattrs(struct inode *inode, const struct xattr *xattr_array,
+ext4_initxattrs(struct iyesde *iyesde, const struct xattr *xattr_array,
 		void *fs_info)
 {
 	const struct xattr *xattr;
@@ -40,7 +40,7 @@ ext4_initxattrs(struct inode *inode, const struct xattr *xattr_array,
 	int err = 0;
 
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
-		err = ext4_xattr_set_handle(handle, inode,
+		err = ext4_xattr_set_handle(handle, iyesde,
 					    EXT4_XATTR_INDEX_SECURITY,
 					    xattr->name, xattr->value,
 					    xattr->value_len, XATTR_CREATE);
@@ -51,10 +51,10 @@ ext4_initxattrs(struct inode *inode, const struct xattr *xattr_array,
 }
 
 int
-ext4_init_security(handle_t *handle, struct inode *inode, struct inode *dir,
+ext4_init_security(handle_t *handle, struct iyesde *iyesde, struct iyesde *dir,
 		   const struct qstr *qstr)
 {
-	return security_inode_init_security(inode, dir, qstr,
+	return security_iyesde_init_security(iyesde, dir, qstr,
 					    &ext4_initxattrs, handle);
 }
 

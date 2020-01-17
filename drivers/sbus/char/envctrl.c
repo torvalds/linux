@@ -119,11 +119,11 @@
 #define ENVCTRL_MAX_CPU			4
 #define CHANNEL_DESC_SZ			256
 
-/* Mask values for combined GlobalAddress/PowerStatus node */
+/* Mask values for combined GlobalAddress/PowerStatus yesde */
 #define ENVCTRL_GLOBALADDR_ADDR_MASK 	0x1F
 #define ENVCTRL_GLOBALADDR_PSTAT_MASK	0x60
 
-/* Node 0x70 ignored on CompactPCI CP1400/1500 platforms 
+/* Node 0x70 igyesred on CompactPCI CP1400/1500 platforms 
  * (see envctrl_init_i2c_child)
  */
 #define ENVCTRL_CPCI_IGNORED_NODE		0x70
@@ -135,7 +135,7 @@
  * Property of a port or channel as defined by the firmware.
  */
 struct pcf8584_channel {
-        unsigned char chnl_no;
+        unsigned char chnl_yes;
         unsigned char io_direction;
         unsigned char type;
         unsigned char last;
@@ -196,7 +196,7 @@ static void envtrl_i2c_test_pin(void)
 	} 
 
 	if (limit <= 0)
-		printk(KERN_INFO PFX "Pin status will not clear.\n");
+		printk(KERN_INFO PFX "Pin status will yest clear.\n");
 }
 
 /* Function Description: Test busy bit.
@@ -214,11 +214,11 @@ static void envctrl_i2c_test_bb(void)
 	} 
 
 	if (limit <= 0)
-		printk(KERN_INFO PFX "Busy bit will not clear.\n");
+		printk(KERN_INFO PFX "Busy bit will yest clear.\n");
 }
 
 /* Function Description: Send the address for a read access.
- * Return : 0 if not acknowledged, otherwise acknowledged.
+ * Return : 0 if yest ackyeswledged, otherwise ackyeswledged.
  */
 static int envctrl_i2c_read_addr(unsigned char addr)
 {
@@ -234,7 +234,7 @@ static int envctrl_i2c_read_addr(unsigned char addr)
 	/* Wait for PIN. */
 	envtrl_i2c_test_pin();
 
-	/* CSR 0 means acknowledged. */
+	/* CSR 0 means ackyeswledged. */
 	if (!(readb(i2c + PCF8584_CSR) & STATUS_LRB)) {
 		return readb(i2c + PCF8584_DATA);
 	} else {
@@ -382,7 +382,7 @@ static int envctrl_read_cpu_info(int cpu, struct i2c_child_t *pchild,
 
         /* Read data from address and port. */
 	data = envctrl_i2c_read_8591((unsigned char)pchild->addr,
-				     (unsigned char)pchild->chnl_array[i].chnl_no);
+				     (unsigned char)pchild->chnl_array[i].chnl_yes);
 
 	/* Find decoding table. */
 	tbl = pchild->tables + pchild->tblprop_array[i].offset;
@@ -392,11 +392,11 @@ static int envctrl_read_cpu_info(int cpu, struct i2c_child_t *pchild,
 					  tbl, bufdata);
 }
 
-/* Function Description: Read noncpu-related data such as motherboard 
+/* Function Description: Read yesncpu-related data such as motherboard 
  *                       temperature.
  * Return: Number of read bytes. Data is stored in bufdata in ascii format.
  */
-static int envctrl_read_noncpu_info(struct i2c_child_t *pchild,
+static int envctrl_read_yesncpu_info(struct i2c_child_t *pchild,
 				    char mon_type, unsigned char *bufdata)
 {
 	unsigned char data;
@@ -413,7 +413,7 @@ static int envctrl_read_noncpu_info(struct i2c_child_t *pchild,
 
         /* Read data from address and port. */
 	data = envctrl_i2c_read_8591((unsigned char)pchild->addr,
-				     (unsigned char)pchild->chnl_array[i].chnl_no);
+				     (unsigned char)pchild->chnl_array[i].chnl_yes);
 
 	/* Find decoding table. */
 	tbl = pchild->tables + pchild->tblprop_array[i].offset;
@@ -469,7 +469,7 @@ static int envctrl_i2c_globaladdr(struct i2c_child_t *pchild,
 				  unsigned char data,
 				  char *bufdata)
 {
-	/* Translatation table is not necessary, as global
+	/* Translatation table is yest necessary, as global
 	 * addr is the integer value of the GA# bits.
 	 *
 	 * NOTE: MSB is documented as zero, but I see it as '1' always....
@@ -571,7 +571,7 @@ envctrl_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	case ENVCTRL_RD_MTHRBD_TEMPERATURE:
 		if (!(pchild = envctrl_get_i2c_child(ENVCTRL_MTHRBDTEMP_MON)))
 			return 0;
-		ret = envctrl_read_noncpu_info(pchild, ENVCTRL_MTHRBDTEMP_MON, data);
+		ret = envctrl_read_yesncpu_info(pchild, ENVCTRL_MTHRBDTEMP_MON, data);
 		if (copy_to_user(buf, data, ret))
 			ret = -EFAULT;
 		break;
@@ -599,7 +599,7 @@ envctrl_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	case ENVCTRL_RD_SCSI_TEMPERATURE:
 		if (!(pchild = envctrl_get_i2c_child(ENVCTRL_SCSITEMP_MON)))
 			return 0;
-		ret = envctrl_read_noncpu_info(pchild, ENVCTRL_SCSITEMP_MON, data);
+		ret = envctrl_read_yesncpu_info(pchild, ENVCTRL_SCSITEMP_MON, data);
 		if (copy_to_user(buf, data, ret))
 			ret = -EFAULT;
 		break;
@@ -607,7 +607,7 @@ envctrl_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	case ENVCTRL_RD_ETHERNET_TEMPERATURE:
 		if (!(pchild = envctrl_get_i2c_child(ENVCTRL_ETHERTEMP_MON)))
 			return 0;
-		ret = envctrl_read_noncpu_info(pchild, ENVCTRL_ETHERTEMP_MON, data);
+		ret = envctrl_read_yesncpu_info(pchild, ENVCTRL_ETHERTEMP_MON, data);
 		if (copy_to_user(buf, data, ret))
 			ret = -EFAULT;
 		break;
@@ -632,7 +632,7 @@ envctrl_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 	case ENVCTRL_RD_VOLTAGE_STATUS:
 		if (!(pchild = envctrl_get_i2c_child(ENVCTRL_VOLTAGESTAT_MON)))
-			/* If voltage monitor not present, check for CPCI equivalent */
+			/* If voltage monitor yest present, check for CPCI equivalent */
 			if (!(pchild = envctrl_get_i2c_child(ENVCTRL_GLOBALADDR_MON)))
 				return 0;
 		data[0] = envctrl_i2c_read_8574(pchild->addr);
@@ -696,7 +696,7 @@ envctrl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  * Return: Always 0.
  */
 static int
-envctrl_open(struct inode *inode, struct file *file)
+envctrl_open(struct iyesde *iyesde, struct file *file)
 {
 	file->private_data = NULL;
 	return 0;
@@ -706,7 +706,7 @@ envctrl_open(struct inode *inode, struct file *file)
  * Return: Always 0.
  */
 static int
-envctrl_release(struct inode *inode, struct file *file)
+envctrl_release(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
@@ -718,7 +718,7 @@ static const struct file_operations envctrl_fops = {
 	.compat_ioctl =		compat_ptr_ioctl,
 	.open =			envctrl_open,
 	.release =		envctrl_release,
-	.llseek =		noop_llseek,
+	.llseek =		yesop_llseek,
 };	
 
 static struct miscdevice envctrl_dev = {
@@ -732,9 +732,9 @@ static struct miscdevice envctrl_dev = {
  */
 static void envctrl_set_mon(struct i2c_child_t *pchild,
 			    const char *chnl_desc,
-			    int chnl_no)
+			    int chnl_yes)
 {
-	/* Firmware only has temperature type.  It does not distinguish
+	/* Firmware only has temperature type.  It does yest distinguish
 	 * different kinds of temperatures.  We use channel description
 	 * to disinguish them.
 	 */
@@ -743,29 +743,29 @@ static void envctrl_set_mon(struct i2c_child_t *pchild,
 	    !(strcmp(chnl_desc,"temp,cpu1")) ||
 	    !(strcmp(chnl_desc,"temp,cpu2")) ||
 	    !(strcmp(chnl_desc,"temp,cpu3")))
-		pchild->mon_type[chnl_no] = ENVCTRL_CPUTEMP_MON;
+		pchild->mon_type[chnl_yes] = ENVCTRL_CPUTEMP_MON;
 
 	if (!(strcmp(chnl_desc,"vddcore,cpu0")) ||
 	    !(strcmp(chnl_desc,"vddcore,cpu1")) ||
 	    !(strcmp(chnl_desc,"vddcore,cpu2")) ||
 	    !(strcmp(chnl_desc,"vddcore,cpu3")))
-		pchild->mon_type[chnl_no] = ENVCTRL_CPUVOLTAGE_MON;
+		pchild->mon_type[chnl_yes] = ENVCTRL_CPUVOLTAGE_MON;
 
 	if (!(strcmp(chnl_desc,"temp,motherboard")))
-		pchild->mon_type[chnl_no] = ENVCTRL_MTHRBDTEMP_MON;
+		pchild->mon_type[chnl_yes] = ENVCTRL_MTHRBDTEMP_MON;
 
 	if (!(strcmp(chnl_desc,"temp,scsi")))
-		pchild->mon_type[chnl_no] = ENVCTRL_SCSITEMP_MON;
+		pchild->mon_type[chnl_yes] = ENVCTRL_SCSITEMP_MON;
 
 	if (!(strcmp(chnl_desc,"temp,ethernet")))
-		pchild->mon_type[chnl_no] = ENVCTRL_ETHERTEMP_MON;
+		pchild->mon_type[chnl_yes] = ENVCTRL_ETHERTEMP_MON;
 }
 
 /* Function Description: Initialize monitor channel with channel desc,
  *                       decoding tables, monitor type, optional properties.
  * Return: None.
  */
-static void envctrl_init_adc(struct i2c_child_t *pchild, struct device_node *dp)
+static void envctrl_init_adc(struct i2c_child_t *pchild, struct device_yesde *dp)
 {
 	int i = 0, len;
 	const char *pos;
@@ -800,9 +800,9 @@ static void envctrl_init_fanstat(struct i2c_child_t *pchild)
 
 	/* Go through all channels and set up the mask. */
 	for (i = 0; i < pchild->total_chnls; i++)
-		pchild->fan_mask |= chnls_mask[(pchild->chnl_array[i]).chnl_no];
+		pchild->fan_mask |= chnls_mask[(pchild->chnl_array[i]).chnl_yes];
 
-	/* We only need to know if this child has fan status monitored.
+	/* We only need to kyesw if this child has fan status monitored.
 	 * We don't care which channels since we have the mask already.
 	 */
 	pchild->mon_type[0] = ENVCTRL_FANSTAT_MON;
@@ -821,9 +821,9 @@ static void envctrl_init_globaladdr(struct i2c_child_t *pchild)
 	 *
 	 * The mask is created here by assigning mask bits to each
 	 * bit position that represents PCF8584_VOLTAGE_TYPE data.
-	 * Channel numbers are not consecutive within the globaladdr
-	 * node (why?), so we use the actual counter value as chnls_mask
-	 * index instead of the chnl_array[x].chnl_no value.
+	 * Channel numbers are yest consecutive within the globaladdr
+	 * yesde (why?), so we use the actual counter value as chnls_mask
+	 * index instead of the chnl_array[x].chnl_yes value.
 	 *
 	 * NOTE: This loop could be replaced with a constant representing
 	 * a mask of bits 5&6 (ENVCTRL_GLOBALADDR_PSTAT_MASK).
@@ -834,8 +834,8 @@ static void envctrl_init_globaladdr(struct i2c_child_t *pchild)
 		}
 	}
 
-	/* We only need to know if this child has global addressing 
-	 * line monitored.  We don't care which channels since we know 
+	/* We only need to kyesw if this child has global addressing 
+	 * line monitored.  We don't care which channels since we kyesw 
 	 * the mask already (ENVCTRL_GLOBALADDR_ADDR_MASK).
 	 */
 	pchild->mon_type[0] = ENVCTRL_GLOBALADDR_MON;
@@ -848,9 +848,9 @@ static void envctrl_init_voltage_status(struct i2c_child_t *pchild)
 
 	/* Go through all channels and set up the mask. */
 	for (i = 0; i < pchild->total_chnls; i++)
-		pchild->voltage_mask |= chnls_mask[(pchild->chnl_array[i]).chnl_no];
+		pchild->voltage_mask |= chnls_mask[(pchild->chnl_array[i]).chnl_yes];
 
-	/* We only need to know if this child has voltage status monitored.
+	/* We only need to kyesw if this child has voltage status monitored.
 	 * We don't care which channels since we have the mask already.
 	 */
 	pchild->mon_type[0] = ENVCTRL_VOLTAGESTAT_MON;
@@ -859,7 +859,7 @@ static void envctrl_init_voltage_status(struct i2c_child_t *pchild)
 /* Function Description: Initialize i2c child device.
  * Return: None.
  */
-static void envctrl_init_i2c_child(struct device_node *dp,
+static void envctrl_init_i2c_child(struct device_yesde *dp,
 				   struct i2c_child_t *pchild)
 {
 	int len, i, tbls_size = 0;
@@ -894,25 +894,25 @@ static void envctrl_init_i2c_child(struct device_node *dp,
 	}
 
 	/* SPARCengine ASM Reference Manual (ref. SMI doc 805-7581-04)
-	 * sections 2.5, 3.5, 4.5 state node 0x70 for CP1400/1500 is
+	 * sections 2.5, 3.5, 4.5 state yesde 0x70 for CP1400/1500 is
 	 * "For Factory Use Only."
 	 *
-	 * We ignore the node on these platforms by assigning the
+	 * We igyesre the yesde on these platforms by assigning the
 	 * 'NULL' monitor type.
 	 */
 	if (ENVCTRL_CPCI_IGNORED_NODE == pchild->addr) {
-		struct device_node *root_node;
+		struct device_yesde *root_yesde;
 		int len;
 
-		root_node = of_find_node_by_path("/");
-		if (of_node_name_eq(root_node, "SUNW,UltraSPARC-IIi-cEngine")) {
+		root_yesde = of_find_yesde_by_path("/");
+		if (of_yesde_name_eq(root_yesde, "SUNW,UltraSPARC-IIi-cEngine")) {
 			for (len = 0; len < PCF8584_MAX_CHANNELS; ++len) {
 				pchild->mon_type[len] = ENVCTRL_NOMON;
 			}
-			of_node_put(root_node);
+			of_yesde_put(root_yesde);
 			return;
 		}
-		of_node_put(root_node);
+		of_yesde_put(root_yesde);
 	}
 
 	/* Get the monitor channels. */
@@ -976,7 +976,7 @@ static void envctrl_do_shutdown(void)
 		return;
 
 	inprog = 1;
-	printk(KERN_CRIT "kenvctrld: WARNING: Shutting down the system now.\n");
+	printk(KERN_CRIT "kenvctrld: WARNING: Shutting down the system yesw.\n");
 	orderly_poweroff(true);
 }
 
@@ -1025,7 +1025,7 @@ static int kenvctrld(void *__unused)
 
 static int envctrl_probe(struct platform_device *op)
 {
-	struct device_node *dp;
+	struct device_yesde *dp;
 	int index, err;
 
 	if (i2c)
@@ -1036,12 +1036,12 @@ static int envctrl_probe(struct platform_device *op)
 		return -ENOMEM;
 
 	index = 0;
-	dp = op->dev.of_node->child;
+	dp = op->dev.of_yesde->child;
 	while (dp) {
-		if (of_node_name_eq(dp, "gpio")) {
+		if (of_yesde_name_eq(dp, "gpio")) {
 			i2c_childlist[index].i2ctype = I2C_GPIO;
 			envctrl_init_i2c_child(dp, &(i2c_childlist[index++]));
-		} else if (of_node_name_eq(dp, "adc")) {
+		} else if (of_yesde_name_eq(dp, "adc")) {
 			i2c_childlist[index].i2ctype = I2C_ADC;
 			envctrl_init_i2c_child(dp, &(i2c_childlist[index++]));
 		}
@@ -1061,11 +1061,11 @@ static int envctrl_probe(struct platform_device *op)
 	writeb(CONTROL_PIN | CONTROL_ES0 | CONTROL_ACK, i2c + PCF8584_CSR);
 	udelay(200);
 
-	/* Register the device as a minor miscellaneous device. */
+	/* Register the device as a miyesr miscellaneous device. */
 	err = misc_register(&envctrl_dev);
 	if (err) {
-		printk(KERN_ERR PFX "Unable to get misc minor %d\n",
-		       envctrl_dev.minor);
+		printk(KERN_ERR PFX "Unable to get misc miyesr %d\n",
+		       envctrl_dev.miyesr);
 		goto out_iounmap;
 	}
 
@@ -1077,7 +1077,7 @@ static int envctrl_probe(struct platform_device *op)
 	for (--index; index >= 0; --index) {
 		printk("[%s 0x%lx]%s", 
 			(I2C_ADC == i2c_childlist[index].i2ctype) ? "adc" : 
-			((I2C_GPIO == i2c_childlist[index].i2ctype) ? "gpio" : "unknown"), 
+			((I2C_GPIO == i2c_childlist[index].i2ctype) ? "gpio" : "unkyeswn"), 
 			i2c_childlist[index].addr, (0 == index) ? "\n" : " ");
 	}
 

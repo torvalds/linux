@@ -15,12 +15,12 @@
 static int usbhs_rza1_hardware_init(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
-	struct device_node *usb_x1_clk, *extal_clk;
+	struct device_yesde *usb_x1_clk, *extal_clk;
 	u32 freq_usb = 0, freq_extal = 0;
 
 	/* Input Clock Selection (NOTE: ch0 controls both ch0 and ch1) */
-	usb_x1_clk = of_find_node_by_name(NULL, "usb_x1");
-	extal_clk = of_find_node_by_name(NULL, "extal");
+	usb_x1_clk = of_find_yesde_by_name(NULL, "usb_x1");
+	extal_clk = of_find_yesde_by_name(NULL, "extal");
 	of_property_read_u32(usb_x1_clk, "clock-frequency", &freq_usb);
 	of_property_read_u32(extal_clk, "clock-frequency", &freq_extal);
 	if (freq_usb == 0) {

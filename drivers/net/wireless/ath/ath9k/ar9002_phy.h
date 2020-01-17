@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -26,7 +26,7 @@
 #define AR_PHY_FC_DYN2040_EN        0x00000004
 #define AR_PHY_FC_DYN2040_PRI_ONLY  0x00000008
 #define AR_PHY_FC_DYN2040_PRI_CH    0x00000010
-/* For 25 MHz channel spacing -- not used but supported by hw */
+/* For 25 MHz channel spacing -- yest used but supported by hw */
 #define AR_PHY_FC_DYN2040_EXT_CH    0x00000020
 #define AR_PHY_FC_HT_EN             0x00000040
 #define AR_PHY_FC_SHORT_GI_40       0x00000080

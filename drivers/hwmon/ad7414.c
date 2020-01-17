@@ -4,7 +4,7 @@
  *
  * Copyright 2006 Stefan Roese <sr at denx.de>, DENX Software Engineering
  *
- * Copyright (c) 2008 PIKA Technologies
+ * Copyright (c) 2008 PIKA Techyeslogies
  *   Sean MacLennan <smaclennan@pikatech.com>
  *
  * Copyright (c) 2008 Spansion Inc.
@@ -12,7 +12,7 @@
  *   (converted to "new style" I2C driver model, removed checkpatch.pl warnings)
  *
  * Based on ad7418.c
- * Copyright 2006 Tower Technologies, Alessandro Zummo <a.zummo at towertech.it>
+ * Copyright 2006 Tower Techyeslogies, Alessandro Zummo <a.zummo at towertech.it>
  */
 
 #include <linux/module.h>

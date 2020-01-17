@@ -27,7 +27,7 @@ static int prepend(char **buffer, int *buflen, const char *str, int namelen)
  * With RCU path tracing, it may race with d_move(). Use READ_ONCE() to
  * make sure that either the old or the new name pointer and length are
  * fetched. However, there may be mismatch between length and pointer.
- * The length cannot be trusted, we need to copy it byte-by-byte until
+ * The length canyest be trusted, we need to copy it byte-by-byte until
  * the length is reached or a null byte is found. It also prepends "/" at
  * the beginning of the name. The sequence number check at the caller will
  * retry it again when a d_move() does happen. So any garbage in the buffer
@@ -68,8 +68,8 @@ static int prepend_name(char **buffer, int *buflen, const struct qstr *name)
  * in the dentry's d_seq will be preceded by changes in the rename_lock
  * sequence number. If the sequence number had been changed, it will restart
  * the whole pathname back-tracing sequence again by taking the rename_lock.
- * In this case, there is no need to take the RCU read lock as the recursive
- * parent pointer references will keep the dentry chain alive as long as no
+ * In this case, there is yes need to take the RCU read lock as the recursive
+ * parent pointer references will keep the dentry chain alive as long as yes
  * rename operation is performed.
  */
 static int prepend_path(const struct path *path,
@@ -116,10 +116,10 @@ restart:
 				vfsmnt = &mnt->mnt;
 				continue;
 			}
-			if (is_mounted(vfsmnt) && !is_anon_ns(mnt->mnt_ns))
+			if (is_mounted(vfsmnt) && !is_ayesn_ns(mnt->mnt_ns))
 				error = 1;	// absolute root
 			else
-				error = 2;	// detached or not attached yet
+				error = 2;	// detached or yest attached yet
 			break;
 		}
 		parent = dentry->d_parent;
@@ -171,7 +171,7 @@ restart:
  *
  * "buflen" should be positive.
  *
- * If the path is not reachable from the supplied root, return %NULL.
+ * If the path is yest reachable from the supplied root, return %NULL.
  */
 char *__d_path(const struct path *path,
 	       const struct path *root,
@@ -249,7 +249,7 @@ static void get_fs_root_rcu(struct fs_struct *fs, struct path *root)
  * the string " (deleted)" is appended. Note that this is ambiguous.
  *
  * Returns a pointer into the buffer or an error code if the path was
- * too long. Note: Callers should use the returned pointer, not the passed
+ * too long. Note: Callers should use the returned pointer, yest the passed
  * in buffer, to use the name! The implementation often starts at an offset
  * into the buffer, and may leave 0 bytes at the start.
  *
@@ -268,7 +268,7 @@ char *d_path(const struct path *path, char *buf, int buflen)
 	 * user wants to identify the object in /proc/pid/fd/.  The little hack
 	 * below allows us to generate a name for these objects on demand:
 	 *
-	 * Some pseudo inodes are mountable.  When they are mounted
+	 * Some pseudo iyesdes are mountable.  When they are mounted
 	 * path->dentry == path->mnt->mnt_root.  In that case don't call d_dname
 	 * and instead have d_path return the mounted path.
 	 */
@@ -311,7 +311,7 @@ char *dynamic_dname(struct dentry *dentry, char *buffer, int buflen,
 char *simple_dname(struct dentry *dentry, char *buffer, int buflen)
 {
 	char *end = buffer + buflen;
-	/* these dentries are never renamed, so d_lock is not needed */
+	/* these dentries are never renamed, so d_lock is yest needed */
 	if (prepend(&end, &buflen, " (deleted)", 11) ||
 	    prepend(&end, &buflen, dentry->d_name.name, dentry->d_name.len) ||
 	    prepend(&end, &buflen, "/", 1))  
@@ -418,7 +418,7 @@ static void get_fs_root_and_pwd_rcu(struct fs_struct *fs, struct path *root,
  *		retval = sys_getcwd(buf, size);
  *		if (retval >= 0)
  *			return buf;
- *		errno = -retval;
+ *		erryes = -retval;
  *		return NULL;
  *	}
  */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Symlink inode operations for Coda filesystem
+ * Symlink iyesde operations for Coda filesystem
  * Original version: (C) 1996 P. Braam and M. Callahan
  * Rewritten for Linux 2.1. (C) 1997 Carnegie Mellon University
  * 
@@ -13,7 +13,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/stat.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pagemap.h>
 
 #include <linux/coda.h>
@@ -22,15 +22,15 @@
 
 static int coda_symlink_filler(struct file *file, struct page *page)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	int error;
-	struct coda_inode_info *cii;
+	struct coda_iyesde_info *cii;
 	unsigned int len = PAGE_SIZE;
 	char *p = page_address(page);
 
-	cii = ITOC(inode);
+	cii = ITOC(iyesde);
 
-	error = venus_readlink(inode->i_sb, &cii->c_fid, p, &len);
+	error = venus_readlink(iyesde->i_sb, &cii->c_fid, p, &len);
 	if (error)
 		goto fail;
 	SetPageUptodate(page);

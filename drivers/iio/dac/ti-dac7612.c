@@ -2,7 +2,7 @@
 /*
  * DAC7612 Dual, 12-Bit Serial input Digital-to-Analog Converter
  *
- * Copyright 2019 Qtechnology A/S
+ * Copyright 2019 Qtechyeslogy A/S
  * 2019 Ricardo Ribalda <ricardo@ribalda.com>
  *
  * Licensed under the GPL-2.
@@ -129,7 +129,7 @@ static int dac7612_probe(struct spi_device *spi)
 	 * LOADDACS pin can be controlled by the driver or externally.
 	 * When controlled by the driver, the DAC value is updated after
 	 * every write.
-	 * When the driver does not control the PIN, the user or an external
+	 * When the driver does yest control the PIN, the user or an external
 	 * event can change the value of all DACs by pulsing down the LOADDACs
 	 * pin.
 	 */

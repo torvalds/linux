@@ -141,7 +141,7 @@ static struct usb_function *f_uac1;
 /*-------------------------------------------------------------------------*/
 
 /* DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures.
+ * Instead:  allocate your own, using yesrmal USB-IF procedures.
  */
 
 /* Thanks to Linux Foundation for donating this product ID. */

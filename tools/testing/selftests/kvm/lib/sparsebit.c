@@ -55,10 +55,10 @@
  * The index of the first bit set needs to be obtained via
  * sparsebit_first_set(), because sparsebit_next_set(), needs
  * the index of the previously set.  The sparsebit_idx_t type is
- * unsigned, so there is no previous index before 0 that is available.
- * Also, the call to sparsebit_first_set() is not made unless there
+ * unsigned, so there is yes previous index before 0 that is available.
+ * Also, the call to sparsebit_first_set() is yest made unless there
  * is at least 1 bit in the array set.  This is because sparsebit_first_set()
- * aborts if sparsebit_first_set() is called with no bits set.
+ * aborts if sparsebit_first_set() is called with yes bits set.
  * It is the callers responsibility to assure that the
  * sparsebit array has at least a single bit set before calling
  * sparsebit_first_set().
@@ -67,13 +67,13 @@
  * For the most part the internal implementation of sparsebit is
  * opaque to the caller.  One important implementation detail that the
  * caller may need to be aware of is the spatial complexity of the
- * implementation.  This implementation of a sparsebit array is not
+ * implementation.  This implementation of a sparsebit array is yest
  * only sparse, in that it uses memory proportional to the number of bits
  * set.  It is also efficient in memory usage when most of the bits are
  * set.
  *
  * At a high-level the state of the bit settings are maintained through
- * the use of a binary-search tree, where each node contains at least
+ * the use of a binary-search tree, where each yesde contains at least
  * the following members:
  *
  *   typedef uint64_t sparsebit_idx_t;
@@ -84,75 +84,75 @@
  *   sparsebit_num_t num_after;
  *
  * The idx member contains the bit index of the first bit described by this
- * node, while the mask member stores the setting of the first 32-bits.
+ * yesde, while the mask member stores the setting of the first 32-bits.
  * The setting of the bit at idx + n, where 0 <= n < 32, is located in the
  * mask member at 1 << n.
  *
- * Nodes are sorted by idx and the bits described by two nodes will never
+ * Nodes are sorted by idx and the bits described by two yesdes will never
  * overlap. The idx member is always aligned to the mask size, i.e. a
  * multiple of 32.
  *
- * Beyond a typical implementation, the nodes in this implementation also
+ * Beyond a typical implementation, the yesdes in this implementation also
  * contains a member named num_after.  The num_after member holds the
  * number of bits immediately after the mask bits that are contiguously set.
  * The use of the num_after member allows this implementation to efficiently
  * represent cases where most bits are set.  For example, the case of all
- * but the last two bits set, is represented by the following two nodes:
+ * but the last two bits set, is represented by the following two yesdes:
  *
- *   node 0 - idx: 0x0 mask: 0xffffffff num_after: 0xffffffffffffffc0
- *   node 1 - idx: 0xffffffffffffffe0 mask: 0x3fffffff num_after: 0
+ *   yesde 0 - idx: 0x0 mask: 0xffffffff num_after: 0xffffffffffffffc0
+ *   yesde 1 - idx: 0xffffffffffffffe0 mask: 0x3fffffff num_after: 0
  *
  * ==== Invariants ====
  * This implementation usses the following invariants:
  *
  *   + Node are only used to represent bits that are set.
- *     Nodes with a mask of 0 and num_after of 0 are not allowed.
+ *     Nodes with a mask of 0 and num_after of 0 are yest allowed.
  *
- *   + Sum of bits set in all the nodes is equal to the value of
+ *   + Sum of bits set in all the yesdes is equal to the value of
  *     the struct sparsebit_pvt num_set member.
  *
- *   + The setting of at least one bit is always described in a nodes
+ *   + The setting of at least one bit is always described in a yesdes
  *     mask (mask >= 1).
  *
- *   + A node with all mask bits set only occurs when the last bit
- *     described by the previous node is not equal to this nodes
+ *   + A yesde with all mask bits set only occurs when the last bit
+ *     described by the previous yesde is yest equal to this yesdes
  *     starting index - 1.  All such occurences of this condition are
- *     avoided by moving the setting of the nodes mask bits into
- *     the previous nodes num_after setting.
+ *     avoided by moving the setting of the yesdes mask bits into
+ *     the previous yesdes num_after setting.
  *
  *   + Node starting index is evenly divisible by the number of bits
- *     within a nodes mask member.
+ *     within a yesdes mask member.
  *
  *   + Nodes never represent a range of bits that wrap around the
  *     highest supported index.
  *
  *      (idx + MASK_BITS + num_after - 1) <= ((sparsebit_idx_t) 0) - 1)
  *
- *     As a consequence of the above, the num_after member of a node
+ *     As a consequence of the above, the num_after member of a yesde
  *     will always be <=:
  *
- *       maximum_index - nodes_starting_index - number_of_mask_bits
+ *       maximum_index - yesdes_starting_index - number_of_mask_bits
  *
  *   + Nodes within the binary search tree are sorted based on each
- *     nodes starting index.
+ *     yesdes starting index.
  *
- *   + The range of bits described by any two nodes do not overlap.  The
- *     range of bits described by a single node is:
+ *   + The range of bits described by any two yesdes do yest overlap.  The
+ *     range of bits described by a single yesde is:
  *
- *       start: node->idx
- *       end (inclusive): node->idx + MASK_BITS + node->num_after - 1;
+ *       start: yesde->idx
+ *       end (inclusive): yesde->idx + MASK_BITS + yesde->num_after - 1;
  *
  * Note, at times these invariants are temporarily violated for a
  * specific portion of the code.  For example, when setting a mask
  * bit, there is a small delay between when the mask bit is set and the
  * value in the struct sparsebit_pvt num_set member is updated.  Other
- * temporary violations occur when node_split() is called with a specified
- * index and assures that a node where its mask represents the bit
- * at the specified index exists.  At times to do this node_split()
- * must split an existing node into two nodes or create a node that
- * has no bits set.  Such temporary violations must be corrected before
+ * temporary violations occur when yesde_split() is called with a specified
+ * index and assures that a yesde where its mask represents the bit
+ * at the specified index exists.  At times to do this yesde_split()
+ * must split an existing yesde into two yesdes or create a yesde that
+ * has yes bits set.  Such temporary violations must be corrected before
  * returning to the caller.  These corrections are typically performed
- * by the local function node_reduce().
+ * by the local function yesde_reduce().
  */
 
 #include "test_util.h"
@@ -160,15 +160,15 @@
 #include <limits.h>
 #include <assert.h>
 
-#define DUMP_LINE_MAX 100 /* Does not include indent amount */
+#define DUMP_LINE_MAX 100 /* Does yest include indent amount */
 
 typedef uint32_t mask_t;
 #define MASK_BITS (sizeof(mask_t) * CHAR_BIT)
 
-struct node {
-	struct node *parent;
-	struct node *left;
-	struct node *right;
+struct yesde {
+	struct yesde *parent;
+	struct yesde *left;
+	struct yesde *right;
 	sparsebit_idx_t idx; /* index of least-significant bit in mask */
 	sparsebit_num_t num_after; /* num contiguously set after mask */
 	mask_t mask;
@@ -176,108 +176,108 @@ struct node {
 
 struct sparsebit {
 	/*
-	 * Points to root node of the binary search
-	 * tree.  Equal to NULL when no bits are set in
+	 * Points to root yesde of the binary search
+	 * tree.  Equal to NULL when yes bits are set in
 	 * the entire sparsebit array.
 	 */
-	struct node *root;
+	struct yesde *root;
 
 	/*
 	 * A redundant count of the total number of bits set.  Used for
-	 * diagnostic purposes and to change the time complexity of
+	 * diagyesstic purposes and to change the time complexity of
 	 * sparsebit_num_set() from O(n) to O(1).
-	 * Note: Due to overflow, a value of 0 means none or all set.
+	 * Note: Due to overflow, a value of 0 means yesne or all set.
 	 */
 	sparsebit_num_t num_set;
 };
 
 /* Returns the number of set bits described by the settings
- * of the node pointed to by nodep.
+ * of the yesde pointed to by yesdep.
  */
-static sparsebit_num_t node_num_set(struct node *nodep)
+static sparsebit_num_t yesde_num_set(struct yesde *yesdep)
 {
-	return nodep->num_after + __builtin_popcount(nodep->mask);
+	return yesdep->num_after + __builtin_popcount(yesdep->mask);
 }
 
-/* Returns a pointer to the node that describes the
+/* Returns a pointer to the yesde that describes the
  * lowest bit index.
  */
-static struct node *node_first(struct sparsebit *s)
+static struct yesde *yesde_first(struct sparsebit *s)
 {
-	struct node *nodep;
+	struct yesde *yesdep;
 
-	for (nodep = s->root; nodep && nodep->left; nodep = nodep->left)
+	for (yesdep = s->root; yesdep && yesdep->left; yesdep = yesdep->left)
 		;
 
-	return nodep;
+	return yesdep;
 }
 
-/* Returns a pointer to the node that describes the
- * lowest bit index > the index of the node pointed to by np.
- * Returns NULL if no node with a higher index exists.
+/* Returns a pointer to the yesde that describes the
+ * lowest bit index > the index of the yesde pointed to by np.
+ * Returns NULL if yes yesde with a higher index exists.
  */
-static struct node *node_next(struct sparsebit *s, struct node *np)
+static struct yesde *yesde_next(struct sparsebit *s, struct yesde *np)
 {
-	struct node *nodep = np;
+	struct yesde *yesdep = np;
 
 	/*
-	 * If current node has a right child, next node is the left-most
+	 * If current yesde has a right child, next yesde is the left-most
 	 * of the right child.
 	 */
-	if (nodep->right) {
-		for (nodep = nodep->right; nodep->left; nodep = nodep->left)
+	if (yesdep->right) {
+		for (yesdep = yesdep->right; yesdep->left; yesdep = yesdep->left)
 			;
-		return nodep;
+		return yesdep;
 	}
 
 	/*
-	 * No right child.  Go up until node is left child of a parent.
-	 * That parent is then the next node.
+	 * No right child.  Go up until yesde is left child of a parent.
+	 * That parent is then the next yesde.
 	 */
-	while (nodep->parent && nodep == nodep->parent->right)
-		nodep = nodep->parent;
+	while (yesdep->parent && yesdep == yesdep->parent->right)
+		yesdep = yesdep->parent;
 
-	return nodep->parent;
+	return yesdep->parent;
 }
 
-/* Searches for and returns a pointer to the node that describes the
- * highest index < the index of the node pointed to by np.
- * Returns NULL if no node with a lower index exists.
+/* Searches for and returns a pointer to the yesde that describes the
+ * highest index < the index of the yesde pointed to by np.
+ * Returns NULL if yes yesde with a lower index exists.
  */
-static struct node *node_prev(struct sparsebit *s, struct node *np)
+static struct yesde *yesde_prev(struct sparsebit *s, struct yesde *np)
 {
-	struct node *nodep = np;
+	struct yesde *yesdep = np;
 
 	/*
-	 * If current node has a left child, next node is the right-most
+	 * If current yesde has a left child, next yesde is the right-most
 	 * of the left child.
 	 */
-	if (nodep->left) {
-		for (nodep = nodep->left; nodep->right; nodep = nodep->right)
+	if (yesdep->left) {
+		for (yesdep = yesdep->left; yesdep->right; yesdep = yesdep->right)
 			;
-		return (struct node *) nodep;
+		return (struct yesde *) yesdep;
 	}
 
 	/*
-	 * No left child.  Go up until node is right child of a parent.
-	 * That parent is then the next node.
+	 * No left child.  Go up until yesde is right child of a parent.
+	 * That parent is then the next yesde.
 	 */
-	while (nodep->parent && nodep == nodep->parent->left)
-		nodep = nodep->parent;
+	while (yesdep->parent && yesdep == yesdep->parent->left)
+		yesdep = yesdep->parent;
 
-	return (struct node *) nodep->parent;
+	return (struct yesde *) yesdep->parent;
 }
 
 
-/* Allocates space to hold a copy of the node sub-tree pointed to by
- * subtree and duplicates the bit settings to the newly allocated nodes.
+/* Allocates space to hold a copy of the yesde sub-tree pointed to by
+ * subtree and duplicates the bit settings to the newly allocated yesdes.
  * Returns the newly allocated copy of subtree.
  */
-static struct node *node_copy_subtree(struct node *subtree)
+static struct yesde *yesde_copy_subtree(struct yesde *subtree)
 {
-	struct node *root;
+	struct yesde *root;
 
-	/* Duplicate the node at the root of the subtree */
+	/* Duplicate the yesde at the root of the subtree */
 	root = calloc(1, sizeof(*root));
 	if (!root) {
 		perror("calloc");
@@ -290,83 +290,83 @@ static struct node *node_copy_subtree(struct node *subtree)
 
 	/* As needed, recursively duplicate the left and right subtrees */
 	if (subtree->left) {
-		root->left = node_copy_subtree(subtree->left);
+		root->left = yesde_copy_subtree(subtree->left);
 		root->left->parent = root;
 	}
 
 	if (subtree->right) {
-		root->right = node_copy_subtree(subtree->right);
+		root->right = yesde_copy_subtree(subtree->right);
 		root->right->parent = root;
 	}
 
 	return root;
 }
 
-/* Searches for and returns a pointer to the node that describes the setting
- * of the bit given by idx.  A node describes the setting of a bit if its
+/* Searches for and returns a pointer to the yesde that describes the setting
+ * of the bit given by idx.  A yesde describes the setting of a bit if its
  * index is within the bits described by the mask bits or the number of
- * contiguous bits set after the mask.  Returns NULL if there is no such node.
+ * contiguous bits set after the mask.  Returns NULL if there is yes such yesde.
  */
-static struct node *node_find(struct sparsebit *s, sparsebit_idx_t idx)
+static struct yesde *yesde_find(struct sparsebit *s, sparsebit_idx_t idx)
 {
-	struct node *nodep;
+	struct yesde *yesdep;
 
-	/* Find the node that describes the setting of the bit at idx */
-	for (nodep = s->root; nodep;
-	     nodep = nodep->idx > idx ? nodep->left : nodep->right) {
-		if (idx >= nodep->idx &&
-		    idx <= nodep->idx + MASK_BITS + nodep->num_after - 1)
+	/* Find the yesde that describes the setting of the bit at idx */
+	for (yesdep = s->root; yesdep;
+	     yesdep = yesdep->idx > idx ? yesdep->left : yesdep->right) {
+		if (idx >= yesdep->idx &&
+		    idx <= yesdep->idx + MASK_BITS + yesdep->num_after - 1)
 			break;
 	}
 
-	return nodep;
+	return yesdep;
 }
 
 /* Entry Requirements:
- *   + A node that describes the setting of idx is not already present.
+ *   + A yesde that describes the setting of idx is yest already present.
  *
- * Adds a new node to describe the setting of the bit at the index given
- * by idx.  Returns a pointer to the newly added node.
+ * Adds a new yesde to describe the setting of the bit at the index given
+ * by idx.  Returns a pointer to the newly added yesde.
  *
  * TODO(lhuemill): Degenerate cases causes the tree to get unbalanced.
  */
-static struct node *node_add(struct sparsebit *s, sparsebit_idx_t idx)
+static struct yesde *yesde_add(struct sparsebit *s, sparsebit_idx_t idx)
 {
-	struct node *nodep, *parentp, *prev;
+	struct yesde *yesdep, *parentp, *prev;
 
-	/* Allocate and initialize the new node. */
-	nodep = calloc(1, sizeof(*nodep));
-	if (!nodep) {
+	/* Allocate and initialize the new yesde. */
+	yesdep = calloc(1, sizeof(*yesdep));
+	if (!yesdep) {
 		perror("calloc");
 		abort();
 	}
 
-	nodep->idx = idx & -MASK_BITS;
+	yesdep->idx = idx & -MASK_BITS;
 
-	/* If no nodes, set it up as the root node. */
+	/* If yes yesdes, set it up as the root yesde. */
 	if (!s->root) {
-		s->root = nodep;
-		return nodep;
+		s->root = yesdep;
+		return yesdep;
 	}
 
 	/*
-	 * Find the parent where the new node should be attached
-	 * and add the node there.
+	 * Find the parent where the new yesde should be attached
+	 * and add the yesde there.
 	 */
 	parentp = s->root;
 	while (true) {
 		if (idx < parentp->idx) {
 			if (!parentp->left) {
-				parentp->left = nodep;
-				nodep->parent = parentp;
+				parentp->left = yesdep;
+				yesdep->parent = parentp;
 				break;
 			}
 			parentp = parentp->left;
 		} else {
 			assert(idx > parentp->idx + MASK_BITS + parentp->num_after - 1);
 			if (!parentp->right) {
-				parentp->right = nodep;
-				nodep->parent = parentp;
+				parentp->right = yesdep;
+				yesdep->parent = parentp;
 				break;
 			}
 			parentp = parentp->right;
@@ -374,152 +374,152 @@ static struct node *node_add(struct sparsebit *s, sparsebit_idx_t idx)
 	}
 
 	/*
-	 * Does num_after bits of previous node overlap with the mask
-	 * of the new node?  If so set the bits in the new nodes mask
-	 * and reduce the previous nodes num_after.
+	 * Does num_after bits of previous yesde overlap with the mask
+	 * of the new yesde?  If so set the bits in the new yesdes mask
+	 * and reduce the previous yesdes num_after.
 	 */
-	prev = node_prev(s, nodep);
-	while (prev && prev->idx + MASK_BITS + prev->num_after - 1 >= nodep->idx) {
+	prev = yesde_prev(s, yesdep);
+	while (prev && prev->idx + MASK_BITS + prev->num_after - 1 >= yesdep->idx) {
 		unsigned int n1 = (prev->idx + MASK_BITS + prev->num_after - 1)
-			- nodep->idx;
+			- yesdep->idx;
 		assert(prev->num_after > 0);
 		assert(n1 < MASK_BITS);
-		assert(!(nodep->mask & (1 << n1)));
-		nodep->mask |= (1 << n1);
+		assert(!(yesdep->mask & (1 << n1)));
+		yesdep->mask |= (1 << n1);
 		prev->num_after--;
 	}
 
-	return nodep;
+	return yesdep;
 }
 
 /* Returns whether all the bits in the sparsebit array are set.  */
 bool sparsebit_all_set(struct sparsebit *s)
 {
 	/*
-	 * If any nodes there must be at least one bit set.  Only case
+	 * If any yesdes there must be at least one bit set.  Only case
 	 * where a bit is set and total num set is 0, is when all bits
 	 * are set.
 	 */
 	return s->root && s->num_set == 0;
 }
 
-/* Clears all bits described by the node pointed to by nodep, then
- * removes the node.
+/* Clears all bits described by the yesde pointed to by yesdep, then
+ * removes the yesde.
  */
-static void node_rm(struct sparsebit *s, struct node *nodep)
+static void yesde_rm(struct sparsebit *s, struct yesde *yesdep)
 {
-	struct node *tmp;
+	struct yesde *tmp;
 	sparsebit_num_t num_set;
 
-	num_set = node_num_set(nodep);
+	num_set = yesde_num_set(yesdep);
 	assert(s->num_set >= num_set || sparsebit_all_set(s));
-	s->num_set -= node_num_set(nodep);
+	s->num_set -= yesde_num_set(yesdep);
 
 	/* Have both left and right child */
-	if (nodep->left && nodep->right) {
+	if (yesdep->left && yesdep->right) {
 		/*
-		 * Move left children to the leftmost leaf node
+		 * Move left children to the leftmost leaf yesde
 		 * of the right child.
 		 */
-		for (tmp = nodep->right; tmp->left; tmp = tmp->left)
+		for (tmp = yesdep->right; tmp->left; tmp = tmp->left)
 			;
-		tmp->left = nodep->left;
-		nodep->left = NULL;
+		tmp->left = yesdep->left;
+		yesdep->left = NULL;
 		tmp->left->parent = tmp;
 	}
 
 	/* Left only child */
-	if (nodep->left) {
-		if (!nodep->parent) {
-			s->root = nodep->left;
-			nodep->left->parent = NULL;
+	if (yesdep->left) {
+		if (!yesdep->parent) {
+			s->root = yesdep->left;
+			yesdep->left->parent = NULL;
 		} else {
-			nodep->left->parent = nodep->parent;
-			if (nodep == nodep->parent->left)
-				nodep->parent->left = nodep->left;
+			yesdep->left->parent = yesdep->parent;
+			if (yesdep == yesdep->parent->left)
+				yesdep->parent->left = yesdep->left;
 			else {
-				assert(nodep == nodep->parent->right);
-				nodep->parent->right = nodep->left;
+				assert(yesdep == yesdep->parent->right);
+				yesdep->parent->right = yesdep->left;
 			}
 		}
 
-		nodep->parent = nodep->left = nodep->right = NULL;
-		free(nodep);
+		yesdep->parent = yesdep->left = yesdep->right = NULL;
+		free(yesdep);
 
 		return;
 	}
 
 
 	/* Right only child */
-	if (nodep->right) {
-		if (!nodep->parent) {
-			s->root = nodep->right;
-			nodep->right->parent = NULL;
+	if (yesdep->right) {
+		if (!yesdep->parent) {
+			s->root = yesdep->right;
+			yesdep->right->parent = NULL;
 		} else {
-			nodep->right->parent = nodep->parent;
-			if (nodep == nodep->parent->left)
-				nodep->parent->left = nodep->right;
+			yesdep->right->parent = yesdep->parent;
+			if (yesdep == yesdep->parent->left)
+				yesdep->parent->left = yesdep->right;
 			else {
-				assert(nodep == nodep->parent->right);
-				nodep->parent->right = nodep->right;
+				assert(yesdep == yesdep->parent->right);
+				yesdep->parent->right = yesdep->right;
 			}
 		}
 
-		nodep->parent = nodep->left = nodep->right = NULL;
-		free(nodep);
+		yesdep->parent = yesdep->left = yesdep->right = NULL;
+		free(yesdep);
 
 		return;
 	}
 
 	/* Leaf Node */
-	if (!nodep->parent) {
+	if (!yesdep->parent) {
 		s->root = NULL;
 	} else {
-		if (nodep->parent->left == nodep)
-			nodep->parent->left = NULL;
+		if (yesdep->parent->left == yesdep)
+			yesdep->parent->left = NULL;
 		else {
-			assert(nodep == nodep->parent->right);
-			nodep->parent->right = NULL;
+			assert(yesdep == yesdep->parent->right);
+			yesdep->parent->right = NULL;
 		}
 	}
 
-	nodep->parent = nodep->left = nodep->right = NULL;
-	free(nodep);
+	yesdep->parent = yesdep->left = yesdep->right = NULL;
+	free(yesdep);
 
 	return;
 }
 
-/* Splits the node containing the bit at idx so that there is a node
- * that starts at the specified index.  If no such node exists, a new
- * node at the specified index is created.  Returns the new node.
+/* Splits the yesde containing the bit at idx so that there is a yesde
+ * that starts at the specified index.  If yes such yesde exists, a new
+ * yesde at the specified index is created.  Returns the new yesde.
  *
  * idx must start of a mask boundary.
  */
-static struct node *node_split(struct sparsebit *s, sparsebit_idx_t idx)
+static struct yesde *yesde_split(struct sparsebit *s, sparsebit_idx_t idx)
 {
-	struct node *nodep1, *nodep2;
+	struct yesde *yesdep1, *yesdep2;
 	sparsebit_idx_t offset;
 	sparsebit_num_t orig_num_after;
 
 	assert(!(idx % MASK_BITS));
 
 	/*
-	 * Is there a node that describes the setting of idx?
-	 * If not, add it.
+	 * Is there a yesde that describes the setting of idx?
+	 * If yest, add it.
 	 */
-	nodep1 = node_find(s, idx);
-	if (!nodep1)
-		return node_add(s, idx);
+	yesdep1 = yesde_find(s, idx);
+	if (!yesdep1)
+		return yesde_add(s, idx);
 
 	/*
-	 * All done if the starting index of the node is where the
+	 * All done if the starting index of the yesde is where the
 	 * split should occur.
 	 */
-	if (nodep1->idx == idx)
-		return nodep1;
+	if (yesdep1->idx == idx)
+		return yesdep1;
 
 	/*
-	 * Split point not at start of mask, so it must be part of
+	 * Split point yest at start of mask, so it must be part of
 	 * bits described by num_after.
 	 */
 
@@ -527,116 +527,116 @@ static struct node *node_split(struct sparsebit *s, sparsebit_idx_t idx)
 	 * Calculate offset within num_after for where the split is
 	 * to occur.
 	 */
-	offset = idx - (nodep1->idx + MASK_BITS);
-	orig_num_after = nodep1->num_after;
+	offset = idx - (yesdep1->idx + MASK_BITS);
+	orig_num_after = yesdep1->num_after;
 
 	/*
-	 * Add a new node to describe the bits starting at
+	 * Add a new yesde to describe the bits starting at
 	 * the split point.
 	 */
-	nodep1->num_after = offset;
-	nodep2 = node_add(s, idx);
+	yesdep1->num_after = offset;
+	yesdep2 = yesde_add(s, idx);
 
-	/* Move bits after the split point into the new node */
-	nodep2->num_after = orig_num_after - offset;
-	if (nodep2->num_after >= MASK_BITS) {
-		nodep2->mask = ~(mask_t) 0;
-		nodep2->num_after -= MASK_BITS;
+	/* Move bits after the split point into the new yesde */
+	yesdep2->num_after = orig_num_after - offset;
+	if (yesdep2->num_after >= MASK_BITS) {
+		yesdep2->mask = ~(mask_t) 0;
+		yesdep2->num_after -= MASK_BITS;
 	} else {
-		nodep2->mask = (1 << nodep2->num_after) - 1;
-		nodep2->num_after = 0;
+		yesdep2->mask = (1 << yesdep2->num_after) - 1;
+		yesdep2->num_after = 0;
 	}
 
-	return nodep2;
+	return yesdep2;
 }
 
-/* Iteratively reduces the node pointed to by nodep and its adjacent
- * nodes into a more compact form.  For example, a node with a mask with
- * all bits set adjacent to a previous node, will get combined into a
- * single node with an increased num_after setting.
+/* Iteratively reduces the yesde pointed to by yesdep and its adjacent
+ * yesdes into a more compact form.  For example, a yesde with a mask with
+ * all bits set adjacent to a previous yesde, will get combined into a
+ * single yesde with an increased num_after setting.
  *
  * After each reduction, a further check is made to see if additional
- * reductions are possible with the new previous and next nodes.  Note,
- * a search for a reduction is only done across the nodes nearest nodep
- * and those that became part of a reduction.  Reductions beyond nodep
- * and the adjacent nodes that are reduced are not discovered.  It is the
- * responsibility of the caller to pass a nodep that is within one node
+ * reductions are possible with the new previous and next yesdes.  Note,
+ * a search for a reduction is only done across the yesdes nearest yesdep
+ * and those that became part of a reduction.  Reductions beyond yesdep
+ * and the adjacent yesdes that are reduced are yest discovered.  It is the
+ * responsibility of the caller to pass a yesdep that is within one yesde
  * of each possible reduction.
  *
- * This function does not fix the temporary violation of all invariants.
- * For example it does not fix the case where the bit settings described
- * by two or more nodes overlap.  Such a violation introduces the potential
+ * This function does yest fix the temporary violation of all invariants.
+ * For example it does yest fix the case where the bit settings described
+ * by two or more yesdes overlap.  Such a violation introduces the potential
  * complication of a bit setting for a specific index having different settings
- * in different nodes.  This would then introduce the further complication
- * of which node has the correct setting of the bit and thus such conditions
- * are not allowed.
+ * in different yesdes.  This would then introduce the further complication
+ * of which yesde has the correct setting of the bit and thus such conditions
+ * are yest allowed.
  *
  * This function is designed to fix invariant violations that are introduced
- * by node_split() and by changes to the nodes mask or num_after members.
- * For example, when setting a bit within a nodes mask, the function that
+ * by yesde_split() and by changes to the yesdes mask or num_after members.
+ * For example, when setting a bit within a yesdes mask, the function that
  * sets the bit doesn't have to worry about whether the setting of that
  * bit caused the mask to have leading only or trailing only bits set.
- * Instead, the function can call node_reduce(), with nodep equal to the
- * node address that it set a mask bit in, and node_reduce() will notice
+ * Instead, the function can call yesde_reduce(), with yesdep equal to the
+ * yesde address that it set a mask bit in, and yesde_reduce() will yestice
  * the cases of leading or trailing only bits and that there is an
- * adjacent node that the bit settings could be merged into.
+ * adjacent yesde that the bit settings could be merged into.
  *
  * This implementation specifically detects and corrects violation of the
  * following invariants:
  *
  *   + Node are only used to represent bits that are set.
- *     Nodes with a mask of 0 and num_after of 0 are not allowed.
+ *     Nodes with a mask of 0 and num_after of 0 are yest allowed.
  *
- *   + The setting of at least one bit is always described in a nodes
+ *   + The setting of at least one bit is always described in a yesdes
  *     mask (mask >= 1).
  *
- *   + A node with all mask bits set only occurs when the last bit
- *     described by the previous node is not equal to this nodes
+ *   + A yesde with all mask bits set only occurs when the last bit
+ *     described by the previous yesde is yest equal to this yesdes
  *     starting index - 1.  All such occurences of this condition are
- *     avoided by moving the setting of the nodes mask bits into
- *     the previous nodes num_after setting.
+ *     avoided by moving the setting of the yesdes mask bits into
+ *     the previous yesdes num_after setting.
  */
-static void node_reduce(struct sparsebit *s, struct node *nodep)
+static void yesde_reduce(struct sparsebit *s, struct yesde *yesdep)
 {
 	bool reduction_performed;
 
 	do {
 		reduction_performed = false;
-		struct node *prev, *next, *tmp;
+		struct yesde *prev, *next, *tmp;
 
-		/* 1) Potential reductions within the current node. */
+		/* 1) Potential reductions within the current yesde. */
 
 		/* Nodes with all bits cleared may be removed. */
-		if (nodep->mask == 0 && nodep->num_after == 0) {
+		if (yesdep->mask == 0 && yesdep->num_after == 0) {
 			/*
-			 * About to remove the node pointed to by
-			 * nodep, which normally would cause a problem
+			 * About to remove the yesde pointed to by
+			 * yesdep, which yesrmally would cause a problem
 			 * for the next pass through the reduction loop,
-			 * because the node at the starting point no longer
+			 * because the yesde at the starting point yes longer
 			 * exists.  This potential problem is handled
 			 * by first remembering the location of the next
-			 * or previous nodes.  Doesn't matter which, because
-			 * once the node at nodep is removed, there will be
-			 * no other nodes between prev and next.
+			 * or previous yesdes.  Doesn't matter which, because
+			 * once the yesde at yesdep is removed, there will be
+			 * yes other yesdes between prev and next.
 			 *
-			 * Note, the checks performed on nodep against both
+			 * Note, the checks performed on yesdep against both
 			 * both prev and next both check for an adjacent
-			 * node that can be reduced into a single node.  As
-			 * such, after removing the node at nodep, doesn't
-			 * matter whether the nodep for the next pass
+			 * yesde that can be reduced into a single yesde.  As
+			 * such, after removing the yesde at yesdep, doesn't
+			 * matter whether the yesdep for the next pass
 			 * through the loop is equal to the previous pass
-			 * prev or next node.  Either way, on the next pass
-			 * the one not selected will become either the
-			 * prev or next node.
+			 * prev or next yesde.  Either way, on the next pass
+			 * the one yest selected will become either the
+			 * prev or next yesde.
 			 */
-			tmp = node_next(s, nodep);
+			tmp = yesde_next(s, yesdep);
 			if (!tmp)
-				tmp = node_prev(s, nodep);
+				tmp = yesde_prev(s, yesdep);
 
-			node_rm(s, nodep);
-			nodep = NULL;
+			yesde_rm(s, yesdep);
+			yesdep = NULL;
 
-			nodep = tmp;
+			yesdep = tmp;
 			reduction_performed = true;
 			continue;
 		}
@@ -645,18 +645,18 @@ static void node_reduce(struct sparsebit *s, struct node *nodep)
 		 * When the mask is 0, can reduce the amount of num_after
 		 * bits by moving the initial num_after bits into the mask.
 		 */
-		if (nodep->mask == 0) {
-			assert(nodep->num_after != 0);
-			assert(nodep->idx + MASK_BITS > nodep->idx);
+		if (yesdep->mask == 0) {
+			assert(yesdep->num_after != 0);
+			assert(yesdep->idx + MASK_BITS > yesdep->idx);
 
-			nodep->idx += MASK_BITS;
+			yesdep->idx += MASK_BITS;
 
-			if (nodep->num_after >= MASK_BITS) {
-				nodep->mask = ~0;
-				nodep->num_after -= MASK_BITS;
+			if (yesdep->num_after >= MASK_BITS) {
+				yesdep->mask = ~0;
+				yesdep->num_after -= MASK_BITS;
 			} else {
-				nodep->mask = (1u << nodep->num_after) - 1;
-				nodep->num_after = 0;
+				yesdep->mask = (1u << yesdep->num_after) - 1;
+				yesdep->num_after = 0;
 			}
 
 			reduction_performed = true;
@@ -665,42 +665,42 @@ static void node_reduce(struct sparsebit *s, struct node *nodep)
 
 		/*
 		 * 2) Potential reductions between the current and
-		 * previous nodes.
+		 * previous yesdes.
 		 */
-		prev = node_prev(s, nodep);
+		prev = yesde_prev(s, yesdep);
 		if (prev) {
 			sparsebit_idx_t prev_highest_bit;
 
-			/* Nodes with no bits set can be removed. */
+			/* Nodes with yes bits set can be removed. */
 			if (prev->mask == 0 && prev->num_after == 0) {
-				node_rm(s, prev);
+				yesde_rm(s, prev);
 
 				reduction_performed = true;
 				continue;
 			}
 
 			/*
-			 * All mask bits set and previous node has
+			 * All mask bits set and previous yesde has
 			 * adjacent index.
 			 */
-			if (nodep->mask + 1 == 0 &&
-			    prev->idx + MASK_BITS == nodep->idx) {
-				prev->num_after += MASK_BITS + nodep->num_after;
-				nodep->mask = 0;
-				nodep->num_after = 0;
+			if (yesdep->mask + 1 == 0 &&
+			    prev->idx + MASK_BITS == yesdep->idx) {
+				prev->num_after += MASK_BITS + yesdep->num_after;
+				yesdep->mask = 0;
+				yesdep->num_after = 0;
 
 				reduction_performed = true;
 				continue;
 			}
 
 			/*
-			 * Is node adjacent to previous node and the node
+			 * Is yesde adjacent to previous yesde and the yesde
 			 * contains a single contiguous range of bits
 			 * starting from the beginning of the mask?
 			 */
 			prev_highest_bit = prev->idx + MASK_BITS - 1 + prev->num_after;
-			if (prev_highest_bit + 1 == nodep->idx &&
-			    (nodep->mask | (nodep->mask >> 1)) == nodep->mask) {
+			if (prev_highest_bit + 1 == yesdep->idx &&
+			    (yesdep->mask | (yesdep->mask >> 1)) == yesdep->mask) {
 				/*
 				 * How many contiguous bits are there?
 				 * Is equal to the total number of set
@@ -709,17 +709,17 @@ static void node_reduce(struct sparsebit *s, struct node *nodep)
 				 * set bits.
 				 */
 				unsigned int num_contiguous
-					= __builtin_popcount(nodep->mask);
+					= __builtin_popcount(yesdep->mask);
 				assert((num_contiguous > 0) &&
-				       ((1ULL << num_contiguous) - 1) == nodep->mask);
+				       ((1ULL << num_contiguous) - 1) == yesdep->mask);
 
 				prev->num_after += num_contiguous;
-				nodep->mask = 0;
+				yesdep->mask = 0;
 
 				/*
 				 * For predictable performance, handle special
 				 * case where all mask bits are set and there
-				 * is a non-zero num_after setting.  This code
+				 * is a yesn-zero num_after setting.  This code
 				 * is functionally correct without the following
 				 * conditionalized statements, but without them
 				 * the value of num_after is only reduced by
@@ -730,8 +730,8 @@ static void node_reduce(struct sparsebit *s, struct node *nodep)
 				 * reduction.
 				 */
 				if (num_contiguous == MASK_BITS) {
-					prev->num_after += nodep->num_after;
-					nodep->num_after = 0;
+					prev->num_after += yesdep->num_after;
+					yesdep->num_after = 0;
 				}
 
 				reduction_performed = true;
@@ -741,62 +741,62 @@ static void node_reduce(struct sparsebit *s, struct node *nodep)
 
 		/*
 		 * 3) Potential reductions between the current and
-		 * next nodes.
+		 * next yesdes.
 		 */
-		next = node_next(s, nodep);
+		next = yesde_next(s, yesdep);
 		if (next) {
-			/* Nodes with no bits set can be removed. */
+			/* Nodes with yes bits set can be removed. */
 			if (next->mask == 0 && next->num_after == 0) {
-				node_rm(s, next);
+				yesde_rm(s, next);
 				reduction_performed = true;
 				continue;
 			}
 
 			/*
-			 * Is next node index adjacent to current node
+			 * Is next yesde index adjacent to current yesde
 			 * and has a mask with all bits set?
 			 */
-			if (next->idx == nodep->idx + MASK_BITS + nodep->num_after &&
+			if (next->idx == yesdep->idx + MASK_BITS + yesdep->num_after &&
 			    next->mask == ~(mask_t) 0) {
-				nodep->num_after += MASK_BITS;
+				yesdep->num_after += MASK_BITS;
 				next->mask = 0;
-				nodep->num_after += next->num_after;
+				yesdep->num_after += next->num_after;
 				next->num_after = 0;
 
-				node_rm(s, next);
+				yesde_rm(s, next);
 				next = NULL;
 
 				reduction_performed = true;
 				continue;
 			}
 		}
-	} while (nodep && reduction_performed);
+	} while (yesdep && reduction_performed);
 }
 
 /* Returns whether the bit at the index given by idx, within the
- * sparsebit array is set or not.
+ * sparsebit array is set or yest.
  */
 bool sparsebit_is_set(struct sparsebit *s, sparsebit_idx_t idx)
 {
-	struct node *nodep;
+	struct yesde *yesdep;
 
-	/* Find the node that describes the setting of the bit at idx */
-	for (nodep = s->root; nodep;
-	     nodep = nodep->idx > idx ? nodep->left : nodep->right)
-		if (idx >= nodep->idx &&
-		    idx <= nodep->idx + MASK_BITS + nodep->num_after - 1)
-			goto have_node;
+	/* Find the yesde that describes the setting of the bit at idx */
+	for (yesdep = s->root; yesdep;
+	     yesdep = yesdep->idx > idx ? yesdep->left : yesdep->right)
+		if (idx >= yesdep->idx &&
+		    idx <= yesdep->idx + MASK_BITS + yesdep->num_after - 1)
+			goto have_yesde;
 
 	return false;
 
-have_node:
+have_yesde:
 	/* Bit is set if it is any of the bits described by num_after */
-	if (nodep->num_after && idx >= nodep->idx + MASK_BITS)
+	if (yesdep->num_after && idx >= yesdep->idx + MASK_BITS)
 		return true;
 
 	/* Is the corresponding mask bit set */
-	assert(idx >= nodep->idx && idx - nodep->idx < MASK_BITS);
-	return !!(nodep->mask & (1 << (idx - nodep->idx)));
+	assert(idx >= yesdep->idx && idx - yesdep->idx < MASK_BITS);
+	return !!(yesdep->mask & (1 << (idx - yesdep->idx)));
 }
 
 /* Within the sparsebit array pointed to by s, sets the bit
@@ -804,26 +804,26 @@ have_node:
  */
 static void bit_set(struct sparsebit *s, sparsebit_idx_t idx)
 {
-	struct node *nodep;
+	struct yesde *yesdep;
 
 	/* Skip bits that are already set */
 	if (sparsebit_is_set(s, idx))
 		return;
 
 	/*
-	 * Get a node where the bit at idx is described by the mask.
-	 * The node_split will also create a node, if there isn't
-	 * already a node that describes the setting of bit.
+	 * Get a yesde where the bit at idx is described by the mask.
+	 * The yesde_split will also create a yesde, if there isn't
+	 * already a yesde that describes the setting of bit.
 	 */
-	nodep = node_split(s, idx & -MASK_BITS);
+	yesdep = yesde_split(s, idx & -MASK_BITS);
 
-	/* Set the bit within the nodes mask */
-	assert(idx >= nodep->idx && idx <= nodep->idx + MASK_BITS - 1);
-	assert(!(nodep->mask & (1 << (idx - nodep->idx))));
-	nodep->mask |= 1 << (idx - nodep->idx);
+	/* Set the bit within the yesdes mask */
+	assert(idx >= yesdep->idx && idx <= yesdep->idx + MASK_BITS - 1);
+	assert(!(yesdep->mask & (1 << (idx - yesdep->idx))));
+	yesdep->mask |= 1 << (idx - yesdep->idx);
 	s->num_set++;
 
-	node_reduce(s, nodep);
+	yesde_reduce(s, yesdep);
 }
 
 /* Within the sparsebit array pointed to by s, clears the bit
@@ -831,96 +831,96 @@ static void bit_set(struct sparsebit *s, sparsebit_idx_t idx)
  */
 static void bit_clear(struct sparsebit *s, sparsebit_idx_t idx)
 {
-	struct node *nodep;
+	struct yesde *yesdep;
 
 	/* Skip bits that are already cleared */
 	if (!sparsebit_is_set(s, idx))
 		return;
 
-	/* Is there a node that describes the setting of this bit? */
-	nodep = node_find(s, idx);
-	if (!nodep)
+	/* Is there a yesde that describes the setting of this bit? */
+	yesdep = yesde_find(s, idx);
+	if (!yesdep)
 		return;
 
 	/*
-	 * If a num_after bit, split the node, so that the bit is
-	 * part of a node mask.
+	 * If a num_after bit, split the yesde, so that the bit is
+	 * part of a yesde mask.
 	 */
-	if (idx >= nodep->idx + MASK_BITS)
-		nodep = node_split(s, idx & -MASK_BITS);
+	if (idx >= yesdep->idx + MASK_BITS)
+		yesdep = yesde_split(s, idx & -MASK_BITS);
 
 	/*
-	 * After node_split above, bit at idx should be within the mask.
+	 * After yesde_split above, bit at idx should be within the mask.
 	 * Clear that bit.
 	 */
-	assert(idx >= nodep->idx && idx <= nodep->idx + MASK_BITS - 1);
-	assert(nodep->mask & (1 << (idx - nodep->idx)));
-	nodep->mask &= ~(1 << (idx - nodep->idx));
+	assert(idx >= yesdep->idx && idx <= yesdep->idx + MASK_BITS - 1);
+	assert(yesdep->mask & (1 << (idx - yesdep->idx)));
+	yesdep->mask &= ~(1 << (idx - yesdep->idx));
 	assert(s->num_set > 0 || sparsebit_all_set(s));
 	s->num_set--;
 
-	node_reduce(s, nodep);
+	yesde_reduce(s, yesdep);
 }
 
 /* Recursively dumps to the FILE stream given by stream the contents
- * of the sub-tree of nodes pointed to by nodep.  Each line of output
+ * of the sub-tree of yesdes pointed to by yesdep.  Each line of output
  * is prefixed by the number of spaces given by indent.  On each
- * recursion, the indent amount is increased by 2.  This causes nodes
+ * recursion, the indent amount is increased by 2.  This causes yesdes
  * at each level deeper into the binary search tree to be displayed
  * with a greater indent.
  */
-static void dump_nodes(FILE *stream, struct node *nodep,
+static void dump_yesdes(FILE *stream, struct yesde *yesdep,
 	unsigned int indent)
 {
-	char *node_type;
+	char *yesde_type;
 
-	/* Dump contents of node */
-	if (!nodep->parent)
-		node_type = "root";
-	else if (nodep == nodep->parent->left)
-		node_type = "left";
+	/* Dump contents of yesde */
+	if (!yesdep->parent)
+		yesde_type = "root";
+	else if (yesdep == yesdep->parent->left)
+		yesde_type = "left";
 	else {
-		assert(nodep == nodep->parent->right);
-		node_type = "right";
+		assert(yesdep == yesdep->parent->right);
+		yesde_type = "right";
 	}
-	fprintf(stream, "%*s---- %s nodep: %p\n", indent, "", node_type, nodep);
+	fprintf(stream, "%*s---- %s yesdep: %p\n", indent, "", yesde_type, yesdep);
 	fprintf(stream, "%*s  parent: %p left: %p right: %p\n", indent, "",
-		nodep->parent, nodep->left, nodep->right);
+		yesdep->parent, yesdep->left, yesdep->right);
 	fprintf(stream, "%*s  idx: 0x%lx mask: 0x%x num_after: 0x%lx\n",
-		indent, "", nodep->idx, nodep->mask, nodep->num_after);
+		indent, "", yesdep->idx, yesdep->mask, yesdep->num_after);
 
-	/* If present, dump contents of left child nodes */
-	if (nodep->left)
-		dump_nodes(stream, nodep->left, indent + 2);
+	/* If present, dump contents of left child yesdes */
+	if (yesdep->left)
+		dump_yesdes(stream, yesdep->left, indent + 2);
 
-	/* If present, dump contents of right child nodes */
-	if (nodep->right)
-		dump_nodes(stream, nodep->right, indent + 2);
+	/* If present, dump contents of right child yesdes */
+	if (yesdep->right)
+		dump_yesdes(stream, yesdep->right, indent + 2);
 }
 
-static inline sparsebit_idx_t node_first_set(struct node *nodep, int start)
+static inline sparsebit_idx_t yesde_first_set(struct yesde *yesdep, int start)
 {
 	mask_t leading = (mask_t)1 << start;
-	int n1 = __builtin_ctz(nodep->mask & -leading);
+	int n1 = __builtin_ctz(yesdep->mask & -leading);
 
-	return nodep->idx + n1;
+	return yesdep->idx + n1;
 }
 
-static inline sparsebit_idx_t node_first_clear(struct node *nodep, int start)
+static inline sparsebit_idx_t yesde_first_clear(struct yesde *yesdep, int start)
 {
 	mask_t leading = (mask_t)1 << start;
-	int n1 = __builtin_ctz(~nodep->mask & -leading);
+	int n1 = __builtin_ctz(~yesdep->mask & -leading);
 
-	return nodep->idx + n1;
+	return yesdep->idx + n1;
 }
 
 /* Dumps to the FILE stream specified by stream, the implementation dependent
  * internal state of s.  Each line of output is prefixed with the number
  * of spaces given by indent.  The output is completely implementation
  * dependent and subject to change.  Output from this function should only
- * be used for diagnostic purposes.  For example, this function can be
+ * be used for diagyesstic purposes.  For example, this function can be
  * used by test cases after they detect an unexpected condition, as a means
- * to capture diagnostic information.
+ * to capture diagyesstic information.
  */
 static void sparsebit_dump_internal(FILE *stream, struct sparsebit *s,
 	unsigned int indent)
@@ -930,7 +930,7 @@ static void sparsebit_dump_internal(FILE *stream, struct sparsebit *s,
 	fprintf(stream, "%*snum_set: 0x%lx\n", indent, "", s->num_set);
 
 	if (s->root)
-		dump_nodes(stream, s->root, indent);
+		dump_yesdes(stream, s->root, indent);
 }
 
 /* Allocates and returns a new sparsebit array. The initial state
@@ -976,7 +976,7 @@ void sparsebit_copy(struct sparsebit *d, struct sparsebit *s)
 	sparsebit_clear_all(d);
 
 	if (s->root) {
-		d->root = node_copy_subtree(s->root);
+		d->root = yesde_copy_subtree(s->root);
 		d->num_set = s->num_set;
 	}
 }
@@ -998,9 +998,9 @@ bool sparsebit_is_set_num(struct sparsebit *s,
 	next_cleared = sparsebit_next_clear(s, idx);
 
 	/*
-	 * If no cleared bits beyond idx, then there are at least num
+	 * If yes cleared bits beyond idx, then there are at least num
 	 * set bits. idx + num doesn't wrap.  Otherwise check if
-	 * there are enough set bits between idx and the next cleared bit.
+	 * there are eyesugh set bits between idx and the next cleared bit.
 	 */
 	return next_cleared == 0 || next_cleared - idx >= num;
 }
@@ -1029,9 +1029,9 @@ bool sparsebit_is_clear_num(struct sparsebit *s,
 	next_set = sparsebit_next_set(s, idx);
 
 	/*
-	 * If no set bits beyond idx, then there are at least num
+	 * If yes set bits beyond idx, then there are at least num
 	 * cleared bits. idx + num doesn't wrap.  Otherwise check if
-	 * there are enough cleared bits between idx and the next set bit.
+	 * there are eyesugh cleared bits between idx and the next set bit.
 	 */
 	return next_set == 0 || next_set - idx >= num;
 }
@@ -1051,15 +1051,15 @@ sparsebit_num_t sparsebit_num_set(struct sparsebit *s)
 bool sparsebit_any_set(struct sparsebit *s)
 {
 	/*
-	 * Nodes only describe set bits.  If any nodes then there
+	 * Nodes only describe set bits.  If any yesdes then there
 	 * is at least 1 bit set.
 	 */
 	if (!s->root)
 		return false;
 
 	/*
-	 * Every node should have a non-zero mask.  For now will
-	 * just assure that the root node has a non-zero mask,
+	 * Every yesde should have a yesn-zero mask.  For yesw will
+	 * just assure that the root yesde has a yesn-zero mask,
 	 * which is a quick check that at least 1 bit is set.
 	 */
 	assert(s->root->mask != 0);
@@ -1082,82 +1082,82 @@ bool sparsebit_any_clear(struct sparsebit *s)
 	return !sparsebit_all_set(s);
 }
 
-/* Returns the index of the first set bit.  Abort if no bits are set.
+/* Returns the index of the first set bit.  Abort if yes bits are set.
  */
 sparsebit_idx_t sparsebit_first_set(struct sparsebit *s)
 {
-	struct node *nodep;
+	struct yesde *yesdep;
 
 	/* Validate at least 1 bit is set */
 	assert(sparsebit_any_set(s));
 
-	nodep = node_first(s);
-	return node_first_set(nodep, 0);
+	yesdep = yesde_first(s);
+	return yesde_first_set(yesdep, 0);
 }
 
 /* Returns the index of the first cleared bit.  Abort if
- * no bits are cleared.
+ * yes bits are cleared.
  */
 sparsebit_idx_t sparsebit_first_clear(struct sparsebit *s)
 {
-	struct node *nodep1, *nodep2;
+	struct yesde *yesdep1, *yesdep2;
 
 	/* Validate at least 1 bit is cleared. */
 	assert(sparsebit_any_clear(s));
 
-	/* If no nodes or first node index > 0 then lowest cleared is 0 */
-	nodep1 = node_first(s);
-	if (!nodep1 || nodep1->idx > 0)
+	/* If yes yesdes or first yesde index > 0 then lowest cleared is 0 */
+	yesdep1 = yesde_first(s);
+	if (!yesdep1 || yesdep1->idx > 0)
 		return 0;
 
-	/* Does the mask in the first node contain any cleared bits. */
-	if (nodep1->mask != ~(mask_t) 0)
-		return node_first_clear(nodep1, 0);
+	/* Does the mask in the first yesde contain any cleared bits. */
+	if (yesdep1->mask != ~(mask_t) 0)
+		return yesde_first_clear(yesdep1, 0);
 
 	/*
-	 * All mask bits set in first node.  If there isn't a second node
+	 * All mask bits set in first yesde.  If there isn't a second yesde
 	 * then the first cleared bit is the first bit after the bits
-	 * described by the first node.
+	 * described by the first yesde.
 	 */
-	nodep2 = node_next(s, nodep1);
-	if (!nodep2) {
+	yesdep2 = yesde_next(s, yesdep1);
+	if (!yesdep2) {
 		/*
-		 * No second node.  First cleared bit is first bit beyond
-		 * bits described by first node.
+		 * No second yesde.  First cleared bit is first bit beyond
+		 * bits described by first yesde.
 		 */
-		assert(nodep1->mask == ~(mask_t) 0);
-		assert(nodep1->idx + MASK_BITS + nodep1->num_after != (sparsebit_idx_t) 0);
-		return nodep1->idx + MASK_BITS + nodep1->num_after;
+		assert(yesdep1->mask == ~(mask_t) 0);
+		assert(yesdep1->idx + MASK_BITS + yesdep1->num_after != (sparsebit_idx_t) 0);
+		return yesdep1->idx + MASK_BITS + yesdep1->num_after;
 	}
 
 	/*
-	 * There is a second node.
-	 * If it is not adjacent to the first node, then there is a gap
-	 * of cleared bits between the nodes, and the first cleared bit
+	 * There is a second yesde.
+	 * If it is yest adjacent to the first yesde, then there is a gap
+	 * of cleared bits between the yesdes, and the first cleared bit
 	 * is the first bit within the gap.
 	 */
-	if (nodep1->idx + MASK_BITS + nodep1->num_after != nodep2->idx)
-		return nodep1->idx + MASK_BITS + nodep1->num_after;
+	if (yesdep1->idx + MASK_BITS + yesdep1->num_after != yesdep2->idx)
+		return yesdep1->idx + MASK_BITS + yesdep1->num_after;
 
 	/*
-	 * Second node is adjacent to the first node.
-	 * Because it is adjacent, its mask should be non-zero.  If all
+	 * Second yesde is adjacent to the first yesde.
+	 * Because it is adjacent, its mask should be yesn-zero.  If all
 	 * its mask bits are set, then with it being adjacent, it should
 	 * have had the mask bits moved into the num_after setting of the
-	 * previous node.
+	 * previous yesde.
 	 */
-	return node_first_clear(nodep2, 0);
+	return yesde_first_clear(yesdep2, 0);
 }
 
 /* Returns index of next bit set within s after the index given by prev.
- * Returns 0 if there are no bits after prev that are set.
+ * Returns 0 if there are yes bits after prev that are set.
  */
 sparsebit_idx_t sparsebit_next_set(struct sparsebit *s,
 	sparsebit_idx_t prev)
 {
 	sparsebit_idx_t lowest_possible = prev + 1;
 	sparsebit_idx_t start;
-	struct node *nodep;
+	struct yesde *yesdep;
 
 	/* A bit after the highest index can't be set. */
 	if (lowest_possible == 0)
@@ -1167,27 +1167,27 @@ sparsebit_idx_t sparsebit_next_set(struct sparsebit *s,
 	 * Find the leftmost 'candidate' overlapping or to the right
 	 * of lowest_possible.
 	 */
-	struct node *candidate = NULL;
+	struct yesde *candidate = NULL;
 
 	/* True iff lowest_possible is within candidate */
 	bool contains = false;
 
 	/*
-	 * Find node that describes setting of bit at lowest_possible.
-	 * If such a node doesn't exist, find the node with the lowest
+	 * Find yesde that describes setting of bit at lowest_possible.
+	 * If such a yesde doesn't exist, find the yesde with the lowest
 	 * starting index that is > lowest_possible.
 	 */
-	for (nodep = s->root; nodep;) {
-		if ((nodep->idx + MASK_BITS + nodep->num_after - 1)
+	for (yesdep = s->root; yesdep;) {
+		if ((yesdep->idx + MASK_BITS + yesdep->num_after - 1)
 			>= lowest_possible) {
-			candidate = nodep;
+			candidate = yesdep;
 			if (candidate->idx <= lowest_possible) {
 				contains = true;
 				break;
 			}
-			nodep = nodep->left;
+			yesdep = yesdep->left;
 		} else {
-			nodep = nodep->right;
+			yesdep = yesdep->right;
 		}
 	}
 	if (!candidate)
@@ -1195,30 +1195,30 @@ sparsebit_idx_t sparsebit_next_set(struct sparsebit *s,
 
 	assert(candidate->mask != 0);
 
-	/* Does the candidate node describe the setting of lowest_possible? */
+	/* Does the candidate yesde describe the setting of lowest_possible? */
 	if (!contains) {
 		/*
 		 * Candidate doesn't describe setting of bit at lowest_possible.
-		 * Candidate points to the first node with a starting index
+		 * Candidate points to the first yesde with a starting index
 		 * > lowest_possible.
 		 */
 		assert(candidate->idx > lowest_possible);
 
-		return node_first_set(candidate, 0);
+		return yesde_first_set(candidate, 0);
 	}
 
 	/*
 	 * Candidate describes setting of bit at lowest_possible.
-	 * Note: although the node describes the setting of the bit
+	 * Note: although the yesde describes the setting of the bit
 	 * at lowest_possible, its possible that its setting and the
-	 * setting of all latter bits described by this node are 0.
-	 * For now, just handle the cases where this node describes
+	 * setting of all latter bits described by this yesde are 0.
+	 * For yesw, just handle the cases where this yesde describes
 	 * a bit at or after an index of lowest_possible that is set.
 	 */
 	start = lowest_possible - candidate->idx;
 
 	if (start < MASK_BITS && candidate->mask >= (1 << start))
-		return node_first_set(candidate, start);
+		return yesde_first_set(candidate, start);
 
 	if (candidate->num_after) {
 		sparsebit_idx_t first_num_after_idx = candidate->idx + MASK_BITS;
@@ -1228,78 +1228,78 @@ sparsebit_idx_t sparsebit_next_set(struct sparsebit *s,
 	}
 
 	/*
-	 * Although candidate node describes setting of bit at
+	 * Although candidate yesde describes setting of bit at
 	 * the index of lowest_possible, all bits at that index and
 	 * latter that are described by candidate are cleared.  With
-	 * this, the next bit is the first bit in the next node, if
-	 * such a node exists.  If a next node doesn't exist, then
-	 * there is no next set bit.
+	 * this, the next bit is the first bit in the next yesde, if
+	 * such a yesde exists.  If a next yesde doesn't exist, then
+	 * there is yes next set bit.
 	 */
-	candidate = node_next(s, candidate);
+	candidate = yesde_next(s, candidate);
 	if (!candidate)
 		return 0;
 
-	return node_first_set(candidate, 0);
+	return yesde_first_set(candidate, 0);
 }
 
 /* Returns index of next bit cleared within s after the index given by prev.
- * Returns 0 if there are no bits after prev that are cleared.
+ * Returns 0 if there are yes bits after prev that are cleared.
  */
 sparsebit_idx_t sparsebit_next_clear(struct sparsebit *s,
 	sparsebit_idx_t prev)
 {
 	sparsebit_idx_t lowest_possible = prev + 1;
 	sparsebit_idx_t idx;
-	struct node *nodep1, *nodep2;
+	struct yesde *yesdep1, *yesdep2;
 
 	/* A bit after the highest index can't be set. */
 	if (lowest_possible == 0)
 		return 0;
 
 	/*
-	 * Does a node describing the setting of lowest_possible exist?
-	 * If not, the bit at lowest_possible is cleared.
+	 * Does a yesde describing the setting of lowest_possible exist?
+	 * If yest, the bit at lowest_possible is cleared.
 	 */
-	nodep1 = node_find(s, lowest_possible);
-	if (!nodep1)
+	yesdep1 = yesde_find(s, lowest_possible);
+	if (!yesdep1)
 		return lowest_possible;
 
-	/* Does a mask bit in node 1 describe the next cleared bit. */
-	for (idx = lowest_possible - nodep1->idx; idx < MASK_BITS; idx++)
-		if (!(nodep1->mask & (1 << idx)))
-			return nodep1->idx + idx;
+	/* Does a mask bit in yesde 1 describe the next cleared bit. */
+	for (idx = lowest_possible - yesdep1->idx; idx < MASK_BITS; idx++)
+		if (!(yesdep1->mask & (1 << idx)))
+			return yesdep1->idx + idx;
 
 	/*
-	 * Next cleared bit is not described by node 1.  If there
-	 * isn't a next node, then next cleared bit is described
-	 * by bit after the bits described by the first node.
+	 * Next cleared bit is yest described by yesde 1.  If there
+	 * isn't a next yesde, then next cleared bit is described
+	 * by bit after the bits described by the first yesde.
 	 */
-	nodep2 = node_next(s, nodep1);
-	if (!nodep2)
-		return nodep1->idx + MASK_BITS + nodep1->num_after;
+	yesdep2 = yesde_next(s, yesdep1);
+	if (!yesdep2)
+		return yesdep1->idx + MASK_BITS + yesdep1->num_after;
 
 	/*
-	 * There is a second node.
-	 * If it is not adjacent to the first node, then there is a gap
-	 * of cleared bits between the nodes, and the next cleared bit
+	 * There is a second yesde.
+	 * If it is yest adjacent to the first yesde, then there is a gap
+	 * of cleared bits between the yesdes, and the next cleared bit
 	 * is the first bit within the gap.
 	 */
-	if (nodep1->idx + MASK_BITS + nodep1->num_after != nodep2->idx)
-		return nodep1->idx + MASK_BITS + nodep1->num_after;
+	if (yesdep1->idx + MASK_BITS + yesdep1->num_after != yesdep2->idx)
+		return yesdep1->idx + MASK_BITS + yesdep1->num_after;
 
 	/*
-	 * Second node is adjacent to the first node.
-	 * Because it is adjacent, its mask should be non-zero.  If all
+	 * Second yesde is adjacent to the first yesde.
+	 * Because it is adjacent, its mask should be yesn-zero.  If all
 	 * its mask bits are set, then with it being adjacent, it should
 	 * have had the mask bits moved into the num_after setting of the
-	 * previous node.
+	 * previous yesde.
 	 */
-	return node_first_clear(nodep2, 0);
+	return yesde_first_clear(yesdep2, 0);
 }
 
 /* Starting with the index 1 greater than the index given by start, finds
  * and returns the index of the first sequence of num consecutively set
- * bits.  Returns a value of 0 of no such sequence exists.
+ * bits.  Returns a value of 0 of yes such sequence exists.
  */
 sparsebit_idx_t sparsebit_next_set_num(struct sparsebit *s,
 	sparsebit_idx_t start, sparsebit_num_t num)
@@ -1321,7 +1321,7 @@ sparsebit_idx_t sparsebit_next_set_num(struct sparsebit *s,
 			return idx;
 
 		/*
-		 * Sequence of set bits at idx isn't large enough.
+		 * Sequence of set bits at idx isn't large eyesugh.
 		 * Skip this entire sequence of set bits.
 		 */
 		idx = sparsebit_next_clear(s, idx);
@@ -1334,7 +1334,7 @@ sparsebit_idx_t sparsebit_next_set_num(struct sparsebit *s,
 
 /* Starting with the index 1 greater than the index given by start, finds
  * and returns the index of the first sequence of num consecutively cleared
- * bits.  Returns a value of 0 of no such sequence exists.
+ * bits.  Returns a value of 0 of yes such sequence exists.
  */
 sparsebit_idx_t sparsebit_next_clear_num(struct sparsebit *s,
 	sparsebit_idx_t start, sparsebit_num_t num)
@@ -1356,7 +1356,7 @@ sparsebit_idx_t sparsebit_next_clear_num(struct sparsebit *s,
 			return idx;
 
 		/*
-		 * Sequence of cleared bits at idx isn't large enough.
+		 * Sequence of cleared bits at idx isn't large eyesugh.
 		 * Skip this entire sequence of cleared bits.
 		 */
 		idx = sparsebit_next_set(s, idx);
@@ -1371,7 +1371,7 @@ sparsebit_idx_t sparsebit_next_clear_num(struct sparsebit *s,
 void sparsebit_set_num(struct sparsebit *s,
 	sparsebit_idx_t start, sparsebit_num_t num)
 {
-	struct node *nodep, *next;
+	struct yesde *yesdep, *next;
 	unsigned int n1;
 	sparsebit_idx_t idx;
 	sparsebit_num_t n;
@@ -1387,16 +1387,16 @@ void sparsebit_set_num(struct sparsebit *s,
 	 *   replace the following loop with a sequential sequence
 	 *   of statements.  High level sequence would be:
 	 *
-	 *     1. Use node_split() to force node that describes setting
-	 *        of idx to be within the mask portion of a node.
+	 *     1. Use yesde_split() to force yesde that describes setting
+	 *        of idx to be within the mask portion of a yesde.
 	 *     2. Form mask of bits to be set.
-	 *     3. Determine number of mask bits already set in the node
+	 *     3. Determine number of mask bits already set in the yesde
 	 *        and store in a local variable named num_already_set.
-	 *     4. Set the appropriate mask bits within the node.
+	 *     4. Set the appropriate mask bits within the yesde.
 	 *     5. Increment struct sparsebit_pvt num_set member
 	 *        by the number of bits that were actually set.
 	 *        Exclude from the counts bits that were already set.
-	 *     6. Before returning to the caller, use node_reduce() to
+	 *     6. Before returning to the caller, use yesde_reduce() to
 	 *        handle the multiple corner cases that this method
 	 *        introduces.
 	 */
@@ -1407,7 +1407,7 @@ void sparsebit_set_num(struct sparsebit *s,
 	middle_start = idx;
 	middle_end = middle_start + (n & -MASK_BITS) - 1;
 	if (n >= MASK_BITS) {
-		nodep = node_split(s, middle_start);
+		yesdep = yesde_split(s, middle_start);
 
 		/*
 		 * As needed, split just after end of middle bits.
@@ -1415,30 +1415,30 @@ void sparsebit_set_num(struct sparsebit *s,
 		 * supported bit index.
 		 */
 		if (middle_end + 1 > middle_end)
-			(void) node_split(s, middle_end + 1);
+			(void) yesde_split(s, middle_end + 1);
 
-		/* Delete nodes that only describe bits within the middle. */
-		for (next = node_next(s, nodep);
+		/* Delete yesdes that only describe bits within the middle. */
+		for (next = yesde_next(s, yesdep);
 			next && (next->idx < middle_end);
-			next = node_next(s, nodep)) {
+			next = yesde_next(s, yesdep)) {
 			assert(next->idx + MASK_BITS + next->num_after - 1 <= middle_end);
-			node_rm(s, next);
+			yesde_rm(s, next);
 			next = NULL;
 		}
 
 		/* As needed set each of the mask bits */
 		for (n1 = 0; n1 < MASK_BITS; n1++) {
-			if (!(nodep->mask & (1 << n1))) {
-				nodep->mask |= 1 << n1;
+			if (!(yesdep->mask & (1 << n1))) {
+				yesdep->mask |= 1 << n1;
 				s->num_set++;
 			}
 		}
 
-		s->num_set -= nodep->num_after;
-		nodep->num_after = middle_end - middle_start + 1 - MASK_BITS;
-		s->num_set += nodep->num_after;
+		s->num_set -= yesdep->num_after;
+		yesdep->num_after = middle_end - middle_start + 1 - MASK_BITS;
+		s->num_set += yesdep->num_after;
 
-		node_reduce(s, nodep);
+		yesde_reduce(s, yesdep);
 	}
 	idx = middle_end + 1;
 	n -= middle_end - middle_start + 1;
@@ -1453,7 +1453,7 @@ void sparsebit_set_num(struct sparsebit *s,
 void sparsebit_clear_num(struct sparsebit *s,
 	sparsebit_idx_t start, sparsebit_num_t num)
 {
-	struct node *nodep, *next;
+	struct yesde *yesdep, *next;
 	unsigned int n1;
 	sparsebit_idx_t idx;
 	sparsebit_num_t n;
@@ -1470,7 +1470,7 @@ void sparsebit_clear_num(struct sparsebit *s,
 	middle_start = idx;
 	middle_end = middle_start + (n & -MASK_BITS) - 1;
 	if (n >= MASK_BITS) {
-		nodep = node_split(s, middle_start);
+		yesdep = yesde_split(s, middle_start);
 
 		/*
 		 * As needed, split just after end of middle bits.
@@ -1478,36 +1478,36 @@ void sparsebit_clear_num(struct sparsebit *s,
 		 * supported bit index.
 		 */
 		if (middle_end + 1 > middle_end)
-			(void) node_split(s, middle_end + 1);
+			(void) yesde_split(s, middle_end + 1);
 
-		/* Delete nodes that only describe bits within the middle. */
-		for (next = node_next(s, nodep);
+		/* Delete yesdes that only describe bits within the middle. */
+		for (next = yesde_next(s, yesdep);
 			next && (next->idx < middle_end);
-			next = node_next(s, nodep)) {
+			next = yesde_next(s, yesdep)) {
 			assert(next->idx + MASK_BITS + next->num_after - 1 <= middle_end);
-			node_rm(s, next);
+			yesde_rm(s, next);
 			next = NULL;
 		}
 
 		/* As needed clear each of the mask bits */
 		for (n1 = 0; n1 < MASK_BITS; n1++) {
-			if (nodep->mask & (1 << n1)) {
-				nodep->mask &= ~(1 << n1);
+			if (yesdep->mask & (1 << n1)) {
+				yesdep->mask &= ~(1 << n1);
 				s->num_set--;
 			}
 		}
 
 		/* Clear any bits described by num_after */
-		s->num_set -= nodep->num_after;
-		nodep->num_after = 0;
+		s->num_set -= yesdep->num_after;
+		yesdep->num_after = 0;
 
 		/*
-		 * Delete the node that describes the beginning of
+		 * Delete the yesde that describes the beginning of
 		 * the middle bits and perform any allowed reductions
-		 * with the nodes prev or next of nodep.
+		 * with the yesdes prev or next of yesdep.
 		 */
-		node_reduce(s, nodep);
-		nodep = NULL;
+		yesde_reduce(s, yesdep);
+		yesdep = NULL;
 	}
 	idx = middle_end + 1;
 	n -= middle_end - middle_start + 1;
@@ -1574,7 +1574,7 @@ static size_t display_range(FILE *stream, sparsebit_idx_t low,
 /* Dumps to the FILE stream given by stream, the bit settings
  * of s.  Each line of output is prefixed with the number of
  * spaces given by indent.  The length of each line is implementation
- * dependent and does not depend on the indent amount.  The following
+ * dependent and does yest depend on the indent amount.  The following
  * is an example output of a sparsebit array that has bits:
  *
  *   0x5, 0x8, 0xa:0xe, 0x12
@@ -1589,7 +1589,7 @@ void sparsebit_dump(FILE *stream, struct sparsebit *s,
 {
 	size_t current_line_len = 0;
 	size_t sz;
-	struct node *nodep;
+	struct yesde *yesdep;
 
 	if (!sparsebit_any_set(s))
 		return;
@@ -1597,25 +1597,25 @@ void sparsebit_dump(FILE *stream, struct sparsebit *s,
 	/* Display initial indent */
 	fprintf(stream, "%*s", indent, "");
 
-	/* For each node */
-	for (nodep = node_first(s); nodep; nodep = node_next(s, nodep)) {
+	/* For each yesde */
+	for (yesdep = yesde_first(s); yesdep; yesdep = yesde_next(s, yesdep)) {
 		unsigned int n1;
 		sparsebit_idx_t low, high;
 
 		/* For each group of bits in the mask */
 		for (n1 = 0; n1 < MASK_BITS; n1++) {
-			if (nodep->mask & (1 << n1)) {
-				low = high = nodep->idx + n1;
+			if (yesdep->mask & (1 << n1)) {
+				low = high = yesdep->idx + n1;
 
 				for (; n1 < MASK_BITS; n1++) {
-					if (nodep->mask & (1 << n1))
-						high = nodep->idx + n1;
+					if (yesdep->mask & (1 << n1))
+						high = yesdep->idx + n1;
 					else
 						break;
 				}
 
-				if ((n1 == MASK_BITS) && nodep->num_after)
-					high += nodep->num_after;
+				if ((n1 == MASK_BITS) && yesdep->num_after)
+					high += yesdep->num_after;
 
 				/*
 				 * How much room will it take to display
@@ -1625,7 +1625,7 @@ void sparsebit_dump(FILE *stream, struct sparsebit *s,
 					current_line_len != 0);
 
 				/*
-				 * If there is not enough room, display
+				 * If there is yest eyesugh room, display
 				 * a newline plus the indent of the next
 				 * line.
 				 */
@@ -1643,13 +1643,13 @@ void sparsebit_dump(FILE *stream, struct sparsebit *s,
 		}
 
 		/*
-		 * If num_after and most significant-bit of mask is not
+		 * If num_after and most significant-bit of mask is yest
 		 * set, then still need to display a range for the bits
 		 * described by num_after.
 		 */
-		if (!(nodep->mask & (1 << (MASK_BITS - 1))) && nodep->num_after) {
-			low = nodep->idx + MASK_BITS;
-			high = nodep->idx + MASK_BITS + nodep->num_after - 1;
+		if (!(yesdep->mask & (1 << (MASK_BITS - 1))) && yesdep->num_after) {
+			low = yesdep->idx + MASK_BITS;
+			high = yesdep->idx + MASK_BITS + yesdep->num_after - 1;
 
 			/*
 			 * How much room will it take to display
@@ -1659,7 +1659,7 @@ void sparsebit_dump(FILE *stream, struct sparsebit *s,
 				current_line_len != 0);
 
 			/*
-			 * If there is not enough room, display
+			 * If there is yest eyesugh room, display
 			 * a newline plus the indent of the next
 			 * line.
 			 */
@@ -1679,122 +1679,122 @@ void sparsebit_dump(FILE *stream, struct sparsebit *s,
 }
 
 /* Validates the internal state of the sparsebit array given by
- * s.  On error, diagnostic information is printed to stderr and
+ * s.  On error, diagyesstic information is printed to stderr and
  * abort is called.
  */
 void sparsebit_validate_internal(struct sparsebit *s)
 {
 	bool error_detected = false;
-	struct node *nodep, *prev = NULL;
+	struct yesde *yesdep, *prev = NULL;
 	sparsebit_num_t total_bits_set = 0;
 	unsigned int n1;
 
-	/* For each node */
-	for (nodep = node_first(s); nodep;
-		prev = nodep, nodep = node_next(s, nodep)) {
+	/* For each yesde */
+	for (yesdep = yesde_first(s); yesdep;
+		prev = yesdep, yesdep = yesde_next(s, yesdep)) {
 
 		/*
 		 * Increase total bits set by the number of bits set
-		 * in this node.
+		 * in this yesde.
 		 */
 		for (n1 = 0; n1 < MASK_BITS; n1++)
-			if (nodep->mask & (1 << n1))
+			if (yesdep->mask & (1 << n1))
 				total_bits_set++;
 
-		total_bits_set += nodep->num_after;
+		total_bits_set += yesdep->num_after;
 
 		/*
 		 * Arbitrary choice as to whether a mask of 0 is allowed
-		 * or not.  For diagnostic purposes it is beneficial to
+		 * or yest.  For diagyesstic purposes it is beneficial to
 		 * have only one valid means to represent a set of bits.
 		 * To support this an arbitrary choice has been made
-		 * to not allow a mask of zero.
+		 * to yest allow a mask of zero.
 		 */
-		if (nodep->mask == 0) {
+		if (yesdep->mask == 0) {
 			fprintf(stderr, "Node mask of zero, "
-				"nodep: %p nodep->mask: 0x%x",
-				nodep, nodep->mask);
+				"yesdep: %p yesdep->mask: 0x%x",
+				yesdep, yesdep->mask);
 			error_detected = true;
 			break;
 		}
 
 		/*
-		 * Validate num_after is not greater than the max index
+		 * Validate num_after is yest greater than the max index
 		 * - the number of mask bits.  The num_after member
-		 * uses 0-based indexing and thus has no value that
+		 * uses 0-based indexing and thus has yes value that
 		 * represents all bits set.  This limitation is handled
-		 * by requiring a non-zero mask.  With a non-zero mask,
+		 * by requiring a yesn-zero mask.  With a yesn-zero mask,
 		 * MASK_BITS worth of bits are described by the mask,
 		 * which makes the largest needed num_after equal to:
 		 *
 		 *    (~(sparsebit_num_t) 0) - MASK_BITS + 1
 		 */
-		if (nodep->num_after
+		if (yesdep->num_after
 			> (~(sparsebit_num_t) 0) - MASK_BITS + 1) {
 			fprintf(stderr, "num_after too large, "
-				"nodep: %p nodep->num_after: 0x%lx",
-				nodep, nodep->num_after);
+				"yesdep: %p yesdep->num_after: 0x%lx",
+				yesdep, yesdep->num_after);
 			error_detected = true;
 			break;
 		}
 
-		/* Validate node index is divisible by the mask size */
-		if (nodep->idx % MASK_BITS) {
-			fprintf(stderr, "Node index not divisible by "
+		/* Validate yesde index is divisible by the mask size */
+		if (yesdep->idx % MASK_BITS) {
+			fprintf(stderr, "Node index yest divisible by "
 				"mask size,\n"
-				"  nodep: %p nodep->idx: 0x%lx "
+				"  yesdep: %p yesdep->idx: 0x%lx "
 				"MASK_BITS: %lu\n",
-				nodep, nodep->idx, MASK_BITS);
+				yesdep, yesdep->idx, MASK_BITS);
 			error_detected = true;
 			break;
 		}
 
 		/*
-		 * Validate bits described by node don't wrap beyond the
+		 * Validate bits described by yesde don't wrap beyond the
 		 * highest supported index.
 		 */
-		if ((nodep->idx + MASK_BITS + nodep->num_after - 1) < nodep->idx) {
-			fprintf(stderr, "Bits described by node wrap "
+		if ((yesdep->idx + MASK_BITS + yesdep->num_after - 1) < yesdep->idx) {
+			fprintf(stderr, "Bits described by yesde wrap "
 				"beyond highest supported index,\n"
-				"  nodep: %p nodep->idx: 0x%lx\n"
-				"  MASK_BITS: %lu nodep->num_after: 0x%lx",
-				nodep, nodep->idx, MASK_BITS, nodep->num_after);
+				"  yesdep: %p yesdep->idx: 0x%lx\n"
+				"  MASK_BITS: %lu yesdep->num_after: 0x%lx",
+				yesdep, yesdep->idx, MASK_BITS, yesdep->num_after);
 			error_detected = true;
 			break;
 		}
 
 		/* Check parent pointers. */
-		if (nodep->left) {
-			if (nodep->left->parent != nodep) {
+		if (yesdep->left) {
+			if (yesdep->left->parent != yesdep) {
 				fprintf(stderr, "Left child parent pointer "
-					"doesn't point to this node,\n"
-					"  nodep: %p nodep->left: %p "
-					"nodep->left->parent: %p",
-					nodep, nodep->left,
-					nodep->left->parent);
+					"doesn't point to this yesde,\n"
+					"  yesdep: %p yesdep->left: %p "
+					"yesdep->left->parent: %p",
+					yesdep, yesdep->left,
+					yesdep->left->parent);
 				error_detected = true;
 				break;
 			}
 		}
 
-		if (nodep->right) {
-			if (nodep->right->parent != nodep) {
+		if (yesdep->right) {
+			if (yesdep->right->parent != yesdep) {
 				fprintf(stderr, "Right child parent pointer "
-					"doesn't point to this node,\n"
-					"  nodep: %p nodep->right: %p "
-					"nodep->right->parent: %p",
-					nodep, nodep->right,
-					nodep->right->parent);
+					"doesn't point to this yesde,\n"
+					"  yesdep: %p yesdep->right: %p "
+					"yesdep->right->parent: %p",
+					yesdep, yesdep->right,
+					yesdep->right->parent);
 				error_detected = true;
 				break;
 			}
 		}
 
-		if (!nodep->parent) {
-			if (s->root != nodep) {
-				fprintf(stderr, "Unexpected root node, "
-					"s->root: %p nodep: %p",
-					s->root, nodep);
+		if (!yesdep->parent) {
+			if (s->root != yesdep) {
+				fprintf(stderr, "Unexpected root yesde, "
+					"s->root: %p yesdep: %p",
+					s->root, yesdep);
 				error_detected = true;
 				break;
 			}
@@ -1802,56 +1802,56 @@ void sparsebit_validate_internal(struct sparsebit *s)
 
 		if (prev) {
 			/*
-			 * Is index of previous node before index of
-			 * current node?
+			 * Is index of previous yesde before index of
+			 * current yesde?
 			 */
-			if (prev->idx >= nodep->idx) {
-				fprintf(stderr, "Previous node index "
-					">= current node index,\n"
+			if (prev->idx >= yesdep->idx) {
+				fprintf(stderr, "Previous yesde index "
+					">= current yesde index,\n"
 					"  prev: %p prev->idx: 0x%lx\n"
-					"  nodep: %p nodep->idx: 0x%lx",
-					prev, prev->idx, nodep, nodep->idx);
+					"  yesdep: %p yesdep->idx: 0x%lx",
+					prev, prev->idx, yesdep, yesdep->idx);
 				error_detected = true;
 				break;
 			}
 
 			/*
 			 * Nodes occur in asscending order, based on each
-			 * nodes starting index.
+			 * yesdes starting index.
 			 */
 			if ((prev->idx + MASK_BITS + prev->num_after - 1)
-				>= nodep->idx) {
-				fprintf(stderr, "Previous node bit range "
-					"overlap with current node bit range,\n"
+				>= yesdep->idx) {
+				fprintf(stderr, "Previous yesde bit range "
+					"overlap with current yesde bit range,\n"
 					"  prev: %p prev->idx: 0x%lx "
 					"prev->num_after: 0x%lx\n"
-					"  nodep: %p nodep->idx: 0x%lx "
-					"nodep->num_after: 0x%lx\n"
+					"  yesdep: %p yesdep->idx: 0x%lx "
+					"yesdep->num_after: 0x%lx\n"
 					"  MASK_BITS: %lu",
 					prev, prev->idx, prev->num_after,
-					nodep, nodep->idx, nodep->num_after,
+					yesdep, yesdep->idx, yesdep->num_after,
 					MASK_BITS);
 				error_detected = true;
 				break;
 			}
 
 			/*
-			 * When the node has all mask bits set, it shouldn't
+			 * When the yesde has all mask bits set, it shouldn't
 			 * be adjacent to the last bit described by the
-			 * previous node.
+			 * previous yesde.
 			 */
-			if (nodep->mask == ~(mask_t) 0 &&
-			    prev->idx + MASK_BITS + prev->num_after == nodep->idx) {
-				fprintf(stderr, "Current node has mask with "
+			if (yesdep->mask == ~(mask_t) 0 &&
+			    prev->idx + MASK_BITS + prev->num_after == yesdep->idx) {
+				fprintf(stderr, "Current yesde has mask with "
 					"all bits set and is adjacent to the "
-					"previous node,\n"
+					"previous yesde,\n"
 					"  prev: %p prev->idx: 0x%lx "
 					"prev->num_after: 0x%lx\n"
-					"  nodep: %p nodep->idx: 0x%lx "
-					"nodep->num_after: 0x%lx\n"
+					"  yesdep: %p yesdep->idx: 0x%lx "
+					"yesdep->num_after: 0x%lx\n"
 					"  MASK_BITS: %lu",
 					prev, prev->idx, prev->num_after,
-					nodep, nodep->idx, nodep->num_after,
+					yesdep, yesdep->idx, yesdep->num_after,
 					MASK_BITS);
 
 				error_detected = true;
@@ -1862,7 +1862,7 @@ void sparsebit_validate_internal(struct sparsebit *s)
 
 	if (!error_detected) {
 		/*
-		 * Is sum of bits set in each node equal to the count
+		 * Is sum of bits set in each yesde equal to the count
 		 * of total bits set.
 		 */
 		if (s->num_set != total_bits_set) {

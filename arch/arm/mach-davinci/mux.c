@@ -1,7 +1,7 @@
 /*
  * Utility to set the DAVINCI MUX register from a table in mux.h
  *
- * Author: Vladimir Barinov, MontaVista Software, Inc. <source@mvista.com>
+ * Author: Vladimir Bariyesv, MontaVista Software, Inc. <source@mvista.com>
  *
  * Based on linux/arch/arm/plat-omap/mux.c:
  * Copyright (C) 2003 - 2005 Nokia Corporation

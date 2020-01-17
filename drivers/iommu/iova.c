@@ -12,7 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/cpu.h>
 
-/* The anchor node sits above the top of the usable address space */
+/* The anchor yesde sits above the top of the usable address space */
 #define IOVA_ANCHOR	~0UL
 
 static bool iova_rcache_insert(struct iova_domain *iovad,
@@ -31,7 +31,7 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	unsigned long start_pfn)
 {
 	/*
-	 * IOVA granularity will normally be equal to the smallest
+	 * IOVA granularity will yesrmally be equal to the smallest
 	 * supported IOMMU page size; both *must* be capable of
 	 * representing individual CPU pages exactly.
 	 */
@@ -39,8 +39,8 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 
 	spin_lock_init(&iovad->iova_rbtree_lock);
 	iovad->rbroot = RB_ROOT;
-	iovad->cached_node = &iovad->anchor.node;
-	iovad->cached32_node = &iovad->anchor.node;
+	iovad->cached_yesde = &iovad->anchor.yesde;
+	iovad->cached32_yesde = &iovad->anchor.yesde;
 	iovad->granule = granule;
 	iovad->start_pfn = start_pfn;
 	iovad->dma_32bit_pfn = 1UL << (32 - iova_shift(iovad));
@@ -48,8 +48,8 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->flush_cb = NULL;
 	iovad->fq = NULL;
 	iovad->anchor.pfn_lo = iovad->anchor.pfn_hi = IOVA_ANCHOR;
-	rb_link_node(&iovad->anchor.node, NULL, &iovad->rbroot.rb_node);
-	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
+	rb_link_yesde(&iovad->anchor.yesde, NULL, &iovad->rbroot.rb_yesde);
+	rb_insert_color(&iovad->anchor.yesde, &iovad->rbroot);
 	init_iova_rcaches(iovad);
 }
 EXPORT_SYMBOL_GPL(init_iova_domain);
@@ -113,53 +113,53 @@ int init_iova_flush_queue(struct iova_domain *iovad,
 }
 EXPORT_SYMBOL_GPL(init_iova_flush_queue);
 
-static struct rb_node *
-__get_cached_rbnode(struct iova_domain *iovad, unsigned long limit_pfn)
+static struct rb_yesde *
+__get_cached_rbyesde(struct iova_domain *iovad, unsigned long limit_pfn)
 {
 	if (limit_pfn <= iovad->dma_32bit_pfn)
-		return iovad->cached32_node;
+		return iovad->cached32_yesde;
 
-	return iovad->cached_node;
+	return iovad->cached_yesde;
 }
 
 static void
-__cached_rbnode_insert_update(struct iova_domain *iovad, struct iova *new)
+__cached_rbyesde_insert_update(struct iova_domain *iovad, struct iova *new)
 {
 	if (new->pfn_hi < iovad->dma_32bit_pfn)
-		iovad->cached32_node = &new->node;
+		iovad->cached32_yesde = &new->yesde;
 	else
-		iovad->cached_node = &new->node;
+		iovad->cached_yesde = &new->yesde;
 }
 
 static void
-__cached_rbnode_delete_update(struct iova_domain *iovad, struct iova *free)
+__cached_rbyesde_delete_update(struct iova_domain *iovad, struct iova *free)
 {
 	struct iova *cached_iova;
 
-	cached_iova = rb_entry(iovad->cached32_node, struct iova, node);
+	cached_iova = rb_entry(iovad->cached32_yesde, struct iova, yesde);
 	if (free == cached_iova ||
 	    (free->pfn_hi < iovad->dma_32bit_pfn &&
 	     free->pfn_lo >= cached_iova->pfn_lo)) {
-		iovad->cached32_node = rb_next(&free->node);
+		iovad->cached32_yesde = rb_next(&free->yesde);
 		iovad->max32_alloc_size = iovad->dma_32bit_pfn;
 	}
 
-	cached_iova = rb_entry(iovad->cached_node, struct iova, node);
+	cached_iova = rb_entry(iovad->cached_yesde, struct iova, yesde);
 	if (free->pfn_lo >= cached_iova->pfn_lo)
-		iovad->cached_node = rb_next(&free->node);
+		iovad->cached_yesde = rb_next(&free->yesde);
 }
 
 /* Insert the iova into domain rbtree by holding writer lock */
 static void
 iova_insert_rbtree(struct rb_root *root, struct iova *iova,
-		   struct rb_node *start)
+		   struct rb_yesde *start)
 {
-	struct rb_node **new, *parent = NULL;
+	struct rb_yesde **new, *parent = NULL;
 
-	new = (start) ? &start : &(root->rb_node);
-	/* Figure out where to put new node */
+	new = (start) ? &start : &(root->rb_yesde);
+	/* Figure out where to put new yesde */
 	while (*new) {
-		struct iova *this = rb_entry(*new, struct iova, node);
+		struct iova *this = rb_entry(*new, struct iova, yesde);
 
 		parent = *new;
 
@@ -168,20 +168,20 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova,
 		else if (iova->pfn_lo > this->pfn_lo)
 			new = &((*new)->rb_right);
 		else {
-			WARN_ON(1); /* this should not happen */
+			WARN_ON(1); /* this should yest happen */
 			return;
 		}
 	}
-	/* Add new node and rebalance tree. */
-	rb_link_node(&iova->node, parent, new);
-	rb_insert_color(&iova->node, root);
+	/* Add new yesde and rebalance tree. */
+	rb_link_yesde(&iova->yesde, parent, new);
+	rb_insert_color(&iova->yesde, root);
 }
 
 static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 		unsigned long size, unsigned long limit_pfn,
 			struct iova *new, bool size_aligned)
 {
-	struct rb_node *curr, *prev;
+	struct rb_yesde *curr, *prev;
 	struct iova *curr_iova;
 	unsigned long flags;
 	unsigned long new_pfn;
@@ -196,14 +196,14 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 			size >= iovad->max32_alloc_size)
 		goto iova32_full;
 
-	curr = __get_cached_rbnode(iovad, limit_pfn);
-	curr_iova = rb_entry(curr, struct iova, node);
+	curr = __get_cached_rbyesde(iovad, limit_pfn);
+	curr_iova = rb_entry(curr, struct iova, yesde);
 	do {
 		limit_pfn = min(limit_pfn, curr_iova->pfn_lo);
 		new_pfn = (limit_pfn - size) & align_mask;
 		prev = curr;
 		curr = rb_prev(curr);
-		curr_iova = rb_entry(curr, struct iova, node);
+		curr_iova = rb_entry(curr, struct iova, yesde);
 	} while (curr && new_pfn <= curr_iova->pfn_hi);
 
 	if (limit_pfn < size || new_pfn < iovad->start_pfn) {
@@ -217,7 +217,7 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 
 	/* If we have 'prev', it's a valid place to start the insertion. */
 	iova_insert_rbtree(&iovad->rbroot, new, prev);
-	__cached_rbnode_insert_update(iovad, new);
+	__cached_rbyesde_insert_update(iovad, new);
 
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 	return 0;
@@ -317,17 +317,17 @@ EXPORT_SYMBOL_GPL(alloc_iova);
 static struct iova *
 private_find_iova(struct iova_domain *iovad, unsigned long pfn)
 {
-	struct rb_node *node = iovad->rbroot.rb_node;
+	struct rb_yesde *yesde = iovad->rbroot.rb_yesde;
 
 	assert_spin_locked(&iovad->iova_rbtree_lock);
 
-	while (node) {
-		struct iova *iova = rb_entry(node, struct iova, node);
+	while (yesde) {
+		struct iova *iova = rb_entry(yesde, struct iova, yesde);
 
 		if (pfn < iova->pfn_lo)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (pfn > iova->pfn_hi)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return iova;	/* pfn falls within iova's range */
 	}
@@ -338,8 +338,8 @@ private_find_iova(struct iova_domain *iovad, unsigned long pfn)
 static void private_free_iova(struct iova_domain *iovad, struct iova *iova)
 {
 	assert_spin_locked(&iovad->iova_rbtree_lock);
-	__cached_rbnode_delete_update(iovad, iova);
-	rb_erase(&iova->node, &iovad->rbroot);
+	__cached_rbyesde_delete_update(iovad, iova);
+	rb_erase(&iova->yesde, &iovad->rbroot);
 	free_iova_mem(iova);
 }
 
@@ -355,7 +355,7 @@ struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn)
 	unsigned long flags;
 	struct iova *iova;
 
-	/* Take the lock so that no other thread is manipulating the rbtree */
+	/* Take the lock so that yes other thread is manipulating the rbtree */
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	iova = private_find_iova(iovad, pfn);
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
@@ -558,7 +558,7 @@ void queue_iova(struct iova_domain *iovad,
 
 	/*
 	 * First remove all entries from the flush queue that have already been
-	 * flushed out on another CPU. This makes the fq_full() check below less
+	 * flushed out on ayesther CPU. This makes the fq_full() check below less
 	 * likely to be true.
 	 */
 	fq_ring_free(iovad, fq);
@@ -596,16 +596,16 @@ void put_iova_domain(struct iova_domain *iovad)
 
 	free_iova_flush_queue(iovad);
 	free_iova_rcaches(iovad);
-	rbtree_postorder_for_each_entry_safe(iova, tmp, &iovad->rbroot, node)
+	rbtree_postorder_for_each_entry_safe(iova, tmp, &iovad->rbroot, yesde)
 		free_iova_mem(iova);
 }
 EXPORT_SYMBOL_GPL(put_iova_domain);
 
 static int
-__is_range_overlap(struct rb_node *node,
+__is_range_overlap(struct rb_yesde *yesde,
 	unsigned long pfn_lo, unsigned long pfn_hi)
 {
-	struct iova *iova = rb_entry(node, struct iova, node);
+	struct iova *iova = rb_entry(yesde, struct iova, yesde);
 
 	if ((pfn_lo <= iova->pfn_hi) && (pfn_hi >= iova->pfn_lo))
 		return 1;
@@ -655,25 +655,25 @@ __adjust_overlap_range(struct iova *iova,
  * @pfn_lo: - lower page frame address
  * @pfn_hi:- higher pfn adderss
  * This function allocates reserves the address range from pfn_lo to pfn_hi so
- * that this address is not dished out as part of alloc_iova.
+ * that this address is yest dished out as part of alloc_iova.
  */
 struct iova *
 reserve_iova(struct iova_domain *iovad,
 	unsigned long pfn_lo, unsigned long pfn_hi)
 {
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	unsigned long flags;
 	struct iova *iova;
 	unsigned int overlap = 0;
 
-	/* Don't allow nonsensical pfns */
+	/* Don't allow yesnsensical pfns */
 	if (WARN_ON((pfn_hi | pfn_lo) > (ULLONG_MAX >> iova_shift(iovad))))
 		return NULL;
 
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
-	for (node = rb_first(&iovad->rbroot); node; node = rb_next(node)) {
-		if (__is_range_overlap(node, pfn_lo, pfn_hi)) {
-			iova = rb_entry(node, struct iova, node);
+	for (yesde = rb_first(&iovad->rbroot); yesde; yesde = rb_next(yesde)) {
+		if (__is_range_overlap(yesde, pfn_lo, pfn_hi)) {
+			iova = rb_entry(yesde, struct iova, yesde);
 			__adjust_overlap_range(iova, &pfn_lo, &pfn_hi);
 			if ((pfn_lo >= iova->pfn_lo) &&
 				(pfn_hi <= iova->pfn_hi))
@@ -684,8 +684,8 @@ reserve_iova(struct iova_domain *iovad,
 				break;
 	}
 
-	/* We are here either because this is the first reserver node
-	 * or need to insert remaining non overlap addr range
+	/* We are here either because this is the first reserver yesde
+	 * or need to insert remaining yesn overlap addr range
 	 */
 	iova = __insert_new_range(iovad, pfn_lo, pfn_hi);
 finish:
@@ -706,11 +706,11 @@ void
 copy_reserved_iova(struct iova_domain *from, struct iova_domain *to)
 {
 	unsigned long flags;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	spin_lock_irqsave(&from->iova_rbtree_lock, flags);
-	for (node = rb_first(&from->rbroot); node; node = rb_next(node)) {
-		struct iova *iova = rb_entry(node, struct iova, node);
+	for (yesde = rb_first(&from->rbroot); yesde; yesde = rb_next(yesde)) {
+		struct iova *iova = rb_entry(yesde, struct iova, yesde);
 		struct iova *new_iova;
 
 		if (iova->pfn_lo == IOVA_ANCHOR)
@@ -744,8 +744,8 @@ split_and_remove_iova(struct iova_domain *iovad, struct iova *iova,
 			goto error;
 	}
 
-	__cached_rbnode_delete_update(iovad, iova);
-	rb_erase(&iova->node, &iovad->rbroot);
+	__cached_rbyesde_delete_update(iovad, iova);
+	rb_erase(&iova->yesde, &iovad->rbroot);
 
 	if (prev) {
 		iova_insert_rbtree(&iovad->rbroot, prev, NULL);
@@ -838,7 +838,7 @@ static unsigned long iova_magazine_pop(struct iova_magazine *mag,
 
 	BUG_ON(iova_magazine_empty(mag));
 
-	/* Only fall back to the rbtree if we have no suitable pfns at all */
+	/* Only fall back to the rbtree if we have yes suitable pfns at all */
 	for (i = mag->size - 1; mag->pfns[i] > limit_pfn; i--)
 		if (i == 0)
 			return 0;
@@ -947,7 +947,7 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 
 /*
  * Caller wants to allocate a new IOVA range from 'rcache'.  If we can
- * satisfy the request, return a matching non-NULL range and remove
+ * satisfy the request, return a matching yesn-NULL range and remove
  * it from the 'rcache'.
  */
 static unsigned long __iova_rcache_get(struct iova_rcache *rcache,

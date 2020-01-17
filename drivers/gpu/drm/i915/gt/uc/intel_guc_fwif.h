@@ -148,7 +148,7 @@ struct guc_execlist_context {
 
 /*
  * This structure describes a stage set arranged for a particular communication
- * between uKernel (GuC) and Driver (KMD). Technically, this is known as a
+ * between uKernel (GuC) and Driver (KMD). Technically, this is kyeswn as a
  * "GuC Context descriptor" in the specs, but we use the term "stage descriptor"
  * to avoid confusion with all the other things already named "context" in the
  * driver. A static pool of these descriptors are stored inside a GEM object
@@ -323,7 +323,7 @@ struct guc_policies {
 	u32 submission_queue_depth[GUC_MAX_ENGINE_CLASSES];
 	/* In micro seconds. How much time to allow before DPC processing is
 	 * called back via interrupt (to prevent DPC queue drain starving).
-	 * Typically 1000s of micro seconds (example only, not granularity). */
+	 * Typically 1000s of micro seconds (example only, yest granularity). */
 	u32 dpc_promote_time;
 
 	/* Must be set to take these new values. */
@@ -422,13 +422,13 @@ enum guc_log_buffer_type {
  * When any type of log buffer becomes half full, GuC sends a flush interrupt.
  * GuC firmware expects that while it is writing to 2nd half of the buffer,
  * first half would get consumed by Host and then get a flush completed
- * acknowledgment from Host, so that it does not end up doing any overwrite
+ * ackyeswledgment from Host, so that it does yest end up doing any overwrite
  * causing loss of logs. So when buffer gets half filled & i915 has requested
  * for interrupt, GuC will set flush_to_file field, set the sampled_write_ptr
  * to the value of write_ptr and raise the interrupt.
  * On receiving the interrupt i915 should read the buffer, clear flush_to_file
  * field and also update read_ptr with the value of sample_write_ptr, before
- * sending an acknowledgment to GuC. marker & version fields are for internal
+ * sending an ackyeswledgment to GuC. marker & version fields are for internal
  * usage of GuC and opaque to i915. buffer_full_cnt field is incremented every
  * time GuC detects the log buffer overflow.
  */
@@ -483,7 +483,7 @@ struct guc_shared_ctx_data {
  * and other registers are used to hold message payload.
  *
  * For Gen9+, GuC uses software scratch registers 0xC180-0xC1B8,
- * but no H2G command takes more than 8 parameters and the GuC FW
+ * but yes H2G command takes more than 8 parameters and the GuC FW
  * itself uses an 8-element array to store the H2G message.
  *
  *      +-----------+---------+---------+---------+

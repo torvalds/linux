@@ -59,7 +59,7 @@ struct atmel_hlcdc_plane_state {
 
 	int ahb_id;
 
-	/* These fields are private and should not be touched */
+	/* These fields are private and should yest be touched */
 	int bpp[ATMEL_HLCDC_LAYER_MAX_PLANES];
 	unsigned int offsets[ATMEL_HLCDC_LAYER_MAX_PLANES];
 	int xstride[ATMEL_HLCDC_LAYER_MAX_PLANES];
@@ -362,7 +362,7 @@ atmel_hlcdc_plane_update_general_settings(struct atmel_hlcdc_plane *plane,
 	const struct drm_format_info *format = state->base.fb->format;
 
 	/*
-	 * Rotation optimization is not working on RGB888 (rotation is still
+	 * Rotation optimization is yest working on RGB888 (rotation is still
 	 * working but without any optimization).
 	 */
 	if (format->format == DRM_FORMAT_RGB888)
@@ -818,7 +818,7 @@ void atmel_hlcdc_plane_irq(struct atmel_hlcdc_plane *plane)
 	isr = atmel_hlcdc_layer_read_reg(&plane->layer, ATMEL_HLCDC_LAYER_ISR);
 
 	/*
-	 * There's not much we can do in case of overrun except informing
+	 * There's yest much we can do in case of overrun except informing
 	 * the user. However, we are in interrupt context here, hence the
 	 * use of dev_dbg().
 	 */

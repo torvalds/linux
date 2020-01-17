@@ -140,7 +140,7 @@ static void mxs_mmc_request_done(struct mxs_mmc_host *host)
 	}
 
 	if (cmd == mrq->sbc) {
-		/* Finished CMD23, now send actual command. */
+		/* Finished CMD23, yesw send actual command. */
 		mxs_mmc_start_cmd(host, mrq->cmd);
 		return;
 	} else if (data) {
@@ -285,17 +285,17 @@ static void mxs_mmc_ac(struct mxs_mmc_host *host)
 	struct mxs_ssp *ssp = &host->ssp;
 	struct mmc_command *cmd = host->cmd;
 	struct dma_async_tx_descriptor *desc;
-	u32 ignore_crc, get_resp, long_resp;
+	u32 igyesre_crc, get_resp, long_resp;
 	u32 ctrl0, cmd0, cmd1;
 
-	ignore_crc = (mmc_resp_type(cmd) & MMC_RSP_CRC) ?
+	igyesre_crc = (mmc_resp_type(cmd) & MMC_RSP_CRC) ?
 			0 : BM_SSP_CTRL0_IGNORE_CRC;
 	get_resp = (mmc_resp_type(cmd) & MMC_RSP_PRESENT) ?
 			BM_SSP_CTRL0_GET_RESP : 0;
 	long_resp = (mmc_resp_type(cmd) & MMC_RSP_136) ?
 			BM_SSP_CTRL0_LONG_RESP : 0;
 
-	ctrl0 = BM_SSP_CTRL0_ENABLE | ignore_crc | get_resp | long_resp;
+	ctrl0 = BM_SSP_CTRL0_ENABLE | igyesre_crc | get_resp | long_resp;
 	cmd0 = BF_SSP(cmd->opcode, CMD0_CMD);
 	cmd1 = cmd->arg;
 
@@ -357,10 +357,10 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 
 	struct mxs_ssp *ssp = &host->ssp;
 
-	u32 ignore_crc, get_resp, long_resp, read;
+	u32 igyesre_crc, get_resp, long_resp, read;
 	u32 ctrl0, cmd0, cmd1, val;
 
-	ignore_crc = (mmc_resp_type(cmd) & MMC_RSP_CRC) ?
+	igyesre_crc = (mmc_resp_type(cmd) & MMC_RSP_CRC) ?
 			0 : BM_SSP_CTRL0_IGNORE_CRC;
 	get_resp = (mmc_resp_type(cmd) & MMC_RSP_PRESENT) ?
 			BM_SSP_CTRL0_GET_RESP : 0;
@@ -378,7 +378,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 	}
 
 	ctrl0 = BF_SSP(host->bus_width, CTRL0_BUS_WIDTH) |
-		ignore_crc | get_resp | long_resp |
+		igyesre_crc | get_resp | long_resp |
 		BM_SSP_CTRL0_DATA_XFER | read |
 		BM_SSP_CTRL0_WAIT_FOR_IRQ |
 		BM_SSP_CTRL0_ENABLE;
@@ -390,7 +390,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 
 	/*
 	 * take special care of the case that data size from data->sg
-	 * is not equal to blocks x blksz
+	 * is yest equal to blocks x blksz
 	 */
 	for_each_sg(sgl, sg, sg_len, i)
 		data_size += sg->length;
@@ -474,7 +474,7 @@ static void mxs_mmc_start_cmd(struct mxs_mmc_host *host,
 		break;
 	default:
 		dev_warn(mmc_dev(host->mmc),
-			 "%s: unknown MMC command\n", __func__);
+			 "%s: unkyeswn MMC command\n", __func__);
 		break;
 	}
 }
@@ -569,7 +569,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(mxs_mmc_dt_ids, &pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct mxs_mmc_host *host;
 	struct mmc_host *mmc;
 	int ret = 0, irq_err;

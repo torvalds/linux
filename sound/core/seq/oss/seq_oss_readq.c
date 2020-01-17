@@ -200,7 +200,7 @@ snd_seq_oss_readq_free(struct seq_oss_readq *q)
 
 /*
  * polling/select:
- * return non-zero if readq is not empty.
+ * return yesn-zero if readq is yest empty.
  */
 unsigned int
 snd_seq_oss_readq_poll(struct seq_oss_readq *q, struct file *file, poll_table *wait)

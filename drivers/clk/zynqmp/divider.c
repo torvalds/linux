@@ -13,7 +13,7 @@
 #include "clk-zynqmp.h"
 
 /*
- * DOC: basic adjustable divider clock that cannot gate
+ * DOC: basic adjustable divider clock that canyest gate
  *
  * Traits of this clock:
  * prepare - clk_prepare only ensures that parents are prepared
@@ -80,7 +80,7 @@ static unsigned long zynqmp_clk_divider_recalc_rate(struct clk_hw *hw,
 
 	if (!value) {
 		WARN(!(divider->flags & CLK_DIVIDER_ALLOW_ZERO),
-		     "%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO not set\n",
+		     "%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO yest set\n",
 		     clk_name);
 		return parent_rate;
 	}
@@ -181,7 +181,7 @@ static const struct clk_ops zynqmp_clk_divider_ops = {
  * @clk_id:		Id of clock
  * @parents:		Name of this clock's parents
  * @num_parents:	Number of parents
- * @nodes:		Clock topology node
+ * @yesdes:		Clock topology yesde
  *
  * Return: clock hardware to registered clock divider
  */
@@ -189,7 +189,7 @@ struct clk_hw *zynqmp_clk_register_divider(const char *name,
 					   u32 clk_id,
 					   const char * const *parents,
 					   u8 num_parents,
-					   const struct clock_topology *nodes)
+					   const struct clock_topology *yesdes)
 {
 	struct zynqmp_clk_divider *div;
 	struct clk_hw *hw;
@@ -203,17 +203,17 @@ struct clk_hw *zynqmp_clk_register_divider(const char *name,
 
 	init.name = name;
 	init.ops = &zynqmp_clk_divider_ops;
-	/* CLK_FRAC is not defined in the common clk framework */
-	init.flags = nodes->flag & ~CLK_FRAC;
+	/* CLK_FRAC is yest defined in the common clk framework */
+	init.flags = yesdes->flag & ~CLK_FRAC;
 	init.parent_names = parents;
 	init.num_parents = 1;
 
 	/* struct clk_divider assignments */
-	div->is_frac = !!(nodes->flag & CLK_FRAC);
-	div->flags = nodes->type_flag;
+	div->is_frac = !!(yesdes->flag & CLK_FRAC);
+	div->flags = yesdes->type_flag;
 	div->hw.init = &init;
 	div->clk_id = clk_id;
-	div->div_type = nodes->type;
+	div->div_type = yesdes->type;
 
 	hw = &div->hw;
 	ret = clk_hw_register(NULL, hw);

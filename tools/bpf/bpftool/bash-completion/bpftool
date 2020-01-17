@@ -1,12 +1,12 @@
 # bpftool(8) bash completion                               -*- shell-script -*-
 #
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-# Copyright (C) 2017-2018 Netronome Systems, Inc.
+# Copyright (C) 2017-2018 Netroyesme Systems, Inc.
 #
-# Author: Quentin Monnet <quentin.monnet@netronome.com>
+# Author: Quentin Monnet <quentin.monnet@netroyesme.com>
 
 # Takes a list of words in argument; each one of them is added to COMPREPLY if
-# it is not already present on the command line. Returns no value.
+# it is yest already present on the command line. Returns yes value.
 _bpftool_once_attr()
 {
     local w idx found
@@ -36,8 +36,8 @@ _bpftool_search_list()
     return 1
 }
 
-# Takes a list of words in argument; adds them all to COMPREPLY if none of them
-# is already present on the command line. Returns no value.
+# Takes a list of words in argument; adds them all to COMPREPLY if yesne of them
+# is already present on the command line. Returns yes value.
 _bpftool_one_of_list()
 {
     _bpftool_search_list $* && return 1
@@ -251,7 +251,7 @@ _bpftool()
     # Completion depends on object and command in use
     case $object in
         prog)
-            # Complete id, only for subcommands that use prog (but no map) ids
+            # Complete id, only for subcommands that use prog (but yes map) ids
             case $command in
                 show|list|dump|pin)
                     case $prev in
@@ -581,19 +581,19 @@ _bpftool()
                             esac
 
                             _bpftool_once_attr 'key'
-                            local UPDATE_FLAGS='any exist noexist'
+                            local UPDATE_FLAGS='any exist yesexist'
                             for (( idx=3; idx < ${#words[@]}-1; idx++ )); do
                                 if [[ ${words[idx]} == 'value' ]]; then
-                                    # 'value' is present, but is not the last
-                                    # word i.e. we can now have UPDATE_FLAGS.
+                                    # 'value' is present, but is yest the last
+                                    # word i.e. we can yesw have UPDATE_FLAGS.
                                     _bpftool_one_of_list "$UPDATE_FLAGS"
                                     return 0
                                 fi
                             done
                             for (( idx=3; idx < ${#words[@]}-1; idx++ )); do
                                 if [[ ${words[idx]} == 'key' ]]; then
-                                    # 'key' is present, but is not the last
-                                    # word i.e. we can now have 'value'.
+                                    # 'key' is present, but is yest the last
+                                    # word i.e. we can yesw have 'value'.
                                     _bpftool_once_attr 'value'
                                     return 0
                                 fi
@@ -759,7 +759,7 @@ _bpftool()
                                     "$cur" ) )
                             elif [[ "$command" == "attach" ]]; then
                                 # We have an attach type on the command line,
-                                # but it is not the previous word, or
+                                # but it is yest the previous word, or
                                 # "id|pinned|tag" (we already checked for
                                 # that). This should only leave the case when
                                 # we need attach flags for "attach" commamnd.

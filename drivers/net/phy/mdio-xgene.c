@@ -167,7 +167,7 @@ static int xgene_mdio_reset(struct xgene_mdio_pdata *pdata)
 {
 	int ret;
 
-	if (pdata->dev->of_node) {
+	if (pdata->dev->of_yesde) {
 		clk_prepare_enable(pdata->clk);
 		udelay(5);
 		clk_disable_unprepare(pdata->clk);
@@ -183,7 +183,7 @@ static int xgene_mdio_reset(struct xgene_mdio_pdata *pdata)
 
 	ret = xgene_enet_ecc_init(pdata);
 	if (ret) {
-		if (pdata->dev->of_node)
+		if (pdata->dev->of_yesde)
 			clk_disable_unprepare(pdata->clk);
 		return ret;
 	}
@@ -364,7 +364,7 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 	if (mdio_id == XGENE_MDIO_RGMII)
 		spin_lock_init(&pdata->mac_lock);
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		pdata->clk = devm_clk_get(dev, NULL);
 		if (IS_ERR(pdata->clk)) {
 			dev_err(dev, "Unable to retrieve clk\n");
@@ -401,8 +401,8 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 	mdio_bus->parent = dev;
 	platform_set_drvdata(pdev, pdata);
 
-	if (dev->of_node) {
-		ret = of_mdiobus_register(mdio_bus, dev->of_node);
+	if (dev->of_yesde) {
+		ret = of_mdiobus_register(mdio_bus, dev->of_yesde);
 	} else {
 #ifdef CONFIG_ACPI
 		/* Mask out all PHYs from auto probing. */
@@ -428,7 +428,7 @@ out_mdiobus:
 	mdiobus_free(mdio_bus);
 
 out_clk:
-	if (dev->of_node)
+	if (dev->of_yesde)
 		clk_disable_unprepare(pdata->clk);
 
 	return ret;
@@ -443,7 +443,7 @@ static int xgene_mdio_remove(struct platform_device *pdev)
 	mdiobus_unregister(mdio_bus);
 	mdiobus_free(mdio_bus);
 
-	if (dev->of_node)
+	if (dev->of_yesde)
 		clk_disable_unprepare(pdata->clk);
 
 	return 0;

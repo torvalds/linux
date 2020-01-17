@@ -157,7 +157,7 @@ err:
 /*	Check if this packet is complete.
  *
  *	It is called with locked fq, and caller must check that
- *	queue is eligible for reassembly i.e. it is not COMPLETE,
+ *	queue is eligible for reassembly i.e. it is yest COMPLETE,
  *	the last and the first frames arrived and all the bits are here.
  */
 static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *skb,
@@ -180,7 +180,7 @@ static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *skb,
 
 	return 1;
 out_oom:
-	net_dbg_ratelimited("lowpan_frag_reasm: no memory for reassembly\n");
+	net_dbg_ratelimited("lowpan_frag_reasm: yes memory for reassembly\n");
 	return -1;
 }
 
@@ -191,8 +191,8 @@ static int lowpan_frag_rx_handlers_result(struct sk_buff *skb,
 	case RX_QUEUED:
 		return NET_RX_SUCCESS;
 	case RX_CONTINUE:
-		/* nobody cared about this packet */
-		net_warn_ratelimited("%s: received unknown dispatch\n",
+		/* yesbody cared about this packet */
+		net_warn_ratelimited("%s: received unkyeswn dispatch\n",
 				     __func__);
 
 		/* fall-through */
@@ -505,7 +505,7 @@ static int lowpan_obj_cmpfn(struct rhashtable_compare_arg *arg, const void *ptr)
 }
 
 static const struct rhashtable_params lowpan_rhash_params = {
-	.head_offset		= offsetof(struct inet_frag_queue, node),
+	.head_offset		= offsetof(struct inet_frag_queue, yesde),
 	.hashfn			= lowpan_key_hashfn,
 	.obj_hashfn		= lowpan_obj_hashfn,
 	.obj_cmpfn		= lowpan_obj_cmpfn,

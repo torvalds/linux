@@ -2,18 +2,18 @@
 /*
  * core_intr.c - DesignWare HS OTG Controller common interrupt handling
  *
- * Copyright (C) 2004-2013 Synopsys, Inc.
+ * Copyright (C) 2004-2013 Syyespsys, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
+ * 3. The names of the above-listed copyright holders may yest be used
  *    to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -68,7 +68,7 @@ static const char *dwc2_op_state_str(struct dwc2_hsotg *hsotg)
 	case OTG_STATE_B_HOST:
 		return "b_host";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -133,8 +133,8 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 			hsotg->op_state = OTG_STATE_B_PERIPHERAL;
 		} else {
 			/*
-			 * If not B_HOST and Device HNP still set, HNP did
-			 * not succeed!
+			 * If yest B_HOST and Device HNP still set, HNP did
+			 * yest succeed!
 			 */
 			if (gotgctl & GOTGCTL_DEVHNPEN) {
 				dev_dbg(hsotg->dev, "Session End Detected\n");
@@ -179,8 +179,8 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 		 */
 		gotgctl = dwc2_readl(hsotg, GOTGCTL);
 		/*
-		 * WA for 3.00a- HW is not setting cur_mode, even sometimes
-		 * this does not help
+		 * WA for 3.00a- HW is yest setting cur_mode, even sometimes
+		 * this does yest help
 		 */
 		if (hsotg->hw_params.snpsid >= DWC2_CORE_REV_3_00a)
 			udelay(100);
@@ -194,7 +194,7 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 				 * if host mode is already set. The HCD
 				 * interrupt handler won't get called if the
 				 * HCD state is HALT. This means that the
-				 * interrupt does not get handled and Linux
+				 * interrupt does yest get handled and Linux
 				 * complains loudly.
 				 */
 				gintmsk = dwc2_readl(hsotg, GINTMSK);
@@ -227,7 +227,7 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 		 * The disconnect interrupt is set at the same time as
 		 * Host Negotiation Detected. During the mode switch all
 		 * interrupts are cleared so the disconnect interrupt
-		 * handler will not get executed.
+		 * handler will yest get executed.
 		 */
 		dev_dbg(hsotg->dev,
 			" ++OTG Interrupt: Host Negotiation Detected++ (%s)\n",
@@ -375,7 +375,7 @@ static void dwc2_wakeup_from_lpm_l1(struct dwc2_hsotg *hsotg)
 		dwc2_gadget_init_lpm(hsotg);
 	} else {
 		/* TODO */
-		dev_err(hsotg->dev, "Host side LPM is not supported.\n");
+		dev_err(hsotg->dev, "Host side LPM is yest supported.\n");
 		return;
 	}
 
@@ -441,7 +441,7 @@ static void dwc2_handle_wakeup_detected_intr(struct dwc2_hsotg *hsotg)
 			 * wakeup.  Assert reset.  This will propagate out and
 			 * eventually we'll re-enumerate the device.  Not great
 			 * but the best we can do.  We can't call phy_reset()
-			 * at interrupt time but there's no hurry, so we'll
+			 * at interrupt time but there's yes hurry, so we'll
 			 * schedule it for later.
 			 */
 			if (hsotg->reset_phy_on_wake)
@@ -503,10 +503,10 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 			hsotg->hw_params.power_optimized,
 			hsotg->hw_params.hibernation);
 
-		/* Ignore suspend request before enumeration */
+		/* Igyesre suspend request before enumeration */
 		if (!dwc2_is_device_connected(hsotg)) {
 			dev_dbg(hsotg->dev,
-				"ignore suspend request before enumeration\n");
+				"igyesre suspend request before enumeration\n");
 			return;
 		}
 		if (dsts & DSTS_SUSPSTS) {
@@ -802,7 +802,7 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 	if (gintsts & ~GINTSTS_PRTINT)
 		retval = IRQ_HANDLED;
 
-	/* In case of hibernated state gintsts must not work */
+	/* In case of hibernated state gintsts must yest work */
 	if (hsotg->hibernated) {
 		dwc2_handle_gpwrdn_intr(hsotg);
 		retval = IRQ_HANDLED;

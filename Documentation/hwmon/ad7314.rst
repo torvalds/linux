@@ -31,4 +31,4 @@ adt7302 have 14 bit sensors with 1lsb = 0.03125 degrees centigrade.
 Notes
 -----
 
-Currently power down mode is not supported.
+Currently power down mode is yest supported.

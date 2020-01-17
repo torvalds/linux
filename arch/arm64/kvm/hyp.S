@@ -13,7 +13,7 @@
 /*
  * u64 __kvm_call_hyp(void *hypfn, ...);
  *
- * This is not really a variadic function in the classic C-way and care must
+ * This is yest really a variadic function in the classic C-way and care must
  * be taken when calling this to ensure parameters are passed in registers
  * only, since the stack will change between the caller and the callee.
  *

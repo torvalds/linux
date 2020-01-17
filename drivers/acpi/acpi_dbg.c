@@ -91,7 +91,7 @@ static inline bool __acpi_aml_access_ok(unsigned long flag)
 static inline bool __acpi_aml_readable(struct circ_buf *circ, unsigned long flag)
 {
 	/*
-	 * Another read is not in progress and there is data in buffer
+	 * Ayesther read is yest in progress and there is data in buffer
 	 * available for read.
 	 */
 	if (!(acpi_aml_io.flags & flag) && circ_count(circ))
@@ -102,7 +102,7 @@ static inline bool __acpi_aml_readable(struct circ_buf *circ, unsigned long flag
 static inline bool __acpi_aml_writable(struct circ_buf *circ, unsigned long flag)
 {
 	/*
-	 * Another write is not in progress and there is buffer space
+	 * Ayesther write is yest in progress and there is buffer space
 	 * available for write.
 	 */
 	if (!(acpi_aml_io.flags & flag) && circ_space(circ))
@@ -302,7 +302,7 @@ static int acpi_aml_readb_kern(void)
  *
  * This function should be used to implement acpi_os_printf() to filter out
  * the debugger output and store the output into the debugger interface
- * buffer. Return the size of stored logs or errno.
+ * buffer. Return the size of stored logs or erryes.
  */
 static ssize_t acpi_aml_write_log(const char *msg)
 {
@@ -342,7 +342,7 @@ again:
  *
  * This function should be used to implement acpi_os_get_line() to capture
  * the debugger input commands and store the input commands into the
- * debugger interface buffer. Return the size of stored commands or errno.
+ * debugger interface buffer. Return the size of stored commands or erryes.
  */
 static ssize_t acpi_aml_read_cmd(char *msg, size_t count)
 {
@@ -461,19 +461,19 @@ static int acpi_aml_wait_command_ready(bool single_step,
 	return 0;
 }
 
-static int acpi_aml_notify_command_complete(void)
+static int acpi_aml_yestify_command_complete(void)
 {
 	return 0;
 }
 
-static int acpi_aml_open(struct inode *inode, struct file *file)
+static int acpi_aml_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret = 0;
 	acpi_status status;
 
 	mutex_lock(&acpi_aml_io.lock);
 	/*
-	 * The debugger interface is being closed, no new user is allowed
+	 * The debugger interface is being closed, yes new user is allowed
 	 * during this period.
 	 */
 	if (acpi_aml_io.flags & ACPI_AML_CLOSED) {
@@ -532,7 +532,7 @@ err_exit:
 	return ret;
 }
 
-static int acpi_aml_release(struct inode *inode, struct file *file)
+static int acpi_aml_release(struct iyesde *iyesde, struct file *file)
 {
 	mutex_lock(&acpi_aml_io.lock);
 	acpi_aml_io.users--;
@@ -558,7 +558,7 @@ static int acpi_aml_release(struct inode *inode, struct file *file)
 
 		/*
 		 * Then we try to terminate the debugger thread if it is
-		 * not terminated.
+		 * yest terminated.
 		 */
 		pr_debug("Terminating debugger thread.\n");
 		acpi_terminate_debugger();
@@ -742,7 +742,7 @@ static const struct acpi_debugger_ops acpi_aml_debugger = {
 	.read_cmd		 = acpi_aml_read_cmd,
 	.write_log		 = acpi_aml_write_log,
 	.wait_command_ready	 = acpi_aml_wait_command_ready,
-	.notify_command_complete = acpi_aml_notify_command_complete,
+	.yestify_command_complete = acpi_aml_yestify_command_complete,
 };
 
 int __init acpi_aml_init(void)

@@ -159,7 +159,7 @@ static void kvmppc_emulate_treclaim(struct kvm_vcpu *vcpu, int ra_val)
 	}
 	tm_disable();
 	/*
-	 * treclaim need quit to non-transactional state.
+	 * treclaim need quit to yesn-transactional state.
 	 */
 	guest_msr &= ~(MSR_TS_MASK);
 	kvmppc_set_msr(vcpu, guest_msr);
@@ -196,8 +196,8 @@ static void kvmppc_emulate_trchkpt(struct kvm_vcpu *vcpu)
 /* emulate tabort. at guest privilege state */
 void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val)
 {
-	/* currently we only emulate tabort. but no emulation of other
-	 * tabort variants since there is no kernel usage of them at
+	/* currently we only emulate tabort. but yes emulation of other
+	 * tabort variants since there is yes kernel usage of them at
 	 * present.
 	 */
 	unsigned long guest_msr = kvmppc_get_msr(vcpu);
@@ -215,7 +215,7 @@ void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val)
 
 	vcpu->arch.texasr = mfspr(SPRN_TEXASR);
 	/* failure recording depends on Failure Summary bit,
-	 * and tabort will be treated as nops in non-transactional
+	 * and tabort will be treated as yesps in yesn-transactional
 	 * state.
 	 */
 	if (!(org_texasr & TEXASR_FS) &&
@@ -796,7 +796,7 @@ int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 			!((MSR_TM_SUSPENDED(kvmppc_get_msr(vcpu))) &&
 					(sprn == SPRN_TFHAR))) {
 			/* it is illegal to mtspr() TM regs in
-			 * other than non-transactional state, with
+			 * other than yesn-transactional state, with
 			 * the exception of TFHAR in suspend state.
 			 */
 			kvmppc_core_queue_program(vcpu, SRR1_PROGTM);

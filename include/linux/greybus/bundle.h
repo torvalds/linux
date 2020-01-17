@@ -24,7 +24,7 @@ struct gb_bundle {
 	u8			id;
 	u8			class;
 	u8			class_major;
-	u8			class_minor;
+	u8			class_miyesr;
 
 	size_t			num_cports;
 	struct greybus_descriptor_cport *cport_desc;
@@ -52,7 +52,7 @@ static inline int gb_pm_runtime_get_sync(struct gb_bundle *bundle)
 	if (retval < 0) {
 		dev_err(&bundle->dev,
 			"pm_runtime_get_sync failed: %d\n", retval);
-		pm_runtime_put_noidle(&bundle->dev);
+		pm_runtime_put_yesidle(&bundle->dev);
 		return retval;
 	}
 
@@ -69,14 +69,14 @@ static inline int gb_pm_runtime_put_autosuspend(struct gb_bundle *bundle)
 	return retval;
 }
 
-static inline void gb_pm_runtime_get_noresume(struct gb_bundle *bundle)
+static inline void gb_pm_runtime_get_yesresume(struct gb_bundle *bundle)
 {
-	pm_runtime_get_noresume(&bundle->dev);
+	pm_runtime_get_yesresume(&bundle->dev);
 }
 
-static inline void gb_pm_runtime_put_noidle(struct gb_bundle *bundle)
+static inline void gb_pm_runtime_put_yesidle(struct gb_bundle *bundle)
 {
-	pm_runtime_put_noidle(&bundle->dev);
+	pm_runtime_put_yesidle(&bundle->dev);
 }
 
 #else
@@ -85,8 +85,8 @@ static inline int gb_pm_runtime_get_sync(struct gb_bundle *bundle)
 static inline int gb_pm_runtime_put_autosuspend(struct gb_bundle *bundle)
 { return 0; }
 
-static inline void gb_pm_runtime_get_noresume(struct gb_bundle *bundle) {}
-static inline void gb_pm_runtime_put_noidle(struct gb_bundle *bundle) {}
+static inline void gb_pm_runtime_get_yesresume(struct gb_bundle *bundle) {}
+static inline void gb_pm_runtime_put_yesidle(struct gb_bundle *bundle) {}
 #endif
 
 #endif /* __BUNDLE_H */

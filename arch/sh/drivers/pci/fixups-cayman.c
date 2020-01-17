@@ -14,9 +14,9 @@ int pcibios_map_platform_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	   5V slots get into the CPU via a different path from the IRQ lines
 	   from the 3 3.3V slots.  Thus, we have to detect whether the card's
 	   interrupts go via the 5V or 3.3V path, i.e. the 'bridge swizzling'
-	   at the point where we cross from 5V to 3.3V is not the normal case.
+	   at the point where we cross from 5V to 3.3V is yest the yesrmal case.
 
-	   The added complication is that we don't know that the 5V slots are
+	   The added complication is that we don't kyesw that the 5V slots are
 	   always bus 2, because a card containing a PCI-PCI bridge may be
 	   plugged into a 3.3V slot, and this changes the bus numbering.
 
@@ -51,14 +51,14 @@ int pcibios_map_platform_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	/* Now work back up. */
 	if ((slot < 3) || (i == 0)) {
 		/* Bus 0 (incl. PCI-PCI bridge itself) : perform the final
-		   swizzle now. */
+		   swizzle yesw. */
 		result = IRQ_INTA + pci_swizzle_interrupt_pin(dev, pin) - 1;
 	} else {
 		i--;
 		slot = path[i].slot;
 		pin  = path[i].pin;
 		if (slot > 0) {
-			panic("PCI expansion bus device found - not handled!\n");
+			panic("PCI expansion bus device found - yest handled!\n");
 		} else {
 			if (i > 0) {
 				/* 5V slots */

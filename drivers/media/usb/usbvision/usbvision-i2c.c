@@ -17,7 +17,7 @@
 #include <linux/init.h>
 #include <linux/uaccess.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include "usbvision.h"
@@ -54,13 +54,13 @@ static inline int try_write_address(struct i2c_adapter *i2c_adap,
 		if (ret == 1)
 			break;	/* success! */
 		udelay(5);
-		if (i == retries)	/* no success */
+		if (i == retries)	/* yes success */
 			break;
 		udelay(10);
 	}
 	if (i) {
 		PDEBUG(DBG_I2C, "Needed %d retries for address %#2x", i, addr);
-		PDEBUG(DBG_I2C, "Maybe there's no device at this address");
+		PDEBUG(DBG_I2C, "Maybe there's yes device at this address");
 	}
 	return ret;
 }
@@ -78,13 +78,13 @@ static inline int try_read_address(struct i2c_adapter *i2c_adap,
 		if (ret == 1)
 			break;	/* success! */
 		udelay(5);
-		if (i == retries)	/* no success */
+		if (i == retries)	/* yes success */
 			break;
 		udelay(10);
 	}
 	if (i) {
 		PDEBUG(DBG_I2C, "Needed %d retries for address %#2x", i, addr);
-		PDEBUG(DBG_I2C, "Maybe there's no device at this address");
+		PDEBUG(DBG_I2C, "Maybe there's yes device at this address");
 	}
 	return ret;
 }
@@ -225,7 +225,7 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 		sd = v4l2_i2c_new_subdev(&usbvision->v4l2_dev,
 				&usbvision->i2c_adap,
 				"tuner", 0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
-		/* depending on whether we found a demod or not, select
+		/* depending on whether we found a demod or yest, select
 		   the tuner type. */
 		type = sd ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
 

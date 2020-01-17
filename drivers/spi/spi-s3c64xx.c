@@ -131,7 +131,7 @@ struct s3c64xx_spi_dma_data {
  * @rx_lvl_offset: Bit offset of RX_FIFO_LVL bits in SPI_STATUS regiter.
  * @tx_st_done: Bit offset of TX_DONE bit in SPI_STATUS regiter.
  * @high_speed: True, if the controller supports HIGH_SPEED_EN bit.
- * @clk_from_cmu: True, if the controller does not include a clock mux and
+ * @clk_from_cmu: True, if the controller does yest include a clock mux and
  *	prescaler unit.
  *
  * The Samsung s3c64xx SPI controller are used on various Samsung SoC's but
@@ -306,7 +306,7 @@ static void s3c64xx_spi_set_cs(struct spi_device *spi, bool enable)
 	struct s3c64xx_spi_driver_data *sdd =
 					spi_master_get_devdata(spi->master);
 
-	if (sdd->cntrlr_info->no_cs)
+	if (sdd->cntrlr_info->yes_cs)
 		return;
 
 	if (enable) {
@@ -737,30 +737,30 @@ static struct s3c64xx_spi_csinfo *s3c64xx_get_slave_ctrldata(
 				struct spi_device *spi)
 {
 	struct s3c64xx_spi_csinfo *cs;
-	struct device_node *slave_np, *data_np = NULL;
+	struct device_yesde *slave_np, *data_np = NULL;
 	u32 fb_delay = 0;
 
-	slave_np = spi->dev.of_node;
+	slave_np = spi->dev.of_yesde;
 	if (!slave_np) {
-		dev_err(&spi->dev, "device node not found\n");
+		dev_err(&spi->dev, "device yesde yest found\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	data_np = of_get_child_by_name(slave_np, "controller-data");
 	if (!data_np) {
-		dev_err(&spi->dev, "child node 'controller-data' not found\n");
+		dev_err(&spi->dev, "child yesde 'controller-data' yest found\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 	if (!cs) {
-		of_node_put(data_np);
+		of_yesde_put(data_np);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	of_property_read_u32(data_np, "samsung,spi-feedback-delay", &fb_delay);
 	cs->fb_delay = fb_delay;
-	of_node_put(data_np);
+	of_yesde_put(data_np);
 	return cs;
 }
 
@@ -777,11 +777,11 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 	int err;
 
 	sdd = spi_master_get_devdata(spi->master);
-	if (spi->dev.of_node) {
+	if (spi->dev.of_yesde) {
 		cs = s3c64xx_get_slave_ctrldata(spi);
 		spi->controller_data = cs;
 	} else if (cs) {
-		/* On non-DT platforms the SPI core will set spi->cs_gpio
+		/* On yesn-DT platforms the SPI core will set spi->cs_gpio
 		 * to -ENOENT. The GPIO pin used to drive the chip select
 		 * is defined by using platform data so spi->cs_gpio value
 		 * has to be override to have the proper GPIO pin number.
@@ -864,7 +864,7 @@ setup_exit:
 	spi_set_ctldata(spi, NULL);
 
 err_gpio_req:
-	if (spi->dev.of_node)
+	if (spi->dev.of_yesde)
 		kfree(cs);
 
 	return err;
@@ -876,10 +876,10 @@ static void s3c64xx_spi_cleanup(struct spi_device *spi)
 
 	if (gpio_is_valid(spi->cs_gpio)) {
 		gpio_free(spi->cs_gpio);
-		if (spi->dev.of_node)
+		if (spi->dev.of_yesde)
 			kfree(cs);
 		else {
-			/* On non-DT platforms, the SPI core sets
+			/* On yesn-DT platforms, the SPI core sets
 			 * spi->cs_gpio to -ENOENT and .setup()
 			 * overrides it with the GPIO pin value
 			 * passed using platform data.
@@ -931,12 +931,12 @@ static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd)
 
 	sdd->cur_speed = 0;
 
-	if (sci->no_cs)
+	if (sci->yes_cs)
 		writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 	else if (!(sdd->port_conf->quirks & S3C64XX_SPI_QUIRK_CS_AUTO))
 		writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 
-	/* Disable Interrupts - we use Polling if not DMA mode */
+	/* Disable Interrupts - we use Polling if yest DMA mode */
 	writel(0, regs + S3C64XX_SPI_INT_EN);
 
 	if (!sdd->port_conf->clk_from_cmu)
@@ -974,21 +974,21 @@ static struct s3c64xx_spi_info *s3c64xx_spi_parse_dt(struct device *dev)
 	if (!sci)
 		return ERR_PTR(-ENOMEM);
 
-	if (of_property_read_u32(dev->of_node, "samsung,spi-src-clk", &temp)) {
-		dev_warn(dev, "spi bus clock parent not specified, using clock at index 0 as parent\n");
+	if (of_property_read_u32(dev->of_yesde, "samsung,spi-src-clk", &temp)) {
+		dev_warn(dev, "spi bus clock parent yest specified, using clock at index 0 as parent\n");
 		sci->src_clk_nr = 0;
 	} else {
 		sci->src_clk_nr = temp;
 	}
 
-	if (of_property_read_u32(dev->of_node, "num-cs", &temp)) {
-		dev_warn(dev, "number of chip select lines not specified, assuming 1 chip select line\n");
+	if (of_property_read_u32(dev->of_yesde, "num-cs", &temp)) {
+		dev_warn(dev, "number of chip select lines yest specified, assuming 1 chip select line\n");
 		sci->num_cs = 1;
 	} else {
 		sci->num_cs = temp;
 	}
 
-	sci->no_cs = of_property_read_bool(dev->of_node, "no-cs-readback");
+	sci->yes_cs = of_property_read_bool(dev->of_yesde, "yes-cs-readback");
 
 	return sci;
 }
@@ -1005,9 +1005,9 @@ static inline struct s3c64xx_spi_port_config *s3c64xx_spi_get_port_config(
 						struct platform_device *pdev)
 {
 #ifdef CONFIG_OF
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		const struct of_device_id *match;
-		match = of_match_node(s3c64xx_spi_dt_match, pdev->dev.of_node);
+		match = of_match_yesde(s3c64xx_spi_dt_match, pdev->dev.of_yesde);
 		return (struct s3c64xx_spi_port_config *)match->data;
 	}
 #endif
@@ -1024,7 +1024,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	int ret, irq;
 	char clk_name[16];
 
-	if (!sci && pdev->dev.of_node) {
+	if (!sci && pdev->dev.of_yesde) {
 		sci = s3c64xx_spi_parse_dt(&pdev->dev);
 		if (IS_ERR(sci))
 			return PTR_ERR(sci);
@@ -1062,10 +1062,10 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	sdd->cntrlr_info = sci;
 	sdd->pdev = pdev;
 	sdd->sfr_start = mem_res->start;
-	if (pdev->dev.of_node) {
-		ret = of_alias_get_id(pdev->dev.of_node, "spi");
+	if (pdev->dev.of_yesde) {
+		ret = of_alias_get_id(pdev->dev.of_yesde, "spi");
 		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to get alias id, errno %d\n",
+			dev_err(&pdev->dev, "failed to get alias id, erryes %d\n",
 				ret);
 			goto err_deref_master;
 		}
@@ -1079,7 +1079,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	sdd->tx_dma.direction = DMA_MEM_TO_DEV;
 	sdd->rx_dma.direction = DMA_DEV_TO_MEM;
 
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->bus_num = sdd->port_id;
 	master->setup = s3c64xx_spi_setup;
 	master->cleanup = s3c64xx_spi_cleanup;
@@ -1194,7 +1194,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "cannot register SPI master: %d\n", ret);
+		dev_err(&pdev->dev, "canyest register SPI master: %d\n", ret);
 		goto err_pm_put;
 	}
 
@@ -1209,7 +1209,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	return 0;
 
 err_pm_put:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 
@@ -1250,7 +1250,7 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(sdd->clk);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 
@@ -1366,7 +1366,7 @@ static struct s3c64xx_spi_port_config s5pv210_spi_port_config = {
 	.high_speed	= true,
 };
 
-static struct s3c64xx_spi_port_config exynos4_spi_port_config = {
+static struct s3c64xx_spi_port_config exyyess4_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7F, 0x7F },
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,
@@ -1374,7 +1374,7 @@ static struct s3c64xx_spi_port_config exynos4_spi_port_config = {
 	.clk_from_cmu	= true,
 };
 
-static struct s3c64xx_spi_port_config exynos7_spi_port_config = {
+static struct s3c64xx_spi_port_config exyyess7_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7F, 0x7F, 0x7F, 0x7F, 0x1ff},
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,
@@ -1383,7 +1383,7 @@ static struct s3c64xx_spi_port_config exynos7_spi_port_config = {
 	.quirks		= S3C64XX_SPI_QUIRK_CS_AUTO,
 };
 
-static struct s3c64xx_spi_port_config exynos5433_spi_port_config = {
+static struct s3c64xx_spi_port_config exyyess5433_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7f, 0x7f, 0x7f, 0x7f, 0x1ff},
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,
@@ -1414,14 +1414,14 @@ static const struct of_device_id s3c64xx_spi_dt_match[] = {
 	{ .compatible = "samsung,s5pv210-spi",
 			.data = (void *)&s5pv210_spi_port_config,
 	},
-	{ .compatible = "samsung,exynos4210-spi",
-			.data = (void *)&exynos4_spi_port_config,
+	{ .compatible = "samsung,exyyess4210-spi",
+			.data = (void *)&exyyess4_spi_port_config,
 	},
-	{ .compatible = "samsung,exynos7-spi",
-			.data = (void *)&exynos7_spi_port_config,
+	{ .compatible = "samsung,exyyess7-spi",
+			.data = (void *)&exyyess7_spi_port_config,
 	},
-	{ .compatible = "samsung,exynos5433-spi",
-			.data = (void *)&exynos5433_spi_port_config,
+	{ .compatible = "samsung,exyyess5433-spi",
+			.data = (void *)&exyyess5433_spi_port_config,
 	},
 	{ },
 };

@@ -10,7 +10,7 @@
  *
  * Some of this is documented in Documentation/x86/entry_64.rst
  *
- * A note on terminology:
+ * A yeste on termiyeslogy:
  * - iret frame:	Architecture defined interrupt frame from SS to RIP
  *			at the top of the kernel process stack.
  *
@@ -22,7 +22,7 @@
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/cache.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/asm-offsets.h>
 #include <asm/msr.h>
 #include <asm/unistd.h>
@@ -37,7 +37,7 @@
 #include <asm/pgtable_types.h>
 #include <asm/export.h>
 #include <asm/frame.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 #include <linux/err.h>
 
 #include "calling.h"
@@ -74,7 +74,7 @@ SYM_CODE_END(native_usergs_sysret64)
  * outside the updating of the IST protection. (TRACE_IRQS_ON/OFF).
  *
  * We need to change the IDT table before calling TRACE_IRQS_ON/OFF to
- * make sure the stack pointer does not get reset back to the top
+ * make sure the stack pointer does yest get reset back to the top
  * of the debug stack, and instead just reuses the current stack.
  */
 #if defined(CONFIG_DYNAMIC_FTRACE) && defined(CONFIG_TRACE_IRQFLAGS)
@@ -119,26 +119,26 @@ SYM_CODE_END(native_usergs_sysret64)
  *
  * 64-bit SYSCALL saves rip to rcx, clears rflags.RF, then saves rflags to r11,
  * then loads new ss, cs, and rip from previously programmed MSRs.
- * rflags gets masked by a value from another MSR (so CLD and CLAC
- * are not needed). SYSCALL does not save anything on the stack
- * and does not change rsp.
+ * rflags gets masked by a value from ayesther MSR (so CLD and CLAC
+ * are yest needed). SYSCALL does yest save anything on the stack
+ * and does yest change rsp.
  *
  * Registers on entry:
  * rax  system call number
  * rcx  return address
- * r11  saved rflags (note: r11 is callee-clobbered register in C ABI)
+ * r11  saved rflags (yeste: r11 is callee-clobbered register in C ABI)
  * rdi  arg0
  * rsi  arg1
  * rdx  arg2
  * r10  arg3 (needs to be moved to rcx to conform to C ABI)
  * r8   arg4
  * r9   arg5
- * (note: r12-r15, rbp, rbx are callee-preserved in C ABI)
+ * (yeste: r12-r15, rbp, rbx are callee-preserved in C ABI)
  *
  * Only called from user space.
  *
  * When user can change pt_regs->foo always force IRET. That is because
- * it deals with uncanonical addresses better. SYSRET has trouble
+ * it deals with uncayesnical addresses better. SYSRET has trouble
  * with them due to bugs in both AMD and Intel CPUs.
  */
 
@@ -146,8 +146,8 @@ SYM_CODE_START(entry_SYSCALL_64)
 	UNWIND_HINT_EMPTY
 	/*
 	 * Interrupts are off on entry.
-	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
-	 * it is too small to ever cause noticeable irq latency.
+	 * We do yest frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
+	 * it is too small to ever cause yesticeable irq latency.
 	 */
 
 	swapgs
@@ -178,7 +178,7 @@ SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe, SYM_L_GLOBAL)
 
 	/*
 	 * Try to use SYSRET instead of IRET if we're returning to
-	 * a completely clean 64-bit userspace context.  If we're not,
+	 * a completely clean 64-bit userspace context.  If we're yest,
 	 * go to the slow exit path.
 	 */
 	movq	RCX(%rsp), %rcx
@@ -188,11 +188,11 @@ SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe, SYM_L_GLOBAL)
 	jne	swapgs_restore_regs_and_return_to_usermode
 
 	/*
-	 * On Intel CPUs, SYSRET with non-canonical RCX/RIP will #GP
+	 * On Intel CPUs, SYSRET with yesn-cayesnical RCX/RIP will #GP
 	 * in kernel space.  This essentially lets the user take over
 	 * the kernel, since userspace controls RSP.
 	 *
-	 * If width of "canonical tail" ever becomes variable, this will need
+	 * If width of "cayesnical tail" ever becomes variable, this will need
 	 * to be updated to remain correct on both old and new CPUs.
 	 *
 	 * Change top bits to match most significant bit (47th or 56th bit
@@ -206,7 +206,7 @@ SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe, SYM_L_GLOBAL)
 	sar	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
 #endif
 
-	/* If this changed %rcx, it was not canonical */
+	/* If this changed %rcx, it was yest cayesnical */
 	cmpq	%rcx, %r11
 	jne	swapgs_restore_regs_and_return_to_usermode
 
@@ -218,7 +218,7 @@ SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe, SYM_L_GLOBAL)
 	jne	swapgs_restore_regs_and_return_to_usermode
 
 	/*
-	 * SYSCALL clears RF when it saves RFLAGS in R11 and SYSRET cannot
+	 * SYSCALL clears RF when it saves RFLAGS in R11 and SYSRET canyest
 	 * restore RF properly. If the slowpath sets it for whatever reason, we
 	 * need to restore it correctly.
 	 *
@@ -238,7 +238,7 @@ SYM_INNER_LABEL(entry_SYSCALL_64_after_hwframe, SYM_L_GLOBAL)
 	testq	$(X86_EFLAGS_RF|X86_EFLAGS_TF), %r11
 	jnz	swapgs_restore_regs_and_return_to_usermode
 
-	/* nothing to check for RSP */
+	/* yesthing to check for RSP */
 
 	cmpq	$__USER_DS, SS(%rsp)		/* SS must match SYSRET */
 	jne	swapgs_restore_regs_and_return_to_usermode
@@ -400,7 +400,7 @@ SYM_CODE_END(spurious_entries_start)
 .endm
 
 /*
- * Enters the IRQ stack if we're not already using it.  NMI-safe.  Clobbers
+ * Enters the IRQ stack if we're yest already using it.  NMI-safe.  Clobbers
  * flags and puts old RSP into old_rsp, and leaves all other GPRs alone.
  * Requires kernel GSBASE.
  *
@@ -428,7 +428,7 @@ SYM_CODE_END(spurious_entries_start)
 	jnz	.Lirq_stack_push_old_rsp_\@
 
 	/*
-	 * Right now, if we just incremented irq_count to zero, we've
+	 * Right yesw, if we just incremented irq_count to zero, we've
 	 * claimed the IRQ stack but we haven't switched to it yet.
 	 *
 	 * If anything is added that can interrupt us here without using IST,
@@ -448,7 +448,7 @@ SYM_CODE_END(spurious_entries_start)
 #ifdef CONFIG_DEBUG_ENTRY
 	/*
 	 * If the first movq above becomes wrong due to IRQ stack layout
-	 * changes, the only way we'll notice is if we try to unwind right
+	 * changes, the only way we'll yestice is if we try to unwind right
 	 * here.  Assert that we set up the stack right to catch this type
 	 * of bug quickly.
 	 */
@@ -489,7 +489,7 @@ SYM_CODE_END(spurious_entries_start)
 
 	/*
 	 * As in ENTER_IRQ_STACK, irq_count == 0, we are still claiming
-	 * the irq stack but we're not on it.
+	 * the irq stack but we're yest on it.
 	 */
 
 	decl	PER_CPU_VAR(irq_count)
@@ -523,7 +523,7 @@ SYM_CODE_START(interrupt_entry)
 	/*
 	 * Switch to the thread stack. The IRET frame and orig_ax are
 	 * on the stack, as well as the return address. RDI..R12 are
-	 * not (yet) on the stack and space has not (yet) been
+	 * yest (yet) on the stack and space has yest (yet) been
 	 * allocated for them.
 	 */
 	pushq	%rdi
@@ -566,8 +566,8 @@ SYM_CODE_START(interrupt_entry)
 	 * we fix gsbase, and we should do it before enter_from_user_mode
 	 * (which can take locks).  Since TRACE_IRQS_OFF is idempotent,
 	 * the simplest way to handle it is to just call it twice if
-	 * we enter from user mode.  There's no reason to optimize this since
-	 * TRACE_IRQS_OFF is a no-op if lockdep is off.
+	 * we enter from user mode.  There's yes reason to optimize this since
+	 * TRACE_IRQS_OFF is a yes-op if lockdep is off.
 	 */
 	TRACE_IRQS_OFF
 
@@ -632,7 +632,7 @@ SYM_INNER_LABEL(swapgs_restore_regs_and_return_to_usermode, SYM_L_GLOBAL)
 	POP_REGS pop_rdi=0
 
 	/*
-	 * The stack is now user RDI, orig_ax, RIP, CS, EFLAGS, RSP, SS.
+	 * The stack is yesw user RDI, orig_ax, RIP, CS, EFLAGS, RSP, SS.
 	 * Save old stack pointer and switch to trampoline stack.
 	 */
 	movq	%rsp, %rdi
@@ -708,7 +708,7 @@ SYM_INNER_LABEL_ALIGN(native_iret, SYM_L_GLOBAL)
 
 SYM_INNER_LABEL(native_irq_return_iret, SYM_L_GLOBAL)
 	/*
-	 * This may fault.  Non-paranoid faults on return to userspace are
+	 * This may fault.  Non-parayesid faults on return to userspace are
 	 * handled by fixup_bad_iret.  These include #SS, #GP, and #NP.
 	 * Double-faults due to espfix64 are handled in do_double_fault.
 	 * Other faults here are fatal.
@@ -724,7 +724,7 @@ native_irq_return_ldt:
 	 * of the ESPFIX stack.
 	 *
 	 * We clobber RAX and RDI in this code.  We stash RDI on the
-	 * normal stack and RAX on the ESPFIX stack.
+	 * yesrmal stack and RAX on the ESPFIX stack.
 	 *
 	 * The ESPFIX stack layout we set up looks like this:
 	 *
@@ -763,7 +763,7 @@ native_irq_return_ldt:
 	 * (espfix_stack | (X & 0xffff0000)) points to a read-only alias of
 	 * espfix_waddr for any X.  That is, there are 65536 RO aliases of
 	 * the same page.  Set up RSP so that RSP[31:16] contains the
-	 * respective 16 bits of the /userspace/ RSP and RSP nonetheless
+	 * respective 16 bits of the /userspace/ RSP and RSP yesnetheless
 	 * still points to an RO alias of the ESPFIX stack.
 	 */
 	orq	PER_CPU_VAR(espfix_stack), %rax
@@ -776,15 +776,15 @@ native_irq_return_ldt:
 	UNWIND_HINT_IRET_REGS offset=8
 
 	/*
-	 * At this point, we cannot write to the stack any more, but we can
+	 * At this point, we canyest write to the stack any more, but we can
 	 * still read.
 	 */
 	popq	%rax				/* Restore user RAX */
 
 	/*
-	 * RSP now points to an ordinary IRET frame, except that the page
+	 * RSP yesw points to an ordinary IRET frame, except that the page
 	 * is read-only and RSP[31:16] are preloaded with the userspace
-	 * values.  We can now IRET back to userspace.
+	 * values.  We can yesw IRET back to userspace.
 	 */
 	jmp	native_irq_return_iret
 #endif
@@ -865,10 +865,10 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
  */
 #define CPU_TSS_IST(x) PER_CPU_VAR(cpu_tss_rw) + (TSS_ist + (x) * 8)
 
-.macro idtentry_part do_sym, has_error_code:req, read_cr2:req, paranoid:req, shift_ist=-1, ist_offset=0
+.macro idtentry_part do_sym, has_error_code:req, read_cr2:req, parayesid:req, shift_ist=-1, ist_offset=0
 
-	.if \paranoid
-	call	paranoid_entry
+	.if \parayesid
+	call	parayesid_entry
 	/* returned flag: ebx=0: need swapgs on exit, ebx=1: don't need it */
 	.else
 	call	error_entry
@@ -877,7 +877,7 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
 
 	.if \read_cr2
 	/*
-	 * Store CR2 early so subsequent faults cannot clobber it. Use R12 as
+	 * Store CR2 early so subsequent faults canyest clobber it. Use R12 as
 	 * intermediate storage as RDX can be clobbered in enter_from_user_mode().
 	 * GET_CR2_INTO can clobber RAX.
 	 */
@@ -890,20 +890,20 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
 	TRACE_IRQS_OFF
 	.endif
 
-	.if \paranoid == 0
+	.if \parayesid == 0
 	testb	$3, CS(%rsp)
-	jz	.Lfrom_kernel_no_context_tracking_\@
+	jz	.Lfrom_kernel_yes_context_tracking_\@
 	CALL_enter_from_user_mode
-.Lfrom_kernel_no_context_tracking_\@:
+.Lfrom_kernel_yes_context_tracking_\@:
 	.endif
 
 	movq	%rsp, %rdi			/* pt_regs pointer */
 
 	.if \has_error_code
 	movq	ORIG_RAX(%rsp), %rsi		/* get error code */
-	movq	$-1, ORIG_RAX(%rsp)		/* no syscall to restart */
+	movq	$-1, ORIG_RAX(%rsp)		/* yes syscall to restart */
 	.else
-	xorl	%esi, %esi			/* no error code */
+	xorl	%esi, %esi			/* yes error code */
 	.endif
 
 	.if \shift_ist != -1
@@ -920,9 +920,9 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
 	addq	$\ist_offset, CPU_TSS_IST(\shift_ist)
 	.endif
 
-	.if \paranoid
-	/* this procedure expect "no swapgs" flag in ebx */
-	jmp	paranoid_exit
+	.if \parayesid
+	/* this procedure expect "yes swapgs" flag in ebx */
+	jmp	parayesid_exit
 	.else
 	jmp	error_exit
 	.endif
@@ -934,7 +934,7 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
  * @sym:		Name of the generated entry point
  * @do_sym:		C function to be called
  * @has_error_code:	True if this IDT vector has an error code on the stack
- * @paranoid:		non-zero means that this vector may be invoked from
+ * @parayesid:		yesn-zero means that this vector may be invoked from
  *			kernel mode with user GSBASE and/or user CR3.
  *			2 is special -- see below.
  * @shift_ist:		Set to an IST index if entries from kernel mode should
@@ -949,44 +949,44 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
  * special behaviors:
  *
  * On an entry from user mode, the stub switches from the trampoline or
- * IST stack to the normal thread stack.  On an exit to user mode, the
- * normal exit-to-usermode path is invoked.
+ * IST stack to the yesrmal thread stack.  On an exit to user mode, the
+ * yesrmal exit-to-usermode path is invoked.
  *
- * On an exit to kernel mode, if @paranoid == 0, we check for preemption,
- * whereas we omit the preemption check if @paranoid != 0.  This is purely
+ * On an exit to kernel mode, if @parayesid == 0, we check for preemption,
+ * whereas we omit the preemption check if @parayesid != 0.  This is purely
  * because the implementation is simpler this way.  The kernel only needs
- * to check for asynchronous kernel preemption when IRQ handlers return.
+ * to check for asynchroyesus kernel preemption when IRQ handlers return.
  *
- * If @paranoid == 0, then the stub will handle IRET faults by pretending
+ * If @parayesid == 0, then the stub will handle IRET faults by pretending
  * that the fault came from user mode.  It will handle gs_change faults by
  * pretending that the fault happened with kernel GSBASE.  Since this handling
- * is omitted for @paranoid != 0, the #GP, #SS, and #NP stubs must have
- * @paranoid == 0.  This special handling will do the wrong thing for
- * espfix-induced #DF on IRET, so #DF must not use @paranoid == 0.
+ * is omitted for @parayesid != 0, the #GP, #SS, and #NP stubs must have
+ * @parayesid == 0.  This special handling will do the wrong thing for
+ * espfix-induced #DF on IRET, so #DF must yest use @parayesid == 0.
  *
- * @paranoid == 2 is special: the stub will never switch stacks.  This is for
+ * @parayesid == 2 is special: the stub will never switch stacks.  This is for
  * #DF: if the thread stack is somehow unusable, we'll still get a useful OOPS.
  */
-.macro idtentry sym do_sym has_error_code:req paranoid=0 shift_ist=-1 ist_offset=0 create_gap=0 read_cr2=0
+.macro idtentry sym do_sym has_error_code:req parayesid=0 shift_ist=-1 ist_offset=0 create_gap=0 read_cr2=0
 SYM_CODE_START(\sym)
 	UNWIND_HINT_IRET_REGS offset=\has_error_code*8
 
 	/* Sanity check */
-	.if \shift_ist != -1 && \paranoid != 1
-	.error "using shift_ist requires paranoid=1"
+	.if \shift_ist != -1 && \parayesid != 1
+	.error "using shift_ist requires parayesid=1"
 	.endif
 
-	.if \create_gap && \paranoid
-	.error "using create_gap requires paranoid=0"
+	.if \create_gap && \parayesid
+	.error "using create_gap requires parayesid=0"
 	.endif
 
 	ASM_CLAC
 
 	.if \has_error_code == 0
-	pushq	$-1				/* ORIG_RAX: no syscall to restart */
+	pushq	$-1				/* ORIG_RAX: yes syscall to restart */
 	.endif
 
-	.if \paranoid == 1
+	.if \parayesid == 1
 	testb	$3, CS-ORIG_RAX(%rsp)		/* If coming from userspace, switch stacks */
 	jnz	.Lfrom_usermode_switch_stack_\@
 	.endif
@@ -997,24 +997,24 @@ SYM_CODE_START(\sym)
 	 * int3 handler to emulate a call instruction.
 	 */
 	testb	$3, CS-ORIG_RAX(%rsp)
-	jnz	.Lfrom_usermode_no_gap_\@
+	jnz	.Lfrom_usermode_yes_gap_\@
 	.rept	6
 	pushq	5*8(%rsp)
 	.endr
 	UNWIND_HINT_IRET_REGS offset=8
-.Lfrom_usermode_no_gap_\@:
+.Lfrom_usermode_yes_gap_\@:
 	.endif
 
-	idtentry_part \do_sym, \has_error_code, \read_cr2, \paranoid, \shift_ist, \ist_offset
+	idtentry_part \do_sym, \has_error_code, \read_cr2, \parayesid, \shift_ist, \ist_offset
 
-	.if \paranoid == 1
+	.if \parayesid == 1
 	/*
 	 * Entry from userspace.  Switch stacks and treat it
-	 * as a normal entry.  This means that paranoid handlers
+	 * as a yesrmal entry.  This means that parayesid handlers
 	 * run in real process context if user_mode(regs).
 	 */
 .Lfrom_usermode_switch_stack_\@:
-	idtentry_part \do_sym, \has_error_code, \read_cr2, paranoid=0
+	idtentry_part \do_sym, \has_error_code, \read_cr2, parayesid=0
 	.endif
 
 _ASM_NOKPROBE(\sym)
@@ -1025,11 +1025,11 @@ idtentry divide_error			do_divide_error			has_error_code=0
 idtentry overflow			do_overflow			has_error_code=0
 idtentry bounds				do_bounds			has_error_code=0
 idtentry invalid_op			do_invalid_op			has_error_code=0
-idtentry device_not_available		do_device_not_available		has_error_code=0
-idtentry double_fault			do_double_fault			has_error_code=1 paranoid=2 read_cr2=1
+idtentry device_yest_available		do_device_yest_available		has_error_code=0
+idtentry double_fault			do_double_fault			has_error_code=1 parayesid=2 read_cr2=1
 idtentry coprocessor_segment_overrun	do_coprocessor_segment_overrun	has_error_code=0
 idtentry invalid_TSS			do_invalid_TSS			has_error_code=1
-idtentry segment_not_present		do_segment_not_present		has_error_code=1
+idtentry segment_yest_present		do_segment_yest_present		has_error_code=1
 idtentry spurious_interrupt_bug		do_spurious_interrupt_bug	has_error_code=0
 idtentry coprocessor_error		do_coprocessor_error		has_error_code=0
 idtentry alignment_check		do_alignment_check		has_error_code=1
@@ -1089,12 +1089,12 @@ SYM_FUNC_END(do_softirq_own_stack)
 idtentry hypervisor_callback xen_do_hypervisor_callback has_error_code=0
 
 /*
- * A note on the "critical region" in our callback handler.
+ * A yeste on the "critical region" in our callback handler.
  * We want to avoid stacking callback handlers due to events occurring
  * during handling of the last event. To do this, we keep events disabled
  * until we've done all processing. HOWEVER, we must enable events before
  * popping the stack frame (can't be done atomically) and so it would still
- * be possible to get enough handler activations to overflow the stack.
+ * be possible to get eyesugh handler activations to overflow the stack.
  * Although unlikely, bugs of that kind are hard to track down, so we'd
  * like to avoid the possibility.
  * So, on entry to the handler we detect whether we interrupted an
@@ -1127,10 +1127,10 @@ SYM_CODE_END(xen_do_hypervisor_callback)
  * We get here for two reasons:
  *  1. Fault while reloading DS, ES, FS or GS
  *  2. Fault while executing IRET
- * Category 1 we do not need to fix up as Xen has already reloaded all segment
+ * Category 1 we do yest need to fix up as Xen has already reloaded all segment
  * registers that could be reloaded and zeroed the others.
- * Category 2 we fix up by killing the current process. We cannot use the
- * normal Linux return path in this case because if we use the IRET hypercall
+ * Category 2 we fix up by killing the current process. We canyest use the
+ * yesrmal Linux return path in this case because if we use the IRET hypercall
  * to pop the stack frame we end up in an infinite loop of failsafe callbacks.
  * We distinguish between categories by comparing each saved segment register
  * with its current contents: any discrepancy means we in category 1.
@@ -1161,7 +1161,7 @@ SYM_CODE_START(xen_failsafe_callback)
 	movq	8(%rsp), %r11
 	addq	$0x30, %rsp
 	UNWIND_HINT_IRET_REGS
-	pushq	$-1 /* orig_ax = -1 => not a system call */
+	pushq	$-1 /* orig_ax = -1 => yest a system call */
 	PUSH_AND_CLEAR_REGS
 	ENCODE_FRAME_POINTER
 	jmp	error_exit
@@ -1190,7 +1190,7 @@ apicinterrupt3 HYPERVISOR_CALLBACK_VECTOR \
 	acrn_hv_callback_vector acrn_hv_vector_handler
 #endif
 
-idtentry debug			do_debug		has_error_code=0	paranoid=1 shift_ist=IST_INDEX_DB ist_offset=DB_STACK_OFFSET
+idtentry debug			do_debug		has_error_code=0	parayesid=1 shift_ist=IST_INDEX_DB ist_offset=DB_STACK_OFFSET
 idtentry int3			do_int3			has_error_code=0	create_gap=1
 idtentry stack_segment		do_stack_segment	has_error_code=1
 
@@ -1207,7 +1207,7 @@ idtentry async_page_fault	do_async_page_fault	has_error_code=1	read_cr2=1
 #endif
 
 #ifdef CONFIG_X86_MCE
-idtentry machine_check		do_mce			has_error_code=0	paranoid=1
+idtentry machine_check		do_mce			has_error_code=0	parayesid=1
 #endif
 
 /*
@@ -1215,7 +1215,7 @@ idtentry machine_check		do_mce			has_error_code=0	paranoid=1
  * Use slow, but surefire "are we in kernel?" check.
  * Return: ebx=0: need swapgs on exit, ebx=1: otherwise
  */
-SYM_CODE_START_LOCAL(paranoid_entry)
+SYM_CODE_START_LOCAL(parayesid_entry)
 	UNWIND_HINT_FUNC
 	cld
 	PUSH_AND_CLEAR_REGS save_ret=1
@@ -1231,12 +1231,12 @@ SYM_CODE_START_LOCAL(paranoid_entry)
 1:
 	/*
 	 * Always stash CR3 in %r14.  This value will be restored,
-	 * verbatim, at exit.  Needed if paranoid_entry interrupted
-	 * another entry that already switched to the user CR3 value
-	 * but has not yet returned to userspace.
+	 * verbatim, at exit.  Needed if parayesid_entry interrupted
+	 * ayesther entry that already switched to the user CR3 value
+	 * but has yest yet returned to userspace.
 	 *
 	 * This is also why CS (stashed in the "iret frame" by the
-	 * hardware at entry) can not be used: this may be a return
+	 * hardware at entry) can yest be used: this may be a return
 	 * to kernel code, but with a user CR3 value.
 	 */
 	SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg=%rax save_reg=%r14
@@ -1249,37 +1249,37 @@ SYM_CODE_START_LOCAL(paranoid_entry)
 	FENCE_SWAPGS_KERNEL_ENTRY
 
 	ret
-SYM_CODE_END(paranoid_entry)
+SYM_CODE_END(parayesid_entry)
 
 /*
- * "Paranoid" exit path from exception stack.  This is invoked
- * only on return from non-NMI IST interrupts that came
+ * "Parayesid" exit path from exception stack.  This is invoked
+ * only on return from yesn-NMI IST interrupts that came
  * from kernel space.
  *
  * We may be returning to very strange contexts (e.g. very early
  * in syscall entry), so checking for preemption here would
- * be complicated.  Fortunately, we there's no good reason
+ * be complicated.  Fortunately, we there's yes good reason
  * to try to handle preemption here.
  *
- * On entry, ebx is "no swapgs" flag (1: don't need swapgs, 0: need it)
+ * On entry, ebx is "yes swapgs" flag (1: don't need swapgs, 0: need it)
  */
-SYM_CODE_START_LOCAL(paranoid_exit)
+SYM_CODE_START_LOCAL(parayesid_exit)
 	UNWIND_HINT_REGS
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF_DEBUG
 	testl	%ebx, %ebx			/* swapgs needed? */
-	jnz	.Lparanoid_exit_no_swapgs
+	jnz	.Lparayesid_exit_yes_swapgs
 	TRACE_IRQS_IRETQ
-	/* Always restore stashed CR3 value (see paranoid_entry) */
+	/* Always restore stashed CR3 value (see parayesid_entry) */
 	RESTORE_CR3	scratch_reg=%rbx save_reg=%r14
 	SWAPGS_UNSAFE_STACK
 	jmp	restore_regs_and_return_to_kernel
-.Lparanoid_exit_no_swapgs:
+.Lparayesid_exit_yes_swapgs:
 	TRACE_IRQS_IRETQ_DEBUG
-	/* Always restore stashed CR3 value (see paranoid_entry) */
+	/* Always restore stashed CR3 value (see parayesid_entry) */
 	RESTORE_CR3	scratch_reg=%rbx save_reg=%r14
 	jmp restore_regs_and_return_to_kernel
-SYM_CODE_END(paranoid_exit)
+SYM_CODE_END(parayesid_exit)
 
 /*
  * Save all registers in pt_regs, and switch GS if needed.
@@ -1376,12 +1376,12 @@ SYM_CODE_START_LOCAL(error_exit)
 SYM_CODE_END(error_exit)
 
 /*
- * Runs on exception stack.  Xen PV does not go through this path at all,
+ * Runs on exception stack.  Xen PV does yest go through this path at all,
  * so we can use real assembly here.
  *
  * Registers:
  *	%r14: Used to save/restore the CR3 of the interrupted context
- *	      when PAGE_TABLE_ISOLATION is in use.  Do not clobber.
+ *	      when PAGE_TABLE_ISOLATION is in use.  Do yest clobber.
  */
 SYM_CODE_START(nmi)
 	UNWIND_HINT_IRET_REGS
@@ -1392,7 +1392,7 @@ SYM_CODE_START(nmi)
 	 * This means that we can have nested NMIs where the next
 	 * NMI is using the top of the stack of the previous NMI. We
 	 * can't let it execute because the nested NMI will corrupt the
-	 * stack of the previous NMI. NMI handlers are not re-entrant
+	 * stack of the previous NMI. NMI handlers are yest re-entrant
 	 * anyway.
 	 *
 	 * To handle this case we do the following:
@@ -1400,7 +1400,7 @@ SYM_CODE_START(nmi)
 	 *  a variable that is set when NMIs are executing.
 	 *  The interrupted task's stack is also checked to see if it
 	 *  is an NMI stack.
-	 *  If the variable is not set and the stack is not the NMI
+	 *  If the variable is yest set and the stack is yest the NMI
 	 *  stack then:
 	 *    o Set the special variable on the stack
 	 *    o Copy the interrupt frame into an "outermost" location on the
@@ -1413,7 +1413,7 @@ SYM_CODE_START(nmi)
 	 *
 	 * Now on exit of the first NMI, we first clear the stack variable
 	 * The NMI stack will tell any nested NMIs at that point that it is
-	 * nested. Then we pop the stack normally with iret, and if there was
+	 * nested. Then we pop the stack yesrmally with iret, and if there was
 	 * a nested NMI that updated the copy interrupt stack frame, a
 	 * jump will be made to the repeat_nmi code that will handle the second
 	 * NMI.
@@ -1434,12 +1434,12 @@ SYM_CODE_START(nmi)
 
 	/*
 	 * NMI from user mode.  We need to run on the thread stack, but we
-	 * can't go through the normal entry paths: NMIs are masked, and
+	 * can't go through the yesrmal entry paths: NMIs are masked, and
 	 * we don't want to enable interrupts, because then we'll end
 	 * up in an awkward situation in which IRQs are on but NMIs
 	 * are off.
 	 *
-	 * We also must not push anything to the stack before switching
+	 * We also must yest push anything to the stack before switching
 	 * stacks lest we corrupt the "NMI executing" variable.
 	 */
 
@@ -1461,8 +1461,8 @@ SYM_CODE_START(nmi)
 	ENCODE_FRAME_POINTER
 
 	/*
-	 * At this point we no longer need to worry about stack damage
-	 * due to nesting -- we're on the normal thread stack and we're
+	 * At this point we yes longer need to worry about stack damage
+	 * due to nesting -- we're on the yesrmal thread stack and we're
 	 * done with the NMI stack.
 	 */
 
@@ -1471,7 +1471,7 @@ SYM_CODE_START(nmi)
 	call	do_nmi
 
 	/*
-	 * Return back to user mode.  We must *not* do the normal exit
+	 * Return back to user mode.  We must *yest* do the yesrmal exit
 	 * work, because we don't want to enable interrupts.
 	 */
 	jmp	swapgs_restore_regs_and_return_to_usermode
@@ -1492,12 +1492,12 @@ SYM_CODE_START(nmi)
 	 * +---------------------------------------------------------+
 	 * | iret SS          } Copied from "outermost" frame        |
 	 * | iret Return RSP  } on each loop iteration; overwritten  |
-	 * | iret RFLAGS      } by a nested NMI to force another     |
+	 * | iret RFLAGS      } by a nested NMI to force ayesther     |
 	 * | iret CS          } iteration if needed.                 |
 	 * | iret RIP         }                                      |
 	 * +---------------------------------------------------------+
 	 * | outermost SS          } initialized in first_nmi;       |
-	 * | outermost Return RSP  } will not be changed before      |
+	 * | outermost Return RSP  } will yest be changed before      |
 	 * | outermost RFLAGS      } NMI processing is done.         |
 	 * | outermost CS          } Copied to "iret" frame on each  |
 	 * | outermost RIP         } iteration.                      |
@@ -1506,7 +1506,7 @@ SYM_CODE_START(nmi)
 	 * +---------------------------------------------------------+
 	 *
 	 * The "original" frame is used by hardware.  Before re-enabling
-	 * NMIs, we need to be done with it, and we need to leave enough
+	 * NMIs, we need to be done with it, and we need to leave eyesugh
 	 * space for the asm code here.
 	 *
 	 * We return by executing IRET while RSP points to the "iret" frame.
@@ -1522,7 +1522,7 @@ SYM_CODE_START(nmi)
 	 * Determine whether we're a nested NMI.
 	 *
 	 * If we interrupted kernel code between repeat_nmi and
-	 * end_repeat_nmi, then we are a nested NMI.  We must not
+	 * end_repeat_nmi, then we are a nested NMI.  We must yest
 	 * modify the "iret" frame because it's being written by
 	 * the outer NMI.  That's okay; the outer NMI handler is
 	 * about to about to call do_nmi anyway, so we can just
@@ -1539,7 +1539,7 @@ SYM_CODE_START(nmi)
 
 	/*
 	 * Now check "NMI executing".  If it's set, then we're nested.
-	 * This will not detect if we interrupted an outer NMI just
+	 * This will yest detect if we interrupted an outer NMI just
 	 * before IRET.
 	 */
 	cmpl	$1, -8(%rsp)
@@ -1550,22 +1550,22 @@ SYM_CODE_START(nmi)
 	 * the case where we interrupt an outer NMI after it clears
 	 * "NMI executing" but before IRET.  We need to be careful, though:
 	 * there is one case in which RSP could point to the NMI stack
-	 * despite there being no NMI active: naughty userspace controls
+	 * despite there being yes NMI active: naughty userspace controls
 	 * RSP at the very beginning of the SYSCALL targets.  We can
 	 * pull a fast one on naughty userspace, though: we program
-	 * SYSCALL to mask DF, so userspace cannot cause DF to be set
+	 * SYSCALL to mask DF, so userspace canyest cause DF to be set
 	 * if it controls the kernel's RSP.  We set DF before we clear
 	 * "NMI executing".
 	 */
 	lea	6*8(%rsp), %rdx
 	/* Compare the NMI stack (rdx) with the stack we came from (4*8(%rsp)) */
 	cmpq	%rdx, 4*8(%rsp)
-	/* If the stack pointer is above the NMI stack, this is a normal NMI */
+	/* If the stack pointer is above the NMI stack, this is a yesrmal NMI */
 	ja	first_nmi
 
 	subq	$EXCEPTION_STKSZ, %rdx
 	cmpq	%rdx, 4*8(%rsp)
-	/* If it is below the NMI stack, it is a normal NMI */
+	/* If it is below the NMI stack, it is a yesrmal NMI */
 	jb	first_nmi
 
 	/* Ah, it is within the NMI stack. */
@@ -1577,7 +1577,7 @@ SYM_CODE_START(nmi)
 
 nested_nmi:
 	/*
-	 * Modify the "iret" frame to point to repeat_nmi, forcing another
+	 * Modify the "iret" frame to point to repeat_nmi, forcing ayesther
 	 * iteration of NMI handling.
 	 */
 	subq	$8, %rsp
@@ -1594,7 +1594,7 @@ nested_nmi:
 nested_nmi_out:
 	popq	%rdx
 
-	/* We are returning to kernel mode, so this cannot result in a fault. */
+	/* We are returning to kernel mode, so this canyest result in a fault. */
 	iretq
 
 first_nmi:
@@ -1634,16 +1634,16 @@ first_nmi:
 repeat_nmi:
 	/*
 	 * If there was a nested NMI, the first NMI's iret will return
-	 * here. But NMIs are still enabled and we can take another
+	 * here. But NMIs are still enabled and we can take ayesther
 	 * nested NMI. The nested NMI checks the interrupted RIP to see
 	 * if it is between repeat_nmi and end_repeat_nmi, and if so
 	 * it will just return, as we are about to repeat an NMI anyway.
 	 * This makes it safe to copy to the stack frame that a nested
 	 * NMI will update.
 	 *
-	 * RSP is pointing to "outermost RIP".  gsbase is unknown, but, if
+	 * RSP is pointing to "outermost RIP".  gsbase is unkyeswn, but, if
 	 * we're repeating an NMI, gsbase has the same value that it had on
-	 * the first iteration.  paranoid_entry will load the kernel
+	 * the first iteration.  parayesid_entry will load the kernel
 	 * gsbase if needed before we call do_nmi.  "NMI executing"
 	 * is zero.
 	 */
@@ -1651,7 +1651,7 @@ repeat_nmi:
 
 	/*
 	 * Copy the "outermost" frame to the "iret" frame.  NMIs that nest
-	 * here must not modify the "iret" frame while we're writing to
+	 * here must yest modify the "iret" frame while we're writing to
 	 * it or it will end up containing garbage.
 	 */
 	addq	$(10*8), %rsp
@@ -1666,24 +1666,24 @@ end_repeat_nmi:
 	 * If this happens, then the inner NMI will change the "iret"
 	 * frame to point back to repeat_nmi.
 	 */
-	pushq	$-1				/* ORIG_RAX: no syscall to restart */
+	pushq	$-1				/* ORIG_RAX: yes syscall to restart */
 
 	/*
-	 * Use paranoid_entry to handle SWAPGS, but no need to use paranoid_exit
-	 * as we should not be calling schedule in NMI context.
-	 * Even with normal interrupts enabled. An NMI should not be
-	 * setting NEED_RESCHED or anything that normal interrupts and
+	 * Use parayesid_entry to handle SWAPGS, but yes need to use parayesid_exit
+	 * as we should yest be calling schedule in NMI context.
+	 * Even with yesrmal interrupts enabled. An NMI should yest be
+	 * setting NEED_RESCHED or anything that yesrmal interrupts and
 	 * exceptions might do.
 	 */
-	call	paranoid_entry
+	call	parayesid_entry
 	UNWIND_HINT_REGS
 
-	/* paranoidentry do_nmi, 0; without TRACE_IRQS_OFF */
+	/* parayesidentry do_nmi, 0; without TRACE_IRQS_OFF */
 	movq	%rsp, %rdi
 	movq	$-1, %rsi
 	call	do_nmi
 
-	/* Always restore stashed CR3 value (see paranoid_entry) */
+	/* Always restore stashed CR3 value (see parayesid_entry) */
 	RESTORE_CR3 scratch_reg=%r15 save_reg=%r14
 
 	testl	%ebx, %ebx			/* swapgs needed? */
@@ -1714,7 +1714,7 @@ nmi_restore:
 	/*
 	 * iretq reads the "iret" frame and exits the NMI stack in a
 	 * single instruction.  We are returning to kernel mode, so this
-	 * cannot result in a fault.  Similarly, we don't need to worry
+	 * canyest result in a fault.  Similarly, we don't need to worry
 	 * about espfix64 on the way back to kernel mode.
 	 */
 	iretq
@@ -1722,14 +1722,14 @@ SYM_CODE_END(nmi)
 
 #ifndef CONFIG_IA32_EMULATION
 /*
- * This handles SYSCALL from 32-bit code.  There is no way to program
+ * This handles SYSCALL from 32-bit code.  There is yes way to program
  * MSRs to fully disable 32-bit SYSCALL.
  */
-SYM_CODE_START(ignore_sysret)
+SYM_CODE_START(igyesre_sysret)
 	UNWIND_HINT_EMPTY
 	mov	$-ENOSYS, %eax
 	sysret
-SYM_CODE_END(ignore_sysret)
+SYM_CODE_END(igyesre_sysret)
 #endif
 
 SYM_CODE_START(rewind_stack_do_exit)

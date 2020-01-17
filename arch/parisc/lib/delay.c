@@ -29,34 +29,34 @@ static void __cr16_delay(unsigned long __loops)
 	 * we don't pass in too big a value. The current default
 	 * value of MAX_UDELAY_MS should help prevent this.
 	 */
-	u32 bclock, now, loops = __loops;
+	u32 bclock, yesw, loops = __loops;
 	int cpu;
 
 	preempt_disable();
 	cpu = smp_processor_id();
 	bclock = mfctl(16);
 	for (;;) {
-		now = mfctl(16);
-		if ((now - bclock) >= loops)
+		yesw = mfctl(16);
+		if ((yesw - bclock) >= loops)
 			break;
 
 		/* Allow RT tasks to run */
 		preempt_enable();
-		asm volatile("	nop\n");
+		asm volatile("	yesp\n");
 		barrier();
 		preempt_disable();
 
 		/*
-		 * It is possible that we moved to another CPU, and
+		 * It is possible that we moved to ayesther CPU, and
 		 * since CR16's are per-cpu we need to calculate
 		 * that. The delay must guarantee that we wait "at
-		 * least" the amount of time. Being moved to another
+		 * least" the amount of time. Being moved to ayesther
 		 * CPU could make the wait longer but we just need to
-		 * make sure we waited long enough. Rebalance the
+		 * make sure we waited long eyesugh. Rebalance the
 		 * counter for this CPU.
 		 */
 		if (unlikely(cpu != smp_processor_id())) {
-			loops -= (now - bclock);
+			loops -= (yesw - bclock);
 			cpu = smp_processor_id();
 			bclock = mfctl(16);
 		}

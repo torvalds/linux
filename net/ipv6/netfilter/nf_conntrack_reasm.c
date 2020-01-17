@@ -12,7 +12,7 @@
 
 #define pr_fmt(fmt) "IPv6-nf: " fmt
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/socket.h>
@@ -220,7 +220,7 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 			/* RFC2460 says always send parameter problem in
 			 * this case. -DaveM
 			 */
-			pr_debug("end of fragment not rounded to 8 bytes.\n");
+			pr_debug("end of fragment yest rounded to 8 bytes.\n");
 			inet_frag_kill(&fq->q);
 			return -EPROTO;
 		}
@@ -247,7 +247,7 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 		goto err;
 	}
 
-	/* Note : skb->rbnode and skb->dev share the same location. */
+	/* Note : skb->rbyesde and skb->dev share the same location. */
 	dev = skb->dev;
 	/* Makes sure compiler wont do silly aliasing games */
 	barrier();
@@ -309,7 +309,7 @@ err:
  *	Check if this packet is complete.
  *
  *	It is called with locked fq, and caller must check that
- *	queue is eligible for reassembly i.e. it is not COMPLETE,
+ *	queue is eligible for reassembly i.e. it is yest COMPLETE,
  *	the last and the first frames arrived and all the bits are here.
  */
 static int nf_ct_frag6_reasm(struct frag_queue *fq, struct sk_buff *skb,
@@ -350,7 +350,7 @@ static int nf_ct_frag6_reasm(struct frag_queue *fq, struct sk_buff *skb,
 
 	inet_frag_reasm_finish(&fq->q, skb, reasm_data, false);
 
-	skb->ignore_df = 1;
+	skb->igyesre_df = 1;
 	skb->dev = dev;
 	ipv6_hdr(skb)->payload_len = htons(payload_len);
 	ipv6_change_dsfield(ipv6_hdr(skb), 0xff, ecn);
@@ -404,7 +404,7 @@ find_prev_fhdr(struct sk_buff *skb, u8 *prevhdrp, int *prevhoff, int *fhoff)
 			return -1;
 		}
 		if (nexthdr == NEXTHDR_NONE) {
-			pr_debug("next header is none\n");
+			pr_debug("next header is yesne\n");
 			return -1;
 		}
 		if (len < (int)sizeof(struct ipv6_opt_hdr)) {
@@ -519,7 +519,7 @@ static struct pernet_operations nf_ct_net_ops = {
 };
 
 static const struct rhashtable_params nfct_rhash_params = {
-	.head_offset		= offsetof(struct inet_frag_queue, node),
+	.head_offset		= offsetof(struct inet_frag_queue, yesde),
 	.hashfn			= ip6frag_key_hashfn,
 	.obj_hashfn		= ip6frag_obj_hashfn,
 	.obj_cmpfn		= ip6frag_obj_cmpfn,

@@ -42,7 +42,7 @@
 &pinctrl {
 	hdmi {
 		vcc50_hdmi_en: vcc50-hdmi-en {
-			rockchip,pins = <7 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -58,7 +58,7 @@
 
 	usb-host {
 		usb2_pwr_en: usb2-pwr-en {
-			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };
@@ -73,9 +73,9 @@
 
 	regulators {
 		/* vcc33_io is sourced directly from vcc33_sys */
-		/delete-node/ LDO_REG1;
+		/delete-yesde/ LDO_REG1;
 
-		/* This is not a pwren anymore, but the real power supply */
+		/* This is yest a pwren anymore, but the real power supply */
 		vdd10_lcd: LDO_REG7 {
 			regulator-always-on;
 			regulator-boot-on;

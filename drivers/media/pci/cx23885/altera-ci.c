@@ -126,20 +126,20 @@ struct netup_hw_pid_filter {
 	int nr;
 };
 
-/* internal params node */
-struct fpga_inode {
+/* internal params yesde */
+struct fpga_iyesde {
 	/* pointer for internal params, one for each pair of CI's */
 	struct fpga_internal		*internal;
-	struct fpga_inode		*next_inode;
+	struct fpga_iyesde		*next_iyesde;
 };
 
 /* first internal params */
-static struct fpga_inode *fpga_first_inode;
+static struct fpga_iyesde *fpga_first_iyesde;
 
 /* find chip by dev */
-static struct fpga_inode *find_inode(void *dev)
+static struct fpga_iyesde *find_iyesde(void *dev)
 {
-	struct fpga_inode *temp_chip = fpga_first_inode;
+	struct fpga_iyesde *temp_chip = fpga_first_iyesde;
 
 	if (temp_chip == NULL)
 		return temp_chip;
@@ -149,7 +149,7 @@ static struct fpga_inode *find_inode(void *dev)
 	 find it by dev */
 	while ((temp_chip != NULL) &&
 				(temp_chip->internal->dev != dev))
-		temp_chip = temp_chip->next_inode;
+		temp_chip = temp_chip->next_iyesde;
 
 	return temp_chip;
 }
@@ -170,9 +170,9 @@ static struct fpga_internal *check_filter(struct fpga_internal *temp_int,
 }
 
 /* find chip by demux */
-static struct fpga_inode *find_dinode(void *demux_dev)
+static struct fpga_iyesde *find_diyesde(void *demux_dev)
 {
-	struct fpga_inode *temp_chip = fpga_first_inode;
+	struct fpga_iyesde *temp_chip = fpga_first_iyesde;
 	struct fpga_internal *temp_int;
 
 	/*
@@ -188,62 +188,62 @@ static struct fpga_inode *find_dinode(void *demux_dev)
 				break;
 		}
 
-		temp_chip = temp_chip->next_inode;
+		temp_chip = temp_chip->next_iyesde;
 	}
 
 	return temp_chip;
 }
 
 /* deallocating chip */
-static void remove_inode(struct fpga_internal *internal)
+static void remove_iyesde(struct fpga_internal *internal)
 {
-	struct fpga_inode *prev_node = fpga_first_inode;
-	struct fpga_inode *del_node = find_inode(internal->dev);
+	struct fpga_iyesde *prev_yesde = fpga_first_iyesde;
+	struct fpga_iyesde *del_yesde = find_iyesde(internal->dev);
 
-	if (del_node != NULL) {
-		if (del_node == fpga_first_inode) {
-			fpga_first_inode = del_node->next_inode;
+	if (del_yesde != NULL) {
+		if (del_yesde == fpga_first_iyesde) {
+			fpga_first_iyesde = del_yesde->next_iyesde;
 		} else {
-			while (prev_node->next_inode != del_node)
-				prev_node = prev_node->next_inode;
+			while (prev_yesde->next_iyesde != del_yesde)
+				prev_yesde = prev_yesde->next_iyesde;
 
-			if (del_node->next_inode == NULL)
-				prev_node->next_inode = NULL;
+			if (del_yesde->next_iyesde == NULL)
+				prev_yesde->next_iyesde = NULL;
 			else
-				prev_node->next_inode =
-					prev_node->next_inode->next_inode;
+				prev_yesde->next_iyesde =
+					prev_yesde->next_iyesde->next_iyesde;
 		}
 
-		kfree(del_node);
+		kfree(del_yesde);
 	}
 }
 
 /* allocating new chip */
-static struct fpga_inode *append_internal(struct fpga_internal *internal)
+static struct fpga_iyesde *append_internal(struct fpga_internal *internal)
 {
-	struct fpga_inode *new_node = fpga_first_inode;
+	struct fpga_iyesde *new_yesde = fpga_first_iyesde;
 
-	if (new_node == NULL) {
-		new_node = kmalloc(sizeof(struct fpga_inode), GFP_KERNEL);
-		fpga_first_inode = new_node;
+	if (new_yesde == NULL) {
+		new_yesde = kmalloc(sizeof(struct fpga_iyesde), GFP_KERNEL);
+		fpga_first_iyesde = new_yesde;
 	} else {
-		while (new_node->next_inode != NULL)
-			new_node = new_node->next_inode;
+		while (new_yesde->next_iyesde != NULL)
+			new_yesde = new_yesde->next_iyesde;
 
-		new_node->next_inode =
-				kmalloc(sizeof(struct fpga_inode), GFP_KERNEL);
-		if (new_node->next_inode != NULL)
-			new_node = new_node->next_inode;
+		new_yesde->next_iyesde =
+				kmalloc(sizeof(struct fpga_iyesde), GFP_KERNEL);
+		if (new_yesde->next_iyesde != NULL)
+			new_yesde = new_yesde->next_iyesde;
 		else
-			new_node = NULL;
+			new_yesde = NULL;
 	}
 
-	if (new_node != NULL) {
-		new_node->internal = internal;
-		new_node->next_inode = NULL;
+	if (new_yesde != NULL) {
+		new_yesde->internal = internal;
+		new_yesde->next_iyesde = NULL;
 	}
 
-	return new_node;
+	return new_yesde;
 }
 
 static int netup_fpga_op_rw(struct fpga_internal *inter, int addr,
@@ -359,7 +359,7 @@ static int altera_ci_slot_reset(struct dvb_ca_en50221 *en50221, int slot)
 
 static int altera_ci_slot_shutdown(struct dvb_ca_en50221 *en50221, int slot)
 {
-	/* not implemented */
+	/* yest implemented */
 	return 0;
 }
 
@@ -423,13 +423,13 @@ static void netup_read_ci_status(struct work_struct *work)
 /* CI irq handler */
 int altera_ci_irq(void *dev)
 {
-	struct fpga_inode *temp_int = NULL;
+	struct fpga_iyesde *temp_int = NULL;
 	struct fpga_internal *inter = NULL;
 
 	ci_dbg_print("%s\n", __func__);
 
 	if (dev != NULL) {
-		temp_int = find_inode(dev);
+		temp_int = find_iyesde(dev);
 		if (temp_int != NULL) {
 			inter = temp_int->internal;
 			schedule_work(&inter->work);
@@ -453,7 +453,7 @@ static int altera_poll_ci_slot_status(struct dvb_ca_en50221 *en50221,
 
 static void altera_hw_filt_release(void *main_dev, int filt_nr)
 {
-	struct fpga_inode *temp_int = find_inode(main_dev);
+	struct fpga_iyesde *temp_int = find_iyesde(main_dev);
 	struct netup_hw_pid_filter *pid_filt = NULL;
 
 	ci_dbg_print("%s\n", __func__);
@@ -469,7 +469,7 @@ static void altera_hw_filt_release(void *main_dev, int filt_nr)
 
 			ci_dbg_print("%s: Actually removing\n", __func__);
 
-			remove_inode(temp_int->internal);
+			remove_iyesde(temp_int->internal);
 			kfree(pid_filt->internal);
 		}
 
@@ -481,7 +481,7 @@ static void altera_hw_filt_release(void *main_dev, int filt_nr)
 
 void altera_ci_release(void *dev, int ci_nr)
 {
-	struct fpga_inode *temp_int = find_inode(dev);
+	struct fpga_iyesde *temp_int = find_iyesde(dev);
 	struct altera_ci_state *state = NULL;
 
 	ci_dbg_print("%s\n", __func__);
@@ -496,7 +496,7 @@ void altera_ci_release(void *dev, int ci_nr)
 
 			ci_dbg_print("%s: Actually removing\n", __func__);
 
-			remove_inode(temp_int->internal);
+			remove_iyesde(temp_int->internal);
 			kfree(state->internal);
 		}
 
@@ -512,7 +512,7 @@ void altera_ci_release(void *dev, int ci_nr)
 EXPORT_SYMBOL(altera_ci_release);
 
 static void altera_pid_control(struct netup_hw_pid_filter *pid_filt,
-		u16 pid, int onoff)
+		u16 pid, int oyesff)
 {
 	struct fpga_internal *inter = pid_filt->internal;
 	u8 store = 0;
@@ -529,7 +529,7 @@ static void altera_pid_control(struct netup_hw_pid_filter *pid_filt,
 
 	store = netup_fpga_op_rw(inter, NETUP_CI_PID_DATA, 0, NETUP_CI_FLG_RD);
 
-	if (onoff)/* 0 - on, 1 - off */
+	if (oyesff)/* 0 - on, 1 - off */
 		store |= (1 << (pid & 7));
 	else
 		store &= ~(1 << (pid & 7));
@@ -539,21 +539,21 @@ static void altera_pid_control(struct netup_hw_pid_filter *pid_filt,
 	mutex_unlock(&inter->fpga_mutex);
 
 	pid_dbg_print("%s: (%d) set pid: %5d 0x%04x '%s'\n", __func__,
-		pid_filt->nr, pid, pid, onoff ? "off" : "on");
+		pid_filt->nr, pid, pid, oyesff ? "off" : "on");
 }
 
 static void altera_toggle_fullts_streaming(struct netup_hw_pid_filter *pid_filt,
-					int filt_nr, int onoff)
+					int filt_nr, int oyesff)
 {
 	struct fpga_internal *inter = pid_filt->internal;
 	u8 store = 0;
 	int i;
 
-	pid_dbg_print("%s: pid_filt->nr[%d]  now %s\n", __func__, pid_filt->nr,
-			onoff ? "off" : "on");
+	pid_dbg_print("%s: pid_filt->nr[%d]  yesw %s\n", __func__, pid_filt->nr,
+			oyesff ? "off" : "on");
 
-	if (onoff)/* 0 - on, 1 - off */
-		store = 0xff;/* ignore pid */
+	if (oyesff)/* 0 - on, 1 - off */
+		store = 0xff;/* igyesre pid */
 	else
 		store = 0;/* enable pid */
 
@@ -573,22 +573,22 @@ static void altera_toggle_fullts_streaming(struct netup_hw_pid_filter *pid_filt,
 }
 
 static int altera_pid_feed_control(void *demux_dev, int filt_nr,
-		struct dvb_demux_feed *feed, int onoff)
+		struct dvb_demux_feed *feed, int oyesff)
 {
-	struct fpga_inode *temp_int = find_dinode(demux_dev);
+	struct fpga_iyesde *temp_int = find_diyesde(demux_dev);
 	struct fpga_internal *inter = temp_int->internal;
 	struct netup_hw_pid_filter *pid_filt = inter->pid_filt[filt_nr - 1];
 
-	altera_pid_control(pid_filt, feed->pid, onoff ? 0 : 1);
+	altera_pid_control(pid_filt, feed->pid, oyesff ? 0 : 1);
 	/* call old feed proc's */
-	if (onoff)
+	if (oyesff)
 		pid_filt->start_feed(feed);
 	else
 		pid_filt->stop_feed(feed);
 
 	if (feed->pid == 0x2000)
 		altera_toggle_fullts_streaming(pid_filt, filt_nr,
-						onoff ? 0 : 1);
+						oyesff ? 0 : 1);
 
 	return 0;
 }
@@ -630,7 +630,7 @@ static int altera_ci_stop_feed_2(struct dvb_demux_feed *feed)
 static int altera_hw_filt_init(struct altera_ci_config *config, int hw_filt_nr)
 {
 	struct netup_hw_pid_filter *pid_filt = NULL;
-	struct fpga_inode *temp_int = find_inode(config->dev);
+	struct fpga_iyesde *temp_int = find_iyesde(config->dev);
 	struct fpga_internal *inter = NULL;
 	int ret = 0;
 
@@ -701,7 +701,7 @@ err:
 int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 {
 	struct altera_ci_state *state;
-	struct fpga_inode *temp_int = find_inode(config->dev);
+	struct fpga_iyesde *temp_int = find_iyesde(config->dev);
 	struct fpga_internal *inter = NULL;
 	int ret = 0;
 	u8 store = 0;
@@ -797,7 +797,7 @@ int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 
 	return 0;
 err:
-	ci_dbg_print("%s: Cannot initialize CI: Error %d.\n", __func__, ret);
+	ci_dbg_print("%s: Canyest initialize CI: Error %d.\n", __func__, ret);
 
 	kfree(state);
 	kfree(inter);
@@ -808,7 +808,7 @@ EXPORT_SYMBOL(altera_ci_init);
 
 int altera_ci_tuner_reset(void *dev, int ci_nr)
 {
-	struct fpga_inode *temp_int = find_inode(dev);
+	struct fpga_iyesde *temp_int = find_iyesde(dev);
 	struct fpga_internal *inter = NULL;
 	u8 store;
 

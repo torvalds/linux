@@ -7,7 +7,7 @@
  * Copyright (c) 2008, Christian Lamparter <chunkeey@web.de>
  *
  * Based on the islsm (softmac prism54) driver, which is:
- * Copyright 2004-2006 Jean-Baptiste Note <jean-baptiste.note@m4x.org>, et al.
+ * Copyright 2004-2006 Jean-Baptiste Note <jean-baptiste.yeste@m4x.org>, et al.
  */
 
 #include <linux/pci.h>
@@ -469,7 +469,7 @@ static int p54p_open(struct ieee80211_hw *dev)
 	timeout = wait_for_completion_interruptible_timeout(
 			&priv->boot_comp, HZ);
 	if (timeout <= 0) {
-		wiphy_err(dev->wiphy, "Cannot boot firmware!\n");
+		wiphy_err(dev->wiphy, "Canyest boot firmware!\n");
 		p54p_stop(dev);
 		return timeout ? -ERESTARTSYS : -ETIMEDOUT;
 	}
@@ -496,7 +496,7 @@ static void p54p_firmware_step2(const struct firmware *fw,
 	int err;
 
 	if (!fw) {
-		dev_err(&pdev->dev, "Cannot find firmware (isl3886pci)\n");
+		dev_err(&pdev->dev, "Canyest find firmware (isl3886pci)\n");
 		err = -ENOENT;
 		goto out;
 	}
@@ -550,7 +550,7 @@ static int p54p_probe(struct pci_dev *pdev,
 	pci_dev_get(pdev);
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable new PCI device\n");
+		dev_err(&pdev->dev, "Canyest enable new PCI device\n");
 		goto err_put;
 	}
 
@@ -564,7 +564,7 @@ static int p54p_probe(struct pci_dev *pdev,
 
 	err = pci_request_regions(pdev, "p54pci");
 	if (err) {
-		dev_err(&pdev->dev, "Cannot obtain PCI resources\n");
+		dev_err(&pdev->dev, "Canyest obtain PCI resources\n");
 		goto err_disable_dev;
 	}
 
@@ -598,7 +598,7 @@ static int p54p_probe(struct pci_dev *pdev,
 
 	priv->map = ioremap(mem_addr, mem_len);
 	if (!priv->map) {
-		dev_err(&pdev->dev, "Cannot map device memory\n");
+		dev_err(&pdev->dev, "Canyest map device memory\n");
 		err = -ENOMEM;
 		goto err_free_dev;
 	}
@@ -606,7 +606,7 @@ static int p54p_probe(struct pci_dev *pdev,
 	priv->ring_control = pci_alloc_consistent(pdev, sizeof(*priv->ring_control),
 						  &priv->ring_control_dma);
 	if (!priv->ring_control) {
-		dev_err(&pdev->dev, "Cannot allocate rings\n");
+		dev_err(&pdev->dev, "Canyest allocate rings\n");
 		err = -ENOMEM;
 		goto err_iounmap;
 	}
@@ -617,7 +617,7 @@ static int p54p_probe(struct pci_dev *pdev,
 	spin_lock_init(&priv->lock);
 	tasklet_init(&priv->tasklet, p54p_tasklet, (unsigned long)dev);
 
-	err = request_firmware_nowait(THIS_MODULE, 1, "isl3886pci",
+	err = request_firmware_yeswait(THIS_MODULE, 1, "isl3886pci",
 				      &priv->pdev->dev, GFP_KERNEL,
 				      priv, p54p_firmware_step2);
 	if (!err)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * TS3A227E Autonomous Audio Accessory Detection and Configuration Switch
+ * TS3A227E Autoyesmous Audio Accessory Detection and Configuration Switch
  *
  * Copyright (C) 2014 Google, Inc.
  */
@@ -312,7 +312,7 @@ static int ts3a227e_i2c_probe(struct i2c_client *i2c,
 					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 					"TS3A227E", ts3a227e);
 	if (ret) {
-		dev_err(dev, "Cannot request irq %d (%d)\n", i2c->irq, ret);
+		dev_err(dev, "Canyest request irq %d (%d)\n", i2c->irq, ret);
 		return ret;
 	}
 
@@ -326,7 +326,7 @@ static int ts3a227e_i2c_probe(struct i2c_client *i2c,
 			   INTB_DISABLE | ADC_COMPLETE_INT_DISABLE,
 			   ADC_COMPLETE_INT_DISABLE);
 
-	/* Read jack status because chip might not trigger interrupt at boot. */
+	/* Read jack status because chip might yest trigger interrupt at boot. */
 	regmap_read(ts3a227e->regmap, TS3A227E_REG_ACCESSORY_STATUS, &acc_reg);
 	ts3a227e_new_jack_state(ts3a227e, acc_reg);
 	ts3a227e_jack_report(ts3a227e);

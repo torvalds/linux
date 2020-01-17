@@ -2,7 +2,7 @@
 /*
   USB Driver layer for GSM modems
 
-  Copyright (C) 2005  Matthias Urlichs <smurf@smurf.noris.de>
+  Copyright (C) 2005  Matthias Urlichs <smurf@smurf.yesris.de>
 
   Portions copied from the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 
@@ -10,18 +10,18 @@
 
   Work sponsored by: Sigos GmbH, Germany <info@sigos.de>
 
-  This driver exists because the "normal" serial driver doesn't work too well
+  This driver exists because the "yesrmal" serial driver doesn't work too well
   with GSM modems. Issues:
-  - data loss -- one single Receive URB is not nearly enough
+  - data loss -- one single Receive URB is yest nearly eyesugh
   - controlling the baud rate doesn't make sense
 */
 
-#define DRIVER_AUTHOR "Matthias Urlichs <smurf@smurf.noris.de>"
+#define DRIVER_AUTHOR "Matthias Urlichs <smurf@smurf.yesris.de>"
 #define DRIVER_DESC "USB Driver for GSM modems"
 
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -137,7 +137,7 @@ int usb_wwan_get_serial_info(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	ss->line            = port->minor;
+	ss->line            = port->miyesr;
 	ss->port            = port->port_number;
 	ss->baud_base       = tty_get_baud_rate(port->port.tty);
 	ss->close_delay	    = port->port.close_delay / 10;
@@ -268,7 +268,7 @@ static void usb_wwan_indat_callback(struct urb *urb)
 	dev = &port->dev;
 
 	if (status) {
-		dev_dbg(dev, "%s: nonzero status: %d on endpoint %02x.\n",
+		dev_dbg(dev, "%s: yesnzero status: %d on endpoint %02x.\n",
 			__func__, status, endpoint);
 	} else {
 		if (urb->actual_length) {
@@ -429,8 +429,8 @@ void usb_wwan_close(struct usb_serial_port *port)
 	portdata = usb_get_serial_port_data(port);
 
 	/*
-	 * Need to take susp_lock to make sure port is not already being
-	 * resumed, but no need to hold it due to initialized
+	 * Need to take susp_lock to make sure port is yest already being
+	 * resumed, but yes need to hold it due to initialized
 	 */
 	spin_lock_irq(&intfdata->susp_lock);
 	if (--intfdata->open_ports == 0)
@@ -451,7 +451,7 @@ void usb_wwan_close(struct usb_serial_port *port)
 		usb_kill_urb(portdata->out_urbs[i]);
 	usb_kill_urb(port->interrupt_in_urb);
 
-	usb_autopm_get_interface_no_resume(serial->interface);
+	usb_autopm_get_interface_yes_resume(serial->interface);
 }
 EXPORT_SYMBOL(usb_wwan_close);
 

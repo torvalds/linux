@@ -63,7 +63,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry,
 			record->compressed = true;
 		else
 			record->compressed = false;
-		record->ecc_notice_size = 0;
+		record->ecc_yestice_size = 0;
 	} else if (sscanf(name, "dump-type%u-%u-%d-%llu",
 		   &record->type, &part, &cnt, &time) == 4) {
 		record->id = generic_id(time, part, cnt);
@@ -72,7 +72,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry,
 		record->time.tv_sec = time;
 		record->time.tv_nsec = 0;
 		record->compressed = false;
-		record->ecc_notice_size = 0;
+		record->ecc_yestice_size = 0;
 	} else if (sscanf(name, "dump-type%u-%u-%llu",
 			  &record->type, &part, &time) == 3) {
 		/*
@@ -86,7 +86,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry,
 		record->time.tv_sec = time;
 		record->time.tv_nsec = 0;
 		record->compressed = false;
-		record->ecc_notice_size = 0;
+		record->ecc_yestice_size = 0;
 	} else
 		return 0;
 
@@ -211,7 +211,7 @@ static int efi_pstore_sysfs_entry_iter(struct pstore_record *record)
  *
  * size > 0: Got data of an entry logged via efi_pstore_write() successfully,
  *           and pstore filesystem will continue reading subsequent entries.
- * size == 0: Entry was not logged via efi_pstore_write(),
+ * size == 0: Entry was yest logged via efi_pstore_write(),
  *            and efi_pstore driver will continue reading subsequent entries.
  * size < 0: Failed to get data of entry logging via efi_pstore_write(),
  *           and pstore will stop reading entry.

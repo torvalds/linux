@@ -16,8 +16,8 @@ struct tp_mib_statistics {
 	u32 ipInHdrErrors_lo;
 	u32 ipInAddrErrors_hi;
 	u32 ipInAddrErrors_lo;
-	u32 ipInUnknownProtos_hi;
-	u32 ipInUnknownProtos_lo;
+	u32 ipInUnkyeswnProtos_hi;
+	u32 ipInUnkyeswnProtos_lo;
 	u32 ipInDiscards_hi;
 	u32 ipInDiscards_lo;
 	u32 ipInDelivers_hi;

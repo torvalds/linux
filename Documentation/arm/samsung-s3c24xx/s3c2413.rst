@@ -13,7 +13,7 @@ Introduction
 Camera Interface
 ----------------
 
-  This block is currently not supported.
+  This block is currently yest supported.
 
 
 Document Author

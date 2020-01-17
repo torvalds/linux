@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -114,7 +114,7 @@ int iwl_mvm_leds_init(struct iwl_mvm *mvm)
 
 	switch (mode) {
 	case IWL_LED_BLINK:
-		IWL_ERR(mvm, "Blink led mode not supported, used default\n");
+		IWL_ERR(mvm, "Blink led mode yest supported, used default\n");
 		/* fall through */
 	case IWL_LED_DEFAULT:
 	case IWL_LED_RF_STATE:
@@ -157,7 +157,7 @@ void iwl_mvm_leds_sync(struct iwl_mvm *mvm)
 
 	/*
 	 * if we control through the register, we're doing it
-	 * even when the firmware isn't up, so no need to sync
+	 * even when the firmware isn't up, so yes need to sync
 	 */
 	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_8000)
 		return;

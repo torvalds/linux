@@ -45,7 +45,7 @@ static const char *lwtunnel_encap_str(enum lwtunnel_encap_types encap_type)
 	case LWTUNNEL_ENCAP_IP:
 	case LWTUNNEL_ENCAP_NONE:
 	case __LWTUNNEL_ENCAP_MAX:
-		/* should not have got here */
+		/* should yest have got here */
 		WARN_ON(1);
 		break;
 	}
@@ -110,7 +110,7 @@ int lwtunnel_build_state(u16 encap_type,
 	if (encap_type == LWTUNNEL_ENCAP_NONE ||
 	    encap_type > LWTUNNEL_ENCAP_MAX) {
 		NL_SET_ERR_MSG_ATTR(extack, encap,
-				    "Unknown LWT encapsulation type");
+				    "Unkyeswn LWT encapsulation type");
 		return ret;
 	}
 
@@ -130,7 +130,7 @@ int lwtunnel_build_state(u16 encap_type,
 		 * handlers could return it
 		 */
 		NL_SET_ERR_MSG_ATTR(extack, encap,
-				    "LWT encapsulation type not supported");
+				    "LWT encapsulation type yest supported");
 	}
 
 	return ret;
@@ -144,7 +144,7 @@ int lwtunnel_valid_encap_type(u16 encap_type, struct netlink_ext_ack *extack)
 
 	if (encap_type == LWTUNNEL_ENCAP_NONE ||
 	    encap_type > LWTUNNEL_ENCAP_MAX) {
-		NL_SET_ERR_MSG(extack, "Unknown lwt encapsulation type");
+		NL_SET_ERR_MSG(extack, "Unkyeswn lwt encapsulation type");
 		return ret;
 	}
 
@@ -168,7 +168,7 @@ int lwtunnel_valid_encap_type(u16 encap_type, struct netlink_ext_ack *extack)
 #endif
 	ret = ops ? 0 : -EOPNOTSUPP;
 	if (ret < 0)
-		NL_SET_ERR_MSG(extack, "lwt encapsulation type not supported");
+		NL_SET_ERR_MSG(extack, "lwt encapsulation type yest supported");
 
 	return ret;
 }
@@ -232,7 +232,7 @@ int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate,
 	    lwtstate->type > LWTUNNEL_ENCAP_MAX)
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, encap_attr);
+	nest = nla_nest_start_yesflag(skb, encap_attr);
 	if (!nest)
 		return -EMSGSIZE;
 

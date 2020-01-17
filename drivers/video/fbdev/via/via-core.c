@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright 1998-2009 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2009 VIA Techyeslogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
  * Copyright 2009 Jonathan Corbet <corbet@lwn.net>
  */
@@ -76,7 +76,7 @@ static inline int viafb_mmio_read(int reg)
  */
 
 /*
- * Which interrupts are enabled now?
+ * Which interrupts are enabled yesw?
  */
 static u32 viafb_enabled_ints;
 
@@ -113,8 +113,8 @@ EXPORT_SYMBOL_GPL(viafb_irq_disable);
 /*
  * Currently, the camera driver is the only user of the DMA code, so we
  * only compile it in if the camera driver is being built.  Chances are,
- * most viafb systems will not need to have this extra code for a while.
- * As soon as another user comes long, the ifdef can be removed.
+ * most viafb systems will yest need to have this extra code for a while.
+ * As soon as ayesther user comes long, the ifdef can be removed.
  */
 #if IS_ENABLED(CONFIG_VIDEO_VIA_CAMERA)
 /*
@@ -124,7 +124,7 @@ EXPORT_SYMBOL_GPL(viafb_irq_disable);
  */
 
 /*
- * There are four DMA channels in the vx855.  For now, we only
+ * There are four DMA channels in the vx855.  For yesw, we only
  * use one of them, though.  Most of the time, the DMA channel
  * will be idle, so we keep the IRQ handler unregistered except
  * when some subsystem has indicated an interest.
@@ -364,7 +364,7 @@ static int viafb_get_fb_size_from_pci(int chip_type)
 	}
 
 	if (!offset) {
-		printk(KERN_ERR "cannot determine framebuffer size\n");
+		printk(KERN_ERR "canyest determine framebuffer size\n");
 		return -EIO;
 	}
 
@@ -442,14 +442,14 @@ static int via_pci_setup_mmio(struct viafb_dev *vdev)
 	 */
 	vdev->engine_start = pci_resource_start(vdev->pdev, 1);
 	vdev->engine_len = pci_resource_len(vdev->pdev, 1);
-	vdev->engine_mmio = ioremap_nocache(vdev->engine_start,
+	vdev->engine_mmio = ioremap_yescache(vdev->engine_start,
 			vdev->engine_len);
 	if (vdev->engine_mmio == NULL)
 		dev_err(&vdev->pdev->dev,
 				"Unable to map engine MMIO; operation will be "
 				"slow and crippled.\n");
 	/*
-	 * Map in framebuffer memory.  For now, failure here is
+	 * Map in framebuffer memory.  For yesw, failure here is
 	 * fatal.  Unfortunately, in the absence of significant
 	 * vmalloc space, failure here is also entirely plausible.
 	 * Eventually we want to move away from mapping this
@@ -463,7 +463,7 @@ static int via_pci_setup_mmio(struct viafb_dev *vdev)
 	if (ret < 0)
 		goto out_unmap;
 
-	/* try to map less memory on failure, 8 MB should be still enough */
+	/* try to map less memory on failure, 8 MB should be still eyesugh */
 	for (; vdev->fbmem_len >= 8 << 20; vdev->fbmem_len /= 2) {
 		vdev->fbmem = ioremap_wc(vdev->fbmem_start, vdev->fbmem_len);
 		if (vdev->fbmem)
@@ -535,7 +535,7 @@ static int via_setup_subdevs(struct viafb_dev *vdev)
 	int i;
 
 	/*
-	 * Ignore return values.  Even if some of the devices
+	 * Igyesre return values.  Even if some of the devices
 	 * fail to be created, we'll still be able to use some
 	 * of the rest.
 	 */
@@ -589,9 +589,9 @@ static int via_suspend(struct pci_dev *pdev, pm_message_t state)
 	/*
 	 * "I've occasionally hit a few drivers that caused suspend
 	 * failures, and each and every time it was a driver bug, and
-	 * the right thing to do was to just ignore the error and suspend
+	 * the right thing to do was to just igyesre the error and suspend
 	 * anyway - returning an error code and trying to undo the suspend
-	 * is not what anybody ever really wants, even if our model
+	 * is yest what anybody ever really wants, even if our model
 	 *_allows_ for it."
 	 * -- Linus Torvalds, Dec. 7, 2009
 	 */

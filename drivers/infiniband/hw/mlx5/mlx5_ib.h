@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -441,7 +441,7 @@ struct mlx5_ib_qp {
 	/* storage for qp sub type when core qp type is IB_QPT_DRIVER */
 	enum ib_qp_type		qp_sub_type;
 	/* A flag to indicate if there's a new counter is configured
-	 * but not take effective
+	 * but yest take effective
 	 */
 	u32                     counter_pending;
 };
@@ -482,7 +482,7 @@ struct mlx5_umr_wr {
 	u64				length;
 	int				access_flags;
 	u32				mkey;
-	u8				ignore_free_state:1;
+	u8				igyesre_free_state:1;
 };
 
 static inline const struct mlx5_umr_wr *umr_wr(const struct ib_send_wr *wr)
@@ -519,8 +519,8 @@ struct mlx5_ib_cq {
 	struct list_head	list_recv_qp;
 	u32			create_flags;
 	struct list_head	wc_list;
-	enum ib_cq_notify_flags notify_flags;
-	struct work_struct	notify_work;
+	enum ib_cq_yestify_flags yestify_flags;
+	struct work_struct	yestify_work;
 	u16			private_flags; /* Use mlx5_ib_cq_pr_flags */
 };
 
@@ -756,7 +756,7 @@ struct mlx5_roce {
 	 */
 	rwlock_t		netdev_lock;
 	struct net_device	*netdev;
-	struct notifier_block	nb;
+	struct yestifier_block	nb;
 	atomic_t		tx_port_affinity;
 	enum ib_port_state last_port_state;
 	struct mlx5_ib_dev	*dev;
@@ -860,7 +860,7 @@ struct mlx5_ib_multiport_info {
 	struct list_head list;
 	struct mlx5_ib_dev *ibdev;
 	struct mlx5_core_dev *mdev;
-	struct notifier_block mdev_events;
+	struct yestifier_block mdev_events;
 	struct completion unref_comp;
 	u64 sys_image_guid;
 	u32 mdev_refcnt;
@@ -943,7 +943,7 @@ struct mlx5_ib_lb_state {
 };
 
 struct mlx5_ib_pf_eq {
-	struct notifier_block irq_nb;
+	struct yestifier_block irq_nb;
 	struct mlx5_ib_dev *dev;
 	struct mlx5_eq *core;
 	struct work_struct work;
@@ -962,7 +962,7 @@ struct mlx5_devx_event_table {
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
-	struct notifier_block		mdev_events;
+	struct yestifier_block		mdev_events;
 	int				num_ports;
 	/* serialize update of capability mask
 	 */
@@ -1163,7 +1163,7 @@ int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		      struct ib_udata *udata);
 void mlx5_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
 int mlx5_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
-int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
+int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_yestify_flags flags);
 int mlx5_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata);
 struct ib_mr *mlx5_ib_get_dma_mr(struct ib_pd *pd, int acc);
@@ -1210,7 +1210,7 @@ struct ib_xrcd *mlx5_ib_alloc_xrcd(struct ib_device *ibdev,
 int mlx5_ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata);
 int mlx5_ib_get_buf_offset(u64 addr, int page_shift, u32 *offset);
 int mlx5_query_ext_port_caps(struct mlx5_ib_dev *dev, u8 port);
-int mlx5_query_mad_ifc_smp_attr_node_info(struct ib_device *ibdev,
+int mlx5_query_mad_ifc_smp_attr_yesde_info(struct ib_device *ibdev,
 					  struct ib_smp *out_mad);
 int mlx5_query_mad_ifc_system_image_guid(struct ib_device *ibdev,
 					 __be64 *sys_image_guid);
@@ -1218,8 +1218,8 @@ int mlx5_query_mad_ifc_max_pkeys(struct ib_device *ibdev,
 				 u16 *max_pkeys);
 int mlx5_query_mad_ifc_vendor_id(struct ib_device *ibdev,
 				 u32 *vendor_id);
-int mlx5_query_mad_ifc_node_desc(struct mlx5_ib_dev *dev, char *node_desc);
-int mlx5_query_mad_ifc_node_guid(struct mlx5_ib_dev *dev, __be64 *node_guid);
+int mlx5_query_mad_ifc_yesde_desc(struct mlx5_ib_dev *dev, char *yesde_desc);
+int mlx5_query_mad_ifc_yesde_guid(struct mlx5_ib_dev *dev, __be64 *yesde_guid);
 int mlx5_query_mad_ifc_pkey(struct ib_device *ibdev, u8 port, u16 index,
 			    u16 *pkey);
 int mlx5_query_mad_ifc_gids(struct ib_device *ibdev, u8 port, int index,
@@ -1306,7 +1306,7 @@ mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 }
 #endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 
-extern const struct mmu_interval_notifier_ops mlx5_mn_ops;
+extern const struct mmu_interval_yestifier_ops mlx5_mn_ops;
 
 /* Needed for rep profile */
 void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
@@ -1322,7 +1322,7 @@ int mlx5_ib_set_vf_link_state(struct ib_device *device, int vf,
 int mlx5_ib_get_vf_stats(struct ib_device *device, int vf,
 			 u8 port, struct ifla_vf_stats *stats);
 int mlx5_ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
-			struct ifla_vf_guid *node_guid,
+			struct ifla_vf_guid *yesde_guid,
 			struct ifla_vf_guid *port_guid);
 int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u8 port,
 			u64 guid, int type);
@@ -1426,7 +1426,7 @@ static inline int is_qp1(enum ib_qp_type qp_type)
 static inline u32 check_cq_create_flags(u32 flags)
 {
 	/*
-	 * It returns non-zero value for unsupported CQ
+	 * It returns yesn-zero value for unsupported CQ
 	 * create flags, otherwise it returns zero.
 	 */
 	return (flags & ~(IB_UVERBS_CQ_FLAGS_IGNORE_OVERRUN |

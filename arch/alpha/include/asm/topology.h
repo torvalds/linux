@@ -8,39 +8,39 @@
 #include <asm/machvec.h>
 
 #ifdef CONFIG_NUMA
-static inline int cpu_to_node(int cpu)
+static inline int cpu_to_yesde(int cpu)
 {
-	int node;
+	int yesde;
 	
 	if (!alpha_mv.cpuid_to_nid)
 		return 0;
 
-	node = alpha_mv.cpuid_to_nid(cpu);
+	yesde = alpha_mv.cpuid_to_nid(cpu);
 
 #ifdef DEBUG_NUMA
-	BUG_ON(node < 0);
+	BUG_ON(yesde < 0);
 #endif
 
-	return node;
+	return yesde;
 }
 
-extern struct cpumask node_to_cpumask_map[];
+extern struct cpumask yesde_to_cpumask_map[];
 /* FIXME: This is dumb, recalculating every time.  But simple. */
-static const struct cpumask *cpumask_of_node(int node)
+static const struct cpumask *cpumask_of_yesde(int yesde)
 {
 	int cpu;
 
-	if (node == NUMA_NO_NODE)
+	if (yesde == NUMA_NO_NODE)
 		return cpu_all_mask;
 
-	cpumask_clear(&node_to_cpumask_map[node]);
+	cpumask_clear(&yesde_to_cpumask_map[yesde]);
 
 	for_each_online_cpu(cpu) {
-		if (cpu_to_node(cpu) == node)
-			cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
+		if (cpu_to_yesde(cpu) == yesde)
+			cpumask_set_cpu(cpu, yesde_to_cpumask_map[yesde]);
 	}
 
-	return &node_to_cpumask_map[node];
+	return &yesde_to_cpumask_map[yesde];
 }
 
 #define cpumask_of_pcibus(bus)	(cpu_online_mask)

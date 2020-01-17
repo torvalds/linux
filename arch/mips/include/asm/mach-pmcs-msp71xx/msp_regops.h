@@ -1,5 +1,5 @@
 /*
- * SMP/VPE-safe functions to access "registers" (see note).
+ * SMP/VPE-safe functions to access "registers" (see yeste).
  *
  * NOTES:
 * - These macros use ll/sc instructions, so it is your responsibility to
@@ -17,7 +17,7 @@
  * two calls. All other logic should be performed before the first call.
   * - There is a bug on the R10000 chips which has a workaround. If you
  * are affected by this bug, make sure to define the symbol 'R10000_LLSC_WAR'
- * to be non-zero.  If you are using this header from within linux, you may
+ * to be yesn-zero.  If you are using this header from within linux, you may
  * include <asm/war.h> before including this file to have this defined
  * appropriately for you.
  *
@@ -40,7 +40,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc., 675
+ *  with this program; if yest, write  to the Free Software Foundation, Inc., 675
  *  Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -83,7 +83,7 @@ static inline void set_value_reg32(volatile u32 *const addr,
 	"	or	%0, %3				\n"
 	"	sc	%0, %1				\n"
 	"	"__beqz"%0, 1b				\n"
-	"	nop					\n"
+	"	yesp					\n"
 	"	.set	pop				\n"
 	: "=&r" (temp), "=" GCC_OFF_SMALL_ASM() (*addr)
 	: "ir" (~mask), "ir" (value), GCC_OFF_SMALL_ASM() (*addr));
@@ -104,7 +104,7 @@ static inline void set_reg32(volatile u32 *const addr,
 	"	or	%0, %2				\n"
 	"	sc	%0, %1				\n"
 	"	"__beqz"%0, 1b				\n"
-	"	nop					\n"
+	"	yesp					\n"
 	"	.set	pop				\n"
 	: "=&r" (temp), "=" GCC_OFF_SMALL_ASM() (*addr)
 	: "ir" (mask), GCC_OFF_SMALL_ASM() (*addr));
@@ -125,7 +125,7 @@ static inline void clear_reg32(volatile u32 *const addr,
 	"	and	%0, %2				\n"
 	"	sc	%0, %1				\n"
 	"	"__beqz"%0, 1b				\n"
-	"	nop					\n"
+	"	yesp					\n"
 	"	.set	pop				\n"
 	: "=&r" (temp), "=" GCC_OFF_SMALL_ASM() (*addr)
 	: "ir" (~mask), GCC_OFF_SMALL_ASM() (*addr));
@@ -146,7 +146,7 @@ static inline void toggle_reg32(volatile u32 *const addr,
 	"	xor	%0, %2				\n"
 	"	sc	%0, %1				\n"
 	"	"__beqz"%0, 1b				\n"
-	"	nop					\n"
+	"	yesp					\n"
 	"	.set	pop				\n"
 	: "=&r" (temp), "=" GCC_OFF_SMALL_ASM() (*addr)
 	: "ir" (mask), GCC_OFF_SMALL_ASM() (*addr));
@@ -162,7 +162,7 @@ static inline u32 read_reg32(volatile u32 *const addr,
 
 	__asm__ __volatile__(
 	"	.set	push				\n"
-	"	.set	noreorder			\n"
+	"	.set	yesreorder			\n"
 	"	lw	%0, %1		# read		\n"
 	"	and	%0, %2		# mask		\n"
 	"	.set	pop				\n"
@@ -177,7 +177,7 @@ static inline u32 read_reg32(volatile u32 *const addr,
  *
  * Uncached writes need to be read back to ensure they reach RAM.
  * The returned value must be 'used' to prevent from becoming a
- * non-blocking load.
+ * yesn-blocking load.
  */
 static inline u32 blocking_read_reg32(volatile u32 *const addr)
 {
@@ -185,7 +185,7 @@ static inline u32 blocking_read_reg32(volatile u32 *const addr)
 
 	__asm__ __volatile__(
 	"	.set	push				\n"
-	"	.set	noreorder			\n"
+	"	.set	yesreorder			\n"
 	"	lw	%0, %1		# read		\n"
 	"	move	%0, %0		# block		\n"
 	"	.set	pop				\n"
@@ -229,7 +229,7 @@ static inline u32 blocking_read_reg32(volatile u32 *const addr)
 	"	.set	arch=r4000			\n"	\
 	"	sc	%0, %1	#custom_write_reg32	\n"	\
 	"	"__beqz"%0, 1b				\n"	\
-	"	nop					\n"	\
+	"	yesp					\n"	\
 	"	.set	pop				\n"	\
 	: "=&r" (tmp), "=" GCC_OFF_SMALL_ASM() (*address)		\
 	: "0" (tmp), GCC_OFF_SMALL_ASM() (*address))

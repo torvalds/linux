@@ -9,14 +9,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -149,7 +149,7 @@ struct seeprom_descriptor;
  *	   time.  To avoid colliding with a DMA write from the sequencer,
  *	   we must be sure that 4 slots are empty when we write to clear
  *	   the queue.  This reduces us to 253 SCBs: 1 that just completed
- *	   and the known three additional empty slots in the queue that
+ *	   and the kyeswn three additional empty slots in the queue that
  *	   precede it.
  */
 #define AHC_MAX_QUEUE	253
@@ -226,7 +226,7 @@ typedef enum {
 	AHC_HVD		= 0x100000,	/* HVD rather than SE */
 	AHC_AIC7770_FE	= AHC_FENONE,
 	/*
-	 * The real 7850 does not support Ultra modes, but there are
+	 * The real 7850 does yest support Ultra modes, but there are
 	 * several cards that use the generic 7850 PCI ID even though
 	 * they are using an Ultra capable chip (7859/7860).  We start
 	 * out with the AHC_ULTRA feature set and then check the DEVSTATUS
@@ -242,7 +242,7 @@ typedef enum {
 	 * the initiator role to allow multi-scsi-id target mode
 	 * configurations.  We can only respond on the same SCSI
 	 * ID as our initiator role if we allow initiator operation.
-	 * At some point, we should add a configuration knob to
+	 * At some point, we should add a configuration kyesb to
 	 * allow both roles to be loaded.
 	 */
 	AHC_AIC7890_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA2
@@ -264,18 +264,18 @@ typedef enum {
 	AHC_BUGNONE		= 0x00,
 	/*
 	 * On all chips prior to the U2 product line,
-	 * the WIDEODD S/G segment feature does not
+	 * the WIDEODD S/G segment feature does yest
 	 * work during scsi->HostBus transfers.
 	 */
 	AHC_TMODE_WIDEODD_BUG	= 0x01,
 	/*
 	 * On the aic7890/91 Rev 0 chips, the autoflush
-	 * feature does not work.  A manual flush of
+	 * feature does yest work.  A manual flush of
 	 * the DMA FIFO is required.
 	 */
 	AHC_AUTOFLUSH_BUG	= 0x02,
 	/*
-	 * On many chips, cacheline streaming does not work.
+	 * On many chips, cacheline streaming does yest work.
 	 */
 	AHC_CACHETHEN_BUG	= 0x04,
 	/*
@@ -284,11 +284,11 @@ typedef enum {
 	 */
 	AHC_CACHETHEN_DIS_BUG	= 0x08,
 	/*
-	 * PCI 2.1 Retry failure on non-empty data fifo.
+	 * PCI 2.1 Retry failure on yesn-empty data fifo.
 	 */
 	AHC_PCI_2_1_RETRY_BUG	= 0x10,
 	/*
-	 * Controller does not handle cacheline residuals
+	 * Controller does yest handle cacheline residuals
 	 * properly on S/G segments if PCI MWI instructions
 	 * are allowed.
 	 */
@@ -321,7 +321,7 @@ typedef enum {
 					 */
 	AHC_SEQUENCER_DEBUG   = 0x008,
 	AHC_SHARED_SRAM	      = 0x010,
-	AHC_LARGE_SEEPROM     = 0x020,  /* Uses C56_66 not C46 */
+	AHC_LARGE_SEEPROM     = 0x020,  /* Uses C56_66 yest C46 */
 	AHC_RESET_BUS_A	      = 0x040,
 	AHC_RESET_BUS_B	      = 0x080,
 	AHC_EXTENDED_TRANS_A  = 0x100,
@@ -372,7 +372,7 @@ typedef enum {
  * contains the SCSI cdb (or a pointer to the  cdb) to be executed.  After
  * the cdb has been presented to the target, this area serves to store
  * residual transfer information and the SCSI status byte.
- * For the target role, the contents of this area do not change, but
+ * For the target role, the contents of this area do yest change, but
  * still serve a different purpose than for the initiator role.  See
  * struct target_data for details.
  */
@@ -381,7 +381,7 @@ typedef enum {
  * Status information embedded in the shared poriton of
  * an SCB after passing the cdb to the target.  The kernel
  * driver will only read this data for transactions that
- * complete abnormally (non-zero status byte).
+ * complete abyesrmally (yesn-zero status byte).
  */
 struct status_pkt {
 	uint32_t residual_datacnt;	/* Residual in the current S/G seg */
@@ -423,9 +423,9 @@ struct hardware_scb {
  * or'ed with the SG_FULL_RESID flag.  Sgptr may point to an invalid
  * S/G entry for this transfer (single S/G element transfer with the
  * first elements address and length preloaded in the dataptr/datacnt
- * fields).  If no transfer is to occur, sgptr is set to SG_LIST_NULL.
+ * fields).  If yes transfer is to occur, sgptr is set to SG_LIST_NULL.
  * The SG_FULL_RESID flag ensures that the residual will be correctly
- * noted even if no data transfers occur.  Once the data phase is entered,
+ * yested even if yes data transfers occur.  Once the data phase is entered,
  * the residual sgptr and datacnt are loaded from the sgptr and the
  * datacnt fields.  After each S/G element's dataptr and length are
  * loaded into the hardware, the residual sgptr is advanced.  After
@@ -438,7 +438,7 @@ struct hardware_scb {
  *
  * Sequencer:
  *	o A residual has occurred if SG_FULL_RESID is set in sgptr,
- *	  or residual_sgptr does not have SG_LIST_NULL set.
+ *	  or residual_sgptr does yest have SG_LIST_NULL set.
  *
  *	o We are transferring the last segment if residual_datacnt has
  *	  the SG_LAST_SEG flag set.
@@ -509,11 +509,11 @@ struct ahc_dma_seg {
 #define	AHC_SG_LEN_MASK		0x00FFFFFF
 };
 
-struct sg_map_node {
+struct sg_map_yesde {
 	bus_dmamap_t		 sg_dmamap;
 	dma_addr_t		 sg_physaddr;
 	struct ahc_dma_seg*	 sg_vaddr;
-	SLIST_ENTRY(sg_map_node) links;
+	SLIST_ENTRY(sg_map_yesde) links;
 };
 
 /*
@@ -522,7 +522,7 @@ struct sg_map_node {
 typedef enum {
 	SCB_FREE		= 0x0000,
 	SCB_OTHERTCL_TIMEOUT	= 0x0002,/*
-					  * Another device was active
+					  * Ayesther device was active
 					  * during the first timeout for
 					  * this SCB so we gave ourselves
 					  * an additional timeout period
@@ -543,9 +543,9 @@ typedef enum {
 					  * We detected a parity or CRC
 					  * error that has effected the
 					  * payload of the command.  This
-					  * flag is checked when normal
+					  * flag is checked when yesrmal
 					  * status is returned to catch
-					  * the case of a target not
+					  * the case of a target yest
 					  * responding to our attempt
 					  * to report the error.
 					  */
@@ -569,7 +569,7 @@ struct scb {
 	struct ahc_softc	 *ahc_softc;
 	scb_flag		  flags;
 	struct scb_platform_data *platform_data;
-	struct sg_map_node	 *sg_map;
+	struct sg_map_yesde	 *sg_map;
 	struct ahc_dma_seg 	 *sg_list;
 	dma_addr_t		  sg_list_phys;
 	u_int			  sg_count;/* How full ahc_dma_seg is */
@@ -603,7 +603,7 @@ struct scb_data {
 	bus_dmamap_t	 sense_dmamap;
 	dma_addr_t	 sense_busaddr;
 	bus_dma_tag_t	 sg_dmat;	/* dmat for our sg segments */
-	SLIST_HEAD(, sg_map_node) sg_maps;
+	SLIST_HEAD(, sg_map_yesde) sg_maps;
 	uint8_t	numscbs;
 	uint8_t	maxhscbs;		/* Number of SCBs on the card */
 	uint8_t	init_level;		/*
@@ -641,7 +641,7 @@ struct target_cmd {
 
 /*
  * Number of events we can buffer up if we run out
- * of immediate notify ccbs.
+ * of immediate yestify ccbs.
  */
 #define AHC_TMODE_EVENT_BUFFER_SIZE 8
 struct ahc_tmode_event {
@@ -662,7 +662,7 @@ struct ahc_tmode_event {
 struct ahc_tmode_lstate {
 	struct cam_path *path;
 	struct ccb_hdr_slist accept_tios;
-	struct ccb_hdr_slist immed_notifies;
+	struct ccb_hdr_slist immed_yestifies;
 	struct ahc_tmode_event event_buffer[AHC_TMODE_EVENT_BUFFER_SIZE];
 	uint8_t event_r_idx;
 	uint8_t event_w_idx;
@@ -724,7 +724,7 @@ struct ahc_tmode_tstate {
 };
 
 /*
- * Data structure for our table of allowed synchronous transfer rates.
+ * Data structure for our table of allowed synchroyesus transfer rates.
  */
 struct ahc_syncrate {
 	u_int sxfr_u2;	/* Value of the SXFR parameter for Ultra2+ Chips */
@@ -741,7 +741,7 @@ struct ahc_syncrate {
 #define	AHC_ULTRA2_XFER_PERIOD 0x0a
 
 /*
- * Indexes into our table of syncronous transfer rates.
+ * Indexes into our table of syncroyesus transfer rates.
  */
 #define AHC_SYNCRATE_DT		0
 #define AHC_SYNCRATE_ULTRA2	1
@@ -768,15 +768,15 @@ struct seeprom_config {
  * Per SCSI ID Configuration Flags
  */
 	uint16_t device_flags[16];	/* words 0-15 */
-#define		CFXFER		0x0007	/* synchronous transfer rate */
-#define		CFSYNCH		0x0008	/* enable synchronous transfer */
+#define		CFXFER		0x0007	/* synchroyesus transfer rate */
+#define		CFSYNCH		0x0008	/* enable synchroyesus transfer */
 #define		CFDISC		0x0010	/* enable disconnection */
 #define		CFWIDEB		0x0020	/* wide bus device */
 #define		CFSYNCHISULTRA	0x0040	/* CFSYNCH is an ultra offset (2940AU)*/
 #define		CFSYNCSINGLE	0x0080	/* Single-Transition signalling */
 #define		CFSTART		0x0100	/* send start unit SCSI command */
 #define		CFINCBIOS	0x0200	/* include in BIOS scan */
-#define		CFRNFOUND	0x0400	/* report even if not found */
+#define		CFRNFOUND	0x0400	/* report even if yest found */
 #define		CFMULTILUNDEV	0x0800	/* Probe multiple luns in BIOS scan */
 #define		CFWBCACHEENB	0x4000	/* Enable W-Behind Cache on disks */
 #define		CFWBCACHENOP	0xc000	/* Don't touch W-Behind Cache */
@@ -958,7 +958,7 @@ struct ahc_softc {
 
 	/*
 	 * Target mode related state kept on a per enabled lun basis.
-	 * Targets that are not enabled will have null entries.
+	 * Targets that are yest enabled will have null entries.
 	 * As an initiator, we keep one target entry for our initiator
 	 * ID to store our sync/wide transfer settings.
 	 */
@@ -972,7 +972,7 @@ struct ahc_softc {
 
 	/*
 	 * Device instance currently on the bus awaiting a continue TIO
-	 * for a command that was not given the disconnect priveledge.
+	 * for a command that was yest given the disconnect priveledge.
 	 */
 	struct ahc_tmode_lstate  *pending_device;
 
@@ -1098,7 +1098,7 @@ struct ahc_devinfo {
 	u_int	 lun;
 	char	 channel;
 	role_t	 role;		/*
-				 * Only guaranteed to be correct if not
+				 * Only guaranteed to be correct if yest
 				 * in the busfree state.
 				 */
 };
@@ -1207,7 +1207,7 @@ u_int			ahc_find_period(struct ahc_softc *ahc,
  */
 typedef enum {
 	AHC_NEG_TO_GOAL,	/* Renegotiate only if goal and curr differ. */
-	AHC_NEG_IF_NON_ASYNC,	/* Renegotiate so long as goal is non-async. */
+	AHC_NEG_IF_NON_ASYNC,	/* Renegotiate so long as goal is yesn-async. */
 	AHC_NEG_ALWAYS		/* Renegotiat even if goal is async. */
 } ahc_neg_type;
 int			ahc_update_neg_request(struct ahc_softc*,
@@ -1240,7 +1240,7 @@ cam_status	ahc_find_tmode_devs(struct ahc_softc *ahc,
 				    struct cam_sim *sim, union ccb *ccb,
 				    struct ahc_tmode_tstate **tstate,
 				    struct ahc_tmode_lstate **lstate,
-				    int notfound_failure);
+				    int yestfound_failure);
 #ifndef AHC_TMODE_ENABLE
 #define AHC_TMODE_ENABLE 0
 #endif

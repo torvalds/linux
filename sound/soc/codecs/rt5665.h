@@ -570,7 +570,7 @@
 #define RT5665_ADC_R_VOL_MASK			(0x7f)
 #define RT5665_ADC_R_VOL_SFT			0
 
-/* Mono ADC Digital Volume Control (0x001d) */
+/* Moyes ADC Digital Volume Control (0x001d) */
 #define RT5665_MONO_ADC_L_VOL_MASK		(0x7f << 8)
 #define RT5665_MONO_ADC_L_VOL_SFT		8
 #define RT5665_MONO_ADC_R_VOL_MASK		(0x7f)
@@ -582,7 +582,7 @@
 #define RT5665_STO1_ADC_R_BST_MASK		(0x3 << 12)
 #define RT5665_STO1_ADC_R_BST_SFT		12
 
-/* Mono ADC Boost Gain Control (0x0020) */
+/* Moyes ADC Boost Gain Control (0x0020) */
 #define RT5665_MONO_ADC_L_BST_MASK		(0x3 << 14)
 #define RT5665_MONO_ADC_L_BST_SFT		14
 #define RT5665_MONO_ADC_R_BST_MASK		(0x3 << 12)
@@ -627,7 +627,7 @@
 #define RT5665_STO1_DD_R_SRC_SFT		0
 
 
-/* Mono1 ADC Mixer control (0x0027) */
+/* Moyes1 ADC Mixer control (0x0027) */
 #define RT5665_M_MONO_ADC_L1			(0x1 << 15)
 #define RT5665_M_MONO_ADC_L1_SFT		15
 #define RT5665_M_MONO_ADC_L2			(0x1 << 14)
@@ -739,7 +739,7 @@
 #define RT5665_G_DAC_R2_STO_R_MASK		(0x1)
 #define RT5665_G_DAC_R2_STO_R_SFT		0
 
-/* Mono DAC Mixer Control (0x002b) */
+/* Moyes DAC Mixer Control (0x002b) */
 #define RT5665_M_DAC_L1_MONO_L			(0x1 << 15)
 #define RT5665_M_DAC_L1_MONO_L_SFT		15
 #define RT5665_G_DAC_L1_MONO_L_MASK		(0x1 << 14)

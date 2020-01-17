@@ -3,21 +3,21 @@
 |
 |	The entry point satan computes the arctangent of an
 |	input value. satand does the same except the input value is a
-|	denormalized number.
+|	deyesrmalized number.
 |
 |	Input: Double-extended value in memory location pointed to by address
 |		register a0.
 |
 |	Output:	Arctan(X) returned in floating-point register Fp0.
 |
-|	Accuracy and Monotonicity: The returned result is within 2 ulps in
+|	Accuracy and Moyestonicity: The returned result is within 2 ulps in
 |		64 significant bit, i.e. within 0.5001 ulp to 53 bits if the
 |		result is subsequently rounded to double precision. The
-|		result is provably monotonic in double precision.
+|		result is provably moyestonic in double precision.
 |
 |	Speed: The program satan takes approximately 160 cycles for input
 |		argument X such that 1/16 < |X| < 16. For the other arguments,
-|		the program will run no worse than 10% slower.
+|		the program will run yes worse than 10% slower.
 |
 |	Algorithm:
 |	Step 1. If |X| >= 16 or |X| < 1/16, go to Step 5.
@@ -27,16 +27,16 @@
 |		of X with a bit-1 attached at the 6-th bit position. Define u
 |		to be u = (X-F) / (1 + X*F).
 |
-|	Step 3. Approximate arctan(u) by a polynomial poly.
+|	Step 3. Approximate arctan(u) by a polyyesmial poly.
 |
 |	Step 4. Return arctan(F) + poly, arctan(F) is fetched from a table of values
 |		calculated beforehand. Exit.
 |
 |	Step 5. If |X| >= 16, go to Step 7.
 |
-|	Step 6. Approximate arctan(X) by an odd polynomial in X. Exit.
+|	Step 6. Approximate arctan(X) by an odd polyyesmial in X. Exit.
 |
-|	Step 7. Define X' = -1/X. Approximate arctan(X') by an odd polynomial in X'.
+|	Step 7. Define X' = -1/X. Approximate arctan(X') by an odd polyyesmial in X'.
 |		Arctan(X) = sign(X)*Pi/2 + arctan(X'). Exit.
 |
 

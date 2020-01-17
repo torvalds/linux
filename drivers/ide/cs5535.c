@@ -58,7 +58,7 @@ static unsigned int cs5535_udma_timings[5] =
 { 0x7F7436A1, 0x7F733481, 0x7F723261, 0x7F713161, 0x7F703061 };
 
 /* Macros to check if the register is the reset value -  reset value is an
-   invalid timing and indicates the register has not been set previously */
+   invalid timing and indicates the register has yest been set previously */
 
 #define CS5535_BAD_PIO(timings) ( (timings&~0x80000000UL) == 0x00009172 )
 #define CS5535_BAD_DMA(timings) ( (timings & 0x000FFFFF) == 0x00077771 )

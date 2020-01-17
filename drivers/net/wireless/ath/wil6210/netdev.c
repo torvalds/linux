@@ -305,7 +305,7 @@ wil_vif_alloc(struct wil6210_priv *wil, const char *name,
 
 	mid = wil_vif_find_free_mid(wil);
 	if (mid == U8_MAX) {
-		wil_err(wil, "no available virtual interface\n");
+		wil_err(wil, "yes available virtual interface\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -499,7 +499,7 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 
 	vif = wil->vifs[mid];
 	if (!vif) {
-		wil_err(wil, "MID %d not registered\n", mid);
+		wil_err(wil, "MID %d yest registered\n", mid);
 		return;
 	}
 
@@ -516,7 +516,7 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 	if (any_active && vif->mid != 0)
 		wmi_port_delete(wil, vif->mid);
 
-	/* make sure no one is accessing the VIF before removing */
+	/* make sure yes one is accessing the VIF before removing */
 	mutex_lock(&wil->vif_mutex);
 	wil->vifs[mid] = NULL;
 	/* ensure NAPI code will see the NULL VIF */

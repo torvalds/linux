@@ -64,7 +64,7 @@
  * debugfs interface
  *
  * To access this interface the user should:
- * # mount -t debugfs none /sys/kernel/debug
+ * # mount -t debugfs yesne /sys/kernel/debug
  *
  * The lpfc debugfs directory hierarchy is:
  * /sys/kernel/debug/lpfc/fnX/vportY
@@ -143,7 +143,7 @@ static struct lpfc_idiag idiag;
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
 lpfc_debugfs_disc_trc_data(struct lpfc_vport *vport, char *buf, int size)
@@ -209,7 +209,7 @@ lpfc_debugfs_disc_trc_data(struct lpfc_vport *vport, char *buf, int size)
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
 lpfc_debugfs_slow_ring_trc_data(struct lpfc_hba *phba, char *buf, int size)
@@ -277,7 +277,7 @@ static int lpfc_debugfs_last_hbq = -1;
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
 lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
@@ -401,7 +401,7 @@ static int lpfc_debugfs_last_xripool;
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
 lpfc_debugfs_commonxripools_data(struct lpfc_hba *phba, char *buf, int size)
@@ -453,7 +453,7 @@ lpfc_debugfs_commonxripools_data(struct lpfc_hba *phba, char *buf, int size)
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
 lpfc_debugfs_multixripools_data(struct lpfc_hba *phba, char *buf, int size)
@@ -483,7 +483,7 @@ lpfc_debugfs_multixripools_data(struct lpfc_hba *phba, char *buf, int size)
 	 * Pvt: Current number of free XRIs in private pool
 	 * Busy: Current number of outstanding XRIs
 	 * HWM: Current high watermark
-	 * pvt_empty: Incremented by 1 when IO submission fails (no xri)
+	 * pvt_empty: Incremented by 1 when IO submission fails (yes xri)
 	 * pbl_empty: Incremented by 1 when all pbl_pool are empty during
 	 *            IO submission
 	 */
@@ -591,7 +591,7 @@ static int lpfc_debugfs_last_lock;
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
 lpfc_debugfs_lockstat_data(struct lpfc_hba *phba, char *buf, int size)
@@ -660,7 +660,7 @@ static int lpfc_debugfs_last_hba_slim_off;
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
 lpfc_debugfs_dumpHBASlim_data(struct lpfc_hba *phba, char *buf, int size)
@@ -719,7 +719,7 @@ lpfc_debugfs_dumpHBASlim_data(struct lpfc_hba *phba, char *buf, int size)
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
 lpfc_debugfs_dumpHostSlim_data(struct lpfc_hba *phba, char *buf, int size)
@@ -790,28 +790,28 @@ lpfc_debugfs_dumpHostSlim_data(struct lpfc_hba *phba, char *buf, int size)
 }
 
 /**
- * lpfc_debugfs_nodelist_data - Dump target node list to a buffer
- * @vport: The vport to gather target node info from.
+ * lpfc_debugfs_yesdelist_data - Dump target yesde list to a buffer
+ * @vport: The vport to gather target yesde info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
  *
  * Description:
- * This routine dumps the current target node list associated with @vport to
- * @buf up to @size bytes of data. Each node entry in the dump will contain a
- * node state, DID, WWPN, WWNN, RPI, flags, type, and other useful fields.
+ * This routine dumps the current target yesde list associated with @vport to
+ * @buf up to @size bytes of data. Each yesde entry in the dump will contain a
+ * yesde state, DID, WWPN, WWNN, RPI, flags, type, and other useful fields.
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
-lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
+lpfc_debugfs_yesdelist_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	int len = 0;
 	int i, iocnt, outio, cnt;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	unsigned char *statep;
 	struct nvme_fc_local_port *localport;
 	struct nvme_fc_remote_port *nrport = NULL;
@@ -822,7 +822,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 
 	len += scnprintf(buf+len, size-len, "\nFCP Nodelist Entries ...\n");
 	spin_lock_irq(shost->host_lock);
-	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+	list_for_each_entry(ndlp, &vport->fc_yesdes, nlp_listp) {
 		iocnt = 0;
 		if (!cnt) {
 			len +=  scnprintf(buf+len, size-len,
@@ -870,12 +870,12 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 				wwn_to_u64(ndlp->nlp_portname.u.wwn));
 		len += scnprintf(buf+len, size-len,
 				"WWNN x%llx ",
-				wwn_to_u64(ndlp->nlp_nodename.u.wwn));
+				wwn_to_u64(ndlp->nlp_yesdename.u.wwn));
 		if (ndlp->nlp_flag & NLP_RPI_REGISTERED)
 			len += scnprintf(buf+len, size-len, "RPI:%03d ",
 					ndlp->nlp_rpi);
 		else
-			len += scnprintf(buf+len, size-len, "RPI:none ");
+			len += scnprintf(buf+len, size-len, "RPI:yesne ");
 		len +=  scnprintf(buf+len, size-len, "flag:x%08x ",
 			ndlp->nlp_flag);
 		if (!ndlp->nlp_type)
@@ -922,14 +922,14 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		len += scnprintf(buf + len, size - len,
 				"\nNVME Targetport Entry ...\n");
 
-		/* Port state is only one of two values for now. */
+		/* Port state is only one of two values for yesw. */
 		if (phba->targetport->port_id)
 			statep = "REGISTERED";
 		else
 			statep = "INIT";
 		len += scnprintf(buf + len, size - len,
 				"TGT WWNN x%llx WWPN x%llx State %s\n",
-				wwn_to_u64(vport->fc_nodename.u.wwn),
+				wwn_to_u64(vport->fc_yesdename.u.wwn),
 				wwn_to_u64(vport->fc_portname.u.wwn),
 				statep);
 		len += scnprintf(buf + len, size - len,
@@ -947,7 +947,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 
 	spin_lock_irq(shost->host_lock);
 
-	/* Port state is only one of two values for now. */
+	/* Port state is only one of two values for yesw. */
 	if (localport->port_id)
 		statep = "ONLINE";
 	else
@@ -958,7 +958,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 			localport->port_id, statep);
 
 	len += scnprintf(buf + len, size - len, "\tRport List:\n");
-	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+	list_for_each_entry(ndlp, &vport->fc_yesdes, nlp_listp) {
 		/* local short-hand pointer. */
 		spin_lock(&phba->hbalock);
 		rport = lpfc_ndlp_get_nrport(ndlp);
@@ -970,7 +970,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		if (!nrport)
 			continue;
 
-		/* Port state is only one of two values for now. */
+		/* Port state is only one of two values for yesw. */
 		switch (nrport->port_state) {
 		case FC_OBJSTATE_ONLINE:
 			statep = "ONLINE";
@@ -990,7 +990,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		len += scnprintf(buf + len, size - len, "WWPN x%llx ",
 				nrport->port_name);
 		len += scnprintf(buf + len, size - len, "WWNN x%llx ",
-				nrport->node_name);
+				nrport->yesde_name);
 
 		/* An NVME rport can have multiple roles. */
 		if (nrport->port_role & FC_PORT_ROLE_NVME_INITIATOR)
@@ -1018,8 +1018,8 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 }
 
 /**
- * lpfc_debugfs_nvmestat_data - Dump target node list to a buffer
- * @vport: The vport to gather target node info from.
+ * lpfc_debugfs_nvmestat_data - Dump target yesde list to a buffer
+ * @vport: The vport to gather target yesde info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
  *
@@ -1028,7 +1028,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
 lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
@@ -1220,9 +1220,9 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 				atomic_read(&lport->cmpl_ls_err));
 
 		len += scnprintf(buf + len, size - len,
-				"FCP Xmt Err: noxri %06x nondlp %06x "
+				"FCP Xmt Err: yesxri %06x yesndlp %06x "
 				"qdepth %06x wqerr %06x err %06x Abrt %06x\n",
-				atomic_read(&lport->xmt_fcp_noxri),
+				atomic_read(&lport->xmt_fcp_yesxri),
 				atomic_read(&lport->xmt_fcp_bad_ndlp),
 				atomic_read(&lport->xmt_fcp_qdepth),
 				atomic_read(&lport->xmt_fcp_wqerr),
@@ -1240,8 +1240,8 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 }
 
 /**
- * lpfc_debugfs_scsistat_data - Dump target node list to a buffer
- * @vport: The vport to gather target node info from.
+ * lpfc_debugfs_scsistat_data - Dump target yesde list to a buffer
+ * @vport: The vport to gather target yesde info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
  *
@@ -1250,7 +1250,7 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
 lpfc_debugfs_scsistat_data(struct lpfc_vport *vport, char *buf, int size)
@@ -1301,8 +1301,8 @@ buffer_done:
 }
 
 /**
- * lpfc_debugfs_nvmektime_data - Dump target node list to a buffer
- * @vport: The vport to gather target node info from.
+ * lpfc_debugfs_nvmektime_data - Dump target yesde list to a buffer
+ * @vport: The vport to gather target yesde info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
  *
@@ -1311,7 +1311,7 @@ buffer_done:
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
 lpfc_debugfs_nvmektime_data(struct lpfc_vport *vport, char *buf, int size)
@@ -1502,7 +1502,7 @@ lpfc_debugfs_nvmektime_data(struct lpfc_vport *vport, char *buf, int size)
 
 /**
  * lpfc_debugfs_nvmeio_trc_data - Dump NVME IO trace list to a buffer
- * @phba: The phba to gather target node info from.
+ * @phba: The phba to gather target yesde info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
  *
@@ -1511,7 +1511,7 @@ lpfc_debugfs_nvmektime_data(struct lpfc_vport *vport, char *buf, int size)
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
 lpfc_debugfs_nvmeio_trc_data(struct lpfc_hba *phba, char *buf, int size)
@@ -1603,8 +1603,8 @@ out:
 }
 
 /**
- * lpfc_debugfs_cpucheck_data - Dump target node list to a buffer
- * @vport: The vport to gather target node info from.
+ * lpfc_debugfs_cpucheck_data - Dump target yesde list to a buffer
+ * @vport: The vport to gather target yesde info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
  *
@@ -1613,7 +1613,7 @@ out:
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into @buf and will
- * not exceed @size.
+ * yest exceed @size.
  **/
 static int
 lpfc_debugfs_cpucheck_data(struct lpfc_vport *vport, char *buf, int size)
@@ -1660,7 +1660,7 @@ lpfc_debugfs_cpucheck_data(struct lpfc_vport *vport, char *buf, int size)
 		len += scnprintf(buf + len, PAGE_SIZE - len,
 				"HDWQ %03d: ", i);
 		for (j = 0; j < LPFC_CHECK_CPU_CNT; j++) {
-			/* Only display non-zero counters */
+			/* Only display yesn-zero counters */
 			if (!qp->cpucheck_xmt_io[j] &&
 			    !qp->cpucheck_cmpl_io[j] &&
 			    !qp->cpucheck_rcv_io[j])
@@ -1703,7 +1703,7 @@ lpfc_debugfs_cpucheck_data(struct lpfc_vport *vport, char *buf, int size)
  * Description:
  * This routine is used by the driver code to add a debugfs log entry to the
  * discovery trace buffer associated with @vport. Only entries with a @mask that
- * match the current debugfs discovery mask will be saved. Entries that do not
+ * match the current debugfs discovery mask will be saved. Entries that do yest
  * match will be thrown away. @fmt, @data1, @data2, and @data3 are used like
  * printf when displaying the log.
  **/
@@ -1810,12 +1810,12 @@ lpfc_debugfs_nvme_trc(struct lpfc_hba *phba, char *fmt,
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 /**
  * lpfc_debugfs_disc_trc_open - Open the discovery trace log
- * @inode: The inode pointer that contains a vport pointer.
+ * @iyesde: The iyesde pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
  * This routine is the entry point for the debugfs open file operation. It gets
- * the vport from the i_private field in @inode, allocates the necessary buffer
+ * the vport from the i_private field in @iyesde, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
  *
@@ -1824,9 +1824,9 @@ lpfc_debugfs_nvme_trc(struct lpfc_hba *phba, char *fmt,
  * error value.
  **/
 static int
-lpfc_debugfs_disc_trc_open(struct inode *inode, struct file *file)
+lpfc_debugfs_disc_trc_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_vport *vport = inode->i_private;
+	struct lpfc_vport *vport = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int size;
 	int rc = -ENOMEM;
@@ -1860,12 +1860,12 @@ out:
 
 /**
  * lpfc_debugfs_slow_ring_trc_open - Open the Slow Ring trace log
- * @inode: The inode pointer that contains a vport pointer.
+ * @iyesde: The iyesde pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
  * This routine is the entry point for the debugfs open file operation. It gets
- * the vport from the i_private field in @inode, allocates the necessary buffer
+ * the vport from the i_private field in @iyesde, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
  *
@@ -1874,9 +1874,9 @@ out:
  * error value.
  **/
 static int
-lpfc_debugfs_slow_ring_trc_open(struct inode *inode, struct file *file)
+lpfc_debugfs_slow_ring_trc_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_hba *phba = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int size;
 	int rc = -ENOMEM;
@@ -1910,12 +1910,12 @@ out:
 
 /**
  * lpfc_debugfs_hbqinfo_open - Open the hbqinfo debugfs buffer
- * @inode: The inode pointer that contains a vport pointer.
+ * @iyesde: The iyesde pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
  * This routine is the entry point for the debugfs open file operation. It gets
- * the vport from the i_private field in @inode, allocates the necessary buffer
+ * the vport from the i_private field in @iyesde, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
  *
@@ -1924,9 +1924,9 @@ out:
  * error value.
  **/
 static int
-lpfc_debugfs_hbqinfo_open(struct inode *inode, struct file *file)
+lpfc_debugfs_hbqinfo_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_hba *phba = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
@@ -1952,12 +1952,12 @@ out:
 
 /**
  * lpfc_debugfs_multixripools_open - Open the multixripool debugfs buffer
- * @inode: The inode pointer that contains a hba pointer.
+ * @iyesde: The iyesde pointer that contains a hba pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
  * This routine is the entry point for the debugfs open file operation. It gets
- * the hba from the i_private field in @inode, allocates the necessary buffer
+ * the hba from the i_private field in @iyesde, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this hba, and then
  * returns a pointer to that log in the private_data field in @file.
  *
@@ -1966,9 +1966,9 @@ out:
  * error value.
  **/
 static int
-lpfc_debugfs_multixripools_open(struct inode *inode, struct file *file)
+lpfc_debugfs_multixripools_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_hba *phba = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
@@ -1986,7 +1986,7 @@ lpfc_debugfs_multixripools_open(struct inode *inode, struct file *file)
 	debug->len = lpfc_debugfs_multixripools_data(
 		phba, debug->buffer, LPFC_DUMP_MULTIXRIPOOL_SIZE);
 
-	debug->i_private = inode->i_private;
+	debug->i_private = iyesde->i_private;
 	file->private_data = debug;
 
 	rc = 0;
@@ -1997,12 +1997,12 @@ out:
 #ifdef LPFC_HDWQ_LOCK_STAT
 /**
  * lpfc_debugfs_lockstat_open - Open the lockstat debugfs buffer
- * @inode: The inode pointer that contains a vport pointer.
+ * @iyesde: The iyesde pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
  * This routine is the entry point for the debugfs open file operation. It gets
- * the vport from the i_private field in @inode, allocates the necessary buffer
+ * the vport from the i_private field in @iyesde, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
  *
@@ -2011,9 +2011,9 @@ out:
  * error value.
  **/
 static int
-lpfc_debugfs_lockstat_open(struct inode *inode, struct file *file)
+lpfc_debugfs_lockstat_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_hba *phba = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
@@ -2103,7 +2103,7 @@ static int lpfc_debugfs_ras_log_data(struct lpfc_hba *phba,
 }
 
 static int
-lpfc_debugfs_ras_log_release(struct inode *inode, struct file *file)
+lpfc_debugfs_ras_log_release(struct iyesde *iyesde, struct file *file)
 {
 	struct lpfc_debug *debug = file->private_data;
 
@@ -2115,12 +2115,12 @@ lpfc_debugfs_ras_log_release(struct inode *inode, struct file *file)
 
 /**
  * lpfc_debugfs_ras_log_open - Open the RAS log debugfs buffer
- * @inode: The inode pointer that contains a vport pointer.
+ * @iyesde: The iyesde pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
  * This routine is the entry point for the debugfs open file operation. It gets
- * the vport from the i_private field in @inode, allocates the necessary buffer
+ * the vport from the i_private field in @iyesde, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
  *
@@ -2129,9 +2129,9 @@ lpfc_debugfs_ras_log_release(struct inode *inode, struct file *file)
  * error value.
  **/
 static int
-lpfc_debugfs_ras_log_open(struct inode *inode, struct file *file)
+lpfc_debugfs_ras_log_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_hba *phba = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int size;
 	int rc = -ENOMEM;
@@ -2171,12 +2171,12 @@ out:
 
 /**
  * lpfc_debugfs_dumpHBASlim_open - Open the Dump HBA SLIM debugfs buffer
- * @inode: The inode pointer that contains a vport pointer.
+ * @iyesde: The iyesde pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
  * This routine is the entry point for the debugfs open file operation. It gets
- * the vport from the i_private field in @inode, allocates the necessary buffer
+ * the vport from the i_private field in @iyesde, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
  *
@@ -2185,9 +2185,9 @@ out:
  * error value.
  **/
 static int
-lpfc_debugfs_dumpHBASlim_open(struct inode *inode, struct file *file)
+lpfc_debugfs_dumpHBASlim_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_hba *phba = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
@@ -2213,12 +2213,12 @@ out:
 
 /**
  * lpfc_debugfs_dumpHostSlim_open - Open the Dump Host SLIM debugfs buffer
- * @inode: The inode pointer that contains a vport pointer.
+ * @iyesde: The iyesde pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
  * This routine is the entry point for the debugfs open file operation. It gets
- * the vport from the i_private field in @inode, allocates the necessary buffer
+ * the vport from the i_private field in @iyesde, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
  *
@@ -2227,9 +2227,9 @@ out:
  * error value.
  **/
 static int
-lpfc_debugfs_dumpHostSlim_open(struct inode *inode, struct file *file)
+lpfc_debugfs_dumpHostSlim_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_hba *phba = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
@@ -2290,7 +2290,7 @@ lpfc_debugfs_dif_err_read(struct file *file, char __user *buf,
 				 (uint64_t) phba->lpfc_injerr_lba);
 	} else
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			 "0547 Unknown debugfs error injection entry\n");
+			 "0547 Unkyeswn debugfs error injection entry\n");
 
 	return simple_read_from_buffer(buf, nbytes, ppos, &cbuf, cnt);
 }
@@ -2339,25 +2339,25 @@ lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
 		memcpy(&phba->lpfc_injerr_wwpn, &tmp, sizeof(struct lpfc_name));
 	} else
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			 "0548 Unknown debugfs error injection entry\n");
+			 "0548 Unkyeswn debugfs error injection entry\n");
 
 	return nbytes;
 }
 
 static int
-lpfc_debugfs_dif_err_release(struct inode *inode, struct file *file)
+lpfc_debugfs_dif_err_release(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
 
 /**
- * lpfc_debugfs_nodelist_open - Open the nodelist debugfs file
- * @inode: The inode pointer that contains a vport pointer.
+ * lpfc_debugfs_yesdelist_open - Open the yesdelist debugfs file
+ * @iyesde: The iyesde pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
  * This routine is the entry point for the debugfs open file operation. It gets
- * the vport from the i_private field in @inode, allocates the necessary buffer
+ * the vport from the i_private field in @iyesde, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
  *
@@ -2366,9 +2366,9 @@ lpfc_debugfs_dif_err_release(struct inode *inode, struct file *file)
  * error value.
  **/
 static int
-lpfc_debugfs_nodelist_open(struct inode *inode, struct file *file)
+lpfc_debugfs_yesdelist_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_vport *vport = inode->i_private;
+	struct lpfc_vport *vport = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
@@ -2383,7 +2383,7 @@ lpfc_debugfs_nodelist_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_nodelist_data(vport, debug->buffer,
+	debug->len = lpfc_debugfs_yesdelist_data(vport, debug->buffer,
 		LPFC_NODELIST_SIZE);
 	file->private_data = debug;
 
@@ -2444,7 +2444,7 @@ lpfc_debugfs_read(struct file *file, char __user *buf,
 
 /**
  * lpfc_debugfs_release - Release the buffer used to store debugfs file data
- * @inode: The inode pointer that contains a vport pointer. (unused)
+ * @iyesde: The iyesde pointer that contains a vport pointer. (unused)
  * @file: The file pointer that contains the buffer to release.
  *
  * Description:
@@ -2455,7 +2455,7 @@ lpfc_debugfs_read(struct file *file, char __user *buf,
  * This function returns zero.
  **/
 static int
-lpfc_debugfs_release(struct inode *inode, struct file *file)
+lpfc_debugfs_release(struct iyesde *iyesde, struct file *file)
 {
 	struct lpfc_debug *debug = file->private_data;
 
@@ -2536,9 +2536,9 @@ lpfc_debugfs_multixripools_write(struct file *file, const char __user *buf,
 }
 
 static int
-lpfc_debugfs_nvmestat_open(struct inode *inode, struct file *file)
+lpfc_debugfs_nvmestat_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_vport *vport = inode->i_private;
+	struct lpfc_vport *vport = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
@@ -2556,7 +2556,7 @@ lpfc_debugfs_nvmestat_open(struct inode *inode, struct file *file)
 	debug->len = lpfc_debugfs_nvmestat_data(vport, debug->buffer,
 		LPFC_NVMESTAT_SIZE);
 
-	debug->i_private = inode->i_private;
+	debug->i_private = iyesde->i_private;
 	file->private_data = debug;
 
 	rc = 0;
@@ -2624,9 +2624,9 @@ lpfc_debugfs_nvmestat_write(struct file *file, const char __user *buf,
 }
 
 static int
-lpfc_debugfs_scsistat_open(struct inode *inode, struct file *file)
+lpfc_debugfs_scsistat_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_vport *vport = inode->i_private;
+	struct lpfc_vport *vport = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
@@ -2644,7 +2644,7 @@ lpfc_debugfs_scsistat_open(struct inode *inode, struct file *file)
 	debug->len = lpfc_debugfs_scsistat_data(vport, debug->buffer,
 		LPFC_SCSISTAT_SIZE);
 
-	debug->i_private = inode->i_private;
+	debug->i_private = iyesde->i_private;
 	file->private_data = debug;
 
 	rc = 0;
@@ -2682,9 +2682,9 @@ lpfc_debugfs_scsistat_write(struct file *file, const char __user *buf,
 }
 
 static int
-lpfc_debugfs_nvmektime_open(struct inode *inode, struct file *file)
+lpfc_debugfs_nvmektime_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_vport *vport = inode->i_private;
+	struct lpfc_vport *vport = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
@@ -2702,7 +2702,7 @@ lpfc_debugfs_nvmektime_open(struct inode *inode, struct file *file)
 	debug->len = lpfc_debugfs_nvmektime_data(vport, debug->buffer,
 		LPFC_NVMEKTIME_SIZE);
 
-	debug->i_private = inode->i_private;
+	debug->i_private = iyesde->i_private;
 	file->private_data = debug;
 
 	rc = 0;
@@ -2809,9 +2809,9 @@ lpfc_debugfs_nvmektime_write(struct file *file, const char __user *buf,
 }
 
 static int
-lpfc_debugfs_nvmeio_trc_open(struct inode *inode, struct file *file)
+lpfc_debugfs_nvmeio_trc_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_hba *phba = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
@@ -2829,7 +2829,7 @@ lpfc_debugfs_nvmeio_trc_open(struct inode *inode, struct file *file)
 	debug->len = lpfc_debugfs_nvmeio_trc_data(phba, debug->buffer,
 		LPFC_NVMEIO_TRC_SIZE);
 
-	debug->i_private = inode->i_private;
+	debug->i_private = iyesde->i_private;
 	file->private_data = debug;
 
 	rc = 0;
@@ -2875,7 +2875,7 @@ lpfc_debugfs_nvmeio_trc_write(struct file *file, const char __user *buf,
 	if (phba->nvmeio_trc_on != 0)
 		return -EINVAL;
 
-	/* If not on or off, the parameter is the trace buffer size */
+	/* If yest on or off, the parameter is the trace buffer size */
 	i = kstrtoul(pbuf, 0, &sz);
 	if (i)
 		return -EINVAL;
@@ -2902,7 +2902,7 @@ lpfc_debugfs_nvmeio_trc_write(struct file *file, const char __user *buf,
 				    sz), GFP_KERNEL);
 	if (!phba->nvmeio_trc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0573 Cannot create debugfs "
+				"0573 Canyest create debugfs "
 				"nvmeio_trc buffer\n");
 		return -ENOMEM;
 	}
@@ -2914,9 +2914,9 @@ lpfc_debugfs_nvmeio_trc_write(struct file *file, const char __user *buf,
 }
 
 static int
-lpfc_debugfs_cpucheck_open(struct inode *inode, struct file *file)
+lpfc_debugfs_cpucheck_open(struct iyesde *iyesde, struct file *file)
 {
-	struct lpfc_vport *vport = inode->i_private;
+	struct lpfc_vport *vport = iyesde->i_private;
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
@@ -2934,7 +2934,7 @@ lpfc_debugfs_cpucheck_open(struct inode *inode, struct file *file)
 	debug->len = lpfc_debugfs_cpucheck_data(vport, debug->buffer,
 		LPFC_CPUCHECK_SIZE);
 
-	debug->i_private = inode->i_private;
+	debug->i_private = iyesde->i_private;
 	file->private_data = debug;
 
 	rc = 0;
@@ -3066,12 +3066,12 @@ static int lpfc_idiag_cmd_get(const char __user *buf, size_t nbytes,
 
 /**
  * lpfc_idiag_open - idiag open debugfs
- * @inode: The inode pointer that contains a pointer to phba.
+ * @iyesde: The iyesde pointer that contains a pointer to phba.
  * @file: The file pointer to attach the file operation.
  *
  * Description:
  * This routine is the entry point for the debugfs open file operation. It
- * gets the reference to phba from the i_private field in @inode, it then
+ * gets the reference to phba from the i_private field in @iyesde, it then
  * allocates buffer for the file operation, performs the necessary PCI config
  * space read into the allocated buffer according to the idiag user command
  * setup, and then returns a pointer to buffer in the private_data field in
@@ -3082,7 +3082,7 @@ static int lpfc_idiag_cmd_get(const char __user *buf, size_t nbytes,
  * negative error value.
  **/
 static int
-lpfc_idiag_open(struct inode *inode, struct file *file)
+lpfc_idiag_open(struct iyesde *iyesde, struct file *file)
 {
 	struct lpfc_debug *debug;
 
@@ -3090,7 +3090,7 @@ lpfc_idiag_open(struct inode *inode, struct file *file)
 	if (!debug)
 		return -ENOMEM;
 
-	debug->i_private = inode->i_private;
+	debug->i_private = iyesde->i_private;
 	debug->buffer = NULL;
 	file->private_data = debug;
 
@@ -3099,7 +3099,7 @@ lpfc_idiag_open(struct inode *inode, struct file *file)
 
 /**
  * lpfc_idiag_release - Release idiag access file operation
- * @inode: The inode pointer that contains a vport pointer. (unused)
+ * @iyesde: The iyesde pointer that contains a vport pointer. (unused)
  * @file: The file pointer that contains the buffer to release.
  *
  * Description:
@@ -3111,7 +3111,7 @@ lpfc_idiag_open(struct inode *inode, struct file *file)
  * This function returns zero.
  **/
 static int
-lpfc_idiag_release(struct inode *inode, struct file *file)
+lpfc_idiag_release(struct iyesde *iyesde, struct file *file)
 {
 	struct lpfc_debug *debug = file->private_data;
 
@@ -3124,7 +3124,7 @@ lpfc_idiag_release(struct inode *inode, struct file *file)
 
 /**
  * lpfc_idiag_cmd_release - Release idiag cmd access file operation
- * @inode: The inode pointer that contains a vport pointer. (unused)
+ * @iyesde: The iyesde pointer that contains a vport pointer. (unused)
  * @file: The file pointer that contains the buffer to release.
  *
  * Description:
@@ -3136,7 +3136,7 @@ lpfc_idiag_release(struct inode *inode, struct file *file)
  * This function returns zero.
  **/
 static int
-lpfc_idiag_cmd_release(struct inode *inode, struct file *file)
+lpfc_idiag_cmd_release(struct iyesde *iyesde, struct file *file)
 {
 	struct lpfc_debug *debug = file->private_data;
 
@@ -3452,7 +3452,7 @@ lpfc_idiag_pcicfg_write(struct file *file, const char __user *buf,
 			}
 		}
 	} else
-		/* All other opecodes are illegal for now */
+		/* All other opecodes are illegal for yesw */
 		goto error_out;
 
 	return nbytes;
@@ -3738,7 +3738,7 @@ lpfc_idiag_baracc_write(struct file *file, const char __user *buf,
 			readl(mem_mapped_bar + offset);
 		}
 	} else
-		/* All other opecodes are illegal for now */
+		/* All other opecodes are illegal for yesw */
 		goto error_out;
 
 	return nbytes;
@@ -3765,7 +3765,7 @@ __lpfc_idiag_print_wq(struct lpfc_queue *qp, char *wqtype,
 			"HST-IDX[%04d], PRT-IDX[%04d], NTFI[%03d]",
 			qp->queue_id, qp->entry_count,
 			qp->entry_size, qp->host_index,
-			qp->hba_index, qp->notify_interval);
+			qp->hba_index, qp->yestify_interval);
 	len +=  scnprintf(pbuffer + len,
 			LPFC_QUE_INFO_GET_BUF_SIZE - len, "\n");
 	return len;
@@ -3808,7 +3808,7 @@ __lpfc_idiag_print_cq(struct lpfc_queue *qp, char *cqtype,
 			"HST-IDX[%04d], NTFI[%03d], PLMT[%03d]",
 			qp->queue_id, qp->entry_count,
 			qp->entry_size, qp->host_index,
-			qp->notify_interval, qp->max_proc_limit);
+			qp->yestify_interval, qp->max_proc_limit);
 
 	len +=  scnprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 			"\n");
@@ -3826,7 +3826,7 @@ __lpfc_idiag_print_rqpair(struct lpfc_queue *qp, struct lpfc_queue *datqp,
 	len += scnprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 			"\t\t%s RQ info: ", rqtype);
 	len += scnprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
-			"AssocCQID[%02d]: RQ-STAT[nopost:x%x nobuf:x%x "
+			"AssocCQID[%02d]: RQ-STAT[yespost:x%x yesbuf:x%x "
 			"posted:x%x rcv:x%llx]\n",
 			qp->assoc_qid, qp->q_cnt_1, qp->q_cnt_2,
 			qp->q_cnt_3, (unsigned long long)qp->q_cnt_4);
@@ -3834,13 +3834,13 @@ __lpfc_idiag_print_rqpair(struct lpfc_queue *qp, struct lpfc_queue *datqp,
 			"\t\tHQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
 			"HST-IDX[%04d], PRT-IDX[%04d], NTFI[%03d]\n",
 			qp->queue_id, qp->entry_count, qp->entry_size,
-			qp->host_index, qp->hba_index, qp->notify_interval);
+			qp->host_index, qp->hba_index, qp->yestify_interval);
 	len += scnprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 			"\t\tDQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
 			"HST-IDX[%04d], PRT-IDX[%04d], NTFI[%03d]\n",
 			datqp->queue_id, datqp->entry_count,
 			datqp->entry_size, datqp->host_index,
-			datqp->hba_index, datqp->notify_interval);
+			datqp->hba_index, datqp->yestify_interval);
 	return len;
 }
 
@@ -3898,7 +3898,7 @@ __lpfc_idiag_print_eq(struct lpfc_queue *qp, char *eqtype,
 		return len;
 
 	len += scnprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
-			"\n%s EQ info: EQ-STAT[max:x%x noE:x%x "
+			"\n%s EQ info: EQ-STAT[max:x%x yesE:x%x "
 			"cqe_proc:x%x eqe_proc:x%llx eqd %d]\n",
 			eqtype, qp->q_cnt_1, qp->q_cnt_2, qp->q_cnt_3,
 			(unsigned long long)qp->q_cnt_4, qp->q_mode);
@@ -3906,7 +3906,7 @@ __lpfc_idiag_print_eq(struct lpfc_queue *qp, char *eqtype,
 			"EQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
 			"HST-IDX[%04d], NTFI[%03d], PLMT[%03d], AFFIN[%03d]",
 			qp->queue_id, qp->entry_count, qp->entry_size,
-			qp->host_index, qp->notify_interval,
+			qp->host_index, qp->yestify_interval,
 			qp->max_proc_limit, qp->chann);
 	len +=  scnprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 			"\n");
@@ -5119,7 +5119,7 @@ lpfc_idiag_extacc_alloc_get(struct lpfc_hba *phba, char *pbuffer, int len)
 	if (!rc)
 		len += scnprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
 				"Port %d Extent %3d, Size %3d\n",
-				phba->brd_no, ext_cnt, ext_size);
+				phba->brd_yes, ext_cnt, ext_size);
 	else
 		len += scnprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
 				"N/A\n");
@@ -5131,7 +5131,7 @@ lpfc_idiag_extacc_alloc_get(struct lpfc_hba *phba, char *pbuffer, int len)
 	if (!rc)
 		len += scnprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
 				"Port %d Extent %3d, Size %3d\n",
-				phba->brd_no, ext_cnt, ext_size);
+				phba->brd_yes, ext_cnt, ext_size);
 	else
 		len += scnprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
 				"N/A\n");
@@ -5143,7 +5143,7 @@ lpfc_idiag_extacc_alloc_get(struct lpfc_hba *phba, char *pbuffer, int len)
 	if (!rc)
 		len += scnprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
 				"Port %d Extent %3d, Size %3d\n",
-				phba->brd_no, ext_cnt, ext_size);
+				phba->brd_yes, ext_cnt, ext_size);
 	else
 		len += scnprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
 				"N/A\n");
@@ -5155,7 +5155,7 @@ lpfc_idiag_extacc_alloc_get(struct lpfc_hba *phba, char *pbuffer, int len)
 	if (!rc)
 		len += scnprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
 				"Port %d Extent %3d, Size %3d\n",
-				phba->brd_no, ext_cnt, ext_size);
+				phba->brd_yes, ext_cnt, ext_size);
 	else
 		len += scnprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
 				"N/A\n");
@@ -5337,10 +5337,10 @@ static const struct file_operations lpfc_debugfs_op_disc_trc = {
 	.release =      lpfc_debugfs_release,
 };
 
-#undef lpfc_debugfs_op_nodelist
-static const struct file_operations lpfc_debugfs_op_nodelist = {
+#undef lpfc_debugfs_op_yesdelist
+static const struct file_operations lpfc_debugfs_op_yesdelist = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_nodelist_open,
+	.open =         lpfc_debugfs_yesdelist_open,
 	.llseek =       lpfc_debugfs_lseek,
 	.read =         lpfc_debugfs_read,
 	.release =      lpfc_debugfs_release,
@@ -5563,7 +5563,7 @@ static const struct file_operations lpfc_idiag_op_extAcc = {
  * @dmabuf: Pointer to a DMA buffer descriptor.
  *
  * Description:
- * This routine dump a bsg pass-through non-embedded mailbox command with
+ * This routine dump a bsg pass-through yesn-embedded mailbox command with
  * external buffer.
  **/
 void
@@ -5662,7 +5662,7 @@ lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
  * @dmabuf: Pointer to a DMA buffer descriptor.
  *
  * Description:
- * This routine dump a pass-through non-embedded mailbox command from issue
+ * This routine dump a pass-through yesn-embedded mailbox command from issue
  * mailbox command.
  **/
 void
@@ -5760,7 +5760,7 @@ lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *phba, MAILBOX_t *pmbox)
  *
  * Description:
  * When Debugfs is configured this routine sets up the lpfc debugfs file system.
- * If not already created, this routine will create the lpfc directory, and
+ * If yest already created, this routine will create the lpfc directory, and
  * lpfcX directory (for this HBA), and vportX directory for this vport. It will
  * also create each file used to access lpfc specific debugfs information.
  **/
@@ -5785,7 +5785,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		lpfc_debugfs_start_time = jiffies;
 
 	/* Setup funcX directory for specific HBA PCI function */
-	snprintf(name, sizeof(name), "fn%d", phba->brd_no);
+	snprintf(name, sizeof(name), "fn%d", phba->brd_yes);
 	if (!phba->hba_debugfs_root) {
 		pport_setup = true;
 		phba->hba_debugfs_root =
@@ -5802,7 +5802,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 					    &lpfc_debugfs_op_multixripools);
 		if (!phba->debug_multixri_pools) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-					 "0527 Cannot create debugfs multixripools\n");
+					 "0527 Canyest create debugfs multixripools\n");
 			goto debug_failed;
 		}
 
@@ -5814,7 +5814,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 					    phba, &lpfc_debugfs_ras_log);
 		if (!phba->debug_ras_log) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-					 "6148 Cannot create debugfs"
+					 "6148 Canyest create debugfs"
 					 " ras_log\n");
 			goto debug_failed;
 		}
@@ -5947,7 +5947,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				GFP_KERNEL);
 			if (!phba->slow_ring_trc) {
 				lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-						 "0416 Cannot create debugfs "
+						 "0416 Canyest create debugfs "
 						 "slow_ring buffer\n");
 				goto debug_failed;
 			}
@@ -5989,7 +5989,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 
 			if (!phba->nvmeio_trc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-						"0576 Cannot create debugfs "
+						"0576 Canyest create debugfs "
 						"nvmeio_trc buffer\n");
 				goto nvmeio_off;
 			}
@@ -6034,7 +6034,7 @@ nvmeio_off:
 
 	if (!vport->disc_trc) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				 "0418 Cannot create debugfs disc trace "
+				 "0418 Canyest create debugfs disc trace "
 				 "buffer\n");
 		goto debug_failed;
 	}
@@ -6045,11 +6045,11 @@ nvmeio_off:
 		debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
 				 vport->vport_debugfs_root,
 				 vport, &lpfc_debugfs_op_disc_trc);
-	snprintf(name, sizeof(name), "nodelist");
-	vport->debug_nodelist =
+	snprintf(name, sizeof(name), "yesdelist");
+	vport->debug_yesdelist =
 		debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
 				 vport->vport_debugfs_root,
-				 vport, &lpfc_debugfs_op_nodelist);
+				 vport, &lpfc_debugfs_op_yesdelist);
 
 	snprintf(name, sizeof(name), "nvmestat");
 	vport->debug_nvmestat =
@@ -6064,7 +6064,7 @@ nvmeio_off:
 				    vport, &lpfc_debugfs_op_scsistat);
 	if (!vport->debug_scsistat) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				 "4611 Cannot create debugfs scsistat\n");
+				 "4611 Canyest create debugfs scsistat\n");
 		goto debug_failed;
 	}
 
@@ -6200,8 +6200,8 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 	debugfs_remove(vport->debug_disc_trc); /* discovery_trace */
 	vport->debug_disc_trc = NULL;
 
-	debugfs_remove(vport->debug_nodelist); /* nodelist */
-	vport->debug_nodelist = NULL;
+	debugfs_remove(vport->debug_yesdelist); /* yesdelist */
+	vport->debug_yesdelist = NULL;
 
 	debugfs_remove(vport->debug_nvmestat); /* nvmestat */
 	vport->debug_nvmestat = NULL;

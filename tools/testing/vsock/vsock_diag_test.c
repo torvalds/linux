@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2017 Red Hat, Inc.
  *
- * Author: Stefan Hajnoczi <stefanha@redhat.com>
+ * Author: Stefan Hajyesczi <stefanha@redhat.com>
  */
 
 #include <getopt.h>
@@ -12,7 +12,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/socket.h>
@@ -108,7 +108,7 @@ static void print_vsock_stat(FILE *fp, struct vsock_stat *st)
 		sock_type_str(st->msg.vdiag_type),
 		sock_state_str(st->msg.vdiag_state),
 		sock_shutdown_str(st->msg.vdiag_shutdown),
-		st->msg.vdiag_ino);
+		st->msg.vdiag_iyes);
 }
 
 static void print_vsock_stats(FILE *fp, struct list_head *head)
@@ -130,17 +130,17 @@ static struct vsock_stat *find_vsock_stat(struct list_head *head, int fd)
 	}
 
 	list_for_each_entry(st, head, list)
-		if (st->msg.vdiag_ino == stat.st_ino)
+		if (st->msg.vdiag_iyes == stat.st_iyes)
 			return st;
 
-	fprintf(stderr, "cannot find fd %d\n", fd);
+	fprintf(stderr, "canyest find fd %d\n", fd);
 	exit(EXIT_FAILURE);
 }
 
-static void check_no_sockets(struct list_head *head)
+static void check_yes_sockets(struct list_head *head)
 {
 	if (!list_empty(head)) {
-		fprintf(stderr, "expected no sockets\n");
+		fprintf(stderr, "expected yes sockets\n");
 		print_vsock_stats(stderr, head);
 		exit(1);
 	}
@@ -148,10 +148,10 @@ static void check_no_sockets(struct list_head *head)
 
 static void check_num_sockets(struct list_head *head, int expected)
 {
-	struct list_head *node;
+	struct list_head *yesde;
 	int n = 0;
 
-	list_for_each(node, head)
+	list_for_each(yesde, head)
 		n++;
 
 	if (n != expected) {
@@ -203,7 +203,7 @@ static void send_req(int fd)
 
 	for (;;) {
 		if (sendmsg(fd, &msg, 0) < 0) {
-			if (errno == EINTR)
+			if (erryes == EINTR)
 				continue;
 
 			perror("sendmsg");
@@ -233,7 +233,7 @@ static ssize_t recv_resp(int fd, void *buf, size_t len)
 
 	do {
 		ret = recvmsg(fd, &msg, 0);
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erryes == EINTR);
 
 	if (ret < 0) {
 		perror("recvmsg");
@@ -298,7 +298,7 @@ static void read_vsock_stat(struct list_head *sockets)
 				if (h->nlmsg_len < NLMSG_LENGTH(sizeof(*err)))
 					fprintf(stderr, "NLMSG_ERROR\n");
 				else {
-					errno = -err->error;
+					erryes = -err->error;
 					perror("NLMSG_ERROR");
 				}
 
@@ -335,13 +335,13 @@ static void free_sock_stat(struct list_head *sockets)
 		free(st);
 }
 
-static void test_no_sockets(unsigned int peer_cid)
+static void test_yes_sockets(unsigned int peer_cid)
 {
 	LIST_HEAD(sockets);
 
 	read_vsock_stat(&sockets);
 
-	check_no_sockets(&sockets);
+	check_yes_sockets(&sockets);
 
 	free_sock_stat(&sockets);
 }
@@ -409,7 +409,7 @@ static void test_connect_client(unsigned int peer_cid)
 	do {
 		ret = connect(fd, &addr.sa, sizeof(addr.svm));
 		timeout_check("connect");
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erryes == EINTR);
 	timeout_end();
 
 	if (ret < 0) {
@@ -470,7 +470,7 @@ static void test_connect_server(unsigned int peer_cid)
 	do {
 		client_fd = accept(fd, &clientaddr.sa, &clientaddr_len);
 		timeout_check("accept");
-	} while (client_fd < 0 && errno == EINTR);
+	} while (client_fd < 0 && erryes == EINTR);
 	timeout_end();
 
 	if (client_fd < 0) {
@@ -510,7 +510,7 @@ static struct {
 } test_cases[] = {
 	{
 		.name = "No sockets",
-		.run_server = test_no_sockets,
+		.run_server = test_yes_sockets,
 	},
 	{
 		.name = "Listen socket",
@@ -539,9 +539,9 @@ static unsigned int parse_cid(const char *str)
 	char *endptr = NULL;
 	unsigned long int n;
 
-	errno = 0;
+	erryes = 0;
 	n = strtoul(str, &endptr, 10);
-	if (errno || *endptr != '\0') {
+	if (erryes || *endptr != '\0') {
 		fprintf(stderr, "malformed CID \"%s\"\n", str);
 		exit(EXIT_FAILURE);
 	}
@@ -572,7 +572,7 @@ static const struct option longopts[] = {
 	},
 	{
 		.name = "help",
-		.has_arg = no_argument,
+		.has_arg = yes_argument,
 		.val = '?',
 	},
 	{},

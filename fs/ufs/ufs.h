@@ -22,17 +22,17 @@ struct ufs_sb_info {
 	unsigned s_flags;
 	struct buffer_head ** s_ucg;
 	struct ufs_cg_private_info * s_ucpi[UFS_MAX_GROUP_LOADED];
-	unsigned s_cgno[UFS_MAX_GROUP_LOADED];
+	unsigned s_cgyes[UFS_MAX_GROUP_LOADED];
 	unsigned short s_cg_loaded;
 	unsigned s_mount_opt;
 	struct super_block *sb;
-	int work_queued; /* non-zero if the delayed work is queued */
+	int work_queued; /* yesn-zero if the delayed work is queued */
 	struct delayed_work sync_work; /* FS sync delayed work */
 	spinlock_t work_lock; /* protects sync_work and work_queued */
 	struct mutex s_lock;
 };
 
-struct ufs_inode_info {
+struct ufs_iyesde_info {
 	union {
 		__fs32	i_data[15];
 		__u8	i_symlink[2 * 4 * 15];
@@ -48,7 +48,7 @@ struct ufs_inode_info {
 	seqlock_t meta_lock;
 	struct mutex	truncate_mutex;
 	__u32   i_dir_start_lookup;
-	struct inode vfs_inode;
+	struct iyesde vfs_iyesde;
 };
 
 /* mount options */
@@ -88,9 +88,9 @@ struct ufs_inode_info {
 #endif
 
 /* balloc.c */
-extern void ufs_free_fragments (struct inode *, u64, unsigned);
-extern void ufs_free_blocks (struct inode *, u64, unsigned);
-extern u64 ufs_new_fragments(struct inode *, void *, u64, u64,
+extern void ufs_free_fragments (struct iyesde *, u64, unsigned);
+extern void ufs_free_blocks (struct iyesde *, u64, unsigned);
+extern u64 ufs_new_fragments(struct iyesde *, void *, u64, u64,
 			     unsigned, int *, struct page *);
 
 /* cylinder.c */
@@ -98,31 +98,31 @@ extern struct ufs_cg_private_info * ufs_load_cylinder (struct super_block *, uns
 extern void ufs_put_cylinder (struct super_block *, unsigned);
 
 /* dir.c */
-extern const struct inode_operations ufs_dir_inode_operations;
-extern int ufs_add_link (struct dentry *, struct inode *);
-extern ino_t ufs_inode_by_name(struct inode *, const struct qstr *);
-extern int ufs_make_empty(struct inode *, struct inode *);
-extern struct ufs_dir_entry *ufs_find_entry(struct inode *, const struct qstr *, struct page **);
-extern int ufs_delete_entry(struct inode *, struct ufs_dir_entry *, struct page *);
-extern int ufs_empty_dir (struct inode *);
-extern struct ufs_dir_entry *ufs_dotdot(struct inode *, struct page **);
-extern void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
-			 struct page *page, struct inode *inode, bool update_times);
+extern const struct iyesde_operations ufs_dir_iyesde_operations;
+extern int ufs_add_link (struct dentry *, struct iyesde *);
+extern iyes_t ufs_iyesde_by_name(struct iyesde *, const struct qstr *);
+extern int ufs_make_empty(struct iyesde *, struct iyesde *);
+extern struct ufs_dir_entry *ufs_find_entry(struct iyesde *, const struct qstr *, struct page **);
+extern int ufs_delete_entry(struct iyesde *, struct ufs_dir_entry *, struct page *);
+extern int ufs_empty_dir (struct iyesde *);
+extern struct ufs_dir_entry *ufs_dotdot(struct iyesde *, struct page **);
+extern void ufs_set_link(struct iyesde *dir, struct ufs_dir_entry *de,
+			 struct page *page, struct iyesde *iyesde, bool update_times);
 
 /* file.c */
-extern const struct inode_operations ufs_file_inode_operations;
+extern const struct iyesde_operations ufs_file_iyesde_operations;
 extern const struct file_operations ufs_file_operations;
 extern const struct address_space_operations ufs_aops;
 
 /* ialloc.c */
-extern void ufs_free_inode (struct inode *inode);
-extern struct inode * ufs_new_inode (struct inode *, umode_t);
+extern void ufs_free_iyesde (struct iyesde *iyesde);
+extern struct iyesde * ufs_new_iyesde (struct iyesde *, umode_t);
 
-/* inode.c */
-extern struct inode *ufs_iget(struct super_block *, unsigned long);
-extern int ufs_write_inode (struct inode *, struct writeback_control *);
-extern int ufs_sync_inode (struct inode *);
-extern void ufs_evict_inode (struct inode *);
+/* iyesde.c */
+extern struct iyesde *ufs_iget(struct super_block *, unsigned long);
+extern int ufs_write_iyesde (struct iyesde *, struct writeback_control *);
+extern int ufs_sync_iyesde (struct iyesde *);
+extern void ufs_evict_iyesde (struct iyesde *);
 extern int ufs_setattr(struct dentry *dentry, struct iattr *attr);
 
 /* namei.c */
@@ -142,9 +142,9 @@ static inline struct ufs_sb_info *UFS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-static inline struct ufs_inode_info *UFS_I(struct inode *inode)
+static inline struct ufs_iyesde_info *UFS_I(struct iyesde *iyesde)
 {
-	return container_of(inode, struct ufs_inode_info, vfs_inode);
+	return container_of(iyesde, struct ufs_iyesde_info, vfs_iyesde);
 }
 
 /*

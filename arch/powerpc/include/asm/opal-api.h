@@ -218,14 +218,14 @@
 
 #define QUIESCE_HOLD			1 /* Spin all calls at entry */
 #define QUIESCE_REJECT			2 /* Fail all calls with OPAL_BUSY */
-#define QUIESCE_LOCK_BREAK		3 /* Set to ignore locks. */
+#define QUIESCE_LOCK_BREAK		3 /* Set to igyesre locks. */
 #define QUIESCE_RESUME			4 /* Un-quiesce */
 #define QUIESCE_RESUME_FAST_REBOOT	5 /* Un-quiesce, fast reboot */
 
 /* Device tree flags */
 
 /*
- * Flags set in power-mgmt nodes in device tree describing
+ * Flags set in power-mgmt yesdes in device tree describing
  * idle states that are supported in the platform.
  */
 
@@ -401,7 +401,7 @@ enum OpalPciResetScope {
 
 enum OpalPciReinitScope {
 	/*
-	 * Note: we chose values that do not overlap
+	 * Note: we chose values that do yest overlap
 	 * OpalPciResetScope as OPAL v2 used the same
 	 * enum for both
 	 */
@@ -440,7 +440,7 @@ enum OpalSlotLedState {
 /*
  * Address cycle types for LPC accesses. These also correspond
  * to the content of the first cell of the "reg" property for
- * device nodes on the LPC bus
+ * device yesdes on the LPC bus
  */
 enum OpalLPCAddressType {
 	OPAL_LPC_MEM	= 0,

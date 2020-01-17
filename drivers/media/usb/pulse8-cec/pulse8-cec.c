@@ -8,21 +8,21 @@
 /*
  * Notes:
  *
- * - Devices with firmware version < 2 do not store their configuration in
+ * - Devices with firmware version < 2 do yest store their configuration in
  *   EEPROM.
  *
- * - In autonomous mode, only messages from a TV will be acknowledged, even
+ * - In autoyesmous mode, only messages from a TV will be ackyeswledged, even
  *   polling messages. Upon receiving a message from a TV, the dongle will
  *   respond to messages from any logical address.
  *
- * - In autonomous mode, the dongle will by default reply Feature Abort
+ * - In autoyesmous mode, the dongle will by default reply Feature Abort
  *   [Unrecognized Opcode] when it receives Give Device Vendor ID. It will
  *   however observe vendor ID's reported by other devices and possibly
  *   alter this behavior. When TV's (and TV's only) report that their vendor ID
  *   is LG (0x00e091), the dongle will itself reply that it has the same vendor
  *   ID, and it will respond to at least one vendor specific command.
  *
- * - In autonomous mode, the dongle is known to attempt wakeup if it receives
+ * - In autoyesmous mode, the dongle is kyeswn to attempt wakeup if it receives
  *   <User Control Pressed> ["Power On"], ["Power] or ["Power Toggle"], or if it
  *   receives <Set Stream Path> with its own physical address. It also does this
  *   if it receives <Vendor Specific Command> [0x03 0x00] from an LG TV.
@@ -129,7 +129,7 @@ struct pulse8 {
 	struct mutex write_lock;
 	bool config_pending;
 	bool restoring_config;
-	bool autonomous;
+	bool autoyesmous;
 };
 
 static void pulse8_ping_eeprom_work_handler(struct work_struct *work);
@@ -363,8 +363,8 @@ static int pulse8_setup(struct pulse8 *pulse8, struct serio *serio,
 	err = pulse8_send_and_wait(pulse8, cmd, 1, cmd[0], 1);
 	if (err)
 		return err;
-	pulse8->autonomous = data[0];
-	dev_dbg(pulse8->dev, "Autonomous mode: %s",
+	pulse8->autoyesmous = data[0];
+	dev_dbg(pulse8->dev, "Autoyesmous mode: %s",
 		data[0] ? "on" : "off");
 
 	cmd[0] = MSGCODE_GET_DEVICE_TYPE;
@@ -405,7 +405,7 @@ static int pulse8_setup(struct pulse8 *pulse8, struct serio *serio,
 	default:
 		log_addrs->log_addr_type[0] = CEC_LOG_ADDR_TYPE_UNREGISTERED;
 		log_addrs->all_device_types[0] = CEC_OP_ALL_DEVTYPE_SWITCH;
-		dev_info(pulse8->dev, "Unknown Primary Device Type: %d\n",
+		dev_info(pulse8->dev, "Unkyeswn Primary Device Type: %d\n",
 			 log_addrs->primary_device_type[0]);
 		break;
 	}
@@ -498,7 +498,7 @@ static int pulse8_cec_adap_log_addr(struct cec_adapter *adap, u8 log_addr)
 				   MSGCODE_COMMAND_ACCEPTED, 0);
 	if (err)
 		goto unlock;
-	pulse8->autonomous = cmd[1];
+	pulse8->autoyesmous = cmd[1];
 	if (log_addr == CEC_LOG_ADDR_INVALID)
 		goto unlock;
 
@@ -684,9 +684,9 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 	if (err < 0)
 		goto close_serio;
 
-	pulse8->dev = &pulse8->adap->devnode.dev;
+	pulse8->dev = &pulse8->adap->devyesde.dev;
 
-	if (persistent_config && pulse8->autonomous) {
+	if (persistent_config && pulse8->autoyesmous) {
 		err = pulse8_apply_persistent_config(pulse8, &log_addrs, pa);
 		if (err)
 			goto close_serio;

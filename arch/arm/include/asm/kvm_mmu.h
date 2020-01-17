@@ -16,7 +16,7 @@
  */
 #define kern_hyp_va(kva)	(kva)
 
-/* Contrary to arm64, there is no need to generate a PC-relative address */
+/* Contrary to arm64, there is yes need to generate a PC-relative address */
 #define hyp_symbol_addr(s)						\
 	({								\
 		typeof(s) *addr = &(s);					\
@@ -241,7 +241,7 @@ static inline void __invalidate_icache_guest_page(kvm_pfn_t pfn,
 	/*
 	 * If we are going to insert an instruction page and the icache is
 	 * either VIPT or PIPT, there is a potential problem where the host
-	 * (or another VM) may have used the same page as this guest, and we
+	 * (or ayesther VM) may have used the same page as this guest, and we
 	 * read incorrect data from the icache.  If we're using a PIPT cache,
 	 * we can invalidate just that page, but if we are using a VIPT cache
 	 * we need to invalidate the entire icache - damn shame - as written
@@ -354,7 +354,7 @@ static inline unsigned int kvm_get_vmid_bits(void)
 }
 
 /*
- * We are not in the kvm->srcu critical section most of the time, so we take
+ * We are yest in the kvm->srcu critical section most of the time, so we take
  * the SRCU read lock here. Since we copy the data from the user page, we
  * can immediately drop the lock again.
  */

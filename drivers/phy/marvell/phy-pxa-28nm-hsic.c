@@ -77,7 +77,7 @@ static int mv_hsic_phy_init(struct phy *phy)
 	/* Make sure PHY PLL is locked */
 	if (!wait_for_reg(base + PHY_28NM_HSIC_PLL_CTRL2,
 	    PHY_28NM_HSIC_H2S_PLL_LOCK, HZ / 10)) {
-		dev_err(&pdev->dev, "HSIC PHY PLL not locked after 100mS.");
+		dev_err(&pdev->dev, "HSIC PHY PLL yest locked after 100mS.");
 		clk_disable_unprepare(mv_phy->clk);
 		return -ETIMEDOUT;
 	}
@@ -110,7 +110,7 @@ static int mv_hsic_phy_power_on(struct phy *phy)
 	/* Make sure PHY Calibration is ready */
 	if (!wait_for_reg(base + PHY_28NM_HSIC_IMPCAL_CAL,
 	    PHY_28NM_HSIC_H2S_IMPCAL_DONE, HZ / 10)) {
-		dev_warn(&pdev->dev, "HSIC PHY READY not set after 100mS.");
+		dev_warn(&pdev->dev, "HSIC PHY READY yest set after 100mS.");
 		return -ETIMEDOUT;
 	}
 
@@ -181,7 +181,7 @@ static int mv_hsic_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(mv_phy->base))
 		return PTR_ERR(mv_phy->base);
 
-	mv_phy->phy = devm_phy_create(&pdev->dev, pdev->dev.of_node, &hsic_ops);
+	mv_phy->phy = devm_phy_create(&pdev->dev, pdev->dev.of_yesde, &hsic_ops);
 	if (IS_ERR(mv_phy->phy))
 		return PTR_ERR(mv_phy->phy);
 

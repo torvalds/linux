@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Common Low Level Interrupts/Traps/Exceptions(non-TLB) Handling for ARC
+ * Common Low Level Interrupts/Traps/Exceptions(yesn-TLB) Handling for ARC
  * (included from entry-<isa>.S
  *
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syyespsys, Inc. (www.syyespsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 /*------------------------------------------------------------------
@@ -54,7 +54,7 @@ ENTRY(ret_from_fork)
 	;    This is the historic "kernel_execve" use-case, to return to init
 	;    user mode, in a round about way since that is always done from
 	;    a kernel thread which is executed via JL above but always returns
-	;    out whenever kernel_execve (now inline do_fork()) is involved
+	;    out whenever kernel_execve (yesw inline do_fork()) is involved
 	b    ret_from_exception
 END(ret_from_fork)
 
@@ -161,10 +161,10 @@ tracesys:
 	mov r0, sp			; pt_regs needed
 	bl  @syscall_trace_entry
 
-	; Tracing code now returns the syscall num (orig or modif)
+	; Tracing code yesw returns the syscall num (orig or modif)
 	mov r8, r0
 
-	; Do the Sys Call as we normally would.
+	; Do the Sys Call as we yesrmally would.
 	; Validate the Sys Call number
 	cmp     r8,  NR_syscalls
 	mov.hi  r0, -ENOSYS
@@ -215,7 +215,7 @@ trap_with_param:
 	st  sp, [r10, THREAD_CALLEE_REG]
 
 	; Call the trap handler
-	bl  do_non_swi_trap
+	bl  do_yesn_swi_trap
 
 	; unwind stack to discard Callee saved Regs
 	DISCARD_CALLEE_SAVED_USER
@@ -236,7 +236,7 @@ ENTRY(EV_Trap)
 	bmsk.f 0, r10, 7
 	bnz    trap_with_param
 
-	;============ TRAP  (no param): syscall top level
+	;============ TRAP  (yes param): syscall top level
 
 	; First return from Exception to pure K mode (Exception/IRQs renabled)
 	FAKE_RET_FROM_EXCPN
@@ -248,7 +248,7 @@ ENTRY(EV_Trap)
 
 	;============ Normal syscall case
 
-	; syscall num shd not exceed the total system calls avail
+	; syscall num shd yest exceed the total system calls avail
 	cmp     r8,  NR_syscalls
 	mov.hi  r0, -ENOSYS
 	bhi     .Lret_from_system_call
@@ -284,7 +284,7 @@ resume_user_mode_begin:
 	; interim IRQ).
 	IRQ_DISABLE	r10
 
-	; Fast Path return to user mode if no pending work
+	; Fast Path return to user mode if yes pending work
 	GET_CURR_THR_INFO_FLAGS   r9
 	and.f  0,  r9, _TIF_WORK_MASK
 	bz     .Lrestore_regs
@@ -298,10 +298,10 @@ resume_user_mode_begin:
 	IRQ_ENABLE	r10
 
 	; --- (Slow Path #2) pending signal  ---
-	mov r0, sp	; pt_regs for arg to do_signal()/do_notify_resume()
+	mov r0, sp	; pt_regs for arg to do_signal()/do_yestify_resume()
 
 	GET_CURR_THR_INFO_FLAGS   r9
-	bbit0  r9, TIF_SIGPENDING, .Lchk_notify_resume
+	bbit0  r9, TIF_SIGPENDING, .Lchk_yestify_resume
 
 	; Normal Trap/IRQ entry only saves Scratch (caller-saved) regs
 	; in pt_reg since the "C" ABI (kernel code) will automatically
@@ -327,10 +327,10 @@ resume_user_mode_begin:
 
 	b      resume_user_mode_begin	; loop back to start of U mode ret
 
-	; --- (Slow Path #3) notify_resume ---
-.Lchk_notify_resume:
+	; --- (Slow Path #3) yestify_resume ---
+.Lchk_yestify_resume:
 	btst   r9, TIF_NOTIFY_RESUME
-	blnz   @do_notify_resume
+	blnz   @do_yestify_resume
 	b      resume_user_mode_begin	; unconditionally back to U mode ret chks
 					; for single exit point from this block
 

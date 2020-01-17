@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synopsys DesignWare I2C adapter driver (master only).
+ * Syyespsys DesignWare I2C adapter driver (master only).
  *
  * Based on the TI DAVINCI I2C adapter driver.
  *
@@ -12,7 +12,7 @@
 #include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -310,7 +310,7 @@ static void i2c_dw_pci_remove(struct pci_dev *pdev)
 
 	dev->disable(dev);
 	pm_runtime_forbid(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 
 	i2c_del_adapter(&dev->adapter);
 	pci_free_irq_vectors(pdev);
@@ -375,5 +375,5 @@ static struct pci_driver dw_i2c_driver = {
 module_pci_driver(dw_i2c_driver);
 
 MODULE_AUTHOR("Baruch Siach <baruch@tkos.co.il>");
-MODULE_DESCRIPTION("Synopsys DesignWare PCI I2C bus adapter");
+MODULE_DESCRIPTION("Syyespsys DesignWare PCI I2C bus adapter");
 MODULE_LICENSE("GPL");

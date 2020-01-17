@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -544,7 +544,7 @@ static int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
 }
 
 /*
- * calculate CTS and N values if they are not found in the table
+ * calculate CTS and N values if they are yest found in the table
  */
 static void radeon_audio_calc_cts(unsigned int clock, int *CTS, int *N, int freq)
 {
@@ -570,7 +570,7 @@ static void radeon_audio_calc_cts(unsigned int clock, int *CTS, int *N, int freq
 	n *= mul;
 	cts *= mul;
 
-	/* Check that we are in spec (not always possible) */
+	/* Check that we are in spec (yest always possible) */
 	if (n < (128*freq/1500))
 		pr_warn("Calculated ACR N value is too small. You may experience audio problems.\n");
 	if (n > (128*freq/300))

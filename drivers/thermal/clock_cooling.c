@@ -30,7 +30,7 @@
  *       clock frequencies.
  * @cdev: thermal_cooling_device pointer to keep track of the
  *	registered cooling device.
- * @clk_rate_change_nb: reference to notifier block used to receive clock
+ * @clk_rate_change_nb: reference to yestifier block used to receive clock
  *                      rate changes.
  * @freq_table: frequency table used to keep track of available frequencies.
  * @clock_state: integer value representing the current state of clock
@@ -48,7 +48,7 @@ struct clock_cooling_device {
 	int id;
 	struct device *dev;
 	struct thermal_cooling_device *cdev;
-	struct notifier_block clk_rate_change_nb;
+	struct yestifier_block clk_rate_change_nb;
 	struct cpufreq_frequency_table *freq_table;
 	unsigned long clock_state;
 	unsigned long clock_val;
@@ -78,7 +78,7 @@ enum clock_cooling_property {
  * 1. get maximum clock cooling states
  * 2. translate frequency to cooling state
  * 3. translate cooling state to frequency
- * Note that the code may be not in good shape
+ * Note that the code may be yest in good shape
  * but it is written in this way in order to:
  * a) reduce duplicate code as most of the code can be shared.
  * b) make sure the logic is consistent when translating between
@@ -104,7 +104,7 @@ static int clock_cooling_get_property(struct clock_cooling_device *ccdev,
 		return -EINVAL;
 
 	cpufreq_for_each_valid_entry(pos, table) {
-		/* ignore duplicate entry */
+		/* igyesre duplicate entry */
 		if (freq == pos->frequency)
 			continue;
 
@@ -120,7 +120,7 @@ static int clock_cooling_get_property(struct clock_cooling_device *ccdev,
 	if (max_level == 0)
 		return -EINVAL;
 
-	/* max_level is an index, not a counter */
+	/* max_level is an index, yest a counter */
 	max_level--;
 
 	/* get max level */
@@ -134,11 +134,11 @@ static int clock_cooling_get_property(struct clock_cooling_device *ccdev,
 
 	i = 0;
 	cpufreq_for_each_valid_entry(pos, table) {
-		/* ignore duplicate entry */
+		/* igyesre duplicate entry */
 		if (freq == pos->frequency)
 			continue;
 
-		/* now we have a valid frequency entry */
+		/* yesw we have a valid frequency entry */
 		freq = pos->frequency;
 
 		if (property == GET_LEVEL && (unsigned int)input == freq) {
@@ -249,30 +249,30 @@ static int clock_cooling_apply(struct clock_cooling_device *ccdev,
 }
 
 /**
- * clock_cooling_clock_notifier - notifier callback on clock rate changes.
- * @nb:	struct notifier_block * with callback info.
+ * clock_cooling_clock_yestifier - yestifier callback on clock rate changes.
+ * @nb:	struct yestifier_block * with callback info.
  * @event: value showing clock event for which this function invoked.
  * @data: callback-specific data
  *
- * Callback to hijack the notification on clock transition.
+ * Callback to hijack the yestification on clock transition.
  * Every time there is a clock change, we intercept all pre change events
  * and block the transition in case the new rate infringes thermal limits.
  *
  * Return: NOTIFY_DONE (success) or NOTIFY_BAD (new_rate > thermal limit).
  */
-static int clock_cooling_clock_notifier(struct notifier_block *nb,
+static int clock_cooling_clock_yestifier(struct yestifier_block *nb,
 					unsigned long event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_yestifier_data *ndata = data;
 	struct clock_cooling_device *ccdev = to_clock_cooling_device(nb);
 
 	switch (event) {
 	case PRE_RATE_CHANGE:
 		/*
 		 * checks on current state
-		 * TODO: current method is not best we can find as it
+		 * TODO: current method is yest best we can find as it
 		 * allows possibly voltage transitions, in case DVFS
-		 * layer is also hijacking clock pre notifications.
+		 * layer is also hijacking clock pre yestifications.
 		 */
 		if (ndata->new_rate > ccdev->clock_val)
 			return NOTIFY_BAD;
@@ -403,7 +403,7 @@ clock_cooling_register(struct device *dev, const char *clock_name)
 		return ERR_PTR(-EINVAL);
 	}
 	ccdev->cdev = cdev;
-	ccdev->clk_rate_change_nb.notifier_call = clock_cooling_clock_notifier;
+	ccdev->clk_rate_change_nb.yestifier_call = clock_cooling_clock_yestifier;
 
 	/* Assuming someone has already filled the opp table for this device */
 	ret = dev_pm_opp_init_cpufreq_table(dev, &ccdev->freq_table);
@@ -414,7 +414,7 @@ clock_cooling_register(struct device *dev, const char *clock_name)
 	ccdev->clock_state = 0;
 	ccdev->clock_val = clock_cooling_get_frequency(ccdev, 0);
 
-	clk_notifier_register(ccdev->clk, &ccdev->clk_rate_change_nb);
+	clk_yestifier_register(ccdev->clk, &ccdev->clk_rate_change_nb);
 
 	return cdev;
 }
@@ -435,7 +435,7 @@ void clock_cooling_unregister(struct thermal_cooling_device *cdev)
 
 	ccdev = cdev->devdata;
 
-	clk_notifier_unregister(ccdev->clk, &ccdev->clk_rate_change_nb);
+	clk_yestifier_unregister(ccdev->clk, &ccdev->clk_rate_change_nb);
 	dev_pm_opp_free_cpufreq_table(ccdev->dev, &ccdev->freq_table);
 
 	thermal_cooling_device_unregister(ccdev->cdev);

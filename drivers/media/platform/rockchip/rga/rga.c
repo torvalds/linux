@@ -696,7 +696,7 @@ static const struct video_device rga_videodev = {
 	.name = "rockchip-rga",
 	.fops = &rga_fops,
 	.ioctl_ops = &rga_ioctl_ops,
-	.minor = -1,
+	.miyesr = -1,
 	.release = video_device_release,
 	.vfl_dir = VFL_DIR_M2M,
 	.device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
@@ -708,19 +708,19 @@ static int rga_enable_clocks(struct rockchip_rga *rga)
 
 	ret = clk_prepare_enable(rga->sclk);
 	if (ret) {
-		dev_err(rga->dev, "Cannot enable rga sclk: %d\n", ret);
+		dev_err(rga->dev, "Canyest enable rga sclk: %d\n", ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(rga->aclk);
 	if (ret) {
-		dev_err(rga->dev, "Cannot enable rga aclk: %d\n", ret);
+		dev_err(rga->dev, "Canyest enable rga aclk: %d\n", ret);
 		goto err_disable_sclk;
 	}
 
 	ret = clk_prepare_enable(rga->hclk);
 	if (ret) {
-		dev_err(rga->dev, "Cannot enable rga hclk: %d\n", ret);
+		dev_err(rga->dev, "Canyest enable rga hclk: %d\n", ret);
 		goto err_disable_aclk;
 	}
 
@@ -804,7 +804,7 @@ static int rga_probe(struct platform_device *pdev)
 	int ret = 0;
 	int irq;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	rga = devm_kzalloc(&pdev->dev, sizeof(*rga), GFP_KERNEL);
@@ -869,10 +869,10 @@ static int rga_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(rga->dev);
 
 	rga->version.major = (rga_read(rga, RGA_VERSION_INFO) >> 24) & 0xFF;
-	rga->version.minor = (rga_read(rga, RGA_VERSION_INFO) >> 20) & 0x0F;
+	rga->version.miyesr = (rga_read(rga, RGA_VERSION_INFO) >> 20) & 0x0F;
 
 	v4l2_info(&rga->v4l2_dev, "HW Version: 0x%02x.%02x\n",
-		  rga->version.major, rga->version.minor);
+		  rga->version.major, rga->version.miyesr);
 
 	pm_runtime_put(rga->dev);
 
@@ -896,7 +896,7 @@ static int rga_probe(struct platform_device *pdev)
 	}
 
 	v4l2_info(&rga->v4l2_dev, "Registered %s as /dev/%s\n",
-		  vfd->name, video_device_node_name(vfd));
+		  vfd->name, video_device_yesde_name(vfd));
 
 	return 0;
 

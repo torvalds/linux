@@ -302,7 +302,7 @@ static void hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev, const char *cmd_buf)
 	}
 
 	if (!has_dump) {
-		dev_info(&hdev->pdev->dev, "unknown command\n");
+		dev_info(&hdev->pdev->dev, "unkyeswn command\n");
 		return;
 	}
 }
@@ -347,7 +347,7 @@ static void hclge_dbg_dump_tc(struct hclge_dev *hdev)
 
 	for (i = 0; i < HNAE3_MAX_TC; i++)
 		hclge_title_idx_print(hdev, ets_weight->tc_weight[i], i,
-				      "tc", "no sp mode", "sp mode");
+				      "tc", "yes sp mode", "sp mode");
 }
 
 static void hclge_dbg_dump_tm_pg(struct hclge_dev *hdev)
@@ -1238,7 +1238,7 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 		hclge_dbg_dump_qs_shaper(hdev,
 					 &cmd_buf[sizeof("dump qs shaper")]);
 	} else {
-		dev_info(&hdev->pdev->dev, "unknown command\n");
+		dev_info(&hdev->pdev->dev, "unkyeswn command\n");
 		return -EINVAL;
 	}
 

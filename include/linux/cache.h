@@ -15,7 +15,7 @@
 
 /*
  * __read_mostly is used to keep rarely changing variables out of frequently
- * updated cachelines. If an architecture doesn't support it, ignore the
+ * updated cachelines. If an architecture doesn't support it, igyesre the
  * hint.
  */
 #ifndef __read_mostly
@@ -59,19 +59,19 @@
 
 /*
  * The maximum alignment needed for some critical structures
- * These could be inter-node cacheline sizes/L3 cacheline
+ * These could be inter-yesde cacheline sizes/L3 cacheline
  * size etc.  Define this in asm/cache.h for your arch
  */
 #ifndef INTERNODE_CACHE_SHIFT
 #define INTERNODE_CACHE_SHIFT L1_CACHE_SHIFT
 #endif
 
-#if !defined(____cacheline_internodealigned_in_smp)
+#if !defined(____cacheline_interyesdealigned_in_smp)
 #if defined(CONFIG_SMP)
-#define ____cacheline_internodealigned_in_smp \
+#define ____cacheline_interyesdealigned_in_smp \
 	__attribute__((__aligned__(1 << (INTERNODE_CACHE_SHIFT))))
 #else
-#define ____cacheline_internodealigned_in_smp
+#define ____cacheline_interyesdealigned_in_smp
 #endif
 #endif
 

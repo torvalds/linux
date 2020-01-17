@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -240,9 +240,9 @@ static void ath9k_htc_tx_mgmt(struct ath9k_htc_priv *priv,
 
 	tx_ctl->type = ATH9K_HTC_MGMT;
 
-	mgmt_hdr.node_idx = sta_idx;
+	mgmt_hdr.yesde_idx = sta_idx;
 	mgmt_hdr.vif_idx = vif_idx;
-	mgmt_hdr.tidno = 0;
+	mgmt_hdr.tidyes = 0;
 	mgmt_hdr.flags = 0;
 	mgmt_hdr.cookie = slot;
 
@@ -277,7 +277,7 @@ static void ath9k_htc_tx_data(struct ath9k_htc_priv *priv,
 	memset(tx_ctl, 0, sizeof(*tx_ctl));
 	memset(&tx_hdr, 0, sizeof(struct tx_frame_hdr));
 
-	tx_hdr.node_idx = sta_idx;
+	tx_hdr.yesde_idx = sta_idx;
 	tx_hdr.vif_idx = vif_idx;
 	tx_hdr.cookie = slot;
 
@@ -299,7 +299,7 @@ static void ath9k_htc_tx_data(struct ath9k_htc_priv *priv,
 
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		qc = ieee80211_get_qos_ctl(hdr);
-		tx_hdr.tidno = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
+		tx_hdr.tidyes = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 	}
 
 	/* Check for RTS protection */
@@ -356,7 +356,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 	} else {
 		if (!priv->ah->is_monitoring) {
 			ath_dbg(ath9k_hw_common(priv->ah), XMIT,
-				"VIF is null, but no monitor interface !\n");
+				"VIF is null, but yes monitor interface !\n");
 			return -EINVAL;
 		}
 
@@ -996,7 +996,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	is_phyerr = rxstatus->rs_status & ATH9K_RXERR_PHY;
 	/*
 	 * Discard zero-length packets and packets smaller than an ACK
-	 * which are not PHY_ERROR (short radar pulses have a length of 3)
+	 * which are yest PHY_ERROR (short radar pulses have a length of 3)
 	 */
 	if (unlikely(!rs_datalen || (rs_datalen < 10 && !is_phyerr))) {
 		ath_warn(common,
@@ -1027,7 +1027,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	 * can be dropped.
 	 */
 	if (unlikely(is_phyerr)) {
-		/* TODO: Not using DFS processing now. */
+		/* TODO: Not using DFS processing yesw. */
 		if (ath_cmn_process_fft(&priv->spec_priv, hdr,
 				    &rx_stats, rx_status->mactime)) {
 			/* TODO: Code to collect spectral scan statistics */

@@ -22,7 +22,7 @@
 #include <asm/cacheflush.h>
 
 /*
- * Write back the dirty D-caches, but not invalidate them.
+ * Write back the dirty D-caches, but yest invalidate them.
  *
  * Is this really worth it, or should we just alias this routine
  * to __flush_purge_region too?

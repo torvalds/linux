@@ -23,8 +23,8 @@
 static int configure_device(struct pci_func *);
 static int configure_bridge(struct pci_func **, u8);
 static struct res_needed *scan_behind_bridge(struct pci_func *, u8);
-static int add_new_bus(struct bus_node *, struct resource_node *, struct resource_node *, struct resource_node *, u8);
-static u8 find_sec_number(u8 primary_busno, u8 slotno);
+static int add_new_bus(struct bus_yesde *, struct resource_yesde *, struct resource_yesde *, struct resource_yesde *, u8);
+static u8 find_sec_number(u8 primary_busyes, u8 slotyes);
 
 /*
  * NOTE..... If BIOS doesn't provide default routing, we assign:
@@ -64,7 +64,7 @@ static void assign_alt_irq(struct pci_func *cur_func, u8 class_code)
  * if there is an error, will need to go through all previous functions and
  * unconfigure....or can add some code into unconfigure_card....
  */
-int ibmphp_configure_card(struct pci_func *func, u8 slotno)
+int ibmphp_configure_card(struct pci_func *func, u8 slotyes)
 {
 	u16 vendor_id;
 	u32 class;
@@ -78,25 +78,25 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 	u8 flag;
 	u8 valid_device = 0x00; /* to see if we are able to read from card any device info at all */
 
-	debug("inside configure_card, func->busno = %x\n", func->busno);
+	debug("inside configure_card, func->busyes = %x\n", func->busyes);
 
 	device = func->device;
 	cur_func = func;
 
 	/* We only get bus and device from IRQ routing table.  So at this point,
-	 * func->busno is correct, and func->device contains only device (at the 5
+	 * func->busyes is correct, and func->device contains only device (at the 5
 	 * highest bits)
 	 */
 
 	/* For every function on the card */
 	for (function = 0x00; function < 0x08; function++) {
 		unsigned int devfn = PCI_DEVFN(device, function);
-		ibmphp_pci_bus->number = cur_func->busno;
+		ibmphp_pci_bus->number = cur_func->busyes;
 
 		cur_func->function = function;
 
-		debug("inside the loop, cur_func->busno = %x, cur_func->device = %x, cur_func->function = %x\n",
-			cur_func->busno, cur_func->device, cur_func->function);
+		debug("inside the loop, cur_func->busyes = %x, cur_func->device = %x, cur_func->function = %x\n",
+			cur_func->busyes, cur_func->device, cur_func->function);
 
 		pci_bus_read_config_word(ibmphp_pci_bus, devfn, PCI_VENDOR_ID, &vendor_id);
 
@@ -108,7 +108,7 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 			++valid_device;
 
 			/* header: x x x x x x x x
-			 *         | |___________|=> 1=PPB bridge, 0=normal device, 2=CardBus Bridge
+			 *         | |___________|=> 1=PPB bridge, 0=yesrmal device, 2=CardBus Bridge
 			 *         |_=> 0 = single function device, 1 = multi-function device
 			 */
 
@@ -119,11 +119,11 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 			debug("hrd_type = %x, class = %x, class_code %x\n", hdr_type, class, class_code);
 			class >>= 8;	/* to take revision out, class = class.subclass.prog i/f */
 			if (class == PCI_CLASS_NOT_DEFINED_VGA) {
-				err("The device %x is VGA compatible and as is not supported for hot plugging. "
-				     "Please choose another device.\n", cur_func->device);
+				err("The device %x is VGA compatible and as is yest supported for hot plugging. "
+				     "Please choose ayesther device.\n", cur_func->device);
 				return -ENODEV;
 			} else if (class == PCI_CLASS_DISPLAY_VGA) {
-				err("The device %x is not supported for hot plugging. Please choose another device.\n",
+				err("The device %x is yest supported for hot plugging. Please choose ayesther device.\n",
 				     cur_func->device);
 				return -ENODEV;
 			}
@@ -134,8 +134,8 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 					rc = configure_device(cur_func);
 					if (rc < 0) {
 						/* We need to do this in case some other BARs were properly inserted */
-						err("was not able to configure devfunc %x on bus %x.\n",
-						     cur_func->device, cur_func->busno);
+						err("was yest able to configure devfunc %x on bus %x.\n",
+						     cur_func->device, cur_func->busyes);
 						cleanup_count = 6;
 						goto error;
 					}
@@ -147,8 +147,8 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 					rc = configure_device(cur_func);
 					if (rc < 0) {
 						/* We need to do this in case some other BARs were properly inserted */
-						err("was not able to configure devfunc %x on bus %x...bailing out\n",
-						     cur_func->device, cur_func->busno);
+						err("was yest able to configure devfunc %x on bus %x...bailing out\n",
+						     cur_func->device, cur_func->busyes);
 						cleanup_count = 6;
 						goto error;
 					}
@@ -156,7 +156,7 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 					if (!newfunc)
 						return -ENOMEM;
 
-					newfunc->busno = cur_func->busno;
+					newfunc->busyes = cur_func->busyes;
 					newfunc->device = device;
 					cur_func->next = newfunc;
 					cur_func = newfunc;
@@ -166,20 +166,20 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 				case PCI_HEADER_TYPE_MULTIBRIDGE:
 					class >>= 8;
 					if (class != PCI_CLASS_BRIDGE_PCI) {
-						err("This %x is not PCI-to-PCI bridge, and as is not supported for hot-plugging.  Please insert another card.\n",
+						err("This %x is yest PCI-to-PCI bridge, and as is yest supported for hot-plugging.  Please insert ayesther card.\n",
 						     cur_func->device);
 						return -ENODEV;
 					}
 					assign_alt_irq(cur_func, class_code);
-					rc = configure_bridge(&cur_func, slotno);
+					rc = configure_bridge(&cur_func, slotyes);
 					if (rc == -ENODEV) {
-						err("You chose to insert Single Bridge, or nested bridges, this is not supported...\n");
-						err("Bus %x, devfunc %x\n", cur_func->busno, cur_func->device);
+						err("You chose to insert Single Bridge, or nested bridges, this is yest supported...\n");
+						err("Bus %x, devfunc %x\n", cur_func->busyes, cur_func->device);
 						return rc;
 					}
 					if (rc) {
 						/* We need to do this in case some other BARs were properly inserted */
-						err("was not able to hot-add PPB properly.\n");
+						err("was yest able to hot-add PPB properly.\n");
 						func->bus = 1; /* To indicate to the unconfigure function that this is a PPB */
 						cleanup_count = 2;
 						goto error;
@@ -193,7 +193,7 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 							if (!newfunc)
 								return -ENOMEM;
 
-							newfunc->busno = sec_number;
+							newfunc->busyes = sec_number;
 							newfunc->device = (u8) i;
 							for (j = 0; j < 4; j++)
 								newfunc->irq[j] = cur_func->irq[j];
@@ -204,7 +204,7 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 							} else
 								cur_func->next = newfunc;
 
-							rc = ibmphp_configure_card(newfunc, slotno);
+							rc = ibmphp_configure_card(newfunc, slotyes);
 							/* This could only happen if kmalloc failed */
 							if (rc) {
 								/* We need to do this in case bridge itself got configured properly, but devices behind it failed */
@@ -220,7 +220,7 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 					if (!newfunc)
 						return -ENOMEM;
 
-					newfunc->busno = cur_func->busno;
+					newfunc->busyes = cur_func->busyes;
 					newfunc->device = device;
 					for (j = 0; j < 4; j++)
 						newfunc->irq[j] = cur_func->irq[j];
@@ -230,31 +230,31 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 					break;
 				case PCI_HEADER_TYPE_BRIDGE:
 					class >>= 8;
-					debug("class now is %x\n", class);
+					debug("class yesw is %x\n", class);
 					if (class != PCI_CLASS_BRIDGE_PCI) {
-						err("This %x is not PCI-to-PCI bridge, and as is not supported for hot-plugging.  Please insert another card.\n",
+						err("This %x is yest PCI-to-PCI bridge, and as is yest supported for hot-plugging.  Please insert ayesther card.\n",
 						     cur_func->device);
 						return -ENODEV;
 					}
 
 					assign_alt_irq(cur_func, class_code);
 
-					debug("cur_func->busno b4 configure_bridge is %x\n", cur_func->busno);
-					rc = configure_bridge(&cur_func, slotno);
+					debug("cur_func->busyes b4 configure_bridge is %x\n", cur_func->busyes);
+					rc = configure_bridge(&cur_func, slotyes);
 					if (rc == -ENODEV) {
-						err("You chose to insert Single Bridge, or nested bridges, this is not supported...\n");
-						err("Bus %x, devfunc %x\n", cur_func->busno, cur_func->device);
+						err("You chose to insert Single Bridge, or nested bridges, this is yest supported...\n");
+						err("Bus %x, devfunc %x\n", cur_func->busyes, cur_func->device);
 						return rc;
 					}
 					if (rc) {
 						/* We need to do this in case some other BARs were properly inserted */
 						func->bus = 1; /* To indicate to the unconfigure function that this is a PPB */
-						err("was not able to hot-add PPB properly.\n");
+						err("was yest able to hot-add PPB properly.\n");
 						cleanup_count = 2;
 						goto error;
 					}
-					debug("cur_func->busno = %x, device = %x, function = %x\n",
-						cur_func->busno, device, function);
+					debug("cur_func->busyes = %x, device = %x, function = %x\n",
+						cur_func->busyes, device, function);
 					pci_bus_read_config_byte(ibmphp_pci_bus, devfn, PCI_SECONDARY_BUS, &sec_number);
 					debug("after configuring bridge..., sec_number = %x\n", sec_number);
 					flag = 0;
@@ -265,7 +265,7 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 							if (!newfunc)
 								return -ENOMEM;
 
-							newfunc->busno = sec_number;
+							newfunc->busyes = sec_number;
 							newfunc->device = (u8) i;
 							for (j = 0; j < 4; j++)
 								newfunc->irq[j] = cur_func->irq[j];
@@ -276,9 +276,9 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 							} else
 								cur_func->next = newfunc;
 
-							rc = ibmphp_configure_card(newfunc, slotno);
+							rc = ibmphp_configure_card(newfunc, slotyes);
 
-							/* Again, this case should not happen... For complete paranoia, will need to call remove_bus */
+							/* Again, this case should yest happen... For complete parayesia, will need to call remove_bus */
 							if (rc) {
 								/* We need to do this in case some other BARs were properly inserted */
 								func->bus = 1; /* To indicate to the unconfigure function that this is a PPB */
@@ -292,7 +292,7 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 					function = 0x8;
 					break;
 				default:
-					err("MAJOR PROBLEM!!!!, header type not supported? %x\n", hdr_type);
+					err("MAJOR PROBLEM!!!!, header type yest supported? %x\n", hdr_type);
 					return -ENXIO;
 					break;
 			}	/* end of switch */
@@ -300,7 +300,7 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 	}	/* end of for */
 
 	if (!valid_device) {
-		err("Cannot find any valid devices on the card.  Or unable to read from card.\n");
+		err("Canyest find any valid devices on the card.  Or unable to read from card.\n");
 		return -ENODEV;
 	}
 
@@ -342,36 +342,36 @@ static int configure_device(struct pci_func *func)
 	u8 irq;
 	int count;
 	int len[6];
-	struct resource_node *io[6];
-	struct resource_node *mem[6];
-	struct resource_node *mem_tmp;
-	struct resource_node *pfmem[6];
+	struct resource_yesde *io[6];
+	struct resource_yesde *mem[6];
+	struct resource_yesde *mem_tmp;
+	struct resource_yesde *pfmem[6];
 	unsigned int devfn;
 
 	debug("%s - inside\n", __func__);
 
 	devfn = PCI_DEVFN(func->device, func->function);
-	ibmphp_pci_bus->number = func->busno;
+	ibmphp_pci_bus->number = func->busyes;
 
 	for (count = 0; address[count]; count++) {	/* for 6 BARs */
 
-		/* not sure if i need this.  per scott, said maybe need * something like this
+		/* yest sure if i need this.  per scott, said maybe need * something like this
 		   if devices don't adhere 100% to the spec, so don't want to write
 		   to the reserved bits
 
-		pcibios_read_config_byte(cur_func->busno, cur_func->device,
+		pcibios_read_config_byte(cur_func->busyes, cur_func->device,
 		PCI_BASE_ADDRESS_0 + 4 * count, &tmp);
 		if (tmp & 0x01) // IO
-			pcibios_write_config_dword(cur_func->busno, cur_func->device,
+			pcibios_write_config_dword(cur_func->busyes, cur_func->device,
 			PCI_BASE_ADDRESS_0 + 4 * count, 0xFFFFFFFD);
 		else  // Memory
-			pcibios_write_config_dword(cur_func->busno, cur_func->device,
+			pcibios_write_config_dword(cur_func->busyes, cur_func->device,
 			PCI_BASE_ADDRESS_0 + 4 * count, 0xFFFFFFFF);
 		 */
 		pci_bus_write_config_dword(ibmphp_pci_bus, devfn, address[count], 0xFFFFFFFF);
 		pci_bus_read_config_dword(ibmphp_pci_bus, devfn, address[count], &bar[count]);
 
-		if (!bar[count])	/* This BAR is not implemented */
+		if (!bar[count])	/* This BAR is yest implemented */
 			continue;
 
 		debug("Device %x BAR %d wants %x\n", func->device, count, bar[count]);
@@ -385,21 +385,21 @@ static int configure_device(struct pci_func *func)
 
 			debug("len[count] in IO %x, count %d\n", len[count], count);
 
-			io[count] = kzalloc(sizeof(struct resource_node), GFP_KERNEL);
+			io[count] = kzalloc(sizeof(struct resource_yesde), GFP_KERNEL);
 
 			if (!io[count])
 				return -ENOMEM;
 
 			io[count]->type = IO;
-			io[count]->busno = func->busno;
+			io[count]->busyes = func->busyes;
 			io[count]->devfunc = PCI_DEVFN(func->device, func->function);
 			io[count]->len = len[count];
 			if (ibmphp_check_resource(io[count], 0) == 0) {
 				ibmphp_add_resource(io[count]);
 				func->io[count] = io[count];
 			} else {
-				err("cannot allocate requested io for bus %x device %x function %x len %x\n",
-				     func->busno, func->device, func->function, len[count]);
+				err("canyest allocate requested io for bus %x device %x function %x len %x\n",
+				     func->busyes, func->device, func->function, len[count]);
 				kfree(io[count]);
 				return -EIO;
 			}
@@ -422,12 +422,12 @@ static int configure_device(struct pci_func *func)
 
 				debug("len[count] in PFMEM %x, count %d\n", len[count], count);
 
-				pfmem[count] = kzalloc(sizeof(struct resource_node), GFP_KERNEL);
+				pfmem[count] = kzalloc(sizeof(struct resource_yesde), GFP_KERNEL);
 				if (!pfmem[count])
 					return -ENOMEM;
 
 				pfmem[count]->type = PFMEM;
-				pfmem[count]->busno = func->busno;
+				pfmem[count]->busyes = func->busyes;
 				pfmem[count]->devfunc = PCI_DEVFN(func->device,
 							func->function);
 				pfmem[count]->len = len[count];
@@ -442,21 +442,21 @@ static int configure_device(struct pci_func *func)
 						return -ENOMEM;
 					}
 					mem_tmp->type = MEM;
-					mem_tmp->busno = pfmem[count]->busno;
+					mem_tmp->busyes = pfmem[count]->busyes;
 					mem_tmp->devfunc = pfmem[count]->devfunc;
 					mem_tmp->len = pfmem[count]->len;
-					debug("there's no pfmem... going into mem.\n");
+					debug("there's yes pfmem... going into mem.\n");
 					if (ibmphp_check_resource(mem_tmp, 0) == 0) {
 						ibmphp_add_resource(mem_tmp);
 						pfmem[count]->fromMem = 1;
-						pfmem[count]->rangeno = mem_tmp->rangeno;
+						pfmem[count]->rangeyes = mem_tmp->rangeyes;
 						pfmem[count]->start = mem_tmp->start;
 						pfmem[count]->end = mem_tmp->end;
 						ibmphp_add_pfmem_from_mem(pfmem[count]);
 						func->pfmem[count] = pfmem[count];
 					} else {
-						err("cannot allocate requested pfmem for bus %x, device %x, len %x\n",
-						     func->busno, func->device, len[count]);
+						err("canyest allocate requested pfmem for bus %x, device %x, len %x\n",
+						     func->busyes, func->device, len[count]);
 						kfree(mem_tmp);
 						kfree(pfmem[count]);
 						return -EIO;
@@ -471,7 +471,7 @@ static int configure_device(struct pci_func *func)
 				debug("after writing, start address is %x\n", bar[count]);
 				/*_________________________________________________________________________________*/
 
-				if (bar[count] & PCI_BASE_ADDRESS_MEM_TYPE_64) {	/* takes up another dword */
+				if (bar[count] & PCI_BASE_ADDRESS_MEM_TYPE_64) {	/* takes up ayesther dword */
 					debug("inside the mem 64 case, count %d\n", count);
 					count += 1;
 					/* on the 2nd dword, write all 0s, since we can't handle them n.e.ways */
@@ -486,12 +486,12 @@ static int configure_device(struct pci_func *func)
 
 				debug("len[count] in Mem %x, count %d\n", len[count], count);
 
-				mem[count] = kzalloc(sizeof(struct resource_node), GFP_KERNEL);
+				mem[count] = kzalloc(sizeof(struct resource_yesde), GFP_KERNEL);
 				if (!mem[count])
 					return -ENOMEM;
 
 				mem[count]->type = MEM;
-				mem[count]->busno = func->busno;
+				mem[count]->busyes = func->busyes;
 				mem[count]->devfunc = PCI_DEVFN(func->device,
 							func->function);
 				mem[count]->len = len[count];
@@ -499,8 +499,8 @@ static int configure_device(struct pci_func *func)
 					ibmphp_add_resource(mem[count]);
 					func->mem[count] = mem[count];
 				} else {
-					err("cannot allocate requested mem for bus %x, device %x, len %x\n",
-					     func->busno, func->device, len[count]);
+					err("canyest allocate requested mem for bus %x, device %x, len %x\n",
+					     func->busyes, func->device, len[count]);
 					kfree(mem[count]);
 					return -EIO;
 				}
@@ -512,7 +512,7 @@ static int configure_device(struct pci_func *func)
 				/* __________________________________________________________________________________*/
 
 				if (bar[count] & PCI_BASE_ADDRESS_MEM_TYPE_64) {
-					/* takes up another dword */
+					/* takes up ayesther dword */
 					debug("inside mem 64 case, reg. mem, count %d\n", count);
 					count += 1;
 					/* on the 2nd dword, write all 0s, since we can't handle them n.e.ways */
@@ -522,7 +522,7 @@ static int configure_device(struct pci_func *func)
 		}		/* end of mem */
 	}			/* end of for */
 
-	func->bus = 0;		/* To indicate that this is not a PPB */
+	func->bus = 0;		/* To indicate that this is yest a PPB */
 	pci_bus_read_config_byte(ibmphp_pci_bus, devfn, PCI_INTERRUPT_PIN, &irq);
 	if ((irq > 0x00) && (irq < 0x05))
 		pci_bus_write_config_byte(ibmphp_pci_bus, devfn, PCI_INTERRUPT_LINE, func->irq[irq - 1]);
@@ -541,7 +541,7 @@ static int configure_device(struct pci_func *func)
  * Parameters: pci_func
  * Returns:
  ******************************************************************************/
-static int configure_bridge(struct pci_func **func_passed, u8 slotno)
+static int configure_bridge(struct pci_func **func_passed, u8 slotyes)
 {
 	int count;
 	int i;
@@ -557,14 +557,14 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 	u8 need_io_upper = 0;
 	u8 need_pfmem_upper = 0;
 	struct res_needed *amount_needed = NULL;
-	struct resource_node *io = NULL;
-	struct resource_node *bus_io[2] = {NULL, NULL};
-	struct resource_node *mem = NULL;
-	struct resource_node *bus_mem[2] = {NULL, NULL};
-	struct resource_node *mem_tmp = NULL;
-	struct resource_node *pfmem = NULL;
-	struct resource_node *bus_pfmem[2] = {NULL, NULL};
-	struct bus_node *bus;
+	struct resource_yesde *io = NULL;
+	struct resource_yesde *bus_io[2] = {NULL, NULL};
+	struct resource_yesde *mem = NULL;
+	struct resource_yesde *bus_mem[2] = {NULL, NULL};
+	struct resource_yesde *mem_tmp = NULL;
+	struct resource_yesde *pfmem = NULL;
+	struct resource_yesde *bus_pfmem[2] = {NULL, NULL};
+	struct bus_yesde *bus;
 	u32 address[] = {
 		PCI_BASE_ADDRESS_0,
 		PCI_BASE_ADDRESS_1,
@@ -578,13 +578,13 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 	debug("%s - enter\n", __func__);
 
 	devfn = PCI_DEVFN(func->function, func->device);
-	ibmphp_pci_bus->number = func->busno;
+	ibmphp_pci_bus->number = func->busyes;
 
 	/* Configuring necessary info for the bridge so that we could see the devices
 	 * behind it
 	 */
 
-	pci_bus_write_config_byte(ibmphp_pci_bus, devfn, PCI_PRIMARY_BUS, func->busno);
+	pci_bus_write_config_byte(ibmphp_pci_bus, devfn, PCI_PRIMARY_BUS, func->busyes);
 
 	/* _____________________For debugging purposes only __________________________
 	pci_bus_config_byte(ibmphp_pci_bus, devfn, PCI_PRIMARY_BUS, &pri_number);
@@ -592,14 +592,14 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 	 ___________________________________________________________________________*/
 
 	/* in EBDA, only get allocated 1 additional bus # per slot */
-	sec_number = find_sec_number(func->busno, slotno);
+	sec_number = find_sec_number(func->busyes, slotyes);
 	if (sec_number == 0xff) {
-		err("cannot allocate secondary bus number for the bridged device\n");
+		err("canyest allocate secondary bus number for the bridged device\n");
 		return -EINVAL;
 	}
 
 	debug("after find_sec_number, the number we got is %x\n", sec_number);
-	debug("AFTER FIND_SEC_NUMBER, func->busno IS %x\n", func->busno);
+	debug("AFTER FIND_SEC_NUMBER, func->busyes IS %x\n", func->busyes);
 
 	pci_bus_write_config_byte(ibmphp_pci_bus, devfn, PCI_SECONDARY_BUS, sec_number);
 
@@ -619,7 +619,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 	pci_bus_write_config_byte(ibmphp_pci_bus, devfn, PCI_LATENCY_TIMER, LATENCY);
 	pci_bus_write_config_byte(ibmphp_pci_bus, devfn, PCI_SEC_LATENCY_TIMER, LATENCY);
 
-	debug("func->busno is %x\n", func->busno);
+	debug("func->busyes is %x\n", func->busyes);
 	debug("sec_number after writing is %x\n", sec_number);
 
 
@@ -634,7 +634,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 		pci_bus_read_config_dword(ibmphp_pci_bus, devfn, address[count], &bar[count]);
 
 		if (!bar[count]) {
-			/* This BAR is not implemented */
+			/* This BAR is yest implemented */
 			debug("so we come here then, eh?, count = %d\n", count);
 			continue;
 		}
@@ -649,14 +649,14 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 
 			debug("len[count] in IO = %x\n", len[count]);
 
-			bus_io[count] = kzalloc(sizeof(struct resource_node), GFP_KERNEL);
+			bus_io[count] = kzalloc(sizeof(struct resource_yesde), GFP_KERNEL);
 
 			if (!bus_io[count]) {
 				retval = -ENOMEM;
 				goto error;
 			}
 			bus_io[count]->type = IO;
-			bus_io[count]->busno = func->busno;
+			bus_io[count]->busyes = func->busyes;
 			bus_io[count]->devfunc = PCI_DEVFN(func->device,
 							func->function);
 			bus_io[count]->len = len[count];
@@ -664,8 +664,8 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 				ibmphp_add_resource(bus_io[count]);
 				func->io[count] = bus_io[count];
 			} else {
-				err("cannot allocate requested io for bus %x, device %x, len %x\n",
-				     func->busno, func->device, len[count]);
+				err("canyest allocate requested io for bus %x, device %x, len %x\n",
+				     func->busyes, func->device, len[count]);
 				kfree(bus_io[count]);
 				return -EIO;
 			}
@@ -681,13 +681,13 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 
 				debug("len[count] in PFMEM = %x\n", len[count]);
 
-				bus_pfmem[count] = kzalloc(sizeof(struct resource_node), GFP_KERNEL);
+				bus_pfmem[count] = kzalloc(sizeof(struct resource_yesde), GFP_KERNEL);
 				if (!bus_pfmem[count]) {
 					retval = -ENOMEM;
 					goto error;
 				}
 				bus_pfmem[count]->type = PFMEM;
-				bus_pfmem[count]->busno = func->busno;
+				bus_pfmem[count]->busyes = func->busyes;
 				bus_pfmem[count]->devfunc = PCI_DEVFN(func->device,
 							func->function);
 				bus_pfmem[count]->len = len[count];
@@ -702,18 +702,18 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 						goto error;
 					}
 					mem_tmp->type = MEM;
-					mem_tmp->busno = bus_pfmem[count]->busno;
+					mem_tmp->busyes = bus_pfmem[count]->busyes;
 					mem_tmp->devfunc = bus_pfmem[count]->devfunc;
 					mem_tmp->len = bus_pfmem[count]->len;
 					if (ibmphp_check_resource(mem_tmp, 0) == 0) {
 						ibmphp_add_resource(mem_tmp);
 						bus_pfmem[count]->fromMem = 1;
-						bus_pfmem[count]->rangeno = mem_tmp->rangeno;
+						bus_pfmem[count]->rangeyes = mem_tmp->rangeyes;
 						ibmphp_add_pfmem_from_mem(bus_pfmem[count]);
 						func->pfmem[count] = bus_pfmem[count];
 					} else {
-						err("cannot allocate requested pfmem for bus %x, device %x, len %x\n",
-						     func->busno, func->device, len[count]);
+						err("canyest allocate requested pfmem for bus %x, device %x, len %x\n",
+						     func->busyes, func->device, len[count]);
 						kfree(mem_tmp);
 						kfree(bus_pfmem[count]);
 						return -EIO;
@@ -723,7 +723,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 				pci_bus_write_config_dword(ibmphp_pci_bus, devfn, address[count], func->pfmem[count]->start);
 
 				if (bar[count] & PCI_BASE_ADDRESS_MEM_TYPE_64) {
-					/* takes up another dword */
+					/* takes up ayesther dword */
 					count += 1;
 					/* on the 2nd dword, write all 0s, since we can't handle them n.e.ways */
 					pci_bus_write_config_dword(ibmphp_pci_bus, devfn, address[count], 0x00000000);
@@ -736,13 +736,13 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 
 				debug("len[count] in Memory is %x\n", len[count]);
 
-				bus_mem[count] = kzalloc(sizeof(struct resource_node), GFP_KERNEL);
+				bus_mem[count] = kzalloc(sizeof(struct resource_yesde), GFP_KERNEL);
 				if (!bus_mem[count]) {
 					retval = -ENOMEM;
 					goto error;
 				}
 				bus_mem[count]->type = MEM;
-				bus_mem[count]->busno = func->busno;
+				bus_mem[count]->busyes = func->busyes;
 				bus_mem[count]->devfunc = PCI_DEVFN(func->device,
 							func->function);
 				bus_mem[count]->len = len[count];
@@ -750,8 +750,8 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 					ibmphp_add_resource(bus_mem[count]);
 					func->mem[count] = bus_mem[count];
 				} else {
-					err("cannot allocate requested mem for bus %x, device %x, len %x\n",
-					     func->busno, func->device, len[count]);
+					err("canyest allocate requested mem for bus %x, device %x, len %x\n",
+					     func->busyes, func->device, len[count]);
 					kfree(bus_mem[count]);
 					return -EIO;
 				}
@@ -759,7 +759,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 				pci_bus_write_config_dword(ibmphp_pci_bus, devfn, address[count], func->mem[count]->start);
 
 				if (bar[count] & PCI_BASE_ADDRESS_MEM_TYPE_64) {
-					/* takes up another dword */
+					/* takes up ayesther dword */
 					count += 1;
 					/* on the 2nd dword, write all 0s, since we can't handle them n.e.ways */
 					pci_bus_write_config_dword(ibmphp_pci_bus, devfn, address[count], 0x00000000);
@@ -774,15 +774,15 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 	if (amount_needed == NULL)
 		return -ENOMEM;
 
-	ibmphp_pci_bus->number = func->busno;
+	ibmphp_pci_bus->number = func->busyes;
 	debug("after coming back from scan_behind_bridge\n");
-	debug("amount_needed->not_correct = %x\n", amount_needed->not_correct);
+	debug("amount_needed->yest_correct = %x\n", amount_needed->yest_correct);
 	debug("amount_needed->io = %x\n", amount_needed->io);
 	debug("amount_needed->mem = %x\n", amount_needed->mem);
 	debug("amount_needed->pfmem =  %x\n", amount_needed->pfmem);
 
-	if (amount_needed->not_correct) {
-		debug("amount_needed is not correct\n");
+	if (amount_needed->yest_correct) {
+		debug("amount_needed is yest correct\n");
 		for (count = 0; address[count]; count++) {
 			/* for 2 BARs */
 			if (bus_io[count]) {
@@ -812,7 +812,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 			goto error;
 		}
 		io->type = IO;
-		io->busno = func->busno;
+		io->busyes = func->busyes;
 		io->devfunc = PCI_DEVFN(func->device, func->function);
 		io->len = amount_needed->io;
 		if (ibmphp_check_resource(io, 1) == 0) {
@@ -833,7 +833,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 			goto error;
 		}
 		mem->type = MEM;
-		mem->busno = func->busno;
+		mem->busyes = func->busyes;
 		mem->devfunc = PCI_DEVFN(func->device, func->function);
 		mem->len = amount_needed->mem;
 		if (ibmphp_check_resource(mem, 1) == 0) {
@@ -854,7 +854,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 			goto error;
 		}
 		pfmem->type = PFMEM;
-		pfmem->busno = func->busno;
+		pfmem->busyes = func->busyes;
 		pfmem->devfunc = PCI_DEVFN(func->device, func->function);
 		pfmem->len = amount_needed->pfmem;
 		pfmem->fromMem = 0;
@@ -868,13 +868,13 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 				goto error;
 			}
 			mem_tmp->type = MEM;
-			mem_tmp->busno = pfmem->busno;
+			mem_tmp->busyes = pfmem->busyes;
 			mem_tmp->devfunc = pfmem->devfunc;
 			mem_tmp->len = pfmem->len;
 			if (ibmphp_check_resource(mem_tmp, 1) == 0) {
 				ibmphp_add_resource(mem_tmp);
 				pfmem->fromMem = 1;
-				pfmem->rangeno = mem_tmp->rangeno;
+				pfmem->rangeyes = mem_tmp->rangeyes;
 				ibmphp_add_pfmem_from_mem(pfmem);
 				flag_pfmem = 1;
 			}
@@ -887,8 +887,8 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 	if (flag_io && flag_mem && flag_pfmem) {
 		/* If on bootup, there was a bridged card in this slot,
 		 * then card was removed and ibmphp got unloaded and loaded
-		 * back again, there's no way for us to remove the bus
-		 * struct, so no need to kmalloc, can use existing node
+		 * back again, there's yes way for us to remove the bus
+		 * struct, so yes need to kmalloc, can use existing yesde
 		 */
 		bus = ibmphp_find_res_bus(sec_number);
 		if (!bus) {
@@ -897,19 +897,19 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 				retval = -ENOMEM;
 				goto error;
 			}
-			bus->busno = sec_number;
+			bus->busyes = sec_number;
 			debug("b4 adding new bus\n");
-			rc = add_new_bus(bus, io, mem, pfmem, func->busno);
+			rc = add_new_bus(bus, io, mem, pfmem, func->busyes);
 		} else if (!(bus->rangeIO) && !(bus->rangeMem) && !(bus->rangePFMem))
 			rc = add_new_bus(bus, io, mem, pfmem, 0xFF);
 		else {
-			err("expected bus structure not empty?\n");
+			err("expected bus structure yest empty?\n");
 			retval = -EIO;
 			goto error;
 		}
 		if (rc) {
 			if (rc == -ENOMEM) {
-				ibmphp_remove_bus(bus, func->busno);
+				ibmphp_remove_bus(bus, func->busyes);
 				kfree(amount_needed);
 				return rc;
 			}
@@ -928,7 +928,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 			need_pfmem_upper = 1;
 		}
 
-		if (bus->noIORanges) {
+		if (bus->yesIORanges) {
 			pci_bus_write_config_byte(ibmphp_pci_bus, devfn, PCI_IO_BASE, 0x00 | bus->rangeIO->start >> 8);
 			pci_bus_write_config_byte(ibmphp_pci_bus, devfn, PCI_IO_LIMIT, 0x00 | bus->rangeIO->end >> 8);
 
@@ -948,7 +948,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 			pci_bus_write_config_byte(ibmphp_pci_bus, devfn, PCI_IO_LIMIT, 0x00);
 		}
 
-		if (bus->noMemRanges) {
+		if (bus->yesMemRanges) {
 			pci_bus_write_config_word(ibmphp_pci_bus, devfn, PCI_MEMORY_BASE, 0x0000 | bus->rangeMem->start >> 16);
 			pci_bus_write_config_word(ibmphp_pci_bus, devfn, PCI_MEMORY_LIMIT, 0x0000 | bus->rangeMem->end >> 16);
 
@@ -963,7 +963,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 			pci_bus_write_config_word(ibmphp_pci_bus, devfn, PCI_MEMORY_BASE, 0xffff);
 			pci_bus_write_config_word(ibmphp_pci_bus, devfn, PCI_MEMORY_LIMIT, 0x0000);
 		}
-		if (bus->noPFMemRanges) {
+		if (bus->yesPFMemRanges) {
 			pci_bus_write_config_word(ibmphp_pci_bus, devfn, PCI_PREF_MEMORY_BASE, 0x0000 | bus->rangePFMem->start >> 16);
 			pci_bus_write_config_word(ibmphp_pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, 0x0000 | bus->rangePFMem->end >> 16);
 
@@ -1004,8 +1004,8 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 		}
 		func->bus = 1;	/* For unconfiguring, to indicate it's PPB */
 		func_passed = &func;
-		debug("func->busno b4 returning is %x\n", func->busno);
-		debug("func->busno b4 returning in the other structure is %x\n", (*func_passed)->busno);
+		debug("func->busyes b4 returning is %x\n", func->busyes);
+		debug("func->busyes b4 returning in the other structure is %x\n", (*func_passed)->busyes);
 		kfree(amount_needed);
 		return 0;
 	} else {
@@ -1044,7 +1044,7 @@ error:
  * Input: bridge function
  * Output: amount of resources needed
  *****************************************************************************/
-static struct res_needed *scan_behind_bridge(struct pci_func *func, u8 busno)
+static struct res_needed *scan_behind_bridge(struct pci_func *func, u8 busyes)
 {
 	int count, len[6];
 	u16 vendor_id;
@@ -1069,9 +1069,9 @@ static struct res_needed *scan_behind_bridge(struct pci_func *func, u8 busno)
 	if (amount == NULL)
 		return NULL;
 
-	ibmphp_pci_bus->number = busno;
+	ibmphp_pci_bus->number = busyes;
 
-	debug("the bus_no behind the bridge is %x\n", busno);
+	debug("the bus_yes behind the bridge is %x\n", busyes);
 	debug("scanning devices behind the bridge...\n");
 	for (device = 0; device < 32; device++) {
 		amount->devices[device] = 0;
@@ -1089,19 +1089,19 @@ static struct res_needed *scan_behind_bridge(struct pci_func *func, u8 busno)
 
 				debug("hdr_type behind the bridge is %x\n", hdr_type);
 				if ((hdr_type & 0x7f) == PCI_HEADER_TYPE_BRIDGE) {
-					err("embedded bridges not supported for hot-plugging.\n");
-					amount->not_correct = 1;
+					err("embedded bridges yest supported for hot-plugging.\n");
+					amount->yest_correct = 1;
 					return amount;
 				}
 
 				class >>= 8;	/* to take revision out, class = class.subclass.prog i/f */
 				if (class == PCI_CLASS_NOT_DEFINED_VGA) {
-					err("The device %x is VGA compatible and as is not supported for hot plugging.  Please choose another device.\n", device);
-					amount->not_correct = 1;
+					err("The device %x is VGA compatible and as is yest supported for hot plugging.  Please choose ayesther device.\n", device);
+					amount->yest_correct = 1;
 					return amount;
 				} else if (class == PCI_CLASS_DISPLAY_VGA) {
-					err("The device %x is not supported for hot plugging.  Please choose another device.\n", device);
-					amount->not_correct = 1;
+					err("The device %x is yest supported for hot plugging.  Please choose ayesther device.\n", device);
+					amount->yest_correct = 1;
 					return amount;
 				}
 
@@ -1121,7 +1121,7 @@ static struct res_needed *scan_behind_bridge(struct pci_func *func, u8 busno)
 
 					debug("what is bar[count]? %x, count = %d\n", bar[count], count);
 
-					if (!bar[count])	/* This BAR is not implemented */
+					if (!bar[count])	/* This BAR is yest implemented */
 						continue;
 
 					//tmp_bar = bar[count];
@@ -1141,7 +1141,7 @@ static struct res_needed *scan_behind_bridge(struct pci_func *func, u8 busno)
 							len[count] = ~len[count] + 1;
 							amount->pfmem += len[count];
 							if (bar[count] & PCI_BASE_ADDRESS_MEM_TYPE_64)
-								/* takes up another dword */
+								/* takes up ayesther dword */
 								count += 1;
 
 						} else {
@@ -1150,7 +1150,7 @@ static struct res_needed *scan_behind_bridge(struct pci_func *func, u8 busno)
 							len[count] = ~len[count] + 1;
 							amount->mem += len[count];
 							if (bar[count] & PCI_BASE_ADDRESS_MEM_TYPE_64) {
-								/* takes up another dword */
+								/* takes up ayesther dword */
 								count += 1;
 							}
 						}
@@ -1161,9 +1161,9 @@ static struct res_needed *scan_behind_bridge(struct pci_func *func, u8 busno)
 	}	/* end for */
 
 	if (!howmany)
-		amount->not_correct = 1;
+		amount->yest_correct = 1;
 	else
-		amount->not_correct = 0;
+		amount->yest_correct = 0;
 	if ((amount->io) && (amount->io < IOBRIDGE))
 		amount->io = IOBRIDGE;
 	if ((amount->mem) && (amount->mem < MEMBRIDGE))
@@ -1177,10 +1177,10 @@ static struct res_needed *scan_behind_bridge(struct pci_func *func, u8 busno)
  * upon bootup in the system, since we don't allocate func to such case, we need to read
  * the start addresses from pci config space and then find the corresponding entries in
  * our resource lists.  The functions return either 0, -ENODEV, or -1 (general failure)
- * Change: we also call these functions even if we configured the card ourselves (i.e., not
+ * Change: we also call these functions even if we configured the card ourselves (i.e., yest
  * the bootup case), since it should work same way
  */
-static int unconfigure_boot_device(u8 busno, u8 device, u8 function)
+static int unconfigure_boot_device(u8 busyes, u8 device, u8 function)
 {
 	u32 start_address;
 	u32 address[] = {
@@ -1193,10 +1193,10 @@ static int unconfigure_boot_device(u8 busno, u8 device, u8 function)
 		0
 	};
 	int count;
-	struct resource_node *io;
-	struct resource_node *mem;
-	struct resource_node *pfmem;
-	struct bus_node *bus;
+	struct resource_yesde *io;
+	struct resource_yesde *mem;
+	struct resource_yesde *pfmem;
+	struct bus_yesde *bus;
 	u32 end_address;
 	u32 temp_end;
 	u32 size;
@@ -1205,14 +1205,14 @@ static int unconfigure_boot_device(u8 busno, u8 device, u8 function)
 
 	debug("%s - enter\n", __func__);
 
-	bus = ibmphp_find_res_bus(busno);
+	bus = ibmphp_find_res_bus(busyes);
 	if (!bus) {
-		debug("cannot find corresponding bus.\n");
+		debug("canyest find corresponding bus.\n");
 		return -EINVAL;
 	}
 
 	devfn = PCI_DEVFN(device, function);
-	ibmphp_pci_bus->number = busno;
+	ibmphp_pci_bus->number = busyes;
 	for (count = 0; address[count]; count++) {	/* for 6 BARs */
 		pci_bus_read_config_dword(ibmphp_pci_bus, devfn, address[count], &start_address);
 
@@ -1223,10 +1223,10 @@ static int unconfigure_boot_device(u8 busno, u8 device, u8 function)
 		pci_bus_write_config_dword(ibmphp_pci_bus, devfn, address[count], start_address);
 
 		debug("start_address is %x\n", start_address);
-		debug("busno, device, function %x %x %x\n", busno, device, function);
+		debug("busyes, device, function %x %x %x\n", busyes, device, function);
 		if (!size) {
-			/* This BAR is not implemented */
-			debug("is this bar no implemented?, count = %d\n", count);
+			/* This BAR is yest implemented */
+			debug("is this bar yes implemented?, count = %d\n", count);
 			continue;
 		}
 		tmp_address = start_address;
@@ -1264,7 +1264,7 @@ static int unconfigure_boot_device(u8 busno, u8 device, u8 function)
 				start_address &= PCI_BASE_ADDRESS_MEM_MASK;
 
 				if (ibmphp_find_resource(bus, start_address, &pfmem, PFMEM) < 0) {
-					err("cannot find corresponding PFMEM resource to remove\n");
+					err("canyest find corresponding PFMEM resource to remove\n");
 					return -EIO;
 				}
 				if (pfmem) {
@@ -1278,7 +1278,7 @@ static int unconfigure_boot_device(u8 busno, u8 device, u8 function)
 				start_address &= PCI_BASE_ADDRESS_MEM_MASK;
 
 				if (ibmphp_find_resource(bus, start_address, &mem, MEM) < 0) {
-					err("cannot find corresponding MEM resource to remove\n");
+					err("canyest find corresponding MEM resource to remove\n");
 					return -EIO;
 				}
 				if (mem) {
@@ -1288,7 +1288,7 @@ static int unconfigure_boot_device(u8 busno, u8 device, u8 function)
 				}
 			}
 			if (tmp_address & PCI_BASE_ADDRESS_MEM_TYPE_64) {
-				/* takes up another dword */
+				/* takes up ayesther dword */
 				count += 1;
 			}
 		}	/* end of mem */
@@ -1297,20 +1297,20 @@ static int unconfigure_boot_device(u8 busno, u8 device, u8 function)
 	return 0;
 
 report_search_failure:
-	err("cannot find corresponding IO resource to remove\n");
+	err("canyest find corresponding IO resource to remove\n");
 	return -EIO;
 }
 
-static int unconfigure_boot_bridge(u8 busno, u8 device, u8 function)
+static int unconfigure_boot_bridge(u8 busyes, u8 device, u8 function)
 {
 	int count;
-	int bus_no, pri_no, sub_no, sec_no = 0;
+	int bus_yes, pri_yes, sub_yes, sec_yes = 0;
 	u32 start_address, tmp_address;
 	u8 sec_number, sub_number, pri_number;
-	struct resource_node *io = NULL;
-	struct resource_node *mem = NULL;
-	struct resource_node *pfmem = NULL;
-	struct bus_node *bus;
+	struct resource_yesde *io = NULL;
+	struct resource_yesde *mem = NULL;
+	struct resource_yesde *pfmem = NULL;
+	struct bus_yesde *bus;
 	u32 address[] = {
 		PCI_BASE_ADDRESS_0,
 		PCI_BASE_ADDRESS_1,
@@ -1319,45 +1319,45 @@ static int unconfigure_boot_bridge(u8 busno, u8 device, u8 function)
 	unsigned int devfn;
 
 	devfn = PCI_DEVFN(device, function);
-	ibmphp_pci_bus->number = busno;
-	bus_no = (int) busno;
-	debug("busno is %x\n", busno);
+	ibmphp_pci_bus->number = busyes;
+	bus_yes = (int) busyes;
+	debug("busyes is %x\n", busyes);
 	pci_bus_read_config_byte(ibmphp_pci_bus, devfn, PCI_PRIMARY_BUS, &pri_number);
-	debug("%s - busno = %x, primary_number = %x\n", __func__, busno, pri_number);
+	debug("%s - busyes = %x, primary_number = %x\n", __func__, busyes, pri_number);
 
 	pci_bus_read_config_byte(ibmphp_pci_bus, devfn, PCI_SECONDARY_BUS, &sec_number);
 	debug("sec_number is %x\n", sec_number);
-	sec_no = (int) sec_number;
-	pri_no = (int) pri_number;
-	if (pri_no != bus_no) {
+	sec_yes = (int) sec_number;
+	pri_yes = (int) pri_number;
+	if (pri_yes != bus_yes) {
 		err("primary numbers in our structures and pci config space don't match.\n");
 		return -EINVAL;
 	}
 
 	pci_bus_read_config_byte(ibmphp_pci_bus, devfn, PCI_SUBORDINATE_BUS, &sub_number);
-	sub_no = (int) sub_number;
-	debug("sub_no is %d, sec_no is %d\n", sub_no, sec_no);
-	if (sec_no != sub_number) {
-		err("there're more buses behind this bridge.  Hot removal is not supported.  Please choose another card\n");
+	sub_yes = (int) sub_number;
+	debug("sub_yes is %d, sec_yes is %d\n", sub_yes, sec_yes);
+	if (sec_yes != sub_number) {
+		err("there're more buses behind this bridge.  Hot removal is yest supported.  Please choose ayesther card\n");
 		return -ENODEV;
 	}
 
 	bus = ibmphp_find_res_bus(sec_number);
 	if (!bus) {
-		err("cannot find Bus structure for the bridged device\n");
+		err("canyest find Bus structure for the bridged device\n");
 		return -EINVAL;
 	}
-	debug("bus->busno is %x\n", bus->busno);
+	debug("bus->busyes is %x\n", bus->busyes);
 	debug("sec_number is %x\n", sec_number);
 
-	ibmphp_remove_bus(bus, busno);
+	ibmphp_remove_bus(bus, busyes);
 
 	for (count = 0; address[count]; count++) {
 		/* for 2 BARs */
 		pci_bus_read_config_dword(ibmphp_pci_bus, devfn, address[count], &start_address);
 
 		if (!start_address) {
-			/* This BAR is not implemented */
+			/* This BAR is yest implemented */
 			continue;
 		}
 
@@ -1367,7 +1367,7 @@ static int unconfigure_boot_bridge(u8 busno, u8 device, u8 function)
 			/* This is IO */
 			start_address &= PCI_BASE_ADDRESS_IO_MASK;
 			if (ibmphp_find_resource(bus, start_address, &io, IO) < 0) {
-				err("cannot find corresponding IO resource to remove\n");
+				err("canyest find corresponding IO resource to remove\n");
 				return -EIO;
 			}
 			if (io)
@@ -1382,7 +1382,7 @@ static int unconfigure_boot_bridge(u8 busno, u8 device, u8 function)
 				/* pfmem */
 				start_address &= PCI_BASE_ADDRESS_MEM_MASK;
 				if (ibmphp_find_resource(bus, start_address, &pfmem, PFMEM) < 0) {
-					err("cannot find corresponding PFMEM resource to remove\n");
+					err("canyest find corresponding PFMEM resource to remove\n");
 					return -EINVAL;
 				}
 				if (pfmem) {
@@ -1394,7 +1394,7 @@ static int unconfigure_boot_bridge(u8 busno, u8 device, u8 function)
 				/* regular memory */
 				start_address &= PCI_BASE_ADDRESS_MEM_MASK;
 				if (ibmphp_find_resource(bus, start_address, &mem, MEM) < 0) {
-					err("cannot find corresponding MEM resource to remove\n");
+					err("canyest find corresponding MEM resource to remove\n");
 					return -EINVAL;
 				}
 				if (mem) {
@@ -1404,7 +1404,7 @@ static int unconfigure_boot_bridge(u8 busno, u8 device, u8 function)
 				}
 			}
 			if (tmp_address & PCI_BASE_ADDRESS_MEM_TYPE_64) {
-				/* takes up another dword */
+				/* takes up ayesther dword */
 				count += 1;
 			}
 		}	/* end of mem */
@@ -1419,7 +1419,7 @@ static int unconfigure_boot_card(struct slot *slot_cur)
 	u32 class;
 	u8 hdr_type;
 	u8 device;
-	u8 busno;
+	u8 busyes;
 	u8 function;
 	int rc;
 	unsigned int devfn;
@@ -1428,13 +1428,13 @@ static int unconfigure_boot_card(struct slot *slot_cur)
 	debug("%s - enter\n", __func__);
 
 	device = slot_cur->device;
-	busno = slot_cur->bus;
+	busyes = slot_cur->bus;
 
 	debug("b4 for loop, device is %x\n", device);
 	/* For every function on the card */
 	for (function = 0x0; function < 0x08; function++) {
 		devfn = PCI_DEVFN(device, function);
-		ibmphp_pci_bus->number = busno;
+		ibmphp_pci_bus->number = busyes;
 
 		pci_bus_read_config_word(ibmphp_pci_bus, devfn, PCI_VENDOR_ID, &vendor_id);
 
@@ -1445,7 +1445,7 @@ static int unconfigure_boot_card(struct slot *slot_cur)
 			debug("%s - found correct device\n", __func__);
 
 			/* header: x x x x x x x x
-			 *         | |___________|=> 1=PPB bridge, 0=normal device, 2=CardBus Bridge
+			 *         | |___________|=> 1=PPB bridge, 0=yesrmal device, 2=CardBus Bridge
 			 *         |_=> 0 = single function device, 1 = multi-function device
 			 */
 
@@ -1455,40 +1455,40 @@ static int unconfigure_boot_card(struct slot *slot_cur)
 			debug("hdr_type %x, class %x\n", hdr_type, class);
 			class >>= 8;	/* to take revision out, class = class.subclass.prog i/f */
 			if (class == PCI_CLASS_NOT_DEFINED_VGA) {
-				err("The device %x function %x is VGA compatible and is not supported for hot removing.  Please choose another device.\n", device, function);
+				err("The device %x function %x is VGA compatible and is yest supported for hot removing.  Please choose ayesther device.\n", device, function);
 				return -ENODEV;
 			} else if (class == PCI_CLASS_DISPLAY_VGA) {
-				err("The device %x function %x is not supported for hot removing.  Please choose another device.\n", device, function);
+				err("The device %x function %x is yest supported for hot removing.  Please choose ayesther device.\n", device, function);
 				return -ENODEV;
 			}
 
 			switch (hdr_type) {
 				case PCI_HEADER_TYPE_NORMAL:
-					rc = unconfigure_boot_device(busno, device, function);
+					rc = unconfigure_boot_device(busyes, device, function);
 					if (rc) {
-						err("was not able to unconfigure device %x func %x on bus %x. bailing out...\n",
-						     device, function, busno);
+						err("was yest able to unconfigure device %x func %x on bus %x. bailing out...\n",
+						     device, function, busyes);
 						return rc;
 					}
 					function = 0x8;
 					break;
 				case PCI_HEADER_TYPE_MULTIDEVICE:
-					rc = unconfigure_boot_device(busno, device, function);
+					rc = unconfigure_boot_device(busyes, device, function);
 					if (rc) {
-						err("was not able to unconfigure device %x func %x on bus %x. bailing out...\n",
-						     device, function, busno);
+						err("was yest able to unconfigure device %x func %x on bus %x. bailing out...\n",
+						     device, function, busyes);
 						return rc;
 					}
 					break;
 				case PCI_HEADER_TYPE_BRIDGE:
 					class >>= 8;
 					if (class != PCI_CLASS_BRIDGE_PCI) {
-						err("This device %x function %x is not PCI-to-PCI bridge, and is not supported for hot-removing.  Please try another card.\n", device, function);
+						err("This device %x function %x is yest PCI-to-PCI bridge, and is yest supported for hot-removing.  Please try ayesther card.\n", device, function);
 						return -ENODEV;
 					}
-					rc = unconfigure_boot_bridge(busno, device, function);
+					rc = unconfigure_boot_bridge(busyes, device, function);
 					if (rc != 0) {
-						err("was not able to hot-remove PPB properly.\n");
+						err("was yest able to hot-remove PPB properly.\n");
 						return rc;
 					}
 
@@ -1497,17 +1497,17 @@ static int unconfigure_boot_card(struct slot *slot_cur)
 				case PCI_HEADER_TYPE_MULTIBRIDGE:
 					class >>= 8;
 					if (class != PCI_CLASS_BRIDGE_PCI) {
-						err("This device %x function %x is not PCI-to-PCI bridge,  and is not supported for hot-removing.  Please try another card.\n", device, function);
+						err("This device %x function %x is yest PCI-to-PCI bridge,  and is yest supported for hot-removing.  Please try ayesther card.\n", device, function);
 						return -ENODEV;
 					}
-					rc = unconfigure_boot_bridge(busno, device, function);
+					rc = unconfigure_boot_bridge(busyes, device, function);
 					if (rc != 0) {
-						err("was not able to hot-remove PPB properly.\n");
+						err("was yest able to hot-remove PPB properly.\n");
 						return rc;
 					}
 					break;
 				default:
-					err("MAJOR PROBLEM!!!! Cannot read device's header\n");
+					err("MAJOR PROBLEM!!!! Canyest read device's header\n");
 					return -1;
 					break;
 			}	/* end of switch */
@@ -1515,7 +1515,7 @@ static int unconfigure_boot_card(struct slot *slot_cur)
 	}	/* end of for */
 
 	if (!valid_device) {
-		err("Could not find device to unconfigure.  Or could not read the card.\n");
+		err("Could yest find device to unconfigure.  Or could yest read the card.\n");
 		return -1;
 	}
 	return 0;
@@ -1597,23 +1597,23 @@ int ibmphp_unconfigure_card(struct slot **slot_cur, int the_end)
 /*
  * add a new bus resulting from hot-plugging a PPB bridge with devices
  *
- * Input: bus and the amount of resources needed (we know we can assign those,
+ * Input: bus and the amount of resources needed (we kyesw we can assign those,
  *        since they've been checked already
  * Output: bus added to the correct spot
  *         0, -1, error
  */
-static int add_new_bus(struct bus_node *bus, struct resource_node *io, struct resource_node *mem, struct resource_node *pfmem, u8 parent_busno)
+static int add_new_bus(struct bus_yesde *bus, struct resource_yesde *io, struct resource_yesde *mem, struct resource_yesde *pfmem, u8 parent_busyes)
 {
-	struct range_node *io_range = NULL;
-	struct range_node *mem_range = NULL;
-	struct range_node *pfmem_range = NULL;
-	struct bus_node *cur_bus = NULL;
+	struct range_yesde *io_range = NULL;
+	struct range_yesde *mem_range = NULL;
+	struct range_yesde *pfmem_range = NULL;
+	struct bus_yesde *cur_bus = NULL;
 
 	/* Trying to find the parent bus number */
-	if (parent_busno != 0xFF) {
-		cur_bus	= ibmphp_find_res_bus(parent_busno);
+	if (parent_busyes != 0xFF) {
+		cur_bus	= ibmphp_find_res_bus(parent_busyes);
 		if (!cur_bus) {
-			err("strange, cannot find bus which is supposed to be at the system... something is terribly wrong...\n");
+			err("strange, canyest find bus which is supposed to be at the system... something is terribly wrong...\n");
 			return -ENODEV;
 		}
 
@@ -1626,8 +1626,8 @@ static int add_new_bus(struct bus_node *bus, struct resource_node *io, struct re
 
 		io_range->start = io->start;
 		io_range->end = io->end;
-		io_range->rangeno = 1;
-		bus->noIORanges = 1;
+		io_range->rangeyes = 1;
+		bus->yesIORanges = 1;
 		bus->rangeIO = io_range;
 	}
 	if (mem) {
@@ -1637,8 +1637,8 @@ static int add_new_bus(struct bus_node *bus, struct resource_node *io, struct re
 
 		mem_range->start = mem->start;
 		mem_range->end = mem->end;
-		mem_range->rangeno = 1;
-		bus->noMemRanges = 1;
+		mem_range->rangeyes = 1;
+		bus->yesMemRanges = 1;
 		bus->rangeMem = mem_range;
 	}
 	if (pfmem) {
@@ -1648,8 +1648,8 @@ static int add_new_bus(struct bus_node *bus, struct resource_node *io, struct re
 
 		pfmem_range->start = pfmem->start;
 		pfmem_range->end = pfmem->end;
-		pfmem_range->rangeno = 1;
-		bus->noPFMemRanges = 1;
+		pfmem_range->rangeyes = 1;
+		bus->yesPFMemRanges = 1;
 		bus->rangePFMem = pfmem_range;
 	}
 	return 0;
@@ -1660,32 +1660,32 @@ static int add_new_bus(struct bus_node *bus, struct resource_node *io, struct re
  * Parameters: bus_number of the primary bus
  * Returns: bus_number of the secondary bus or 0xff in case of failure
  */
-static u8 find_sec_number(u8 primary_busno, u8 slotno)
+static u8 find_sec_number(u8 primary_busyes, u8 slotyes)
 {
 	int min, max;
-	u8 busno;
+	u8 busyes;
 	struct bus_info *bus;
-	struct bus_node *bus_cur;
+	struct bus_yesde *bus_cur;
 
-	bus = ibmphp_find_same_bus_num(primary_busno);
+	bus = ibmphp_find_same_bus_num(primary_busyes);
 	if (!bus) {
-		err("cannot get slot range of the bus from the BIOS\n");
+		err("canyest get slot range of the bus from the BIOS\n");
 		return 0xff;
 	}
 	max = bus->slot_max;
 	min = bus->slot_min;
-	if ((slotno > max) || (slotno < min)) {
+	if ((slotyes > max) || (slotyes < min)) {
 		err("got the wrong range\n");
 		return 0xff;
 	}
-	busno = (u8) (slotno - (u8) min);
-	busno += primary_busno + 0x01;
-	bus_cur = ibmphp_find_res_bus(busno);
-	/* either there is no such bus number, or there are no ranges, which
+	busyes = (u8) (slotyes - (u8) min);
+	busyes += primary_busyes + 0x01;
+	bus_cur = ibmphp_find_res_bus(busyes);
+	/* either there is yes such bus number, or there are yes ranges, which
 	 * can only happen if we removed the bridged device in previous load
-	 * of the driver, and now only have the skeleton bus struct
+	 * of the driver, and yesw only have the skeleton bus struct
 	 */
 	if ((!bus_cur) || (!(bus_cur->rangeIO) && !(bus_cur->rangeMem) && !(bus_cur->rangePFMem)))
-		return busno;
+		return busyes;
 	return 0xff;
 }

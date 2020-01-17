@@ -222,7 +222,7 @@ static void imgu_css_osys_set_format(enum imgu_abi_frame_format host_format,
 		*osys_tiling = IMGU_ABI_OSYS_TILING_Y;
 		break;
 	default:
-		/* For now, assume use default values */
+		/* For yesw, assume use default values */
 		break;
 	}
 }
@@ -459,7 +459,7 @@ static int imgu_css_osys_calc_frame_and_stripe_params(
 					 * considered except when pin is MAIN.
 					 * Later it will be decide whether
 					 * scaler factor is 1 or other
-					 * and cropping has to be done or not.
+					 * and cropping has to be done or yest.
 					 */
 					scaled = 1;
 				}
@@ -523,8 +523,8 @@ static int imgu_css_osys_calc_frame_and_stripe_params(
 			roundclosest_down(h / 2, IMGU_OSYS_DMA_CROP_H_LIMIT);
 
 		if (reso.input_height % 4 || reso.input_width % 8) {
-			dev_err(css->dev, "OSYS input width is not multiple of 8 or\n");
-			dev_err(css->dev, "height is not multiple of 4\n");
+			dev_err(css->dev, "OSYS input width is yest multiple of 8 or\n");
+			dev_err(css->dev, "height is yest multiple of 4\n");
 			return -EINVAL;
 		}
 	}
@@ -535,12 +535,12 @@ static int imgu_css_osys_calc_frame_and_stripe_params(
 		output_width = reso.pin_width[IMGU_ABI_OSYS_PIN_VF];
 	} else {
 		/*
-		 * in case scaler output is not enabled
+		 * in case scaler output is yest enabled
 		 * take output width as input width since
-		 * there is no scaling at main pin.
+		 * there is yes scaling at main pin.
 		 * Due to the fact that main pin can be different
 		 * from input resolution to osys in the case of cropping,
-		 * main pin resolution is not taken.
+		 * main pin resolution is yest taken.
 		 */
 		output_width = reso.input_width;
 	}
@@ -641,7 +641,7 @@ static int imgu_css_osys_calc_frame_and_stripe_params(
 				/*
 				 * FW workaround for a HW bug: if the first
 				 * chroma pixel is generated exactly at the end
-				 * of chunck scaler HW may not output the pixel
+				 * of chunck scaler HW may yest output the pixel
 				 * for downscale factors smaller than 1.5
 				 * (timing issue).
 				 */
@@ -806,7 +806,7 @@ static int imgu_css_osys_calc_frame_and_stripe_params(
 				}
 			}
 
-			/* If no pin use scale, we use BYPASS mode */
+			/* If yes pin use scale, we use BYPASS mode */
 			stripe_params[s].processing_mode = procmode;
 			stripe_params[s].phase_step = scaler_luma->phase_step;
 			stripe_params[s].exp_shift = scaler_luma->exp_shift;
@@ -1125,7 +1125,7 @@ static int imgu_css_osys_calc(struct imgu_css *css, unsigned int pipe,
 			/*
 			 * The formatter input width must be rounded to
 			 * the block width. Otherwise the formatter will
-			 * not recognize the end of the line, resulting
+			 * yest recognize the end of the line, resulting
 			 * in incorrect tiling (system may hang!) and
 			 * possibly other problems.
 			 */
@@ -1223,7 +1223,7 @@ static int imgu_css_osys_calc(struct imgu_css *css, unsigned int pipe,
  * 2. Issue "Process Lines Command" to shd accelerator
  *    associated data: #lines + which config set to use (actually, accelerator
  *    will use x AND (x+1)%num_of_sets - NOTE that this implies the restriction
- *    of not touching config sets x & (x+1)%num_of_sets when process_lines(x)
+ *    of yest touching config sets x & (x+1)%num_of_sets when process_lines(x)
  *    is active).
  *
  * Basically there are 2 types of operations "chunks":
@@ -1246,9 +1246,9 @@ static int imgu_css_osys_calc(struct imgu_css *css, unsigned int pipe,
  * --> ack (1)
  *	pl (3)
  * --> ack (2)
- *	do nothing
+ *	do yesthing
  * --> ack (3)
- *	do nothing
+ *	do yesthing
  */
 
 static int
@@ -1276,7 +1276,7 @@ imgu_css_shd_ops_calc(struct imgu_abi_shd_intra_frame_operations_data *ops,
 
 	/*
 	 * When the number of lines for the last process lines command
-	 * is equal to a set height, we need another line of grid cell -
+	 * is equal to a set height, we need ayesther line of grid cell -
 	 * additional transfer is required.
 	 */
 	unsigned char last_tr = 0;
@@ -1453,7 +1453,7 @@ imgu_css_shd_ops_calc(struct imgu_abi_shd_intra_frame_operations_data *ops,
  * --> ack (1)
  * rmd (1) eof
  * --> (ack (2))
- * do nothing
+ * do yesthing
  *
  * for only one set:
  *
@@ -1480,7 +1480,7 @@ imgu_css_shd_ops_calc(struct imgu_abi_shd_intra_frame_operations_data *ops,
  * --> ack (1)
  * rmd (1) eof
  * --> ack (2)
- * do nothing
+ * do yesthing
  */
 struct process_lines {
 	unsigned int image_height;
@@ -1755,7 +1755,7 @@ static int imgu_css_cfg_acc_stripe(struct imgu_css *css, unsigned int pipe,
 	 * 1. down-scaled stripes are calculated - with 128 overlap
 	 *    (this is the main limiter therefore it's first)
 	 * 2. input stripes are derived by up-scaling the down-scaled stripes
-	 *    (there are no alignment requirements on input stripes)
+	 *    (there are yes alignment requirements on input stripes)
 	 * 3. output stripes are derived from down-scaled stripes too
 	 */
 
@@ -1780,7 +1780,7 @@ static int imgu_css_cfg_acc_stripe(struct imgu_css *css, unsigned int pipe,
 			acc->stripe.bds_out_stripes[1].width =
 			(css_pipe->rect[IPU3_CSS_RECT_BDS].width / 2 & ~(f - 1)) + f;
 		/*
-		 * Sum of width of the two stripes should not be smaller
+		 * Sum of width of the two stripes should yest be smaller
 		 * than output width and must be even times of overlapping
 		 * unit f.
 		 */
@@ -1800,9 +1800,9 @@ static int imgu_css_cfg_acc_stripe(struct imgu_css *css, unsigned int pipe,
 	acc->stripe.effective_stripes[0].height =
 				css_pipe->rect[IPU3_CSS_RECT_EFFECTIVE].height;
 	acc->stripe.effective_stripes[0].offset = 0;
-	acc->stripe.bds_out_stripes_no_overlap[0].height =
+	acc->stripe.bds_out_stripes_yes_overlap[0].height =
 				css_pipe->rect[IPU3_CSS_RECT_BDS].height;
-	acc->stripe.bds_out_stripes_no_overlap[0].offset = 0;
+	acc->stripe.bds_out_stripes_yes_overlap[0].offset = 0;
 	acc->stripe.output_stripes[0].height =
 				css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
 	acc->stripe.output_stripes[0].offset = 0;
@@ -1815,7 +1815,7 @@ static int imgu_css_cfg_acc_stripe(struct imgu_css *css, unsigned int pipe,
 
 		acc->stripe.effective_stripes[0].width =
 				css_pipe->rect[IPU3_CSS_RECT_EFFECTIVE].width;
-		acc->stripe.bds_out_stripes_no_overlap[0].width =
+		acc->stripe.bds_out_stripes_yes_overlap[0].width =
 			ALIGN(css_pipe->rect[IPU3_CSS_RECT_BDS].width, f);
 
 		acc->stripe.output_stripes[0].width =
@@ -1846,13 +1846,13 @@ static int imgu_css_cfg_acc_stripe(struct imgu_css *css, unsigned int pipe,
 			acc->stripe.down_scaled_stripes[1].offset /
 			IMGU_BDS_GRANULARITY;
 
-		acc->stripe.bds_out_stripes_no_overlap[0].width =
-		acc->stripe.bds_out_stripes_no_overlap[1].offset =
+		acc->stripe.bds_out_stripes_yes_overlap[0].width =
+		acc->stripe.bds_out_stripes_yes_overlap[1].offset =
 			ALIGN(css_pipe->rect[IPU3_CSS_RECT_BDS].width, 2 * f) / 2;
-		acc->stripe.bds_out_stripes_no_overlap[1].width =
+		acc->stripe.bds_out_stripes_yes_overlap[1].width =
 			DIV_ROUND_UP(css_pipe->rect[IPU3_CSS_RECT_BDS].width, f)
 			/ 2 * f;
-		acc->stripe.bds_out_stripes_no_overlap[1].height =
+		acc->stripe.bds_out_stripes_yes_overlap[1].height =
 			css_pipe->rect[IPU3_CSS_RECT_BDS].height;
 
 		acc->stripe.output_stripes[0].width =
@@ -2010,7 +2010,7 @@ int imgu_css_cfg_acc(struct imgu_css *css, unsigned int pipe,
 	 * Originate from user or be the original default values if user has
 	 * never set them before, when user gives a new set of parameters,
 	 * for each chunk in the parameter structure there is a flag use->xxx
-	 * whether to use the user-provided parameter or not. If not, the
+	 * whether to use the user-provided parameter or yest. If yest, the
 	 * parameter remains unchanged in the driver:
 	 * it's value is taken from acc_old.
 	 */

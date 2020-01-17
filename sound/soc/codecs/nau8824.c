@@ -2,7 +2,7 @@
 /*
  * NAU88L24 ALSA SoC audio driver
  *
- * Copyright 2016 Nuvoton Technology Corp.
+ * Copyright 2016 Nuvoton Techyeslogy Corp.
  * Author: John Hsu <KCHSU0@nuvoton.com>
  */
 
@@ -514,8 +514,8 @@ static int system_clock_control(struct snd_soc_dapm_widget *w,
 		}
 	} else {
 		dev_dbg(nau8824->dev, "system clock control : POWER ON\n");
-		/* Check the clock source setting is proper or not
-		 * no matter the source is from FLL or MCLK.
+		/* Check the clock source setting is proper or yest
+		 * yes matter the source is from FLL or MCLK.
 		 */
 		regmap_read(regmap, NAU8824_REG_FLL1, &value);
 		clk_fll = value & NAU8824_FLL_RATIO_MASK;
@@ -1208,7 +1208,7 @@ static int nau8824_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
  * nau8824_set_tdm_slot - configure DAI TDM.
  * @dai: DAI
  * @tx_mask: Bitmask representing active TX slots. Ex.
- *                 0xf for normal 4 channel TDM.
+ *                 0xf for yesrmal 4 channel TDM.
  *                 0xf0 for shifted 4 channel TDM
  * @rx_mask: Bitmask [0:1] representing active DACR RX slots.
  *                 Bitmask [2:3] representing active DACL RX slots.
@@ -1294,7 +1294,7 @@ static int nau8824_calc_fll_param(unsigned int fll_in,
 	fll_param->ratio = fll_ratio[i].val;
 
 	/* Calculate the frequency of DCO (FDCO) given freq_out = 256 * Fs.
-	 * FDCO must be within the 90MHz - 124MHz or the FFL cannot be
+	 * FDCO must be within the 90MHz - 124MHz or the FFL canyest be
 	 * guaranteed across the full range of operation.
 	 * FDCO = freq_out * 2 * mclk_src_scaling
 	 */
@@ -1566,7 +1566,7 @@ static const struct snd_soc_component_driver nau8824_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_dai_ops nau8824_dai_ops = {
@@ -1635,7 +1635,7 @@ int nau8824_enable_jack_detect(struct snd_soc_component *component,
 		nau8824_interrupt, IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 		"nau8824", nau8824);
 	if (ret) {
-		dev_err(nau8824->dev, "Cannot request irq %d (%d)\n",
+		dev_err(nau8824->dev, "Canyest request irq %d (%d)\n",
 			nau8824->irq, ret);
 	}
 

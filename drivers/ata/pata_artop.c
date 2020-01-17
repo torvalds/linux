@@ -13,7 +13,7 @@
  *		performance Alessandro Zummo <alessandro.zummo@towertech.it>
  *
  *	TODO
- *	Investigate no_dsc on 850R
+ *	Investigate yes_dsc on 850R
  *	Clock detect
  */
 
@@ -59,7 +59,7 @@ static int artop62x0_pre_reset(struct ata_link *link, unsigned long deadline)
 
 	/* Odd numbered device ids are the units with enable bits. */
 	if ((pdev->device & 1) &&
-	    !pci_test_config_bits(pdev, &artop_enable_bits[ap->port_no]))
+	    !pci_test_config_bits(pdev, &artop_enable_bits[ap->port_yes]))
 		return -ENOENT;
 
 	return ata_sff_prereset(link, deadline);
@@ -77,7 +77,7 @@ static int artop6260_cable_detect(struct ata_port *ap)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 tmp;
 	pci_read_config_byte(pdev, 0x49, &tmp);
-	if (tmp & (1 << ap->port_no))
+	if (tmp & (1 << ap->port_yes))
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
 }
@@ -99,7 +99,7 @@ static int artop6260_cable_detect(struct ata_port *ap)
 static void artop6210_load_piomode(struct ata_port *ap, struct ata_device *adev, unsigned int pio)
 {
 	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
-	int dn = adev->devno + 2 * ap->port_no;
+	int dn = adev->devyes + 2 * ap->port_yes;
 	static const u16 timing[2][5] = {
 		{ 0x0000, 0x000A, 0x0008, 0x0303, 0x0301 },
 		{ 0x0700, 0x070A, 0x0708, 0x0403, 0x0401 }
@@ -115,7 +115,7 @@ static void artop6210_load_piomode(struct ata_port *ap, struct ata_device *adev,
  *	@adev: Device we are configuring
  *
  *	Set PIO mode for device, in host controller PCI config space. For
- *	ARTOP we must also clear the UDMA bits if we are not doing UDMA. In
+ *	ARTOP we must also clear the UDMA bits if we are yest doing UDMA. In
  *	the event UDMA is used the later call to set_dmamode will set the
  *	bits as required.
  *
@@ -126,7 +126,7 @@ static void artop6210_load_piomode(struct ata_port *ap, struct ata_device *adev,
 static void artop6210_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
-	int dn = adev->devno + 2 * ap->port_no;
+	int dn = adev->devyes + 2 * ap->port_yes;
 	u8 ultra;
 
 	artop6210_load_piomode(ap, adev, adev->pio_mode - XFER_PIO_0);
@@ -153,7 +153,7 @@ static void artop6210_set_piomode(struct ata_port *ap, struct ata_device *adev)
 static void artop6260_load_piomode (struct ata_port *ap, struct ata_device *adev, unsigned int pio)
 {
 	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
-	int dn = adev->devno + 2 * ap->port_no;
+	int dn = adev->devyes + 2 * ap->port_yes;
 	static const u8 timing[2][5] = {
 		{ 0x00, 0x0A, 0x08, 0x33, 0x31 },
 		{ 0x70, 0x7A, 0x78, 0x43, 0x41 }
@@ -169,7 +169,7 @@ static void artop6260_load_piomode (struct ata_port *ap, struct ata_device *adev
  *	@adev: Device we are configuring
  *
  *	Set PIO mode for device, in host controller PCI config space. For
- *	ARTOP we must also clear the UDMA bits if we are not doing UDMA. In
+ *	ARTOP we must also clear the UDMA bits if we are yest doing UDMA. In
  *	the event UDMA is used the later call to set_dmamode will set the
  *	bits as required.
  *
@@ -185,9 +185,9 @@ static void artop6260_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	artop6260_load_piomode(ap, adev, adev->pio_mode - XFER_PIO_0);
 
 	/* Clear the UDMA mode bits (set_dmamode will redo this if needed) */
-	pci_read_config_byte(pdev, 0x44 + ap->port_no, &ultra);
-	ultra &= ~(7 << (4  * adev->devno));	/* One nibble per drive */
-	pci_write_config_byte(pdev, 0x44 + ap->port_no, ultra);
+	pci_read_config_byte(pdev, 0x44 + ap->port_yes, &ultra);
+	ultra &= ~(7 << (4  * adev->devyes));	/* One nibble per drive */
+	pci_write_config_byte(pdev, 0x44 + ap->port_yes, ultra);
 }
 
 /**
@@ -205,7 +205,7 @@ static void artop6210_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 {
 	unsigned int pio;
 	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
-	int dn = adev->devno + 2 * ap->port_no;
+	int dn = adev->devyes + 2 * ap->port_yes;
 	u8 ultra;
 
 	if (adev->dma_mode == XFER_MW_DMA_0)
@@ -256,15 +256,15 @@ static void artop6260_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	artop6260_load_piomode(ap, adev, pio);
 
 	/* Add ultra DMA bits if in UDMA mode */
-	pci_read_config_byte(pdev, 0x44 + ap->port_no, &ultra);
-	ultra &= ~(7 << (4  * adev->devno));	/* One nibble per drive */
+	pci_read_config_byte(pdev, 0x44 + ap->port_yes, &ultra);
+	ultra &= ~(7 << (4  * adev->devyes));	/* One nibble per drive */
 	if (adev->dma_mode >= XFER_UDMA_0) {
 		u8 mode = adev->dma_mode - XFER_UDMA_0 + 1 - clock;
 		if (mode == 0)
 			mode = 1;
-		ultra |= (mode << (4 * adev->devno));
+		ultra |= (mode << (4 * adev->devyes));
 	}
-	pci_write_config_byte(pdev, 0x44 + ap->port_no, ultra);
+	pci_write_config_byte(pdev, 0x44 + ap->port_yes, ultra);
 }
 
 /**
@@ -277,7 +277,7 @@ static void artop6260_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 static int artop6210_qc_defer(struct ata_queued_cmd *qc)
 {
 	struct ata_host *host = qc->ap->host;
-	struct ata_port *alt = host->ports[1 ^ qc->ap->port_no];
+	struct ata_port *alt = host->ports[1 ^ qc->ap->port_yes];
 	int rc;
 
 	/* First apply the usual rules */
@@ -321,7 +321,7 @@ static void atp8xx_fixup(struct pci_dev *pdev)
 	else if (pdev->device == 0x0008 || pdev->device == 0x0009) {
 		u8 reg;
 
-		/* Mac systems come up with some registers not set as we
+		/* Mac systems come up with some registers yest set as we
 		   will need them */
 
 		/* Clear reset & test bits */

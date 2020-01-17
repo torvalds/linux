@@ -111,16 +111,16 @@ void imx_set_cpu_arg(int cpu, u32 arg)
 
 void __init imx_src_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 val;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx51-src");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx51-src");
 	if (!np)
 		return;
 	src_base = of_iomap(np, 0);
 	WARN_ON(!src_base);
 
-	imx_reset_controller.of_node = np;
+	imx_reset_controller.of_yesde = np;
 	if (IS_ENABLED(CONFIG_RESET_CONTROLLER))
 		reset_controller_register(&imx_reset_controller);
 

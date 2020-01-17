@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
-/* Copyright (C) 2018 Microchip Technology Inc. */
+/* Copyright (C) 2018 Microchip Techyeslogy Inc. */
 
 #include <linux/netdevice.h>
 #include "lan743x_main.h"
@@ -61,7 +61,7 @@ static void lan743x_otp_read_go(struct lan743x_adapter *adapter)
 	lan743x_csr_write(adapter, OTP_CMD_GO, OTP_CMD_GO_GO_);
 }
 
-static int lan743x_otp_wait_till_not_busy(struct lan743x_adapter *adapter)
+static int lan743x_otp_wait_till_yest_busy(struct lan743x_adapter *adapter)
 {
 	unsigned long timeout;
 	u32 reg_val;
@@ -93,7 +93,7 @@ static int lan743x_otp_read(struct lan743x_adapter *adapter, u32 offset,
 	if (ret < 0)
 		return ret;
 
-	ret = lan743x_otp_wait_till_not_busy(adapter);
+	ret = lan743x_otp_wait_till_yest_busy(adapter);
 	if (ret < 0)
 		return ret;
 
@@ -101,7 +101,7 @@ static int lan743x_otp_read(struct lan743x_adapter *adapter, u32 offset,
 		lan743x_otp_set_address(adapter, offset + i);
 
 		lan743x_otp_read_go(adapter);
-		ret = lan743x_otp_wait_till_not_busy(adapter);
+		ret = lan743x_otp_wait_till_yest_busy(adapter);
 		if (ret < 0)
 			return ret;
 		data[i] = lan743x_csr_read(adapter, OTP_READ_DATA);
@@ -125,7 +125,7 @@ static int lan743x_otp_write(struct lan743x_adapter *adapter, u32 offset,
 	if (ret < 0)
 		return ret;
 
-	ret = lan743x_otp_wait_till_not_busy(adapter);
+	ret = lan743x_otp_wait_till_yest_busy(adapter);
 	if (ret < 0)
 		return ret;
 
@@ -139,7 +139,7 @@ static int lan743x_otp_write(struct lan743x_adapter *adapter, u32 offset,
 		lan743x_csr_write(adapter, OTP_TST_CMD, OTP_TST_CMD_PRGVRFY_);
 		lan743x_csr_write(adapter, OTP_CMD_GO, OTP_CMD_GO_GO_);
 
-		ret = lan743x_otp_wait_till_not_busy(adapter);
+		ret = lan743x_otp_wait_till_yest_busy(adapter);
 		if (ret < 0)
 			return ret;
 	}
@@ -172,7 +172,7 @@ static int lan743x_eeprom_wait(struct lan743x_adapter *adapter)
 	return 0;
 }
 
-static int lan743x_eeprom_confirm_not_busy(struct lan743x_adapter *adapter)
+static int lan743x_eeprom_confirm_yest_busy(struct lan743x_adapter *adapter)
 {
 	unsigned long start_time = jiffies;
 	u32 val;
@@ -200,7 +200,7 @@ static int lan743x_eeprom_read(struct lan743x_adapter *adapter,
 	if (offset + length > MAX_EEPROM_SIZE)
 		return -EINVAL;
 
-	retval = lan743x_eeprom_confirm_not_busy(adapter);
+	retval = lan743x_eeprom_confirm_yest_busy(adapter);
 	if (retval)
 		return retval;
 
@@ -231,7 +231,7 @@ static int lan743x_eeprom_write(struct lan743x_adapter *adapter,
 	if (offset + length > MAX_EEPROM_SIZE)
 		return -EINVAL;
 
-	retval = lan743x_eeprom_confirm_not_busy(adapter);
+	retval = lan743x_eeprom_confirm_yest_busy(adapter);
 	if (retval)
 		return retval;
 

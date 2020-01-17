@@ -79,7 +79,7 @@
 #define SCR_MCR_INT_PUSHPULL	(2 << 4)
 #define SCR_MCR_INT_UNK		BIT(6)
 #define SCR_MCR_INT_EN		BIT(7)
-/* bits 8 - 16 are unknown */
+/* bits 8 - 16 are unkyeswn */
 
 #define TC_GPIO_BIT(i)		(1 << (i & 0x7))
 
@@ -626,7 +626,7 @@ static int tc6393xb_probe(struct platform_device *dev)
 	if (ret >= 0)
 		tc6393xb->irq = ret;
 	else
-		goto err_noirq;
+		goto err_yesirq;
 
 	tc6393xb->iomem = iomem;
 	tc6393xb->irq_base = tcpd->irq_base;
@@ -723,7 +723,7 @@ err_ioremap:
 	release_resource(&tc6393xb->rscr);
 err_request_scr:
 	clk_put(tc6393xb->clk);
-err_noirq:
+err_yesirq:
 err_clk_get:
 	kfree(tc6393xb);
 err_kzalloc:

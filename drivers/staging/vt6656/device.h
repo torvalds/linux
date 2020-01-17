@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: device.h
@@ -223,7 +223,7 @@ struct vnt_usb_send_context {
 	u16 tx_hdr_size;
 	u16 tx_rate;
 	u8 type;
-	u8 pkt_no;
+	u8 pkt_yes;
 	u8 pkt_type;
 	u8 need_ack;
 	u8 fb_option;

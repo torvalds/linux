@@ -672,7 +672,7 @@ static void dn_fib_disable_addr(struct net_device *dev, int force)
 	neigh_ifdown(&dn_neigh_table, dev);
 }
 
-static int dn_fib_dnaddr_event(struct notifier_block *this, unsigned long event, void *ptr)
+static int dn_fib_dnaddr_event(struct yestifier_block *this, unsigned long event, void *ptr)
 {
 	struct dn_ifaddr *ifa = (struct dn_ifaddr *)ptr;
 
@@ -704,7 +704,7 @@ static int dn_fib_sync_down(__le16 local, struct net_device *dev, int force)
 
 	for_fib_info() {
 		/*
-		 * This makes no sense for DECnet.... we will almost
+		 * This makes yes sense for DECnet.... we will almost
 		 * certainly have more than one local address the same
 		 * over all our interfaces. It needs thinking about
 		 * some more.
@@ -772,8 +772,8 @@ static int dn_fib_sync_up(struct net_device *dev)
 	return ret;
 }
 
-static struct notifier_block dn_fib_dnaddr_notifier = {
-	.notifier_call = dn_fib_dnaddr_event,
+static struct yestifier_block dn_fib_dnaddr_yestifier = {
+	.yestifier_call = dn_fib_dnaddr_event,
 };
 
 void __exit dn_fib_cleanup(void)
@@ -781,7 +781,7 @@ void __exit dn_fib_cleanup(void)
 	dn_fib_table_cleanup();
 	dn_fib_rules_cleanup();
 
-	unregister_dnaddr_notifier(&dn_fib_dnaddr_notifier);
+	unregister_dnaddr_yestifier(&dn_fib_dnaddr_yestifier);
 }
 
 
@@ -790,7 +790,7 @@ void __init dn_fib_init(void)
 	dn_fib_table_init();
 	dn_fib_rules_init();
 
-	register_dnaddr_notifier(&dn_fib_dnaddr_notifier);
+	register_dnaddr_yestifier(&dn_fib_dnaddr_yestifier);
 
 	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_NEWROUTE,
 			     dn_fib_rtm_newroute, NULL, 0);

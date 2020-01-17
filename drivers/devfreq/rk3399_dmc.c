@@ -116,7 +116,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    target_volt);
 		if (err) {
-			dev_err(dev, "Cannot set voltage %lu uV\n",
+			dev_err(dev, "Canyest set voltage %lu uV\n",
 				target_volt);
 			goto out;
 		}
@@ -124,7 +124,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 
 	err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
 	if (err) {
-		dev_err(dev, "Cannot set frequency %lu (%d)\n", target_rate,
+		dev_err(dev, "Canyest set frequency %lu (%d)\n", target_rate,
 			err);
 		regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt,
 				      dmcfreq->volt);
@@ -150,7 +150,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    target_volt);
 	if (err)
-		dev_err(dev, "Cannot set voltage %lu uV\n", target_volt);
+		dev_err(dev, "Canyest set voltage %lu uV\n", target_volt);
 
 	dmcfreq->rate = target_rate;
 	dmcfreq->volt = target_volt;
@@ -237,7 +237,7 @@ static SIMPLE_DEV_PM_OPS(rk3399_dmcfreq_pm, rk3399_dmcfreq_suspend,
 			 rk3399_dmcfreq_resume);
 
 static int of_get_ddr_timings(struct dram_timing *timing,
-			      struct device_node *np)
+			      struct device_yesde *np)
 {
 	int ret = 0;
 
@@ -307,7 +307,7 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 {
 	struct arm_smccc_res res;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node, *node;
+	struct device_yesde *np = pdev->dev.of_yesde, *yesde;
 	struct rk3399_dmcfreq *data;
 	int ret, index, size;
 	uint32_t *timing;
@@ -326,7 +326,7 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 		if (PTR_ERR(data->vdd_center) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 
-		dev_err(dev, "Cannot get the regulator \"center\"\n");
+		dev_err(dev, "Canyest get the regulator \"center\"\n");
 		return PTR_ERR(data->vdd_center);
 	}
 
@@ -335,7 +335,7 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 		if (PTR_ERR(data->dmc_clk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 
-		dev_err(dev, "Cannot get the clk dmc_clk\n");
+		dev_err(dev, "Canyest get the clk dmc_clk\n");
 		return PTR_ERR(data->dmc_clk);
 	}
 
@@ -369,9 +369,9 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 		}
 	}
 
-	node = of_parse_phandle(np, "rockchip,pmu", 0);
-	if (node) {
-		data->regmap_pmu = syscon_node_to_regmap(node);
+	yesde = of_parse_phandle(np, "rockchip,pmu", 0);
+	if (yesde) {
+		data->regmap_pmu = syscon_yesde_to_regmap(yesde);
 		if (IS_ERR(data->regmap_pmu))
 			return PTR_ERR(data->regmap_pmu);
 	}
@@ -420,7 +420,7 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 			    ((data->timing.srpd_lite_idle & 0xfff) << 16);
 
 	/*
-	 * We add a devfreq driver to our parent since it has a device tree node
+	 * We add a devfreq driver to our parent since it has a device tree yesde
 	 * with operating points.
 	 */
 	if (dev_pm_opp_of_add_table(dev)) {
@@ -456,7 +456,7 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 		goto err_free_opp;
 	}
 
-	devm_devfreq_register_opp_notifier(dev, data->devfreq);
+	devm_devfreq_register_opp_yestifier(dev, data->devfreq);
 
 	data->dev = dev;
 	platform_set_drvdata(pdev, data);
@@ -473,9 +473,9 @@ static int rk3399_dmcfreq_remove(struct platform_device *pdev)
 	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(&pdev->dev);
 
 	/*
-	 * Before remove the opp table we need to unregister the opp notifier.
+	 * Before remove the opp table we need to unregister the opp yestifier.
 	 */
-	devm_devfreq_unregister_opp_notifier(dmcfreq->dev, dmcfreq->devfreq);
+	devm_devfreq_unregister_opp_yestifier(dmcfreq->dev, dmcfreq->devfreq);
 	dev_pm_opp_of_remove_table(dmcfreq->dev);
 
 	return 0;

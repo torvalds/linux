@@ -11,107 +11,107 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/acpi.h>
 #include <linux/memblock.h>
 #include <linux/numa.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/topology.h>
 
-static nodemask_t nodes_found_map = NODE_MASK_NONE;
+static yesdemask_t yesdes_found_map = NODE_MASK_NONE;
 
-/* maps to convert between proximity domain and logical node ID */
-static int pxm_to_node_map[MAX_PXM_DOMAINS]
+/* maps to convert between proximity domain and logical yesde ID */
+static int pxm_to_yesde_map[MAX_PXM_DOMAINS]
 			= { [0 ... MAX_PXM_DOMAINS - 1] = NUMA_NO_NODE };
-static int node_to_pxm_map[MAX_NUMNODES]
+static int yesde_to_pxm_map[MAX_NUMNODES]
 			= { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
 
 unsigned char acpi_srat_revision __initdata;
 int acpi_numa __initdata;
 
-int pxm_to_node(int pxm)
+int pxm_to_yesde(int pxm)
 {
 	if (pxm < 0)
 		return NUMA_NO_NODE;
-	return pxm_to_node_map[pxm];
+	return pxm_to_yesde_map[pxm];
 }
 
-int node_to_pxm(int node)
+int yesde_to_pxm(int yesde)
 {
-	if (node < 0)
+	if (yesde < 0)
 		return PXM_INVAL;
-	return node_to_pxm_map[node];
+	return yesde_to_pxm_map[yesde];
 }
 
-static void __acpi_map_pxm_to_node(int pxm, int node)
+static void __acpi_map_pxm_to_yesde(int pxm, int yesde)
 {
-	if (pxm_to_node_map[pxm] == NUMA_NO_NODE || node < pxm_to_node_map[pxm])
-		pxm_to_node_map[pxm] = node;
-	if (node_to_pxm_map[node] == PXM_INVAL || pxm < node_to_pxm_map[node])
-		node_to_pxm_map[node] = pxm;
+	if (pxm_to_yesde_map[pxm] == NUMA_NO_NODE || yesde < pxm_to_yesde_map[pxm])
+		pxm_to_yesde_map[pxm] = yesde;
+	if (yesde_to_pxm_map[yesde] == PXM_INVAL || pxm < yesde_to_pxm_map[yesde])
+		yesde_to_pxm_map[yesde] = pxm;
 }
 
-int acpi_map_pxm_to_node(int pxm)
+int acpi_map_pxm_to_yesde(int pxm)
 {
-	int node;
+	int yesde;
 
 	if (pxm < 0 || pxm >= MAX_PXM_DOMAINS || numa_off)
 		return NUMA_NO_NODE;
 
-	node = pxm_to_node_map[pxm];
+	yesde = pxm_to_yesde_map[pxm];
 
-	if (node == NUMA_NO_NODE) {
-		if (nodes_weight(nodes_found_map) >= MAX_NUMNODES)
+	if (yesde == NUMA_NO_NODE) {
+		if (yesdes_weight(yesdes_found_map) >= MAX_NUMNODES)
 			return NUMA_NO_NODE;
-		node = first_unset_node(nodes_found_map);
-		__acpi_map_pxm_to_node(pxm, node);
-		node_set(node, nodes_found_map);
+		yesde = first_unset_yesde(yesdes_found_map);
+		__acpi_map_pxm_to_yesde(pxm, yesde);
+		yesde_set(yesde, yesdes_found_map);
 	}
 
-	return node;
+	return yesde;
 }
-EXPORT_SYMBOL(acpi_map_pxm_to_node);
+EXPORT_SYMBOL(acpi_map_pxm_to_yesde);
 
 /**
- * acpi_map_pxm_to_online_node - Map proximity ID to online node
+ * acpi_map_pxm_to_online_yesde - Map proximity ID to online yesde
  * @pxm: ACPI proximity ID
  *
- * This is similar to acpi_map_pxm_to_node(), but always returns an online
- * node.  When the mapped node from a given proximity ID is offline, it
- * looks up the node distance table and returns the nearest online node.
+ * This is similar to acpi_map_pxm_to_yesde(), but always returns an online
+ * yesde.  When the mapped yesde from a given proximity ID is offline, it
+ * looks up the yesde distance table and returns the nearest online yesde.
  *
  * ACPI device drivers, which are called after the NUMA initialization has
  * completed in the kernel, can call this interface to obtain their device
- * NUMA topology from ACPI tables.  Such drivers do not have to deal with
- * offline nodes.  A node may be offline when a device proximity ID is
- * unique, SRAT memory entry does not exist, or NUMA is disabled, ex.
+ * NUMA topology from ACPI tables.  Such drivers do yest have to deal with
+ * offline yesdes.  A yesde may be offline when a device proximity ID is
+ * unique, SRAT memory entry does yest exist, or NUMA is disabled, ex.
  * "numa=off" on x86.
  */
-int acpi_map_pxm_to_online_node(int pxm)
+int acpi_map_pxm_to_online_yesde(int pxm)
 {
-	int node, min_node;
+	int yesde, min_yesde;
 
-	node = acpi_map_pxm_to_node(pxm);
+	yesde = acpi_map_pxm_to_yesde(pxm);
 
-	if (node == NUMA_NO_NODE)
-		node = 0;
+	if (yesde == NUMA_NO_NODE)
+		yesde = 0;
 
-	min_node = node;
-	if (!node_online(node)) {
+	min_yesde = yesde;
+	if (!yesde_online(yesde)) {
 		int min_dist = INT_MAX, dist, n;
 
-		for_each_online_node(n) {
-			dist = node_distance(node, n);
+		for_each_online_yesde(n) {
+			dist = yesde_distance(yesde, n);
 			if (dist < min_dist) {
 				min_dist = dist;
-				min_node = n;
+				min_yesde = n;
 			}
 		}
 	}
 
-	return min_node;
+	return min_yesde;
 }
-EXPORT_SYMBOL(acpi_map_pxm_to_online_node);
+EXPORT_SYMBOL(acpi_map_pxm_to_online_yesde);
 
 static void __init
 acpi_table_print_srat_entry(struct acpi_subtable_header *header)
@@ -142,7 +142,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 				 (p->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) ?
 				 " hot-pluggable" : "",
 				 (p->flags & ACPI_SRAT_MEM_NON_VOLATILE) ?
-				 " non-volatile" : "");
+				 " yesn-volatile" : "");
 		}
 		break;
 
@@ -178,8 +178,8 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 }
 
 /*
- * A lot of BIOS fill in 10 (= no distance) everywhere. This messes
- * up the NUMA heuristics which wants the local node to have a smaller
+ * A lot of BIOS fill in 10 (= yes distance) everywhere. This messes
+ * up the NUMA heuristics which wants the local yesde to have a smaller
  * distance than the others.
  * Do some quick checks here and only use the SLIT if it passes.
  */
@@ -202,7 +202,7 @@ static int __init slit_valid(struct acpi_table_slit *slit)
 
 void __init bad_srat(void)
 {
-	pr_err("SRAT: SRAT not used.\n");
+	pr_err("SRAT: SRAT yest used.\n");
 	acpi_numa = -1;
 }
 
@@ -213,27 +213,27 @@ int __init srat_disabled(void)
 
 #if defined(CONFIG_X86) || defined(CONFIG_ARM64)
 /*
- * Callback for SLIT parsing.  pxm_to_node() returns NUMA_NO_NODE for
- * I/O localities since SRAT does not list them.  I/O localities are
- * not supported at this point.
+ * Callback for SLIT parsing.  pxm_to_yesde() returns NUMA_NO_NODE for
+ * I/O localities since SRAT does yest list them.  I/O localities are
+ * yest supported at this point.
  */
 void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 {
 	int i, j;
 
 	for (i = 0; i < slit->locality_count; i++) {
-		const int from_node = pxm_to_node(i);
+		const int from_yesde = pxm_to_yesde(i);
 
-		if (from_node == NUMA_NO_NODE)
+		if (from_yesde == NUMA_NO_NODE)
 			continue;
 
 		for (j = 0; j < slit->locality_count; j++) {
-			const int to_node = pxm_to_node(j);
+			const int to_yesde = pxm_to_yesde(j);
 
-			if (to_node == NUMA_NO_NODE)
+			if (to_yesde == NUMA_NO_NODE)
 				continue;
 
-			numa_set_distance(from_node, to_node,
+			numa_set_distance(from_yesde, to_yesde,
 				slit->entry[slit->locality_count * i + j]);
 		}
 	}
@@ -248,7 +248,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 {
 	u64 start, end;
 	u32 hotpluggable;
-	int node, pxm;
+	int yesde, pxm;
 
 	if (srat_disabled())
 		goto out_err;
@@ -269,26 +269,26 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	if (acpi_srat_revision <= 1)
 		pxm &= 0xff;
 
-	node = acpi_map_pxm_to_node(pxm);
-	if (node == NUMA_NO_NODE || node >= MAX_NUMNODES) {
+	yesde = acpi_map_pxm_to_yesde(pxm);
+	if (yesde == NUMA_NO_NODE || yesde >= MAX_NUMNODES) {
 		pr_err("SRAT: Too many proximity domains.\n");
 		goto out_err_bad_srat;
 	}
 
-	if (numa_add_memblk(node, start, end) < 0) {
-		pr_err("SRAT: Failed to add memblk to node %u [mem %#010Lx-%#010Lx]\n",
-		       node, (unsigned long long) start,
+	if (numa_add_memblk(yesde, start, end) < 0) {
+		pr_err("SRAT: Failed to add memblk to yesde %u [mem %#010Lx-%#010Lx]\n",
+		       yesde, (unsigned long long) start,
 		       (unsigned long long) end - 1);
 		goto out_err_bad_srat;
 	}
 
-	node_set(node, numa_nodes_parsed);
+	yesde_set(yesde, numa_yesdes_parsed);
 
 	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
-		node, pxm,
+		yesde, pxm,
 		(unsigned long long) start, (unsigned long long) end - 1,
 		hotpluggable ? " hotplug" : "",
-		ma->flags & ACPI_SRAT_MEM_NON_VOLATILE ? " non-volatile" : "");
+		ma->flags & ACPI_SRAT_MEM_NON_VOLATILE ? " yesn-volatile" : "");
 
 	/* Mark hotplug range in memblock. */
 	if (hotpluggable && memblock_mark_hotplug(start, ma->length))
@@ -426,9 +426,9 @@ int __init acpi_numa_init(void)
 		return -EINVAL;
 
 	/*
-	 * Should not limit number with cpu num that is from NR_CPUS or nr_cpus=
+	 * Should yest limit number with cpu num that is from NR_CPUS or nr_cpus=
 	 * SRAT cpu entries could have different order with that in MADT.
-	 * So go over all cpu entries in SRAT to get apicid to node mapping.
+	 * So go over all cpu entries in SRAT to get apicid to yesde mapping.
 	 */
 
 	/* SRAT: System Resource Affinity Table */
@@ -478,12 +478,12 @@ static int acpi_get_pxm(acpi_handle h)
 	return -1;
 }
 
-int acpi_get_node(acpi_handle handle)
+int acpi_get_yesde(acpi_handle handle)
 {
 	int pxm;
 
 	pxm = acpi_get_pxm(handle);
 
-	return acpi_map_pxm_to_node(pxm);
+	return acpi_map_pxm_to_yesde(pxm);
 }
-EXPORT_SYMBOL(acpi_get_node);
+EXPORT_SYMBOL(acpi_get_yesde);

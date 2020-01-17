@@ -161,7 +161,7 @@
 
 &mmc1 {
 	clock-frequency = <50000000>;
-	no-1-8-v;
+	yes-1-8-v;
 	mrvl,clk-delay-cycles = <31>;
 	broken-cd;
 	status = "okay";
@@ -169,9 +169,9 @@
 
 &mmc2 {
 	clock-frequency = <50000000>;
-	no-1-8-v;
+	yes-1-8-v;
 	bus-width = <4>;
-	non-removable;
+	yesn-removable;
 	broken-cd;
 	wakeup-source;
 	keep-power-in-suspend;
@@ -182,9 +182,9 @@
 
 &mmc3 {
 	clock-frequency = <50000000>;
-	no-1-8-v;
+	yes-1-8-v;
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 	broken-cd;
 	mrvl,clk-delay-cycles = <31>;
 	status = "okay";

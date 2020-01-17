@@ -1,4 +1,4 @@
-NLT Technologies, Ltd. 15.6" FHD (1920x1080) LVDS TFT LCD panel
+NLT Techyeslogies, Ltd. 15.6" FHD (1920x1080) LVDS TFT LCD panel
 
 Required properties:
 - compatible: should be "nlt,nl192108ac18-02d"

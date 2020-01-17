@@ -10,7 +10,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched/signal.h>
 #include <linux/tty.h>
 #include <linux/timer.h>
@@ -32,7 +32,7 @@
 #include <asm/io.h>
 #include <linux/uaccess.h>
 
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include <linux/kbd_kern.h>
 #include <linux/vt_kern.h>
@@ -171,7 +171,7 @@ static int vt_event_wait_ioctl(struct vt_event __user *event)
 
 	if (copy_from_user(&vw.event, event, sizeof(struct vt_event)))
 		return -EFAULT;
-	/* Highest supported event for now */
+	/* Highest supported event for yesw */
 	if (vw.event.event & ~VT_MAX_EVENT)
 		return -EINVAL;
 
@@ -328,7 +328,7 @@ static void vt_disallocate_all(void)
 
 /*
  * We handle the console-specific ioctl's here.  We allow the
- * capability to modify any console, not just the fg_console. 
+ * capability to modify any console, yest just the fg_console. 
  */
 int vt_ioctl(struct tty_struct *tty,
 	     unsigned int cmd, unsigned long arg)
@@ -369,7 +369,7 @@ int vt_ioctl(struct tty_struct *tty,
 		/*
 		 * The use of PIT_TICK_RATE is historic, it used to be
 		 * the platform-dependent CLOCK_TICK_RATE between 2.6.12
-		 * and 2.6.36, which was a minor but unfortunate ABI
+		 * and 2.6.36, which was a miyesr but unfortunate ABI
 		 * change. kd_mksound is locked by the input layer.
 		 */
 		if (arg)
@@ -404,8 +404,8 @@ int vt_ioctl(struct tty_struct *tty,
 		break;
 
 		/*
-		 * These cannot be implemented on any machine that implements
-		 * ioperm() in user level (such as Alpha PCs) or not at all.
+		 * These canyest be implemented on any machine that implements
+		 * ioperm() in user level (such as Alpha PCs) or yest at all.
 		 *
 		 * XXX: you should never use these, just call ioperm directly..
 		 */
@@ -456,7 +456,7 @@ int vt_ioctl(struct tty_struct *tty,
 	case KDSETMODE:
 		/*
 		 * currently, setting the mode from KD_TEXT to KD_GRAPHICS
-		 * doesn't do a whole lot. i'm not sure if it should do any
+		 * doesn't do a whole lot. i'm yest sure if it should do any
 		 * restoration of modes or what...
 		 *
 		 * XXX It should at least call into the driver, fbdev's definitely
@@ -520,7 +520,7 @@ int vt_ioctl(struct tty_struct *tty,
 		break;
 
 	/* this could be folded into KDSKBMODE, but for compatibility
-	   reasons it is not so easy to fold KDGKBMETA into KDGKBMODE */
+	   reasons it is yest so easy to fold KDGKBMETA into KDGKBMODE */
 	case KDSKBMETA:
 		ret = vt_do_kdskbmeta(console, arg);
 		break;
@@ -606,11 +606,11 @@ int vt_ioctl(struct tty_struct *tty,
 		}
 		console_lock();
 		vc->vt_mode = tmp;
-		/* the frsig is ignored, so we set it to 0 */
+		/* the frsig is igyesred, so we set it to 0 */
 		vc->vt_mode.frsig = 0;
 		put_pid(vc->vt_pid);
 		vc->vt_pid = get_pid(task_pid(current));
-		/* no switch is required -- saw@shade.msu.ru */
+		/* yes switch is required -- saw@shade.msu.ru */
 		vc->vt_newvt = -1;
 		console_unlock();
 		break;
@@ -634,7 +634,7 @@ int vt_ioctl(struct tty_struct *tty,
 	/*
 	 * Returns global vt state. Note that VT 0 is always open, since
 	 * it's an alias for the current VT, and people can't use it here.
-	 * We cannot return state for more than 16 VTs, since v_state is short.
+	 * We canyest return state for more than 16 VTs, since v_state is short.
 	 */
 	case VT_GETSTATE:
 	{
@@ -656,7 +656,7 @@ int vt_ioctl(struct tty_struct *tty,
 	}
 
 	/*
-	 * Returns the first available (non-opened) console.
+	 * Returns the first available (yesn-opened) console.
 	 */
 	case VT_OPENQRY:
 		/* FIXME: locking ? - but then this is a stupid API */
@@ -668,7 +668,7 @@ int vt_ioctl(struct tty_struct *tty,
 
 	/*
 	 * ioctl(fd, VT_ACTIVATE, num) will cause us to switch to vt # num,
-	 * with num >= 1 (switches to vt 0, our console, are not allowed, just
+	 * with num >= 1 (switches to vt 0, our console, are yest allowed, just
 	 * to preserve sanity).
 	 */
 	case VT_ACTIVATE:
@@ -702,7 +702,7 @@ int vt_ioctl(struct tty_struct *tty,
 		if (vsa.console == 0 || vsa.console > MAX_NR_CONSOLES)
 			ret = -ENXIO;
 		else {
-			vsa.console = array_index_nospec(vsa.console,
+			vsa.console = array_index_yesspec(vsa.console,
 							 MAX_NR_CONSOLES + 1);
 			vsa.console--;
 			console_lock();
@@ -741,12 +741,12 @@ int vt_ioctl(struct tty_struct *tty,
 		break;
 
 	/*
-	 * If a vt is under process control, the kernel will not switch to it
+	 * If a vt is under process control, the kernel will yest switch to it
 	 * immediately, but postpone the operation until the process calls this
 	 * ioctl, allowing the switch to complete.
 	 *
 	 * According to the X sources this is the behavior:
-	 *	0:	pending switch-from not OK
+	 *	0:	pending switch-from yest OK
 	 *	1:	pending switch-from OK
 	 *	2:	completed switch-to OK
 	 */
@@ -796,7 +796,7 @@ int vt_ioctl(struct tty_struct *tty,
 			 * Switched-to response
 			 */
 			/*
-			 * If it's just an ACK, ignore it
+			 * If it's just an ACK, igyesre it
 			 */
 			if (arg != VT_ACKACQ)
 				ret = -EINVAL;
@@ -937,7 +937,7 @@ int vt_ioctl(struct tty_struct *tty,
 
 #ifdef BROKEN_GRAPHICS_PROGRAMS
 		/* With BROKEN_GRAPHICS_PROGRAMS defined, the default
-		   font is not saved. */
+		   font is yest saved. */
 		ret = -ENOSYS;
 		break;
 #else
@@ -1266,7 +1266,7 @@ static void complete_change_console(struct vc_data *vc)
 	/*
 	 * This can't appear below a successful kill_pid().  If it did,
 	 * then the *blank_screen operation could occur while X, having
-	 * received acqsig, is waking up on another processor.  This
+	 * received acqsig, is waking up on ayesther processor.  This
 	 * condition can lead to overlapping accesses to the VGA range
 	 * and the framebuffer (causing system lockups).
 	 *
@@ -1294,11 +1294,11 @@ static void complete_change_console(struct vc_data *vc)
 		if (kill_pid(vc->vt_pid, vc->vt_mode.acqsig, 1) != 0) {
 		/*
 		 * The controlling process has died, so we revert back to
-		 * normal operation. In this case, we'll also change back
-		 * to KD_TEXT mode. I'm not sure if this is strictly correct
+		 * yesrmal operation. In this case, we'll also change back
+		 * to KD_TEXT mode. I'm yest sure if this is strictly correct
 		 * but it saves the agony when the X server dies and the screen
 		 * remains blanked due to KD_GRAPHICS! It would be nice to do
-		 * this outside of VT_PROCESS but there is no single process
+		 * this outside of VT_PROCESS but there is yes single process
 		 * to account for and tracking tty count may be undesirable.
 		 */
 			reset_vc(vc);
@@ -1366,22 +1366,22 @@ void change_console(struct vc_data *new_vc)
 
 		/*
 		 * The controlling process has died, so we revert back to
-		 * normal operation. In this case, we'll also change back
-		 * to KD_TEXT mode. I'm not sure if this is strictly correct
+		 * yesrmal operation. In this case, we'll also change back
+		 * to KD_TEXT mode. I'm yest sure if this is strictly correct
 		 * but it saves the agony when the X server dies and the screen
 		 * remains blanked due to KD_GRAPHICS! It would be nice to do
-		 * this outside of VT_PROCESS but there is no single process
+		 * this outside of VT_PROCESS but there is yes single process
 		 * to account for and tracking tty count may be undesirable.
 		 */
 		reset_vc(vc);
 
 		/*
-		 * Fall through to normal (VT_AUTO) handling of the switch...
+		 * Fall through to yesrmal (VT_AUTO) handling of the switch...
 		 */
 	}
 
 	/*
-	 * Ignore all switches in KD_GRAPHICS+VT_AUTO mode
+	 * Igyesre all switches in KD_GRAPHICS+VT_AUTO mode
 	 */
 	if (vc->vc_mode == KD_GRAPHICS)
 		return;
@@ -1406,8 +1406,8 @@ int vt_move_to_console(unsigned int vt, int alloc)
 	prev = fg_console;
 
 	if (alloc && vc_allocate(vt)) {
-		/* we can't have a free VC for now. Too bad,
-		 * we don't want to mess the screen for now. */
+		/* we can't have a free VC for yesw. Too bad,
+		 * we don't want to mess the screen for yesw. */
 		console_unlock();
 		return -ENOSPC;
 	}
@@ -1415,7 +1415,7 @@ int vt_move_to_console(unsigned int vt, int alloc)
 	if (set_console(vt)) {
 		/*
 		 * We're unable to switch to the SUSPEND_CONSOLE.
-		 * Let the calling function know so it can decide
+		 * Let the calling function kyesw so it can decide
 		 * what to do.
 		 */
 		console_unlock();

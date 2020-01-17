@@ -307,7 +307,7 @@ static inline int bfchg_mem_test_and_change_bit(int nr,
 /*
  *	The true 68020 and more advanced processors support the "bfffo"
  *	instruction for finding bits. ColdFire and simple 68000 parts
- *	(including CPU32) do not support this. They simply use the generic
+ *	(including CPU32) do yest support this. They simply use the generic
  *	functions.
  */
 #if defined(CONFIG_CPU_HAS_NO_BITFIELDS)
@@ -426,7 +426,7 @@ static inline int find_next_bit(const unsigned long *vaddr, int size,
 #define find_next_bit find_next_bit
 
 /*
- * ffz = Find First Zero in word. Undefined if no zero exists,
+ * ffz = Find First Zero in word. Undefined if yes zero exists,
  * so code should check against ~0UL first..
  */
 static inline unsigned long ffz(unsigned long word)
@@ -449,7 +449,7 @@ static inline unsigned long ffz(unsigned long word)
 /*
  *	The newer ColdFire family members support a "bitrev" instruction
  *	and we can use that to implement a fast ffs. Older Coldfire parts,
- *	and normal 68000 parts don't have anything special, so we use the
+ *	and yesrmal 68000 parts don't have anything special, so we use the
  *	generic functions for those.
  */
 #if (defined(__mcfisaaplus__) || defined(__mcfisac__)) && \

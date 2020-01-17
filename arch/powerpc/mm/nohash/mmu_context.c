@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This file contains the routines for handling the MMU on those
- * PowerPC implementations where the MMU is not using the hash
+ * PowerPC implementations where the MMU is yest using the hash
  * table, such as 8xx, 4xx, BookE's etc...
  *
  * Copyright 2008 Ben Herrenschmidt <benh@kernel.crashing.org>
@@ -12,7 +12,7 @@
  *
  * TODO:
  *
- *   - The global context lock will not scale very well
+ *   - The global context lock will yest scale very well
  *   - The maps should be dynamically allocated to allow for processors
  *     that support more PID bits at runtime
  *   - Implement flush_tlb_mm() by making the context stale and picking
@@ -25,7 +25,7 @@
 //#define DEBUG_CLAMP_LAST_CONTEXT   31
 //#define DEBUG_HARDER
 
-/* We don't use DEBUG because it tends to be compiled in always nowadays
+/* We don't use DEBUG because it tends to be compiled in always yeswadays
  * and this would generate way too much output
  */
 #ifdef DEBUG_HARDER
@@ -41,7 +41,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/memblock.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
 
@@ -55,8 +55,8 @@
  * A better way would be to keep track of tasks that own contexts, and implement
  * an LRU usage. That way very active tasks don't always have to pay the TLB
  * reload overhead. The kernel pages are mapped shared, so the kernel can run on
- * behalf of any task that makes a kernel entry. Shared does not mean they are
- * not protected, just that the ASID comparison is not performed. -- Dan
+ * behalf of any task that makes a kernel entry. Shared does yest mean they are
+ * yest protected, just that the ASID comparison is yest performed. -- Dan
  *
  * The IBM4xx has 256 contexts, so we can just rotate through these as a way of
  * "switching" contexts. If the TID of the TLB is zero, the PID/TID comparison
@@ -64,7 +64,7 @@
  * shared among all contexts. -- Dan
  *
  * The IBM 47x core supports 16-bit PIDs, thus 65535 contexts. We should
- * normally never have to steal though the facility is present if needed.
+ * yesrmally never have to steal though the facility is present if needed.
  * -- BenH
  */
 #define FIRST_CONTEXT 1
@@ -119,7 +119,7 @@ static unsigned int steal_context_smp(unsigned int id)
 		mm = context_mm[id];
 
 		/* We have a candidate victim, check if it's active, on SMP
-		 * we cannot steal active contexts
+		 * we canyest steal active contexts
 		 */
 		if (mm->context.active) {
 			id++;
@@ -129,13 +129,13 @@ static unsigned int steal_context_smp(unsigned int id)
 		}
 		pr_hardcont(" | steal %d from 0x%p", id, mm);
 
-		/* Mark this mm has having no context anymore */
+		/* Mark this mm has having yes context anymore */
 		mm->context.id = MMU_NO_CONTEXT;
 
 		/* Mark it stale on all CPUs that used this mm. For threaded
 		 * implementations, we set it on all threads on each core
 		 * represented in the mask. A future implementation will use
-		 * a core map instead but this will do for now.
+		 * a core map instead but this will do for yesw.
 		 */
 		for_each_cpu(cpu, mm_cpumask(mm)) {
 			for (i = cpu_first_thread_sibling(cpu);
@@ -174,7 +174,7 @@ static unsigned int steal_all_contexts(void)
 
 		pr_hardcont(" | steal %d from 0x%p", id, mm);
 
-		/* Mark this mm as having no context anymore */
+		/* Mark this mm as having yes context anymore */
 		mm->context.id = MMU_NO_CONTEXT;
 		if (id != FIRST_CONTEXT) {
 			context_mm[id] = NULL;
@@ -188,7 +188,7 @@ static unsigned int steal_all_contexts(void)
 #endif
 	}
 
-	/* Flush the TLB for all contexts (not to be used on SMP) */
+	/* Flush the TLB for all contexts (yest to be used on SMP) */
 	_tlbil_all();
 
 	nr_free_contexts = LAST_CONTEXT - FIRST_CONTEXT;
@@ -216,7 +216,7 @@ static unsigned int steal_context_up(unsigned int id)
 	/* Flush the TLB for that context */
 	local_flush_tlb_mm(mm);
 
-	/* Mark this mm has having no context anymore */
+	/* Mark this mm has having yes context anymore */
 	mm->context.id = MMU_NO_CONTEXT;
 
 	/* XXX This clear should ultimately be part of local_flush_tlb_mm */
@@ -274,7 +274,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 		cpu, next, next->context.active, next->context.id);
 
 #ifdef CONFIG_SMP
-	/* Mark us active and the previous one not anymore */
+	/* Mark us active and the previous one yest anymore */
 	next->context.active++;
 	if (prev) {
 		pr_hardcont(" (old=0x%p a=%d)", prev, prev->context.active);
@@ -320,7 +320,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	}
 	nr_free_contexts--;
 
-	/* We know there's at least one free context, try to find it */
+	/* We kyesw there's at least one free context, try to find it */
 	while (__test_and_set_bit(id, map)) {
 		id = find_next_zero_bit(map, LAST_CONTEXT+1, id);
 		if (id > LAST_CONTEXT)
@@ -471,7 +471,7 @@ void __init mmu_context_init(void)
 		panic("%s: Failed to allocate %zu bytes\n", __func__,
 		      CTX_MAP_SIZE);
 
-	cpuhp_setup_state_nocalls(CPUHP_POWERPC_MMU_CTX_PREPARE,
+	cpuhp_setup_state_yescalls(CPUHP_POWERPC_MMU_CTX_PREPARE,
 				  "powerpc/mmu/ctx:prepare",
 				  mmu_ctx_cpu_prepare, mmu_ctx_cpu_dead);
 #endif
@@ -483,7 +483,7 @@ void __init mmu_context_init(void)
 
 	/*
 	 * Some processors have too few contexts to reserve one for
-	 * init_mm, and require using context 0 for a normal task.
+	 * init_mm, and require using context 0 for a yesrmal task.
 	 * Other processors reserve the use of context zero for the kernel.
 	 * This code assumes FIRST_CONTEXT < 32.
 	 */

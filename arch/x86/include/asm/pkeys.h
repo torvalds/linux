@@ -65,7 +65,7 @@ bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
 		return false;
 	/*
 	 * The exec-only pkey is set in the allocation map, but
-	 * is not available to any of the user interfaces like
+	 * is yest available to any of the user interfaces like
 	 * mprotect_pkey().
 	 */
 	if (pkey == mm->context.execute_only_pkey)
@@ -91,7 +91,7 @@ int mm_pkey_alloc(struct mm_struct *mm)
 
 	/*
 	 * Are we out of pkeys?  We must handle this specially
-	 * because ffz() behavior is undefined if there are no
+	 * because ffz() behavior is undefined if there are yes
 	 * zeros.
 	 */
 	if (mm_pkey_allocation_map(mm) == all_pkeys_mask)

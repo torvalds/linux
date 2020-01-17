@@ -49,7 +49,7 @@ static void print_item(WINDOW * win, int choice, int selected)
 /*
  * Print the scroll indicators.
  */
-static void print_arrows(WINDOW * win, int choice, int item_no, int scroll,
+static void print_arrows(WINDOW * win, int choice, int item_yes, int scroll,
 	     int y, int x, int height)
 {
 	wmove(win, y, x);
@@ -69,7 +69,7 @@ static void print_arrows(WINDOW * win, int choice, int item_no, int scroll,
 	y = y + height + 1;
 	wmove(win, y, x);
 
-	if ((height < item_no) && (scroll + choice < item_no - 1)) {
+	if ((height < item_yes) && (scroll + choice < item_yes - 1)) {
 		wattrset(win, dlg.darrow.atr);
 		waddch(win, ACS_DARROW);
 		waddstr(win, "(+)");
@@ -188,8 +188,8 @@ do_resize:
 
 	print_buttons(dialog, height, width, 0);
 
-	wnoutrefresh(dialog);
-	wnoutrefresh(list);
+	wyesutrefresh(dialog);
+	wyesutrefresh(list);
 	doupdate();
 
 	while (key != KEY_ESC) {
@@ -222,10 +222,10 @@ do_resize:
 					print_arrows(dialog, choice, item_count(),
 						     scroll, box_y, box_x + check_x + 5, list_height);
 
-					wnoutrefresh(dialog);
+					wyesutrefresh(dialog);
 					wrefresh(list);
 
-					continue;	/* wait for another key press */
+					continue;	/* wait for ayesther key press */
 				} else
 					i = choice - 1;
 			} else if (key == KEY_DOWN || key == '+') {
@@ -250,10 +250,10 @@ do_resize:
 					print_arrows(dialog, choice, item_count(),
 						     scroll, box_y, box_x + check_x + 5, list_height);
 
-					wnoutrefresh(dialog);
+					wyesutrefresh(dialog);
 					wrefresh(list);
 
-					continue;	/* wait for another key press */
+					continue;	/* wait for ayesther key press */
 				} else
 					i = choice + 1;
 			}
@@ -265,10 +265,10 @@ do_resize:
 				choice = i;
 				item_set(scroll + choice);
 				print_item(list, choice, TRUE);
-				wnoutrefresh(dialog);
+				wyesutrefresh(dialog);
 				wrefresh(list);
 			}
-			continue;	/* wait for another key press */
+			continue;	/* wait for ayesther key press */
 		}
 		switch (key) {
 		case 'H':

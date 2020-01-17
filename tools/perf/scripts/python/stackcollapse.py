@@ -43,15 +43,15 @@ option_list = [
     make_option("--include-pid", dest="include_pid",
                  action="store_true", default=False,
                  help="include process id in stack"),
-    make_option("--no-comm", dest="include_comm",
+    make_option("--yes-comm", dest="include_comm",
                  action="store_false", default=True,
-                 help="do not separate stacks according to comm"),
+                 help="do yest separate stacks according to comm"),
     make_option("--tidy-java", dest="tidy_java",
                  action="store_true", default=False,
                  help="beautify Java signatures"),
-    make_option("--kernel", dest="annotate_kernel",
+    make_option("--kernel", dest="anyestate_kernel",
                  action="store_true", default=False,
-                 help="annotate kernel functions with _[k]")
+                 help="anyestate kernel functions with _[k]")
 ]
 
 parser = OptionParser(option_list=option_list)
@@ -59,10 +59,10 @@ parser = OptionParser(option_list=option_list)
 
 if len(args) != 0:
     parser.error("unexpected command line argument")
-if opts.include_tid and not opts.include_comm:
-    parser.error("requesting tid but not comm is invalid")
-if opts.include_pid and not opts.include_comm:
-    parser.error("requesting pid but not comm is invalid")
+if opts.include_tid and yest opts.include_comm:
+    parser.error("requesting tid but yest comm is invalid")
+if opts.include_pid and yest opts.include_comm:
+    parser.error("requesting pid but yest comm is invalid")
 
 # event handlers
 
@@ -71,7 +71,7 @@ lines = defaultdict(lambda: 0)
 def process_event(param_dict):
     def tidy_function_name(sym, dso):
         if sym is None:
-            sym = '[unknown]'
+            sym = '[unkyeswn]'
 
         sym = sym.replace(';', ':')
         if opts.tidy_java:
@@ -89,7 +89,7 @@ def process_event(param_dict):
             except ValueError:
                 pass
 
-        if opts.annotate_kernel and dso == '[kernel.kallsyms]':
+        if opts.anyestate_kernel and dso == '[kernel.kallsyms]':
             return sym + '_[k]'
         else:
             return sym

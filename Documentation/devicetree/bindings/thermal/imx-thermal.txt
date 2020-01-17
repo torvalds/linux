@@ -21,7 +21,7 @@ Deprecated properties:
   can be found in SoC Reference Manual.
 
 Direct access to OCOTP via fsl,tempmon-data is incorrect on some newer chips
-because it does not handle OCOTP clock requirements.
+because it does yest handle OCOTP clock requirements.
 
 Optional properties:
 - clocks : thermal sensor's clock source.

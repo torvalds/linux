@@ -15,7 +15,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <errno.h>
+#include <erryes.h>
 
 #include "../kselftest.h"
 #include "cgroup_util.h"
@@ -86,11 +86,11 @@ cleanup_free:
 	return ret;
 }
 
-static int alloc_anon_50M_check(const char *cgroup, void *arg)
+static int alloc_ayesn_50M_check(const char *cgroup, void *arg)
 {
 	size_t size = MB(50);
 	char *buf, *ptr;
-	long anon, current;
+	long ayesn, current;
 	int ret = -1;
 
 	buf = malloc(size);
@@ -104,11 +104,11 @@ static int alloc_anon_50M_check(const char *cgroup, void *arg)
 	if (!values_close(size, current, 3))
 		goto cleanup;
 
-	anon = cg_read_key_long(cgroup, "memory.stat", "anon ");
-	if (anon < 0)
+	ayesn = cg_read_key_long(cgroup, "memory.stat", "ayesn ");
+	if (ayesn < 0)
 		goto cleanup;
 
-	if (!values_close(anon, current, 3))
+	if (!values_close(ayesn, current, 3))
 		goto cleanup;
 
 	ret = 0;
@@ -151,7 +151,7 @@ cleanup:
 
 /*
  * This test create a memory cgroup, allocates
- * some anonymous memory and some pagecache
+ * some ayesnymous memory and some pagecache
  * and check memory.current and some memory.stat values.
  */
 static int test_memcg_current(const char *root)
@@ -171,7 +171,7 @@ static int test_memcg_current(const char *root)
 	if (current != 0)
 		goto cleanup;
 
-	if (cg_run(memcg, alloc_anon_50M_check, NULL))
+	if (cg_run(memcg, alloc_ayesn_50M_check, NULL))
 		goto cleanup;
 
 	if (cg_run(memcg, alloc_pagecache_50M_check, NULL))
@@ -193,7 +193,7 @@ static int alloc_pagecache_50M(const char *cgroup, void *arg)
 	return alloc_pagecache(fd, MB(50));
 }
 
-static int alloc_pagecache_50M_noexit(const char *cgroup, void *arg)
+static int alloc_pagecache_50M_yesexit(const char *cgroup, void *arg)
 {
 	int fd = (long)arg;
 	int ppid = getppid();
@@ -207,11 +207,11 @@ static int alloc_pagecache_50M_noexit(const char *cgroup, void *arg)
 	return 0;
 }
 
-static int alloc_anon_noexit(const char *cgroup, void *arg)
+static int alloc_ayesn_yesexit(const char *cgroup, void *arg)
 {
 	int ppid = getppid();
 
-	if (alloc_anon(cgroup, arg))
+	if (alloc_ayesn(cgroup, arg))
 		return -1;
 
 	while (getppid() == ppid)
@@ -221,7 +221,7 @@ static int alloc_anon_noexit(const char *cgroup, void *arg)
 }
 
 /*
- * Wait until processes are killed asynchronously by the OOM killer
+ * Wait until processes are killed asynchroyesusly by the OOM killer
  * If we exceed a timeout, fail.
  */
 static int cg_test_proc_killed(const char *cgroup)
@@ -323,7 +323,7 @@ static int test_memcg_min(const char *root)
 		if (i == 2)
 			continue;
 
-		cg_run_nowait(children[i], alloc_pagecache_50M_noexit,
+		cg_run_yeswait(children[i], alloc_pagecache_50M_yesexit,
 			      (void *)(long)fd);
 	}
 
@@ -348,7 +348,7 @@ static int test_memcg_min(const char *root)
 		sleep(1);
 	}
 
-	if (cg_run(parent[2], alloc_anon, (void *)MB(148)))
+	if (cg_run(parent[2], alloc_ayesn, (void *)MB(148)))
 		goto cleanup;
 
 	if (!values_close(cg_read_long(parent[1], "memory.current"), MB(50), 3))
@@ -366,7 +366,7 @@ static int test_memcg_min(const char *root)
 	if (!values_close(c[2], 0, 1))
 		goto cleanup;
 
-	if (!cg_run(parent[2], alloc_anon, (void *)MB(170)))
+	if (!cg_run(parent[2], alloc_ayesn, (void *)MB(170)))
 		goto cleanup;
 
 	if (!values_close(cg_read_long(parent[1], "memory.current"), MB(50), 3))
@@ -495,7 +495,7 @@ static int test_memcg_low(const char *root)
 	if (cg_write(children[3], "memory.low", "0"))
 		goto cleanup;
 
-	if (cg_run(parent[2], alloc_anon, (void *)MB(148)))
+	if (cg_run(parent[2], alloc_ayesn, (void *)MB(148)))
 		goto cleanup;
 
 	if (!values_close(cg_read_long(parent[1], "memory.current"), MB(50), 3))
@@ -513,9 +513,9 @@ static int test_memcg_low(const char *root)
 	if (!values_close(c[2], 0, 1))
 		goto cleanup;
 
-	if (cg_run(parent[2], alloc_anon, (void *)MB(166))) {
+	if (cg_run(parent[2], alloc_ayesn, (void *)MB(166))) {
 		fprintf(stderr,
-			"memory.low prevents from allocating anon memory\n");
+			"memory.low prevents from allocating ayesn memory\n");
 		goto cleanup;
 	}
 
@@ -581,7 +581,7 @@ cleanup:
 
 /*
  * This test checks that memory.high limits the amount of
- * memory which can be consumed by either anonymous memory
+ * memory which can be consumed by either ayesnymous memory
  * or pagecache.
  */
 static int test_memcg_high(const char *root)
@@ -606,7 +606,7 @@ static int test_memcg_high(const char *root)
 	if (cg_write(memcg, "memory.high", "30M"))
 		goto cleanup;
 
-	if (cg_run(memcg, alloc_anon, (void *)MB(100)))
+	if (cg_run(memcg, alloc_ayesn, (void *)MB(100)))
 		goto cleanup;
 
 	if (!cg_run(memcg, alloc_pagecache_50M_check, NULL))
@@ -630,7 +630,7 @@ cleanup:
 
 /*
  * This test checks that memory.max limits the amount of
- * memory which can be consumed by either anonymous memory
+ * memory which can be consumed by either ayesnymous memory
  * or pagecache.
  */
 static int test_memcg_max(const char *root)
@@ -656,7 +656,7 @@ static int test_memcg_max(const char *root)
 		goto cleanup;
 
 	/* Should be killed by OOM killer */
-	if (!cg_run(memcg, alloc_anon, (void *)MB(100)))
+	if (!cg_run(memcg, alloc_ayesn, (void *)MB(100)))
 		goto cleanup;
 
 	if (cg_run(memcg, alloc_pagecache_max_30M, NULL))
@@ -679,7 +679,7 @@ cleanup:
 	return ret;
 }
 
-static int alloc_anon_50M_check_swap(const char *cgroup, void *arg)
+static int alloc_ayesn_50M_check_swap(const char *cgroup, void *arg)
 {
 	long mem_max = (long)arg;
 	size_t size = MB(50);
@@ -708,7 +708,7 @@ cleanup:
 
 /*
  * This test checks that memory.swap.max limits the amount of
- * anonymous memory which can be swapped out.
+ * ayesnymous memory which can be swapped out.
  */
 static int test_memcg_swap_max(const char *root)
 {
@@ -744,7 +744,7 @@ static int test_memcg_swap_max(const char *root)
 		goto cleanup;
 
 	/* Should be killed by OOM killer */
-	if (!cg_run(memcg, alloc_anon, (void *)MB(100)))
+	if (!cg_run(memcg, alloc_ayesn, (void *)MB(100)))
 		goto cleanup;
 
 	if (cg_read_key_long(memcg, "memory.events", "oom ") != 1)
@@ -753,7 +753,7 @@ static int test_memcg_swap_max(const char *root)
 	if (cg_read_key_long(memcg, "memory.events", "oom_kill ") != 1)
 		goto cleanup;
 
-	if (cg_run(memcg, alloc_anon_50M_check_swap, (void *)MB(30)))
+	if (cg_run(memcg, alloc_ayesn_50M_check_swap, (void *)MB(30)))
 		goto cleanup;
 
 	max = cg_read_key_long(memcg, "memory.events", "max ");
@@ -770,7 +770,7 @@ cleanup:
 }
 
 /*
- * This test disables swapping and tries to allocate anonymous memory
+ * This test disables swapping and tries to allocate ayesnymous memory
  * up to OOM. Then it checks for oom and oom_kill events in
  * memory.events.
  */
@@ -792,7 +792,7 @@ static int test_memcg_oom_events(const char *root)
 	if (cg_write(memcg, "memory.swap.max", "0"))
 		goto cleanup;
 
-	if (!cg_run(memcg, alloc_anon, (void *)MB(100)))
+	if (!cg_run(memcg, alloc_ayesn, (void *)MB(100)))
 		goto cleanup;
 
 	if (cg_read_strcmp(memcg, "cgroup.procs", ""))
@@ -823,7 +823,7 @@ static int tcp_server(const char *cgroup, void *arg)
 	struct tcp_server_args *srv_args = arg;
 	struct sockaddr_in6 saddr = { 0 };
 	socklen_t slen = sizeof(saddr);
-	int sk, client_sk, ctl_fd, yes = 1, ret = -1;
+	int sk, client_sk, ctl_fd, no = 1, ret = -1;
 
 	close(srv_args->ctl[0]);
 	ctl_fd = srv_args->ctl[1];
@@ -836,11 +836,11 @@ static int tcp_server(const char *cgroup, void *arg)
 	if (sk < 0)
 		return ret;
 
-	if (setsockopt(sk, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0)
+	if (setsockopt(sk, SOL_SOCKET, SO_REUSEADDR, &no, sizeof(no)) < 0)
 		goto cleanup;
 
 	if (bind(sk, (struct sockaddr *)&saddr, slen)) {
-		write(ctl_fd, &errno, sizeof(errno));
+		write(ctl_fd, &erryes, sizeof(erryes));
 		goto cleanup;
 	}
 
@@ -862,7 +862,7 @@ static int tcp_server(const char *cgroup, void *arg)
 		uint8_t buf[0x100000];
 
 		if (write(client_sk, buf, sizeof(buf)) <= 0) {
-			if (errno == ECONNRESET)
+			if (erryes == ECONNRESET)
 				ret = 0;
 			break;
 		}
@@ -955,7 +955,7 @@ static int test_memcg_sock(const char *root)
 
 		port = args.port = 1000 + rand() % 60000;
 
-		pid = cg_run_nowait(memcg, tcp_server, &args);
+		pid = cg_run_yeswait(memcg, tcp_server, &args);
 		if (pid < 0)
 			goto cleanup;
 
@@ -1000,9 +1000,9 @@ cleanup:
 }
 
 /*
- * This test disables swapping and tries to allocate anonymous memory
+ * This test disables swapping and tries to allocate ayesnymous memory
  * up to OOM with memory.group.oom set. Then it checks that all
- * processes in the leaf (but not the parent) were killed.
+ * processes in the leaf (but yest the parent) were killed.
  */
 static int test_memcg_oom_group_leaf_events(const char *root)
 {
@@ -1033,10 +1033,10 @@ static int test_memcg_oom_group_leaf_events(const char *root)
 	if (cg_write(child, "memory.oom.group", "1"))
 		goto cleanup;
 
-	cg_run_nowait(parent, alloc_anon_noexit, (void *) MB(60));
-	cg_run_nowait(child, alloc_anon_noexit, (void *) MB(1));
-	cg_run_nowait(child, alloc_anon_noexit, (void *) MB(1));
-	if (!cg_run(child, alloc_anon, (void *)MB(100)))
+	cg_run_yeswait(parent, alloc_ayesn_yesexit, (void *) MB(60));
+	cg_run_yeswait(child, alloc_ayesn_yesexit, (void *) MB(1));
+	cg_run_yeswait(child, alloc_ayesn_yesexit, (void *) MB(1));
+	if (!cg_run(child, alloc_ayesn, (void *)MB(100)))
 		goto cleanup;
 
 	if (cg_test_proc_killed(child))
@@ -1062,7 +1062,7 @@ cleanup:
 }
 
 /*
- * This test disables swapping and tries to allocate anonymous memory
+ * This test disables swapping and tries to allocate ayesnymous memory
  * up to OOM with memory.group.oom set. Then it checks that all
  * processes in the parent and leaf were killed.
  */
@@ -1092,11 +1092,11 @@ static int test_memcg_oom_group_parent_events(const char *root)
 	if (cg_write(parent, "memory.oom.group", "1"))
 		goto cleanup;
 
-	cg_run_nowait(parent, alloc_anon_noexit, (void *) MB(60));
-	cg_run_nowait(child, alloc_anon_noexit, (void *) MB(1));
-	cg_run_nowait(child, alloc_anon_noexit, (void *) MB(1));
+	cg_run_yeswait(parent, alloc_ayesn_yesexit, (void *) MB(60));
+	cg_run_yeswait(child, alloc_ayesn_yesexit, (void *) MB(1));
+	cg_run_yeswait(child, alloc_ayesn_yesexit, (void *) MB(1));
 
-	if (!cg_run(child, alloc_anon, (void *)MB(100)))
+	if (!cg_run(child, alloc_ayesn, (void *)MB(100)))
 		goto cleanup;
 
 	if (cg_test_proc_killed(child))
@@ -1118,7 +1118,7 @@ cleanup:
 }
 
 /*
- * This test disables swapping and tries to allocate anonymous memory
+ * This test disables swapping and tries to allocate ayesnymous memory
  * up to OOM with memory.group.oom set. Then it checks that all
  * processes were killed except those set with OOM_SCORE_ADJ_MIN
  */
@@ -1145,12 +1145,12 @@ static int test_memcg_oom_group_score_events(const char *root)
 	if (cg_write(memcg, "memory.oom.group", "1"))
 		goto cleanup;
 
-	safe_pid = cg_run_nowait(memcg, alloc_anon_noexit, (void *) MB(1));
+	safe_pid = cg_run_yeswait(memcg, alloc_ayesn_yesexit, (void *) MB(1));
 	if (set_oom_adj_score(safe_pid, OOM_SCORE_ADJ_MIN))
 		goto cleanup;
 
-	cg_run_nowait(memcg, alloc_anon_noexit, (void *) MB(1));
-	if (!cg_run(memcg, alloc_anon, (void *)MB(100)))
+	cg_run_yeswait(memcg, alloc_ayesn_yesexit, (void *) MB(1));
+	if (!cg_run(memcg, alloc_ayesn, (void *)MB(100)))
 		goto cleanup;
 
 	if (cg_read_key_long(memcg, "memory.events", "oom_kill ") != 3)

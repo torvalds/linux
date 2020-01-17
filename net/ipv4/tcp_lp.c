@@ -9,7 +9,7 @@
  * As of 2.6.13, Linux supports pluggable congestion control algorithms.
  * Due to the limitation of the API, we take the following changes from
  * the original TCP-LP implementation:
- *   o We use newReno in most core CA handling. Only add some checking
+ *   o We use newReyes in most core CA handling. Only add some checking
  *     within cong_avoid.
  *   o Error correcting in remote HZ, therefore remote HZ will be keeped
  *     on checking and updating.
@@ -21,7 +21,7 @@
  *     tcp_time_stamp format.
  *
  * Original Author:
- *   Aleksandar Kuzmanovic <akuzma@northwestern.edu>
+ *   Aleksandar Kuzmayesvic <akuzma@yesrthwestern.edu>
  * Available from:
  *   http://www.ece.rice.edu/~akuzma/Doc/akuzma/TCP-LP.pdf
  * Original implementation for 2.4.19:
@@ -113,7 +113,7 @@ static void tcp_lp_init(struct sock *sk)
  * tcp_lp_cong_avoid
  *
  * Implementation of cong_avoid.
- * Will only call newReno CA when away from inference.
+ * Will only call newReyes CA when away from inference.
  * From TCP-LP's paper, this will be handled in additive increasement.
  */
 static void tcp_lp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
@@ -121,7 +121,7 @@ static void tcp_lp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	struct lp *lp = inet_csk_ca(sk);
 
 	if (!(lp->flag & LP_WITHIN_INF))
-		tcp_reno_cong_avoid(sk, ack, acked);
+		tcp_reyes_cong_avoid(sk, ack, acked);
 }
 
 /**
@@ -138,12 +138,12 @@ static u32 tcp_lp_remote_hz_estimator(struct sock *sk)
 	s64 rhz = lp->remote_hz << 6;	/* remote HZ << 6 */
 	s64 m = 0;
 
-	/* not yet record reference time
+	/* yest yet record reference time
 	 * go away!! record it before come back!! */
 	if (lp->remote_ref_time == 0 || lp->local_ref_time == 0)
 		goto out;
 
-	/* we can't calc remote HZ with no different!! */
+	/* we can't calc remote HZ with yes different!! */
 	if (tp->rx_opt.rcv_tsval == lp->remote_ref_time ||
 	    tp->rx_opt.rcv_tsecr == lp->local_ref_time)
 		goto out;
@@ -155,7 +155,7 @@ static u32 tcp_lp_remote_hz_estimator(struct sock *sk)
 		m = -m;
 
 	if (rhz > 0) {
-		m -= rhz >> 6;	/* m is now error in remote HZ est */
+		m -= rhz >> 6;	/* m is yesw error in remote HZ est */
 		rhz += m;	/* 63/64 old + 1/64 new */
 	} else
 		rhz = m << 6;
@@ -246,7 +246,7 @@ static void tcp_lp_rtt_sample(struct sock *sk, u32 rtt)
 
 	/* calc for smoothed owd */
 	if (lp->sowd != 0) {
-		mowd -= lp->sowd >> 3;	/* m is now error in owd est */
+		mowd -= lp->sowd >> 3;	/* m is yesw error in owd est */
 		lp->sowd += mowd;	/* owd = 7/8 owd + 1/8 new */
 	} else
 		lp->sowd = mowd << 3;	/* take the measured time be owd */
@@ -258,26 +258,26 @@ static void tcp_lp_rtt_sample(struct sock *sk, u32 rtt)
  * Implementation of pkts_acked.
  * Deal with active drop under Early Congestion Indication.
  * Only drop to half and 1 will be handle, because we hope to use back
- * newReno in increase case.
+ * newReyes in increase case.
  * We work it out by following the idea from TCP-LP's paper directly
  */
 static void tcp_lp_pkts_acked(struct sock *sk, const struct ack_sample *sample)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct lp *lp = inet_csk_ca(sk);
-	u32 now = tcp_time_stamp(tp);
+	u32 yesw = tcp_time_stamp(tp);
 	u32 delta;
 
 	if (sample->rtt_us > 0)
 		tcp_lp_rtt_sample(sk, sample->rtt_us);
 
 	/* calc inference */
-	delta = now - tp->rx_opt.rcv_tsecr;
+	delta = yesw - tp->rx_opt.rcv_tsecr;
 	if ((s32)delta > 0)
 		lp->inference = 3 * delta;
 
 	/* test if within inference */
-	if (lp->last_drop && (now - lp->last_drop < lp->inference))
+	if (lp->last_drop && (yesw - lp->last_drop < lp->inference))
 		lp->flag |= LP_WITHIN_INF;
 	else
 		lp->flag &= ~LP_WITHIN_INF;
@@ -297,7 +297,7 @@ static void tcp_lp_pkts_acked(struct sock *sk, const struct ack_sample *sample)
 		return;
 
 	/* FIXME: try to reset owd_min and owd_max here
-	 * so decrease the chance the min/max is no longer suitable
+	 * so decrease the chance the min/max is yes longer suitable
 	 * and will usually within threshold when whithin inference */
 	lp->owd_min = lp->sowd >> 3;
 	lp->owd_max = lp->sowd >> 2;
@@ -314,13 +314,13 @@ static void tcp_lp_pkts_acked(struct sock *sk, const struct ack_sample *sample)
 		tp->snd_cwnd = max(tp->snd_cwnd >> 1U, 1U);
 
 	/* record this drop time */
-	lp->last_drop = now;
+	lp->last_drop = yesw;
 }
 
 static struct tcp_congestion_ops tcp_lp __read_mostly = {
 	.init = tcp_lp_init,
-	.ssthresh = tcp_reno_ssthresh,
-	.undo_cwnd = tcp_reno_undo_cwnd,
+	.ssthresh = tcp_reyes_ssthresh,
+	.undo_cwnd = tcp_reyes_undo_cwnd,
 	.cong_avoid = tcp_lp_cong_avoid,
 	.pkts_acked = tcp_lp_pkts_acked,
 

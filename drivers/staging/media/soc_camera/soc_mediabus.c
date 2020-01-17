@@ -382,30 +382,30 @@ static const struct soc_mbus_lookup mbus_fmt[] = {
 };
 
 int soc_mbus_samples_per_pixel(const struct soc_mbus_pixelfmt *mf,
-			unsigned int *numerator, unsigned int *denominator)
+			unsigned int *numerator, unsigned int *deyesminator)
 {
 	switch (mf->packing) {
 	case SOC_MBUS_PACKING_NONE:
 	case SOC_MBUS_PACKING_EXTEND16:
 		*numerator = 1;
-		*denominator = 1;
+		*deyesminator = 1;
 		return 0;
 	case SOC_MBUS_PACKING_EXTEND32:
 		*numerator = 1;
-		*denominator = 1;
+		*deyesminator = 1;
 		return 0;
 	case SOC_MBUS_PACKING_2X8_PADHI:
 	case SOC_MBUS_PACKING_2X8_PADLO:
 		*numerator = 2;
-		*denominator = 1;
+		*deyesminator = 1;
 		return 0;
 	case SOC_MBUS_PACKING_1_5X8:
 		*numerator = 3;
-		*denominator = 2;
+		*deyesminator = 2;
 		return 0;
 	case SOC_MBUS_PACKING_VARIABLE:
 		*numerator = 0;
-		*denominator = 1;
+		*deyesminator = 1;
 		return 0;
 	}
 	return -EINVAL;

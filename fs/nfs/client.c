@@ -14,7 +14,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/stat.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/unistd.h>
 #include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/clnt.h>
@@ -303,14 +303,14 @@ again:
 			goto again;
 		}
 
-		/* Different NFS versions cannot share the same nfs_client */
+		/* Different NFS versions canyest share the same nfs_client */
 		if (clp->rpc_ops != data->nfs_mod->rpc_ops)
 			continue;
 
 		if (clp->cl_proto != data->proto)
 			continue;
-		/* Match nfsv4 minorversion */
-		if (clp->cl_minorversion != data->minorversion)
+		/* Match nfsv4 miyesrversion */
+		if (clp->cl_miyesrversion != data->miyesrversion)
 			continue;
 
 		/* Match request for a dedicated DS */
@@ -344,7 +344,7 @@ bool nfs_client_init_is_complete(const struct nfs_client *clp)
 EXPORT_SYMBOL_GPL(nfs_client_init_is_complete);
 
 /*
- * Return 0 if @clp was successfully initialized, -errno otherwise.
+ * Return 0 if @clp was successfully initialized, -erryes otherwise.
  *
  * This must be called *after* nfs_client_init_is_complete() returns true,
  * otherwise it will pop WARN_ON_ONCE and return -EINVAL
@@ -506,7 +506,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 		.addrsize	= clp->cl_addrlen,
 		.timeout	= cl_init->timeparms,
 		.servername	= clp->cl_hostname,
-		.nodename	= cl_init->nodename,
+		.yesdename	= cl_init->yesdename,
 		.program	= &nfs_program,
 		.version	= clp->rpc_ops->version,
 		.authflavor	= flavor,
@@ -531,7 +531,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 
 	clnt = rpc_create(&args);
 	if (IS_ERR(clnt)) {
-		dprintk("%s: cannot create RPC client. Error = %ld\n",
+		dprintk("%s: canyest create RPC client. Error = %ld\n",
 				__func__, PTR_ERR(clnt));
 		return PTR_ERR(clnt);
 	}
@@ -563,7 +563,7 @@ static int nfs_start_lockd(struct nfs_server *server)
 		.address	= (struct sockaddr *)&clp->cl_addr,
 		.addrlen	= clp->cl_addrlen,
 		.nfs_version	= clp->rpc_ops->version,
-		.noresvport	= server->flags & NFS_MOUNT_NORESVPORT ?
+		.yesresvport	= server->flags & NFS_MOUNT_NORESVPORT ?
 					1 : 0,
 		.net		= clp->cl_net,
 		.nlmclnt_ops 	= clp->cl_nfs_mod->rpc_ops->nlmclnt_ops,
@@ -912,7 +912,7 @@ struct nfs_server *nfs_alloc_server(void)
 		return NULL;
 	}
 
-	ida_init(&server->openowner_id);
+	ida_init(&server->opeyeswner_id);
 	ida_init(&server->lockowner_id);
 	pnfs_init_server(server);
 	rpc_init_wait_queue(&server->uoc_rpcwaitq, "NFS UOC");
@@ -939,7 +939,7 @@ void nfs_free_server(struct nfs_server *server)
 	nfs_put_client(server->nfs_client);
 
 	ida_destroy(&server->lockowner_id);
-	ida_destroy(&server->openowner_id);
+	ida_destroy(&server->opeyeswner_id);
 	nfs_free_iostats(server->io_stats);
 	put_cred(server->cred);
 	kfree(server);
@@ -1000,7 +1000,7 @@ struct nfs_server *nfs_create_server(struct nfs_mount_info *mount_info,
 
 	dprintk("Server FSID: %llx:%llx\n",
 		(unsigned long long) server->fsid.major,
-		(unsigned long long) server->fsid.minor);
+		(unsigned long long) server->fsid.miyesr);
 
 	nfs_server_insert_lists(server);
 	server->mount_time = jiffies;
@@ -1253,7 +1253,7 @@ static int nfs_volume_list_show(struct seq_file *m, void *v)
 
 	snprintf(fsid, sizeof(fsid), "%llx:%llx",
 		 (unsigned long long) server->fsid.major,
-		 (unsigned long long) server->fsid.minor);
+		 (unsigned long long) server->fsid.miyesr);
 
 	rcu_read_lock();
 	seq_printf(m, "v%u %s %s %-12s %-33s %s\n",

@@ -141,7 +141,7 @@ static int bt_sock_create(struct net *net, struct socket *sock, int proto,
 void bt_sock_link(struct bt_sock_list *l, struct sock *sk)
 {
 	write_lock(&l->lock);
-	sk_add_node(sk, &l->head);
+	sk_add_yesde(sk, &l->head);
 	write_unlock(&l->lock);
 }
 EXPORT_SYMBOL(bt_sock_link);
@@ -149,7 +149,7 @@ EXPORT_SYMBOL(bt_sock_link);
 void bt_sock_unlink(struct bt_sock_list *l, struct sock *sk)
 {
 	write_lock(&l->lock);
-	sk_del_node_init(sk);
+	sk_del_yesde_init(sk);
 	write_unlock(&l->lock);
 }
 EXPORT_SYMBOL(bt_sock_unlink);
@@ -178,7 +178,7 @@ void bt_accept_enqueue(struct sock *parent, struct sock *sk, bool bh)
 EXPORT_SYMBOL(bt_accept_enqueue);
 
 /* Calling function must hold the sk lock.
- * bt_sk(sk)->parent must be non-NULL meaning sk is in the parent list.
+ * bt_sk(sk)->parent must be yesn-NULL meaning sk is in the parent list.
  */
 void bt_accept_unlink(struct sock *sk)
 {
@@ -206,7 +206,7 @@ restart:
 		sock_hold(sk);
 		lock_sock(sk);
 
-		/* Check sk has not already been unlinked via
+		/* Check sk has yest already been unlinked via
 		 * bt_accept_unlink() due to serialisation caused by sk locking
 		 */
 		if (!bt_sk(sk)->parent) {
@@ -214,9 +214,9 @@ restart:
 			release_sock(sk);
 			sock_put(sk);
 
-			/* Restart the loop as sk is no longer in the list
+			/* Restart the loop as sk is yes longer in the list
 			 * and also avoid a potential infinite loop because
-			 * list_for_each_entry_safe() is not thread safe.
+			 * list_for_each_entry_safe() is yest thread safe.
 			 */
 			goto restart;
 		}
@@ -251,7 +251,7 @@ EXPORT_SYMBOL(bt_accept_dequeue);
 int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		    int flags)
 {
-	int noblock = flags & MSG_DONTWAIT;
+	int yesblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	size_t copied;
@@ -263,7 +263,7 @@ int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	if (flags & MSG_OOB)
 		return -EOPNOTSUPP;
 
-	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	skb = skb_recv_datagram(sk, flags, yesblock, &err);
 	if (!skb) {
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			return 0;
@@ -366,7 +366,7 @@ int bt_sock_stream_recvmsg(struct socket *sock, struct msghdr *msg,
 			timeo = bt_sock_data_wait(sk, timeo);
 
 			if (signal_pending(current)) {
-				err = sock_intr_errno(timeo);
+				err = sock_intr_erryes(timeo);
 				goto out;
 			}
 			continue;
@@ -547,7 +547,7 @@ int bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo)
 		}
 
 		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erryes(timeo);
 			break;
 		}
 
@@ -586,7 +586,7 @@ int bt_sock_wait_ready(struct sock *sk, unsigned long flags)
 		}
 
 		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erryes(timeo);
 			break;
 		}
 
@@ -610,7 +610,7 @@ EXPORT_SYMBOL(bt_sock_wait_ready);
 static void *bt_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(seq->private->l->lock)
 {
-	struct bt_sock_list *l = PDE_DATA(file_inode(seq->file));
+	struct bt_sock_list *l = PDE_DATA(file_iyesde(seq->file));
 
 	read_lock(&l->lock);
 	return seq_hlist_start_head(&l->head, *pos);
@@ -618,7 +618,7 @@ static void *bt_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void *bt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct bt_sock_list *l = PDE_DATA(file_inode(seq->file));
+	struct bt_sock_list *l = PDE_DATA(file_iyesde(seq->file));
 
 	return seq_hlist_next(v, &l->head, pos);
 }
@@ -626,17 +626,17 @@ static void *bt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 static void bt_seq_stop(struct seq_file *seq, void *v)
 	__releases(seq->private->l->lock)
 {
-	struct bt_sock_list *l = PDE_DATA(file_inode(seq->file));
+	struct bt_sock_list *l = PDE_DATA(file_iyesde(seq->file));
 
 	read_unlock(&l->lock);
 }
 
 static int bt_seq_show(struct seq_file *seq, void *v)
 {
-	struct bt_sock_list *l = PDE_DATA(file_inode(seq->file));
+	struct bt_sock_list *l = PDE_DATA(file_iyesde(seq->file));
 
 	if (v == SEQ_START_TOKEN) {
-		seq_puts(seq ,"sk               RefCnt Rmem   Wmem   User   Inode  Parent");
+		seq_puts(seq ,"sk               RefCnt Rmem   Wmem   User   Iyesde  Parent");
 
 		if (l->custom_seq_show) {
 			seq_putc(seq, ' ');
@@ -655,8 +655,8 @@ static int bt_seq_show(struct seq_file *seq, void *v)
 			   sk_rmem_alloc_get(sk),
 			   sk_wmem_alloc_get(sk),
 			   from_kuid(seq_user_ns(seq), sock_i_uid(sk)),
-			   sock_i_ino(sk),
-			   bt->parent? sock_i_ino(bt->parent): 0LU);
+			   sock_i_iyes(sk),
+			   bt->parent? sock_i_iyes(bt->parent): 0LU);
 
 		if (l->custom_seq_show) {
 			seq_putc(seq, ' ');

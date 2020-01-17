@@ -1,28 +1,28 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Low Level Interrupts/Traps/Exceptions(non-TLB) Handling for ARCompact ISA
+ * Low Level Interrupts/Traps/Exceptions(yesn-TLB) Handling for ARCompact ISA
  *
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syyespsys, Inc. (www.syyespsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * vineetg: May 2011
  *  -Userspace unaligned access emulation
  *
  * vineetg: Feb 2011 (ptrace low level code fixes)
- *  -traced syscall return code (r0) was not saved into pt_regs for restoring
+ *  -traced syscall return code (r0) was yest saved into pt_regs for restoring
  *   into user reg-file when traded task rets to user space.
  *  -syscalls needing arch-wrappers (mainly for passing sp as pt_regs)
- *   were not invoking post-syscall trace hook (jumping directly into
+ *   were yest invoking post-syscall trace hook (jumping directly into
  *   ret_from_system_call)
  *
  * vineetg: Nov 2010:
  *  -Vector table jumps (@8 bytes) converted into branches (@4 bytes)
- *  -To maintain the slot size of 8 bytes/vector, added nop, which is
- *   not executed at runtime.
+ *  -To maintain the slot size of 8 bytes/vector, added yesp, which is
+ *   yest executed at runtime.
  *
  * vineetg: Nov 2009 (Everything needed for TIF_RESTORE_SIGMASK)
  *  -do_signal()invoked upon TIF_RESTORE_SIGMASK as well
- *  -Wrappers for sys_{,rt_}sigsuspend() no longer needed as they don't
+ *  -Wrappers for sys_{,rt_}sigsuspend() yes longer needed as they don't
  *   need ptregs anymore
  *
  * Vineetg: Oct 2009
@@ -40,22 +40,22 @@
  *   we need to explicitly do this. The problem in macros
  *   FAKE_RET_FROM_EXCPN and FAKE_RET_FROM_EXCPN_LOCK_IRQ was that this bit
  *   was being "CLEARED" rather then "SET". Since it is Loop INHIBIT Bit,
- *   setting it and not clearing it clears ZOL context
+ *   setting it and yest clearing it clears ZOL context
  *
  * Vineetg: May 16th, 2008
- *  - r25 now contains the Current Task when in kernel
+ *  - r25 yesw contains the Current Task when in kernel
  *
  * Vineetg: Dec 22, 2007
- *    Minor Surgery of Low Level ISR to make it SMP safe
+ *    Miyesr Surgery of Low Level ISR to make it SMP safe
  *    - MMU_SCRATCH0 Reg used for freeing up r9 in Level 1 ISR
  *    - _current_task is made an array of NR_CPUS
  *    - Access of _current_task wrapped inside a macro so that if hardware
- *       team agrees for a dedicated reg, no other code is touched
+ *       team agrees for a dedicated reg, yes other code is touched
  *
  * Amit Bhor, Rahul Trivedi, Kanika Nema, Sameer Dhavale : Codito Tech 2004
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/linkage.h>	/* {ENTRY,EXIT} */
 #include <asm/entry.h>
 #include <asm/irqflags.h>
@@ -69,7 +69,7 @@
 	j   \lbl
 #else
 	b   \lbl
-	nop
+	yesp
 #endif
 .endm
 
@@ -157,7 +157,7 @@ ENTRY(handle_interrupt_level2)
 	;  -preemption off IRQ, user task in syscall picked to run
 	;  -RTIE to userspace
 	;	Returns from L2 context fine
-	;	But both L1 and L2 re-enabled, so another L1 can be taken
+	;	But both L1 and L2 re-enabled, so ayesther L1 can be taken
 	;	while prev L1 is still unserviced
 	;
 	;------------------------------------------------------
@@ -167,7 +167,7 @@ ENTRY(handle_interrupt_level2)
 	; need to check STATUS32_L2 to determine if L1 was active
 
 	ld r9, [sp, PT_status32]        ; get statu32_l2 (saved in pt_regs)
-	bbit0 r9, STATUS_A1_BIT, 1f     ; L1 not active when L2 IRQ, so normal
+	bbit0 r9, STATUS_A1_BIT, 1f     ; L1 yest active when L2 IRQ, so yesrmal
 
 	; bump thread_info->preempt_count (Disable preemption)
 	GET_CURR_THR_INFO_FROM_SP   r10
@@ -257,7 +257,7 @@ ENTRY(EV_TLBProtV)
 	EXCEPTION_PROLOGUE
 
 	mov r2, r10	; ECR set into r10 already
-	lr  r0, [efa]	; Faulting Data address (not part of pt_regs saved above)
+	lr  r0, [efa]	; Faulting Data address (yest part of pt_regs saved above)
 
 	; Exception auto-disables further Intr/exceptions.
 	; Re-enable them by pretending to return from exception
@@ -319,21 +319,21 @@ END(call_do_page_fault)
 ;############# Return from Intr/Excp/Trap (ARC Specifics) ##############
 ;
 ; Restore the saved sys context (common exit-path for EXCPN/IRQ/Trap)
-; IRQ shd definitely not happen between now and rtie
+; IRQ shd definitely yest happen between yesw and rtie
 ; All 2 entry points to here already disable interrupts
 
 .Lrestore_regs:
 
 	# Interrupts are actually disabled from this point on, but will get
 	# reenabled after we return from interrupt/exception.
-	# But irq tracer needs to be told now...
+	# But irq tracer needs to be told yesw...
 	TRACE_ASM_IRQ_ENABLE
 
 	lr	r10, [status32]
 
 	; Restore REG File. In case multiple Events outstanding,
 	; use the same priority as rtie: EXCPN, L2 IRQ, L1 IRQ, None
-	; Note that we use realtime STATUS32 (not pt_regs->status32) to
+	; Note that we use realtime STATUS32 (yest pt_regs->status32) to
 	; decide that.
 
 	and.f	0, r10, (STATUS_A1_MASK|STATUS_A2_MASK)
@@ -344,10 +344,10 @@ END(call_do_page_fault)
 #ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 
 	; Level 2 interrupt return Path - from hardware standpoint
-	bbit0  r10, STATUS_A2_BIT, not_level2_interrupt
+	bbit0  r10, STATUS_A2_BIT, yest_level2_interrupt
 
 	;------------------------------------------------------------------
-	; However the context returning might not have taken L2 intr itself
+	; However the context returning might yest have taken L2 intr itself
 	; e.g. Task'A' user-code -> L2 intr -> schedule -> 'B' user-code ret
 	; Special considerations needed for the context which took L2 intr
 
@@ -362,14 +362,14 @@ END(call_do_page_fault)
 	;----------------------------------------------------------------
 
 	ld r9, [sp, PT_status32]       ; get statu32_l2 (saved in pt_regs)
-	bbit0 r9, STATUS_A1_BIT, 149f  ; L1 not active when L2 IRQ, so normal
+	bbit0 r9, STATUS_A1_BIT, 149f  ; L1 yest active when L2 IRQ, so yesrmal
 
 	; decrement thread_info->preempt_count (re-enable preemption)
 	GET_CURR_THR_INFO_FROM_SP   r10
 	ld      r9, [r10, THREAD_INFO_PREEMPT_COUNT]
 
-	; paranoid check, given A1 was active when A2 happened, preempt count
-	; must not be 0 because we would have incremented it.
+	; parayesid check, given A1 was active when A2 happened, preempt count
+	; must yest be 0 because we would have incremented it.
 	; If this does happen we simply HALT as it means a BUG !!!
 	cmp     r9, 0
 	bnz     2f
@@ -384,7 +384,7 @@ END(call_do_page_fault)
 debug_marker_l2:
 	rtie
 
-not_level2_interrupt:
+yest_level2_interrupt:
 
 #endif
 

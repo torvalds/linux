@@ -18,7 +18,7 @@
  * Updated: 2013-02-09
  * Status: works
  *
- * Configuration Options: not applicable, uses comedi PCI auto config
+ * Configuration Options: yest applicable, uses comedi PCI auto config
  *
  * Subdevice 0 is the analog output.
  * Subdevice 1 is the offset calibration for the analog output.
@@ -27,11 +27,11 @@
  * The calibration offset and gains have quite a large effect on the
  * analog output, so it is possible to adjust the analog output to
  * have an output range significantly different from the board's
- * nominal output ranges. For a calibrated +/-10V range, the analog
+ * yesminal output ranges. For a calibrated +/-10V range, the analog
  * output's offset will be set somewhere near mid-range (0x2000) and
  * its gain will be near maximum (0x3fff).
  *
- * There is really no difference between the board's documented 0-20mA
+ * There is really yes difference between the board's documented 0-20mA
  * versus 4-20mA output ranges. To pick one or the other is simply a
  * matter of adjusting the offset and gain calibration until the board
  * outputs in the desired range.
@@ -96,7 +96,7 @@ static int adv_pci1724_insn_write(struct comedi_device *dev,
 
 	ctrl = PCI1724_DAC_CTRL_GX(chan) | PCI1724_DAC_CTRL_CX(chan) | mode;
 
-	/* turn off synchronous mode */
+	/* turn off synchroyesus mode */
 	outl(0, dev->iobase + PCI1724_SYNC_CTRL_REG);
 
 	for (i = 0; i < insn->n; ++i) {

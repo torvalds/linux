@@ -14,7 +14,7 @@
  *
  * This is the PCI-specific support split off from the ni_labpc driver.
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: yest applicable, uses PCI auto config
  *
  * NI manuals:
  * 340914a (pci-1200)

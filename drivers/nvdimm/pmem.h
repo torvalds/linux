@@ -11,7 +11,7 @@
 struct pmem_device {
 	/* One contiguous memory region per device */
 	phys_addr_t		phys_addr;
-	/* when non-zero this device is hosting a 'pfn' instance */
+	/* when yesn-zero this device is hosting a 'pfn' instance */
 	phys_addr_t		data_offset;
 	u64			pfn_flags;
 	void			*virt_addr;
@@ -19,7 +19,7 @@ struct pmem_device {
 	size_t			size;
 	/* trim size when namespace capacity has been section aligned */
 	u32			pfn_pad;
-	struct kernfs_node	*bb_state;
+	struct kernfs_yesde	*bb_state;
 	struct badblocks	bb;
 	struct dax_device	*dax_dev;
 	struct gendisk		*disk;

@@ -38,7 +38,7 @@ debug area.
 
 An exception-call writes the specified debug entry to the log and
 switches to the next debug area. This is done in order to be sure
-that the records which describe the origin of the exception are not
+that the records which describe the origin of the exception are yest
 overwritten when a wrap around for the current area occurs.
 
 The debug areas themselves are also ordered in form of a ring buffer.
@@ -55,12 +55,12 @@ Each debug entry contains the following data:
 - Cpu-Number of calling task
 - Level of debug entry (0...6)
 - Return Address to caller
-- Flag, if entry is an exception or not
+- Flag, if entry is an exception or yest
 
 The debug logs can be inspected in a live system through entries in
 the debugfs-filesystem. Under the toplevel directory "``s390dbf``" there is
 a directory for each registered component, which is named like the
-corresponding component. The debugfs normally should be mounted to
+corresponding component. The debugfs yesrmally should be mounted to
 ``/sys/kernel/debug`` therefore the debug feature can be accessed under
 ``/sys/kernel/debug/s390dbf``.
 
@@ -98,12 +98,12 @@ debug feature is turned off.
 The second trigger which stops the debug feature is a kernel oops.
 That prevents the debug feature from overwriting debug information that
 happened before the oops. After an oops you can reactivate the debug feature
-by piping 1 to ``/proc/sys/s390dbf/debug_active``. Nevertheless, it's not
+by piping 1 to ``/proc/sys/s390dbf/debug_active``. Nevertheless, it's yest
 suggested to use an oopsed kernel in a production environment.
 
 If you want to disallow the deactivation of the debug feature, you can use
 the ``debug_stoppable`` sysctl. If you set ``debug_stoppable`` to 0 the debug
-feature cannot be stopped. If the debug feature is already stopped, it
+feature canyest be stopped. If the debug feature is already stopped, it
 will stay deactivated.
 
 Kernel Interfaces:
@@ -340,7 +340,7 @@ The format of the raw view is:
 - datafield
 
 A typical line of the hex_ascii view will look like the following (first line
-is only for explanation and will not be displayed when 'cating' the view)::
+is only for explanation and will yest be displayed when 'cating' the view)::
 
   area  time           level exception cpu caller    data (hex + ascii)
   --------------------------------------------------------------------------
@@ -387,7 +387,7 @@ where:
 
 
 The "private_data" member can be used as pointer to view specific data.
-It is not used by the debug feature itself.
+It is yest used by the debug feature itself.
 
 The output when reading a debugfs file is structured like this::
 
@@ -452,11 +452,11 @@ Example:
 
   struct debug_view debug_test_view = {
     "myview",                 /* name of view */
-    NULL,                     /* no prolog */
+    NULL,                     /* yes prolog */
     &debug_dflt_header_fn,    /* default header for each entry */
     &debug_test_format_fn,    /* our own format function */
-    NULL,                     /* no input function */
-    NULL                      /* no private data */
+    NULL,                     /* yes input function */
+    NULL                      /* yes private data */
   };
 
 test:

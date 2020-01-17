@@ -13,11 +13,11 @@
  *  are met:
  *
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
+ *     yestice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
+ *  3. Neither the name of the University yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -129,15 +129,15 @@ int
 nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 		struct nfs4_acl **acl)
 {
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 	int error = 0;
 	struct posix_acl *pacl = NULL, *dpacl = NULL;
 	unsigned int flags = 0;
 	int size = 0;
 
-	pacl = get_acl(inode, ACL_TYPE_ACCESS);
+	pacl = get_acl(iyesde, ACL_TYPE_ACCESS);
 	if (!pacl)
-		pacl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
+		pacl = posix_acl_from_mode(iyesde->i_mode, GFP_KERNEL);
 
 	if (IS_ERR(pacl))
 		return PTR_ERR(pacl);
@@ -145,9 +145,9 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 	/* allocate for worst case: one (deny, allow) pair each: */
 	size += 2 * pacl->a_count;
 
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(iyesde->i_mode)) {
 		flags = NFS4_ACL_DIR;
-		dpacl = get_acl(inode, ACL_TYPE_DEFAULT);
+		dpacl = get_acl(iyesde, ACL_TYPE_DEFAULT);
 		if (IS_ERR(dpacl)) {
 			error = PTR_ERR(dpacl);
 			goto rel_pacl;
@@ -246,10 +246,10 @@ _posix_to_nfsv4_one(struct posix_acl *pacl, struct nfs4_acl *acl,
 	pa = pacl->a_entries;
 	ace = acl->aces + acl->naces;
 
-	/* We could deny everything not granted by the owner: */
+	/* We could deny everything yest granted by the owner: */
 	deny = ~pas.owner;
 	/*
-	 * but it is equivalent (and simpler) to deny only what is not
+	 * but it is equivalent (and simpler) to deny only what is yest
 	 * granted by later entries:
 	 */
 	deny &= pas.users | pas.group | pas.groups | pas.other;
@@ -375,8 +375,8 @@ static void
 sort_pacl_range(struct posix_acl *pacl, int start, int end) {
 	int sorted = 0, i;
 
-	/* We just do a bubble sort; easy to do in place, and we're not
-	 * expecting acl's to be long enough to justify anything more. */
+	/* We just do a bubble sort; easy to do in place, and we're yest
+	 * expecting acl's to be long eyesugh to justify anything more. */
 	while (!sorted) {
 		sorted = 1;
 		for (i = start; i < end; i++) {
@@ -397,7 +397,7 @@ sort_pacl(struct posix_acl *pacl)
 	 * by uid/gid. */
 	int i, j;
 
-	/* no users or groups */
+	/* yes users or groups */
 	if (!pacl || pacl->a_count <= 4)
 		return;
 
@@ -460,8 +460,8 @@ init_state(struct posix_acl_state *state, int cnt)
 	state->empty = 1;
 	/*
 	 * In the worst case, each individual acl could be for a distinct
-	 * named user or group, but we don't know which, so we allocate
-	 * enough space for either:
+	 * named user or group, but we don't kyesw which, so we allocate
+	 * eyesugh space for either:
 	 */
 	alloc = sizeof(struct posix_ace_state_array)
 		+ cnt*sizeof(struct posix_user_ace_state);
@@ -496,15 +496,15 @@ posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 	int i;
 
 	/*
-	 * ACLs with no ACEs are treated differently in the inheritable
-	 * and effective cases: when there are no inheritable ACEs,
+	 * ACLs with yes ACEs are treated differently in the inheritable
+	 * and effective cases: when there are yes inheritable ACEs,
 	 * calls ->set_acl with a NULL ACL structure.
 	 */
 	if (state->empty && (flags & NFS4_ACL_TYPE_DEFAULT))
 		return NULL;
 
 	/*
-	 * When there are no effective ACEs, the following will end
+	 * When there are yes effective ACEs, the following will end
 	 * up setting a 3-element effective posix ACL with all
 	 * permissions zero.
 	 */
@@ -558,13 +558,13 @@ posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 
 static inline void allow_bits(struct posix_ace_state *astate, u32 mask)
 {
-	/* Allow all bits in the mask not already denied: */
+	/* Allow all bits in the mask yest already denied: */
 	astate->allow |= mask & ~astate->deny;
 }
 
 static inline void deny_bits(struct posix_ace_state *astate, u32 mask)
 {
-	/* Deny all bits in the mask not already allowed: */
+	/* Deny all bits in the mask yest already allowed: */
 	astate->deny |= mask & ~astate->allow;
 }
 
@@ -758,35 +758,35 @@ nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	__be32 error;
 	int host_error;
 	struct dentry *dentry;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct posix_acl *pacl = NULL, *dpacl = NULL;
 	unsigned int flags = 0;
 
-	/* Get inode */
+	/* Get iyesde */
 	error = fh_verify(rqstp, fhp, 0, NFSD_MAY_SATTR);
 	if (error)
 		return error;
 
 	dentry = fhp->fh_dentry;
-	inode = d_inode(dentry);
+	iyesde = d_iyesde(dentry);
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(iyesde->i_mode))
 		flags = NFS4_ACL_DIR;
 
 	host_error = nfs4_acl_nfsv4_to_posix(acl, &pacl, &dpacl, flags);
 	if (host_error == -EINVAL)
-		return nfserr_attrnotsupp;
+		return nfserr_attryestsupp;
 	if (host_error < 0)
 		goto out_nfserr;
 
 	fh_lock(fhp);
 
-	host_error = set_posix_acl(inode, ACL_TYPE_ACCESS, pacl);
+	host_error = set_posix_acl(iyesde, ACL_TYPE_ACCESS, pacl);
 	if (host_error < 0)
 		goto out_drop_lock;
 
-	if (S_ISDIR(inode->i_mode)) {
-		host_error = set_posix_acl(inode, ACL_TYPE_DEFAULT, dpacl);
+	if (S_ISDIR(iyesde->i_mode)) {
+		host_error = set_posix_acl(iyesde, ACL_TYPE_DEFAULT, dpacl);
 	}
 
 out_drop_lock:
@@ -796,9 +796,9 @@ out_drop_lock:
 	posix_acl_release(dpacl);
 out_nfserr:
 	if (host_error == -EOPNOTSUPP)
-		return nfserr_attrnotsupp;
+		return nfserr_attryestsupp;
 	else
-		return nfserrno(host_error);
+		return nfserryes(host_error);
 }
 
 

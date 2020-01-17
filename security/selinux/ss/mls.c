@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <net/netlabel.h>
 #include "sidtab.h"
 #include "mls.h"
@@ -38,7 +38,7 @@ int mls_compute_context_len(struct policydb *p, struct context *context)
 	int i, l, len, head, prev;
 	char *nm;
 	struct ebitmap *e;
-	struct ebitmap_node *node;
+	struct ebitmap_yesde *yesde;
 
 	if (!p->mls_enabled)
 		return 0;
@@ -52,7 +52,7 @@ int mls_compute_context_len(struct policydb *p, struct context *context)
 		head = -2;
 		prev = -2;
 		e = &context->range.level[l].cat;
-		ebitmap_for_each_positive_bit(e, node, i) {
+		ebitmap_for_each_positive_bit(e, yesde, i) {
 			if (i - prev > 1) {
 				/* one or more negative bits are skipped */
 				if (head != prev) {
@@ -93,7 +93,7 @@ void mls_sid_to_context(struct policydb *p,
 	char *scontextp, *nm;
 	int i, l, head, prev;
 	struct ebitmap *e;
-	struct ebitmap_node *node;
+	struct ebitmap_yesde *yesde;
 
 	if (!p->mls_enabled)
 		return;
@@ -112,7 +112,7 @@ void mls_sid_to_context(struct policydb *p,
 		head = -2;
 		prev = -2;
 		e = &context->range.level[l].cat;
-		ebitmap_for_each_positive_bit(e, node, i) {
+		ebitmap_for_each_positive_bit(e, yesde, i) {
 			if (i - prev > 1) {
 				/* one or more negative bits are skipped */
 				if (prev != head) {
@@ -172,7 +172,7 @@ int mls_level_isvalid(struct policydb *p, struct mls_level *l)
 
 	/*
 	 * Return 1 iff all the bits set in l->cat are also be set in
-	 * levdatum->level->cat and no bit in l->cat is larger than
+	 * levdatum->level->cat and yes bit in l->cat is larger than
 	 * p->p_cats.nprim.
 	 */
 	return ebitmap_contains(&levdatum->level->cat, &l->cat,
@@ -210,7 +210,7 @@ int mls_context_isvalid(struct policydb *p, struct context *c)
 		return 0;
 	usrdatum = p->user_val_to_struct[c->user - 1];
 	if (!mls_range_contains(usrdatum->range, c->range))
-		return 0; /* user may not be associated with range */
+		return 0; /* user may yest be associated with range */
 
 	return 1;
 }
@@ -223,7 +223,7 @@ int mls_context_isvalid(struct policydb *p, struct context *c)
  * This function modifies the string in place, inserting
  * NULL characters to terminate the MLS fields.
  *
- * If a def_sid is provided and no MLS field is present,
+ * If a def_sid is provided and yes MLS field is present,
  * copy the MLS field of the associated default context.
  * Used for upgraded to MLS systems where objects may lack
  * MLS fields.
@@ -246,8 +246,8 @@ int mls_context_to_sid(struct policydb *pol,
 
 	if (!pol->mls_enabled) {
 		/*
-		 * With no MLS, only return -EINVAL if there is a MLS field
-		 * and it did not come from an xattr.
+		 * With yes MLS, only return -EINVAL if there is a MLS field
+		 * and it did yest come from an xattr.
 		 */
 		if (oldc && def_sid == SECSID_NULL)
 			return -EINVAL;
@@ -412,7 +412,7 @@ int mls_setup_user_range(struct policydb *p,
 		struct mls_level *usercon_sen = &(usercon->range.level[0]);
 		struct mls_level *usercon_clr = &(usercon->range.level[1]);
 
-		/* Honor the user's default level if we can */
+		/* Hoyesr the user's default level if we can */
 		if (mls_level_between(user_def, fromcon_sen, fromcon_clr))
 			*usercon_sen = *user_def;
 		else if (mls_level_between(fromcon_sen, user_def, user_clr))
@@ -451,7 +451,7 @@ int mls_convert_context(struct policydb *oldp,
 {
 	struct level_datum *levdatum;
 	struct cat_datum *catdatum;
-	struct ebitmap_node *node;
+	struct ebitmap_yesde *yesde;
 	int l, i;
 
 	if (!oldp->mls_enabled || !newp->mls_enabled)
@@ -467,7 +467,7 @@ int mls_convert_context(struct policydb *oldp,
 		newc->range.level[l].sens = levdatum->level->sens;
 
 		ebitmap_for_each_positive_bit(&oldc->range.level[l].cat,
-					      node, i) {
+					      yesde, i) {
 			int rc;
 
 			catdatum = hashtab_search(newp->p_cats.table,

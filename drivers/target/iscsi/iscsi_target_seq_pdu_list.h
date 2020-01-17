@@ -60,7 +60,7 @@ struct iscsi_pdu {
 	u32		length;
 	u32		offset;
 	u32		pdu_send_order;
-	u32		seq_no;
+	u32		seq_yes;
 } ____cacheline_aligned;
 
 struct iscsi_seq {
@@ -78,7 +78,7 @@ struct iscsi_seq {
 	u32		pdu_send_order;
 	u32		r2t_sn;
 	u32		seq_send_order;
-	u32		seq_no;
+	u32		seq_yes;
 	u32		xfer_len;
 } ____cacheline_aligned;
 

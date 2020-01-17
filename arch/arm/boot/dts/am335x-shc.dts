@@ -238,7 +238,7 @@
 };
 
 &rtc {
-	ti,no-init;
+	ti,yes-init;
 };
 
 &sham {

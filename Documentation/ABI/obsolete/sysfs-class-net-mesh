@@ -6,14 +6,14 @@ Date:           May 2010
 Contact:        Marek Lindner <mareklindner@neomailbox.ch>
 Description:
                 Indicates whether the batman protocol messages of the
-                mesh <mesh_iface> shall be aggregated or not.
+                mesh <mesh_iface> shall be aggregated or yest.
 
 What:           /sys/class/net/<mesh_iface>/mesh/<vlan_subdir>/ap_isolation
 Date:           May 2011
 Contact:        Antonio Quartulli <a@unstable.cc>
 Description:
                 Indicates whether the data traffic going from a
-                wireless client to another wireless client will be
+                wireless client to ayesther wireless client will be
                 silently dropped. <vlan_subdir> is empty when referring
 		to the untagged lan.
 
@@ -47,7 +47,7 @@ Date:           October 2010
 Contact:        Marek Lindner <mareklindner@neomailbox.ch>
 Description:
                 Defines the bandwidth which is propagated by this
-                node if gw_mode was set to 'server'.
+                yesde if gw_mode was set to 'server'.
 
 What:           /sys/class/net/<mesh_iface>/mesh/gw_mode
 Date:           October 2010
@@ -60,7 +60,7 @@ What:           /sys/class/net/<mesh_iface>/mesh/gw_sel_class
 Date:           October 2010
 Contact:        Marek Lindner <mareklindner@neomailbox.ch>
 Description:
-                Defines the selection criteria this node will use
+                Defines the selection criteria this yesde will use
                 to choose a gateway if gw_mode was set to 'client'.
 
 What:           /sys/class/net/<mesh_iface>/mesh/hop_penalty
@@ -83,9 +83,9 @@ Date:           Feb 2014
 Contact:        Linus Lüssing <linus.luessing@web.de>
 Description:
                 Indicates whether multicast optimizations are enabled
-                or disabled. If set to zero then all nodes in the
+                or disabled. If set to zero then all yesdes in the
                 mesh are going to use classic flooding for any
-                multicast packet with no optimizations.
+                multicast packet with yes optimizations.
 
 What:           /sys/class/net/<mesh_iface>/mesh/network_coding
 Date:           Nov 2012
@@ -93,7 +93,7 @@ Contact:        Martin Hundeboll <martin@hundeboll.net>
 Description:
                 Controls whether Network Coding (using some magic
                 to send fewer wifi packets but still the same
-                content) is enabled or not.
+                content) is enabled or yest.
 
 What:           /sys/class/net/<mesh_iface>/mesh/orig_interval
 Date:           May 2010

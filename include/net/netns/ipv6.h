@@ -33,13 +33,13 @@ struct netns_sysctl_ipv6 {
 	int flowlabel_consistency;
 	int auto_flowlabels;
 	int icmpv6_time;
-	int icmpv6_echo_ignore_all;
-	int icmpv6_echo_ignore_multicast;
-	int icmpv6_echo_ignore_anycast;
+	int icmpv6_echo_igyesre_all;
+	int icmpv6_echo_igyesre_multicast;
+	int icmpv6_echo_igyesre_anycast;
 	DECLARE_BITMAP(icmpv6_ratemask, ICMPV6_MSG_MAX + 1);
 	unsigned long *icmpv6_ratemask_ptr;
 	int anycast_src_echo_reply;
-	int ip_nonlocal_bind;
+	int ip_yesnlocal_bind;
 	int fwmark_reflect;
 	int idgen_retries;
 	int idgen_delay;
@@ -50,7 +50,7 @@ struct netns_sysctl_ipv6 {
 	int max_dst_opts_len;
 	int max_hbh_opts_len;
 	int seg6_flowlabel;
-	bool skip_notify_on_dev_down;
+	bool skip_yestify_on_dev_down;
 };
 
 struct netns_ipv6 {
@@ -107,8 +107,8 @@ struct netns_ipv6 {
 	atomic_t		dev_addr_genid;
 	atomic_t		fib6_sernum;
 	struct seg6_pernet_data *seg6_data;
-	struct fib_notifier_ops	*notifier_ops;
-	struct fib_notifier_ops	*ip6mr_notifier_ops;
+	struct fib_yestifier_ops	*yestifier_ops;
+	struct fib_yestifier_ops	*ip6mr_yestifier_ops;
 	unsigned int ipmr_seq; /* protected by rtnl_mutex */
 	struct {
 		struct hlist_head head;

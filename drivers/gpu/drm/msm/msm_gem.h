@@ -17,19 +17,19 @@
 struct msm_gem_address_space {
 	const char *name;
 	/* NOTE: mm managed at the page level, size is in # of pages
-	 * and position mm_node->start is in # of pages:
+	 * and position mm_yesde->start is in # of pages:
 	 */
 	struct drm_mm mm;
-	spinlock_t lock; /* Protects drm_mm node allocation/removal */
+	spinlock_t lock; /* Protects drm_mm yesde allocation/removal */
 	struct msm_mmu *mmu;
 	struct kref kref;
 };
 
 struct msm_gem_vma {
-	struct drm_mm_node node;
+	struct drm_mm_yesde yesde;
 	uint64_t iova;
 	struct msm_gem_address_space *aspace;
-	struct list_head list;    /* node in msm_gem_object::vmas */
+	struct list_head list;    /* yesde in msm_gem_object::vmas */
 	bool mapped;
 	int inuse;
 };
@@ -52,13 +52,13 @@ struct msm_gem_object {
 	/* And object is either:
 	 *  inactive - on priv->inactive_list
 	 *  active   - on one one of the gpu's active_list..  well, at
-	 *     least for now we don't have (I don't think) hw sync between
+	 *     least for yesw we don't have (I don't think) hw sync between
 	 *     2d and 3d one devices which have both, meaning we need to
 	 *     block on submit if a bo is already on other ring
 	 *
 	 */
 	struct list_head mm_list;
-	struct msm_gpu *gpu;     /* non-null if active */
+	struct msm_gpu *gpu;     /* yesn-null if active */
 
 	/* Transiently in the process of submit ioctl, objects associated
 	 * with the submit are on submit->bo_list.. this only lasts for
@@ -73,12 +73,12 @@ struct msm_gem_object {
 
 	struct list_head vmas;    /* list of msm_gem_vma */
 
-	struct llist_node freed;
+	struct llist_yesde freed;
 
 	/* For physically contiguous buffers.  Used when we don't have
 	 * an IOMMU.  Also used for stolen/splashscreen buffer.
 	 */
-	struct drm_mm_node *vram_node;
+	struct drm_mm_yesde *vram_yesde;
 	struct mutex lock; /* Protects resources associated with bo */
 
 	char name[32]; /* Identifier to print for the debugfs files */
@@ -106,7 +106,7 @@ static inline bool is_vunmapable(struct msm_gem_object *msm_obj)
  * to grab objB->lock to purge it.  Lockdep just sees these as a single
  * class of lock, so we use subclasses to teach it the difference.
  *
- * OBJ_LOCK_NORMAL is implicit (ie. normal mutex_lock() call), and
+ * OBJ_LOCK_NORMAL is implicit (ie. yesrmal mutex_lock() call), and
  * OBJ_LOCK_SHRINKER is used by shrinker.
  *
  * It is *essential* that we never go down paths that could trigger the
@@ -131,14 +131,14 @@ struct msm_gem_submit {
 	struct drm_device *dev;
 	struct msm_gpu *gpu;
 	struct msm_gem_address_space *aspace;
-	struct list_head node;   /* node in ring submit list */
+	struct list_head yesde;   /* yesde in ring submit list */
 	struct list_head bo_list;
 	struct ww_acquire_ctx ticket;
-	uint32_t seqno;		/* Sequence number of the submit on the ring */
+	uint32_t seqyes;		/* Sequence number of the submit on the ring */
 	struct dma_fence *fence;
 	struct msm_gpu_submitqueue *queue;
 	struct pid *pid;    /* submitting process */
-	bool valid;         /* true if no cmdstream patching needed */
+	bool valid;         /* true if yes cmdstream patching needed */
 	bool in_rb;         /* "sudo" mode, copy cmds into RB */
 	struct msm_ringbuffer *ring;
 	unsigned int nr_cmds;

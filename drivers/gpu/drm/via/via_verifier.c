@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -46,7 +46,7 @@ typedef enum {
 } verifier_state_t;
 
 typedef enum {
-	no_check = 0,
+	yes_check = 0,
 	check_for_header2,
 	check_for_header1,
 	check_for_header2_err,
@@ -79,24 +79,24 @@ typedef enum {
  * Associates each hazard above with a possible multi-command
  * sequence. For example an address that is split over multiple
  * commands and that needs to be checked at the first command
- * that does not include any part of the address.
+ * that does yest include any part of the address.
  */
 
 static drm_via_sequence_t seqs[] = {
-	no_sequence,
-	no_sequence,
-	no_sequence,
-	no_sequence,
-	no_sequence,
-	no_sequence,
+	yes_sequence,
+	yes_sequence,
+	yes_sequence,
+	yes_sequence,
+	yes_sequence,
+	yes_sequence,
 	z_address,
 	z_address,
 	z_address,
 	dest_address,
 	dest_address,
 	dest_address,
-	no_sequence,
-	no_sequence,
+	yes_sequence,
+	yes_sequence,
 	tex_address,
 	tex_address,
 	tex_address,
@@ -107,7 +107,7 @@ static drm_via_sequence_t seqs[] = {
 	tex_address,
 	tex_address,
 	tex_address,
-	no_sequence
+	yes_sequence
 };
 
 typedef struct {
@@ -121,48 +121,48 @@ static hz_init_t init_table1[] = {
 	{0xee, check_for_fire},
 	{0xcc, check_for_dummy},
 	{0xdd, check_for_dd},
-	{0x00, no_check},
+	{0x00, yes_check},
 	{0x10, check_z_buffer_addr0},
 	{0x11, check_z_buffer_addr1},
 	{0x12, check_z_buffer_addr_mode},
-	{0x13, no_check},
-	{0x14, no_check},
-	{0x15, no_check},
-	{0x23, no_check},
-	{0x24, no_check},
-	{0x33, no_check},
-	{0x34, no_check},
-	{0x35, no_check},
-	{0x36, no_check},
-	{0x37, no_check},
-	{0x38, no_check},
-	{0x39, no_check},
-	{0x3A, no_check},
-	{0x3B, no_check},
-	{0x3C, no_check},
-	{0x3D, no_check},
-	{0x3E, no_check},
+	{0x13, yes_check},
+	{0x14, yes_check},
+	{0x15, yes_check},
+	{0x23, yes_check},
+	{0x24, yes_check},
+	{0x33, yes_check},
+	{0x34, yes_check},
+	{0x35, yes_check},
+	{0x36, yes_check},
+	{0x37, yes_check},
+	{0x38, yes_check},
+	{0x39, yes_check},
+	{0x3A, yes_check},
+	{0x3B, yes_check},
+	{0x3C, yes_check},
+	{0x3D, yes_check},
+	{0x3E, yes_check},
 	{0x40, check_destination_addr0},
 	{0x41, check_destination_addr1},
 	{0x42, check_destination_addr_mode},
-	{0x43, no_check},
-	{0x44, no_check},
-	{0x50, no_check},
-	{0x51, no_check},
-	{0x52, no_check},
-	{0x53, no_check},
-	{0x54, no_check},
-	{0x55, no_check},
-	{0x56, no_check},
-	{0x57, no_check},
-	{0x58, no_check},
-	{0x70, no_check},
-	{0x71, no_check},
-	{0x78, no_check},
-	{0x79, no_check},
-	{0x7A, no_check},
-	{0x7B, no_check},
-	{0x7C, no_check},
+	{0x43, yes_check},
+	{0x44, yes_check},
+	{0x50, yes_check},
+	{0x51, yes_check},
+	{0x52, yes_check},
+	{0x53, yes_check},
+	{0x54, yes_check},
+	{0x55, yes_check},
+	{0x56, yes_check},
+	{0x57, yes_check},
+	{0x58, yes_check},
+	{0x70, yes_check},
+	{0x71, yes_check},
+	{0x78, yes_check},
+	{0x79, yes_check},
+	{0x7A, yes_check},
+	{0x7B, yes_check},
+	{0x7C, yes_check},
 	{0x7D, check_for_vertex_count}
 };
 
@@ -200,28 +200,28 @@ static hz_init_t init_table2[] = {
 	{0x51, check_texture_addr7},
 	{0x52, check_texture_addr8},
 	{0x77, check_texture_addr2},
-	{0x78, no_check},
-	{0x79, no_check},
-	{0x7A, no_check},
+	{0x78, yes_check},
+	{0x79, yes_check},
+	{0x7A, yes_check},
 	{0x7B, check_texture_addr_mode},
-	{0x7C, no_check},
-	{0x7D, no_check},
-	{0x7E, no_check},
-	{0x7F, no_check},
-	{0x80, no_check},
-	{0x81, no_check},
-	{0x82, no_check},
-	{0x83, no_check},
-	{0x85, no_check},
-	{0x86, no_check},
-	{0x87, no_check},
-	{0x88, no_check},
-	{0x89, no_check},
-	{0x8A, no_check},
-	{0x90, no_check},
-	{0x91, no_check},
-	{0x92, no_check},
-	{0x93, no_check}
+	{0x7C, yes_check},
+	{0x7D, yes_check},
+	{0x7E, yes_check},
+	{0x7F, yes_check},
+	{0x80, yes_check},
+	{0x81, yes_check},
+	{0x82, yes_check},
+	{0x83, yes_check},
+	{0x85, yes_check},
+	{0x86, yes_check},
+	{0x87, yes_check},
+	{0x88, yes_check},
+	{0x89, yes_check},
+	{0x8A, yes_check},
+	{0x90, yes_check},
+	{0x91, yes_check},
+	{0x92, yes_check},
+	{0x93, yes_check}
 };
 
 static hz_init_t init_table3[] = {
@@ -280,7 +280,7 @@ static __inline__ drm_local_map_t *via_drm_lookup_agp_map(drm_via_state_t *seq,
 
 /*
  * Require that all AGP texture levels reside in the same AGP map which should
- * be mappable by the client. This is not a big restriction.
+ * be mappable by the client. This is yest a big restriction.
  * FIXME: To actually enforce this security policy strictly, drm_rmmap
  * would have to wait for dma quiescent before removing an AGP map.
  * The via_drm_lookup_agp_map call in reality seems to take
@@ -332,7 +332,7 @@ static __inline__ int finish_current_sequence(drm_via_state_t * cur_seq)
 			if (!via_drm_lookup_agp_map
 			    (cur_seq, lo, hi - lo, cur_seq->dev)) {
 				DRM_ERROR
-				    ("AGP texture is not in allowed map\n");
+				    ("AGP texture is yest in allowed map\n");
 				return 2;
 			}
 		}
@@ -340,7 +340,7 @@ static __inline__ int finish_current_sequence(drm_via_state_t * cur_seq)
 	default:
 		break;
 	}
-	cur_seq->unfinished = no_sequence;
+	cur_seq->unfinished = yes_sequence;
 	return 0;
 }
 
@@ -979,7 +979,7 @@ via_verify_command_stream(const uint32_t * buf, unsigned int size,
 	supported_3d = dev_priv->chipset != VIA_DX9_0;
 
 	hc_state->dev = dev;
-	hc_state->unfinished = no_sequence;
+	hc_state->unfinished = yes_sequence;
 	hc_state->map_cache = NULL;
 	hc_state->agp = agp;
 	hc_state->buf_start = buf;
@@ -1013,7 +1013,7 @@ via_verify_command_stream(const uint32_t * buf, unsigned int size,
 				 && (cmd & VIA_VIDEOMASK) == VIA_VIDEO_HEADER6)
 				state = state_vheader6;
 			else if ((cmd == HALCYON_HEADER2) && !supported_3d) {
-				DRM_ERROR("Accelerated 3D is not supported on this chipset yet.\n");
+				DRM_ERROR("Accelerated 3D is yest supported on this chipset yet.\n");
 				state = state_error;
 			} else {
 				DRM_ERROR

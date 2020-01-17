@@ -10,7 +10,7 @@
  * Core internal functions to deal with irq descriptors
  */
 
-struct irq_affinity_notify;
+struct irq_affinity_yestify;
 struct proc_dir_entry;
 struct module;
 struct irq_desc;
@@ -25,10 +25,10 @@ struct pt_regs;
  * @preflow_handler:	handler called before the flow handler (currently used by sparc)
  * @action:		the irq action chain
  * @status:		status information
- * @core_internal_state__do_not_mess_with_it: core internal status information
+ * @core_internal_state__do_yest_mess_with_it: core internal status information
  * @depth:		disable-depth, for nested irq_disable() calls
  * @wake_depth:		enable depth, for multiple irq_set_irq_wake() callers
- * @tot_count:		stats field for non-percpu irqs
+ * @tot_count:		stats field for yesn-percpu irqs
  * @irq_count:		stats field to detect stalled irqs
  * @last_unhandled:	aging timer for unhandled count
  * @irqs_unhandled:	stats field for spurious unhandled interrupts
@@ -36,13 +36,13 @@ struct pt_regs;
  * @threads_handled_last: comparator field for deferred spurious detection of theraded handlers
  * @lock:		locking for SMP
  * @affinity_hint:	hint to user space for preferred irq affinity
- * @affinity_notify:	context for notification of affinity changes
+ * @affinity_yestify:	context for yestification of affinity changes
  * @pending_mask:	pending rebalanced interrupts
  * @threads_oneshot:	bitfield to handle shared oneshot threads
  * @threads_active:	number of irqaction threads currently running
  * @wait_for_threads:	wait queue for sync_irq to wait for threaded handlers
  * @nr_actions:		number of installed actions on this descriptor
- * @no_suspend_depth:	number of irqactions on a irq descriptor with
+ * @yes_suspend_depth:	number of irqactions on a irq descriptor with
  *			IRQF_NO_SUSPEND set
  * @force_resume_depth:	number of irqactions on a irq descriptor with
  *			IRQF_FORCE_RESUME set
@@ -63,7 +63,7 @@ struct irq_desc {
 #endif
 	struct irqaction	*action;	/* IRQ action list */
 	unsigned int		status_use_accessors;
-	unsigned int		core_internal_state__do_not_mess_with_it;
+	unsigned int		core_internal_state__do_yest_mess_with_it;
 	unsigned int		depth;		/* nested irq disables */
 	unsigned int		wake_depth;	/* nested wake enables */
 	unsigned int		tot_count;
@@ -77,7 +77,7 @@ struct irq_desc {
 	const struct cpumask	*percpu_affinity;
 #ifdef CONFIG_SMP
 	const struct cpumask	*affinity_hint;
-	struct irq_affinity_notify *affinity_notify;
+	struct irq_affinity_yestify *affinity_yestify;
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	cpumask_var_t		pending_mask;
 #endif
@@ -87,7 +87,7 @@ struct irq_desc {
 	wait_queue_head_t       wait_for_threads;
 #ifdef CONFIG_PM_SLEEP
 	unsigned int		nr_actions;
-	unsigned int		no_suspend_depth;
+	unsigned int		yes_suspend_depth;
 	unsigned int		cond_suspend_depth;
 	unsigned int		force_resume_depth;
 #endif
@@ -106,7 +106,7 @@ struct irq_desc {
 	int			parent_irq;
 	struct module		*owner;
 	const char		*name;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 #ifdef CONFIG_SPARSE_IRQ
 extern void irq_lock_sparse(void);

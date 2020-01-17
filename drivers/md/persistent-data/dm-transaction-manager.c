@@ -75,7 +75,7 @@ static void prefetch_issue(struct prefetch_set *p, struct dm_block_manager *bm)
 /*----------------------------------------------------------------*/
 
 struct shadow_info {
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 	dm_block_t where;
 };
 
@@ -118,8 +118,8 @@ static int is_shadow(struct dm_transaction_manager *tm, dm_block_t b)
 }
 
 /*
- * This can silently fail if there's no memory.  We're ok with this since
- * creating redundant shadows causes no harm.
+ * This can silently fail if there's yes memory.  We're ok with this since
+ * creating redundant shadows causes yes harm.
  */
 static void insert_shadow(struct dm_transaction_manager *tm, dm_block_t b)
 {
@@ -139,7 +139,7 @@ static void insert_shadow(struct dm_transaction_manager *tm, dm_block_t b)
 static void wipe_shadow_table(struct dm_transaction_manager *tm)
 {
 	struct shadow_info *si;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	struct hlist_head *bucket;
 	int i;
 
@@ -181,7 +181,7 @@ static struct dm_transaction_manager *dm_tm_create(struct dm_block_manager *bm,
 	return tm;
 }
 
-struct dm_transaction_manager *dm_tm_create_non_blocking_clone(struct dm_transaction_manager *real)
+struct dm_transaction_manager *dm_tm_create_yesn_blocking_clone(struct dm_transaction_manager *real)
 {
 	struct dm_transaction_manager *tm;
 
@@ -193,7 +193,7 @@ struct dm_transaction_manager *dm_tm_create_non_blocking_clone(struct dm_transac
 
 	return tm;
 }
-EXPORT_SYMBOL_GPL(dm_tm_create_non_blocking_clone);
+EXPORT_SYMBOL_GPL(dm_tm_create_yesn_blocking_clone);
 
 void dm_tm_destroy(struct dm_transaction_manager *tm)
 {
@@ -283,9 +283,9 @@ static int __shadow_block(struct dm_transaction_manager *tm, dm_block_t orig,
 	/*
 	 * It would be tempting to use dm_bm_unlock_move here, but some
 	 * code, such as the space maps, keeps using the old data structures
-	 * secure in the knowledge they won't be changed until the next
-	 * transaction.  Using unlock_move would force a synchronous read
-	 * since the old block would no longer be in the cache.
+	 * secure in the kyeswledge they won't be changed until the next
+	 * transaction.  Using unlock_move would force a synchroyesus read
+	 * since the old block would yes longer be in the cache.
 	 */
 	r = dm_bm_write_lock_zero(tm->bm, new, v, result);
 	if (r) {
@@ -351,7 +351,7 @@ EXPORT_SYMBOL_GPL(dm_tm_unlock);
 void dm_tm_inc(struct dm_transaction_manager *tm, dm_block_t b)
 {
 	/*
-	 * The non-blocking clone doesn't support this.
+	 * The yesn-blocking clone doesn't support this.
 	 */
 	BUG_ON(tm->is_clone);
 
@@ -362,7 +362,7 @@ EXPORT_SYMBOL_GPL(dm_tm_inc);
 void dm_tm_dec(struct dm_transaction_manager *tm, dm_block_t b)
 {
 	/*
-	 * The non-blocking clone doesn't support this.
+	 * The yesn-blocking clone doesn't support this.
 	 */
 	BUG_ON(tm->is_clone);
 

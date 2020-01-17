@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_G_SELECTION:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_G_SELECTION - VIDIOC_S_SELECTION - Get or set one of the selection rectangles
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_G_SELECTION, struct v4l2_selection *argp )
@@ -51,10 +51,10 @@ value of struct :c:type:`v4l2_selection` ``target``
 field to ``V4L2_SEL_TGT_CROP`` (``V4L2_SEL_TGT_COMPOSE``). Please refer
 to table :ref:`v4l2-selections-common` or :ref:`selection-api` for
 additional targets. The ``flags`` and ``reserved`` fields of struct
-:c:type:`v4l2_selection` are ignored and they must be
+:c:type:`v4l2_selection` are igyesred and they must be
 filled with zeros. The driver fills the rest of the structure or returns
 EINVAL error code if incorrect buffer type or target was used. If
-cropping (composing) is not supported then the active rectangle is not
+cropping (composing) is yest supported then the active rectangle is yest
 mutable and it is always equal to the bounds rectangle. Finally, the
 struct :c:type:`v4l2_rect` ``r`` rectangle is filled with
 the current cropping (composing) coordinates. The coordinates are
@@ -70,7 +70,7 @@ value of struct :c:type:`v4l2_selection` ``target`` to
 :ref:`v4l2-selections-common` or :ref:`selection-api` for additional
 targets. The struct :c:type:`v4l2_rect` ``r`` rectangle need
 to be set to the desired active area. Field struct
-:c:type:`v4l2_selection` ``reserved`` is ignored and
+:c:type:`v4l2_selection` ``reserved`` is igyesred and
 must be filled with zeros. The driver may adjust coordinates of the
 requested rectangle. An application may introduce constraints to control
 rounding behaviour. The struct :c:type:`v4l2_selection`
@@ -80,10 +80,10 @@ rounding behaviour. The struct :c:type:`v4l2_selection`
    choose a crop/compose rectangle as close as possible to the requested
    one.
 
--  ``V4L2_SEL_FLAG_GE`` - The driver is not allowed to shrink the
+-  ``V4L2_SEL_FLAG_GE`` - The driver is yest allowed to shrink the
    rectangle. The original rectangle must lay inside the adjusted one.
 
--  ``V4L2_SEL_FLAG_LE`` - The driver is not allowed to enlarge the
+-  ``V4L2_SEL_FLAG_LE`` - The driver is yest allowed to enlarge the
    rectangle. The adjusted rectangle must lay inside the original one.
 
 -  ``V4L2_SEL_FLAG_GE | V4L2_SEL_FLAG_LE`` - The driver must choose the
@@ -116,7 +116,7 @@ contains the adjusted rectangle. When the parameters are unsuitable the
 application may modify the cropping (composing) or image parameters and
 repeat the cycle until satisfactory parameters have been negotiated. If
 constraints flags have to be violated at then ``ERANGE`` is returned. The
-error indicates that *there exist no rectangle* that satisfies the
+error indicates that *there exist yes rectangle* that satisfies the
 constraints.
 
 Selection targets and flags are documented in
@@ -165,12 +165,12 @@ Selection targets and flags are documented in
       - Reserved fields for future use. Drivers and applications must zero
 	this array.
 
-.. note::
+.. yeste::
    Unfortunately in the case of multiplanar buffer types
    (``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE`` and ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``)
    this API was messed up with regards to how the :c:type:`v4l2_selection` ``type`` field
    should be filled in. Some drivers only accepted the ``_MPLANE`` buffer type while
-   other drivers only accepted a non-multiplanar buffer type (i.e. without the
+   other drivers only accepted a yesn-multiplanar buffer type (i.e. without the
    ``_MPLANE`` at the end).
 
    Starting with kernel 4.13 both variations are allowed.
@@ -179,22 +179,22 @@ Selection targets and flags are documented in
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    Given buffer type ``type`` or the selection target ``target`` is not
-    supported, or the ``flags`` argument is not valid.
+    Given buffer type ``type`` or the selection target ``target`` is yest
+    supported, or the ``flags`` argument is yest valid.
 
 ERANGE
-    It is not possible to adjust struct :c:type:`v4l2_rect`
+    It is yest possible to adjust struct :c:type:`v4l2_rect`
     ``r`` rectangle to satisfy all constraints given in the ``flags``
     argument.
 
 ENODATA
-    Selection is not supported for this input or output.
+    Selection is yest supported for this input or output.
 
 EBUSY
-    It is not possible to apply change of the selection rectangle at the
+    It is yest possible to apply change of the selection rectangle at the
     moment. Usually because streaming is in progress.

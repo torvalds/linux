@@ -105,7 +105,7 @@ struct intel_uncore_box *uncore_pmu_to_box(struct intel_uncore_pmu *pmu, int cpu
 	unsigned int dieid = topology_logical_die_id(cpu);
 
 	/*
-	 * The unsigned check also catches the '-1' return value for non
+	 * The unsigned check also catches the '-1' return value for yesn
 	 * existent mappings in the topology map.
 	 */
 	return dieid < max_dies ? pmu->boxes[dieid] : NULL;
@@ -149,7 +149,7 @@ uncore_get_constraint(struct intel_uncore_box *box, struct perf_event *event)
 
 	/*
 	 * reg->alloc can be set due to existing state, so for fake box we
-	 * need to ignore this, otherwise we might fail to allocate proper
+	 * need to igyesre this, otherwise we might fail to allocate proper
 	 * fake state for this extra reg constraint.
 	 */
 	if (reg1->idx == EXTRA_REG_NONE ||
@@ -183,7 +183,7 @@ void uncore_put_constraint(struct intel_uncore_box *box, struct perf_event *even
 
 	/*
 	 * Only put constraint if extra reg was actually allocated. Also
-	 * takes care of event which do not use an extra shared reg.
+	 * takes care of event which do yest use an extra shared reg.
 	 *
 	 * Also, if this is a fake box we shouldn't touch any event state
 	 * (reg->alloc) and we don't care about leaving inconsistent box
@@ -289,7 +289,7 @@ static enum hrtimer_restart uncore_pmu_hrtimer(struct hrtimer *hrtimer)
 
 	local_irq_restore(flags);
 
-	hrtimer_forward_now(hrtimer, ns_to_ktime(box->hrtimer_duration));
+	hrtimer_forward_yesw(hrtimer, ns_to_ktime(box->hrtimer_duration));
 	return HRTIMER_RESTART;
 }
 
@@ -311,14 +311,14 @@ static void uncore_pmu_init_hrtimer(struct intel_uncore_box *box)
 }
 
 static struct intel_uncore_box *uncore_alloc_box(struct intel_uncore_type *type,
-						 int node)
+						 int yesde)
 {
 	int i, size, numshared = type->num_shared_regs ;
 	struct intel_uncore_box *box;
 
 	size = sizeof(*box) + numshared * sizeof(struct intel_uncore_extra_reg);
 
-	box = kzalloc_node(size, GFP_KERNEL, node);
+	box = kzalloc_yesde(size, GFP_KERNEL, yesde);
 	if (!box)
 		return NULL;
 
@@ -444,11 +444,11 @@ static int uncore_assign_events(struct intel_uncore_box *box, int assign[], int 
 		if (hwc->idx == -1)
 			break;
 
-		/* constraint still honored */
+		/* constraint still hoyesred */
 		if (!test_bit(hwc->idx, c->idxmsk))
 			break;
 
-		/* not already used */
+		/* yest already used */
 		if (test_bit(hwc->idx, used_mask))
 			break;
 
@@ -479,7 +479,7 @@ void uncore_pmu_event_start(struct perf_event *event, int flags)
 	/*
 	 * Free running counter is read-only and always active.
 	 * Use the current counter value as start point.
-	 * There is no overflow interrupt for free running counter.
+	 * There is yes overflow interrupt for free running counter.
 	 * Use hrtimer to periodically poll the counter to avoid overflow.
 	 */
 	if (uncore_pmc_freerunning(event->hw.idx)) {
@@ -511,7 +511,7 @@ void uncore_pmu_event_stop(struct perf_event *event, int flags)
 	struct intel_uncore_box *box = uncore_event_to_box(event);
 	struct hw_perf_event *hwc = &event->hw;
 
-	/* Cannot disable free running counter which is read-only */
+	/* Canyest disable free running counter which is read-only */
 	if (uncore_pmc_freerunning(hwc->idx)) {
 		list_del(&event->active_entry);
 		if (--box->n_active == 0)
@@ -621,7 +621,7 @@ void uncore_pmu_event_del(struct perf_event *event, int flags)
 	uncore_pmu_event_stop(event, PERF_EF_UPDATE);
 
 	/*
-	 * The event for free running counter is not tracked by event_list.
+	 * The event for free running counter is yest tracked by event_list.
 	 * It doesn't need to force event->hw.idx = -1 to reassign the counter.
 	 * Because the event and the free running counter are 1:1 mapped.
 	 */
@@ -671,7 +671,7 @@ static int uncore_validate_group(struct intel_uncore_pmu *pmu,
 
 	fake_box->pmu = pmu;
 	/*
-	 * the event is not yet connected with its
+	 * the event is yest yet connected with its
 	 * siblings therefore we must first collect
 	 * existing siblings, then add the new event
 	 * before we can simulate the scheduling
@@ -704,11 +704,11 @@ static int uncore_pmu_event_init(struct perf_event *event)
 		return -ENOENT;
 
 	pmu = uncore_event_to_pmu(event);
-	/* no device found for this pmu */
+	/* yes device found for this pmu */
 	if (pmu->func_id < 0)
 		return -ENOENT;
 
-	/* Sampling not supported yet */
+	/* Sampling yest supported yet */
 	if (hwc->sample_period)
 		return -EINVAL;
 
@@ -732,7 +732,7 @@ static int uncore_pmu_event_init(struct perf_event *event)
 	event->hw.branch_reg.idx = EXTRA_REG_NONE;
 
 	if (event->attr.config == UNCORE_FIXED_EVENT) {
-		/* no fixed counter */
+		/* yes fixed counter */
 		if (!pmu->type->fixed_ctl)
 			return -EINVAL;
 		/*
@@ -1253,7 +1253,7 @@ static int allocate_boxes(struct intel_uncore_type **types,
 		for (i = 0; i < type->num_boxes; i++, pmu++) {
 			if (pmu->boxes[die])
 				continue;
-			box = uncore_alloc_box(type, cpu_to_node(cpu));
+			box = uncore_alloc_box(type, cpu_to_yesde(cpu));
 			if (!box)
 				goto cleanup;
 			box->pmu = pmu;

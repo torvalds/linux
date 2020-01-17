@@ -4,13 +4,13 @@
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003, 2004  Paul Mundt
- * Copyright (C) 2003, 2004  Richard Curnow
+ * Copyright (C) 2003, 2004  Richard Curyesw
  */
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/timer.h>
 #include <linux/mm.h>
@@ -49,7 +49,7 @@ static int read_opcode(reg_size_t pc, insn_size_t *result_opcode, int from_user_
 			return get_user_error;
 		} else {
 			/* If the fault was in the kernel, we can either read
-			 * this directly, or if not, we fault.
+			 * this directly, or if yest, we fault.
 			*/
 			*result_opcode = *(insn_size_t *)aligned_pc;
 			return 0;
@@ -80,7 +80,7 @@ static int address_is_sign_extended(__u64 a)
 /* return -1 for fault, 0 for OK */
 static int generate_and_check_address(struct pt_regs *regs,
 				      insn_size_t opcode,
-				      int displacement_not_indexed,
+				      int displacement_yest_indexed,
 				      int width_shift,
 				      __u64 *address)
 {
@@ -96,7 +96,7 @@ static int generate_and_check_address(struct pt_regs *regs,
 
 	basereg = (opcode >> 20) & 0x3f;
 	base_address = regs->regs[basereg];
-	if (displacement_not_indexed) {
+	if (displacement_yest_indexed) {
 		__s64 displacement;
 		displacement = (opcode >> 10) & 0x3ff;
 		displacement = sign_extend64(displacement, 9);
@@ -114,7 +114,7 @@ static int generate_and_check_address(struct pt_regs *regs,
 		return -1;
 
 	/* Check accessible.  For misaligned access in the kernel, assume the
-	   address is always accessible (and if not, just fault when the
+	   address is always accessible (and if yest, just fault when the
 	   load/store gets done.) */
 	if (user_mode(regs)) {
 		inc_unaligned_user_access();
@@ -127,7 +127,7 @@ static int generate_and_check_address(struct pt_regs *regs,
 	*address = addr;
 
 	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, addr);
-	unaligned_fixups_notify(current, opcode, regs);
+	unaligned_fixups_yestify(current, opcode, regs);
 
 	return 0;
 }
@@ -162,7 +162,7 @@ static void misaligned_kernel_word_store(__u64 address, __u64 value)
 
 static int misaligned_load(struct pt_regs *regs,
 			   insn_size_t opcode,
-			   int displacement_not_indexed,
+			   int displacement_yest_indexed,
 			   int width_shift,
 			   int do_sign_extend)
 {
@@ -172,7 +172,7 @@ static int misaligned_load(struct pt_regs *regs,
 	__u64 address;
 
 	error = generate_and_check_address(regs, opcode,
-			displacement_not_indexed, width_shift, &address);
+			displacement_yest_indexed, width_shift, &address);
 	if (error < 0)
 		return error;
 
@@ -237,7 +237,7 @@ static int misaligned_load(struct pt_regs *regs,
 
 static int misaligned_store(struct pt_regs *regs,
 			    insn_size_t opcode,
-			    int displacement_not_indexed,
+			    int displacement_yest_indexed,
 			    int width_shift)
 {
 	/* Return -1 for a fault, 0 for OK */
@@ -246,7 +246,7 @@ static int misaligned_store(struct pt_regs *regs,
 	__u64 address;
 
 	error = generate_and_check_address(regs, opcode,
-			displacement_not_indexed, width_shift, &address);
+			displacement_yest_indexed, width_shift, &address);
 	if (error < 0)
 		return error;
 
@@ -308,7 +308,7 @@ static int misaligned_store(struct pt_regs *regs,
    error. */
 static int misaligned_fpu_load(struct pt_regs *regs,
 			   insn_size_t opcode,
-			   int displacement_not_indexed,
+			   int displacement_yest_indexed,
 			   int width_shift,
 			   int do_paired_load)
 {
@@ -318,7 +318,7 @@ static int misaligned_fpu_load(struct pt_regs *regs,
 	__u64 address;
 
 	error = generate_and_check_address(regs, opcode,
-			displacement_not_indexed, width_shift, &address);
+			displacement_yest_indexed, width_shift, &address);
 	if (error < 0)
 		return error;
 
@@ -380,7 +380,7 @@ static int misaligned_fpu_load(struct pt_regs *regs,
 
 static int misaligned_fpu_store(struct pt_regs *regs,
 			   insn_size_t opcode,
-			   int displacement_not_indexed,
+			   int displacement_yest_indexed,
 			   int width_shift,
 			   int do_paired_load)
 {
@@ -390,7 +390,7 @@ static int misaligned_fpu_store(struct pt_regs *regs,
 	__u64 address;
 
 	error = generate_and_check_address(regs, opcode,
-			displacement_not_indexed, width_shift, &address);
+			displacement_yest_indexed, width_shift, &address);
 	if (error < 0)
 		return error;
 
@@ -455,7 +455,7 @@ static int misaligned_fixup(struct pt_regs *regs)
 {
 	insn_size_t opcode;
 	int error;
-	int major, minor;
+	int major, miyesr;
 	unsigned int user_action;
 
 	user_action = unaligned_user_action();
@@ -467,7 +467,7 @@ static int misaligned_fixup(struct pt_regs *regs)
 		return error;
 	}
 	major = (opcode >> 26) & 0x3f;
-	minor = (opcode >> 16) & 0xf;
+	miyesr = (opcode >> 16) & 0xf;
 
 	switch (major) {
 		case (0x84>>2): /* LD.W */
@@ -494,7 +494,7 @@ static int misaligned_fixup(struct pt_regs *regs)
 			break;
 
 		case (0x40>>2): /* indexed loads */
-			switch (minor) {
+			switch (miyesr) {
 				case 0x1: /* LDX.W */
 					error = misaligned_load(regs, opcode, 0, 1, 1);
 					break;
@@ -514,7 +514,7 @@ static int misaligned_fixup(struct pt_regs *regs)
 			break;
 
 		case (0x60>>2): /* indexed stores */
-			switch (minor) {
+			switch (miyesr) {
 				case 0x1: /* STX.W */
 					error = misaligned_store(regs, opcode, 0, 1);
 					break;
@@ -540,7 +540,7 @@ static int misaligned_fixup(struct pt_regs *regs)
 			error = misaligned_fpu_load(regs, opcode, 1, 3, 0);
 			break;
 		case (0x1c>>2): /* floating indexed loads */
-			switch (minor) {
+			switch (miyesr) {
 			case 0x8: /* FLDX.S */
 				error = misaligned_fpu_load(regs, opcode, 0, 2, 0);
 				break;
@@ -565,7 +565,7 @@ static int misaligned_fixup(struct pt_regs *regs)
 			error = misaligned_fpu_store(regs, opcode, 1, 3, 0);
 			break;
 		case (0x3c>>2): /* floating indexed stores */
-			switch (minor) {
+			switch (miyesr) {
 			case 0x8: /* FSTX.S */
 				error = misaligned_fpu_store(regs, opcode, 0, 2, 0);
 				break;
@@ -601,7 +601,7 @@ static void do_unhandled_exception(int signr, char *str, unsigned long error,
 	if (user_mode(regs))
 		force_sig(signr);
 
-	die_if_no_fixup(str, regs, error);
+	die_if_yes_fixup(str, regs, error);
 }
 
 #define DO_ERROR(signr, str, name) \
@@ -623,7 +623,7 @@ DO_ERROR(SIGSEGV, "address error (exec)", address_error_exec)
 #define OPCODE_CTRL_REG     3
 
 /* Table of valid opcodes for SHmedia mode.
-   Form a 10-bit value by concatenating the major/minor opcodes i.e.
+   Form a 10-bit value by concatenating the major/miyesr opcodes i.e.
    opcode[31:26,20:16].  The 6 MSBs of this value index into the following
    array.  The 4 LSBs select the bit-pair in the entry (bits 1:0 correspond to
    LSBs==4'b0000 etc). */
@@ -647,7 +647,7 @@ void do_reserved_inst(unsigned long error_code, struct pt_regs *regs)
 	insn_size_t opcode = 0x6ff4fff0; /* guaranteed reserved opcode */
 	unsigned long pc, aligned_pc;
 	unsigned long index, shift;
-	unsigned long major, minor, combined;
+	unsigned long major, miyesr, combined;
 	unsigned long reserved_field;
 	int opcode_state;
 	int get_user_error;
@@ -656,7 +656,7 @@ void do_reserved_inst(unsigned long error_code, struct pt_regs *regs)
 
 	pc = regs->pc;
 
-	/* SHcompact is not handled */
+	/* SHcompact is yest handled */
 	if (unlikely((pc & 3) == 0))
 		goto out;
 
@@ -671,7 +671,7 @@ void do_reserved_inst(unsigned long error_code, struct pt_regs *regs)
 	if (get_user_error < 0) {
 		/*
 		 * Error trying to read opcode.  This typically means a
-		 * real fault, not a RESINST any more.  So change the
+		 * real fault, yest a RESINST any more.  So change the
 		 * codes.
 		 */
 		exception_name = "address error (exec)";
@@ -685,10 +685,10 @@ void do_reserved_inst(unsigned long error_code, struct pt_regs *regs)
 		goto out;	/* invalid opcode */
 
 	major = (opcode >> 26) & 0x3f;
-	minor = (opcode >> 16) & 0xf;
-	combined = (major << 4) | minor;
+	miyesr = (opcode >> 16) & 0xf;
+	combined = (major << 4) | miyesr;
 	index = major;
-	shift = minor << 1;
+	shift = miyesr << 1;
 	opcode_state = (shmedia_opcode_table[index] >> shift) & 0x3;
 	switch (opcode_state) {
 	case OPCODE_INVALID:
@@ -697,7 +697,7 @@ void do_reserved_inst(unsigned long error_code, struct pt_regs *regs)
 	case OPCODE_USER_VALID:
 		/*
 		 * Restart the instruction: the branch to the instruction
-		 * will now be from an RTE not from SHcompact so the
+		 * will yesw be from an RTE yest from SHcompact so the
 		 * silicon defect won't be triggered.
 		 */
 		return;
@@ -723,16 +723,16 @@ void do_reserved_inst(unsigned long error_code, struct pt_regs *regs)
 
 		/* In user mode ... */
 		if (combined == 0x9f) { /* GETCON */
-			unsigned long regno = (opcode >> 20) & 0x3f;
+			unsigned long regyes = (opcode >> 20) & 0x3f;
 
-			if (regno >= 62)
+			if (regyes >= 62)
 				return;
 
 			/* reserved/privileged control register => trap */
 		} else if (combined == 0x1bf) { /* PUTCON */
-			unsigned long regno = (opcode >> 4) & 0x3f;
+			unsigned long regyes = (opcode >> 4) & 0x3f;
 
-			if (regno >= 62)
+			if (regyes >= 62)
 				return;
 
 			/* reserved/privileged control register => trap */
@@ -762,18 +762,18 @@ asmlinkage void do_exception_error(unsigned long ex, struct pt_regs *regs)
 	die_if_kernel("exception", regs, ex);
 }
 
-asmlinkage int do_unknown_trapa(unsigned long scId, struct pt_regs *regs)
+asmlinkage int do_unkyeswn_trapa(unsigned long scId, struct pt_regs *regs)
 {
 	/* Syscall debug */
 	printk("System call ID error: [0x1#args:8 #syscall:16  0x%lx]\n", scId);
 
-	die_if_kernel("unknown trapa", regs, scId);
+	die_if_kernel("unkyeswn trapa", regs, scId);
 
 	return -ENOSYS;
 }
 
 /* Implement misaligned load/store handling for kernel (and optionally for user
-   mode too).  Limitation : only SHmedia mode code is handled - there is no
+   mode too).  Limitation : only SHmedia mode code is handled - there is yes
    handling at all for misaligned accesses occurring in SHcompact code yet. */
 
 asmlinkage void do_address_error_load(unsigned long error_code, struct pt_regs *regs)
@@ -796,7 +796,7 @@ asmlinkage void do_debug_interrupt(unsigned long code, struct pt_regs *regs)
 	u64 poke_real_address_q(u64 addr, u64 val);
 	unsigned long long DM_EXP_CAUSE_PHY = 0x0c100010;
 	unsigned long long exp_cause;
-	/* It's not worth ioremapping the debug module registers for the amount
+	/* It's yest worth ioremapping the debug module registers for the amount
 	   of access we make to them - just go direct to their physical
 	   addresses. */
 	exp_cause = peek_real_address_q(DM_EXP_CAUSE_PHY);
@@ -810,5 +810,5 @@ asmlinkage void do_debug_interrupt(unsigned long code, struct pt_regs *regs)
 
 void per_cpu_trap_init(void)
 {
-	/* Nothing to do for now, VBR initialization later. */
+	/* Nothing to do for yesw, VBR initialization later. */
 }

@@ -7,11 +7,11 @@
 #define __XFS_REFCOUNT_H__
 
 extern int xfs_refcount_lookup_le(struct xfs_btree_cur *cur,
-		xfs_agblock_t bno, int *stat);
+		xfs_agblock_t byes, int *stat);
 extern int xfs_refcount_lookup_ge(struct xfs_btree_cur *cur,
-		xfs_agblock_t bno, int *stat);
+		xfs_agblock_t byes, int *stat);
 extern int xfs_refcount_lookup_eq(struct xfs_btree_cur *cur,
-		xfs_agblock_t bno, int *stat);
+		xfs_agblock_t byes, int *stat);
 extern int xfs_refcount_get_rec(struct xfs_btree_cur *cur,
 		struct xfs_refcount_irec *irec, int *stat);
 
@@ -42,7 +42,7 @@ extern int xfs_refcount_finish_one(struct xfs_trans *tp,
 		xfs_extlen_t *new_len, struct xfs_btree_cur **pcur);
 
 extern int xfs_refcount_find_shared(struct xfs_btree_cur *cur,
-		xfs_agblock_t agbno, xfs_extlen_t aglen, xfs_agblock_t *fbno,
+		xfs_agblock_t agbyes, xfs_extlen_t aglen, xfs_agblock_t *fbyes,
 		xfs_extlen_t *flen, bool find_end_of_shared);
 
 void xfs_refcount_alloc_cow_extent(struct xfs_trans *tp, xfs_fsblock_t fsb,
@@ -50,7 +50,7 @@ void xfs_refcount_alloc_cow_extent(struct xfs_trans *tp, xfs_fsblock_t fsb,
 void xfs_refcount_free_cow_extent(struct xfs_trans *tp, xfs_fsblock_t fsb,
 		xfs_extlen_t len);
 extern int xfs_refcount_recover_cow_leftovers(struct xfs_mount *mp,
-		xfs_agnumber_t agno);
+		xfs_agnumber_t agyes);
 
 /*
  * While we're adjusting the refcounts records of an extent, we have
@@ -69,7 +69,7 @@ static inline xfs_fileoff_t xfs_refcount_max_unmap(int log_res)
 }
 
 extern int xfs_refcount_has_record(struct xfs_btree_cur *cur,
-		xfs_agblock_t bno, xfs_extlen_t len, bool *exists);
+		xfs_agblock_t byes, xfs_extlen_t len, bool *exists);
 union xfs_btree_rec;
 extern void xfs_refcount_btrec_to_irec(union xfs_btree_rec *rec,
 		struct xfs_refcount_irec *irec);

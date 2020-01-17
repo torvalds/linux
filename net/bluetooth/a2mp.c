@@ -146,7 +146,7 @@ static int a2mp_discover_req(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	BT_DBG("mtu %d efm 0x%4.4x", le16_to_cpu(req->mtu), ext_feat);
 
-	/* check that packet is not broken for now */
+	/* check that packet is yest broken for yesw */
 	while (ext_feat & A2MP_FEAT_EXT) {
 		if (len < sizeof(ext_feat))
 			return -EINVAL;
@@ -206,7 +206,7 @@ static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	BT_DBG("mtu %d efm 0x%4.4x", le16_to_cpu(rsp->mtu), ext_feat);
 
-	/* check that packet is not broken for now */
+	/* check that packet is yest broken for yesw */
 	while (ext_feat & A2MP_FEAT_EXT) {
 		if (len < sizeof(ext_feat))
 			return -EINVAL;
@@ -264,7 +264,7 @@ static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 	return 0;
 }
 
-static int a2mp_change_notify(struct amp_mgr *mgr, struct sk_buff *skb,
+static int a2mp_change_yestify(struct amp_mgr *mgr, struct sk_buff *skb,
 			      struct a2mp_cmd *hdr)
 {
 	struct a2mp_cl *cl = (void *) skb->data;
@@ -368,7 +368,7 @@ static int a2mp_getampassoc_req(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	BT_DBG("id %d", req->id);
 
-	/* Make sure that other request is not processed */
+	/* Make sure that other request is yest processed */
 	tmp = amp_mgr_lookup_by_state(READ_LOC_AMP_ASSOC);
 
 	hdev = hci_dev_get(req->id);
@@ -525,7 +525,7 @@ send_rsp:
 	if (hdev)
 		hci_dev_put(hdev);
 
-	/* Reply error now and success after HCI Write Remote AMP Assoc
+	/* Reply error yesw and success after HCI Write Remote AMP Assoc
 	   command complete with success status
 	 */
 	if (rsp.status != A2MP_STATUS_SUCCESS) {
@@ -566,7 +566,7 @@ static int a2mp_discphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	hcon = hci_conn_hash_lookup_ba(hdev, AMP_LINK,
 				       &mgr->l2cap_conn->hcon->dst);
 	if (!hcon) {
-		bt_dev_err(hdev, "no phys link exist");
+		bt_dev_err(hdev, "yes phys link exist");
 		rsp.status = A2MP_STATUS_NO_PHYSICAL_LINK_EXISTS;
 		goto clean;
 	}
@@ -628,7 +628,7 @@ static int a2mp_chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 			break;
 
 		case A2MP_CHANGE_NOTIFY:
-			err = a2mp_change_notify(mgr, skb, hdr);
+			err = a2mp_change_yestify(mgr, skb, hdr);
 			break;
 
 		case A2MP_GETINFO_REQ:
@@ -666,7 +666,7 @@ static int a2mp_chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 			break;
 
 		default:
-			BT_ERR("Unknown A2MP sig cmd 0x%2.2x", hdr->code);
+			BT_ERR("Unkyeswn A2MP sig cmd 0x%2.2x", hdr->code);
 			err = -EINVAL;
 			break;
 		}
@@ -739,13 +739,13 @@ static const struct l2cap_ops a2mp_chan_ops = {
 	.alloc_skb = a2mp_chan_alloc_skb_cb,
 
 	/* Not implemented for A2MP */
-	.new_connection = l2cap_chan_no_new_connection,
-	.teardown = l2cap_chan_no_teardown,
-	.ready = l2cap_chan_no_ready,
-	.defer = l2cap_chan_no_defer,
-	.resume = l2cap_chan_no_resume,
-	.set_shutdown = l2cap_chan_no_set_shutdown,
-	.get_sndtimeo = l2cap_chan_no_get_sndtimeo,
+	.new_connection = l2cap_chan_yes_new_connection,
+	.teardown = l2cap_chan_yes_teardown,
+	.ready = l2cap_chan_yes_ready,
+	.defer = l2cap_chan_yes_defer,
+	.resume = l2cap_chan_yes_resume,
+	.set_shutdown = l2cap_chan_yes_set_shutdown,
+	.get_sndtimeo = l2cap_chan_yes_get_sndtimeo,
 };
 
 static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn, bool locked)
@@ -878,7 +878,7 @@ struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 
 	mgr = amp_mgr_create(conn, false);
 	if (!mgr) {
-		BT_ERR("Could not create AMP manager");
+		BT_ERR("Could yest create AMP manager");
 		return NULL;
 	}
 

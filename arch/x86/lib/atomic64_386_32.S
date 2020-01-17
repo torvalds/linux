@@ -153,7 +153,7 @@ ENDP
 #undef v
 
 #define v %esi
-BEGIN(inc_not_zero)
+BEGIN(inc_yest_zero)
 	movl  (v), %eax
 	movl 4(v), %edx
 	testl %eax, %eax

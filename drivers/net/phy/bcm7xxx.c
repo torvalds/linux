@@ -151,7 +151,7 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 		     phydev_name(phydev), phydev->drv->name, rev, patch);
 
 	/* Dummy read to a register to workaround an issue upon reset where the
-	 * internal inverter may not allow the first MDIO transaction to pass
+	 * internal inverter may yest allow the first MDIO transaction to pass
 	 * the MDIO management controller and make us return 0xffff for such
 	 * reads.
 	 */
@@ -203,7 +203,7 @@ static int bcm7xxx_28nm_resume(struct phy_device *phydev)
 		return ret;
 
 	/* 28nm Gigabit PHYs come out of reset without any half-duplex
-	 * or "hub" compliant advertised mode, fix that. This does not
+	 * or "hub" compliant advertised mode, fix that. This does yest
 	 * cause any problems with the PHY library since genphy_config_aneg()
 	 * gracefully handles auto-negotiated and forced modes.
 	 */
@@ -274,7 +274,7 @@ reset_shadow_mode:
 	return 0;
 }
 
-/* The 28nm EPHY does not support Clause 45 (MMD) used by bcm-phy-lib */
+/* The 28nm EPHY does yest support Clause 45 (MMD) used by bcm-phy-lib */
 static int bcm7xxx_28nm_ephy_apd_enable(struct phy_device *phydev)
 {
 	int ret;
@@ -372,7 +372,7 @@ static int bcm7xxx_28nm_ephy_config_init(struct phy_device *phydev)
 		     phydev_name(phydev), phydev->drv->name, rev);
 
 	/* Dummy read to a register to workaround a possible issue upon reset
-	 * where the internal inverter may not allow the first MDIO transaction
+	 * where the internal inverter may yest allow the first MDIO transaction
 	 * to pass the MDIO management controller and make us return 0xffff for
 	 * such reads.
 	 */

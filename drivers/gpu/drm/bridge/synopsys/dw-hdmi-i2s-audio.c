@@ -3,7 +3,7 @@
  * dw-hdmi-i2s-audio.c
  *
  * Copyright (c) 2017 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  */
 
 #include <linux/dma-mapping.h>
@@ -141,7 +141,7 @@ static int dw_hdmi_i2s_get_eld(struct device *dev, void *data, uint8_t *buf,
 }
 
 static int dw_hdmi_i2s_get_dai_id(struct snd_soc_component *component,
-				  struct device_node *endpoint)
+				  struct device_yesde *endpoint)
 {
 	struct of_endpoint of_ep;
 	int ret;
@@ -226,7 +226,7 @@ static struct platform_driver snd_dw_hdmi_driver = {
 };
 module_platform_driver(snd_dw_hdmi_driver);
 
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
-MODULE_DESCRIPTION("Synopsis Designware HDMI I2S ALSA SoC interface");
+MODULE_AUTHOR("Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>");
+MODULE_DESCRIPTION("Syyespsis Designware HDMI I2S ALSA SoC interface");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRIVER_NAME);

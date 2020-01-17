@@ -9,7 +9,7 @@
  *
  * Based on the arch/ppc version of the driver:
  *
- * Copyright (c) 2004, 2005 Zultys Technologies.
+ * Copyright (c) 2004, 2005 Zultys Techyeslogies.
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *
  * Based on original work by
@@ -51,7 +51,7 @@
 
 #define EMAC_MIN_MTU			46
 
-/* Maximum L2 header length (VLAN tagged, no FCS) */
+/* Maximum L2 header length (VLAN tagged, yes FCS) */
 #define EMAC_MTU_OVERHEAD		(6 * 2 + 2 + 4)
 
 /* RX BD size for the given MTU */
@@ -78,11 +78,11 @@ static inline int emac_rx_sync_size(int mtu)
 }
 
 /* Driver statistcs is split into two parts to make it more cache friendly:
- *   - normal statistics (packet count, etc)
+ *   - yesrmal statistics (packet count, etc)
  *   - error statistics
  *
  * When statistics is requested by ethtool, these parts are concatenated,
- * normal one goes first.
+ * yesrmal one goes first.
  *
  * Please, keep these structures in sync with emac_stats_keys.
  */
@@ -160,7 +160,7 @@ struct emac_instance {
 	struct net_device		*ndev;
 	struct emac_regs		__iomem *emacp;
 	struct platform_device		*ofdev;
-	struct device_node		**blist; /* bootlist entry */
+	struct device_yesde		**blist; /* bootlist entry */
 
 	/* MAL linkage */
 	u32				mal_ph;
@@ -261,7 +261,7 @@ struct emac_instance {
 	 */
 	int				reset_failed;
 	int				stop_timeout;	/* in us */
-	int				no_mcast;
+	int				yes_mcast;
 	int				mcast_pending;
 	int				opened;
 	struct work_struct		reset_work;
@@ -322,11 +322,11 @@ struct emac_instance {
  */
 #define EMAC_APM821XX_REQ_JUMBO_FRAME_SIZE	0x00000800
 /*
- * APM821xx does not support Half Duplex mode
+ * APM821xx does yest support Half Duplex mode
  */
 #define EMAC_FTR_APM821XX_NO_HALF_DUPLEX	0x00001000
 
-/* Right now, we don't quite handle the always/possible masks on the
+/* Right yesw, we don't quite handle the always/possible masks on the
  * most optimal way as we don't have a way to say something like
  * always EMAC4. Patches welcome.
  */
@@ -434,7 +434,7 @@ static inline u32 *emac_iaht_base(struct emac_instance *dev)
 }
 
 /* Ethtool get_regs complex data.
- * We want to get not just EMAC registers, but also MAL, ZMII, RGMII, TAH
+ * We want to get yest just EMAC registers, but also MAL, ZMII, RGMII, TAH
  * when available.
  *
  * Returned BLOB consists of the ibm_emac_ethtool_regs_hdr,

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Copyright (C) 2019 Renesas Electronics Corporation
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  */
 #include <linux/interrupt.h>
 
@@ -12,43 +12,43 @@
 #include "mod.h"
 
 /*
- *		autonomy
+ *		autoyesmy
  *
  * these functions are used if platform doesn't have external phy.
- *  -> there is no "notify_hotplug" callback from platform
- *  -> call "notify_hotplug" by itself
+ *  -> there is yes "yestify_hotplug" callback from platform
+ *  -> call "yestify_hotplug" by itself
  *  -> use own interrupt to connect/disconnect
  *  -> it mean module clock is always ON
  *             ~~~~~~~~~~~~~~~~~~~~~~~~~
  */
-static int usbhsm_autonomy_get_vbus(struct platform_device *pdev)
+static int usbhsm_autoyesmy_get_vbus(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
 
 	return  VBSTS & usbhs_read(priv, INTSTS0);
 }
 
-static int usbhsm_autonomy_irq_vbus(struct usbhs_priv *priv,
+static int usbhsm_autoyesmy_irq_vbus(struct usbhs_priv *priv,
 				    struct usbhs_irq_state *irq_state)
 {
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
 
-	usbhsc_schedule_notify_hotplug(pdev);
+	usbhsc_schedule_yestify_hotplug(pdev);
 
 	return 0;
 }
 
-void usbhs_mod_autonomy_mode(struct usbhs_priv *priv)
+void usbhs_mod_autoyesmy_mode(struct usbhs_priv *priv)
 {
 	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
 
-	info->irq_vbus = usbhsm_autonomy_irq_vbus;
-	info->get_vbus = usbhsm_autonomy_get_vbus;
+	info->irq_vbus = usbhsm_autoyesmy_irq_vbus;
+	info->get_vbus = usbhsm_autoyesmy_get_vbus;
 
 	usbhs_irq_callback_update(priv, NULL);
 }
 
-void usbhs_mod_non_autonomy_mode(struct usbhs_priv *priv)
+void usbhs_mod_yesn_autoyesmy_mode(struct usbhs_priv *priv)
 {
 	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
 
@@ -109,7 +109,7 @@ int usbhs_mod_change(struct usbhs_priv *priv, int id)
 	struct usbhs_mod *mod = NULL;
 	int ret = 0;
 
-	/* id < 0 mean no current */
+	/* id < 0 mean yes current */
 	switch (id) {
 	case USBHS_HOST:
 	case USBHS_GADGET:
@@ -237,8 +237,8 @@ static int usbhs_status_get_each_irq(struct usbhs_priv *priv,
 /*
  *		interrupt
  */
-#define INTSTS0_MAGIC 0xF800 /* acknowledge magical interrupt sources */
-#define INTSTS1_MAGIC 0xA870 /* acknowledge magical interrupt sources */
+#define INTSTS0_MAGIC 0xF800 /* ackyeswledge magical interrupt sources */
+#define INTSTS1_MAGIC 0xA870 /* ackyeswledge magical interrupt sources */
 static irqreturn_t usbhs_interrupt(int irq, void *data)
 {
 	struct usbhs_priv *priv = data;
@@ -263,7 +263,7 @@ static irqreturn_t usbhs_interrupt(int irq, void *data)
 		usbhs_write(priv, INTSTS1, ~irq_state.intsts1 & INTSTS1_MAGIC);
 
 	/*
-	 * The driver should not clear the xxxSTS after the line of
+	 * The driver should yest clear the xxxSTS after the line of
 	 * "call irq callback functions" because each "if" statement is
 	 * possible to call the callback function for avoiding any side effects.
 	 */

@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -34,7 +34,7 @@
  */
 
 /*
- * This file should not be included directly.  Include t4vf_common.h instead.
+ * This file should yest be included directly.  Include t4vf_common.h instead.
  */
 
 #ifndef __CXGB4VF_ADAPTER_H__
@@ -69,7 +69,7 @@ enum {
 	 * The maximum number of Ingress and Egress Queues is determined by
 	 * the maximum number of "Queue Sets" which we support plus any
 	 * ancillary queues.  Each "Queue Set" requires one Ingress Queue
-	 * for RX Packet Ingress Event notifications and two Egress Queues for
+	 * for RX Packet Ingress Event yestifications and two Egress Queues for
 	 * a Free List and an Ethernet TX list.
 	 */
 	INGQ_EXTRAS	= 2,		/* firmware event queue and */
@@ -87,7 +87,7 @@ struct sge_rspq;
 
 /*
  * Per-"port" information.  This is really per-Virtual Interface information
- * but the use of the "port" nomanclature makes it easier to go back and forth
+ * but the use of the "port" yesmanclature makes it easier to go back and forth
  * between the PF and VF drivers ...
  */
 struct port_info {
@@ -111,7 +111,7 @@ struct port_info {
  * queues are organized into "Queue Sets" with one ingress and one egress
  * queue per Queue Set.  These Queue Sets are aportionable between the "ports"
  * (Virtual Interfaces).  One extra ingress queue is used to receive
- * asynchronous messages from the firmware.  Note that the "Queue IDs" that we
+ * asynchroyesus messages from the firmware.  Note that the "Queue IDs" that we
  * use here are really "Relative Queue IDs" which are returned as part of the
  * firmware command to allocate queues.  These queue IDs are relative to the
  * absolute Queue ID base of the section of the Queue ID space allocated to
@@ -202,7 +202,7 @@ struct sge_eth_stats {
 	unsigned long lro_merged;	/* # of wire packets merged by LRO */
 	unsigned long rx_cso;		/* # of Rx checksum offloads */
 	unsigned long vlan_ex;		/* # of Rx VLAN extractions */
-	unsigned long rx_drops;		/* # of packets dropped due to no mem */
+	unsigned long rx_drops;		/* # of packets dropped due to yes mem */
 };
 
 /*
@@ -218,7 +218,7 @@ struct sge_eth_rxq {
  * SGE Transmit Queue state.  This contains all of the resources associated
  * with the hardware status of a TX Queue which is a circular ring of hardware
  * TX Descriptors.  For convenience, it also contains a pointer to a parallel
- * "Software Descriptor" array but we don't know anything about it here other
+ * "Software Descriptor" array but we don't kyesw anything about it here other
  * than its type name.
  */
 struct tx_desc {
@@ -275,7 +275,7 @@ struct sge {
 	struct sge_eth_rxq ethrxq[MAX_ETH_QSETS];
 
 	/*
-	 * Extra ingress queues for asynchronous firmware events and
+	 * Extra ingress queues for asynchroyesus firmware events and
 	 * forwarded interrupts (when in MSI mode).
 	 */
 	struct sge_rspq fw_evtq ____cacheline_aligned_in_smp;
@@ -344,7 +344,7 @@ struct sge {
 #define IQ_MAP(s, abs_id) ((s)->ingr_map[IQ_IDX(s, abs_id)])
 
 /*
- * Macro to iterate across Queue Sets ("rxq" is a historic misnomer).
+ * Macro to iterate across Queue Sets ("rxq" is a historic misyesmer).
  */
 #define for_each_ethrxq(sge, iter) \
 	for (iter = 0; iter < (sge)->ethqsets; iter++)

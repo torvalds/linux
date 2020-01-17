@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -220,12 +220,12 @@ static void ath_btcoex_period_timer(struct timer_list *t)
 		ath_detect_bt_priority(sc);
 
 	stomp_type = btcoex->bt_stomp_type;
-	timer_period = btcoex->btcoex_no_stomp;
+	timer_period = btcoex->btcoex_yes_stomp;
 
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI)) {
 		if (test_bit(BT_OP_SCAN, &btcoex->op_flags)) {
 			stomp_type = ATH_BTCOEX_STOMP_ALL;
-			timer_period = btcoex->btscan_no_stomp;
+			timer_period = btcoex->btscan_yes_stomp;
 		}
 	} else if (btcoex->stomp_audio >= 5) {
 		stomp_type = ATH_BTCOEX_STOMP_AUDIO;
@@ -237,8 +237,8 @@ static void ath_btcoex_period_timer(struct timer_list *t)
 
 	spin_unlock_bh(&btcoex->btcoex_lock);
 
-	if (btcoex->btcoex_period != btcoex->btcoex_no_stomp)
-		mod_timer(&btcoex->no_stomp_timer,
+	if (btcoex->btcoex_period != btcoex->btcoex_yes_stomp)
+		mod_timer(&btcoex->yes_stomp_timer,
 			 jiffies + msecs_to_jiffies(timer_period));
 
 	ath9k_ps_restore(sc);
@@ -252,9 +252,9 @@ skip_hw_wakeup:
  * Generic tsf based hw timer which configures weight
  * registers to time slice between wlan and bt traffic
  */
-static void ath_btcoex_no_stomp_timer(struct timer_list *t)
+static void ath_btcoex_yes_stomp_timer(struct timer_list *t)
 {
-	struct ath_softc *sc = from_timer(sc, t, btcoex.no_stomp_timer);
+	struct ath_softc *sc = from_timer(sc, t, btcoex.yes_stomp_timer);
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_btcoex *btcoex = &sc->btcoex;
 
@@ -278,14 +278,14 @@ static void ath_init_btcoex_timer(struct ath_softc *sc)
 	struct ath_btcoex *btcoex = &sc->btcoex;
 
 	btcoex->btcoex_period = ATH_BTCOEX_DEF_BT_PERIOD;
-	btcoex->btcoex_no_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) *
+	btcoex->btcoex_yes_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) *
 		btcoex->btcoex_period / 100;
-	btcoex->btscan_no_stomp = (100 - ATH_BTCOEX_BTSCAN_DUTY_CYCLE) *
+	btcoex->btscan_yes_stomp = (100 - ATH_BTCOEX_BTSCAN_DUTY_CYCLE) *
 				   btcoex->btcoex_period / 100;
 	btcoex->bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
 
 	timer_setup(&btcoex->period_timer, ath_btcoex_period_timer, 0);
-	timer_setup(&btcoex->no_stomp_timer, ath_btcoex_no_stomp_timer, 0);
+	timer_setup(&btcoex->yes_stomp_timer, ath_btcoex_yes_stomp_timer, 0);
 
 	spin_lock_init(&btcoex->btcoex_lock);
 }
@@ -305,7 +305,7 @@ void ath9k_btcoex_timer_resume(struct ath_softc *sc)
 	ath_dbg(ath9k_hw_common(ah), BTCOEX, "Starting btcoex timers\n");
 
 	/* make sure duty cycle timer is also stopped when resuming */
-	del_timer_sync(&btcoex->no_stomp_timer);
+	del_timer_sync(&btcoex->yes_stomp_timer);
 
 	btcoex->bt_priority_cnt = 0;
 	btcoex->bt_priority_time = jiffies;
@@ -330,14 +330,14 @@ void ath9k_btcoex_timer_pause(struct ath_softc *sc)
 	ath_dbg(ath9k_hw_common(ah), BTCOEX, "Stopping btcoex timers\n");
 
 	del_timer_sync(&btcoex->period_timer);
-	del_timer_sync(&btcoex->no_stomp_timer);
+	del_timer_sync(&btcoex->yes_stomp_timer);
 }
 
 void ath9k_btcoex_stop_gen_timer(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
 
-	del_timer_sync(&btcoex->no_stomp_timer);
+	del_timer_sync(&btcoex->yes_stomp_timer);
 }
 
 u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc, u32 max_4ms_framelen)

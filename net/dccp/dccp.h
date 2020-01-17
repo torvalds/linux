@@ -108,20 +108,20 @@ extern int  sysctl_dccp_sync_ratelimit;
 #define ADD48(a, b)	 (((a) + (b)) & UINT48_MAX)
 #define SUB48(a, b)	 ADD48((a), COMPLEMENT48(b))
 
-static inline void dccp_set_seqno(u64 *seqno, u64 value)
+static inline void dccp_set_seqyes(u64 *seqyes, u64 value)
 {
-	*seqno = value & UINT48_MAX;
+	*seqyes = value & UINT48_MAX;
 }
 
-static inline void dccp_inc_seqno(u64 *seqno)
+static inline void dccp_inc_seqyes(u64 *seqyes)
 {
-	*seqno = ADD48(*seqno, 1);
+	*seqyes = ADD48(*seqyes, 1);
 }
 
-/* signed mod-2^48 distance: pos. if seqno1 < seqno2, neg. if seqno1 > seqno2 */
-static inline s64 dccp_delta_seqno(const u64 seqno1, const u64 seqno2)
+/* signed mod-2^48 distance: pos. if seqyes1 < seqyes2, neg. if seqyes1 > seqyes2 */
+static inline s64 dccp_delta_seqyes(const u64 seqyes1, const u64 seqyes2)
 {
-	u64 delta = SUB48(seqno2, seqno1);
+	u64 delta = SUB48(seqyes2, seqyes1);
 
 	return TO_SIGNED48(delta);
 }
@@ -148,13 +148,13 @@ static inline u64 max48(const u64 seq1, const u64 seq2)
 
 /**
  * dccp_loss_count - Approximate the number of lost data packets in a burst loss
- * @s1:  last known sequence number before the loss ('hole')
+ * @s1:  last kyeswn sequence number before the loss ('hole')
  * @s2:  first sequence number seen after the 'hole'
  * @ndp: NDP count on packet with sequence number @s2
  */
 static inline u64 dccp_loss_count(const u64 s1, const u64 s2, const u64 ndp)
 {
-	s64 delta = dccp_delta_seqno(s1, s2);
+	s64 delta = dccp_delta_seqyes(s1, s2);
 
 	WARN_ON(delta < 0);
 	delta -= ndp + 1;
@@ -309,7 +309,7 @@ int compat_dccp_setsockopt(struct sock *sk, int level, int optname,
 #endif
 int dccp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 int dccp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
-int dccp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
+int dccp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int yesnblock,
 		 int flags, int *addr_len);
 void dccp_shutdown(struct sock *sk, int how);
 int inet_dccp_listen(struct socket *sock, int backlog);
@@ -336,13 +336,13 @@ static inline bool dccp_bad_service_code(const struct sock *sk,
 
 /**
  * dccp_skb_cb  -  DCCP per-packet control information
- * @dccpd_type: one of %dccp_pkt_type (or unknown)
+ * @dccpd_type: one of %dccp_pkt_type (or unkyeswn)
  * @dccpd_ccval: CCVal field (5.1), see e.g. RFC 4342, 8.1
  * @dccpd_reset_code: one of %dccp_reset_codes
  * @dccpd_reset_data: Data1..3 fields (depend on @dccpd_reset_code)
  * @dccpd_opt_len: total length of all options (5.8) in the packet
  * @dccpd_seq: sequence number
- * @dccpd_ack_seq: acknowledgment number subheader field value
+ * @dccpd_ack_seq: ackyeswledgment number subheader field value
  *
  * This is used for transmission as well as for reception.
  */
@@ -365,7 +365,7 @@ struct dccp_skb_cb {
 #define DCCP_SKB_CB(__skb) ((struct dccp_skb_cb *)&((__skb)->cb[0]))
 
 /* RFC 4340, sec. 7.7 */
-static inline int dccp_non_data_packet(const struct sk_buff *skb)
+static inline int dccp_yesn_data_packet(const struct sk_buff *skb)
 {
 	const __u8 type = DCCP_SKB_CB(skb)->dccpd_type;
 
@@ -423,16 +423,16 @@ static inline void dccp_update_gsr(struct sock *sk, u64 seq)
 	/* Sequence validity window depends on remote Sequence Window (7.5.1) */
 	dp->dccps_swl = SUB48(ADD48(dp->dccps_gsr, 1), dp->dccps_r_seq_win / 4);
 	/*
-	 * Adjust SWL so that it is not below ISR. In contrast to RFC 4340,
+	 * Adjust SWL so that it is yest below ISR. In contrast to RFC 4340,
 	 * 7.5.1 we perform this check beyond the initial handshake: W/W' are
 	 * always > 32, so for the first W/W' packets in the lifetime of a
 	 * connection we always have to adjust SWL.
 	 * A second reason why we are doing this is that the window depends on
-	 * the feature-remote value of Sequence Window: nothing stops the peer
+	 * the feature-remote value of Sequence Window: yesthing stops the peer
 	 * from updating this value while we are busy adjusting SWL for the
 	 * first W packets (we would have to count from scratch again then).
 	 * Therefore it is safer to always make sure that the Sequence Window
-	 * is not artificially extended by a peer who grows SWL downwards by
+	 * is yest artificially extended by a peer who grows SWL downwards by
 	 * continually updating the feature-remote Sequence-Window.
 	 * If sequence numbers wrap it is bad luck. But that will take a while
 	 * (48 bit), and this measure prevents Sequence-number attacks.
@@ -449,7 +449,7 @@ static inline void dccp_update_gss(struct sock *sk, u64 seq)
 	dp->dccps_gss = seq;
 	/* Ack validity window depends on local Sequence Window value (7.5.1) */
 	dp->dccps_awl = SUB48(ADD48(dp->dccps_gss, 1), dp->dccps_l_seq_win);
-	/* Adjust AWL so that it is not below ISS - see comment above for SWL */
+	/* Adjust AWL so that it is yest below ISS - see comment above for SWL */
 	if (before48(dp->dccps_awl, dp->dccps_iss))
 		dp->dccps_awl = dp->dccps_iss;
 	dp->dccps_awh = dp->dccps_gss;

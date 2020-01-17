@@ -5,7 +5,7 @@
  * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
- * Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ * Copyright 2004-2006 Jean-Baptiste Note <jbyeste@gmail.com>, et al.
  */
 #ifndef WFX_MAIN_H
 #define WFX_MAIN_H
@@ -41,7 +41,7 @@ void wfx_release(struct wfx_dev *wdev);
 
 struct gpio_desc *wfx_get_gpio(struct device *dev, int override,
 			       const char *label);
-bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor);
+bool wfx_api_older_than(struct wfx_dev *wdev, int major, int miyesr);
 int wfx_send_pds(struct wfx_dev *wdev, unsigned char *buf, size_t len);
 
 #endif

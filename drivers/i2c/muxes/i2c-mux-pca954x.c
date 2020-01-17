@@ -95,7 +95,7 @@ struct pca954x {
 	raw_spinlock_t lock;
 };
 
-/* Provide specs for the PCA954x types we know about */
+/* Provide specs for the PCA954x types we kyesw about */
 static const struct chip_desc chips[] = {
 	[pca_9540] = {
 		.nchans = 2,
@@ -237,7 +237,7 @@ static int pca954x_select_chan(struct i2c_mux_core *muxc, u32 chan)
 	u8 regval;
 	int ret = 0;
 
-	/* we make switches look like muxes, not sure how to be smarter */
+	/* we make switches look like muxes, yest sure how to be smarter */
 	if (chip->muxtype == pca954x_ismux)
 		regval = chan | chip->enable;
 	else
@@ -364,7 +364,7 @@ static int pca954x_irq_setup(struct i2c_mux_core *muxc)
 
 	raw_spin_lock_init(&data->lock);
 
-	data->irq = irq_domain_add_linear(client->dev.of_node,
+	data->irq = irq_domain_add_linear(client->dev.of_yesde,
 					  data->chip->nchans,
 					  &irq_domain_simple_ops, data);
 	if (!data->irq)
@@ -410,7 +410,7 @@ static int pca954x_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adap = client->adapter;
 	struct device *dev = &client->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	bool idle_disconnect_dt;
 	struct gpio_desc *gpio;
 	struct i2c_mux_core *muxc;

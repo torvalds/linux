@@ -42,7 +42,7 @@
  *
  * Returns:
  * Pointer to &drm_gem_object for the given framebuffer and plane index or NULL
- * if it does not exist.
+ * if it does yest exist.
  */
 struct drm_gem_object *drm_gem_fb_get_obj(struct drm_framebuffer *fb,
 					  unsigned int plane)
@@ -277,7 +277,7 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
  * shared as a struct &dma_buf. This function can be used as the
  * &drm_plane_helper_funcs.prepare_fb callback.
  *
- * There is no need for &drm_plane_helper_funcs.cleanup_fb hook for simple
+ * There is yes need for &drm_plane_helper_funcs.cleanup_fb hook for simple
  * gem based framebuffer drivers which have their buffers always pinned in
  * memory.
  *

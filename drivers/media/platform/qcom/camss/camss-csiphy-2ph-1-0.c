@@ -55,7 +55,7 @@ static void csiphy_reset(struct csiphy_device *csiphy)
  * frequency.
  *
  * Return settle count value or 0 if the CSI2 pixel clock
- * frequency is not available
+ * frequency is yest available
  */
 static u8 csiphy_settle_cnt_calc(u32 pixel_clock, u8 bpp, u8 num_lanes,
 				 u32 timer_clk_rate)

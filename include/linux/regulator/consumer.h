@@ -25,7 +25,7 @@
  *   idling. Regulator r has > 90% efficiency in NORMAL mode at loads > 100mA
  *   but this drops rapidly to 60% when below 100mA. Regulator r has > 90%
  *   efficiency in IDLE mode at loads < 10mA. Thus regulator r will operate
- *   in normal mode for loads > 10mA and in IDLE mode for load <= 10mA.
+ *   in yesrmal mode for loads > 10mA and in IDLE mode for load <= 10mA.
  */
 
 #ifndef __LINUX_REGULATOR_CONSUMER_H_
@@ -34,7 +34,7 @@
 #include <linux/err.h>
 
 struct device;
-struct notifier_block;
+struct yestifier_block;
 struct regmap;
 
 /*
@@ -45,7 +45,7 @@ struct regmap;
  * best (and most efficient) regulator mode for a desired load.
  *
  * Most drivers will only care about NORMAL. The modes below are generic and
- * will probably not match the naming convention of your regulator data sheet
+ * will probably yest match the naming convention of your regulator data sheet
  * but should match the use cases in the datasheet.
  *
  * In order of power efficiency (least efficient at top).
@@ -61,13 +61,13 @@ struct regmap;
  *  IDLE       Regulator runs in a more efficient mode for light
  *             loads. Can be used for devices that have a low power
  *             requirement during periods of inactivity. This mode
- *             may be more noisy than NORMAL and may not be able
+ *             may be more yesisy than NORMAL and may yest be able
  *             to handle fast load switching.
  *
  *  STANDBY    Regulator runs in the most efficient mode for very
  *             light loads. Can be used by devices when they are
  *             in a sleep/standby state. This mode is likely to be
- *             the most noisy and may not be able to handle fast load
+ *             the most yesisy and may yest be able to handle fast load
  *             switching.
  *
  * NOTE: Most regulators will only support a subset of these modes. Some
@@ -83,7 +83,7 @@ struct regmap;
 #define REGULATOR_MODE_STANDBY			0x8
 
 /*
- * Regulator notifier events.
+ * Regulator yestifier events.
  *
  * UNDER_VOLTAGE  Regulator output is under voltage.
  * OVER_CURRENT   Regulator output current is too high.
@@ -267,15 +267,15 @@ int regulator_get_hardware_vsel_register(struct regulator *regulator,
 int regulator_list_hardware_vsel(struct regulator *regulator,
 				 unsigned selector);
 
-/* regulator notifier block */
-int regulator_register_notifier(struct regulator *regulator,
-			      struct notifier_block *nb);
-int devm_regulator_register_notifier(struct regulator *regulator,
-				     struct notifier_block *nb);
-int regulator_unregister_notifier(struct regulator *regulator,
-				struct notifier_block *nb);
-void devm_regulator_unregister_notifier(struct regulator *regulator,
-					struct notifier_block *nb);
+/* regulator yestifier block */
+int regulator_register_yestifier(struct regulator *regulator,
+			      struct yestifier_block *nb);
+int devm_regulator_register_yestifier(struct regulator *regulator,
+				     struct yestifier_block *nb);
+int regulator_unregister_yestifier(struct regulator *regulator,
+				struct yestifier_block *nb);
+void devm_regulator_unregister_yestifier(struct regulator *regulator,
+					struct yestifier_block *nb);
 
 /* driver data - core doesn't touch */
 void *regulator_get_drvdata(struct regulator *regulator);
@@ -290,7 +290,7 @@ void regulator_bulk_set_supply_names(struct regulator_bulk_data *consumers,
 #else
 
 /*
- * Make sure client drivers will still build on systems with no software
+ * Make sure client drivers will still build on systems with yes software
  * controllable voltage or current regulators.
  */
 static inline struct regulator *__must_check regulator_get(struct device *dev,
@@ -542,26 +542,26 @@ static inline int regulator_list_hardware_vsel(struct regulator *regulator,
 	return -EOPNOTSUPP;
 }
 
-static inline int regulator_register_notifier(struct regulator *regulator,
-			      struct notifier_block *nb)
+static inline int regulator_register_yestifier(struct regulator *regulator,
+			      struct yestifier_block *nb)
 {
 	return 0;
 }
 
-static inline int devm_regulator_register_notifier(struct regulator *regulator,
-						   struct notifier_block *nb)
+static inline int devm_regulator_register_yestifier(struct regulator *regulator,
+						   struct yestifier_block *nb)
 {
 	return 0;
 }
 
-static inline int regulator_unregister_notifier(struct regulator *regulator,
-				struct notifier_block *nb)
+static inline int regulator_unregister_yestifier(struct regulator *regulator,
+				struct yestifier_block *nb)
 {
 	return 0;
 }
 
-static inline int devm_regulator_unregister_notifier(struct regulator *regulator,
-						     struct notifier_block *nb)
+static inline int devm_regulator_unregister_yestifier(struct regulator *regulator,
+						     struct yestifier_block *nb)
 {
 	return 0;
 }

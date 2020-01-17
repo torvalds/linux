@@ -97,13 +97,13 @@ static inline void income_uhc_init(void) {}
 struct gpio_led income_gpio_leds[] = {
 	{
 		.name			= "income:green:leda",
-		.default_trigger	= "none",
+		.default_trigger	= "yesne",
 		.gpio			= GPIO54_INCOME_LED_A,
 		.active_low		= 1,
 	},
 	{
 		.name			= "income:green:ledb",
-		.default_trigger	= "none",
+		.default_trigger	= "yesne",
 		.gpio			= GPIO55_INCOME_LED_B,
 		.active_low		= 1,
 	}

@@ -26,13 +26,13 @@
 		5ghz {
 			label = "bcm53xx:blue:5ghz";
 			gpios = <&chipcommon 13 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "yesne";
 		};
 
 		2ghz {
 			label = "bcm53xx:blue:2ghz";
 			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "yesne";
 		};
 
 		status {
@@ -53,7 +53,7 @@
 	};
 };
 
-&spi_nor {
+&spi_yesr {
 	status = "okay";
 };
 

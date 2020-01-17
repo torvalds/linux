@@ -3,8 +3,8 @@ Reducing OS jitter due to per-cpu kthreads
 ==========================================
 
 This document lists per-CPU kthreads in the Linux kernel and presents
-options to control their OS jitter.  Note that non-per-CPU kthreads are
-not listed here.  To reduce OS jitter from non-per-CPU kthreads, bind
+options to control their OS jitter.  Note that yesn-per-CPU kthreads are
+yest listed here.  To reduce OS jitter from yesn-per-CPU kthreads, bind
 them to a "housekeeping" CPU dedicated to such work.
 
 References
@@ -43,7 +43,7 @@ Purpose:
 To reduce its OS jitter, do any of the following:
 
 1.	Don't use eHCA Infiniband hardware, instead choosing hardware
-	that does not require per-CPU kthreads.  This will prevent these
+	that does yest require per-CPU kthreads.  This will prevent these
 	kthreads from being created in the first place.  (This will
 	work for most people, as this hardware, though important, is
 	relatively old and is produced in relatively low unit volumes.)
@@ -93,14 +93,14 @@ TIMER_SOFTIRQ
 Do all of the following:
 
 1.	To the extent possible, keep the CPU out of the kernel when it
-	is non-idle, for example, by avoiding system calls and by forcing
+	is yesn-idle, for example, by avoiding system calls and by forcing
 	both kernel threads and interrupts to execute elsewhere.
 2.	Build with CONFIG_HOTPLUG_CPU=y.  After boot completes, force
 	the CPU offline, then bring it back online.  This forces
 	recurring timers to migrate elsewhere.	If you are concerned
 	with multiple CPUs, force them all offline before bringing the
 	first one back online.  Once you have onlined the CPUs in question,
-	do not offline any other CPUs, because doing so could force the
+	do yest offline any other CPUs, because doing so could force the
 	timer back onto one of the CPUs in question.
 
 NET_TX_SOFTIRQ and NET_RX_SOFTIRQ
@@ -161,13 +161,13 @@ Do all of the following:
 	CPU awakens, the scheduler will send an IPI that can result in
 	a subsequent SCHED_SOFTIRQ.
 2.	CONFIG_NO_HZ_FULL=y and ensure that the CPU to be de-jittered
-	is marked as an adaptive-ticks CPU using the "nohz_full="
+	is marked as an adaptive-ticks CPU using the "yeshz_full="
 	boot parameter.  This reduces the number of scheduler-clock
 	interrupts that the de-jittered CPU receives, minimizing its
 	chances of being selected to do the load balancing work that
 	runs in SCHED_SOFTIRQ context.
 3.	To the extent possible, keep the CPU out of the kernel when it
-	is non-idle, for example, by avoiding system calls and by
+	is yesn-idle, for example, by avoiding system calls and by
 	forcing both kernel threads and interrupts to execute elsewhere.
 	This further reduces the number of scheduler-clock interrupts
 	received by the de-jittered CPU.
@@ -178,13 +178,13 @@ HRTIMER_SOFTIRQ
 Do all of the following:
 
 1.	To the extent possible, keep the CPU out of the kernel when it
-	is non-idle.  For example, avoid system calls and force both
+	is yesn-idle.  For example, avoid system calls and force both
 	kernel threads and interrupts to execute elsewhere.
 2.	Build with CONFIG_HOTPLUG_CPU=y.  Once boot completes, force the
 	CPU offline, then bring it back online.  This forces recurring
 	timers to migrate elsewhere.  If you are concerned with multiple
 	CPUs, force them all offline before bringing the first one
-	back online.  Once you have onlined the CPUs in question, do not
+	back online.  Once you have onlined the CPUs in question, do yest
 	offline any other CPUs, because doing so could force the timer
 	back onto one of the CPUs in question.
 
@@ -198,10 +198,10 @@ Do at least one of the following:
 
 	a.	CONFIG_NO_HZ_FULL=y and ensure that the CPU to be
 		de-jittered is marked as an adaptive-ticks CPU using the
-		"nohz_full=" boot parameter.  Bind the rcuo kthreads to
+		"yeshz_full=" boot parameter.  Bind the rcuo kthreads to
 		housekeeping CPUs, which can tolerate OS jitter.
 	b.	To the extent possible, keep the CPU out of the kernel
-		when it is non-idle, for example, by avoiding system
+		when it is yesn-idle, for example, by avoiding system
 		calls and by forcing both kernel threads and interrupts
 		to execute elsewhere.
 
@@ -215,7 +215,7 @@ Do at least one of the following:
 		userspace execution also allows other CPUs to detect that
 		the CPU in question has passed through a quiescent state.
 	c.	To the extent possible, keep the CPU out of the kernel
-		when it is non-idle, for example, by avoiding system
+		when it is yesn-idle, for example, by avoiding system
 		calls and by forcing both kernel threads and interrupts
 		to execute elsewhere.
 
@@ -241,7 +241,7 @@ To reduce its OS jitter, do any of the following:
 	part of the formal user/kernel API, it can be nearly impossible
 	to remove it, even if its addition was a mistake.
 3.	Do any of the following needed to avoid jitter that your
-	application cannot tolerate:
+	application canyest tolerate:
 
 	a.	Build your kernel with CONFIG_SLUB=y rather than
 		CONFIG_SLAB=y, thus avoiding the slab allocator's periodic
@@ -250,18 +250,18 @@ To reduce its OS jitter, do any of the following:
 	b.	Avoid using oprofile, thus avoiding OS jitter from
 		wq_sync_buffer().
 	c.	Limit your CPU frequency so that a CPU-frequency
-		governor is not required, possibly enlisting the aid of
-		special heatsinks or other cooling technologies.  If done
+		goveryesr is yest required, possibly enlisting the aid of
+		special heatsinks or other cooling techyeslogies.  If done
 		correctly, and if you CPU architecture permits, you should
 		be able to build your kernel with CONFIG_CPU_FREQ=n to
-		avoid the CPU-frequency governor periodically running
+		avoid the CPU-frequency goveryesr periodically running
 		on each CPU, including cs_dbs_timer() and od_dbs_timer().
 
 		WARNING:  Please check your CPU specifications to
 		make sure that this is safe on your particular system.
 	d.	As of v3.18, Christoph Lameter's on-demand vmstat workers
 		commit prevents OS jitter due to vmstat_update() on
-		CONFIG_SMP=y systems.  Before v3.18, is not possible
+		CONFIG_SMP=y systems.  Before v3.18, is yest possible
 		to entirely get rid of the OS jitter, but you can
 		decrease its frequency by writing a large value to
 		/proc/sys/vm/stat_interval.  The default value is HZ,
@@ -302,19 +302,19 @@ To reduce its OS jitter, do at least one of the following:
 1.	Build the kernel with CONFIG_PREEMPT=n.  This prevents these
 	kthreads from being created in the first place, and also obviates
 	the need for RCU priority boosting.  This approach is feasible
-	for workloads that do not require high degrees of responsiveness.
+	for workloads that do yest require high degrees of responsiveness.
 2.	Build the kernel with CONFIG_RCU_BOOST=n.  This prevents these
 	kthreads from being created in the first place.  This approach
 	is feasible only if your workload never requires RCU priority
 	boosting, for example, if you ensure frequent idle time on all
 	CPUs that might execute within the kernel.
-3.	Build with CONFIG_RCU_NOCB_CPU=y and boot with the rcu_nocbs=
+3.	Build with CONFIG_RCU_NOCB_CPU=y and boot with the rcu_yescbs=
 	boot parameter offloading RCU callbacks from all CPUs susceptible
 	to OS jitter.  This approach prevents the rcuc/%u kthreads from
 	having any work to do, so that they are never awakened.
 4.	Ensure that the CPU never enters the kernel, and, in particular,
 	avoid initiating any CPU hotplug operations on this CPU.  This is
-	another way of preventing any callbacks from being queued on the
+	ayesther way of preventing any callbacks from being queued on the
 	CPU, again preventing the rcuc/%u kthreads from having any work
 	to do.
 
@@ -330,7 +330,7 @@ To reduce its OS jitter, do at least one of the following:
 	to execute on some other CPU.
 2.	Build with CONFIG_RCU_NOCB_CPU=n, which will prevent these
 	kthreads from being created in the first place.  However, please
-	note that this will not eliminate OS jitter, but will instead
+	yeste that this will yest eliminate OS jitter, but will instead
 	shift it to RCU_SOFTIRQ.
 
 Name:
@@ -343,7 +343,7 @@ To reduce its OS jitter, do at least one of the following:
 
 1.	Build with CONFIG_LOCKUP_DETECTOR=n, which will prevent these
 	kthreads from being created in the first place.
-2.	Boot with "nosoftlockup=0", which will also prevent these kthreads
+2.	Boot with "yessoftlockup=0", which will also prevent these kthreads
 	from being created.  Other related watchdog and softlockup boot
 	parameters may be found in Documentation/admin-guide/kernel-parameters.rst
 	and Documentation/watchdog/watchdog-parameters.rst.

@@ -95,7 +95,7 @@ GENbzero_medium:
 	bne,pt		%xcc, 1b
 	 add		%o0, 8, %o0
 2:	brz,pt		%o1, GENbzero_done
-	 nop
+	 yesp
 
 GENbzero_tiny:
 1:	EX_ST(stba %o2, [%o0 + 0x00] %asi)
@@ -153,5 +153,5 @@ generic_patch_bzero:
 	GEN_DO_PATCH(__bzero, GENbzero)
 	GEN_DO_PATCH(__clear_user, GENclear_user)
 	retl
-	 nop
+	 yesp
 	.size	generic_patch_bzero,.-generic_patch_bzero

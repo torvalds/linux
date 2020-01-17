@@ -121,7 +121,7 @@ static void efx_ef10_sriov_free_vf_vports(struct efx_nic *efx)
 	for (i = 0; i < efx->vf_count; i++) {
 		struct ef10_vf *vf = nic_data->vf + i;
 
-		/* If VF is assigned, do not free the vport  */
+		/* If VF is assigned, do yest free the vport  */
 		if (vf->pci_dev &&
 		    vf->pci_dev->dev_flags & PCI_DEV_FLAGS_ASSIGNED)
 			continue;
@@ -269,7 +269,7 @@ int efx_ef10_vswitching_probe_pf(struct efx_nic *efx)
 	int rc;
 
 	if (pci_sriov_get_totalvfs(efx->pci_dev) <= 0) {
-		/* vswitch not needed as we have no VFs */
+		/* vswitch yest needed as we have yes VFs */
 		efx_ef10_vadaptor_alloc_set_features(efx);
 		return 0;
 	}
@@ -368,7 +368,7 @@ void efx_ef10_vswitching_remove_pf(struct efx_nic *efx)
 	efx_ef10_vport_free(efx, nic_data->vport_id);
 	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
 
-	/* Only free the vswitch if no VFs are assigned */
+	/* Only free the vswitch if yes VFs are assigned */
 	if (!pci_vfs_assigned(efx->pci_dev))
 		efx_ef10_vswitch_free(efx, nic_data->vport_id);
 }
@@ -461,7 +461,7 @@ void efx_ef10_sriov_fini(struct efx_nic *efx)
 	rc = efx_ef10_pci_sriov_disable(efx, true);
 	if (rc)
 		netif_dbg(efx, drv, efx->net_dev,
-			  "Disabling SRIOV was not successful rc=%d\n", rc);
+			  "Disabling SRIOV was yest successful rc=%d\n", rc);
 	else
 		netif_dbg(efx, drv, efx->net_dev, "SRIOV disabled\n");
 }
@@ -537,7 +537,7 @@ int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, u8 *mac)
 		goto fail;
 
 	if (vf->efx) {
-		/* VF cannot use the vport_id that the PF created */
+		/* VF canyest use the vport_id that the PF created */
 		rc = efx_ef10_vadaptor_alloc(vf->efx, EVB_PORT_ID_ASSIGNED);
 		if (rc) {
 			up_write(&vf->efx->filter_sem);
@@ -546,7 +546,7 @@ int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, u8 *mac)
 		vf->efx->type->filter_table_probe(vf->efx);
 		up_write(&vf->efx->filter_sem);
 		efx_net_open(vf->efx->net_dev);
-		efx_device_attach_if_not_resetting(vf->efx);
+		efx_device_attach_if_yest_resetting(vf->efx);
 	}
 
 	return 0;
@@ -661,7 +661,7 @@ restore_filters:
 		if (rc2)
 			goto reset_nic;
 
-		efx_device_attach_if_not_resetting(vf->efx);
+		efx_device_attach_if_yest_resetting(vf->efx);
 	}
 	return rc;
 
@@ -677,8 +677,8 @@ reset_nic:
 		efx_schedule_reset(vf->efx, RESET_TYPE_DATAPATH);
 	} else {
 		netif_err(efx, drv, efx->net_dev,
-			  "Failed to restore the VF and cannot reset the VF "
-			  "- VF is not functional.\n");
+			  "Failed to restore the VF and canyest reset the VF "
+			  "- VF is yest functional.\n");
 		netif_err(efx, drv, efx->net_dev,
 			  "Please reload the driver attached to the VF.\n");
 	}

@@ -35,7 +35,7 @@ struct access_method {
 };
 
 /* for SAS hosts and SAS expanders */
-struct hpsa_sas_node {
+struct hpsa_sas_yesde {
 	struct device *parent_dev;
 	struct list_head port_list_head;
 };
@@ -46,7 +46,7 @@ struct hpsa_sas_port {
 	struct sas_port *port;
 	int next_phy_index;
 	struct list_head phy_list_head;
-	struct hpsa_sas_node *parent_node;
+	struct hpsa_sas_yesde *parent_yesde;
 	struct sas_rphy *rphy;
 };
 
@@ -103,13 +103,13 @@ struct hpsa_scsi_dev_t {
 	 * share physical drives.  You can have for instance 5 physical
 	 * drives with 3 logical drives each using those same 5 physical
 	 * disks. We need these pointers for counting i/o's out to physical
-	 * devices in order to honor physical device queue depth limits.
+	 * devices in order to hoyesr physical device queue depth limits.
 	 */
 	struct hpsa_scsi_dev_t *phys_disk[RAID_MAP_MAX_ENTRIES];
 	int nphysical_disks;
 	int supports_aborts;
 	struct hpsa_sas_port *sas_port;
-	int external;   /* 1-from external array 0-not <0-unknown */
+	int external;   /* 1-from external array 0-yest <0-unkyeswn */
 };
 
 struct reply_queue_buffer {
@@ -252,7 +252,7 @@ struct ctlr_info {
 	struct delayed_work rescan_ctlr_work;
 	struct delayed_work event_monitor_work;
 	int remove_in_progress;
-	/* Address of h->q[x] is passed to intr handler to know which queue */
+	/* Address of h->q[x] is passed to intr handler to kyesw which queue */
 	u8 q[MAX_REPLY_QUEUES];
 	char intrname[MAX_REPLY_QUEUES][16];	/* "hpsa0-msix00" names */
 	u32 TMFSupportFlags; /* cache what task mgmt funcs are supported. */
@@ -308,7 +308,7 @@ struct ctlr_info {
 	wait_queue_head_t event_sync_wait_queue;
 	struct mutex reset_mutex;
 	u8 reset_in_progress;
-	struct hpsa_sas_node *sas_host;
+	struct hpsa_sas_yesde *sas_host;
 	spinlock_t reset_lock;
 };
 
@@ -322,7 +322,7 @@ struct offline_device_entry {
 #define HPSA_RESET_TYPE_CONTROLLER 0x00
 #define HPSA_RESET_TYPE_BUS 0x01
 #define HPSA_RESET_TYPE_LUN 0x04
-#define HPSA_PHYS_TARGET_RESET 0x99 /* not defined by cciss spec */
+#define HPSA_PHYS_TARGET_RESET 0x99 /* yest defined by cciss spec */
 #define HPSA_MSG_SEND_RETRY_LIMIT 10
 #define HPSA_MSG_SEND_RETRY_INTERVAL_MSECS (10000)
 
@@ -423,7 +423,7 @@ static void SA5_submit_command(struct ctlr_info *h,
 	(void) readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
 }
 
-static void SA5_submit_command_no_read(struct ctlr_info *h,
+static void SA5_submit_command_yes_read(struct ctlr_info *h,
 	struct CommandList *c)
 {
 	writel(c->busaddr, h->vaddr + SA5_REQUEST_PORT_OFFSET);
@@ -520,7 +520,7 @@ static unsigned long SA5_performant_completed(struct ctlr_info *h, u8 q)
 
 /*
  *   returns value read from hardware.
- *     returns FIFO_EMPTY if there is nothing to read
+ *     returns FIFO_EMPTY if there is yesthing to read
  */
 static unsigned long SA5_completed(struct ctlr_info *h,
 	__attribute__((unused)) u8 q)
@@ -655,8 +655,8 @@ static struct access_method SA5_performant_access = {
 	.command_completed =	SA5_performant_completed,
 };
 
-static struct access_method SA5_performant_access_no_read = {
-	.submit_command =	SA5_submit_command_no_read,
+static struct access_method SA5_performant_access_yes_read = {
+	.submit_command =	SA5_submit_command_yes_read,
 	.set_intr_mask =	SA5_performant_intr_mask,
 	.intr_pending =		SA5_performant_intr_pending,
 	.command_completed =	SA5_performant_completed,

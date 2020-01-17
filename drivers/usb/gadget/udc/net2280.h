@@ -5,9 +5,9 @@
  */
 
 /*
- * Copyright (C) 2002 NetChip Technology, Inc. (http://www.netchip.com)
+ * Copyright (C) 2002 NetChip Techyeslogy, Inc. (http://www.netchip.com)
  * Copyright (C) 2003 David Brownell
- * Copyright (C) 2014 Ricardo Ribalda - Qtechnology/AS
+ * Copyright (C) 2014 Ricardo Ribalda - Qtechyeslogy/AS
  */
 
 #include <linux/usb/net2280.h>
@@ -33,7 +33,7 @@ set_idx_reg(struct net2280_regs __iomem *regs, u32 index, u32 value)
 {
 	writel(index, &regs->idxaddr);
 	writel(value, &regs->idxdata);
-	/* posted, may not be visible yet */
+	/* posted, may yest be visible yet */
 }
 
 #endif	/* __KERNEL__ */
@@ -215,8 +215,8 @@ static inline void clear_halt(struct net2280_ep *ep)
 
 /* Waiting for Control Read:
  *  - A transition to this state indicates a fresh USB connection,
- *    before the first Setup Packet. The connection speed is not
- *    known. Firmware is waiting for the first Control Read.
+ *    before the first Setup Packet. The connection speed is yest
+ *    kyeswn. Firmware is waiting for the first Control Read.
  *  - Starting state: This state can be thought of as the FSM's typical
  *    starting state.
  *  - Tip: Upon the first SS Control Read the FSM never
@@ -235,9 +235,9 @@ static inline void clear_halt(struct net2280_ep *ep)
 /* SS Control Read:
  *  - A transition to this state indicates detection of the
  *    first SS Control Read.
- *  - This state indicates workaround completion. Workarounds no longer
+ *  - This state indicates workaround completion. Workarounds yes longer
  *    need to be applied (as long as the chip remains powered up).
- *  - Tip: Once in this state the FSM state does not change (until
+ *  - Tip: Once in this state the FSM state does yest change (until
  *    the chip's power is lost and restored).
  *  - This can be thought of as the final state of the FSM;
  *    the FSM 'locks-up' in this state until the chip loses power.
@@ -248,7 +248,7 @@ static inline void clear_halt(struct net2280_ep *ep)
 
 static inline void net2280_led_init(struct net2280 *dev)
 {
-	/* LED3 (green) is on during USB activity. note erratum 0113. */
+	/* LED3 (green) is on during USB activity. yeste erratum 0113. */
 	writel(BIT(GPIO3_LED_SELECT) |
 		BIT(GPIO3_OUTPUT_ENABLE) |
 		BIT(GPIO2_OUTPUT_ENABLE) |

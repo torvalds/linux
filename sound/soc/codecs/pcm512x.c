@@ -33,7 +33,7 @@ struct pcm512x_priv {
 	struct regmap *regmap;
 	struct clk *sclk;
 	struct regulator_bulk_data supplies[PCM512x_NUM_SUPPLIES];
-	struct notifier_block supply_nb[PCM512x_NUM_SUPPLIES];
+	struct yestifier_block supply_nb[PCM512x_NUM_SUPPLIES];
 	int fmt;
 	int pll_in;
 	int pll_out;
@@ -51,12 +51,12 @@ struct pcm512x_priv {
 };
 
 /*
- * We can't use the same notifier block for more than one supply and
- * there's no way I can see to get from a callback to the caller
+ * We can't use the same yestifier block for more than one supply and
+ * there's yes way I can see to get from a callback to the caller
  * except container_of().
  */
 #define PCM512x_REGULATOR_EVENT(n) \
-static int pcm512x_regulator_event_##n(struct notifier_block *nb, \
+static int pcm512x_regulator_event_##n(struct yestifier_block *nb, \
 				      unsigned long event, void *data)    \
 { \
 	struct pcm512x_priv *pcm512x = container_of(nb, struct pcm512x_priv, \
@@ -457,7 +457,7 @@ SOC_ENUM("DSP Program", pcm512x_dsp_program),
 SOC_ENUM("Clock Missing Period", pcm512x_clk_missing),
 SOC_ENUM("Auto Mute Time Left", pcm512x_autom_l),
 SOC_ENUM("Auto Mute Time Right", pcm512x_autom_r),
-SOC_SINGLE("Auto Mute Mono Switch", PCM512x_DIGITAL_MUTE_3,
+SOC_SINGLE("Auto Mute Moyes Switch", PCM512x_DIGITAL_MUTE_3,
 	   PCM512x_ACTL_SHIFT, 1, 0),
 SOC_DOUBLE("Auto Mute Switch", PCM512x_DIGITAL_MUTE_3, PCM512x_AMLE_SHIFT,
 	   PCM512x_AMRE_SHIFT, 1, 0),
@@ -520,7 +520,7 @@ static unsigned long pcm512x_ncp_target(struct pcm512x_priv *pcm512x,
 					unsigned long dac_rate)
 {
 	/*
-	 * If the DAC is not actually overclocked, use the good old
+	 * If the DAC is yest actually overclocked, use the good old
 	 * NCP target rate...
 	 */
 	if (dac_rate <= 6144000)
@@ -582,8 +582,8 @@ static int pcm512x_dai_startup_master(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
 	struct device *dev = dai->dev;
-	struct snd_pcm_hw_constraint_ratnums *constraints_no_pll;
-	struct snd_ratnum *rats_no_pll;
+	struct snd_pcm_hw_constraint_ratnums *constraints_yes_pll;
+	struct snd_ratnum *rats_yes_pll;
 
 	if (IS_ERR(pcm512x->sclk)) {
 		dev_err(dev, "Need SCLK for master mode: %ld\n",
@@ -599,23 +599,23 @@ static int pcm512x_dai_startup_master(struct snd_pcm_substream *substream,
 					   SNDRV_PCM_HW_PARAM_FRAME_BITS,
 					   SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 
-	constraints_no_pll = devm_kzalloc(dev, sizeof(*constraints_no_pll),
+	constraints_yes_pll = devm_kzalloc(dev, sizeof(*constraints_yes_pll),
 					  GFP_KERNEL);
-	if (!constraints_no_pll)
+	if (!constraints_yes_pll)
 		return -ENOMEM;
-	constraints_no_pll->nrats = 1;
-	rats_no_pll = devm_kzalloc(dev, sizeof(*rats_no_pll), GFP_KERNEL);
-	if (!rats_no_pll)
+	constraints_yes_pll->nrats = 1;
+	rats_yes_pll = devm_kzalloc(dev, sizeof(*rats_yes_pll), GFP_KERNEL);
+	if (!rats_yes_pll)
 		return -ENOMEM;
-	constraints_no_pll->rats = rats_no_pll;
-	rats_no_pll->num = clk_get_rate(pcm512x->sclk) / 64;
-	rats_no_pll->den_min = 1;
-	rats_no_pll->den_max = 128;
-	rats_no_pll->den_step = 1;
+	constraints_yes_pll->rats = rats_yes_pll;
+	rats_yes_pll->num = clk_get_rate(pcm512x->sclk) / 64;
+	rats_yes_pll->den_min = 1;
+	rats_yes_pll->den_max = 128;
+	rats_yes_pll->den_step = 1;
 
 	return snd_pcm_hw_constraint_ratnums(substream->runtime, 0,
 					     SNDRV_PCM_HW_PARAM_RATE,
-					     constraints_no_pll);
+					     constraints_yes_pll);
 }
 
 static int pcm512x_dai_startup_slave(struct snd_pcm_substream *substream,
@@ -762,7 +762,7 @@ static int pcm512x_find_pll_coeff(struct snd_soc_dai *dai,
 	num = pll_rate / common;
 	den = pllin_rate / common;
 
-	/* pllin_rate / P (or here, den) cannot be greater than 20 MHz */
+	/* pllin_rate / P (or here, den) canyest be greater than 20 MHz */
 	if (pllin_rate / den > 20000000 && num < 8) {
 		num *= DIV_ROUND_UP(pllin_rate / den, 20000000);
 		den *= DIV_ROUND_UP(pllin_rate / den, 20000000);
@@ -786,7 +786,7 @@ static int pcm512x_find_pll_coeff(struct snd_soc_dai *dai,
 			pcm512x->real_pll = pll_rate;
 			goto done;
 		}
-		/* no luck */
+		/* yes luck */
 	}
 
 	R = 1;
@@ -860,12 +860,12 @@ static unsigned long pcm512x_pllin_dac_rate(struct snd_soc_dai *dai,
 	unsigned long dac_rate;
 
 	if (!pcm512x->pll_out)
-		return 0; /* no PLL to bypass, force SCK as DAC input */
+		return 0; /* yes PLL to bypass, force SCK as DAC input */
 
 	if (pllin_rate % osr_rate)
 		return 0; /* futile, quit early */
 
-	/* run DAC no faster than 6144000 Hz */
+	/* run DAC yes faster than 6144000 Hz */
 	for (dac_rate = rounddown(pcm512x_dac_max(pcm512x, 6144000), osr_rate);
 	     dac_rate;
 	     dac_rate -= osr_rate) {
@@ -997,7 +997,7 @@ static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 	sample_rate = sck_rate / bclk_div / lrclk_div;
 	osr_rate = 16 * sample_rate;
 
-	/* run DSP no faster than 50 MHz */
+	/* run DSP yes faster than 50 MHz */
 	dsp_div = mck_rate > pcm512x_dsp_max(pcm512x) ? 2 : 1;
 
 	dac_rate = pcm512x_pllin_dac_rate(dai, osr_rate, pllin_rate);
@@ -1005,7 +1005,7 @@ static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 		/* the desired clock rate is "compatible" with the pll input
 		 * clock, so use that clock as dac input instead of the pll
 		 * output clock since the pll will introduce jitter and thus
-		 * noise.
+		 * yesise.
 		 */
 		dev_dbg(dev, "using pll input as dac input\n");
 		ret = regmap_update_bits(pcm512x->regmap, PCM512x_DAC_REF,
@@ -1028,7 +1028,7 @@ static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 
 		dacsrc_rate = pllin_rate;
 	} else {
-		/* run DAC no faster than 6144000 Hz */
+		/* run DAC yes faster than 6144000 Hz */
 		unsigned long dac_mul = pcm512x_dac_max(pcm512x, 6144000)
 			/ osr_rate;
 		unsigned long sck_mul = sck_rate / osr_rate;
@@ -1073,7 +1073,7 @@ static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 	ncp_div = DIV_ROUND_CLOSEST(dac_rate,
 				    pcm512x_ncp_target(pcm512x, dac_rate));
 	if (ncp_div > 128 || dac_rate / ncp_div > 2048000) {
-		/* run NCP no faster than 2048000 Hz, but why? */
+		/* run NCP yes faster than 2048000 Hz, but why? */
 		ncp_div = DIV_ROUND_UP(dac_rate, 2048000);
 		if (ncp_div > 128) {
 			dev_err(dev, "Failed to find NCP divider\n");
@@ -1259,7 +1259,7 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 					 | PCM512x_DCAS);
 		if (ret != 0) {
 			dev_err(component->dev,
-				"Failed to ignore auto-clock failures: %d\n",
+				"Failed to igyesre auto-clock failures: %d\n",
 				ret);
 			return ret;
 		}
@@ -1274,7 +1274,7 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 					 | PCM512x_DCAS | PCM512x_IPLK);
 		if (ret != 0) {
 			dev_err(component->dev,
-				"Failed to ignore auto-clock failures: %d\n",
+				"Failed to igyesre auto-clock failures: %d\n",
 				ret);
 			return ret;
 		}
@@ -1475,7 +1475,7 @@ static const struct snd_soc_component_driver pcm512x_component_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(pcm512x_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_range_cfg pcm512x_range = {
@@ -1527,17 +1527,17 @@ int pcm512x_probe(struct device *dev, struct regmap *regmap)
 		return ret;
 	}
 
-	pcm512x->supply_nb[0].notifier_call = pcm512x_regulator_event_0;
-	pcm512x->supply_nb[1].notifier_call = pcm512x_regulator_event_1;
-	pcm512x->supply_nb[2].notifier_call = pcm512x_regulator_event_2;
+	pcm512x->supply_nb[0].yestifier_call = pcm512x_regulator_event_0;
+	pcm512x->supply_nb[1].yestifier_call = pcm512x_regulator_event_1;
+	pcm512x->supply_nb[2].yestifier_call = pcm512x_regulator_event_2;
 
 	for (i = 0; i < ARRAY_SIZE(pcm512x->supplies); i++) {
-		ret = devm_regulator_register_notifier(
+		ret = devm_regulator_register_yestifier(
 						pcm512x->supplies[i].consumer,
 						&pcm512x->supply_nb[i]);
 		if (ret != 0) {
 			dev_err(dev,
-				"Failed to register regulator notifier: %d\n",
+				"Failed to register regulator yestifier: %d\n",
 				ret);
 		}
 	}
@@ -1588,8 +1588,8 @@ int pcm512x_probe(struct device *dev, struct regmap *regmap)
 	pm_runtime_idle(dev);
 
 #ifdef CONFIG_OF
-	if (dev->of_node) {
-		const struct device_node *np = dev->of_node;
+	if (dev->of_yesde) {
+		const struct device_yesde *np = dev->of_yesde;
 		u32 val;
 
 		if (of_property_read_u32(np, "pll-in", &val) >= 0) {
@@ -1612,7 +1612,7 @@ int pcm512x_probe(struct device *dev, struct regmap *regmap)
 
 		if (!pcm512x->pll_in != !pcm512x->pll_out) {
 			dev_err(dev,
-				"Error: both pll-in and pll-out, or none\n");
+				"Error: both pll-in and pll-out, or yesne\n");
 			ret = -EINVAL;
 			goto err_clk;
 		}

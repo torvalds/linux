@@ -432,7 +432,7 @@ static void bcm_iproc_i2c_send(struct bcm_iproc_i2c_dev *iproc_i2c)
 				u32 tmp;
 
 				/*
-				 * Since this is the last byte, we should now
+				 * Since this is the last byte, we should yesw
 				 * disable TX FIFO underrun interrupt
 				 */
 				tmp = iproc_i2c_rd_reg(iproc_i2c, IE_OFFSET);
@@ -474,7 +474,7 @@ static void bcm_iproc_i2c_read(struct bcm_iproc_i2c_dev *iproc_i2c)
 	}
 	/*
 	 * bytes_left >= iproc_i2c->thld_bytes,
-	 * hence no need to change the THRESHOLD SET.
+	 * hence yes need to change the THRESHOLD SET.
 	 * It will remain as iproc_i2c->thld_bytes itself
 	 */
 }
@@ -606,7 +606,7 @@ static int bcm_iproc_i2c_check_status(struct bcm_iproc_i2c_dev *iproc_i2c,
 		return -ETIMEDOUT;
 
 	default:
-		dev_dbg(iproc_i2c->device, "unknown error code=%d\n", val);
+		dev_dbg(iproc_i2c->device, "unkyeswn error code=%d\n", val);
 
 		/* re-initialize i2c for recovery */
 		bcm_iproc_i2c_enable_disable(iproc_i2c, false);
@@ -827,7 +827,7 @@ static uint32_t bcm_iproc_i2c_functionality(struct i2c_adapter *adap)
 {
 	u32 val;
 
-	/* We do not support the SMBUS Quick command */
+	/* We do yest support the SMBUS Quick command */
 	val = I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK);
 
 	if (adap->algo->reg_slave)
@@ -853,7 +853,7 @@ static int bcm_iproc_i2c_cfg_speed(struct bcm_iproc_i2c_dev *iproc_i2c)
 {
 	unsigned int bus_speed;
 	u32 val;
-	int ret = of_property_read_u32(iproc_i2c->device->of_node,
+	int ret = of_property_read_u32(iproc_i2c->device->of_yesde,
 				       "clock-frequency", &bus_speed);
 	if (ret < 0) {
 		dev_info(iproc_i2c->device,
@@ -862,7 +862,7 @@ static int bcm_iproc_i2c_cfg_speed(struct bcm_iproc_i2c_dev *iproc_i2c)
 	}
 
 	if (bus_speed < 100000) {
-		dev_err(iproc_i2c->device, "%d Hz bus speed not supported\n",
+		dev_err(iproc_i2c->device, "%d Hz bus speed yest supported\n",
 			bus_speed);
 		dev_err(iproc_i2c->device,
 			"valid speeds are 100khz and 400khz\n");
@@ -914,7 +914,7 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 		if (IS_ERR(iproc_i2c->idm_base))
 			return PTR_ERR(iproc_i2c->idm_base);
 
-		ret = of_property_read_u32(iproc_i2c->device->of_node,
+		ret = of_property_read_u32(iproc_i2c->device->of_yesde,
 					   "brcm,ape-hsls-addr-mask",
 					   &iproc_i2c->ape_addr_mask);
 		if (ret < 0) {
@@ -925,7 +925,7 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 
 		spin_lock_init(&iproc_i2c->idm_lock);
 
-		/* no slave support */
+		/* yes slave support */
 		bcm_iproc_algo.reg_slave = NULL;
 		bcm_iproc_algo.unreg_slave = NULL;
 	}
@@ -952,7 +952,7 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 		iproc_i2c->irq = irq;
 	} else {
 		dev_warn(iproc_i2c->device,
-			 "no irq resource, falling back to poll mode\n");
+			 "yes irq resource, falling back to poll mode\n");
 	}
 
 	bcm_iproc_i2c_enable_disable(iproc_i2c, true);
@@ -961,11 +961,11 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(adap, iproc_i2c);
 	snprintf(adap->name, sizeof(adap->name),
 		"Broadcom iProc (%s)",
-		of_node_full_name(iproc_i2c->device->of_node));
+		of_yesde_full_name(iproc_i2c->device->of_yesde));
 	adap->algo = &bcm_iproc_algo;
 	adap->quirks = &bcm_iproc_i2c_quirks;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 
 	return i2c_add_adapter(adap);
 }
@@ -976,7 +976,7 @@ static int bcm_iproc_i2c_remove(struct platform_device *pdev)
 
 	if (iproc_i2c->irq) {
 		/*
-		 * Make sure there's no pending interrupt when we remove the
+		 * Make sure there's yes pending interrupt when we remove the
 		 * adapter
 		 */
 		iproc_i2c_wr_reg(iproc_i2c, IE_OFFSET, 0);
@@ -998,7 +998,7 @@ static int bcm_iproc_i2c_suspend(struct device *dev)
 
 	if (iproc_i2c->irq) {
 		/*
-		 * Make sure there's no pending interrupt when we go into
+		 * Make sure there's yes pending interrupt when we go into
 		 * suspend
 		 */
 		iproc_i2c_wr_reg(iproc_i2c, IE_OFFSET, 0);
@@ -1006,7 +1006,7 @@ static int bcm_iproc_i2c_suspend(struct device *dev)
 		synchronize_irq(iproc_i2c->irq);
 	}
 
-	/* now disable the controller */
+	/* yesw disable the controller */
 	bcm_iproc_i2c_enable_disable(iproc_i2c, false);
 
 	return 0;

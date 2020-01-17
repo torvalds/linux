@@ -501,7 +501,7 @@ static struct wlcore_conf wl18xx_conf = {
 	},
 	.recovery = {
 		.bug_on_recovery	    = 0,
-		.no_recovery		    = 0,
+		.yes_recovery		    = 0,
 	},
 };
 
@@ -679,7 +679,7 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 		wlcore_set_min_fw_ver(wl, WL18XX_CHIP_VER,
 				      WL18XX_IFTYPE_VER,  WL18XX_MAJOR_VER,
 				      WL18XX_SUBTYPE_VER, WL18XX_MINOR_VER,
-				      /* there's no separate multi-role FW */
+				      /* there's yes separate multi-role FW */
 				      0, 0, 0, 0);
 		break;
 	case CHIP_ID_185x_PG10:
@@ -1257,7 +1257,7 @@ static bool wl18xx_is_mimo_supported(struct wl1271 *wl)
 	struct wl18xx_priv *priv = wl->priv;
 
 	/* only support MIMO with multiple antennas, and when SISO
-	 * is not forced through config
+	 * is yest forced through config
 	 */
 	return (priv->conf.phy.number_of_assembled_ant2_4 >= 2) &&
 	       (priv->conf.ht.mode != HT_MODE_WIDE) &&
@@ -1397,7 +1397,7 @@ static int wl18xx_load_conf_file(struct device *dev, struct wlcore_conf *conf,
 
 	ret = request_firmware(&fw, file, dev);
 	if (ret < 0) {
-		wl1271_error("could not get configuration binary %s: %d",
+		wl1271_error("could yest get configuration binary %s: %d",
 			     file, ret);
 		return ret;
 	}
@@ -1420,7 +1420,7 @@ static int wl18xx_load_conf_file(struct device *dev, struct wlcore_conf *conf,
 	}
 
 	if (conf_file->header.version != cpu_to_le32(WL18XX_CONF_VERSION)) {
-		wl1271_error("configuration binary file version not supported, "
+		wl1271_error("configuration binary file version yest supported, "
 			     "expected 0x%08x got 0x%08x",
 			     WL18XX_CONF_VERSION, conf_file->header.version);
 		ret = -EINVAL;
@@ -1459,9 +1459,9 @@ static int wl18xx_plt_init(struct wl1271 *wl)
 {
 	int ret;
 
-	/* calibrator based auto/fem detect not supported for 18xx */
+	/* calibrator based auto/fem detect yest supported for 18xx */
 	if (wl->plt_mode == PLT_FEM_DETECT) {
-		wl1271_error("wl18xx_plt_init: PLT FEM_DETECT not supported");
+		wl1271_error("wl18xx_plt_init: PLT FEM_DETECT yest supported");
 		return -EINVAL;
 	}
 
@@ -1501,7 +1501,7 @@ static int wl18xx_get_mac(struct wl1271 *wl)
 
 		wl->fuse_oui_addr = (mac[0] << 16) + (mac[1] << 8) + mac[2];
 		wl->fuse_nic_addr = (mac[3] << 16) + (mac[4] << 8) + mac[5];
-		wl1271_warning("MAC address from fuse not available, using random locally administered addresses.");
+		wl1271_warning("MAC address from fuse yest available, using random locally administered addresses.");
 	}
 
 	ret = wlcore_set_partition(wl, &wl->ptable[PART_DOWN]);
@@ -1579,7 +1579,7 @@ static int wl18xx_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	if (!change_spare)
 		goto out;
 
-	/* key is now set, change the spare blocks */
+	/* key is yesw set, change the spare blocks */
 	if (priv->extra_spare_key_count)
 		ret = wl18xx_set_host_cfg_bitmap(wl,
 					WL18XX_TX_HW_EXTRA_BLOCK_SPARE);
@@ -1606,7 +1606,7 @@ static u32 wl18xx_pre_pkt_send(struct wl1271 *wl,
 		return ALIGN(buf_offset, WL12XX_BUS_BLOCK_SIZE);
 	}
 
-	/* no modifications */
+	/* yes modifications */
 	return buf_offset;
 }
 
@@ -1621,7 +1621,7 @@ static void wl18xx_sta_rc_update(struct wl1271 *wl,
 	if (WARN_ON(wlvif->bss_type != BSS_TYPE_STA_BSS))
 		return;
 
-	/* ignore the change before association */
+	/* igyesre the change before association */
 	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
 		return;
 
@@ -1745,7 +1745,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.smart_config_start = wl18xx_cmd_smart_config_start,
 	.smart_config_stop  = wl18xx_cmd_smart_config_stop,
 	.smart_config_set_group_key = wl18xx_cmd_smart_config_set_group_key,
-	.interrupt_notify = wl18xx_acx_interrupt_notify_config,
+	.interrupt_yestify = wl18xx_acx_interrupt_yestify_config,
 	.rx_ba_filter	= wl18xx_acx_rx_ba_filter,
 	.ap_sleep	= wl18xx_acx_ap_sleep,
 	.set_cac	= wl18xx_cmd_set_cac,
@@ -2090,5 +2090,5 @@ MODULE_PARM_DESC(num_rx_desc_param,
 		 "Number of Rx descriptors: u8 (default is 32)");
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
+MODULE_AUTHOR("Luciayes Coelho <coelho@ti.com>");
 MODULE_FIRMWARE(WL18XX_FW_NAME);

@@ -19,7 +19,7 @@ extern unsigned long long elfcorehdr_size;
 extern int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size);
 extern void elfcorehdr_free(unsigned long long addr);
 extern ssize_t elfcorehdr_read(char *buf, size_t count, u64 *ppos);
-extern ssize_t elfcorehdr_read_notes(char *buf, size_t count, u64 *ppos);
+extern ssize_t elfcorehdr_read_yestes(char *buf, size_t count, u64 *ppos);
 extern int remap_oldmem_pfn_range(struct vm_area_struct *vma,
 				  unsigned long from, unsigned long pfn,
 				  unsigned long size, pgprot_t prot);
@@ -53,10 +53,10 @@ void vmcore_cleanup(void);
 
 /*
  * is_kdump_kernel() checks whether this kernel is booting after a panic of
- * previous kernel or not. This is determined by checking if previous kernel
+ * previous kernel or yest. This is determined by checking if previous kernel
  * has passed the elf core header address on command line.
  *
- * This is not just a test if CONFIG_CRASH_DUMP is enabled or not. It will
+ * This is yest just a test if CONFIG_CRASH_DUMP is enabled or yest. It will
  * return true if CONFIG_CRASH_DUMP=y and if kernel is booting after a panic
  * of previous kernel.
  */
@@ -69,7 +69,7 @@ static inline bool is_kdump_kernel(void)
 /* is_vmcore_usable() checks if the kernel is booting after a panic and
  * the vmcore region is usable.
  *
- * This makes use of the fact that due to alignment -2ULL is not
+ * This makes use of the fact that due to alignment -2ULL is yest
  * a valid pointer, much in the vain of IS_ERR(), except
  * dealing directly with an unsigned long long rather than a pointer.
  */

@@ -18,7 +18,7 @@
  * for the corresponding vector.
  *
  * In case either the driver passed a @dev with less vectors than
- * @set->nr_hw_queues, or @dev does not provide an affinity mask for a
+ * @set->nr_hw_queues, or @dev does yest provide an affinity mask for a
  * vector, we fallback to the naive mapping.
  */
 int blk_mq_rdma_map_queues(struct blk_mq_queue_map *map,

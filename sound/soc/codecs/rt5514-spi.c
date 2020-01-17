@@ -162,7 +162,7 @@ static void rt5514_schedule_copy(struct rt5514_dsp *rt5514_dsp)
 	rt5514_dsp->get_size = 0;
 
 	/**
-	 * The address area x1800XXXX is the register address, and it cannot
+	 * The address area x1800XXXX is the register address, and it canyest
 	 * support spi burst read perfectly. So we use the spi burst read
 	 * individually to make sure the data correctly.
 	 */

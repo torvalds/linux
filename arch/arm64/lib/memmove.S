@@ -57,7 +57,7 @@ ENTRY(memmove)
 	add	dst, dstin, count
 	add	src, src, count
 	cmp	count, #16
-	b.lo	.Ltail15  /*probably non-alignment accesses.*/
+	b.lo	.Ltail15  /*probably yesn-alignment accesses.*/
 
 	ands	tmp2, src, #15     /* Bytes to reach alignment.  */
 	b.eq	.LSrcAligned

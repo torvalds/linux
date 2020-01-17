@@ -137,11 +137,11 @@ static void set_alarm_or_time(struct device *dev, int time_alarm, time64_t time)
 
 	day = div_s64_rem(time, 86400, &tod);
 
-	/* time is within a day now */
+	/* time is within a day yesw */
 	hr = tod / 3600;
 	tod -= hr * 3600;
 
-	/* time is within an hour now */
+	/* time is within an hour yesw */
 	min = tod / 60;
 	sec = tod - min * 60;
 
@@ -270,7 +270,7 @@ static int mxc_rtc_set_time(struct device *dev, struct rtc_time *tm)
 /*
  * This function reads the current alarm value into the passed in 'alrm'
  * argument. It updates the alrm's pending field value based on the whether
- * an alarm interrupt occurs or not.
+ * an alarm interrupt occurs or yest.
  */
 static int mxc_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
@@ -384,7 +384,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	else if (rate == 38400)
 		reg = RTC_INPUT_CLK_38400HZ;
 	else {
-		dev_err(&pdev->dev, "rtc clock is not valid (%lu)\n", rate);
+		dev_err(&pdev->dev, "rtc clock is yest valid (%lu)\n", rate);
 		ret = -EINVAL;
 		goto exit_put_clk_ref;
 	}
@@ -405,7 +405,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	if (pdata->irq >= 0 &&
 	    devm_request_irq(&pdev->dev, pdata->irq, mxc_rtc_interrupt,
 			     IRQF_SHARED, pdev->name, pdev) < 0) {
-		dev_warn(&pdev->dev, "interrupt not available.\n");
+		dev_warn(&pdev->dev, "interrupt yest available.\n");
 		pdata->irq = -1;
 	}
 

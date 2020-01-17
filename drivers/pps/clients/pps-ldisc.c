@@ -59,7 +59,7 @@ static int pps_tty_open(struct tty_struct *tty)
 	pps = pps_register_source(&info, PPS_CAPTUREBOTH | \
 				PPS_OFFSETASSERT | PPS_OFFSETCLEAR);
 	if (IS_ERR(pps)) {
-		pr_err("cannot register PPS source \"%s\"\n", info.path);
+		pr_err("canyest register PPS source \"%s\"\n", info.path);
 		return PTR_ERR(pps);
 	}
 	pps->lookup_cookie = tty;
@@ -67,7 +67,7 @@ static int pps_tty_open(struct tty_struct *tty)
 	/* Now open the base class N_TTY ldisc */
 	ret = alias_n_tty_open(tty);
 	if (ret < 0) {
-		pr_err("cannot open tty ldisc \"%s\"\n", info.path);
+		pr_err("canyest open tty ldisc \"%s\"\n", info.path);
 		goto err_unregister;
 	}
 

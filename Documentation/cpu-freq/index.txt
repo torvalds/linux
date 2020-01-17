@@ -19,10 +19,10 @@
 Documents in this directory:
 ----------------------------
 
-amd-powernow.txt -	AMD powernow driver specific file.
+amd-poweryesw.txt -	AMD poweryesw driver specific file.
 
 core.txt	-	General description of the CPUFreq core and
-			of CPUFreq notifiers.
+			of CPUFreq yestifiers.
 
 cpu-drivers.txt -	How to implement a new cpufreq processor driver.
 

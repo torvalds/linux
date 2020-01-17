@@ -56,7 +56,7 @@
 **
 ** One such PAT PDC call returns the "Interrupt Routing Table" (IRT).
 ** The IRT maps each PCI slot's INTA-D "output" line to an I/O SAPIC
-** input line.  If the IRT is not available, this driver assumes
+** input line.  If the IRT is yest available, this driver assumes
 ** INTERRUPT_LINE register has been programmed by firmware. The latter
 ** case also means online addition of PCI cards can NOT be supported
 ** even if HW support is present.
@@ -67,16 +67,16 @@
 ** Where's the iosapic?
 ** --------------------
 ** I/O sapic is part of the "Core Electronics Complex". And on HP platforms
-** it's integrated as part of the PCI bus adapter, "lba".  So no bus walk
+** it's integrated as part of the PCI bus adapter, "lba".  So yes bus walk
 ** will discover I/O Sapic. I/O Sapic driver learns about each device
 ** when lba driver advertises the presence of the I/O sapic by calling
 ** iosapic_register().
 **
 **
-** IRQ handling notes
+** IRQ handling yestes
 ** ------------------
 ** The IO-SAPIC can indicate to the CPU which interrupt was asserted.
-** So, unlike the GSC-ASIC and Dino, we allocate one CPU interrupt per
+** So, unlike the GSC-ASIC and Diyes, we allocate one CPU interrupt per
 ** IO-SAPIC interrupt and call the device driver's handler directly.
 ** The IO-SAPIC driver hijacks the CPU interrupt handler so it can
 ** issue the End Of Interrupt command to the IO-SAPIC.
@@ -88,7 +88,7 @@
 ** iosapic_init:
 **   o initialize globals (lock, etc)
 **   o try to read IRT. Presence of IRT determines if this is
-**     a PAT platform or not.
+**     a PAT platform or yest.
 **
 ** iosapic_register():
 **   o create iosapic_info instance data structure
@@ -211,7 +211,7 @@ static inline void iosapic_eoi(void __iomem *addr, unsigned int data)
 ** REVISIT: future platforms may have more than one IRT.
 ** If so, the following three fields form a structure which
 ** then be linked into a list. Names are chosen to make searching
-** for them easy - not necessarily accurate (eg "cell").
+** for them easy - yest necessarily accurate (eg "cell").
 **
 ** Alternative: iosapic_info could point to the IRT it's in.
 ** iosapic_register() could search a list of IRT's.
@@ -287,7 +287,7 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 		table = iosapic_alloc_irt(num_entries);
 		if (table == NULL) {
 			printk(KERN_WARNING MODULE_NAME ": read_irt : can "
-					"not alloc mem for IRT\n");
+					"yest alloc mem for IRT\n");
 			return 0;
 		}
 
@@ -304,7 +304,7 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 		if (irt_cell)
 			return 0;
 
-		/* Should be using the Elroy's HPA, but it's ignored anyway */
+		/* Should be using the Elroy's HPA, but it's igyesred anyway */
 		status = pdc_pci_irt_size(&num_entries, 0);
 		DBG("pdc_pci_irt_size: %ld\n", status);
 
@@ -318,11 +318,11 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 		table = iosapic_alloc_irt(num_entries);
 		if (!table) {
 			printk(KERN_WARNING MODULE_NAME ": read_irt : can "
-					"not alloc mem for IRT\n");
+					"yest alloc mem for IRT\n");
 			return 0;
 		}
 
-		/* HPA ignored by this call too. */
+		/* HPA igyesred by this call too. */
 		status = pdc_pci_irt(num_entries, 0, table);
 		BUG_ON(status != PDC_OK);
 	}
@@ -344,7 +344,7 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 	for (i = 0 ; i < num_entries ; i++, p++) {
 		printk(MODULE_NAME " %02x %02x %02x %02x %02x %02x %02x %02x %08x%08x\n",
 		p->entry_type, p->entry_length, p->interrupt_type,
-		p->polarity_trigger, p->src_bus_irq_devno, p->src_bus_id,
+		p->polarity_trigger, p->src_bus_irq_devyes, p->src_bus_id,
 		p->src_seg_id, p->dest_iosapic_intin,
 		((u32 *) p)[2],
 		((u32 *) p)[3]
@@ -391,7 +391,7 @@ irt_find_irqline(struct iosapic_info *isi, u8 slot, u8 intr_pin)
 {
 	struct irt_entry *i = irt_cell;
 	int cnt;	/* track how many entries we've looked at */
-	u8 irq_devno = (slot << IRT_DEV_SHIFT) | (intr_pin-1);
+	u8 irq_devyes = (slot << IRT_DEV_SHIFT) | (intr_pin-1);
 
 	DBG_IRT("irt_find_irqline() SLOT %d pin %d\n", slot, intr_pin);
 
@@ -401,7 +401,7 @@ irt_find_irqline(struct iosapic_info *isi, u8 slot, u8 intr_pin)
 		** Validate: entry_type, entry_length, interrupt_type
 		**
 		** Difference between validate vs compare is the former
-		** should print debug info and is not expected to "fail"
+		** should print debug info and is yest expected to "fail"
 		** on current platforms.
 		*/
 		if (i->entry_type != IRT_IOSAPIC_TYPE) {
@@ -422,11 +422,11 @@ irt_find_irqline(struct iosapic_info *isi, u8 slot, u8 intr_pin)
 		if (!COMPARE_IRTE_ADDR(i, isi->isi_hpa))
 			continue;
 
-		if ((i->src_bus_irq_devno & IRT_IRQ_DEVNO_MASK) != irq_devno)
+		if ((i->src_bus_irq_devyes & IRT_IRQ_DEVNO_MASK) != irq_devyes)
 			continue;
 
 		/*
-		** Ignore: src_bus_id and rc_seg_id correlate with
+		** Igyesre: src_bus_id and rc_seg_id correlate with
 		**         iosapic_info->isi_hpa on HP platforms.
 		**         If needed, pass in "PFA" (aka config space addr)
 		**         instead of slot.
@@ -436,7 +436,7 @@ irt_find_irqline(struct iosapic_info *isi, u8 slot, u8 intr_pin)
 		return i;
 	}
 
-	printk(KERN_WARNING MODULE_NAME ": 0x%lx : no IRT entry for slot %d, pin %d\n",
+	printk(KERN_WARNING MODULE_NAME ": 0x%lx : yes IRT entry for slot %d, pin %d\n",
 			isi->isi_hpa, slot, intr_pin);
 	return NULL;
 }
@@ -497,7 +497,7 @@ iosapic_xlate_pin(struct iosapic_info *isi, struct pci_dev *pcidev)
 		**
 		** This isn't very clean since I/O SAPIC must assume:
 		**   - all platforms only have PCI busses.
-		**   - only PCI-PCI bridge (eg not PCI-EISA, PCI-PCMCIA)
+		**   - only PCI-PCI bridge (eg yest PCI-EISA, PCI-PCMCIA)
 		**   - IRQ routing is only skewed once regardless of
 		**     the number of PPB's between iosapic and device.
 		**     (Bit3 expansion chassis follows this rule)
@@ -647,7 +647,7 @@ printk("\n");
 
 	/*
 	 * Issuing I/O SAPIC an EOI causes an interrupt IFF IRQ line is
-	 * asserted.  IRQ generally should not be asserted when a driver
+	 * asserted.  IRQ generally should yest be asserted when a driver
 	 * enables their IRQ. It can lead to "interesting" race conditions
 	 * in the driver initialization sequence.
 	 */
@@ -711,14 +711,14 @@ int iosapic_fixup_irq(void *isi_obj, struct pci_dev *pcidev)
 	int isi_line;	/* line used by device */
 
 	if (!isi) {
-		printk(KERN_WARNING MODULE_NAME ": hpa not registered for %s\n",
+		printk(KERN_WARNING MODULE_NAME ": hpa yest registered for %s\n",
 			pci_name(pcidev));
 		return -1;
 	}
 
 #ifdef CONFIG_SUPERIO
 	/*
-	 * HACK ALERT! (non-compliant PCI device support)
+	 * HACK ALERT! (yesn-compliant PCI device support)
 	 *
 	 * All SuckyIO interrupts are routed through the PIC's on function 1.
 	 * But SuckyIO OHCI USB controller gets an IRT entry anyway because
@@ -738,7 +738,7 @@ int iosapic_fixup_irq(void *isi_obj, struct pci_dev *pcidev)
 	/* lookup IRT entry for isi/slot/pin set */
 	irte = iosapic_xlate_pin(isi, pcidev);
 	if (!irte) {
-		printk("iosapic: no IRTE for %s (IRQ not connected?)\n",
+		printk("iosapic: yes IRTE for %s (IRQ yest connected?)\n",
 				pci_name(pcidev));
 		return -1;
 	}
@@ -747,7 +747,7 @@ int iosapic_fixup_irq(void *isi_obj, struct pci_dev *pcidev)
 		irte->entry_type,
 		irte->entry_length,
 		irte->polarity_trigger,
-		irte->src_bus_irq_devno,
+		irte->src_bus_irq_devyes,
 		irte->src_bus_id,
 		irte->src_seg_id,
 		irte->dest_iosapic_intin,
@@ -770,8 +770,8 @@ int iosapic_fixup_irq(void *isi_obj, struct pci_dev *pcidev)
 	 * XXX/FIXME The txn_alloc_irq() code and related code should be
 	 * moved to enable_irq(). That way we only allocate processor IRQ
 	 * bits for devices that actually have drivers claiming them.
-	 * Right now we assign an IRQ to every PCI device present,
-	 * regardless of whether it's used or not.
+	 * Right yesw we assign an IRQ to every PCI device present,
+	 * regardless of whether it's used or yest.
 	 */
 	vi->txn_irq = txn_alloc_irq(8);
 
@@ -818,14 +818,14 @@ int iosapic_serial_irq(struct parisc_device *dev)
 			break;
 	}
 	if (cnt >= irt_num_entry)
-		return 0; /* no irq found, force polling */
+		return 0; /* yes irq found, force polling */
 
 	DBG_IRT("iosapic_serial_irq(): irte %p %x %x %x %x %x %x %x %x\n",
 		irte,
 		irte->entry_type,
 		irte->entry_length,
 		irte->polarity_trigger,
-		irte->src_bus_irq_devno,
+		irte->src_bus_irq_devyes,
 		irte->src_bus_id,
 		irte->src_seg_id,
 		irte->dest_iosapic_intin,
@@ -836,7 +836,7 @@ int iosapic_serial_irq(struct parisc_device *dev)
 		if (isi->isi_hpa == dev->mod0)
 			break;
 	if (!isi)
-		return 0; /* no iosapic found, force polling */
+		return 0; /* yes iosapic found, force polling */
 
 	/* get vector info for this input line */
 	vi = isi->isi_vector + intin;
@@ -854,8 +854,8 @@ int iosapic_serial_irq(struct parisc_device *dev)
 	 * XXX/FIXME The txn_alloc_irq() code and related code should be
 	 * moved to enable_irq(). That way we only allocate processor IRQ
 	 * bits for devices that actually have drivers claiming them.
-	 * Right now we assign an IRQ to every PCI device present,
-	 * regardless of whether it's used or not.
+	 * Right yesw we assign an IRQ to every PCI device present,
+	 * regardless of whether it's used or yest.
 	 */
 	vi->txn_irq = txn_alloc_irq(8);
 
@@ -890,7 +890,7 @@ iosapic_rd_version(struct iosapic_info *isi)
 
 /*
 ** iosapic_register() is called by "drivers" with an integrated I/O SAPIC.
-** Caller must be certain they have an I/O SAPIC and know its MMIO address.
+** Caller must be certain they have an I/O SAPIC and kyesw its MMIO address.
 **
 **	o allocate iosapic_info and add it to the list
 **	o read iosapic version and squirrel that away
@@ -907,8 +907,8 @@ void *iosapic_register(unsigned long hpa)
 
 	/*
 	 * Astro based platforms can only support PCI OLARD if they implement
-	 * PAT PDC.  Legacy PDC omits LBAs with no PCI devices from the IRT.
-	 * Search the IRT and ignore iosapic's which aren't in the IRT.
+	 * PAT PDC.  Legacy PDC omits LBAs with yes PCI devices from the IRT.
+	 * Search the IRT and igyesre iosapic's which aren't in the IRT.
 	 */
 	for (cnt=0; cnt < irt_num_entry; cnt++, irte++) {
 		WARN_ON(IRT_IOSAPIC_TYPE != irte->entry_type);
@@ -917,7 +917,7 @@ void *iosapic_register(unsigned long hpa)
 	}
 
 	if (cnt >= irt_num_entry) {
-		DBG("iosapic_register() ignoring 0x%lx (NOT FOUND)\n", hpa);
+		DBG("iosapic_register() igyesring 0x%lx (NOT FOUND)\n", hpa);
 		return NULL;
 	}
 
@@ -927,7 +927,7 @@ void *iosapic_register(unsigned long hpa)
 		return NULL;
 	}
 
-	isi->addr = ioremap_nocache(hpa, 4096);
+	isi->addr = ioremap_yescache(hpa, 4096);
 	isi->isi_hpa = hpa;
 	isi->isi_version = iosapic_rd_version(isi);
 	isi->isi_num_vectors = IOSAPIC_IRDT_MAX_ENTRY(isi->isi_version) + 1;

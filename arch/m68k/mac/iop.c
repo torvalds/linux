@@ -6,9 +6,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice and this list of conditions.
+ *    yestice and this list of conditions.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice and this list of conditions in the documentation and/or other
+ *    yestice and this list of conditions in the documentation and/or other
  *    materials provided with the distribution.
  */
 
@@ -16,26 +16,26 @@
  * The IOP chips are used in the IIfx and some Quadras (900, 950) to manage
  * serial and ADB. They are actually a 6502 processor and some glue logic.
  *
- * 990429 (jmt) - Initial implementation, just enough to knock the SCC IOP
- *		  into compatible mode so nobody has to fiddle with the
+ * 990429 (jmt) - Initial implementation, just eyesugh to kyesck the SCC IOP
+ *		  into compatible mode so yesbody has to fiddle with the
  *		  Serial Switch control panel anymore.
  * 990603 (jmt) - Added code to grab the correct ISM IOP interrupt for OSS
- *		  and non-OSS machines (at least I hope it's correct on a
- *		  non-OSS machine -- someone with a Q900 or Q950 needs to
+ *		  and yesn-OSS machines (at least I hope it's correct on a
+ *		  yesn-OSS machine -- someone with a Q900 or Q950 needs to
  *		  check this.)
  * 990605 (jmt) - Rearranged things a bit wrt IOP detection; iop_present is
- *		  gone, IOP base addresses are now in an array and the
+ *		  gone, IOP base addresses are yesw in an array and the
  *		  globally-visible functions take an IOP number instead of an
  *		  an actual base address.
  * 990610 (jmt) - Finished the message passing framework and it seems to work.
  *		  Sending _definitely_ works; my adb-bus.c mods can send
  *		  messages and receive the MSG_COMPLETED status back from the
- *		  IOP. The trick now is figuring out the message formats.
+ *		  IOP. The trick yesw is figuring out the message formats.
  * 990611 (jmt) - More cleanups. Fixed problem where unclaimed messages on a
- *		  receive channel were never properly acknowledged. Bracketed
+ *		  receive channel were never properly ackyeswledged. Bracketed
  *		  the remaining debug printk's with #ifdef's and disabled
- *		  debugging. I can now type on the console.
- * 990612 (jmt) - Copyright notice added. Reworked the way replies are handled.
+ *		  debugging. I can yesw type on the console.
+ * 990612 (jmt) - Copyright yestice added. Reworked the way replies are handled.
  *		  It turns out that replies are placed back in the send buffer
  *		  for that channel; messages on the receive channels are always
  *		  unsolicited messages from the IOP (and our replies to them
@@ -122,9 +122,9 @@
 	printk(KERN_CONT fmt, ##__VA_ARGS__)
 #else
 #define iop_pr_debug(fmt, ...) \
-	no_printk(KERN_DEBUG "%s: " fmt, __func__, ##__VA_ARGS__)
+	yes_printk(KERN_DEBUG "%s: " fmt, __func__, ##__VA_ARGS__)
 #define iop_pr_cont(fmt, ...) \
-	no_printk(KERN_CONT fmt, ##__VA_ARGS__)
+	yes_printk(KERN_CONT fmt, ##__VA_ARGS__)
 #endif
 
 /* Non-zero if the IOPs are present */
@@ -299,7 +299,7 @@ void __init iop_init(void)
 
 /*
  * Register the interrupt handler for the IOPs.
- * TODO: might be wrong for non-OSS machines. Anyone?
+ * TODO: might be wrong for yesn-OSS machines. Anyone?
  */
 
 void __init iop_register_interrupts(void)
@@ -327,7 +327,7 @@ void __init iop_register_interrupts(void)
  *
  * If the handler pointer is NULL the current listener (if any) is
  * unregistered. Otherwise the new listener is registered provided
- * there is no existing listener registered.
+ * there is yes existing listener registered.
  */
 
 int iop_listen(uint iop_num, uint chan,
@@ -345,7 +345,7 @@ int iop_listen(uint iop_num, uint chan,
 /*
  * Complete reception of a message, which just means copying the reply
  * into the buffer, setting the channel state to MSG_COMPLETE and
- * notifying the IOP.
+ * yestifying the IOP.
  */
 
 void iop_complete_message(struct iop_msg *msg)
@@ -446,7 +446,7 @@ static void iop_handle_recv(uint iop_num, uint chan)
 
 	iop_writeb(iop, IOP_ADDR_RECV_STATE + chan, IOP_MSG_RCVD);
 
-	/* If there is a listener, call it now. Otherwise complete */
+	/* If there is a listener, call it yesw. Otherwise complete */
 	/* the message ourselves to avoid possible stalls.         */
 
 	if (msg->handler) {
@@ -537,7 +537,7 @@ void iop_download_code(uint iop_num, __u8 *code_start,
 
 /*
  * Compare the code in the shared RAM of an IOP with a copy in system memory
- * and return 0 on match or the first nonmatching system memory address on
+ * and return 0 on match or the first yesnmatching system memory address on
  * failure.
  */
 

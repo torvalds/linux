@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -150,7 +150,7 @@ wmi_wmmx_mxmi(struct nvkm_mxm *mxm, u8 version)
 			   (version >> 4), version & 0x0f);
 	} else {
 		version = 0;
-		nvkm_debug(subdev, "WMMX MXMI returned non-integer\n");
+		nvkm_debug(subdev, "WMMX MXMI returned yesn-integer\n");
 	}
 
 	kfree(obj);
@@ -168,7 +168,7 @@ mxm_shadow_wmi(struct nvkm_mxm *mxm, u8 version)
 	acpi_status status;
 
 	if (!wmi_has_guid(WMI_WMMX_GUID)) {
-		nvkm_debug(subdev, "WMMX GUID not found\n");
+		nvkm_debug(subdev, "WMMX GUID yest found\n");
 		return false;
 	}
 
@@ -244,7 +244,7 @@ nvkm_mxm_new_(struct nvkm_device *device, int index, struct nvkm_mxm **pmxm)
 
 	data = mxm_table(bios, &ver, &len);
 	if (!data || !(ver = nvbios_rd08(bios, data))) {
-		nvkm_debug(&mxm->subdev, "no VBIOS data, nothing to do\n");
+		nvkm_debug(&mxm->subdev, "yes VBIOS data, yesthing to do\n");
 		return 0;
 	}
 

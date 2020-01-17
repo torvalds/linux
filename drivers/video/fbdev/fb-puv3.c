@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/fb.h>
@@ -27,7 +27,7 @@
 #define UNIFB_MEMSIZE		(SZ_4M)		/* 4 MB for 1024*768*32b */
 
 /*
- * cause UNIGFX don not have EDID
+ * cause UNIGFX don yest have EDID
  * all the modes are organized as follow
  */
 static const struct fb_videomode unifb_modes[] = {
@@ -332,7 +332,7 @@ static u_long get_line_length(int xres_virtual, int bpp)
 
 /*
  *  Setting the video mode has been split into two parts.
- *  First part, xxxfb_check_var, must not write anything
+ *  First part, xxxfb_check_var, must yest write anything
  *  to hardware, it should only verify and adjust var.
  *  This means it doesn't alter par but it does use hardware
  *  data from it to check this var.
@@ -392,8 +392,8 @@ static int unifb_check_var(struct fb_var_screeninfo *var,
 
 	/*
 	 * Now that we checked it we alter var. The reason being is that the
-	 * video mode passed in might not work but slight changes to it might
-	 * make it work. This way we let the user know what is acceptable.
+	 * video mode passed in might yest work but slight changes to it might
+	 * make it work. This way we let the user kyesw what is acceptable.
 	 */
 	switch (var->bits_per_pixel) {
 	case 1:
@@ -549,12 +549,12 @@ static int unifb_set_par(struct fb_info *info)
 /*
  *  Set a single color register. The values supplied are already
  *  rounded down to the hardware's capabilities (according to the
- *  entries in the var structure). Return != 0 for invalid regno.
+ *  entries in the var structure). Return != 0 for invalid regyes.
  */
-static int unifb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int unifb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			 u_int transp, struct fb_info *info)
 {
-	if (regno >= 256)	/* no. of hw registers */
+	if (regyes >= 256)	/* yes. of hw registers */
 		return 1;
 
 	/* grayscale works only partially under directcolor */
@@ -586,7 +586,7 @@ static int unifb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
 		u32 v;
 
-		if (regno >= 16)
+		if (regyes >= 16)
 			return 1;
 
 		v = (red << info->var.red.offset) |
@@ -599,7 +599,7 @@ static int unifb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		case 16:
 		case 24:
 		case 32:
-			((u32 *) (info->pseudo_palette))[regno] = v;
+			((u32 *) (info->pseudo_palette))[regyes] = v;
 			break;
 		default:
 			return 1;
@@ -639,7 +639,7 @@ static int unifb_pan_display(struct fb_var_screeninfo *var,
 int unifb_mmap(struct fb_info *info,
 		    struct vm_area_struct *vma)
 {
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	return vm_iomap_memory(vma, info->fix.smem_start, info->fix.smem_len);
 }
@@ -791,7 +791,7 @@ static int unifb_suspend(struct platform_device *dev, pm_message_t mesg)
 
 	console_lock();
 
-	/* do nothing... */
+	/* do yesthing... */
 
 	console_unlock();
 

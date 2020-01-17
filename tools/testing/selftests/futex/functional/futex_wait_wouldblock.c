@@ -15,7 +15,7 @@
  *
  *****************************************************************************/
 
-#include <errno.h>
+#include <erryes.h>
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,9 +67,9 @@ int main(int argc, char *argv[])
 
 	info("Calling futex_wait on f1: %u @ %p with val=%u\n", f1, &f1, f1+1);
 	res = futex_wait(&f1, f1+1, &to, FUTEX_PRIVATE_FLAG);
-	if (!res || errno != EWOULDBLOCK) {
+	if (!res || erryes != EWOULDBLOCK) {
 		fail("futex_wait returned: %d %s\n",
-		     res ? errno : res, res ? strerror(errno) : "");
+		     res ? erryes : res, res ? strerror(erryes) : "");
 		ret = RET_FAIL;
 	}
 

@@ -150,21 +150,21 @@ struct R_ANTENNA_SELECT_OFDM {
 #ifdef __LITTLE_ENDIAN
 	u32 		r_tx_antenna:4;
 	u32 		r_ant_l:4;
-	u32 		r_ant_non_ht:4;
+	u32 		r_ant_yesn_ht:4;
 	u32 		r_ant_ht1:4;
 	u32 		r_ant_ht2:4;
 	u32 		r_ant_ht_s1:4;
-	u32 		r_ant_non_ht_s1:4;
+	u32 		r_ant_yesn_ht_s1:4;
 	u32 		OFDM_TXSC:2;
 	u32 		Reserved:2;
 #else
 	u32 		Reserved:2;
 	u32 		OFDM_TXSC:2;
-	u32 		r_ant_non_ht_s1:4;
+	u32 		r_ant_yesn_ht_s1:4;
 	u32 		r_ant_ht_s1:4;
 	u32 		r_ant_ht2:4;
 	u32 		r_ant_ht1:4;
-	u32 		r_ant_non_ht:4;
+	u32 		r_ant_yesn_ht:4;
 	u32 		r_ant_l:4;
 	u32 		r_tx_antenna:4;
 #endif

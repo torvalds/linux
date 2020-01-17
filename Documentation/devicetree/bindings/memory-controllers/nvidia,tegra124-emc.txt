@@ -6,19 +6,19 @@ Required properties :
 - reg : physical base address and length of the controller's registers.
 - nvidia,memory-controller : phandle of the MC driver.
 
-The node should contain a "emc-timings" subnode for each supported RAM type
+The yesde should contain a "emc-timings" subyesde for each supported RAM type
 (see field RAM_CODE in register PMC_STRAPPING_OPT_A), with its unit address
 being its RAM_CODE.
 
-Required properties for "emc-timings" nodes :
+Required properties for "emc-timings" yesdes :
 - nvidia,ram-code : Should contain the value of RAM_CODE this timing set is
 used for.
 
-Each "emc-timings" node should contain a "timing" subnode for every supported
-EMC clock rate. The "timing" subnodes should have the clock rate in Hz as
+Each "emc-timings" yesde should contain a "timing" subyesde for every supported
+EMC clock rate. The "timing" subyesdes should have the clock rate in Hz as
 their unit address.
 
-Required properties for "timing" nodes :
+Required properties for "timing" yesdes :
 - clock-frequency : Should contain the memory clock rate in Hz.
 - The following properties contain EMC timing characterization values
 (specified in the board documentation) :

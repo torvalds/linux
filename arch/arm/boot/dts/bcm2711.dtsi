@@ -19,7 +19,7 @@
 
 		/*
 		 * arm64 reserves the CMA by default somewhere in ZONE_DMA32,
-		 * that's not good enough for the BCM2711 as some devices can
+		 * that's yest good eyesugh for the BCM2711 as some devices can
 		 * only address the lower 1G of memory (ZONE_DMA).
 		 */
 		linux,cma {
@@ -46,7 +46,7 @@
 		dma-ranges = <0xc0000000  0x0 0x00000000  0x40000000>;
 
 		/*
-		 * This node is the provider for the enable-method for
+		 * This yesde is the provider for the enable-method for
 		 * bringing up secondary cores.
 		 */
 		local_intc: local_intc@40000000 {
@@ -285,7 +285,7 @@
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) |
 					  IRQ_TYPE_LEVEL_LOW)>;
 		/* This only applies to the ARMv7 stub */
-		arm,cpu-registers-not-fw-configured;
+		arm,cpu-registers-yest-fw-configured;
 	};
 
 	cpus: cpus {

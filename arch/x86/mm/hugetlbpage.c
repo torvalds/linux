@@ -38,7 +38,7 @@ follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
 	pte = huge_pte_offset(mm, address, vma_mmu_pagesize(vma));
 
 	/* hugetlb should be locked, and hence, prefaulted */
-	WARN_ON(!pte || pte_none(*pte));
+	WARN_ON(!pte || pte_yesne(*pte));
 
 	page = &pte_page(*pte)[vpfn % (HPAGE_SIZE/PAGE_SIZE)];
 
@@ -60,13 +60,13 @@ int pud_huge(pud_t pud)
 #else
 
 /*
- * pmd_huge() returns 1 if @pmd is hugetlb related entry, that is normal
- * hugetlb entry or non-present (migration or hwpoisoned) hugetlb entry.
+ * pmd_huge() returns 1 if @pmd is hugetlb related entry, that is yesrmal
+ * hugetlb entry or yesn-present (migration or hwpoisoned) hugetlb entry.
  * Otherwise, returns 0.
  */
 int pmd_huge(pmd_t pmd)
 {
-	return !pmd_none(pmd) &&
+	return !pmd_yesne(pmd) &&
 		(pmd_val(pmd) & (_PAGE_PRESENT|_PAGE_PSE)) != _PAGE_PRESENT;
 }
 

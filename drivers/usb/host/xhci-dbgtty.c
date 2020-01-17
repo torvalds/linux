@@ -391,7 +391,7 @@ static void dbc_rx_push(unsigned long _port)
 			if (do_push)
 				tasklet_schedule(&port->push);
 			else
-				pr_warn("ttyDBC0: RX not scheduled?\n");
+				pr_warn("ttyDBC0: RX yest scheduled?\n");
 		}
 	}
 

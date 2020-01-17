@@ -2,7 +2,7 @@ NVIDIA Tegra194 P2U binding
 
 Tegra194 has two PHY bricks namely HSIO (High Speed IO) and NVHS (NVIDIA High
 Speed) each interfacing with 12 and 8 P2U instances respectively.
-A P2U instance is a glue logic between Synopsys DesignWare Core PCIe IP's PIPE
+A P2U instance is a glue logic between Syyespsys DesignWare Core PCIe IP's PIPE
 interface and PHY of HSIO/NVHS bricks. Each P2U instance represents one PCIe
 lane.
 
@@ -12,7 +12,7 @@ Required properties:
        instance.
 - reg-names: Must include the entry "ctl".
 
-Required properties for PHY port node:
+Required properties for PHY port yesde:
 - #phy-cells: Defined by generic PHY bindings.  Must be 0.
 
 Refer to phy/phy-bindings.txt for the generic PHY binding properties.

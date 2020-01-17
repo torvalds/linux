@@ -10,7 +10,7 @@ Required properties:
 		"mediatek,mt8173-smi-larb"
 		"mediatek,mt8183-smi-larb"
 - reg : the register and size of this local arbiter.
-- mediatek,smi : a phandle to the smi_common node.
+- mediatek,smi : a phandle to the smi_common yesde.
 - power-domains : a phandle to the power domain of this local arbiter.
 - clocks : Must contain an entry for each entry in clock-names.
 - clock-names: must contain 2 entries, as follows:

@@ -71,8 +71,8 @@ enum {
 
 /* DAC assignment badness table */
 struct badness_table {
-	int no_primary_dac;	/* no primary DAC */
-	int no_dac;		/* no secondary DACs */
+	int yes_primary_dac;	/* yes primary DAC */
+	int yes_dac;		/* yes secondary DACs */
 	int shared_primary;	/* primary DAC is shared with main output */
 	int shared_surr;	/* secondary DAC shared with main or primary */
 	int shared_clfe;	/* third DAC shared with main or primary */
@@ -222,8 +222,8 @@ struct hda_gen_spec {
 	unsigned int need_dac_fix:1; /* need to limit DACs for multi channels */
 	unsigned int hp_mic:1; /* Allow HP as a mic-in */
 	unsigned int suppress_hp_mic_detect:1; /* Don't detect HP/mic */
-	unsigned int no_primary_hp:1; /* Don't prefer HP pins to speaker pins */
-	unsigned int no_multi_io:1; /* Don't try multi I/O config */
+	unsigned int yes_primary_hp:1; /* Don't prefer HP pins to speaker pins */
+	unsigned int yes_multi_io:1; /* Don't try multi I/O config */
 	unsigned int multi_cap_vol:1; /* allow multiple capture xxx volumes */
 	unsigned int inv_dmic_split:1; /* inverted dmic w/a for conexant */
 	unsigned int own_eapd_ctl:1; /* set EAPD by own function */
@@ -238,7 +238,7 @@ struct hda_gen_spec {
 	unsigned int suppress_vmaster:1; /* don't create vmaster kctls */
 
 	/* other internal flags */
-	unsigned int no_analog:1; /* digital I/O only */
+	unsigned int yes_analog:1; /* digital I/O only */
 	unsigned int dyn_adc_switch:1; /* switch ADCs (for ALC275) */
 	unsigned int indep_hp_enabled:1; /* independent HP enabled */
 	unsigned int have_aamix_ctl:1;
@@ -333,7 +333,7 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 				  struct auto_pin_cfg *cfg);
 int snd_hda_gen_build_controls(struct hda_codec *codec);
 int snd_hda_gen_build_pcms(struct hda_codec *codec);
-void snd_hda_gen_reboot_notify(struct hda_codec *codec);
+void snd_hda_gen_reboot_yestify(struct hda_codec *codec);
 
 /* standard jack event callbacks */
 void snd_hda_gen_hp_automute(struct hda_codec *codec,

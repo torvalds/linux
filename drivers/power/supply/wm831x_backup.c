@@ -58,7 +58,7 @@ static void wm831x_config_backup(struct wm831x *wm831x)
 
 	if (pdata->charger_enable)
 		reg |= WM831X_BKUP_CHG_ENA | WM831X_BKUP_BATT_DET_ENA;
-	if (pdata->no_constant_voltage)
+	if (pdata->yes_constant_voltage)
 		reg |= WM831X_BKUP_CHG_MODE;
 
 	switch (pdata->vlim) {
@@ -173,7 +173,7 @@ static int wm831x_backup_probe(struct platform_device *pdev)
 	devdata->wm831x = wm831x;
 	platform_set_drvdata(pdev, devdata);
 
-	/* We ignore configuration failures since we can still read
+	/* We igyesre configuration failures since we can still read
 	 * back the status without enabling the charger (which may
 	 * already be enabled anyway).
 	 */

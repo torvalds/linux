@@ -54,7 +54,7 @@ static int octeon_spi_probe(struct platform_device *pdev)
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->max_speed_hz = OCTEON_SPI_MAX_CLOCK_HZ;
 
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	err = devm_spi_register_master(&pdev->dev, master);
 	if (err) {
 		dev_err(&pdev->dev, "register master failed: %d\n", err);
@@ -74,7 +74,7 @@ static int octeon_spi_remove(struct platform_device *pdev)
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct octeon_spi *p = spi_master_get_devdata(master);
 
-	/* Clear the CSENA* and put everything in a known state. */
+	/* Clear the CSENA* and put everything in a kyeswn state. */
 	writeq(0, p->register_base + OCTEON_SPI_CFG(p));
 
 	return 0;

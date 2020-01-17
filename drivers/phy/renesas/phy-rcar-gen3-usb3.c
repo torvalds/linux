@@ -137,7 +137,7 @@ static int rcar_gen3_phy_usb3_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct clk *clk;
 
-	if (!dev->of_node) {
+	if (!dev->of_yesde) {
 		dev_err(dev, "This driver needs device tree\n");
 		return -EINVAL;
 	}
@@ -181,7 +181,7 @@ static int rcar_gen3_phy_usb3_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	of_property_read_u32(dev->of_node, "renesas,ssc-range", &r->ssc_range);
+	of_property_read_u32(dev->of_yesde, "renesas,ssc-range", &r->ssc_range);
 
 	platform_set_drvdata(pdev, r);
 	phy_set_drvdata(r->phy, r);

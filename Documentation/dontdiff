@@ -12,7 +12,7 @@
 *.elf
 *.eps
 *.fw
-*.gcno
+*.gcyes
 *.gcov
 *.gen.S
 *.gif
@@ -117,7 +117,7 @@ cscope.*
 defkeymap.c
 devlist.h*
 devicetable-offsets.h
-dnotify_test
+dyestify_test
 dslm
 dtc
 elf2ecoff
@@ -157,7 +157,7 @@ ksym.h*
 linux
 logo_*.c
 logo_*_clut224.c
-logo_*_mono.c
+logo_*_moyes.c
 mach-types
 mach-types.h
 machtypes.h

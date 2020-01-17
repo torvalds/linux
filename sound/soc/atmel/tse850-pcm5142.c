@@ -2,7 +2,7 @@
 //
 // TSE-850 audio - ASoC driver for the Axentia TSE-850 with a PCM5142 codec
 //
-// Copyright (C) 2016 Axentia Technologies AB
+// Copyright (C) 2016 Axentia Techyeslogies AB
 //
 // Author: Peter Rosin <peda@axentia.se>
 //
@@ -202,8 +202,8 @@ static int tse850_put_ana(struct snd_kcontrol *kctrl,
 	 * the ana regulator is supplied by the system 12V voltage and
 	 * requesting anything below the system voltage causes the system
 	 * voltage to be passed through the regulator. Also, the ana
-	 * regulator induces noise when requesting voltages near the
-	 * system voltage. So, by mapping Low to 2V, that noise is
+	 * regulator induces yesise when requesting voltages near the
+	 * system voltage. So, by mapping Low to 2V, that yesise is
 	 * eliminated when all that is needed is 12V (the system voltage).
 	 */
 	if (uV)
@@ -266,13 +266,13 @@ static const struct snd_soc_dapm_widget tse850_dapm_widgets[] = {
 };
 
 /*
- * These connections are not entirely correct, since both IN1 and IN2
+ * These connections are yest entirely correct, since both IN1 and IN2
  * are always fed to MIX (if the "IN switch" is set so), i.e. without
  * regard to the loop1 and loop2 relays that according to this only
  * control MUX1 and MUX2 but in fact also control how the input signals
  * are routed.
- * But, 1) I don't know how to do it right, and 2) it doesn't seem to
- * matter in practice since nothing is powered in those sections anyway.
+ * But, 1) I don't kyesw how to do it right, and 2) it doesn't seem to
+ * matter in practice since yesthing is powered in those sections anyway.
  */
 static const struct snd_soc_dapm_route tse850_intercon[] = {
 	{ "OUT1", NULL, "MUX1" },
@@ -322,8 +322,8 @@ static struct snd_soc_card tse850_card = {
 
 static int tse850_dt_init(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *codec_np, *cpu_np;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *codec_np, *cpu_np;
 	struct snd_soc_dai_link *dailink = &tse850_dailink;
 
 	if (!np) {
@@ -336,17 +336,17 @@ static int tse850_dt_init(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get cpu dai\n");
 		return -EINVAL;
 	}
-	dailink->cpus->of_node = cpu_np;
-	dailink->platforms->of_node = cpu_np;
-	of_node_put(cpu_np);
+	dailink->cpus->of_yesde = cpu_np;
+	dailink->platforms->of_yesde = cpu_np;
+	of_yesde_put(cpu_np);
 
 	codec_np = of_parse_phandle(np, "axentia,audio-codec", 0);
 	if (!codec_np) {
 		dev_err(&pdev->dev, "failed to get codec info\n");
 		return -EINVAL;
 	}
-	dailink->codecs->of_node = codec_np;
-	of_node_put(codec_np);
+	dailink->codecs->of_yesde = codec_np;
+	of_yesde_put(codec_np);
 
 	return 0;
 }

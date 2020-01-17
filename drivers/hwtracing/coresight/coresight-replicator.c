@@ -28,7 +28,7 @@ DEFINE_CORESIGHT_DEVLIST(replicator_devs, "replicator");
 /**
  * struct replicator_drvdata - specifics associated to a replicator component
  * @base:	memory mapped base address for this component. Also indicates
- *		whether this one is programmable or not.
+ *		whether this one is programmable or yest.
  * @atclk:	optional clock for the core parts of the replicator.
  * @csdev:	component vitals needed by the framework
  * @spinlock:	serialize enable/disable operations.
@@ -205,8 +205,8 @@ static int replicator_probe(struct device *dev, struct resource *res)
 	struct coresight_desc desc = { 0 };
 	void __iomem *base;
 
-	if (is_of_node(dev_fwnode(dev)) &&
-	    of_device_is_compatible(dev->of_node, "arm,coresight-replicator"))
+	if (is_of_yesde(dev_fwyesde(dev)) &&
+	    of_device_is_compatible(dev->of_yesde, "arm,coresight-replicator"))
 		dev_warn_once(dev,
 			      "Uses OBSOLETE CoreSight replicator binding\n");
 
@@ -274,15 +274,15 @@ static int static_replicator_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	/* Static replicators do not have programming base */
+	/* Static replicators do yest have programming base */
 	ret = replicator_probe(&pdev->dev, NULL);
 
 	if (ret) {
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_yesidle(&pdev->dev);
 		pm_runtime_disable(&pdev->dev);
 	}
 

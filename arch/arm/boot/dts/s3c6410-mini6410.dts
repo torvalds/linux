@@ -62,7 +62,7 @@
 			reg = <0x18000000 0x2 0x18000004 0x2>;
 			interrupt-parent = <&gpn>;
 			interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
-			davicom,no-eeprom;
+			davicom,yes-eeprom;
 		};
 	};
 

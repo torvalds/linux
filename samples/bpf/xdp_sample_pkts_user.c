@@ -5,7 +5,7 @@
 #include <linux/perf_event.h>
 #include <linux/bpf.h>
 #include <net/if.h>
-#include <errno.h>
+#include <erryes.h>
 #include <assert.h>
 #include <sys/sysinfo.h>
 #include <sys/ioctl.h>
@@ -39,7 +39,7 @@ static int do_attach(int idx, int fd, const char *name)
 
 	err = bpf_obj_get_info_by_fd(fd, &info, &info_len);
 	if (err) {
-		printf("can't get prog info - %s\n", strerror(errno));
+		printf("can't get prog info - %s\n", strerror(erryes));
 		return err;
 	}
 	prog_id = info.id;
@@ -64,7 +64,7 @@ static int do_detach(int idx, const char *name)
 	} else if (!curr_prog_id) {
 		printf("couldn't find a prog id on a %s\n", name);
 	} else {
-		printf("program on interface changed, not removing\n");
+		printf("program on interface changed, yest removing\n");
 	}
 
 	return err;
@@ -92,7 +92,7 @@ static void print_bpf_output(void *ctx, int cpu, void *data, __u32 size)
 	printf("\n");
 }
 
-static void sig_handler(int signo)
+static void sig_handler(int sigyes)
 {
 	do_detach(if_idx, if_name);
 	perf_buffer__free(pb);
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 		return 1;
 
 	if (!prog_fd) {
-		printf("bpf_prog_load_xattr: %s\n", strerror(errno));
+		printf("bpf_prog_load_xattr: %s\n", strerror(erryes));
 		return 1;
 	}
 

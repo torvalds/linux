@@ -14,7 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
@@ -254,9 +254,9 @@ static void vt8623_set_pixclock(struct fb_info *info, u32 pixclock)
 	u8 regval;
 	int rv;
 
-	rv = svga_compute_pll(&vt8623_pll, 1000000000 / pixclock, &m, &n, &r, info->node);
+	rv = svga_compute_pll(&vt8623_pll, 1000000000 / pixclock, &m, &n, &r, info->yesde);
 	if (rv < 0) {
-		fb_err(info, "cannot set requested pixclock, keeping old value\n");
+		fb_err(info, "canyest set requested pixclock, keeping old value\n");
 		return;
 	}
 
@@ -329,7 +329,7 @@ static int vt8623fb_check_var(struct fb_var_screeninfo *var, struct fb_info *inf
 		return rv;
 	}
 
-	/* Do not allow to have real resoulution larger than virtual */
+	/* Do yest allow to have real resoulution larger than virtual */
 	if (var->xres > var->xres_virtual)
 		var->xres_virtual = var->xres;
 
@@ -340,11 +340,11 @@ static int vt8623fb_check_var(struct fb_var_screeninfo *var, struct fb_info *inf
 	step = vt8623fb_formats[rv].xresstep - 1;
 	var->xres_virtual = (var->xres_virtual+step) & ~step;
 
-	/* Check whether have enough memory */
+	/* Check whether have eyesugh memory */
 	mem = ((var->bits_per_pixel * var->xres_virtual) >> 3) * var->yres_virtual;
 	if (mem > info->screen_size)
 	{
-		fb_err(info, "not enough framebuffer memory (%d kB requested, %d kB available)\n",
+		fb_err(info, "yest eyesugh framebuffer memory (%d kB requested, %d kB available)\n",
 		       mem >> 10, (unsigned int) (info->screen_size >> 10));
 		return -EINVAL;
 	}
@@ -357,14 +357,14 @@ static int vt8623fb_check_var(struct fb_var_screeninfo *var, struct fb_info *inf
 		return -EINVAL;
 	}
 
-	rv = svga_check_timings (&vt8623_timing_regs, var, info->node);
+	rv = svga_check_timings (&vt8623_timing_regs, var, info->yesde);
 	if (rv < 0)
 	{
 		fb_err(info, "invalid timings requested\n");
 		return rv;
 	}
 
-	/* Interlaced mode not supported */
+	/* Interlaced mode yest supported */
 	if (var->vmode & FB_VMODE_INTERLACED)
 		return -EINVAL;
 
@@ -502,7 +502,7 @@ static int vt8623fb_set_par(struct fb_info *info)
 	vt8623_set_pixclock(info, info->var.pixclock);
 	svga_set_timings(par->state.vgabase, &vt8623_timing_regs, &(info->var), 1, 1,
 			 (info->var.vmode & FB_VMODE_DOUBLE) ? 2 : 1, 1,
-			 1, info->node);
+			 1, info->yesde);
 
 	memset_io(info->screen_base, 0x00, screen_size);
 
@@ -515,51 +515,51 @@ static int vt8623fb_set_par(struct fb_info *info)
 }
 
 
-static int vt8623fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int vt8623fb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 				u_int transp, struct fb_info *fb)
 {
 	switch (fb->var.bits_per_pixel) {
 	case 0:
 	case 4:
-		if (regno >= 16)
+		if (regyes >= 16)
 			return -EINVAL;
 
 		outb(0x0F, VGA_PEL_MSK);
-		outb(regno, VGA_PEL_IW);
+		outb(regyes, VGA_PEL_IW);
 		outb(red >> 10, VGA_PEL_D);
 		outb(green >> 10, VGA_PEL_D);
 		outb(blue >> 10, VGA_PEL_D);
 		break;
 	case 8:
-		if (regno >= 256)
+		if (regyes >= 256)
 			return -EINVAL;
 
 		outb(0xFF, VGA_PEL_MSK);
-		outb(regno, VGA_PEL_IW);
+		outb(regyes, VGA_PEL_IW);
 		outb(red >> 10, VGA_PEL_D);
 		outb(green >> 10, VGA_PEL_D);
 		outb(blue >> 10, VGA_PEL_D);
 		break;
 	case 16:
-		if (regno >= 16)
+		if (regyes >= 16)
 			return 0;
 
 		if (fb->var.green.length == 5)
-			((u32*)fb->pseudo_palette)[regno] = ((red & 0xF800) >> 1) |
+			((u32*)fb->pseudo_palette)[regyes] = ((red & 0xF800) >> 1) |
 				((green & 0xF800) >> 6) | ((blue & 0xF800) >> 11);
 		else if (fb->var.green.length == 6)
-			((u32*)fb->pseudo_palette)[regno] = (red & 0xF800) |
+			((u32*)fb->pseudo_palette)[regyes] = (red & 0xF800) |
 				((green & 0xFC00) >> 5) | ((blue & 0xF800) >> 11);
 		else
 			return -EINVAL;
 		break;
 	case 24:
 	case 32:
-		if (regno >= 16)
+		if (regyes >= 16)
 			return 0;
 
 		/* ((transp & 0xFF00) << 16) */
-		((u32*)fb->pseudo_palette)[regno] = ((red & 0xFF00) << 8) |
+		((u32*)fb->pseudo_palette)[regyes] = ((red & 0xFF00) << 8) |
 			(green & 0xFF00) | ((blue & 0xFF00) >> 8);
 		break;
 	default:
@@ -596,7 +596,7 @@ static int vt8623fb_blank(int blank_mode, struct fb_info *info)
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_POWERDOWN:
-		fb_dbg(info, "DPMS off (no sync)\n");
+		fb_dbg(info, "DPMS off (yes sync)\n");
 		svga_wcrt_mask(par->state.vgabase, 0x36, 0x30, 0x30);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
@@ -661,9 +661,9 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	unsigned int memsize1, memsize2;
 	int rc;
 
-	/* Ignore secondary VGA device because there is no VGA arbitration */
+	/* Igyesre secondary VGA device because there is yes VGA arbitration */
 	if (! svga_primary_device(dev)) {
-		dev_info(&(dev->dev), "ignoring secondary device\n");
+		dev_info(&(dev->dev), "igyesring secondary device\n");
 		return -ENODEV;
 	}
 
@@ -682,13 +682,13 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	rc = pci_enable_device(dev);
 	if (rc < 0) {
-		dev_err(info->device, "cannot enable PCI device\n");
+		dev_err(info->device, "canyest enable PCI device\n");
 		goto err_enable_device;
 	}
 
 	rc = pci_request_regions(dev, "vt8623fb");
 	if (rc < 0) {
-		dev_err(info->device, "cannot reserve framebuffer region\n");
+		dev_err(info->device, "canyest reserve framebuffer region\n");
 		goto err_request_regions;
 	}
 
@@ -747,19 +747,19 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	kernel_param_unlock(THIS_MODULE);
 	if (! ((rc == 1) || (rc == 2))) {
 		rc = -EINVAL;
-		dev_err(info->device, "mode %s not found\n", mode_option);
+		dev_err(info->device, "mode %s yest found\n", mode_option);
 		goto err_find_mode;
 	}
 
 	rc = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (rc < 0) {
-		dev_err(info->device, "cannot allocate colormap\n");
+		dev_err(info->device, "canyest allocate colormap\n");
 		goto err_alloc_cmap;
 	}
 
 	rc = register_framebuffer(info);
 	if (rc < 0) {
-		dev_err(info->device, "cannot register framebuffer\n");
+		dev_err(info->device, "canyest register framebuffer\n");
 		goto err_reg_fb;
 	}
 

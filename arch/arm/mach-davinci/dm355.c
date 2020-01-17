@@ -83,10 +83,10 @@ static struct platform_device dm355_spi0_device = {
 void __init dm355_init_spi0(unsigned chipselect_mask,
 		const struct spi_board_info *info, unsigned len)
 {
-	/* for now, assume we need MISO */
+	/* for yesw, assume we need MISO */
 	davinci_cfg_reg(DM355_SPI0_SDI);
 
-	/* not all slaves will be wired up */
+	/* yest all slaves will be wired up */
 	if (chipselect_mask & BIT(0))
 		davinci_cfg_reg(DM355_SPI0_SDENA0);
 	if (chipselect_mask & BIT(1))
@@ -225,7 +225,7 @@ static u8 dm355_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 /*----------------------------------------------------------------------*/
 
 static s8 queue_priority_mapping[][2] = {
-	/* {event queue no, Priority} */
+	/* {event queue yes, Priority} */
 	{0, 3},
 	{1, 7},
 	{-1, -1},
@@ -284,7 +284,7 @@ static struct resource edma_resources[] = {
 		.start	= DAVINCI_INTC_IRQ(IRQ_CCERRINT),
 		.flags	= IORESOURCE_IRQ,
 	},
-	/* not using (or muxing) TC*_ERR */
+	/* yest using (or muxing) TC*_ERR */
 };
 
 static const struct platform_device_info dm355_edma_device __initconst = {
@@ -494,7 +494,7 @@ static int dm355_venc_setup_clock(enum vpbe_enc_timings_type type,
 	case VPBE_ENC_DV_TIMINGS:
 		if (pclock > 27000000)
 			/*
-			 * For HD, use external clock source since we cannot
+			 * For HD, use external clock source since we canyest
 			 * support HD mode with internal clocks.
 			 */
 			writel(VPSS_MUXSEL_EXTCLK_ENABLE, vpss_clk_ctrl_reg);
@@ -587,7 +587,7 @@ static struct resource dm355_gpio_resources[] = {
 };
 
 static struct davinci_gpio_platform_data dm355_gpio_platform_data = {
-	.no_auto_base	= true,
+	.yes_auto_base	= true,
 	.base		= 0,
 	.ngpio		= 104,
 };
@@ -613,7 +613,7 @@ static struct map_desc dm355_io_desc[] = {
 static struct davinci_id dm355_ids[] = {
 	{
 		.variant	= 0x0,
-		.part_no	= 0xb73b,
+		.part_yes	= 0xb73b,
 		.manufacturer	= 0x00f,
 		.cpu_id		= DAVINCI_CPU_ID_DM355,
 		.name		= "dm355",

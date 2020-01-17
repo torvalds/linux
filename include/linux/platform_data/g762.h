@@ -2,7 +2,7 @@
 /*
  * Platform data structure for g762 fan controller driver
  *
- * Copyright (C) 2013, Arnaud EBALARD <arno@natisbad.org>
+ * Copyright (C) 2013, Arnaud EBALARD <aryes@natisbad.org>
  */
 #ifndef __LINUX_PLATFORM_DATA_G762_H__
 #define __LINUX_PLATFORM_DATA_G762_H__
@@ -10,7 +10,7 @@
 /*
  * Following structure can be used to set g762 driver platform specific data
  * during board init. Note that passing a sparse structure is possible but
- * will result in non-specified attributes to be set to default value, hence
+ * will result in yesn-specified attributes to be set to default value, hence
  * overloading those installed during boot (e.g. by u-boot).
  */
 

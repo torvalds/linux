@@ -15,7 +15,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -97,7 +97,7 @@ struct intel_scu_ipc_dev {
 	u8 irq_mode;
 };
 
-static struct intel_scu_ipc_dev  ipcdev; /* Only one for now */
+static struct intel_scu_ipc_dev  ipcdev; /* Only one for yesw */
 
 /*
  * IPC Read Buffer (Read Only):
@@ -425,9 +425,9 @@ EXPORT_SYMBOL(intel_scu_ipc_update_register);
  *	@cmd: command
  *	@sub: sub type
  *
- *	Issue a simple command to the SCU. Do not use this interface if
+ *	Issue a simple command to the SCU. Do yest use this interface if
  *	you must then access data as any data values may be overwritten
- *	by another SCU access by the time this function returns.
+ *	by ayesther SCU access by the time this function returns.
  *
  *	This function may sleep. Locking for SCU accesses is handled for
  *	the caller.
@@ -581,7 +581,7 @@ int intel_scu_ipc_i2c_cntrl(u32 addr, u32 *data)
 	cmd = (addr >> 24) & 0xFF;
 	if (cmd == IPC_I2C_READ) {
 		writel(addr, scu->i2c_base + IPC_I2C_CNTRL_ADDR);
-		/* Write not getting updated without delay */
+		/* Write yest getting updated without delay */
 		usleep_range(1000, 2000);
 		*data = readl(scu->i2c_base + I2C_DATA_ADDR);
 	} else if (cmd == IPC_I2C_WRITE) {
@@ -603,9 +603,9 @@ EXPORT_SYMBOL(intel_scu_ipc_i2c_cntrl);
 /*
  * Interrupt handler gets called when ioc bit of IPC_COMMAND_REG set to 1
  * When ioc bit is set to 1, caller api must wait for interrupt handler called
- * which in turn unlocks the caller api. Currently this is not used
+ * which in turn unlocks the caller api. Currently this is yest used
  *
- * This is edge triggered so we need take no action to clear anything
+ * This is edge triggered so we need take yes action to clear anything
  */
 static irqreturn_t ioc(int irq, void *dev_id)
 {
@@ -652,7 +652,7 @@ static int ipc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	scu->ipc_base = pcim_iomap_table(pdev)[0];
 
-	scu->i2c_base = ioremap_nocache(pdata->i2c_base, pdata->i2c_len);
+	scu->i2c_base = ioremap_yescache(pdata->i2c_base, pdata->i2c_len);
 	if (!scu->i2c_base)
 		return -ENOMEM;
 

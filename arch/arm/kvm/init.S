@@ -29,7 +29,7 @@
  * - Enable the MMU
  * - Profit! (or eret, if you only care about the code).
  *
- * Another possibility is to get a HYP stub hypercall.
+ * Ayesther possibility is to get a HYP stub hypercall.
  * We discriminate between the two by checking if r0 contains a value
  * that is less than HVC_STUB_HCALL_NR.
  */
@@ -65,7 +65,7 @@ __do_hyp_init:
 	mcrr	p15, 4, rr_lo_hi(r2, r3), c2
 
 	@ Set the HTCR and VTCR to the same shareability and cacheability
-	@ settings as the non-secure TTBCR and with T0SZ == 0.
+	@ settings as the yesn-secure TTBCR and with T0SZ == 0.
 	mrc	p15, 4, r0, c2, c0, 2	@ HTCR
 	ldr	r2, =HTCR_MASK
 	bic	r0, r0, r2
@@ -125,7 +125,7 @@ THUMB(	orr	r0, r0, #PSR_T_BIT	)
 	bne	1f
 
 reset:
-	/* We're now in idmap, disable MMU */
+	/* We're yesw in idmap, disable MMU */
 	mrc	p15, 4, r1, c1, c0, 0	@ HSCTLR
 	ldr	r0, =(HSCTLR_M | HSCTLR_A | HSCTLR_C | HSCTLR_I)
 	bic	r1, r1, r0

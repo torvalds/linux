@@ -157,7 +157,7 @@ unsigned capi_message2cmsg(_cmsg * cmsg, __u8 * msg);
 
 /*
  * capi_cmsg_header() fills the _cmsg structure with default values, so only
- * parameter with non default values must be changed before sending the
+ * parameter with yesn default values must be changed before sending the
  * message.
  */
 unsigned capi_cmsg_header(_cmsg * cmsg, __u16 _ApplId,

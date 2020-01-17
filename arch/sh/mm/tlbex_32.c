@@ -43,14 +43,14 @@ handle_tlbmiss(struct pt_regs *regs, unsigned long error_code,
 	}
 
 	pud = pud_offset(pgd, address);
-	if (pud_none_or_clear_bad(pud))
+	if (pud_yesne_or_clear_bad(pud))
 		return 1;
 	pmd = pmd_offset(pud, address);
-	if (pmd_none_or_clear_bad(pmd))
+	if (pmd_yesne_or_clear_bad(pmd))
 		return 1;
 	pte = pte_offset_kernel(pmd, address);
 	entry = *pte;
-	if (unlikely(pte_none(entry) || pte_not_present(entry)))
+	if (unlikely(pte_yesne(entry) || pte_yest_present(entry)))
 		return 1;
 	if (unlikely(error_code && !pte_write(entry)))
 		return 1;
@@ -63,7 +63,7 @@ handle_tlbmiss(struct pt_regs *regs, unsigned long error_code,
 
 #if defined(CONFIG_CPU_SH4) && !defined(CONFIG_SMP)
 	/*
-	 * SH-4 does not set MMUCR.RC to the corresponding TLB entry in
+	 * SH-4 does yest set MMUCR.RC to the corresponding TLB entry in
 	 * the case of an initial page write exception, so we need to
 	 * flush it in order to avoid potential TLB entry duplication.
 	 */

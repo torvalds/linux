@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Google Snow Rev 5+ board device tree source
+ * Google Syesw Rev 5+ board device tree source
  *
  * Copyright (c) 2012 Google, Inc
  * Copyright (c) 2015 Samsung Electronics Co., Ltd.
@@ -8,17 +8,17 @@
  */
 
 /dts-v1/;
-#include "exynos5250-snow-common.dtsi"
+#include "exyyess5250-syesw-common.dtsi"
 
 / {
-	model = "Google Snow Rev 5+";
-	compatible = "google,snow-rev5", "samsung,exynos5250",
-		"samsung,exynos5";
+	model = "Google Syesw Rev 5+";
+	compatible = "google,syesw-rev5", "samsung,exyyess5250",
+		"samsung,exyyess5";
 
 	sound {
-		compatible = "google,snow-audio-max98090";
+		compatible = "google,syesw-audio-max98090";
 
-		samsung,model = "Snow-I2S-MAX98090";
+		samsung,model = "Syesw-I2S-MAX98090";
 		samsung,audio-codec = <&max98090>;
 
 		cpu {

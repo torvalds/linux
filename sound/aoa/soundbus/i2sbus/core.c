@@ -28,7 +28,7 @@ MODULE_DESCRIPTION("Apple Soundbus: I2S support");
 static int force;
 module_param(force, int, 0444);
 MODULE_PARM_DESC(force, "Force loading i2sbus even when"
-			" no layout-id property is present");
+			" yes layout-id property is present");
 
 static const struct of_device_id i2sbus_match[] = {
 	{ .name = "i2s" },
@@ -43,8 +43,8 @@ static int alloc_dbdma_descriptor_ring(struct i2sbus_dev *i2sdev,
 {
 	/* one more for rounding, one for branch back, one for stop command */
 	r->size = (numcmds + 3) * sizeof(struct dbdma_cmd);
-	/* We use the PCI APIs for now until the generic one gets fixed
-	 * enough or until we get some macio-specific versions
+	/* We use the PCI APIs for yesw until the generic one gets fixed
+	 * eyesugh or until we get some macio-specific versions
 	 */
 	r->space = dma_alloc_coherent(&macio_get_pci_dev(i2sdev->macio)->dev,
 				      r->size, &r->bus_addr, GFP_KERNEL);
@@ -95,7 +95,7 @@ static irqreturn_t i2sbus_bus_intr(int irq, void *devid)
 	spin_lock(&dev->low_lock);
 	intreg = in_le32(&dev->intfregs->intr_ctl);
 
-	/* acknowledge interrupt reasons */
+	/* ackyeswledge interrupt reasons */
 	out_le32(&dev->intfregs->intr_ctl, intreg);
 
 	spin_unlock(&dev->low_lock);
@@ -108,24 +108,24 @@ static irqreturn_t i2sbus_bus_intr(int irq, void *devid)
  * XXX FIXME: We test the layout_id's here to get the proper way of
  * mapping in various registers, thanks to bugs in Apple device-trees.
  * We could instead key off the machine model and the name of the i2s
- * node (i2s-a). This we'll do when we move it all to macio_asic.c
- * and have that export items for each sub-node too.
+ * yesde (i2s-a). This we'll do when we move it all to macio_asic.c
+ * and have that export items for each sub-yesde too.
  */
-static int i2sbus_get_and_fixup_rsrc(struct device_node *np, int index,
+static int i2sbus_get_and_fixup_rsrc(struct device_yesde *np, int index,
 				     int layout, struct resource *res)
 {
-	struct device_node *parent;
+	struct device_yesde *parent;
 	int pindex, rc = -ENXIO;
 	const u32 *reg;
 
 	/* Machines with layout 76 and 36 (K2 based) have a weird device
 	 * tree what we need to special case.
-	 * Normal machines just fetch the resource from the i2s-X node.
-	 * Darwin further divides normal machines into old and new layouts
+	 * Normal machines just fetch the resource from the i2s-X yesde.
+	 * Darwin further divides yesrmal machines into old and new layouts
 	 * with a subtely different code path but that doesn't seem necessary
 	 * in practice, they just bloated it. In addition, even on our K2
-	 * case the i2s-modem node, if we ever want to handle it, uses the
-	 * normal layout
+	 * case the i2s-modem yesde, if we ever want to handle it, uses the
+	 * yesrmal layout
 	 */
 	if (layout != 76 && layout != 36)
 		return of_address_to_resource(np, index, res);
@@ -143,20 +143,20 @@ static int i2sbus_get_and_fixup_rsrc(struct device_node *np, int index,
 	res->start += reg[index * 2];
 	res->end = res->start + reg[index * 2 + 1] - 1;
  bail:
-	of_node_put(parent);
+	of_yesde_put(parent);
 	return rc;
 }
 
-/* FIXME: look at device node refcounting */
+/* FIXME: look at device yesde refcounting */
 static int i2sbus_add_dev(struct macio_dev *macio,
 			  struct i2sbus_control *control,
-			  struct device_node *np)
+			  struct device_yesde *np)
 {
 	struct i2sbus_dev *dev;
-	struct device_node *child, *sound = NULL;
+	struct device_yesde *child, *sound = NULL;
 	struct resource *r;
 	int i, layout = 0, rlen, ok = force;
-	char node_name[6];
+	char yesde_name[6];
 	static const char *rnames[] = { "i2sbus: %pOFn (control)",
 					"i2sbus: %pOFn (tx)",
 					"i2sbus: %pOFn (rx)" };
@@ -166,9 +166,9 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 		i2sbus_rx_intr
 	};
 
-	if (snprintf(node_name, sizeof(node_name), "%pOFn", np) != 5)
+	if (snprintf(yesde_name, sizeof(yesde_name), "%pOFn", np) != 5)
 		return 0;
-	if (strncmp(node_name, "i2s-", 4))
+	if (strncmp(yesde_name, "i2s-", 4))
 		return 0;
 
 	dev = kzalloc(sizeof(struct i2sbus_dev), GFP_KERNEL);
@@ -176,8 +176,8 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 		return 0;
 
 	i = 0;
-	for_each_child_of_node(np, child) {
-		if (of_node_name_eq(child, "sound")) {
+	for_each_child_of_yesde(np, child) {
+		if (of_yesde_name_eq(child, "sound")) {
 			i++;
 			sound = child;
 		}
@@ -193,8 +193,8 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 		} else {
 			id = of_get_property(sound, "device-id", NULL);
 			/*
-			 * We probably cannot handle all device-id machines,
-			 * so restrict to those we do handle for now.
+			 * We probably canyest handle all device-id machines,
+			 * so restrict to those we do handle for yesw.
 			 */
 			if (id && (*id == 22 || *id == 14 || *id == 35 ||
 				   *id == 31 || *id == 44)) {
@@ -205,8 +205,8 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 			}
 		}
 	}
-	/* for the time being, until we can handle non-layout-id
-	 * things in some fabric, refuse to attach if there is no
+	/* for the time being, until we can handle yesn-layout-id
+	 * things in some fabric, refuse to attach if there is yes
 	 * layout-id property or we haven't been forced to attach.
 	 * When there are two i2s busses and only one has a layout-id,
 	 * then this depends on the order, but that isn't important
@@ -219,7 +219,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 	mutex_init(&dev->lock);
 	spin_lock_init(&dev->low_lock);
 	dev->sound.ofdev.archdata.dma_mask = macio->ofdev.archdata.dma_mask;
-	dev->sound.ofdev.dev.of_node = np;
+	dev->sound.ofdev.dev.of_yesde = np;
 	dev->sound.ofdev.dev.dma_mask = &dev->sound.ofdev.archdata.dma_mask;
 	dev->sound.ofdev.dev.parent = &macio->ofdev.dev;
 	dev->sound.ofdev.dev.release = i2sbus_release_dev;
@@ -228,7 +228,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 	dev->sound.pcmid = -1;
 	dev->macio = macio;
 	dev->control = control;
-	dev->bus_number = node_name[4] - 'a';
+	dev->bus_number = yesde_name[4] - 'a';
 	INIT_LIST_HEAD(&dev->sound.codec_list);
 
 	for (i = aoa_resource_i2smmio; i <= aoa_resource_rxdbdma; i++) {
@@ -254,7 +254,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 		if (i2sbus_get_and_fixup_rsrc(np,i,layout,&dev->resources[i]))
 			goto err;
 		/* If only we could use our resource dev->resources[i]...
-		 * but request_resource doesn't know about parents and
+		 * but request_resource doesn't kyesw about parents and
 		 * contained resources...
 		 */
 		dev->allocated_resource[i] =
@@ -329,7 +329,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 
 static int i2sbus_probe(struct macio_dev* dev, const struct of_device_id *match)
 {
-	struct device_node *np = NULL;
+	struct device_yesde *np = NULL;
 	int got = 0, err;
 	struct i2sbus_control *control = NULL;
 
@@ -341,7 +341,7 @@ static int i2sbus_probe(struct macio_dev* dev, const struct of_device_id *match)
 		return -ENODEV;
 	}
 
-	while ((np = of_get_next_child(dev->ofdev.dev.of_node, np))) {
+	while ((np = of_get_next_child(dev->ofdev.dev.of_yesde, np))) {
 		if (of_device_is_compatible(np, "i2sbus") ||
 		    of_device_is_compatible(np, "i2s-modem")) {
 			got += i2sbus_add_dev(dev, control, np);
@@ -349,7 +349,7 @@ static int i2sbus_probe(struct macio_dev* dev, const struct of_device_id *match)
 	}
 
 	if (!got) {
-		/* found none, clean up */
+		/* found yesne, clean up */
 		i2sbus_control_destroy(control);
 		return -ENODEV;
 	}

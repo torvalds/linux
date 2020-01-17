@@ -7,7 +7,7 @@ a common register address space and host interface.
 Required properties:
 - compatible: "x-powers,ac100"
 - reg: The I2C slave address or RSB hardware address for the chip
-- sub-nodes:
+- sub-yesdes:
   - codec
     - compatible:		"x-powers,ac100-codec"
     - interrupts:		SoC NMI / GPIO interrupt connected to the

@@ -13,8 +13,8 @@
 /*
  * WARNING: This controller is attached to System Bus 2 of the PXA which
  * needs its arbiter to be enabled explicitly (CKENB & 1<<9).
- * There is currently no way to do this from Linux, so you need to teach
- * your bootloader for now.
+ * There is currently yes way to do this from Linux, so you need to teach
+ * your bootloader for yesw.
  */
 
 #include <linux/module.h>
@@ -260,7 +260,7 @@ pxa3xx_gcu_handle_irq(int irq, void *ctx)
 		if (priv->ready) {
 			run_ready(priv);
 		} else {
-			/* There is no more data prepared by the userspace.
+			/* There is yes more data prepared by the userspace.
 			 * Set hw_running = 0 and wait for the next userspace
 			 * kick-off */
 			shared->num_idle++;
@@ -294,7 +294,7 @@ pxa3xx_gcu_wait_idle(struct pxa3xx_gcu_priv *priv)
 
 	QDUMP("Waiting for idle...");
 
-	/* Does not need to be atomic. There's a lock in user space,
+	/* Does yest need to be atomic. There's a lock in user space,
 	 * but anyhow, this is just for statistics. */
 	priv->shared->num_wait_idle++;
 
@@ -328,7 +328,7 @@ pxa3xx_gcu_wait_free(struct pxa3xx_gcu_priv *priv)
 
 	QDUMP("Waiting for free...");
 
-	/* Does not need to be atomic. There's a lock in user space,
+	/* Does yest need to be atomic. There's a lock in user space,
 	 * but anyhow, this is just for statistics. */
 	priv->shared->num_wait_free++;
 
@@ -368,7 +368,7 @@ static inline struct pxa3xx_gcu_priv *to_pxa3xx_gcu_priv(struct file *file)
  * provide an empty .open callback, so the core sets file->private_data
  * for us.
  */
-static int pxa3xx_gcu_open(struct inode *inode, struct file *file)
+static int pxa3xx_gcu_open(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
@@ -384,7 +384,7 @@ pxa3xx_gcu_write(struct file *file, const char *buff,
 
 	int words = count / 4;
 
-	/* Does not need to be atomic. There's a lock in user space,
+	/* Does yest need to be atomic. There's a lock in user space,
 	 * but anyhow, this is just for statistics. */
 	priv->shared->num_writes++;
 	priv->shared->num_words += words;
@@ -490,7 +490,7 @@ pxa3xx_gcu_mmap(struct file *file, struct vm_area_struct *vma)
 		if (size != resource_size(priv->resource_mem))
 			return -EINVAL;
 
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 		return io_remap_pfn_range(vma, vma->vm_start,
 				priv->resource_mem->start >> PAGE_SHIFT,
@@ -592,10 +592,10 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 
 	/* we allocate the misc device structure as part of our own allocation,
 	 * so we can get a pointer to our priv structure later on with
-	 * container_of(). This isn't really necessary as we have a fixed minor
+	 * container_of(). This isn't really necessary as we have a fixed miyesr
 	 * number anyway, but this is to avoid statics. */
 
-	priv->misc_dev.minor	= MISCDEV_MINOR,
+	priv->misc_dev.miyesr	= MISCDEV_MINOR,
 	priv->misc_dev.name	= DRV_NAME,
 	priv->misc_dev.fops	= &pxa3xx_gcu_miscdev_fops;
 
@@ -615,7 +615,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	/* request the IRQ */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "no IRQ defined: %d\n", irq);
+		dev_err(dev, "yes IRQ defined: %d\n", irq);
 		return irq;
 	}
 
@@ -637,7 +637,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	/* register misc device */
 	ret = misc_register(&priv->misc_dev);
 	if (ret < 0) {
-		dev_err(dev, "misc_register() for minor %d failed\n",
+		dev_err(dev, "misc_register() for miyesr %d failed\n",
 			MISCDEV_MINOR);
 		goto err_free_dma;
 	}

@@ -39,7 +39,7 @@ u64 nvmet_get_log_page_offset(struct nvme_command *cmd)
 	return le64_to_cpu(cmd->get_log_page.lpo);
 }
 
-static void nvmet_execute_get_log_page_noop(struct nvmet_req *req)
+static void nvmet_execute_get_log_page_yesop(struct nvmet_req *req)
 {
 	nvmet_req_complete(req, nvmet_zero_sgl(req, 0, req->transfer_len));
 }
@@ -78,7 +78,7 @@ static u16 nvmet_get_smart_log_nsid(struct nvmet_req *req,
 
 	ns = nvmet_find_namespace(req->sq->ctrl, req->cmd->get_log_page.nsid);
 	if (!ns) {
-		pr_err("Could not find namespace id : %d\n",
+		pr_err("Could yest find namespace id : %d\n",
 				le32_to_cpu(req->cmd->get_log_page.nsid));
 		req->error_loc = offsetof(struct nvme_rw_command, nsid);
 		return NVME_SC_INVALID_NS;
@@ -286,7 +286,7 @@ static void nvmet_execute_get_log_page_ana(struct nvmet_req *req)
 
 	kfree(desc);
 
-	/* copy the header last once we know the number of groups */
+	/* copy the header last once we kyesw the number of groups */
 	status = nvmet_copy_to_sgl(req, 0, &hdr, sizeof(hdr));
 out:
 	nvmet_req_complete(req, status);
@@ -308,7 +308,7 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 		 * active, so we can zero out the whole firmware slot log and
 		 * still claim to fully implement this mandatory log page.
 		 */
-		return nvmet_execute_get_log_page_noop(req);
+		return nvmet_execute_get_log_page_yesop(req);
 	case NVME_LOG_CHANGED_NS:
 		return nvmet_execute_get_log_changed_ns(req);
 	case NVME_LOG_CMD_EFFECTS:
@@ -356,7 +356,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	/* we support multiple ports, multiples hosts and ANA: */
 	id->cmic = (1 << 0) | (1 << 1) | (1 << 3);
 
-	/* no limit on data transfer sizes for now */
+	/* yes limit on data transfer sizes for yesw */
 	id->mdts = 0;
 	id->cntlid = cpu_to_le16(ctrl->cntlid);
 	id->ver = cpu_to_le32(ctrl->subsys->ver);
@@ -371,7 +371,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	/*
 	 * We don't really have a practical limit on the number of abort
 	 * comands.  But we don't do anything useful for abort either, so
-	 * no point in allowing more abort commands than the spec requires.
+	 * yes point in allowing more abort commands than the spec requires.
 	 */
 	id->acl = 3;
 
@@ -389,7 +389,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->sqes = (0x6 << 4) | 0x6;
 	id->cqes = (0x4 << 4) | 0x4;
 
-	/* no enforcement soft-limit for maxcmd - pick arbitrary high value */
+	/* yes enforcement soft-limit for maxcmd - pick arbitrary high value */
 	id->maxcmd = cpu_to_le16(NVMET_MAX_CMD);
 
 	id->nn = cpu_to_le32(ctrl->subsys->max_nsid);
@@ -436,7 +436,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->psd[0].entry_lat = cpu_to_le32(0x10);
 	id->psd[0].exit_lat = cpu_to_le32(0x4);
 
-	id->nwpc = 1 << 0; /* write protect and no write protect */
+	id->nwpc = 1 << 0; /* write protect and yes write protect */
 
 	status = nvmet_copy_to_sgl(req, 0, id, sizeof(*id));
 
@@ -469,7 +469,7 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 		goto done;
 
 	/*
-	 * nuse = ncap = nsze isn't always true, but we have no way to find
+	 * nuse = ncap = nsze isn't always true, but we have yes way to find
 	 * that out from the underlying device.
 	 */
 	id->ncap = id->nsze = cpu_to_le64(ns->size >> ns->blksize_shift);
@@ -629,7 +629,7 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 
 /*
  * A "minimum viable" abort implementation: the command is mandatory in the
- * spec, but we are not required to do any useful work.  We couldn't really
+ * spec, but we are yest required to do any useful work.  We couldn't really
  * do a useful abort, so don't bother even with waiting for the command
  * to be exectuted and return immediately telling the command to abort
  * wasn't found.

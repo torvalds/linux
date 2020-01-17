@@ -183,7 +183,7 @@ static void meson_venc_cvbs_encoder_enable(struct drm_encoder *encoder)
 					encoder_to_meson_venc_cvbs(encoder);
 	struct meson_drm *priv = meson_venc_cvbs->priv;
 
-	/* VDAC0 source is not from ATV */
+	/* VDAC0 source is yest from ATV */
 	writel_bits_relaxed(VENC_VDAC_SEL_ATV_DMD, 0,
 			    priv->io_base + _REG(VENC_VDAC_DACSEL0));
 
@@ -228,13 +228,13 @@ static const struct drm_encoder_helper_funcs
 
 static bool meson_venc_cvbs_connector_is_available(struct meson_drm *priv)
 {
-	struct device_node *remote;
+	struct device_yesde *remote;
 
-	remote = of_graph_get_remote_node(priv->dev->of_node, 0, 0);
+	remote = of_graph_get_remote_yesde(priv->dev->of_yesde, 0, 0);
 	if (!remote)
 		return false;
 
-	of_node_put(remote);
+	of_yesde_put(remote);
 	return true;
 }
 
@@ -247,7 +247,7 @@ int meson_venc_cvbs_create(struct meson_drm *priv)
 	int ret;
 
 	if (!meson_venc_cvbs_connector_is_available(priv)) {
-		dev_info(drm->dev, "CVBS Output connector not available\n");
+		dev_info(drm->dev, "CVBS Output connector yest available\n");
 		return 0;
 	}
 

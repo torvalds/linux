@@ -12,7 +12,7 @@
 
 enum acpi_irq_model_id acpi_irq_model;
 
-static struct fwnode_handle *acpi_gsi_domain_id;
+static struct fwyesde_handle *acpi_gsi_domain_id;
 
 /**
  * acpi_gsi_to_irq() - Retrieve the linux irq number for a given GSI
@@ -26,12 +26,12 @@ static struct fwnode_handle *acpi_gsi_domain_id;
  */
 int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 {
-	struct irq_domain *d = irq_find_matching_fwnode(acpi_gsi_domain_id,
+	struct irq_domain *d = irq_find_matching_fwyesde(acpi_gsi_domain_id,
 							DOMAIN_BUS_ANY);
 
 	*irq = irq_find_mapping(d, gsi);
 	/*
-	 * *irq == 0 means no mapping, that should
+	 * *irq == 0 means yes mapping, that should
 	 * be reported as a failure
 	 */
 	return (*irq > 0) ? 0 : -EINVAL;
@@ -58,7 +58,7 @@ int acpi_register_gsi(struct device *dev, u32 gsi, int trigger,
 		return -EINVAL;
 	}
 
-	fwspec.fwnode = acpi_gsi_domain_id;
+	fwspec.fwyesde = acpi_gsi_domain_id;
 	fwspec.param[0] = gsi;
 	fwspec.param[1] = acpi_dev_get_irq_type(trigger, polarity);
 	fwspec.param_count = 2;
@@ -73,7 +73,7 @@ EXPORT_SYMBOL_GPL(acpi_register_gsi);
  */
 void acpi_unregister_gsi(u32 gsi)
 {
-	struct irq_domain *d = irq_find_matching_fwnode(acpi_gsi_domain_id,
+	struct irq_domain *d = irq_find_matching_fwyesde(acpi_gsi_domain_id,
 							DOMAIN_BUS_ANY);
 	int irq = irq_find_mapping(d, gsi);
 
@@ -92,10 +92,10 @@ EXPORT_SYMBOL_GPL(acpi_unregister_gsi);
  * Return:
  * The referenced device fwhandle or NULL on failure
  */
-static struct fwnode_handle *
+static struct fwyesde_handle *
 acpi_get_irq_source_fwhandle(const struct acpi_resource_source *source)
 {
-	struct fwnode_handle *result;
+	struct fwyesde_handle *result;
 	struct acpi_device *device;
 	acpi_handle handle;
 	acpi_status status;
@@ -111,7 +111,7 @@ acpi_get_irq_source_fwhandle(const struct acpi_resource_source *source)
 	if (WARN_ON(!device))
 		return NULL;
 
-	result = &device->fwnode;
+	result = &device->fwyesde;
 	acpi_bus_put_acpi_device(device);
 	return result;
 }
@@ -130,7 +130,7 @@ struct acpi_irq_parse_one_ctx {
 
 /**
  * acpi_irq_parse_one_match - Handle a matching IRQ resource.
- * @fwnode: matching fwnode
+ * @fwyesde: matching fwyesde
  * @hwirq: hardware IRQ number
  * @triggering: triggering attributes of hwirq
  * @polarity: polarity attributes of hwirq
@@ -142,16 +142,16 @@ struct acpi_irq_parse_one_ctx {
  * Handle a matching IRQ resource by populating the given ctx with
  * the information passed.
  */
-static inline void acpi_irq_parse_one_match(struct fwnode_handle *fwnode,
+static inline void acpi_irq_parse_one_match(struct fwyesde_handle *fwyesde,
 					    u32 hwirq, u8 triggering,
 					    u8 polarity, u8 shareable,
 					    struct acpi_irq_parse_one_ctx *ctx)
 {
-	if (!fwnode)
+	if (!fwyesde)
 		return;
 	ctx->rc = 0;
 	*ctx->res_flags = acpi_dev_irq_flags(triggering, polarity, shareable);
-	ctx->fwspec->fwnode = fwnode;
+	ctx->fwspec->fwyesde = fwyesde;
 	ctx->fwspec->param[0] = hwirq;
 	ctx->fwspec->param[1] = acpi_dev_get_irq_type(triggering, polarity);
 	ctx->fwspec->param_count = 2;
@@ -181,7 +181,7 @@ static acpi_status acpi_irq_parse_one_cb(struct acpi_resource *ares,
 	struct acpi_irq_parse_one_ctx *ctx = context;
 	struct acpi_resource_irq *irq;
 	struct acpi_resource_extended_irq *eirq;
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 
 	switch (ares->type) {
 	case ACPI_RESOURCE_TYPE_IRQ:
@@ -190,8 +190,8 @@ static acpi_status acpi_irq_parse_one_cb(struct acpi_resource *ares,
 			ctx->index -= irq->interrupt_count;
 			return AE_OK;
 		}
-		fwnode = acpi_gsi_domain_id;
-		acpi_irq_parse_one_match(fwnode, irq->interrupts[ctx->index],
+		fwyesde = acpi_gsi_domain_id;
+		acpi_irq_parse_one_match(fwyesde, irq->interrupts[ctx->index],
 					 irq->triggering, irq->polarity,
 					 irq->shareable, ctx);
 		return AE_CTRL_TERMINATE;
@@ -203,8 +203,8 @@ static acpi_status acpi_irq_parse_one_cb(struct acpi_resource *ares,
 			ctx->index -= eirq->interrupt_count;
 			return AE_OK;
 		}
-		fwnode = acpi_get_irq_source_fwhandle(&eirq->resource_source);
-		acpi_irq_parse_one_match(fwnode, eirq->interrupts[ctx->index],
+		fwyesde = acpi_get_irq_source_fwhandle(&eirq->resource_source);
+		acpi_irq_parse_one_match(fwyesde, eirq->interrupts[ctx->index],
 					 eirq->triggering, eirq->polarity,
 					 eirq->shareable, ctx);
 		return AE_CTRL_TERMINATE;
@@ -264,7 +264,7 @@ int acpi_irq_get(acpi_handle handle, unsigned int index, struct resource *res)
 	if (rc)
 		return rc;
 
-	domain = irq_find_matching_fwnode(fwspec.fwnode, DOMAIN_BUS_ANY);
+	domain = irq_find_matching_fwyesde(fwspec.fwyesde, DOMAIN_BUS_ANY);
 	if (!domain)
 		return -EPROBE_DEFER;
 
@@ -283,14 +283,14 @@ EXPORT_SYMBOL_GPL(acpi_irq_get);
 /**
  * acpi_set_irq_model - Setup the GSI irqdomain information
  * @model: the value assigned to acpi_irq_model
- * @fwnode: the irq_domain identifier for mapping and looking up
+ * @fwyesde: the irq_domain identifier for mapping and looking up
  *          GSI interrupts
  */
 void __init acpi_set_irq_model(enum acpi_irq_model_id model,
-			       struct fwnode_handle *fwnode)
+			       struct fwyesde_handle *fwyesde)
 {
 	acpi_irq_model = model;
-	acpi_gsi_domain_id = fwnode;
+	acpi_gsi_domain_id = fwyesde;
 }
 
 /**
@@ -298,23 +298,23 @@ void __init acpi_set_irq_model(enum acpi_irq_model_id model,
  *                             GSI domain as its parent.
  * @flags:      Irq domain flags associated with the domain
  * @size:       Size of the domain.
- * @fwnode:     Optional fwnode of the interrupt controller
+ * @fwyesde:     Optional fwyesde of the interrupt controller
  * @ops:        Pointer to the interrupt domain callbacks
  * @host_data:  Controller private data pointer
  */
 struct irq_domain *acpi_irq_create_hierarchy(unsigned int flags,
 					     unsigned int size,
-					     struct fwnode_handle *fwnode,
+					     struct fwyesde_handle *fwyesde,
 					     const struct irq_domain_ops *ops,
 					     void *host_data)
 {
-	struct irq_domain *d = irq_find_matching_fwnode(acpi_gsi_domain_id,
+	struct irq_domain *d = irq_find_matching_fwyesde(acpi_gsi_domain_id,
 							DOMAIN_BUS_ANY);
 
 	if (!d)
 		return NULL;
 
-	return irq_domain_create_hierarchy(d, flags, size, fwnode, ops,
+	return irq_domain_create_hierarchy(d, flags, size, fwyesde, ops,
 					   host_data);
 }
 EXPORT_SYMBOL_GPL(acpi_irq_create_hierarchy);

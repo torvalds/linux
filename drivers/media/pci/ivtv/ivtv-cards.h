@@ -17,7 +17,7 @@
 #define IVTV_CARD_M179		      3	/* AVerMedia M179 (encoder only) */
 #define IVTV_CARD_MPG600	      4	/* Kuroutoshikou ITVC16-STVLP/YUAN MPG600, encoder only */
 #define IVTV_CARD_MPG160	      5	/* Kuroutoshikou ITVC15-STVLP/YUAN MPG160
-					   cx23415 based, but does not have tv-out */
+					   cx23415 based, but does yest have tv-out */
 #define IVTV_CARD_PG600		      6	/* YUAN PG600/DIAMONDMM PVR-550 based on the CX Falcon 2 */
 #define IVTV_CARD_AVC2410	      7	/* Adaptec AVC-2410 */
 #define IVTV_CARD_AVC2010	      8	/* Adaptec AVD-2010 (No Tuner) */
@@ -77,7 +77,7 @@
 #define IVTV_PCI_ID_GOTVIEW2		0xffad
 #define IVTV_PCI_ID_SONY		0x104d
 
-/* hardware flags, no gaps allowed */
+/* hardware flags, yes gaps allowed */
 #define IVTV_HW_CX25840			(1 << 0)
 #define IVTV_HW_SAA7115			(1 << 1)
 #define IVTV_HW_SAA7127			(1 << 2)
@@ -187,32 +187,32 @@ struct ivtv_card_pci_info {
 /* The mask is the set of bits used by the operation */
 
 struct ivtv_gpio_init {		/* set initial GPIO DIR and OUT values */
-	u16 direction;		/* DIR setting. Leave to 0 if no init is needed */
+	u16 direction;		/* DIR setting. Leave to 0 if yes init is needed */
 	u16 initial_value;
 };
 
 struct ivtv_gpio_video_input {	/* select tuner/line in input */
-	u16 mask;		/* leave to 0 if not supported */
+	u16 mask;		/* leave to 0 if yest supported */
 	u16 tuner;
 	u16 composite;
 	u16 svideo;
 };
 
 struct ivtv_gpio_audio_input {	/* select tuner/line in input */
-	u16 mask;		/* leave to 0 if not supported */
+	u16 mask;		/* leave to 0 if yest supported */
 	u16 tuner;
 	u16 linein;
 	u16 radio;
 };
 
 struct ivtv_gpio_audio_mute {
-	u16 mask;		/* leave to 0 if not supported */
+	u16 mask;		/* leave to 0 if yest supported */
 	u16 mute;		/* set this value to mute, 0 to unmute */
 };
 
 struct ivtv_gpio_audio_mode {
-	u16 mask;		/* leave to 0 if not supported */
-	u16 mono;		/* set audio to mono */
+	u16 mask;		/* leave to 0 if yest supported */
+	u16 moyes;		/* set audio to moyes */
 	u16 stereo;		/* set audio to stereo */
 	u16 lang1;		/* set audio to the first language */
 	u16 lang2;		/* set audio to the second language */
@@ -220,14 +220,14 @@ struct ivtv_gpio_audio_mode {
 };
 
 struct ivtv_gpio_audio_freq {
-	u16 mask;		/* leave to 0 if not supported */
+	u16 mask;		/* leave to 0 if yest supported */
 	u16 f32000;
 	u16 f44100;
 	u16 f48000;
 };
 
 struct ivtv_gpio_audio_detect {
-	u16 mask;		/* leave to 0 if not supported */
+	u16 mask;		/* leave to 0 if yest supported */
 	u16 stereo;		/* if the input matches this value then
 				   stereo is detected */
 };
@@ -257,7 +257,7 @@ struct ivtv_card {
 	struct ivtv_card_video_input video_inputs[IVTV_CARD_MAX_VIDEO_INPUTS];
 	struct ivtv_card_audio_input audio_inputs[IVTV_CARD_MAX_AUDIO_INPUTS];
 	struct ivtv_card_audio_input radio_input;
-	int nof_outputs;
+	int yesf_outputs;
 	const struct ivtv_card_output *video_outputs;
 	u8 gr_config;		/* config byte for the ghost reduction device */
 	u8 xceive_pin;		/* XCeive tuner GPIO reset pin */

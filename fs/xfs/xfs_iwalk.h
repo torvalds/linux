@@ -7,41 +7,41 @@
 #define __XFS_IWALK_H__
 
 /*
- * Return codes for the inode/inobt walk function are 0 to continue iterating,
- * and non-zero to stop iterating.  Any non-zero value will be passed up to the
- * iwalk or inobt_walk caller.  The special value -ECANCELED can be used to
- * stop iteration, as neither iwalk nor inobt_walk will ever generate that
+ * Return codes for the iyesde/iyesbt walk function are 0 to continue iterating,
+ * and yesn-zero to stop iterating.  Any yesn-zero value will be passed up to the
+ * iwalk or iyesbt_walk caller.  The special value -ECANCELED can be used to
+ * stop iteration, as neither iwalk yesr iyesbt_walk will ever generate that
  * error code on their own.
  */
 
-/* Walk all inodes in the filesystem starting from @startino. */
+/* Walk all iyesdes in the filesystem starting from @startiyes. */
 typedef int (*xfs_iwalk_fn)(struct xfs_mount *mp, struct xfs_trans *tp,
-			    xfs_ino_t ino, void *data);
+			    xfs_iyes_t iyes, void *data);
 
-int xfs_iwalk(struct xfs_mount *mp, struct xfs_trans *tp, xfs_ino_t startino,
+int xfs_iwalk(struct xfs_mount *mp, struct xfs_trans *tp, xfs_iyes_t startiyes,
 		unsigned int flags, xfs_iwalk_fn iwalk_fn,
-		unsigned int inode_records, void *data);
-int xfs_iwalk_threaded(struct xfs_mount *mp, xfs_ino_t startino,
+		unsigned int iyesde_records, void *data);
+int xfs_iwalk_threaded(struct xfs_mount *mp, xfs_iyes_t startiyes,
 		unsigned int flags, xfs_iwalk_fn iwalk_fn,
-		unsigned int inode_records, bool poll, void *data);
+		unsigned int iyesde_records, bool poll, void *data);
 
-/* Only iterate inodes within the same AG as @startino. */
+/* Only iterate iyesdes within the same AG as @startiyes. */
 #define XFS_IWALK_SAME_AG	(0x1)
 
 #define XFS_IWALK_FLAGS_ALL	(XFS_IWALK_SAME_AG)
 
-/* Walk all inode btree records in the filesystem starting from @startino. */
-typedef int (*xfs_inobt_walk_fn)(struct xfs_mount *mp, struct xfs_trans *tp,
-				 xfs_agnumber_t agno,
-				 const struct xfs_inobt_rec_incore *irec,
+/* Walk all iyesde btree records in the filesystem starting from @startiyes. */
+typedef int (*xfs_iyesbt_walk_fn)(struct xfs_mount *mp, struct xfs_trans *tp,
+				 xfs_agnumber_t agyes,
+				 const struct xfs_iyesbt_rec_incore *irec,
 				 void *data);
 
-int xfs_inobt_walk(struct xfs_mount *mp, struct xfs_trans *tp,
-		xfs_ino_t startino, unsigned int flags,
-		xfs_inobt_walk_fn inobt_walk_fn, unsigned int inobt_records,
+int xfs_iyesbt_walk(struct xfs_mount *mp, struct xfs_trans *tp,
+		xfs_iyes_t startiyes, unsigned int flags,
+		xfs_iyesbt_walk_fn iyesbt_walk_fn, unsigned int iyesbt_records,
 		void *data);
 
-/* Only iterate inobt records within the same AG as @startino. */
+/* Only iterate iyesbt records within the same AG as @startiyes. */
 #define XFS_INOBT_WALK_SAME_AG	(XFS_IWALK_SAME_AG)
 
 #define XFS_INOBT_WALK_FLAGS_ALL (XFS_INOBT_WALK_SAME_AG)

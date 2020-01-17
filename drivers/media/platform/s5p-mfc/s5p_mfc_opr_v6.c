@@ -496,9 +496,9 @@ static int s5p_mfc_set_dec_stream_buffer_v6(struct s5p_mfc_ctx *ctx,
 	struct s5p_mfc_buf_size *buf_size = dev->variant->buf_size;
 
 	mfc_debug_enter();
-	mfc_debug(2, "inst_no: %d, buf_addr: 0x%08x,\n"
+	mfc_debug(2, "inst_yes: %d, buf_addr: 0x%08x,\n"
 		"buf_size: 0x%08x (%d)\n",
-		ctx->inst_no, buf_addr, strm_size, strm_size);
+		ctx->inst_yes, buf_addr, strm_size, strm_size);
 	writel(strm_size, mfc_regs->d_stream_data_size);
 	writel(buf_addr, mfc_regs->d_cpb_buffer_addr);
 	writel(buf_size->cpb, mfc_regs->d_cpb_buffer_size);
@@ -595,11 +595,11 @@ static int s5p_mfc_set_dec_frame_buffer_v6(struct s5p_mfc_ctx *ctx)
 	mfc_debug(2, "Buf1: %zx, buf_size1: %d (frames %d)\n",
 			buf_addr1, buf_size1, ctx->total_dpb_count);
 	if (buf_size1 < 0) {
-		mfc_debug(2, "Not enough memory has been allocated.\n");
+		mfc_debug(2, "Not eyesugh memory has been allocated.\n");
 		return -ENOMEM;
 	}
 
-	writel(ctx->inst_no, mfc_regs->instance_id);
+	writel(ctx->inst_yes, mfc_regs->instance_id);
 	s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
 			S5P_FIMV_CH_INIT_BUFS_V6, NULL);
 
@@ -712,11 +712,11 @@ static int s5p_mfc_set_enc_ref_buffer_v6(struct s5p_mfc_ctx *ctx)
 	mfc_debug(2, "Buf1: %zu, buf_size1: %d (ref frames %d)\n",
 			buf_addr1, buf_size1, ctx->pb_count);
 	if (buf_size1 < 0) {
-		mfc_debug(2, "Not enough memory has been allocated.\n");
+		mfc_debug(2, "Not eyesugh memory has been allocated.\n");
 		return -ENOMEM;
 	}
 
-	writel(ctx->inst_no, mfc_regs->instance_id);
+	writel(ctx->inst_yes, mfc_regs->instance_id);
 	s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
 			S5P_FIMV_CH_INIT_BUFS_V6, NULL);
 
@@ -969,10 +969,10 @@ static int s5p_mfc_set_enc_params_h264(struct s5p_mfc_ctx *ctx)
 	}
 
 	/* frame rate */
-	if (p->rc_frame && p->rc_framerate_num && p->rc_framerate_denom) {
+	if (p->rc_frame && p->rc_framerate_num && p->rc_framerate_deyesm) {
 		reg = 0;
 		reg |= ((p->rc_framerate_num & 0xFFFF) << 16);
-		reg |= p->rc_framerate_denom & 0xFFFF;
+		reg |= p->rc_framerate_deyesm & 0xFFFF;
 		writel(reg, mfc_regs->e_rc_frame_rate);
 	}
 
@@ -1249,10 +1249,10 @@ static int s5p_mfc_set_enc_params_mpeg4(struct s5p_mfc_ctx *ctx)
 	}
 
 	/* frame rate */
-	if (p->rc_frame && p->rc_framerate_num && p->rc_framerate_denom) {
+	if (p->rc_frame && p->rc_framerate_num && p->rc_framerate_deyesm) {
 		reg = 0;
 		reg |= ((p->rc_framerate_num & 0xFFFF) << 16);
-		reg |= p->rc_framerate_denom & 0xFFFF;
+		reg |= p->rc_framerate_deyesm & 0xFFFF;
 		writel(reg, mfc_regs->e_rc_frame_rate);
 	}
 
@@ -1323,10 +1323,10 @@ static int s5p_mfc_set_enc_params_h263(struct s5p_mfc_ctx *ctx)
 	}
 
 	/* frame rate */
-	if (p->rc_frame && p->rc_framerate_num && p->rc_framerate_denom) {
+	if (p->rc_frame && p->rc_framerate_num && p->rc_framerate_deyesm) {
 		reg = 0;
 		reg |= ((p->rc_framerate_num & 0xFFFF) << 16);
-		reg |= p->rc_framerate_denom & 0xFFFF;
+		reg |= p->rc_framerate_deyesm & 0xFFFF;
 		writel(reg, mfc_regs->e_rc_frame_rate);
 	}
 
@@ -1375,10 +1375,10 @@ static int s5p_mfc_set_enc_params_vp8(struct s5p_mfc_ctx *ctx)
 	writel(reg, mfc_regs->e_rc_config);
 
 	/* frame rate */
-	if (p->rc_frame && p->rc_framerate_num && p->rc_framerate_denom) {
+	if (p->rc_frame && p->rc_framerate_num && p->rc_framerate_deyesm) {
 		reg = 0;
 		reg |= ((p->rc_framerate_num & 0xFFFF) << 16);
-		reg |= p->rc_framerate_denom & 0xFFFF;
+		reg |= p->rc_framerate_deyesm & 0xFFFF;
 		writel(reg, mfc_regs->e_rc_frame_rate);
 	}
 
@@ -1507,7 +1507,7 @@ static int s5p_mfc_set_enc_params_hevc(struct s5p_mfc_ctx *ctx)
 	reg |= (p_hevc->intra_pu_split_disable & 0x1) << 16;
 	reg |= (p_hevc->tmv_prediction_disable & 0x1) << 17;
 	reg |= (p_hevc->max_num_merge_mv & 0x7) << 18;
-	reg |= (p_hevc->encoding_nostartcode_enable & 0x1) << 23;
+	reg |= (p_hevc->encoding_yesstartcode_enable & 0x1) << 23;
 	reg |= (p_hevc->prepend_sps_pps_to_idr << 26);
 
 	writel(reg, mfc_regs->e_hevc_options);
@@ -1602,7 +1602,7 @@ static int s5p_mfc_init_decode_v6(struct s5p_mfc_ctx *ctx)
 	int fmo_aso_ctrl = 0;
 
 	mfc_debug_enter();
-	mfc_debug(2, "InstNo: %d/%d\n", ctx->inst_no,
+	mfc_debug(2, "InstNo: %d/%d\n", ctx->inst_yes,
 			S5P_FIMV_CH_SEQ_HEADER_V6);
 	mfc_debug(2, "BUFs: %08x %08x %08x\n",
 		  readl(mfc_regs->d_cpb_buffer_addr),
@@ -1647,7 +1647,7 @@ static int s5p_mfc_init_decode_v6(struct s5p_mfc_ctx *ctx)
 	/* sei parse */
 	writel(ctx->sei_fp_parse & 0x1, mfc_regs->d_sei_enable);
 
-	writel(ctx->inst_no, mfc_regs->instance_id);
+	writel(ctx->inst_yes, mfc_regs->instance_id);
 	s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
 			S5P_FIMV_CH_SEQ_HEADER_V6, NULL);
 
@@ -1662,7 +1662,7 @@ static inline void s5p_mfc_set_flush(struct s5p_mfc_ctx *ctx, int flush)
 
 	if (flush) {
 		dev->curr_ctx = ctx->num;
-		writel(ctx->inst_no, mfc_regs->instance_id);
+		writel(ctx->inst_yes, mfc_regs->instance_id);
 		s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
 				S5P_FIMV_H2R_CMD_FLUSH_V6, NULL);
 	}
@@ -1678,9 +1678,9 @@ static int s5p_mfc_decode_one_frame_v6(struct s5p_mfc_ctx *ctx,
 	writel(ctx->dec_dst_flag, mfc_regs->d_available_dpb_flag_lower);
 	writel(ctx->slice_interface & 0x1, mfc_regs->d_slice_if_enable);
 
-	writel(ctx->inst_no, mfc_regs->instance_id);
+	writel(ctx->inst_yes, mfc_regs->instance_id);
 	/* Issue different commands to instance basing on whether it
-	 * is the last frame or not. */
+	 * is the last frame or yest. */
 	switch (last_frame) {
 	case 0:
 		s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
@@ -1715,7 +1715,7 @@ static int s5p_mfc_init_encode_v6(struct s5p_mfc_ctx *ctx)
 	else if (ctx->codec_mode == S5P_FIMV_CODEC_HEVC_ENC)
 		s5p_mfc_set_enc_params_hevc(ctx);
 	else {
-		mfc_err("Unknown codec for encoding (%x).\n",
+		mfc_err("Unkyeswn codec for encoding (%x).\n",
 			ctx->codec_mode);
 		return -EINVAL;
 	}
@@ -1726,7 +1726,7 @@ static int s5p_mfc_init_encode_v6(struct s5p_mfc_ctx *ctx)
 		writel(ctx->img_width, mfc_regs->e_source_second_plane_stride);
 	}
 
-	writel(ctx->inst_no, mfc_regs->instance_id);
+	writel(ctx->inst_yes, mfc_regs->instance_id);
 	s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
 			S5P_FIMV_CH_SEQ_HEADER_V6, NULL);
 
@@ -1771,7 +1771,7 @@ static int s5p_mfc_encode_one_frame_v6(struct s5p_mfc_ctx *ctx)
 	else
 		cmd = S5P_FIMV_CH_LAST_FRAME_V6;
 
-	writel(ctx->inst_no, mfc_regs->instance_id);
+	writel(ctx->inst_yes, mfc_regs->instance_id);
 	s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev, cmd, NULL);
 
 	mfc_debug(2, "--\n");
@@ -1839,12 +1839,12 @@ static inline int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	unsigned int dst_size;
 
 	if (list_empty(&ctx->src_queue) && ctx->state != MFCINST_FINISHING) {
-		mfc_debug(2, "no src buffers.\n");
+		mfc_debug(2, "yes src buffers.\n");
 		return -EAGAIN;
 	}
 
 	if (list_empty(&ctx->dst_queue)) {
-		mfc_debug(2, "no dst buffers.\n");
+		mfc_debug(2, "yes dst buffers.\n");
 		return -EAGAIN;
 	}
 
@@ -1919,12 +1919,12 @@ static inline int s5p_mfc_run_init_dec_buffers(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	int ret;
-	/* Header was parsed now start processing
+	/* Header was parsed yesw start processing
 	 * First set the output frame buffers
 	 * s5p_mfc_alloc_dec_buffers(ctx); */
 
 	if (ctx->capture_state != QUEUE_BUFS_MMAPED) {
-		mfc_err("It seems that not all destination buffers were\n"
+		mfc_err("It seems that yest all destination buffers were\n"
 			"mmapped.MFC requires that all destination are mmapped\n"
 			"before starting processing.\n");
 		return -EAGAIN;
@@ -1962,7 +1962,7 @@ static void s5p_mfc_try_run_v6(struct s5p_mfc_dev *dev)
 
 	mfc_debug(1, "Try run dev: %p\n", dev);
 
-	/* Check whether hardware is not running */
+	/* Check whether hardware is yest running */
 	if (test_and_set_bit(0, &dev->hw_lock) != 0) {
 		/* This is perfectly ok, the scheduled ctx should wait */
 		mfc_debug(1, "Couldn't lock HW.\n");
@@ -2068,9 +2068,9 @@ static void s5p_mfc_try_run_v6(struct s5p_mfc_dev *dev)
 		if (test_and_clear_bit(0, &dev->hw_lock) == 0)
 			mfc_err("Failed to unlock hardware.\n");
 
-		/* This is in deed imporant, as no operation has been
-		 * scheduled, reduce the clock count as no one will
-		 * ever do this, because no interrupt related to this try_run
+		/* This is in deed imporant, as yes operation has been
+		 * scheduled, reduce the clock count as yes one will
+		 * ever do this, because yes interrupt related to this try_run
 		 * will ever come from hardware. */
 		s5p_mfc_clock_off();
 	}
@@ -2179,7 +2179,7 @@ static int s5p_mfc_get_e_min_scratch_buf_size(struct s5p_mfc_dev *dev)
 	return readl(dev->mfc_regs->e_min_scratch_buffer_size);
 }
 
-static int s5p_mfc_get_inst_no_v6(struct s5p_mfc_dev *dev)
+static int s5p_mfc_get_inst_yes_v6(struct s5p_mfc_dev *dev)
 {
 	return readl(dev->mfc_regs->ret_instance_id);
 }
@@ -2516,7 +2516,7 @@ static struct s5p_mfc_hw_ops s5p_mfc_ops_v6 = {
 	.get_img_height = s5p_mfc_get_img_height_v6,
 	.get_dpb_count = s5p_mfc_get_dpb_count_v6,
 	.get_mv_count = s5p_mfc_get_mv_count_v6,
-	.get_inst_no = s5p_mfc_get_inst_no_v6,
+	.get_inst_yes = s5p_mfc_get_inst_yes_v6,
 	.get_enc_strm_size = s5p_mfc_get_enc_strm_size_v6,
 	.get_enc_slice_type = s5p_mfc_get_enc_slice_type_v6,
 	.get_enc_dpb_count = s5p_mfc_get_enc_dpb_count_v6,

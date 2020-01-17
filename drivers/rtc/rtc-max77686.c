@@ -21,7 +21,7 @@
 #define MAX77620_I2C_ADDR_RTC		0x68
 #define MAX77686_INVALID_I2C_ADDR	(-1)
 
-/* Define non existing register */
+/* Define yesn existing register */
 #define MAX77686_INVALID_REG		(-1)
 
 /* RTC Control Register */
@@ -102,7 +102,7 @@ enum MAX77686_RTC_OP {
 	MAX77686_RTC_READ,
 };
 
-/* These are not registers but just offsets that are mapped to addresses */
+/* These are yest registers but just offsets that are mapped to addresses */
 enum max77686_rtc_reg_offset {
 	REG_RTC_CONTROLM = 0,
 	REG_RTC_CONTROL,
@@ -302,7 +302,7 @@ static int max77686_rtc_tm_to_data(struct rtc_time *tm, u8 *data,
 	data[RTC_YEAR] = tm->tm_year > 100 ? (tm->tm_year - 100) : 0;
 
 	if (tm->tm_year < 100) {
-		dev_err(info->dev, "RTC cannot handle the year %d.\n",
+		dev_err(info->dev, "RTC canyest handle the year %d.\n",
 			1900 + tm->tm_year);
 		return -EINVAL;
 	}
@@ -419,7 +419,7 @@ static int max77686_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		if (map[REG_RTC_AE1] == REG_RTC_NONE) {
 			ret = -EINVAL;
 			dev_err(info->dev,
-				"alarm enable register not set(%d)\n", ret);
+				"alarm enable register yest set(%d)\n", ret);
 			goto out;
 		}
 
@@ -480,7 +480,7 @@ static int max77686_rtc_stop_alarm(struct max77686_rtc_info *info)
 		if (map[REG_RTC_AE1] == REG_RTC_NONE) {
 			ret = -EINVAL;
 			dev_err(info->dev,
-				"alarm enable register not set(%d)\n", ret);
+				"alarm enable register yest set(%d)\n", ret);
 			goto out;
 		}
 

@@ -589,7 +589,7 @@ static void sun6i_dsi_setup_timings(struct sun6i_dsi *dsi,
 			   HBLK_PACKET_OVERHEAD);
 
 		/*
-		 * And I'm not entirely sure what vblk is about. The driver in
+		 * And I'm yest entirely sure what vblk is about. The driver in
 		 * Allwinner BSP is using a rather convoluted calculation
 		 * there only for 4 lanes. However, using 0 (the !4 lanes
 		 * case) even with a 4 lanes screen seems to work...
@@ -755,14 +755,14 @@ static void sun6i_dsi_encoder_enable(struct drm_encoder *encoder)
 	/*
 	 * FIXME: This should be moved after the switch to HS mode.
 	 *
-	 * Unfortunately, once in HS mode, it seems like we're not
+	 * Unfortunately, once in HS mode, it seems like we're yest
 	 * able to send DCS commands anymore, which would prevent any
 	 * panel to send any DCS command as part as their enable
 	 * method, which is quite common.
 	 *
 	 * I haven't seen any artifact due to that sub-optimal
 	 * ordering on the panels I've tested it with, so I guess this
-	 * will do for now, until that IP is better understood.
+	 * will do for yesw, until that IP is better understood.
 	 */
 	if (!IS_ERR(dsi->panel))
 		drm_panel_enable(dsi->panel);
@@ -944,7 +944,7 @@ static int sun6i_dsi_attach(struct mipi_dsi_host *host,
 	struct sun6i_dsi *dsi = host_to_sun6i_dsi(host);
 
 	dsi->device = device;
-	dsi->panel = of_drm_find_panel(device->dev.of_node);
+	dsi->panel = of_drm_find_panel(device->dev.of_yesde);
 	if (IS_ERR(dsi->panel))
 		return PTR_ERR(dsi->panel);
 

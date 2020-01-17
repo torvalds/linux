@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -21,7 +21,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -113,7 +113,7 @@ static const char *drm_dp_mst_req_type_str(u8 req_type)
 
 	if (req_type >= ARRAY_SIZE(req_type_str) ||
 	    !req_type_str[req_type])
-		return "unknown";
+		return "unkyeswn";
 
 	return req_type_str[req_type];
 }
@@ -138,7 +138,7 @@ static const char *drm_dp_mst_nak_reason_str(u8 nak_reason)
 
 	if (nak_reason >= ARRAY_SIZE(nak_reason_str) ||
 	    !nak_reason_str[nak_reason])
-		return "unknown";
+		return "unkyeswn";
 
 	return nak_reason_str[nak_reason];
 }
@@ -158,7 +158,7 @@ static const char *drm_dp_mst_sideband_tx_state_str(int state)
 
 	if (state >= ARRAY_SIZE(sideband_reason_str) ||
 	    !sideband_reason_str[state])
-		return "unknown";
+		return "unkyeswn";
 
 	return sideband_reason_str[state];
 }
@@ -268,7 +268,7 @@ static void drm_dp_encode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
 		buf[idx++] = hdr->rad[i];
 	buf[idx++] = (hdr->broadcast << 7) | (hdr->path_msg << 6) |
 		(hdr->msg_len & 0x3f);
-	buf[idx++] = (hdr->somt << 7) | (hdr->eomt << 6) | (hdr->seqno << 4);
+	buf[idx++] = (hdr->somt << 7) | (hdr->eomt << 6) | (hdr->seqyes << 4);
 
 	crc4 = drm_dp_msg_header_crc4(buf, (idx * 2) - 1);
 	buf[idx - 1] |= (crc4 & 0xf);
@@ -307,7 +307,7 @@ static bool drm_dp_decode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
 	idx++;
 	hdr->somt = (buf[idx] >> 7) & 0x1;
 	hdr->eomt = (buf[idx] >> 6) & 0x1;
-	hdr->seqno = (buf[idx] >> 4) & 0x1;
+	hdr->seqyes = (buf[idx] >> 4) & 0x1;
 	idx++;
 	*hdrlen = idx;
 	return true;
@@ -393,7 +393,7 @@ drm_dp_encode_sideband_req(const struct drm_dp_sideband_msg_req_body *req,
 			memcpy(&buf[idx], req->u.i2c_read.transactions[i].bytes, req->u.i2c_read.transactions[i].num_bytes);
 			idx += req->u.i2c_read.transactions[i].num_bytes;
 
-			buf[idx] = (req->u.i2c_read.transactions[i].no_stop_bit & 0x1) << 4;
+			buf[idx] = (req->u.i2c_read.transactions[i].yes_stop_bit & 0x1) << 4;
 			buf[idx] |= (req->u.i2c_read.transactions[i].i2c_transaction_delay & 0xf);
 			idx++;
 		}
@@ -512,7 +512,7 @@ drm_dp_decode_sideband_req(const struct drm_dp_sideband_msg_tx *raw,
 					break;
 				}
 				idx += tx->num_bytes;
-				tx->no_stop_bit = (buf[idx] >> 5) & 0x1;
+				tx->yes_stop_bit = (buf[idx] >> 5) & 0x1;
 				tx->i2c_transaction_delay = buf[idx] & 0xf;
 			}
 
@@ -604,9 +604,9 @@ drm_dp_dump_sideband_msg_req_body(const struct drm_dp_sideband_msg_req_body *req
 			const struct drm_dp_remote_i2c_read_tx *rtx =
 				&req->u.i2c_read.transactions[i];
 
-			P("%d: id=%03d size=%03d no_stop_bit=%d tx_delay=%03d: %*ph\n",
+			P("%d: id=%03d size=%03d yes_stop_bit=%d tx_delay=%03d: %*ph\n",
 			  i, rtx->i2c_dev_id, rtx->num_bytes,
-			  rtx->no_stop_bit, rtx->i2c_transaction_delay,
+			  rtx->yes_stop_bit, rtx->i2c_transaction_delay,
 			  rtx->num_bytes, rtx->bytes);
 		}
 		break;
@@ -636,8 +636,8 @@ drm_dp_mst_dump_sideband_msg_tx(struct drm_printer *p,
 
 	drm_dp_mst_rad_to_str(txmsg->dst->rad, txmsg->dst->lct, buf,
 			      sizeof(buf));
-	drm_printf(p, "txmsg cur_offset=%x cur_len=%x seqno=%x state=%s path_msg=%d dst=%s\n",
-		   txmsg->cur_offset, txmsg->cur_len, txmsg->seqno,
+	drm_printf(p, "txmsg cur_offset=%x cur_len=%x seqyes=%x state=%s path_msg=%d dst=%s\n",
+		   txmsg->cur_offset, txmsg->cur_len, txmsg->seqyes,
 		   drm_dp_mst_sideband_tx_state_str(txmsg->state),
 		   txmsg->path_msg, buf);
 
@@ -697,7 +697,7 @@ static bool drm_dp_sideband_msg_build(struct drm_dp_sideband_msg_rx *msg,
 		}
 
 		/*
-		 * ignore out-of-order messages or messages that are part of a
+		 * igyesre out-of-order messages or messages that are part of a
 		 * failed transaction
 		 */
 		if (!recv_hdr.somt && !msg->have_somt)
@@ -951,13 +951,13 @@ static bool drm_dp_sideband_parse_reply(struct drm_dp_sideband_msg_rx *raw,
 	case DP_POWER_UP_PHY:
 		return drm_dp_sideband_parse_power_updown_phy_ack(raw, msg);
 	default:
-		DRM_ERROR("Got unknown reply 0x%02x (%s)\n", msg->req_type,
+		DRM_ERROR("Got unkyeswn reply 0x%02x (%s)\n", msg->req_type,
 			  drm_dp_mst_req_type_str(msg->req_type));
 		return false;
 	}
 }
 
-static bool drm_dp_sideband_parse_connection_status_notify(struct drm_dp_sideband_msg_rx *raw,
+static bool drm_dp_sideband_parse_connection_status_yestify(struct drm_dp_sideband_msg_rx *raw,
 							   struct drm_dp_sideband_msg_req_body *msg)
 {
 	int idx = 1;
@@ -984,7 +984,7 @@ fail_len:
 	return false;
 }
 
-static bool drm_dp_sideband_parse_resource_status_notify(struct drm_dp_sideband_msg_rx *raw,
+static bool drm_dp_sideband_parse_resource_status_yestify(struct drm_dp_sideband_msg_rx *raw,
 							   struct drm_dp_sideband_msg_req_body *msg)
 {
 	int idx = 1;
@@ -1015,11 +1015,11 @@ static bool drm_dp_sideband_parse_req(struct drm_dp_sideband_msg_rx *raw,
 
 	switch (msg->req_type) {
 	case DP_CONNECTION_STATUS_NOTIFY:
-		return drm_dp_sideband_parse_connection_status_notify(raw, msg);
+		return drm_dp_sideband_parse_connection_status_yestify(raw, msg);
 	case DP_RESOURCE_STATUS_NOTIFY:
-		return drm_dp_sideband_parse_resource_status_notify(raw, msg);
+		return drm_dp_sideband_parse_resource_status_yestify(raw, msg);
 	default:
-		DRM_ERROR("Got unknown request 0x%02x (%s)\n", msg->req_type,
+		DRM_ERROR("Got unkyeswn request 0x%02x (%s)\n", msg->req_type,
 			  drm_dp_mst_req_type_str(msg->req_type));
 		return false;
 	}
@@ -1152,7 +1152,7 @@ static bool check_txmsg_state(struct drm_dp_mst_topology_mgr *mgr,
 	/*
 	 * All updates to txmsg->state are protected by mgr->qlock, and the two
 	 * cases we check here are terminal states. For those the barriers
-	 * provided by the wake_up/wait_event pair are enough.
+	 * provided by the wake_up/wait_event pair are eyesugh.
 	 */
 	state = READ_ONCE(txmsg->state);
 	return (state == DRM_DP_SIDEBAND_TX_RX ||
@@ -1175,7 +1175,7 @@ static int drm_dp_mst_wait_tx_reply(struct drm_dp_mst_branch *mstb,
 			goto out;
 		}
 	} else {
-		DRM_DEBUG_KMS("timedout msg send %p %d %d\n", txmsg, txmsg->state, txmsg->seqno);
+		DRM_DEBUG_KMS("timedout msg send %p %d %d\n", txmsg, txmsg->state, txmsg->seqyes);
 
 		/* dump some state */
 		ret = -EIO;
@@ -1188,7 +1188,7 @@ static int drm_dp_mst_wait_tx_reply(struct drm_dp_mst_branch *mstb,
 
 		if (txmsg->state == DRM_DP_SIDEBAND_TX_START_SEND ||
 		    txmsg->state == DRM_DP_SIDEBAND_TX_SENT) {
-			mstb->tx_slots[txmsg->seqno] = NULL;
+			mstb->tx_slots[txmsg->seqyes] = NULL;
 		}
 	}
 out:
@@ -1240,7 +1240,7 @@ static void drm_dp_free_mst_branch_device(struct kref *kref)
  * drm_dp_mst_port are somewhat unusual. Both ports and branch devices have
  * two different kinds of refcounts: topology refcounts, and malloc refcounts.
  *
- * Topology refcounts are not exposed to drivers, and are handled internally
+ * Topology refcounts are yest exposed to drivers, and are handled internally
  * by the DP MST helpers. The helpers use them in order to prevent the
  * in-memory topology state from being changed in the middle of critical
  * operations like changing the internal state of payload allocations. This
@@ -1255,13 +1255,13 @@ static void drm_dp_free_mst_branch_device(struct kref *kref)
  * Malloc references are used to keep a &struct drm_dp_mst_port or &struct
  * drm_dp_mst_branch allocated even after all of its topology references have
  * been dropped, so that the driver or MST helpers can safely access each
- * branch's last known state before it was disconnected from the topology.
+ * branch's last kyeswn state before it was disconnected from the topology.
  * When the malloc refcount of a port or branch reaches 0, the memory
  * allocation containing the &struct drm_dp_mst_branch or &struct
  * drm_dp_mst_port respectively will be freed.
  *
- * For &struct drm_dp_mst_branch, malloc refcounts are not currently exposed
- * to drivers. As of writing this documentation, there are no drivers that
+ * For &struct drm_dp_mst_branch, malloc refcounts are yest currently exposed
+ * to drivers. As of writing this documentation, there are yes drivers that
  * have a usecase for accessing &struct drm_dp_mst_branch outside of the MST
  * helpers. Exposing this API to drivers in a race-free manner would take more
  * tweaking of the refcounting scheme, however patches are welcome provided
@@ -1302,7 +1302,7 @@ static void drm_dp_free_mst_branch_device(struct kref *kref)
  * #4, this means they both have been disconnected from the topology and freed
  * from memory. But, because payload #2 is still holding a reference to port
  * #3, port #3 is removed from the topology but its &struct drm_dp_mst_port
- * is still accessible from memory. This also means port #3 has not yet
+ * is still accessible from memory. This also means port #3 has yest yet
  * decremented the malloc refcount of MSTB #3, so its &struct
  * drm_dp_mst_branch will also stay allocated in memory until port #3's
  * malloc refcount reaches 0.
@@ -1325,7 +1325,7 @@ static void drm_dp_free_mst_branch_device(struct kref *kref)
  *
  * Increments &drm_dp_mst_branch.malloc_kref. When
  * &drm_dp_mst_branch.malloc_kref reaches 0, the memory allocation for @mstb
- * will be released and @mstb may no longer be used.
+ * will be released and @mstb may yes longer be used.
  *
  * See also: drm_dp_mst_put_mstb_malloc()
  */
@@ -1343,7 +1343,7 @@ drm_dp_mst_get_mstb_malloc(struct drm_dp_mst_branch *mstb)
  *
  * Decrements &drm_dp_mst_branch.malloc_kref. When
  * &drm_dp_mst_branch.malloc_kref reaches 0, the memory allocation for @mstb
- * will be released and @mstb may no longer be used.
+ * will be released and @mstb may yes longer be used.
  *
  * See also: drm_dp_mst_get_mstb_malloc()
  */
@@ -1369,7 +1369,7 @@ static void drm_dp_free_mst_port(struct kref *kref)
  *
  * Increments &drm_dp_mst_port.malloc_kref. When &drm_dp_mst_port.malloc_kref
  * reaches 0, the memory allocation for @port will be released and @port may
- * no longer be used.
+ * yes longer be used.
  *
  * Because @port could potentially be freed at any time by the DP MST helpers
  * if &drm_dp_mst_port.malloc_kref reaches 0, including during a call to this
@@ -1394,7 +1394,7 @@ EXPORT_SYMBOL(drm_dp_mst_get_port_malloc);
  *
  * Decrements &drm_dp_mst_port.malloc_kref. When &drm_dp_mst_port.malloc_kref
  * reaches 0, the memory allocation for @port will be released and @port may
- * no longer be used.
+ * yes longer be used.
  *
  * See also: drm_dp_mst_get_port_malloc()
  */
@@ -1410,7 +1410,7 @@ EXPORT_SYMBOL(drm_dp_mst_put_port_malloc);
 
 #define STACK_DEPTH 8
 
-static noinline void
+static yesinline void
 __topology_ref_save(struct drm_dp_mst_topology_mgr *mgr,
 		    struct drm_dp_mst_topology_ref_history *history,
 		    enum drm_dp_mst_topology_ref_type type)
@@ -1588,7 +1588,7 @@ static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 
 	/*
 	 * This can get called under mgr->mutex, so we need to perform the
-	 * actual destruction of the mstb in another worker
+	 * actual destruction of the mstb in ayesther worker
 	 */
 	mutex_lock(&mgr->delayed_destroy_lock);
 	list_add(&mstb->destroy_next, &mgr->destroy_branch_device_list);
@@ -1616,7 +1616,7 @@ static void drm_dp_destroy_mst_branch_device(struct kref *kref)
  *
  * Returns:
  * * 1: A topology reference was grabbed successfully
- * * 0: @port is no longer in the topology, no reference was grabbed
+ * * 0: @port is yes longer in the topology, yes reference was grabbed
  */
 static int __must_check
 drm_dp_mst_topology_try_get_mstb(struct drm_dp_mst_branch *mstb)
@@ -1642,7 +1642,7 @@ drm_dp_mst_topology_try_get_mstb(struct drm_dp_mst_branch *mstb)
  * @mstb: The &struct drm_dp_mst_branch to increment the topology refcount of
  *
  * Increments &drm_dp_mst_branch.topology_refcount without checking whether or
- * not it's already reached 0. This is only valid to use in scenarios where
+ * yest it's already reached 0. This is only valid to use in scenarios where
  * you are already guaranteed to have at least one active topology reference
  * to @mstb. Otherwise, drm_dp_mst_topology_try_get_mstb() must be used.
  *
@@ -1695,7 +1695,7 @@ static void drm_dp_destroy_port(struct kref *kref)
 
 	drm_dp_mst_dump_port_topology_history(port);
 
-	/* There's nothing that needs locking to destroy an input port yet */
+	/* There's yesthing that needs locking to destroy an input port yet */
 	if (port->input) {
 		drm_dp_mst_put_port_malloc(port);
 		return;
@@ -1733,7 +1733,7 @@ static void drm_dp_destroy_port(struct kref *kref)
  *
  * Returns:
  * * 1: A topology reference was grabbed successfully
- * * 0: @port is no longer in the topology, no reference was grabbed
+ * * 0: @port is yes longer in the topology, yes reference was grabbed
  */
 static int __must_check
 drm_dp_mst_topology_try_get_port(struct drm_dp_mst_port *port)
@@ -1757,7 +1757,7 @@ drm_dp_mst_topology_try_get_port(struct drm_dp_mst_port *port)
  * @port: The &struct drm_dp_mst_port to increment the topology refcount of
  *
  * Increments &drm_dp_mst_port.topology_refcount without checking whether or
- * not it's already reached 0. This is only valid to use in scenarios where
+ * yest it's already reached 0. This is only valid to use in scenarios where
  * you are already guaranteed to have at least one active topology reference
  * to @port. Otherwise, drm_dp_mst_topology_try_get_port() must be used.
  *
@@ -2095,7 +2095,7 @@ int drm_dp_mst_connector_late_register(struct drm_connector *connector,
 		      port->aux.name, connector->kdev->kobj.name);
 
 	port->aux.dev = connector->kdev;
-	return drm_dp_aux_register_devnode(&port->aux);
+	return drm_dp_aux_register_devyesde(&port->aux);
 }
 EXPORT_SYMBOL(drm_dp_mst_connector_late_register);
 
@@ -2113,7 +2113,7 @@ void drm_dp_mst_connector_early_unregister(struct drm_connector *connector,
 {
 	DRM_DEBUG_KMS("unregistering %s remote bus for %s\n",
 		      port->aux.name, connector->kdev->kobj.name);
-	drm_dp_aux_unregister_devnode(&port->aux);
+	drm_dp_aux_unregister_devyesde(&port->aux);
 }
 EXPORT_SYMBOL(drm_dp_mst_connector_early_unregister);
 
@@ -2314,7 +2314,7 @@ fail_put:
 
 static void
 drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
-			    struct drm_dp_connection_status_notify *conn_stat)
+			    struct drm_dp_connection_status_yestify *conn_stat)
 {
 	struct drm_dp_mst_topology_mgr *mgr = mstb->mgr;
 	struct drm_dp_mst_port *port;
@@ -2612,19 +2612,19 @@ static int set_hdr_from_dst_qlock(struct drm_dp_sideband_msg_hdr *hdr,
 	u8 req_type;
 
 	/* both msg slots are full */
-	if (txmsg->seqno == -1) {
+	if (txmsg->seqyes == -1) {
 		if (mstb->tx_slots[0] && mstb->tx_slots[1]) {
 			DRM_DEBUG_KMS("%s: failed to find slot\n", __func__);
 			return -EAGAIN;
 		}
 		if (mstb->tx_slots[0] == NULL && mstb->tx_slots[1] == NULL) {
-			txmsg->seqno = mstb->last_seqno;
-			mstb->last_seqno ^= 1;
+			txmsg->seqyes = mstb->last_seqyes;
+			mstb->last_seqyes ^= 1;
 		} else if (mstb->tx_slots[0] == NULL)
-			txmsg->seqno = 0;
+			txmsg->seqyes = 0;
 		else
-			txmsg->seqno = 1;
-		mstb->tx_slots[txmsg->seqno] = txmsg;
+			txmsg->seqyes = 1;
+		mstb->tx_slots[txmsg->seqyes] = txmsg;
 	}
 
 	req_type = txmsg->msg[0] & 0x7f;
@@ -2638,7 +2638,7 @@ static int set_hdr_from_dst_qlock(struct drm_dp_sideband_msg_hdr *hdr,
 	hdr->lcr = mstb->lct - 1;
 	if (mstb->lct > 1)
 		memcpy(hdr->rad, mstb->rad, mstb->lct / 2);
-	hdr->seqno = txmsg->seqno;
+	hdr->seqyes = txmsg->seqyes;
 	return 0;
 }
 /*
@@ -2656,11 +2656,11 @@ static int process_single_tx_qlock(struct drm_dp_mst_topology_mgr *mgr,
 	memset(&hdr, 0, sizeof(struct drm_dp_sideband_msg_hdr));
 
 	if (txmsg->state == DRM_DP_SIDEBAND_TX_QUEUED) {
-		txmsg->seqno = -1;
+		txmsg->seqyes = -1;
 		txmsg->state = DRM_DP_SIDEBAND_TX_START_SEND;
 	}
 
-	/* make hdr from dst mst - for replies use seqno
+	/* make hdr from dst mst - for replies use seqyes
 	   otherwise assign one */
 	ret = set_hdr_from_dst_qlock(&hdr, txmsg);
 	if (ret < 0)
@@ -2717,13 +2717,13 @@ static void process_single_down_tx_qlock(struct drm_dp_mst_topology_mgr *mgr)
 	txmsg = list_first_entry(&mgr->tx_msg_downq, struct drm_dp_sideband_msg_tx, next);
 	ret = process_single_tx_qlock(mgr, txmsg, false);
 	if (ret == 1) {
-		/* txmsg is sent it should be in the slots now */
+		/* txmsg is sent it should be in the slots yesw */
 		list_del(&txmsg->next);
 	} else if (ret) {
 		DRM_DEBUG_KMS("failed to send msg in q %d\n", ret);
 		list_del(&txmsg->next);
-		if (txmsg->seqno != -1)
-			txmsg->dst->tx_slots[txmsg->seqno] = NULL;
+		if (txmsg->seqyes != -1)
+			txmsg->dst->tx_slots[txmsg->seqyes] = NULL;
 		txmsg->state = DRM_DP_SIDEBAND_TX_TIMEOUT;
 		wake_up_all(&mgr->tx_waitq);
 	}
@@ -2741,10 +2741,10 @@ static void process_single_up_tx_qlock(struct drm_dp_mst_topology_mgr *mgr,
 	if (ret != 1)
 		DRM_DEBUG_KMS("failed to send msg in q %d\n", ret);
 
-	if (txmsg->seqno != -1) {
-		WARN_ON((unsigned int)txmsg->seqno >
+	if (txmsg->seqyes != -1) {
+		WARN_ON((unsigned int)txmsg->seqyes >
 			ARRAY_SIZE(txmsg->dst->tx_slots));
-		txmsg->dst->tx_slots[txmsg->seqno] = NULL;
+		txmsg->dst->tx_slots[txmsg->seqyes] = NULL;
 	}
 }
 
@@ -2835,7 +2835,7 @@ static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 	}
 
 	/* Prune any ports that are currently a part of mstb in our in-memory
-	 * topology, but were not seen in this link address. Usually this
+	 * topology, but were yest seen in this link address. Usually this
 	 * means that they were removed while the topology was out of sync,
 	 * e.g. during suspend/resume
 	 */
@@ -2844,7 +2844,7 @@ static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 		if (port_mask & BIT(port->port_num))
 			continue;
 
-		DRM_DEBUG_KMS("port %d was not in link address, removing\n",
+		DRM_DEBUG_KMS("port %d was yest in link address, removing\n",
 			      port->port_num);
 		list_del(&port->next);
 		drm_dp_mst_topology_put_port(port);
@@ -2916,7 +2916,7 @@ static struct drm_dp_mst_port *drm_dp_get_last_connected_port_to_mstb(struct drm
  * Searches upwards in the topology starting from mstb to try to find the
  * closest available parent of mstb that's still connected to the rest of the
  * topology. This can be used in order to perform operations like releasing
- * payloads, where the branch device which owned the payload may no longer be
+ * payloads, where the branch device which owned the payload may yes longer be
  * around and thus would require that the payload on the last living relative
  * be freed instead.
  */
@@ -3176,7 +3176,7 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 			drm_dp_mst_topology_put_port(port);
 	}
 
-	for (i = 0; i < mgr->max_payloads; /* do nothing */) {
+	for (i = 0; i < mgr->max_payloads; /* do yesthing */) {
 		if (mgr->payloads[i].payload_state != DP_PAYLOAD_DELETE_LOCAL) {
 			i++;
 			continue;
@@ -3346,7 +3346,7 @@ static int drm_dp_encode_up_ack_reply(struct drm_dp_sideband_msg_tx *msg, u8 req
 
 static int drm_dp_send_up_ack_reply(struct drm_dp_mst_topology_mgr *mgr,
 				    struct drm_dp_mst_branch *mstb,
-				    int req_type, int seqno, bool broadcast)
+				    int req_type, int seqyes, bool broadcast)
 {
 	struct drm_dp_sideband_msg_tx *txmsg;
 
@@ -3355,7 +3355,7 @@ static int drm_dp_send_up_ack_reply(struct drm_dp_mst_topology_mgr *mgr,
 		return -ENOMEM;
 
 	txmsg->dst = mstb;
-	txmsg->seqno = seqno;
+	txmsg->seqyes = seqyes;
 	drm_dp_encode_up_ack_reply(txmsg, req_type);
 
 	mutex_lock(&mgr->qlock);
@@ -3507,7 +3507,7 @@ EXPORT_SYMBOL(drm_dp_mst_topology_mgr_suspend);
 /**
  * drm_dp_mst_topology_mgr_resume() - resume the MST manager
  * @mgr: manager to resume
- * @sync: whether or not to perform topology reprobing synchronously
+ * @sync: whether or yest to perform topology reprobing synchroyesusly
  *
  * This will fetch DPCD and see if the device is still there,
  * if it is, it will rewrite the MSTM control bits, and return.
@@ -3517,7 +3517,7 @@ EXPORT_SYMBOL(drm_dp_mst_topology_mgr_suspend);
  *
  * During system resume (where it is assumed that the driver will be calling
  * drm_atomic_helper_resume()) this function should be called beforehand with
- * @sync set to true. In contexts like runtime resume where the driver is not
+ * @sync set to true. In contexts like runtime resume where the driver is yest
  * expected to be calling drm_atomic_helper_resume(), this function should be
  * called with @sync set to false in order to avoid deadlocking.
  *
@@ -3643,23 +3643,23 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 
 	mstb = drm_dp_get_mst_branch_device(mgr, hdr->lct, hdr->rad);
 	if (!mstb) {
-		DRM_DEBUG_KMS("Got MST reply from unknown device %d\n",
+		DRM_DEBUG_KMS("Got MST reply from unkyeswn device %d\n",
 			      hdr->lct);
 		goto clear_down_rep_recv;
 	}
 
 	/* find the message */
-	slot = hdr->seqno;
+	slot = hdr->seqyes;
 	mutex_lock(&mgr->qlock);
 	txmsg = mstb->tx_slots[slot];
 	/* remove from slots */
 	mutex_unlock(&mgr->qlock);
 
 	if (!txmsg) {
-		DRM_DEBUG_KMS("Got MST reply with no msg %p %d %d %02x %02x\n",
-			      mstb, hdr->seqno, hdr->lct, hdr->rad[0],
+		DRM_DEBUG_KMS("Got MST reply with yes msg %p %d %d %02x %02x\n",
+			      mstb, hdr->seqyes, hdr->lct, hdr->rad[0],
 			      mgr->down_rep_recv.msg[0]);
-		goto no_msg;
+		goto yes_msg;
 	}
 
 	drm_dp_sideband_parse_reply(&mgr->down_rep_recv, &txmsg->reply);
@@ -3684,7 +3684,7 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 
 	return 0;
 
-no_msg:
+yes_msg:
 	drm_dp_mst_topology_put_mstb(mstb);
 clear_down_rep_recv:
 	memset(&mgr->down_rep_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
@@ -3715,7 +3715,7 @@ drm_dp_mst_process_up_req(struct drm_dp_mst_topology_mgr *mgr,
 	}
 
 	if (!mstb) {
-		DRM_DEBUG_KMS("Got MST reply from unknown device %d\n",
+		DRM_DEBUG_KMS("Got MST reply from unkyeswn device %d\n",
 			      hdr->lct);
 		return false;
 	}
@@ -3764,7 +3764,7 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 {
 	struct drm_dp_sideband_msg_hdr *hdr = &mgr->up_req_recv.initial_hdr;
 	struct drm_dp_pending_up_req *up_req;
-	bool seqno;
+	bool seqyes;
 
 	if (!drm_dp_get_one_sb_msg(mgr, true))
 		goto out;
@@ -3774,27 +3774,27 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 
 	up_req = kzalloc(sizeof(*up_req), GFP_KERNEL);
 	if (!up_req) {
-		DRM_ERROR("Not enough memory to process MST up req\n");
+		DRM_ERROR("Not eyesugh memory to process MST up req\n");
 		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&up_req->next);
 
-	seqno = hdr->seqno;
+	seqyes = hdr->seqyes;
 	drm_dp_sideband_parse_req(&mgr->up_req_recv, &up_req->msg);
 
 	if (up_req->msg.req_type != DP_CONNECTION_STATUS_NOTIFY &&
 	    up_req->msg.req_type != DP_RESOURCE_STATUS_NOTIFY) {
-		DRM_DEBUG_KMS("Received unknown up req type, ignoring: %x\n",
+		DRM_DEBUG_KMS("Received unkyeswn up req type, igyesring: %x\n",
 			      up_req->msg.req_type);
 		kfree(up_req);
 		goto out;
 	}
 
 	drm_dp_send_up_ack_reply(mgr, mgr->mst_primary, up_req->msg.req_type,
-				 seqno, false);
+				 seqyes, false);
 
 	if (up_req->msg.req_type == DP_CONNECTION_STATUS_NOTIFY) {
-		const struct drm_dp_connection_status_notify *conn_stat =
+		const struct drm_dp_connection_status_yestify *conn_stat =
 			&up_req->msg.u.conn_stat;
 
 		DRM_DEBUG_KMS("Got CSN: pn: %d ldps:%d ddps: %d mcs: %d ip: %d pdt: %d\n",
@@ -3805,7 +3805,7 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 			      conn_stat->input_port,
 			      conn_stat->peer_device_type);
 	} else if (up_req->msg.req_type == DP_RESOURCE_STATUS_NOTIFY) {
-		const struct drm_dp_resource_status_notify *res_stat =
+		const struct drm_dp_resource_status_yestify *res_stat =
 			&up_req->msg.u.resource_stat;
 
 		DRM_DEBUG_KMS("Got RSN: pn: %d avail_pbn %d\n",
@@ -3825,10 +3825,10 @@ out:
 }
 
 /**
- * drm_dp_mst_hpd_irq() - MST hotplug IRQ notify
- * @mgr: manager to notify irq for.
+ * drm_dp_mst_hpd_irq() - MST hotplug IRQ yestify
+ * @mgr: manager to yestify irq for.
  * @esi: 4 bytes from SINK_COUNT_ESI
- * @handled: whether the hpd interrupt was consumed or not
+ * @handled: whether the hpd interrupt was consumed or yest
  *
  * This should be called from the driver when it detects a short IRQ,
  * along with the value of the DEVICE_SERVICE_IRQ_VECTOR_ESI0. The
@@ -3917,11 +3917,11 @@ out:
 EXPORT_SYMBOL(drm_dp_mst_detect_port);
 
 /**
- * drm_dp_mst_port_has_audio() - Check whether port has audio capability or not
+ * drm_dp_mst_port_has_audio() - Check whether port has audio capability or yest
  * @mgr: manager for this port
  * @port: unverified pointer to a port.
  *
- * This returns whether the port supports audio or not.
+ * This returns whether the port supports audio or yest.
  */
 bool drm_dp_mst_port_has_audio(struct drm_dp_mst_topology_mgr *mgr,
 					struct drm_dp_mst_port *port)
@@ -3973,7 +3973,7 @@ EXPORT_SYMBOL(drm_dp_mst_get_edid);
  * @pbn: payload bandwidth to convert into slots.
  *
  * Calculate the number of VCPI slots that will be required for the given PBN
- * value. This function is deprecated, and should not be used in atomic
+ * value. This function is deprecated, and should yest be used in atomic
  * drivers.
  *
  * RETURNS:
@@ -4027,11 +4027,11 @@ static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
  * to ensure compatibility with userspace applications that still use the
  * legacy modesetting UAPI.
  *
- * Allocations set by this function are not checked against the bandwidth
+ * Allocations set by this function are yest checked against the bandwidth
  * restraints of @mgr until the driver calls drm_dp_mst_atomic_check().
  *
  * Additionally, it is OK to call this function multiple times on the same
- * @port as needed. It is not OK however, to call this function and
+ * @port as needed. It is yest OK however, to call this function and
  * drm_dp_atomic_release_vcpi_slots() in the same atomic check phase.
  *
  * See also:
@@ -4040,7 +4040,7 @@ static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
  *
  * Returns:
  * Total slots in the atomic state assigned for this port, or a negative error
- * code if the port no longer exists
+ * code if the port yes longer exists
  */
 int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 				  struct drm_dp_mst_topology_mgr *mgr,
@@ -4066,7 +4066,7 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 			 * which is an error
 			 */
 			if (WARN_ON(!prev_slots)) {
-				DRM_ERROR("cannot allocate and release VCPI on [MST PORT:%p] in the same state\n",
+				DRM_ERROR("canyest allocate and release VCPI on [MST PORT:%p] in the same state\n",
 					  port);
 				return -EINVAL;
 			}
@@ -4108,12 +4108,12 @@ EXPORT_SYMBOL(drm_dp_atomic_find_vcpi_slots);
  * Releases any VCPI slots that have been allocated to a port in the atomic
  * state. Any atomic drivers which support MST must call this function in
  * their &drm_connector_helper_funcs.atomic_check() callback when the
- * connector will no longer have VCPI allocated (e.g. because its CRTC was
+ * connector will yes longer have VCPI allocated (e.g. because its CRTC was
  * removed) when it had VCPI allocated in the previous atomic state.
  *
  * It is OK to call this even if @port has been removed from the system.
  * Additionally, it is OK to call this function multiple times on the same
- * @port as needed. It is not OK however, to call this function and
+ * @port as needed. It is yest OK however, to call this function and
  * drm_dp_atomic_find_vcpi_slots() on the same @port in a single atomic check
  * phase.
  *
@@ -4144,7 +4144,7 @@ int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 		}
 	}
 	if (WARN_ON(!found)) {
-		DRM_ERROR("no VCPI for [MST PORT:%p] found in mst state %p\n",
+		DRM_ERROR("yes VCPI for [MST PORT:%p] found in mst state %p\n",
 			  port, &topology_state->base);
 		return -EINVAL;
 	}
@@ -4229,7 +4229,7 @@ void drm_dp_mst_reset_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm
 {
 	/*
 	 * A port with VCPI will remain allocated until its VCPI is
-	 * released, no verified ref needed
+	 * released, yes verified ref needed
 	 */
 
 	port->vcpi.num_slots = 0;
@@ -4242,7 +4242,7 @@ EXPORT_SYMBOL(drm_dp_mst_reset_vcpi_slots);
  * @port: port to deallocate vcpi for
  *
  * This can be called unconditionally, regardless of whether
- * drm_dp_mst_allocate_vcpi() succeeded or not.
+ * drm_dp_mst_allocate_vcpi() succeeded or yest.
  */
 void drm_dp_mst_deallocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 				struct drm_dp_mst_port *port)
@@ -4292,7 +4292,7 @@ retry:
 			usleep_range(10000, 20000);
 			goto retry;
 		}
-		DRM_DEBUG_KMS("status not set after read payload table status %d\n", status);
+		DRM_DEBUG_KMS("status yest set after read payload table status %d\n", status);
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -4449,7 +4449,7 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 			seq_printf(m, "vcpi %d: %d %d %d sink name: %s\n", i,
 				   port->port_num, port->vcpi.vcpi,
 				   port->vcpi.num_slots,
-				   (*name != 0) ? name :  "Unknown");
+				   (*name != 0) ? name :  "Unkyeswn");
 		} else
 			seq_printf(m, "vcpi %d:unused\n", i);
 	}
@@ -4651,7 +4651,7 @@ static void drm_dp_mst_destroy_state(struct drm_private_obj *obj,
 	struct drm_dp_vcpi_allocation *pos, *tmp;
 
 	list_for_each_entry_safe(pos, tmp, &mst_state->vcpis, next) {
-		/* We only keep references to ports with non-zero VCPIs */
+		/* We only keep references to ports with yesn-zero VCPIs */
 		if (pos->vcpi)
 			drm_dp_mst_put_port_malloc(pos->port);
 		kfree(pos);
@@ -4680,7 +4680,7 @@ drm_dp_mst_atomic_check_topology_state(struct drm_dp_mst_topology_mgr *mgr,
 
 		avail_slots -= vcpi->vcpi;
 		if (avail_slots < 0) {
-			DRM_DEBUG_ATOMIC("[MST PORT:%p] not enough VCPI slots in mst state %p (avail=%d)\n",
+			DRM_DEBUG_ATOMIC("[MST PORT:%p] yest eyesugh VCPI slots in mst state %p (avail=%d)\n",
 					 vcpi->port, mst_state,
 					 avail_slots + vcpi->vcpi);
 			return -ENOSPC;
@@ -4705,7 +4705,7 @@ drm_dp_mst_atomic_check_topology_state(struct drm_dp_mst_topology_mgr *mgr,
  * @state: Pointer to the new &struct drm_dp_mst_topology_state
  *
  * Checks the given topology state for an atomic update to ensure that it's
- * valid. This includes checking whether there's enough bandwidth to support
+ * valid. This includes checking whether there's eyesugh bandwidth to support
  * the new VCPI allocations in the atomic update.
  *
  * Any atomic drivers supporting DP MST must make sure to call this after
@@ -4911,7 +4911,7 @@ static int drm_dp_mst_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs
 		msg.u.i2c_read.transactions[i].i2c_dev_id = msgs[i].addr;
 		msg.u.i2c_read.transactions[i].num_bytes = msgs[i].len;
 		msg.u.i2c_read.transactions[i].bytes = msgs[i].buf;
-		msg.u.i2c_read.transactions[i].no_stop_bit = !(msgs[i].flags & I2C_M_STOP);
+		msg.u.i2c_read.transactions[i].yes_stop_bit = !(msgs[i].flags & I2C_M_STOP);
 	}
 	msg.u.i2c_read.read_i2c_device_id = msgs[num - 1].addr;
 	msg.u.i2c_read.num_bytes_read = msgs[num - 1].len;
@@ -4975,7 +4975,7 @@ static int drm_dp_mst_register_i2c_bus(struct drm_dp_aux *aux)
 	aux->ddc.class = I2C_CLASS_DDC;
 	aux->ddc.owner = THIS_MODULE;
 	aux->ddc.dev.parent = aux->dev;
-	aux->ddc.dev.of_node = aux->dev->of_node;
+	aux->ddc.dev.of_yesde = aux->dev->of_yesde;
 
 	strlcpy(aux->ddc.name, aux->name ? aux->name : dev_name(aux->dev),
 		sizeof(aux->ddc.name));

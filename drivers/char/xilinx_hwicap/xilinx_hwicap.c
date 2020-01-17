@@ -27,7 +27,7 @@
  *     All rights reserved.
  *
  *     You should have received a copy of the GNU General Public License along
- *     with this program; if not, write to the Free Software Foundation, Inc.,
+ *     with this program; if yest, write to the Free Software Foundation, Inc.,
  *     675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *****************************************************************************/
@@ -48,8 +48,8 @@
  * is left in a desynched state, requiring that a synch sequence be
  * transmitted before any valid configuration data.  A user will have
  * exclusive access to the device while it remains open, and the state
- * of the ICAP cannot be guaranteed after the device is closed.  Note
- * that a complete reset of the core and the state of the ICAP cannot
+ * of the ICAP canyest be guaranteed after the device is closed.  Note
+ * that a complete reset of the core and the state of the ICAP canyest
  * be performed on many versions of the cores, hence users of this
  * device should avoid making inconsistent accesses to the device.  In
  * particular, accessing the read interface, without first generating
@@ -57,7 +57,7 @@
  * inaccessible state.
  *
  * Note that in order to use the read interface, it is first necessary
- * to write a request packet to the write interface.  i.e., it is not
+ * to write a request packet to the write interface.  i.e., it is yest
  * possible to simply readback the bitstream (or any configuration
  * bits) from a device without specifically requesting them first.
  * The code to craft such packets is intended to be part of the
@@ -286,7 +286,7 @@ static int hwicap_get_configuration_register(struct hwicap_drvdata *drvdata,
 	if (status)
 		return status;
 
-	/* If the syncword was not found, then we need to start over. */
+	/* If the syncword was yest found, then we need to start over. */
 	status = drvdata->config->get_status(drvdata);
 	if ((status & XHI_SR_DALIGN_MASK) != XHI_SR_DALIGN_MASK)
 		return -EIO;
@@ -334,7 +334,7 @@ static int hwicap_initialize_hwicap(struct hwicap_drvdata *drvdata)
 		return status;
 
 	/* Attempt to read the IDCODE from ICAP.  This
-	 * may not be returned correctly, due to the design of the
+	 * may yest be returned correctly, due to the design of the
 	 * hardware.
 	 */
 	dev_dbg(drvdata->dev, "Reading IDCODE...\n");
@@ -392,8 +392,8 @@ hwicap_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		}
 
 		/* The ICAP device is only able to read complete */
-		/* words.  If a number of bytes that do not correspond */
-		/* to complete words is requested, then we read enough */
+		/* words.  If a number of bytes that do yest correspond */
+		/* to complete words is requested, then we read eyesugh */
 		/* words to get the required number of bytes, and then */
 		/* save the remaining bytes for the next read. */
 
@@ -526,13 +526,13 @@ hwicap_write(struct file *file, const char __user *buf,
 	return status;
 }
 
-static int hwicap_open(struct inode *inode, struct file *file)
+static int hwicap_open(struct iyesde *iyesde, struct file *file)
 {
 	struct hwicap_drvdata *drvdata;
 	int status;
 
 	mutex_lock(&hwicap_mutex);
-	drvdata = container_of(inode->i_cdev, struct hwicap_drvdata, cdev);
+	drvdata = container_of(iyesde->i_cdev, struct hwicap_drvdata, cdev);
 
 	status = mutex_lock_interruptible(&drvdata->sem);
 	if (status)
@@ -561,7 +561,7 @@ static int hwicap_open(struct inode *inode, struct file *file)
 	return status;
 }
 
-static int hwicap_release(struct inode *inode, struct file *file)
+static int hwicap_release(struct iyesde *iyesde, struct file *file)
 {
 	struct hwicap_drvdata *drvdata = file->private_data;
 	int i;
@@ -596,7 +596,7 @@ static const struct file_operations hwicap_fops = {
 	.read = hwicap_read,
 	.open = hwicap_open,
 	.release = hwicap_release,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static int hwicap_setup(struct device *dev, int id,
@@ -624,7 +624,7 @@ static int hwicap_setup(struct device *dev, int id,
 	}
 	if (probed_devices[id]) {
 		mutex_unlock(&icap_sem);
-		dev_err(dev, "cannot assign to %s%i; it is already in use\n",
+		dev_err(dev, "canyest assign to %s%i; it is already in use\n",
 			DRIVER_NAME, id);
 		return -EBUSY;
 	}
@@ -753,19 +753,19 @@ static int hwicap_of_probe(struct platform_device *op,
 	const struct config_registers *regs;
 
 
-	rc = of_address_to_resource(op->dev.of_node, 0, &res);
+	rc = of_address_to_resource(op->dev.of_yesde, 0, &res);
 	if (rc) {
 		dev_err(&op->dev, "invalid address\n");
 		return rc;
 	}
 
-	id = of_get_property(op->dev.of_node, "port-number", NULL);
+	id = of_get_property(op->dev.of_yesde, "port-number", NULL);
 
-	/* It's most likely that we're using V4, if the family is not
+	/* It's most likely that we're using V4, if the family is yest
 	 * specified
 	 */
 	regs = &v4_config_registers;
-	family = of_get_property(op->dev.of_node, "xlnx,family", NULL);
+	family = of_get_property(op->dev.of_yesde, "xlnx,family", NULL);
 
 	if (family) {
 		if (!strcmp(family, "virtex2p"))
@@ -804,7 +804,7 @@ static int hwicap_drv_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	/* It's most likely that we're using V4, if the family is not
+	/* It's most likely that we're using V4, if the family is yest
 	 * specified
 	 */
 	regs = &v4_config_registers;

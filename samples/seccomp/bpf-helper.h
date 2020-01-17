@@ -67,7 +67,7 @@ void seccomp_bpf_print(struct sock_filter *filter, size_t count);
 #elif __BYTE_ORDER == __BIG_ENDIAN
 #define LO_ARG(idx) offsetof(struct seccomp_data, args[(idx)]) + sizeof(__u32)
 #else
-#error "Unknown endianness"
+#error "Unkyeswn endianness"
 #endif
 
 /* Map all width-sensitive operations */

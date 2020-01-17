@@ -58,7 +58,7 @@ static int sirf_hwspinlock_probe(struct platform_device *pdev)
 	struct hwspinlock *hwlock;
 	int idx, ret;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	hwspin = devm_kzalloc(&pdev->dev,
@@ -69,7 +69,7 @@ static int sirf_hwspinlock_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* retrieve io base */
-	hwspin->io_base = of_iomap(pdev->dev.of_node, 0);
+	hwspin->io_base = of_iomap(pdev->dev.of_yesde, 0);
 	if (!hwspin->io_base)
 		return -ENOMEM;
 

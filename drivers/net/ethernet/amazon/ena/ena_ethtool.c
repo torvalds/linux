@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -106,7 +106,7 @@ static const struct ena_stats ena_stats_ena_com_strings[] = {
 	ENA_STAT_ENA_COM_ENTRY(submitted_cmd),
 	ENA_STAT_ENA_COM_ENTRY(completed_cmd),
 	ENA_STAT_ENA_COM_ENTRY(out_of_space),
-	ENA_STAT_ENA_COM_ENTRY(no_completion),
+	ENA_STAT_ENA_COM_ENTRY(yes_completion),
 };
 
 #define ENA_STATS_ARRAY_GLOBAL	ARRAY_SIZE(ena_stats_global_strings)
@@ -312,11 +312,11 @@ static int ena_get_coalesce(struct net_device *net_dev,
 	}
 
 	coalesce->tx_coalesce_usecs =
-		ena_com_get_nonadaptive_moderation_interval_tx(ena_dev) *
+		ena_com_get_yesnadaptive_moderation_interval_tx(ena_dev) *
 			ena_dev->intr_delay_resolution;
 
 	coalesce->rx_coalesce_usecs =
-		ena_com_get_nonadaptive_moderation_interval_rx(ena_dev)
+		ena_com_get_yesnadaptive_moderation_interval_rx(ena_dev)
 		* ena_dev->intr_delay_resolution;
 
 	coalesce->use_adaptive_rx_coalesce =
@@ -330,7 +330,7 @@ static void ena_update_tx_rings_intr_moderation(struct ena_adapter *adapter)
 	unsigned int val;
 	int i;
 
-	val = ena_com_get_nonadaptive_moderation_interval_tx(adapter->ena_dev);
+	val = ena_com_get_yesnadaptive_moderation_interval_tx(adapter->ena_dev);
 
 	for (i = 0; i < adapter->num_io_queues; i++)
 		adapter->tx_ring[i].smoothed_interval = val;
@@ -341,7 +341,7 @@ static void ena_update_rx_rings_intr_moderation(struct ena_adapter *adapter)
 	unsigned int val;
 	int i;
 
-	val = ena_com_get_nonadaptive_moderation_interval_rx(adapter->ena_dev);
+	val = ena_com_get_yesnadaptive_moderation_interval_rx(adapter->ena_dev);
 
 	for (i = 0; i < adapter->num_io_queues; i++)
 		adapter->rx_ring[i].smoothed_interval = val;
@@ -359,14 +359,14 @@ static int ena_set_coalesce(struct net_device *net_dev,
 		return -EOPNOTSUPP;
 	}
 
-	rc = ena_com_update_nonadaptive_moderation_interval_tx(ena_dev,
+	rc = ena_com_update_yesnadaptive_moderation_interval_tx(ena_dev,
 							       coalesce->tx_coalesce_usecs);
 	if (rc)
 		return rc;
 
 	ena_update_tx_rings_intr_moderation(adapter);
 
-	rc = ena_com_update_nonadaptive_moderation_interval_rx(ena_dev,
+	rc = ena_com_update_yesnadaptive_moderation_interval_rx(ena_dev,
 							       coalesce->rx_coalesce_usecs);
 	if (rc)
 		return rc;
@@ -593,7 +593,7 @@ static int ena_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 	case ETHTOOL_SRXCLSRLINS:
 	default:
 		netif_err(adapter, drv, netdev,
-			  "Command parameter %d is not supported\n", info->cmd);
+			  "Command parameter %d is yest supported\n", info->cmd);
 		rc = -EOPNOTSUPP;
 	}
 
@@ -619,7 +619,7 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 	case ETHTOOL_GRXCLSRLALL:
 	default:
 		netif_err(adapter, drv, netdev,
-			  "Command parameter %d is not supported\n", info->cmd);
+			  "Command parameter %d is yest supported\n", info->cmd);
 		rc = -EOPNOTSUPP;
 	}
 
@@ -661,7 +661,7 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 		break;
 	default:
 		netif_err(adapter, drv, netdev,
-			  "Command parameter is not supported\n");
+			  "Command parameter is yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -686,7 +686,7 @@ static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
 							       ENA_IO_RXQ_IDX(indir[i]));
 			if (unlikely(rc)) {
 				netif_err(adapter, drv, netdev,
-					  "Cannot fill indirect table (index is too large)\n");
+					  "Canyest fill indirect table (index is too large)\n");
 				return rc;
 			}
 		}
@@ -694,7 +694,7 @@ static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
 		rc = ena_com_indirect_table_set(ena_dev);
 		if (rc) {
 			netif_err(adapter, drv, netdev,
-				  "Cannot set indirect table\n");
+				  "Canyest set indirect table\n");
 			return rc == -EPERM ? -EOPNOTSUPP : rc;
 		}
 	}
@@ -717,7 +717,7 @@ static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
 						ENA_HASH_KEY_SIZE,
 						0xFFFFFFFF);
 		if (unlikely(rc)) {
-			netif_err(adapter, drv, netdev, "Cannot fill key\n");
+			netif_err(adapter, drv, netdev, "Canyest fill key\n");
 			return rc == -EPERM ? -EOPNOTSUPP : rc;
 		}
 	}

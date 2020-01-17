@@ -42,7 +42,7 @@ static void es7241_set_mode(struct es7241_data *priv,  int m0, int m1)
 	gpiod_set_value_cansleep(priv->m0, m0);
 	gpiod_set_value_cansleep(priv->m1, m1);
 
-	/* take the device out of reset - datasheet does not specify a delay */
+	/* take the device out of reset - datasheet does yest specify a delay */
 	gpiod_set_value_cansleep(priv->reset, 1);
 }
 
@@ -104,7 +104,7 @@ static int es7241_hw_params(struct snd_pcm_substream *substream,
 			return es7241_set_master_mode(priv, mode, mfs);
 	}
 
-	/* should not happen */
+	/* should yest happen */
 	dev_err(dai->dev, "unsupported rate: %u\n", rate);
 	return -EINVAL;
 }
@@ -232,7 +232,7 @@ static const struct snd_soc_component_driver es7241_component_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(es7241_dapm_routes),
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static void es7241_parse_fmt(struct device *dev, struct es7241_data *priv)
@@ -243,7 +243,7 @@ static void es7241_parse_fmt(struct device *dev, struct es7241_data *priv)
 	 * The format is given by a pull resistor on the SDOUT pin:
 	 * pull-up for i2s, pull-down for left justified.
 	 */
-	is_leftj = of_property_read_bool(dev->of_node,
+	is_leftj = of_property_read_bool(dev->of_yesde,
 					 "everest,sdout-pull-down");
 	if (is_leftj)
 		priv->fmt = SND_SOC_DAIFMT_LEFT_J;

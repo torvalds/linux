@@ -162,10 +162,10 @@ void vm_events_fold_cpu(int cpu)
  */
 atomic_long_t vm_zone_stat[NR_VM_ZONE_STAT_ITEMS] __cacheline_aligned_in_smp;
 atomic_long_t vm_numa_stat[NR_VM_NUMA_STAT_ITEMS] __cacheline_aligned_in_smp;
-atomic_long_t vm_node_stat[NR_VM_NODE_STAT_ITEMS] __cacheline_aligned_in_smp;
+atomic_long_t vm_yesde_stat[NR_VM_NODE_STAT_ITEMS] __cacheline_aligned_in_smp;
 EXPORT_SYMBOL(vm_zone_stat);
 EXPORT_SYMBOL(vm_numa_stat);
-EXPORT_SYMBOL(vm_node_stat);
+EXPORT_SYMBOL(vm_yesde_stat);
 
 #ifdef CONFIG_SMP
 
@@ -175,11 +175,11 @@ int calculate_pressure_threshold(struct zone *zone)
 	int watermark_distance;
 
 	/*
-	 * As vmstats are not up to date, there is drift between the estimated
+	 * As vmstats are yest up to date, there is drift between the estimated
 	 * and real values. For high thresholds and a high number of CPUs, it
 	 * is possible for the min watermark to be breached while the estimated
 	 * value looks fine. The pressure threshold is a reduced value such
-	 * that even the maximum amount of drift will not accidentally breach
+	 * that even the maximum amount of drift will yest accidentally breach
 	 * the min watermark
 	 */
 	watermark_distance = low_wmark_pages(zone) - min_wmark_pages(zone);
@@ -193,7 +193,7 @@ int calculate_pressure_threshold(struct zone *zone)
 	return threshold;
 }
 
-int calculate_normal_threshold(struct zone *zone)
+int calculate_yesrmal_threshold(struct zone *zone)
 {
 	int threshold;
 	int mem;	/* memory in 128 MB units */
@@ -253,7 +253,7 @@ void refresh_zone_stat_thresholds(void)
 	/* Zero current pgdat thresholds */
 	for_each_online_pgdat(pgdat) {
 		for_each_online_cpu(cpu) {
-			per_cpu_ptr(pgdat->per_cpu_nodestats, cpu)->stat_threshold = 0;
+			per_cpu_ptr(pgdat->per_cpu_yesdestats, cpu)->stat_threshold = 0;
 		}
 	}
 
@@ -261,7 +261,7 @@ void refresh_zone_stat_thresholds(void)
 		struct pglist_data *pgdat = zone->zone_pgdat;
 		unsigned long max_drift, tolerate_drift;
 
-		threshold = calculate_normal_threshold(zone);
+		threshold = calculate_yesrmal_threshold(zone);
 
 		for_each_online_cpu(cpu) {
 			int pgdat_threshold;
@@ -269,9 +269,9 @@ void refresh_zone_stat_thresholds(void)
 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
 							= threshold;
 
-			/* Base nodestat threshold on the largest populated zone. */
-			pgdat_threshold = per_cpu_ptr(pgdat->per_cpu_nodestats, cpu)->stat_threshold;
-			per_cpu_ptr(pgdat->per_cpu_nodestats, cpu)->stat_threshold
+			/* Base yesdestat threshold on the largest populated zone. */
+			pgdat_threshold = per_cpu_ptr(pgdat->per_cpu_yesdestats, cpu)->stat_threshold;
+			per_cpu_ptr(pgdat->per_cpu_yesdestats, cpu)->stat_threshold
 				= max(threshold, pgdat_threshold);
 		}
 
@@ -297,7 +297,7 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
 	int i;
 
 	for (i = 0; i < pgdat->nr_zones; i++) {
-		zone = &pgdat->node_zones[i];
+		zone = &pgdat->yesde_zones[i];
 		if (!zone->percpu_drift_mark)
 			continue;
 
@@ -309,9 +309,9 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
 }
 
 /*
- * For use when we know that interrupts are disabled,
- * or when we know that preemption is disabled and that
- * particular counter cannot be updated from interrupt context.
+ * For use when we kyesw that interrupts are disabled,
+ * or when we kyesw that preemption is disabled and that
+ * particular counter canyest be updated from interrupt context.
  */
 void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
 			   long delta)
@@ -333,11 +333,11 @@ void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
 }
 EXPORT_SYMBOL(__mod_zone_page_state);
 
-void __mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,
+void __mod_yesde_page_state(struct pglist_data *pgdat, enum yesde_stat_item item,
 				long delta)
 {
-	struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
-	s8 __percpu *p = pcp->vm_node_stat_diff + item;
+	struct per_cpu_yesdestat __percpu *pcp = pgdat->per_cpu_yesdestats;
+	s8 __percpu *p = pcp->vm_yesde_stat_diff + item;
 	long x;
 	long t;
 
@@ -346,12 +346,12 @@ void __mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,
 	t = __this_cpu_read(pcp->stat_threshold);
 
 	if (unlikely(x > t || x < -t)) {
-		node_page_state_add(x, pgdat, item);
+		yesde_page_state_add(x, pgdat, item);
 		x = 0;
 	}
 	__this_cpu_write(*p, x);
 }
-EXPORT_SYMBOL(__mod_node_page_state);
+EXPORT_SYMBOL(__mod_yesde_page_state);
 
 /*
  * Optimized increment and decrement functions.
@@ -363,7 +363,7 @@ EXPORT_SYMBOL(__mod_node_page_state);
  * No overflow check is necessary and therefore the differential can be
  * incremented or decremented in place which may allow the compilers to
  * generate better code.
- * The increment or decrement is known and therefore one boundary check can
+ * The increment or decrement is kyeswn and therefore one boundary check can
  * be omitted.
  *
  * NOTE: These functions are very performance sensitive. Change only
@@ -371,9 +371,9 @@ EXPORT_SYMBOL(__mod_node_page_state);
  *
  * Some processors have inc/dec instructions that are atomic vs an interrupt.
  * However, the code must first determine the differential location in a zone
- * based on the processor number and then inc/dec the counter. There is no
- * guarantee without disabling preemption that the processor will not change
- * in between and therefore the atomicity vs. interrupt cannot be exploited
+ * based on the processor number and then inc/dec the counter. There is yes
+ * guarantee without disabling preemption that the processor will yest change
+ * in between and therefore the atomicity vs. interrupt canyest be exploited
  * in a useful way here.
  */
 void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
@@ -392,10 +392,10 @@ void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
 	}
 }
 
-void __inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)
+void __inc_yesde_state(struct pglist_data *pgdat, enum yesde_stat_item item)
 {
-	struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
-	s8 __percpu *p = pcp->vm_node_stat_diff + item;
+	struct per_cpu_yesdestat __percpu *pcp = pgdat->per_cpu_yesdestats;
+	s8 __percpu *p = pcp->vm_yesde_stat_diff + item;
 	s8 v, t;
 
 	v = __this_cpu_inc_return(*p);
@@ -403,7 +403,7 @@ void __inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)
 	if (unlikely(v > t)) {
 		s8 overstep = t >> 1;
 
-		node_page_state_add(v + overstep, pgdat, item);
+		yesde_page_state_add(v + overstep, pgdat, item);
 		__this_cpu_write(*p, -overstep);
 	}
 }
@@ -414,11 +414,11 @@ void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
 }
 EXPORT_SYMBOL(__inc_zone_page_state);
 
-void __inc_node_page_state(struct page *page, enum node_stat_item item)
+void __inc_yesde_page_state(struct page *page, enum yesde_stat_item item)
 {
-	__inc_node_state(page_pgdat(page), item);
+	__inc_yesde_state(page_pgdat(page), item);
 }
-EXPORT_SYMBOL(__inc_node_page_state);
+EXPORT_SYMBOL(__inc_yesde_page_state);
 
 void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
 {
@@ -436,10 +436,10 @@ void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
 	}
 }
 
-void __dec_node_state(struct pglist_data *pgdat, enum node_stat_item item)
+void __dec_yesde_state(struct pglist_data *pgdat, enum yesde_stat_item item)
 {
-	struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
-	s8 __percpu *p = pcp->vm_node_stat_diff + item;
+	struct per_cpu_yesdestat __percpu *pcp = pgdat->per_cpu_yesdestats;
+	s8 __percpu *p = pcp->vm_yesde_stat_diff + item;
 	s8 v, t;
 
 	v = __this_cpu_dec_return(*p);
@@ -447,7 +447,7 @@ void __dec_node_state(struct pglist_data *pgdat, enum node_stat_item item)
 	if (unlikely(v < - t)) {
 		s8 overstep = t >> 1;
 
-		node_page_state_add(v - overstep, pgdat, item);
+		yesde_page_state_add(v - overstep, pgdat, item);
 		__this_cpu_write(*p, overstep);
 	}
 }
@@ -458,15 +458,15 @@ void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
 }
 EXPORT_SYMBOL(__dec_zone_page_state);
 
-void __dec_node_page_state(struct page *page, enum node_stat_item item)
+void __dec_yesde_page_state(struct page *page, enum yesde_stat_item item)
 {
-	__dec_node_state(page_pgdat(page), item);
+	__dec_yesde_state(page_pgdat(page), item);
 }
-EXPORT_SYMBOL(__dec_node_page_state);
+EXPORT_SYMBOL(__dec_yesde_page_state);
 
 #ifdef CONFIG_HAVE_CMPXCHG_LOCAL
 /*
- * If we have cmpxchg_local support then we do not need to incur the overhead
+ * If we have cmpxchg_local support then we do yest need to incur the overhead
  * that comes with local_irq_save/restore if we use this_cpu_cmpxchg.
  *
  * mod_state() modifies the zone counter state through atomic per cpu
@@ -534,15 +534,15 @@ void dec_zone_page_state(struct page *page, enum zone_stat_item item)
 }
 EXPORT_SYMBOL(dec_zone_page_state);
 
-static inline void mod_node_state(struct pglist_data *pgdat,
-       enum node_stat_item item, int delta, int overstep_mode)
+static inline void mod_yesde_state(struct pglist_data *pgdat,
+       enum yesde_stat_item item, int delta, int overstep_mode)
 {
-	struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
-	s8 __percpu *p = pcp->vm_node_stat_diff + item;
+	struct per_cpu_yesdestat __percpu *pcp = pgdat->per_cpu_yesdestats;
+	s8 __percpu *p = pcp->vm_yesde_stat_diff + item;
 	long o, n, t, z;
 
 	do {
-		z = 0;  /* overflow to node counters */
+		z = 0;  /* overflow to yesde counters */
 
 		/*
 		 * The fetching of the stat_threshold is racy. We may apply
@@ -552,7 +552,7 @@ static inline void mod_node_state(struct pglist_data *pgdat,
 		 * therefore bring the counter under the threshold again.
 		 *
 		 * Most of the time the thresholds are the same anyways
-		 * for all cpus in a node.
+		 * for all cpus in a yesde.
 		 */
 		t = this_cpu_read(pcp->stat_threshold);
 
@@ -562,39 +562,39 @@ static inline void mod_node_state(struct pglist_data *pgdat,
 		if (n > t || n < -t) {
 			int os = overstep_mode * (t >> 1) ;
 
-			/* Overflow must be added to node counters */
+			/* Overflow must be added to yesde counters */
 			z = n + os;
 			n = -os;
 		}
 	} while (this_cpu_cmpxchg(*p, o, n) != o);
 
 	if (z)
-		node_page_state_add(z, pgdat, item);
+		yesde_page_state_add(z, pgdat, item);
 }
 
-void mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,
+void mod_yesde_page_state(struct pglist_data *pgdat, enum yesde_stat_item item,
 					long delta)
 {
-	mod_node_state(pgdat, item, delta, 0);
+	mod_yesde_state(pgdat, item, delta, 0);
 }
-EXPORT_SYMBOL(mod_node_page_state);
+EXPORT_SYMBOL(mod_yesde_page_state);
 
-void inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)
+void inc_yesde_state(struct pglist_data *pgdat, enum yesde_stat_item item)
 {
-	mod_node_state(pgdat, item, 1, 1);
+	mod_yesde_state(pgdat, item, 1, 1);
 }
 
-void inc_node_page_state(struct page *page, enum node_stat_item item)
+void inc_yesde_page_state(struct page *page, enum yesde_stat_item item)
 {
-	mod_node_state(page_pgdat(page), item, 1, 1);
+	mod_yesde_state(page_pgdat(page), item, 1, 1);
 }
-EXPORT_SYMBOL(inc_node_page_state);
+EXPORT_SYMBOL(inc_yesde_page_state);
 
-void dec_node_page_state(struct page *page, enum node_stat_item item)
+void dec_yesde_page_state(struct page *page, enum yesde_stat_item item)
 {
-	mod_node_state(page_pgdat(page), item, -1, -1);
+	mod_yesde_state(page_pgdat(page), item, -1, -1);
 }
-EXPORT_SYMBOL(dec_node_page_state);
+EXPORT_SYMBOL(dec_yesde_page_state);
 #else
 /*
  * Use interrupt disable to serialize counter updates
@@ -632,48 +632,48 @@ void dec_zone_page_state(struct page *page, enum zone_stat_item item)
 }
 EXPORT_SYMBOL(dec_zone_page_state);
 
-void inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)
+void inc_yesde_state(struct pglist_data *pgdat, enum yesde_stat_item item)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__inc_node_state(pgdat, item);
+	__inc_yesde_state(pgdat, item);
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(inc_node_state);
+EXPORT_SYMBOL(inc_yesde_state);
 
-void mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,
+void mod_yesde_page_state(struct pglist_data *pgdat, enum yesde_stat_item item,
 					long delta)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__mod_node_page_state(pgdat, item, delta);
+	__mod_yesde_page_state(pgdat, item, delta);
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(mod_node_page_state);
+EXPORT_SYMBOL(mod_yesde_page_state);
 
-void inc_node_page_state(struct page *page, enum node_stat_item item)
+void inc_yesde_page_state(struct page *page, enum yesde_stat_item item)
 {
 	unsigned long flags;
 	struct pglist_data *pgdat;
 
 	pgdat = page_pgdat(page);
 	local_irq_save(flags);
-	__inc_node_state(pgdat, item);
+	__inc_yesde_state(pgdat, item);
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(inc_node_page_state);
+EXPORT_SYMBOL(inc_yesde_page_state);
 
-void dec_node_page_state(struct page *page, enum node_stat_item item)
+void dec_yesde_page_state(struct page *page, enum yesde_stat_item item)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__dec_node_page_state(page, item);
+	__dec_yesde_page_state(page, item);
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(dec_node_page_state);
+EXPORT_SYMBOL(dec_yesde_page_state);
 #endif
 
 /*
@@ -681,7 +681,7 @@ EXPORT_SYMBOL(dec_node_page_state);
  * Returns the number of counters updated.
  */
 #ifdef CONFIG_NUMA
-static int fold_diff(int *zone_diff, int *numa_diff, int *node_diff)
+static int fold_diff(int *zone_diff, int *numa_diff, int *yesde_diff)
 {
 	int i;
 	int changes = 0;
@@ -699,14 +699,14 @@ static int fold_diff(int *zone_diff, int *numa_diff, int *node_diff)
 	}
 
 	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-		if (node_diff[i]) {
-			atomic_long_add(node_diff[i], &vm_node_stat[i]);
+		if (yesde_diff[i]) {
+			atomic_long_add(yesde_diff[i], &vm_yesde_stat[i]);
 			changes++;
 	}
 	return changes;
 }
 #else
-static int fold_diff(int *zone_diff, int *node_diff)
+static int fold_diff(int *zone_diff, int *yesde_diff)
 {
 	int i;
 	int changes = 0;
@@ -718,8 +718,8 @@ static int fold_diff(int *zone_diff, int *node_diff)
 	}
 
 	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-		if (node_diff[i]) {
-			atomic_long_add(node_diff[i], &vm_node_stat[i]);
+		if (yesde_diff[i]) {
+			atomic_long_add(yesde_diff[i], &vm_yesde_stat[i]);
 			changes++;
 	}
 	return changes;
@@ -730,14 +730,14 @@ static int fold_diff(int *zone_diff, int *node_diff)
  * Update the zone counters for the current cpu.
  *
  * Note that refresh_cpu_vm_stats strives to only access
- * node local memory. The per cpu pagesets on remote zones are placed
+ * yesde local memory. The per cpu pagesets on remote zones are placed
  * in the memory local to the processor using that pageset. So the
  * loop over all zones will access a series of cachelines local to
  * the processor.
  *
  * The call to zone_page_state_add updates the cachelines with the
  * statistics in the remote zone struct as well as the global cachelines
- * with the global counters. These could cause remote node cache line
+ * with the global counters. These could cause remote yesde cache line
  * bouncing and will have to be only done when necessary.
  *
  * The function returns the number of global counters updated.
@@ -751,7 +751,7 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 #ifdef CONFIG_NUMA
 	int global_numa_diff[NR_VM_NUMA_STAT_ITEMS] = { 0, };
 #endif
-	int global_node_diff[NR_VM_NODE_STAT_ITEMS] = { 0, };
+	int global_yesde_diff[NR_VM_NODE_STAT_ITEMS] = { 0, };
 	int changes = 0;
 
 	for_each_populated_zone(zone) {
@@ -791,7 +791,7 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 			 * processor
 			 *
 			 * Check if there are pages remaining in this pageset
-			 * if not then there is nothing to expire.
+			 * if yest then there is yesthing to expire.
 			 */
 			if (!__this_cpu_read(p->expire) ||
 			       !__this_cpu_read(p->pcp.count))
@@ -800,7 +800,7 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 			/*
 			 * We never drain zones local to this processor.
 			 */
-			if (zone_to_nid(zone) == numa_node_id()) {
+			if (zone_to_nid(zone) == numa_yesde_id()) {
 				__this_cpu_write(p->expire, 0);
 				continue;
 			}
@@ -817,31 +817,31 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 	}
 
 	for_each_online_pgdat(pgdat) {
-		struct per_cpu_nodestat __percpu *p = pgdat->per_cpu_nodestats;
+		struct per_cpu_yesdestat __percpu *p = pgdat->per_cpu_yesdestats;
 
 		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
 			int v;
 
-			v = this_cpu_xchg(p->vm_node_stat_diff[i], 0);
+			v = this_cpu_xchg(p->vm_yesde_stat_diff[i], 0);
 			if (v) {
 				atomic_long_add(v, &pgdat->vm_stat[i]);
-				global_node_diff[i] += v;
+				global_yesde_diff[i] += v;
 			}
 		}
 	}
 
 #ifdef CONFIG_NUMA
 	changes += fold_diff(global_zone_diff, global_numa_diff,
-			     global_node_diff);
+			     global_yesde_diff);
 #else
-	changes += fold_diff(global_zone_diff, global_node_diff);
+	changes += fold_diff(global_zone_diff, global_yesde_diff);
 #endif
 	return changes;
 }
 
 /*
  * Fold the data for an offline cpu into the global array.
- * There cannot be any access by the offline cpu and therefore
+ * There canyest be any access by the offline cpu and therefore
  * synchronization is simplified.
  */
 void cpu_vm_stats_fold(int cpu)
@@ -853,7 +853,7 @@ void cpu_vm_stats_fold(int cpu)
 #ifdef CONFIG_NUMA
 	int global_numa_diff[NR_VM_NUMA_STAT_ITEMS] = { 0, };
 #endif
-	int global_node_diff[NR_VM_NODE_STAT_ITEMS] = { 0, };
+	int global_yesde_diff[NR_VM_NODE_STAT_ITEMS] = { 0, };
 
 	for_each_populated_zone(zone) {
 		struct per_cpu_pageset *p;
@@ -884,30 +884,30 @@ void cpu_vm_stats_fold(int cpu)
 	}
 
 	for_each_online_pgdat(pgdat) {
-		struct per_cpu_nodestat *p;
+		struct per_cpu_yesdestat *p;
 
-		p = per_cpu_ptr(pgdat->per_cpu_nodestats, cpu);
+		p = per_cpu_ptr(pgdat->per_cpu_yesdestats, cpu);
 
 		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-			if (p->vm_node_stat_diff[i]) {
+			if (p->vm_yesde_stat_diff[i]) {
 				int v;
 
-				v = p->vm_node_stat_diff[i];
-				p->vm_node_stat_diff[i] = 0;
+				v = p->vm_yesde_stat_diff[i];
+				p->vm_yesde_stat_diff[i] = 0;
 				atomic_long_add(v, &pgdat->vm_stat[i]);
-				global_node_diff[i] += v;
+				global_yesde_diff[i] += v;
 			}
 	}
 
 #ifdef CONFIG_NUMA
-	fold_diff(global_zone_diff, global_numa_diff, global_node_diff);
+	fold_diff(global_zone_diff, global_numa_diff, global_yesde_diff);
 #else
-	fold_diff(global_zone_diff, global_node_diff);
+	fold_diff(global_zone_diff, global_yesde_diff);
 #endif
 }
 
 /*
- * this is only called if !populated_zone(zone), which implies no other users of
+ * this is only called if !populated_zone(zone), which implies yes other users of
  * pset->vm_stat_diff[] exsist.
  */
 void drain_zonestat(struct zone *zone, struct per_cpu_pageset *pset)
@@ -952,14 +952,14 @@ void __inc_numa_state(struct zone *zone,
 }
 
 /*
- * Determine the per node value of a stat item. This function
+ * Determine the per yesde value of a stat item. This function
  * is called frequently in a NUMA machine, so try to be as
  * frugal as possible.
  */
-unsigned long sum_zone_node_page_state(int node,
+unsigned long sum_zone_yesde_page_state(int yesde,
 				 enum zone_stat_item item)
 {
-	struct zone *zones = NODE_DATA(node)->node_zones;
+	struct zone *zones = NODE_DATA(yesde)->yesde_zones;
 	int i;
 	unsigned long count = 0;
 
@@ -970,13 +970,13 @@ unsigned long sum_zone_node_page_state(int node,
 }
 
 /*
- * Determine the per node value of a numa stat item. To avoid deviation,
+ * Determine the per yesde value of a numa stat item. To avoid deviation,
  * the per cpu stat number in vm_numa_stat_diff[] is also included.
  */
-unsigned long sum_zone_numa_state(int node,
+unsigned long sum_zone_numa_state(int yesde,
 				 enum numa_stat_item item)
 {
-	struct zone *zones = NODE_DATA(node)->node_zones;
+	struct zone *zones = NODE_DATA(yesde)->yesde_zones;
 	int i;
 	unsigned long count = 0;
 
@@ -987,10 +987,10 @@ unsigned long sum_zone_numa_state(int node,
 }
 
 /*
- * Determine the per node value of a stat item.
+ * Determine the per yesde value of a stat item.
  */
-unsigned long node_page_state(struct pglist_data *pgdat,
-				enum node_stat_item item)
+unsigned long yesde_page_state(struct pglist_data *pgdat,
+				enum yesde_stat_item item)
 {
 	long x = atomic_long_read(&pgdat->vm_stat[item]);
 #ifdef CONFIG_SMP
@@ -1011,8 +1011,8 @@ struct contig_page_info {
 
 /*
  * Calculate the number of free pages in a zone, how many contiguous
- * pages are free and how many are large enough to satisfy an allocation of
- * the target size. Note that this function makes no attempt to estimate
+ * pages are free and how many are large eyesugh to satisfy an allocation of
+ * the target size. Note that this function makes yes attempt to estimate
  * how many suitable free blocks there *might* be if MOVABLE pages were
  * migrated. Calculating that is possible, but expensive and can be
  * figured out from userspace
@@ -1104,14 +1104,14 @@ int fragmentation_index(struct zone *zone, unsigned int order)
 #define TEXT_FOR_HIGHMEM(xx)
 #endif
 
-#define TEXTS_FOR_ZONES(xx) TEXT_FOR_DMA(xx) TEXT_FOR_DMA32(xx) xx "_normal", \
+#define TEXTS_FOR_ZONES(xx) TEXT_FOR_DMA(xx) TEXT_FOR_DMA32(xx) xx "_yesrmal", \
 					TEXT_FOR_HIGHMEM(xx) xx "_movable",
 
 const char * const vmstat_text[] = {
 	/* enum zone_stat_item countes */
 	"nr_free_pages",
-	"nr_zone_inactive_anon",
-	"nr_zone_active_anon",
+	"nr_zone_inactive_ayesn",
+	"nr_zone_active_ayesn",
 	"nr_zone_inactive_file",
 	"nr_zone_active_file",
 	"nr_zone_unevictable",
@@ -1135,22 +1135,22 @@ const char * const vmstat_text[] = {
 	"numa_other",
 #endif
 
-	/* enum node_stat_item counters */
-	"nr_inactive_anon",
-	"nr_active_anon",
+	/* enum yesde_stat_item counters */
+	"nr_inactive_ayesn",
+	"nr_active_ayesn",
 	"nr_inactive_file",
 	"nr_active_file",
 	"nr_unevictable",
 	"nr_slab_reclaimable",
 	"nr_slab_unreclaimable",
-	"nr_isolated_anon",
+	"nr_isolated_ayesn",
 	"nr_isolated_file",
-	"workingset_nodes",
+	"workingset_yesdes",
 	"workingset_refault",
 	"workingset_activate",
 	"workingset_restore",
-	"workingset_nodereclaim",
-	"nr_anon_pages",
+	"workingset_yesdereclaim",
+	"nr_ayesn_pages",
 	"nr_mapped",
 	"nr_file_pages",
 	"nr_dirty",
@@ -1161,7 +1161,7 @@ const char * const vmstat_text[] = {
 	"nr_shmem_pmdmapped",
 	"nr_file_hugepages",
 	"nr_file_pmdmapped",
-	"nr_anon_transparent_hugepages",
+	"nr_ayesn_transparent_hugepages",
 	"nr_unstable",
 	"nr_vmscan_write",
 	"nr_vmscan_immediate_reclaim",
@@ -1203,9 +1203,9 @@ const char * const vmstat_text[] = {
 #ifdef CONFIG_NUMA
 	"zone_reclaim_failed",
 #endif
-	"pginodesteal",
+	"pgiyesdesteal",
 	"slabs_scanned",
-	"kswapd_inodesteal",
+	"kswapd_iyesdesteal",
 	"kswapd_low_wmark_hit_quickly",
 	"kswapd_high_wmark_hit_quickly",
 	"pageoutrun",
@@ -1301,12 +1301,12 @@ const char * const vmstat_text[] = {
 static void *frag_start(struct seq_file *m, loff_t *pos)
 {
 	pg_data_t *pgdat;
-	loff_t node = *pos;
+	loff_t yesde = *pos;
 
 	for (pgdat = first_online_pgdat();
-	     pgdat && node;
+	     pgdat && yesde;
 	     pgdat = next_online_pgdat(pgdat))
-		--node;
+		--yesde;
 
 	return pgdat;
 }
@@ -1324,25 +1324,25 @@ static void frag_stop(struct seq_file *m, void *arg)
 }
 
 /*
- * Walk zones in a node and print using a callback.
+ * Walk zones in a yesde and print using a callback.
  * If @assert_populated is true, only use callback for zones that are populated.
  */
-static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
-		bool assert_populated, bool nolock,
+static void walk_zones_in_yesde(struct seq_file *m, pg_data_t *pgdat,
+		bool assert_populated, bool yeslock,
 		void (*print)(struct seq_file *m, pg_data_t *, struct zone *))
 {
 	struct zone *zone;
-	struct zone *node_zones = pgdat->node_zones;
+	struct zone *yesde_zones = pgdat->yesde_zones;
 	unsigned long flags;
 
-	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
+	for (zone = yesde_zones; zone - yesde_zones < MAX_NR_ZONES; ++zone) {
 		if (assert_populated && !populated_zone(zone))
 			continue;
 
-		if (!nolock)
+		if (!yeslock)
 			spin_lock_irqsave(&zone->lock, flags);
 		print(m, pgdat, zone);
-		if (!nolock)
+		if (!yeslock)
 			spin_unlock_irqrestore(&zone->lock, flags);
 	}
 }
@@ -1354,7 +1354,7 @@ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
 {
 	int order;
 
-	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
+	seq_printf(m, "Node %d, zone %8s ", pgdat->yesde_id, zone->name);
 	for (order = 0; order < MAX_ORDER; ++order)
 		seq_printf(m, "%6lu ", zone->free_area[order].nr_free);
 	seq_putc(m, '\n');
@@ -1366,7 +1366,7 @@ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
 static int frag_show(struct seq_file *m, void *arg)
 {
 	pg_data_t *pgdat = (pg_data_t *)arg;
-	walk_zones_in_node(m, pgdat, true, false, frag_show_print);
+	walk_zones_in_yesde(m, pgdat, true, false, frag_show_print);
 	return 0;
 }
 
@@ -1377,7 +1377,7 @@ static void pagetypeinfo_showfree_print(struct seq_file *m,
 
 	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++) {
 		seq_printf(m, "Node %4d, zone %8s, type %12s ",
-					pgdat->node_id,
+					pgdat->yesde_id,
 					zone->name,
 					migratetype_names[mtype]);
 		for (order = 0; order < MAX_ORDER; ++order) {
@@ -1394,7 +1394,7 @@ static void pagetypeinfo_showfree_print(struct seq_file *m,
 				 * be really large and we are under a spinlock
 				 * so a long time spent here could trigger a
 				 * hard lockup detector. Anyway this is a
-				 * debugging tool so knowing there is a handful
+				 * debugging tool so kyeswing there is a handful
 				 * of pages of this order should be more than
 				 * sufficient.
 				 */
@@ -1424,7 +1424,7 @@ static int pagetypeinfo_showfree(struct seq_file *m, void *arg)
 		seq_printf(m, "%6d ", order);
 	seq_putc(m, '\n');
 
-	walk_zones_in_node(m, pgdat, true, false, pagetypeinfo_showfree_print);
+	walk_zones_in_yesde(m, pgdat, true, false, pagetypeinfo_showfree_print);
 
 	return 0;
 }
@@ -1459,7 +1459,7 @@ static void pagetypeinfo_showblockcount_print(struct seq_file *m,
 	}
 
 	/* Print counts */
-	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
+	seq_printf(m, "Node %d, zone %8s ", pgdat->yesde_id, zone->name);
 	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
 		seq_printf(m, "%12lu ", count[mtype]);
 	seq_putc(m, '\n');
@@ -1475,7 +1475,7 @@ static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
 	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
 		seq_printf(m, "%12s ", migratetype_names[mtype]);
 	seq_putc(m, '\n');
-	walk_zones_in_node(m, pgdat, true, false,
+	walk_zones_in_yesde(m, pgdat, true, false,
 		pagetypeinfo_showblockcount_print);
 
 	return 0;
@@ -1502,21 +1502,21 @@ static void pagetypeinfo_showmixedcount(struct seq_file *m, pg_data_t *pgdat)
 		seq_printf(m, "%12s ", migratetype_names[mtype]);
 	seq_putc(m, '\n');
 
-	walk_zones_in_node(m, pgdat, true, true,
+	walk_zones_in_yesde(m, pgdat, true, true,
 		pagetypeinfo_showmixedcount_print);
 #endif /* CONFIG_PAGE_OWNER */
 }
 
 /*
  * This prints out statistics in relation to grouping pages by mobility.
- * It is expensive to collect so do not constantly read the file.
+ * It is expensive to collect so do yest constantly read the file.
  */
 static int pagetypeinfo_show(struct seq_file *m, void *arg)
 {
 	pg_data_t *pgdat = (pg_data_t *)arg;
 
-	/* check memoryless node */
-	if (!node_state(pgdat->node_id, N_MEMORY))
+	/* check memoryless yesde */
+	if (!yesde_state(pgdat->yesde_id, N_MEMORY))
 		return 0;
 
 	seq_printf(m, "Page block order: %d\n", pageblock_order);
@@ -1548,7 +1548,7 @@ static bool is_zone_first_populated(pg_data_t *pgdat, struct zone *zone)
 	int zid;
 
 	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-		struct zone *compare = &pgdat->node_zones[zid];
+		struct zone *compare = &pgdat->yesde_zones[zid];
 
 		if (populated_zone(compare))
 			return zone == compare;
@@ -1561,12 +1561,12 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 							struct zone *zone)
 {
 	int i;
-	seq_printf(m, "Node %d, zone %8s", pgdat->node_id, zone->name);
+	seq_printf(m, "Node %d, zone %8s", pgdat->yesde_id, zone->name);
 	if (is_zone_first_populated(pgdat, zone)) {
-		seq_printf(m, "\n  per-node stats");
+		seq_printf(m, "\n  per-yesde stats");
 		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
-			seq_printf(m, "\n      %-12s %lu", node_stat_name(i),
-				   node_page_state(pgdat, i));
+			seq_printf(m, "\n      %-12s %lu", yesde_stat_name(i),
+				   yesde_page_state(pgdat, i));
 		}
 	}
 	seq_printf(m,
@@ -1592,7 +1592,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		seq_printf(m, ", %ld", zone->lowmem_reserve[i]);
 	seq_putc(m, ')');
 
-	/* If unpopulated, no other information is useful */
+	/* If unpopulated, yes other information is useful */
 	if (!populated_zone(zone)) {
 		seq_putc(m, '\n');
 		return;
@@ -1628,7 +1628,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 #endif
 	}
 	seq_printf(m,
-		   "\n  node_unreclaimable:  %u"
+		   "\n  yesde_unreclaimable:  %u"
 		   "\n  start_pfn:           %lu",
 		   pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES,
 		   zone->zone_start_pfn);
@@ -1637,14 +1637,14 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 
 /*
  * Output information about zones in @pgdat.  All zones are printed regardless
- * of whether they are populated or not: lowmem_reserve_ratio operates on the
- * set of all zones and userspace would not be aware of such zones if they are
+ * of whether they are populated or yest: lowmem_reserve_ratio operates on the
+ * set of all zones and userspace would yest be aware of such zones if they are
  * suppressed here (zoneinfo displays the effect of lowmem_reserve_ratio).
  */
 static int zoneinfo_show(struct seq_file *m, void *arg)
 {
 	pg_data_t *pgdat = (pg_data_t *)arg;
-	walk_zones_in_node(m, pgdat, false, false, zoneinfo_show_print);
+	walk_zones_in_yesde(m, pgdat, false, false, zoneinfo_show_print);
 	return 0;
 }
 
@@ -1687,7 +1687,7 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
 #endif
 
 	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-		v[i] = global_node_page_state(i);
+		v[i] = global_yesde_page_state(i);
 	v += NR_VM_NODE_STAT_ITEMS;
 
 	global_dirty_limits(v + NR_DIRTY_BG_THRESHOLD,
@@ -1762,7 +1762,7 @@ int vmstat_refresh(struct ctl_table *table, int write,
 	 *
 	 * Oh, and since global_zone_page_state() etc. are so careful to hide
 	 * transiently negative values, report an error here if any of
-	 * the stats is negative, so we know to go looking for imbalance.
+	 * the stats is negative, so we kyesw to go looking for imbalance.
 	 */
 	err = schedule_on_each_cpu(refresh_vm_stats);
 	if (err)
@@ -1812,7 +1812,7 @@ static void vmstat_update(struct work_struct *w)
 /*
  * Switch off vmstat processing and then fold all the remaining differentials
  * until the diffs stay at zero. The function is used by NOHZ and can only be
- * invoked when tick processing is not active.
+ * invoked when tick processing is yest active.
  */
 /*
  * Check if the diffs for a certain cpu indicate that
@@ -1848,7 +1848,7 @@ static bool need_update(int cpu)
 /*
  * Switch off vmstat processing and then fold all the remaining differentials
  * until the diffs stay at zero. The function is used by NOHZ and can only be
- * invoked when tick processing is not active.
+ * invoked when tick processing is yest active.
  */
 void quiet_vmstat(void)
 {
@@ -1862,7 +1862,7 @@ void quiet_vmstat(void)
 		return;
 
 	/*
-	 * Just refresh counters and do not care about the pending delayed
+	 * Just refresh counters and do yest care about the pending delayed
 	 * vmstat_update. It doesn't fire that often to matter and canceling
 	 * it would be too expensive from this path.
 	 * vmstat_shepherd will take care about that for us.
@@ -1910,20 +1910,20 @@ static void __init start_shepherd_timer(void)
 		round_jiffies_relative(sysctl_stat_interval));
 }
 
-static void __init init_cpu_node_state(void)
+static void __init init_cpu_yesde_state(void)
 {
-	int node;
+	int yesde;
 
-	for_each_online_node(node) {
-		if (cpumask_weight(cpumask_of_node(node)) > 0)
-			node_set_state(node, N_CPU);
+	for_each_online_yesde(yesde) {
+		if (cpumask_weight(cpumask_of_yesde(yesde)) > 0)
+			yesde_set_state(yesde, N_CPU);
 	}
 }
 
 static int vmstat_cpu_online(unsigned int cpu)
 {
 	refresh_zone_stat_thresholds();
-	node_set_state(cpu_to_node(cpu), N_CPU);
+	yesde_set_state(cpu_to_yesde(cpu), N_CPU);
 	return 0;
 }
 
@@ -1935,17 +1935,17 @@ static int vmstat_cpu_down_prep(unsigned int cpu)
 
 static int vmstat_cpu_dead(unsigned int cpu)
 {
-	const struct cpumask *node_cpus;
-	int node;
+	const struct cpumask *yesde_cpus;
+	int yesde;
 
-	node = cpu_to_node(cpu);
+	yesde = cpu_to_yesde(cpu);
 
 	refresh_zone_stat_thresholds();
-	node_cpus = cpumask_of_node(node);
-	if (cpumask_weight(node_cpus) > 0)
+	yesde_cpus = cpumask_of_yesde(yesde);
+	if (cpumask_weight(yesde_cpus) > 0)
 		return 0;
 
-	node_clear_state(node, N_CPU);
+	yesde_clear_state(yesde, N_CPU);
 	return 0;
 }
 
@@ -1960,19 +1960,19 @@ void __init init_mm_internals(void)
 	mm_percpu_wq = alloc_workqueue("mm_percpu_wq", WQ_MEM_RECLAIM, 0);
 
 #ifdef CONFIG_SMP
-	ret = cpuhp_setup_state_nocalls(CPUHP_MM_VMSTAT_DEAD, "mm/vmstat:dead",
+	ret = cpuhp_setup_state_yescalls(CPUHP_MM_VMSTAT_DEAD, "mm/vmstat:dead",
 					NULL, vmstat_cpu_dead);
 	if (ret < 0)
 		pr_err("vmstat: failed to register 'dead' hotplug state\n");
 
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "mm/vmstat:online",
+	ret = cpuhp_setup_state_yescalls(CPUHP_AP_ONLINE_DYN, "mm/vmstat:online",
 					vmstat_cpu_online,
 					vmstat_cpu_down_prep);
 	if (ret < 0)
 		pr_err("vmstat: failed to register 'online' hotplug state\n");
 
 	get_online_cpus();
-	init_cpu_node_state();
+	init_cpu_yesde_state();
 	put_online_cpus();
 
 	start_shepherd_timer();
@@ -2002,7 +2002,7 @@ static int unusable_free_index(unsigned int order,
 	 * Index should be a value between 0 and 1. Return a value to 3
 	 * decimal places.
 	 *
-	 * 0 => no fragmentation
+	 * 0 => yes fragmentation
 	 * 1 => high fragmentation
 	 */
 	return div_u64((info->free_pages - (info->free_blocks_suitable << order)) * 1000ULL, info->free_pages);
@@ -2017,7 +2017,7 @@ static void unusable_show_print(struct seq_file *m,
 	struct contig_page_info info;
 
 	seq_printf(m, "Node %d, zone %8s ",
-				pgdat->node_id,
+				pgdat->yesde_id,
 				zone->name);
 	for (order = 0; order < MAX_ORDER; ++order) {
 		fill_contig_page_info(zone, order, &info);
@@ -2032,7 +2032,7 @@ static void unusable_show_print(struct seq_file *m,
  * Display unusable free space index
  *
  * The unusable free space index measures how much of the available free
- * memory cannot be used to satisfy an allocation of a given size and is a
+ * memory canyest be used to satisfy an allocation of a given size and is a
  * value between 0 and 1. The higher the value, the more of free memory is
  * unusable and by implication, the worse the external fragmentation is. This
  * can be expressed as a percentage by multiplying by 100.
@@ -2041,11 +2041,11 @@ static int unusable_show(struct seq_file *m, void *arg)
 {
 	pg_data_t *pgdat = (pg_data_t *)arg;
 
-	/* check memoryless node */
-	if (!node_state(pgdat->node_id, N_MEMORY))
+	/* check memoryless yesde */
+	if (!yesde_state(pgdat->yesde_id, N_MEMORY))
 		return 0;
 
-	walk_zones_in_node(m, pgdat, true, false, unusable_show_print);
+	walk_zones_in_yesde(m, pgdat, true, false, unusable_show_print);
 
 	return 0;
 }
@@ -2057,7 +2057,7 @@ static const struct seq_operations unusable_op = {
 	.show	= unusable_show,
 };
 
-static int unusable_open(struct inode *inode, struct file *file)
+static int unusable_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &unusable_op);
 }
@@ -2079,7 +2079,7 @@ static void extfrag_show_print(struct seq_file *m,
 	struct contig_page_info info;
 
 	seq_printf(m, "Node %d, zone %8s ",
-				pgdat->node_id,
+				pgdat->yesde_id,
 				zone->name);
 	for (order = 0; order < MAX_ORDER; ++order) {
 		fill_contig_page_info(zone, order, &info);
@@ -2097,7 +2097,7 @@ static int extfrag_show(struct seq_file *m, void *arg)
 {
 	pg_data_t *pgdat = (pg_data_t *)arg;
 
-	walk_zones_in_node(m, pgdat, true, false, extfrag_show_print);
+	walk_zones_in_yesde(m, pgdat, true, false, extfrag_show_print);
 
 	return 0;
 }
@@ -2109,7 +2109,7 @@ static const struct seq_operations extfrag_op = {
 	.show	= extfrag_show,
 };
 
-static int extfrag_open(struct inode *inode, struct file *file)
+static int extfrag_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &extfrag_op);
 }

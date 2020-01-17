@@ -6,7 +6,7 @@
  */
 
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -79,8 +79,8 @@ void print_in_middle(WINDOW *win,
 		const char *string,
 		chtype color);
 int get_line_length(const char *line);
-int get_line_no(const char *text);
-const char *get_line(const char *text, int line_no);
+int get_line_yes(const char *text);
+const char *get_line(const char *text, int line_yes);
 void fill_window(WINDOW *win, const char *text);
 int btn_dialog(WINDOW *main_window, const char *msg, int btn_num, ...);
 int dialog_inputbox(WINDOW *main_window,

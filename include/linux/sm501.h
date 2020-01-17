@@ -91,7 +91,7 @@ struct sm501_platdata_gpio_i2c {
 
 /* sm501_initdata
  *
- * use for initialising values that may not have been setup
+ * use for initialising values that may yest have been setup
  * before the driver is loaded.
 */
 
@@ -120,8 +120,8 @@ struct sm501_initdata {
 	struct sm501_reg_init	misc_control;
 
 	unsigned long		devices;
-	unsigned long		mclk;		/* non-zero to modify */
-	unsigned long		m1xclk;		/* non-zero to modify */
+	unsigned long		mclk;		/* yesn-zero to modify */
+	unsigned long		m1xclk;		/* yesn-zero to modify */
 };
 
 /* sm501_init_gpio

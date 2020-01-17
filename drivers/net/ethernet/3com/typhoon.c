@@ -7,7 +7,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license yestice.  This file is yest
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -24,9 +24,9 @@
 	3XP Processor. It has been tested on x86 and sparc64.
 
 	KNOWN ISSUES:
-	*) Cannot DMA Rx packets to a 2 byte aligned address. Also firmware
+	*) Canyest DMA Rx packets to a 2 byte aligned address. Also firmware
 		issue. Hopefully 3Com will fix it.
-	*) Waiting for a command response takes 8ms due to non-preemptable
+	*) Waiting for a command response takes 8ms due to yesn-preemptable
 		polling. Only significant for getting stats and creating
 		SAs, but an ugly wart never the less.
 
@@ -65,7 +65,7 @@ static const int multicast_filter_limit = 32;
  * The compiler will convert <unsigned>'%'<2^N> into a bit mask.
  * Making the Tx ring too large decreases the effectiveness of channel
  * bonding and packet priority.
- * There are no ill effects from too-large receive rings.
+ * There are yes ill effects from too-large receive rings.
  *
  * We don't currently use the Hi Tx ring so, don't make it very big.
  *
@@ -88,7 +88,7 @@ static const int multicast_filter_limit = 32;
 #define RXFREE_ENTRIES		128
 #define RXENT_ENTRIES		(RXFREE_ENTRIES - 1)
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are yest changed. */
 
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (2*HZ)
@@ -103,7 +103,7 @@ static const int multicast_filter_limit = 32;
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -235,7 +235,7 @@ static const struct pci_device_id typhoon_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, typhoon_pci_tbl);
 
 /* Define the shared memory area
- * Align everything the 3XP will normally be using.
+ * Align everything the 3XP will yesrmally be using.
  * We'll need to move/align txHi if we start using that ring.
  */
 #define __3xp_aligned	____cacheline_aligned
@@ -301,19 +301,19 @@ enum completion_wait_values {
 
 /* These are the values for the typhoon.card_state variable.
  * These determine where the statistics will come from in get_stats().
- * The sleep image does not support the statistics we need.
+ * The sleep image does yest support the statistics we need.
  */
 enum state_values {
 	Sleeping = 0, Running,
 };
 
-/* PCI writes are not guaranteed to be posted in order, but outstanding writes
- * cannot pass a read, so this forces current writes to post.
+/* PCI writes are yest guaranteed to be posted in order, but outstanding writes
+ * canyest pass a read, so this forces current writes to post.
  */
 #define typhoon_post_pci_writes(x) \
 	do { if(likely(use_mmio)) ioread32(x+TYPHOON_REG_HEARTBEAT); } while(0)
 
-/* We'll wait up to six seconds for a reset, and half a second normally.
+/* We'll wait up to six seconds for a reset, and half a second yesrmally.
  */
 #define TYPHOON_UDELAY			50
 #define TYPHOON_RESET_TIMEOUT_SLEEP	(6 * HZ)
@@ -420,7 +420,7 @@ out:
 	 * putting the card to sleep. 3Com's driver waits 5ms, but
 	 * that seems to be overkill. However, if we can sleep, we might
 	 * as well give it that much time. Otherwise, we'll give it 500us,
-	 * which should be enough (I've see it work well at 100us, but still
+	 * which should be eyesugh (I've see it work well at 100us, but still
 	 * saw occasional problems.)
 	 */
 	if(wait_type == WaitSleep)
@@ -462,7 +462,7 @@ typhoon_hello(struct typhoon *tp)
 	struct basic_ring *ring = &tp->cmdRing;
 	struct cmd_desc *cmd;
 
-	/* We only get a hello request if we've not sent anything to the
+	/* We only get a hello request if we've yest sent anything to the
 	 * card in a long while. If the lock is held, then we're in the
 	 * process of issuing a command, so we don't need to respond.
 	 */
@@ -590,7 +590,7 @@ typhoon_issue_command(struct typhoon *tp, int num_cmd, struct cmd_desc *cmd,
 	freeResp = typhoon_num_free_resp(tp);
 
 	if(freeCmd < num_cmd || freeResp < num_resp) {
-		netdev_err(tp->dev, "no descs for cmd, had (needed) %d (%d) cmd, %d (%d) resp\n",
+		netdev_err(tp->dev, "yes descs for cmd, had (needed) %d (%d) cmd, %d (%d) resp\n",
 			   freeCmd, num_cmd, freeResp, num_resp);
 		err = -ENOMEM;
 		goto out;
@@ -623,7 +623,7 @@ typhoon_issue_command(struct typhoon *tp, int num_cmd, struct cmd_desc *cmd,
 
 	typhoon_inc_cmd_index(&ring->lastWrite, num_cmd);
 
-	/* "I feel a presence... another warrior is on the mesa."
+	/* "I feel a presence... ayesther warrior is on the mesa."
 	 */
 	wmb();
 	iowrite32(ring->lastWrite, tp->ioaddr + TYPHOON_REG_CMD_READY);
@@ -717,7 +717,7 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 	dma_addr_t skb_dma;
 	int numDesc;
 
-	/* we have two rings to choose from, but we only use txLo for now
+	/* we have two rings to choose from, but we only use txLo for yesw
 	 * If we start using the Hi ring as well, we'll need to update
 	 * typhoon_stop_runtime(), typhoon_interrupt(), typhoon_num_free_tx(),
 	 * and TXHI_ENTRIES to match, as well as update the TSO code below
@@ -732,7 +732,7 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 	 * descriptor, then make a new packet descriptor and option descriptor
 	 * for the next 16 fragments. The engineers say just an option
 	 * descriptor is needed. I've tested up to 26 fragments with a single
-	 * packet descriptor/option descriptor combo, so I use that for now.
+	 * packet descriptor/option descriptor combo, so I use that for yesw.
 	 *
 	 * If problems develop with TSO, check this first.
 	 */
@@ -980,7 +980,7 @@ typhoon_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	} else {
 		INIT_COMMAND_WITH_RESPONSE(&xp_cmd, TYPHOON_CMD_READ_VERSIONS);
 		if(typhoon_issue_command(tp, 1, &xp_cmd, 3, xp_resp) < 0) {
-			strlcpy(info->fw_version, "Unknown runtime",
+			strlcpy(info->fw_version, "Unkyeswn runtime",
 				sizeof(info->fw_version));
 		} else {
 			u32 sleep_ver = le32_to_cpu(xp_resp[0].parm2);
@@ -1350,14 +1350,14 @@ typhoon_download_firmware(struct typhoon *tp)
 	image_data = typhoon_fw->data;
 	fHdr = (struct typhoon_file_header *) image_data;
 
-	/* Cannot just map the firmware image using pci_map_single() as
-	 * the firmware is vmalloc()'d and may not be physically contiguous,
+	/* Canyest just map the firmware image using pci_map_single() as
+	 * the firmware is vmalloc()'d and may yest be physically contiguous,
 	 * so we allocate some consistent memory to copy the sections into.
 	 */
 	err = -ENOMEM;
 	dpage = pci_alloc_consistent(pdev, PAGE_SIZE, &dpage_dma);
 	if(!dpage) {
-		netdev_err(tp->dev, "no DMA mem for firmware\n");
+		netdev_err(tp->dev, "yes DMA mem for firmware\n");
 		goto err_out;
 	}
 
@@ -1419,7 +1419,7 @@ typhoon_download_firmware(struct typhoon *tp)
 			 * summing. Fortunately, due to the properties of
 			 * the checksum, we can do this once, at the end.
 			 */
-			csum = csum_fold(csum_partial_copy_nocheck(image_data,
+			csum = csum_fold(csum_partial_copy_yescheck(image_data,
 								   dpage, len,
 								   0));
 
@@ -1566,7 +1566,7 @@ typhoon_recycle_rx_skb(struct typhoon *tp, u32 idx)
 
 	if((ring->lastWrite + sizeof(*r)) % (RXFREE_ENTRIES * sizeof(*r)) ==
 				le32_to_cpu(indexes->rxBuffCleared)) {
-		/* no room in ring, just drop the skb
+		/* yes room in ring, just drop the skb
 		 */
 		dev_kfree_skb_any(rxb->skb);
 		rxb->skb = NULL;
@@ -1613,7 +1613,7 @@ typhoon_alloc_rx_skb(struct typhoon *tp, u32 idx)
 	dma_addr = pci_map_single(tp->pdev, skb->data,
 				  PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 
-	/* Since no card does 64 bit DAC, the high bits will never
+	/* Since yes card does 64 bit DAC, the high bits will never
 	 * change from zero.
 	 */
 	r = (struct rx_free *) (ring->ringBase + ring->lastWrite);
@@ -1691,7 +1691,7 @@ typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile __le32 * read
 		   (TYPHOON_RX_IP_CHK_GOOD | TYPHOON_RX_UDP_CHK_GOOD)) {
 			new_skb->ip_summed = CHECKSUM_UNNECESSARY;
 		} else
-			skb_checksum_none_assert(new_skb);
+			skb_checksum_yesne_assert(new_skb);
 
 		if (rx->rxStatus & TYPHOON_RX_VLAN)
 			__vlan_hwaccel_put_tag(new_skb, htons(ETH_P_8021Q),
@@ -1828,7 +1828,7 @@ typhoon_sleep(struct typhoon *tp, pci_power_t state, __le16 events)
 	if(typhoon_wait_status(ioaddr, TYPHOON_STATUS_SLEEPING) < 0)
 		return -ETIMEDOUT;
 
-	/* Since we cannot monitor the status of the link while sleeping,
+	/* Since we canyest monitor the status of the link while sleeping,
 	 * tell the world it went away.
 	 */
 	netif_carrier_off(tp->dev);
@@ -1848,7 +1848,7 @@ typhoon_wakeup(struct typhoon *tp, int wait_type)
 	pci_restore_state(pdev);
 
 	/* Post 2.x.x versions of the Sleep Image require a reset before
-	 * we can download the Runtime Image. But let's not make users of
+	 * we can download the Runtime Image. But let's yest make users of
 	 * the old firmware pay for the reset.
 	 */
 	iowrite32(TYPHOON_BOOTCMD_WAKEUP, ioaddr + TYPHOON_REG_COMMAND);
@@ -1872,12 +1872,12 @@ typhoon_start_runtime(struct typhoon *tp)
 
 	err = typhoon_download_firmware(tp);
 	if(err < 0) {
-		netdev_err(tp->dev, "cannot load runtime on 3XP\n");
+		netdev_err(tp->dev, "canyest load runtime on 3XP\n");
 		goto error_out;
 	}
 
 	if(typhoon_boot_3XP(tp, TYPHOON_STATUS_WAITING_FOR_BOOT) < 0) {
-		netdev_err(tp->dev, "cannot boot 3XP\n");
+		netdev_err(tp->dev, "canyest boot 3XP\n");
 		err = -EIO;
 		goto error_out;
 	}
@@ -2018,7 +2018,7 @@ typhoon_tx_timeout(struct net_device *dev)
 	struct typhoon *tp = netdev_priv(dev);
 
 	if(typhoon_reset(tp->ioaddr, WaitNoSleep) < 0) {
-		netdev_warn(dev, "could not reset in tx timeout\n");
+		netdev_warn(dev, "could yest reset in tx timeout\n");
 		goto truly_dead;
 	}
 
@@ -2027,7 +2027,7 @@ typhoon_tx_timeout(struct net_device *dev)
 	typhoon_free_rx_rings(tp);
 
 	if(typhoon_start_runtime(tp) < 0) {
-		netdev_err(dev, "could not start runtime in tx timeout\n");
+		netdev_err(dev, "could yest start runtime in tx timeout\n");
 		goto truly_dead;
         }
 
@@ -2100,7 +2100,7 @@ typhoon_close(struct net_device *dev)
 	if(typhoon_stop_runtime(tp, WaitSleep) < 0)
 		netdev_err(dev, "unable to stop runtime\n");
 
-	/* Make sure there is no irq handler running on a different CPU. */
+	/* Make sure there is yes irq handler running on a different CPU. */
 	free_irq(dev->irq, dev);
 
 	typhoon_free_rx_rings(tp);
@@ -2128,12 +2128,12 @@ typhoon_resume(struct pci_dev *pdev)
 		return 0;
 
 	if(typhoon_wakeup(tp, WaitNoSleep) < 0) {
-		netdev_err(dev, "critical: could not wake up in resume\n");
+		netdev_err(dev, "critical: could yest wake up in resume\n");
 		goto reset;
 	}
 
 	if(typhoon_start_runtime(tp) < 0) {
-		netdev_err(dev, "critical: could not start runtime in resume\n");
+		netdev_err(dev, "critical: could yest start runtime in resume\n");
 		goto reset;
 	}
 
@@ -2157,9 +2157,9 @@ typhoon_suspend(struct pci_dev *pdev, pm_message_t state)
 	if(!netif_running(dev))
 		return 0;
 
-	/* TYPHOON_OFFLOAD_VLAN is always on now, so this doesn't work */
+	/* TYPHOON_OFFLOAD_VLAN is always on yesw, so this doesn't work */
 	if(tp->wol_events & TYPHOON_WAKE_MAGIC_PKT)
-		netdev_warn(dev, "cannot do WAKE_MAGIC with VLAN offloading\n");
+		netdev_warn(dev, "canyest do WAKE_MAGIC with VLAN offloading\n");
 
 	netif_device_detach(dev);
 
@@ -2304,7 +2304,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* sanity checks on IO and MMIO BARs
 	 */
 	if(!(pci_resource_flags(pdev, 0) & IORESOURCE_IO)) {
-		err_msg = "region #1 not a PCI IO resource, aborting";
+		err_msg = "region #1 yest a PCI IO resource, aborting";
 		err = -ENODEV;
 		goto error_out_mwi;
 	}
@@ -2314,7 +2314,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto error_out_mwi;
 	}
 	if(!(pci_resource_flags(pdev, 1) & IORESOURCE_MEM)) {
-		err_msg = "region #1 not a PCI MMIO resource, aborting";
+		err_msg = "region #1 yest a PCI MMIO resource, aborting";
 		err = -ENODEV;
 		goto error_out_mwi;
 	}
@@ -2326,7 +2326,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_request_regions(pdev, KBUILD_MODNAME);
 	if(err < 0) {
-		err_msg = "could not request regions";
+		err_msg = "could yest request regions";
 		goto error_out_mwi;
 	}
 
@@ -2337,7 +2337,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ioaddr = pci_iomap(pdev, use_mmio, 128);
 	if (!ioaddr) {
-		err_msg = "cannot remap registers, aborting";
+		err_msg = "canyest remap registers, aborting";
 		err = -EIO;
 		goto error_out_regions;
 	}
@@ -2347,7 +2347,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	shared = pci_alloc_consistent(pdev, sizeof(struct typhoon_shared),
 				      &shared_dma);
 	if(!shared) {
-		err_msg = "could not allocate DMA memory";
+		err_msg = "could yest allocate DMA memory";
 		err = -ENOMEM;
 		goto error_out_remap;
 	}
@@ -2371,11 +2371,11 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	err = typhoon_reset(ioaddr, WaitSleep);
 	if (err < 0) {
-		err_msg = "could not reset 3XP";
+		err_msg = "could yest reset 3XP";
 		goto error_out_dma;
 	}
 
-	/* Now that we've reset the 3XP and are sure it's not going to
+	/* Now that we've reset the 3XP and are sure it's yest going to
 	 * write all over memory, enable bus mastering, and save our
 	 * state for resuming after a suspend.
 	 */
@@ -2387,14 +2387,14 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = typhoon_boot_3XP(tp, TYPHOON_STATUS_WAITING_FOR_HOST);
 	if (err < 0) {
-		err_msg = "cannot boot 3XP sleep image";
+		err_msg = "canyest boot 3XP sleep image";
 		goto error_out_reset;
 	}
 
 	INIT_COMMAND_WITH_RESPONSE(&xp_cmd, TYPHOON_CMD_READ_MAC_ADDRESS);
 	err = typhoon_issue_command(tp, 1, &xp_cmd, 1, xp_resp);
 	if (err < 0) {
-		err_msg = "cannot read MAC address";
+		err_msg = "canyest read MAC address";
 		goto error_out_reset;
 	}
 
@@ -2402,7 +2402,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	*(__be32 *)&dev->dev_addr[2] = htonl(le32_to_cpu(xp_resp[0].parm2));
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
-		err_msg = "Could not obtain valid ethernet address, aborting";
+		err_msg = "Could yest obtain valid ethernet address, aborting";
 		err = -EIO;
 		goto error_out_reset;
 	}
@@ -2413,7 +2413,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_COMMAND_WITH_RESPONSE(&xp_cmd, TYPHOON_CMD_READ_VERSIONS);
 	err = typhoon_issue_command(tp, 1, &xp_cmd, 3, xp_resp);
 	if (err < 0) {
-		err_msg = "Could not get Sleep Image version";
+		err_msg = "Could yest get Sleep Image version";
 		goto error_out_reset;
 	}
 
@@ -2424,14 +2424,14 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * READ_VERSIONS command. Those versions are OK after waking up
 	 * from sleep without needing a reset. Typhoon 1.1+ Sleep Images
 	 * seem to need a little extra help to get started. Since we don't
-	 * know how to nudge it along, just kick it.
+	 * kyesw how to nudge it along, just kick it.
 	 */
 	if(xp_resp[0].numDesc != 0)
 		tp->capabilities |= TYPHOON_WAKEUP_NEEDS_RESET;
 
 	err = typhoon_sleep(tp, PCI_D3hot, 0);
 	if (err < 0) {
-		err_msg = "cannot put adapter to sleep";
+		err_msg = "canyest put adapter to sleep";
 		goto error_out_reset;
 	}
 
@@ -2445,8 +2445,8 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* We can handle scatter gather, up to 16 entries, and
 	 * we can do IP checksumming (only version 4, doh...)
 	 *
-	 * There's no way to turn off the RX VLAN offloading and stripping
-	 * on the current 3XP firmware -- it does not respect the offload
+	 * There's yes way to turn off the RX VLAN offloading and stripping
+	 * on the current 3XP firmware -- it does yest respect the offload
 	 * settings -- so we only allow the user to toggle the TX processing.
 	 */
 	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
@@ -2469,7 +2469,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		    dev->dev_addr);
 
 	/* xp_resp still contains the response to the READ_VERSIONS command.
-	 * For debugging, let the user know what version he has.
+	 * For debugging, let the user kyesw what version he has.
 	 */
 	if(xp_resp[0].numDesc == 0) {
 		/* This is the Typhoon 1.0 type Sleep Image, last 16 bits
@@ -2488,7 +2488,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			    sleep_ver >> 24, (sleep_ver >> 12) & 0xfff,
 			    sleep_ver & 0xfff, ver_string);
 	} else {
-		netdev_warn(dev, "Unknown Sleep Image version (%u:%04x)\n",
+		netdev_warn(dev, "Unkyeswn Sleep Image version (%u:%04x)\n",
 			    xp_resp[0].numDesc, le32_to_cpu(xp_resp[0].parm2));
 	}
 

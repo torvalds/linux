@@ -336,7 +336,7 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 	if (!pending)
 		return IRQ_NONE;
 
-	/* Iterate until no interrupt is pending */
+	/* Iterate until yes interrupt is pending */
 	while (pending) {
 		/* One iteration is for all pending bits */
 		for_each_set_bit(gpio, (const unsigned long *)&pending,
@@ -488,7 +488,7 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 /*
  * Whiskey Cove PMIC itself is a analog device(but with digital control
  * interface) providing power management support for other devices in
- * the accompanied SoC, so we have no .pm for Whiskey Cove GPIO driver.
+ * the accompanied SoC, so we have yes .pm for Whiskey Cove GPIO driver.
  */
 static struct platform_driver wcove_gpio_driver = {
 	.driver = {

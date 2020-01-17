@@ -95,7 +95,7 @@ static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
-	args->offset = bo->node.start << PAGE_SHIFT;
+	args->offset = bo->yesde.start << PAGE_SHIFT;
 
 	return 0;
 }
@@ -292,7 +292,7 @@ static int panfrost_ioctl_mmap_bo(struct drm_device *dev, void *data,
 	int ret;
 
 	if (args->flags != 0) {
-		DRM_INFO("unknown mmap_bo flags: %d\n", args->flags);
+		DRM_INFO("unkyeswn mmap_bo flags: %d\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -302,7 +302,7 @@ static int panfrost_ioctl_mmap_bo(struct drm_device *dev, void *data,
 		return -ENOENT;
 	}
 
-	/* Don't allow mmapping of heap objects as pages are not pinned. */
+	/* Don't allow mmapping of heap objects as pages are yest pinned. */
 	if (to_panfrost_bo(gem_obj)->is_heap) {
 		ret = -EINVAL;
 		goto out;
@@ -310,7 +310,7 @@ static int panfrost_ioctl_mmap_bo(struct drm_device *dev, void *data,
 
 	ret = drm_gem_create_mmap_offset(gem_obj);
 	if (ret == 0)
-		args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
+		args->offset = drm_vma_yesde_offset_addr(&gem_obj->vma_yesde);
 
 out:
 	drm_gem_object_put_unlocked(gem_obj);
@@ -331,7 +331,7 @@ static int panfrost_ioctl_get_bo_offset(struct drm_device *dev, void *data,
 	}
 	bo = to_panfrost_bo(gem_obj);
 
-	args->offset = bo->node.start << PAGE_SHIFT;
+	args->offset = bo->yesde.start << PAGE_SHIFT;
 
 	drm_gem_object_put_unlocked(gem_obj);
 	return 0;
@@ -380,7 +380,7 @@ int panfrost_unstable_ioctl_check(void)
 #define PFN_4G_MASK	(PFN_4G - 1)
 #define PFN_16M		(SZ_16M >> PAGE_SHIFT)
 
-static void panfrost_drm_mm_color_adjust(const struct drm_mm_node *node,
+static void panfrost_drm_mm_color_adjust(const struct drm_mm_yesde *yesde,
 					 unsigned long color,
 					 u64 *start, u64 *end)
 {
@@ -418,7 +418,7 @@ panfrost_open(struct drm_device *dev, struct drm_file *file)
 
 	spin_lock_init(&panfrost_priv->mm_lock);
 
-	/* 4G enough for now. can be 48-bit */
+	/* 4G eyesugh for yesw. can be 48-bit */
 	drm_mm_init(&panfrost_priv->mm, SZ_32M >> PAGE_SHIFT, (SZ_4G - SZ_32M) >> PAGE_SHIFT);
 	panfrost_priv->mm.color_adjust = panfrost_drm_mm_color_adjust;
 
@@ -453,9 +453,9 @@ panfrost_postclose(struct drm_device *dev, struct drm_file *file)
 	kfree(panfrost_priv);
 }
 
-/* DRM_AUTH is required on SUBMIT for now, while all clients share a single
- * address space.  Note that render nodes would be able to submit jobs that
- * could access BOs from clients authenticated with the master node.
+/* DRM_AUTH is required on SUBMIT for yesw, while all clients share a single
+ * address space.  Note that render yesdes would be able to submit jobs that
+ * could access BOs from clients authenticated with the master yesde.
  */
 static const struct drm_ioctl_desc panfrost_drm_driver_ioctls[] = {
 #define PANFROST_IOCTL(n, func, flags) \
@@ -490,7 +490,7 @@ static struct drm_driver panfrost_drm_driver = {
 	.desc			= "panfrost DRM",
 	.date			= "20180908",
 	.major			= 1,
-	.minor			= 1,
+	.miyesr			= 1,
 
 	.gem_create_object	= panfrost_gem_create_object,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,

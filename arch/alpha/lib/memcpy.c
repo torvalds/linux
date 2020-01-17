@@ -13,7 +13,7 @@
  * Note that the C code is written to be optimized into good assembly. However,
  * at this point gcc is unable to sanely compile "if (n >= 0)", resulting in a
  * explicit compare against 0 (instead of just using the proper "blt reg, xx" or
- * "bge reg, xx"). I hope alpha-gcc will be fixed to notice this eventually..
+ * "bge reg, xx"). I hope alpha-gcc will be fixed to yestice this eventually..
  */
 
 #include <linux/types.h>
@@ -100,7 +100,7 @@ static inline void __memcpy_unaligned_up (unsigned long d, unsigned long s,
 static inline void __memcpy_unaligned_dn (unsigned long d, unsigned long s,
 					  long n)
 {
-	/* I don't understand AXP assembler well enough for this. -Tim */
+	/* I don't understand AXP assembler well eyesugh for this. -Tim */
 	s += n;
 	d += n;
 	while (n--)
@@ -109,7 +109,7 @@ static inline void __memcpy_unaligned_dn (unsigned long d, unsigned long s,
 
 /*
  * Hmm.. Strange. The __asm__ here is there to make gcc use an integer register
- * for the load-store. I don't know why, but it would seem that using a floating
+ * for the load-store. I don't kyesw why, but it would seem that using a floating
  * point register for the move seems to slow things down (very small difference,
  * though).
  *

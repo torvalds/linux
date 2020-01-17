@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010-2011 ST-Ericsson
  *
- * Implements u8500 semaphore handling for protocol 1, no interrupts.
+ * Implements u8500 semaphore handling for protocol 1, yes interrupts.
  *
  * Author: Mathieu Poirier <mathieu.poirier@linaro.org>
  * Heavily borrowed from the work of :

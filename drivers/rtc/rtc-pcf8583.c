@@ -15,7 +15,7 @@
 #include <linux/rtc.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/bcd.h>
 
 struct rtc_mem {

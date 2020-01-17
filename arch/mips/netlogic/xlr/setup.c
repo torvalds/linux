@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -57,7 +57,7 @@ struct psb_info nlm_prom_info;
 
 /* default to uniprocessor */
 unsigned int  nlm_threads_per_core = 1;
-struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
+struct nlm_soc_info nlm_yesdes[NLM_NR_NODES];
 cpumask_t nlm_cpumask = CPU_MASK_CPU0;
 
 static void nlm_linux_exit(void)
@@ -137,7 +137,7 @@ static void __init build_arcs_cmdline(int *argv)
 #endif
 	return;
 fail:
-	panic("Cannot add %s, command line too big!", arg);
+	panic("Canyest add %s, command line too big!", arg);
 }
 
 static void prom_add_memory(void)
@@ -162,14 +162,14 @@ static void prom_add_memory(void)
 	}
 }
 
-static void nlm_init_node(void)
+static void nlm_init_yesde(void)
 {
-	struct nlm_soc_info *nodep;
+	struct nlm_soc_info *yesdep;
 
-	nodep = nlm_current_node();
-	nodep->picbase = nlm_mmio_base(NETLOGIC_IO_PIC_OFFSET);
-	nodep->ebase = read_c0_ebase() & MIPS_EBASE_BASE;
-	spin_lock_init(&nodep->piclock);
+	yesdep = nlm_current_yesde();
+	yesdep->picbase = nlm_mmio_base(NETLOGIC_IO_PIC_OFFSET);
+	yesdep->ebase = read_c0_ebase() & MIPS_EBASE_BASE;
+	spin_lock_init(&yesdep->piclock);
 }
 
 void __init prom_init(void)
@@ -187,7 +187,7 @@ void __init prom_init(void)
 	prom_infop = (struct psb_info *)(long)(int)fw_arg3;
 
 	nlm_prom_info = *prom_infop;
-	nlm_init_node();
+	nlm_init_yesde();
 
 	/* Update reset entry point with CPU init code */
 	reset_vec = (void *)CKSEG1ADDR(RESET_VEC_PHYS);

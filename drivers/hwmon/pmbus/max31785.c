@@ -145,7 +145,7 @@ static int max31785_read_word_data(struct i2c_client *client, int page,
 		break;
 	case PMBUS_FAN_COMMAND_1:
 		/*
-		 * PMBUS_FAN_COMMAND_x is probed to judge whether or not to
+		 * PMBUS_FAN_COMMAND_x is probed to judge whether or yest to
 		 * expose fan control registers.
 		 *
 		 * Don't expose fan_target attribute for virtual pages.
@@ -177,7 +177,7 @@ static inline u32 max31785_scale_pwm(u32 sensor_val)
 	 *
 	 * R=2 (== 10^2 == 100) accounts for scaling the value provided at the
 	 * sysfs interface into the required hardware resolution, but it does
-	 * not yet yield a value that we can write to the device (this initial
+	 * yest yet yield a value that we can write to the device (this initial
 	 * scaling is handled by pmbus_data2reg()). Multiplying by 100 below
 	 * translates the parameter value into the percentage units required by
 	 * PMBus, and then we scale back by 255 as required by the hwmon pwmX
@@ -355,7 +355,7 @@ static int max31785_probe(struct i2c_client *client,
 		dual_tach = true;
 	} else if (ret == MAX31785) {
 		if (!strcmp("max31785a", id->name))
-			dev_warn(dev, "Expected max3175a, found max31785: cannot provide secondary tachometer readings\n");
+			dev_warn(dev, "Expected max3175a, found max31785: canyest provide secondary tachometer readings\n");
 	} else {
 		return -ENODEV;
 	}

@@ -70,8 +70,8 @@ struct bam_async_desc {
 
 	struct bam_desc_hw *curr_desc;
 
-	/* list node for the desc in the bam_chan list of descriptors */
-	struct list_head desc_node;
+	/* list yesde for the desc in the bam_chan list of descriptors */
+	struct list_head desc_yesde;
 	enum dma_transfer_direction dir;
 	size_t length;
 	struct bam_desc_hw desc[0];
@@ -369,7 +369,7 @@ struct bam_chan {
 	/* list of descriptors currently processed */
 	struct list_head desc_list;
 
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static inline struct bam_chan *to_bam_chan(struct dma_chan *common)
@@ -402,7 +402,7 @@ struct bam_device {
 /**
  * bam_addr - returns BAM register address
  * @bdev: bam device
- * @pipe: pipe instance (ignored when register doesn't have multiple instances)
+ * @pipe: pipe instance (igyesred when register doesn't have multiple instances)
  * @reg:  register enum
  */
 static inline void __iomem *bam_addr(struct bam_device *bdev, u32 pipe,
@@ -456,7 +456,7 @@ static void bam_chan_init_hw(struct bam_chan *bchan,
 	bam_reset_channel(bchan);
 
 	/*
-	 * write out 8 byte aligned address.  We have enough space for this
+	 * write out 8 byte aligned address.  We have eyesugh space for this
 	 * because we allocated 1 more descriptor (8 bytes) than we can use
 	 */
 	writel_relaxed(ALIGN(bchan->fifo_phys, sizeof(struct bam_desc_hw)),
@@ -546,7 +546,7 @@ static void bam_free_chan(struct dma_chan *chan)
 	vchan_free_chan_resources(to_virt_chan(chan));
 
 	if (!list_empty(&bchan->desc_list)) {
-		dev_err(bchan->bdev->dev, "Cannot free busy channel\n");
+		dev_err(bchan->bdev->dev, "Canyest free busy channel\n");
 		goto err;
 	}
 
@@ -626,7 +626,7 @@ static struct dma_async_tx_descriptor *bam_prep_slave_sg(struct dma_chan *chan,
 	for_each_sg(sgl, sg, sg_len, i)
 		num_alloc += DIV_ROUND_UP(sg_dma_len(sg), BAM_FIFO_SIZE);
 
-	/* allocate enough room to accomodate the number of entries */
+	/* allocate eyesugh room to accomodate the number of entries */
 	async_desc = kzalloc(struct_size(async_desc, desc, num_alloc),
 			     GFP_NOWAIT);
 
@@ -709,14 +709,14 @@ static int bam_dma_terminate_all(struct dma_chan *chan)
 	 */
 	if (!list_empty(&bchan->desc_list)) {
 		async_desc = list_first_entry(&bchan->desc_list,
-					      struct bam_async_desc, desc_node);
+					      struct bam_async_desc, desc_yesde);
 		bam_chan_init_hw(bchan, async_desc->dir);
 	}
 
 	list_for_each_entry_safe(async_desc, tmp,
-				 &bchan->desc_list, desc_node) {
-		list_add(&async_desc->vd.node, &bchan->vc.desc_issued);
-		list_del(&async_desc->desc_node);
+				 &bchan->desc_list, desc_yesde) {
+		list_add(&async_desc->vd.yesde, &bchan->vc.desc_issued);
+		list_del(&async_desc->desc_yesde);
 	}
 
 	vchan_get_all_descriptors(&bchan->vc, &head);
@@ -794,7 +794,7 @@ static u32 process_channel_irqs(struct bam_device *bdev)
 
 	srcs = readl_relaxed(bam_addr(bdev, 0, BAM_IRQ_SRCS_EE));
 
-	/* return early if no pipe/channel interrupts are present */
+	/* return early if yes pipe/channel interrupts are present */
 	if (!(srcs & P_IRQ))
 		return srcs;
 
@@ -822,8 +822,8 @@ static u32 process_channel_irqs(struct bam_device *bdev)
 			avail--;
 
 		list_for_each_entry_safe(async_desc, tmp,
-					 &bchan->desc_list, desc_node) {
-			/* Not enough data to read */
+					 &bchan->desc_list, desc_yesde) {
+			/* Not eyesugh data to read */
 			if (avail < async_desc->xfer_len)
 				break;
 
@@ -843,10 +843,10 @@ static u32 process_channel_irqs(struct bam_device *bdev)
 			if (!async_desc->num_desc) {
 				vchan_cookie_complete(&async_desc->vd);
 			} else {
-				list_add(&async_desc->vd.node,
+				list_add(&async_desc->vd.yesde,
 					 &bchan->vc.desc_issued);
 			}
-			list_del(&async_desc->desc_node);
+			list_del(&async_desc->desc_yesde);
 		}
 
 		spin_unlock_irqrestore(&bchan->vc.lock, flags);
@@ -927,7 +927,7 @@ static enum dma_status bam_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	if (vd) {
 		residue = container_of(vd, struct bam_async_desc, vd)->length;
 	} else {
-		list_for_each_entry(async_desc, &bchan->desc_list, desc_node) {
+		list_for_each_entry(async_desc, &bchan->desc_list, desc_yesde) {
 			if (async_desc->vd.tx.cookie != cookie)
 				continue;
 
@@ -997,7 +997,7 @@ static void bam_start_dma(struct bam_chan *bchan)
 		return;
 
 	while (vd && !IS_BUSY(bchan)) {
-		list_del(&vd->node);
+		list_del(&vd->yesde);
 
 		async_desc = container_of(vd, struct bam_async_desc, vd);
 
@@ -1057,10 +1057,10 @@ static void bam_start_dma(struct bam_chan *bchan)
 
 		bchan->tail += async_desc->xfer_len;
 		bchan->tail %= MAX_DESCRIPTORS;
-		list_add_tail(&async_desc->desc_node, &bchan->desc_list);
+		list_add_tail(&async_desc->desc_yesde, &bchan->desc_list);
 	}
 
-	/* ensure descriptor writes and dma start not reordered */
+	/* ensure descriptor writes and dma start yest reordered */
 	wmb();
 	writel_relaxed(bchan->tail * sizeof(struct bam_desc_hw),
 			bam_addr(bdev, bchan->id, BAM_P_EVNT_REG));
@@ -1237,7 +1237,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 
 	bdev->dev = &pdev->dev;
 
-	match = of_match_node(bam_of_match, pdev->dev.of_node);
+	match = of_match_yesde(bam_of_match, pdev->dev.of_yesde);
 	if (!match) {
 		dev_err(&pdev->dev, "Unsupported BAM module\n");
 		return -ENODEV;
@@ -1254,22 +1254,22 @@ static int bam_dma_probe(struct platform_device *pdev)
 	if (bdev->irq < 0)
 		return bdev->irq;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "qcom,ee", &bdev->ee);
+	ret = of_property_read_u32(pdev->dev.of_yesde, "qcom,ee", &bdev->ee);
 	if (ret) {
 		dev_err(bdev->dev, "Execution environment unspecified\n");
 		return ret;
 	}
 
-	bdev->controlled_remotely = of_property_read_bool(pdev->dev.of_node,
+	bdev->controlled_remotely = of_property_read_bool(pdev->dev.of_yesde,
 						"qcom,controlled-remotely");
 
 	if (bdev->controlled_remotely) {
-		ret = of_property_read_u32(pdev->dev.of_node, "num-channels",
+		ret = of_property_read_u32(pdev->dev.of_yesde, "num-channels",
 					   &bdev->num_channels);
 		if (ret)
 			dev_err(bdev->dev, "num-channels unspecified in dt\n");
 
-		ret = of_property_read_u32(pdev->dev.of_node, "qcom,num-ees",
+		ret = of_property_read_u32(pdev->dev.of_yesde, "qcom,num-ees",
 					   &bdev->num_ees);
 		if (ret)
 			dev_err(bdev->dev, "num-ees unspecified in dt\n");
@@ -1319,7 +1319,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 	bdev->common.dev->dma_parms = &bdev->dma_parms;
 	ret = dma_set_max_seg_size(bdev->common.dev, BAM_FIFO_SIZE);
 	if (ret) {
-		dev_err(bdev->dev, "cannot set maximum segment size\n");
+		dev_err(bdev->dev, "canyest set maximum segment size\n");
 		goto err_bam_channel_exit;
 	}
 
@@ -1351,7 +1351,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 		goto err_bam_channel_exit;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node, bam_dma_xlate,
+	ret = of_dma_controller_register(pdev->dev.of_yesde, bam_dma_xlate,
 					&bdev->common);
 	if (ret)
 		goto err_unregister_dma;
@@ -1390,7 +1390,7 @@ static int bam_dma_remove(struct platform_device *pdev)
 
 	pm_runtime_force_suspend(&pdev->dev);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 	dma_async_device_unregister(&bdev->common);
 
 	/* mask all interrupts for this execution environment */

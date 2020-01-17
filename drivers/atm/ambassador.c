@@ -29,7 +29,7 @@
 
 #include "ambassador.h"
 
-#define maintainer_string "Giuliano Procida at Madge Networks <gprocida@madge.com>"
+#define maintainer_string "Giuliayes Procida at Madge Networks <gprocida@madge.com>"
 #define description_string "Madge ATM Ambassador driver"
 #define version_string "1.2.4"
 
@@ -46,8 +46,8 @@ static inline void __init show_version (void) {
   1. Supported Hardware
   
   This driver is for the PCI ATMizer-based Ambassador card (except
-  very early versions). It is not suitable for the similar EISA "TR7"
-  card. Commercially, both cards are known as Collage Server ATM
+  very early versions). It is yest suitable for the similar EISA "TR7"
+  card. Commercially, both cards are kyeswn as Collage Server ATM
   adapters.
   
   The loader supports image transfer to the card, image start and few
@@ -67,7 +67,7 @@ static inline void __init show_version (void) {
   microcode image is then transferred and started. This waits for a
   pointer to a descriptor containing details of the host-based queues
   and buffers and various parameters etc. Once they are processed
-  normal operations may begin. The BIA is read using a microcode
+  yesrmal operations may begin. The BIA is read using a microcode
   command.
   
   4. Shutdown
@@ -77,11 +77,11 @@ static inline void __init show_version (void) {
   
   5. Persistent state
   
-  The card reset does not affect PCI configuration (good) or the
+  The card reset does yest affect PCI configuration (good) or the
   contents of several other "shared run-time registers" (bad) which
   include doorbell and interrupt control as well as EEPROM and PCI
   control. The driver must be careful when modifying these registers
-  not to touch bits it does not use and to undo any changes at exit.
+  yest to touch bits it does yest use and to undo any changes at exit.
   
   II Driver software
   
@@ -90,7 +90,7 @@ static inline void __init show_version (void) {
   The adapter is quite intelligent (fast) and has a simple interface
   (few features). VPI is always zero, 1024 VCIs are supported. There
   is limited cell rate support. UBR channels can be capped and ABR
-  (explicit rate, but not EFCI) is supported. There is no CBR or VBR
+  (explicit rate, but yest EFCI) is supported. There is yes CBR or VBR
   support.
   
   1. Driver <-> Adapter Communication
@@ -122,7 +122,7 @@ static inline void __init show_version (void) {
   
   This is to communicate "open VC", "close VC", "get stats" etc. to
   the adapter. At most one command is retired every millisecond by the
-  card. There is no out of order completion or notification. The
+  card. There is yes out of order completion or yestification. The
   driver needs to check the return code of the command, waiting as
   appropriate.
   
@@ -132,7 +132,7 @@ static inline void __init show_version (void) {
   so the queue items are (more or less) pointers to the real thing.
   Each TX supply item contains a unique, host-supplied handle (the skb
   bus address seems most sensible as this works for Alphas as well,
-  there is no need to do any endian conversions on the handles).
+  there is yes need to do any endian conversions on the handles).
   
   TX return items consist of just the handles above.
   
@@ -146,7 +146,7 @@ static inline void __init show_version (void) {
 
   Note on RX pool sizes:
    
-  Each pool should have enough buffers to handle a back-to-back stream
+  Each pool should have eyesugh buffers to handle a back-to-back stream
   of minimum sized frames on a single VC. For example:
   
     frame spacing = 3us (about right)
@@ -157,10 +157,10 @@ static inline void __init show_version (void) {
 
     delay/spacing = latency = (20+2)/3 = 7 (buffers)  (rounding up)
     
-  The 20us delay assumes that there is no need to sleep; if we need to
+  The 20us delay assumes that there is yes need to sleep; if we need to
   sleep to get buffers we are going to drop frames anyway.
   
-  In fact, each pool should have enough buffers to support the
+  In fact, each pool should have eyesugh buffers to support the
   simultaneous reassembly of a separate frame on each VC and cope with
   the case in which frames complete in round robin cell fashion on
   each VC.
@@ -188,9 +188,9 @@ static inline void __init show_version (void) {
   
   A more complex form of locking is used around parts of the VC open
   and close functions. There are three reasons for a lock: 1. we need
-  to do atomic rate reservation and release (not used yet), 2. Opening
-  sometimes involves two adapter commands which must not be separated
-  by another command on the same VC, 3. the changes to RX pool size
+  to do atomic rate reservation and release (yest used yet), 2. Opening
+  sometimes involves two adapter commands which must yest be separated
+  by ayesther command on the same VC, 3. the changes to RX pool size
   must be atomic. The lock needs to work over context switches, so we
   use a semaphore.
   
@@ -202,41 +202,41 @@ static inline void __init show_version (void) {
   
   2. Memory access
   
-  All structures that are not accessed using DMA must be 4-byte
-  aligned (not a problem) and must not cross 4MB boundaries.
+  All structures that are yest accessed using DMA must be 4-byte
+  aligned (yest a problem) and must yest cross 4MB boundaries.
   
   There is a DMA memory hole at E0000000-E00000FF (groan).
   
-  TX fragments (DMA read) must not cross 4MB boundaries (would be 16MB
+  TX fragments (DMA read) must yest cross 4MB boundaries (would be 16MB
   but for a hardware bug).
   
-  RX buffers (DMA write) must not cross 16MB boundaries and must
+  RX buffers (DMA write) must yest cross 16MB boundaries and must
   include spare trailing bytes up to the next 4-byte boundary; they
   will be written with rubbish.
   
   The PLX likes to prefetch; if reading up to 4 u32 past the end of
-  each TX fragment is not a problem, then TX can be made to go a
+  each TX fragment is yest a problem, then TX can be made to go a
   little faster by passing a flag at init that disables a prefetch
-  workaround. We do not pass this flag. (new microcode only)
+  workaround. We do yest pass this flag. (new microcode only)
   
   Now we:
   . Note that alloc_skb rounds up size to a 16byte boundary.  
-  . Ensure all areas do not traverse 4MB boundaries.
-  . Ensure all areas do not start at a E00000xx bus address.
-  (I cannot be certain, but this may always hold with Linux)
+  . Ensure all areas do yest traverse 4MB boundaries.
+  . Ensure all areas do yest start at a E00000xx bus address.
+  (I canyest be certain, but this may always hold with Linux)
   . Make all failures cause a loud message.
-  . Discard non-conforming SKBs (causes TX failure or RX fill delay).
-  . Discard non-conforming TX fragment descriptors (the TX fails).
+  . Discard yesn-conforming SKBs (causes TX failure or RX fill delay).
+  . Discard yesn-conforming TX fragment descriptors (the TX fails).
   In the future we could:
-  . Allow RX areas that traverse 4MB (but not 16MB) boundaries.
+  . Allow RX areas that traverse 4MB (but yest 16MB) boundaries.
   . Segment TX areas into some/more fragments, when necessary.
-  . Relax checks for non-DMA items (ignore hole).
+  . Relax checks for yesn-DMA items (igyesre hole).
   . Give scatter-gather (iovec) requirements using ???. (?)
   
   3. VC close is broken (only for new microcode)
   
   The VC close adapter microcode command fails to do anything if any
-  frames have been received on the VC but none have been transmitted.
+  frames have been received on the VC but yesne have been transmitted.
   Frames continue to be reassembled and passed (with IRQ) to the
   driver.
   
@@ -248,12 +248,12 @@ static inline void __init show_version (void) {
   
   . Deal with buggy VC close (somehow) in microcode 12.
   
-  . Handle interrupted and/or non-blocking writes - is this a job for
+  . Handle interrupted and/or yesn-blocking writes - is this a job for
     the protocol layer?
   
   . Add code to break up TX fragments when they span 4MB boundaries.
   
-  . Add SUNI phy layer (need to know where SUNI lives on card).
+  . Add SUNI phy layer (need to kyesw where SUNI lives on card).
   
   . Implement a tx_alloc fn to (a) satisfy TX alignment etc. and (b)
     leave extra headroom space for Ambassador TX descriptors.
@@ -272,7 +272,7 @@ static inline void __init show_version (void) {
     and close into separate functions and using them to make changes).
   
   . Hack on command queue so that someone can issue multiple commands and wait
-    on the last one (OR only "no-op" or "wait" commands are waited for).
+    on the last one (OR only "yes-op" or "wait" commands are waited for).
   
   . Eliminate need for while-schedule around do_command.
   
@@ -550,7 +550,7 @@ static int command_do (amb_dev * dev, command * cmd) {
   
   spin_lock (&cq->lock);
   
-  // if not full...
+  // if yest full...
   if (cq->pending < cq->maximum) {
     // remember my slot for later
     my_slot = ptrs->in;
@@ -577,7 +577,7 @@ static int command_do (amb_dev * dev, command * cmd) {
     
     // wait for my slot to be reached (all waiters are here or above, until...)
     while (ptrs->out != my_slot) {
-      PRINTD (DBG_CMD, "wait: command slot (now at %p)", ptrs->out);
+      PRINTD (DBG_CMD, "wait: command slot (yesw at %p)", ptrs->out);
       set_current_state(TASK_UNINTERRUPTIBLE);
       schedule();
     }
@@ -735,7 +735,7 @@ static void drain_rx_pool (amb_dev * dev, unsigned char pool) {
   if (test_bit (dead, &dev->flags))
     return;
   
-  /* we are not quite like the fill pool routines as we cannot just
+  /* we are yest quite like the fill pool routines as we canyest just
      remove one buffer, we have to remove all of them, but we might as
      well pretend... */
   if (rxq->pending > rxq->buffers_wanted) {
@@ -785,7 +785,7 @@ static void fill_rx_pool (amb_dev * dev, unsigned char pool,
       dev_kfree_skb_any (skb);
       return;
     }
-    // cast needed as there is no %? for pointer differences
+    // cast needed as there is yes %? for pointer differences
     PRINTD (DBG_SKB, "allocated skb at %p, head %p, area %li",
 	    skb, skb->head, (long) skb_end_offset(skb));
     rx.handle = virt_to_bus (skb);
@@ -838,7 +838,7 @@ static irqreturn_t interrupt_handler(int irq, void *dev_id) {
   
     // for us or someone else sharing the same interrupt
     if (!interrupt) {
-      PRINTD (DBG_IRQ, "irq not for me: %d", irq);
+      PRINTD (DBG_IRQ, "irq yest for me: %d", irq);
       return IRQ_NONE;
     }
     
@@ -861,7 +861,7 @@ static irqreturn_t interrupt_handler(int irq, void *dev_id) {
 
       PRINTD (DBG_IRQ, "work done: %u", irq_work);
     } else {
-      PRINTD (DBG_IRQ|DBG_WARN, "no work done");
+      PRINTD (DBG_IRQ|DBG_WARN, "yes work done");
     }
   }
   
@@ -869,7 +869,7 @@ static irqreturn_t interrupt_handler(int irq, void *dev_id) {
   return IRQ_HANDLED;
 }
 
-/********** make rate (not quite as much fun as Horizon) **********/
+/********** make rate (yest quite as much fun as Horizon) **********/
 
 static int make_rate (unsigned int rate, rounding r,
 		      u16 * bits, unsigned int * actual) {
@@ -882,15 +882,15 @@ static int make_rate (unsigned int rate, rounding r,
   // given 5-bit e and 9-bit m:
   // rate = EITHER (1+m/2^9)*2^e    OR 0
   // bits = EITHER 1<<14 | e<<9 | m OR 0
-  // (bit 15 is "reserved", bit 14 "non-zero")
+  // (bit 15 is "reserved", bit 14 "yesn-zero")
   // smallest rate is 0 (special representation)
   // largest rate is (1+511/512)*2^31 = 4290772992 (< 2^32-1)
-  // smallest non-zero rate is (1+0/512)*2^0 = 1 (> 0)
+  // smallest yesn-zero rate is (1+0/512)*2^0 = 1 (> 0)
   // simple algorithm:
   // find position of top bit, this gives e
   // remove top bit and shift (rounding if feeling clever) by 9-e
   
-  // ucode bug: please don't set bit 14! so 0 rate not representable
+  // ucode bug: please don't set bit 14! so 0 rate yest representable
   
   if (rate > 0xffc00000U) {
     // larger than largest representable rate
@@ -918,12 +918,12 @@ static int make_rate (unsigned int rate, rounding r,
     // rate = (2^31+(man-2^31))*2^(exp-31)
     // rate = (1+(man-2^31)/2^31)*2^exp
     man = man<<1;
-    man &= 0xffffffffU; // a nop on 32-bit systems
+    man &= 0xffffffffU; // a yesp on 32-bit systems
     // rate = (1+man/2^32)*2^exp
     
     // exp is in the range 0 to 31, man is in the range 0 to 2^32-1
     // time to lose significance... we want m in the range 0 to 2^9-1
-    // rounding presents a minor problem... we first decide which way
+    // rounding presents a miyesr problem... we first decide which way
     // we are rounding (based on given rounding direction and possibly
     // the bits of the mantissa that are to be discarded).
     
@@ -938,7 +938,7 @@ static int make_rate (unsigned int rate, rounding r,
 	if (man & (~0U>>9)) {
 	  man = (man>>(32-9)) + 1;
 	  if (man == (1<<9)) {
-	    // no need to check for round up outside of range
+	    // yes need to check for round up outside of range
 	    man = 0;
 	    exp += 1;
 	  }
@@ -952,7 +952,7 @@ static int make_rate (unsigned int rate, rounding r,
 	if (man & (1<<(32-9-1))) {
 	  man = (man>>(32-9)) + 1;
 	  if (man == (1<<9)) {
-	    // no need to check for round up outside of range
+	    // yes need to check for round up outside of range
 	    man = 0;
 	    exp += 1;
 	  }
@@ -964,7 +964,7 @@ static int make_rate (unsigned int rate, rounding r,
     }
     
   } else {
-    // zero rate - not representable
+    // zero rate - yest representable
     
     if (r == round_down) {
       return -EINVAL;
@@ -990,7 +990,7 @@ static int make_rate (unsigned int rate, rounding r,
 
 /********** Linux ATM Operations **********/
 
-// some are not yet implemented while others do not make sense for
+// some are yest yet implemented while others do yest make sense for
 // this device
 
 /********** Open a VC **********/
@@ -1031,7 +1031,7 @@ static int amb_open (struct atm_vcc * atm_vcc)
   qos = &atm_vcc->qos;
   
   if (qos->aal != ATM_AAL5) {
-    PRINTD (DBG_QOS, "AAL not supported");
+    PRINTD (DBG_QOS, "AAL yest supported");
     return -EINVAL;
   }
   
@@ -1045,7 +1045,7 @@ static int amb_open (struct atm_vcc * atm_vcc)
 	// we take "the PCR" as a rate-cap
 	int pcr = atm_pcr_goal (txtp);
 	if (!pcr) {
-	  // no rate cap
+	  // yes rate cap
 	  tx_rate_bits = 0;
 	  tx_vc_bits = TX_UBR;
 	  tx_frame_bits = TX_FRAME_NOTCAP;
@@ -1073,8 +1073,8 @@ static int amb_open (struct atm_vcc * atm_vcc)
       }
 #endif
       default: {
-	// PRINTD (DBG_QOS, "request for non-UBR/ABR denied");
-	PRINTD (DBG_QOS, "request for non-UBR denied");
+	// PRINTD (DBG_QOS, "request for yesn-UBR/ABR denied");
+	PRINTD (DBG_QOS, "request for yesn-UBR denied");
 	return -EINVAL;
       }
     }
@@ -1085,7 +1085,7 @@ static int amb_open (struct atm_vcc * atm_vcc)
   PRINTD (DBG_QOS, "RX:");
   rxtp = &qos->rxtp;
   if (rxtp->traffic_class == ATM_NONE) {
-    // do nothing
+    // do yesthing
   } else {
     // choose an RX pool (arranged in increasing size)
     for (pool = 0; pool < NUM_RX_POOLS; ++pool)
@@ -1096,7 +1096,7 @@ static int amb_open (struct atm_vcc * atm_vcc)
       }
     if (pool == NUM_RX_POOLS) {
       PRINTD (DBG_WARN|DBG_VCC|DBG_QOS|DBG_POOL,
-	      "no pool suitable for VC (RX max_sdu %d is too large)",
+	      "yes pool suitable for VC (RX max_sdu %d is too large)",
 	      rxtp->max_sdu);
       return -EINVAL;
     }
@@ -1113,8 +1113,8 @@ static int amb_open (struct atm_vcc * atm_vcc)
       }
 #endif
       default: {
-	// PRINTD (DBG_QOS, "request for non-UBR/ABR denied");
-	PRINTD (DBG_QOS, "request for non-UBR denied");
+	// PRINTD (DBG_QOS, "request for yesn-UBR/ABR denied");
+	PRINTD (DBG_QOS, "request for yesn-UBR denied");
 	return -EINVAL;
       }
     }
@@ -1128,9 +1128,9 @@ static int amb_open (struct atm_vcc * atm_vcc)
   }
   atm_vcc->dev_data = (void *) vcc;
   
-  // no failures beyond this point
+  // yes failures beyond this point
   
-  // we are not really "immediately before allocating the connection
+  // we are yest really "immediately before allocating the connection
   // identifier in hardware", but it will just have to do!
   set_bit(ATM_VF_ADDR,&atm_vcc->flags);
   
@@ -1156,7 +1156,7 @@ static int amb_open (struct atm_vcc * atm_vcc)
       while (command_do (dev, &cmd))
 	schedule();
     } else {
-      // no RXer on the channel, just open (with pool zero)
+      // yes RXer on the channel, just open (with pool zero)
       cmd.request = cpu_to_be32 (SRB_OPEN_VC);
       cmd.args.open.vc = cpu_to_be32 (vci);  // vpi 0
       cmd.args.open.flags = cpu_to_be32 (tx_vc_bits << SRB_FLAGS_SHIFT);
@@ -1189,7 +1189,7 @@ static int amb_open (struct atm_vcc * atm_vcc)
 	( (pool << SRB_POOL_SHIFT)
 	  | (dev->txer[vci].tx_vc_bits << SRB_FLAGS_SHIFT) );
     } else {
-      // no TXer on the channel, open the VC (with no rate info)
+      // yes TXer on the channel, open the VC (with yes rate info)
       cmd.request = cpu_to_be32 (SRB_OPEN_VC);
       cmd.args.open.vc = cpu_to_be32 (vci);  // vpi 0
       cmd.args.open.flags = cpu_to_be32 (pool << SRB_POOL_SHIFT);
@@ -1226,13 +1226,13 @@ static void amb_close (struct atm_vcc * atm_vcc) {
     
     mutex_lock(&dev->vcc_sf);
     if (dev->rxer[vci]) {
-      // RXer still on the channel, just modify rate... XXX not really needed
+      // RXer still on the channel, just modify rate... XXX yest really needed
       cmd.request = cpu_to_be32 (SRB_MODIFY_VC_RATE);
       cmd.args.modify_rate.vc = cpu_to_be32 (vci);  // vpi 0
       cmd.args.modify_rate.rate = cpu_to_be32 (0);
       // ... and clear TX rate flags (XXX to stop RM cell output?), preserving RX pool
     } else {
-      // no RXer on the channel, close channel
+      // yes RXer on the channel, close channel
       cmd.request = cpu_to_be32 (SRB_CLOSE_VC);
       cmd.args.close.vc = cpu_to_be32 (vci); // vpi 0
     }
@@ -1251,17 +1251,17 @@ static void amb_close (struct atm_vcc * atm_vcc) {
     
     mutex_lock(&dev->vcc_sf);
     if (dev->txer[vci].tx_present) {
-      // TXer still on the channel, just go to pool zero XXX not really needed
+      // TXer still on the channel, just go to pool zero XXX yest really needed
       cmd.request = cpu_to_be32 (SRB_MODIFY_VC_FLAGS);
       cmd.args.modify_flags.vc = cpu_to_be32 (vci);  // vpi 0
       cmd.args.modify_flags.flags = cpu_to_be32
 	(dev->txer[vci].tx_vc_bits << SRB_FLAGS_SHIFT);
     } else {
-      // no TXer on the channel, close the VC
+      // yes TXer on the channel, close the VC
       cmd.request = cpu_to_be32 (SRB_CLOSE_VC);
       cmd.args.close.vc = cpu_to_be32 (vci); // vpi 0
     }
-    // forget the rxer - no more skbs will be pushed
+    // forget the rxer - yes more skbs will be pushed
     if (atm_vcc != dev->rxer[vci])
       PRINTK (KERN_ERR, "%s vcc=%p rxer[vci]=%p",
 	      "arghhh! we're going to die!",
@@ -1330,7 +1330,7 @@ static int amb_send (struct atm_vcc * atm_vcc, struct sk_buff * skb) {
   // allocate memory for fragments
   tx_descr = kmalloc (sizeof(tx_simple), GFP_KERNEL);
   if (!tx_descr) {
-    PRINTK (KERN_ERR, "could not allocate TX descriptor");
+    PRINTK (KERN_ERR, "could yest allocate TX descriptor");
     return -ENOMEM;
   }
   if (check_area (tx_descr, sizeof(tx_simple))) {
@@ -1376,8 +1376,8 @@ static void amb_free_rx_skb (struct atm_vcc * atm_vcc, struct sk_buff * skb) {
   unsigned char pool = vcc->rx_info.pool;
   rx_in rx;
   
-  // This may be unsafe for various reasons that I cannot really guess
-  // at. However, I note that the ATM layer calls kfree_skb rather
+  // This may be unsafe for various reasons that I canyest really guess
+  // at. However, I yeste that the ATM layer calls kfree_skb rather
   // than dev_kfree_skb at this point so we are least covered as far
   // as buffer locking goes. There may be bugs if pcap clones RX skbs.
 
@@ -1413,7 +1413,7 @@ static int amb_proc_read (struct atm_dev * atm_dev, loff_t * pos, char * page) {
   
   PRINTD (DBG_FLOW, "amb_proc_read");
   
-  /* more diagnostics here? */
+  /* more diagyesstics here? */
   
   if (!left--) {
     amb_stats * s = &dev->stats;
@@ -1481,7 +1481,7 @@ static const struct atmdev_ops amb_ops = {
 static void do_housekeeping (struct timer_list *t) {
   amb_dev * dev = from_timer(dev, t, housekeeping);
   
-  // could collect device-specific (not driver/atm-linux) stats here
+  // could collect device-specific (yest driver/atm-linux) stats here
       
   // last resort refill once every ten seconds
   fill_rx_pools (dev);
@@ -1511,7 +1511,7 @@ static int create_queues(amb_dev *dev, unsigned int cmds, unsigned int txs,
   
   memory = kmalloc (total, GFP_KERNEL);
   if (!memory) {
-    PRINTK (KERN_ERR, "could not allocate queues");
+    PRINTK (KERN_ERR, "could yest allocate queues");
     return -ENOMEM;
   }
   if (check_area (memory, total)) {
@@ -1711,7 +1711,7 @@ static  int decode_loader_result (loader_command cmd, u32 result)
 			break;
 		default:
 			res = -EINVAL;
-			msg = "unknown error";
+			msg = "unkyeswn error";
 			PRINTD (DBG_LOAD|DBG_ERR,
 				"decode_loader_result got %d=%x !",
 				result, result);
@@ -1759,13 +1759,13 @@ static int do_loader_command(volatile loader_block *lb, const amb_dev *dev,
     }
   
   if (cmd == adapter_start) {
-    // wait for start command to acknowledge...
+    // wait for start command to ackyeswledge...
     timeout = 100;
     while (rd_plain (dev, offsetof(amb_mem, doorbell)))
       if (timeout) {
 	timeout = msleep_interruptible(timeout);
       } else {
-	PRINTD (DBG_LOAD|DBG_ERR, "start command did not clear doorbell, res=%08x",
+	PRINTD (DBG_LOAD|DBG_ERR, "start command did yest clear doorbell, res=%08x",
 		be32_to_cpu (lb->result));
 	dump_registers (dev);
 	return -ETIMEDOUT;
@@ -1855,7 +1855,7 @@ static int amb_reset (amb_dev * dev, int diags) {
   // wait a short while
   udelay (10);
 #if 1
-  // put card into known good state
+  // put card into kyeswn good state
   wr_plain (dev, offsetof(amb_mem, interrupt_control), AMB_DOORBELL_BITS);
   // clear all interrupts just in case
   wr_plain (dev, offsetof(amb_mem, interrupt), -1);
@@ -1915,14 +1915,14 @@ static int ucode_init(loader_block *lb, amb_dev *dev)
 
   res = request_ihex_firmware(&fw, "atmsar11.fw", &dev->pci_dev->dev);
   if (res) {
-    PRINTK (KERN_ERR, "Cannot load microcode data");
+    PRINTK (KERN_ERR, "Canyest load microcode data");
     return res;
   }
 
   /* First record contains just the start address */
   rec = (const struct ihex_binrec *)fw->data;
   if (be16_to_cpu(rec->len) != sizeof(__be32) || be32_to_cpu(rec->addr)) {
-    errmsg = "no start record";
+    errmsg = "yes start record";
     goto fail;
   }
   start_address = be32_to_cpup((__be32 *)rec->data);
@@ -2000,9 +2000,9 @@ static int amb_talk(amb_dev *dev)
   // pass the structure
   wr_mem (dev, offsetof(amb_mem, doorbell), virt_to_bus (&a));
   
-  // 2.2 second wait (must not touch doorbell during 2 second DMA test)
+  // 2.2 second wait (must yest touch doorbell during 2 second DMA test)
   msleep(2200);
-  // give the adapter another half second?
+  // give the adapter ayesther half second?
   timeout = 500;
   while (rd_plain (dev, offsetof(amb_mem, doorbell)))
     if (timeout) {
@@ -2019,7 +2019,7 @@ static int amb_talk(amb_dev *dev)
 static void amb_ucode_version(amb_dev *dev)
 {
   u32 major;
-  u32 minor;
+  u32 miyesr;
   command cmd;
   cmd.request = cpu_to_be32 (SRB_GET_VERSION);
   while (command_do (dev, &cmd)) {
@@ -2027,8 +2027,8 @@ static void amb_ucode_version(amb_dev *dev)
     schedule();
   }
   major = be32_to_cpu (cmd.args.version.major);
-  minor = be32_to_cpu (cmd.args.version.minor);
-  PRINTK (KERN_INFO, "microcode version is %u.%u", major, minor);
+  miyesr = be32_to_cpu (cmd.args.version.miyesr);
+  PRINTK (KERN_INFO, "microcode version is %u.%u", major, miyesr);
 }
   
 // get end station address
@@ -2071,7 +2071,7 @@ static void fixup_plx_window (amb_dev *dev, loader_block *lb)
 	unsigned long blb;
 	u32 mapreg;
 	blb = virt_to_bus(lb);
-	// the kernel stack had better not ever cross a 1Gb boundary!
+	// the kernel stack had better yest ever cross a 1Gb boundary!
 	mapreg = rd_plain (dev, offsetof(amb_mem, stuff[10]));
 	mapreg &= ~onegigmask;
 	mapreg |= blb & onegigmask;
@@ -2102,7 +2102,7 @@ static int amb_init(amb_dev *dev)
       } else {
 	
 	if (amb_talk (dev)) {
-	  PRINTK (KERN_ERR, "adapter did not accept queues");
+	  PRINTK (KERN_ERR, "adapter did yest accept queues");
 	} else {
 	  
 	  amb_ucode_version (dev);
@@ -2125,7 +2125,7 @@ static void setup_dev(amb_dev *dev, struct pci_dev *pci_dev)
 {
       unsigned char pool;
       
-      // set up known dev items straight away
+      // set up kyeswn dev items straight away
       dev->pci_dev = pci_dev; 
       pci_set_drvdata(pci_dev, dev);
       
@@ -2142,7 +2142,7 @@ static void setup_dev(amb_dev *dev, struct pci_dev *pci_dev)
       dev->tx_avail = ATM_OC3_PCR;
       dev->rx_avail = ATM_OC3_PCR;
       
-      // semaphore for txer/rxer modifications - we cannot use a
+      // semaphore for txer/rxer modifications - we canyest use a
       // spinlock as the critical region needs to switch processes
       mutex_init(&dev->vcc_sf);
       // queue manipulation spinlocks; we want atomic reads and
@@ -2241,7 +2241,7 @@ static int amb_probe(struct pci_dev *pci_dev,
 		goto out_free_irq;
 	}
 
-	PRINTD (DBG_INFO, "registered Madge ATM adapter (no. %d) (%p) at %p",
+	PRINTD (DBG_INFO, "registered Madge ATM adapter (yes. %d) (%p) at %p",
 		dev->atm_dev->number, dev, dev->atm_dev);
 	dev->atm_dev->dev_data = (void *) dev;
 
@@ -2283,7 +2283,7 @@ static void amb_remove_one(struct pci_dev *pci_dev)
 
 	PRINTD(DBG_INFO|DBG_INIT, "closing %p (atm_dev = %p)", dev, dev->atm_dev);
 	del_timer_sync(&dev->housekeeping);
-	// the drain should not be necessary
+	// the drain should yest be necessary
 	drain_rx_pools(dev);
 	interrupts_off(dev);
 	amb_reset(dev, 0);
@@ -2303,7 +2303,7 @@ static void __init amb_check_args (void) {
   PRINTK (KERN_NOTICE, "debug bitmap is %hx", debug &= DBG_MASK);
 #else
   if (debug)
-    PRINTK (KERN_NOTICE, "no debugging support");
+    PRINTK (KERN_NOTICE, "yes debugging support");
 #endif
   
   if (cmds < MIN_QUEUE_SIZE)

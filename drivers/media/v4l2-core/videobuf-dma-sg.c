@@ -3,14 +3,14 @@
  * helper functions for SG DMA video4linux capture buffers
  *
  * The functions expect the hardware being able to scatter gather
- * (i.e. the buffers are not linear in physical memory, but fragmented
- * into PAGE_SIZE chunks).  They also assume the driver does not need
+ * (i.e. the buffers are yest linear in physical memory, but fragmented
+ * into PAGE_SIZE chunks).  They also assume the driver does yest need
  * to touch the video data.
  *
  * (c) 2007 Mauro Carvalho Chehab, <mchehab@kernel.org>
  *
  * Highly based on video-buf written originally by:
- * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
+ * (c) 2001,02 Gerd Kyesrr <kraxel@bytesex.org>
  * (c) 2006 Mauro Carvalho Chehab, <mchehab@kernel.org>
  * (c) 2006 Ted Walther and John Sokol
  */
@@ -103,14 +103,14 @@ static struct scatterlist *videobuf_pages_to_sg(struct page **pages,
 	sg_init_table(sglist, nr_pages);
 
 	if (PageHighMem(pages[0]))
-		/* DMA to highmem pages might not work */
+		/* DMA to highmem pages might yest work */
 		goto highmem;
 	sg_set_page(&sglist[0], pages[0],
 			min_t(size_t, PAGE_SIZE - offset, size), offset);
 	size -= min_t(size_t, PAGE_SIZE - offset, size);
 	for (i = 1; i < nr_pages; i++) {
 		if (NULL == pages[i])
-			goto nopage;
+			goto yespage;
 		if (PageHighMem(pages[i]))
 			goto highmem;
 		sg_set_page(&sglist[i], pages[i], min_t(size_t, PAGE_SIZE, size), 0);
@@ -118,8 +118,8 @@ static struct scatterlist *videobuf_pages_to_sg(struct page **pages,
 	}
 	return sglist;
 
-nopage:
-	dprintk(2, "sgl: oops - no page\n");
+yespage:
+	dprintk(2, "sgl: oops - yes page\n");
 	vfree(sglist);
 	return NULL;
 
@@ -427,9 +427,9 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 }
 
 /*
- * Get a anonymous page for the mapping.  Make sure we can DMA to that
+ * Get a ayesnymous page for the mapping.  Make sure we can DMA to that
  * memory location with 32bit PCI devices (i.e. don't use highmem for
- * now ...).  Bounce buffers don't work very well for the data rates
+ * yesw ...).  Bounce buffers don't work very well for the data rates
  * video capture has.
  */
 static vm_fault_t videobuf_vm_fault(struct vm_fault *vmf)
@@ -516,7 +516,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 	case V4L2_MEMORY_MMAP:
 	case V4L2_MEMORY_USERPTR:
 		if (0 == vb->baddr) {
-			/* no userspace addr -- kernel bounce buffer */
+			/* yes userspace addr -- kernel bounce buffer */
 			pages = PAGE_ALIGN(vb->size) >> PAGE_SHIFT;
 			err = videobuf_dma_init_kernel(&mem->dma,
 						       DMA_FROM_DEVICE,
@@ -606,7 +606,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 		}
 	}
 
-	/* paranoia, should never happen since buf is always valid. */
+	/* parayesia, should never happen since buf is always valid. */
 	if (!size) {
 		dprintk(1, "mmap app bug: offset invalid [offset=0x%lx]\n",
 				(vma->vm_pgoff << PAGE_SHIFT));
@@ -634,7 +634,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	map->q        = q;
 	vma->vm_ops   = &videobuf_vm_ops;
 	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
-	vma->vm_flags &= ~VM_IO; /* using shared anonymous pages */
+	vma->vm_flags &= ~VM_IO; /* using shared ayesnymous pages */
 	vma->vm_private_data = map;
 	dprintk(1, "mmap %p: q=%p %08lx-%08lx pgoff %08lx bufs %d-%d\n",
 		map, q, vma->vm_start, vma->vm_end, vma->vm_pgoff, first, last);

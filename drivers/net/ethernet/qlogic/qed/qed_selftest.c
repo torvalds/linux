@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -179,7 +179,7 @@ int qed_selftest_nvram(struct qed_dev *cdev)
 			*(u32 *)&buf[j] = (__force u32)val;
 		}
 
-		/* Calc CRC for the "actual" image buffer, i.e. not including
+		/* Calc CRC for the "actual" image buffer, i.e. yest including
 		 * the last 4 CRC bytes.
 		 */
 		nvm_crc = *(u32 *)(buf + image_att.len - 4);

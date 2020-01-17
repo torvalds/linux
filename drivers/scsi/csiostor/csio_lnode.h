@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -47,10 +47,10 @@
 #define CSIO_FCOE_MAX_NPIV	128
 #define CSIO_FCOE_MAX_RNODES	2048
 
-/* FDMI port attribute unknown speed */
+/* FDMI port attribute unkyeswn speed */
 #define CSIO_HBA_PORTSPEED_UNKNOWN	0x8000
 
-extern int csio_fcoe_rnodes;
+extern int csio_fcoe_ryesdes;
 extern int csio_fdmi_enable;
 
 /* State machine evets */
@@ -102,23 +102,23 @@ enum csio_ln_fc_evt {
 	CSIO_LN_FC_ATTRIB_UPDATE,
 };
 
-/* Lnode stats */
-struct csio_lnode_stats {
+/* Lyesde stats */
+struct csio_lyesde_stats {
 	uint32_t	n_link_up;	/* Link down */
 	uint32_t	n_link_down;	/* Link up */
 	uint32_t	n_err;		/* error */
-	uint32_t	n_err_nomem;	/* memory not available */
+	uint32_t	n_err_yesmem;	/* memory yest available */
 	uint32_t	n_inval_parm;   /* Invalid parameters */
 	uint32_t	n_evt_unexp;	/* unexpected event */
 	uint32_t	n_evt_drop;	/* dropped event */
-	uint32_t	n_rnode_match;  /* matched rnode */
+	uint32_t	n_ryesde_match;  /* matched ryesde */
 	uint32_t	n_dev_loss_tmo; /* Device loss timeout */
 	uint32_t	n_fdmi_err;	/* fdmi err */
 	uint32_t	n_evt_fw[PROTO_ERR_IMPL_LOGO + 1];	/* fw events */
 	enum csio_ln_ev	n_evt_sm[CSIO_LNE_MAX_EVENT];	/* State m/c events */
-	uint32_t	n_rnode_alloc;	/* rnode allocated */
-	uint32_t	n_rnode_free;	/* rnode freed */
-	uint32_t	n_rnode_nomem;	/* rnode alloc failure */
+	uint32_t	n_ryesde_alloc;	/* ryesde allocated */
+	uint32_t	n_ryesde_free;	/* ryesde freed */
+	uint32_t	n_ryesde_yesmem;	/* ryesde alloc failure */
 	uint32_t        n_input_requests; /* Input Requests */
 	uint32_t        n_output_requests; /* Output Requests */
 	uint32_t        n_control_requests; /* Control Requests */
@@ -127,8 +127,8 @@ struct csio_lnode_stats {
 	uint32_t	rsvd1;
 };
 
-/* Common Lnode params */
-struct csio_lnode_params {
+/* Common Lyesde params */
+struct csio_lyesde_params {
 	uint32_t	ra_tov;
 	uint32_t	fcfi;
 	uint32_t	log_level;	/* Module level for debugging */
@@ -142,10 +142,10 @@ struct csio_service_parms {
 	uint8_t			vvl[16];	/* Vendor version level */
 };
 
-/* Lnode */
-struct csio_lnode {
+/* Lyesde */
+struct csio_lyesde {
 	struct csio_sm		sm;		/* State machine + sibling
-						 * lnode list.
+						 * lyesde list.
 						 */
 	struct csio_hw		*hwp;		/* Pointer to the HW module */
 	uint8_t			portid;		/* Port ID */
@@ -170,18 +170,18 @@ struct csio_lnode {
 	uint8_t			prev_evt;	/* Previous event */
 
 	/* Children */
-	struct list_head	cln_head;	/* Head of the children lnode
+	struct list_head	cln_head;	/* Head of the children lyesde
 						 * list.
 						 */
 	uint32_t		num_vports;	/* Total NPIV/children LNodes*/
-	struct csio_lnode	*pln;		/* Parent lnode of child
-						 * lnodes.
+	struct csio_lyesde	*pln;		/* Parent lyesde of child
+						 * lyesdes.
 						 */
-	struct list_head	cmpl_q;		/* Pending I/Os on this lnode */
+	struct list_head	cmpl_q;		/* Pending I/Os on this lyesde */
 
-	/* Remote node information */
-	struct list_head	rnhead;		/* Head of rnode list */
-	uint32_t		num_reg_rnodes;	/* Number of rnodes registered
+	/* Remote yesde information */
+	struct list_head	rnhead;		/* Head of ryesde list */
+	uint32_t		num_reg_ryesdes;	/* Number of ryesdes registered
 						 * with the host.
 						 */
 	uint32_t		n_scsi_tgts;	/* Number of scsi targets
@@ -197,18 +197,18 @@ struct csio_lnode {
 	struct fc_vport		*fc_vport;
 	struct fc_host_statistics fch_stats;
 
-	struct csio_lnode_stats stats;		/* Common lnode stats */
-	struct csio_lnode_params params;	/* Common lnode params */
+	struct csio_lyesde_stats stats;		/* Common lyesde stats */
+	struct csio_lyesde_params params;	/* Common lyesde params */
 };
 
-#define	csio_lnode_to_hw(ln)	((ln)->hwp)
-#define csio_root_lnode(ln)	(csio_lnode_to_hw((ln))->rln)
-#define csio_parent_lnode(ln)	((ln)->pln)
+#define	csio_lyesde_to_hw(ln)	((ln)->hwp)
+#define csio_root_lyesde(ln)	(csio_lyesde_to_hw((ln))->rln)
+#define csio_parent_lyesde(ln)	((ln)->pln)
 #define	csio_ln_flowid(ln)	((ln)->vnp_flowid)
 #define csio_ln_wwpn(ln)	((ln)->ln_sparm.wwpn)
 #define csio_ln_wwnn(ln)	((ln)->ln_sparm.wwnn)
 
-#define csio_is_root_ln(ln)	(((ln) == csio_root_lnode((ln))) ? 1 : 0)
+#define csio_is_root_ln(ln)	(((ln) == csio_root_lyesde((ln))) ? 1 : 0)
 #define csio_is_phys_ln(ln)	(((ln)->pln == NULL) ? 1 : 0)
 #define csio_is_npiv_ln(ln)	(((ln)->pln != NULL) ? 1 : 0)
 
@@ -225,8 +225,8 @@ struct csio_lnode {
 	csio_warn(_ln->hwp, "%x:%x "_fmt, CSIO_DEVID_HI(_ln), \
 		 CSIO_DEVID_LO(_ln), ##__VA_ARGS__);
 
-/* HW->Lnode notifications */
-enum csio_ln_notify {
+/* HW->Lyesde yestifications */
+enum csio_ln_yestify {
 	CSIO_LN_NOTIFY_HWREADY = 1,
 	CSIO_LN_NOTIFY_HWSTOP,
 	CSIO_LN_NOTIFY_HWREMOVE,
@@ -234,22 +234,22 @@ enum csio_ln_notify {
 };
 
 void csio_fcoe_fwevt_handler(struct csio_hw *,  __u8 cpl_op, __be64 *);
-int csio_is_lnode_ready(struct csio_lnode *);
-void csio_lnode_state_to_str(struct csio_lnode *ln, int8_t *str);
-struct csio_lnode *csio_lnode_lookup_by_wwpn(struct csio_hw *, uint8_t *);
+int csio_is_lyesde_ready(struct csio_lyesde *);
+void csio_lyesde_state_to_str(struct csio_lyesde *ln, int8_t *str);
+struct csio_lyesde *csio_lyesde_lookup_by_wwpn(struct csio_hw *, uint8_t *);
 int csio_get_phy_port_stats(struct csio_hw *, uint8_t ,
 				      struct fw_fcoe_port_stats *);
-int csio_scan_done(struct csio_lnode *, unsigned long, unsigned long,
+int csio_scan_done(struct csio_lyesde *, unsigned long, unsigned long,
 		   unsigned long, unsigned long);
-void csio_notify_lnodes(struct csio_hw *, enum csio_ln_notify);
-void csio_disable_lnodes(struct csio_hw *, uint8_t, bool);
-void csio_lnode_async_event(struct csio_lnode *, enum csio_ln_fc_evt);
-int csio_ln_fdmi_start(struct csio_lnode *, void *);
-int csio_lnode_start(struct csio_lnode *);
-void csio_lnode_stop(struct csio_lnode *);
-void csio_lnode_close(struct csio_lnode *);
-int csio_lnode_init(struct csio_lnode *, struct csio_hw *,
-			      struct csio_lnode *);
-void csio_lnode_exit(struct csio_lnode *);
+void csio_yestify_lyesdes(struct csio_hw *, enum csio_ln_yestify);
+void csio_disable_lyesdes(struct csio_hw *, uint8_t, bool);
+void csio_lyesde_async_event(struct csio_lyesde *, enum csio_ln_fc_evt);
+int csio_ln_fdmi_start(struct csio_lyesde *, void *);
+int csio_lyesde_start(struct csio_lyesde *);
+void csio_lyesde_stop(struct csio_lyesde *);
+void csio_lyesde_close(struct csio_lyesde *);
+int csio_lyesde_init(struct csio_lyesde *, struct csio_hw *,
+			      struct csio_lyesde *);
+void csio_lyesde_exit(struct csio_lyesde *);
 
 #endif /* ifndef __CSIO_LNODE_H__ */

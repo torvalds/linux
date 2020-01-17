@@ -6,7 +6,7 @@
  *  Modeled after the 16-bit PCMCIA driver: ide-cs.c
  *
  *  This is slightly peculiar, in that it is a PCI driver,
- *  but is NOT an IDE PCI driver -- the IDE layer does not directly
+ *  but is NOT an IDE PCI driver -- the IDE layer does yest directly
  *  support hot insertion/removal of PCI interfaces, so this driver
  *  is unable to use the IDE PCI interfaces.  Instead, it uses the
  *  same interfaces as the ide-cs (PCMCIA) driver uses.

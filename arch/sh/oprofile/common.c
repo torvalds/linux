@@ -6,7 +6,7 @@
  * Based on arch/mips/oprofile/common.c:
  *
  *	Copyright (C) 2004, 2005 Ralf Baechle
- *	Copyright (C) 2005 MIPS Technologies, Inc.
+ *	Copyright (C) 2005 MIPS Techyeslogies, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/oprofile.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/smp.h>
 #include <linux/perf_event.h>
 #include <linux/slab.h>

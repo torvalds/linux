@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Multimedia device API
  *
@@ -40,11 +40,11 @@ struct media_device_info {
 /*
  * Base number ranges for entity functions
  *
- * NOTE: Userspace should not rely on these ranges to identify a group
+ * NOTE: Userspace should yest rely on these ranges to identify a group
  * of function types, as newer functions can be added with any name within
  * the full u32 range.
  *
- * Some older functions use the MEDIA_ENT_F_OLD_*_BASE range. Do not
+ * Some older functions use the MEDIA_ENT_F_OLD_*_BASE range. Do yest
  * change this, this is for backwards compatibility. When adding new
  * functions always use MEDIA_ENT_F_BASE.
  */
@@ -92,7 +92,7 @@ struct media_device_info {
  * Digital TV, analog TV, radio and/or software defined radio tuner functions.
  *
  * It is a responsibility of the master/bridge drivers to add connectors
- * and links for MEDIA_ENT_F_TUNER. Please notice that some old tuners
+ * and links for MEDIA_ENT_F_TUNER. Please yestice that some old tuners
  * may require the usage of separate I2C chips to decode analog TV signals,
  * when the master/bridge chipset doesn't have its own TV standard decoder.
  * On such cases, the IF-PLL staging is mapped via one or two entities:
@@ -164,7 +164,7 @@ struct media_entity_desc {
 		/* Node specifications */
 		struct {
 			__u32 major;
-			__u32 minor;
+			__u32 miyesr;
 		} dev;
 
 #if !defined(__KERNEL__)
@@ -172,11 +172,11 @@ struct media_entity_desc {
 		 * TODO: this shouldn't have been added without
 		 * actual drivers that use this. When the first real driver
 		 * appears that sets this information, special attention
-		 * should be given whether this information is 1) enough, and
+		 * should be given whether this information is 1) eyesugh, and
 		 * 2) can deal with udev rules that rename devices. The struct
-		 * dev would not be sufficient for this since that does not
+		 * dev would yest be sufficient for this since that does yest
 		 * contain the subdevice information. In addition, struct dev
-		 * can only refer to a single device, and not to multiple (e.g.
+		 * can only refer to a single device, and yest to multiple (e.g.
 		 * pcm and mixer devices).
 		 */
 		struct {
@@ -186,17 +186,17 @@ struct media_entity_desc {
 		} alsa;
 
 		/*
-		 * DEPRECATED: previous node specifications. Kept just to
+		 * DEPRECATED: previous yesde specifications. Kept just to
 		 * avoid breaking compilation. Use media_entity_desc.dev
 		 * instead.
 		 */
 		struct {
 			__u32 major;
-			__u32 minor;
+			__u32 miyesr;
 		} v4l;
 		struct {
 			__u32 major;
-			__u32 minor;
+			__u32 miyesr;
 		} fb;
 		int dvb;
 #endif
@@ -235,9 +235,9 @@ struct media_link_desc {
 
 struct media_links_enum {
 	__u32 entity;
-	/* Should have enough room for pads elements */
+	/* Should have eyesugh room for pads elements */
 	struct media_pad_desc __user *pads;
-	/* Should have enough room for links elements */
+	/* Should have eyesugh room for links elements */
 	struct media_link_desc __user *links;
 	__u32 reserved[4];
 };
@@ -272,7 +272,7 @@ struct media_links_enum {
 /*
  * Connector functions
  *
- * For now these should not be used in userspace, as some definitions may
+ * For yesw these should yest be used in userspace, as some definitions may
  * change.
  *
  * It is the responsibility of the entity drivers to add connectors and links.
@@ -304,10 +304,10 @@ struct media_v2_entity {
 	__u32 reserved[5];
 } __attribute__ ((packed));
 
-/* Should match the specific fields at media_intf_devnode */
-struct media_v2_intf_devnode {
+/* Should match the specific fields at media_intf_devyesde */
+struct media_v2_intf_devyesde {
 	__u32 major;
-	__u32 minor;
+	__u32 miyesr;
 } __attribute__ ((packed));
 
 struct media_v2_interface {
@@ -317,7 +317,7 @@ struct media_v2_interface {
 	__u32 reserved[9];
 
 	union {
-		struct media_v2_intf_devnode devnode;
+		struct media_v2_intf_devyesde devyesde;
 		__u32 raw[16];
 	};
 } __attribute__ ((packed));
@@ -387,7 +387,7 @@ struct media_v2_topology {
 
 /*
  * Legacy symbols used to avoid userspace compilation breakages.
- * Do not use any of this in new applications!
+ * Do yest use any of this in new applications!
  *
  * Those symbols map the entity function into types and should be
  * used only on legacy programs for legacy hardware. Don't rely
@@ -418,8 +418,8 @@ struct media_v2_topology {
 #define MEDIA_ENT_F_DTV_DECODER			MEDIA_ENT_F_DV_DECODER
 
 /*
- * There is still no full ALSA support in the media controller. These
- * defines should not have been added and we leave them here only
+ * There is still yes full ALSA support in the media controller. These
+ * defines should yest have been added and we leave them here only
  * in case some application tries to use these defines.
  *
  * The ALSA defines that are in use have been moved into __KERNEL__
@@ -432,7 +432,7 @@ struct media_v2_topology {
 #define MEDIA_INTF_T_ALSA_SEQUENCER            (MEDIA_INTF_T_ALSA_BASE + 6)
 #define MEDIA_INTF_T_ALSA_TIMER                (MEDIA_INTF_T_ALSA_BASE + 7)
 
-/* Obsolete symbol for media_version, no longer used in the kernel */
+/* Obsolete symbol for media_version, yes longer used in the kernel */
 #define MEDIA_API_VERSION			((0 << 16) | (1 << 8) | 0)
 
 #endif

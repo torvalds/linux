@@ -94,7 +94,7 @@ static int __init set_efi_reboot(const struct dmi_system_id *d)
 	return 0;
 }
 
-void __noreturn machine_real_restart(unsigned int type)
+void __yesreturn machine_real_restart(unsigned int type)
 {
 	local_irq_disable();
 
@@ -102,9 +102,9 @@ void __noreturn machine_real_restart(unsigned int type)
 	 * Write zero to CMOS register number 0x0f, which the BIOS POST
 	 * routine will recognize as telling it to do a proper reboot.  (Well
 	 * that's what this book in front of me says -- it may only apply to
-	 * the Phoenix BIOS though, it's not clear).  At the same time,
+	 * the Phoenix BIOS though, it's yest clear).  At the same time,
 	 * disable NMIs by setting the top bit in the CMOS address register,
-	 * as we're about to do peculiar things to the CPU.  I'm not sure if
+	 * as we're about to do peculiar things to the CPU.  I'm yest sure if
 	 * `outb_p' is needed instead of just `outb'.  Use it to be on the
 	 * safe side.  (Yes, CMOS_WRITE does outb_p's. -  Paul G.)
 	 */
@@ -494,7 +494,7 @@ static int __init reboot_init(void)
 		return 0;
 
 	/*
-	 * The DMI quirks table takes precedence. If no quirks entry
+	 * The DMI quirks table takes precedence. If yes quirks entry
 	 * matches and the ACPI Hardware Reduced bit is set and EFI
 	 * runtime services are enabled, force EFI reboot.
 	 */
@@ -531,7 +531,7 @@ static void emergency_vmx_disable_all(void)
 
 	/*
 	 * We need to disable VMX on all CPUs before rebooting, otherwise
-	 * we risk hanging up the machine, because the CPU ignore INIT
+	 * we risk hanging up the machine, because the CPU igyesre INIT
 	 * signals when VMX is enabled.
 	 *
 	 * We can't take any locks and we may be on an inconsistent
@@ -543,7 +543,7 @@ static void emergency_vmx_disable_all(void)
 	 * if other CPUs have VMX enabled. So we will call it only if the
 	 * CPU we are running on has VMX enabled.
 	 *
-	 * We will miss cases where VMX is not enabled on all CPUs. This
+	 * We will miss cases where VMX is yest enabled on all CPUs. This
 	 * shouldn't do much harm because KVM always enable VMX on all
 	 * CPUs anyway. But we can miss it on the small window where KVM
 	 * is still enabling VMX.
@@ -564,7 +564,7 @@ void __attribute__((weak)) mach_reboot_fixups(void)
 }
 
 /*
- * To the best of our knowledge Windows compatible x86 hardware expects
+ * To the best of our kyeswledge Windows compatible x86 hardware expects
  * the following on reboot:
  *
  * 1) If the FADT has the ACPI reboot register flag set, try it
@@ -572,7 +572,7 @@ void __attribute__((weak)) mach_reboot_fixups(void)
  * 3) If still alive, write to the ACPI reboot register again
  * 4) If still alive, write to the keyboard controller again
  * 5) If still alive, call the EFI runtime service to reboot
- * 6) If no EFI runtime service, call the BIOS to do a reboot
+ * 6) If yes EFI runtime service, call the BIOS to do a reboot
  *
  * We default to following the same pattern. We also have
  * two other reboot methods: 'triple fault' and 'PCI', which
@@ -580,7 +580,7 @@ void __attribute__((weak)) mach_reboot_fixups(void)
  * via quirks.
  *
  * This means that this function can never return, it can misbehave
- * by not rebooting properly and hanging.
+ * by yest rebooting properly and hanging.
  */
 static void native_machine_emergency_restart(void)
 {
@@ -682,7 +682,7 @@ void native_machine_shutdown(void)
 	 * Specification Update". In this situation, interrupts that target
 	 * a Logical Processor whose Local APIC is either in the process of
 	 * being hardware disabled or software disabled are neither delivered
-	 * nor discarded. When this erratum occurs, the processor may hang.
+	 * yesr discarded. When this erratum occurs, the processor may hang.
 	 *
 	 * Even without the erratum, it still makes sense to quiet IO APIC
 	 * before disabling Local APIC.
@@ -693,7 +693,7 @@ void native_machine_shutdown(void)
 #ifdef CONFIG_SMP
 	/*
 	 * Stop all of the others. Also disable the local irq to
-	 * not receive the per-cpu timer interrupt which may trigger
+	 * yest receive the per-cpu timer interrupt which may trigger
 	 * scheduler's load balance.
 	 */
 	local_irq_disable();
@@ -720,7 +720,7 @@ static void __machine_emergency_restart(int emergency)
 
 static void native_machine_restart(char *__unused)
 {
-	pr_notice("machine restart\n");
+	pr_yestice("machine restart\n");
 
 	if (!reboot_force)
 		machine_shutdown();
@@ -744,7 +744,7 @@ static void native_machine_power_off(void)
 			machine_shutdown();
 		pm_power_off();
 	}
-	/* A fallback in case there is no PM info available */
+	/* A fallback in case there is yes PM info available */
 	tboot_shutdown(TB_SHUTDOWN_HALT);
 }
 
@@ -840,7 +840,7 @@ void nmi_shootdown_cpus(nmi_shootdown_cb callback)
 	unsigned long msecs;
 	local_irq_disable();
 
-	/* Make a note of crashing cpu. Will be used in NMI callback. */
+	/* Make a yeste of crashing cpu. Will be used in NMI callback. */
 	crashing_cpu = safe_smp_processor_id();
 
 	shootdown_callback = callback;
@@ -885,7 +885,7 @@ void run_crash_ipi_callback(struct pt_regs *regs)
 void nmi_panic_self_stop(struct pt_regs *regs)
 {
 	while (1) {
-		/* If no CPU is preparing crash dump, we simply loop here. */
+		/* If yes CPU is preparing crash dump, we simply loop here. */
 		run_crash_ipi_callback(regs);
 		cpu_relax();
 	}

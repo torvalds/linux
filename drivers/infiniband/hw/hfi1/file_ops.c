@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -71,8 +71,8 @@
 /*
  * File operation functions
  */
-static int hfi1_file_open(struct inode *inode, struct file *fp);
-static int hfi1_file_close(struct inode *inode, struct file *fp);
+static int hfi1_file_open(struct iyesde *iyesde, struct file *fp);
+static int hfi1_file_close(struct iyesde *iyesde, struct file *fp);
 static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from);
 static __poll_t hfi1_poll(struct file *fp, struct poll_table_struct *pt);
 static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma);
@@ -122,7 +122,7 @@ static const struct file_operations hfi1_file_ops = {
 	.unlocked_ioctl = hfi1_file_ioctl,
 	.poll = hfi1_poll,
 	.mmap = hfi1_file_mmap,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static const struct vm_operations_struct vm_ops = {
@@ -183,17 +183,17 @@ static inline int is_valid_mmap(u64 token)
 	return (HFI1_MMAP_TOKEN_GET(MAGIC, token) == HFI1_MMAP_MAGIC);
 }
 
-static int hfi1_file_open(struct inode *inode, struct file *fp)
+static int hfi1_file_open(struct iyesde *iyesde, struct file *fp)
 {
 	struct hfi1_filedata *fd;
-	struct hfi1_devdata *dd = container_of(inode->i_cdev,
+	struct hfi1_devdata *dd = container_of(iyesde->i_cdev,
 					       struct hfi1_devdata,
 					       user_cdev);
 
 	if (!((dd->flags & HFI1_PRESENT) && dd->kregbase1))
 		return -EINVAL;
 
-	if (!atomic_inc_not_zero(&dd->user_refcount))
+	if (!atomic_inc_yest_zero(&dd->user_refcount))
 		return -ENXIO;
 
 	/* The real work is performed later in assign_ctxt() */
@@ -201,7 +201,7 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
 
 	if (fd) {
-		fd->rec_cpu_num = -1; /* no cpu affinity by default */
+		fd->rec_cpu_num = -1; /* yes cpu affinity by default */
 		fd->mm = current->mm;
 		mmgrab(fd->mm);
 		fd->dd = dd;
@@ -376,7 +376,7 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 			(type == PIO_BUFS_SOP ?
 				(TXE_PIO_SIZE / 2) : 0); /* sop? */
 		/*
-		 * Map only the amount allocated to the context, not the
+		 * Map only the amount allocated to the context, yest the
 		 * entire available context's PIO space.
 		 */
 		memlen = PAGE_ALIGN(uctxt->sc->credits * PIO_BLOCK_SIZE);
@@ -405,9 +405,9 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		/*
 		 * The driver has already allocated memory for credit
 		 * returns and programmed it into the chip. Has that
-		 * memory been flagged as non-cached?
+		 * memory been flagged as yesn-cached?
 		 */
-		/* vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot); */
+		/* vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot); */
 		mapio = 1;
 		break;
 	case RCV_HDRQ:
@@ -419,7 +419,7 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		int i;
 		/*
 		 * The RcvEgr buffer need to be handled differently
-		 * as multiple non-contiguous pages need to be mapped
+		 * as multiple yesn-contiguous pages need to be mapped
 		 * into the user process.
 		 */
 		memlen = uctxt->egrbufs.size;
@@ -442,7 +442,7 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 				vma, addr,
 				/*
 				 * virt_to_pfn() does the same, but
-				 * it's not available on x86_64
+				 * it's yest available on x86_64
 				 * when CONFIG_MMU is enabled.
 				 */
 				PFN_DOWN(__pa(memvirt)),
@@ -469,13 +469,13 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		 */
 		memlen = PAGE_SIZE;
 		flags |= VM_DONTCOPY | VM_DONTEXPAND;
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 		mapio = 1;
 		break;
 	case EVENTS:
 		/*
 		 * Use the page where this context's flags are. User level
-		 * knows where it's own bitmap is within the page.
+		 * kyesws where it's own bitmap is within the page.
 		 */
 		memaddr = (unsigned long)
 			(dd->events + uctxt_offset(uctxt)) & PAGE_MASK;
@@ -588,7 +588,7 @@ done:
 }
 
 /*
- * Local (non-chip) user memory is not mapped right away but as it is
+ * Local (yesn-chip) user memory is yest mapped right away but as it is
  * accessed by the user-level code.
  */
 static vm_fault_t vma_fault(struct vm_fault *vmf)
@@ -623,11 +623,11 @@ static __poll_t hfi1_poll(struct file *fp, struct poll_table_struct *pt)
 	return pollflag;
 }
 
-static int hfi1_file_close(struct inode *inode, struct file *fp)
+static int hfi1_file_close(struct iyesde *iyesde, struct file *fp)
 {
 	struct hfi1_filedata *fdata = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fdata->uctxt;
-	struct hfi1_devdata *dd = container_of(inode->i_cdev,
+	struct hfi1_devdata *dd = container_of(iyesde->i_cdev,
 					       struct hfi1_devdata,
 					       user_cdev);
 	unsigned long flags, *ev;
@@ -650,7 +650,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	hfi1_user_exp_rcv_free(fdata);
 
 	/*
-	 * fdata->uctxt is used in the above cleanup.  It is not ready to be
+	 * fdata->uctxt is used in the above cleanup.  It is yest ready to be
 	 * removed until here.
 	 */
 	fdata->uctxt = NULL;
@@ -802,12 +802,12 @@ static int assign_ctxt(struct hfi1_filedata *fd, unsigned long arg, u32 len)
 	mutex_lock(&hfi1_mutex);
 	/*
 	 * Get a sub context if available  (fd->uctxt will be set).
-	 * ret < 0 error, 0 no context, 1 sub-context found
+	 * ret < 0 error, 0 yes context, 1 sub-context found
 	 */
 	ret = find_sub_ctxt(fd, &uinfo);
 
 	/*
-	 * Allocate a base context if context sharing is not required or a
+	 * Allocate a base context if context sharing is yest required or a
 	 * sub context wasn't found.
 	 */
 	if (!ret)
@@ -867,7 +867,7 @@ static int match_ctxt(struct hfi1_filedata *fd,
 	/* Find an unused sub context */
 	spin_lock_irqsave(&dd->uctxt_lock, flags);
 	if (bitmap_empty(uctxt->in_use_ctxts, HFI1_MAX_SHARED_CTXTS)) {
-		/* context is being closed, do not use */
+		/* context is being closed, do yest use */
 		spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 		return 0;
 	}
@@ -900,7 +900,7 @@ static int match_ctxt(struct hfi1_filedata *fd,
  * Return:
  *    0      No sub-context found
  *    1      Subcontext found and allocated
- *    errno  EINVAL (incorrect parameters)
+ *    erryes  EINVAL (incorrect parameters)
  *           EBUSY (all sub contexts in use)
  */
 static int find_sub_ctxt(struct hfi1_filedata *fd,
@@ -938,7 +938,7 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 	if (dd->flags & HFI1_FROZEN) {
 		/*
 		 * Pick an error that is unique from all other errors
-		 * that are returned so the user process knows that
+		 * that are returned so the user process kyesws that
 		 * it tried to allocate while the SPC was frozen.  It
 		 * it should be able to retry with success in a short
 		 * while.
@@ -950,14 +950,14 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 		return -EBUSY;
 
 	/*
-	 * If we don't have a NUMA node requested, preference is towards
-	 * device NUMA node.
+	 * If we don't have a NUMA yesde requested, preference is towards
+	 * device NUMA yesde.
 	 */
-	fd->rec_cpu_num = hfi1_get_proc_affinity(dd->node);
+	fd->rec_cpu_num = hfi1_get_proc_affinity(dd->yesde);
 	if (fd->rec_cpu_num != -1)
-		numa = cpu_to_node(fd->rec_cpu_num);
+		numa = cpu_to_yesde(fd->rec_cpu_num);
 	else
-		numa = numa_node_id();
+		numa = numa_yesde_id();
 	ret = hfi1_create_ctxtdata(dd->pport, numa, &uctxt);
 	if (ret < 0) {
 		dd_dev_err(dd, "user ctxtdata allocation failed\n");
@@ -970,7 +970,7 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 	/*
 	 * Allocate and enable a PIO send context.
 	 */
-	uctxt->sc = sc_alloc(dd, SC_USER, uctxt->rcvhdrqentsize, dd->node);
+	uctxt->sc = sc_alloc(dd, SC_USER, uctxt->rcvhdrqentsize, dd->yesde);
 	if (!uctxt->sc) {
 		ret = -ENOMEM;
 		goto ctxdata_free;
@@ -1101,7 +1101,7 @@ static void user_init(struct hfi1_ctxtdata *uctxt)
 	if (HFI1_CAP_UGET_MASK(uctxt->flags, HDRSUPP))
 		rcvctrl_ops |= HFI1_RCVCTRL_TIDFLOW_ENB;
 	/*
-	 * Ignore the bit in the flags for now until proper
+	 * Igyesre the bit in the flags for yesw until proper
 	 * support for multiple packet per rcv array entry is
 	 * added.
 	 */
@@ -1137,9 +1137,9 @@ static int get_ctxt_info(struct hfi1_filedata *fd, unsigned long arg, u32 len)
 				HFI1_CAP_MISC_MASK) << HFI1_CAP_USER_SHIFT) |
 			HFI1_CAP_UGET_MASK(uctxt->flags, MASK) |
 			HFI1_CAP_KGET_MASK(uctxt->flags, K2U);
-	/* adjust flag if this fd is not able to cache */
+	/* adjust flag if this fd is yest able to cache */
 	if (!fd->use_mn)
-		cinfo.runtime_flags |= HFI1_CAP_TID_UNMAP; /* no caching */
+		cinfo.runtime_flags |= HFI1_CAP_TID_UNMAP; /* yes caching */
 
 	cinfo.num_active = hfi1_count_active_units();
 	cinfo.unit = uctxt->dd->unit;
@@ -1149,7 +1149,7 @@ static int get_ctxt_info(struct hfi1_filedata *fd, unsigned long arg, u32 len)
 				uctxt->dd->rcv_entries.group_size) +
 		uctxt->expected_count;
 	cinfo.credits = uctxt->sc->credits;
-	cinfo.numa_node = uctxt->numa_id;
+	cinfo.numa_yesde = uctxt->numa_id;
 	cinfo.rec_cpu = fd->rec_cpu_num;
 	cinfo.send_ctxt = uctxt->sc->hw_context;
 
@@ -1229,7 +1229,7 @@ done:
 			set_bit(HFI1_CTXT_BASE_FAILED, &uctxt->event_flags);
 
 		/*
-		 * Base context is done (successfully or not), notify anybody
+		 * Base context is done (successfully or yest), yestify anybody
 		 * using a sub-context that is waiting for this completion.
 		 */
 		clear_bit(HFI1_CTXT_BASE_UNINIT, &uctxt->event_flags);
@@ -1496,7 +1496,7 @@ int hfi1_set_uevent_bits(struct hfi1_pportdata *ppd, const int evtbit)
 			unsigned long *evs;
 			int i;
 			/*
-			 * subctxt_cnt is 0 if not shared, so do base
+			 * subctxt_cnt is 0 if yest shared, so do base
 			 * separately, first, then remaining subctxt, if any
 			 */
 			evs = dd->events + uctxt_offset(uctxt);
@@ -1538,8 +1538,8 @@ static int manage_rcvq(struct hfi1_ctxtdata *uctxt, u16 subctxt,
 		/*
 		 * On enable, force in-memory copy of the tail register to
 		 * 0, so that protocol code doesn't have to worry about
-		 * whether or not the chip has yet updated the in-memory
-		 * copy or not on return from the system call. The chip
+		 * whether or yest the chip has yet updated the in-memory
+		 * copy or yest on return from the system call. The chip
 		 * always resets it's tail register back to 0 on a
 		 * transition from disabled to enabled.
 		 */
@@ -1556,7 +1556,7 @@ static int manage_rcvq(struct hfi1_ctxtdata *uctxt, u16 subctxt,
 }
 
 /*
- * clear the event notifier events for this context.
+ * clear the event yestifier events for this context.
  * User process then performs actions appropriate to bit having been
  * set, if desired, and checks again in future.
  */
@@ -1621,10 +1621,10 @@ static int ctxt_reset(struct hfi1_ctxtdata *uctxt)
 		return -EINVAL;
 
 	/*
-	 * There is no protection here. User level has to guarantee that
-	 * no one will be writing to the send context while it is being
+	 * There is yes protection here. User level has to guarantee that
+	 * yes one will be writing to the send context while it is being
 	 * re-initialized.  If user level breaks that guarantee, it will
-	 * break it's own context and no one else's.
+	 * break it's own context and yes one else's.
 	 */
 	dd = uctxt->dd;
 	sc = uctxt->sc;
@@ -1701,7 +1701,7 @@ int hfi1_device_create(struct hfi1_devdata *dd)
 
 /*
  * Remove per-unit files in /dev
- * void, core kernel returns no errors for this stuff
+ * void, core kernel returns yes errors for this stuff
  */
 void hfi1_device_remove(struct hfi1_devdata *dd)
 {

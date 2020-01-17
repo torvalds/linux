@@ -12,11 +12,11 @@ Required properties:
 
 The common video interfaces bindings (see video-interfaces.txt) should be
 used to specify link to the image data receiver. The OV5647 device
-node should contain one 'port' child node with an 'endpoint' subnode.
+yesde should contain one 'port' child yesde with an 'endpoint' subyesde.
 
-Endpoint node mandatory properties:
+Endpoint yesde mandatory properties:
 
-- remote-endpoint: A phandle to the bus receiver's endpoint node.
+- remote-endpoint: A phandle to the bus receiver's endpoint yesde.
 
 Example:
 

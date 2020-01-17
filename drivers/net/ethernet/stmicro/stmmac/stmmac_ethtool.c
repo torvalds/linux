@@ -83,10 +83,10 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(threshold),
 	STMMAC_STAT(tx_pkt_n),
 	STMMAC_STAT(rx_pkt_n),
-	STMMAC_STAT(normal_irq_n),
-	STMMAC_STAT(rx_normal_irq_n),
+	STMMAC_STAT(yesrmal_irq_n),
+	STMMAC_STAT(rx_yesrmal_irq_n),
 	STMMAC_STAT(napi_poll),
-	STMMAC_STAT(tx_normal_irq_n),
+	STMMAC_STAT(tx_yesrmal_irq_n),
 	STMMAC_STAT(tx_clean),
 	STMMAC_STAT(tx_set_ic_bit),
 	STMMAC_STAT(irq_receive_pmt_irq_n),
@@ -106,7 +106,7 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(ip_csum_bypassed),
 	STMMAC_STAT(ipv4_pkt_rcvd),
 	STMMAC_STAT(ipv6_pkt_rcvd),
-	STMMAC_STAT(no_ptp_rx_msg_type_ext),
+	STMMAC_STAT(yes_ptp_rx_msg_type_ext),
 	STMMAC_STAT(ptp_rx_msg_type_sync),
 	STMMAC_STAT(ptp_rx_msg_type_follow_up),
 	STMMAC_STAT(ptp_rx_msg_type_delay_req),
@@ -114,7 +114,7 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(ptp_rx_msg_type_pdelay_req),
 	STMMAC_STAT(ptp_rx_msg_type_pdelay_resp),
 	STMMAC_STAT(ptp_rx_msg_type_pdelay_follow_up),
-	STMMAC_STAT(ptp_rx_msg_type_announce),
+	STMMAC_STAT(ptp_rx_msg_type_anyesunce),
 	STMMAC_STAT(ptp_rx_msg_type_management),
 	STMMAC_STAT(ptp_rx_msg_pkt_reserved_type),
 	STMMAC_STAT(ptp_frame_type),
@@ -125,14 +125,14 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(vlan_tag_priority_val),
 	STMMAC_STAT(l3_filter_match),
 	STMMAC_STAT(l4_filter_match),
-	STMMAC_STAT(l3_l4_filter_no_match),
+	STMMAC_STAT(l3_l4_filter_yes_match),
 	/* PCS */
 	STMMAC_STAT(irq_pcs_ane_n),
 	STMMAC_STAT(irq_pcs_link_n),
 	STMMAC_STAT(irq_rgmii_n),
 	/* DEBUG */
 	STMMAC_STAT(mtl_tx_status_fifo_full),
-	STMMAC_STAT(mtl_tx_fifo_not_empty),
+	STMMAC_STAT(mtl_tx_fifo_yest_empty),
 	STMMAC_STAT(mmtl_fifo_ctrl),
 	STMMAC_STAT(mtl_tx_fifo_read_ctrl_write),
 	STMMAC_STAT(mtl_tx_fifo_read_ctrl_wait),
@@ -220,20 +220,20 @@ static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_rx_ipc_intr),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_gd),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_hderr),
-	STMMAC_MMC_STAT(mmc_rx_ipv4_nopay),
+	STMMAC_MMC_STAT(mmc_rx_ipv4_yespay),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_frag),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_udsbl),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_gd_octets),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_hderr_octets),
-	STMMAC_MMC_STAT(mmc_rx_ipv4_nopay_octets),
+	STMMAC_MMC_STAT(mmc_rx_ipv4_yespay_octets),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_frag_octets),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_udsbl_octets),
 	STMMAC_MMC_STAT(mmc_rx_ipv6_gd_octets),
 	STMMAC_MMC_STAT(mmc_rx_ipv6_hderr_octets),
-	STMMAC_MMC_STAT(mmc_rx_ipv6_nopay_octets),
+	STMMAC_MMC_STAT(mmc_rx_ipv6_yespay_octets),
 	STMMAC_MMC_STAT(mmc_rx_ipv6_gd),
 	STMMAC_MMC_STAT(mmc_rx_ipv6_hderr),
-	STMMAC_MMC_STAT(mmc_rx_ipv6_nopay),
+	STMMAC_MMC_STAT(mmc_rx_ipv6_yespay),
 	STMMAC_MMC_STAT(mmc_rx_udp_gd),
 	STMMAC_MMC_STAT(mmc_rx_udp_err),
 	STMMAC_MMC_STAT(mmc_rx_tcp_gd),
@@ -491,7 +491,7 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 	}
 
 	/* Update the DMA HW counters for dwmac10/100 */
-	ret = stmmac_dma_diagnostic_fr(priv, &dev->stats, (void *) &priv->xstats,
+	ret = stmmac_dma_diagyesstic_fr(priv, &dev->stats, (void *) &priv->xstats,
 			priv->ioaddr);
 	if (ret) {
 		/* If supported, for new GMAC chips expose the MMC counters */
@@ -513,7 +513,7 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 				priv->xstats.phy_eee_wakeup_error_n = val;
 		}
 
-		if (priv->synopsys_id >= DWMAC_CORE_3_50)
+		if (priv->syyespsys_id >= DWMAC_CORE_3_50)
 			stmmac_mac_debug(priv, priv->ioaddr,
 					(void *)&priv->xstats,
 					rx_queues_count, tx_queues_count);
@@ -615,7 +615,7 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	/* By default almost all GMAC devices support the WoL via
 	 * magic frame but we can disable it if the HW capability
-	 * register shows no support for pmt_magic_frame. */
+	 * register shows yes support for pmt_magic_frame. */
 	if ((priv->hw_cap_support) && (!priv->dma_cap.pmt_magic_frame))
 		wol->wolopts &= ~WAKE_MAGIC;
 
@@ -732,7 +732,7 @@ static int stmmac_set_coalesce(struct net_device *dev,
 	u32 rx_cnt = priv->plat->rx_queues_to_use;
 	unsigned int rx_riwt;
 
-	/* Check not supported parameters  */
+	/* Check yest supported parameters  */
 	if ((ec->rx_coalesce_usecs_irq) ||
 	    (ec->rx_max_coalesced_frames_irq) || (ec->tx_coalesce_usecs_irq) ||
 	    (ec->use_adaptive_rx_coalesce) || (ec->use_adaptive_tx_coalesce) ||
@@ -764,7 +764,7 @@ static int stmmac_set_coalesce(struct net_device *dev,
 	    (ec->tx_max_coalesced_frames > STMMAC_TX_MAX_FRAMES))
 		return -EINVAL;
 
-	/* Only copy relevant parameters, ignore all others. */
+	/* Only copy relevant parameters, igyesre all others. */
 	priv->tx_coal_frames = ec->tx_max_coalesced_frames;
 	priv->tx_coal_timer = ec->tx_coalesce_usecs;
 	priv->rx_coal_frames = ec->rx_max_coalesced_frames;

@@ -502,7 +502,7 @@ static irqreturn_t qcom_rpm_ack_interrupt(int irq, void *dev)
 	writel(0, RPM_CTRL_REG(rpm, rpm->data->ack_ctx_off));
 
 	if (ack & RPM_NOTIFICATION) {
-		dev_warn(rpm->dev, "ignoring notification!\n");
+		dev_warn(rpm->dev, "igyesring yestification!\n");
 	} else {
 		rpm->ack_status = ack;
 		complete(&rpm->ack);
@@ -529,7 +529,7 @@ static irqreturn_t qcom_rpm_wakeup_interrupt(int irq, void *dev)
 static int qcom_rpm_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
-	struct device_node *syscon_np;
+	struct device_yesde *syscon_np;
 	struct resource *res;
 	struct qcom_rpm *rpm;
 	u32 fw_version[3];
@@ -554,7 +554,7 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 			return ret;
 		/*
 		 * Fall through in all other cases, as the clock is
-		 * optional. (Does not exist on all platforms.)
+		 * optional. (Does yest exist on all platforms.)
 		 */
 		rpm->ramclk = NULL;
 	}
@@ -584,28 +584,28 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	rpm->ctrl_regs = rpm->status_regs + 0x400;
 	rpm->req_regs = rpm->status_regs + 0x600;
 
-	syscon_np = of_parse_phandle(pdev->dev.of_node, "qcom,ipc", 0);
+	syscon_np = of_parse_phandle(pdev->dev.of_yesde, "qcom,ipc", 0);
 	if (!syscon_np) {
-		dev_err(&pdev->dev, "no qcom,ipc node\n");
+		dev_err(&pdev->dev, "yes qcom,ipc yesde\n");
 		return -ENODEV;
 	}
 
-	rpm->ipc_regmap = syscon_node_to_regmap(syscon_np);
-	of_node_put(syscon_np);
+	rpm->ipc_regmap = syscon_yesde_to_regmap(syscon_np);
+	of_yesde_put(syscon_np);
 	if (IS_ERR(rpm->ipc_regmap))
 		return PTR_ERR(rpm->ipc_regmap);
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "qcom,ipc", 1,
+	ret = of_property_read_u32_index(pdev->dev.of_yesde, "qcom,ipc", 1,
 					 &rpm->ipc_offset);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "no offset in qcom,ipc\n");
+		dev_err(&pdev->dev, "yes offset in qcom,ipc\n");
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "qcom,ipc", 2,
+	ret = of_property_read_u32_index(pdev->dev.of_yesde, "qcom,ipc", 2,
 					 &rpm->ipc_bit);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "no bit in qcom,ipc\n");
+		dev_err(&pdev->dev, "yes bit in qcom,ipc\n");
 		return -EINVAL;
 	}
 
@@ -673,7 +673,7 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(&pdev->dev, "failed to mark wakeup irq as wakeup\n");
 
-	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	return of_platform_populate(pdev->dev.of_yesde, NULL, NULL, &pdev->dev);
 }
 
 static int qcom_rpm_remove(struct platform_device *pdev)

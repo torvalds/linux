@@ -27,7 +27,7 @@ enum {
 	PG_MAPPED,		/* page private set for buffered io */
 	PG_CLEAN,		/* write succeeded */
 	PG_COMMIT_TO_DS,	/* used by pnfs layouts */
-	PG_INODE_REF,		/* extra ref held by inode when in writeback */
+	PG_INODE_REF,		/* extra ref held by iyesde when in writeback */
 	PG_HEADLOCK,		/* page group lock of wb_head */
 	PG_TEARDOWN,		/* page group sync for destroy */
 	PG_UNLOCKPAGE,		/* page group sync bit in read path */
@@ -38,7 +38,7 @@ enum {
 	PG_CONTENDED2,		/* Is someone waiting for a lock? */
 };
 
-struct nfs_inode;
+struct nfs_iyesde;
 struct nfs_page {
 	struct list_head	wb_list;	/* Defines state of page: */
 	struct page		*wb_page;	/* page to read in/write out */
@@ -70,7 +70,7 @@ struct nfs_rw_ops {
 	struct nfs_pgio_header *(*rw_alloc_header)(void);
 	void (*rw_free_header)(struct nfs_pgio_header *);
 	int  (*rw_done)(struct rpc_task *, struct nfs_pgio_header *,
-			struct inode *);
+			struct iyesde *);
 	void (*rw_result)(struct rpc_task *, struct nfs_pgio_header *);
 	void (*rw_initiate)(struct nfs_pgio_header *, struct rpc_message *,
 			    const struct nfs_rpc_ops *,
@@ -87,7 +87,7 @@ struct nfs_pgio_mirror {
 };
 
 struct nfs_pageio_descriptor {
-	struct inode		*pg_inode;
+	struct iyesde		*pg_iyesde;
 	const struct nfs_pageio_ops *pg_ops;
 	const struct nfs_rw_ops *pg_rw_ops;
 	int 			pg_ioflags;
@@ -121,7 +121,7 @@ extern	void nfs_release_request(struct nfs_page *);
 
 
 extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
-			     struct inode *inode,
+			     struct iyesde *iyesde,
 			     const struct nfs_pageio_ops *pg_ops,
 			     const struct nfs_pgio_completion_ops *compl_ops,
 			     const struct nfs_rw_ops *rw_ops,
@@ -145,7 +145,7 @@ extern bool nfs_page_group_sync_on_bit(struct nfs_page *, unsigned int);
 extern bool nfs_async_iocounter_wait(struct rpc_task *, struct nfs_lock_context *);
 
 /*
- * Lock the page of an asynchronous request
+ * Lock the page of an asynchroyesus request
  */
 static inline int
 nfs_lock_request(struct nfs_page *req)

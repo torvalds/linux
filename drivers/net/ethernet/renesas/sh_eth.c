@@ -485,7 +485,7 @@ static void sh_eth_select_mii(struct net_device *ndev)
 		break;
 	default:
 		netdev_warn(ndev,
-			    "PHY interface mode was not setup. Set to MII.\n");
+			    "PHY interface mode was yest setup. Set to MII.\n");
 		value = 0x1;
 		break;
 	}
@@ -610,19 +610,19 @@ static struct sh_eth_cpu_data r7s72100_data = {
 			  EESR_TDE,
 	.fdr_value	= 0x0000070f,
 
-	.no_psr		= 1,
+	.yes_psr		= 1,
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
-	.no_trimd	= 1,
-	.no_ade		= 1,
+	.yes_trimd	= 1,
+	.yes_ade		= 1,
 	.xdfar_rw	= 1,
 	.csmr		= 1,
 	.rx_csum	= 1,
 	.tsu		= 1,
-	.no_tx_cntrs	= 1,
+	.yes_tx_cntrs	= 1,
 };
 
 static void sh_eth_chip_reset_r8a7740(struct net_device *ndev)
@@ -666,8 +666,8 @@ static struct sh_eth_cpu_data r8a7740_data = {
 	.bculr		= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
-	.no_trimd	= 1,
-	.no_ade		= 1,
+	.yes_trimd	= 1,
+	.yes_ade		= 1,
 	.xdfar_rw	= 1,
 	.csmr		= 1,
 	.rx_csum	= 1,
@@ -720,7 +720,7 @@ static struct sh_eth_cpu_data rcar_gen1_data = {
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
-	.no_xdfar	= 1,
+	.yes_xdfar	= 1,
 };
 
 /* R-Car Gen2 and RZ/G1 */
@@ -754,7 +754,7 @@ static struct sh_eth_cpu_data rcar_gen2_data = {
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
-	.no_xdfar	= 1,
+	.yes_xdfar	= 1,
 	.rmiimode	= 1,
 	.magic		= 1,
 };
@@ -792,8 +792,8 @@ static struct sh_eth_cpu_data r8a77980_data = {
 	.hw_swap	= 1,
 	.nbst		= 1,
 	.rpadir		= 1,
-	.no_trimd	= 1,
-	.no_ade		= 1,
+	.yes_trimd	= 1,
+	.yes_ade		= 1,
 	.xdfar_rw	= 1,
 	.csmr		= 1,
 	.rx_csum	= 1,
@@ -833,7 +833,7 @@ static struct sh_eth_cpu_data r7s9210_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
-	.no_ade		= 1,
+	.yes_ade		= 1,
 	.xdfar_rw	= 1,
 };
 #endif /* CONFIG_OF */
@@ -924,7 +924,7 @@ static struct sh_eth_cpu_data sh7757_data = {
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
-	.no_ade		= 1,
+	.yes_ade		= 1,
 	.rpadir		= 1,
 	.rtrate		= 1,
 	.dual_port	= 1,
@@ -1005,8 +1005,8 @@ static struct sh_eth_cpu_data sh7757_data_giga = {
 	.bculr		= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
-	.no_trimd	= 1,
-	.no_ade		= 1,
+	.yes_trimd	= 1,
+	.yes_ade		= 1,
 	.xdfar_rw	= 1,
 	.tsu		= 1,
 	.cexcr		= 1,
@@ -1044,8 +1044,8 @@ static struct sh_eth_cpu_data sh7734_data = {
 	.tpauser	= 1,
 	.bculr		= 1,
 	.hw_swap	= 1,
-	.no_trimd	= 1,
-	.no_ade		= 1,
+	.yes_trimd	= 1,
+	.yes_ade		= 1,
 	.xdfar_rw	= 1,
 	.tsu		= 1,
 	.csmr		= 1,
@@ -1085,8 +1085,8 @@ static struct sh_eth_cpu_data sh7763_data = {
 	.tpauser	= 1,
 	.bculr		= 1,
 	.hw_swap	= 1,
-	.no_trimd	= 1,
-	.no_ade		= 1,
+	.yes_trimd	= 1,
+	.yes_ade		= 1,
 	.xdfar_rw	= 1,
 	.tsu		= 1,
 	.irq_flags	= IRQF_SHARED,
@@ -1526,7 +1526,7 @@ static int sh_eth_dev_init(struct net_device *ndev)
 
 	sh_eth_write(ndev, mdp->cd->fcftr_value, FCFTR);
 
-	if (!mdp->cd->no_trimd)
+	if (!mdp->cd->yes_trimd)
 		sh_eth_write(ndev, 0, TRIMD);
 
 	/* Recv frame limit set register */
@@ -1587,7 +1587,7 @@ static void sh_eth_dev_exit(struct net_device *ndev)
 
 	/* Aside from TX DMA, we can't tell when the hardware is
 	 * really stopped, so we need to reset to make sure.
-	 * Before doing that, wait for long enough to *probably*
+	 * Before doing that, wait for long eyesugh to *probably*
 	 * finish transmitting the last packet and poll stats.
 	 */
 	msleep(2); /* max frame time at 10 Mbps < 1250 us */
@@ -1722,7 +1722,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 			}
 			mdp->rx_skbuff[entry] = skb;
 
-			skb_checksum_none_assert(skb);
+			skb_checksum_yesne_assert(skb);
 			rxdesc->addr = cpu_to_le32(dma_addr);
 		}
 		dma_wmb(); /* RACT bit must be set after all the above writes */
@@ -1737,7 +1737,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 	/* If we don't need to check status, don't. -KDU */
 	if (!(sh_eth_read(ndev, EDRRR) & EDRRR_R)) {
 		/* fix the values for the next receiving if RDE is set */
-		if (intr_status & EESR_RDE && !mdp->cd->no_xdfar) {
+		if (intr_status & EESR_RDE && !mdp->cd->yes_xdfar) {
 			u32 count = (sh_eth_read(ndev, RDFAR) -
 				     sh_eth_read(ndev, RDLAR)) >> 4;
 
@@ -1779,7 +1779,7 @@ static void sh_eth_emac_interrupt(struct net_device *ndev)
 		pm_wakeup_event(&mdp->pdev->dev, 0);
 	if (felic_stat & ECSR_LCHNG) {
 		/* Link Changed */
-		if (mdp->cd->no_psr || mdp->no_ether_link)
+		if (mdp->cd->yes_psr || mdp->yes_ether_link)
 			return;
 		link_stat = sh_eth_read(ndev, PSR);
 		if (mdp->ether_link_active_low)
@@ -1842,14 +1842,14 @@ static void sh_eth_error(struct net_device *ndev, u32 intr_status)
 		ndev->stats.rx_fifo_errors++;
 	}
 
-	if (!mdp->cd->no_ade && (intr_status & EESR_ADE)) {
+	if (!mdp->cd->yes_ade && (intr_status & EESR_ADE)) {
 		/* Address Error */
 		ndev->stats.tx_fifo_errors++;
 		netif_err(mdp, tx_err, ndev, "Address Error\n");
 	}
 
 	mask = EESR_TWB | EESR_TABT | EESR_ADE | EESR_TDE | EESR_TFE;
-	if (mdp->cd->no_ade)
+	if (mdp->cd->yes_ade)
 		mask &= ~EESR_ADE;
 	if (intr_status & mask) {
 		/* Tx error */
@@ -1911,7 +1911,7 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 			__napi_schedule(&mdp->napi);
 		} else {
 			netdev_warn(ndev,
-				    "ignoring interrupt, status 0x%08x, mask 0x%08x.\n",
+				    "igyesring interrupt, status 0x%08x, mask 0x%08x.\n",
 				    intr_status, intr_enable);
 		}
 	}
@@ -1980,8 +1980,8 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 
 	spin_lock_irqsave(&mdp->lock, flags);
 
-	/* Disable TX and RX right over here, if E-MAC change is ignored */
-	if (mdp->cd->no_psr || mdp->no_ether_link)
+	/* Disable TX and RX right over here, if E-MAC change is igyesred */
+	if (mdp->cd->yes_psr || mdp->yes_ether_link)
 		sh_eth_rcv_snd_disable(ndev);
 
 	if (phydev->link) {
@@ -2010,8 +2010,8 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 		mdp->duplex = -1;
 	}
 
-	/* Enable TX and RX right over here, if E-MAC change is ignored */
-	if ((mdp->cd->no_psr || mdp->no_ether_link) && phydev->link)
+	/* Enable TX and RX right over here, if E-MAC change is igyesred */
+	if ((mdp->cd->yes_psr || mdp->yes_ether_link) && phydev->link)
 		sh_eth_rcv_snd_enable(ndev);
 
 	spin_unlock_irqrestore(&mdp->lock, flags);
@@ -2023,7 +2023,7 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 /* PHY init function */
 static int sh_eth_phy_init(struct net_device *ndev)
 {
-	struct device_node *np = ndev->dev.parent->of_node;
+	struct device_yesde *np = ndev->dev.parent->of_yesde;
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct phy_device *phydev;
 
@@ -2033,14 +2033,14 @@ static int sh_eth_phy_init(struct net_device *ndev)
 
 	/* Try connect to PHY */
 	if (np) {
-		struct device_node *pn;
+		struct device_yesde *pn;
 
 		pn = of_parse_phandle(np, "phy-handle", 0);
 		phydev = of_phy_connect(ndev, pn,
 					sh_eth_adjust_link, 0,
 					mdp->phy_interface);
 
-		of_node_put(pn);
+		of_yesde_put(pn);
 		if (!phydev)
 			phydev = ERR_PTR(-ENOENT);
 	} else {
@@ -2159,13 +2159,13 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
 	add_reg(FCFTR);
 	if (cd->rpadir)
 		add_reg(RPADIR);
-	if (!cd->no_trimd)
+	if (!cd->yes_trimd)
 		add_reg(TRIMD);
 	add_reg(ECMR);
 	add_reg(ECSR);
 	add_reg(ECSIPR);
 	add_reg(PIR);
-	if (!cd->no_psr)
+	if (!cd->yes_psr)
 		add_reg(PSR);
 	add_reg(RDMLR);
 	add_reg(RFLR);
@@ -2228,7 +2228,7 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
 		add_tsu_reg(TSU_POST2);
 		add_tsu_reg(TSU_POST3);
 		add_tsu_reg(TSU_POST4);
-		/* This is the start of a table, not just a single register. */
+		/* This is the start of a table, yest just a single register. */
 		if (buf) {
 			unsigned int i;
 
@@ -2444,7 +2444,7 @@ static int sh_eth_open(struct net_device *ndev)
 	ret = request_irq(ndev->irq, sh_eth_interrupt,
 			  mdp->cd->irq_flags, ndev->name, ndev);
 	if (ret) {
-		netdev_err(ndev, "Can not assign IRQ number\n");
+		netdev_err(ndev, "Can yest assign IRQ number\n");
 		goto out_napi_off;
 	}
 
@@ -2566,7 +2566,7 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 /* The statistics registers have write-clear behaviour, which means we
  * will lose any increment between the read and write.  We mitigate
- * this by only clearing when we read a non-zero value, so we will
+ * this by only clearing when we read a yesn-zero value, so we will
  * never falsely report a total of zero.
  */
 static void
@@ -2584,7 +2584,7 @@ static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
-	if (mdp->cd->no_tx_cntrs)
+	if (mdp->cd->yes_tx_cntrs)
 		return &ndev->stats;
 
 	if (!mdp->is_opened)
@@ -3112,7 +3112,7 @@ static int sh_mdio_init(struct sh_eth_private *mdp,
 	if (pd->phy_irq > 0)
 		mdp->mii_bus->irq[pd->phy] = pd->phy_irq;
 
-	ret = of_mdiobus_register(mdp->mii_bus, dev->of_node);
+	ret = of_mdiobus_register(mdp->mii_bus, dev->of_yesde);
 	if (ret)
 		goto out_free_bus;
 
@@ -3181,7 +3181,7 @@ static const struct net_device_ops sh_eth_netdev_ops_tsu = {
 #ifdef CONFIG_OF
 static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct sh_eth_plat_data *pdata;
 	phy_interface_t interface;
 	const char *mac_addr;
@@ -3200,8 +3200,8 @@ static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 	if (!IS_ERR(mac_addr))
 		ether_addr_copy(pdata->mac_addr, mac_addr);
 
-	pdata->no_ether_link =
-		of_property_read_bool(np, "renesas,no-ether-link");
+	pdata->yes_ether_link =
+		of_property_read_bool(np, "renesas,yes-ether-link");
 	pdata->ether_link_active_low =
 		of_property_read_bool(np, "renesas,ether-link-active-low");
 
@@ -3273,10 +3273,10 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	spin_lock_init(&mdp->lock);
 	mdp->pdev = pdev;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		pd = sh_eth_parse_dt(&pdev->dev);
 	if (!pd) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "yes platform data\n");
 		ret = -EINVAL;
 		goto out_release;
 	}
@@ -3284,7 +3284,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	/* get PHY ID */
 	mdp->phy_id = pd->phy;
 	mdp->phy_interface = pd->phy_interface;
-	mdp->no_ether_link = pd->no_ether_link;
+	mdp->yes_ether_link = pd->yes_ether_link;
 	mdp->ether_link_active_low = pd->ether_link_active_low;
 
 	/* set cpu data */
@@ -3295,7 +3295,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	mdp->reg_offset = sh_eth_get_register_offset(mdp->cd->register_type);
 	if (!mdp->reg_offset) {
-		dev_err(&pdev->dev, "Unknown register type (%d)\n",
+		dev_err(&pdev->dev, "Unkyeswn register type (%d)\n",
 			mdp->cd->register_type);
 		ret = -EINVAL;
 		goto out_release;
@@ -3329,7 +3329,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	read_mac_address(ndev, pd->mac_addr);
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		dev_warn(&pdev->dev,
-			 "no valid MAC address supplied, using a random one.\n");
+			 "yes valid MAC address supplied, using a random one.\n");
 		eth_hw_addr_random(ndev);
 	}
 
@@ -3339,7 +3339,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 		rtsu = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		if (!rtsu) {
-			dev_err(&pdev->dev, "no TSU resource\n");
+			dev_err(&pdev->dev, "yes TSU resource\n");
 			ret = -ENODEV;
 			goto out_release;
 		}
@@ -3516,13 +3516,13 @@ static int sh_eth_resume(struct device *dev)
 }
 #endif
 
-static int sh_eth_runtime_nop(struct device *dev)
+static int sh_eth_runtime_yesp(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
 	 * and ->runtime_resume(). Simply returns success.
 	 *
 	 * This driver re-initializes all registers after
-	 * pm_runtime_get_sync() anyway so there is no need
+	 * pm_runtime_get_sync() anyway so there is yes need
 	 * to save and restore registers here.
 	 */
 	return 0;
@@ -3530,7 +3530,7 @@ static int sh_eth_runtime_nop(struct device *dev)
 
 static const struct dev_pm_ops sh_eth_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sh_eth_suspend, sh_eth_resume)
-	SET_RUNTIME_PM_OPS(sh_eth_runtime_nop, sh_eth_runtime_nop, NULL)
+	SET_RUNTIME_PM_OPS(sh_eth_runtime_yesp, sh_eth_runtime_yesp, NULL)
 };
 #define SH_ETH_PM_OPS (&sh_eth_dev_pm_ops)
 #else

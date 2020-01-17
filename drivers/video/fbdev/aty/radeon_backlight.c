@@ -146,7 +146,7 @@ void radeonfb_bl_init(struct radeonfb_info *rinfo)
 		goto error;
 	}
 
-	snprintf(name, sizeof(name), "radeonbl%d", rinfo->info->node);
+	snprintf(name, sizeof(name), "radeonbl%d", rinfo->info->yesde);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;

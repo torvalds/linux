@@ -48,7 +48,7 @@ struct coh901318_lli {
  * @dev: dma device
  * @lli_nbr: number of lli:s in the pool
  * @algin: address alignemtn of lli:s
- * returns 0 on success otherwise none zero
+ * returns 0 on success otherwise yesne zero
  */
 int coh901318_pool_create(struct coh901318_pool *pool,
 			  struct device *dev,
@@ -57,7 +57,7 @@ int coh901318_pool_create(struct coh901318_pool *pool,
 /**
  * coh901318_pool_destroy() - Destroys the dma pool
  * @pool: pool handle
- * returns 0 on success otherwise none zero
+ * returns 0 on success otherwise yesne zero
  */
 int coh901318_pool_destroy(struct coh901318_pool *pool);
 
@@ -66,7 +66,7 @@ int coh901318_pool_destroy(struct coh901318_pool *pool);
  *
  * @pool: pool handle
  * @len: length to list
- * return: none NULL if success otherwise NULL
+ * return: yesne NULL if success otherwise NULL
  */
 struct coh901318_lli *
 coh901318_lli_alloc(struct coh901318_pool *pool,

@@ -60,7 +60,7 @@ struct netcp_addr {
 	unsigned char		addr[ETH_ALEN];
 	enum netcp_addr_type	type;
 	unsigned int		flags;
-	struct list_head	node;
+	struct list_head	yesde;
 };
 
 struct netcp_stats {
@@ -117,7 +117,7 @@ struct netcp_intf {
 	/* Lock used for protecting Rx/Tx hook list management */
 	spinlock_t		lock;
 	struct netcp_device	*netcp_device;
-	struct device_node	*node_interface;
+	struct device_yesde	*yesde_interface;
 
 	/* DMA configuration data */
 	u32			msg_enable;
@@ -191,13 +191,13 @@ struct netcp_module {
 
 	/* probe/remove: called once per NETCP instance */
 	int	(*probe)(struct netcp_device *netcp_device,
-			 struct device *device, struct device_node *node,
+			 struct device *device, struct device_yesde *yesde,
 			 void **inst_priv);
 	int	(*remove)(struct netcp_device *netcp_device, void *inst_priv);
 
 	/* attach/release: called once per network interface */
 	int	(*attach)(void *inst_priv, struct net_device *ndev,
-			  struct device_node *node, void **intf_priv);
+			  struct device_yesde *yesde, void **intf_priv);
 	int	(*release)(void *intf_priv);
 	int	(*open)(void *intf_priv, struct net_device *ndev);
 	int	(*close)(void *intf_priv, struct net_device *ndev);

@@ -10,7 +10,7 @@
 
 #include "libfdt_internal.h"
 
-static int fdt_nodename_eq_(const void *fdt, int offset,
+static int fdt_yesdename_eq_(const void *fdt, int offset,
 			    const char *s, int len)
 {
 	int olen;
@@ -107,7 +107,7 @@ int fdt_find_max_phandle(const void *fdt, uint32_t *phandle)
 	while (true) {
 		uint32_t value;
 
-		offset = fdt_next_node(fdt, offset, NULL);
+		offset = fdt_next_yesde(fdt, offset, NULL);
 		if (offset < 0) {
 			if (offset == -FDT_ERR_NOTFOUND)
 				break;
@@ -207,7 +207,7 @@ static int nextprop_(const void *fdt, int offset)
 	return -FDT_ERR_NOTFOUND;
 }
 
-int fdt_subnode_offset_namelen(const void *fdt, int offset,
+int fdt_subyesde_offset_namelen(const void *fdt, int offset,
 			       const char *name, int namelen)
 {
 	int depth;
@@ -216,9 +216,9 @@ int fdt_subnode_offset_namelen(const void *fdt, int offset,
 
 	for (depth = 0;
 	     (offset >= 0) && (depth >= 0);
-	     offset = fdt_next_node(fdt, offset, &depth))
+	     offset = fdt_next_yesde(fdt, offset, &depth))
 		if ((depth == 1)
-		    && fdt_nodename_eq_(fdt, offset, name, namelen))
+		    && fdt_yesdename_eq_(fdt, offset, name, namelen))
 			return offset;
 
 	if (depth < 0)
@@ -226,10 +226,10 @@ int fdt_subnode_offset_namelen(const void *fdt, int offset,
 	return offset; /* error */
 }
 
-int fdt_subnode_offset(const void *fdt, int parentoffset,
+int fdt_subyesde_offset(const void *fdt, int parentoffset,
 		       const char *name)
 {
-	return fdt_subnode_offset_namelen(fdt, parentoffset, name, strlen(name));
+	return fdt_subyesde_offset_namelen(fdt, parentoffset, name, strlen(name));
 }
 
 int fdt_path_offset_namelen(const void *fdt, const char *path, int namelen)
@@ -267,7 +267,7 @@ int fdt_path_offset_namelen(const void *fdt, const char *path, int namelen)
 		if (! q)
 			q = end;
 
-		offset = fdt_subnode_offset_namelen(fdt, offset, p, q-p);
+		offset = fdt_subyesde_offset_namelen(fdt, offset, p, q-p);
 		if (offset < 0)
 			return offset;
 
@@ -282,14 +282,14 @@ int fdt_path_offset(const void *fdt, const char *path)
 	return fdt_path_offset_namelen(fdt, path, strlen(path));
 }
 
-const char *fdt_get_name(const void *fdt, int nodeoffset, int *len)
+const char *fdt_get_name(const void *fdt, int yesdeoffset, int *len)
 {
-	const struct fdt_node_header *nh = fdt_offset_ptr_(fdt, nodeoffset);
+	const struct fdt_yesde_header *nh = fdt_offset_ptr_(fdt, yesdeoffset);
 	const char *nameptr;
 	int err;
 
 	if (((err = fdt_ro_probe_(fdt)) != 0)
-	    || ((err = fdt_check_node_offset_(fdt, nodeoffset)) < 0))
+	    || ((err = fdt_check_yesde_offset_(fdt, yesdeoffset)) < 0))
 			goto fail;
 
 	nameptr = nh->name;
@@ -320,11 +320,11 @@ const char *fdt_get_name(const void *fdt, int nodeoffset, int *len)
 	return NULL;
 }
 
-int fdt_first_property_offset(const void *fdt, int nodeoffset)
+int fdt_first_property_offset(const void *fdt, int yesdeoffset)
 {
 	int offset;
 
-	if ((offset = fdt_check_node_offset_(fdt, nodeoffset)) < 0)
+	if ((offset = fdt_check_yesde_offset_(fdt, yesdeoffset)) < 0)
 		return offset;
 
 	return nextprop_(fdt, offset);
@@ -364,7 +364,7 @@ const struct fdt_property *fdt_get_property_by_offset(const void *fdt,
 						      int *lenp)
 {
 	/* Prior to version 16, properties may need realignment
-	 * and this API does not work. fdt_getprop_*() will, however. */
+	 * and this API does yest work. fdt_getprop_*() will, however. */
 
 	if (fdt_version(fdt) < 0x10) {
 		if (lenp)
@@ -411,7 +411,7 @@ const struct fdt_property *fdt_get_property_namelen(const void *fdt,
 						    int namelen, int *lenp)
 {
 	/* Prior to version 16, properties may need realignment
-	 * and this API does not work. fdt_getprop_*() will, however. */
+	 * and this API does yest work. fdt_getprop_*() will, however. */
 	if (fdt_version(fdt) < 0x10) {
 		if (lenp)
 			*lenp = -FDT_ERR_BADVERSION;
@@ -424,20 +424,20 @@ const struct fdt_property *fdt_get_property_namelen(const void *fdt,
 
 
 const struct fdt_property *fdt_get_property(const void *fdt,
-					    int nodeoffset,
+					    int yesdeoffset,
 					    const char *name, int *lenp)
 {
-	return fdt_get_property_namelen(fdt, nodeoffset, name,
+	return fdt_get_property_namelen(fdt, yesdeoffset, name,
 					strlen(name), lenp);
 }
 
-const void *fdt_getprop_namelen(const void *fdt, int nodeoffset,
+const void *fdt_getprop_namelen(const void *fdt, int yesdeoffset,
 				const char *name, int namelen, int *lenp)
 {
 	int poffset;
 	const struct fdt_property *prop;
 
-	prop = fdt_get_property_namelen_(fdt, nodeoffset, name, namelen, lenp,
+	prop = fdt_get_property_namelen_(fdt, yesdeoffset, name, namelen, lenp,
 					 &poffset);
 	if (!prop)
 		return NULL;
@@ -477,22 +477,22 @@ const void *fdt_getprop_by_offset(const void *fdt, int offset,
 	return prop->data;
 }
 
-const void *fdt_getprop(const void *fdt, int nodeoffset,
+const void *fdt_getprop(const void *fdt, int yesdeoffset,
 			const char *name, int *lenp)
 {
-	return fdt_getprop_namelen(fdt, nodeoffset, name, strlen(name), lenp);
+	return fdt_getprop_namelen(fdt, yesdeoffset, name, strlen(name), lenp);
 }
 
-uint32_t fdt_get_phandle(const void *fdt, int nodeoffset)
+uint32_t fdt_get_phandle(const void *fdt, int yesdeoffset)
 {
 	const fdt32_t *php;
 	int len;
 
 	/* FIXME: This is a bit sub-optimal, since we potentially scan
 	 * over all the properties twice. */
-	php = fdt_getprop(fdt, nodeoffset, "phandle", &len);
+	php = fdt_getprop(fdt, yesdeoffset, "phandle", &len);
 	if (!php || (len != sizeof(*php))) {
-		php = fdt_getprop(fdt, nodeoffset, "linux,phandle", &len);
+		php = fdt_getprop(fdt, yesdeoffset, "linux,phandle", &len);
 		if (!php || (len != sizeof(*php)))
 			return 0;
 	}
@@ -517,7 +517,7 @@ const char *fdt_get_alias(const void *fdt, const char *name)
 	return fdt_get_alias_namelen(fdt, name, strlen(name));
 }
 
-int fdt_get_path(const void *fdt, int nodeoffset, char *buf, int buflen)
+int fdt_get_path(const void *fdt, int yesdeoffset, char *buf, int buflen)
 {
 	int pdepth = 0, p = 0;
 	int offset, depth, namelen;
@@ -529,8 +529,8 @@ int fdt_get_path(const void *fdt, int nodeoffset, char *buf, int buflen)
 		return -FDT_ERR_NOSPACE;
 
 	for (offset = 0, depth = 0;
-	     (offset >= 0) && (offset <= nodeoffset);
-	     offset = fdt_next_node(fdt, offset, &depth)) {
+	     (offset >= 0) && (offset <= yesdeoffset);
+	     offset = fdt_next_yesde(fdt, offset, &depth)) {
 		while (pdepth > depth) {
 			do {
 				p--;
@@ -550,11 +550,11 @@ int fdt_get_path(const void *fdt, int nodeoffset, char *buf, int buflen)
 			}
 		}
 
-		if (offset == nodeoffset) {
+		if (offset == yesdeoffset) {
 			if (pdepth < (depth + 1))
 				return -FDT_ERR_NOSPACE;
 
-			if (p > 1) /* special case so that root path is "/", not "" */
+			if (p > 1) /* special case so that root path is "/", yest "" */
 				p--;
 			buf[p] = '\0';
 			return 0;
@@ -566,34 +566,34 @@ int fdt_get_path(const void *fdt, int nodeoffset, char *buf, int buflen)
 	else if (offset == -FDT_ERR_BADOFFSET)
 		return -FDT_ERR_BADSTRUCTURE;
 
-	return offset; /* error from fdt_next_node() */
+	return offset; /* error from fdt_next_yesde() */
 }
 
-int fdt_supernode_atdepth_offset(const void *fdt, int nodeoffset,
-				 int supernodedepth, int *nodedepth)
+int fdt_superyesde_atdepth_offset(const void *fdt, int yesdeoffset,
+				 int superyesdedepth, int *yesdedepth)
 {
 	int offset, depth;
-	int supernodeoffset = -FDT_ERR_INTERNAL;
+	int superyesdeoffset = -FDT_ERR_INTERNAL;
 
 	FDT_RO_PROBE(fdt);
 
-	if (supernodedepth < 0)
+	if (superyesdedepth < 0)
 		return -FDT_ERR_NOTFOUND;
 
 	for (offset = 0, depth = 0;
-	     (offset >= 0) && (offset <= nodeoffset);
-	     offset = fdt_next_node(fdt, offset, &depth)) {
-		if (depth == supernodedepth)
-			supernodeoffset = offset;
+	     (offset >= 0) && (offset <= yesdeoffset);
+	     offset = fdt_next_yesde(fdt, offset, &depth)) {
+		if (depth == superyesdedepth)
+			superyesdeoffset = offset;
 
-		if (offset == nodeoffset) {
-			if (nodedepth)
-				*nodedepth = depth;
+		if (offset == yesdeoffset) {
+			if (yesdedepth)
+				*yesdedepth = depth;
 
-			if (supernodedepth > depth)
+			if (superyesdedepth > depth)
 				return -FDT_ERR_NOTFOUND;
 			else
-				return supernodeoffset;
+				return superyesdeoffset;
 		}
 	}
 
@@ -602,31 +602,31 @@ int fdt_supernode_atdepth_offset(const void *fdt, int nodeoffset,
 	else if (offset == -FDT_ERR_BADOFFSET)
 		return -FDT_ERR_BADSTRUCTURE;
 
-	return offset; /* error from fdt_next_node() */
+	return offset; /* error from fdt_next_yesde() */
 }
 
-int fdt_node_depth(const void *fdt, int nodeoffset)
+int fdt_yesde_depth(const void *fdt, int yesdeoffset)
 {
-	int nodedepth;
+	int yesdedepth;
 	int err;
 
-	err = fdt_supernode_atdepth_offset(fdt, nodeoffset, 0, &nodedepth);
+	err = fdt_superyesde_atdepth_offset(fdt, yesdeoffset, 0, &yesdedepth);
 	if (err)
 		return (err < 0) ? err : -FDT_ERR_INTERNAL;
-	return nodedepth;
+	return yesdedepth;
 }
 
-int fdt_parent_offset(const void *fdt, int nodeoffset)
+int fdt_parent_offset(const void *fdt, int yesdeoffset)
 {
-	int nodedepth = fdt_node_depth(fdt, nodeoffset);
+	int yesdedepth = fdt_yesde_depth(fdt, yesdeoffset);
 
-	if (nodedepth < 0)
-		return nodedepth;
-	return fdt_supernode_atdepth_offset(fdt, nodeoffset,
-					    nodedepth - 1, NULL);
+	if (yesdedepth < 0)
+		return yesdedepth;
+	return fdt_superyesde_atdepth_offset(fdt, yesdeoffset,
+					    yesdedepth - 1, NULL);
 }
 
-int fdt_node_offset_by_prop_value(const void *fdt, int startoffset,
+int fdt_yesde_offset_by_prop_value(const void *fdt, int startoffset,
 				  const char *propname,
 				  const void *propval, int proplen)
 {
@@ -637,23 +637,23 @@ int fdt_node_offset_by_prop_value(const void *fdt, int startoffset,
 	FDT_RO_PROBE(fdt);
 
 	/* FIXME: The algorithm here is pretty horrible: we scan each
-	 * property of a node in fdt_getprop(), then if that didn't
+	 * property of a yesde in fdt_getprop(), then if that didn't
 	 * find what we want, we scan over them again making our way
-	 * to the next node.  Still it's the easiest to implement
+	 * to the next yesde.  Still it's the easiest to implement
 	 * approach; performance can come later. */
-	for (offset = fdt_next_node(fdt, startoffset, NULL);
+	for (offset = fdt_next_yesde(fdt, startoffset, NULL);
 	     offset >= 0;
-	     offset = fdt_next_node(fdt, offset, NULL)) {
+	     offset = fdt_next_yesde(fdt, offset, NULL)) {
 		val = fdt_getprop(fdt, offset, propname, &len);
 		if (val && (len == proplen)
 		    && (memcmp(val, propval, len) == 0))
 			return offset;
 	}
 
-	return offset; /* error from fdt_next_node() */
+	return offset; /* error from fdt_next_yesde() */
 }
 
-int fdt_node_offset_by_phandle(const void *fdt, uint32_t phandle)
+int fdt_yesde_offset_by_phandle(const void *fdt, uint32_t phandle)
 {
 	int offset;
 
@@ -663,19 +663,19 @@ int fdt_node_offset_by_phandle(const void *fdt, uint32_t phandle)
 	FDT_RO_PROBE(fdt);
 
 	/* FIXME: The algorithm here is pretty horrible: we
-	 * potentially scan each property of a node in
+	 * potentially scan each property of a yesde in
 	 * fdt_get_phandle(), then if that didn't find what
 	 * we want, we scan over them again making our way to the next
-	 * node.  Still it's the easiest to implement approach;
+	 * yesde.  Still it's the easiest to implement approach;
 	 * performance can come later. */
-	for (offset = fdt_next_node(fdt, -1, NULL);
+	for (offset = fdt_next_yesde(fdt, -1, NULL);
 	     offset >= 0;
-	     offset = fdt_next_node(fdt, offset, NULL)) {
+	     offset = fdt_next_yesde(fdt, offset, NULL)) {
 		if (fdt_get_phandle(fdt, offset) == phandle)
 			return offset;
 	}
 
-	return offset; /* error from fdt_next_node() */
+	return offset; /* error from fdt_next_yesde() */
 }
 
 int fdt_stringlist_contains(const char *strlist, int listlen, const char *str)
@@ -695,12 +695,12 @@ int fdt_stringlist_contains(const char *strlist, int listlen, const char *str)
 	return 0;
 }
 
-int fdt_stringlist_count(const void *fdt, int nodeoffset, const char *property)
+int fdt_stringlist_count(const void *fdt, int yesdeoffset, const char *property)
 {
 	const char *list, *end;
 	int length, count = 0;
 
-	list = fdt_getprop(fdt, nodeoffset, property, &length);
+	list = fdt_getprop(fdt, yesdeoffset, property, &length);
 	if (!list)
 		return length;
 
@@ -720,13 +720,13 @@ int fdt_stringlist_count(const void *fdt, int nodeoffset, const char *property)
 	return count;
 }
 
-int fdt_stringlist_search(const void *fdt, int nodeoffset, const char *property,
+int fdt_stringlist_search(const void *fdt, int yesdeoffset, const char *property,
 			  const char *string)
 {
 	int length, len, idx = 0;
 	const char *list, *end;
 
-	list = fdt_getprop(fdt, nodeoffset, property, &length);
+	list = fdt_getprop(fdt, yesdeoffset, property, &length);
 	if (!list)
 		return length;
 
@@ -750,14 +750,14 @@ int fdt_stringlist_search(const void *fdt, int nodeoffset, const char *property,
 	return -FDT_ERR_NOTFOUND;
 }
 
-const char *fdt_stringlist_get(const void *fdt, int nodeoffset,
+const char *fdt_stringlist_get(const void *fdt, int yesdeoffset,
 			       const char *property, int idx,
 			       int *lenp)
 {
 	const char *list, *end;
 	int length;
 
-	list = fdt_getprop(fdt, nodeoffset, property, &length);
+	list = fdt_getprop(fdt, yesdeoffset, property, &length);
 	if (!list) {
 		if (lenp)
 			*lenp = length;
@@ -795,20 +795,20 @@ const char *fdt_stringlist_get(const void *fdt, int nodeoffset,
 	return NULL;
 }
 
-int fdt_node_check_compatible(const void *fdt, int nodeoffset,
+int fdt_yesde_check_compatible(const void *fdt, int yesdeoffset,
 			      const char *compatible)
 {
 	const void *prop;
 	int len;
 
-	prop = fdt_getprop(fdt, nodeoffset, "compatible", &len);
+	prop = fdt_getprop(fdt, yesdeoffset, "compatible", &len);
 	if (!prop)
 		return len;
 
 	return !fdt_stringlist_contains(prop, len, compatible);
 }
 
-int fdt_node_offset_by_compatible(const void *fdt, int startoffset,
+int fdt_yesde_offset_by_compatible(const void *fdt, int startoffset,
 				  const char *compatible)
 {
 	int offset, err;
@@ -816,21 +816,21 @@ int fdt_node_offset_by_compatible(const void *fdt, int startoffset,
 	FDT_RO_PROBE(fdt);
 
 	/* FIXME: The algorithm here is pretty horrible: we scan each
-	 * property of a node in fdt_node_check_compatible(), then if
+	 * property of a yesde in fdt_yesde_check_compatible(), then if
 	 * that didn't find what we want, we scan over them again
-	 * making our way to the next node.  Still it's the easiest to
+	 * making our way to the next yesde.  Still it's the easiest to
 	 * implement approach; performance can come later. */
-	for (offset = fdt_next_node(fdt, startoffset, NULL);
+	for (offset = fdt_next_yesde(fdt, startoffset, NULL);
 	     offset >= 0;
-	     offset = fdt_next_node(fdt, offset, NULL)) {
-		err = fdt_node_check_compatible(fdt, offset, compatible);
+	     offset = fdt_next_yesde(fdt, offset, NULL)) {
+		err = fdt_yesde_check_compatible(fdt, offset, compatible);
 		if ((err < 0) && (err != -FDT_ERR_NOTFOUND))
 			return err;
 		else if (err == 0)
 			return offset;
 	}
 
-	return offset; /* error from fdt_next_node() */
+	return offset; /* error from fdt_next_yesde() */
 }
 
 int fdt_check_full(const void *fdt, size_t bufsize)

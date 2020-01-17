@@ -287,7 +287,7 @@ static int mms114_setup_regs(struct mms114_data *data)
 	if (error < 0)
 		return error;
 
-	/* MMS152 has no configuration or power on registers */
+	/* MMS152 has yes configuration or power on registers */
 	if (data->type == TYPE_MMS152)
 		return 0;
 

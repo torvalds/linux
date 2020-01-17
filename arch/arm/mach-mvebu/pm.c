@@ -89,10 +89,10 @@ static int mvebu_pm_powerdown(unsigned long data)
 
 static phys_addr_t mvebu_internal_reg_base(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	__be32 in_addr[2];
 
-	np = of_find_node_by_name(NULL, "internal-regs");
+	np = of_find_yesde_by_name(NULL, "internal-regs");
 	BUG_ON(!np);
 
 	/*
@@ -236,33 +236,33 @@ late_initcall(mvebu_pm_init);
 int __init mvebu_pm_suspend_init(void (*board_pm_enter)(void __iomem *sdram_reg,
 							u32 srcmd))
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource res;
 
-	np = of_find_compatible_node(NULL, NULL,
+	np = of_find_compatible_yesde(NULL, NULL,
 				     "marvell,armada-xp-sdram-controller");
 	if (!np)
 		return -ENODEV;
 
 	if (of_address_to_resource(np, 0, &res)) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return -ENODEV;
 	}
 
 	if (!request_mem_region(res.start, resource_size(&res),
 				np->full_name)) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return -EBUSY;
 	}
 
 	sdram_ctrl = ioremap(res.start, resource_size(&res));
 	if (!sdram_ctrl) {
 		release_mem_region(res.start, resource_size(&res));
-		of_node_put(np);
+		of_yesde_put(np);
 		return -ENOMEM;
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	mvebu_board_pm_enter = board_pm_enter;
 

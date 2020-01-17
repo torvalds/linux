@@ -4,7 +4,7 @@
  * found in Allwinner's A33 SoCs.
  *
  * (C) Copyright 2010-2016
- * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
+ * Reuuimlla Techyeslogy Co., Ltd. <www.reuuimllatech.com>
  * huangxin <huangxin@Reuuimllatech.com>
  * Mylène Josserand <mylene.josserand@free-electrons.com>
  */
@@ -210,7 +210,7 @@ static int sun8i_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	/*
 	 * It appears that the DAI and the codec don't share the same
-	 * polarity for the LRCK signal when they mean 'normal' and
+	 * polarity for the LRCK signal when they mean 'yesrmal' and
 	 * 'inverted' in the datasheet.
 	 *
 	 * Since the DAI here is our regular i2s driver that have been
@@ -519,7 +519,7 @@ static const struct snd_soc_component_driver sun8i_soc_component = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config sun8i_codec_regmap_config = {

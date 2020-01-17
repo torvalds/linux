@@ -7,7 +7,7 @@ Required properties:
 Optional properties:
 - label: a symbolic name for the connector
 
-Required nodes:
+Required yesdes:
 - Video port for TV input
 
 Example

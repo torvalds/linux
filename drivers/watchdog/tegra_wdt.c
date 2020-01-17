@@ -28,7 +28,7 @@
  * Register base of the timer that's selected for pairing with the watchdog.
  * This driver arbitrarily uses timer 5, which is currently unused by
  * other drivers (in particular, the Tegra clocksource driver).  If this
- * needs to change, take care that the new timer is not used by the
+ * needs to change, take care that the new timer is yest used by the
  * clocksource driver.
  */
 #define WDT_TIMER_BASE			0x60
@@ -69,10 +69,10 @@ MODULE_PARM_DESC(heartbeat,
 	"Watchdog heartbeats in seconds. (default = "
 	__MODULE_STRING(WDT_HEARTBEAT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+	"Watchdog canyest be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static int tegra_wdt_start(struct watchdog_device *wdd)
@@ -93,7 +93,7 @@ static int tegra_wdt_start(struct watchdog_device *wdd)
 	/*
 	 * Set number of periods and start counter.
 	 *
-	 * Interrupt handler is not required for user space
+	 * Interrupt handler is yest required for user space
 	 * WDT accesses, since the caller is responsible to ping the
 	 * WDT to reset the counter before expiration, through ioctls.
 	 */
@@ -215,7 +215,7 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(wdd, wdt);
 
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_yeswayout(wdd, yeswayout);
 
 	watchdog_stop_on_unregister(wdd);
 	ret = devm_watchdog_register_device(dev, wdd);
@@ -224,8 +224,8 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wdt);
 
-	dev_info(dev, "initialized (heartbeat = %d sec, nowayout = %d)\n",
-		 heartbeat, nowayout);
+	dev_info(dev, "initialized (heartbeat = %d sec, yeswayout = %d)\n",
+		 heartbeat, yeswayout);
 
 	return 0;
 }

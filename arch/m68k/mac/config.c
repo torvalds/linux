@@ -10,7 +10,7 @@
  * Miscellaneous linux stuff
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -81,7 +81,7 @@ static void __init mac_sched_init(irq_handler_t vector)
 
 int __init mac_parse_bootinfo(const struct bi_record *record)
 {
-	int unknown = 0;
+	int unkyeswn = 0;
 	const void *data = record->data;
 
 	switch (be16_to_cpu(record->tag)) {
@@ -124,10 +124,10 @@ int __init mac_parse_bootinfo(const struct bi_record *record)
 		mac_bi_data.rombase = be32_to_cpup(data);
 		break;
 	default:
-		unknown = 1;
+		unkyeswn = 1;
 		break;
 	}
-	return unknown;
+	return unkyeswn;
 }
 
 /*
@@ -148,7 +148,7 @@ static void mac_cache_card_flush(int writeback)
 void __init config_mac(void)
 {
 	if (!MACH_IS_MAC)
-		pr_err("ERROR: no Mac, but config_mac() called!!\n");
+		pr_err("ERROR: yes Mac, but config_mac() called!!\n");
 
 	mach_sched_init = mac_sched_init;
 	mach_init_IRQ = mac_init_IRQ;
@@ -172,7 +172,7 @@ void __init config_mac(void)
 	/*
 	 * AFAIK only the IIci takes a cache card.  The IIfx has onboard
 	 * cache ... someone needs to figure out how to tell if it's on or
-	 * not.
+	 * yest.
 	 */
 
 	if (macintosh_config->ident == MAC_MODEL_IICI
@@ -184,7 +184,7 @@ void __init config_mac(void)
 /*
  * Macintosh Table: hardcoded model configuration data.
  *
- * Much of this was defined by Alan, based on who knows what docs.
+ * Much of this was defined by Alan, based on who kyesws what docs.
  * I've added a lot more, and some of that was pure guesswork based
  * on hardware pages present on the Mac web site. Possibly wildly
  * inaccurate, so look here if a new Mac model won't run. Example: if
@@ -203,7 +203,7 @@ static struct mac_model mac_data_table[] = {
 
 	{
 		.ident		= MAC_MODEL_II,
-		.name		= "Unknown",
+		.name		= "Unkyeswn",
 		.adb_type	= MAC_ADB_II,
 		.via_type	= MAC_VIA_II,
 		.scsi_type	= MAC_SCSI_OLD,
@@ -258,7 +258,7 @@ static struct mac_model mac_data_table[] = {
 	 * Weirdified Mac II hardware - all subtly different. Gee thanks
 	 * Apple. All these boxes seem to have VIA2 in a different place to
 	 * the Mac II (+1A000 rather than +4000)
-	 * CSA: see http://developer.apple.com/technotes/hw/hw_09.html
+	 * CSA: see http://developer.apple.com/techyestes/hw/hw_09.html
 	 */
 
 	{
@@ -576,7 +576,7 @@ static struct mac_model mac_data_table[] = {
 
 	/*
 	 * Centris - just guessing again; maybe like Quadra.
-	 * The C610 may or may not have SONIC. We probe to make sure.
+	 * The C610 may or may yest have SONIC. We probe to make sure.
 	 */
 
 	{
@@ -711,7 +711,7 @@ static struct mac_model mac_data_table[] = {
 	},
 
 	/*
-	 * PowerBook Duos are pretty much like normal PowerBooks
+	 * PowerBook Duos are pretty much like yesrmal PowerBooks
 	 * All of these probably have onboard SONIC in the Dock which
 	 * means we'll have to probe for it eventually.
 	 */
@@ -814,7 +814,7 @@ static void __init mac_identify(void)
 	/* Penguin data useful? */
 	int model = mac_bi_data.id;
 	if (!model) {
-		/* no bootinfo model id -> NetBSD booter was used! */
+		/* yes bootinfo model id -> NetBSD booter was used! */
 		/* XXX FIXME: breaks for model > 31 */
 		model = (mac_bi_data.cpuid >> 2) & 63;
 		pr_warn("No bootinfo model ID, using cpuid instead (obsolete bootloader?)\n");
@@ -841,7 +841,7 @@ static void __init mac_identify(void)
 		scc_b_rsrcs[1].start = scc_b_rsrcs[1].end = IRQ_MAC_SCC_B;
 		break;
 	default:
-		/* On non-PSC machines, the serial ports share an IRQ. */
+		/* On yesn-PSC machines, the serial ports share an IRQ. */
 		if (macintosh_config->ident == MAC_MODEL_IIFX) {
 			scc_a_rsrcs[1].start = scc_a_rsrcs[1].end = IRQ_MAC_SCC;
 			scc_b_rsrcs[1].start = scc_b_rsrcs[1].end = IRQ_MAC_SCC;
@@ -1028,7 +1028,7 @@ int __init mac_platform_init(void)
 		break;
 	case MAC_SCSI_DUO:
 		/* Addresses from the Duo Dock II Developer Note.
-		 * $FEE0 2000 - $FEE0 3FFF: normal mode
+		 * $FEE0 2000 - $FEE0 3FFF: yesrmal mode
 		 * $FEE0 4000 - $FEE0 5FFF: pseudo DMA without /DRQ
 		 * $FEE0 6000 - $FEE0 7FFF: pseudo DMA with /DRQ
 		 * The NetBSD code indicates that both 5380 chips share
@@ -1043,11 +1043,11 @@ int __init mac_platform_init(void)
 		 * and also from The Guide to Mac Family Hardware for
 		 * SE/30, II, IIx, IIcx, IIci.
 		 * $5000 6000 - $5000 7FFF: pseudo-DMA with /DRQ
-		 * $5001 0000 - $5001 1FFF: normal mode
+		 * $5001 0000 - $5001 1FFF: yesrmal mode
 		 * $5001 2000 - $5001 3FFF: pseudo-DMA without /DRQ
 		 * GMFH says that $5000 0000 - $50FF FFFF "wraps
 		 * $5000 0000 - $5001 FFFF eight times" (!)
-		 * mess.org says IIci and Color Classic do not alias
+		 * mess.org says IIci and Color Classic do yest alias
 		 * I/O address space.
 		 */
 		platform_device_register_simple("mac_scsi", 0,

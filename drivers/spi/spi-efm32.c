@@ -287,7 +287,7 @@ static u32 efm32_spi_get_configured_location(struct efm32_spi_ddata *ddata)
 static void efm32_spi_probe_dt(struct platform_device *pdev,
 		struct spi_master *master, struct efm32_spi_ddata *ddata)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	u32 location;
 	int ret;
 
@@ -319,7 +319,7 @@ static int efm32_spi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 	struct spi_master *master;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int num_cs, i;
 
 	if (!np)
@@ -338,7 +338,7 @@ static int efm32_spi_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, master);
 
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 
 	master->num_chipselect = num_cs;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;

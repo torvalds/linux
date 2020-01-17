@@ -81,7 +81,7 @@ static void z8536_reset(struct comedi_device *dev)
 	unsigned long flags;
 
 	/*
-	 * Even if the state of the Z8536 is not known, the following
+	 * Even if the state of the Z8536 is yest kyeswn, the following
 	 * sequence will reset it and put it in State 0.
 	 */
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -112,7 +112,7 @@ static void z8536_reset(struct comedi_device *dev)
 	 * Configure the port to allow interrupt detection.
 	 *
 	 * NOTE: Bits 7 and 6 of Port B are connected to internal
-	 * diagnostic signals and bit 7 is inverted.
+	 * diagyesstic signals and bit 7 is inverted.
 	 */
 	z8536_write(dev, Z8536_PAB_MODE_PTS_BIT |
 			 Z8536_PAB_MODE_SB |
@@ -240,10 +240,10 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 	 * ----------  ------------------------------------------
 	 * 0x00000001  Event 1 has occurred
 	 * 0x00000010  Event 2 has occurred
-	 * 0x00000100  Counter/timer 1 has run down (not implemented)
-	 * 0x00001000  Counter/timer 2 has run down (not implemented)
-	 * 0x00010000  Counter 3 has run down (not implemented)
-	 * 0x00100000  Watchdog has run down (not implemented)
+	 * 0x00000100  Counter/timer 1 has run down (yest implemented)
+	 * 0x00001000  Counter/timer 2 has run down (yest implemented)
+	 * 0x00010000  Counter 3 has run down (yest implemented)
+	 * 0x00100000  Watchdog has run down (yest implemented)
 	 * 0x01000000  Voltage error
 	 * 0x10000000  Short-circuit error
 	 */
@@ -348,7 +348,7 @@ static int apci1500_di_inttrig_start(struct comedi_device *dev,
 
 	if (!valid_trig) {
 		dev_dbg(dev->class_dev,
-			"digital trigger %d is not configured\n", trig_num);
+			"digital trigger %d is yest configured\n", trig_num);
 		return -EINVAL;
 	}
 
@@ -427,7 +427,7 @@ static int apci1500_di_cmdtest(struct comedi_device *dev,
  * input async command is started.
  *
  * Digital input channels 0 to 13 can generate interrupts. Channels 14
- * and 15 are connected to internal board status/diagnostic signals.
+ * and 15 are connected to internal board status/diagyesstic signals.
  *
  * Channel 14 - Voltage error (the external supply is < 5V)
  * Channel 15 - Short-circuit/overtemperature error
@@ -437,7 +437,7 @@ static int apci1500_di_cmdtest(struct comedi_device *dev,
  *		  0 = AND mode
  *		  1 = OR mode
  *	data[2] : configuration operation:
- *	          COMEDI_DIGITAL_TRIG_DISABLE = no interrupts
+ *	          COMEDI_DIGITAL_TRIG_DISABLE = yes interrupts
  *	          COMEDI_DIGITAL_TRIG_ENABLE_EDGES = edge interrupts
  *	          COMEDI_DIGITAL_TRIG_ENABLE_LEVELS = level interrupts
  *	data[3] : left-shift for data[4] and data[5]
@@ -810,7 +810,7 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
 	s->n_chan	= 3;
 	s->maxdata	= 0xffff;
-	s->range_table	= &range_unknown;
+	s->range_table	= &range_unkyeswn;
 	s->insn_config	= apci1500_timer_insn_config;
 	s->insn_write	= apci1500_timer_insn_write;
 	s->insn_read	= apci1500_timer_insn_read;

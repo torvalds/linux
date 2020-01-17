@@ -61,7 +61,7 @@ static int gpio_backlight_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct gpio_backlight_platform_data *pdata = dev_get_platdata(dev);
-	struct device_node *of_node = dev->of_node;
+	struct device_yesde *of_yesde = dev->of_yesde;
 	struct backlight_properties props;
 	struct backlight_device *bl;
 	struct gpio_backlight *gbl;
@@ -96,8 +96,8 @@ static int gpio_backlight_probe(struct platform_device *pdev)
 	}
 
 	/* Set the initial power state */
-	if (!of_node || !of_node->phandle)
-		/* Not booted with device tree or no phandle link to the node */
+	if (!of_yesde || !of_yesde->phandle)
+		/* Not booted with device tree or yes phandle link to the yesde */
 		bl->props.power = def_value ? FB_BLANK_UNBLANK
 					    : FB_BLANK_POWERDOWN;
 	else if (gpiod_get_direction(gbl->gpiod) == 0 &&

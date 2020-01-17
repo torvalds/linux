@@ -27,7 +27,7 @@ struct llvm_param {
 	const char *clang_opt;
 	/*
 	 * If present it'll add -emit-llvm to $CLANG_OPTIONS to pipe
-	 * the clang output to llc, useful for new llvm options not
+	 * the clang output to llc, useful for new llvm options yest
 	 * yet selectable via 'clang -mllvm option', such as -mattr=dwarfris
 	 * in clang 6.0/llvm 7
 	 */
@@ -36,7 +36,7 @@ struct llvm_param {
 	const char *kbuild_dir;
 	/*
 	 * Arguments passed to make, like 'ARCH=arm' if doing cross
-	 * compiling. Should not be used for dynamic compiling.
+	 * compiling. Should yest be used for dynamic compiling.
 	 */
 	const char *kbuild_opts;
 	/*
@@ -48,7 +48,7 @@ struct llvm_param {
 	 * Default is false. If one of the above fields is set by user
 	 * explicitly then user_set_llvm is set to true. This is used
 	 * for perf test. If user doesn't set anything in .perfconfig
-	 * and clang is not found, don't trigger llvm test.
+	 * and clang is yest found, don't trigger llvm test.
 	 */
 	bool user_set_param;
 };

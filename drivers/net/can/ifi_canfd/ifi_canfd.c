@@ -584,7 +584,7 @@ static int ifi_canfd_poll(struct napi_struct *napi, int quota)
 	if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING)
 		work_done += ifi_canfd_handle_lec_err(ndev);
 
-	/* Handle normal messages on RX */
+	/* Handle yesrmal messages on RX */
 	if (!(rxstcmd & IFI_CANFD_RXSTCMD_EMPTY))
 		work_done += ifi_canfd_do_rx_poll(ndev, quota - work_done);
 
@@ -953,7 +953,7 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 
 	id = readl(addr + IFI_CANFD_IP_ID);
 	if (id != IFI_CANFD_IP_ID_VALUE) {
-		dev_err(dev, "This block is not IFI CANFD, id=%08x\n", id);
+		dev_err(dev, "This block is yest IFI CANFD, id=%08x\n", id);
 		return -EINVAL;
 	}
 

@@ -9,7 +9,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -38,8 +38,8 @@
 static int
 qxl_debugfs_irq_received(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct qxl_device *qdev = node->minor->dev->dev_private;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct qxl_device *qdev = yesde->miyesr->dev->dev_private;
 
 	seq_printf(m, "%d\n", atomic_read(&qdev->irq_received));
 	seq_printf(m, "%d\n", atomic_read(&qdev->irq_received_display));
@@ -52,8 +52,8 @@ qxl_debugfs_irq_received(struct seq_file *m, void *data)
 static int
 qxl_debugfs_buffers_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct qxl_device *qdev = node->minor->dev->dev_private;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct qxl_device *qdev = yesde->miyesr->dev->dev_private;
 	struct qxl_bo *bo;
 
 	list_for_each_entry(bo, &qdev->gem.objects, list) {
@@ -80,15 +80,15 @@ static struct drm_info_list qxl_debugfs_list[] = {
 #endif
 
 int
-qxl_debugfs_init(struct drm_minor *minor)
+qxl_debugfs_init(struct drm_miyesr *miyesr)
 {
 #if defined(CONFIG_DEBUG_FS)
 	int r;
 	struct qxl_device *dev =
-		(struct qxl_device *) minor->dev->dev_private;
+		(struct qxl_device *) miyesr->dev->dev_private;
 
 	drm_debugfs_create_files(qxl_debugfs_list, QXL_DEBUGFS_ENTRIES,
-				 minor->debugfs_root, minor);
+				 miyesr->debugfs_root, miyesr);
 
 	r = qxl_ttm_debugfs_init(dev);
 	if (r) {

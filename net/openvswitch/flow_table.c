@@ -79,10 +79,10 @@ struct sw_flow *ovs_flow_alloc(void)
 
 	flow->stats_last_writer = -1;
 
-	/* Initialize the default stat node. */
-	stats = kmem_cache_alloc_node(flow_stats_cache,
+	/* Initialize the default stat yesde. */
+	stats = kmem_cache_alloc_yesde(flow_stats_cache,
 				      GFP_KERNEL | __GFP_ZERO,
-				      node_online(0) ? 0 : NUMA_NO_NODE);
+				      yesde_online(0) ? 0 : NUMA_NO_NODE);
 	if (!stats)
 		goto err;
 
@@ -162,7 +162,7 @@ static struct table_instance *table_instance_alloc(int new_size)
 		INIT_HLIST_HEAD(&ti->buckets[i]);
 
 	ti->n_buckets = new_size;
-	ti->node_ver = 0;
+	ti->yesde_ver = 0;
 	ti->keep_flows = false;
 	get_random_bytes(&ti->hash_seed, sizeof(u32));
 
@@ -262,7 +262,7 @@ found:
 		tbl_mask_array_realloc(tbl, ma->max / 2);
 }
 
-/* Remove 'mask' from the mask list, if it is not needed any more. */
+/* Remove 'mask' from the mask list, if it is yest needed any more. */
 static void flow_mask_remove(struct flow_table *tbl, struct sw_flow_mask *mask)
 {
 	if (mask) {
@@ -285,7 +285,7 @@ int ovs_flow_tbl_init(struct flow_table *table)
 
 	table->mask_cache = __alloc_percpu(sizeof(struct mask_cache_entry) *
 					   MC_HASH_ENTRIES,
-					   __alignof__(struct mask_cache_entry));
+					   __aligyesf__(struct mask_cache_entry));
 	if (!table->mask_cache)
 		return -ENOMEM;
 
@@ -331,12 +331,12 @@ static void table_instance_flow_free(struct flow_table *table,
 				  struct sw_flow *flow,
 				  bool count)
 {
-	hlist_del_rcu(&flow->flow_table.node[ti->node_ver]);
+	hlist_del_rcu(&flow->flow_table.yesde[ti->yesde_ver]);
 	if (count)
 		table->count--;
 
 	if (ovs_identifier_is_ufid(&flow->id)) {
-		hlist_del_rcu(&flow->ufid_table.node[ufid_ti->node_ver]);
+		hlist_del_rcu(&flow->ufid_table.yesde[ufid_ti->yesde_ver]);
 
 		if (count)
 			table->ufid_count--;
@@ -362,10 +362,10 @@ static void table_instance_destroy(struct flow_table *table,
 	for (i = 0; i < ti->n_buckets; i++) {
 		struct sw_flow *flow;
 		struct hlist_head *head = &ti->buckets[i];
-		struct hlist_node *n;
+		struct hlist_yesde *n;
 
 		hlist_for_each_entry_safe(flow, n, head,
-					  flow_table.node[ti->node_ver]) {
+					  flow_table.yesde[ti->yesde_ver]) {
 
 			table_instance_flow_free(table, ti, ufid_ti,
 						 flow, false);
@@ -404,11 +404,11 @@ struct sw_flow *ovs_flow_tbl_dump_next(struct table_instance *ti,
 	int ver;
 	int i;
 
-	ver = ti->node_ver;
+	ver = ti->yesde_ver;
 	while (*bucket < ti->n_buckets) {
 		i = 0;
 		head = &ti->buckets[*bucket];
-		hlist_for_each_entry_rcu(flow, head, flow_table.node[ver]) {
+		hlist_for_each_entry_rcu(flow, head, flow_table.yesde[ver]) {
 			if (i < *last) {
 				i++;
 				continue;
@@ -435,7 +435,7 @@ static void table_instance_insert(struct table_instance *ti,
 	struct hlist_head *head;
 
 	head = find_bucket(ti, flow->flow_table.hash);
-	hlist_add_head_rcu(&flow->flow_table.node[ti->node_ver], head);
+	hlist_add_head_rcu(&flow->flow_table.yesde[ti->yesde_ver], head);
 }
 
 static void ufid_table_instance_insert(struct table_instance *ti,
@@ -444,7 +444,7 @@ static void ufid_table_instance_insert(struct table_instance *ti,
 	struct hlist_head *head;
 
 	head = find_bucket(ti, flow->ufid_table.hash);
-	hlist_add_head_rcu(&flow->ufid_table.node[ti->node_ver], head);
+	hlist_add_head_rcu(&flow->ufid_table.yesde[ti->yesde_ver], head);
 }
 
 static void flow_table_copy_flows(struct table_instance *old,
@@ -453,8 +453,8 @@ static void flow_table_copy_flows(struct table_instance *old,
 	int old_ver;
 	int i;
 
-	old_ver = old->node_ver;
-	new->node_ver = !old_ver;
+	old_ver = old->yesde_ver;
+	new->yesde_ver = !old_ver;
 
 	/* Insert in new table. */
 	for (i = 0; i < old->n_buckets; i++) {
@@ -463,11 +463,11 @@ static void flow_table_copy_flows(struct table_instance *old,
 
 		if (ufid)
 			hlist_for_each_entry(flow, head,
-					     ufid_table.node[old_ver])
+					     ufid_table.yesde[old_ver])
 				ufid_table_instance_insert(new, flow);
 		else
 			hlist_for_each_entry(flow, head,
-					     flow_table.node[old_ver])
+					     flow_table.yesde[old_ver])
 				table_instance_insert(new, flow);
 	}
 
@@ -585,7 +585,7 @@ static struct sw_flow *masked_flow_lookup(struct table_instance *ti,
 	head = find_bucket(ti, hash);
 	(*n_mask_hit)++;
 
-	hlist_for_each_entry_rcu(flow, head, flow_table.node[ti->node_ver]) {
+	hlist_for_each_entry_rcu(flow, head, flow_table.yesde[ti->yesde_ver]) {
 		if (flow->mask == mask && flow->flow_table.hash == hash &&
 		    flow_cmp_masked_key(flow, &masked_key, &mask->range))
 			return flow;
@@ -636,7 +636,7 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 }
 
 /*
- * mask_cache maps flow to probable mask. This cache is not tightly
+ * mask_cache maps flow to probable mask. This cache is yest tightly
  * coupled cache, It means updates to  mask list can result in inconsistent
  * cache entry in mask cache.
  * This is per cpu cache and is divided in MC_HASH_SEGS segments.
@@ -769,7 +769,7 @@ struct sw_flow *ovs_flow_tbl_lookup_ufid(struct flow_table *tbl,
 
 	hash = ufid_hash(ufid);
 	head = find_bucket(ti, hash);
-	hlist_for_each_entry_rcu(flow, head, ufid_table.node[ti->node_ver]) {
+	hlist_for_each_entry_rcu(flow, head, ufid_table.yesde[ti->yesde_ver]) {
 		if (flow->ufid_table.hash == hash &&
 		    ovs_flow_cmp_ufid(flow, ufid))
 			return flow;
@@ -839,7 +839,7 @@ static struct sw_flow_mask *flow_mask_find(const struct flow_table *tbl,
 	return NULL;
 }
 
-/* Add 'mask' into the mask list, if it is not already there. */
+/* Add 'mask' into the mask list, if it is yest already there. */
 static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
 			    const struct sw_flow_mask *new)
 {
@@ -847,7 +847,7 @@ static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
 
 	mask = flow_mask_find(tbl, new);
 	if (!mask) {
-		/* Allocate a new mask if none exsits. */
+		/* Allocate a new mask if yesne exsits. */
 		mask = mask_alloc();
 		if (!mask)
 			return -ENOMEM;
@@ -934,7 +934,7 @@ int ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow,
  * Returns zero if successful or a negative error code. */
 int ovs_flow_init(void)
 {
-	BUILD_BUG_ON(__alignof__(struct sw_flow_key) % __alignof__(long));
+	BUILD_BUG_ON(__aligyesf__(struct sw_flow_key) % __aligyesf__(long));
 	BUILD_BUG_ON(sizeof(struct sw_flow_key) % sizeof(long));
 
 	flow_cache = kmem_cache_create("sw_flow", sizeof(struct sw_flow)

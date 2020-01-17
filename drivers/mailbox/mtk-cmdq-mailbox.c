@@ -6,7 +6,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -136,7 +136,7 @@ static void cmdq_thread_disable(struct cmdq *cmdq, struct cmdq_thread *thread)
 	writel(CMDQ_THR_DISABLED, thread->base + CMDQ_THR_ENABLE_TASK);
 }
 
-/* notify GCE to re-fetch commands by setting GCE thread PC */
+/* yestify GCE to re-fetch commands by setting GCE thread PC */
 static void cmdq_thread_invalidate_fetched_data(struct cmdq_thread *thread)
 {
 	writel(readl(thread->base + CMDQ_THR_CURR_ADDR),
@@ -201,7 +201,7 @@ static void cmdq_thread_wait_end(struct cmdq_thread *thread,
 
 	if (readl_poll_timeout_atomic(thread->base + CMDQ_THR_CURR_ADDR,
 			curr_pa, curr_pa == end_pa, 1, 20))
-		dev_err(dev, "GCE thread cannot run to end.\n");
+		dev_err(dev, "GCE thread canyest run to end.\n");
 }
 
 static void cmdq_task_exec_done(struct cmdq_task *task, enum cmdq_cb_status sta)
@@ -242,7 +242,7 @@ static void cmdq_thread_irq_handler(struct cmdq *cmdq,
 	writel(~irq_flag, thread->base + CMDQ_THR_IRQ_STATUS);
 
 	/*
-	 * When ISR call this function, another CPU core could run
+	 * When ISR call this function, ayesther CPU core could run
 	 * "release task" right before we acquire the spin lock, and thus
 	 * reset / disable this GCE thread, so we need to check the enable
 	 * bit of this GCE thread.
@@ -356,7 +356,7 @@ static int cmdq_mbox_send_data(struct mbox_chan *chan, void *data)
 	struct cmdq_task *task;
 	unsigned long curr_pa, end_pa;
 
-	/* Client should not flush new tasks if suspended. */
+	/* Client should yest flush new tasks if suspended. */
 	WARN_ON(cmdq->suspended);
 
 	task = kzalloc(sizeof(*task), GFP_ATOMIC);
@@ -389,7 +389,7 @@ static int cmdq_mbox_send_data(struct mbox_chan *chan, void *data)
 		 * wait event at first task, and prevent to pause when running.
 		 */
 		if (thread->atomic_exec) {
-			/* GCE is executing if command is not WFE */
+			/* GCE is executing if command is yest WFE */
 			if (!cmdq_thread_is_in_wfe(thread)) {
 				cmdq_thread_resume(thread);
 				cmdq_thread_wait_end(thread, end_pa);

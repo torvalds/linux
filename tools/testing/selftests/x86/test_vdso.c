@@ -14,7 +14,7 @@
 #include <sys/syscall.h>
 #include <dlfcn.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sched.h>
 #include <stdbool.h>
 #include <limits.h>
@@ -53,7 +53,7 @@ static void *vsyscall_getcpu(void)
 	bool found = false;
 
 	maps = fopen("/proc/self/maps", "r");
-	if (!maps) /* might still be present, but ignore it here, as we test vDSO not vsyscall */
+	if (!maps) /* might still be present, but igyesre it here, as we test vDSO yest vsyscall */
 		return NULL;
 
 	while (fgets(line, MAPS_LINE_LEN, maps)) {
@@ -69,7 +69,7 @@ static void *vsyscall_getcpu(void)
 		if (strcmp(name, "[vsyscall]"))
 			continue;
 
-		/* assume entries are OK, as we test vDSO here not vsyscall */
+		/* assume entries are OK, as we test vDSO here yest vsyscall */
 		found = true;
 		break;
 	}
@@ -115,10 +115,10 @@ static void fill_function_pointers()
 
 }
 
-static long sys_getcpu(unsigned * cpu, unsigned * node,
+static long sys_getcpu(unsigned * cpu, unsigned * yesde,
 		       void* cache)
 {
-	return syscall(__NR_getcpu, cpu, node, cache);
+	return syscall(__NR_getcpu, cpu, yesde, cache);
 }
 
 static inline int sys_clock_gettime(clockid_t id, struct timespec *ts)
@@ -143,39 +143,39 @@ static void test_getcpu(void)
 			return;
 
 		unsigned cpu_sys, cpu_vdso, cpu_vsys,
-			node_sys, node_vdso, node_vsys;
+			yesde_sys, yesde_vdso, yesde_vsys;
 		long ret_sys, ret_vdso = 1, ret_vsys = 1;
-		unsigned node;
+		unsigned yesde;
 
-		ret_sys = sys_getcpu(&cpu_sys, &node_sys, 0);
+		ret_sys = sys_getcpu(&cpu_sys, &yesde_sys, 0);
 		if (vdso_getcpu)
-			ret_vdso = vdso_getcpu(&cpu_vdso, &node_vdso, 0);
+			ret_vdso = vdso_getcpu(&cpu_vdso, &yesde_vdso, 0);
 		if (vgetcpu)
-			ret_vsys = vgetcpu(&cpu_vsys, &node_vsys, 0);
+			ret_vsys = vgetcpu(&cpu_vsys, &yesde_vsys, 0);
 
 		if (!ret_sys)
-			node = node_sys;
+			yesde = yesde_sys;
 		else if (!ret_vdso)
-			node = node_vdso;
+			yesde = yesde_vdso;
 		else if (!ret_vsys)
-			node = node_vsys;
+			yesde = yesde_vsys;
 
 		bool ok = true;
-		if (!ret_sys && (cpu_sys != cpu || node_sys != node))
+		if (!ret_sys && (cpu_sys != cpu || yesde_sys != yesde))
 			ok = false;
-		if (!ret_vdso && (cpu_vdso != cpu || node_vdso != node))
+		if (!ret_vdso && (cpu_vdso != cpu || yesde_vdso != yesde))
 			ok = false;
-		if (!ret_vsys && (cpu_vsys != cpu || node_vsys != node))
+		if (!ret_vsys && (cpu_vsys != cpu || yesde_vsys != yesde))
 			ok = false;
 
 		printf("[%s]\tCPU %u:", ok ? "OK" : "FAIL", cpu);
 		if (!ret_sys)
-			printf(" syscall: cpu %u, node %u", cpu_sys, node_sys);
+			printf(" syscall: cpu %u, yesde %u", cpu_sys, yesde_sys);
 		if (!ret_vdso)
-			printf(" vdso: cpu %u, node %u", cpu_vdso, node_vdso);
+			printf(" vdso: cpu %u, yesde %u", cpu_vdso, yesde_vdso);
 		if (!ret_vsys)
-			printf(" vsyscall: cpu %u, node %u", cpu_vsys,
-			       node_vsys);
+			printf(" vsyscall: cpu %u, yesde %u", cpu_vsys,
+			       yesde_vsys);
 		printf("\n");
 
 		if (!ok)
@@ -222,7 +222,7 @@ static void test_one_clock_gettime(int clock, const char *name)
 	printf("[RUN]\tTesting clock_gettime for clock %s (%d)...\n", name, clock);
 
 	if (sys_clock_gettime(clock, &start) < 0) {
-		if (errno == EINVAL) {
+		if (erryes == EINVAL) {
 			vdso_ret = vdso_clock_gettime(clock, &vdso);
 			if (vdso_ret == -EINVAL) {
 				printf("[OK]\tNo such clock.\n");
@@ -231,7 +231,7 @@ static void test_one_clock_gettime(int clock, const char *name)
 				nerrs++;
 			}
 		} else {
-			printf("[WARN]\t clock_gettime(%d) syscall returned error %d\n", clock, errno);
+			printf("[WARN]\t clock_gettime(%d) syscall returned error %d\n", clock, erryes);
 		}
 		return;
 	}
@@ -240,8 +240,8 @@ static void test_one_clock_gettime(int clock, const char *name)
 	end_ret = sys_clock_gettime(clock, &end);
 
 	if (vdso_ret != 0 || end_ret != 0) {
-		printf("[FAIL]\tvDSO returned %d, syscall errno=%d\n",
-		       vdso_ret, errno);
+		printf("[FAIL]\tvDSO returned %d, syscall erryes=%d\n",
+		       vdso_ret, erryes);
 		nerrs++;
 		return;
 	}
@@ -282,7 +282,7 @@ static void test_gettimeofday(void)
 	printf("[RUN]\tTesting gettimeofday...\n");
 
 	if (sys_gettimeofday(&start, &sys_tz) < 0) {
-		printf("[FAIL]\tsys_gettimeofday failed (%d)\n", errno);
+		printf("[FAIL]\tsys_gettimeofday failed (%d)\n", erryes);
 		nerrs++;
 		return;
 	}
@@ -291,8 +291,8 @@ static void test_gettimeofday(void)
 	end_ret = sys_gettimeofday(&end, NULL);
 
 	if (vdso_ret != 0 || end_ret != 0) {
-		printf("[FAIL]\tvDSO returned %d, syscall errno=%d\n",
-		       vdso_ret, errno);
+		printf("[FAIL]\tvDSO returned %d, syscall erryes=%d\n",
+		       vdso_ret, erryes);
 		nerrs++;
 		return;
 	}
@@ -312,7 +312,7 @@ static void test_gettimeofday(void)
 		printf("[OK]\ttimezones match: minuteswest=%d, dsttime=%d\n",
 		       sys_tz.tz_minuteswest, sys_tz.tz_dsttime);
 	} else {
-		printf("[FAIL]\ttimezones do not match\n");
+		printf("[FAIL]\ttimezones do yest match\n");
 		nerrs++;
 	}
 

@@ -5,7 +5,7 @@
 #include <linux/uaccess.h>
 #include <linux/futex.h>
 #include <asm/mmu_context.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 #define __futex_atomic_op(insn, ret, oldval, newval, uaddr, oparg)	\
 	asm volatile(							\
@@ -40,7 +40,7 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 				  ret, oldval, newval, uaddr, oparg);
 		break;
 	case FUTEX_OP_OR:
-		__futex_atomic_op("lr %2,%1\nor %2,%5\n",
+		__futex_atomic_op("lr %2,%1\yesr %2,%5\n",
 				  ret, oldval, newval, uaddr, oparg);
 		break;
 	case FUTEX_OP_ANDN:

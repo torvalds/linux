@@ -55,7 +55,7 @@ static int umc_bus_post_reset_helper(struct device *dev, void *data)
  * reset the hardware in their start method.
  *
  * If this is called while a probe() or remove() is in progress it
- * will return -EAGAIN and not perform the reset.
+ * will return -EAGAIN and yest perform the reset.
  */
 int umc_controller_reset(struct umc_dev *umc)
 {

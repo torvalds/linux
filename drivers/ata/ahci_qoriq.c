@@ -254,7 +254,7 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 
 static int ahci_qoriq_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 	struct ahci_host_priv *hpriv;
 	struct ahci_qoriq_priv *qoriq_priv;
@@ -266,7 +266,7 @@ static int ahci_qoriq_probe(struct platform_device *pdev)
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 
-	of_id = of_match_node(ahci_qoriq_of_match, np);
+	of_id = of_match_yesde(ahci_qoriq_of_match, np);
 	if (!of_id)
 		return -ENODEV;
 

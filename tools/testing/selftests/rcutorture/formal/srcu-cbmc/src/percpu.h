@@ -11,7 +11,7 @@
 /* Maximum size of any percpu data. */
 #define PERCPU_OFFSET (4 * sizeof(long))
 
-/* Ignore alignment, as CBMC doesn't care about false sharing. */
+/* Igyesre alignment, as CBMC doesn't care about false sharing. */
 #define alloc_percpu(type) __alloc_percpu(sizeof(type), 1)
 
 static inline void *__alloc_percpu(size_t size, size_t align)

@@ -49,7 +49,7 @@
 
 #include "common.h"
 
-static struct resource amlm5900_nor_resource =
+static struct resource amlm5900_yesr_resource =
 			DEFINE_RES_MEM(0x00000000, SZ_16M);
 
 static struct mtd_partition amlm5900_mtd_partitions[] = {
@@ -83,14 +83,14 @@ static struct physmap_flash_data amlm5900_flash_data = {
 	.nr_parts	= ARRAY_SIZE(amlm5900_mtd_partitions),
 };
 
-static struct platform_device amlm5900_device_nor = {
+static struct platform_device amlm5900_device_yesr = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev = {
 			.platform_data = &amlm5900_flash_data,
 		},
 	.num_resources	= 1,
-	.resource	= &amlm5900_nor_resource,
+	.resource	= &amlm5900_yesr_resource,
 };
 
 static struct map_desc amlm5900_iodesc[] __initdata = {
@@ -136,7 +136,7 @@ static struct platform_device *amlm5900_devices[] __initdata = {
  	&s3c_device_rtc,
 	&s3c_device_usbgadget,
         &s3c_device_sdi,
-	&amlm5900_device_nor,
+	&amlm5900_device_yesr,
 };
 
 static void __init amlm5900_map_io(void)
@@ -191,7 +191,7 @@ static struct s3c2410fb_mach_info __initdata amlm5900_fb_info = {
 #endif
 
 static irqreturn_t
-amlm5900_wake_interrupt(int irq, void *ignored)
+amlm5900_wake_interrupt(int irq, void *igyesred)
 {
 	return IRQ_HANDLED;
 }
@@ -204,7 +204,7 @@ static void amlm5900_init_pm(void)
 				IRQF_TRIGGER_RISING | IRQF_SHARED,
 				"amlm5900_wakeup", &amlm5900_wake_interrupt);
 	if (ret != 0) {
-		printk(KERN_ERR "AML-M5900: no wakeup irq, %d?\n", ret);
+		printk(KERN_ERR "AML-M5900: yes wakeup irq, %d?\n", ret);
 	} else {
 		enable_irq_wake(IRQ_EINT9);
 		/* configure the suspend/resume status pin */

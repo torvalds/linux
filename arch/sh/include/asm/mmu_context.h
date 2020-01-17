@@ -63,7 +63,7 @@ static inline void get_mmu_context(struct mm_struct *mm, unsigned int cpu)
 
 	/* Check if we have old version of context. */
 	if (((cpu_context(cpu, mm) ^ asid) & MMU_CONTEXT_VERSION_MASK) == 0)
-		/* It's up to date, do nothing */
+		/* It's up to date, do yesthing */
 		return;
 
 	/* It's old, we need to get new context with new version. */

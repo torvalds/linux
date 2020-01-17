@@ -22,9 +22,9 @@
 #define PMIC_WDT_MAX_TIMEOUT 256
 #define PMIC_WDT_DEFAULT_TIMEOUT 30
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 struct stpmic1_wdt {
@@ -108,7 +108,7 @@ static int pmic_wdt_probe(struct platform_device *pdev)
 	wdt->wdtdev.timeout = PMIC_WDT_DEFAULT_TIMEOUT;
 	watchdog_init_timeout(&wdt->wdtdev, 0, dev);
 
-	watchdog_set_nowayout(&wdt->wdtdev, nowayout);
+	watchdog_set_yeswayout(&wdt->wdtdev, yeswayout);
 	watchdog_set_drvdata(&wdt->wdtdev, wdt);
 
 	ret = devm_watchdog_register_device(dev, &wdt->wdtdev);

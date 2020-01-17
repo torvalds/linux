@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -52,9 +52,9 @@ static const struct clk_mgr_mask disp_clk_mask = {
 };
 
 static const struct state_dependent_clocks dce110_max_clks_by_state[] = {
-/*ClocksStateInvalid - should not be used*/
+/*ClocksStateInvalid - should yest be used*/
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
-/*ClocksStateUltraLow - currently by HW design team not supposed to be used*/
+/*ClocksStateUltraLow - currently by HW design team yest supposed to be used*/
 { .display_clk_khz = 352000, .pixel_clk_khz = 330000 },
 /*ClocksStateLow*/
 { .display_clk_khz = 352000, .pixel_clk_khz = 330000 },
@@ -70,7 +70,7 @@ static int determine_sclk_from_bounding_box(
 	int i;
 
 	/*
-	 * Some asics do not give us sclk levels, so we just report the actual
+	 * Some asics do yest give us sclk levels, so we just report the actual
 	 * required sclk
 	 */
 	if (dc->sclk_lvls.num_levels == 0)
@@ -81,7 +81,7 @@ static int determine_sclk_from_bounding_box(
 			return dc->sclk_lvls.clocks_in_khz[i];
 	}
 	/*
-	 * even maximum level could not satisfy requirement, this
+	 * even maximum level could yest satisfy requirement, this
 	 * is unexpected at this stage, should have been caught at
 	 * validation time
 	 */
@@ -139,7 +139,7 @@ void dce110_fill_display_configs(
 
 		ASSERT(pipe_ctx != NULL);
 
-		/* only notify active stream */
+		/* only yestify active stream */
 		if (stream->dpms_off)
 			continue;
 
@@ -211,7 +211,7 @@ void dce11_pplib_apply_display_requirements(
 
 	/*
 	 * As workaround for >4x4K lightup set dcfclock to min_engine_clock value.
-	 * This is not required for less than 5 displays,
+	 * This is yest required for less than 5 displays,
 	 * thus don't request decfclk in dc to avoid impact
 	 * on power saving.
 	 *

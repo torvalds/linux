@@ -212,7 +212,7 @@ static struct kobj_type cpuregs_kobj_type = {
 /*
  * The ARM ARM uses the phrase "32-bit register" to describe a register
  * whose upper 32 bits are RES0 (per C5.1.1, ARM DDI 0487A.i), however
- * no statement is made as to whether the upper 32 bits will or will not
+ * yes statement is made as to whether the upper 32 bits will or will yest
  * be made use of in future, and between ARM DDI 0487A.c and ARM DDI
  * 0487A.d CLIDR_EL1 was expanded from 32-bit to 64-bit.
  *

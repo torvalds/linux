@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -68,10 +68,10 @@ struct vmw_user_resource_conv {
  * @bind:              Bind a hardware resource to persistent buffer storage.
  * @unbind:            Unbind a hardware resource from persistent
  *                     buffer storage.
- * @commit_notify:     If the resource is a command buffer managed resource,
- *                     callback to notify that a define or remove command
+ * @commit_yestify:     If the resource is a command buffer managed resource,
+ *                     callback to yestify that a define or remove command
  *                     has been committed to the device.
- * @dirty_alloc:       Allocate a dirty tracker. NULL if dirty-tracking is not
+ * @dirty_alloc:       Allocate a dirty tracker. NULL if dirty-tracking is yest
  *                     supported.
  * @dirty_free:        Free the dirty tracker.
  * @dirty_sync:        Upload the dirty mob contents to the resource.
@@ -95,7 +95,7 @@ struct vmw_res_func {
 	int (*unbind) (struct vmw_resource *res,
 		       bool readback,
 		       struct ttm_validate_buffer *val_buf);
-	void (*commit_notify)(struct vmw_resource *res,
+	void (*commit_yestify)(struct vmw_resource *res,
 			      enum vmw_cmdbuf_res_state state);
 	int (*dirty_alloc)(struct vmw_resource *res);
 	void (*dirty_free)(struct vmw_resource *res);

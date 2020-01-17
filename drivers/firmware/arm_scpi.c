@@ -225,7 +225,7 @@ struct scpi_xfer {
 	void *rx_buf;
 	unsigned int tx_len;
 	unsigned int rx_len;
-	struct list_head node;
+	struct list_head yesde;
 	struct completion done;
 };
 
@@ -343,10 +343,10 @@ static int scpi_linux_errmap[SCPI_ERR_MAX] = {
 	-EBUSY, /* SCPI_ERR_BUSY */
 };
 
-static inline int scpi_to_linux_errno(int errno)
+static inline int scpi_to_linux_erryes(int erryes)
 {
-	if (errno >= SCPI_SUCCESS && errno < SCPI_ERR_MAX)
-		return scpi_linux_errmap[errno];
+	if (erryes >= SCPI_SUCCESS && erryes < SCPI_ERR_MAX)
+		return scpi_linux_errmap[erryes];
 	return -EIO;
 }
 
@@ -361,18 +361,18 @@ static void scpi_process_cmd(struct scpi_chan *ch, u32 cmd)
 		return;
 	}
 
-	/* Command type is not replied by the SCP Firmware in legacy Mode
+	/* Command type is yest replied by the SCP Firmware in legacy Mode
 	 * We should consider that command is the head of pending RX commands
-	 * if the list is not empty. In TX only mode, the list would be empty.
+	 * if the list is yest empty. In TX only mode, the list would be empty.
 	 */
 	if (scpi_info->is_legacy) {
 		match = list_first_entry(&ch->rx_pending, struct scpi_xfer,
-					 node);
-		list_del(&match->node);
+					 yesde);
+		list_del(&match->yesde);
 	} else {
-		list_for_each_entry(t, &ch->rx_pending, node)
+		list_for_each_entry(t, &ch->rx_pending, yesde)
 			if (CMD_XTRACT_UNIQ(t->cmd) == CMD_XTRACT_UNIQ(cmd)) {
-				list_del(&t->node);
+				list_del(&t->yesde);
 				match = t;
 				break;
 			}
@@ -385,7 +385,7 @@ static void scpi_process_cmd(struct scpi_chan *ch, u32 cmd)
 			struct legacy_scpi_shared_mem __iomem *mem =
 							ch->rx_payload;
 
-			/* RX Length is not replied by the legacy Firmware */
+			/* RX Length is yest replied by the legacy Firmware */
 			len = match->rx_len;
 
 			match->status = ioread32(&mem->status);
@@ -437,7 +437,7 @@ static void scpi_tx_prepare(struct mbox_client *c, void *msg)
 			++ch->token;
 		t->cmd |= FIELD_PREP(CMD_TOKEN_ID_MASK, ch->token);
 		spin_lock_irqsave(&ch->rx_lock, flags);
-		list_add_tail(&t->node, &ch->rx_pending);
+		list_add_tail(&t->yesde, &ch->rx_pending);
 		spin_unlock_irqrestore(&ch->rx_lock, flags);
 	}
 
@@ -454,8 +454,8 @@ static struct scpi_xfer *get_scpi_xfer(struct scpi_chan *ch)
 		mutex_unlock(&ch->xfers_lock);
 		return NULL;
 	}
-	t = list_first_entry(&ch->xfers_list, struct scpi_xfer, node);
-	list_del(&t->node);
+	t = list_first_entry(&ch->xfers_list, struct scpi_xfer, yesde);
+	list_del(&t->yesde);
 	mutex_unlock(&ch->xfers_lock);
 	return t;
 }
@@ -463,7 +463,7 @@ static struct scpi_xfer *get_scpi_xfer(struct scpi_chan *ch)
 static void put_scpi_xfer(struct scpi_xfer *t, struct scpi_chan *ch)
 {
 	mutex_lock(&ch->xfers_lock);
-	list_add_tail(&t->node, &ch->xfers_list);
+	list_add_tail(&t->yesde, &ch->xfers_list);
 	mutex_unlock(&ch->xfers_lock);
 }
 
@@ -520,7 +520,7 @@ out:
 
 	put_scpi_xfer(msg, scpi_chan);
 	/* SCPI error codes > 0, translate them to Linux scale*/
-	return ret > 0 ? scpi_to_linux_errno(ret) : ret;
+	return ret > 0 ? scpi_to_linux_erryes(ret) : ret;
 }
 
 static u32 scpi_get_version(void)
@@ -653,7 +653,7 @@ static int scpi_dev_domain_id(struct device *dev)
 {
 	struct of_phandle_args clkspec;
 
-	if (of_parse_phandle_with_args(dev->of_node, "clocks", "#clock-cells",
+	if (of_parse_phandle_with_args(dev->of_yesde, "clocks", "#clock-cells",
 				       0, &clkspec))
 		return -EINVAL;
 
@@ -812,7 +812,7 @@ static int scpi_init_versions(struct scpi_drvinfo *info)
 		info->protocol_version = le32_to_cpu(caps.protocol_version);
 		info->firmware_version = le32_to_cpu(caps.platform_version);
 	}
-	/* Ignore error if not implemented */
+	/* Igyesre error if yest implemented */
 	if (scpi_info->is_legacy && ret == -EOPNOTSUPP)
 		return 0;
 
@@ -886,7 +886,7 @@ static int scpi_alloc_xfer_list(struct device *dev, struct scpi_chan *ch)
 	ch->xfers = xfers;
 	for (i = 0; i < MAX_SCPI_XFERS; i++, xfers++) {
 		init_completion(&xfers->done);
-		list_add_tail(&xfers->node, &ch->xfers_list);
+		list_add_tail(&xfers->yesde, &ch->xfers_list);
 	}
 
 	return 0;
@@ -902,7 +902,7 @@ static int scpi_probe(struct platform_device *pdev)
 	int count, idx, ret;
 	struct resource res;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	scpi_info = devm_kzalloc(dev, sizeof(*scpi_info), GFP_KERNEL);
 	if (!scpi_info)
@@ -913,7 +913,7 @@ static int scpi_probe(struct platform_device *pdev)
 
 	count = of_count_phandle_with_args(np, "mboxes", "#mbox-cells");
 	if (count < 0) {
-		dev_err(dev, "no mboxes property in '%pOF'\n", np);
+		dev_err(dev, "yes mboxes property in '%pOF'\n", np);
 		return -ENODEV;
 	}
 
@@ -931,10 +931,10 @@ static int scpi_probe(struct platform_device *pdev)
 		int idx = scpi_info->num_chans;
 		struct scpi_chan *pchan = scpi_info->channels + idx;
 		struct mbox_client *cl = &pchan->cl;
-		struct device_node *shmem = of_parse_phandle(np, "shmem", idx);
+		struct device_yesde *shmem = of_parse_phandle(np, "shmem", idx);
 
 		ret = of_address_to_resource(shmem, 0, &res);
-		of_node_put(shmem);
+		of_yesde_put(shmem);
 		if (ret) {
 			dev_err(dev, "failed to get SCPI payload mem resource\n");
 			return ret;
@@ -953,7 +953,7 @@ static int scpi_probe(struct platform_device *pdev)
 		cl->tx_prepare = scpi_tx_prepare;
 		cl->tx_block = true;
 		cl->tx_tout = 20;
-		cl->knows_txdone = false; /* controller can't ack */
+		cl->kyesws_txdone = false; /* controller can't ack */
 
 		INIT_LIST_HEAD(&pchan->rx_pending);
 		INIT_LIST_HEAD(&pchan->xfers_list);
@@ -990,7 +990,7 @@ static int scpi_probe(struct platform_device *pdev)
 
 	ret = scpi_init_versions(scpi_info);
 	if (ret) {
-		dev_err(dev, "incorrect or no SCP firmware found\n");
+		dev_err(dev, "incorrect or yes SCP firmware found\n");
 		return ret;
 	}
 

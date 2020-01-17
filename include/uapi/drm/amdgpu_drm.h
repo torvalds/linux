@@ -12,7 +12,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -75,11 +75,11 @@ extern "C" {
 /**
  * DOC: memory domains
  *
- * %AMDGPU_GEM_DOMAIN_CPU	System memory that is not GPU accessible.
+ * %AMDGPU_GEM_DOMAIN_CPU	System memory that is yest GPU accessible.
  * Memory in this pool could be swapped out to disk if there is pressure.
  *
  * %AMDGPU_GEM_DOMAIN_GTT	GPU accessible system memory, mapped into the
- * GPU's virtual address space via gart. Gart memory linearizes non-contiguous
+ * GPU's virtual address space via gart. Gart memory linearizes yesn-contiguous
  * pages of system memory, allows GPU access system memory in a linezrized
  * fashion.
  *
@@ -110,7 +110,7 @@ extern "C" {
 
 /* Flag that CPU access will be required for the case of VRAM domain */
 #define AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED	(1 << 0)
-/* Flag that CPU access will not work, this VRAM domain is invisible */
+/* Flag that CPU access will yest work, this VRAM domain is invisible */
 #define AMDGPU_GEM_CREATE_NO_CPU_ACCESS		(1 << 1)
 /* Flag that USWC attributes should be used for GTT */
 #define AMDGPU_GEM_CREATE_CPU_GTT_USWC		(1 << 2)
@@ -205,7 +205,7 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_GUILTY_RESET		1
 /* some other context caused it */
 #define AMDGPU_CTX_INNOCENT_RESET	2
-/* unknown cause */
+/* unkyeswn cause */
 #define AMDGPU_CTX_UNKNOWN_RESET	3
 
 /* indicate gpu reset occured after ctx created */
@@ -233,7 +233,7 @@ union drm_amdgpu_bo_list {
 struct drm_amdgpu_ctx_in {
 	/** AMDGPU_CTX_OP_* */
 	__u32	op;
-	/** For future use, no flags defined so far */
+	/** For future use, yes flags defined so far */
 	__u32	flags;
 	__u32	ctx_id;
 	/** AMDGPU_CTX_PRIORITY_* */
@@ -247,7 +247,7 @@ union drm_amdgpu_ctx_out {
 		} alloc;
 
 		struct {
-			/** For future use, no flags defined so far */
+			/** For future use, yes flags defined so far */
 			__u64	flags;
 			/** Number of resets caused by this context so far. */
 			__u32	hangs;
@@ -272,7 +272,7 @@ struct drm_amdgpu_vm_in {
 };
 
 struct drm_amdgpu_vm_out {
-	/** For future use, no flags defined so far */
+	/** For future use, yes flags defined so far */
 	__u64	flags;
 };
 
@@ -299,8 +299,8 @@ union drm_amdgpu_sched {
 };
 
 /*
- * This is not a reliable API and you should expect it to fail for any
- * number of reasons and have fallback path that do not use userptr to
+ * This is yest a reliable API and you should expect it to fail for any
+ * number of reasons and have fallback path that do yest use userptr to
  * perform any operation.
  */
 #define AMDGPU_GEM_USERPTR_READONLY	(1 << 0)
@@ -362,7 +362,7 @@ struct drm_amdgpu_gem_metadata {
 	/** Do we want get or set metadata */
 	__u32	op;
 	struct {
-		/** For future use, no flags defined so far */
+		/** For future use, yes flags defined so far */
 		__u64	flags;
 		/** family specific tiling info */
 		__u64	tiling_info;
@@ -390,7 +390,7 @@ union drm_amdgpu_gem_mmap {
 struct drm_amdgpu_gem_wait_idle_in {
 	/** GEM object handle */
 	__u32 handle;
-	/** For future use, no flags defined so far */
+	/** For future use, yes flags defined so far */
 	__u32 flags;
 	/** Absolute timeout to wait */
 	__u64 timeout;
@@ -410,7 +410,7 @@ union drm_amdgpu_gem_wait_idle {
 
 struct drm_amdgpu_wait_cs_in {
 	/* Command submission handle
-         * handle equals 0 means none to wait for
+         * handle equals 0 means yesne to wait for
          * handle equals ~0ull means wait for the latest sequence number
          */
 	__u64 handle;
@@ -437,7 +437,7 @@ struct drm_amdgpu_fence {
 	__u32 ip_type;
 	__u32 ip_instance;
 	__u32 ring;
-	__u64 seq_no;
+	__u64 seq_yes;
 };
 
 struct drm_amdgpu_wait_fences_in {
@@ -573,13 +573,13 @@ union drm_amdgpu_cs {
 /* This IB should be submitted to CE */
 #define AMDGPU_IB_FLAG_CE	(1<<0)
 
-/* Preamble flag, which means the IB could be dropped if no context switch */
+/* Preamble flag, which means the IB could be dropped if yes context switch */
 #define AMDGPU_IB_FLAG_PREAMBLE (1<<1)
 
 /* Preempt flag, IB should set Pre_enb bit if PREEMPT flag detected */
 #define AMDGPU_IB_FLAG_PREEMPT (1<<2)
 
-/* The IB fence should do the L2 writeback but not invalidate any shader
+/* The IB fence should do the L2 writeback but yest invalidate any shader
  * caches (L2/vL1/sL1/I$). */
 #define AMDGPU_IB_FLAG_TC_WB_NOT_INVALIDATE (1 << 3)
 
@@ -745,7 +745,7 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_SENSOR_GPU_LOAD		0x4
 	/* Subquery id: Query average GPU power	*/
 	#define AMDGPU_INFO_SENSOR_GPU_AVG_POWER	0x5
-	/* Subquery id: Query northbridge voltage */
+	/* Subquery id: Query yesrthbridge voltage */
 	#define AMDGPU_INFO_SENSOR_VDDNB		0x6
 	/* Subquery id: Query graphics voltage */
 	#define AMDGPU_INFO_SENSOR_VDDGFX		0x7
@@ -830,7 +830,7 @@ struct drm_amdgpu_info {
 			__u32 type;
 			/**
 			 * Index of the IP if there are more IPs of the same
-			 * type. Ignored by AMDGPU_INFO_HW_IP_COUNT.
+			 * type. Igyesred by AMDGPU_INFO_HW_IP_COUNT.
 			 */
 			__u32 ip_instance;
 		} query_hw_ip;
@@ -840,7 +840,7 @@ struct drm_amdgpu_info {
 			/** number of registers to read */
 			__u32 count;
 			__u32 instance;
-			/** For future use, no flags defined so far */
+			/** For future use, yes flags defined so far */
 			__u32 flags;
 		} read_mmr_reg;
 
@@ -891,7 +891,7 @@ struct drm_amdgpu_heap_info {
 	/**
 	 * Number of bytes allocated in the heap. This includes all processes
 	 * and private allocations in the kernel. It changes when new buffers
-	 * are allocated, freed, and moved. It cannot be larger than
+	 * are allocated, freed, and moved. It canyest be larger than
 	 * heap_size.
 	 */
 	__u64 heap_usage;
@@ -1012,7 +1012,7 @@ struct drm_amdgpu_info_device {
 struct drm_amdgpu_info_hw_ip {
 	/** Version of h/w IP */
 	__u32  hw_ip_version_major;
-	__u32  hw_ip_version_minor;
+	__u32  hw_ip_version_miyesr;
 	/** Capabilities */
 	__u64  capabilities_flags;
 	/** command buffer address start alignment*/

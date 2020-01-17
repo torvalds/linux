@@ -6,7 +6,7 @@
  *
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -129,7 +129,7 @@ static inline int ssu100_setregister(struct usb_device *dev,
 #define set_mctrl(dev, set)		update_mctrl((dev), (set), 0)
 #define clear_mctrl(dev, clear)	update_mctrl((dev), 0, (clear))
 
-/* these do not deal with device that have more than 1 port */
+/* these do yest deal with device that have more than 1 port */
 static inline int update_mctrl(struct usb_device *dev, unsigned int set,
 			       unsigned int clear)
 {
@@ -137,8 +137,8 @@ static inline int update_mctrl(struct usb_device *dev, unsigned int set,
 	int result;
 
 	if (((set | clear) & (TIOCM_DTR | TIOCM_RTS)) == 0) {
-		dev_dbg(&dev->dev, "%s - DTR|RTS not being set|cleared\n", __func__);
-		return 0;	/* no change */
+		dev_dbg(&dev->dev, "%s - DTR|RTS yest being set|cleared\n", __func__);
+		return 0;	/* yes change */
 	}
 
 	clear &= ~set;	/* 'set' takes precedence over 'clear' */
@@ -336,7 +336,7 @@ static int get_serial_info(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	ss->line		= port->minor;
+	ss->line		= port->miyesr;
 	ss->port		= 0;
 	ss->irq			= 0;
 	ss->xmit_fifo_size	= port->bulk_out_size;

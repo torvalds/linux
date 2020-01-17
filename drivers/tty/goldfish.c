@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2007 Google, Inc.
  * Copyright (C) 2012 Intel, Inc.
- * Copyright (C) 2017 Imagination Technologies Ltd.
+ * Copyright (C) 2017 Imagination Techyeslogies Ltd.
  */
 
 #include <linux/console.h>

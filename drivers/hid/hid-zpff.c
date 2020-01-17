@@ -59,7 +59,7 @@ static int zpff_init(struct hid_device *hid)
 	int i, error;
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
+		hid_err(hid, "yes inputs found\n");
 		return -ENODEV;
 	}
 	hidinput = list_entry(hid->inputs.next, struct hid_input, list);

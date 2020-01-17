@@ -46,7 +46,7 @@ struct guest_info {
 #define MIPS_CACHE_VTAG		0x00000002	/* Virtually tagged cache */
 #define MIPS_CACHE_ALIASES	0x00000004	/* Cache could have aliases */
 #define MIPS_CACHE_IC_F_DC	0x00000008	/* Ic can refill from D-cache */
-#define MIPS_IC_SNOOPS_REMOTE	0x00000010	/* Ic snoops remote stores */
+#define MIPS_IC_SNOOPS_REMOTE	0x00000010	/* Ic syesops remote stores */
 #define MIPS_CACHE_PINDEX	0x00000020	/* Physically indexed cache */
 
 struct cpuinfo_mips {
@@ -119,22 +119,22 @@ extern const char *__cpu_name[];
 #define cpu_name_string()	__cpu_name[raw_smp_processor_id()]
 
 struct seq_file;
-struct notifier_block;
+struct yestifier_block;
 
-extern int register_proc_cpuinfo_notifier(struct notifier_block *nb);
-extern int proc_cpuinfo_notifier_call_chain(unsigned long val, void *v);
+extern int register_proc_cpuinfo_yestifier(struct yestifier_block *nb);
+extern int proc_cpuinfo_yestifier_call_chain(unsigned long val, void *v);
 
-#define proc_cpuinfo_notifier(fn, pri)					\
+#define proc_cpuinfo_yestifier(fn, pri)					\
 ({									\
-	static struct notifier_block fn##_nb = {			\
-		.notifier_call = fn,					\
+	static struct yestifier_block fn##_nb = {			\
+		.yestifier_call = fn,					\
 		.priority = pri						\
 	};								\
 									\
-	register_proc_cpuinfo_notifier(&fn##_nb);			\
+	register_proc_cpuinfo_yestifier(&fn##_nb);			\
 })
 
-struct proc_cpuinfo_notifier_args {
+struct proc_cpuinfo_yestifier_args {
 	struct seq_file *m;
 	unsigned long n;
 };

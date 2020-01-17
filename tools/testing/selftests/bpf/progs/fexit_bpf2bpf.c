@@ -39,7 +39,7 @@ BPF_TRACE_2("fexit/test_pkt_access_subprog1", test_subprog1,
 }
 
 /* Though test_pkt_access_subprog2() is defined in C as:
- * static __attribute__ ((noinline))
+ * static __attribute__ ((yesinline))
  * int test_pkt_access_subprog2(int val, volatile struct __sk_buff *skb)
  * {
  *     return skb->len * val;

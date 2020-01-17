@@ -206,7 +206,7 @@ static void __init timer_init(void)
 		/* Disabled, Internal clock source */
 		__raw_writel(0, base[i] + TCR);
 
-		/* reset both timers, no pre-scaler for timer34 */
+		/* reset both timers, yes pre-scaler for timer34 */
 		tgcr = 0;
 		__raw_writel(tgcr, base[i] + TGCR);
 
@@ -277,7 +277,7 @@ static struct clocksource clocksource_davinci = {
 /*
  * Overwrite weak default sched_clock with something more precise
  */
-static u64 notrace davinci_read_sched_clock(void)
+static u64 yestrace davinci_read_sched_clock(void)
 {
 	return timer32_read(&timers[TID_CLOCKSOURCE]);
 }
@@ -349,7 +349,7 @@ void __init davinci_timer_init(struct clk *timer_clk)
 	/*
 	 * If using same timer for both clock events & clocksource,
 	 * a compare register must be used to generate an event interrupt.
-	 * This is equivalent to a oneshot timer only (not periodic).
+	 * This is equivalent to a oneshot timer only (yest periodic).
 	 */
 	if (clockevent_id == clocksource_id) {
 		struct davinci_timer_instance *dtip =

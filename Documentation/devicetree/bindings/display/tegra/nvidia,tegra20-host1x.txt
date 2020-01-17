@@ -20,7 +20,7 @@ Required properties:
 - reset-names: Must include the following entries:
   - host1x
 
-The host1x top-level node defines a number of children, each representing one
+The host1x top-level yesde defines a number of children, each representing one
 of the following host1x client modules:
 
 - mpe: video encoder
@@ -126,7 +126,7 @@ of the following host1x client modules:
     setup the various types of output to receive video data from the given
     head.
 
-  Each display controller node has a child node, named "rgb", that represents
+  Each display controller yesde has a child yesde, named "rgb", that represents
   the RGB output associated with the controller. It can take the following
   optional properties:
   - nvidia,ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
@@ -261,9 +261,9 @@ of the following host1x client modules:
   - reset-names: Must include the following entries:
     - dpaux
   - vdd-supply: phandle of a supply that powers the DisplayPort link
-  - i2c-bus: Subnode where I2C slave devices are listed. This subnode
-    must be always present. If there are no I2C slave devices, an empty
-    node should be added. See ../../i2c/i2c.txt for more information.
+  - i2c-bus: Subyesde where I2C slave devices are listed. This subyesde
+    must be always present. If there are yes I2C slave devices, an empty
+    yesde should be added. See ../../i2c/i2c.txt for more information.
 
   See ../pinctrl/nvidia,tegra124-dpaux-padctl.txt for information
   regarding the DPAUX pad controller bindings.

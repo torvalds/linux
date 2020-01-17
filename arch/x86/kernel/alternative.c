@@ -41,14 +41,14 @@ static int __init debug_alt(char *str)
 }
 __setup("debug-alternative", debug_alt);
 
-static int noreplace_smp;
+static int yesreplace_smp;
 
-static int __init setup_noreplace_smp(char *str)
+static int __init setup_yesreplace_smp(char *str)
 {
-	noreplace_smp = 1;
+	yesreplace_smp = 1;
 	return 1;
 }
-__setup("noreplace-smp", setup_noreplace_smp);
+__setup("yesreplace-smp", setup_yesreplace_smp);
 
 #define DPRINTK(fmt, args...)						\
 do {									\
@@ -73,15 +73,15 @@ do {									\
 
 /*
  * Each GENERIC_NOPX is of X bytes, and defined as an array of bytes
- * that correspond to that nop. Getting from one nop to the next, we
+ * that correspond to that yesp. Getting from one yesp to the next, we
  * add to the array the offset that is equal to the sum of all sizes of
- * nops preceding the one we are after.
+ * yesps preceding the one we are after.
  *
  * Note: The GENERIC_NOP5_ATOMIC is at the end, as it breaks the
- * nice symmetry of sizes of the previous nops.
+ * nice symmetry of sizes of the previous yesps.
  */
 #if defined(GENERIC_NOP1) && !defined(CONFIG_X86_64)
-static const unsigned char intelnops[] =
+static const unsigned char intelyesps[] =
 {
 	GENERIC_NOP1,
 	GENERIC_NOP2,
@@ -93,23 +93,23 @@ static const unsigned char intelnops[] =
 	GENERIC_NOP8,
 	GENERIC_NOP5_ATOMIC
 };
-static const unsigned char * const intel_nops[ASM_NOP_MAX+2] =
+static const unsigned char * const intel_yesps[ASM_NOP_MAX+2] =
 {
 	NULL,
-	intelnops,
-	intelnops + 1,
-	intelnops + 1 + 2,
-	intelnops + 1 + 2 + 3,
-	intelnops + 1 + 2 + 3 + 4,
-	intelnops + 1 + 2 + 3 + 4 + 5,
-	intelnops + 1 + 2 + 3 + 4 + 5 + 6,
-	intelnops + 1 + 2 + 3 + 4 + 5 + 6 + 7,
-	intelnops + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8,
+	intelyesps,
+	intelyesps + 1,
+	intelyesps + 1 + 2,
+	intelyesps + 1 + 2 + 3,
+	intelyesps + 1 + 2 + 3 + 4,
+	intelyesps + 1 + 2 + 3 + 4 + 5,
+	intelyesps + 1 + 2 + 3 + 4 + 5 + 6,
+	intelyesps + 1 + 2 + 3 + 4 + 5 + 6 + 7,
+	intelyesps + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8,
 };
 #endif
 
 #ifdef K8_NOP1
-static const unsigned char k8nops[] =
+static const unsigned char k8yesps[] =
 {
 	K8_NOP1,
 	K8_NOP2,
@@ -121,23 +121,23 @@ static const unsigned char k8nops[] =
 	K8_NOP8,
 	K8_NOP5_ATOMIC
 };
-static const unsigned char * const k8_nops[ASM_NOP_MAX+2] =
+static const unsigned char * const k8_yesps[ASM_NOP_MAX+2] =
 {
 	NULL,
-	k8nops,
-	k8nops + 1,
-	k8nops + 1 + 2,
-	k8nops + 1 + 2 + 3,
-	k8nops + 1 + 2 + 3 + 4,
-	k8nops + 1 + 2 + 3 + 4 + 5,
-	k8nops + 1 + 2 + 3 + 4 + 5 + 6,
-	k8nops + 1 + 2 + 3 + 4 + 5 + 6 + 7,
-	k8nops + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8,
+	k8yesps,
+	k8yesps + 1,
+	k8yesps + 1 + 2,
+	k8yesps + 1 + 2 + 3,
+	k8yesps + 1 + 2 + 3 + 4,
+	k8yesps + 1 + 2 + 3 + 4 + 5,
+	k8yesps + 1 + 2 + 3 + 4 + 5 + 6,
+	k8yesps + 1 + 2 + 3 + 4 + 5 + 6 + 7,
+	k8yesps + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8,
 };
 #endif
 
 #if defined(K7_NOP1) && !defined(CONFIG_X86_64)
-static const unsigned char k7nops[] =
+static const unsigned char k7yesps[] =
 {
 	K7_NOP1,
 	K7_NOP2,
@@ -149,23 +149,23 @@ static const unsigned char k7nops[] =
 	K7_NOP8,
 	K7_NOP5_ATOMIC
 };
-static const unsigned char * const k7_nops[ASM_NOP_MAX+2] =
+static const unsigned char * const k7_yesps[ASM_NOP_MAX+2] =
 {
 	NULL,
-	k7nops,
-	k7nops + 1,
-	k7nops + 1 + 2,
-	k7nops + 1 + 2 + 3,
-	k7nops + 1 + 2 + 3 + 4,
-	k7nops + 1 + 2 + 3 + 4 + 5,
-	k7nops + 1 + 2 + 3 + 4 + 5 + 6,
-	k7nops + 1 + 2 + 3 + 4 + 5 + 6 + 7,
-	k7nops + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8,
+	k7yesps,
+	k7yesps + 1,
+	k7yesps + 1 + 2,
+	k7yesps + 1 + 2 + 3,
+	k7yesps + 1 + 2 + 3 + 4,
+	k7yesps + 1 + 2 + 3 + 4 + 5,
+	k7yesps + 1 + 2 + 3 + 4 + 5 + 6,
+	k7yesps + 1 + 2 + 3 + 4 + 5 + 6 + 7,
+	k7yesps + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8,
 };
 #endif
 
 #ifdef P6_NOP1
-static const unsigned char p6nops[] =
+static const unsigned char p6yesps[] =
 {
 	P6_NOP1,
 	P6_NOP2,
@@ -177,36 +177,36 @@ static const unsigned char p6nops[] =
 	P6_NOP8,
 	P6_NOP5_ATOMIC
 };
-static const unsigned char * const p6_nops[ASM_NOP_MAX+2] =
+static const unsigned char * const p6_yesps[ASM_NOP_MAX+2] =
 {
 	NULL,
-	p6nops,
-	p6nops + 1,
-	p6nops + 1 + 2,
-	p6nops + 1 + 2 + 3,
-	p6nops + 1 + 2 + 3 + 4,
-	p6nops + 1 + 2 + 3 + 4 + 5,
-	p6nops + 1 + 2 + 3 + 4 + 5 + 6,
-	p6nops + 1 + 2 + 3 + 4 + 5 + 6 + 7,
-	p6nops + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8,
+	p6yesps,
+	p6yesps + 1,
+	p6yesps + 1 + 2,
+	p6yesps + 1 + 2 + 3,
+	p6yesps + 1 + 2 + 3 + 4,
+	p6yesps + 1 + 2 + 3 + 4 + 5,
+	p6yesps + 1 + 2 + 3 + 4 + 5 + 6,
+	p6yesps + 1 + 2 + 3 + 4 + 5 + 6 + 7,
+	p6yesps + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8,
 };
 #endif
 
 /* Initialize these to a safe default */
 #ifdef CONFIG_X86_64
-const unsigned char * const *ideal_nops = p6_nops;
+const unsigned char * const *ideal_yesps = p6_yesps;
 #else
-const unsigned char * const *ideal_nops = intel_nops;
+const unsigned char * const *ideal_yesps = intel_yesps;
 #endif
 
-void __init arch_init_ideal_nops(void)
+void __init arch_init_ideal_yesps(void)
 {
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_INTEL:
 		/*
 		 * Due to a decoder implementation quirk, some
 		 * specific Intel CPUs actually perform better with
-		 * the "k8_nops" than with the SDM-recommended NOPs.
+		 * the "k8_yesps" than with the SDM-recommended NOPs.
 		 */
 		if (boot_cpu_data.x86 == 6 &&
 		    boot_cpu_data.x86_model >= 0x0f &&
@@ -214,25 +214,25 @@ void __init arch_init_ideal_nops(void)
 		    boot_cpu_data.x86_model != 0x26 &&
 		    boot_cpu_data.x86_model != 0x27 &&
 		    boot_cpu_data.x86_model < 0x30) {
-			ideal_nops = k8_nops;
+			ideal_yesps = k8_yesps;
 		} else if (boot_cpu_has(X86_FEATURE_NOPL)) {
-			   ideal_nops = p6_nops;
+			   ideal_yesps = p6_yesps;
 		} else {
 #ifdef CONFIG_X86_64
-			ideal_nops = k8_nops;
+			ideal_yesps = k8_yesps;
 #else
-			ideal_nops = intel_nops;
+			ideal_yesps = intel_yesps;
 #endif
 		}
 		break;
 
 	case X86_VENDOR_HYGON:
-		ideal_nops = p6_nops;
+		ideal_yesps = p6_yesps;
 		return;
 
 	case X86_VENDOR_AMD:
 		if (boot_cpu_data.x86 > 0xf) {
-			ideal_nops = p6_nops;
+			ideal_yesps = p6_yesps;
 			return;
 		}
 
@@ -240,28 +240,28 @@ void __init arch_init_ideal_nops(void)
 
 	default:
 #ifdef CONFIG_X86_64
-		ideal_nops = k8_nops;
+		ideal_yesps = k8_yesps;
 #else
 		if (boot_cpu_has(X86_FEATURE_K8))
-			ideal_nops = k8_nops;
+			ideal_yesps = k8_yesps;
 		else if (boot_cpu_has(X86_FEATURE_K7))
-			ideal_nops = k7_nops;
+			ideal_yesps = k7_yesps;
 		else
-			ideal_nops = intel_nops;
+			ideal_yesps = intel_yesps;
 #endif
 	}
 }
 
-/* Use this to add nops to a buffer, then text_poke the whole buffer. */
-static void __init_or_module add_nops(void *insns, unsigned int len)
+/* Use this to add yesps to a buffer, then text_poke the whole buffer. */
+static void __init_or_module add_yesps(void *insns, unsigned int len)
 {
 	while (len > 0) {
-		unsigned int noplen = len;
-		if (noplen > ASM_NOP_MAX)
-			noplen = ASM_NOP_MAX;
-		memcpy(insns, ideal_nops[noplen], noplen);
-		insns += noplen;
-		len -= noplen;
+		unsigned int yesplen = len;
+		if (yesplen > ASM_NOP_MAX)
+			yesplen = ASM_NOP_MAX;
+		memcpy(insns, ideal_yesps[yesplen], yesplen);
+		insns += yesplen;
+		len -= yesplen;
 	}
 }
 
@@ -315,7 +315,7 @@ two_byte_jmp:
 
 	insn_buff[0] = 0xeb;
 	insn_buff[1] = (s8)n_dspl;
-	add_nops(insn_buff + 2, 3);
+	add_yesps(insn_buff + 2, 3);
 
 	repl_len = 2;
 	goto done;
@@ -335,10 +335,10 @@ done:
 }
 
 /*
- * "noinline" to cause control flow change and thus invalidate I$ and
+ * "yesinline" to cause control flow change and thus invalidate I$ and
  * cause refetch after modification.
  */
-static void __init_or_module noinline optimize_nops(struct alt_instr *a, u8 *instr)
+static void __init_or_module yesinline optimize_yesps(struct alt_instr *a, u8 *instr)
 {
 	unsigned long flags;
 	int i;
@@ -349,7 +349,7 @@ static void __init_or_module noinline optimize_nops(struct alt_instr *a, u8 *ins
 	}
 
 	local_irq_save(flags);
-	add_nops(instr + (a->instrlen - a->padlen), a->padlen);
+	add_yesps(instr + (a->instrlen - a->padlen), a->padlen);
 	local_irq_restore(flags);
 
 	DUMP_BYTES(instr, a->instrlen, "%px: [%d:%d) optimized NOPs: ",
@@ -360,13 +360,13 @@ static void __init_or_module noinline optimize_nops(struct alt_instr *a, u8 *ins
  * Replace instructions with better alternatives for this CPU type. This runs
  * before SMP is initialized to avoid SMP problems with self modifying code.
  * This implies that asymmetric systems where APs have less capabilities than
- * the boot processor are not handled. Tough. Make sure you disable such
+ * the boot processor are yest handled. Tough. Make sure you disable such
  * features by hand.
  *
- * Marked "noinline" to cause control flow change and thus insn cache
+ * Marked "yesinline" to cause control flow change and thus insn cache
  * to refetch changed I$ lines.
  */
-void __init_or_module noinline apply_alternatives(struct alt_instr *start,
+void __init_or_module yesinline apply_alternatives(struct alt_instr *start,
 						  struct alt_instr *end)
 {
 	struct alt_instr *a;
@@ -392,7 +392,7 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 		BUG_ON(a->cpuid >= (NCAPINTS + NBUGINTS) * 32);
 		if (!boot_cpu_has(a->cpuid)) {
 			if (a->padlen > 1)
-				optimize_nops(a, instr);
+				optimize_yesps(a, instr);
 
 			continue;
 		}
@@ -426,7 +426,7 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 			recompute_jump(a, instr, replacement, insn_buff);
 
 		if (a->instrlen > a->replacementlen) {
-			add_nops(insn_buff + a->replacementlen,
+			add_yesps(insn_buff + a->replacementlen,
 				 a->instrlen - a->replacementlen);
 			insn_buff_sz += a->instrlen - a->replacementlen;
 		}
@@ -543,7 +543,7 @@ void alternatives_enable_smp(void)
 {
 	struct smp_alt_module *mod;
 
-	/* Why bother if there are no other CPUs? */
+	/* Why bother if there are yes other CPUs? */
 	BUG_ON(num_possible_cpus() == 1);
 
 	mutex_lock(&text_mutex);
@@ -606,8 +606,8 @@ void __init_or_module apply_paravirt(struct paravirt_patch_site *start,
 
 		BUG_ON(used > p->len);
 
-		/* Pad the rest with nops */
-		add_nops(insn_buff + used, p->len - used);
+		/* Pad the rest with yesps */
+		add_yesps(insn_buff + used, p->len - used);
 		text_poke_early(p->instr, insn_buff, p->len);
 	}
 }
@@ -646,7 +646,7 @@ asm (
 extern __initdata unsigned long int3_selftest_ip; /* defined in asm below */
 
 static int __init
-int3_exception_notify(struct notifier_block *self, unsigned long val, void *data)
+int3_exception_yestify(struct yestifier_block *self, unsigned long val, void *data)
 {
 	struct die_args *args = data;
 	struct pt_regs *regs = args->regs;
@@ -666,13 +666,13 @@ int3_exception_notify(struct notifier_block *self, unsigned long val, void *data
 
 static void __init int3_selftest(void)
 {
-	static __initdata struct notifier_block int3_exception_nb = {
-		.notifier_call	= int3_exception_notify,
+	static __initdata struct yestifier_block int3_exception_nb = {
+		.yestifier_call	= int3_exception_yestify,
 		.priority	= INT_MAX-1, /* last */
 	};
 	unsigned int val = 0;
 
-	BUG_ON(register_die_notifier(&int3_exception_nb));
+	BUG_ON(register_die_yestifier(&int3_exception_nb));
 
 	/*
 	 * Basically: int3_magic(&val); but really complicated :-)
@@ -681,7 +681,7 @@ static void __init int3_selftest(void)
 	 * then trigger the INT3, padded with NOPs to match a CALL instruction
 	 * length.
 	 */
-	asm volatile ("1: int3; nop; nop; nop; nop\n\t"
+	asm volatile ("1: int3; yesp; yesp; yesp; yesp\n\t"
 		      ".pushsection .init.data,\"aw\"\n\t"
 		      ".align " __ASM_SEL(4, 8) "\n\t"
 		      ".type int3_selftest_ip, @object\n\t"
@@ -695,7 +695,7 @@ static void __init int3_selftest(void)
 
 	BUG_ON(val != 1);
 
-	unregister_die_notifier(&int3_exception_nb);
+	unregister_die_yestifier(&int3_exception_nb);
 }
 
 void __init alternative_instructions(void)
@@ -703,9 +703,9 @@ void __init alternative_instructions(void)
 	int3_selftest();
 
 	/*
-	 * The patching is not fully atomic, so try to avoid local
+	 * The patching is yest fully atomic, so try to avoid local
 	 * interruptions that might execute the to be patched code.
-	 * Other CPUs are not running.
+	 * Other CPUs are yest running.
 	 */
 	stop_nmi();
 
@@ -713,7 +713,7 @@ void __init alternative_instructions(void)
 	 * Don't stop machine check exceptions while patching.
 	 * MCEs only happen when something got corrupted and in this
 	 * case we must do something about the corruption.
-	 * Ignoring it is worse than an unlikely patching race.
+	 * Igyesring it is worse than an unlikely patching race.
 	 * Also machine checks tend to be broadcast and if one CPU
 	 * goes into machine check the others follow quickly, so we don't
 	 * expect a machine check to cause undue problems during to code
@@ -723,8 +723,8 @@ void __init alternative_instructions(void)
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
 
 #ifdef CONFIG_SMP
-	/* Patch to UP if other cpus not imminent. */
-	if (!noreplace_smp && (num_present_cpus() == 1 || setup_max_cpus <= 1)) {
+	/* Patch to UP if other cpus yest imminent. */
+	if (!yesreplace_smp && (num_present_cpus() == 1 || setup_max_cpus <= 1)) {
 		uniproc_patched = true;
 		alternatives_smp_module_add(NULL, "core kernel",
 					    __smp_locks, __smp_locks_end,
@@ -751,8 +751,8 @@ void __init alternative_instructions(void)
  * @len: length to copy
  *
  * When you use this code to patch more than one byte of an instruction
- * you need to make sure that other CPUs cannot execute this code in parallel.
- * Also no thread must be currently preempted in the middle of these
+ * you need to make sure that other CPUs canyest execute this code in parallel.
+ * Also yes thread must be currently preempted in the middle of these
  * instructions. And on the local CPU you need to be protected against NMI or
  * MCE handlers seeing an inconsistent instruction while you patch.
  */
@@ -764,8 +764,8 @@ void __init_or_module text_poke_early(void *addr, const void *opcode,
 	if (boot_cpu_has(X86_FEATURE_NX) &&
 	    is_module_text_address((unsigned long)addr)) {
 		/*
-		 * Modules text is marked initially as non-executable, so the
-		 * code cannot be running and speculative code-fetches are
+		 * Modules text is marked initially as yesn-executable, so the
+		 * code canyest be running and speculative code-fetches are
 		 * prevented. Just change the code.
 		 */
 		memcpy(addr, opcode, len);
@@ -796,8 +796,8 @@ static void *__text_poke(void *addr, const void *opcode, size_t len)
 	pgprot_t pgprot;
 
 	/*
-	 * While boot memory allocator is running we cannot use struct pages as
-	 * they are not yet initialized. There is no way to recover.
+	 * While boot memory allocator is running we canyest use struct pages as
+	 * they are yest yet initialized. There is yes way to recover.
 	 */
 	BUG_ON(!after_bootmem);
 
@@ -812,7 +812,7 @@ static void *__text_poke(void *addr, const void *opcode, size_t len)
 			pages[1] = virt_to_page(addr + PAGE_SIZE);
 	}
 	/*
-	 * If something went wrong, crash and burn since recovery paths are not
+	 * If something went wrong, crash and burn since recovery paths are yest
 	 * implemented.
 	 */
 	BUG_ON(!pages[0] || (cross_page_boundary && !pages[1]));
@@ -821,17 +821,17 @@ static void *__text_poke(void *addr, const void *opcode, size_t len)
 
 	/*
 	 * Map the page without the global bit, as TLB flushing is done with
-	 * flush_tlb_mm_range(), which is intended for non-global PTEs.
+	 * flush_tlb_mm_range(), which is intended for yesn-global PTEs.
 	 */
 	pgprot = __pgprot(pgprot_val(PAGE_KERNEL) & ~_PAGE_GLOBAL);
 
 	/*
-	 * The lock is not really needed, but this allows to avoid open-coding.
+	 * The lock is yest really needed, but this allows to avoid open-coding.
 	 */
 	ptep = get_locked_pte(poking_mm, poking_addr, &ptl);
 
 	/*
-	 * This must not fail; preallocated in poking_init().
+	 * This must yest fail; preallocated in poking_init().
 	 */
 	VM_BUG_ON(!ptep);
 
@@ -872,15 +872,15 @@ static void *__text_poke(void *addr, const void *opcode, size_t len)
 
 	/*
 	 * Flushing the TLB might involve IPIs, which would require enabled
-	 * IRQs, but not if the mm is not used, as it is in this point.
+	 * IRQs, but yest if the mm is yest used, as it is in this point.
 	 */
 	flush_tlb_mm_range(poking_mm, poking_addr, poking_addr +
 			   (cross_page_boundary ? 2 : 1) * PAGE_SIZE,
 			   PAGE_SHIFT, false);
 
 	/*
-	 * If the text does not match what we just wrote then something is
-	 * fundamentally screwy; there's nothing we can really do about that.
+	 * If the text does yest match what we just wrote then something is
+	 * fundamentally screwy; there's yesthing we can really do about that.
 	 */
 	BUG_ON(memcmp(addr, opcode, len));
 
@@ -895,14 +895,14 @@ static void *__text_poke(void *addr, const void *opcode, size_t len)
  * @opcode: source of the copy
  * @len: length to copy
  *
- * Only atomic text poke/set should be allowed when not doing early patching.
+ * Only atomic text poke/set should be allowed when yest doing early patching.
  * It means the size must be writable atomically and the address must be aligned
  * in a way that permits an atomic write. It also makes sure we fit on a single
  * page.
  *
  * Note that the caller must ensure that if the modified code is part of a
- * module, the module would not be removed during poking. This can be achieved
- * by registering a module notifier, and ordering module removal and patching
+ * module, the module would yest be removed during poking. This can be achieved
+ * by registering a module yestifier, and ordering module removal and patching
  * trough a mutex.
  */
 void *text_poke(void *addr, const void *opcode, size_t len)
@@ -918,13 +918,13 @@ void *text_poke(void *addr, const void *opcode, size_t len)
  * @opcode: source of the copy
  * @len: length to copy
  *
- * Only atomic text poke/set should be allowed when not doing early patching.
+ * Only atomic text poke/set should be allowed when yest doing early patching.
  * It means the size must be writable atomically and the address must be aligned
  * in a way that permits an atomic write. It also makes sure we fit on a single
  * page.
  *
- * Context: should only be used by kgdb, which ensures no other core is running,
- *	    despite the fact it does not hold the text_mutex.
+ * Context: should only be used by kgdb, which ensures yes other core is running,
+ *	    despite the fact it does yest hold the text_mutex.
  */
 void *text_poke_kgdb(void *addr, const void *opcode, size_t len)
 {
@@ -959,7 +959,7 @@ int poke_int3_handler(struct pt_regs *regs)
 	void *ip;
 
 	/*
-	 * Having observed our INT3 instruction, we now must observe
+	 * Having observed our INT3 instruction, we yesw must observe
 	 * bp_patching.nr_entries.
 	 *
 	 *	nr_entries != 0			INT3
@@ -1002,7 +1002,7 @@ int poke_int3_handler(struct pt_regs *regs)
 	case INT3_INSN_OPCODE:
 		/*
 		 * Someone poked an explicit INT3, they'll want to handle it,
-		 * do not consume.
+		 * do yest consume.
 		 */
 		return 0;
 
@@ -1056,7 +1056,7 @@ void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries)
 	bp_patching.nr_entries = nr_entries;
 
 	/*
-	 * Corresponding read barrier in int3 notifier for making sure the
+	 * Corresponding read barrier in int3 yestifier for making sure the
 	 * nr_entries and handler are correctly ordered wrt. patching.
 	 */
 	smp_wmb();
@@ -1084,8 +1084,8 @@ void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries)
 	if (do_sync) {
 		/*
 		 * According to Intel, this core syncing is very likely
-		 * not necessary and we'd be safe even without it. But
-		 * better safe than sorry (plus there's not only Intel).
+		 * yest necessary and we'd be safe even without it. But
+		 * better safe than sorry (plus there's yest only Intel).
 		 */
 		on_each_cpu(do_sync_core, NULL, 1);
 	}
@@ -1149,18 +1149,18 @@ void text_poke_loc_init(struct text_poke_loc *tp, void *addr,
 	default: /* assume NOP */
 		switch (len) {
 		case 2: /* NOP2 -- emulate as JMP8+0 */
-			BUG_ON(memcmp(emulate, ideal_nops[len], len));
+			BUG_ON(memcmp(emulate, ideal_yesps[len], len));
 			tp->opcode = JMP8_INSN_OPCODE;
 			tp->rel32 = 0;
 			break;
 
 		case 5: /* NOP5 -- emulate as JMP32+0 */
-			BUG_ON(memcmp(emulate, ideal_nops[NOP_ATOMIC5], len));
+			BUG_ON(memcmp(emulate, ideal_yesps[NOP_ATOMIC5], len));
 			tp->opcode = JMP32_INSN_OPCODE;
 			tp->rel32 = 0;
 			break;
 
-		default: /* unknown instruction */
+		default: /* unkyeswn instruction */
 			BUG();
 		}
 		break;
@@ -1176,7 +1176,7 @@ void text_poke_loc_init(struct text_poke_loc *tp, void *addr,
  *
  * Update a single instruction with the vector in the stack, avoiding
  * dynamically allocated memory. This function should be used when it is
- * not possible to allocate memory.
+ * yest possible to allocate memory.
  */
 void text_poke_bp(void *addr, const void *opcode, size_t len, const void *emulate)
 {

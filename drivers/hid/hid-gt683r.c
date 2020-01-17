@@ -270,7 +270,7 @@ static int gt683r_led_probe(struct hid_device *hdev,
 
 		ret = led_classdev_register(&hdev->dev, &led->led_devs[i]);
 		if (ret) {
-			hid_err(hdev, "could not register led device\n");
+			hid_err(hdev, "could yest register led device\n");
 			goto fail;
 		}
 	}

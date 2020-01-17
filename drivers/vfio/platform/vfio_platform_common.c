@@ -31,7 +31,7 @@ static DEFINE_MUTEX(driver_lock);
 static vfio_platform_reset_fn_t vfio_platform_lookup_reset(const char *compat,
 					struct module **module)
 {
-	struct vfio_platform_reset_node *iter;
+	struct vfio_platform_reset_yesde *iter;
 	vfio_platform_reset_fn_t reset_fn = NULL;
 
 	mutex_lock(&driver_lock);
@@ -57,7 +57,7 @@ static int vfio_platform_acpi_probe(struct vfio_platform_device *vdev,
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev) {
-		dev_err(dev, "ACPI companion device not found for %s\n",
+		dev_err(dev, "ACPI companion device yest found for %s\n",
 			vdev->name);
 		return -ENODEV;
 	}
@@ -214,7 +214,7 @@ static int vfio_platform_call_reset(struct vfio_platform_device *vdev,
 		return vdev->of_reset(vdev);
 	}
 
-	dev_warn(vdev->device, "no reset function found!\n");
+	dev_warn(vdev->device, "yes reset function found!\n");
 	return -EINVAL;
 }
 
@@ -409,7 +409,7 @@ static ssize_t vfio_platform_read_mmio(struct vfio_platform_region *reg,
 
 	if (!reg->ioaddr) {
 		reg->ioaddr =
-			ioremap_nocache(reg->addr, reg->size);
+			ioremap_yescache(reg->addr, reg->size);
 
 		if (!reg->ioaddr)
 			return -ENOMEM;
@@ -473,7 +473,7 @@ static ssize_t vfio_platform_read(void *device_data, char __user *buf,
 		return vfio_platform_read_mmio(&vdev->regions[index],
 							buf, count, off);
 	else if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_PIO)
-		return -EINVAL; /* not implemented */
+		return -EINVAL; /* yest implemented */
 
 	return -EINVAL;
 }
@@ -486,7 +486,7 @@ static ssize_t vfio_platform_write_mmio(struct vfio_platform_region *reg,
 
 	if (!reg->ioaddr) {
 		reg->ioaddr =
-			ioremap_nocache(reg->addr, reg->size);
+			ioremap_yescache(reg->addr, reg->size);
 
 		if (!reg->ioaddr)
 			return -ENOMEM;
@@ -549,7 +549,7 @@ static ssize_t vfio_platform_write(void *device_data, const char __user *buf,
 		return vfio_platform_write_mmio(&vdev->regions[index],
 							buf, count, off);
 	else if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_PIO)
-		return -EINVAL; /* not implemented */
+		return -EINVAL; /* yest implemented */
 
 	return -EINVAL;
 }
@@ -567,7 +567,7 @@ static int vfio_platform_mmap_mmio(struct vfio_platform_region region,
 	if (region.size < PAGE_SIZE || req_start + req_len > region.size)
 		return -EINVAL;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	vma->vm_pgoff = (region.addr >> PAGE_SHIFT) + pgoff;
 
 	return remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
@@ -609,7 +609,7 @@ static int vfio_platform_mmap(void *device_data, struct vm_area_struct *vma)
 		return vfio_platform_mmap_mmio(vdev->regions[index], vma);
 
 	else if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_PIO)
-		return -EINVAL; /* not implemented */
+		return -EINVAL; /* yest implemented */
 
 	return -EINVAL;
 }
@@ -632,17 +632,17 @@ static int vfio_platform_of_probe(struct vfio_platform_device *vdev,
 	ret = device_property_read_string(dev, "compatible",
 					  &vdev->compat);
 	if (ret)
-		dev_err(dev, "Cannot retrieve compat for %s\n", vdev->name);
+		dev_err(dev, "Canyest retrieve compat for %s\n", vdev->name);
 
 	return ret;
 }
 
 /*
  * There can be two kernel build combinations. One build where
- * ACPI is not selected in Kconfig and another one with the ACPI Kconfig.
+ * ACPI is yest selected in Kconfig and ayesther one with the ACPI Kconfig.
  *
  * In the first case, vfio_platform_acpi_probe will return since
- * acpi_disabled is 1. DT user will not see any kind of messages from
+ * acpi_disabled is 1. DT user will yest see any kind of messages from
  * ACPI.
  *
  * In the second case, both DT and ACPI is compiled in but the system is
@@ -652,7 +652,7 @@ static int vfio_platform_of_probe(struct vfio_platform_device *vdev,
  * terminates immediately without any messages.
  *
  * If the firmware is ACPI type, then acpi_disabled is 0. All other checks are
- * valid checks. We cannot claim that this system is DT.
+ * valid checks. We canyest claim that this system is DT.
  */
 int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 			       struct device *dev)
@@ -719,10 +719,10 @@ struct vfio_platform_device *vfio_platform_remove_common(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(vfio_platform_remove_common);
 
-void __vfio_platform_register_reset(struct vfio_platform_reset_node *node)
+void __vfio_platform_register_reset(struct vfio_platform_reset_yesde *yesde)
 {
 	mutex_lock(&driver_lock);
-	list_add(&node->link, &reset_list);
+	list_add(&yesde->link, &reset_list);
 	mutex_unlock(&driver_lock);
 }
 EXPORT_SYMBOL_GPL(__vfio_platform_register_reset);
@@ -730,7 +730,7 @@ EXPORT_SYMBOL_GPL(__vfio_platform_register_reset);
 void vfio_platform_unregister_reset(const char *compat,
 				    vfio_platform_reset_fn_t fn)
 {
-	struct vfio_platform_reset_node *iter, *temp;
+	struct vfio_platform_reset_yesde *iter, *temp;
 
 	mutex_lock(&driver_lock);
 	list_for_each_entry_safe(iter, temp, &reset_list, link) {

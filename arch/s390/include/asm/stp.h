@@ -6,8 +6,8 @@
 #ifndef __S390_STP_H
 #define __S390_STP_H
 
-/* notifier for syncs */
-extern struct atomic_notifier_head s390_epoch_delta_notifier;
+/* yestifier for syncs */
+extern struct atomic_yestifier_head s390_epoch_delta_yestifier;
 
 /* STP interruption parameter */
 struct stp_irq_parm {

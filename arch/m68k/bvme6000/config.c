@@ -110,23 +110,23 @@ void __init config_bvme6000(void)
     mach_get_model       = bvme6000_get_model;
 
     pr_info("Board is %sconfigured as a System Controller\n",
-	    *config_reg_ptr & BVME_CONFIG_SW1 ? "" : "not ");
+	    *config_reg_ptr & BVME_CONFIG_SW1 ? "" : "yest ");
 
     /* Now do the PIT configuration */
 
-    pit->pgcr	= 0x00;	/* Unidirectional 8 bit, no handshake for now */
+    pit->pgcr	= 0x00;	/* Unidirectional 8 bit, yes handshake for yesw */
     pit->psrr	= 0x18;	/* PIACK and PIRQ functions enabled */
-    pit->pacr	= 0x00;	/* Sub Mode 00, H2 i/p, no DMA */
+    pit->pacr	= 0x00;	/* Sub Mode 00, H2 i/p, yes DMA */
     pit->padr	= 0x00;	/* Just to be tidy! */
-    pit->paddr	= 0x00;	/* All inputs for now (safest) */
-    pit->pbcr	= 0x80;	/* Sub Mode 1x, H4 i/p, no DMA */
+    pit->paddr	= 0x00;	/* All inputs for yesw (safest) */
+    pit->pbcr	= 0x80;	/* Sub Mode 1x, H4 i/p, yes DMA */
     pit->pbdr	= 0xbc | (*config_reg_ptr & BVME_CONFIG_SW1 ? 0 : 0x40);
 			/* PRI, SYSCON?, Level3, SCC clks from xtal */
     pit->pbddr	= 0xf3;	/* Mostly outputs */
     pit->pcdr	= 0x01;	/* PA transceiver disabled */
     pit->pcddr	= 0x03;	/* WDOG disable */
 
-    /* Disable snooping for Ethernet and VME accesses */
+    /* Disable syesoping for Ethernet and VME accesses */
 
     bvme_acr_addrctl = 0;
 }
@@ -272,7 +272,7 @@ static u64 bvme6000_read_clk(struct clocksource *cs)
 }
 
 /*
- * Looks like op is non-zero for setting the clock, and zero for
+ * Looks like op is yesn-zero for setting the clock, and zero for
  * reading the clock.
  *
  *  struct hwclk_time {
@@ -282,7 +282,7 @@ static u64 bvme6000_read_clk(struct clocksource *cs)
  *         unsigned        day;       1..31
  *         unsigned        mon;       0..11
  *         unsigned        year;      00...
- *         int             wday;      0..6, 0 is Sunday, -1 means unknown/don't set
+ *         int             wday;      0..6, 0 is Sunday, -1 means unkyeswn/don't set
  * };
  */
 

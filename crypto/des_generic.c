@@ -4,14 +4,14 @@
  *
  * DES & Triple DES EDE Cipher Algorithms.
  *
- * Copyright (c) 2005 Dag Arne Osvik <da@osvik.no>
+ * Copyright (c) 2005 Dag Arne Osvik <da@osvik.yes>
  */
 
 #include <asm/byteorder.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/crypto.h>
 
 #include <crypto/internal/des.h>
@@ -133,7 +133,7 @@ module_exit(des_generic_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("DES & Triple DES EDE Cipher Algorithms");
-MODULE_AUTHOR("Dag Arne Osvik <da@osvik.no>");
+MODULE_AUTHOR("Dag Arne Osvik <da@osvik.yes>");
 MODULE_ALIAS_CRYPTO("des");
 MODULE_ALIAS_CRYPTO("des-generic");
 MODULE_ALIAS_CRYPTO("des3_ede");

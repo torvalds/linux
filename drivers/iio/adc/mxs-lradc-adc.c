@@ -3,11 +3,11 @@
  * Freescale MXS LRADC ADC driver
  *
  * Copyright (c) 2012 DENX Software Engineering, GmbH.
- * Copyright (c) 2017 Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
+ * Copyright (c) 2017 Ksenija Stayesjevic <ksenija.stayesjevic@gmail.com>
  *
  * Authors:
  *  Marek Vasut <marex@denx.de>
- *  Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
+ *  Ksenija Stayesjevic <ksenija.stayesjevic@gmail.com>
  */
 
 #include <linux/completion.h>
@@ -107,7 +107,7 @@ enum mxs_lradc_divbytwo {
 
 struct mxs_lradc_scale {
 	unsigned int		integer;
-	unsigned int		nano;
+	unsigned int		nayes;
 };
 
 struct mxs_lradc_adc {
@@ -135,7 +135,7 @@ static int mxs_lradc_adc_read_single(struct iio_dev *iio_dev, int chan,
 	int ret;
 
 	/*
-	 * See if there is no buffered operation in progress. If there is simply
+	 * See if there is yes buffered operation in progress. If there is simply
 	 * bail out. This can be improved to support both buffered and raw IO at
 	 * the same time, yet the code becomes horribly complicated. Therefore I
 	 * applied KISS principle here.
@@ -148,7 +148,7 @@ static int mxs_lradc_adc_read_single(struct iio_dev *iio_dev, int chan,
 
 	/*
 	 * No buffered operation in progress, map the channel and trigger it.
-	 * Virtual channel 0 is always used here as the others are always not
+	 * Virtual channel 0 is always used here as the others are always yest
 	 * used if doing raw sampling.
 	 */
 	if (lradc->soc == IMX28_LRADC)
@@ -282,12 +282,12 @@ static int mxs_lradc_adc_write_raw(struct iio_dev *iio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		ret = -EINVAL;
 		if (val == scale_avail[MXS_LRADC_DIV_DISABLED].integer &&
-		    val2 == scale_avail[MXS_LRADC_DIV_DISABLED].nano) {
+		    val2 == scale_avail[MXS_LRADC_DIV_DISABLED].nayes) {
 			/* divider by two disabled */
 			clear_bit(chan->channel, &adc->is_divided);
 			ret = 0;
 		} else if (val == scale_avail[MXS_LRADC_DIV_ENABLED].integer &&
-			   val2 == scale_avail[MXS_LRADC_DIV_ENABLED].nano) {
+			   val2 == scale_avail[MXS_LRADC_DIV_ENABLED].nayes) {
 			/* divider by two enabled */
 			set_bit(chan->channel, &adc->is_divided);
 			ret = 0;
@@ -324,7 +324,7 @@ static ssize_t mxs_lradc_adc_show_scale_avail(struct device *dev,
 	for (i = 0; i < ARRAY_SIZE(adc->scale_avail[ch]); i++)
 		len += sprintf(buf + len, "%u.%09u ",
 			       adc->scale_avail[ch][i].integer,
-			       adc->scale_avail[ch][i].nano);
+			       adc->scale_avail[ch][i].nayes);
 
 	len += sprintf(buf + len, "\n");
 
@@ -428,7 +428,7 @@ static irqreturn_t mxs_lradc_adc_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(iio, adc->buffer, pf->timestamp);
 
-	iio_trigger_notify_done(iio->trig);
+	iio_trigger_yestify_done(iio->trig);
 
 	return IRQ_HANDLED;
 }
@@ -723,7 +723,7 @@ static int mxs_lradc_adc_probe(struct platform_device *pdev)
 
 	iio->name = pdev->name;
 	iio->dev.parent = dev;
-	iio->dev.of_node = dev->parent->of_node;
+	iio->dev.of_yesde = dev->parent->of_yesde;
 	iio->info = &mxs_lradc_adc_iio_info;
 	iio->modes = INDIO_DIRECT_MODE;
 	iio->masklength = LRADC_MAX_TOTAL_CHANS;
@@ -749,7 +749,7 @@ static int mxs_lradc_adc_probe(struct platform_device *pdev)
 		if (irq < 0)
 			return irq;
 
-		virq = irq_of_parse_and_map(dev->parent->of_node, irq);
+		virq = irq_of_parse_and_map(dev->parent->of_yesde, irq);
 
 		ret = devm_request_irq(dev, virq, mxs_lradc_adc_handle_irq,
 				       0, irq_name[i], iio);
@@ -783,7 +783,7 @@ static int mxs_lradc_adc_probe(struct platform_device *pdev)
 			 */
 			scale_uv = ((u64)adc->vref_mv[i] * 100000000) >>
 				   (LRADC_RESOLUTION - s);
-			adc->scale_avail[i][s].nano =
+			adc->scale_avail[i][s].nayes =
 					do_div(scale_uv, 100000000) * 10;
 			adc->scale_avail[i][s].integer = scale_uv;
 		}

@@ -122,7 +122,7 @@ struct stv {
 	u32   cur_scrambling_code;
 
 	u32   last_bernumerator;
-	u32   last_berdenominator;
+	u32   last_berdeyesminator;
 	u8    berscale;
 
 	u8    vth[6];
@@ -637,7 +637,7 @@ static s32 table_lookup(const struct slookup *table,
 	return value;
 }
 
-static int get_signal_to_noise(struct stv *state, s32 *signal_to_noise)
+static int get_signal_to_yesise(struct stv *state, s32 *signal_to_yesise)
 {
 	u8 data0;
 	u8 data1;
@@ -645,7 +645,7 @@ static int get_signal_to_noise(struct stv *state, s32 *signal_to_noise)
 	int n_lookup;
 	const struct slookup *lookup;
 
-	*signal_to_noise = 0;
+	*signal_to_yesise = 0;
 
 	if (!state->started)
 		return -EINVAL;
@@ -666,12 +666,12 @@ static int get_signal_to_noise(struct stv *state, s32 *signal_to_noise)
 		lookup = s1_sn_lookup;
 	}
 	data = (((u16)data1) << 8) | (u16)data0;
-	*signal_to_noise = table_lookup(lookup, n_lookup, data);
+	*signal_to_yesise = table_lookup(lookup, n_lookup, data);
 	return 0;
 }
 
 static int get_bit_error_rate_s(struct stv *state, u32 *bernumerator,
-				u32 *berdenominator)
+				u32 *berdeyesminator)
 {
 	u8 regs[3];
 
@@ -683,7 +683,7 @@ static int get_bit_error_rate_s(struct stv *state, u32 *bernumerator,
 		return -EINVAL;
 
 	if ((regs[0] & 0x80) == 0) {
-		state->last_berdenominator = 1ULL << ((state->berscale * 2) +
+		state->last_berdeyesminator = 1ULL << ((state->berscale * 2) +
 						     10 + 3);
 		state->last_bernumerator = ((u32)(regs[0] & 0x7F) << 16) |
 			((u32)regs[1] << 8) | regs[2];
@@ -701,7 +701,7 @@ static int get_bit_error_rate_s(struct stv *state, u32 *bernumerator,
 		}
 	}
 	*bernumerator = state->last_bernumerator;
-	*berdenominator = state->last_berdenominator;
+	*berdeyesminator = state->last_berdeyesminator;
 	return 0;
 }
 
@@ -746,7 +746,7 @@ static u32 dvbs2_nbch(enum dvbs2_mod_cod mod_cod, enum dvbs2_fectype fectype)
 }
 
 static int get_bit_error_rate_s2(struct stv *state, u32 *bernumerator,
-				 u32 *berdenominator)
+				 u32 *berdeyesminator)
 {
 	u8 regs[3];
 
@@ -757,7 +757,7 @@ static int get_bit_error_rate_s2(struct stv *state, u32 *bernumerator,
 		return -EINVAL;
 
 	if ((regs[0] & 0x80) == 0) {
-		state->last_berdenominator =
+		state->last_berdeyesminator =
 			dvbs2_nbch((enum dvbs2_mod_cod)state->mod_cod,
 				   state->fectype) <<
 			(state->berscale * 2);
@@ -775,23 +775,23 @@ static int get_bit_error_rate_s2(struct stv *state, u32 *bernumerator,
 		}
 	}
 	*bernumerator = state->last_bernumerator;
-	*berdenominator = state->last_berdenominator;
+	*berdeyesminator = state->last_berdeyesminator;
 	return status;
 }
 
 static int get_bit_error_rate(struct stv *state, u32 *bernumerator,
-			      u32 *berdenominator)
+			      u32 *berdeyesminator)
 {
 	*bernumerator = 0;
-	*berdenominator = 1;
+	*berdeyesminator = 1;
 
 	switch (state->receive_mode) {
 	case RCVMODE_DVBS:
 		return get_bit_error_rate_s(state,
-					    bernumerator, berdenominator);
+					    bernumerator, berdeyesminator);
 	case RCVMODE_DVBS2:
 		return get_bit_error_rate_s2(state,
-					     bernumerator, berdenominator);
+					     bernumerator, berdeyesminator);
 	default:
 		break;
 	}
@@ -1092,7 +1092,7 @@ static int start(struct stv *state, struct dtv_frontend_properties *p)
 
 	/*
 	 * Reset CAR3, bug DVBS2->DVBS1 lock
-	 * Note: The bit is only pulsed -> no lock on shared register needed
+	 * Note: The bit is only pulsed -> yes lock on shared register needed
 	 */
 	write_reg(state, RSTV0910_TSTRES0, state->nr ? 0x04 : 0x08);
 	write_reg(state, RSTV0910_TSTRES0, 0);
@@ -1235,9 +1235,9 @@ static int gate_ctrl(struct dvb_frontend *fe, int enable)
 	u8 i2crpt = state->i2crpt & ~0x86;
 
 	/*
-	 * mutex_lock note: Concurrent I2C gate bus accesses must be
+	 * mutex_lock yeste: Concurrent I2C gate bus accesses must be
 	 * prevented (STV0910 = dual demod on a single IC with a single I2C
-	 * gate/bus, and two tuners attached), similar to most (if not all)
+	 * gate/bus, and two tuners attached), similar to most (if yest all)
 	 * other I2C host interfaces/buses.
 	 *
 	 * enable=1 (open I2C gate) will grab the lock
@@ -1323,7 +1323,7 @@ static int read_snr(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	s32 snrval;
 
-	if (!get_signal_to_noise(state, &snrval)) {
+	if (!get_signal_to_yesise(state, &snrval)) {
 		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		p->cnr.stat[0].svalue = 100 * snrval; /* fix scale */
 	} else {
@@ -1481,7 +1481,7 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 				state->berscale = 2;
 				state->last_bernumerator = 0;
-				state->last_berdenominator = 1;
+				state->last_berdeyesminator = 1;
 				/* force to PRE BCH Rate */
 				write_reg(state,
 					  RSTV0910_P2_ERRCTRL1 + state->regoff,
@@ -1489,7 +1489,7 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 			} else {
 				state->berscale = 2;
 				state->last_bernumerator = 0;
-				state->last_berdenominator = 1;
+				state->last_berdeyesminator = 1;
 				/* force to PRE RS Rate */
 				write_reg(state,
 					  RSTV0910_P2_ERRCTRL1 + state->regoff,
@@ -1530,7 +1530,7 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 	/* read signal strength */
 	read_signal_strength(fe);
 
-	/* read carrier/noise on FE_HAS_CARRIER */
+	/* read carrier/yesise on FE_HAS_CARRIER */
 	if (*status & FE_HAS_CARRIER)
 		read_snr(fe);
 	else

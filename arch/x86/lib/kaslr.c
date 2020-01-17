@@ -4,7 +4,7 @@
  * randomization. The base randomization is done in the compressed
  * kernel and memory randomization is done early when the regular
  * kernel starts. This file is included in the compressed kernel and
- * normally linked in the regular.
+ * yesrmally linked in the regular.
  */
 #include <asm/asm.h>
 #include <asm/kaslr.h>

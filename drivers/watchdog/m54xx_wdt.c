@@ -4,7 +4,7 @@
  * Watchdog driver for ColdFire MCF547x & MCF548x processors
  * Copyright 2010 (c) Philippe De Muyter <phdm@macqel.be>
  *
- * Adapted from the IXP4xx watchdog driver, which carries these notices:
+ * Adapted from the IXP4xx watchdog driver, which carries these yestices:
  *
  *  Author: Deepak Saxena <dsaxena@plexity.net>
  *
@@ -34,7 +34,7 @@
 #include <asm/m54xxsim.h>
 #include <asm/m54xxgpt.h>
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 static unsigned int heartbeat = 30;	/* (secs) Default is 0.5 minute */
 static unsigned long wdt_status;
 
@@ -78,21 +78,21 @@ static void wdt_keepalive(void)
 	__raw_writel(gms0, MCF_GPT_GMS0);
 }
 
-static int m54xx_wdt_open(struct inode *inode, struct file *file)
+static int m54xx_wdt_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(WDT_IN_USE, &wdt_status))
 		return -EBUSY;
 
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
 	wdt_enable();
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
 static ssize_t m54xx_wdt_write(struct file *file, const char *data,
 						size_t len, loff_t *ppos)
 {
 	if (len) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
@@ -163,12 +163,12 @@ static long m54xx_wdt_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-static int m54xx_wdt_release(struct inode *inode, struct file *file)
+static int m54xx_wdt_release(struct iyesde *iyesde, struct file *file)
 {
 	if (test_bit(WDT_OK_TO_CLOSE, &wdt_status))
 		wdt_disable();
 	else {
-		pr_crit("Device closed unexpectedly - timer will not stop\n");
+		pr_crit("Device closed unexpectedly - timer will yest stop\n");
 		wdt_keepalive();
 	}
 	clear_bit(WDT_IN_USE, &wdt_status);
@@ -180,7 +180,7 @@ static int m54xx_wdt_release(struct inode *inode, struct file *file)
 
 static const struct file_operations m54xx_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= m54xx_wdt_write,
 	.unlocked_ioctl	= m54xx_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -189,7 +189,7 @@ static const struct file_operations m54xx_wdt_fops = {
 };
 
 static struct miscdevice m54xx_wdt_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.miyesr		= WATCHDOG_MINOR,
 	.name		= "watchdog",
 	.fops		= &m54xx_wdt_fops,
 };
@@ -220,7 +220,7 @@ MODULE_DESCRIPTION("Coldfire M54xx Watchdog");
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds (default 30s)");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started");
 
 MODULE_LICENSE("GPL");

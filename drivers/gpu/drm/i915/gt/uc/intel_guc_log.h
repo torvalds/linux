@@ -29,7 +29,7 @@ struct intel_guc;
  * While we're using plain log level in i915, GuC controls are much more...
  * "elaborate"? We have a couple of bits for verbosity, separate bit for actual
  * log enabling, and separate bit for default logging - which "conveniently"
- * ignores the enable bit.
+ * igyesres the enable bit.
  */
 #define GUC_LOG_LEVEL_DISABLED		0
 #define GUC_LOG_LEVEL_NON_VERBOSE	1

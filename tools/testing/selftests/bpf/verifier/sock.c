@@ -1,5 +1,5 @@
 {
-	"skb->sk: no NULL check",
+	"skb->sk: yes NULL check",
 	.insns = {
 	BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_1, offsetof(struct __sk_buff, sk)),
 	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1, 0),
@@ -11,7 +11,7 @@
 	.errstr = "invalid mem access 'sock_common_or_null'",
 },
 {
-	"skb->sk: sk->family [non fullsock field]",
+	"skb->sk: sk->family [yesn fullsock field]",
 	.insns = {
 	BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_1, offsetof(struct __sk_buff, sk)),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_1, 0, 2),
@@ -40,7 +40,7 @@
 	.errstr = "invalid sock_common access",
 },
 {
-	"bpf_sk_fullsock(skb->sk): no !skb->sk check",
+	"bpf_sk_fullsock(skb->sk): yes !skb->sk check",
 	.insns = {
 	BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_1, offsetof(struct __sk_buff, sk)),
 	BPF_EMIT_CALL(BPF_FUNC_sk_fullsock),
@@ -52,7 +52,7 @@
 	.errstr = "type=sock_common_or_null expected=sock_common",
 },
 {
-	"sk_fullsock(skb->sk): no NULL check on ret",
+	"sk_fullsock(skb->sk): yes NULL check on ret",
 	.insns = {
 	BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_1, offsetof(struct __sk_buff, sk)),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_1, 0, 2),
@@ -86,7 +86,7 @@
 	.result = ACCEPT,
 },
 {
-	"sk_fullsock(skb->sk): sk->family [non fullsock field]",
+	"sk_fullsock(skb->sk): sk->family [yesn fullsock field]",
 	.insns = {
 	BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_1, offsetof(struct __sk_buff, sk)),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_1, 0, 2),
@@ -231,7 +231,7 @@
 	.errstr = "invalid sock access",
 },
 {
-	"bpf_tcp_sock(skb->sk): no !skb->sk check",
+	"bpf_tcp_sock(skb->sk): yes !skb->sk check",
 	.insns = {
 	BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_1, offsetof(struct __sk_buff, sk)),
 	BPF_EMIT_CALL(BPF_FUNC_tcp_sock),
@@ -243,7 +243,7 @@
 	.errstr = "type=sock_common_or_null expected=sock_common",
 },
 {
-	"bpf_tcp_sock(skb->sk): no NULL check on ret",
+	"bpf_tcp_sock(skb->sk): yes NULL check on ret",
 	.insns = {
 	BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_1, offsetof(struct __sk_buff, sk)),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_1, 0, 2),
@@ -342,7 +342,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "reference has not been acquired before",
+	.errstr = "reference has yest been acquired before",
 },
 {
 	"bpf_sk_release(bpf_sk_fullsock(skb->sk))",
@@ -361,7 +361,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "reference has not been acquired before",
+	.errstr = "reference has yest been acquired before",
 },
 {
 	"bpf_sk_release(bpf_tcp_sock(skb->sk))",
@@ -380,7 +380,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "reference has not been acquired before",
+	.errstr = "reference has yest been acquired before",
 },
 {
 	"sk_storage_get(map, skb->sk, NULL, 0): value == NULL",
@@ -496,7 +496,7 @@
 	.fixup_sk_storage_map = { 3 },
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "cannot pass map_type 24 into func bpf_map_lookup_elem",
+	.errstr = "canyest pass map_type 24 into func bpf_map_lookup_elem",
 },
 {
 	"bpf_map_lookup_elem(xskmap, &key); xs->queue_id",

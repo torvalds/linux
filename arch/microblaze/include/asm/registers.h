@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -28,7 +28,7 @@
 #define FSR_DZ		(1<<3) /* Divide-by-zero */
 #define FSR_OF		(1<<2) /* Overflow */
 #define FSR_UF		(1<<1) /* Underflow */
-#define FSR_DO		(1<<0) /* Denormalized operand error */
+#define FSR_DO		(1<<0) /* Deyesrmalized operand error */
 
 # ifdef CONFIG_MMU
 /* Machine State Register (MSR) Fields */

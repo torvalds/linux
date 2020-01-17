@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 /* For the CLR_() macros */
 #include <pthread.h>
@@ -63,7 +63,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 	sched_setaffinity(0, sizeof(cpu_set), &cpu_set);
 	if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set) < 0) {
 		pr_debug("sched_setaffinity() failed on CPU %d: %s ",
-			 cpus->map[0], str_error_r(errno, sbuf, sizeof(sbuf)));
+			 cpus->map[0], str_error_r(erryes, sbuf, sizeof(sbuf)));
 		goto out_free_cpus;
 	}
 
@@ -92,8 +92,8 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 
 		if (evsel__open(evsels[i], cpus, threads) < 0) {
 			pr_debug("failed to open counter: %s, "
-				 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
-				 str_error_r(errno, sbuf, sizeof(sbuf)));
+				 "tweak /proc/sys/kernel/perf_event_parayesid?\n",
+				 str_error_r(erryes, sbuf, sizeof(sbuf)));
 			goto out_delete_evlist;
 		}
 
@@ -102,8 +102,8 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 	}
 
 	if (evlist__mmap(evlist, 128) < 0) {
-		pr_debug("failed to mmap events: %d (%s)\n", errno,
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+		pr_debug("failed to mmap events: %d (%s)\n", erryes,
+			 str_error_r(erryes, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 

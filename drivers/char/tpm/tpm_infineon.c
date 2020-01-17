@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Description:
- * Device Driver for the Infineon Technologies
+ * Device Driver for the Infineon Techyeslogies
  * SLD 9630 TT 1.1 and SLB 9635 TT 1.2 Trusted Platform Module
  * Specifications at www.trustedcomputinggroup.org
  *
  * Copyright (C) 2005, Marcel Selhorst <tpmdd@selhorst.net>
- * Sirrix AG - security technologies <tpmdd@sirrix.com> and
+ * Sirrix AG - security techyeslogies <tpmdd@sirrix.com> and
  * Applied Data Security Group, Ruhr-University Bochum, Germany
  * Project-Homepage: http://www.trust.rub.de/projects/linux-device-driver-infineon-tpm/ 
  */
@@ -159,8 +159,8 @@ static int empty_fifo(struct tpm_chip *chip, int clear_wrfifo)
 		}
 	}
 	/* Note: The values which are currently in the FIFO of the TPM
-	   are thrown away since there is no usage for them. Usually,
-	   this has nothing to say, since the TPM will give its answer
+	   are thrown away since there is yes usage for them. Usually,
+	   this has yesthing to say, since the TPM will give its answer
 	   immediately or will be aborted anyway, so the data here is
 	   usually garbage and useless.
 	   We have to clean this, because the next communication with
@@ -206,7 +206,7 @@ static void wait_and_send(struct tpm_chip *chip, u8 sendbyte)
 }
 
     /* Note: WTX means Waiting-Time-Extension. Whenever the TPM needs more
-       calculation time, it sends a WTX-package, which has to be acknowledged
+       calculation time, it sends a WTX-package, which has to be ackyeswledged
        or aborted. This usually occurs if you are hammering the TPM with key
        creation. Set the maximum number of WTX-packages in the definitions
        above, if the number is reached, the waiting-time will be denied
@@ -291,7 +291,7 @@ recv_begin:
 	}
 
 	if (buf[1] == TPM_CTRL_WTX_ABORT_ACK) {
-		dev_info(&chip->dev, "WTX-abort acknowledged\n");
+		dev_info(&chip->dev, "WTX-abort ackyeswledged\n");
 		return size;
 	}
 
@@ -299,7 +299,7 @@ recv_begin:
 		dev_err(&chip->dev, "ERROR-package received:\n");
 		if (buf[4] == TPM_INF_NAK)
 			dev_err(&chip->dev,
-				"-> Negative acknowledgement"
+				"-> Negative ackyeswledgement"
 				" - retransmit command!\n");
 		return -EIO;
 	}
@@ -357,7 +357,7 @@ static void tpm_inf_cancel(struct tpm_chip *chip)
 {
 	/*
 	   Since we are using the legacy mode to communicate
-	   with the TPM, we have no cancel functions, but have
+	   with the TPM, we have yes cancel functions, but have
 	   a workaround for interrupting the TPM through WTX.
 	 */
 }
@@ -454,7 +454,7 @@ static int tpm_inf_pnp_probe(struct pnp_dev *dev,
 		}
 
 		/*
-		 * The only known MMIO based Infineon TPM system provides
+		 * The only kyeswn MMIO based Infineon TPM system provides
 		 * a single large mem region with the device config
 		 * registers at the default TPM_ADDR.  The data registers
 		 * seem like they could be placed anywhere within the MMIO
@@ -490,7 +490,7 @@ static int tpm_inf_pnp_probe(struct pnp_dev *dev,
 		chipname = " (SLB 9635 TT 1.2)";
 		break;
 	default:
-		chipname = " (unknown chip)";
+		chipname = " (unkyeswn chip)";
 		break;
 	}
 
@@ -510,7 +510,7 @@ static int tpm_inf_pnp_probe(struct pnp_dev *dev,
 
 		if ((ioh << 8 | iol) != tpm_dev.data_regs) {
 			dev_err(&dev->dev,
-				"Could not set IO-data registers to 0x%x\n",
+				"Could yest set IO-data registers to 0x%x\n",
 				tpm_dev.data_regs);
 			rc = -EIO;
 			goto err_release_region;

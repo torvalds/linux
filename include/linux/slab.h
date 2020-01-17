@@ -45,7 +45,7 @@
  * This delays freeing the SLAB page by a grace period, it does _NOT_
  * delay object freeing. This means that if you do kmem_cache_free()
  * that memory location is free to be reused at any time. Thus it may
- * be possible to see another object there in the same RCU grace period.
+ * be possible to see ayesther object there in the same RCU grace period.
  *
  * This feature only ensures the memory location backing the object
  * stays valid, the trick to using this is relying on an independent
@@ -58,7 +58,7 @@
  *    if (!try_get_ref(obj)) // might fail for free objects
  *      goto again;
  *
- *    if (obj->key != key) { // not the object we expected
+ *    if (obj->key != key) { // yest the object we expected
  *      put_ref(obj);
  *      goto again;
  *    }
@@ -68,7 +68,7 @@
  * This is useful if we need to approach a kernel structure obliquely,
  * from its address obtained without the usual locking. We can lock
  * the structure to stabilize it and check it's still at the given address,
- * only if we can be sure that the memory has not been meanwhile reused
+ * only if we can be sure that the memory has yest been meanwhile reused
  * for some other kind of object (which our subsystem's lock might corrupt).
  *
  * rcu_read_lock before reading the address, then rcu_read_unlock after
@@ -126,7 +126,7 @@
  * Dereferencing ZERO_SIZE_PTR will lead to a distinct access fault.
  *
  * ZERO_SIZE_PTR can be passed to kfree though in the same way that NULL can.
- * Both make kfree a no-op.
+ * Both make kfree a yes-op.
  */
 #define ZERO_SIZE_PTR ((void *)16)
 
@@ -168,7 +168,7 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *, struct mem_cgroup *);
  */
 #define KMEM_CACHE(__struct, __flags)					\
 		kmem_cache_create(#__struct, sizeof(struct __struct),	\
-			__alignof__(struct __struct), (__flags), NULL)
+			__aligyesf__(struct __struct), (__flags), NULL)
 
 /*
  * To whitelist a single field for copying to/from usercopy, use this
@@ -177,7 +177,7 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *, struct mem_cgroup *);
 #define KMEM_CACHE_USERCOPY(__struct, __flags, __field)			\
 		kmem_cache_create_usercopy(#__struct,			\
 			sizeof(struct __struct),			\
-			__alignof__(struct __struct), (__flags),	\
+			__aligyesf__(struct __struct), (__flags),	\
 			offsetof(struct __struct, __field),		\
 			sizeof_field(struct __struct, __field), NULL)
 
@@ -209,7 +209,7 @@ static inline void __check_heap_object(const void *ptr, unsigned long n,
 #define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
 #define KMALLOC_SHIFT_LOW ilog2(ARCH_DMA_MINALIGN)
 #else
-#define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
+#define ARCH_KMALLOC_MINALIGN __aligyesf__(unsigned long long)
 #endif
 
 /*
@@ -218,7 +218,7 @@ static inline void __check_heap_object(const void *ptr, unsigned long n,
  * aligned buffers.
  */
 #ifndef ARCH_SLAB_MINALIGN
-#define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
+#define ARCH_SLAB_MINALIGN __aligyesf__(unsigned long long)
 #endif
 
 /*
@@ -240,7 +240,7 @@ static inline void __check_heap_object(const void *ptr, unsigned long n,
  * 32 megabyte (2^25) or the maximum allocatable page order if that is
  * less than 32 MB.
  *
- * WARNING: Its not easy to increase this value since the allocators have
+ * WARNING: Its yest easy to increase this value since the allocators have
  * to do various tricks to work around compiler limitations in order to
  * ensure proper constant folding.
  */
@@ -293,7 +293,7 @@ static inline void __check_heap_object(const void *ptr, unsigned long n,
 
 /*
  * This restriction comes from byte sized index implementation.
- * Page size is normally 2^12 bytes and, in this case, if we want to use
+ * Page size is yesrmally 2^12 bytes and, in this case, if we want to use
  * byte sized index which can represent 2^8 entries, the size of the object
  * should be equal or greater to 2^12 / 2^8 = 2^4 = 16.
  * If minimum size of kmalloc is less than 16, we use it as minimum object
@@ -405,8 +405,8 @@ void kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
 int kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
 
 /*
- * Caller must not use kfree_bulk() on memory not originally allocated
- * by kmalloc(), because the SLOB allocator cannot handle this.
+ * Caller must yest use kfree_bulk() on memory yest originally allocated
+ * by kmalloc(), because the SLOB allocator canyest handle this.
  */
 static __always_inline void kfree_bulk(size_t size, void **p)
 {
@@ -414,15 +414,15 @@ static __always_inline void kfree_bulk(size_t size, void **p)
 }
 
 #ifdef CONFIG_NUMA
-void *__kmalloc_node(size_t size, gfp_t flags, int node) __assume_kmalloc_alignment __malloc;
-void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node) __assume_slab_alignment __malloc;
+void *__kmalloc_yesde(size_t size, gfp_t flags, int yesde) __assume_kmalloc_alignment __malloc;
+void *kmem_cache_alloc_yesde(struct kmem_cache *, gfp_t flags, int yesde) __assume_slab_alignment __malloc;
 #else
-static __always_inline void *__kmalloc_node(size_t size, gfp_t flags, int node)
+static __always_inline void *__kmalloc_yesde(size_t size, gfp_t flags, int yesde)
 {
 	return __kmalloc(size, flags);
 }
 
-static __always_inline void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t flags, int node)
+static __always_inline void *kmem_cache_alloc_yesde(struct kmem_cache *s, gfp_t flags, int yesde)
 {
 	return kmem_cache_alloc(s, flags);
 }
@@ -432,14 +432,14 @@ static __always_inline void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t f
 extern void *kmem_cache_alloc_trace(struct kmem_cache *, gfp_t, size_t) __assume_slab_alignment __malloc;
 
 #ifdef CONFIG_NUMA
-extern void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
+extern void *kmem_cache_alloc_yesde_trace(struct kmem_cache *s,
 					   gfp_t gfpflags,
-					   int node, size_t size) __assume_slab_alignment __malloc;
+					   int yesde, size_t size) __assume_slab_alignment __malloc;
 #else
 static __always_inline void *
-kmem_cache_alloc_node_trace(struct kmem_cache *s,
+kmem_cache_alloc_yesde_trace(struct kmem_cache *s,
 			      gfp_t gfpflags,
-			      int node, size_t size)
+			      int yesde, size_t size)
 {
 	return kmem_cache_alloc_trace(s, gfpflags, size);
 }
@@ -456,11 +456,11 @@ static __always_inline void *kmem_cache_alloc_trace(struct kmem_cache *s,
 }
 
 static __always_inline void *
-kmem_cache_alloc_node_trace(struct kmem_cache *s,
+kmem_cache_alloc_yesde_trace(struct kmem_cache *s,
 			      gfp_t gfpflags,
-			      int node, size_t size)
+			      int yesde, size_t size)
 {
-	void *ret = kmem_cache_alloc_node(s, gfpflags, node);
+	void *ret = kmem_cache_alloc_yesde(s, gfpflags, yesde);
 
 	ret = kasan_kmalloc(s, ret, size, gfpflags);
 	return ret;
@@ -490,7 +490,7 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
  * @size: how many bytes of memory are required.
  * @flags: the type of memory to allocate.
  *
- * kmalloc is the normal method of allocating memory
+ * kmalloc is the yesrmal method of allocating memory
  * for objects smaller than page size in the kernel.
  *
  * The allocated object address is aligned to at least ARCH_KMALLOC_MINALIGN
@@ -507,13 +507,13 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
  * Below is a brief outline of the most useful GFP flags
  *
  * %GFP_KERNEL
- *	Allocate normal kernel ram. May sleep.
+ *	Allocate yesrmal kernel ram. May sleep.
  *
  * %GFP_NOWAIT
- *	Allocation will not sleep.
+ *	Allocation will yest sleep.
  *
  * %GFP_ATOMIC
- *	Allocation will not sleep.  May use emergency pools.
+ *	Allocation will yest sleep.  May use emergency pools.
  *
  * %GFP_HIGHUSER
  *	Allocate memory from high memory on behalf of user.
@@ -525,11 +525,11 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
  *	This allocation has high priority and may use emergency pools.
  *
  * %__GFP_NOFAIL
- *	Indicate that this allocation is in no way allowed to fail
+ *	Indicate that this allocation is in yes way allowed to fail
  *	(think twice before using).
  *
  * %__GFP_NORETRY
- *	If memory is not immediately available,
+ *	If memory is yest immediately available,
  *	then give up at once.
  *
  * %__GFP_NOWARN
@@ -561,7 +561,7 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
 	return __kmalloc(size, flags);
 }
 
-static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+static __always_inline void *kmalloc_yesde(size_t size, gfp_t flags, int yesde)
 {
 #ifndef CONFIG_SLOB
 	if (__builtin_constant_p(size) &&
@@ -571,12 +571,12 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 		if (!i)
 			return ZERO_SIZE_PTR;
 
-		return kmem_cache_alloc_node_trace(
+		return kmem_cache_alloc_yesde_trace(
 				kmalloc_caches[kmalloc_type(flags)][i],
-						flags, node, size);
+						flags, yesde, size);
 	}
 #endif
-	return __kmalloc_node(size, flags, node);
+	return __kmalloc_yesde(size, flags, yesde);
 }
 
 int memcg_update_all_caches(int num_memcgs);
@@ -621,33 +621,33 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
 #define kmalloc_track_caller(size, flags) \
 	__kmalloc_track_caller(size, flags, _RET_IP_)
 
-static inline void *kmalloc_array_node(size_t n, size_t size, gfp_t flags,
-				       int node)
+static inline void *kmalloc_array_yesde(size_t n, size_t size, gfp_t flags,
+				       int yesde)
 {
 	size_t bytes;
 
 	if (unlikely(check_mul_overflow(n, size, &bytes)))
 		return NULL;
 	if (__builtin_constant_p(n) && __builtin_constant_p(size))
-		return kmalloc_node(bytes, flags, node);
-	return __kmalloc_node(bytes, flags, node);
+		return kmalloc_yesde(bytes, flags, yesde);
+	return __kmalloc_yesde(bytes, flags, yesde);
 }
 
-static inline void *kcalloc_node(size_t n, size_t size, gfp_t flags, int node)
+static inline void *kcalloc_yesde(size_t n, size_t size, gfp_t flags, int yesde)
 {
-	return kmalloc_array_node(n, size, flags | __GFP_ZERO, node);
+	return kmalloc_array_yesde(n, size, flags | __GFP_ZERO, yesde);
 }
 
 
 #ifdef CONFIG_NUMA
-extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, unsigned long);
-#define kmalloc_node_track_caller(size, flags, node) \
-	__kmalloc_node_track_caller(size, flags, node, \
+extern void *__kmalloc_yesde_track_caller(size_t, gfp_t, int, unsigned long);
+#define kmalloc_yesde_track_caller(size, flags, yesde) \
+	__kmalloc_yesde_track_caller(size, flags, yesde, \
 			_RET_IP_)
 
 #else /* CONFIG_NUMA */
 
-#define kmalloc_node_track_caller(size, flags, node) \
+#define kmalloc_yesde_track_caller(size, flags, yesde) \
 	kmalloc_track_caller(size, flags)
 
 #endif /* CONFIG_NUMA */
@@ -671,14 +671,14 @@ static inline void *kzalloc(size_t size, gfp_t flags)
 }
 
 /**
- * kzalloc_node - allocate zeroed memory from a particular memory node.
+ * kzalloc_yesde - allocate zeroed memory from a particular memory yesde.
  * @size: how many bytes of memory are required.
  * @flags: the type of memory to allocate (see kmalloc).
- * @node: memory node from which to allocate
+ * @yesde: memory yesde from which to allocate
  */
-static inline void *kzalloc_node(size_t size, gfp_t flags, int node)
+static inline void *kzalloc_yesde(size_t size, gfp_t flags, int yesde)
 {
-	return kmalloc_node(size, flags | __GFP_ZERO, node);
+	return kmalloc_yesde(size, flags | __GFP_ZERO, yesde);
 }
 
 unsigned int kmem_cache_size(struct kmem_cache *s);

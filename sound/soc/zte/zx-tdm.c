@@ -179,7 +179,7 @@ static int zx_tdm_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		val &= ~TIMING_MASTER_MODE;
 		break;
 	default:
-		dev_err(cpu_dai->dev, "Unknown master/slave format\n");
+		dev_err(cpu_dai->dev, "Unkyeswn master/slave format\n");
 		return -EINVAL;
 	}
 
@@ -211,7 +211,7 @@ static int zx_tdm_hw_params(struct snd_pcm_substream *substream,
 		ts_width = 1;
 		break;
 	default:
-		dev_err(socdai->dev, "Unknown data format\n");
+		dev_err(socdai->dev, "Unkyeswn data format\n");
 		return -EINVAL;
 	}
 
@@ -404,7 +404,7 @@ static int zx_tdm_probe(struct platform_device *pdev)
 	if (IS_ERR(zx_tdm->regbase))
 		return PTR_ERR(zx_tdm->regbase);
 
-	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
+	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_yesde,
 				"zte,tdm-dma-sysctrl", 2, 0, &out_args);
 	if (ret) {
 		dev_err(&pdev->dev, "Fail to get zte,tdm-dma-sysctrl\n");
@@ -413,14 +413,14 @@ static int zx_tdm_probe(struct platform_device *pdev)
 
 	dma_reg_offset = out_args.args[0];
 	dma_mask = out_args.args[1];
-	regmap_sysctrl = syscon_node_to_regmap(out_args.np);
+	regmap_sysctrl = syscon_yesde_to_regmap(out_args.np);
 	if (IS_ERR(regmap_sysctrl)) {
-		of_node_put(out_args.np);
+		of_yesde_put(out_args.np);
 		return PTR_ERR(regmap_sysctrl);
 	}
 
 	regmap_update_bits(regmap_sysctrl, dma_reg_offset, dma_mask, dma_mask);
-	of_node_put(out_args.np);
+	of_yesde_put(out_args.np);
 
 	zx_tdm_init_state(zx_tdm);
 	platform_set_drvdata(pdev, zx_tdm);

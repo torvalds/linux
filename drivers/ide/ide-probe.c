@@ -25,7 +25,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/genhd.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -62,7 +62,7 @@ static void ide_disk_init_chs(ide_drive_t *drive)
 {
 	u16 *id = drive->id;
 
-	/* Extract geometry if we did not already have one for the drive */
+	/* Extract geometry if we did yest already have one for the drive */
 	if (!drive->cyl || !drive->head || !drive->sect) {
 		drive->cyl  = drive->bios_cyl  = id[ATA_ID_CYLS];
 		drive->head = drive->bios_head = id[ATA_ID_HEADS];
@@ -76,7 +76,7 @@ static void ide_disk_init_chs(ide_drive_t *drive)
 		drive->sect = id[ATA_ID_CUR_SECTORS];
 	}
 
-	/* Use physical geometry if what we have still makes no sense */
+	/* Use physical geometry if what we have still makes yes sense */
 	if (drive->head > 16 && id[ATA_ID_HEADS] && id[ATA_ID_HEADS] <= 16) {
 		drive->cyl  = id[ATA_ID_CYLS];
 		drive->head = id[ATA_ID_HEADS];
@@ -108,7 +108,7 @@ static void ide_classify_ata_dev(ide_drive_t *drive)
 	char *m = (char *)&id[ATA_ID_PROD];
 	int is_cfa = ata_id_is_cfa(id);
 
-	/* CF devices are *not* removable in Linux definition of the term */
+	/* CF devices are *yest* removable in Linux definition of the term */
 	if (is_cfa == 0 && (id[ATA_ID_CONFIG] & (1 << 7)))
 		drive->dev_flags |= IDE_DFLAG_REMOVABLE;
 
@@ -170,7 +170,7 @@ static void ide_classify_atapi_dev(ide_drive_t *drive)
 
 	printk(KERN_CONT " drive\n");
 	drive->media = type;
-	/* an ATAPI device ignores DRDY */
+	/* an ATAPI device igyesres DRDY */
 	drive->ready_stat = 0;
 	if (ata_id_cdb_intr(id))
 		drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
@@ -245,7 +245,7 @@ static void do_identify(ide_drive_t *drive, u8 cmd, u16 *id)
  *	Sends an ATA(PI) IDENTIFY request to a drive and waits for a response.
  *
  *	Returns:	0  device was identified
- *			1  device timed-out (no response to identify request)
+ *			1  device timed-out (yes response to identify request)
  *			2  device aborted the command (refused to identify itself)
  */
 
@@ -281,7 +281,7 @@ int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id, int irq_ctx)
 					 "instead of ALTSTATUS(0x%02x)\n",
 					 drive->name, s, a);
 		else
-			/* use non-intrusive polling */
+			/* use yesn-intrusive polling */
 			use_altstatus = 1;
 	}
 
@@ -367,16 +367,16 @@ static u8 ide_read_device(ide_drive_t *drive)
  *	without getting hung up if it doesn't exist, without trampling on
  *	ethernet cards, and without leaving any IRQs dangling to haunt us later.
  *
- *	If a drive is "known" to exist (from CMOS or kernel parameters),
- *	but does not respond right away, the probe will "hang in there"
+ *	If a drive is "kyeswn" to exist (from CMOS or kernel parameters),
+ *	but does yest respond right away, the probe will "hang in there"
  *	for the maximum wait time (about 30 seconds), otherwise it will
  *	exit much more quickly.
  *
  * Returns:	0  device was identified
- *		1  device timed-out (no response to identify request)
+ *		1  device timed-out (yes response to identify request)
  *		2  device aborted the command (refused to identify itself)
  *		3  bad status from device (possible for ATAPI drives)
- *		4  probe was not attempted because failure was obvious
+ *		4  probe was yest attempted because failure was obvious
  */
 
 static int do_probe (ide_drive_t *drive, u8 cmd)
@@ -411,7 +411,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			/* allow ATA_BUSY to assert & clear */
 			msleep(50);
 		}
-		/* no i/f present: mmm.. this should be a 4 -ml */
+		/* yes i/f present: mmm.. this should be a 4 -ml */
 		return 3;
 	}
 
@@ -430,7 +430,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			return 4;
 
 		if (rc == 1 && cmd == ATA_CMD_ID_ATAPI) {
-			printk(KERN_ERR "%s: no response (status = 0x%02x), "
+			printk(KERN_ERR "%s: yes response (status = 0x%02x), "
 					"resetting drive\n", drive->name, stat);
 			msleep(50);
 			tp_ops->dev_select(drive);
@@ -444,10 +444,10 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 		stat = tp_ops->read_status(hwif);
 
 		if (rc == 1)
-			printk(KERN_ERR "%s: no response (status = 0x%02x)\n",
+			printk(KERN_ERR "%s: yes response (status = 0x%02x)\n",
 					drive->name, stat);
 	} else {
-		/* not present or maybe ATAPI */
+		/* yest present or maybe ATAPI */
 		rc = 3;
 	}
 	if (drive->dn & 1) {
@@ -467,9 +467,9 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
  *	probe_for_drive() tests for existence of a given drive using do_probe()
  *	and presents things to the user as needed.
  *
- *	Returns:	0  no device was found
+ *	Returns:	0  yes device was found
  *			1  device was found
- *			   (note: IDE_DFLAG_PRESENT might still be not set)
+ *			   (yeste: IDE_DFLAG_PRESENT might still be yest set)
  */
 
 static u8 probe_for_drive(ide_drive_t *drive)
@@ -500,14 +500,14 @@ static u8 probe_for_drive(ide_drive_t *drive)
 		/* identification failed? */
 		if ((drive->dev_flags & IDE_DFLAG_ID_READ) == 0) {
 			if (drive->media == ide_disk) {
-				printk(KERN_INFO "%s: non-IDE drive, CHS=%d/%d/%d\n",
+				printk(KERN_INFO "%s: yesn-IDE drive, CHS=%d/%d/%d\n",
 					drive->name, drive->cyl,
 					drive->head, drive->sect);
 			} else if (drive->media == ide_cdrom) {
 				printk(KERN_INFO "%s: ATAPI cdrom (?)\n", drive->name);
 			} else {
 				/* nuke it */
-				printk(KERN_WARNING "%s: Unknown device on bus refused identification. Ignoring.\n", drive->name);
+				printk(KERN_WARNING "%s: Unkyeswn device on bus refused identification. Igyesring.\n", drive->name);
 				drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 			}
 		} else {
@@ -581,14 +581,14 @@ out:
  *	  the drive is still doing it's poweron-reset sequence, that
  *	  can take up to 30 seconds.
  *
- *	- The firmware does nothing (or no firmware), the device is
+ *	- The firmware does yesthing (or yes firmware), the device is
  *	  still in POST state (same as above actually).
  *
  *	- Some CD/DVD/Writer combo drives tend to drive the bus during
- *	  their reset sequence even when they are non-selected slave
+ *	  their reset sequence even when they are yesn-selected slave
  *	  devices, thus preventing discovery of the main HD.
  *
- *	Doing this wait-for-non-busy should not harm any existing
+ *	Doing this wait-for-yesn-busy should yest harm any existing
  *	configuration and fix some issues like the above.
  *
  *	BenH.
@@ -609,26 +609,26 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 	mdelay(2);
 
 	/* Wait for BSY bit to go away, spec timeout is 30 seconds,
-	 * I know of at least one disk who takes 31 seconds, I use 35
+	 * I kyesw of at least one disk who takes 31 seconds, I use 35
 	 * here to be safe
 	 */
-	rc = ide_wait_not_busy(hwif, 35000);
+	rc = ide_wait_yest_busy(hwif, 35000);
 	if (rc)
 		return rc;
 
 	/* Now make sure both master & slave are ready */
 	ide_port_for_each_dev(i, drive, hwif) {
-		/* Ignore disks that we will not probe for later. */
+		/* Igyesre disks that we will yest probe for later. */
 		if ((drive->dev_flags & IDE_DFLAG_NOPROBE) == 0 ||
 		    (drive->dev_flags & IDE_DFLAG_PRESENT)) {
 			tp_ops->dev_select(drive);
 			tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 			mdelay(2);
-			rc = ide_wait_not_busy(hwif, 35000);
+			rc = ide_wait_yest_busy(hwif, 35000);
 			if (rc)
 				goto out;
 		} else
-			printk(KERN_DEBUG "%s: ide_wait_not_busy() skipped\n",
+			printk(KERN_DEBUG "%s: ide_wait_yest_busy() skipped\n",
 					  drive->name);
 	}
 out:
@@ -655,12 +655,12 @@ void ide_undecoded_slave(ide_drive_t *dev1)
 	if ((dev1->dn & 1) == 0 || (dev0->dev_flags & IDE_DFLAG_PRESENT) == 0)
 		return;
 
-	/* If the models don't match they are not the same product */
+	/* If the models don't match they are yest the same product */
 	if (strcmp((char *)&dev0->id[ATA_ID_PROD],
 		   (char *)&dev1->id[ATA_ID_PROD]))
 		return;
 
-	/* Serial numbers do not match */
+	/* Serial numbers do yest match */
 	if (strncmp((char *)&dev0->id[ATA_ID_SERNO],
 		    (char *)&dev1->id[ATA_ID_SERNO], ATA_ID_SERNO_LEN))
 		return;
@@ -670,7 +670,7 @@ void ide_undecoded_slave(ide_drive_t *dev1)
 		return;
 
 	/* Appears to be an IDE flash adapter with decode bugs */
-	printk(KERN_WARNING "ide-probe: ignoring undecoded slave\n");
+	printk(KERN_WARNING "ide-probe: igyesring undecoded slave\n");
 
 	dev1->dev_flags &= ~IDE_DFLAG_PRESENT;
 }
@@ -769,11 +769,11 @@ static int ide_init_queue(ide_drive_t *drive)
 	struct blk_mq_tag_set *set;
 
 	/*
-	 *	Our default set up assumes the normal IDE case,
+	 *	Our default set up assumes the yesrmal IDE case,
 	 *	that is 64K segmenting, standard PRD setup
 	 *	and LBA28. Some drivers then impose their own
 	 *	limits and LBA48 we could raise it but as yet
-	 *	do not.
+	 *	do yest.
 	 */
 
 	set = &drive->tag_set;
@@ -782,7 +782,7 @@ static int ide_init_queue(ide_drive_t *drive)
 	set->queue_depth = 32;
 	set->reserved_tags = 1;
 	set->cmd_size = sizeof(struct ide_request);
-	set->numa_node = hwif_to_node(hwif);
+	set->numa_yesde = hwif_to_yesde(hwif);
 	set->flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
 	if (blk_mq_alloc_tag_set(set))
 		return 1;
@@ -947,16 +947,16 @@ static int exact_lock(dev_t dev, void *data)
 
 void ide_register_region(struct gendisk *disk)
 {
-	blk_register_region(MKDEV(disk->major, disk->first_minor),
-			    disk->minors, NULL, exact_match, exact_lock, disk);
+	blk_register_region(MKDEV(disk->major, disk->first_miyesr),
+			    disk->miyesrs, NULL, exact_match, exact_lock, disk);
 }
 
 EXPORT_SYMBOL_GPL(ide_register_region);
 
 void ide_unregister_region(struct gendisk *disk)
 {
-	blk_unregister_region(MKDEV(disk->major, disk->first_minor),
-			      disk->minors);
+	blk_unregister_region(MKDEV(disk->major, disk->first_miyesr),
+			      disk->miyesrs);
 }
 
 EXPORT_SYMBOL_GPL(ide_unregister_region);
@@ -967,7 +967,7 @@ void ide_init_disk(struct gendisk *disk, ide_drive_t *drive)
 	unsigned int unit = drive->dn & 1;
 
 	disk->major = hwif->major;
-	disk->first_minor = unit << PARTN_BITS;
+	disk->first_miyesr = unit << PARTN_BITS;
 	sprintf(disk->disk_name, "hd%c", 'a' + hwif->index * MAX_DRIVES + unit);
 	disk->queue = drive->queue;
 }
@@ -995,7 +995,7 @@ static void drive_release_dev (struct device *dev)
 static int hwif_init(ide_hwif_t *hwif)
 {
 	if (!hwif->irq) {
-		printk(KERN_ERR "%s: disabled, no IRQ\n", hwif->name);
+		printk(KERN_ERR "%s: disabled, yes IRQ\n", hwif->name);
 		return 0;
 	}
 
@@ -1222,7 +1222,7 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 
 static void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
 {
-	/* fill in any non-zero initial values */
+	/* fill in any yesn-zero initial values */
 	hwif->index	= index;
 	hwif->major	= ide_hwif_to_major[index];
 
@@ -1270,10 +1270,10 @@ static int ide_find_port_slot(const struct ide_port_info *d)
 	 * Claim an unassigned slot.
 	 *
 	 * Give preference to claiming other slots before claiming ide0/ide1,
-	 * just in case there's another interface yet-to-be-scanned
+	 * just in case there's ayesther interface yet-to-be-scanned
 	 * which uses ports 0x1f0/0x170 (the ide0/ide1 defaults).
 	 *
-	 * Unless there is a bootable card that does not use the standard
+	 * Unless there is a bootable card that does yest use the standard
 	 * ports 0x1f0/0x170 (the ide0/ide1 defaults).
 	 */
 	mutex_lock(&ide_cfg_mtx);
@@ -1311,15 +1311,15 @@ static void ide_port_free_devices(ide_hwif_t *hwif)
 	}
 }
 
-static int ide_port_alloc_devices(ide_hwif_t *hwif, int node)
+static int ide_port_alloc_devices(ide_hwif_t *hwif, int yesde)
 {
 	ide_drive_t *drive;
 	int i;
 
 	for (i = 0; i < MAX_DRIVES; i++) {
-		drive = kzalloc_node(sizeof(*drive), GFP_KERNEL, node);
+		drive = kzalloc_yesde(sizeof(*drive), GFP_KERNEL, yesde);
 		if (drive == NULL)
-			goto out_nomem;
+			goto out_yesmem;
 
 		/*
 		 * In order to keep things simple we have an id
@@ -1327,9 +1327,9 @@ static int ide_port_alloc_devices(ide_hwif_t *hwif, int node)
 		 * is pre ATA or refuses ATA/ATAPI identify we
 		 * will add faked data to this.
 		 *
-		 * Also note that 0 everywhere means "can't do X"
+		 * Also yeste that 0 everywhere means "can't do X"
 		 */
-		drive->id = kzalloc_node(SECTOR_SIZE, GFP_KERNEL, node);
+		drive->id = kzalloc_yesde(SECTOR_SIZE, GFP_KERNEL, yesde);
 		if (drive->id == NULL)
 			goto out_free_drive;
 
@@ -1339,7 +1339,7 @@ static int ide_port_alloc_devices(ide_hwif_t *hwif, int node)
 
 out_free_drive:
 	kfree(drive);
-out_nomem:
+out_yesmem:
 	ide_port_free_devices(hwif);
 	return -ENOMEM;
 }
@@ -1349,10 +1349,10 @@ struct ide_host *ide_host_alloc(const struct ide_port_info *d,
 {
 	struct ide_host *host;
 	struct device *dev = hws[0] ? hws[0]->dev : NULL;
-	int node = dev ? dev_to_node(dev) : -1;
+	int yesde = dev ? dev_to_yesde(dev) : -1;
 	int i;
 
-	host = kzalloc_node(sizeof(*host), GFP_KERNEL, node);
+	host = kzalloc_yesde(sizeof(*host), GFP_KERNEL, yesde);
 	if (host == NULL)
 		return NULL;
 
@@ -1363,18 +1363,18 @@ struct ide_host *ide_host_alloc(const struct ide_port_info *d,
 		if (hws[i] == NULL)
 			continue;
 
-		hwif = kzalloc_node(sizeof(*hwif), GFP_KERNEL, node);
+		hwif = kzalloc_yesde(sizeof(*hwif), GFP_KERNEL, yesde);
 		if (hwif == NULL)
 			continue;
 
-		if (ide_port_alloc_devices(hwif, node) < 0) {
+		if (ide_port_alloc_devices(hwif, yesde) < 0) {
 			kfree(hwif);
 			continue;
 		}
 
 		idx = ide_find_port_slot(d);
 		if (idx < 0) {
-			printk(KERN_ERR "%s: no free slot for interface\n",
+			printk(KERN_ERR "%s: yes free slot for interface\n",
 					d ? d->name : "ide");
 			ide_port_free_devices(hwif);
 			kfree(hwif);
@@ -1583,10 +1583,10 @@ EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
  *	Perform the final unregister of an IDE interface.
  *
  *	Locking:
- *	The caller must not hold the IDE locks.
+ *	The caller must yest hold the IDE locks.
  *
- *	It is up to the caller to be sure there is no pending I/O here,
- *	and that the interface will not be reopened (present/vanishing
+ *	It is up to the caller to be sure there is yes pending I/O here,
+ *	and that the interface will yest be reopened (present/vanishing
  *	locking isn't yet done BTW).
  */
 
@@ -1612,7 +1612,7 @@ static void ide_unregister(ide_hwif_t *hwif)
 	wait_for_completion(&hwif->gendev_rel_comp);
 
 	/*
-	 * Remove us from the kernel's knowledge
+	 * Remove us from the kernel's kyeswledge
 	 */
 	blk_unregister_region(MKDEV(hwif->major, 0), MAX_DRIVES<<PARTN_BITS);
 	kfree(hwif->sg_table);

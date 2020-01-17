@@ -90,7 +90,7 @@ typedef int (*xmit) (struct sk_buff *skb, void *cb_data);
  * These values can be specified by a driver to indicate it requires some
  * adaptation of the HCI standard.
  *
- * NFC_HCI_QUIRK_SHORT_CLEAR - send HCI_ADM_CLEAR_ALL_PIPE cmd with no params
+ * NFC_HCI_QUIRK_SHORT_CLEAR - send HCI_ADM_CLEAR_ALL_PIPE cmd with yes params
  */
 enum {
 	NFC_HCI_QUIRK_SHORT_CLEAR	= 0,
@@ -132,7 +132,7 @@ struct nfc_hci_dev {
 	u8 sw_romlib;
 	u8 sw_patch;
 	u8 sw_flashlib_major;
-	u8 sw_flashlib_minor;
+	u8 sw_flashlib_miyesr;
 
 	u8 hw_derivative;
 	u8 hw_version;
@@ -176,7 +176,7 @@ static inline int nfc_hci_set_vendor_cmds(struct nfc_hci_dev *hdev,
 
 void nfc_hci_driver_failure(struct nfc_hci_dev *hdev, int err);
 
-int nfc_hci_result_to_errno(u8 result);
+int nfc_hci_result_to_erryes(u8 result);
 void nfc_hci_reset_pipes(struct nfc_hci_dev *dev);
 void nfc_hci_reset_pipes_per_host(struct nfc_hci_dev *hdev, u8 host);
 

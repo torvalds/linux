@@ -74,7 +74,7 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 	ctx->staging.flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED |
 					RXON_FLG_CHANNEL_MODE_PURE_40);
 	if (ctx->vif)
-		memcpy(ctx->staging.node_addr, ctx->vif->addr, ETH_ALEN);
+		memcpy(ctx->staging.yesde_addr, ctx->vif->addr, ETH_ALEN);
 
 	ctx->staging.ofdm_ht_single_stream_basic_rates = 0xff;
 	ctx->staging.ofdm_ht_dual_stream_basic_rates = 0xff;
@@ -105,7 +105,7 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 			      struct iwl_rxon_context *ctx,
 			      struct iwl_rxon_cmd *send)
 {
-	struct iwl_notification_wait disable_wait;
+	struct iwl_yestification_wait disable_wait;
 	__le32 old_filter = send->filter_flags;
 	u8 old_dev_type = send->dev_type;
 	int ret;
@@ -113,7 +113,7 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 		REPLY_WIPAN_DEACTIVATION_COMPLETE
 	};
 
-	iwl_init_notification_wait(&priv->notif_wait, &disable_wait,
+	iwl_init_yestification_wait(&priv->yestif_wait, &disable_wait,
 				   deactivate_cmd, ARRAY_SIZE(deactivate_cmd),
 				   NULL, NULL);
 
@@ -127,9 +127,9 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 
 	if (ret) {
 		IWL_ERR(priv, "Error disabling PAN (%d)\n", ret);
-		iwl_remove_notification(&priv->notif_wait, &disable_wait);
+		iwl_remove_yestification(&priv->yestif_wait, &disable_wait);
 	} else {
-		ret = iwl_wait_notification(&priv->notif_wait,
+		ret = iwl_wait_yestification(&priv->yestif_wait,
 					    &disable_wait, HZ);
 		if (ret)
 			IWL_ERR(priv, "Timed out waiting for PAN disable\n");
@@ -246,7 +246,7 @@ static u16 iwl_adjust_beacon_interval(u16 beacon_val, u16 max_beacon_val)
 
 	/*
 	 * If mac80211 hasn't given us a beacon interval, program
-	 * the default into the device (not checking this here
+	 * the default into the device (yest checking this here
 	 * would cause the adjustment below to return the maximum
 	 * value, which may break PAN.)
 	 */
@@ -296,7 +296,7 @@ static int iwl_send_rxon_timing(struct iwl_priv *priv,
 
 	/*
 	 * TODO: For IBSS we need to get atim_window from mac80211,
-	 *	 for now just always use 0
+	 *	 for yesw just always use 0
 	 */
 	ctx->timing.atim_window = 0;
 
@@ -371,7 +371,7 @@ static int iwlagn_rxon_disconn(struct iwl_priv *priv,
 	 * keys, so we have to restore those afterwards.
 	 */
 	iwl_clear_ucode_stations(priv, ctx);
-	/* update -- might need P2P now */
+	/* update -- might need P2P yesw */
 	iwl_update_bcast_station(priv, ctx);
 	iwl_restore_stations(priv, ctx);
 	ret = iwl_restore_default_wep_keys(priv, ctx);
@@ -421,7 +421,7 @@ static int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	 * it always need to be updated for newest request */
 	priv->tx_power_next = tx_power;
 
-	/* do not set tx power when scanning or channel changing */
+	/* do yest set tx power when scanning or channel changing */
 	defer = test_bit(STATUS_SCANNING, &priv->status) ||
 		memcmp(&ctx->active, &ctx->staging, sizeof(ctx->staging));
 	if (defer && !force) {
@@ -693,7 +693,7 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf)
  * iwl_set_rxon_channel - Set the band and channel values in staging RXON
  * @ch: requested channel as a pointer to struct ieee80211_channel
 
- * NOTE:  Does not commit to the hardware; it sets appropriate bit fields
+ * NOTE:  Does yest commit to the hardware; it sets appropriate bit fields
  * in the staging RXON flag structure based on the ch->band
  */
 void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
@@ -771,7 +771,7 @@ static int iwl_check_rxon_cmd(struct iwl_priv *priv,
 		}
 	} else {
 		if (!(rxon->flags & RXON_FLG_SHORT_SLOT_MSK)) {
-			IWL_WARN(priv, "check 5.2G: not short slot!\n");
+			IWL_WARN(priv, "check 5.2G: yest short slot!\n");
 			errors |= BIT(2);
 		}
 		if (rxon->flags & RXON_FLG_CCK_MSK) {
@@ -779,7 +779,7 @@ static int iwl_check_rxon_cmd(struct iwl_priv *priv,
 			errors |= BIT(3);
 		}
 	}
-	if ((rxon->node_addr[0] | rxon->bssid_addr[0]) & 0x1) {
+	if ((rxon->yesde_addr[0] | rxon->bssid_addr[0]) & 0x1) {
 		IWL_WARN(priv, "mac/bssid mcast!\n");
 		errors |= BIT(4);
 	}
@@ -787,7 +787,7 @@ static int iwl_check_rxon_cmd(struct iwl_priv *priv,
 	/* make sure basic rates 6Mbps and 1Mbps are supported */
 	if ((rxon->ofdm_basic_rates & IWL_RATE_6M_MASK) == 0 &&
 	    (rxon->cck_basic_rates & IWL_RATE_1M_MASK) == 0) {
-		IWL_WARN(priv, "neither 1 nor 6 are basic\n");
+		IWL_WARN(priv, "neither 1 yesr 6 are basic\n");
 		errors |= BIT(5);
 	}
 
@@ -811,7 +811,7 @@ static int iwl_check_rxon_cmd(struct iwl_priv *priv,
 	if ((rxon->flags & (RXON_FLG_AUTO_DETECT_MSK |
 			    RXON_FLG_TGG_PROTECT_MSK)) ==
 			    RXON_FLG_TGG_PROTECT_MSK) {
-		IWL_WARN(priv, "TGg but no auto-detect\n");
+		IWL_WARN(priv, "TGg but yes auto-detect\n");
 		errors |= BIT(9);
 	}
 
@@ -830,7 +830,7 @@ static int iwl_check_rxon_cmd(struct iwl_priv *priv,
  * iwl_full_rxon_required - check if full RXON (vs RXON_ASSOC) cmd is needed
  * @priv: staging_rxon is compared to active_rxon
  *
- * If the RXON structure is changing enough to require a new tune,
+ * If the RXON structure is changing eyesugh to require a new tune,
  * or is clearing the RXON_FILTER_ASSOC_MSK, then return 1 to indicate that
  * a new tune (full RXON command, rather than RXON_ASSOC cmd) is required.
  */
@@ -857,7 +857,7 @@ static int iwl_full_rxon_required(struct iwl_priv *priv,
 	/* These items are only settable from the full RXON command */
 	CHK(!iwl_is_associated_ctx(ctx));
 	CHK(!ether_addr_equal(staging->bssid_addr, active->bssid_addr));
-	CHK(!ether_addr_equal(staging->node_addr, active->node_addr));
+	CHK(!ether_addr_equal(staging->yesde_addr, active->yesde_addr));
 	CHK(!ether_addr_equal(staging->wlap_bssid_addr,
 			      active->wlap_bssid_addr));
 	CHK_NEQ(staging->dev_type, active->dev_type);
@@ -875,7 +875,7 @@ static int iwl_full_rxon_required(struct iwl_priv *priv,
 	 * be updated with the RXON_ASSOC command -- however only some
 	 * flag transitions are allowed using RXON_ASSOC */
 
-	/* Check if we are not switching bands */
+	/* Check if we are yest switching bands */
 	CHK_NEQ(staging->flags & RXON_FLG_BAND_24G_MSK,
 		active->flags & RXON_FLG_BAND_24G_MSK);
 
@@ -909,7 +909,7 @@ void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 			rxon->ofdm_basic_rates);
 	IWL_DEBUG_RADIO(priv, "u8 cck_basic_rates: 0x%02x\n",
 			rxon->cck_basic_rates);
-	IWL_DEBUG_RADIO(priv, "u8[6] node_addr: %pM\n", rxon->node_addr);
+	IWL_DEBUG_RADIO(priv, "u8[6] yesde_addr: %pM\n", rxon->yesde_addr);
 	IWL_DEBUG_RADIO(priv, "u8[6] bssid_addr: %pM\n", rxon->bssid_addr);
 	IWL_DEBUG_RADIO(priv, "u16 assoc_id: 0x%x\n",
 			le16_to_cpu(rxon->assoc_id));
@@ -949,7 +949,7 @@ static void iwl_calc_basic_rates(struct iwl_priv *priv,
 
 	/*
 	 * Now we've got the basic rates as bitmaps in the ofdm and cck
-	 * variables. This isn't sufficient though, as there might not
+	 * variables. This isn't sufficient though, as there might yest
 	 * be all the right rates in the bitmap. E.g. if the only basic
 	 * rates are 5.5 Mbps and 11 Mbps, we still need to add 1 Mbps
 	 * and 6 Mbps because the 802.11-2007 standard says in 9.6:
@@ -959,7 +959,7 @@ static void iwl_calc_basic_rates(struct iwl_priv *priv,
 	 *    BSSBasicRateSet parameter that is less than or equal to the
 	 *    rate of the immediately previous frame in the frame exchange
 	 *    sequence ([...]) and that is of the same modulation class
-	 *    ([...]) as the received frame. If no rate contained in the
+	 *    ([...]) as the received frame. If yes rate contained in the
 	 *    BSSBasicRateSet parameter meets these conditions, then the
 	 *    control frame sent in response to a received frame shall be
 	 *    transmitted at the highest mandatory rate of the PHY that is
@@ -980,14 +980,14 @@ static void iwl_calc_basic_rates(struct iwl_priv *priv,
 	/*
 	 * CCK is a bit more complex with DSSS vs. HR/DSSS vs. ERP.
 	 * Note, however:
-	 *  - if no CCK rates are basic, it must be ERP since there must
+	 *  - if yes CCK rates are basic, it must be ERP since there must
 	 *    be some basic rates at all, so they're OFDM => ERP PHY
 	 *    (or we're in 5 GHz, and the cck bitmap will never be used)
 	 *  - if 11M is a basic rate, it must be ERP as well, so add 5.5M
 	 *  - if 5.5M is basic, 1M and 2M are mandatory
 	 *  - if 2M is basic, 1M is mandatory
 	 *  - if 1M is basic, that's the only valid ACK rate.
-	 * As a consequence, it's not as complicated as it sounds, just add
+	 * As a consequence, it's yest as complicated as it sounds, just add
 	 * any lower rates to the ACK rate bitmap.
 	 */
 	if (IWL_RATE_11M_INDEX < lowest_present_cck)
@@ -1002,7 +1002,7 @@ static void iwl_calc_basic_rates(struct iwl_priv *priv,
 	IWL_DEBUG_RATE(priv, "Set basic rates cck:0x%.2x ofdm:0x%.2x\n",
 		       cck, ofdm);
 
-	/* "basic_rates" is a misnomer here -- should be called ACK rates */
+	/* "basic_rates" is a misyesmer here -- should be called ACK rates */
 	ctx->staging.cck_basic_rates = cck;
 	ctx->staging.ofdm_basic_rates = ofdm;
 }
@@ -1017,7 +1017,7 @@ static void iwl_calc_basic_rates(struct iwl_priv *priv,
  *
  * The connect/disconnect flow should be as the following:
  *
- * 1. make sure send RXON command with association bit unset if not connect
+ * 1. make sure send RXON command with association bit unset if yest connect
  *	this should include the channel and the band for the candidate
  *	to be connected to
  * 2. Add Station before RXON association with the AP
@@ -1050,7 +1050,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	iwl_calc_basic_rates(priv, ctx);
 
 	/*
-	 * force CTS-to-self frames protection if RTS-CTS is not preferred
+	 * force CTS-to-self frames protection if RTS-CTS is yest preferred
 	 * one aggregation protection method
 	 */
 	if (!priv->hw_params.use_rts_for_aggregation)
@@ -1094,8 +1094,8 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 		memcpy(active, &ctx->staging, sizeof(*active));
 		/*
-		 * We do not commit tx power settings while channel changing,
-		 * do it now if after settings changed.
+		 * We do yest commit tx power settings while channel changing,
+		 * do it yesw if after settings changed.
 		 */
 		iwl_set_tx_power(priv, priv->tx_power_next, false);
 
@@ -1172,13 +1172,13 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (!iwl_is_ready(priv)) {
-		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
+		IWL_DEBUG_MAC80211(priv, "leave - yest ready\n");
 		goto out;
 	}
 
 	if (changed & (IEEE80211_CONF_CHANGE_SMPS |
 		       IEEE80211_CONF_CHANGE_CHANNEL)) {
-		/* mac80211 uses static for non-HT which is what we want */
+		/* mac80211 uses static for yesn-HT which is what we want */
 		priv->current_ht_config.smps = conf->smps_mode;
 
 		/*
@@ -1199,7 +1199,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 				ctx->ht.enabled = conf_is_ht(conf);
 
 			if (ctx->ht.enabled) {
-				/* if HT40 is used, it should not change
+				/* if HT40 is used, it should yest change
 				 * after associated except channel switch */
 				if (!ctx->ht.is_40mhz ||
 						!iwl_is_associated_ctx(ctx))
@@ -1208,13 +1208,13 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 				ctx->ht.is_40mhz = false;
 
 			/*
-			 * Default to no protection. Protection mode will
+			 * Default to yes protection. Protection mode will
 			 * later be set from BSS config in iwl_ht_conf
 			 */
 			ctx->ht.protection = IEEE80211_HT_OP_MODE_PROTECTION_NONE;
 
 			/* if we are switching from ht to 2.4 clear flags
-			 * from any ht related info since 2.4 does not
+			 * from any ht related info since 2.4 does yest
 			 * support ht */
 			if (le16_to_cpu(ctx->staging.channel) !=
 			    channel->hw_value)
@@ -1290,7 +1290,7 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 		need_multiple = true;
 
 		/*
-		 * If the peer advertises no support for receiving 2 and 3
+		 * If the peer advertises yes support for receiving 2 and 3
 		 * stream MCS rates, it can't be transmitting them either.
 		 */
 		if (ht_cap->mcs.rx_mask[1] == 0 &&
@@ -1305,7 +1305,7 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 			int maxstreams;
 
 			/*
-			 * But if it can receive them, it might still not
+			 * But if it can receive them, it might still yest
 			 * be able to transmit them, which is what we need
 			 * to check here -- so check the number of streams
 			 * it advertises for TX (if different from RX).
@@ -1350,9 +1350,9 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 	ht_conf->single_chain_sufficient = !need_multiple;
 }
 
-static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
+static void iwlagn_chain_yesise_reset(struct iwl_priv *priv)
 {
-	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
+	struct iwl_chain_yesise_data *data = &priv->chain_yesise_data;
 	int ret;
 
 	if (priv->calib_disabled & IWL_CHAIN_NOISE_CALIB_DISABLED)
@@ -1360,12 +1360,12 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 
 	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&
 	    iwl_is_any_associated(priv)) {
-		struct iwl_calib_chain_noise_reset_cmd cmd;
+		struct iwl_calib_chain_yesise_reset_cmd cmd;
 
-		/* clear data for chain noise calibration algorithm */
-		data->chain_noise_a = 0;
-		data->chain_noise_b = 0;
-		data->chain_noise_c = 0;
+		/* clear data for chain yesise calibration algorithm */
+		data->chain_yesise_a = 0;
+		data->chain_yesise_b = 0;
+		data->chain_yesise_c = 0;
 		data->chain_signal_a = 0;
 		data->chain_signal_b = 0;
 		data->chain_signal_c = 0;
@@ -1373,15 +1373,15 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 
 		memset(&cmd, 0, sizeof(cmd));
 		iwl_set_calib_hdr(&cmd.hdr,
-			priv->phy_calib_chain_noise_reset_cmd);
+			priv->phy_calib_chain_yesise_reset_cmd);
 		ret = iwl_dvm_send_cmd_pdu(priv,
 					REPLY_PHY_CALIBRATION_CMD,
 					0, sizeof(cmd), &cmd);
 		if (ret)
 			IWL_ERR(priv,
-				"Could not send REPLY_PHY_CALIBRATION_CMD\n");
+				"Could yest send REPLY_PHY_CALIBRATION_CMD\n");
 		data->state = IWL_CHAIN_NOISE_ACCUMULATE;
-		IWL_DEBUG_CALIB(priv, "Run chain_noise_calibrate\n");
+		IWL_DEBUG_CALIB(priv, "Run chain_yesise_calibrate\n");
 	}
 }
 
@@ -1399,14 +1399,14 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changes & BSS_CHANGED_IDLE && bss_conf->idle) {
 		/*
-		 * If we go idle, then clearly no "passive-no-rx"
+		 * If we go idle, then clearly yes "passive-yes-rx"
 		 * workaround is needed any more, this is a reset.
 		 */
-		iwlagn_lift_passive_no_rx(priv);
+		iwlagn_lift_passive_yes_rx(priv);
 	}
 
 	if (unlikely(!iwl_is_ready(priv))) {
-		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
+		IWL_DEBUG_MAC80211(priv, "leave - yest ready\n");
 		mutex_unlock(&priv->mutex);
 		return;
         }
@@ -1448,7 +1448,7 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 	if (ctx->ht.enabled) {
 		ctx->ht.protection = bss_conf->ht_operation_mode &
 					IEEE80211_HT_OP_MODE_PROTECTION;
-		ctx->ht.non_gf_sta_present = !!(bss_conf->ht_operation_mode &
+		ctx->ht.yesn_gf_sta_present = !!(bss_conf->ht_operation_mode &
 					IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 		iwlagn_check_needed_chains(priv, ctx, bss_conf);
 		iwl_set_rxon_ht(priv, &priv->current_ht_config);
@@ -1500,15 +1500,15 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changes & BSS_CHANGED_ASSOC && bss_conf->assoc) {
 		/*
-		 * The chain noise calibration will enable PM upon
+		 * The chain yesise calibration will enable PM upon
 		 * completion. If calibration has already been run
 		 * then we need to enable power management here.
 		 */
-		if (priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE)
+		if (priv->chain_yesise_data.state == IWL_CHAIN_NOISE_DONE)
 			iwl_power_update_mode(priv, false);
 
 		/* Enable RX differential gain and sensitivity calibrations */
-		iwlagn_chain_noise_reset(priv);
+		iwlagn_chain_yesise_reset(priv);
 		priv->start_calib = 1;
 	}
 
@@ -1534,8 +1534,8 @@ void iwlagn_post_scan(struct iwl_priv *priv)
 	struct iwl_rxon_context *ctx;
 
 	/*
-	 * We do not commit power settings while scan is pending,
-	 * do it now if the settings changed.
+	 * We do yest commit power settings while scan is pending,
+	 * do it yesw if the settings changed.
 	 */
 	iwl_power_set_mode(priv, &priv->power_data.sleep_cmd_next, false);
 	iwl_set_tx_power(priv, priv->tx_power_next, false);

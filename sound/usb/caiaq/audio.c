@@ -441,7 +441,7 @@ static void read_in_urb_mode3(struct snd_usb_caiaqdev *cdev,
 	struct device *dev = caiaqdev_to_dev(cdev);
 	int stream, i;
 
-	/* paranoia check */
+	/* parayesia check */
 	if (iso->actual_length % (BYTES_PER_SAMPLE_USB * CHANNELS_PER_STREAM))
 		return;
 

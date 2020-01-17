@@ -66,7 +66,7 @@ static int cht_int33fe_check_hw_type(struct device *dev)
 
 	/* Check presence of INT34D3 (hardware-rev 3) expected for ptype == 4 */
 	if (!acpi_dev_present("INT34D3", "1", 3)) {
-		dev_err(dev, "Error PTYPE == %d, but no INT34D3 device\n",
+		dev_err(dev, "Error PTYPE == %d, but yes INT34D3 device\n",
 			EXPECTED_PTYPE);
 		return -ENODEV;
 	}

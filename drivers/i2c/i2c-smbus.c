@@ -27,7 +27,7 @@ struct alert_data {
 	unsigned int		data;
 };
 
-/* If this is the alerting device, notify its driver */
+/* If this is the alerting device, yestify its driver */
 static int smbus_do_alert(struct device *dev, void *addrp)
 {
 	struct i2c_client *client = i2c_verify_client(dev);
@@ -49,9 +49,9 @@ static int smbus_do_alert(struct device *dev, void *addrp)
 		if (driver->alert)
 			driver->alert(client, data->type, data->data);
 		else
-			dev_warn(&client->dev, "no driver alert()!\n");
+			dev_warn(&client->dev, "yes driver alert()!\n");
 	} else
-		dev_dbg(&client->dev, "alert with no driver\n");
+		dev_dbg(&client->dev, "alert with yes driver\n");
 	device_unlock(dev);
 
 	/* Stop iterating after we find the device */
@@ -79,7 +79,7 @@ static irqreturn_t smbus_alert(int irq, void *d)
 		 * responding, an SMBus device stops asserting SMBALERT#.
 		 *
 		 * Note that SMBus 2.0 reserves 10-bit addresses for future
-		 * use.  We neither handle them, nor try to use PEC here.
+		 * use.  We neither handle them, yesr try to use PEC here.
 		 */
 		status = i2c_smbus_read_byte(ara);
 		if (status < 0)
@@ -127,7 +127,7 @@ static int smbalert_probe(struct i2c_client *ara,
 	if (setup) {
 		irq = setup->irq;
 	} else {
-		irq = of_irq_get_byname(adapter->dev.of_node, "smbus_alert");
+		irq = of_irq_get_byname(adapter->dev.of_yesde, "smbus_alert");
 		if (irq <= 0)
 			return irq;
 	}

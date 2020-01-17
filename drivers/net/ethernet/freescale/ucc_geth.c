@@ -13,7 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
 #include <linux/module.h>
@@ -68,7 +68,7 @@ static struct {
 } debug = { -1 };
 
 module_param_named(debug, debug.msg_enable, int, 0);
-MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 0xffff=all)");
+MODULE_PARM_DESC(debug, "Debug verbosity level (0=yesne, ..., 0xffff=all)");
 
 static struct ucc_geth_info ugeth_primary_info = {
 	.uf_info = {
@@ -94,12 +94,12 @@ static struct ucc_geth_info ugeth_primary_info = {
 	.numQueuesRx = 1,
 	.extendedFilteringChainPointer = ((uint32_t) NULL),
 	.typeorlen = 3072 /*1536 */ ,
-	.nonBackToBackIfgPart1 = 0x40,
-	.nonBackToBackIfgPart2 = 0x60,
+	.yesnBackToBackIfgPart1 = 0x40,
+	.yesnBackToBackIfgPart2 = 0x60,
 	.miminumInterFrameGapEnforcement = 0x50,
 	.backToBackInterFrameGap = 0x60,
 	.mblinterval = 128,
-	.nortsrbytetime = 5,
+	.yesrtsrbytetime = 5,
 	.fracsiz = 1,
 	.strictpriorityq = 0xff,
 	.altBebTruncation = 0xa,
@@ -165,9 +165,9 @@ static void mem_disp(u8 *addr, int size)
 	u8 *i;
 	int size16Aling = (size >> 4) << 4;
 	int size4Aling = (size >> 2) << 2;
-	int notAlign = 0;
+	int yestAlign = 0;
 	if (size % 16)
-		notAlign = 1;
+		yestAlign = 1;
 
 	for (i = addr; (u32) i < (u32) addr + size16Aling; i += 16)
 		printk("0x%08x: %08x %08x %08x %08x\r\n",
@@ -175,13 +175,13 @@ static void mem_disp(u8 *addr, int size)
 		       *((u32 *) (i)),
 		       *((u32 *) (i + 4)),
 		       *((u32 *) (i + 8)), *((u32 *) (i + 12)));
-	if (notAlign == 1)
+	if (yestAlign == 1)
 		printk("0x%08x: ", (u32) i);
 	for (; (u32) i < (u32) addr + size4Aling; i += 4)
 		printk("%08x ", *((u32 *) (i)));
 	for (; (u32) i < (u32) addr + size; i++)
 		printk("%02x", *((i)));
-	if (notAlign == 1)
+	if (yestAlign == 1)
 		printk("\r\n");
 }
 #endif /* DEBUG */
@@ -192,10 +192,10 @@ static struct list_head *dequeue(struct list_head *lh)
 
 	spin_lock_irqsave(&ugeth_lock, flags);
 	if (!list_empty(lh)) {
-		struct list_head *node = lh->next;
-		list_del(node);
+		struct list_head *yesde = lh->next;
+		list_del(yesde);
 		spin_unlock_irqrestore(&ugeth_lock, flags);
-		return node;
+		return yesde;
 	} else {
 		spin_unlock_irqrestore(&ugeth_lock, flags);
 		return NULL;
@@ -248,7 +248,7 @@ static int rx_bd_buffer_set(struct ucc_geth_private *ugeth, u8 rxQ)
 		bd_status = in_be32((u32 __iomem *)bd);
 		skb = get_new_skb(ugeth, bd);
 
-		if (!skb)	/* If can not allocate data buffer,
+		if (!skb)	/* If can yest allocate data buffer,
 				abort. Cleanup will be elsewhere */
 			return -ENOMEM;
 
@@ -277,18 +277,18 @@ static int fill_init_enet_entries(struct ucc_geth_private *ugeth,
 	for (i = 0; i < num_entries; i++) {
 		if ((snum = qe_get_snum()) < 0) {
 			if (netif_msg_ifup(ugeth))
-				pr_err("Can not get SNUM\n");
+				pr_err("Can yest get SNUM\n");
 			return snum;
 		}
 		if ((i == 0) && skip_page_for_first_entry)
-		/* First entry of Rx does not have page */
+		/* First entry of Rx does yest have page */
 			init_enet_offset = 0;
 		else {
 			init_enet_offset =
 			    qe_muram_alloc(thread_size, thread_alignment);
 			if (IS_ERR_VALUE(init_enet_offset)) {
 				if (netif_msg_ifup(ugeth))
-					pr_err("Can not allocate DPRAM memory\n");
+					pr_err("Can yest allocate DPRAM memory\n");
 				qe_put_snum((u8) snum);
 				return -ENOMEM;
 			}
@@ -322,7 +322,7 @@ static int return_init_enet_entries(struct ucc_geth_private *ugeth,
 			    ENET_INIT_PARAM_SNUM_SHIFT;
 			qe_put_snum((u8) snum);
 			if (!((i == 0) && skip_page_for_first_entry)) {
-			/* First entry of Rx does not have page */
+			/* First entry of Rx does yest have page */
 				init_enet_offset =
 				    (val & ENET_INIT_PARAM_PTR_MASK);
 				qe_muram_free(init_enet_offset);
@@ -357,7 +357,7 @@ static int dump_init_enet_entries(struct ucc_geth_private *ugeth,
 			    ENET_INIT_PARAM_SNUM_SHIFT;
 			qe_put_snum((u8) snum);
 			if (!((i == 0) && skip_page_for_first_entry)) {
-			/* First entry of Rx does not have page */
+			/* First entry of Rx does yest have page */
 				init_enet_offset =
 				    (in_be32(p_start) &
 				     ENET_INIT_PARAM_PTR_MASK);
@@ -1035,8 +1035,8 @@ static void init_default_reg_vals(u32 __iomem *upsmr_register,
 }
 
 static int init_half_duplex_params(int alt_beb,
-				   int back_pressure_no_backoff,
-				   int no_backoff,
+				   int back_pressure_yes_backoff,
+				   int yes_backoff,
 				   int excess_defer,
 				   u8 alt_beb_truncation,
 				   u8 max_retransmissions,
@@ -1054,9 +1054,9 @@ static int init_half_duplex_params(int alt_beb,
 
 	if (alt_beb)
 		value |= HALFDUP_ALT_BEB;
-	if (back_pressure_no_backoff)
+	if (back_pressure_yes_backoff)
 		value |= HALFDUP_BACK_PRESSURE_NO_BACKOFF;
-	if (no_backoff)
+	if (yes_backoff)
 		value |= HALFDUP_NO_BACKOFF;
 	if (excess_defer)
 		value |= HALFDUP_EXCESSIVE_DEFER;
@@ -1069,8 +1069,8 @@ static int init_half_duplex_params(int alt_beb,
 	return 0;
 }
 
-static int init_inter_frame_gap_params(u8 non_btb_cs_ipg,
-				       u8 non_btb_ipg,
+static int init_inter_frame_gap_params(u8 yesn_btb_cs_ipg,
+				       u8 yesn_btb_ipg,
 				       u8 min_ifg,
 				       u8 btb_ipg,
 				       u32 __iomem *ipgifg_register)
@@ -1079,20 +1079,20 @@ static int init_inter_frame_gap_params(u8 non_btb_cs_ipg,
 
 	/* Non-Back-to-back IPG part 1 should be <= Non-Back-to-back
 	IPG part 2 */
-	if (non_btb_cs_ipg > non_btb_ipg)
+	if (yesn_btb_cs_ipg > yesn_btb_ipg)
 		return -EINVAL;
 
-	if ((non_btb_cs_ipg > IPGIFG_NON_BACK_TO_BACK_IFG_PART1_MAX) ||
-	    (non_btb_ipg > IPGIFG_NON_BACK_TO_BACK_IFG_PART2_MAX) ||
+	if ((yesn_btb_cs_ipg > IPGIFG_NON_BACK_TO_BACK_IFG_PART1_MAX) ||
+	    (yesn_btb_ipg > IPGIFG_NON_BACK_TO_BACK_IFG_PART2_MAX) ||
 	    /*(min_ifg        > IPGIFG_MINIMUM_IFG_ENFORCEMENT_MAX) || */
 	    (btb_ipg > IPGIFG_BACK_TO_BACK_IFG_MAX))
 		return -EINVAL;
 
 	value |=
-	    ((non_btb_cs_ipg << IPGIFG_NON_BACK_TO_BACK_IFG_PART1_SHIFT) &
+	    ((yesn_btb_cs_ipg << IPGIFG_NON_BACK_TO_BACK_IFG_PART1_SHIFT) &
 	     IPGIFG_NBTB_CS_IPG_MASK);
 	value |=
-	    ((non_btb_ipg << IPGIFG_NON_BACK_TO_BACK_IFG_PART2_SHIFT) &
+	    ((yesn_btb_ipg << IPGIFG_NON_BACK_TO_BACK_IFG_PART2_SHIFT) &
 	     IPGIFG_NBTB_IPG_MASK);
 	value |=
 	    ((min_ifg << IPGIFG_MINIMUM_IFG_ENFORCEMENT_SHIFT) &
@@ -1165,7 +1165,7 @@ static int init_firmware_statistics_gathering_mode(int
 		u16 __iomem *temoder_register,
 		u32 __iomem *remoder_register)
 {
-	/* Note: this function does not check if */
+	/* Note: this function does yest check if */
 	/* the parameters it receives are NULL   */
 
 	if (enable_tx_firmware_statistics) {
@@ -1371,12 +1371,12 @@ static int adjust_enet_interface(struct ucc_geth_private *ugeth)
 		struct ucc_geth_info *ug_info = ugeth->ug_info;
 		struct phy_device *tbiphy;
 
-		if (!ug_info->tbi_node)
+		if (!ug_info->tbi_yesde)
 			pr_warn("TBI mode requires that the device tree specify a tbi-handle\n");
 
-		tbiphy = of_phy_find_device(ug_info->tbi_node);
+		tbiphy = of_phy_find_device(ug_info->tbi_yesde);
 		if (!tbiphy)
-			pr_warn("Could not get TBI device\n");
+			pr_warn("Could yest get TBI device\n");
 
 		value = phy_read(tbiphy, ENET_TBI_MII_CR);
 		value &= ~0x1000;	/* Turn off autonegotiation */
@@ -1436,12 +1436,12 @@ static int ugeth_graceful_stop_rx(struct ucc_geth_private *ugeth)
 
 	uccf = ugeth->uccf;
 
-	/* Clear acknowledge bit */
+	/* Clear ackyeswledge bit */
 	temp = in_8(&ugeth->p_rx_glbl_pram->rxgstpack);
 	temp &= ~GRACEFUL_STOP_ACKNOWLEDGE_RX;
 	out_8(&ugeth->p_rx_glbl_pram->rxgstpack, temp);
 
-	/* Keep issuing command and checking acknowledge bit until
+	/* Keep issuing command and checking ackyeswledge bit until
 	it is asserted, according to spec */
 	do {
 		/* Issue host command */
@@ -1514,7 +1514,7 @@ static int ugeth_enable(struct ucc_geth_private *ugeth, enum comm_dir mode)
 	if ((mode & COMM_DIR_RX) && (!enabled_rx) && uccf->stopped_rx)
 		ugeth_restart_rx(ugeth);
 
-	ucc_fast_enable(uccf, mode);	/* OK to do even if not disabled */
+	ucc_fast_enable(uccf, mode);	/* OK to do even if yest disabled */
 
 	return 0;
 
@@ -1541,7 +1541,7 @@ static int ugeth_disable(struct ucc_geth_private *ugeth, enum comm_dir mode)
 	if ((mode & COMM_DIR_RX) && uccf->enabled_rx && !uccf->stopped_rx)
 		ugeth_graceful_stop_rx(ugeth);
 
-	ucc_fast_disable(ugeth->uccf, mode); /* OK to do even if not enabled */
+	ucc_fast_disable(ugeth->uccf, mode); /* OK to do even if yest enabled */
 
 	return 0;
 }
@@ -1590,7 +1590,7 @@ static void adjust_link(struct net_device *dev)
 		u32 tempval = in_be32(&ug_regs->maccfg2);
 		u32 upsmr = in_be32(&uf_regs->upsmr);
 		/* Now we make sure that we can be in full duplex mode.
-		 * If not, we operate in half-duplex mode. */
+		 * If yest, we operate in half-duplex mode. */
 		if (phydev->duplex != ugeth->oldduplex) {
 			new_state = 1;
 			if (!(phydev->duplex))
@@ -1629,7 +1629,7 @@ static void adjust_link(struct net_device *dev)
 			default:
 				if (netif_msg_link(ugeth))
 					pr_warn(
-						"%s: Ack!  Speed (%d) is not 10/100/1000!",
+						"%s: Ack!  Speed (%d) is yest 10/100/1000!",
 						dev->name, phydev->speed);
 				break;
 			}
@@ -1672,10 +1672,10 @@ static void adjust_link(struct net_device *dev)
 /* Initialize TBI PHY interface for communicating with the
  * SERDES lynx PHY on the chip.  We communicate with this PHY
  * through the MDIO bus on each controller, treating it as a
- * "normal" PHY at the address found in the UTBIPA register.  We assume
+ * "yesrmal" PHY at the address found in the UTBIPA register.  We assume
  * that the UTBIPA register is valid.  Either the MDIO bus code will set
  * it to a value that doesn't conflict with other PHYs on the bus, or the
- * value doesn't matter, as there are no other PHYs on the bus.
+ * value doesn't matter, as there are yes other PHYs on the bus.
  */
 static void uec_configure_serdes(struct net_device *dev)
 {
@@ -1683,15 +1683,15 @@ static void uec_configure_serdes(struct net_device *dev)
 	struct ucc_geth_info *ug_info = ugeth->ug_info;
 	struct phy_device *tbiphy;
 
-	if (!ug_info->tbi_node) {
+	if (!ug_info->tbi_yesde) {
 		dev_warn(&dev->dev, "SGMII mode requires that the device "
 			"tree specify a tbi-handle\n");
 		return;
 	}
 
-	tbiphy = of_phy_find_device(ug_info->tbi_node);
+	tbiphy = of_phy_find_device(ug_info->tbi_yesde);
 	if (!tbiphy) {
-		dev_err(&dev->dev, "error: Could not get TBI device\n");
+		dev_err(&dev->dev, "error: Could yest get TBI device\n");
 		return;
 	}
 
@@ -1729,10 +1729,10 @@ static int init_phy(struct net_device *dev)
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
 
-	phydev = of_phy_connect(dev, ug_info->phy_node, &adjust_link, 0,
+	phydev = of_phy_connect(dev, ug_info->phy_yesde, &adjust_link, 0,
 				priv->phy_interface);
 	if (!phydev) {
-		dev_err(&dev->dev, "Could not attach to PHY\n");
+		dev_err(&dev->dev, "Could yest attach to PHY\n");
 		return -ENODEV;
 	}
 
@@ -1820,7 +1820,7 @@ static int ugeth_82xx_filtering_clear_all_addr_in_hash(struct ucc_geth_private *
 static int ugeth_82xx_filtering_clear_addr_in_paddr(struct ucc_geth_private *ugeth,
 						    u8 paddr_num)
 {
-	ugeth->indAddrRegUsed[paddr_num] = 0; /* mark this paddr as not used */
+	ugeth->indAddrRegUsed[paddr_num] = 0; /* mark this paddr as yest used */
 	return hw_clear_addr_in_paddr(ugeth, paddr_num);/* clear in hardware */
 }
 
@@ -2086,7 +2086,7 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 		    (ug_info->bdRingLenRx[i] %
 		     UCC_GETH_RX_BD_RING_SIZE_ALIGNMENT)) {
 			if (netif_msg_probe(ugeth))
-				pr_err("Rx BD ring length must be multiple of 4, no smaller than 8\n");
+				pr_err("Rx BD ring length must be multiple of 4, yes smaller than 8\n");
 			return -EINVAL;
 		}
 	}
@@ -2095,7 +2095,7 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 	for (i = 0; i < ug_info->numQueuesTx; i++) {
 		if (ug_info->bdRingLenTx[i] < UCC_GETH_TX_BD_RING_SIZE_MIN) {
 			if (netif_msg_probe(ugeth))
-				pr_err("Tx BD ring length must be no smaller than 2\n");
+				pr_err("Tx BD ring length must be yes smaller than 2\n");
 			return -EINVAL;
 		}
 	}
@@ -2104,7 +2104,7 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 	if ((uf_info->max_rx_buf_length == 0) ||
 	    (uf_info->max_rx_buf_length % UCC_GETH_MRBLR_ALIGNMENT)) {
 		if (netif_msg_probe(ugeth))
-			pr_err("max_rx_buf_length must be non-zero multiple of 128\n");
+			pr_err("max_rx_buf_length must be yesn-zero multiple of 128\n");
 		return -EINVAL;
 	}
 
@@ -2126,7 +2126,7 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 	for (i = 0; i < UCC_GETH_VLAN_PRIORITY_MAX; i++) {
 		if (ug_info->l2qt[i] >= ug_info->numQueuesRx) {
 			if (netif_msg_probe(ugeth))
-				pr_err("VLAN priority table entry must not be larger than number of Rx queues\n");
+				pr_err("VLAN priority table entry must yest be larger than number of Rx queues\n");
 			return -EINVAL;
 		}
 	}
@@ -2135,7 +2135,7 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 	for (i = 0; i < UCC_GETH_IP_PRIORITY_MAX; i++) {
 		if (ug_info->l3qt[i] >= ug_info->numQueuesRx) {
 			if (netif_msg_probe(ugeth))
-				pr_err("IP priority table entry must not be larger than number of Rx queues\n");
+				pr_err("IP priority table entry must yest be larger than number of Rx queues\n");
 			return -EINVAL;
 		}
 	}
@@ -2150,7 +2150,7 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 	     UCC_GETH_NUM_OF_STATION_ADDRESSES_1) &&
 	    ug_info->rxExtendedFiltering) {
 		if (netif_msg_probe(ugeth))
-			pr_err("Number of station addresses greater than 1 not allowed in extended parsing mode\n");
+			pr_err("Number of station addresses greater than 1 yest allowed in extended parsing mode\n");
 		return -EINVAL;
 	}
 
@@ -2230,7 +2230,7 @@ static int ucc_geth_alloc_tx(struct ucc_geth_private *ugeth)
 		}
 		if (!ugeth->p_tx_bd_ring[j]) {
 			if (netif_msg_ifup(ugeth))
-				pr_err("Can not allocate memory for Tx bd rings\n");
+				pr_err("Can yest allocate memory for Tx bd rings\n");
 			return -ENOMEM;
 		}
 		/* Zero unused end of bd ring, according to spec */
@@ -2248,7 +2248,7 @@ static int ucc_geth_alloc_tx(struct ucc_geth_private *ugeth)
 
 		if (ugeth->tx_skbuff[j] == NULL) {
 			if (netif_msg_ifup(ugeth))
-				pr_err("Could not allocate tx_skbuff\n");
+				pr_err("Could yest allocate tx_skbuff\n");
 			return -ENOMEM;
 		}
 
@@ -2307,7 +2307,7 @@ static int ucc_geth_alloc_rx(struct ucc_geth_private *ugeth)
 		}
 		if (!ugeth->p_rx_bd_ring[j]) {
 			if (netif_msg_ifup(ugeth))
-				pr_err("Can not allocate memory for Rx bd rings\n");
+				pr_err("Can yest allocate memory for Rx bd rings\n");
 			return -ENOMEM;
 		}
 	}
@@ -2321,7 +2321,7 @@ static int ucc_geth_alloc_rx(struct ucc_geth_private *ugeth)
 
 		if (ugeth->rx_skbuff[j] == NULL) {
 			if (netif_msg_ifup(ugeth))
-				pr_err("Could not allocate rx_skbuff\n");
+				pr_err("Could yest allocate rx_skbuff\n");
 			return -ENOMEM;
 		}
 
@@ -2416,12 +2416,12 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	}
 
 	/* Calculate rx_extended_features */
-	ugeth->rx_non_dynamic_extended_features = ug_info->ipCheckSumCheck ||
+	ugeth->rx_yesn_dynamic_extended_features = ug_info->ipCheckSumCheck ||
 	    ug_info->ipAddressAlignment ||
 	    (ug_info->numStationAddresses !=
 	     UCC_GETH_NUM_OF_STATION_ADDRESSES_1);
 
-	ugeth->rx_extended_features = ugeth->rx_non_dynamic_extended_features ||
+	ugeth->rx_extended_features = ugeth->rx_yesn_dynamic_extended_features ||
 		(ug_info->vlanOperationTagged != UCC_GETH_VLAN_OPERATION_TAGGED_NOP) ||
 		(ug_info->vlanOperationNonTagged !=
 		 UCC_GETH_VLAN_OPERATION_NON_TAGGED_NOP);
@@ -2434,7 +2434,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	init_rx_parameters(ug_info->bro,
 			   ug_info->rsh, ug_info->pro, &uf_regs->upsmr);
 
-	/* We're going to ignore other registers for now, */
+	/* We're going to igyesre other registers for yesw, */
 	/* except as needed to get up and running         */
 
 	/*                    Set MACCFG1                    */
@@ -2451,8 +2451,8 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 
 	/*                    Set IPGIFG                     */
 	/* For more details see the hardware spec.           */
-	ret_val = init_inter_frame_gap_params(ug_info->nonBackToBackIfgPart1,
-					      ug_info->nonBackToBackIfgPart2,
+	ret_val = init_inter_frame_gap_params(ug_info->yesnBackToBackIfgPart1,
+					      ug_info->yesnBackToBackIfgPart2,
 					      ug_info->
 					      miminumInterFrameGapEnforcement,
 					      ug_info->backToBackInterFrameGap,
@@ -2467,7 +2467,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	/* For more details see the hardware spec.           */
 	ret_val = init_half_duplex_params(ug_info->altBeb,
 					  ug_info->backPressureNoBackoff,
-					  ug_info->noBackoff,
+					  ug_info->yesBackoff,
 					  ug_info->excessDefer,
 					  ug_info->altBebTruncation,
 					  ug_info->maxRetransmission,
@@ -2512,7 +2512,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			   UCC_GETH_TX_GLOBAL_PRAM_ALIGNMENT);
 	if (IS_ERR_VALUE(ugeth->tx_glbl_pram_offset)) {
 		if (netif_msg_ifup(ugeth))
-			pr_err("Can not allocate DPRAM memory for p_tx_glbl_pram\n");
+			pr_err("Can yest allocate DPRAM memory for p_tx_glbl_pram\n");
 		return -ENOMEM;
 	}
 	ugeth->p_tx_glbl_pram =
@@ -2532,7 +2532,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			   UCC_GETH_THREAD_DATA_ALIGNMENT);
 	if (IS_ERR_VALUE(ugeth->thread_dat_tx_offset)) {
 		if (netif_msg_ifup(ugeth))
-			pr_err("Can not allocate DPRAM memory for p_thread_data_tx\n");
+			pr_err("Can yest allocate DPRAM memory for p_thread_data_tx\n");
 		return -ENOMEM;
 	}
 
@@ -2559,7 +2559,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			   UCC_GETH_SEND_QUEUE_QUEUE_DESCRIPTOR_ALIGNMENT);
 	if (IS_ERR_VALUE(ugeth->send_q_mem_reg_offset)) {
 		if (netif_msg_ifup(ugeth))
-			pr_err("Can not allocate DPRAM memory for p_send_q_mem_reg\n");
+			pr_err("Can yest allocate DPRAM memory for p_send_q_mem_reg\n");
 		return -ENOMEM;
 	}
 
@@ -2599,7 +2599,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 				   UCC_GETH_SCHEDULER_ALIGNMENT);
 		if (IS_ERR_VALUE(ugeth->scheduler_offset)) {
 			if (netif_msg_ifup(ugeth))
-				pr_err("Can not allocate DPRAM memory for p_scheduler\n");
+				pr_err("Can yest allocate DPRAM memory for p_scheduler\n");
 			return -ENOMEM;
 		}
 
@@ -2614,8 +2614,8 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		/* Set values in scheduler */
 		out_be32(&ugeth->p_scheduler->mblinterval,
 			 ug_info->mblinterval);
-		out_be16(&ugeth->p_scheduler->nortsrbytetime,
-			 ug_info->nortsrbytetime);
+		out_be16(&ugeth->p_scheduler->yesrtsrbytetime,
+			 ug_info->yesrtsrbytetime);
 		out_8(&ugeth->p_scheduler->fracsiz, ug_info->fracsiz);
 		out_8(&ugeth->p_scheduler->strictpriorityq,
 				ug_info->strictpriorityq);
@@ -2646,7 +2646,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 				   UCC_GETH_TX_STATISTICS_ALIGNMENT);
 		if (IS_ERR_VALUE(ugeth->tx_fw_statistics_pram_offset)) {
 			if (netif_msg_ifup(ugeth))
-				pr_err("Can not allocate DPRAM memory for p_tx_fw_statistics_pram\n");
+				pr_err("Can yest allocate DPRAM memory for p_tx_fw_statistics_pram\n");
 			return -ENOMEM;
 		}
 		ugeth->p_tx_fw_statistics_pram =
@@ -2683,7 +2683,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			   UCC_GETH_RX_GLOBAL_PRAM_ALIGNMENT);
 	if (IS_ERR_VALUE(ugeth->rx_glbl_pram_offset)) {
 		if (netif_msg_ifup(ugeth))
-			pr_err("Can not allocate DPRAM memory for p_rx_glbl_pram\n");
+			pr_err("Can yest allocate DPRAM memory for p_rx_glbl_pram\n");
 		return -ENOMEM;
 	}
 	ugeth->p_rx_glbl_pram =
@@ -2702,7 +2702,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			   UCC_GETH_THREAD_DATA_ALIGNMENT);
 	if (IS_ERR_VALUE(ugeth->thread_dat_rx_offset)) {
 		if (netif_msg_ifup(ugeth))
-			pr_err("Can not allocate DPRAM memory for p_thread_data_rx\n");
+			pr_err("Can yest allocate DPRAM memory for p_thread_data_rx\n");
 		return -ENOMEM;
 	}
 
@@ -2723,7 +2723,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 				   UCC_GETH_RX_STATISTICS_ALIGNMENT);
 		if (IS_ERR_VALUE(ugeth->rx_fw_statistics_pram_offset)) {
 			if (netif_msg_ifup(ugeth))
-				pr_err("Can not allocate DPRAM memory for p_rx_fw_statistics_pram\n");
+				pr_err("Can yest allocate DPRAM memory for p_rx_fw_statistics_pram\n");
 			return -ENOMEM;
 		}
 		ugeth->p_rx_fw_statistics_pram =
@@ -2743,7 +2743,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			   + 4, UCC_GETH_RX_INTERRUPT_COALESCING_ALIGNMENT);
 	if (IS_ERR_VALUE(ugeth->rx_irq_coalescing_tbl_offset)) {
 		if (netif_msg_ifup(ugeth))
-			pr_err("Can not allocate DPRAM memory for p_rx_irq_coalescing_tbl\n");
+			pr_err("Can yest allocate DPRAM memory for p_rx_irq_coalescing_tbl\n");
 		return -ENOMEM;
 	}
 
@@ -2809,7 +2809,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 			   UCC_GETH_RX_BD_QUEUES_ALIGNMENT);
 	if (IS_ERR_VALUE(ugeth->rx_bd_qs_tbl_offset)) {
 		if (netif_msg_ifup(ugeth))
-			pr_err("Can not allocate DPRAM memory for p_rx_bd_qs_tbl\n");
+			pr_err("Can yest allocate DPRAM memory for p_rx_bd_qs_tbl\n");
 		return -ENOMEM;
 	}
 
@@ -2894,7 +2894,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		UCC_GETH_RX_EXTENDED_FILTERING_GLOBAL_PARAMETERS_ALIGNMENT);
 		if (IS_ERR_VALUE(ugeth->exf_glbl_param_offset)) {
 			if (netif_msg_ifup(ugeth))
-				pr_err("Can not allocate DPRAM memory for p_exf_glbl_param\n");
+				pr_err("Can yest allocate DPRAM memory for p_exf_glbl_param\n");
 			return -ENOMEM;
 		}
 
@@ -2939,7 +2939,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	if (!(ugeth->p_init_enet_param_shadow =
 	      kmalloc(sizeof(struct ucc_geth_init_pram), GFP_KERNEL))) {
 		if (netif_msg_ifup(ugeth))
-			pr_err("Can not allocate memory for p_UccInitEnetParamShadows\n");
+			pr_err("Can yest allocate memory for p_UccInitEnetParamShadows\n");
 		return -ENOMEM;
 	}
 	/* Zero out *p_init_enet_param_shadow */
@@ -2997,7 +2997,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		, size, UCC_GETH_THREAD_RX_PRAM_ALIGNMENT,
 		ug_info->riscRx, 1)) != 0) {
 		if (netif_msg_ifup(ugeth))
-			pr_err("Can not fill p_init_enet_param_shadow\n");
+			pr_err("Can yest fill p_init_enet_param_shadow\n");
 		return ret_val;
 	}
 
@@ -3011,7 +3011,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 				    UCC_GETH_THREAD_TX_PRAM_ALIGNMENT,
 				    ug_info->riscTx, 0)) != 0) {
 		if (netif_msg_ifup(ugeth))
-			pr_err("Can not fill p_init_enet_param_shadow\n");
+			pr_err("Can yest fill p_init_enet_param_shadow\n");
 		return ret_val;
 	}
 
@@ -3019,7 +3019,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	for (i = 0; i < ug_info->numQueuesRx; i++) {
 		if ((ret_val = rx_bd_buffer_set(ugeth, (u8) i)) != 0) {
 			if (netif_msg_ifup(ugeth))
-				pr_err("Can not fill Rx bds with buffers\n");
+				pr_err("Can yest fill Rx bds with buffers\n");
 			return ret_val;
 		}
 	}
@@ -3028,7 +3028,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	init_enet_pram_offset = qe_muram_alloc(sizeof(struct ucc_geth_init_pram), 4);
 	if (IS_ERR_VALUE(init_enet_pram_offset)) {
 		if (netif_msg_ifup(ugeth))
-			pr_err("Can not allocate DPRAM memory for p_init_enet_pram\n");
+			pr_err("Can yest allocate DPRAM memory for p_init_enet_pram\n");
 		return -ENOMEM;
 	}
 	p_init_enet_pram =
@@ -3174,7 +3174,7 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 		skb = ugeth->rx_skbuff[rxQ][ugeth->skb_currx[rxQ]];
 
 		/* determine whether buffer is first, last, first and last
-		(single buffer frame) or middle (not first and not last) */
+		(single buffer frame) or middle (yest first and yest last) */
 		if (!skb ||
 		    (!(bd_status & (R_F | R_L))) ||
 		    (bd_status & R_ERRORS_FATAL)) {
@@ -3261,7 +3261,7 @@ static int ucc_geth_tx(struct net_device *dev, u8 txQ)
 		    (ugeth->skb_dirtytx[txQ] +
 		     1) & TX_RING_MOD_MASK(ugeth->ug_info->bdRingLenTx[txQ]);
 
-		/* We freed a buffer, so now we can restart transmission */
+		/* We freed a buffer, so yesw we can restart transmission */
 		if (netif_queue_stopped(dev))
 			netif_wake_queue(dev);
 
@@ -3346,7 +3346,7 @@ static irqreturn_t ucc_geth_irq_handler(int irq, void *info)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
+ * without having to re-enable interrupts. It's yest called while
  * the interrupt routine is executing.
  */
 static void ucc_netpoll(struct net_device *dev)
@@ -3371,7 +3371,7 @@ static int ucc_geth_set_mac_addr(struct net_device *dev, void *p)
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
 	/*
-	 * If device is not running, we will set mac addr register
+	 * If device is yest running, we will set mac addr register
 	 * when opening the device.
 	 */
 	if (!netif_running(dev))
@@ -3398,19 +3398,19 @@ static int ucc_geth_init_mac(struct ucc_geth_private *ugeth)
 
 	err = ucc_struct_init(ugeth);
 	if (err) {
-		netif_err(ugeth, ifup, dev, "Cannot configure internal struct, aborting\n");
+		netif_err(ugeth, ifup, dev, "Canyest configure internal struct, aborting\n");
 		goto err;
 	}
 
 	err = ucc_geth_startup(ugeth);
 	if (err) {
-		netif_err(ugeth, ifup, dev, "Cannot configure net device, aborting\n");
+		netif_err(ugeth, ifup, dev, "Canyest configure net device, aborting\n");
 		goto err;
 	}
 
 	err = adjust_enet_interface(ugeth);
 	if (err) {
-		netif_err(ugeth, ifup, dev, "Cannot configure net device, aborting\n");
+		netif_err(ugeth, ifup, dev, "Canyest configure net device, aborting\n");
 		goto err;
 	}
 
@@ -3427,7 +3427,7 @@ static int ucc_geth_init_mac(struct ucc_geth_private *ugeth)
 
 	err = ugeth_enable(ugeth, COMM_DIR_RX_AND_TX);
 	if (err) {
-		netif_err(ugeth, ifup, dev, "Cannot enable net device, aborting\n");
+		netif_err(ugeth, ifup, dev, "Canyest enable net device, aborting\n");
 		goto err;
 	}
 
@@ -3455,20 +3455,20 @@ static int ucc_geth_open(struct net_device *dev)
 
 	err = init_phy(dev);
 	if (err) {
-		netif_err(ugeth, ifup, dev, "Cannot initialize PHY, aborting\n");
+		netif_err(ugeth, ifup, dev, "Canyest initialize PHY, aborting\n");
 		return err;
 	}
 
 	err = ucc_geth_init_mac(ugeth);
 	if (err) {
-		netif_err(ugeth, ifup, dev, "Cannot initialize MAC, aborting\n");
+		netif_err(ugeth, ifup, dev, "Canyest initialize MAC, aborting\n");
 		goto err;
 	}
 
 	err = request_irq(ugeth->ug_info->uf_info.irq, ucc_geth_irq_handler,
 			  0, "UCC Geth", dev);
 	if (err) {
-		netif_err(ugeth, ifup, dev, "Cannot get IRQ for net device, aborting\n");
+		netif_err(ugeth, ifup, dev, "Canyest get IRQ for net device, aborting\n");
 		goto err;
 	}
 
@@ -3542,7 +3542,7 @@ static void ucc_geth_timeout_work(struct work_struct *work)
 }
 
 /*
- * ucc_geth_timeout gets called when a packet has not been
+ * ucc_geth_timeout gets called when a packet has yest been
  * transmitted after a set amount of time.
  */
 static void ucc_geth_timeout(struct net_device *dev)
@@ -3608,7 +3608,7 @@ static int ucc_geth_resume(struct platform_device *ofdev)
 
 		err = ucc_geth_init_mac(ugeth);
 		if (err) {
-			netdev_err(ndev, "Cannot initialize MAC, aborting\n");
+			netdev_err(ndev, "Canyest initialize MAC, aborting\n");
 			return err;
 		}
 	}
@@ -3688,7 +3688,7 @@ static const struct net_device_ops ucc_geth_netdev_ops = {
 static int ucc_geth_probe(struct platform_device* ofdev)
 {
 	struct device *device = &ofdev->dev;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct net_device *dev = NULL;
 	struct ucc_geth_private *ugeth = NULL;
 	struct ucc_geth_info *ug_info;
@@ -3785,26 +3785,26 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	ug_info->uf_info.regs = res.start;
 	ug_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 
-	ug_info->phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!ug_info->phy_node && of_phy_is_fixed_link(np)) {
+	ug_info->phy_yesde = of_parse_phandle(np, "phy-handle", 0);
+	if (!ug_info->phy_yesde && of_phy_is_fixed_link(np)) {
 		/*
-		 * In the case of a fixed PHY, the DT node associated
-		 * to the PHY is the Ethernet MAC DT node.
+		 * In the case of a fixed PHY, the DT yesde associated
+		 * to the PHY is the Ethernet MAC DT yesde.
 		 */
 		err = of_phy_register_fixed_link(np);
 		if (err)
 			return err;
-		ug_info->phy_node = of_node_get(np);
+		ug_info->phy_yesde = of_yesde_get(np);
 	}
 
-	/* Find the TBI PHY node.  If it's not there, we don't support SGMII */
-	ug_info->tbi_node = of_parse_phandle(np, "tbi-handle", 0);
+	/* Find the TBI PHY yesde.  If it's yest there, we don't support SGMII */
+	ug_info->tbi_yesde = of_parse_phandle(np, "tbi-handle", 0);
 
 	/* get the phy interface type, or default to MII */
 	prop = of_get_property(np, "phy-connection-type", NULL);
 	if (!prop) {
 		/* handle interface property present in old trees */
-		prop = of_get_property(ug_info->phy_node, "interface", NULL);
+		prop = of_get_property(ug_info->phy_yesde, "interface", NULL);
 		if (prop != NULL) {
 			phy_interface = enet_to_phy_interface[*prop];
 			max_speed = enet_to_speed[*prop];
@@ -3900,7 +3900,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	err = register_netdev(dev);
 	if (err) {
 		if (netif_msg_probe(ugeth))
-			pr_err("%s: Cannot register net device, aborting\n",
+			pr_err("%s: Canyest register net device, aborting\n",
 			       dev->name);
 		goto err_free_netdev;
 	}
@@ -3912,7 +3912,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	ugeth->ug_info = ug_info;
 	ugeth->dev = device;
 	ugeth->ndev = dev;
-	ugeth->node = np;
+	ugeth->yesde = np;
 
 	return 0;
 
@@ -3921,8 +3921,8 @@ err_free_netdev:
 err_deregister_fixed_link:
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
-	of_node_put(ug_info->tbi_node);
-	of_node_put(ug_info->phy_node);
+	of_yesde_put(ug_info->tbi_yesde);
+	of_yesde_put(ug_info->phy_yesde);
 
 	return err;
 }
@@ -3931,15 +3931,15 @@ static int ucc_geth_remove(struct platform_device* ofdev)
 {
 	struct net_device *dev = platform_get_drvdata(ofdev);
 	struct ucc_geth_private *ugeth = netdev_priv(dev);
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 
 	unregister_netdev(dev);
 	free_netdev(dev);
 	ucc_geth_memclean(ugeth);
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
-	of_node_put(ugeth->ug_info->tbi_node);
-	of_node_put(ugeth->ug_info->phy_node);
+	of_yesde_put(ugeth->ug_info->tbi_yesde);
+	of_yesde_put(ugeth->ug_info->phy_yesde);
 
 	return 0;
 }

@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -185,7 +185,7 @@ static const struct ttm_place evictable_placement_flags[] = {
 	}
 };
 
-static const struct ttm_place nonfixed_placement_flags[] = {
+static const struct ttm_place yesnfixed_placement_flags[] = {
 	{
 		.fpfn = 0,
 		.lpfn = 0,
@@ -229,9 +229,9 @@ struct ttm_placement vmw_mob_ne_placement = {
 	.busy_placement = &mob_ne_placement_flags
 };
 
-struct ttm_placement vmw_nonfixed_placement = {
+struct ttm_placement vmw_yesnfixed_placement = {
 	.num_placement = 3,
-	.placement = nonfixed_placement_flags,
+	.placement = yesnfixed_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &sys_placement_flags
 };
@@ -259,14 +259,14 @@ const size_t vmw_tt_size = sizeof(struct vmw_ttm_tt);
  * true otherwise. Functions are selected depending on the current
  * DMA mapping mode.
  */
-static bool __vmw_piter_non_sg_next(struct vmw_piter *viter)
+static bool __vmw_piter_yesn_sg_next(struct vmw_piter *viter)
 {
 	return ++(viter->i) < viter->num_pages;
 }
 
 static bool __vmw_piter_sg_next(struct vmw_piter *viter)
 {
-	bool ret = __vmw_piter_non_sg_next(viter);
+	bool ret = __vmw_piter_yesn_sg_next(viter);
 
 	return __sg_page_iter_dma_next(&viter->iter) && ret;
 }
@@ -281,7 +281,7 @@ static bool __vmw_piter_sg_next(struct vmw_piter *viter)
  * pointed to by @viter. Functions are selected depending on the
  * current mapping mode.
  */
-static struct page *__vmw_piter_non_sg_page(struct vmw_piter *viter)
+static struct page *__vmw_piter_yesn_sg_page(struct vmw_piter *viter)
 {
 	return viter->pages[viter->i];
 }
@@ -326,15 +326,15 @@ void vmw_piter_start(struct vmw_piter *viter, const struct vmw_sg_table *vsgt,
 {
 	viter->i = p_offset - 1;
 	viter->num_pages = vsgt->num_pages;
-	viter->page = &__vmw_piter_non_sg_page;
+	viter->page = &__vmw_piter_yesn_sg_page;
 	viter->pages = vsgt->pages;
 	switch (vsgt->mode) {
 	case vmw_dma_phys:
-		viter->next = &__vmw_piter_non_sg_next;
+		viter->next = &__vmw_piter_yesn_sg_next;
 		viter->dma_address = &__vmw_piter_phys_addr;
 		break;
 	case vmw_dma_alloc_coherent:
-		viter->next = &__vmw_piter_non_sg_next;
+		viter->next = &__vmw_piter_yesn_sg_next;
 		viter->dma_address = &__vmw_piter_dma_addr;
 		viter->addrs = vsgt->addrs;
 		break;
@@ -376,7 +376,7 @@ static void vmw_ttm_unmap_from_dma(struct vmw_ttm_tt *vmw_tt)
  * However, it's violating the DMA API in that when this operation has been
  * performed, it's illegal for the CPU to write to the pages without first
  * unmapping the DMA mappings, or calling dma_sync_sg_for_cpu(). It is
- * therefore only legal to call this function if we know that the function
+ * therefore only legal to call this function if we kyesw that the function
  * dma_sync_sg_for_cpu() is a NOP, and dma_sync_sg_for_device() is at most
  * a CPU write buffer flush.
  */
@@ -403,7 +403,7 @@ static int vmw_ttm_map_for_dma(struct vmw_ttm_tt *vmw_tt)
  * Select the correct function for and make sure the TTM pages are
  * visible to the device. Allocate storage for the device mappings.
  * If a mapping has already been performed, indicated by the storage
- * pointer being non NULL, the function returns success.
+ * pointer being yesn NULL, the function returns success.
  */
 static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 {
@@ -412,7 +412,7 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 	struct vmw_sg_table *vsgt = &vmw_tt->vsgt;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	struct vmw_piter iter;
 	dma_addr_t old;
@@ -494,7 +494,7 @@ out_sg_alloc_fail:
  * @vmw_tt: Pointer to a struct vmw_ttm_tt
  *
  * Tear down any previously set up device DMA mappings and free
- * any storage space allocated for them. If there are no mappings set up,
+ * any storage space allocated for them. If there are yes mappings set up,
  * this function is a NOP.
  */
 static void vmw_ttm_unmap_dma(struct vmw_ttm_tt *vmw_tt)
@@ -563,7 +563,7 @@ void vmw_bo_unmap_dma(struct ttm_buffer_object *bo)
  * @bo: Pointer to a struct ttm_buffer_object
  *
  * Returns a pointer to a struct vmw_sg_table object. The object should
- * not be freed after use.
+ * yest be freed after use.
  * Note that for the device addresses to be valid, the buffer object must
  * either be reserved or pinned.
  */
@@ -728,10 +728,10 @@ static struct ttm_tt *vmw_ttm_tt_create(struct ttm_buffer_object *bo,
 	else
 		ret = ttm_tt_init(&vmw_be->dma_ttm.ttm, bo, page_flags);
 	if (unlikely(ret != 0))
-		goto out_no_init;
+		goto out_yes_init;
 
 	return &vmw_be->dma_ttm.ttm;
-out_no_init:
+out_yes_init:
 	kfree(vmw_be);
 	return NULL;
 }
@@ -826,38 +826,38 @@ static void vmw_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *
 {
 }
 
-static int vmw_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
+static int vmw_ttm_fault_reserve_yestify(struct ttm_buffer_object *bo)
 {
 	return 0;
 }
 
 /**
- * vmw_move_notify - TTM move_notify_callback
+ * vmw_move_yestify - TTM move_yestify_callback
  *
  * @bo: The TTM buffer object about to move.
  * @mem: The struct ttm_mem_reg indicating to what memory
  *       region the move is taking place.
  *
- * Calls move_notify for all subsystems needing it.
+ * Calls move_yestify for all subsystems needing it.
  * (currently only resources).
  */
-static void vmw_move_notify(struct ttm_buffer_object *bo,
+static void vmw_move_yestify(struct ttm_buffer_object *bo,
 			    bool evict,
 			    struct ttm_mem_reg *mem)
 {
-	vmw_bo_move_notify(bo, mem);
-	vmw_query_move_notify(bo, mem);
+	vmw_bo_move_yestify(bo, mem);
+	vmw_query_move_yestify(bo, mem);
 }
 
 
 /**
- * vmw_swap_notify - TTM move_notify_callback
+ * vmw_swap_yestify - TTM move_yestify_callback
  *
  * @bo: The TTM buffer object about to be swapped out.
  */
-static void vmw_swap_notify(struct ttm_buffer_object *bo)
+static void vmw_swap_yestify(struct ttm_buffer_object *bo)
 {
-	vmw_bo_swap_notify(bo);
+	vmw_bo_swap_yestify(bo);
 	(void) ttm_bo_wait(bo, false, false);
 }
 
@@ -872,9 +872,9 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.evict_flags = vmw_evict_flags,
 	.move = NULL,
 	.verify_access = vmw_verify_access,
-	.move_notify = vmw_move_notify,
-	.swap_notify = vmw_swap_notify,
-	.fault_reserve_notify = &vmw_ttm_fault_reserve_notify,
+	.move_yestify = vmw_move_yestify,
+	.swap_yestify = vmw_swap_yestify,
+	.fault_reserve_yestify = &vmw_ttm_fault_reserve_yestify,
 	.io_mem_reserve = &vmw_ttm_io_mem_reserve,
 	.io_mem_free = &vmw_ttm_io_mem_free,
 };

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -43,7 +43,7 @@ enum HSA_DBG_WAVEMODE {
 	/* send command to a single wave */
 	HSA_DBG_WAVEMODE_SINGLE = 0,
 	/*
-	 * Broadcast to all wavefronts of all processes is not
+	 * Broadcast to all wavefronts of all processes is yest
 	 * supported for HSA user mode
 	 */
 
@@ -105,7 +105,7 @@ struct HsaDbgWaveMessage {
 /*
  * TODO: This definitions to be MOVED to kfd_event, once it is implemented.
  *
- * HSA sync primitive, Event and HW Exception notification API definitions.
+ * HSA sync primitive, Event and HW Exception yestification API definitions.
  * The API functions allow the runtime to define a so-called sync-primitive,
  * a SW object combining a user-mode provided "syncvar" and a scheduler event
  * that can be signaled through a defined GPU interrupt. A syncvar is
@@ -123,7 +123,7 @@ struct HsaDbgWaveMessage {
 /* these are the new definitions for events */
 enum HSA_EVENTTYPE {
 	HSA_EVENTTYPE_SIGNAL = 0,	/* user-mode generated GPU signal */
-	HSA_EVENTTYPE_NODECHANGE = 1,	/* HSA node change (attach/detach) */
+	HSA_EVENTTYPE_NODECHANGE = 1,	/* HSA yesde change (attach/detach) */
 	HSA_EVENTTYPE_DEVICESTATECHANGE = 2,	/* HSA device state change
 						 * (start/stop)
 						 */
@@ -157,7 +157,7 @@ enum HSA_EVENTTYPE_NODECHANGE_FLAGS {
 };
 
 struct HsaNodeChange {
-	/* HSA node added/removed on the platform */
+	/* HSA yesde added/removed on the platform */
 	enum HSA_EVENTTYPE_NODECHANGE_FLAGS Flags;
 };
 
@@ -177,7 +177,7 @@ enum HSA_DEVICE {
 };
 
 struct HsaDeviceStateChange {
-	uint32_t NodeId;	/* F-NUMA node that contains the device */
+	uint32_t NodeId;	/* F-NUMA yesde that contains the device */
 	enum HSA_DEVICE Device;	/* device type: GPU or CPU */
 	enum HSA_EVENTTYPE_DEVICESTATECHANGE_FLAGS Flags; /* event flags */
 };
@@ -211,7 +211,7 @@ struct HsaEventData {
 struct HsaEventDescriptor {
 	/* event type to allocate */
 	enum HSA_EVENTTYPE EventType;
-	/* H-NUMA node containing GPU device that is event source */
+	/* H-NUMA yesde containing GPU device that is event source */
 	uint32_t NodeId;
 	/* pointer to user mode syncvar data, syncvar->UserDataPtrValue
 	 * may be NULL
@@ -261,7 +261,7 @@ struct kfd_dbgdev {
 	/* a pointer to the pqm of the calling process */
 	struct process_queue_manager *pqm;
 
-	/* type of debug device ( DIQ, non DIQ, etc. ) */
+	/* type of debug device ( DIQ, yesn DIQ, etc. ) */
 	enum DBGDEV_TYPE type;
 
 	/* virtualized function pointers to device dbg */

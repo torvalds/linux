@@ -1,9 +1,9 @@
 PM Domain Idle State Node:
 
-A domain idle state node represents the state parameters that will be used to
-select the state when there are no active components in the domain.
+A domain idle state yesde represents the state parameters that will be used to
+select the state when there are yes active components in the domain.
 
-The state node has the following parameters -
+The state yesde has the following parameters -
 
 - compatible:
 	Usage: Required

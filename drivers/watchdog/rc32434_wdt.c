@@ -17,7 +17,7 @@
 #include <linux/module.h>		/* For module specific items */
 #include <linux/moduleparam.h>		/* For new moduleparam's */
 #include <linux/types.h>		/* For standard types (like size_t) */
-#include <linux/errno.h>		/* For the -ENODEV/... values */
+#include <linux/erryes.h>		/* For the -ENODEV/... values */
 #include <linux/kernel.h>		/* For printk/panic/... */
 #include <linux/fs.h>			/* For file operations */
 #include <linux/miscdevice.h>		/* For struct miscdevice */
@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>	/* For platform_driver framework */
 #include <linux/spinlock.h>		/* For spin_lock/spin_unlock/... */
 #include <linux/uaccess.h>		/* For copy_to_user/put_user/... */
-#include <linux/io.h>			/* For devm_ioremap_nocache */
+#include <linux/io.h>			/* For devm_ioremap_yescache */
 
 #include <asm/mach-rc32434/integ.h>	/* For the Watchdog registers */
 
@@ -59,9 +59,9 @@ module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout value, in seconds (default="
 		__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /* apply or and nand masks to data read from addr and write back */
@@ -93,7 +93,7 @@ static void rc32434_wdt_start(void)
 	/* zero the counter before enabling */
 	writel(0, &wdt_reg->wtcount);
 
-	/* don't generate a non-maskable interrupt,
+	/* don't generate a yesn-maskable interrupt,
 	 * do a warm reset instead */
 	nand = 1 << RC32434_ERR_WNE;
 	or = 1 << RC32434_ERR_WRE;
@@ -134,27 +134,27 @@ static void rc32434_wdt_ping(void)
 	spin_unlock(&rc32434_wdt_device.io_lock);
 }
 
-static int rc32434_wdt_open(struct inode *inode, struct file *file)
+static int rc32434_wdt_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(0, &rc32434_wdt_device.inuse))
 		return -EBUSY;
 
-	if (nowayout)
+	if (yeswayout)
 		__module_get(THIS_MODULE);
 
 	rc32434_wdt_start();
 	rc32434_wdt_ping();
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int rc32434_wdt_release(struct inode *inode, struct file *file)
+static int rc32434_wdt_release(struct iyesde *iyesde, struct file *file)
 {
 	if (expect_close == 42) {
 		rc32434_wdt_stop();
 		module_put(THIS_MODULE);
 	} else {
-		pr_crit("device closed unexpectedly. WDT will not stop!\n");
+		pr_crit("device closed unexpectedly. WDT will yest stop!\n");
 		rc32434_wdt_ping();
 	}
 	clear_bit(0, &rc32434_wdt_device.inuse);
@@ -165,7 +165,7 @@ static ssize_t rc32434_wdt_write(struct file *file, const char *data,
 				size_t len, loff_t *ppos)
 {
 	if (len) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			/* In case it was set long ago */
@@ -242,7 +242,7 @@ static long rc32434_wdt_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations rc32434_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= rc32434_wdt_write,
 	.unlocked_ioctl	= rc32434_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -251,7 +251,7 @@ static const struct file_operations rc32434_wdt_fops = {
 };
 
 static struct miscdevice rc32434_wdt_miscdev = {
-	.minor	= WATCHDOG_MINOR,
+	.miyesr	= WATCHDOG_MINOR,
 	.name	= "watchdog",
 	.fops	= &rc32434_wdt_fops,
 };
@@ -267,7 +267,7 @@ static int rc32434_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	wdt_reg = devm_ioremap_nocache(&pdev->dev, r->start, resource_size(r));
+	wdt_reg = devm_ioremap_yescache(&pdev->dev, r->start, resource_size(r));
 	if (!wdt_reg) {
 		pr_err("failed to remap I/O resources\n");
 		return -ENXIO;
@@ -275,11 +275,11 @@ static int rc32434_wdt_probe(struct platform_device *pdev)
 
 	spin_lock_init(&rc32434_wdt_device.io_lock);
 
-	/* Make sure the watchdog is not running */
+	/* Make sure the watchdog is yest running */
 	rc32434_wdt_stop();
 
 	/* Check that the heartbeat value is within it's range;
-	 * if not reset to the default */
+	 * if yest reset to the default */
 	if (rc32434_wdt_set(timeout)) {
 		rc32434_wdt_set(WATCHDOG_TIMEOUT);
 		pr_info("timeout value must be between 0 and %d\n",

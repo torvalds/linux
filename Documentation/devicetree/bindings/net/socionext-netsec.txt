@@ -11,14 +11,14 @@ Required properties:
 - phy-mode: See ethernet.txt file in the same directory
 - phy-handle: See ethernet.txt in the same directory.
 
-- mdio device tree subnode: When the Netsec has a phy connected to its local
-		mdio, there must be device tree subnode with the following
+- mdio device tree subyesde: When the Netsec has a phy connected to its local
+		mdio, there must be device tree subyesde with the following
 		required properties:
 
 	- #address-cells: Must be <1>.
 	- #size-cells: Must be <0>.
 
-	For each phy on the mdio bus, there must be a node with the following
+	For each phy on the mdio bus, there must be a yesde with the following
 	fields:
 	- compatible: Refer to phy.txt
 	- reg: phy id used to communicate to phy.

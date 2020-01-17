@@ -35,7 +35,7 @@ extern void register_smp_ops(struct plat_smp_ops *ops);
 
 static inline void plat_smp_setup(void)
 {
-	/* UP, nothing to do ... */
+	/* UP, yesthing to do ... */
 }
 
 static inline void register_smp_ops(struct plat_smp_ops *ops)

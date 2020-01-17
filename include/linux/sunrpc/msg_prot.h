@@ -141,7 +141,7 @@ typedef __be32	rpc_fraghdr;
 	(RPC_REPHDRSIZE + (2 + RPC_MAX_AUTH_SIZE/4))
 
 /*
- * Well-known netids. See:
+ * Well-kyeswn netids. See:
  *
  *   http://www.iana.org/assignments/rpc-netids/rpc-netids.xhtml
  */
@@ -156,7 +156,7 @@ typedef __be32	rpc_fraghdr;
 #define RPCBIND_NETID_LOCAL	"local"
 
 /*
- * Note that RFC 1833 does not put any size restrictions on the
+ * Note that RFC 1833 does yest put any size restrictions on the
  * netid string, but all currently defined netid's fit in 5 bytes.
  */
 #define RPCBIND_MAXNETIDLEN	(5u)

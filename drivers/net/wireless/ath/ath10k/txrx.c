@@ -56,7 +56,7 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 		   tx_done->msdu_id, tx_done->status);
 
 	if (tx_done->msdu_id >= htt->max_num_pending_tx) {
-		ath10k_warn(ar, "warning: msdu_id %d too big, ignoring\n",
+		ath10k_warn(ar, "warning: msdu_id %d too big, igyesring\n",
 			    tx_done->msdu_id);
 		return -EINVAL;
 	}
@@ -124,7 +124,7 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	}
 
 	ieee80211_tx_status(htt->ar->hw, msdu);
-	/* we do not own the msdu anymore */
+	/* we do yest own the msdu anymore */
 
 	return 0;
 }
@@ -248,7 +248,7 @@ void ath10k_peer_unmap_event(struct ath10k_htt *htt,
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find_by_id(ar, ev->peer_id);
 	if (!peer) {
-		ath10k_warn(ar, "peer-unmap-event: unknown peer id %d\n",
+		ath10k_warn(ar, "peer-unmap-event: unkyeswn peer id %d\n",
 			    ev->peer_id);
 		goto exit;
 	}

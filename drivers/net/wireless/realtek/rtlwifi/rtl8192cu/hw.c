@@ -291,7 +291,7 @@ static void _rtl92cu_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 	    rtlefuse->eeprom_thermalmeter > 0x1c)
 		rtlefuse->eeprom_thermalmeter = 0x12;
 	if (rtlefuse->eeprom_thermalmeter == 0x1f || autoload_fail)
-		rtlefuse->apk_thermalmeterignore = true;
+		rtlefuse->apk_thermalmeterigyesre = true;
 	rtlefuse->thermalmeter[0] = rtlefuse->eeprom_thermalmeter;
 	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
 		"thermalmeter = 0x%x\n", rtlefuse->eeprom_thermalmeter);
@@ -605,7 +605,7 @@ static void _rtl92cu_init_chipn_one_out_ep_priority(struct ieee80211_hw *hw,
 		value = QUEUE_NORMAL;
 		break;
 	default:
-		WARN_ON(1); /* Shall not reach here! */
+		WARN_ON(1); /* Shall yest reach here! */
 		break;
 	}
 	_rtl92c_init_chipn_reg_priority(hw, value, value, value, value,
@@ -701,7 +701,7 @@ static void _rtl92cu_init_chipn_queue_priority(struct ieee80211_hw *hw,
 							  queue_sel);
 		break;
 	default:
-		WARN_ON(1); /* Shall not reach here! */
+		WARN_ON(1); /* Shall yest reach here! */
 		break;
 	}
 }
@@ -734,7 +734,7 @@ static void _rtl92cu_init_chipt_queue_priority(struct ieee80211_hw *hw,
 		}
 		break;
 	default:
-		WARN_ON(1); /* Shall not reach here! */
+		WARN_ON(1); /* Shall yest reach here! */
 		break;
 	}
 	rtl_write_byte(rtlpriv, (REG_TRXDMA_CTRL+1), hq_sele);
@@ -795,7 +795,7 @@ static void _rtl92cu_init_beacon_parameters(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, REG_DRVERLYINT, DRIVER_EARLY_INT_TIME);
 	rtl_write_byte(rtlpriv, REG_BCNDMATIM, BCN_DMA_ATIME_INT_TIME);
 	/* Change beacon AIFS to the largest number
-	 * beacause test chip does not contension before sending beacon.
+	 * beacause test chip does yest contension before sending beacon.
 	 */
 	if (IS_NORMAL_CHIP(rtlhal->version))
 		rtl_write_word(rtlpriv, REG_BCNTCFG, 0x660F);
@@ -866,7 +866,7 @@ void rtl92cu_enable_hw_security_config(struct ieee80211_hw *hw)
 		 rtlpriv->sec.group_enc_algorithm);
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-			 "not open sw encryption\n");
+			 "yest open sw encryption\n");
 		return;
 	}
 	sec_reg_value = SCR_TXENCENABLE | SCR_RXDECENABLE;
@@ -959,7 +959,7 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 	err = rtl92c_download_fw(hw);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 "Failed to download FW. Init HW without FW now..\n");
+			 "Failed to download FW. Init HW without FW yesw..\n");
 		err = 1;
 		goto exit;
 	}
@@ -1308,7 +1308,7 @@ static int _rtl92cu_set_media_status(struct ieee80211_hw *hw,
 			 "Set Network type to AP!\n");
 		break;
 	default:
-		pr_err("Network type %d not supported!\n", type);
+		pr_err("Network type %d yest supported!\n", type);
 		goto error_out;
 	}
 	rtl_write_byte(rtlpriv, MSR, bt_msr);
@@ -1524,14 +1524,14 @@ void rtl92cu_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HAL_DEF_WOWLAN:
 		break;
 	default:
-		pr_err("switch case %#x not processed\n", variable);
+		pr_err("switch case %#x yest processed\n", variable);
 		break;
 	}
 }
 
 static bool usb_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
-  /* Currently nothing happens here.
+  /* Currently yesthing happens here.
    * Traffic stops after some seconds in WPA2 802.11n mode.
    * Maybe because rtl8192cu chip should be set from here?
    * If I understand correctly, the realtek vendor driver sends some urbs
@@ -1695,12 +1695,12 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			break;
 		}
 	case HW_VAR_AMPDU_FACTOR:{
-			u8 regtoset_normal[4] = {0x41, 0xa8, 0x72, 0xb9};
+			u8 regtoset_yesrmal[4] = {0x41, 0xa8, 0x72, 0xb9};
 			u8 factor_toset;
 			u8 *p_regtoset = NULL;
 			u8 index = 0;
 
-			p_regtoset = regtoset_normal;
+			p_regtoset = regtoset_yesrmal;
 			factor_toset = *val;
 			if (factor_toset <= 3) {
 				factor_toset = (1 << (factor_toset + 2));
@@ -1898,7 +1898,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			break;
 		}
 	default:
-		pr_err("switch case %#x not processed\n", variable);
+		pr_err("switch case %#x yest processed\n", variable);
 		break;
 	}
 }
@@ -2222,7 +2222,7 @@ bool rtl92cu_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 * valid)
 		actuallyset = true;
 	} else {
 		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
-			 "pHalData->bHwRadioOff and eRfPowerStateToSet do not match: pHalData->bHwRadioOff %x, eRfPowerStateToSet %x\n",
+			 "pHalData->bHwRadioOff and eRfPowerStateToSet do yest match: pHalData->bHwRadioOff %x, eRfPowerStateToSet %x\n",
 			 ppsc->hwradiooff, e_rfpowerstate_toset);
 	}
 	if (actuallyset) {

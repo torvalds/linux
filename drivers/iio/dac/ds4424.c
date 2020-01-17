@@ -36,7 +36,7 @@
  * [7]		0: to sink; 1: to source
  * [6:0]	steps to sink/source
  * bit[7] looks like a sign bit, but the value of the register is
- * not a two's complement code considering the bit[6:0] is a absolute
+ * yest a two's complement code considering the bit[6:0] is a absolute
  * distance from the zero point.
  */
 union ds4424_raw_data {
@@ -230,7 +230,7 @@ static int ds4424_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 	indio_dev->name = id->name;
-	indio_dev->dev.of_node = client->dev.of_node;
+	indio_dev->dev.of_yesde = client->dev.of_yesde;
 	indio_dev->dev.parent = &client->dev;
 
 	data->vcc_reg = devm_regulator_get(&client->dev, "vcc");

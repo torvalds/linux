@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/err.h>
@@ -194,7 +194,7 @@ int mlxsw_env_get_module_info(struct mlxsw_core *mlxsw_core, int module,
 		}
 		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_SFP:
-		/* Verify if transceiver provides diagnostic monitoring page */
+		/* Verify if transceiver provides diagyesstic monitoring page */
 		err = mlxsw_env_query_module_eeprom(mlxsw_core, module,
 						    SFP_DIAGMON, 1, &diag_mon,
 						    &read_size);

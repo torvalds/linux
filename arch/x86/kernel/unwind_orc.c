@@ -40,8 +40,8 @@ static struct orc_entry *__orc_find(int *ip_table, struct orc_entry *u_table,
 	/*
 	 * Do a binary range search to find the rightmost duplicate of a given
 	 * starting address.  Some entries are section terminators which are
-	 * "weak" entries for ensuring there are no gaps.  They should be
-	 * ignored when they conflict with a real entry.
+	 * "weak" entries for ensuring there are yes gaps.  They should be
+	 * igyesred when they conflict with a real entry.
 	 */
 	while (first <= last) {
 		mid = first + ((last - first) / 2);
@@ -78,7 +78,7 @@ static struct orc_entry *orc_module_find(unsigned long ip)
 static struct orc_entry *orc_find(unsigned long ip);
 
 /*
- * Ftrace dynamic trampolines do not have orc entries of their own.
+ * Ftrace dynamic trampolines do yest have orc entries of their own.
  * But they are copies of the ftrace entries that are static and
  * defined in ftrace_*.S, which do have orc entries.
  *
@@ -119,7 +119,7 @@ static struct orc_entry *orc_ftrace_find(unsigned long ip)
  * was probably an indirect function call with a NULL function pointer,
  * and we don't have unwind information for NULL.
  * This hardcoded ORC entry for IP==0 allows us to unwind from a NULL function
- * pointer into its parent and then continue normally from there.
+ * pointer into its parent and then continue yesrmally from there.
  */
 static struct orc_entry null_orc_entry = {
 	.sp_offset = sizeof(long),
@@ -148,7 +148,7 @@ static struct orc_entry *orc_find(unsigned long ip)
 	if (ip == 0)
 		return &null_orc_entry;
 
-	/* For non-init vmlinux addresses, use the fast lookup table: */
+	/* For yesn-init vmlinux addresses, use the fast lookup table: */
 	if (ip >= LOOKUP_START_IP && ip < LOOKUP_STOP_IP) {
 		unsigned int idx, start, stop;
 
@@ -399,15 +399,15 @@ bool unwind_next_frame(struct unwind_state *state)
 	 * Find the orc_entry associated with the text address.
 	 *
 	 * Decrement call return addresses by one so they work for sibling
-	 * calls and calls to noreturn functions.
+	 * calls and calls to yesreturn functions.
 	 */
 	orc = orc_find(state->signal ? state->ip : state->ip - 1);
 	if (!orc) {
 		/*
 		 * As a fallback, try to assume this code uses a frame pointer.
 		 * This is useful for generated code, like BPF, which ORC
-		 * doesn't know about.  This is just a guess, so the rest of
-		 * the unwind is no longer considered reliable.
+		 * doesn't kyesw about.  This is just a guess, so the rest of
+		 * the unwind is yes longer considered reliable.
 		 */
 		orc = &orc_fp_entry;
 		state->error = true;
@@ -478,7 +478,7 @@ bool unwind_next_frame(struct unwind_state *state)
 		break;
 
 	default:
-		orc_warn("unknown SP base reg %d for ip %pB\n",
+		orc_warn("unkyeswn SP base reg %d for ip %pB\n",
 			 orc->sp_reg, (void *)state->ip);
 		goto err;
 	}
@@ -529,7 +529,7 @@ bool unwind_next_frame(struct unwind_state *state)
 		break;
 
 	default:
-		orc_warn("unknown .orc_unwind entry type %d for ip %pB\n",
+		orc_warn("unkyeswn .orc_unwind entry type %d for ip %pB\n",
 			 orc->type, (void *)orig_ip);
 		break;
 	}
@@ -552,7 +552,7 @@ bool unwind_next_frame(struct unwind_state *state)
 		break;
 
 	default:
-		orc_warn("unknown BP base reg %d for ip %pB\n",
+		orc_warn("unkyeswn BP base reg %d for ip %pB\n",
 			 orc->bp_reg, (void *)orig_ip);
 		goto err;
 	}
@@ -586,11 +586,11 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	state->task = task;
 
 	/*
-	 * Refuse to unwind the stack of a task while it's executing on another
+	 * Refuse to unwind the stack of a task while it's executing on ayesther
 	 * CPU.  This check is racy, but that's ok: the unwinder has other
 	 * checks to prevent it from going off the rails.
 	 */
-	if (task_on_another_cpu(task))
+	if (task_on_ayesther_cpu(task))
 		goto done;
 
 	if (regs) {

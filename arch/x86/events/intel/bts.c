@@ -28,7 +28,7 @@ struct bts_ctx {
 
 /* BTS context states: */
 enum {
-	/* no ongoing AUX transactions */
+	/* yes ongoing AUX transactions */
 	BTS_STATE_STOPPED = 0,
 	/* AUX transaction is on, BTS tracing is disabled */
 	BTS_STATE_INACTIVE,
@@ -83,7 +83,7 @@ bts_buffer_setup_aux(struct perf_event *event, void **pages,
 	struct bts_buffer *buf;
 	struct page *page;
 	int cpu = event->cpu;
-	int node = (cpu == -1) ? cpu : cpu_to_node(cpu);
+	int yesde = (cpu == -1) ? cpu : cpu_to_yesde(cpu);
 	unsigned long offset;
 	size_t size = nr_pages << PAGE_SHIFT;
 	int pg, nbuf, pad;
@@ -101,7 +101,7 @@ bts_buffer_setup_aux(struct perf_event *event, void **pages,
 	if (overwrite && nbuf > 1)
 		return NULL;
 
-	buf = kzalloc_node(offsetof(struct bts_buffer, buf[nbuf]), GFP_KERNEL, node);
+	buf = kzalloc_yesde(offsetof(struct bts_buffer, buf[nbuf]), GFP_KERNEL, yesde);
 	if (!buf)
 		return NULL;
 
@@ -356,7 +356,7 @@ void intel_bts_disable_local(void)
 
 	/*
 	 * Here we transition from ACTIVE to INACTIVE;
-	 * do nothing for STOPPED or INACTIVE.
+	 * do yesthing for STOPPED or INACTIVE.
 	 */
 	if (READ_ONCE(bts->state) != BTS_STATE_ACTIVE)
 		return;
@@ -412,7 +412,7 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
 				head = phys->offset + phys->displacement;
 				/*
 				 * After this, cur_buf and head won't match ds
-				 * anymore, so we must not be racing with
+				 * anymore, so we must yest be racing with
 				 * bts_update().
 				 */
 				buf->cur_buf = next_buf;
@@ -432,7 +432,7 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
 	buf->end = head + space;
 
 	/*
-	 * If we have no space, the lost notification would have been sent when
+	 * If we have yes space, the lost yestification would have been sent when
 	 * we hit absolute_maximum - see bts_update()
 	 */
 	if (!space)
@@ -451,7 +451,7 @@ int intel_bts_interrupt(void)
 	int err = -ENOSPC, handled = 0;
 
 	/*
-	 * The only surefire way of knowing if this NMI is ours is by checking
+	 * The only surefire way of kyeswing if this NMI is ours is by checking
 	 * the write ptr against the PMI threshold.
 	 */
 	if (ds && (ds->bts_index >= ds->bts_interrupt_threshold))
@@ -470,7 +470,7 @@ int intel_bts_interrupt(void)
 
 	/*
 	 * Skip snapshot counters: they don't use the interrupt, but
-	 * there's no other way of telling, because the pointer will
+	 * there's yes other way of telling, because the pointer will
 	 * keep moving
 	 */
 	if (buf->snapshot)
@@ -479,7 +479,7 @@ int intel_bts_interrupt(void)
 	old_head = local_read(&buf->head);
 	bts_update(bts);
 
-	/* no new data */
+	/* yes new data */
 	if (old_head == local_read(&buf->head))
 		return handled;
 
@@ -549,10 +549,10 @@ static int bts_event_init(struct perf_event *event)
 	/*
 	 * BTS leaks kernel addresses even when CPL0 tracing is
 	 * disabled, so disallow intel_bts driver for unprivileged
-	 * users on paranoid systems since it provides trace data
+	 * users on parayesid systems since it provides trace data
 	 * to the user in a zero-copy fashion.
 	 *
-	 * Note that the default paranoia setting permits unprivileged
+	 * Note that the default parayesia setting permits unprivileged
 	 * users to profile the kernel.
 	 */
 	if (event->attr.exclude_kernel) {
@@ -591,13 +591,13 @@ static __init int bts_init(void)
 		 * the AUX buffer.
 		 *
 		 * However, since this driver supports per-CPU and per-task inherit
-		 * we cannot use the user mapping since it will not be available
-		 * if we're not running the owning process.
+		 * we canyest use the user mapping since it will yest be available
+		 * if we're yest running the owning process.
 		 *
-		 * With PTI we can't use the kernal map either, because its not
+		 * With PTI we can't use the kernal map either, because its yest
 		 * there when we run userspace.
 		 *
-		 * For now, disable this driver when using PTI.
+		 * For yesw, disable this driver when using PTI.
 		 */
 		return -ENODEV;
 	}

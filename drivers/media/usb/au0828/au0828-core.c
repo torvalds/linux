@@ -118,24 +118,24 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 }
 
 #ifdef CONFIG_MEDIA_CONTROLLER
-static void au0828_media_graph_notify(struct media_entity *new,
-				      void *notify_data);
+static void au0828_media_graph_yestify(struct media_entity *new,
+				      void *yestify_data);
 #endif
 
 static void au0828_unregister_media_device(struct au0828_dev *dev)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev = dev->media_dev;
-	struct media_entity_notify *notify, *nextp;
+	struct media_entity_yestify *yestify, *nextp;
 
-	if (!mdev || !media_devnode_is_registered(mdev->devnode))
+	if (!mdev || !media_devyesde_is_registered(mdev->devyesde))
 		return;
 
-	/* Remove au0828 entity_notify callbacks */
-	list_for_each_entry_safe(notify, nextp, &mdev->entity_notify, list) {
-		if (notify->notify != au0828_media_graph_notify)
+	/* Remove au0828 entity_yestify callbacks */
+	list_for_each_entry_safe(yestify, nextp, &mdev->entity_yestify, list) {
+		if (yestify->yestify != au0828_media_graph_yestify)
 			continue;
-		media_device_unregister_entity_notify(mdev, notify);
+		media_device_unregister_entity_yestify(mdev, yestify);
 	}
 
 	/* clear enable_source, disable_source */
@@ -208,10 +208,10 @@ static int au0828_media_device_init(struct au0828_dev *dev,
 }
 
 #ifdef CONFIG_MEDIA_CONTROLLER
-static void au0828_media_graph_notify(struct media_entity *new,
-				      void *notify_data)
+static void au0828_media_graph_yestify(struct media_entity *new,
+				      void *yestify_data)
 {
-	struct au0828_dev *dev = (struct au0828_dev *) notify_data;
+	struct au0828_dev *dev = (struct au0828_dev *) yestify_data;
 	int ret;
 	struct media_entity *entity, *mixer = NULL, *decoder = NULL;
 
@@ -219,7 +219,7 @@ static void au0828_media_graph_notify(struct media_entity *new,
 		/*
 		 * Called during au0828 probe time to connect
 		 * entities that were created prior to registering
-		 * the notify handler. Find mixer and decoder.
+		 * the yestify handler. Find mixer and decoder.
 		*/
 		media_device_for_each_entity(entity, dev->media_dev) {
 			if (entity->function == MEDIA_ENT_F_AUDIO_MIXER)
@@ -303,8 +303,8 @@ static int au0828_enable_source(struct media_entity *entity,
 	/*
 	 * For Audio and V4L2 entity, find the link to which decoder
 	 * is the sink. Look for an active link between decoder and
-	 * source (tuner/s-video/Composite), if one exists, nothing
-	 * to do. If not, look for any  active links between source
+	 * source (tuner/s-video/Composite), if one exists, yesthing
+	 * to do. If yest, look for any  active links between source
 	 * and any other entity. If one exists, source is busy. If
 	 * source is free, setup link and start pipeline from source.
 	 * For DVB FE entity, the source for the link is the tuner.
@@ -346,7 +346,7 @@ static int au0828_enable_source(struct media_entity *entity,
 			 dev->input_type == AU0828_VMUX_COMPOSITE)
 			find_source = &dev->input_ent[dev->input_type];
 		else {
-			/* unknown input - let user select input */
+			/* unkyeswn input - let user select input */
 			ret = 0;
 			goto end;
 		}
@@ -421,7 +421,7 @@ static int au0828_enable_source(struct media_entity *entity,
 	}
 
 	/* save link state to allow audio and video share the link
-	 * and not disable the link while the other is using it.
+	 * and yest disable the link while the other is using it.
 	 * active_link_owner is used to deactivate the link.
 	*/
 	dev->active_link = found_link;
@@ -515,7 +515,7 @@ static void au0828_disable_source(struct media_entity *entity)
 					ret);
 				goto deactivate_link;
 			}
-			/* link user is now the owner */
+			/* link user is yesw the owner */
 			dev->active_link_owner = dev->active_link_user;
 			dev->active_link_user = NULL;
 			dev->active_link_user_pipe = NULL;
@@ -566,7 +566,7 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 	if (!dev->media_dev)
 		return 0;
 
-	if (!media_devnode_is_registered(dev->media_dev->devnode)) {
+	if (!media_devyesde_is_registered(dev->media_dev->devyesde)) {
 
 		/* register media device */
 		ret = media_device_register(dev->media_dev);
@@ -580,13 +580,13 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 		}
 	} else {
 		/*
-		 * Call au0828_media_graph_notify() to connect
+		 * Call au0828_media_graph_yestify() to connect
 		 * audio graph to our graph. In this case, audio
-		 * driver registered the device and there is no
-		 * entity_notify to be called when new entities
-		 * are added. Invoke it now.
+		 * driver registered the device and there is yes
+		 * entity_yestify to be called when new entities
+		 * are added. Invoke it yesw.
 		*/
-		au0828_media_graph_notify(NULL, (void *) dev);
+		au0828_media_graph_yestify(NULL, (void *) dev);
 	}
 
 	/*
@@ -624,14 +624,14 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 		}
 	}
 
-	/* register entity_notify callback */
-	dev->entity_notify.notify_data = (void *) dev;
-	dev->entity_notify.notify = (void *) au0828_media_graph_notify;
-	ret = media_device_register_entity_notify(dev->media_dev,
-						  &dev->entity_notify);
+	/* register entity_yestify callback */
+	dev->entity_yestify.yestify_data = (void *) dev;
+	dev->entity_yestify.yestify = (void *) au0828_media_graph_yestify;
+	ret = media_device_register_entity_yestify(dev->media_dev,
+						  &dev->entity_yestify);
 	if (ret) {
 		dev_err(&udev->dev,
-			"Media Device register entity_notify Error: %d\n",
+			"Media Device register entity_yestify Error: %d\n",
 			ret);
 		return ret;
 	}
@@ -667,7 +667,7 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	/*
 	 * Make sure we have 480 Mbps of bandwidth, otherwise things like
 	 * video stream wouldn't likely work, since 12 Mbps is generally
-	 * not enough even for most Digital TV streams.
+	 * yest eyesugh even for most Digital TV streams.
 	 */
 	if (usbdev->speed != USB_SPEED_HIGH && disable_usb_speed_check == 0) {
 		pr_err("au0828: Device initialization failed.\n");

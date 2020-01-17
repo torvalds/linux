@@ -3,7 +3,7 @@
  *   Driver for KeyStream 11b/g wireless LAN
  *
  *   Copyright (C) 2005-2008 KeyStream Corp.
- *   Copyright (C) 2009 Renesas Technology Corp.
+ *   Copyright (C) 2009 Renesas Techyeslogy Corp.
  */
 
 #include <linux/atomic.h>
@@ -64,7 +64,7 @@ int ks_wlan_update_phy_information(struct ks_wlan_private *priv)
 	netdev_dbg(priv->net_dev, "in_interrupt = %ld\n", in_interrupt());
 
 	if (priv->dev_state < DEVICE_STATE_READY)
-		return -EBUSY;	/* not finished initialize */
+		return -EBUSY;	/* yest finished initialize */
 
 	if (atomic_read(&update_phyinfo))
 		return -EPERM;
@@ -72,7 +72,7 @@ int ks_wlan_update_phy_information(struct ks_wlan_private *priv)
 	/* The status */
 	wstats->status = priv->reg.operation_mode;	/* Operation mode */
 
-	/* Signal quality and co. But where is the noise level ??? */
+	/* Signal quality and co. But where is the yesise level ??? */
 	hostif_sme_enqueue(priv, SME_PHY_INFO_REQUEST);
 
 	/* interruptible_sleep_on_timeout(&priv->confirm_wait, HZ/2); */
@@ -143,7 +143,7 @@ int ks_wlan_setup_parameter(struct ks_wlan_private *priv,
  *	Jean Tourrilhes <jt@hpl.hp.com> - HPL - 26 March 02
  * Javier also did a good amount of work here, adding some new extensions
  * and fixing my code. Let's just say that without him this code just
- * would not work at all... - Jean II
+ * would yest work at all... - Jean II
  */
 
 static int ks_wlan_get_name(struct net_device *dev,
@@ -291,7 +291,7 @@ static int ks_wlan_get_essid(struct net_device *dev,
 		/* Get the current SSID */
 		memcpy(extra, priv->reg.ssid.body, priv->reg.ssid.size);
 
-		/* If none, we may want to get the one that was set */
+		/* If yesne, we may want to get the one that was set */
 
 		/* Push it out ! */
 		dwrq->essid.length = priv->reg.ssid.size;
@@ -758,7 +758,7 @@ static int ks_wlan_get_mode(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 
-	/* If not managed, assume it's ad-hoc */
+	/* If yest managed, assume it's ad-hoc */
 	uwrq->mode = (priv->reg.operation_mode == MODE_INFRASTRUCTURE) ?
 		      IW_MODE_INFRA : IW_MODE_ADHOC;
 
@@ -795,7 +795,7 @@ static int ks_wlan_set_encode(struct net_device *dev,
 		priv->need_commit |= SME_WEP_FLAG;
 		wep_on_off = (enc->length > MIN_KEY_SIZE) ?
 			      WEP_ON_128BIT : WEP_ON_64BIT;
-		/* Check if the key is not marked as invalid */
+		/* Check if the key is yest marked as invalid */
 		if (enc->flags & IW_ENCODE_NOKEY)
 			return 0;
 
@@ -937,7 +937,7 @@ static int ks_wlan_get_range(struct net_device *dev,
 	/* Hum... Should put the right values there */
 	range->max_qual.qual = 100;
 	range->max_qual.level = 256 - 128;	/* 0 dBm? */
-	range->max_qual.noise = 256 - 128;
+	range->max_qual.yesise = 256 - 128;
 	range->sensitivity = 1;
 
 	if (priv->reg.phy_type == D_11B_ONLY_MODE) {
@@ -988,7 +988,7 @@ static int ks_wlan_get_range(struct net_device *dev,
 	range->num_encoding_sizes = 2;
 	range->max_encoding_tokens = 4;
 
-	/* power management not support */
+	/* power management yest support */
 	range->pmp_flags = IW_POWER_ON;
 	range->pmt_flags = IW_POWER_ON;
 	range->pm_capa = 0;
@@ -1013,7 +1013,7 @@ static int ks_wlan_get_range(struct net_device *dev,
 	 */
 	range->avg_qual.qual = 50;
 	range->avg_qual.level = 186;	/* -70 dBm */
-	range->avg_qual.noise = 0;
+	range->avg_qual.yesise = 0;
 
 	/* Event capability (kernel + driver) */
 	range->event_capa[0] = (IW_EVENT_CAPA_K_0 |
@@ -1075,9 +1075,9 @@ static int ks_wlan_get_iwstats(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	vwrq->qual.qual = 0;	/* not supported */
+	vwrq->qual.qual = 0;	/* yest supported */
 	vwrq->qual.level = priv->wstats.qual.level;
-	vwrq->qual.noise = 0;	/* not supported */
+	vwrq->qual.yesise = 0;	/* yest supported */
 	vwrq->qual.updated = 0;
 
 	return 0;
@@ -1101,7 +1101,7 @@ static int ks_wlan_get_aplist(struct net_device *dev,
 		address[i].sa_family = ARPHRD_ETHER;
 		qual[i].level = 256 - priv->aplist.ap[i].rssi;
 		qual[i].qual = priv->aplist.ap[i].sq;
-		qual[i].noise = 0;	/* invalid noise value */
+		qual[i].yesise = 0;	/* invalid yesise value */
 		qual[i].updated = 7;
 	}
 	if (i) {
@@ -1227,7 +1227,7 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 	iwe.cmd = IWEVQUAL;
 	iwe.u.qual.level = 256 - ap->rssi;
 	iwe.u.qual.qual = ap->sq;
-	iwe.u.qual.noise = 0;	/* invalid noise value */
+	iwe.u.qual.yesise = 0;	/* invalid yesise value */
 	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
 					  &iwe, IW_EV_QUAL_LEN);
 
@@ -1248,7 +1248,7 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 
 	iwe.cmd = SIOCGIWRATE;
 
-	/* These two flags are ignored... */
+	/* These two flags are igyesred... */
 	iwe.u.bitrate.fixed = 0;
 	iwe.u.bitrate.disabled = 0;
 
@@ -1279,8 +1279,8 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 						      &iwe, info);
 
 	/*
-	 * The other data in the scan result are not really
-	 * interesting, so for now drop it - Jean II
+	 * The other data in the scan result are yest really
+	 * interesting, so for yesw drop it - Jean II
 	 */
 	return current_ev;
 }
@@ -1300,7 +1300,7 @@ static int ks_wlan_get_scan(struct net_device *dev,
 		return -EAGAIN;
 
 	if (priv->aplist.size == 0) {
-		/* Client error, no scan results...
+		/* Client error, yes scan results...
 		 * The caller need to restart the scan.
 		 */
 		return -ENODATA;
@@ -1499,7 +1499,7 @@ static int ks_wlan_get_auth_mode(struct net_device *dev,
 		return -EPERM;
 
 	/* for SLEEP MODE */
-	/*  WPA (not used ?? wpa_supplicant) */
+	/*  WPA (yest used ?? wpa_supplicant) */
 	switch (index) {
 	case IW_AUTH_WPA_VERSION:
 		param->value = priv->wpa.version;
@@ -1633,12 +1633,12 @@ static int ks_wlan_get_encode_ext(struct net_device *dev,
 		return -EPERM;
 
 	/* for SLEEP MODE */
-	/* WPA (not used ?? wpa_supplicant)
+	/* WPA (yest used ?? wpa_supplicant)
 	 * struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
 	 * struct iw_encode_ext *enc;
 	 * enc = (struct iw_encode_ext *)extra;
 	 * int index = dwrq->flags & IW_ENCODE_INDEX;
-	 * WPA (not used ?? wpa_supplicant)
+	 * WPA (yest used ?? wpa_supplicant)
 	 */
 	return 0;
 }
@@ -1685,7 +1685,7 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 				break;
 			}
 		}
-		/* not find address. */
+		/* yest find address. */
 		if (ptr != &priv->pmklist.head)
 			break;
 		/* new cache data */
@@ -1720,7 +1720,7 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 				break;
 			}
 		}
-		/* not find address. */
+		/* yest find address. */
 		if (ptr == &priv->pmklist.head)
 			return 0;
 		break;
@@ -2475,7 +2475,7 @@ struct net_device_stats *ks_wlan_get_stats(struct net_device *dev)
 	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	if (priv->dev_state < DEVICE_STATE_READY)
-		return NULL;	/* not finished initialize */
+		return NULL;	/* yest finished initialize */
 
 	return &priv->nstats;
 }
@@ -2524,7 +2524,7 @@ int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	if (priv->dev_state < DEVICE_STATE_READY) {
 		dev_kfree_skb(skb);
-		return 0;	/* not finished initialize */
+		return 0;	/* yest finished initialize */
 	}
 
 	if (netif_running(dev))
@@ -2554,7 +2554,7 @@ void send_packet_complete(struct ks_wlan_private *priv, struct sk_buff *skb)
 
 /*
  * Set or clear the multicast filter for this adaptor.
- * This routine is not state sensitive and need not be SMP locked.
+ * This routine is yest state sensitive and need yest be SMP locked.
  */
 static
 void ks_wlan_set_rx_mode(struct net_device *dev)
@@ -2562,7 +2562,7 @@ void ks_wlan_set_rx_mode(struct net_device *dev)
 	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	if (priv->dev_state < DEVICE_STATE_READY)
-		return;	/* not finished initialize */
+		return;	/* yest finished initialize */
 	hostif_sme_enqueue(priv, SME_MULTICAST_REQUEST);
 }
 
@@ -2590,7 +2590,7 @@ int ks_wlan_close(struct net_device *dev)
 	return 0;
 }
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are yest changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (3 * HZ)
 static const unsigned char dummy_addr[] = {

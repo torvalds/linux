@@ -390,7 +390,7 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 		goto out;
 	}
 
-	/* Do not send the infoframe header, but keep the CRC field. */
+	/* Do yest send the infoframe header, but keep the CRC field. */
 	regmap_bulk_write(regmap, SII902X_TPI_AVI_INFOFRAME,
 			  buf + HDMI_INFOFRAME_HEADER_SIZE - 1,
 			  HDMI_AVI_INFOFRAME_SIZE + 1);
@@ -505,7 +505,7 @@ static int sii902x_audio_hw_params(struct device *dev, void *data,
 	int i, ret;
 
 	if (daifmt->bit_clk_master || daifmt->frame_clk_master) {
-		dev_dbg(dev, "%s: I2S master mode not supported\n", __func__);
+		dev_dbg(dev, "%s: I2S master mode yest supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -696,7 +696,7 @@ static int sii902x_audio_get_eld(struct device *dev, void *data,
 }
 
 static int sii902x_audio_get_dai_id(struct snd_soc_component *component,
-				    struct device_node *endpoint)
+				    struct device_yesde *endpoint)
 {
 	struct of_endpoint of_ep;
 	int ret;
@@ -740,20 +740,20 @@ static int sii902x_audio_codec_init(struct sii902x *sii902x,
 	};
 	struct hdmi_codec_pdata codec_data = {
 		.ops = &sii902x_audio_codec_ops,
-		.i2s = 1, /* Only i2s support for now. */
+		.i2s = 1, /* Only i2s support for yesw. */
 		.spdif = 0,
 		.max_i2s_channels = 0,
 	};
 	u8 lanes[4];
 	int num_lanes, i;
 
-	if (!of_property_read_bool(dev->of_node, "#sound-dai-cells")) {
-		dev_dbg(dev, "%s: No \"#sound-dai-cells\", no audio\n",
+	if (!of_property_read_bool(dev->of_yesde, "#sound-dai-cells")) {
+		dev_dbg(dev, "%s: No \"#sound-dai-cells\", yes audio\n",
 			__func__);
 		return 0;
 	}
 
-	num_lanes = of_property_read_variable_u8_array(dev->of_node,
+	num_lanes = of_property_read_variable_u8_array(dev->of_yesde,
 						       "sil,i2s-data-lanes",
 						       lanes, 1,
 						       ARRAY_SIZE(lanes));
@@ -795,14 +795,14 @@ static const struct regmap_range sii902x_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table sii902x_volatile_table = {
-	.yes_ranges = sii902x_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(sii902x_volatile_ranges),
+	.no_ranges = sii902x_volatile_ranges,
+	.n_no_ranges = ARRAY_SIZE(sii902x_volatile_ranges),
 };
 
 static const struct regmap_config sii902x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.disable_locking = true, /* struct sii902x mutex should be enough */
+	.disable_locking = true, /* struct sii902x mutex should be eyesugh */
 	.max_register = SII902X_TPI_MISC_INFOFRAME_END,
 	.volatile_table = &sii902x_volatile_table,
 	.cache_type = REGCACHE_NONE,
@@ -828,7 +828,7 @@ static irqreturn_t sii902x_interrupt(int irq, void *data)
 
 /*
  * The purpose of sii902x_i2c_bypass_select is to enable the pass through
- * mode of the HDMI transmitter. Do not use regmap from within this function,
+ * mode of the HDMI transmitter. Do yest use regmap from within this function,
  * only use sii902x_*_unlocked functions to read/modify/write registers.
  * We are holding the parent adapter lock here, keep this in mind before
  * adding more i2c transactions.
@@ -873,7 +873,7 @@ static int sii902x_i2c_bypass_select(struct i2c_mux_core *mux, u32 chan_id)
 
 /*
  * The purpose of sii902x_i2c_bypass_deselect is to disable the pass through
- * mode of the HDMI transmitter. Do not use regmap from within this function,
+ * mode of the HDMI transmitter. Do yest use regmap from within this function,
  * only use sii902x_*_unlocked functions to read/modify/write registers.
  * We are holding the parent adapter lock here, keep this in mind before
  * adding more i2c transactions.
@@ -959,7 +959,7 @@ static int sii902x_probe(struct i2c_client *client,
 	ret = i2c_check_functionality(client->adapter,
 				      I2C_FUNC_SMBUS_BYTE_DATA);
 	if (!ret) {
-		dev_err(dev, "I2C adapter not suitable\n");
+		dev_err(dev, "I2C adapter yest suitable\n");
 		return -EIO;
 	}
 
@@ -1018,7 +1018,7 @@ static int sii902x_probe(struct i2c_client *client,
 	}
 
 	sii902x->bridge.funcs = &sii902x_bridge_funcs;
-	sii902x->bridge.of_node = dev->of_node;
+	sii902x->bridge.of_yesde = dev->of_yesde;
 	sii902x->bridge.timings = &default_sii902x_timings;
 	drm_bridge_add(&sii902x->bridge);
 

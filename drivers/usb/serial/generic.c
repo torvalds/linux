@@ -8,7 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/sysrq.h>
 #include <linux/tty.h>
@@ -54,7 +54,7 @@ static int usb_serial_generic_calc_num_ports(struct usb_serial *serial,
 	num_ports = max(epds->num_bulk_in, epds->num_bulk_out);
 
 	if (num_ports == 0) {
-		dev_err(dev, "device has no bulk endpoints\n");
+		dev_err(dev, "device has yes bulk endpoints\n");
 		return -ENODEV;
 	}
 
@@ -149,7 +149,7 @@ int usb_serial_generic_prepare_write_buffer(struct usb_serial_port *port,
  *
  * Serialised using USB_SERIAL_WRITE_BUSY flag.
  *
- * Return: Zero on success or if busy, otherwise a negative errno value.
+ * Return: Zero on success or if busy, otherwise a negative erryes value.
  */
 int usb_serial_generic_write_start(struct usb_serial_port *port,
 							gfp_t mem_flags)
@@ -196,7 +196,7 @@ retry:
 		return result;
 	}
 
-	goto retry;	/* try sending off another urb */
+	goto retry;	/* try sending off ayesther urb */
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_write_start);
 
@@ -208,7 +208,7 @@ EXPORT_SYMBOL_GPL(usb_serial_generic_write_start);
  * @count: number of bytes to write
  *
  * Return: The number of characters buffered, which may be anything from
- * zero to @count, or a negative errno value.
+ * zero to @count, or a negative erryes value.
  */
 int usb_serial_generic_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count)
@@ -353,7 +353,7 @@ void usb_serial_generic_process_read_urb(struct urb *urb)
 	/*
 	 * The per character mucking around with sysrq path it too slow for
 	 * stuff like 3G modems, so shortcircuit it in the 99.9999999% of
-	 * cases where the USB serial is not a console anyway.
+	 * cases where the USB serial is yest a console anyway.
 	 */
 	if (!port->port.console || !port->sysrq) {
 		tty_insert_flip_string(&port->port, ch, urb->actual_length);
@@ -401,14 +401,14 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 		stopped = true;
 		break;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status: %d\n",
+		dev_dbg(&port->dev, "%s - yesnzero urb status: %d\n",
 							__func__, status);
 		break;
 	}
 
 	/*
 	 * Make sure URB processing is done before marking as free to avoid
-	 * racing with unthrottle() on another CPU. Matches the barriers
+	 * racing with unthrottle() on ayesther CPU. Matches the barriers
 	 * implied by the test_and_clear_bit() in
 	 * usb_serial_generic_submit_read_urb().
 	 */
@@ -416,7 +416,7 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 	set_bit(i, &port->read_urbs_free);
 	/*
 	 * Make sure URB is marked as free before checking the throttled flag
-	 * to avoid racing with unthrottle() on another CPU. Matches the
+	 * to avoid racing with unthrottle() on ayesther CPU. Matches the
 	 * smp_mb() in unthrottle().
 	 */
 	smp_mb__after_atomic();
@@ -461,7 +461,7 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 							__func__, status);
 		return;
 	default:
-		dev_err_console(port, "%s - nonzero urb status: %d\n",
+		dev_err_console(port, "%s - yesnzero urb status: %d\n",
 							__func__, status);
 		break;
 	}
@@ -499,7 +499,7 @@ static bool usb_serial_generic_msr_changed(struct tty_struct *tty,
 				unsigned long arg, struct async_icount *cprev)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct async_icount cnow;
+	struct async_icount cyesw;
 	unsigned long flags;
 	bool ret;
 
@@ -511,15 +511,15 @@ static bool usb_serial_generic_msr_changed(struct tty_struct *tty,
 		return true;
 
 	spin_lock_irqsave(&port->lock, flags);
-	cnow = port->icount;				/* atomic copy*/
+	cyesw = port->icount;				/* atomic copy*/
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	ret =	((arg & TIOCM_RNG) && (cnow.rng != cprev->rng)) ||
-		((arg & TIOCM_DSR) && (cnow.dsr != cprev->dsr)) ||
-		((arg & TIOCM_CD)  && (cnow.dcd != cprev->dcd)) ||
-		((arg & TIOCM_CTS) && (cnow.cts != cprev->cts));
+	ret =	((arg & TIOCM_RNG) && (cyesw.rng != cprev->rng)) ||
+		((arg & TIOCM_DSR) && (cyesw.dsr != cprev->dsr)) ||
+		((arg & TIOCM_CD)  && (cyesw.dcd != cprev->dcd)) ||
+		((arg & TIOCM_CTS) && (cyesw.cts != cprev->cts));
 
-	*cprev = cnow;
+	*cprev = cyesw;
 
 	return ret;
 }
@@ -527,16 +527,16 @@ static bool usb_serial_generic_msr_changed(struct tty_struct *tty,
 int usb_serial_generic_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct async_icount cnow;
+	struct async_icount cyesw;
 	unsigned long flags;
 	int ret;
 
 	spin_lock_irqsave(&port->lock, flags);
-	cnow = port->icount;				/* atomic copy */
+	cyesw = port->icount;				/* atomic copy */
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	ret = wait_event_interruptible(port->port.delta_msr_wait,
-			usb_serial_generic_msr_changed(tty, arg, &cnow));
+			usb_serial_generic_msr_changed(tty, arg, &cyesw));
 	if (!ret && !tty_port_initialized(&port->port))
 		ret = -EIO;
 
@@ -548,24 +548,24 @@ int usb_serial_generic_get_icount(struct tty_struct *tty,
 					struct serial_icounter_struct *icount)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct async_icount cnow;
+	struct async_icount cyesw;
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	cnow = port->icount;				/* atomic copy */
+	cyesw = port->icount;				/* atomic copy */
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->tx = cnow.tx;
-	icount->rx = cnow.rx;
-	icount->frame = cnow.frame;
-	icount->parity = cnow.parity;
-	icount->overrun = cnow.overrun;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
+	icount->cts = cyesw.cts;
+	icount->dsr = cyesw.dsr;
+	icount->rng = cyesw.rng;
+	icount->dcd = cyesw.dcd;
+	icount->tx = cyesw.tx;
+	icount->rx = cyesw.rx;
+	icount->frame = cyesw.frame;
+	icount->parity = cyesw.parity;
+	icount->overrun = cyesw.overrun;
+	icount->brk = cyesw.brk;
+	icount->buf_overrun = cyesw.buf_overrun;
 
 	return 0;
 }
@@ -607,7 +607,7 @@ EXPORT_SYMBOL_GPL(usb_serial_handle_break);
  * usb_serial_handle_dcd_change - handle a change of carrier detect state
  * @port: usb-serial port
  * @tty: tty for the port
- * @status: new carrier detect status, nonzero if active
+ * @status: new carrier detect status, yesnzero if active
  */
 void usb_serial_handle_dcd_change(struct usb_serial_port *usb_port,
 				struct tty_struct *tty, unsigned int status)

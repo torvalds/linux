@@ -17,7 +17,7 @@
 
 /*
  * Calculate the maximum length in bytes that would be required for a local
- * attribute value as large attributes out of line are not logged.
+ * attribute value as large attributes out of line are yest logged.
  */
 STATIC int
 xfs_log_calc_max_attrsetm_res(
@@ -74,7 +74,7 @@ xfs_log_get_max_trans_res(
 /*
  * Calculate the minimum valid log size for the given superblock configuration.
  * Used to calculate the minimum log size at mkfs time, and to determine if
- * the log is large enough or not at mount time. Returns the minimum size in
+ * the log is large eyesugh or yest at mount time. Returns the minimum size in
  * filesystem block size units.
  */
 int
@@ -98,7 +98,7 @@ xfs_log_calc_minimum_size(
 	/*
 	 * Two factors should be taken into account for calculating the minimum
 	 * log space.
-	 * 1) The fundamental limitation is that no single transaction can be
+	 * 1) The fundamental limitation is that yes single transaction can be
 	 *    larger than half size of the log.
 	 *
 	 *    From mkfs.xfs, this is considered by the XFS_MIN_LOG_FACTOR
@@ -111,9 +111,9 @@ xfs_log_calc_minimum_size(
 	 *    require padding - the transaction data and the commit record which
 	 *    are written separately and both can require padding to the LSU.
 	 *    Consider that we can have an active CIL reservation holding 2*LSU,
-	 *    but the CIL is not over a push threshold, in this case, if we
-	 *    don't have enough log space for at one new transaction, which
-	 *    includes another 2*LSU in the reservation, we will run into dead
+	 *    but the CIL is yest over a push threshold, in this case, if we
+	 *    don't have eyesugh log space for at one new transaction, which
+	 *    includes ayesther 2*LSU in the reservation, we will run into dead
 	 *    loop situation in log space grant procedure. i.e.
 	 *    xlog_grant_head_wait().
 	 *

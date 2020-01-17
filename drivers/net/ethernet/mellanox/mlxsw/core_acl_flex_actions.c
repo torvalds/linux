@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/rhashtable.h>
 #include <linux/list.h>
 
@@ -37,7 +37,7 @@ MLXSW_ITEM32(afa, set, goto_g, 0xA4, 29, 1);
 enum mlxsw_afa_set_goto_binding_cmd {
 	/* continue go the next binding point */
 	MLXSW_AFA_SET_GOTO_BINDING_CMD_NONE,
-	/* jump to the next binding point no return */
+	/* jump to the next binding point yes return */
 	MLXSW_AFA_SET_GOTO_BINDING_CMD_JUMP,
 	/* terminate the acl binding */
 	MLXSW_AFA_SET_GOTO_BINDING_CMD_TERM = 4,
@@ -80,7 +80,7 @@ struct mlxsw_afa_set_ht_key {
  */
 
 struct mlxsw_afa_set {
-	struct rhash_head ht_node;
+	struct rhash_head ht_yesde;
 	struct mlxsw_afa_set_ht_key ht_key;
 	u32 kvdl_index;
 	bool shared; /* Inserted in hashtable (doesn't mean that
@@ -89,7 +89,7 @@ struct mlxsw_afa_set {
 	unsigned int ref_count;
 	struct mlxsw_afa_set *next; /* Pointer to the next set. */
 	struct mlxsw_afa_set *prev; /* Pointer to the previous set,
-				     * note that set may have multiple
+				     * yeste that set may have multiple
 				     * sets from multiple blocks
 				     * pointing at it. This is only
 				     * usable until commit.
@@ -99,7 +99,7 @@ struct mlxsw_afa_set {
 static const struct rhashtable_params mlxsw_afa_set_ht_params = {
 	.key_len = sizeof(struct mlxsw_afa_set_ht_key),
 	.key_offset = offsetof(struct mlxsw_afa_set, ht_key),
-	.head_offset = offsetof(struct mlxsw_afa_set, ht_node),
+	.head_offset = offsetof(struct mlxsw_afa_set, ht_yesde),
 	.automatic_shrinking = true,
 };
 
@@ -108,7 +108,7 @@ struct mlxsw_afa_fwd_entry_ht_key {
 };
 
 struct mlxsw_afa_fwd_entry {
-	struct rhash_head ht_node;
+	struct rhash_head ht_yesde;
 	struct mlxsw_afa_fwd_entry_ht_key ht_key;
 	u32 kvdl_index;
 	unsigned int ref_count;
@@ -117,7 +117,7 @@ struct mlxsw_afa_fwd_entry {
 static const struct rhashtable_params mlxsw_afa_fwd_entry_ht_params = {
 	.key_len = sizeof(struct mlxsw_afa_fwd_entry_ht_key),
 	.key_offset = offsetof(struct mlxsw_afa_fwd_entry, ht_key),
-	.head_offset = offsetof(struct mlxsw_afa_fwd_entry, ht_node),
+	.head_offset = offsetof(struct mlxsw_afa_fwd_entry, ht_yesde),
 	.automatic_shrinking = true,
 };
 
@@ -204,7 +204,7 @@ static int mlxsw_afa_set_share(struct mlxsw_afa *mlxsw_afa,
 {
 	int err;
 
-	err = rhashtable_insert_fast(&mlxsw_afa->set_ht, &set->ht_node,
+	err = rhashtable_insert_fast(&mlxsw_afa->set_ht, &set->ht_yesde,
 				     mlxsw_afa_set_ht_params);
 	if (err)
 		return err;
@@ -219,7 +219,7 @@ static int mlxsw_afa_set_share(struct mlxsw_afa *mlxsw_afa,
 	return 0;
 
 err_kvdl_set_add:
-	rhashtable_remove_fast(&mlxsw_afa->set_ht, &set->ht_node,
+	rhashtable_remove_fast(&mlxsw_afa->set_ht, &set->ht_yesde,
 			       mlxsw_afa_set_ht_params);
 	return err;
 }
@@ -230,7 +230,7 @@ static void mlxsw_afa_set_unshare(struct mlxsw_afa *mlxsw_afa,
 	mlxsw_afa->ops->kvdl_set_del(mlxsw_afa->ops_priv,
 				     set->kvdl_index,
 				     set->ht_key.is_first);
-	rhashtable_remove_fast(&mlxsw_afa->set_ht, &set->ht_node,
+	rhashtable_remove_fast(&mlxsw_afa->set_ht, &set->ht_yesde,
 			       mlxsw_afa_set_ht_params);
 	set->shared = false;
 }
@@ -326,7 +326,7 @@ struct mlxsw_afa_block *mlxsw_afa_block_create(struct mlxsw_afa *mlxsw_afa)
 		goto err_first_set_create;
 
 	/* In case user instructs to have dummy first set, we leave it
-	 * empty here and create another, real, set right away.
+	 * empty here and create ayesther, real, set right away.
 	 */
 	if (mlxsw_afa->ops->dummy_first_set) {
 		block->cur_set = mlxsw_afa_set_create(false);
@@ -373,7 +373,7 @@ int mlxsw_afa_block_commit(struct mlxsw_afa_block *block)
 
 	/* Go over all linked sets starting from last
 	 * and try to find existing set in the hash table.
-	 * In case it is not there, assign a KVD linear index
+	 * In case it is yest there, assign a KVD linear index
 	 * and insert it.
 	 */
 	do {
@@ -475,7 +475,7 @@ mlxsw_afa_fwd_entry_create(struct mlxsw_afa *mlxsw_afa, u8 local_port)
 	fwd_entry->ref_count = 1;
 
 	err = rhashtable_insert_fast(&mlxsw_afa->fwd_entry_ht,
-				     &fwd_entry->ht_node,
+				     &fwd_entry->ht_yesde,
 				     mlxsw_afa_fwd_entry_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -488,7 +488,7 @@ mlxsw_afa_fwd_entry_create(struct mlxsw_afa *mlxsw_afa, u8 local_port)
 	return fwd_entry;
 
 err_kvdl_fwd_entry_add:
-	rhashtable_remove_fast(&mlxsw_afa->fwd_entry_ht, &fwd_entry->ht_node,
+	rhashtable_remove_fast(&mlxsw_afa->fwd_entry_ht, &fwd_entry->ht_yesde,
 			       mlxsw_afa_fwd_entry_ht_params);
 err_rhashtable_insert:
 	kfree(fwd_entry);
@@ -500,7 +500,7 @@ static void mlxsw_afa_fwd_entry_destroy(struct mlxsw_afa *mlxsw_afa,
 {
 	mlxsw_afa->ops->kvdl_fwd_entry_del(mlxsw_afa->ops_priv,
 					   fwd_entry->kvdl_index);
-	rhashtable_remove_fast(&mlxsw_afa->fwd_entry_ht, &fwd_entry->ht_node,
+	rhashtable_remove_fast(&mlxsw_afa->fwd_entry_ht, &fwd_entry->ht_yesde,
 			       mlxsw_afa_fwd_entry_ht_params);
 	kfree(fwd_entry);
 }
@@ -687,7 +687,7 @@ enum mlxsw_afa_vlan_cmd {
 };
 
 /* afa_vlan_vlan_tag_cmd
- * Tag command: push, pop, nop VLAN header.
+ * Tag command: push, pop, yesp VLAN header.
  */
 MLXSW_ITEM32(afa, vlan, vlan_tag_cmd, 0x00, 29, 3);
 
@@ -736,7 +736,7 @@ int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
 						  MLXSW_AFA_VLAN_SIZE);
 
 	if (IS_ERR(act)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append vlan_modify action");
+		NL_SET_ERR_MSG_MOD(extack, "Canyest append vlan_modify action");
 		return PTR_ERR(act);
 	}
 	mlxsw_afa_vlan_pack(act, MLXSW_AFA_VLAN_VLAN_TAG_CMD_NOP,
@@ -941,12 +941,12 @@ mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block, u8 local_in_port,
 	mirror = mlxsw_afa_mirror_create(block, local_in_port, out_dev,
 					 ingress);
 	if (IS_ERR(mirror)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot create mirror action");
+		NL_SET_ERR_MSG_MOD(extack, "Canyest create mirror action");
 		return PTR_ERR(mirror);
 	}
 	err = mlxsw_afa_block_append_allocated_mirror(block, mirror->span_id);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append mirror action");
+		NL_SET_ERR_MSG_MOD(extack, "Canyest append mirror action");
 		goto err_append_allocated_mirror;
 	}
 
@@ -1007,12 +1007,12 @@ int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
 	int err;
 
 	if (in_port) {
-		NL_SET_ERR_MSG_MOD(extack, "Forwarding to ingress port is not supported");
+		NL_SET_ERR_MSG_MOD(extack, "Forwarding to ingress port is yest supported");
 		return -EOPNOTSUPP;
 	}
 	fwd_entry_ref = mlxsw_afa_fwd_entry_ref_create(block, local_port);
 	if (IS_ERR(fwd_entry_ref)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot create forward action");
+		NL_SET_ERR_MSG_MOD(extack, "Canyest create forward action");
 		return PTR_ERR(fwd_entry_ref);
 	}
 	kvdl_index = fwd_entry_ref->fwd_entry->kvdl_index;
@@ -1020,7 +1020,7 @@ int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
 	act = mlxsw_afa_block_append_action(block, MLXSW_AFA_FORWARD_CODE,
 					    MLXSW_AFA_FORWARD_SIZE);
 	if (IS_ERR(act)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append forward action");
+		NL_SET_ERR_MSG_MOD(extack, "Canyest append forward action");
 		err = PTR_ERR(act);
 		goto err_append_action;
 	}
@@ -1094,14 +1094,14 @@ int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
 
 	counter = mlxsw_afa_counter_create(block);
 	if (IS_ERR(counter)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot create count action");
+		NL_SET_ERR_MSG_MOD(extack, "Canyest create count action");
 		return PTR_ERR(counter);
 	}
 	counter_index = counter->counter_index;
 
 	err = mlxsw_afa_block_append_allocated_counter(block, counter_index);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append count action");
+		NL_SET_ERR_MSG_MOD(extack, "Canyest append count action");
 		goto err_append_allocated_counter;
 	}
 	if (p_counter_index)
@@ -1124,7 +1124,7 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_counter);
 #define MLXSW_AFA_VIRFWD_SIZE 1
 
 enum mlxsw_afa_virfwd_fid_cmd {
-	/* Do nothing */
+	/* Do yesthing */
 	MLXSW_AFA_VIRFWD_FID_CMD_NOOP,
 	/* Set the Forwarding Identifier (FID) to fid */
 	MLXSW_AFA_VIRFWD_FID_CMD_SET,
@@ -1153,7 +1153,7 @@ int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid,
 						  MLXSW_AFA_VIRFWD_CODE,
 						  MLXSW_AFA_VIRFWD_SIZE);
 	if (IS_ERR(act)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot append fid_set action");
+		NL_SET_ERR_MSG_MOD(extack, "Canyest append fid_set action");
 		return PTR_ERR(act);
 	}
 	mlxsw_afa_virfwd_pack(act, MLXSW_AFA_VIRFWD_FID_CMD_SET, fid);

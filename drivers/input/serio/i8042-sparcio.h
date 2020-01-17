@@ -53,12 +53,12 @@ static struct resource *kbd_res;
 
 static int sparc_i8042_probe(struct platform_device *op)
 {
-	struct device_node *dp;
+	struct device_yesde *dp;
 
-	for_each_child_of_node(op->dev.of_node, dp) {
-		if (of_node_name_eq(dp, OBP_PS2KBD_NAME1) ||
-		    of_node_name_eq(dp, OBP_PS2KBD_NAME2)) {
-			struct platform_device *kbd = of_find_device_by_node(dp);
+	for_each_child_of_yesde(op->dev.of_yesde, dp) {
+		if (of_yesde_name_eq(dp, OBP_PS2KBD_NAME1) ||
+		    of_yesde_name_eq(dp, OBP_PS2KBD_NAME2)) {
+			struct platform_device *kbd = of_find_device_by_yesde(dp);
 			unsigned int irq = kbd->archdata.irqs[0];
 			if (irq == 0xffffffff)
 				irq = op->archdata.irqs[0];
@@ -66,9 +66,9 @@ static int sparc_i8042_probe(struct platform_device *op)
 			kbd_iobase = of_ioremap(&kbd->resource[0],
 						0, 8, "kbd");
 			kbd_res = &kbd->resource[0];
-		} else if (of_node_name_eq(dp, OBP_PS2MS_NAME1) ||
-			   of_node_name_eq(dp, OBP_PS2MS_NAME2)) {
-			struct platform_device *ms = of_find_device_by_node(dp);
+		} else if (of_yesde_name_eq(dp, OBP_PS2MS_NAME1) ||
+			   of_yesde_name_eq(dp, OBP_PS2MS_NAME2)) {
+			struct platform_device *ms = of_find_device_by_yesde(dp);
 			unsigned int irq = ms->archdata.irqs[0];
 			if (irq == 0xffffffff)
 				irq = op->archdata.irqs[0];
@@ -105,7 +105,7 @@ static struct platform_driver sparc_i8042_driver = {
 
 static int __init i8042_platform_init(void)
 {
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_yesde *root = of_find_yesde_by_path("/");
 	const char *name = of_get_property(root, "name", NULL);
 
 	if (name && !strcmp(name, "SUNW,JavaStation-1")) {
@@ -136,7 +136,7 @@ static int __init i8042_platform_init(void)
 
 static inline void i8042_platform_exit(void)
 {
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_yesde *root = of_find_yesde_by_path("/");
 	const char *name = of_get_property(root, "name", NULL);
 
 	if (!name || strcmp(name, "SUNW,JavaStation-1"))

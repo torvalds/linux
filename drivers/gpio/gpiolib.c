@@ -21,7 +21,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/compat.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/file.h>
 #include <linux/kfifo.h>
 #include <linux/poll.h>
@@ -44,7 +44,7 @@
 
 
 /* When debugging, extend minimal trust to callers and platform code.
- * Also emit diagnostic messages that may help initial bringup, when
+ * Also emit diagyesstic messages that may help initial bringup, when
  * board setup or driver bugs are most common.
  *
  * Otherwise, minimize overhead in what may be bitbanging codepaths.
@@ -69,7 +69,7 @@ static struct bus_type gpio_bus_type = {
 #define FASTPATH_NGPIO CONFIG_GPIOLIB_FASTPATH_LIMIT
 
 /* gpio_lock prevents conflicts during gpio_desc[] table updates.
- * While any GPIO is requested, its gpio_chip is not removable;
+ * While any GPIO is requested, its gpio_chip is yest removable;
  * each GPIO's "requested" flag serves as a lock and refcount.
  */
 DEFINE_SPINLOCK(gpio_lock);
@@ -102,7 +102,7 @@ static inline void desc_set_label(struct gpio_desc *d, const char *label)
  * @gpio: global GPIO number
  *
  * Returns:
- * The GPIO descriptor associated with the given GPIO, or %NULL if no GPIO
+ * The GPIO descriptor associated with the given GPIO, or %NULL if yes GPIO
  * with the given number exists in the system.
  */
 struct gpio_desc *gpio_to_desc(unsigned gpio)
@@ -136,7 +136,7 @@ EXPORT_SYMBOL_GPL(gpio_to_desc);
  * @hwnum: hardware number of the GPIO for this chip
  *
  * Returns:
- * A pointer to the GPIO descriptor or %ERR_PTR(-EINVAL) if no GPIO exists
+ * A pointer to the GPIO descriptor or %ERR_PTR(-EINVAL) if yes GPIO exists
  * in the given chip for the specified hardware number.
  */
 struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip,
@@ -155,7 +155,7 @@ struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip,
  * @desc: GPIO descriptor
  *
  * This should disappear in the future but is needed since we still
- * use GPIO numbers for error messages and sysfs nodes.
+ * use GPIO numbers for error messages and sysfs yesdes.
  *
  * Returns:
  * The global GPIO number for the GPIO specified by its descriptor.
@@ -190,7 +190,7 @@ static int gpiochip_find_base(int ngpio)
 		if (gdev->base + gdev->ngpio <= base)
 			break;
 		else
-			/* nope, check the space right before the chip */
+			/* yespe, check the space right before the chip */
 			base = gdev->base - ngpio;
 	}
 
@@ -198,7 +198,7 @@ static int gpiochip_find_base(int ngpio)
 		pr_debug("%s: found new base at %d\n", __func__, base);
 		return base;
 	} else {
-		pr_err("%s: cannot find free range\n", __func__);
+		pr_err("%s: canyest find free range\n", __func__);
 		return -ENOSPC;
 	}
 }
@@ -289,7 +289,7 @@ static int gpiodev_add_to_list(struct gpio_device *gdev)
 		}
 	}
 
-	dev_err(&gdev->dev, "GPIO integer space overlap, cannot add chip\n");
+	dev_err(&gdev->dev, "GPIO integer space overlap, canyest add chip\n");
 	return -EBUSY;
 }
 
@@ -446,12 +446,12 @@ struct linehandle_state {
 
 static int linehandle_validate_flags(u32 flags)
 {
-	/* Return an error if an unknown flag is set */
+	/* Return an error if an unkyeswn flag is set */
 	if (flags & ~GPIOHANDLE_REQUEST_VALID_FLAGS)
 		return -EINVAL;
 
 	/*
-	 * Do not allow both INPUT & OUTPUT flags to be set as they are
+	 * Do yest allow both INPUT & OUTPUT flags to be set as they are
 	 * contradictory.
 	 */
 	if ((flags & GPIOHANDLE_REQUEST_INPUT) &&
@@ -459,7 +459,7 @@ static int linehandle_validate_flags(u32 flags)
 		return -EINVAL;
 
 	/*
-	 * Do not allow OPEN_SOURCE & OPEN_DRAIN flags in a single request. If
+	 * Do yest allow OPEN_SOURCE & OPEN_DRAIN flags in a single request. If
 	 * the hardware actually supports enabling both at the same time the
 	 * electrical result would be disastrous.
 	 */
@@ -623,7 +623,7 @@ static long linehandle_ioctl_compat(struct file *filep, unsigned int cmd,
 }
 #endif
 
-static int linehandle_release(struct inode *inode, struct file *filep)
+static int linehandle_release(struct iyesde *iyesde, struct file *filep)
 {
 	struct linehandle_state *lh = filep->private_data;
 	struct gpio_device *gdev = lh->gdev;
@@ -640,7 +640,7 @@ static int linehandle_release(struct inode *inode, struct file *filep)
 static const struct file_operations linehandle_fileops = {
 	.release = linehandle_release,
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 	.unlocked_ioctl = linehandle_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = linehandle_ioctl_compat,
@@ -745,7 +745,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 		goto out_free_descs;
 	}
 
-	file = anon_inode_getfile("gpio-linehandle",
+	file = ayesn_iyesde_getfile("gpio-linehandle",
 				  &linehandle_fileops,
 				  lh,
 				  O_RDONLY | O_CLOEXEC);
@@ -757,7 +757,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	handlereq.fd = fd;
 	if (copy_to_user(ip, &handlereq, sizeof(handlereq))) {
 		/*
-		 * fput() will trigger the release() callback, so do not go onto
+		 * fput() will trigger the release() callback, so do yest go onto
 		 * the regular error cleanup path here.
 		 */
 		fput(file);
@@ -868,7 +868,7 @@ static ssize_t lineevent_read(struct file *filep,
 		/*
 		 * If we couldn't read anything from the fifo (a different
 		 * thread might have been faster) we either return -EAGAIN if
-		 * the file descriptor is non-blocking, otherwise we go back to
+		 * the file descriptor is yesn-blocking, otherwise we go back to
 		 * sleep and wait for more data to arrive.
 		 */
 		if (copied == 0 && (filep->f_flags & O_NONBLOCK))
@@ -879,7 +879,7 @@ static ssize_t lineevent_read(struct file *filep,
 	return copied;
 }
 
-static int lineevent_release(struct inode *inode, struct file *filep)
+static int lineevent_release(struct iyesde *iyesde, struct file *filep)
 {
 	struct lineevent_state *le = filep->private_data;
 	struct gpio_device *gdev = le->gdev;
@@ -900,7 +900,7 @@ static long lineevent_ioctl(struct file *filep, unsigned int cmd,
 	struct gpiohandle_data ghd;
 
 	/*
-	 * We can get the value for an event line but not set it,
+	 * We can get the value for an event line but yest set it,
 	 * because it is input by definition.
 	 */
 	if (cmd == GPIOHANDLE_GET_LINE_VALUES_IOCTL) {
@@ -934,7 +934,7 @@ static const struct file_operations lineevent_fileops = {
 	.read = lineevent_read,
 	.poll = lineevent_poll,
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 	.unlocked_ioctl = lineevent_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = lineevent_ioctl_compat,
@@ -947,7 +947,7 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
 	struct gpioevent_data ge;
 	int ret;
 
-	/* Do not leak kernel stack to userspace */
+	/* Do yest leak kernel stack to userspace */
 	memset(&ge, 0, sizeof(ge));
 
 	/*
@@ -1021,7 +1021,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	if (offset >= gdev->ngpio)
 		return -EINVAL;
 
-	/* Return an error if a unknown flag is set */
+	/* Return an error if a unkyeswn flag is set */
 	if ((lflags & ~GPIOHANDLE_REQUEST_VALID_FLAGS) ||
 	    (eflags & ~GPIOEVENT_REQUEST_VALID_FLAGS))
 		return -EINVAL;
@@ -1111,7 +1111,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 		goto out_free_irq;
 	}
 
-	file = anon_inode_getfile("gpio-event",
+	file = ayesn_iyesde_getfile("gpio-event",
 				  &lineevent_fileops,
 				  le,
 				  O_RDONLY | O_CLOEXEC);
@@ -1123,7 +1123,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	eventreq.fd = fd;
 	if (copy_to_user(ip, &eventreq, sizeof(eventreq))) {
 		/*
-		 * fput() will trigger the release() callback, so do not go onto
+		 * fput() will trigger the release() callback, so do yest go onto
 		 * the regular error cleanup path here.
 		 */
 		fput(file);
@@ -1204,7 +1204,7 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 
 		/*
-		 * Userspace only need to know that the kernel is using
+		 * Userspace only need to kyesw that the kernel is using
 		 * this GPIO so it can't use it.
 		 */
 		lineinfo.flags = 0;
@@ -1253,13 +1253,13 @@ static long gpio_ioctl_compat(struct file *filp, unsigned int cmd,
 
 /**
  * gpio_chrdev_open() - open the chardev for ioctl operations
- * @inode: inode for this chardev
+ * @iyesde: iyesde for this chardev
  * @filp: file struct for storing private data
  * Returns 0 on success
  */
-static int gpio_chrdev_open(struct inode *inode, struct file *filp)
+static int gpio_chrdev_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct gpio_device *gdev = container_of(inode->i_cdev,
+	struct gpio_device *gdev = container_of(iyesde->i_cdev,
 					      struct gpio_device, chrdev);
 
 	/* Fail on open if the backing gpiochip is gone */
@@ -1268,18 +1268,18 @@ static int gpio_chrdev_open(struct inode *inode, struct file *filp)
 	get_device(&gdev->dev);
 	filp->private_data = gdev;
 
-	return nonseekable_open(inode, filp);
+	return yesnseekable_open(iyesde, filp);
 }
 
 /**
  * gpio_chrdev_release() - close chardev after ioctl operations
- * @inode: inode for this chardev
+ * @iyesde: iyesde for this chardev
  * @filp: file struct for storing private data
  * Returns 0 on success
  */
-static int gpio_chrdev_release(struct inode *inode, struct file *filp)
+static int gpio_chrdev_release(struct iyesde *iyesde, struct file *filp)
 {
-	struct gpio_device *gdev = container_of(inode->i_cdev,
+	struct gpio_device *gdev = container_of(iyesde->i_cdev,
 					      struct gpio_device, chrdev);
 
 	put_device(&gdev->dev);
@@ -1291,7 +1291,7 @@ static const struct file_operations gpio_fileops = {
 	.release = gpio_chrdev_release,
 	.open = gpio_chrdev_open,
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.unlocked_ioctl = gpio_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = gpio_ioctl_compat,
@@ -1411,15 +1411,15 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 	chip->gpiodev = gdev;
 	if (chip->parent) {
 		gdev->dev.parent = chip->parent;
-		gdev->dev.of_node = chip->parent->of_node;
+		gdev->dev.of_yesde = chip->parent->of_yesde;
 	}
 
 #ifdef CONFIG_OF_GPIO
-	/* If the gpiochip has an assigned OF node this takes precedence */
-	if (chip->of_node)
-		gdev->dev.of_node = chip->of_node;
+	/* If the gpiochip has an assigned OF yesde this takes precedence */
+	if (chip->of_yesde)
+		gdev->dev.of_yesde = chip->of_yesde;
 	else
-		chip->of_node = gdev->dev.of_node;
+		chip->of_yesde = gdev->dev.of_yesde;
 #endif
 
 	gdev->id = ida_simple_get(&gpio_ida, 0, 0, GFP_KERNEL);
@@ -1454,7 +1454,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 		chip_warn(chip, "line cnt %u is greater than fast path cnt %u\n",
 		chip->ngpio, FASTPATH_NGPIO);
 
-	gdev->label = kstrdup_const(chip->label ?: "unknown", GFP_KERNEL);
+	gdev->label = kstrdup_const(chip->label ?: "unkyeswn", GFP_KERNEL);
 	if (!gdev->label) {
 		ret = -ENOMEM;
 		goto err_free_descs;
@@ -1469,7 +1469,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 	 * TODO: this allocates a Linux GPIO number base in the global
 	 * GPIO numberspace for this chip. In the long run we want to
 	 * get *rid* of this numberspace and use only descriptors, but
-	 * it may be a pipe dream. It will not happen before we get rid
+	 * it may be a pipe dream. It will yest happen before we get rid
 	 * of the sysfs interface anyways.
 	 */
 	if (base < 0) {
@@ -1480,7 +1480,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 			goto err_free_label;
 		}
 		/*
-		 * TODO: it should not be necessary to reflect the assigned
+		 * TODO: it should yest be necessary to reflect the assigned
 		 * base outside of the GPIO subsystem. Go over drivers and
 		 * see if anyone makes use of this, else drop this and assign
 		 * a poison instead.
@@ -1558,9 +1558,9 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 
 	/*
 	 * By first adding the chardev, and then adding the device,
-	 * we get a device node entry in sysfs under
+	 * we get a device yesde entry in sysfs under
 	 * /sys/bus/gpio/devices/gpiochipN/dev that can be used for
-	 * coldplug of device nodes and other udev business.
+	 * coldplug of device yesdes and other udev business.
 	 * We can do this only if gpiolib has been initialized.
 	 * Otherwise, defer until later.
 	 */
@@ -1620,7 +1620,7 @@ EXPORT_SYMBOL_GPL(gpiochip_get_data);
  * gpiochip_remove() - unregister a gpio_chip
  * @chip: the chip to unregister
  *
- * A gpio_chip with any GPIOs still requested may not be removed.
+ * A gpio_chip with any GPIOs still requested may yest be removed.
  */
 void gpiochip_remove(struct gpio_chip *chip)
 {
@@ -1641,7 +1641,7 @@ void gpiochip_remove(struct gpio_chip *chip)
 	gpiochip_remove_pin_ranges(chip);
 	gpiochip_free_valid_mask(chip);
 	/*
-	 * We accept no more calls into the driver from this point, so
+	 * We accept yes more calls into the driver from this point, so
 	 * NULL the driver data pointer
 	 */
 	gdev->data = NULL;
@@ -1660,7 +1660,7 @@ void gpiochip_remove(struct gpio_chip *chip)
 
 	/*
 	 * The gpiochip side puts its use of the device to rest here:
-	 * if there are no userspace clients, the chardev and device will
+	 * if there are yes userspace clients, the chardev and device will
 	 * be removed, else it will be dangling until the last user is
 	 * gone.
 	 */
@@ -1687,7 +1687,7 @@ static void devm_gpio_chip_release(struct device *dev, void *res)
  * The gpio chip automatically be released when the device is unbound.
  *
  * Returns:
- * A negative errno if the chip can't be registered, such as because the
+ * A negative erryes if the chip can't be registered, such as because the
  * chip->base is invalid or already associated with a different chip.
  * Otherwise it returns zero as a success code.
  */
@@ -1722,8 +1722,8 @@ EXPORT_SYMBOL_GPL(devm_gpiochip_add_data);
  *
  * Similar to bus_find_device.  It returns a reference to a gpio_chip as
  * determined by a user supplied @match callback.  The callback should return
- * 0 if the device doesn't match and non-zero if it does.  If the callback is
- * non-zero, this function will return to the caller and not iterate over any
+ * 0 if the device doesn't match and yesn-zero if it does.  If the callback is
+ * yesn-zero, this function will return to the caller and yest iterate over any
  * more gpio_chips.
  */
 struct gpio_chip *gpiochip_find(void *data,
@@ -1834,7 +1834,7 @@ static void gpiochip_set_cascaded_irqchip(struct gpio_chip *gc,
 	if (parent_handler) {
 		if (gc->can_sleep) {
 			chip_err(gc,
-				 "you cannot have chained interrupts on a chip that may sleep\n");
+				 "you canyest have chained interrupts on a chip that may sleep\n");
 			return;
 		}
 		girq->parents = devm_kcalloc(dev, 1,
@@ -1906,18 +1906,18 @@ static void gpiochip_set_hierarchical_irqchip(struct gpio_chip *gc,
 					      struct irq_chip *irqchip)
 {
 	/* DT will deal with mapping each IRQ as we go along */
-	if (is_of_node(gc->irq.fwnode))
+	if (is_of_yesde(gc->irq.fwyesde))
 		return;
 
 	/*
-	 * This is for legacy and boardfile "irqchip" fwnodes: allocate
+	 * This is for legacy and boardfile "irqchip" fwyesdes: allocate
 	 * irqs upfront instead of dynamically since we don't have the
 	 * dynamic type of allocation that hardware description languages
 	 * provide. Once all GPIO drivers using board files are gone from
 	 * the kernel we can delete this code, but for a transitional period
 	 * it is necessary to keep this around.
 	 */
-	if (is_fwnode_irqchip(gc->irq.fwnode)) {
+	if (is_fwyesde_irqchip(gc->irq.fwyesde)) {
 		int i;
 		int ret;
 
@@ -1929,7 +1929,7 @@ static void gpiochip_set_hierarchical_irqchip(struct gpio_chip *gc,
 
 			/*
 			 * We call the child to parent translation function
-			 * only to check if the child IRQ is valid or not.
+			 * only to check if the child IRQ is valid or yest.
 			 * Just pick the rising edge type here as that is what
 			 * we likely need to support.
 			 */
@@ -1943,7 +1943,7 @@ static void gpiochip_set_hierarchical_irqchip(struct gpio_chip *gc,
 				continue;
 			}
 
-			fwspec.fwnode = gc->irq.fwnode;
+			fwspec.fwyesde = gc->irq.fwyesde;
 			/* This is the hwirq for the GPIO line side of things */
 			fwspec.param[0] = girq->child_offset_to_irq(gc, i);
 			/* Just pick something */
@@ -1959,14 +1959,14 @@ static void gpiochip_set_hierarchical_irqchip(struct gpio_chip *gc,
 						      NULL);
 			if (ret < 0) {
 				chip_err(gc,
-					 "can not allocate irq for GPIO line %d parent hwirq %d in hierarchy domain: %d\n",
+					 "can yest allocate irq for GPIO line %d parent hwirq %d in hierarchy domain: %d\n",
 					 i, parent_hwirq,
 					 ret);
 			}
 		}
 	}
 
-	chip_err(gc, "%s unknown fwnode type proceed anyway\n", __func__);
+	chip_err(gc, "%s unkyeswn fwyesde type proceed anyway\n", __func__);
 
 	return;
 }
@@ -1977,12 +1977,12 @@ static int gpiochip_hierarchy_irq_domain_translate(struct irq_domain *d,
 						   unsigned int *type)
 {
 	/* We support standard DT translation */
-	if (is_of_node(fwspec->fwnode) && fwspec->param_count == 2) {
+	if (is_of_yesde(fwspec->fwyesde) && fwspec->param_count == 2) {
 		return irq_domain_translate_twocell(d, fwspec, hwirq, type);
 	}
 
-	/* This is for board files and others not using DT */
-	if (is_fwnode_irqchip(fwspec->fwnode)) {
+	/* This is for board files and others yest using DT */
+	if (is_fwyesde_irqchip(fwspec->fwyesde)) {
 		int ret;
 
 		ret = irq_domain_translate_twocell(d, fwspec, hwirq, type);
@@ -2011,7 +2011,7 @@ static int gpiochip_hierarchy_irq_domain_alloc(struct irq_domain *d,
 
 	/*
 	 * The nr_irqs parameter is always one except for PCI multi-MSI
-	 * so this should not happen.
+	 * so this should yest happen.
 	 */
 	WARN_ON(nr_irqs != 1);
 
@@ -2047,7 +2047,7 @@ static int gpiochip_hierarchy_irq_domain_alloc(struct irq_domain *d,
 	 * specify the hwirq we address on the parent and tie it
 	 * all together up the chain.
 	 */
-	parent_fwspec.fwnode = d->parent->fwnode;
+	parent_fwspec.fwyesde = d->parent->fwyesde;
 	/* This parent only handles asserted level IRQs */
 	girq->populate_parent_fwspec(gc, &parent_fwspec, parent_hwirq,
 				     parent_type);
@@ -2062,7 +2062,7 @@ static int gpiochip_hierarchy_irq_domain_alloc(struct irq_domain *d,
 	return ret;
 }
 
-static unsigned int gpiochip_child_offset_to_irq_noop(struct gpio_chip *chip,
+static unsigned int gpiochip_child_offset_to_irq_yesop(struct gpio_chip *chip,
 						      unsigned int offset)
 {
 	return offset;
@@ -2087,13 +2087,13 @@ static void gpiochip_hierarchy_setup_domain_ops(struct irq_domain_ops *ops)
 static int gpiochip_hierarchy_add_domain(struct gpio_chip *gc)
 {
 	if (!gc->irq.child_to_parent_hwirq ||
-	    !gc->irq.fwnode) {
+	    !gc->irq.fwyesde) {
 		chip_err(gc, "missing irqdomain vital data\n");
 		return -EINVAL;
 	}
 
 	if (!gc->irq.child_offset_to_irq)
-		gc->irq.child_offset_to_irq = gpiochip_child_offset_to_irq_noop;
+		gc->irq.child_offset_to_irq = gpiochip_child_offset_to_irq_yesop;
 
 	if (!gc->irq.populate_parent_fwspec)
 		gc->irq.populate_parent_fwspec =
@@ -2105,7 +2105,7 @@ static int gpiochip_hierarchy_add_domain(struct gpio_chip *gc)
 		gc->irq.parent_domain,
 		0,
 		gc->ngpio,
-		gc->irq.fwnode,
+		gc->irq.fwyesde,
 		&gc->irq.child_irq_domain_ops,
 		gc);
 
@@ -2189,7 +2189,7 @@ int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 	/* Chips that use nested thread handlers have them marked */
 	if (chip->irq.threaded)
 		irq_set_nested_thread(irq, 1);
-	irq_set_noprobe(irq);
+	irq_set_yesprobe(irq);
 
 	if (chip->irq.num_parents == 1)
 		ret = irq_set_parent(irq, chip->irq.parents[0]);
@@ -2281,7 +2281,7 @@ static int gpiochip_to_irq(struct gpio_chip *chip, unsigned offset)
 	if (irq_domain_is_hierarchy(domain)) {
 		struct irq_fwspec spec;
 
-		spec.fwnode = domain->fwnode;
+		spec.fwyesde = domain->fwyesde;
 		spec.param_count = 2;
 		spec.param[0] = chip->irq.child_offset_to_irq(chip, offset);
 		spec.param[1] = IRQ_TYPE_NONE;
@@ -2368,7 +2368,7 @@ static int gpiochip_add_irqchip(struct gpio_chip *gpiochip,
 {
 	struct irq_chip *irqchip = gpiochip->irq.chip;
 	const struct irq_domain_ops *ops = NULL;
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned int type;
 	unsigned int i;
 
@@ -2376,11 +2376,11 @@ static int gpiochip_add_irqchip(struct gpio_chip *gpiochip,
 		return 0;
 
 	if (gpiochip->irq.parent_handler && gpiochip->can_sleep) {
-		chip_err(gpiochip, "you cannot have chained interrupts on a chip that may sleep\n");
+		chip_err(gpiochip, "you canyest have chained interrupts on a chip that may sleep\n");
 		return -EINVAL;
 	}
 
-	np = gpiochip->gpiodev->dev.of_node;
+	np = gpiochip->gpiodev->dev.of_yesde;
 	type = gpiochip->irq.default_type;
 
 	/*
@@ -2389,12 +2389,12 @@ static int gpiochip_add_irqchip(struct gpio_chip *gpiochip,
 	 * conflicting triggers. Tell the user, and reset to NONE.
 	 */
 	if (WARN(np && type != IRQ_TYPE_NONE,
-		 "%s: Ignoring %u default trigger\n", np->full_name, type))
+		 "%s: Igyesring %u default trigger\n", np->full_name, type))
 		type = IRQ_TYPE_NONE;
 
 	if (has_acpi_companion(gpiochip->parent) && type != IRQ_TYPE_NONE) {
 		acpi_handle_warn(ACPI_HANDLE(gpiochip->parent),
-				 "Ignoring %u default trigger\n", type);
+				 "Igyesring %u default trigger\n", type);
 		type = IRQ_TYPE_NONE;
 	}
 
@@ -2503,7 +2503,7 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
  * gpiochip_irqchip_add_key() - adds an irqchip to a gpiochip
  * @gpiochip: the gpiochip to add the irqchip to
  * @irqchip: the irqchip to add to the gpiochip
- * @first_irq: if not dynamically assigned, the base (first) IRQ to
+ * @first_irq: if yest dynamically assigned, the base (first) IRQ to
  * allocate gpiochip irqs from
  * @handler: the irq handler to use (often a predefined irq core function)
  * @type: the default type for IRQs on this irqchip, pass IRQ_TYPE_NONE
@@ -2535,7 +2535,7 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 			     struct lock_class_key *lock_key,
 			     struct lock_class_key *request_key)
 {
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 
 	if (!gpiochip || !irqchip)
 		return -EINVAL;
@@ -2545,27 +2545,27 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 		return -EINVAL;
 	}
 	gpiochip->irq.threaded = threaded;
-	of_node = gpiochip->parent->of_node;
+	of_yesde = gpiochip->parent->of_yesde;
 #ifdef CONFIG_OF_GPIO
 	/*
-	 * If the gpiochip has an assigned OF node this takes precedence
-	 * FIXME: get rid of this and use gpiochip->parent->of_node
+	 * If the gpiochip has an assigned OF yesde this takes precedence
+	 * FIXME: get rid of this and use gpiochip->parent->of_yesde
 	 * everywhere
 	 */
-	if (gpiochip->of_node)
-		of_node = gpiochip->of_node;
+	if (gpiochip->of_yesde)
+		of_yesde = gpiochip->of_yesde;
 #endif
 	/*
 	 * Specifying a default trigger is a terrible idea if DT or ACPI is
 	 * used to configure the interrupts, as you may end-up with
 	 * conflicting triggers. Tell the user, and reset to NONE.
 	 */
-	if (WARN(of_node && type != IRQ_TYPE_NONE,
-		 "%pOF: Ignoring %d default trigger\n", of_node, type))
+	if (WARN(of_yesde && type != IRQ_TYPE_NONE,
+		 "%pOF: Igyesring %d default trigger\n", of_yesde, type))
 		type = IRQ_TYPE_NONE;
 	if (has_acpi_companion(gpiochip->parent) && type != IRQ_TYPE_NONE) {
 		acpi_handle_warn(ACPI_HANDLE(gpiochip->parent),
-				 "Ignoring %d default trigger\n", type);
+				 "Igyesring %d default trigger\n", type);
 		type = IRQ_TYPE_NONE;
 	}
 
@@ -2575,7 +2575,7 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 	gpiochip->to_irq = gpiochip_to_irq;
 	gpiochip->irq.lock_key = lock_key;
 	gpiochip->irq.request_key = request_key;
-	gpiochip->irq.domain = irq_domain_add_simple(of_node,
+	gpiochip->irq.domain = irq_domain_add_simple(of_yesde,
 					gpiochip->ngpio, first_irq,
 					&gpiochip_domain_ops, gpiochip);
 	if (!gpiochip->irq.domain) {
@@ -2699,7 +2699,7 @@ int gpiochip_add_pingroup_range(struct gpio_chip *chip,
 		 gpio_offset, gpio_offset + pin_range->range.npins - 1,
 		 pinctrl_dev_get_devname(pctldev), pin_group);
 
-	list_add_tail(&pin_range->node, &gdev->pin_ranges);
+	list_add_tail(&pin_range->yesde, &gdev->pin_ranges);
 
 	return 0;
 }
@@ -2747,7 +2747,7 @@ int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 			&pin_range->range);
 	if (IS_ERR(pin_range->pctldev)) {
 		ret = PTR_ERR(pin_range->pctldev);
-		chip_err(chip, "could not create pin range\n");
+		chip_err(chip, "could yest create pin range\n");
 		kfree(pin_range);
 		return ret;
 	}
@@ -2756,7 +2756,7 @@ int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 		 pinctl_name,
 		 pin_offset, pin_offset + npins - 1);
 
-	list_add_tail(&pin_range->node, &gdev->pin_ranges);
+	list_add_tail(&pin_range->yesde, &gdev->pin_ranges);
 
 	return 0;
 }
@@ -2771,8 +2771,8 @@ void gpiochip_remove_pin_ranges(struct gpio_chip *chip)
 	struct gpio_pin_range *pin_range, *tmp;
 	struct gpio_device *gdev = chip->gpiodev;
 
-	list_for_each_entry_safe(pin_range, tmp, &gdev->pin_ranges, node) {
-		list_del(&pin_range->node);
+	list_for_each_entry_safe(pin_range, tmp, &gdev->pin_ranges, yesde) {
+		list_del(&pin_range->yesde);
 		pinctrl_remove_gpio_range(pin_range->pctldev,
 				&pin_range->range);
 		kfree(pin_range);
@@ -2783,7 +2783,7 @@ EXPORT_SYMBOL_GPL(gpiochip_remove_pin_ranges);
 #endif /* CONFIG_PINCTRL */
 
 /* These "optional" allocation calls help prevent drivers from stomping
- * on each other, and help provide better diagnostics in debugfs.
+ * on each other, and help provide better diagyesstics in debugfs.
  * They're called even less than the "set direction" calls.
  */
 static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
@@ -2802,7 +2802,7 @@ static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 	spin_lock_irqsave(&gpio_lock, flags);
 
 	/* NOTE:  gpio_request() can be called in early boot,
-	 * before IRQs are enabled, for non-sleeping (SOC) GPIOs.
+	 * before IRQs are enabled, for yesn-sleeping (SOC) GPIOs.
 	 */
 
 	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0) {
@@ -2857,7 +2857,7 @@ static int validate_desc(const struct gpio_desc *desc, const char *func)
 		return PTR_ERR(desc);
 	}
 	if (!desc->gdev) {
-		pr_warn("%s: invalid GPIO (no device)\n", func);
+		pr_warn("%s: invalid GPIO (yes device)\n", func);
 		return -EINVAL;
 	}
 	if (!desc->gdev->chip) {
@@ -2954,13 +2954,13 @@ void gpiod_free(struct gpio_desc *desc)
  * @chip: controller managing the signal
  * @offset: of signal within controller's 0..(ngpio - 1) range
  *
- * Returns NULL if the GPIO is not currently requested, else a string.
- * The string returned is the label passed to gpio_request(); if none has been
- * passed it is a meaningless, non-NULL constant.
+ * Returns NULL if the GPIO is yest currently requested, else a string.
+ * The string returned is the label passed to gpio_request(); if yesne has been
+ * passed it is a meaningless, yesn-NULL constant.
  *
  * This function is for use by GPIO controller drivers.  The label can
- * help with diagnostics, and knowing that the signal is used as a GPIO
- * can help avoid accidentally multiplexing it to another controller.
+ * help with diagyesstics, and kyeswing that the signal is used as a GPIO
+ * can help avoid accidentally multiplexing it to ayesther controller.
  */
 const char *gpiochip_is_requested(struct gpio_chip *chip, unsigned offset)
 {
@@ -2990,7 +2990,7 @@ EXPORT_SYMBOL_GPL(gpiochip_is_requested);
  *
  * Function allows GPIO chip drivers to request and use their own GPIO
  * descriptors via gpiolib API. Difference to gpiod_request() is that this
- * function will not increase reference count of the GPIO chip module. This
+ * function will yest increase reference count of the GPIO chip module. This
  * allows the GPIO chip module to be unloaded as needed (we assume that the
  * GPIO chip driver handles freeing the GPIOs it has requested).
  *
@@ -3109,9 +3109,9 @@ int gpiod_direction_input(struct gpio_desc *desc)
 	chip = desc->gdev->chip;
 
 	/*
-	 * It is legal to have no .get() and .direction_input() specified if
+	 * It is legal to have yes .get() and .direction_input() specified if
 	 * the chip is output-only, but you can't specify .direction_input()
-	 * and not support the .get() operation, that doesn't make sense.
+	 * and yest support the .get() operation, that doesn't make sense.
 	 */
 	if (!chip->get && chip->direction_input) {
 		gpiod_warn(desc,
@@ -3153,8 +3153,8 @@ static int gpiod_direction_output_raw_commit(struct gpio_desc *desc, int value)
 	int ret = 0;
 
 	/*
-	 * It's OK not to specify .direction_output() if the gpiochip is
-	 * output-only, but if there is then not even a .set() operation it
+	 * It's OK yest to specify .direction_output() if the gpiochip is
+	 * output-only, but if there is then yest even a .set() operation it
 	 * is pretty tricky to drive the output line.
 	 */
 	if (!gc->set && !gc->direction_output) {
@@ -3230,7 +3230,7 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 	else
 		value = !!value;
 
-	/* GPIOs used for enabled IRQs shall not be set as output */
+	/* GPIOs used for enabled IRQs shall yest be set as output */
 	if (test_bit(FLAG_USED_AS_IRQ, &desc->flags) &&
 	    test_bit(FLAG_IRQ_IS_ENABLED, &desc->flags)) {
 		gpiod_err(desc,
@@ -3246,7 +3246,7 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 				      PIN_CONFIG_DRIVE_OPEN_DRAIN);
 		if (!ret)
 			goto set_output_value;
-		/* Emulate open drain by not actively driving the line high */
+		/* Emulate open drain by yest actively driving the line high */
 		if (value) {
 			ret = gpiod_direction_input(desc);
 			goto set_output_flag;
@@ -3257,7 +3257,7 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 				      PIN_CONFIG_DRIVE_OPEN_SOURCE);
 		if (!ret)
 			goto set_output_value;
-		/* Emulate open source by not actively driving the line low */
+		/* Emulate open source by yest actively driving the line low */
 		if (!value) {
 			ret = gpiod_direction_input(desc);
 			goto set_output_flag;
@@ -3275,7 +3275,7 @@ set_output_value:
 
 set_output_flag:
 	/*
-	 * When emulating open-source or open-drain functionalities by not
+	 * When emulating open-source or open-drain functionalities by yest
 	 * actively driving the line (setting mode to input) we still need to
 	 * set the IS_OUT flag or otherwise we won't be able to set the line
 	 * value anymore.
@@ -3339,7 +3339,7 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory)
 	else
 		clear_bit(FLAG_TRANSITORY, &desc->flags);
 
-	/* If the driver supports it, set the persistence state now */
+	/* If the driver supports it, set the persistence state yesw */
 	chip = desc->gdev->chip;
 	if (!chip->set_config)
 		return 0;
@@ -3349,7 +3349,7 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory)
 	gpio = gpio_chip_hwgpio(desc);
 	rc = chip->set_config(chip, gpio, packed);
 	if (rc == -ENOTSUPP) {
-		dev_dbg(&desc->gdev->dev, "Persistence not supported for GPIO %d\n",
+		dev_dbg(&desc->gdev->dev, "Persistence yest supported for GPIO %d\n",
 				gpio);
 		return 0;
 	}
@@ -3359,7 +3359,7 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory)
 EXPORT_SYMBOL_GPL(gpiod_set_transitory);
 
 /**
- * gpiod_is_active_low - test whether a GPIO is active-low or not
+ * gpiod_is_active_low - test whether a GPIO is active-low or yest
  * @desc: the gpio descriptor to test
  *
  * Returns 1 if the GPIO is active-low, 0 otherwise.
@@ -3386,7 +3386,7 @@ EXPORT_SYMBOL_GPL(gpiod_is_active_low);
  * IMPORTANT!!!  The hot paths -- get/set value -- assume that callers
  * have requested the GPIO.  That can include implicit requesting by
  * a direction setting call.  Marking a gpio as requested locks its chip
- * in memory, guaranteeing that these table lookups need no more locking
+ * in memory, guaranteeing that these table lookups need yes more locking
  * and that gpiochip_remove() will fail.
  *
  * REVISIT when debugging, consider adding some instrumentation to ensure
@@ -3534,9 +3534,9 @@ int gpiod_get_array_value_complex(bool raw, bool can_sleep,
  * @desc: gpio whose value will be returned
  *
  * Return the GPIO's raw value, i.e. the value of the physical line disregarding
- * its ACTIVE_LOW status, or negative errno on failure.
+ * its ACTIVE_LOW status, or negative erryes on failure.
  *
- * This function can be called from contexts where we cannot sleep, and will
+ * This function can be called from contexts where we canyest sleep, and will
  * complain if the GPIO chip functions potentially sleep.
  */
 int gpiod_get_raw_value(const struct gpio_desc *desc)
@@ -3553,9 +3553,9 @@ EXPORT_SYMBOL_GPL(gpiod_get_raw_value);
  * @desc: gpio whose value will be returned
  *
  * Return the GPIO's logical value, i.e. taking the ACTIVE_LOW status into
- * account, or negative errno on failure.
+ * account, or negative erryes on failure.
  *
- * This function can be called from contexts where we cannot sleep, and will
+ * This function can be called from contexts where we canyest sleep, and will
  * complain if the GPIO chip functions potentially sleep.
  */
 int gpiod_get_value(const struct gpio_desc *desc)
@@ -3588,7 +3588,7 @@ EXPORT_SYMBOL_GPL(gpiod_get_value);
  * without regard for their ACTIVE_LOW status.  Return 0 in case of success,
  * else an error code.
  *
- * This function can be called from contexts where we cannot sleep,
+ * This function can be called from contexts where we canyest sleep,
  * and it will complain if the GPIO chip functions potentially sleep.
  */
 int gpiod_get_raw_array_value(unsigned int array_size,
@@ -3614,7 +3614,7 @@ EXPORT_SYMBOL_GPL(gpiod_get_raw_array_value);
  * Read the logical values of the GPIOs, i.e. taking their ACTIVE_LOW status
  * into account.  Return 0 in case of success, else an error code.
  *
- * This function can be called from contexts where we cannot sleep,
+ * This function can be called from contexts where we canyest sleep,
  * and it will complain if the GPIO chip functions potentially sleep.
  */
 int gpiod_get_array_value(unsigned int array_size,
@@ -3774,7 +3774,7 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 			int value = test_bit(i, value_bitmap);
 
 			/*
-			 * Pins applicable for fast input but not for
+			 * Pins applicable for fast input but yest for
 			 * fast output processing may have been already
 			 * inverted inside the fast path, skip them.
 			 */
@@ -3784,7 +3784,7 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 				value = !value;
 			trace_gpio_value(desc_to_gpio(desc), 0, value);
 			/*
-			 * collect all normal outputs belonging to the same chip
+			 * collect all yesrmal outputs belonging to the same chip
 			 * open drain and open source outputs are set individually
 			 */
 			if (test_bit(FLAG_OPEN_DRAIN, &desc->flags) && !raw) {
@@ -3824,7 +3824,7 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
  * Set the raw value of the GPIO, i.e. the value of its physical line without
  * regard for its ACTIVE_LOW status.
  *
- * This function can be called from contexts where we cannot sleep, and will
+ * This function can be called from contexts where we canyest sleep, and will
  * complain if the GPIO chip functions potentially sleep.
  */
 void gpiod_set_raw_value(struct gpio_desc *desc, int value)
@@ -3837,7 +3837,7 @@ void gpiod_set_raw_value(struct gpio_desc *desc, int value)
 EXPORT_SYMBOL_GPL(gpiod_set_raw_value);
 
 /**
- * gpiod_set_value_nocheck() - set a GPIO line value without checking
+ * gpiod_set_value_yescheck() - set a GPIO line value without checking
  * @desc: the descriptor to set the value on
  * @value: value to set
  *
@@ -3845,7 +3845,7 @@ EXPORT_SYMBOL_GPL(gpiod_set_raw_value);
  * different semantic quirks like active low and open drain/source
  * handling.
  */
-static void gpiod_set_value_nocheck(struct gpio_desc *desc, int value)
+static void gpiod_set_value_yescheck(struct gpio_desc *desc, int value)
 {
 	if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
 		value = !value;
@@ -3865,7 +3865,7 @@ static void gpiod_set_value_nocheck(struct gpio_desc *desc, int value)
  * Set the logical value of the GPIO, i.e. taking its ACTIVE_LOW,
  * OPEN_DRAIN and OPEN_SOURCE flags into account.
  *
- * This function can be called from contexts where we cannot sleep, and will
+ * This function can be called from contexts where we canyest sleep, and will
  * complain if the GPIO chip functions potentially sleep.
  */
 void gpiod_set_value(struct gpio_desc *desc, int value)
@@ -3873,7 +3873,7 @@ void gpiod_set_value(struct gpio_desc *desc, int value)
 	VALIDATE_DESC_VOID(desc);
 	/* Should be using gpiod_set_value_cansleep() */
 	WARN_ON(desc->gdev->chip->can_sleep);
-	gpiod_set_value_nocheck(desc, value);
+	gpiod_set_value_yescheck(desc, value);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_value);
 
@@ -3887,7 +3887,7 @@ EXPORT_SYMBOL_GPL(gpiod_set_value);
  * Set the raw values of the GPIOs, i.e. the values of the physical lines
  * without regard for their ACTIVE_LOW status.
  *
- * This function can be called from contexts where we cannot sleep, and will
+ * This function can be called from contexts where we canyest sleep, and will
  * complain if the GPIO chip functions potentially sleep.
  */
 int gpiod_set_raw_array_value(unsigned int array_size,
@@ -3912,7 +3912,7 @@ EXPORT_SYMBOL_GPL(gpiod_set_raw_array_value);
  * Set the logical values of the GPIOs, i.e. taking their ACTIVE_LOW status
  * into account.
  *
- * This function can be called from contexts where we cannot sleep, and will
+ * This function can be called from contexts where we canyest sleep, and will
  * complain if the GPIO chip functions potentially sleep.
  */
 int gpiod_set_array_value(unsigned int array_size,
@@ -3974,8 +3974,8 @@ int gpiod_to_irq(const struct gpio_desc *desc)
 	int offset;
 
 	/*
-	 * Cannot VALIDATE_DESC() here as gpiod_to_irq() consumer semantics
-	 * requires this function to not return zero on an invalid descriptor
+	 * Canyest VALIDATE_DESC() here as gpiod_to_irq() consumer semantics
+	 * requires this function to yest return zero on an invalid descriptor
 	 * but rather a negative error number.
 	 */
 	if (!desc || IS_ERR(desc) || !desc->gdev || !desc->gdev->chip)
@@ -4020,7 +4020,7 @@ int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
 		int dir = gpiod_get_direction(desc);
 
 		if (dir < 0) {
-			chip_err(chip, "%s: cannot get GPIO direction\n",
+			chip_err(chip, "%s: canyest get GPIO direction\n",
 				 __func__);
 			return dir;
 		}
@@ -4037,7 +4037,7 @@ int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
 	set_bit(FLAG_IRQ_IS_ENABLED, &desc->flags);
 
 	/*
-	 * If the consumer has not set up a label (such as when the
+	 * If the consumer has yest set up a label (such as when the
 	 * IRQ is referenced from .to_irq()) we set up a label here
 	 * so it is clear this is used as an interrupt.
 	 */
@@ -4054,7 +4054,7 @@ EXPORT_SYMBOL_GPL(gpiochip_lock_as_irq);
  * @offset: the offset of the GPIO to lock as IRQ
  *
  * This is used directly by GPIO drivers that want to indicate
- * that a certain GPIO is no longer used exclusively for IRQ.
+ * that a certain GPIO is yes longer used exclusively for IRQ.
  */
 void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset)
 {
@@ -4160,7 +4160,7 @@ EXPORT_SYMBOL_GPL(gpiochip_line_is_persistent);
  * @desc: gpio whose value will be returned
  *
  * Return the GPIO's raw value, i.e. the value of the physical line disregarding
- * its ACTIVE_LOW status, or negative errno on failure.
+ * its ACTIVE_LOW status, or negative erryes on failure.
  *
  * This function is to be called from contexts that can sleep.
  */
@@ -4177,7 +4177,7 @@ EXPORT_SYMBOL_GPL(gpiod_get_raw_value_cansleep);
  * @desc: gpio whose value will be returned
  *
  * Return the GPIO's logical value, i.e. taking the ACTIVE_LOW status into
- * account, or negative errno on failure.
+ * account, or negative erryes on failure.
  *
  * This function is to be called from contexts that can sleep.
  */
@@ -4283,7 +4283,7 @@ void gpiod_set_value_cansleep(struct gpio_desc *desc, int value)
 {
 	might_sleep_if(extra_checks);
 	VALIDATE_DESC_VOID(desc);
-	gpiod_set_value_nocheck(desc, value);
+	gpiod_set_value_yescheck(desc, value);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_value_cansleep);
 
@@ -4399,7 +4399,7 @@ void gpiod_add_hogs(struct gpiod_hog *hogs)
 
 		/*
 		 * The chip may have been registered earlier, so check if it
-		 * exists and, if so, try to hog the line now.
+		 * exists and, if so, try to hog the line yesw.
 		 */
 		chip = find_chip_by_name(hog->chip_label);
 		if (chip)
@@ -4473,7 +4473,7 @@ static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 			 * consumer be probed again or let the Deferred
 			 * Probe infrastructure handle the error.
 			 */
-			dev_warn(dev, "cannot find GPIO chip %s, deferring\n",
+			dev_warn(dev, "canyest find GPIO chip %s, deferring\n",
 				 p->chip_label);
 			return ERR_PTR(-EPROBE_DEFER);
 		}
@@ -4517,8 +4517,8 @@ static int platform_gpio_count(struct device *dev, const char *con_id)
 }
 
 /**
- * fwnode_gpiod_get_index - obtain a GPIO from firmware node
- * @fwnode:	handle of the firmware node
+ * fwyesde_gpiod_get_index - obtain a GPIO from firmware yesde
+ * @fwyesde:	handle of the firmware yesde
  * @con_id:	function within the GPIO consumer
  * @index:	index of the GPIO to obtain for the consumer
  * @flags:	GPIO initialization flags
@@ -4537,7 +4537,7 @@ static int platform_gpio_count(struct device *dev, const char *con_id)
  *
  * In case of error an ERR_PTR() is returned.
  */
-struct gpio_desc *fwnode_gpiod_get_index(struct fwnode_handle *fwnode,
+struct gpio_desc *fwyesde_gpiod_get_index(struct fwyesde_handle *fwyesde,
 					 const char *con_id, int index,
 					 enum gpiod_flags flags,
 					 const char *label)
@@ -4554,7 +4554,7 @@ struct gpio_desc *fwnode_gpiod_get_index(struct fwnode_handle *fwnode,
 			snprintf(prop_name, sizeof(prop_name), "%s",
 					    gpio_suffixes[i]);
 
-		desc = fwnode_get_named_gpiod(fwnode, prop_name, index, flags,
+		desc = fwyesde_get_named_gpiod(fwyesde, prop_name, index, flags,
 					      label);
 		if (!IS_ERR(desc) || (PTR_ERR(desc) != -ENOENT))
 			break;
@@ -4562,11 +4562,11 @@ struct gpio_desc *fwnode_gpiod_get_index(struct fwnode_handle *fwnode,
 
 	return desc;
 }
-EXPORT_SYMBOL_GPL(fwnode_gpiod_get_index);
+EXPORT_SYMBOL_GPL(fwyesde_gpiod_get_index);
 
 /**
  * gpiod_count - return the number of GPIOs associated with a device / function
- *		or -ENOENT if no GPIO has been assigned to the requested function
+ *		or -ENOENT if yes GPIO has been assigned to the requested function
  * @dev:	GPIO consumer, can be NULL for system-global GPIOs
  * @con_id:	function within the GPIO consumer
  */
@@ -4574,7 +4574,7 @@ int gpiod_count(struct device *dev, const char *con_id)
 {
 	int count = -ENOENT;
 
-	if (IS_ENABLED(CONFIG_OF) && dev && dev->of_node)
+	if (IS_ENABLED(CONFIG_OF) && dev && dev->of_yesde)
 		count = of_gpio_get_count(dev, con_id);
 	else if (IS_ENABLED(CONFIG_ACPI) && dev && ACPI_HANDLE(dev))
 		count = acpi_gpio_count(dev, con_id);
@@ -4593,8 +4593,8 @@ EXPORT_SYMBOL_GPL(gpiod_count);
  * @flags:	optional GPIO initialization flags
  *
  * Return the GPIO descriptor corresponding to the function con_id of device
- * dev, -ENOENT if no GPIO has been assigned to the requested function, or
- * another IS_ERR() code if an error occurred while trying to acquire the GPIO.
+ * dev, -ENOENT if yes GPIO has been assigned to the requested function, or
+ * ayesther IS_ERR() code if an error occurred while trying to acquire the GPIO.
  */
 struct gpio_desc *__must_check gpiod_get(struct device *dev, const char *con_id,
 					 enum gpiod_flags flags)
@@ -4609,7 +4609,7 @@ EXPORT_SYMBOL_GPL(gpiod_get);
  * @con_id: function within the GPIO consumer
  * @flags: optional GPIO initialization flags
  *
- * This is equivalent to gpiod_get(), except that when no GPIO was assigned to
+ * This is equivalent to gpiod_get(), except that when yes GPIO was assigned to
  * the requested function it will return NULL. This is convenient for drivers
  * that need to handle optional GPIOs.
  */
@@ -4630,8 +4630,8 @@ EXPORT_SYMBOL_GPL(gpiod_get_optional);
  *		of_find_gpio() or of_get_gpio_hog()
  * @dflags:	gpiod_flags - optional GPIO initialization flags
  *
- * Return 0 on success, -ENOENT if no GPIO has been assigned to the
- * requested function and/or index, or another IS_ERR() code if an error
+ * Return 0 on success, -ENOENT if yes GPIO has been assigned to the
+ * requested function and/or index, or ayesther IS_ERR() code if an error
  * occurred while trying to acquire the GPIO.
  */
 int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
@@ -4676,7 +4676,7 @@ int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
 
 	/* No particular flag request, return here... */
 	if (!(dflags & GPIOD_FLAGS_BIT_DIR_SET)) {
-		pr_debug("no flags found for %s\n", con_id);
+		pr_debug("yes flags found for %s\n", con_id);
 		return 0;
 	}
 
@@ -4700,8 +4700,8 @@ int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
  * This variant of gpiod_get() allows to access GPIOs other than the first
  * defined one for functions that define several GPIOs.
  *
- * Return a valid GPIO descriptor, -ENOENT if no GPIO has been assigned to the
- * requested function and/or index, or another IS_ERR() code if an error
+ * Return a valid GPIO descriptor, -ENOENT if yes GPIO has been assigned to the
+ * requested function and/or index, or ayesther IS_ERR() code if an error
  * occurred while trying to acquire the GPIO.
  */
 struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
@@ -4712,14 +4712,14 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	unsigned long lookupflags = GPIO_LOOKUP_FLAGS_DEFAULT;
 	struct gpio_desc *desc = NULL;
 	int ret;
-	/* Maybe we have a device name, maybe not */
+	/* Maybe we have a device name, maybe yest */
 	const char *devname = dev ? dev_name(dev) : "?";
 
 	dev_dbg(dev, "GPIO lookup for consumer %s\n", con_id);
 
 	if (dev) {
 		/* Using device tree? */
-		if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+		if (IS_ENABLED(CONFIG_OF) && dev->of_yesde) {
 			dev_dbg(dev, "using device tree for GPIO lookup\n");
 			desc = of_find_gpio(dev, con_id, idx, &lookupflags);
 		} else if (ACPI_COMPANION(dev)) {
@@ -4729,7 +4729,7 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	}
 
 	/*
-	 * Either we are not using DT or ACPI, or their lookup did not return
+	 * Either we are yest using DT or ACPI, or their lookup did yest return
 	 * a result. In that case, use platform lookup as a fallback.
 	 */
 	if (!desc || desc == ERR_PTR(-ENOENT)) {
@@ -4757,7 +4757,7 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 			 *
 			 * FIXME: Make this more sane and safe.
 			 */
-			dev_info(dev, "nonexclusive access to GPIO for %s\n",
+			dev_info(dev, "yesnexclusive access to GPIO for %s\n",
 				 con_id ? con_id : devname);
 			return desc;
 		} else {
@@ -4777,8 +4777,8 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 EXPORT_SYMBOL_GPL(gpiod_get_index);
 
 /**
- * fwnode_get_named_gpiod - obtain a GPIO from firmware node
- * @fwnode:	handle of the firmware node
+ * fwyesde_get_named_gpiod - obtain a GPIO from firmware yesde
+ * @fwyesde:	handle of the firmware yesde
  * @propname:	name of the firmware property representing the GPIO
  * @index:	index of the GPIO to obtain for the consumer
  * @dflags:	GPIO initialization flags
@@ -4797,7 +4797,7 @@ EXPORT_SYMBOL_GPL(gpiod_get_index);
  *
  * In case of error an ERR_PTR() is returned.
  */
-struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
+struct gpio_desc *fwyesde_get_named_gpiod(struct fwyesde_handle *fwyesde,
 					 const char *propname, int index,
 					 enum gpiod_flags dflags,
 					 const char *label)
@@ -4806,19 +4806,19 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	struct gpio_desc *desc = ERR_PTR(-ENODEV);
 	int ret;
 
-	if (!fwnode)
+	if (!fwyesde)
 		return ERR_PTR(-EINVAL);
 
-	if (is_of_node(fwnode)) {
-		desc = gpiod_get_from_of_node(to_of_node(fwnode),
+	if (is_of_yesde(fwyesde)) {
+		desc = gpiod_get_from_of_yesde(to_of_yesde(fwyesde),
 					      propname, index,
 					      dflags,
 					      label);
 		return desc;
-	} else if (is_acpi_node(fwnode)) {
+	} else if (is_acpi_yesde(fwyesde)) {
 		struct acpi_gpio_info info;
 
-		desc = acpi_node_get_gpiod(fwnode, propname, index, &info);
+		desc = acpi_yesde_get_gpiod(fwyesde, propname, index, &info);
 		if (IS_ERR(desc))
 			return desc;
 
@@ -4839,7 +4839,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 
 	return desc;
 }
-EXPORT_SYMBOL_GPL(fwnode_get_named_gpiod);
+EXPORT_SYMBOL_GPL(fwyesde_get_named_gpiod);
 
 /**
  * gpiod_get_index_optional - obtain an optional GPIO from a multi-index GPIO
@@ -4849,7 +4849,7 @@ EXPORT_SYMBOL_GPL(fwnode_get_named_gpiod);
  * @index: index of the GPIO to obtain in the consumer
  * @flags: optional GPIO initialization flags
  *
- * This is equivalent to gpiod_get_index(), except that when no GPIO with the
+ * This is equivalent to gpiod_get_index(), except that when yes GPIO with the
  * specified index was assigned to the requested function it will return NULL.
  * This is convenient for drivers that need to handle optional GPIOs.
  */
@@ -4933,7 +4933,7 @@ static void gpiochip_free_hogs(struct gpio_chip *chip)
  * This function acquires all the GPIOs defined under a given function.
  *
  * Return a struct gpio_descs containing an array of descriptors, -ENOENT if
- * no GPIO has been assigned to the requested function, or another IS_ERR()
+ * yes GPIO has been assigned to the requested function, or ayesther IS_ERR()
  * code if an error occurred while trying to acquire the GPIOs.
  */
 struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
@@ -5009,7 +5009,7 @@ struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
 		}
 		/*
 		 * Detect array members which belong to the 'fast' chip
-		 * but their pins are not in hardware order.
+		 * but their pins are yest in hardware order.
 		 */
 		else if (array_info &&
 			   gpio_chip_hwgpio(desc) != descs->ndescs) {
@@ -5057,7 +5057,7 @@ EXPORT_SYMBOL_GPL(gpiod_get_array);
  * @con_id:	function within the GPIO consumer
  * @flags:	optional GPIO initialization flags
  *
- * This is equivalent to gpiod_get_array(), except that when no GPIO was
+ * This is equivalent to gpiod_get_array(), except that when yes GPIO was
  * assigned to the requested function it will return NULL.
  */
 struct gpio_descs *__must_check gpiod_get_array_optional(struct device *dev,
@@ -5109,7 +5109,7 @@ static int __init gpiolib_dev_init(void)
 	/* Register GPIO sysfs bus */
 	ret = bus_register(&gpio_bus_type);
 	if (ret < 0) {
-		pr_err("gpiolib: could not register GPIO bus type\n");
+		pr_err("gpiolib: could yest register GPIO bus type\n");
 		return ret;
 	}
 
@@ -5220,7 +5220,7 @@ static int gpiolib_seq_show(struct seq_file *s, void *v)
 	parent = chip->parent;
 	if (parent)
 		seq_printf(s, ", parent: %s/%s",
-			   parent->bus ? parent->bus->name : "no-bus",
+			   parent->bus ? parent->bus->name : "yes-bus",
 			   dev_name(parent));
 	if (chip->label)
 		seq_printf(s, ", %s", chip->label);
@@ -5243,7 +5243,7 @@ static const struct seq_operations gpiolib_seq_ops = {
 	.show = gpiolib_seq_show,
 };
 
-static int gpiolib_open(struct inode *inode, struct file *file)
+static int gpiolib_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &gpiolib_seq_ops);
 }

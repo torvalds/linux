@@ -24,7 +24,7 @@
 #include <linux/timer.h>
 #include <linux/security.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netlink.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
@@ -904,21 +904,21 @@ static int ctnetlink_filter_match(struct nf_conn *ct, void *data)
 		goto out;
 
 	/* Match entries of a given L3 protocol number.
-	 * If it is not specified, ie. l3proto == 0,
+	 * If it is yest specified, ie. l3proto == 0,
 	 * then match everything.
 	 */
 	if (filter->family && nf_ct_l3num(ct) != filter->family)
-		goto ignore_entry;
+		goto igyesre_entry;
 
 #ifdef CONFIG_NF_CONNTRACK_MARK
 	if ((ct->mark & filter->mark.mask) != filter->mark.val)
-		goto ignore_entry;
+		goto igyesre_entry;
 #endif
 
 out:
 	return 1;
 
-ignore_entry:
+igyesre_entry:
 	return 0;
 }
 
@@ -928,7 +928,7 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net *net = sock_net(skb->sk);
 	struct nf_conn *ct, *last;
 	struct nf_conntrack_tuple_hash *h;
-	struct hlist_nulls_node *n;
+	struct hlist_nulls_yesde *n;
 	struct nf_conn *nf_ct_evict[8];
 	int res, i;
 	spinlock_t *lockp;
@@ -953,13 +953,13 @@ restart:
 			goto out;
 		}
 		hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[cb->args[0]],
-					   hnnode) {
+					   hnyesde) {
 			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
 			ct = nf_ct_tuplehash_to_ctrack(h);
 			if (nf_ct_is_expired(ct)) {
 				if (i < ARRAY_SIZE(nf_ct_evict) &&
-				    atomic_inc_not_zero(&ct->ct_general.use))
+				    atomic_inc_yest_zero(&ct->ct_general.use))
 					nf_ct_evict[i++] = ct;
 				continue;
 			}
@@ -996,7 +996,7 @@ restart:
 out:
 	local_bh_enable();
 	if (last) {
-		/* nf ct hash resize happened, now clear the leftover. */
+		/* nf ct hash resize happened, yesw clear the leftover. */
 		if ((struct nf_conn *)cb->args[1] == last)
 			cb->args[1] = 0;
 
@@ -1415,7 +1415,7 @@ ctnetlink_dump_list(struct sk_buff *skb, struct netlink_callback *cb, bool dying
 {
 	struct nf_conn *ct, *last;
 	struct nf_conntrack_tuple_hash *h;
-	struct hlist_nulls_node *n;
+	struct hlist_nulls_yesde *n;
 	struct nfgenmsg *nfmsg = nlmsg_data(cb->nlh);
 	u_int8_t l3proto = nfmsg->nfgen_family;
 	int res;
@@ -1438,7 +1438,7 @@ ctnetlink_dump_list(struct sk_buff *skb, struct netlink_callback *cb, bool dying
 		spin_lock_bh(&pcpu->lock);
 		list = dying ? &pcpu->dying : &pcpu->unconfirmed;
 restart:
-		hlist_nulls_for_each_entry(h, n, list, hnnode) {
+		hlist_nulls_for_each_entry(h, n, list, hnyesde) {
 			ct = nf_ct_tuplehash_to_ctrack(h);
 			if (l3proto && nf_ct_l3num(ct) != l3proto)
 				continue;
@@ -1460,7 +1460,7 @@ restart:
 						  NFNL_MSG_TYPE(cb->nlh->nlmsg_type),
 						  ct, dying ? true : false);
 			if (res < 0) {
-				if (!atomic_inc_not_zero(&ct->ct_general.use))
+				if (!atomic_inc_yest_zero(&ct->ct_general.use))
 					continue;
 				cb->args[0] = cpu;
 				cb->args[1] = (unsigned long)ct;
@@ -1582,7 +1582,7 @@ __ctnetlink_change_status(struct nf_conn *ct, unsigned long on,
 {
 	unsigned int bit;
 
-	/* Ignore these unchangable bits */
+	/* Igyesre these unchangable bits */
 	on &= ~IPS_UNCHANGEABLE_MASK;
 	off &= ~IPS_UNCHANGEABLE_MASK;
 
@@ -1656,7 +1656,7 @@ static int ctnetlink_change_helper(struct nf_conn *ct,
 	/* don't change helper of sibling connections */
 	if (ct->master) {
 		/* If we try to change the helper to the same thing twice,
-		 * treat the second attempt as a no-op instead of returning
+		 * treat the second attempt as a yes-op instead of returning
 		 * an error.
 		 */
 		err = -EBUSY;
@@ -1698,7 +1698,7 @@ static int ctnetlink_change_helper(struct nf_conn *ct,
 		} else
 			err = -EBUSY;
 	} else {
-		/* we cannot set a helper for an existing conntrack */
+		/* we canyest set a helper for an existing conntrack */
 		err = -EOPNOTSUPP;
 	}
 
@@ -2025,7 +2025,7 @@ ctnetlink_create_conntrack(struct net *net,
 			if (helper->from_nlattr)
 				helper->from_nlattr(helpinfo, ct);
 
-			/* not in hash table yet so not strictly necessary */
+			/* yest in hash table yet so yest strictly necessary */
 			RCU_INIT_POINTER(help->helper, helper);
 		}
 	} else {
@@ -2240,7 +2240,7 @@ ctnetlink_ct_stat_cpu_fill_info(struct sk_buff *skb, u32 portid, u32 seq,
 
 	if (nla_put_be32(skb, CTA_STATS_FOUND, htonl(st->found)) ||
 	    nla_put_be32(skb, CTA_STATS_INVALID, htonl(st->invalid)) ||
-	    nla_put_be32(skb, CTA_STATS_IGNORE, htonl(st->ignore)) ||
+	    nla_put_be32(skb, CTA_STATS_IGNORE, htonl(st->igyesre)) ||
 	    nla_put_be32(skb, CTA_STATS_INSERT, htonl(st->insert)) ||
 	    nla_put_be32(skb, CTA_STATS_INSERT_FAILED,
 				htonl(st->insert_failed)) ||
@@ -2538,8 +2538,8 @@ ctnetlink_update_status(struct nf_conn *ct, const struct nlattr * const cda[])
 
 	/* This check is less strict than ctnetlink_change_status()
 	 * because callers often flip IPS_EXPECTED bits when sending
-	 * an NFQA_CT attribute to the kernel.  So ignore the
-	 * unchangeable bits but do not error out. Also user programs
+	 * an NFQA_CT attribute to the kernel.  So igyesre the
+	 * unchangeable bits but do yest error out. Also user programs
 	 * are allowed to clear the bits that they are allowed to change.
 	 */
 	__ctnetlink_change_status(ct, status, ~status);
@@ -2924,7 +2924,7 @@ ctnetlink_exp_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	for (; cb->args[0] < nf_ct_expect_hsize; cb->args[0]++) {
 restart:
 		hlist_for_each_entry_rcu(exp, &nf_ct_expect_hash[cb->args[0]],
-					 hnode) {
+					 hyesde) {
 			if (l3proto && exp->tuple.src.l3num != l3proto)
 				continue;
 
@@ -2941,7 +2941,7 @@ restart:
 						    cb->nlh->nlmsg_seq,
 						    IPCTNL_MSG_EXP_NEW,
 						    exp) < 0) {
-				if (!refcount_inc_not_zero(&exp->use))
+				if (!refcount_inc_yest_zero(&exp->use))
 					continue;
 				cb->args[1] = (unsigned long)exp;
 				goto out;
@@ -2975,7 +2975,7 @@ ctnetlink_exp_ct_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	rcu_read_lock();
 	last = (struct nf_conntrack_expect *)cb->args[1];
 restart:
-	hlist_for_each_entry_rcu(exp, &help->expectations, lnode) {
+	hlist_for_each_entry_rcu(exp, &help->expectations, lyesde) {
 		if (l3proto && exp->tuple.src.l3num != l3proto)
 			continue;
 		if (cb->args[1]) {
@@ -2987,7 +2987,7 @@ restart:
 					    cb->nlh->nlmsg_seq,
 					    IPCTNL_MSG_EXP_NEW,
 					    exp) < 0) {
-			if (!refcount_inc_not_zero(&exp->use))
+			if (!refcount_inc_yest_zero(&exp->use))
 				continue;
 			cb->args[1] = (unsigned long)exp;
 			goto out;
@@ -3526,11 +3526,11 @@ static int ctnetlink_stat_exp_cpu(struct net *net, struct sock *ctnl,
 }
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-static struct nf_ct_event_notifier ctnl_notifier = {
+static struct nf_ct_event_yestifier ctnl_yestifier = {
 	.fcn = ctnetlink_conntrack_event,
 };
 
-static struct nf_exp_event_notifier ctnl_notifier_exp = {
+static struct nf_exp_event_yestifier ctnl_yestifier_exp = {
 	.fcn = ctnetlink_expect_event,
 };
 #endif
@@ -3590,23 +3590,23 @@ static int __net_init ctnetlink_net_init(struct net *net)
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 	int ret;
 
-	ret = nf_conntrack_register_notifier(net, &ctnl_notifier);
+	ret = nf_conntrack_register_yestifier(net, &ctnl_yestifier);
 	if (ret < 0) {
-		pr_err("ctnetlink_init: cannot register notifier.\n");
+		pr_err("ctnetlink_init: canyest register yestifier.\n");
 		goto err_out;
 	}
 
-	ret = nf_ct_expect_register_notifier(net, &ctnl_notifier_exp);
+	ret = nf_ct_expect_register_yestifier(net, &ctnl_yestifier_exp);
 	if (ret < 0) {
-		pr_err("ctnetlink_init: cannot expect register notifier.\n");
-		goto err_unreg_notifier;
+		pr_err("ctnetlink_init: canyest expect register yestifier.\n");
+		goto err_unreg_yestifier;
 	}
 #endif
 	return 0;
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-err_unreg_notifier:
-	nf_conntrack_unregister_notifier(net, &ctnl_notifier);
+err_unreg_yestifier:
+	nf_conntrack_unregister_yestifier(net, &ctnl_yestifier);
 err_out:
 	return ret;
 #endif
@@ -3615,8 +3615,8 @@ err_out:
 static void ctnetlink_net_exit(struct net *net)
 {
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-	nf_ct_expect_unregister_notifier(net, &ctnl_notifier_exp);
-	nf_conntrack_unregister_notifier(net, &ctnl_notifier);
+	nf_ct_expect_unregister_yestifier(net, &ctnl_yestifier_exp);
+	nf_conntrack_unregister_yestifier(net, &ctnl_yestifier);
 #endif
 }
 
@@ -3627,7 +3627,7 @@ static void __net_exit ctnetlink_net_exit_batch(struct list_head *net_exit_list)
 	list_for_each_entry(net, net_exit_list, exit_list)
 		ctnetlink_net_exit(net);
 
-	/* wait for other cpus until they are done with ctnl_notifiers */
+	/* wait for other cpus until they are done with ctnl_yestifiers */
 	synchronize_rcu();
 }
 
@@ -3642,19 +3642,19 @@ static int __init ctnetlink_init(void)
 
 	ret = nfnetlink_subsys_register(&ctnl_subsys);
 	if (ret < 0) {
-		pr_err("ctnetlink_init: cannot register with nfnetlink.\n");
+		pr_err("ctnetlink_init: canyest register with nfnetlink.\n");
 		goto err_out;
 	}
 
 	ret = nfnetlink_subsys_register(&ctnl_exp_subsys);
 	if (ret < 0) {
-		pr_err("ctnetlink_init: cannot register exp with nfnetlink.\n");
+		pr_err("ctnetlink_init: canyest register exp with nfnetlink.\n");
 		goto err_unreg_subsys;
 	}
 
 	ret = register_pernet_subsys(&ctnetlink_net_ops);
 	if (ret < 0) {
-		pr_err("ctnetlink_init: cannot register pernet operations\n");
+		pr_err("ctnetlink_init: canyest register pernet operations\n");
 		goto err_unreg_exp_subsys;
 	}
 #ifdef CONFIG_NETFILTER_NETLINK_GLUE_CT

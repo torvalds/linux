@@ -153,7 +153,7 @@ config SH_RTS7751R2D
 	select HAVE_PCI
 	select IO_TRAPPED if MMU
 	help
-	  Select RTS7751R2D if configuring for a Renesas Technology
+	  Select RTS7751R2D if configuring for a Renesas Techyeslogy
 	  Sales SH-Graphics board.
 
 config SH_RSK
@@ -181,7 +181,7 @@ config SH_SDK7786
 	select HAVE_SRAM_POOL
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	help
-	  Select SDK7786 if configuring for a Renesas Technology Europe
+	  Select SDK7786 if configuring for a Renesas Techyeslogy Europe
 	  SH7786-65nm board.
 
 config SH_HIGHLANDER

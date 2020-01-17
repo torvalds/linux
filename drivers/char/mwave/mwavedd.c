@@ -24,7 +24,7 @@
 * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
 * solely responsible for determining the appropriateness of using and
 * distributing the Program and assumes all risks associated with its
-* exercise of rights under this Agreement, including but not limited to
+* exercise of rights under this Agreement, including but yest limited to
 * the risks and costs of program errors, damage to or loss of data,
 * programs or equipment, and unavailability or interruption of operations.
 *
@@ -38,7 +38,7 @@
 * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 *
 * You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
+* along with this program; if yest, write to the Free Software
 * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 *
 *
@@ -59,7 +59,7 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/serial_8250.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include "smapi.h"
 #include "mwavedd.h"
 #include "3780i.h"
@@ -70,9 +70,9 @@ MODULE_AUTHOR("Mike Sullivan and Paul Schroeder");
 MODULE_LICENSE("GPL");
 
 /*
-* These parameters support the setting of MWave resources. Note that no
+* These parameters support the setting of MWave resources. Note that yes
 * checks are made against other devices (ie. superio) for conflicts.
-* We'll depend on users using the tpctl utility to do that for now
+* We'll depend on users using the tpctl utility to do that for yesw
 */
 static DEFINE_MUTEX(mwave_mutex);
 int mwave_debug = 0;
@@ -86,33 +86,33 @@ module_param_hw(mwave_3780i_io, int, ioport, 0);
 module_param_hw(mwave_uart_irq, int, irq, 0);
 module_param_hw(mwave_uart_io, int, ioport, 0);
 
-static int mwave_open(struct inode *inode, struct file *file);
-static int mwave_close(struct inode *inode, struct file *file);
+static int mwave_open(struct iyesde *iyesde, struct file *file);
+static int mwave_close(struct iyesde *iyesde, struct file *file);
 static long mwave_ioctl(struct file *filp, unsigned int iocmd,
 							unsigned long ioarg);
 
 MWAVE_DEVICE_DATA mwave_s_mdd;
 
-static int mwave_open(struct inode *inode, struct file *file)
+static int mwave_open(struct iyesde *iyesde, struct file *file)
 {
 	unsigned int retval = 0;
 
 	PRINTK_3(TRACE_MWAVE,
-		"mwavedd::mwave_open, entry inode %p file %p\n",
-		 inode, file);
+		"mwavedd::mwave_open, entry iyesde %p file %p\n",
+		 iyesde, file);
 	PRINTK_2(TRACE_MWAVE,
 		"mwavedd::mwave_open, exit return retval %x\n", retval);
 
 	return retval;
 }
 
-static int mwave_close(struct inode *inode, struct file *file)
+static int mwave_close(struct iyesde *iyesde, struct file *file)
 {
 	unsigned int retval = 0;
 
 	PRINTK_3(TRACE_MWAVE,
-		"mwavedd::mwave_close, entry inode %p file %p\n",
-		 inode,  file);
+		"mwavedd::mwave_close, entry iyesde %p file %p\n",
+		 iyesde,  file);
 
 	PRINTK_2(TRACE_MWAVE, "mwavedd::mwave_close, exit retval %x\n",
 		retval);
@@ -290,7 +290,7 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 						ipcnum);
 				return -EINVAL;
 			}
-			ipcnum = array_index_nospec(ipcnum,
+			ipcnum = array_index_yesspec(ipcnum,
 						    ARRAY_SIZE(pDrvData->IPCs));
 			PRINTK_3(TRACE_MWAVE,
 				"mwavedd::mwave_ioctl IOCTL_MW_REGISTER_IPC"
@@ -320,7 +320,7 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 						" Invalid ipcnum %x\n", ipcnum);
 				return -EINVAL;
 			}
-			ipcnum = array_index_nospec(ipcnum,
+			ipcnum = array_index_yesspec(ipcnum,
 						    ARRAY_SIZE(pDrvData->IPCs));
 			PRINTK_3(TRACE_MWAVE,
 				"mwavedd::mwave_ioctl IOCTL_MW_GET_IPC"
@@ -348,7 +348,7 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 						" IOCTL_MW_GET_IPC ipcnum %x"
 						" handling first int\n",
 						ipcnum);
-				} else {	/* either 1st int has not yet occurred, or we have already handled the first int */
+				} else {	/* either 1st int has yest yet occurred, or we have already handled the first int */
 					schedule();
 					if (pDrvData->IPCs[ipcnum].usIntCount == 1) {
 						pDrvData->IPCs[ipcnum].usIntCount = 2;
@@ -388,7 +388,7 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 						ipcnum);
 				return -EINVAL;
 			}
-			ipcnum = array_index_nospec(ipcnum,
+			ipcnum = array_index_yesspec(ipcnum,
 						    ARRAY_SIZE(pDrvData->IPCs));
 			mutex_lock(&mwave_mutex);
 			if (pDrvData->IPCs[ipcnum].bIsEnabled == true) {
@@ -593,7 +593,7 @@ static int __init mwave_init(void)
 	for (i = 0; i < ARRAY_SIZE(pDrvData->IPCs); i++) {
 		pDrvData->IPCs[i].bIsEnabled = false;
 		pDrvData->IPCs[i].bIsHere = false;
-		pDrvData->IPCs[i].usIntCount = 0;	/* no ints received yet */
+		pDrvData->IPCs[i].usIntCount = 0;	/* yes ints received yet */
 		init_waitqueue_head(&pDrvData->IPCs[i].ipc_wait_queue);
 	}
 

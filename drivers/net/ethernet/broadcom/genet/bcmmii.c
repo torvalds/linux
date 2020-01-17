@@ -57,7 +57,7 @@ void bcmgenet_mii_setup(struct net_device *dev)
 			priv->old_pause = phydev->pause;
 		}
 
-		/* done if nothing has changed */
+		/* done if yesthing has changed */
 		if (!status_changed)
 			return;
 
@@ -97,7 +97,7 @@ void bcmgenet_mii_setup(struct net_device *dev)
 		reg |= cmd_bits;
 		bcmgenet_umac_writel(priv, reg, UMAC_CMD);
 	} else {
-		/* done if nothing has changed */
+		/* done if yesthing has changed */
 		if (!status_changed)
 			return;
 
@@ -220,7 +220,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 	case PHY_INTERFACE_MODE_MOCA:
 		/* Irrespective of the actually configured PHY speed (100 or
 		 * 1000) GENETv4 only has an internal GPHY so we will just end
-		 * up masking the Gigabit features from what we support, not
+		 * up masking the Gigabit features from what we support, yest
 		 * switching to the EPHY
 		 */
 		if (GENET_IS_V4(priv))
@@ -244,7 +244,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 		phy_name = "external RvMII";
 		/* of_mdiobus_register took care of reading the 'max-speed'
 		 * PHY property for us, effectively limiting the PHY supported
-		 * capabilities, use that knowledge to also configure the
+		 * capabilities, use that kyeswledge to also configure the
 		 * Reverse MII interface correctly.
 		 */
 		if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
@@ -260,7 +260,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 		 *
 		 * ID is implicitly disabled for 100Mbps (RG)MII operation.
 		 */
-		phy_name = "external RGMII (no delay)";
+		phy_name = "external RGMII (yes delay)";
 		id_mode_dis = BIT(16);
 		port_ctrl = PORT_MODE_EXT_GPHY;
 		break;
@@ -276,7 +276,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 		port_ctrl = PORT_MODE_EXT_GPHY;
 		break;
 	default:
-		dev_err(kdev, "unknown phy mode: %d\n", priv->phy_interface);
+		dev_err(kdev, "unkyeswn phy mode: %d\n", priv->phy_interface);
 		return -EINVAL;
 	}
 
@@ -311,7 +311,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 int bcmgenet_mii_probe(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device_yesde *dn = priv->pdev->dev.of_yesde;
 	struct phy_device *phydev;
 	u32 phy_flags = 0;
 	int ret;
@@ -330,7 +330,7 @@ int bcmgenet_mii_probe(struct net_device *dev)
 		phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup,
 					phy_flags, priv->phy_interface);
 		if (!phydev) {
-			pr_err("could not attach to PHY\n");
+			pr_err("could yest attach to PHY\n");
 			return -ENODEV;
 		}
 	} else {
@@ -340,7 +340,7 @@ int bcmgenet_mii_probe(struct net_device *dev)
 		ret = phy_connect_direct(dev, phydev, bcmgenet_mii_setup,
 					 priv->phy_interface);
 		if (ret) {
-			pr_err("could not attach to PHY\n");
+			pr_err("could yest attach to PHY\n");
 			return -ENODEV;
 		}
 	}
@@ -370,9 +370,9 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	return 0;
 }
 
-static struct device_node *bcmgenet_mii_of_find_mdio(struct bcmgenet_priv *priv)
+static struct device_yesde *bcmgenet_mii_of_find_mdio(struct bcmgenet_priv *priv)
 {
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device_yesde *dn = priv->pdev->dev.of_yesde;
 	struct device *kdev = &priv->pdev->dev;
 	char *compat;
 
@@ -383,7 +383,7 @@ static struct device_node *bcmgenet_mii_of_find_mdio(struct bcmgenet_priv *priv)
 	priv->mdio_dn = of_get_compatible_child(dn, compat);
 	kfree(compat);
 	if (!priv->mdio_dn) {
-		dev_err(kdev, "unable to find MDIO bus node\n");
+		dev_err(kdev, "unable to find MDIO bus yesde\n");
 		return NULL;
 	}
 
@@ -422,7 +422,7 @@ static int bcmgenet_mii_register(struct bcmgenet_priv *priv)
 {
 	struct platform_device *pdev = priv->pdev;
 	struct bcmgenet_platform_data *pdata = pdev->dev.platform_data;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	struct unimac_mdio_pdata ppd;
 	struct platform_device *ppdev;
 	struct resource *pres, res;
@@ -455,7 +455,7 @@ static int bcmgenet_mii_register(struct bcmgenet_priv *priv)
 	/* Retain this platform_device pointer for later cleanup */
 	priv->mii_pdev = ppdev;
 	ppdev->dev.parent = &pdev->dev;
-	ppdev->dev.of_node = bcmgenet_mii_of_find_mdio(priv);
+	ppdev->dev.of_yesde = bcmgenet_mii_of_find_mdio(priv);
 	if (pdata)
 		bcmgenet_mii_pdata_init(priv, &ppd);
 
@@ -479,7 +479,7 @@ out:
 
 static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 {
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device_yesde *dn = priv->pdev->dev.of_yesde;
 	struct device *kdev = &priv->pdev->dev;
 	struct phy_device *phydev;
 	phy_interface_t phy_mode;
@@ -488,15 +488,15 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 	/* Fetch the PHY phandle */
 	priv->phy_dn = of_parse_phandle(dn, "phy-handle", 0);
 
-	/* In the case of a fixed PHY, the DT node associated
-	 * to the PHY is the Ethernet MAC DT node.
+	/* In the case of a fixed PHY, the DT yesde associated
+	 * to the PHY is the Ethernet MAC DT yesde.
 	 */
 	if (!priv->phy_dn && of_phy_is_fixed_link(dn)) {
 		ret = of_phy_register_fixed_link(dn);
 		if (ret)
 			return ret;
 
-		priv->phy_dn = of_node_get(dn);
+		priv->phy_dn = of_yesde_get(dn);
 	}
 
 	/* Get the link mode */
@@ -509,7 +509,7 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 	priv->phy_interface = phy_mode;
 
 	/* We need to specifically look up whether this PHY interface is internal
-	 * or not *before* we even try to probe the PHY driver over MDIO as we
+	 * or yest *before* we even try to probe the PHY driver over MDIO as we
 	 * may have shut down the internal PHY for power saving purposes.
 	 */
 	if (priv->phy_interface == PHY_INTERFACE_MODE_INTERNAL)
@@ -552,7 +552,7 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 		}
 	} else {
 		/*
-		 * MoCA port or no MDIO access.
+		 * MoCA port or yes MDIO access.
 		 * Use fixed PHY to represent the link layer.
 		 */
 		struct fixed_phy_status fphy_status = {
@@ -581,7 +581,7 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 
 static int bcmgenet_mii_bus_init(struct bcmgenet_priv *priv)
 {
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device_yesde *dn = priv->pdev->dev.of_yesde;
 
 	if (dn)
 		return bcmgenet_mii_of_init(priv);
@@ -612,10 +612,10 @@ out:
 void bcmgenet_mii_exit(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device_yesde *dn = priv->pdev->dev.of_yesde;
 
 	if (of_phy_is_fixed_link(dn))
 		of_phy_deregister_fixed_link(dn);
-	of_node_put(priv->phy_dn);
+	of_yesde_put(priv->phy_dn);
 	platform_device_unregister(priv->mii_pdev);
 }

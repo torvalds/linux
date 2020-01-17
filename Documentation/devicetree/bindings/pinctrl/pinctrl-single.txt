@@ -17,8 +17,8 @@ Required properties:
 
 Optional properties:
 - pinctrl-single,function-off : function off mode for disabled state if
-  available and same for all registers; if not specified, disabling of
-  pin functions is ignored
+  available and same for all registers; if yest specified, disabling of
+  pin functions is igyesred
 
 - pinctrl-single,bit-per-mux : boolean to indicate that one register controls
   more than one pin, for which "pinctrl-single,function-mask" property specifies
@@ -49,7 +49,7 @@ Optional properties:
   * Three bits to control input bias enable, pullup and pulldown. User should
     use pinctrl-single,bias-pullup & pinctrl-single,bias-pulldown. Input bias
     enable bit should be included in pullup or pulldown bits.
-  * Although driver could set PIN_CONFIG_BIAS_DISABLE, there's no property as
+  * Although driver could set PIN_CONFIG_BIAS_DISABLE, there's yes property as
     pinctrl-single,bias-disable. Because pinctrl single driver could implement
     it by calling pulldown, pullup disabled.
 
@@ -74,7 +74,7 @@ Optional properties:
 		pinctrl-single,low-power-mode = <0x288 0x388>;
 
 - pinctrl-single,gpio-range : list of value that are used to configure a GPIO
-  range. They're value of subnode phandle, pin base in pinctrl device, pin
+  range. They're value of subyesde phandle, pin base in pinctrl device, pin
   number in this range, GPIO function value of this GPIO range.
   The number of parameters is depend on #pinctrl-single,gpio-range-cells
   property.
@@ -93,7 +93,7 @@ This driver assumes that there is only one register for each pin (unless the
 pinctrl-single,bit-per-mux is set), and uses the common pinctrl bindings as
 specified in the pinctrl-bindings.txt document in this directory.
 
-The pin configuration nodes for pinctrl-single are specified as pinctrl
+The pin configuration yesdes for pinctrl-single are specified as pinctrl
 register offset and value pairs using pinctrl-single,pins. Only the bits
 specified in pinctrl-single,function-mask are updated. For example, setting
 a pin for a device could be done with:
@@ -115,11 +115,11 @@ device pinctrl register, 0x18 is the desired value, and 0xff is the sub mask to
 be used when applying this change to the register.
 
 
-Optional sub-node: In case some pins could be configured as GPIO in the pinmux
-register, those pins could be defined as a GPIO range. This sub-node is required
+Optional sub-yesde: In case some pins could be configured as GPIO in the pinmux
+register, those pins could be defined as a GPIO range. This sub-yesde is required
 by pinctrl-single,gpio-range property.
 
-Required properties in sub-node:
+Required properties in sub-yesde:
 - #pinctrl-single,gpio-range-cells : the number of parameters after phandle in
   pinctrl-single,gpio-range property.
 

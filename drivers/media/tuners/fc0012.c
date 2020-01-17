@@ -246,7 +246,7 @@ static int fc0012_set_params(struct dvb_frontend *fe)
 			break;
 		}
 	} else {
-		dev_err(&priv->i2c->dev, "%s: modulation type not supported!\n",
+		dev_err(&priv->i2c->dev, "%s: modulation type yest supported!\n",
 				KBUILD_MODNAME);
 		return -EINVAL;
 	}

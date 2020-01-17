@@ -37,7 +37,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
@@ -104,7 +104,7 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 	int					process, header;
 
 	if (!pskb_may_pull(skb, sizeof(*hdr))) {
-		netdev_notice(dev, "invalid data no header\n");
+		netdev_yestice(dev, "invalid data yes header\n");
 		dev->stats.rx_errors++;
 		kfree_skb(skb);
 		return;
@@ -117,7 +117,7 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 
 	if (hdr->control != FRAD_I_UI)
 	{
-		netdev_notice(dev, "Invalid header flag 0x%02X\n",
+		netdev_yestice(dev, "Invalid header flag 0x%02X\n",
 			      hdr->control);
 		dev->stats.rx_errors++;
 	}
@@ -127,7 +127,7 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 			case FRAD_P_PADDING:
 				if (hdr->NLPID != FRAD_P_SNAP)
 				{
-					netdev_notice(dev, "Unsupported NLPID 0x%02X\n",
+					netdev_yestice(dev, "Unsupported NLPID 0x%02X\n",
 						      hdr->NLPID);
 					dev->stats.rx_errors++;
 					break;
@@ -135,7 +135,7 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 	 
 				if (hdr->OUI[0] + hdr->OUI[1] + hdr->OUI[2] != 0)
 				{
-					netdev_notice(dev, "Unsupported organizationally unique identifier 0x%02X-%02X-%02X\n",
+					netdev_yestice(dev, "Unsupported organizationally unique identifier 0x%02X-%02X-%02X\n",
 						      hdr->OUI[0],
 						      hdr->OUI[1],
 						      hdr->OUI[2]);
@@ -159,13 +159,13 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 			case FRAD_P_SNAP:
 			case FRAD_P_Q933:
 			case FRAD_P_CLNP:
-				netdev_notice(dev, "Unsupported NLPID 0x%02X\n",
+				netdev_yestice(dev, "Unsupported NLPID 0x%02X\n",
 					      hdr->pad);
 				dev->stats.rx_errors++;
 				break;
 
 			default:
-				netdev_notice(dev, "Invalid pad byte 0x%02X\n",
+				netdev_yestice(dev, "Invalid pad byte 0x%02X\n",
 					      hdr->pad);
 				dev->stats.rx_errors++;
 				break;				
@@ -331,7 +331,7 @@ static int dlci_add(struct dlci_add *dlci)
 		goto err1;
 	}
 
-	/* make sure same slave not already registered */
+	/* make sure same slave yest already registered */
 	rtnl_lock();
 	list_for_each_entry(dlp, &dlci_devs, list) {
 		if (dlp->slave == slave) {
@@ -482,10 +482,10 @@ static void dlci_setup(struct net_device *dev)
 }
 
 /* if slave is unregistering, then cleanup master */
-static int dlci_dev_event(struct notifier_block *unused,
+static int dlci_dev_event(struct yestifier_block *unused,
 			  unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
@@ -505,14 +505,14 @@ static int dlci_dev_event(struct notifier_block *unused,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block dlci_notifier = {
-	.notifier_call = dlci_dev_event,
+static struct yestifier_block dlci_yestifier = {
+	.yestifier_call = dlci_dev_event,
 };
 
 static int __init init_dlci(void)
 {
 	dlci_ioctl_set(dlci_ioctl);
-	register_netdevice_notifier(&dlci_notifier);
+	register_netdevice_yestifier(&dlci_yestifier);
 
 	printk("%s.\n", version);
 
@@ -524,7 +524,7 @@ static void __exit dlci_exit(void)
 	struct dlci_local	*dlp, *nxt;
 	
 	dlci_ioctl_set(NULL);
-	unregister_netdevice_notifier(&dlci_notifier);
+	unregister_netdevice_yestifier(&dlci_yestifier);
 
 	rtnl_lock();
 	list_for_each_entry_safe(dlp, nxt, &dlci_devs, list) {

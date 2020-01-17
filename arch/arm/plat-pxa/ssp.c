@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -41,7 +41,7 @@ struct ssp_device *pxa_ssp_request(int port, const char *label)
 
 	mutex_lock(&ssp_lock);
 
-	list_for_each_entry(ssp, &ssp_list, node) {
+	list_for_each_entry(ssp, &ssp_list, yesde) {
 		if (ssp->port_id == port && ssp->use_count == 0) {
 			ssp->use_count++;
 			ssp->label = label;
@@ -51,22 +51,22 @@ struct ssp_device *pxa_ssp_request(int port, const char *label)
 
 	mutex_unlock(&ssp_lock);
 
-	if (&ssp->node == &ssp_list)
+	if (&ssp->yesde == &ssp_list)
 		return NULL;
 
 	return ssp;
 }
 EXPORT_SYMBOL(pxa_ssp_request);
 
-struct ssp_device *pxa_ssp_request_of(const struct device_node *of_node,
+struct ssp_device *pxa_ssp_request_of(const struct device_yesde *of_yesde,
 				      const char *label)
 {
 	struct ssp_device *ssp = NULL;
 
 	mutex_lock(&ssp_lock);
 
-	list_for_each_entry(ssp, &ssp_list, node) {
-		if (ssp->of_node == of_node && ssp->use_count == 0) {
+	list_for_each_entry(ssp, &ssp_list, yesde) {
+		if (ssp->of_yesde == of_yesde && ssp->use_count == 0) {
 			ssp->use_count++;
 			ssp->label = label;
 			break;
@@ -75,7 +75,7 @@ struct ssp_device *pxa_ssp_request_of(const struct device_node *of_node,
 
 	mutex_unlock(&ssp_lock);
 
-	if (&ssp->node == &ssp_list)
+	if (&ssp->yesde == &ssp_list)
 		return NULL;
 
 	return ssp;
@@ -126,7 +126,7 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(dev, "no memory resource defined\n");
+		dev_err(dev, "yes memory resource defined\n");
 		return -ENODEV;
 	}
 
@@ -147,11 +147,11 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 
 	ssp->irq = platform_get_irq(pdev, 0);
 	if (ssp->irq < 0) {
-		dev_err(dev, "no IRQ resource defined\n");
+		dev_err(dev, "yes IRQ resource defined\n");
 		return -ENODEV;
 	}
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		const struct of_device_id *id =
 			of_match_device(of_match_ptr(pxa_ssp_of_ids), dev);
 		ssp->type = (int) id->data;
@@ -167,10 +167,10 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 	}
 
 	ssp->use_count = 0;
-	ssp->of_node = dev->of_node;
+	ssp->of_yesde = dev->of_yesde;
 
 	mutex_lock(&ssp_lock);
-	list_add(&ssp->node, &ssp_list);
+	list_add(&ssp->yesde, &ssp_list);
 	mutex_unlock(&ssp_lock);
 
 	platform_set_drvdata(pdev, ssp);
@@ -187,7 +187,7 @@ static int pxa_ssp_remove(struct platform_device *pdev)
 		return -ENODEV;
 
 	mutex_lock(&ssp_lock);
-	list_del(&ssp->node);
+	list_del(&ssp->yesde);
 	mutex_unlock(&ssp_lock);
 
 	return 0;

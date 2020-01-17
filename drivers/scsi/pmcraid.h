@@ -23,7 +23,7 @@
 /*
  * Driver name   : string representing the driver name
  * Device file   : /dev file to be used for management interfaces
- * Driver version: version string in major_version.minor_version.patch format
+ * Driver version: version string in major_version.miyesr_version.patch format
  * Driver date   : date information in "Mon dd yyyy" format
  */
 #define PMCRAID_DRIVER_NAME		"PMC MaxRAID"
@@ -246,7 +246,7 @@ struct pmcraid_ioarcb {
 	struct pmcraid_ioarcb_add_data add_data;
 } __attribute__((packed, aligned(PMCRAID_IOARCB_ALIGNMENT)));
 
-/* well known resource handle values */
+/* well kyeswn resource handle values */
 #define PMCRAID_IOA_RES_HANDLE        0xffffffff
 #define PMCRAID_INVALID_RES_HANDLE    0
 
@@ -343,11 +343,11 @@ struct pmcraid_config_table_entry_ext {
 /* unique_flags1 */
 #define IMPORT_MODE_MANUAL   PMC_BIT8(0)
 
-/* well known resource handle values */
+/* well kyeswn resource handle values */
 #define RES_HANDLE_IOA       0xFFFFFFFF
 #define RES_HANDLE_NONE      0x00000000
 
-/* well known resource address values */
+/* well kyeswn resource address values */
 #define RES_ADDRESS_IOAFP    0xFEFFFFFF
 #define RES_ADDRESS_INVALID  0xFFFFFFFF
 
@@ -379,7 +379,7 @@ struct pmcraid_config_table {
  */
 #define PMCRAID_HOSTRCB_LDNSIZE			4056
 
-/* Error log notification format */
+/* Error log yestification format */
 struct pmcraid_hostrcb_error {
 	__le32 fd_ioasc;
 	__le32 fd_ra;
@@ -392,8 +392,8 @@ struct pmcraid_hostrcb_error {
 
 struct pmcraid_hcam_hdr {
 	__u8  op_code;
-	__u8  notification_type;
-	__u8  notification_lost;
+	__u8  yestification_type;
+	__u8  yestification_lost;
 	__u8  flags;
 	__u8  overlay_id;
 	__u8  reserved1[3];
@@ -428,7 +428,7 @@ struct pmcraid_hcam_ldn {
 #define HOSTRCB_TYPE_CCN			0xE1
 #define HOSTRCB_TYPE_LDN			0xE2
 
-/* pmcraid_hcam.notification_type values */
+/* pmcraid_hcam.yestification_type values */
 #define NOTIFICATION_TYPE_ENTRY_CHANGED		0x0
 #define NOTIFICATION_TYPE_ENTRY_NEW		0x1
 #define NOTIFICATION_TYPE_ENTRY_DELETED		0x2
@@ -587,7 +587,7 @@ struct pmcraid_cmd {
 		int hrrq_index;
 
 		/* used during IO command error handling. Sense buffer
-		 * for REQUEST SENSE command if firmware is not sending
+		 * for REQUEST SENSE command if firmware is yest sending
 		 * auto sense data
 		 */
 		struct  {
@@ -620,7 +620,7 @@ struct pmcraid_isr_param {
 
 /* AEN message header sent as part of event data to applications */
 struct pmcraid_aen_msg {
-	u32 hostno;
+	u32 hostyes;
 	u32 length;
 	u8  reserved[8];
 	u8  data[0];
@@ -645,7 +645,7 @@ struct pmcraid_hostrcb {
 	struct pmcraid_hcam_hdr *hcam;	/* pointer to hcam buffer */
 	struct pmcraid_cmd  *cmd;       /* pointer to command block used */
 	dma_addr_t baddr;		/* system address of hcam buffer */
-	atomic_t ignore;		/* process HCAM response ? */
+	atomic_t igyesre;		/* process HCAM response ? */
 };
 
 #define PMCRAID_AEN_HDR_SIZE	sizeof(struct pmcraid_aen_msg)
@@ -727,7 +727,7 @@ struct pmcraid_instance {
 
 	u8  num_hrrq;		/* Number of interrupt vectors allocated */
 	u8  interrupt_mode;	/* current interrupt mode legacy or msix */
-	dev_t dev;		/* Major-Minor numbers for Char device */
+	dev_t dev;		/* Major-Miyesr numbers for Char device */
 
 	/* Used as ISR handler argument */
 	struct pmcraid_isr_param hrrq_vector[PMCRAID_NUM_MSIX_VECTORS];
@@ -761,7 +761,7 @@ struct pmcraid_instance {
 	/* No of IO commands pending with FW */
 	atomic_t outstanding_cmds;
 
-	/* should add/delete resources to mid-layer now ?*/
+	/* should add/delete resources to mid-layer yesw ?*/
 	atomic_t expose_resources;
 
 
@@ -817,7 +817,7 @@ struct pmcraid_resource_entry {
 	u8 sync_reqd;
 
 	/* target indicates the mapped target_id assigned to this resource if
-	 * this is VSET resource. For non-VSET resources this will be un-used
+	 * this is VSET resource. For yesn-VSET resources this will be un-used
 	 * or zero
 	 */
 	u8 target;
@@ -831,7 +831,7 @@ struct pmcraid_ioasc_error {
 };
 
 /* Initial log_level assignments for various IOASCs */
-#define IOASC_LOG_LEVEL_NONE	    0x0 /* no logging */
+#define IOASC_LOG_LEVEL_NONE	    0x0 /* yes logging */
 #define IOASC_LOG_LEVEL_MUST        0x1	/* must log: all high-severity errors */
 #define IOASC_LOG_LEVEL_HARD        0x2	/* optional – low severity errors */
 
@@ -854,7 +854,7 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
 	{0x03110B00, IOASC_LOG_LEVEL_HARD,
 	 "Medium Error, data unreadable, reassignment suggested"},
 	{0x03110C00, IOASC_LOG_LEVEL_MUST,
-	 "Medium Error, data unreadable do not reassign"},
+	 "Medium Error, data unreadable do yest reassign"},
 	{0x03310000, IOASC_LOG_LEVEL_HARD,
 	 "Medium Error, media corrupted"},
 	{0x04050000, IOASC_LOG_LEVEL_HARD,
@@ -862,7 +862,7 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
 	{0x04080000, IOASC_LOG_LEVEL_MUST,
 	 "Hardware Error, device bus error"},
 	{0x04088000, IOASC_LOG_LEVEL_MUST,
-	 "Hardware Error, device bus is not functioning"},
+	 "Hardware Error, device bus is yest functioning"},
 	{0x04118000, IOASC_LOG_LEVEL_HARD,
 	 "Hardware Error, IOA reserved area data check"},
 	{0x04118100, IOASC_LOG_LEVEL_HARD,
@@ -950,7 +950,7 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
 	{0x07278600, IOASC_LOG_LEVEL_HARD,
 	 "Data Protect, exposed array is short a required device"},
 	{0x07278700, IOASC_LOG_LEVEL_HARD,
-	 "Data Protect, array members not at required addresses"},
+	 "Data Protect, array members yest at required addresses"},
 	{0x07278800, IOASC_LOG_LEVEL_HARD,
 	 "Data Protect, exposed mode device resource address conflict"},
 	{0x07278900, IOASC_LOG_LEVEL_HARD,
@@ -960,7 +960,7 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
 	{0x07278B00, IOASC_LOG_LEVEL_HARD,
 	 "Data Protect, maximum number of arrays already exist"},
 	{0x07278C00, IOASC_LOG_LEVEL_HARD,
-	 "Data Protect, cannot locate cache data for device"},
+	 "Data Protect, canyest locate cache data for device"},
 	{0x07278D00, IOASC_LOG_LEVEL_HARD,
 	 "Data Protect, cache data exits for a changed device"},
 	{0x07279100, IOASC_LOG_LEVEL_HARD,
@@ -968,7 +968,7 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
 	{0x07279200, IOASC_LOG_LEVEL_HARD,
 	 "Data Protect, IOA exceeds maximum number of devices"},
 	{0x07279600, IOASC_LOG_LEVEL_HARD,
-	 "Data Protect, missing array, volume set is not functional"},
+	 "Data Protect, missing array, volume set is yest functional"},
 	{0x07279700, IOASC_LOG_LEVEL_HARD,
 	 "Data Protect, single device for a volume set"},
 	{0x07279800, IOASC_LOG_LEVEL_HARD,
@@ -1011,7 +1011,7 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
  * buffers given as ioctl arguments.
  *
  * .signature           : always ASCII string, "PMCRAID"
- * .reserved            : not used
+ * .reserved            : yest used
  * .buffer_length       : length of the buffer following the header
  */
 struct pmcraid_ioctl_header {
@@ -1034,7 +1034,7 @@ struct pmcraid_ioctl_header {
  * .request_buffer: The I/O buffer (flat), driver reads/writes to this based on
  *                  the transfer directions passed in ioarcb.flags0. Contents
  *                  of this buffer are valid only when ioarcb.data_transfer_len
- *                  is not zero.
+ *                  is yest zero.
  */
 struct pmcraid_passthrough_ioctl_buffer {
 	struct pmcraid_ioctl_header ioctl_header;
@@ -1060,7 +1060,7 @@ struct pmcraid_passthrough_ioctl_buffer {
 /*
  * _ARGSIZE: macro that gives size of the argument type passed to an IOCTL cmd.
  * This is to facilitate applications avoiding un-necessary memory allocations.
- * For example, most of driver handled ioctls do not require ioarcb, ioasa.
+ * For example, most of driver handled ioctls do yest require ioarcb, ioasa.
  */
 #define _ARGSIZE(arg) (sizeof(struct pmcraid_ioctl_header) + sizeof(arg))
 

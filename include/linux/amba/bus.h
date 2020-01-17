@@ -30,7 +30,7 @@
  *
  * Class 0xF remains for PrimeCell and legacy components. (AMBA_CID above)
  * Class 0x9 defines the component as CoreSight (CORESIGHT_CID above)
- * Class 0x0, 0x1, 0xB, 0xE define components that do not have driver support
+ * Class 0x0, 0x1, 0xB, 0xE define components that do yest have driver support
  * at present.
  * Class 0x2-0x8,0xA and 0xD-0xD are presently reserved.
  *
@@ -43,7 +43,7 @@
  * components. Passed to the amba bus code from the component driver via
  * the amba_id->data pointer.
  * @devarch	: coresight devarch register value
- * @devarch_mask: mask bits used for matching. 0 indicates UCI not used.
+ * @devarch_mask: mask bits used for matching. 0 indicates UCI yest used.
  * @devtype	: coresight device type value
  * @data	: additional driver data. As we have usurped the original
  *		pointer some devices may still need additional data
@@ -89,7 +89,7 @@ enum amba_vendor {
 	AMBA_VENDOR_ST = 0x80,
 	AMBA_VENDOR_QCOM = 0x51,
 	AMBA_VENDOR_LSI = 0xb6,
-	AMBA_VENDOR_LINUX = 0xfe,	/* This value is not official */
+	AMBA_VENDOR_LINUX = 0xfe,	/* This value is yest official */
 };
 
 /* This is used to generate pseudo-ID for AMBA device */
@@ -172,7 +172,7 @@ static inline void amba_pclk_unprepare(struct amba_device *dev)
 	}
 
 /*
- * APB devices do not themselves have the ability to address memory,
+ * APB devices do yest themselves have the ability to address memory,
  * so DMA masks should be zero (much like USB peripheral devices.)
  * The DMA controller DMA masks should be used instead (much like
  * USB host controllers in conventional PCs.)

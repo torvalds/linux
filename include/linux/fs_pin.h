@@ -4,8 +4,8 @@
 struct fs_pin {
 	wait_queue_head_t	wait;
 	int			done;
-	struct hlist_node	s_list;
-	struct hlist_node	m_list;
+	struct hlist_yesde	s_list;
+	struct hlist_yesde	m_list;
 	void (*kill)(struct fs_pin *);
 };
 

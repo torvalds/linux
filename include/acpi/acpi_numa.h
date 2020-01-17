@@ -13,9 +13,9 @@
 #define MAX_PXM_DOMAINS (256)	/* Old pxm spec is defined 8 bit */
 #endif
 
-extern int pxm_to_node(int);
-extern int node_to_pxm(int);
-extern int acpi_map_pxm_to_node(int);
+extern int pxm_to_yesde(int);
+extern int yesde_to_pxm(int);
+extern int acpi_map_pxm_to_yesde(int);
 extern unsigned char acpi_srat_revision;
 extern int acpi_numa __initdata;
 

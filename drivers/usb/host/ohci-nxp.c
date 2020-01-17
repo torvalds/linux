@@ -11,7 +11,7 @@
  * register initialization is based on code examples provided by Philips
  * Copyright (c) 2005 Koninklijke Philips Electronics N.V.
  *
- * NOTE: This driver does not have suspend/resume functionality
+ * NOTE: This driver does yest have suspend/resume functionality
  * This driver is intended for engineering development purposes only
  *
  * 2005-2006 (c) MontaVista Software, Inc.
@@ -154,16 +154,16 @@ static int ohci_hcd_nxp_probe(struct platform_device *pdev)
 	const struct hc_driver *driver = &ohci_nxp_hc_driver;
 	struct resource *res;
 	int ret = 0, irq;
-	struct device_node *isp1301_node;
+	struct device_yesde *isp1301_yesde;
 
-	if (pdev->dev.of_node) {
-		isp1301_node = of_parse_phandle(pdev->dev.of_node,
+	if (pdev->dev.of_yesde) {
+		isp1301_yesde = of_parse_phandle(pdev->dev.of_yesde,
 						"transceiver", 0);
 	} else {
-		isp1301_node = NULL;
+		isp1301_yesde = NULL;
 	}
 
-	isp1301_i2c_client = isp1301_get_client(isp1301_node);
+	isp1301_i2c_client = isp1301_get_client(isp1301_yesde);
 	if (!isp1301_i2c_client)
 		return -EPROBE_DEFER;
 

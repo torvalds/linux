@@ -118,7 +118,7 @@ int tilcdc_attach_external_device(struct drm_device *ddev)
 	struct drm_panel *panel;
 	int ret;
 
-	ret = drm_of_find_panel_or_bridge(ddev->dev->of_node, 0, 0,
+	ret = drm_of_find_panel_or_bridge(ddev->dev->of_yesde, 0, 0,
 					  &panel, &bridge);
 	if (ret == -ENODEV)
 		return 0;
@@ -161,23 +161,23 @@ err_encoder_cleanup:
 
 static int dev_match_of(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->of_yesde == data;
 }
 
 int tilcdc_get_external_components(struct device *dev,
 				   struct component_match **match)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	node = of_graph_get_remote_node(dev->of_node, 0, 0);
+	yesde = of_graph_get_remote_yesde(dev->of_yesde, 0, 0);
 
-	if (!of_device_is_compatible(node, "nxp,tda998x")) {
-		of_node_put(node);
+	if (!of_device_is_compatible(yesde, "nxp,tda998x")) {
+		of_yesde_put(yesde);
 		return 0;
 	}
 
 	if (match)
-		drm_of_component_match_add(dev, match, dev_match_of, node);
-	of_node_put(node);
+		drm_of_component_match_add(dev, match, dev_match_of, yesde);
+	of_yesde_put(yesde);
 	return 1;
 }

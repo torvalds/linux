@@ -31,7 +31,7 @@
 #define CEX4C_MAX_MESSAGE_SIZE	MSGTYPE06_MAX_MSG_SIZE
 
 /* Waiting time for requests to be processed.
- * Currently there are some types of request which are not deterministic.
+ * Currently there are some types of request which are yest deterministic.
  * But the maximum time limit managed by the stomper code is set to 60sec.
  * Hence we have to wait at least that time period.
  */

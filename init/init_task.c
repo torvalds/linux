@@ -17,7 +17,7 @@
 
 static struct signal_struct init_signals = {
 	.nr_threads	= 1,
-	.thread_head	= LIST_HEAD_INIT(init_task.thread_node),
+	.thread_head	= LIST_HEAD_INIT(init_task.thread_yesde),
 	.wait_chldexit	= __WAIT_QUEUE_HEAD_INITIALIZER(init_signals.wait_chldexit),
 	.shared_pending	= {
 		.list = LIST_HEAD_INIT(init_signals.shared_pending.list),
@@ -68,7 +68,7 @@ struct task_struct init_task
 	.flags		= PF_KTHREAD,
 	.prio		= MAX_PRIO - 20,
 	.static_prio	= MAX_PRIO - 20,
-	.normal_prio	= MAX_PRIO - 20,
+	.yesrmal_prio	= MAX_PRIO - 20,
 	.policy		= SCHED_NORMAL,
 	.cpus_ptr	= &init_task.cpus_mask,
 	.cpus_mask	= CPU_MASK_ALL,
@@ -76,10 +76,10 @@ struct task_struct init_task
 	.mm		= NULL,
 	.active_mm	= &init_mm,
 	.restart_block	= {
-		.fn = do_no_restart_syscall,
+		.fn = do_yes_restart_syscall,
 	},
 	.se		= {
-		.group_node 	= LIST_HEAD_INIT(init_task.se.group_node),
+		.group_yesde 	= LIST_HEAD_INIT(init_task.se.group_yesde),
 	},
 	.rt		= {
 		.run_list	= LIST_HEAD_INIT(init_task.rt.run_list),
@@ -120,7 +120,7 @@ struct task_struct init_task
 	.timer_slack_ns = 50000, /* 50 usec default slack */
 	.thread_pid	= &init_struct_pid,
 	.thread_group	= LIST_HEAD_INIT(init_task.thread_group),
-	.thread_node	= LIST_HEAD_INIT(init_signals.thread_head),
+	.thread_yesde	= LIST_HEAD_INIT(init_signals.thread_head),
 #ifdef CONFIG_AUDIT
 	.loginuid	= INVALID_UID,
 	.sessionid	= AUDIT_SID_UNSET,
@@ -132,8 +132,8 @@ struct task_struct init_task
 #ifdef CONFIG_PREEMPT_RCU
 	.rcu_read_lock_nesting = 0,
 	.rcu_read_unlock_special.s = 0,
-	.rcu_node_entry = LIST_HEAD_INIT(init_task.rcu_node_entry),
-	.rcu_blocked_node = NULL,
+	.rcu_yesde_entry = LIST_HEAD_INIT(init_task.rcu_yesde_entry),
+	.rcu_blocked_yesde = NULL,
 #endif
 #ifdef CONFIG_TASKS_RCU
 	.rcu_tasks_holdout = false,
@@ -165,7 +165,7 @@ struct task_struct init_task
 	.softirqs_enabled = 1,
 #endif
 #ifdef CONFIG_LOCKDEP
-	.lockdep_depth = 0, /* no locks held yet */
+	.lockdep_depth = 0, /* yes locks held yet */
 	.curr_chain_key = INITIAL_CHAIN_KEY,
 	.lockdep_recursion = 0,
 #endif

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -225,7 +225,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 
 	abo = gem_to_amdgpu_bo(gobj);
 
-	/* okay we have an object now allocate the framebuffer */
+	/* okay we have an object yesw allocate the framebuffer */
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
@@ -318,7 +318,7 @@ int amdgpu_fbdev_init(struct amdgpu_device *adev)
 	if (!adev->mode_info.mode_config_initialized)
 		return 0;
 
-	/* don't init fbdev if there are no connectors */
+	/* don't init fbdev if there are yes connectors */
 	if (list_empty(&adev->ddev->mode_config.connector_list))
 		return 0;
 

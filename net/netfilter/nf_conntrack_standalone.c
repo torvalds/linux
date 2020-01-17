@@ -99,13 +99,13 @@ struct ct_iter_state {
 	struct hlist_nulls_head *hash;
 	unsigned int htable_size;
 	unsigned int bucket;
-	u_int64_t time_now;
+	u_int64_t time_yesw;
 };
 
-static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
+static struct hlist_nulls_yesde *ct_get_first(struct seq_file *seq)
 {
 	struct ct_iter_state *st = seq->private;
-	struct hlist_nulls_node *n;
+	struct hlist_nulls_yesde *n;
 
 	for (st->bucket = 0;
 	     st->bucket < st->htable_size;
@@ -118,8 +118,8 @@ static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
 	return NULL;
 }
 
-static struct hlist_nulls_node *ct_get_next(struct seq_file *seq,
-				      struct hlist_nulls_node *head)
+static struct hlist_nulls_yesde *ct_get_next(struct seq_file *seq,
+				      struct hlist_nulls_yesde *head)
 {
 	struct ct_iter_state *st = seq->private;
 
@@ -135,9 +135,9 @@ static struct hlist_nulls_node *ct_get_next(struct seq_file *seq,
 	return head;
 }
 
-static struct hlist_nulls_node *ct_get_idx(struct seq_file *seq, loff_t pos)
+static struct hlist_nulls_yesde *ct_get_idx(struct seq_file *seq, loff_t pos)
 {
-	struct hlist_nulls_node *head = ct_get_first(seq);
+	struct hlist_nulls_yesde *head = ct_get_first(seq);
 
 	if (head)
 		while (pos && (head = ct_get_next(seq, head)))
@@ -150,7 +150,7 @@ static void *ct_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct ct_iter_state *st = seq->private;
 
-	st->time_now = ktime_get_real_ns();
+	st->time_yesw = ktime_get_real_ns();
 	rcu_read_lock();
 
 	nf_conntrack_get_ht(&st->hash, &st->htable_size);
@@ -228,7 +228,7 @@ static void ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 
 	tstamp = nf_conn_tstamp_find(ct);
 	if (tstamp) {
-		delta_time = st->time_now - tstamp->start;
+		delta_time = st->time_yesw - tstamp->start;
 		if (delta_time > 0)
 			delta_time = div_s64(delta_time, NSEC_PER_SEC);
 		else
@@ -253,7 +253,7 @@ static const char* l3proto_name(u16 proto)
 	case AF_INET6: return "ipv6";
 	}
 
-	return "unknown";
+	return "unkyeswn";
 }
 
 static const char* l4proto_name(u16 proto)
@@ -268,7 +268,7 @@ static const char* l4proto_name(u16 proto)
 	case IPPROTO_UDPLITE: return "udplite";
 	}
 
-	return "unknown";
+	return "unkyeswn";
 }
 
 static unsigned int
@@ -299,7 +299,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	int ret = 0;
 
 	WARN_ON(!ct);
-	if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
+	if (unlikely(!atomic_inc_yest_zero(&ct->ct_general.use)))
 		return 0;
 
 	if (nf_ct_should_gc(ct)) {
@@ -426,7 +426,7 @@ static int ct_cpu_seq_show(struct seq_file *seq, void *v)
 	const struct ip_conntrack_stat *st = v;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_puts(seq, "entries  searched found new invalid ignore delete delete_list insert insert_failed drop early_drop icmp_error  expect_new expect_create expect_delete search_restart\n");
+		seq_puts(seq, "entries  searched found new invalid igyesre delete delete_list insert insert_failed drop early_drop icmp_error  expect_new expect_create expect_delete search_restart\n");
 		return 0;
 	}
 
@@ -437,7 +437,7 @@ static int ct_cpu_seq_show(struct seq_file *seq, void *v)
 		   st->found,
 		   0,
 		   st->invalid,
-		   st->ignore,
+		   st->igyesre,
 		   0,
 		   0,
 		   st->insert,
@@ -525,7 +525,7 @@ nf_conntrack_hash_sysctl(struct ctl_table *table, int write,
 	if (ret < 0 || !write)
 		return ret;
 
-	/* update ret, we might not be able to satisfy request */
+	/* update ret, we might yest be able to satisfy request */
 	ret = nf_conntrack_hash_resize(nf_conntrack_htable_size_user);
 
 	/* update it to the actual value used by conntrack */
@@ -747,7 +747,7 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_UNACK] = {
-		.procname	= "nf_conntrack_tcp_timeout_unacknowledged",
+		.procname	= "nf_conntrack_tcp_timeout_unackyeswledged",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,

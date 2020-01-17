@@ -8,7 +8,7 @@
 // Author: Keyon Jie <yang.jie@linux.intel.com>
 //
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/platform_device.h>
 #include <sound/soc.h>
 #include <sound/sof.h>
@@ -18,7 +18,7 @@
  * Register IO
  *
  * The sof_io_xyz() wrappers are typically referenced in snd_sof_dsp_ops
- * structures and cannot be inlined.
+ * structures and canyest be inlined.
  */
 
 void sof_io_write(struct snd_sof_dev *sdev, void __iomem *addr, u32 value)
@@ -91,7 +91,7 @@ void sof_block_write(struct snd_sof_dev *sdev, u32 bar, u32 offset, void *src,
 
 		/* first read the 32bit data of dest, then change affected
 		 * bytes, and write back to dest. For unaffected bytes, it
-		 * should not be changed
+		 * should yest be changed
 		 */
 		tmp = ioread32(dest + m * 4);
 		tmp &= ~affected_mask;

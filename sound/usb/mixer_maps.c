@@ -27,7 +27,7 @@ struct usbmix_ctl_map {
 	u32 id;
 	const struct usbmix_name_map *map;
 	const struct usbmix_selector_map *selector_map;
-	int ignore_ctl_error;
+	int igyesre_ctl_error;
 };
 
 /*
@@ -90,7 +90,7 @@ static struct usbmix_name_map extigy_map[] = {
 
 /* Sound Blaster MP3+ controls mapping
  * The default mixer channels have totally misleading names,
- * e.g. no Master and fake PCM volume
+ * e.g. yes Master and fake PCM volume
  *			Pavel Mihaylov <bin@bash.info>
  */
 static struct usbmix_dB_map mp3plus_dB_1 = {.min = -4781, .max = 0};
@@ -234,7 +234,7 @@ static struct usbmix_name_map maya44_map[] = {
 /* Section "justlink_map" below added by James Courtier-Dutton <James@superbug.demon.co.uk>
  * sourced from Maplin Electronics (http://www.maplin.co.uk), part number A56AK
  * Part has 2 connectors that act as a single output. (TOSLINK Optical for digital out, and 3.5mm Jack for Analogue out.)
- * The USB Mixer publishes a Microphone and extra Volume controls for it, but none exist on the device,
+ * The USB Mixer publishes a Microphone and extra Volume controls for it, but yesne exist on the device,
  * so this map removes all unwanted sliders from alsamixer
  */
 
@@ -357,7 +357,7 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{
 		.id = USB_ID(0x041e, 0x3000),
 		.map = extigy_map,
-		.ignore_ctl_error = 1,
+		.igyesre_ctl_error = 1,
 	},
 	{
 		.id = USB_ID(0x041e, 0x3010),
@@ -379,11 +379,11 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	},
 	{	/* Logitech, Inc. QuickCam Pro for Notebooks */
 		.id = USB_ID(0x046d, 0x0991),
-		.ignore_ctl_error = 1,
+		.igyesre_ctl_error = 1,
 	},
 	{	/* Logitech, Inc. QuickCam E 3500 */
 		.id = USB_ID(0x046d, 0x09a4),
-		.ignore_ctl_error = 1,
+		.igyesre_ctl_error = 1,
 	},
 	{	/* Plantronics GameCom 780 */
 		.id = USB_ID(0x047f, 0xc010),
@@ -392,12 +392,12 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{
 		/* Hercules DJ Console (Windows Edition) */
 		.id = USB_ID(0x06f8, 0xb000),
-		.ignore_ctl_error = 1,
+		.igyesre_ctl_error = 1,
 	},
 	{
 		/* Hercules DJ Console (Macintosh Edition) */
 		.id = USB_ID(0x06f8, 0xd002),
-		.ignore_ctl_error = 1,
+		.igyesre_ctl_error = 1,
 	},
 	{
 		/* Hercules Gamesurround Muse Pocket LT
@@ -417,7 +417,7 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{
 		.id = USB_ID(0x08bb, 0x2702),
 		.map = linex_map,
-		.ignore_ctl_error = 1,
+		.igyesre_ctl_error = 1,
 	},
 	{
 		.id = USB_ID(0x0a92, 0x0091),
@@ -442,7 +442,7 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{
 		.id = USB_ID(0x13e5, 0x0001),
 		.map = scratch_live_map,
-		.ignore_ctl_error = 1,
+		.igyesre_ctl_error = 1,
 	},
 	{
 		.id = USB_ID(0x200c, 0x1018),

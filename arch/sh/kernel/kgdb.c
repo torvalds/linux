@@ -190,34 +190,34 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] = {
 	{ "vbr",	GDB_SIZEOF_REG, -1 },
 };
 
-int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
+int dbg_set_reg(int regyes, void *mem, struct pt_regs *regs)
 {
-	if (regno < 0 || regno >= DBG_MAX_REG_NUM)
+	if (regyes < 0 || regyes >= DBG_MAX_REG_NUM)
 		return -EINVAL;
 
-	if (dbg_reg_def[regno].offset != -1)
-		memcpy((void *)regs + dbg_reg_def[regno].offset, mem,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[regyes].offset != -1)
+		memcpy((void *)regs + dbg_reg_def[regyes].offset, mem,
+		       dbg_reg_def[regyes].size);
 
 	return 0;
 }
 
-char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
+char *dbg_get_reg(int regyes, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (regyes >= DBG_MAX_REG_NUM || regyes < 0)
 		return NULL;
 
-	if (dbg_reg_def[regno].size != -1)
-		memcpy(mem, (void *)regs + dbg_reg_def[regno].offset,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[regyes].size != -1)
+		memcpy(mem, (void *)regs + dbg_reg_def[regyes].offset,
+		       dbg_reg_def[regyes].size);
 
-	switch (regno) {
+	switch (regyes) {
 	case GDB_VBR:
 		__asm__ __volatile__ ("stc vbr, %0" : "=r" (mem));
 		break;
 	}
 
-	return dbg_reg_def[regno].name;
+	return dbg_reg_def[regyes].name;
 }
 
 void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
@@ -249,7 +249,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	gdb_regs[GDB_GBR] = thread_regs->gbr;
 }
 
-int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
+int kgdb_arch_handle_exception(int e_vector, int sigyes, int err_code,
 			       char *remcomInBuffer, char *remcomOutBuffer,
 			       struct pt_regs *linux_regs)
 {
@@ -262,7 +262,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 	switch (remcomInBuffer[0]) {
 	case 'c':
 	case 's':
-		/* try to read optional parameter, pc unchanged if no parm */
+		/* try to read optional parameter, pc unchanged if yes parm */
 		ptr = &remcomInBuffer[1];
 		if (kgdb_hex2long(&ptr, &addr))
 			linux_regs->pc = addr;
@@ -282,7 +282,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 		return 0;
 	}
 
-	/* this means that we do not want to exit from the handler: */
+	/* this means that we do yest want to exit from the handler: */
 	return -1;
 }
 
@@ -312,7 +312,7 @@ BUILD_TRAP_HANDLER(singlestep)
 	local_irq_restore(flags);
 }
 
-static int __kgdb_notify(struct die_args *args, unsigned long cmd)
+static int __kgdb_yestify(struct die_args *args, unsigned long cmd)
 {
 	int ret;
 
@@ -320,7 +320,7 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 	case DIE_BREAKPOINT:
 		/*
 		 * This means a user thread is single stepping
-		 * a system call which should be ignored
+		 * a system call which should be igyesred
 		 */
 		if (test_thread_flag(TIF_SINGLESTEP))
 			return NOTIFY_DONE;
@@ -337,35 +337,35 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 }
 
 static int
-kgdb_notify(struct notifier_block *self, unsigned long cmd, void *ptr)
+kgdb_yestify(struct yestifier_block *self, unsigned long cmd, void *ptr)
 {
 	unsigned long flags;
 	int ret;
 
 	local_irq_save(flags);
-	ret = __kgdb_notify(ptr, cmd);
+	ret = __kgdb_yestify(ptr, cmd);
 	local_irq_restore(flags);
 
 	return ret;
 }
 
-static struct notifier_block kgdb_notifier = {
-	.notifier_call	= kgdb_notify,
+static struct yestifier_block kgdb_yestifier = {
+	.yestifier_call	= kgdb_yestify,
 
 	/*
-	 * Lowest-prio notifier priority, we want to be notified last:
+	 * Lowest-prio yestifier priority, we want to be yestified last:
 	 */
 	.priority	= -INT_MAX,
 };
 
 int kgdb_arch_init(void)
 {
-	return register_die_notifier(&kgdb_notifier);
+	return register_die_yestifier(&kgdb_yestifier);
 }
 
 void kgdb_arch_exit(void)
 {
-	unregister_die_notifier(&kgdb_notifier);
+	unregister_die_yestifier(&kgdb_yestifier);
 }
 
 const struct kgdb_arch arch_kgdb_ops = {

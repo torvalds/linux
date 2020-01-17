@@ -52,7 +52,7 @@ static struct au1xpsc_audio_data *au1xpsc_ac97_workdata;
 #if 0
 
 /* this could theoretically work, but ac97->bus->card->private_data can be NULL
- * when snd_ac97_mixer() is called; I don't know if the rest further down the
+ * when snd_ac97_mixer() is called; I don't kyesw if the rest further down the
  * chain are always valid either.
  */
 static inline struct au1xpsc_audio_data *ac97_to_pscdata(struct snd_ac97 *x)
@@ -180,7 +180,7 @@ static void au1xpsc_ac97_cold_reset(struct snd_ac97 *ac97)
 		msleep(1);
 
 	if (i == 0) {
-		printk(KERN_ERR "au1xpsc-ac97: PSC not ready!\n");
+		printk(KERN_ERR "au1xpsc-ac97: PSC yest ready!\n");
 		return;
 	}
 
@@ -193,7 +193,7 @@ static void au1xpsc_ac97_cold_reset(struct snd_ac97 *ac97)
 	while (!((__raw_readl(AC97_STAT(pscdata)) & PSC_AC97STAT_DR)) && (--i))
 		msleep(1);
 	if (i == 0)
-		printk(KERN_ERR "au1xpsc-ac97: AC97 ctrl not ready\n");
+		printk(KERN_ERR "au1xpsc-ac97: AC97 ctrl yest ready\n");
 }
 
 /* AC97 controller operations */
@@ -219,7 +219,7 @@ static int au1xpsc_ac97_hw_params(struct snd_pcm_substream *substream,
 
 	/* already active? */
 	if (stat & (PSC_AC97STAT_TB | PSC_AC97STAT_RB)) {
-		/* reject parameters not currently set up */
+		/* reject parameters yest currently set up */
 		if ((PSC_AC97CFG_GET_LEN(r) != params->msbits) ||
 		    (pscdata->rate != params_rate(params)))
 			return -EINVAL;
@@ -307,7 +307,7 @@ static int au1xpsc_ac97_trigger(struct snd_pcm_substream *substream,
 		wmb(); /* drain writebuffer */
 
 		while (__raw_readl(AC97_STAT(pscdata)) & AC97STAT_BUSY(stype))
-			asm volatile ("nop");
+			asm volatile ("yesp");
 
 		__raw_writel(AC97PCR_CLRFIFO(stype), AC97_PCR(pscdata));
 		wmb(); /* drain writebuffer */

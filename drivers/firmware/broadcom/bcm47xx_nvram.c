@@ -85,7 +85,7 @@ static int nvram_find_and_copy(void __iomem *iobase, u32 lim)
 		goto found;
 	}
 
-	pr_err("no nvram found\n");
+	pr_err("yes nvram found\n");
 	return -ENXIO;
 
 found:
@@ -120,7 +120,7 @@ int bcm47xx_nvram_init_from_mem(u32 base, u32 lim)
 	void __iomem *iobase;
 	int err;
 
-	iobase = ioremap_nocache(base, lim);
+	iobase = ioremap_yescache(base, lim);
 	if (!iobase)
 		return -ENOMEM;
 

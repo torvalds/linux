@@ -30,7 +30,7 @@ static int udplite_err(struct sk_buff *skb, u32 info)
 static const struct net_protocol udplite_protocol = {
 	.handler	= udplite_rcv,
 	.err_handler	= udplite_err,
-	.no_policy	= 1,
+	.yes_policy	= 1,
 	.netns_ok	= 1,
 };
 
@@ -118,11 +118,11 @@ void __init udplite4_register(void)
 	inet_register_protosw(&udplite4_protosw);
 
 	if (udplite4_proc_init())
-		pr_err("%s: Cannot register /proc!\n", __func__);
+		pr_err("%s: Canyest register /proc!\n", __func__);
 	return;
 
 out_unregister_proto:
 	proto_unregister(&udplite_prot);
 out_register_err:
-	pr_crit("%s: Cannot add UDP-Lite protocol\n", __func__);
+	pr_crit("%s: Canyest add UDP-Lite protocol\n", __func__);
 }

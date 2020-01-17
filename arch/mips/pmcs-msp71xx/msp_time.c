@@ -3,7 +3,7 @@
  * Setting up the clock on MSP SOCs.  No RTC typically.
  *
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 1999,2000 MIPS Techyeslogies, Inc.  All rights reserved.
  *
  * ########################################################################
  *

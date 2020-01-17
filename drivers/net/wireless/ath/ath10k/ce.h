@@ -77,7 +77,7 @@ struct ath10k_ce_ring {
 	/* cached copy */
 	unsigned int write_index;
 	/*
-	 * For src ring, this is the next index not yet processed by HW.
+	 * For src ring, this is the next index yest yet processed by HW.
 	 * This is a cached copy of the real HW index (read index), used
 	 * for avoiding reading the HW index register more often than
 	 * necessary.
@@ -159,7 +159,7 @@ struct ath10k_ce {
 #define CE_SEND_FLAG_BYTE_SWAP 1
 
 /*
- * Queue a source buffer to be sent to an anonymous destination buffer.
+ * Queue a source buffer to be sent to an ayesnymous destination buffer.
  *   ce         - which copy engine to use
  *   buffer          - address of buffer
  *   nbytes          - number of bytes to send
@@ -167,9 +167,9 @@ struct ath10k_ce {
  *   flags           - CE_SEND_FLAG_* values
  * Returns 0 on success; otherwise an error status.
  *
- * Note: If no flags are specified, use CE's default data swap mode.
+ * Note: If yes flags are specified, use CE's default data swap mode.
  *
- * Implementation note: pushes 1 buffer to Source ring
+ * Implementation yeste: pushes 1 buffer to Source ring
  */
 int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   void *per_transfer_send_context,
@@ -179,7 +179,7 @@ int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   unsigned int transfer_id,
 		   unsigned int flags);
 
-int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
+int ath10k_ce_send_yeslock(struct ath10k_ce_pipe *ce_state,
 			  void *per_transfer_context,
 			  dma_addr_t buffer,
 			  unsigned int nbytes,
@@ -215,7 +215,7 @@ int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp);
 
-int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
+int ath10k_ce_completed_send_next_yeslock(struct ath10k_ce_pipe *ce_state,
 					 void **per_transfer_contextp);
 
 /*==================CE Engine Initialization=======================*/
@@ -237,7 +237,7 @@ int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
 			       dma_addr_t *bufferp);
 
-int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
+int ath10k_ce_completed_recv_next_yeslock(struct ath10k_ce_pipe *ce_state,
 					 void **per_transfer_contextp,
 					 unsigned int *nbytesp);
 
@@ -263,7 +263,7 @@ void ath10k_ce_alloc_rri(struct ath10k *ar);
 void ath10k_ce_free_rri(struct ath10k *ar);
 
 /* ce_attr.flags values */
-/* Use NonSnooping PCIe accesses? */
+/* Use NonSyesoping PCIe accesses? */
 #define CE_ATTR_NO_SNOOP		BIT(0)
 
 /* Byte swap data words */
@@ -272,10 +272,10 @@ void ath10k_ce_free_rri(struct ath10k *ar);
 /* Swizzle descriptors? */
 #define CE_ATTR_SWIZZLE_DESCRIPTORS	BIT(2)
 
-/* no interrupt on copy completion */
+/* yes interrupt on copy completion */
 #define CE_ATTR_DIS_INTR		BIT(3)
 
-/* no interrupt, only polling */
+/* yes interrupt, only polling */
 #define CE_ATTR_POLL			BIT(4)
 
 /* Attributes of an instance of a Copy Engine */
@@ -308,7 +308,7 @@ struct ath10k_ce_ops {
 						    const struct ce_attr *attr);
 	int (*ce_rx_post_buf)(struct ath10k_ce_pipe *pipe, void *ctx,
 			      dma_addr_t paddr);
-	int (*ce_completed_recv_next_nolock)(struct ath10k_ce_pipe *ce_state,
+	int (*ce_completed_recv_next_yeslock)(struct ath10k_ce_pipe *ce_state,
 					     void **per_transfer_contextp,
 					     u32 *nbytesp);
 	int (*ce_revoke_recv_next)(struct ath10k_ce_pipe *ce_state,
@@ -319,7 +319,7 @@ struct ath10k_ce_ops {
 				     u32 sw_index, dma_addr_t *bufferp,
 				     u32 *nbytesp, u32 *transfer_idp);
 	void (*ce_free_pipe)(struct ath10k *ar, int ce_id);
-	int (*ce_send_nolock)(struct ath10k_ce_pipe *pipe,
+	int (*ce_send_yeslock)(struct ath10k_ce_pipe *pipe,
 			      void *per_transfer_context,
 			      dma_addr_t buffer, u32 nbytes,
 			      u32 transfer_id, u32 flags);
@@ -329,7 +329,7 @@ struct ath10k_ce_ops {
 	void (*ce_set_dest_ring_base_addr_hi)(struct ath10k *ar,
 					      u32 ce_ctrl_addr,
 					      u64 addr);
-	int (*ce_completed_send_next_nolock)(struct ath10k_ce_pipe *ce_state,
+	int (*ce_completed_send_next_yeslock)(struct ath10k_ce_pipe *ce_state,
 					     void **per_transfer_contextp);
 };
 

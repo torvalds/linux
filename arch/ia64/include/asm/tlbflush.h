@@ -111,7 +111,7 @@ flush_tlb_page (struct vm_area_struct *vma, unsigned long addr)
 }
 
 /*
- * Flush the local TLB. Invoked from another cpu using an IPI.
+ * Flush the local TLB. Invoked from ayesther cpu using an IPI.
  */
 #ifdef CONFIG_SMP
 void smp_local_flush_tlb(void);

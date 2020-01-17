@@ -7,7 +7,7 @@
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions: *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -104,7 +104,7 @@ struct drm_i915_mocs_table {
  * that, for Icelake and above, list of entries is published as part
  * of bspec.
  *
- * Entries not part of the following tables are undefined as far as
+ * Entries yest part of the following tables are undefined as far as
  * userspace is concerned and shouldn't be relied upon.  For Gen < 12
  * they will be initialized to PTE. Gen >= 12 onwards don't have a setting for
  * PTE and will be initialized to an invalid value.
@@ -134,7 +134,7 @@ static const struct drm_i915_mocs_entry skylake_mocs_table[] = {
 		   L3_3_WB)
 };
 
-/* NOTE: the LE_TGT_CACHE is not used on Broxton */
+/* NOTE: the LE_TGT_CACHE is yest used on Broxton */
 static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 	GEN9_MOCS_ENTRIES,
 	MOCS_ENTRY(I915_MOCS_CACHED,
@@ -200,7 +200,7 @@ static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 	MOCS_ENTRY(15, \
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2) | LE_AOM(1), \
 		   L3_3_WB), \
-	/* Self-Snoop - L3 + LLC */ \
+	/* Self-Syesop - L3 + LLC */ \
 	MOCS_ENTRY(18, \
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SSE(3), \
 		   L3_3_WB), \
@@ -307,7 +307,7 @@ static bool get_mocs_settings(const struct drm_i915_private *i915,
 		result = true;
 	} else {
 		WARN_ONCE(INTEL_GEN(i915) >= 9,
-			  "Platform that should have a MOCS table does not.\n");
+			  "Platform that should have a MOCS table does yest.\n");
 	}
 
 	/* WaDisableSkipCaching:skl,bxt,kbl,glk */
@@ -345,7 +345,7 @@ static i915_reg_t mocs_register(const struct intel_engine_cs *engine, int index)
 }
 
 /*
- * Get control_value from MOCS entry taking into account when it's not used:
+ * Get control_value from MOCS entry taking into account when it's yest used:
  * I915_MOCS_PTE's value is returned in this case.
  */
 static u32 get_entry_control(const struct drm_i915_mocs_table *table,
@@ -377,7 +377,7 @@ static void init_mocs_table(struct intel_engine_cs *engine,
 }
 
 /*
- * Get l3cc_value from MOCS entry taking into account when it's not used:
+ * Get l3cc_value from MOCS entry taking into account when it's yest used:
  * I915_MOCS_PTE's value is returned in this case.
  */
 static u16 get_entry_l3cc(const struct drm_i915_mocs_table *table,
@@ -440,7 +440,7 @@ void intel_mocs_init_engine(struct intel_engine_cs *engine)
 	if (!get_mocs_settings(engine->i915, &table))
 		return;
 
-	/* Platforms with global MOCS do not need per-engine initialization. */
+	/* Platforms with global MOCS do yest need per-engine initialization. */
 	if (!HAS_GLOBAL_MOCS_REGISTERS(engine->i915))
 		init_mocs_table(engine, &table);
 
@@ -455,7 +455,7 @@ static void intel_mocs_init_global(struct intel_gt *gt)
 	unsigned int index;
 
 	/*
-	 * LLC and eDRAM control values are not applicable to dgfx
+	 * LLC and eDRAM control values are yest applicable to dgfx
 	 */
 	if (IS_DGFX(gt->i915))
 		return;
@@ -474,8 +474,8 @@ static void intel_mocs_init_global(struct intel_gt *gt)
 				   table.table[index].control_value);
 
 	/*
-	 * Ok, now set the unused entries to the invalid entry (index 0). These
-	 * entries are officially undefined and no contract for the contents and
+	 * Ok, yesw set the unused entries to the invalid entry (index 0). These
+	 * entries are officially undefined and yes contract for the contents and
 	 * settings is given for these entries.
 	 */
 	for (; index < table.n_entries; index++)

@@ -1027,7 +1027,7 @@ static int rj54n1_set_fmt(struct v4l2_subdev *sd,
 			return ret;
 	}
 
-	/* RA_SEL_UL is only relevant for raw modes, ignored otherwise. */
+	/* RA_SEL_UL is only relevant for raw modes, igyesred otherwise. */
 	switch (mf->code) {
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 		ret = reg_write(client, RJ54N1_OUT_SEL, 0);

@@ -40,7 +40,7 @@ phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t dma_addr)
 
 /*
  * Most of the IOC3 PCI config register aren't present
- * we emulate what is needed for a normal PCI enumeration
+ * we emulate what is needed for a yesrmal PCI enumeration
  */
 static int ioc3_cfg_rd(void *addr, int where, int size, u32 *value, u32 sid)
 {
@@ -107,8 +107,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SGI, PCI_DEVICE_ID_SGI_IOC3,
 
 /*
  * The Bridge ASIC supports both type 0 and type 1 access.  Type 1 is
- * not really documented, so right now I can't write code which uses it.
- * Therefore we use type 0 accesses for now even though they won't work
+ * yest really documented, so right yesw I can't write code which uses it.
+ * Therefore we use type 0 accesses for yesw even though they won't work
  * correctly for PCI-to-PCI bridges.
  *
  * The function is complicated by the ultimate brokenness of the IOC3 chip
@@ -157,14 +157,14 @@ static int pci_conf1_read_config(struct pci_bus *bus, unsigned int devfn,
 {
 	struct bridge_controller *bc = BRIDGE_CONTROLLER(bus);
 	struct bridge_regs *bridge = bc->base;
-	int busno = bus->number;
+	int busyes = bus->number;
 	int slot = PCI_SLOT(devfn);
 	int fn = PCI_FUNC(devfn);
 	void *addr;
 	u32 cf;
 	int res;
 
-	bridge_write(bc, b_pci_cfg, (busno << 16) | (slot << 11));
+	bridge_write(bc, b_pci_cfg, (busyes << 16) | (slot << 11));
 	addr = &bridge->b_type1_cfg.c[(fn << 8) | PCI_VENDOR_ID];
 	if (get_dbe(cf, (u32 *)addr))
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -246,12 +246,12 @@ static int pci_conf1_write_config(struct pci_bus *bus, unsigned int devfn,
 	struct bridge_regs *bridge = bc->base;
 	int slot = PCI_SLOT(devfn);
 	int fn = PCI_FUNC(devfn);
-	int busno = bus->number;
+	int busyes = bus->number;
 	void *addr;
 	u32 cf;
 	int res;
 
-	bridge_write(bc, b_pci_cfg, (busno << 16) | (slot << 11));
+	bridge_write(bc, b_pci_cfg, (busyes << 16) | (slot << 11));
 	addr = &bridge->b_type1_cfg.c[(fn << 8) | PCI_VENDOR_ID];
 	if (get_dbe(cf, (u32 *)addr))
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -311,7 +311,7 @@ static int bridge_set_affinity(struct irq_data *d, const struct cpumask *mask,
 	ret = irq_chip_set_affinity_parent(d, mask, force);
 	if (ret >= 0) {
 		cpu = cpumask_first_and(mask, cpu_online_mask);
-		data->nasid = cpu_to_node(cpu);
+		data->nasid = cpu_to_yesde(cpu);
 		bridge_write(data->bc, b_int_addr[pin].addr,
 			     (((data->bc->intr_addr >> 30) & 0x30000) |
 			      bit | (data->nasid << 8)));
@@ -483,8 +483,8 @@ static void bridge_setup_menet(struct bridge_controller *bc)
 	bc->ioc3_sid[3] = IOC3_SID(IOC3_SUBSYS_MENET4);
 }
 
-#define BRIDGE_BOARD_SETUP(_partno, _setup)	\
-	{ .match = _partno, .setup = _setup }
+#define BRIDGE_BOARD_SETUP(_partyes, _setup)	\
+	{ .match = _partyes, .setup = _setup }
 
 static const struct {
 	char *match;
@@ -570,24 +570,24 @@ static int bridge_probe(struct platform_device *pdev)
 	struct bridge_controller *bc;
 	struct pci_host_bridge *host;
 	struct irq_domain *domain, *parent;
-	struct fwnode_handle *fn;
+	struct fwyesde_handle *fn;
 	char partnum[26];
 	int slot;
 	int err;
 
 	/* get part number from one wire prom */
 	if (bridge_get_partnum(virt_to_phys((void *)bd->bridge_addr), partnum))
-		return -EPROBE_DEFER; /* not available yet */
+		return -EPROBE_DEFER; /* yest available yet */
 
 	parent = irq_get_default_host();
 	if (!parent)
 		return -ENODEV;
-	fn = irq_domain_alloc_named_fwnode("BRIDGE");
+	fn = irq_domain_alloc_named_fwyesde("BRIDGE");
 	if (!fn)
 		return -ENOMEM;
 	domain = irq_domain_create_hierarchy(parent, 0, 8, fn,
 					     &bridge_domain_ops, NULL);
-	irq_domain_free_fwnode(fn);
+	irq_domain_free_fwyesde(fn);
 	if (!domain)
 		return -ENOMEM;
 

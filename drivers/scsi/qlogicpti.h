@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* qlogicpti.h: Performance Technologies QlogicISP sbus card defines.
+/* qlogicpti.h: Performance Techyeslogies QlogicISP sbus card defines.
  *
  * Copyright (C) 1996 David S. Miller (davem@caipfs.rutgers.edu)
  */
@@ -35,11 +35,11 @@
 /* With the qlogic interface, every queue slot can hold a SCSI
  * command with up to 4 scatter/gather entries.  If we need more
  * than 4 entries, continuation entries can be used that hold
- * another 7 entries each.  Unlike for other drivers, this means
+ * ayesther 7 entries each.  Unlike for other drivers, this means
  * that the maximum number of scatter/gather entries we can
  * support at any given time is a function of the number of queue
  * slots available.  That is, host->can_queue and host->sg_tablesize
- * are dynamic and _not_ independent.  This all works fine because
+ * are dynamic and _yest_ independent.  This all works fine because
  * requests are queued serially and the scatter/gather limit is
  * determined for each queue request anew.
  */
@@ -299,7 +299,7 @@ struct host_param {
  *  7   Disconnect Privilege
  *  6   Parity Checking
  *  5   Wide Data Transfers
- *  4   Synchronous Data Transfers
+ *  4   Synchroyesus Data Transfers
  *  3   Tagged Queuing
  *  2   Automatic Request Sense
  *  1   Stop Queue on Check Condition
@@ -309,15 +309,15 @@ struct host_param {
 struct dev_param {
 	u_short		device_flags;
 	u_short		execution_throttle;
-	u_short		synchronous_period;
-	u_short		synchronous_offset;
+	u_short		synchroyesus_period;
+	u_short		synchroyesus_offset;
 	u_short		device_enable;
 	u_short		reserved; /* pad */
 };
 
 /*
  * The result queue can be quite a bit smaller since continuation entries
- * do not show up there:
+ * do yest show up there:
  */
 #define RES_QUEUE_LEN		255	/* Must be power of two - 1 */
 #define QUEUE_ENTRY_LEN		64
@@ -363,7 +363,7 @@ struct qlogicpti {
 	struct Scsi_Host         *qhost;
 	int                       qpti_id;
 	int                       scsi_id;
-	int                       prom_node;
+	int                       prom_yesde;
 	int                       irq;
 	char                      differential, ultra, clock;
 	unsigned char             bursts;
@@ -494,8 +494,8 @@ struct qlogicpti {
 #define HCCTRL_BKPT             0x8000      /* CMD: Breakpoint enables change   */
 #define HCCTRL_TMODE            0xf000      /* CMD: Enable test mode            */
 #define HCCTRL_HIRQ             0x0080      /* Host IRQ pending                 */
-#define HCCTRL_RRIP             0x0040      /* RISC cpu reset in happening now  */
-#define HCCTRL_RPAUSED          0x0020      /* RISC cpu is paused now           */
+#define HCCTRL_RRIP             0x0040      /* RISC cpu reset in happening yesw  */
+#define HCCTRL_RPAUSED          0x0020      /* RISC cpu is paused yesw           */
 #define HCCTRL_EBENAB           0x0010      /* External breakpoint enable       */
 #define HCCTRL_B1ENAB           0x0008      /* Breakpoint 1 enable              */
 #define HCCTRL_B0ENAB           0x0004      /* Breakpoint 0 enable              */

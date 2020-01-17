@@ -86,7 +86,7 @@ acpi_ex_generate_access(u32 field_bit_offset,
 
 	/*
 	 * Iterative search for the maximum access width that is both aligned
-	 * and does not go beyond the end of the region
+	 * and does yest go beyond the end of the region
 	 *
 	 * Start at byte_acc and work upwards to qword_acc max. (1,2,4,8 bytes)
 	 */
@@ -94,9 +94,9 @@ acpi_ex_generate_access(u32 field_bit_offset,
 	     access_byte_width <<= 1) {
 		/*
 		 * 1) Round end offset up to next access boundary and make sure that
-		 *    this does not go beyond the end of the parent region.
+		 *    this does yest go beyond the end of the parent region.
 		 * 2) When the Access width is greater than the field_byte_length, we
-		 *    are done. (This does not optimize for the perfectly aligned
+		 *    are done. (This does yest optimize for the perfectly aligned
 		 *    case yet).
 		 */
 		if (ACPI_ROUND_UP(field_byte_end_offset, access_byte_width) <=
@@ -149,7 +149,7 @@ acpi_ex_generate_access(u32 field_bit_offset,
 				ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
 						  "Field goes beyond end-of-region!\n"));
 
-				/* Field does not fit in the region at all */
+				/* Field does yest fit in the region at all */
 
 				return_VALUE(0);
 			}
@@ -166,11 +166,11 @@ acpi_ex_generate_access(u32 field_bit_offset,
 	}
 
 	/*
-	 * Could not read/write field with one operation,
+	 * Could yest read/write field with one operation,
 	 * just use max access width
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-			  "Cannot access field in one operation, using width 8\n"));
+			  "Canyest access field in one operation, using width 8\n"));
 
 	return_VALUE(8);
 }
@@ -250,7 +250,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 
 		/* Invalid field access type */
 
-		ACPI_ERROR((AE_INFO, "Unknown field access type 0x%X", access));
+		ACPI_ERROR((AE_INFO, "Unkyeswn field access type 0x%X", access));
 
 		return_UINT32(0);
 	}
@@ -276,7 +276,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
  *              field_flags         - Access, lock_rule, and update_rule.
  *                                    The format of a field_flag is described
  *                                    in the ACPI specification
- *              field_attribute     - Special attributes (not used)
+ *              field_attribute     - Special attributes (yest used)
  *              field_bit_position  - Field start position
  *              field_bit_length    - Field length in number of bits
  *
@@ -388,12 +388,12 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 	/* Parameter validation */
 
 	if (info->field_type != ACPI_TYPE_LOCAL_INDEX_FIELD) {
-		if (!info->region_node) {
+		if (!info->region_yesde) {
 			ACPI_ERROR((AE_INFO, "Null RegionNode"));
 			return_ACPI_STATUS(AE_AML_NO_OPERAND);
 		}
 
-		type = acpi_ns_get_type(info->region_node);
+		type = acpi_ns_get_type(info->region_yesde);
 		if (type != ACPI_TYPE_REGION) {
 			ACPI_ERROR((AE_INFO,
 				    "Needed Region, found type 0x%X (%s)", type,
@@ -412,7 +412,7 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 
 	/* Initialize areas of the object that are common to all fields */
 
-	obj_desc->common_field.node = info->field_node;
+	obj_desc->common_field.yesde = info->field_yesde;
 	status = acpi_ex_prep_common_field_object(obj_desc,
 						  info->field_flags,
 						  info->attribute,
@@ -429,14 +429,14 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 	case ACPI_TYPE_LOCAL_REGION_FIELD:
 
 		obj_desc->field.region_obj =
-		    acpi_ns_get_attached_object(info->region_node);
+		    acpi_ns_get_attached_object(info->region_yesde);
 
 		/* Fields specific to generic_serial_bus fields */
 
 		obj_desc->field.access_length = info->access_length;
 
-		if (info->connection_node) {
-			second_desc = info->connection_node->object;
+		if (info->connection_yesde) {
+			second_desc = info->connection_yesde->object;
 			if (!(second_desc->common.flags & AOPOBJ_DATA_VALID)) {
 				status =
 				    acpi_ds_get_buffer_arguments(second_desc);
@@ -489,9 +489,9 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 
 		obj_desc->bank_field.value = info->bank_value;
 		obj_desc->bank_field.region_obj =
-		    acpi_ns_get_attached_object(info->region_node);
+		    acpi_ns_get_attached_object(info->region_yesde);
 		obj_desc->bank_field.bank_obj =
-		    acpi_ns_get_attached_object(info->register_node);
+		    acpi_ns_get_attached_object(info->register_yesde);
 
 		/* An additional reference for the attached objects */
 
@@ -514,10 +514,10 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 		second_desc = obj_desc->common.next_object;
 		second_desc->extra.aml_start =
 		    ACPI_CAST_PTR(union acpi_parse_object,
-				  info->data_register_node)->named.data;
+				  info->data_register_yesde)->named.data;
 		second_desc->extra.aml_length =
 		    ACPI_CAST_PTR(union acpi_parse_object,
-				  info->data_register_node)->named.length;
+				  info->data_register_yesde)->named.length;
 
 		break;
 
@@ -526,9 +526,9 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 		/* Get the Index and Data registers */
 
 		obj_desc->index_field.index_obj =
-		    acpi_ns_get_attached_object(info->register_node);
+		    acpi_ns_get_attached_object(info->register_yesde);
 		obj_desc->index_field.data_obj =
-		    acpi_ns_get_attached_object(info->data_register_node);
+		    acpi_ns_get_attached_object(info->data_register_yesde);
 
 		if (!obj_desc->index_field.data_obj
 		    || !obj_desc->index_field.index_obj) {
@@ -588,13 +588,13 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 	 * preserving the current type of that named_obj.
 	 */
 	status =
-	    acpi_ns_attach_object(info->field_node, obj_desc,
-				  acpi_ns_get_type(info->field_node));
+	    acpi_ns_attach_object(info->field_yesde, obj_desc,
+				  acpi_ns_get_type(info->field_yesde));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
 			  "Set NamedObj %p [%4.4s], ObjDesc %p\n",
-			  info->field_node,
-			  acpi_ut_get_node_name(info->field_node), obj_desc));
+			  info->field_yesde,
+			  acpi_ut_get_yesde_name(info->field_yesde), obj_desc));
 
 	/* Remove local reference to the object */
 

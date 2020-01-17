@@ -7,7 +7,7 @@
  *
  * Author: Max Asböck <amax@us.ibm.com>
  *
- * Originally written by Pete Reynolds
+ * Originally written by Pete Reyyeslds
  */
 
 #ifndef _IBMASM_REMOTE_H_

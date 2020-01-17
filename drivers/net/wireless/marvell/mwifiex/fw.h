@@ -758,7 +758,7 @@ struct mwifiex_fw_chan_stats {
 	u8 chan_num;
 	u8 bandcfg;
 	u8 flags;
-	s8 noise;
+	s8 yesise;
 	__le16 total_bss;
 	__le16 cca_scan_dur;
 	__le16 cca_busy_dur;
@@ -1058,7 +1058,7 @@ struct hw_spec_api_rev {
 	struct mwifiex_ie_types_header header;
 	__le16 api_id;
 	u8 major_ver;
-	u8 minor_ver;
+	u8 miyesr_ver;
 } __packed;
 
 struct host_cmd_ds_get_hw_spec {
@@ -1277,7 +1277,7 @@ struct host_cmd_ds_tx_rate_query {
 	 * [Bit 2-3] HT/VHT Bandwidth: BW20 = 0, BW40 = 1, BW80 = 2, BW160 = 3
 	 * [Bit 4]   HT/VHT Guard Interval: LGI = 0, SGI = 1
 	 *
-	 * For non-802.11 AC cards
+	 * For yesn-802.11 AC cards
 	 * Ht Info [Bit 0] RxRate format: LG=0, HT=1
 	 * [Bit 1]  HT Bandwidth: BW20 = 0, BW40 = 1
 	 * [Bit 2]  HT Guard Interval: LGI = 0, SGI = 1
@@ -2154,7 +2154,7 @@ struct mwifiex_ie_types_rssi_threshold {
 struct mwifiex_radar_det_event {
 	__le32 detect_count;
 	u8 reg_domain;  /*1=fcc, 2=etsi, 3=mic*/
-	u8 det_type;  /*0=none, 1=pw(chirp), 2=pri(radar)*/
+	u8 det_type;  /*0=yesne, 1=pw(chirp), 2=pri(radar)*/
 	__le16 pw_chirp_type;
 	u8 pw_chirp_idx;
 	u8 pw_value;

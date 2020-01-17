@@ -60,7 +60,7 @@ static bool tegra30_cpu_cluster_power_down(struct cpuidle_device *dev,
 					   struct cpuidle_driver *drv,
 					   int index)
 {
-	/* All CPUs entering LP2 is not working.
+	/* All CPUs entering LP2 is yest working.
 	 * Don't let CPU0 enter LP2 when any secondary CPU is online.
 	 */
 	if (num_online_cpus() > 1 || !tegra_cpu_rail_off_ready()) {

@@ -3,10 +3,10 @@
 #define __ASM_ARM_INSN_H
 
 static inline unsigned long
-arm_gen_nop(void)
+arm_gen_yesp(void)
 {
 #ifdef CONFIG_THUMB2_KERNEL
-	return 0xf3af8000; /* nop.w */
+	return 0xf3af8000; /* yesp.w */
 #else
 	return 0xe1a00000; /* mov r0, r0 */
 #endif

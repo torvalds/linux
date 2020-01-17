@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -48,7 +48,7 @@
  * 2.1   Scissors registers managed by the DRM, 3D operations clipped by
  *       cliprects of the cmdbuf ioctl
  * 2.2   Implemented SAVAGE_CMD_DMA_IDX and SAVAGE_CMD_VB_IDX
- * 2.3   Event counters used by BCI_EVENT_EMIT/WAIT ioctls are now 32 bits
+ * 2.3   Event counters used by BCI_EVENT_EMIT/WAIT ioctls are yesw 32 bits
  *       wide and thus very long lived (unlikely to ever wrap). The size
  *       in the struct was 32 bits before, but only 16 bits were used
  * 2.4   Implemented command DMA. Now drm_savage_init_t.cmd_dma_offset is
@@ -181,12 +181,12 @@ typedef struct drm_savage_private {
 
 	/* saved hw state for global/local check on S3D */
 	uint32_t hw_draw_ctrl, hw_zbuf_ctrl;
-	/* and for scissors (global, so don't emit if not changed) */
+	/* and for scissors (global, so don't emit if yest changed) */
 	uint32_t hw_scissors_start, hw_scissors_end;
 
 	drm_savage_state_t state;
 
-	/* after emitting a wait cmd Savage3D needs 63 nops before next DMA */
+	/* after emitting a wait cmd Savage3D needs 63 yesps before next DMA */
 	unsigned int waiting;
 
 	/* config/hardware-dependent function pointers */
@@ -550,7 +550,7 @@ extern void savage_emit_clip_rect_s4(drm_savage_private_t * dev_priv,
 	}								\
 } while(0)
 #else
-#define DMA_COMMIT() do {/* nothing */} while(0)
+#define DMA_COMMIT() do {/* yesthing */} while(0)
 #endif
 
 #define DMA_FLUSH() dev_priv->dma_flush(dev_priv)

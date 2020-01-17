@@ -335,7 +335,7 @@ int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 
 	if (!nch) {
 		netdev_err(nca->ndp->ndev.dev,
-			   "Cannot send packet with type 0x%02x\n", nca->type);
+			   "Canyest send packet with type 0x%02x\n", nca->type);
 		return -ENOENT;
 	}
 
@@ -371,7 +371,7 @@ int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 	eth_broadcast_addr(eh->h_dest);
 	eth_broadcast_addr(eh->h_source);
 
-	/* Start the timer for the request that might not have
+	/* Start the timer for the request that might yest have
 	 * corresponding response. Given NCSI is an internal
 	 * connection a 1 second delay should be sufficient.
 	 */

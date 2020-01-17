@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  drivers/mmc/host/via-sdmmc.c - VIA SD/MMC Card Reader driver
- *  Copyright (c) 2008, VIA Technologies Inc. All Rights Reserved.
+ *  Copyright (c) 2008, VIA Techyeslogies Inc. All Rights Reserved.
  */
 
 #include <linux/pci.h>
@@ -463,7 +463,7 @@ static void via_set_ddma(struct via_crdr_mmc_host *host,
 	writel(ctrl_data, addrbase + VIA_CRDR_DMACTRL);
 	writel(0x01, addrbase + VIA_CRDR_DMASTART);
 
-	/* It seems that our DMA can not work normally with 375kHz clock */
+	/* It seems that our DMA can yest work yesrmally with 375kHz clock */
 	/* FIXME: don't brute-force 8MHz but use PIO at 375kHz !! */
 	addrbase = host->pcictrl_mmiobase;
 	if (readb(addrbase + VIA_CRDR_PCISDCCLK) == PCI_CLK_375K) {
@@ -580,12 +580,12 @@ static void via_sdc_send_command(struct via_crdr_mmc_host *host,
 		cmdctrl |= VIA_CRDR_SDCTRL_RSP_R3;
 		break;
 	default:
-		pr_err("%s: cmd->flag is not valid\n", mmc_hostname(host->mmc));
+		pr_err("%s: cmd->flag is yest valid\n", mmc_hostname(host->mmc));
 		break;
 	}
 
 	if (!(cmd->data))
-		goto nodata;
+		goto yesdata;
 
 	via_sdc_preparedata(host, data);
 
@@ -606,7 +606,7 @@ static void via_sdc_send_command(struct via_crdr_mmc_host *host,
 		}
 	}
 
-nodata:
+yesdata:
 	if (cmd == host->mrq->stop)
 		cmdctrl |= VIA_CRDR_SDCTRL_STOP;
 
@@ -832,7 +832,7 @@ static void via_sdc_cmd_isr(struct via_crdr_mmc_host *host, u16 intmask)
 
 	if (!host->cmd) {
 		pr_err("%s: Got command interrupt 0x%x even "
-		       "though no command operation was in progress.\n",
+		       "though yes command operation was in progress.\n",
 		       mmc_hostname(host->mmc), intmask);
 		return;
 	}
@@ -1034,7 +1034,7 @@ static void via_init_mmc_host(struct via_crdr_mmc_host *host)
 	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SD_HIGHSPEED;
 	mmc->ops = &via_sdc_ops;
 
-	/*Hardware cannot do scatter lists*/
+	/*Hardware canyest do scatter lists*/
 	mmc->max_segs = 1;
 
 	mmc->max_blk_size = VIA_CRDR_MAX_BLOCK_LENGTH;
@@ -1106,7 +1106,7 @@ static int via_sd_probe(struct pci_dev *pcidev,
 
 	len = pci_resource_len(pcidev, 0);
 	base = pci_resource_start(pcidev, 0);
-	sdhost->mmiobase = ioremap_nocache(base, len);
+	sdhost->mmiobase = ioremap_yescache(base, len);
 	if (!sdhost->mmiobase) {
 		ret = -ENOMEM;
 		goto free_mmc_host;
@@ -1320,5 +1320,5 @@ static struct pci_driver via_sd_driver = {
 module_pci_driver(via_sd_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("VIA Technologies Inc.");
+MODULE_AUTHOR("VIA Techyeslogies Inc.");
 MODULE_DESCRIPTION("VIA SD/MMC Card Interface driver");

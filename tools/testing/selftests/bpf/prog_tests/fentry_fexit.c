@@ -24,46 +24,46 @@ void test_fentry_fexit(void)
 
 	err = bpf_prog_load("./test_pkt_access.o", BPF_PROG_TYPE_SCHED_CLS,
 			    &pkt_obj, &pkt_fd);
-	if (CHECK(err, "prog_load sched cls", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "prog_load sched cls", "err %d erryes %d\n", err, erryes))
 		return;
 	err = bpf_prog_load_xattr(&attr_fentry, &obj_fentry, &kfree_skb_fd);
-	if (CHECK(err, "prog_load fail", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "prog_load fail", "err %d erryes %d\n", err, erryes))
 		goto close_prog;
 	err = bpf_prog_load_xattr(&attr_fexit, &obj_fexit, &kfree_skb_fd);
-	if (CHECK(err, "prog_load fail", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "prog_load fail", "err %d erryes %d\n", err, erryes))
 		goto close_prog;
 
 	for (i = 0; i < 6; i++) {
 		fentry_name[sizeof(fentry_name) - 2] = '1' + i;
 		prog[i] = bpf_object__find_program_by_title(obj_fentry, fentry_name);
-		if (CHECK(!prog[i], "find_prog", "prog %s not found\n", fentry_name))
+		if (CHECK(!prog[i], "find_prog", "prog %s yest found\n", fentry_name))
 			goto close_prog;
 		link[i] = bpf_program__attach_trace(prog[i]);
 		if (CHECK(IS_ERR(link[i]), "attach_trace", "failed to link\n"))
 			goto close_prog;
 	}
 	data_map_fentry = bpf_object__find_map_by_name(obj_fentry, "fentry_t.bss");
-	if (CHECK(!data_map_fentry, "find_data_map", "data map not found\n"))
+	if (CHECK(!data_map_fentry, "find_data_map", "data map yest found\n"))
 		goto close_prog;
 
 	for (i = 6; i < 12; i++) {
 		fexit_name[sizeof(fexit_name) - 2] = '1' + i - 6;
 		prog[i] = bpf_object__find_program_by_title(obj_fexit, fexit_name);
-		if (CHECK(!prog[i], "find_prog", "prog %s not found\n", fexit_name))
+		if (CHECK(!prog[i], "find_prog", "prog %s yest found\n", fexit_name))
 			goto close_prog;
 		link[i] = bpf_program__attach_trace(prog[i]);
 		if (CHECK(IS_ERR(link[i]), "attach_trace", "failed to link\n"))
 			goto close_prog;
 	}
 	data_map_fexit = bpf_object__find_map_by_name(obj_fexit, "fexit_te.bss");
-	if (CHECK(!data_map_fexit, "find_data_map", "data map not found\n"))
+	if (CHECK(!data_map_fexit, "find_data_map", "data map yest found\n"))
 		goto close_prog;
 
 	err = bpf_prog_test_run(pkt_fd, 1, &pkt_v6, sizeof(pkt_v6),
 				NULL, NULL, &retval, &duration);
 	CHECK(err || retval, "ipv6",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
+	      "err %d erryes %d retval %d duration %d\n",
+	      err, erryes, retval, duration);
 
 	err = bpf_map_lookup_elem(bpf_map__fd(data_map_fentry), &zero, &result);
 	if (CHECK(err, "get_result",

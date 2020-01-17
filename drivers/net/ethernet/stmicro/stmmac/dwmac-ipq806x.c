@@ -5,7 +5,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -67,7 +67,7 @@
 #define QSGMII_PCS_CAL_LCKDT_CTL		0x120
 #define QSGMII_PCS_CAL_LCKDT_CTL_RST		BIT(19)
 
-/* Only GMAC1/2/3 support SGMII and their CTL register are not contiguous */
+/* Only GMAC1/2/3 support SGMII and their CTL register are yest contiguous */
 #define QSGMII_PHY_SGMII_CTL(x)			((x == 1) ? 0x134 : \
 						 (0x13c + (4 * (x - 2))))
 #define QSGMII_PHY_CDR_EN			BIT(0)
@@ -109,7 +109,7 @@ static int get_clk_div_sgmii(struct ipq806x_gmac *gmac, unsigned int speed)
 		break;
 
 	default:
-		dev_err(dev, "Speed %dMbps not supported in SGMII\n", speed);
+		dev_err(dev, "Speed %dMbps yest supported in SGMII\n", speed);
 		return -EINVAL;
 	}
 
@@ -135,7 +135,7 @@ static int get_clk_div_rgmii(struct ipq806x_gmac *gmac, unsigned int speed)
 		break;
 
 	default:
-		dev_err(dev, "Speed %dMbps not supported in RGMII\n", speed);
+		dev_err(dev, "Speed %dMbps yest supported in RGMII\n", speed);
 		return -EINVAL;
 	}
 
@@ -191,13 +191,13 @@ static int ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac)
 	struct device *dev = &gmac->pdev->dev;
 	int ret;
 
-	ret = of_get_phy_mode(dev->of_node, &gmac->phy_mode);
+	ret = of_get_phy_mode(dev->of_yesde, &gmac->phy_mode);
 	if (ret) {
 		dev_err(dev, "missing phy mode property\n");
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(dev->of_node, "qcom,id", &gmac->id) < 0) {
+	if (of_property_read_u32(dev->of_yesde, "qcom,id", &gmac->id) < 0) {
 		dev_err(dev, "missing qcom id property\n");
 		return -EINVAL;
 	}
@@ -219,18 +219,18 @@ static int ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac)
 	clk_set_rate(gmac->core_clk, 266000000);
 
 	/* Setup the register map for the nss common registers */
-	gmac->nss_common = syscon_regmap_lookup_by_phandle(dev->of_node,
+	gmac->nss_common = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 							   "qcom,nss-common");
 	if (IS_ERR(gmac->nss_common)) {
-		dev_err(dev, "missing nss-common node\n");
+		dev_err(dev, "missing nss-common yesde\n");
 		return PTR_ERR(gmac->nss_common);
 	}
 
 	/* Setup the register map for the qsgmii csr registers */
-	gmac->qsgmii_csr = syscon_regmap_lookup_by_phandle(dev->of_node,
+	gmac->qsgmii_csr = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 							   "qcom,qsgmii-csr");
 	if (IS_ERR(gmac->qsgmii_csr))
-		dev_err(dev, "missing qsgmii-csr node\n");
+		dev_err(dev, "missing qsgmii-csr yesde\n");
 
 	return PTR_ERR_OR_ZERO(gmac->qsgmii_csr);
 }

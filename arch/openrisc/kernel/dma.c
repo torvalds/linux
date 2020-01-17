@@ -15,7 +15,7 @@
  * the only thing implemented properly.  The rest need looking into...
  */
 
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <linux/pagewalk.h>
 
 #include <asm/cpuinfo.h>
@@ -23,7 +23,7 @@
 #include <asm/tlbflush.h>
 
 static int
-page_set_nocache(pte_t *pte, unsigned long addr,
+page_set_yescache(pte_t *pte, unsigned long addr,
 		 unsigned long next, struct mm_walk *walk)
 {
 	unsigned long cl;
@@ -44,12 +44,12 @@ page_set_nocache(pte_t *pte, unsigned long addr,
 	return 0;
 }
 
-static const struct mm_walk_ops set_nocache_walk_ops = {
-	.pte_entry		= page_set_nocache,
+static const struct mm_walk_ops set_yescache_walk_ops = {
+	.pte_entry		= page_set_yescache,
 };
 
 static int
-page_clear_nocache(pte_t *pte, unsigned long addr,
+page_clear_yescache(pte_t *pte, unsigned long addr,
 		   unsigned long next, struct mm_walk *walk)
 {
 	pte_val(*pte) &= ~_PAGE_CI;
@@ -63,8 +63,8 @@ page_clear_nocache(pte_t *pte, unsigned long addr,
 	return 0;
 }
 
-static const struct mm_walk_ops clear_nocache_walk_ops = {
-	.pte_entry		= page_clear_nocache,
+static const struct mm_walk_ops clear_yescache_walk_ops = {
+	.pte_entry		= page_clear_yescache,
 };
 
 /*
@@ -75,12 +75,12 @@ static const struct mm_walk_ops clear_nocache_walk_ops = {
  * flushed out of the cache before they are used.
  *
  * If the NON_CONSISTENT attribute is set, then this function just
- * returns "normal", cachable memory.
+ * returns "yesrmal", cachable memory.
  *
  * There are additional flags WEAK_ORDERING and WRITE_COMBINE to take
- * into consideration here, too.  All current known implementations of
+ * into consideration here, too.  All current kyeswn implementations of
  * the OR1K support only strongly ordered memory accesses, so that flag
- * is being ignored for now; uncached but write-combined memory is a
+ * is being igyesred for yesw; uncached but write-combined memory is a
  * missing feature of the OR1K.
  */
 void *
@@ -103,7 +103,7 @@ arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	 * We need to iterate through the pages, clearing the dcache for
 	 * them and setting the cache-inhibit bit.
 	 */
-	if (walk_page_range(&init_mm, va, va + size, &set_nocache_walk_ops,
+	if (walk_page_range(&init_mm, va, va + size, &set_yescache_walk_ops,
 			NULL)) {
 		free_pages_exact(page, size);
 		return NULL;
@@ -120,7 +120,7 @@ arch_dma_free(struct device *dev, size_t size, void *vaddr,
 
 	/* walk_page_range shouldn't be able to fail here */
 	WARN_ON(walk_page_range(&init_mm, va, va + size,
-			&clear_nocache_walk_ops, NULL));
+			&clear_yescache_walk_ops, NULL));
 
 	free_pages_exact(vaddr, size);
 }
@@ -146,8 +146,8 @@ void arch_sync_dma_for_device(phys_addr_t addr, size_t size,
 		break;
 	default:
 		/*
-		 * NOTE: If dir == DMA_BIDIRECTIONAL then there's no need to
-		 * flush nor invalidate the cache here as the area will need
+		 * NOTE: If dir == DMA_BIDIRECTIONAL then there's yes need to
+		 * flush yesr invalidate the cache here as the area will need
 		 * to be manually synced anyway.
 		 */
 		break;

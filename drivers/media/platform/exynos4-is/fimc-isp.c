@@ -10,7 +10,7 @@
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -55,9 +55,9 @@ static const struct fimc_fmt fimc_isp_formats[FIMC_ISP_NUM_FORMATS] = {
 
 /**
  * fimc_isp_find_format - lookup color format by fourcc or media bus code
- * @pixelformat: fourcc to match, ignored if null
- * @mbus_code: media bus code to match, ignored if null
- * @index: index to the fimc_isp_formats array, ignored if negative
+ * @pixelformat: fourcc to match, igyesred if null
+ * @mbus_code: media bus code to match, igyesred if null
+ * @index: index to the fimc_isp_formats array, igyesred if negative
  */
 const struct fimc_fmt *fimc_isp_find_format(const u32 *pixelformat,
 					const u32 *mbus_code, int index)

@@ -32,7 +32,7 @@
 #endif
 
 #if PAGE_SHIFT != 12
-#error Unknown page size
+#error Unkyeswn page size
 #endif
 
 #ifdef CONFIG_SMP
@@ -40,7 +40,7 @@
 #endif
 
 #ifdef CONFIG_PTE_64BIT
-#error Only 32 bit pages are supported for now
+#error Only 32 bit pages are supported for yesw
 #endif
 
 static ulong htab;
@@ -99,7 +99,7 @@ static struct kvmppc_sid_map *find_sid_vsid(struct kvm_vcpu *vcpu, u64 gvsid)
 		return map;
 	}
 
-	dprintk_sr("SR: Searching 0x%llx -> not found\n", gvsid);
+	dprintk_sr("SR: Searching 0x%llx -> yest found\n", gvsid);
 	return NULL;
 }
 
@@ -146,7 +146,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 
 	/* Get host physical address for gpa */
 	hpaddr = kvmppc_gpa_to_pfn(vcpu, orig_pte->raddr, iswrite, &writable);
-	if (is_error_noslot_pfn(hpaddr)) {
+	if (is_error_yesslot_pfn(hpaddr)) {
 		printk(KERN_INFO "Couldn't get guest page for gpa %lx!\n",
 				 orig_pte->raddr);
 		r = -EINVAL;
@@ -175,7 +175,7 @@ next_pteg:
 
 	pteg = kvmppc_mmu_get_pteg(vcpu, vsid, eaddr, primary);
 
-	/* not evicting yet */
+	/* yest evicting yet */
 	if (!evict && (pteg[rr] & PTE_V)) {
 		rr += 2;
 		goto next_pteg;

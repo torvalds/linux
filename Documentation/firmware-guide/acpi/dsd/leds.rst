@@ -5,18 +5,18 @@
 Describing and referring to LEDs in ACPI
 ========================================
 
-Individual LEDs are described by hierarchical data extension [6] nodes under the
-device node, the LED driver chip. The "reg" property in the LED specific nodes
+Individual LEDs are described by hierarchical data extension [6] yesdes under the
+device yesde, the LED driver chip. The "reg" property in the LED specific yesdes
 tells the numerical ID of each individual LED output to which the LEDs are
-connected. [3] The hierarchical data nodes are named "led@X", where X is the
+connected. [3] The hierarchical data yesdes are named "led@X", where X is the
 number of the LED output.
 
 Referring to LEDs in Device tree is documented in [4], in "flash-leds" property
 documentation. In short, LEDs are directly referred to by using phandles.
 
-While Device tree allows referring to any node in the tree[1], in ACPI
-references are limited to device nodes only [2]. For this reason using the same
-mechanism on ACPI is not possible. A mechanism to refer to non-device ACPI nodes
+While Device tree allows referring to any yesde in the tree[1], in ACPI
+references are limited to device yesdes only [2]. For this reason using the same
+mechanism on ACPI is yest possible. A mechanism to refer to yesn-device ACPI yesdes
 is documented in [7].
 
 ACPI allows (as does DT) using integer arguments after the reference. A
@@ -34,7 +34,7 @@ Example
 =======
 
 An ASL example of a camera sensor device and a LED driver device for two LEDs is
-show below. Objects not relevant for LEDs or the references to them have been
+show below. Objects yest relevant for LEDs or the references to them have been
 omitted. ::
 
 	Device (LED)
@@ -85,7 +85,7 @@ where
 	LED	LED driver device
 	LED0	First LED
 	LED1	Second LED
-	SEN	Camera sensor device (or another device the LED is related to)
+	SEN	Camera sensor device (or ayesther device the LED is related to)
 
 References
 ==========
@@ -108,4 +108,4 @@ References
     <URL:http://www.uefi.org/sites/default/files/resources/_DSD-hierarchical-data-extension-UUID-v1.1.pdf>,
     referenced 2019-02-21.
 
-[7] Documentation/firmware-guide/acpi/dsd/data-node-references.rst
+[7] Documentation/firmware-guide/acpi/dsd/data-yesde-references.rst

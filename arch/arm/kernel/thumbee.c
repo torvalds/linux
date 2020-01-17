@@ -10,7 +10,7 @@
 
 #include <asm/cputype.h>
 #include <asm/system_info.h>
-#include <asm/thread_notify.h>
+#include <asm/thread_yestify.h>
 
 /*
  * Access to the ThumbEE Handler Base register
@@ -27,7 +27,7 @@ static inline void teehbr_write(unsigned long v)
 	asm("mcr	p14, 6, %0, c1, c0, 0\n" : : "r" (v));
 }
 
-static int thumbee_notifier(struct notifier_block *self, unsigned long cmd, void *t)
+static int thumbee_yestifier(struct yestifier_block *self, unsigned long cmd, void *t)
 {
 	struct thread_info *thread = t;
 
@@ -44,8 +44,8 @@ static int thumbee_notifier(struct notifier_block *self, unsigned long cmd, void
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block thumbee_notifier_block = {
-	.notifier_call	= thumbee_notifier,
+static struct yestifier_block thumbee_yestifier_block = {
+	.yestifier_call	= thumbee_yestifier,
 };
 
 static int __init thumbee_init(void)
@@ -62,7 +62,7 @@ static int __init thumbee_init(void)
 
 	pr_info("ThumbEE CPU extension supported.\n");
 	elf_hwcap |= HWCAP_THUMBEE;
-	thread_register_notifier(&thumbee_notifier_block);
+	thread_register_yestifier(&thumbee_yestifier_block);
 
 	return 0;
 }

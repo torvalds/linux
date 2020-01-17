@@ -30,7 +30,7 @@ static const char *mb_to_str(uint16_t cmd)
 		if (cmd == e->cmd)
 			return e->str;
 	}
-	return "unknown";
+	return "unkyeswn";
 }
 
 static struct rom_cmd {
@@ -174,7 +174,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	/*
 	 * Wait for active mailbox commands to finish by waiting at most tov
 	 * seconds. This is to serialize actual issuing of mailbox cmds during
-	 * non ISP abort time.
+	 * yesn ISP abort time.
 	 */
 	if (!wait_for_completion_timeout(&ha->mbx_cmd_comp, mcp->tov * HZ)) {
 		/* Timeout occurred. Return error. */
@@ -336,7 +336,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				break;
 
 			/*
-			 * Check if it's UNLOADING, cause we cannot poll in
+			 * Check if it's UNLOADING, cause we canyest poll in
 			 * this case, or else a NULL pointer dereference
 			 * is triggered.
 			 */
@@ -458,7 +458,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			}
 
 			/* Attempt to capture firmware dump for further
-			 * anallysis of the current formware state. we do not
+			 * anallysis of the current formware state. we do yest
 			 * need to do this if we are intentionally generating
 			 * a dump
 			 */
@@ -478,7 +478,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		ql_dbg(ql_dbg_mbx, vha, 0x101a,
 		    "Checking for additional resp interrupt.\n");
 
-		/* polling mode for non isp_abort commands. */
+		/* polling mode for yesn isp_abort commands. */
 		qla2x00_poll(ha->rsp_q_map[0]);
 	}
 
@@ -486,7 +486,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	    mcp->mb[0] != MBC_GEN_SYSTEM_ERROR) {
 		if (!io_lock_on || (mcp->flags & IOCTL_CMD) ||
 		    ha->flags.eeh_busy) {
-			/* not in dpc. schedule it for dpc to take over. */
+			/* yest in dpc. schedule it for dpc to take over. */
 			ql_dbg(ql_dbg_mbx, vha, 0x101b,
 			    "Timeout, schedule isp_abort_needed.\n");
 
@@ -561,7 +561,7 @@ mbx_done:
 		if (ql2xextended_error_logging & (ql_dbg_disc|ql_dbg_mbx)) {
 			pr_warn("%s [%s]-%04x:%ld: **** Failed=%x", QL_MSGHDR,
 			    dev_name(&ha->pdev->dev), 0x1020+0x800,
-			    vha->host_no, rval);
+			    vha->host_yes, rval);
 			mboxes = mcp->in_mb;
 			cnt = 4;
 			for (i = 0; i < ha->mbx_count && cnt; i++, mboxes >>= 1)
@@ -780,7 +780,7 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 		ql_dbg(ql_dbg_mbx, vha, 0x119b, "max_supported_speed=%s.\n",
 		    ha->max_supported_speed == 0 ? "16Gps" :
 		    ha->max_supported_speed == 1 ? "32Gps" :
-		    ha->max_supported_speed == 2 ? "64Gps" : "unknown");
+		    ha->max_supported_speed == 2 ? "64Gps" : "unkyeswn");
 		if (vha->min_supported_speed) {
 			ha->min_supported_speed = mcp->mb[5] &
 			    (BIT_0 | BIT_1 | BIT_2);
@@ -790,7 +790,7 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 			    ha->min_supported_speed == 5 ? "32Gps" :
 			    ha->min_supported_speed == 4 ? "16Gps" :
 			    ha->min_supported_speed == 3 ? "8Gps" :
-			    ha->min_supported_speed == 2 ? "4Gps" : "unknown");
+			    ha->min_supported_speed == 2 ? "4Gps" : "unkyeswn");
 		}
 	}
 
@@ -1026,8 +1026,8 @@ qla_set_exchoffld_mem_cfg(scsi_qla_host_t *vha)
  * Input:
  *	ha:		adapter state pointer.
  *	major:		pointer for major number.
- *	minor:		pointer for minor number.
- *	subminor:	pointer for subminor number.
+ *	miyesr:		pointer for miyesr number.
+ *	submiyesr:	pointer for submiyesr number.
  *
  * Returns:
  *	qla2x00 local function return status code.
@@ -1066,8 +1066,8 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 
 	/* Return mailbox data. */
 	ha->fw_major_version = mcp->mb[1];
-	ha->fw_minor_version = mcp->mb[2];
-	ha->fw_subminor_version = mcp->mb[3];
+	ha->fw_miyesr_version = mcp->mb[2];
+	ha->fw_submiyesr_version = mcp->mb[3];
 	ha->fw_attributes = mcp->mb[6];
 	if (IS_QLA2100(vha->hw) || IS_QLA2200(vha->hw))
 		ha->fw_memory_size = 0x1FFFF;		/* Defaults to 128KB. */
@@ -1488,7 +1488,7 @@ qla2x00_abort_command(srb_t *sp)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	if (handle == req->num_outstanding_cmds) {
-		/* command not found */
+		/* command yest found */
 		return QLA_FUNCTION_FAILED;
 	}
 
@@ -1816,7 +1816,7 @@ qla2x00_init_firmware(scsi_qla_host_t *vha, uint16_t size)
 		mcp->mb[14] = sizeof(*ha->ex_init_cb);
 		mcp->out_mb |= MBX_14|MBX_13|MBX_12|MBX_11|MBX_10;
 	}
-	/* 1 and 2 should normally be captured. */
+	/* 1 and 2 should yesrmally be captured. */
 	mcp->in_mb = MBX_2|MBX_1|MBX_0;
 	if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))
 		/* mb3 is additional info about the installed SFP. */
@@ -1857,7 +1857,7 @@ qla2x00_init_firmware(scsi_qla_host_t *vha, uint16_t size)
 
 /*
  * qla2x00_get_port_database
- *	Issue normal/enhanced get port database mailbox command
+ *	Issue yesrmal/enhanced get port database mailbox command
  *	and copy device name as necessary.
  *
  * Input:
@@ -1964,7 +1964,7 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 		}
 
 		/* Names are little-endian. */
-		memcpy(fcport->node_name, pd24->node_name, WWN_SIZE);
+		memcpy(fcport->yesde_name, pd24->yesde_name, WWN_SIZE);
 		memcpy(fcport->port_name, pd24->port_name, WWN_SIZE);
 
 		/* Get port_id of device. */
@@ -1973,7 +1973,7 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 		fcport->d_id.b.al_pa = pd24->port_id[2];
 		fcport->d_id.b.rsvd_1 = 0;
 
-		/* If not target must be initiator or unknown type. */
+		/* If yest target must be initiator or unkyeswn type. */
 		if ((pd24->prli_svc_param_word_3[0] & BIT_4) == 0)
 			fcport->port_type = FCT_INITIATOR;
 		else
@@ -2009,7 +2009,7 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 		}
 
 		/* Names are little-endian. */
-		memcpy(fcport->node_name, pd->node_name, WWN_SIZE);
+		memcpy(fcport->yesde_name, pd->yesde_name, WWN_SIZE);
 		memcpy(fcport->port_name, pd->port_name, WWN_SIZE);
 
 		/* Get port_id of device. */
@@ -2018,7 +2018,7 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 		fcport->d_id.b.al_pa = pd->port_id[2];
 		fcport->d_id.b.rsvd_1 = 0;
 
-		/* If not target must be initiator or unknown type. */
+		/* If yest target must be initiator or unkyeswn type. */
 		if ((pd->prli_svc_param_word_3[0] & BIT_4) == 0)
 			fcport->port_type = FCT_INITIATOR;
 		else
@@ -2533,9 +2533,9 @@ qla2x00_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 
 	if (rval != QLA_SUCCESS) {
 		/* RLU tmp code: need to change main mailbox_command function to
-		 * return ok even when the mailbox completion value is not
+		 * return ok even when the mailbox completion value is yest
 		 * SUCCESS. The caller needs to be responsible to interpret
-		 * the return values of this mailbox command if we're not
+		 * the return values of this mailbox command if we're yest
 		 * to change too much of the existing code.
 		 */
 		if (mcp->mb[0] == 0x4001 || mcp->mb[0] == 0x4002 ||
@@ -2611,9 +2611,9 @@ qla2x00_login_local_device(scsi_qla_host_t *vha, fc_port_t *fcport,
 
 	if (rval != QLA_SUCCESS) {
  		/* AV tmp code: need to change main mailbox_command function to
- 		 * return ok even when the mailbox completion value is not
+ 		 * return ok even when the mailbox completion value is yest
  		 * SUCCESS. The caller needs to be responsible to interpret
- 		 * the return values of this mailbox command if we're not
+ 		 * the return values of this mailbox command if we're yest
  		 * to change too much of the existing code.
  		 */
  		if (mcp->mb[0] == 0x4005 || mcp->mb[0] == 0x4006)
@@ -3132,7 +3132,7 @@ qla24xx_abort_command(srb_t *sp)
 	}
 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 	if (handle == req->num_outstanding_cmds) {
-		/* Command not found. */
+		/* Command yest found. */
 		return QLA_FUNCTION_FAILED;
 	}
 
@@ -3153,7 +3153,7 @@ qla24xx_abort_command(srb_t *sp)
 	abt->port_id[2] = fcport->d_id.b.domain;
 	abt->vp_index = fcport->vha->vp_idx;
 
-	abt->req_que_no = cpu_to_le16(req->id);
+	abt->req_que_yes = cpu_to_le16(req->id);
 
 	rval = qla2x00_issue_iocb(vha, abt, abt_dma, 0);
 	if (rval != QLA_SUCCESS) {
@@ -3257,7 +3257,7 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 	    SS_RESPONSE_INFO_LEN_VALID) {
 		if (le32_to_cpu(sts->rsp_data_len) < 4) {
 			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1097,
-			    "Ignoring inconsistent data length -- not enough "
+			    "Igyesring inconsistent data length -- yest eyesugh "
 			    "response info (%d).\n",
 			    le32_to_cpu(sts->rsp_data_len));
 		} else if (sts->data[3]) {
@@ -3936,7 +3936,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 				}
 				qla24xx_post_newsess_work(vha, &id,
 				    rptid_entry->u.f1.port_name,
-				    rptid_entry->u.f1.node_name,
+				    rptid_entry->u.f1.yesde_name,
 				    NULL,
 				    FS_FCP_IS_N2N);
 			}
@@ -3982,7 +3982,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			if (rptid_entry->vp_status != VP_STAT_COMPL &&
 				rptid_entry->vp_status != VP_STAT_ID_CHG) {
 				ql_dbg(ql_dbg_mbx, vha, 0x10ba,
-				    "Could not acquire ID for VP[%d].\n",
+				    "Could yest acquire ID for VP[%d].\n",
 				    rptid_entry->vp_idx);
 				return;
 			}
@@ -4003,7 +4003,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			qlt_update_host_map(vp, id);
 
 			/*
-			 * Cannot configure here as we are still sitting on the
+			 * Canyest configure here as we are still sitting on the
 			 * response queue. Handle it in dpc context.
 			 */
 			set_bit(VP_IDX_ACQUIRED, &vp->vp_flags);
@@ -4101,7 +4101,7 @@ qla24xx_modify_vp_config(scsi_qla_host_t *vha)
 
 	qlt_modify_vp_config(vha, vpmod);
 
-	memcpy(vpmod->node_name_idx1, vha->node_name, WWN_SIZE);
+	memcpy(vpmod->yesde_name_idx1, vha->yesde_name, WWN_SIZE);
 	memcpy(vpmod->port_name_idx1, vha->port_name, WWN_SIZE);
 	vpmod->entry_count = 1;
 
@@ -4259,7 +4259,7 @@ qla84xx_verify_chip(struct scsi_qla_host *vha, uint16_t *status)
 
 	/* Force Update? */
 	options = ha->cs84xx->fw_update ? VCO_FORCE_UPDATE : 0;
-	/* Diagnostic firmware? */
+	/* Diagyesstic firmware? */
 	/* options |= MENLO_DIAG_FW; */
 	/* We update the firmware with only one data sequence. */
 	options |= VCO_END_OF_DATA;
@@ -4900,7 +4900,7 @@ qla2x00_read_sfp(scsi_qla_host_t *vha, dma_addr_t sfp_dma, uint8_t *sfp,
 		ql_dbg(ql_dbg_mbx, vha, 0x10e9,
 		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
 		if (mcp->mb[0] == MBS_COMMAND_ERROR && mcp->mb[1] == 0x22) {
-			/* sfp is not there */
+			/* sfp is yest there */
 			rval = QLA_INTERFACE_ERROR;
 		}
 	} else {
@@ -5197,17 +5197,17 @@ qla2x00_echo_test(scsi_qla_host_t *vha, struct msg_echo_lb *mreq,
 }
 
 int
-qla84xx_reset_chip(scsi_qla_host_t *vha, uint16_t enable_diagnostic)
+qla84xx_reset_chip(scsi_qla_host_t *vha, uint16_t enable_diagyesstic)
 {
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10fd,
-	    "Entered %s enable_diag=%d.\n", __func__, enable_diagnostic);
+	    "Entered %s enable_diag=%d.\n", __func__, enable_diagyesstic);
 
 	mcp->mb[0] = MBC_ISP84XX_RESET;
-	mcp->mb[1] = enable_diagnostic;
+	mcp->mb[1] = enable_diagyesstic;
 	mcp->out_mb = MBX_1|MBX_0;
 	mcp->in_mb = MBX_1|MBX_0;
 	mcp->tov = MBX_TOV_SECONDS;
@@ -5535,7 +5535,7 @@ qla2x00_get_thermal_temp(scsi_qla_host_t *vha, uint16_t *temp)
 
 	if (!IS_FWI2_CAPABLE(ha) || IS_QLA24XX_TYPE(ha) || IS_QLA81XX(ha)) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1150,
-		    "Thermal not supported by this card.\n");
+		    "Thermal yest supported by this card.\n");
 		return rval;
 	}
 
@@ -5555,7 +5555,7 @@ qla2x00_get_thermal_temp(scsi_qla_host_t *vha, uint16_t *temp)
 			return rval;
 		}
 		ql_dbg(ql_dbg_mbx, vha, 0x10c9,
-		    "Thermal not supported by this card.\n");
+		    "Thermal yest supported by this card.\n");
 		return rval;
 	}
 
@@ -6176,7 +6176,7 @@ qla2x00_dump_mctp_data(scsi_qla_host_t *vha, dma_addr_t req_dma, uint32_t addr,
 }
 
 int
-qla26xx_dport_diagnostics(scsi_qla_host_t *vha,
+qla26xx_dport_diagyesstics(scsi_qla_host_t *vha,
 	void *dd_buf, uint size, uint options)
 {
 	int rval;
@@ -6237,7 +6237,7 @@ static void qla2x00_async_mb_sp_done(srb_t *sp, int res)
 
 /*
  * This mailbox uses the iocb interface to send MB command.
- * This allows non-critial (non chip setup) command to go
+ * This allows yesn-critial (yesn chip setup) command to go
  * out in parrallel.
  */
 int qla24xx_send_mb_cmd(struct scsi_qla_host *vha, mbx_cmd_t *mcp)
@@ -6304,7 +6304,7 @@ done:
 
 /*
  * qla24xx_gpdb_wait
- * NOTE: Do not call this routine from DPC thread
+ * NOTE: Do yest call this routine from DPC thread
  */
 int qla24xx_gpdb_wait(struct scsi_qla_host *vha, fc_port_t *fcport, u8 opt)
 {
@@ -6386,7 +6386,7 @@ int __qla24xx_parse_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport,
 	}
 
 	/* Names are little-endian. */
-	memcpy(fcport->node_name, pd->node_name, WWN_SIZE);
+	memcpy(fcport->yesde_name, pd->yesde_name, WWN_SIZE);
 	memcpy(fcport->port_name, pd->port_name, WWN_SIZE);
 
 	/* Get port_id of device. */
@@ -6404,7 +6404,7 @@ int __qla24xx_parse_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport,
 		if ((pd->prli_svc_param_word_3[0] & BIT_3) == 0)
 			fcport->port_type |= FCT_NVME_DISCOVERY;
 	} else {
-		/* If not target must be initiator or unknown type. */
+		/* If yest target must be initiator or unkyeswn type. */
 		if ((pd->prli_svc_param_word_3[0] & BIT_4) == 0)
 			fcport->port_type = FCT_INITIATOR;
 		else
@@ -6619,7 +6619,7 @@ int qla28xx_secure_flash_update(scsi_qla_host_t *vha, uint16_t opts,
 
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0xffff, "%s(%ld): failed rval 0x%x, %x %x %x",
-			__func__, vha->host_no, rval, mcp->mb[0], mcp->mb[1],
+			__func__, vha->host_yes, rval, mcp->mb[0], mcp->mb[1],
 			mcp->mb[2]);
 	}
 

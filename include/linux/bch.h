@@ -21,18 +21,18 @@
  * @m:          Galois field order
  * @n:          maximum codeword size in bits (= 2^m-1)
  * @t:          error correction capability in bits
- * @ecc_bits:   ecc exact size in bits, i.e. generator polynomial degree (<=m*t)
+ * @ecc_bits:   ecc exact size in bits, i.e. generator polyyesmial degree (<=m*t)
  * @ecc_bytes:  ecc max size (m*t bits) in bytes
  * @a_pow_tab:  Galois field GF(2^m) exponentiation lookup table
  * @a_log_tab:  Galois field GF(2^m) log lookup table
- * @mod8_tab:   remainder generator polynomial lookup tables
+ * @mod8_tab:   remainder generator polyyesmial lookup tables
  * @ecc_buf:    ecc parity words buffer
  * @ecc_buf2:   ecc parity words buffer
- * @xi_tab:     GF(2^m) base for solving degree 2 polynomial roots
+ * @xi_tab:     GF(2^m) base for solving degree 2 polyyesmial roots
  * @syn:        syndrome buffer
- * @cache:      log-based polynomial representation buffer
- * @elp:        error locator polynomial
- * @poly_2t:    temporary polynomials of degree 2t
+ * @cache:      log-based polyyesmial representation buffer
+ * @elp:        error locator polyyesmial
+ * @poly_2t:    temporary polyyesmials of degree 2t
  */
 struct bch_control {
 	unsigned int    m;

@@ -101,7 +101,7 @@ void b1_free_card(avmcard *card)
 
 int b1_detect(unsigned int base, enum avmcardtype cardtype)
 {
-	int onoff, i;
+	int oyesff, i;
 
 	/*
 	 * Statusregister 0000 00xx
@@ -126,11 +126,11 @@ int b1_detect(unsigned int base, enum avmcardtype cardtype)
 	    || (inb(base + B1_OUTSTAT) & 0xfe))
 		return 3;
 
-	for (onoff = !0, i = 0; i < 10; i++) {
-		b1_set_test_bit(base, cardtype, onoff);
-		if (b1_get_test_bit(base, cardtype) != onoff)
+	for (oyesff = !0, i = 0; i < 10; i++) {
+		b1_set_test_bit(base, cardtype, oyesff);
+		if (b1_get_test_bit(base, cardtype) != oyesff)
 			return 4;
-		onoff = !onoff;
+		oyesff = !oyesff;
 	}
 
 	if (cardtype == avm_m1)
@@ -265,12 +265,12 @@ int b1_loaded(avmcard *card)
 			if (ans == RECEIVE_POLL)
 				return 1;
 
-			printk(KERN_ERR "%s: b1_loaded: got 0x%x, firmware not running\n",
+			printk(KERN_ERR "%s: b1_loaded: got 0x%x, firmware yest running\n",
 			       card->name, ans);
 			return 0;
 		}
 	}
-	printk(KERN_ERR "%s: b1_loaded: firmware not running\n", card->name);
+	printk(KERN_ERR "%s: b1_loaded: firmware yest running\n", card->name);
 	return 0;
 }
 
@@ -437,11 +437,11 @@ void b1_parse_version(avmctrl_info *cinfo)
 	strlcpy(ctrl->manu, "AVM GmbH", sizeof(ctrl->manu));
 	dversion = cinfo->version[VER_DRIVER];
 	ctrl->version.majorversion = 2;
-	ctrl->version.minorversion = 0;
+	ctrl->version.miyesrversion = 0;
 	ctrl->version.majormanuversion = (((dversion[0] - '0') & 0xf) << 4);
 	ctrl->version.majormanuversion |= ((dversion[2] - '0') & 0xf);
-	ctrl->version.minormanuversion = (dversion[3] - '0') << 4;
-	ctrl->version.minormanuversion |=
+	ctrl->version.miyesrmanuversion = (dversion[3] - '0') << 4;
+	ctrl->version.miyesrmanuversion |=
 		(dversion[5] - '0') * 10 + ((dversion[6] - '0') & 0xf);
 
 	profp = &ctrl->profile;
@@ -523,7 +523,7 @@ irqreturn_t b1_interrupt(int interrupt, void *devptr)
 		DataB3Len = b1_get_slice(card->port, card->databuf);
 		spin_unlock_irqrestore(&card->lock, flags);
 
-		if (MsgLen < 30) { /* not CAPI 64Bit */
+		if (MsgLen < 30) { /* yest CAPI 64Bit */
 			memset(card->msgbuf + MsgLen, 0, 30-MsgLen);
 			MsgLen = 30;
 			CAPIMSG_SETLEN(card->msgbuf, 30);
@@ -595,7 +595,7 @@ irqreturn_t b1_interrupt(int interrupt, void *devptr)
 		cinfo->versionlen = b1_get_slice(card->port, cinfo->versionbuf);
 		spin_unlock_irqrestore(&card->lock, flags);
 		b1_parse_version(cinfo);
-		printk(KERN_INFO "%s: %s-card (%s) now active\n",
+		printk(KERN_INFO "%s: %s-card (%s) yesw active\n",
 		       card->name,
 		       cinfo->version[VER_CARDTYPE],
 		       cinfo->version[VER_DRIVER]);
@@ -726,7 +726,7 @@ avmcard_dma_alloc(char *name, struct pci_dev *pdev, long rsize, long ssize)
 
 	p = kzalloc(sizeof(avmcard_dmainfo), GFP_KERNEL);
 	if (!p) {
-		printk(KERN_WARNING "%s: no memory.\n", name);
+		printk(KERN_WARNING "%s: yes memory.\n", name);
 		goto err;
 	}
 

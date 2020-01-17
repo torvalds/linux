@@ -7,7 +7,7 @@
  */
 
 /*
- *  Linux VFS inode operations.
+ *  Linux VFS iyesde operations.
  */
 
 #include <linux/bvec.h>
@@ -18,7 +18,7 @@
 static int orangefs_writepage_locked(struct page *page,
     struct writeback_control *wbc)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	struct orangefs_write_range *wr = NULL;
 	struct iov_iter iter;
 	struct bio_vec bv;
@@ -28,7 +28,7 @@ static int orangefs_writepage_locked(struct page *page,
 
 	set_page_writeback(page);
 
-	len = i_size_read(inode);
+	len = i_size_read(iyesde);
 	if (PagePrivate(page)) {
 		wr = (struct orangefs_write_range *)page_private(page);
 		WARN_ON(wr->pos >= len);
@@ -54,7 +54,7 @@ static int orangefs_writepage_locked(struct page *page,
 	WARN_ON(wlen == 0);
 	iov_iter_bvec(&iter, WRITE, &bv, 1, wlen);
 
-	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, wlen,
+	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, iyesde, &off, &iter, wlen,
 	    len, wr, NULL, NULL);
 	if (ret < 0) {
 		SetPageError(page);
@@ -94,7 +94,7 @@ struct orangefs_writepages {
 static int orangefs_writepages_work(struct orangefs_writepages *ow,
     struct writeback_control *wbc)
 {
-	struct inode *inode = ow->pages[0]->mapping->host;
+	struct iyesde *iyesde = ow->pages[0]->mapping->host;
 	struct orangefs_write_range *wrp, wr;
 	struct iov_iter iter;
 	ssize_t ret;
@@ -102,7 +102,7 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 	loff_t off;
 	int i;
 
-	len = i_size_read(inode);
+	len = i_size_read(iyesde);
 
 	for (i = 0; i < ow->npages; i++) {
 		set_page_writeback(ow->pages[i]);
@@ -125,7 +125,7 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 	off = ow->off;
 	wr.uid = ow->uid;
 	wr.gid = ow->gid;
-	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, ow->len,
+	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, iyesde, &off, &iter, ow->len,
 	    0, &wr, NULL, NULL);
 	if (ret < 0) {
 		for (i = 0; i < ow->npages; i++) {
@@ -167,8 +167,8 @@ static int orangefs_writepages_callback(struct page *page,
 
 	if (!PagePrivate(page)) {
 		unlock_page(page);
-		/* It's not private so there's nothing to write, right? */
-		printk("writepages_callback not private!\n");
+		/* It's yest private so there's yesthing to write, right? */
+		printk("writepages_callback yest private!\n");
 		BUG();
 		return 0;
 	}
@@ -251,7 +251,7 @@ static int orangefs_launder_page(struct page *);
 
 static int orangefs_readpage(struct file *file, struct page *page)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	struct iov_iter iter;
 	struct bio_vec bv;
 	ssize_t ret;
@@ -276,20 +276,20 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	 *
 	 * "count" should be represented in ro->blksiz.
 	 *
-	 * inode->i_size = file size.
+	 * iyesde->i_size = file size.
 	 */
 	if (ro) {
 		if (ro->blksiz < PAGE_SIZE) {
-			if (inode->i_size < PAGE_SIZE)
-				read_size = inode->i_size;
+			if (iyesde->i_size < PAGE_SIZE)
+				read_size = iyesde->i_size;
 			else
 				read_size = PAGE_SIZE;
 		} else {
 			roundedup = ((PAGE_SIZE - 1) & ro->blksiz) ?
 				((ro->blksiz + PAGE_SIZE) & ~(PAGE_SIZE -1)) :
 				ro->blksiz;
-			if (roundedup > inode->i_size)
-				read_size = inode->i_size;
+			if (roundedup > iyesde->i_size)
+				read_size = iyesde->i_size;
 			else
 				read_size = roundedup;
 
@@ -310,8 +310,8 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	bv.bv_offset = 0;
 	iov_iter_bvec(&iter, READ, &bv, 1, PAGE_SIZE);
 
-	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
-	    read_size, inode->i_size, NULL, &buffer_index, file);
+	ret = wait_for_direct_io(ORANGEFS_IO_READ, iyesde, &off, &iter,
+	    read_size, iyesde->i_size, NULL, &buffer_index, file);
 	remaining = ret;
 	/* this will only zero remaining unread portions of the page data */
 	iov_iter_zero(~0U, &iter);
@@ -336,19 +336,19 @@ static int orangefs_readpage(struct file *file, struct page *page)
 			remaining -= PAGE_SIZE;
 			/*
 			 * It is an optimization to try and fill more than one
-			 * page... by now we've already gotten the single
+			 * page... by yesw we've already gotten the single
 			 * page we were after, if stuff doesn't seem to
 			 * be going our way at this point just return
 			 * and hope for the best.
 			 *
 			 * If we look for pages and they're already there is
-			 * one reason to give up, and if they're not there
-			 * and we can't create them is another reason.
+			 * one reason to give up, and if they're yest there
+			 * and we can't create them is ayesther reason.
 			 */
 
 			index++;
 			slot_index++;
-			next_page = find_get_page(inode->i_mapping, index);
+			next_page = find_get_page(iyesde->i_mapping, index);
 			if (next_page) {
 				gossip_debug(GOSSIP_FILE_DEBUG,
 					"%s: found next page, quitting\n",
@@ -356,12 +356,12 @@ static int orangefs_readpage(struct file *file, struct page *page)
 				put_page(next_page);
 				goto out;
 			}
-			next_page = find_or_create_page(inode->i_mapping,
+			next_page = find_or_create_page(iyesde->i_mapping,
 							index,
 							GFP_KERNEL);
 			/*
 			 * I've never hit this, leave it as a printk for
-			 * now so it will be obvious.
+			 * yesw so it will be obvious.
 			 */
 			if (!next_page) {
 				printk("%s: can't create next page, quitting\n",
@@ -406,7 +406,7 @@ static int orangefs_write_begin(struct file *file,
 	if (PageDirty(page) && !PagePrivate(page)) {
 		/*
 		 * Should be impossible.  If it happens, launder the page
-		 * since we don't know what's dirty.  This will WARN in
+		 * since we don't kyesw what's dirty.  This will WARN in
 		 * orangefs_writepage_locked.
 		 */
 		ret = orangefs_launder_page(page);
@@ -446,15 +446,15 @@ okay:
 static int orangefs_write_end(struct file *file, struct address_space *mapping,
     loff_t pos, unsigned len, unsigned copied, struct page *page, void *fsdata)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	loff_t last_pos = pos + copied;
 
 	/*
 	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold the i_mutex.
+	 * canyest change under us because we hold the i_mutex.
 	 */
-	if (last_pos > inode->i_size)
-		i_size_write(inode, last_pos);
+	if (last_pos > iyesde->i_size)
+		i_size_write(iyesde, last_pos);
 
 	/* zero the stale part of the page if we did a short copy */
 	if (!PageUptodate(page)) {
@@ -464,7 +464,7 @@ static int orangefs_write_end(struct file *file, struct address_space *mapping,
 		}
 		/* Set fully written pages uptodate. */
 		if (pos == page_offset(page) &&
-		    (len == PAGE_SIZE || pos + len == inode->i_size)) {
+		    (len == PAGE_SIZE || pos + len == iyesde->i_size)) {
 			zero_user_segment(page, from + copied, PAGE_SIZE);
 			SetPageUptodate(page);
 		}
@@ -474,7 +474,7 @@ static int orangefs_write_end(struct file *file, struct address_space *mapping,
 	unlock_page(page);
 	put_page(page);
 
-	mark_inode_dirty_sync(file_inode(file));
+	mark_iyesde_dirty_sync(file_iyesde(file));
 	return copied;
 }
 
@@ -525,15 +525,15 @@ static void orangefs_invalidatepage(struct page *page,
 	/* invalidate range entirely within write range (punch hole) */
 	} else if (wr->pos < page_offset(page) + offset &&
 	    page_offset(page) + offset + length < wr->pos + wr->len) {
-		/* XXX what do we do here... should not WARN_ON */
+		/* XXX what do we do here... should yest WARN_ON */
 		WARN_ON(1);
 		/* punch hole */
 		/*
-		 * should we just ignore this and write it out anyway?
+		 * should we just igyesre this and write it out anyway?
 		 * it hardly makes sense
 		 */
 		return;
-	/* non-overlapping ranges */
+	/* yesn-overlapping ranges */
 	} else {
 		/* WARN if they do overlap */
 		if (!((page_offset(page) + offset + length <= wr->pos) ^
@@ -601,9 +601,9 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 	enum ORANGEFS_io_type type = iov_iter_rw(iter) == WRITE ?
             ORANGEFS_IO_WRITE : ORANGEFS_IO_READ;
 	loff_t *offset = &pos;
-	struct inode *inode = file->f_mapping->host;
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
+	struct iyesde *iyesde = file->f_mapping->host;
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
+	struct orangefs_khandle *handle = &orangefs_iyesde->refn.khandle;
 	size_t count = iov_iter_count(iter);
 	ssize_t total_count = 0;
 	ssize_t ret = -EINVAL;
@@ -650,7 +650,7 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 			     handle,
 			     (int)*offset);
 
-		ret = wait_for_direct_io(type, inode, offset, iter,
+		ret = wait_for_direct_io(type, iyesde, offset, iter,
 				each_count, 0, NULL, NULL, file);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): return from wait_for_io:%d\n",
@@ -687,8 +687,8 @@ out:
 			file_accessed(file);
 		} else {
 			file_update_time(file);
-			if (*offset > i_size_read(inode))
-				i_size_write(inode, *offset);
+			if (*offset > i_size_read(iyesde))
+				i_size_write(iyesde, *offset);
 		}
 	}
 
@@ -706,7 +706,7 @@ static const struct address_space_operations orangefs_address_operations = {
 	.writepage = orangefs_writepage,
 	.readpage = orangefs_readpage,
 	.writepages = orangefs_writepages,
-	.set_page_dirty = __set_page_dirty_nobuffers,
+	.set_page_dirty = __set_page_dirty_yesbuffers,
 	.write_begin = orangefs_write_begin,
 	.write_end = orangefs_write_end,
 	.invalidatepage = orangefs_invalidatepage,
@@ -719,13 +719,13 @@ static const struct address_space_operations orangefs_address_operations = {
 vm_fault_t orangefs_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = file_inode(vmf->vma->vm_file);
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-	unsigned long *bitlock = &orangefs_inode->bitlock;
+	struct iyesde *iyesde = file_iyesde(vmf->vma->vm_file);
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
+	unsigned long *bitlock = &orangefs_iyesde->bitlock;
 	vm_fault_t ret;
 	struct orangefs_write_range *wr;
 
-	sb_start_pagefault(inode->i_sb);
+	sb_start_pagefault(iyesde->i_sb);
 
 	if (wait_on_bit(bitlock, 1, TASK_KILLABLE)) {
 		ret = VM_FAULT_RETRY;
@@ -736,7 +736,7 @@ vm_fault_t orangefs_page_mkwrite(struct vm_fault *vmf)
 	if (PageDirty(page) && !PagePrivate(page)) {
 		/*
 		 * Should be impossible.  If it happens, launder the page
-		 * since we don't know what's dirty.  This will WARN in
+		 * since we don't kyesw what's dirty.  This will WARN in
 		 * orangefs_writepage_locked.
 		 */
 		if (orangefs_launder_page(page)) {
@@ -773,7 +773,7 @@ vm_fault_t orangefs_page_mkwrite(struct vm_fault *vmf)
 okay:
 
 	file_update_time(vmf->vma->vm_file);
-	if (page->mapping != inode->i_mapping) {
+	if (page->mapping != iyesde->i_mapping) {
 		unlock_page(page);
 		ret = VM_FAULT_LOCKED|VM_FAULT_NOPAGE;
 		goto out;
@@ -788,13 +788,13 @@ okay:
 	wait_for_stable_page(page);
 	ret = VM_FAULT_LOCKED;
 out:
-	sb_end_pagefault(inode->i_sb);
+	sb_end_pagefault(iyesde->i_sb);
 	return ret;
 }
 
-static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
+static int orangefs_setattr_size(struct iyesde *iyesde, struct iattr *iattr)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
 	struct orangefs_kernel_op_s *new_op;
 	loff_t orig_size;
 	int ret = -EINVAL;
@@ -802,42 +802,42 @@ static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "%s: %pU: Handle is %pU | fs_id %d | size is %llu\n",
 		     __func__,
-		     get_khandle_from_ino(inode),
-		     &orangefs_inode->refn.khandle,
-		     orangefs_inode->refn.fs_id,
+		     get_khandle_from_iyes(iyesde),
+		     &orangefs_iyesde->refn.khandle,
+		     orangefs_iyesde->refn.fs_id,
 		     iattr->ia_size);
 
-	/* Ensure that we have a up to date size, so we know if it changed. */
-	ret = orangefs_inode_getattr(inode, ORANGEFS_GETATTR_SIZE);
+	/* Ensure that we have a up to date size, so we kyesw if it changed. */
+	ret = orangefs_iyesde_getattr(iyesde, ORANGEFS_GETATTR_SIZE);
 	if (ret == -ESTALE)
 		ret = -EIO;
 	if (ret) {
-		gossip_err("%s: orangefs_inode_getattr failed, ret:%d:.\n",
+		gossip_err("%s: orangefs_iyesde_getattr failed, ret:%d:.\n",
 		    __func__, ret);
 		return ret;
 	}
-	orig_size = i_size_read(inode);
+	orig_size = i_size_read(iyesde);
 
 	/* This is truncate_setsize in a different order. */
-	truncate_pagecache(inode, iattr->ia_size);
-	i_size_write(inode, iattr->ia_size);
+	truncate_pagecache(iyesde, iattr->ia_size);
+	i_size_write(iyesde, iattr->ia_size);
 	if (iattr->ia_size > orig_size)
-		pagecache_isize_extended(inode, orig_size, iattr->ia_size);
+		pagecache_isize_extended(iyesde, orig_size, iattr->ia_size);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_TRUNCATE);
 	if (!new_op)
 		return -ENOMEM;
 
-	new_op->upcall.req.truncate.refn = orangefs_inode->refn;
+	new_op->upcall.req.truncate.refn = orangefs_iyesde->refn;
 	new_op->upcall.req.truncate.size = (__s64) iattr->ia_size;
 
 	ret = service_operation(new_op,
 		__func__,
-		get_interruptible_flag(inode));
+		get_interruptible_flag(iyesde));
 
 	/*
-	 * the truncate has no downcall members to retrieve, but
-	 * the status value tells us if it went through ok or not
+	 * the truncate has yes downcall members to retrieve, but
+	 * the status value tells us if it went through ok or yest
 	 */
 	gossip_debug(GOSSIP_INODE_DEBUG, "%s: ret:%d:\n", __func__, ret);
 
@@ -846,19 +846,19 @@ static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
 	if (ret != 0)
 		return ret;
 
-	if (orig_size != i_size_read(inode))
+	if (orig_size != i_size_read(iyesde))
 		iattr->ia_valid |= ATTR_CTIME | ATTR_MTIME;
 
 	return ret;
 }
 
-int __orangefs_setattr(struct inode *inode, struct iattr *iattr)
+int __orangefs_setattr(struct iyesde *iyesde, struct iattr *iattr)
 {
 	int ret;
 
 	if (iattr->ia_valid & ATTR_MODE) {
 		if (iattr->ia_mode & (S_ISVTX)) {
-			if (is_root_handle(inode)) {
+			if (is_root_handle(iyesde)) {
 				/*
 				 * allow sticky bit to be set on root (since
 				 * it shows up that way by default anyhow),
@@ -867,48 +867,48 @@ int __orangefs_setattr(struct inode *inode, struct iattr *iattr)
 				iattr->ia_mode -= S_ISVTX;
 			} else {
 				gossip_debug(GOSSIP_UTILS_DEBUG,
-					     "User attempted to set sticky bit on non-root directory; returning EINVAL.\n");
+					     "User attempted to set sticky bit on yesn-root directory; returning EINVAL.\n");
 				ret = -EINVAL;
 				goto out;
 			}
 		}
 		if (iattr->ia_mode & (S_ISUID)) {
 			gossip_debug(GOSSIP_UTILS_DEBUG,
-				     "Attempting to set setuid bit (not supported); returning EINVAL.\n");
+				     "Attempting to set setuid bit (yest supported); returning EINVAL.\n");
 			ret = -EINVAL;
 			goto out;
 		}
 	}
 
 	if (iattr->ia_valid & ATTR_SIZE) {
-		ret = orangefs_setattr_size(inode, iattr);
+		ret = orangefs_setattr_size(iyesde, iattr);
 		if (ret)
 			goto out;
 	}
 
 again:
-	spin_lock(&inode->i_lock);
-	if (ORANGEFS_I(inode)->attr_valid) {
-		if (uid_eq(ORANGEFS_I(inode)->attr_uid, current_fsuid()) &&
-		    gid_eq(ORANGEFS_I(inode)->attr_gid, current_fsgid())) {
-			ORANGEFS_I(inode)->attr_valid = iattr->ia_valid;
+	spin_lock(&iyesde->i_lock);
+	if (ORANGEFS_I(iyesde)->attr_valid) {
+		if (uid_eq(ORANGEFS_I(iyesde)->attr_uid, current_fsuid()) &&
+		    gid_eq(ORANGEFS_I(iyesde)->attr_gid, current_fsgid())) {
+			ORANGEFS_I(iyesde)->attr_valid = iattr->ia_valid;
 		} else {
-			spin_unlock(&inode->i_lock);
-			write_inode_now(inode, 1);
+			spin_unlock(&iyesde->i_lock);
+			write_iyesde_yesw(iyesde, 1);
 			goto again;
 		}
 	} else {
-		ORANGEFS_I(inode)->attr_valid = iattr->ia_valid;
-		ORANGEFS_I(inode)->attr_uid = current_fsuid();
-		ORANGEFS_I(inode)->attr_gid = current_fsgid();
+		ORANGEFS_I(iyesde)->attr_valid = iattr->ia_valid;
+		ORANGEFS_I(iyesde)->attr_uid = current_fsuid();
+		ORANGEFS_I(iyesde)->attr_gid = current_fsgid();
 	}
-	setattr_copy(inode, iattr);
-	spin_unlock(&inode->i_lock);
-	mark_inode_dirty(inode);
+	setattr_copy(iyesde, iattr);
+	spin_unlock(&iyesde->i_lock);
+	mark_iyesde_dirty(iyesde);
 
 	if (iattr->ia_valid & ATTR_MODE)
 		/* change mod on a file that has ACLs */
-		ret = posix_acl_chmod(inode, inode->i_mode);
+		ret = posix_acl_chmod(iyesde, iyesde->i_mode);
 
 	ret = 0;
 out:
@@ -926,8 +926,8 @@ int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 	ret = setattr_prepare(dentry, iattr);
 	if (ret)
 	        goto out;
-	ret = __orangefs_setattr(d_inode(dentry), iattr);
-	sync_inode_metadata(d_inode(dentry), 1);
+	ret = __orangefs_setattr(d_iyesde(dentry), iattr);
+	sync_iyesde_metadata(d_iyesde(dentry), 1);
 out:
 	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_setattr: returning %d\n",
 	    ret);
@@ -941,16 +941,16 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 		     u32 request_mask, unsigned int flags)
 {
 	int ret;
-	struct inode *inode = path->dentry->d_inode;
+	struct iyesde *iyesde = path->dentry->d_iyesde;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "orangefs_getattr: called on %pd mask %u\n",
 		     path->dentry, request_mask);
 
-	ret = orangefs_inode_getattr(inode,
+	ret = orangefs_iyesde_getattr(iyesde,
 	    request_mask & STATX_SIZE ? ORANGEFS_GETATTR_SIZE : 0);
 	if (ret == 0) {
-		generic_fillattr(inode, stat);
+		generic_fillattr(iyesde, stat);
 
 		/* override block size reported to stat */
 		if (!(request_mask & STATX_SIZE))
@@ -958,15 +958,15 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 
 		stat->attributes_mask = STATX_ATTR_IMMUTABLE |
 		    STATX_ATTR_APPEND;
-		if (inode->i_flags & S_IMMUTABLE)
+		if (iyesde->i_flags & S_IMMUTABLE)
 			stat->attributes |= STATX_ATTR_IMMUTABLE;
-		if (inode->i_flags & S_APPEND)
+		if (iyesde->i_flags & S_APPEND)
 			stat->attributes |= STATX_ATTR_APPEND;
 	}
 	return ret;
 }
 
-int orangefs_permission(struct inode *inode, int mask)
+int orangefs_permission(struct iyesde *iyesde, int mask)
 {
 	int ret;
 
@@ -976,19 +976,19 @@ int orangefs_permission(struct inode *inode, int mask)
 	gossip_debug(GOSSIP_INODE_DEBUG, "%s: refreshing\n", __func__);
 
 	/* Make sure the permission (and other common attrs) are up to date. */
-	ret = orangefs_inode_getattr(inode, 0);
+	ret = orangefs_iyesde_getattr(iyesde, 0);
 	if (ret < 0)
 		return ret;
 
-	return generic_permission(inode, mask);
+	return generic_permission(iyesde, mask);
 }
 
-int orangefs_update_time(struct inode *inode, struct timespec64 *time, int flags)
+int orangefs_update_time(struct iyesde *iyesde, struct timespec64 *time, int flags)
 {
 	struct iattr iattr;
 	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_update_time: %pU\n",
-	    get_khandle_from_ino(inode));
-	generic_update_time(inode, time, flags);
+	    get_khandle_from_iyes(iyesde));
+	generic_update_time(iyesde, time, flags);
 	memset(&iattr, 0, sizeof iattr);
         if (flags & S_ATIME)
 		iattr.ia_valid |= ATTR_ATIME;
@@ -996,11 +996,11 @@ int orangefs_update_time(struct inode *inode, struct timespec64 *time, int flags
 		iattr.ia_valid |= ATTR_CTIME;
 	if (flags & S_MTIME)
 		iattr.ia_valid |= ATTR_MTIME;
-	return __orangefs_setattr(inode, &iattr);
+	return __orangefs_setattr(iyesde, &iattr);
 }
 
-/* ORANGEFS2 implementation of VFS inode operations for files */
-static const struct inode_operations orangefs_file_inode_operations = {
+/* ORANGEFS2 implementation of VFS iyesde operations for files */
+static const struct iyesde_operations orangefs_file_iyesde_operations = {
 	.get_acl = orangefs_get_acl,
 	.set_acl = orangefs_set_acl,
 	.setattr = orangefs_setattr,
@@ -1010,21 +1010,21 @@ static const struct inode_operations orangefs_file_inode_operations = {
 	.update_time = orangefs_update_time,
 };
 
-static int orangefs_init_iops(struct inode *inode)
+static int orangefs_init_iops(struct iyesde *iyesde)
 {
-	inode->i_mapping->a_ops = &orangefs_address_operations;
+	iyesde->i_mapping->a_ops = &orangefs_address_operations;
 
-	switch (inode->i_mode & S_IFMT) {
+	switch (iyesde->i_mode & S_IFMT) {
 	case S_IFREG:
-		inode->i_op = &orangefs_file_inode_operations;
-		inode->i_fop = &orangefs_file_operations;
+		iyesde->i_op = &orangefs_file_iyesde_operations;
+		iyesde->i_fop = &orangefs_file_operations;
 		break;
 	case S_IFLNK:
-		inode->i_op = &orangefs_symlink_inode_operations;
+		iyesde->i_op = &orangefs_symlink_iyesde_operations;
 		break;
 	case S_IFDIR:
-		inode->i_op = &orangefs_dir_inode_operations;
-		inode->i_fop = &orangefs_dir_operations;
+		iyesde->i_op = &orangefs_dir_iyesde_operations;
+		iyesde->i_fop = &orangefs_dir_operations;
 		break;
 	default:
 		gossip_debug(GOSSIP_INODE_DEBUG,
@@ -1038,101 +1038,101 @@ static int orangefs_init_iops(struct inode *inode)
 
 /*
  * Given an ORANGEFS object identifier (fsid, handle), convert it into
- * a ino_t type that will be used as a hash-index from where the handle will
- * be searched for in the VFS hash table of inodes.
+ * a iyes_t type that will be used as a hash-index from where the handle will
+ * be searched for in the VFS hash table of iyesdes.
  */
-static inline ino_t orangefs_handle_hash(struct orangefs_object_kref *ref)
+static inline iyes_t orangefs_handle_hash(struct orangefs_object_kref *ref)
 {
 	if (!ref)
 		return 0;
-	return orangefs_khandle_to_ino(&(ref->khandle));
+	return orangefs_khandle_to_iyes(&(ref->khandle));
 }
 
 /*
- * Called to set up an inode from iget5_locked.
+ * Called to set up an iyesde from iget5_locked.
  */
-static int orangefs_set_inode(struct inode *inode, void *data)
+static int orangefs_set_iyesde(struct iyesde *iyesde, void *data)
 {
 	struct orangefs_object_kref *ref = (struct orangefs_object_kref *) data;
-	ORANGEFS_I(inode)->refn.fs_id = ref->fs_id;
-	ORANGEFS_I(inode)->refn.khandle = ref->khandle;
-	ORANGEFS_I(inode)->attr_valid = 0;
-	hash_init(ORANGEFS_I(inode)->xattr_cache);
-	ORANGEFS_I(inode)->mapping_time = jiffies - 1;
-	ORANGEFS_I(inode)->bitlock = 0;
+	ORANGEFS_I(iyesde)->refn.fs_id = ref->fs_id;
+	ORANGEFS_I(iyesde)->refn.khandle = ref->khandle;
+	ORANGEFS_I(iyesde)->attr_valid = 0;
+	hash_init(ORANGEFS_I(iyesde)->xattr_cache);
+	ORANGEFS_I(iyesde)->mapping_time = jiffies - 1;
+	ORANGEFS_I(iyesde)->bitlock = 0;
 	return 0;
 }
 
 /*
  * Called to determine if handles match.
  */
-static int orangefs_test_inode(struct inode *inode, void *data)
+static int orangefs_test_iyesde(struct iyesde *iyesde, void *data)
 {
 	struct orangefs_object_kref *ref = (struct orangefs_object_kref *) data;
-	struct orangefs_inode_s *orangefs_inode = NULL;
+	struct orangefs_iyesde_s *orangefs_iyesde = NULL;
 
-	orangefs_inode = ORANGEFS_I(inode);
+	orangefs_iyesde = ORANGEFS_I(iyesde);
 	/* test handles and fs_ids... */
-	return (!ORANGEFS_khandle_cmp(&(orangefs_inode->refn.khandle),
+	return (!ORANGEFS_khandle_cmp(&(orangefs_iyesde->refn.khandle),
 				&(ref->khandle)) &&
-			orangefs_inode->refn.fs_id == ref->fs_id);
+			orangefs_iyesde->refn.fs_id == ref->fs_id);
 }
 
 /*
- * Front-end to lookup the inode-cache maintained by the VFS using the ORANGEFS
+ * Front-end to lookup the iyesde-cache maintained by the VFS using the ORANGEFS
  * file handle.
  *
  * @sb: the file system super block instance.
- * @ref: The ORANGEFS object for which we are trying to locate an inode.
+ * @ref: The ORANGEFS object for which we are trying to locate an iyesde.
  */
-struct inode *orangefs_iget(struct super_block *sb,
+struct iyesde *orangefs_iget(struct super_block *sb,
 		struct orangefs_object_kref *ref)
 {
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	unsigned long hash;
 	int error;
 
 	hash = orangefs_handle_hash(ref);
-	inode = iget5_locked(sb,
+	iyesde = iget5_locked(sb,
 			hash,
-			orangefs_test_inode,
-			orangefs_set_inode,
+			orangefs_test_iyesde,
+			orangefs_set_iyesde,
 			ref);
 
-	if (!inode)
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
 
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(iyesde->i_state & I_NEW))
+		return iyesde;
 
-	error = orangefs_inode_getattr(inode, ORANGEFS_GETATTR_NEW);
+	error = orangefs_iyesde_getattr(iyesde, ORANGEFS_GETATTR_NEW);
 	if (error) {
-		iget_failed(inode);
+		iget_failed(iyesde);
 		return ERR_PTR(error);
 	}
 
-	inode->i_ino = hash;	/* needed for stat etc */
-	orangefs_init_iops(inode);
-	unlock_new_inode(inode);
+	iyesde->i_iyes = hash;	/* needed for stat etc */
+	orangefs_init_iops(iyesde);
+	unlock_new_iyesde(iyesde);
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "iget handle %pU, fsid %d hash %ld i_ino %lu\n",
+		     "iget handle %pU, fsid %d hash %ld i_iyes %lu\n",
 		     &ref->khandle,
 		     ref->fs_id,
 		     hash,
-		     inode->i_ino);
+		     iyesde->i_iyes);
 
-	return inode;
+	return iyesde;
 }
 
 /*
- * Allocate an inode for a newly created file and insert it into the inode hash.
+ * Allocate an iyesde for a newly created file and insert it into the iyesde hash.
  */
-struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
+struct iyesde *orangefs_new_iyesde(struct super_block *sb, struct iyesde *dir,
 		int mode, dev_t dev, struct orangefs_object_kref *ref)
 {
 	unsigned long hash = orangefs_handle_hash(ref);
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int error;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
@@ -1143,31 +1143,31 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 		     MINOR(dev),
 		     mode);
 
-	inode = new_inode(sb);
-	if (!inode)
+	iyesde = new_iyesde(sb);
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
 
-	orangefs_set_inode(inode, ref);
-	inode->i_ino = hash;	/* needed for stat etc */
+	orangefs_set_iyesde(iyesde, ref);
+	iyesde->i_iyes = hash;	/* needed for stat etc */
 
-	error = orangefs_inode_getattr(inode, ORANGEFS_GETATTR_NEW);
+	error = orangefs_iyesde_getattr(iyesde, ORANGEFS_GETATTR_NEW);
 	if (error)
 		goto out_iput;
 
-	orangefs_init_iops(inode);
-	inode->i_rdev = dev;
+	orangefs_init_iops(iyesde);
+	iyesde->i_rdev = dev;
 
-	error = insert_inode_locked4(inode, hash, orangefs_test_inode, ref);
+	error = insert_iyesde_locked4(iyesde, hash, orangefs_test_iyesde, ref);
 	if (error < 0)
 		goto out_iput;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "Initializing ACL's for inode %pU\n",
-		     get_khandle_from_ino(inode));
-	orangefs_init_acl(inode, dir);
-	return inode;
+		     "Initializing ACL's for iyesde %pU\n",
+		     get_khandle_from_iyes(iyesde));
+	orangefs_init_acl(iyesde, dir);
+	return iyesde;
 
 out_iput:
-	iput(inode);
+	iput(iyesde);
 	return ERR_PTR(error);
 }

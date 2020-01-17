@@ -21,7 +21,7 @@
  *
  *  Frame buffer structure from:
  *    drivers/video/chipsfb.c -- frame buffer device for
- *    Chips & Technologies 65550 chip.
+ *    Chips & Techyeslogies 65550 chip.
  *
  *    Copyright (C) 1998 Paul Mackerras
  *
@@ -41,7 +41,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -100,7 +100,7 @@ int valkyriefb_setup(char*);
 static int valkyriefb_check_var(struct fb_var_screeninfo *var,
 				struct fb_info *info);
 static int valkyriefb_set_par(struct fb_info *info);
-static int valkyriefb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int valkyriefb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			     u_int transp, struct fb_info *info);
 static int valkyriefb_blank(int blank_mode, struct fb_info *info);
 
@@ -203,7 +203,7 @@ static int valkyriefb_blank(int blank_mode, struct fb_info *info)
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
 		/*
-		 * [kps] Value extracted from MacOS. I don't know
+		 * [kps] Value extracted from MacOS. I don't kyesw
 		 * whether this bit disables hsync or vsync, or
 		 * whether the hardware can do the other as well.
 		 */
@@ -216,7 +216,7 @@ static int valkyriefb_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
-static int valkyriefb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int valkyriefb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			     u_int transp, struct fb_info *info)
 {
 	struct fb_info_valkyrie *p =
@@ -224,23 +224,23 @@ static int valkyriefb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	volatile struct cmap_regs __iomem *cmap_regs = p->cmap_regs;
 	struct fb_par_valkyrie *par = info->par;
 
-	if (regno > 255)
+	if (regyes > 255)
 		return 1;
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
 
 	/* tell clut which address to fill */
-	out_8(&p->cmap_regs->addr, regno);
+	out_8(&p->cmap_regs->addr, regyes);
 	udelay(1);
 	/* send one color channel at a time */
 	out_8(&cmap_regs->lut, red);
 	out_8(&cmap_regs->lut, green);
 	out_8(&cmap_regs->lut, blue);
 
-	if (regno < 16 && par->cmode == CMODE_16)
-		((u32 *)info->pseudo_palette)[regno] =
-			(regno << 10) | (regno << 5) | regno;
+	if (regyes < 16 && par->cmode == CMODE_16)
+		((u32 *)info->pseudo_palette)[regyes] =
+			(regyes << 10) | (regyes << 5) | regyes;
 
 	return 0;
 }
@@ -292,7 +292,7 @@ static void __init valkyrie_choose_mode(struct fb_info_valkyrie *p)
 		default_cmode = nvram_read_byte(NV_CMODE);
 #endif
 	/*
-	 * Reduce the pixel size if we don't have enough VRAM or bandwidth.
+	 * Reduce the pixel size if we don't have eyesugh VRAM or bandwidth.
 	 */
 	if (default_cmode < CMODE_8 || default_cmode > CMODE_16
 	    || valkyrie_reg_init[default_vmode-1]->pitch[default_cmode] == 0
@@ -318,7 +318,7 @@ int __init valkyriefb_init(void)
 	if (!MACH_IS_MAC)
 		return -ENODEV;
 	if (!(mac_bi_data.id == MAC_MODEL_Q630
-	      /* I'm not sure about this one */
+	      /* I'm yest sure about this one */
 	    || mac_bi_data.id == MAC_MODEL_P588))
 		return -ENODEV;
 
@@ -327,10 +327,10 @@ int __init valkyriefb_init(void)
 	cmap_regs_phys = 0x50f24000;
 #else /* ppc (!CONFIG_MAC) */
 	{
-		struct device_node *dp;
+		struct device_yesde *dp;
 		struct resource r;
 
-		dp = of_find_node_by_name(NULL, "valkyrie");
+		dp = of_find_yesde_by_name(NULL, "valkyrie");
 		if (dp == 0)
 			return 0;
 
@@ -356,7 +356,7 @@ int __init valkyriefb_init(void)
 	p->total_vram = 0x100000;
 	p->frame_buffer_phys = frame_buffer_phys;
 #ifdef CONFIG_MAC
-	p->frame_buffer = ioremap_nocache(frame_buffer_phys, p->total_vram);
+	p->frame_buffer = ioremap_yescache(frame_buffer_phys, p->total_vram);
 #else
 	p->frame_buffer = ioremap_wt(frame_buffer_phys, p->total_vram);
 #endif
@@ -438,16 +438,16 @@ static int read_valkyrie_sense(struct fb_info_valkyrie *p)
  * macmodes has mac_var_to_vmode, I felt that it would be better to
  * rework this function to use that, instead of reinventing the wheel to
  * add support for vmode 17. This was reinforced by the fact that
- * the previously swiped atyfb.c code is no longer there.
+ * the previously swiped atyfb.c code is yes longer there.
  *
  * So, I swiped and adapted platinum_var_to_par (from platinumfb.c), replacing
- * most, but not all, of the old code in the process. One side benefit of
- * swiping the platinumfb code is that we now have more comprehensible error
+ * most, but yest all, of the old code in the process. One side benefit of
+ * swiping the platinumfb code is that we yesw have more comprehensible error
  * messages when a vmode/cmode switch fails. (Most of the error messages are
  * platinumfb.c, but I added two of my own, and I also changed some commas
  * into colons to make the messages more consistent with other Linux error
  * messages.) In addition, I think the new code *might* fix some vmode-
- * switching oddities, but I'm not sure.
+ * switching oddities, but I'm yest sure.
  *
  * There may be some more opportunities for cleanup in here, but this is a
  * good start...
@@ -467,14 +467,14 @@ static int valkyrie_var_to_par(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
-	/* Check if we know about the wanted video mode */
+	/* Check if we kyesw about the wanted video mode */
 	if (vmode < 1 || vmode > VMODE_MAX || !valkyrie_reg_init[vmode-1]) {
-		printk(KERN_ERR "valkyriefb: vmode %d not valid.\n", vmode);
+		printk(KERN_ERR "valkyriefb: vmode %d yest valid.\n", vmode);
 		return -EINVAL;
 	}
 	
 	if (cmode != CMODE_8 && cmode != CMODE_16) {
-		printk(KERN_ERR "valkyriefb: cmode %d not valid.\n", cmode);
+		printk(KERN_ERR "valkyriefb: cmode %d yest valid.\n", cmode);
 		return -EINVAL;
 	}
 
@@ -485,13 +485,13 @@ static int valkyrie_var_to_par(struct fb_var_screeninfo *var,
 
 	init = valkyrie_reg_init[vmode-1];
 	if (init->pitch[cmode] == 0) {
-		printk(KERN_ERR "valkyriefb: vmode %d does not support "
+		printk(KERN_ERR "valkyriefb: vmode %d does yest support "
 		       "cmode %d.\n", vmode, cmode);
 		return -EINVAL;
 	}
 
 	if (valkyrie_vram_reqd(vmode, cmode) > p->total_vram) {
-		printk(KERN_ERR "valkyriefb: not enough ram for vmode %d, "
+		printk(KERN_ERR "valkyriefb: yest eyesugh ram for vmode %d, "
 		       "cmode %d.\n", vmode, cmode);
 		return -EINVAL;
 	}

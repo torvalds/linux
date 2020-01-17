@@ -48,7 +48,7 @@ int xiaomi_wmi_probe(struct wmi_device *wdev, const void *context)
 	return input_register_device(data->input_dev);
 }
 
-void xiaomi_wmi_notify(struct wmi_device *wdev, union acpi_object *dummy)
+void xiaomi_wmi_yestify(struct wmi_device *wdev, union acpi_object *dummy)
 {
 	struct xiaomi_wmi *data;
 
@@ -82,7 +82,7 @@ static struct wmi_driver xiaomi_wmi_driver = {
 	},
 	.id_table = xiaomi_wmi_id_table,
 	.probe = xiaomi_wmi_probe,
-	.notify = xiaomi_wmi_notify,
+	.yestify = xiaomi_wmi_yestify,
 };
 module_wmi_driver(xiaomi_wmi_driver);
 

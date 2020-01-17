@@ -5,14 +5,14 @@
 #  - Use '__inline__', '__asm__' instead of 'inline', 'asm'
 #
 # -std=c90 (equivalent to -ansi) catches the violation of those.
-# We cannot go as far as adding -Wpedantic since it emits too many warnings.
+# We canyest go as far as adding -Wpedantic since it emits too many warnings.
 UAPI_CFLAGS := -std=c90 -Wall -Werror=implicit-function-declaration
 
 override c_flags = $(UAPI_CFLAGS) -Wp,-MD,$(depfile) -I$(objtree)/usr/include
 
-# The following are excluded for now because they fail to build.
+# The following are excluded for yesw because they fail to build.
 #
-# Do not add a new header to the blacklist without legitimate reason.
+# Do yest add a new header to the blacklist without legitimate reason.
 # Please consider to fix the header first.
 #
 # Sorted alphabetically.
@@ -88,7 +88,7 @@ header-test- += asm/uctx.h
 header-test- += asm/fbio.h
 endif
 
-# asm-generic/*.h is used by asm/*.h, and should not be included directly
+# asm-generic/*.h is used by asm/*.h, and should yest be included directly
 header-test- += asm-generic/%
 
 extra-y := $(patsubst $(obj)/%.h,%.hdrtest, $(shell find $(obj) -name '*.h' 2>/dev/null))
@@ -103,4 +103,4 @@ quiet_cmd_hdrtest = HDRTEST $<
 $(obj)/%.hdrtest: $(obj)/%.h FORCE
 	$(call if_changed_dep,hdrtest)
 
-clean-files += $(filter-out Makefile, $(notdir $(wildcard $(obj)/*)))
+clean-files += $(filter-out Makefile, $(yestdir $(wildcard $(obj)/*)))

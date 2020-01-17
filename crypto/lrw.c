@@ -31,9 +31,9 @@ struct priv {
 	struct crypto_skcipher *child;
 
 	/*
-	 * optimizes multiplying a random (non incrementing, as at the
+	 * optimizes multiplying a random (yesn incrementing, as at the
 	 * start of a new sector) value with key2, we could also have
-	 * used 4k optimization tables or no optimization at all. In the
+	 * used 4k optimization tables or yes optimization at all. In the
 	 * latter case we would have to store key2 here
 	 */
 	struct gf128mul_64k *table;
@@ -228,7 +228,7 @@ static void init_crypt(struct skcipher_request *req)
 
 	skcipher_request_set_tfm(subreq, ctx->child);
 	skcipher_request_set_callback(subreq, req->base.flags, crypt_done, req);
-	/* pass req->iv as IV (will be used by xor_tweak, ECB will ignore it) */
+	/* pass req->iv as IV (will be used by xor_tweak, ECB will igyesre it) */
 	skcipher_request_set_crypt(subreq, req->dst, req->dst,
 				   req->cryptlen, req->iv);
 
@@ -384,7 +384,7 @@ static int create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.base.cra_priority = alg->base.cra_priority;
 	inst->alg.base.cra_blocksize = LRW_BLOCK_SIZE;
 	inst->alg.base.cra_alignmask = alg->base.cra_alignmask |
-				       (__alignof__(be128) - 1);
+				       (__aligyesf__(be128) - 1);
 
 	inst->alg.ivsize = LRW_BLOCK_SIZE;
 	inst->alg.min_keysize = crypto_skcipher_alg_min_keysize(alg) +

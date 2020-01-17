@@ -12,11 +12,11 @@
  *  are met:
  *
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
+ *     yestice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
+ *  3. Neither the name of the University yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -52,21 +52,21 @@
 #include <linux/security.h>
 
 static inline void
-nfsd4_security_inode_setsecctx(struct svc_fh *resfh, struct xdr_netobj *label, u32 *bmval)
+nfsd4_security_iyesde_setsecctx(struct svc_fh *resfh, struct xdr_netobj *label, u32 *bmval)
 {
-	struct inode *inode = d_inode(resfh->fh_dentry);
+	struct iyesde *iyesde = d_iyesde(resfh->fh_dentry);
 	int status;
 
-	inode_lock(inode);
-	status = security_inode_setsecctx(resfh->fh_dentry,
+	iyesde_lock(iyesde);
+	status = security_iyesde_setsecctx(resfh->fh_dentry,
 		label->data, label->len);
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 
 	if (status)
 		/*
 		 * XXX: We should really fail the whole open, but we may
 		 * already have created a new file, so it may be too
-		 * late.  For now this seems the least of evils:
+		 * late.  For yesw this seems the least of evils:
 		 */
 		bmval[2] &= ~FATTR4_WORD2_SECURITY_LABEL;
 
@@ -74,7 +74,7 @@ nfsd4_security_inode_setsecctx(struct svc_fh *resfh, struct xdr_netobj *label, u
 }
 #else
 static inline void
-nfsd4_security_inode_setsecctx(struct svc_fh *resfh, struct xdr_netobj *label, u32 *bmval)
+nfsd4_security_iyesde_setsecctx(struct svc_fh *resfh, struct xdr_netobj *label, u32 *bmval)
 { }
 #endif
 
@@ -99,13 +99,13 @@ check_attr_support(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct dentry *dentry = cstate->current_fh.fh_dentry;
 	struct svc_export *exp = cstate->current_fh.fh_export;
 
-	if (!nfsd_attrs_supported(cstate->minorversion, bmval))
-		return nfserr_attrnotsupp;
-	if ((bmval[0] & FATTR4_WORD0_ACL) && !IS_POSIXACL(d_inode(dentry)))
-		return nfserr_attrnotsupp;
+	if (!nfsd_attrs_supported(cstate->miyesrversion, bmval))
+		return nfserr_attryestsupp;
+	if ((bmval[0] & FATTR4_WORD0_ACL) && !IS_POSIXACL(d_iyesde(dentry)))
+		return nfserr_attryestsupp;
 	if ((bmval[2] & FATTR4_WORD2_SECURITY_LABEL) &&
 			!(exp->ex_flags & NFSEXP_SECURITY_LABEL))
-		return nfserr_attrnotsupp;
+		return nfserr_attryestsupp;
 	if (writable && !bmval_is_subset(bmval, writable))
 		return nfserr_inval;
 	if (writable && (bmval[2] & FATTR4_WORD2_MODE_UMASK) &&
@@ -197,7 +197,7 @@ do_open_permission(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 
 static __be32 nfsd_check_obj_isreg(struct svc_fh *fh)
 {
-	umode_t mode = d_inode(fh->fh_dentry)->i_mode;
+	umode_t mode = d_iyesde(fh->fh_dentry)->i_mode;
 
 	if (S_ISREG(mode))
 		return nfs_ok;
@@ -205,8 +205,8 @@ static __be32 nfsd_check_obj_isreg(struct svc_fh *fh)
 		return nfserr_isdir;
 	/*
 	 * Using err_symlink as our catch-all case may look odd; but
-	 * there's no other obvious error for this case in 4.0, and we
-	 * happen to know that it will cause the linux v4 client to do
+	 * there's yes other obvious error for this case in 4.0, and we
+	 * happen to kyesw that it will cause the linux v4 client to do
 	 * the right thing on attempts to open something other than a
 	 * regular file.
 	 */
@@ -217,7 +217,7 @@ static void nfsd4_set_open_owner_reply_cache(struct nfsd4_compound_state *cstate
 {
 	if (nfsd4_has_session(cstate))
 		return;
-	fh_copy_shallow(&open->op_openowner->oo_owner.so_replay.rp_openfh,
+	fh_copy_shallow(&open->op_opeyeswner->oo_owner.so_replay.rp_openfh,
 			&resfh->fh_handle);
 }
 
@@ -241,13 +241,13 @@ do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, stru
 		 * Persistent   | pNFS   | Server REQUIRED | Client Allowed
 		 * Reply Cache  | server |                 |
 		 * -------------+--------+-----------------+--------------------
-		 * no           | no     | EXCLUSIVE4_1    | EXCLUSIVE4_1
+		 * yes           | yes     | EXCLUSIVE4_1    | EXCLUSIVE4_1
 		 *              |        |                 | (SHOULD)
 		 *              |        | and EXCLUSIVE4  | or EXCLUSIVE4
 		 *              |        |                 | (SHOULD NOT)
-		 * no           | yes    | EXCLUSIVE4_1    | EXCLUSIVE4_1
-		 * yes          | no     | GUARDED4        | GUARDED4
-		 * yes          | yes    | GUARDED4        | GUARDED4
+		 * yes           | no    | EXCLUSIVE4_1    | EXCLUSIVE4_1
+		 * no          | yes     | GUARDED4        | GUARDED4
+		 * no          | no    | GUARDED4        | GUARDED4
 		 */
 
 		/*
@@ -263,7 +263,7 @@ do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, stru
 		current->fs->umask = 0;
 
 		if (!status && open->op_label.len)
-			nfsd4_security_inode_setsecctx(*resfh, &open->op_label, open->op_bmval);
+			nfsd4_security_iyesde_setsecctx(*resfh, &open->op_label, open->op_bmval);
 
 		/*
 		 * Following rfc 3530 14.2.16, and rfc 5661 18.16.4
@@ -309,7 +309,7 @@ do_open_fhandle(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, str
 	__be32 status;
 	int accmode = 0;
 
-	/* We don't know the target directory, and therefore can not
+	/* We don't kyesw the target directory, and therefore can yest
 	* set the change info
 	*/
 
@@ -322,11 +322,11 @@ do_open_fhandle(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, str
 	/*
 	 * In the delegation case, the client is telling us about an
 	 * open that it *already* performed locally, some time ago.  We
-	 * should let it succeed now if possible.
+	 * should let it succeed yesw if possible.
 	 *
 	 * In the case of a CLAIM_FH open, on the other hand, the client
 	 * may be counting on us to enforce permissions (the Linux 4.1
-	 * client uses this for normal opens, for example).
+	 * client uses this for yesrmal opens, for example).
 	 */
 	if (open->op_claim_type == NFS4_OPEN_CLAIM_DELEG_CUR_FH)
 		accmode = NFSD_MAY_OWNER_OVERRIDE;
@@ -357,9 +357,9 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	bool reclaim = false;
 
-	dprintk("NFSD: nfsd4_open filename %.*s op_openowner %p\n",
+	dprintk("NFSD: nfsd4_open filename %.*s op_opeyeswner %p\n",
 		(int)open->op_fname.len, open->op_fname.data,
-		open->op_openowner);
+		open->op_opeyeswner);
 
 	/* This check required by spec. */
 	if (open->op_create && open->op_claim_type != NFS4_OPEN_CLAIM_NULL)
@@ -382,7 +382,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	/* check seqid for replay. set nfs4_owner */
 	status = nfsd4_process_open1(cstate, open, nn);
 	if (status == nfserr_replay_me) {
-		struct nfs4_replay *rp = &open->op_openowner->oo_owner.so_replay;
+		struct nfs4_replay *rp = &open->op_opeyeswner->oo_owner.so_replay;
 		fh_put(&cstate->current_fh);
 		fh_copy_shallow(&cstate->current_fh.fh_handle,
 				&rp->rp_openfh);
@@ -404,12 +404,12 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (status)
 		goto out;
 
-	/* Openowner is now set, so sequence id will get bumped.  Now we need
+	/* Opeyeswner is yesw set, so sequence id will get bumped.  Now we need
 	 * these checks before we do any creates: */
 	status = nfserr_grace;
 	if (opens_in_grace(net) && open->op_claim_type != NFS4_OPEN_CLAIM_PREVIOUS)
 		goto out;
-	status = nfserr_no_grace;
+	status = nfserr_yes_grace;
 	if (!opens_in_grace(net) && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
 		goto out;
 
@@ -425,7 +425,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 							 cstate, nn);
 			if (status)
 				goto out;
-			open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
+			open->op_opeyeswner->oo_flags |= NFS4_OO_CONFIRMED;
 			reclaim = true;
 			/* fall through */
 		case NFS4_OPEN_CLAIM_FH:
@@ -439,7 +439,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
              	case NFS4_OPEN_CLAIM_DELEGATE_PREV:
 			dprintk("NFSD: unsupported OPEN claim type %d\n",
 				open->op_claim_type);
-			status = nfserr_notsupp;
+			status = nfserr_yestsupp;
 			goto out;
 		default:
 			dprintk("NFSD: Invalid OPEN claim type %d\n",
@@ -663,7 +663,7 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		goto out;
 
 	if (create->cr_label.len)
-		nfsd4_security_inode_setsecctx(&resfh, &create->cr_label, create->cr_bmval);
+		nfsd4_security_iyesde_setsecctx(&resfh, &create->cr_label, create->cr_bmval);
 
 	if (create->cr_acl != NULL)
 		do_set_nfs4_acl(rqstp, &resfh, create->cr_acl,
@@ -693,9 +693,9 @@ nfsd4_getattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (getattr->ga_bmval[1] & NFSD_WRITEONLY_ATTRS_WORD1)
 		return nfserr_inval;
 
-	getattr->ga_bmval[0] &= nfsd_suppattrs[cstate->minorversion][0];
-	getattr->ga_bmval[1] &= nfsd_suppattrs[cstate->minorversion][1];
-	getattr->ga_bmval[2] &= nfsd_suppattrs[cstate->minorversion][2];
+	getattr->ga_bmval[0] &= nfsd_suppattrs[cstate->miyesrversion][0];
+	getattr->ga_bmval[1] &= nfsd_suppattrs[cstate->miyesrversion][1];
+	getattr->ga_bmval[2] &= nfsd_suppattrs[cstate->miyesrversion][2];
 
 	getattr->ga_fhp = &cstate->current_fh;
 	return nfs_ok;
@@ -726,7 +726,7 @@ static __be32 nfsd4_do_lookupp(struct svc_rqst *rqstp, struct svc_fh *fh)
 		return ret;
 	if (tmp_fh.fh_dentry == fh->fh_dentry) {
 		fh_put(&tmp_fh);
-		return nfserr_noent;
+		return nfserr_yesent;
 	}
 	fh_put(&tmp_fh);
 	return nfsd_lookup(rqstp, fh, "..", 2, fh);
@@ -806,14 +806,14 @@ nfsd4_readdir(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	u64 cookie = readdir->rd_cookie;
 	static const nfs4_verifier zeroverf;
 
-	/* no need to check permission - this will be done in nfsd_readdir() */
+	/* yes need to check permission - this will be done in nfsd_readdir() */
 
 	if (readdir->rd_bmval[1] & NFSD_WRITEONLY_ATTRS_WORD1)
 		return nfserr_inval;
 
-	readdir->rd_bmval[0] &= nfsd_suppattrs[cstate->minorversion][0];
-	readdir->rd_bmval[1] &= nfsd_suppattrs[cstate->minorversion][1];
-	readdir->rd_bmval[2] &= nfsd_suppattrs[cstate->minorversion][2];
+	readdir->rd_bmval[0] &= nfsd_suppattrs[cstate->miyesrversion][0];
+	readdir->rd_bmval[1] &= nfsd_suppattrs[cstate->miyesrversion][1];
+	readdir->rd_bmval[2] &= nfsd_suppattrs[cstate->miyesrversion][2];
 
 	if ((cookie == 1) || (cookie == 2) ||
 	    (cookie == 0 && memcmp(readdir->rd_verf.data, zeroverf.data, NFS4_VERIFIER_SIZE)))
@@ -890,23 +890,23 @@ nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	fh_unlock(&cstate->current_fh);
 	if (d_really_is_negative(dentry)) {
 		exp_put(exp);
-		err = nfserr_noent;
+		err = nfserr_yesent;
 	} else
 		secinfo->si_exp = exp;
 	dput(dentry);
-	if (cstate->minorversion)
+	if (cstate->miyesrversion)
 		/* See rfc 5661 section 2.6.3.1.1.8 */
 		fh_put(&cstate->current_fh);
 	return err;
 }
 
 static __be32
-nfsd4_secinfo_no_name(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+nfsd4_secinfo_yes_name(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		union nfsd4_op_u *u)
 {
 	__be32 err;
 
-	switch (u->secinfo_no_name.sin_style) {
+	switch (u->secinfo_yes_name.sin_style) {
 	case NFS4_SECINFO_STYLE4_CURRENT_FH:
 		break;
 	case NFS4_SECINFO_STYLE4_PARENT:
@@ -918,7 +918,7 @@ nfsd4_secinfo_no_name(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstat
 		return nfserr_inval;
 	}
 
-	u->secinfo_no_name.sin_exp = exp_get(cstate->current_fh.fh_export);
+	u->secinfo_yes_name.sin_exp = exp_get(cstate->current_fh.fh_export);
 	fh_put(&cstate->current_fh);
 	return nfs_ok;
 }
@@ -931,10 +931,10 @@ nfsd4_secinfo_release(union nfsd4_op_u *u)
 }
 
 static void
-nfsd4_secinfo_no_name_release(union nfsd4_op_u *u)
+nfsd4_secinfo_yes_name_release(union nfsd4_op_u *u)
 {
-	if (u->secinfo_no_name.sin_exp)
-		exp_put(u->secinfo_no_name.sin_exp);
+	if (u->secinfo_yes_name.sin_exp)
+		exp_put(u->secinfo_yes_name.sin_exp);
 }
 
 static __be32
@@ -956,7 +956,7 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 	err = fh_want_write(&cstate->current_fh);
 	if (err)
-		return nfserrno(err);
+		return nfserryes(err);
 	status = nfs_ok;
 
 	status = check_attr_support(rqstp, cstate, setattr->sa_bmval,
@@ -1031,7 +1031,7 @@ nfsd4_verify_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	__be32 status;
 
 	if (!cstate->save_fh.fh_dentry)
-		return nfserr_nofilehandle;
+		return nfserr_yesfilehandle;
 
 	status = nfs4_preprocess_stateid_op(rqstp, cstate, &cstate->save_fh,
 					    src_stateid, RD_STATE, src);
@@ -1048,8 +1048,8 @@ nfsd4_verify_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 
 	/* fix up for NFS-specific error code */
-	if (!S_ISREG(file_inode((*src)->nf_file)->i_mode) ||
-	    !S_ISREG(file_inode((*dst)->nf_file)->i_mode)) {
+	if (!S_ISREG(file_iyesde((*src)->nf_file)->i_mode) ||
+	    !S_ISREG(file_iyesde((*dst)->nf_file)->i_mode)) {
 		status = nfserr_wrong_type;
 		goto out_put_dst;
 	}
@@ -1157,7 +1157,7 @@ static const struct nfsd4_callback_ops nfsd4_cb_offload_ops = {
 static void nfsd4_init_copy_res(struct nfsd4_copy *copy, bool sync)
 {
 	copy->cp_res.wr_stable_how = NFS_UNSTABLE;
-	copy->cp_synchronous = sync;
+	copy->cp_synchroyesus = sync;
 	gen_boot_verifier(&copy->cp_res.wr_verifier, copy->cp_clp->net);
 }
 
@@ -1180,7 +1180,7 @@ static ssize_t _nfsd_copy_file_range(struct nfsd4_copy *copy)
 		copy->cp_res.wr_bytes_written += bytes_copied;
 		src_pos += bytes_copied;
 		dst_pos += bytes_copied;
-	} while (bytes_total > 0 && !copy->cp_synchronous);
+	} while (bytes_total > 0 && !copy->cp_synchroyesus);
 	return bytes_copied;
 }
 
@@ -1190,11 +1190,11 @@ static __be32 nfsd4_do_copy(struct nfsd4_copy *copy, bool sync)
 	ssize_t bytes;
 
 	bytes = _nfsd_copy_file_range(copy);
-	/* for async copy, we ignore the error, client can always retry
+	/* for async copy, we igyesre the error, client can always retry
 	 * to get the error
 	 */
 	if (bytes < 0 && !copy->cp_res.wr_bytes_written)
-		status = nfserrno(bytes);
+		status = nfserryes(bytes);
 	else {
 		nfsd4_init_copy_res(copy, sync);
 		status = nfs_ok;
@@ -1210,7 +1210,7 @@ static void dup_copy_fields(struct nfsd4_copy *src, struct nfsd4_copy *dst)
 	dst->cp_src_pos = src->cp_src_pos;
 	dst->cp_dst_pos = src->cp_dst_pos;
 	dst->cp_count = src->cp_count;
-	dst->cp_synchronous = src->cp_synchronous;
+	dst->cp_synchroyesus = src->cp_synchroyesus;
 	memcpy(&dst->cp_res, &src->cp_res, sizeof(src->cp_res));
 	memcpy(&dst->fh, &src->fh, sizeof(src->fh));
 	dst->cp_clp = src->cp_clp;
@@ -1268,10 +1268,10 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	copy->cp_clp = cstate->clp;
 	memcpy(&copy->fh, &cstate->current_fh.fh_handle,
 		sizeof(struct knfsd_fh));
-	if (!copy->cp_synchronous) {
+	if (!copy->cp_synchroyesus) {
 		struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
-		status = nfserrno(-ENOMEM);
+		status = nfserryes(-ENOMEM);
 		async_copy = kzalloc(sizeof(struct nfsd4_copy), GFP_KERNEL);
 		if (!async_copy)
 			goto out;
@@ -1421,18 +1421,18 @@ nfsd4_seek(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		whence = SEEK_HOLE;
 		break;
 	default:
-		status = nfserr_union_notsupp;
+		status = nfserr_union_yestsupp;
 		goto out;
 	}
 
 	/*
-	 * Note:  This call does change file->f_pos, but nothing in NFSD
+	 * Note:  This call does change file->f_pos, but yesthing in NFSD
 	 *        should ever file->f_pos.
 	 */
 	seek->seek_pos = vfs_llseek(nf->nf_file, seek->seek_offset, whence);
 	if (seek->seek_pos < 0)
-		status = nfserrno(seek->seek_pos);
-	else if (seek->seek_pos >= i_size_read(file_inode(nf->nf_file)))
+		status = nfserryes(seek->seek_pos);
+	else if (seek->seek_pos >= i_size_read(file_iyesde(nf->nf_file)))
 		seek->seek_eof = true;
 
 out:
@@ -1440,7 +1440,7 @@ out:
 	return status;
 }
 
-/* This routine never returns NFS_OK!  If there are no other errors, it
+/* This routine never returns NFS_OK!  If there are yes other errors, it
  * will return NFSERR_SAME or NFSERR_NOT_SAME depending on whether the
  * attributes matched.  VERIFY is implemented by mapping NFSERR_SAME
  * to NFS_OK after the call; NVERIFY by mapping NFSERR_NOT_SAME to NFS_OK.
@@ -1486,13 +1486,13 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * the attributes are longer (hence different) than those given:
 	 */
 	if (status == nfserr_resource)
-		status = nfserr_not_same;
+		status = nfserr_yest_same;
 	if (status)
 		goto out_kfree;
 
 	/* skip bitmap */
 	p = buf + 1 + ntohl(buf[0]);
-	status = nfserr_not_same;
+	status = nfserr_yest_same;
 	if (ntohl(*p++) != verify->ve_attrlen)
 		goto out_kfree;
 	if (!memcmp(p, verify->ve_attrval, verify->ve_attrlen))
@@ -1510,7 +1510,7 @@ nfsd4_nverify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	__be32 status;
 
 	status = _nfsd4_verify(rqstp, cstate, &u->verify);
-	return status == nfserr_not_same ? nfs_ok : status;
+	return status == nfserr_yest_same ? nfs_ok : status;
 }
 
 static __be32
@@ -1528,13 +1528,13 @@ static const struct nfsd4_layout_ops *
 nfsd4_layout_verify(struct svc_export *exp, unsigned int layout_type)
 {
 	if (!exp->ex_layout_types) {
-		dprintk("%s: export does not support pNFS\n", __func__);
+		dprintk("%s: export does yest support pNFS\n", __func__);
 		return NULL;
 	}
 
 	if (layout_type >= LAYOUT_TYPE_MAX ||
 	    !(exp->ex_layout_types & (1 << layout_type))) {
-		dprintk("%s: layout type %d not supported\n",
+		dprintk("%s: layout type %d yest supported\n",
 			__func__, layout_type);
 		return NULL;
 	}
@@ -1562,13 +1562,13 @@ nfsd4_getdeviceinfo(struct svc_rqst *rqstp,
 	if (!map) {
 		dprintk("%s: couldn't find device ID to export mapping!\n",
 			__func__);
-		return nfserr_noent;
+		return nfserr_yesent;
 	}
 
 	exp = rqst_exp_find(rqstp, map->fsid_type, map->fsid);
 	if (IS_ERR(exp)) {
-		dprintk("%s: could not find device id\n", __func__);
-		return nfserr_noent;
+		dprintk("%s: could yest find device id\n", __func__);
+		return nfserr_yesent;
 	}
 
 	nfserr = nfserr_layoutunavailable;
@@ -1582,7 +1582,7 @@ nfsd4_getdeviceinfo(struct svc_rqst *rqstp,
 				rqstp, cstate->session->se_client, gdp);
 	}
 
-	gdp->gd_notify_types &= ops->notify_types;
+	gdp->gd_yestify_types &= ops->yestify_types;
 out:
 	exp_put(exp);
 	return nfserr;
@@ -1633,10 +1633,10 @@ nfsd4_layoutget(struct svc_rqst *rqstp,
 	 *  o  If loga_length is less than loga_minlength,
 	 *     the metadata server MUST return NFS4ERR_INVAL.
 	 *  o  If the sum of loga_offset and loga_minlength exceeds
-	 *     NFS4_UINT64_MAX, and loga_minlength is not
+	 *     NFS4_UINT64_MAX, and loga_minlength is yest
 	 *     NFS4_UINT64_MAX, the error NFS4ERR_INVAL MUST result.
 	 *  o  If the sum of loga_offset and loga_length exceeds
-	 *     NFS4_UINT64_MAX, and loga_length is not NFS4_UINT64_MAX,
+	 *     NFS4_UINT64_MAX, and loga_length is yest NFS4_UINT64_MAX,
 	 *     the error NFS4ERR_INVAL MUST result.
 	 */
 	nfserr = nfserr_inval;
@@ -1660,7 +1660,7 @@ nfsd4_layoutget(struct svc_rqst *rqstp,
 	if (atomic_read(&ls->ls_stid.sc_file->fi_lo_recalls))
 		goto out_put_stid;
 
-	nfserr = ops->proc_layoutget(d_inode(current_fh->fh_dentry),
+	nfserr = ops->proc_layoutget(d_iyesde(current_fh->fh_dentry),
 				     current_fh, lgp);
 	if (nfserr)
 		goto out_put_stid;
@@ -1689,7 +1689,7 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 	struct svc_fh *current_fh = &cstate->current_fh;
 	const struct nfsd4_layout_ops *ops;
 	loff_t new_size = lcp->lc_last_wr + 1;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct nfs4_layout_stateid *ls;
 	__be32 nfserr;
 
@@ -1701,7 +1701,7 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 	ops = nfsd4_layout_verify(current_fh->fh_export, lcp->lc_layout_type);
 	if (!ops)
 		goto out;
-	inode = d_inode(current_fh->fh_dentry);
+	iyesde = d_iyesde(current_fh->fh_dentry);
 
 	nfserr = nfserr_inval;
 	if (new_size <= seg->offset) {
@@ -1712,7 +1712,7 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 		dprintk("pnfsd: last write beyond layout segment\n");
 		goto out;
 	}
-	if (!lcp->lc_newoffset && new_size > i_size_read(inode)) {
+	if (!lcp->lc_newoffset && new_size > i_size_read(iyesde)) {
 		dprintk("pnfsd: layoutcommit beyond EOF\n");
 		goto out;
 	}
@@ -1728,17 +1728,17 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 		goto out;
 	}
 
-	/* LAYOUTCOMMIT does not require any serialization */
+	/* LAYOUTCOMMIT does yest require any serialization */
 	mutex_unlock(&ls->ls_mutex);
 
-	if (new_size > i_size_read(inode)) {
+	if (new_size > i_size_read(iyesde)) {
 		lcp->lc_size_chg = 1;
 		lcp->lc_newsize = new_size;
 	} else {
 		lcp->lc_size_chg = 0;
 	}
 
-	nfserr = ops->proc_layoutcommit(inode, lcp);
+	nfserr = ops->proc_layoutcommit(iyesde, lcp);
 	nfs4_put_stid(&ls->ls_stid);
 out:
 	return nfserr;
@@ -1813,7 +1813,7 @@ static const char *nfsd4_op_name(unsigned opnum);
 /*
  * Enforce NFSv4.1 COMPOUND ordering rules:
  *
- * Also note, enforced elsewhere:
+ * Also yeste, enforced elsewhere:
  *	- SEQUENCE other than as first op results in
  *	  NFS4ERR_SEQUENCE_POS. (Enforced in nfsd4_sequence().)
  *	- BIND_CONN_TO_SESSION must be the only op in its compound.
@@ -1827,15 +1827,15 @@ static __be32 nfs41_check_op_ordering(struct nfsd4_compoundargs *args)
 	struct nfsd4_op *first_op = &args->ops[0];
 
 	/* These ordering requirements don't apply to NFSv4.0: */
-	if (args->minorversion == 0)
+	if (args->miyesrversion == 0)
 		return nfs_ok;
-	/* This is weird, but OK, not our problem: */
+	/* This is weird, but OK, yest our problem: */
 	if (args->opcnt == 0)
 		return nfs_ok;
 	if (first_op->status == nfserr_op_illegal)
 		return nfs_ok;
 	if (!(nfsd4_ops[first_op->opnum].op_flags & ALLOWED_AS_FIRST_OP))
-		return nfserr_op_not_in_session;
+		return nfserr_op_yest_in_session;
 	if (first_op->opnum == OP_SEQUENCE)
 		return nfs_ok;
 	/*
@@ -1844,7 +1844,7 @@ static __be32 nfs41_check_op_ordering(struct nfsd4_compoundargs *args)
 	 * compound:
 	 */
 	if (args->opcnt != 1)
-		return nfserr_not_only_op;
+		return nfserr_yest_only_op;
 	return nfs_ok;
 }
 
@@ -1877,7 +1877,7 @@ static bool need_wrongsec_check(struct svc_rqst *rqstp)
 		return false;
 	/*
 	 * rfc 5661 2.6.3.1.1.6: don't bother erroring out a
-	 * put-filehandle operation if we're not going to use the
+	 * put-filehandle operation if we're yest going to use the
 	 * result:
 	 */
 	if (argp->opcnt == resp->opcnt)
@@ -1888,7 +1888,7 @@ static bool need_wrongsec_check(struct svc_rqst *rqstp)
 	/*
 	 * Rest of 2.6.3.1.1: certain operations will return WRONGSEC
 	 * errors themselves as necessary; others should check for them
-	 * now:
+	 * yesw:
 	 */
 	return !(nextd->op_flags & OP_HANDLES_WRONGSEC);
 }
@@ -1934,20 +1934,20 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 	resp->taglen = args->taglen;
 	resp->tag = args->tag;
 	resp->rqstp = rqstp;
-	cstate->minorversion = args->minorversion;
+	cstate->miyesrversion = args->miyesrversion;
 	fh_init(current_fh, NFS4_FHSIZE);
 	fh_init(save_fh, NFS4_FHSIZE);
 	/*
 	 * Don't use the deferral mechanism for NFSv4; compounds make it
-	 * too hard to avoid non-idempotency problems.
+	 * too hard to avoid yesn-idempotency problems.
 	 */
 	clear_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
 
 	/*
 	 * According to RFC3010, this takes precedence over all other errors.
 	 */
-	status = nfserr_minor_vers_mismatch;
-	if (nfsd_minorversion(nn, args->minorversion, NFSD_TEST) <= 0)
+	status = nfserr_miyesr_vers_mismatch;
+	if (nfsd_miyesrversion(nn, args->miyesrversion, NFSD_TEST) <= 0)
 		goto out;
 	status = nfserr_resource;
 	if (args->opcnt > NFSD_MAX_OPS_PER_COMPOUND)
@@ -1978,7 +1978,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 
 		if (!current_fh->fh_dentry) {
 			if (!(op->opdesc->op_flags & ALLOWED_WITHOUT_FH)) {
-				op->status = nfserr_nofilehandle;
+				op->status = nfserr_yesfilehandle;
 				goto encode_op;
 			}
 		} else if (current_fh->fh_export->ex_fslocs.migrated &&
@@ -1989,7 +1989,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 
 		fh_clear_wcc(current_fh);
 
-		/* If op is non-idempotent */
+		/* If op is yesn-idempotent */
 		if (op->opdesc->op_flags & OP_MODIFIES_SOMETHING) {
 			/*
 			 * Don't execute this op if we couldn't encode a
@@ -1997,7 +1997,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 			 */
 			u32 plen = op->opdesc->op_rsize_bop(rqstp, op);
 			/*
-			 * Plus if there's another operation, make sure
+			 * Plus if there's ayesther operation, make sure
 			 * we'll have space to at least encode an error:
 			 */
 			if (resp->opcnt < args->opcnt)
@@ -2062,7 +2062,7 @@ out:
 #define op_encode_change_info_maxsz	(5)
 #define nfs4_fattr_bitmap_maxsz		(4)
 
-/* We'll fall back on returning no lockowner if run out of space: */
+/* We'll fall back on returning yes lockowner if run out of space: */
 #define op_encode_lockowner_maxsz	(0)
 #define op_encode_lock_denied_maxsz	(8 + op_encode_lockowner_maxsz)
 
@@ -2247,13 +2247,13 @@ static inline u32 nfsd4_exchange_id_rsize(struct svc_rqst *rqstp, struct nfsd4_o
 	return (op_encode_hdr_size + 2 + 1 + /* eir_clientid, eir_sequenceid */\
 		1 + 1 + /* eir_flags, spr_how */\
 		4 + /* spo_must_enforce & _allow with bitmap */\
-		2 + /*eir_server_owner.so_minor_id */\
+		2 + /*eir_server_owner.so_miyesr_id */\
 		/* eir_server_owner.so_major_id<> */\
 		XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + 1 +\
 		/* eir_server_scope<> */\
 		XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + 1 +\
 		1 + /* eir_server_impl_id array length */\
-		0 /* ignored eir_server_impl_id contents */) * sizeof(__be32);
+		0 /* igyesred eir_server_impl_id contents */) * sizeof(__be32);
 }
 
 static inline u32 nfsd4_bind_conn_to_session_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
@@ -2281,7 +2281,7 @@ static inline u32 nfsd4_copy_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 		1 /* wr_committed */ +
 		op_encode_verifier_maxsz +
 		1 /* cr_consecutive */ +
-		1 /* cr_synchronous */) * sizeof(__be32);
+		1 /* cr_synchroyesus */) * sizeof(__be32);
 }
 
 static inline u32 nfsd4_offload_status_rsize(struct svc_rqst *rqstp,
@@ -2289,7 +2289,7 @@ static inline u32 nfsd4_offload_status_rsize(struct svc_rqst *rqstp,
 {
 	return (op_encode_hdr_size +
 		2 /* osr_count */ +
-		1 /* osr_complete<1> optional 0 for now */) * sizeof(__be32);
+		1 /* osr_complete<1> optional 0 for yesw */) * sizeof(__be32);
 }
 
 #ifdef CONFIG_NFSD_PNFS
@@ -2303,11 +2303,11 @@ static inline u32 nfsd4_getdeviceinfo_rsize(struct svc_rqst *rqstp, struct nfsd4
 	return (op_encode_hdr_size +
 		1 /* gd_layout_type*/ +
 		XDR_QUADLEN(rlen) +
-		2 /* gd_notify_types */) * sizeof(__be32);
+		2 /* gd_yestify_types */) * sizeof(__be32);
 }
 
 /*
- * At this stage we don't really know what layout driver will handle the request,
+ * At this stage we don't really kyesw what layout driver will handle the request,
  * so we need to define an arbitrary upper bound here.
  */
 #define MAX_LAYOUT_SIZE		128
@@ -2627,8 +2627,8 @@ static const struct nfsd4_operation nfsd4_ops[] = {
 		.op_rsize_bop = nfsd4_only_status_rsize,
 	},
 	[OP_SECINFO_NO_NAME] = {
-		.op_func = nfsd4_secinfo_no_name,
-		.op_release = nfsd4_secinfo_no_name_release,
+		.op_func = nfsd4_secinfo_yes_name,
+		.op_release = nfsd4_secinfo_yes_name_release,
 		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_SECINFO_NO_NAME",
 		.op_rsize_bop = nfsd4_secinfo_rsize,
@@ -2737,7 +2737,7 @@ bool nfsd4_spo_must_allow(struct svc_rqst *rqstp)
 	struct nfs4_op_map *allow = &cstate->clp->cl_spo_must_allow;
 	u32 opiter;
 
-	if (!cstate->minorversion)
+	if (!cstate->miyesrversion)
 		return false;
 
 	if (cstate->spo_must_allowed == true)
@@ -2759,17 +2759,17 @@ bool nfsd4_spo_must_allow(struct svc_rqst *rqstp)
 
 int nfsd4_max_reply(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
-	if (op->opnum == OP_ILLEGAL || op->status == nfserr_notsupp)
+	if (op->opnum == OP_ILLEGAL || op->status == nfserr_yestsupp)
 		return op_encode_hdr_size * sizeof(__be32);
 
 	BUG_ON(OPDESC(op)->op_rsize_bop == NULL);
 	return OPDESC(op)->op_rsize_bop(rqstp, op);
 }
 
-void warn_on_nonidempotent_op(struct nfsd4_op *op)
+void warn_on_yesnidempotent_op(struct nfsd4_op *op)
 {
 	if (OPDESC(op)->op_flags & OP_MODIFIES_SOMETHING) {
-		pr_err("unable to encode reply to nonidempotent op %d (%s)\n",
+		pr_err("unable to encode reply to yesnidempotent op %d (%s)\n",
 			op->opnum, nfsd4_op_name(op->opnum));
 		WARN_ON_ONCE(1);
 	}
@@ -2779,7 +2779,7 @@ static const char *nfsd4_op_name(unsigned opnum)
 {
 	if (opnum < ARRAY_SIZE(nfsd4_ops))
 		return nfsd4_ops[opnum].op_name;
-	return "unknown_operation";
+	return "unkyeswn_operation";
 }
 
 #define nfsd4_voidres			nfsd4_voidargs

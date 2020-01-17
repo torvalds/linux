@@ -100,7 +100,7 @@ static int a10sr_reset_probe(struct platform_device *pdev)
 	a10r->rcdev.owner = THIS_MODULE;
 	a10r->rcdev.nr_resets = A10SR_RESET_NUM;
 	a10r->rcdev.ops = &a10sr_reset_ops;
-	a10r->rcdev.of_node = pdev->dev.of_node;
+	a10r->rcdev.of_yesde = pdev->dev.of_yesde;
 	a10r->regmap = a10sr->regmap;
 
 	platform_set_drvdata(pdev, a10r);

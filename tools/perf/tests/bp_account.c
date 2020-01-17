@@ -21,7 +21,7 @@
 
 volatile long the_var;
 
-static noinline int test_function(void)
+static yesinline int test_function(void)
 {
 	return 0;
 }
@@ -169,8 +169,8 @@ static int detect_share(int wp_cnt, int bp_cnt)
  *     same slots
  *   - create all possible watchpoints on cpu 0
  *   - change one of it to breakpoint
- *   - in case wp and bp do not share slots,
- *     we create another watchpoint to ensure
+ *   - in case wp and bp do yest share slots,
+ *     we create ayesther watchpoint to ensure
  *     the slot accounting is correct
  */
 int test__bp_accounting(struct test *test __maybe_unused, int subtest __maybe_unused)
@@ -192,7 +192,7 @@ int test__bp_accounting(struct test *test __maybe_unused, int subtest __maybe_un
 bool test__bp_account_is_supported(void)
 {
 	/*
-	 * PowerPC and S390 do not support creation of instruction
+	 * PowerPC and S390 do yest support creation of instruction
 	 * breakpoints using the perf_event interface.
 	 *
 	 * Just disable the test for these architectures until these

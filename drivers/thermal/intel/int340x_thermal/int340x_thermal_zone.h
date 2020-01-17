@@ -53,7 +53,7 @@ static inline void *int340x_thermal_zone_get_priv_data(
 
 static inline void int340x_thermal_zone_device_update(
 					struct int34x_thermal_zone *tzone,
-					enum thermal_notify_event event)
+					enum thermal_yestify_event event)
 {
 	thermal_zone_device_update(tzone->zone, event);
 }

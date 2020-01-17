@@ -35,7 +35,7 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 				fail("PT_LOAD in wrong place\n");
 
 			if (GET_BE(&pt[i].p_memsz) != GET_BE(&pt[i].p_filesz))
-				fail("cannot handle memsz != filesz\n");
+				fail("canyest handle memsz != filesz\n");
 
 			load_size = GET_BE(&pt[i].p_memsz);
 			found_load = 1;
@@ -46,7 +46,7 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 		}
 	}
 	if (!found_load)
-		fail("no PT_LOAD seg\n");
+		fail("yes PT_LOAD seg\n");
 
 	if (stripped_len < load_size)
 		fail("stripped input is too short\n");
@@ -70,7 +70,7 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 	}
 
 	if (!symtab_hdr)
-		fail("no symbol table\n");
+		fail("yes symbol table\n");
 
 	strtab_hdr = raw_addr + GET_BE(&hdr->e_shoff) +
 		GET_BE(&hdr->e_shentsize) * GET_BE(&symtab_hdr->sh_link);

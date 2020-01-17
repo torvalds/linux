@@ -15,7 +15,7 @@
  * @TVEEPROM_AUDPROC_INTERNAL:	The audio processor is internal to the
  *				video processor
  * @TVEEPROM_AUDPROC_MSP:	The audio processor is a MSPXXXX device
- * @TVEEPROM_AUDPROC_OTHER:	The audio processor is another device
+ * @TVEEPROM_AUDPROC_OTHER:	The audio processor is ayesther device
  */
 enum tveeprom_audio_processor {
 	TVEEPROM_AUDPROC_NONE,
@@ -29,13 +29,13 @@ enum tveeprom_audio_processor {
  *
  * @has_radio:			1 if the device has radio; 0 otherwise.
  *
- * @has_ir:			If has_ir == 0, then it is unknown what the IR
+ * @has_ir:			If has_ir == 0, then it is unkyeswn what the IR
  *				capabilities are. Otherwise:
- *				bit 0) 1 (= IR capabilities are known);
+ *				bit 0) 1 (= IR capabilities are kyeswn);
  *				bit 1) IR receiver present;
  *				bit 2) IR transmitter (blaster) present.
  *
- * @has_MAC_address:		0: no MAC, 1: MAC present, 2: unknown.
+ * @has_MAC_address:		0: yes MAC, 1: MAC present, 2: unkyeswn.
  * @tuner_type:			type of the tuner (TUNER_*, as defined at
  *				include/media/tuner.h).
  *

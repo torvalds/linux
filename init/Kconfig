@@ -46,10 +46,10 @@ config CC_DISABLE_WARN_MAYBE_UNINITIALIZED
 	depends on CC_HAS_WARN_MAYBE_UNINITIALIZED
 	default CC_IS_GCC && GCC_VERSION < 40900  # unreliable for GCC < 4.9
 	help
-	  GCC's -Wmaybe-uninitialized is not reliable by definition.
+	  GCC's -Wmaybe-uninitialized is yest reliable by definition.
 	  Lots of false positive warnings are produced in some cases.
 
-	  If this option is enabled, -Wno-maybe-uninitialzed is passed
+	  If this option is enabled, -Wyes-maybe-uninitialzed is passed
 	  to the compiler to suppress maybe-uninitialized warnings.
 
 config CONSTRUCTORS
@@ -90,13 +90,13 @@ config INIT_ENV_ARG_LIMIT
 	  variables passed to init from the kernel command line.
 
 config COMPILE_TEST
-	bool "Compile also drivers which will not load"
+	bool "Compile also drivers which will yest load"
 	depends on !UML
 	default n
 	help
 	  Some drivers can be compiled on a different platform than they are
-	  intended to be run on. Despite they cannot be loaded there (or even
-	  when they load they cannot be used due to missing HW support),
+	  intended to be run on. Despite they canyest be loaded there (or even
+	  when they load they canyest be used due to missing HW support),
 	  developers still, opposing to distributors, might want to build such
 	  drivers to compile-test them.
 
@@ -261,7 +261,7 @@ config KERNEL_UNCOMPRESSED
 	bool "None"
 	depends on HAVE_KERNEL_UNCOMPRESSED
 	help
-	  Produce uncompressed kernel image. This option is usually not what
+	  Produce uncompressed kernel image. This option is usually yest what
 	  you want. It is useful for debugging the kernel in slow simulation
 	  environments, where decompressing and moving the kernel is awfully
 	  slow. This option allows early boot code to skip the decompressor
@@ -271,10 +271,10 @@ endchoice
 
 config DEFAULT_HOSTNAME
 	string "Default hostname"
-	default "(none)"
+	default "(yesne)"
 	help
 	  This option determines the default system hostname before userspace
-	  calls sethostname(2). The kernel traditionally uses "(none)" here,
+	  calls sethostname(2). The kernel traditionally uses "(yesne)" here,
 	  but you may wish to use a different default here to make a minimal
 	  system more usable with less configuration.
 
@@ -286,7 +286,7 @@ config ARCH_NO_SWAP
 	bool
 
 config SWAP
-	bool "Support for paging of anonymous memory (swap)"
+	bool "Support for paging of ayesnymous memory (swap)"
 	depends on MMU && BLOCK && !ARCH_NO_SWAP
 	default y
 	help
@@ -345,7 +345,7 @@ config CROSS_MEMORY_ATTACH
 	help
 	  Enabling this option adds the system calls process_vm_readv and
 	  process_vm_writev which allow a process with the correct privileges
-	  to directly read from or write to another process' address space.
+	  to directly read from or write to ayesther process' address space.
 	  See the man page for more details.
 
 config USELIB
@@ -353,7 +353,7 @@ config USELIB
 	def_bool ALPHA || M68K || SPARC || X86_32 || IA32_EMULATION
 	help
 	  This option enables the uselib syscall, a system call used in the
-	  dynamic linker from libc5 and earlier.  glibc does not use this
+	  dynamic linker from libc5 and earlier.  glibc does yest use this
 	  system call.  If you intend to run programs built on libc5 or
 	  earlier, you may need to enable this syscall.  Current systems
 	  running glibc can safely disable this.
@@ -362,7 +362,7 @@ config AUDIT
 	bool "Auditing support"
 	depends on NET
 	help
-	  Enable auditing infrastructure that can be used with another
+	  Enable auditing infrastructure that can be used with ayesther
 	  kernel subsystem, such as SELinux (which requires this for
 	  logging of avc messages output).  System call auditing is included
 	  on architectures which support it.
@@ -427,7 +427,7 @@ config VIRT_CPU_ACCOUNTING_GEN
 	  The accounting is thus performed at the expense of some significant
 	  overhead.
 
-	  For now this is only useful if you are working on the full
+	  For yesw this is only useful if you are working on the full
 	  dynticks subsystem development.
 
 	  If unsure, say N.
@@ -496,7 +496,7 @@ config TASK_DELAY_ACCT
 	select SCHED_INFO
 	help
 	  Collect information on time spent by a task waiting for system
-	  resources like cpu, synchronous block I/O completion and swapping
+	  resources like cpu, synchroyesus block I/O completion and swapping
 	  in pages. Such statistics can help in setting a task's priorities
 	  relative to other tasks for cpu, io, rss limits etc.
 
@@ -554,7 +554,7 @@ config PSI_DEFAULT_DISABLED
 	  webservers, memcache), but it does show up in artificial
 	  scheduler stress tests, such as hackbench.
 
-	  If you are paranoid and not sure what the kernel will be
+	  If you are parayesid and yest sure what the kernel will be
 	  used for, say Y.
 
 	  Say N if unsure.
@@ -566,8 +566,8 @@ config CPU_ISOLATION
 	depends on SMP || COMPILE_TEST
 	default y
 	help
-	  Make sure that CPUs running critical tasks are not disturbed by
-	  any source of "noise" such as unbound workqueues, timers, kthreads...
+	  Make sure that CPUs running critical tasks are yest disturbed by
+	  any source of "yesise" such as unbound workqueues, timers, kthreads...
 	  Unbound jobs get offloaded to housekeeping CPUs. This is driven by
 	  the "isolcpus=" boot parameter.
 
@@ -587,7 +587,7 @@ config IKCONFIG
 	  of which kernel options are used in a running kernel or in an
 	  on-disk kernel.  This information can be extracted from the kernel
 	  image file with the script scripts/extract-ikconfig and used as
-	  input to rebuild the current kernel or to build another kernel.
+	  input to rebuild the current kernel or to build ayesther kernel.
 	  It can also be extracted from a running kernel by reading
 	  /proc/config.gz if enabled (below).
 
@@ -647,10 +647,10 @@ config LOG_CPU_MAX_BUF_SHIFT
 	  buffer as defined by LOG_BUF_SHIFT. The default values are set
 	  so that more than 64 CPUs are needed to trigger the allocation.
 
-	  Also this option is ignored when "log_buf_len" kernel parameter is
+	  Also this option is igyesred when "log_buf_len" kernel parameter is
 	  used as it forces an exact (power of two) size of the ring buffer.
 
-	  The number of possible CPUs is used for this computation ignoring
+	  The number of possible CPUs is used for this computation igyesring
 	  hotplugging making the computation optimal for the worst case
 	  scenario while allowing a simple algorithm to be used from bootup.
 
@@ -670,7 +670,7 @@ config PRINTK_SAFE_LOG_BUF_SHIFT
 	help
 	  Select the size of an alternate printk per-CPU buffer where messages
 	  printed from usafe contexts are temporary stored. One example would
-	  be NMI messages, another one - printk recursion. The messages are
+	  be NMI messages, ayesther one - printk recursion. The messages are
 	  copied to the main log buffer in a safe context to avoid a deadlock.
 	  The value defines the size as a power of 2.
 
@@ -710,7 +710,7 @@ config UCLAMP_TASK
 	  defines the minimum frequency it should use.
 
 	  Both min and max utilization clamp values are hints to the scheduler,
-	  aiming at improving its frequency selection policy, but they do not
+	  aiming at improving its frequency selection policy, but they do yest
 	  enforce or grant any specific bandwidth for tasks.
 
 	  If in doubt, say N.
@@ -733,13 +733,13 @@ config UCLAMP_BUCKETS_COUNT
 	  If a second 30% boosted task should be co-scheduled on the same CPU,
 	  that task will be refcounted in the same bucket of the first task and
 	  it will boost the bucket clamp effective value to 30%.
-	  The clamp effective value of a bucket is reset to its nominal value
-	  (20% in the example above) when there are no more tasks refcounted in
+	  The clamp effective value of a bucket is reset to its yesminal value
+	  (20% in the example above) when there are yes more tasks refcounted in
 	  that bucket.
 
 	  An additional boost/capping margin can be added to some tasks. In the
 	  example above the 25% task will be boosted to 30% until it exits the
-	  CPU. If that should be considered not acceptable on certain systems,
+	  CPU. If that should be considered yest acceptable on certain systems,
 	  it's always possible to reduce the margin by increasing the number of
 	  clamp buckets to trade off used memory for run-time tracking
 	  precision.
@@ -770,7 +770,7 @@ config CC_HAS_INT128
 	depends on !$(cc-option,-D__SIZEOF_INT128__=0)
 
 #
-# For architectures that know their GCC __int128 support is sound
+# For architectures that kyesw their GCC __int128 support is sound
 #
 config ARCH_SUPPORTS_INT128
 	bool
@@ -789,7 +789,7 @@ config NUMA_BALANCING
 	help
 	  This option adds support for automatic NUMA aware memory/task placement.
 	  The mechanism is quite primitive and is based on migrating memory when
-	  it has references to the node the task is running on.
+	  it has references to the yesde the task is running on.
 
 	  This system will be inactive on UMA systems.
 
@@ -899,8 +899,8 @@ config CFS_BANDWIDTH
 	default n
 	help
 	  This option allows users to define CPU bandwidth rates (limits) for
-	  tasks running within the fair group scheduler.  Groups with no limit
-	  set are considered to be unconstrained and will run with no
+	  tasks running within the fair group scheduler.  Groups with yes limit
+	  set are considered to be unconstrained and will run with yes
 	  restriction.
 	  See Documentation/scheduler/sched-bwc.rst for more information.
 
@@ -911,7 +911,7 @@ config RT_GROUP_SCHED
 	help
 	  This feature lets you explicitly allocate real CPU bandwidth
 	  to task groups. If enabled, it will also make it impossible to
-	  schedule realtime tasks for non-root users until you allocate
+	  schedule realtime tasks for yesn-root users until you allocate
 	  realtime bandwidth for them.
 	  See Documentation/scheduler/sched-rt-group.rst for more information.
 
@@ -934,7 +934,7 @@ config UCLAMP_TASK_GROUP
 
 	  When task group based utilization clamping is enabled, an eventually
 	  specified task-specific clamp value is constrained by the cgroup
-	  specified clamp value. Both minimum and maximum task clamping cannot
+	  specified clamp value. Both minimum and maximum task clamping canyest
 	  be bigger than the corresponding clamping defined at task group level.
 
 	  If in doubt, say N.
@@ -950,9 +950,9 @@ config CGROUP_PIDS
 	  system to halt without being limited by other cgroup policies. The
 	  PIDs controller is designed to stop this from happening.
 
-	  It should be noted that organisational operations (such as attaching
-	  to a cgroup hierarchy) will *not* be blocked by the PIDs controller,
-	  since the PIDs limit only affects a process's ability to fork, not to
+	  It should be yested that organisational operations (such as attaching
+	  to a cgroup hierarchy) will *yest* be blocked by the PIDs controller,
+	  since the PIDs limit only affects a process's ability to fork, yest to
 	  attach to a cgroup.
 
 config CGROUP_RDMA
@@ -987,10 +987,10 @@ config CGROUP_HUGETLB
 	  The limit is enforced during page fault. Since HugeTLB doesn't
 	  support page reclaim, enforcing the limit at page fault time implies
 	  that, the application will get SIGBUS signal if it tries to access
-	  HugeTLB pages beyond its limit. This requires the application to know
+	  HugeTLB pages beyond its limit. This requires the application to kyesw
 	  beforehand how much HugeTLB pages it would require for its use. The
 	  control group is tracked in the third page lru pointer. This means
-	  that we cannot use the controller with huge page less than 3 pages.
+	  that we canyest use the controller with huge page less than 3 pages.
 
 config CPUSETS
 	bool "Cpuset controller"
@@ -1012,7 +1012,7 @@ config CGROUP_DEVICE
 	bool "Device controller"
 	help
 	  Provides a cgroup controller implementing whitelists for
-	  devices which a process in the cgroup can mknod or open.
+	  devices which a process in the cgroup can mkyesd or open.
 
 config CGROUP_CPUACCT
 	bool "Simple CPU accounting controller"
@@ -1051,7 +1051,7 @@ config CGROUP_DEBUG
 	  This option enables a simple controller that exports
 	  debugging information about the cgroups framework. This
 	  controller is for control cgroup debugging only. Its
-	  interfaces are not stable.
+	  interfaces are yest stable.
 
 	  Say N.
 
@@ -1150,7 +1150,7 @@ config SYSFS_DEPRECATED
 	default n
 	help
 	  This option adds code that switches the layout of the "block" class
-	  devices, to not show up in /sys/class/block/, but only in
+	  devices, to yest show up in /sys/class/block/, but only in
 	  /sys/block/.
 
 	  This switch is only active when the sysfs.deprecated=1 boot option is
@@ -1161,7 +1161,7 @@ config SYSFS_DEPRECATED
 	  major distributions and tools handle this just fine.
 
 	  Recent distributions and userspace tools after 2009/2010 depend on
-	  the existence of /sys/class/block/, and will not work with this
+	  the existence of /sys/class/block/, and will yest work with this
 	  option enabled.
 
 	  Only if you are using a new kernel on an old distribution, you might
@@ -1179,7 +1179,7 @@ config SYSFS_DEPRECATED_V2
 	  option.
 
 	  Only if you are using a new kernel on an old distribution, you might
-	  need to say Y here. Even then, odds are you would not need it
+	  need to say Y here. Even then, odds are you would yest need it
 	  enabled, you can always pass the boot option if absolutely necessary.
 
 config RELAY
@@ -1199,7 +1199,7 @@ config BLK_DEV_INITRD
 	help
 	  The initial RAM filesystem is a ramfs which is loaded by the
 	  boot loader (loadlin or lilo) and that is mounted as root
-	  before the normal boot procedure. It is typically used to
+	  before the yesrmal boot procedure. It is typically used to
 	  load modules needed to mount the "real" root file system,
 	  etc. See <file:Documentation/admin-guide/initrd.rst> for details.
 
@@ -1246,10 +1246,10 @@ endchoice
 config HAVE_LD_DEAD_CODE_DATA_ELIMINATION
 	bool
 	help
-	  This requires that the arch annotates or otherwise protects
+	  This requires that the arch anyestates or otherwise protects
 	  its external entry points from being discarded. Linker scripts
 	  must also merge .text.*, .data.*, and .bss.* correctly into
-	  output sections. Care must be taken not to pull in unrelated
+	  output sections. Care must be taken yest to pull in unrelated
 	  sections (e.g., '.text.init'). Typically '.' in section names
 	  is used to distinguish them from label names / C identifiers.
 
@@ -1268,8 +1268,8 @@ config LD_DEAD_CODE_DATA_ELIMINATION
 	  This can reduce on disk and in-memory size of the kernel
 	  code and static data, particularly for small configs and
 	  on small systems. This has the possibility of introducing
-	  silently broken kernel if the required annotations are not
-	  present. This option is not well tested yet, so use at your
+	  silently broken kernel if the required anyestations are yest
+	  present. This option is yest well tested yet, so use at your
 	  own risk.
 
 config SYSCTL
@@ -1286,8 +1286,8 @@ config SYSCTL_EXCEPTION_TRACE
 config SYSCTL_ARCH_UNALIGN_NO_WARN
 	bool
 	help
-	  Enable support for /proc/sys/kernel/ignore-unaligned-usertrap
-	  Allows arch to define/use @no_unaligned_warning to possibly warn
+	  Enable support for /proc/sys/kernel/igyesre-unaligned-usertrap
+	  Allows arch to define/use @yes_unaligned_warning to possibly warn
 	  about unaligned access emulation going on under the hood.
 
 config SYSCTL_ARCH_UNALIGN_ALLOW
@@ -1312,8 +1312,8 @@ menuconfig EXPERT
 	help
 	  This option allows certain base kernel options and settings
 	  to be disabled or tweaked. This is for specialized
-	  environments which can tolerate a "non-standard" kernel.
-	  Only use this if you really know what you are doing.
+	  environments which can tolerate a "yesn-standard" kernel.
+	  Only use this if you really kyesw what you are doing.
 
 config UID16
 	bool "Enable 16-bit UID system calls" if EXPERT
@@ -1326,7 +1326,7 @@ config MULTIUSER
 	bool "Multiple users, groups and capabilities support" if EXPERT
 	default y
 	help
-	  This option enables support for non-root users, groups and
+	  This option enables support for yesn-root users, groups and
 	  capabilities.
 
 	  If you say N here, all processes will run with UID 0, GID 0, and all
@@ -1341,7 +1341,7 @@ config SGETMASK_SYSCALL
 	def_bool PARISC || M68K || PPC || MIPS || X86 || SPARC || MICROBLAZE || SUPERH
 	---help---
 	  sys_sgetmask and sys_ssetmask are obsolete system calls
-	  no longer supported in libc but still enabled by default in some
+	  yes longer supported in libc but still enabled by default in some
 	  architectures.
 
 	  If unsure, leave the default option here.
@@ -1350,7 +1350,7 @@ config SYSFS_SYSCALL
 	bool "Sysfs syscall support" if EXPERT
 	default y
 	---help---
-	  sys_sysfs is an obsolete system call no longer supported in libc.
+	  sys_sysfs is an obsolete system call yes longer supported in libc.
 	  Note that disabling this option is more secure but might break
 	  compatibility with some systems.
 
@@ -1364,7 +1364,7 @@ config FHANDLE
 	  If you say Y here, a user level program will be able to map
 	  file names to handle and then later use the handle for
 	  different file system operations. This is useful in implementing
-	  userspace file servers, which now track files using handles instead
+	  userspace file servers, which yesw track files using handles instead
 	  of names. The handle would remain the same even if file names
 	  get renamed. Enables open_by_handle_at(2) and name_to_handle_at(2)
 	  syscalls.
@@ -1374,14 +1374,14 @@ config POSIX_TIMERS
 	default y
 	help
 	  This includes native support for POSIX timers to the kernel.
-	  Some embedded systems have no use for them and therefore they
+	  Some embedded systems have yes use for them and therefore they
 	  can be configured out to reduce the size of the kernel image.
 
 	  When this option is disabled, the following syscalls won't be
 	  available: timer_create, timer_gettime: timer_getoverrun,
 	  timer_settime, timer_delete, clock_adjtime, getitimer,
 	  setitimer, alarm. Furthermore, the clock_settime, clock_gettime,
-	  clock_getres and clock_nanosleep syscalls will be limited to
+	  clock_getres and clock_nayessleep syscalls will be limited to
 	  CLOCK_REALTIME, CLOCK_MONOTONIC and CLOCK_BOOTTIME only.
 
 	  If unsure say y.
@@ -1391,10 +1391,10 @@ config PRINTK
 	bool "Enable support for printk" if EXPERT
 	select IRQ_WORK
 	help
-	  This option enables normal printk support. Removing it
+	  This option enables yesrmal printk support. Removing it
 	  eliminates most of the message strings from the kernel image
 	  and makes the kernel more or less silent. As this makes it
-	  very difficult to diagnose system problems, saying N here is
+	  very difficult to diagyesse system problems, saying N here is
 	  strongly discouraged.
 
 config PRINTK_NMI
@@ -1407,9 +1407,9 @@ config BUG
 	default y
 	help
 	  Disabling this option eliminates support for BUG and WARN, reducing
-	  the size of your kernel image and potentially quietly ignoring
+	  the size of your kernel image and potentially quietly igyesring
 	  numerous fatal conditions. You should only consider disabling this
-	  option for embedded systems with no facilities for reporting errors.
+	  option for embedded systems with yes facilities for reporting errors.
 	  Just say Y.
 
 config ELF_CORE
@@ -1443,7 +1443,7 @@ config FUTEX
 	imply RT_MUTEXES
 	help
 	  Disabling this option will cause the kernel to be built without
-	  support for "fast userspace mutexes".  The resulting kernel may not
+	  support for "fast userspace mutexes".  The resulting kernel may yest
 	  run glibc-based applications correctly.
 
 config FUTEX_PI
@@ -1489,7 +1489,7 @@ config EVENTFD
 	default y
 	help
 	  Enable the eventfd() system call that allows to receive both
-	  kernel notification (ie. KAIO) or userspace notifications.
+	  kernel yestification (ie. KAIO) or userspace yestifications.
 
 	  If unsure, say Y.
 
@@ -1508,7 +1508,7 @@ config AIO
 	bool "Enable AIO support" if EXPERT
 	default y
 	help
-	  This option enables POSIX asynchronous I/O which may by used
+	  This option enables POSIX asynchroyesus I/O which may by used
 	  by some high performance threaded applications. Disabling
 	  this option saves about 7k.
 
@@ -1528,7 +1528,7 @@ config ADVISE_SYSCALLS
 	help
 	  This option enables the madvise and fadvise syscalls, used by
 	  applications to advise the kernel about their future memory or file
-	  usage, improving performance. If building an embedded system where no
+	  usage, improving performance. If building an embedded system where yes
 	  applications use these syscalls, you can disable this option to save
 	  space.
 
@@ -1589,7 +1589,7 @@ config KALLSYMS_BASE_RELATIVE
 
 	  On 64-bit builds, this reduces the size of the address table by 50%,
 	  but more importantly, it results in entries whose values are build
-	  time constants, and no relocation pass is required at runtime to fix
+	  time constants, and yes relocation pass is required at runtime to fix
 	  up the entries based on the runtime load address of the kernel.
 
 # end of the "standard kernel features (expert users)" menu
@@ -1649,7 +1649,7 @@ config DEBUG_RSEQ
 
 config EMBEDDED
 	bool "Embedded system"
-	option allnoconfig_y
+	option allyesconfig_y
 	select EXPERT
 	help
 	  This option should be enabled if compiling the kernel for
@@ -1735,8 +1735,8 @@ config SLUB_DEBUG
 	help
 	  SLUB has extensive debug support features. Disabling these can
 	  result in significant savings in code size. This also disables
-	  SLUB sysfs support. /sys/slab will not exist and there will be
-	  no support for cache validation etc.
+	  SLUB sysfs support. /sys/slab will yest exist and there will be
+	  yes support for cache validation etc.
 
 config SLUB_MEMCG_SYSFS_ON
 	default n
@@ -1762,7 +1762,7 @@ config COMPAT_BRK
 	  disabled, and can be overridden at runtime by setting
 	  /proc/sys/kernel/randomize_va_space to 2.
 
-	  On non-ancient distros (post-2000 ones) N is usually a safe choice.
+	  On yesn-ancient distros (post-2000 ones) N is usually a safe choice.
 
 choice
 	prompt "Choose SLAB allocator"
@@ -1774,9 +1774,9 @@ config SLAB
 	bool "SLAB"
 	select HAVE_HARDENED_USERCOPY_ALLOCATOR
 	help
-	  The regular slab allocator that is established and known to work
+	  The regular slab allocator that is established and kyeswn to work
 	  well in all environments. It organizes cache hot objects in
-	  per cpu and per node queues.
+	  per cpu and per yesde queues.
 
 config SLUB
 	bool "SLUB (Unqueued Allocator)"
@@ -1786,7 +1786,7 @@ config SLUB
 	   instead of managing queues of cached objects (SLAB approach).
 	   Per cpu caching is realized using slabs of objects instead
 	   of queues of objects. SLUB can use memory efficiently
-	   and has enhanced diagnostics. SLUB is the default choice for
+	   and has enhanced diagyesstics. SLUB is the default choice for
 	   a slab allocator.
 
 config SLOB
@@ -1795,7 +1795,7 @@ config SLOB
 	help
 	   SLOB replaces the stock allocator with a drastically simpler
 	   allocator. SLOB is generally more space efficient but
-	   does not perform as well on large systems.
+	   does yest perform as well on large systems.
 
 endchoice
 
@@ -1810,7 +1810,7 @@ config SLAB_MERGE_DEFAULT
 	  cache layout), which makes such heap attacks easier to exploit
 	  by attackers. By keeping caches unmerged, these kinds of exploits
 	  can usually only damage objects in the same cache. To disable
-	  merging at runtime, "slab_nomerge" can be passed on the kernel
+	  merging at runtime, "slab_yesmerge" can be passed on the kernel
 	  command line.
 
 config SLAB_FREELIST_RANDOM
@@ -1827,7 +1827,7 @@ config SLAB_FREELIST_HARDENED
 	depends on SLUB
 	help
 	  Many kernel heap attacks try to target slab cache metadata and
-	  other infrastructure. This options makes minor performance
+	  other infrastructure. This options makes miyesr performance
 	  sacrifices to harden the kernel slab allocator against common
 	  freelist exploit methods.
 
@@ -1864,29 +1864,29 @@ config SLUB_CPU_PARTIAL
 	  that is local to a processor at the price of more indeterminism
 	  in the latency of the free. On overflow these caches will be cleared
 	  which requires the taking of locks that may cause latency spikes.
-	  Typically one would choose no for a realtime system.
+	  Typically one would choose yes for a realtime system.
 
 config MMAP_ALLOW_UNINITIALIZED
-	bool "Allow mmapped anonymous memory to be uninitialized"
+	bool "Allow mmapped ayesnymous memory to be uninitialized"
 	depends on EXPERT && !MMU
 	default n
 	help
-	  Normally, and according to the Linux spec, anonymous memory obtained
+	  Normally, and according to the Linux spec, ayesnymous memory obtained
 	  from mmap() has its contents cleared before it is passed to
 	  userspace.  Enabling this config option allows you to request that
 	  mmap() skip that if it is given an MAP_UNINITIALIZED flag, thus
-	  providing a huge performance boost.  If this option is not enabled,
-	  then the flag will be ignored.
+	  providing a huge performance boost.  If this option is yest enabled,
+	  then the flag will be igyesred.
 
 	  This is taken advantage of by uClibc's malloc(), and also by
 	  ELF-FDPIC binfmt's brk and stack allocator.
 
 	  Because of the obvious security issues, this option should only be
 	  enabled on embedded devices where you control what is run in
-	  userspace.  Since that isn't generally a problem on no-MMU systems,
-	  it is normally safe to say Y here.
+	  userspace.  Since that isn't generally a problem on yes-MMU systems,
+	  it is yesrmally safe to say Y here.
 
-	  See Documentation/nommu-mmap.txt for more information.
+	  See Documentation/yesmmu-mmap.txt for more information.
 
 config SYSTEM_DATA_VERIFICATION
 	def_bool n
@@ -1945,7 +1945,7 @@ menuconfig MODULES
 	  tool to add (and sometimes remove) them.  If you say Y here,
 	  many parts of the kernel can be built as modules (by
 	  answering M instead of Y where indicated): this is most
-	  useful for infrequently used options which are not required
+	  useful for infrequently used options which are yest required
 	  for booting.  For more information, see the man pages for
 	  modprobe, lsmod, modinfo, insmod and rmmod.
 
@@ -1969,8 +1969,8 @@ config MODULE_FORCE_LOAD
 config MODULE_UNLOAD
 	bool "Module unloading"
 	help
-	  Without this option you will not be able to unload any
-	  modules (note that some modules may not be unloadable
+	  Without this option you will yest be able to unload any
+	  modules (yeste that some modules may yest be unloadable
 	  anyway), which makes your kernel smaller, faster
 	  and simpler.  If unsure, say Y.
 
@@ -1989,7 +1989,7 @@ config MODVERSIONS
 	help
 	  Usually, you have to use modules compiled with your kernel.
 	  Saying Y here makes it sometimes possible to use modules
-	  compiled for different kernels, by adding enough information
+	  compiled for different kernels, by adding eyesugh information
 	  to the modules to (hopefully) spot any changes which would
 	  make them incompatible with the kernel you are running.  If
 	  unsure, say N.
@@ -2031,7 +2031,7 @@ config MODULE_SIG
 
 	  You should enable this option if you wish to use either
 	  CONFIG_SECURITY_LOCKDOWN_LSM or lockdown functionality imposed via
-	  another LSM - otherwise unsigned modules will be loadable regardless
+	  ayesther LSM - otherwise unsigned modules will be loadable regardless
 	  of the lockdown policy.
 
 	  !!!WARNING!!!  If you enable this option, you MUST make sure that the
@@ -2054,7 +2054,7 @@ config MODULE_SIG_ALL
 	  Sign all modules during make modules_install. Without this option,
 	  modules must be signed manually, using the scripts/sign-file tool.
 
-comment "Do not forget to sign required modules with scripts/sign-file"
+comment "Do yest forget to sign required modules with scripts/sign-file"
 	depends on MODULE_SIG_FORCE && !MODULE_SIG_ALL
 
 choice
@@ -2063,7 +2063,7 @@ choice
 	help
 	  This determines which sort of hashing algorithm will be used during
 	  signature generation.  This algorithm _must_ be built into the kernel
-	  directly so that signature verification can take place.  It is not
+	  directly so that signature verification can take place.  It is yest
 	  possible to load a signed module containing the algorithm to check
 	  the signature on that module.
 
@@ -2141,7 +2141,7 @@ config MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS
 	  Symbols exported with EXPORT_SYMBOL_NS*() are considered exported in
 	  a namespace. A module that makes use of a symbol exported with such a
 	  namespace is required to import the namespace via MODULE_IMPORT_NS().
-	  There is no technical reason to enforce correct namespace imports,
+	  There is yes technical reason to enforce correct namespace imports,
 	  but it creates consistency between symbols defining namespaces and
 	  users importing namespaces they make use of. This option relaxes this
 	  requirement and lifts the enforcement when loading a module.
@@ -2157,7 +2157,7 @@ config UNUSED_SYMBOLS
 	  option is provided temporarily to provide a transition period in case
 	  some external kernel module needs one of these symbols anyway. If you
 	  encounter such a case in your module, consider if you are actually
-	  using the right API.  (rationale: since nobody in the kernel is using
+	  using the right API.  (rationale: since yesbody in the kernel is using
 	  this in a module, there is a pretty good chance it's actually the
 	  wrong interface to use).  If you really need the symbol, please send a
 	  mail to the linux kernel mailing list mentioning the symbol and why
@@ -2221,7 +2221,7 @@ config ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
 # SYSCALL_DEFINE() and __SYSCALL_DEFINEx() macros in <linux/syscalls.h>
 # and the COMPAT_ variants in <linux/compat.h>, in particular to use a
 # different calling convention for syscalls. They can also override the
-# macros for not-implemented syscalls in kernel/sys_ni.c and
+# macros for yest-implemented syscalls in kernel/sys_ni.c and
 # kernel/time/posix-stubs.c. All these overrides need to be available in
 # <asm/syscall_wrapper.h>.
 config ARCH_HAS_SYSCALL_WRAPPER

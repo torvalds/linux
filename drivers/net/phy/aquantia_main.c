@@ -218,7 +218,7 @@ static int aqr_config_aneg(struct phy_device *phydev)
 	if (ret > 0)
 		changed = true;
 
-	/* Clause 45 has no standardized support for 1000BaseT, therefore
+	/* Clause 45 has yes standardized support for 1000BaseT, therefore
 	 * use vendor registers for this mode.
 	 */
 	reg = 0;
@@ -463,7 +463,7 @@ static int aqr107_wait_reset_complete(struct phy_device *phydev)
 
 static void aqr107_chip_info(struct phy_device *phydev)
 {
-	u8 fw_major, fw_minor, build_id, prov_id;
+	u8 fw_major, fw_miyesr, build_id, prov_id;
 	int val;
 
 	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_FW_ID);
@@ -471,7 +471,7 @@ static void aqr107_chip_info(struct phy_device *phydev)
 		return;
 
 	fw_major = FIELD_GET(VEND1_GLOBAL_FW_ID_MAJOR, val);
-	fw_minor = FIELD_GET(VEND1_GLOBAL_FW_ID_MINOR, val);
+	fw_miyesr = FIELD_GET(VEND1_GLOBAL_FW_ID_MINOR, val);
 
 	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_RSVD_STAT1);
 	if (val < 0)
@@ -481,7 +481,7 @@ static void aqr107_chip_info(struct phy_device *phydev)
 	prov_id = FIELD_GET(VEND1_GLOBAL_RSVD_STAT1_PROV_ID, val);
 
 	phydev_dbg(phydev, "FW %u.%u, Build %u, Provisioning %u\n",
-		   fw_major, fw_minor, build_id, prov_id);
+		   fw_major, fw_miyesr, build_id, prov_id);
 }
 
 static int aqr107_config_init(struct phy_device *phydev)
@@ -536,9 +536,9 @@ static int aqcs109_config_init(struct phy_device *phydev)
 	return aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
 }
 
-static void aqr107_link_change_notify(struct phy_device *phydev)
+static void aqr107_link_change_yestify(struct phy_device *phydev)
 {
-	u8 fw_major, fw_minor;
+	u8 fw_major, fw_miyesr;
 	bool downshift, short_reach, afr;
 	int mode, val;
 
@@ -546,7 +546,7 @@ static void aqr107_link_change_notify(struct phy_device *phydev)
 		return;
 
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_RX_LP_STAT1);
-	/* call failed or link partner is no Aquantia PHY */
+	/* call failed or link partner is yes Aquantia PHY */
 	if (val < 0 || !(val & MDIO_AN_RX_LP_STAT1_AQ_PHY))
 		return;
 
@@ -558,7 +558,7 @@ static void aqr107_link_change_notify(struct phy_device *phydev)
 		return;
 
 	fw_major = FIELD_GET(MDIO_AN_RX_LP_STAT4_FW_MAJOR, val);
-	fw_minor = FIELD_GET(MDIO_AN_RX_LP_STAT4_FW_MINOR, val);
+	fw_miyesr = FIELD_GET(MDIO_AN_RX_LP_STAT4_FW_MINOR, val);
 
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_RX_VEND_STAT3);
 	if (val < 0)
@@ -567,7 +567,7 @@ static void aqr107_link_change_notify(struct phy_device *phydev)
 	afr = val & MDIO_AN_RX_VEND_STAT3_AFR;
 
 	phydev_dbg(phydev, "Link partner is Aquantia PHY, FW %u.%u%s%s%s\n",
-		   fw_major, fw_minor,
+		   fw_major, fw_miyesr,
 		   short_reach ? ", short reach mode" : "",
 		   downshift ? ", fast-retrain downshift advertised" : "",
 		   afr ? ", fast reframe advertised" : "");
@@ -654,7 +654,7 @@ static struct phy_driver aqr_driver[] = {
 	.get_sset_count	= aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
 	.get_stats	= aqr107_get_stats,
-	.link_change_notify = aqr107_link_change_notify,
+	.link_change_yestify = aqr107_link_change_yestify,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQCS109),
@@ -672,7 +672,7 @@ static struct phy_driver aqr_driver[] = {
 	.get_sset_count	= aqr107_get_sset_count,
 	.get_strings	= aqr107_get_strings,
 	.get_stats	= aqr107_get_stats,
-	.link_change_notify = aqr107_link_change_notify,
+	.link_change_yestify = aqr107_link_change_yestify,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR405),

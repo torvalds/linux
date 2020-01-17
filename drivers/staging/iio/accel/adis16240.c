@@ -62,13 +62,13 @@
 /* Output, Capture Buffer 2, Z acceleration */
 #define ADIS16240_CAPT_BUF2      0x18
 
-/* Diagnostic, error flags */
+/* Diagyesstic, error flags */
 #define ADIS16240_DIAG_STAT      0x1A
 
-/* Diagnostic, event counter */
+/* Diagyesstic, event counter */
 #define ADIS16240_EVNT_CNTR      0x1C
 
-/* Diagnostic, check sum value from firmware test */
+/* Diagyesstic, check sum value from firmware test */
 #define ADIS16240_CHK_SUM        0x1E
 
 /* Calibration, x-axis acceleration offset adjustment */
@@ -367,7 +367,7 @@ static const struct adis_data adis16240_data = {
 	.diag_stat_reg = ADIS16240_DIAG_STAT,
 
 	.self_test_mask = ADIS16240_MSC_CTRL_SELF_TEST_EN,
-	.self_test_no_autoclear = true,
+	.self_test_yes_autoclear = true,
 	.startup_delay = ADIS16240_STARTUP_DELAY,
 
 	.status_error_msgs = adis16240_status_error_msgs,

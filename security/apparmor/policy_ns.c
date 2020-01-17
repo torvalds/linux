@@ -5,7 +5,7 @@
  * This file contains AppArmor policy manipulation functions
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2017 Canonical Ltd.
+ * Copyright 2009-2017 Cayesnical Ltd.
  *
  * AppArmor policy namespaces, allow for different sets of policies
  * to be loaded for tasks within the namespace.
@@ -154,7 +154,7 @@ void aa_free_ns(struct aa_ns *ns)
  * @name: name of namespace to find  (NOT NULL)
  * @n: length of @name
  *
- * Returns: a refcounted namespace on the list, or NULL if no namespace
+ * Returns: a refcounted namespace on the list, or NULL if yes namespace
  *          called @name exists.
  *
  * refcount released by caller
@@ -175,7 +175,7 @@ struct aa_ns *aa_findn_ns(struct aa_ns *root, const char *name, size_t n)
  * @root: namespace to search in  (NOT NULL)
  * @name: name of namespace to find  (NOT NULL)
  *
- * Returns: a refcounted namespace on the list, or NULL if no namespace
+ * Returns: a refcounted namespace on the list, or NULL if yes namespace
  *          called @name exists.
  *
  * refcount released by caller
@@ -193,7 +193,7 @@ struct aa_ns *aa_find_ns(struct aa_ns *root, const char *name)
  *
  * Requires: rcu_read_lock be held
  *
- * Returns: unrefcounted ns pointer or NULL if not found
+ * Returns: unrefcounted ns pointer or NULL if yest found
  *
  * Do a relative name lookup, recursing through profile tree.
  */
@@ -223,7 +223,7 @@ struct aa_ns *__aa_lookupn_ns(struct aa_ns *view, const char *hname, size_t n)
  * @name: name of namespace to find  (NOT NULL)
  * @n: length of @name
  *
- * Returns: a refcounted namespace on the list, or NULL if no namespace
+ * Returns: a refcounted namespace on the list, or NULL if yes namespace
  *          called @name exists.
  *
  * refcount released by caller
@@ -275,7 +275,7 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
  * aa_create_ns - create an ns, fail if it already exists
  * @parent: the parent of the namespace being created
  * @name: the name of the namespace
- * @dir: if not null the dir to put the ns entries in
+ * @dir: if yest null the dir to put the ns entries in
  *
  * Returns: the a refcounted ns that has been add or an ERR_PTR
  */

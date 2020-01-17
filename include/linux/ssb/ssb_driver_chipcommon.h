@@ -160,7 +160,7 @@
 #define  SSB_CHIPCO_SLOWCLKCTL_LPOFREQ	0x00000200	/* LPOFreqSel, 1: 160Khz, 0: 32KHz */
 #define  SSB_CHIPCO_SLOWCLKCTL_LPOPD	0x00000400	/* LPOPowerDown, 1: LPO is disabled, 0: LPO is enabled */
 #define  SSB_CHIPCO_SLOWCLKCTL_FSLOW	0x00000800	/* ForceSlowClk, 1: sb/cores running on slow clock, 0: power logic control */
-#define  SSB_CHIPCO_SLOWCLKCTL_IPLL	0x00001000	/* IgnorePllOffReq, 1/0: power logic ignores/honors PLL clock disable requests from core */
+#define  SSB_CHIPCO_SLOWCLKCTL_IPLL	0x00001000	/* IgyesrePllOffReq, 1/0: power logic igyesres/hoyesrs PLL clock disable requests from core */
 #define  SSB_CHIPCO_SLOWCLKCTL_ENXTAL	0x00002000	/* XtalControlEn, 1/0: power logic does/doesn't disable crystal when appropriate */
 #define  SSB_CHIPCO_SLOWCLKCTL_XTALPU	0x00004000	/* XtalPU (RO), 1/0: crystal running/disabled */
 #define  SSB_CHIPCO_SLOWCLKCTL_CLKDIV	0xFFFF0000	/* ClockDivider (SlowClk = 1/(4+divisor)) */
@@ -169,7 +169,7 @@
 #define	 SSB_CHIPCO_SYSCLKCTL_IDLPEN	0x00000001	/* ILPen: Enable Idle Low Power */
 #define	 SSB_CHIPCO_SYSCLKCTL_ALPEN	0x00000002	/* ALPen: Enable Active Low Power */
 #define	 SSB_CHIPCO_SYSCLKCTL_PLLEN	0x00000004	/* ForcePLLOn */
-#define	 SSB_CHIPCO_SYSCLKCTL_FORCEALP	0x00000008	/* Force ALP (or HT if ALPen is not set */
+#define	 SSB_CHIPCO_SYSCLKCTL_FORCEALP	0x00000008	/* Force ALP (or HT if ALPen is yest set */
 #define	 SSB_CHIPCO_SYSCLKCTL_FORCEHT	0x00000010	/* Force HT */
 #define  SSB_CHIPCO_SYSCLKCTL_CLKDIV	0xFFFF0000	/* ClkDiv  (ILP = 1/(4+divisor)) */
 #define  SSB_CHIPCO_SYSCLKCTL_CLKDIV_SHIFT	16
@@ -395,9 +395,9 @@
 /** Chip specific Chip-Status register contents. */
 #define SSB_CHIPCO_CHST_4322_SPROM_EXISTS	0x00000040 /* SPROM present */
 #define SSB_CHIPCO_CHST_4325_SPROM_OTP_SEL	0x00000003
-#define SSB_CHIPCO_CHST_4325_DEFCIS_SEL		0 /* OTP is powered up, use def. CIS, no SPROM */
+#define SSB_CHIPCO_CHST_4325_DEFCIS_SEL		0 /* OTP is powered up, use def. CIS, yes SPROM */
 #define SSB_CHIPCO_CHST_4325_SPROM_SEL		1 /* OTP is powered up, SPROM is present */
-#define SSB_CHIPCO_CHST_4325_OTP_SEL		2 /* OTP is powered up, no SPROM */
+#define SSB_CHIPCO_CHST_4325_OTP_SEL		2 /* OTP is powered up, yes SPROM */
 #define SSB_CHIPCO_CHST_4325_OTP_PWRDN		3 /* OTP is powered down, SPROM is present */
 #define SSB_CHIPCO_CHST_4325_SDIO_USB_MODE	0x00000004
 #define SSB_CHIPCO_CHST_4325_SDIO_USB_MODE_SHIFT  2
@@ -483,7 +483,7 @@
 #define	SSB_CHIPCO_CFG_EN		0x0001		/* Enable */
 #define	SSB_CHIPCO_CFG_EXTM		0x000E		/* Extif Mode */
 #define	 SSB_CHIPCO_CFG_EXTM_ASYNC	0x0002		/* Async/Parallel flash */
-#define	 SSB_CHIPCO_CFG_EXTM_SYNC	0x0004		/* Synchronous */
+#define	 SSB_CHIPCO_CFG_EXTM_SYNC	0x0004		/* Synchroyesus */
 #define	 SSB_CHIPCO_CFG_EXTM_PCMCIA	0x0008		/* PCMCIA */
 #define	 SSB_CHIPCO_CFG_EXTM_IDE	0x000A		/* IDE */
 #define	SSB_CHIPCO_CFG_DS16		0x0010		/* Data size, 0=8bit, 1=16bit */

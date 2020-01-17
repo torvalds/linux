@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/err.h>
 #include <linux/gfp.h>
@@ -72,14 +72,14 @@ struct mlxsw_sp_nve_mc_record {
 
 struct mlxsw_sp_nve_mc_list {
 	struct list_head records_list;
-	struct rhash_head ht_node;
+	struct rhash_head ht_yesde;
 	struct mlxsw_sp_nve_mc_list_key key;
 };
 
 static const struct rhashtable_params mlxsw_sp_nve_mc_list_ht_params = {
 	.key_len = sizeof(struct mlxsw_sp_nve_mc_list_key),
 	.key_offset = offsetof(struct mlxsw_sp_nve_mc_list, key),
-	.head_offset = offsetof(struct mlxsw_sp_nve_mc_list, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_nve_mc_list, ht_yesde),
 };
 
 static int
@@ -213,7 +213,7 @@ mlxsw_sp_nve_mc_list_create(struct mlxsw_sp *mlxsw_sp,
 	INIT_LIST_HEAD(&mc_list->records_list);
 	mc_list->key = *key;
 
-	err = rhashtable_insert_fast(&nve->mc_list_ht, &mc_list->ht_node,
+	err = rhashtable_insert_fast(&nve->mc_list_ht, &mc_list->ht_yesde,
 				     mlxsw_sp_nve_mc_list_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -230,7 +230,7 @@ static void mlxsw_sp_nve_mc_list_destroy(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_nve *nve = mlxsw_sp->nve;
 
-	rhashtable_remove_fast(&nve->mc_list_ht, &mc_list->ht_node,
+	rhashtable_remove_fast(&nve->mc_list_ht, &mc_list->ht_yesde,
 			       mlxsw_sp_nve_mc_list_ht_params);
 	WARN_ON(!list_empty(&mc_list->records_list));
 	kfree(mc_list);
@@ -443,7 +443,7 @@ mlxsw_sp_nve_mc_record_ip_add(struct mlxsw_sp_nve_mc_record *mc_record,
 	if (err)
 		goto err_record_refresh;
 
-	/* If this is a new record and not the first one, then we need to
+	/* If this is a new record and yest the first one, then we need to
 	 * update the next pointer of the previous entry
 	 */
 	if (mc_record->num_entries != 1 ||
@@ -482,8 +482,8 @@ mlxsw_sp_nve_mc_record_entry_del(struct mlxsw_sp_nve_mc_record *mc_record,
 		return;
 	}
 
-	/* If the record needs to be deleted, but it is not the first,
-	 * then we need to make sure that the previous record no longer
+	/* If the record needs to be deleted, but it is yest the first,
+	 * then we need to make sure that the previous record yes longer
 	 * points to it. Remove deleted record from the list to reflect
 	 * that and then re-add it at the end, so that it could be
 	 * properly removed by the record destruction code
@@ -499,7 +499,7 @@ mlxsw_sp_nve_mc_record_entry_del(struct mlxsw_sp_nve_mc_record *mc_record,
 		return;
 	}
 
-	/* If the first record needs to be deleted, but the list is not
+	/* If the first record needs to be deleted, but the list is yest
 	 * singular, then the second record needs to be written in the
 	 * first record's address, as this address is stored as a property
 	 * of the FID

@@ -8,7 +8,7 @@
  *
  * Based on cs4270.c - Copyright (c) Freescale Semiconductor
  *
- * For now:
+ * For yesw:
  *  - Only I2C is support. Not SPI
  *  - master mode *NOT* supported
  */
@@ -299,7 +299,7 @@ static int cs42l51_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		cs42l51->func = MODE_SLAVE_AUTO;
 		break;
 	default:
-		dev_err(component->dev, "Unknown master/slave configuration\n");
+		dev_err(component->dev, "Unkyeswn master/slave configuration\n");
 		return -EINVAL;
 	}
 
@@ -398,8 +398,8 @@ static int cs42l51_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (i == nr_ratios) {
-		/* We did not find a matching ratio */
-		dev_err(component->dev, "could not find matching ratio\n");
+		/* We did yest find a matching ratio */
+		dev_err(component->dev, "could yest find matching ratio\n");
 		return -EINVAL;
 	}
 
@@ -420,8 +420,8 @@ static int cs42l51_hw_params(struct snd_pcm_substream *substream,
 			mode = CS42L51_DSM_MODE;
 		power_ctl |= CS42L51_MIC_POWER_CTL_SPEED(mode);
 		/*
-		 * Auto detect mode is not applicable for master mode and has to
-		 * be disabled. Otherwise SPEED[1:0] bits will be ignored.
+		 * Auto detect mode is yest applicable for master mode and has to
+		 * be disabled. Otherwise SPEED[1:0] bits will be igyesred.
 		 */
 		power_ctl &= ~CS42L51_MIC_POWER_CTL_AUTO;
 		break;
@@ -456,13 +456,13 @@ static int cs42l51_hw_params(struct snd_pcm_substream *substream,
 			fmt = CS42L51_DAC_DIF_RJ24;
 			break;
 		default:
-			dev_err(component->dev, "unknown format\n");
+			dev_err(component->dev, "unkyeswn format\n");
 			return -EINVAL;
 		}
 		intf_ctl |= CS42L51_INTF_CTL_DAC_FORMAT(fmt);
 		break;
 	default:
-		dev_err(component->dev, "unknown format\n");
+		dev_err(component->dev, "unkyeswn format\n");
 		return -EINVAL;
 	}
 
@@ -497,7 +497,7 @@ static int cs42l51_dai_mute(struct snd_soc_dai *dai, int mute)
 }
 
 static int cs42l51_of_xlate_dai_id(struct snd_soc_component *component,
-				   struct device_node *endpoint)
+				   struct device_yesde *endpoint)
 {
 	/* return dai id 0, whatever the endpoint index */
 	return 0;
@@ -546,7 +546,7 @@ static int cs42l51_component_probe(struct snd_soc_component *component)
 	 * - Use signal processor
 	 * - auto mute
 	 * - vol changes immediate
-	 * - no de-emphasize
+	 * - yes de-emphasize
 	 */
 	reg = CS42L51_DAC_CTL_DATA_SEL(1)
 		| CS42L51_DAC_CTL_AMUTE | CS42L51_DAC_CTL_DACSZ(0);
@@ -569,7 +569,7 @@ static const struct snd_soc_component_driver soc_component_device_cs42l51 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static bool cs42l51_writeable_reg(struct device *dev, unsigned int reg)

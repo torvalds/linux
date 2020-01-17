@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -34,7 +34,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/gfp.h>
@@ -47,7 +47,7 @@
 #include "mthca_wqe.h"
 
 MODULE_AUTHOR("Roland Dreier");
-MODULE_DESCRIPTION("Mellanox InfiniBand HCA low-level driver");
+MODULE_DESCRIPTION("Mellayesx InfiniBand HCA low-level driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
 #ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
@@ -62,7 +62,7 @@ MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 
 static int msi_x = 1;
 module_param(msi_x, int, 0444);
-MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if nonzero");
+MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if yesnzero");
 
 #else /* CONFIG_PCI_MSI */
 
@@ -72,7 +72,7 @@ MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if nonzero");
 
 static int tune_pci = 0;
 module_param(tune_pci, int, 0444);
-MODULE_PARM_DESC(tune_pci, "increase PCI burst from the default set by BIOS if nonzero");
+MODULE_PARM_DESC(tune_pci, "increase PCI burst from the default set by BIOS if yesnzero");
 
 DEFINE_MUTEX(mthca_device_mutex);
 
@@ -130,7 +130,7 @@ module_param_named(log_mtts_per_seg, log_mtts_per_seg, int, 0444);
 MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment (1-5)");
 
 static char mthca_version[] =
-	DRV_NAME ": Mellanox InfiniBand HCA driver v"
+	DRV_NAME ": Mellayesx InfiniBand HCA driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
 
 static int mthca_tune_pci(struct mthca_dev *mdev)
@@ -146,7 +146,7 @@ static int mthca_tune_pci(struct mthca_dev *mdev)
 			return -ENODEV;
 		}
 	} else if (!(mdev->mthca_flags & MTHCA_FLAG_PCIE))
-		mthca_info(mdev, "No PCI-X capability, not setting RBC.\n");
+		mthca_info(mdev, "No PCI-X capability, yest setting RBC.\n");
 
 	if (pci_is_pcie(mdev->pdev)) {
 		if (pcie_set_readrq(mdev->pdev, 4096)) {
@@ -156,7 +156,7 @@ static int mthca_tune_pci(struct mthca_dev *mdev)
 		}
 	} else if (mdev->mthca_flags & MTHCA_FLAG_PCIE)
 		mthca_info(mdev, "No PCI Express capability, "
-			   "not setting Max Read Request Size.\n");
+			   "yest setting Max Read Request Size.\n");
 
 	return 0;
 }
@@ -247,12 +247,12 @@ static int mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim *dev_lim)
 	else
 		mdev->limits.stat_rate_support = 0x3;
 
-	/* IB_DEVICE_RESIZE_MAX_WR not supported by driver.
+	/* IB_DEVICE_RESIZE_MAX_WR yest supported by driver.
 	   May be doable since hardware supports it for SRQ.
 
-	   IB_DEVICE_N_NOTIFY_CQ is supported by hardware but not by driver.
+	   IB_DEVICE_N_NOTIFY_CQ is supported by hardware but yest by driver.
 
-	   IB_DEVICE_SRQ_RESIZE is supported by hardware but SRQ is not
+	   IB_DEVICE_SRQ_RESIZE is supported by hardware but SRQ is yest
 	   supported by driver. */
 	mdev->device_cap_flags = IB_DEVICE_CHANGE_PHY_PORT |
 		IB_DEVICE_PORT_ACTIVE_EVENT |
@@ -414,7 +414,7 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 		goto err_unmap_aux;
 	}
 
-	/* CPU writes to non-reserved MTTs, while HCA might DMA to reserved mtts */
+	/* CPU writes to yesn-reserved MTTs, while HCA might DMA to reserved mtts */
 	mdev->limits.reserved_mtts = ALIGN(mdev->limits.reserved_mtts * mdev->limits.mtt_seg_size,
 					   dma_get_cache_alignment()) / mdev->limits.mtt_seg_size;
 
@@ -500,8 +500,8 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 	}
 
 	/*
-	 * It's not strictly required, but for simplicity just map the
-	 * whole multicast group table now.  The table isn't very big
+	 * It's yest strictly required, but for simplicity just map the
+	 * whole multicast group table yesw.  The table isn't very big
 	 * and it's a lot easier than trying to track ref counts.
 	 */
 	mdev->mcg_table.table = mthca_alloc_icm_table(mdev, init_hca->mc_base,
@@ -874,8 +874,8 @@ enum {
 	SINAI			/* MT25204 */
 };
 
-#define MTHCA_FW_VER(major, minor, subminor) \
-	(((u64) (major) << 32) | ((u64) (minor) << 16) | (u64) (subminor))
+#define MTHCA_FW_VER(major, miyesr, submiyesr) \
+	(((u64) (major) << 32) | ((u64) (miyesr) << 16) | (u64) (submiyesr))
 
 static struct {
 	u64 latest_fw;
@@ -905,13 +905,13 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable PCI device, "
+		dev_err(&pdev->dev, "Canyest enable PCI device, "
 			"aborting.\n");
 		return err;
 	}
 
 	/*
-	 * Check for BARs.  We expect 0: 1MB, 2: 8MB, 4: DDR (may not
+	 * Check for BARs.  We expect 0: 1MB, 2: 8MB, 4: DDR (may yest
 	 * be present)
 	 */
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM) ||
@@ -930,7 +930,7 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot obtain PCI resources, "
+		dev_err(&pdev->dev, "Canyest obtain PCI resources, "
 			"aborting.\n");
 		goto err_disable_pdev;
 	}

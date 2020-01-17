@@ -65,7 +65,7 @@ pl111_mode_valid(struct drm_simple_display_pipe *pipe,
 	bw = div_u64(bw, mode->htotal * mode->vtotal);
 
 	/*
-	 * If no bandwidth constraints, anything goes, else
+	 * If yes bandwidth constraints, anything goes, else
 	 * check if we are too fast.
 	 */
 	if (priv->memory_bw && (bw > priv->memory_bw)) {
@@ -100,7 +100,7 @@ static int pl111_display_check(struct drm_simple_display_pipe *pipe,
 		if (offset & 3)
 			return -EINVAL;
 
-		/* There's no pitch register -- the mode's hdisplay
+		/* There's yes pitch register -- the mode's hdisplay
 		 * controls it.
 		 */
 		if (fb->pitches[0] != mode->hdisplay * fb->format->cpp[0])
@@ -209,15 +209,15 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 
 		/*
 		 * Here is when things get really fun. Sometimes the bridge
-		 * timings are such that the signal out from PL11x is not
+		 * timings are such that the signal out from PL11x is yest
 		 * stable before the receiving bridge (such as a dumb VGA DAC
 		 * or similar) samples it. If that happens, we compensate by
 		 * the only method we have: output the data on the opposite
 		 * edge of the clock so it is for sure stable when it gets
 		 * sampled.
 		 *
-		 * The PL111 manual does not contain proper timining diagrams
-		 * or data for these details, but we know from experiments
+		 * The PL111 manual does yest contain proper timining diagrams
+		 * or data for these details, but we kyesw from experiments
 		 * that the setup time is more than 3000 picoseconds (3 ns).
 		 * If we have a bridge that requires the signal to be stable
 		 * earlier than 3000 ps before the clock pulse, we have to
@@ -234,7 +234,7 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 	writel(0, priv->regs + CLCD_TIM3);
 
 	/*
-	 * Detect grayscale bus format. We do not support a grayscale mode
+	 * Detect grayscale bus format. We do yest support a grayscale mode
 	 * toward userspace, instead we expose an RGB24 buffer and then the
 	 * hardware will activate its grayscaler to convert to the grayscale
 	 * format.
@@ -325,7 +325,7 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 			cntl |= CNTL_BGR;
 		break;
 	default:
-		WARN_ONCE(true, "Unknown FB format 0x%08x\n",
+		WARN_ONCE(true, "Unkyeswn FB format 0x%08x\n",
 			  fb->format->format);
 		break;
 	}

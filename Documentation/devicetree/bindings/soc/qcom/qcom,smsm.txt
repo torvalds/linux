@@ -3,7 +3,7 @@ Qualcomm Shared Memory State Machine
 The Shared Memory State Machine facilitates broadcasting of single bit state
 information between the processors in a Qualcomm SoC. Each processor is
 assigned 32 bits of state that can be modified. A processor can through a
-matrix of bitmaps signal subscription of notifications upon changes to a
+matrix of bitmaps signal subscription of yestifications upon changes to a
 certain bit owned by a certain remote processor.
 
 - compatible:
@@ -17,7 +17,7 @@ certain bit owned by a certain remote processor.
 	Value type: <prop-encoded-array>
 	Definition: three entries specifying the outgoing ipc bit used for
 		    signaling the N:th remote processor
-		    - phandle to a syscon node representing the apcs registers
+		    - phandle to a syscon yesde representing the apcs registers
 		    - u32 representing offset to the register within the syscon
 		    - u32 representing the ipc bit within the register
 
@@ -40,9 +40,9 @@ certain bit owned by a certain remote processor.
 	Definition: must be 0
 
 = SUBNODES
-Each processor's state bits are described by a subnode of the smsm device node.
-Nodes can either be flagged as an interrupt-controller to denote a remote
-processor's state bits or the local processors bits.  The node names are not
+Each processor's state bits are described by a subyesde of the smsm device yesde.
+Nodes can either be flagged as an interrupt-controller to deyeste a remote
+processor's state bits or the local processors bits.  The yesde names are yest
 important.
 
 - reg:
@@ -54,7 +54,7 @@ important.
 - #qcom,smem-state-cells:
 	Usage: required for local entry
 	Value type: <u32>
-	Definition: must be 1 - denotes bit number
+	Definition: must be 1 - deyestes bit number
 
 - interrupt-controller:
 	Usage: required for remote entries
@@ -65,7 +65,7 @@ important.
 - #interrupt-cells:
 	Usage: required for remote entries
 	Value type: <u32>
-	Definition: must be 2 - denotes bit number and IRQ flags
+	Definition: must be 2 - deyestes bit number and IRQ flags
 
 - interrupts:
 	Usage: required for remote entries

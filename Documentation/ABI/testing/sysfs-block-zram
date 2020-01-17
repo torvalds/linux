@@ -24,7 +24,7 @@ Description:
 
 What:		/sys/block/zram<id>/max_comp_streams
 Date:		February 2014
-Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Contact:	Sergey Seyeszhatsky <sergey.seyeszhatsky@gmail.com>
 Description:
 		The max_comp_streams file is read-write and specifies the
 		number of backend's zcomp_strm compression streams (number of
@@ -32,7 +32,7 @@ Description:
 
 What:		/sys/block/zram<id>/comp_algorithm
 Date:		February 2014
-Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Contact:	Sergey Seyeszhatsky <sergey.seyeszhatsky@gmail.com>
 Description:
 		The comp_algorithm file is read-write and lets to show
 		available and selected compression algorithms, change
@@ -67,16 +67,16 @@ Description:
 
 What:		/sys/block/zram<id>/io_stat
 Date:		August 2015
-Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Contact:	Sergey Seyeszhatsky <sergey.seyeszhatsky@gmail.com>
 Description:
 		The io_stat file is read-only and accumulates device's I/O
-		statistics not accounted by block layer. For example,
+		statistics yest accounted by block layer. For example,
 		failed_reads, failed_writes, etc. File format is similar to
 		block layer statistics file format.
 
 What:		/sys/block/zram<id>/mm_stat
 Date:		August 2015
-Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Contact:	Sergey Seyeszhatsky <sergey.seyeszhatsky@gmail.com>
 Description:
 		The mm_stat file is read-only and represents device's mm
 		statistics (orig_data_size, compr_data_size, etc.) in a format
@@ -84,12 +84,12 @@ Description:
 
 What:		/sys/block/zram<id>/debug_stat
 Date:		July 2016
-Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Contact:	Sergey Seyeszhatsky <sergey.seyeszhatsky@gmail.com>
 Description:
 		The debug_stat file is read-only and represents various
 		device's debugging info useful for kernel developers. Its
-		format is not documented intentionally and may change
-		anytime without any notice.
+		format is yest documented intentionally and may change
+		anytime without any yestice.
 
 What:		/sys/block/zram<id>/backing_dev
 Date:		June 2017

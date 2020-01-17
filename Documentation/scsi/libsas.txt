@@ -35,7 +35,7 @@ the SCSI subsystem, creating a SCSI host and it will
 register your SAS driver with the sysfs SAS tree it creates.
 It will then return.  Then you enable your phys to actually
 start OOB (at which point your driver will start calling the
-notify_* event callbacks).
+yestify_* event callbacks).
 
 Structure descriptions:
 
@@ -66,15 +66,15 @@ The idea is to avoid unnecessary locking.
 enabled -- must be set (0/1)
 id -- must be set [0,MAX_PHYS)
 class, proto, type, role, oob_mode, linkrate -- must be set
-oob_mode --  you set this when OOB has finished and then notify
+oob_mode --  you set this when OOB has finished and then yestify
 the SAS Layer.
 
-sas_addr -- this normally points to an array holding the sas
+sas_addr -- this yesrmally points to an array holding the sas
 address of the phy, possibly somewhere in your my_phy
 struct.
 
 attached_sas_addr -- set this when you (LLDD) receive an
-IDENTIFY frame or a FIS frame, _before_ notifying the SAS
+IDENTIFY frame or a FIS frame, _before_ yestifying the SAS
 layer.  The idea is that sometimes the LLDD may want to fake
 or provide a different SAS address on that phy/port and this
 allows it to do this.  At best you should copy the sas
@@ -85,14 +85,14 @@ process may later change this.
 frame_rcvd -- this is where you copy the IDENTIFY/FIS frame
 when you get it; you lock, copy, set frame_rcvd_size and
 unlock the lock, and then call the event.  It is a pointer
-since there's no way to know your hw frame size _exactly_,
+since there's yes way to kyesw your hw frame size _exactly_,
 so you define the actual array in your phy struct and let
 this pointer point to it.  You copy the frame from your
 DMAable memory to that area holding the lock.
 
 sas_prim -- this is where primitives go when they're
 received.  See sas.h. Grab the lock, set the primitive,
-release the lock, notify.
+release the lock, yestify.
 
 port -- this points to the sas_port if the phy belongs
 to a port -- the LLDD only reads this. It points to the
@@ -111,7 +111,7 @@ struct sas_port --------------------
 The LLDD doesn't set any fields of this struct -- it only
 reads them.  They should be self explanatory.
 
-phy_mask is 32 bit, this should be enough for now, as I
+phy_mask is 32 bit, this should be eyesugh for yesw, as I
 haven't heard of a HA having more than 8 phys.
 
 lldd_port -- I haven't found use for that -- maybe other
@@ -120,7 +120,7 @@ use of this.
 
 
 struct sas_ha_struct --------------------
-It normally is statically declared in your own LLDD
+It yesrmally is statically declared in your own LLDD
 structure describing your adapter:
 struct my_sas_ha {
        blah;
@@ -142,8 +142,8 @@ sas_addr -- since the SAS layer doesn't want to mess with
 	 adapter as given by you or the manufacturer, etc.
 sas_port
 sas_phy -- an array of pointers to structures. (see
-	note above on sas_addr).
-	These must be set.  See more notes below.
+	yeste above on sas_addr).
+	These must be set.  See more yestes below.
 num_phys -- the number of phys present in the sas_phy array,
 	 and the number of ports present in the sas_port
 	 array.  There can be a maximum num_phys ports (one per
@@ -152,22 +152,22 @@ num_phys -- the number of phys present in the sas_phy array,
 
 The event interface:
 
-	/* LLDD calls these to notify the class of an event. */
-	void (*notify_ha_event)(struct sas_ha_struct *, enum ha_event);
-	void (*notify_port_event)(struct sas_phy *, enum port_event);
-	void (*notify_phy_event)(struct sas_phy *, enum phy_event);
+	/* LLDD calls these to yestify the class of an event. */
+	void (*yestify_ha_event)(struct sas_ha_struct *, enum ha_event);
+	void (*yestify_port_event)(struct sas_phy *, enum port_event);
+	void (*yestify_phy_event)(struct sas_phy *, enum phy_event);
 
 When sas_register_ha() returns, those are set and can be
-called by the LLDD to notify the SAS layer of such events
+called by the LLDD to yestify the SAS layer of such events
 the SAS layer.
 
-The port notification:
+The port yestification:
 
-	/* The class calls these to notify the LLDD of an event. */
+	/* The class calls these to yestify the LLDD of an event. */
 	void (*lldd_port_formed)(struct sas_phy *);
 	void (*lldd_port_deformed)(struct sas_phy *);
 
-If the LLDD wants notification when a port has been formed
+If the LLDD wants yestification when a port has been formed
 or deformed it sets those to a function satisfying the type.
 
 A SAS LLDD should also implement at least one of the Task
@@ -244,13 +244,13 @@ static int register_sas_ha(struct my_sas_ha *my_ha)
 	return sas_register_ha(&my_ha->sas_ha);
 }
 
-(2) SAS 1.1 does not define I_T Nexus Reset TMF.
+(2) SAS 1.1 does yest define I_T Nexus Reset TMF.
 
 Events
 ------
 
-Events are _the only way_ a SAS LLDD notifies the SAS layer
-of anything.  There is no other method or way a LLDD to tell
+Events are _the only way_ a SAS LLDD yestifies the SAS layer
+of anything.  There is yes other method or way a LLDD to tell
 the SAS layer of anything happening internally or in the SAS
 domain.
 
@@ -292,7 +292,7 @@ PHYE_LOSS_OF_SIGNAL -- the device is gone (*)
 PHYE_OOB_DONE -- OOB went fine and oob_mode is valid
 PHYE_OOB_ERROR -- Error while doing OOB, the device probably
 got disconnected. (*)
-PHYE_SPINUP_HOLD -- SATA is present, COMWAKE not sent.
+PHYE_SPINUP_HOLD -- SATA is present, COMWAKE yest sent.
 
 (*) should set/clear the appropriate fields in the phy,
     or alternatively call the inlined sas_phy_disconnected()
@@ -308,10 +308,10 @@ Used to queue a task to the SAS LLDD.  @task is the task to be executed.
 This function should implement the Execute Command SCSI RPC,
 
 That is, when lldd_execute_task() is called, the command
-go out on the transport *immediately*.  There is *no*
+go out on the transport *immediately*.  There is *yes*
 queuing of any sort and at any level in a SAS LLDD.
 
-Returns: -SAS_QUEUE_FULL, -ENOMEM, nothing was queued;
+Returns: -SAS_QUEUE_FULL, -ENOMEM, yesthing was queued;
 	 0, the task(s) were queued.
 
 struct sas_task {
@@ -330,7 +330,7 @@ DISCOVERY
 The sysfs tree has the following purposes:
     a) It shows you the physical layout of the SAS domain at
        the current time, i.e. how the domain looks in the
-       physical world right now.
+       physical world right yesw.
     b) Shows some device parameters _at_discovery_time_.
 
 This is a link to the tree(1) program, very useful in
@@ -353,7 +353,7 @@ removed from the system.
 
 The structure domain_device describes any device in the SAS
 domain.  It is completely managed by the SAS layer.  A task
-points to a domain device, this is how the SAS LLDD knows
+points to a domain device, this is how the SAS LLDD kyesws
 where to send the task(s) to.  A SAS LLDD only reads the
 contents of the domain_device structure, but it never creates
 or destroys one.

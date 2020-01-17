@@ -184,7 +184,7 @@ int xvtc_generator_start(struct xvtc_device *xvtc,
 		return ret;
 
 	/* We don't care about the chroma active signal, encoding parameters are
-	 * not important for now.
+	 * yest important for yesw.
 	 */
 	xvtc_gen_write(xvtc, XVTC_POLARITY,
 		       XVTC_POLARITY_ACTIVE_CHROMA_POL |
@@ -248,29 +248,29 @@ int xvtc_generator_stop(struct xvtc_device *xvtc)
 }
 EXPORT_SYMBOL_GPL(xvtc_generator_stop);
 
-struct xvtc_device *xvtc_of_get(struct device_node *np)
+struct xvtc_device *xvtc_of_get(struct device_yesde *np)
 {
-	struct device_node *xvtc_node;
+	struct device_yesde *xvtc_yesde;
 	struct xvtc_device *found = NULL;
 	struct xvtc_device *xvtc;
 
 	if (!of_find_property(np, "xlnx,vtc", NULL))
 		return NULL;
 
-	xvtc_node = of_parse_phandle(np, "xlnx,vtc", 0);
-	if (xvtc_node == NULL)
+	xvtc_yesde = of_parse_phandle(np, "xlnx,vtc", 0);
+	if (xvtc_yesde == NULL)
 		return ERR_PTR(-EINVAL);
 
 	mutex_lock(&xvtc_lock);
 	list_for_each_entry(xvtc, &xvtc_list, list) {
-		if (xvtc->xvip.dev->of_node == xvtc_node) {
+		if (xvtc->xvip.dev->of_yesde == xvtc_yesde) {
 			found = xvtc;
 			break;
 		}
 	}
 	mutex_unlock(&xvtc_lock);
 
-	of_node_put(xvtc_node);
+	of_yesde_put(xvtc_yesde);
 
 	if (!found)
 		return ERR_PTR(-EPROBE_DEFER);
@@ -308,10 +308,10 @@ static void xvtc_unregister_device(struct xvtc_device *xvtc)
 
 static int xvtc_parse_of(struct xvtc_device *xvtc)
 {
-	struct device_node *node = xvtc->xvip.dev->of_node;
+	struct device_yesde *yesde = xvtc->xvip.dev->of_yesde;
 
-	xvtc->has_detector = of_property_read_bool(node, "xlnx,detector");
-	xvtc->has_generator = of_property_read_bool(node, "xlnx,generator");
+	xvtc->has_detector = of_property_read_bool(yesde, "xlnx,detector");
+	xvtc->has_generator = of_property_read_bool(yesde, "xlnx,generator");
 
 	return 0;
 }

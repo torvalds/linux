@@ -18,7 +18,7 @@
  * Usage
  * -----
  *
- * This module is not intended to be standalone.  See the "Usage"
+ * This module is yest intended to be standalone.  See the "Usage"
  * section of livepatch-shadow-mod.c.
  */
 
@@ -43,7 +43,7 @@ static bool livepatch_fix2_dummy_check(struct dummy *d, unsigned long jiffies)
 	int *shadow_count;
 
 	/*
-	 * Patch: handle in-flight dummy structures, if they do not
+	 * Patch: handle in-flight dummy structures, if they do yest
 	 * already have a SV_COUNTER shadow variable, then attach a
 	 * new one.
 	 */

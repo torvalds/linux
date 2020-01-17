@@ -66,9 +66,9 @@ ice_check_sr_access_params(struct ice_hw *hw, u32 offset, u16 words)
 
 	if (((offset + (words - 1)) / ICE_SR_SECTOR_SIZE_IN_WORDS) !=
 	    (offset / ICE_SR_SECTOR_SIZE_IN_WORDS)) {
-		/* A single access cannot spread over two sectors */
+		/* A single access canyest spread over two sectors */
 		ice_debug(hw, ICE_DBG_NVM,
-			  "NVM error: cannot spread over two sectors.\n");
+			  "NVM error: canyest spread over two sectors.\n");
 		return ICE_ERR_PARAM;
 	}
 
@@ -147,7 +147,7 @@ ice_read_sr_buf_aq(struct ice_hw *hw, u16 offset, u16 *words, u16 *data)
 		u16 read_size, off_w;
 
 		/* Calculate number of bytes we should read in this step.
-		 * It's not allowed to read more than one page at a time or
+		 * It's yest allowed to read more than one page at a time or
 		 * to cross page boundaries.
 		 */
 		off_w = offset % ICE_SR_SECTOR_SIZE_IN_WORDS;
@@ -257,7 +257,7 @@ enum ice_status ice_init_nvm(struct ice_hw *hw)
 	/* Switching to words (sr_size contains power of 2) */
 	nvm->sr_words = BIT(sr_size) * ICE_SR_WORDS_IN_1KB;
 
-	/* Check if we are in the normal or blank NVM programming mode */
+	/* Check if we are in the yesrmal or blank NVM programming mode */
 	fla = rd32(hw, GLNVM_FLA);
 	if (fla & GLNVM_FLA_LOCKED_M) { /* Normal programming mode */
 		nvm->blank_nvm_mode = false;

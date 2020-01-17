@@ -60,7 +60,7 @@ struct wm8804_priv {
 	struct device *dev;
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[WM8804_NUM_SUPPLIES];
-	struct notifier_block disable_nb[WM8804_NUM_SUPPLIES];
+	struct yestifier_block disable_nb[WM8804_NUM_SUPPLIES];
 	int mclk_div;
 
 	struct gpio_desc *reset;
@@ -75,12 +75,12 @@ static int wm8804_aif_event(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event);
 
 /*
- * We can't use the same notifier block for more than one supply and
- * there's no way I can see to get from a callback to the caller
+ * We can't use the same yestifier block for more than one supply and
+ * there's yes way I can see to get from a callback to the caller
  * except container_of().
  */
 #define WM8804_REGULATOR_EVENT(n) \
-static int wm8804_regulator_event_##n(struct notifier_block *nb, \
+static int wm8804_regulator_event_##n(struct yestifier_block *nb, \
 				      unsigned long event, void *data)    \
 { \
 	struct wm8804_priv *wm8804 = container_of(nb, struct wm8804_priv, \
@@ -235,7 +235,7 @@ static int wm8804_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		format = 0x3;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown dai format\n");
+		dev_err(dai->dev, "Unkyeswn dai format\n");
 		return -EINVAL;
 	}
 
@@ -251,7 +251,7 @@ static int wm8804_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		master = 0;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown master/slave configuration\n");
+		dev_err(dai->dev, "Unkyeswn master/slave configuration\n");
 		return -EINVAL;
 	}
 
@@ -272,7 +272,7 @@ static int wm8804_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		lrp = 1;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown polarity configuration\n");
+		dev_err(dai->dev, "Unkyeswn polarity configuration\n");
 		return -EINVAL;
 	}
 
@@ -378,7 +378,7 @@ static int pll_factors(struct pll_div *pll_div, unsigned int target,
 	}
 
 	if (Ndiv < 5 || Ndiv > 13) {
-		pr_err("%s: WM8804 N value is not within the recommended range: %lu\n",
+		pr_err("%s: WM8804 N value is yest within the recommended range: %lu\n",
 		       __func__, Ndiv);
 		return -EINVAL;
 	}
@@ -458,7 +458,7 @@ static int wm8804_set_sysclk(struct snd_soc_dai *dai,
 				|| (freq >= 16280000 && freq <= 27000000))
 			snd_soc_component_update_bits(component, WM8804_PLL6, 0x80, 0x80);
 		else {
-			dev_err(dai->dev, "OSCCLOCK is not within the "
+			dev_err(dai->dev, "OSCCLOCK is yest within the "
 				"recommended range: %uHz\n", freq);
 			return -EINVAL;
 		}
@@ -473,7 +473,7 @@ static int wm8804_set_sysclk(struct snd_soc_dai *dai,
 		snd_soc_component_update_bits(component, WM8804_PLL6, 0x8, 0x8);
 		break;
 	default:
-		dev_err(dai->dev, "Unknown clock source: %d\n", clk_id);
+		dev_err(dai->dev, "Unkyeswn clock source: %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -497,7 +497,7 @@ static int wm8804_set_clkdiv(struct snd_soc_dai *dai,
 		wm8804->mclk_div = div;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown clock divider: %d\n", div_id);
+		dev_err(dai->dev, "Unkyeswn clock divider: %d\n", div_id);
 		return -EINVAL;
 	}
 	return 0;
@@ -546,7 +546,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8804 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm8804_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 const struct regmap_config wm8804_regmap_config = {
@@ -595,18 +595,18 @@ int wm8804_probe(struct device *dev, struct regmap *regmap)
 		return ret;
 	}
 
-	wm8804->disable_nb[0].notifier_call = wm8804_regulator_event_0;
-	wm8804->disable_nb[1].notifier_call = wm8804_regulator_event_1;
+	wm8804->disable_nb[0].yestifier_call = wm8804_regulator_event_0;
+	wm8804->disable_nb[1].yestifier_call = wm8804_regulator_event_1;
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++) {
 		struct regulator *regulator = wm8804->supplies[i].consumer;
 
-		ret = devm_regulator_register_notifier(regulator,
+		ret = devm_regulator_register_yestifier(regulator,
 						       &wm8804->disable_nb[i]);
 		if (ret != 0) {
 			dev_err(dev,
-				"Failed to register regulator notifier: %d\n",
+				"Failed to register regulator yestifier: %d\n",
 				ret);
 			return ret;
 		}

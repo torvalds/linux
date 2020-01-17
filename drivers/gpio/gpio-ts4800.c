@@ -21,7 +21,7 @@
 
 static int ts4800_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct gpio_chip *chip;
 	void __iomem *base_addr;
 	int retval;
@@ -35,11 +35,11 @@ static int ts4800_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(base_addr))
 		return PTR_ERR(base_addr);
 
-	node = pdev->dev.of_node;
-	if (!node)
+	yesde = pdev->dev.of_yesde;
+	if (!yesde)
 		return -EINVAL;
 
-	retval = of_property_read_u32(node, "ngpios", &ngpios);
+	retval = of_property_read_u32(yesde, "ngpios", &ngpios);
 	if (retval == -EINVAL)
 		ngpios = DEFAULT_PIN_NUMBER;
 	else if (retval)
@@ -61,7 +61,7 @@ static int ts4800_gpio_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id ts4800_gpio_of_match[] = {
-	{ .compatible = "technologic,ts4800-gpio", },
+	{ .compatible = "techyeslogic,ts4800-gpio", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ts4800_gpio_of_match);

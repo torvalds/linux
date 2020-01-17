@@ -4,9 +4,9 @@
  *
  *	(c) Copyright 2006-2011 Wim Van Sebroeck <wim@iguana.be>.
  *
- *	Neither Wim Van Sebroeck nor Iguana vzw. admit liability nor
+ *	Neither Wim Van Sebroeck yesr Iguana vzw. admit liability yesr
  *	provide warranty for any of this software. This material is
- *	provided "AS-IS" and at no charge.
+ *	provided "AS-IS" and at yes charge.
  *
  *	The TCO watchdog is implemented in the following I/O controller hubs:
  *	(See the intel documentation on http://developer.intel.com.)
@@ -52,7 +52,7 @@
 #include <linux/module.h>		/* For module specific items */
 #include <linux/moduleparam.h>		/* For new moduleparam's */
 #include <linux/types.h>		/* For standard types (like size_t) */
-#include <linux/errno.h>		/* For the -ENODEV/... values */
+#include <linux/erryes.h>		/* For the -ENODEV/... values */
 #include <linux/kernel.h>		/* For printk/panic/... */
 #include <linux/watchdog.h>		/* For the watchdog specific items */
 #include <linux/init.h>			/* For __init/__exit/... */
@@ -101,12 +101,12 @@ struct iTCO_wdt_private {
 	spinlock_t io_lock;
 	/* the PCI-device */
 	struct pci_dev *pci_dev;
-	/* whether or not the watchdog has been suspended */
+	/* whether or yest the watchdog has been suspended */
 	bool suspended;
-	/* no reboot API private data */
-	void *no_reboot_priv;
-	/* no reboot update function pointer */
-	int (*update_no_reboot_bit)(void *p, bool set);
+	/* yes reboot API private data */
+	void *yes_reboot_priv;
+	/* yes reboot update function pointer */
+	int (*update_yes_reboot_bit)(void *p, bool set);
 };
 
 /* module parameters */
@@ -117,10 +117,10 @@ MODULE_PARM_DESC(heartbeat, "Watchdog timeout in seconds. "
 	"5..76 (TCO v1) or 3..614 (TCO v2), default="
 				__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+	"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static int turn_SMI_watchdog_clear_off = 1;
@@ -149,7 +149,7 @@ static inline unsigned int ticks_to_seconds(struct iTCO_wdt_private *p,
 	return p->iTCO_version == 3 ? ticks : (ticks * 6) / 10;
 }
 
-static inline u32 no_reboot_bit(struct iTCO_wdt_private *p)
+static inline u32 yes_reboot_bit(struct iTCO_wdt_private *p)
 {
 	u32 enable_bit;
 
@@ -171,21 +171,21 @@ static inline u32 no_reboot_bit(struct iTCO_wdt_private *p)
 	return enable_bit;
 }
 
-static int update_no_reboot_bit_def(void *priv, bool set)
+static int update_yes_reboot_bit_def(void *priv, bool set)
 {
 	return 0;
 }
 
-static int update_no_reboot_bit_pci(void *priv, bool set)
+static int update_yes_reboot_bit_pci(void *priv, bool set)
 {
 	struct iTCO_wdt_private *p = priv;
 	u32 val32 = 0, newval32 = 0;
 
 	pci_read_config_dword(p->pci_dev, 0xd4, &val32);
 	if (set)
-		val32 |= no_reboot_bit(p);
+		val32 |= yes_reboot_bit(p);
 	else
-		val32 &= ~no_reboot_bit(p);
+		val32 &= ~yes_reboot_bit(p);
 	pci_write_config_dword(p->pci_dev, 0xd4, val32);
 	pci_read_config_dword(p->pci_dev, 0xd4, &newval32);
 
@@ -196,16 +196,16 @@ static int update_no_reboot_bit_pci(void *priv, bool set)
 	return 0;
 }
 
-static int update_no_reboot_bit_mem(void *priv, bool set)
+static int update_yes_reboot_bit_mem(void *priv, bool set)
 {
 	struct iTCO_wdt_private *p = priv;
 	u32 val32 = 0, newval32 = 0;
 
 	val32 = readl(p->gcs_pmc);
 	if (set)
-		val32 |= no_reboot_bit(p);
+		val32 |= yes_reboot_bit(p);
 	else
-		val32 &= ~no_reboot_bit(p);
+		val32 &= ~yes_reboot_bit(p);
 	writel(val32, p->gcs_pmc);
 	newval32 = readl(p->gcs_pmc);
 
@@ -216,7 +216,7 @@ static int update_no_reboot_bit_mem(void *priv, bool set)
 	return 0;
 }
 
-static int update_no_reboot_bit_cnt(void *priv, bool set)
+static int update_yes_reboot_bit_cnt(void *priv, bool set)
 {
 	struct iTCO_wdt_private *p = priv;
 	u16 val, newval;
@@ -233,25 +233,25 @@ static int update_no_reboot_bit_cnt(void *priv, bool set)
 	return val != newval ? -EIO : 0;
 }
 
-static void iTCO_wdt_no_reboot_bit_setup(struct iTCO_wdt_private *p,
+static void iTCO_wdt_yes_reboot_bit_setup(struct iTCO_wdt_private *p,
 		struct itco_wdt_platform_data *pdata)
 {
-	if (pdata->update_no_reboot_bit) {
-		p->update_no_reboot_bit = pdata->update_no_reboot_bit;
-		p->no_reboot_priv = pdata->no_reboot_priv;
+	if (pdata->update_yes_reboot_bit) {
+		p->update_yes_reboot_bit = pdata->update_yes_reboot_bit;
+		p->yes_reboot_priv = pdata->yes_reboot_priv;
 		return;
 	}
 
 	if (p->iTCO_version >= 6)
-		p->update_no_reboot_bit = update_no_reboot_bit_cnt;
+		p->update_yes_reboot_bit = update_yes_reboot_bit_cnt;
 	else if (p->iTCO_version >= 2)
-		p->update_no_reboot_bit = update_no_reboot_bit_mem;
+		p->update_yes_reboot_bit = update_yes_reboot_bit_mem;
 	else if (p->iTCO_version == 1)
-		p->update_no_reboot_bit = update_no_reboot_bit_pci;
+		p->update_yes_reboot_bit = update_yes_reboot_bit_pci;
 	else
-		p->update_no_reboot_bit = update_no_reboot_bit_def;
+		p->update_yes_reboot_bit = update_yes_reboot_bit_def;
 
-	p->no_reboot_priv = p;
+	p->yes_reboot_priv = p;
 }
 
 static int iTCO_wdt_start(struct watchdog_device *wd_dev)
@@ -264,7 +264,7 @@ static int iTCO_wdt_start(struct watchdog_device *wd_dev)
 	iTCO_vendor_pre_start(p->smi_res, wd_dev->timeout);
 
 	/* disable chipset's NO_REBOOT bit */
-	if (p->update_no_reboot_bit(p->no_reboot_priv, false)) {
+	if (p->update_yes_reboot_bit(p->yes_reboot_priv, false)) {
 		spin_unlock(&p->io_lock);
 		pr_err("failed to reset NO_REBOOT flag, reboot disabled by hardware/BIOS\n");
 		return -EIO;
@@ -305,7 +305,7 @@ static int iTCO_wdt_stop(struct watchdog_device *wd_dev)
 	val = inw(TCO1_CNT(p));
 
 	/* Set the NO_REBOOT bit to prevent later reboots, just for sure */
-	p->update_no_reboot_bit(p->no_reboot_priv, true);
+	p->update_yes_reboot_bit(p->yes_reboot_priv, true);
 
 	spin_unlock(&p->io_lock);
 
@@ -349,7 +349,7 @@ static int iTCO_wdt_set_timeout(struct watchdog_device *wd_dev, unsigned int t)
 		tmrval /= 2;
 
 	/* from the specs: */
-	/* "Values of 0h-3h are ignored and should not be attempted" */
+	/* "Values of 0h-3h are igyesred and should yest be attempted" */
 	if (tmrval < 0x04)
 		return -EINVAL;
 	if ((p->iTCO_version >= 2 && tmrval > 0x3ff) ||
@@ -466,14 +466,14 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	p->iTCO_version = pdata->version;
 	p->pci_dev = to_pci_dev(dev->parent);
 
-	iTCO_wdt_no_reboot_bit_setup(p, pdata);
+	iTCO_wdt_yes_reboot_bit_setup(p, pdata);
 
 	/*
 	 * Get the Memory-Mapped GCS or PMC register, we need it for the
 	 * NO_REBOOT flag (TCO v2 and v3).
 	 */
 	if (p->iTCO_version >= 2 && p->iTCO_version < 6 &&
-	    !pdata->update_no_reboot_bit) {
+	    !pdata->update_yes_reboot_bit) {
 		p->gcs_pmc_res = platform_get_resource(pdev,
 						       IORESOURCE_MEM,
 						       ICH_RES_MEM_GCS_PMC);
@@ -483,14 +483,14 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	}
 
 	/* Check chipset's NO_REBOOT bit */
-	if (p->update_no_reboot_bit(p->no_reboot_priv, false) &&
-	    iTCO_vendor_check_noreboot_on()) {
+	if (p->update_yes_reboot_bit(p->yes_reboot_priv, false) &&
+	    iTCO_vendor_check_yesreboot_on()) {
 		pr_info("unable to reset NO_REBOOT flag, device disabled by hardware/BIOS\n");
-		return -ENODEV;	/* Cannot reset NO_REBOOT bit */
+		return -ENODEV;	/* Canyest reset NO_REBOOT bit */
 	}
 
 	/* Set the NO_REBOOT bit to prevent later reboots, just for sure */
-	p->update_no_reboot_bit(p->no_reboot_priv, true);
+	p->update_yes_reboot_bit(p->yes_reboot_priv, true);
 
 	/* The TCO logic uses the TCO_EN bit in the SMI_EN register */
 	if (!devm_request_region(dev, p->smi_res->start,
@@ -545,17 +545,17 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	p->wddev.ops = &iTCO_wdt_ops,
 	p->wddev.bootstatus = 0;
 	p->wddev.timeout = WATCHDOG_TIMEOUT;
-	watchdog_set_nowayout(&p->wddev, nowayout);
+	watchdog_set_yeswayout(&p->wddev, yeswayout);
 	p->wddev.parent = dev;
 
 	watchdog_set_drvdata(&p->wddev, p);
 	platform_set_drvdata(pdev, p);
 
-	/* Make sure the watchdog is not running */
+	/* Make sure the watchdog is yest running */
 	iTCO_wdt_stop(&p->wddev);
 
 	/* Check that the heartbeat value is within it's range;
-	   if not reset to the default */
+	   if yest reset to the default */
 	if (iTCO_wdt_set_timeout(&p->wddev, heartbeat)) {
 		iTCO_wdt_set_timeout(&p->wddev, WATCHDOG_TIMEOUT);
 		pr_info("timeout value out of range, using %d\n",
@@ -566,12 +566,12 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	watchdog_stop_on_unregister(&p->wddev);
 	ret = devm_watchdog_register_device(dev, &p->wddev);
 	if (ret != 0) {
-		pr_err("cannot register watchdog device (err=%d)\n", ret);
+		pr_err("canyest register watchdog device (err=%d)\n", ret);
 		return ret;
 	}
 
-	pr_info("initialized. heartbeat=%d sec (nowayout=%d)\n",
-		heartbeat, nowayout);
+	pr_info("initialized. heartbeat=%d sec (yeswayout=%d)\n",
+		heartbeat, yeswayout);
 
 	return 0;
 }
@@ -579,7 +579,7 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 /*
  * Suspend-to-idle requires this, because it stops the ticks and timekeeping, so
- * the watchdog cannot be pinged while in that state.  In ACPI sleep states the
+ * the watchdog canyest be pinged while in that state.  In ACPI sleep states the
  * watchdog is stopped by the platform firmware.
  */
 
@@ -592,7 +592,7 @@ static inline bool need_suspend(void)
 static inline bool need_suspend(void) { return true; }
 #endif
 
-static int iTCO_wdt_suspend_noirq(struct device *dev)
+static int iTCO_wdt_suspend_yesirq(struct device *dev)
 {
 	struct iTCO_wdt_private *p = dev_get_drvdata(dev);
 	int ret = 0;
@@ -606,7 +606,7 @@ static int iTCO_wdt_suspend_noirq(struct device *dev)
 	return ret;
 }
 
-static int iTCO_wdt_resume_noirq(struct device *dev)
+static int iTCO_wdt_resume_yesirq(struct device *dev)
 {
 	struct iTCO_wdt_private *p = dev_get_drvdata(dev);
 
@@ -617,8 +617,8 @@ static int iTCO_wdt_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops iTCO_wdt_pm = {
-	.suspend_noirq = iTCO_wdt_suspend_noirq,
-	.resume_noirq = iTCO_wdt_resume_noirq,
+	.suspend_yesirq = iTCO_wdt_suspend_yesirq,
+	.resume_yesirq = iTCO_wdt_resume_yesirq,
 };
 
 #define ITCO_WDT_PM_OPS	(&iTCO_wdt_pm)

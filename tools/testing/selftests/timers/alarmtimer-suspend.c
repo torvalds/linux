@@ -94,7 +94,7 @@ long long timespec_sub(struct timespec a, struct timespec b)
 
 int final_ret = 0;
 
-void sigalarm(int signo)
+void sigalarm(int sigyes)
 {
 	long long delta_ns;
 	struct timespec ts;
@@ -132,8 +132,8 @@ int main(void)
 
 	/* Set up timer: */
 	memset(&se, 0, sizeof(se));
-	se.sigev_notify = SIGEV_SIGNAL;
-	se.sigev_signo = signum;
+	se.sigev_yestify = SIGEV_SIGNAL;
+	se.sigev_sigyes = signum;
 	se.sigev_value.sival_int = 0;
 
 	for (alarm_clock_id = CLOCK_REALTIME_ALARM;
@@ -159,7 +159,7 @@ int main(void)
 		timer_settime(tm1, TIMER_ABSTIME, &its1, &its2);
 
 		while (alarmcount < 5)
-			sleep(1); /* First 5 alarms, do nothing */
+			sleep(1); /* First 5 alarms, do yesthing */
 
 		printf("Starting suspend loops\n");
 		while (alarmcount < 10) {

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -32,14 +32,14 @@ nvkm_object_search(struct nvkm_client *client, u64 handle,
 	struct nvkm_object *object;
 
 	if (handle) {
-		struct rb_node *node = client->objroot.rb_node;
-		while (node) {
-			object = rb_entry(node, typeof(*object), node);
+		struct rb_yesde *yesde = client->objroot.rb_yesde;
+		while (yesde) {
+			object = rb_entry(yesde, typeof(*object), yesde);
 			if (handle < object->object)
-				node = node->rb_left;
+				yesde = yesde->rb_left;
 			else
 			if (handle > object->object)
-				node = node->rb_right;
+				yesde = yesde->rb_right;
 			else
 				goto done;
 		}
@@ -57,18 +57,18 @@ done:
 void
 nvkm_object_remove(struct nvkm_object *object)
 {
-	if (!RB_EMPTY_NODE(&object->node))
-		rb_erase(&object->node, &object->client->objroot);
+	if (!RB_EMPTY_NODE(&object->yesde))
+		rb_erase(&object->yesde, &object->client->objroot);
 }
 
 bool
 nvkm_object_insert(struct nvkm_object *object)
 {
-	struct rb_node **ptr = &object->client->objroot.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **ptr = &object->client->objroot.rb_yesde;
+	struct rb_yesde *parent = NULL;
 
 	while (*ptr) {
-		struct nvkm_object *this = rb_entry(*ptr, typeof(*this), node);
+		struct nvkm_object *this = rb_entry(*ptr, typeof(*this), yesde);
 		parent = *ptr;
 		if (object->object < this->object)
 			ptr = &parent->rb_left;
@@ -79,8 +79,8 @@ nvkm_object_insert(struct nvkm_object *object)
 			return false;
 	}
 
-	rb_link_node(&object->node, parent, ptr);
-	rb_insert_color(&object->node, &object->client->objroot);
+	rb_link_yesde(&object->yesde, parent, ptr);
+	rb_insert_color(&object->yesde, &object->client->objroot);
 	return true;
 }
 
@@ -304,7 +304,7 @@ nvkm_object_ctor(const struct nvkm_object_func *func,
 	object->object = oclass->object;
 	INIT_LIST_HEAD(&object->head);
 	INIT_LIST_HEAD(&object->tree);
-	RB_CLEAR_NODE(&object->node);
+	RB_CLEAR_NODE(&object->yesde);
 	WARN_ON(IS_ERR(object->engine));
 }
 

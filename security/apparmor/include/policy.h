@@ -5,7 +5,7 @@
  * This file contains AppArmor policy definitions.
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2010 Cayesnical Ltd.
  */
 
 #ifndef __AA_POLICY_H
@@ -122,7 +122,7 @@ struct aa_data {
  * Profiles have a hierarchy where hats and children profiles keep
  * a reference to their parent.
  *
- * Profile names can not begin with a : and can not contain the \0
+ * Profile names can yest begin with a : and can yest contain the \0
  * character.  If a profile name begins with / it will be considered when
  * determining profile attachment on "unconfined" tasks.
  */
@@ -249,13 +249,13 @@ static inline struct aa_profile *aa_get_profile(struct aa_profile *p)
 }
 
 /**
- * aa_get_profile_not0 - increment refcount on profile @p found via lookup
+ * aa_get_profile_yest0 - increment refcount on profile @p found via lookup
  * @p: profile  (MAYBE NULL)
  *
  * Returns: pointer to @p if @p is NULL will return NULL
  * Requires: @p must be held with valid refcount when called
  */
-static inline struct aa_profile *aa_get_profile_not0(struct aa_profile *p)
+static inline struct aa_profile *aa_get_profile_yest0(struct aa_profile *p)
 {
 	if (p && kref_get_unless_zero(&p->label.count))
 		return p;
@@ -268,7 +268,7 @@ static inline struct aa_profile *aa_get_profile_not0(struct aa_profile *p)
  * @p: pointer to profile that can be replaced (NOT NULL)
  *
  * Returns: pointer to a refcounted profile.
- *     else NULL if no profile
+ *     else NULL if yes profile
  */
 static inline struct aa_profile *aa_get_profile_rcu(struct aa_profile __rcu **p)
 {

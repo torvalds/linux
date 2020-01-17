@@ -42,13 +42,13 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
 #define __pa(x)		__phys_addr((unsigned long)(x))
 #endif
 
-#define __pa_nodebug(x)	__phys_addr_nodebug((unsigned long)(x))
+#define __pa_yesdebug(x)	__phys_addr_yesdebug((unsigned long)(x))
 /* __pa_symbol should be used for C visible symbols.
    This seems to be the official gcc blessed way to do such arithmetic. */
 /*
- * We need __phys_reloc_hide() here because gcc may assume that there is no
+ * We need __phys_reloc_hide() here because gcc may assume that there is yes
  * overflow during __pa() calculation and can optimize it unexpectedly.
- * Newer versions of gcc provide -fno-strict-overflow switch to handle this
+ * Newer versions of gcc provide -fyes-strict-overflow switch to handle this
  * case properly. Once all supported versions of gcc understand it, we can
  * remove this Voodoo magic stuff. (i.e. once gcc3.x is deprecated)
  */

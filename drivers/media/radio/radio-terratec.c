@@ -38,7 +38,7 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1.99");
 
 /* Note: there seems to be only one possible port (0x590), but without
-   hardware this is hard to verify. For now, this is the only one we will
+   hardware this is hard to verify. For yesw, this is the only one we will
    support. */
 static int io = 0x590;
 static int radio_nr = -1;
@@ -123,7 +123,7 @@ static int terratec_s_frequency(struct radio_isa_card *isa, u32 freq)
 
 static u32 terratec_g_signal(struct radio_isa_card *isa)
 {
-	/* bit set = no signal present	*/
+	/* bit set = yes signal present	*/
 	return (inb(isa->io) & 2) ? 0 : 0xffff;
 }
 

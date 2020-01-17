@@ -15,7 +15,7 @@
 
 #include <linux/interrupt.h>
 
-#define irq_canonicalize(irq)	(irq)
+#define irq_cayesnicalize(irq)	(irq)
 
 void __init init_IRQ(void);
 void __init sun4d_init_sbi_irq(void);

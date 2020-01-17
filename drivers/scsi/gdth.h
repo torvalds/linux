@@ -250,13 +250,13 @@
 #define INVALID_CHANNEL 0x0000ffffL             /* invalid channel */
 
 /* service errors */
-#define S_OK            1                       /* no error */
+#define S_OK            1                       /* yes error */
 #define S_GENERR        6                       /* general error */
 #define S_BSY           7                       /* controller busy */
-#define S_CACHE_UNKNOWN 12                      /* cache serv.: drive unknown */
+#define S_CACHE_UNKNOWN 12                      /* cache serv.: drive unkyeswn */
 #define S_RAW_SCSI      12                      /* raw serv.: target error */
 #define S_RAW_ILL       0xff                    /* raw serv.: illegal */
-#define S_NOFUNC        -2                      /* unknown function */
+#define S_NOFUNC        -2                      /* unkyeswn function */
 #define S_CACHE_RESERV  -24                     /* cache: reserv. conflict */   
 
 /* timeout values */
@@ -277,9 +277,9 @@
 #define LINUX_OS        8                       /* used for cache optim. */
 #define SECS32          0x1f                    /* round capacity */
 #define BIOS_ID_OFFS    0x10                    /* offset contr-ID in ISABIOS */
-#define LOCALBOARD      0                       /* board node always 0 */
+#define LOCALBOARD      0                       /* board yesde always 0 */
 #define ASYNCINDEX      0                       /* cmd index async. event */
-#define SPEZINDEX       1                       /* cmd index unknown service */
+#define SPEZINDEX       1                       /* cmd index unkyeswn service */
 #define COALINDEX       (GDTH_MAXCMDS + 2)
 
 /* features */
@@ -341,7 +341,7 @@ typedef struct {
     u8      revision[4];                    /* revision */
     u32     sy_rate;                        /* current rate for sync. tr. */
     u32     sy_max_rate;                    /* max. rate for sync. tr. */
-    u32     no_ldrive;                      /* belongs to this log. drv.*/
+    u32     yes_ldrive;                      /* belongs to this log. drv.*/
     u32     blkcnt;                         /* number of blocks */
     u16      blksize;                        /* size of block in bytes */
     u8      available;                      /* flag: access is available */
@@ -380,7 +380,7 @@ typedef struct {
 
 /* get SCSI channel count  */
 typedef struct {
-    u32     channel_no;                     /* number of channel */
+    u32     channel_yes;                     /* number of channel */
     u32     drive_cnt;                      /* drive count */
     u8      siop_id;                        /* SCSI processor ID */
     u8      siop_state;                     /* SCSI processor state */ 
@@ -388,9 +388,9 @@ typedef struct {
 
 /* get SCSI drive numbers */
 typedef struct {
-    u32     sc_no;                          /* SCSI channel */
+    u32     sc_yes;                          /* SCSI channel */
     u32     sc_cnt;                         /* sc_list[] elements */
-    u32     sc_list[MAXID];                 /* minor device numbers */
+    u32     sc_list[MAXID];                 /* miyesr device numbers */
 } __attribute__((packed)) gdth_drlist_str;
 
 /* get grown/primary defect count */
@@ -439,7 +439,7 @@ typedef struct {
     struct {
         u32         address;                /* channel address */
         u8          type;                   /* type (SCSI, FCAL) */
-        u8          local_no;               /* local number */
+        u8          local_yes;               /* local number */
         u16          features;               /* channel features */
     } __attribute__((packed)) list[MAXBUS];
 } __attribute__((packed)) gdth_iochan_str;
@@ -489,7 +489,7 @@ typedef struct {
 
 /* get array drive list */
 typedef struct {
-    u32     controller_no;                  /* controller no. */
+    u32     controller_yes;                  /* controller yes. */
     u8      cd_handle;                      /* master cachedrive */
     u8      is_arrayd;                      /* Flag: is array drive? */
     u8      is_master;                      /* Flag: is array master? */
@@ -553,7 +553,7 @@ typedef struct {
 typedef struct {
     u32     ctl_version;
     u32     file_major_version;
-    u32     file_minor_version;
+    u32     file_miyesr_version;
     u32     buffer_size;
     u32     cpy_count;
     u32     ext_error;
@@ -603,7 +603,7 @@ typedef struct {
 
 /* board info IOCTL */
 typedef struct {
-    u32     ser_no;                         /* serial no. */
+    u32     ser_yes;                         /* serial yes. */
     u8      oem_id[2];                      /* OEM ID */
     u16      ep_flags;                       /* eprom flags */
     u32     proc_id;                        /* processor ID */
@@ -707,7 +707,7 @@ typedef struct {
         u8          memlock;                /* write protection DPRAM */
         u8          event;                  /* release event */
         u8          irqen;                  /* board interrupts enable */
-        u8          irqdel;                 /* acknowledge board int. */
+        u8          irqdel;                 /* ackyeswledge board int. */
         u8 volatile Sema1;                  /* status semaphore */
         u8          rq;                     /* IRQ/DRQ configuration */
     } __attribute__((packed)) io;
@@ -728,7 +728,7 @@ typedef struct {
         u8          unused2[2];
         u8          event;                  /* release event */
         u8          unused3[3];
-        u8          irqdel;                 /* acknowledge board int. */
+        u8          irqdel;                 /* ackyeswledge board int. */
         u8          unused4[3];
     } __attribute__((packed)) io;
 } __attribute__((packed)) gdt6_dpram_str;
@@ -845,13 +845,13 @@ typedef struct {
         u8          is_master;              /* Flag: array drive master? */
         u8          is_parity;              /* Flag: parity drive? */
         u8          is_hotfix;              /* Flag: hotfix drive? */
-        u8          master_no;              /* number of master drive */
+        u8          master_yes;              /* number of master drive */
         u8          lock;                   /* drive locked? (hot plug) */
         u8          heads;                  /* mapping */
         u8          secs;
         u16          devtype;                /* further information */
         u64         size;                   /* capacity */
-        u8          ldr_no;                 /* log. drive no. */
+        u8          ldr_yes;                 /* log. drive yes. */
         u8          rw_attribs;             /* r/w attributes */
         u8          cluster_type;           /* cluster properties */
         u8          media_changed;          /* Flag:MOUNT/UNMOUNT occurred */
@@ -860,7 +860,7 @@ typedef struct {
     struct {
         u8          lock;                   /* channel locked? (hot plug) */
         u8          pdev_cnt;               /* physical device count */
-        u8          local_no;               /* local channel number */
+        u8          local_yes;               /* local channel number */
         u8          io_cnt[MAXID];          /* current IO count */
         u32         address;                /* channel address */
         u32         id_list[MAXID];         /* IDs of the phys. devices */
@@ -927,20 +927,20 @@ typedef struct {
 
 /* READ_CAPACITY data format */
 typedef struct {
-    u32     last_block_no;
+    u32     last_block_yes;
     u32     block_length;
 } __attribute__((packed)) gdth_rdcap_data;
 
 /* READ_CAPACITY (16) data format */
 typedef struct {
-    u64     last_block_no;
+    u64     last_block_yes;
     u32     block_length;
 } __attribute__((packed)) gdth_rdcap16_data;
 
 /* REQUEST_SENSE data format */
 typedef struct {
     u8      errorcode;
-    u8      segno;
+    u8      segyes;
     u8      key;
     u32     info;
     u8      add_length;

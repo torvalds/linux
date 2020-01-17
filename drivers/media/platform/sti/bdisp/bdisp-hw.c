@@ -10,7 +10,7 @@
 #include "bdisp-filter.h"
 #include "bdisp-reg.h"
 
-/* Max width of the source frame in a single node */
+/* Max width of the source frame in a single yesde */
 #define MAX_SRC_WIDTH           2048
 
 /* Reset & boot poll config */
@@ -420,56 +420,56 @@ int bdisp_hw_get_and_clear_irq(struct bdisp_dev *bdisp)
 }
 
 /**
- * bdisp_hw_free_nodes
+ * bdisp_hw_free_yesdes
  * @ctx:        bdisp context
  *
- * Free node memory
+ * Free yesde memory
  *
  * RETURNS:
  * None
  */
-void bdisp_hw_free_nodes(struct bdisp_ctx *ctx)
+void bdisp_hw_free_yesdes(struct bdisp_ctx *ctx)
 {
-	if (ctx && ctx->node[0])
+	if (ctx && ctx->yesde[0])
 		dma_free_attrs(ctx->bdisp_dev->dev,
-			       sizeof(struct bdisp_node) * MAX_NB_NODE,
-			       ctx->node[0], ctx->node_paddr[0],
+			       sizeof(struct bdisp_yesde) * MAX_NB_NODE,
+			       ctx->yesde[0], ctx->yesde_paddr[0],
 			       DMA_ATTR_WRITE_COMBINE);
 }
 
 /**
- * bdisp_hw_alloc_nodes
+ * bdisp_hw_alloc_yesdes
  * @ctx:        bdisp context
  *
- * Allocate dma memory for nodes
+ * Allocate dma memory for yesdes
  *
  * RETURNS:
  * 0 on success
  */
-int bdisp_hw_alloc_nodes(struct bdisp_ctx *ctx)
+int bdisp_hw_alloc_yesdes(struct bdisp_ctx *ctx)
 {
 	struct device *dev = ctx->bdisp_dev->dev;
-	unsigned int i, node_size = sizeof(struct bdisp_node);
+	unsigned int i, yesde_size = sizeof(struct bdisp_yesde);
 	void *base;
 	dma_addr_t paddr;
 
-	/* Allocate all the nodes within a single memory page */
-	base = dma_alloc_attrs(dev, node_size * MAX_NB_NODE, &paddr,
+	/* Allocate all the yesdes within a single memory page */
+	base = dma_alloc_attrs(dev, yesde_size * MAX_NB_NODE, &paddr,
 			       GFP_KERNEL, DMA_ATTR_WRITE_COMBINE);
 	if (!base) {
-		dev_err(dev, "%s no mem\n", __func__);
+		dev_err(dev, "%s yes mem\n", __func__);
 		return -ENOMEM;
 	}
 
-	memset(base, 0, node_size * MAX_NB_NODE);
+	memset(base, 0, yesde_size * MAX_NB_NODE);
 
 	for (i = 0; i < MAX_NB_NODE; i++) {
-		ctx->node[i] = base;
-		ctx->node_paddr[i] = paddr;
-		dev_dbg(dev, "node[%d]=0x%p (paddr=%pad)\n", i, ctx->node[i],
+		ctx->yesde[i] = base;
+		ctx->yesde_paddr[i] = paddr;
+		dev_dbg(dev, "yesde[%d]=0x%p (paddr=%pad)\n", i, ctx->yesde[i],
 			&paddr);
-		base += node_size;
-		paddr += node_size;
+		base += yesde_size;
+		paddr += yesde_size;
 	}
 
 	return 0;
@@ -742,21 +742,21 @@ static u32 bdisp_hw_color_format(u32 pixelformat)
 }
 
 /**
- * bdisp_hw_build_node
+ * bdisp_hw_build_yesde
  * @ctx:        device context
  * @cfg:        operation configuration
- * @node:       node to be set
- * @t_plan:     whether the node refers to a RGB/Y or a CbCr plane
+ * @yesde:       yesde to be set
+ * @t_plan:     whether the yesde refers to a RGB/Y or a CbCr plane
  * @src_x_offset: x offset in the source image
  *
- * Build a node
+ * Build a yesde
  *
  * RETURNS:
  * None
  */
-static void bdisp_hw_build_node(struct bdisp_ctx *ctx,
+static void bdisp_hw_build_yesde(struct bdisp_ctx *ctx,
 				struct bdisp_op_cfg *cfg,
-				struct bdisp_node *node,
+				struct bdisp_yesde *yesde,
 				enum bdisp_target_plan t_plan, int src_x_offset)
 {
 	struct bdisp_frame *src = &ctx->src;
@@ -771,7 +771,7 @@ static void bdisp_hw_build_node(struct bdisp_ctx *ctx,
 
 	dev_dbg(ctx->bdisp_dev->dev, "%s\n", __func__);
 
-	memset(node, 0, sizeof(*node));
+	memset(yesde, 0, sizeof(*yesde));
 
 	/* Adjust src and dst areas wrt src_x_offset */
 	src_rect.left += src_x_offset;
@@ -786,53 +786,53 @@ static void bdisp_hw_build_node(struct bdisp_ctx *ctx,
 	src_fmt = src->fmt->pixelformat;
 	dst_fmt = dst->fmt->pixelformat;
 
-	node->nip = 0;
-	node->cic = BLT_CIC_ALL_GRP;
-	node->ack = BLT_ACK_BYPASS_S2S3;
+	yesde->nip = 0;
+	yesde->cic = BLT_CIC_ALL_GRP;
+	yesde->ack = BLT_ACK_BYPASS_S2S3;
 
 	switch (cfg->src_nbp) {
 	case 1:
 		/* Src2 = RGB / Src1 = Src3 = off */
-		node->ins = BLT_INS_S1_OFF | BLT_INS_S2_MEM | BLT_INS_S3_OFF;
+		yesde->ins = BLT_INS_S1_OFF | BLT_INS_S2_MEM | BLT_INS_S3_OFF;
 		break;
 	case 2:
 		/* Src3 = Y
 		 * Src2 = CbCr or ColorFill if writing the Y plane
 		 * Src1 = off */
-		node->ins = BLT_INS_S1_OFF | BLT_INS_S3_MEM;
+		yesde->ins = BLT_INS_S1_OFF | BLT_INS_S3_MEM;
 		if (t_plan == BDISP_Y)
-			node->ins |= BLT_INS_S2_CF;
+			yesde->ins |= BLT_INS_S2_CF;
 		else
-			node->ins |= BLT_INS_S2_MEM;
+			yesde->ins |= BLT_INS_S2_MEM;
 		break;
 	case 3:
 	default:
 		/* Src3 = Y
 		 * Src2 = Cb or ColorFill if writing the Y plane
 		 * Src1 = Cr or ColorFill if writing the Y plane */
-		node->ins = BLT_INS_S3_MEM;
+		yesde->ins = BLT_INS_S3_MEM;
 		if (t_plan == BDISP_Y)
-			node->ins |= BLT_INS_S2_CF | BLT_INS_S1_CF;
+			yesde->ins |= BLT_INS_S2_CF | BLT_INS_S1_CF;
 		else
-			node->ins |= BLT_INS_S2_MEM | BLT_INS_S1_MEM;
+			yesde->ins |= BLT_INS_S2_MEM | BLT_INS_S1_MEM;
 		break;
 	}
 
 	/* Color convert */
-	node->ins |= cfg->cconv ? BLT_INS_IVMX : 0;
+	yesde->ins |= cfg->cconv ? BLT_INS_IVMX : 0;
 	/* Scale needed if scaling OR 4:2:0 up/downsampling */
-	node->ins |= (cfg->scale || cfg->src_420 || cfg->dst_420) ?
+	yesde->ins |= (cfg->scale || cfg->src_420 || cfg->dst_420) ?
 			BLT_INS_SCALE : 0;
 
 	/* Target */
-	node->tba = (t_plan == BDISP_CBCR) ? dst->paddr[1] : dst->paddr[0];
+	yesde->tba = (t_plan == BDISP_CBCR) ? dst->paddr[1] : dst->paddr[0];
 
-	node->tty = dst->bytesperline;
-	node->tty |= bdisp_hw_color_format(dst_fmt);
-	node->tty |= BLT_TTY_DITHER;
-	node->tty |= (t_plan == BDISP_CBCR) ? BLT_TTY_CHROMA : 0;
-	node->tty |= cfg->hflip ? BLT_TTY_HSO : 0;
-	node->tty |= cfg->vflip ? BLT_TTY_VSO : 0;
+	yesde->tty = dst->bytesperline;
+	yesde->tty |= bdisp_hw_color_format(dst_fmt);
+	yesde->tty |= BLT_TTY_DITHER;
+	yesde->tty |= (t_plan == BDISP_CBCR) ? BLT_TTY_CHROMA : 0;
+	yesde->tty |= cfg->hflip ? BLT_TTY_HSO : 0;
+	yesde->tty |= cfg->vflip ? BLT_TTY_VSO : 0;
 
 	if (cfg->dst_420 && (t_plan == BDISP_CBCR)) {
 		/* 420 chroma downsampling */
@@ -844,12 +844,12 @@ static void bdisp_hw_build_node(struct bdisp_ctx *ctx,
 		dst_width /= 2;
 	}
 
-	node->txy = cfg->vflip ? (dst_rect.height - 1) : dst_rect.top;
-	node->txy <<= 16;
-	node->txy |= cfg->hflip ? (dst_width - dst_x_offset - 1) :
+	yesde->txy = cfg->vflip ? (dst_rect.height - 1) : dst_rect.top;
+	yesde->txy <<= 16;
+	yesde->txy |= cfg->hflip ? (dst_width - dst_x_offset - 1) :
 			dst_rect.left;
 
-	node->tsz = dst_rect.height << 16 | dst_rect.width;
+	yesde->tsz = dst_rect.height << 16 | dst_rect.width;
 
 	if (cfg->src_interlaced) {
 		/* handle only the top field which is half height of a frame */
@@ -859,16 +859,16 @@ static void bdisp_hw_build_node(struct bdisp_ctx *ctx,
 
 	if (cfg->src_nbp == 1) {
 		/* Src 2 : RGB */
-		node->s2ba = src->paddr[0];
+		yesde->s2ba = src->paddr[0];
 
-		node->s2ty = src->bytesperline;
+		yesde->s2ty = src->bytesperline;
 		if (cfg->src_interlaced)
-			node->s2ty *= 2;
+			yesde->s2ty *= 2;
 
-		node->s2ty |= bdisp_hw_color_format(src_fmt);
+		yesde->s2ty |= bdisp_hw_color_format(src_fmt);
 
-		node->s2xy = src_rect.top << 16 | src_rect.left;
-		node->s2sz = src_rect.height << 16 | src_rect.width;
+		yesde->s2xy = src_rect.top << 16 | src_rect.left;
+		yesde->s2sz = src_rect.height << 16 | src_rect.width;
 	} else {
 		/* Src 2 : Cb or CbCr */
 		if (cfg->src_420) {
@@ -879,61 +879,61 @@ static void bdisp_hw_build_node(struct bdisp_ctx *ctx,
 			src_rect.height /= 2;
 		}
 
-		node->s2ba = src->paddr[1];
+		yesde->s2ba = src->paddr[1];
 
-		node->s2ty = src->bytesperline;
+		yesde->s2ty = src->bytesperline;
 		if (cfg->src_nbp == 3)
-			node->s2ty /= 2;
+			yesde->s2ty /= 2;
 		if (cfg->src_interlaced)
-			node->s2ty *= 2;
+			yesde->s2ty *= 2;
 
-		node->s2ty |= bdisp_hw_color_format(src_fmt);
+		yesde->s2ty |= bdisp_hw_color_format(src_fmt);
 
-		node->s2xy = src_rect.top << 16 | src_rect.left;
-		node->s2sz = src_rect.height << 16 | src_rect.width;
+		yesde->s2xy = src_rect.top << 16 | src_rect.left;
+		yesde->s2sz = src_rect.height << 16 | src_rect.width;
 
 		if (cfg->src_nbp == 3) {
 			/* Src 1 : Cr */
-			node->s1ba = src->paddr[2];
+			yesde->s1ba = src->paddr[2];
 
-			node->s1ty = node->s2ty;
-			node->s1xy = node->s2xy;
+			yesde->s1ty = yesde->s2ty;
+			yesde->s1xy = yesde->s2xy;
 		}
 
 		/* Src 3 : Y */
-		node->s3ba = src->paddr[0];
+		yesde->s3ba = src->paddr[0];
 
-		node->s3ty = src->bytesperline;
+		yesde->s3ty = src->bytesperline;
 		if (cfg->src_interlaced)
-			node->s3ty *= 2;
-		node->s3ty |= bdisp_hw_color_format(src_fmt);
+			yesde->s3ty *= 2;
+		yesde->s3ty |= bdisp_hw_color_format(src_fmt);
 
 		if ((t_plan != BDISP_CBCR) && cfg->src_420) {
 			/* No chroma upsampling for output RGB / Y plane */
-			node->s3xy = node->s2xy * 2;
-			node->s3sz = node->s2sz * 2;
+			yesde->s3xy = yesde->s2xy * 2;
+			yesde->s3sz = yesde->s2sz * 2;
 		} else {
 			/* No need to read Y (Src3) when writing Chroma */
-			node->s3ty |= BLT_S3TY_BLANK_ACC;
-			node->s3xy = node->s2xy;
-			node->s3sz = node->s2sz;
+			yesde->s3ty |= BLT_S3TY_BLANK_ACC;
+			yesde->s3xy = yesde->s2xy;
+			yesde->s3sz = yesde->s2sz;
 		}
 	}
 
 	/* Resize (scale OR 4:2:0: chroma up/downsampling) */
-	if (node->ins & BLT_INS_SCALE) {
-		/* no need to compute Y when writing CbCr from RGB input */
+	if (yesde->ins & BLT_INS_SCALE) {
+		/* yes need to compute Y when writing CbCr from RGB input */
 		bool skip_y = (t_plan == BDISP_CBCR) && !cfg->src_yuv;
 
 		/* FCTL */
 		if (cfg->scale) {
-			node->fctl = BLT_FCTL_HV_SCALE;
+			yesde->fctl = BLT_FCTL_HV_SCALE;
 			if (!skip_y)
-				node->fctl |= BLT_FCTL_Y_HV_SCALE;
+				yesde->fctl |= BLT_FCTL_Y_HV_SCALE;
 		} else {
-			node->fctl = BLT_FCTL_HV_SAMPLE;
+			yesde->fctl = BLT_FCTL_HV_SAMPLE;
 			if (!skip_y)
-				node->fctl |= BLT_FCTL_Y_HV_SAMPLE;
+				yesde->fctl |= BLT_FCTL_Y_HV_SAMPLE;
 		}
 
 		/* RSF - Chroma may need to be up/downsampled */
@@ -948,24 +948,24 @@ static void bdisp_hw_build_node(struct bdisp_ctx *ctx,
 			h_inc /= 2;
 			v_inc /= 2;
 		}
-		node->rsf = v_inc << 16 | h_inc;
+		yesde->rsf = v_inc << 16 | h_inc;
 
 		/* RZI */
-		node->rzi = BLT_RZI_DEFAULT;
+		yesde->rzi = BLT_RZI_DEFAULT;
 
 		/* Filter table physical addr */
-		node->hfp = bdisp_hw_get_hf_addr(h_inc);
-		node->vfp = bdisp_hw_get_vf_addr(v_inc);
+		yesde->hfp = bdisp_hw_get_hf_addr(h_inc);
+		yesde->vfp = bdisp_hw_get_vf_addr(v_inc);
 
 		/* Y version */
 		if (!skip_y) {
 			yh_inc = cfg->h_inc;
 			yv_inc = cfg->v_inc;
 
-			node->y_rsf = yv_inc << 16 | yh_inc;
-			node->y_rzi = BLT_RZI_DEFAULT;
-			node->y_hfp = bdisp_hw_get_hf_addr(yh_inc);
-			node->y_vfp = bdisp_hw_get_vf_addr(yv_inc);
+			yesde->y_rsf = yv_inc << 16 | yh_inc;
+			yesde->y_rzi = BLT_RZI_DEFAULT;
+			yesde->y_hfp = bdisp_hw_get_hf_addr(yh_inc);
+			yesde->y_vfp = bdisp_hw_get_vf_addr(yv_inc);
 		}
 	}
 
@@ -973,31 +973,31 @@ static void bdisp_hw_build_node(struct bdisp_ctx *ctx,
 	if (cfg->cconv) {
 		ivmx = cfg->src_yuv ? bdisp_yuv_to_rgb : bdisp_rgb_to_yuv;
 
-		node->ivmx0 = ivmx[0];
-		node->ivmx1 = ivmx[1];
-		node->ivmx2 = ivmx[2];
-		node->ivmx3 = ivmx[3];
+		yesde->ivmx0 = ivmx[0];
+		yesde->ivmx1 = ivmx[1];
+		yesde->ivmx2 = ivmx[2];
+		yesde->ivmx3 = ivmx[3];
 	}
 }
 
 /**
- * bdisp_hw_build_all_nodes
+ * bdisp_hw_build_all_yesdes
  * @ctx:        device context
  *
- * Build all the nodes for the blitter operation
+ * Build all the yesdes for the blitter operation
  *
  * RETURNS:
  * 0 on success
  */
-static int bdisp_hw_build_all_nodes(struct bdisp_ctx *ctx)
+static int bdisp_hw_build_all_yesdes(struct bdisp_ctx *ctx)
 {
 	struct bdisp_op_cfg cfg;
 	unsigned int i, nid = 0;
 	int src_x_offset = 0;
 
 	for (i = 0; i < MAX_NB_NODE; i++)
-		if (!ctx->node[i]) {
-			dev_err(ctx->bdisp_dev->dev, "node %d is null\n", i);
+		if (!ctx->yesde[i]) {
+			dev_err(ctx->bdisp_dev->dev, "yesde %d is null\n", i);
 			return -EINVAL;
 		}
 
@@ -1007,19 +1007,19 @@ static int bdisp_hw_build_all_nodes(struct bdisp_ctx *ctx)
 
 	/* Split source in vertical strides (HW constraint) */
 	for (i = 0; i < MAX_VERTICAL_STRIDES; i++) {
-		/* Build RGB/Y node and link it to the previous node */
-		bdisp_hw_build_node(ctx, &cfg, ctx->node[nid],
+		/* Build RGB/Y yesde and link it to the previous yesde */
+		bdisp_hw_build_yesde(ctx, &cfg, ctx->yesde[nid],
 				    cfg.dst_nbp == 1 ? BDISP_RGB : BDISP_Y,
 				    src_x_offset);
 		if (nid)
-			ctx->node[nid - 1]->nip = ctx->node_paddr[nid];
+			ctx->yesde[nid - 1]->nip = ctx->yesde_paddr[nid];
 		nid++;
 
-		/* Build additional Cb(Cr) node, link it to the previous one */
+		/* Build additional Cb(Cr) yesde, link it to the previous one */
 		if (cfg.dst_nbp > 1) {
-			bdisp_hw_build_node(ctx, &cfg, ctx->node[nid],
+			bdisp_hw_build_yesde(ctx, &cfg, ctx->yesde[nid],
 					    BDISP_CBCR, src_x_offset);
-			ctx->node[nid - 1]->nip = ctx->node_paddr[nid];
+			ctx->yesde[nid - 1]->nip = ctx->yesde_paddr[nid];
 			nid++;
 		}
 
@@ -1029,8 +1029,8 @@ static int bdisp_hw_build_all_nodes(struct bdisp_ctx *ctx)
 			break;
 	}
 
-	/* Mark last node as the last */
-	ctx->node[nid - 1]->nip = 0;
+	/* Mark last yesde as the last */
+	ctx->yesde[nid - 1]->nip = 0;
 
 	return 0;
 }
@@ -1039,16 +1039,16 @@ static int bdisp_hw_build_all_nodes(struct bdisp_ctx *ctx)
  * bdisp_hw_save_request
  * @ctx:        device context
  *
- * Save a copy of the request and of the built nodes
+ * Save a copy of the request and of the built yesdes
  *
  * RETURNS:
  * None
  */
 static void bdisp_hw_save_request(struct bdisp_ctx *ctx)
 {
-	struct bdisp_node **copy_node = ctx->bdisp_dev->dbg.copy_node;
+	struct bdisp_yesde **copy_yesde = ctx->bdisp_dev->dbg.copy_yesde;
 	struct bdisp_request *request = &ctx->bdisp_dev->dbg.copy_request;
-	struct bdisp_node **node = ctx->node;
+	struct bdisp_yesde **yesde = ctx->yesde;
 	int i;
 
 	/* Request copy */
@@ -1060,15 +1060,15 @@ static void bdisp_hw_save_request(struct bdisp_ctx *ctx)
 
 	/* Nodes copy */
 	for (i = 0; i < MAX_NB_NODE; i++) {
-		/* Allocate memory if not done yet */
-		if (!copy_node[i]) {
-			copy_node[i] = devm_kzalloc(ctx->bdisp_dev->dev,
-						    sizeof(*copy_node[i]),
+		/* Allocate memory if yest done yet */
+		if (!copy_yesde[i]) {
+			copy_yesde[i] = devm_kzalloc(ctx->bdisp_dev->dev,
+						    sizeof(*copy_yesde[i]),
 						    GFP_ATOMIC);
-			if (!copy_node[i])
+			if (!copy_yesde[i])
 				return;
 		}
-		*copy_node[i] = *node[i];
+		*copy_yesde[i] = *yesde[i];
 	}
 }
 
@@ -1086,14 +1086,14 @@ int bdisp_hw_update(struct bdisp_ctx *ctx)
 	int ret;
 	struct bdisp_dev *bdisp = ctx->bdisp_dev;
 	struct device *dev = bdisp->dev;
-	unsigned int node_id;
+	unsigned int yesde_id;
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	/* build nodes */
-	ret = bdisp_hw_build_all_nodes(ctx);
+	/* build yesdes */
+	ret = bdisp_hw_build_all_yesdes(ctx);
 	if (ret) {
-		dev_err(dev, "cannot build nodes (%d)\n", ret);
+		dev_err(dev, "canyest build yesdes (%d)\n", ret);
 		return ret;
 	}
 
@@ -1104,15 +1104,15 @@ int bdisp_hw_update(struct bdisp_ctx *ctx)
 	writel(BLT_AQ1_CTL_CFG, bdisp->regs + BLT_AQ1_CTL);
 	writel(BLT_ITS_AQ1_LNA, bdisp->regs + BLT_ITM0);
 
-	/* Write first node addr */
-	writel(ctx->node_paddr[0], bdisp->regs + BLT_AQ1_IP);
+	/* Write first yesde addr */
+	writel(ctx->yesde_paddr[0], bdisp->regs + BLT_AQ1_IP);
 
-	/* Find and write last node addr : this starts the HW processing */
-	for (node_id = 0; node_id < MAX_NB_NODE - 1; node_id++) {
-		if (!ctx->node[node_id]->nip)
+	/* Find and write last yesde addr : this starts the HW processing */
+	for (yesde_id = 0; yesde_id < MAX_NB_NODE - 1; yesde_id++) {
+		if (!ctx->yesde[yesde_id]->nip)
 			break;
 	}
-	writel(ctx->node_paddr[node_id], bdisp->regs + BLT_AQ1_LNA);
+	writel(ctx->yesde_paddr[yesde_id], bdisp->regs + BLT_AQ1_LNA);
 
 	return 0;
 }

@@ -18,7 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -83,7 +83,7 @@ struct ipv6_params ipv6_defaults = {
 static int disable_ipv6_mod;
 
 module_param_named(disable, disable_ipv6_mod, int, 0444);
-MODULE_PARM_DESC(disable, "Disable IPv6 module such that it is non-functional");
+MODULE_PARM_DESC(disable, "Disable IPv6 module such that it is yesn-functional");
 
 module_param_named(disable_ipv6, ipv6_defaults.disable_ipv6, int, 0444);
 MODULE_PARM_DESC(disable_ipv6, "Disable IPv6 on all interfaces");
@@ -126,7 +126,7 @@ lookup_protocol:
 	list_for_each_entry_rcu(answer, &inetsw6[sock->type], list) {
 
 		err = 0;
-		/* Check the non-wild match. */
+		/* Check the yesn-wild match. */
 		if (protocol == answer->protocol) {
 			if (protocol != IPPROTO_IP)
 				break;
@@ -222,7 +222,7 @@ lookup_protocol:
 	inet->mc_list	= NULL;
 	inet->rcv_tos	= 0;
 
-	if (net->ipv4.sysctl_ip_no_pmtu_disc)
+	if (net->ipv4.sysctl_ip_yes_pmtu_disc)
 		inet->pmtudisc = IP_PMTUDISC_DONT;
 	else
 		inet->pmtudisc = IP_PMTUDISC_WANT;
@@ -231,8 +231,8 @@ lookup_protocol:
 	 * the previous behaviour of incrementing both the equivalent to
 	 * answer->prot->socks (inet6_sock_nr) and inet_sock_nr.
 	 *
-	 * This allows better debug granularity as we'll know exactly how many
-	 * UDPv6, TCPv6, etc socks were allocated, not the sum of all IPv6
+	 * This allows better debug granularity as we'll kyesw exactly how many
+	 * UDPv6, TCPv6, etc socks were allocated, yest the sum of all IPv6
 	 * transport protocol socks. -acme
 	 */
 	sk_refcnt_debug_inc(sk);
@@ -272,7 +272,7 @@ out_rcu_unlock:
 }
 
 static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
-			bool force_bind_address_no_port, bool with_lock)
+			bool force_bind_address_yes_port, bool with_lock)
 {
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)uaddr;
 	struct inet_sock *inet = inet_sk(sk);
@@ -311,7 +311,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		int chk_addr_ret;
 
 		/* Binding to v4-mapped address on a v6-only socket
-		 * makes no sense
+		 * makes yes sense
 		 */
 		if (sk->sk_ipv6only) {
 			err = -EINVAL;
@@ -332,7 +332,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		chk_addr_ret = inet_addr_type_dev_table(net, dev, v4addr);
 		rcu_read_unlock();
 
-		if (!inet_can_nonlocal_bind(net, inet) &&
+		if (!inet_can_yesnlocal_bind(net, inet) &&
 		    v4addr != htonl(INADDR_ANY) &&
 		    chk_addr_ret != RTN_LOCAL &&
 		    chk_addr_ret != RTN_MULTICAST &&
@@ -348,7 +348,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 			if (__ipv6_addr_needs_scope_id(addr_type)) {
 				if (addr_len >= sizeof(struct sockaddr_in6) &&
 				    addr->sin6_scope_id) {
-					/* Override any existing binding, if another one
+					/* Override any existing binding, if ayesther one
 					 * is supplied by user.
 					 */
 					sk->sk_bound_dev_if = addr->sin6_scope_id;
@@ -374,7 +374,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 			 */
 			v4addr = LOOPBACK4_IPV6;
 			if (!(addr_type & IPV6_ADDR_MULTICAST))	{
-				if (!ipv6_can_nonlocal_bind(net, inet) &&
+				if (!ipv6_can_yesnlocal_bind(net, inet) &&
 				    !ipv6_chk_addr(net, &addr->sin6_addr,
 						   dev, 0)) {
 					err = -EADDRNOTAVAIL;
@@ -398,8 +398,8 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		sk->sk_ipv6only = 1;
 
 	/* Make sure we are allowed to bind here. */
-	if (snum || !(inet->bind_address_no_port ||
-		      force_bind_address_no_port)) {
+	if (snum || !(inet->bind_address_yes_port ||
+		      force_bind_address_yes_port)) {
 		if (sk->sk_prot->get_port(sk, snum)) {
 			sk->sk_ipv6only = saved_ipv6only;
 			inet_reset_saddr(sk);
@@ -603,7 +603,7 @@ const struct proto_ops inet6_stream_ops = {
 	.release	   = inet6_release,
 	.bind		   = inet6_bind,
 	.connect	   = inet_stream_connect,	/* ok		*/
-	.socketpair	   = sock_no_socketpair,	/* a do nothing	*/
+	.socketpair	   = sock_yes_socketpair,	/* a do yesthing	*/
 	.accept		   = inet_accept,		/* ok		*/
 	.getname	   = inet6_getname,
 	.poll		   = tcp_poll,			/* ok		*/
@@ -637,20 +637,20 @@ const struct proto_ops inet6_dgram_ops = {
 	.release	   = inet6_release,
 	.bind		   = inet6_bind,
 	.connect	   = inet_dgram_connect,	/* ok		*/
-	.socketpair	   = sock_no_socketpair,	/* a do nothing	*/
-	.accept		   = sock_no_accept,		/* a do nothing	*/
+	.socketpair	   = sock_yes_socketpair,	/* a do yesthing	*/
+	.accept		   = sock_yes_accept,		/* a do yesthing	*/
 	.getname	   = inet6_getname,
 	.poll		   = udp_poll,			/* ok		*/
 	.ioctl		   = inet6_ioctl,		/* must change  */
 	.gettstamp	   = sock_gettstamp,
-	.listen		   = sock_no_listen,		/* ok		*/
+	.listen		   = sock_yes_listen,		/* ok		*/
 	.shutdown	   = inet_shutdown,		/* ok		*/
 	.setsockopt	   = sock_common_setsockopt,	/* ok		*/
 	.getsockopt	   = sock_common_getsockopt,	/* ok		*/
 	.sendmsg	   = inet6_sendmsg,		/* retpoline's sake */
 	.recvmsg	   = inet6_recvmsg,		/* retpoline's sake */
-	.mmap		   = sock_no_mmap,
-	.sendpage	   = sock_no_sendpage,
+	.mmap		   = sock_yes_mmap,
+	.sendpage	   = sock_yes_sendpage,
 	.set_peek_off	   = sk_set_peek_off,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
@@ -685,7 +685,7 @@ int inet6_register_protosw(struct inet_protosw *p)
 	list_for_each(lh, &inetsw6[p->type]) {
 		answer = list_entry(lh, struct inet_protosw, list);
 
-		/* Check only the non-wild match. */
+		/* Check only the yesn-wild match. */
 		if (INET_PROTOSW_PERMANENT & answer->flags) {
 			if (protocol == answer->protocol)
 				break;
@@ -698,9 +698,9 @@ int inet6_register_protosw(struct inet_protosw *p)
 		goto out_permanent;
 
 	/* Add the new entry after the last permanent entry if any, so that
-	 * the new entry does not override a permanent entry when matched with
+	 * the new entry does yest override a permanent entry when matched with
 	 * a wild-card protocol. But it is allowed to override any existing
-	 * non-permanent entry.  This means that when we remove this entry, the
+	 * yesn-permanent entry.  This means that when we remove this entry, the
 	 * system automatically returns to the old behavior.
 	 */
 	list_add_rcu(&p->list, last_perm);
@@ -714,7 +714,7 @@ out_permanent:
 	goto out;
 
 out_illegal:
-	pr_err("Ignoring attempt to register invalid socket type %d\n",
+	pr_err("Igyesring attempt to register invalid socket type %d\n",
 	       p->type);
 	goto out;
 }
@@ -872,9 +872,9 @@ static int __net_init inet6_net_init(struct net *net)
 
 	net->ipv6.sysctl.bindv6only = 0;
 	net->ipv6.sysctl.icmpv6_time = 1*HZ;
-	net->ipv6.sysctl.icmpv6_echo_ignore_all = 0;
-	net->ipv6.sysctl.icmpv6_echo_ignore_multicast = 0;
-	net->ipv6.sysctl.icmpv6_echo_ignore_anycast = 0;
+	net->ipv6.sysctl.icmpv6_echo_igyesre_all = 0;
+	net->ipv6.sysctl.icmpv6_echo_igyesre_multicast = 0;
+	net->ipv6.sysctl.icmpv6_echo_igyesre_anycast = 0;
 
 	/* By default, rate limit error messages.
 	 * Except for pmtu discovery, it would break it.

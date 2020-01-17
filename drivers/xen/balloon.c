@@ -24,7 +24,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -42,7 +42,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/cred.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/memblock.h>
 #include <linux/pagemap.h>
@@ -50,7 +50,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/gfp.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/memory.h>
 #include <linux/memory_hotplug.h>
 #include <linux/percpu-defs.h>
@@ -119,7 +119,7 @@ static struct ctl_table xen_root[] = {
 /*
  * balloon_process() state:
  *
- * BP_DONE: done or nothing to do,
+ * BP_DONE: done or yesthing to do,
  * BP_WAIT: wait to be rescheduled,
  * BP_EAGAIN: error, go to sleep,
  * BP_ECANCELED: error, balloon operation canceled.
@@ -171,7 +171,7 @@ static void balloon_append(struct page *page)
 	wake_up(&balloon_wq);
 }
 
-/* balloon_retrieve: rescue a page from the balloon, if it is not empty. */
+/* balloon_retrieve: rescue a page from the balloon, if it is yest empty. */
 static struct page *balloon_retrieve(bool require_lowmem)
 {
 	struct page *page;
@@ -239,8 +239,8 @@ static void release_memory_resource(struct resource *resource)
 		return;
 
 	/*
-	 * No need to reset region to identity mapped since we now
-	 * know that no I/O can be in this region
+	 * No need to reset region to identity mapped since we yesw
+	 * kyesw that yes I/O can be in this region
 	 */
 	release_resource(resource);
 	kfree(resource);
@@ -262,7 +262,7 @@ static struct resource *additional_memory_resource(phys_addr_t size)
 				size, 0, -1,
 				PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
 	if (ret < 0) {
-		pr_err("Cannot allocate new System RAM resource\n");
+		pr_err("Canyest allocate new System RAM resource\n");
 		kfree(res);
 		return NULL;
 	}
@@ -295,7 +295,7 @@ static enum bp_state reserve_additional_memory(void)
 		- balloon_stats.total_pages;
 
 	/*
-	 * Already hotplugged enough pages?  Wait for them to be
+	 * Already hotplugged eyesugh pages?  Wait for them to be
 	 * onlined.
 	 */
 	if (credit <= 0)
@@ -319,10 +319,10 @@ static enum bp_state reserve_additional_memory(void)
         /*
          * add_memory() will build page tables for the new memory so
          * the p2m must contain invalid entries so the correct
-         * non-present PTEs will be written.
+         * yesn-present PTEs will be written.
          *
          * If a failure occurs, the original (identity) p2m entries
-         * are not restored since this region is now known not to
+         * are yest restored since this region is yesw kyeswn yest to
          * conflict with any devices.
          */ 
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
@@ -331,7 +331,7 @@ static enum bp_state reserve_additional_memory(void)
 		pfn = PFN_DOWN(resource->start);
 		for (i = 0; i < balloon_hotplug; i++) {
 			if (!set_phys_to_machine(pfn + i, INVALID_P2M_ENTRY)) {
-				pr_warn("set_phys_to_machine() failed, no memory added\n");
+				pr_warn("set_phys_to_machine() failed, yes memory added\n");
 				goto err;
 			}
                 }
@@ -352,7 +352,7 @@ static enum bp_state reserve_additional_memory(void)
 	mutex_lock(&balloon_mutex);
 
 	if (rc) {
-		pr_warn("Cannot add additional memory (%i)\n", rc);
+		pr_warn("Canyest add additional memory (%i)\n", rc);
 		goto err;
 	}
 
@@ -379,7 +379,7 @@ static void xen_online_page(struct page *page, unsigned int order)
 	mutex_unlock(&balloon_mutex);
 }
 
-static int xen_memory_notifier(struct notifier_block *nb, unsigned long val, void *v)
+static int xen_memory_yestifier(struct yestifier_block *nb, unsigned long val, void *v)
 {
 	if (val == MEM_ONLINE)
 		schedule_delayed_work(&balloon_worker, 0);
@@ -387,8 +387,8 @@ static int xen_memory_notifier(struct notifier_block *nb, unsigned long val, voi
 	return NOTIFY_OK;
 }
 
-static struct notifier_block xen_memory_nb = {
-	.notifier_call = xen_memory_notifier,
+static struct yestifier_block xen_memory_nb = {
+	.yestifier_call = xen_memory_yestifier,
 	.priority = 0
 };
 #else
@@ -595,7 +595,7 @@ static int add_ballooned_pages(int nr_pages)
  */
 int alloc_xenballooned_pages(int nr_pages, struct page **pages)
 {
-	int pgno = 0;
+	int pgyes = 0;
 	struct page *page;
 	int ret;
 
@@ -603,10 +603,10 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
 
 	balloon_stats.target_unpopulated += nr_pages;
 
-	while (pgno < nr_pages) {
+	while (pgyes < nr_pages) {
 		page = balloon_retrieve(true);
 		if (page) {
-			pages[pgno++] = page;
+			pages[pgyes++] = page;
 #ifdef CONFIG_XEN_HAVE_PVMMU
 			/*
 			 * We don't support PV MMU when Linux and Xen is using
@@ -621,7 +621,7 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
 			}
 #endif
 		} else {
-			ret = add_ballooned_pages(nr_pages - pgno);
+			ret = add_ballooned_pages(nr_pages - pgyes);
 			if (ret < 0)
 				goto out_undo;
 		}
@@ -630,7 +630,7 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
 	return 0;
  out_undo:
 	mutex_unlock(&balloon_mutex);
-	free_xenballooned_pages(pgno, pages);
+	free_xenballooned_pages(pgyes, pages);
 	return ret;
 }
 EXPORT_SYMBOL(alloc_xenballooned_pages);
@@ -653,7 +653,7 @@ void free_xenballooned_pages(int nr_pages, struct page **pages)
 
 	balloon_stats.target_unpopulated -= nr_pages;
 
-	/* The balloon may be too large now. Shrink it if needed. */
+	/* The balloon may be too large yesw. Shrink it if needed. */
 	if (current_credit())
 		schedule_delayed_work(&balloon_worker, 0);
 
@@ -675,7 +675,7 @@ static void __init balloon_add_region(unsigned long start_pfn,
 	extra_pfn_end = min(max_pfn, start_pfn + pages);
 
 	for (pfn = start_pfn; pfn < extra_pfn_end; pfn++) {
-		/* totalram_pages and totalhigh_pages do not
+		/* totalram_pages and totalhigh_pages do yest
 		   include the boot-time balloon extension, so
 		   don't subtract from it. */
 		balloon_append(pfn_to_page(pfn));
@@ -711,7 +711,7 @@ static int __init balloon_init(void)
 
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
 	set_online_page_callback(&xen_online_page);
-	register_memory_notifier(&xen_memory_nb);
+	register_memory_yestifier(&xen_memory_nb);
 	register_sysctl_table(xen_root);
 #endif
 

@@ -2,7 +2,7 @@
 #define DISABLE_BRANCH_PROFILING
 #define pr_fmt(fmt) "kasan: " fmt
 
-/* cpu_feature_enabled() cannot be used this early */
+/* cpu_feature_enabled() canyest be used this early */
 #define USE_EARLY_PGTABLE_L5
 
 #include <linux/memblock.h>
@@ -41,7 +41,7 @@ static void __init kasan_populate_pmd(pmd_t *pmd, unsigned long addr,
 {
 	pte_t *pte;
 
-	if (pmd_none(*pmd)) {
+	if (pmd_yesne(*pmd)) {
 		void *p;
 
 		if (boot_cpu_has(X86_FEATURE_PSE) &&
@@ -63,7 +63,7 @@ static void __init kasan_populate_pmd(pmd_t *pmd, unsigned long addr,
 		pte_t entry;
 		void *p;
 
-		if (!pte_none(*pte))
+		if (!pte_yesne(*pte))
 			continue;
 
 		p = early_alloc(PAGE_SIZE, nid, true);
@@ -78,7 +78,7 @@ static void __init kasan_populate_pud(pud_t *pud, unsigned long addr,
 	pmd_t *pmd;
 	unsigned long next;
 
-	if (pud_none(*pud)) {
+	if (pud_yesne(*pud)) {
 		void *p;
 
 		if (boot_cpu_has(X86_FEATURE_GBPAGES) &&
@@ -109,7 +109,7 @@ static void __init kasan_populate_p4d(p4d_t *p4d, unsigned long addr,
 	pud_t *pud;
 	unsigned long next;
 
-	if (p4d_none(*p4d)) {
+	if (p4d_yesne(*p4d)) {
 		void *p = early_alloc(PAGE_SIZE, nid, true);
 
 		p4d_populate(&init_mm, p4d, p);
@@ -130,7 +130,7 @@ static void __init kasan_populate_pgd(pgd_t *pgd, unsigned long addr,
 	p4d_t *p4d;
 	unsigned long next;
 
-	if (pgd_none(*pgd)) {
+	if (pgd_yesne(*pgd)) {
 		p = early_alloc(PAGE_SIZE, nid, true);
 		pgd_populate(&init_mm, pgd, p);
 	}
@@ -178,7 +178,7 @@ static void __init clear_pgds(unsigned long start,
 	for (; start < pgd_end; start += PGDIR_SIZE) {
 		pgd = pgd_offset_k(start);
 		/*
-		 * With folded p4d, pgd_clear() is nop, use p4d_clear()
+		 * With folded p4d, pgd_clear() is yesp, use p4d_clear()
 		 * instead.
 		 */
 		if (pgtable_l5_enabled())
@@ -212,9 +212,9 @@ static void __init kasan_early_p4d_populate(pgd_t *pgd,
 	p4d_t *p4d, p4d_entry;
 	unsigned long next;
 
-	if (pgd_none(*pgd)) {
+	if (pgd_yesne(*pgd)) {
 		pgd_entry = __pgd(_KERNPG_TABLE |
-					__pa_nodebug(kasan_early_shadow_p4d));
+					__pa_yesdebug(kasan_early_shadow_p4d));
 		set_pgd(pgd, pgd_entry);
 	}
 
@@ -222,13 +222,13 @@ static void __init kasan_early_p4d_populate(pgd_t *pgd,
 	do {
 		next = p4d_addr_end(addr, end);
 
-		if (!p4d_none(*p4d))
+		if (!p4d_yesne(*p4d))
 			continue;
 
 		p4d_entry = __p4d(_KERNPG_TABLE |
-					__pa_nodebug(kasan_early_shadow_pud));
+					__pa_yesdebug(kasan_early_shadow_pud));
 		set_p4d(p4d, p4d_entry);
-	} while (p4d++, addr = next, addr != end && p4d_none(*p4d));
+	} while (p4d++, addr = next, addr != end && p4d_yesne(*p4d));
 }
 
 static void __init kasan_map_early_shadow(pgd_t *pgd)
@@ -257,7 +257,7 @@ static void __init kasan_shallow_populate_p4ds(pgd_t *pgd,
 	do {
 		next = p4d_addr_end(addr, end);
 
-		if (p4d_none(*p4d)) {
+		if (p4d_yesne(*p4d)) {
 			p = early_alloc(PAGE_SIZE, NUMA_NO_NODE, true);
 			p4d_populate(&init_mm, p4d, p);
 		}
@@ -275,7 +275,7 @@ static void __init kasan_shallow_populate_pgds(void *start, void *end)
 	do {
 		next = pgd_addr_end(addr, (unsigned long)end);
 
-		if (pgd_none(*pgd)) {
+		if (pgd_yesne(*pgd)) {
 			p = early_alloc(PAGE_SIZE, NUMA_NO_NODE, true);
 			pgd_populate(&init_mm, pgd, p);
 		}
@@ -289,7 +289,7 @@ static void __init kasan_shallow_populate_pgds(void *start, void *end)
 }
 
 #ifdef CONFIG_KASAN_INLINE
-static int kasan_die_handler(struct notifier_block *self,
+static int kasan_die_handler(struct yestifier_block *self,
 			     unsigned long val,
 			     void *data)
 {
@@ -300,19 +300,19 @@ static int kasan_die_handler(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block kasan_die_notifier = {
-	.notifier_call = kasan_die_handler,
+static struct yestifier_block kasan_die_yestifier = {
+	.yestifier_call = kasan_die_handler,
 };
 #endif
 
 void __init kasan_early_init(void)
 {
 	int i;
-	pteval_t pte_val = __pa_nodebug(kasan_early_shadow_page) |
+	pteval_t pte_val = __pa_yesdebug(kasan_early_shadow_page) |
 				__PAGE_KERNEL | _PAGE_ENC;
-	pmdval_t pmd_val = __pa_nodebug(kasan_early_shadow_pte) | _KERNPG_TABLE;
-	pudval_t pud_val = __pa_nodebug(kasan_early_shadow_pmd) | _KERNPG_TABLE;
-	p4dval_t p4d_val = __pa_nodebug(kasan_early_shadow_pud) | _KERNPG_TABLE;
+	pmdval_t pmd_val = __pa_yesdebug(kasan_early_shadow_pte) | _KERNPG_TABLE;
+	pudval_t pud_val = __pa_yesdebug(kasan_early_shadow_pmd) | _KERNPG_TABLE;
+	p4dval_t p4d_val = __pa_yesdebug(kasan_early_shadow_pud) | _KERNPG_TABLE;
 
 	/* Mask out unsupported __PAGE_KERNEL bits: */
 	pte_val &= __default_kernel_pte_mask;
@@ -342,7 +342,7 @@ void __init kasan_init(void)
 	void *shadow_cpu_entry_begin, *shadow_cpu_entry_end;
 
 #ifdef CONFIG_KASAN_INLINE
-	register_die_notifier(&kasan_die_notifier);
+	register_die_yestifier(&kasan_die_yestifier);
 #endif
 
 	memcpy(early_top_pgt, init_top_pgt, sizeof(early_top_pgt));
@@ -351,14 +351,14 @@ void __init kasan_init(void)
 	 * We use the same shadow offset for 4- and 5-level paging to
 	 * facilitate boot-time switching between paging modes.
 	 * As result in 5-level paging mode KASAN_SHADOW_START and
-	 * KASAN_SHADOW_END are not aligned to PGD boundary.
+	 * KASAN_SHADOW_END are yest aligned to PGD boundary.
 	 *
 	 * KASAN_SHADOW_START doesn't share PGD with anything else.
 	 * We claim whole PGD entry to make things easier.
 	 *
 	 * KASAN_SHADOW_END lands in the last PGD entry and it collides with
 	 * bunch of things like kernel code, modules, EFI mapping, etc.
-	 * We need to take extra steps to not overwrite them.
+	 * We need to take extra steps to yest overwrite them.
 	 */
 	if (pgtable_l5_enabled()) {
 		void *ptr;
@@ -436,7 +436,7 @@ void __init kasan_init(void)
 	/*
 	 * kasan_early_shadow_page has been used as early shadow memory, thus
 	 * it may contain some garbage. Now we can clear and write protect it,
-	 * since after the TLB flush no one should write to it.
+	 * since after the TLB flush yes one should write to it.
 	 */
 	memset(kasan_early_shadow_page, 0, PAGE_SIZE);
 	for (i = 0; i < PTRS_PER_PTE; i++) {

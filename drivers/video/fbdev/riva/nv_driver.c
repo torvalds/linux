@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -22,13 +22,13 @@
  */
 
 /*
- * GPL licensing note -- nVidia is allowing a liberal interpretation of
+ * GPL licensing yeste -- nVidia is allowing a liberal interpretation of
  * the documentation restriction above, to merely say that this nVidia's
  * copyright and disclaimer should be included with all code derived
  * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99 
  */
 
-/* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jarno Paananen
+/* Hacked together from mga driver and 3.3.4 NVIDIA driver by Jaryes Paananen
    <jpaana@s2.org> */
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_setup.c,v 1.18 2002/08/0
@@ -110,7 +110,7 @@ riva_is_second(struct riva_par *par)
 		case 0x017D:
 		case 0x0186:
 		case 0x0187:
-		/* this might not be a good default for the chips below */
+		/* this might yest be a good default for the chips below */
 		case 0x0286:
 		case 0x028C:
 		case 0x0316:
@@ -339,7 +339,7 @@ riva_common_setup(struct riva_par *par)
 	
 	if (par->FlatPanel == -1) {
 		switch (par->Chipset & 0xffff) {
-		case 0x0112:   /* known laptop chips */
+		case 0x0112:   /* kyeswn laptop chips */
 		case 0x0174:
 		case 0x0175:
 		case 0x0176:

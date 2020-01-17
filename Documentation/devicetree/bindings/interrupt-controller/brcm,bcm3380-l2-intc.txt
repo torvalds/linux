@@ -8,18 +8,18 @@ chipsets.  It has the following properties:
 - contains one or more enable/status word pairs, which often appear at
   different offsets in different blocks
 
-- no atomic set/clear operations
+- yes atomic set/clear operations
 
 Required properties:
 
 - compatible: should be "brcm,bcm3380-l2-intc"
 - reg: specifies one or more enable/status pairs, in the following format:
   <enable_reg 0x4 status_reg 0x4>...
-- interrupt-controller: identifies the node as an interrupt controller
+- interrupt-controller: identifies the yesde as an interrupt controller
 - #interrupt-cells: specifies the number of cells needed to encode an interrupt
   source, should be 1.
 - interrupts: specifies the interrupt line in the interrupt-parent controller
-  node, valid values depend on the type of parent interrupt controller
+  yesde, valid values depend on the type of parent interrupt controller
 
 Optional properties:
 

@@ -123,7 +123,7 @@ int xge_mdio_config(struct net_device *ndev)
 
 	phydev = phy_find_first(mdio_bus);
 	if (!phydev) {
-		dev_err(dev, "no PHY found\n");
+		dev_err(dev, "yes PHY found\n");
 		ret = -ENODEV;
 		goto err;
 	}
@@ -132,7 +132,7 @@ int xge_mdio_config(struct net_device *ndev)
 			     pdata->resources.phy_mode);
 
 	if (IS_ERR(phydev)) {
-		netdev_err(ndev, "Could not attach to PHY\n");
+		netdev_err(ndev, "Could yest attach to PHY\n");
 		ret = PTR_ERR(phydev);
 		goto err;
 	}
@@ -146,7 +146,7 @@ int xge_mdio_config(struct net_device *ndev)
 	linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, mask);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_BNC_BIT, mask);
 
-	linkmode_andnot(phydev->supported, phydev->supported, mask);
+	linkmode_andyest(phydev->supported, phydev->supported, mask);
 	linkmode_copy(phydev->advertising, phydev->supported);
 	pdata->phy_speed = SPEED_UNKNOWN;
 

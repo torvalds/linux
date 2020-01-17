@@ -21,7 +21,7 @@ which can show otg fsm variables and some controller registers value::
 	cat /sys/kernel/debug/ci_hdrc.0/otg
 	cat /sys/kernel/debug/ci_hdrc.0/registers
 
-1.1.2 Add below entries in your dts file for your controller node
+1.1.2 Add below entries in your dts file for your controller yesde
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ::
@@ -54,7 +54,7 @@ which can show otg fsm variables and some controller registers value::
 
 	echo 0 > /sys/bus/platform/devices/ci_hdrc.0/inputs/b_bus_req
 
-   or, by introducing HNP polling, B-Host can know when A-peripheral wish
+   or, by introducing HNP polling, B-Host can kyesw when A-peripheral wish
    to be host role, so this role switch also can be trigged in A-peripheral
    side by answering the polling from B-Host, this can be done on A-device::
 

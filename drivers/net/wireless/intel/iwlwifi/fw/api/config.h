@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -135,7 +135,7 @@ struct iwl_phy_cfg_cmd {
  * Ids of dc2dc configuration flags
  */
 enum iwl_dc2dc_config_id {
-	DCDC_LOW_POWER_MODE_MSK_SET  = 0x1, /* not used */
+	DCDC_LOW_POWER_MODE_MSK_SET  = 0x1, /* yest used */
 	DCDC_FREQ_TUNE_SET = 0x2,
 }; /* MARKER_ID_API_E_VER_1 */
 
@@ -148,13 +148,13 @@ enum iwl_dc2dc_config_id {
  * The command always returns the current dc2dc values.
  *
  * @flags: set/get dc2dc
- * @enable_low_power_mode: not used.
+ * @enable_low_power_mode: yest used.
  * @dc2dc_freq_tune0: frequency divider - digital domain
  * @dc2dc_freq_tune1: frequency divider - analog domain
  */
 struct iwl_dc2dc_config_cmd {
 	__le32 flags;
-	__le32 enable_low_power_mode; /* not used */
+	__le32 enable_low_power_mode; /* yest used */
 	__le32 dc2dc_freq_tune0;
 	__le32 dc2dc_freq_tune1;
 } __packed; /* DC2DC_CONFIG_CMD_API_S_VER_1 */

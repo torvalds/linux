@@ -123,9 +123,9 @@ EXPORT_SYMBOL_GPL(devm_platform_ioremap_resource_byname);
  * @num: IRQ number index
  *
  * Gets an IRQ for a platform device. Device drivers should check the return
- * value for errors so as to not pass a negative integer value to the
+ * value for errors so as to yest pass a negative integer value to the
  * request_irq() APIs. This is the same as platform_get_irq(), except that it
- * does not print an error message if an IRQ can not be obtained.
+ * does yest print an error message if an IRQ can yest be obtained.
  *
  * Example:
  *		int irq = platform_get_irq_optional(pdev, 0);
@@ -137,7 +137,7 @@ EXPORT_SYMBOL_GPL(devm_platform_ioremap_resource_byname);
 int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 {
 #ifdef CONFIG_SPARC
-	/* sparc does not have irqs represented as IORESOURCE_IRQ resources */
+	/* sparc does yest have irqs represented as IORESOURCE_IRQ resources */
 	if (!dev || num >= dev->archdata.num_irqs)
 		return -ENXIO;
 	return dev->archdata.irqs[num];
@@ -145,8 +145,8 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 	struct resource *r;
 	int ret;
 
-	if (IS_ENABLED(CONFIG_OF_IRQ) && dev->dev.of_node) {
-		ret = of_irq_get(dev->dev.of_node, num);
+	if (IS_ENABLED(CONFIG_OF_IRQ) && dev->dev.of_yesde) {
+		ret = of_irq_get(dev->dev.of_yesde, num);
 		if (ret > 0 || ret == -EPROBE_DEFER)
 			return ret;
 	}
@@ -204,7 +204,7 @@ EXPORT_SYMBOL_GPL(platform_get_irq_optional);
  *
  * Gets an IRQ for a platform device and prints an error message if finding the
  * IRQ fails. Device drivers should check the return value for errors so as to
- * not pass a negative integer value to the request_irq() APIs.
+ * yest pass a negative integer value to the request_irq() APIs.
  *
  * Example:
  *		int irq = platform_get_irq(pdev, 0);
@@ -219,7 +219,7 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 
 	ret = platform_get_irq_optional(dev, num);
 	if (ret < 0 && ret != -EPROBE_DEFER)
-		dev_err(&dev->dev, "IRQ index %u not found\n", num);
+		dev_err(&dev->dev, "IRQ index %u yest found\n", num);
 
 	return ret;
 }
@@ -276,8 +276,8 @@ static int __platform_get_irq_byname(struct platform_device *dev,
 	struct resource *r;
 	int ret;
 
-	if (IS_ENABLED(CONFIG_OF_IRQ) && dev->dev.of_node) {
-		ret = of_irq_get_byname(dev->dev.of_node, name);
+	if (IS_ENABLED(CONFIG_OF_IRQ) && dev->dev.of_yesde) {
+		ret = of_irq_get_byname(dev->dev.of_yesde, name);
 		if (ret > 0 || ret == -EPROBE_DEFER)
 			return ret;
 	}
@@ -304,7 +304,7 @@ int platform_get_irq_byname(struct platform_device *dev, const char *name)
 
 	ret = __platform_get_irq_byname(dev, name);
 	if (ret < 0 && ret != -EPROBE_DEFER)
-		dev_err(&dev->dev, "IRQ %s not found\n", name);
+		dev_err(&dev->dev, "IRQ %s yest found\n", name);
 
 	return ret;
 }
@@ -316,7 +316,7 @@ EXPORT_SYMBOL_GPL(platform_get_irq_byname);
  * @name: IRQ name
  *
  * Get an optional IRQ by name like platform_get_irq_byname(). Except that it
- * does not print an error message if an IRQ can not be obtained.
+ * does yest print an error message if an IRQ can yest be obtained.
  *
  * Return: IRQ number on success, negative error number on failure.
  */
@@ -387,7 +387,7 @@ static void platform_device_release(struct device *dev)
 	struct platform_object *pa = container_of(dev, struct platform_object,
 						  pdev.dev);
 
-	of_device_node_put(&pa->pdev.dev);
+	of_device_yesde_put(&pa->pdev.dev);
 	kfree(pa->pdev.dev.platform_data);
 	kfree(pa->pdev.mfd_cell);
 	kfree(pa->pdev.resource);
@@ -655,15 +655,15 @@ struct platform_device *platform_device_register_full(
 		return ERR_PTR(-ENOMEM);
 
 	pdev->dev.parent = pdevinfo->parent;
-	pdev->dev.fwnode = pdevinfo->fwnode;
-	pdev->dev.of_node = of_node_get(to_of_node(pdev->dev.fwnode));
-	pdev->dev.of_node_reused = pdevinfo->of_node_reused;
+	pdev->dev.fwyesde = pdevinfo->fwyesde;
+	pdev->dev.of_yesde = of_yesde_get(to_of_yesde(pdev->dev.fwyesde));
+	pdev->dev.of_yesde_reused = pdevinfo->of_yesde_reused;
 
 	if (pdevinfo->dma_mask) {
 		/*
 		 * This memory isn't freed when the device is put,
 		 * I don't have a nice idea for that though.  Conceptually
-		 * dma_mask in struct device should not be a pointer.
+		 * dma_mask in struct device should yest be a pointer.
 		 * See http://thread.gmane.org/gmane.linux.kernel.pci/9081
 		 */
 		pdev->dev.dma_mask =
@@ -671,7 +671,7 @@ struct platform_device *platform_device_register_full(
 		if (!pdev->dev.dma_mask)
 			goto err;
 
-		kmemleak_ignore(pdev->dev.dma_mask);
+		kmemleak_igyesre(pdev->dev.dma_mask);
 
 		*pdev->dev.dma_mask = pdevinfo->dma_mask;
 		pdev->dev.coherent_dma_mask = pdevinfo->dma_mask;
@@ -713,7 +713,7 @@ static int platform_drv_probe(struct device *_dev)
 	struct platform_device *dev = to_platform_device(_dev);
 	int ret;
 
-	ret = of_clk_set_defaults(_dev->of_node, false);
+	ret = of_clk_set_defaults(_dev->of_yesde, false);
 	if (ret < 0)
 		return ret;
 
@@ -729,7 +729,7 @@ static int platform_drv_probe(struct device *_dev)
 
 out:
 	if (drv->prevent_deferred_probe && ret == -EPROBE_DEFER) {
-		dev_warn(_dev, "probe deferral not supported\n");
+		dev_warn(_dev, "probe deferral yest supported\n");
 		ret = -ENXIO;
 	}
 
@@ -792,13 +792,13 @@ void platform_driver_unregister(struct platform_driver *drv)
 EXPORT_SYMBOL_GPL(platform_driver_unregister);
 
 /**
- * __platform_driver_probe - register driver for non-hotpluggable device
+ * __platform_driver_probe - register driver for yesn-hotpluggable device
  * @drv: platform driver structure
  * @probe: the driver probe routine, probably from an __init section
  * @module: module which will be the owner of the driver
  *
- * Use this instead of platform_driver_register() when you know the device
- * is not hotpluggable and has already been registered, and you want to
+ * Use this instead of platform_driver_register() when you kyesw the device
+ * is yest hotpluggable and has already been registered, and you want to
  * remove its run-once probe() infrastructure from memory after the driver
  * has bound to the device.
  *
@@ -809,7 +809,7 @@ EXPORT_SYMBOL_GPL(platform_driver_unregister);
  * Note that this is incompatible with deferred probing.
  *
  * Returns zero if the driver registered and bound to a device, else returns
- * a negative error code and with the driver not registered.
+ * a negative error code and with the driver yest registered.
  */
 int __init_or_module __platform_driver_probe(struct platform_driver *drv,
 		int (*probe)(struct platform_device *), struct module *module)
@@ -817,13 +817,13 @@ int __init_or_module __platform_driver_probe(struct platform_driver *drv,
 	int retval, code;
 
 	if (drv->driver.probe_type == PROBE_PREFER_ASYNCHRONOUS) {
-		pr_err("%s: drivers registered with %s can not be probed asynchronously\n",
+		pr_err("%s: drivers registered with %s can yest be probed asynchroyesusly\n",
 			 drv->driver.name, __func__);
 		return -EINVAL;
 	}
 
 	/*
-	 * We have to run our probes synchronously because we check if
+	 * We have to run our probes synchroyesusly because we check if
 	 * we find any devices to bind to and exit with error if there
 	 * are any.
 	 */
@@ -843,7 +843,7 @@ int __init_or_module __platform_driver_probe(struct platform_driver *drv,
 	retval = code = __platform_driver_register(drv, module);
 
 	/*
-	 * Fixup that section violation, being paranoid about code scanning
+	 * Fixup that section violation, being parayesid about code scanning
 	 * the list of drivers in order to probe new devices.  Check to see
 	 * if the probe was successful, and make sure any forced probes of
 	 * new devices fail.
@@ -1104,7 +1104,7 @@ static const struct platform_device_id *platform_match_id(
  * instance of the device, like '0' or '42'.  Driver IDs are simply
  * "<name>".  So, extract the <name> from the platform_device structure,
  * and compare it against the name of the driver. Return whether they match
- * or not.
+ * or yest.
  */
 static int platform_match(struct device *dev, struct device_driver *drv)
 {
@@ -1280,10 +1280,10 @@ int platform_dma_configure(struct device *dev)
 	enum dev_dma_attr attr;
 	int ret = 0;
 
-	if (dev->of_node) {
-		ret = of_dma_configure(dev, dev->of_node, true);
+	if (dev->of_yesde) {
+		ret = of_dma_configure(dev, dev->of_yesde, true);
 	} else if (has_acpi_companion(dev)) {
-		attr = acpi_get_dma_attr(to_acpi_device_node(dev->fwnode));
+		attr = acpi_get_dma_attr(to_acpi_device_yesde(dev->fwyesde));
 		ret = acpi_dma_configure(dev, attr);
 	}
 
@@ -1341,6 +1341,6 @@ int __init platform_bus_init(void)
 	error =  bus_register(&platform_bus_type);
 	if (error)
 		device_unregister(&platform_bus);
-	of_platform_register_reconfig_notifier();
+	of_platform_register_reconfig_yestifier();
 	return error;
 }

@@ -34,13 +34,13 @@ The second one, made by Kawasaki Steel is fully supported by this
 driver (PCI vendor/device is 0x136b/0xff01)
 
 The third one, present in recent (more or less last year) Picturebooks
-(C1M* models), is not supported. The manufacturer has given the specs
+(C1M* models), is yest supported. The manufacturer has given the specs
 to the developers under a NDA (which allows the development of a GPL
-driver however), but things are not moving very fast (see
+driver however), but things are yest moving very fast (see
 http://r-engine.sourceforge.net/) (PCI vendor/device is 0x10cf/0x2011).
 
 There is a forth model connected on the USB bus in TR1* Vaio laptops.
-This camera is not supported at all by the current driver, in fact
+This camera is yest supported at all by the current driver, in fact
 little information if any is available for this camera
 (USB vendor/device is 0x054c/0x0107).
 
@@ -52,7 +52,7 @@ module argument syntax (<param>=<value> when passing the option to the
 module or meye.<param>=<value> on the kernel boot line when meye is
 statically linked into the kernel). Those options are:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	gbuffers:	number of capture buffers, default is 2 (32 max)
 
@@ -66,7 +66,7 @@ Module use
 In order to automatically load the meye module on use, you can put those lines
 in your /etc/modprobe.d/meye.conf file:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	alias char-major-81 videodev
 	alias char-major-81-0 meye
@@ -75,7 +75,7 @@ in your /etc/modprobe.d/meye.conf file:
 Usage:
 ------
 
-.. code-block:: none
+.. code-block:: yesne
 
 	xawtv >= 3.49 (<http://bytesex.org/xawtv/>)
 		for display and uncompressed video capture:

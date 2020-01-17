@@ -132,7 +132,7 @@ static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 	}
 	ref_clk_name = __clk_get_name(ref_clk);
 
-	ret = of_property_read_string(dev->of_node, "clock-output-names",
+	ret = of_property_read_string(dev->of_yesde, "clock-output-names",
 				      &clk_init.name);
 	if (ret < 0) {
 		dev_err(dev, "Failed to read clock-output-names: %d\n", ret);
@@ -151,14 +151,14 @@ static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "mediatek,ibias",
+	ret = of_property_read_u32(dev->of_yesde, "mediatek,ibias",
 				   &hdmi_phy->ibias);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to get ibias: %d\n", ret);
 		return ret;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "mediatek,ibias_up",
+	ret = of_property_read_u32(dev->of_yesde, "mediatek,ibias_up",
 				   &hdmi_phy->ibias_up);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to get ibias up: %d\n", ret);
@@ -184,7 +184,7 @@ static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(phy_provider);
 	}
 
-	return of_clk_add_provider(dev->of_node, of_clk_src_simple_get,
+	return of_clk_add_provider(dev->of_yesde, of_clk_src_simple_get,
 				   hdmi_phy->pll);
 }
 

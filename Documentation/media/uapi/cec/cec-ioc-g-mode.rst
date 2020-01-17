@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _CEC_MODE:
 .. _CEC_G_MODE:
@@ -17,7 +17,7 @@ ioctls CEC_G_MODE and CEC_S_MODE
 
 CEC_G_MODE, CEC_S_MODE - Get or set exclusive use of the CEC adapter
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, CEC_G_MODE, __u32 *argp )
@@ -53,8 +53,8 @@ it will be processed. If the message is a reply to an earlier
 transmitted message, then the reply is sent back to the filehandle that
 is waiting for it. In addition the CEC framework will process it.
 
-If the message is not a reply, then the CEC framework will process it
-first. If there is no follower, then the message is just discarded and a
+If the message is yest a reply, then the CEC framework will process it
+first. If there is yes follower, then the message is just discarded and a
 feature abort is sent back to the initiator if the framework couldn't
 process it. If there is a follower, then the message is passed on to the
 follower who will use :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>` to dequeue
@@ -68,7 +68,7 @@ processing them and the follower will have to implement those messages.
 There are some messages that the core will always process, regardless of
 the passthrough mode. See :ref:`cec-core-processing` for details.
 
-If there is no initiator, then any CEC filehandle can use
+If there is yes initiator, then any CEC filehandle can use
 :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`. If there is an exclusive
 initiator then only that initiator can call
 :ref:`CEC_TRANSMIT`. The follower can of course
@@ -89,7 +89,7 @@ Available initiator modes are:
 
       - ``CEC_MODE_NO_INITIATOR``
       - 0x0
-      - This is not an initiator, i.e. it cannot transmit CEC messages or
+      - This is yest an initiator, i.e. it canyest transmit CEC messages or
 	make any other changes to the CEC adapter.
     * .. _`CEC-MODE-INITIATOR`:
 
@@ -126,14 +126,14 @@ Available follower modes are:
 
       - ``CEC_MODE_NO_FOLLOWER``
       - 0x00
-      - This is not a follower (the default when the device is opened).
+      - This is yest a follower (the default when the device is opened).
     * .. _`CEC-MODE-FOLLOWER`:
 
       - ``CEC_MODE_FOLLOWER``
       - 0x10
       - This is a follower and it will receive CEC messages unless there
-	is an exclusive follower. You cannot become a follower if
-	:ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>` is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`
+	is an exclusive follower. You canyest become a follower if
+	:ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>` is yest set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`
 	was specified, the ``EINVAL`` error code is returned in that case.
     * .. _`CEC-MODE-EXCL-FOLLOWER`:
 
@@ -142,8 +142,8 @@ Available follower modes are:
       - This is an exclusive follower and only this file descriptor will
 	receive CEC messages for processing. If someone else is already
 	the exclusive follower then an attempt to become one will return
-	the ``EBUSY`` error code. You cannot become a follower if
-	:ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>` is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`
+	the ``EBUSY`` error code. You canyest become a follower if
+	:ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>` is yest set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`
 	was specified, the ``EINVAL`` error code is returned in that case.
     * .. _`CEC-MODE-EXCL-FOLLOWER-PASSTHRU`:
 
@@ -155,8 +155,8 @@ Available follower modes are:
 	to handle most core messages instead of relying on the CEC
 	framework for that. If someone else is already the exclusive
 	follower then an attempt to become one will return the ``EBUSY`` error
-	code. You cannot become a follower if :ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>`
-	is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>` was specified,
+	code. You canyest become a follower if :ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>`
+	is yest set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>` was specified,
 	the ``EINVAL`` error code is returned in that case.
     * .. _`CEC-MODE-MONITOR-PIN`:
 
@@ -171,7 +171,7 @@ Available follower modes are:
 	``CEC_EVENT_PIN_CEC_LOW`` and ``CEC_EVENT_PIN_CEC_HIGH`` events to see the
 	low-level CEC pin transitions. This is very useful for debugging.
 	This mode is only allowed if the process has the ``CAP_NET_ADMIN``
-	capability. If that is not set, then the ``EPERM`` error code is returned.
+	capability. If that is yest set, then the ``EPERM`` error code is returned.
     * .. _`CEC-MODE-MONITOR`:
 
       - ``CEC_MODE_MONITOR``
@@ -184,7 +184,7 @@ Available follower modes are:
 	messages and directed messages for one its logical addresses) will
 	be reported. This is very useful for debugging. This is only
 	allowed if the process has the ``CAP_NET_ADMIN`` capability. If
-	that is not set, then the ``EPERM`` error code is returned.
+	that is yest set, then the ``EPERM`` error code is returned.
     * .. _`CEC-MODE-MONITOR-ALL`:
 
       - ``CEC_MODE_MONITOR_ALL``
@@ -194,10 +194,10 @@ Available follower modes are:
 	the ``EINVAL`` error code will be returned. In 'monitor all' mode all messages
 	this CEC device transmits and all messages it receives, including
 	directed messages for other CEC devices will be reported. This is
-	very useful for debugging, but not all devices support this. This
+	very useful for debugging, but yest all devices support this. This
 	mode requires that the :ref:`CEC_CAP_MONITOR_ALL <CEC-CAP-MONITOR-ALL>` capability is set,
 	otherwise the ``EINVAL`` error code is returned. This is only allowed if
-	the process has the ``CAP_NET_ADMIN`` capability. If that is not
+	the process has the ``CAP_NET_ADMIN`` capability. If that is yest
 	set, then the ``EPERM`` error code is returned.
 
 
@@ -218,7 +218,7 @@ Core message processing details:
       - The core will return the CEC version that was set with
 	:ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`,
 	except when in passthrough mode. In passthrough mode the core
-	does nothing and this message has to be handled by a follower
+	does yesthing and this message has to be handled by a follower
 	instead.
     * .. _`CEC-MSG-GIVE-DEVICE-VENDOR-ID`:
 
@@ -226,20 +226,20 @@ Core message processing details:
       - The core will return the vendor ID that was set with
 	:ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`,
 	except when in passthrough mode. In passthrough mode the core
-	does nothing and this message has to be handled by a follower
+	does yesthing and this message has to be handled by a follower
 	instead.
     * .. _`CEC-MSG-ABORT`:
 
       - ``CEC_MSG_ABORT``
       - The core will return a Feature Abort message with reason
         'Feature Refused' as per the specification, except when in
-	passthrough mode. In passthrough mode the core does nothing
+	passthrough mode. In passthrough mode the core does yesthing
 	and this message has to be handled by a follower instead.
     * .. _`CEC-MSG-GIVE-PHYSICAL-ADDR`:
 
       - ``CEC_MSG_GIVE_PHYSICAL_ADDR``
       - The core will report the current physical address, except when
-        in passthrough mode. In passthrough mode the core does nothing
+        in passthrough mode. In passthrough mode the core does yesthing
 	and this message has to be handled by a follower instead.
     * .. _`CEC-MSG-GIVE-OSD-NAME`:
 
@@ -247,16 +247,16 @@ Core message processing details:
       - The core will report the current OSD name that was set with
 	:ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`,
 	except when in passthrough mode. In passthrough mode the core
-	does nothing and this message has to be handled by a follower
+	does yesthing and this message has to be handled by a follower
 	instead.
     * .. _`CEC-MSG-GIVE-FEATURES`:
 
       - ``CEC_MSG_GIVE_FEATURES``
-      - The core will do nothing if the CEC version is older than 2.0,
+      - The core will do yesthing if the CEC version is older than 2.0,
         otherwise it will report the current features that were set with
 	:ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`,
 	except when in passthrough mode. In passthrough mode the core
-	does nothing (for any CEC version) and this message has to be handled
+	does yesthing (for any CEC version) and this message has to be handled
 	by a follower instead.
     * .. _`CEC-MSG-USER-CONTROL-PRESSED`:
 
@@ -275,7 +275,7 @@ Core message processing details:
     * .. _`CEC-MSG-REPORT-PHYSICAL-ADDR`:
 
       - ``CEC_MSG_REPORT_PHYSICAL_ADDR``
-      - The CEC framework will make note of the reported physical address
+      - The CEC framework will make yeste of the reported physical address
 	and then just pass the message on to the follower(s).
 
 
@@ -283,7 +283,7 @@ Core message processing details:
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

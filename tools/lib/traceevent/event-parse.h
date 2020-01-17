@@ -5,7 +5,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation;
- * version 2.1 of the License (not later!)
+ * version 2.1 of the License (yest later!)
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,7 +13,7 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not,  see <http://www.gnu.org/licenses>
+ * License along with this program; if yest,  see <http://www.gnu.org/licenses>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -45,7 +45,7 @@ struct tep_record {
 	void			*data;
 	int			cpu;
 	int			ref_count;
-	int			locked;		/* Do not free, even if ref_count is zero */
+	int			locked;		/* Do yest free, even if ref_count is zero */
 	void			*priv;
 #if DEBUG_RECORD
 	struct tep_record	*prev;
@@ -112,12 +112,12 @@ struct tep_plugin_option {
  *   .plugin_alias is used to give a shorter name to access
  *   the vairable. Useful if a plugin handles more than one event.
  *
- *   If .value is not set, then it is considered a boolean and only
+ *   If .value is yest set, then it is considered a boolean and only
  *   .set will be processed. If .value is defined, then it is considered
- *   a string option and .set will be ignored.
+ *   a string option and .set will be igyesred.
  *
  * TEP_PLUGIN_ALIAS: (optional)
- *   The name to use for finding options (uses filename if not defined)
+ *   The name to use for finding options (uses filename if yest defined)
  */
 #define TEP_PLUGIN_LOADER tep_plugin_loader
 #define TEP_PLUGIN_UNLOADER tep_plugin_unloader
@@ -348,38 +348,38 @@ enum tep_flag {
 	_PE(INVALID_EXP_TYPE,	"invalid expression type"),		      \
 	_PE(INVALID_OP_TYPE,	"invalid operator type"),		      \
 	_PE(INVALID_EVENT_NAME,	"invalid event name"),			      \
-	_PE(EVENT_NOT_FOUND,	"no event found"),			      \
+	_PE(EVENT_NOT_FOUND,	"yes event found"),			      \
 	_PE(SYNTAX_ERROR,	"syntax error"),			      \
 	_PE(ILLEGAL_RVALUE,	"illegal rvalue"),			      \
 	_PE(ILLEGAL_LVALUE,	"illegal lvalue for string comparison"),      \
-	_PE(INVALID_REGEX,	"regex did not compute"),		      \
+	_PE(INVALID_REGEX,	"regex did yest compute"),		      \
 	_PE(ILLEGAL_STRING_CMP,	"illegal comparison for string"), 	      \
 	_PE(ILLEGAL_INTEGER_CMP,"illegal comparison for integer"), 	      \
-	_PE(REPARENT_NOT_OP,	"cannot reparent other than OP"),	      \
+	_PE(REPARENT_NOT_OP,	"canyest reparent other than OP"),	      \
 	_PE(REPARENT_FAILED,	"failed to reparent filter OP"),	      \
 	_PE(BAD_FILTER_ARG,	"bad arg in filter tree"),		      \
-	_PE(UNEXPECTED_TYPE,	"unexpected type (not a value)"),	      \
+	_PE(UNEXPECTED_TYPE,	"unexpected type (yest a value)"),	      \
 	_PE(ILLEGAL_TOKEN,	"illegal token"),			      \
-	_PE(INVALID_PAREN,	"open parenthesis cannot come here"), 	      \
+	_PE(INVALID_PAREN,	"open parenthesis canyest come here"), 	      \
 	_PE(UNBALANCED_PAREN,	"unbalanced number of parenthesis"),	      \
-	_PE(UNKNOWN_TOKEN,	"unknown token"),			      \
-	_PE(FILTER_NOT_FOUND,	"no filter found"),			      \
+	_PE(UNKNOWN_TOKEN,	"unkyeswn token"),			      \
+	_PE(FILTER_NOT_FOUND,	"yes filter found"),			      \
 	_PE(NOT_A_NUMBER,	"must have number field"),		      \
-	_PE(NO_FILTER,		"no filters exists"),			      \
-	_PE(FILTER_MISS,	"record does not match to filter")
+	_PE(NO_FILTER,		"yes filters exists"),			      \
+	_PE(FILTER_MISS,	"record does yest match to filter")
 
 #undef _PE
 #define _PE(__code, __str) TEP_ERRNO__ ## __code
-enum tep_errno {
+enum tep_erryes {
 	TEP_ERRNO__SUCCESS			= 0,
 	TEP_ERRNO__FILTER_MATCH			= TEP_ERRNO__SUCCESS,
 
 	/*
-	 * Choose an arbitrary negative big number not to clash with standard
-	 * errno since SUS requires the errno has distinct positive values.
+	 * Choose an arbitrary negative big number yest to clash with standard
+	 * erryes since SUS requires the erryes has distinct positive values.
 	 * See 'Issue 6' in the link below.
 	 *
-	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/errno.h.html
+	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/erryes.h.html
 	 */
 	__TEP_ERRNO__START			= -100000,
 
@@ -459,9 +459,9 @@ void tep_print_event(struct tep_handle *tep, struct trace_seq *s,
 int tep_parse_header_page(struct tep_handle *tep, char *buf, unsigned long size,
 			  int long_size);
 
-enum tep_errno tep_parse_event(struct tep_handle *tep, const char *buf,
+enum tep_erryes tep_parse_event(struct tep_handle *tep, const char *buf,
 			       unsigned long size, const char *sys);
-enum tep_errno tep_parse_format(struct tep_handle *tep,
+enum tep_erryes tep_parse_format(struct tep_handle *tep,
 				struct tep_event **eventp,
 				const char *buf,
 				unsigned long size, const char *sys);
@@ -540,7 +540,7 @@ void tep_print_field(struct trace_seq *s, void *data,
 		     struct tep_format_field *field);
 void tep_print_fields(struct trace_seq *s, void *data,
 		      int size __maybe_unused, struct tep_event *event);
-int tep_strerror(struct tep_handle *tep, enum tep_errno errnum,
+int tep_strerror(struct tep_handle *tep, enum tep_erryes errnum,
 		 char *buf, size_t buflen);
 
 struct tep_event **tep_list_events(struct tep_handle *tep, enum tep_event_sort_type);
@@ -725,13 +725,13 @@ struct tep_event_filter *tep_filter_alloc(struct tep_handle *tep);
 #define FILTER_MISS		TEP_ERRNO__FILTER_MISS
 #define FILTER_MATCH		TEP_ERRNO__FILTER_MATCH
 
-enum tep_errno tep_filter_add_filter_str(struct tep_event_filter *filter,
+enum tep_erryes tep_filter_add_filter_str(struct tep_event_filter *filter,
 					 const char *filter_str);
 
-enum tep_errno tep_filter_match(struct tep_event_filter *filter,
+enum tep_erryes tep_filter_match(struct tep_event_filter *filter,
 				struct tep_record *record);
 
-int tep_filter_strerror(struct tep_event_filter *filter, enum tep_errno err,
+int tep_filter_strerror(struct tep_event_filter *filter, enum tep_erryes err,
 			char *buf, size_t buflen);
 
 int tep_event_filtered(struct tep_event_filter *filter,

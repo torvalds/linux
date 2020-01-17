@@ -137,7 +137,7 @@ static int kirkwood_dma_open(struct snd_soc_component *component,
 
 		/*
 		 * Enable Error interrupts. We're only ack'ing them but
-		 * it's useful for diagnostics
+		 * it's useful for diagyesstics
 		 */
 		writel((unsigned int)-1, priv->io + KIRKWOOD_ERR_MASK);
 	}

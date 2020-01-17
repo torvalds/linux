@@ -17,7 +17,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -89,19 +89,19 @@ static int do_pd_setup(struct fs_enet_private *fep)
 	struct fs_platform_info *fpi = fep->fpi;
 	int ret = -EINVAL;
 
-	fep->interrupt = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	fep->interrupt = irq_of_parse_and_map(ofdev->dev.of_yesde, 0);
 	if (!fep->interrupt)
 		goto out;
 
-	fep->fcc.fccp = of_iomap(ofdev->dev.of_node, 0);
+	fep->fcc.fccp = of_iomap(ofdev->dev.of_yesde, 0);
 	if (!fep->fcc.fccp)
 		goto out;
 
-	fep->fcc.ep = of_iomap(ofdev->dev.of_node, 1);
+	fep->fcc.ep = of_iomap(ofdev->dev.of_yesde, 1);
 	if (!fep->fcc.ep)
 		goto out_fccp;
 
-	fep->fcc.fcccp = of_iomap(ofdev->dev.of_node, 2);
+	fep->fcc.fcccp = of_iomap(ofdev->dev.of_yesde, 2);
 	if (!fep->fcc.fcccp)
 		goto out_ep;
 
@@ -170,7 +170,7 @@ static void free_bd(struct net_device *dev)
 
 static void cleanup_data(struct net_device *dev)
 {
-	/* nothing */
+	/* yesthing */
 }
 
 static void set_promiscuous_mode(struct net_device *dev)
@@ -296,7 +296,7 @@ static void restart(struct net_device *dev)
 	W16(ep, fen_genfcc.fcc_res1, 0);
 	W32(ep, fen_genfcc.fcc_res2, 0);
 
-	/* no CAM */
+	/* yes CAM */
 	W32(ep, fen_camptr, 0);
 
 	/* Set CRC preset and mask */
@@ -446,7 +446,7 @@ static void napi_disable_fs(struct net_device *dev)
 
 static void rx_bd_done(struct net_device *dev)
 {
-	/* nothing */
+	/* yesthing */
 }
 
 static void tx_kickstart(struct net_device *dev)
@@ -503,7 +503,7 @@ static int get_regs_len(struct net_device *dev)
 }
 
 /* Some transmit errors cause the transmitter to shut
- * down.  We now issue a restart transmit.
+ * down.  We yesw issue a restart transmit.
  * Also, to workaround 8260 device erratum CPM37, we must
  * disable and then re-enable the transmitterfollowing a
  * Late Collision, Underrun, or Retry Limit error.
@@ -534,7 +534,7 @@ static void tx_restart(struct net_device *dev)
 	prev_bd = (recheck_bd == fep->tx_bd_base) ? last_tx_bd : recheck_bd - 1;
 
 	/* Move through the bds in reverse, look for the earliest buffer
-	 * that is not ready.  Adjust TBPTR to the following buffer */
+	 * that is yest ready.  Adjust TBPTR to the following buffer */
 	while ((CBDR_SC(prev_bd) & BD_ENET_TX_READY) != 0) {
 		/* Go back one buffer */
 		recheck_bd = prev_bd;

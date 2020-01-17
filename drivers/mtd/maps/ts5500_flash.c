@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * ts5500_flash.c -- MTD map driver for Technology Systems TS-5500 board
+ * ts5500_flash.c -- MTD map driver for Techyeslogy Systems TS-5500 board
  *
  * Copyright (C) 2004 Sean Young <sean@mess.org>
  *
@@ -56,10 +56,10 @@ static int __init init_ts5500_map(void)
 {
 	int rc = 0;
 
-	ts5500_map.virt = ioremap_nocache(ts5500_map.phys, ts5500_map.size);
+	ts5500_map.virt = ioremap_yescache(ts5500_map.phys, ts5500_map.size);
 
 	if (!ts5500_map.virt) {
-		printk(KERN_ERR "Failed to ioremap_nocache\n");
+		printk(KERN_ERR "Failed to ioremap_yescache\n");
 		rc = -EIO;
 		goto err2;
 	}
@@ -104,5 +104,5 @@ module_exit(cleanup_ts5500_map);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sean Young <sean@mess.org>");
-MODULE_DESCRIPTION("MTD map driver for Technology Systems TS-5500 board");
+MODULE_DESCRIPTION("MTD map driver for Techyeslogy Systems TS-5500 board");
 

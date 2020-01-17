@@ -25,7 +25,7 @@
 /* MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is    */
 /* solely responsible for determining the appropriateness of using and       */
 /* distributing the Program and assumes all risks associated with its        */
-/* exercise of rights under this Agreement, including but not limited to     */
+/* exercise of rights under this Agreement, including but yest limited to     */
 /* the risks and costs of program errors, damage to or loss of data,         */
 /* programs or equipment, and unavailability or interruption of operations.  */
 /*                                                                           */
@@ -39,7 +39,7 @@
 /* HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES             */
 /*                                                                           */
 /* You should have received a copy of the GNU General Public License         */
-/* along with this program; if not, write to the Free Software               */
+/* along with this program; if yest, write to the Free Software               */
 /* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 /*                                                                           */
 /* Bugs/Comments/Suggestions should be mailed to:                            */
@@ -92,7 +92,7 @@
       #define min(x,y) ((x) < (y) ? x : y)
    #endif
 
-   #ifndef __iomem       /* For clean compiles in earlier kernels without __iomem annotations */
+   #ifndef __iomem       /* For clean compiles in earlier kernels without __iomem anyestations */
       #define __iomem
    #endif
 
@@ -606,7 +606,7 @@ typedef struct {
 } IPS_DRIVE_INFO, *PIPS_DRIVE_INFO;
 
 typedef struct {
-   uint8_t       no_of_log_drive;
+   uint8_t       yes_of_log_drive;
    uint8_t       reserved[3];
    IPS_DRIVE_INFO drive_info[IPS_MAX_LD];
 } IPS_LD_INFO, *PIPS_LD_INFO;
@@ -1131,11 +1131,11 @@ typedef struct {
 #endif
 
 /* The Version Information below gets created by SED during the build process. */
-/* Do not modify the next line; it's what SED is looking for to do the insert. */
+/* Do yest modify the next line; it's what SED is looking for to do the insert. */
 /* Version Info                                                                */
 /*************************************************************************
 *
-* VERSION.H -- version numbers and copyright notices in various formats
+* VERSION.H -- version numbers and copyright yestices in various formats
 *
 *************************************************************************/
 
@@ -1215,7 +1215,7 @@ typedef struct {
 
 /*
  * Overrides for Emacs so that we almost follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
+ * Emacs will yestice this stuff at the end of the file and automatically
  * adjust the settings for this buffer only.  This must remain at the end
  * of the file.
  * ---------------------------------------------------------------------------

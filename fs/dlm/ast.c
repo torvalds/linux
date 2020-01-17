@@ -98,7 +98,7 @@ int dlm_add_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	}
 
 	if (i == DLM_CALLBACKS_SIZE) {
-		log_error(ls, "no callbacks %x %llu flags %x mode %d sb %d %x",
+		log_error(ls, "yes callbacks %x %llu flags %x mode %d sb %d %x",
 			  lkb->lkb_id, (unsigned long long)seq,
 			  flags, mode, status, sbflags);
 		dlm_dump_lkb_callbacks(lkb);
@@ -223,8 +223,8 @@ void dlm_callback_work(struct work_struct *work)
 
 	mutex_lock(&lkb->lkb_cb_mutex);
 	if (!lkb->lkb_callbacks[0].seq) {
-		/* no callback work exists, shouldn't happen */
-		log_error(ls, "dlm_callback_work %x no work", lkb->lkb_id);
+		/* yes callback work exists, shouldn't happen */
+		log_error(ls, "dlm_callback_work %x yes work", lkb->lkb_id);
 		dlm_print_lkb(lkb);
 		dlm_dump_lkb_callbacks(lkb);
 	}

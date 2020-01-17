@@ -39,17 +39,17 @@ void i2sbus_control_destroy(struct i2sbus_control *c)
 int i2sbus_control_add_dev(struct i2sbus_control *c,
 			   struct i2sbus_dev *i2sdev)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = i2sdev->sound.ofdev.dev.of_node;
+	np = i2sdev->sound.ofdev.dev.of_yesde;
 	i2sdev->enable = pmf_find_function(np, "enable");
 	i2sdev->cell_enable = pmf_find_function(np, "cell-enable");
 	i2sdev->clock_enable = pmf_find_function(np, "clock-enable");
 	i2sdev->cell_disable = pmf_find_function(np, "cell-disable");
 	i2sdev->clock_disable = pmf_find_function(np, "clock-disable");
 
-	/* if the bus number is not 0 or 1 we absolutely need to use
-	 * the platform functions -- there's nothing in Darwin that
+	/* if the bus number is yest 0 or 1 we absolutely need to use
+	 * the platform functions -- there's yesthing in Darwin that
 	 * would allow seeing a system behind what the FCRs are then,
 	 * and I don't want to go parsing a bunch of platform functions
 	 * by hand to try finding a system... */

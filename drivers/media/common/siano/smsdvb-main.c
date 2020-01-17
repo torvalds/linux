@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /****************************************************************
 
-Siano Mobile Silicon, Inc.
+Siayes Mobile Silicon, Inc.
 MDTV receiver kernel modules.
 Copyright (C) 2006-2008, Uri Shkolnik
 
@@ -108,12 +108,12 @@ static void sms_board_dvb3_event(struct smsdvb_client_t *client,
 		break;
 
 	default:
-		pr_err("Unknown dvb3 api event\n");
+		pr_err("Unkyeswn dvb3 api event\n");
 		break;
 	}
 }
 
-static void smsdvb_stats_not_ready(struct dvb_frontend *fe)
+static void smsdvb_stats_yest_ready(struct dvb_frontend *fe)
 {
 	struct smsdvb_client_t *client =
 		container_of(fe, struct smsdvb_client_t, frontend);
@@ -239,7 +239,7 @@ static void smsdvb_update_per_slices(struct smsdvb_client_t *client,
 	/* signal Strength, in DBm */
 	c->strength.stat[0].uvalue = p->in_band_power * 1000;
 
-	/* Carrier to noise ratio, in DB */
+	/* Carrier to yesise ratio, in DB */
 	c->cnr.stat[0].svalue = p->snr * 1000;
 
 	/* PER/BER requires demod lock */
@@ -291,7 +291,7 @@ static void smsdvb_update_dvb_stats(struct smsdvb_client_t *client,
 	/* update reception data */
 	c->lna = p->is_external_lna_on ? 1 : 0;
 
-	/* Carrier to noise ratio, in DB */
+	/* Carrier to yesise ratio, in DB */
 	c->cnr.stat[0].svalue = p->SNR * 1000;
 
 	/* signal Strength, in DBm */
@@ -358,7 +358,7 @@ static void smsdvb_update_isdbt_stats(struct smsdvb_client_t *client,
 	/* update reception data */
 	c->lna = p->is_external_lna_on ? 1 : 0;
 
-	/* Carrier to noise ratio, in DB */
+	/* Carrier to yesise ratio, in DB */
 	c->cnr.stat[0].svalue = p->SNR * 1000;
 
 	/* signal Strength, in DBm */
@@ -442,7 +442,7 @@ static void smsdvb_update_isdbt_stats_ex(struct smsdvb_client_t *client,
 	/* update reception data */
 	c->lna = p->is_external_lna_on ? 1 : 0;
 
-	/* Carrier to noise ratio, in DB */
+	/* Carrier to yesise ratio, in DB */
 	c->cnr.stat[0].svalue = p->SNR * 1000;
 
 	/* signal Strength, in DBm */
@@ -575,7 +575,7 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 		is_status_update = true;
 		break;
 	default:
-		pr_debug("message not handled\n");
+		pr_debug("message yest handled\n");
 	}
 	smscore_putbuffer(client->coredev, cb);
 
@@ -588,7 +588,7 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 				sms_board_dvb3_event(client, DVB3_EVENT_UNC_ERR);
 			client->has_tuned = true;
 		} else {
-			smsdvb_stats_not_ready(fe);
+			smsdvb_stats_yest_ready(fe);
 			client->has_tuned = false;
 			sms_board_dvb3_event(client, DVB3_EVENT_FE_UNLOCK);
 		}
@@ -887,7 +887,7 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe)
 	default:
 		return -EINVAL;
 	}
-	/* Disable LNA, if any. An error is returned if no LNA is present */
+	/* Disable LNA, if any. An error is returned if yes LNA is present */
 	ret = sms_board_lna_control(client->coredev, 0);
 	if (ret == 0) {
 		enum fe_status status;
@@ -958,7 +958,7 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 		 c->frequency, c->isdbt_sb_segment_count,
 		 c->isdbt_sb_segment_idx);
 
-	/* Disable LNA, if any. An error is returned if no LNA is present */
+	/* Disable LNA, if any. An error is returned if yes LNA is present */
 	ret = sms_board_lna_control(client->coredev, 0);
 	if (ret == 0) {
 		enum fe_status status;
@@ -986,7 +986,7 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe)
 		container_of(fe, struct smsdvb_client_t, frontend);
 	struct smscore_device_t *coredev = client->coredev;
 
-	smsdvb_stats_not_ready(fe);
+	smsdvb_stats_yest_ready(fe);
 	c->strength.stat[0].uvalue = 0;
 	c->cnr.stat[0].uvalue = 0;
 
@@ -1030,12 +1030,12 @@ static int smsdvb_sleep(struct dvb_frontend *fe)
 
 static void smsdvb_release(struct dvb_frontend *fe)
 {
-	/* do nothing */
+	/* do yesthing */
 }
 
 static const struct dvb_frontend_ops smsdvb_fe_ops = {
 	.info = {
-		.name			= "Siano Mobile Digital MDTV Receiver",
+		.name			= "Siayes Mobile Digital MDTV Receiver",
 		.frequency_min_hz	=  44250 * kHz,
 		.frequency_max_hz	= 867250 * kHz,
 		.frequency_stepsize_hz	=    250 * kHz,
@@ -1091,7 +1091,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	/* init dvb demux */
 	client->demux.dmx.capabilities = DMX_TS_FILTERING;
-	client->demux.filternum = 32; /* todo: nova ??? */
+	client->demux.filternum = 32; /* todo: yesva ??? */
 	client->demux.feednum = 32;
 	client->demux.start_feed = smsdvb_start_feed;
 	client->demux.stop_feed = smsdvb_stop_feed;
@@ -1164,7 +1164,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	sms_board_setup(coredev);
 
 	if (smsdvb_debugfs_create(client) < 0)
-		pr_info("failed to create debugfs node\n");
+		pr_info("failed to create debugfs yesde\n");
 
 	rc = dvb_create_media_graph(&client->adapter, true);
 	if (rc < 0) {
@@ -1227,5 +1227,5 @@ module_init(smsdvb_module_init);
 module_exit(smsdvb_module_exit);
 
 MODULE_DESCRIPTION("SMS DVB subsystem adaptation module");
-MODULE_AUTHOR("Siano Mobile Silicon, Inc. (uris@siano-ms.com)");
+MODULE_AUTHOR("Siayes Mobile Silicon, Inc. (uris@siayes-ms.com)");
 MODULE_LICENSE("GPL");

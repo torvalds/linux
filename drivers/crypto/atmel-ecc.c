@@ -2,14 +2,14 @@
 /*
  * Microchip / Atmel ECC (I2C) driver.
  *
- * Copyright (c) 2017, Microchip Technology Inc.
+ * Copyright (c) 2017, Microchip Techyeslogy Inc.
  * Author: Tudor Ambarus <tudor.ambarus@microchip.com>
  */
 
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -31,7 +31,7 @@ static struct atmel_ecc_driver_data driver_data;
  * @fallback   : used for unsupported curves or when user wants to use its own
  *               private key.
  * @public_key : generated when calling set_secret(). It's the responsibility
- *               of the user to not call set_secret() while
+ *               of the user to yest call set_secret() while
  *               generate_public_key() or compute_shared_secret() are in flight.
  * @curve_id   : elliptic curve id
  * @n_sz       : size in bytes of the n prime
@@ -230,7 +230,7 @@ static struct i2c_client *atmel_ecc_i2c_client_alloc(void)
 	}
 
 	list_for_each_entry(i2c_priv, &driver_data.i2c_client_list,
-			    i2c_client_list_node) {
+			    i2c_client_list_yesde) {
 		tfm_cnt = atomic_read(&i2c_priv->tfm_count);
 		if (tfm_cnt < min_tfm_cnt) {
 			min_tfm_cnt = tfm_cnt;
@@ -336,14 +336,14 @@ static int atmel_ecc_probe(struct i2c_client *client,
 	i2c_priv = i2c_get_clientdata(client);
 
 	spin_lock(&driver_data.i2c_list_lock);
-	list_add_tail(&i2c_priv->i2c_client_list_node,
+	list_add_tail(&i2c_priv->i2c_client_list_yesde,
 		      &driver_data.i2c_client_list);
 	spin_unlock(&driver_data.i2c_list_lock);
 
 	ret = crypto_register_kpp(&atmel_ecdh);
 	if (ret) {
 		spin_lock(&driver_data.i2c_list_lock);
-		list_del(&i2c_priv->i2c_client_list_node);
+		list_del(&i2c_priv->i2c_client_list_yesde);
 		spin_unlock(&driver_data.i2c_list_lock);
 
 		dev_err(&client->dev, "%s alg registration failed\n",
@@ -368,7 +368,7 @@ static int atmel_ecc_remove(struct i2c_client *client)
 	crypto_unregister_kpp(&atmel_ecdh);
 
 	spin_lock(&driver_data.i2c_list_lock);
-	list_del(&i2c_priv->i2c_client_list_node);
+	list_del(&i2c_priv->i2c_client_list_yesde);
 	spin_unlock(&driver_data.i2c_list_lock);
 
 	return 0;

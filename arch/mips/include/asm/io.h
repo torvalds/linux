@@ -6,7 +6,7 @@
  * Copyright (C) 1994, 1995 Waldorf GmbH
  * Copyright (C) 1994 - 2000, 06 Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2004, 2005  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2004, 2005  MIPS Techyeslogies, Inc.  All rights reserved.
  *	Author: Maciej W. Rozycki <macro@mips.com>
  */
 #ifndef _ASM_IO_H
@@ -36,7 +36,7 @@
 
 /*
  * Raw operations are never swapped in software.  OTOH values that raw
- * operations are working on may or may not have been swapped by the bus
+ * operations are working on may or may yest have been swapped by the bus
  * hardware.  An example use would be for flash memory that's used for
  * execute in place.
  */
@@ -56,12 +56,12 @@
 #define IO_SPACE_LIMIT 0xffff
 
 /*
- * On MIPS I/O ports are memory mapped, so we access them using normal
+ * On MIPS I/O ports are memory mapped, so we access them using yesrmal
  * load/store instructions. mips_io_port_base is the virtual address to
  * which all ports are being mapped.  For sake of efficiency some code
  * assumes that this is an address that can be loaded with a single lui
  * instruction, so the lower 16 bits must be zero.  Should be true on
- * on any sane architecture; generic code does not use this assumption.
+ * on any sane architecture; generic code does yest use this assumption.
  */
 extern unsigned long mips_io_port_base;
 
@@ -100,8 +100,8 @@ static inline void set_io_port_base(unsigned long base)
  *     the memory address given. It is only valid to use this function on
  *     addresses directly mapped or allocated via kmalloc.
  *
- *     This function does not give bus mappings for DMA transfers. In
- *     almost all conceivable cases a device driver should not be using
+ *     This function does yest give bus mappings for DMA transfers. In
+ *     almost all conceivable cases a device driver should yest be using
  *     this function
  */
 static inline unsigned long virt_to_phys(volatile const void *address)
@@ -117,8 +117,8 @@ static inline unsigned long virt_to_phys(volatile const void *address)
  *     the memory address given. It is only valid to use this function on
  *     addresses that have a kernel mapping
  *
- *     This function does not handle bus mappings for DMA transfers. In
- *     almost all conceivable cases a device driver should not be using
+ *     This function does yest handle bus mappings for DMA transfers. In
+ *     almost all conceivable cases a device driver should yest be using
  *     this function
  */
 static inline void * phys_to_virt(unsigned long address)
@@ -140,7 +140,7 @@ static inline void *isa_bus_to_virt(unsigned long address)
 }
 
 /*
- * However PCI ones are not necessarily 1:1 and therefore these interfaces
+ * However PCI ones are yest necessarily 1:1 and therefore these interfaces
  * are forbidden in portable PCI drivers.
  *
  * Allow them for x86 for legacy drivers, though.
@@ -171,7 +171,7 @@ static inline void __iomem * __ioremap_mode(phys_addr_t offset, unsigned long si
 
 		/*
 		 * R10000 supports a 2 bit uncached attribute therefore
-		 * UNCAC_BASE may not equal IO_BASE.
+		 * UNCAC_BASE may yest equal IO_BASE.
 		 */
 		if (flags == _CACHE_UNCACHED)
 			base = (u64) IO_BASE;
@@ -222,34 +222,34 @@ static inline void __iomem *ioremap_prot(phys_addr_t offset,
  * ioremap performs a platform specific sequence of operations to
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
  * writew/writel functions and the other mmio helpers. The returned
- * address is not guaranteed to be usable directly as a virtual
+ * address is yest guaranteed to be usable directly as a virtual
  * address.
  */
 #define ioremap(offset, size)						\
 	__ioremap_mode((offset), (size), _CACHE_UNCACHED)
 
 /*
- * ioremap_nocache     -   map bus memory into CPU space
+ * ioremap_yescache     -   map bus memory into CPU space
  * @offset:    bus address of the memory
  * @size:      size of the resource to map
  *
- * ioremap_nocache performs a platform specific sequence of operations to
+ * ioremap_yescache performs a platform specific sequence of operations to
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
  * writew/writel functions and the other mmio helpers. The returned
- * address is not guaranteed to be usable directly as a virtual
+ * address is yest guaranteed to be usable directly as a virtual
  * address.
  *
  * This version of ioremap ensures that the memory is marked uncachable
- * on the CPU as well as honouring existing caching rules from things like
+ * on the CPU as well as hoyesuring existing caching rules from things like
  * the PCI bus. Note that there are other caches and buffers on many
  * busses. In particular driver authors should read up on PCI writes
  *
  * It's useful if some control registers are in such an area and
- * write combining or read caching is not desirable:
+ * write combining or read caching is yest desirable:
  */
-#define ioremap_nocache(offset, size)					\
+#define ioremap_yescache(offset, size)					\
 	__ioremap_mode((offset), (size), _CACHE_UNCACHED)
-#define ioremap_uc ioremap_nocache
+#define ioremap_uc ioremap_yescache
 
 /*
  * ioremap_cache -	map bus memory into CPU space
@@ -259,7 +259,7 @@ static inline void __iomem *ioremap_prot(phys_addr_t offset,
  * ioremap_cache performs a platform specific sequence of operations to
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
  * writew/writel functions and the other mmio helpers. The returned
- * address is not guaranteed to be usable directly as a virtual
+ * address is yest guaranteed to be usable directly as a virtual
  * address.
  *
  * This version of ioremap ensures that the memory is marked cachable by
@@ -277,7 +277,7 @@ static inline void __iomem *ioremap_prot(phys_addr_t offset,
  * ioremap_wc performs a platform specific sequence of operations to
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
  * writew/writel functions and the other mmio helpers. The returned
- * address is not guaranteed to be usable directly as a virtual
+ * address is yest guaranteed to be usable directly as a virtual
  * address.
  *
  * This version of ioremap ensures that the memory is marked uncachable
@@ -608,7 +608,7 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
  *    be discarded.  This operation is necessary before dma operations
  *    to the memory.
  *
- * This API used to be exported; it now is for arch code internal use only.
+ * This API used to be exported; it yesw is for arch code internal use only.
  */
 #ifdef CONFIG_DMA_NONCOHERENT
 

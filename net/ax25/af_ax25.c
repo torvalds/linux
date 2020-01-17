@@ -12,7 +12,7 @@
  */
 #include <linux/capability.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -34,7 +34,7 @@
 #include <linux/termios.h>	/* For TIOCINQ/OUTQ */
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/sysctl.h>
@@ -58,13 +58,13 @@ static void ax25_free_sock(struct sock *sk)
 }
 
 /*
- *	Socket removal during an interrupt is now safe.
+ *	Socket removal during an interrupt is yesw safe.
  */
 static void ax25_cb_del(ax25_cb *ax25)
 {
-	if (!hlist_unhashed(&ax25->ax25_node)) {
+	if (!hlist_unhashed(&ax25->ax25_yesde)) {
 		spin_lock_bh(&ax25_list_lock);
-		hlist_del_init(&ax25->ax25_node);
+		hlist_del_init(&ax25->ax25_yesde);
 		spin_unlock_bh(&ax25_list_lock);
 		ax25_cb_put(ax25);
 	}
@@ -92,7 +92,7 @@ again:
 
 			/* The entry could have been deleted from the
 			 * list meanwhile and thus the next pointer is
-			 * no longer valid.  Play it safe and restart
+			 * yes longer valid.  Play it safe and restart
 			 * the scan.  Forward progress is ensured
 			 * because we set s->ax25_dev to NULL and we
 			 * are never passed a NULL 'dev' argument.
@@ -106,15 +106,15 @@ again:
 /*
  *	Handle device status changes.
  */
-static int ax25_device_event(struct notifier_block *this, unsigned long event,
+static int ax25_device_event(struct yestifier_block *this, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
-	/* Reject non AX.25 devices */
+	/* Reject yesn AX.25 devices */
 	if (dev->type != ARPHRD_AX25)
 		return NOTIFY_DONE;
 
@@ -141,7 +141,7 @@ void ax25_cb_add(ax25_cb *ax25)
 {
 	spin_lock_bh(&ax25_list_lock);
 	ax25_cb_hold(ax25);
-	hlist_add_head(&ax25->ax25_node, &ax25_list);
+	hlist_add_head(&ax25->ax25_yesde, &ax25_list);
 	spin_unlock_bh(&ax25_list_lock);
 }
 
@@ -200,7 +200,7 @@ struct sock *ax25_get_socket(ax25_address *my_addr, ax25_address *dest_addr,
 
 /*
  *	Find an AX.25 control block given both ends. It will only pick up
- *	floating AX.25 control blocks or non Raw socket bound control blocks.
+ *	floating AX.25 control blocks or yesn Raw socket bound control blocks.
  */
 ax25_cb *ax25_find_cb(ax25_address *src_addr, ax25_address *dest_addr,
 	ax25_digi *digi, struct net_device *dev)
@@ -282,7 +282,7 @@ static void ax25_destroy_timer(struct timer_list *t)
 /*
  *	This is called from user mode and the timers. Thus it protects itself
  *	against interrupt users but doesn't worry about being called during
- *	work. Once it is removed from the queue no interrupt or bottom half
+ *	work. Once it is removed from the queue yes interrupt or bottom half
  *	will touch it and we are (fairly 8-) ) safe.
  */
 void ax25_destroy_socket(ax25_cb *ax25)
@@ -1036,7 +1036,7 @@ static int ax25_release(struct socket *sock)
 
 /*
  *	We support a funny extension here so you can (as root) give any callsign
- *	digipeated via a local address as source. This hack is obsolete now
+ *	digipeated via a local address as source. This hack is obsolete yesw
  *	that we've implemented support for SO_BINDTODEVICE. It is however small
  *	and trivially backward compatible.
  */
@@ -1116,7 +1116,7 @@ out:
 }
 
 /*
- *	FIXME: nonblock behaviour looks like it may have a bug.
+ *	FIXME: yesnblock behaviour looks like it may have a bug.
  */
 static int __must_check ax25_connect(struct socket *sock,
 	struct sockaddr *uaddr, int addr_len, int flags)
@@ -1212,7 +1212,7 @@ static int __must_check ax25_connect(struct socket *sock,
 	}
 
 	/*
-	 *	Must bind first - autobinding in this may or may not work. If
+	 *	Must bind first - autobinding in this may or may yest work. If
 	 *	the socket is already bound, check to see if the device has
 	 *	been filled in, error if it hasn't.
 	 */
@@ -1310,7 +1310,7 @@ static int __must_check ax25_connect(struct socket *sock,
 	}
 
 	if (sk->sk_state != TCP_ESTABLISHED) {
-		/* Not in ABM, not in WAIT_UA -> failed */
+		/* Not in ABM, yest in WAIT_UA -> failed */
 		sock->state = SS_UNCONNECTED;
 		err = sock_error(sk);	/* Always set at this point */
 		goto out_release;
@@ -1534,7 +1534,7 @@ static int ax25_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	} else {
 		/*
 		 *	FIXME: 1003.1g - if the socket is like this because
-		 *	it has become closed (not started closed) and is VC
+		 *	it has become closed (yest started closed) and is VC
 		 *	we ought to SIGPIPE, EPIPE
 		 */
 		if (sk->sk_state != TCP_ESTABLISHED) {
@@ -1565,7 +1565,7 @@ static int ax25_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 	skb_reset_network_header(skb);
 
-	/* Add the PID if one is not supplied by the user in the skb */
+	/* Add the PID if one is yest supplied by the user in the skb */
 	if (!ax25->pidincl)
 		*(u8 *)skb_push(skb, 1) = sk->sk_protocol;
 
@@ -1654,9 +1654,9 @@ static int ax25_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		ax25_addr_parse(mac + 1, skb->data - mac - 1, &src, NULL,
 				&digi, NULL, NULL);
 		sax->sax25_family = AF_AX25;
-		/* We set this correctly, even though we may not let the
-		   application know the digi calls further down (because it
-		   did NOT ask to know them).  This could get political... **/
+		/* We set this correctly, even though we may yest let the
+		   application kyesw the digi calls further down (because it
+		   did NOT ask to kyesw them).  This could get political... **/
 		sax->sax25_ndigis = digi.ndigi;
 		sax->sax25_call   = src;
 
@@ -1869,14 +1869,14 @@ static void ax25_info_stop(struct seq_file *seq, void *v)
 
 static int ax25_info_show(struct seq_file *seq, void *v)
 {
-	ax25_cb *ax25 = hlist_entry(v, struct ax25_cb, ax25_node);
+	ax25_cb *ax25 = hlist_entry(v, struct ax25_cb, ax25_yesde);
 	char buf[11];
 	int k;
 
 
 	/*
 	 * New format:
-	 * magic dev src_addr dest_addr,digi1,digi2,.. st vs vr va t1 t1 t2 t2 t3 t3 idle idle n2 n2 rtt window paclen Snd-Q Rcv-Q inode
+	 * magic dev src_addr dest_addr,digi1,digi2,.. st vs vr va t1 t1 t2 t2 t3 t3 idle idle n2 n2 rtt window paclen Snd-Q Rcv-Q iyesde
 	 */
 
 	seq_printf(seq, "%p %s %s%s ",
@@ -1909,7 +1909,7 @@ static int ax25_info_show(struct seq_file *seq, void *v)
 		seq_printf(seq, " %d %d %lu\n",
 			   sk_wmem_alloc_get(ax25->sk),
 			   sk_rmem_alloc_get(ax25->sk),
-			   sock_i_ino(ax25->sk));
+			   sock_i_iyes(ax25->sk));
 	} else {
 		seq_puts(seq, " * * *\n");
 	}
@@ -1936,7 +1936,7 @@ static const struct proto_ops ax25_proto_ops = {
 	.release	= ax25_release,
 	.bind		= ax25_bind,
 	.connect	= ax25_connect,
-	.socketpair	= sock_no_socketpair,
+	.socketpair	= sock_yes_socketpair,
 	.accept		= ax25_accept,
 	.getname	= ax25_getname,
 	.poll		= datagram_poll,
@@ -1948,8 +1948,8 @@ static const struct proto_ops ax25_proto_ops = {
 	.getsockopt	= ax25_getsockopt,
 	.sendmsg	= ax25_sendmsg,
 	.recvmsg	= ax25_recvmsg,
-	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
+	.mmap		= sock_yes_mmap,
+	.sendpage	= sock_yes_sendpage,
 };
 
 /*
@@ -1960,8 +1960,8 @@ static struct packet_type ax25_packet_type __read_mostly = {
 	.func	=	ax25_kiss_rcv,
 };
 
-static struct notifier_block ax25_dev_notifier = {
-	.notifier_call = ax25_device_event,
+static struct yestifier_block ax25_dev_yestifier = {
+	.yestifier_call = ax25_device_event,
 };
 
 static int __init ax25_init(void)
@@ -1973,7 +1973,7 @@ static int __init ax25_init(void)
 
 	sock_register(&ax25_family_ops);
 	dev_add_pack(&ax25_packet_type);
-	register_netdevice_notifier(&ax25_dev_notifier);
+	register_netdevice_yestifier(&ax25_dev_yestifier);
 
 	proc_create_seq("ax25_route", 0444, init_net.proc_net, &ax25_rt_seqops);
 	proc_create_seq("ax25", 0444, init_net.proc_net, &ax25_info_seqops);
@@ -1996,7 +1996,7 @@ static void __exit ax25_exit(void)
 	remove_proc_entry("ax25", init_net.proc_net);
 	remove_proc_entry("ax25_calls", init_net.proc_net);
 
-	unregister_netdevice_notifier(&ax25_dev_notifier);
+	unregister_netdevice_yestifier(&ax25_dev_yestifier);
 
 	dev_remove_pack(&ax25_packet_type);
 

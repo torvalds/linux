@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -159,13 +159,13 @@ static struct ipoib_mcast *ipoib_mcast_alloc(struct net_device *dev,
 static struct ipoib_mcast *__ipoib_mcast_find(struct net_device *dev, void *mgid)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
-	struct rb_node *n = priv->multicast_tree.rb_node;
+	struct rb_yesde *n = priv->multicast_tree.rb_yesde;
 
 	while (n) {
 		struct ipoib_mcast *mcast;
 		int ret;
 
-		mcast = rb_entry(n, struct ipoib_mcast, rb_node);
+		mcast = rb_entry(n, struct ipoib_mcast, rb_yesde);
 
 		ret = memcmp(mgid, mcast->mcmember.mgid.raw,
 			     sizeof (union ib_gid));
@@ -183,14 +183,14 @@ static struct ipoib_mcast *__ipoib_mcast_find(struct net_device *dev, void *mgid
 static int __ipoib_mcast_add(struct net_device *dev, struct ipoib_mcast *mcast)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
-	struct rb_node **n = &priv->multicast_tree.rb_node, *pn = NULL;
+	struct rb_yesde **n = &priv->multicast_tree.rb_yesde, *pn = NULL;
 
 	while (*n) {
 		struct ipoib_mcast *tmcast;
 		int ret;
 
 		pn = *n;
-		tmcast = rb_entry(pn, struct ipoib_mcast, rb_node);
+		tmcast = rb_entry(pn, struct ipoib_mcast, rb_yesde);
 
 		ret = memcmp(mcast->mcmember.mgid.raw, tmcast->mcmember.mgid.raw,
 			     sizeof (union ib_gid));
@@ -202,8 +202,8 @@ static int __ipoib_mcast_add(struct net_device *dev, struct ipoib_mcast *mcast)
 			return -EEXIST;
 	}
 
-	rb_link_node(&mcast->rb_node, pn, n);
-	rb_insert_color(&mcast->rb_node, &priv->multicast_tree);
+	rb_link_yesde(&mcast->rb_yesde, pn, n);
+	rb_insert_color(&mcast->rb_yesde, &priv->multicast_tree);
 
 	return 0;
 }
@@ -350,7 +350,7 @@ void ipoib_mcast_carrier_on_task(struct work_struct *work)
 	 * the workqueue while holding the rtnl lock, so loop
 	 * on trylock until either we get the lock or we see
 	 * FLAG_OPER_UP go away as that signals that we are bailing
-	 * and can safely ignore the carrier on work.
+	 * and can safely igyesre the carrier on work.
 	 */
 	while (!rtnl_trylock()) {
 		if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
@@ -394,7 +394,7 @@ static int ipoib_mcast_join_complete(int status,
 		 * deadlock on rtnl_lock here.  Requeue our multicast
 		 * work too, which will end up happening right after
 		 * our carrier on task work and will allow us to
-		 * send out all of the non-broadcast joins
+		 * send out all of the yesn-broadcast joins
 		 */
 		if (mcast == priv->broadcast) {
 			spin_lock_irq(&priv->lock);
@@ -432,7 +432,7 @@ static int ipoib_mcast_join_complete(int status,
 			 * mcast list as an unjoined group.  If we want to
 			 * try joining again, we simply queue up a packet
 			 * and restart the join thread.  The empty queue
-			 * is why the join thread ignores this group.
+			 * is why the join thread igyesres this group.
 			 */
 			mcast->backoff = 1;
 			netif_tx_lock_bh(dev);
@@ -531,8 +531,8 @@ static int ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast)
 		 * Send-only IB Multicast joins work at the core IB layer but
 		 * require specific SM support.
 		 * We can use such joins here only if the current SM supports that feature.
-		 * However, if not, we emulate an Ethernet multicast send,
-		 * which does not require a multicast subscription and will
+		 * However, if yest, we emulate an Ethernet multicast send,
+		 * which does yest require a multicast subscription and will
 		 * still send properly. The most appropriate thing to
 		 * do is to create the group if it doesn't exist as that
 		 * most closely emulates the behavior, from a user space
@@ -579,7 +579,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		return;
 	}
 	if (port_attr.state != IB_PORT_ACTIVE) {
-		ipoib_dbg(priv, "port state is not ACTIVE (state = %d) suspending join task\n",
+		ipoib_dbg(priv, "port state is yest ACTIVE (state = %d) suspending join task\n",
 			  port_attr.state);
 		return;
 	}
@@ -714,7 +714,7 @@ static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 		if (ret)
 			ipoib_warn(priv, "ib_detach_mcast failed (result = %d)\n", ret);
 	} else if (!test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags))
-		ipoib_dbg(priv, "leaving with no mcmember but not a "
+		ipoib_dbg(priv, "leaving with yes mcmember but yest a "
 			  "SENDONLY join\n");
 
 	return 0;
@@ -733,7 +733,7 @@ void ipoib_check_and_add_mcast_sendonly(struct ipoib_dev_priv *priv, u8 *mgid,
 
 		if (mcast && test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags)) {
 			list_del(&mcast->list);
-			rb_erase(&mcast->rb_node, &priv->multicast_tree);
+			rb_erase(&mcast->rb_yesde, &priv->multicast_tree);
 			list_add_tail(&mcast->list, remove_list);
 		}
 	}
@@ -778,7 +778,7 @@ void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb)
 	mcast = __ipoib_mcast_find(dev, mgid);
 	if (!mcast || !mcast->ah) {
 		if (!mcast) {
-			/* Let's create a new send only group now */
+			/* Let's create a new send only group yesw */
 			ipoib_dbg_mcast(priv, "setting up send only multicast group for %pI6\n",
 					mgid);
 
@@ -852,12 +852,12 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 
 	list_for_each_entry_safe(mcast, tmcast, &priv->multicast_list, list) {
 		list_del(&mcast->list);
-		rb_erase(&mcast->rb_node, &priv->multicast_tree);
+		rb_erase(&mcast->rb_yesde, &priv->multicast_tree);
 		list_add_tail(&mcast->list, &remove_list);
 	}
 
 	if (priv->broadcast) {
-		rb_erase(&priv->broadcast->rb_node, &priv->multicast_tree);
+		rb_erase(&priv->broadcast->rb_yesde, &priv->multicast_tree);
 		list_add_tail(&priv->broadcast->list, &remove_list);
 		priv->broadcast = NULL;
 	}
@@ -924,10 +924,10 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 		if (!mcast || test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags)) {
 			struct ipoib_mcast *nmcast;
 
-			/* ignore group which is directly joined by userspace */
+			/* igyesre group which is directly joined by userspace */
 			if (test_bit(IPOIB_FLAG_UMCAST, &priv->flags) &&
 			    !ib_sa_get_mcmember_rec(priv->ca, priv->port, &mgid, &rec)) {
-				ipoib_dbg_mcast(priv, "ignoring multicast entry for mgid %pI6\n",
+				ipoib_dbg_mcast(priv, "igyesring multicast entry for mgid %pI6\n",
 						mgid.raw);
 				continue;
 			}
@@ -950,8 +950,8 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 				/* Destroy the send only entry */
 				list_move_tail(&mcast->list, &remove_list);
 
-				rb_replace_node(&mcast->rb_node,
-						&nmcast->rb_node,
+				rb_replace_yesde(&mcast->rb_yesde,
+						&nmcast->rb_yesde,
 						&priv->multicast_tree);
 			} else
 				__ipoib_mcast_add(dev, nmcast);
@@ -970,7 +970,7 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 			ipoib_dbg_mcast(priv, "deleting multicast group %pI6\n",
 					mcast->mcmember.mgid.raw);
 
-			rb_erase(&mcast->rb_node, &priv->multicast_tree);
+			rb_erase(&mcast->rb_yesde, &priv->multicast_tree);
 
 			/* Move to the remove list */
 			list_move_tail(&mcast->list, &remove_list);
@@ -1016,7 +1016,7 @@ struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev)
 int ipoib_mcast_iter_next(struct ipoib_mcast_iter *iter)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(iter->dev);
-	struct rb_node *n;
+	struct rb_yesde *n;
 	struct ipoib_mcast *mcast;
 	int ret = 1;
 
@@ -1025,7 +1025,7 @@ int ipoib_mcast_iter_next(struct ipoib_mcast_iter *iter)
 	n = rb_first(&priv->multicast_tree);
 
 	while (n) {
-		mcast = rb_entry(n, struct ipoib_mcast, rb_node);
+		mcast = rb_entry(n, struct ipoib_mcast, rb_yesde);
 
 		if (memcmp(iter->mgid.raw, mcast->mcmember.mgid.raw,
 			   sizeof (union ib_gid)) < 0) {

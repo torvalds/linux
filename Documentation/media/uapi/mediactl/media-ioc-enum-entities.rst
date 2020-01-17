@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _media_ioc_enum_entities:
 
@@ -19,7 +19,7 @@ Name
 MEDIA_IOC_ENUM_ENTITIES - Enumerate entities and their properties
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, MEDIA_IOC_ENUM_ENTITIES, struct media_entity_desc *argp )
@@ -50,9 +50,9 @@ EINVAL error code when the id is invalid.
 Entities can be enumerated by or'ing the id with the
 ``MEDIA_ENT_ID_FLAG_NEXT`` flag. The driver will return information
 about the entity with the smallest id strictly larger than the requested
-one ('next entity'), or the ``EINVAL`` error code if there is none.
+one ('next entity'), or the ``EINVAL`` error code if there is yesne.
 
-Entity IDs can be non-contiguous. Applications must *not* try to
+Entity IDs can be yesn-contiguous. Applications must *yest* try to
 enumerate entities by calling MEDIA_IOC_ENUM_ENTITIES with increasing
 id's until they get an error.
 
@@ -72,9 +72,9 @@ id's until they get an error.
        -
        -  Entity ID, set by the application. When the ID is or'ed with
 	  ``MEDIA_ENT_ID_FLAG_NEXT``, the driver clears the flag and returns
-	  the first entity with a larger ID. Do not expect that the ID will
+	  the first entity with a larger ID. Do yest expect that the ID will
 	  always be the same for each instance of the device. In other words,
-	  do not hardcode entity IDs in an application.
+	  do yest hardcode entity IDs in an application.
 
     *  -  char
        -  ``name``\ [32]
@@ -117,7 +117,7 @@ id's until they get an error.
        -  ``links``
        -
        -
-       -  Total number of outbound links. Inbound links are not counted in
+       -  Total number of outbound links. Inbound links are yest counted in
 	  this field.
 
     *  -  __u32
@@ -133,19 +133,19 @@ id's until they get an error.
        -  struct
        -  ``dev``
        -
-       -  Valid for (sub-)devices that create a single device node.
+       -  Valid for (sub-)devices that create a single device yesde.
 
     *  -
        -
        -  __u32
        -  ``major``
-       -  Device node major number.
+       -  Device yesde major number.
 
     *  -
        -
        -  __u32
-       -  ``minor``
-       -  Device node minor number.
+       -  ``miyesr``
+       -  Device yesde miyesr number.
 
     *  -
        -  __u8
@@ -157,10 +157,10 @@ id's until they get an error.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The struct :c:type:`media_entity_desc` ``id``
-    references a non-existing entity.
+    references a yesn-existing entity.

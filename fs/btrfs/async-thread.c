@@ -22,7 +22,7 @@ enum {
 #define DFT_THRESHOLD (32)
 
 struct __btrfs_workqueue {
-	struct workqueue_struct *normal_wq;
+	struct workqueue_struct *yesrmal_wq;
 
 	/* File system this workqueue services */
 	struct btrfs_fs_info *fs_info;
@@ -49,7 +49,7 @@ struct __btrfs_workqueue {
 };
 
 struct btrfs_workqueue {
-	struct __btrfs_workqueue *normal;
+	struct __btrfs_workqueue *yesrmal;
 	struct __btrfs_workqueue *high;
 };
 
@@ -63,18 +63,18 @@ struct btrfs_fs_info * __pure btrfs_work_owner(const struct btrfs_work *work)
 	return work->wq->fs_info;
 }
 
-bool btrfs_workqueue_normal_congested(const struct btrfs_workqueue *wq)
+bool btrfs_workqueue_yesrmal_congested(const struct btrfs_workqueue *wq)
 {
 	/*
-	 * We could compare wq->normal->pending with num_online_cpus()
+	 * We could compare wq->yesrmal->pending with num_online_cpus()
 	 * to support "thresh == NO_THRESHOLD" case, but it requires
 	 * moving up atomic_inc/dec in thresh_queue/exec_hook. Let's
 	 * postpone it until someone needs the support of that case.
 	 */
-	if (wq->normal->thresh == NO_THRESHOLD)
+	if (wq->yesrmal->thresh == NO_THRESHOLD)
 		return false;
 
-	return atomic_read(&wq->normal->pending) > wq->normal->thresh * 2;
+	return atomic_read(&wq->yesrmal->pending) > wq->yesrmal->thresh * 2;
 }
 
 static struct __btrfs_workqueue *
@@ -106,12 +106,12 @@ __btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info, const char *name,
 	}
 
 	if (flags & WQ_HIGHPRI)
-		ret->normal_wq = alloc_workqueue("btrfs-%s-high", flags,
+		ret->yesrmal_wq = alloc_workqueue("btrfs-%s-high", flags,
 						 ret->current_active, name);
 	else
-		ret->normal_wq = alloc_workqueue("btrfs-%s", flags,
+		ret->yesrmal_wq = alloc_workqueue("btrfs-%s", flags,
 						 ret->current_active, name);
-	if (!ret->normal_wq) {
+	if (!ret->yesrmal_wq) {
 		kfree(ret);
 		return NULL;
 	}
@@ -137,10 +137,10 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info,
 	if (!ret)
 		return NULL;
 
-	ret->normal = __btrfs_alloc_workqueue(fs_info, name,
+	ret->yesrmal = __btrfs_alloc_workqueue(fs_info, name,
 					      flags & ~WQ_HIGHPRI,
 					      limit_active, thresh);
-	if (!ret->normal) {
+	if (!ret->yesrmal) {
 		kfree(ret);
 		return NULL;
 	}
@@ -149,7 +149,7 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info,
 		ret->high = __btrfs_alloc_workqueue(fs_info, name, flags,
 						    limit_active, thresh);
 		if (!ret->high) {
-			__btrfs_destroy_workqueue(ret->normal);
+			__btrfs_destroy_workqueue(ret->yesrmal);
 			kfree(ret);
 			return NULL;
 		}
@@ -213,7 +213,7 @@ out:
 	spin_unlock(&wq->thres_lock);
 
 	if (need_change) {
-		workqueue_set_max_active(wq->normal_wq, wq->current_active);
+		workqueue_set_max_active(wq->yesrmal_wq, wq->current_active);
 	}
 }
 
@@ -247,7 +247,7 @@ static void run_ordered_work(struct __btrfs_workqueue *wq,
 		spin_unlock_irqrestore(lock, flags);
 		work->ordered_func(work);
 
-		/* now take the lock again and drop our item from the list */
+		/* yesw take the lock again and drop our item from the list */
 		spin_lock_irqsave(lock, flags);
 		list_del(&work->ordered_list);
 		spin_unlock_irqrestore(lock, flags);
@@ -257,20 +257,20 @@ static void run_ordered_work(struct __btrfs_workqueue *wq,
 			 * This is the work item that the worker is currently
 			 * executing.
 			 *
-			 * The kernel workqueue code guarantees non-reentrancy
+			 * The kernel workqueue code guarantees yesn-reentrancy
 			 * of work items. I.e., if a work item with the same
 			 * address and work function is queued twice, the second
 			 * execution is blocked until the first one finishes. A
 			 * work item may be freed and recycled with the same
 			 * work function; the workqueue code assumes that the
-			 * original work item cannot depend on the recycled work
+			 * original work item canyest depend on the recycled work
 			 * item in that case (see find_worker_executing_work()).
 			 *
 			 * Note that different types of Btrfs work can depend on
 			 * each other, and one type of work on one Btrfs
 			 * filesystem may even depend on the same type of work
-			 * on another Btrfs filesystem via, e.g., a loop device.
-			 * Therefore, we must not allow the current work item to
+			 * on ayesther Btrfs filesystem via, e.g., a loop device.
+			 * Therefore, we must yest allow the current work item to
 			 * be recycled until we are really done, otherwise we
 			 * break the above assumption and can deadlock.
 			 */
@@ -281,7 +281,7 @@ static void run_ordered_work(struct __btrfs_workqueue *wq,
 			 * the lock held.
 			 */
 			work->ordered_free(work);
-			/* NB: work must not be dereferenced past this point. */
+			/* NB: work must yest be dereferenced past this point. */
 			trace_btrfs_all_work_done(wq->fs_info, work);
 		}
 	}
@@ -289,21 +289,21 @@ static void run_ordered_work(struct __btrfs_workqueue *wq,
 
 	if (free_self) {
 		self->ordered_free(self);
-		/* NB: self must not be dereferenced past this point. */
+		/* NB: self must yest be dereferenced past this point. */
 		trace_btrfs_all_work_done(wq->fs_info, self);
 	}
 }
 
-static void btrfs_work_helper(struct work_struct *normal_work)
+static void btrfs_work_helper(struct work_struct *yesrmal_work)
 {
-	struct btrfs_work *work = container_of(normal_work, struct btrfs_work,
-					       normal_work);
+	struct btrfs_work *work = container_of(yesrmal_work, struct btrfs_work,
+					       yesrmal_work);
 	struct __btrfs_workqueue *wq;
 	int need_order = 0;
 
 	/*
-	 * We should not touch things inside work in the following cases:
-	 * 1) after work->func() if it has no ordered_free
+	 * We should yest touch things inside work in the following cases:
+	 * 1) after work->func() if it has yes ordered_free
 	 *    Since the struct is freed in work->func().
 	 * 2) after setting WORK_DONE_BIT
 	 *    The work may be freed in other threads almost instantly.
@@ -320,7 +320,7 @@ static void btrfs_work_helper(struct work_struct *normal_work)
 		set_bit(WORK_DONE_BIT, &work->flags);
 		run_ordered_work(wq, work);
 	} else {
-		/* NB: work must not be dereferenced past this point. */
+		/* NB: work must yest be dereferenced past this point. */
 		trace_btrfs_all_work_done(wq->fs_info, work);
 	}
 }
@@ -331,7 +331,7 @@ void btrfs_init_work(struct btrfs_work *work, btrfs_func_t func,
 	work->func = func;
 	work->ordered_func = ordered_func;
 	work->ordered_free = ordered_free;
-	INIT_WORK(&work->normal_work, btrfs_work_helper);
+	INIT_WORK(&work->yesrmal_work, btrfs_work_helper);
 	INIT_LIST_HEAD(&work->ordered_list);
 	work->flags = 0;
 }
@@ -349,7 +349,7 @@ static inline void __btrfs_queue_work(struct __btrfs_workqueue *wq,
 		spin_unlock_irqrestore(&wq->list_lock, flags);
 	}
 	trace_btrfs_work_queued(work);
-	queue_work(wq->normal_wq, &work->normal_work);
+	queue_work(wq->yesrmal_wq, &work->yesrmal_work);
 }
 
 void btrfs_queue_work(struct btrfs_workqueue *wq,
@@ -360,14 +360,14 @@ void btrfs_queue_work(struct btrfs_workqueue *wq,
 	if (test_bit(WORK_HIGH_PRIO_BIT, &work->flags) && wq->high)
 		dest_wq = wq->high;
 	else
-		dest_wq = wq->normal;
+		dest_wq = wq->yesrmal;
 	__btrfs_queue_work(dest_wq, work);
 }
 
 static inline void
 __btrfs_destroy_workqueue(struct __btrfs_workqueue *wq)
 {
-	destroy_workqueue(wq->normal_wq);
+	destroy_workqueue(wq->yesrmal_wq);
 	trace_btrfs_workqueue_destroy(wq);
 	kfree(wq);
 }
@@ -378,7 +378,7 @@ void btrfs_destroy_workqueue(struct btrfs_workqueue *wq)
 		return;
 	if (wq->high)
 		__btrfs_destroy_workqueue(wq->high);
-	__btrfs_destroy_workqueue(wq->normal);
+	__btrfs_destroy_workqueue(wq->yesrmal);
 	kfree(wq);
 }
 
@@ -386,7 +386,7 @@ void btrfs_workqueue_set_max(struct btrfs_workqueue *wq, int limit_active)
 {
 	if (!wq)
 		return;
-	wq->normal->limit_active = limit_active;
+	wq->yesrmal->limit_active = limit_active;
 	if (wq->high)
 		wq->high->limit_active = limit_active;
 }

@@ -5,7 +5,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 
@@ -47,7 +47,7 @@ static const char rebooting_msg[32] __attribute__((aligned(32))) =
 static const char panicking_msg[32] __attribute__((aligned(32))) =
 	"Linux panicking";
 
-static int sstate_reboot_call(struct notifier_block *np, unsigned long type, void *_unused)
+static int sstate_reboot_call(struct yestifier_block *np, unsigned long type, void *_unused)
 {
 	const char *msg;
 
@@ -71,32 +71,32 @@ static int sstate_reboot_call(struct notifier_block *np, unsigned long type, voi
 	return NOTIFY_OK;
 }
 
-static struct notifier_block sstate_reboot_notifier = {
-	.notifier_call = sstate_reboot_call,
+static struct yestifier_block sstate_reboot_yestifier = {
+	.yestifier_call = sstate_reboot_call,
 };
 
-static int sstate_panic_event(struct notifier_block *n, unsigned long event, void *ptr)
+static int sstate_panic_event(struct yestifier_block *n, unsigned long event, void *ptr)
 {
 	do_set_sstate(HV_SOFT_STATE_TRANSITION, panicking_msg);
 
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block sstate_panic_block = {
-	.notifier_call	=	sstate_panic_event,
+static struct yestifier_block sstate_panic_block = {
+	.yestifier_call	=	sstate_panic_event,
 	.priority	=	INT_MAX,
 };
 
 static int __init sstate_init(void)
 {
-	unsigned long major, minor;
+	unsigned long major, miyesr;
 
 	if (tlb_type != hypervisor)
 		return 0;
 
 	major = 1;
-	minor = 0;
-	if (sun4v_hvapi_register(HV_GRP_SOFT_STATE, major, &minor))
+	miyesr = 0;
+	if (sun4v_hvapi_register(HV_GRP_SOFT_STATE, major, &miyesr))
 		return 0;
 
 	hv_supports_soft_state = 1;
@@ -105,9 +105,9 @@ static int __init sstate_init(void)
 
 	do_set_sstate(HV_SOFT_STATE_TRANSITION, booting_msg);
 
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_yestifier_chain_register(&panic_yestifier_list,
 				       &sstate_panic_block);
-	register_reboot_notifier(&sstate_reboot_notifier);
+	register_reboot_yestifier(&sstate_reboot_yestifier);
 
 	return 0;
 }

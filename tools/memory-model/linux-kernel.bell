@@ -16,8 +16,8 @@
 enum Accesses = 'once (*READ_ONCE,WRITE_ONCE*) ||
 		'release (*smp_store_release*) ||
 		'acquire (*smp_load_acquire*) ||
-		'noreturn (* R of non-return RMW *)
-instructions R[{'once,'acquire,'noreturn}]
+		'yesreturn (* R of yesn-return RMW *)
+instructions R[{'once,'acquire,'yesreturn}]
 instructions W[{'once,'release}]
 instructions RMW[{'once,'acquire,'release}]
 

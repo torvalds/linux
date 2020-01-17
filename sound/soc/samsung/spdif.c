@@ -184,7 +184,7 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dma_data = spdif->dma_playback;
 	else {
-		dev_err(spdif->dev, "Capture is not supported\n");
+		dev_err(spdif->dev, "Capture is yest supported\n");
 		return -EINVAL;
 	}
 
@@ -410,7 +410,7 @@ static int spdif_probe(struct platform_device *pdev)
 
 	spdif->regs = ioremap(mem_res->start, 0x100);
 	if (spdif->regs == NULL) {
-		dev_err(&pdev->dev, "Cannot ioremap registers\n");
+		dev_err(&pdev->dev, "Canyest ioremap registers\n");
 		ret = -ENXIO;
 		goto err3;
 	}

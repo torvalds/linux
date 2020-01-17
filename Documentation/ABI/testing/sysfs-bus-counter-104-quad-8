@@ -3,34 +3,34 @@ KernelVersion:	5.2
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Active level of index input Signal Y; irrelevant in
-		non-synchronous load mode.
+		yesn-synchroyesus load mode.
 
 What:		/sys/bus/counter/devices/counterX/signalY/index_polarity_available
-What:		/sys/bus/counter/devices/counterX/signalY/synchronous_mode_available
+What:		/sys/bus/counter/devices/counterX/signalY/synchroyesus_mode_available
 KernelVersion:	5.2
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Discrete set of available values for the respective Signal Y
 		configuration are listed in this file.
 
-What:		/sys/bus/counter/devices/counterX/signalY/synchronous_mode
+What:		/sys/bus/counter/devices/counterX/signalY/synchroyesus_mode
 KernelVersion:	5.2
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Configure the counter associated with Signal Y for
-		non-synchronous or synchronous load mode. Synchronous load mode
-		cannot be selected in non-quadrature (Pulse-Direction) clock
+		yesn-synchroyesus or synchroyesus load mode. Synchroyesus load mode
+		canyest be selected in yesn-quadrature (Pulse-Direction) clock
 		mode.
 
-		non-synchronous:
+		yesn-synchroyesus:
 			A logic low level is the active level at this index
 			input. The index function (as enabled via preset_enable)
 			is performed directly on the active level of the index
 			input.
 
-		synchronous:
+		synchroyesus:
 			Intended for interfacing with encoder Index output in
 			quadrature clock mode. The active level is configured
 			via index_polarity. The index function (as enabled via
-			preset_enable) is performed synchronously with the
+			preset_enable) is performed synchroyesusly with the
 			quadrature clock on the active level of the index input.

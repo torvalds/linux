@@ -14,12 +14,12 @@ mkdir $T
 # comparetest oldpath newpath
 perfect=0
 obsline=0
-noobsline=0
+yesobsline=0
 obsresult=0
 badcompare=0
 comparetest () {
-	grep -v 'maxresident)k\|minor)pagefaults\|^Time' $1 > $T/oldout
-	grep -v 'maxresident)k\|minor)pagefaults\|^Time' $2 > $T/newout
+	grep -v 'maxresident)k\|miyesr)pagefaults\|^Time' $1 > $T/oldout
+	grep -v 'maxresident)k\|miyesr)pagefaults\|^Time' $2 > $T/newout
 	if cmp -s $T/oldout $T/newout && grep -q '^Observation' $1
 	then
 		echo Exact output match: $2
@@ -39,7 +39,7 @@ comparetest () {
 		fi
 	else
 		echo Missing Observation line "(e.g., herd7 timeout)": $2
-		noobsline=`expr "$noobsline" + 1`
+		yesobsline=`expr "$yesobsline" + 1`
 		return 0
 	fi
 
@@ -70,9 +70,9 @@ if test "$obsline" -ne 0
 then
 	echo Matching Observation result and counts: $obsline 1>&2
 fi
-if test "$noobsline" -ne 0
+if test "$yesobsline" -ne 0
 then
-	echo Missing Observation line "(e.g., herd7 timeout)": $noobsline 1>&2
+	echo Missing Observation line "(e.g., herd7 timeout)": $yesobsline 1>&2
 fi
 if test "$obsresult" -ne 0
 then

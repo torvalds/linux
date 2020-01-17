@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -21,7 +21,7 @@
  *
  */
 #include "pp_debug.h"
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include "hwmgr.h"
 #include "hardwaremanager.h"
 #include "power_state.h"
@@ -186,12 +186,12 @@ int phm_display_configuration_changed(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
+int phm_yestify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (NULL != hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment)
-			hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment(hwmgr);
+	if (NULL != hwmgr->hwmgr_func->yestify_smc_display_config_after_ps_adjustment)
+			hwmgr->hwmgr_func->yestify_smc_display_config_after_ps_adjustment(hwmgr);
 
 	return 0;
 }
@@ -298,7 +298,7 @@ int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 	if (NULL != hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk)
 		hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk(hwmgr, display_config->min_dcef_deep_sleep_set_clk);
 
-	for (index = 0; index < display_config->num_path_including_non_display; index++) {
+	for (index = 0; index < display_config->num_path_including_yesn_display; index++) {
 		if (display_config->displays[index].controller_id != 0)
 			number_of_active_display++;
 	}
@@ -382,7 +382,7 @@ int phm_get_clock_info(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *s
 
 	pclock_info->min_mem_clk = performance_level.memory_clock;
 	pclock_info->min_eng_clk = performance_level.coreClock;
-	pclock_info->min_bus_bandwidth = performance_level.nonLocalMemoryFreq * performance_level.nonLocalMemoryWidth;
+	pclock_info->min_bus_bandwidth = performance_level.yesnLocalMemoryFreq * performance_level.yesnLocalMemoryWidth;
 
 
 	result = phm_get_performance_level(hwmgr, state, designation,
@@ -392,7 +392,7 @@ int phm_get_clock_info(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *s
 
 	pclock_info->max_mem_clk = performance_level.memory_clock;
 	pclock_info->max_eng_clk = performance_level.coreClock;
-	pclock_info->max_bus_bandwidth = performance_level.nonLocalMemoryFreq * performance_level.nonLocalMemoryWidth;
+	pclock_info->max_bus_bandwidth = performance_level.yesnLocalMemoryFreq * performance_level.yesnLocalMemoryWidth;
 
 	return 0;
 }

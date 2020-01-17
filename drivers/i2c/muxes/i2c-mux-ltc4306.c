@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Linear Technology LTC4306 and LTC4305 I2C multiplexer/switch
+ * Linear Techyeslogy LTC4306 and LTC4305 I2C multiplexer/switch
  *
  * Copyright (C) 2017 Analog Devices Inc.
  *
@@ -316,5 +316,5 @@ static struct i2c_driver ltc4306_driver = {
 module_i2c_driver(ltc4306_driver);
 
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
-MODULE_DESCRIPTION("Linear Technology LTC4306, LTC4305 I2C mux/switch driver");
+MODULE_DESCRIPTION("Linear Techyeslogy LTC4306, LTC4305 I2C mux/switch driver");
 MODULE_LICENSE("GPL v2");

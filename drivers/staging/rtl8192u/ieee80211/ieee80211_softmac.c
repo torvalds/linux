@@ -220,7 +220,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	/* called with 2nd param 0, no mgmt lock required */
+	/* called with 2nd param 0, yes mgmt lock required */
 	ieee80211_sta_wakeup(ieee, 0);
 
 	tcb_desc->queue_index = MGNT_QUEUE;
@@ -259,11 +259,11 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 			ieee->seq_ctrl[0]++;
 
 		/* check whether the managed packet queued greater than 5 */
-		if (!ieee->check_nic_enough_desc(ieee->dev, tcb_desc->queue_index) || \
+		if (!ieee->check_nic_eyesugh_desc(ieee->dev, tcb_desc->queue_index) || \
 		    (skb_queue_len(&ieee->skb_waitQ[tcb_desc->queue_index]) != 0) || \
 		    (ieee->queue_stop)) {
 			/* insert the skb packet to the management queue */
-			/* as for the completion function, it does not need
+			/* as for the completion function, it does yest need
 			 * to check it any more.
 			 * */
 			printk("%s():insert to waitqueue!\n", __func__);
@@ -426,7 +426,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 		/* this function can be called in two situations
 		 * 1- We have switched to ad-hoc mode and we are
 		 *    performing a complete syncro scan before conclude
-		 *    there are no interesting cell and to create a
+		 *    there are yes interesting cell and to create a
 		 *    new one. In this case the link state is
 		 *    IEEE80211_NOLINK until we found an interesting cell.
 		 *    If so the ieee8021_new_net, called by the RX path
@@ -434,10 +434,10 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 		 *    scanning
 		 * 2- We are linked and the root uses run iwlist scan.
 		 *    So we switch to IEEE80211_LINKED_SCANNING to remember
-		 *    that we are still logically linked (not interested in
+		 *    that we are still logically linked (yest interested in
 		 *    new network events, despite for updating the net list,
 		 *    but we are temporarly 'unlinked' as the driver shall
-		 *    not filter RX frames and the channel is changing.
+		 *    yest filter RX frames and the channel is changing.
 		 * So the only situation in witch are interested is to check
 		 * if the state become LINKED because of the #1 situation
 		 */
@@ -484,10 +484,10 @@ static void ieee80211_softmac_scan_wq(struct work_struct *work)
 		ieee->current_network.channel =
 			(ieee->current_network.channel + 1) % MAX_CHANNEL_NUMBER;
 		if (watchdog++ > MAX_CHANNEL_NUMBER) {
-		//if current channel is not in channel map, set to default channel.
+		//if current channel is yest in channel map, set to default channel.
 			if (!channel_map[ieee->current_network.channel]) {
 				ieee->current_network.channel = 6;
-				goto out; /* no good chans */
+				goto out; /* yes good chans */
 			}
 		}
 	} while (!channel_map[ieee->current_network.channel]);
@@ -788,7 +788,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 
 	if (wpa_ie_len) {
 		if (ieee->iw_mode == IW_MODE_ADHOC) {
-			//as Windows will set pairwise key same as the group key which is not allowed in Linux, so set this for IOT issue. WB 2008.07.07
+			//as Windows will set pairwise key same as the group key which is yest allowed in Linux, so set this for IOT issue. WB 2008.07.07
 			memcpy(&ieee->wpa_ie[14], &ieee->wpa_ie[8], 4);
 		}
 		memcpy(tag, ieee->wpa_ie, ieee->wpa_ie_len);
@@ -1163,17 +1163,17 @@ void ieee80211_associate_abort(struct ieee80211_device *ieee)
 	ieee->associate_seq++;
 
 	/* don't scan, and avoid to have the RX path possibily
-	 * try again to associate. Even do not react to AUTH or
+	 * try again to associate. Even do yest react to AUTH or
 	 * ASSOC response. Just wait for the retry wq to be scheduled.
 	 * Here we will check if there are good nets to associate
 	 * with, so we retry or just get back to NO_LINK and scanning
 	 */
 	if (ieee->state == IEEE80211_ASSOCIATING_AUTHENTICATING) {
 		IEEE80211_DEBUG_MGMT("Authentication failed\n");
-		ieee->softmac_stats.no_auth_rs++;
+		ieee->softmac_stats.yes_auth_rs++;
 	} else {
 		IEEE80211_DEBUG_MGMT("Association failed\n");
-		ieee->softmac_stats.no_ass_rs++;
+		ieee->softmac_stats.yes_ass_rs++;
 	}
 
 	ieee->state = IEEE80211_ASSOCIATING_RETRY;
@@ -1283,7 +1283,7 @@ static void ieee80211_associate_complete_wq(struct work_struct *work)
 		printk("Successfully associated, ht enabled\n");
 		HTOnAssocRsp(ieee);
 	} else {
-		printk("Successfully associated, ht not enabled(%d, %d)\n", ieee->pHTInfo->bCurrentHTSupport, ieee->pHTInfo->bEnableHT);
+		printk("Successfully associated, ht yest enabled(%d, %d)\n", ieee->pHTInfo->bCurrentHTSupport, ieee->pHTInfo->bEnableHT);
 		memset(ieee->dot11HTOperationalRateSet, 0, 16);
 		//HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
 	}
@@ -1295,8 +1295,8 @@ static void ieee80211_associate_complete_wq(struct work_struct *work)
 	}
 	ieee->link_change(ieee->dev);
 	if (!ieee->is_silent_reset) {
-		printk("============>normal associate\n");
-		notify_wx_assoc_event(ieee);
+		printk("============>yesrmal associate\n");
+		yestify_wx_assoc_event(ieee);
 	} else {
 		printk("==================>silent reset associate\n");
 		ieee->is_silent_reset = false;
@@ -1345,8 +1345,8 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 
 	short apset, ssidset, ssidbroad, apmatch, ssidmatch;
 
-	/* we are interested in new new only if we are not associated
-	 * and we are not associating / authenticating
+	/* we are interested in new new only if we are yest associated
+	 * and we are yest associating / authenticating
 	 */
 	if (ieee->state != IEEE80211_NOLINK)
 		return;
@@ -1359,7 +1359,7 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 
 	if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC) {
 		/* if the user specified the AP MAC, we need also the essid
-		 * This could be obtained by beacons or, if the network does not
+		 * This could be obtained by beacons or, if the network does yest
 		 * broadcast it, it can be put manually.
 		 */
 		apset = ieee->wap_set;//(memcmp(ieee->current_network.bssid, zero,ETH_ALEN)!=0 );
@@ -1370,13 +1370,13 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 			(!strncmp(ieee->current_network.ssid, net->ssid, net->ssid_len));
 
 		/* if the user set the AP check if match.
-		 * if the network does not broadcast essid we check the user supplyed ANY essid
-		 * if the network does broadcast and the user does not set essid it is OK
+		 * if the network does yest broadcast essid we check the user supplyed ANY essid
+		 * if the network does broadcast and the user does yest set essid it is OK
 		 * if the network does broadcast and the user did set essid chech if essid match
 		 */
 		if ((apset && apmatch &&
 		     ((ssidset && ssidbroad && ssidmatch) || (ssidbroad && !ssidset) || (!ssidbroad && ssidset))) ||
-		    /* if the ap is not set, check that the user set the bssid
+		    /* if the ap is yest set, check that the user set the bssid
 		     * and the network does broadcast and that those two bssid matches
 		     */
 		    (!apset && ssidset && ssidbroad && ssidmatch)) {
@@ -1407,7 +1407,7 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 				if ((ieee->current_network.qos_data.supported == 1) &&
 				    // (ieee->pHTInfo->bEnableHT && ieee->current_network.bssht.bdSupportHT))
 				    ieee->current_network.bssht.bdSupportHT) {
-/*WB, 2008.09.09:bCurrentHTSupport and bEnableHT two flags are going to put together to check whether we are in HT now, so needn't to check bEnableHT flags here. That's is to say we will set to HT support whenever joined AP has the ability to support HT. And whether we are in HT or not, please check bCurrentHTSupport&&bEnableHT now please.*/
+/*WB, 2008.09.09:bCurrentHTSupport and bEnableHT two flags are going to put together to check whether we are in HT yesw, so needn't to check bEnableHT flags here. That's is to say we will set to HT support whenever joined AP has the ability to support HT. And whether we are in HT or yest, please check bCurrentHTSupport&&bEnableHT yesw please.*/
 					//	ieee->pHTInfo->bCurrentHTSupport = true;
 					HTResetSelfAndSavePeerSetting(ieee, &ieee->current_network);
 				} else {
@@ -1534,7 +1534,7 @@ static short probe_rq_parse(struct ieee80211_device *ieee, struct sk_buff *skb, 
 		return 1;
 
 	if (!ssid)
-		return 1; /* ssid not found in tagged param */
+		return 1; /* ssid yest found in tagged param */
 
 	return (!strncmp(ssid, ieee->current_network.ssid, ssidlen));
 }
@@ -1705,7 +1705,7 @@ static inline void ieee80211_sta_ps(unsigned long data)
 	}
 
 	sleep = ieee80211_sta_ps_sleep(ieee, &th, &tl);
-	/* 2 wake, 1 sleep, 0 do nothing */
+	/* 2 wake, 1 sleep, 0 do yesthing */
 	if (sleep == 0)
 		goto out;
 
@@ -1774,8 +1774,8 @@ void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success)
 			ieee->sta_sleep = 1;
 			ieee->enter_sleep_state(ieee->dev, ieee->ps_th, ieee->ps_tl);
 		}
-		/* if the card report not success we can't be sure the AP
-		 * has not RXed so we can't assume the AP believe us awake
+		/* if the card report yest success we can't be sure the AP
+		 * has yest RXed so we can't assume the AP believe us awake
 		 */
 	} else {
 		/* 21112005 - tx again null without PS bit if lost */
@@ -1925,7 +1925,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 								       network, rx_stats)) {
 						return 1;
 					} else {
-						//filling the PeerHTCap. //maybe not necessary as we can get its info from current_network.
+						//filling the PeerHTCap. //maybe yest necessary as we can get its info from current_network.
 						memcpy(ieee->pHTInfo->PeerHTCapBuf, network->bssht.bdHTCapBuf, network->bssht.bdHTCapLen);
 						memcpy(ieee->pHTInfo->PeerHTInfoBuf, network->bssht.bdHTInfoBuf, network->bssht.bdHTInfoLen);
 					}
@@ -1934,7 +1934,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 				}
 				ieee80211_associate_complete(ieee);
 			} else {
-				/* aid could not been allocated */
+				/* aid could yest been allocated */
 				ieee->softmac_stats.rx_ass_err++;
 				printk("Association response status code 0x%x\n",
 				       errcode);
@@ -1978,7 +1978,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	case IEEE80211_STYPE_DISASSOC:
 	case IEEE80211_STYPE_DEAUTH:
-		/* FIXME for now repeat all the association procedure
+		/* FIXME for yesw repeat all the association procedure
 		* both for disassociation and deauthentication
 		*/
 		if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
@@ -1987,7 +1987,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 			ieee->state = IEEE80211_ASSOCIATING;
 			ieee->softmac_stats.reassoc++;
 
-			notify_wx_assoc_event(ieee);
+			yestify_wx_assoc_event(ieee);
 			//HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
 			RemovePeerTS(ieee, header->addr2);
 			schedule_work(&ieee->associate_procedure_wq);
@@ -2011,10 +2011,10 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
  * of the ieee802.11 fragmentation.
  * So, the driver receives a fragment at a time and might
  * call the stop function when it wants, without taking
- * care to have enough room to TX an entire packet.
+ * care to have eyesugh room to TX an entire packet.
  * This might be useful if each fragment needs its own
  * descriptor. Thus, just keeping a total free memory > than
- * the max fragmentation threshold is not enough. If the
+ * the max fragmentation threshold is yest eyesugh. If the
  * ieee802.11 stack passed a TXB struct, then you would need
  * to keep N free descriptors where
  * N = MAX_PACKET_SIZE / MIN_FRAG_THRESHOLD.
@@ -2031,7 +2031,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	/* called with 2nd parm 0, no tx mgmt lock required */
+	/* called with 2nd parm 0, yes tx mgmt lock required */
 	ieee80211_sta_wakeup(ieee, 0);
 
 	/* update the tx status */
@@ -2048,13 +2048,13 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 #else
 		if ((skb_queue_len(&ieee->skb_waitQ[queue_index]) != 0) ||
 #endif
-		    (!ieee->check_nic_enough_desc(ieee->dev, queue_index)) || \
+		    (!ieee->check_nic_eyesugh_desc(ieee->dev, queue_index)) || \
 		    (ieee->queue_stop)) {
 			/* insert the skb packet to the wait queue */
-			/* as for the completion function, it does not need
+			/* as for the completion function, it does yest need
 			 * to check it any more.
 			 * */
-			//printk("error:no descriptor left@queue_index %d\n", queue_index);
+			//printk("error:yes descriptor left@queue_index %d\n", queue_index);
 			//ieee80211_stop_queue(ieee);
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 			skb_queue_tail(&ieee->skb_drv_aggQ[queue_index], txb->fragments[i]);
@@ -2184,7 +2184,7 @@ void ieee80211_start_master_bss(struct ieee80211_device *ieee)
 	ieee->set_chan(ieee->dev, ieee->current_network.channel);
 	ieee->state = IEEE80211_LINKED;
 	ieee->link_change(ieee->dev);
-	notify_wx_assoc_event(ieee);
+	yestify_wx_assoc_event(ieee);
 
 	if (ieee->data_hard_resume)
 		ieee->data_hard_resume(ieee->dev);
@@ -2230,13 +2230,13 @@ static void ieee80211_start_ibss_wq(struct work_struct *work)
 //	if((IS_DOT11D_ENABLE(ieee)) && (ieee->state == IEEE80211_NOLINK))
 	if (ieee->state == IEEE80211_NOLINK)
 		ieee->current_network.channel = 6;
-	/* if not then the state is not linked. Maybe the user switched to
+	/* if yest then the state is yest linked. Maybe the user switched to
 	 * ad-hoc mode just after being in monitor mode, or just after
-	 * being very few time in managed mode (so the card have had no
+	 * being very few time in managed mode (so the card have had yes
 	 * time to scan all the chans..) or we have just run up the iface
-	 * after setting ad-hoc mode. So we have to give another try..
+	 * after setting ad-hoc mode. So we have to give ayesther try..
 	 * Here, in ibss mode, should be safe to do this without extra care
-	 * (in bss mode we had to make sure no-one tryed to associate when
+	 * (in bss mode we had to make sure yes-one tryed to associate when
 	 * we had just checked the ieee->state and we was going to start the
 	 * scan) beacause in ibss mode the ieee80211_new_net function, when
 	 * finds a good net, just set the ieee->state to IEEE80211_LINKED,
@@ -2247,7 +2247,7 @@ static void ieee80211_start_ibss_wq(struct work_struct *work)
 	if (ieee->state == IEEE80211_NOLINK)
 		ieee80211_start_scan_syncro(ieee);
 
-	/* the network definitively is not here.. create a new cell */
+	/* the network definitively is yest here.. create a new cell */
 	if (ieee->state == IEEE80211_NOLINK) {
 		printk("creating new IBSS cell\n");
 		if (!ieee->wap_set)
@@ -2295,7 +2295,7 @@ static void ieee80211_start_ibss_wq(struct work_struct *work)
 	ieee->set_chan(ieee->dev, ieee->current_network.channel);
 	ieee->link_change(ieee->dev);
 
-	notify_wx_assoc_event(ieee);
+	yestify_wx_assoc_event(ieee);
 
 	ieee80211_start_send_beacons(ieee);
 
@@ -2317,7 +2317,7 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 	unsigned long flags;
 	//
 	// Ref: 802.11d 11.1.3.3
-	// STA shall not start a BSS unless properly formed Beacon frame including a Country IE.
+	// STA shall yest start a BSS unless properly formed Beacon frame including a Country IE.
 	//
 	if (IS_DOT11D_ENABLE(ieee) && !IS_COUNTRY_IE_VALID(ieee)) {
 		if (!ieee->bGlobalDomain)
@@ -2325,17 +2325,17 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 	}
 	/* check if we have already found the net we
 	 * are interested in (if any).
-	 * if not (we are disassociated and we are not
+	 * if yest (we are disassociated and we are yest
 	 * in associating / authenticating phase) start the background scanning.
 	 */
 	ieee80211_softmac_check_all_nets(ieee);
 
-	/* ensure no-one start an associating process (thus setting
+	/* ensure yes-one start an associating process (thus setting
 	 * the ieee->state to ieee80211_ASSOCIATING) while we
 	 * have just checked it and we are going to enable scan.
 	 * The ieee80211_new_net function is always called with
 	 * lock held (from both ieee80211_softmac_check_all_nets and
-	 * the rx path), so we cannot be in the middle of such function
+	 * the rx path), so we canyest be in the middle of such function
 	 */
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -2361,7 +2361,7 @@ void ieee80211_disassociate(struct ieee80211_device *ieee)
 	ieee->is_set_key = false;
 	ieee->link_change(ieee->dev);
 	//HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
-	notify_wx_assoc_event(ieee);
+	yestify_wx_assoc_event(ieee);
 }
 EXPORT_SYMBOL(ieee80211_disassociate);
 
@@ -2378,16 +2378,16 @@ static void ieee80211_associate_retry_wq(struct work_struct *work)
 	if (ieee->state != IEEE80211_ASSOCIATING_RETRY)
 		goto exit;
 
-	/* until we do not set the state to IEEE80211_NOLINK
-	* there are no possibility to have someone else trying
+	/* until we do yest set the state to IEEE80211_NOLINK
+	* there are yes possibility to have someone else trying
 	* to start an association procedure (we get here with
 	* ieee->state = IEEE80211_ASSOCIATING).
 	* When we set the state to IEEE80211_NOLINK it is possible
 	* that the RX path run an attempt to associate, but
 	* both ieee80211_softmac_check_all_nets and the
-	* RX path works with ieee->lock held so there are no
+	* RX path works with ieee->lock held so there are yes
 	* problems. If we are still disassociated then start a scan.
-	* the lock here is necessary to ensure no one try to start
+	* the lock here is necessary to ensure yes one try to start
 	* an association procedure when we have just checked the
 	* state and we are going to start the scan.
 	*/
@@ -2494,7 +2494,7 @@ void ieee80211_start_protocol(struct ieee80211_device *ieee)
 		do {
 			ch++;
 			if (ch > MAX_CHANNEL_NUMBER)
-				return; /* no channel found */
+				return; /* yes channel found */
 		} while (!GET_DOT11D_INFO(ieee)->channel_map[ch]);
 		ieee->current_network.channel = ch;
 	}
@@ -2514,7 +2514,7 @@ void ieee80211_start_protocol(struct ieee80211_device *ieee)
 
 	/* if the user set the MAC of the ad-hoc cell and then
 	 * switch to managed mode, shall we  make sure that association
-	 * attempts does not fail just because the user provide the essid
+	 * attempts does yest fail just because the user provide the essid
 	 * and the nic is still checking for the AP MAC ??
 	 */
 	if (ieee->iw_mode == IW_MODE_INFRA)
@@ -2637,7 +2637,7 @@ static int ieee80211_wpa_mlme(struct ieee80211_device *ieee, int command, int re
 
 	switch (command) {
 	case IEEE_MLME_STA_DEAUTH:
-		// silently ignore
+		// silently igyesre
 		break;
 
 	case IEEE_MLME_STA_DISASSOC:
@@ -2645,7 +2645,7 @@ static int ieee80211_wpa_mlme(struct ieee80211_device *ieee, int command, int re
 		break;
 
 	default:
-		printk("Unknown MLME request: %d\n", command);
+		printk("Unkyeswn MLME request: %d\n", command);
 		ret = -EOPNOTSUPP;
 	}
 
@@ -2730,8 +2730,8 @@ static int ieee80211_wpa_set_param(struct ieee80211_device *ieee, u8 name, u32 v
 		 * wpa_supplicant calls set_wpa_enabled when the driver
 		 * is loaded and unloaded, regardless of if WPA is being
 		 * used.  No other calls are made which can be used to
-		 * determine if encryption will be used or not prior to
-		 * association being expected.  If encryption is not being
+		 * determine if encryption will be used or yest prior to
+		 * association being expected.  If encryption is yest being
 		 * used, drop_unencrypted is set to false, else true -- we
 		 * can use this to determine if the CAP_PRIVACY_ON bit should
 		 * be set.
@@ -2771,12 +2771,12 @@ static int ieee80211_wpa_set_param(struct ieee80211_device *ieee, u8 name, u32 v
 		// added for WPA2 mixed mode
 		spin_lock_irqsave(&ieee->wpax_suitlist_lock, flags);
 		ieee->wpax_type_set = 1;
-		ieee->wpax_type_notify = value;
+		ieee->wpax_type_yestify = value;
 		spin_unlock_irqrestore(&ieee->wpax_suitlist_lock, flags);
 		break;
 
 	default:
-		printk("Unknown WPA param: %d\n", name);
+		printk("Unkyeswn WPA param: %d\n", name);
 		ret = -EOPNOTSUPP;
 	}
 
@@ -2815,7 +2815,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 		return -EINVAL;
 	}
 
-	if (strcmp(param->u.crypt.alg, "none") == 0) {
+	if (strcmp(param->u.crypt.alg, "yesne") == 0) {
 		if (crypt) {
 			sec.enabled = 0;
 			// FIXME FIXME
@@ -2831,7 +2831,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 //	sec.encrypt = 1;
 	sec.flags |= SEC_ENABLED;
 
-	/* IPW HW cannot build TKIP MIC, host decryption still needed. */
+	/* IPW HW canyest build TKIP MIC, host decryption still needed. */
 	if (!(ieee->host_encrypt || ieee->host_decrypt) &&
 	    strcmp(param->u.crypt.alg, "TKIP"))
 		goto skip_host_crypt;
@@ -2847,7 +2847,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 		ops = try_then_request_module(ieee80211_get_crypto_ops(param->u.crypt.alg),
 					      module);
 	if (!ops) {
-		printk("unknown crypto alg '%s'\n", param->u.crypt.alg);
+		printk("unkyeswn crypto alg '%s'\n", param->u.crypt.alg);
 		param->u.crypt.err = IEEE_CRYPT_ERR_UNKNOWN_ALG;
 		ret = -EINVAL;
 		goto done;
@@ -2916,7 +2916,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 	if (ieee->set_security)
 		ieee->set_security(ieee->dev, &sec);
 
-	/* Do not reset port if card is in Managed mode since resetting will
+	/* Do yest reset port if card is in Managed mode since resetting will
 	 * generate new IEEE 802.11 authentication which may end up in looping
 	 * with IEEE 802.1X.  If your hardware requires a reset after WEP
 	 * configuration (for example... Prism2), implement the reset_port in
@@ -3012,7 +3012,7 @@ int ieee80211_wpa_supplicant_ioctl(struct ieee80211_device *ieee, struct iw_poin
 		break;
 
 	default:
-		printk("Unknown WPA supplicant request: %d\n", param->cmd);
+		printk("Unkyeswn WPA supplicant request: %d\n", param->cmd);
 		ret = -EOPNOTSUPP;
 		break;
 	}
@@ -3028,7 +3028,7 @@ out:
 }
 EXPORT_SYMBOL(ieee80211_wpa_supplicant_ioctl);
 
-void notify_wx_assoc_event(struct ieee80211_device *ieee)
+void yestify_wx_assoc_event(struct ieee80211_device *ieee)
 {
 	union iwreq_data wrqu;
 
@@ -3039,4 +3039,4 @@ void notify_wx_assoc_event(struct ieee80211_device *ieee)
 		eth_zero_addr(wrqu.ap_addr.sa_data);
 	wireless_send_event(ieee->dev, SIOCGIWAP, &wrqu, NULL);
 }
-EXPORT_SYMBOL(notify_wx_assoc_event);
+EXPORT_SYMBOL(yestify_wx_assoc_event);

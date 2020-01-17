@@ -13,7 +13,7 @@
 #include <linux/param.h>
 #include <linux/time.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/in.h>
 #include <linux/pagemap.h>
@@ -27,8 +27,8 @@
 
 #define NFSDBG_FACILITY		NFSDBG_XDR
 
-/* Mapping from NFS error code to "errno" error code. */
-#define errno_NFSERR_IO		EIO
+/* Mapping from NFS error code to "erryes" error code. */
+#define erryes_NFSERR_IO		EIO
 
 /*
  * Declare the space requirements for NFS arguments and replies as
@@ -63,7 +63,7 @@
 #define NFS_readdirres_sz	(1+1)
 #define NFS_statfsres_sz	(1+NFS_info_sz)
 
-static int nfs_stat_to_errno(enum nfs_stat);
+static int nfs_stat_to_erryes(enum nfs_stat);
 
 /*
  * Encode/decode NFSv2 basic data types
@@ -106,7 +106,7 @@ static int decode_nfsdata(struct xdr_stream *xdr, struct nfs_pgio_res *result)
 	if (unlikely(count > recvd))
 		goto out_cheating;
 out:
-	result->eof = 0;	/* NFSv2 does not pass EOF flag on the wire. */
+	result->eof = 0;	/* NFSv2 does yest pass EOF flag on the wire. */
 	result->count = count;
 	return count;
 out_cheating:
@@ -297,7 +297,7 @@ static int decode_fattr(struct xdr_stream *xdr, struct nfs_fattr *fattr,
 
 	fattr->du.nfs2.blocks = be32_to_cpup(p++);
 	fattr->fsid.major = be32_to_cpup(p++);
-	fattr->fsid.minor = 0;
+	fattr->fsid.miyesr = 0;
 	fattr->fileid = be32_to_cpup(p++);
 
 	p = xdr_decode_time(p, &fattr->atime);
@@ -329,7 +329,7 @@ out_gid:
 
 #define NFS2_SATTR_NOT_SET	(0xffffffff)
 
-static __be32 *xdr_time_not_set(__be32 *p)
+static __be32 *xdr_time_yest_set(__be32 *p)
 {
 	*p++ = cpu_to_be32(NFS2_SATTR_NOT_SET);
 	*p++ = cpu_to_be32(NFS2_SATTR_NOT_SET);
@@ -365,13 +365,13 @@ static void encode_sattr(struct xdr_stream *xdr, const struct iattr *attr,
 	} else if (attr->ia_valid & ATTR_ATIME) {
 		p = xdr_encode_current_server_time(p, &attr->ia_atime);
 	} else
-		p = xdr_time_not_set(p);
+		p = xdr_time_yest_set(p);
 	if (attr->ia_valid & ATTR_MTIME_SET) {
 		xdr_encode_time(p, &attr->ia_mtime);
 	} else if (attr->ia_valid & ATTR_MTIME) {
 		xdr_encode_current_server_time(p, &attr->ia_mtime);
 	} else
-		xdr_time_not_set(p);
+		xdr_time_yest_set(p);
 }
 
 /*
@@ -479,7 +479,7 @@ static int decode_attrstat(struct xdr_stream *xdr, struct nfs_fattr *result,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erryes(status);
 }
 
 /*
@@ -538,7 +538,7 @@ static int decode_diropres(struct xdr_stream *xdr, struct nfs_diropok *result,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erryes(status);
 }
 
 
@@ -638,7 +638,7 @@ static void nfs2_xdr_enc_readargs(struct rpc_rqst *req,
  *
  *	struct writeargs {
  *		fhandle file;
- *		unsigned beginoffset;
+ *		unsigned begiyesffset;
  *		unsigned offset;
  *		unsigned totalcount;
  *		nfsdata data;
@@ -811,7 +811,7 @@ static int nfs2_xdr_dec_stat(struct rpc_rqst *req, struct xdr_stream *xdr,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erryes(status);
 }
 
 static int nfs2_xdr_dec_attrstat(struct rpc_rqst *req, struct xdr_stream *xdr,
@@ -851,7 +851,7 @@ static int nfs2_xdr_dec_readlinkres(struct rpc_rqst *req,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erryes(status);
 }
 
 /*
@@ -885,7 +885,7 @@ static int nfs2_xdr_dec_readres(struct rpc_rqst *req, struct xdr_stream *xdr,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erryes(status);
 }
 
 static int nfs2_xdr_dec_writeres(struct rpc_rqst *req, struct xdr_stream *xdr,
@@ -906,10 +906,10 @@ static int nfs2_xdr_dec_writeres(struct rpc_rqst *req, struct xdr_stream *xdr,
  * @entry: buffer to fill in with entry data
  * @plus: boolean indicating whether this should be a readdirplus entry
  *
- * Returns zero if successful, otherwise a negative errno value is
+ * Returns zero if successful, otherwise a negative erryes value is
  * returned.
  *
- * This function is not invoked during READDIR reply decoding, but
+ * This function is yest invoked during READDIR reply decoding, but
  * rather whenever an application invokes the getdents(2) system call
  * on a directory already in our cache.
  *
@@ -944,7 +944,7 @@ int nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(!p))
 		return -EAGAIN;
-	entry->ino = be32_to_cpup(p);
+	entry->iyes = be32_to_cpup(p);
 
 	error = decode_filename_inline(xdr, &entry->name, &entry->len);
 	if (unlikely(error))
@@ -1002,7 +1002,7 @@ static int nfs2_xdr_dec_readdirres(struct rpc_rqst *req,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erryes(status);
 }
 
 /*
@@ -1051,22 +1051,22 @@ static int nfs2_xdr_dec_statfsres(struct rpc_rqst *req, struct xdr_stream *xdr,
 out:
 	return error;
 out_default:
-	return nfs_stat_to_errno(status);
+	return nfs_stat_to_erryes(status);
 }
 
 
 /*
  * We need to translate between nfs status return values and
- * the local errno values which may not be the same.
+ * the local erryes values which may yest be the same.
  */
 static const struct {
 	int stat;
-	int errno;
+	int erryes;
 } nfs_errtbl[] = {
 	{ NFS_OK,		0		},
 	{ NFSERR_PERM,		-EPERM		},
 	{ NFSERR_NOENT,		-ENOENT		},
-	{ NFSERR_IO,		-errno_NFSERR_IO},
+	{ NFSERR_IO,		-erryes_NFSERR_IO},
 	{ NFSERR_NXIO,		-ENXIO		},
 /*	{ NFSERR_EAGAIN,	-EAGAIN		}, */
 	{ NFSERR_ACCES,		-EACCES		},
@@ -1100,22 +1100,22 @@ static const struct {
 };
 
 /**
- * nfs_stat_to_errno - convert an NFS status code to a local errno
+ * nfs_stat_to_erryes - convert an NFS status code to a local erryes
  * @status: NFS status code to convert
  *
- * Returns a local errno value, or -EIO if the NFS status code is
- * not recognized.  This function is used jointly by NFSv2 and NFSv3.
+ * Returns a local erryes value, or -EIO if the NFS status code is
+ * yest recognized.  This function is used jointly by NFSv2 and NFSv3.
  */
-static int nfs_stat_to_errno(enum nfs_stat status)
+static int nfs_stat_to_erryes(enum nfs_stat status)
 {
 	int i;
 
 	for (i = 0; nfs_errtbl[i].stat != -1; i++) {
 		if (nfs_errtbl[i].stat == (int)status)
-			return nfs_errtbl[i].errno;
+			return nfs_errtbl[i].erryes;
 	}
 	dprintk("NFS: Unrecognized nfs status value: %u\n", status);
-	return nfs_errtbl[i].errno;
+	return nfs_errtbl[i].erryes;
 }
 
 #define PROC(proc, argtype, restype, timer)				\

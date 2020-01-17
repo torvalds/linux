@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -6,7 +6,7 @@
  *
  * Copyright (C) 1995, 96, 99, 2001, 06 Ralf Baechle
  * Copyright (C) 1999 Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techyeslogies, Inc.
  */
 #ifndef _ASM_TERMBITS_H
 #define _ASM_TERMBITS_H
@@ -18,7 +18,7 @@ typedef unsigned int speed_t;
 typedef unsigned int tcflag_t;
 
 /*
- * The ABI says nothing about NCC but seems to use NCCS as
+ * The ABI says yesthing about NCC but seems to use NCCS as
  * replacement for it in struct termio
  */
 #define NCCS	23
@@ -68,7 +68,7 @@ struct ktermios {
 #define VSUSP		10		/* Suspend character [ISIG].  */
 #if 0
 /*
- * VDSUSP is not supported
+ * VDSUSP is yest supported
  */
 #define VDSUSP		11		/* Delayed suspend character [ISIG].  */
 #endif
@@ -80,14 +80,14 @@ struct ktermios {
 #define VEOL		17		/* End-of-line character [ICANON].  */
 
 /* c_iflag bits */
-#define IGNBRK	0000001		/* Ignore break condition.  */
+#define IGNBRK	0000001		/* Igyesre break condition.  */
 #define BRKINT	0000002		/* Signal interrupt on break.  */
-#define IGNPAR	0000004		/* Ignore characters with parity errors.  */
+#define IGNPAR	0000004		/* Igyesre characters with parity errors.  */
 #define PARMRK	0000010		/* Mark parity and framing errors.  */
 #define INPCK	0000020		/* Enable input parity check.  */
 #define ISTRIP	0000040		/* Strip 8th bit off characters.  */
 #define INLCR	0000100		/* Map NL to CR on input.  */
-#define IGNCR	0000200		/* Ignore CR.  */
+#define IGNCR	0000200		/* Igyesre CR.  */
 #define ICRNL	0000400		/* Map CR to NL on input.  */
 #define IUCLC	0001000		/* Map upper case to lower case on input.  */
 #define IXON	0002000		/* Enable start/stop output control.  */
@@ -163,7 +163,7 @@ struct ktermios {
 #define PARENB	0000400		/* Parity enable.  */
 #define PARODD	0001000		/* Odd parity instead of even.	*/
 #define HUPCL	0002000		/* Hang up on last close.  */
-#define CLOCAL	0004000		/* Ignore modem status lines.  */
+#define CLOCAL	0004000		/* Igyesre modem status lines.  */
 #define CBAUDEX 0010000
 #define	   BOTHER 0010000
 #define	   B57600 0010001
@@ -216,8 +216,8 @@ struct ktermios {
 #define TCION		3	/* Send a START character.  */
 
 /* tcflush() and TCFLSH use these */
-#define TCIFLUSH	0	/* Discard data received but not yet read.  */
-#define TCOFLUSH	1	/* Discard data written but not yet sent.  */
+#define TCIFLUSH	0	/* Discard data received but yest yet read.  */
+#define TCOFLUSH	1	/* Discard data written but yest yet sent.  */
 #define TCIOFLUSH	2	/* Discard all pending data.  */
 
 /* tcsetattr uses these */

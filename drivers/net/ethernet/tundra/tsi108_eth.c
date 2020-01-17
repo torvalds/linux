@@ -46,7 +46,7 @@
 
 #define TSI108_RXRING_LEN     256
 
-/* NOTE: The driver currently does not support receiving packets
+/* NOTE: The driver currently does yest support receiving packets
  * larger than the buffer size, so don't decrease this (unless you
  * want to add such support).
  */
@@ -63,7 +63,7 @@ static int tsi108_init_one(struct platform_device *pdev);
 static int tsi108_ether_remove(struct platform_device *pdev);
 
 struct tsi108_prv_data {
-	void  __iomem *regs;	/* Base of normal regs */
+	void  __iomem *regs;	/* Base of yesrmal regs */
 	void  __iomem *phyregs;	/* Base of register bank used for PHY access */
 
 	struct net_device *dev;
@@ -682,7 +682,7 @@ static int tsi108_send_packet(struct sk_buff * skb, struct net_device *dev)
 		 * enabled when the queue fills up, and masked when there is
 		 * still free space.  This way, when saturating the outbound
 		 * link, the tx interrupts are kept to a reasonable level.
-		 * When the queue is not full, reclamation of skbs still occurs
+		 * When the queue is yest full, reclamation of skbs still occurs
 		 * as new packets are transmitted, or on a queue-empty
 		 * interrupt.
 		 */
@@ -841,12 +841,12 @@ static int tsi108_poll(struct napi_struct *napi, int budget)
 	if (data->rxpending || (estat & TSI108_EC_RXESTAT_Q0_DESCINT))
 		num_received = tsi108_complete_rx(dev, budget);
 
-	/* This should normally fill no more slots than the number of
+	/* This should yesrmally fill yes more slots than the number of
 	 * packets received in tsi108_complete_rx().  The exception
 	 * is when we previously ran out of memory for RX SKBs.  In that
-	 * case, it's helpful to obey the budget, not only so that the
+	 * case, it's helpful to obey the budget, yest only so that the
 	 * CPU isn't hogged, but so that memory (which may still be low)
-	 * is not hogged by one device.
+	 * is yest hogged by one device.
 	 *
 	 * A work unit is considered to be two SKBs to allow us to catch
 	 * up when the ring has shrunk due to out-of-memory but we're
@@ -899,10 +899,10 @@ static void tsi108_rx_int(struct net_device *dev)
 {
 	struct tsi108_prv_data *data = netdev_priv(dev);
 
-	/* A race could cause dev to already be scheduled, so it's not an
+	/* A race could cause dev to already be scheduled, so it's yest an
 	 * error if that happens (and interrupts shouldn't be re-masked,
 	 * because that can cause harmful races, if poll has already
-	 * unmasked them but not cleared LINK_STATE_SCHED).
+	 * unmasked them but yest cleared LINK_STATE_SCHED).
 	 *
 	 * This can happen if this code races with tsi108_poll(), which masks
 	 * the interrupts after tsi108_irq_one() read the mask, but before
@@ -965,7 +965,7 @@ static void tsi108_check_rxring(struct net_device *dev)
 
 	/* A poll is scheduled, as opposed to caling tsi108_refill_rx
 	 * directly, so as to keep the receive path single-threaded
-	 * (and thus not needing a lock).
+	 * (and thus yest needing a lock).
 	 */
 
 	if (netif_running(dev) && data->rxfree < TSI108_RXRING_LEN / 4)
@@ -1290,7 +1290,7 @@ static int tsi108_open(struct net_device *dev)
 
 	i = request_irq(data->irq_num, tsi108_irq, 0, dev->name, dev);
 	if (i != 0) {
-		printk(KERN_ERR "tsi108_eth%d: Could not allocate IRQ%d.\n",
+		printk(KERN_ERR "tsi108_eth%d: Could yest allocate IRQ%d.\n",
 		       data->id, data->irq_num);
 		return i;
 	} else {
@@ -1329,9 +1329,9 @@ static int tsi108_open(struct net_device *dev)
 
 		skb = netdev_alloc_skb_ip_align(dev, TSI108_RXBUF_SIZE);
 		if (!skb) {
-			/* Bah.  No memory for now, but maybe we'll get
+			/* Bah.  No memory for yesw, but maybe we'll get
 			 * some more later.
-			 * For now, we'll live with the smaller ring.
+			 * For yesw, we'll live with the smaller ring.
 			 */
 			printk(KERN_WARNING
 			       "%s: Could only allocate %d receive skb(s).\n",
@@ -1626,7 +1626,7 @@ tsi108_init_one(struct platform_device *pdev)
 	tsi108_init_mac(dev);
 	err = register_netdev(dev);
 	if (err) {
-		printk(KERN_ERR "%s: Cannot register net device, aborting.\n",
+		printk(KERN_ERR "%s: Canyest register net device, aborting.\n",
 				dev->name);
 		goto register_fail;
 	}
@@ -1652,7 +1652,7 @@ regs_fail:
 	return err;
 }
 
-/* There's no way to either get interrupts from the PHY when
+/* There's yes way to either get interrupts from the PHY when
  * something changes, or to have the Tsi108 automatically communicate
  * with the PHY to reconfigure itself.
  *

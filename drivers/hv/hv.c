@@ -86,7 +86,7 @@ int hv_synic_alloc(void)
 		memset(hv_cpu, 0, sizeof(*hv_cpu));
 	}
 
-	hv_context.hv_numa_map = kcalloc(nr_node_ids, sizeof(struct cpumask),
+	hv_context.hv_numa_map = kcalloc(nr_yesde_ids, sizeof(struct cpumask),
 					 GFP_KERNEL);
 	if (hv_context.hv_numa_map == NULL) {
 		pr_err("Unable to allocate NUMA map\n");
@@ -150,7 +150,7 @@ void hv_synic_free(void)
 /*
  * hv_synic_init - Initialize the Synthetic Interrupt Controller.
  *
- * If it is already initialized by another entity (ie x2v shim), we need to
+ * If it is already initialized by ayesther entity (ie x2v shim), we need to
  * retrieve the initialized message and event pages.  Otherwise, we create and
  * initialize the message and event pages.
  */
@@ -252,8 +252,8 @@ int hv_synic_cleanup(unsigned int cpu)
 	/*
 	 * Search for channels which are bound to the CPU we're about to
 	 * cleanup. In case we find one and vmbus is still connected we need to
-	 * fail, this will effectively prevent CPU offlining. There is no way
-	 * we can re-bind channels to different CPUs for now.
+	 * fail, this will effectively prevent CPU offlining. There is yes way
+	 * we can re-bind channels to different CPUs for yesw.
 	 */
 	mutex_lock(&vmbus_connection.channel_mutex);
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {

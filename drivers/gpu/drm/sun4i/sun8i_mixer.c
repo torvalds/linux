@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2017 Iceyeswy Zheng <iceyeswy@aosc.io>
  *
  * Based on sun4i_backend.c, which is:
  *   Copyright (C) 2015 Free Electrons
@@ -319,23 +319,23 @@ static struct regmap_config sun8i_mixer_regmap_config = {
 	.max_register	= 0xbfffc, /* guessed */
 };
 
-static int sun8i_mixer_of_get_id(struct device_node *node)
+static int sun8i_mixer_of_get_id(struct device_yesde *yesde)
 {
-	struct device_node *ep, *remote;
+	struct device_yesde *ep, *remote;
 	struct of_endpoint of_ep;
 
 	/* Output port is 1, and we want the first endpoint. */
-	ep = of_graph_get_endpoint_by_regs(node, 1, -1);
+	ep = of_graph_get_endpoint_by_regs(yesde, 1, -1);
 	if (!ep)
 		return -EINVAL;
 
 	remote = of_graph_get_remote_endpoint(ep);
-	of_node_put(ep);
+	of_yesde_put(ep);
 	if (!remote)
 		return -EINVAL;
 
 	of_graph_parse_endpoint(remote, &of_ep);
-	of_node_put(remote);
+	of_yesde_put(remote);
 	return of_ep.id;
 }
 
@@ -354,14 +354,14 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 
 	/*
 	 * The mixer uses single 32-bit register to store memory
-	 * addresses, so that it cannot deal with 64-bit memory
+	 * addresses, so that it canyest deal with 64-bit memory
 	 * addresses.
 	 * Restrict the DMA mask so that the mixer won't be
 	 * allocated some memory that is too high.
 	 */
 	ret = dma_set_mask(dev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(dev, "Cannot do 32-bit DMA.\n");
+		dev_err(dev, "Canyest do 32-bit DMA.\n");
 		return ret;
 	}
 
@@ -370,17 +370,17 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 		return -ENOMEM;
 	dev_set_drvdata(dev, mixer);
 	mixer->engine.ops = &sun8i_engine_ops;
-	mixer->engine.node = dev->of_node;
+	mixer->engine.yesde = dev->of_yesde;
 
 	/*
 	 * While this function can fail, we shouldn't do anything
 	 * if this happens. Some early DE2 DT entries don't provide
 	 * mixer id but work nevertheless because matching between
-	 * TCON and mixer is done by comparing node pointers (old
+	 * TCON and mixer is done by comparing yesde pointers (old
 	 * way) instead comparing ids. If this function fails and
 	 * id is needed, it will fail during id matching anyway.
 	 */
-	mixer->engine.id = sun8i_mixer_of_get_id(dev->of_node);
+	mixer->engine.id = sun8i_mixer_of_get_id(dev->of_yesde);
 
 	mixer->cfg = of_device_get_match_data(dev);
 	if (!mixer->cfg)
@@ -476,7 +476,7 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 		     SUN8I_MIXER_BLEND_COLOR_BLACK);
 
 	/*
-	 * Set fill color of bottom plane to black. Generally not needed
+	 * Set fill color of bottom plane to black. Generally yest needed
 	 * except when VI plane is at bottom (zpos = 0) and enabled.
 	 */
 	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_PIPE_CTL(base),
@@ -662,6 +662,6 @@ static struct platform_driver sun8i_mixer_platform_driver = {
 };
 module_platform_driver(sun8i_mixer_platform_driver);
 
-MODULE_AUTHOR("Icenowy Zheng <icenowy@aosc.io>");
+MODULE_AUTHOR("Iceyeswy Zheng <iceyeswy@aosc.io>");
 MODULE_DESCRIPTION("Allwinner DE2 Mixer driver");
 MODULE_LICENSE("GPL");

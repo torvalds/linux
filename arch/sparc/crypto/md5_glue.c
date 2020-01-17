@@ -170,7 +170,7 @@ static int __init md5_sparc64_mod_init(void)
 		pr_info("Using sparc64 md5 opcode optimized MD5 implementation\n");
 		return crypto_register_shash(&alg);
 	}
-	pr_info("sparc64 md5 opcode not available.\n");
+	pr_info("sparc64 md5 opcode yest available.\n");
 	return -ENODEV;
 }
 

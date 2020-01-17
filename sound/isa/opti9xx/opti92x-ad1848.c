@@ -164,7 +164,7 @@ MODULE_DEVICE_TABLE(pnp_card, snd_opti9xx_pnpids);
 #define DEV_NAME KBUILD_MODNAME
 
 static char * snd_opti9xx_names[] = {
-	"unknown",
+	"unkyeswn",
 	"82C928",	"82C929",
 	"82C924",	"82C925",
 	"82C930",	"82C931",	"82C933"
@@ -224,7 +224,7 @@ static int snd_opti9xx_init(struct snd_opti9xx *chip,
 #endif	/* OPTi93X */
 
 	default:
-		snd_printk(KERN_ERR "chip %d not supported\n", hardware);
+		snd_printk(KERN_ERR "chip %d yest supported\n", hardware);
 		return -ENODEV;
 	}
 	return 0;
@@ -267,7 +267,7 @@ static unsigned char snd_opti9xx_read(struct snd_opti9xx *chip,
 #endif	/* OPTi93X */
 
 	default:
-		snd_printk(KERN_ERR "chip %d not supported\n", chip->hardware);
+		snd_printk(KERN_ERR "chip %d yest supported\n", chip->hardware);
 	}
 
 	spin_unlock_irqrestore(&chip->lock, flags);
@@ -310,7 +310,7 @@ static void snd_opti9xx_write(struct snd_opti9xx *chip, unsigned char reg,
 #endif	/* OPTi93X */
 
 	default:
-		snd_printk(KERN_ERR "chip %d not supported\n", chip->hardware);
+		snd_printk(KERN_ERR "chip %d yest supported\n", chip->hardware);
 	}
 
 	spin_unlock_irqrestore(&chip->lock, flags);
@@ -401,7 +401,7 @@ static int snd_opti9xx_configure(struct snd_opti9xx *chip,
 #endif	/* OPTi93X */
 
 	default:
-		snd_printk(KERN_ERR "chip %d not supported\n", chip->hardware);
+		snd_printk(KERN_ERR "chip %d yest supported\n", chip->hardware);
 		return -EINVAL;
 	}
 
@@ -424,7 +424,7 @@ static int snd_opti9xx_configure(struct snd_opti9xx *chip,
 		wss_base_bits = 0x02;
 		break;
 	default:
-		snd_printk(KERN_WARNING "WSS port 0x%lx not valid\n", port);
+		snd_printk(KERN_WARNING "WSS port 0x%lx yest valid\n", port);
 		goto __skip_base;
 	}
 	snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(1), wss_base_bits << 4, 0x30);
@@ -449,7 +449,7 @@ __skip_base:
 		irq_bits = 0x04;
 		break;
 	default:
-		snd_printk(KERN_WARNING "WSS irq # %d not valid\n", irq);
+		snd_printk(KERN_WARNING "WSS irq # %d yest valid\n", irq);
 		goto __skip_resources;
 	}
 
@@ -464,7 +464,7 @@ __skip_base:
 		dma_bits = 0x03;
 		break;
 	default:
-		snd_printk(KERN_WARNING "WSS dma1 # %d not valid\n", dma1);
+		snd_printk(KERN_WARNING "WSS dma1 # %d yest valid\n", dma1);
 		goto __skip_resources;
 	}
 
@@ -479,7 +479,7 @@ __skip_base:
 	case 1:
 		break;
 	default:
-		snd_printk(KERN_WARNING "WSS dma2 # %d not valid\n", dma2);
+		snd_printk(KERN_WARNING "WSS dma2 # %d yest valid\n", dma2);
 		goto __skip_resources;
 	}
 	dma_bits |= 0x04;
@@ -511,7 +511,7 @@ __skip_resources:
 			break;
 		default:
 			snd_printk(KERN_WARNING
-				   "MPU-401 port 0x%lx not valid\n", mpu_port);
+				   "MPU-401 port 0x%lx yest valid\n", mpu_port);
 			goto __skip_mpu;
 		}
 
@@ -529,7 +529,7 @@ __skip_resources:
 			mpu_irq_bits = 0x01;
 			break;
 		default:
-			snd_printk(KERN_WARNING "MPU-401 irq # %d not valid\n",
+			snd_printk(KERN_WARNING "MPU-401 irq # %d yest valid\n",
 				mpu_irq);
 			goto __skip_mpu;
 		}
@@ -604,7 +604,7 @@ static int snd_opti93x_mixer(struct snd_wss *chip)
 	strcpy(id2.name, "CD Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
-		snd_printk(KERN_ERR "Cannot rename opti93x control\n");
+		snd_printk(KERN_ERR "Canyest rename opti93x control\n");
 		return err;
 	}
 	/* reassign AUX1 switch to FM */
@@ -612,7 +612,7 @@ static int snd_opti93x_mixer(struct snd_wss *chip)
 	strcpy(id2.name, "FM Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
-		snd_printk(KERN_ERR "Cannot rename opti93x control\n");
+		snd_printk(KERN_ERR "Canyest rename opti93x control\n");
 		return err;
 	}
 	/* remove AUX1 volume */
@@ -762,7 +762,7 @@ static int snd_card_opti9xx_pnp(struct snd_opti9xx *chip,
 	port = pnp_port_start(pdev, 1);
 	fm_port = pnp_port_start(pdev, 2) + 8;
 	/*
-	 * The MC(0) is never accessed and card does not
+	 * The MC(0) is never accessed and card does yest
 	 * include it in the PnP resource range. OPTI93x include it.
 	 */
 	chip->mc_base = pnp_port_start(devmc, 0) - 1;
@@ -889,7 +889,7 @@ static int snd_opti9xx_probe(struct snd_card *card)
 		error = snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
 				mpu_port, 0, mpu_irq, &rmidi);
 		if (error)
-			snd_printk(KERN_WARNING "no MPU-401 device at 0x%lx?\n",
+			snd_printk(KERN_WARNING "yes MPU-401 device at 0x%lx?\n",
 				   mpu_port);
 	}
 
@@ -905,7 +905,7 @@ static int snd_opti9xx_probe(struct snd_card *card)
 					       0x20, 0x20);
 			if (snd_opl4_create(card, fm_port, fm_port - 8,
 					    2, &opl3, &opl4) < 0) {
-				/* no luck, use OPL3 instead */
+				/* yes luck, use OPL3 instead */
 				snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(2),
 						       0x00, 0x20);
 			}
@@ -913,7 +913,7 @@ static int snd_opti9xx_probe(struct snd_card *card)
 #endif	/* !OPTi93X */
 		if (!opl3 && snd_opl3_create(card, fm_port, fm_port + 2,
 					     OPL3_HW_AUTO, 0, &opl3) < 0) {
-			snd_printk(KERN_WARNING "no OPL device at 0x%lx-0x%lx\n",
+			snd_printk(KERN_WARNING "yes OPL device at 0x%lx-0x%lx\n",
 				   fm_port, fm_port + 4 - 1);
 		}
 		if (opl3) {
@@ -1118,7 +1118,7 @@ static int snd_opti9xx_pnp_probe(struct pnp_card_link *pcard,
 	}
 	error = snd_opti9xx_read_check(chip);
 	if (error) {
-		snd_printk(KERN_ERR "OPTI chip not found\n");
+		snd_printk(KERN_ERR "OPTI chip yest found\n");
 		snd_card_free(card);
 		return error;
 	}

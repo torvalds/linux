@@ -73,11 +73,11 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 		/* Check if this isn't a single byte option */
 		if (opt > DCCPO_MAX_RESERVED) {
 			if (opt_ptr == opt_end)
-				goto out_nonsensical_length;
+				goto out_yesnsensical_length;
 
 			len = *opt_ptr++;
 			if (len < 2)
-				goto out_nonsensical_length;
+				goto out_yesnsensical_length;
 			/*
 			 * Remove the type and len fields, leaving
 			 * just the value size
@@ -87,17 +87,17 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			opt_ptr += len;
 
 			if (opt_ptr > opt_end)
-				goto out_nonsensical_length;
+				goto out_yesnsensical_length;
 		}
 
 		/*
-		 * CCID-specific options are ignored during connection setup, as
+		 * CCID-specific options are igyesred during connection setup, as
 		 * negotiation may still be in progress (see RFC 4340, 10.3).
 		 * The same applies to Ack Vectors, as these depend on the CCID.
 		 */
 		if (dreq != NULL && (opt >= DCCPO_MIN_RX_CCID_SPECIFIC ||
 		    opt == DCCPO_ACK_VECTOR_0 || opt == DCCPO_ACK_VECTOR_1))
-			goto ignore_option;
+			goto igyesre_option;
 
 		switch (opt) {
 		case DCCPO_PADDING:
@@ -131,7 +131,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 				goto out_invalid_option;
 			/*
 			 * RFC 4340 13.1: "The precise time corresponding to
-			 * Timestamp Value zero is not specified". We use
+			 * Timestamp Value zero is yest specified". We use
 			 * zero to indicate absence of a meaningful timestamp.
 			 */
 			opt_val = get_unaligned((__be32 *)value);
@@ -148,7 +148,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 					dp->dccps_timestamp_echo = ntohl(opt_val);
 				dp->dccps_timestamp_time = dccp_timestamp();
 			}
-			dccp_pr_debug("%s rx opt: TIMESTAMP=%u, ackno=%llu\n",
+			dccp_pr_debug("%s rx opt: TIMESTAMP=%u, ackyes=%llu\n",
 				      dccp_role(sk), ntohl(opt_val),
 				      (unsigned long long)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
@@ -163,7 +163,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			opt_recv->dccpor_timestamp_echo = ntohl(opt_val);
 
 			dccp_pr_debug("%s rx opt: TIMESTAMP_ECHO=%u, len=%d, "
-				      "ackno=%llu", dccp_role(sk),
+				      "ackyes=%llu", dccp_role(sk),
 				      opt_recv->dccpor_timestamp_echo,
 				      len + 2,
 				      (unsigned long long)
@@ -171,7 +171,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 
 			value += 4;
 
-			if (len == 4) {		/* no elapsed time included */
+			if (len == 4) {		/* yes elapsed time included */
 				dccp_pr_debug_cat("\n");
 				break;
 			}
@@ -221,7 +221,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 				break;
 			/*
 			 * Ack vectors are processed by the TX CCID if it is
-			 * interested. The RX CCID need not parse Ack Vectors,
+			 * interested. The RX CCID need yest parse Ack Vectors,
 			 * since it is only interested in clearing old state.
 			 */
 			/* fall through */
@@ -231,11 +231,11 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 				goto out_invalid_option;
 			break;
 		default:
-			DCCP_CRIT("DCCP(%p): option %d(len=%d) not "
-				  "implemented, ignoring", sk, opt, len);
+			DCCP_CRIT("DCCP(%p): option %d(len=%d) yest "
+				  "implemented, igyesring", sk, opt, len);
 			break;
 		}
-ignore_option:
+igyesre_option:
 		if (opt != DCCPO_MANDATORY)
 			mandatory = 0;
 	}
@@ -244,8 +244,8 @@ ignore_option:
 	if (mandatory)
 		goto out_invalid_option;
 
-out_nonsensical_length:
-	/* RFC 4340, 5.8: ignore option and all remaining option space */
+out_yesnsensical_length:
+	/* RFC 4340, 5.8: igyesre option and all remaining option space */
 	return 0;
 
 out_invalid_option:
@@ -310,7 +310,7 @@ static int dccp_insert_option_ndp(struct sock *sk, struct sk_buff *skb)
 	struct dccp_sock *dp = dccp_sk(sk);
 	u64 ndp = dp->dccps_ndp_count;
 
-	if (dccp_non_data_packet(skb))
+	if (dccp_yesn_data_packet(skb))
 		++dp->dccps_ndp_count;
 	else
 		dp->dccps_ndp_count = 0;
@@ -341,11 +341,11 @@ static inline int dccp_elapsed_time_len(const u32 elapsed_time)
 
 static int dccp_insert_option_timestamp(struct sk_buff *skb)
 {
-	__be32 now = htonl(dccp_timestamp());
-	/* yes this will overflow but that is the point as we want a
+	__be32 yesw = htonl(dccp_timestamp());
+	/* no this will overflow but that is the point as we want a
 	 * 10 usec 32 bit timer which mean it wraps every 11.9 hours */
 
-	return dccp_insert_option(skb, DCCPO_TIMESTAMP, &now, sizeof(now));
+	return dccp_insert_option(skb, DCCPO_TIMESTAMP, &yesw, sizeof(yesw));
 }
 
 static int dccp_insert_option_timestamp_echo(struct dccp_sock *dp,
@@ -401,7 +401,7 @@ static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	/* Figure out how many options do we need to represent the ackvec */
 	const u8 nr_opts = DIV_ROUND_UP(buflen, DCCP_SINGLE_OPT_MAXLEN);
 	u16 len = buflen + 2 * nr_opts;
-	u8 i, nonce = 0;
+	u8 i, yesnce = 0;
 	const unsigned char *tail, *from;
 	unsigned char *to;
 
@@ -411,7 +411,7 @@ static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 		return -1;
 	}
 	/*
-	 * Since Ack Vectors are variable-length, we can not always predict
+	 * Since Ack Vectors are variable-length, we can yest always predict
 	 * their size. To catch exception cases where the space is running out
 	 * on the skb, a separate Sync is scheduled to carry the Ack Vector.
 	 */
@@ -438,11 +438,11 @@ static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 
 		/*
 		 * RFC 4340, 12.2: Encode the Nonce Echo for this Ack Vector via
-		 * its type; ack_nonce is the sum of all individual buf_nonce's.
+		 * its type; ack_yesnce is the sum of all individual buf_yesnce's.
 		 */
-		nonce ^= av->av_buf_nonce[i];
+		yesnce ^= av->av_buf_yesnce[i];
 
-		*to++ = DCCPO_ACK_VECTOR_0 + av->av_buf_nonce[i];
+		*to++ = DCCPO_ACK_VECTOR_0 + av->av_buf_yesnce[i];
 		*to++ = copylen + 2;
 
 		/* Check if buf_head wraps */
@@ -464,7 +464,7 @@ static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	/*
 	 * Each sent Ack Vector is recorded in the list, as per A.2 of RFC 4340.
 	 */
-	if (dccp_ackvec_update_records(av, dcb->dccpd_seq, nonce))
+	if (dccp_ackvec_update_records(av, dcb->dccpd_seq, yesnce))
 		return -ENOBUFS;
 	return 0;
 }

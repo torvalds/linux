@@ -9,7 +9,7 @@
  */
 
 #include <linux/sys.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/linkage.h>
 #include <generated/asm-offsets.h>
 #include <asm/page.h>
@@ -27,13 +27,13 @@ ENTRY(restore_image)
 	mov	r5, #0
 	movc	p0.c6, r5, #6	@invalidate ITLB & DTLB
 	movc	p0.c2, r0, #0
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	.p2align 4,,7
 101:
@@ -60,13 +60,13 @@ ENTRY(restore_image)
 	mov	r5, #0
 	movc	p0.c6, r5, #6
 	movc	p0.c2, r0, #0
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 #ifdef	CONFIG_UNICORE_FPU_F64
 	ldw	ip, 1f
@@ -109,6 +109,6 @@ ENTRY(swsusp_arch_suspend)
 	cff	r4, s31
 	stw	r4, [ip]
 #endif
-	b	swsusp_save			@ no return
+	b	swsusp_save			@ yes return
 
 1:	.long	swsusp_arch_regs_cpu0

@@ -126,31 +126,31 @@ struct bfa_ioc_cbfn {
 	bfa_ioc_reset_cbfn_t	reset_cbfn;
 };
 
-/* IOC event notification mechanism. */
+/* IOC event yestification mechanism. */
 enum bfa_ioc_event {
 	BFA_IOC_E_ENABLED	= 1,
 	BFA_IOC_E_DISABLED	= 2,
 	BFA_IOC_E_FAILED	= 3,
 };
 
-typedef void (*bfa_ioc_notify_cbfn_t)(void *, enum bfa_ioc_event);
+typedef void (*bfa_ioc_yestify_cbfn_t)(void *, enum bfa_ioc_event);
 
-struct bfa_ioc_notify {
+struct bfa_ioc_yestify {
 	struct list_head	qe;
-	bfa_ioc_notify_cbfn_t	cbfn;
+	bfa_ioc_yestify_cbfn_t	cbfn;
 	void			*cbarg;
 };
 
-/* Initialize a IOC event notification structure */
-#define bfa_ioc_notify_init(__notify, __cbfn, __cbarg) do {	\
-	(__notify)->cbfn = (__cbfn);				\
-	(__notify)->cbarg = (__cbarg);				\
+/* Initialize a IOC event yestification structure */
+#define bfa_ioc_yestify_init(__yestify, __cbfn, __cbarg) do {	\
+	(__yestify)->cbfn = (__cbfn);				\
+	(__yestify)->cbarg = (__cbarg);				\
 } while (0)
 
 struct bfa_iocpf {
 	bfa_fsm_t		fsm;
 	struct bfa_ioc		*ioc;
-	bool			fw_mismatch_notified;
+	bool			fw_mismatch_yestified;
 	bool			auto_recover;
 	u32			poll_time;
 };
@@ -164,7 +164,7 @@ struct bfa_ioc {
 	struct timer_list	sem_timer;
 	struct timer_list	hb_timer;
 	u32			hb_count;
-	struct list_head	notify_q;
+	struct list_head	yestify_q;
 	void			*dbg_fwsave;
 	int			dbg_fwsave_len;
 	bool			dbg_fwsave_once;
@@ -200,7 +200,7 @@ struct bfa_ioc_hwif {
 	void		(*ioc_map_port)	(struct bfa_ioc *ioc);
 	void		(*ioc_isr_mode_set)	(struct bfa_ioc *ioc,
 					bool msix);
-	void		(*ioc_notify_fail)	(struct bfa_ioc *ioc);
+	void		(*ioc_yestify_fail)	(struct bfa_ioc *ioc);
 	void		(*ioc_ownership_reset)	(struct bfa_ioc *ioc);
 	bool		(*ioc_sync_start)       (struct bfa_ioc *ioc);
 	void		(*ioc_sync_join)	(struct bfa_ioc *ioc);
@@ -238,7 +238,7 @@ struct bfa_ioc_hwif {
 	? BFI_SMEM_CB_SIZE : BFI_SMEM_CT_SIZE)
 #define BFA_IOC_FLASH_CHUNK_NO(off)		(off / BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_OFFSET_IN_CHUNK(off)	(off % BFI_FLASH_CHUNK_SZ_WORDS)
-#define BFA_IOC_FLASH_CHUNK_ADDR(chunkno)  (chunkno * BFI_FLASH_CHUNK_SZ_WORDS)
+#define BFA_IOC_FLASH_CHUNK_ADDR(chunkyes)  (chunkyes * BFI_FLASH_CHUNK_SZ_WORDS)
 
 /* IOC mailbox interface */
 bool bfa_nw_ioc_mbox_queue(struct bfa_ioc *ioc,
@@ -279,8 +279,8 @@ bool bfa_nw_ioc_is_disabled(struct bfa_ioc *ioc);
 bool bfa_nw_ioc_is_operational(struct bfa_ioc *ioc);
 void bfa_nw_ioc_get_attr(struct bfa_ioc *ioc, struct bfa_ioc_attr *ioc_attr);
 enum bfa_status bfa_nw_ioc_fwsig_invalidate(struct bfa_ioc *ioc);
-void bfa_nw_ioc_notify_register(struct bfa_ioc *ioc,
-	struct bfa_ioc_notify *notify);
+void bfa_nw_ioc_yestify_register(struct bfa_ioc *ioc,
+	struct bfa_ioc_yestify *yestify);
 bool bfa_nw_ioc_sem_get(void __iomem *sem_reg);
 void bfa_nw_ioc_sem_release(void __iomem *sem_reg);
 void bfa_nw_ioc_hw_sem_release(struct bfa_ioc *ioc);
@@ -328,7 +328,7 @@ struct bfa_flash {
 	u8		*ubuf;		/*  user supplied buffer */
 	u32		addr_off;	/*  partition address offset */
 	struct bfa_mbox_cmd mb;		/*  mailbox */
-	struct bfa_ioc_notify ioc_notify; /*  ioc event notify */
+	struct bfa_ioc_yestify ioc_yestify; /*  ioc event yestify */
 };
 
 enum bfa_status bfa_nw_flash_get_attr(struct bfa_flash *flash,

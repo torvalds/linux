@@ -41,7 +41,7 @@
 #define ISER_RX_PAYLOAD_SIZE	(ISER_HEADERS_LEN + ISCSI_DEF_MAX_RECV_SEG_LEN)
 
 /* QP settings */
-/* Maximal bounds on received asynchronous PDUs */
+/* Maximal bounds on received asynchroyesus PDUs */
 #define ISERT_MAX_TX_MISC_PDUS	4 /* NOOP_IN(2) , ASYNC_EVENT(2)   */
 
 #define ISERT_MAX_RX_MISC_PDUS	6 /*
@@ -149,7 +149,7 @@ struct isert_conn {
 	struct iser_rx_desc	*rx_descs;
 	struct ib_recv_wr	rx_wr[ISERT_QP_MAX_RECV_DTOS];
 	struct iscsi_conn	*conn;
-	struct list_head	node;
+	struct list_head	yesde;
 	struct completion	login_comp;
 	struct completion	login_req_comp;
 	struct iser_tx_desc	login_tx_desc;
@@ -188,7 +188,7 @@ struct isert_device {
 	struct ib_pd		*pd;
 	struct isert_comp	*comps;
 	int                     comps_used;
-	struct list_head	dev_node;
+	struct list_head	dev_yesde;
 };
 
 struct isert_np {

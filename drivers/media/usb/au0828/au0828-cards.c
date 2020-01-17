@@ -29,7 +29,7 @@ static void hvr950q_cs5340_audio(void *priv, int enable)
  */
 struct au0828_board au0828_boards[] = {
 	[AU0828_BOARD_UNKNOWN] = {
-		.name	= "Unknown board",
+		.name	= "Unkyeswn board",
 		.tuner_type = -1U,
 		.tuner_addr = ADDR_UNSET,
 	},
@@ -130,7 +130,7 @@ int au0828_tuner_callback(void *priv, int component, int command, int arg)
 			mdelay(10);
 			return 0;
 		} else {
-			pr_err("%s(): Unknown command.\n", __func__);
+			pr_err("%s(): Unkyeswn command.\n", __func__);
 			return -EINVAL;
 		}
 		break;
@@ -164,7 +164,7 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	case 72500: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM */
 		break;
 	default:
-		pr_warn("%s: warning: unknown hauppauge model #%d\n",
+		pr_warn("%s: warning: unkyeswn hauppauge model #%d\n",
 			__func__, tv.model);
 		break;
 	}
@@ -207,7 +207,7 @@ void au0828_card_analog_fe_setup(struct au0828_dev *dev)
 	unsigned int mode_mask = T_ANALOG_TV;
 
 	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED) {
-		/* Load the analog demodulator driver (note this would need to
+		/* Load the analog demodulator driver (yeste this would need to
 		   be abstracted out if we ever need to support a different
 		   demod) */
 		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,

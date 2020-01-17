@@ -38,12 +38,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -113,7 +113,7 @@ u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
 	case 0:
 		/*
 		 * The FW is expected to check the control channel position only
-		 * when in HT/VHT and the channel width is not 20MHz. Return
+		 * when in HT/VHT and the channel width is yest 20MHz. Return
 		 * this value as the default one.
 		 */
 		return PHY_VHT_CTRL_POS_1_BELOW;
@@ -157,7 +157,7 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 	/* In scenarios where we only ever use a single-stream rates,
 	 * i.e. legacy 11b/g/a associations, single-stream APs or even
 	 * static SMPS, enable both chains to get diversity, improving
-	 * the case where we're far enough from the AP that attenuation
+	 * the case where we're far eyesugh from the AP that attenuation
 	 * between the two antennas is sufficiently different to impact
 	 * performance.
 	 */
@@ -238,7 +238,7 @@ void iwl_mvm_phy_ctxt_ref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 
 /*
  * Send a command to modify the PHY context based on the current HW
- * configuration. Note that the function does not check that the configuration
+ * configuration. Note that the function does yest check that the configuration
  * changed.
  */
 int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
@@ -284,7 +284,7 @@ void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 	/*
 	 * Move unused phy's to a default channel. When the phy is moved the,
 	 * fw will cleanup immediate quiet bit if it was previously set,
-	 * otherwise we might not be able to reuse this phy.
+	 * otherwise we might yest be able to reuse this phy.
 	 */
 	if (ctxt->ref == 0) {
 		struct ieee80211_channel *chan;

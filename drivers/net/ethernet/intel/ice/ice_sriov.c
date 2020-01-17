@@ -16,7 +16,7 @@
  * @cd: pointer to command details
  *
  * Send message to VF driver (0x0802) using mailbox
- * queue and asynchronously sending message via
+ * queue and asynchroyesusly sending message via
  * ice_sq_send_cmd() function
  */
 enum ice_status
@@ -96,10 +96,10 @@ u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed)
 			break;
 		}
 	else
-		/* Virtchnl speeds are not defined for every speed supported in
+		/* Virtchnl speeds are yest defined for every speed supported in
 		 * the hardware. To maintain compatibility with older AVF
 		 * drivers, while reporting the speed the new speed values are
-		 * resolved to the closest known virtchnl speeds
+		 * resolved to the closest kyeswn virtchnl speeds
 		 */
 		switch (link_speed) {
 		case ICE_AQ_LINK_SPEED_10MB:

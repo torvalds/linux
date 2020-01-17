@@ -67,7 +67,7 @@
 
 #define	ION_DEVICE_ID_UNCONFIGURED_EDGE_DEVICE	0x000	// In manufacturing only
 #define ION_DEVICE_ID_EDGEPORT_4		0x001	// Edgeport/4 RS232
-#define	ION_DEVICE_ID_EDGEPORT_8R		0x002	// Edgeport with RJ45 no Ring
+#define	ION_DEVICE_ID_EDGEPORT_8R		0x002	// Edgeport with RJ45 yes Ring
 #define ION_DEVICE_ID_RAPIDPORT_4		0x003	// Rapidport/4
 #define ION_DEVICE_ID_EDGEPORT_4T		0x004	// Edgeport/4 RS232 for Telxon (aka "Fleetport")
 #define ION_DEVICE_ID_EDGEPORT_2		0x005	// Edgeport/2 RS232
@@ -292,7 +292,7 @@
 // Edgeport Compatibility Descriptor
 //
 // This descriptor is only returned by Edgeport-compatible devices
-// supporting the EPiC spec. True ION devices do not return this
+// supporting the EPiC spec. True ION devices do yest return this
 // descriptor, but instead return STALL on receipt of the
 // GET_EPIC_DESC command. The driver interprets a STALL to mean that
 // this is a "real" Edgeport.
@@ -320,7 +320,7 @@ struct edge_compatibility_bits {
 	__u32	IOSPWriteMCR		:  1;	// 0100	MCR register writes (set/clr DTR/RTS)
 	__u32	IOSPWriteLCR		:  1;	// 0200	LCR register writes (wordlen/stop/parity)
 	__u32	IOSPSetBaudRate		:  1;	// 0400	setting Baud rate (writes to LCR.80h and DLL/DLM register)
-	__u32	IOSPDisableIntPipe	:  1;	// 0800 Do not use the interrupt pipe for TxCredits or RxButesAvailable
+	__u32	IOSPDisableIntPipe	:  1;	// 0800 Do yest use the interrupt pipe for TxCredits or RxButesAvailable
 	__u32	IOSPRxDataAvail		:  1;   // 1000 Return status of RX Fifo (Data available in Fifo)
 	__u32	IOSPTxPurge		:  1;	// 2000 Purge TXBuffer and/or Fifo in Edgeport hardware
 	__u32	IOSPUnused		: 18;	// Available for future expansion, must be 0
@@ -343,11 +343,11 @@ struct edge_compatibility_descriptor {
 						// (Currently must be 1)
 	__u8	NumPorts;			// Number of serial ports supported
 	__u8	iDownloadFile;			// Index of string containing download code filename
-						// 0=no download, FF=download compiled into driver.
+						// 0=yes download, FF=download compiled into driver.
 	__u8	Unused[3];			// Available for future expansion, must be 0
 						// (Currently must be 0).
 	__u8	MajorVersion;			// Firmware version: xx.
-	__u8	MinorVersion;			//  yy.
+	__u8	MiyesrVersion;			//  yy.
 	__le16	BuildNumber;			//  zzzz (LE format)
 
 	// The following structure contains __u32s, with each bit
@@ -391,7 +391,7 @@ struct edge_compatibility_descriptor {
 // Notes for the following two ION vendor-specific param descriptors:
 //
 //	1.	These have a standard USB descriptor header so they look like a
-//		normal descriptor.
+//		yesrmal descriptor.
 //	2.	Any strings in the structures are in USB-defined string
 //		descriptor format, so that they may be separately retrieved,
 //		if necessary, with a minimum of work on the 930. This also
@@ -481,7 +481,7 @@ struct edge_manuf_descriptor {
 #define MANUF_UART_EXAR_2852		2	// Exar 16C2852
 
 //
-// Note: The CpuRev and BoardRev values do not conform to manufacturing
+// Note: The CpuRev and BoardRev values do yest conform to manufacturing
 // revisions; they are to be incremented only when the CPU or hardware
 // changes in a software-visible way, such that the 930 software or
 // the host driver needs to handle the hardware differently.
@@ -511,8 +511,8 @@ struct edge_manuf_descriptor {
 #define	MANUF_OEMASSYNUM_LENGTH		sizeof(((struct edge_manuf_descriptor *)0)->OemAssyNumber)
 #define	MANUF_MANUFDATE_LENGTH		sizeof(((struct edge_manuf_descriptor *)0)->ManufDate)
 
-#define	MANUF_ION_CONFIG_DIAG_NO_LOOP	0x20	// As below but no ext loopback test
-#define	MANUF_ION_CONFIG_DIAG		0x40	// 930 based device: 1=Run h/w diags, 0=norm
+#define	MANUF_ION_CONFIG_DIAG_NO_LOOP	0x20	// As below but yes ext loopback test
+#define	MANUF_ION_CONFIG_DIAG		0x40	// 930 based device: 1=Run h/w diags, 0=yesrm
 						// TIUMP Device    : 1=IONSERIAL needs to run Final Test
 #define	MANUF_ION_CONFIG_MASTER		0x80	// 930 based device:  1=Master mode, 0=Normal
 						// TIUMP Device    :  1=First device on a multi TIUMP Device
@@ -535,7 +535,7 @@ struct edge_boot_descriptor {
 						//	  (LE format)
 
 	__u8		MajorVersion;		// C6 Firmware version: xx.
-	__u8		MinorVersion;		// C7			yy.
+	__u8		MiyesrVersion;		// C7			yy.
 	__le16		BuildNumber;		// C8			zzzz (LE format)
 
 	__u16		EnumRootDescTable;	// CA Root of ROM-based descriptor table
@@ -553,7 +553,7 @@ struct edge_boot_descriptor {
 
 
 #define BOOT_DESC_VER_1		1	// Original definition of BOOT_PARAMS
-#define BOOT_DESC_VER_2		2	// 2nd definition, descriptors not included in boot
+#define BOOT_DESC_VER_2		2	// 2nd definition, descriptors yest included in boot
 
 
 	// Capabilities flags
@@ -591,7 +591,7 @@ struct edge_boot_descriptor {
 
 struct ti_i2c_desc {
 	__u8	Type;			// Type of descriptor
-	__le16	Size;			// Size of data only not including header
+	__le16	Size;			// Size of data only yest including header
 	__u8	CheckSum;		// Checksum (8 bit sum of data only)
 	__u8	Data[0];		// Data starts here
 } __attribute__((packed));
@@ -600,7 +600,7 @@ struct ti_i2c_desc {
 // for 3410 the version is stored in the WATCHPORT_FIRMWARE_VERSION descriptor
 struct ti_i2c_firmware_rec {
 	__u8	Ver_Major;		// Firmware Major version number
-	__u8	Ver_Minor;		// Firmware Minor version number
+	__u8	Ver_Miyesr;		// Firmware Miyesr version number
 	__u8	Data[0];		// Download starts here
 } __attribute__((packed));
 
@@ -608,7 +608,7 @@ struct ti_i2c_firmware_rec {
 struct watchport_firmware_version {
 // Added 2 bytes for version number
 	__u8	Version_Major;		//  Download Version (for Watchport)
-	__u8	Version_Minor;
+	__u8	Version_Miyesr;
 } __attribute__((packed));
 
 
@@ -621,7 +621,7 @@ struct ti_i2c_image_header {
 struct ti_basic_descriptor {
 	__u8	Power;		// Self powered
 				// bit 7: 1 - power switching supported
-				//        0 - power switching not supported
+				//        0 - power switching yest supported
 				//
 				// bit 0: 1 - self powered
 				//        0 - bus powered

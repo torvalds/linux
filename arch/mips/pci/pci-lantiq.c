@@ -92,7 +92,7 @@ static inline u32 ltq_calc_bar11mask(void)
 
 static int ltq_pci_startup(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	const __be32 *req_mask, *bus_clk;
 	u32 temp_buffer;
 
@@ -111,19 +111,19 @@ static int ltq_pci_startup(struct platform_device *pdev)
 	}
 
 	/* read the bus speed that we want */
-	bus_clk = of_get_property(node, "lantiq,bus-clock", NULL);
+	bus_clk = of_get_property(yesde, "lantiq,bus-clock", NULL);
 	if (bus_clk)
 		clk_set_rate(clk_pci, *bus_clk);
 
 	/* and enable the clocks */
 	clk_enable(clk_pci);
-	if (of_find_property(node, "lantiq,external-clock", NULL))
+	if (of_find_property(yesde, "lantiq,external-clock", NULL))
 		clk_enable(clk_external);
 	else
 		clk_disable(clk_external);
 
 	/* setup reset gpio used by pci */
-	reset_gpio = of_get_named_gpio(node, "gpio-reset", 0);
+	reset_gpio = of_get_named_gpio(yesde, "gpio-reset", 0);
 	if (gpio_is_valid(reset_gpio)) {
 		int ret = devm_gpio_request(&pdev->dev,
 						reset_gpio, "pci-reset");
@@ -138,7 +138,7 @@ static int ltq_pci_startup(struct platform_device *pdev)
 	/* enable auto-switching between PCI and EBU */
 	ltq_pci_w32(0xa, PCI_CR_CLK_CTRL);
 
-	/* busy, i.e. configuration is not done, PCI access has to be retried */
+	/* busy, i.e. configuration is yest done, PCI access has to be retried */
 	ltq_pci_w32(ltq_pci_r32(PCI_CR_PCI_MOD) & ~(1 << 24), PCI_CR_PCI_MOD);
 	wmb();
 	/* BUS Master/IO/MEM access */
@@ -147,7 +147,7 @@ static int ltq_pci_startup(struct platform_device *pdev)
 	/* enable external 2 PCI masters */
 	temp_buffer = ltq_pci_r32(PCI_CR_PC_ARB);
 	/* setup the request mask */
-	req_mask = of_get_property(node, "req-mask", NULL);
+	req_mask = of_get_property(yesde, "req-mask", NULL);
 	if (req_mask)
 		temp_buffer &= ~((*req_mask & 0xf) << 16);
 	else
@@ -222,7 +222,7 @@ static int ltq_pci_probe(struct platform_device *pdev)
 
 	ltq_pci_startup(pdev);
 
-	pci_load_of_ranges(&pci_controller, pdev->dev.of_node);
+	pci_load_of_ranges(&pci_controller, pdev->dev.of_yesde);
 	register_pci_controller(&pci_controller);
 	return 0;
 }

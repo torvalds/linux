@@ -27,7 +27,7 @@ KernelVersion:	4.21
 Contact:	thunderbolt-software@lists.01.org
 Description:	This attribute tells whether the system uses IOMMU
 		for DMA protection. Value of 1 means IOMMU is used 0 means
-		it is not (DMA protection is solely based on Thunderbolt
+		it is yest (DMA protection is solely based on Thunderbolt
 		security levels).
 
 What: /sys/bus/thunderbolt/devices/.../domainX/security
@@ -37,7 +37,7 @@ Contact:	thunderbolt-software@lists.01.org
 Description:	This attribute holds current Thunderbolt security level
 		set by the system BIOS. Possible values are:
 
-		none: All devices are automatically authorized
+		yesne: All devices are automatically authorized
 		user: Devices are only authorized based on writing
 		      appropriate value to the authorized attribute
 		secure: Require devices that support secure connect at
@@ -53,11 +53,11 @@ Date:		Sep 2017
 KernelVersion:	4.13
 Contact:	thunderbolt-software@lists.01.org
 Description:	This attribute is used to authorize Thunderbolt devices
-		after they have been connected. If the device is not
-		authorized, no devices such as PCIe and Display port are
+		after they have been connected. If the device is yest
+		authorized, yes devices such as PCIe and Display port are
 		available to the system.
 
-		Contents of this attribute will be 0 when the device is not
+		Contents of this attribute will be 0 when the device is yest
 		yet authorized.
 
 		Possible values are supported:
@@ -69,9 +69,9 @@ Description:	This attribute is used to authorize Thunderbolt devices
 		   the device is authorized.
 		2: Send a challenge based on the 32 byte hex string. If the
 		   challenge response from device is valid, the device is
-		   authorized. In case of failure errno will be ENOKEY if
-		   the device did not contain a key at all, and
-		   EKEYREJECTED if the challenge response did not match.
+		   authorized. In case of failure erryes will be ENOKEY if
+		   the device did yest contain a key at all, and
+		   EKEYREJECTED if the challenge response did yest match.
 
 What: /sys/bus/thunderbolt/devices/.../boot
 Date:		Jun 2018
@@ -168,16 +168,16 @@ Date:		Sep 2017
 KernelVersion:	4.13
 Contact:	thunderbolt-software@lists.01.org
 Description:	If the device has upgradeable firmware the version
-		number is available here. Format: %x.%x, major.minor.
+		number is available here. Format: %x.%x, major.miyesr.
 		If the device is in safe mode reading the file returns
-		-ENODATA instead as the NVM version is not available.
+		-ENODATA instead as the NVM version is yest available.
 
 What:		/sys/bus/thunderbolt/devices/.../nvm_authenticate
 Date:		Sep 2017
 KernelVersion:	4.13
 Contact:	thunderbolt-software@lists.01.org
-Description:	When new NVM image is written to the non-active NVM
-		area (through non_activeX NVMem device), the
+Description:	When new NVM image is written to the yesn-active NVM
+		area (through yesn_activeX NVMem device), the
 		authentication procedure is started by writing 1 to
 		this file. If everything goes well, the device is
 		restarted with the new NVM firmware. If the image

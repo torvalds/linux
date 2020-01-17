@@ -65,7 +65,7 @@
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/jiffies.h>
 
 #include <linux/netdevice.h>
@@ -120,7 +120,7 @@ struct pppol2tp_session {
 	struct sock __rcu	*sk;		/* Pointer to the session
 						 * PPPoX socket */
 	struct sock		*__sk;		/* Copy of .sk, for cleanup */
-	struct rcu_head		rcu;		/* For asynchronous release */
+	struct rcu_head		rcu;		/* For asynchroyesus release */
 };
 
 static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb);
@@ -219,7 +219,7 @@ static void pppol2tp_recv(struct l2tp_session *session, struct sk_buff *skb, int
 	rcu_read_lock();
 	sk = rcu_dereference(ps->sk);
 	if (sk == NULL)
-		goto no_sock;
+		goto yes_sock;
 
 	/* If the first two bytes are 0xFF03, consider that it is the PPP's
 	 * Address and Control fields and skip them. The L2TP module has always
@@ -255,9 +255,9 @@ static void pppol2tp_recv(struct l2tp_session *session, struct sk_buff *skb, int
 
 	return;
 
-no_sock:
+yes_sock:
 	rcu_read_unlock();
-	l2tp_info(session, L2TP_MSG_DATA, "%s: no socket\n", session->name);
+	l2tp_info(session, L2TP_MSG_DATA, "%s: yes socket\n", session->name);
 	kfree_skb(skb);
 }
 
@@ -342,11 +342,11 @@ error:
  * being called with a msghdr from userspace, it is called with a skb
  * from the kernel.
  *
- * The supplied skb from ppp doesn't have enough headroom for the
+ * The supplied skb from ppp doesn't have eyesugh headroom for the
  * insertion of L2TP, UDP and IP headers so we need to allocate more
  * headroom in the skb. This will create a cloned skb. But we must be
  * careful in the error case because the caller will expect to free
- * the skb it supplied, not our cloned skb. So we take care to always
+ * the skb it supplied, yest our cloned skb. So we take care to always
  * leave the original skb unfreed if we return an error.
  */
 static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
@@ -642,7 +642,7 @@ static int pppol2tp_sockaddr_get_info(const void *sa, int sa_len,
 
 /* Rough estimation of the maximum payload size a tunnel can transmit without
  * fragmenting at the lower IP layer. Assumes L2TPv2 with sequence
- * numbers and no IP option. Not quite accurate, but the result is mostly
+ * numbers and yes IP option. Not quite accurate, but the result is mostly
  * unused anyway.
  */
 static int pppol2tp_tunnel_mtu(const struct l2tp_tunnel *tunnel)
@@ -742,7 +742,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 		if (tunnel == NULL)
 			goto end;
 
-		/* Error if socket is not prepped */
+		/* Error if socket is yest prepped */
 		if (tunnel->sock == NULL)
 			goto end;
 	}
@@ -806,7 +806,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	if ((session->session_id == 0) &&
 	    (session->peer_session_id == 0)) {
 		error = 0;
-		goto out_no_ppp;
+		goto out_yes_ppp;
 	}
 
 	/* The only header we need to worry about is the L2TP
@@ -825,7 +825,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 		goto end;
 	}
 
-out_no_ppp:
+out_yes_ppp:
 	/* This is how we get the session context from the socket. */
 	sk->sk_user_data = session;
 	rcu_assign_pointer(ps->sk, sk);
@@ -867,7 +867,7 @@ static int pppol2tp_session_create(struct net *net, struct l2tp_tunnel *tunnel,
 	int error;
 	struct l2tp_session *session;
 
-	/* Error if tunnel socket is not prepped */
+	/* Error if tunnel socket is yest prepped */
 	if (!tunnel->sock) {
 		error = -ENOENT;
 		goto err;
@@ -1667,19 +1667,19 @@ static const struct proto_ops pppol2tp_ops = {
 	.family		= AF_PPPOX,
 	.owner		= THIS_MODULE,
 	.release	= pppol2tp_release,
-	.bind		= sock_no_bind,
+	.bind		= sock_yes_bind,
 	.connect	= pppol2tp_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
+	.socketpair	= sock_yes_socketpair,
+	.accept		= sock_yes_accept,
 	.getname	= pppol2tp_getname,
 	.poll		= datagram_poll,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
+	.listen		= sock_yes_listen,
+	.shutdown	= sock_yes_shutdown,
 	.setsockopt	= pppol2tp_setsockopt,
 	.getsockopt	= pppol2tp_getsockopt,
 	.sendmsg	= pppol2tp_sendmsg,
 	.recvmsg	= pppol2tp_recvmsg,
-	.mmap		= sock_no_mmap,
+	.mmap		= sock_yes_mmap,
 	.ioctl		= pppox_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = pppox_compat_ioctl,

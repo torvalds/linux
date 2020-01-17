@@ -51,7 +51,7 @@ Optional properties:
 	       Table 154 in the datasheet.
 	       The clock-frequency must be:
 	       * 1 to 128 Hz for adis1649x devices.
-	       * This mode is not supported by adis1648x devices.
+	       * This mode is yest supported by adis1648x devices.
 	If this field is left empty together with the "clocks" field, then the
 	internal clock is used.
 - adi,ext-clk-pin: The DIOx line to be used as an external clock input.

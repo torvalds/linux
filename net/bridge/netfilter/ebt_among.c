@@ -180,11 +180,11 @@ static bool poolsize_invalid(const struct ebt_mac_wormhash *w)
 
 static bool wormhash_offset_invalid(int off, unsigned int len)
 {
-	if (off == 0) /* not present */
+	if (off == 0) /* yest present */
 		return false;
 
 	if (off < (int)sizeof(struct ebt_among_info) ||
-	    off % __alignof__(struct ebt_mac_wormhash))
+	    off % __aligyesf__(struct ebt_mac_wormhash))
 		return true;
 
 	off += sizeof(struct ebt_mac_wormhash);

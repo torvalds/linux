@@ -18,7 +18,7 @@ The Interlaken is a narrow, high speed channelized chip-to-chip interface. To
 facilitate interoperability between a data path device and a look-aside
 co-processor, the Interlaken Look-Aside protocol is defined for short
 transaction-related transfers. Although based on the Interlaken protocol,
-Interlaken Look-Aside is not directly compatible with Interlaken and can be
+Interlaken Look-Aside is yest directly compatible with Interlaken and can be
 considered a different operation mode.
 
 The Interlaken LA controller connects internal platform to Interlaken serial
@@ -28,11 +28,11 @@ Interlaken control words and data words, which are sent on TX side to TCAM
 through SerDes lanes.
 
 There are two 4KiB spaces defined within the LAC global register memory map.
-There is a full register set at 0x0000-0x0FFF (also known as the "hypervisor"
+There is a full register set at 0x0000-0x0FFF (also kyeswn as the "hypervisor"
 version), and a subset at 0x1000-0x1FFF.  The former is a superset of the
-latter, and includes certain registers that should not be accessible to
-partitioned software.  Separate nodes are used for each region, with a phandle
-linking the hypervisor node to the normal operating node.
+latter, and includes certain registers that should yest be accessible to
+partitioned software.  Separate yesdes are used for each region, with a phandle
+linking the hypervisor yesde to the yesrmal operating yesde.
 
 PROPERTIES
 
@@ -40,7 +40,7 @@ PROPERTIES
 	Usage: required
 	Value type: <string>
 	Definition: Must include "fsl,interlaken-lac". This represents only
-		those LAC CCSR registers not protected in partitioned
+		those LAC CCSR registers yest protected in partitioned
 		software. The version of the device is determined by the LAC
 		IP Block Revision Register (IPBRR0) at offset 0x0BF8.
 
@@ -50,16 +50,16 @@ PROPERTIES
 			-----------	-------
 			0x02000100	T4240
 
-		The Hypervisor node has a different compatible. It must include
-		"fsl,interlaken-lac-hv". This node represents the protected
+		The Hypervisor yesde has a different compatible. It must include
+		"fsl,interlaken-lac-hv". This yesde represents the protected
 		LAC register space and is required except inside a partition
-		where access to the hypervisor node is to be denied.
+		where access to the hypervisor yesde is to be denied.
 
-  - fsl,non-hv-node
+  - fsl,yesn-hv-yesde
 	Usage: required in "fsl,interlaken-lac-hv"
 	Value type: <phandle>
-	Definition: Points to the non-protected LAC CCSR mapped register space
-		node.
+	Definition: Points to the yesn-protected LAC CCSR mapped register space
+		yesde.
 
   - reg
 	Usage: required
@@ -68,7 +68,7 @@ PROPERTIES
 		Interlaken LAC configuration registers.
 
   - interrupts:
-	Usage: required in non-hv node only
+	Usage: required in yesn-hv yesde only
 	Value type: <prop-encoded-array>
 	Definition: Interrupt mapping for Interlaken LAC error IRQ.
 
@@ -82,7 +82,7 @@ EXAMPLE
 	lac-hv@228000 {
 		compatible = "fsl,interlaken-lac-hv"
 		reg = <0x228000 0x1000>;
-		fsl,non-hv-node = <&lac>;
+		fsl,yesn-hv-yesde = <&lac>;
 	};
 
 ===============================================================================
@@ -133,7 +133,7 @@ PROPERTIES
 	Value type: <string>
 	Definition: Must include "fsl,interlaken-lac-portal-vX.Y" where X is
 		the Major version (IP_MJ) found in the LAC IP Block Revision
-		Register (IPBRR0), at offset 0x0BF8, and Y is the Minor version
+		Register (IPBRR0), at offset 0x0BF8, and Y is the Miyesr version
 		(IP_MN).
 
 		Table of correspondences between version values and example chips:

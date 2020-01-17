@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -68,11 +68,11 @@ enum pool_type {
 
 /*
  * The pool structure. There are up to nine pools:
- *  - generic (not restricted to DMA32):
+ *  - generic (yest restricted to DMA32):
  *      - write combined, uncached, cached.
  *  - dma32 (up to 2^32 - so up 4GB):
  *      - write combined, uncached, cached.
- *  - huge (not restricted to DMA32):
+ *  - huge (yest restricted to DMA32):
  *      - write combined, uncached, cached.
  * for each 'struct device'. The 'cached' is for pages that are actively used.
  * The other ones can be shrunk by the shrinker API if neccessary.
@@ -115,7 +115,7 @@ struct dma_pool {
  * @page_list: The link to the 'page_list' in 'struct dma_pool'.
  * @vaddr: The virtual address of the page and a flag if the page belongs to a
  * huge pool
- * @dma: The bus address of the page. If the page is not allocated
+ * @dma: The bus address of the page. If the page is yest allocated
  *   via the DMA API, it will be -1.
  */
 struct dma_page {
@@ -218,12 +218,12 @@ static ssize_t ttm_pool_store(struct kobject *kobj, struct attribute *attr,
 		m->options.small = val;
 	} else if (attr == &ttm_page_pool_alloc_size) {
 		if (val > NUM_PAGES_TO_ALLOC*8) {
-			pr_err("Setting allocation size to %lu is not allowed. Recommended size is %lu\n",
+			pr_err("Setting allocation size to %lu is yest allowed. Recommended size is %lu\n",
 			       NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 7),
 			       NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 10));
 			return size;
 		} else if (val > NUM_PAGES_TO_ALLOC) {
-			pr_warn("Setting allocation size to larger than %lu is not recommended\n",
+			pr_warn("Setting allocation size to larger than %lu is yest recommended\n",
 				NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 10));
 		}
 		m->options.alloc_size = val;
@@ -436,7 +436,7 @@ restart:
 		if (freed_pages >= npages_to_free)
 			break;
 
-		/* Move the dma_page from one list to another. */
+		/* Move the dma_page from one list to ayesther. */
 		list_move(&dma_p->page_list, &d_pages);
 
 		pages_to_free[freed_pages++] = dma_p->p;
@@ -523,7 +523,7 @@ static void ttm_dma_free_pool(struct device *dev, enum pool_type type)
 		ttm_dma_page_pool_free(pool, FREE_ALL_PAGES, true);
 		WARN_ON(((pool->npages_in_use + pool->npages_free) != 0));
 		/* This code path is called after _all_ references to the
-		 * struct device has been dropped - so nobody should be
+		 * struct device has been dropped - so yesbody should be
 		 * touching it. In case somebody is trying to _add_ we are
 		 * guarded by the mutex. */
 		list_del(&pool->pools);
@@ -570,13 +570,13 @@ static struct dma_pool *ttm_dma_pool_init(struct device *dev, gfp_t flags,
 
 	ret = -ENOMEM;
 
-	pool = kmalloc_node(sizeof(struct dma_pool), GFP_KERNEL,
-			    dev_to_node(dev));
+	pool = kmalloc_yesde(sizeof(struct dma_pool), GFP_KERNEL,
+			    dev_to_yesde(dev));
 	if (!pool)
 		goto err_mem;
 
-	sec_pool = kmalloc_node(sizeof(struct device_pools), GFP_KERNEL,
-				dev_to_node(dev));
+	sec_pool = kmalloc_yesde(sizeof(struct device_pools), GFP_KERNEL,
+				dev_to_yesde(dev));
 	if (!sec_pool)
 		goto err_mem;
 
@@ -640,7 +640,7 @@ static struct dma_pool *ttm_dma_find_pool(struct device *dev,
 	if (type == IS_UNDEFINED)
 		return NULL;
 
-	/* NB: We iterate on the 'struct dev' which has no spinlock, but
+	/* NB: We iterate on the 'struct dev' which has yes spinlock, but
 	 * it does have a kref which we have taken. The kref is taken during
 	 * graphic driver loading - in the drm_pci_init it calls either
 	 * pci_dev_get or pci_register_driver which both end up taking a kref
@@ -648,8 +648,8 @@ static struct dma_pool *ttm_dma_find_pool(struct device *dev,
 	 *
 	 * On teardown, the graphic drivers end up quiescing the TTM (put_pages)
 	 * and calls the dev_res deconstructors: ttm_dma_pool_release. The nice
-	 * thing is at that point of time there are no pages associated with the
-	 * driver so this function will not be called.
+	 * thing is at that point of time there are yes pages associated with the
+	 * driver so this function will yest be called.
 	 */
 	list_for_each_entry_safe(pool, tmp, &dev->dma_pools, pools)
 		if (pool->type == type)
@@ -755,7 +755,7 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 		for (j = 0; j < npages; ++j) {
 			caching_array[cpages++] = p + j;
 			if (cpages == max_cpages) {
-				/* Note: Cannot hold the spinlock */
+				/* Note: Canyest hold the spinlock */
 				r = ttm_set_pages_caching(pool, caching_array,
 							  cpages);
 				if (r) {
@@ -826,7 +826,7 @@ static int ttm_dma_page_pool_fill_locked(struct dma_pool *pool,
 }
 
 /*
- * The populate list is actually a stack (not that is matters as TTM
+ * The populate list is actually a stack (yest that is matters as TTM
  * allocates one page at a time.
  * return dma_page pointer if success, otherwise NULL.
  */

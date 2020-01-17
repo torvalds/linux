@@ -68,7 +68,7 @@ static int __init early_debug_disable(char *buf)
 	return 0;
 }
 
-early_param("nodebugmon", early_debug_disable);
+early_param("yesdebugmon", early_debug_disable);
 
 /*
  * Keep track of debug users on each core.
@@ -157,45 +157,45 @@ static DEFINE_SPINLOCK(debug_hook_lock);
 static LIST_HEAD(user_step_hook);
 static LIST_HEAD(kernel_step_hook);
 
-static void register_debug_hook(struct list_head *node, struct list_head *list)
+static void register_debug_hook(struct list_head *yesde, struct list_head *list)
 {
 	spin_lock(&debug_hook_lock);
-	list_add_rcu(node, list);
+	list_add_rcu(yesde, list);
 	spin_unlock(&debug_hook_lock);
 
 }
 
-static void unregister_debug_hook(struct list_head *node)
+static void unregister_debug_hook(struct list_head *yesde)
 {
 	spin_lock(&debug_hook_lock);
-	list_del_rcu(node);
+	list_del_rcu(yesde);
 	spin_unlock(&debug_hook_lock);
 	synchronize_rcu();
 }
 
 void register_user_step_hook(struct step_hook *hook)
 {
-	register_debug_hook(&hook->node, &user_step_hook);
+	register_debug_hook(&hook->yesde, &user_step_hook);
 }
 
 void unregister_user_step_hook(struct step_hook *hook)
 {
-	unregister_debug_hook(&hook->node);
+	unregister_debug_hook(&hook->yesde);
 }
 
 void register_kernel_step_hook(struct step_hook *hook)
 {
-	register_debug_hook(&hook->node, &kernel_step_hook);
+	register_debug_hook(&hook->yesde, &kernel_step_hook);
 }
 
 void unregister_kernel_step_hook(struct step_hook *hook)
 {
-	unregister_debug_hook(&hook->node);
+	unregister_debug_hook(&hook->yesde);
 }
 
 /*
  * Call registered single step handlers
- * There is no Syndrome info to check for determining the handler.
+ * There is yes Syndrome info to check for determining the handler.
  * So we call all the registered handlers, until the right handler is
  * found which returns zero.
  */
@@ -209,9 +209,9 @@ static int call_step_hook(struct pt_regs *regs, unsigned int esr)
 
 	/*
 	 * Since single-step exception disables interrupt, this function is
-	 * entirely not preemptible, and we can use rcu list safely here.
+	 * entirely yest preemptible, and we can use rcu list safely here.
 	 */
-	list_for_each_entry_rcu(hook, list, node)	{
+	list_for_each_entry_rcu(hook, list, yesde)	{
 		retval = hook->fn(regs, esr);
 		if (retval == DBG_HOOK_HANDLED)
 			break;
@@ -258,13 +258,13 @@ static int single_step_handler(unsigned long unused, unsigned int esr,
 		 * ptrace will disable single step unless explicitly
 		 * asked to re-enable it. For other clients, it makes
 		 * sense to leave it enabled (i.e. rewind the controls
-		 * to the active-not-pending state).
+		 * to the active-yest-pending state).
 		 */
 		user_rewind_single_step(current);
 	} else if (!handler_found) {
 		pr_warn("Unexpected kernel single-step exception at EL1\n");
 		/*
-		 * Re-enable stepping since we know that we will be
+		 * Re-enable stepping since we kyesw that we will be
 		 * returning to regs.
 		 */
 		set_regs_spsr_ss(regs);
@@ -279,22 +279,22 @@ static LIST_HEAD(kernel_break_hook);
 
 void register_user_break_hook(struct break_hook *hook)
 {
-	register_debug_hook(&hook->node, &user_break_hook);
+	register_debug_hook(&hook->yesde, &user_break_hook);
 }
 
 void unregister_user_break_hook(struct break_hook *hook)
 {
-	unregister_debug_hook(&hook->node);
+	unregister_debug_hook(&hook->yesde);
 }
 
 void register_kernel_break_hook(struct break_hook *hook)
 {
-	register_debug_hook(&hook->node, &kernel_break_hook);
+	register_debug_hook(&hook->yesde, &kernel_break_hook);
 }
 
 void unregister_kernel_break_hook(struct break_hook *hook)
 {
-	unregister_debug_hook(&hook->node);
+	unregister_debug_hook(&hook->yesde);
 }
 
 static int call_break_hook(struct pt_regs *regs, unsigned int esr)
@@ -307,9 +307,9 @@ static int call_break_hook(struct pt_regs *regs, unsigned int esr)
 
 	/*
 	 * Since brk exception disables interrupt, this function is
-	 * entirely not preemptible, and we can use rcu list safely here.
+	 * entirely yest preemptible, and we can use rcu list safely here.
 	 */
-	list_for_each_entry_rcu(hook, list, node) {
+	list_for_each_entry_rcu(hook, list, yesde) {
 		unsigned int comment = esr & ESR_ELx_BRK64_ISS_COMMENT_MASK;
 
 		if ((comment & ~hook->mask) == hook->imm)

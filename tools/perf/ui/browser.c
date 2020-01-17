@@ -138,7 +138,7 @@ void ui_browser__list_head_seek(struct ui_browser *browser, off_t offset, int wh
 void ui_browser__rb_tree_seek(struct ui_browser *browser, off_t offset, int whence)
 {
 	struct rb_root *root = browser->entries;
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 
 	switch (whence) {
 	case SEEK_SET:
@@ -167,7 +167,7 @@ void ui_browser__rb_tree_seek(struct ui_browser *browser, off_t offset, int when
 
 unsigned int ui_browser__rb_tree_refresh(struct ui_browser *browser)
 {
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	int row = 0;
 
 	if (browser->top == NULL)
@@ -243,11 +243,11 @@ int ui_browser__help_window(struct ui_browser *browser, const char *text)
 	return key;
 }
 
-bool ui_browser__dialog_yesno(struct ui_browser *browser, const char *text)
+bool ui_browser__dialog_noyes(struct ui_browser *browser, const char *text)
 {
 	int key;
 
-	while ((key = ui__dialog_yesno(text)) == K_RESIZE)
+	while ((key = ui__dialog_noyes(text)) == K_RESIZE)
 		ui_browser__handle_resize(browser);
 
 	return key == K_ENTER || toupper(key) == 'Y';
@@ -345,8 +345,8 @@ static int __ui_browser__refresh(struct ui_browser *browser)
 	SLsmg_fill_region(browser->y + row + browser->extra_title_lines, browser->x,
 			  browser->rows - row, width, ' ');
 
-	if (browser->nr_entries == 0 && browser->no_samples_msg)
-		__ui__info_window(NULL, browser->no_samples_msg, NULL);
+	if (browser->nr_entries == 0 && browser->yes_samples_msg)
+		__ui__info_window(NULL, browser->yes_samples_msg, NULL);
 	return 0;
 }
 
@@ -536,7 +536,7 @@ static struct ui_browser_colorset {
 	},
 	{
 		.colorset = HE_COLORSET_NORMAL,
-		.name	  = "normal",
+		.name	  = "yesrmal",
 		.fg	  = "default",
 		.bg	  = "default",
 	},

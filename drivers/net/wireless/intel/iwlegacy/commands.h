@@ -17,7 +17,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
  * USA
  *
@@ -38,12 +38,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -68,7 +68,7 @@
 
 struct il_priv;
 
-/* uCode version contains 4 values: Major/Minor/API/Serial */
+/* uCode version contains 4 values: Major/Miyesr/API/Serial */
 #define IL_UCODE_MAJOR(ver)	(((ver) & 0xFF000000) >> 24)
 #define IL_UCODE_MINOR(ver)	(((ver) & 0x00FF0000) >> 16)
 #define IL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
@@ -114,7 +114,7 @@ enum {
 	N_PM_SLEEP = 0x7A,
 	N_PM_DEBUG_STATS = 0x7B,
 
-	/* Scan commands and notifications */
+	/* Scan commands and yestifications */
 	C_SCAN = 0x80,
 	C_SCAN_ABORT = 0x81,
 	N_SCAN_START = 0x82,
@@ -135,10 +135,10 @@ enum {
 	C_STATS = 0x9c,
 	N_STATS = 0x9d,
 
-	/* RF-KILL commands and notifications */
+	/* RF-KILL commands and yestifications */
 	N_CARD_STATE = 0xa1,
 
-	/* Missed beacons notification */
+	/* Missed beacons yestification */
 	N_MISSED_BEACONS = 0xa2,
 
 	C_CT_KILL_CONFIG = 0xa4,
@@ -173,23 +173,23 @@ enum {
  * struct il_cmd_header
  *
  * This header format appears in the beginning of each command sent from the
- * driver, and each response/notification received from uCode.
+ * driver, and each response/yestification received from uCode.
  */
 struct il_cmd_header {
 	u8 cmd;			/* Command ID:  C_RXON, etc. */
 	u8 flags;		/* 0:5 reserved, 6 abort, 7 internal */
 	/*
 	 * The driver sets up the sequence number to values of its choosing.
-	 * uCode does not use this value, but passes it back to the driver
+	 * uCode does yest use this value, but passes it back to the driver
 	 * when sending the response to each driver-originated command, so
 	 * the driver can match the response to the command.  Since the values
 	 * don't get used by uCode, the driver may set up an arbitrary format.
 	 *
 	 * There is one exception:  uCode sets bit 15 when it originates
-	 * the response/notification, i.e. when the response/notification
-	 * is not a direct response to a command sent by the driver.  For
+	 * the response/yestification, i.e. when the response/yestification
+	 * is yest a direct response to a command sent by the driver.  For
 	 * example, uCode issues N_3945_RX when it sends a received frame
-	 * to the driver; it is not a direct response to any driver command.
+	 * to the driver; it is yest a direct response to any driver command.
 	 *
 	 * The Linux driver uses the following format:
 	 *
@@ -198,11 +198,11 @@ struct il_cmd_header {
 	 *  13          reserved
 	 *  14          huge - driver sets this to indicate command is in the
 	 *              'huge' storage at the end of the command buffers
-	 *  15          unsolicited RX or uCode-originated notification
+	 *  15          unsolicited RX or uCode-originated yestification
 	 */
 	__le16 sequence;
 
-	/* command or response/notification data follows immediately */
+	/* command or response/yestification data follows immediately */
 	u8 data[0];
 } __packed;
 
@@ -304,7 +304,7 @@ struct il3945_power_per_rate {
 #define RATE_MCS_DUP_POS 12
 #define RATE_MCS_DUP_MSK 0x1000
 
-/* Bit 13: (1) Short guard interval (0.4 usec), (0) normal GI (0.8 usec) */
+/* Bit 13: (1) Short guard interval (0.4 usec), (0) yesrmal GI (0.8 usec) */
 #define RATE_MCS_SGI_POS 13
 #define RATE_MCS_SGI_MSK 0x2000
 
@@ -382,16 +382,16 @@ struct il4965_tx_power_db {
 #define INITIALIZE_SUBTYPE    (9)
 
 /*
- * ("Initialize") N_ALIVE = 0x1 (response only, not a command)
+ * ("Initialize") N_ALIVE = 0x1 (response only, yest a command)
  *
- * uCode issues this "initialize alive" notification once the initialization
+ * uCode issues this "initialize alive" yestification once the initialization
  * uCode image has completed its work, and is ready to load the runtime image.
- * This is the *first* "alive" notification that the driver will receive after
+ * This is the *first* "alive" yestification that the driver will receive after
  * rebooting uCode; the "initialize" alive is indicated by subtype field == 9.
  *
  * See comments documenting "BSM" (bootstrap state machine).
  *
- * For 4965, this notification contains important calibration data for
+ * For 4965, this yestification contains important calibration data for
  * calculating txpower settings:
  *
  * 1)  Power supply voltage indication.  The voltage sensor outputs higher
@@ -406,7 +406,7 @@ struct il4965_tx_power_db {
  *     for each of 5 frequency ranges.
  */
 struct il_init_alive_resp {
-	u8 ucode_minor;
+	u8 ucode_miyesr;
 	u8 ucode_major;
 	__le16 reserved1;
 	u8 sw_rev[8];
@@ -420,7 +420,7 @@ struct il_init_alive_resp {
 
 	/* calibration values from "initialize" uCode */
 	__le32 voltage;		/* signed, higher value is lower voltage */
-	__le32 therm_r1[2];	/* signed, 1st for normal, 2nd for HT40 */
+	__le32 therm_r1[2];	/* signed, 1st for yesrmal, 2nd for HT40 */
 	__le32 therm_r2[2];	/* signed */
 	__le32 therm_r3[2];	/* signed */
 	__le32 therm_r4[2];	/* signed */
@@ -429,11 +429,11 @@ struct il_init_alive_resp {
 } __packed;
 
 /**
- * N_ALIVE = 0x1 (response only, not a command)
+ * N_ALIVE = 0x1 (response only, yest a command)
  *
- * uCode issues this "alive" notification once the runtime image is ready
+ * uCode issues this "alive" yestification once the runtime image is ready
  * to receive commands from the driver.  This is the *second* "alive"
- * notification that the driver will receive after rebooting uCode;
+ * yestification that the driver will receive after rebooting uCode;
  * this "alive" is indicated by subtype field != 9.
  *
  * See comments documenting "BSM" (bootstrap state machine).
@@ -446,7 +446,7 @@ struct il_init_alive_resp {
  *     Its header format is:
  *
  *	__le32 log_size;     log capacity (in number of entries)
- *	__le32 type;         (1) timestamp with each entry, (0) no timestamp
+ *	__le32 type;         (1) timestamp with each entry, (0) yes timestamp
  *	__le32 wraps;        # times uCode has wrapped to top of circular buffer
  *      __le32 write_idx;  next circular buffer entry that uCode would fill
  *
@@ -464,7 +464,7 @@ struct il_init_alive_resp {
  *     information about any uCode error that occurs.  For 4965, the format
  *     of the error log is:
  *
- *	__le32 valid;        (nonzero) valid, (0) log is empty
+ *	__le32 valid;        (yesnzero) valid, (0) log is empty
  *	__le32 error_id;     type of error
  *	__le32 pc;           program counter
  *	__le32 blink1;       branch link
@@ -506,12 +506,12 @@ struct il_init_alive_resp {
  * occurs.
  */
 struct il_alive_resp {
-	u8 ucode_minor;
+	u8 ucode_miyesr;
 	u8 ucode_major;
 	__le16 reserved1;
 	u8 sw_rev[8];
 	u8 ver_type;
-	u8 ver_subtype;		/* not "9" for runtime alive */
+	u8 ver_subtype;		/* yest "9" for runtime alive */
 	__le16 reserved2;
 	__le32 log_event_table_ptr;	/* SRAM address for event log */
 	__le32 error_event_table_ptr;	/* SRAM address for error log */
@@ -520,7 +520,7 @@ struct il_alive_resp {
 } __packed;
 
 /*
- * N_ERROR = 0x2 (response only, not a command)
+ * N_ERROR = 0x2 (response only, yest a command)
  */
 struct il_error_resp {
 	__le32 error_type;
@@ -628,7 +628,7 @@ enum {
 #define RXON_FILTER_DIS_GRP_DECRYPT_MSK cpu_to_le32(1 << 4)
 /* STA is associated */
 #define RXON_FILTER_ASSOC_MSK           cpu_to_le32(1 << 5)
-/* transfer to host non bssid beacons in associated state */
+/* transfer to host yesn bssid beacons in associated state */
 #define RXON_FILTER_BCON_AWARE_MSK      cpu_to_le32(1 << 6)
 
 /**
@@ -650,7 +650,7 @@ enum {
  */
 
 struct il3945_rxon_cmd {
-	u8 node_addr[6];
+	u8 yesde_addr[6];
 	__le16 reserved1;
 	u8 bssid_addr[6];
 	__le16 reserved2;
@@ -669,7 +669,7 @@ struct il3945_rxon_cmd {
 } __packed;
 
 struct il4965_rxon_cmd {
-	u8 node_addr[6];
+	u8 yesde_addr[6];
 	__le16 reserved1;
 	u8 bssid_addr[6];
 	__le16 reserved2;
@@ -692,7 +692,7 @@ struct il4965_rxon_cmd {
  * specific rxon cmd, depending on where it is called from.
  */
 struct il_rxon_cmd {
-	u8 node_addr[6];
+	u8 yesde_addr[6];
 	__le16 reserved1;
 	u8 bssid_addr[6];
 	__le16 reserved2;
@@ -776,9 +776,9 @@ struct il4965_channel_switch_cmd {
 } __packed;
 
 /*
- * N_CHANNEL_SWITCH = 0x73 (notification only, not a command)
+ * N_CHANNEL_SWITCH = 0x73 (yestification only, yest a command)
  */
-struct il_csa_notification {
+struct il_csa_yestification {
 	__le16 band;
 	__le16 channel;
 	__le32 status;		/* 0 - OK, 1 - fail */
@@ -1165,7 +1165,7 @@ struct il3945_rx_frame_stats {
 	u8 rssi;
 	u8 agc;
 	__le16 sig_avg;
-	__le16 noise_diff;
+	__le16 yesise_diff;
 	u8 payload[0];
 } __packed;
 
@@ -1185,7 +1185,7 @@ struct il3945_rx_frame_end {
 } __packed;
 
 /*
- * N_3945_RX = 0x1b (response only, not a command)
+ * N_3945_RX = 0x1b (response only, yest a command)
  *
  * NOTE:  DO NOT dereference from casts to this structure
  * It is provided only for calculating minimum data set size.
@@ -1200,14 +1200,14 @@ struct il3945_rx_frame {
 
 #define IL39_RX_FRAME_SIZE	(4 + sizeof(struct il3945_rx_frame))
 
-/* Fixed (non-configurable) rx data from phy */
+/* Fixed (yesn-configurable) rx data from phy */
 
 #define IL49_RX_RES_PHY_CNT 14
 #define IL49_RX_PHY_FLAGS_ANTENNAE_OFFSET	(4)
 #define IL49_RX_PHY_FLAGS_ANTENNAE_MASK	(0x70)
 #define IL49_AGC_DB_MASK			(0x3f80)	/* MASK(7,13) */
 #define IL49_AGC_DB_POS			(7)
-struct il4965_rx_non_cfg_phy {
+struct il4965_rx_yesn_cfg_phy {
 	__le16 ant_selection;	/* ant A bit 4, ant B bit 5, ant C bit 6 */
 	__le16 agc_info;	/* agc code 0:6, agc dB 7:13, reserved 14:15 */
 	u8 rssi_info[6];	/* we use even entries, 0/2/4 for A/B/C rssi */
@@ -1215,11 +1215,11 @@ struct il4965_rx_non_cfg_phy {
 } __packed;
 
 /*
- * N_RX = 0xc3 (response only, not a command)
- * Used only for legacy (non 11n) frames.
+ * N_RX = 0xc3 (response only, yest a command)
+ * Used only for legacy (yesn 11n) frames.
  */
 struct il_rx_phy_res {
-	u8 non_cfg_phy_cnt;	/* non configurable DSP phy data byte count */
+	u8 yesn_cfg_phy_cnt;	/* yesn configurable DSP phy data byte count */
 	u8 cfg_phy_cnt;		/* configurable DSP phy data byte count */
 	u8 stat_id;		/* configurable DSP phy data set ID */
 	u8 reserved1;
@@ -1227,7 +1227,7 @@ struct il_rx_phy_res {
 	__le32 beacon_time_stamp;	/* beacon at on-air rise */
 	__le16 phy_flags;	/* general phy flags: band, modulation, ... */
 	__le16 channel;		/* channel number */
-	u8 non_cfg_phy_buf[32];	/* for various implementations of non_cfg_phy */
+	u8 yesn_cfg_phy_buf[32];	/* for various implementations of yesn_cfg_phy */
 	__le32 rate_n_flags;	/* RATE_MCS_* */
 	__le16 byte_count;	/* frame's byte-count */
 	__le16 frame_time;	/* frame's time on the air */
@@ -1254,7 +1254,7 @@ struct il_rx_mpdu_res_start {
  * handle reception of block-acks; uCode updates the host driver via
  * N_COMPRESSED_BA.
  *
- * uCode handles retrying Tx when an ACK is expected but not received.
+ * uCode handles retrying Tx when an ACK is expected but yest received.
  * This includes trying lower data rates than the one requested in the Tx
  * command, as set up by the C_RATE_SCALE (for 3945) or
  * C_TX_LINK_QUALITY_CMD (4965).
@@ -1280,7 +1280,7 @@ struct il_rx_mpdu_res_start {
 
 /* 1: Expect ACK from receiving station
  * 0: Don't expect ACK (MAC header's duration field s/b 0)
- * Set this for unicast frames, but not broadcast/multicast. */
+ * Set this for unicast frames, but yest broadcast/multicast. */
 #define TX_CMD_FLG_ACK_MSK cpu_to_le32(1 << 3)
 
 /* For 4965 devices:
@@ -1288,7 +1288,7 @@ struct il_rx_mpdu_res_start {
  *    Tx command's initial_rate_idx indicates first rate to try;
  *    uCode walks through table for additional Tx attempts.
  * 0: Use Tx rate/MCS from Tx command's rate_n_flags field.
- *    This rate will be used for all Tx attempts; it will not be scaled. */
+ *    This rate will be used for all Tx attempts; it will yest be scaled. */
 #define TX_CMD_FLG_STA_RATE_MSK cpu_to_le32(1 << 4)
 
 /* 1: Expect immediate block-ack.
@@ -1302,19 +1302,19 @@ struct il_rx_mpdu_res_start {
 #define TX_CMD_FLG_FULL_TXOP_PROT_MSK cpu_to_le32(1 << 7)
 
 /* Tx antenna selection field; used only for 3945, reserved (0) for 4965 devices.
- * Set field to "0" to allow 3945 uCode to select antenna (normal usage). */
+ * Set field to "0" to allow 3945 uCode to select antenna (yesrmal usage). */
 #define TX_CMD_FLG_ANT_SEL_MSK cpu_to_le32(0xf00)
 #define TX_CMD_FLG_ANT_A_MSK cpu_to_le32(1 << 8)
 #define TX_CMD_FLG_ANT_B_MSK cpu_to_le32(1 << 9)
 
 /* 1: uCode overrides sequence control field in MAC header.
  * 0: Driver provides sequence control field in MAC header.
- * Set this for management frames, non-QOS data frames, non-unicast frames,
+ * Set this for management frames, yesn-QOS data frames, yesn-unicast frames,
  * and also in Tx command embedded in C_SCAN for active scans. */
 #define TX_CMD_FLG_SEQ_CTL_MSK cpu_to_le32(1 << 13)
 
-/* 1: This frame is non-last MPDU; more fragments are coming.
- * 0: Last fragment, or not using fragmentation. */
+/* 1: This frame is yesn-last MPDU; more fragments are coming.
+ * 0: Last fragment, or yest using fragmentation. */
 #define TX_CMD_FLG_MORE_FRAG_MSK cpu_to_le32(1 << 14)
 
 /* 1: uCode calculates and inserts Timestamp Function (TSF) in outgoing frame.
@@ -1326,12 +1326,12 @@ struct il_rx_mpdu_res_start {
  *    alignment of frame's payload data field.
  * 0: No pad
  * Set this for MAC headers with 26 or 30 bytes, i.e. those with QOS or ADDR4
- * field (but not both).  Driver must align frame data (i.e. data following
+ * field (but yest both).  Driver must align frame data (i.e. data following
  * MAC header) to DWORD boundary. */
 #define TX_CMD_FLG_MH_PAD_MSK cpu_to_le32(1 << 20)
 
 /* accelerate aggregation support
- * 0 - no CCMP encryption; 1 - CCMP encryption */
+ * 0 - yes CCMP encryption; 1 - CCMP encryption */
 #define TX_CMD_FLG_AGG_CCMP_MSK cpu_to_le32(1 << 22)
 
 /* HCCA-AP - disable duration overwriting. */
@@ -1355,10 +1355,10 @@ struct il3945_tx_cmd {
 	/*
 	 * MPDU byte count:
 	 * MAC header (24/26/30/32 bytes) + 2 bytes pad if 26/30 header size,
-	 * + 8 byte IV for CCM or TKIP (not used for WEP)
+	 * + 8 byte IV for CCM or TKIP (yest used for WEP)
 	 * + Data payload
-	 * + 8-byte MIC (not used for CCM/WEP)
-	 * NOTE:  Does not include Tx command bytes, post-MAC pad bytes,
+	 * + 8-byte MIC (yest used for CCM/WEP)
+	 * NOTE:  Does yest include Tx command bytes, post-MAC pad bytes,
 	 *        MIC (CCM) 8 bytes, ICV (WEP/TKIP/CKIP) 4 bytes, CRC 4 bytes.i
 	 * Range: 14-2342 bytes.
 	 */
@@ -1366,8 +1366,8 @@ struct il3945_tx_cmd {
 
 	/*
 	 * MPDU or MSDU byte count for next frame.
-	 * Used for fragmentation and bursting, but not 11n aggregation.
-	 * Same as "len", but for next frame.  Set to 0 if not applicable.
+	 * Used for fragmentation and bursting, but yest 11n aggregation.
+	 * Same as "len", but for next frame.  Set to 0 if yest applicable.
 	 */
 	__le16 next_frame_len;
 
@@ -1400,7 +1400,7 @@ struct il3945_tx_cmd {
 
 	/*
 	 * Duration of EDCA burst Tx Opportunity, in 32-usec units.
-	 * Set this if txop time is not specified by HCCA protocol (e.g. by AP).
+	 * Set this if txop time is yest specified by HCCA protocol (e.g. by AP).
 	 */
 	__le16 driver_txop;
 
@@ -1439,10 +1439,10 @@ struct il_tx_cmd {
 	/*
 	 * MPDU byte count:
 	 * MAC header (24/26/30/32 bytes) + 2 bytes pad if 26/30 header size,
-	 * + 8 byte IV for CCM or TKIP (not used for WEP)
+	 * + 8 byte IV for CCM or TKIP (yest used for WEP)
 	 * + Data payload
-	 * + 8-byte MIC (not used for CCM/WEP)
-	 * NOTE:  Does not include Tx command bytes, post-MAC pad bytes,
+	 * + 8-byte MIC (yest used for CCM/WEP)
+	 * NOTE:  Does yest include Tx command bytes, post-MAC pad bytes,
 	 *        MIC (CCM) 8 bytes, ICV (WEP/TKIP/CKIP) 4 bytes, CRC 4 bytes.i
 	 * Range: 14-2342 bytes.
 	 */
@@ -1450,8 +1450,8 @@ struct il_tx_cmd {
 
 	/*
 	 * MPDU or MSDU byte count for next frame.
-	 * Used for fragmentation and bursting, but not 11n aggregation.
-	 * Same as "len", but for next frame.  Set to 0 if not applicable.
+	 * Used for fragmentation and bursting, but yest 11n aggregation.
+	 * Same as "len", but for next frame.  Set to 0 if yest applicable.
 	 */
 	__le16 next_frame_len;
 
@@ -1474,7 +1474,7 @@ struct il_tx_cmd {
 	 * Index into rate table (see C_TX_LINK_QUALITY_CMD) for initial
 	 * Tx attempt, if TX_CMD_FLG_STA_RATE_MSK is set.  Normally "0" for
 	 * data frames, this field may be used to selectively reduce initial
-	 * rate (via non-0 value) for special frames (e.g. management), while
+	 * rate (via yesn-0 value) for special frames (e.g. management), while
 	 * still supporting rate scaling for all frames.
 	 */
 	u8 initial_rate_idx;
@@ -1502,7 +1502,7 @@ struct il_tx_cmd {
 
 	/*
 	 * Duration of EDCA burst Tx Opportunity, in 32-usec units.
-	 * Set this if txop time is not specified by HCCA protocol (e.g. by AP).
+	 * Set this if txop time is yest specified by HCCA protocol (e.g. by AP).
 	 */
 	__le16 driver_txop;
 
@@ -1526,7 +1526,7 @@ struct il_tx_cmd {
  *
  * TX_STATUS_FIFO_UNDERRUN
  *
- * Indicates the host did not provide bytes to the FIFO fast enough while
+ * Indicates the host did yest provide bytes to the FIFO fast eyesugh while
  * a TX was in progress.
  *
  * TX_STATUS_FAIL_MGMNT_ABORT
@@ -1537,7 +1537,7 @@ struct il_tx_cmd {
  * If the MSB of the status parameter is set then an abort sequence is
  * required.  This sequence consists of the host activating the TX Abort
  * control line, and then waiting for the TX Abort command response.  This
- * indicates that a the device is no longer in a transmit state, and that the
+ * indicates that a the device is yes longer in a transmit state, and that the
  * command FIFO has been cleared.  The host must then deactivate the TX Abort
  * control line.  Receiving is still allowed in this case.
  */
@@ -1566,7 +1566,7 @@ enum {
  * TX command response is sent after *4965* transmission attempts.
  *
  * both postpone and abort status are expected behavior from uCode. there is
- * no special operation required from driver; except for RFKILL_FLUSH,
+ * yes special operation required from driver; except for RFKILL_FLUSH,
  * which required tx flush host command to flush all the tx frames in queues
  */
 enum {
@@ -1659,12 +1659,12 @@ enum {
  *     been made for this frame.
  *
  * 2)  Aggregation (frame_count > 1).  This reports Tx results for
- *     2 or more frames that used block-acknowledge.  All frames were
+ *     2 or more frames that used block-ackyeswledge.  All frames were
  *     transmitted at same rate.  Rate scaling may have been used if first
  *     frame in this new agg block failed in previous agg block(s).
  *
- *     Note that, for aggregation, ACK (block-ack) status is not delivered here;
- *     block-ack has not been received by the time the 4965 device records
+ *     Note that, for aggregation, ACK (block-ack) status is yest delivered here;
+ *     block-ack has yest been received by the time the 4965 device records
  *     this status.
  *     This status relates to reasons the tx might have been blocked or aborted
  *     within the sending station (this 4965 device), rather than whether it was
@@ -1676,25 +1676,25 @@ struct agg_tx_status {
 } __packed;
 
 struct il4965_tx_resp {
-	u8 frame_count;		/* 1 no aggregation, >1 aggregation */
+	u8 frame_count;		/* 1 yes aggregation, >1 aggregation */
 	u8 bt_kill_count;	/* # blocked by bluetooth (unused for agg) */
 	u8 failure_rts;		/* # failures due to unsuccessful RTS */
-	u8 failure_frame;	/* # failures due to no ACK (unused for agg) */
+	u8 failure_frame;	/* # failures due to yes ACK (unused for agg) */
 
-	/* For non-agg:  Rate at which frame was successful.
+	/* For yesn-agg:  Rate at which frame was successful.
 	 * For agg:  Rate at which all frames were transmitted. */
 	__le32 rate_n_flags;	/* RATE_MCS_*  */
 
-	/* For non-agg:  RTS + CTS + frame tx attempts time + ACK.
+	/* For yesn-agg:  RTS + CTS + frame tx attempts time + ACK.
 	 * For agg:  RTS + CTS + aggregation tx time + block-ack time. */
 	__le16 wireless_media_time;	/* uSecs */
 
 	__le16 reserved;
-	__le32 pa_power1;	/* RF power amplifier measurement (not used) */
+	__le32 pa_power1;	/* RF power amplifier measurement (yest used) */
 	__le32 pa_power2;
 
 	/*
-	 * For non-agg:  frame status TX_STATUS_*
+	 * For yesn-agg:  frame status TX_STATUS_*
 	 * For agg:  status of 1st frame, AGG_TX_STATE_*; other frame status
 	 *           fields follow this one, up to frame_count.
 	 *           Bit fields:
@@ -1704,7 +1704,7 @@ struct il4965_tx_resp {
 	 *                   member of a previous aggregation block).  If rate
 	 *                   scaling is used, retry count indicates the rate
 	 *                   table entry used for all frames in the new agg.
-	 *           31-16:  Sequence # for this frame's Tx cmd (not SSN!)
+	 *           31-16:  Sequence # for this frame's Tx cmd (yest SSN!)
 	 */
 	union {
 		__le32 status;
@@ -1713,9 +1713,9 @@ struct il4965_tx_resp {
 } __packed;
 
 /*
- * N_COMPRESSED_BA = 0xc5 (response only, not a command)
+ * N_COMPRESSED_BA = 0xc5 (response only, yest a command)
  *
- * Reports Block-Acknowledge from recipient station
+ * Reports Block-Ackyeswledge from recipient station
  */
 struct il_compressed_ba_resp {
 	__le32 sta_addr_lo32;
@@ -1817,7 +1817,7 @@ struct il_link_qual_general_params {
 	 * Otherwise, driver should set all entries to 0.
 	 *
 	 * Entry usage:
-	 * 0 = Background, 1 = Best Effort (normal), 2 = Video, 3 = Voice
+	 * 0 = Background, 1 = Best Effort (yesrmal), 2 = Video, 3 = Voice
 	 * TX FIFOs above 3 use same value (typically 0) as TX FIFO 3.
 	 */
 	u8 start_rate_idx[LINK_QUAL_AC_NUM];
@@ -1844,13 +1844,13 @@ struct il_link_qual_agg_params {
 
 	/*
 	 *Maximum number of uSec in aggregation.
-	 * default set to 4000 (4 milliseconds) if not configured in .cfg
+	 * default set to 4000 (4 milliseconds) if yest configured in .cfg
 	 */
 	__le16 agg_time_limit;
 
 	/*
 	 * Number of Tx retries allowed for a frame, before that frame will
-	 * no longer be considered for the start of an aggregation sequence
+	 * yes longer be considered for the start of an aggregation sequence
 	 * (scheduler will then try to tx it as single frame).
 	 * Driver should set this to 3.
 	 */
@@ -1858,7 +1858,7 @@ struct il_link_qual_agg_params {
 
 	/*
 	 * Maximum number of frames in aggregation.
-	 * 0 = no limit (default).  1 = no aggregation.
+	 * 0 = yes limit (default).  1 = yes aggregation.
 	 * Other values = max # frames in aggregation.
 	 */
 	u8 agg_frame_cnt_limit;
@@ -1874,7 +1874,7 @@ struct il_link_qual_agg_params {
  * Each station in the 4965 device's internal station table has its own table
  * of 16
  * Tx rates and modulation modes (e.g. legacy/SISO/MIMO) for retrying Tx when
- * an ACK is not received.  This command replaces the entire table for
+ * an ACK is yest received.  This command replaces the entire table for
  * one station.
  *
  * NOTE:  Station must already be in 4965 device's station table.
@@ -1895,12 +1895,12 @@ struct il_link_qual_agg_params {
  * 1)  If using High-throughput (HT) (SISO or MIMO) initial rate:
  *     a) Use this same initial rate for first 3 entries.
  *     b) Find next lower available rate using same mode (SISO or MIMO),
- *        use for next 3 entries.  If no lower rate available, switch to
- *        legacy mode (no HT40 channel, no MIMO, no short guard interval).
+ *        use for next 3 entries.  If yes lower rate available, switch to
+ *        legacy mode (yes HT40 channel, yes MIMO, yes short guard interval).
  *     c) If using MIMO, set command's mimo_delimiter to number of entries
  *        using MIMO (3 or 6).
- *     d) After trying 2 HT rates, switch to legacy mode (no HT40 channel,
- *        no MIMO, no short guard interval), at the next lower bit rate
+ *     d) After trying 2 HT rates, switch to legacy mode (yes HT40 channel,
+ *        yes MIMO, yes short guard interval), at the next lower bit rate
  *        (e.g. if second HT bit rate was 54, try 48 legacy), and follow
  *        legacy procedure for remaining table entries.
  *
@@ -1940,7 +1940,7 @@ struct il_link_qual_agg_params {
  * match the modulation characteristics of the history set.
  *
  * When using block-ack (aggregation), all frames are transmitted at the same
- * rate, since there is no per-attempt acknowledgment from the destination
+ * rate, since there is yes per-attempt ackyeswledgment from the destination
  * station.  The Tx response struct il_tx_resp indicates the Tx rate in
  * rate_n_flags field.  After receiving a block-ack, the driver can update
  * history for the entire block all at once.
@@ -1953,9 +1953,9 @@ struct il_link_qual_agg_params {
  * first entry in the Link Quality command's rate table.
  *
  * 1)  Calculate actual throughput (success ratio * expected throughput, see
- *     table below) for current initial rate.  Do this only if enough frames
+ *     table below) for current initial rate.  Do this only if eyesugh frames
  *     have been attempted to make the value meaningful:  at least 6 failed
- *     tx attempts, or at least 8 successes.  If not enough, don't try rate
+ *     tx attempts, or at least 8 successes.  If yest eyesugh, don't try rate
  *     scaling yet.
  *
  * 2)  Find available rates adjacent to current initial rate.  Available means:
@@ -1963,8 +1963,8 @@ struct il_link_qual_agg_params {
  *     b)  supported by association &&
  *     c)  within any constraints selected by user
  *
- * 3)  Gather measured throughputs for adjacent rates.  These might not have
- *     enough history to calculate a throughput.  That's okay, we might try
+ * 3)  Gather measured throughputs for adjacent rates.  These might yest have
+ *     eyesugh history to calculate a throughput.  That's okay, we might try
  *     using one of them anyway!
  *
  * 4)  Try decreasing rate if, for current rate:
@@ -1987,11 +1987,11 @@ struct il_link_qual_agg_params {
  *
  *     As a sanity check, if increase was determined above, leave rate
  *     unchanged if:
- *     a)  success ratio at current rate < 70%.  This is not particularly
+ *     a)  success ratio at current rate < 70%.  This is yest particularly
  *         good performance; higher rate is sure to have poorer success.
  *
  * 6)  Re-evaluate the rate after each tx frame.  If working with block-
- *     acknowledge, history and stats may be calculated for the entire
+ *     ackyeswledge, history and stats may be calculated for the entire
  *     block (including prior history that fits within the history wins),
  *     before re-evaluation.
  *
@@ -2024,7 +2024,7 @@ struct il_link_qual_agg_params {
  *
  * Actual throughput can be estimated by multiplying the expected throughput
  * by the success ratio (successful / attempted tx frames).  Frame size is
- * not considered in this calculation; it assumes that frame size will average
+ * yest considered in this calculation; it assumes that frame size will average
  * out to be fairly consistent over several samples.  The following are
  * metric values for expected throughput assuming 100% success ratio.
  * Only G band has support for CCK rates:
@@ -2059,7 +2059,7 @@ struct il_link_quality_cmd {
 	/* Index of destination/recipient station in uCode's station table */
 	u8 sta_id;
 	u8 reserved1;
-	__le16 control;		/* not used */
+	__le16 control;		/* yest used */
 	struct il_link_qual_general_params general_params;
 	struct il_link_qual_agg_params agg_params;
 
@@ -2076,7 +2076,7 @@ struct il_link_quality_cmd {
 
 /*
  * BT configuration enable flags:
- *   bit 0 - 1: BT channel announcement enabled
+ *   bit 0 - 1: BT channel anyesuncement enabled
  *           0: disable
  *   bit 1 - 1: priority of BT device enabled
  *           0: disable
@@ -2158,7 +2158,7 @@ struct il_spectrum_resp {
 	u8 token;
 	u8 id;			/* id of the prior command replaced, or 0xff */
 	__le16 status;		/* 0 - command will be handled
-				 * 1 - cannot handle (conflicts with another
+				 * 1 - canyest handle (conflicts with ayesther
 				 *     measurement) */
 } __packed;
 
@@ -2202,9 +2202,9 @@ enum il_measure_type {
 };
 
 /*
- * N_SPECTRUM_MEASUREMENT = 0x75 (notification only, not a command)
+ * N_SPECTRUM_MEASUREMENT = 0x75 (yestification only, yest a command)
  */
-struct il_spectrum_notification {
+struct il_spectrum_yestification {
 	u8 id;			/* measurement id -- 0 or 1 */
 	u8 token;
 	u8 channel_idx;		/* idx in measurement channel list */
@@ -2240,12 +2240,12 @@ struct il_spectrum_notification {
  * C_POWER_TBL = 0x77 (command, has simple generic response)
  *
  * PM allow:
- *   bit 0 - '0' Driver not allow power management
+ *   bit 0 - '0' Driver yest allow power management
  *           '1' Driver allow PM (use rest of parameters)
  *
- * uCode send sleep notifications:
- *   bit 1 - '0' Don't send sleep notification
- *           '1' send sleep notification (SEND_PM_NOTIFICATION)
+ * uCode send sleep yestifications:
+ *   bit 1 - '0' Don't send sleep yestification
+ *           '1' send sleep yestification (SEND_PM_NOTIFICATION)
  *
  * Sleep over DTIM
  *   bit 2 - '0' PM have to walk up every DTIM
@@ -2293,10 +2293,10 @@ struct il_powertable_cmd {
 } __packed;
 
 /*
- * N_PM_SLEEP = 0x7A (notification only, not a command)
+ * N_PM_SLEEP = 0x7A (yestification only, yest a command)
  * all devices identical.
  */
-struct il_sleep_notification {
+struct il_sleep_yestification {
 	u8 pm_sleep_mode;
 	u8 pm_wakeup_src;
 	__le16 reserved;
@@ -2321,9 +2321,9 @@ enum {
 };
 
 /*
- * N_CARD_STATE = 0xa1 (notification only, not a command)
+ * N_CARD_STATE = 0xa1 (yestification only, yest a command)
  */
-struct il_card_state_notif {
+struct il_card_state_yestif {
 	__le32 flags;
 } __packed;
 
@@ -2430,7 +2430,7 @@ struct il_ssid_ie {
  * C_SCAN = 0x80 (command)
  *
  * The hardware scan command is very powerful; the driver can set it up to
- * maintain (relatively) normal network traffic while doing a scan in the
+ * maintain (relatively) yesrmal network traffic while doing a scan in the
  * background.  The max_out_time and suspend_time control the ratio of how
  * long the device stays on an associated network channel ("service channel")
  * vs. how long it's away from the service channel, i.e. tuned to other channels
@@ -2439,37 +2439,37 @@ struct il_ssid_ie {
  * max_out_time is the max time off-channel (in usec), and suspend_time
  * is how long (in "extended beacon" format) that the scan is "suspended"
  * after returning to the service channel.  That is, suspend_time is the
- * time that we stay on the service channel, doing normal work, between
+ * time that we stay on the service channel, doing yesrmal work, between
  * scan segments.  The driver may set these parameters differently to support
- * scanning when associated vs. not associated, and light vs. heavy traffic
+ * scanning when associated vs. yest associated, and light vs. heavy traffic
  * loads when associated.
  *
  * After receiving this command, the device's scan engine does the following;
  *
- * 1)  Sends SCAN_START notification to driver
+ * 1)  Sends SCAN_START yestification to driver
  * 2)  Checks to see if it has time to do scan for one channel
  * 3)  Sends NULL packet, with power-save (PS) bit set to 1,
  *     to tell AP that we're going off-channel
  * 4)  Tunes to first channel in scan list, does active or passive scan
- * 5)  Sends SCAN_RESULT notification to driver
+ * 5)  Sends SCAN_RESULT yestification to driver
  * 6)  Checks to see if it has time to do scan on *next* channel in list
- * 7)  Repeats 4-6 until it no longer has time to scan the next channel
+ * 7)  Repeats 4-6 until it yes longer has time to scan the next channel
  *     before max_out_time expires
  * 8)  Returns to service channel
  * 9)  Sends NULL packet with PS=0 to tell AP that we're back
  * 10) Stays on service channel until suspend_time expires
  * 11) Repeats entire process 2-10 until list is complete
- * 12) Sends SCAN_COMPLETE notification
+ * 12) Sends SCAN_COMPLETE yestification
  *
  * For fast, efficient scans, the scan command also has support for staying on
- * a channel for just a short time, if doing active scanning and getting no
+ * a channel for just a short time, if doing active scanning and getting yes
  * responses to the transmitted probe request.  This time is controlled by
  * quiet_time, and the number of received packets below which a channel is
  * considered "quiet" is controlled by quiet_plcp_threshold.
  *
  * For active scanning on channels that have regulatory restrictions against
  * blindly transmitting, the scan can listen before transmitting, to make sure
- * that there is already legitimate activity on the channel.  If enough
+ * that there is already legitimate activity on the channel.  If eyesugh
  * packets are cleanly received on the channel (controlled by good_CRC_th,
  * typical value 1), the scan engine starts transmitting probe requests.
  *
@@ -2499,7 +2499,7 @@ struct il3945_scan_cmd {
 	__le32 filter_flags;	/* RXON_FILTER_* */
 
 	/* For active scans (set to all-0s for passive scans).
-	 * Does not include payload.  Must specify Tx rate; no rate scaling. */
+	 * Does yest include payload.  Must specify Tx rate; yes rate scaling. */
 	struct il3945_tx_cmd tx_cmd;
 
 	/* For directed active scans (set to all-0s otherwise) */
@@ -2516,9 +2516,9 @@ struct il3945_scan_cmd {
 	 * struct il3945_scan_channel channels[0];
 	 *
 	 * NOTE:  Only one band of channels can be scanned per pass.  You
-	 * must not mix 2.4GHz channels and 5.2GHz channels, and you must wait
+	 * must yest mix 2.4GHz channels and 5.2GHz channels, and you must wait
 	 * for one scan to complete (i.e. receive N_SCAN_COMPLETE)
-	 * before requesting another scan.
+	 * before requesting ayesther scan.
 	 */
 	u8 data[0];
 } __packed;
@@ -2543,7 +2543,7 @@ struct il_scan_cmd {
 	__le32 filter_flags;	/* RXON_FILTER_* */
 
 	/* For active scans (set to all-0s for passive scans).
-	 * Does not include payload.  Must specify Tx rate; no rate scaling. */
+	 * Does yest include payload.  Must specify Tx rate; yes rate scaling. */
 	struct il_tx_cmd tx_cmd;
 
 	/* For directed active scans (set to all-0s otherwise) */
@@ -2560,29 +2560,29 @@ struct il_scan_cmd {
 	 * struct il_scan_channel channels[0];
 	 *
 	 * NOTE:  Only one band of channels can be scanned per pass.  You
-	 * must not mix 2.4GHz channels and 5.2GHz channels, and you must wait
+	 * must yest mix 2.4GHz channels and 5.2GHz channels, and you must wait
 	 * for one scan to complete (i.e. receive N_SCAN_COMPLETE)
-	 * before requesting another scan.
+	 * before requesting ayesther scan.
 	 */
 	u8 data[0];
 } __packed;
 
-/* Can abort will notify by complete notification with abort status. */
+/* Can abort will yestify by complete yestification with abort status. */
 #define CAN_ABORT_STATUS	cpu_to_le32(0x1)
-/* complete notification statuses */
+/* complete yestification statuses */
 #define ABORT_STATUS            0x2
 
 /*
  * C_SCAN = 0x80 (response)
  */
-struct il_scanreq_notification {
-	__le32 status;		/* 1: okay, 2: cannot fulfill request */
+struct il_scanreq_yestification {
+	__le32 status;		/* 1: okay, 2: canyest fulfill request */
 } __packed;
 
 /*
- * N_SCAN_START = 0x82 (notification only, not a command)
+ * N_SCAN_START = 0x82 (yestification only, yest a command)
  */
-struct il_scanstart_notification {
+struct il_scanstart_yestification {
 	__le32 tsf_low;
 	__le32 tsf_high;
 	__le32 beacon_timer;
@@ -2603,22 +2603,22 @@ struct il_scanstart_notification {
 
 #define NUMBER_OF_STATS 1	/* first __le32 is good CRC */
 /*
- * N_SCAN_RESULTS = 0x83 (notification only, not a command)
+ * N_SCAN_RESULTS = 0x83 (yestification only, yest a command)
  */
-struct il_scanresults_notification {
+struct il_scanresults_yestification {
 	u8 channel;
 	u8 band;
 	u8 probe_status;
-	u8 num_probe_not_sent;	/* not enough time to send */
+	u8 num_probe_yest_sent;	/* yest eyesugh time to send */
 	__le32 tsf_low;
 	__le32 tsf_high;
 	__le32 stats[NUMBER_OF_STATS];
 } __packed;
 
 /*
- * N_SCAN_COMPLETE = 0x84 (notification only, not a command)
+ * N_SCAN_COMPLETE = 0x84 (yestification only, yest a command)
  */
-struct il_scancomplete_notification {
+struct il_scancomplete_yestification {
 	u8 scanned_channels;
 	u8 status;
 	u8 last_channel;
@@ -2638,18 +2638,18 @@ enum il_ibss_manager {
 };
 
 /*
- * N_BEACON = 0x90 (notification only, not a command)
+ * N_BEACON = 0x90 (yestification only, yest a command)
  */
 
-struct il3945_beacon_notif {
-	struct il3945_tx_resp beacon_notify_hdr;
+struct il3945_beacon_yestif {
+	struct il3945_tx_resp beacon_yestify_hdr;
 	__le32 low_tsf;
 	__le32 high_tsf;
 	__le32 ibss_mgr_status;
 } __packed;
 
-struct il4965_beacon_notif {
-	struct il4965_tx_resp beacon_notify_hdr;
+struct il4965_beacon_yestif {
+	struct il4965_tx_resp beacon_yestify_hdr;
 	__le32 low_tsf;
 	__le32 high_tsf;
 	__le32 ibss_mgr_status;
@@ -2721,21 +2721,21 @@ struct iwl39_stats_rx_phy {
 	__le32 sent_cts_cnt;
 } __packed;
 
-struct iwl39_stats_rx_non_phy {
-	__le32 bogus_cts;	/* CTS received when not expecting CTS */
-	__le32 bogus_ack;	/* ACK received when not expecting ACK */
-	__le32 non_bssid_frames;	/* number of frames with BSSID that
+struct iwl39_stats_rx_yesn_phy {
+	__le32 bogus_cts;	/* CTS received when yest expecting CTS */
+	__le32 bogus_ack;	/* ACK received when yest expecting ACK */
+	__le32 yesn_bssid_frames;	/* number of frames with BSSID that
 					 * doesn't belong to the STA BSSID */
 	__le32 filtered_frames;	/* count frames that were dumped in the
 				 * filtering process */
-	__le32 non_channel_beacons;	/* beacons with our bss id but not on
+	__le32 yesn_channel_beacons;	/* beacons with our bss id but yest on
 					 * our serving channel */
 } __packed;
 
 struct iwl39_stats_rx {
 	struct iwl39_stats_rx_phy ofdm;
 	struct iwl39_stats_rx_phy cck;
-	struct iwl39_stats_rx_non_phy general;
+	struct iwl39_stats_rx_yesn_phy general;
 } __packed;
 
 struct iwl39_stats_tx {
@@ -2812,14 +2812,14 @@ struct stats_rx_ht_phy {
 
 #define INTERFERENCE_DATA_AVAILABLE      cpu_to_le32(1)
 
-struct stats_rx_non_phy {
-	__le32 bogus_cts;	/* CTS received when not expecting CTS */
-	__le32 bogus_ack;	/* ACK received when not expecting ACK */
-	__le32 non_bssid_frames;	/* number of frames with BSSID that
+struct stats_rx_yesn_phy {
+	__le32 bogus_cts;	/* CTS received when yest expecting CTS */
+	__le32 bogus_ack;	/* ACK received when yest expecting ACK */
+	__le32 yesn_bssid_frames;	/* number of frames with BSSID that
 					 * doesn't belong to the STA BSSID */
 	__le32 filtered_frames;	/* count frames that were dumped in the
 				 * filtering process */
-	__le32 non_channel_beacons;	/* beacons with our bss id but not on
+	__le32 yesn_channel_beacons;	/* beacons with our bss id but yest on
 					 * our serving channel */
 	__le32 channel_beacons;	/* beacons with our bss id and in our
 				 * serving channel */
@@ -2848,7 +2848,7 @@ struct stats_rx_non_phy {
 struct stats_rx {
 	struct stats_rx_phy ofdm;
 	struct stats_rx_phy cck;
-	struct stats_rx_non_phy general;
+	struct stats_rx_yesn_phy general;
 	struct stats_rx_ht_phy ofdm_ht;
 } __packed;
 
@@ -2866,14 +2866,14 @@ struct stats_tx_power {
 	u8 reserved;
 } __packed;
 
-struct stats_tx_non_phy_agg {
+struct stats_tx_yesn_phy_agg {
 	__le32 ba_timeout;
 	__le32 ba_reschedule_frames;
 	__le32 scd_query_agg_frame_cnt;
-	__le32 scd_query_no_agg;
+	__le32 scd_query_yes_agg;
 	__le32 scd_query_agg;
 	__le32 scd_query_mismatch;
-	__le32 frame_not_ready;
+	__le32 frame_yest_ready;
 	__le32 underrun;
 	__le32 bt_prio_kill;
 	__le32 rx_ba_rsp_cnt;
@@ -2894,7 +2894,7 @@ struct stats_tx {
 	__le32 burst_abort_missing_next_frame_cnt;
 	__le32 cts_timeout_collision;
 	__le32 ack_or_ba_timeout_collision;
-	struct stats_tx_non_phy_agg agg;
+	struct stats_tx_yesn_phy_agg agg;
 
 	__le32 reserved1;
 } __packed;
@@ -2944,11 +2944,11 @@ struct stats_general {
  *
  * If the CLEAR_STATS configuration flag is set, uCode will clear its
  * internal copy of the stats (counters) after issuing the response.
- * This flag does not affect N_STATSs after beacons (see below).
+ * This flag does yest affect N_STATSs after beacons (see below).
  *
- * If the DISABLE_NOTIF configuration flag is set, uCode will not issue
+ * If the DISABLE_NOTIF configuration flag is set, uCode will yest issue
  * N_STATSs after received beacons (see below).  This flag
- * does not affect the response to the C_STATS 0x9c itself.
+ * does yest affect the response to the C_STATS 0x9c itself.
  */
 #define IL_STATS_CONF_CLEAR_STATS cpu_to_le32(0x1)	/* see above */
 #define IL_STATS_CONF_DISABLE_NOTIF cpu_to_le32(0x2)	/* see above */
@@ -2957,9 +2957,9 @@ struct il_stats_cmd {
 } __packed;
 
 /*
- * N_STATS = 0x9d (notification only, not a command)
+ * N_STATS = 0x9d (yestification only, yest a command)
  *
- * By default, uCode issues this notification after receiving a beacon
+ * By default, uCode issues this yestification after receiving a beacon
  * while associated.  To disable this behavior, set DISABLE_NOTIF flag in the
  * C_STATS 0x9c, above.
  *
@@ -2967,21 +2967,21 @@ struct il_stats_cmd {
  * cleared when changing channels or when driver issues C_STATS
  * 0x9c with CLEAR_STATS bit set (see above).
  *
- * uCode also issues this notification during scans.  uCode clears stats
- * appropriately so that each notification contains stats for only the
+ * uCode also issues this yestification during scans.  uCode clears stats
+ * appropriately so that each yestification contains stats for only the
  * one channel that has just been scanned.
  */
 #define STATS_REPLY_FLG_BAND_24G_MSK         cpu_to_le32(0x2)
 #define STATS_REPLY_FLG_HT40_MODE_MSK        cpu_to_le32(0x8)
 
-struct il3945_notif_stats {
+struct il3945_yestif_stats {
 	__le32 flag;
 	struct iwl39_stats_rx rx;
 	struct iwl39_stats_tx tx;
 	struct iwl39_stats_general general;
 } __packed;
 
-struct il_notif_stats {
+struct il_yestif_stats {
 	__le32 flag;
 	struct stats_rx rx;
 	struct stats_tx tx;
@@ -2989,22 +2989,22 @@ struct il_notif_stats {
 } __packed;
 
 /*
- * N_MISSED_BEACONS = 0xa2 (notification only, not a command)
+ * N_MISSED_BEACONS = 0xa2 (yestification only, yest a command)
  *
  * uCode send N_MISSED_BEACONS to driver when detect beacon missed
  * in regardless of how many missed beacons, which mean when driver receive the
- * notification, inside the command, it can find all the beacons information
+ * yestification, inside the command, it can find all the beacons information
  * which include number of total missed beacons, number of consecutive missed
  * beacons, number of beacons received and number of beacons expected to
  * receive.
  *
  * If uCode detected consecutive_missed_beacons > 5, it will reset the radio
- * in order to bring the radio/PHY back to working state; which has no relation
+ * in order to bring the radio/PHY back to working state; which has yes relation
  * to when driver will perform sensitivity calibration.
  *
  * Driver should set it own missed_beacon_threshold to decide when to perform
  * sensitivity calibration based on number of consecutive missed beacons in
- * order to improve overall performance, especially in noisy environment.
+ * order to improve overall performance, especially in yesisy environment.
  *
  */
 
@@ -3012,7 +3012,7 @@ struct il_notif_stats {
 #define IL_MISSED_BEACON_THRESHOLD_DEF	(5)
 #define IL_MISSED_BEACON_THRESHOLD_MAX	IL_MISSED_BEACON_THRESHOLD_DEF
 
-struct il_missed_beacon_notif {
+struct il_missed_beacon_yestif {
 	__le32 consecutive_missed_beacons;
 	__le32 total_missed_becons;
 	__le32 num_expected_beacons;
@@ -3037,30 +3037,30 @@ struct il_missed_beacon_notif {
  * C_SENSITIVITY = 0xa8 (command, has simple generic response)
  *
  * This command sets up the Rx signal detector for a sensitivity level that
- * is high enough to lock onto all signals within the associated network,
- * but low enough to ignore signals that are below a certain threshold, so as
- * not to have too many "false alarms".  False alarms are signals that the
+ * is high eyesugh to lock onto all signals within the associated network,
+ * but low eyesugh to igyesre signals that are below a certain threshold, so as
+ * yest to have too many "false alarms".  False alarms are signals that the
  * Rx DSP tries to lock onto, but then discards after determining that they
- * are noise.
+ * are yesise.
  *
  * The optimum number of false alarms is between 5 and 50 per 200 TUs
  * (200 * 1024 uSecs, i.e. 204.8 milliseconds) of actual Rx time (i.e.
- * time listening, not transmitting).  Driver must adjust sensitivity so that
+ * time listening, yest transmitting).  Driver must adjust sensitivity so that
  * the ratio of actual false alarms to actual Rx time falls within this range.
  *
  * While associated, uCode delivers N_STATSs after each
  * received beacon.  These provide information to the driver to analyze the
  * sensitivity.  Don't analyze stats that come in from scanning, or any
- * other non-associated-network source.  Pertinent stats include:
+ * other yesn-associated-network source.  Pertinent stats include:
  *
- * From "general" stats (struct stats_rx_non_phy):
+ * From "general" stats (struct stats_rx_yesn_phy):
  *
  * (beacon_energy_[abc] & 0x0FF00) >> 8 (unsigned, higher value is lower level)
  *   Measure of energy of desired signal.  Used for establishing a level
- *   below which the device does not detect signals.
+ *   below which the device does yest detect signals.
  *
  * (beacon_silence_rssi_[abc] & 0x0FF00) >> 8 (unsigned, units in dB)
- *   Measure of background noise in silent period after beacon.
+ *   Measure of background yesise in silent period after beacon.
  *
  * channel_load
  *   uSecs of actual Rx time during beacon period (varies according to
@@ -3074,7 +3074,7 @@ struct il_missed_beacon_notif {
  * plcp_err
  *   Signal locks abandoned late (during phy-level header).
  *
- * NOTE:  Both false_alarm_cnt and plcp_err increment monotonically from
+ * NOTE:  Both false_alarm_cnt and plcp_err increment moyestonically from
  *        beacon to beacon, i.e. each value is an accumulation of all errors
  *        before and including the latest beacon.  Values will wrap around to 0
  *        after counting up to 2^32 - 1.  Driver must differentiate vs.
@@ -3084,7 +3084,7 @@ struct il_missed_beacon_notif {
  * Total number of false alarms = false_alarms + plcp_errs
  *
  * For OFDM, adjust the following table entries in struct il_sensitivity_cmd
- * (notice that the start points for OFDM are at or close to settings for
+ * (yestice that the start points for OFDM are at or close to settings for
  * maximum sensitivity):
  *
  *                                             START  /  MIN  /  MAX
@@ -3102,7 +3102,7 @@ struct il_missed_beacon_notif {
  *
  * For CCK sensitivity, keep track of the following:
  *
- *   1).  20-beacon history of maximum background noise, indicated by
+ *   1).  20-beacon history of maximum background yesise, indicated by
  *        (beacon_silence_rssi_[abc] & 0x0FF00), units in dB, across the
  *        3 receivers.  For any given beacon, the "silence reference" is
  *        the maximum of last 60 samples (20 beacons * 3 receivers).
@@ -3125,7 +3125,7 @@ struct il_missed_beacon_notif {
  *        "good" range (5 to 50 false alarms per 204.8 milliseconds rx).
  *
  * Then, adjust the following CCK table entries in struct il_sensitivity_cmd
- * (notice that the start points for CCK are at maximum sensitivity):
+ * (yestice that the start points for CCK are at maximum sensitivity):
  *
  *                                             START  /  MIN  /  MAX
  *   HD_AUTO_CORR40_X4_TH_ADD_MIN_IDX         125   /  125  /  200
@@ -3155,7 +3155,7 @@ struct il_missed_beacon_notif {
  *   (less than 5 for each 204.8 msecs listening), method for increasing
  *   sensitivity is used only if:
  *
- *   1a)  Previous beacon did not have too many false alarms
+ *   1a)  Previous beacon did yest have too many false alarms
  *   1b)  AND difference between previous "silence reference" and current
  *        "silence reference" (prev - current) is 2 or more,
  *   OR 2)  100 or more consecutive beacon periods have had rate of
@@ -3225,24 +3225,24 @@ struct il_sensitivity_cmd {
  *
  * This command sets the relative gains of 4965 device's 3 radio receiver chains.
  *
- * After the first association, driver should accumulate signal and noise
+ * After the first association, driver should accumulate signal and yesise
  * stats from the N_STATSs that follow the first 20
  * beacons from the associated network (don't collect stats that come
- * in from scanning, or any other non-network source).
+ * in from scanning, or any other yesn-network source).
  *
  * DISCONNECTED ANTENNA:
  *
  * Driver should determine which antennas are actually connected, by comparing
  * average beacon signal levels for the 3 Rx chains.  Accumulate (add) the
  * following values over 20 beacons, one accumulator for each of the chains
- * a/b/c, from struct stats_rx_non_phy:
+ * a/b/c, from struct stats_rx_yesn_phy:
  *
  * beacon_rssi_[abc] & 0x0FF (unsigned, units in dB)
  *
  * Find the strongest signal from among a/b/c.  Compare the other two to the
  * strongest.  If any signal is more than 15 dB (times 20, unless you
  * divide the accumulated values by 20) below the strongest, the driver
- * considers that antenna to be disconnected, and should not try to use that
+ * considers that antenna to be disconnected, and should yest try to use that
  * antenna/chain for Rx or Tx.  If both A and B seem to be disconnected,
  * driver should declare the stronger one as connected, and attempt to use it
  * (A and B are the only 2 Tx chains!).
@@ -3252,17 +3252,17 @@ struct il_sensitivity_cmd {
  *
  * Driver should balance the 3 receivers (but just the ones that are connected
  * to antennas, see above) for gain, by comparing the average signal levels
- * detected during the silence after each beacon (background noise).
+ * detected during the silence after each beacon (background yesise).
  * Accumulate (add) the following values over 20 beacons, one accumulator for
- * each of the chains a/b/c, from struct stats_rx_non_phy:
+ * each of the chains a/b/c, from struct stats_rx_yesn_phy:
  *
  * beacon_silence_rssi_[abc] & 0x0FF (unsigned, units in dB)
  *
- * Find the weakest background noise level from among a/b/c.  This Rx chain
+ * Find the weakest background yesise level from among a/b/c.  This Rx chain
  * will be the reference, with 0 gain adjustment.  Attenuate other channels by
- * finding noise difference:
+ * finding yesise difference:
  *
- * (accum_noise[i] - accum_noise[reference]) / 30
+ * (accum_yesise[i] - accum_yesise[reference]) / 30
  *
  * The "30" adjusts the dB in the 20 accumulated samples to units of 1.5 dB.
  * For use in diff_gain_[abc] fields of struct il_calibration_cmd, the
@@ -3276,7 +3276,7 @@ struct il_sensitivity_cmd {
  */
 
 /* Phy calibration command for series */
-/* The default calibrate table size if not specified by firmware */
+/* The default calibrate table size if yest specified by firmware */
 #define IL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE	18
 enum {
 	IL_PHY_CALIBRATE_DIFF_GAIN_CMD = 7,
@@ -3326,7 +3326,7 @@ struct il_led_cmd {
 
 /******************************************************************************
  * (13)
- * Union of all expected notifications/responses:
+ * Union of all expected yestifications/responses:
  *
  *****************************************************************************/
 
@@ -3338,7 +3338,7 @@ struct il_rx_pkt {
 	 * size and some flags.
 	 * Bit fields:
 	 * 31:    flag flush RB request
-	 * 30:    flag ignore TC (terminal counter) request
+	 * 30:    flag igyesre TC (terminal counter) request
 	 * 29:    flag fast IRQ request
 	 * 28-14: Reserved
 	 * 13-00: RX frame size
@@ -3348,20 +3348,20 @@ struct il_rx_pkt {
 	union {
 		struct il3945_rx_frame rx_frame;
 		struct il3945_tx_resp tx_resp;
-		struct il3945_beacon_notif beacon_status;
+		struct il3945_beacon_yestif beacon_status;
 
 		struct il_alive_resp alive_frame;
-		struct il_spectrum_notification spectrum_notif;
-		struct il_csa_notification csa_notif;
+		struct il_spectrum_yestification spectrum_yestif;
+		struct il_csa_yestification csa_yestif;
 		struct il_error_resp err_resp;
-		struct il_card_state_notif card_state_notif;
+		struct il_card_state_yestif card_state_yestif;
 		struct il_add_sta_resp add_sta;
 		struct il_rem_sta_resp rem_sta;
-		struct il_sleep_notification sleep_notif;
+		struct il_sleep_yestification sleep_yestif;
 		struct il_spectrum_resp spectrum;
-		struct il_notif_stats stats;
+		struct il_yestif_stats stats;
 		struct il_compressed_ba_resp compressed_ba;
-		struct il_missed_beacon_notif missed_beacon;
+		struct il_missed_beacon_yestif missed_beacon;
 		__le32 status;
 		u8 raw[0];
 	} u;

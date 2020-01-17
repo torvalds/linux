@@ -9,7 +9,7 @@
  *   Xiao Guangrong <guangrong.xiao@linux.intel.com>
  *   Wu Hao <hao.wu@intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enyes Luebbers <enyes.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Mitchel, Henry <henry.mitchel@intel.com>
@@ -128,7 +128,7 @@ static ssize_t pcie1_errors_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(pcie1_errors);
 
-static ssize_t nonfatal_errors_show(struct device *dev,
+static ssize_t yesnfatal_errors_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	void __iomem *base;
@@ -138,7 +138,7 @@ static ssize_t nonfatal_errors_show(struct device *dev,
 	return sprintf(buf, "0x%llx\n",
 		       (unsigned long long)readq(base + RAS_NONFAT_ERROR));
 }
-static DEVICE_ATTR_RO(nonfatal_errors);
+static DEVICE_ATTR_RO(yesnfatal_errors);
 
 static ssize_t catfatal_errors_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -281,7 +281,7 @@ static DEVICE_ATTR_RO(next_error);
 static struct attribute *fme_global_err_attrs[] = {
 	&dev_attr_pcie0_errors.attr,
 	&dev_attr_pcie1_errors.attr,
-	&dev_attr_nonfatal_errors.attr,
+	&dev_attr_yesnfatal_errors.attr,
 	&dev_attr_catfatal_errors.attr,
 	&dev_attr_inject_errors.attr,
 	&dev_attr_fme_errors.attr,

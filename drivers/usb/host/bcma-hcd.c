@@ -78,7 +78,7 @@ static void bcma_hcd_4716wa(struct bcma_device *dev)
 		else
 			tmp = 0;
 
-		/* Change Shim mdio control reg to fix host not acking at
+		/* Change Shim mdio control reg to fix host yest acking at
 		 * high frequencies
 		 */
 		if (tmp) {
@@ -156,7 +156,7 @@ static void bcma_hcd_init_chip_mips(struct bcma_device *dev)
 			bcma_write32(dev, 0x200, 0x7ff);
 			udelay(10);
 
-			/* Take USB and HSIC out of non-driving modes */
+			/* Take USB and HSIC out of yesn-driving modes */
 			bcma_write32(dev, 0x510, 0);
 		} else {
 			bcma_write32(dev, 0x200, 0x7ff);
@@ -188,7 +188,7 @@ static int bcma_hcd_usb20_old_arm_init(struct bcma_hcd_device *usb_dev)
 
 	pmu_core = bcma_find_core(core->bus, BCMA_CORE_PMU);
 	if (!pmu_core) {
-		dev_err(dev, "Could not find PMU core\n");
+		dev_err(dev, "Could yest find PMU core\n");
 		return -ENOENT;
 	}
 
@@ -233,7 +233,7 @@ static int bcma_hcd_usb20_old_arm_init(struct bcma_hcd_device *usb_dev)
 	bcma_write32(core, 0x200, 0x7ff);
 	usleep_range(25, 50);
 
-	of_platform_default_populate(dev->of_node, NULL, dev);
+	of_platform_default_populate(dev->of_yesde, NULL, dev);
 
 	return 0;
 }
@@ -256,7 +256,7 @@ static void bcma_hcd_usb20_ns_init_hc(struct bcma_device *dev)
 	/*
 	 * Broadcom initializes PHY and then waits to ensure HC is ready to be
 	 * configured. In our case the order is reversed. We just initialized
-	 * controller and we let HCD initialize PHY, so let's wait (sleep) now.
+	 * controller and we let HCD initialize PHY, so let's wait (sleep) yesw.
 	 */
 	usleep_range(1000, 2000);
 }
@@ -276,7 +276,7 @@ static int bcma_hcd_usb20_ns_init(struct bcma_hcd_device *bcma_hcd)
 	    ci->id == BCMA_CHIP_ID_BCM53018)
 		bcma_hcd_usb20_ns_init_hc(core);
 
-	of_platform_default_populate(dev->of_node, NULL, dev);
+	of_platform_default_populate(dev->of_yesde, NULL, dev);
 
 	return 0;
 }
@@ -388,7 +388,7 @@ static int bcma_hcd_usb30_init(struct bcma_hcd_device *bcma_hcd)
 
 	bcma_core_enable(core, 0);
 
-	of_platform_default_populate(dev->of_node, NULL, dev);
+	of_platform_default_populate(dev->of_yesde, NULL, dev);
 
 	return 0;
 }
@@ -406,7 +406,7 @@ static int bcma_hcd_probe(struct bcma_device *core)
 		return -ENOMEM;
 	usb_dev->core = core;
 
-	if (core->dev.of_node) {
+	if (core->dev.of_yesde) {
 		usb_dev->gpio_desc = devm_gpiod_get(&core->dev, "vcc",
 						    GPIOD_OUT_HIGH);
 		if (IS_ERR(usb_dev->gpio_desc))

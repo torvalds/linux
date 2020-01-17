@@ -17,7 +17,7 @@
 
 #include <soc/tegra/mc.h>
 
-#include "governor.h"
+#include "goveryesr.h"
 
 #define MC_STAT_CONTROL				0x90
 #define MC_STAT_EMC_CLOCK_LIMIT			0xa0
@@ -74,7 +74,7 @@ static int tegra_devfreq_get_dev_status(struct device *dev,
 	/*
 	 * EMC_COUNT returns number of memory events, that number is lower
 	 * than the number of clocks. Conversion ratio of 1/8 results in a
-	 * bit higher bandwidth than actually needed, it is good enough for
+	 * bit higher bandwidth than actually needed, it is good eyesugh for
 	 * the time being because drivers don't support requesting minimum
 	 * needed memory bandwidth yet.
 	 *
@@ -100,15 +100,15 @@ static struct devfreq_dev_profile tegra_devfreq_profile = {
 static struct tegra_mc *tegra_get_memory_controller(void)
 {
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct tegra_mc *mc;
 
-	np = of_find_compatible_node(NULL, NULL, "nvidia,tegra20-mc-gart");
+	np = of_find_compatible_yesde(NULL, NULL, "nvidia,tegra20-mc-gart");
 	if (!np)
 		return ERR_PTR(-ENOENT);
 
-	pdev = of_find_device_by_node(np);
-	of_node_put(np);
+	pdev = of_find_device_by_yesde(np);
+	of_yesde_put(np);
 	if (!pdev)
 		return ERR_PTR(-ENODEV);
 

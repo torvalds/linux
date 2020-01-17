@@ -72,7 +72,7 @@ int vmci_handle_arr_append_entry(struct vmci_handle_arr **array_ptr,
 }
 
 /*
- * Handle that was removed, VMCI_INVALID_HANDLE if entry not found.
+ * Handle that was removed, VMCI_INVALID_HANDLE if entry yest found.
  */
 struct vmci_handle vmci_handle_arr_remove_entry(struct vmci_handle_arr *array,
 						struct vmci_handle entry_handle)

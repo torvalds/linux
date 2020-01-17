@@ -206,19 +206,19 @@
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>, /* Virtual */
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>; /* Hypervisor */
 		clock-frequency = <8000000>;
-		arm,no-tick-in-suspend;
+		arm,yes-tick-in-suspend;
 	};
 
-	usbphynop1: usbphynop1 {
-		compatible = "usb-nop-xceiv";
+	usbphyyesp1: usbphyyesp1 {
+		compatible = "usb-yesp-xceiv";
 		clocks = <&clk IMX8MM_CLK_USB_PHY_REF>;
 		assigned-clocks = <&clk IMX8MM_CLK_USB_PHY_REF>;
 		assigned-clock-parents = <&clk IMX8MM_SYS_PLL1_100M>;
 		clock-names = "main_clk";
 	};
 
-	usbphynop2: usbphynop2 {
-		compatible = "usb-nop-xceiv";
+	usbphyyesp2: usbphyyesp2 {
+		compatible = "usb-yesp-xceiv";
 		clocks = <&clk IMX8MM_CLK_USB_PHY_REF>;
 		assigned-clocks = <&clk IMX8MM_CLK_USB_PHY_REF>;
 		assigned-clock-parents = <&clk IMX8MM_SYS_PLL1_100M>;
@@ -428,7 +428,7 @@
 				compatible = "fsl,imx8mm-ocotp", "syscon";
 				reg = <0x30350000 0x10000>;
 				clocks = <&clk IMX8MM_CLK_OCOTP_ROOT>;
-				/* For nvmem subnodes */
+				/* For nvmem subyesdes */
 				#address-cells = <1>;
 				#size-cells = <1>;
 
@@ -788,7 +788,7 @@
 				clock-names = "usb1_ctrl_root_clk";
 				assigned-clocks = <&clk IMX8MM_CLK_USB_BUS>;
 				assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_500M>;
-				fsl,usbphy = <&usbphynop1>;
+				fsl,usbphy = <&usbphyyesp1>;
 				fsl,usbmisc = <&usbmisc1 0>;
 				status = "disabled";
 			};
@@ -807,7 +807,7 @@
 				clock-names = "usb1_ctrl_root_clk";
 				assigned-clocks = <&clk IMX8MM_CLK_USB_BUS>;
 				assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_500M>;
-				fsl,usbphy = <&usbphynop2>;
+				fsl,usbphy = <&usbphyyesp2>;
 				fsl,usbmisc = <&usbmisc2 0>;
 				status = "disabled";
 			};

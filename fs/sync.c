@@ -23,17 +23,17 @@
 
 /*
  * Do the filesystem syncing work. For simple filesystems
- * writeback_inodes_sb(sb) just dirties buffers with inodes so we have to
+ * writeback_iyesdes_sb(sb) just dirties buffers with iyesdes so we have to
  * submit IO for these buffers via __sync_blockdev(). This also speeds up the
- * wait == 1 case since in that case write_inode() functions do
+ * wait == 1 case since in that case write_iyesde() functions do
  * sync_dirty_buffer() and thus effectively write one block at a time.
  */
 static int __sync_filesystem(struct super_block *sb, int wait)
 {
 	if (wait)
-		sync_inodes_sb(sb);
+		sync_iyesdes_sb(sb);
 	else
-		writeback_inodes_sb(sb, WB_REASON_SYNC);
+		writeback_iyesdes_sb(sb, WB_REASON_SYNC);
 
 	if (sb->s_op->sync_fs)
 		sb->s_op->sync_fs(sb, wait);
@@ -68,10 +68,10 @@ int sync_filesystem(struct super_block *sb)
 }
 EXPORT_SYMBOL(sync_filesystem);
 
-static void sync_inodes_one_sb(struct super_block *sb, void *arg)
+static void sync_iyesdes_one_sb(struct super_block *sb, void *arg)
 {
 	if (!sb_rdonly(sb))
-		sync_inodes_sb(sb);
+		sync_iyesdes_sb(sb);
 }
 
 static void sync_fs_one_sb(struct super_block *sb, void *arg)
@@ -82,7 +82,7 @@ static void sync_fs_one_sb(struct super_block *sb, void *arg)
 
 static void fdatawrite_one_bdev(struct block_device *bdev, void *arg)
 {
-	filemap_fdatawrite(bdev->bd_inode->i_mapping);
+	filemap_fdatawrite(bdev->bd_iyesde->i_mapping);
 }
 
 static void fdatawait_one_bdev(struct block_device *bdev, void *arg)
@@ -92,26 +92,26 @@ static void fdatawait_one_bdev(struct block_device *bdev, void *arg)
 	 * applications can catch the writeback error using fsync(2).
 	 * See filemap_fdatawait_keep_errors() for details.
 	 */
-	filemap_fdatawait_keep_errors(bdev->bd_inode->i_mapping);
+	filemap_fdatawait_keep_errors(bdev->bd_iyesde->i_mapping);
 }
 
 /*
  * Sync everything. We start by waking flusher threads so that most of
- * writeback runs on all devices in parallel. Then we sync all inodes reliably
+ * writeback runs on all devices in parallel. Then we sync all iyesdes reliably
  * which effectively also waits for all flusher threads to finish doing
  * writeback. At this point all data is on disk so metadata should be stable
  * and we tell filesystems to sync their metadata via ->sync_fs() calls.
  * Finally, we writeout all block devices because some filesystems (e.g. ext2)
- * just write metadata (such as inodes or bitmaps) to block device page cache
- * and do not sync it on their own in ->sync_fs().
+ * just write metadata (such as iyesdes or bitmaps) to block device page cache
+ * and do yest sync it on their own in ->sync_fs().
  */
 void ksys_sync(void)
 {
-	int nowait = 0, wait = 1;
+	int yeswait = 0, wait = 1;
 
 	wakeup_flusher_threads(WB_REASON_SYNC);
-	iterate_supers(sync_inodes_one_sb, NULL);
-	iterate_supers(sync_fs_one_sb, &nowait);
+	iterate_supers(sync_iyesdes_one_sb, NULL);
+	iterate_supers(sync_fs_one_sb, &yeswait);
 	iterate_supers(sync_fs_one_sb, &wait);
 	iterate_bdevs(fdatawrite_one_bdev, NULL);
 	iterate_bdevs(fdatawait_one_bdev, NULL);
@@ -127,17 +127,17 @@ SYSCALL_DEFINE0(sync)
 
 static void do_sync_work(struct work_struct *work)
 {
-	int nowait = 0;
+	int yeswait = 0;
 
 	/*
-	 * Sync twice to reduce the possibility we skipped some inodes / pages
+	 * Sync twice to reduce the possibility we skipped some iyesdes / pages
 	 * because they were temporarily locked
 	 */
-	iterate_supers(sync_inodes_one_sb, &nowait);
-	iterate_supers(sync_fs_one_sb, &nowait);
+	iterate_supers(sync_iyesdes_one_sb, &yeswait);
+	iterate_supers(sync_fs_one_sb, &yeswait);
 	iterate_bdevs(fdatawrite_one_bdev, NULL);
-	iterate_supers(sync_inodes_one_sb, &nowait);
-	iterate_supers(sync_fs_one_sb, &nowait);
+	iterate_supers(sync_iyesdes_one_sb, &yeswait);
+	iterate_supers(sync_fs_one_sb, &yeswait);
 	iterate_bdevs(fdatawrite_one_bdev, NULL);
 	printk("Emergency Sync complete\n");
 	kfree(work);
@@ -188,12 +188,12 @@ SYSCALL_DEFINE1(syncfs, int, fd)
  */
 int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct iyesde *iyesde = file->f_mapping->host;
 
 	if (!file->f_op->fsync)
 		return -EINVAL;
-	if (!datasync && (inode->i_state & I_DIRTY_TIME))
-		mark_inode_dirty_sync(inode);
+	if (!datasync && (iyesde->i_state & I_DIRTY_TIME))
+		mark_iyesde_dirty_sync(iyesde);
 	return file->f_op->fsync(file, start, end, datasync);
 }
 EXPORT_SYMBOL(vfs_fsync_range);
@@ -277,7 +277,7 @@ int sync_file_range(struct file *file, loff_t offset, loff_t nbytes,
 	else
 		endbyte--;		/* inclusive */
 
-	i_mode = file_inode(file)->i_mode;
+	i_mode = file_iyesde(file)->i_mode;
 	ret = -ESPIPE;
 	if (!S_ISREG(i_mode) && !S_ISBLK(i_mode) && !S_ISDIR(i_mode) &&
 			!S_ISLNK(i_mode))
@@ -322,7 +322,7 @@ out:
  * before performing the write.
  *
  * SYNC_FILE_RANGE_WRITE: initiate writeout of all those dirty pages in the
- * range which are not presently under writeback. Note that this may block for
+ * range which are yest presently under writeback. Note that this may block for
  * significant periods due to exhaustion of disk request structures.
  *
  * SYNC_FILE_RANGE_WAIT_AFTER: wait upon writeout of all pages in the range
@@ -335,7 +335,7 @@ out:
  * under writeout.  This is a start-write-for-data-integrity operation.
  *
  * SYNC_FILE_RANGE_WRITE: start writeout of all dirty pages in the range which
- * are not presently under writeout.  This is an asynchronous flush-to-disk
+ * are yest presently under writeout.  This is an asynchroyesus flush-to-disk
  * operation.  Not suitable for data integrity operations.
  *
  * SYNC_FILE_RANGE_WAIT_BEFORE (or SYNC_FILE_RANGE_WAIT_AFTER): wait for
@@ -347,8 +347,8 @@ out:
  * (a.k.a. SYNC_FILE_RANGE_WRITE_AND_WAIT):
  * a traditional sync() operation.  This is a write-for-data-integrity operation
  * which will ensure that all pages in the range which were dirty on entry to
- * ksys_sync_file_range() are written to disk.  It should be noted that disk
- * caches are not flushed by this call, so there are no guarantees here that the
+ * ksys_sync_file_range() are written to disk.  It should be yested that disk
+ * caches are yest flushed by this call, so there are yes guarantees here that the
  * data will be available on disk after a crash.
  *
  *
@@ -356,9 +356,9 @@ out:
  * I/O errors or ENOSPC conditions and will return those to the caller, after
  * clearing the EIO and ENOSPC flags in the address_space.
  *
- * It should be noted that none of these operations write out the file's
+ * It should be yested that yesne of these operations write out the file's
  * metadata.  So unless the application is strictly performing overwrites of
- * already-instantiated disk blocks, there are no guarantees here that the data
+ * already-instantiated disk blocks, there are yes guarantees here that the data
  * will be available after a crash.
  */
 int ksys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
@@ -382,7 +382,7 @@ SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
 	return ksys_sync_file_range(fd, offset, nbytes, flags);
 }
 
-/* It would be nice if people remember that not all the world's an i386
+/* It would be nice if people remember that yest all the world's an i386
    when they introduce new system calls */
 SYSCALL_DEFINE4(sync_file_range2, int, fd, unsigned int, flags,
 				 loff_t, offset, loff_t, nbytes)

@@ -13,10 +13,10 @@
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 
-static bool fuse_use_readdirplus(struct inode *dir, struct dir_context *ctx)
+static bool fuse_use_readdirplus(struct iyesde *dir, struct dir_context *ctx)
 {
 	struct fuse_conn *fc = get_fuse_conn(dir);
-	struct fuse_inode *fi = get_fuse_inode(dir);
+	struct fuse_iyesde *fi = get_fuse_iyesde(dir);
 
 	if (!fc->do_readdirplus)
 		return false;
@@ -32,7 +32,7 @@ static bool fuse_use_readdirplus(struct inode *dir, struct dir_context *ctx)
 static void fuse_add_dirent_to_cache(struct file *file,
 				     struct fuse_dirent *dirent, loff_t pos)
 {
-	struct fuse_inode *fi = get_fuse_inode(file_inode(file));
+	struct fuse_iyesde *fi = get_fuse_iyesde(file_iyesde(file));
 	size_t reclen = FUSE_DIRENT_SIZE(dirent);
 	pgoff_t index;
 	struct page *page;
@@ -43,7 +43,7 @@ static void fuse_add_dirent_to_cache(struct file *file,
 
 	spin_lock(&fi->rdc.lock);
 	/*
-	 * Is cache already completed?  Or this entry does not go at the end of
+	 * Is cache already completed?  Or this entry does yest go at the end of
 	 * cache?
 	 */
 	if (fi->rdc.cached || pos != fi->rdc.pos) {
@@ -71,7 +71,7 @@ static void fuse_add_dirent_to_cache(struct file *file,
 		return;
 
 	spin_lock(&fi->rdc.lock);
-	/* Raced with another readdir */
+	/* Raced with ayesther readdir */
 	if (fi->rdc.version != version || fi->rdc.size != size ||
 	    WARN_ON(fi->rdc.pos != pos))
 		goto unlock;
@@ -91,7 +91,7 @@ unlock:
 
 static void fuse_readdir_cache_end(struct file *file, loff_t pos)
 {
-	struct fuse_inode *fi = get_fuse_inode(file_inode(file));
+	struct fuse_iyesde *fi = get_fuse_iyesde(file_iyesde(file));
 	loff_t end;
 
 	spin_lock(&fi->rdc.lock);
@@ -106,7 +106,7 @@ static void fuse_readdir_cache_end(struct file *file, loff_t pos)
 	spin_unlock(&fi->rdc.lock);
 
 	/* truncate unused tail of cache */
-	truncate_inode_pages(file->f_mapping, end);
+	truncate_iyesde_pages(file->f_mapping, end);
 }
 
 static bool fuse_emit(struct file *file, struct dir_context *ctx,
@@ -117,7 +117,7 @@ static bool fuse_emit(struct file *file, struct dir_context *ctx,
 	if (ff->open_flags & FOPEN_CACHE_DIR)
 		fuse_add_dirent_to_cache(file, dirent, ctx->pos);
 
-	return dir_emit(ctx, dirent->name, dirent->namelen, dirent->ino,
+	return dir_emit(ctx, dirent->name, dirent->namelen, dirent->iyes,
 			dirent->type);
 }
 
@@ -155,18 +155,18 @@ static int fuse_direntplus_link(struct file *file,
 	struct qstr name = QSTR_INIT(dirent->name, dirent->namelen);
 	struct dentry *dentry;
 	struct dentry *alias;
-	struct inode *dir = d_inode(parent);
+	struct iyesde *dir = d_iyesde(parent);
 	struct fuse_conn *fc;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 
-	if (!o->nodeid) {
+	if (!o->yesdeid) {
 		/*
-		 * Unlike in the case of fuse_lookup, zero nodeid does not mean
+		 * Unlike in the case of fuse_lookup, zero yesdeid does yest mean
 		 * ENOENT. Instead, it only means the userspace filesystem did
-		 * not want to return attributes/handle for this entry.
+		 * yest want to return attributes/handle for this entry.
 		 *
-		 * So do nothing.
+		 * So do yesthing.
 		 */
 		return 0;
 	}
@@ -182,7 +182,7 @@ static int fuse_direntplus_link(struct file *file,
 			return 0;
 	}
 
-	if (invalid_nodeid(o->nodeid))
+	if (invalid_yesdeid(o->yesdeid))
 		return -EIO;
 	if (fuse_invalid_attr(&o->attr))
 		return -EIO;
@@ -198,27 +198,27 @@ retry:
 			return PTR_ERR(dentry);
 	}
 	if (!d_in_lookup(dentry)) {
-		struct fuse_inode *fi;
-		inode = d_inode(dentry);
-		if (!inode ||
-		    get_node_id(inode) != o->nodeid ||
-		    ((o->attr.mode ^ inode->i_mode) & S_IFMT)) {
+		struct fuse_iyesde *fi;
+		iyesde = d_iyesde(dentry);
+		if (!iyesde ||
+		    get_yesde_id(iyesde) != o->yesdeid ||
+		    ((o->attr.mode ^ iyesde->i_mode) & S_IFMT)) {
 			d_invalidate(dentry);
 			dput(dentry);
 			goto retry;
 		}
-		if (is_bad_inode(inode)) {
+		if (is_bad_iyesde(iyesde)) {
 			dput(dentry);
 			return -EIO;
 		}
 
-		fi = get_fuse_inode(inode);
+		fi = get_fuse_iyesde(iyesde);
 		spin_lock(&fi->lock);
 		fi->nlookup++;
 		spin_unlock(&fi->lock);
 
-		forget_all_cached_acls(inode);
-		fuse_change_attributes(inode, &o->attr,
+		forget_all_cached_acls(iyesde);
+		fuse_change_attributes(iyesde, &o->attr,
 				       entry_attr_timeout(o),
 				       attr_version);
 		/*
@@ -226,13 +226,13 @@ retry:
 		 * which bumps nlookup inside
 		 */
 	} else {
-		inode = fuse_iget(dir->i_sb, o->nodeid, o->generation,
+		iyesde = fuse_iget(dir->i_sb, o->yesdeid, o->generation,
 				  &o->attr, entry_attr_timeout(o),
 				  attr_version);
-		if (!inode)
-			inode = ERR_PTR(-ENOMEM);
+		if (!iyesde)
+			iyesde = ERR_PTR(-ENOMEM);
 
-		alias = d_splice_alias(inode, dentry);
+		alias = d_splice_alias(iyesde, dentry);
 		d_lookup_done(dentry);
 		if (alias) {
 			dput(dentry);
@@ -242,32 +242,32 @@ retry:
 			return PTR_ERR(dentry);
 	}
 	if (fc->readdirplus_auto)
-		set_bit(FUSE_I_INIT_RDPLUS, &get_fuse_inode(inode)->state);
+		set_bit(FUSE_I_INIT_RDPLUS, &get_fuse_iyesde(iyesde)->state);
 	fuse_change_entry_timeout(dentry, o);
 
 	dput(dentry);
 	return 0;
 }
 
-static void fuse_force_forget(struct file *file, u64 nodeid)
+static void fuse_force_forget(struct file *file, u64 yesdeid)
 {
-	struct inode *inode = file_inode(file);
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct fuse_conn *fc = get_fuse_conn(iyesde);
 	struct fuse_forget_in inarg;
 	FUSE_ARGS(args);
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.nlookup = 1;
 	args.opcode = FUSE_FORGET;
-	args.nodeid = nodeid;
+	args.yesdeid = yesdeid;
 	args.in_numargs = 1;
 	args.in_args[0].size = sizeof(inarg);
 	args.in_args[0].value = &inarg;
 	args.force = true;
-	args.noreply = true;
+	args.yesreply = true;
 
 	fuse_simple_request(fc, &args);
-	/* ignore errors */
+	/* igyesre errors */
 }
 
 static int parse_dirplusfile(char *buf, size_t nbytes, struct file *file,
@@ -294,9 +294,9 @@ static int parse_dirplusfile(char *buf, size_t nbytes, struct file *file,
 		if (!over) {
 			/* We fill entries into dstbuf only as much as
 			   it can hold. But we still continue iterating
-			   over remaining entries to link them. If not,
+			   over remaining entries to link them. If yest,
 			   we need to send a FORGET for each of those
-			   which we did not link.
+			   which we did yest link.
 			*/
 			over = !fuse_emit(file, ctx, dirent);
 			if (!over)
@@ -308,7 +308,7 @@ static int parse_dirplusfile(char *buf, size_t nbytes, struct file *file,
 
 		ret = fuse_direntplus_link(file, direntplus, attr_version);
 		if (ret)
-			fuse_force_forget(file, direntplus->entry_out.nodeid);
+			fuse_force_forget(file, direntplus->entry_out.yesdeid);
 	}
 
 	return 0;
@@ -319,8 +319,8 @@ static int fuse_readdir_uncached(struct file *file, struct dir_context *ctx)
 	int plus;
 	ssize_t res;
 	struct page *page;
-	struct inode *inode = file_inode(file);
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct fuse_conn *fc = get_fuse_conn(iyesde);
 	struct fuse_io_args ia = {};
 	struct fuse_args_pages *ap = &ia.ap;
 	struct fuse_page_desc desc = { .length = PAGE_SIZE };
@@ -331,7 +331,7 @@ static int fuse_readdir_uncached(struct file *file, struct dir_context *ctx)
 	if (!page)
 		return -ENOMEM;
 
-	plus = fuse_use_readdirplus(inode, ctx);
+	plus = fuse_use_readdirplus(iyesde, ctx);
 	ap->args.out_pages = 1;
 	ap->num_pages = 1;
 	ap->pages = &page;
@@ -344,9 +344,9 @@ static int fuse_readdir_uncached(struct file *file, struct dir_context *ctx)
 		fuse_read_args_fill(&ia, file, ctx->pos, PAGE_SIZE,
 				    FUSE_READDIR);
 	}
-	locked = fuse_lock_inode(inode);
+	locked = fuse_lock_iyesde(iyesde);
 	res = fuse_simple_request(fc, &ap->args);
-	fuse_unlock_inode(inode, locked);
+	fuse_unlock_iyesde(iyesde, locked);
 	if (res >= 0) {
 		if (!res) {
 			struct fuse_file *ff = file->private_data;
@@ -363,7 +363,7 @@ static int fuse_readdir_uncached(struct file *file, struct dir_context *ctx)
 	}
 
 	__free_page(page);
-	fuse_invalidate_atime(inode);
+	fuse_invalidate_atime(iyesde);
 	return res;
 }
 
@@ -403,7 +403,7 @@ static enum fuse_parse_result fuse_parse_cache(struct fuse_file *ff,
 		if (ff->readdir.pos == ctx->pos) {
 			res = FOUND_SOME;
 			if (!dir_emit(ctx, dirent->name, dirent->namelen,
-				      dirent->ino, dirent->type))
+				      dirent->iyes, dirent->type))
 				return FOUND_ALL;
 			ctx->pos = dirent->off;
 		}
@@ -416,9 +416,9 @@ static enum fuse_parse_result fuse_parse_cache(struct fuse_file *ff,
 	return res;
 }
 
-static void fuse_rdc_reset(struct inode *inode)
+static void fuse_rdc_reset(struct iyesde *iyesde)
 {
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_iyesde *fi = get_fuse_iyesde(iyesde);
 
 	fi->rdc.cached = false;
 	fi->rdc.version++;
@@ -431,9 +431,9 @@ static void fuse_rdc_reset(struct inode *inode)
 static int fuse_readdir_cached(struct file *file, struct dir_context *ctx)
 {
 	struct fuse_file *ff = file->private_data;
-	struct inode *inode = file_inode(file);
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct fuse_conn *fc = get_fuse_conn(iyesde);
+	struct fuse_iyesde *fi = get_fuse_iyesde(iyesde);
 	enum fuse_parse_result res;
 	pgoff_t index;
 	unsigned int size;
@@ -451,7 +451,7 @@ static int fuse_readdir_cached(struct file *file, struct dir_context *ctx)
 	 * cache; both cases require an up-to-date mtime value.
 	 */
 	if (!ctx->pos && fc->auto_inval_data) {
-		int err = fuse_update_attributes(inode, file);
+		int err = fuse_update_attributes(iyesde, file);
 
 		if (err)
 			return err;
@@ -463,8 +463,8 @@ retry_locked:
 	if (!fi->rdc.cached) {
 		/* Starting cache? Set cache mtime. */
 		if (!ctx->pos && !fi->rdc.size) {
-			fi->rdc.mtime = inode->i_mtime;
-			fi->rdc.iversion = inode_query_iversion(inode);
+			fi->rdc.mtime = iyesde->i_mtime;
+			fi->rdc.iversion = iyesde_query_iversion(iyesde);
 		}
 		spin_unlock(&fi->rdc.lock);
 		return UNCACHED;
@@ -475,9 +475,9 @@ retry_locked:
 	 * changed, and reset the cache if so.
 	 */
 	if (!ctx->pos) {
-		if (inode_peek_iversion(inode) != fi->rdc.iversion ||
-		    !timespec64_equal(&fi->rdc.mtime, &inode->i_mtime)) {
-			fuse_rdc_reset(inode);
+		if (iyesde_peek_iversion(iyesde) != fi->rdc.iversion ||
+		    !timespec64_equal(&fi->rdc.mtime, &iyesde->i_mtime)) {
+			fuse_rdc_reset(iyesde);
 			goto retry_locked;
 		}
 	}
@@ -519,7 +519,7 @@ retry_locked:
 		 * Uh-oh: page gone missing, cache is useless
 		 */
 		if (fi->rdc.version == ff->readdir.version)
-			fuse_rdc_reset(inode);
+			fuse_rdc_reset(iyesde);
 		goto retry_locked;
 	}
 
@@ -533,7 +533,7 @@ retry_locked:
 	spin_unlock(&fi->rdc.lock);
 
 	/*
-	 * Contents of the page are now protected against changing by holding
+	 * Contents of the page are yesw protected against changing by holding
 	 * the page lock.
 	 */
 	addr = kmap(page);
@@ -565,10 +565,10 @@ retry_locked:
 int fuse_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct fuse_file *ff = file->private_data;
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	int err;
 
-	if (is_bad_inode(inode))
+	if (is_bad_iyesde(iyesde))
 		return -EIO;
 
 	mutex_lock(&ff->readdir.lock);

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -80,20 +80,20 @@ void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 
 static inline bool __request_completed(const struct i915_request *rq)
 {
-	return i915_seqno_passed(__hwsp_seqno(rq), rq->fence.seqno);
+	return i915_seqyes_passed(__hwsp_seqyes(rq), rq->fence.seqyes);
 }
 
 __maybe_unused static bool
 check_signal_order(struct intel_context *ce, struct i915_request *rq)
 {
 	if (!list_is_last(&rq->signal_link, &ce->signals) &&
-	    i915_seqno_passed(rq->fence.seqno,
-			      list_next_entry(rq, signal_link)->fence.seqno))
+	    i915_seqyes_passed(rq->fence.seqyes,
+			      list_next_entry(rq, signal_link)->fence.seqyes))
 		return false;
 
 	if (!list_is_first(&rq->signal_link, &ce->signals) &&
-	    i915_seqno_passed(list_prev_entry(rq, signal_link)->fence.seqno,
-			      rq->fence.seqno))
+	    i915_seqyes_passed(list_prev_entry(rq, signal_link)->fence.seqyes,
+			      rq->fence.seqyes))
 		return false;
 
 	return true;
@@ -114,15 +114,15 @@ __dma_fence_signal__timestamp(struct dma_fence *fence, ktime_t timestamp)
 }
 
 static void
-__dma_fence_signal__notify(struct dma_fence *fence,
+__dma_fence_signal__yestify(struct dma_fence *fence,
 			   const struct list_head *list)
 {
 	struct dma_fence_cb *cur, *tmp;
 
 	lockdep_assert_held(fence->lock);
 
-	list_for_each_entry_safe(cur, tmp, list, node) {
-		INIT_LIST_HEAD(&cur->node);
+	list_for_each_entry_safe(cur, tmp, list, yesde) {
+		INIT_LIST_HEAD(&cur->yesde);
 		cur->func(fence, cur);
 	}
 }
@@ -171,13 +171,13 @@ void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine)
 
 		/*
 		 * We process the list deletion in bulk, only using a list_add
-		 * (not list_move) above but keeping the status of
-		 * rq->signal_link known with the I915_FENCE_FLAG_SIGNAL bit.
+		 * (yest list_move) above but keeping the status of
+		 * rq->signal_link kyeswn with the I915_FENCE_FLAG_SIGNAL bit.
 		 */
 		if (!list_is_first(pos, &ce->signals)) {
 			/* Advance the list to the first incomplete request */
 			__list_del_many(&ce->signals, pos);
-			if (&ce->signals == pos) /* now empty */
+			if (&ce->signals == pos) /* yesw empty */
 				list_del_init(&ce->signal_link);
 		}
 	}
@@ -192,7 +192,7 @@ void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine)
 		spin_lock_irqsave(&rq->lock, flags);
 		list_replace(&rq->fence.cb_list, &cb_list);
 		__dma_fence_signal__timestamp(&rq->fence, timestamp);
-		__dma_fence_signal__notify(&rq->fence, &cb_list);
+		__dma_fence_signal__yestify(&rq->fence, &cb_list);
 		spin_unlock_irqrestore(&rq->lock, flags);
 
 		i915_request_put(rq);
@@ -280,13 +280,13 @@ bool i915_request_enable_breadcrumb(struct i915_request *rq)
 		__intel_breadcrumbs_arm_irq(b);
 
 		/*
-		 * We keep the seqno in retirement order, so we can break
+		 * We keep the seqyes in retirement order, so we can break
 		 * inside intel_engine_breadcrumbs_irq as soon as we've passed
 		 * the last completed request (or seen a request that hasn't
 		 * event started). We could iterate the timeline->requests list,
 		 * but keeping a separate signalers_list has the advantage of
 		 * hopefully being much smaller than the full list and so
-		 * provides faster iteration and detection when there are no
+		 * provides faster iteration and detection when there are yes
 		 * more interrupts required for this context.
 		 *
 		 * We typically expect to add new signalers in order, so we
@@ -297,7 +297,7 @@ bool i915_request_enable_breadcrumb(struct i915_request *rq)
 			struct i915_request *it =
 				list_entry(pos, typeof(*it), signal_link);
 
-			if (i915_seqno_passed(rq->fence.seqno, it->fence.seqno))
+			if (i915_seqyes_passed(rq->fence.seqyes, it->fence.seqyes))
 				break;
 		}
 		list_add(&rq->signal_link, pos);
@@ -319,7 +319,7 @@ void i915_request_cancel_breadcrumb(struct i915_request *rq)
 	lockdep_assert_held(&rq->lock);
 
 	/*
-	 * We must wait for b->irq_lock so that we know the interrupt handler
+	 * We must wait for b->irq_lock so that we kyesw the interrupt handler
 	 * has released its reference to the intel_context and has completed
 	 * the DMA_FENCE_FLAG_SIGNALED_BIT/I915_FENCE_FLAG_SIGNAL dance (if
 	 * required).
@@ -353,7 +353,7 @@ void intel_engine_print_breadcrumbs(struct intel_engine_cs *engine,
 	list_for_each_entry(ce, &b->signalers, signal_link) {
 		list_for_each_entry(rq, &ce->signals, signal_link) {
 			drm_printf(p, "\t[%llx:%llx%s] @ %dms\n",
-				   rq->fence.context, rq->fence.seqno,
+				   rq->fence.context, rq->fence.seqyes,
 				   i915_request_completed(rq) ? "!" :
 				   i915_request_started(rq) ? "*" :
 				   "",

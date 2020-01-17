@@ -2,7 +2,7 @@
 /*
  * AD5721, AD5721R, AD5761, AD5761R, Voltage Output Digital to Analog Converter
  *
- * Copyright 2016 Qtechnology A/S
+ * Copyright 2016 Qtechyeslogy A/S
  * 2016 Ricardo Ribalda <ricardo.ribalda@gmail.com>
  */
 #ifndef __LINUX_PLATFORM_DATA_AD5761_H__

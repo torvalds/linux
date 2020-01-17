@@ -152,7 +152,7 @@ int wpan_phy_register(struct wpan_phy *phy)
 	/* TODO phy registered lock */
 	rtnl_unlock();
 
-	/* TODO nl802154 phy notify */
+	/* TODO nl802154 phy yestify */
 
 	return 0;
 }
@@ -170,7 +170,7 @@ void wpan_phy_unregister(struct wpan_phy *phy)
 		__count == 0; }));
 
 	rtnl_lock();
-	/* TODO nl802154 phy notify */
+	/* TODO nl802154 phy yestify */
 	/* TODO phy registered lock */
 
 	WARN_ON(!list_empty(&rdev->wpan_dev_list));
@@ -252,10 +252,10 @@ cfg802154_update_iface_num(struct cfg802154_registered_device *rdev,
 	rdev->num_running_ifaces += num;
 }
 
-static int cfg802154_netdev_notifier_call(struct notifier_block *nb,
+static int cfg802154_netdev_yestifier_call(struct yestifier_block *nb,
 					  unsigned long state, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
 	struct cfg802154_registered_device *rdev;
 
@@ -313,8 +313,8 @@ static int cfg802154_netdev_notifier_call(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block cfg802154_netdev_notifier = {
-	.notifier_call = cfg802154_netdev_notifier_call,
+static struct yestifier_block cfg802154_netdev_yestifier = {
+	.yestifier_call = cfg802154_netdev_yestifier_call,
 };
 
 static void __net_exit cfg802154_pernet_exit(struct net *net)
@@ -345,13 +345,13 @@ static int __init wpan_phy_class_init(void)
 	if (rc)
 		goto err_sysfs;
 
-	rc = register_netdevice_notifier(&cfg802154_netdev_notifier);
+	rc = register_netdevice_yestifier(&cfg802154_netdev_yestifier);
 	if (rc)
 		goto err_nl;
 
 	rc = ieee802154_nl_init();
 	if (rc)
-		goto err_notifier;
+		goto err_yestifier;
 
 	rc = nl802154_init();
 	if (rc)
@@ -362,8 +362,8 @@ static int __init wpan_phy_class_init(void)
 err_ieee802154_nl:
 	ieee802154_nl_exit();
 
-err_notifier:
-	unregister_netdevice_notifier(&cfg802154_netdev_notifier);
+err_yestifier:
+	unregister_netdevice_yestifier(&cfg802154_netdev_yestifier);
 err_nl:
 	wpan_phy_sysfs_exit();
 err_sysfs:
@@ -377,7 +377,7 @@ static void __exit wpan_phy_class_exit(void)
 {
 	nl802154_exit();
 	ieee802154_nl_exit();
-	unregister_netdevice_notifier(&cfg802154_netdev_notifier);
+	unregister_netdevice_yestifier(&cfg802154_netdev_yestifier);
 	wpan_phy_sysfs_exit();
 	unregister_pernet_device(&cfg802154_pernet_ops);
 }

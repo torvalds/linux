@@ -66,6 +66,6 @@ void inet6_destroy_sock(struct sock *sk);
 	"local_address                         "		       \
 	"remote_address                        "		       \
 	"st tx_queue rx_queue tr tm->when retrnsmt"		       \
-	"   uid  timeout inode ref pointer drops\n"
+	"   uid  timeout iyesde ref pointer drops\n"
 
 #endif

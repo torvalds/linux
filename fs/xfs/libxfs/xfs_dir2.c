@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trans.h"
 #include "xfs_bmap.h"
 #include "xfs_dir2.h"
@@ -22,7 +22,7 @@
 struct xfs_name xfs_name_dotdot = { (unsigned char *)"..", 2, XFS_DIR3_FT_DIR };
 
 /*
- * Convert inode mode to directory entry filetype
+ * Convert iyesde mode to directory entry filetype
  */
 unsigned char
 xfs_mode_to_ftype(
@@ -116,13 +116,13 @@ xfs_da_mount(
 	dageo->blksize = xfs_dir2_dirblock_bytes(&mp->m_sb);
 	dageo->fsbcount = 1 << mp->m_sb.sb_dirblklog;
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		dageo->node_hdr_size = sizeof(struct xfs_da3_node_hdr);
+		dageo->yesde_hdr_size = sizeof(struct xfs_da3_yesde_hdr);
 		dageo->leaf_hdr_size = sizeof(struct xfs_dir3_leaf_hdr);
 		dageo->free_hdr_size = sizeof(struct xfs_dir3_free_hdr);
 		dageo->data_entry_offset =
 				sizeof(struct xfs_dir3_data_hdr);
 	} else {
-		dageo->node_hdr_size = sizeof(struct xfs_da_node_hdr);
+		dageo->yesde_hdr_size = sizeof(struct xfs_da_yesde_hdr);
 		dageo->leaf_hdr_size = sizeof(struct xfs_dir2_leaf_hdr);
 		dageo->free_hdr_size = sizeof(struct xfs_dir2_free_hdr);
 		dageo->data_entry_offset =
@@ -144,8 +144,8 @@ xfs_da_mount(
 	dageo->datablk = xfs_dir2_byte_to_da(dageo, XFS_DIR2_DATA_OFFSET);
 	dageo->leafblk = xfs_dir2_byte_to_da(dageo, XFS_DIR2_LEAF_OFFSET);
 	dageo->freeblk = xfs_dir2_byte_to_da(dageo, XFS_DIR2_FREE_OFFSET);
-	dageo->node_ents = (dageo->blksize - dageo->node_hdr_size) /
-				(uint)sizeof(xfs_da_node_entry_t);
+	dageo->yesde_ents = (dageo->blksize - dageo->yesde_hdr_size) /
+				(uint)sizeof(xfs_da_yesde_entry_t);
 	dageo->magicpct = (dageo->blksize * 37) / 100;
 
 	/* set up attribute geometry - single fsb only */
@@ -154,9 +154,9 @@ xfs_da_mount(
 	dageo->fsblog = mp->m_sb.sb_blocklog;
 	dageo->blksize = 1 << dageo->blklog;
 	dageo->fsbcount = 1;
-	dageo->node_hdr_size = mp->m_dir_geo->node_hdr_size;
-	dageo->node_ents = (dageo->blksize - dageo->node_hdr_size) /
-				(uint)sizeof(xfs_da_node_entry_t);
+	dageo->yesde_hdr_size = mp->m_dir_geo->yesde_hdr_size;
+	dageo->yesde_ents = (dageo->blksize - dageo->yesde_hdr_size) /
+				(uint)sizeof(xfs_da_yesde_entry_t);
 	dageo->magicpct = (dageo->blksize * 37) / 100;
 	return 0;
 }
@@ -174,7 +174,7 @@ xfs_da_unmount(
  */
 int
 xfs_dir_isempty(
-	xfs_inode_t	*dp)
+	xfs_iyesde_t	*dp)
 {
 	xfs_dir2_sf_hdr_t	*sfp;
 
@@ -188,19 +188,19 @@ xfs_dir_isempty(
 }
 
 /*
- * Validate a given inode number.
+ * Validate a given iyesde number.
  */
 int
-xfs_dir_ino_validate(
+xfs_dir_iyes_validate(
 	xfs_mount_t	*mp,
-	xfs_ino_t	ino)
+	xfs_iyes_t	iyes)
 {
-	bool		ino_ok = xfs_verify_dir_ino(mp, ino);
+	bool		iyes_ok = xfs_verify_dir_iyes(mp, iyes);
 
-	if (XFS_IS_CORRUPT(mp, !ino_ok) ||
+	if (XFS_IS_CORRUPT(mp, !iyes_ok) ||
 	    XFS_TEST_ERROR(false, mp, XFS_ERRTAG_DIR_INO_VALIDATE)) {
-		xfs_warn(mp, "Invalid inode number 0x%Lx",
-				(unsigned long long) ino);
+		xfs_warn(mp, "Invalid iyesde number 0x%Lx",
+				(unsigned long long) iyes);
 		return -EFSCORRUPTED;
 	}
 	return 0;
@@ -212,14 +212,14 @@ xfs_dir_ino_validate(
 int
 xfs_dir_init(
 	xfs_trans_t	*tp,
-	xfs_inode_t	*dp,
-	xfs_inode_t	*pdp)
+	xfs_iyesde_t	*dp,
+	xfs_iyesde_t	*pdp)
 {
 	struct xfs_da_args *args;
 	int		error;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
-	error = xfs_dir_ino_validate(tp->t_mountp, pdp->i_ino);
+	error = xfs_dir_iyes_validate(tp->t_mountp, pdp->i_iyes);
 	if (error)
 		return error;
 
@@ -230,7 +230,7 @@ xfs_dir_init(
 	args->geo = dp->i_mount->m_dir_geo;
 	args->dp = dp;
 	args->trans = tp;
-	error = xfs_dir2_sf_create(args, pdp->i_ino);
+	error = xfs_dir2_sf_create(args, pdp->i_iyes);
 	kmem_free(args);
 	return error;
 }
@@ -242,9 +242,9 @@ xfs_dir_init(
 int
 xfs_dir_createname(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
+	struct xfs_iyesde	*dp,
 	struct xfs_name		*name,
-	xfs_ino_t		inum,		/* new entry inode number */
+	xfs_iyes_t		inum,		/* new entry iyesde number */
 	xfs_extlen_t		total)		/* bmap's total block count */
 {
 	struct xfs_da_args	*args;
@@ -254,7 +254,7 @@ xfs_dir_createname(
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 
 	if (inum) {
-		rval = xfs_dir_ino_validate(tp->t_mountp, inum);
+		rval = xfs_dir_iyes_validate(tp->t_mountp, inum);
 		if (rval)
 			return rval;
 		XFS_STATS_INC(dp->i_mount, xs_dir_create);
@@ -297,7 +297,7 @@ xfs_dir_createname(
 	if (v)
 		rval = xfs_dir2_leaf_addname(args);
 	else
-		rval = xfs_dir2_node_addname(args);
+		rval = xfs_dir2_yesde_addname(args);
 
 out_free:
 	kmem_free(args);
@@ -330,17 +330,17 @@ xfs_dir_cilookup_result(
 }
 
 /*
- * Lookup a name in a directory, give back the inode number.
- * If ci_name is not NULL, returns the actual name in ci_name if it differs
+ * Lookup a name in a directory, give back the iyesde number.
+ * If ci_name is yest NULL, returns the actual name in ci_name if it differs
  * to name, or ci_name->name is set to NULL for an exact match.
  */
 
 int
 xfs_dir_lookup(
 	xfs_trans_t	*tp,
-	xfs_inode_t	*dp,
+	xfs_iyesde_t	*dp,
 	struct xfs_name	*name,
-	xfs_ino_t	*inum,		/* out: inode number */
+	xfs_iyes_t	*inum,		/* out: iyesde number */
 	struct xfs_name *ci_name)	/* out: actual name if CI match */
 {
 	struct xfs_da_args *args;
@@ -352,12 +352,12 @@ xfs_dir_lookup(
 	XFS_STATS_INC(dp->i_mount, xs_dir_lookup);
 
 	/*
-	 * We need to use KM_NOFS here so that lockdep will not throw false
-	 * positive deadlock warnings on a non-transactional lookup path. It is
-	 * safe to recurse into inode recalim in that case, but lockdep can't
+	 * We need to use KM_NOFS here so that lockdep will yest throw false
+	 * positive deadlock warnings on a yesn-transactional lookup path. It is
+	 * safe to recurse into iyesde recalim in that case, but lockdep can't
 	 * easily be taught about it. Hence KM_NOFS avoids having to add more
 	 * lockdep Doing this avoids having to add a bunch of lockdep class
-	 * annotations into the reclaim path for the ilock.
+	 * anyestations into the reclaim path for the ilock.
 	 */
 	args = kmem_zalloc(sizeof(*args), KM_NOFS);
 	args->geo = dp->i_mount->m_dir_geo;
@@ -392,7 +392,7 @@ xfs_dir_lookup(
 	if (v)
 		rval = xfs_dir2_leaf_lookup(args);
 	else
-		rval = xfs_dir2_node_lookup(args);
+		rval = xfs_dir2_yesde_lookup(args);
 
 out_check_rval:
 	if (rval == -EEXIST)
@@ -416,9 +416,9 @@ out_free:
 int
 xfs_dir_removename(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
+	struct xfs_iyesde	*dp,
 	struct xfs_name		*name,
-	xfs_ino_t		ino,
+	xfs_iyes_t		iyes,
 	xfs_extlen_t		total)		/* bmap's total block count */
 {
 	struct xfs_da_args	*args;
@@ -437,7 +437,7 @@ xfs_dir_removename(
 	args->namelen = name->len;
 	args->filetype = name->type;
 	args->hashval = xfs_dir2_hashname(dp->i_mount, name);
-	args->inumber = ino;
+	args->inumber = iyes;
 	args->dp = dp;
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
@@ -462,21 +462,21 @@ xfs_dir_removename(
 	if (v)
 		rval = xfs_dir2_leaf_removename(args);
 	else
-		rval = xfs_dir2_node_removename(args);
+		rval = xfs_dir2_yesde_removename(args);
 out_free:
 	kmem_free(args);
 	return rval;
 }
 
 /*
- * Replace the inode number of a directory entry.
+ * Replace the iyesde number of a directory entry.
  */
 int
 xfs_dir_replace(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
+	struct xfs_iyesde	*dp,
 	struct xfs_name		*name,		/* name of entry to replace */
-	xfs_ino_t		inum,		/* new inode number */
+	xfs_iyes_t		inum,		/* new iyesde number */
 	xfs_extlen_t		total)		/* bmap's total block count */
 {
 	struct xfs_da_args	*args;
@@ -485,7 +485,7 @@ xfs_dir_replace(
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 
-	rval = xfs_dir_ino_validate(tp->t_mountp, inum);
+	rval = xfs_dir_iyes_validate(tp->t_mountp, inum);
 	if (rval)
 		return rval;
 
@@ -523,7 +523,7 @@ xfs_dir_replace(
 	if (v)
 		rval = xfs_dir2_leaf_replace(args);
 	else
-		rval = xfs_dir2_node_replace(args);
+		rval = xfs_dir2_yesde_replace(args);
 out_free:
 	kmem_free(args);
 	return rval;
@@ -535,7 +535,7 @@ out_free:
 int
 xfs_dir_canenter(
 	xfs_trans_t	*tp,
-	xfs_inode_t	*dp,
+	xfs_iyesde_t	*dp,
 	struct xfs_name	*name)		/* name of entry to add */
 {
 	return xfs_dir_createname(tp, dp, name, 0, 0);
@@ -548,34 +548,34 @@ xfs_dir_canenter(
 /*
  * Add a block to the directory.
  *
- * This routine is for data and free blocks, not leaf/node blocks which are
- * handled by xfs_da_grow_inode.
+ * This routine is for data and free blocks, yest leaf/yesde blocks which are
+ * handled by xfs_da_grow_iyesde.
  */
 int
-xfs_dir2_grow_inode(
+xfs_dir2_grow_iyesde(
 	struct xfs_da_args	*args,
 	int			space,	/* v2 dir's space XFS_DIR2_xxx_SPACE */
 	xfs_dir2_db_t		*dbp)	/* out: block number added */
 {
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
-	xfs_fileoff_t		bno;	/* directory offset of new block */
+	xfs_fileoff_t		byes;	/* directory offset of new block */
 	int			count;	/* count of filesystem blocks */
 	int			error;
 
-	trace_xfs_dir2_grow_inode(args, space);
+	trace_xfs_dir2_grow_iyesde(args, space);
 
 	/*
 	 * Set lowest possible block in the space requested.
 	 */
-	bno = XFS_B_TO_FSBT(mp, space * XFS_DIR2_SPACE_SIZE);
+	byes = XFS_B_TO_FSBT(mp, space * XFS_DIR2_SPACE_SIZE);
 	count = args->geo->fsbcount;
 
-	error = xfs_da_grow_inode_int(args, &bno, count);
+	error = xfs_da_grow_iyesde_int(args, &byes, count);
 	if (error)
 		return error;
 
-	*dbp = xfs_dir2_da_to_db(args->geo, (xfs_dablk_t)bno);
+	*dbp = xfs_dir2_da_to_db(args->geo, (xfs_dablk_t)byes);
 
 	/*
 	 * Update file's size if this is the data space and it grew.
@@ -583,10 +583,10 @@ xfs_dir2_grow_inode(
 	if (space == XFS_DIR2_DATA_SPACE) {
 		xfs_fsize_t	size;		/* directory file (data) size */
 
-		size = XFS_FSB_TO_B(mp, bno + count);
+		size = XFS_FSB_TO_B(mp, byes + count);
 		if (size > dp->i_d.di_size) {
 			dp->i_d.di_size = size;
-			xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE);
+			xfs_trans_log_iyesde(args->trans, dp, XFS_ILOG_CORE);
 		}
 	}
 	return 0;
@@ -598,7 +598,7 @@ xfs_dir2_grow_inode(
 int
 xfs_dir2_isblock(
 	struct xfs_da_args	*args,
-	int			*vp)	/* out: 1 is block, 0 is not block */
+	int			*vp)	/* out: 1 is block, 0 is yest block */
 {
 	xfs_fileoff_t		last;	/* last file offset */
 	int			rval;
@@ -620,7 +620,7 @@ xfs_dir2_isblock(
 int
 xfs_dir2_isleaf(
 	struct xfs_da_args	*args,
-	int			*vp)	/* out: 1 is block, 0 is not block */
+	int			*vp)	/* out: 1 is block, 0 is yest block */
 {
 	xfs_fileoff_t		last;	/* last file offset */
 	int			rval;
@@ -633,24 +633,24 @@ xfs_dir2_isleaf(
 
 /*
  * Remove the given block from the directory.
- * This routine is used for data and free blocks, leaf/node are done
- * by xfs_da_shrink_inode.
+ * This routine is used for data and free blocks, leaf/yesde are done
+ * by xfs_da_shrink_iyesde.
  */
 int
-xfs_dir2_shrink_inode(
+xfs_dir2_shrink_iyesde(
 	struct xfs_da_args	*args,
 	xfs_dir2_db_t		db,
 	struct xfs_buf		*bp)
 {
-	xfs_fileoff_t		bno;		/* directory file offset */
+	xfs_fileoff_t		byes;		/* directory file offset */
 	xfs_dablk_t		da;		/* directory file offset */
 	int			done;		/* bunmap is finished */
-	struct xfs_inode	*dp;
+	struct xfs_iyesde	*dp;
 	int			error;
 	struct xfs_mount	*mp;
 	struct xfs_trans	*tp;
 
-	trace_xfs_dir2_shrink_inode(args, db);
+	trace_xfs_dir2_shrink_iyesde(args, db);
 
 	dp = args->dp;
 	mp = dp->i_mount;
@@ -661,12 +661,12 @@ xfs_dir2_shrink_inode(
 	error = xfs_bunmapi(tp, dp, da, args->geo->fsbcount, 0, 0, &done);
 	if (error) {
 		/*
-		 * ENOSPC actually can happen if we're in a removename with no
+		 * ENOSPC actually can happen if we're in a removename with yes
 		 * space reservation, and the resulting block removal would
 		 * cause a bmap btree split or conversion from extents to btree.
 		 * This can only happen for un-fragmented directory blocks,
 		 * since you need to be punching out the middle of an extent.
-		 * In this case we need to leave the block in the file, and not
+		 * In this case we need to leave the block in the file, and yest
 		 * binval it.  So the block has to be in a consistent empty
 		 * state and appropriately logged.  We don't free up the buffer,
 		 * the caller can tell it hasn't happened since it got an error
@@ -680,7 +680,7 @@ xfs_dir2_shrink_inode(
 	 */
 	xfs_trans_binval(tp, bp);
 	/*
-	 * If it's not a data block, we're done.
+	 * If it's yest a data block, we're done.
 	 */
 	if (db >= xfs_dir2_byte_to_db(args->geo, XFS_DIR2_LEAF_OFFSET))
 		return 0;
@@ -689,22 +689,22 @@ xfs_dir2_shrink_inode(
 	 */
 	if (dp->i_d.di_size > xfs_dir2_db_off_to_byte(args->geo, db + 1, 0))
 		return 0;
-	bno = da;
-	if ((error = xfs_bmap_last_before(tp, dp, &bno, XFS_DATA_FORK))) {
+	byes = da;
+	if ((error = xfs_bmap_last_before(tp, dp, &byes, XFS_DATA_FORK))) {
 		/*
 		 * This can't really happen unless there's kernel corruption.
 		 */
 		return error;
 	}
 	if (db == args->geo->datablk)
-		ASSERT(bno == 0);
+		ASSERT(byes == 0);
 	else
-		ASSERT(bno > 0);
+		ASSERT(byes > 0);
 	/*
 	 * Set the size to the new last block.
 	 */
-	dp->i_d.di_size = XFS_FSB_TO_B(mp, bno);
-	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
+	dp->i_d.di_size = XFS_FSB_TO_B(mp, byes);
+	xfs_trans_log_iyesde(tp, dp, XFS_ILOG_CORE);
 	return 0;
 }
 

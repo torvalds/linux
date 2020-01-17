@@ -150,7 +150,7 @@ static int sunfire_led_generic_probe(struct platform_device *pdev,
 
 		err = led_classdev_register(&pdev->dev, lp);
 		if (err) {
-			dev_err(&pdev->dev, "Could not register %s LED\n",
+			dev_err(&pdev->dev, "Could yest register %s LED\n",
 			       lp->name);
 			for (i--; i >= 0; i--)
 				led_classdev_unregister(&p->leds[i].led_cdev);

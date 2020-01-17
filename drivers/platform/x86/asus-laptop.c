@@ -65,18 +65,18 @@ static uint wapf = 1;
 module_param(wapf, uint, 0444);
 MODULE_PARM_DESC(wapf, "WAPF value");
 
-static char *wled_type = "unknown";
-static char *bled_type = "unknown";
+static char *wled_type = "unkyeswn";
+static char *bled_type = "unkyeswn";
 
 module_param(wled_type, charp, 0444);
 MODULE_PARM_DESC(wled_type, "Set the wled type on boot "
-		 "(unknown, led or rfkill). "
-		 "default is unknown");
+		 "(unkyeswn, led or rfkill). "
+		 "default is unkyeswn");
 
 module_param(bled_type, charp, 0444);
 MODULE_PARM_DESC(bled_type, "Set the bled type on boot "
-		 "(unknown, led or rfkill). "
-		 "default is unknown");
+		 "(unkyeswn, led or rfkill). "
+		 "default is unkyeswn");
 
 static int wlan_status = 1;
 static int bluetooth_status = 1;
@@ -122,7 +122,7 @@ MODULE_PARM_DESC(als_status, "Set the ALS status on boot "
 #define ATKD_LCD_OFF	0x34
 
 /*
- * Known bits returned by \_SB.ATKD.HWRS
+ * Kyeswn bits returned by \_SB.ATKD.HWRS
  */
 #define WL_HWRS		0x80
 #define BT_HWRS		0x100
@@ -153,7 +153,7 @@ MODULE_PARM_DESC(als_status, "Set the ALS status on boot "
 
 /*
  * Bluetooth and WLAN
- * WLED and BLED are not handled like other XLED, because in some dsdt
+ * WLED and BLED are yest handled like other XLED, because in some dsdt
  * they also control the WLAN/Bluetooth device.
  */
 #define METHOD_WLAN		"WLED"
@@ -279,14 +279,14 @@ struct asus_laptop {
 };
 
 static const struct key_entry asus_keymap[] = {
-	/* Lenovo SL Specific keycodes */
+	/* Leyesvo SL Specific keycodes */
 	{KE_KEY, 0x02, { KEY_SCREENLOCK } },
 	{KE_KEY, 0x05, { KEY_WLAN } },
 	{KE_KEY, 0x08, { KEY_F13 } },
 	{KE_KEY, 0x09, { KEY_PROG2 } }, /* Dock */
 	{KE_KEY, 0x17, { KEY_ZOOM } },
 	{KE_KEY, 0x1f, { KEY_BATTERY } },
-	/* End of Lenovo SL Specific keycodes */
+	/* End of Leyesvo SL Specific keycodes */
 	{KE_KEY, ATKD_BRNDOWN, { KEY_BRIGHTNESSDOWN } },
 	{KE_KEY, ATKD_BRNUP, { KEY_BRIGHTNESSUP } },
 	{KE_KEY, 0x30, { KEY_VOLUMEUP } },
@@ -320,7 +320,7 @@ static const struct key_entry asus_keymap[] = {
 	{KE_KEY, 0x6B, { KEY_TOUCHPAD_TOGGLE } }, /* Lock Touchpad */
 	{KE_KEY, 0x6C, { KEY_SLEEP } }, /* Suspend */
 	{KE_KEY, 0x6D, { KEY_SLEEP } }, /* Hibernate */
-	{KE_IGNORE, 0x6E, },  /* Low Battery notification */
+	{KE_IGNORE, 0x6E, },  /* Low Battery yestification */
 	{KE_KEY, 0x7D, { KEY_BLUETOOTH } }, /* Bluetooth Enable */
 	{KE_KEY, 0x7E, { KEY_BLUETOOTH } }, /* Bluetooth Disable */
 	{KE_KEY, 0x82, { KEY_CAMERA } },
@@ -432,7 +432,7 @@ static int pega_acc_axis(struct asus_laptop *asus, int curr, char *method)
 	for (i = 0; i < PEGA_ACC_RETRIES; i++) {
 		acpi_evaluate_integer(asus->handle, method, NULL, &val);
 
-		/* The output is noisy.  From reading the ASL
+		/* The output is yesisy.  From reading the ASL
 		 * dissassembly, timeout errors are returned with 1's
 		 * in the high word, and the lack of locking around
 		 * thei hi/lo byte reads means that a transition
@@ -670,7 +670,7 @@ static int asus_led_register(struct asus_laptop *asus,
 	struct led_classdev *led_cdev = &led->led;
 
 	if (!method || acpi_check_handle(asus->handle, method, NULL))
-		return 0; /* Led not present */
+		return 0; /* Led yest present */
 
 	led->asus = asus;
 	led->method = method;
@@ -688,7 +688,7 @@ static int asus_led_init(struct asus_laptop *asus)
 	int r = 0;
 
 	/*
-	 * The Pegatron Lucid has no physical leds, but all methods are
+	 * The Pegatron Lucid has yes physical leds, but all methods are
 	 * available in the DSDT...
 	 */
 	if (asus->is_pega_lucid)
@@ -791,7 +791,7 @@ static const struct backlight_ops asusbl_ops = {
 	.update_status = update_bl_status,
 };
 
-static int asus_backlight_notify(struct asus_laptop *asus)
+static int asus_backlight_yestify(struct asus_laptop *asus)
 {
 	struct backlight_device *bd = asus->backlight_device;
 	int old = bd->props.brightness;
@@ -818,7 +818,7 @@ static int asus_backlight_init(struct asus_laptop *asus)
 				       &asus->platform_device->dev, asus,
 				       &asusbl_ops, &props);
 	if (IS_ERR(bd)) {
-		pr_err("Could not register asus backlight device\n");
+		pr_err("Could yest register asus backlight device\n");
 		asus->backlight_device = NULL;
 		return PTR_ERR(bd);
 	}
@@ -841,7 +841,7 @@ static void asus_backlight_exit(struct asus_laptop *asus)
  */
 
 /*
- * We write our info in page, we begin at offset off and cannot write more
+ * We write our info in page, we begin at offset off and canyest write more
  * than count bytes. We set eof to 1 if we handle those 2 values. We return the
  * number of bytes written in page
  */
@@ -851,7 +851,7 @@ static ssize_t infos_show(struct device *dev, struct device_attribute *attr,
 	struct asus_laptop *asus = dev_get_drvdata(dev);
 	int len = 0;
 	unsigned long long temp;
-	char buf[16];		/* enough for all info */
+	char buf[16];		/* eyesugh for all info */
 	acpi_status rv;
 
 	/*
@@ -863,7 +863,7 @@ static ssize_t infos_show(struct device *dev, struct device_attribute *attr,
 	len += sprintf(page + len, "Model reference    : %s\n", asus->name);
 	/*
 	 * The SFUN method probably allows the original driver to get the list
-	 * of features supported by a given model. For now, 0x0100 or 0x0800
+	 * of features supported by a given model. For yesw, 0x0100 or 0x0800
 	 * bit signifies that the laptop is equipped with a Wi-Fi MiniPCI card.
 	 * The significance of others is yet to be found.
 	 */
@@ -884,11 +884,11 @@ static ssize_t infos_show(struct device *dev, struct device_attribute *attr,
 		len += sprintf(page + len, "HWRS value         : %#x\n",
 			       (uint) temp);
 	/*
-	 * Another value for userspace: the ASYM method returns 0x02 for
+	 * Ayesther value for userspace: the ASYM method returns 0x02 for
 	 * battery low and 0x04 for battery critical, its readings tend to be
 	 * more accurate than those provided by _BST.
-	 * Note: since not all the laptops provide this method, errors are
-	 * silently ignored.
+	 * Note: since yest all the laptops provide this method, errors are
+	 * silently igyesred.
 	 */
 	rv = acpi_evaluate_integer(asus->handle, "ASYM", NULL, &temp);
 	if (!ACPI_FAILURE(rv))
@@ -1105,14 +1105,14 @@ static DEVICE_ATTR_RW(wwan);
  */
 static void asus_set_display(struct asus_laptop *asus, int value)
 {
-	/* no sanity check needed for now */
+	/* yes sanity check needed for yesw */
 	if (write_acpi_int(asus->handle, METHOD_SWITCH_DISPLAY, value))
 		pr_warn("Error setting display\n");
 	return;
 }
 
 /*
- * Experimental support for display switching. As of now: 1 should activate
+ * Experimental support for display switching. As of yesw: 1 should activate
  * the LCD output, 2 should do for CRT, 4 for TV-Out and 8 for DVI.
  * Any combination (bitwise) of these will suffice. I never actually tested 4
  * displays hooked up simultaneously, so be warned. See the acpi4asus README
@@ -1471,12 +1471,12 @@ exit:
 /*
  * Input device (i.e. hotkeys)
  */
-static void asus_input_notify(struct asus_laptop *asus, int event)
+static void asus_input_yestify(struct asus_laptop *asus, int event)
 {
 	if (!asus->inputdev)
 		return ;
 	if (!sparse_keymap_report_event(asus->inputdev, event, 1, true))
-		pr_info("Unknown key %x pressed\n", event);
+		pr_info("Unkyeswn key %x pressed\n", event);
 }
 
 static int asus_input_init(struct asus_laptop *asus)
@@ -1522,7 +1522,7 @@ static void asus_input_exit(struct asus_laptop *asus)
 /*
  * ACPI driver
  */
-static void asus_acpi_notify(struct acpi_device *device, u32 event)
+static void asus_acpi_yestify(struct acpi_device *device, u32 event)
 {
 	struct asus_laptop *asus = acpi_driver_data(device);
 	u16 count;
@@ -1543,7 +1543,7 @@ static void asus_acpi_notify(struct acpi_device *device, u32 event)
 	if (event == ATKD_BRNDOWN || event == ATKD_BRNUP) {
 		if (asus->backlight_device != NULL) {
 			/* Update the backlight device. */
-			asus_backlight_notify(asus);
+			asus_backlight_yestify(asus);
 			return ;
 		}
 	}
@@ -1554,7 +1554,7 @@ static void asus_acpi_notify(struct acpi_device *device, u32 event)
 		return ;
 	}
 
-	asus_input_notify(asus, event);
+	asus_input_yestify(asus, event);
 }
 
 static struct attribute *asus_attributes[] = {
@@ -1582,18 +1582,18 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
 	bool supported;
 
 	if (asus->is_pega_lucid) {
-		/* no ls_level interface on the Lucid */
+		/* yes ls_level interface on the Lucid */
 		if (attr == &dev_attr_ls_switch.attr)
 			supported = true;
 		else if (attr == &dev_attr_ls_level.attr)
 			supported = false;
 		else
-			goto normal;
+			goto yesrmal;
 
 		return supported ? attr->mode : 0;
 	}
 
-normal:
+yesrmal:
 	if (attr == &dev_attr_wlan.attr) {
 		supported = !acpi_check_handle(handle, METHOD_WLAN, NULL);
 
@@ -1689,8 +1689,8 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 	acpi_status status;
 
 	/*
-	 * Get DSDT headers early enough to allow for differentiating between
-	 * models, but late enough to allow acpi_bus_register_driver() to fail
+	 * Get DSDT headers early eyesugh to allow for differentiating between
+	 * models, but late eyesugh to allow acpi_bus_register_driver() to fail
 	 * before doing anything ACPI-specific. Should we encounter a machine,
 	 * which needs special handling (i.e. its hotkey device has a different
 	 * HID), this bit will be moved.
@@ -1711,7 +1711,7 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 	if (ACPI_FAILURE(status))
 		pr_warn("Error calling BSTS\n");
 	else if (bsts_result)
-		pr_notice("BSTS called, 0x%02x returned\n",
+		pr_yestice("BSTS called, 0x%02x returned\n",
 		       (uint) bsts_result);
 
 	/* This too ... */
@@ -1744,7 +1744,7 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 	}
 
 	if (string)
-		pr_notice("  %s model detected\n", string);
+		pr_yestice("  %s model detected\n", string);
 
 	if (!acpi_check_handle(asus->handle, METHOD_WL_STATUS, NULL))
 		asus->have_rsts = true;
@@ -1762,7 +1762,7 @@ static int asus_acpi_init(struct asus_laptop *asus)
 	if (result)
 		return result;
 	if (!asus->device->status.present) {
-		pr_err("Hotkey device not present, aborting\n");
+		pr_err("Hotkey device yest present, aborting\n");
 		return -ENODEV;
 	}
 
@@ -1835,7 +1835,7 @@ static int asus_acpi_add(struct acpi_device *device)
 	struct asus_laptop *asus;
 	int result;
 
-	pr_notice("Asus Laptop Support version %s\n",
+	pr_yestice("Asus Laptop Support version %s\n",
 		  ASUS_LAPTOP_VERSION);
 	asus = kzalloc(sizeof(struct asus_laptop), GFP_KERNEL);
 	if (!asus)
@@ -1940,7 +1940,7 @@ static struct acpi_driver asus_acpi_driver = {
 	.ops = {
 		.add = asus_acpi_add,
 		.remove = asus_acpi_remove,
-		.notify = asus_acpi_notify,
+		.yestify = asus_acpi_yestify,
 		},
 };
 
@@ -1957,11 +1957,11 @@ static int __init asus_laptop_init(void)
 		goto fail_acpi_driver;
 	if (!asus_device_present) {
 		result = -ENODEV;
-		goto fail_no_device;
+		goto fail_yes_device;
 	}
 	return 0;
 
-fail_no_device:
+fail_yes_device:
 	acpi_bus_unregister_driver(&asus_acpi_driver);
 fail_acpi_driver:
 	platform_driver_unregister(&platform_driver);

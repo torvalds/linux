@@ -65,7 +65,7 @@
 	{0x0005, PWR_CUT_ALL_MSK, PWR_CMD_POLLING, BIT(0), 0}, \
 	/*wait till 0x04[8] = 0*/					\
 	{0x0023, PWR_CUT_ALL_MSK, PWR_CMD_WRITE, BIT(4), 0}, \
-	/*LDO normal mode*/
+	/*LDO yesrmal mode*/
 
 #define RTL8188E_TRANS_ACT_TO_CARDEMU					\
 	/* format
@@ -152,7 +152,7 @@
 	{0x0005, PWR_CUT_ALL_MSK, PWR_CMD_WRITE, BIT(7), 0}, \
 	/* 0x04[15] = 0*/
 
-/* This is used by driver for LPSRadioOff Procedure, not for FW LPS Step */
+/* This is used by driver for LPSRadioOff Procedure, yest for FW LPS Step */
 #define RTL8188E_TRANS_ACT_TO_LPS					\
 	/* format
 	 * { offset, cut_msk, cmd, msk,
@@ -161,13 +161,13 @@
 	 */								\
 	{0x0522, PWR_CUT_ALL_MSK, PWR_CMD_WRITE, 0xFF, 0x7F},/*Tx Pause*/ \
 	{0x05F8, PWR_CUT_ALL_MSK, PWR_CMD_POLLING, 0xFF, 0}, \
-	/*Should be zero if no packet is transmitting*/			\
+	/*Should be zero if yes packet is transmitting*/			\
 	{0x05F9, PWR_CUT_ALL_MSK, PWR_CMD_POLLING, 0xFF, 0}, \
-	/*Should be zero if no packet is transmitting*/			\
+	/*Should be zero if yes packet is transmitting*/			\
 	{0x05FA, PWR_CUT_ALL_MSK, PWR_CMD_POLLING, 0xFF, 0}, \
-	/*Should be zero if no packet is transmitting*/			\
+	/*Should be zero if yes packet is transmitting*/			\
 	{0x05FB, PWR_CUT_ALL_MSK, PWR_CMD_POLLING, 0xFF, 0}, \
-	/*Should be zero if no packet is transmitting*/			\
+	/*Should be zero if yes packet is transmitting*/			\
 	{0x0002, PWR_CUT_ALL_MSK, PWR_CMD_WRITE, BIT(0), 0}, \
 	/*CCK and OFDM are disabled,and clock are gated*/		\
 	{0x0002, PWR_CUT_ALL_MSK, PWR_CMD_DELAY, 0,	PWRSEQ_DELAY_US}, \

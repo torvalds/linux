@@ -23,7 +23,7 @@ Required properties:
 
 - rockchip,grf: this soc should set GRF regs, so need get grf here.
 
-- ports: there are 2 port nodes with endpoint definitions as defined in
+- ports: there are 2 port yesdes with endpoint definitions as defined in
   Documentation/devicetree/bindings/media/video-interfaces.txt.
     Port 0: contained 2 endpoints, connecting to the output of vop.
     Port 1: contained 1 endpoint, connecting to the input of panel.
@@ -92,7 +92,7 @@ Example:
 	pinctrl {
 		edp {
 			edp_hpd: edp-hpd {
-				rockchip,pins = <7 11 RK_FUNC_2 &pcfg_pull_none>;
+				rockchip,pins = <7 11 RK_FUNC_2 &pcfg_pull_yesne>;
 			};
 		};
 	};

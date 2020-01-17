@@ -3,17 +3,17 @@
  * Xen event channels
  *
  * Xen models interrupts with abstract event channels.  Because each
- * domain gets 1024 event channels, but NR_IRQ is not that large, we
+ * domain gets 1024 event channels, but NR_IRQ is yest that large, we
  * must dynamically map irqs<->event channels.  The event channels
  * interface with the rest of the kernel by defining a xen interrupt
  * chip.  When an event is received, it is mapped to an irq and sent
- * through the normal interrupt processing path.
+ * through the yesrmal interrupt processing path.
  *
  * There are four kinds of events which can be mapped to an event
  * channel:
  *
- * 1. Inter-domain notifications.  This includes all the virtual
- *    device events, since they're driven by front-ends in another domain
+ * 1. Inter-domain yestifications.  This includes all the virtual
+ *    device events, since they're driven by front-ends in ayesther domain
  *    (typically dom0).
  * 2. VIRQs, typically used for timers.  These are per-cpu events.
  * 3. IPIs.
@@ -66,7 +66,7 @@ const struct evtchn_ops *evtchn_ops;
 
 /*
  * This lock protects updates to the following mapping and reference-count
- * arrays. The lock does not need to be acquired to read the mapping tables.
+ * arrays. The lock does yest need to be acquired to read the mapping tables.
  */
 static DEFINE_MUTEX(irq_mapping_update_lock);
 
@@ -345,27 +345,27 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 }
 
 /**
- * notify_remote_via_irq - send event to remote end of event channel via irq
+ * yestify_remote_via_irq - send event to remote end of event channel via irq
  * @irq: irq of event channel to send event to
  *
- * Unlike notify_remote_via_evtchn(), this is safe to use across
+ * Unlike yestify_remote_via_evtchn(), this is safe to use across
  * save/restore. Notifications on a broken connection are silently
  * dropped.
  */
-void notify_remote_via_irq(int irq)
+void yestify_remote_via_irq(int irq)
 {
 	int evtchn = evtchn_from_irq(irq);
 
 	if (VALID_EVTCHN(evtchn))
-		notify_remote_via_evtchn(evtchn);
+		yestify_remote_via_evtchn(evtchn);
 }
-EXPORT_SYMBOL_GPL(notify_remote_via_irq);
+EXPORT_SYMBOL_GPL(yestify_remote_via_irq);
 
 static void xen_irq_init(unsigned irq)
 {
 	struct irq_info *info;
 #ifdef CONFIG_SMP
-	/* By default all event channels notify CPU#0. */
+	/* By default all event channels yestify CPU#0. */
 	cpumask_copy(irq_get_affinity_mask(irq), cpumask_of(0));
 #endif
 
@@ -404,8 +404,8 @@ static int __must_check xen_allocate_irq_gsi(unsigned gsi)
 	int irq;
 
 	/*
-	 * A PV guest has no concept of a GSI (since it has no ACPI
-	 * nor access to/knowledge of the physical APICs). Therefore
+	 * A PV guest has yes concept of a GSI (since it has yes ACPI
+	 * yesr access to/kyeswledge of the physical APICs). Therefore
 	 * all IRQs are dynamically allocated from the entire IRQ
 	 * space.
 	 */
@@ -633,13 +633,13 @@ static void __unbind_from_irq(unsigned int irq)
 }
 
 /*
- * Do not make any assumptions regarding the relationship between the
+ * Do yest make any assumptions regarding the relationship between the
  * IRQ number returned here and the Xen pirq argument.
  *
  * Note: We don't assign an event channel until the irq actually started
  * up.  Return an existing irq if we've already got one for the gsi.
  *
- * Shareable implies level triggered, not shareable implies edge
+ * Shareable implies level triggered, yest shareable implies edge
  * triggered here.
  */
 int xen_bind_pirq_gsi_to_irq(unsigned gsi,
@@ -665,7 +665,7 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 	irq_op.irq = irq;
 	irq_op.vector = 0;
 
-	/* Only the privileged domain can do this. For non-priv, the pcifront
+	/* Only the privileged domain can do this. For yesn-priv, the pcifront
 	 * driver provides a PCI bus that does the call to do exactly
 	 * this in the priv domain. */
 	if (xen_initial_domain() &&
@@ -693,9 +693,9 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 	 * interrupts.
 	 *
 	 * Depending on the Xen version, pirq_needs_eoi might return true
-	 * not only for level triggered interrupts but for edge triggered
-	 * interrupts too. In any case Xen always honors the eoi mechanism,
-	 * not injecting any more pirqs of the same kind if the first one
+	 * yest only for level triggered interrupts but for edge triggered
+	 * interrupts too. In any case Xen always hoyesrs the eoi mechanism,
+	 * yest injecting any more pirqs of the same kind if the first one
 	 * hasn't received an eoi yet. Therefore using the fasteoi handler
 	 * is the right choice either way.
 	 */
@@ -722,7 +722,7 @@ int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc)
 	rc = HYPERVISOR_physdev_op(PHYSDEVOP_get_free_pirq, &op_get_free_pirq);
 
 	WARN_ONCE(rc == -ENOSYS,
-		  "hypervisor does not support the PHYSDEVOP_get_free_pirq interface\n");
+		  "hypervisor does yest support the PHYSDEVOP_get_free_pirq interface\n");
 
 	return rc ? -1 : op_get_free_pirq.pirq;
 }
@@ -778,12 +778,12 @@ int xen_destroy_irq(int irq)
 		unmap_irq.pirq = info->u.pirq.pirq;
 		unmap_irq.domid = info->u.pirq.domid;
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_unmap_pirq, &unmap_irq);
-		/* If another domain quits without making the pci_disable_msix
+		/* If ayesther domain quits without making the pci_disable_msix
 		 * call, the Xen hypervisor takes care of freeing the PIRQs
 		 * (free_domain_pirqs).
 		 */
 		if ((rc == -ESRCH && info->u.pirq.domid != DOMID_SELF))
-			pr_info("domain %d does not have %d anymore\n",
+			pr_info("domain %d does yest have %d anymore\n",
 				info->u.pirq.domid, info->u.pirq.pirq);
 		else if (rc) {
 			pr_warn("unmap irq failed %d\n", rc);
@@ -1210,7 +1210,7 @@ void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector)
 #endif
 	irq = per_cpu(ipi_to_irq, cpu)[vector];
 	BUG_ON(irq < 0);
-	notify_remote_via_irq(irq);
+	yestify_remote_via_irq(irq);
 }
 
 static void __xen_evtchn_do_upcall(void)
@@ -1307,7 +1307,7 @@ static int xen_rebind_evtchn_to_cpu(int evtchn, unsigned int tcpu)
 
 	/*
 	 * If this fails, it usually just indicates that we're dealing with a
-	 * virq or IPI channel, which don't actually need to be rebound. Ignore
+	 * virq or IPI channel, which don't actually need to be rebound. Igyesre
 	 * it, but don't do the xenlinux-level rebind in that case.
 	 */
 	if (HYPERVISOR_event_channel_op(EVTCHNOP_bind_vcpu, &bind_vcpu) >= 0)
@@ -1536,7 +1536,7 @@ EXPORT_SYMBOL(xen_poll_irq_timeout);
  * irq will be disabled so it won't deliver an interrupt. */
 void xen_poll_irq(int irq)
 {
-	xen_poll_irq_timeout(irq, 0 /* no timeout */);
+	xen_poll_irq_timeout(irq, 0 /* yes timeout */);
 }
 
 /* Check whether the IRQ line is shared with other guests. */
@@ -1561,7 +1561,7 @@ void xen_irq_resume(void)
 	unsigned int cpu;
 	struct irq_info *info;
 
-	/* New event-channel space is not 'live' yet. */
+	/* New event-channel space is yest 'live' yet. */
 	xen_evtchn_resume();
 
 	/* No IRQ <-> event-channel mappings. */
@@ -1634,7 +1634,7 @@ EXPORT_SYMBOL_GPL(xen_set_callback_via);
 
 #ifdef CONFIG_XEN_PVHVM
 /* Vector callbacks are better than PCI interrupts to receive event
- * channel notifications because we can receive vector callbacks on any
+ * channel yestifications because we can receive vector callbacks on any
  * vcpu and we don't need PCI support or APIC interactions. */
 void xen_callback_vector(void)
 {
@@ -1678,7 +1678,7 @@ void __init xen_init_IRQ(void)
 				sizeof(*evtchn_to_irq), GFP_KERNEL);
 	BUG_ON(!evtchn_to_irq);
 
-	/* No event channels are 'live' right now. */
+	/* No event channels are 'live' right yesw. */
 	for (evtchn = 0; evtchn < xen_evtchn_nr_channels(); evtchn++)
 		mask_evtchn(evtchn);
 

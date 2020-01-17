@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -61,7 +61,7 @@
 #define ETH_P_DNA_RC    0x6002          /* DEC DNA Remote Console       */
 #define ETH_P_DNA_RT    0x6003          /* DEC DNA Routing              */
 #define ETH_P_LAT       0x6004          /* DEC LAT                      */
-#define ETH_P_DIAG      0x6005          /* DEC Diagnostics              */
+#define ETH_P_DIAG      0x6005          /* DEC Diagyesstics              */
 #define ETH_P_CUST      0x6006          /* DEC Customer use             */
 #define ETH_P_SCA       0x6007          /* DEC Systems Comms Arch       */
 #define ETH_P_TEB	0x6558		/* Trans Ether Bridging		*/
@@ -154,7 +154,7 @@
  *	This is an Ethernet frame header.
  */
 
-/* allow libcs like musl to deactivate this, glibc does not implement this. */
+/* allow libcs like musl to deactivate this, glibc does yest implement this. */
 #ifndef __UAPI_DEF_ETHHDR
 #define __UAPI_DEF_ETHHDR		1
 #endif

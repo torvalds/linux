@@ -3,7 +3,7 @@
  *
  * LaCie d2Network and Big Disk Network NAS setup
  *
- * Copyright (C) 2009 Simon Guinot <sguinot@lacie.com>
+ * Copyright (C) 2009 Simon Guiyest <sguiyest@lacie.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -105,5 +105,5 @@ void __init d2net_init(void)
 {
 	d2net_gpio_leds_init();
 
-	pr_notice("d2net: Flash write are not yet supported.\n");
+	pr_yestice("d2net: Flash write are yest yet supported.\n");
 }

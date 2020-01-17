@@ -101,7 +101,7 @@ int cache_line_size(void);
  *
  *  0 - dcache clean to PoU is required unless :
  *     (CLIDR_EL1.LoC == 0) || (CLIDR_EL1.LoUIS == 0 && CLIDR_EL1.LoUU == 0)
- *  1 - dcache clean to PoU is not required for i-to-d coherence.
+ *  1 - dcache clean to PoU is yest required for i-to-d coherence.
  *
  * This routine provides the CTR_EL0 with the IDC field updated to the
  * effective state.

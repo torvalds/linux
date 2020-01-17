@@ -12,7 +12,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/reboot.h>
 #include <linux/pci.h>
 #include <linux/kdev_t.h>
@@ -57,19 +57,19 @@ static void __init sbc8548_pic_init(void)
 /* Extract the HW Rev from the EPLD on the board */
 static int __init sbc8548_hw_rev(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource res;
 	unsigned int *rev;
 	int board_rev = 0;
 
-	np = of_find_compatible_node(NULL, NULL, "hw-rev");
+	np = of_find_compatible_yesde(NULL, NULL, "hw-rev");
 	if (np == NULL) {
 		printk("No HW-REV found in DTB.\n");
 		return -ENODEV;
 	}
 
 	of_address_to_resource(np, 0, &res);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	rev = ioremap(res.start,sizeof(unsigned int));
 	board_rev = (*rev) >> 28;

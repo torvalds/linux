@@ -222,7 +222,7 @@ static int arm_spe_do_get_packet(const unsigned char *buf, size_t len,
 	byte = buf[0];
 	if (byte == SPE_HEADER0_PAD)
 		return arm_spe_get_pad(packet);
-	else if (byte == SPE_HEADER0_END) /* no timestamp at end of record */
+	else if (byte == SPE_HEADER0_END) /* yes timestamp at end of record */
 		return arm_spe_get_end(packet);
 	else if (byte & 0xc0 /* 0y11xxxxxx */) {
 		if (byte & 0x80) {

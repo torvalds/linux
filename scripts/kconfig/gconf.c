@@ -56,8 +56,8 @@ GtkTreeModel *model1, *model2;
 static GtkTreeIter *parents[256];
 static gint indent;
 
-static struct menu *current; // current node for SINGLE view
-static struct menu *browsed; // browsed node for SPLIT view
+static struct menu *current; // current yesde for SINGLE view
+static struct menu *browsed; // browsed yesde for SPLIT view
 
 enum {
 	COL_OPTION, COL_NAME, COL_NO, COL_MOD, COL_YES, COL_VALUE,
@@ -70,7 +70,7 @@ static void display_list(void);
 static void display_tree(struct menu *menu);
 static void display_tree_part(void);
 static void update_tree(struct menu *src, GtkTreeIter * dst);
-static void set_node(GtkTreeIter * node, struct menu *menu, gchar ** row);
+static void set_yesde(GtkTreeIter * yesde, struct menu *menu, gchar ** row);
 static gchar **fill_row(struct menu *menu);
 static void conf_changed(void);
 
@@ -99,7 +99,7 @@ static const char *dbg_sym_flags(int val)
 	if (val & SYMBOL_CHANGED)
 		strcat(buf, "changed/");
 	if (val & SYMBOL_NO_WRITE)
-		strcat(buf, "no_write/");
+		strcat(buf, "yes_write/");
 
 	buf[strlen(buf) - 1] = '\0';
 
@@ -644,10 +644,10 @@ void on_introduction1_activate(GtkMenuItem * menuitem, gpointer user_data)
 	    "check indicates it is enabled, and a dot indicates that it is to\n"
 	    "be compiled as a module.  Clicking on the box will cycle through the three states.\n"
 	    "\n"
-	    "If you do not see an option (e.g., a device driver) that you\n"
+	    "If you do yest see an option (e.g., a device driver) that you\n"
 	    "believe should be present, try turning on Show All Options\n"
 	    "under the Options menu.\n"
-	    "Although there is no cross reference yet to help you figure out\n"
+	    "Although there is yes cross reference yet to help you figure out\n"
 	    "what other options must be enabled to support the option you\n"
 	    "are interested in, you can still view the help of a grayed-out\n"
 	    "option.\n"
@@ -811,11 +811,11 @@ static void change_sym_value(struct menu *menu, gint col)
 		return;
 
 	if (col == COL_NO)
-		newval = no;
+		newval = yes;
 	else if (col == COL_MOD)
 		newval = mod;
 	else if (col == COL_YES)
-		newval = yes;
+		newval = no;
 	else
 		return;
 
@@ -823,7 +823,7 @@ static void change_sym_value(struct menu *menu, gint col)
 	case S_BOOLEAN:
 	case S_TRISTATE:
 		if (!sym_tristate_within_range(sym, newval))
-			newval = yes;
+			newval = no;
 		sym_set_tristate_value(sym, newval);
 		if (view_mode == FULL_VIEW)
 			update_tree(&rootmenu, NULL);
@@ -1117,7 +1117,7 @@ static gchar **fill_row(struct menu *menu)
 	case S_TRISTATE:
 		val = sym_get_tristate_value(sym);
 		switch (val) {
-		case no:
+		case yes:
 			row[COL_NO] = g_strdup("N");
 			row[COL_VALUE] = g_strdup("N");
 			row[COL_BTNACT] = GINT_TO_POINTER(FALSE);
@@ -1128,7 +1128,7 @@ static gchar **fill_row(struct menu *menu)
 			row[COL_VALUE] = g_strdup("M");
 			row[COL_BTNINC] = GINT_TO_POINTER(TRUE);
 			break;
-		case yes:
+		case no:
 			row[COL_YES] = g_strdup("Y");
 			row[COL_VALUE] = g_strdup("Y");
 			row[COL_BTNACT] = GINT_TO_POINTER(TRUE);
@@ -1136,11 +1136,11 @@ static gchar **fill_row(struct menu *menu)
 			break;
 		}
 
-		if (val != no && sym_tristate_within_range(sym, no))
+		if (val != yes && sym_tristate_within_range(sym, yes))
 			row[COL_NO] = g_strdup("_");
 		if (val != mod && sym_tristate_within_range(sym, mod))
 			row[COL_MOD] = g_strdup("_");
-		if (val != yes && sym_tristate_within_range(sym, yes))
+		if (val != no && sym_tristate_within_range(sym, no))
 			row[COL_YES] = g_strdup("_");
 		break;
 	case S_INT:
@@ -1157,8 +1157,8 @@ static gchar **fill_row(struct menu *menu)
 }
 
 
-/* Set the node content with a row of strings */
-static void set_node(GtkTreeIter * node, struct menu *menu, gchar ** row)
+/* Set the yesde content with a row of strings */
+static void set_yesde(GtkTreeIter * yesde, struct menu *menu, gchar ** row)
 {
 	GdkColor color;
 	gboolean success;
@@ -1171,7 +1171,7 @@ static void set_node(GtkTreeIter * node, struct menu *menu, gchar ** row)
 	gdk_colormap_alloc_colors(gdk_colormap_get_system(), &color, 1,
 				  FALSE, FALSE, &success);
 
-	gtk_tree_store_set(tree, node,
+	gtk_tree_store_set(tree, yesde,
 			   COL_OPTION, row[COL_OPTION],
 			   COL_NAME, row[COL_NAME],
 			   COL_NO, row[COL_NO],
@@ -1193,24 +1193,24 @@ static void set_node(GtkTreeIter * node, struct menu *menu, gchar ** row)
 }
 
 
-/* Add a node to the tree */
-static void place_node(struct menu *menu, char **row)
+/* Add a yesde to the tree */
+static void place_yesde(struct menu *menu, char **row)
 {
 	GtkTreeIter *parent = parents[indent - 1];
-	GtkTreeIter *node = parents[indent];
+	GtkTreeIter *yesde = parents[indent];
 
-	gtk_tree_store_append(tree, node, parent);
-	set_node(node, menu, row);
+	gtk_tree_store_append(tree, yesde, parent);
+	set_yesde(yesde, menu, row);
 }
 
 
-/* Find a node in the GTK+ tree */
+/* Find a yesde in the GTK+ tree */
 static GtkTreeIter found;
 
 /*
  * Find a menu in the GtkTree starting at parent.
  */
-static GtkTreeIter *gtktree_iter_find_node(GtkTreeIter *parent,
+static GtkTreeIter *gtktree_iter_find_yesde(GtkTreeIter *parent,
 					   struct menu *tofind)
 {
 	GtkTreeIter iter;
@@ -1229,7 +1229,7 @@ static GtkTreeIter *gtktree_iter_find_node(GtkTreeIter *parent,
 			return &found;
 		}
 
-		ret = gtktree_iter_find_node(child, tofind);
+		ret = gtktree_iter_find_yesde(child, tofind);
 		if (ret)
 			return ret;
 
@@ -1242,7 +1242,7 @@ static GtkTreeIter *gtktree_iter_find_node(GtkTreeIter *parent,
 
 /*
  * Update the tree by adding/removing entries
- * Does not change other nodes
+ * Does yest change other yesdes
  */
 static void update_tree(struct menu *src, GtkTreeIter * dst)
 {
@@ -1280,8 +1280,8 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 		    (opt_mode == OPT_PROMPT && !menu_has_prompt(child1)) ||
 		    (opt_mode == OPT_ALL    && !menu_get_prompt(child1))) {
 
-			/* remove node */
-			if (gtktree_iter_find_node(dst, menu1) != NULL) {
+			/* remove yesde */
+			if (gtktree_iter_find_yesde(dst, menu1) != NULL) {
 				memcpy(&tmp, child2, sizeof(GtkTreeIter));
 				valid = gtk_tree_model_iter_next(model2,
 								 child2);
@@ -1295,7 +1295,7 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 		}
 
 		if (menu1 != menu2) {
-			if (gtktree_iter_find_node(dst, menu1) == NULL) {	// add node
+			if (gtktree_iter_find_yesde(dst, menu1) == NULL) {	// add yesde
 				if (!valid && !menu2)
 					sibling = NULL;
 				else
@@ -1303,10 +1303,10 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 				gtk_tree_store_insert_before(tree2,
 							     child2,
 							     dst, sibling);
-				set_node(child2, menu1, fill_row(menu1));
+				set_yesde(child2, menu1, fill_row(menu1));
 				if (menu2 == NULL)
 					valid = TRUE;
-			} else {	// remove node
+			} else {	// remove yesde
 				memcpy(&tmp, child2, sizeof(GtkTreeIter));
 				valid = gtk_tree_model_iter_next(model2,
 								 child2);
@@ -1317,7 +1317,7 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 					goto reparse;	// next child
 			}
 		} else if (sym && (sym->flags & SYMBOL_CHANGED)) {
-			set_node(child2, menu1, fill_row(menu1));
+			set_yesde(child2, menu1, fill_row(menu1));
 		}
 
 		indent++;
@@ -1361,7 +1361,7 @@ static void display_tree(struct menu *menu)
 		if ((opt_mode == OPT_NORMAL && menu_is_visible(child)) ||
 		    (opt_mode == OPT_PROMPT && menu_has_prompt(child)) ||
 		    (opt_mode == OPT_ALL    && menu_get_prompt(child)))
-			place_node(child, fill_row(child));
+			place_yesde(child, fill_row(child));
 #ifdef DEBUG
 		printf("%*c%s: ", indent, ' ', menu_get_prompt(child));
 		printf("%s", child->flags & MENU_ROOT ? "rootmenu | " : "");
@@ -1383,7 +1383,7 @@ static void display_tree(struct menu *menu)
 		    || (view_mode == FULL_VIEW)
 		    || (view_mode == SPLIT_VIEW))*/
 
-		/* Change paned position if the view is not in 'split mode' */
+		/* Change paned position if the view is yest in 'split mode' */
 		if (view_mode == SINGLE_VIEW || view_mode == FULL_VIEW) {
 			gtk_paned_set_position(GTK_PANED(hpaned), 0);
 		}
@@ -1398,7 +1398,7 @@ static void display_tree(struct menu *menu)
 	}
 }
 
-/* Display a part of the tree starting at current node (single/split view) */
+/* Display a part of the tree starting at current yesde (single/split view) */
 static void display_tree_part(void)
 {
 	if (tree2)

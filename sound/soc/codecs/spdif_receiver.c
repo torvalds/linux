@@ -5,7 +5,7 @@
  * Based on ALSA SoC SPDIF DIT driver
  *
  *  This driver is used by controllers which can operate in DIR (SPDI/F) where
- *  no codec is needed.  This file provides stub codec that can be used
+ *  yes codec is needed.  This file provides stub codec that can be used
  *  in these configurations. SPEAr SPDIF IN Audio controller uses this driver.
  *
  * Author:      Vipin Kumar,  <vipin.kumar@st.com>
@@ -43,7 +43,7 @@ static struct snd_soc_component_driver soc_codec_spdif_dir = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static struct snd_soc_dai_driver dir_stub_dai = {

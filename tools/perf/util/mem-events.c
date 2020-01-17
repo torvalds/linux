@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -50,7 +50,7 @@ int perf_mem_events__parse(const char *str)
 	char *buf;
 	int j;
 
-	/* We need buffer that we know we can write to. */
+	/* We need buffer that we kyesw we can write to. */
 	buf = malloc(strlen(str) + 1);
 	if (!buf)
 		return -ENOMEM;
@@ -75,7 +75,7 @@ int perf_mem_events__parse(const char *str)
 	if (found)
 		return 0;
 
-	pr_err("failed: event '%s' not found, use '-e list' to get list of available events\n", str);
+	pr_err("failed: event '%s' yest found, use '-e list' to get list of available events\n", str);
 	return -1;
 }
 
@@ -233,7 +233,7 @@ int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	return l;
 }
 
-static const char * const snoop_access[] = {
+static const char * const syesop_access[] = {
 	"N/A",
 	"None",
 	"Hit",
@@ -250,19 +250,19 @@ int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	out[0] = '\0';
 
 	if (mem_info)
-		m = mem_info->data_src.mem_snoop;
+		m = mem_info->data_src.mem_syesop;
 
-	for (i = 0; m && i < ARRAY_SIZE(snoop_access); i++, m >>= 1) {
+	for (i = 0; m && i < ARRAY_SIZE(syesop_access); i++, m >>= 1) {
 		if (!(m & 0x1))
 			continue;
 		if (l) {
 			strcat(out, " or ");
 			l += 4;
 		}
-		l += scnprintf(out + l, sz - l, snoop_access[i]);
+		l += scnprintf(out + l, sz - l, syesop_access[i]);
 	}
 	if (mem_info &&
-	     (mem_info->data_src.mem_snoopx & PERF_MEM_SNOOPX_FWD)) {
+	     (mem_info->data_src.mem_syesopx & PERF_MEM_SNOOPX_FWD)) {
 		if (l) {
 			strcat(out, " or ");
 			l += 4;
@@ -315,10 +315,10 @@ int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi)
 	u64 daddr  = mi->daddr.addr;
 	u64 op     = data_src->mem_op;
 	u64 lvl    = data_src->mem_lvl;
-	u64 snoop  = data_src->mem_snoop;
+	u64 syesop  = data_src->mem_syesop;
 	u64 lock   = data_src->mem_lock;
 	/*
-	 * Skylake might report unknown remote level via this
+	 * Skylake might report unkyeswn remote level via this
 	 * bit, consider it when evaluating remote HITMs.
 	 */
 	bool mrem  = data_src->mem_remote;
@@ -341,7 +341,7 @@ do {				\
 		stats->load++;
 
 		if (!daddr) {
-			stats->ld_noadrs++;
+			stats->ld_yesadrs++;
 			return -1;
 		}
 
@@ -352,7 +352,7 @@ do {				\
 			if (lvl & P(LVL, L1 )) stats->ld_l1hit++;
 			if (lvl & P(LVL, L2 )) stats->ld_l2hit++;
 			if (lvl & P(LVL, L3 )) {
-				if (snoop & P(SNOOP, HITM))
+				if (syesop & P(SNOOP, HITM))
 					HITM_INC(lcl_hitm);
 				else
 					stats->ld_llchit++;
@@ -360,7 +360,7 @@ do {				\
 
 			if (lvl & P(LVL, LOC_RAM)) {
 				stats->lcl_dram++;
-				if (snoop & P(SNOOP, HIT))
+				if (syesop & P(SNOOP, HIT))
 					stats->ld_shared++;
 				else
 					stats->ld_excl++;
@@ -370,7 +370,7 @@ do {				\
 			    (lvl & P(LVL, REM_RAM2)) ||
 			     mrem) {
 				stats->rmt_dram++;
-				if (snoop & P(SNOOP, HIT))
+				if (syesop & P(SNOOP, HIT))
 					stats->ld_shared++;
 				else
 					stats->ld_excl++;
@@ -380,9 +380,9 @@ do {				\
 		if ((lvl & P(LVL, REM_CCE1)) ||
 		    (lvl & P(LVL, REM_CCE2)) ||
 		     mrem) {
-			if (snoop & P(SNOOP, HIT))
+			if (syesop & P(SNOOP, HIT))
 				stats->rmt_hit++;
-			else if (snoop & P(SNOOP, HITM))
+			else if (syesop & P(SNOOP, HITM))
 				HITM_INC(rmt_hitm);
 		}
 
@@ -394,7 +394,7 @@ do {				\
 		stats->store++;
 
 		if (!daddr) {
-			stats->st_noadrs++;
+			stats->st_yesadrs++;
 			return -1;
 		}
 
@@ -406,12 +406,12 @@ do {				\
 			if (lvl & P(LVL, L1)) stats->st_l1miss++;
 	} else {
 		/* unparsable data_src? */
-		stats->noparse++;
+		stats->yesparse++;
 		return -1;
 	}
 
 	if (!mi->daddr.ms.map || !mi->iaddr.ms.map) {
-		stats->nomap++;
+		stats->yesmap++;
 		return -1;
 	}
 
@@ -427,7 +427,7 @@ void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add)
 	stats->locks		+= add->locks;
 	stats->store		+= add->store;
 	stats->st_uncache	+= add->st_uncache;
-	stats->st_noadrs	+= add->st_noadrs;
+	stats->st_yesadrs	+= add->st_yesadrs;
 	stats->st_l1hit		+= add->st_l1hit;
 	stats->st_l1miss	+= add->st_l1miss;
 	stats->load		+= add->load;
@@ -436,7 +436,7 @@ void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add)
 	stats->ld_uncache	+= add->ld_uncache;
 	stats->ld_io		+= add->ld_io;
 	stats->ld_miss		+= add->ld_miss;
-	stats->ld_noadrs	+= add->ld_noadrs;
+	stats->ld_yesadrs	+= add->ld_yesadrs;
 	stats->ld_fbhit		+= add->ld_fbhit;
 	stats->ld_l1hit		+= add->ld_l1hit;
 	stats->ld_l2hit		+= add->ld_l2hit;
@@ -447,6 +447,6 @@ void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add)
 	stats->rmt_hit		+= add->rmt_hit;
 	stats->lcl_dram		+= add->lcl_dram;
 	stats->rmt_dram		+= add->rmt_dram;
-	stats->nomap		+= add->nomap;
-	stats->noparse		+= add->noparse;
+	stats->yesmap		+= add->yesmap;
+	stats->yesparse		+= add->yesparse;
 }

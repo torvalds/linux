@@ -324,7 +324,7 @@ int __init init_vdso_image(const struct vdso_image *image,
 		vvar_mapping.pages = NULL;
 	}
 
-	pr_warn("Cannot allocate vdso\n");
+	pr_warn("Canyest allocate vdso\n");
 	vdso_enabled = 0;
 	return -ENOMEM;
 }

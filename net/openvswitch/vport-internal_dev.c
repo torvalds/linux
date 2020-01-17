@@ -184,7 +184,7 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 	internal_dev->vport = vport;
 
 	/* Restrict bridge port to current netns. */
-	if (vport->port_no == OVSP_LOCAL)
+	if (vport->port_yes == OVSP_LOCAL)
 		vport->dev->features |= NETIF_F_NETNS_LOCAL;
 
 	rtnl_lock();

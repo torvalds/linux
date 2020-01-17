@@ -21,7 +21,7 @@ Required properties:
 
 Required properties (for DSI-LINK1 only):
 - link2: phandle to the DSI peripheral on the secondary link. Note that the
-  presence of this property marks the containing node as DSI-LINK1.
+  presence of this property marks the containing yesde as DSI-LINK1.
 - power-supply: phandle of the regulator that provides the supply voltage
 
 Optional properties (for DSI-LINK1 only):

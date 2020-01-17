@@ -154,7 +154,7 @@ static struct apic apic_flat __ro_after_init = {
 
 /*
  * Physflat mode is used when there are more than 8 CPUs on a system.
- * We cannot use logical delivery in this case because the mask
+ * We canyest use logical delivery in this case because the mask
  * overflows, so use physical mode.
  */
 static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
@@ -183,7 +183,7 @@ static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 static void physflat_init_apic_ldr(void)
 {
 	/*
-	 * LDR and DFR are not involved in physflat mode, rather:
+	 * LDR and DFR are yest involved in physflat mode, rather:
 	 * "In physical destination mode, the destination processor is
 	 * specified by its local APIC ID [...]." (Intel SDM, 10.6.2.1)
 	 */

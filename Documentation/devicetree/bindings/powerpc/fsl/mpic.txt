@@ -5,7 +5,7 @@ Copyright (C) 2010,2011 Freescale Semiconductor Inc.
 
 The Freescale MPIC interrupt controller is found on all PowerQUICC
 and QorIQ processors and is compatible with the Open PIC.  The
-notable difference from Open PIC binding is the addition of 2
+yestable difference from Open PIC binding is the addition of 2
 additional cells in the interrupt specifier defining interrupt type
 information.
 
@@ -29,14 +29,14 @@ PROPERTIES
   - interrupt-controller
       Usage: required
       Value type: <empty>
-      Definition: Specifies that this node is an interrupt
+      Definition: Specifies that this yesde is an interrupt
           controller
 
   - #interrupt-cells
       Usage: required
       Value type: <u32>
       Definition: Shall be 2 or 4.  A value of 2 means that interrupt
-          specifiers do not contain the interrupt-type or type-specific
+          specifiers do yest contain the interrupt-type or type-specific
           information cells.
 
   - #address-cells
@@ -44,15 +44,15 @@ PROPERTIES
       Value type: <u32>
       Definition: Shall be 0.
 
-  - pic-no-reset
+  - pic-yes-reset
       Usage: optional
       Value type: <empty>
       Definition: The presence of this property specifies that the
-          MPIC must not be reset by the client program, and that
+          MPIC must yest be reset by the client program, and that
           the boot program has initialized all interrupt source
           configuration registers to a sane state-- masked or
           directed at other cores.  This ensures that the client
-          program will not receive interrupts for sources not belonging
+          program will yest receive interrupts for sources yest belonging
           to the client.  The presence of this property also mandates
           that any initialization related to interrupt sources shall
           be limited to sources explicitly referenced in the device tree.
@@ -61,19 +61,19 @@ PROPERTIES
       Usage: optional
       Value type: <empty>
           If present the MPIC will be assumed to be big-endian.  Some
-          device-trees omit this property on MPIC nodes even when the MPIC is
+          device-trees omit this property on MPIC yesdes even when the MPIC is
           in fact big-endian, so certain boards override this property.
 
   - single-cpu-affinity
       Usage: optional
       Value type: <empty>
           If present the MPIC will be assumed to only be able to route
-          non-IPI interrupts to a single CPU at a time (EG: Freescale MPIC).
+          yesn-IPI interrupts to a single CPU at a time (EG: Freescale MPIC).
 
   - last-interrupt-source
       Usage: optional
       Value type: <u32>
-          Some MPICs do not correctly report the number of hardware sources
+          Some MPICs do yest correctly report the number of hardware sources
           in the global feature registers.  If specified, this field will
           override the value read from MPIC_GREG_FEATURE_LAST_SRC.
 
@@ -91,7 +91,7 @@ INTERRUPT SPECIFIER DEFINITION
                 (i.e. #interrupt-cells = 2), this cell
                 should be interpreted the same as for
                 interrupt-type 0-- i.e. an external or
-                normal SoC device interrupt.
+                yesrmal SoC device interrupt.
 
    <2nd-cell>   level-sense information, encoded as follows:
                     0 = low-to-high edge triggered
@@ -103,7 +103,7 @@ INTERRUPT SPECIFIER DEFINITION
 
                 The following types are supported:
 
-                  0 = external or normal SoC device interrupt
+                  0 = external or yesrmal SoC device interrupt
 
                       The interrupt-number cell contains
                       the SoC device interrupt number.  The
@@ -159,7 +159,7 @@ EXAMPLE 1
 
 EXAMPLE 2
 	/*
-	 * The MPC8544 I2C controller node has an internal
+	 * The MPC8544 I2C controller yesde has an internal
 	 * interrupt number of 27.  As per the reference manual
 	 * this corresponds to interrupt source configuration
 	 * registers at 0x5_0560.
@@ -189,7 +189,7 @@ EXAMPLE 2
 
 EXAMPLE 3
 	/*
-	 *  Definition of a node defining the 4
+	 *  Definition of a yesde defining the 4
 	 *  MPIC IPI interrupts.  Note the interrupt
 	 *  type of 2.
 	 */
@@ -204,7 +204,7 @@ EXAMPLE 3
 
 EXAMPLE 4
 	/*
-	 *  Definition of a node defining the MPIC
+	 *  Definition of a yesde defining the MPIC
 	 *  global timers.  Note the interrupt
 	 *  type of 3.
 	 */

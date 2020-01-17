@@ -4,7 +4,7 @@
  *
  * PCI setup routines for ADI Engineering Coyote platform
  *
- * Copyright (C) 2002 Jungo Software Technologies.
+ * Copyright (C) 2002 Jungo Software Techyeslogies.
  * Copyright (C) 2003 MontaVista Softwrae, Inc.
  *
  * Maintainer: Deepak Saxena <dsaxena@mvista.com>

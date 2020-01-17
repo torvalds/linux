@@ -142,7 +142,7 @@ static void imx_irqsteer_irq_handler(struct irq_desc *desc)
 
 static int imx_irqsteer_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct irqsteer_data *data;
 	u32 irqs_num;
 	int i, ret;

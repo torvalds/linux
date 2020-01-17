@@ -18,11 +18,11 @@ hardware descriptions such as device tree or ACPI:
   can generate interrupts in response to a key press. Also supports debounce.
 
 - gpio-keys-polled: drivers/input/keyboard/gpio_keys_polled.c is used when your
-  GPIO line cannot generate interrupts, so it needs to be periodically polled
+  GPIO line canyest generate interrupts, so it needs to be periodically polled
   by a timer.
 
 - gpio_mouse: drivers/input/mouse/gpio_mouse.c is used to provide a mouse with
-  up to three buttons by simply using GPIOs and no mouse port. You can cut the
+  up to three buttons by simply using GPIOs and yes mouse port. You can cut the
   mouse cable and connect the wires to GPIO lines or solder a mouse connector
   to the lines for a more permanent solution of this type.
 
@@ -64,7 +64,7 @@ hardware descriptions such as device tree or ACPI:
 - gpio-fan: drivers/hwmon/gpio-fan.c is used to control a fan for cooling the
   system, connected to a GPIO line (and optionally a GPIO alarm line),
   presenting all the right in-kernel and sysfs interfaces to make your system
-  not overheat.
+  yest overheat.
 
 - gpio-regulator: drivers/regulator/gpio-regulator.c is used to control a
   regulator providing a certain voltage by pulling a GPIO line, integrating
@@ -72,7 +72,7 @@ hardware descriptions such as device tree or ACPI:
 
 - gpio-wdt: drivers/watchdog/gpio_wdt.c is used to provide a watchdog timer
   that will periodically "ping" a hardware connected to a GPIO line by toggling
-  it from 1-to-0-to-1. If that hardware does not receive its "ping"
+  it from 1-to-0-to-1. If that hardware does yest receive its "ping"
   periodically, it will reset the system.
 
 - gpio-nand: drivers/mtd/nand/raw/gpio.c is used to connect a NAND flash chip

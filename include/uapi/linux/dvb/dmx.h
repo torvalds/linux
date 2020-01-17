@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-yeste */
 /*
  * dmx.h
  *
@@ -17,7 +17,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */
@@ -248,13 +248,13 @@ enum dmx_buffer_flags {
  * @length:	size in bytes of the buffer
  * @flags:	bit array of buffer flags as defined by &enum dmx_buffer_flags.
  *		Filled only at &DMX_DQBUF.
- * @count:	monotonic counter for filled buffers. Helps to identify
+ * @count:	moyestonic counter for filled buffers. Helps to identify
  *		data stream loses. Filled only at &DMX_DQBUF.
  *
  * Contains data exchanged by application and driver using one of the streaming
  * I/O methods.
  *
- * Please notice that, for &DMX_QBUF, only @index should be filled.
+ * Please yestice that, for &DMX_QBUF, only @index should be filled.
  * On &DMX_DQBUF calls, all fields will be filled by the Kernel.
  */
 struct dmx_buffer {
@@ -293,7 +293,7 @@ struct dmx_requestbuffers {
  * (identical to the cookie used to mmap() the buffer to userspace). All
  * reserved fields must be set to zero. The field reserved0 is expected to
  * become a structure 'type' allowing an alternative layout of the structure
- * content. Therefore this field should not be used for any other extensions.
+ * content. Therefore this field should yest be used for any other extensions.
  */
 struct dmx_exportbuffer {
 	__u32		index;

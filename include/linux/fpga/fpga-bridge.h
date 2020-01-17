@@ -29,7 +29,7 @@ struct fpga_bridge_ops {
  * @mutex: enforces exclusive reference to bridge
  * @br_ops: pointer to struct of FPGA bridge ops
  * @info: fpga image specific information
- * @node: FPGA bridge list node
+ * @yesde: FPGA bridge list yesde
  * @priv: low level driver private date
  */
 struct fpga_bridge {
@@ -38,13 +38,13 @@ struct fpga_bridge {
 	struct mutex mutex; /* for exclusive reference to bridge */
 	const struct fpga_bridge_ops *br_ops;
 	struct fpga_image_info *info;
-	struct list_head node;
+	struct list_head yesde;
 	void *priv;
 };
 
 #define to_fpga_bridge(d) container_of(d, struct fpga_bridge, dev)
 
-struct fpga_bridge *of_fpga_bridge_get(struct device_node *node,
+struct fpga_bridge *of_fpga_bridge_get(struct device_yesde *yesde,
 				       struct fpga_image_info *info);
 struct fpga_bridge *fpga_bridge_get(struct device *dev,
 				    struct fpga_image_info *info);
@@ -58,7 +58,7 @@ void fpga_bridges_put(struct list_head *bridge_list);
 int fpga_bridge_get_to_list(struct device *dev,
 			    struct fpga_image_info *info,
 			    struct list_head *bridge_list);
-int of_fpga_bridge_get_to_list(struct device_node *np,
+int of_fpga_bridge_get_to_list(struct device_yesde *np,
 			       struct fpga_image_info *info,
 			       struct list_head *bridge_list);
 

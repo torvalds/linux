@@ -1149,7 +1149,7 @@ static int da732x_set_dai_pll(struct snd_soc_component *component, int pll_id,
 			return 0;
 		default:
 			dev_err(component->dev,
-				"Cannot use PLL Bypass, invalid SYSCLK rate\n");
+				"Canyest use PLL Bypass, invalid SYSCLK rate\n");
 			return -EINVAL;
 		}
 	}
@@ -1508,7 +1508,7 @@ static const struct snd_soc_component_driver soc_component_dev_da732x = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int da732x_i2c_probe(struct i2c_client *i2c,

@@ -12,8 +12,8 @@
  *
  * 1999-08-02 (jmt) - Initial rewrite for Unified ADB.
  * 2000-03-29 Tony Mantler <tonym@mac.linux-m68k.org>
- *            - Big overhaul, should actually work now.
- * 2006-12-31 Finn Thain - Another overhaul.
+ *            - Big overhaul, should actually work yesw.
+ * 2006-12-31 Finn Thain - Ayesther overhaul.
  *
  * Suggested reading:
  *   Inside Macintosh, ch. 5 ADB Manager
@@ -26,7 +26,7 @@
 
 #include <stdarg.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/adb.h>
@@ -55,7 +55,7 @@ static volatile unsigned char *via;
 #define PCR		(12*RS)		/* Peripheral control register */
 #define IFR		(13*RS)		/* Interrupt flag register */
 #define IER		(14*RS)		/* Interrupt enable register */
-#define ANH		(15*RS)		/* A-side data, no handshake */
+#define ANH		(15*RS)		/* A-side data, yes handshake */
 
 /* Bits in B data register: all active low */
 #define CTLR_IRQ	0x08		/* Controller rcv status (input) */
@@ -75,7 +75,7 @@ static volatile unsigned char *via;
 #define ST_CMD		0x00		/* ADB state: command byte */
 #define ST_EVEN		0x10		/* ADB state: even data byte */
 #define ST_ODD		0x20		/* ADB state: odd data byte */
-#define ST_IDLE		0x30		/* ADB state: idle, nothing to send */
+#define ST_IDLE		0x30		/* ADB state: idle, yesthing to send */
 
 static int macii_init_via(void);
 static void macii_start(void);
@@ -313,7 +313,7 @@ static int macii_reset_bus(void)
 {
 	static struct adb_request req;
 
-	/* Command = 0, Address = ignored */
+	/* Command = 0, Address = igyesred */
 	adb_request(&req, NULL, ADBREQ_NOSEND, 1, ADB_BUSRESET);
 	macii_send_request(&req, 1);
 
@@ -349,7 +349,7 @@ static void macii_start(void)
 }
 
 /*
- * The notorious ADB interrupt handler - does all of the protocol handling.
+ * The yestorious ADB interrupt handler - does all of the protocol handling.
  * Relies on the ADB controller sending and receiving data, thereby
  * generating shift register interrupts (SR_INT) for us. This means there has
  * to be activity on the ADB bus. The chip will poll to achieve this.
@@ -360,7 +360,7 @@ static void macii_start(void)
  * though. MacII uses the states Command -> Even -> Odd -> Even ->...-> Idle
  * for sending and Idle -> Even -> Odd -> Even ->...-> Idle for receiving.
  * Start and end of a receive packet are signalled by asserting /IRQ on the
- * interrupt line (/IRQ means the CTLR_IRQ bit in port B; not to be confused
+ * interrupt line (/IRQ means the CTLR_IRQ bit in port B; yest to be confused
  * with the VIA shift register interrupt. /IRQ never actually interrupts the
  * processor, it's just an ordinary input.)
  */
@@ -510,7 +510,7 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 
 		macii_state = idle;
 
-		/* SRQ seen before, initiate poll now */
+		/* SRQ seen before, initiate poll yesw */
 		if (srq_asserted)
 			macii_queue_poll();
 

@@ -85,18 +85,18 @@ static inline void invalidate_dtlb_entry (unsigned long probe)
 	__asm__ __volatile__("idtlb  %0; dsync\n\t" : : "a" (probe));
 }
 
-/* Use the .._no_isync functions with caution.  Generally, these are
+/* Use the .._yes_isync functions with caution.  Generally, these are
  * handy for bulk invalidates followed by a single 'isync'.  The
  * caller must follow up with an 'isync', which can be relatively
  * expensive on some Xtensa implementations.
  */
-static inline void invalidate_itlb_entry_no_isync (unsigned entry)
+static inline void invalidate_itlb_entry_yes_isync (unsigned entry)
 {
 	/* Caller must follow up with 'isync'. */
 	__asm__ __volatile__ ("iitlb  %0\n" : : "a" (entry) );
 }
 
-static inline void invalidate_dtlb_entry_no_isync (unsigned entry)
+static inline void invalidate_dtlb_entry_yes_isync (unsigned entry)
 {
 	/* Caller must follow up with 'isync'. */
 	__asm__ __volatile__ ("idtlb  %0\n" : : "a" (entry) );

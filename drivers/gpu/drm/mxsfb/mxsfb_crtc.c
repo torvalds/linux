@@ -56,7 +56,7 @@ static int mxsfb_set_pixel_fmt(struct mxsfb_drm_private *mxsfb)
 	 * WARNING: The bus width, CTRL_SET_BUS_WIDTH(), is configured to
 	 * match the selected mode here. This differs from the original
 	 * MXSFB driver, which had the option to configure the bus width
-	 * to arbitrary value. This limitation should not pose an issue.
+	 * to arbitrary value. This limitation should yest pose an issue.
 	 */
 
 	/* CTRL1 contains IRQ config and status bits, preserve those. */
@@ -72,7 +72,7 @@ static int mxsfb_set_pixel_fmt(struct mxsfb_drm_private *mxsfb)
 	case DRM_FORMAT_XRGB8888:
 		dev_dbg(drm->dev, "Setting up XRGB8888 mode\n");
 		ctrl |= CTRL_SET_WORD_LENGTH(3);
-		/* Do not use packed pixels = one pixel per word instead. */
+		/* Do yest use packed pixels = one pixel per word instead. */
 		ctrl1 |= CTRL1_SET_BYTE_PACKAGING(0x7);
 		break;
 	default:
@@ -113,7 +113,7 @@ static void mxsfb_set_bus_fmt(struct mxsfb_drm_private *mxsfb)
 		reg |= CTRL_SET_BUS_WIDTH(STMLCDIF_24BIT);
 		break;
 	default:
-		dev_err(drm->dev, "Unknown media bus format %d\n", bus_format);
+		dev_err(drm->dev, "Unkyeswn media bus format %d\n", bus_format);
 		break;
 	}
 	writel(reg, mxsfb->base + LCDC_CTRL);
@@ -205,7 +205,7 @@ static dma_addr_t mxsfb_get_fb_paddr(struct mxsfb_drm_private *mxsfb)
 	return gem->paddr;
 }
 
-static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
+static void mxsfb_crtc_mode_set_yesfb(struct mxsfb_drm_private *mxsfb)
 {
 	struct drm_device *drm = mxsfb->pipe.crtc.dev;
 	struct drm_display_mode *m = &mxsfb->pipe.crtc.state->adjusted_mode;
@@ -295,7 +295,7 @@ void mxsfb_crtc_enable(struct mxsfb_drm_private *mxsfb)
 	dma_addr_t paddr;
 
 	mxsfb_enable_axi_clk(mxsfb);
-	mxsfb_crtc_mode_set_nofb(mxsfb);
+	mxsfb_crtc_mode_set_yesfb(mxsfb);
 
 	/* Write cur_buf as well to avoid an initial corrupt frame */
 	paddr = mxsfb_get_fb_paddr(mxsfb);

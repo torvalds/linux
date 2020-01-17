@@ -348,11 +348,11 @@ static void ccp_prepare_data(struct ccp_data *src, struct ccp_data *dst,
 	 */
 	op_len = max(op_len, block_size);
 
-	/* Unless we have to buffer data, there's no reason to wait */
+	/* Unless we have to buffer data, there's yes reason to wait */
 	op->soc = 0;
 
 	if (sg_src_len < block_size) {
-		/* Not enough data in the sg element, so it
+		/* Not eyesugh data in the sg element, so it
 		 * needs to be buffered into a blocksize chunk
 		 */
 		int cp_len = ccp_fill_queue_buf(src);
@@ -362,7 +362,7 @@ static void ccp_prepare_data(struct ccp_data *src, struct ccp_data *dst,
 		op->src.u.dma.offset = 0;
 		op->src.u.dma.length = (blocksize_op) ? block_size : cp_len;
 	} else {
-		/* Enough data in the sg element, but we need to
+		/* Eyesugh data in the sg element, but we need to
 		 * adjust for any previously copied data
 		 */
 		op->src.u.dma.address = sg_dma_address(src->sg_wa.sg);
@@ -374,7 +374,7 @@ static void ccp_prepare_data(struct ccp_data *src, struct ccp_data *dst,
 
 	if (dst) {
 		if (sg_dst_len < block_size) {
-			/* Not enough room in the sg element or we're on the
+			/* Not eyesugh room in the sg element or we're on the
 			 * last piece of data (when using padding), so the
 			 * output needs to be buffered into a blocksize chunk
 			 */
@@ -383,7 +383,7 @@ static void ccp_prepare_data(struct ccp_data *src, struct ccp_data *dst,
 			op->dst.u.dma.offset = 0;
 			op->dst.u.dma.length = op->src.u.dma.length;
 		} else {
-			/* Enough room in the sg element, but we need to
+			/* Eyesugh room in the sg element, but we need to
 			 * adjust for any previously used area
 			 */
 			op->dst.u.dma.address = sg_dma_address(dst->sg_wa.sg);
@@ -453,7 +453,7 @@ static int ccp_copy_from_sb(struct ccp_cmd_queue *cmd_q,
 	return ccp_copy_to_from_sb(cmd_q, wa, jobid, sb, byte_swap, true);
 }
 
-static noinline_for_stack int
+static yesinline_for_stack int
 ccp_run_aes_cmac_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 {
 	struct ccp_aes_engine *aes = &cmd->u.aes;
@@ -553,7 +553,7 @@ ccp_run_aes_cmac_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		if (aes->cmac_final && !src.sg_wa.bytes_left) {
 			op.eom = 1;
 
-			/* Push the K1/K2 key to the CCP now */
+			/* Push the K1/K2 key to the CCP yesw */
 			ret = ccp_copy_from_sb(cmd_q, &ctx, op.jobid,
 					       op.sb_ctx,
 					       CCP_PASSTHRU_BYTESWAP_256BIT);
@@ -609,7 +609,7 @@ e_key:
 	return ret;
 }
 
-static noinline_for_stack int
+static yesinline_for_stack int
 ccp_run_aes_gcm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 {
 	struct ccp_aes_engine *aes = &cmd->u.aes;
@@ -705,7 +705,7 @@ ccp_run_aes_gcm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 
 	/* Copy the context (IV) to the LSB.
 	 * There is an assumption here that the IV is 96 bits in length, plus
-	 * a nonce of 32 bits. If no IV is present, use a zeroed buffer.
+	 * a yesnce of 32 bits. If yes IV is present, use a zeroed buffer.
 	 */
 	ret = ccp_init_dm_workarea(&ctx, cmd_q,
 				   CCP_AES_CTX_SB_COUNT * CCP_SB_BYTES,
@@ -892,7 +892,7 @@ e_key:
 	return ret;
 }
 
-static noinline_for_stack int
+static yesinline_for_stack int
 ccp_run_aes_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 {
 	struct ccp_aes_engine *aes = &cmd->u.aes;
@@ -1069,7 +1069,7 @@ e_key:
 	return ret;
 }
 
-static noinline_for_stack int
+static yesinline_for_stack int
 ccp_run_xts_aes_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 {
 	struct ccp_xts_aes_engine *xts = &cmd->u.xts;
@@ -1183,7 +1183,7 @@ ccp_run_xts_aes_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	}
 
 	/* The AES context fits in a single (32-byte) SB entry and
-	 * for XTS is already in little endian format so no byte swapping
+	 * for XTS is already in little endian format so yes byte swapping
 	 * is needed.
 	 */
 	ret = ccp_init_dm_workarea(&ctx, cmd_q,
@@ -1269,7 +1269,7 @@ e_key:
 	return ret;
 }
 
-static noinline_for_stack int
+static yesinline_for_stack int
 ccp_run_des3_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 {
 	struct ccp_des3_engine *des3 = &cmd->u.des3;
@@ -1466,7 +1466,7 @@ e_key:
 	return ret;
 }
 
-static noinline_for_stack int
+static yesinline_for_stack int
 ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 {
 	struct ccp_sha_engine *sha = &cmd->u.sha;
@@ -1536,11 +1536,11 @@ ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 			if (sha->msg_bits)
 				return -EINVAL;
 
-			/* The CCP cannot perform zero-length sha operations
+			/* The CCP canyest perform zero-length sha operations
 			 * so the caller is required to buffer data for the
 			 * final operation. However, a sha operation for a
 			 * message with a total length of zero is valid so
-			 * known values are required to supply the result.
+			 * kyeswn values are required to supply the result.
 			 */
 			switch (sha->type) {
 			case CCP_SHA_TYPE_1:
@@ -1616,7 +1616,7 @@ ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		goto e_data;
 	}
 
-	/* For zero-length plaintext the src pointer is ignored;
+	/* For zero-length plaintext the src pointer is igyesred;
 	 * otherwise both parts must be valid
 	 */
 	if (sha->src_len && !sha->src)
@@ -1812,7 +1812,7 @@ e_ctx:
 	return ret;
 }
 
-static noinline_for_stack int
+static yesinline_for_stack int
 ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 {
 	struct ccp_rsa_engine *rsa = &cmd->u.rsa;
@@ -1854,9 +1854,9 @@ ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		if (!op.sb_key)
 			return -EIO;
 	} else {
-		/* A version 5 device allows a modulus size that will not fit
+		/* A version 5 device allows a modulus size that will yest fit
 		 * in the LSB, so the command will transfer it from memory.
-		 * Set the sb key to the default, even though it's not used.
+		 * Set the sb key to the default, even though it's yest used.
 		 */
 		op.sb_key = cmd_q->sb_key;
 	}
@@ -1875,7 +1875,7 @@ ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	if (cmd_q->ccp->vdata->version < CCP_VERSION(5, 0)) {
 		/* Copy the exponent to the local storage block, using
 		 * as many 32-byte blocks as were allocated above. It's
-		 * already little endian, so no further change is required.
+		 * already little endian, so yes further change is required.
 		 */
 		ret = ccp_copy_to_sb(cmd_q, &exp, op.jobid, op.sb_key,
 				     CCP_PASSTHRU_BYTESWAP_NOOP);
@@ -1944,7 +1944,7 @@ e_sb:
 	return ret;
 }
 
-static noinline_for_stack int
+static yesinline_for_stack int
 ccp_run_passthru_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 {
 	struct ccp_passthru_engine *pt = &cmd->u.passthru;
@@ -2076,11 +2076,11 @@ e_mask:
 	return ret;
 }
 
-static noinline_for_stack int
-ccp_run_passthru_nomap_cmd(struct ccp_cmd_queue *cmd_q,
+static yesinline_for_stack int
+ccp_run_passthru_yesmap_cmd(struct ccp_cmd_queue *cmd_q,
 				      struct ccp_cmd *cmd)
 {
-	struct ccp_passthru_nomap_engine *pt = &cmd->u.passthru_nomap;
+	struct ccp_passthru_yesmap_engine *pt = &cmd->u.passthru_yesmap;
 	struct ccp_dm_workarea mask;
 	struct ccp_op op;
 	int ret;
@@ -2418,7 +2418,7 @@ e_src:
 	return ret;
 }
 
-static noinline_for_stack int
+static yesinline_for_stack int
 ccp_run_ecc_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 {
 	struct ccp_ecc_engine *ecc = &cmd->u.ecc;
@@ -2482,7 +2482,7 @@ int ccp_run_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		break;
 	case CCP_ENGINE_PASSTHRU:
 		if (cmd->flags & CCP_CMD_PASSTHRU_NO_DMA_MAP)
-			ret = ccp_run_passthru_nomap_cmd(cmd_q, cmd);
+			ret = ccp_run_passthru_yesmap_cmd(cmd_q, cmd);
 		else
 			ret = ccp_run_passthru_cmd(cmd_q, cmd);
 		break;

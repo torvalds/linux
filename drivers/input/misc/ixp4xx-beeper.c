@@ -2,7 +2,7 @@
 /*
  * Generic IXP4xx beeper driver
  *
- * Copyright (C) 2005 Tower Technologies
+ * Copyright (C) 2005 Tower Techyeslogies
  *
  * based on nslu2-io.c
  *  Copyright (C) 2004 Karen Spearel

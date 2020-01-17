@@ -119,7 +119,7 @@ static int au1xpsc_i2s_hw_params(struct snd_pcm_substream *substream,
 	/* check if the PSC is already streaming data */
 	stat = __raw_readl(I2S_STAT(pscdata));
 	if (stat & (PSC_I2SSTAT_TB | PSC_I2SSTAT_RB)) {
-		/* reject parameters not currently set up in hardware */
+		/* reject parameters yest currently set up in hardware */
 		cfgbits = __raw_readl(I2S_CFG(pscdata));
 		if ((PSC_I2SCFG_GET_LEN(cfgbits) != params->msbits) ||
 		    (params_rate(params) != pscdata->rate))
@@ -136,7 +136,7 @@ static int au1xpsc_i2s_hw_params(struct snd_pcm_substream *substream,
 
 /* Configure PSC late:  on my devel systems the codec  is I2S master and
  * supplies the i2sbitclock __AND__ i2sMclk (!) to the PSC unit.  ASoC
- * uses aggressive PM and  switches the codec off  when it is not in use
+ * uses aggressive PM and  switches the codec off  when it is yest in use
  * which also means the PSC unit doesn't get any clocks and is therefore
  * dead. That's why this chunk here gets called from the trigger callback
  * because I can be reasonably certain the codec is driving the clocks.
@@ -327,7 +327,7 @@ static int au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 	/* preconfigure: set max rx/tx fifo depths */
 	wd->cfg |= PSC_I2SCFG_RT_FIFO8 | PSC_I2SCFG_TT_FIFO8;
 
-	/* don't wait for I2S core to become ready now; clocks may not
+	/* don't wait for I2S core to become ready yesw; clocks may yest
 	 * be running yet; depending on clock input for PSC a wait might
 	 * time out.
 	 */

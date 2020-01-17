@@ -42,7 +42,7 @@ enum {
 /**
  * ST CPUFreq Driver Data
  *
- * @cpu_node		CPU's OF node
+ * @cpu_yesde		CPU's OF yesde
  * @syscfg_eng		Engineering Syscon register map
  * @regmap		Syscon register map
  */
@@ -53,7 +53,7 @@ static struct sti_cpufreq_ddata {
 } ddata;
 
 static int sti_cpufreq_fetch_major(void) {
-	struct device_node *np = ddata.cpu->of_node;
+	struct device_yesde *np = ddata.cpu->of_yesde;
 	struct device *dev = ddata.cpu;
 	unsigned int major_offset;
 	unsigned int socid;
@@ -77,27 +77,27 @@ static int sti_cpufreq_fetch_major(void) {
 	return ((socid >> VERSION_SHIFT) & 0xf) + 1;
 }
 
-static int sti_cpufreq_fetch_minor(void)
+static int sti_cpufreq_fetch_miyesr(void)
 {
 	struct device *dev = ddata.cpu;
-	struct device_node *np = dev->of_node;
-	unsigned int minor_offset;
+	struct device_yesde *np = dev->of_yesde;
+	unsigned int miyesr_offset;
 	unsigned int minid;
 	int ret;
 
 	ret = of_property_read_u32_index(np, "st,syscfg-eng",
-					 MINOR_ID_INDEX, &minor_offset);
+					 MINOR_ID_INDEX, &miyesr_offset);
 	if (ret) {
 		dev_err(dev,
-			"No minor number offset provided %pOF [%d]\n",
+			"No miyesr number offset provided %pOF [%d]\n",
 			np, ret);
 		return ret;
 	}
 
-	ret = regmap_read(ddata.syscfg_eng, minor_offset, &minid);
+	ret = regmap_read(ddata.syscfg_eng, miyesr_offset, &minid);
 	if (ret) {
 		dev_err(dev,
-			"Failed to read the minor number from syscon [%d]\n",
+			"Failed to read the miyesr number from syscon [%d]\n",
 			ret);
 		return ret;
 	}
@@ -150,11 +150,11 @@ static const struct reg_field *sti_cpufreq_match(void)
 static int sti_cpufreq_set_opp_info(void)
 {
 	struct device *dev = ddata.cpu;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const struct reg_field *reg_fields;
 	unsigned int hw_info_offset;
 	unsigned int version[VERSION_ELEMENTS];
-	int pcode, substrate, major, minor;
+	int pcode, substrate, major, miyesr;
 	int ret;
 	char name[MAX_PCODE_NAME_LEN];
 	struct opp_table *opp_table;
@@ -200,11 +200,11 @@ use_defaults:
 		major = DEFAULT_VERSION;
 	}
 
-	minor = sti_cpufreq_fetch_minor();
-	if (minor < 0) {
-		dev_err(dev, "Failed to obtain minor version\n");
-		/* Use default minor number */
-		minor = DEFAULT_VERSION;
+	miyesr = sti_cpufreq_fetch_miyesr();
+	if (miyesr < 0) {
+		dev_err(dev, "Failed to obtain miyesr version\n");
+		/* Use default miyesr number */
+		miyesr = DEFAULT_VERSION;
 	}
 
 	snprintf(name, MAX_PCODE_NAME_LEN, "pcode%d", pcode);
@@ -216,7 +216,7 @@ use_defaults:
 	}
 
 	version[0] = BIT(major);
-	version[1] = BIT(minor);
+	version[1] = BIT(miyesr);
 	version[2] = BIT(substrate);
 
 	opp_table = dev_pm_opp_set_supported_hw(dev, version, VERSION_ELEMENTS);
@@ -225,8 +225,8 @@ use_defaults:
 		return PTR_ERR(opp_table);
 	}
 
-	dev_dbg(dev, "pcode: %d major: %d minor: %d substrate: %d\n",
-		pcode, major, minor, substrate);
+	dev_dbg(dev, "pcode: %d major: %d miyesr: %d substrate: %d\n",
+		pcode, major, miyesr, substrate);
 	dev_dbg(dev, "version[0]: %x version[1]: %x version[2]: %x\n",
 		version[0], version[1], version[2]);
 
@@ -236,17 +236,17 @@ use_defaults:
 static int sti_cpufreq_fetch_syscon_registers(void)
 {
 	struct device *dev = ddata.cpu;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	ddata.syscfg = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
 	if (IS_ERR(ddata.syscfg)) {
-		dev_err(dev,  "\"st,syscfg\" not supplied\n");
+		dev_err(dev,  "\"st,syscfg\" yest supplied\n");
 		return PTR_ERR(ddata.syscfg);
 	}
 
 	ddata.syscfg_eng = syscon_regmap_lookup_by_phandle(np, "st,syscfg-eng");
 	if (IS_ERR(ddata.syscfg_eng)) {
-		dev_err(dev, "\"st,syscfg-eng\" not supplied\n");
+		dev_err(dev, "\"st,syscfg-eng\" yest supplied\n");
 		return PTR_ERR(ddata.syscfg_eng);
 	}
 
@@ -267,8 +267,8 @@ static int sti_cpufreq_init(void)
 		goto skip_voltage_scaling;
 	}
 
-	if (!of_get_property(ddata.cpu->of_node, "operating-points-v2", NULL)) {
-		dev_err(ddata.cpu, "OPP-v2 not supported\n");
+	if (!of_get_property(ddata.cpu->of_yesde, "operating-points-v2", NULL)) {
+		dev_err(ddata.cpu, "OPP-v2 yest supported\n");
 		goto skip_voltage_scaling;
 	}
 

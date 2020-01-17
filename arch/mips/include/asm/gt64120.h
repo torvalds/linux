@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2000, 2004, 2005  MIPS Technologies, Inc.
+ * Copyright (C) 2000, 2004, 2005  MIPS Techyeslogies, Inc.
  *	All rights reserved.
  *	Authors: Carsten Langgaard <carstenl@mips.com>
  *		 Maciej W. Rozycki <macro@mips.com>
@@ -551,7 +551,7 @@
 
 /*
  * Because of an error/peculiarity in the Galileo chip, we need to swap the
- * bytes when running bigendian.  We also provide non-swapping versions.
+ * bytes when running bigendian.  We also provide yesn-swapping versions.
  */
 #define __GT_READ(ofs)							\
 	(*(volatile u32 *)(GT64120_BASE+(ofs)))

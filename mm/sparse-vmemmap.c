@@ -37,16 +37,16 @@
  * Uses the main allocators if they are available, else bootmem.
  */
 
-static void * __ref __earlyonly_bootmem_alloc(int node,
+static void * __ref __earlyonly_bootmem_alloc(int yesde,
 				unsigned long size,
 				unsigned long align,
 				unsigned long goal)
 {
 	return memblock_alloc_try_nid_raw(size, align, goal,
-					       MEMBLOCK_ALLOC_ACCESSIBLE, node);
+					       MEMBLOCK_ALLOC_ACCESSIBLE, yesde);
 }
 
-void * __meminit vmemmap_alloc_block(unsigned long size, int node)
+void * __meminit vmemmap_alloc_block(unsigned long size, int yesde)
 {
 	/* If the main allocator is up use that, fallback to bootmem. */
 	if (slab_is_available()) {
@@ -55,7 +55,7 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
 		static bool warned;
 		struct page *page;
 
-		page = alloc_pages_node(node, gfp_mask, order);
+		page = alloc_pages_yesde(yesde, gfp_mask, order);
 		if (page)
 			return page_address(page);
 
@@ -66,17 +66,17 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
 		}
 		return NULL;
 	} else
-		return __earlyonly_bootmem_alloc(node, size, size,
+		return __earlyonly_bootmem_alloc(yesde, size, size,
 				__pa(MAX_DMA_ADDRESS));
 }
 
 /* need to make sure size is all the same during early stage */
-void * __meminit vmemmap_alloc_block_buf(unsigned long size, int node)
+void * __meminit vmemmap_alloc_block_buf(unsigned long size, int yesde)
 {
 	void *ptr = sparse_buffer_alloc(size);
 
 	if (!ptr)
-		ptr = vmemmap_alloc_block(size, node);
+		ptr = vmemmap_alloc_block(size, yesde);
 	return ptr;
 }
 
@@ -129,23 +129,23 @@ void * __meminit altmap_alloc_block_buf(unsigned long size,
 	return __va(__pfn_to_phys(pfn));
 }
 
-void __meminit vmemmap_verify(pte_t *pte, int node,
+void __meminit vmemmap_verify(pte_t *pte, int yesde,
 				unsigned long start, unsigned long end)
 {
 	unsigned long pfn = pte_pfn(*pte);
-	int actual_node = early_pfn_to_nid(pfn);
+	int actual_yesde = early_pfn_to_nid(pfn);
 
-	if (node_distance(actual_node, node) > LOCAL_DISTANCE)
-		pr_warn("[%lx-%lx] potential offnode page_structs\n",
+	if (yesde_distance(actual_yesde, yesde) > LOCAL_DISTANCE)
+		pr_warn("[%lx-%lx] potential offyesde page_structs\n",
 			start, end - 1);
 }
 
-pte_t * __meminit vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node)
+pte_t * __meminit vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int yesde)
 {
 	pte_t *pte = pte_offset_kernel(pmd, addr);
-	if (pte_none(*pte)) {
+	if (pte_yesne(*pte)) {
 		pte_t entry;
-		void *p = vmemmap_alloc_block_buf(PAGE_SIZE, node);
+		void *p = vmemmap_alloc_block_buf(PAGE_SIZE, yesde);
 		if (!p)
 			return NULL;
 		entry = pfn_pte(__pa(p) >> PAGE_SHIFT, PAGE_KERNEL);
@@ -154,9 +154,9 @@ pte_t * __meminit vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node)
 	return pte;
 }
 
-static void * __meminit vmemmap_alloc_block_zero(unsigned long size, int node)
+static void * __meminit vmemmap_alloc_block_zero(unsigned long size, int yesde)
 {
-	void *p = vmemmap_alloc_block(size, node);
+	void *p = vmemmap_alloc_block(size, yesde);
 
 	if (!p)
 		return NULL;
@@ -165,11 +165,11 @@ static void * __meminit vmemmap_alloc_block_zero(unsigned long size, int node)
 	return p;
 }
 
-pmd_t * __meminit vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node)
+pmd_t * __meminit vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int yesde)
 {
 	pmd_t *pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd)) {
-		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
+	if (pmd_yesne(*pmd)) {
+		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, yesde);
 		if (!p)
 			return NULL;
 		pmd_populate_kernel(&init_mm, pmd, p);
@@ -177,11 +177,11 @@ pmd_t * __meminit vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node)
 	return pmd;
 }
 
-pud_t * __meminit vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node)
+pud_t * __meminit vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int yesde)
 {
 	pud_t *pud = pud_offset(p4d, addr);
-	if (pud_none(*pud)) {
-		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
+	if (pud_yesne(*pud)) {
+		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, yesde);
 		if (!p)
 			return NULL;
 		pud_populate(&init_mm, pud, p);
@@ -189,11 +189,11 @@ pud_t * __meminit vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node)
 	return pud;
 }
 
-p4d_t * __meminit vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node)
+p4d_t * __meminit vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int yesde)
 {
 	p4d_t *p4d = p4d_offset(pgd, addr);
-	if (p4d_none(*p4d)) {
-		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
+	if (p4d_yesne(*p4d)) {
+		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, yesde);
 		if (!p)
 			return NULL;
 		p4d_populate(&init_mm, p4d, p);
@@ -201,11 +201,11 @@ p4d_t * __meminit vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node)
 	return p4d;
 }
 
-pgd_t * __meminit vmemmap_pgd_populate(unsigned long addr, int node)
+pgd_t * __meminit vmemmap_pgd_populate(unsigned long addr, int yesde)
 {
 	pgd_t *pgd = pgd_offset_k(addr);
-	if (pgd_none(*pgd)) {
-		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
+	if (pgd_yesne(*pgd)) {
+		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, yesde);
 		if (!p)
 			return NULL;
 		pgd_populate(&init_mm, pgd, p);
@@ -214,7 +214,7 @@ pgd_t * __meminit vmemmap_pgd_populate(unsigned long addr, int node)
 }
 
 int __meminit vmemmap_populate_basepages(unsigned long start,
-					 unsigned long end, int node)
+					 unsigned long end, int yesde)
 {
 	unsigned long addr = start;
 	pgd_t *pgd;
@@ -224,22 +224,22 @@ int __meminit vmemmap_populate_basepages(unsigned long start,
 	pte_t *pte;
 
 	for (; addr < end; addr += PAGE_SIZE) {
-		pgd = vmemmap_pgd_populate(addr, node);
+		pgd = vmemmap_pgd_populate(addr, yesde);
 		if (!pgd)
 			return -ENOMEM;
-		p4d = vmemmap_p4d_populate(pgd, addr, node);
+		p4d = vmemmap_p4d_populate(pgd, addr, yesde);
 		if (!p4d)
 			return -ENOMEM;
-		pud = vmemmap_pud_populate(p4d, addr, node);
+		pud = vmemmap_pud_populate(p4d, addr, yesde);
 		if (!pud)
 			return -ENOMEM;
-		pmd = vmemmap_pmd_populate(pud, addr, node);
+		pmd = vmemmap_pmd_populate(pud, addr, yesde);
 		if (!pmd)
 			return -ENOMEM;
-		pte = vmemmap_pte_populate(pmd, addr, node);
+		pte = vmemmap_pte_populate(pmd, addr, yesde);
 		if (!pte)
 			return -ENOMEM;
-		vmemmap_verify(pte, node, addr, addr + PAGE_SIZE);
+		vmemmap_verify(pte, yesde, addr, addr + PAGE_SIZE);
 	}
 
 	return 0;

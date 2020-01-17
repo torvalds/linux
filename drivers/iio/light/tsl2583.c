@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
@@ -139,7 +139,7 @@ static void tsl2583_defaults(struct tsl2583_chip *chip)
 	/* Default gain trim to account for aperture effects */
 	chip->als_settings.als_gain_trim = 1000;
 
-	/* Known external ALS reading used for calibration */
+	/* Kyeswn external ALS reading used for calibration */
 	chip->als_settings.als_cal_target = 130;
 
 	/* Default lux table. */
@@ -180,7 +180,7 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 
 	/* is data new & valid */
 	if (!(ret & TSL2583_STA_ADC_INTR)) {
-		dev_err(&chip->client->dev, "%s: data not valid; returning last value\n",
+		dev_err(&chip->client->dev, "%s: data yest valid; returning last value\n",
 			__func__);
 		ret = chip->als_cur_info.lux; /* return LAST VALUE */
 		goto done;
@@ -201,7 +201,7 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 	/*
 	 * Clear the pending interrupt status bit on the chip to allow the next
 	 * integration cycle to start. This has to be done even though this
-	 * driver currently does not support interrupts.
+	 * driver currently does yest support interrupts.
 	 */
 	ret = i2c_smbus_write_byte(chip->client,
 				   (TSL2583_CMD_REG | TSL2583_CMD_SPL_FN |
@@ -209,7 +209,7 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "%s: failed to clear the interrupt bit\n",
 			__func__);
-		goto done; /* have no data, so return failure */
+		goto done; /* have yes data, so return failure */
 	}
 
 	/* extract ALS/lux data */
@@ -253,7 +253,7 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 			  (gainadj[chip->als_settings.als_gain].ch1 >> 1))
 			 / gainadj[chip->als_settings.als_gain].ch1;
 
-		/* note: lux is 31 bit max at this point */
+		/* yeste: lux is 31 bit max at this point */
 		if (ch1lux > ch0lux) {
 			dev_dbg(&chip->client->dev, "%s: No Data - Returning 0\n",
 				__func__);
@@ -324,12 +324,12 @@ static int tsl2583_als_calibrate(struct iio_dev *indio_dev)
 	if ((ret & (TSL2583_CNTL_ADC_ENBL | TSL2583_CNTL_PWR_ON))
 			!= (TSL2583_CNTL_ADC_ENBL | TSL2583_CNTL_PWR_ON)) {
 		dev_err(&chip->client->dev,
-			"%s: Device is not powered on and/or ADC is not enabled\n",
+			"%s: Device is yest powered on and/or ADC is yest enabled\n",
 			__func__);
 		return -EINVAL;
 	} else if ((ret & TSL2583_STA_ADC_VALID) != TSL2583_STA_ADC_VALID) {
 		dev_err(&chip->client->dev,
-			"%s: The two ADC channels have not completed an integration cycle\n",
+			"%s: The two ADC channels have yest completed an integration cycle\n",
 			__func__);
 		return -ENODATA;
 	}
@@ -345,7 +345,7 @@ static int tsl2583_als_calibrate(struct iio_dev *indio_dev)
 			* chip->als_settings.als_gain_trim) / lux_val);
 	if ((gain_trim_val < 250) || (gain_trim_val > 4000)) {
 		dev_err(&chip->client->dev,
-			"%s: trim_val of %d is not within the range [250, 4000]\n",
+			"%s: trim_val of %d is yest within the range [250, 4000]\n",
 			__func__, gain_trim_val);
 		return -ENODATA;
 	}
@@ -560,7 +560,7 @@ static ssize_t in_illuminance_lux_table_store(struct device *dev,
 	get_options(buf, ARRAY_SIZE(value), value);
 
 	/*
-	 * We now have an array of ints starting at value[1], and
+	 * We yesw have an array of ints starting at value[1], and
 	 * enumerated by value[0].
 	 * We expect each group of three ints is one table entry,
 	 * and the last table entry is all 0.
@@ -638,7 +638,7 @@ static int tsl2583_set_pm_runtime_busy(struct tsl2583_chip *chip, bool on)
 	if (on) {
 		ret = pm_runtime_get_sync(&chip->client->dev);
 		if (ret < 0)
-			pm_runtime_put_noidle(&chip->client->dev);
+			pm_runtime_put_yesidle(&chip->client->dev);
 	} else {
 		pm_runtime_mark_last_busy(&chip->client->dev);
 		ret = pm_runtime_put_autosuspend(&chip->client->dev);
@@ -832,7 +832,7 @@ static int tsl2583_probe(struct i2c_client *clientp,
 	}
 
 	if ((ret & TSL2583_CHIP_ID_MASK) != TSL2583_CHIP_ID) {
-		dev_err(&clientp->dev, "%s: received an unknown chip ID %x\n",
+		dev_err(&clientp->dev, "%s: received an unkyeswn chip ID %x\n",
 			__func__, ret);
 		return -EINVAL;
 	}
@@ -856,7 +856,7 @@ static int tsl2583_probe(struct i2c_client *clientp,
 		return ret;
 	}
 
-	/* Load up the V2 defaults (these are hard coded defaults for now) */
+	/* Load up the V2 defaults (these are hard coded defaults for yesw) */
 	tsl2583_defaults(chip);
 
 	dev_info(&clientp->dev, "Light sensor found.\n");
@@ -873,7 +873,7 @@ static int tsl2583_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	return tsl2583_set_power_state(chip, TSL2583_CNTL_PWR_OFF);
 }

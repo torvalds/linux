@@ -91,8 +91,8 @@ struct ubiblock {
 
 /* Linked list of all ubiblock instances */
 static LIST_HEAD(ubiblock_devices);
-static DEFINE_IDR(ubiblock_minor_idr);
-/* Protects ubiblock_devices and ubiblock_minor_idr */
+static DEFINE_IDR(ubiblock_miyesr_idr);
+/* Protects ubiblock_devices and ubiblock_miyesr_idr */
 static DEFINE_MUTEX(devices_mutex);
 static int ubiblock_major;
 
@@ -111,7 +111,7 @@ static int __init ubiblock_set_param(const char *val,
 
 	len = strnlen(val, UBIBLOCK_PARAM_LEN);
 	if (len == 0) {
-		pr_warn("UBI: block: empty 'block=' parameter - ignored\n");
+		pr_warn("UBI: block: empty 'block=' parameter - igyesred\n");
 		return 0;
 	}
 
@@ -162,7 +162,7 @@ static const struct kernel_param_ops ubiblock_param_ops = {
 module_param_cb(block, &ubiblock_param_ops, NULL, 0);
 MODULE_PARM_DESC(block, "Attach block devices to UBI volumes. Parameter format: block=<path|dev,num|dev,name>.\n"
 			"Multiple \"block\" parameters may be specified.\n"
-			"UBI volumes may be specified by their number, name, or path to the device node.\n"
+			"UBI volumes may be specified by their number, name, or path to the device yesde.\n"
 			"Examples\n"
 			"Using the UBI volume path:\n"
 			"ubi.block=/dev/ubi0_0\n"
@@ -171,7 +171,7 @@ MODULE_PARM_DESC(block, "Attach block devices to UBI volumes. Parameter format: 
 			"Using both UBI device number and UBI volume number:\n"
 			"ubi.block=0,0\n");
 
-static struct ubiblock *find_dev_nolock(int ubi_num, int vol_id)
+static struct ubiblock *find_dev_yeslock(int ubi_num, int vol_id)
 {
 	struct ubiblock *dev;
 
@@ -232,7 +232,7 @@ static int ubiblock_open(struct block_device *bdev, fmode_t mode)
 
 	/*
 	 * We want users to be aware they should only mount us as read-only.
-	 * It's just a paranoid check, as write requests will get rejected
+	 * It's just a parayesid check, as write requests will get rejected
 	 * in any case.
 	 */
 	if (mode & FMODE_WRITE) {
@@ -298,7 +298,7 @@ static void ubiblock_do_work(struct work_struct *work)
 	blk_mq_start_request(req);
 
 	/*
-	 * It is safe to ignore the return value of blk_rq_map_sg() because
+	 * It is safe to igyesre the return value of blk_rq_map_sg() because
 	 * the number of sg entries is limited to UBI_MAX_SG_COUNT
 	 * and ubi_read_sg() will check that limit.
 	 */
@@ -307,7 +307,7 @@ static void ubiblock_do_work(struct work_struct *work)
 	ret = ubiblock_read(pdu);
 	rq_flush_dcache_pages(req);
 
-	blk_mq_end_request(req, errno_to_blk_status(ret));
+	blk_mq_end_request(req, erryes_to_blk_status(ret));
 }
 
 static blk_status_t ubiblock_queue_rq(struct blk_mq_hw_ctx *hctx,
@@ -330,7 +330,7 @@ static blk_status_t ubiblock_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 static int ubiblock_init_request(struct blk_mq_tag_set *set,
 		struct request *req, unsigned int hctx_idx,
-		unsigned int numa_node)
+		unsigned int numa_yesde)
 {
 	struct ubiblock_pdu *pdu = blk_mq_rq_to_pdu(req);
 
@@ -350,8 +350,8 @@ static int calc_disk_capacity(struct ubi_volume_info *vi, u64 *disk_capacity)
 	u64 size = vi->used_bytes >> 9;
 
 	if (vi->used_bytes % 512) {
-		pr_warn("UBI: block: volume size is not a multiple of 512, "
-			"last %llu bytes are ignored!\n",
+		pr_warn("UBI: block: volume size is yest a multiple of 512, "
+			"last %llu bytes are igyesred!\n",
 			vi->used_bytes - (size << 9));
 	}
 
@@ -377,7 +377,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 
 	/* Check that the volume isn't already handled */
 	mutex_lock(&devices_mutex);
-	if (find_dev_nolock(vi->ubi_num, vi->vol_id)) {
+	if (find_dev_yeslock(vi->ubi_num, vi->vol_id)) {
 		ret = -EEXIST;
 		goto out_unlock;
 	}
@@ -404,10 +404,10 @@ int ubiblock_create(struct ubi_volume_info *vi)
 
 	gd->fops = &ubiblock_ops;
 	gd->major = ubiblock_major;
-	gd->first_minor = idr_alloc(&ubiblock_minor_idr, dev, 0, 0, GFP_KERNEL);
-	if (gd->first_minor < 0) {
+	gd->first_miyesr = idr_alloc(&ubiblock_miyesr_idr, dev, 0, 0, GFP_KERNEL);
+	if (gd->first_miyesr < 0) {
 		dev_err(disk_to_dev(gd),
-			"block: dynamic minor allocation failed");
+			"block: dynamic miyesr allocation failed");
 		ret = -ENODEV;
 		goto out_put_disk;
 	}
@@ -418,7 +418,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 
 	dev->tag_set.ops = &ubiblock_mq_ops;
 	dev->tag_set.queue_depth = 64;
-	dev->tag_set.numa_node = NUMA_NO_NODE;
+	dev->tag_set.numa_yesde = NUMA_NO_NODE;
 	dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	dev->tag_set.cmd_size = sizeof(struct ubiblock_pdu);
 	dev->tag_set.driver_data = dev;
@@ -427,7 +427,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	ret = blk_mq_alloc_tag_set(&dev->tag_set);
 	if (ret) {
 		dev_err(disk_to_dev(dev->gd), "blk_mq_alloc_tag_set failed");
-		goto out_remove_minor;
+		goto out_remove_miyesr;
 	}
 
 	dev->rq = blk_mq_init_queue(&dev->tag_set);
@@ -443,7 +443,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 
 	/*
 	 * Create one workqueue per volume (per registered block device).
-	 * Rembember workqueues are cheap, they're not threads.
+	 * Rembember workqueues are cheap, they're yest threads.
 	 */
 	dev->wq = alloc_workqueue("%s", 0, 0, gd->disk_name);
 	if (!dev->wq) {
@@ -453,7 +453,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 
 	list_add_tail(&dev->list, &ubiblock_devices);
 
-	/* Must be the last step: anyone can call file ops from now on */
+	/* Must be the last step: anyone can call file ops from yesw on */
 	add_disk(dev->gd);
 	dev_info(disk_to_dev(dev->gd), "created from ubi%d:%d(%s)",
 		 dev->ubi_num, dev->vol_id, vi->name);
@@ -464,8 +464,8 @@ out_free_queue:
 	blk_cleanup_queue(dev->rq);
 out_free_tags:
 	blk_mq_free_tag_set(&dev->tag_set);
-out_remove_minor:
-	idr_remove(&ubiblock_minor_idr, gd->first_minor);
+out_remove_miyesr:
+	idr_remove(&ubiblock_miyesr_idr, gd->first_miyesr);
 out_put_disk:
 	put_disk(dev->gd);
 out_free_dev:
@@ -486,7 +486,7 @@ static void ubiblock_cleanup(struct ubiblock *dev)
 	blk_cleanup_queue(dev->rq);
 	blk_mq_free_tag_set(&dev->tag_set);
 	dev_info(disk_to_dev(dev->gd), "released");
-	idr_remove(&ubiblock_minor_idr, dev->gd->first_minor);
+	idr_remove(&ubiblock_miyesr_idr, dev->gd->first_miyesr);
 	put_disk(dev->gd);
 }
 
@@ -496,7 +496,7 @@ int ubiblock_remove(struct ubi_volume_info *vi)
 	int ret;
 
 	mutex_lock(&devices_mutex);
-	dev = find_dev_nolock(vi->ubi_num, vi->vol_id);
+	dev = find_dev_yeslock(vi->ubi_num, vi->vol_id);
 	if (!dev) {
 		ret = -ENODEV;
 		goto out_unlock;
@@ -537,7 +537,7 @@ static int ubiblock_resize(struct ubi_volume_info *vi)
 	 * 'ubiblock_remove()'.
 	 */
 	mutex_lock(&devices_mutex);
-	dev = find_dev_nolock(vi->ubi_num, vi->vol_id);
+	dev = find_dev_yeslock(vi->ubi_num, vi->vol_id);
 	if (!dev) {
 		mutex_unlock(&devices_mutex);
 		return -ENODEV;
@@ -548,7 +548,7 @@ static int ubiblock_resize(struct ubi_volume_info *vi)
 		mutex_unlock(&devices_mutex);
 		if (ret == -EFBIG) {
 			dev_warn(disk_to_dev(dev->gd),
-				 "the volume is too big (%d LEBs), cannot resize",
+				 "the volume is too big (%d LEBs), canyest resize",
 				 vi->size);
 		}
 		return ret;
@@ -566,16 +566,16 @@ static int ubiblock_resize(struct ubi_volume_info *vi)
 	return 0;
 }
 
-static int ubiblock_notify(struct notifier_block *nb,
-			 unsigned long notification_type, void *ns_ptr)
+static int ubiblock_yestify(struct yestifier_block *nb,
+			 unsigned long yestification_type, void *ns_ptr)
 {
-	struct ubi_notification *nt = ns_ptr;
+	struct ubi_yestification *nt = ns_ptr;
 
-	switch (notification_type) {
+	switch (yestification_type) {
 	case UBI_VOLUME_ADDED:
 		/*
 		 * We want to enforce explicit block device creation for
-		 * volumes, so when a volume is added we do nothing.
+		 * volumes, so when a volume is added we do yesthing.
 		 */
 		break;
 	case UBI_VOLUME_REMOVED:
@@ -598,8 +598,8 @@ static int ubiblock_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block ubiblock_notifier = {
-	.notifier_call = ubiblock_notify,
+static struct yestifier_block ubiblock_yestifier = {
+	.yestifier_call = ubiblock_yestify,
 };
 
 static struct ubi_volume_desc * __init
@@ -685,10 +685,10 @@ int __init ubiblock_init(void)
 	ubiblock_create_from_param();
 
 	/*
-	 * Block devices are only created upon user requests, so we ignore
+	 * Block devices are only created upon user requests, so we igyesre
 	 * existing volumes.
 	 */
-	ret = ubi_register_volume_notifier(&ubiblock_notifier, 1);
+	ret = ubi_register_volume_yestifier(&ubiblock_yestifier, 1);
 	if (ret)
 		goto err_unreg;
 	return 0;
@@ -701,7 +701,7 @@ err_unreg:
 
 void __exit ubiblock_exit(void)
 {
-	ubi_unregister_volume_notifier(&ubiblock_notifier);
+	ubi_unregister_volume_yestifier(&ubiblock_yestifier);
 	ubiblock_remove_all();
 	unregister_blkdev(ubiblock_major, "ubiblock");
 }

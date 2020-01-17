@@ -253,7 +253,7 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	status->aggr = unicast &&
 		       !ieee80211_is_qos_nullfunc(hdr->frame_control);
 	status->tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
-	status->seqno = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+	status->seqyes = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 
 	return 0;
 }
@@ -358,7 +358,7 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 	int tx_count = 8;
 	u8 fc_type, fc_stype, p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
 	__le16 fc = hdr->frame_control;
-	u16 seqno = 0;
+	u16 seqyes = 0;
 	u32 val;
 
 	if (vif) {
@@ -465,15 +465,15 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 
 	val = FIELD_PREP(MT_TXD3_REM_TX_COUNT, tx_count);
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
-		seqno = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+		seqyes = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 		val |= MT_TXD3_SN_VALID;
 	} else if (ieee80211_is_back_req(hdr->frame_control)) {
 		struct ieee80211_bar *bar = (struct ieee80211_bar *)skb->data;
 
-		seqno = IEEE80211_SEQ_TO_SN(le16_to_cpu(bar->start_seq_num));
+		seqyes = IEEE80211_SEQ_TO_SN(le16_to_cpu(bar->start_seq_num));
 		val |= MT_TXD3_SN_VALID;
 	}
-	val |= FIELD_PREP(MT_TXD3_SEQ, seqno);
+	val |= FIELD_PREP(MT_TXD3_SEQ, seqyes);
 
 	txwi[3] |= cpu_to_le32(val);
 
@@ -1165,7 +1165,7 @@ void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
 		goto out;
 
 	if (mt7615_fill_txs(dev, msta, &info, txs_data))
-		ieee80211_tx_status_noskb(mt76_hw(dev), sta, &info);
+		ieee80211_tx_status_yesskb(mt76_hw(dev), sta, &info);
 
 out:
 	rcu_read_unlock();
@@ -1228,7 +1228,7 @@ void mt7615_mac_set_scs(struct mt7615_dev *dev, bool enable)
 		goto out;
 
 	if (enable) {
-		/* DBDC not supported */
+		/* DBDC yest supported */
 		mt76_set(dev, MT_WF_PHY_B0_MIN_PRI_PWR,
 			 MT_WF_PHY_B0_PD_BLK);
 		if (is_mt7622(&dev->mt76)) {
@@ -1303,7 +1303,7 @@ mt7615_mac_adjust_sensitivity(struct mt7615_dev *dev,
 		u16 val;
 
 		if (ofdm) {
-			/* DBDC not supported */
+			/* DBDC yest supported */
 			val = *sensitivity * 2 + 512;
 			mt76_rmw(dev, MT_WF_PHY_B0_MIN_PRI_PWR,
 				 MT_WF_PHY_B0_PD_OFDM_MASK,

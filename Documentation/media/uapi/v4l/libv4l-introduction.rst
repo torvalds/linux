@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _libv4l-introduction:
 
@@ -78,7 +78,7 @@ libv4l1
 
 This library offers functions that can be used to quickly make v4l1
 applications work with v4l2 devices. These functions work exactly like
-the normal open/close/etc, except that libv4l1 does full emulation of
+the yesrmal open/close/etc, except that libv4l1 does full emulation of
 the v4l1 api on top of v4l2 drivers, in case of v4l1 drivers it will
 just pass calls through.
 
@@ -167,12 +167,12 @@ Those functions provide additional control:
 
    This function takes a value of 0 - 65535, and then scales that range to the
    actual range of the given v4l control id, and then if the cid exists and is
-   not locked sets the cid to the scaled value.
+   yest locked sets the cid to the scaled value.
 
 .. c:function:: int v4l2_get_control(int fd, int cid)
 
    This function returns a value of 0 - 65535, scaled to from the actual range
-   of the given v4l control id. when the cid does not exist, could not be
+   of the given v4l control id. when the cid does yest exist, could yest be
    accessed for some reason, or some error occurred 0 is returned.
 
 

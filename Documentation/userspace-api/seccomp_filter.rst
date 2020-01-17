@@ -23,7 +23,7 @@ history of being exposed to userland and a straightforward data set.
 
 Additionally, BPF makes it impossible for users of seccomp to fall prey
 to time-of-check-time-of-use (TOCTOU) attacks that are common in system
-call interposition frameworks.  BPF programs may not dereference
+call interposition frameworks.  BPF programs may yest dereference
 pointers which constrains all filters to solely evaluating the system
 call arguments directly.
 
@@ -62,16 +62,16 @@ prctl(2) call as the strict seccomp.  If the architecture has
 
 	The 'prog' argument is a pointer to a struct sock_fprog which
 	will contain the filter program.  If the program is invalid, the
-	call will return -1 and set errno to ``EINVAL``.
+	call will return -1 and set erryes to ``EINVAL``.
 
 	If ``fork``/``clone`` and ``execve`` are allowed by @prog, any child
 	processes will be constrained to the same filters and system
 	call ABI as the parent.
 
 	Prior to use, the task must call ``prctl(PR_SET_NO_NEW_PRIVS, 1)`` or
-	run with ``CAP_SYS_ADMIN`` privileges in its namespace.  If these are not
+	run with ``CAP_SYS_ADMIN`` privileges in its namespace.  If these are yest
 	true, ``-EACCES`` will be returned.  This requirement ensures that filter
-	programs cannot be applied to child processes with greater privileges
+	programs canyest be applied to child processes with greater privileges
 	than the task that installed them.
 
 	Additionally, if ``prctl(2)`` is allowed by the attached filter,
@@ -79,7 +79,7 @@ prctl(2) call as the strict seccomp.  If the architecture has
 	time, but allow for further decreasing the attack surface during
 	execution of a process.
 
-The above call returns 0 on success and non-zero on error.
+The above call returns 0 on success and yesn-zero on error.
 
 Return values
 =============
@@ -94,12 +94,12 @@ In precedence order, they are:
 ``SECCOMP_RET_KILL_PROCESS``:
 	Results in the entire process exiting immediately without executing
 	the system call.  The exit status of the task (``status & 0x7f``)
-	will be ``SIGSYS``, not ``SIGKILL``.
+	will be ``SIGSYS``, yest ``SIGKILL``.
 
 ``SECCOMP_RET_KILL_THREAD``:
 	Results in the task exiting immediately without executing the
 	system call.  The exit status of the task (``status & 0x7f``) will
-	be ``SIGSYS``, not ``SIGKILL``.
+	be ``SIGSYS``, yest ``SIGKILL``.
 
 ``SECCOMP_RET_TRAP``:
 	Results in the kernel sending a ``SIGSYS`` signal to the triggering
@@ -107,34 +107,34 @@ In precedence order, they are:
 	will show the address of the system call instruction, and
 	``siginfo->si_syscall`` and ``siginfo->si_arch`` will indicate which
 	syscall was attempted.  The program counter will be as though
-	the syscall happened (i.e. it will not point to the syscall
+	the syscall happened (i.e. it will yest point to the syscall
 	instruction).  The return value register will contain an arch-
 	dependent value -- if resuming execution, set it to something
 	sensible.  (The architecture dependency is because replacing
 	it with ``-ENOSYS`` could overwrite some useful information.)
 
 	The ``SECCOMP_RET_DATA`` portion of the return value will be passed
-	as ``si_errno``.
+	as ``si_erryes``.
 
 	``SIGSYS`` triggered by seccomp will have a si_code of ``SYS_SECCOMP``.
 
 ``SECCOMP_RET_ERRNO``:
 	Results in the lower 16-bits of the return value being passed
-	to userland as the errno without executing the system call.
+	to userland as the erryes without executing the system call.
 
 ``SECCOMP_RET_USER_NOTIF``:
-	Results in a ``struct seccomp_notif`` message sent on the userspace
-	notification fd, if it is attached, or ``-ENOSYS`` if it is not. See
-	below on discussion of how to handle user notifications.
+	Results in a ``struct seccomp_yestif`` message sent on the userspace
+	yestification fd, if it is attached, or ``-ENOSYS`` if it is yest. See
+	below on discussion of how to handle user yestifications.
 
 ``SECCOMP_RET_TRACE``:
 	When returned, this value will cause the kernel to attempt to
-	notify a ``ptrace()``-based tracer prior to executing the system
-	call.  If there is no tracer present, ``-ENOSYS`` is returned to
-	userland and the system call is not executed.
+	yestify a ``ptrace()``-based tracer prior to executing the system
+	call.  If there is yes tracer present, ``-ENOSYS`` is returned to
+	userland and the system call is yest executed.
 
-	A tracer will be notified if it requests ``PTRACE_O_TRACESECCOMP``
-	using ``ptrace(PTRACE_SETOPTIONS)``.  The tracer will be notified
+	A tracer will be yestified if it requests ``PTRACE_O_TRACESECCOMP``
+	using ``ptrace(PTRACE_SETOPTIONS)``.  The tracer will be yestified
 	of a ``PTRACE_EVENT_SECCOMP`` and the ``SECCOMP_RET_DATA`` portion of
 	the BPF program return value will be available to the tracer
 	via ``PTRACE_GETEVENTMSG``.
@@ -146,8 +146,8 @@ In precedence order, they are:
 	appear to return the value that the tracer puts in the return value
 	register.
 
-	The seccomp check will not be run again after the tracer is
-	notified.  (This means that seccomp-based sandboxes MUST NOT
+	The seccomp check will yest be run again after the tracer is
+	yestified.  (This means that seccomp-based sandboxes MUST NOT
 	allow use of ptrace, even of other sandboxed processes, without
 	extreme care; ptracers can use this mechanism to escape.)
 
@@ -196,7 +196,7 @@ particular syscall to userspace to be handled. This may be useful for
 applications like container managers, which wish to intercept particular
 syscalls (``mount()``, ``finit_module()``, etc.) and change their behavior.
 
-To acquire a notification FD, use the ``SECCOMP_FILTER_FLAG_NEW_LISTENER``
+To acquire a yestification FD, use the ``SECCOMP_FILTER_FLAG_NEW_LISTENER``
 argument to the ``seccomp()`` syscall:
 
 .. code-block:: c
@@ -205,62 +205,62 @@ argument to the ``seccomp()`` syscall:
 
 which (on success) will return a listener fd for the filter, which can then be
 passed around via ``SCM_RIGHTS`` or similar. Note that filter fds correspond to
-a particular filter, and not a particular task. So if this task then forks,
-notifications from both tasks will appear on the same filter fd. Reads and
+a particular filter, and yest a particular task. So if this task then forks,
+yestifications from both tasks will appear on the same filter fd. Reads and
 writes to/from a filter fd are also synchronized, so a filter fd can safely
 have many readers.
 
-The interface for a seccomp notification fd consists of two structures:
+The interface for a seccomp yestification fd consists of two structures:
 
 .. code-block:: c
 
-    struct seccomp_notif_sizes {
-        __u16 seccomp_notif;
-        __u16 seccomp_notif_resp;
+    struct seccomp_yestif_sizes {
+        __u16 seccomp_yestif;
+        __u16 seccomp_yestif_resp;
         __u16 seccomp_data;
     };
 
-    struct seccomp_notif {
+    struct seccomp_yestif {
         __u64 id;
         __u32 pid;
         __u32 flags;
         struct seccomp_data data;
     };
 
-    struct seccomp_notif_resp {
+    struct seccomp_yestif_resp {
         __u64 id;
         __s64 val;
         __s32 error;
         __u32 flags;
     };
 
-The ``struct seccomp_notif_sizes`` structure can be used to determine the size
-of the various structures used in seccomp notifications. The size of ``struct
+The ``struct seccomp_yestif_sizes`` structure can be used to determine the size
+of the various structures used in seccomp yestifications. The size of ``struct
 seccomp_data`` may change in the future, so code should use:
 
 .. code-block:: c
 
-    struct seccomp_notif_sizes sizes;
+    struct seccomp_yestif_sizes sizes;
     seccomp(SECCOMP_GET_NOTIF_SIZES, 0, &sizes);
 
 to determine the size of the various structures to allocate. See
 samples/seccomp/user-trap.c for an example.
 
 Users can read via ``ioctl(SECCOMP_IOCTL_NOTIF_RECV)``  (or ``poll()``) on a
-seccomp notification fd to receive a ``struct seccomp_notif``, which contains
+seccomp yestification fd to receive a ``struct seccomp_yestif``, which contains
 five members: the input length of the structure, a unique-per-filter ``id``,
 the ``pid`` of the task which triggered this request (which may be 0 if the
-task is in a pid ns not visible from the listener's pid namespace), a ``flags``
-member which for now only has ``SECCOMP_NOTIF_FLAG_SIGNALED``, representing
-whether or not the notification is a result of a non-fatal signal, and the
+task is in a pid ns yest visible from the listener's pid namespace), a ``flags``
+member which for yesw only has ``SECCOMP_NOTIF_FLAG_SIGNALED``, representing
+whether or yest the yestification is a result of a yesn-fatal signal, and the
 ``data`` passed to seccomp. Userspace can then make a decision based on this
 information about what to do, and ``ioctl(SECCOMP_IOCTL_NOTIF_SEND)`` a
 response, indicating what should be returned to userspace. The ``id`` member of
-``struct seccomp_notif_resp`` should be the same ``id`` as in ``struct
-seccomp_notif``.
+``struct seccomp_yestif_resp`` should be the same ``id`` as in ``struct
+seccomp_yestif``.
 
-It is worth noting that ``struct seccomp_data`` contains the values of register
-arguments to the syscall, but does not contain pointers to memory. The task's
+It is worth yesting that ``struct seccomp_data`` contains the values of register
+arguments to the syscall, but does yest contain pointers to memory. The task's
 memory is accessible to suitably privileged traces via ``ptrace()`` or
 ``/proc/pid/mem``. However, care should be taken to avoid the TOCTOU mentioned
 above in this document: all arguments being read from the tracee's memory
@@ -288,11 +288,11 @@ directory. Here's a description of each file in that directory:
 ``actions_logged``:
 	A read-write ordered list of seccomp return values (refer to the
 	``SECCOMP_RET_*`` macros above) that are allowed to be logged. Writes
-	to the file do not need to be in ordered form but reads from the file
+	to the file do yest need to be in ordered form but reads from the file
 	will be ordered in the same way as the actions_avail sysctl.
 
-	The ``allow`` string is not accepted in the ``actions_logged`` sysctl
-	as it is not possible to log ``SECCOMP_RET_ALLOW`` actions. Attempting
+	The ``allow`` string is yest accepted in the ``actions_logged`` sysctl
+	as it is yest possible to log ``SECCOMP_RET_ALLOW`` actions. Attempting
 	to write ``allow`` to the sysctl will result in an EINVAL being
 	returned.
 
@@ -301,7 +301,7 @@ Adding architecture support
 
 See ``arch/Kconfig`` for the authoritative requirements.  In general, if an
 architecture supports both ptrace_event and seccomp, it will be able to
-support seccomp filter with minor fixup: ``SIGSYS`` support and seccomp return
+support seccomp filter with miyesr fixup: ``SIGSYS`` support and seccomp return
 value checking.  Then it must just add ``CONFIG_HAVE_ARCH_SECCOMP_FILTER``
 to its arch-specific Kconfig.
 
@@ -319,10 +319,10 @@ something like ``acpi_pm``.
 
 On x86-64, vsyscall emulation is enabled by default.  (vsyscalls are
 legacy variants on vDSO calls.)  Currently, emulated vsyscalls will
-honor seccomp, with a few oddities:
+hoyesr seccomp, with a few oddities:
 
 - A return value of ``SECCOMP_RET_TRAP`` will set a ``si_call_addr`` pointing to
-  the vsyscall entry for the given call and not the address after the
+  the vsyscall entry for the given call and yest the address after the
   'syscall' instruction.  Any code which wants to restart the call
   should be aware that (a) a ret instruction has been emulated and (b)
   trying to resume the syscall will again trigger the standard vsyscall
@@ -330,25 +330,25 @@ honor seccomp, with a few oddities:
   pointless.
 
 - A return value of ``SECCOMP_RET_TRACE`` will signal the tracer as usual,
-  but the syscall may not be changed to another system call using the
+  but the syscall may yest be changed to ayesther system call using the
   orig_rax register. It may only be changed to -1 order to skip the
   currently emulated call. Any other change MAY terminate the process.
   The rip value seen by the tracer will be the syscall entry address;
-  this is different from normal behavior.  The tracer MUST NOT modify
-  rip or rsp.  (Do not rely on other changes terminating the process.
+  this is different from yesrmal behavior.  The tracer MUST NOT modify
+  rip or rsp.  (Do yest rely on other changes terminating the process.
   They might work.  For example, on some kernels, choosing a syscall
   that only exists in future kernels will be correctly emulated (by
   returning ``-ENOSYS``).
 
 To detect this quirky behavior, check for ``addr & ~0x0C00 ==
 0xFFFFFFFFFF600000``.  (For ``SECCOMP_RET_TRACE``, use rip.  For
-``SECCOMP_RET_TRAP``, use ``siginfo->si_call_addr``.)  Do not check any other
+``SECCOMP_RET_TRAP``, use ``siginfo->si_call_addr``.)  Do yest check any other
 condition: future kernels may improve vsyscall emulation and current
 kernels in vsyscall=native mode will behave differently, but the
-instructions at ``0xF...F600{0,4,8,C}00`` will not be system calls in these
+instructions at ``0xF...F600{0,4,8,C}00`` will yest be system calls in these
 cases.
 
 Note that modern systems are unlikely to use vsyscalls at all -- they
 are a legacy feature and they are considerably slower than standard
 syscalls.  New code will use the vDSO, and vDSO-issued system calls
-are indistinguishable from normal system calls.
+are indistinguishable from yesrmal system calls.

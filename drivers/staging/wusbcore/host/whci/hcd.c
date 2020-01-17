@@ -26,7 +26,7 @@ static int whc_reset(struct usb_hcd *usb_hcd)
 /*
  * Start the wireless host controller.
  *
- * Start device notification.
+ * Start device yestification.
  *
  * Put hc into run state, set DNTS parameters.
  */
@@ -70,7 +70,7 @@ out:
 /*
  * Stop the wireless host controller.
  *
- * Stop device notification.
+ * Stop device yestification.
  *
  * Wait for pending transfer to stop? Put hc into stop state?
  */
@@ -95,7 +95,7 @@ static void whc_stop(struct usb_hcd *usb_hcd)
 
 static int whc_get_frame_number(struct usb_hcd *usb_hcd)
 {
-	/* Frame numbers are not applicable to WUSB. */
+	/* Frame numbers are yest applicable to WUSB. */
 	return -ENOSYS;
 }
 
@@ -115,7 +115,7 @@ static int whc_urb_enqueue(struct usb_hcd *usb_hcd, struct urb *urb,
 		ret = pzl_urb_enqueue(whc, urb, mem_flags);
 		break;
 	case PIPE_ISOCHRONOUS:
-		dev_err(&whc->umc->dev, "isochronous transfers unsupported\n");
+		dev_err(&whc->umc->dev, "isochroyesus transfers unsupported\n");
 		ret = -ENOTSUPP;
 		break;
 	case PIPE_CONTROL:
@@ -252,7 +252,7 @@ static int whc_probe(struct umc_dev *umc)
 	wusbhc->uwb_rc = uwb_rc_get_by_grandpa(umc->dev.parent);
 	if (!wusbhc->uwb_rc) {
 		ret = -ENODEV;
-		dev_err(dev, "cannot get radio controller\n");
+		dev_err(dev, "canyest get radio controller\n");
 		goto error_uwb_rc;
 	}
 
@@ -279,7 +279,7 @@ static int whc_probe(struct umc_dev *umc)
 
 	ret = usb_add_hcd(usb_hcd, whc->umc->irq, IRQF_SHARED);
 	if (ret) {
-		dev_err(dev, "cannot add HCD: %d\n", ret);
+		dev_err(dev, "canyest add HCD: %d\n", ret);
 		goto error_usb_add_hcd;
 	}
 	device_wakeup_enable(usb_hcd->self.controller);

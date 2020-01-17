@@ -32,7 +32,7 @@
 void
 file_ra_state_init(struct file_ra_state *ra, struct address_space *mapping)
 {
-	ra->ra_pages = inode_to_bdi(mapping->host)->ra_pages;
+	ra->ra_pages = iyesde_to_bdi(mapping->host)->ra_pages;
 	ra->prev_pos = -1;
 }
 EXPORT_SYMBOL_GPL(file_ra_state_init);
@@ -156,13 +156,13 @@ unsigned int __do_page_cache_readahead(struct address_space *mapping,
 		struct file *filp, pgoff_t offset, unsigned long nr_to_read,
 		unsigned long lookahead_size)
 {
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	struct page *page;
 	unsigned long end_index;	/* The last page we want to read */
 	LIST_HEAD(page_pool);
 	int page_idx;
 	unsigned int nr_pages = 0;
-	loff_t isize = i_size_read(inode);
+	loff_t isize = i_size_read(iyesde);
 	gfp_t gfp_mask = readahead_gfp_mask(mapping);
 
 	if (isize == 0)
@@ -204,7 +204,7 @@ unsigned int __do_page_cache_readahead(struct address_space *mapping,
 	}
 
 	/*
-	 * Now start the IO.  We ignore I/O errors - if the page is not
+	 * Now start the IO.  We igyesre I/O errors - if the page is yest
 	 * uptodate then the caller will launch readpage again, and
 	 * will then handle the error.
 	 */
@@ -222,7 +222,7 @@ out:
 int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
 			       pgoff_t offset, unsigned long nr_to_read)
 {
-	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
+	struct backing_dev_info *bdi = iyesde_to_bdi(mapping->host);
 	struct file_ra_state *ra = &filp->f_ra;
 	unsigned long max_pages;
 
@@ -296,9 +296,9 @@ static unsigned long get_next_ra_size(struct file_ra_state *ra,
  *     ^start             ^page marked with PG_readahead
  *
  * To overlap application thinking time and disk I/O time, we do
- * `readahead pipelining': Do not wait until the application consumed all
+ * `readahead pipelining': Do yest wait until the application consumed all
  * readahead pages and stalled on the missing page at readahead_index;
- * Instead, submit an asynchronous readahead I/O as soon as there are
+ * Instead, submit an asynchroyesus readahead I/O as soon as there are
  * only async_size pages left in the readahead window. Normally async_size
  * will be equal to size, for maximum pipelining.
  *
@@ -306,7 +306,7 @@ static unsigned long get_next_ra_size(struct file_ra_state *ra,
  * be invalidating each other's readahead state. So we flag the new readahead
  * page at (start+size-async_size) with PG_readahead, and use it as readahead
  * indicator. The flag won't be set on already cached pages, to avoid the
- * readahead-for-nothing fuss, saving pointless page cache lookups.
+ * readahead-for-yesthing fuss, saving pointless page cache lookups.
  *
  * prev_pos tracks the last visited byte in the _previous_ read request.
  * It should be maintained by the caller, and will be used for detecting
@@ -355,7 +355,7 @@ static int try_context_readahead(struct address_space *mapping,
 	size = count_history_pages(mapping, offset, max);
 
 	/*
-	 * not enough history pages:
+	 * yest eyesugh history pages:
 	 * it could be a random read
 	 */
 	if (size <= req_size)
@@ -384,7 +384,7 @@ ondemand_readahead(struct address_space *mapping,
 		   bool hit_readahead_marker, pgoff_t offset,
 		   unsigned long req_size)
 {
-	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
+	struct backing_dev_info *bdi = iyesde_to_bdi(mapping->host);
 	unsigned long max_pages = ra->ra_pages;
 	unsigned long add_pages;
 	pgoff_t prev_offset;
@@ -417,7 +417,7 @@ ondemand_readahead(struct address_space *mapping,
 	/*
 	 * Hit a marked page without valid readahead state.
 	 * E.g. interleaved reads.
-	 * Query the pagecache for async_size, which normally equals to
+	 * Query the pagecache for async_size, which yesrmally equals to
 	 * readahead size. Ramp it up and use it as the new readahead size.
 	 */
 	if (hit_readahead_marker) {
@@ -462,7 +462,7 @@ ondemand_readahead(struct address_space *mapping,
 
 	/*
 	 * standalone, small random read
-	 * Read as is, and do not pollute the readahead state.
+	 * Read as is, and do yest pollute the readahead state.
 	 */
 	return __do_page_cache_readahead(mapping, filp, offset, req_size, 0);
 
@@ -474,7 +474,7 @@ initial_readahead:
 readit:
 	/*
 	 * Will this read hit the readahead marker made by itself?
-	 * If so, trigger the readahead marker hit now, and merge
+	 * If so, trigger the readahead marker hit yesw, and merge
 	 * the resulted next readahead window into the current one.
 	 * Take care of maximum IO pages as above.
 	 */
@@ -510,7 +510,7 @@ void page_cache_sync_readahead(struct address_space *mapping,
 			       struct file_ra_state *ra, struct file *filp,
 			       pgoff_t offset, unsigned long req_size)
 {
-	/* no read-ahead */
+	/* yes read-ahead */
 	if (!ra->ra_pages)
 		return;
 
@@ -540,7 +540,7 @@ EXPORT_SYMBOL_GPL(page_cache_sync_readahead);
  *
  * page_cache_async_readahead() should be called when a page is used which
  * has the PG_readahead flag; this is a marker to suggest that the application
- * has used up enough of the readahead window that we should start pulling in
+ * has used up eyesugh of the readahead window that we should start pulling in
  * more pages.
  */
 void
@@ -549,7 +549,7 @@ page_cache_async_readahead(struct address_space *mapping,
 			   struct page *page, pgoff_t offset,
 			   unsigned long req_size)
 {
-	/* no read-ahead */
+	/* yes read-ahead */
 	if (!ra->ra_pages)
 		return;
 
@@ -562,9 +562,9 @@ page_cache_async_readahead(struct address_space *mapping,
 	ClearPageReadahead(page);
 
 	/*
-	 * Defer asynchronous read-ahead on IO congestion.
+	 * Defer asynchroyesus read-ahead on IO congestion.
 	 */
-	if (inode_read_congested(mapping->host))
+	if (iyesde_read_congested(mapping->host))
 		return;
 
 	if (blk_cgroup_congested())
@@ -587,12 +587,12 @@ ssize_t ksys_readahead(int fd, loff_t offset, size_t count)
 
 	/*
 	 * The readahead() syscall is intended to run only on files
-	 * that can execute readahead. If readahead is not possible
+	 * that can execute readahead. If readahead is yest possible
 	 * on this file, then we must return -EINVAL.
 	 */
 	ret = -EINVAL;
 	if (!f.file->f_mapping || !f.file->f_mapping->a_ops ||
-	    !S_ISREG(file_inode(f.file)->i_mode))
+	    !S_ISREG(file_iyesde(f.file)->i_mode))
 		goto out;
 
 	ret = vfs_fadvise(f.file, offset, count, POSIX_FADV_WILLNEED);

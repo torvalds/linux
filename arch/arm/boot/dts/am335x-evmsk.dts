@@ -669,13 +669,13 @@
 };
 
 &gpio0 {
-	ti,no-reset-on-init;
+	ti,yes-reset-on-init;
 };
 
 &mmc2 {
 	status = "okay";
 	vmmc-supply = <&wl12xx_vmmc>;
-	ti,non-removable;
+	ti,yesn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 	keep-power-in-suspend;

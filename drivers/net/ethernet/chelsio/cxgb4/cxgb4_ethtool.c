@@ -609,7 +609,7 @@ static int get_link_ksettings(struct net_device *dev,
 	struct port_info *pi = netdev_priv(dev);
 	struct ethtool_link_settings *base = &link_ksettings->base;
 
-	/* For the nonce, the Firmware doesn't send up Port State changes
+	/* For the yesnce, the Firmware doesn't send up Port State changes
 	 * when the Virtual Interface attached to the Port is down.  So
 	 * if it's down, let's grab any changes.
 	 */
@@ -713,7 +713,7 @@ static inline unsigned int fwcap_to_eth_fec(unsigned int fw_fec)
 	if (fw_fec & FW_PORT_CAP32_FEC_BASER_RS)
 		eth_fec |= ETHTOOL_FEC_BASER;
 
-	/* if nothing is set, then FEC is off */
+	/* if yesthing is set, then FEC is off */
 	if (!eth_fec)
 		eth_fec = ETHTOOL_FEC_OFF;
 
@@ -732,7 +732,7 @@ static inline unsigned int cc_to_eth_fec(unsigned int cc_fec)
 	if (cc_fec & FEC_BASER_RS)
 		eth_fec |= ETHTOOL_FEC_BASER;
 
-	/* if nothing is set, then FEC is off */
+	/* if yesthing is set, then FEC is off */
 	if (!eth_fec)
 		eth_fec = ETHTOOL_FEC_OFF;
 
@@ -1321,7 +1321,7 @@ static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
 	unsigned int i;
 	struct port_info *pi = netdev_priv(dev);
 
-	/* We require at least one supported parameter to be changed and no
+	/* We require at least one supported parameter to be changed and yes
 	 * change in any of the unsupported parameters
 	 */
 	if (key ||
@@ -1544,7 +1544,7 @@ static int cxgb4_get_module_eeprom(struct net_device *dev,
 		 */
 		len = eprom->len - len;
 	}
-	/* Read additional optical diagnostics from page 0xa2 if supported */
+	/* Read additional optical diagyesstics from page 0xa2 if supported */
 	return t4_i2c_rd(adapter, adapter->mbox, pi->tx_chan, I2C_DEV_ADDR_A2,
 			 offset, len, &data[eprom->len - len]);
 }

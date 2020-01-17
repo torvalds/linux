@@ -25,7 +25,7 @@ struct dummy_tracepoint_args {
 	struct sock *sock;
 };
 
-__attribute__((noinline))
+__attribute__((yesinline))
 int test_long_fname_2(struct dummy_tracepoint_args *arg)
 {
 	struct ipv_counts *counts;
@@ -43,7 +43,7 @@ int test_long_fname_2(struct dummy_tracepoint_args *arg)
 	return 0;
 }
 
-__attribute__((noinline))
+__attribute__((yesinline))
 int test_long_fname_1(struct dummy_tracepoint_args *arg)
 {
 	return test_long_fname_2(arg);

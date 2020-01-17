@@ -57,14 +57,14 @@ static int pci_fire_pbm_iommu_init(struct pci_pbm_info *pbm)
 	upa_writeq(~(u64)0, iommu->iommu_flushinv);
 
 	err = iommu_table_init(iommu, tsbsize * 8 * 1024, vdma[0], dma_mask,
-			       pbm->numa_node);
+			       pbm->numa_yesde);
 	if (err)
 		return err;
 
 	upa_writeq(__pa(iommu->page_table) | 0x7UL, iommu->iommu_tsbbase);
 
 	control = upa_readq(iommu->iommu_control);
-	control |= (0x00000400 /* TSB cache snoop enable */	|
+	control |= (0x00000400 /* TSB cache syesop enable */	|
 		    0x00000300 /* Cache mode */			|
 		    0x00000002 /* Bypass enable */		|
 		    0x00000001 /* Translation enable */);
@@ -235,7 +235,7 @@ static int pci_fire_msiq_alloc(struct pci_pbm_info *pbm)
 	order = get_order(512 * 1024);
 	pages = __get_free_pages(GFP_KERNEL | __GFP_COMP, order);
 	if (pages == 0UL) {
-		printk(KERN_ERR "MSI: Cannot allocate MSI queues (o=%lu).\n",
+		printk(KERN_ERR "MSI: Canyest allocate MSI queues (o=%lu).\n",
 		       order);
 		return -ENOMEM;
 	}
@@ -274,7 +274,7 @@ static void pci_fire_msiq_free(struct pci_pbm_info *pbm)
 
 static int pci_fire_msiq_build_irq(struct pci_pbm_info *pbm,
 				   unsigned long msiqid,
-				   unsigned long devino)
+				   unsigned long deviyes)
 {
 	unsigned long cregs = (unsigned long) pbm->pbm_regs;
 	unsigned long imap_reg, iclr_reg, int_ctrlr;
@@ -282,8 +282,8 @@ static int pci_fire_msiq_build_irq(struct pci_pbm_info *pbm,
 	int fixup;
 	u64 val;
 
-	imap_reg = cregs + (0x001000UL + (devino * 0x08UL));
-	iclr_reg = cregs + (0x001400UL + (devino * 0x08UL));
+	imap_reg = cregs + (0x001000UL + (deviyes * 0x08UL));
+	iclr_reg = cregs + (0x001400UL + (deviyes * 0x08UL));
 
 	/* XXX iterate amongst the 4 IRQ controllers XXX */
 	int_ctrlr = (1UL << 6);
@@ -292,7 +292,7 @@ static int pci_fire_msiq_build_irq(struct pci_pbm_info *pbm,
 	val |= (1UL << 63) | int_ctrlr;
 	upa_writeq(val, imap_reg);
 
-	fixup = ((pbm->portid << 6) | devino) - int_ctrlr;
+	fixup = ((pbm->portid << 6) | deviyes) - int_ctrlr;
 
 	irq = build_irq(fixup, iclr_reg, imap_reg);
 	if (!irq)
@@ -414,10 +414,10 @@ static int pci_fire_pbm_init(struct pci_pbm_info *pbm,
 			     struct platform_device *op, u32 portid)
 {
 	const struct linux_prom64_registers *regs;
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	int err;
 
-	pbm->numa_node = NUMA_NO_NODE;
+	pbm->numa_yesde = NUMA_NO_NODE;
 
 	pbm->pci_ops = &sun4u_pci_ops;
 	pbm->config_space_reg_bits = 12;
@@ -458,7 +458,7 @@ static int pci_fire_pbm_init(struct pci_pbm_info *pbm,
 
 static int fire_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	u32 portid;
@@ -469,13 +469,13 @@ static int fire_probe(struct platform_device *op)
 	err = -ENOMEM;
 	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
 	if (!pbm) {
-		printk(KERN_ERR PFX "Cannot allocate pci_pbminfo.\n");
+		printk(KERN_ERR PFX "Canyest allocate pci_pbminfo.\n");
 		goto out_err;
 	}
 
 	iommu = kzalloc(sizeof(struct iommu), GFP_KERNEL);
 	if (!iommu) {
-		printk(KERN_ERR PFX "Cannot allocate PBM iommu.\n");
+		printk(KERN_ERR PFX "Canyest allocate PBM iommu.\n");
 		goto out_free_controller;
 	}
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: via-velocity.h
@@ -352,7 +352,7 @@ enum  velocity_owner {
 #define MAC_REG_CHIPGSR     0x9C
 #define MAC_REG_TESTCFG     0x9D
 #define MAC_REG_DEBUG       0x9E
-#define MAC_REG_CHIPGCR     0x9F	/* Chip Operation and Diagnostic Control */
+#define MAC_REG_CHIPGCR     0x9F	/* Chip Operation and Diagyesstic Control */
 #define MAC_REG_WOLCR0_SET  0xA0
 #define MAC_REG_WOLCR1_SET  0xA1
 #define MAC_REG_PWCFG_SET   0xA2
@@ -937,9 +937,9 @@ enum  velocity_owner {
 
 #else
 #define IMR_MASK_VALUE      0x0013FB0FUL	/* initial value of IMR
-						   ignore MIBFI,RACEI to
+						   igyesre MIBFI,RACEI to
 						   reduce intr. frequency
-						   NOTE.... do not enable NoBuf int mask at driver driver
+						   NOTE.... do yest enable NoBuf int mask at driver driver
 						      when (1) NoBuf -> RxThreshold = SF
 							   (2) OK    -> RxThreshold = original value
 						 */
@@ -961,7 +961,7 @@ enum  velocity_owner {
 
 
 /*
- *	MAC registers as a structure. Cannot be directly accessed this
+ *	MAC registers as a structure. Canyest be directly accessed this
  *	way but generates offsets for readl/writel() calls
  */
 
@@ -1292,8 +1292,8 @@ struct velocity_context {
 
 
 enum velocity_msg_level {
-	MSG_LEVEL_ERR = 0,	//Errors that will cause abnormal operation.
-	MSG_LEVEL_NOTICE = 1,	//Some errors need users to be notified.
+	MSG_LEVEL_ERR = 0,	//Errors that will cause abyesrmal operation.
+	MSG_LEVEL_NOTICE = 1,	//Some errors need users to be yestified.
 	MSG_LEVEL_INFO = 2,	//Normal message.
 	MSG_LEVEL_VERBOSE = 3,	//Will report all trival errors.
 	MSG_LEVEL_DEBUG = 4	//Only for debug purpose.
@@ -1428,7 +1428,7 @@ struct velocity_info {
 	struct device *dev;
 	struct pci_dev *pdev;
 	struct net_device *netdev;
-	int no_eeprom;
+	int yes_eeprom;
 
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u8 ip_addr[4];
@@ -1495,7 +1495,7 @@ struct velocity_info {
  *
  *	Dig out an IP address for this interface so that we can
  *	configure wakeup with WOL for ARP. If there are multiple IP
- *	addresses on this chain then we use the first - multi-IP WOL is not
+ *	addresses on this chain then we use the first - multi-IP WOL is yest
  *	supported.
  *
  */

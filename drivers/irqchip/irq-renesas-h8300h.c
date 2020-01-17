@@ -2,7 +2,7 @@
 /*
  * H8/300H interrupt controller driver
  *
- * Copyright 2015 Yoshinori Sato <ysato@users.sourceforge.jp>
+ * Copyright 2015 Yoshiyesri Sato <ysato@users.sourceforge.jp>
  */
 
 #include <linux/init.h>
@@ -73,8 +73,8 @@ static const struct irq_domain_ops irq_ops = {
        .xlate  = irq_domain_xlate_onecell,
 };
 
-static int __init h8300h_intc_of_init(struct device_node *intc,
-				      struct device_node *parent)
+static int __init h8300h_intc_of_init(struct device_yesde *intc,
+				      struct device_yesde *parent)
 {
 	struct irq_domain *domain;
 

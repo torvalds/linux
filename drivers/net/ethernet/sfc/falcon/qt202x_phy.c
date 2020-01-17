@@ -89,7 +89,7 @@ static int qt2025c_wait_heartbeat(struct ef4_nic *efx)
 			break;
 		if (time_after(jiffies, timeout)) {
 			/* Some cables have EEPROMs that conflict with the
-			 * PHY's on-board EEPROM so it cannot load firmware */
+			 * PHY's on-board EEPROM so it canyest load firmware */
 			netif_err(efx, hw, efx->net_dev,
 				  "If an SFP+ direct attach cable is"
 				  " connected, please check that it complies"
@@ -182,9 +182,9 @@ static void qt2025c_bug17190_workaround(struct ef4_nic *efx)
 	struct qt202x_phy_data *phy_data = efx->phy_data;
 
 	/* The PHY can get stuck in a state where it reports PHY_XS and PMA/PMD
-	 * layers up, but PCS down (no block_lock).  If we notice this state
+	 * layers up, but PCS down (yes block_lock).  If we yestice this state
 	 * persisting for a couple of seconds, we switch PMA/PMD loopback
-	 * briefly on and then off again, which is normally sufficient to
+	 * briefly on and then off again, which is yesrmally sufficient to
 	 * recover it.
 	 */
 	if (efx->link_state.up ||
@@ -224,7 +224,7 @@ static int qt2025c_select_phy_mode(struct ef4_nic *efx)
 		return 0;
 
 	/* In general we will get optimal behaviour in "SFP+ Self-Configure"
-	 * mode; however, that powers down most of the PHY when no module is
+	 * mode; however, that powers down most of the PHY when yes module is
 	 * present, so we must use a different mode (any fixed mode will do)
 	 * to be sure that loopbacks will work. */
 	phy_op_mode = (efx->loopback_mode == LOOPBACK_NONE) ? 0x0038 : 0x0020;
@@ -245,7 +245,7 @@ static int qt2025c_select_phy_mode(struct ef4_nic *efx)
 	 * STOPs onto the firmware/module I2C bus to reset it, varies across
 	 * board revisions, as the bus is connected to different GPIO/LED
 	 * outputs on the PHY.) */
-	if (board->major == 0 && board->minor < 2) {
+	if (board->major == 0 && board->miyesr < 2) {
 		ef4_mdio_write(efx, 1, 0xc303, 0x4498);
 		for (i = 0; i < 9; i++) {
 			ef4_mdio_write(efx, 1, 0xc303, 0x4488);
@@ -276,10 +276,10 @@ static int qt2025c_select_phy_mode(struct ef4_nic *efx)
 	ef4_mdio_write(efx, 1, 0xd006, 0x000a);
 	ef4_mdio_write(efx, 1, 0xd007, 0x0009);
 	ef4_mdio_write(efx, 1, 0xd008, 0x0004);
-	/* This additional write is not present in the boot EEPROM.  It
-	 * prevents the PHY's internal boot ROM doing another pointless (and
+	/* This additional write is yest present in the boot EEPROM.  It
+	 * prevents the PHY's internal boot ROM doing ayesther pointless (and
 	 * slow) reload of the firmware image (the microcontroller's code
-	 * memory is not affected by the microcontroller reset). */
+	 * memory is yest affected by the microcontroller reset). */
 	ef4_mdio_write(efx, 1, 0xc317, 0x00ff);
 	/* PMA/PMD loopback sets RXIN to inverse polarity and the firmware
 	 * restart doesn't reset it. We need to do that ourselves. */

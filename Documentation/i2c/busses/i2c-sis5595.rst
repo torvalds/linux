@@ -50,10 +50,10 @@ Module Parameters
 
 ==================	=====================================================
 force_addr=0xaddr	Set the I/O base address. Useful for boards
-			that don't set the address in the BIOS. Does not do a
+			that don't set the address in the BIOS. Does yest do a
 			PCI force; the device must still be present in lspci.
 			Don't use this unless the driver complains that the
-			base address is not set.
+			base address is yest set.
 ==================	=====================================================
 
 Description
@@ -63,6 +63,6 @@ i2c-sis5595 is a true SMBus host driver for motherboards with the SiS5595
 southbridges.
 
 WARNING: If you are trying to access the integrated sensors on the SiS5595
-chip, you want the sis5595 driver for those, not this driver. This driver
-is a BUS driver, not a CHIP driver. A BUS driver is used by other CHIP
+chip, you want the sis5595 driver for those, yest this driver. This driver
+is a BUS driver, yest a CHIP driver. A BUS driver is used by other CHIP
 drivers to access chips on the bus.

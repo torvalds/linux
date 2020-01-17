@@ -38,7 +38,7 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 	sr_data->nvalue_count = 0;
 	sr_data->nvalue_table = NULL;
 
-	while (volt_data[count].volt_nominal)
+	while (volt_data[count].volt_yesminal)
 		count++;
 
 	nvalue_table = kcalloc(count, sizeof(*nvalue_table), GFP_KERNEL);
@@ -50,7 +50,7 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 
 		/*
 		 * In OMAP4 the efuse registers are 24 bit aligned.
-		 * A readl_relaxed will fail for non-32 bit aligned address
+		 * A readl_relaxed will fail for yesn-32 bit aligned address
 		 * and hence the 8-bit read and shift.
 		 */
 		if (cpu_is_omap44xx()) {
@@ -77,7 +77,7 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 		nvalue_table[j].nvalue = v;
 		nvalue_table[j].efuse_offs = volt_data[i].sr_efuse_offs;
 		nvalue_table[j].errminlimit = volt_data[i].sr_errminlimit;
-		nvalue_table[j].volt_nominal = volt_data[i].volt_nominal;
+		nvalue_table[j].volt_yesminal = volt_data[i].volt_yesminal;
 
 		j++;
 	}
@@ -104,13 +104,13 @@ static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 		sr_data = &omap_sr_pdata[OMAP_SR_IVA];
 
 	if (!sr_data) {
-		pr_err("%s: Unknown instance %s\n", __func__, oh->name);
+		pr_err("%s: Unkyeswn instance %s\n", __func__, oh->name);
 		return -EINVAL;
 	}
 
 	sr_dev_attr = (struct omap_smartreflex_dev_attr *)oh->dev_attr;
 	if (!sr_dev_attr || !sr_dev_attr->sensor_voltdm_name) {
-		pr_err("%s: No voltage domain specified for %s. Cannot initialize\n",
+		pr_err("%s: No voltage domain specified for %s. Canyest initialize\n",
 		       __func__, oh->name);
 		goto exit;
 	}

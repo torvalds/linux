@@ -14,10 +14,10 @@
  * MIPS_CPU_IRQ_BASE+00 Software 0
  * MIPS_CPU_IRQ_BASE+01 Software 1
  * MIPS_CPU_IRQ_BASE+02 Cascade TX4938-CP0
- * MIPS_CPU_IRQ_BASE+03 Multiplexed -- do not use
- * MIPS_CPU_IRQ_BASE+04 Multiplexed -- do not use
- * MIPS_CPU_IRQ_BASE+05 Multiplexed -- do not use
- * MIPS_CPU_IRQ_BASE+06 Multiplexed -- do not use
+ * MIPS_CPU_IRQ_BASE+03 Multiplexed -- do yest use
+ * MIPS_CPU_IRQ_BASE+04 Multiplexed -- do yest use
+ * MIPS_CPU_IRQ_BASE+05 Multiplexed -- do yest use
+ * MIPS_CPU_IRQ_BASE+06 Multiplexed -- do yest use
  * MIPS_CPU_IRQ_BASE+07 CPU TIMER
  *
  * TXX9_IRQ_BASE+00

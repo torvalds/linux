@@ -225,14 +225,14 @@ static void calculate_fixed_part(struct snd_motu_packet_format *formats,
 
 static void calculate_differed_part(struct snd_motu_packet_format *formats,
 				    enum snd_motu_spec_flags flags, u32 data,
-				    u32 a_enable_mask, u32 a_no_adat_mask,
-				    u32 b_enable_mask, u32 b_no_adat_mask)
+				    u32 a_enable_mask, u32 a_yes_adat_mask,
+				    u32 b_enable_mask, u32 b_yes_adat_mask)
 {
 	unsigned char pcm_chunks[3] = {0, 0, 0};
 	int i;
 
 	if ((flags & SND_MOTU_SPEC_HAS_OPT_IFACE_A) && (data & a_enable_mask)) {
-		if (data & a_no_adat_mask) {
+		if (data & a_yes_adat_mask) {
 			/*
 			 * Additional two data chunks for S/PDIF on optical
 			 * interface A. This includes empty data chunks.
@@ -250,7 +250,7 @@ static void calculate_differed_part(struct snd_motu_packet_format *formats,
 	}
 
 	if ((flags & SND_MOTU_SPEC_HAS_OPT_IFACE_B) && (data & b_enable_mask)) {
-		if (data & b_no_adat_mask) {
+		if (data & b_yes_adat_mask) {
 			/*
 			 * Additional two data chunks for S/PDIF on optical
 			 * interface B. This includes empty data chunks.

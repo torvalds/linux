@@ -3,7 +3,7 @@
  * ALPHA patches to this driver on an EASYSTOR LS-120 ATAPI floppy drive.
  *
  * Ver 0.1   Oct 17 96   Initial test version, mostly based on ide-tape.c.
- * Ver 0.2   Oct 31 96   Minor changes.
+ * Ver 0.2   Oct 31 96   Miyesr changes.
  * Ver 0.3   Dec  2 96   Fixed error recovery bug.
  * Ver 0.4   Jan 26 97   Add support for the HDIO_GETGEO ioctl.
  * Ver 0.5   Feb 21 97   Add partitions support.
@@ -17,26 +17,26 @@
  *                       Remove idefloppy_get_capabilities().
  * Ver 0.9   Jul  4 99   Fix a bug which might have caused the number of
  *                        bytes requested on each interrupt to be zero.
- *                        Thanks to <shanos@es.co.nz> for pointing this out.
+ *                        Thanks to <shayess@es.co.nz> for pointing this out.
  * Ver 0.9.sv Jan 6 01   Sam Varshavchik <mrsam@courier-mta.com>
  *                       Implement low level formatting.  Reimplemented
  *                       IDEFLOPPY_CAPABILITIES_PAGE, since we need the srfp
  *                       bit.  My LS-120 drive barfs on
  *                       IDEFLOPPY_CAPABILITIES_PAGE, but maybe it's just me.
- *                       Compromise by not reporting a failure to get this
+ *                       Compromise by yest reporting a failure to get this
  *                       mode page.  Implemented four IOCTLs in order to
  *                       implement formatting.  IOCTls begin with 0x4600,
  *                       0x46 is 'F' as in Format.
  *            Jan 9 01   Userland option to select format verify.
  *                       Added PC_SUPPRESS_ERROR flag - some idefloppy drives
- *                       do not implement IDEFLOPPY_CAPABILITIES_PAGE, and
+ *                       do yest implement IDEFLOPPY_CAPABILITIES_PAGE, and
  *                       return a sense error.  Suppress error reporting in
  *                       this particular case in order to avoid spurious
  *                       errors in syslog.  The culprit is
  *                       idefloppy_get_capability_page(), so move it to
- *                       idefloppy_begin_format() so that it's not used
+ *                       idefloppy_begin_format() so that it's yest used
  *                       unless absolutely necessary.
- *                       If drive does not support format progress indication
+ *                       If drive does yest support format progress indication
  *                       monitor the dsc bit in the status register.
  *                       Also, O_NDELAY on open will allow the device to be
  *                       opened without a disk available.  This can be used to
@@ -46,7 +46,7 @@
  * Ver 0.92  Oct 22 00   Paul Bristow became official maintainer for this
  *           		   driver.  Included Powerbook internal zip kludge.
  * Ver 0.93  Oct 24 00   Fixed bugs for Clik! drive
- *                        no disk on insert and disk change now works
+ *                        yes disk on insert and disk change yesw works
  * Ver 0.94  Oct 27 00   Tidied up to remove strstr(Clik) everywhere
  * Ver 0.95  Nov  7 00   Brought across to kernel 2.4
  * Ver 0.96  Jan  7 01   Actually in line with release version of 2.4.0

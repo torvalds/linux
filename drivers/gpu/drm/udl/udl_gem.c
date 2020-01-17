@@ -62,7 +62,7 @@ static void update_vm_cache_attr(struct udl_gem_object *obj,
 {
 	DRM_DEBUG_KMS("flags = 0x%x\n", obj->flags);
 
-	/* non-cacheable as default. */
+	/* yesn-cacheable as default. */
 	if (obj->flags & UDL_BO_CACHEABLE) {
 		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	} else if (obj->flags & UDL_BO_WC) {
@@ -70,7 +70,7 @@ static void update_vm_cache_attr(struct udl_gem_object *obj,
 			pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 	} else {
 		vma->vm_page_prot =
-			pgprot_noncached(vm_get_page_prot(vma->vm_flags));
+			pgprot_yesncached(vm_get_page_prot(vma->vm_flags));
 	}
 }
 
@@ -197,7 +197,7 @@ void udl_gem_free_object(struct drm_gem_object *gem_obj)
 }
 
 /* the dumb interface doesn't work with the GEM straight MMAP
-   interface, it expects to do MMAP on the drm fd, like normal */
+   interface, it expects to do MMAP on the drm fd, like yesrmal */
 int udl_gem_mmap(struct drm_file *file, struct drm_device *dev,
 		 uint32_t handle, uint64_t *offset)
 {
@@ -221,7 +221,7 @@ int udl_gem_mmap(struct drm_file *file, struct drm_device *dev,
 	if (ret)
 		goto out;
 
-	*offset = drm_vma_node_offset_addr(&gobj->base.vma_node);
+	*offset = drm_vma_yesde_offset_addr(&gobj->base.vma_yesde);
 
 out:
 	drm_gem_object_put_unlocked(&gobj->base);

@@ -90,7 +90,7 @@
 	vmmc-supply = <&wlan_en>;
 	bus-width = <4>;
 	cap-power-off-card;
-	non-removable;
+	yesn-removable;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&wlan_irq_pin>;
@@ -110,10 +110,10 @@
 };
 
 &i2c2 {
-	/delete-node/ bmp085@77;
-	/delete-node/ bma180@41;
-	/delete-node/ itg3200@68;
-	/delete-node/ hmc5843@1e;
+	/delete-yesde/ bmp085@77;
+	/delete-yesde/ bma180@41;
+	/delete-yesde/ itg3200@68;
+	/delete-yesde/ hmc5843@1e;
 
 	bmg160@69 {
 		compatible = "bosch,bmg160";

@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/usb.h>
@@ -365,19 +365,19 @@ static int ath3k_switch_pid(struct usb_device *udev)
 			NULL, 0, USB_CTRL_SET_TIMEOUT);
 }
 
-static int ath3k_set_normal_mode(struct usb_device *udev)
+static int ath3k_set_yesrmal_mode(struct usb_device *udev)
 {
 	unsigned char fw_state;
 	int pipe = 0, ret;
 
 	ret = ath3k_get_state(udev, &fw_state);
 	if (ret < 0) {
-		BT_ERR("Can't get state to change to normal mode err");
+		BT_ERR("Can't get state to change to yesrmal mode err");
 		return ret;
 	}
 
 	if ((fw_state & ATH3K_MODE_MASK) == ATH3K_NORMAL_MODE) {
-		BT_DBG("firmware was already in normal mode");
+		BT_DBG("firmware was already in yesrmal mode");
 		return 0;
 	}
 
@@ -418,7 +418,7 @@ static int ath3k_load_patch(struct usb_device *udev)
 
 	ret = request_firmware(&firmware, filename, &udev->dev);
 	if (ret < 0) {
-		BT_ERR("Patch file not found %s", filename);
+		BT_ERR("Patch file yest found %s", filename);
 		return ret;
 	}
 
@@ -429,7 +429,7 @@ static int ath3k_load_patch(struct usb_device *udev)
 
 	if (pt_rom_version != le32_to_cpu(fw_version.rom_version) ||
 	    pt_build_version <= le32_to_cpu(fw_version.build_version)) {
-		BT_ERR("Patch file version did not match with firmware");
+		BT_ERR("Patch file version did yest match with firmware");
 		release_firmware(firmware);
 		return -EINVAL;
 	}
@@ -481,7 +481,7 @@ static int ath3k_load_syscfg(struct usb_device *udev)
 
 	ret = request_firmware(&firmware, filename, &udev->dev);
 	if (ret < 0) {
-		BT_ERR("Configuration file not found %s", filename);
+		BT_ERR("Configuration file yest found %s", filename);
 		return ret;
 	}
 
@@ -528,9 +528,9 @@ static int ath3k_probe(struct usb_interface *intf,
 			BT_ERR("Loading sysconfig file failed");
 			return ret;
 		}
-		ret = ath3k_set_normal_mode(udev);
+		ret = ath3k_set_yesrmal_mode(udev);
 		if (ret < 0) {
-			BT_ERR("Set normal mode failed");
+			BT_ERR("Set yesrmal mode failed");
 			return ret;
 		}
 		ath3k_switch_pid(udev);
@@ -540,7 +540,7 @@ static int ath3k_probe(struct usb_interface *intf,
 	ret = request_firmware(&firmware, ATH3K_FIRMWARE, &udev->dev);
 	if (ret < 0) {
 		if (ret == -ENOENT)
-			BT_ERR("Firmware file \"%s\" not found",
+			BT_ERR("Firmware file \"%s\" yest found",
 							ATH3K_FIRMWARE);
 		else
 			BT_ERR("Firmware file \"%s\" request failed (err=%d)",

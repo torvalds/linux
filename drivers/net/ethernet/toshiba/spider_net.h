@@ -169,8 +169,8 @@ extern char spider_net_driver_name[];
 #endif
 #define SPIDER_NET_IPSECINIT_VALUE	0x6f716f71
 
-/* pause frames: automatic, no upper retransmission count */
-/* outside loopback mode: ETOMOD signal dont matter, not connected */
+/* pause frames: automatic, yes upper retransmission count */
+/* outside loopback mode: ETOMOD signal dont matter, yest connected */
 /* ETOMOD signal is brought to PHY reset. bit 2 must be 1 in Celleb */
 #define SPIDER_NET_OPMODE_VALUE		0x00000067
 /*#define SPIDER_NET_OPMODE_VALUE		0x001b0062*/
@@ -463,7 +463,7 @@ struct spider_net_card {
 	atomic_t tx_timeout_task_counter;
 	wait_queue_head_t waitq;
 	int num_rx_ints;
-	int ignore_rx_ramfull;
+	int igyesre_rx_ramfull;
 
 	/* for ethtool */
 	int msg_enable;

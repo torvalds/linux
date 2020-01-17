@@ -549,7 +549,7 @@ static int ti_pipe3_exit(struct phy *x)
 	u32 val;
 	unsigned long timeout;
 
-	/* If dpll_reset_syscon is not present we wont power down SATA DPLL
+	/* If dpll_reset_syscon is yest present we wont power down SATA DPLL
 	 * due to Errata i783
 	 */
 	if (phy->mode == PIPE3_MODE_SATA && !phy->dpll_reset_syscon)
@@ -670,18 +670,18 @@ static int ti_pipe3_get_clk(struct ti_pipe3 *phy)
 static int ti_pipe3_get_sysctrl(struct ti_pipe3 *phy)
 {
 	struct device *dev = phy->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *control_node;
+	struct device_yesde *yesde = dev->of_yesde;
+	struct device_yesde *control_yesde;
 	struct platform_device *control_pdev;
 
-	phy->phy_power_syscon = syscon_regmap_lookup_by_phandle(node,
+	phy->phy_power_syscon = syscon_regmap_lookup_by_phandle(yesde,
 							"syscon-phy-power");
 	if (IS_ERR(phy->phy_power_syscon)) {
 		dev_dbg(dev,
 			"can't get syscon-phy-power, using control device\n");
 		phy->phy_power_syscon = NULL;
 	} else {
-		if (of_property_read_u32_index(node,
+		if (of_property_read_u32_index(yesde,
 					       "syscon-phy-power", 1,
 					       &phy->power_reg)) {
 			dev_err(dev, "couldn't get power reg. offset\n");
@@ -690,13 +690,13 @@ static int ti_pipe3_get_sysctrl(struct ti_pipe3 *phy)
 	}
 
 	if (!phy->phy_power_syscon) {
-		control_node = of_parse_phandle(node, "ctrl-module", 0);
-		if (!control_node) {
+		control_yesde = of_parse_phandle(yesde, "ctrl-module", 0);
+		if (!control_yesde) {
 			dev_err(dev, "Failed to get control device phandle\n");
 			return -EINVAL;
 		}
 
-		control_pdev = of_find_device_by_node(control_node);
+		control_pdev = of_find_device_by_yesde(control_yesde);
 		if (!control_pdev) {
 			dev_err(dev, "Failed to get control device\n");
 			return -EINVAL;
@@ -706,14 +706,14 @@ static int ti_pipe3_get_sysctrl(struct ti_pipe3 *phy)
 	}
 
 	if (phy->mode == PIPE3_MODE_PCIE) {
-		phy->pcs_syscon = syscon_regmap_lookup_by_phandle(node,
+		phy->pcs_syscon = syscon_regmap_lookup_by_phandle(yesde,
 								  "syscon-pcs");
 		if (IS_ERR(phy->pcs_syscon)) {
 			dev_dbg(dev,
 				"can't get syscon-pcs, using omap control\n");
 			phy->pcs_syscon = NULL;
 		} else {
-			if (of_property_read_u32_index(node,
+			if (of_property_read_u32_index(yesde,
 						       "syscon-pcs", 1,
 						       &phy->pcie_pcs_reg)) {
 				dev_err(dev,
@@ -724,14 +724,14 @@ static int ti_pipe3_get_sysctrl(struct ti_pipe3 *phy)
 	}
 
 	if (phy->mode == PIPE3_MODE_SATA) {
-		phy->dpll_reset_syscon = syscon_regmap_lookup_by_phandle(node,
+		phy->dpll_reset_syscon = syscon_regmap_lookup_by_phandle(yesde,
 							"syscon-pllreset");
 		if (IS_ERR(phy->dpll_reset_syscon)) {
 			dev_info(dev,
 				 "can't get syscon-pllreset, sata dpll won't idle\n");
 			phy->dpll_reset_syscon = NULL;
 		} else {
-			if (of_property_read_u32_index(node,
+			if (of_property_read_u32_index(yesde,
 						       "syscon-pllreset", 1,
 						       &phy->dpll_reset_reg)) {
 				dev_err(dev,
@@ -798,7 +798,7 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 
 	data = (struct pipe3_data *)match->data;
 	if (!data) {
-		dev_err(dev, "no driver data\n");
+		dev_err(dev, "yes driver data\n");
 		return -EINVAL;
 	}
 

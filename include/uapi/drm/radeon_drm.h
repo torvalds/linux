@@ -12,7 +12,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -180,10 +180,10 @@ extern "C" {
 #define RADEON_CMD_PACKET3     5	/* emit hw packet */
 #define RADEON_CMD_PACKET3_CLIP 6	/* emit hw packet wrapped in cliprects */
 #define RADEON_CMD_SCALARS2     7	/* r200 stopgap */
-#define RADEON_CMD_WAIT         8	/* emit hw wait commands -- note:
+#define RADEON_CMD_WAIT         8	/* emit hw wait commands -- yeste:
 					 *  doesn't make the cpu wait, just
 					 *  the graphics hardware */
-#define RADEON_CMD_VECLINEAR	9       /* another r200 stopgap */
+#define RADEON_CMD_VECLINEAR	9       /* ayesther r200 stopgap */
 
 typedef union {
 	int i;
@@ -219,7 +219,7 @@ typedef union {
 #define R300_CMD_PACKET3_RAW		1
 
 /* Commands understood by cmd_buffer ioctl for R300.
- * The interface has not been stabilized, so some of these may be removed
+ * The interface has yest been stabilized, so some of these may be removed
  * and eventually reordered before stabilization.
  */
 #define R300_CMD_PACKET0		1
@@ -807,7 +807,7 @@ struct drm_radeon_gem_info {
 #define RADEON_GEM_GTT_WC		(1 << 2)
 /* BO is expected to be accessed by the CPU */
 #define RADEON_GEM_CPU_ACCESS		(1 << 3)
-/* CPU access is not expected to work for this BO */
+/* CPU access is yest expected to work for this BO */
 #define RADEON_GEM_NO_CPU_ACCESS	(1 << 4)
 
 struct drm_radeon_gem_create {
@@ -819,8 +819,8 @@ struct drm_radeon_gem_create {
 };
 
 /*
- * This is not a reliable API and you should expect it to fail for any
- * number of reasons and have fallback path that do not use userptr to
+ * This is yest a reliable API and you should expect it to fail for any
+ * number of reasons and have fallback path that do yest use userptr to
  * perform any operation.
  */
 #define RADEON_GEM_USERPTR_READONLY	(1 << 0)
@@ -898,7 +898,7 @@ struct drm_radeon_gem_pread {
 	/** Length of data to read */
 	__u64 size;
 	/** Pointer to write the data into. */
-	/* void *, but pointers are not 32/64 compatible */
+	/* void *, but pointers are yest 32/64 compatible */
 	__u64 data_ptr;
 };
 
@@ -911,7 +911,7 @@ struct drm_radeon_gem_pwrite {
 	/** Length of data to write */
 	__u64 size;
 	/** Pointer to read the data from. */
-	/* void *, but pointers are not 32/64 compatible */
+	/* void *, but pointers are yest 32/64 compatible */
 	__u64 data_ptr;
 };
 
@@ -962,7 +962,7 @@ struct drm_radeon_gem_va {
 #define RADEON_CS_RING_UVD          3
 #define RADEON_CS_RING_VCE          4
 /* The third dword of RADEON_CHUNK_ID_FLAGS is a sint32 that sets the priority */
-/* 0 = normal, + = higher priority, - = lower priority */
+/* 0 = yesrmal, + = higher priority, - = lower priority */
 
 struct drm_radeon_cs_chunk {
 	__u32		chunk_id;

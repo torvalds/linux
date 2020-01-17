@@ -2,18 +2,18 @@
 /*
  * core.h - DesignWare HS OTG Controller common declarations
  *
- * Copyright (C) 2004-2013 Synopsys, Inc.
+ * Copyright (C) 2004-2013 Syyespsys, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
+ * 3. The names of the above-listed copyright holders may yest be used
  *    to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -47,13 +47,13 @@
 
 /*
  * Suggested defines for tracers:
- * - no_printk:    Disable tracing
+ * - yes_printk:    Disable tracing
  * - pr_info:      Print this info to the console
  * - trace_printk: Print this info to trace buffer (good for verbose logging)
  */
 
-#define DWC2_TRACE_SCHEDULER		no_printk
-#define DWC2_TRACE_SCHEDULER_VB		no_printk
+#define DWC2_TRACE_SCHEDULER		yes_printk
+#define DWC2_TRACE_SCHEDULER_VB		yes_printk
 
 /* Detailed scheduler tracing, but won't overwhelm console */
 #define dwc2_sch_dbg(hsotg, fmt, ...)					\
@@ -86,12 +86,12 @@ static const char * const dwc2_hsotg_supply_names[] = {
  *
  * This means if we are wanting to move >127 bytes of data, we need to
  * split the transactions up, but just doing one packet at a time does
- * not work (this may be an implicit DATA0 PID on first packet of the
+ * yest work (this may be an implicit DATA0 PID on first packet of the
  * transaction) and doing 2 packets is outside the controller's limits.
  *
- * If we try to lower the MPS size for EP0, then no transfers work properly
- * for EP0, and the system will fail basic enumeration. As no cause for this
- * has currently been found, we cannot support any large IN transfers for
+ * If we try to lower the MPS size for EP0, then yes transfers work properly
+ * for EP0, and the system will fail basic enumeration. As yes cause for this
+ * has currently been found, we canyest support any large IN transfers for
  * EP0.
  */
 #define EP0_MPS_LIMIT   64
@@ -118,7 +118,7 @@ struct dwc2_hsotg_req;
  * @name: The name array passed to the USB core.
  * @halted: Set if the endpoint has been halted.
  * @periodic: Set if this is a periodic ep, such as Interrupt
- * @isochronous: Set if this is a isochronous ep
+ * @isochroyesus: Set if this is a isochroyesus ep
  * @send_zlp: Set if we need to send a zero-length packet.
  * @desc_list_dma: The DMA address of descriptor chain currently in use.
  * @desc_list: Pointer to descriptor DMA chain head currently in use.
@@ -142,7 +142,7 @@ struct dwc2_hsotg_req;
  * For periodic IN endpoints, we have fifo_size and fifo_load to try
  * and keep track of the amount of data in the periodic FIFO for each
  * of these as we don't have a status register that tells us how much
- * is in each of them. (note, this may actually be useless information
+ * is in each of them. (yeste, this may actually be useless information
  * as in shared-fifo mode periodic in acts like a single-frame packet
  * buffer than a fifo)
  */
@@ -167,7 +167,7 @@ struct dwc2_hsotg_ep {
 
 	unsigned int            halted:1;
 	unsigned int            periodic:1;
-	unsigned int            isochronous:1;
+	unsigned int            isochroyesus:1;
 	unsigned int            send_zlp:1;
 	unsigned int            target_frame;
 #define TARGET_FRAME_INITIAL   0xFFFFFFFF
@@ -240,19 +240,19 @@ enum dwc2_ep0_state {
  *                      Defaults to best available option (0, 1, then 2)
  * @host_dma:           Specifies whether to use slave or DMA mode for accessing
  *                      the data FIFOs. The driver will automatically detect the
- *                      value for this parameter if none is specified.
+ *                      value for this parameter if yesne is specified.
  *                       0 - Slave (always available)
  *                       1 - DMA (default, if available)
  * @dma_desc_enable:    When DMA mode is enabled, specifies whether to use
  *                      address DMA mode or descriptor DMA mode for accessing
  *                      the data FIFOs. The driver will automatically detect the
- *                      value for this if none is specified.
+ *                      value for this if yesne is specified.
  *                       0 - Address DMA
  *                       1 - Descriptor DMA (default, if available)
  * @dma_desc_fs_enable: When DMA mode is enabled, specifies whether to use
  *                      address DMA mode or descriptor DMA mode for accessing
  *                      the data FIFOs in Full Speed mode only. The driver
- *                      will automatically detect the value for this if none is
+ *                      will automatically detect the value for this if yesne is
  *                      specified.
  *                       0 - Address DMA
  *                       1 - Descriptor DMA in FS (default, if available)
@@ -266,14 +266,14 @@ enum dwc2_ep0_state {
  * @enable_dynamic_fifo: 0 - Use coreConsultant-specified FIFO size parameters
  *                       1 - Allow dynamic FIFO sizing (default, if available)
  * @en_multiple_tx_fifo: Specifies whether dedicated per-endpoint transmit FIFOs
- *                      are enabled for non-periodic IN endpoints in device
+ *                      are enabled for yesn-periodic IN endpoints in device
  *                      mode.
  * @host_rx_fifo_size:  Number of 4-byte words in the Rx FIFO in host mode when
  *                      dynamic FIFO sizing is enabled
  *                       16 to 32768
  *                      Actual maximum value is autodetected and also
  *                      the default.
- * @host_nperio_tx_fifo_size: Number of 4-byte words in the non-periodic Tx FIFO
+ * @host_nperio_tx_fifo_size: Number of 4-byte words in the yesn-periodic Tx FIFO
  *                      in host mode when dynamic FIFO sizing is enabled
  *                       16 to 32768
  *                      Actual maximum value is autodetected and also
@@ -365,7 +365,7 @@ enum dwc2_ep0_state {
  *                                    this value
  *                      Not all bits can be controlled like this, the
  *                      bits defined by GAHBCFG_CTRL_MASK are controlled
- *                      by the driver and are ignored in this
+ *                      by the driver and are igyesred in this
  *                      configuration value.
  * @uframe_sched:       True to enable the microframe scheduler
  * @external_id_pin_ctl: Specifies whether ID pin is handled externally.
@@ -416,7 +416,7 @@ enum dwc2_ep0_state {
  * @g_rx_fifo_size:	The periodic rx fifo size for the device, in
  *			DWORDS from 16-32768 (default: 2048 if
  *			possible, otherwise autodetect).
- * @g_np_tx_fifo_size:	The non-periodic tx fifo size for the device in
+ * @g_np_tx_fifo_size:	The yesn-periodic tx fifo size for the device in
  *			DWORDS from 16-32768 (default: 1024 if
  *			possible, otherwise autodetect).
  * @g_tx_fifo_size:	An array of TX fifo sizes in dedicated fifo
@@ -521,7 +521,7 @@ struct dwc2_core_params {
  * supported or maximum value that can be configured in the
  * corresponding dwc2_core_params value.
  *
- * The values that are not in dwc2_core_params are documented below.
+ * The values that are yest in dwc2_core_params are documented below.
  *
  * @op_mode:             Mode of Operation
  *                       0 - HNP- and SRP-Capable OTG (Host & Device)
@@ -556,12 +556,12 @@ struct dwc2_core_params {
  *                      Non-Periodic Request Queue Depth
  *                       2, 4 or 8
  * @hs_phy_type:         High-speed PHY interface type
- *                       0 - High-speed interface not supported
+ *                       0 - High-speed interface yest supported
  *                       1 - UTMI+
  *                       2 - ULPI
  *                       3 - UTMI+ and ULPI
  * @fs_phy_type:         Full-speed PHY interface type
- *                       0 - Full speed interface not supported
+ *                       0 - Full speed interface yest supported
  *                       1 - Dedicated full speed interface
  *                       2 - FS pins shared with UTMI+ pins
  *                       3 - FS pins shared with ULPI pins
@@ -577,15 +577,15 @@ struct dwc2_core_params {
  * @dma_desc_enable:    When DMA mode is enabled, specifies whether to use
  *                      address DMA mode or descriptor DMA mode for accessing
  *                      the data FIFOs. The driver will automatically detect the
- *                      value for this if none is specified.
+ *                      value for this if yesne is specified.
  *                       0 - Address DMA
  *                       1 - Descriptor DMA (default, if available)
  * @enable_dynamic_fifo: 0 - Use coreConsultant-specified FIFO size parameters
  *                       1 - Allow dynamic FIFO sizing (default, if available)
  * @en_multiple_tx_fifo: Specifies whether dedicated per-endpoint transmit FIFOs
- *                      are enabled for non-periodic IN endpoints in device
+ *                      are enabled for yesn-periodic IN endpoints in device
  *                      mode.
- * @host_nperio_tx_fifo_size: Number of 4-byte words in the non-periodic Tx FIFO
+ * @host_nperio_tx_fifo_size: Number of 4-byte words in the yesn-periodic Tx FIFO
  *                      in host mode when dynamic FIFO sizing is enabled
  *                       16 to 32768
  *                      Actual maximum value is autodetected and also
@@ -607,7 +607,7 @@ struct dwc2_core_params {
  *                       1 to 16
  *                      Actual maximum value is autodetected and also
  *                      the default.
- * @dev_nperio_tx_fifo_size: Number of 4-byte words in the non-periodic Tx FIFO
+ * @dev_nperio_tx_fifo_size: Number of 4-byte words in the yesn-periodic Tx FIFO
  *			     in device mode when dynamic FIFO sizing is enabled
  *			     16 to 32768
  *			     Actual maximum value is autodetected and also
@@ -837,7 +837,7 @@ struct dwc2_hregs_backup {
 				 DWC2_LS_PERIODIC_SLICES_PER_FRAME)
 
 /**
- * struct dwc2_hsotg - Holds the state of the driver, including the non-periodic
+ * struct dwc2_hsotg - Holds the state of the driver, including the yesn-periodic
  * and periodic schedules
  *
  * These are common for both host and peripheral modes:
@@ -848,7 +848,7 @@ struct dwc2_hregs_backup {
  *                      hardware registers
  * @params:	Parameters that define how the core should be configured
  * @op_state:           The operational State, during transitions (a_host=>
- *                      a_peripheral and b_device=>b_host) this may not match
+ *                      a_peripheral and b_device=>b_host) this may yest match
  *                      the core, but allows the software to determine
  *                      transitions
  * @dr_mode:            Requested mode of operation, one of following:
@@ -905,19 +905,19 @@ struct dwc2_hregs_backup {
  *                       changed.
  * @flags.b.port_l1_change: True if root port l1 status changed
  * @flags.b.reserved:   Reserved bits of root port register
- * @non_periodic_sched_inactive: Inactive QHs in the non-periodic schedule.
- *                      Transfers associated with these QHs are not currently
+ * @yesn_periodic_sched_inactive: Inactive QHs in the yesn-periodic schedule.
+ *                      Transfers associated with these QHs are yest currently
  *                      assigned to a host channel.
- * @non_periodic_sched_active: Active QHs in the non-periodic schedule.
+ * @yesn_periodic_sched_active: Active QHs in the yesn-periodic schedule.
  *                      Transfers associated with these QHs are currently
  *                      assigned to a host channel.
- * @non_periodic_qh_ptr: Pointer to next QH to process in the active
- *                      non-periodic schedule
- * @non_periodic_sched_waiting: Waiting QHs in the non-periodic schedule.
- *                      Transfers associated with these QHs are not currently
+ * @yesn_periodic_qh_ptr: Pointer to next QH to process in the active
+ *                      yesn-periodic schedule
+ * @yesn_periodic_sched_waiting: Waiting QHs in the yesn-periodic schedule.
+ *                      Transfers associated with these QHs are yest currently
  *                      assigned to a host channel.
  * @periodic_sched_inactive: Inactive QHs in the periodic schedule. This is a
- *                      list of QHs for periodic transfers that are _not_
+ *                      list of QHs for periodic transfers that are _yest_
  *                      scheduled for the next frame. Each QH in the list has an
  *                      interval counter that determines when it needs to be
  *                      scheduled for execution. This scheduling mechanism
@@ -930,7 +930,7 @@ struct dwc2_hregs_backup {
  *                      this list to periodic_sched_ready when the QH interval
  *                      counter is 0 at SOF.
  * @periodic_sched_ready:  List of periodic QHs that are ready for execution in
- *                      the next frame, but have not yet been assigned to host
+ *                      the next frame, but have yest yet been assigned to host
  *                      channels. Items move from this list to
  *                      periodic_sched_assigned as host channels become
  *                      available during the current frame.
@@ -962,8 +962,8 @@ struct dwc2_hregs_backup {
  * @periodic_channels:  Number of host channels assigned to periodic transfers.
  *                      Currently assuming that there is a dedicated host
  *                      channel for each periodic transaction and at least one
- *                      host channel is available for non-periodic transactions.
- * @non_periodic_channels: Number of host channels assigned to non-periodic
+ *                      host channel is available for yesn-periodic transactions.
+ * @yesn_periodic_channels: Number of host channels assigned to yesn-periodic
  *                      transfers
  * @available_host_channels: Number of host channels available for the
  *			     microframe scheduler to use
@@ -982,8 +982,8 @@ struct dwc2_hregs_backup {
  * @frame_list_dma:     Frame list DMA address
  * @frame_list_sz:      Frame list size
  * @desc_gen_cache:     Kmem cache for generic descriptors
- * @desc_hsisoc_cache:  Kmem cache for hs isochronous descriptors
- * @unaligned_cache:    Kmem cache for DMA mode to handle non-aligned buf
+ * @desc_hsisoc_cache:  Kmem cache for hs isochroyesus descriptors
+ * @unaligned_cache:    Kmem cache for DMA mode to handle yesn-aligned buf
  *
  * These are for peripheral mode:
  *
@@ -1018,14 +1018,14 @@ struct dwc2_hregs_backup {
  * @last_frame_num:	Number of last frame. Range from 0 to  32768
  * @frame_num_array:    Used only  if CONFIG_USB_DWC2_TRACK_MISSED_SOFS is
  *			defined, for missed SOFs tracking. Array holds that
- *			frame numbers, which not equal to last_frame_num +1
+ *			frame numbers, which yest equal to last_frame_num +1
  * @last_frame_num_array:   Used only  if CONFIG_USB_DWC2_TRACK_MISSED_SOFS is
  *			    defined, for missed SOFs tracking.
  *			    If current_frame_number != last_frame_num+1
  *			    then last_frame_num added to this array
  * @frame_num_idx:	Actual size of frame_num_array and last_frame_num_array
  * @dumped_frame_num_array:	1 - if missed SOFs frame numbers dumbed
- *				0 - if missed SOFs frame numbers not dumbed
+ *				0 - if missed SOFs frame numbers yest dumbed
  * @fifo_mem:			Total internal RAM for FIFOs (bytes)
  * @fifo_map:		Each bit intend for concrete fifo. If that bit is set,
  *			then that fifo is used
@@ -1118,10 +1118,10 @@ struct dwc2_hsotg {
 		} b;
 	} flags;
 
-	struct list_head non_periodic_sched_inactive;
-	struct list_head non_periodic_sched_waiting;
-	struct list_head non_periodic_sched_active;
-	struct list_head *non_periodic_qh_ptr;
+	struct list_head yesn_periodic_sched_inactive;
+	struct list_head yesn_periodic_sched_waiting;
+	struct list_head yesn_periodic_sched_active;
+	struct list_head *yesn_periodic_qh_ptr;
 	struct list_head periodic_sched_inactive;
 	struct list_head periodic_sched_ready;
 	struct list_head periodic_sched_assigned;
@@ -1146,7 +1146,7 @@ struct dwc2_hsotg {
 
 	struct list_head free_hc_list;
 	int periodic_channels;
-	int non_periodic_channels;
+	int yesn_periodic_channels;
 	int available_host_channels;
 	struct dwc2_host_chan *hc_ptr_array[MAX_EPS_CHANNELS];
 	u8 *status_buf;

@@ -19,8 +19,8 @@ int dpio_close(struct fsl_mc_io	*mc_io,
 	       u16		token);
 
 /**
- * enum dpio_channel_mode - DPIO notification channel mode
- * @DPIO_NO_CHANNEL: No support for notification channel
+ * enum dpio_channel_mode - DPIO yestification channel mode
+ * @DPIO_NO_CHANNEL: No support for yestification channel
  * @DPIO_LOCAL_CHANNEL: Notifications on data availability can be received by a
  *	dedicated channel in the DPIO; user should point the queue's
  *	destination in the relevant interface to this DPIO
@@ -33,7 +33,7 @@ enum dpio_channel_mode {
 /**
  * struct dpio_cfg - Structure representing DPIO configuration
  * @channel_mode: Notification channel mode
- * @num_priorities: Number of priorities for the notification channel (1-8);
+ * @num_priorities: Number of priorities for the yestification channel (1-8);
  *			relevant only if 'channel_mode = DPIO_LOCAL_CHANNEL'
  */
 struct dpio_cfg {
@@ -56,7 +56,7 @@ int dpio_disable(struct fsl_mc_io	*mc_io,
  * @qbman_portal_ci_offset: offset of the software portal cache-inhibited area
  * @qbman_portal_id: Software portal ID
  * @channel_mode: Notification channel mode
- * @num_priorities: Number of priorities for the notification channel (1-8);
+ * @num_priorities: Number of priorities for the yestification channel (1-8);
  *			relevant only if 'channel_mode = DPIO_LOCAL_CHANNEL'
  * @qbman_version: QBMAN version
  */
@@ -83,7 +83,7 @@ int dpio_set_stashing_destination(struct fsl_mc_io *mc_io,
 int dpio_get_api_version(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
 			 u16 *major_ver,
-			 u16 *minor_ver);
+			 u16 *miyesr_ver);
 
 int dpio_reset(struct fsl_mc_io	*mc_io,
 	       u32 cmd_flags,

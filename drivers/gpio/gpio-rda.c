@@ -199,7 +199,7 @@ static void rda_gpio_irq_handler(struct irq_desc *desc)
 
 static int rda_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 	struct gpio_irq_chip *girq;
 	struct rda_gpio *rda_gpio;
@@ -243,7 +243,7 @@ static int rda_gpio_probe(struct platform_device *pdev)
 	rda_gpio->chip.ngpio = ngpios;
 	rda_gpio->chip.base = -1;
 	rda_gpio->chip.parent = dev;
-	rda_gpio->chip.of_node = np;
+	rda_gpio->chip.of_yesde = np;
 
 	if (rda_gpio->irq >= 0) {
 		rda_gpio->irq_chip.name = "rda-gpio",

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroyesme Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <net/pkt_cls.h>
@@ -18,48 +18,48 @@ struct nfp_abm_u32_match {
 };
 
 static bool
-nfp_abm_u32_check_knode(struct nfp_abm *abm, struct tc_cls_u32_knode *knode,
+nfp_abm_u32_check_kyesde(struct nfp_abm *abm, struct tc_cls_u32_kyesde *kyesde,
 			__be16 proto, struct netlink_ext_ack *extack)
 {
 	struct tc_u32_key *k;
 	unsigned int tos_off;
 
-	if (knode->exts && tcf_exts_has_actions(knode->exts)) {
-		NL_SET_ERR_MSG_MOD(extack, "action offload not supported");
+	if (kyesde->exts && tcf_exts_has_actions(kyesde->exts)) {
+		NL_SET_ERR_MSG_MOD(extack, "action offload yest supported");
 		return false;
 	}
-	if (knode->link_handle) {
-		NL_SET_ERR_MSG_MOD(extack, "linking not supported");
+	if (kyesde->link_handle) {
+		NL_SET_ERR_MSG_MOD(extack, "linking yest supported");
 		return false;
 	}
-	if (knode->sel->flags != TC_U32_TERMINAL) {
+	if (kyesde->sel->flags != TC_U32_TERMINAL) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "flags must be equal to TC_U32_TERMINAL");
 		return false;
 	}
-	if (knode->sel->off || knode->sel->offshift || knode->sel->offmask ||
-	    knode->sel->offoff || knode->fshift) {
-		NL_SET_ERR_MSG_MOD(extack, "variable offsetting not supported");
+	if (kyesde->sel->off || kyesde->sel->offshift || kyesde->sel->offmask ||
+	    kyesde->sel->offoff || kyesde->fshift) {
+		NL_SET_ERR_MSG_MOD(extack, "variable offsetting yest supported");
 		return false;
 	}
-	if (knode->sel->hoff || knode->sel->hmask) {
-		NL_SET_ERR_MSG_MOD(extack, "hashing not supported");
+	if (kyesde->sel->hoff || kyesde->sel->hmask) {
+		NL_SET_ERR_MSG_MOD(extack, "hashing yest supported");
 		return false;
 	}
-	if (knode->val || knode->mask) {
-		NL_SET_ERR_MSG_MOD(extack, "matching on mark not supported");
+	if (kyesde->val || kyesde->mask) {
+		NL_SET_ERR_MSG_MOD(extack, "matching on mark yest supported");
 		return false;
 	}
-	if (knode->res && knode->res->class) {
-		NL_SET_ERR_MSG_MOD(extack, "setting non-0 class not supported");
+	if (kyesde->res && kyesde->res->class) {
+		NL_SET_ERR_MSG_MOD(extack, "setting yesn-0 class yest supported");
 		return false;
 	}
-	if (knode->res && knode->res->classid >= abm->num_bands) {
+	if (kyesde->res && kyesde->res->classid >= abm->num_bands) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "classid higher than number of bands");
 		return false;
 	}
-	if (knode->sel->nkeys != 1) {
+	if (kyesde->sel->nkeys != 1) {
 		NL_SET_ERR_MSG_MOD(extack, "exactly one key required");
 		return false;
 	}
@@ -76,9 +76,9 @@ nfp_abm_u32_check_knode(struct nfp_abm *abm, struct tc_cls_u32_knode *knode,
 		return false;
 	}
 
-	k = &knode->sel->keys[0];
+	k = &kyesde->sel->keys[0];
 	if (k->offmask) {
-		NL_SET_ERR_MSG_MOD(extack, "offset mask - variable offsetting not supported");
+		NL_SET_ERR_MSG_MOD(extack, "offset mask - variable offsetting yest supported");
 		return false;
 	}
 	if (k->off) {
@@ -86,7 +86,7 @@ nfp_abm_u32_check_knode(struct nfp_abm *abm, struct tc_cls_u32_knode *knode,
 		return false;
 	}
 	if (k->val & ~k->mask) {
-		NL_SET_ERR_MSG_MOD(extack, "mask does not cover the key");
+		NL_SET_ERR_MSG_MOD(extack, "mask does yest cover the key");
 		return false;
 	}
 	if (be32_to_cpu(k->mask) >> tos_off & ~abm->dscp_mask) {
@@ -152,13 +152,13 @@ static int nfp_abm_update_band_map(struct nfp_abm_link *alink)
 }
 
 static void
-nfp_abm_u32_knode_delete(struct nfp_abm_link *alink,
-			 struct tc_cls_u32_knode *knode)
+nfp_abm_u32_kyesde_delete(struct nfp_abm_link *alink,
+			 struct tc_cls_u32_kyesde *kyesde)
 {
 	struct nfp_abm_u32_match *iter;
 
 	list_for_each_entry(iter, &alink->dscp_map, list)
-		if (iter->handle == knode->handle) {
+		if (iter->handle == kyesde->handle) {
 			list_del(&iter->list);
 			kfree(iter);
 			nfp_abm_update_band_map(alink);
@@ -167,8 +167,8 @@ nfp_abm_u32_knode_delete(struct nfp_abm_link *alink,
 }
 
 static int
-nfp_abm_u32_knode_replace(struct nfp_abm_link *alink,
-			  struct tc_cls_u32_knode *knode,
+nfp_abm_u32_kyesde_replace(struct nfp_abm_link *alink,
+			  struct tc_cls_u32_kyesde *kyesde,
 			  __be16 proto, struct netlink_ext_ack *extack)
 {
 	struct nfp_abm_u32_match *match = NULL, *iter;
@@ -176,7 +176,7 @@ nfp_abm_u32_knode_replace(struct nfp_abm_link *alink,
 	u8 mask, val;
 	int err;
 
-	if (!nfp_abm_u32_check_knode(alink->abm, knode, proto, extack)) {
+	if (!nfp_abm_u32_check_kyesde(alink->abm, kyesde, proto, extack)) {
 		err = -EOPNOTSUPP;
 		goto err_delete;
 	}
@@ -184,21 +184,21 @@ nfp_abm_u32_knode_replace(struct nfp_abm_link *alink,
 	tos_off = proto == htons(ETH_P_IP) ? 16 : 20;
 
 	/* Extract the DSCP Class Selector bits */
-	val = be32_to_cpu(knode->sel->keys[0].val) >> tos_off & 0xff;
-	mask = be32_to_cpu(knode->sel->keys[0].mask) >> tos_off & 0xff;
+	val = be32_to_cpu(kyesde->sel->keys[0].val) >> tos_off & 0xff;
+	mask = be32_to_cpu(kyesde->sel->keys[0].mask) >> tos_off & 0xff;
 
-	/* Check if there is no conflicting mapping and find match by handle */
+	/* Check if there is yes conflicting mapping and find match by handle */
 	list_for_each_entry(iter, &alink->dscp_map, list) {
 		u32 cmask;
 
-		if (iter->handle == knode->handle) {
+		if (iter->handle == kyesde->handle) {
 			match = iter;
 			continue;
 		}
 
 		cmask = iter->mask & mask;
 		if ((iter->val & cmask) == (val & cmask) &&
-		    iter->band != knode->res->classid) {
+		    iter->band != kyesde->res->classid) {
 			NL_SET_ERR_MSG_MOD(extack, "conflict with already offloaded filter");
 			err = -EOPNOTSUPP;
 			goto err_delete;
@@ -214,8 +214,8 @@ nfp_abm_u32_knode_replace(struct nfp_abm_link *alink,
 
 		list_add(&match->list, &alink->dscp_map);
 	}
-	match->handle = knode->handle;
-	match->band = knode->res->classid;
+	match->handle = kyesde->handle;
+	match->band = kyesde->res->classid;
 	match->mask = mask;
 	match->val = val;
 
@@ -226,7 +226,7 @@ nfp_abm_u32_knode_replace(struct nfp_abm_link *alink,
 	return 0;
 
 err_delete:
-	nfp_abm_u32_knode_delete(alink, knode);
+	nfp_abm_u32_kyesde_delete(alink, kyesde);
 	return err;
 }
 
@@ -257,11 +257,11 @@ static int nfp_abm_setup_tc_block_cb(enum tc_setup_type type,
 	switch (cls_u32->command) {
 	case TC_CLSU32_NEW_KNODE:
 	case TC_CLSU32_REPLACE_KNODE:
-		return nfp_abm_u32_knode_replace(alink, &cls_u32->knode,
+		return nfp_abm_u32_kyesde_replace(alink, &cls_u32->kyesde,
 						 cls_u32->common.protocol,
 						 cls_u32->common.extack);
 	case TC_CLSU32_DELETE_KNODE:
-		nfp_abm_u32_knode_delete(alink, &cls_u32->knode);
+		nfp_abm_u32_kyesde_delete(alink, &cls_u32->kyesde);
 		return 0;
 	default:
 		return -EOPNOTSUPP;

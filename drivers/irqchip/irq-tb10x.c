@@ -68,7 +68,7 @@ static int tb10x_irq_set_type(struct irq_data *data, unsigned int flow_type)
 		break;
 	default:
 		irq_gc_unlock(gc);
-		pr_err("%s: Cannot assign multiple trigger modes to IRQ %d.\n",
+		pr_err("%s: Canyest assign multiple trigger modes to IRQ %d.\n",
 			__func__, data->irq);
 		return -EBADR;
 	}
@@ -93,8 +93,8 @@ static void tb10x_irq_cascade(struct irq_desc *desc)
 	generic_handle_irq(irq_find_mapping(domain, irq));
 }
 
-static int __init of_tb10x_init_irq(struct device_node *ictl,
-					struct device_node *parent)
+static int __init of_tb10x_init_irq(struct device_yesde *ictl,
+					struct device_yesde *parent)
 {
 	int i, ret, nrirqs = of_irq_count(ictl);
 	struct resource mem;
@@ -125,7 +125,7 @@ static int __init of_tb10x_init_irq(struct device_node *ictl,
 					&irq_generic_chip_ops, NULL);
 	if (!domain) {
 		ret = -ENOMEM;
-		pr_err("%pOFn: Could not register interrupt domain.\n",
+		pr_err("%pOFn: Could yest register interrupt domain.\n",
 			ictl);
 		goto irq_domain_add_fail;
 	}
@@ -135,7 +135,7 @@ static int __init of_tb10x_init_irq(struct device_node *ictl,
 				IRQ_NOREQUEST, IRQ_NOPROBE,
 				IRQ_GC_INIT_MASK_CACHE);
 	if (ret) {
-		pr_err("%pOFn: Could not allocate generic interrupt chip.\n",
+		pr_err("%pOFn: Could yest allocate generic interrupt chip.\n",
 			ictl);
 		goto gc_alloc_fail;
 	}

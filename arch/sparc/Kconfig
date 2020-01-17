@@ -7,8 +7,8 @@ config 64BIT
 	  Sun Microsystems, incorporated.  They are very widely found in Sun
 	  workstations and clones.
 
-	  Say yes to build a 64-bit kernel - formerly known as sparc64
-	  Say no to build a 32-bit kernel - formerly known as sparc
+	  Say no to build a 64-bit kernel - formerly kyeswn as sparc64
+	  Say yes to build a 32-bit kernel - formerly kyeswn as sparc
 
 config SPARC
 	bool
@@ -172,7 +172,7 @@ config SMP
 
 	  If you say N here, the kernel will run on uni- and multiprocessor
 	  machines, but will use only one CPU of a multiprocessor machine. If
-	  you say Y here, the kernel will run on many, but not all,
+	  you say Y here, the kernel will run on many, but yest all,
 	  uniprocessor machines. On a uniprocessor machine, the kernel
 	  will run faster if you say N here.
 
@@ -183,7 +183,7 @@ config SMP
 	  See also <file:Documentation/admin-guide/lockup-watchdogs.rst> and the SMP-HOWTO
 	  available at <http://www.tldp.org/docs.html#howto>.
 
-	  If you don't know what to do here, say N.
+	  If you don't kyesw what to do here, say N.
 
 config NR_CPUS
 	int "Maximum number of CPUs"
@@ -211,8 +211,8 @@ config EMULATED_CMPXCHG
 	bool
 	default y if SPARC32
 	help
-	  Sparc32 does not have a CAS instruction like sparc64. cmpxchg()
-	  is emulated, and therefore it is not completely atomic.
+	  Sparc32 does yest have a CAS instruction like sparc64. cmpxchg()
+	  is emulated, and therefore it is yest completely atomic.
 
 # Makefile helpers
 config SPARC32_SMP
@@ -243,7 +243,7 @@ config SECCOMP
 	  the process as file descriptors supporting the read/write
 	  syscalls, it's possible to isolate those applications in
 	  their own address space using seccomp. Once seccomp is
-	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  enabled via /proc/<pid>/seccomp, it canyest be disabled
 	  and the task is only allowed to execute a few safe syscalls
 	  defined by each seccomp mode.
 
@@ -292,10 +292,10 @@ config NODES_SHIFT
 	  Specify the maximum number of NUMA Nodes available on the target
 	  system.  Increases memory reserved to accommodate various tables.
 
-# Some NUMA nodes have memory ranges that span
-# other nodes.  Even though a pfn is valid and
-# between a node's start and end pfns, it may not
-# reside on that node.  See memmap_init_zone()
+# Some NUMA yesdes have memory ranges that span
+# other yesdes.  Even though a pfn is valid and
+# between a yesde's start and end pfns, it may yest
+# reside on that yesde.  See memmap_init_zone()
 # for details.
 config NODES_SPAN_OTHER_NODES
 	def_bool y
@@ -425,7 +425,7 @@ config UBOOT_LOAD_ADDR
 	---help---
 	 U-Boot kernel load address, the address in physical address space
 	 where u-boot will place the Linux kernel before booting it.
-	 This address is normally the base address of main memory + 0x4000.
+	 This address is yesrmally the base address of main memory + 0x4000.
 
 config UBOOT_FLASH_ADDR
 	hex "uImage.o Load Address"
@@ -440,7 +440,7 @@ config UBOOT_ENTRY_ADDR
 	hex "uImage Entry Address"
 	default 0xf0004000
 	---help---
-	 Do not change this unless you know what you're doing. This is
+	 Do yest change this unless you kyesw what you're doing. This is
 	 hardcoded by the SPARC32 and LEON port.
 
 	 This is the virtual address u-boot jumps to when booting the Linux
@@ -500,12 +500,12 @@ config SUN_OPENPROMFS
 	help
 	  If you say Y, the OpenPROM device tree will be available as a
 	  virtual file system, which you can mount to /proc/openprom by "mount
-	  -t openpromfs none /proc/openprom".
+	  -t openpromfs yesne /proc/openprom".
 
 	  To compile the /proc/openprom support as a module, choose M here: the
 	  module will be called openpromfs.
 
-	  Only choose N if you know in advance that you will not need to modify
+	  Only choose N if you kyesw in advance that you will yest need to modify
 	  OpenPROM settings on the running system.
 
 # Makefile helpers

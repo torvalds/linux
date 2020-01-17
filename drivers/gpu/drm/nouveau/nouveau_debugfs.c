@@ -9,7 +9,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -31,14 +31,14 @@
 #include <linux/debugfs.h>
 #include <nvif/class.h>
 #include <nvif/if0001.h>
-#include "nouveau_debugfs.h"
-#include "nouveau_drv.h"
+#include "yesuveau_debugfs.h"
+#include "yesuveau_drv.h"
 
 static int
-nouveau_debugfs_vbios_image(struct seq_file *m, void *data)
+yesuveau_debugfs_vbios_image(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct nouveau_drm *drm = nouveau_drm(node->minor->dev);
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct yesuveau_drm *drm = yesuveau_drm(yesde->miyesr->dev);
 	int i;
 
 	for (i = 0; i < drm->vbios.length; i++)
@@ -47,10 +47,10 @@ nouveau_debugfs_vbios_image(struct seq_file *m, void *data)
 }
 
 static int
-nouveau_debugfs_strap_peek(struct seq_file *m, void *data)
+yesuveau_debugfs_strap_peek(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = m->private;
-	struct nouveau_drm *drm = nouveau_drm(node->minor->dev);
+	struct drm_info_yesde *yesde = m->private;
+	struct yesuveau_drm *drm = yesuveau_drm(yesde->miyesr->dev);
 	int ret;
 
 	ret = pm_runtime_get_sync(drm->dev->dev);
@@ -67,10 +67,10 @@ nouveau_debugfs_strap_peek(struct seq_file *m, void *data)
 }
 
 static int
-nouveau_debugfs_pstate_get(struct seq_file *m, void *data)
+yesuveau_debugfs_pstate_get(struct seq_file *m, void *data)
 {
 	struct drm_device *drm = m->private;
-	struct nouveau_debugfs *debugfs = nouveau_debugfs(drm);
+	struct yesuveau_debugfs *debugfs = yesuveau_debugfs(drm);
 	struct nvif_object *ctrl = &debugfs->ctrl;
 	struct nvif_control_pstate_info_v0 info = {};
 	int ret, i;
@@ -136,12 +136,12 @@ nouveau_debugfs_pstate_get(struct seq_file *m, void *data)
 }
 
 static ssize_t
-nouveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
+yesuveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
 			   size_t len, loff_t *offp)
 {
 	struct seq_file *m = file->private_data;
 	struct drm_device *drm = m->private;
-	struct nouveau_debugfs *debugfs = nouveau_debugfs(drm);
+	struct yesuveau_debugfs *debugfs = yesuveau_debugfs(drm);
 	struct nvif_object *ctrl = &debugfs->ctrl;
 	struct nvif_control_pstate_user_v0 args = { .pwrsrc = -EINVAL };
 	char buf[32] = {}, *tmp, *cur = buf;
@@ -168,7 +168,7 @@ nouveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
 		cur += 3;
 	}
 
-	if (!strcasecmp(cur, "none"))
+	if (!strcasecmp(cur, "yesne"))
 		args.ustate = NVIF_CONTROL_PSTATE_USER_V0_STATE_UNKNOWN;
 	else
 	if (!strcasecmp(cur, "auto"))
@@ -192,68 +192,68 @@ nouveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
 }
 
 static int
-nouveau_debugfs_pstate_open(struct inode *inode, struct file *file)
+yesuveau_debugfs_pstate_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, nouveau_debugfs_pstate_get, inode->i_private);
+	return single_open(file, yesuveau_debugfs_pstate_get, iyesde->i_private);
 }
 
-static const struct file_operations nouveau_pstate_fops = {
+static const struct file_operations yesuveau_pstate_fops = {
 	.owner = THIS_MODULE,
-	.open = nouveau_debugfs_pstate_open,
+	.open = yesuveau_debugfs_pstate_open,
 	.read = seq_read,
-	.write = nouveau_debugfs_pstate_set,
+	.write = yesuveau_debugfs_pstate_set,
 };
 
-static struct drm_info_list nouveau_debugfs_list[] = {
-	{ "vbios.rom",  nouveau_debugfs_vbios_image, 0, NULL },
-	{ "strap_peek", nouveau_debugfs_strap_peek, 0, NULL },
+static struct drm_info_list yesuveau_debugfs_list[] = {
+	{ "vbios.rom",  yesuveau_debugfs_vbios_image, 0, NULL },
+	{ "strap_peek", yesuveau_debugfs_strap_peek, 0, NULL },
 };
-#define NOUVEAU_DEBUGFS_ENTRIES ARRAY_SIZE(nouveau_debugfs_list)
+#define NOUVEAU_DEBUGFS_ENTRIES ARRAY_SIZE(yesuveau_debugfs_list)
 
-static const struct nouveau_debugfs_files {
+static const struct yesuveau_debugfs_files {
 	const char *name;
 	const struct file_operations *fops;
-} nouveau_debugfs_files[] = {
-	{"pstate", &nouveau_pstate_fops},
+} yesuveau_debugfs_files[] = {
+	{"pstate", &yesuveau_pstate_fops},
 };
 
 int
-nouveau_drm_debugfs_init(struct drm_minor *minor)
+yesuveau_drm_debugfs_init(struct drm_miyesr *miyesr)
 {
-	struct nouveau_drm *drm = nouveau_drm(minor->dev);
+	struct yesuveau_drm *drm = yesuveau_drm(miyesr->dev);
 	struct dentry *dentry;
 	int i, ret;
 
-	for (i = 0; i < ARRAY_SIZE(nouveau_debugfs_files); i++) {
-		dentry = debugfs_create_file(nouveau_debugfs_files[i].name,
+	for (i = 0; i < ARRAY_SIZE(yesuveau_debugfs_files); i++) {
+		dentry = debugfs_create_file(yesuveau_debugfs_files[i].name,
 					     S_IRUGO | S_IWUSR,
-					     minor->debugfs_root, minor->dev,
-					     nouveau_debugfs_files[i].fops);
+					     miyesr->debugfs_root, miyesr->dev,
+					     yesuveau_debugfs_files[i].fops);
 		if (!dentry)
 			return -ENOMEM;
 	}
 
-	ret = drm_debugfs_create_files(nouveau_debugfs_list,
+	ret = drm_debugfs_create_files(yesuveau_debugfs_list,
 				       NOUVEAU_DEBUGFS_ENTRIES,
-				       minor->debugfs_root, minor);
+				       miyesr->debugfs_root, miyesr);
 	if (ret)
 		return ret;
 
-	/* Set the size of the vbios since we know it, and it's confusing to
+	/* Set the size of the vbios since we kyesw it, and it's confusing to
 	 * userspace if it wants to seek() but the file has a length of 0
 	 */
-	dentry = debugfs_lookup("vbios.rom", minor->debugfs_root);
+	dentry = debugfs_lookup("vbios.rom", miyesr->debugfs_root);
 	if (!dentry)
 		return 0;
 
-	d_inode(dentry)->i_size = drm->vbios.length;
+	d_iyesde(dentry)->i_size = drm->vbios.length;
 	dput(dentry);
 
 	return 0;
 }
 
 int
-nouveau_debugfs_init(struct nouveau_drm *drm)
+yesuveau_debugfs_init(struct yesuveau_drm *drm)
 {
 	int ret;
 
@@ -271,7 +271,7 @@ nouveau_debugfs_init(struct nouveau_drm *drm)
 }
 
 void
-nouveau_debugfs_fini(struct nouveau_drm *drm)
+yesuveau_debugfs_fini(struct yesuveau_drm *drm)
 {
 	if (drm->debugfs && drm->debugfs->ctrl.priv)
 		nvif_object_fini(&drm->debugfs->ctrl);

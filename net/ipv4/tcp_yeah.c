@@ -22,7 +22,7 @@
 #define TCP_YEAH_EPSILON      1 /* log maximum fraction to be removed on early decongestion */
 #define TCP_YEAH_PHY          8 /* maximum delta from base */
 #define TCP_YEAH_RHO         16 /* minimum number of consecutive rtt to consider competition on loss */
-#define TCP_YEAH_ZETA        50 /* minimum number of state switches to reset reno_count */
+#define TCP_YEAH_ZETA        50 /* minimum number of state switches to reset reyes_count */
 
 #define TCP_SCALABLE_AI_CNT	 100U
 
@@ -32,9 +32,9 @@ struct yeah {
 
 	/* YeAH */
 	u32 lastQ;
-	u32 doing_reno_now;
+	u32 doing_reyes_yesw;
 
-	u32 reno_count;
+	u32 reyes_count;
 	u32 fast_count;
 
 	u32 pkts_acked;
@@ -47,10 +47,10 @@ static void tcp_yeah_init(struct sock *sk)
 
 	tcp_vegas_init(sk);
 
-	yeah->doing_reno_now = 0;
+	yeah->doing_reyes_yesw = 0;
 	yeah->lastQ = 0;
 
-	yeah->reno_count = 2;
+	yeah->reyes_count = 2;
 
 	/* Ensure the MD arithmetic works.  This is somewhat pedantic,
 	 * since I don't think we will see a cwnd this large. :) */
@@ -80,7 +80,7 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	if (tcp_in_slow_start(tp))
 		tcp_slow_start(tp, acked);
 
-	else if (!yeah->doing_reno_now) {
+	else if (!yeah->doing_reyes_yesw) {
 		/* Scalable */
 
 		tp->snd_cwnd_cnt += yeah->pkts_acked;
@@ -93,7 +93,7 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		yeah->pkts_acked = 1;
 
 	} else {
-		/* Reno */
+		/* Reyes */
 		tcp_cong_avoid_ai(tp, tp->snd_cwnd, 1);
 	}
 
@@ -109,18 +109,18 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	 *
 	 *     (v_beg_snd_nxt - v_vegas.beg_snd_una) / (rtt duration)
 	 *
-	 * Unfortunately, v_vegas.beg_snd_una is not exactly equal to snd_una,
+	 * Unfortunately, v_vegas.beg_snd_una is yest exactly equal to snd_una,
 	 * because delayed ACKs can cover more than one segment, so they
 	 * don't line up yeahly with the boundaries of RTTs.
 	 *
-	 * Another unfortunate fact of life is that delayed ACKs delay the
+	 * Ayesther unfortunate fact of life is that delayed ACKs delay the
 	 * advance of the left edge of our send window, so that the number
 	 * of bytes we send in an RTT is often less than our cwnd will allow.
 	 * So we keep track of our cwnd separately, in v_beg_snd_cwnd.
 	 */
 
 	if (after(ack, yeah->vegas.beg_snd_nxt)) {
-		/* We do the Vegas calculations only if we got enough RTT
+		/* We do the Vegas calculations only if we got eyesugh RTT
 		 * samples that we can be reasonably sure that we got
 		 * at least one RTT sample that wasn't from a delayed ACK.
 		 * If we only had 2 samples total,
@@ -133,7 +133,7 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			u32 rtt, queue;
 			u64 bw;
 
-			/* We have enough RTT samples, so, using the Vegas
+			/* We have eyesugh RTT samples, so, using the Vegas
 			 * algorithm, we determine if we should increase or
 			 * decrease cwnd, and by how much.
 			 */
@@ -141,7 +141,7 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			/* Pluck out the RTT we are using for the Vegas
 			 * calculations. This is the min RTT seen during the
 			 * last RTT. Taking the min filters out the effects
-			 * of delayed ACKs, at the cost of noticing congestion
+			 * of delayed ACKs, at the cost of yesticing congestion
 			 * a bit later.
 			 */
 			rtt = yeah->vegas.minRTT;
@@ -157,34 +157,34 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			if (queue > TCP_YEAH_ALPHA ||
 			    rtt - yeah->vegas.baseRTT > (yeah->vegas.baseRTT / TCP_YEAH_PHY)) {
 				if (queue > TCP_YEAH_ALPHA &&
-				    tp->snd_cwnd > yeah->reno_count) {
+				    tp->snd_cwnd > yeah->reyes_count) {
 					u32 reduction = min(queue / TCP_YEAH_GAMMA ,
 							    tp->snd_cwnd >> TCP_YEAH_EPSILON);
 
 					tp->snd_cwnd -= reduction;
 
 					tp->snd_cwnd = max(tp->snd_cwnd,
-							   yeah->reno_count);
+							   yeah->reyes_count);
 
 					tp->snd_ssthresh = tp->snd_cwnd;
 				}
 
-				if (yeah->reno_count <= 2)
-					yeah->reno_count = max(tp->snd_cwnd>>1, 2U);
+				if (yeah->reyes_count <= 2)
+					yeah->reyes_count = max(tp->snd_cwnd>>1, 2U);
 				else
-					yeah->reno_count++;
+					yeah->reyes_count++;
 
-				yeah->doing_reno_now = min(yeah->doing_reno_now + 1,
+				yeah->doing_reyes_yesw = min(yeah->doing_reyes_yesw + 1,
 							   0xffffffU);
 			} else {
 				yeah->fast_count++;
 
 				if (yeah->fast_count > TCP_YEAH_ZETA) {
-					yeah->reno_count = 2;
+					yeah->reyes_count = 2;
 					yeah->fast_count = 0;
 				}
 
-				yeah->doing_reno_now = 0;
+				yeah->doing_reyes_yesw = 0;
 			}
 
 			yeah->lastQ = queue;
@@ -209,7 +209,7 @@ static u32 tcp_yeah_ssthresh(struct sock *sk)
 	struct yeah *yeah = inet_csk_ca(sk);
 	u32 reduction;
 
-	if (yeah->doing_reno_now < TCP_YEAH_RHO) {
+	if (yeah->doing_reyes_yesw < TCP_YEAH_RHO) {
 		reduction = yeah->lastQ;
 
 		reduction = min(reduction, max(tp->snd_cwnd>>1, 2U));
@@ -219,7 +219,7 @@ static u32 tcp_yeah_ssthresh(struct sock *sk)
 		reduction = max(tp->snd_cwnd>>1, 2U);
 
 	yeah->fast_count = 0;
-	yeah->reno_count = max(yeah->reno_count>>1, 2U);
+	yeah->reyes_count = max(yeah->reyes_count>>1, 2U);
 
 	return max_t(int, tp->snd_cwnd - reduction, 2);
 }
@@ -227,7 +227,7 @@ static u32 tcp_yeah_ssthresh(struct sock *sk)
 static struct tcp_congestion_ops tcp_yeah __read_mostly = {
 	.init		= tcp_yeah_init,
 	.ssthresh	= tcp_yeah_ssthresh,
-	.undo_cwnd      = tcp_reno_undo_cwnd,
+	.undo_cwnd      = tcp_reyes_undo_cwnd,
 	.cong_avoid	= tcp_yeah_cong_avoid,
 	.set_state	= tcp_vegas_state,
 	.cwnd_event	= tcp_vegas_cwnd_event,

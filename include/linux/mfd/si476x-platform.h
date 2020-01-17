@@ -2,9 +2,9 @@
 /*
  * include/media/si476x-platform.h -- Platform data specific definitions
  *
- * Copyright (C) 2013 Andrey Smirnov
+ * Copyright (C) 2013 Andrey Smiryesv
  *
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiryesv <andrew.smiryesv@gmail.com>
  */
 
 #ifndef __SI476X_PLATFORM_H__
@@ -246,7 +246,7 @@ enum si476x_phase_diversity_mode {
  * Platform dependent definition
  */
 struct si476x_platform_data {
-	int gpio_reset; /* < 0 if not used */
+	int gpio_reset; /* < 0 if yest used */
 
 	struct si476x_power_up_args power_up_parameters;
 	enum si476x_phase_diversity_mode diversity_mode;

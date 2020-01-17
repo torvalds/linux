@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/ccwdev.h>
 #include <asm/setup.h>
 #include <asm/cio.h>
@@ -32,7 +32,7 @@
  * @senseid: sense id
  * @diag: diag 0x210 data
  *
- * Return 0 on success, non-zero otherwise.
+ * Return 0 on success, yesn-zero otherwise.
  */
 static int diag210_to_senseid(struct senseid *senseid, struct diag210 *diag)
 {
@@ -94,7 +94,7 @@ static int diag210_to_senseid(struct senseid *senseid, struct diag210 *diag)
  * diag_get_dev_info - retrieve device information via diag 0x210
  * @cdev: ccw device
  *
- * Returns zero on success, non-zero otherwise.
+ * Returns zero on success, yesn-zero otherwise.
  */
 static int diag210_get_dev_info(struct ccw_device *cdev)
 {
@@ -106,7 +106,7 @@ static int diag210_get_dev_info(struct ccw_device *cdev)
 	if (dev_id->ssid != 0)
 		return -ENODEV;
 	memset(&diag_data, 0, sizeof(diag_data));
-	diag_data.vrdcdvno	= dev_id->devno;
+	diag_data.vrdcdvyes	= dev_id->devyes;
 	diag_data.vrdclen	= sizeof(diag_data);
 	rc = diag210(&diag_data);
 	CIO_TRACE_EVENT(4, "diag210");
@@ -115,16 +115,16 @@ static int diag210_get_dev_info(struct ccw_device *cdev)
 	if (rc != 0 && rc != 2)
 		goto err_failed;
 	if (diag210_to_senseid(senseid, &diag_data))
-		goto err_unknown;
+		goto err_unkyeswn;
 	return 0;
 
-err_unknown:
-	CIO_MSG_EVENT(0, "snsid: device 0.%x.%04x: unknown diag210 data\n",
-		      dev_id->ssid, dev_id->devno);
+err_unkyeswn:
+	CIO_MSG_EVENT(0, "snsid: device 0.%x.%04x: unkyeswn diag210 data\n",
+		      dev_id->ssid, dev_id->devyes);
 	return -ENODEV;
 err_failed:
 	CIO_MSG_EVENT(0, "snsid: device 0.%x.%04x: diag210 failed (rc=%d)\n",
-		      dev_id->ssid, dev_id->devno, rc);
+		      dev_id->ssid, dev_id->devyes, rc);
 	return -ENODEV;
 }
 
@@ -184,7 +184,7 @@ static void snsid_callback(struct ccw_device *cdev, void *data, int rc)
 		}
 	}
 	CIO_MSG_EVENT(2, "snsid: device 0.%x.%04x: rc=%d %04x/%02x "
-		      "%04x/%02x%s\n", id->ssid, id->devno, rc,
+		      "%04x/%02x%s\n", id->ssid, id->devyes, rc,
 		      senseid->cu_type, senseid->cu_model, senseid->dev_type,
 		      senseid->dev_model, vm ? " (diag210)" : "");
 	ccw_device_sense_id_done(cdev, rc);

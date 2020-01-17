@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _CEC_ADAP_G_CAPS:
 
@@ -18,7 +18,7 @@ Name
 
 CEC_ADAP_G_CAPS - Query device capabilities
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, CEC_ADAP_G_CAPS, struct cec_caps *argp )
@@ -118,7 +118,7 @@ returns the information to the application. The ioctl never fails.
 
       - ``CEC_CAP_MONITOR_ALL``
       - 0x00000020
-      - The CEC hardware can monitor all messages, not just directed and
+      - The CEC hardware can monitor all messages, yest just directed and
 	broadcast messages.
     * .. _`CEC-CAP-NEEDS-HPD`:
 
@@ -145,6 +145,6 @@ returns the information to the application. The ioctl never fails.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

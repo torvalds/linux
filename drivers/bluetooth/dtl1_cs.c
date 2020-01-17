@@ -27,7 +27,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
@@ -129,7 +129,7 @@ static int dtl1_write(unsigned int iobase, int fifo_size, __u8 *buf, int len)
 static void dtl1_write_wakeup(struct dtl1_info *info)
 {
 	if (!info) {
-		BT_ERR("Unknown device");
+		BT_ERR("Unkyeswn device");
 		return;
 	}
 
@@ -206,7 +206,7 @@ static void dtl1_receive(struct dtl1_info *info)
 	int boguscount = 0;
 
 	if (!info) {
-		BT_ERR("Unknown device");
+		BT_ERR("Unkyeswn device");
 		return;
 	}
 
@@ -263,8 +263,8 @@ static void dtl1_receive(struct dtl1_info *info)
 					hci_recv_frame(info->hdev, info->rx_skb);
 					break;
 				default:
-					/* unknown packet */
-					BT_ERR("Unknown HCI packet with type 0x%02x received",
+					/* unkyeswn packet */
+					BT_ERR("Unkyeswn HCI packet with type 0x%02x received",
 					       hci_skb_pkt_type(info->rx_skb));
 					kfree_skb(info->rx_skb);
 					break;

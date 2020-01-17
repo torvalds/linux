@@ -10,7 +10,7 @@ Optional properties:
   interrupt line. This is a boolean property.
   If the requested interrupt is configured as IRQ_TYPE_LEVEL_HIGH or
   IRQ_TYPE_EDGE_RISING a pull-down resistor is needed to drive the line
-  when it is not active, whereas a pull-up one is needed when interrupt
+  when it is yest active, whereas a pull-up one is needed when interrupt
   line is configured as IRQ_TYPE_LEVEL_LOW or IRQ_TYPE_EDGE_FALLING.
   Refer to pinctrl/pinctrl-bindings.txt for the property description.
 - interrupts: interrupt mapping for IRQ. It should be configured with
@@ -18,7 +18,7 @@ Optional properties:
   IRQ_TYPE_EDGE_FALLING.
 
   Refer to interrupt-controller/interrupts.txt for generic interrupt
-  client node bindings.
+  client yesde bindings.
 
 Example:
 

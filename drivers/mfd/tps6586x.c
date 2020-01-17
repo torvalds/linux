@@ -296,7 +296,7 @@ static int tps6586x_irq_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_data(virq, tps6586x);
 	irq_set_chip_and_handler(virq, &tps6586x_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_yesprobe(virq);
 
 	return 0;
 }
@@ -364,7 +364,7 @@ static int tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 		new_irq_base = 0;
 	}
 
-	tps6586x->irq_domain = irq_domain_add_simple(tps6586x->dev->of_node,
+	tps6586x->irq_domain = irq_domain_add_simple(tps6586x->dev->of_yesde,
 				irq_num, new_irq_base, &tps6586x_domain_ops,
 				tps6586x);
 	if (!tps6586x->irq_domain) {
@@ -398,7 +398,7 @@ static int tps6586x_add_subdevs(struct tps6586x *tps6586x,
 
 		pdev->dev.parent = tps6586x->dev;
 		pdev->dev.platform_data = subdev->platform_data;
-		pdev->dev.of_node = subdev->of_node;
+		pdev->dev.of_yesde = subdev->of_yesde;
 
 		ret = platform_device_add(pdev);
 		if (ret) {
@@ -416,7 +416,7 @@ failed:
 #ifdef CONFIG_OF
 static struct tps6586x_platform_data *tps6586x_parse_dt(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	struct tps6586x_platform_data *pdata;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
@@ -506,7 +506,7 @@ static int tps6586x_i2c_probe(struct i2c_client *client,
 	int ret;
 	int version;
 
-	if (!pdata && client->dev.of_node)
+	if (!pdata && client->dev.of_yesde)
 		pdata = tps6586x_parse_dt(client);
 
 	if (!pdata) {

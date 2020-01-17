@@ -314,9 +314,9 @@
 #define V3D_CLE_CT0QMA                                 0x00170
 #define V3D_CLE_CT0QMS                                 0x00174
 #define V3D_CLE_CT1QCFG                                0x00178
-/* If set without ETPROC, entirely skip tiles with no primitives. */
+/* If set without ETPROC, entirely skip tiles with yes primitives. */
 # define V3D_CLE_QCFG_ETFILT                           BIT(7)
-/* If set with ETFILT, just write the clear color to tiles with no
+/* If set with ETFILT, just write the clear color to tiles with yes
  * primitives.
  */
 # define V3D_CLE_QCFG_ETPROC                           BIT(6)

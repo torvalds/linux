@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_log.h
  *      For use with ATTO ExpressSAS R6xx SAS/SATA RAID controllers
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techyeslogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but yest limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
  *
@@ -36,7 +36,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -47,7 +47,7 @@
 struct device;
 
 enum {
-	ESAS2R_LOG_NONE = 0,    /* no events logged */
+	ESAS2R_LOG_NONE = 0,    /* yes events logged */
 	ESAS2R_LOG_CRIT = 1,    /* critical events  */
 	ESAS2R_LOG_WARN = 2,    /* warning events   */
 	ESAS2R_LOG_INFO = 3,    /* info events      */
@@ -72,7 +72,7 @@ int esas2r_log_hexdump(const long level,
 
 /*
  * the following macros are provided specifically for debugging and tracing
- * messages.  esas2r_debug() is provided for generic non-hardware layer
+ * messages.  esas2r_debug() is provided for generic yesn-hardware layer
  * debugging and tracing events.  esas2r_hdebug is provided specifically for
  * hardware layer debugging and tracing events.
  */

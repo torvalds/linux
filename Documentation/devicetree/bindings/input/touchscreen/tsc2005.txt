@@ -12,7 +12,7 @@ Optional properties:
  - reset-gpios		      : GPIO specifier for the controller reset line
  - ti,x-plate-ohms	      : integer, resistance of the touchscreen's X plates
 				in ohm (defaults to 280)
- - ti,esd-recovery-timeout-ms : integer, if the touchscreen does not respond after
+ - ti,esd-recovery-timeout-ms : integer, if the touchscreen does yest respond after
 				the configured time (in milli seconds), the driver
 				will reset it. This is disabled by default.
  - properties defined in touchscreen.txt

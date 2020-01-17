@@ -314,7 +314,7 @@ static int mtk_dai_adda_hw_params(struct snd_pcm_substream *substream,
 					   AFE_ADDA_NEWIF_CFG2,
 					   0xf << 28,
 					   voice_mode << 28);
-		} else {	/* normal 8~48k */
+		} else {	/* yesrmal 8~48k */
 			/* use fixed 260k anc path */
 			regmap_update_bits(afe->regmap,
 					   AFE_ADDA_NEWIF_CFG2,

@@ -350,7 +350,7 @@ static void falcon_pinconf_dbg_show(struct pinctrl_dev *pctrldev,
 		if (desc->gpio_owner)
 			seq_printf(s, " owner: %s", desc->gpio_owner);
 	} else {
-		seq_printf(s, " not registered");
+		seq_printf(s, " yest registered");
 	}
 }
 
@@ -425,13 +425,13 @@ void pinctrl_falcon_add_gpio_range(struct pinctrl_gpio_range *range)
 
 static int pinctrl_falcon_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int pad_count = 0;
 	int ret = 0;
 
 	/* load and remap the pad resources of the different banks */
-	for_each_compatible_node(np, NULL, "lantiq,pad-falcon") {
-		struct platform_device *ppdev = of_find_device_by_node(np);
+	for_each_compatible_yesde(np, NULL, "lantiq,pad-falcon") {
+		struct platform_device *ppdev = of_find_device_by_yesde(np);
 		const __be32 *bank = of_get_property(np, "lantiq,bank", NULL);
 		struct resource res;
 		u32 avail;
@@ -451,13 +451,13 @@ static int pinctrl_falcon_probe(struct platform_device *pdev)
 		falcon_info.clk[*bank] = clk_get(&ppdev->dev, NULL);
 		if (IS_ERR(falcon_info.clk[*bank])) {
 			dev_err(&ppdev->dev, "failed to get clock\n");
-			of_node_put(np)
+			of_yesde_put(np)
 			return PTR_ERR(falcon_info.clk[*bank]);
 		}
 		falcon_info.membase[*bank] = devm_ioremap_resource(&pdev->dev,
 								   &res);
 		if (IS_ERR(falcon_info.membase[*bank])) {
-			of_node_put(np);
+			of_yesde_put(np);
 			return PTR_ERR(falcon_info.membase[*bank]);
 		}
 

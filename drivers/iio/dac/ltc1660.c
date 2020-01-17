@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Driver for Linear Technology LTC1665/LTC1660, 8 channels DAC
+ * Driver for Linear Techyeslogy LTC1665/LTC1660, 8 channels DAC
  *
  * Copyright (C) 2018 Marcus Folkesson <marcus.folkesson@gmail.com>
  */
@@ -173,7 +173,7 @@ static int ltc1660_probe(struct spi_device *spi)
 
 	priv->vref_reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(priv->vref_reg)) {
-		dev_err(&spi->dev, "vref regulator not specified\n");
+		dev_err(&spi->dev, "vref regulator yest specified\n");
 		return PTR_ERR(priv->vref_reg);
 	}
 
@@ -246,5 +246,5 @@ static struct spi_driver ltc1660_driver = {
 module_spi_driver(ltc1660_driver);
 
 MODULE_AUTHOR("Marcus Folkesson <marcus.folkesson@gmail.com>");
-MODULE_DESCRIPTION("Linear Technology LTC1660/LTC1665 DAC");
+MODULE_DESCRIPTION("Linear Techyeslogy LTC1660/LTC1665 DAC");
 MODULE_LICENSE("GPL v2");

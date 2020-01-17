@@ -19,7 +19,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -29,12 +29,12 @@
   *
   * Since cifs is a network file system, an "fsid" must be included for
   * any nfs exports file entries which refer to cifs paths.  In addition
-  * the cifs mount must be mounted with the "serverino" option (ie use stable
-  * server inode numbers instead of locally generated temporary ones).
-  * Although cifs inodes do not use generation numbers (have generation number
-  * of zero) - the inode number alone should be good enough for simple cases
+  * the cifs mount must be mounted with the "serveriyes" option (ie use stable
+  * server iyesde numbers instead of locally generated temporary ones).
+  * Although cifs iyesdes do yest use generation numbers (have generation number
+  * of zero) - the iyesde number alone should be good eyesugh for simple cases
   * in which users want to export cifs shares with NFS. The decode and encode
-  * could be improved by using a new routine which expects 64 bit inode numbers
+  * could be improved by using a new routine which expects 64 bit iyesde numbers
   * instead of the default 32 bit routines in fs/exportfs
   *
   */

@@ -52,11 +52,11 @@ static int amba_handler_attach(struct acpi_device *adev,
 	struct resource_entry *rentry;
 	struct list_head resource_list;
 	bool address_found = false;
-	int irq_no = 0;
+	int irq_yes = 0;
 	int ret;
 
-	/* If the ACPI node already has a physical device attached, skip it. */
-	if (adev->physical_node_count)
+	/* If the ACPI yesde already has a physical device attached, skip it. */
+	if (adev->physical_yesde_count)
 		return 0;
 
 	dev = amba_device_alloc(dev_name(&adev->dev), 0, 0);
@@ -71,7 +71,7 @@ static int amba_handler_attach(struct acpi_device *adev,
 	if (ret < 0)
 		goto err_free;
 
-	list_for_each_entry(rentry, &resource_list, node) {
+	list_for_each_entry(rentry, &resource_list, yesde) {
 		switch (resource_type(rentry->res)) {
 		case IORESOURCE_MEM:
 			if (!address_found) {
@@ -80,8 +80,8 @@ static int amba_handler_attach(struct acpi_device *adev,
 			}
 			break;
 		case IORESOURCE_IRQ:
-			if (irq_no < AMBA_NR_IRQS)
-				dev->irq[irq_no++] = rentry->res->start;
+			if (irq_yes < AMBA_NR_IRQS)
+				dev->irq[irq_yes++] = rentry->res->start;
 			break;
 		default:
 			dev_warn(&adev->dev, "Invalid resource\n");
@@ -92,12 +92,12 @@ static int amba_handler_attach(struct acpi_device *adev,
 	acpi_dev_free_resource_list(&resource_list);
 
 	/*
-	 * If the ACPI node has a parent and that parent has a physical device
+	 * If the ACPI yesde has a parent and that parent has a physical device
 	 * attached to it, that physical device should be the parent of
 	 * the amba device we are about to create.
 	 */
 	if (adev->parent)
-		dev->dev.parent = acpi_get_first_physical_node(adev->parent);
+		dev->dev.parent = acpi_get_first_physical_yesde(adev->parent);
 
 	ACPI_COMPANION_SET(&dev->dev, adev);
 

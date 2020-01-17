@@ -8,7 +8,7 @@
 #define __ARM_KVM_HOST_H__
 
 #include <linux/arm-smccc.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/kvm_types.h>
 #include <asm/cputype.h>
@@ -61,7 +61,7 @@ struct kvm_arch {
 	int __percpu *last_vcpu_ran;
 
 	/*
-	 * Anything that is not used directly from assembly code goes
+	 * Anything that is yest used directly from assembly code goes
 	 * here.
 	 */
 
@@ -92,10 +92,10 @@ struct kvm_arch {
 
 /*
  * We don't want allocation failures within the mmu code, so we preallocate
- * enough memory for a single page fault in a cache.
+ * eyesugh memory for a single page fault in a cache.
  */
 struct kvm_mmu_memory_cache {
-	int nobjs;
+	int yesbjs;
 	void *objects[KVM_NR_MEM_OBJS];
 };
 
@@ -192,7 +192,7 @@ struct kvm_vcpu_arch {
 	struct arch_timer_cpu timer_cpu;
 
 	/*
-	 * Anything that is not used directly from assembly code goes
+	 * Anything that is yest used directly from assembly code goes
 	 * here.
 	 */
 
@@ -313,7 +313,7 @@ static inline void __cpu_init_hyp_mode(phys_addr_t pgd_ptr,
 	 * stack pointer to a void *.
 
 	 * The PGDs are always passed as the third argument, in order
-	 * to be passed into r2-r3 to the init code (yes, this is
+	 * to be passed into r2-r3 to the init code (no, this is
 	 * compliant with the PCS!).
 	 */
 
@@ -380,7 +380,7 @@ int kvm_arm_vcpu_arch_has_attr(struct kvm_vcpu *vcpu,
 			       struct kvm_device_attr *attr);
 
 /*
- * VFP/NEON switching is all done by the hyp switch code, so no need to
+ * VFP/NEON switching is all done by the hyp switch code, so yes need to
  * coordinate with host context handling for this state:
  */
 static inline void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu) {}
@@ -422,7 +422,7 @@ static inline int kvm_arm_harden_branch_predictor(void)
 
 static inline int kvm_arm_have_ssbd(void)
 {
-	/* No way to detect it yet, pretend it is not there. */
+	/* No way to detect it yet, pretend it is yest there. */
 	return KVM_SSBD_UNKNOWN;
 }
 
@@ -437,7 +437,7 @@ static inline int kvm_arm_setup_stage2(struct kvm *kvm, unsigned long type)
 {
 	/*
 	 * On 32bit ARM, VMs get a static 40bit IPA stage2 setup,
-	 * so any non-zero value used as type is illegal.
+	 * so any yesn-zero value used as type is illegal.
 	 */
 	if (type)
 		return -EINVAL;

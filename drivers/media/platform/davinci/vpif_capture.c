@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-ioctl.h>
 #include <media/i2c/tvp514x.h>
 #include <media/v4l2-mediabus.h>
@@ -88,7 +88,7 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
 		!IS_ALIGNED((addr + common->ybtm_off), 8) ||
 		!IS_ALIGNED((addr + common->ctop_off), 8) ||
 		!IS_ALIGNED((addr + common->cbtm_off), 8)) {
-		vpif_dbg(1, debug, "offset is not aligned\n");
+		vpif_dbg(1, debug, "offset is yest aligned\n");
 		return -EINVAL;
 	}
 
@@ -380,7 +380,7 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 
 	for (i = 0; i < VPIF_NUMBER_OF_OBJECTS; i++) {
 		common = &ch->common[i];
-		/* skip If streaming is not started in this channel */
+		/* skip If streaming is yest started in this channel */
 		/* Check the field format */
 		if (1 == ch->vpifparams.std_info.frm_fmt ||
 		    common->fmt.fmt.pix.field == V4L2_FIELD_NONE) {
@@ -403,7 +403,7 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 			channel_first_int[i][channel_id] = 0;
 		} else {
 			/**
-			 * Interlaced mode. If it is first interrupt, ignore
+			 * Interlaced mode. If it is first interrupt, igyesre
 			 * it
 			 */
 			if (channel_first_int[i][channel_id]) {
@@ -416,7 +416,7 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 				fid = vpif_channel_getfid(ch->channel_id);
 				if (fid != ch->field_id) {
 					/**
-					 * If field id does not match stored
+					 * If field id does yest match stored
 					 * field id, make them in sync
 					 */
 					if (0 == fid)
@@ -487,7 +487,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 
 		/*
 		 * For raw formats from camera sensors, we don't need
-		 * the std_info from table lookup, so nothing else to do here.
+		 * the std_info from table lookup, so yesthing else to do here.
 		 */
 		if (vpifparams->iface.if_type == VPIF_IF_RAW_BAYER) {
 			memset(std_info, 0, sizeof(struct vpif_channel_config_params));
@@ -514,7 +514,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 		}
 	}
 
-	/* standard not found */
+	/* standard yest found */
 	if (index == vpif_ch_params_count)
 		return -EINVAL;
 
@@ -714,7 +714,7 @@ static int vpif_set_input(
 		sd = vpif_obj.sd[sd_index];
 		subdev_info = &vpif_cfg->subdev_info[sd_index];
 	} else {
-		/* no subdevice, no input to setup */
+		/* yes subdevice, yes input to setup */
 		return 0;
 	}
 
@@ -745,8 +745,8 @@ static int vpif_set_input(
 	/* copy interface parameters to vpif */
 	ch->vpifparams.iface = chan_cfg->vpif_if;
 
-	/* update tvnorms from the sub device input info */
-	ch->video_dev.tvnorms = chan_cfg->inputs[index].input.std;
+	/* update tvyesrms from the sub device input info */
+	ch->video_dev.tvyesrms = chan_cfg->inputs[index].input.std;
 	return 0;
 }
 
@@ -1181,7 +1181,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 		return -ENODATA;
 
 	if (timings->type != V4L2_DV_BT_656_1120) {
-		vpif_dbg(2, debug, "Timing type not defined\n");
+		vpif_dbg(2, debug, "Timing type yest defined\n");
 		return -EINVAL;
 	}
 
@@ -1374,7 +1374,7 @@ static inline void free_vpif_objs(void)
 		kfree(vpif_obj.dev[i]);
 }
 
-static int vpif_async_bound(struct v4l2_async_notifier *notifier,
+static int vpif_async_bound(struct v4l2_async_yestifier *yestifier,
 			    struct v4l2_subdev *subdev,
 			    struct v4l2_async_subdev *asd)
 {
@@ -1382,12 +1382,12 @@ static int vpif_async_bound(struct v4l2_async_notifier *notifier,
 
 	for (i = 0; i < vpif_obj.config->asd_sizes[0]; i++) {
 		struct v4l2_async_subdev *_asd = vpif_obj.config->asd[i];
-		const struct fwnode_handle *fwnode = _asd->match.fwnode;
+		const struct fwyesde_handle *fwyesde = _asd->match.fwyesde;
 
-		if (fwnode == subdev->fwnode) {
+		if (fwyesde == subdev->fwyesde) {
 			vpif_obj.sd[i] = subdev;
 			vpif_obj.config->chan_config->inputs[i].subdev_name =
-				(char *)to_of_node(subdev->fwnode)->full_name;
+				(char *)to_of_yesde(subdev->fwyesde)->full_name;
 			vpif_dbg(2, debug,
 				 "%s: setting input %d subdev_name = %s\n",
 				 __func__, i,
@@ -1488,12 +1488,12 @@ probe_out:
 	return err;
 }
 
-static int vpif_async_complete(struct v4l2_async_notifier *notifier)
+static int vpif_async_complete(struct v4l2_async_yestifier *yestifier)
 {
 	return vpif_probe_complete();
 }
 
-static const struct v4l2_async_notifier_operations vpif_async_ops = {
+static const struct v4l2_async_yestifier_operations vpif_async_ops = {
 	.bound = vpif_async_bound,
 	.complete = vpif_async_complete,
 };
@@ -1501,22 +1501,22 @@ static const struct v4l2_async_notifier_operations vpif_async_ops = {
 static struct vpif_capture_config *
 vpif_capture_get_pdata(struct platform_device *pdev)
 {
-	struct device_node *endpoint = NULL;
-	struct device_node *rem = NULL;
+	struct device_yesde *endpoint = NULL;
+	struct device_yesde *rem = NULL;
 	struct vpif_capture_config *pdata;
 	struct vpif_subdev_info *sdinfo;
 	struct vpif_capture_chan_config *chan;
 	unsigned int i;
 
-	v4l2_async_notifier_init(&vpif_obj.notifier);
+	v4l2_async_yestifier_init(&vpif_obj.yestifier);
 
 	/*
-	 * DT boot: OF node from parent device contains
+	 * DT boot: OF yesde from parent device contains
 	 * video ports & endpoints data.
 	 */
-	if (pdev->dev.parent && pdev->dev.parent->of_node)
-		pdev->dev.of_node = pdev->dev.parent->of_node;
-	if (!IS_ENABLED(CONFIG_OF) || !pdev->dev.of_node)
+	if (pdev->dev.parent && pdev->dev.parent->of_yesde)
+		pdev->dev.of_yesde = pdev->dev.parent->of_yesde;
+	if (!IS_ENABLED(CONFIG_OF) || !pdev->dev.of_yesde)
 		return pdev->dev.platform_data;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
@@ -1532,18 +1532,18 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 		return NULL;
 
 	for (i = 0; i < VPIF_CAPTURE_NUM_CHANNELS; i++) {
-		struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
+		struct v4l2_fwyesde_endpoint bus_cfg = { .bus_type = 0 };
 		unsigned int flags;
 		int err;
 
-		endpoint = of_graph_get_next_endpoint(pdev->dev.of_node,
+		endpoint = of_graph_get_next_endpoint(pdev->dev.of_yesde,
 						      endpoint);
 		if (!endpoint)
 			break;
 
 		rem = of_graph_get_remote_port_parent(endpoint);
 		if (!rem) {
-			dev_dbg(&pdev->dev, "Remote device at %pOF not found\n",
+			dev_dbg(&pdev->dev, "Remote device at %pOF yest found\n",
 				endpoint);
 			goto done;
 		}
@@ -1562,11 +1562,11 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 		chan->inputs[i].input.std = V4L2_STD_ALL;
 		chan->inputs[i].input.capabilities = V4L2_IN_CAP_STD;
 
-		err = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
+		err = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(endpoint),
 						 &bus_cfg);
 		if (err) {
-			dev_err(&pdev->dev, "Could not parse the endpoint\n");
-			of_node_put(rem);
+			dev_err(&pdev->dev, "Could yest parse the endpoint\n");
+			of_yesde_put(rem);
 			goto done;
 		}
 
@@ -1584,17 +1584,17 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "Remote device %pOF found\n", rem);
 		sdinfo->name = rem->full_name;
 
-		pdata->asd[i] = v4l2_async_notifier_add_fwnode_subdev(
-			&vpif_obj.notifier, of_fwnode_handle(rem),
+		pdata->asd[i] = v4l2_async_yestifier_add_fwyesde_subdev(
+			&vpif_obj.yestifier, of_fwyesde_handle(rem),
 			sizeof(struct v4l2_async_subdev));
 		if (IS_ERR(pdata->asd[i]))
 			goto err_cleanup;
 
-		of_node_put(rem);
+		of_yesde_put(rem);
 	}
 
 done:
-	of_node_put(endpoint);
+	of_yesde_put(endpoint);
 	pdata->asd_sizes[0] = i;
 	pdata->subdev_count = i;
 	pdata->card_name = "DA850/OMAP-L138 Video Capture";
@@ -1602,9 +1602,9 @@ done:
 	return pdata;
 
 err_cleanup:
-	of_node_put(rem);
-	of_node_put(endpoint);
-	v4l2_async_notifier_cleanup(&vpif_obj.notifier);
+	of_yesde_put(rem);
+	of_yesde_put(endpoint);
+	v4l2_async_yestifier_cleanup(&vpif_obj.yestifier);
 
 	return NULL;
 }
@@ -1693,11 +1693,11 @@ static __init int vpif_probe(struct platform_device *pdev)
 		if (err)
 			goto probe_subdev_out;
 	} else {
-		vpif_obj.notifier.ops = &vpif_async_ops;
-		err = v4l2_async_notifier_register(&vpif_obj.v4l2_dev,
-						   &vpif_obj.notifier);
+		vpif_obj.yestifier.ops = &vpif_async_ops;
+		err = v4l2_async_yestifier_register(&vpif_obj.v4l2_dev,
+						   &vpif_obj.yestifier);
 		if (err) {
-			vpif_err("Error registering async notifier\n");
+			vpif_err("Error registering async yestifier\n");
 			err = -EINVAL;
 			goto probe_subdev_out;
 		}
@@ -1713,7 +1713,7 @@ vpif_unregister:
 vpif_free:
 	free_vpif_objs();
 cleanup:
-	v4l2_async_notifier_cleanup(&vpif_obj.notifier);
+	v4l2_async_yestifier_cleanup(&vpif_obj.yestifier);
 
 	return err;
 }
@@ -1729,8 +1729,8 @@ static int vpif_remove(struct platform_device *device)
 	struct channel_obj *ch;
 	int i;
 
-	v4l2_async_notifier_unregister(&vpif_obj.notifier);
-	v4l2_async_notifier_cleanup(&vpif_obj.notifier);
+	v4l2_async_yestifier_unregister(&vpif_obj.yestifier);
+	v4l2_async_yestifier_cleanup(&vpif_obj.yestifier);
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);
 
 	kfree(vpif_obj.sd);

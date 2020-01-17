@@ -59,7 +59,7 @@ static enum hmcdrv_ftp_cmdid hmcdrv_ftp_cmd_getid(const char *cmd, int len)
 	 *
 	 * Notes:
 	 * 1. Array size should be a prime number.
-	 * 2. Do not change the order of commands in table (because the
+	 * 2. Do yest change the order of commands in table (because the
 	 *    index is determined by CRC % ARRAY_SIZE).
 	 * 3. Original command 'nlist' was renamed, else the CRC would
 	 *    collide with 'append' (see point 2).
@@ -207,7 +207,7 @@ int hmcdrv_ftp_probe(void)
 	hmcdrv_ftp_shutdown();
 
 	switch (rc) {
-	case -ENOENT: /* no such file/media or currently busy, */
+	case -ENOENT: /* yes such file/media or currently busy, */
 	case -EBUSY:  /* but service seems to be available */
 		rc = 0;
 		break;
@@ -230,7 +230,7 @@ EXPORT_SYMBOL(hmcdrv_ftp_probe);
  * @buf: user-space buffer for read/written directory/file
  * @len: size of @buf (read/dir) or number of bytes to write
  *
- * This function must not be called before hmcdrv_ftp_startup() was called.
+ * This function must yest be called before hmcdrv_ftp_startup() was called.
  *
  * Return: number of bytes read/written or a negative error code
  */

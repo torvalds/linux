@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -215,7 +215,7 @@ out:
 	 * write_space is only called when data leaves tcp's send queue if
 	 * SOCK_NOSPACE is set.  We set SOCK_NOSPACE every time we put
 	 * data in tcp's send queue because we use write_space to parse the
-	 * sequence numbers and notice that rds messages have been fully
+	 * sequence numbers and yestice that rds messages have been fully
 	 * received.
 	 *
 	 * tcp's write_space clears SOCK_NOSPACE if the send queue has more

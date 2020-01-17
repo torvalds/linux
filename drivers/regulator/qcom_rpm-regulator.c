@@ -651,7 +651,7 @@ static int rpm_reg_set(struct qcom_rpm_reg *vreg,
 }
 
 static int rpm_reg_of_parse_freq(struct device *dev,
-				 struct device_node *node,
+				 struct device_yesde *yesde,
 				 struct qcom_rpm_reg *vreg)
 {
 	static const int freq_table[] = {
@@ -666,7 +666,7 @@ static int rpm_reg_of_parse_freq(struct device *dev,
 	int i;
 
 	key = "qcom,switch-mode-frequency";
-	ret = of_property_read_u32(node, key, &freq);
+	ret = of_property_read_u32(yesde, key, &freq);
 	if (ret) {
 		dev_err(dev, "regulator requires %s property\n", key);
 		return -EINVAL;
@@ -683,7 +683,7 @@ static int rpm_reg_of_parse_freq(struct device *dev,
 	return -EINVAL;
 }
 
-static int rpm_reg_of_parse(struct device_node *node,
+static int rpm_reg_of_parse(struct device_yesde *yesde,
 			    const struct regulator_desc *desc,
 			    struct regulator_config *config)
 {
@@ -696,7 +696,7 @@ static int rpm_reg_of_parse(struct device_node *node,
 	int ret;
 
 	key = "bias-pull-down";
-	if (of_property_read_bool(node, key)) {
+	if (of_property_read_bool(yesde, key)) {
 		ret = rpm_reg_set(vreg, &vreg->parts->pd, 1);
 		if (ret) {
 			dev_err(dev, "%s is invalid", key);
@@ -705,14 +705,14 @@ static int rpm_reg_of_parse(struct device_node *node,
 	}
 
 	if (vreg->parts->freq.mask) {
-		ret = rpm_reg_of_parse_freq(dev, node, vreg);
+		ret = rpm_reg_of_parse_freq(dev, yesde, vreg);
 		if (ret < 0)
 			return ret;
 	}
 
 	if (vreg->parts->pm.mask) {
 		key = "qcom,power-mode-hysteretic";
-		pwm = !of_property_read_bool(node, key);
+		pwm = !of_property_read_bool(yesde, key);
 
 		ret = rpm_reg_set(vreg, &vreg->parts->pm, pwm);
 		if (ret) {
@@ -725,7 +725,7 @@ static int rpm_reg_of_parse(struct device_node *node,
 		force_mode = -1;
 
 		key = "qcom,force-mode";
-		ret = of_property_read_u32(node, key, &val);
+		ret = of_property_read_u32(yesde, key, &val);
 		if (ret == -EINVAL) {
 			val = QCOM_RPM_FORCE_MODE_NONE;
 		} else if (ret < 0) {

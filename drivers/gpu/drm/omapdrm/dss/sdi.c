@@ -75,7 +75,7 @@ static int sdi_calc_clock_div(struct sdi_device *sdi, unsigned long pclk,
 
 	/*
 	 * DSS fclk gives us very few possibilities, so finding a good pixel
-	 * clock may not be possible. We try multiple times to find the clock,
+	 * clock may yest be possible. We try multiple times to find the clock,
 	 * each time widening the pixel clock range we look for, up to
 	 * +/- 1MHz.
 	 */
@@ -147,14 +147,14 @@ static void sdi_display_enable(struct omap_dss_device *dssdev)
 
 	/*
 	 * LCLK and PCLK divisors are located in shadow registers, and we
-	 * normally write them to DISPC registers when enabling the output.
+	 * yesrmally write them to DISPC registers when enabling the output.
 	 * However, SDI uses pck-free as source clock for its PLL, and pck-free
 	 * is affected by the divisors. And as we need the PLL before enabling
 	 * the output, we need to write the divisors early.
 	 *
-	 * It seems just writing to the DISPC register is enough, and we don't
+	 * It seems just writing to the DISPC register is eyesugh, and we don't
 	 * need to care about the shadow register mechanism for pck-free. The
-	 * exact reason for this is unknown.
+	 * exact reason for this is unkyeswn.
 	 */
 	dispc_mgr_set_clock_div(sdi->dss->dispc, sdi->output.dispc_channel,
 				&sdi->mgr_config.clock_info);
@@ -287,10 +287,10 @@ static void sdi_uninit_output(struct sdi_device *sdi)
 }
 
 int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,
-		  struct device_node *port)
+		  struct device_yesde *port)
 {
 	struct sdi_device *sdi;
-	struct device_node *ep;
+	struct device_yesde *ep;
 	u32 datapairs;
 	int r;
 
@@ -305,7 +305,7 @@ int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,
 	}
 
 	r = of_property_read_u32(ep, "datapairs", &datapairs);
-	of_node_put(ep);
+	of_yesde_put(ep);
 	if (r) {
 		DSSERR("failed to parse datapairs\n");
 		goto err_free;
@@ -337,7 +337,7 @@ err_free:
 	return r;
 }
 
-void sdi_uninit_port(struct device_node *port)
+void sdi_uninit_port(struct device_yesde *port)
 {
 	struct sdi_device *sdi = port->data;
 

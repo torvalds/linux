@@ -1,6 +1,6 @@
 QCOM Idle States for cpuidle driver
 
-ARM provides idle-state node to define the cpuidle states, as defined in [1].
+ARM provides idle-state yesde to define the cpuidle states, as defined in [1].
 cpuidle-qcom is the cpuidle driver for Qualcomm SoCs and uses these idle
 states. Idle states have different enter/exit latency and residency values.
 The idle states supported by the QCOM SoC are defined as -
@@ -19,7 +19,7 @@ hierarchy to enter standby states, when all cpus are idle. An interrupt brings
 the SPM state machine out of its wait, the next step is to ensure that the
 cache hierarchy is also out of standby, and then the cpu is allowed to resume
 execution. This state is defined as a generic ARM WFI state by the ARM cpuidle
-driver and is not defined in the DT. The SPM state machine should be
+driver and is yest defined in the DT. The SPM state machine should be
 configured to execute this state by default and after executing every other
 state below.
 
@@ -31,7 +31,7 @@ sequence and would wait for interrupt, before restoring the cpu to execution
 state. Retention may have a slightly higher latency than Standby.
 
 Standalone PC: A cpu can power down and warmboot if there is a sufficient time
-between the time it enters idle and the next known wake up. SPC mode is used
+between the time it enters idle and the next kyeswn wake up. SPC mode is used
 to indicate a core entering a power down state without consulting any other
 cpu or the system resources. This helps save power only on that core.  The SPM
 sequence for this idle state is programmed to power down the supply to the
@@ -45,7 +45,7 @@ code in the EL for the SoC. On SoCs with write-back L1 cache, the cache has to
 be flushed in s/w, before powering down the core.
 
 Power Collapse: This state is similar to the SPC mode, but distinguishes
-itself in that the cpu acknowledges and permits the SoC to enter deeper sleep
+itself in that the cpu ackyeswledges and permits the SoC to enter deeper sleep
 modes. In a hierarchical power domain SoC, this means L2 and other caches can
 be flushed, system bus, clocks - lowered, and SoC main XO clock gated and
 voltages reduced, provided all cpus enter this state.  Since the span of low
@@ -56,7 +56,7 @@ with the Resource power manager (RPM) processor in the SoC to indicate a
 complete application processor subsystem shut down.
 
 The idle-state for QCOM SoCs are distinguished by the compatible property of
-the idle-states device node.
+the idle-states device yesde.
 
 The devicetree representation of the idle state should be -
 

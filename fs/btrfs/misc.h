@@ -19,7 +19,7 @@ static inline void cond_wake_up(struct wait_queue_head *wq)
 		wake_up(wq);
 }
 
-static inline void cond_wake_up_nomb(struct wait_queue_head *wq)
+static inline void cond_wake_up_yesmb(struct wait_queue_head *wq)
 {
 	/*
 	 * Special case for conditional wakeup where the barrier required for

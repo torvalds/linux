@@ -6,7 +6,7 @@
  * Copyright (c) 2014,2017 The Linux Foundation. All rights reserved.
  */
 
-#include "adreno_gpu.h"
+#include "adreyes_gpu.h"
 
 #define ANY_ID 0xff
 
@@ -14,7 +14,7 @@ bool hang_debug = false;
 MODULE_PARM_DESC(hang_debug, "Dump registers when hang is detected (can be slow!)");
 module_param_named(hang_debug, hang_debug, bool, 0600);
 
-static const struct adreno_info gpulist[] = {
+static const struct adreyes_info gpulist[] = {
 	{
 		.rev   = ADRENO_REV(2, 0, 0, 0),
 		.revn  = 200,
@@ -203,16 +203,16 @@ static inline bool _rev_match(uint8_t entry, uint8_t id)
 	return (entry == ANY_ID) || (entry == id);
 }
 
-const struct adreno_info *adreno_info(struct adreno_rev rev)
+const struct adreyes_info *adreyes_info(struct adreyes_rev rev)
 {
 	int i;
 
 	/* identify gpu: */
 	for (i = 0; i < ARRAY_SIZE(gpulist); i++) {
-		const struct adreno_info *info = &gpulist[i];
+		const struct adreyes_info *info = &gpulist[i];
 		if (_rev_match(info->rev.core, rev.core) &&
 				_rev_match(info->rev.major, rev.major) &&
-				_rev_match(info->rev.minor, rev.minor) &&
+				_rev_match(info->rev.miyesr, rev.miyesr) &&
 				_rev_match(info->rev.patchid, rev.patchid))
 			return info;
 	}
@@ -220,23 +220,23 @@ const struct adreno_info *adreno_info(struct adreno_rev rev)
 	return NULL;
 }
 
-struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
+struct msm_gpu *adreyes_load_gpu(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
 	struct msm_gpu *gpu = NULL;
-	struct adreno_gpu *adreno_gpu;
+	struct adreyes_gpu *adreyes_gpu;
 	int ret;
 
 	if (pdev)
 		gpu = platform_get_drvdata(pdev);
 
 	if (!gpu) {
-		dev_err_once(dev->dev, "no GPU device was found\n");
+		dev_err_once(dev->dev, "yes GPU device was found\n");
 		return NULL;
 	}
 
-	adreno_gpu = to_adreno_gpu(gpu);
+	adreyes_gpu = to_adreyes_gpu(gpu);
 
 	/*
 	 * The number one reason for HW init to fail is if the firmware isn't
@@ -244,7 +244,7 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 	 * otherwise
 	 */
 
-	ret = adreno_load_fw(adreno_gpu);
+	ret = adreyes_load_fw(adreyes_gpu);
 	if (ret)
 		return NULL;
 
@@ -284,25 +284,25 @@ static void set_gpu_pdev(struct drm_device *dev,
 	priv->gpu_pdev = pdev;
 }
 
-static int find_chipid(struct device *dev, struct adreno_rev *rev)
+static int find_chipid(struct device *dev, struct adreyes_rev *rev)
 {
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	const char *compat;
 	int ret;
 	u32 chipid;
 
-	/* first search the compat strings for qcom,adreno-XYZ.W: */
-	ret = of_property_read_string_index(node, "compatible", 0, &compat);
+	/* first search the compat strings for qcom,adreyes-XYZ.W: */
+	ret = of_property_read_string_index(yesde, "compatible", 0, &compat);
 	if (ret == 0) {
 		unsigned int r, patch;
 
-		if (sscanf(compat, "qcom,adreno-%u.%u", &r, &patch) == 2 ||
+		if (sscanf(compat, "qcom,adreyes-%u.%u", &r, &patch) == 2 ||
 		    sscanf(compat, "amd,imageon-%u.%u", &r, &patch) == 2) {
 			rev->core = r / 100;
 			r %= 100;
 			rev->major = r / 10;
 			r %= 10;
-			rev->minor = r;
+			rev->miyesr = r;
 			rev->patchid = patch;
 
 			return 0;
@@ -310,28 +310,28 @@ static int find_chipid(struct device *dev, struct adreno_rev *rev)
 	}
 
 	/* and if that fails, fall back to legacy "qcom,chipid" property: */
-	ret = of_property_read_u32(node, "qcom,chipid", &chipid);
+	ret = of_property_read_u32(yesde, "qcom,chipid", &chipid);
 	if (ret) {
-		DRM_DEV_ERROR(dev, "could not parse qcom,chipid: %d\n", ret);
+		DRM_DEV_ERROR(dev, "could yest parse qcom,chipid: %d\n", ret);
 		return ret;
 	}
 
 	rev->core = (chipid >> 24) & 0xff;
 	rev->major = (chipid >> 16) & 0xff;
-	rev->minor = (chipid >> 8) & 0xff;
+	rev->miyesr = (chipid >> 8) & 0xff;
 	rev->patchid = (chipid & 0xff);
 
 	dev_warn(dev, "Using legacy qcom,chipid binding!\n");
-	dev_warn(dev, "Use compatible qcom,adreno-%u%u%u.%u instead.\n",
-		rev->core, rev->major, rev->minor, rev->patchid);
+	dev_warn(dev, "Use compatible qcom,adreyes-%u%u%u.%u instead.\n",
+		rev->core, rev->major, rev->miyesr, rev->patchid);
 
 	return 0;
 }
 
-static int adreno_bind(struct device *dev, struct device *master, void *data)
+static int adreyes_bind(struct device *dev, struct device *master, void *data)
 {
-	static struct adreno_platform_config config = {};
-	const struct adreno_info *info;
+	static struct adreyes_platform_config config = {};
+	const struct adreyes_info *info;
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct msm_drm_private *priv = drm->dev_private;
 	struct msm_gpu *gpu;
@@ -344,23 +344,23 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	dev->platform_data = &config;
 	set_gpu_pdev(drm, to_platform_device(dev));
 
-	info = adreno_info(config.rev);
+	info = adreyes_info(config.rev);
 
 	if (!info) {
-		dev_warn(drm->dev, "Unknown GPU revision: %u.%u.%u.%u\n",
+		dev_warn(drm->dev, "Unkyeswn GPU revision: %u.%u.%u.%u\n",
 			config.rev.core, config.rev.major,
-			config.rev.minor, config.rev.patchid);
+			config.rev.miyesr, config.rev.patchid);
 		return -ENXIO;
 	}
 
 	DBG("Found GPU: %u.%u.%u.%u", config.rev.core, config.rev.major,
-		config.rev.minor, config.rev.patchid);
+		config.rev.miyesr, config.rev.patchid);
 
 	priv->is_a2xx = config.rev.core == 2;
 
 	gpu = info->init(drm);
 	if (IS_ERR(gpu)) {
-		dev_warn(drm->dev, "failed to load adreno gpu\n");
+		dev_warn(drm->dev, "failed to load adreyes gpu\n");
 		return PTR_ERR(gpu);
 	}
 
@@ -369,7 +369,7 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	return 0;
 }
 
-static void adreno_unbind(struct device *dev, struct device *master,
+static void adreyes_unbind(struct device *dev, struct device *master,
 		void *data)
 {
 	struct msm_gpu *gpu = dev_get_drvdata(dev);
@@ -381,14 +381,14 @@ static void adreno_unbind(struct device *dev, struct device *master,
 }
 
 static const struct component_ops a3xx_ops = {
-		.bind   = adreno_bind,
-		.unbind = adreno_unbind,
+		.bind   = adreyes_bind,
+		.unbind = adreyes_unbind,
 };
 
-static void adreno_device_register_headless(void)
+static void adreyes_device_register_headless(void)
 {
-	/* on imx5, we don't have a top-level mdp/dpu node
-	 * this creates a dummy node for the driver for that case
+	/* on imx5, we don't have a top-level mdp/dpu yesde
+	 * this creates a dummy yesde for the driver for that case
 	 */
 	struct platform_device_info dummy_info = {
 		.parent = NULL,
@@ -403,7 +403,7 @@ static void adreno_device_register_headless(void)
 	platform_device_register_full(&dummy_info);
 }
 
-static int adreno_probe(struct platform_device *pdev)
+static int adreyes_probe(struct platform_device *pdev)
 {
 
 	int ret;
@@ -412,21 +412,21 @@ static int adreno_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (of_device_is_compatible(pdev->dev.of_node, "amd,imageon"))
-		adreno_device_register_headless();
+	if (of_device_is_compatible(pdev->dev.of_yesde, "amd,imageon"))
+		adreyes_device_register_headless();
 
 	return 0;
 }
 
-static int adreno_remove(struct platform_device *pdev)
+static int adreyes_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &a3xx_ops);
 	return 0;
 }
 
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,adreno" },
-	{ .compatible = "qcom,adreno-3xx" },
+	{ .compatible = "qcom,adreyes" },
+	{ .compatible = "qcom,adreyes-3xx" },
 	/* for compatibility with imx5 gpu: */
 	{ .compatible = "amd,imageon" },
 	/* for backwards compat w/ downstream kgsl DT files: */
@@ -435,7 +435,7 @@ static const struct of_device_id dt_match[] = {
 };
 
 #ifdef CONFIG_PM
-static int adreno_resume(struct device *dev)
+static int adreyes_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct msm_gpu *gpu = platform_get_drvdata(pdev);
@@ -443,7 +443,7 @@ static int adreno_resume(struct device *dev)
 	return gpu->funcs->pm_resume(gpu);
 }
 
-static int adreno_suspend(struct device *dev)
+static int adreyes_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct msm_gpu *gpu = platform_get_drvdata(pdev);
@@ -452,27 +452,27 @@ static int adreno_suspend(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops adreno_pm_ops = {
+static const struct dev_pm_ops adreyes_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(adreno_suspend, adreno_resume, NULL)
+	SET_RUNTIME_PM_OPS(adreyes_suspend, adreyes_resume, NULL)
 };
 
-static struct platform_driver adreno_driver = {
-	.probe = adreno_probe,
-	.remove = adreno_remove,
+static struct platform_driver adreyes_driver = {
+	.probe = adreyes_probe,
+	.remove = adreyes_remove,
 	.driver = {
-		.name = "adreno",
+		.name = "adreyes",
 		.of_match_table = dt_match,
-		.pm = &adreno_pm_ops,
+		.pm = &adreyes_pm_ops,
 	},
 };
 
-void __init adreno_register(void)
+void __init adreyes_register(void)
 {
-	platform_driver_register(&adreno_driver);
+	platform_driver_register(&adreyes_driver);
 }
 
-void __exit adreno_unregister(void)
+void __exit adreyes_unregister(void)
 {
-	platform_driver_unregister(&adreno_driver);
+	platform_driver_unregister(&adreyes_driver);
 }

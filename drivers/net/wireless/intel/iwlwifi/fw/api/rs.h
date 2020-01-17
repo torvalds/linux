@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -115,8 +115,8 @@ enum iwl_tlc_mng_cfg_chains {
 /**
  * enum iwl_tlc_mng_cfg_mode - supported modes
  * @IWL_TLC_MNG_MODE_CCK: enable CCK
- * @IWL_TLC_MNG_MODE_OFDM_NON_HT: enable OFDM (non HT)
- * @IWL_TLC_MNG_MODE_NON_HT: enable non HT
+ * @IWL_TLC_MNG_MODE_OFDM_NON_HT: enable OFDM (yesn HT)
+ * @IWL_TLC_MNG_MODE_NON_HT: enable yesn HT
  * @IWL_TLC_MNG_MODE_HT: enable HT
  * @IWL_TLC_MNG_MODE_VHT: enable VHT
  * @IWL_TLC_MNG_MODE_HE: enable HE
@@ -186,7 +186,7 @@ enum IWL_TLC_HT_BW_RATES {
  * @chains: bitmask of &enum iwl_tlc_mng_cfg_chains
  * @amsdu: TX amsdu is supported
  * @flags: bitmask of &enum iwl_tlc_mng_cfg_flags
- * @non_ht_rates: bitmap of supported legacy rates
+ * @yesn_ht_rates: bitmap of supported legacy rates
  * @ht_rates: bitmap of &enum iwl_tlc_mng_ht_rates, per <nss, channel-width>
  *	      pair (0 - 80mhz width and below, 1 - 160mhz).
  * @max_mpdu_len: max MPDU length, in bytes
@@ -202,7 +202,7 @@ struct iwl_tlc_config_cmd {
 	u8 chains;
 	u8 amsdu;
 	__le16 flags;
-	__le16 non_ht_rates;
+	__le16 yesn_ht_rates;
 	__le16 ht_rates[IWL_TLC_NSS_MAX][2];
 	__le16 max_mpdu_len;
 	u8 sgi_ch_width_supp;
@@ -220,15 +220,15 @@ enum iwl_tlc_update_flags {
 };
 
 /**
- * struct iwl_tlc_update_notif - TLC notification from FW
+ * struct iwl_tlc_update_yestif - TLC yestification from FW
  * @sta_id: station id
  * @reserved: reserved
- * @flags: bitmap of notifications reported
+ * @flags: bitmap of yestifications reported
  * @rate: current initial rate
  * @amsdu_size: Max AMSDU size, in bytes
  * @amsdu_enabled: bitmap for per-TID AMSDU enablement
  */
-struct iwl_tlc_update_notif {
+struct iwl_tlc_update_yestif {
 	u8 sta_id;
 	u8 reserved[3];
 	__le32 flags;
@@ -417,7 +417,7 @@ enum {
 #define RATE_MCS_CHAN_WIDTH_80		(2 << RATE_MCS_CHAN_WIDTH_POS)
 #define RATE_MCS_CHAN_WIDTH_160		(3 << RATE_MCS_CHAN_WIDTH_POS)
 
-/* Bit 13: (1) Short guard interval (0.4 usec), (0) normal GI (0.8 usec) */
+/* Bit 13: (1) Short guard interval (0.4 usec), (0) yesrmal GI (0.8 usec) */
 #define RATE_MCS_SGI_POS		13
 #define RATE_MCS_SGI_MSK		(1 << RATE_MCS_SGI_POS)
 
@@ -461,7 +461,7 @@ enum {
  *	0			1xLTF+1.6us
  *	1			2xLTF+1.6us
  *	2			4xLTF+3.2us
- *	3			(does not occur)
+ *	3			(does yest occur)
  */
 #define RATE_MCS_HE_GI_LTF_POS		20
 #define RATE_MCS_HE_GI_LTF_MSK		(3 << RATE_MCS_HE_GI_LTF_POS)
@@ -474,7 +474,7 @@ enum {
 #define RATE_MCS_HE_TYPE_TRIG		(3 << RATE_MCS_HE_TYPE_POS)
 #define RATE_MCS_HE_TYPE_MSK		(3 << RATE_MCS_HE_TYPE_POS)
 
-/* Bit 24-25: (0) 20MHz (no dup), (1) 2x20MHz, (2) 4x20MHz, 3 8x20MHz */
+/* Bit 24-25: (0) 20MHz (yes dup), (1) 2x20MHz, (2) 4x20MHz, 3 8x20MHz */
 #define RATE_MCS_DUP_POS		24
 #define RATE_MCS_DUP_MSK		(3 << RATE_MCS_DUP_POS)
 
@@ -482,7 +482,7 @@ enum {
 #define RATE_MCS_LDPC_POS		27
 #define RATE_MCS_LDPC_MSK		(1 << RATE_MCS_LDPC_POS)
 
-/* Bit 28: (1) 106-tone RX (8 MHz RU), (0) normal bandwidth */
+/* Bit 28: (1) 106-tone RX (8 MHz RU), (0) yesrmal bandwidth */
 #define RATE_MCS_HE_106T_POS		28
 #define RATE_MCS_HE_106T_MSK		(1 << RATE_MCS_HE_106T_POS)
 
@@ -532,7 +532,7 @@ enum {
  * (1) - 2x1 STBC allowed (HT/VHT)
  * (2) - 4x2 STBC allowed (HT/VHT)
  * (3) - 3x2 STBC allowed (HT only)
- * All our chips are at most 2 antennas so only (1) is valid for now.
+ * All our chips are at most 2 antennas so only (1) is valid for yesw.
  */
 #define LQ_SS_STBC_ALLOWED_POS          0
 #define LQ_SS_STBC_ALLOWED_MSK		(3 << LQ_SS_STBC_ALLOWED_MSK)
@@ -562,7 +562,7 @@ enum {
  * struct iwl_lq_cmd - link quality command
  * @sta_id: station to update
  * @reduced_tpc: reduced transmit power control value
- * @control: not used
+ * @control: yest used
  * @flags: combination of LQ_FLAG_*
  * @mimo_delim: the first SISO index in rs_table, which separates MIMO
  *	and SISO rates
@@ -573,11 +573,11 @@ enum {
  * @agg_time_limit: aggregation max time threshold in usec/100, meaning
  *	value of 100 is one usec. Range is 100 to 8000
  * @agg_disable_start_th: try-count threshold for starting aggregation.
- *	If a frame has higher try-count, it should not be selected for
+ *	If a frame has higher try-count, it should yest be selected for
  *	starting an aggregation sequence.
  * @agg_frame_cnt_limit: max frame count in an aggregation.
- *	0: no limit
- *	1: no aggregation (one frame per aggregation)
+ *	0: yes limit
+ *	1: yes aggregation (one frame per aggregation)
  *	2 - 0x3f: maximal number of frames (up to 3f == 63)
  * @reserved2: reserved
  * @rs_table: array of rates for each TX try, each is rate_n_flags,

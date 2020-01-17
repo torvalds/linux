@@ -31,7 +31,7 @@
 
 /* Note: in the format strings below %s is replaced by the queue-name which is
  * either its index or 'fcoe' for the fcoe queue. Make sure the format string
- * length does not exceed ETH_GSTRING_LEN - MAX_QUEUE_NAME_LEN + 2
+ * length does yest exceed ETH_GSTRING_LEN - MAX_QUEUE_NAME_LEN + 2
  */
 #define MAX_QUEUE_NAME_LEN	4
 static const struct {
@@ -46,7 +46,7 @@ static const struct {
 						8, "[%s]: rx_mcast_packets" },
 	{ Q_STATS_OFFSET32(total_broadcast_packets_received_hi),
 						8, "[%s]: rx_bcast_packets" },
-	{ Q_STATS_OFFSET32(no_buff_discard_hi),	8, "[%s]: rx_discards" },
+	{ Q_STATS_OFFSET32(yes_buff_discard_hi),	8, "[%s]: rx_discards" },
 	{ Q_STATS_OFFSET32(rx_err_discard_pkt),
 					 4, "[%s]: rx_phy_ip_err_discards"},
 	{ Q_STATS_OFFSET32(rx_skb_alloc_failed),
@@ -99,7 +99,7 @@ static const struct {
 				8, true, "rx_fragments" },
 	{ STATS_OFFSET32(rx_stat_etherstatsjabbers_hi),
 				8, true, "rx_jabbers" },
-	{ STATS_OFFSET32(no_buff_discard_hi),
+	{ STATS_OFFSET32(yes_buff_discard_hi),
 				8, false, "rx_discards" },
 	{ STATS_OFFSET32(mac_filter_discard),
 				4, true, "rx_filtered_packets" },
@@ -393,7 +393,7 @@ static int bnx2x_set_link_ksettings(struct net_device *dev,
 
 	speed = cmd->base.speed;
 
-	/* If received a request for an unknown duplex, assume full*/
+	/* If received a request for an unkyeswn duplex, assume full*/
 	if (duplex == DUPLEX_UNKNOWN)
 		duplex = DUPLEX_FULL;
 
@@ -401,7 +401,7 @@ static int bnx2x_set_link_ksettings(struct net_device *dev,
 		u32 part;
 		u32 line_speed = bp->link_vars.line_speed;
 
-		/* use 10G if no link detected */
+		/* use 10G if yes link detected */
 		if (!line_speed)
 			line_speed = 10000;
 
@@ -489,14 +489,14 @@ static int bnx2x_set_link_ksettings(struct net_device *dev,
 			an_supported_speed |= (SUPPORTED_100baseT_Half |
 					       SUPPORTED_100baseT_Full);
 		if (!(bp->port.supported[cfg_idx] & SUPPORTED_Autoneg)) {
-			DP(BNX2X_MSG_ETHTOOL, "Autoneg not supported\n");
+			DP(BNX2X_MSG_ETHTOOL, "Autoneg yest supported\n");
 			return -EINVAL;
 		}
 
 		/* advertise the requested speed and duplex if supported */
 		if (advertising & ~an_supported_speed) {
 			DP(BNX2X_MSG_ETHTOOL,
-			   "Advertisement parameters are not supported\n");
+			   "Advertisement parameters are yest supported\n");
 			return -EINVAL;
 		}
 
@@ -550,7 +550,7 @@ static int bnx2x_set_link_ksettings(struct net_device *dev,
 				if (!(bp->port.supported[cfg_idx] &
 				      SUPPORTED_10baseT_Full)) {
 					DP(BNX2X_MSG_ETHTOOL,
-					   "10M full not supported\n");
+					   "10M full yest supported\n");
 					return -EINVAL;
 				}
 
@@ -560,7 +560,7 @@ static int bnx2x_set_link_ksettings(struct net_device *dev,
 				if (!(bp->port.supported[cfg_idx] &
 				      SUPPORTED_10baseT_Half)) {
 					DP(BNX2X_MSG_ETHTOOL,
-					   "10M half not supported\n");
+					   "10M half yest supported\n");
 					return -EINVAL;
 				}
 
@@ -574,7 +574,7 @@ static int bnx2x_set_link_ksettings(struct net_device *dev,
 				if (!(bp->port.supported[cfg_idx] &
 						SUPPORTED_100baseT_Full)) {
 					DP(BNX2X_MSG_ETHTOOL,
-					   "100M full not supported\n");
+					   "100M full yest supported\n");
 					return -EINVAL;
 				}
 
@@ -584,7 +584,7 @@ static int bnx2x_set_link_ksettings(struct net_device *dev,
 				if (!(bp->port.supported[cfg_idx] &
 						SUPPORTED_100baseT_Half)) {
 					DP(BNX2X_MSG_ETHTOOL,
-					   "100M half not supported\n");
+					   "100M half yest supported\n");
 					return -EINVAL;
 				}
 
@@ -596,7 +596,7 @@ static int bnx2x_set_link_ksettings(struct net_device *dev,
 		case SPEED_1000:
 			if (duplex != DUPLEX_FULL) {
 				DP(BNX2X_MSG_ETHTOOL,
-				   "1G half not supported\n");
+				   "1G half yest supported\n");
 				return -EINVAL;
 			}
 
@@ -610,7 +610,7 @@ static int bnx2x_set_link_ksettings(struct net_device *dev,
 				advertising = ADVERTISED_1000baseKX_Full;
 			} else {
 				DP(BNX2X_MSG_ETHTOOL,
-				   "1G full not supported\n");
+				   "1G full yest supported\n");
 				return -EINVAL;
 			}
 
@@ -619,14 +619,14 @@ static int bnx2x_set_link_ksettings(struct net_device *dev,
 		case SPEED_2500:
 			if (duplex != DUPLEX_FULL) {
 				DP(BNX2X_MSG_ETHTOOL,
-				   "2.5G half not supported\n");
+				   "2.5G half yest supported\n");
 				return -EINVAL;
 			}
 
 			if (!(bp->port.supported[cfg_idx]
 			      & SUPPORTED_2500baseX_Full)) {
 				DP(BNX2X_MSG_ETHTOOL,
-				   "2.5G full not supported\n");
+				   "2.5G full yest supported\n");
 				return -EINVAL;
 			}
 
@@ -637,7 +637,7 @@ static int bnx2x_set_link_ksettings(struct net_device *dev,
 		case SPEED_10000:
 			if (duplex != DUPLEX_FULL) {
 				DP(BNX2X_MSG_ETHTOOL,
-				   "10G half not supported\n");
+				   "10G half yest supported\n");
 				return -EINVAL;
 			}
 			phy_idx = bnx2x_get_cur_phy_idx(bp);
@@ -653,7 +653,7 @@ static int bnx2x_set_link_ksettings(struct net_device *dev,
 					       ADVERTISED_FIBRE);
 			} else {
 				DP(BNX2X_MSG_ETHTOOL,
-				   "10G full not supported\n");
+				   "10G full yest supported\n");
 				return -EINVAL;
 			}
 
@@ -1166,13 +1166,13 @@ static int bnx2x_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct bnx2x *bp = netdev_priv(dev);
 
 	if (wol->wolopts & ~WAKE_MAGIC) {
-		DP(BNX2X_MSG_ETHTOOL, "WOL not supported\n");
+		DP(BNX2X_MSG_ETHTOOL, "WOL yest supported\n");
 		return -EINVAL;
 	}
 
 	if (wol->wolopts & WAKE_MAGIC) {
 		if (bp->flags & NO_WOL_FLAG) {
-			DP(BNX2X_MSG_ETHTOOL, "WOL not supported\n");
+			DP(BNX2X_MSG_ETHTOOL, "WOL yest supported\n");
 			return -EINVAL;
 		}
 		bp->wol = 1;
@@ -1282,7 +1282,7 @@ static int bnx2x_acquire_nvram_lock(struct bnx2x *bp)
 
 	if (!(val & (MCPR_NVM_SW_ARB_ARB_ARB1 << port))) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
-		   "cannot get access to nvram interface\n");
+		   "canyest get access to nvram interface\n");
 		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_NVRAM);
 		return -EBUSY;
 	}
@@ -1315,7 +1315,7 @@ static int bnx2x_release_nvram_lock(struct bnx2x *bp)
 
 	if (val & (MCPR_NVM_SW_ARB_ARB_ARB1 << port)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
-		   "cannot free access to nvram interface\n");
+		   "canyest free access to nvram interface\n");
 		return -EBUSY;
 	}
 
@@ -1492,7 +1492,7 @@ static int bnx2x_get_eeprom(struct net_device *dev,
 
 	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL  | BNX2X_MSG_NVM,
-		   "cannot access eeprom when the interface is down\n");
+		   "canyest access eeprom when the interface is down\n");
 		return -EAGAIN;
 	}
 
@@ -1517,7 +1517,7 @@ static int bnx2x_get_module_eeprom(struct net_device *dev,
 
 	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
-		   "cannot access eeprom when the interface is down\n");
+		   "canyest access eeprom when the interface is down\n");
 		return -EAGAIN;
 	}
 
@@ -1580,7 +1580,7 @@ static int bnx2x_get_module_info(struct net_device *dev,
 
 	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
-		   "cannot access eeprom when the interface is down\n");
+		   "canyest access eeprom when the interface is down\n");
 		return -EAGAIN;
 	}
 	phy_idx = bnx2x_get_cur_phy_idx(bp);
@@ -1760,7 +1760,7 @@ static int bnx2x_nvram_write(struct bnx2x *bp, u32 offset, u8 *data_buf,
 
 		memcpy(&val, data_buf, 4);
 
-		/* Notice unlike bnx2x_nvram_read_dword() this will not
+		/* Notice unlike bnx2x_nvram_read_dword() this will yest
 		 * change val using be32_to_cpu(), which causes data to flip
 		 * if the eeprom is read and then written back. This is due
 		 * to tools utilizing this functionality that would break
@@ -1808,7 +1808,7 @@ static int bnx2x_set_eeprom(struct net_device *dev,
 
 	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
-		   "cannot access eeprom when the interface is down\n");
+		   "canyest access eeprom when the interface is down\n");
 		return -EAGAIN;
 	}
 
@@ -1823,7 +1823,7 @@ static int bnx2x_set_eeprom(struct net_device *dev,
 	if ((eeprom->magic >= 0x50485900) && (eeprom->magic <= 0x504859FF) &&
 	    !bp->port.pmf) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
-		   "wrong magic or interface is not pmf\n");
+		   "wrong magic or interface is yest pmf\n");
 		return -EINVAL;
 	}
 
@@ -1924,7 +1924,7 @@ static void bnx2x_get_ringparam(struct net_device *dev,
 
 	/* If size isn't already set, we give an estimation of the number
 	 * of buffers we'll have. We're neglecting some possible conditions
-	 * [we couldn't know for certain at this point if number of queues
+	 * [we couldn't kyesw for certain at this point if number of queues
 	 * might shrink] but the number would be correct for the likely
 	 * scenario.
 	 */
@@ -1950,7 +1950,7 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 
 	if (pci_num_vf(bp->pdev)) {
 		DP(BNX2X_MSG_IOV,
-		   "VFs are enabled, can not change ring parameters\n");
+		   "VFs are enabled, can yest change ring parameters\n");
 		return -EPERM;
 	}
 
@@ -1965,7 +1965,7 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 						    MIN_RX_SIZE_TPA)) ||
 	    (ering->tx_pending > (IS_MF_STORAGE_ONLY(bp) ? 0 : MAX_TX_AVAIL)) ||
 	    (ering->tx_pending <= MAX_SKB_FRAGS + 4)) {
-		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
+		DP(BNX2X_MSG_ETHTOOL, "Command parameters yest supported\n");
 		return -EINVAL;
 	}
 
@@ -2025,7 +2025,7 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 
 	if (epause->autoneg) {
 		if (!(bp->port.supported[cfg_idx] & SUPPORTED_Autoneg)) {
-			DP(BNX2X_MSG_ETHTOOL, "autoneg not supported\n");
+			DP(BNX2X_MSG_ETHTOOL, "autoneg yest supported\n");
 			return -EINVAL;
 		}
 
@@ -2112,7 +2112,7 @@ static int bnx2x_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 	u32 eee_cfg;
 
 	if (!SHMEM2_HAS(bp, eee_status[BP_PORT(bp)])) {
-		DP(BNX2X_MSG_ETHTOOL, "BC Version does not support EEE\n");
+		DP(BNX2X_MSG_ETHTOOL, "BC Version does yest support EEE\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -2149,14 +2149,14 @@ static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 		return 0;
 
 	if (!SHMEM2_HAS(bp, eee_status[BP_PORT(bp)])) {
-		DP(BNX2X_MSG_ETHTOOL, "BC Version does not support EEE\n");
+		DP(BNX2X_MSG_ETHTOOL, "BC Version does yest support EEE\n");
 		return -EOPNOTSUPP;
 	}
 
 	eee_cfg = bp->link_vars.eee_status;
 
 	if (!(eee_cfg & SHMEM_EEE_SUPPORTED_MASK)) {
-		DP(BNX2X_MSG_ETHTOOL, "Board does not support EEE!\n");
+		DP(BNX2X_MSG_ETHTOOL, "Board does yest support EEE!\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -2164,7 +2164,7 @@ static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 				      SHMEM_EEE_ADV_STATUS_SHIFT);
 	if ((advertised != (eee_cfg & SHMEM_EEE_ADV_STATUS_MASK))) {
 		DP(BNX2X_MSG_ETHTOOL,
-		   "Direct manipulation of EEE advertisement is not supported\n");
+		   "Direct manipulation of EEE advertisement is yest supported\n");
 		return -EINVAL;
 	}
 
@@ -2320,7 +2320,7 @@ static int bnx2x_test_registers(struct bnx2x *bp)
 
 	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
-		   "cannot access eeprom when the interface is down\n");
+		   "canyest access eeprom when the interface is down\n");
 		return rc;
 	}
 
@@ -2424,7 +2424,7 @@ static int bnx2x_test_memory(struct bnx2x *bp)
 
 	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
-		   "cannot access eeprom when the interface is down\n");
+		   "canyest access eeprom when the interface is down\n");
 		return rc;
 	}
 
@@ -2516,7 +2516,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	switch (loopback_mode) {
 	case BNX2X_PHY_LOOPBACK:
 		if (bp->link_params.loopback_mode != LOOPBACK_XGXS) {
-			DP(BNX2X_MSG_ETHTOOL, "PHY loopback not supported\n");
+			DP(BNX2X_MSG_ETHTOOL, "PHY loopback yest supported\n");
 			return -EINVAL;
 		}
 		break;
@@ -2543,7 +2543,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 		}
 		break;
 	default:
-		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
+		DP(BNX2X_MSG_ETHTOOL, "Command parameters yest supported\n");
 		return -EINVAL;
 	}
 
@@ -2815,7 +2815,7 @@ static int bnx2x_test_nvram_dir(struct bnx2x *bp,
 	u32 type = entry->code_attribute & CODE_IMAGE_TYPE_MASK;
 	int rc;
 
-	/* Zero-length images and AFEX profiles do not have CRC */
+	/* Zero-length images and AFEX profiles do yest have CRC */
 	if (size == 0 || type == CODE_IMAGE_VNTAG_PROFILES_DATA)
 		return 0;
 
@@ -2992,7 +2992,7 @@ static int bnx2x_test_intr(struct bnx2x *bp)
 
 	if (!netif_running(bp->dev)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
-		   "cannot access eeprom when the interface is down\n");
+		   "canyest access eeprom when the interface is down\n");
 		return -ENODEV;
 	}
 
@@ -3013,7 +3013,7 @@ static void bnx2x_self_test(struct net_device *dev,
 
 	if (pci_num_vf(bp->pdev)) {
 		DP(BNX2X_MSG_IOV,
-		   "VFs are enabled, can not perform self test\n");
+		   "VFs are enabled, can yest perform self test\n");
 		return;
 	}
 
@@ -3046,7 +3046,7 @@ static void bnx2x_self_test(struct net_device *dev,
 
 	is_serdes = (bp->link_vars.link_status & LINK_STATUS_SERDES_LINK) > 0;
 	link_up = bp->link_vars.link_up;
-	/* offline tests are not supported in MF mode */
+	/* offline tests are yest supported in MF mode */
 	if ((etest->flags & ETH_TEST_FL_OFFLINE) && !IS_MF(bp)) {
 		int port = BP_PORT(bp);
 		u32 val;
@@ -3130,7 +3130,7 @@ static void bnx2x_self_test(struct net_device *dev,
 #define HIDE_PORT_STAT(bp)	IS_VF(bp)
 
 /* ethtool statistics are displayed for all regular ethernet queues and the
- * fcoe L2 queue if not disabled
+ * fcoe L2 queue if yest disabled
  */
 static int bnx2x_num_stat_queues(struct bnx2x *bp)
 {
@@ -3215,7 +3215,7 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 		break;
 
 	case ETH_SS_TEST:
-		/* First 4 tests cannot be done in MF mode */
+		/* First 4 tests canyest be done in MF mode */
 		if (!IS_MF(bp))
 			start = 0;
 		else
@@ -3291,7 +3291,7 @@ static int bnx2x_set_phys_id(struct net_device *dev,
 
 	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
-		   "cannot access eeprom when the interface is down\n");
+		   "canyest access eeprom when the interface is down\n");
 		return -EAGAIN;
 	}
 
@@ -3370,7 +3370,7 @@ static int bnx2x_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	case ETHTOOL_GRXFH:
 		return bnx2x_get_rss_flags(bp, info);
 	default:
-		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
+		DP(BNX2X_MSG_ETHTOOL, "Command parameters yest supported\n");
 		return -EOPNOTSUPP;
 	}
 }
@@ -3390,7 +3390,7 @@ static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 		if (info->data ^ (RXH_IP_SRC | RXH_IP_DST |
 				  RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 			DP(BNX2X_MSG_ETHTOOL,
-			   "Command parameters not supported\n");
+			   "Command parameters yest supported\n");
 			return -EINVAL;
 		}
 		return 0;
@@ -3438,7 +3438,7 @@ static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 		/* For IP only 2-tupple hash is supported */
 		if (info->data ^ (RXH_IP_SRC | RXH_IP_DST)) {
 			DP(BNX2X_MSG_ETHTOOL,
-			   "Command parameters not supported\n");
+			   "Command parameters yest supported\n");
 			return -EINVAL;
 		}
 		return 0;
@@ -3453,10 +3453,10 @@ static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 	case ESP_V6_FLOW:
 	case IP_USER_FLOW:
 	case ETHER_FLOW:
-		/* RSS is not supported for these protocols */
+		/* RSS is yest supported for these protocols */
 		if (info->data) {
 			DP(BNX2X_MSG_ETHTOOL,
-			   "Command parameters not supported\n");
+			   "Command parameters yest supported\n");
 			return -EINVAL;
 		}
 		return 0;
@@ -3474,7 +3474,7 @@ static int bnx2x_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
 	case ETHTOOL_SRXFH:
 		return bnx2x_set_rss_flags(bp, info);
 	default:
-		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
+		DP(BNX2X_MSG_ETHTOOL, "Command parameters yest supported\n");
 		return -EOPNOTSUPP;
 	}
 }
@@ -3520,7 +3520,7 @@ static int bnx2x_set_rxfh(struct net_device *dev, const u32 *indir,
 	struct bnx2x *bp = netdev_priv(dev);
 	size_t i;
 
-	/* We require at least one supported parameter to be changed and no
+	/* We require at least one supported parameter to be changed and yes
 	 * change in any of the unsupported parameters
 	 */
 	if (key ||
@@ -3598,7 +3598,7 @@ static int bnx2x_set_channels(struct net_device *dev,
 	   channels->combined_count);
 
 	if (pci_num_vf(bp->pdev)) {
-		DP(BNX2X_MSG_IOV, "VFs are enabled, can not set channels\n");
+		DP(BNX2X_MSG_IOV, "VFs are enabled, can yest set channels\n");
 		return -EPERM;
 	}
 
@@ -3608,7 +3608,7 @@ static int bnx2x_set_channels(struct net_device *dev,
 	if (channels->rx_count || channels->tx_count || channels->other_count
 	    || (channels->combined_count == 0) ||
 	    (channels->combined_count > BNX2X_MAX_RSS_COUNT(bp))) {
-		DP(BNX2X_MSG_ETHTOOL, "command parameters not supported\n");
+		DP(BNX2X_MSG_ETHTOOL, "command parameters yest supported\n");
 		return -EINVAL;
 	}
 

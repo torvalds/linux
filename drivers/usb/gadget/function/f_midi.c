@@ -3,8 +3,8 @@
  * f_midi.c -- USB MIDI class function driver
  *
  * Copyright (C) 2006 Thumtronics Pty Ltd.
- * Developed for Thumtronics by Grey Innovation
- * Ben Williamson <ben.williamson@greyinnovation.com>
+ * Developed for Thumtronics by Grey Inyesvation
+ * Ben Williamson <ben.williamson@greyinyesvation.com>
  *
  * Rewritten for the composite framework
  *   Copyright (C) 2011 Daniel Mack <zonque@gmail.com>
@@ -15,7 +15,7 @@
  *
  * and drivers/usb/gadget/midi.c,
  *   Copyright (C) 2006 Thumtronics Pty Ltd.
- *   Ben Williamson <ben.williamson@greyinnovation.com>
+ *   Ben Williamson <ben.williamson@greyinyesvation.com>
  */
 
 #include <linux/kernel.h>
@@ -274,7 +274,7 @@ f_midi_complete(struct usb_ep *ep, struct usb_request *req)
 	int status = req->status;
 
 	switch (status) {
-	case 0:			 /* normal completion */
+	case 0:			 /* yesrmal completion */
 		if (ep == midi->out_ep) {
 			/* We received stuff. req is queued again, below */
 			f_midi_handle_out_data(ep, req);
@@ -287,7 +287,7 @@ f_midi_complete(struct usb_ep *ep, struct usb_request *req)
 		}
 		break;
 
-	/* this endpoint is normally active while we're configured */
+	/* this endpoint is yesrmally active while we're configured */
 	case -ECONNABORTED:	/* hardware forced ep reset */
 	case -ECONNRESET:	/* request dequeued */
 	case -ESHUTDOWN:	/* disconnect from host */
@@ -302,7 +302,7 @@ f_midi_complete(struct usb_ep *ep, struct usb_request *req)
 		return;
 
 	case -EOVERFLOW:	/* buffer overrun on read means that
-				 * we didn't provide a big enough buffer.
+				 * we didn't provide a big eyesugh buffer.
 				 */
 	default:
 		DBG(cdev, "%s complete --> %d, %d/%d\n", ep->name,
@@ -481,7 +481,7 @@ static void f_midi_transmit_byte(struct usb_request *req,
 			next_state = STATE_FINISHED;
 			break;
 		default:
-			/* Ignore byte */
+			/* Igyesre byte */
 			next_state = port->state;
 			port->state = STATE_INITIAL;
 		}
@@ -621,7 +621,7 @@ static int f_midi_do_transmit(struct f_midi *midi, struct usb_ep *ep)
 	}
 
 	/*
-	 * If buffer overrun, then we ignore this transmission.
+	 * If buffer overrun, then we igyesre this transmission.
 	 * IMPORTANT: This will cause the user-space rawmidi device to block
 	 * until a) usb requests have been completed or b) snd_rawmidi_write()
 	 * times out.

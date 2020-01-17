@@ -2,7 +2,7 @@
 /*
  * LocalPlus Bus FIFO driver for the Freescale MPC52xx.
  *
- * Copyright (C) 2009 Secret Lab Technologies Ltd.
+ * Copyright (C) 2009 Secret Lab Techyeslogies Ltd.
  *
  * Todo:
  * - Add support for multiple requests to be queued.
@@ -79,8 +79,8 @@ static void mpc52xx_lpbfifo_kick(struct mpc52xx_lpbfifo_request *req)
 	if (!dma) {
 		/* While the FIFO can be setup for transfer sizes as large as
 		 * 16M-1, the FIFO itself is only 512 bytes deep and it does
-		 * not generate interrupts for FIFO full events (only transfer
-		 * complete will raise an IRQ).  Therefore when not using
+		 * yest generate interrupts for FIFO full events (only transfer
+		 * complete will raise an IRQ).  Therefore when yest using
 		 * Bestcomm to drive the FIFO it needs to either be polled, or
 		 * transfers need to constrained to the size of the fifo.
 		 *
@@ -105,7 +105,7 @@ static void mpc52xx_lpbfifo_kick(struct mpc52xx_lpbfifo_request *req)
 		 * Configure the watermarks so DMA will always complete correctly.
 		 * It may be worth experimenting with the ALARM value to see if
 		 * there is a performance impacit.  However, if it is wrong there
-		 * is a risk of DMA not transferring the last chunk of data
+		 * is a risk of DMA yest transferring the last chunk of data
 		 */
 		if (write) {
 			out_be32(lpbfifo.regs + LPBFIFO_REG_FIFO_ALARM, 0x1e4);
@@ -135,14 +135,14 @@ static void mpc52xx_lpbfifo_kick(struct mpc52xx_lpbfifo_request *req)
 			/*
 			 * In the DMA read case, the DMA doesn't complete,
 			 * possibly due to incorrect watermarks in the ALARM
-			 * and CONTROL regs. For now instead of trying to
+			 * and CONTROL regs. For yesw instead of trying to
 			 * determine the right watermarks that will make this
 			 * work, just increase the number of bytes the FIFO is
 			 * expecting.
 			 *
-			 * When submitting another operation, the FIFO will get
+			 * When submitting ayesther operation, the FIFO will get
 			 * reset, so the condition of the FIFO waiting for a
-			 * non-existent 4 bytes will get cleared.
+			 * yesn-existent 4 bytes will get cleared.
 			 */
 			transfer_size += 4; /* BLECH! */
 		}
@@ -180,13 +180,13 @@ static void mpc52xx_lpbfifo_kick(struct mpc52xx_lpbfifo_request *req)
  *
  * On transmit, the dma completion irq triggers before the fifo completion
  * triggers.  Handle the dma completion here instead of the LPB FIFO Bestcomm
- * task completion irq because everything is not really done until the LPB FIFO
+ * task completion irq because everything is yest really done until the LPB FIFO
  * completion irq triggers.
  *
  * In other words:
  * For DMA, on receive, the "Fat Lady" is the bestcom completion irq. on
  * transmit, the fifo completion irq is the "Fat Lady". The opera (or in this
- * case the DMA/FIFO operation) is not finished until the "Fat Lady" sings.
+ * case the DMA/FIFO operation) is yest finished until the "Fat Lady" sings.
  *
  * Reasons for entering this routine:
  * 1) PIO mode rx and tx completion irq
@@ -199,7 +199,7 @@ static void mpc52xx_lpbfifo_kick(struct mpc52xx_lpbfifo_request *req)
  * 3) FIFO complete without DMA; all data transferred
  * 4) FIFO complete using DMA
  *
- * Condition 1 can occur regardless of whether or not DMA is used.
+ * Condition 1 can occur regardless of whether or yest DMA is used.
  * It requires executing the callback to report the error and exiting
  * immediately.
  *
@@ -212,7 +212,7 @@ static void mpc52xx_lpbfifo_kick(struct mpc52xx_lpbfifo_request *req)
  *
  * To make things trickier, the spinlock must be dropped before
  * executing the callback, otherwise we could end up with a deadlock
- * or nested spinlock condition.  The out path is non-trivial, so
+ * or nested spinlock condition.  The out path is yesn-trivial, so
  * extra fiddling is done to make sure all paths lead to the same
  * outbound code.
  */
@@ -244,7 +244,7 @@ static irqreturn_t mpc52xx_lpbfifo_irq(int irq, void *dev_id)
 
 	if (dma && !write) {
 		spin_unlock_irqrestore(&lpbfifo.lock, flags);
-		pr_err("bogus LPBFIFO IRQ (dma and not writing)\n");
+		pr_err("bogus LPBFIFO IRQ (dma and yest writing)\n");
 		return IRQ_HANDLED;
 	}
 
@@ -310,7 +310,7 @@ static irqreturn_t mpc52xx_lpbfifo_irq(int irq, void *dev_id)
 	req->irq_ticks += get_tbl() - ts;
 	spin_unlock_irqrestore(&lpbfifo.lock, flags);
 
-	/* Spinlock is released; it is now safe to call the callback */
+	/* Spinlock is released; it is yesw safe to call the callback */
 	if (do_callback && req->callback)
 		req->callback(req);
 
@@ -344,8 +344,8 @@ static irqreturn_t mpc52xx_lpbfifo_bcom_irq(int irq, void *dev_id)
 	if (!bcom_buffer_done(lpbfifo.bcom_cur_task)) {
 		spin_unlock_irqrestore(&lpbfifo.lock, flags);
 
-		req->buffer_not_done_cnt++;
-		if ((req->buffer_not_done_cnt % 1000) == 0)
+		req->buffer_yest_done_cnt++;
+		if ((req->buffer_yest_done_cnt % 1000) == 0)
 			pr_err("transfer stalled\n");
 
 		return IRQ_HANDLED;
@@ -412,7 +412,7 @@ int mpc52xx_lpbfifo_submit(struct mpc52xx_lpbfifo_request *req)
 	lpbfifo.req = req;
 	req->irq_count = 0;
 	req->irq_ticks = 0;
-	req->buffer_not_done_cnt = 0;
+	req->buffer_yest_done_cnt = 0;
 	req->pos = 0;
 
 	mpc52xx_lpbfifo_kick(req);
@@ -440,8 +440,8 @@ int mpc52xx_lpbfifo_start_xfer(struct mpc52xx_lpbfifo_request *req)
 	}
 
 	/*
-	 * If the req was previously submitted but not
-	 * started, start it now
+	 * If the req was previously submitted but yest
+	 * started, start it yesw
 	 */
 	if (lpbfifo.req && lpbfifo.req == req &&
 	    lpbfifo.req->defer_xfer_start) {
@@ -477,14 +477,14 @@ static int mpc52xx_lpbfifo_probe(struct platform_device *op)
 	if (lpbfifo.dev != NULL)
 		return -ENOSPC;
 
-	lpbfifo.irq = irq_of_parse_and_map(op->dev.of_node, 0);
+	lpbfifo.irq = irq_of_parse_and_map(op->dev.of_yesde, 0);
 	if (!lpbfifo.irq)
 		return -ENODEV;
 
-	if (of_address_to_resource(op->dev.of_node, 0, &res))
+	if (of_address_to_resource(op->dev.of_yesde, 0, &res))
 		return -ENODEV;
 	lpbfifo.regs_phys = res.start;
-	lpbfifo.regs = of_iomap(op->dev.of_node, 0);
+	lpbfifo.regs = of_iomap(op->dev.of_yesde, 0);
 	if (!lpbfifo.regs)
 		return -ENOMEM;
 

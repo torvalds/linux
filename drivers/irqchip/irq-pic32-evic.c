@@ -2,7 +2,7 @@
 /*
  * Cristian Birsan <cristian.birsan@microchip.com>
  * Joshua Henderson <joshua.henderson@microchip.com>
- * Copyright (C) 2016 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2016 Microchip Techyeslogy Inc.  All rights reserved.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -58,7 +58,7 @@ static int pic32_set_ext_polarity(int bit, u32 type)
 {
 	/*
 	 * External interrupts can be either edge rising or edge falling,
-	 * but not both.
+	 * but yest both.
 	 */
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
@@ -162,7 +162,7 @@ static int pic32_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	return ret;
 }
 
-int pic32_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
+int pic32_irq_domain_xlate(struct irq_domain *d, struct device_yesde *ctrlr,
 			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_type)
 {
@@ -189,7 +189,7 @@ static const struct irq_domain_ops pic32_irq_domain_ops = {
 
 static void __init pic32_ext_irq_of_init(struct irq_domain *domain)
 {
-	struct device_node *node = irq_domain_get_of_node(domain);
+	struct device_yesde *yesde = irq_domain_get_of_yesde(domain);
 	struct evic_chip_data *priv = domain->host_data;
 	struct property *prop;
 	const __le32 *p;
@@ -197,7 +197,7 @@ static void __init pic32_ext_irq_of_init(struct irq_domain *domain)
 	int i = 0;
 	const char *pname = "microchip,external-irqs";
 
-	of_property_for_each_u32(node, pname, prop, p, hwirq) {
+	of_property_for_each_u32(yesde, pname, prop, p, hwirq) {
 		if (i >= ARRAY_SIZE(priv->ext_irqs)) {
 			pr_warn("More than %d external irq, skip rest\n",
 				ARRAY_SIZE(priv->ext_irqs));
@@ -209,8 +209,8 @@ static void __init pic32_ext_irq_of_init(struct irq_domain *domain)
 	}
 }
 
-static int __init pic32_of_init(struct device_node *node,
-				struct device_node *parent)
+static int __init pic32_of_init(struct device_yesde *yesde,
+				struct device_yesde *parent)
 {
 	struct irq_chip_generic *gc;
 	struct evic_chip_data *priv;
@@ -220,7 +220,7 @@ static int __init pic32_of_init(struct device_node *node,
 
 	nchips = DIV_ROUND_UP(NR_IRQS, 32);
 
-	evic_base = of_iomap(node, 0);
+	evic_base = of_iomap(yesde, 0);
 	if (!evic_base)
 		return -ENOMEM;
 
@@ -230,7 +230,7 @@ static int __init pic32_of_init(struct device_node *node,
 		goto err_iounmap;
 	}
 
-	evic_irq_domain = irq_domain_add_linear(node, nchips * 32,
+	evic_irq_domain = irq_domain_add_linear(yesde, nchips * 32,
 						&pic32_irq_domain_ops,
 						priv);
 	if (!evic_irq_domain) {
@@ -242,7 +242,7 @@ static int __init pic32_of_init(struct device_node *node,
 	 * The PIC32 EVIC has a linear list of irqs and the type of each
 	 * irq is determined by the hardware peripheral the EVIC is arbitrating.
 	 * These irq types are defined in the datasheet as "persistent" and
-	 * "non-persistent" which are mapped here to level and edge
+	 * "yesn-persistent" which are mapped here to level and edge
 	 * respectively. To manage the different flow handler requirements of
 	 * each irq type, different chip_types are used.
 	 */

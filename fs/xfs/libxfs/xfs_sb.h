@@ -36,10 +36,10 @@ extern int	xfs_update_secondary_sbs(struct xfs_mount *mp);
 extern void	xfs_fs_geometry(struct xfs_sb *sbp, struct xfs_fsop_geom *geo,
 				int struct_version);
 extern int	xfs_sb_read_secondary(struct xfs_mount *mp,
-				struct xfs_trans *tp, xfs_agnumber_t agno,
+				struct xfs_trans *tp, xfs_agnumber_t agyes,
 				struct xfs_buf **bpp);
 extern int	xfs_sb_get_secondary(struct xfs_mount *mp,
-				struct xfs_trans *tp, xfs_agnumber_t agno,
+				struct xfs_trans *tp, xfs_agnumber_t agyes,
 				struct xfs_buf **bpp);
 
 #endif	/* __XFS_SB_H__ */

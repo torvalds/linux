@@ -82,7 +82,7 @@ static void rt2x00lib_antenna_diversity_sample(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * During the last period we have sampled the RSSI
-	 * from both antennas. It now is time to determine
+	 * from both antennas. It yesw is time to determine
 	 * which antenna demonstrated the best performance.
 	 * When we are already on the antenna with the best
 	 * performance, just create a good starting point
@@ -161,7 +161,7 @@ static bool rt2x00lib_antenna_diversity(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * If we have only sampled the data over the last period
-	 * we should now harvest the data. Otherwise just evaluate
+	 * we should yesw harvest the data. Otherwise just evaluate
 	 * the data. The latter should only be performed once
 	 * every 2 seconds.
 	 */
@@ -192,7 +192,7 @@ void rt2x00link_update_stats(struct rt2x00_dev *rt2x00dev,
 		return;
 
 	/*
-	 * Frame was received successfully since non-succesfull
+	 * Frame was received successfully since yesn-succesfull
 	 * frames would have been dropped by the hardware.
 	 */
 	qual->rx_success++;
@@ -272,7 +272,7 @@ void rt2x00link_reset_tuner(struct rt2x00_dev *rt2x00dev, bool antenna)
 	/*
 	 * Restore the VGC level as stored in the registers,
 	 * the driver can use this to determine if the register
-	 * must be updated during reset or not.
+	 * must be updated during reset or yest.
 	 */
 	qual->vgc_level_reg = vgc_level;
 
@@ -318,7 +318,7 @@ static void rt2x00link_tuner_sta(struct rt2x00_dev *rt2x00dev, struct link *link
 
 	/*
 	 * Check if link tuning is supported by the hardware, some hardware
-	 * do not support link tuning at all, while other devices can disable
+	 * do yest support link tuning at all, while other devices can disable
 	 * the feature from the EEPROM.
 	 */
 	if (rt2x00_has_cap_link_tuning(rt2x00dev))
@@ -352,7 +352,7 @@ static void rt2x00link_tuner(struct work_struct *work)
 	    test_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags))
 		return;
 
-	/* Do not race with rt2x00mac_config(). */
+	/* Do yest race with rt2x00mac_config(). */
 	mutex_lock(&rt2x00dev->conf_mutex);
 
 	if (rt2x00dev->intf_sta_count)

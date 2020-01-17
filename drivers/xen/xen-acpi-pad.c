@@ -70,7 +70,7 @@ static int acpi_pad_pur(acpi_handle handle)
 	return num;
 }
 
-static void acpi_pad_handle_notify(acpi_handle handle)
+static void acpi_pad_handle_yestify(acpi_handle handle)
 {
 	int idle_nums;
 	struct acpi_buffer param = {
@@ -94,12 +94,12 @@ static void acpi_pad_handle_notify(acpi_handle handle)
 	mutex_unlock(&xen_cpu_lock);
 }
 
-static void acpi_pad_notify(acpi_handle handle, u32 event,
+static void acpi_pad_yestify(acpi_handle handle, u32 event,
 	void *data)
 {
 	switch (event) {
 	case ACPI_PROCESSOR_AGGREGATOR_NOTIFY:
-		acpi_pad_handle_notify(handle);
+		acpi_pad_handle_yestify(handle);
 		break;
 	default:
 		pr_warn("Unsupported event [0x%x]\n", event);
@@ -114,8 +114,8 @@ static int acpi_pad_add(struct acpi_device *device)
 	strcpy(acpi_device_name(device), ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PROCESSOR_AGGREGATOR_CLASS);
 
-	status = acpi_install_notify_handler(device->handle,
-		ACPI_DEVICE_NOTIFY, acpi_pad_notify, device);
+	status = acpi_install_yestify_handler(device->handle,
+		ACPI_DEVICE_NOTIFY, acpi_pad_yestify, device);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -128,8 +128,8 @@ static int acpi_pad_remove(struct acpi_device *device)
 	xen_acpi_pad_idle_cpus(0);
 	mutex_unlock(&xen_cpu_lock);
 
-	acpi_remove_notify_handler(device->handle,
-		ACPI_DEVICE_NOTIFY, acpi_pad_notify);
+	acpi_remove_yestify_handler(device->handle,
+		ACPI_DEVICE_NOTIFY, acpi_pad_yestify);
 	return 0;
 }
 

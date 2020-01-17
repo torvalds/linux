@@ -24,7 +24,7 @@ static int qla2x00_error_entry(scsi_qla_host_t *, struct rsp_que *,
 	sts_entry_t *);
 
 const char *const port_state_str[] = {
-	"Unknown",
+	"Unkyeswn",
 	"UNCONFIGURED",
 	"DEAD",
 	"LOST",
@@ -338,17 +338,17 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 	case MBA_IDC_COMPLETE:
 		if (mb[1] >> 15) {
 			vha->hw->flags.idc_compl_status = 1;
-			if (vha->hw->notify_dcbx_comp && !vha->vp_idx)
+			if (vha->hw->yestify_dcbx_comp && !vha->vp_idx)
 				complete(&vha->hw->dcbx_comp);
 		}
 		break;
 
 	case MBA_IDC_NOTIFY:
-		/* Acknowledgement needed? [Notify && non-zero timeout]. */
+		/* Ackyeswledgement needed? [Notify && yesn-zero timeout]. */
 		timeout = (descr >> 8) & 0xf;
 		ql_dbg(ql_dbg_async, vha, 0x5022,
 		    "%lu Inter-Driver Communication %s -- ACK timeout=%d.\n",
-		    vha->host_no, event[aen & 0xff], timeout);
+		    vha->host_yes, event[aen & 0xff], timeout);
 
 		if (!timeout)
 			return;
@@ -362,7 +362,7 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 		ql_dbg(ql_dbg_async, vha, 0x5087,
 		    "%lu Inter-Driver Communication %s -- "
 		    "Extend timeout by=%d.\n",
-		    vha->host_no, event[aen & 0xff], vha->hw->idc_extend_tmo);
+		    vha->host_yes, event[aen & 0xff], vha->hw->idc_extend_tmo);
 		break;
 	}
 }
@@ -474,8 +474,8 @@ qla83xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 			 *	Bit 8      = N/W Interface Link-up
 			 *	Bit 9      = N/W Interface signal detected
 			 *	Bits 10-11 = SFP Status
-			 *	  SFP Status 0x0 = SFP+ transceiver not expected
-			 *	  SFP Status 0x1 = SFP+ transceiver not present
+			 *	  SFP Status 0x0 = SFP+ transceiver yest expected
+			 *	  SFP Status 0x1 = SFP+ transceiver yest present
 			 *	  SFP Status 0x2 = SFP+ transceiver invalid
 			 *	  SFP Status 0x3 = SFP+ transceiver present and
 			 *	  valid
@@ -620,7 +620,7 @@ qla2x00_find_fcport_by_nportid(scsi_qla_host_t *vha, port_id_t *id,
 }
 
 /**
- * qla2x00_async_event() - Process aynchronous events.
+ * qla2x00_async_event() - Process aynchroyesus events.
  * @vha: SCSI driver HA context
  * @rsp: response queue
  * @mb: Mailbox registers (0 - 3)
@@ -710,7 +710,7 @@ skip_rio:
 
 	case MBA_RESET:			/* Reset */
 		ql_dbg(ql_dbg_async, vha, 0x5002,
-		    "Asynchronous RESET.\n");
+		    "Asynchroyesus RESET.\n");
 
 		set_bit(RESET_MARKER_NEEDED, &vha->dpc_flags);
 		break;
@@ -738,7 +738,7 @@ skip_rio:
 				vha->device_flags |= DFLG_DEV_FAILED;
 			} else {
 				/* Check to see if MPI timeout occurred */
-				if ((mbx & MBX_3) && (ha->port_no == 0))
+				if ((mbx & MBX_3) && (ha->port_yes == 0))
 					set_bit(MPI_RESET_NEEDED,
 					    &vha->dpc_flags);
 
@@ -770,7 +770,7 @@ skip_rio:
 
 	case MBA_WAKEUP_THRES:		/* Request Queue Wake-up */
 		ql_dbg(ql_dbg_async, vha, 0x5008,
-		    "Asynchronous WAKEUP_THRES (%x).\n", mb[1]);
+		    "Asynchroyesus WAKEUP_THRES (%x).\n", mb[1]);
 		break;
 
 	case MBA_LOOP_INIT_ERR:
@@ -907,12 +907,12 @@ skip_rio:
 			ql_dbg(ql_dbg_async, vha, 0x500d,
 			    "DCBX Completed -- %04x %04x %04x.\n",
 			    mb[1], mb[2], mb[3]);
-			if (ha->notify_dcbx_comp && !vha->vp_idx)
+			if (ha->yestify_dcbx_comp && !vha->vp_idx)
 				complete(&ha->dcbx_comp);
 
 		} else
 			ql_dbg(ql_dbg_async, vha, 0x500e,
-			    "Asynchronous P2P MODE received.\n");
+			    "Asynchroyesus P2P MODE received.\n");
 
 		/*
 		 * Until there's a transition from loop down to loop up, treat
@@ -978,8 +978,8 @@ skip_rio:
 		 *
 		 * Skip processing if:
 		 *       Event is global, vp_idx is NOT all vps,
-		 *           vp_idx does not match
-		 *       Event is not global, vp_idx does not match
+		 *           vp_idx does yest match
+		 *       Event is yest global, vp_idx does yest match
 		 */
 		if (IS_QLA2XXX_MIDTYPE(ha) &&
 		    ((mb[1] == 0xffff && (mb[3] & 0xff) != 0xff) ||
@@ -1052,14 +1052,14 @@ global_port_update:
 		/*
 		 * If PORT UPDATE is global (received LIP_OCCURRED/LIP_RESET
 		 * event etc. earlier indicating loop is down) then process
-		 * it.  Otherwise ignore it and Wait for RSCN to come in.
+		 * it.  Otherwise igyesre it and Wait for RSCN to come in.
 		 */
 		atomic_set(&vha->loop_down_timer, 0);
 		if (atomic_read(&vha->loop_state) != LOOP_DOWN &&
 			!ha->flags.n2n_ae  &&
 		    atomic_read(&vha->loop_state) != LOOP_DEAD) {
 			ql_dbg(ql_dbg_async, vha, 0x5011,
-			    "Asynchronous PORT UPDATE ignored %04x/%04x/%04x.\n",
+			    "Asynchroyesus PORT UPDATE igyesred %04x/%04x/%04x.\n",
 			    mb[1], mb[2], mb[3]);
 			break;
 		}
@@ -1096,12 +1096,12 @@ global_port_update:
 				| vha->d_id.b.al_pa;
 		if (rscn_entry == host_pid) {
 			ql_dbg(ql_dbg_async, vha, 0x5014,
-			    "Ignoring RSCN update to local host "
+			    "Igyesring RSCN update to local host "
 			    "port ID (%06x).\n", host_pid);
 			break;
 		}
 
-		/* Ignore reserved bits from RSCN-payload. */
+		/* Igyesre reserved bits from RSCN-payload. */
 		rscn_entry = ((mb[1] & 0x3ff) << 16) | mb[2];
 
 		/* Skip RSCNs for virtual ports on the same physical port */
@@ -1163,7 +1163,7 @@ global_port_update:
 		case A84_DIAG_LOGIN_COMPLETE:
 			ha->cs84xx->diag_fw_version = mb[3] << 16 | mb[2];
 			ql_log(ql_log_info, vha, 0x501b,
-			    "Alert 84XX: diagnostic firmware version %x.\n",
+			    "Alert 84XX: diagyesstic firmware version %x.\n",
 			    ha->cs84xx->diag_fw_version);
 			break;
 		case A84_GOLD_LOGIN_COMPLETE:
@@ -1213,7 +1213,7 @@ global_port_update:
 		}
 		/* fall through */
 	case MBA_IDC_COMPLETE:
-		if (ha->notify_lb_portup_comp && !vha->vp_idx)
+		if (ha->yestify_lb_portup_comp && !vha->vp_idx)
 			complete(&ha->lb_portup_comp);
 		/* Fallthru */
 	case MBA_IDC_TIME_EXT:
@@ -1253,7 +1253,7 @@ global_port_update:
 
 	case MBA_DPORT_DIAGNOSTICS:
 		ql_dbg(ql_dbg_async, vha, 0x5052,
-		    "D-Port Diagnostics: %04x result=%s\n",
+		    "D-Port Diagyesstics: %04x result=%s\n",
 		    mb[0],
 		    mb[1] == 0 ? "start" :
 		    mb[1] == 1 ? "done (pass)" :
@@ -1274,7 +1274,7 @@ global_port_update:
 
 	default:
 		ql_dbg(ql_dbg_async, vha, 0x5057,
-		    "Unknown AEN:%04x %04x %04x %04x\n",
+		    "Unkyeswn AEN:%04x %04x %04x %04x\n",
 		    mb[0], mb[1], mb[2], mb[3]);
 	}
 
@@ -1862,7 +1862,7 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 	    SS_RESPONSE_INFO_LEN_VALID)) {
 		if (le32_to_cpu(sts->rsp_data_len) < 4) {
 			ql_log(ql_log_warn, fcport->vha, 0x503b,
-			    "Async-%s error - hdl=%x not enough response(%d).\n",
+			    "Async-%s error - hdl=%x yest eyesugh response(%d).\n",
 			    type, sp->handle, sts->rsp_data_len);
 		} else if (sts->data[3]) {
 			ql_log(ql_log_warn, fcport->vha, 0x503c,
@@ -2036,7 +2036,7 @@ static void qla2x00_process_response_entry(struct scsi_qla_host *vha,
 	default:
 		/* Type Not Supported. */
 		ql_log(ql_log_warn, vha, 0x504a,
-		       "Received unknown response pkt type %x entry status=%x.\n",
+		       "Received unkyeswn response pkt type %x entry status=%x.\n",
 		       pkt->entry_type, pkt->entry_status);
 		break;
 	}
@@ -2118,7 +2118,7 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
 	if (sense_len) {
 		ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x301c,
 		    "Check condition Sense data, nexus%ld:%d:%llu cmd=%p.\n",
-		    sp->vha->host_no, cp->device->id, cp->device->lun,
+		    sp->vha->host_yes, cp->device->id, cp->device->lun,
 		    cp);
 		ql_dump_buffer(ql_dbg_io + ql_dbg_buffer, vha, 0x302b,
 		    cp->sense_buffer, sense_len);
@@ -2170,7 +2170,7 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 	    a_app_tag, e_app_tag, a_guard, e_guard);
 
 	/*
-	 * Ignore sector if:
+	 * Igyesre sector if:
 	 * For type     3: ref & app tag is all 'f's
 	 * For type 0,1,2: app tag is all 'f's
 	 */
@@ -2465,7 +2465,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		if (!sp) {
 			ql_dbg(ql_dbg_io, vha, 0x3075,
 			    "%s(%ld): Already returned command for status handle (0x%x).\n",
-			    __func__, vha->host_no, sts->handle);
+			    __func__, vha->host_yes, sts->handle);
 			return;
 		}
 	} else {
@@ -2491,7 +2491,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	if (sp->cmd_type != TYPE_SRB) {
 		req->outstanding_cmds[handle] = NULL;
 		ql_dbg(ql_dbg_io, vha, 0x3015,
-		    "Unknown sp->cmd_type %x %p).\n",
+		    "Unkyeswn sp->cmd_type %x %p).\n",
 		    sp->cmd_type, sp);
 		return;
 	}
@@ -2672,7 +2672,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 			    lscsi_status != SAM_STAT_BUSY) {
 			/*
 			 * scsi status of task set and busy are considered to be
-			 * task not completed.
+			 * task yest completed.
 			 */
 
 			ql_dbg(ql_dbg_io, fcport->vha, 0x301f,
@@ -2692,7 +2692,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 
 check_scsi_status:
 		/*
-		 * Check to see if SCSI Status is non zero. If so report SCSI
+		 * Check to see if SCSI Status is yesn zero. If so report SCSI
 		 * Status.
 		 */
 		if (lscsi_status != 0) {
@@ -2775,7 +2775,7 @@ check_scsi_status:
 	case CS_DMA:
 		ql_log(ql_log_info, fcport->vha, 0x3022,
 		    "CS_DMA error: 0x%x-0x%x (0x%x) nexus=%ld:%d:%llu portid=%06x oxid=0x%x cdb=%10phN len=0x%x rsp_info=0x%x resid=0x%x fw_resid=0x%x sp=%p cp=%p.\n",
-		    comp_status, scsi_status, res, vha->host_no,
+		    comp_status, scsi_status, res, vha->host_yes,
 		    cp->device->id, cp->device->lun, fcport->d_id.b24,
 		    ox_id, cp->cmnd, scsi_bufflen(cp), rsp_info_len,
 		    resid_len, fw_resid_len, sp, cp);
@@ -2794,7 +2794,7 @@ out:
 		    "FCP command status: 0x%x-0x%x (0x%x) nexus=%ld:%d:%llu "
 		    "portid=%02x%02x%02x oxid=0x%x cdb=%10phN len=0x%x "
 		    "rsp_info=0x%x resid=0x%x fw_resid=0x%x sp=%p cp=%p.\n",
-		    comp_status, scsi_status, res, vha->host_no,
+		    comp_status, scsi_status, res, vha->host_yes,
 		    cp->device->id, cp->device->lun, fcport->d_id.b.domain,
 		    fcport->d_id.b.area, fcport->d_id.b.al_pa, ox_id,
 		    cp->cmnd, scsi_bufflen(cp), rsp_info_len,
@@ -2867,7 +2867,7 @@ qla2x00_status_cont_entry(struct rsp_que *rsp, sts_cont_entry_t *pkt)
  * @vha: SCSI driver HA context
  * @rsp: response queue
  * @pkt: Entry pointer
- * return : 1=allow further error analysis. 0=no additional error analysis.
+ * return : 1=allow further error analysis. 0=yes additional error analysis.
  */
 static int
 qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
@@ -3079,7 +3079,7 @@ process_err:
 					(struct nack_to_isp *)pkt);
 			break;
 		case MARKER_TYPE:
-			/* Do nothing in this case, this check is to prevent it
+			/* Do yesthing in this case, this check is to prevent it
 			 * from falling into default case
 			 */
 			break;
@@ -3098,7 +3098,7 @@ process_err:
 		default:
 			/* Type Not Supported. */
 			ql_dbg(ql_dbg_async, vha, 0x5042,
-			    "Received unknown response pkt type %x "
+			    "Received unkyeswn response pkt type %x "
 			    "entry status=%x.\n",
 			    pkt->entry_type, pkt->entry_status);
 			break;
@@ -3501,7 +3501,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 
 			ha->max_qpairs = ha->max_req_queues - 1;
 			ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0190,
-			    "Adjusted Max no of queues pairs: %d.\n", ha->max_qpairs);
+			    "Adjusted Max yes of queues pairs: %d.\n", ha->max_qpairs);
 		}
 	}
 	vha->irq_offset = desc.pre_vectors;
@@ -3531,7 +3531,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		qentry->handle = rsp;
 		rsp->msix = qentry;
 		scnprintf(qentry->name, sizeof(qentry->name),
-		    "qla2xxx%lu_%s", vha->host_no, msix_entries[i].name);
+		    "qla2xxx%lu_%s", vha->host_yes, msix_entries[i].name);
 		if (IS_P3P_TYPE(ha))
 			ret = request_irq(qentry->vector,
 				qla82xx_msix_entries[i].handler,
@@ -3556,7 +3556,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		rsp->msix = qentry;
 		qentry->handle = rsp;
 		scnprintf(qentry->name, sizeof(qentry->name),
-		    "qla2xxx%lu_%s", vha->host_no,
+		    "qla2xxx%lu_%s", vha->host_yes,
 		    msix_entries[QLA_ATIO_VECTOR].name);
 		qentry->in_use = 1;
 		ret = request_irq(qentry->vector,
@@ -3713,7 +3713,7 @@ qla2x00_free_irqs(scsi_qla_host_t *vha)
 		for (i = 0; i < ha->msix_count; i++) {
 			qentry = &ha->msix_entries[i];
 			if (qentry->have_irq) {
-				irq_set_affinity_notifier(qentry->vector, NULL);
+				irq_set_affinity_yestifier(qentry->vector, NULL);
 				free_irq(pci_irq_vector(ha->pdev, i), qentry->handle);
 			}
 		}
@@ -3738,7 +3738,7 @@ int qla25xx_request_irq(struct qla_hw_data *ha, struct qla_qpair *qpair,
 	int ret;
 
 	scnprintf(msix->name, sizeof(msix->name),
-	    "qla2xxx%lu_qpair%d", vha->host_no, qpair->id);
+	    "qla2xxx%lu_qpair%d", vha->host_yes, qpair->id);
 	ret = request_irq(msix->vector, intr->handler, 0, msix->name, qpair);
 	if (ret) {
 		ql_log(ql_log_fatal, vha, 0x00e6,

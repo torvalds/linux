@@ -42,7 +42,7 @@ extern const sys_call_ptr_t x32_sys_call_table[];
 
 /*
  * Only the low 32 bits of orig_ax are meaningful, so we return int.
- * This importantly ignores the high bits on 64-bit, so comparisons
+ * This importantly igyesres the high bits on 64-bit, so comparisons
  * sign-extend the low 32 bits.
  */
 static inline int syscall_get_nr(struct task_struct *task, struct pt_regs *regs)

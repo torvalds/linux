@@ -28,7 +28,7 @@ int stv0900_check_signal_presence(struct stv0900_internal *intp,
 		agc2_integr,
 		max_carrier;
 
-	int no_signal = FALSE;
+	int yes_signal = FALSE;
 
 	carr_offset = (stv0900_read_reg(intp, CFR2) << 8)
 					| stv0900_read_reg(intp, CFR1);
@@ -46,9 +46,9 @@ int stv0900_check_signal_presence(struct stv0900_internal *intp,
 	if ((agc2_integr > 0x2000)
 			|| (carr_offset > (2 * max_carrier))
 			|| (carr_offset < (-2 * max_carrier)))
-		no_signal = TRUE;
+		yes_signal = TRUE;
 
-	return no_signal;
+	return yes_signal;
 }
 
 static void stv0900_get_sw_loop_params(struct stv0900_internal *intp,
@@ -122,7 +122,7 @@ static int stv0900_search_carr_sw_loop(struct stv0900_internal *intp,
 				s32 FreqIncr, s32 Timeout, int zigzag,
 				s32 MaxStep, enum fe_stv0900_demod_num demod)
 {
-	int	no_signal,
+	int	yes_signal,
 		lock = FALSE;
 	s32	stepCpt,
 		freqOffset,
@@ -166,10 +166,10 @@ static int stv0900_search_carr_sw_loop(struct stv0900_internal *intp,
 
 		stepCpt++;
 		lock = stv0900_get_demod_lock(intp, demod, Timeout);
-		no_signal = stv0900_check_signal_presence(intp, demod);
+		yes_signal = stv0900_check_signal_presence(intp, demod);
 
 	} while ((lock == FALSE)
-			&& (no_signal == FALSE)
+			&& (yes_signal == FALSE)
 			&& ((freqOffset - FreqIncr) <  max_carrier)
 			&& ((freqOffset + FreqIncr) > -max_carrier)
 			&& (stepCpt < MaxStep));
@@ -183,7 +183,7 @@ static int stv0900_sw_algo(struct stv0900_internal *intp,
 				enum fe_stv0900_demod_num demod)
 {
 	int	lock = FALSE,
-		no_signal,
+		yes_signal,
 		zigzag;
 	s32	s2fw,
 		fqc_inc,
@@ -237,10 +237,10 @@ static int stv0900_sw_algo(struct stv0900_internal *intp,
 						zigzag,
 						max_steps,
 						demod);
-		no_signal = stv0900_check_signal_presence(intp, demod);
+		yes_signal = stv0900_check_signal_presence(intp, demod);
 		trial_cntr++;
 		if ((lock == TRUE)
-				|| (no_signal == TRUE)
+				|| (yes_signal == TRUE)
 				|| (trial_cntr == 2)) {
 
 			if (intp->chip_id >= 0x20) {
@@ -286,7 +286,7 @@ static int stv0900_sw_algo(struct stv0900_internal *intp,
 
 	} while ((lock == FALSE)
 		&& (trial_cntr < 2)
-		&& (no_signal == FALSE));
+		&& (yes_signal == FALSE));
 
 	return lock;
 }
@@ -917,7 +917,7 @@ static void stv0900_track_optimization(struct dvb_frontend *fe)
 		break;
 	case STV0900_UNKNOWN_STANDARD:
 	default:
-		dprintk("%s: found unknown standard\n", __func__);
+		dprintk("%s: found unkyeswn standard\n", __func__);
 		stv0900_write_bits(intp, DVBS1_ENABLE, 1);
 		stv0900_write_bits(intp, DVBS2_ENABLE, 1);
 		break;
@@ -1814,7 +1814,7 @@ enum fe_stv0900_signal_type stv0900_algo(struct dvb_frontend *fe)
 
 	enum fe_stv0900_signal_type signal_type = STV0900_NOCARRIER;
 	enum fe_stv0900_search_algo algo;
-	int no_signal = FALSE;
+	int yes_signal = FALSE;
 
 	dprintk("%s\n", __func__);
 
@@ -1992,13 +1992,13 @@ enum fe_stv0900_signal_type stv0900_algo(struct dvb_frontend *fe)
 		} else {
 			lock = FALSE;
 			signal_type = STV0900_NODATA;
-			no_signal = stv0900_check_signal_presence(intp, demod);
+			yes_signal = stv0900_check_signal_presence(intp, demod);
 
 			intp->result[demod].locked = FALSE;
 		}
 	}
 
-	if ((signal_type != STV0900_NODATA) || (no_signal != FALSE))
+	if ((signal_type != STV0900_NODATA) || (yes_signal != FALSE))
 		return signal_type;
 
 	if (intp->chip_id > 0x11) {

@@ -18,7 +18,7 @@
 
 /* PCMCIA to Scoop linkage
 
-   There is no easy way to link multiple scoop devices into one
+   There is yes easy way to link multiple scoop devices into one
    single entity for the pxa2xx_pcmcia device so this structure
    is used which is setup by the platform code.
 

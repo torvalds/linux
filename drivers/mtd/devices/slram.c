@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*======================================================================
 
-  This driver provides a method to access memory not used by the kernel
+  This driver provides a method to access memory yest used by the kernel
   itself (i.e. if the kernel commandline mem=xxx is used). To actually
   use slram at least mtdblock or mtdchar is required (for block or
   character device access).
@@ -137,7 +137,7 @@ static int register_device(char *name, unsigned long start, unsigned long length
 
 	*curmtd = kmalloc(sizeof(slram_mtd_list_t), GFP_KERNEL);
 	if (!(*curmtd)) {
-		E("slram: Cannot allocate new MTD device.\n");
+		E("slram: Canyest allocate new MTD device.\n");
 		return(-ENOMEM);
 	}
 	(*curmtd)->mtdinfo = kzalloc(sizeof(struct mtd_info), GFP_KERNEL);
@@ -154,7 +154,7 @@ static int register_device(char *name, unsigned long start, unsigned long length
 	}
 
 	if (!(*curmtd)->mtdinfo) {
-		E("slram: Cannot allocate new MTD device.\n");
+		E("slram: Canyest allocate new MTD device.\n");
 		return(-ENOMEM);
 	}
 
@@ -283,7 +283,7 @@ static int __init init_slram(void)
 	char *devlength;
 
 	if (!map) {
-		E("slram: not enough parameters.\n");
+		E("slram: yest eyesugh parameters.\n");
 		return(-EINVAL);
 	}
 	while (map) {
@@ -315,7 +315,7 @@ static int __init init_slram(void)
 	}
 
 	if ((count % 3 != 0) || (count == 0)) {
-		E("slram: not enough parameters.\n");
+		E("slram: yest eyesugh parameters.\n");
 		return(-EINVAL);
 	}
 	for (i = 0; i < (count / 3); i++) {

@@ -26,28 +26,28 @@
 #define H5000_GPIO_BACKUP_POWER   (3)
 #define H5000_GPIO_ACTION_BUTTON  (4)
 #define H5000_GPIO_COM_DCD_SOMETHING  (5) /* what is this really ? */
-/* 6 not connected */
+/* 6 yest connected */
 #define H5000_GPIO_RESET_BUTTON_AGAIN_N (7) /* connected to gpio 1 as well */
-/* 8 not connected */
+/* 8 yest connected */
 #define H5000_GPIO_RSO_N          (9)       /* reset output from max1702 which regulates 3.3 and 2.5 */
 #define H5000_GPIO_ASIC_INT_N   (10)       /* from companion asic */
 #define H5000_GPIO_BT_ENV_0     (11)       /* to LMX9814, set to 1 according to regdump */
-/*(12) not connected */
+/*(12) yest connected */
 #define H5000_GPIO_BT_ENV_1     (13)       /* to LMX9814, set to 1 according to regdump */
 #define H5000_GPIO_BT_WU        (14)       /* from LMX9814, Defined as HOST_WAKEUP in the LMX9820 data sheet */
 /*(15) is CS1# */
-/*(16) not connected */
-/*(17) not connected */
+/*(16) yest connected */
+/*(17) yest connected */
 /*(18) is pcmcia ready */
 /*(19) is dreq1 */
 /*(20) is dreq0 */
 #define H5000_GPIO_OE_RD_NWR	(21)       /* output enable on rd/nwr signal to companion asic */
-/*(22) is not connected */
+/*(22) is yest connected */
 #define H5000_GPIO_OPT_SPI_CLK  (23)       /* to extension pack */
 #define H5000_GPIO_OPT_SPI_CS_N (24)       /* to extension pack */
 #define H5000_GPIO_OPT_SPI_DOUT (25)       /* to extension pack */
 #define H5000_GPIO_OPT_SPI_DIN  (26)       /* to extension pack */
-/*(27) not connected */
+/*(27) yest connected */
 #define H5000_GPIO_I2S_BITCLK   (28)       /* connected to AC97 codec */
 #define H5000_GPIO_I2S_DATAOUT  (29)       /* connected to AC97 codec */
 #define H5000_GPIO_I2S_DATAIN   (30)       /* connected to AC97 codec */
@@ -83,17 +83,17 @@
 #define H5000_GPIO_IOIS16_N     (57)       /* used for pcmcia */
 
 #define H5000_GPIO_IRDA_SD      (58)       /* to hsdl3002 sd */
-/*(59) not connected */
+/*(59) yest connected */
 #define H5000_GPIO_POWER_SD_N   (60)       /* controls power to SD */
 #define H5000_GPIO_POWER_RS232_N	(61)       /* inverted FORCEON to rs232 transceiver */
 #define H5000_GPIO_POWER_ACCEL_N	(62)       /* controls power to accel */
-/*(63) is not connected */
+/*(63) is yest connected */
 #define H5000_GPIO_OPT_NVRAM    (64)       /* controls power to expansion pack */
 #define H5000_GPIO_CHG_EN       (65)       /* to sc801 en */
 #define H5000_GPIO_USB_PULLUP   (66)       /* USB d+ pullup via 1.5K resistor */
 #define H5000_GPIO_BT_2V8_N     (67)       /* 2.8V used by bluetooth */
 #define H5000_GPIO_EXT_CHG_RATE (68)       /* enables external charging rate */
-/*(69) is not connected */
+/*(69) is yest connected */
 #define H5000_GPIO_CIR_RESET    (70)       /* consumer IR reset */
 #define H5000_GPIO_POWER_LIGHT_SENSOR_N	(71)
 #define H5000_GPIO_BT_M_RESET   (72)

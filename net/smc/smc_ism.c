@@ -91,7 +91,7 @@ int smc_ism_get_vlan(struct smcd_dev *smcd, unsigned short vlanid)
 		}
 	}
 
-	/* no existing entry found.
+	/* yes existing entry found.
 	 * add new entry to device; might fail, e.g., if HW limit reached
 	 */
 	if (smcd->ops->add_vlan_id(smcd, vlanid)) {
@@ -130,7 +130,7 @@ int smc_ism_put_vlan(struct smcd_dev *smcd, unsigned short vlanid)
 	}
 	if (!found) {
 		rc = -ENOENT;
-		goto out;		/* VLAN id not in table */
+		goto out;		/* VLAN id yest in table */
 	}
 
 	/* Found and the last reference just gone */
@@ -379,13 +379,13 @@ EXPORT_SYMBOL_GPL(smcd_handle_event);
  * Context:
  * - Function called in IRQ context from ISM device driver IRQ handler.
  */
-void smcd_handle_irq(struct smcd_dev *smcd, unsigned int dmbno)
+void smcd_handle_irq(struct smcd_dev *smcd, unsigned int dmbyes)
 {
 	struct smc_connection *conn = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&smcd->lock, flags);
-	conn = smcd->conn[dmbno];
+	conn = smcd->conn[dmbyes];
 	if (conn && !conn->killed)
 		tasklet_schedule(&conn->rx_tsklet);
 	spin_unlock_irqrestore(&smcd->lock, flags);

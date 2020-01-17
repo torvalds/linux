@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -38,7 +38,7 @@
  *
  * @acquire_packet_buffer: Returns a pointer to the location in the kernel
  * queue ring buffer where the calling function can write its packet. It is
- * Guaranteed that there is enough space for that packet. It also updates the
+ * Guaranteed that there is eyesugh space for that packet. It also updates the
  * pending write pointer to that location so subsequent calls to
  * acquire_packet_buffer will get a correct write pointer
  *
@@ -74,7 +74,7 @@ struct kernel_queue {
 	struct queue		*queue;
 	uint64_t		pending_wptr64;
 	uint32_t		pending_wptr;
-	unsigned int		nop_packet;
+	unsigned int		yesp_packet;
 
 	struct kfd_mem_obj	*rptr_mem;
 	uint32_t		*rptr_kernel;

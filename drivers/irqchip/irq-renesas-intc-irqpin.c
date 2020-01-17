@@ -41,7 +41,7 @@
  *
  * (*) May be accessed by more than one driver instance - lock needed
  * (**) Read-modify-write access by one driver instance - lock needed
- * (***) Accessed by one driver instance only - no locking needed
+ * (***) Accessed by one driver instance only - yes locking needed
  */
 
 struct intc_irqpin_iomem {
@@ -224,7 +224,7 @@ static void intc_irqpin_irq_enable_force(struct irq_data *d)
 	intc_irqpin_irq_enable(d);
 
 	/* enable interrupt through parent interrupt controller,
-	 * assumes non-shared interrupt with 1:1 mapping
+	 * assumes yesn-shared interrupt with 1:1 mapping
 	 * needed for busted IRQs on some SoCs like sh73a0
 	 */
 	irq_get_chip(irq)->irq_unmask(irq_get_irq_data(irq));
@@ -236,7 +236,7 @@ static void intc_irqpin_irq_disable_force(struct irq_data *d)
 	int irq = p->irq[irqd_to_hwirq(d)].requested_irq;
 
 	/* disable interrupt through parent interrupt controller,
-	 * assumes non-shared interrupt with 1:1 mapping
+	 * assumes yesn-shared interrupt with 1:1 mapping
 	 * needed for busted IRQs on some SoCs like sh73a0
 	 */
 	irq_get_chip(irq)->irq_mask(irq_get_irq_data(irq));
@@ -393,9 +393,9 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* deal with driver instance configuration */
-	of_property_read_u32(dev->of_node, "sense-bitfield-width",
+	of_property_read_u32(dev->of_yesde, "sense-bitfield-width",
 			     &p->sense_bitfield_width);
-	control_parent = of_property_read_bool(dev->of_node, "control-parent");
+	control_parent = of_property_read_bool(dev->of_yesde, "control-parent");
 	if (!p->sense_bitfield_width)
 		p->sense_bitfield_width = 4; /* default to 4 bits */
 
@@ -412,7 +412,7 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 	for (k = 0; k < INTC_IRQPIN_REG_NR; k++) {
 		io[k] = platform_get_resource(pdev, IORESOURCE_MEM, k);
 		if (!io[k] && k < INTC_IRQPIN_REG_NR_MANDATORY) {
-			dev_err(dev, "not enough IOMEM resources\n");
+			dev_err(dev, "yest eyesugh IOMEM resources\n");
 			ret = -EINVAL;
 			goto err0;
 		}
@@ -430,7 +430,7 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 
 	nirqs = k;
 	if (nirqs < 1) {
-		dev_err(dev, "not enough IRQ resources\n");
+		dev_err(dev, "yest eyesugh IRQ resources\n");
 		ret = -EINVAL;
 		goto err0;
 	}
@@ -460,7 +460,7 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 			goto err0;
 		}
 
-		i->iomem = devm_ioremap_nocache(dev, io[k]->start,
+		i->iomem = devm_ioremap_yescache(dev, io[k]->start,
 						resource_size(io[k]));
 		if (!i->iomem) {
 			dev_err(dev, "failed to remap IOMEM\n");
@@ -516,11 +516,11 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 	irq_chip->irq_set_wake = intc_irqpin_irq_set_wake;
 	irq_chip->flags	= IRQCHIP_MASK_ON_SUSPEND;
 
-	p->irq_domain = irq_domain_add_simple(dev->of_node, nirqs, 0,
+	p->irq_domain = irq_domain_add_simple(dev->of_yesde, nirqs, 0,
 					      &intc_irqpin_irq_domain_ops, p);
 	if (!p->irq_domain) {
 		ret = -ENXIO;
-		dev_err(dev, "cannot initialize irq domain\n");
+		dev_err(dev, "canyest initialize irq domain\n");
 		goto err0;
 	}
 

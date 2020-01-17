@@ -109,15 +109,15 @@ struct skl_base_cfg {
 };
 
 struct skl_cpr_gtw_cfg {
-	u32 node_id;
+	u32 yesde_id;
 	u32 dma_buffer_size;
 	u32 config_length;
-	/* not mandatory; required only for DMIC/I2S */
+	/* yest mandatory; required only for DMIC/I2S */
 	u32 config_data[1];
 } __packed;
 
 struct skl_dma_control {
-	u32 node_id;
+	u32 yesde_id;
 	u32 config_length;
 	u32 config_data[0];
 } __packed;
@@ -172,21 +172,21 @@ enum skl_dma_type {
 	SKL_DMA_I2S_LINK_INPUT_CLASS = 0xD,
 };
 
-union skl_ssp_dma_node {
+union skl_ssp_dma_yesde {
 	u8 val;
 	struct {
 		u8 time_slot_index:4;
 		u8 i2s_instance:4;
-	} dma_node;
+	} dma_yesde;
 };
 
-union skl_connector_node_id {
+union skl_connector_yesde_id {
 	u32 val;
 	struct {
 		u32 vindex:8;
 		u32 dma_type:4;
 		u32 rsvd:20;
-	} node;
+	} yesde;
 };
 
 struct skl_module_fmt {
@@ -258,7 +258,7 @@ enum skl_pipe_state {
 
 struct skl_pipe_module {
 	struct snd_soc_dapm_widget *w;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct skl_pipe_params {
@@ -373,8 +373,8 @@ struct skl_module_cfg {
 	int res_idx;
 	int fmt_idx;
 	u8 domain;
-	bool homogenous_inputs;
-	bool homogenous_outputs;
+	bool homogeyesus_inputs;
+	bool homogeyesus_outputs;
 	struct skl_module_fmt in_fmt[MODULE_MAX_IN_PINS];
 	struct skl_module_fmt out_fmt[MODULE_MAX_OUT_PINS];
 	u8 max_in_queue;
@@ -416,13 +416,13 @@ struct skl_algo_data {
 
 struct skl_pipeline {
 	struct skl_pipe *pipe;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct skl_module_deferred_bind {
 	struct skl_module_cfg *src;
 	struct skl_module_cfg *dst;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct skl_mic_sel_config {
@@ -448,7 +448,7 @@ static inline struct skl_dev *get_skl_ctx(struct device *dev)
 int skl_tplg_be_update_params(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params);
 int skl_dsp_set_dma_control(struct skl_dev *skl, u32 *caps,
-			u32 caps_size, u32 node_id);
+			u32 caps_size, u32 yesde_id);
 void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params, int stream);
 int skl_tplg_init(struct snd_soc_component *component,

@@ -127,7 +127,7 @@ static void k971_disconnect ( PIA *pi )
         w2(pi->saved_r2);
 }
 
-/* counts must be congruent to 0 MOD 4, but all known applications
+/* counts must be congruent to 0 MOD 4, but all kyeswn applications
    have this property.
 */
 

@@ -155,12 +155,12 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 						BOOK3S_INTERRUPT_FAC_UNAVAIL);
 			return RESUME_GUEST;
 		}
-		/* If no transaction active, generate TM bad thing */
+		/* If yes transaction active, generate TM bad thing */
 		if (!MSR_TM_ACTIVE(msr)) {
 			kvmppc_core_queue_program(vcpu, SRR1_PROGTM);
 			return RESUME_GUEST;
 		}
-		/* If failure was not previously recorded, recompute TEXASR */
+		/* If failure was yest previously recorded, recompute TEXASR */
 		if (!(vcpu->arch.orig_texasr & TEXASR_FS)) {
 			ra = (instr >> 16) & 0x1f;
 			if (ra)

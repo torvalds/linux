@@ -242,7 +242,7 @@ static void handle_pci_cfg_write(struct mdev_state *mdev_state, u16 offset,
 	switch (offset) {
 	case 0x04: /* device control */
 	case 0x06: /* device status */
-		/* do nothing */
+		/* do yesthing */
 		break;
 	case 0x3c:  /* interrupt line */
 		mdev_state->vconfig[0x3c] = buf[0];
@@ -282,7 +282,7 @@ static void handle_pci_cfg_write(struct mdev_state *mdev_state, u16 offset,
 		STORE_LE32(&mdev_state->vconfig[offset], 0);
 		break;
 	default:
-		pr_info("PCI config write @0x%x of %d bytes not handled\n",
+		pr_info("PCI config write @0x%x of %d bytes yest handled\n",
 			offset, count);
 		break;
 	}
@@ -444,7 +444,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 
 	case UART_LSR:
 	case UART_MSR:
-		/* do nothing */
+		/* do yesthing */
 		break;
 
 	case UART_SCR:
@@ -531,7 +531,7 @@ static void handle_bar_read(unsigned int index, struct mdev_state *mdev_state,
 				 (UART_MCR_RTS | UART_MCR_DTR)))
 			*buf |= UART_IIR_MSI;
 
-		/* bit0: 0=> interrupt pending, 1=> no interrupt is pending */
+		/* bit0: 0=> interrupt pending, 1=> yes interrupt is pending */
 		if (*buf == 0)
 			*buf = UART_IIR_NO_INT;
 
@@ -621,7 +621,7 @@ static void mdev_read_base(struct mdev_state *mdev_state)
 		case PCI_BASE_ADDRESS_MEM_TYPE_1M:
 			/* 1M mem BAR treated as 32-bit BAR */
 		default:
-			/* mem unknown type treated as 32-bit BAR */
+			/* mem unkyeswn type treated as 32-bit BAR */
 			start_hi = 0;
 			break;
 		}
@@ -644,7 +644,7 @@ static ssize_t mdev_access(struct mdev_device *mdev, u8 *buf, size_t count,
 
 	mdev_state = mdev_get_drvdata(mdev);
 	if (!mdev_state) {
-		pr_err("%s mdev_state not found\n", __func__);
+		pr_err("%s mdev_state yest found\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1022,7 +1022,7 @@ static int mtty_trigger_interrupt(struct mdev_state *mdev_state)
 		return -EINVAL;
 	else if ((mdev_state->irq_index == VFIO_PCI_INTX_IRQ_INDEX) &&
 		 (!mdev_state->intx_evtfd)) {
-		pr_info("%s: Intr eventfd not found\n", __func__);
+		pr_info("%s: Intr eventfd yest found\n", __func__);
 		return -EINVAL;
 	}
 

@@ -10,7 +10,7 @@
 
 #include <linux/compiler.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/lockdep.h>
@@ -39,7 +39,7 @@ static void __init reset_tod_clock(void)
 
 	if (store_tod_clock(&time) == 0)
 		return;
-	/* TOD clock not running. Set the clock to Unix Epoch. */
+	/* TOD clock yest running. Set the clock to Unix Epoch. */
 	if (set_tod_clock(TOD_UNIX_EPOCH) != 0 || store_tod_clock(&time) != 0)
 		disabled_wait();
 
@@ -51,7 +51,7 @@ static void __init reset_tod_clock(void)
 /*
  * Initialize storage key for kernel pages
  */
-static noinline __init void init_kernel_storage_key(void)
+static yesinline __init void init_kernel_storage_key(void)
 {
 #if PAGE_DEFAULT_KEY
 	unsigned long end_pfn, init_pfn;
@@ -66,7 +66,7 @@ static noinline __init void init_kernel_storage_key(void)
 
 static __initdata char sysinfo_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 
-static noinline __init void detect_machine_type(void)
+static yesinline __init void detect_machine_type(void)
 {
 	struct sysinfo_3_2_2 *vmms = (struct sysinfo_3_2_2 *)&sysinfo_page;
 
@@ -79,7 +79,7 @@ static noinline __init void detect_machine_type(void)
 	if (stsi(vmms, 3, 2, 2) || !vmms->count)
 		return;
 
-	/* Detect known hypervisors */
+	/* Detect kyeswn hypervisors */
 	if (!memcmp(vmms->vm[0].cpi, "\xd2\xe5\xd4", 3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_KVM;
 	else if (!memcmp(vmms->vm[0].cpi, "\xa9\x61\xe5\xd4", 4))
@@ -104,7 +104,7 @@ static inline void strim_all(char *str)
 	}
 }
 
-static noinline __init void setup_arch_string(void)
+static yesinline __init void setup_arch_string(void)
 {
 	struct sysinfo_1_1_1 *mach = (struct sysinfo_1_1_1 *)&sysinfo_page;
 	struct sysinfo_3_2_2 *vm = (struct sysinfo_3_2_2 *)&sysinfo_page;
@@ -128,7 +128,7 @@ static noinline __init void setup_arch_string(void)
 		sprintf(hvstr, "%s",
 			MACHINE_IS_LPAR ? "LPAR" :
 			MACHINE_IS_VM ? "z/VM" :
-			MACHINE_IS_KVM ? "KVM" : "unknown");
+			MACHINE_IS_KVM ? "KVM" : "unkyeswn");
 	}
 	dump_stack_set_arch_desc("%s (%s)", mstr, hvstr);
 }
@@ -165,7 +165,7 @@ static void early_pgm_check_handler(void)
 	__ctl_load(cr0, 0, 0);
 }
 
-static noinline __init void setup_lowcore_early(void)
+static yesinline __init void setup_lowcore_early(void)
 {
 	psw_t psw;
 
@@ -178,7 +178,7 @@ static noinline __init void setup_lowcore_early(void)
 	S390_lowcore.preempt_count = INIT_PREEMPT_COUNT;
 }
 
-static noinline __init void setup_facility_list(void)
+static yesinline __init void setup_facility_list(void)
 {
 	memcpy(S390_lowcore.alt_stfle_fac_list,
 	       S390_lowcore.stfle_fac_list,
@@ -224,7 +224,7 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VX;
 		__ctl_set_bit(0, 17);
 	}
-	if (test_facility(130) && !noexec_disabled) {
+	if (test_facility(130) && !yesexec_disabled) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_NX;
 		__ctl_set_bit(0, 20);
 	}
@@ -270,7 +270,7 @@ static int __init disable_vector_extension(char *str)
 	__ctl_clear_bit(0, 17);
 	return 0;
 }
-early_param("novx", disable_vector_extension);
+early_param("yesvx", disable_vector_extension);
 
 static int __init cad_setup(char *str)
 {
@@ -298,7 +298,7 @@ static void __init check_image_bootable(void)
 		return;
 
 	sclp_early_printk("Linux kernel boot failure: An attempt to boot a vmlinux ELF image failed.\n");
-	sclp_early_printk("This image does not contain all parts necessary for starting up. Use\n");
+	sclp_early_printk("This image does yest contain all parts necessary for starting up. Use\n");
 	sclp_early_printk("bzImage or arch/s390/boot/compressed/vmlinux instead.\n");
 	disabled_wait();
 }

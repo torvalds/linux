@@ -96,9 +96,9 @@ error:
 }
 
 /*
- * Copy the annotations from an old server list to its potential replacement.
+ * Copy the anyestations from an old server list to its potential replacement.
  */
-bool afs_annotate_server_list(struct afs_server_list *new,
+bool afs_anyestate_server_list(struct afs_server_list *new,
 			      struct afs_server_list *old)
 {
 	struct afs_server *cur;

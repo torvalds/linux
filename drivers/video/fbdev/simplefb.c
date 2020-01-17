@@ -12,7 +12,7 @@
  * Copyright (C) 1996 Paul Mackerras
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -41,7 +41,7 @@ static const struct fb_var_screeninfo simplefb_var = {
 
 #define PSEUDO_PALETTE_SIZE 16
 
-static int simplefb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int simplefb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			      u_int transp, struct fb_info *info)
 {
 	u32 *pal = info->pseudo_palette;
@@ -50,7 +50,7 @@ static int simplefb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	u32 cb = blue >> (16 - info->var.blue.length);
 	u32 value;
 
-	if (regno >= PSEUDO_PALETTE_SIZE)
+	if (regyes >= PSEUDO_PALETTE_SIZE)
 		return -EINVAL;
 
 	value = (cr << info->var.red.offset) |
@@ -61,7 +61,7 @@ static int simplefb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		mask <<= info->var.transp.offset;
 		value |= mask;
 	}
-	pal[regno] = value;
+	pal[regyes] = value;
 
 	return 0;
 }
@@ -99,7 +99,7 @@ struct simplefb_params {
 static int simplefb_parse_dt(struct platform_device *pdev,
 			   struct simplefb_params *params)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 	const char *format;
 	int i;
@@ -187,25 +187,25 @@ struct simplefb_par {
 /*
  * Clock handling code.
  *
- * Here we handle the clocks property of our "simple-framebuffer" dt node.
+ * Here we handle the clocks property of our "simple-framebuffer" dt yesde.
  * This is necessary so that we can make sure that any clocks needed by
  * the display engine that the bootloader set up for us (and for which it
- * provided a simplefb dt node), stay up, for the life of the simplefb
+ * provided a simplefb dt yesde), stay up, for the life of the simplefb
  * driver.
  *
  * When the driver unloads, we cleanly disable, and then release the clocks.
  *
- * We only complain about errors here, no action is taken as the most likely
+ * We only complain about errors here, yes action is taken as the most likely
  * error can only happen due to a mismatch between the bootloader which set
  * up simplefb, and the clock definitions in the device tree. Chances are
- * that there are no adverse effects, and if there are, a clean teardown of
- * the fb probe will not help us much either. So just complain and carry on,
+ * that there are yes adverse effects, and if there are, a clean teardown of
+ * the fb probe will yest help us much either. So just complain and carry on,
  * and hope that the user actually gets a working fb at the end of things.
  */
 static int simplefb_clocks_get(struct simplefb_par *par,
 			       struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct clk *clock;
 	int i;
 
@@ -231,7 +231,7 @@ static int simplefb_clocks_get(struct simplefb_par *par,
 				kfree(par->clks);
 				return -EPROBE_DEFER;
 			}
-			dev_err(&pdev->dev, "%s: clock %d not found: %ld\n",
+			dev_err(&pdev->dev, "%s: clock %d yest found: %ld\n",
 				__func__, i, PTR_ERR(clock));
 			continue;
 		}
@@ -294,25 +294,25 @@ static void simplefb_clocks_destroy(struct simplefb_par *par) { }
  * Regulator handling code.
  *
  * Here we handle the num-supplies and vin*-supply properties of our
- * "simple-framebuffer" dt node. This is necessary so that we can make sure
+ * "simple-framebuffer" dt yesde. This is necessary so that we can make sure
  * that any regulators needed by the display hardware that the bootloader
- * set up for us (and for which it provided a simplefb dt node), stay up,
+ * set up for us (and for which it provided a simplefb dt yesde), stay up,
  * for the life of the simplefb driver.
  *
  * When the driver unloads, we cleanly disable, and then release the
  * regulators.
  *
- * We only complain about errors here, no action is taken as the most likely
+ * We only complain about errors here, yes action is taken as the most likely
  * error can only happen due to a mismatch between the bootloader which set
  * up simplefb, and the regulator definitions in the device tree. Chances are
- * that there are no adverse effects, and if there are, a clean teardown of
- * the fb probe will not help us much either. So just complain and carry on,
+ * that there are yes adverse effects, and if there are, a clean teardown of
+ * the fb probe will yest help us much either. So just complain and carry on,
  * and hope that the user actually gets a working fb at the end of things.
  */
 static int simplefb_regulators_get(struct simplefb_par *par,
 				   struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct property *prop;
 	struct regulator *regulator;
 	const char *p;
@@ -322,7 +322,7 @@ static int simplefb_regulators_get(struct simplefb_par *par,
 		return 0;
 
 	/* Count the number of regulator supplies */
-	for_each_property_of_node(np, prop) {
+	for_each_property_of_yesde(np, prop) {
 		p = strstr(prop->name, SUPPLY_SUFFIX);
 		if (p && p != prop->name)
 			count++;
@@ -337,7 +337,7 @@ static int simplefb_regulators_get(struct simplefb_par *par,
 		return -ENOMEM;
 
 	/* Get all the regulators */
-	for_each_property_of_node(np, prop) {
+	for_each_property_of_yesde(np, prop) {
 		char name[32]; /* 32 is max size of property name */
 
 		p = strstr(prop->name, SUPPLY_SUFFIX);
@@ -350,7 +350,7 @@ static int simplefb_regulators_get(struct simplefb_par *par,
 		if (IS_ERR(regulator)) {
 			if (PTR_ERR(regulator) == -EPROBE_DEFER)
 				return -EPROBE_DEFER;
-			dev_err(&pdev->dev, "regulator %s not found: %ld\n",
+			dev_err(&pdev->dev, "regulator %s yest found: %ld\n",
 				name, PTR_ERR(regulator));
 			continue;
 		}
@@ -413,7 +413,7 @@ static int simplefb_probe(struct platform_device *pdev)
 	ret = -ENODEV;
 	if (dev_get_platdata(&pdev->dev))
 		ret = simplefb_parse_pd(pdev, &params);
-	else if (pdev->dev.of_node)
+	else if (pdev->dev.of_yesde)
 		ret = simplefb_parse_dt(pdev, &params);
 
 	if (ret)
@@ -491,7 +491,7 @@ static int simplefb_probe(struct platform_device *pdev)
 		goto error_regulators;
 	}
 
-	dev_info(&pdev->dev, "fb%d: simplefb registered!\n", info->node);
+	dev_info(&pdev->dev, "fb%d: simplefb registered!\n", info->yesde);
 
 	return 0;
 
@@ -534,14 +534,14 @@ static struct platform_driver simplefb_driver = {
 static int __init simplefb_init(void)
 {
 	int ret;
-	struct device_node *np;
+	struct device_yesde *np;
 
 	ret = platform_driver_register(&simplefb_driver);
 	if (ret)
 		return ret;
 
 	if (IS_ENABLED(CONFIG_OF_ADDRESS) && of_chosen) {
-		for_each_child_of_node(of_chosen, np) {
+		for_each_child_of_yesde(of_chosen, np) {
 			if (of_device_is_compatible(np, "simple-framebuffer"))
 				of_platform_device_create(np, NULL, NULL);
 		}

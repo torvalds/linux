@@ -61,7 +61,7 @@ static DEFINE_SPINLOCK(src_lock);
 /* Base address of the SRC */
 static void __iomem *src_base;
 
-static int nomadik_clk_reboot_handler(struct notifier_block *this,
+static int yesmadik_clk_reboot_handler(struct yestifier_block *this,
 				unsigned long code,
 				void *unused)
 {
@@ -76,28 +76,28 @@ static int nomadik_clk_reboot_handler(struct notifier_block *this,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block nomadik_clk_reboot_notifier = {
-	.notifier_call = nomadik_clk_reboot_handler,
+static struct yestifier_block yesmadik_clk_reboot_yestifier = {
+	.yestifier_call = yesmadik_clk_reboot_handler,
 };
 
-static const struct of_device_id nomadik_src_match[] __initconst = {
-	{ .compatible = "stericsson,nomadik-src" },
+static const struct of_device_id yesmadik_src_match[] __initconst = {
+	{ .compatible = "stericsson,yesmadik-src" },
 	{ /* sentinel */ }
 };
 
-static void __init nomadik_src_init(void)
+static void __init yesmadik_src_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 val;
 
-	np = of_find_matching_node(NULL, nomadik_src_match);
+	np = of_find_matching_yesde(NULL, yesmadik_src_match);
 	if (!np) {
-		pr_crit("no matching node for SRC, aborting clock init\n");
+		pr_crit("yes matching yesde for SRC, aborting clock init\n");
 		return;
 	}
 	src_base = of_iomap(np, 0);
 	if (!src_base) {
-		pr_err("%s: must have src parent node with REGS (%pOFn)\n",
+		pr_err("%s: must have src parent yesde with REGS (%pOFn)\n",
 		       __func__, np);
 		return;
 	}
@@ -131,7 +131,7 @@ static void __init nomadik_src_init(void)
 		pr_info("disabling MXTALO\n");
 	}
 	writel(val, src_base + SRC_XTALCR);
-	register_reboot_notifier(&nomadik_clk_reboot_notifier);
+	register_reboot_yestifier(&yesmadik_clk_reboot_yestifier);
 }
 
 /**
@@ -241,7 +241,7 @@ static unsigned long pll_clk_recalc_rate(struct clk_hw *hw,
 		return (parent_rate * mul);
 	}
 
-	/* Unknown PLL */
+	/* Unkyeswn PLL */
 	return 0;
 }
 
@@ -289,7 +289,7 @@ pll_clk_register(struct device *dev, const char *name,
 }
 
 /*
- * The Nomadik SRC clocks are gated, but not in the sense that
+ * The Nomadik SRC clocks are gated, but yest in the sense that
  * you read-modify-write a register. Instead there are separate
  * clock enable and clock disable registers. Writing a '1' bit in
  * the enable register for a certain clock ungates that clock without
@@ -359,7 +359,7 @@ src_clk_register(struct device *dev, const char *name,
 
 	init.name = name;
 	init.ops = &src_clk_ops;
-	/* Do not force-disable the static SDRAM controller */
+	/* Do yest force-disable the static SDRAM controller */
 	if (id == 2)
 		init.flags = CLK_IGNORE_UNUSED;
 	else
@@ -455,7 +455,7 @@ static const char * const src_clk_names[] = {
 	"RNGCCLK   ",
 };
 
-static int nomadik_src_clk_debugfs_show(struct seq_file *s, void *what)
+static int yesmadik_src_clk_debugfs_show(struct seq_file *s, void *what)
 {
 	int i;
 	u32 src_pcksr0 = readl(src_base + SRC_PCKSR0);
@@ -479,24 +479,24 @@ static int nomadik_src_clk_debugfs_show(struct seq_file *s, void *what)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(nomadik_src_clk_debugfs);
+DEFINE_SHOW_ATTRIBUTE(yesmadik_src_clk_debugfs);
 
-static int __init nomadik_src_clk_init_debugfs(void)
+static int __init yesmadik_src_clk_init_debugfs(void)
 {
 	/* Vital for multiplatform */
 	if (!src_base)
 		return -ENODEV;
 	src_pcksr0_boot = readl(src_base + SRC_PCKSR0);
 	src_pcksr1_boot = readl(src_base + SRC_PCKSR1);
-	debugfs_create_file("nomadik-src-clk", S_IFREG | S_IRUGO,
-			    NULL, NULL, &nomadik_src_clk_debugfs_fops);
+	debugfs_create_file("yesmadik-src-clk", S_IFREG | S_IRUGO,
+			    NULL, NULL, &yesmadik_src_clk_debugfs_fops);
 	return 0;
 }
-device_initcall(nomadik_src_clk_init_debugfs);
+device_initcall(yesmadik_src_clk_init_debugfs);
 
 #endif
 
-static void __init of_nomadik_pll_setup(struct device_node *np)
+static void __init of_yesmadik_pll_setup(struct device_yesde *np)
 {
 	struct clk_hw *hw;
 	const char *clk_name = np->name;
@@ -504,7 +504,7 @@ static void __init of_nomadik_pll_setup(struct device_node *np)
 	u32 pll_id;
 
 	if (!src_base)
-		nomadik_src_init();
+		yesmadik_src_init();
 
 	if (of_property_read_u32(np, "pll-id", &pll_id)) {
 		pr_err("%s: PLL \"%s\" missing pll-id property\n",
@@ -516,17 +516,17 @@ static void __init of_nomadik_pll_setup(struct device_node *np)
 	if (!IS_ERR(hw))
 		of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
 }
-CLK_OF_DECLARE(nomadik_pll_clk,
-	"st,nomadik-pll-clock", of_nomadik_pll_setup);
+CLK_OF_DECLARE(yesmadik_pll_clk,
+	"st,yesmadik-pll-clock", of_yesmadik_pll_setup);
 
-static void __init of_nomadik_hclk_setup(struct device_node *np)
+static void __init of_yesmadik_hclk_setup(struct device_yesde *np)
 {
 	struct clk_hw *hw;
 	const char *clk_name = np->name;
 	const char *parent_name;
 
 	if (!src_base)
-		nomadik_src_init();
+		yesmadik_src_init();
 
 	parent_name = of_clk_get_parent_name(np, 0);
 	/*
@@ -540,10 +540,10 @@ static void __init of_nomadik_hclk_setup(struct device_node *np)
 	if (!IS_ERR(hw))
 		of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
 }
-CLK_OF_DECLARE(nomadik_hclk_clk,
-	"st,nomadik-hclk-clock", of_nomadik_hclk_setup);
+CLK_OF_DECLARE(yesmadik_hclk_clk,
+	"st,yesmadik-hclk-clock", of_yesmadik_hclk_setup);
 
-static void __init of_nomadik_src_clk_setup(struct device_node *np)
+static void __init of_yesmadik_src_clk_setup(struct device_yesde *np)
 {
 	struct clk_hw *hw;
 	const char *clk_name = np->name;
@@ -551,7 +551,7 @@ static void __init of_nomadik_src_clk_setup(struct device_node *np)
 	u32 clk_id;
 
 	if (!src_base)
-		nomadik_src_init();
+		yesmadik_src_init();
 
 	if (of_property_read_u32(np, "clock-id", &clk_id)) {
 		pr_err("%s: SRC clock \"%s\" missing clock-id property\n",
@@ -563,5 +563,5 @@ static void __init of_nomadik_src_clk_setup(struct device_node *np)
 	if (!IS_ERR(hw))
 		of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
 }
-CLK_OF_DECLARE(nomadik_src_clk,
-	"st,nomadik-src-clock", of_nomadik_src_clk_setup);
+CLK_OF_DECLARE(yesmadik_src_clk,
+	"st,yesmadik-src-clock", of_yesmadik_src_clk_setup);

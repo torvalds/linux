@@ -2,7 +2,7 @@
 /*
  * JZ47xx ECC common code
  *
- * Copyright (c) 2015 Imagination Technologies
+ * Copyright (c) 2015 Imagination Techyeslogies
  * Author: Alex Smith <alex.smith@imgtec.com>
  */
 
@@ -53,21 +53,21 @@ int ingenic_ecc_correct(struct ingenic_ecc *ecc,
 
 /**
  * ingenic_ecc_get() - get the ECC controller device
- * @np: ECC device tree node.
+ * @np: ECC device tree yesde.
  *
- * Gets the ECC controller device from the specified device tree node. The
- * device must be released with ingenic_ecc_release() when it is no longer being
+ * Gets the ECC controller device from the specified device tree yesde. The
+ * device must be released with ingenic_ecc_release() when it is yes longer being
  * used.
  *
  * Return: a pointer to ingenic_ecc, errors are encoded into the pointer.
  * PTR_ERR(-EPROBE_DEFER) if the device hasn't been initialised yet.
  */
-static struct ingenic_ecc *ingenic_ecc_get(struct device_node *np)
+static struct ingenic_ecc *ingenic_ecc_get(struct device_yesde *np)
 {
 	struct platform_device *pdev;
 	struct ingenic_ecc *ecc;
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_yesde(np);
 	if (!pdev || !platform_get_drvdata(pdev))
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -80,32 +80,32 @@ static struct ingenic_ecc *ingenic_ecc_get(struct device_node *np)
 }
 
 /**
- * of_ingenic_ecc_get() - get the ECC controller from a DT node
- * @of_node: the node that contains an ecc-engine property.
+ * of_ingenic_ecc_get() - get the ECC controller from a DT yesde
+ * @of_yesde: the yesde that contains an ecc-engine property.
  *
  * Get the ecc-engine property from the given device tree
- * node and pass it to ingenic_ecc_get to do the work.
+ * yesde and pass it to ingenic_ecc_get to do the work.
  *
  * Return: a pointer to ingenic_ecc, errors are encoded into the pointer.
  * PTR_ERR(-EPROBE_DEFER) if the device hasn't been initialised yet.
  */
-struct ingenic_ecc *of_ingenic_ecc_get(struct device_node *of_node)
+struct ingenic_ecc *of_ingenic_ecc_get(struct device_yesde *of_yesde)
 {
 	struct ingenic_ecc *ecc = NULL;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_parse_phandle(of_node, "ecc-engine", 0);
+	np = of_parse_phandle(of_yesde, "ecc-engine", 0);
 
 	/*
-	 * If the ecc-engine property is not found, check for the deprecated
+	 * If the ecc-engine property is yest found, check for the deprecated
 	 * ingenic,bch-controller property
 	 */
 	if (!np)
-		np = of_parse_phandle(of_node, "ingenic,bch-controller", 0);
+		np = of_parse_phandle(of_yesde, "ingenic,bch-controller", 0);
 
 	if (np) {
 		ecc = ingenic_ecc_get(np);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 	return ecc;
 }

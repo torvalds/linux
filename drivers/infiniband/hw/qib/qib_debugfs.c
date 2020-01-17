@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -47,7 +47,7 @@ static const struct seq_operations _##name##_seq_ops = { \
 	.stop  = _##name##_seq_stop, \
 	.show  = _##name##_seq_show \
 }; \
-static int _##name##_open(struct inode *inode, struct file *s) \
+static int _##name##_open(struct iyesde *iyesde, struct file *s) \
 { \
 	struct seq_file *seq; \
 	int ret; \
@@ -55,7 +55,7 @@ static int _##name##_open(struct inode *inode, struct file *s) \
 	if (ret) \
 		return ret; \
 	seq = s->private_data; \
-	seq->private = inode->i_private; \
+	seq->private = iyesde->i_private; \
 	return 0; \
 } \
 static const struct file_operations _##name##_file_ops = { \
@@ -88,7 +88,7 @@ static void *_opcode_stats_seq_next(struct seq_file *s, void *v, loff_t *pos)
 
 static void _opcode_stats_seq_stop(struct seq_file *s, void *v)
 {
-	/* nothing allocated */
+	/* yesthing allocated */
 }
 
 static int _opcode_stats_seq_show(struct seq_file *s, void *v)
@@ -144,7 +144,7 @@ static void *_ctx_stats_seq_next(struct seq_file *s, void *v, loff_t *pos)
 
 static void _ctx_stats_seq_stop(struct seq_file *s, void *v)
 {
-	/* nothing allocated */
+	/* yesthing allocated */
 }
 
 static int _ctx_stats_seq_show(struct seq_file *s, void *v)

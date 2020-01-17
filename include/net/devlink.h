@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * include/net/devlink.h - Network physical device Netlink interface
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Mellayesx Techyeslogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellayesx.com>
  */
 #ifndef _NET_DEVLINK_H_
 #define _NET_DEVLINK_H_
@@ -421,7 +421,7 @@ enum devlink_param_generic_id {
 #define DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_NAME "region_snapshot_enable"
 #define DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_TYPE DEVLINK_PARAM_TYPE_BOOL
 
-#define DEVLINK_PARAM_GENERIC_IGNORE_ARI_NAME "ignore_ari"
+#define DEVLINK_PARAM_GENERIC_IGNORE_ARI_NAME "igyesre_ari"
 #define DEVLINK_PARAM_GENERIC_IGNORE_ARI_TYPE DEVLINK_PARAM_TYPE_BOOL
 
 #define DEVLINK_PARAM_GENERIC_MSIX_VEC_PER_PF_MAX_NAME "msix_vec_per_pf_max"
@@ -506,7 +506,7 @@ enum devlink_health_reporter_state {
  *           if priv_ctx is NULL, run a full recover
  * @dump: callback to dump an object
  *        if priv_ctx is NULL, run a full dump
- * @diagnose: callback to diagnose the current status
+ * @diagyesse: callback to diagyesse the current status
  */
 
 struct devlink_health_reporter_ops {
@@ -516,7 +516,7 @@ struct devlink_health_reporter_ops {
 	int (*dump)(struct devlink_health_reporter *reporter,
 		    struct devlink_fmsg *fmsg, void *priv_ctx,
 		    struct netlink_ext_ack *extack);
-	int (*diagnose)(struct devlink_health_reporter *reporter,
+	int (*diagyesse)(struct devlink_health_reporter *reporter,
 			struct devlink_fmsg *fmsg,
 			struct netlink_ext_ack *extack);
 };
@@ -525,7 +525,7 @@ struct devlink_health_reporter_ops {
  * struct devlink_trap_group - Immutable packet trap group attributes.
  * @name: Trap group name.
  * @id: Trap group identifier.
- * @generic: Whether the trap group is generic or not.
+ * @generic: Whether the trap group is generic or yest.
  *
  * Describes immutable attributes of packet trap groups that drivers register
  * with devlink.
@@ -542,7 +542,7 @@ struct devlink_trap_group {
  * struct devlink_trap - Immutable packet trap attributes.
  * @type: Trap type.
  * @init_action: Initial trap action.
- * @generic: Whether the trap is generic or not.
+ * @generic: Whether the trap is generic or yest.
  * @id: Trap identifier.
  * @name: Trap name.
  * @group: Immutable packet trap group attributes.
@@ -628,7 +628,7 @@ enum devlink_trap_group_generic_id {
 #define DEVLINK_TRAP_GENERIC_NAME_TAIL_DROP \
 	"tail_drop"
 #define DEVLINK_TRAP_GENERIC_NAME_NON_IP_PACKET \
-	"non_ip"
+	"yesn_ip"
 #define DEVLINK_TRAP_GENERIC_NAME_UC_DIP_MC_DMAC \
 	"uc_dip_over_mc_dmac"
 #define DEVLINK_TRAP_GENERIC_NAME_DIP_LB \
@@ -1003,9 +1003,9 @@ devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
 
 bool devlink_is_reload_failed(const struct devlink *devlink);
 
-void devlink_flash_update_begin_notify(struct devlink *devlink);
-void devlink_flash_update_end_notify(struct devlink *devlink);
-void devlink_flash_update_status_notify(struct devlink *devlink,
+void devlink_flash_update_begin_yestify(struct devlink *devlink);
+void devlink_flash_update_end_yestify(struct devlink *devlink);
+void devlink_flash_update_status_yestify(struct devlink *devlink,
 					const char *status_msg,
 					const char *component,
 					unsigned long done,

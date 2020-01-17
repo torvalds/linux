@@ -86,7 +86,7 @@ static int gbaudio_request_button(struct gbaudio_module_info *module,
 	/* currently supports 4 buttons only */
 	if (!module->jack_type) {
 		dev_err_ratelimited(module->dev,
-				    "Jack not present. Bogus event!!\n");
+				    "Jack yest present. Bogus event!!\n");
 		return -EINVAL;
 	}
 

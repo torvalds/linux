@@ -77,7 +77,7 @@ struct bgx {
 };
 
 static struct bgx *bgx_vnic[MAX_BGX_THUNDER];
-static int lmac_count; /* Total no of LMACs in system */
+static int lmac_count; /* Total yes of LMACs in system */
 
 static int bgx_xaui_check_link(struct lmac *lmac);
 
@@ -98,7 +98,7 @@ MODULE_DEVICE_TABLE(pci, bgx_id_table);
  * containing the ThunderX ARM64 CPU implementation.  All accesses to the device
  * registers on this platform are implicitly strongly ordered with respect
  * to memory accesses. So writeq_relaxed() and readq_relaxed() are safe to use
- * with no memory barriers in this driver.  The readq()/writeq() functions add
+ * with yes memory barriers in this driver.  The readq()/writeq() functions add
  * explicit ordering operation which in this case are redundant, and only
  * add overhead.
  */
@@ -142,45 +142,45 @@ static int bgx_poll_reg(struct bgx *bgx, u8 lmac, u64 reg, u64 mask, bool zero)
 	return 1;
 }
 
-static int max_bgx_per_node;
-static void set_max_bgx_per_node(struct pci_dev *pdev)
+static int max_bgx_per_yesde;
+static void set_max_bgx_per_yesde(struct pci_dev *pdev)
 {
 	u16 sdevid;
 
-	if (max_bgx_per_node)
+	if (max_bgx_per_yesde)
 		return;
 
 	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &sdevid);
 	switch (sdevid) {
 	case PCI_SUBSYS_DEVID_81XX_BGX:
 	case PCI_SUBSYS_DEVID_81XX_RGX:
-		max_bgx_per_node = MAX_BGX_PER_CN81XX;
+		max_bgx_per_yesde = MAX_BGX_PER_CN81XX;
 		break;
 	case PCI_SUBSYS_DEVID_83XX_BGX:
-		max_bgx_per_node = MAX_BGX_PER_CN83XX;
+		max_bgx_per_yesde = MAX_BGX_PER_CN83XX;
 		break;
 	case PCI_SUBSYS_DEVID_88XX_BGX:
 	default:
-		max_bgx_per_node = MAX_BGX_PER_CN88XX;
+		max_bgx_per_yesde = MAX_BGX_PER_CN88XX;
 		break;
 	}
 }
 
-static struct bgx *get_bgx(int node, int bgx_idx)
+static struct bgx *get_bgx(int yesde, int bgx_idx)
 {
-	int idx = (node * max_bgx_per_node) + bgx_idx;
+	int idx = (yesde * max_bgx_per_yesde) + bgx_idx;
 
 	return bgx_vnic[idx];
 }
 
 /* Return number of BGX present in HW */
-unsigned bgx_get_map(int node)
+unsigned bgx_get_map(int yesde)
 {
 	int i;
 	unsigned map = 0;
 
-	for (i = 0; i < max_bgx_per_node; i++) {
-		if (bgx_vnic[(node * max_bgx_per_node) + i])
+	for (i = 0; i < max_bgx_per_yesde; i++) {
+		if (bgx_vnic[(yesde * max_bgx_per_yesde) + i])
 			map |= (1 << i);
 	}
 
@@ -189,11 +189,11 @@ unsigned bgx_get_map(int node)
 EXPORT_SYMBOL(bgx_get_map);
 
 /* Return number of LMAC configured for this BGX */
-int bgx_get_lmac_count(int node, int bgx_idx)
+int bgx_get_lmac_count(int yesde, int bgx_idx)
 {
 	struct bgx *bgx;
 
-	bgx = get_bgx(node, bgx_idx);
+	bgx = get_bgx(yesde, bgx_idx);
 	if (bgx)
 		return bgx->lmac_count;
 
@@ -202,13 +202,13 @@ int bgx_get_lmac_count(int node, int bgx_idx)
 EXPORT_SYMBOL(bgx_get_lmac_count);
 
 /* Returns the current link status of LMAC */
-void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status)
+void bgx_get_lmac_link_state(int yesde, int bgx_idx, int lmacid, void *status)
 {
 	struct bgx_link_status *link = (struct bgx_link_status *)status;
 	struct bgx *bgx;
 	struct lmac *lmac;
 
-	bgx = get_bgx(node, bgx_idx);
+	bgx = get_bgx(yesde, bgx_idx);
 	if (!bgx)
 		return;
 
@@ -220,9 +220,9 @@ void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status)
 }
 EXPORT_SYMBOL(bgx_get_lmac_link_state);
 
-const u8 *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid)
+const u8 *bgx_get_lmac_mac(int yesde, int bgx_idx, int lmacid)
 {
-	struct bgx *bgx = get_bgx(node, bgx_idx);
+	struct bgx *bgx = get_bgx(yesde, bgx_idx);
 
 	if (bgx)
 		return bgx->lmac[lmacid].mac;
@@ -231,9 +231,9 @@ const u8 *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid)
 }
 EXPORT_SYMBOL(bgx_get_lmac_mac);
 
-void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac)
+void bgx_set_lmac_mac(int yesde, int bgx_idx, int lmacid, const u8 *mac)
 {
-	struct bgx *bgx = get_bgx(node, bgx_idx);
+	struct bgx *bgx = get_bgx(yesde, bgx_idx);
 
 	if (!bgx)
 		return;
@@ -328,10 +328,10 @@ static int bgx_set_dmac_cam_filter_mac(struct bgx *bgx, int lmacid,
 	return 0;
 }
 
-void bgx_set_dmac_cam_filter(int node, int bgx_idx, int lmacid,
+void bgx_set_dmac_cam_filter(int yesde, int bgx_idx, int lmacid,
 			     u64 cam_dmac, u8 vf_id)
 {
-	struct bgx *bgx = get_bgx(node, bgx_idx);
+	struct bgx *bgx = get_bgx(yesde, bgx_idx);
 	struct lmac *lmac = NULL;
 
 	if (!bgx)
@@ -351,9 +351,9 @@ void bgx_set_dmac_cam_filter(int node, int bgx_idx, int lmacid,
 }
 EXPORT_SYMBOL(bgx_set_dmac_cam_filter);
 
-void bgx_set_xcast_mode(int node, int bgx_idx, int lmacid, u8 mode)
+void bgx_set_xcast_mode(int yesde, int bgx_idx, int lmacid, u8 mode)
 {
-	struct bgx *bgx = get_bgx(node, bgx_idx);
+	struct bgx *bgx = get_bgx(yesde, bgx_idx);
 	struct lmac *lmac = NULL;
 	u64 cfg = 0;
 	u8 i = 0;
@@ -385,23 +385,23 @@ void bgx_set_xcast_mode(int node, int bgx_idx, int lmacid, u8 mode)
 }
 EXPORT_SYMBOL(bgx_set_xcast_mode);
 
-void bgx_reset_xcast_mode(int node, int bgx_idx, int lmacid, u8 vf_id)
+void bgx_reset_xcast_mode(int yesde, int bgx_idx, int lmacid, u8 vf_id)
 {
-	struct bgx *bgx = get_bgx(node, bgx_idx);
+	struct bgx *bgx = get_bgx(yesde, bgx_idx);
 
 	if (!bgx)
 		return;
 
 	bgx_lmac_remove_filters(&bgx->lmac[lmacid], vf_id);
 	bgx_flush_dmac_cam_filter(bgx, lmacid);
-	bgx_set_xcast_mode(node, bgx_idx, lmacid,
+	bgx_set_xcast_mode(yesde, bgx_idx, lmacid,
 			   (BGX_XCAST_BCAST_ACCEPT | BGX_XCAST_MCAST_ACCEPT));
 }
 EXPORT_SYMBOL(bgx_reset_xcast_mode);
 
-void bgx_lmac_rx_tx_enable(int node, int bgx_idx, int lmacid, bool enable)
+void bgx_lmac_rx_tx_enable(int yesde, int bgx_idx, int lmacid, bool enable)
 {
-	struct bgx *bgx = get_bgx(node, bgx_idx);
+	struct bgx *bgx = get_bgx(yesde, bgx_idx);
 	struct lmac *lmac;
 	u64 cfg;
 
@@ -422,9 +422,9 @@ void bgx_lmac_rx_tx_enable(int node, int bgx_idx, int lmacid, bool enable)
 EXPORT_SYMBOL(bgx_lmac_rx_tx_enable);
 
 /* Enables or disables timestamp insertion by BGX for Rx packets */
-void bgx_config_timestamping(int node, int bgx_idx, int lmacid, bool enable)
+void bgx_config_timestamping(int yesde, int bgx_idx, int lmacid, bool enable)
 {
-	struct bgx *bgx = get_bgx(node, bgx_idx);
+	struct bgx *bgx = get_bgx(yesde, bgx_idx);
 	struct lmac *lmac;
 	u64 csr_offset, cfg;
 
@@ -450,10 +450,10 @@ void bgx_config_timestamping(int node, int bgx_idx, int lmacid, bool enable)
 }
 EXPORT_SYMBOL(bgx_config_timestamping);
 
-void bgx_lmac_get_pfc(int node, int bgx_idx, int lmacid, void *pause)
+void bgx_lmac_get_pfc(int yesde, int bgx_idx, int lmacid, void *pause)
 {
 	struct pfc *pfc = (struct pfc *)pause;
-	struct bgx *bgx = get_bgx(node, bgx_idx);
+	struct bgx *bgx = get_bgx(yesde, bgx_idx);
 	struct lmac *lmac;
 	u64 cfg;
 
@@ -470,10 +470,10 @@ void bgx_lmac_get_pfc(int node, int bgx_idx, int lmacid, void *pause)
 }
 EXPORT_SYMBOL(bgx_lmac_get_pfc);
 
-void bgx_lmac_set_pfc(int node, int bgx_idx, int lmacid, void *pause)
+void bgx_lmac_set_pfc(int yesde, int bgx_idx, int lmacid, void *pause)
 {
 	struct pfc *pfc = (struct pfc *)pause;
-	struct bgx *bgx = get_bgx(node, bgx_idx);
+	struct bgx *bgx = get_bgx(yesde, bgx_idx);
 	struct lmac *lmac;
 	u64 cfg;
 
@@ -508,7 +508,7 @@ static void bgx_sgmii_change_link_state(struct lmac *lmac)
 	/* Wait for BGX RX to be idle */
 	if (bgx_poll_reg(bgx, lmac->lmacid, BGX_GMP_GMI_PRTX_CFG,
 			 GMI_PORT_CFG_RX_IDLE, false)) {
-		dev_err(&bgx->pdev->dev, "BGX%d LMAC%d GMI RX not idle\n",
+		dev_err(&bgx->pdev->dev, "BGX%d LMAC%d GMI RX yest idle\n",
 			bgx->bgx_id, lmac->lmacid);
 		return;
 	}
@@ -516,7 +516,7 @@ static void bgx_sgmii_change_link_state(struct lmac *lmac)
 	/* Wait for BGX TX to be idle */
 	if (bgx_poll_reg(bgx, lmac->lmacid, BGX_GMP_GMI_PRTX_CFG,
 			 GMI_PORT_CFG_TX_IDLE, false)) {
-		dev_err(&bgx->pdev->dev, "BGX%d LMAC%d GMI TX not idle\n",
+		dev_err(&bgx->pdev->dev, "BGX%d LMAC%d GMI TX yest idle\n",
 			bgx->bgx_id, lmac->lmacid);
 		return;
 	}
@@ -618,11 +618,11 @@ static void bgx_lmac_handler(struct net_device *netdev)
 		bgx_xaui_check_link(lmac);
 }
 
-u64 bgx_get_rx_stats(int node, int bgx_idx, int lmac, int idx)
+u64 bgx_get_rx_stats(int yesde, int bgx_idx, int lmac, int idx)
 {
 	struct bgx *bgx;
 
-	bgx = get_bgx(node, bgx_idx);
+	bgx = get_bgx(yesde, bgx_idx);
 	if (!bgx)
 		return 0;
 
@@ -632,11 +632,11 @@ u64 bgx_get_rx_stats(int node, int bgx_idx, int lmac, int idx)
 }
 EXPORT_SYMBOL(bgx_get_rx_stats);
 
-u64 bgx_get_tx_stats(int node, int bgx_idx, int lmac, int idx)
+u64 bgx_get_tx_stats(int yesde, int bgx_idx, int lmac, int idx)
 {
 	struct bgx *bgx;
 
-	bgx = get_bgx(node, bgx_idx);
+	bgx = get_bgx(yesde, bgx_idx);
 	if (!bgx)
 		return 0;
 
@@ -645,14 +645,14 @@ u64 bgx_get_tx_stats(int node, int bgx_idx, int lmac, int idx)
 EXPORT_SYMBOL(bgx_get_tx_stats);
 
 /* Configure BGX LMAC in internal loopback mode */
-void bgx_lmac_internal_loopback(int node, int bgx_idx,
+void bgx_lmac_internal_loopback(int yesde, int bgx_idx,
 				int lmac_idx, bool enable)
 {
 	struct bgx *bgx;
 	struct lmac *lmac;
 	u64    cfg;
 
-	bgx = get_bgx(node, bgx_idx);
+	bgx = get_bgx(yesde, bgx_idx);
 	if (!bgx)
 		return;
 
@@ -696,7 +696,7 @@ static int bgx_lmac_sgmii_init(struct bgx *bgx, struct lmac *lmac)
 	bgx_reg_modify(bgx, lmacid, BGX_GMP_PCS_MRX_CTL, PCS_MRX_CTL_RESET);
 	if (bgx_poll_reg(bgx, lmacid, BGX_GMP_PCS_MRX_CTL,
 			 PCS_MRX_CTL_RESET, true)) {
-		dev_err(&bgx->pdev->dev, "BGX PCS reset not completed\n");
+		dev_err(&bgx->pdev->dev, "BGX PCS reset yest completed\n");
 		return -1;
 	}
 
@@ -707,9 +707,9 @@ static int bgx_lmac_sgmii_init(struct bgx *bgx, struct lmac *lmac)
 	if (lmac->phydev) {
 		cfg |= PCS_MRX_CTL_AN_EN;
 	} else {
-		/* In scenarios where PHY driver is not present or it's a
-		 * non-standard PHY, FW sets AN_EN to inform Linux driver
-		 * to do auto-neg and link polling or not.
+		/* In scenarios where PHY driver is yest present or it's a
+		 * yesn-standard PHY, FW sets AN_EN to inform Linux driver
+		 * to do auto-neg and link polling or yest.
 		 */
 		if (cfg & PCS_MRX_CTL_AN_EN)
 			lmac->autoneg = true;
@@ -727,7 +727,7 @@ static int bgx_lmac_sgmii_init(struct bgx *bgx, struct lmac *lmac)
 	if ((lmac->lmac_type == BGX_MODE_SGMII) && lmac->phydev) {
 		if (bgx_poll_reg(bgx, lmacid, BGX_GMP_PCS_MRX_STATUS,
 				 PCS_MRX_STATUS_AN_CPT, false)) {
-			dev_err(&bgx->pdev->dev, "BGX AN_CPT not completed\n");
+			dev_err(&bgx->pdev->dev, "BGX AN_CPT yest completed\n");
 			return -1;
 		}
 	}
@@ -743,7 +743,7 @@ static int bgx_lmac_xaui_init(struct bgx *bgx, struct lmac *lmac)
 	/* Reset SPU */
 	bgx_reg_modify(bgx, lmacid, BGX_SPUX_CONTROL1, SPU_CTL_RESET);
 	if (bgx_poll_reg(bgx, lmacid, BGX_SPUX_CONTROL1, SPU_CTL_RESET, true)) {
-		dev_err(&bgx->pdev->dev, "BGX SPU reset not completed\n");
+		dev_err(&bgx->pdev->dev, "BGX SPU reset yest completed\n");
 		return -1;
 	}
 
@@ -860,7 +860,7 @@ static int bgx_xaui_check_link(struct lmac *lmac)
 
 	/* wait for PCS to come out of reset */
 	if (bgx_poll_reg(bgx, lmacid, BGX_SPUX_CONTROL1, SPU_CTL_RESET, true)) {
-		dev_err(&bgx->pdev->dev, "BGX SPU reset not completed\n");
+		dev_err(&bgx->pdev->dev, "BGX SPU reset yest completed\n");
 		return -1;
 	}
 
@@ -869,14 +869,14 @@ static int bgx_xaui_check_link(struct lmac *lmac)
 		if (bgx_poll_reg(bgx, lmacid, BGX_SPUX_BR_STATUS1,
 				 SPU_BR_STATUS_BLK_LOCK, false)) {
 			dev_err(&bgx->pdev->dev,
-				"SPU_BR_STATUS_BLK_LOCK not completed\n");
+				"SPU_BR_STATUS_BLK_LOCK yest completed\n");
 			return -1;
 		}
 	} else {
 		if (bgx_poll_reg(bgx, lmacid, BGX_SPUX_BX_STATUS,
 				 SPU_BX_STATUS_RX_ALIGN, false)) {
 			dev_err(&bgx->pdev->dev,
-				"SPU_BX_STATUS_RX_ALIGN not completed\n");
+				"SPU_BX_STATUS_RX_ALIGN yest completed\n");
 			return -1;
 		}
 	}
@@ -905,13 +905,13 @@ static int bgx_xaui_check_link(struct lmac *lmac)
 
 	/* Wait for BGX RX to be idle */
 	if (bgx_poll_reg(bgx, lmacid, BGX_SMUX_CTL, SMU_CTL_RX_IDLE, false)) {
-		dev_err(&bgx->pdev->dev, "SMU RX not idle\n");
+		dev_err(&bgx->pdev->dev, "SMU RX yest idle\n");
 		return -1;
 	}
 
 	/* Wait for BGX TX to be idle */
 	if (bgx_poll_reg(bgx, lmacid, BGX_SMUX_CTL, SMU_CTL_TX_IDLE, false)) {
-		dev_err(&bgx->pdev->dev, "SMU TX not idle\n");
+		dev_err(&bgx->pdev->dev, "SMU TX yest idle\n");
 		return -1;
 	}
 
@@ -1287,7 +1287,7 @@ static void lmac_set_lane2sds(struct bgx *bgx, struct lmac *lmac)
 		lmac->lane_to_sds = (lmac->lmacid) ? 0xE : 0x4;
 		break;
 	case BGX_MODE_QSGMII:
-		/* There is no way to determine if DLM0/2 is QSGMII or
+		/* There is yes way to determine if DLM0/2 is QSGMII or
 		 * DLM1/3 is configured to QSGMII as bootloader will
 		 * configure all LMACs, so take whatever is configured
 		 * by low level firmware.
@@ -1383,7 +1383,7 @@ static int acpi_get_mac_address(struct device *dev, struct acpi_device *adev,
 	u8 mac[ETH_ALEN];
 	u8 *addr;
 
-	addr = fwnode_get_mac_address(acpi_fwnode_handle(adev), mac, ETH_ALEN);
+	addr = fwyesde_get_mac_address(acpi_fwyesde_handle(adev), mac, ETH_ALEN);
 	if (!addr) {
 		dev_err(dev, "MAC address invalid: %pM\n", mac);
 		return -EINVAL;
@@ -1458,33 +1458,33 @@ static int bgx_init_acpi_phy(struct bgx *bgx)
 
 static int bgx_init_of_phy(struct bgx *bgx)
 {
-	struct fwnode_handle *fwn;
-	struct device_node *node = NULL;
+	struct fwyesde_handle *fwn;
+	struct device_yesde *yesde = NULL;
 	u8 lmac = 0;
 
-	device_for_each_child_node(&bgx->pdev->dev, fwn) {
+	device_for_each_child_yesde(&bgx->pdev->dev, fwn) {
 		struct phy_device *pd;
-		struct device_node *phy_np;
+		struct device_yesde *phy_np;
 		const char *mac;
 
-		/* Should always be an OF node.  But if it is not, we
-		 * cannot handle it, so exit the loop.
+		/* Should always be an OF yesde.  But if it is yest, we
+		 * canyest handle it, so exit the loop.
 		 */
-		node = to_of_node(fwn);
-		if (!node)
+		yesde = to_of_yesde(fwn);
+		if (!yesde)
 			break;
 
-		mac = of_get_mac_address(node);
+		mac = of_get_mac_address(yesde);
 		if (!IS_ERR(mac))
 			ether_addr_copy(bgx->lmac[lmac].mac, mac);
 
 		SET_NETDEV_DEV(&bgx->lmac[lmac].netdev, &bgx->pdev->dev);
 		bgx->lmac[lmac].lmacid = lmac;
 
-		phy_np = of_parse_phandle(node, "phy-handle", 0);
-		/* If there is no phy or defective firmware presents
-		 * this cortina phy, for which there is no driver
-		 * support, ignore it.
+		phy_np = of_parse_phandle(yesde, "phy-handle", 0);
+		/* If there is yes phy or defective firmware presents
+		 * this cortina phy, for which there is yes driver
+		 * support, igyesre it.
 		 */
 		if (phy_np &&
 		    !of_device_is_compatible(phy_np, "cortina,cs4223-slice")) {
@@ -1497,14 +1497,14 @@ static int bgx_init_of_phy(struct bgx *bgx)
 
 		lmac++;
 		if (lmac == bgx->max_lmac) {
-			of_node_put(node);
+			of_yesde_put(yesde);
 			break;
 		}
 	}
 	return 0;
 
 defer:
-	/* We are bailing out, try not to leak device reference counts
+	/* We are bailing out, try yest to leak device reference counts
 	 * for phy devices we may have already found.
 	 */
 	while (lmac) {
@@ -1514,7 +1514,7 @@ defer:
 		}
 		lmac--;
 	}
-	of_node_put(node);
+	of_yesde_put(yesde);
 	return -EPROBE_DEFER;
 }
 
@@ -1566,18 +1566,18 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* MAP configuration registers */
 	bgx->reg_base = pcim_iomap(pdev, PCI_CFG_REG_BAR_NUM, 0);
 	if (!bgx->reg_base) {
-		dev_err(dev, "BGX: Cannot map CSR memory space, aborting\n");
+		dev_err(dev, "BGX: Canyest map CSR memory space, aborting\n");
 		err = -ENOMEM;
 		goto err_release_regions;
 	}
 
-	set_max_bgx_per_node(pdev);
+	set_max_bgx_per_yesde(pdev);
 
 	pci_read_config_word(pdev, PCI_DEVICE_ID, &sdevid);
 	if (sdevid != PCI_DEVICE_ID_THUNDER_RGX) {
 		bgx->bgx_id = (pci_resource_start(pdev,
 			PCI_CFG_REG_BAR_NUM) >> 24) & BGX_ID_MASK;
-		bgx->bgx_id += nic_get_node_id(pdev) * max_bgx_per_node;
+		bgx->bgx_id += nic_get_yesde_id(pdev) * max_bgx_per_yesde;
 		bgx->max_lmac = MAX_LMAC_PER_BGX;
 		bgx_vnic[bgx->bgx_id] = bgx;
 	} else {

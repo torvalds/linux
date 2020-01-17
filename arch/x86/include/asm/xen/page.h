@@ -190,7 +190,7 @@ static inline int phys_to_machine_mapping_valid(unsigned long pfn)
 	return __pfn_to_mfn(pfn) != INVALID_P2M_ENTRY;
 }
 
-static inline unsigned long mfn_to_pfn_no_overrides(unsigned long mfn)
+static inline unsigned long mfn_to_pfn_yes_overrides(unsigned long mfn)
 {
 	unsigned long pfn;
 	int ret;
@@ -222,12 +222,12 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return mfn;
 
-	pfn = mfn_to_pfn_no_overrides(mfn);
+	pfn = mfn_to_pfn_yes_overrides(mfn);
 	if (__pfn_to_mfn(pfn) != mfn)
 		pfn = ~0;
 
 	/*
-	 * pfn is ~0 if there are no entries in the m2p for mfn or the
+	 * pfn is ~0 if there are yes entries in the m2p for mfn or the
 	 * entry doesn't map back to the mfn.
 	 */
 	if (pfn == ~0 && __pfn_to_mfn(mfn) == IDENTITY_FRAME(mfn))
@@ -274,13 +274,13 @@ static inline unsigned long gfn_to_pfn(unsigned long gfn)
  *  1. If the MFN is an I/O page then Xen will set the m2p entry
  *     to be outside our maximum possible pseudophys range.
  *  2. If the MFN belongs to a different domain then we will certainly
- *     not have MFN in our p2m table. Conversely, if the page is ours,
+ *     yest have MFN in our p2m table. Conversely, if the page is ours,
  *     then we'll have p2m(m2p(MFN))==MFN.
  * If we detect a special mapping then it doesn't have a 'struct page'.
  * We force !pfn_valid() by returning an out-of-range pointer.
  *
- * NB. These checks require that, for any MFN that is not in our reservation,
- * there is no PFN such that p2m(PFN) == MFN. Otherwise we can get confused if
+ * NB. These checks require that, for any MFN that is yest in our reservation,
+ * there is yes PFN such that p2m(PFN) == MFN. Otherwise we can get confused if
  * we are foreign-mapping the MFN, and the other domain as m2p(MFN) == PFN.
  * Yikes! Various places must poke in INVALID_P2M_ENTRY for safety.
  *

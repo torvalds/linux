@@ -281,7 +281,7 @@ static int mt6323_led_set_blink(struct led_classdev *cdev,
 	mutex_lock(&leds->lock);
 	/*
 	 * Set max_brightness as the software blink behavior
-	 * when no blink brightness.
+	 * when yes blink brightness.
 	 */
 	if (!led->current_brightness) {
 		ret = mt6323_led_hw_on(cdev, cdev->max_brightness);
@@ -336,7 +336,7 @@ out:
 }
 
 static int mt6323_led_set_dt_default(struct led_classdev *cdev,
-				     struct device_node *np)
+				     struct device_yesde *np)
 {
 	struct mt6323_led *led = container_of(cdev, struct mt6323_led, cdev);
 	const char *state;
@@ -369,8 +369,8 @@ static int mt6323_led_set_dt_default(struct led_classdev *cdev,
 static int mt6323_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *child;
 	struct mt6397_chip *hw = dev_get_drvdata(pdev->dev.parent);
 	struct mt6323_leds *leds;
 	struct mt6323_led *led;
@@ -401,23 +401,23 @@ static int mt6323_led_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		ret = of_property_read_u32(child, "reg", &reg);
 		if (ret) {
 			dev_err(dev, "Failed to read led 'reg' property\n");
-			goto put_child_node;
+			goto put_child_yesde;
 		}
 
 		if (reg >= MT6323_MAX_LEDS || leds->led[reg]) {
 			dev_err(dev, "Invalid led reg %u\n", reg);
 			ret = -EINVAL;
-			goto put_child_node;
+			goto put_child_yesde;
 		}
 
 		led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 		if (!led) {
 			ret = -ENOMEM;
-			goto put_child_node;
+			goto put_child_yesde;
 		}
 
 		leds->led[reg] = led;
@@ -434,22 +434,22 @@ static int mt6323_led_probe(struct platform_device *pdev)
 		if (ret < 0) {
 			dev_err(leds->dev,
 				"Failed to LED set default from devicetree\n");
-			goto put_child_node;
+			goto put_child_yesde;
 		}
 
 		ret = devm_led_classdev_register(dev, &leds->led[reg]->cdev);
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to register LED: %d\n",
 				ret);
-			goto put_child_node;
+			goto put_child_yesde;
 		}
-		leds->led[reg]->cdev.dev->of_node = child;
+		leds->led[reg]->cdev.dev->of_yesde = child;
 	}
 
 	return 0;
 
-put_child_node:
-	of_node_put(child);
+put_child_yesde:
+	of_yesde_put(child);
 	return ret;
 }
 

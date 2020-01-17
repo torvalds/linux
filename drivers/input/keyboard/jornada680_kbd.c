@@ -153,7 +153,7 @@ static void jornada_scan_keyb(unsigned char *s)
 		*s++ = __raw_readb(PCDR);
 		*s++ = __raw_readb(PFDR);
 	}
-	/* Scan no lines */
+	/* Scan yes lines */
 	__raw_writeb(0xff, PDDR);
 	__raw_writeb(0xff, PEDR);
 
@@ -161,7 +161,7 @@ static void jornada_scan_keyb(unsigned char *s)
 	__raw_writew((dc_static | (0x5555 & 0xcc0c)),PDCR);
 	__raw_writew((ec_static | (0x5555 & 0xf0cf)),PECR);
 
-	/* Ignore extra keys and events */
+	/* Igyesre extra keys and events */
 	*s++ = __raw_readb(PGDR);
 	*s++ = __raw_readb(PHDR);
 }

@@ -68,7 +68,7 @@ static struct nf_sockopt_ops *nf_sockopt_find(struct sock *sk, u_int8_t pf,
 	list_for_each_entry(ops, &nf_sockopts, list) {
 		if (ops->pf == pf) {
 			if (!try_module_get(ops->owner))
-				goto out_nosup;
+				goto out_yessup;
 
 			if (get) {
 				if (val >= ops->get_optmin &&
@@ -82,7 +82,7 @@ static struct nf_sockopt_ops *nf_sockopt_find(struct sock *sk, u_int8_t pf,
 			module_put(ops->owner);
 		}
 	}
-out_nosup:
+out_yessup:
 	ops = ERR_PTR(-ENOPROTOOPT);
 out:
 	mutex_unlock(&nf_sockopt_mutex);

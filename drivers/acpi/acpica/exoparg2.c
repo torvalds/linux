@@ -22,7 +22,7 @@ ACPI_MODULE_NAME("exoparg2")
  *
  * The routines that begin execution of AML opcodes are named with a common
  * convention based upon the number of arguments, the number of target operands,
- * and whether or not a value is returned:
+ * and whether or yest a value is returned:
  *
  *      AcpiExOpcode_xA_yT_zR
  *
@@ -46,7 +46,7 @@ ACPI_MODULE_NAME("exoparg2")
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute opcode with two arguments, no target, and no return
+ * DESCRIPTION: Execute opcode with two arguments, yes target, and yes return
  *              value.
  *
  * ALLOCATION:  Deletes both operands
@@ -55,7 +55,7 @@ ACPI_MODULE_NAME("exoparg2")
 acpi_status acpi_ex_opcode_2A_0T_0R(struct acpi_walk_state *walk_state)
 {
 	union acpi_operand_object **operand = &walk_state->operands[0];
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	u32 value;
 	acpi_status status = AE_OK;
 
@@ -65,40 +65,40 @@ acpi_status acpi_ex_opcode_2A_0T_0R(struct acpi_walk_state *walk_state)
 	/* Examine the opcode */
 
 	switch (walk_state->opcode) {
-	case AML_NOTIFY_OP:	/* Notify (notify_object, notify_value) */
+	case AML_NOTIFY_OP:	/* Notify (yestify_object, yestify_value) */
 
-		/* The first operand is a namespace node */
+		/* The first operand is a namespace yesde */
 
-		node = (struct acpi_namespace_node *)operand[0];
+		yesde = (struct acpi_namespace_yesde *)operand[0];
 
-		/* Second value is the notify value */
+		/* Second value is the yestify value */
 
 		value = (u32) operand[1]->integer.value;
 
-		/* Are notifies allowed on this object? */
+		/* Are yestifies allowed on this object? */
 
-		if (!acpi_ev_is_notify_object(node)) {
+		if (!acpi_ev_is_yestify_object(yesde)) {
 			ACPI_ERROR((AE_INFO,
-				    "Unexpected notify object type [%s]",
-				    acpi_ut_get_type_name(node->type)));
+				    "Unexpected yestify object type [%s]",
+				    acpi_ut_get_type_name(yesde->type)));
 
 			status = AE_AML_OPERAND_TYPE;
 			break;
 		}
 
 		/*
-		 * Dispatch the notify to the appropriate handler
+		 * Dispatch the yestify to the appropriate handler
 		 * NOTE: the request is queued for execution after this method
-		 * completes. The notify handlers are NOT invoked synchronously
+		 * completes. The yestify handlers are NOT invoked synchroyesusly
 		 * from this thread -- because handlers may in turn run other
 		 * control methods.
 		 */
-		status = acpi_ev_queue_notify_request(node, value);
+		status = acpi_ev_queue_yestify_request(yesde, value);
 		break;
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkyeswn AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 	}
@@ -163,7 +163,7 @@ acpi_status acpi_ex_opcode_2A_2T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkyeswn AML opcode 0x%X",
 			    walk_state->opcode));
 
 		status = AE_AML_BAD_OPCODE;
@@ -184,7 +184,7 @@ acpi_status acpi_ex_opcode_2A_2T_1R(struct acpi_walk_state *walk_state)
 
 cleanup:
 	/*
-	 * Since the remainder is not returned indirectly, remove a reference to
+	 * Since the remainder is yest returned indirectly, remove a reference to
 	 * it. Only the quotient is returned indirectly.
 	 */
 	acpi_ut_remove_reference(return_desc2);
@@ -302,7 +302,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 		}
 
 		/*
-		 * Copy the raw buffer data with no transform.
+		 * Copy the raw buffer data with yes transform.
 		 * (NULL terminated already)
 		 */
 		memcpy(return_desc->string.pointer,
@@ -415,7 +415,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkyeswn AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		break;
@@ -425,7 +425,7 @@ store_result_to_target:
 
 	if (ACPI_SUCCESS(status)) {
 		/*
-		 * Store the result of the operation (which is now in return_desc) into
+		 * Store the result of the operation (which is yesw in return_desc) into
 		 * the Target descriptor.
 		 */
 		status = acpi_ex_store(return_desc, operand[2], walk_state);
@@ -458,7 +458,7 @@ cleanup:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute opcode with 2 arguments, no target, and a return value
+ * DESCRIPTION: Execute opcode with 2 arguments, yes target, and a return value
  *
  ******************************************************************************/
 
@@ -523,7 +523,7 @@ acpi_status acpi_ex_opcode_2A_0T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkyeswn AML opcode 0x%X",
 			    walk_state->opcode));
 
 		status = AE_AML_BAD_OPCODE;

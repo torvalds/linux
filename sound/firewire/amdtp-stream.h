@@ -11,7 +11,7 @@
 
 /**
  * enum cip_flags - describes details of the streaming protocol
- * @CIP_NONBLOCKING: In non-blocking mode, each packet contains
+ * @CIP_NONBLOCKING: In yesn-blocking mode, each packet contains
  *	sample_rate/8000 samples, with rounding up or down to adjust
  *	for clock skew and left-over fractional samples.  This should
  *	be used if supported by the device.
@@ -33,8 +33,8 @@
  * @CIP_HEADER_WITHOUT_EOH: Only for in-stream. CIP Header doesn't include
  *	valid EOH.
  * @CIP_NO_HEADERS: a lack of headers in packets
- * @CIP_UNALIGHED_DBC: Only for in-stream. The value of dbc is not alighed to
- *	the value of current SYT_INTERVAL; e.g. initial value is not zero.
+ * @CIP_UNALIGHED_DBC: Only for in-stream. The value of dbc is yest alighed to
+ *	the value of current SYT_INTERVAL; e.g. initial value is yest zero.
  */
 enum cip_flags {
 	CIP_NONBLOCKING		= 0x00,
@@ -61,7 +61,7 @@ enum cip_flags {
  * @CIP_SFC_192000: 192,000 data blocks
  * @CIP_SFC_COUNT: the number of supported SFCs
  *
- * These values are used to show nominal Sampling Frequency Code in
+ * These values are used to show yesminal Sampling Frequency Code in
  * Format Dependent Field (FDF) of AMDTP packet header. In IEC 61883-6:2002,
  * this code means the number of events per second. Actually the code
  * represents the number of data blocks transferred per second in an AMDTP
@@ -151,7 +151,7 @@ struct amdtp_stream {
 	} ctx_data;
 
 	/* For CIP headers. */
-	unsigned int source_node_id_field;
+	unsigned int source_yesde_id_field;
 	unsigned int data_block_quadlets;
 	unsigned int data_block_counter;
 	unsigned int sph;
@@ -205,7 +205,7 @@ extern const unsigned int amdtp_syt_intervals[CIP_SFC_COUNT];
 extern const unsigned int amdtp_rate_table[CIP_SFC_COUNT];
 
 /**
- * amdtp_stream_running - check stream is running or not
+ * amdtp_stream_running - check stream is running or yest
  * @s: the AMDTP stream
  *
  * If this function returns true, the stream is running.
@@ -220,7 +220,7 @@ static inline bool amdtp_stream_running(struct amdtp_stream *s)
  * @s: the AMDTP stream
  *
  * If this function returns true, the stream's packet queue has stopped due to
- * an asynchronous error.
+ * an asynchroyesus error.
  */
 static inline bool amdtp_streaming_error(struct amdtp_stream *s)
 {
@@ -228,7 +228,7 @@ static inline bool amdtp_streaming_error(struct amdtp_stream *s)
 }
 
 /**
- * amdtp_stream_pcm_running - check PCM substream is running or not
+ * amdtp_stream_pcm_running - check PCM substream is running or yest
  * @s: the AMDTP stream
  *
  * If this function returns true, PCM substream in the AMDTP stream is running.
@@ -243,7 +243,7 @@ static inline bool amdtp_stream_pcm_running(struct amdtp_stream *s)
  * @s: the AMDTP stream
  * @pcm: the PCM device to be started, or %NULL to stop the current device
  *
- * Call this function on a running isochronous stream to enable the actual
+ * Call this function on a running isochroyesus stream to enable the actual
  * transmission of PCM data.  This function should be called from the PCM
  * device's .trigger callback.
  */

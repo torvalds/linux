@@ -52,7 +52,7 @@ EXPORT_SYMBOL_GPL(blk_req_needs_zone_write_lock);
 
 void __blk_req_zone_write_lock(struct request *rq)
 {
-	if (WARN_ON_ONCE(test_and_set_bit(blk_rq_zone_no(rq),
+	if (WARN_ON_ONCE(test_and_set_bit(blk_rq_zone_yes(rq),
 					  rq->q->seq_zones_wlock)))
 		return;
 
@@ -65,7 +65,7 @@ void __blk_req_zone_write_unlock(struct request *rq)
 {
 	rq->rq_flags &= ~RQF_ZONE_WRITE_LOCKED;
 	if (rq->q->seq_zones_wlock)
-		WARN_ON_ONCE(!test_and_clear_bit(blk_rq_zone_no(rq),
+		WARN_ON_ONCE(!test_and_clear_bit(blk_rq_zone_yes(rq),
 						 rq->q->seq_zones_wlock));
 }
 EXPORT_SYMBOL_GPL(__blk_req_zone_write_unlock);
@@ -100,10 +100,10 @@ EXPORT_SYMBOL_GPL(blkdev_nr_zones);
  *    @nr_zones, and call @cb for each zone reported by the device.
  *    To report all zones in a device starting from @sector, the BLK_ALL_ZONES
  *    constant can be passed to @nr_zones.
- *    Returns the number of zones reported by the device, or a negative errno
+ *    Returns the number of zones reported by the device, or a negative erryes
  *    value in case of failure.
  *
- *    Note: The caller must use memalloc_noXX_save/restore() calls to control
+ *    Note: The caller must use memalloc_yesXX_save/restore() calls to control
  *    memory allocations done within this function.
  */
 int blkdev_report_zones(struct block_device *bdev, sector_t sector,
@@ -149,7 +149,7 @@ static inline bool blkdev_allow_reset_all_zones(struct block_device *bdev,
  * Description:
  *    Perform the specified operation on the range of zones specified by
  *    @sector..@sector+@nr_sectors. Specifying the entire disk sector range
- *    is valid, but the specified range should not contain conventional zones.
+ *    is valid, but the specified range should yest contain conventional zones.
  *    The operation to execute on each zone can be a zone reset, open, close
  *    or finish request.
  */
@@ -323,11 +323,11 @@ int blkdev_zone_mgmt_ioctl(struct block_device *bdev, fmode_t mode,
 				GFP_KERNEL);
 }
 
-static inline unsigned long *blk_alloc_zone_bitmap(int node,
+static inline unsigned long *blk_alloc_zone_bitmap(int yesde,
 						   unsigned int nr_zones)
 {
-	return kcalloc_node(BITS_TO_LONGS(nr_zones), sizeof(unsigned long),
-			    GFP_NOIO, node);
+	return kcalloc_yesde(BITS_TO_LONGS(nr_zones), sizeof(unsigned long),
+			    GFP_NOIO, yesde);
 }
 
 void blk_queue_free_zone_bitmaps(struct request_queue *q)
@@ -364,7 +364,7 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 	 */
 	if (zone->start == 0) {
 		if (zone->len == 0 || !is_power_of_2(zone->len)) {
-			pr_warn("%s: Invalid zoned device with non power of two zone size (%llu)\n",
+			pr_warn("%s: Invalid zoned device with yesn power of two zone size (%llu)\n",
 				disk->disk_name, zone->len);
 			return -ENODEV;
 		}
@@ -373,7 +373,7 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 		args->nr_zones = (capacity + zone->len - 1) >> ilog2(zone->len);
 	} else if (zone->start + args->zone_sectors < capacity) {
 		if (zone->len != args->zone_sectors) {
-			pr_warn("%s: Invalid zoned device with non constant zone size\n",
+			pr_warn("%s: Invalid zoned device with yesn constant zone size\n",
 				disk->disk_name);
 			return -ENODEV;
 		}
@@ -397,7 +397,7 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 	case BLK_ZONE_TYPE_CONVENTIONAL:
 		if (!args->conv_zones_bitmap) {
 			args->conv_zones_bitmap =
-				blk_alloc_zone_bitmap(q->node, args->nr_zones);
+				blk_alloc_zone_bitmap(q->yesde, args->nr_zones);
 			if (!args->conv_zones_bitmap)
 				return -ENOMEM;
 		}
@@ -407,7 +407,7 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 	case BLK_ZONE_TYPE_SEQWRITE_PREF:
 		if (!args->seq_zones_wlock) {
 			args->seq_zones_wlock =
-				blk_alloc_zone_bitmap(q->node, args->nr_zones);
+				blk_alloc_zone_bitmap(q->yesde, args->nr_zones);
 			if (!args->seq_zones_wlock)
 				return -ENOMEM;
 		}
@@ -427,7 +427,7 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
  * @disk:	Target disk
  *
  * Helper function for low-level device drivers to (re) allocate and initialize
- * a disk request queue zone bitmaps. This functions should normally be called
+ * a disk request queue zone bitmaps. This functions should yesrmally be called
  * within the disk ->revalidate method for blk-mq based drivers.  For BIO based
  * drivers only q->nr_zones needs to be updated so that the sysfs exposed value
  * is correct.
@@ -438,7 +438,7 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	struct blk_revalidate_zone_args args = {
 		.disk		= disk,
 	};
-	unsigned int noio_flag;
+	unsigned int yesio_flag;
 	int ret;
 
 	if (WARN_ON_ONCE(!blk_queue_is_zoned(q)))
@@ -450,14 +450,14 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	 * Ensure that all memory allocations in this context are done as if
 	 * GFP_NOIO was specified.
 	 */
-	noio_flag = memalloc_noio_save();
+	yesio_flag = memalloc_yesio_save();
 	ret = disk->fops->report_zones(disk, 0, UINT_MAX,
 				       blk_revalidate_zone_cb, &args);
-	memalloc_noio_restore(noio_flag);
+	memalloc_yesio_restore(yesio_flag);
 
 	/*
 	 * Install the new bitmaps and update nr_zones only once the queue is
-	 * stopped and all I/Os are completed (i.e. a scheduler is not
+	 * stopped and all I/Os are completed (i.e. a scheduler is yest
 	 * referencing the bitmaps).
 	 */
 	blk_mq_freeze_queue(q);

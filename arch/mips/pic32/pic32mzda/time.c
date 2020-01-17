@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Joshua Henderson <joshua.henderson@microchip.com>
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techyeslogy Inc.  All rights reserved.
  */
 #include <linux/clk-provider.h>
 #include <linux/clocksource.h>
@@ -23,15 +23,15 @@ static const struct of_device_id pic32_infra_match[] = {
 
 static unsigned int pic32_xlate_core_timer_irq(void)
 {
-	static struct device_node *node;
+	static struct device_yesde *yesde;
 	unsigned int irq;
 
-	node = of_find_matching_node(NULL, pic32_infra_match);
+	yesde = of_find_matching_yesde(NULL, pic32_infra_match);
 
-	if (WARN_ON(!node))
+	if (WARN_ON(!yesde))
 		goto default_map;
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (!irq)
 		goto default_map;
 

@@ -20,15 +20,15 @@ ENTRY(__c6xabi_divremi)
 
    [B0]	addkpc	.s2	_divu_ret_1, B3, 1
   [!B0] addkpc	.s2	_divu_ret_2, B3, 1
-	nop	2
+	yesp	2
 _divu_ret_1:
 	neg	.l1	A4, A4
 _divu_ret_2:
 	ldw	.d2t2	*++B15[2], B3
 
 	mpy32	.m1x	A4, B2, A6
-	nop		3
+	yesp		3
 	ret	.s2	B3
 	sub	.l1	A5, A6, A5
-	nop	4
+	yesp	4
 ENDPROC(__c6xabi_divremi)

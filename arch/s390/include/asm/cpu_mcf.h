@@ -16,7 +16,7 @@ enum cpumf_ctr_set {
 	CPUMF_CTR_SET_USER    = 1,    /* Problem-State Counter Set */
 	CPUMF_CTR_SET_CRYPTO  = 2,    /* Crypto-Activity Counter Set */
 	CPUMF_CTR_SET_EXT     = 3,    /* Extended Counter Set */
-	CPUMF_CTR_SET_MT_DIAG = 4,    /* MT-diagnostic Counter Set */
+	CPUMF_CTR_SET_MT_DIAG = 4,    /* MT-diagyesstic Counter Set */
 
 	/* Maximum number of counter sets */
 	CPUMF_CTR_SET_MAX,

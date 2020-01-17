@@ -17,7 +17,7 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -145,7 +145,7 @@ static int gxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		return -EINVAL;
 	var->transp.offset = 0; var->transp.length = 0;
 
-	/* Enough video memory? */
+	/* Eyesugh video memory? */
 	if (gx_line_delta(var->xres, var->bits_per_pixel) * var->yres > info->fix.smem_len)
 		return -EINVAL;
 
@@ -175,7 +175,7 @@ static inline u_int chan_to_field(u_int chan, struct fb_bitfield *bf)
 	return chan << bf->offset;
 }
 
-static int gxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int gxfb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
@@ -189,19 +189,19 @@ static int gxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		u32 *pal = info->pseudo_palette;
 		u32 v;
 
-		if (regno >= 16)
+		if (regyes >= 16)
 			return -EINVAL;
 
 		v  = chan_to_field(red, &info->var.red);
 		v |= chan_to_field(green, &info->var.green);
 		v |= chan_to_field(blue, &info->var.blue);
 
-		pal[regno] = v;
+		pal[regyes] = v;
 	} else {
-		if (regno >= 256)
+		if (regyes >= 256)
 			return -EINVAL;
 
-		gx_set_hw_palette_reg(info, regno, red, green, blue);
+		gx_set_hw_palette_reg(info, regyes, red, green, blue);
 	}
 
 	return 0;
@@ -271,7 +271,7 @@ static struct fb_ops gxfb_ops = {
 	.fb_set_par	= gxfb_set_par,
 	.fb_setcolreg	= gxfb_setcolreg,
 	.fb_blank       = gxfb_blank,
-	/* No HW acceleration for now. */
+	/* No HW acceleration for yesw. */
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
@@ -282,7 +282,7 @@ static struct fb_info *gxfb_init_fbinfo(struct device *dev)
 	struct gxfb_par *par;
 	struct fb_info *info;
 
-	/* Alloc enough space for the pseudo palette. */
+	/* Alloc eyesugh space for the pseudo palette. */
 	info = framebuffer_alloc(sizeof(struct gxfb_par) + sizeof(u32) * 16,
 			dev);
 	if (!info)
@@ -299,7 +299,7 @@ static struct fb_info *gxfb_init_fbinfo(struct device *dev)
 	info->fix.ywrapstep	= 0;
 	info->fix.accel		= FB_ACCEL_NONE;
 
-	info->var.nonstd	= 0;
+	info->var.yesnstd	= 0;
 	info->var.activate	= FB_ACTIVATE_NOW;
 	info->var.height	= -1;
 	info->var.width	= -1;
@@ -308,7 +308,7 @@ static struct fb_info *gxfb_init_fbinfo(struct device *dev)
 
 	info->fbops		= &gxfb_ops;
 	info->flags		= FBINFO_DEFAULT;
-	info->node		= -1;
+	info->yesde		= -1;
 
 	info->pseudo_palette	= (void *)par + sizeof(struct gxfb_par);
 
@@ -334,7 +334,7 @@ static int gxfb_suspend(struct pci_dev *pdev, pm_message_t state)
 		console_unlock();
 	}
 
-	/* there's no point in setting PCI states; we emulate PCI, so
+	/* there's yes point in setting PCI states; we emulate PCI, so
 	 * we don't end up getting power savings anyways */
 
 	return 0;
@@ -391,7 +391,7 @@ static int gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = fb_find_mode(&info->var, info, mode_option,
 			   modedb_ptr, modedb_size, NULL, 16);
 	if (ret == 0 || ret == 4) {
-		dev_err(&pdev->dev, "could not find valid video mode\n");
+		dev_err(&pdev->dev, "could yest find valid video mode\n");
 		ret = -EINVAL;
 		goto err;
 	}

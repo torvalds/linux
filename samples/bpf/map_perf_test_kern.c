@@ -29,7 +29,7 @@ struct bpf_map_def_legacy SEC("maps") lru_hash_map = {
 	.max_entries = 10000,
 };
 
-struct bpf_map_def_legacy SEC("maps") nocommon_lru_hash_map = {
+struct bpf_map_def_legacy SEC("maps") yescommon_lru_hash_map = {
 	.type = BPF_MAP_TYPE_LRU_HASH,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
@@ -43,7 +43,7 @@ struct bpf_map_def_legacy SEC("maps") inner_lru_hash_map = {
 	.value_size = sizeof(long),
 	.max_entries = MAX_ENTRIES,
 	.map_flags = BPF_F_NUMA_NODE,
-	.numa_node = 0,
+	.numa_yesde = 0,
 };
 
 struct bpf_map_def_legacy SEC("maps") array_of_lru_hashs = {
@@ -197,20 +197,20 @@ int stress_lru_hmap_alloc(struct pt_regs *ctx)
 	if (test_case == 0) {
 		ret = bpf_map_update_elem(&lru_hash_map, &key, &val, BPF_ANY);
 	} else if (test_case == 1) {
-		ret = bpf_map_update_elem(&nocommon_lru_hash_map, &key, &val,
+		ret = bpf_map_update_elem(&yescommon_lru_hash_map, &key, &val,
 					  BPF_ANY);
 	} else if (test_case == 2) {
-		void *nolocal_lru_map;
+		void *yeslocal_lru_map;
 		int cpu = bpf_get_smp_processor_id();
 
-		nolocal_lru_map = bpf_map_lookup_elem(&array_of_lru_hashs,
+		yeslocal_lru_map = bpf_map_lookup_elem(&array_of_lru_hashs,
 						      &cpu);
-		if (!nolocal_lru_map) {
+		if (!yeslocal_lru_map) {
 			ret = -ENOENT;
 			goto done;
 		}
 
-		ret = bpf_map_update_elem(nolocal_lru_map, &key, &val,
+		ret = bpf_map_update_elem(yeslocal_lru_map, &key, &val,
 					  BPF_ANY);
 	} else if (test_case == 3) {
 		u32 i;

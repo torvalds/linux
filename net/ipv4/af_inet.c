@@ -16,10 +16,10 @@
  *		piggy,
  *		Karl Knutson	:	Socket protocol table
  *		A.N.Kuznetsov	:	Socket death error in accept().
- *		John Richardson :	Fix non blocking error in connect()
+ *		John Richardson :	Fix yesn blocking error in connect()
  *					so sockets that fail to connect
  *					don't return -EINPROGRESS.
- *		Alan Cox	:	Asynchronous I/O support
+ *		Alan Cox	:	Asynchroyesus I/O support
  *		Alan Cox	:	Keep correct socket pointer on sock
  *					structures
  *					when accept() ed
@@ -39,18 +39,18 @@
  *		Alan Cox	:	routing cache support
  *		Alan Cox	:	memzero the socket structure for
  *					compactness.
- *		Matt Day	:	nonblock connect error handler
+ *		Matt Day	:	yesnblock connect error handler
  *		Alan Cox	:	Allow large numbers of pending sockets
  *					(eg for big web sites), but only if
  *					specifically application requested.
  *		Alan Cox	:	New buffering throughout IP. Used
  *					dumbly.
- *		Alan Cox	:	New buffering now used smartly.
+ *		Alan Cox	:	New buffering yesw used smartly.
  *		Alan Cox	:	BSD rather than common sense
  *					interpretation of listen.
- *		Germano Caronni	:	Assorted small races.
+ *		Germayes Caronni	:	Assorted small races.
  *		Alan Cox	:	sendmsg/recvmsg basic support.
- *		Alan Cox	:	Only sendmsg/recvmsg now supported.
+ *		Alan Cox	:	Only sendmsg/recvmsg yesw supported.
  *		Alan Cox	:	Locked down bind (see security list).
  *		Alan Cox	:	Loosened bind a little.
  *		Mike McLagan	:	ADD/DEL DLCI Ioctls
@@ -64,7 +64,7 @@
 #define pr_fmt(fmt) "IPv4: " fmt
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -267,7 +267,7 @@ lookup_protocol:
 	list_for_each_entry_rcu(answer, &inetsw[sock->type], list) {
 
 		err = 0;
-		/* Check the non-wild match. */
+		/* Check the yesn-wild match. */
 		if (protocol == answer->protocol) {
 			if (protocol != IPPROTO_IP)
 				break;
@@ -329,7 +329,7 @@ lookup_protocol:
 	inet = inet_sk(sk);
 	inet->is_icsk = (INET_PROTOSW_ICSK & answer_flags) != 0;
 
-	inet->nodefrag = 0;
+	inet->yesdefrag = 0;
 
 	if (SOCK_RAW == sock->type) {
 		inet->inet_num = protocol;
@@ -337,7 +337,7 @@ lookup_protocol:
 			inet->hdrincl = 1;
 	}
 
-	if (net->ipv4.sysctl_ip_no_pmtu_disc)
+	if (net->ipv4.sysctl_ip_yes_pmtu_disc)
 		inet->pmtudisc = IP_PMTUDISC_DONT;
 	else
 		inet->pmtudisc = IP_PMTUDISC_WANT;
@@ -400,7 +400,7 @@ out_rcu_unlock:
 
 /*
  *	The peer socket should always be NULL (or else). When we call this
- *	function we are destroying the object and from then on nobody
+ *	function we are destroying the object and from then on yesbody
  *	should refer to it.
  */
 int inet_release(struct socket *sock)
@@ -455,7 +455,7 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 EXPORT_SYMBOL(inet_bind);
 
 int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
-		bool force_bind_address_no_port, bool with_lock)
+		bool force_bind_address_yes_port, bool with_lock)
 {
 	struct sockaddr_in *addr = (struct sockaddr_in *)uaddr;
 	struct inet_sock *inet = inet_sk(sk);
@@ -480,13 +480,13 @@ int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 
 	/* Not specified by any standard per-se, however it breaks too
 	 * many applications when removed.  It is unfortunate since
-	 * allowing applications to make a non-local bind solves
+	 * allowing applications to make a yesn-local bind solves
 	 * several problems with systems using dynamic addressing.
 	 * (ie. your servers still start up even if your ISDN link
 	 *  is temporarily down)
 	 */
 	err = -EADDRNOTAVAIL;
-	if (!inet_can_nonlocal_bind(net, inet) &&
+	if (!inet_can_yesnlocal_bind(net, inet) &&
 	    addr->sin_addr.s_addr != htonl(INADDR_ANY) &&
 	    chk_addr_ret != RTN_LOCAL &&
 	    chk_addr_ret != RTN_MULTICAST &&
@@ -519,8 +519,8 @@ int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		inet->inet_saddr = 0;  /* Use device */
 
 	/* Make sure we are allowed to bind here. */
-	if (snum || !(inet->bind_address_no_port ||
-		      force_bind_address_no_port)) {
+	if (snum || !(inet->bind_address_yes_port ||
+		      force_bind_address_yes_port)) {
 		if (sk->sk_prot->get_port(sk, snum)) {
 			inet->inet_saddr = inet->inet_rcv_saddr = 0;
 			err = -EADDRINUSE;
@@ -581,7 +581,7 @@ static long inet_wait_for_connect(struct sock *sk, long timeo, int writebias)
 
 	/* Basic assumption: if someone sets sk->sk_err, he _must_
 	 * change state of the socket from TCP_SYN_*.
-	 * Connect() does not allow to get error notifications
+	 * Connect() does yest allow to get error yestifications
 	 * without closing the socket.
 	 */
 	while ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
@@ -662,7 +662,7 @@ int __inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 			goto out;
 
 		/* Just entered SS_CONNECTING state; the only
-		 * difference is that return value in non-blocking
+		 * difference is that return value in yesn-blocking
 		 * case is EINPROGRESS, rather than EALREADY.
 		 */
 		err = -EINPROGRESS;
@@ -680,20 +680,20 @@ int __inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 		if (!timeo || !inet_wait_for_connect(sk, timeo, writebias))
 			goto out;
 
-		err = sock_intr_errno(timeo);
+		err = sock_intr_erryes(timeo);
 		if (signal_pending(current))
 			goto out;
 	}
 
 	/* Connection was closed by RST, timeout, ICMP error
-	 * or another process disconnected us.
+	 * or ayesther process disconnected us.
 	 */
 	if (sk->sk_state == TCP_CLOSE)
 		goto sock_error;
 
-	/* sk->sk_err may be not zero now, if RECVERR was ordered by user
+	/* sk->sk_err may be yest zero yesw, if RECVERR was ordered by user
 	 * and error was received after socket entered established state.
-	 * Hence, it is handled normally after connect() return successfully.
+	 * Hence, it is handled yesrmally after connect() return successfully.
 	 */
 
 	sock->state = SS_CONNECTED;
@@ -723,7 +723,7 @@ int inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 EXPORT_SYMBOL(inet_stream_connect);
 
 /*
- *	Accept a pending connection. The TCP layer now gives BSD semantics.
+ *	Accept a pending connection. The TCP layer yesw gives BSD semantics.
  */
 
 int inet_accept(struct socket *sock, struct socket *newsock, int flags,
@@ -789,7 +789,7 @@ int inet_send_prepare(struct sock *sk)
 	sock_rps_record_flow(sk);
 
 	/* We may need to bind the socket. */
-	if (!inet_sk(sk)->inet_num && !sk->sk_prot->no_autobind &&
+	if (!inet_sk(sk)->inet_num && !sk->sk_prot->yes_autobind &&
 	    inet_autobind(sk))
 		return -EAGAIN;
 
@@ -819,7 +819,7 @@ ssize_t inet_sendpage(struct socket *sock, struct page *page, int offset,
 
 	if (sk->sk_prot->sendpage)
 		return sk->sk_prot->sendpage(sk, page, offset, size, flags);
-	return sock_no_sendpage(sock, page, offset, size, flags);
+	return sock_yes_sendpage(sock, page, offset, size, flags);
 }
 EXPORT_SYMBOL(inet_sendpage);
 
@@ -880,8 +880,8 @@ int inet_shutdown(struct socket *sock, int how)
 		break;
 
 	/* Remaining two branches are temporary solution for missing
-	 * close() in multithreaded environment. It is _not_ a good idea,
-	 * but we have no choice until close() is repaired at VFS level.
+	 * close() in multithreaded environment. It is _yest_ a good idea,
+	 * but we have yes choice until close() is repaired at VFS level.
 	 */
 	case TCP_LISTEN:
 		if (!(how & RCV_SHUTDOWN))
@@ -986,7 +986,7 @@ const struct proto_ops inet_stream_ops = {
 	.release	   = inet_release,
 	.bind		   = inet_bind,
 	.connect	   = inet_stream_connect,
-	.socketpair	   = sock_no_socketpair,
+	.socketpair	   = sock_yes_socketpair,
 	.accept		   = inet_accept,
 	.getname	   = inet_getname,
 	.poll		   = tcp_poll,
@@ -1022,19 +1022,19 @@ const struct proto_ops inet_dgram_ops = {
 	.release	   = inet_release,
 	.bind		   = inet_bind,
 	.connect	   = inet_dgram_connect,
-	.socketpair	   = sock_no_socketpair,
-	.accept		   = sock_no_accept,
+	.socketpair	   = sock_yes_socketpair,
+	.accept		   = sock_yes_accept,
 	.getname	   = inet_getname,
 	.poll		   = udp_poll,
 	.ioctl		   = inet_ioctl,
 	.gettstamp	   = sock_gettstamp,
-	.listen		   = sock_no_listen,
+	.listen		   = sock_yes_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.recvmsg	   = inet_recvmsg,
-	.mmap		   = sock_no_mmap,
+	.mmap		   = sock_yes_mmap,
 	.sendpage	   = inet_sendpage,
 	.set_peek_off	   = sk_set_peek_off,
 #ifdef CONFIG_COMPAT
@@ -1055,19 +1055,19 @@ static const struct proto_ops inet_sockraw_ops = {
 	.release	   = inet_release,
 	.bind		   = inet_bind,
 	.connect	   = inet_dgram_connect,
-	.socketpair	   = sock_no_socketpair,
-	.accept		   = sock_no_accept,
+	.socketpair	   = sock_yes_socketpair,
+	.accept		   = sock_yes_accept,
 	.getname	   = inet_getname,
 	.poll		   = datagram_poll,
 	.ioctl		   = inet_ioctl,
 	.gettstamp	   = sock_gettstamp,
-	.listen		   = sock_no_listen,
+	.listen		   = sock_yes_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.recvmsg	   = inet_recvmsg,
-	.mmap		   = sock_no_mmap,
+	.mmap		   = sock_yes_mmap,
 	.sendpage	   = inet_sendpage,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
@@ -1139,7 +1139,7 @@ void inet_register_protosw(struct inet_protosw *p)
 	last_perm = &inetsw[p->type];
 	list_for_each(lh, &inetsw[p->type]) {
 		answer = list_entry(lh, struct inet_protosw, list);
-		/* Check only the non-wild match. */
+		/* Check only the yesn-wild match. */
 		if ((INET_PROTOSW_PERMANENT & answer->flags) == 0)
 			break;
 		if (protocol == answer->protocol)
@@ -1148,9 +1148,9 @@ void inet_register_protosw(struct inet_protosw *p)
 	}
 
 	/* Add the new entry after the last permanent entry if any, so that
-	 * the new entry does not override a permanent entry when matched with
+	 * the new entry does yest override a permanent entry when matched with
 	 * a wild-card protocol. But it is allowed to override any existing
-	 * non-permanent entry.  This means that when we remove this entry, the
+	 * yesn-permanent entry.  This means that when we remove this entry, the
 	 * system automatically returns to the old behavior.
 	 */
 	list_add_rcu(&p->list, last_perm);
@@ -1164,7 +1164,7 @@ out_permanent:
 	goto out;
 
 out_illegal:
-	pr_err("Ignoring attempt to register invalid socket type %d\n",
+	pr_err("Igyesring attempt to register invalid socket type %d\n",
 	       p->type);
 	goto out;
 }
@@ -1227,7 +1227,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	 * XXX really change the sockets identity after
 	 * XXX it has entered the hashes. -DaveM
 	 *
-	 * Besides that, it does not check for connection
+	 * Besides that, it does yest check for connection
 	 * uniqueness. Wait for troubles.
 	 */
 	return __sk_prot_rehash(sk);
@@ -1242,7 +1242,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 	struct flowi4 *fl4;
 	int err;
 
-	/* Route is OK, nothing to do. */
+	/* Route is OK, yesthing to do. */
 	if (rt)
 		return 0;
 
@@ -1320,7 +1320,7 @@ struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 	id = ntohs(iph->id);
 	proto = iph->protocol;
 
-	/* Warning: after this point, iph might be no longer valid */
+	/* Warning: after this point, iph might be yes longer valid */
 	if (unlikely(!pskb_may_pull(skb, ihl)))
 		goto out;
 	__skb_pull(skb, ihl);
@@ -1338,7 +1338,7 @@ struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		udpfrag = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP);
 		fixedid = !!(skb_shinfo(skb)->gso_type & SKB_GSO_TCP_FIXEDID);
 
-		/* fixed ID is invalid if DF bit is not set */
+		/* fixed ID is invalid if DF bit is yest set */
 		if (fixedid && !(ip_hdr(skb)->frag_off & htons(IP_DF)))
 			goto out;
 	}
@@ -1480,9 +1480,9 @@ struct sk_buff *inet_gro_receive(struct list_head *head, struct sk_buff *skb)
 		flush_id = (u16)(id - ntohs(iph2->id));
 
 		/* This bit of code makes it much easier for us to identify
-		 * the cases where we are doing atomic vs non-atomic IP ID
+		 * the cases where we are doing atomic vs yesn-atomic IP ID
 		 * checks.  Specifically an atomic check can return IP ID
-		 * values 0 - 0xFFFF, while a non-atomic check can only
+		 * values 0 - 0xFFFF, while a yesn-atomic check can only
 		 * return 0 or 0xFFFF.
 		 */
 		if (!NAPI_GRO_CB(p)->is_atomic ||
@@ -1492,7 +1492,7 @@ struct sk_buff *inet_gro_receive(struct list_head *head, struct sk_buff *skb)
 		}
 
 		/* If the previous IP ID value was based on an atomic
-		 * datagram we can overwrite the value and ignore it.
+		 * datagram we can overwrite the value and igyesre it.
 		 */
 		if (NAPI_GRO_CB(skb)->is_atomic)
 			NAPI_GRO_CB(p)->flush_id = flush_id;
@@ -1632,8 +1632,8 @@ int inet_ctl_sock_create(struct sock **sk, unsigned short family,
 		*sk = sock->sk;
 		(*sk)->sk_allocation = GFP_ATOMIC;
 		/*
-		 * Unhash it so that IP input processing does not even see it,
-		 * we do not wish this socket to see incoming packets.
+		 * Unhash it so that IP input processing does yest even see it,
+		 * we do yest wish this socket to see incoming packets.
 		 */
 		(*sk)->sk_prot->unhash(*sk);
 	}
@@ -1707,7 +1707,7 @@ static struct net_protocol tcp_protocol = {
 	.early_demux_handler =  tcp_v4_early_demux,
 	.handler	=	tcp_v4_rcv,
 	.err_handler	=	tcp_v4_err,
-	.no_policy	=	1,
+	.yes_policy	=	1,
 	.netns_ok	=	1,
 	.icmp_strict_tag_validation = 1,
 };
@@ -1720,14 +1720,14 @@ static struct net_protocol udp_protocol = {
 	.early_demux_handler =	udp_v4_early_demux,
 	.handler =	udp_rcv,
 	.err_handler =	udp_err,
-	.no_policy =	1,
+	.yes_policy =	1,
 	.netns_ok =	1,
 };
 
 static const struct net_protocol icmp_protocol = {
 	.handler =	icmp_rcv,
 	.err_handler =	icmp_err,
-	.no_policy =	1,
+	.yes_policy =	1,
 	.netns_ok =	1,
 };
 
@@ -1816,14 +1816,14 @@ static __net_init int inet_init_net(struct net *net)
 
 	seqlock_init(&net->ipv4.ping_group_range.lock);
 	/*
-	 * Sane defaults - nobody may create ping sockets.
+	 * Sane defaults - yesbody may create ping sockets.
 	 * Boot scripts should set this to distro-specific group.
 	 */
 	net->ipv4.ping_group_range.range[0] = make_kgid(&init_user_ns, 1);
 	net->ipv4.ping_group_range.range[1] = make_kgid(&init_user_ns, 0);
 
 	/* Default values for sysctl-controlled parameters.
-	 * We set them here, in case sysctl is not compiled.
+	 * We set them here, in case sysctl is yest compiled.
 	 */
 	net->ipv4.sysctl_ip_default_ttl = IPDEFTTL;
 	net->ipv4.sysctl_ip_fwd_update_priority = 1;
@@ -1888,11 +1888,11 @@ static int __init ipv4_offload_init(void)
 	 * Add offloads
 	 */
 	if (udpv4_offload_init() < 0)
-		pr_crit("%s: Cannot add UDP protocol offload\n", __func__);
+		pr_crit("%s: Canyest add UDP protocol offload\n", __func__);
 	if (tcpv4_offload_init() < 0)
-		pr_crit("%s: Cannot add TCP protocol offload\n", __func__);
+		pr_crit("%s: Canyest add TCP protocol offload\n", __func__);
 	if (ipip_offload_init() < 0)
-		pr_crit("%s: Cannot add IPIP protocol offload\n", __func__);
+		pr_crit("%s: Canyest add IPIP protocol offload\n", __func__);
 
 	dev_add_offload(&ip_packet_offload);
 	return 0;
@@ -1945,14 +1945,14 @@ static int __init inet_init(void)
 	 */
 
 	if (inet_add_protocol(&icmp_protocol, IPPROTO_ICMP) < 0)
-		pr_crit("%s: Cannot add ICMP protocol\n", __func__);
+		pr_crit("%s: Canyest add ICMP protocol\n", __func__);
 	if (inet_add_protocol(&udp_protocol, IPPROTO_UDP) < 0)
-		pr_crit("%s: Cannot add UDP protocol\n", __func__);
+		pr_crit("%s: Canyest add UDP protocol\n", __func__);
 	if (inet_add_protocol(&tcp_protocol, IPPROTO_TCP) < 0)
-		pr_crit("%s: Cannot add TCP protocol\n", __func__);
+		pr_crit("%s: Canyest add TCP protocol\n", __func__);
 #ifdef CONFIG_IP_MULTICAST
 	if (inet_add_protocol(&igmp_protocol, IPPROTO_IGMP) < 0)
-		pr_crit("%s: Cannot add IGMP protocol\n", __func__);
+		pr_crit("%s: Canyest add IGMP protocol\n", __func__);
 #endif
 
 	/* Register the socket-side information for inet_create. */
@@ -1999,17 +1999,17 @@ static int __init inet_init(void)
 	 */
 #if defined(CONFIG_IP_MROUTE)
 	if (ip_mr_init())
-		pr_crit("%s: Cannot init ipv4 mroute\n", __func__);
+		pr_crit("%s: Canyest init ipv4 mroute\n", __func__);
 #endif
 
 	if (init_inet_pernet_ops())
-		pr_crit("%s: Cannot init ipv4 inet pernet ops\n", __func__);
+		pr_crit("%s: Canyest init ipv4 inet pernet ops\n", __func__);
 	/*
 	 *	Initialise per-cpu ipv4 mibs
 	 */
 
 	if (init_ipv4_mibs())
-		pr_crit("%s: Cannot init ipv4 mibs\n", __func__);
+		pr_crit("%s: Canyest init ipv4 mibs\n", __func__);
 
 	ipv4_proc_init();
 

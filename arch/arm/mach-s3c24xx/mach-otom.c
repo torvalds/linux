@@ -56,7 +56,7 @@ static struct s3c2410_uartcfg otom11_uartcfgs[] __initdata = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 	},
-	/* port 2 is not actually used */
+	/* port 2 is yest actually used */
 	[2] = {
 		.hwport	     = 2,
 		.flags	     = 0,
@@ -68,15 +68,15 @@ static struct s3c2410_uartcfg otom11_uartcfgs[] __initdata = {
 
 /* NOR Flash on NexVision OTOM board */
 
-static struct resource otom_nor_resource[] = {
+static struct resource otom_yesr_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C2410_CS0, SZ_4M),
 };
 
-static struct platform_device otom_device_nor = {
+static struct platform_device otom_device_yesr = {
 	.name		= "mtd-flash",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(otom_nor_resource),
-	.resource	= otom_nor_resource,
+	.num_resources	= ARRAY_SIZE(otom_yesr_resource),
+	.resource	= otom_yesr_resource,
 };
 
 /* Standard OTOM devices */
@@ -88,7 +88,7 @@ static struct platform_device *otom11_devices[] __initdata = {
 	&s3c_device_i2c0,
 	&s3c_device_iis,
  	&s3c_device_rtc,
-	&otom_device_nor,
+	&otom_device_yesr,
 };
 
 static void __init otom11_map_io(void)

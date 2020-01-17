@@ -216,7 +216,7 @@ static void _rtl8723be_config_rf_reg(struct ieee80211_hw *hw, u32 addr,
 				     u32 regaddr)
 {
 	if (addr == 0xfe || addr == 0xffe) {
-		/* In order not to disturb BT music
+		/* In order yest to disturb BT music
 		 *	when wifi init.(1ant NIC only)
 		 */
 		mdelay(50);
@@ -572,7 +572,7 @@ static bool rtl8723be_phy_config_with_headerfile(struct ieee80211_hw *hw,
 					}
 				}
 			} else if (v1 & BIT(30)) { /*negative condition*/
-			/*do nothing*/
+			/*do yesthing*/
 			}
 		} else {
 			if (matched)
@@ -763,7 +763,7 @@ bool rtl8723be_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 		break;
 	case RF90_PATH_D:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case %#x not processed\n", rfpath);
+			 "switch case %#x yest processed\n", rfpath);
 		break;
 	}
 	return ret;
@@ -1172,7 +1172,7 @@ void rtl8723be_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
 						      (u8 *)&iotype);
 			break;
 		default:
-			pr_err("Unknown Scan Backup operation.\n");
+			pr_err("Unkyeswn Scan Backup operation.\n");
 			break;
 		}
 	}
@@ -1213,7 +1213,7 @@ void rtl8723be_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, REG_RRSR + 2, reg_prsr_rsc);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkyeswn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -1238,7 +1238,7 @@ void rtl8723be_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 			       HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkyeswn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -1429,7 +1429,7 @@ static bool _rtl8723be_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case %#x not processed\n",
+				 "switch case %#x yest processed\n",
 				 currentcmd->cmdid);
 			break;
 		}
@@ -1495,7 +1495,7 @@ static u8 _rtl8723be_phy_path_a_iqk(struct ieee80211_hw *hw)
 	    (((reg_e94 & 0x03FF0000) >> 16) != 0x142) &&
 	    (((reg_e9c & 0x03FF0000) >> 16) != 0x42))
 		result |= 0x01;
-	else /* if Tx not OK, ignore Rx */
+	else /* if Tx yest OK, igyesre Rx */
 		return result;
 
 	/* Allen 20131125 */
@@ -1508,7 +1508,7 @@ static u8 _rtl8723be_phy_path_a_iqk(struct ieee80211_hw *hw)
 	    (((reg_e94 & 0x03FF0000) >> 16) > 0xf0) &&
 	    (tmp < 0xf))
 		result |= 0x01;
-	else /* if Tx not OK, ignore Rx */
+	else /* if Tx yest OK, igyesre Rx */
 		return result;
 
 	return result;
@@ -1574,7 +1574,7 @@ static u8 _rtl8723be_phy_path_a_rx_iqk(struct ieee80211_hw *hw)
 	    (((reg_e94 & 0x03FF0000) >> 16) != 0x142) &&
 	    (((reg_e9c & 0x03FF0000) >> 16) != 0x42))
 		result |= 0x01;
-	else /* if Tx not OK, ignore Rx */
+	else /* if Tx yest OK, igyesre Rx */
 		return result;
 
 	/* Allen 20131125 */
@@ -1587,7 +1587,7 @@ static u8 _rtl8723be_phy_path_a_rx_iqk(struct ieee80211_hw *hw)
 	    (((reg_e94 & 0x03FF0000) >> 16) > 0xf0) &&
 	    (tmp < 0xf))
 		result |= 0x01;
-	else /* if Tx not OK, ignore Rx */
+	else /* if Tx yest OK, igyesre Rx */
 		return result;
 
 	u32tmp = 0x80007C00 | (reg_e94 & 0x3FF0000) |
@@ -1793,7 +1793,7 @@ static u8 _rtl8723be_phy_path_b_rx_iqk(struct ieee80211_hw *hw)
 	    (((reg_e94 & 0x03FF0000) >> 16) != 0x142) &&
 	    (((reg_e9c & 0x03FF0000) >> 16) != 0x42))
 		result |= 0x01;
-	else	/* if Tx not OK, ignore Rx */
+	else	/* if Tx yest OK, igyesre Rx */
 		return result;
 
 	/* Allen 20131125 */
@@ -2207,9 +2207,9 @@ static void _rtl8723be_phy_lc_calibrate(struct ieee80211_hw *hw, bool is2t)
 	rtl_set_rfreg(hw, RF90_PATH_A, 0xb0, RFREG_OFFSET_MASK, 0xdfbe0);
 	rtl_set_rfreg(hw, RF90_PATH_A, 0x18, MASK12BITS, 0x8c0a);
 
-	/* In order not to disturb BT music when wifi init.(1ant NIC only) */
+	/* In order yest to disturb BT music when wifi init.(1ant NIC only) */
 	/*mdelay(100);*/
-	/* In order not to disturb BT music when wifi init.(1ant NIC only) */
+	/* In order yest to disturb BT music when wifi init.(1ant NIC only) */
 	mdelay(50);
 
 	rtl_set_rfreg(hw, RF90_PATH_A, 0xb0, RFREG_OFFSET_MASK, 0xdffe0);
@@ -2435,7 +2435,7 @@ bool rtl8723be_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype)
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case %#x not processed\n", iotype);
+				 "switch case %#x yest processed\n", iotype);
 			break;
 		}
 	} while (false);
@@ -2473,7 +2473,7 @@ static void rtl8723be_phy_set_io(struct ieee80211_hw *hw)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case %#x not processed\n",
+			 "switch case %#x yest processed\n",
 			 rtlphy->current_io_type);
 		break;
 	}
@@ -2547,7 +2547,7 @@ static bool _rtl8723be_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		     queue_id < RTL_PCI_MAX_TX_QUEUE_COUNT;) {
 			ring = &pcipriv->dev.tx_ring[queue_id];
 			/* Don't check BEACON Q.
-			 * BEACON Q is always not empty,
+			 * BEACON Q is always yest empty,
 			 * because '_rtl8723be_cmd_send_packet'
 			 */
 			if (queue_id == BEACON_QUEUE ||
@@ -2626,7 +2626,7 @@ static bool _rtl8723be_phy_set_rf_power_state(struct ieee80211_hw *hw,
 
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case %#x not processed\n", rfpwr_state);
+			 "switch case %#x yest processed\n", rfpwr_state);
 		bresult = false;
 		break;
 	}

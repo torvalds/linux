@@ -12,7 +12,7 @@
 #include <linux/ata.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/ide.h>
@@ -44,7 +44,7 @@ struct ide_acpi_hwif_link {
 };
 
 #undef DEBUGGING
-/* note: adds function name and KERN_DEBUG */
+/* yeste: adds function name and KERN_DEBUG */
 #ifdef DEBUGGING
 #define DEBPRINT(fmt, args...)	\
 		printk(KERN_DEBUG "%s: " fmt, __func__, ## args)
@@ -52,9 +52,9 @@ struct ide_acpi_hwif_link {
 #define DEBPRINT(fmt, args...)	do {} while (0)
 #endif	/* DEBUGGING */
 
-static bool ide_noacpi;
-module_param_named(noacpi, ide_noacpi, bool, 0);
-MODULE_PARM_DESC(noacpi, "disable IDE ACPI support");
+static bool ide_yesacpi;
+module_param_named(yesacpi, ide_yesacpi, bool, 0);
+MODULE_PARM_DESC(yesacpi, "disable IDE ACPI support");
 
 static bool ide_acpigtf;
 module_param_named(acpigtf, ide_acpigtf, bool, 0);
@@ -64,10 +64,10 @@ static bool ide_acpionboot;
 module_param_named(acpionboot, ide_acpionboot, bool, 0);
 MODULE_PARM_DESC(acpionboot, "call IDE ACPI methods on boot");
 
-static bool ide_noacpi_psx;
-static int no_acpi_psx(const struct dmi_system_id *id)
+static bool ide_yesacpi_psx;
+static int yes_acpi_psx(const struct dmi_system_id *id)
 {
-	ide_noacpi_psx = true;
+	ide_yesacpi_psx = true;
 	printk(KERN_NOTICE"%s detected - disable ACPI _PSx.\n", id->ident);
 	return 0;
 }
@@ -76,10 +76,10 @@ static const struct dmi_system_id ide_acpi_dmi_table[] = {
 	/* Bug 9673. */
 	/* We should check if this is because ACPI NVS isn't save/restored. */
 	{
-		.callback = no_acpi_psx,
+		.callback = yes_acpi_psx,
 		.ident    = "HP nx9005",
 		.matches  = {
-			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies Ltd."),
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Techyeslogies Ltd."),
 			DMI_MATCH(DMI_BIOS_VERSION, "KAM1.60")
 		},
 	},
@@ -95,7 +95,7 @@ int ide_acpi_init(void)
 
 bool ide_port_acpi(ide_hwif_t *hwif)
 {
-	return ide_noacpi == 0 && hwif->acpidata;
+	return ide_yesacpi == 0 && hwif->acpidata;
 }
 
 static acpi_handle acpi_get_child(acpi_handle handle, u64 addr)
@@ -140,7 +140,7 @@ static int ide_get_dev_handle(struct device *dev, acpi_handle *handle,
 
 	dev_handle = ACPI_HANDLE(dev);
 	if (!dev_handle) {
-		DEBPRINT("no acpi handle for device\n");
+		DEBPRINT("yes acpi handle for device\n");
 		goto err;
 	}
 
@@ -188,7 +188,7 @@ static acpi_handle ide_acpi_hwif_get_handle(ide_hwif_t *hwif)
 	DEBPRINT("ENTER: device %s\n", hwif->name);
 
 	if (!dev) {
-		DEBPRINT("no PCI device for %s\n", hwif->name);
+		DEBPRINT("yes PCI device for %s\n", hwif->name);
 		return NULL;
 	}
 
@@ -214,10 +214,10 @@ static acpi_handle ide_acpi_hwif_get_handle(ide_hwif_t *hwif)
  * @gtf_length: number of bytes of _GTF data returned at @gtf_address
  * @gtf_address: buffer containing _GTF taskfile arrays
  *
- * The _GTF method has no input parameters.
+ * The _GTF method has yes input parameters.
  * It returns a variable number of register set values (registers
  * hex 1F1..1F7, taskfiles).
- * The <variable number> is not known in advance, so have ACPI-CA
+ * The <variable number> is yest kyeswn in advance, so have ACPI-CA
  * allocate the buffer as needed and return it, then free it later.
  *
  * The returned @gtf_length and @gtf_address are only valid if the
@@ -245,7 +245,7 @@ static int do_drive_get_GTF(ide_drive_t *drive,
 	output.length = ACPI_ALLOCATE_BUFFER;
 	output.pointer = NULL;	/* ACPI-CA sets this; save/free it later */
 
-	/* _GTF has no input parameters */
+	/* _GTF has yes input parameters */
 	err = -EIO;
 	status = acpi_evaluate_object(drive->acpidata->obj_handle, "_GTF",
 				      NULL, &output);
@@ -336,9 +336,9 @@ static int do_drive_set_taskfiles(ide_drive_t *drive,
 		cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
 		cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
 
-		err = ide_no_data_taskfile(drive, &cmd);
+		err = ide_yes_data_taskfile(drive, &cmd);
 		if (err) {
-			printk(KERN_ERR "%s: ide_no_data_taskfile failed: %u\n",
+			printk(KERN_ERR "%s: ide_yes_data_taskfile failed: %u\n",
 					__func__, err);
 			rc = err;
 		}
@@ -404,7 +404,7 @@ void ide_acpi_get_timing(ide_hwif_t *hwif)
 	output.length = ACPI_ALLOCATE_BUFFER;
 	output.pointer = NULL;	/* ACPI-CA sets this; save/free it later */
 
-	/* _GTM has no input parameters */
+	/* _GTM has yes input parameters */
 	status = acpi_evaluate_object(hwif->acpidata->obj_handle, "_GTM",
 				      NULL, &output);
 
@@ -494,7 +494,7 @@ void ide_acpi_push_timing(ide_hwif_t *hwif)
 	in_params[2].type = ACPI_TYPE_BUFFER;
 	in_params[2].buffer.length = ATA_ID_WORDS * 2;
 	in_params[2].buffer.pointer = (u8 *)&slave->idbuff;
-	/* Output buffer: _STM has no output */
+	/* Output buffer: _STM has yes output */
 
 	status = acpi_evaluate_object(hwif->acpidata->obj_handle, "_STM",
 				      &input, NULL);
@@ -518,7 +518,7 @@ void ide_acpi_set_state(ide_hwif_t *hwif, int on)
 	ide_drive_t *drive;
 	int i;
 
-	if (ide_noacpi_psx)
+	if (ide_yesacpi_psx)
 		return;
 
 	DEBPRINT("ENTER:\n");
@@ -542,9 +542,9 @@ void ide_acpi_set_state(ide_hwif_t *hwif, int on)
  * ide_acpi_init_port - initialize the ACPI link for an IDE interface
  * @hwif: target IDE interface (channel)
  *
- * The ACPI spec is not quite clear when the drive identify buffer
+ * The ACPI spec is yest quite clear when the drive identify buffer
  * should be obtained. Calling IDENTIFY DEVICE during shutdown
- * is not the best of ideas as the drive might already being put to
+ * is yest the best of ideas as the drive might already being put to
  * sleep. And obviously we can't call it during resume.
  * So we get the information during startup; but this means that
  * any changes during run-time will be lost after resume.
@@ -557,7 +557,7 @@ void ide_acpi_init_port(ide_hwif_t *hwif)
 
 	hwif->acpidata->obj_handle = ide_acpi_hwif_get_handle(hwif);
 	if (!hwif->acpidata->obj_handle) {
-		DEBPRINT("no ACPI object for %s found\n", hwif->name);
+		DEBPRINT("yes ACPI object for %s found\n", hwif->name);
 		kfree(hwif->acpidata);
 		hwif->acpidata = NULL;
 	}
@@ -574,7 +574,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 	/*
 	 * The ACPI spec mandates that we send information
 	 * for both drives, regardless whether they are connected
-	 * or not.
+	 * or yest.
 	 */
 	hwif->devices[0]->acpidata = &hwif->acpidata->master;
 	hwif->devices[1]->acpidata = &hwif->acpidata->slave;
@@ -603,7 +603,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 				 drive->name, err);
 	}
 
-	if (ide_noacpi || ide_acpionboot == 0) {
+	if (ide_yesacpi || ide_acpionboot == 0) {
 		DEBPRINT("ACPI methods disabled on boot\n");
 		return;
 	}

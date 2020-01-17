@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -42,8 +42,8 @@ acr_r361_generate_flcn_bl_desc(const struct nvkm_acr *acr,
 
 	desc->ctx_dma = FALCON_DMAIDX_UCODE;
 	desc->code_dma_base = u64_to_flcn64(addr_code);
-	desc->non_sec_code_off = pdesc->app_resident_code_offset;
-	desc->non_sec_code_size = pdesc->app_resident_code_size;
+	desc->yesn_sec_code_off = pdesc->app_resident_code_offset;
+	desc->yesn_sec_code_size = pdesc->app_resident_code_size;
 	desc->code_entry_point = pdesc->app_imem_entry;
 	desc->data_dma_base = u64_to_flcn64(addr_data);
 	desc->data_size = pdesc->app_resident_data_size;
@@ -57,8 +57,8 @@ acr_r361_generate_hs_bl_desc(const struct hsf_load_header *hdr, void *_bl_desc,
 
 	bl_desc->ctx_dma = FALCON_DMAIDX_VIRT;
 	bl_desc->code_dma_base = u64_to_flcn64(offset);
-	bl_desc->non_sec_code_off = hdr->non_sec_code_off;
-	bl_desc->non_sec_code_size = hdr->non_sec_code_size;
+	bl_desc->yesn_sec_code_off = hdr->yesn_sec_code_off;
+	bl_desc->yesn_sec_code_size = hdr->yesn_sec_code_size;
 	bl_desc->sec_code_off = hsf_load_header_app_off(hdr, 0);
 	bl_desc->sec_code_size = hsf_load_header_app_size(hdr, 0);
 	bl_desc->code_entry_point = 0;
@@ -169,7 +169,7 @@ acr_r361_generate_sec2_bl_desc(const struct nvkm_acr *acr,
 	u32 addr_args;
 
 	base = wpr_addr + img->ucode_off + pdesc->app_start_offset;
-	/* For some reason we should not add app_resident_code_offset here */
+	/* For some reason we should yest add app_resident_code_offset here */
 	addr_code = base;
 	addr_data = base + pdesc->app_resident_data_offset;
 	addr_args = sec->falcon->data.limit;

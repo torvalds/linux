@@ -26,12 +26,12 @@ obj-$(CONFIG_SA1100_JORNADA720_SSP)	+= jornada720_ssp.o
 
 obj-$(CONFIG_SA1100_LART)		+= lart.o
 
-obj-$(CONFIG_SA1100_NANOENGINE)		+= nanoengine.o
-obj-$(CONFIG_PCI_NANOENGINE)		+= pci-nanoengine.o
+obj-$(CONFIG_SA1100_NANOENGINE)		+= nayesengine.o
+obj-$(CONFIG_PCI_NANOENGINE)		+= pci-nayesengine.o
 
 obj-$(CONFIG_SA1100_PLEB)		+= pleb.o
 
-obj-$(CONFIG_SA1100_SHANNON)		+= shannon.o
+obj-$(CONFIG_SA1100_SHANNON)		+= shanyesn.o
 
 obj-$(CONFIG_SA1100_SIMPAD)		+= simpad.o
 

@@ -65,7 +65,7 @@ void dpu_encoder_register_frame_event_callback(struct drm_encoder *encoder,
 /**
  * dpu_encoder_prepare_for_kickoff - schedule double buffer flip of the ctl
  *	path (i.e. ctl flush and start) at next appropriate time.
- *	Immediately: if no previous commit is outstanding.
+ *	Immediately: if yes previous commit is outstanding.
  *	Delayed: Block until next trigger can be issued.
  * @encoder:	encoder pointer
  */

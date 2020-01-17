@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <syscall.h>
 #include <unistd.h>
@@ -47,7 +47,7 @@ static int bpf_find_map(const char *test, struct bpf_object *obj,
 
 int main(int argc, char **argv)
 {
-	const char *probe_name = "syscalls/sys_enter_nanosleep";
+	const char *probe_name = "syscalls/sys_enter_nayessleep";
 	const char *file = "get_cgroup_id_kern.o";
 	int err, bytes, efd, prog_fd, pmu_fd;
 	int cgroup_fd, cgidmap_fd, pidmap_fd;
@@ -59,31 +59,31 @@ int main(int argc, char **argv)
 	char buf[256];
 
 	err = setup_cgroup_environment();
-	if (CHECK(err, "setup_cgroup_environment", "err %d errno %d\n", err,
-		  errno))
+	if (CHECK(err, "setup_cgroup_environment", "err %d erryes %d\n", err,
+		  erryes))
 		return 1;
 
 	cgroup_fd = create_and_get_cgroup(TEST_CGROUP);
-	if (CHECK(cgroup_fd < 0, "create_and_get_cgroup", "err %d errno %d\n",
-		  cgroup_fd, errno))
+	if (CHECK(cgroup_fd < 0, "create_and_get_cgroup", "err %d erryes %d\n",
+		  cgroup_fd, erryes))
 		goto cleanup_cgroup_env;
 
 	err = join_cgroup(TEST_CGROUP);
-	if (CHECK(err, "join_cgroup", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "join_cgroup", "err %d erryes %d\n", err, erryes))
 		goto cleanup_cgroup_env;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
-	if (CHECK(err, "bpf_prog_load", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "bpf_prog_load", "err %d erryes %d\n", err, erryes))
 		goto cleanup_cgroup_env;
 
 	cgidmap_fd = bpf_find_map(__func__, obj, "cg_ids");
-	if (CHECK(cgidmap_fd < 0, "bpf_find_map", "err %d errno %d\n",
-		  cgidmap_fd, errno))
+	if (CHECK(cgidmap_fd < 0, "bpf_find_map", "err %d erryes %d\n",
+		  cgidmap_fd, erryes))
 		goto close_prog;
 
 	pidmap_fd = bpf_find_map(__func__, obj, "pidmap");
-	if (CHECK(pidmap_fd < 0, "bpf_find_map", "err %d errno %d\n",
-		  pidmap_fd, errno))
+	if (CHECK(pidmap_fd < 0, "bpf_find_map", "err %d erryes %d\n",
+		  pidmap_fd, erryes))
 		goto close_prog;
 
 	pid = getpid();
@@ -92,12 +92,12 @@ int main(int argc, char **argv)
 	snprintf(buf, sizeof(buf),
 		 "/sys/kernel/debug/tracing/events/%s/id", probe_name);
 	efd = open(buf, O_RDONLY, 0);
-	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
+	if (CHECK(efd < 0, "open", "err %d erryes %d\n", efd, erryes))
 		goto close_prog;
 	bytes = read(efd, buf, sizeof(buf));
 	close(efd);
 	if (CHECK(bytes <= 0 || bytes >= sizeof(buf), "read",
-		  "bytes %d errno %d\n", bytes, errno))
+		  "bytes %d erryes %d\n", bytes, erryes))
 		goto close_prog;
 
 	attr.config = strtol(buf, NULL, 0);
@@ -110,25 +110,25 @@ int main(int argc, char **argv)
 	 * cgroup associated with this pid.
 	 */
 	pmu_fd = syscall(__NR_perf_event_open, &attr, getpid(), -1, -1, 0);
-	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d errno %d\n", pmu_fd,
-		  errno))
+	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d erryes %d\n", pmu_fd,
+		  erryes))
 		goto close_prog;
 
 	err = ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0);
-	if (CHECK(err, "perf_event_ioc_enable", "err %d errno %d\n", err,
-		  errno))
+	if (CHECK(err, "perf_event_ioc_enable", "err %d erryes %d\n", err,
+		  erryes))
 		goto close_pmu;
 
 	err = ioctl(pmu_fd, PERF_EVENT_IOC_SET_BPF, prog_fd);
-	if (CHECK(err, "perf_event_ioc_set_bpf", "err %d errno %d\n", err,
-		  errno))
+	if (CHECK(err, "perf_event_ioc_set_bpf", "err %d erryes %d\n", err,
+		  erryes))
 		goto close_pmu;
 
 	/* trigger some syscalls */
 	sleep(1);
 
 	err = bpf_map_lookup_elem(cgidmap_fd, &key, &kcgid);
-	if (CHECK(err, "bpf_map_lookup_elem", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "bpf_map_lookup_elem", "err %d erryes %d\n", err, erryes))
 		goto close_pmu;
 
 	ucgid = get_cgroup_id(TEST_CGROUP);

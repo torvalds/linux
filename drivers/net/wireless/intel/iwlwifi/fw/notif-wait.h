@@ -35,11 +35,11 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -56,49 +56,49 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __iwl_notif_wait_h__
-#define __iwl_notif_wait_h__
+#ifndef __iwl_yestif_wait_h__
+#define __iwl_yestif_wait_h__
 
 #include <linux/wait.h>
 
 #include "iwl-trans.h"
 
-struct iwl_notif_wait_data {
-	struct list_head notif_waits;
-	spinlock_t notif_wait_lock;
-	wait_queue_head_t notif_waitq;
+struct iwl_yestif_wait_data {
+	struct list_head yestif_waits;
+	spinlock_t yestif_wait_lock;
+	wait_queue_head_t yestif_waitq;
 };
 
 #define MAX_NOTIF_CMDS	5
 
 /**
- * struct iwl_notification_wait - notification wait entry
+ * struct iwl_yestification_wait - yestification wait entry
  * @list: list head for global list
- * @fn: Function called with the notification. If the function
+ * @fn: Function called with the yestification. If the function
  *	returns true, the wait is over, if it returns false then
- *	the waiter stays blocked. If no function is given, any
+ *	the waiter stays blocked. If yes function is given, any
  *	of the listed commands will unblock the waiter.
  * @cmds: command IDs
  * @n_cmds: number of command IDs
  * @triggered: waiter should be woken up
  * @aborted: wait was aborted
  *
- * This structure is not used directly, to wait for a
- * notification declare it on the stack, and call
- * iwl_init_notification_wait() with appropriate
+ * This structure is yest used directly, to wait for a
+ * yestification declare it on the stack, and call
+ * iwl_init_yestification_wait() with appropriate
  * parameters. Then do whatever will cause the ucode
- * to notify the driver, and to wait for that then
- * call iwl_wait_notification().
+ * to yestify the driver, and to wait for that then
+ * call iwl_wait_yestification().
  *
- * Each notification is one-shot. If at some point we
- * need to support multi-shot notifications (which
+ * Each yestification is one-shot. If at some point we
+ * need to support multi-shot yestifications (which
  * can't be allocated on the stack) we need to modify
  * the code for them.
  */
-struct iwl_notification_wait {
+struct iwl_yestification_wait {
 	struct list_head list;
 
-	bool (*fn)(struct iwl_notif_wait_data *notif_data,
+	bool (*fn)(struct iwl_yestif_wait_data *yestif_data,
 		   struct iwl_rx_packet *pkt, void *data);
 	void *fn_data;
 
@@ -109,41 +109,41 @@ struct iwl_notification_wait {
 
 
 /* caller functions */
-void iwl_notification_wait_init(struct iwl_notif_wait_data *notif_data);
-bool iwl_notification_wait(struct iwl_notif_wait_data *notif_data,
+void iwl_yestification_wait_init(struct iwl_yestif_wait_data *yestif_data);
+bool iwl_yestification_wait(struct iwl_yestif_wait_data *yestif_data,
 			   struct iwl_rx_packet *pkt);
-void iwl_abort_notification_waits(struct iwl_notif_wait_data *notif_data);
+void iwl_abort_yestification_waits(struct iwl_yestif_wait_data *yestif_data);
 
 static inline void
-iwl_notification_notify(struct iwl_notif_wait_data *notif_data)
+iwl_yestification_yestify(struct iwl_yestif_wait_data *yestif_data)
 {
-	wake_up_all(&notif_data->notif_waitq);
+	wake_up_all(&yestif_data->yestif_waitq);
 }
 
 static inline void
-iwl_notification_wait_notify(struct iwl_notif_wait_data *notif_data,
+iwl_yestification_wait_yestify(struct iwl_yestif_wait_data *yestif_data,
 			     struct iwl_rx_packet *pkt)
 {
-	if (iwl_notification_wait(notif_data, pkt))
-		iwl_notification_notify(notif_data);
+	if (iwl_yestification_wait(yestif_data, pkt))
+		iwl_yestification_yestify(yestif_data);
 }
 
 /* user functions */
 void __acquires(wait_entry)
-iwl_init_notification_wait(struct iwl_notif_wait_data *notif_data,
-			   struct iwl_notification_wait *wait_entry,
+iwl_init_yestification_wait(struct iwl_yestif_wait_data *yestif_data,
+			   struct iwl_yestification_wait *wait_entry,
 			   const u16 *cmds, int n_cmds,
-			   bool (*fn)(struct iwl_notif_wait_data *notif_data,
+			   bool (*fn)(struct iwl_yestif_wait_data *yestif_data,
 				      struct iwl_rx_packet *pkt, void *data),
 			   void *fn_data);
 
 int __must_check __releases(wait_entry)
-iwl_wait_notification(struct iwl_notif_wait_data *notif_data,
-		      struct iwl_notification_wait *wait_entry,
+iwl_wait_yestification(struct iwl_yestif_wait_data *yestif_data,
+		      struct iwl_yestification_wait *wait_entry,
 		      unsigned long timeout);
 
 void __releases(wait_entry)
-iwl_remove_notification(struct iwl_notif_wait_data *notif_data,
-			struct iwl_notification_wait *wait_entry);
+iwl_remove_yestification(struct iwl_yestif_wait_data *yestif_data,
+			struct iwl_yestification_wait *wait_entry);
 
-#endif /* __iwl_notif_wait_h__ */
+#endif /* __iwl_yestif_wait_h__ */

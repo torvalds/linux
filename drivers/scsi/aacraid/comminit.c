@@ -145,7 +145,7 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 		if (dev->max_fib_size != sizeof(struct hw_fib))
 			init->r7.init_struct_revision =
 				cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4);
-		init->r7.no_of_msix_vectors = cpu_to_le32(SA_MINIPORT_REVISION);
+		init->r7.yes_of_msix_vectors = cpu_to_le32(SA_MINIPORT_REVISION);
 		init->r7.fsrev = cpu_to_le32(dev->fsrev);
 
 		/*
@@ -213,7 +213,7 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 				cpu_to_le32(upper_32_bits(dev->host_rrq_pa));
 			init->r7.host_rrq_addr_low =
 				cpu_to_le32(lower_32_bits(dev->host_rrq_pa));
-			init->r7.no_of_msix_vectors =
+			init->r7.yes_of_msix_vectors =
 				cpu_to_le32(dev->max_msix);
 			/* must be the COMM_PREFERRED_SETTINGS values */
 			pr_warn("aacraid: Comm Interface type2 enabled\n");
@@ -394,7 +394,7 @@ static int aac_comm_init(struct aac_dev * dev)
 
 	queues = (struct aac_entry *)(((ulong)headers) + hdrsize);
 
-	/* Adapter to Host normal priority Command queue */ 
+	/* Adapter to Host yesrmal priority Command queue */ 
 	comm->queue[HostNormCmdQueue].base = queues;
 	aac_queue_init(dev, &comm->queue[HostNormCmdQueue], headers, HOST_NORM_CMD_ENTRIES);
 	queues += HOST_NORM_CMD_ENTRIES;
@@ -407,7 +407,7 @@ static int aac_comm_init(struct aac_dev * dev)
 	queues += HOST_HIGH_CMD_ENTRIES;
 	headers +=2;
 
-	/* Host to adapter normal priority command queue */
+	/* Host to adapter yesrmal priority command queue */
 	comm->queue[AdapNormCmdQueue].base = queues;
 	aac_queue_init(dev, &comm->queue[AdapNormCmdQueue], headers, ADAP_NORM_CMD_ENTRIES);
     
@@ -421,7 +421,7 @@ static int aac_comm_init(struct aac_dev * dev)
 	queues += ADAP_HIGH_CMD_ENTRIES;
 	headers += 2;
 
-	/* adapter to host normal priority response queue */
+	/* adapter to host yesrmal priority response queue */
 	comm->queue[HostNormRespQueue].base = queues;
 	aac_queue_init(dev, &comm->queue[HostNormRespQueue], headers, HOST_NORM_RESP_ENTRIES);
 	queues += HOST_NORM_RESP_ENTRIES;
@@ -434,7 +434,7 @@ static int aac_comm_init(struct aac_dev * dev)
 	queues += HOST_HIGH_RESP_ENTRIES;
 	headers += 2;
 
-	/* host to adapter normal priority response queue */
+	/* host to adapter yesrmal priority response queue */
 	comm->queue[AdapNormRespQueue].base = queues;
 	aac_queue_init(dev, &comm->queue[AdapNormRespQueue], headers, ADAP_NORM_RESP_ENTRIES);
 
@@ -490,7 +490,7 @@ void aac_define_int_mode(struct aac_dev *dev)
 		} else {
 			dev->msi_enabled = 0;
 			dev_err(&dev->pdev->dev,
-			"MSIX not supported!! Will try INTX 0x%x.\n", i);
+			"MSIX yest supported!! Will try INTX 0x%x.\n", i);
 		}
 	}
 
@@ -531,7 +531,7 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 
 
 	/*
-	 * Enable INTX mode, if not done already Enabled
+	 * Enable INTX mode, if yest done already Enabled
 	 */
 	if (aac_is_msix_mode(dev)) {
 		aac_change_to_intx(dev);
@@ -560,7 +560,7 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 				/* driver supports TYPE3 (Yosemite, Thor) */
 				dev->comm_interface = AAC_COMM_MESSAGE_TYPE3;
 			} else if (status[1] & AAC_OPT_NEW_COMM_TYPE4) {
-				/* not supported TYPE - switch to sync. mode */
+				/* yest supported TYPE - switch to sync. mode */
 				dev->comm_interface = AAC_COMM_MESSAGE_TYPE2;
 				dev->sync_mode = 1;
 			}
@@ -626,18 +626,18 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 		if (numacb < host->can_queue)
 			host->can_queue = numacb;
 		else
-			pr_warn("numacb=%d ignored\n", numacb);
+			pr_warn("numacb=%d igyesred\n", numacb);
 	}
 
 	if (aac_is_src(dev))
 		aac_define_int_mode(dev);
 	/*
-	 *	Ok now init the communication subsystem
+	 *	Ok yesw init the communication subsystem
 	 */
 
 	dev->queues = kzalloc(sizeof(struct aac_queue_block), GFP_KERNEL);
 	if (dev->queues == NULL) {
-		printk(KERN_ERR "Error could not allocate comm region.\n");
+		printk(KERN_ERR "Error could yest allocate comm region.\n");
 		return NULL;
 	}
 

@@ -8,7 +8,7 @@
  */
 
 #include <linux/elf.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kexec.h>
 #include <linux/module_signature.h>
 #include <linux/verification.h>
@@ -29,7 +29,7 @@ int s390_verify_sig(const char *kernel, unsigned long kernel_len)
 	struct module_signature *ms;
 	unsigned long sig_len;
 
-	/* Skip signature verification when not secure IPLed. */
+	/* Skip signature verification when yest secure IPLed. */
 	if (!ipl_secure_flag)
 		return 0;
 
@@ -311,7 +311,7 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
 				  unsigned long buf_len)
 {
-	/* A kernel must be at least large enough to contain head.S. During
+	/* A kernel must be at least large eyesugh to contain head.S. During
 	 * load memory in head.S will be accessed, e.g. to register the next
 	 * command line. If the next kernel were smaller the current kernel
 	 * will panic at load.

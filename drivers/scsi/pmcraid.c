@@ -10,7 +10,7 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -58,11 +58,11 @@ static atomic_t pmcraid_adapter_count = ATOMIC_INIT(0);
 /*
  * Supporting user-level control interface through IOCTL commands.
  * pmcraid_major - major number to use
- * pmcraid_minor - minor number(s) to use
+ * pmcraid_miyesr - miyesr number(s) to use
  */
 static unsigned int pmcraid_major;
 static struct class *pmcraid_class;
-static DECLARE_BITMAP(pmcraid_minor, PMCRAID_MAX_ADAPTERS);
+static DECLARE_BITMAP(pmcraid_miyesr, PMCRAID_MAX_ADAPTERS);
 
 /*
  * Module parameters
@@ -85,7 +85,7 @@ MODULE_PARM_DESC(debug,
 
 module_param_named(disable_aen, pmcraid_disable_aen, uint, (S_IRUGO | S_IWUSR));
 MODULE_PARM_DESC(disable_aen,
-		 "Disable driver aen notifications to apps. Set 1 to disable."
+		 "Disable driver aen yestifications to apps. Set 1 to disable."
 		 "(default: 0)");
 
 /* chip specific constants for PMC MaxRAID controllers (same for
@@ -132,7 +132,7 @@ MODULE_DEVICE_TABLE(pci, pmcraid_pci_table);
  * while sending commands to the device.
  *
  * Return value:
- *	  0 on success / -ENXIO if device does not exist
+ *	  0 on success / -ENXIO if device does yest exist
  */
 static int pmcraid_slave_alloc(struct scsi_device *scsi_dev)
 {
@@ -148,14 +148,14 @@ static int pmcraid_slave_alloc(struct scsi_device *scsi_dev)
 	fw_version = be16_to_cpu(pinstance->inq_data->fw_version);
 
 	/* Driver exposes VSET and GSCSI resources only; all other device types
-	 * are not exposed. Resource list is synchronized using resource lock
+	 * are yest exposed. Resource list is synchronized using resource lock
 	 * so any traversal or modifications to the list should be done inside
 	 * this lock
 	 */
 	spin_lock_irqsave(&pinstance->resource_lock, lock_flags);
 	list_for_each_entry(temp, &pinstance->used_res_q, queue) {
 
-		/* do not expose VSETs with order-ids > MAX_VSET_TARGETS */
+		/* do yest expose VSETs with order-ids > MAX_VSET_TARGETS */
 		if (RES_IS_VSET(temp->cfg_entry)) {
 			if (fw_version <= PMCRAID_FW_VERSION_1)
 				target = temp->cfg_entry.unique_flags1;
@@ -253,7 +253,7 @@ static int pmcraid_slave_configure(struct scsi_device *scsi_dev)
  * done in pmcraid_slave_alloc will be reset to NULL here.
  *
  * Return value
- *   none
+ *   yesne
  */
 static void pmcraid_slave_destroy(struct scsi_device *scsi_dev)
 {
@@ -354,7 +354,7 @@ static void pmcraid_reinit_cmdblk(struct pmcraid_cmd *cmd)
  * @pinstance: adapter instance structure
  *
  * Return Value:
- *	returns pointer to cmd block or NULL if no blocks are available
+ *	returns pointer to cmd block or NULL if yes blocks are available
  */
 static struct pmcraid_cmd *pmcraid_get_free_cmd(
 	struct pmcraid_instance *pinstance
@@ -384,7 +384,7 @@ static struct pmcraid_cmd *pmcraid_get_free_cmd(
  * @cmd: pointer to the command block
  *
  * Return Value:
- *	nothing
+ *	yesthing
  */
 static void pmcraid_return_cmd(struct pmcraid_cmd *cmd)
 {
@@ -507,7 +507,7 @@ static void pmcraid_clr_trans_op(
  * @pinstance: pointer to adapter instance structure
  *
  * IOA requires hard reset if any of the following conditions is true.
- * 1. If HRRQ valid interrupt is not masked
+ * 1. If HRRQ valid interrupt is yest masked
  * 2. IOA reset alert doorbell is set
  * 3. If there are any error interrupts
  */
@@ -537,7 +537,7 @@ static void pmcraid_reset_type(struct pmcraid_instance *pinstance)
  * pmcraid_bist_done - completion function for PCI BIST
  * @cmd: pointer to reset command
  * Return Value
- *	none
+ *	yesne
  */
 
 static void pmcraid_ioa_reset(struct pmcraid_cmd *);
@@ -552,10 +552,10 @@ static void pmcraid_bist_done(struct timer_list *t)
 
 	rc = pci_read_config_word(pinstance->pdev, PCI_COMMAND, &pci_reg);
 
-	/* If PCI config space can't be accessed wait for another two secs */
+	/* If PCI config space can't be accessed wait for ayesther two secs */
 	if ((rc != PCIBIOS_SUCCESSFUL || (!(pci_reg & PCI_COMMAND_MEMORY))) &&
 	    cmd->time_left > 0) {
-		pmcraid_info("BIST not complete, waiting another 2 secs\n");
+		pmcraid_info("BIST yest complete, waiting ayesther 2 secs\n");
 		cmd->timer.expires = jiffies + cmd->time_left;
 		cmd->time_left = 0;
 		add_timer(&cmd->timer);
@@ -572,7 +572,7 @@ static void pmcraid_bist_done(struct timer_list *t)
  * pmcraid_start_bist - starts BIST
  * @cmd: pointer to reset cmd
  * Return Value
- *   none
+ *   yesne
  */
 static void pmcraid_start_bist(struct pmcraid_cmd *cmd)
 {
@@ -617,7 +617,7 @@ static void pmcraid_reset_alert_done(struct timer_list *t)
 		pmcraid_ioa_reset(cmd);
 		spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
 	} else {
-		pmcraid_info("critical op is not yet reset waiting again\n");
+		pmcraid_info("critical op is yest yet reset waiting again\n");
 		/* restart timer if some more time is available to wait */
 		cmd->time_left -= PMCRAID_CHECK_FOR_RESET_TIMEOUT;
 		cmd->timer.expires = jiffies + PMCRAID_CHECK_FOR_RESET_TIMEOUT;
@@ -632,10 +632,10 @@ static void pmcraid_reset_alert_done(struct timer_list *t)
  *
  * Return Value
  *	returns 0 if pci config-space is accessible and RESET_DOORBELL is
- *	successfully written to IOA. Returns non-zero in case pci_config_space
- *	is not accessible
+ *	successfully written to IOA. Returns yesn-zero in case pci_config_space
+ *	is yest accessible
  */
-static void pmcraid_notify_ioastate(struct pmcraid_instance *, u32);
+static void pmcraid_yestify_ioastate(struct pmcraid_instance *, u32);
 static void pmcraid_reset_alert(struct pmcraid_cmd *cmd)
 {
 	struct pmcraid_instance *pinstance = cmd->drv_inst;
@@ -645,7 +645,7 @@ static void pmcraid_reset_alert(struct pmcraid_cmd *cmd)
 
 	/* If we are able to access IOA PCI config space, alert IOA that we are
 	 * going to reset it soon. This enables IOA to preserv persistent error
-	 * data if any. In case memory space is not accessible, proceed with
+	 * data if any. In case memory space is yest accessible, proceed with
 	 * BIST or slot_reset
 	 */
 	rc = pci_read_config_word(pinstance->pdev, PCI_COMMAND, &pci_reg);
@@ -667,7 +667,7 @@ static void pmcraid_reset_alert(struct pmcraid_cmd *cmd)
 			ioread32(pinstance->int_regs.host_ioa_interrupt_reg);
 		pmcraid_info("doorbells after reset alert: %x\n", doorbells);
 	} else {
-		pmcraid_info("PCI config is not accessible starting BIST\n");
+		pmcraid_info("PCI config is yest accessible starting BIST\n");
 		pinstance->ioa_state = IOA_STATE_IN_HARD_RESET;
 		pmcraid_start_bist(cmd);
 	}
@@ -710,7 +710,7 @@ static void pmcraid_timeout_handler(struct timer_list *t)
 		if (cmd == NULL) {
 			spin_unlock_irqrestore(pinstance->host->host_lock,
 					       lock_flags);
-			pmcraid_err("no free cmnd block for timeout handler\n");
+			pmcraid_err("yes free cmnd block for timeout handler\n");
 			return;
 		}
 
@@ -729,7 +729,7 @@ static void pmcraid_timeout_handler(struct timer_list *t)
 
 		/* If this command was being used as part of the reset
 		 * sequence, set cmd_done pointer to pmcraid_ioa_reset. This
-		 * causes fail_outstanding_commands not to return the command
+		 * causes fail_outstanding_commands yest to return the command
 		 * block back to free pool
 		 */
 		if (cmd == pinstance->reset_cmd)
@@ -739,7 +739,7 @@ static void pmcraid_timeout_handler(struct timer_list *t)
 	/* Notify apps of important IOA bringup/bringdown sequences */
 	if (pinstance->scn.ioa_state != PMC_DEVICE_EVENT_RESET_START &&
 	    pinstance->scn.ioa_state != PMC_DEVICE_EVENT_SHUTDOWN_START)
-		pmcraid_notify_ioastate(pinstance,
+		pmcraid_yestify_ioastate(pinstance,
 					PMC_DEVICE_EVENT_RESET_START);
 
 	pinstance->ioa_state = IOA_STATE_IN_RESET_ALERT;
@@ -754,7 +754,7 @@ static void pmcraid_timeout_handler(struct timer_list *t)
  * @cmd: command that got response from IOA
  *
  * Return Value:
- *	 none
+ *	 yesne
  */
 static void pmcraid_internal_done(struct pmcraid_cmd *cmd)
 {
@@ -773,7 +773,7 @@ static void pmcraid_internal_done(struct pmcraid_cmd *cmd)
 	}
 
 	/* most of the internal commands are completed by caller itself, so
-	 * no need to return the command block back to free pool until we are
+	 * yes need to return the command block back to free pool until we are
 	 * required to do so (e.g once done with initialization).
 	 */
 	if (cmd->release) {
@@ -792,7 +792,7 @@ static void pmcraid_internal_done(struct pmcraid_cmd *cmd)
  * worker thread to add/delete devices into the system.
  *
  * Return Value:
- *	 none
+ *	 yesne
  */
 static void pmcraid_reinit_cfgtable_done(struct pmcraid_cmd *cmd)
 {
@@ -816,7 +816,7 @@ static void pmcraid_reinit_cfgtable_done(struct pmcraid_cmd *cmd)
  * scsi_cmd by calling scsi_done function.
  *
  * Return value:
- *  none
+ *  yesne
  */
 static void pmcraid_erp_done(struct pmcraid_cmd *cmd)
 {
@@ -886,7 +886,7 @@ static void _pmcraid_fire_command(struct pmcraid_cmd *cmd)
  * @timeout_func: timeout handler
  *
  * Return value
- *   none
+ *   yesne
  */
 static void pmcraid_send_cmd(
 	struct pmcraid_cmd *cmd,
@@ -951,10 +951,10 @@ static void pmcraid_ioa_shutdown(struct pmcraid_cmd *cmd)
 	cmd->ioa_cb->ioarcb.cdb[1] = PMCRAID_SHUTDOWN_NORMAL;
 
 	/* fire shutdown command to hardware. */
-	pmcraid_info("firing normal shutdown command (%d) to IOA\n",
+	pmcraid_info("firing yesrmal shutdown command (%d) to IOA\n",
 		     le32_to_cpu(cmd->ioa_cb->ioarcb.response_handle));
 
-	pmcraid_notify_ioastate(cmd->drv_inst, PMC_DEVICE_EVENT_SHUTDOWN_START);
+	pmcraid_yestify_ioastate(cmd->drv_inst, PMC_DEVICE_EVENT_SHUTDOWN_START);
 
 	pmcraid_send_cmd(cmd, pmcraid_ioa_shutdown_done,
 			 PMCRAID_SHUTDOWN_TIMEOUT,
@@ -967,7 +967,7 @@ static void pmcraid_ioa_shutdown(struct pmcraid_cmd *cmd)
  * @cmd: pointer to command block used to send INQUIRY command
  *
  * Return Value
- *	none
+ *	yesne
  */
 static void pmcraid_querycfg(struct pmcraid_cmd *);
 
@@ -978,7 +978,7 @@ static void pmcraid_get_fwversion_done(struct pmcraid_cmd *cmd)
 	unsigned long lock_flags;
 
 	/* configuration table entry size depends on firmware version. If fw
-	 * version is not known, it is not possible to interpret IOA config
+	 * version is yest kyeswn, it is yest possible to interpret IOA config
 	 * table
 	 */
 	if (ioasc) {
@@ -998,7 +998,7 @@ static void pmcraid_get_fwversion_done(struct pmcraid_cmd *cmd)
  * @cmd: pointer to command block used to send INQUIRY command
  *
  * Return Value
- *	none
+ *	yesne
  */
 static void pmcraid_get_fwversion(struct pmcraid_cmd *cmd)
 {
@@ -1040,7 +1040,7 @@ static void pmcraid_get_fwversion(struct pmcraid_cmd *cmd)
  * @cmd: pointer to command block to be used for identify hrrq
  *
  * Return Value
- *	 none
+ *	 yesne
  */
 static void pmcraid_identify_hrrq(struct pmcraid_cmd *cmd)
 {
@@ -1097,14 +1097,14 @@ static void pmcraid_process_ldn(struct pmcraid_cmd *cmd);
  * @cmd: initialized command block pointer
  *
  * Return Value
- *   none
+ *   yesne
  */
 static void pmcraid_send_hcam_cmd(struct pmcraid_cmd *cmd)
 {
 	if (cmd->ioa_cb->ioarcb.cdb[1] == PMCRAID_HCAM_CODE_CONFIG_CHANGE)
-		atomic_set(&(cmd->drv_inst->ccn.ignore), 0);
+		atomic_set(&(cmd->drv_inst->ccn.igyesre), 0);
 	else
-		atomic_set(&(cmd->drv_inst->ldn.ignore), 0);
+		atomic_set(&(cmd->drv_inst->ldn.igyesre), 0);
 
 	pmcraid_send_cmd(cmd, cmd->cmd_done, 0, NULL);
 }
@@ -1135,7 +1135,7 @@ static struct pmcraid_cmd *pmcraid_init_hcam
 	cmd = pmcraid_get_free_cmd(pinstance);
 
 	if (!cmd) {
-		pmcraid_err("no free command blocks for hcam\n");
+		pmcraid_err("yes free command blocks for hcam\n");
 		return cmd;
 	}
 
@@ -1187,7 +1187,7 @@ static struct pmcraid_cmd *pmcraid_init_hcam
  * This function will send a Host Controlled Async command to IOA.
  *
  * Return value:
- *	none
+ *	yesne
  */
 static void pmcraid_send_hcam(struct pmcraid_instance *pinstance, u8 type)
 {
@@ -1197,7 +1197,7 @@ static void pmcraid_send_hcam(struct pmcraid_instance *pinstance, u8 type)
 
 
 /**
- * pmcraid_prepare_cancel_cmd - prepares a command block to abort another
+ * pmcraid_prepare_cancel_cmd - prepares a command block to abort ayesther
  *
  * @cmd: pointer to cmd that is used as cancelling command
  * @cmd_to_cancel: pointer to the command that needs to be cancelled
@@ -1212,7 +1212,7 @@ static void pmcraid_prepare_cancel_cmd(
 
 	/* IOARCB address of the command to be cancelled is given in
 	 * cdb[2]..cdb[9] is Big-Endian format. Note that length bits in
-	 * IOARCB address are not masked.
+	 * IOARCB address are yest masked.
 	 */
 	ioarcb_addr = cpu_to_be64(le64_to_cpu(cmd_to_cancel->ioa_cb->ioarcb.ioarcb_bus_addr));
 
@@ -1248,7 +1248,7 @@ static void pmcraid_cancel_hcam(
 		&pinstance->ldn : &pinstance->ccn;
 
 	/* prepare for cancelling previous hcam command. If the HCAM is
-	 * currently not pending with IOA, we would have hcam->cmd as non-null
+	 * currently yest pending with IOA, we would have hcam->cmd as yesn-null
 	 */
 	if (hcam->cmd == NULL)
 		return;
@@ -1337,7 +1337,7 @@ enum {
 #define PMCRAID_AEN_CMD_MAX (__PMCRAID_AEN_CMD_MAX - 1)
 
 static struct genl_multicast_group pmcraid_mcgrps[] = {
-	{ .name = "events", /* not really used - see ID discussion below */ },
+	{ .name = "events", /* yest really used - see ID discussion below */ },
 };
 
 static struct genl_family pmcraid_event_family __ro_after_init = {
@@ -1354,7 +1354,7 @@ static struct genl_family pmcraid_event_family __ro_after_init = {
  *
  * Return value:
  *	0 if the pmcraid_event_family is successfully registered
- *	with netlink generic, non-zero otherwise
+ *	with netlink generic, yesn-zero otherwise
  */
 static int __init pmcraid_netlink_init(void)
 {
@@ -1375,7 +1375,7 @@ static int __init pmcraid_netlink_init(void)
  * pmcraid_netlink_release - unregisters pmcraid_event_family
  *
  * Return value:
- *	none
+ *	yesne
  */
 static void pmcraid_netlink_release(void)
 {
@@ -1383,14 +1383,14 @@ static void pmcraid_netlink_release(void)
 }
 
 /**
- * pmcraid_notify_aen - sends event msg to user space application
+ * pmcraid_yestify_aen - sends event msg to user space application
  * @pinstance: pointer to adapter instance structure
  * @type: HCAM type
  *
  * Return value:
  *	0 if success, error value in case of any failure.
  */
-static int pmcraid_notify_aen(
+static int pmcraid_yestify_aen(
 	struct pmcraid_instance *pinstance,
 	struct pmcraid_aen_msg  *aen_msg,
 	u32    data_size
@@ -1401,7 +1401,7 @@ static int pmcraid_notify_aen(
 	u32  total_size, nla_genl_hdr_total_size;
 	int result;
 
-	aen_msg->hostno = (pinstance->host->unique_id << 16 |
+	aen_msg->hostyes = (pinstance->host->unique_id << 16 |
 			   MINOR(pinstance->cdev.dev));
 	aen_msg->length = data_size;
 
@@ -1440,13 +1440,13 @@ static int pmcraid_notify_aen(
 		return -EINVAL;
 	}
 
-	/* send genetlink multicast message to notify appplications */
+	/* send genetlink multicast message to yestify appplications */
 	genlmsg_end(skb, msg_header);
 
 	result = genlmsg_multicast(&pmcraid_event_family, skb,
 				   0, 0, GFP_ATOMIC);
 
-	/* If there are no listeners, genlmsg_multicast may return non-zero
+	/* If there are yes listeners, genlmsg_multicast may return yesn-zero
 	 * value.
 	 */
 	if (result)
@@ -1455,47 +1455,47 @@ static int pmcraid_notify_aen(
 }
 
 /**
- * pmcraid_notify_ccn - notifies about CCN event msg to user space
+ * pmcraid_yestify_ccn - yestifies about CCN event msg to user space
  * @pinstance: pointer adapter instance structure
  *
  * Return value:
  *	0 if success, error value in case of any failure
  */
-static int pmcraid_notify_ccn(struct pmcraid_instance *pinstance)
+static int pmcraid_yestify_ccn(struct pmcraid_instance *pinstance)
 {
-	return pmcraid_notify_aen(pinstance,
+	return pmcraid_yestify_aen(pinstance,
 				pinstance->ccn.msg,
 				le32_to_cpu(pinstance->ccn.hcam->data_len) +
 				sizeof(struct pmcraid_hcam_hdr));
 }
 
 /**
- * pmcraid_notify_ldn - notifies about CCN event msg to user space
+ * pmcraid_yestify_ldn - yestifies about CCN event msg to user space
  * @pinstance: pointer adapter instance structure
  *
  * Return value:
  *	0 if success, error value in case of any failure
  */
-static int pmcraid_notify_ldn(struct pmcraid_instance *pinstance)
+static int pmcraid_yestify_ldn(struct pmcraid_instance *pinstance)
 {
-	return pmcraid_notify_aen(pinstance,
+	return pmcraid_yestify_aen(pinstance,
 				pinstance->ldn.msg,
 				le32_to_cpu(pinstance->ldn.hcam->data_len) +
 				sizeof(struct pmcraid_hcam_hdr));
 }
 
 /**
- * pmcraid_notify_ioastate - sends IOA state event msg to user space
+ * pmcraid_yestify_ioastate - sends IOA state event msg to user space
  * @pinstance: pointer adapter instance structure
  * @evt: controller state event to be sent
  *
  * Return value:
  *	0 if success, error value in case of any failure
  */
-static void pmcraid_notify_ioastate(struct pmcraid_instance *pinstance, u32 evt)
+static void pmcraid_yestify_ioastate(struct pmcraid_instance *pinstance, u32 evt)
 {
 	pinstance->scn.ioa_state = evt;
-	pmcraid_notify_aen(pinstance,
+	pmcraid_yestify_aen(pinstance,
 			  &pinstance->scn.msg,
 			  sizeof(u32));
 }
@@ -1505,7 +1505,7 @@ static void pmcraid_notify_ioastate(struct pmcraid_instance *pinstance, u32 evt)
  * @pinstance: pointer to per adapter instance structure
  *
  * Return value:
- *  none
+ *  yesne
  */
 
 static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
@@ -1532,8 +1532,8 @@ static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
 		 pinstance->ccn.hcam->op_code,
 		(le32_to_cpu(pinstance->ccn.hcam->timestamp1) |
 		((le32_to_cpu(pinstance->ccn.hcam->timestamp2) & 0xffffffffLL) << 32)),
-		 pinstance->ccn.hcam->notification_type,
-		 pinstance->ccn.hcam->notification_lost,
+		 pinstance->ccn.hcam->yestification_type,
+		 pinstance->ccn.hcam->yestification_lost,
 		 pinstance->ccn.hcam->flags,
 		 pinstance->host->unique_id,
 		 RES_IS_VSET(*cfg_entry) ? PMCRAID_VSET_BUS_ID :
@@ -1547,29 +1547,29 @@ static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
 		 RES_LUN(cfg_entry->resource_address));
 
 
-	/* If this HCAM indicates a lost notification, read the config table */
-	if (pinstance->ccn.hcam->notification_lost) {
+	/* If this HCAM indicates a lost yestification, read the config table */
+	if (pinstance->ccn.hcam->yestification_lost) {
 		cfgcmd = pmcraid_get_free_cmd(pinstance);
 		if (cfgcmd) {
 			pmcraid_info("lost CCN, reading config table\b");
 			pinstance->reinit_cfg_table = 1;
 			pmcraid_querycfg(cfgcmd);
 		} else {
-			pmcraid_err("lost CCN, no free cmd for querycfg\n");
+			pmcraid_err("lost CCN, yes free cmd for querycfg\n");
 		}
-		goto out_notify_apps;
+		goto out_yestify_apps;
 	}
 
-	/* If this resource is not going to be added to mid-layer, just notify
-	 * applications and return. If this notification is about hiding a VSET
+	/* If this resource is yest going to be added to mid-layer, just yestify
+	 * applications and return. If this yestification is about hiding a VSET
 	 * resource, check if it was exposed already.
 	 */
-	if (pinstance->ccn.hcam->notification_type ==
+	if (pinstance->ccn.hcam->yestification_type ==
 	    NOTIFICATION_TYPE_ENTRY_CHANGED &&
 	    cfg_entry->resource_type == RES_TYPE_VSET) {
 		hidden_entry = (cfg_entry->unique_flags1 & 0x80) != 0;
 	} else if (!pmcraid_expose_resource(fw_version, cfg_entry)) {
-		goto out_notify_apps;
+		goto out_yestify_apps;
 	}
 
 	spin_lock_irqsave(&pinstance->resource_lock, lock_flags);
@@ -1588,12 +1588,12 @@ static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
 		if (hidden_entry) {
 			spin_unlock_irqrestore(&pinstance->resource_lock,
 						lock_flags);
-			goto out_notify_apps;
+			goto out_yestify_apps;
 		}
 
 		/* If there are more number of resources than what driver can
-		 * manage, do not notify the applications about the CCN. Just
-		 * ignore this notifications and re-register the same HCAM
+		 * manage, do yest yestify the applications about the CCN. Just
+		 * igyesre this yestifications and re-register the same HCAM
 		 */
 		if (list_empty(&pinstance->free_res_q)) {
 			spin_unlock_irqrestore(&pinstance->resource_lock,
@@ -1619,7 +1619,7 @@ static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
 
 	memcpy(&res->cfg_entry, cfg_entry, pinstance->config_table_entry_size);
 
-	if (pinstance->ccn.hcam->notification_type ==
+	if (pinstance->ccn.hcam->yestification_type ==
 	    NOTIFICATION_TYPE_ENTRY_DELETED || hidden_entry) {
 		if (res->scsi_dev) {
 			if (fw_version <= PMCRAID_FW_VERSION_1)
@@ -1631,7 +1631,7 @@ static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
 				PMCRAID_INVALID_RES_HANDLE;
 			schedule_work(&pinstance->worker_q);
 		} else {
-			/* This may be one of the non-exposed resources */
+			/* This may be one of the yesn-exposed resources */
 			list_move_tail(&res->queue, &pinstance->free_res_q);
 		}
 	} else if (!res->scsi_dev) {
@@ -1640,11 +1640,11 @@ static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
 	}
 	spin_unlock_irqrestore(&pinstance->resource_lock, lock_flags);
 
-out_notify_apps:
+out_yestify_apps:
 
 	/* Notify configuration changes to registered applications.*/
 	if (!pmcraid_disable_aen)
-		pmcraid_notify_ccn(pinstance);
+		pmcraid_yestify_ccn(pinstance);
 
 	cmd = pmcraid_init_hcam(pinstance, PMCRAID_HCAM_CODE_CONFIG_CHANGE);
 	if (cmd)
@@ -1655,7 +1655,7 @@ out_notify_apps:
  * pmcraid_get_error_info - return error string for an ioasc
  * @ioasc: ioasc code
  * Return Value
- *	 none
+ *	 yesne
  */
 static struct pmcraid_ioasc_error *pmcraid_get_error_info(u32 ioasc)
 {
@@ -1693,7 +1693,7 @@ static void pmcraid_ioasc_logger(u32 ioasc, struct pmcraid_cmd *cmd)
  * @pinstance: pointer to per adapter instance structure
  *
  * Return value:
- *  none
+ *  yesne
  */
 static void pmcraid_handle_error_log(struct pmcraid_instance *pinstance)
 {
@@ -1706,19 +1706,19 @@ static void pmcraid_handle_error_log(struct pmcraid_instance *pinstance)
 		("LDN(%x): %x type: %x lost: %x flags: %x overlay id: %x\n",
 		 pinstance->ldn.hcam->ilid,
 		 pinstance->ldn.hcam->op_code,
-		 pinstance->ldn.hcam->notification_type,
-		 pinstance->ldn.hcam->notification_lost,
+		 pinstance->ldn.hcam->yestification_type,
+		 pinstance->ldn.hcam->yestification_lost,
 		 pinstance->ldn.hcam->flags,
 		 pinstance->ldn.hcam->overlay_id);
 
-	/* log only the errors, no need to log informational log entries */
-	if (pinstance->ldn.hcam->notification_type !=
+	/* log only the errors, yes need to log informational log entries */
+	if (pinstance->ldn.hcam->yestification_type !=
 	    NOTIFICATION_TYPE_ERROR_LOG)
 		return;
 
-	if (pinstance->ldn.hcam->notification_lost ==
+	if (pinstance->ldn.hcam->yestification_lost ==
 	    HOSTRCB_NOTIFICATIONS_LOST)
-		dev_info(&pinstance->pdev->dev, "Error notifications lost\n");
+		dev_info(&pinstance->pdev->dev, "Error yestifications lost\n");
 
 	ioasc = le32_to_cpu(hcam_ldn->error_log.fd_ioasc);
 
@@ -1739,10 +1739,10 @@ static void pmcraid_handle_error_log(struct pmcraid_instance *pinstance)
  * @cmd: pointer to command struct
  *
  * This function is the op done function for a configuration
- * change notification
+ * change yestification
  *
  * Return value:
- * none
+ * yesne
  */
 static void pmcraid_process_ccn(struct pmcraid_cmd *cmd)
 {
@@ -1754,11 +1754,11 @@ static void pmcraid_process_ccn(struct pmcraid_cmd *cmd)
 	pmcraid_return_cmd(cmd);
 
 	/* If driver initiated IOA reset happened while this hcam was pending
-	 * with IOA, or IOA bringdown sequence is in progress, no need to
+	 * with IOA, or IOA bringdown sequence is in progress, yes need to
 	 * re-register the hcam
 	 */
 	if (ioasc == PMCRAID_IOASC_IOA_WAS_RESET ||
-	    atomic_read(&pinstance->ccn.ignore) == 1) {
+	    atomic_read(&pinstance->ccn.igyesre) == 1) {
 		return;
 	} else if (ioasc) {
 		dev_info(&pinstance->pdev->dev,
@@ -1776,7 +1776,7 @@ static void pmcraid_process_ccn(struct pmcraid_cmd *cmd)
  * @cmd: pointer to command block
  *
  * Return value
- *   none
+ *   yesne
  */
 static void pmcraid_initiate_reset(struct pmcraid_instance *);
 static void pmcraid_set_timestamp(struct pmcraid_cmd *cmd);
@@ -1795,11 +1795,11 @@ static void pmcraid_process_ldn(struct pmcraid_cmd *cmd)
 	pmcraid_return_cmd(cmd);
 
 	/* If driver initiated IOA reset happened while this hcam was pending
-	 * with IOA, no need to re-register the hcam as reset engine will do it
+	 * with IOA, yes need to re-register the hcam as reset engine will do it
 	 * once reset sequence is complete
 	 */
 	if (ioasc == PMCRAID_IOASC_IOA_WAS_RESET ||
-	    atomic_read(&pinstance->ccn.ignore) == 1) {
+	    atomic_read(&pinstance->ccn.igyesre) == 1) {
 		return;
 	} else if (!ioasc) {
 		pmcraid_handle_error_log(pinstance);
@@ -1819,9 +1819,9 @@ static void pmcraid_process_ldn(struct pmcraid_cmd *cmd)
 		dev_info(&pinstance->pdev->dev,
 			"Host RCB(LDN) failed with IOASC: 0x%08X\n", ioasc);
 	}
-	/* send netlink message for HCAM notification if enabled */
+	/* send netlink message for HCAM yestification if enabled */
 	if (!pmcraid_disable_aen)
-		pmcraid_notify_ldn(pinstance);
+		pmcraid_yestify_ldn(pinstance);
 
 	cmd = pmcraid_init_hcam(pinstance, PMCRAID_HCAM_CODE_LOG_DATA);
 	if (cmd)
@@ -1834,7 +1834,7 @@ static void pmcraid_process_ldn(struct pmcraid_cmd *cmd)
  * @pinstance: pointer per adapter instance structure
  *
  * Return Value
- *   none
+ *   yesne
  */
 static void pmcraid_register_hcams(struct pmcraid_instance *pinstance)
 {
@@ -1851,12 +1851,12 @@ static void pmcraid_unregister_hcams(struct pmcraid_cmd *cmd)
 	struct pmcraid_instance *pinstance = cmd->drv_inst;
 
 	/* During IOA bringdown, HCAM gets fired and tasklet proceeds with
-	 * handling hcam response though it is not necessary. In order to
-	 * prevent this, set 'ignore', so that bring-down sequence doesn't
+	 * handling hcam response though it is yest necessary. In order to
+	 * prevent this, set 'igyesre', so that bring-down sequence doesn't
 	 * re-send any more hcams
 	 */
-	atomic_set(&pinstance->ccn.ignore, 1);
-	atomic_set(&pinstance->ldn.ignore, 1);
+	atomic_set(&pinstance->ccn.igyesre, 1);
+	atomic_set(&pinstance->ldn.igyesre, 1);
 
 	/* If adapter reset was forced as part of runtime reset sequence,
 	 * start the reset sequence. Reset will be triggered even in case
@@ -1914,7 +1914,7 @@ static int pmcraid_reset_enable_ioa(struct pmcraid_instance *pinstance)
  * @cmd : pointer to reset command block
  *
  * Return Value
- *	none
+ *	yesne
  */
 static void pmcraid_soft_reset(struct pmcraid_cmd *cmd)
 {
@@ -1934,7 +1934,7 @@ static void pmcraid_soft_reset(struct pmcraid_cmd *cmd)
 	if (!timer_pending(&cmd->timer))
 		add_timer(&cmd->timer);
 
-	/* Enable destructive diagnostics on IOA if it is not yet in
+	/* Enable destructive diagyesstics on IOA if it is yest yet in
 	 * operational state
 	 */
 	doorbell = DOORBELL_RUNTIME_RESET |
@@ -1964,11 +1964,11 @@ static void pmcraid_soft_reset(struct pmcraid_cmd *cmd)
  * @pinstance: pointer to adapter instance structure
  *
  * Return Value
- *	none
+ *	yesne
  */
 static void pmcraid_get_dump(struct pmcraid_instance *pinstance)
 {
-	pmcraid_info("%s is not yet implemented\n", __func__);
+	pmcraid_info("%s is yest yet implemented\n", __func__);
 }
 
 /**
@@ -1981,7 +1981,7 @@ static void pmcraid_get_dump(struct pmcraid_instance *pinstance)
  * pool.
  *
  * Return value:
- *	 none
+ *	 yesne
  */
 static void pmcraid_fail_outstanding_cmds(struct pmcraid_instance *pinstance)
 {
@@ -2077,7 +2077,7 @@ static void pmcraid_ioa_reset(struct pmcraid_cmd *cmd)
 		 * return. callers might be waiting on the reset wait_q, wake
 		 * up them
 		 */
-		pmcraid_err("IOA is offline no reset is possible\n");
+		pmcraid_err("IOA is offline yes reset is possible\n");
 		reset_complete = 1;
 		break;
 
@@ -2141,10 +2141,10 @@ static void pmcraid_ioa_reset(struct pmcraid_cmd *cmd)
 			pinstance->ioa_state = IOA_STATE_DEAD;
 
 			if (pinstance->ioa_bringdown)
-				pmcraid_notify_ioastate(pinstance,
+				pmcraid_yestify_ioastate(pinstance,
 					PMC_DEVICE_EVENT_SHUTDOWN_FAILED);
 			else
-				pmcraid_notify_ioastate(pinstance,
+				pmcraid_yestify_ioastate(pinstance,
 						PMC_DEVICE_EVENT_RESET_FAILED);
 			reset_complete = 1;
 			break;
@@ -2178,7 +2178,7 @@ static void pmcraid_ioa_reset(struct pmcraid_cmd *cmd)
 			pinstance->ioa_shutdown_type = SHUTDOWN_NONE;
 			pinstance->ioa_bringdown = 0;
 			pinstance->ioa_state = IOA_STATE_UNKNOWN;
-			pmcraid_notify_ioastate(pinstance,
+			pmcraid_yestify_ioastate(pinstance,
 					PMC_DEVICE_EVENT_SHUTDOWN_SUCCESS);
 			reset_complete = 1;
 		} else {
@@ -2206,7 +2206,7 @@ static void pmcraid_ioa_reset(struct pmcraid_cmd *cmd)
 		pinstance->ioa_state = IOA_STATE_IN_BRINGUP;
 
 		/* Initialization commands start with HRRQ identification. From
-		 * now on tasklet completes most of the commands as IOA is up
+		 * yesw on tasklet completes most of the commands as IOA is up
 		 * and intrs are enabled
 		 */
 		pmcraid_identify_hrrq(cmd);
@@ -2229,7 +2229,7 @@ static void pmcraid_ioa_reset(struct pmcraid_cmd *cmd)
 		 */
 		if (pinstance->ioa_shutdown_type == SHUTDOWN_NONE &&
 		    pinstance->force_ioa_reset == 0) {
-			pmcraid_notify_ioastate(pinstance,
+			pmcraid_yestify_ioastate(pinstance,
 						PMC_DEVICE_EVENT_RESET_SUCCESS);
 			reset_complete = 1;
 		} else {
@@ -2275,7 +2275,7 @@ static void pmcraid_ioa_reset(struct pmcraid_cmd *cmd)
  * @pinstance: pointer to adapter instance structure
  *
  * Return value
- *	 none
+ *	 yesne
  */
 static void pmcraid_initiate_reset(struct pmcraid_instance *pinstance)
 {
@@ -2289,14 +2289,14 @@ static void pmcraid_initiate_reset(struct pmcraid_instance *pinstance)
 		cmd = pmcraid_get_free_cmd(pinstance);
 
 		if (cmd == NULL) {
-			pmcraid_err("no cmnd blocks for initiate_reset\n");
+			pmcraid_err("yes cmnd blocks for initiate_reset\n");
 			return;
 		}
 
 		pinstance->ioa_shutdown_type = SHUTDOWN_NONE;
 		pinstance->reset_cmd = cmd;
 		pinstance->force_ioa_reset = 1;
-		pmcraid_notify_ioastate(pinstance,
+		pmcraid_yestify_ioastate(pinstance,
 					PMC_DEVICE_EVENT_RESET_START);
 		pmcraid_ioa_reset(cmd);
 	}
@@ -2310,11 +2310,11 @@ static void pmcraid_initiate_reset(struct pmcraid_instance *pinstance)
  * @target_state: expected target state after reset
  *
  * Note: This command initiates reset and waits for its completion. Hence this
- * should not be called from isr/timer/tasklet functions (timeout handlers,
+ * should yest be called from isr/timer/tasklet functions (timeout handlers,
  * error response handlers and interrupt handlers).
  *
  * Return Value
- *	 1 in case ioa_state is not target_state, 0 otherwise.
+ *	 1 in case ioa_state is yest target_state, 0 otherwise.
  */
 static int pmcraid_reset_reload(
 	struct pmcraid_instance *pinstance,
@@ -2353,7 +2353,7 @@ static int pmcraid_reset_reload(
 	scsi_block_requests(pinstance->host);
 	reset_cmd = pmcraid_get_free_cmd(pinstance);
 	if (reset_cmd == NULL) {
-		pmcraid_err("no free cmnd for reset_reload\n");
+		pmcraid_err("yes free cmnd for reset_reload\n");
 		goto out_unlock;
 	}
 
@@ -2404,7 +2404,7 @@ static int pmcraid_reset_bringdown(struct pmcraid_instance *pinstance)
  */
 static int pmcraid_reset_bringup(struct pmcraid_instance *pinstance)
 {
-	pmcraid_notify_ioastate(pinstance, PMC_DEVICE_EVENT_RESET_START);
+	pmcraid_yestify_ioastate(pinstance, PMC_DEVICE_EVENT_RESET_START);
 
 	return pmcraid_reset_reload(pinstance,
 				    SHUTDOWN_NONE,
@@ -2506,7 +2506,7 @@ static void pmcraid_cancel_all(struct pmcraid_cmd *cmd, bool need_sense)
  * @cmd: pointer to failing command block
  *
  * Return value
- *  none
+ *  yesne
  */
 static void pmcraid_frame_auto_sense(struct pmcraid_cmd *cmd)
 {
@@ -2572,7 +2572,7 @@ static void pmcraid_frame_auto_sense(struct pmcraid_cmd *cmd)
  * pmcraid_error_handler - Error response handlers for a SCSI op
  * @cmd: pointer to pmcraid_cmd that has failed
  *
- * This function determines whether or not to initiate ERP on the affected
+ * This function determines whether or yest to initiate ERP on the affected
  * device. This is called from a tasklet, which doesn't hold any locks.
  *
  * Return value:
@@ -2641,7 +2641,7 @@ static int pmcraid_error_handler(struct pmcraid_cmd *cmd)
 		scsi_cmd->result |= PMCRAID_IOASC_SENSE_STATUS(ioasc);
 		res->sync_reqd = 1;
 
-		/* if check_condition is not active return with error otherwise
+		/* if check_condition is yest active return with error otherwise
 		 * get/frame the sense buffer
 		 */
 		if (PMCRAID_IOASC_SENSE_STATUS(ioasc) !=
@@ -2691,7 +2691,7 @@ static int pmcraid_error_handler(struct pmcraid_cmd *cmd)
  *
  * This function issues a device reset to the affected device.
  * A LUN reset will be sent to the device first. If that does
- * not work, a target reset will be sent.
+ * yest work, a target reset will be sent.
  *
  * Return value:
  *	SUCCESS / FAILED
@@ -2741,7 +2741,7 @@ static int pmcraid_reset_device(
 
 	if (cmd == NULL) {
 		spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
-		pmcraid_err("%s: no cmd blocks are available\n", __func__);
+		pmcraid_err("%s: yes cmd blocks are available\n", __func__);
 		return FAILED;
 	}
 
@@ -2800,7 +2800,7 @@ static int pmcraid_reset_device(
  *
  * Return value:
  *	  0 if caller is required to return it to free_pool. Returns 1 if
- *	  caller need not worry about freeing command block as error handler
+ *	  caller need yest worry about freeing command block as error handler
  *	  will take care of that.
  */
 
@@ -2836,7 +2836,7 @@ static int _pmcraid_io_done(struct pmcraid_cmd *cmd, int reslen, int ioasc)
  * the SCSI ops sent from mid-layer.
  *
  * Return value
- *	  none
+ *	  yesne
  */
 
 static void pmcraid_io_done(struct pmcraid_cmd *cmd)
@@ -2868,7 +2868,7 @@ static struct pmcraid_cmd *pmcraid_abort_cmd(struct pmcraid_cmd *cmd)
 	cancel_cmd = pmcraid_get_free_cmd(pinstance);
 
 	if (cancel_cmd == NULL) {
-		pmcraid_err("%s: no cmd blocks are available\n", __func__);
+		pmcraid_err("%s: yes cmd blocks are available\n", __func__);
 		return NULL;
 	}
 
@@ -2912,7 +2912,7 @@ static int pmcraid_abort_complete(struct pmcraid_cmd *cancel_cmd)
 	cancel_cmd->res = NULL;
 	ioasc = le32_to_cpu(cancel_cmd->ioa_cb->ioasa.ioasc);
 
-	/* If the abort task is not timed out we will get a Good completion
+	/* If the abort task is yest timed out we will get a Good completion
 	 * as sense_key, otherwise we may get one the following responses
 	 * due to subsequent bus reset or device reset. In case IOASC is
 	 * NR_SYNC_REQUIRED, set sync_reqd flag for the corresponding resource
@@ -2933,7 +2933,7 @@ static int pmcraid_abort_complete(struct pmcraid_cmd *cancel_cmd)
  * pmcraid_eh_abort_handler - entry point for aborting a single task on errors
  *
  * @scsi_cmd:   scsi command struct given by mid-layer. When this is called
- *		mid-layer ensures that no other commands are queued. This
+ *		mid-layer ensures that yes other commands are queued. This
  *		never gets called under interrupt, but a separate eh thread.
  *
  * Return value:
@@ -2976,7 +2976,7 @@ static int pmcraid_eh_abort_handler(struct scsi_cmnd *scsi_cmd)
 	}
 
 	/* loop over pending cmd list to find cmd corresponding to this
-	 * scsi_cmd. Note that this command might not have been completed
+	 * scsi_cmd. Note that this command might yest have been completed
 	 * already. locking: all pending commands are protected with
 	 * pending_pool_lock.
 	 */
@@ -3015,7 +3015,7 @@ static int pmcraid_eh_abort_handler(struct scsi_cmnd *scsi_cmd)
  * @scmd: pointer to scsi_cmd that was sent to the resource to be reset.
  *
  * All these routines invokve pmcraid_reset_device with appropriate parameters.
- * Since these are called from mid-layer EH thread, no other IO will be queued
+ * Since these are called from mid-layer EH thread, yes other IO will be queued
  * to the resource being reset. However, control path (IOCTL) may be active so
  * it is necessary to synchronize IOARRIN writes which pmcraid_reset_device
  * takes care by locking/unlocking host_lock.
@@ -3197,7 +3197,7 @@ static int pmcraid_build_ioadl(
  * Free a DMA'able memory previously allocated with pmcraid_alloc_sglist
  *
  * Return value:
- *	none
+ *	yesne
  */
 static void pmcraid_free_sglist(struct pmcraid_sglist *sglist)
 {
@@ -3368,7 +3368,7 @@ static int pmcraid_queuecommand_lck(
 	cmd = pmcraid_get_free_cmd(pinstance);
 
 	if (cmd == NULL) {
-		pmcraid_err("free command block is not available\n");
+		pmcraid_err("free command block is yest available\n");
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
@@ -3422,7 +3422,7 @@ static int pmcraid_queuecommand_lck(
 	if (likely(rc == 0)) {
 		_pmcraid_fire_command(cmd);
 	} else {
-		pmcraid_err("queuecommand could not build ioadl\n");
+		pmcraid_err("queuecommand could yest build ioadl\n");
 		pmcraid_return_cmd(cmd);
 		rc = SCSI_MLQUEUE_HOST_BUSY;
 	}
@@ -3433,9 +3433,9 @@ static int pmcraid_queuecommand_lck(
 static DEF_SCSI_QCMD(pmcraid_queuecommand)
 
 /**
- * pmcraid_open -char node "open" entry, allowed only users with admin access
+ * pmcraid_open -char yesde "open" entry, allowed only users with admin access
  */
-static int pmcraid_chr_open(struct inode *inode, struct file *filep)
+static int pmcraid_chr_open(struct iyesde *iyesde, struct file *filep)
 {
 	struct pmcraid_instance *pinstance;
 
@@ -3443,14 +3443,14 @@ static int pmcraid_chr_open(struct inode *inode, struct file *filep)
 		return -EACCES;
 
 	/* Populate adapter instance * pointer for use by ioctl */
-	pinstance = container_of(inode->i_cdev, struct pmcraid_instance, cdev);
+	pinstance = container_of(iyesde->i_cdev, struct pmcraid_instance, cdev);
 	filep->private_data = pinstance;
 
 	return 0;
 }
 
 /**
- * pmcraid_fasync - Async notifier registration from applications
+ * pmcraid_fasync - Async yestifier registration from applications
  *
  * This function adds the calling process to a driver global queue. When an
  * event occurs, SIGIO will be sent to all processes in this queue.
@@ -3478,7 +3478,7 @@ static int pmcraid_chr_fasync(int fd, struct file *filep, int mode)
  * @direction : data transfer direction
  *
  * Return value
- *  0 on success, non-zero error code on failure
+ *  0 on success, yesn-zero error code on failure
  */
 static int pmcraid_build_passthrough_ioadls(
 	struct pmcraid_cmd *cmd,
@@ -3537,7 +3537,7 @@ static int pmcraid_build_passthrough_ioadls(
  * @direction: data transfer direction
  *
  * Return value
- *  0 on success, non-zero error code on failure
+ *  0 on success, yesn-zero error code on failure
  */
 static void pmcraid_release_passthrough_ioadls(
 	struct pmcraid_cmd *cmd,
@@ -3565,7 +3565,7 @@ static void pmcraid_release_passthrough_ioadls(
  * @arg: pointer to pmcraid_passthrough_buffer user buffer
  *
  * Return value
- *  0 on success, non-zero error code on failure
+ *  0 on success, yesn-zero error code on failure
  */
 static long pmcraid_ioctl_passthrough(
 	struct pmcraid_instance *pinstance,
@@ -3601,9 +3601,9 @@ static long pmcraid_ioctl_passthrough(
 			return -ERESTARTSYS;
 	}
 
-	/* If adapter is not in operational state, return error */
+	/* If adapter is yest in operational state, return error */
 	if (pinstance->ioa_state != IOA_STATE_OPERATIONAL) {
-		pmcraid_err("IOA is not operational\n");
+		pmcraid_err("IOA is yest operational\n");
 		return -ENOTTY;
 	}
 
@@ -3611,7 +3611,7 @@ static long pmcraid_ioctl_passthrough(
 	buffer = kmalloc(buffer_size, GFP_KERNEL);
 
 	if (!buffer) {
-		pmcraid_err("no memory for passthrough buffer\n");
+		pmcraid_err("yes memory for passthrough buffer\n");
 		return -ENOMEM;
 	}
 
@@ -3654,7 +3654,7 @@ static long pmcraid_ioctl_passthrough(
 	cmd = pmcraid_get_free_cmd(pinstance);
 
 	if (!cmd) {
-		pmcraid_err("free command block is not available\n");
+		pmcraid_err("free command block is yest available\n");
 		rc = -ENOMEM;
 		goto out_free_buffer;
 	}
@@ -3774,7 +3774,7 @@ static long pmcraid_ioctl_passthrough(
 			}
 		}
 
-		/* no command block for abort task or abort task failed to abort
+		/* yes command block for abort task or abort task failed to abort
 		 * the IOARCB, then wait for 150 more seconds and initiate reset
 		 * sequence after timeout
 		 */
@@ -3897,7 +3897,7 @@ static int pmcraid_check_ioctl_buffer(
 }
 
 /**
- *  pmcraid_ioctl - char node ioctl entry point
+ *  pmcraid_ioctl - char yesde ioctl entry point
  */
 static long pmcraid_chr_ioctl(
 	struct file *filep,
@@ -3928,7 +3928,7 @@ static long pmcraid_chr_ioctl(
 	pinstance = filep->private_data;
 
 	if (!pinstance) {
-		pmcraid_info("adapter instance is not found\n");
+		pmcraid_info("adapter instance is yest found\n");
 		kfree(hdr);
 		return -ENOTTY;
 	}
@@ -3974,7 +3974,7 @@ static const struct file_operations pmcraid_fops = {
 	.fasync = pmcraid_chr_fasync,
 	.unlocked_ioctl = pmcraid_chr_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 
@@ -4003,7 +4003,7 @@ static ssize_t pmcraid_show_log_level(
  * pmcraid_store_log_level - Change the adapter's error logging level
  * @dev: class device struct
  * @buf: buffer
- * @count: not used
+ * @count: yest used
  *
  * Return value:
  *  number of bytes printed to buffer
@@ -4089,7 +4089,7 @@ static ssize_t pmcraid_show_adapter_id(
 	u32 aen_group = pmcraid_event_family.id;
 
 	return snprintf(buf, PAGE_SIZE,
-			"adapter id: %d\nminor: %d\naen group: %d\n",
+			"adapter id: %d\nmiyesr: %d\naen group: %d\n",
 			adapter_id, MINOR(pinstance->cdev.dev), aen_group);
 }
 
@@ -4128,7 +4128,7 @@ static struct scsi_host_template pmcraid_host_template = {
 	.this_id = -1,
 	.sg_tablesize = PMCRAID_MAX_IOADLS,
 	.max_sectors = PMCRAID_IOA_MAX_SECTORS,
-	.no_write_same = 1,
+	.yes_write_same = 1,
 	.cmd_per_lun = PMCRAID_MAX_CMD_PER_LUN,
 	.shost_attrs = pmcraid_host_attrs,
 	.proc_name = PMCRAID_DRIVER_NAME,
@@ -4140,7 +4140,7 @@ static struct scsi_host_template pmcraid_host_template = {
  * @dev_id: pointer hrrq_vector
  *
  * Return Value
- *	 IRQ_HANDLED if interrupt is handled or IRQ_NONE if ignored
+ *	 IRQ_HANDLED if interrupt is handled or IRQ_NONE if igyesred
  */
 
 static irqreturn_t pmcraid_isr_msix(int irq, void *dev_id)
@@ -4210,7 +4210,7 @@ static irqreturn_t pmcraid_isr_msix(int irq, void *dev_id)
  * @dev_id: pointer hrrq_vector
  *
  * Return Value
- *	 IRQ_HANDLED if interrupt is handled or IRQ_NONE if ignored
+ *	 IRQ_HANDLED if interrupt is handled or IRQ_NONE if igyesred
  */
 static irqreturn_t pmcraid_isr(int irq, void *dev_id)
 {
@@ -4221,7 +4221,7 @@ static irqreturn_t pmcraid_isr(int irq, void *dev_id)
 	int hrrq_id = 0;
 
 	/* In case of legacy interrupt mode where interrupts are shared across
-	 * isrs, it may be possible that the current interrupt is not from IOA
+	 * isrs, it may be possible that the current interrupt is yest from IOA
 	 */
 	if (!dev_id) {
 		printk(KERN_INFO "%s(): NULL host pointer\n", __func__);
@@ -4482,7 +4482,7 @@ void pmcraid_unregister_interrupt_handler(struct pmcraid_instance *pinstance)
  * @pinstance: pointer to per-adapter instance structure
  *
  * Return Value
- *	0 on success, non-zero error code otherwise.
+ *	0 on success, yesn-zero error code otherwise.
  */
 static int
 pmcraid_register_interrupt_handler(struct pmcraid_instance *pinstance)
@@ -4562,7 +4562,7 @@ pmcraid_release_cmd_blocks(struct pmcraid_instance *pinstance, int max_index)
  * @max_index: number of buffers (from 0 onwards) to release
  *
  * This function assumes that the command blocks for which control blocks are
- * linked are not released.
+ * linked are yest released.
  *
  * Return Value
  *	 None
@@ -4734,7 +4734,7 @@ static int pmcraid_allocate_host_rrqs(struct pmcraid_instance *pinstance)
  * @pinstance: pointer to per adapter instance structure
  *
  * Return value
- *  none
+ *  yesne
  */
 static void pmcraid_release_hcams(struct pmcraid_instance *pinstance)
 {
@@ -4768,7 +4768,7 @@ static void pmcraid_release_hcams(struct pmcraid_instance *pinstance)
  * @pinstance : pointer to per adapter instance structure
  *
  * Return Value:
- *   0 in case of successful allocation, non-zero otherwise
+ *   0 in case of successful allocation, yesn-zero otherwise
  */
 static int pmcraid_allocate_hcams(struct pmcraid_instance *pinstance)
 {
@@ -4790,8 +4790,8 @@ static int pmcraid_allocate_hcams(struct pmcraid_instance *pinstance)
 		pinstance->ldn.hcam =
 			(void *)pinstance->ldn.msg + PMCRAID_AEN_HDR_SIZE;
 
-		atomic_set(&pinstance->ccn.ignore, 0);
-		atomic_set(&pinstance->ldn.ignore, 0);
+		atomic_set(&pinstance->ccn.igyesre, 0);
+		atomic_set(&pinstance->ldn.igyesre, 0);
 	}
 
 	return (pinstance->ldn.msg == NULL) ? -ENOMEM : 0;
@@ -4802,7 +4802,7 @@ static int pmcraid_allocate_hcams(struct pmcraid_instance *pinstance)
  * @pinstance: pointer to per adapter instance structure
  *
  * Return Value
- *	 none
+ *	 yesne
  */
 static void pmcraid_release_config_buffers(struct pmcraid_instance *pinstance)
 {
@@ -4865,7 +4865,7 @@ static int pmcraid_allocate_config_buffers(struct pmcraid_instance *pinstance)
 	}
 
 	if (pmcraid_allocate_hcams(pinstance)) {
-		pmcraid_err("could not alloc DMA memory for HCAMS\n");
+		pmcraid_err("could yest alloc DMA memory for HCAMS\n");
 		pmcraid_release_config_buffers(pinstance);
 		return -ENOMEM;
 	}
@@ -4879,7 +4879,7 @@ static int pmcraid_allocate_config_buffers(struct pmcraid_instance *pinstance)
  * @pinstance: pointer adapter instance structure
  *
  * Return value
- *	none
+ *	yesne
  */
 static void pmcraid_init_tasklets(struct pmcraid_instance *pinstance)
 {
@@ -4896,7 +4896,7 @@ static void pmcraid_init_tasklets(struct pmcraid_instance *pinstance)
  * @pinstance: pointer to adapter instance structure
  *
  * Return value
- *	none
+ *	yesne
  */
 static void pmcraid_kill_tasklets(struct pmcraid_instance *pinstance)
 {
@@ -4911,7 +4911,7 @@ static void pmcraid_kill_tasklets(struct pmcraid_instance *pinstance)
  * @pinstance: pointer to adapter soft state
  *
  * Return Value
- *	none
+ *	yesne
  */
 static void pmcraid_release_buffers(struct pmcraid_instance *pinstance)
 {
@@ -5026,7 +5026,7 @@ static int pmcraid_init_buffers(struct pmcraid_instance *pinstance)
  * pmcraid_reinit_buffers - resets various buffer pointers
  * @pinstance: pointer to adapter instance
  * Return value
- *	none
+ *	yesne
  */
 static void pmcraid_reinit_buffers(struct pmcraid_instance *pinstance)
 {
@@ -5049,7 +5049,7 @@ static void pmcraid_reinit_buffers(struct pmcraid_instance *pinstance)
  * @mapped_pci_addr: memory mapped IOA configuration registers
  *
  * Return Value
- *	 0 on success, non-zero in case of any failure
+ *	 0 on success, yesn-zero in case of any failure
  */
 static int pmcraid_init_instance(struct pci_dev *pdev, struct Scsi_Host *host,
 				 void __iomem *mapped_pci_addr)
@@ -5130,7 +5130,7 @@ static int pmcraid_init_instance(struct pci_dev *pdev, struct Scsi_Host *host,
  * Issues an adapter shutdown to the card waits for its completion
  *
  * Return value
- *	  none
+ *	  yesne
  */
 static void pmcraid_shutdown(struct pci_dev *pdev)
 {
@@ -5140,49 +5140,49 @@ static void pmcraid_shutdown(struct pci_dev *pdev)
 
 
 /**
- * pmcraid_get_minor - returns unused minor number from minor number bitmap
+ * pmcraid_get_miyesr - returns unused miyesr number from miyesr number bitmap
  */
-static unsigned short pmcraid_get_minor(void)
+static unsigned short pmcraid_get_miyesr(void)
 {
-	int minor;
+	int miyesr;
 
-	minor = find_first_zero_bit(pmcraid_minor, PMCRAID_MAX_ADAPTERS);
-	__set_bit(minor, pmcraid_minor);
-	return minor;
+	miyesr = find_first_zero_bit(pmcraid_miyesr, PMCRAID_MAX_ADAPTERS);
+	__set_bit(miyesr, pmcraid_miyesr);
+	return miyesr;
 }
 
 /**
- * pmcraid_release_minor - releases given minor back to minor number bitmap
+ * pmcraid_release_miyesr - releases given miyesr back to miyesr number bitmap
  */
-static void pmcraid_release_minor(unsigned short minor)
+static void pmcraid_release_miyesr(unsigned short miyesr)
 {
-	__clear_bit(minor, pmcraid_minor);
+	__clear_bit(miyesr, pmcraid_miyesr);
 }
 
 /**
- * pmcraid_setup_chrdev - allocates a minor number and registers a char device
+ * pmcraid_setup_chrdev - allocates a miyesr number and registers a char device
  *
  * @pinstance: pointer to adapter instance for which to register device
  *
  * Return value
- *	0 in case of success, otherwise non-zero
+ *	0 in case of success, otherwise yesn-zero
  */
 static int pmcraid_setup_chrdev(struct pmcraid_instance *pinstance)
 {
-	int minor;
+	int miyesr;
 	int error;
 
-	minor = pmcraid_get_minor();
+	miyesr = pmcraid_get_miyesr();
 	cdev_init(&pinstance->cdev, &pmcraid_fops);
 	pinstance->cdev.owner = THIS_MODULE;
 
-	error = cdev_add(&pinstance->cdev, MKDEV(pmcraid_major, minor), 1);
+	error = cdev_add(&pinstance->cdev, MKDEV(pmcraid_major, miyesr), 1);
 
 	if (error)
-		pmcraid_release_minor(minor);
+		pmcraid_release_miyesr(miyesr);
 	else
-		device_create(pmcraid_class, NULL, MKDEV(pmcraid_major, minor),
-			      NULL, "%s%u", PMCRAID_DEVFILE, minor);
+		device_create(pmcraid_class, NULL, MKDEV(pmcraid_major, miyesr),
+			      NULL, "%s%u", PMCRAID_DEVFILE, miyesr);
 	return error;
 }
 
@@ -5192,11 +5192,11 @@ static int pmcraid_setup_chrdev(struct pmcraid_instance *pinstance)
  * @pinstance: pointer to adapter instance structure
  *
  * Return value
- *  none
+ *  yesne
  */
 static void pmcraid_release_chrdev(struct pmcraid_instance *pinstance)
 {
-	pmcraid_release_minor(MINOR(pinstance->cdev.dev));
+	pmcraid_release_miyesr(MINOR(pinstance->cdev.dev));
 	device_destroy(pmcraid_class,
 		       MKDEV(pmcraid_major, MINOR(pinstance->cdev.dev)));
 	cdev_del(&pinstance->cdev);
@@ -5207,7 +5207,7 @@ static void pmcraid_release_chrdev(struct pmcraid_instance *pinstance)
  * @pdev: pci device struct
  *
  * Return value
- *	  none
+ *	  yesne
  */
 static void pmcraid_remove(struct pci_dev *pdev)
 {
@@ -5374,7 +5374,7 @@ static void pmcraid_complete_ioa_reset(struct pmcraid_cmd *cmd)
  * @cmd: pointer to pmcraid_cmd structure
  *
  * Return Value
- *  0 for success or non-zero for failure cases
+ *  0 for success or yesn-zero for failure cases
  */
 static void pmcraid_set_supported_devs(struct pmcraid_cmd *cmd)
 {
@@ -5389,7 +5389,7 @@ static void pmcraid_set_supported_devs(struct pmcraid_cmd *cmd)
 	ioarcb->cdb[1] = ALL_DEVICES_SUPPORTED;
 
 	/* If this was called as part of resource table reinitialization due to
-	 * lost CCN, it is enough to return the command block back to free pool
+	 * lost CCN, it is eyesugh to return the command block back to free pool
 	 * as part of set_supported_devs completion function.
 	 */
 	if (cmd->drv_inst->reinit_cfg_table) {
@@ -5415,7 +5415,7 @@ static void pmcraid_set_supported_devs(struct pmcraid_cmd *cmd)
  * @cmd: pointer to pmcraid_cmd structure
  *
  * Return Value
- *  0 for success or non-zero for failure cases
+ *  0 for success or yesn-zero for failure cases
  */
 static void pmcraid_set_timestamp(struct pmcraid_cmd *cmd)
 {
@@ -5590,7 +5590,7 @@ static void pmcraid_init_res_table(struct pmcraid_cmd *cmd)
  * retrieve the IOA configuration table.
  *
  * Return value:
- *	none
+ *	yesne
  */
 static void pmcraid_querycfg(struct pmcraid_cmd *cmd)
 {
@@ -5645,7 +5645,7 @@ static void pmcraid_querycfg(struct pmcraid_cmd *cmd)
  *
  * Return Value
  *	returns 0 if the device is claimed and successfully configured.
- *	returns non-zero error code in case of any failure
+ *	returns yesn-zero error code in case of any failure
  */
 static int pmcraid_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *dev_id)
@@ -5666,7 +5666,7 @@ static int pmcraid_probe(struct pci_dev *pdev,
 	rc = pci_enable_device(pdev);
 
 	if (rc) {
-		dev_err(&pdev->dev, "Cannot enable adapter\n");
+		dev_err(&pdev->dev, "Canyest enable adapter\n");
 		atomic_dec(&pmcraid_adapter_count);
 		return rc;
 	}
@@ -5698,7 +5698,7 @@ static int pmcraid_probe(struct pci_dev *pdev,
 	 * 32-bit addressable range though it has 64-bit IOARRIN register.
 	 * However, firmware supports 64-bit streaming DMA buffers, whereas
 	 * coherent buffers are to be 32-bit. Since dma_alloc_coherent always
-	 * returns memory within 4GB (if not, change this logic), coherent
+	 * returns memory within 4GB (if yest, change this logic), coherent
 	 * buffers are within firmware acceptable address ranges.
 	 */
 	if (sizeof(dma_addr_t) == 4 ||
@@ -5713,7 +5713,7 @@ static int pmcraid_probe(struct pci_dev *pdev,
 
 	if (rc != 0) {
 		dev_err(&pdev->dev, "Failed to set PCI DMA mask\n");
-		goto cleanup_nomem;
+		goto cleanup_yesmem;
 	}
 
 	host = scsi_host_alloc(&pmcraid_host_template,
@@ -5722,12 +5722,12 @@ static int pmcraid_probe(struct pci_dev *pdev,
 	if (!host) {
 		dev_err(&pdev->dev, "scsi_host_alloc failed!\n");
 		rc = -ENOMEM;
-		goto cleanup_nomem;
+		goto cleanup_yesmem;
 	}
 
 	host->max_id = PMCRAID_MAX_NUM_TARGETS_PER_BUS;
 	host->max_lun = PMCRAID_MAX_NUM_LUNS_PER_TARGET;
-	host->unique_id = host->host_no;
+	host->unique_id = host->host_yes;
 	host->max_channel = PMCRAID_MAX_BUS_TO_SCAN;
 	host->max_cmd_len = PMCRAID_MAX_CDB_LEN;
 
@@ -5826,7 +5826,7 @@ out_unregister_isr:
 out_scsi_host_put:
 	scsi_host_put(host);
 
-cleanup_nomem:
+cleanup_yesmem:
 	iounmap(mapped_pci_addr);
 
 out_release_regions:

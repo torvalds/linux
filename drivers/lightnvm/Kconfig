@@ -10,10 +10,10 @@ menuconfig NVM
 	  Say Y here to get to enable Open-channel SSDs.
 
 	  Open-Channel SSDs implement a set of extension to SSDs, that
-	  exposes direct access to the underlying non-volatile memory.
+	  exposes direct access to the underlying yesn-volatile memory.
 
 	  If you say N, all options in this submenu will be skipped and disabled
-	  only do this if you know what you are doing.
+	  only do this if you kyesw what you are doing.
 
 if NVM
 
@@ -24,7 +24,7 @@ config NVM_PBLK
 	  host. The target assumes the device exposes raw flash and must be
 	  explicitly managed by the host.
 
-	  Please note the disk format is considered EXPERIMENTAL for now.
+	  Please yeste the disk format is considered EXPERIMENTAL for yesw.
 
 if NVM_PBLK
 

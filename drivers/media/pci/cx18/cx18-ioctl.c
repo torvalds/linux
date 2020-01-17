@@ -55,7 +55,7 @@ static int valid_service_line(int field, int line, int is_pal)
  * For a (field, line, std) and inbound potential set of services for that line,
  * return the first valid service of those passed in the incoming set for that
  * line in priority order:
- * CC, VPS, or WSS over TELETEXT for well known lines
+ * CC, VPS, or WSS over TELETEXT for well kyeswn lines
  * TELETEXT, before VPS, before CC, before WSS, for other lines
  */
 static u16 select_service_from_set(int field, int line, u16 set, int is_pal)
@@ -314,7 +314,7 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	/* Store our new v4l2 (non-)sliced VBI state */
+	/* Store our new v4l2 (yesn-)sliced VBI state */
 	cx->vbi.sliced_in->service_set = 0;
 	cx->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
 
@@ -414,7 +414,7 @@ static int cx18_s_audio(struct file *file, void *fh, const struct v4l2_audio *vo
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 
-	if (vout->index >= cx->nof_audio_inputs)
+	if (vout->index >= cx->yesf_audio_inputs)
 		return -EINVAL;
 	cx->audio_input = vout->index;
 	cx18_audio_set_io(cx);
@@ -438,7 +438,7 @@ static int cx18_g_pixelaspect(struct file *file, void *fh,
 		return -EINVAL;
 
 	f->numerator = cx->is_50hz ? 54 : 11;
-	f->denominator = cx->is_50hz ? 59 : 10;
+	f->deyesminator = cx->is_50hz ? 59 : 10;
 	return 0;
 }
 
@@ -499,7 +499,7 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 	const struct cx18_card_video_input *card_input =
 				cx->card->video_inputs + inp;
 
-	if (inp >= cx->nof_inputs)
+	if (inp >= cx->yesf_inputs)
 		return -EINVAL;
 
 	if (inp == cx->active_input) {
@@ -515,9 +515,9 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 	cx->audio_input = cx->card->video_inputs[inp].audio_index;
 	if (card_input->video_type == V4L2_INPUT_TYPE_TUNER)
 		std = cx->tuner_std;
-	cx->streams[CX18_ENC_STREAM_TYPE_MPG].video_dev.tvnorms = std;
-	cx->streams[CX18_ENC_STREAM_TYPE_YUV].video_dev.tvnorms = std;
-	cx->streams[CX18_ENC_STREAM_TYPE_VBI].video_dev.tvnorms = std;
+	cx->streams[CX18_ENC_STREAM_TYPE_MPG].video_dev.tvyesrms = std;
+	cx->streams[CX18_ENC_STREAM_TYPE_YUV].video_dev.tvyesrms = std;
+	cx->streams[CX18_ENC_STREAM_TYPE_VBI].video_dev.tvyesrms = std;
 
 	/* prevent others from messing with the streams until
 	   we're finished changing inputs. */
@@ -774,7 +774,7 @@ static int cx18_g_enc_index(struct file *file, void *fh,
 	/* Pull IDX MDLs and buffers from q_full and populate the entries */
 	do {
 		mdl = cx18_dequeue(s, &s->q_full);
-		if (mdl == NULL) /* No more IDX data right now */
+		if (mdl == NULL) /* No more IDX data right yesw */
 			break;
 
 		/* Extract the Index entry data from the MDL and buffers */
@@ -959,7 +959,7 @@ static int cx18_encoder_cmd(struct file *file, void *fh,
 		break;
 
 	default:
-		CX18_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
+		CX18_DEBUG_IOCTL("Unkyeswn cmd %d\n", enc->cmd);
 		return -EINVAL;
 	}
 	return 0;
@@ -992,7 +992,7 @@ static int cx18_try_encoder_cmd(struct file *file, void *fh,
 		break;
 
 	default:
-		CX18_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
+		CX18_DEBUG_IOCTL("Unkyeswn cmd %d\n", enc->cmd);
 		return -EINVAL;
 	}
 	return 0;

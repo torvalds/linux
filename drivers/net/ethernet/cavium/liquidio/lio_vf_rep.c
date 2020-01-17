@@ -78,7 +78,7 @@ lio_vf_rep_send_soft_command(struct octeon_device *oct,
 	memset(rep_resp, 0, tot_resp_size);
 	WRITE_ONCE(rep_resp->status, 1);
 
-	sc->iq_no = 0;
+	sc->iq_yes = 0;
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
 				    OPCODE_NIC_VF_REP_CMD, 0, 0, 0);
 
@@ -320,7 +320,7 @@ lio_vf_rep_pkt_recv(struct octeon_recv_info *recv_info, void *buf)
 
 	skb->dev = vf_ndev;
 
-	/* Multiple buffers are not used for vf_rep packets.
+	/* Multiple buffers are yest used for vf_rep packets.
 	 * So just buffer_size[0] is valid.
 	 */
 	lio_vf_rep_copy_packet(oct, skb, recv_pkt->buffer_size[0]);
@@ -351,15 +351,15 @@ lio_vf_rep_packet_sent_callback(struct octeon_device *oct,
 	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
 	struct sk_buff *skb = sc->ctxptr;
 	struct net_device *ndev = skb->dev;
-	u32 iq_no;
+	u32 iq_yes;
 
 	dma_unmap_single(&oct->pci_dev->dev, sc->dmadptr,
 			 sc->datasize, DMA_TO_DEVICE);
 	dev_kfree_skb_any(skb);
-	iq_no = sc->iq_no;
+	iq_yes = sc->iq_yes;
 	octeon_free_soft_command(oct, sc);
 
-	if (octnet_iq_is_full(oct, iq_no))
+	if (octnet_iq_is_full(oct, iq_yes))
 		return;
 
 	if (netif_queue_stopped(ndev))
@@ -396,7 +396,7 @@ lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev)
 		goto xmit_failed;
 	}
 
-	/* Multiple buffers are not used for vf_rep packets. */
+	/* Multiple buffers are yest used for vf_rep packets. */
 	if (skb_shinfo(skb)->nr_frags != 0) {
 		dev_err(&oct->pci_dev->dev, "VF rep: nr_frags != 0. Dropping packet\n");
 		octeon_free_soft_command(oct, sc);
@@ -414,7 +414,7 @@ lio_vf_rep_pkt_xmit(struct sk_buff *skb, struct net_device *ndev)
 	sc->virtdptr = skb->data;
 	sc->datasize = skb->len;
 	sc->ctxptr = skb;
-	sc->iq_no = parent_lio->txq;
+	sc->iq_yes = parent_lio->txq;
 
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC, OPCODE_NIC_VF_REP_PKT,
 				    vf_rep->ifidx, 0, 0);
@@ -604,10 +604,10 @@ lio_vf_rep_destroy(struct octeon_device *oct)
 }
 
 static int
-lio_vf_rep_netdev_event(struct notifier_block *nb,
+lio_vf_rep_netdev_event(struct yestifier_block *nb,
 			unsigned long event, void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_yestifier_info_to_dev(ptr);
 	struct lio_vf_rep_desc *vf_rep;
 	struct lio_vf_rep_req rep_cfg;
 	struct octeon_device *oct;
@@ -649,15 +649,15 @@ lio_vf_rep_netdev_event(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block lio_vf_rep_netdev_notifier = {
-	.notifier_call = lio_vf_rep_netdev_event,
+static struct yestifier_block lio_vf_rep_netdev_yestifier = {
+	.yestifier_call = lio_vf_rep_netdev_event,
 };
 
 int
 lio_vf_rep_modinit(void)
 {
-	if (register_netdevice_notifier(&lio_vf_rep_netdev_notifier)) {
-		pr_err("netdev notifier registration failed\n");
+	if (register_netdevice_yestifier(&lio_vf_rep_netdev_yestifier)) {
+		pr_err("netdev yestifier registration failed\n");
 		return -EFAULT;
 	}
 
@@ -667,6 +667,6 @@ lio_vf_rep_modinit(void)
 void
 lio_vf_rep_modexit(void)
 {
-	if (unregister_netdevice_notifier(&lio_vf_rep_netdev_notifier))
-		pr_err("netdev notifier unregister failed\n");
+	if (unregister_netdevice_yestifier(&lio_vf_rep_netdev_yestifier))
+		pr_err("netdev yestifier unregister failed\n");
 }

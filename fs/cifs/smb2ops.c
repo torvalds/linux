@@ -267,7 +267,7 @@ smb2_find_mid(struct TCP_Server_Info *server, char *buf)
 	__u64 wire_mid = le64_to_cpu(shdr->MessageId);
 
 	if (shdr->ProtocolId == SMB2_TRANSFORM_PROTO_NUM) {
-		cifs_server_dbg(VFS, "Encrypted frame parsing not supported yet\n");
+		cifs_server_dbg(VFS, "Encrypted frame parsing yest supported yet\n");
 		return NULL;
 	}
 
@@ -502,7 +502,7 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 			addr4->sin_family = AF_INET;
 			memcpy(&addr4->sin_addr, &p4->IPv4Address, 4);
 
-			/* [MS-SMB2] 2.2.32.5.1.1 Clients MUST ignore these */
+			/* [MS-SMB2] 2.2.32.5.1.1 Clients MUST igyesre these */
 			addr4->sin_port = cpu_to_be16(CIFS_PORT);
 
 			cifs_dbg(FYI, "%s: ipv4 %pI4\n", __func__,
@@ -514,7 +514,7 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 			addr6->sin6_family = AF_INET6;
 			memcpy(&addr6->sin6_addr, &p6->IPv6Address, 16);
 
-			/* [MS-SMB2] 2.2.32.5.1.2 Clients MUST ignore these */
+			/* [MS-SMB2] 2.2.32.5.1.2 Clients MUST igyesre these */
 			addr6->sin6_flowinfo = 0;
 			addr6->sin6_scope_id = 0;
 			addr6->sin6_port = cpu_to_be16(CIFS_PORT);
@@ -573,11 +573,11 @@ SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon)
 
 	rc = SMB2_ioctl(xid, tcon, NO_FILE_ID, NO_FILE_ID,
 			FSCTL_QUERY_NETWORK_INTERFACE_INFO, true /* is_fsctl */,
-			NULL /* no data input */, 0 /* no data input */,
+			NULL /* yes data input */, 0 /* yes data input */,
 			CIFSMaxBufSize, (char **)&out_buf, &ret_data_len);
 	if (rc == -EOPNOTSUPP) {
 		cifs_dbg(FYI,
-			 "server does not support query network interfaces\n");
+			 "server does yest support query network interfaces\n");
 		goto out;
 	} else if (rc != 0) {
 		cifs_tcon_dbg(VFS, "error %d on ioctl to get interface list\n", rc);
@@ -680,7 +680,7 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 	}
 
 	/*
-	 * We do not hold the lock for the open because in case
+	 * We do yest hold the lock for the open because in case
 	 * SMB2_open needs to reconnect, it will end up calling
 	 * cifs_mark_open_files_invalid() which takes the lock again
 	 * thus causing a deadlock
@@ -761,7 +761,7 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 		goto oshr_free;
 	}
 
-	/* Cached root is still invalid, continue normaly */
+	/* Cached root is still invalid, continue yesrmaly */
 
 	if (rc) {
 		if (rc == -EREMCHG) {
@@ -824,7 +824,7 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
-	bool no_cached_open = tcon->nohandlecache;
+	bool yes_cached_open = tcon->yeshandlecache;
 
 	oparms.tcon = tcon;
 	oparms.desired_access = FILE_READ_ATTRIBUTES;
@@ -833,7 +833,7 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	if (no_cached_open)
+	if (yes_cached_open)
 		rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL,
 			       NULL);
 	else
@@ -852,7 +852,7 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 			FS_VOLUME_INFORMATION);
 	SMB2_QFS_attr(xid, tcon, fid.persistent_fid, fid.volatile_fid,
 			FS_SECTOR_SIZE_INFORMATION); /* SMB3 specific */
-	if (no_cached_open)
+	if (yes_cached_open)
 		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 	else
 		close_shroot(&tcon->crfid);
@@ -1063,9 +1063,9 @@ smb2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
 				      &rsp_iov, &buftype, cifs_sb);
 	if (rc) {
 		/*
-		 * If ea_name is NULL (listxattr) and there are no EAs,
-		 * return 0 as it's not an error. Otherwise, the specified
-		 * ea_name was not found.
+		 * If ea_name is NULL (listxattr) and there are yes EAs,
+		 * return 0 as it's yest an error. Otherwise, the specified
+		 * ea_name was yest found.
 		 */
 		if (!ea_name && rc == -ENODATA)
 			rc = 0;
@@ -1200,7 +1200,7 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = compound_send_recv(xid, ses, flags, 3, rqst,
 				resp_buftype, rsp_iov);
-	/* no need to bump num_remote_opens because handle immediately closed */
+	/* yes need to bump num_remote_opens because handle immediately closed */
 
  sea_exit:
 	kfree(ea);
@@ -1273,7 +1273,7 @@ smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 
 	/*
 	 *  Can't display SMB2_NEGOTIATE, SESSION_SETUP, LOGOFF, CANCEL and ECHO
-	 *  totals (requests sent) since those SMBs are per-session not per tcon
+	 *  totals (requests sent) since those SMBs are per-session yest per tcon
 	 */
 	seq_printf(m, "\nBytes read: %llu  Bytes written: %llu",
 		   (long long)(tcon->bytes_read),
@@ -1328,7 +1328,7 @@ smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 static void
 smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 {
-	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
+	struct cifsIyesdeInfo *ciyesde = CIFS_I(d_iyesde(cfile->dentry));
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
 
 	cfile->fid.persistent_fid = fid->persistent_fid;
@@ -1336,9 +1336,9 @@ smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 #ifdef CONFIG_CIFS_DEBUG2
 	cfile->fid.mid = fid->mid;
 #endif /* CIFS_DEBUG2 */
-	server->ops->set_oplock_level(cinode, oplock, fid->epoch,
+	server->ops->set_oplock_level(ciyesde, oplock, fid->epoch,
 				      &fid->purge_cache);
-	cinode->can_cache_brlcks = CIFS_CACHE_WRITE(cinode);
+	ciyesde->can_cache_brlcks = CIFS_CACHE_WRITE(ciyesde);
 	memcpy(cfile->fid.create_guid, fid->create_guid, 16);
 }
 
@@ -1354,7 +1354,7 @@ smb2_close_getattr(const unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifsFileInfo *cfile)
 {
 	struct smb2_file_network_open_info file_inf;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int rc;
 
 	rc = __SMB2_close(xid, tcon, cfile->fid.persistent_fid,
@@ -1362,30 +1362,30 @@ smb2_close_getattr(const unsigned int xid, struct cifs_tcon *tcon,
 	if (rc)
 		return;
 
-	inode = d_inode(cfile->dentry);
+	iyesde = d_iyesde(cfile->dentry);
 
-	spin_lock(&inode->i_lock);
-	CIFS_I(inode)->time = jiffies;
+	spin_lock(&iyesde->i_lock);
+	CIFS_I(iyesde)->time = jiffies;
 
-	/* Creation time should not need to be updated on close */
+	/* Creation time should yest need to be updated on close */
 	if (file_inf.LastWriteTime)
-		inode->i_mtime = cifs_NTtimeToUnix(file_inf.LastWriteTime);
+		iyesde->i_mtime = cifs_NTtimeToUnix(file_inf.LastWriteTime);
 	if (file_inf.ChangeTime)
-		inode->i_ctime = cifs_NTtimeToUnix(file_inf.ChangeTime);
+		iyesde->i_ctime = cifs_NTtimeToUnix(file_inf.ChangeTime);
 	if (file_inf.LastAccessTime)
-		inode->i_atime = cifs_NTtimeToUnix(file_inf.LastAccessTime);
+		iyesde->i_atime = cifs_NTtimeToUnix(file_inf.LastAccessTime);
 
 	/*
-	 * i_blocks is not related to (i_size / i_blksize),
+	 * i_blocks is yest related to (i_size / i_blksize),
 	 * but instead 512 byte (2**9) size is required for
 	 * calculating num blocks.
 	 */
 	if (le64_to_cpu(file_inf.AllocationSize) > 4096)
-		inode->i_blocks =
+		iyesde->i_blocks =
 			(512 - 1 + le64_to_cpu(file_inf.AllocationSize)) >> 9;
 
-	/* End of file and Attributes should not have to be updated on close */
-	spin_unlock(&inode->i_lock);
+	/* End of file and Attributes should yest have to be updated on close */
+	spin_unlock(&iyesde->i_lock);
 }
 
 static int
@@ -1399,7 +1399,7 @@ SMB2_request_res_key(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = SMB2_ioctl(xid, tcon, persistent_fid, volatile_fid,
 			FSCTL_SRV_REQUEST_RESUME_KEY, true /* is_fsctl */,
-			NULL, 0 /* no input */, CIFSMaxBufSize,
+			NULL, 0 /* yes input */, CIFSMaxBufSize,
 			(char **)&res_key, &ret_data_len);
 
 	if (rc) {
@@ -1553,7 +1553,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 				  qi.info_type, qi.additional_information,
 				  qi.input_buffer_length,
 				  qi.output_buffer_length, buffer);
-	} else { /* unknown flags */
+	} else { /* unkyeswn flags */
 		cifs_tcon_dbg(VFS, "invalid passthru query flags: 0x%x\n", qi.flags);
 		rc = -EINVAL;
 	}
@@ -1662,7 +1662,7 @@ smb2_copychunk_range(const unsigned int xid,
 	if (rc)
 		goto cchunk_out;
 
-	/* For now array only one chunk long, will make more flexible later */
+	/* For yesw array only one chunk long, will make more flexible later */
 	pcchunk->ChunkCount = cpu_to_le32(1);
 	pcchunk->Reserved = 0;
 	pcchunk->Reserved2 = 0;
@@ -1689,7 +1689,7 @@ smb2_copychunk_range(const unsigned int xid,
 				goto cchunk_out;
 			}
 			if (retbuf->TotalBytesWritten == 0) {
-				cifs_dbg(FYI, "no bytes copied\n");
+				cifs_dbg(FYI, "yes bytes copied\n");
 				rc = -EIO;
 				goto cchunk_out;
 			}
@@ -1733,12 +1733,12 @@ smb2_copychunk_range(const unsigned int xid,
 			 * (ie check if copy succeed once with original sizes
 			 * and check if the server gave us different sizes after
 			 * we already updated max sizes on previous request).
-			 * if not then why is the server returning an error now
+			 * if yest then why is the server returning an error yesw
 			 */
 			if ((chunks_copied != 0) || chunk_sizes_updated)
 				goto cchunk_out;
 
-			/* Check that server is not asking us to grow size */
+			/* Check that server is yest asking us to grow size */
 			if (le32_to_cpu(retbuf->ChunkBytesWritten) <
 					tcon->max_bytes_chunk)
 				tcon->max_bytes_chunk =
@@ -1811,19 +1811,19 @@ smb2_sync_write(const unsigned int xid, struct cifs_fid *pfid,
 
 /* Set or clear the SPARSE_FILE attribute based on value passed in setsparse */
 static bool smb2_set_sparse(const unsigned int xid, struct cifs_tcon *tcon,
-		struct cifsFileInfo *cfile, struct inode *inode, __u8 setsparse)
+		struct cifsFileInfo *cfile, struct iyesde *iyesde, __u8 setsparse)
 {
-	struct cifsInodeInfo *cifsi;
+	struct cifsIyesdeInfo *cifsi;
 	int rc;
 
-	cifsi = CIFS_I(inode);
+	cifsi = CIFS_I(iyesde);
 
 	/* if file already sparse don't bother setting sparse again */
 	if ((cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE) && setsparse)
 		return true; /* already sparse */
 
 	if (!(cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE) && !setsparse)
-		return true; /* already not sparse */
+		return true; /* already yest sparse */
 
 	/*
 	 * Can't check for sparse support on share the usual way via the
@@ -1831,7 +1831,7 @@ static bool smb2_set_sparse(const unsigned int xid, struct cifs_tcon *tcon,
 	 * since Samba server doesn't set the flag on the share, yet
 	 * supports the set sparse FSCTL and returns sparse correctly
 	 * in the file attributes. If we fail setting sparse though we
-	 * mark that server does not support sparse files for this share
+	 * mark that server does yest support sparse files for this share
 	 * to avoid repeatedly sending the unsupported fsctl to server
 	 * if the file is repeatedly extended.
 	 */
@@ -1861,19 +1861,19 @@ smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifsFileInfo *cfile, __u64 size, bool set_alloc)
 {
 	__le64 eof = cpu_to_le64(size);
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	/*
 	 * If extending file more than one page make sparse. Many Linux fs
 	 * make files sparse by default when extending via ftruncate
 	 */
-	inode = d_inode(cfile->dentry);
+	iyesde = d_iyesde(cfile->dentry);
 
-	if (!set_alloc && (size > inode->i_size + 8192)) {
+	if (!set_alloc && (size > iyesde->i_size + 8192)) {
 		__u8 set_sparse = 1;
 
-		/* whether set sparse succeeds or not, extend the file */
-		smb2_set_sparse(xid, tcon, cfile, inode, set_sparse);
+		/* whether set sparse succeeds or yest, extend the file */
+		smb2_set_sparse(xid, tcon, cfile, iyesde, set_sparse);
 	}
 
 	return SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
@@ -1976,10 +1976,10 @@ smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
 	/*
 	 * On the first query to enumerate the list of snapshots available
 	 * for this volume the buffer begins with 0 (number of snapshots
-	 * which can be returned is zero since at that point we do not know
+	 * which can be returned is zero since at that point we do yest kyesw
 	 * how big the buffer needs to be). On the second query,
 	 * it (ret_data_len) is set to number of snapshots so we can
-	 * know to set the maximum response size larger (see below).
+	 * kyesw to set the maximum response size larger (see below).
 	 */
 	if (get_user(ret_data_len, (unsigned int __user *)ioc_buf))
 		return -EFAULT;
@@ -2000,7 +2000,7 @@ smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
 			cfile->fid.volatile_fid,
 			FSCTL_SRV_ENUMERATE_SNAPSHOTS,
 			true /* is_fsctl */,
-			NULL, 0 /* no input data */, max_response_size,
+			NULL, 0 /* yes input data */, max_response_size,
 			(char **)&retbuf,
 			&ret_data_len);
 	cifs_dbg(FYI, "enum snaphots ioctl returned %d and ret buflen is %d\n",
@@ -2018,7 +2018,7 @@ smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
 		}
 
 		/*
-		 * Check for min size, ie not large enough to fit even one GMT
+		 * Check for min size, ie yest large eyesugh to fit even one GMT
 		 * token (snapshot).  On the first ioctl some users may pass in
 		 * smaller size (or zero) to simply get the size of the array
 		 * so the user space caller can allocate sufficient memory
@@ -2147,15 +2147,15 @@ smb2_is_session_expired(char *buf)
 
 static int
 smb2_oplock_response(struct cifs_tcon *tcon, struct cifs_fid *fid,
-		     struct cifsInodeInfo *cinode)
+		     struct cifsIyesdeInfo *ciyesde)
 {
 	if (tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING)
-		return SMB2_lease_break(0, tcon, cinode->lease_key,
-					smb2_get_lease_state(cinode));
+		return SMB2_lease_break(0, tcon, ciyesde->lease_key,
+					smb2_get_lease_state(ciyesde));
 
 	return SMB2_oplock_break(0, tcon, fid->persistent_fid,
 				 fid->volatile_fid,
-				 CIFS_CACHE_READ(cinode) ? 1 : 0);
+				 CIFS_CACHE_READ(ciyesde) ? 1 : 0);
 }
 
 void
@@ -2197,7 +2197,7 @@ smb2_set_next_command(struct cifs_tcon *tcon, struct smb_rqst *rqst)
 	num_padding = 8 - (len & 7);
 	if (!smb3_encryption_required(tcon)) {
 		/*
-		 * If we do not have encryption then we can just add an extra
+		 * If we do yest have encryption then we can just add an extra
 		 * iov for the padding.
 		 */
 		rqst->rq_iov[rqst->rq_nvec].iov_base = smb2_padding;
@@ -2206,8 +2206,8 @@ smb2_set_next_command(struct cifs_tcon *tcon, struct smb_rqst *rqst)
 		len += num_padding;
 	} else {
 		/*
-		 * We can not add a small padding iov for the encryption case
-		 * because the encryption framework can not handle the padding
+		 * We can yest add a small padding iov for the encryption case
+		 * because the encryption framework can yest handle the padding
 		 * iovs.
 		 * We have to flatten this into a single buffer and add
 		 * the padding to it.
@@ -2412,15 +2412,15 @@ smb2_mand_lock(const unsigned int xid, struct cifsFileInfo *cfile, __u64 offset,
 }
 
 static void
-smb2_get_lease_key(struct inode *inode, struct cifs_fid *fid)
+smb2_get_lease_key(struct iyesde *iyesde, struct cifs_fid *fid)
 {
-	memcpy(fid->lease_key, CIFS_I(inode)->lease_key, SMB2_LEASE_KEY_SIZE);
+	memcpy(fid->lease_key, CIFS_I(iyesde)->lease_key, SMB2_LEASE_KEY_SIZE);
 }
 
 static void
-smb2_set_lease_key(struct inode *inode, struct cifs_fid *fid)
+smb2_set_lease_key(struct iyesde *iyesde, struct cifs_fid *fid)
 {
-	memcpy(CIFS_I(inode)->lease_key, fid->lease_key, SMB2_LEASE_KEY_SIZE);
+	memcpy(CIFS_I(iyesde)->lease_key, fid->lease_key, SMB2_LEASE_KEY_SIZE);
 }
 
 static void
@@ -2432,8 +2432,8 @@ smb2_new_lease_key(struct cifs_fid *fid)
 static int
 smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 		   const char *search_name,
-		   struct dfs_info3_param **target_nodes,
-		   unsigned int *num_of_nodes,
+		   struct dfs_info3_param **target_yesdes,
+		   unsigned int *num_of_yesdes,
 		   const struct nls_table *nls_codepage, int remap)
 {
 	int rc;
@@ -2461,7 +2461,7 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 	}
 
 	if (tcon == NULL) {
-		cifs_dbg(VFS, "session %p has no tcon available for a dfs referral request\n",
+		cifs_dbg(VFS, "session %p has yes tcon available for a dfs referral request\n",
 			 ses);
 		rc = -ENOTCONN;
 		goto out;
@@ -2503,7 +2503,7 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 	}
 
 	rc = parse_dfs_referrals(dfs_rsp, dfs_rsp_size,
-				 num_of_nodes, target_nodes,
+				 num_of_yesdes, target_yesdes,
 				 nls_codepage, remap, search_name,
 				 true /* is_unicode */);
 	if (rc) {
@@ -2513,7 +2513,7 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 
  out:
 	if (tcon && !tcon->ipc) {
-		/* ipc tcons are not refcounted */
+		/* ipc tcons are yest refcounted */
 		spin_lock(&cifs_tcp_ses_lock);
 		tcon->tc_count--;
 		spin_unlock(&cifs_tcp_ses_lock);
@@ -2534,9 +2534,9 @@ parse_reparse_posix(struct reparse_posix_data *symlink_buf,
 	/* See MS-FSCC 2.1.2.6 for the 'NFS' style reparse tags */
 	len = le16_to_cpu(symlink_buf->ReparseDataLength);
 
-	if (le64_to_cpu(symlink_buf->InodeType) != NFS_SPECFILE_LNK) {
-		cifs_dbg(VFS, "%lld not a supported symlink type\n",
-			le64_to_cpu(symlink_buf->InodeType));
+	if (le64_to_cpu(symlink_buf->IyesdeType) != NFS_SPECFILE_LNK) {
+		cifs_dbg(VFS, "%lld yest a supported symlink type\n",
+			le64_to_cpu(symlink_buf->IyesdeType));
 		return -EOPNOTSUPP;
 	}
 
@@ -2611,7 +2611,7 @@ parse_reparse_point(struct reparse_data_buffer *buf,
 			(struct reparse_symlink_data_buffer *)buf,
 			plen, target_path, cifs_sb);
 	default:
-		cifs_dbg(VFS, "srv returned unknown symlink buffer "
+		cifs_dbg(VFS, "srv returned unkyeswn symlink buffer "
 			 "tag:0x%08x\n", le32_to_cpu(buf->ReparseTag));
 		return -EOPNOTSUPP;
 	}
@@ -2893,13 +2893,13 @@ get_smb2_acl_by_path(struct cifs_sb_info *cifs_sb,
 
 static int
 set_smb2_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
-		struct inode *inode, const char *path, int aclflag)
+		struct iyesde *iyesde, const char *path, int aclflag)
 {
 	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	unsigned int xid;
 	int rc, access_flags = 0;
 	struct cifs_tcon *tcon;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(iyesde->i_sb);
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
@@ -2952,14 +2952,14 @@ set_smb2_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 /* Retrieve an ACL from the server */
 static struct cifs_ntsd *
 get_smb2_acl(struct cifs_sb_info *cifs_sb,
-				      struct inode *inode, const char *path,
+				      struct iyesde *iyesde, const char *path,
 				      u32 *pacllen)
 {
 	struct cifs_ntsd *pntsd = NULL;
 	struct cifsFileInfo *open_file = NULL;
 
-	if (inode)
-		open_file = find_readable_file(CIFS_I(inode), true);
+	if (iyesde)
+		open_file = find_readable_file(CIFS_I(iyesde), true);
 	if (!open_file)
 		return get_smb2_acl_by_path(cifs_sb, path, pacllen);
 
@@ -2972,8 +2972,8 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 			    loff_t offset, loff_t len, bool keep_size)
 {
 	struct cifs_ses *ses = tcon->ses;
-	struct inode *inode;
-	struct cifsInodeInfo *cifsi;
+	struct iyesde *iyesde;
+	struct cifsIyesdeInfo *cifsi;
 	struct cifsFileInfo *cfile = file->private_data;
 	struct file_zero_data_information fsctl_buf;
 	long rc;
@@ -2982,14 +2982,14 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 
 	xid = get_xid();
 
-	inode = d_inode(cfile->dentry);
-	cifsi = CIFS_I(inode);
+	iyesde = d_iyesde(cfile->dentry);
+	cifsi = CIFS_I(iyesde);
 
 	trace_smb3_zero_enter(xid, cfile->fid.persistent_fid, tcon->tid,
 			      ses->Suid, offset, len);
 
 
-	/* if file not oplocked can't be sure whether asking to extend size */
+	/* if file yest oplocked can't be sure whether asking to extend size */
 	if (!CIFS_CACHE_READ(cifsi))
 		if (keep_size == false) {
 			rc = -EOPNOTSUPP;
@@ -3015,7 +3015,7 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 	/*
 	 * do we also need to change the size of the file?
 	 */
-	if (keep_size == false && i_size_read(inode) < offset + len) {
+	if (keep_size == false && i_size_read(iyesde) < offset + len) {
 		eof = cpu_to_le64(offset + len);
 		rc = SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
 				  cfile->fid.volatile_fid, cfile->pid, &eof);
@@ -3035,7 +3035,7 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
 			    loff_t offset, loff_t len)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct cifsFileInfo *cfile = file->private_data;
 	struct file_zero_data_information fsctl_buf;
 	long rc;
@@ -3044,11 +3044,11 @@ static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
 
 	xid = get_xid();
 
-	inode = d_inode(cfile->dentry);
+	iyesde = d_iyesde(cfile->dentry);
 
-	/* Need to make file sparse, if not already, before freeing range. */
+	/* Need to make file sparse, if yest already, before freeing range. */
 	/* Consider adding equivalent for compressed since it could also work */
-	if (!smb2_set_sparse(xid, tcon, cfile, inode, set_sparse)) {
+	if (!smb2_set_sparse(xid, tcon, cfile, iyesde, set_sparse)) {
 		rc = -EOPNOTSUPP;
 		free_xid(xid);
 		return rc;
@@ -3071,8 +3071,8 @@ static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
 static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 			    loff_t off, loff_t len, bool keep_size)
 {
-	struct inode *inode;
-	struct cifsInodeInfo *cifsi;
+	struct iyesde *iyesde;
+	struct cifsIyesdeInfo *cifsi;
 	struct cifsFileInfo *cfile = file->private_data;
 	long rc = -EOPNOTSUPP;
 	unsigned int xid;
@@ -3080,12 +3080,12 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 
 	xid = get_xid();
 
-	inode = d_inode(cfile->dentry);
-	cifsi = CIFS_I(inode);
+	iyesde = d_iyesde(cfile->dentry);
+	cifsi = CIFS_I(iyesde);
 
 	trace_smb3_falloc_enter(xid, cfile->fid.persistent_fid, tcon->tid,
 				tcon->ses->Suid, off, len);
-	/* if file not oplocked can't be sure whether asking to extend size */
+	/* if file yest oplocked can't be sure whether asking to extend size */
 	if (!CIFS_CACHE_READ(cifsi))
 		if (keep_size == false) {
 			trace_smb3_falloc_err(xid, cfile->fid.persistent_fid,
@@ -3095,16 +3095,16 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 		}
 
 	/*
-	 * Files are non-sparse by default so falloc may be a no-op
-	 * Must check if file sparse. If not sparse, and not extending
-	 * then no need to do anything since file already allocated
+	 * Files are yesn-sparse by default so falloc may be a yes-op
+	 * Must check if file sparse. If yest sparse, and yest extending
+	 * then yes need to do anything since file already allocated
 	 */
 	if ((cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE) == 0) {
 		if (keep_size == true)
 			rc = 0;
 		/* check if extending file */
-		else if (i_size_read(inode) >= off + len)
-			/* not extending file and already not sparse */
+		else if (i_size_read(iyesde) >= off + len)
+			/* yest extending file and already yest sparse */
 			rc = 0;
 		/* BB: in future add else clause to extend file */
 		else
@@ -3119,16 +3119,16 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 		return rc;
 	}
 
-	if ((keep_size == true) || (i_size_read(inode) >= off + len)) {
+	if ((keep_size == true) || (i_size_read(iyesde) >= off + len)) {
 		/*
 		 * Check if falloc starts within first few pages of file
 		 * and ends within a few pages of the end of file to
 		 * ensure that most of file is being forced to be
-		 * fallocated now. If so then setting whole file sparse
+		 * fallocated yesw. If so then setting whole file sparse
 		 * ie potentially making a few extra pages at the beginning
-		 * or end of the file non-sparse via set_sparse is harmless.
+		 * or end of the file yesn-sparse via set_sparse is harmless.
 		 */
-		if ((off > 8192) || (off + len + 8192 < i_size_read(inode))) {
+		if ((off > 8192) || (off + len + 8192 < i_size_read(iyesde))) {
 			rc = -EOPNOTSUPP;
 			trace_smb3_falloc_err(xid, cfile->fid.persistent_fid,
 				tcon->tid, tcon->ses->Suid, off, len, rc);
@@ -3136,12 +3136,12 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 			return rc;
 		}
 
-		smb2_set_sparse(xid, tcon, cfile, inode, false);
+		smb2_set_sparse(xid, tcon, cfile, iyesde, false);
 		rc = 0;
 	} else {
-		smb2_set_sparse(xid, tcon, cfile, inode, false);
+		smb2_set_sparse(xid, tcon, cfile, iyesde, false);
 		rc = 0;
-		if (i_size_read(inode) < off + len) {
+		if (i_size_read(iyesde) < off + len) {
 			eof = cpu_to_le64(off + len);
 			rc = SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
 					  cfile->fid.volatile_fid, cfile->pid,
@@ -3163,8 +3163,8 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 static loff_t smb3_llseek(struct file *file, struct cifs_tcon *tcon, loff_t offset, int whence)
 {
 	struct cifsFileInfo *wrcfile, *cfile = file->private_data;
-	struct cifsInodeInfo *cifsi;
-	struct inode *inode;
+	struct cifsIyesdeInfo *cifsi;
+	struct iyesde *iyesde;
 	int rc = 0;
 	struct file_allocated_range_buffer in_data, *out_data = NULL;
 	u32 out_data_len;
@@ -3173,10 +3173,10 @@ static loff_t smb3_llseek(struct file *file, struct cifs_tcon *tcon, loff_t offs
 	if (whence != SEEK_HOLE && whence != SEEK_DATA)
 		return generic_file_llseek(file, offset, whence);
 
-	inode = d_inode(cfile->dentry);
-	cifsi = CIFS_I(inode);
+	iyesde = d_iyesde(cfile->dentry);
+	cifsi = CIFS_I(iyesde);
 
-	if (offset < 0 || offset >= i_size_read(inode))
+	if (offset < 0 || offset >= i_size_read(iyesde))
 		return -ENXIO;
 
 	xid = get_xid();
@@ -3184,24 +3184,24 @@ static loff_t smb3_llseek(struct file *file, struct cifs_tcon *tcon, loff_t offs
 	 * We need to be sure that all dirty pages are written as they
 	 * might fill holes on the server.
 	 * Note that we also MUST flush any written pages since at least
-	 * some servers (Windows2016) will not reflect recent writes in
+	 * some servers (Windows2016) will yest reflect recent writes in
 	 * QUERY_ALLOCATED_RANGES until SMB2_flush is called.
 	 */
 	wrcfile = find_writable_file(cifsi, false);
 	if (wrcfile) {
-		filemap_write_and_wait(inode->i_mapping);
+		filemap_write_and_wait(iyesde->i_mapping);
 		smb2_flush_file(xid, tcon, &wrcfile->fid);
 		cifsFileInfo_put(wrcfile);
 	}
 
 	if (!(cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE)) {
 		if (whence == SEEK_HOLE)
-			offset = i_size_read(inode);
+			offset = i_size_read(iyesde);
 		goto lseek_exit;
 	}
 
 	in_data.file_offset = cpu_to_le64(offset);
-	in_data.length = cpu_to_le64(i_size_read(inode));
+	in_data.length = cpu_to_le64(i_size_read(iyesde));
 
 	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
 			cfile->fid.volatile_fid,
@@ -3239,7 +3239,7 @@ static loff_t smb3_llseek(struct file *file, struct cifs_tcon *tcon, loff_t offs
 	free_xid(xid);
 	kfree(out_data);
 	if (!rc)
-		return vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
+		return vfs_setpos(file, offset, iyesde->i_sb->s_maxbytes);
 	else
 		return rc;
 }
@@ -3338,31 +3338,31 @@ static long smb3_fallocate(struct file *file, struct cifs_tcon *tcon, int mode,
 
 static void
 smb2_downgrade_oplock(struct TCP_Server_Info *server,
-		      struct cifsInodeInfo *cinode, __u32 oplock,
+		      struct cifsIyesdeInfo *ciyesde, __u32 oplock,
 		      unsigned int epoch, bool *purge_cache)
 {
-	server->ops->set_oplock_level(cinode, oplock, 0, NULL);
+	server->ops->set_oplock_level(ciyesde, oplock, 0, NULL);
 }
 
 static void
-smb21_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
+smb21_set_oplock_level(struct cifsIyesdeInfo *ciyesde, __u32 oplock,
 		       unsigned int epoch, bool *purge_cache);
 
 static void
 smb3_downgrade_oplock(struct TCP_Server_Info *server,
-		       struct cifsInodeInfo *cinode, __u32 oplock,
+		       struct cifsIyesdeInfo *ciyesde, __u32 oplock,
 		       unsigned int epoch, bool *purge_cache)
 {
-	unsigned int old_state = cinode->oplock;
-	unsigned int old_epoch = cinode->epoch;
+	unsigned int old_state = ciyesde->oplock;
+	unsigned int old_epoch = ciyesde->epoch;
 	unsigned int new_state;
 
 	if (epoch > old_epoch) {
-		smb21_set_oplock_level(cinode, oplock, 0, NULL);
-		cinode->epoch = epoch;
+		smb21_set_oplock_level(ciyesde, oplock, 0, NULL);
+		ciyesde->epoch = epoch;
 	}
 
-	new_state = cinode->oplock;
+	new_state = ciyesde->oplock;
 	*purge_cache = false;
 
 	if ((old_state & CIFS_CACHE_READ_FLG) != 0 &&
@@ -3373,30 +3373,30 @@ smb3_downgrade_oplock(struct TCP_Server_Info *server,
 }
 
 static void
-smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
+smb2_set_oplock_level(struct cifsIyesdeInfo *ciyesde, __u32 oplock,
 		      unsigned int epoch, bool *purge_cache)
 {
 	oplock &= 0xFF;
 	if (oplock == SMB2_OPLOCK_LEVEL_NOCHANGE)
 		return;
 	if (oplock == SMB2_OPLOCK_LEVEL_BATCH) {
-		cinode->oplock = CIFS_CACHE_RHW_FLG;
-		cifs_dbg(FYI, "Batch Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
+		ciyesde->oplock = CIFS_CACHE_RHW_FLG;
+		cifs_dbg(FYI, "Batch Oplock granted on iyesde %p\n",
+			 &ciyesde->vfs_iyesde);
 	} else if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE) {
-		cinode->oplock = CIFS_CACHE_RW_FLG;
-		cifs_dbg(FYI, "Exclusive Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
+		ciyesde->oplock = CIFS_CACHE_RW_FLG;
+		cifs_dbg(FYI, "Exclusive Oplock granted on iyesde %p\n",
+			 &ciyesde->vfs_iyesde);
 	} else if (oplock == SMB2_OPLOCK_LEVEL_II) {
-		cinode->oplock = CIFS_CACHE_READ_FLG;
-		cifs_dbg(FYI, "Level II Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
+		ciyesde->oplock = CIFS_CACHE_READ_FLG;
+		cifs_dbg(FYI, "Level II Oplock granted on iyesde %p\n",
+			 &ciyesde->vfs_iyesde);
 	} else
-		cinode->oplock = 0;
+		ciyesde->oplock = 0;
 }
 
 static void
-smb21_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
+smb21_set_oplock_level(struct cifsIyesdeInfo *ciyesde, __u32 oplock,
 		       unsigned int epoch, bool *purge_cache)
 {
 	char message[5] = {0};
@@ -3408,7 +3408,7 @@ smb21_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
 
 	/* Check if the server granted an oplock rather than a lease */
 	if (oplock & SMB2_OPLOCK_LEVEL_EXCLUSIVE)
-		return smb2_set_oplock_level(cinode, oplock, epoch,
+		return smb2_set_oplock_level(ciyesde, oplock, epoch,
 					     purge_cache);
 
 	if (oplock & SMB2_LEASE_READ_CACHING_HE) {
@@ -3426,43 +3426,43 @@ smb21_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
 	if (!new_oplock)
 		strncpy(message, "None", sizeof(message));
 
-	cinode->oplock = new_oplock;
-	cifs_dbg(FYI, "%s Lease granted on inode %p\n", message,
-		 &cinode->vfs_inode);
+	ciyesde->oplock = new_oplock;
+	cifs_dbg(FYI, "%s Lease granted on iyesde %p\n", message,
+		 &ciyesde->vfs_iyesde);
 }
 
 static void
-smb3_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
+smb3_set_oplock_level(struct cifsIyesdeInfo *ciyesde, __u32 oplock,
 		      unsigned int epoch, bool *purge_cache)
 {
-	unsigned int old_oplock = cinode->oplock;
+	unsigned int old_oplock = ciyesde->oplock;
 
-	smb21_set_oplock_level(cinode, oplock, epoch, purge_cache);
+	smb21_set_oplock_level(ciyesde, oplock, epoch, purge_cache);
 
 	if (purge_cache) {
 		*purge_cache = false;
 		if (old_oplock == CIFS_CACHE_READ_FLG) {
-			if (cinode->oplock == CIFS_CACHE_READ_FLG &&
-			    (epoch - cinode->epoch > 0))
+			if (ciyesde->oplock == CIFS_CACHE_READ_FLG &&
+			    (epoch - ciyesde->epoch > 0))
 				*purge_cache = true;
-			else if (cinode->oplock == CIFS_CACHE_RH_FLG &&
-				 (epoch - cinode->epoch > 1))
+			else if (ciyesde->oplock == CIFS_CACHE_RH_FLG &&
+				 (epoch - ciyesde->epoch > 1))
 				*purge_cache = true;
-			else if (cinode->oplock == CIFS_CACHE_RHW_FLG &&
-				 (epoch - cinode->epoch > 1))
+			else if (ciyesde->oplock == CIFS_CACHE_RHW_FLG &&
+				 (epoch - ciyesde->epoch > 1))
 				*purge_cache = true;
-			else if (cinode->oplock == 0 &&
-				 (epoch - cinode->epoch > 0))
+			else if (ciyesde->oplock == 0 &&
+				 (epoch - ciyesde->epoch > 0))
 				*purge_cache = true;
 		} else if (old_oplock == CIFS_CACHE_RH_FLG) {
-			if (cinode->oplock == CIFS_CACHE_RH_FLG &&
-			    (epoch - cinode->epoch > 0))
+			if (ciyesde->oplock == CIFS_CACHE_RH_FLG &&
+			    (epoch - ciyesde->epoch > 0))
 				*purge_cache = true;
-			else if (cinode->oplock == CIFS_CACHE_RHW_FLG &&
-				 (epoch - cinode->epoch > 1))
+			else if (ciyesde->oplock == CIFS_CACHE_RHW_FLG &&
+				 (epoch - ciyesde->epoch > 1))
 				*purge_cache = true;
 		}
-		cinode->epoch = epoch;
+		ciyesde->epoch = epoch;
 	}
 }
 
@@ -3549,7 +3549,7 @@ smb2_parse_lease_buf(void *buf, unsigned int *epoch, char *lease_key)
 {
 	struct create_lease *lc = (struct create_lease *)buf;
 
-	*epoch = 0; /* not used */
+	*epoch = 0; /* yest used */
 	if (lc->lcontext.LeaseFlags & SMB2_LEASE_FLAG_BREAK_IN_PROGRESS)
 		return SMB2_OPLOCK_LEVEL_NOCHANGE;
 	return le32_to_cpu(lc->lcontext.LeaseState);
@@ -3569,9 +3569,9 @@ smb3_parse_lease_buf(void *buf, unsigned int *epoch, char *lease_key)
 }
 
 static unsigned int
-smb2_wp_retry_size(struct inode *inode)
+smb2_wp_retry_size(struct iyesde *iyesde)
 {
-	return min_t(unsigned int, CIFS_SB(inode->i_sb)->wsize,
+	return min_t(unsigned int, CIFS_SB(iyesde->i_sb)->wsize,
 		     SMB2_MAX_BUFFER_SIZE);
 }
 
@@ -3599,7 +3599,7 @@ fill_transform_hdr(struct smb2_transform_hdr *tr_hdr, unsigned int orig_len,
 	memcpy(&tr_hdr->SessionId, &shdr->SessionId, 8);
 }
 
-/* We can not use the normal sg_set_buf() as we will sometimes pass a
+/* We can yest use the yesrmal sg_set_buf() as we will sometimes pass a
  * stack object as buf.
  */
 static inline void smb2_sg_set_buf(struct scatterlist *sg, const void *buf,
@@ -3645,7 +3645,7 @@ init_sg(int num_rqst, struct smb_rqst *rqst, u8 *sign)
 		for (j = 0; j < rqst[i].rq_nvec; j++) {
 			/*
 			 * The first rqst has a transform header where the
-			 * first 20 bytes are not part of the encrypted blob
+			 * first 20 bytes are yest part of the encrypted blob
 			 */
 			skip = (i == 0) && (j == 0) ? 20 : 0;
 			smb2_sg_set_buf(&sg[idx++],
@@ -3713,7 +3713,7 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 
 	rc = smb2_get_enc_key(server, tr_hdr->SessionId, enc, key);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not get %scryption key\n", __func__,
+		cifs_server_dbg(VFS, "%s: Could yest get %scryption key\n", __func__,
 			 enc ? "en" : "de");
 		return 0;
 	}
@@ -3938,7 +3938,7 @@ read_data_into_pages(struct TCP_Server_Info *server, struct page **pages,
 
 		n = len;
 		if (len >= PAGE_SIZE) {
-			/* enough data to fill the page */
+			/* eyesugh data to fill the page */
 			n = PAGE_SIZE;
 			len -= n;
 		} else {
@@ -4031,7 +4031,7 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 	if (rdata->result != 0) {
 		cifs_dbg(FYI, "%s: server returned error %d\n",
 			 __func__, rdata->result);
-		/* normal error on read response */
+		/* yesrmal error on read response */
 		dequeue_mid(mid, false);
 		return 0;
 	}
@@ -4098,8 +4098,8 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 		iov.iov_len = data_len;
 		iov_iter_kvec(&iter, WRITE, &iov, 1, data_len);
 	} else {
-		/* read response payload cannot be in both buf and pages */
-		WARN_ONCE(1, "buf can not contain only a part of read data");
+		/* read response payload canyest be in both buf and pages */
+		WARN_ONCE(1, "buf can yest contain only a part of read data");
 		rdata->result = -EIO;
 		dequeue_mid(mid, rdata->result);
 		return 0;
@@ -4143,7 +4143,7 @@ static void smb2_decrypt_offload(struct work_struct *work)
 	dw->server->lstrp = jiffies;
 	mid = smb2_find_mid(dw->server, dw->buf);
 	if (mid == NULL)
-		cifs_dbg(FYI, "mid not found\n");
+		cifs_dbg(FYI, "mid yest found\n");
 	else {
 		mid->decrypted = true;
 		rc = handle_read_data(dw->server, mid, dw->buf,
@@ -4222,7 +4222,7 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid,
 	    (server->pdu_size >= server->min_offload)) {
 		dw = kmalloc(sizeof(struct smb2_decrypt_work), GFP_KERNEL);
 		if (dw == NULL)
-			goto non_offloaded_decrypt;
+			goto yesn_offloaded_decrypt;
 
 		dw->buf = server->smallbuf;
 		server->smallbuf = (char *)cifs_small_buf_get();
@@ -4238,7 +4238,7 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid,
 		return -1;
 	}
 
-non_offloaded_decrypt:
+yesn_offloaded_decrypt:
 	rc = decrypt_raw_data(server, buf, server->vals->read_rsp_size,
 			      pages, npages, len);
 	if (rc)
@@ -4246,7 +4246,7 @@ non_offloaded_decrypt:
 
 	*mid = smb2_find_mid(server, buf);
 	if (*mid == NULL)
-		cifs_dbg(FYI, "mid not found\n");
+		cifs_dbg(FYI, "mid yest found\n");
 	else {
 		cifs_dbg(FYI, "mid found\n");
 		(*mid)->decrypted = true;
@@ -4288,7 +4288,7 @@ receive_encrypted_standard(struct TCP_Server_Info *server,
 		buf = server->bigbuf;
 	}
 
-	/* now read the rest */
+	/* yesw read the rest */
 	length = cifs_read_from_socket(server, buf + HEADER_SIZE(server) - 1,
 				pdu_length - HEADER_SIZE(server) + 1);
 	if (length < 0)
@@ -4315,7 +4315,7 @@ one_more:
 
 	mid_entry = smb2_find_mid(server, buf);
 	if (mid_entry == NULL)
-		cifs_dbg(FYI, "mid not found\n");
+		cifs_dbg(FYI, "mid yest found\n");
 	else {
 		cifs_dbg(FYI, "mid found\n");
 		mid_entry->decrypted = true;
@@ -4346,7 +4346,7 @@ one_more:
 		/*
 		 * ret != 0 here means that we didn't get to handle_mid() thus
 		 * server->smallbuf and server->bigbuf are still valid. We need
-		 * to free next_buffer because it is not going to be used
+		 * to free next_buffer because it is yest going to be used
 		 * anywhere.
 		 */
 		if (next_is_large)
@@ -4414,11 +4414,11 @@ smb2_next_header(char *buf)
 }
 
 static int
-smb2_make_node(unsigned int xid, struct inode *inode,
+smb2_make_yesde(unsigned int xid, struct iyesde *iyesde,
 	       struct dentry *dentry, struct cifs_tcon *tcon,
 	       char *full_path, umode_t mode, dev_t dev)
 {
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(iyesde->i_sb);
 	int rc = -EPERM;
 	int create_options = CREATE_NOT_DIR | CREATE_OPTION_SPECIAL;
 	FILE_ALL_INFO *buf = NULL;
@@ -4433,7 +4433,7 @@ smb2_make_node(unsigned int xid, struct inode *inode,
 	/*
 	 * Check if mounted with mount parm 'sfu' mount parm.
 	 * SFU emulation should work with all servers, but only
-	 * supports block and char device (no socket & fifo),
+	 * supports block and char device (yes socket & fifo),
 	 * and was used by default in earlier versions of Windows
 	 */
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL))
@@ -4477,7 +4477,7 @@ smb2_make_node(unsigned int xid, struct inode *inode,
 		goto out;
 
 	/*
-	 * BB Do not bother to decode buf since no local inode yet to put
+	 * BB Do yest bother to decode buf since yes local iyesde yet to put
 	 * timestamps in, but we can reuse it safely.
 	 */
 
@@ -4491,13 +4491,13 @@ smb2_make_node(unsigned int xid, struct inode *inode,
 	if (S_ISCHR(mode)) {
 		memcpy(pdev->type, "IntxCHR", 8);
 		pdev->major = cpu_to_le64(MAJOR(dev));
-		pdev->minor = cpu_to_le64(MINOR(dev));
+		pdev->miyesr = cpu_to_le64(MINOR(dev));
 		rc = tcon->ses->server->ops->sync_write(xid, &fid, &io_parms,
 							&bytes_written, iov, 1);
 	} else if (S_ISBLK(mode)) {
 		memcpy(pdev->type, "IntxBLK", 8);
 		pdev->major = cpu_to_le64(MAJOR(dev));
-		pdev->minor = cpu_to_le64(MINOR(dev));
+		pdev->miyesr = cpu_to_le64(MINOR(dev));
 		rc = tcon->ses->server->ops->sync_write(xid, &fid, &io_parms,
 							&bytes_written, iov, 1);
 	}
@@ -4603,7 +4603,7 @@ struct smb_version_operations smb20_operations = {
 	.set_acl = set_smb2_acl,
 	.next_header = smb2_next_header,
 	.ioctl_query_info = smb2_ioctl_query_info,
-	.make_node = smb2_make_node,
+	.make_yesde = smb2_make_yesde,
 	.fiemap = smb3_fiemap,
 	.llseek = smb3_llseek,
 };
@@ -4702,7 +4702,7 @@ struct smb_version_operations smb21_operations = {
 	.set_acl = set_smb2_acl,
 	.next_header = smb2_next_header,
 	.ioctl_query_info = smb2_ioctl_query_info,
-	.make_node = smb2_make_node,
+	.make_yesde = smb2_make_yesde,
 	.fiemap = smb3_fiemap,
 	.llseek = smb3_llseek,
 };
@@ -4811,7 +4811,7 @@ struct smb_version_operations smb30_operations = {
 	.set_acl = set_smb2_acl,
 	.next_header = smb2_next_header,
 	.ioctl_query_info = smb2_ioctl_query_info,
-	.make_node = smb2_make_node,
+	.make_yesde = smb2_make_yesde,
 	.fiemap = smb3_fiemap,
 	.llseek = smb3_llseek,
 };
@@ -4902,7 +4902,7 @@ struct smb_version_operations smb311_operations = {
 	.parse_lease_buf = smb3_parse_lease_buf,
 	.copychunk_range = smb2_copychunk_range,
 	.duplicate_extents = smb2_duplicate_extents,
-/*	.validate_negotiate = smb3_validate_negotiate, */ /* not used in 3.11 */
+/*	.validate_negotiate = smb3_validate_negotiate, */ /* yest used in 3.11 */
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
 	.fallocate = smb3_fallocate,
@@ -4921,7 +4921,7 @@ struct smb_version_operations smb311_operations = {
 	.set_acl = set_smb2_acl,
 	.next_header = smb2_next_header,
 	.ioctl_query_info = smb2_ioctl_query_info,
-	.make_node = smb2_make_node,
+	.make_yesde = smb2_make_yesde,
 	.fiemap = smb3_fiemap,
 	.llseek = smb3_llseek,
 };

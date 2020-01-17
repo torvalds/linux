@@ -39,7 +39,7 @@
  * Lockd host handle (used both by the client and server personality).
  */
 struct nlm_host {
-	struct hlist_node	h_hash;		/* doubly linked list */
+	struct hlist_yesde	h_hash;		/* doubly linked list */
 	struct sockaddr_storage	h_addr;		/* peer address */
 	size_t			h_addrlen;
 	struct sockaddr_storage	h_srcaddr;	/* our address (optional) */
@@ -49,8 +49,8 @@ struct nlm_host {
 	u32			h_version;	/* interface version */
 	unsigned short		h_proto;	/* transport proto */
 	unsigned short		h_reclaiming : 1,
-				h_server     : 1, /* server side, not client side */
-				h_noresvport : 1,
+				h_server     : 1, /* server side, yest client side */
+				h_yesresvport : 1,
 				h_inuse      : 1;
 	wait_queue_head_t	h_gracewait;	/* wait while reclaiming */
 	struct rw_semaphore	h_rwsem;	/* Reboot recovery lock */
@@ -69,13 +69,13 @@ struct nlm_host {
 	char			*h_addrbuf;	/* address eyecatcher */
 	struct net		*net;		/* host net */
 	const struct cred	*h_cred;
-	char			nodename[UNX_MAXNODENAME + 1];
+	char			yesdename[UNX_MAXNODENAME + 1];
 	const struct nlmclnt_operations	*h_nlmclnt_ops;	/* Callback ops for NLM users */
 };
 
 /*
  * The largest string sm_addrbuf should hold is a full-size IPv6 address
- * (no "::" anywhere) with a scope ID.  The buffer size is computed to
+ * (yes "::" anywhere) with a scope ID.  The buffer size is computed to
  * hold eight groups of colon-separated four-hex-digit numbers, a
  * percent sign, a scope id (at most 32 bits, in decimal), and NUL.
  */
@@ -152,7 +152,7 @@ struct nlm_rqst {
  * an NFS client.
  */
 struct nlm_file {
-	struct hlist_node	f_list;		/* linked list */
+	struct hlist_yesde	f_list;		/* linked list */
 	struct nfs_fh		f_handle;	/* NFS file handle */
 	struct file *		f_file;		/* VFS file pointer */
 	struct nlm_share *	f_shares;	/* DOS shares */
@@ -167,7 +167,7 @@ struct nlm_file {
  * couldn't be granted because of a conflicting lock).
  */
 #define NLM_NEVER		(~(unsigned long) 0)
-/* timeout on non-blocking call: */
+/* timeout on yesn-blocking call: */
 #define NLM_TIMEOUT		(7 * HZ)
 
 struct nlm_block {
@@ -227,7 +227,7 @@ struct nlm_host  *nlmclnt_lookup_host(const struct sockaddr *sap,
 					const unsigned short protocol,
 					const u32 version,
 					const char *hostname,
-					int noresvport,
+					int yesresvport,
 					struct net *net,
 					const struct cred *cred);
 void		  nlmclnt_release_host(struct nlm_host *);
@@ -299,9 +299,9 @@ void		  nlmsvc_invalidate_all(void);
 int           nlmsvc_unlock_all_by_sb(struct super_block *sb);
 int           nlmsvc_unlock_all_by_ip(struct sockaddr *server_addr);
 
-static inline struct inode *nlmsvc_file_inode(struct nlm_file *file)
+static inline struct iyesde *nlmsvc_file_iyesde(struct nlm_file *file)
 {
-	return locks_inode(file->f_file);
+	return locks_iyesde(file->f_file);
 }
 
 static inline int __nlm_privileged_request4(const struct sockaddr *sap)
@@ -361,7 +361,7 @@ static inline int nlm_privileged_requester(const struct svc_rqst *rqstp)
 static inline int nlm_compare_locks(const struct file_lock *fl1,
 				    const struct file_lock *fl2)
 {
-	return locks_inode(fl1->fl_file) == locks_inode(fl2->fl_file)
+	return locks_iyesde(fl1->fl_file) == locks_iyesde(fl2->fl_file)
 	     && fl1->fl_pid   == fl2->fl_pid
 	     && fl1->fl_owner == fl2->fl_owner
 	     && fl1->fl_start == fl2->fl_start

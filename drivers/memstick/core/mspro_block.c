@@ -674,7 +674,7 @@ static void h_mspro_block_setup_cmd(struct memstick_dev *card, u64 offset,
 	struct mspro_param_register param = {
 		.system = msb->system,
 		.data_count = cpu_to_be16((uint16_t)(length / msb->page_size)),
-		/* ISO C90 warning precludes direct initialization for now. */
+		/* ISO C90 warning precludes direct initialization for yesw. */
 		.data_address = 0,
 		.tpc_param = 0
 	};
@@ -747,7 +747,7 @@ static int mspro_block_complete_req(struct memstick_dev *card, int error)
 		error);
 
 	if (msb->block_req) {
-		/* Nothing to do - not really an error */
+		/* Nothing to do - yest really an error */
 		if (error == -EAGAIN)
 			error = 0;
 
@@ -772,14 +772,14 @@ static int mspro_block_complete_req(struct memstick_dev *card, int error)
 			t_len = blk_rq_cur_bytes(msb->block_req);
 
 		chunk = blk_update_request(msb->block_req,
-				errno_to_blk_status(error), t_len);
+				erryes_to_blk_status(error), t_len);
 		if (chunk) {
 			error = mspro_block_issue_req(card);
 			if (!error)
 				goto out;
 		} else {
 			__blk_mq_end_request(msb->block_req,
-						errno_to_blk_status(error));
+						erryes_to_blk_status(error));
 			msb->block_req = NULL;
 		}
 	} else {
@@ -900,7 +900,7 @@ try_again:
 
 	if (rc) {
 		printk(KERN_WARNING
-		       "%s: could not switch to 4-bit mode, error %d\n",
+		       "%s: could yest switch to 4-bit mode, error %d\n",
 		       dev_name(&card->dev), rc);
 		return 0;
 	}
@@ -922,7 +922,7 @@ try_again:
 			       dev_name(&card->dev));
 		} else
 			printk(KERN_WARNING
-			       "%s: could not switch to 8-bit mode, error %d\n",
+			       "%s: could yest switch to 8-bit mode, error %d\n",
 			       dev_name(&card->dev), rc);
 	}
 
@@ -963,7 +963,7 @@ try_again:
 }
 
 /* Memory allocated for attributes by this function should be freed by
- * mspro_block_data_clear, no matter if the initialization process succeeded
+ * mspro_block_data_clear, yes matter if the initialization process succeeded
  * or failed.
  */
 static int mspro_block_read_attributes(struct memstick_dev *card)
@@ -973,9 +973,9 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 	struct mspro_sys_attr *s_attr = NULL;
 	unsigned char *buffer = NULL;
 	int cnt, rc, attr_count;
-	/* While normally physical device offsets, represented here by
+	/* While yesrmally physical device offsets, represented here by
 	 * attr_offset and attr_len will be of large numeric types, we can be
-	 * sure, that attributes are close enough to the beginning of the
+	 * sure, that attributes are close eyesugh to the beginning of the
 	 * device, to save ourselves some trouble.
 	 */
 	unsigned int addr, attr_offset = 0, attr_len = msb->page_size;
@@ -1227,7 +1227,7 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 				   MSPRO_BLOCK_MAX_PAGES * msb->page_size);
 
 	msb->disk->major = major;
-	msb->disk->first_minor = disk_id << MSPRO_BLOCK_PART_SHIFT;
+	msb->disk->first_miyesr = disk_id << MSPRO_BLOCK_PART_SHIFT;
 	msb->disk->fops = &ms_block_bdops;
 	msb->usage_count = 1;
 	msb->disk->private_data = msb;

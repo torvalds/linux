@@ -47,7 +47,7 @@
  * When multiple values are defined the start up will try and choose
  * the fastest one. If a 'fast' value is defined, then automatically,
  * the /2 one should be included as it can be used.  Generally having
- * more than one fast set does not make sense, as static timings need
+ * more than one fast set does yest make sense, as static timings need
  * to be changed to change the set.  The exception is the bypass
  * setting which is available for low power bypass.
  *

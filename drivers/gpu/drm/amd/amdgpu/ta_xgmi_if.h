@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -38,7 +38,7 @@ enum ta_command_xgmi {
 
 /* XGMI related enumerations */
 /**********************************************************/;
-enum ta_xgmi_connected_nodes {
+enum ta_xgmi_connected_yesdes {
 	TA_XGMI__MAX_CONNECTED_NODES			= 64
 };
 
@@ -68,8 +68,8 @@ enum ta_xgmi_assigned_sdma_engine {
 
 /* input/output structures for XGMI commands */
 /**********************************************************/
-struct ta_xgmi_node_info {
-	uint64_t				node_id;
+struct ta_xgmi_yesde_info {
+	uint64_t				yesde_id;
 	uint8_t					num_hops;
 	uint8_t					is_sharing_enabled;
 	enum ta_xgmi_assigned_sdma_engine	sdma_engine;
@@ -79,8 +79,8 @@ struct ta_xgmi_cmd_initialize_output {
 	uint32_t	status;
 };
 
-struct ta_xgmi_cmd_get_node_id_output {
-	uint64_t	node_id;
+struct ta_xgmi_cmd_get_yesde_id_output {
+	uint64_t	yesde_id;
 };
 
 struct ta_xgmi_cmd_get_hive_id_output {
@@ -88,18 +88,18 @@ struct ta_xgmi_cmd_get_hive_id_output {
 };
 
 struct ta_xgmi_cmd_get_topology_info_input {
-	uint32_t			num_nodes;
-	struct ta_xgmi_node_info	nodes[TA_XGMI__MAX_CONNECTED_NODES];
+	uint32_t			num_yesdes;
+	struct ta_xgmi_yesde_info	yesdes[TA_XGMI__MAX_CONNECTED_NODES];
 };
 
 struct ta_xgmi_cmd_get_topology_info_output {
-	uint32_t			num_nodes;
-	struct ta_xgmi_node_info	nodes[TA_XGMI__MAX_CONNECTED_NODES];
+	uint32_t			num_yesdes;
+	struct ta_xgmi_yesde_info	yesdes[TA_XGMI__MAX_CONNECTED_NODES];
 };
 
 struct ta_xgmi_cmd_set_topology_info_input {
-	uint32_t			num_nodes;
-	struct ta_xgmi_node_info	nodes[TA_XGMI__MAX_CONNECTED_NODES];
+	uint32_t			num_yesdes;
+	struct ta_xgmi_yesde_info	yesdes[TA_XGMI__MAX_CONNECTED_NODES];
 };
 
 /**********************************************************/
@@ -112,7 +112,7 @@ union ta_xgmi_cmd_input {
 /* Common output structure for XGMI callbacks */
 union ta_xgmi_cmd_output {
 	struct ta_xgmi_cmd_initialize_output		initialize;
-	struct ta_xgmi_cmd_get_node_id_output		get_node_id;
+	struct ta_xgmi_cmd_get_yesde_id_output		get_yesde_id;
 	struct ta_xgmi_cmd_get_hive_id_output		get_hive_id;
 	struct ta_xgmi_cmd_get_topology_info_output	get_topology_info;
 };

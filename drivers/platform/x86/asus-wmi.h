@@ -37,10 +37,10 @@ struct quirk_entry {
 	/*
 	 * For machines with AMD graphic chips, it will send out WMI event
 	 * and ACPI interrupt at the same time while hitting the hotkey.
-	 * To simplify the problem, we just have to ignore the WMI event,
+	 * To simplify the problem, we just have to igyesre the WMI event,
 	 * and let the ACPI interrupt to send out the key event.
 	 */
-	int no_display_toggle;
+	int yes_display_toggle;
 	u32 xusb2pr;
 
 	bool (*i8042_filter)(unsigned char data, unsigned char str,
@@ -62,7 +62,7 @@ struct asus_wmi_driver {
 	const char		*input_phys;
 	struct quirk_entry	*quirks;
 	/* Returns new code, value, and autorelease values in arguments.
-	 * Return ASUS_WMI_KEY_IGNORE in code if event should be ignored. */
+	 * Return ASUS_WMI_KEY_IGNORE in code if event should be igyesred. */
 	void (*key_filter) (struct asus_wmi_driver *driver, int *code,
 			    unsigned int *value, bool *autorelease);
 

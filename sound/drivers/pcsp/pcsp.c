@@ -28,7 +28,7 @@ MODULE_ALIAS("platform:pcspkr");
 static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
 static bool enable = SNDRV_DEFAULT_ENABLE1;	/* Enable this card */
-static bool nopcm;	/* Disable PCM capability of the driver */
+static bool yespcm;	/* Disable PCM capability of the driver */
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for pcsp soundcard.");
@@ -36,8 +36,8 @@ module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for pcsp soundcard.");
 module_param(enable, bool, 0444);
 MODULE_PARM_DESC(enable, "Enable PC-Speaker sound.");
-module_param(nopcm, bool, 0444);
-MODULE_PARM_DESC(nopcm, "Disable PC-Speaker PCM sound. Only beeps remain.");
+module_param(yespcm, bool, 0444);
+MODULE_PARM_DESC(yespcm, "Disable PC-Speaker PCM sound. Only beeps remain.");
 
 struct snd_pcsp pcsp_chip;
 
@@ -47,14 +47,14 @@ static int snd_pcsp_create(struct snd_card *card)
 	unsigned int resolution = hrtimer_resolution;
 	int err, div, min_div, order;
 
-	if (!nopcm) {
+	if (!yespcm) {
 		if (resolution > PCSP_MAX_PERIOD_NS) {
-			printk(KERN_ERR "PCSP: Timer resolution is not sufficient "
+			printk(KERN_ERR "PCSP: Timer resolution is yest sufficient "
 				"(%unS)\n", resolution);
 			printk(KERN_ERR "PCSP: Make sure you have HPET and ACPI "
 				"enabled.\n");
-			printk(KERN_ERR "PCSP: Turned into nopcm mode.\n");
-			nopcm = 1;
+			printk(KERN_ERR "PCSP: Turned into yespcm mode.\n");
+			yespcm = 1;
 		}
 	}
 
@@ -112,12 +112,12 @@ static int snd_card_pcsp_probe(int devnum, struct device *dev)
 	if (err < 0)
 		goto free_card;
 
-	if (!nopcm) {
+	if (!yespcm) {
 		err = snd_pcsp_new_pcm(&pcsp_chip);
 		if (err < 0)
 			goto free_card;
 	}
-	err = snd_pcsp_new_mixer(&pcsp_chip, nopcm);
+	err = snd_pcsp_new_mixer(&pcsp_chip, yespcm);
 	if (err < 0)
 		goto free_card;
 
@@ -150,7 +150,7 @@ static int alsa_card_pcsp_init(struct device *dev)
 	/* Well, CONFIG_DEBUG_PAGEALLOC makes the sound horrible. Lets alert */
 	if (debug_pagealloc_enabled()) {
 		printk(KERN_WARNING "PCSP: CONFIG_DEBUG_PAGEALLOC is enabled, "
-		       "which may make the sound noisy.\n");
+		       "which may make the sound yesisy.\n");
 	}
 
 	return 0;

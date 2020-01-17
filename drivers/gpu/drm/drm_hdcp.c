@@ -51,7 +51,7 @@ static u32 drm_hdcp_get_revoked_ksv_count(const u8 *buf, u32 vrls_length)
 	}
 
 	/*
-	 * When vrls are not valid, ksvs are not considered.
+	 * When vrls are yest valid, ksvs are yest considered.
 	 * Hence SRM will be discarded.
 	 */
 	if (parsed_bytes != vrls_length)
@@ -105,7 +105,7 @@ static int drm_hdcp_parse_hdcp1_srm(const u8 *buf, size_t count)
 	header = (struct hdcp_srm_header *)buf;
 	DRM_DEBUG("SRM ID: 0x%x, SRM Ver: 0x%x, SRM Gen No: 0x%x\n",
 		  header->srm_id,
-		  be16_to_cpu(header->srm_version), header->srm_gen_no);
+		  be16_to_cpu(header->srm_version), header->srm_gen_yes);
 
 	WARN_ON(header->reserved);
 
@@ -167,7 +167,7 @@ static int drm_hdcp_parse_hdcp2_srm(const u8 *buf, size_t count)
 	header = (struct hdcp_srm_header *)buf;
 	DRM_DEBUG("SRM ID: 0x%x, SRM Ver: 0x%x, SRM Gen No: 0x%x\n",
 		  header->srm_id & DRM_HDCP_SRM_ID_MASK,
-		  be16_to_cpu(header->srm_version), header->srm_gen_no);
+		  be16_to_cpu(header->srm_version), header->srm_gen_yes);
 
 	if (header->reserved)
 		return -EINVAL;
@@ -265,7 +265,7 @@ exit:
  *
  * This function reads the HDCP System renewability Message(SRM Table)
  * from userspace as a firmware and parses it for the revoked HDCP
- * KSVs(Receiver IDs) detected by DCP LLC. Once the revoked KSVs are known,
+ * KSVs(Receiver IDs) detected by DCP LLC. Once the revoked KSVs are kyeswn,
  * revoked state of the KSVs in the list passed in by display drivers are
  * decided and response is sent.
  *
@@ -367,10 +367,10 @@ DRM_ENUM_NAME_FN(drm_get_hdcp_content_type_name,
  *
  * This is used to add support for content protection on select connectors.
  * Content Protection is intentionally vague to allow for different underlying
- * technologies, however it is most implemented by HDCP.
+ * techyeslogies, however it is most implemented by HDCP.
  *
  * When hdcp_content_type is true enum property called HDCP Content Type is
- * created (if it is not already) and attached to the connector.
+ * created (if it is yest already) and attached to the connector.
  *
  * This property is used for sending the protected content's stream type
  * from userspace to kernel on selected connectors. Protected content provider
@@ -386,7 +386,7 @@ DRM_ENUM_NAME_FN(drm_get_hdcp_content_type_name,
  * the content protection state of a connector.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erryes on failure.
  */
 int drm_connector_attach_content_protection_property(
 		struct drm_connector *connector, bool hdcp_content_type)
@@ -438,7 +438,7 @@ EXPORT_SYMBOL(drm_connector_attach_content_protection_property);
  * and ENABLED->DESIRED. No uevent for DESIRED->UNDESIRED or ENABLED->UNDESIRED,
  * as userspace is triggering such state change and kernel performs it without
  * fail.This function update the new state of the property into the connector's
- * state and generate an uevent to notify the userspace.
+ * state and generate an uevent to yestify the userspace.
  */
 void drm_hdcp_update_content_protection(struct drm_connector *connector,
 					u64 val)

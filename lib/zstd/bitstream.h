@@ -11,9 +11,9 @@
  * met:
  *
  *   * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
+ * yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above
- * copyright notice, this list of conditions and the following disclaimer
+ * copyright yestice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
  *
@@ -43,7 +43,7 @@
 
 /*
 *  This API consists of small unitary functions, which must be inlined for best performance.
-*  Since link-time-optimization is not available for all compilers,
+*  Since link-time-optimization is yest available for all compilers,
 *  these functions are defined into a .h to be included.
 */
 
@@ -94,7 +94,7 @@ ZSTD_STATIC size_t BIT_closeCStream(BIT_CStream_t *bitC);
 *
 *  Last operation is to close the bitStream.
 *  The function returns the final size of CStream in bytes.
-*  If data couldn't fit into `dstBuffer`, it will return a 0 ( == not storable)
+*  If data couldn't fit into `dstBuffer`, it will return a 0 ( == yest storable)
 */
 
 /*-********************************************
@@ -137,7 +137,7 @@ ZSTD_STATIC void BIT_addBitsFast(BIT_CStream_t *bitC, size_t value, unsigned nbB
 /* faster, but works only if value is "clean", meaning all high bits above nbBits are 0 */
 
 ZSTD_STATIC void BIT_flushBitsFast(BIT_CStream_t *bitC);
-/* unsafe version; does not check buffer overflow */
+/* unsafe version; does yest check buffer overflow */
 
 ZSTD_STATIC size_t BIT_readBitsFast(BIT_DStream_t *bitD, unsigned nbBits);
 /* faster, but works only if nbBits >= 1 */
@@ -173,7 +173,7 @@ ZSTD_STATIC size_t BIT_initCStream(BIT_CStream_t *bitC, void *startPtr, size_t d
 
 /*! BIT_addBits() :
 	can add up to 26 bits into `bitC`.
-	Does not check for register overflow ! */
+	Does yest check for register overflow ! */
 ZSTD_STATIC void BIT_addBits(BIT_CStream_t *bitC, size_t value, unsigned nbBits)
 {
 	bitC->bitContainer |= (value & BIT_mask[nbBits]) << bitC->bitPos;
@@ -189,7 +189,7 @@ ZSTD_STATIC void BIT_addBitsFast(BIT_CStream_t *bitC, size_t value, unsigned nbB
 }
 
 /*! BIT_flushBitsFast() :
- *  unsafe version; does not check buffer overflow */
+ *  unsafe version; does yest check buffer overflow */
 ZSTD_STATIC void BIT_flushBitsFast(BIT_CStream_t *bitC)
 {
 	size_t const nbBytes = bitC->bitPos >> 3;
@@ -201,7 +201,7 @@ ZSTD_STATIC void BIT_flushBitsFast(BIT_CStream_t *bitC)
 
 /*! BIT_flushBits() :
  *  safe version; check for buffer overflow, and prevents it.
- *  note : does not signal buffer overflow. This will be revealed later on using BIT_closeCStream() */
+ *  yeste : does yest signal buffer overflow. This will be revealed later on using BIT_closeCStream() */
 ZSTD_STATIC void BIT_flushBits(BIT_CStream_t *bitC)
 {
 	size_t const nbBytes = bitC->bitPos >> 3;
@@ -215,7 +215,7 @@ ZSTD_STATIC void BIT_flushBits(BIT_CStream_t *bitC)
 
 /*! BIT_closeCStream() :
  *  @return : size of CStream, in bytes,
-			  or 0 if it could not fit into dstBuffer */
+			  or 0 if it could yest fit into dstBuffer */
 ZSTD_STATIC size_t BIT_closeCStream(BIT_CStream_t *bitC)
 {
 	BIT_addBitsFast(bitC, 1, 1); /* endMark */
@@ -243,7 +243,7 @@ ZSTD_STATIC size_t BIT_initDStream(BIT_DStream_t *bitD, const void *srcBuffer, s
 		return ERROR(srcSize_wrong);
 	}
 
-	if (srcSize >= sizeof(bitD->bitContainer)) { /* normal case */
+	if (srcSize >= sizeof(bitD->bitContainer)) { /* yesrmal case */
 		bitD->start = (const char *)srcBuffer;
 		bitD->ptr = (const char *)srcBuffer + srcSize - sizeof(bitD->bitContainer);
 		bitD->bitContainer = ZSTD_readLEST(bitD->ptr);
@@ -251,7 +251,7 @@ ZSTD_STATIC size_t BIT_initDStream(BIT_DStream_t *bitD, const void *srcBuffer, s
 			BYTE const lastByte = ((const BYTE *)srcBuffer)[srcSize - 1];
 			bitD->bitsConsumed = lastByte ? 8 - BIT_highbit32(lastByte) : 0; /* ensures bitsConsumed is always set */
 			if (lastByte == 0)
-				return ERROR(GENERIC); /* endMark not present */
+				return ERROR(GENERIC); /* endMark yest present */
 		}
 	} else {
 		bitD->start = (const char *)srcBuffer;
@@ -275,7 +275,7 @@ ZSTD_STATIC size_t BIT_initDStream(BIT_DStream_t *bitD, const void *srcBuffer, s
 			BYTE const lastByte = ((const BYTE *)srcBuffer)[srcSize - 1];
 			bitD->bitsConsumed = lastByte ? 8 - BIT_highbit32(lastByte) : 0;
 			if (lastByte == 0)
-				return ERROR(GENERIC); /* endMark not present */
+				return ERROR(GENERIC); /* endMark yest present */
 		}
 		bitD->bitsConsumed += (U32)(sizeof(bitD->bitContainer) - srcSize) * 8;
 	}
@@ -291,7 +291,7 @@ ZSTD_STATIC size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits) { ret
 
 /*! BIT_lookBits() :
  *  Provides next n bits from local register.
- *  local register is not modified.
+ *  local register is yest modified.
  *  On 32-bits, maxNbBits==24.
  *  On 64-bits, maxNbBits==56.
  *  @return : value extracted
@@ -314,7 +314,7 @@ ZSTD_STATIC void BIT_skipBits(BIT_DStream_t *bitD, U32 nbBits) { bitD->bitsConsu
 
 /*! BIT_readBits() :
  *  Read (consume) next n bits from local register and update.
- *  Pay attention to not read more than nbBits contained into local register.
+ *  Pay attention to yest read more than nbBits contained into local register.
  *  @return : extracted value.
  */
 ZSTD_STATIC size_t BIT_readBits(BIT_DStream_t *bitD, U32 nbBits)
@@ -335,12 +335,12 @@ ZSTD_STATIC size_t BIT_readBitsFast(BIT_DStream_t *bitD, U32 nbBits)
 
 /*! BIT_reloadDStream() :
 *   Refill `bitD` from buffer previously set in BIT_initDStream() .
-*   This function is safe, it guarantees it will not read beyond src buffer.
+*   This function is safe, it guarantees it will yest read beyond src buffer.
 *   @return : status of `BIT_DStream_t` internal register.
 			  if status == BIT_DStream_unfinished, internal register is filled with >= (sizeof(bitD->bitContainer)*8 - 7) bits */
 ZSTD_STATIC BIT_DStream_status BIT_reloadDStream(BIT_DStream_t *bitD)
 {
-	if (bitD->bitsConsumed > (sizeof(bitD->bitContainer) * 8)) /* should not happen => corruption detected */
+	if (bitD->bitsConsumed > (sizeof(bitD->bitContainer) * 8)) /* should yest happen => corruption detected */
 		return BIT_DStream_overflow;
 
 	if (bitD->ptr >= bitD->start + sizeof(bitD->bitContainer)) {

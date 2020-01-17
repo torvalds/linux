@@ -569,7 +569,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs42l42 = {
 	.num_controls		= ARRAY_SIZE(cs42l42_snd_controls),
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 struct cs42l42_pll_params {
@@ -856,7 +856,7 @@ static int cs42l42_digital_mute(struct snd_soc_dai *dai, int mute)
 	u8 fullScaleVol;
 
 	if (mute) {
-		/* Mark SCLK as not present to turn on the internal
+		/* Mark SCLK as yest present to turn on the internal
 		 * oscillator.
 		 */
 		snd_soc_component_update_bits(component, CS42L42_OSC_SWITCH,
@@ -1535,7 +1535,7 @@ static void cs42l42_setup_hs_type_detect(struct cs42l42_private *cs42l42)
 			(cs42l42->bias_thresholds[0] <<
 			CS42L42_HS_DET_LEVEL_SHIFT));
 
-	/* Remove ground noise-suppression clamps */
+	/* Remove ground yesise-suppression clamps */
 	regmap_update_bits(cs42l42->regmap,
 			CS42L42_HS_CLAMP_DISABLE,
 			CS42L42_HS_CLAMP_DISABLE_MASK,
@@ -1569,7 +1569,7 @@ static const unsigned int threshold_defaults[] = {
 static int cs42l42_handle_device_data(struct i2c_client *i2c_client,
 					struct cs42l42_private *cs42l42)
 {
-	struct device_node *np = i2c_client->dev.of_node;
+	struct device_yesde *np = i2c_client->dev.of_yesde;
 	unsigned int val;
 	unsigned int thresholds[CS42L42_NUM_BIASES];
 	int ret;
@@ -1860,7 +1860,7 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client,
 			(1 << CS42L42_ADC_PDN_SHIFT) |
 			(0 << CS42L42_PDN_ALL_SHIFT));
 
-	if (i2c_client->dev.of_node) {
+	if (i2c_client->dev.of_yesde) {
 		ret = cs42l42_handle_device_data(i2c_client, cs42l42);
 		if (ret != 0)
 			return ret;

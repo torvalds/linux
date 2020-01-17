@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -32,7 +32,7 @@ enum ath6kl_tm_attr {
 
 enum ath6kl_tm_cmd {
 	ATH6KL_TM_CMD_TCMD		= 0,
-	ATH6KL_TM_CMD_RX_REPORT		= 1,	/* not used anymore */
+	ATH6KL_TM_CMD_RX_REPORT		= 1,	/* yest used anymore */
 };
 
 #define ATH6KL_TM_DATA_MAX_LEN		5000

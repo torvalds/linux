@@ -36,7 +36,7 @@
  *   8.1.3. Server Response
  *
  *   It MAY also leave the RESPOND state for CLOSED after a timeout of
- *   not less than 4MSL (8 minutes);
+ *   yest less than 4MSL (8 minutes);
  *
  * - PARTOPEN:
  *
@@ -56,7 +56,7 @@
  *   8.3. Termination
  *
  *   The retransmission timer should initially be set to go off in two
- *   round-trip times and should back off to not less than once every
+ *   round-trip times and should back off to yest less than once every
  *   64 seconds ...
  *
  * - TIMEWAIT:
@@ -119,8 +119,8 @@ static const char * const dccp_state_names[] = {
  * PARTOPEN, CLOSEREQ. For the other side these states are equivalent to
  * the one it was in before.
  *
- * Packets are marked as ignored (sIG) if we don't know if they're valid
- * (for example a reincarnation of a connection we didn't notice is dead
+ * Packets are marked as igyesred (sIG) if we don't kyesw if they're valid
+ * (for example a reincarnation of a connection we didn't yestice is dead
  * already) and the server may send back a connection closing Reset or a
  * Response. They're also used for Sync/SyncAck packets, which we don't
  * care about.
@@ -134,10 +134,10 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 		 * sRQ -> sRQ		Retransmitted Request or reincarnation
 		 * sRS -> sRS		Retransmitted Request (apparently Response
 		 * 			got lost after we saw it) or reincarnation
-		 * sPO -> sIG		Ignore, conntrack might be out of sync
-		 * sOP -> sIG		Ignore, conntrack might be out of sync
-		 * sCR -> sIG		Ignore, conntrack might be out of sync
-		 * sCG -> sIG		Ignore, conntrack might be out of sync
+		 * sPO -> sIG		Igyesre, conntrack might be out of sync
+		 * sOP -> sIG		Igyesre, conntrack might be out of sync
+		 * sCR -> sIG		Igyesre, conntrack might be out of sync
+		 * sCG -> sIG		Igyesre, conntrack might be out of sync
 		 * sTW -> sRQ		Reincarnation
 		 *
 		 *	sNO, sRQ, sRS, sPO. sOP, sCR, sCG, sTW, */
@@ -146,12 +146,12 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 		[DCCP_PKT_RESPONSE] = {
 		/*
 		 * sNO -> sIV		Invalid
-		 * sRQ -> sIG		Ignore, might be response to ignored Request
-		 * sRS -> sIG		Ignore, might be response to ignored Request
-		 * sPO -> sIG		Ignore, might be response to ignored Request
-		 * sOP -> sIG		Ignore, might be response to ignored Request
-		 * sCR -> sIG		Ignore, might be response to ignored Request
-		 * sCG -> sIG		Ignore, might be response to ignored Request
+		 * sRQ -> sIG		Igyesre, might be response to igyesred Request
+		 * sRS -> sIG		Igyesre, might be response to igyesred Request
+		 * sPO -> sIG		Igyesre, might be response to igyesred Request
+		 * sOP -> sIG		Igyesre, might be response to igyesred Request
+		 * sCR -> sIG		Igyesre, might be response to igyesred Request
+		 * sCG -> sIG		Igyesre, might be response to igyesred Request
 		 * sTW -> sIV		Invalid, reincarnation in reverse direction
 		 *			goes through sRQ
 		 *
@@ -230,21 +230,21 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 		 * sOP -> sTW		Connection reset
 		 * sCR -> sTW		Connection reset
 		 * sCG -> sTW		Connection reset
-		 * sTW -> sIG		Ignore (don't refresh timer)
+		 * sTW -> sIG		Igyesre (don't refresh timer)
 		 *
 		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sTW, sTW, sTW, sTW, sTW, sTW, sIG
 		},
 		[DCCP_PKT_SYNC] = {
 		/*
-		 * We currently ignore Sync packets
+		 * We currently igyesre Sync packets
 		 *
 		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIG, sIG, sIG, sIG, sIG, sIG, sIG,
 		},
 		[DCCP_PKT_SYNCACK] = {
 		/*
-		 * We currently ignore SyncAck packets
+		 * We currently igyesre SyncAck packets
 		 *
 		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIG, sIG, sIG, sIG, sIG, sIG, sIG,
@@ -254,12 +254,12 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 		[DCCP_PKT_REQUEST] = {
 		/*
 		 * sNO -> sIV		Invalid
-		 * sRQ -> sIG		Ignore, conntrack might be out of sync
-		 * sRS -> sIG		Ignore, conntrack might be out of sync
-		 * sPO -> sIG		Ignore, conntrack might be out of sync
-		 * sOP -> sIG		Ignore, conntrack might be out of sync
-		 * sCR -> sIG		Ignore, conntrack might be out of sync
-		 * sCG -> sIG		Ignore, conntrack might be out of sync
+		 * sRQ -> sIG		Igyesre, conntrack might be out of sync
+		 * sRS -> sIG		Igyesre, conntrack might be out of sync
+		 * sPO -> sIG		Igyesre, conntrack might be out of sync
+		 * sOP -> sIG		Igyesre, conntrack might be out of sync
+		 * sCR -> sIG		Igyesre, conntrack might be out of sync
+		 * sCG -> sIG		Igyesre, conntrack might be out of sync
 		 * sTW -> sRQ		Reincarnation, must reverse roles
 		 *
 		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
@@ -270,10 +270,10 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 		 * sNO -> sIV		Response without Request
 		 * sRQ -> sRS		Response to clients Request
 		 * sRS -> sRS		Retransmitted Response (8.1.3. SHOULD NOT)
-		 * sPO -> sIG		Response to an ignored Request or late retransmit
-		 * sOP -> sIG		Ignore, might be response to ignored Request
-		 * sCR -> sIG		Ignore, might be response to ignored Request
-		 * sCG -> sIG		Ignore, might be response to ignored Request
+		 * sPO -> sIG		Response to an igyesred Request or late retransmit
+		 * sOP -> sIG		Igyesre, might be response to igyesred Request
+		 * sCR -> sIG		Igyesre, might be response to igyesred Request
+		 * sCG -> sIG		Igyesre, might be response to igyesred Request
 		 * sTW -> sIV		Invalid, Request from client in sTW moves to sRQ
 		 *
 		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
@@ -329,7 +329,7 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 		 * sPO -> sOP -> sCR	Move directly to CLOSEREQ (8.1.5.)
 		 * sOP -> sCR		CloseReq in OPEN state
 		 * sCR -> sCR		Retransmit
-		 * sCG -> sCR		Simultaneous close, client sends another Close
+		 * sCG -> sCR		Simultaneous close, client sends ayesther Close
 		 * sTW -> sIV		Already closed
 		 *
 		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
@@ -358,21 +358,21 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 		 * sOP -> sTW
 		 * sCR -> sTW
 		 * sCG -> sTW
-		 * sTW -> sIG		Ignore (don't refresh timer)
+		 * sTW -> sIG		Igyesre (don't refresh timer)
 		 *
 		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW, sTW */
 			sIV, sTW, sTW, sTW, sTW, sTW, sTW, sTW, sIG
 		},
 		[DCCP_PKT_SYNC] = {
 		/*
-		 * We currently ignore Sync packets
+		 * We currently igyesre Sync packets
 		 *
 		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIG, sIG, sIG, sIG, sIG, sIG, sIG,
 		},
 		[DCCP_PKT_SYNCACK] = {
 		/*
-		 * We currently ignore SyncAck packets
+		 * We currently igyesre SyncAck packets
 		 *
 		 *	sNO, sRQ, sRS, sPO, sOP, sCR, sCG, sTW */
 			sIV, sIG, sIG, sIG, sIG, sIG, sIG, sIG,
@@ -380,7 +380,7 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 	},
 };
 
-static noinline bool
+static yesinline bool
 dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	 const struct dccp_hdr *dh)
 {
@@ -394,7 +394,7 @@ dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	default:
 		dn = nf_dccp_pernet(net);
 		if (dn->dccp_loose == 0) {
-			msg = "not picking up existing connection ";
+			msg = "yest picking up existing connection ";
 			goto out_invalid;
 		}
 	case CT_DCCP_REQUEST:
@@ -525,7 +525,7 @@ int nf_conntrack_dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
 		break;
 	case CT_DCCP_IGNORE:
 		/*
-		 * Connection tracking might be out of sync, so we ignore
+		 * Connection tracking might be out of sync, so we igyesre
 		 * packets that might establish a new connection and resync
 		 * if the server responds with a valid Response.
 		 */

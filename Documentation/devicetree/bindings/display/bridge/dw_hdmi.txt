@@ -1,7 +1,7 @@
-Synopsys DesignWare HDMI TX Encoder
+Syyespsys DesignWare HDMI TX Encoder
 ===================================
 
-This document defines device tree properties for the Synopsys DesignWare HDMI
+This document defines device tree properties for the Syyespsys DesignWare HDMI
 TX Encoder (DWC HDMI TX). It doesn't constitue a device tree binding
 specification by itself but is meant to be referenced by platform-specific
 device tree bindings.
@@ -14,7 +14,7 @@ responsible for defining whether each property is required or optional.
 
 - reg-io-width: Width of the registers specified by the reg property. The
   value is expressed in bytes and must be equal to 1 or 4 if specified. The
-  register width defaults to 1 if the property is not present.
+  register width defaults to 1 if the property is yest present.
 
 - interrupts: Reference to the DWC HDMI TX interrupt.
 

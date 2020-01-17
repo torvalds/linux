@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <linux/linkage.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include <asm/unistd.h>
 
@@ -11,7 +11,7 @@
 #endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
 
 /*  we can't #include <linux/syscalls.h> here,
-    but tell gcc to not warn with -Wmissing-prototypes  */
+    but tell gcc to yest warn with -Wmissing-prototypes  */
 asmlinkage long sys_ni_syscall(void);
 
 /*
@@ -71,10 +71,10 @@ COND_SYSCALL_COMPAT(epoll_pwait);
 
 /* fs/fcntl.c */
 
-/* fs/inotify_user.c */
-COND_SYSCALL(inotify_init1);
-COND_SYSCALL(inotify_add_watch);
-COND_SYSCALL(inotify_rm_watch);
+/* fs/iyestify_user.c */
+COND_SYSCALL(iyestify_init1);
+COND_SYSCALL(iyestify_add_watch);
+COND_SYSCALL(iyestify_rm_watch);
 
 /* fs/ioctl.c */
 
@@ -195,8 +195,8 @@ COND_SYSCALL(mq_timedsend);
 COND_SYSCALL(mq_timedsend_time32);
 COND_SYSCALL(mq_timedreceive);
 COND_SYSCALL(mq_timedreceive_time32);
-COND_SYSCALL(mq_notify);
-COND_SYSCALL_COMPAT(mq_notify);
+COND_SYSCALL(mq_yestify);
+COND_SYSCALL_COMPAT(mq_yestify);
 COND_SYSCALL(mq_getsetattr);
 COND_SYSCALL_COMPAT(mq_getsetattr);
 
@@ -255,7 +255,7 @@ COND_SYSCALL_COMPAT(recvmsg);
 
 /* mm/filemap.c */
 
-/* mm/nommu.c, also with MMU */
+/* mm/yesmmu.c, also with MMU */
 COND_SYSCALL(mremap);
 
 /* security/keys/keyctl.c */
@@ -303,9 +303,9 @@ COND_SYSCALL_COMPAT(recvmmsg_time64);
  * Architecture specific syscalls: see further below
  */
 
-/* fanotify */
-COND_SYSCALL(fanotify_init);
-COND_SYSCALL(fanotify_mark);
+/* fayestify */
+COND_SYSCALL(fayestify_init);
+COND_SYSCALL(fayestify_mark);
 
 /* open by handle */
 COND_SYSCALL(name_to_handle_at);
@@ -365,7 +365,7 @@ COND_SYSCALL_COMPAT(socketcall);
 
 /* compat syscalls for arm64, x86, ... */
 COND_SYSCALL_COMPAT(sysctl);
-COND_SYSCALL_COMPAT(fanotify_mark);
+COND_SYSCALL_COMPAT(fayestify_mark);
 
 /* x86 */
 COND_SYSCALL(vm86old);
@@ -394,7 +394,7 @@ COND_SYSCALL(subpage_prot);
 
 /* __ARCH_WANT_SYSCALL_NO_FLAGS */
 COND_SYSCALL(epoll_create);
-COND_SYSCALL(inotify_init);
+COND_SYSCALL(iyestify_init);
 COND_SYSCALL(eventfd);
 COND_SYSCALL(signalfd);
 COND_SYSCALL_COMPAT(signalfd);
@@ -416,7 +416,7 @@ COND_SYSCALL(stime32);
 COND_SYSCALL(utime32);
 COND_SYSCALL(adjtimex_time32);
 COND_SYSCALL(sched_rr_get_interval_time32);
-COND_SYSCALL(nanosleep_time32);
+COND_SYSCALL(nayessleep_time32);
 COND_SYSCALL(rt_sigtimedwait_time32);
 COND_SYSCALL_COMPAT(rt_sigtimedwait_time32);
 COND_SYSCALL(timer_settime32);
@@ -424,7 +424,7 @@ COND_SYSCALL(timer_gettime32);
 COND_SYSCALL(clock_settime32);
 COND_SYSCALL(clock_gettime32);
 COND_SYSCALL(clock_getres_time32);
-COND_SYSCALL(clock_nanosleep_time32);
+COND_SYSCALL(clock_nayessleep_time32);
 COND_SYSCALL(utimes_time32);
 COND_SYSCALL(futimesat_time32);
 COND_SYSCALL(pselect6_time32);
@@ -435,7 +435,7 @@ COND_SYSCALL(utimensat_time32);
 COND_SYSCALL(clock_adjtime32);
 
 /*
- * The syscalls below are not found in include/uapi/asm-generic/unistd.h
+ * The syscalls below are yest found in include/uapi/asm-generic/unistd.h
  */
 
 /* obsolete: SGETMASK_SYSCALL */

@@ -159,7 +159,7 @@ static int stm32_init_rs485(struct uart_port *port,
 	rs485conf->delay_rts_before_send = 0;
 	rs485conf->delay_rts_after_send = 0;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	uart_get_rs485_mode(&pdev->dev, rs485conf);
@@ -554,7 +554,7 @@ static void stm32_throttle(struct uart_port *port)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-/* Unthrottle the remote, the input buffer can now accept data. */
+/* Unthrottle the remote, the input buffer can yesw accept data. */
 static void stm32_unthrottle(struct uart_port *port)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
@@ -581,7 +581,7 @@ static void stm32_stop_rx(struct uart_port *port)
 
 }
 
-/* Handle breaks - ignored by us */
+/* Handle breaks - igyesred by us */
 static void stm32_break_ctl(struct uart_port *port, int break_state)
 {
 }
@@ -641,7 +641,7 @@ static void stm32_shutdown(struct uart_port *port)
 					 10, 100000);
 
 	if (ret)
-		dev_err(port->dev, "transmission complete not set\n");
+		dev_err(port->dev, "transmission complete yest set\n");
 
 	stm32_clr_bits(port, ofs->cr1, val);
 
@@ -656,7 +656,7 @@ static unsigned int stm32_get_databits(struct ktermios *termios)
 
 	switch (cflag & CSIZE) {
 	/*
-	 * CSIZE settings are not necessarily supported in hardware.
+	 * CSIZE settings are yest necessarily supported in hardware.
 	 * CSIZE unsupported configurations are handled here to set word length
 	 * to 8 bits word as default configuration and to print debug message.
 	 */
@@ -798,23 +798,23 @@ static void stm32_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= USART_SR_FE;
 
-	/* Characters to ignore */
-	port->ignore_status_mask = 0;
+	/* Characters to igyesre */
+	port->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask = USART_SR_PE | USART_SR_FE;
+		port->igyesre_status_mask = USART_SR_PE | USART_SR_FE;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= USART_SR_FE;
+		port->igyesre_status_mask |= USART_SR_FE;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= USART_SR_ORE;
+			port->igyesre_status_mask |= USART_SR_ORE;
 	}
 
-	/* Ignore all characters if CREAD is not set */
+	/* Igyesre all characters if CREAD is yest set */
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= USART_SR_DUMMY_RX;
+		port->igyesre_status_mask |= USART_SR_DUMMY_RX;
 
 	if (stm32_port->rx_ch)
 		cr3 |= USART_CR3_DMAR;
@@ -972,7 +972,7 @@ static int stm32_init_port(struct stm32_port *stm32port,
 
 static struct stm32_port *stm32_of_get_stm32_port(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int id;
 
 	if (!np)
@@ -980,7 +980,7 @@ static struct stm32_port *stm32_of_get_stm32_port(struct platform_device *pdev)
 
 	id = of_alias_get_id(np, "serial");
 	if (id < 0) {
-		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", id);
+		dev_err(&pdev->dev, "failed to get alias id, erryes %d\n", id);
 		return NULL;
 	}
 
@@ -1158,7 +1158,7 @@ static int stm32_serial_probe(struct platform_device *pdev)
 		ret = dev_pm_set_dedicated_wake_irq(&pdev->dev,
 						    stm32port->wakeirq);
 		if (ret)
-			goto err_nowup;
+			goto err_yeswup;
 
 		device_set_wakeup_enable(&pdev->dev, false);
 	}
@@ -1169,15 +1169,15 @@ static int stm32_serial_probe(struct platform_device *pdev)
 
 	ret = stm32_of_dma_rx_probe(stm32port, pdev);
 	if (ret)
-		dev_info(&pdev->dev, "interrupt mode used for rx (no dma)\n");
+		dev_info(&pdev->dev, "interrupt mode used for rx (yes dma)\n");
 
 	ret = stm32_of_dma_tx_probe(stm32port, pdev);
 	if (ret)
-		dev_info(&pdev->dev, "interrupt mode used for tx (no dma)\n");
+		dev_info(&pdev->dev, "interrupt mode used for tx (yes dma)\n");
 
 	platform_set_drvdata(pdev, &stm32port->port);
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
@@ -1188,7 +1188,7 @@ err_wirq:
 	if (stm32port->wakeirq > 0)
 		dev_pm_clear_wake_irq(&pdev->dev);
 
-err_nowup:
+err_yeswup:
 	if (stm32port->wakeirq > 0)
 		device_init_wakeup(&pdev->dev, false);
 
@@ -1237,7 +1237,7 @@ static int stm32_serial_remove(struct platform_device *pdev)
 	err = uart_remove_one_port(&stm32_usart_driver, port);
 
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 
 	return err;
 }
@@ -1303,7 +1303,7 @@ static int stm32_console_setup(struct console *co, char *options)
 	stm32port = &stm32_ports[co->index];
 
 	/*
-	 * This driver does not support early console initialization
+	 * This driver does yest support early console initialization
 	 * (use ARM early printk support instead), so we only expect
 	 * this to be called during the uart port registration when the
 	 * driver gets probed and the port should be mapped at that point.
@@ -1337,7 +1337,7 @@ static struct uart_driver stm32_usart_driver = {
 	.driver_name	= DRIVER_NAME,
 	.dev_name	= STM32_SERIAL_NAME,
 	.major		= 0,
-	.minor		= 0,
+	.miyesr		= 0,
 	.nr		= STM32_MAX_PORTS,
 	.cons		= STM32_SERIAL_CONSOLE,
 };

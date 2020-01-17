@@ -3,7 +3,7 @@
  * OMAP1 Special OptimiSed Screen Interface support
  *
  * Copyright (C) 2004-2005 Nokia Corporation
- * Author: Juha Yrjölä <juha.yrjola@nokia.com>
+ * Author: Juha Yrjölä <juha.yrjola@yeskia.com>
  */
 #include <linux/module.h>
 #include <linux/mm.h>
@@ -319,7 +319,7 @@ static int sossi_convert_timings(struct extif_timings *t)
 	if (div <= 0 || div > 8)
 		return -1;
 
-	/* no CS on SOSSI, so ignore cson, csoff, cs_pulsewidth */
+	/* yes CS on SOSSI, so igyesre cson, csoff, cs_pulsewidth */
 	if ((r = calc_rd_timings(t)) < 0)
 		return r;
 
@@ -494,7 +494,7 @@ static void sossi_transfer_area(int width, int height,
 		 * Wait for the sync signal and start the transfer only
 		 * then. We can't seem to be able to use HW sync DMA for
 		 * this since LCD DMA shows huge latencies, as if it
-		 * would ignore some of the DMA requests from SoSSI.
+		 * would igyesre some of the DMA requests from SoSSI.
 		 */
 		unsigned long flags;
 

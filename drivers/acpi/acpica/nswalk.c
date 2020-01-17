@@ -16,96 +16,96 @@ ACPI_MODULE_NAME("nswalk")
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_get_next_node
+ * FUNCTION:    acpi_ns_get_next_yesde
  *
- * PARAMETERS:  parent_node         - Parent node whose children we are
+ * PARAMETERS:  parent_yesde         - Parent yesde whose children we are
  *                                    getting
- *              child_node          - Previous child that was found.
+ *              child_yesde          - Previous child that was found.
  *                                    The NEXT child will be returned
  *
- * RETURN:      struct acpi_namespace_node - Pointer to the NEXT child or NULL if
- *                                    none is found.
+ * RETURN:      struct acpi_namespace_yesde - Pointer to the NEXT child or NULL if
+ *                                    yesne is found.
  *
- * DESCRIPTION: Return the next peer node within the namespace. If Handle
- *              is valid, Scope is ignored. Otherwise, the first node
+ * DESCRIPTION: Return the next peer yesde within the namespace. If Handle
+ *              is valid, Scope is igyesred. Otherwise, the first yesde
  *              within Scope is returned.
  *
  ******************************************************************************/
-struct acpi_namespace_node *acpi_ns_get_next_node(struct acpi_namespace_node
-						  *parent_node,
-						  struct acpi_namespace_node
-						  *child_node)
+struct acpi_namespace_yesde *acpi_ns_get_next_yesde(struct acpi_namespace_yesde
+						  *parent_yesde,
+						  struct acpi_namespace_yesde
+						  *child_yesde)
 {
 	ACPI_FUNCTION_ENTRY();
 
-	if (!child_node) {
+	if (!child_yesde) {
 
 		/* It's really the parent's _scope_ that we want */
 
-		return (parent_node->child);
+		return (parent_yesde->child);
 	}
 
 	/* Otherwise just return the next peer */
 
-	return (child_node->peer);
+	return (child_yesde->peer);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_get_next_node_typed
+ * FUNCTION:    acpi_ns_get_next_yesde_typed
  *
- * PARAMETERS:  type                - Type of node to be searched for
- *              parent_node         - Parent node whose children we are
+ * PARAMETERS:  type                - Type of yesde to be searched for
+ *              parent_yesde         - Parent yesde whose children we are
  *                                    getting
- *              child_node          - Previous child that was found.
+ *              child_yesde          - Previous child that was found.
  *                                    The NEXT child will be returned
  *
- * RETURN:      struct acpi_namespace_node - Pointer to the NEXT child or NULL if
- *                                    none is found.
+ * RETURN:      struct acpi_namespace_yesde - Pointer to the NEXT child or NULL if
+ *                                    yesne is found.
  *
- * DESCRIPTION: Return the next peer node within the namespace. If Handle
- *              is valid, Scope is ignored. Otherwise, the first node
+ * DESCRIPTION: Return the next peer yesde within the namespace. If Handle
+ *              is valid, Scope is igyesred. Otherwise, the first yesde
  *              within Scope is returned.
  *
  ******************************************************************************/
 
-struct acpi_namespace_node *acpi_ns_get_next_node_typed(acpi_object_type type,
+struct acpi_namespace_yesde *acpi_ns_get_next_yesde_typed(acpi_object_type type,
 							struct
-							acpi_namespace_node
-							*parent_node,
+							acpi_namespace_yesde
+							*parent_yesde,
 							struct
-							acpi_namespace_node
-							*child_node)
+							acpi_namespace_yesde
+							*child_yesde)
 {
-	struct acpi_namespace_node *next_node = NULL;
+	struct acpi_namespace_yesde *next_yesde = NULL;
 
 	ACPI_FUNCTION_ENTRY();
 
-	next_node = acpi_ns_get_next_node(parent_node, child_node);
+	next_yesde = acpi_ns_get_next_yesde(parent_yesde, child_yesde);
 
 
 	/* If any type is OK, we are done */
 
 	if (type == ACPI_TYPE_ANY) {
 
-		/* next_node is NULL if we are at the end-of-list */
+		/* next_yesde is NULL if we are at the end-of-list */
 
-		return (next_node);
+		return (next_yesde);
 	}
 
-	/* Must search for the node -- but within this scope only */
+	/* Must search for the yesde -- but within this scope only */
 
-	while (next_node) {
+	while (next_yesde) {
 
 		/* If type matches, we are done */
 
-		if (next_node->type == type) {
-			return (next_node);
+		if (next_yesde->type == type) {
+			return (next_yesde);
 		}
 
-		/* Otherwise, move on to the next peer node */
+		/* Otherwise, move on to the next peer yesde */
 
-		next_node = next_node->peer;
+		next_yesde = next_yesde->peer;
 	}
 
 	/* Not found */
@@ -118,7 +118,7 @@ struct acpi_namespace_node *acpi_ns_get_next_node_typed(acpi_object_type type,
  * FUNCTION:    acpi_ns_walk_namespace
  *
  * PARAMETERS:  type                - acpi_object_type to search for
- *              start_node          - Handle in namespace where search begins
+ *              start_yesde          - Handle in namespace where search begins
  *              max_depth           - Depth to which search is to reach
  *              flags               - Whether to unlock the NS before invoking
  *                                    the callback routine
@@ -132,10 +132,10 @@ struct acpi_namespace_node *acpi_ns_get_next_node_typed(acpi_object_type type,
  * RETURNS:     Status
  *
  * DESCRIPTION: Performs a modified depth-first walk of the namespace tree,
- *              starting (and ending) at the node specified by start_handle.
- *              The callback function is called whenever a node that matches
+ *              starting (and ending) at the yesde specified by start_handle.
+ *              The callback function is called whenever a yesde that matches
  *              the type parameter is found. If the callback function returns
- *              a non-zero value, the search is terminated immediately and
+ *              a yesn-zero value, the search is terminated immediately and
  *              this value is returned to the caller.
  *
  *              The point of this procedure is to provide a generic namespace
@@ -148,7 +148,7 @@ struct acpi_namespace_node *acpi_ns_get_next_node_typed(acpi_object_type type,
 
 acpi_status
 acpi_ns_walk_namespace(acpi_object_type type,
-		       acpi_handle start_node,
+		       acpi_handle start_yesde,
 		       u32 max_depth,
 		       u32 flags,
 		       acpi_walk_callback descending_callback,
@@ -157,50 +157,50 @@ acpi_ns_walk_namespace(acpi_object_type type,
 {
 	acpi_status status;
 	acpi_status mutex_status;
-	struct acpi_namespace_node *child_node;
-	struct acpi_namespace_node *parent_node;
+	struct acpi_namespace_yesde *child_yesde;
+	struct acpi_namespace_yesde *parent_yesde;
 	acpi_object_type child_type;
 	u32 level;
-	u8 node_previously_visited = FALSE;
+	u8 yesde_previously_visited = FALSE;
 
 	ACPI_FUNCTION_TRACE(ns_walk_namespace);
 
 	/* Special case for the namespace Root Node */
 
-	if (start_node == ACPI_ROOT_OBJECT) {
-		start_node = acpi_gbl_root_node;
+	if (start_yesde == ACPI_ROOT_OBJECT) {
+		start_yesde = acpi_gbl_root_yesde;
 	}
 
-	/* Null child means "get first node" */
+	/* Null child means "get first yesde" */
 
-	parent_node = start_node;
-	child_node = acpi_ns_get_next_node(parent_node, NULL);
+	parent_yesde = start_yesde;
+	child_yesde = acpi_ns_get_next_yesde(parent_yesde, NULL);
 	child_type = ACPI_TYPE_ANY;
 	level = 1;
 
 	/*
-	 * Traverse the tree of nodes until we bubble back up to where we
+	 * Traverse the tree of yesdes until we bubble back up to where we
 	 * started. When Level is zero, the loop is done because we have
 	 * bubbled up to (and passed) the original parent handle (start_entry)
 	 */
-	while (level > 0 && child_node) {
+	while (level > 0 && child_yesde) {
 		status = AE_OK;
 
-		/* Found next child, get the type if we are not searching for ANY */
+		/* Found next child, get the type if we are yest searching for ANY */
 
 		if (type != ACPI_TYPE_ANY) {
-			child_type = child_node->type;
+			child_type = child_yesde->type;
 		}
 
 		/*
-		 * Ignore all temporary namespace nodes (created during control
-		 * method execution) unless told otherwise. These temporary nodes
+		 * Igyesre all temporary namespace yesdes (created during control
+		 * method execution) unless told otherwise. These temporary yesdes
 		 * can cause a race condition because they can be deleted during
 		 * the execution of the user function (if the namespace is
 		 * unlocked before invocation of the user function.) Only the
-		 * debugger namespace dump will examine the temporary nodes.
+		 * debugger namespace dump will examine the temporary yesdes.
 		 */
-		if ((child_node->flags & ANOBJ_TEMPORARY) &&
+		if ((child_yesde->flags & ANOBJ_TEMPORARY) &&
 		    !(flags & ACPI_NS_WALK_TEMP_NODES)) {
 			status = AE_CTRL_DEPTH;
 		}
@@ -209,7 +209,7 @@ acpi_ns_walk_namespace(acpi_object_type type,
 
 		else if (child_type == type) {
 			/*
-			 * Found a matching node, invoke the user callback function.
+			 * Found a matching yesde, invoke the user callback function.
 			 * Unlock the namespace if flag is set.
 			 */
 			if (flags & ACPI_NS_WALK_UNLOCK) {
@@ -224,17 +224,17 @@ acpi_ns_walk_namespace(acpi_object_type type,
 			 * Invoke the user function, either descending, ascending,
 			 * or both.
 			 */
-			if (!node_previously_visited) {
+			if (!yesde_previously_visited) {
 				if (descending_callback) {
 					status =
-					    descending_callback(child_node,
+					    descending_callback(child_yesde,
 								level, context,
 								return_value);
 				}
 			} else {
 				if (ascending_callback) {
 					status =
-					    ascending_callback(child_node,
+					    ascending_callback(child_yesde,
 							       level, context,
 							       return_value);
 				}
@@ -257,7 +257,7 @@ acpi_ns_walk_namespace(acpi_object_type type,
 
 			case AE_CTRL_TERMINATE:
 
-				/* Exit now, with OK status */
+				/* Exit yesw, with OK status */
 
 				return_ACPI_STATUS(AE_OK);
 
@@ -270,55 +270,55 @@ acpi_ns_walk_namespace(acpi_object_type type,
 		}
 
 		/*
-		 * Depth first search: Attempt to go down another level in the
+		 * Depth first search: Attempt to go down ayesther level in the
 		 * namespace if we are allowed to. Don't go any further if we have
 		 * reached the caller specified maximum depth or if the user
 		 * function has specified that the maximum depth has been reached.
 		 */
-		if (!node_previously_visited &&
+		if (!yesde_previously_visited &&
 		    (level < max_depth) && (status != AE_CTRL_DEPTH)) {
-			if (child_node->child) {
+			if (child_yesde->child) {
 
-				/* There is at least one child of this node, visit it */
+				/* There is at least one child of this yesde, visit it */
 
 				level++;
-				parent_node = child_node;
-				child_node =
-				    acpi_ns_get_next_node(parent_node, NULL);
+				parent_yesde = child_yesde;
+				child_yesde =
+				    acpi_ns_get_next_yesde(parent_yesde, NULL);
 				continue;
 			}
 		}
 
-		/* No more children, re-visit this node */
+		/* No more children, re-visit this yesde */
 
-		if (!node_previously_visited) {
-			node_previously_visited = TRUE;
+		if (!yesde_previously_visited) {
+			yesde_previously_visited = TRUE;
 			continue;
 		}
 
 		/* No more children, visit peers */
 
-		child_node = acpi_ns_get_next_node(parent_node, child_node);
-		if (child_node) {
-			node_previously_visited = FALSE;
+		child_yesde = acpi_ns_get_next_yesde(parent_yesde, child_yesde);
+		if (child_yesde) {
+			yesde_previously_visited = FALSE;
 		}
 
 		/* No peers, re-visit parent */
 
 		else {
 			/*
-			 * No more children of this node (acpi_ns_get_next_node failed), go
-			 * back upwards in the namespace tree to the node's parent.
+			 * No more children of this yesde (acpi_ns_get_next_yesde failed), go
+			 * back upwards in the namespace tree to the yesde's parent.
 			 */
 			level--;
-			child_node = parent_node;
-			parent_node = parent_node->parent;
+			child_yesde = parent_yesde;
+			parent_yesde = parent_yesde->parent;
 
-			node_previously_visited = TRUE;
+			yesde_previously_visited = TRUE;
 		}
 	}
 
-	/* Complete walk, not terminated by user function */
+	/* Complete walk, yest terminated by user function */
 
 	return_ACPI_STATUS(AE_OK);
 }

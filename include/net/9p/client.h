@@ -49,7 +49,7 @@ enum p9_trans_status {
 
 /**
  * enum p9_req_status_t - status of a request
- * @REQ_STATUS_ALLOC: request has been allocated but not sent
+ * @REQ_STATUS_ALLOC: request has been allocated but yest sent
  * @REQ_STATUS_UNSENT: request waiting to be sent
  * @REQ_STATUS_SENT: request sent to server
  * @REQ_STATUS_RCVD: response received from server
@@ -97,7 +97,7 @@ struct p9_req_t {
  * @trans: tranport instance state and API
  * @fids: All active FID handles
  * @reqs: All active requests.
- * @name: node name used as client id
+ * @name: yesde name used as client id
  *
  * The client structure is used to keep track of various per-client
  * state that has been instantiated.
@@ -153,7 +153,7 @@ struct p9_fid {
 
 	void *rdir;
 
-	struct hlist_node dlist;	/* list of all fids attached to a dentry */
+	struct hlist_yesde dlist;	/* list of all fids attached to a dentry */
 };
 
 /**
@@ -211,7 +211,7 @@ int p9_client_setattr(struct p9_fid *fid, struct p9_iattr_dotl *attr);
 struct p9_stat_dotl *p9_client_getattr_dotl(struct p9_fid *fid,
 							u64 request_mask);
 
-int p9_client_mknod_dotl(struct p9_fid *oldfid, const char *name, int mode,
+int p9_client_mkyesd_dotl(struct p9_fid *oldfid, const char *name, int mode,
 			dev_t rdev, kgid_t gid, struct p9_qid *);
 int p9_client_mkdir_dotl(struct p9_fid *fid, const char *name, int mode,
 				kgid_t gid, struct p9_qid *);

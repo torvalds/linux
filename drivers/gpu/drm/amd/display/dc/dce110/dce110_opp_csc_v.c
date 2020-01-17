@@ -8,7 +8,7 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -62,8 +62,8 @@ enum {
 
 /* Brightness: in DAL usually -.25 ~ .25.
  * In MMD is -100 to +100 in 16-235 range; which when scaled to full range is
- *  ~-116 to +116. When normalized this is about 0.4566.
- * With 100 divider this becomes 46, but we may use another for better precision
+ *  ~-116 to +116. When yesrmalized this is about 0.4566.
+ * With 100 divider this becomes 46, but we may use ayesther for better precision
  * The ideal one is 100/219 ((100/255)*(255/219)),
  * i.e. min/max = +-100, divider = 219
  * default 0.0
@@ -385,7 +385,7 @@ static bool configure_graphics_mode_v(
 				OUTPUT_CSC_MODE);
 			break;
 		case COLOR_SPACE_SRGB_LIMITED:
-			/* not supported for underlay on CZ */
+			/* yest supported for underlay on CZ */
 			return false;
 
 		case COLOR_SPACE_YCBCR601_LIMITED:
@@ -420,7 +420,7 @@ static bool configure_graphics_mode_v(
 				OUTPUT_CSC_MODE);
 			break;
 		case COLOR_SPACE_SRGB_LIMITED:
-			/* not supported for underlay on CZ */
+			/* yest supported for underlay on CZ */
 			return false;
 		case COLOR_SPACE_YCBCR601:
 		case COLOR_SPACE_YCBCR601_LIMITED:
@@ -458,8 +458,8 @@ static bool configure_graphics_mode_v(
 	return true;
 }
 
-/*TODO: color depth is not correct when this is called*/
-static void set_Denormalization(struct transform *xfm,
+/*TODO: color depth is yest correct when this is called*/
+static void set_Deyesrmalization(struct transform *xfm,
 		enum dc_color_depth color_depth)
 {
 	uint32_t value = dm_read_reg(xfm->ctx, mmDENORM_CLAMP_CONTROL);
@@ -490,7 +490,7 @@ static void set_Denormalization(struct transform *xfm,
 			DENORM_MODE);
 		break;
 	default:
-		/* not valid case */
+		/* yest valid case */
 		break;
 	}
 
@@ -549,7 +549,7 @@ static void program_input_csc(
 	}
 
 	/*
-	 * 1 == set A, the logic is 'if currently we're not using set A,
+	 * 1 == set A, the logic is 'if currently we're yest using set A,
 	 * then use set A, otherwise use set B'
 	 */
 	value = dm_read_reg(ctx, mmCOL_MAN_INPUT_CSC_CONTROL);
@@ -678,14 +678,14 @@ void dce110_opp_v_set_csc_default(
 
 	if (default_adjust->force_hw_default == false) {
 		const struct out_csc_color_matrix *elm;
-		/* currently parameter not in use */
+		/* currently parameter yest in use */
 		enum grph_color_adjust_option option =
 			GRPH_COLOR_MATRIX_HW_DEFAULT;
 		uint32_t i;
 		/*
 		 * HW default false we program locally defined matrix
 		 * HW default true  we use predefined hw matrix and we
-		 * do not need to program matrix
+		 * do yest need to program matrix
 		 * OEM wants the HW default via runtime parameter.
 		 */
 		option = GRPH_COLOR_MATRIX_SW;
@@ -707,7 +707,7 @@ void dce110_opp_v_set_csc_default(
 
 	/* configure the what we programmed :
 	 * 1. Default values from this file
-	 * 2. Use hardware default from ROM_A and we do not need to program
+	 * 2. Use hardware default from ROM_A and we do yest need to program
 	 * matrix
 	 */
 
@@ -715,7 +715,7 @@ void dce110_opp_v_set_csc_default(
 		default_adjust->csc_adjust_type,
 		default_adjust->out_color_space);
 
-	set_Denormalization(xfm, default_adjust->color_depth);
+	set_Deyesrmalization(xfm, default_adjust->color_depth);
 }
 
 void dce110_opp_v_set_csc_adjustment(
@@ -729,10 +729,10 @@ void dce110_opp_v_set_csc_adjustment(
 	program_color_matrix_v(
 			xfm_dce, tbl_entry, GRPH_COLOR_MATRIX_SW);
 
-	/*  We did everything ,now program DxOUTPUT_CSC_CONTROL */
+	/*  We did everything ,yesw program DxOUTPUT_CSC_CONTROL */
 	configure_graphics_mode_v(xfm_dce, config, GRAPHICS_CSC_ADJUST_TYPE_SW,
 			tbl_entry->color_space);
 
-	/*TODO: Check if denormalization is needed*/
-	/*set_Denormalization(opp, adjust->color_depth);*/
+	/*TODO: Check if deyesrmalization is needed*/
+	/*set_Deyesrmalization(opp, adjust->color_depth);*/
 }

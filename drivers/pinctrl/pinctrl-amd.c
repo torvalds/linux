@@ -17,7 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/log2.h>
 #include <linux/io.h>
 #include <linux/gpio/driver.h>
@@ -233,7 +233,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			pin_num = AMD_GPIO_PINS_BANK3 + i;
 			break;
 		default:
-			/* Illegal bank number, ignore */
+			/* Illegal bank number, igyesre */
 			continue;
 		}
 		for (; i < pin_num; i++) {
@@ -255,7 +255,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 					 level == ACTIVE_LEVEL_BOTH)
 					active_level = "Active on both|";
 				else
-					active_level = "Unknown Active level|";
+					active_level = "Unkyeswn Active level|";
 
 				if (pin_reg & BIT(LEVEL_TRIG_OFF))
 					level_trig = "Level trigger|";
@@ -421,7 +421,7 @@ static int amd_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 	pin_reg = readl(gpio_dev->base + (d->hwirq)*4);
 
-	/* Ignore the settings coming from the client and
+	/* Igyesre the settings coming from the client and
 	 * read the values from the ACPI tables
 	 * while setting the trigger type
 	 */
@@ -490,10 +490,10 @@ static int amd_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	 * INTERRUPT_ENABLE bit will read as 0.
 	 *
 	 * We temporarily enable irq for the GPIO whose configuration is
-	 * changing, and then wait for it to read back as 1 to know when
+	 * changing, and then wait for it to read back as 1 to kyesw when
 	 * debounce has settled and then disable the irq again.
 	 * We do this polling with the spinlock held to ensure other GPIO
-	 * access routines do not read an incorrect value for the irq enable
+	 * access routines do yest read an incorrect value for the irq enable
 	 * bit of other GPIOs.  We keep the GPIO masked while polling to avoid
 	 * spurious irqs, and disable the irq again after polling.
 	 */
@@ -513,7 +513,7 @@ static int amd_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 static void amd_irq_ack(struct irq_data *d)
 {
 	/*
-	 * based on HW design,there is no need to ack HW
+	 * based on HW design,there is yes need to ack HW
 	 * before handle current irq. But this routine is
 	 * necessary for handle_edge_irq
 	*/
@@ -633,7 +633,7 @@ static const struct pinctrl_ops amd_pinctrl_ops = {
 	.get_group_name		= amd_get_group_name,
 	.get_group_pins		= amd_get_group_pins,
 #ifdef CONFIG_OF
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 #endif
 };
@@ -866,7 +866,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	gpio_dev->base = devm_ioremap_nocache(&pdev->dev, res->start,
+	gpio_dev->base = devm_ioremap_yescache(&pdev->dev, res->start,
 						resource_size(res));
 	if (!gpio_dev->base)
 		return -ENOMEM;
@@ -898,7 +898,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	gpio_dev->gc.parent			= &pdev->dev;
 	gpio_dev->gc.ngpio			= resource_size(res) / 4;
 #if defined(CONFIG_OF_GPIO)
-	gpio_dev->gc.of_node			= pdev->dev.of_node;
+	gpio_dev->gc.of_yesde			= pdev->dev.of_yesde;
 #endif
 
 	gpio_dev->hwbank_num = gpio_dev->gc.ngpio / 64;
@@ -930,7 +930,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 				handle_simple_irq,
 				IRQ_TYPE_NONE);
 	if (ret) {
-		dev_err(&pdev->dev, "could not add irqchip\n");
+		dev_err(&pdev->dev, "could yest add irqchip\n");
 		ret = -ENODEV;
 		goto out2;
 	}

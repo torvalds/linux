@@ -118,10 +118,10 @@ static const struct drm_bridge_funcs thc63_bridge_func = {
 
 static int thc63_parse_dt(struct thc63_dev *thc63)
 {
-	struct device_node *endpoint;
-	struct device_node *remote;
+	struct device_yesde *endpoint;
+	struct device_yesde *remote;
 
-	endpoint = of_graph_get_endpoint_by_regs(thc63->dev->of_node,
+	endpoint = of_graph_get_endpoint_by_regs(thc63->dev->of_yesde,
 						 THC63_RGB_OUT0, -1);
 	if (!endpoint) {
 		dev_err(thc63->dev, "Missing endpoint in port@%u\n",
@@ -130,7 +130,7 @@ static int thc63_parse_dt(struct thc63_dev *thc63)
 	}
 
 	remote = of_graph_get_remote_port_parent(endpoint);
-	of_node_put(endpoint);
+	of_yesde_put(endpoint);
 	if (!remote) {
 		dev_err(thc63->dev, "Endpoint in port@%u unconnected\n",
 			THC63_RGB_OUT0);
@@ -140,25 +140,25 @@ static int thc63_parse_dt(struct thc63_dev *thc63)
 	if (!of_device_is_available(remote)) {
 		dev_err(thc63->dev, "port@%u remote endpoint is disabled\n",
 			THC63_RGB_OUT0);
-		of_node_put(remote);
+		of_yesde_put(remote);
 		return -ENODEV;
 	}
 
 	thc63->next = of_drm_find_bridge(remote);
-	of_node_put(remote);
+	of_yesde_put(remote);
 	if (!thc63->next)
 		return -EPROBE_DEFER;
 
-	endpoint = of_graph_get_endpoint_by_regs(thc63->dev->of_node,
+	endpoint = of_graph_get_endpoint_by_regs(thc63->dev->of_yesde,
 						 THC63_LVDS_IN1, -1);
 	if (endpoint) {
 		remote = of_graph_get_remote_port_parent(endpoint);
-		of_node_put(endpoint);
+		of_yesde_put(endpoint);
 
 		if (remote) {
 			if (of_device_is_available(remote))
 				thc63->timings.dual_link = true;
-			of_node_put(remote);
+			of_yesde_put(remote);
 		}
 	}
 
@@ -219,7 +219,7 @@ static int thc63_probe(struct platform_device *pdev)
 		return ret;
 
 	thc63->bridge.driver_private = thc63;
-	thc63->bridge.of_node = pdev->dev.of_node;
+	thc63->bridge.of_yesde = pdev->dev.of_yesde;
 	thc63->bridge.funcs = &thc63_bridge_func;
 	thc63->bridge.timings = &thc63->timings;
 

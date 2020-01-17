@@ -26,7 +26,7 @@ struct device;
 /*
  * AB3100, EVENTA1, A2 and A3 event register flags
  * these are catenated into a single 32-bit flag in the code
- * for event notification broadcasts.
+ * for event yestification broadcasts.
  */
 #define AB3100_EVENTA1_ONSWA				(0x01<<16)
 #define AB3100_EVENTA1_ONSWB				(0x02<<16)
@@ -96,7 +96,7 @@ struct ab3100 {
 	struct i2c_client *testreg_client;
 	char chip_name[32];
 	u8 chip_id;
-	struct blocking_notifier_head event_subscribers;
+	struct blocking_yestifier_head event_subscribers;
 	u8 startup_events[3];
 	bool startup_events_read;
 };
@@ -121,8 +121,8 @@ struct ab3100_platform_data {
 };
 
 int ab3100_event_register(struct ab3100 *ab3100,
-			  struct notifier_block *nb);
+			  struct yestifier_block *nb);
 int ab3100_event_unregister(struct ab3100 *ab3100,
-			    struct notifier_block *nb);
+			    struct yestifier_block *nb);
 
 #endif /*  MFD_AB3100_H */

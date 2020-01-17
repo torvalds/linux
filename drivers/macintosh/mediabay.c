@@ -7,7 +7,7 @@
  * Various evolutions by Benjamin Herrenschmidt & Henry Worth
  */
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -73,7 +73,7 @@ static struct media_bay_info media_bays[MAX_BAYS];
 static int media_bay_count = 0;
 
 /*
- * Wait that number of ms between each step in normal polling mode
+ * Wait that number of ms between each step in yesrmal polling mode
  */
 #define MB_POLL_DELAY	25
 
@@ -329,10 +329,10 @@ static void keylargo_mb_un_reset_ide(struct media_bay_info* bay)
 	MB_BIS(bay, KEYLARGO_FCR1, KL1_EIDE0_RESET_N);
 }
 
-static inline void set_mb_power(struct media_bay_info* bay, int onoff)
+static inline void set_mb_power(struct media_bay_info* bay, int oyesff)
 {
 	/* Power up up and assert the bay reset line */
-	if (onoff) {
+	if (oyesff) {
 		bay->ops->power(bay, 1);
 		bay->state = mb_powering_up;
 		pr_debug("mediabay%d: powering up\n", bay->index);
@@ -355,7 +355,7 @@ static void poll_media_bay(struct media_bay_info* bay)
 		"an unsupported audio device",
 		"an ATA device",
 		"an unsupported PCI device",
-		"an unknown device",
+		"an unkyeswn device",
 	};
 
 	if (id != bay->last_value) {
@@ -380,7 +380,7 @@ static void poll_media_bay(struct media_bay_info* bay)
 		set_mb_power(bay, id != MB_NO);
 		bay->content_id = id;
 		if (id >= MB_NO || id < 0)
-			printk(KERN_INFO "mediabay%d: Bay is now empty\n", bay->index);
+			printk(KERN_INFO "mediabay%d: Bay is yesw empty\n", bay->index);
 		else
 			printk(KERN_INFO "mediabay%d: Bay contains %s\n",
 			       bay->index, mb_content_types[id]);
@@ -395,10 +395,10 @@ int check_media_bay(struct macio_dev *baydev)
 	if (baydev == NULL)
 		return MB_NO;
 
-	/* This returns an instant snapshot, not locking, sine
+	/* This returns an instant snapshot, yest locking, sine
 	 * we may be called with the bay lock held. The resulting
 	 * fuzzyness of the result if called at the wrong time is
-	 * not actually a huge deal
+	 * yest actually a huge deal
 	 */
 	bay = macio_get_drvdata(baydev);
 	if (bay == NULL)
@@ -481,7 +481,7 @@ static void media_bay_step(int i)
 	switch(bay->state) {
 	case mb_powering_up:
 	    	if (bay->ops->setup_bus(bay, bay->last_value) < 0) {
-			pr_debug("mediabay%d: device not supported (kind:%d)\n",
+			pr_debug("mediabay%d: device yest supported (kind:%d)\n",
 				 i, bay->content_id);
 	    		set_mb_power(bay, 0);
 	    		break;
@@ -557,18 +557,18 @@ static int media_bay_attach(struct macio_dev *mdev,
 {
 	struct media_bay_info* bay;
 	u32 __iomem *regbase;
-	struct device_node *ofnode;
+	struct device_yesde *ofyesde;
 	unsigned long base;
 	int i;
 
-	ofnode = mdev->ofdev.dev.of_node;
+	ofyesde = mdev->ofdev.dev.of_yesde;
 
 	if (macio_resource_count(mdev) < 1)
 		return -ENODEV;
 	if (macio_request_resources(mdev, "media-bay"))
 		return -EBUSY;
 	/* Media bay registers are located at the beginning of the
-         * mac-io chip, for now, we trick and align down the first
+         * mac-io chip, for yesw, we trick and align down the first
 	 * resource passed in
          */
 	base = macio_resource_start(mdev, 0) & 0xffff0000u;
@@ -636,7 +636,7 @@ static int media_bay_resume(struct macio_dev *mdev)
 		mdev->ofdev.dev.power.power_state = PMSG_ON;
 
 	       	/* We re-enable the bay using it's previous content
-	       	   only if it did not change. Note those bozo timings,
+	       	   only if it did yest change. Note those bozo timings,
 	       	   they seem to help the 3400 get it right.
 	       	 */
 	       	/* Force MB power to 0 */

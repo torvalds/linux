@@ -57,12 +57,12 @@ struct tc_action {
  */
 static inline void tcf_lastuse_update(struct tcf_t *tm)
 {
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 
-	if (tm->lastuse != now)
-		tm->lastuse = now;
+	if (tm->lastuse != yesw)
+		tm->lastuse = yesw;
 	if (unlikely(!tm->firstuse))
-		tm->firstuse = now;
+		tm->firstuse = yesw;
 }
 
 static inline void tcf_tm_dump(struct tcf_t *dtm, const struct tcf_t *stm)

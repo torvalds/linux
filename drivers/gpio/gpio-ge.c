@@ -60,7 +60,7 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	if (!gc)
 		return -ENOMEM;
 
-	regs = of_iomap(pdev->dev.of_node, 0);
+	regs = of_iomap(pdev->dev.of_yesde, 0);
 	if (!regs)
 		return -ENOMEM;
 
@@ -73,7 +73,7 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* Setup pointers to chip functions */
-	gc->label = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%pOF", pdev->dev.of_node);
+	gc->label = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%pOF", pdev->dev.of_yesde);
 	if (!gc->label) {
 		ret = -ENOMEM;
 		goto err0;
@@ -82,7 +82,7 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	gc->base = -1;
 	gc->ngpio = (u16)(uintptr_t)of_device_get_match_data(&pdev->dev);
 	gc->of_gpio_n_cells = 2;
-	gc->of_node = pdev->dev.of_node;
+	gc->of_yesde = pdev->dev.of_yesde;
 
 	/* This function adds a memory mapped GPIO chip */
 	ret = devm_gpiochip_add_data(&pdev->dev, gc, NULL);
@@ -92,7 +92,7 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	return 0;
 err0:
 	iounmap(regs);
-	pr_err("%pOF: GPIO chip registration failed\n", pdev->dev.of_node);
+	pr_err("%pOF: GPIO chip registration failed\n", pdev->dev.of_yesde);
 	return ret;
 };
 

@@ -20,7 +20,7 @@ struct child_process {
 	pid_t pid;
 	/*
 	 * Using .in, .out, .err:
-	 * - Specify 0 for no redirections (child inherits stdin, stdout,
+	 * - Specify 0 for yes redirections (child inherits stdin, stdout,
 	 *   stderr from parent).
 	 * - Specify -1 to have a pipe allocated as follows:
 	 *     .in: returns the writable pipe end; parent writes to it,
@@ -32,7 +32,7 @@ struct child_process {
 	 * - Specify > 0 to set a channel to a particular FD as follows:
 	 *     .in: a readable FD, becomes child's stdin
 	 *     .out: a writable FD, becomes child's stdout/stderr
-	 *     .err > 0 not supported
+	 *     .err > 0 yest supported
 	 *   The specified FD is closed by start_command(), even in case
 	 *   of errors!
 	 */
@@ -41,9 +41,9 @@ struct child_process {
 	int err;
 	const char *dir;
 	const char *const *env;
-	unsigned no_stdin:1;
-	unsigned no_stdout:1;
-	unsigned no_stderr:1;
+	unsigned yes_stdin:1;
+	unsigned yes_stdout:1;
+	unsigned yes_stderr:1;
 	unsigned exec_cmd:1; /* if this is to be external sub-command */
 	unsigned stdout_to_stderr:1;
 	void (*preexec_cb)(void);

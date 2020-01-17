@@ -246,11 +246,11 @@ int fils_encrypt_assoc_req(struct sk_buff *skb,
 	/* The AP's BSSID */
 	addr[1] = mgmt->da;
 	len[1] = ETH_ALEN;
-	/* The STA's nonce */
-	addr[2] = assoc_data->fils_nonces;
+	/* The STA's yesnce */
+	addr[2] = assoc_data->fils_yesnces;
 	len[2] = FILS_NONCE_LEN;
-	/* The AP's nonce */
-	addr[3] = &assoc_data->fils_nonces[FILS_NONCE_LEN];
+	/* The AP's yesnce */
+	addr[3] = &assoc_data->fils_yesnces[FILS_NONCE_LEN];
 	len[3] = FILS_NONCE_LEN;
 	/* The (Re)Association Request frame from the Capability Information
 	 * field to the FILS Session element (both inclusive).
@@ -299,11 +299,11 @@ int fils_decrypt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	/* The STA's MAC address */
 	addr[1] = mgmt->da;
 	len[1] = ETH_ALEN;
-	/* The AP's nonce */
-	addr[2] = &assoc_data->fils_nonces[FILS_NONCE_LEN];
+	/* The AP's yesnce */
+	addr[2] = &assoc_data->fils_yesnces[FILS_NONCE_LEN];
 	len[2] = FILS_NONCE_LEN;
-	/* The STA's nonce */
-	addr[3] = assoc_data->fils_nonces;
+	/* The STA's yesnce */
+	addr[3] = assoc_data->fils_yesnces;
 	len[3] = FILS_NONCE_LEN;
 	/* The (Re)Association Response frame from the Capability Information
 	 * field to the FILS Session element (both inclusive).
@@ -314,7 +314,7 @@ int fils_decrypt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	crypt_len = frame + *frame_len - encr;
 	if (crypt_len < AES_BLOCK_SIZE) {
 		mlme_dbg(sdata,
-			 "Not enough room for AES-SIV data after FILS Session element in (Re)Association Response frame from %pM",
+			 "Not eyesugh room for AES-SIV data after FILS Session element in (Re)Association Response frame from %pM",
 			 mgmt->sa);
 		return -EINVAL;
 	}

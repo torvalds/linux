@@ -45,7 +45,7 @@
 #define SC27XX_DELTA_T_MAX	(SC27XX_LEDS_STEP * 255)
 
 struct sc27xx_led {
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	struct led_classdev ldev;
 	struct sc27xx_led_priv *priv;
 	u8 line;
@@ -260,7 +260,7 @@ static int sc27xx_led_register(struct device *dev, struct sc27xx_led_priv *priv)
 		led->ldev.pattern_clear = sc27xx_led_pattern_clear;
 		led->ldev.default_trigger = "pattern";
 
-		init_data.fwnode = led->fwnode;
+		init_data.fwyesde = led->fwyesde;
 		init_data.devicename = "sc27xx";
 		init_data.default_label = ":";
 
@@ -276,7 +276,7 @@ static int sc27xx_led_register(struct device *dev, struct sc27xx_led_priv *priv)
 static int sc27xx_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node, *child;
+	struct device_yesde *np = dev->of_yesde, *child;
 	struct sc27xx_led_priv *priv;
 	u32 base, count, reg;
 	int err;
@@ -305,21 +305,21 @@ static int sc27xx_led_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		err = of_property_read_u32(child, "reg", &reg);
 		if (err) {
-			of_node_put(child);
+			of_yesde_put(child);
 			mutex_destroy(&priv->lock);
 			return err;
 		}
 
 		if (reg >= SC27XX_LEDS_MAX || priv->leds[reg].active) {
-			of_node_put(child);
+			of_yesde_put(child);
 			mutex_destroy(&priv->lock);
 			return -EINVAL;
 		}
 
-		priv->leds[reg].fwnode = of_fwnode_handle(child);
+		priv->leds[reg].fwyesde = of_fwyesde_handle(child);
 		priv->leds[reg].active = true;
 	}
 

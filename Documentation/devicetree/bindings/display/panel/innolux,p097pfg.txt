@@ -1,7 +1,7 @@
-Innolux P097PFG 9.7" 1536x2048 TFT LCD panel
+Inyeslux P097PFG 9.7" 1536x2048 TFT LCD panel
 
 Required properties:
-- compatible: should be "innolux,p097pfg"
+- compatible: should be "inyeslux,p097pfg"
 - reg: DSI virtual channel of the peripheral
 - avdd-supply: phandle of the regulator that provides positive voltage
 - avee-supply: phandle of the regulator that provides negative voltage
@@ -14,7 +14,7 @@ Example:
 
 	&mipi_dsi {
 		panel@0 {
-			compatible = "innolux,p079zca";
+			compatible = "inyeslux,p079zca";
 			reg = <0>;
 			avdd-supply = <...>;
 			avee-supply = <...>;

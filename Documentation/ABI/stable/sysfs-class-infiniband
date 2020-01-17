@@ -1,28 +1,28 @@
 sysfs interface common for all infiniband devices
 -------------------------------------------------
 
-What:		/sys/class/infiniband/<device>/node_type
-What:		/sys/class/infiniband/<device>/node_guid
+What:		/sys/class/infiniband/<device>/yesde_type
+What:		/sys/class/infiniband/<device>/yesde_guid
 What:		/sys/class/infiniband/<device>/sys_image_guid
 Date:		Apr, 2005
 KernelVersion:	v2.6.12
 Contact:	linux-rdma@vger.kernel.org
 Description:
-		node_type:	(RO) Node type (CA, RNIC, usNIC, usNIC UDP,
+		yesde_type:	(RO) Node type (CA, RNIC, usNIC, usNIC UDP,
 				switch or router)
 
-		node_guid:	(RO) Node GUID
+		yesde_guid:	(RO) Node GUID
 
 		sys_image_guid:	(RO) System image GUID
 
 
-What:		/sys/class/infiniband/<device>/node_desc
+What:		/sys/class/infiniband/<device>/yesde_desc
 Date:		Feb, 2006
 KernelVersion:	v2.6.17
 Contact:	linux-rdma@vger.kernel.org
 Description:
-		(RW) Update the node description with information such as the
-		node's hostname, so that IB network management software can tie
+		(RW) Update the yesde description with information such as the
+		yesde's hostname, so that IB network management software can tie
 		its view to the real world.
 
 
@@ -106,7 +106,7 @@ Description:
 		Errors info:
 		-----------
 
-		symbol_error: (RO) Total number of minor link errors detected on
+		symbol_error: (RO) Total number of miyesr link errors detected on
 		one or more physical lanes.
 
 		port_rcv_errors : (RO) Total number of packets containing an
@@ -116,14 +116,14 @@ Description:
 		marked with the EBP delimiter received on the port.
 
 		port_rcv_switch_relay_errors : (RO) Total number of packets
-		received on the port that were discarded because they could not
+		received on the port that were discarded because they could yest
 		be forwarded by the switch relay.
 
 		link_error_recovery: (RO) Total number of times the Port
 		Training state machine has successfully completed the link error
 		recovery process.
 
-		port_xmit_constraint_errors: (RO) Total number of packets not
+		port_xmit_constraint_errors: (RO) Total number of packets yest
 		transmitted from the switch physical port due to outbound raw
 		filtering or failing outbound partition or IP version check.
 
@@ -186,7 +186,7 @@ Description:
 		to resource limitations (e.g., lack of buffers) of the port.
 
 		port_xmit_wait: (RO) The number of ticks during which the port
-		had data to transmit but no data was sent during the entire tick
+		had data to transmit but yes data was sent during the entire tick
 		(either because of insufficient credits or because of lack of
 		arbitration).
 
@@ -208,7 +208,7 @@ Description:
 		often include many other counters. In addition to the various
 		counters, there will be a file named "lifespan" that configures
 		how frequently the core should update the counters when they are
-		being accessed (counters are not updated if they are not being
+		being accessed (counters are yest updated if they are yest being
 		accessed). The lifespan is in milliseconds and defaults to 10
 		unless set to something else by the driver. Users may echo a
 		value between 0-10000 to the lifespan file to set the length
@@ -296,7 +296,7 @@ Description:
 		userspace ABI compatibility of uverbs devices.
 
 
-sysfs interface for Mellanox IB HCA low-level driver (mthca)
+sysfs interface for Mellayesx IB HCA low-level driver (mthca)
 ------------------------------------------------------------
 
 What:		/sys/class/infiniband/mthcaX/hw_rev
@@ -314,7 +314,7 @@ Description:
 		board_id:	(RO) Manufacturing board ID
 
 
-sysfs interface for Mellanox ConnectX HCA IB driver (mlx4)
+sysfs interface for Mellayesx ConnectX HCA IB driver (mlx4)
 ----------------------------------------------------------
 
 What:		/sys/class/infiniband/mlx4_X/hw_rev
@@ -343,7 +343,7 @@ Contact:	linux-rdma@vger.kernel.org
 Description:
 		The sysfs iov directory is used to manage and examine the port
 		P_Key and guid paravirtualization. This directory is added only
-		for the master -- slaves do not have it.
+		for the master -- slaves do yest have it.
 
 		Under iov/ports, the administrator may examine the gid and P_Key
 		tables as they are present in the device (and as are seen in the
@@ -390,7 +390,7 @@ Date:		May, 2014
 KernelVersion:	v3.15.7
 Contact:	linux-rdma@vger.kernel.org
 Description:
-		Enabling QP0 on VFs for selected VF/port. By default, no VFs are
+		Enabling QP0 on VFs for selected VF/port. By default, yes VFs are
 		enabled for QP0 operation.
 
 		smi_enabled:	(RO) Indicates whether smi is currently enabled
@@ -417,7 +417,7 @@ Description:
 
 		hw_rev:		(RO) Hardware revision number
 
-		hca_type:	(RO) Driver short name. Should normally match
+		hca_type:	(RO) Driver short name. Should yesrmally match
 				the name in its bus driver structure (e.g.
 				pci_driver::name)
 
@@ -467,7 +467,7 @@ Description:
 				available.
 
 		chip_reset:	(WO) Reset the chip if possible by writing
-				"reset" to this file. Only allowed if no user
+				"reset" to this file. Only allowed if yes user
 				contexts are open that use chip resources.
 
 
@@ -536,7 +536,7 @@ Description:
 		[to be documented]
 
 
-sysfs interface for Mellanox Connect-IB HCA driver mlx5
+sysfs interface for Mellayesx Connect-IB HCA driver mlx5
 -------------------------------------------------------
 
 What:		/sys/class/infiniband/mlx5_X/hw_rev
@@ -631,7 +631,7 @@ Description:
 		serial:		(RO) Board serial number
 
 		chip_reset:	(WO) Write "reset" to this file to reset the
-				chip if possible. Only allowed if no user
+				chip if possible. Only allowed if yes user
 				contexts are open that use chip resources.
 
 		boardversion:	(RO) Human readable board info

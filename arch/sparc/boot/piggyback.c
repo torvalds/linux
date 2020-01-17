@@ -14,7 +14,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <stdio.h>
 
@@ -95,7 +95,7 @@ static int end_line(const char *line)
  * ^coloumn 1
  * There is support for 64 bit addresses too.
  *
- * Return 0 if either start or end is not found
+ * Return 0 if either start or end is yest found
  */
 static int get_start_end(const char *filename, unsigned int *start,
                                                unsigned int *end)
@@ -127,7 +127,7 @@ static int get_start_end(const char *filename, unsigned int *start,
 /*
  * Find the HdrS entry from head_32/head_64.
  * We check if it is at the beginning of the file (sparc64 case)
- * and if not we search for it.
+ * and if yest we search for it.
  * When we search do so in steps of 4 as HdrS is on a 4-byte aligned
  * address (it is on same alignment as sparc instructions)
  * Return the offset to the HdrS entry (as off_t)
@@ -150,7 +150,7 @@ static off_t get_hdrs_offset(int kernelfd, const char *filename)
 		/*  Find the gokernel label */
 		/* Decode offset from branch instruction */
 		offset = ld2(buffer + AOUT_TEXT_OFFSET + 2) << 2;
-		/* Go back 512 bytes so we do not miss HdrS */
+		/* Go back 512 bytes so we do yest miss HdrS */
 		offset -= LOOKBACK;
 		/* skip a.out header */
 		offset += AOUT_TEXT_OFFSET;
@@ -187,7 +187,7 @@ int main(int argc,char **argv)
 		die(argv[4]);
 
 	if (!get_start_end(argv[3], &start, &end)) {
-		fprintf(stderr, "Could not determine start and end from %s\n",
+		fprintf(stderr, "Could yest determine start and end from %s\n",
 		        argv[3]);
 		exit(1);
 	}

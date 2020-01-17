@@ -19,26 +19,26 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -62,11 +62,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -82,23 +82,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -671,7 +671,7 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 
 		/* Enable following interrupts
 		 *   NIE  - Normal Interrupt Summary Enable
-		 *   AIE  - Abnormal Interrupt Summary Enable
+		 *   AIE  - Abyesrmal Interrupt Summary Enable
 		 *   FBEE - Fatal Bus Error Enable
 		 */
 		if (ver < 0x21) {
@@ -868,7 +868,7 @@ static int xgbe_enable_rx_vlan_filtering(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, ETV, 1);
 
 	/* In order for the VLAN Hash Table filtering to be effective,
-	 * the VLAN tag identifier in the VLAN Tag Register must not
+	 * the VLAN tag identifier in the VLAN Tag Register must yest
 	 * be zero.  Set the VLAN tag identifier to "1" to enable the
 	 * VLAN Hash Table filtering.  This implies that a VLAN tag of
 	 * 1 will always pass filtering.
@@ -1610,7 +1610,7 @@ static void xgbe_get_rx_tstamp(struct xgbe_packet_data *packet,
 static int xgbe_config_tstamp(struct xgbe_prv_data *pdata,
 			      unsigned int mac_tscr)
 {
-	/* Set one nano-second accuracy */
+	/* Set one nayes-second accuracy */
 	XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSCTRLSSR, 1);
 
 	/* Set fine timestamp update */
@@ -1621,7 +1621,7 @@ static int xgbe_config_tstamp(struct xgbe_prv_data *pdata,
 
 	XGMAC_IOWRITE(pdata, MAC_TSCR, mac_tscr);
 
-	/* Exit if timestamping is not enabled */
+	/* Exit if timestamping is yest enabled */
 	if (!XGMAC_GET_BITS(mac_tscr, MAC_TSCR, TSENA))
 		return 0;
 
@@ -1710,7 +1710,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	 *   No interrupt:
 	 *     - No frame count setting specified (ethtool -C ethX tx-frames 0)
 	 *     - Addition of Tx frame count to the frame count since the
-	 *       last interrupt was set does not exceed the frame count setting
+	 *       last interrupt was set does yest exceed the frame count setting
 	 */
 	ring->coalesce_count += tx_packets;
 	if (!pdata->tx_frames)
@@ -1795,7 +1795,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	/* Mark it as a NORMAL descriptor */
 	XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, CTXT, 0);
 
-	/* Set OWN bit if not the first descriptor */
+	/* Set OWN bit if yest the first descriptor */
 	if (cur_index != start_index)
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, OWN, 1);
 
@@ -2294,7 +2294,7 @@ static void xgbe_queue_flow_control_threshold(struct xgbe_prv_data *pdata,
 		 * values.
 		 */
 		if (q_fifo_size <= 2048) {
-			/* rx_rfd to zero to signal no flow control */
+			/* rx_rfd to zero to signal yes flow control */
 			pdata->rx_rfa[queue] = 0;
 			pdata->rx_rfd[queue] = 0;
 			return;
@@ -2362,14 +2362,14 @@ static void xgbe_config_flow_control_threshold(struct xgbe_prv_data *pdata)
 
 static unsigned int xgbe_get_tx_fifo_size(struct xgbe_prv_data *pdata)
 {
-	/* The configured value may not be the actual amount of fifo RAM */
+	/* The configured value may yest be the actual amount of fifo RAM */
 	return min_t(unsigned int, pdata->tx_max_fifo_size,
 		     pdata->hw_feat.tx_fifo_size);
 }
 
 static unsigned int xgbe_get_rx_fifo_size(struct xgbe_prv_data *pdata)
 {
-	/* The configured value may not be the actual amount of fifo RAM */
+	/* The configured value may yest be the actual amount of fifo RAM */
 	return min_t(unsigned int, pdata->rx_max_fifo_size,
 		     pdata->hw_feat.rx_fifo_size);
 }
@@ -2397,7 +2397,7 @@ static void xgbe_calculate_equal_fifo(unsigned int fifo_size,
 		fifo[i] = p_fifo;
 }
 
-static unsigned int xgbe_set_nonprio_fifos(unsigned int fifo_size,
+static unsigned int xgbe_set_yesnprio_fifos(unsigned int fifo_size,
 					   unsigned int queue_count,
 					   unsigned int *fifo)
 {
@@ -2516,7 +2516,7 @@ static void xgbe_calculate_dcb_fifo(struct xgbe_prv_data *pdata,
 
 		if (addn_fifo > rem_fifo) {
 			netdev_warn(pdata->netdev,
-				    "RXq%u cannot set needed fifo size\n", i);
+				    "RXq%u canyest set needed fifo size\n", i);
 			if (!rem_fifo)
 				continue;
 
@@ -2568,8 +2568,8 @@ static void xgbe_config_rx_fifo_size(struct xgbe_prv_data *pdata)
 	fifo_size = xgbe_get_rx_fifo_size(pdata);
 	prio_queues = XGMAC_PRIO_QUEUES(pdata->rx_q_count);
 
-	/* Assign a minimum fifo to the non-VLAN priority queues */
-	fifo_size = xgbe_set_nonprio_fifos(fifo_size, pdata->rx_q_count, fifo);
+	/* Assign a minimum fifo to the yesn-VLAN priority queues */
+	fifo_size = xgbe_set_yesnprio_fifos(fifo_size, pdata->rx_q_count, fifo);
 
 	if (pdata->pfc && pdata->ets)
 		xgbe_calculate_dcb_fifo(pdata, fifo_size, fifo);
@@ -3216,7 +3216,7 @@ static void xgbe_txq_prepare_tx_stop(struct xgbe_prv_data *pdata,
 	unsigned int tx_status;
 	unsigned long tx_timeout;
 
-	/* The Tx engine cannot be stopped if it is actively processing
+	/* The Tx engine canyest be stopped if it is actively processing
 	 * packets. Wait for the Tx queue to empty the Tx fifo.  Don't
 	 * wait forever though...
 	 */
@@ -3258,7 +3258,7 @@ static void xgbe_prepare_tx_stop(struct xgbe_prv_data *pdata,
 			 DMA_DSRX_TPS_START;
 	}
 
-	/* The Tx engine cannot be stopped if it is actively processing
+	/* The Tx engine canyest be stopped if it is actively processing
 	 * descriptors. Wait for the Tx engine to enter the stopped or
 	 * suspended state.  Don't wait forever though...
 	 */
@@ -3330,7 +3330,7 @@ static void xgbe_prepare_rx_stop(struct xgbe_prv_data *pdata,
 	unsigned int rx_status;
 	unsigned long rx_timeout;
 
-	/* The Rx engine cannot be stopped if it is actively processing
+	/* The Rx engine canyest be stopped if it is actively processing
 	 * packets. Wait for the Rx queue to empty the Rx fifo.  Don't
 	 * wait forever though...
 	 */

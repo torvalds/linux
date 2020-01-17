@@ -22,9 +22,9 @@ Required properties:
 Optional properties:
   - atmel,adc-use-external-triggers: Boolean to enable the external triggers
   - atmel,adc-use-res: String corresponding to an identifier from
-		       atmel,adc-res-names property. If not specified, the highest
+		       atmel,adc-res-names property. If yest specified, the highest
 		       resolution will be used.
-  - atmel,adc-sleep-mode: Boolean to enable sleep mode when no conversion
+  - atmel,adc-sleep-mode: Boolean to enable sleep mode when yes conversion
   - atmel,adc-sample-hold-time: Sample and Hold Time in microseconds
   - atmel,adc-ts-wires: Number of touchscreen wires. Should be 4 or 5. If this
                         value is set, then the adc driver will enable touchscreen

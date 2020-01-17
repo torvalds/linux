@@ -34,4 +34,4 @@ The 2103-2 and 2103-4 variants have a third temperature sensor, which can
 be connected to two anti-parallel diodes.  These values can be read
 as temp3 and temp4.  If only one diode is attached to this channel, temp4
 will show as "fault".  The module parameter "apd=0" can be used to suppress
-this 4th channel when anti-parallel diodes are not fitted.
+this 4th channel when anti-parallel diodes are yest fitted.

@@ -7,7 +7,7 @@
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 
 /*
- * There are no locks covering percpu hardirq/softirq time.
+ * There are yes locks covering percpu hardirq/softirq time.
  * They are only modified in vtime_account, on corresponding CPU
  * with interrupts disabled. So, writes are safe.
  * They are read and saved off onto struct rq in update_rq_clock().
@@ -61,10 +61,10 @@ void irqtime_account_irq(struct task_struct *curr)
 	irqtime->irq_start_time += delta;
 
 	/*
-	 * We do not account for softirq time from ksoftirqd here.
+	 * We do yest account for softirq time from ksoftirqd here.
 	 * We want to continue accounting softirq time to ksoftirqd thread
-	 * in that case, so as not to confuse scheduler with a special task
-	 * that do not consume any time, but still wants to run.
+	 * in that case, so as yest to confuse scheduler with a special task
+	 * that do yest consume any time, but still wants to run.
 	 */
 	if (hardirq_count())
 		irqtime_account_delta(irqtime, delta, CPUTIME_IRQ);
@@ -101,7 +101,7 @@ static inline void task_group_account_field(struct task_struct *p, int index,
 	/*
 	 * Since all updates are sure to touch the root cgroup, we
 	 * get ourselves ahead and touch it first. If the root cgroup
-	 * is the only cgroup, then nothing else should be necessary.
+	 * is the only cgroup, then yesthing else should be necessary.
 	 *
 	 */
 	__this_cpu_add(kernel_cpustat.cpustat[index], tmp);
@@ -228,7 +228,7 @@ void account_idle_time(u64 cputime)
 
 /*
  * When a guest is interrupted for a longer amount of time, missed clock
- * ticks are not redelivered later. Due to that, this function may on
+ * ticks are yest redelivered later. Due to that, this function may on
  * occasion account more time than the calling functions think elapsed.
  */
 static __always_inline u64 steal_account_process_time(u64 maxtime)
@@ -349,10 +349,10 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
  *   - else account as system_time
  *
  * Check for hardirq is done both for system and user time as there is
- * no timer going off while we are on hardirq and hence we may never get an
+ * yes timer going off while we are on hardirq and hence we may never get an
  * opportunity to update it solely in system time.
- * p->stime and friends are only updated on system time and not on irq
- * softirq as those do not count in task exec_runtime any more.
+ * p->stime and friends are only updated on system time and yest on irq
+ * softirq as those do yest count in task exec_runtime any more.
  */
 static void irqtime_account_process_tick(struct task_struct *p, int user_tick,
 					 struct rq *rq, int ticks)
@@ -374,7 +374,7 @@ static void irqtime_account_process_tick(struct task_struct *p, int user_tick,
 
 	if (this_cpu_ksoftirqd() == p) {
 		/*
-		 * ksoftirqd time do not get accounted in cpu_softirq_time.
+		 * ksoftirqd time do yest get accounted in cpu_softirq_time.
 		 * So, we have to handle it separately here.
 		 * Also, p->stime needs to be updated for ksoftirqd.
 		 */
@@ -571,7 +571,7 @@ drop_precision:
  * accounting.
  *
  * Tick based cputime accounting depend on random scheduling timeslices of a
- * task to be interrupted or not by the timer.  Depending on these
+ * task to be interrupted or yest by the timer.  Depending on these
  * circumstances, the number of these interrupts may be over or
  * under-optimistic, matching the real user and system cputime with a variable
  * precision.
@@ -592,17 +592,17 @@ void cputime_adjust(struct task_cputime *curr, struct prev_cputime *prev,
 	u64 rtime, stime, utime;
 	unsigned long flags;
 
-	/* Serialize concurrent callers such that we can honour our guarantees */
+	/* Serialize concurrent callers such that we can hoyesur our guarantees */
 	raw_spin_lock_irqsave(&prev->lock, flags);
 	rtime = curr->sum_exec_runtime;
 
 	/*
 	 * This is possible under two circumstances:
-	 *  - rtime isn't monotonic after all (a bug);
+	 *  - rtime isn't moyestonic after all (a bug);
 	 *  - we got reordered by the lock.
 	 *
 	 * In both cases this acts as a filter such that the rest of the code
-	 * can assume it is monotonic regardless of anything else.
+	 * can assume it is moyestonic regardless of anything else.
 	 */
 	if (prev->stime + prev->utime >= rtime)
 		goto out;
@@ -612,7 +612,7 @@ void cputime_adjust(struct task_cputime *curr, struct prev_cputime *prev,
 
 	/*
 	 * If either stime or utime are 0, assume all runtime is userspace.
-	 * Once a task gets some ticks, the monotonicy code at 'update:'
+	 * Once a task gets some ticks, the moyestonicy code at 'update:'
 	 * will ensure things converge to the observed ratio.
 	 */
 	if (stime == 0) {
@@ -629,8 +629,8 @@ void cputime_adjust(struct task_cputime *curr, struct prev_cputime *prev,
 
 update:
 	/*
-	 * Make sure stime doesn't go backwards; this preserves monotonicity
-	 * for utime because rtime is monotonic.
+	 * Make sure stime doesn't go backwards; this preserves moyestonicity
+	 * for utime because rtime is moyestonic.
 	 *
 	 *  utime_i+1 = rtime_i+1 - stime_i
 	 *            = rtime_i+1 - (rtime_i - utime_i)
@@ -643,7 +643,7 @@ update:
 
 	/*
 	 * Make sure utime doesn't go backwards; this still preserves
-	 * monotonicity for stime, analogous argument to above.
+	 * moyestonicity for stime, analogous argument to above.
 	 */
 	if (utime < prev->utime) {
 		utime = prev->utime;
@@ -697,7 +697,7 @@ static u64 get_vtime_delta(struct vtime *vtime)
 
 	/*
 	 * Unlike tick based timing, vtime based timing never has lost
-	 * ticks, and no need for steal time accounting to make up for
+	 * ticks, and yes need for steal time accounting to make up for
 	 * lost ticks. Vtime accounts a rounded version of actual
 	 * elapsed time. Limit account_other_time to prevent rounding
 	 * errors from causing elapsed vtime to go negative.
@@ -874,7 +874,7 @@ u64 task_gtime(struct task_struct *t)
 
 /*
  * Fetch cputime raw values from fields of task_struct and
- * add up the pending nohz execution time since the last
+ * add up the pending yeshz execution time since the last
  * cputime snapshot.
  */
 void task_cputime(struct task_struct *t, u64 *utime, u64 *stime)
@@ -895,7 +895,7 @@ void task_cputime(struct task_struct *t, u64 *utime, u64 *stime)
 		*utime = t->utime;
 		*stime = t->stime;
 
-		/* Task is sleeping or idle, nothing to add */
+		/* Task is sleeping or idle, yesthing to add */
 		if (vtime->state < VTIME_SYS)
 			continue;
 
@@ -903,7 +903,7 @@ void task_cputime(struct task_struct *t, u64 *utime, u64 *stime)
 
 		/*
 		 * Task runs either in user (including guest) or kernel space,
-		 * add pending nohz time to the right place.
+		 * add pending yeshz time to the right place.
 		 */
 		if (vtime->state == VTIME_SYS)
 			*stime += vtime->stime + delta;
@@ -926,9 +926,9 @@ static int vtime_state_check(struct vtime *vtime, int cpu)
 	 * 1) We are seeing the scheduling out task (prev) or any past one.
 	 * 2) We are seeing the scheduling in task (next) but it hasn't
 	 *    passed though vtime_task_switch() yet so the pending
-	 *    cputime of the prev task may not be flushed yet.
+	 *    cputime of the prev task may yest be flushed yet.
 	 *
-	 * Case 1) is ok but 2) is not. So wait for a safe VTIME state.
+	 * Case 1) is ok but 2) is yest. So wait for a safe VTIME state.
 	 */
 	if (vtime->state == VTIME_INACTIVE)
 		return -EAGAIN;
@@ -967,7 +967,7 @@ static int kcpustat_field_vtime(u64 *cpustat,
 		 * Nice VS unnice cputime accounting may be inaccurate if
 		 * the nice value has changed since the last vtime update.
 		 * But proper fix would involve interrupting target on nice
-		 * updates which is a no go on nohz_full (although the scheduler
+		 * updates which is a yes go on yeshz_full (although the scheduler
 		 * may still interrupt the target if rescheduling is needed...)
 		 */
 		switch (usage) {
@@ -1054,7 +1054,7 @@ static int kcpustat_cpu_fetch_vtime(struct kernel_cpustat *dst,
 		*dst = *src;
 		cpustat = dst->cpustat;
 
-		/* Task is sleeping, dead or idle, nothing to add */
+		/* Task is sleeping, dead or idle, yesthing to add */
 		if (vtime->state < VTIME_SYS)
 			continue;
 
@@ -1062,7 +1062,7 @@ static int kcpustat_cpu_fetch_vtime(struct kernel_cpustat *dst,
 
 		/*
 		 * Task runs either in user (including guest) or kernel space,
-		 * add pending nohz time to the right place.
+		 * add pending yeshz time to the right place.
 		 */
 		if (vtime->state == VTIME_SYS) {
 			cpustat[CPUTIME_SYSTEM] += vtime->stime + delta;

@@ -83,7 +83,7 @@ static int savu_init_specials(struct hid_device *hdev)
 	if (retval < 0) {
 		hid_err(hdev, "couldn't init char dev\n");
 	} else {
-		savu->chrdev_minor = retval;
+		savu->chrdev_miyesr = retval;
 		savu->roccat_claimed = 1;
 	}
 
@@ -104,7 +104,7 @@ static void savu_remove_specials(struct hid_device *hdev)
 
 	savu = hid_get_drvdata(hdev);
 	if (savu->roccat_claimed)
-		roccat_disconnect(savu->chrdev_minor);
+		roccat_disconnect(savu->chrdev_miyesr);
 	kfree(savu);
 }
 
@@ -159,7 +159,7 @@ static void savu_report_to_chrdev(struct roccat_common2_device const *savu,
 	roccat_report.type = special_report->type;
 	roccat_report.data[0] = special_report->data[0];
 	roccat_report.data[1] = special_report->data[1];
-	roccat_report_event(savu->chrdev_minor,
+	roccat_report_event(savu->chrdev_miyesr,
 			(uint8_t const *)&roccat_report);
 }
 

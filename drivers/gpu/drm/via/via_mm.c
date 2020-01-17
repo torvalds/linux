@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -38,7 +38,7 @@
 #define VIA_MM_ALIGN_MASK ((1 << VIA_MM_ALIGN_SHIFT) - 1)
 
 struct via_memblock {
-	struct drm_mm_node mm_node;
+	struct drm_mm_yesde mm_yesde;
 	struct list_head owner_list;
 };
 
@@ -123,7 +123,7 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 	unsigned long tmpSize;
 
 	if (mem->type > VIA_MEM_AGP) {
-		DRM_ERROR("Unknown memory type allocation\n");
+		DRM_ERROR("Unkyeswn memory type allocation\n");
 		return -EINVAL;
 	}
 	mutex_lock(&dev->struct_mutex);
@@ -143,12 +143,12 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 
 	tmpSize = (mem->size + VIA_MM_ALIGN_MASK) >> VIA_MM_ALIGN_SHIFT;
 	if (mem->type == VIA_MEM_AGP)
-		retval = drm_mm_insert_node(&dev_priv->agp_mm,
-					    &item->mm_node,
+		retval = drm_mm_insert_yesde(&dev_priv->agp_mm,
+					    &item->mm_yesde,
 					    tmpSize);
 	else
-		retval = drm_mm_insert_node(&dev_priv->vram_mm,
-					    &item->mm_node,
+		retval = drm_mm_insert_yesde(&dev_priv->vram_mm,
+					    &item->mm_yesde,
 					    tmpSize);
 	if (retval)
 		goto fail_alloc;
@@ -163,13 +163,13 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 
 	mem->offset = ((mem->type == VIA_MEM_VIDEO) ?
 		      dev_priv->vram_offset : dev_priv->agp_offset) +
-	    ((item->mm_node.start) << VIA_MM_ALIGN_SHIFT);
+	    ((item->mm_yesde.start) << VIA_MM_ALIGN_SHIFT);
 	mem->index = user_key;
 
 	return 0;
 
 fail_idr:
-	drm_mm_remove_node(&item->mm_node);
+	drm_mm_remove_yesde(&item->mm_yesde);
 fail_alloc:
 	kfree(item);
 	mutex_unlock(&dev->struct_mutex);
@@ -197,7 +197,7 @@ int via_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 	idr_remove(&dev_priv->object_idr, mem->index);
 	list_del(&obj->owner_list);
-	drm_mm_remove_node(&obj->mm_node);
+	drm_mm_remove_yesde(&obj->mm_yesde);
 	kfree(obj);
 	mutex_unlock(&dev->struct_mutex);
 
@@ -231,7 +231,7 @@ void via_reclaim_buffers_locked(struct drm_device *dev,
 	list_for_each_entry_safe(entry, next, &file_priv->obj_list,
 				 owner_list) {
 		list_del(&entry->owner_list);
-		drm_mm_remove_node(&entry->mm_node);
+		drm_mm_remove_yesde(&entry->mm_yesde);
 		kfree(entry);
 	}
 	mutex_unlock(&dev->struct_mutex);

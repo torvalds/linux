@@ -194,7 +194,7 @@ int partition_translate_id(struct partition_desc *desc, void *partition_id)
 	return i;
 }
 
-struct partition_desc *partition_create_desc(struct fwnode_handle *fwnode,
+struct partition_desc *partition_create_desc(struct fwyesde_handle *fwyesde,
 					     struct partition_affinity *parts,
 					     int nr_parts,
 					     int chained_irq,
@@ -213,7 +213,7 @@ struct partition_desc *partition_create_desc(struct fwnode_handle *fwnode,
 	desc->ops.free = partition_domain_free;
 	desc->ops.alloc = partition_domain_alloc;
 
-	d = irq_domain_create_linear(fwnode, nr_parts, &desc->ops, desc);
+	d = irq_domain_create_linear(fwyesde, nr_parts, &desc->ops, desc);
 	if (!d)
 		goto out;
 	desc->domain = d;

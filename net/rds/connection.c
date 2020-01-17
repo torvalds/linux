@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -45,7 +45,7 @@
 #define RDS_CONNECTION_HASH_ENTRIES (1 << RDS_CONNECTION_HASH_BITS)
 #define RDS_CONNECTION_HASH_MASK (RDS_CONNECTION_HASH_ENTRIES - 1)
 
-/* converting this to RCU is a chore for another day.. */
+/* converting this to RCU is a chore for ayesther day.. */
 static DEFINE_SPINLOCK(rds_conn_lock);
 static unsigned long rds_conn_count;
 static struct hlist_head rds_conn_hash[RDS_CONNECTION_HASH_ENTRIES];
@@ -88,7 +88,7 @@ static struct rds_connection *rds_conn_lookup(struct net *net,
 {
 	struct rds_connection *conn, *ret = NULL;
 
-	hlist_for_each_entry_rcu(conn, head, c_hash_node) {
+	hlist_for_each_entry_rcu(conn, head, c_hash_yesde) {
 		if (ipv6_addr_equal(&conn->c_faddr, faddr) &&
 		    ipv6_addr_equal(&conn->c_laddr, laddr) &&
 		    conn->c_trans == trans &&
@@ -121,9 +121,9 @@ static void rds_conn_path_reset(struct rds_conn_path *cp)
 	rds_send_path_reset(cp);
 	cp->cp_flags = 0;
 
-	/* Do not clear next_rx_seq here, else we cannot distinguish
+	/* Do yest clear next_rx_seq here, else we canyest distinguish
 	 * retransmitted packets from new packets, and will hand all
-	 * of them to the application. That is not consistent with the
+	 * of them to the application. That is yest consistent with the
 	 * reliability guarantees of RDS. */
 }
 
@@ -154,7 +154,7 @@ static void __rds_conn_path_init(struct rds_connection *conn,
  * system at a time.  They contain messages to be retransmitted and so
  * span the lifetime of the actual underlying transport connections.
  *
- * For now they are not garbage collected once they're created.  They
+ * For yesw they are yest garbage collected once they're created.  They
  * are torn down as the module is removed, if ever.
  */
 static struct rds_connection *__rds_conn_create(struct net *net,
@@ -202,7 +202,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 		goto out;
 	}
 
-	INIT_HLIST_NODE(&conn->c_hash_node);
+	INIT_HLIST_NODE(&conn->c_hash_yesde);
 	conn->c_laddr = *laddr;
 	conn->c_isv6 = !ipv6_addr_v4mapped(laddr);
 	conn->c_faddr = *faddr;
@@ -212,7 +212,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 #if IS_ENABLED(CONFIG_IPV6)
 	/* If the local address is link local, set c_bound_if to be the
 	 * index used for this connection.  Otherwise, set it to 0 as
-	 * the socket is not bound to an interface.  c_bound_if is used
+	 * the socket is yest bound to an interface.  c_bound_if is used
 	 * to look up a socket when a packet is received
 	 */
 	if (ipv6_addr_type(laddr) & IPV6_ADDR_LINKLOCAL)
@@ -273,11 +273,11 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	rdsdebug("allocated conn %p for %pI6c -> %pI6c over %s %s\n",
 		 conn, laddr, faddr,
 		 strnlen(trans->t_name, sizeof(trans->t_name)) ?
-		 trans->t_name : "[unknown]", is_outgoing ? "(outgoing)" : "");
+		 trans->t_name : "[unkyeswn]", is_outgoing ? "(outgoing)" : "");
 
 	/*
 	 * Since we ran without holding the conn lock, someone could
-	 * have created the same conn (either normal or passive) in the
+	 * have created the same conn (either yesrmal or passive) in the
 	 * interim. We check while holding the lock. If we won, we complete
 	 * init and return our conn. If we lost, we rollback and return the
 	 * other one.
@@ -296,7 +296,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 			rds_conn_count++;
 		}
 	} else {
-		/* Creating normal conn */
+		/* Creating yesrmal conn */
 		struct rds_connection *found;
 
 		found = rds_conn_lookup(net, head, laddr, faddr, trans,
@@ -320,7 +320,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 		} else {
 			conn->c_my_gen_num = rds_gen_num;
 			conn->c_peer_gen_num = 0;
-			hlist_add_head_rcu(&conn->c_hash_node, head);
+			hlist_add_head_rcu(&conn->c_hash_yesde, head);
 			rds_cong_add_conn(conn);
 			rds_conn_count++;
 		}
@@ -415,7 +415,7 @@ void rds_conn_shutdown(struct rds_conn_path *cp)
 	 * conn - the reconnect is always triggered by the active peer. */
 	cancel_delayed_work_sync(&cp->cp_conn_w);
 	rcu_read_lock();
-	if (!hlist_unhashed(&conn->c_hash_node)) {
+	if (!hlist_unhashed(&conn->c_hash_yesde)) {
 		rcu_read_unlock();
 		rds_queue_reconnect(cp);
 	} else {
@@ -463,7 +463,7 @@ static void rds_conn_path_destroy(struct rds_conn_path *cp)
  * Stop and free a connection.
  *
  * This can only be used in very limited circumstances.  It assumes that once
- * the conn has been shutdown that no one else is referencing the connection.
+ * the conn has been shutdown that yes one else is referencing the connection.
  * We can only ensure this in the rmmod path in the current code.
  */
 void rds_conn_destroy(struct rds_connection *conn)
@@ -477,9 +477,9 @@ void rds_conn_destroy(struct rds_connection *conn)
 		 "%pI4\n", conn, &conn->c_laddr,
 		 &conn->c_faddr);
 
-	/* Ensure conn will not be scheduled for reconnect */
+	/* Ensure conn will yest be scheduled for reconnect */
 	spin_lock_irq(&rds_conn_lock);
-	hlist_del_init_rcu(&conn->c_hash_node);
+	hlist_del_init_rcu(&conn->c_hash_yesde);
 	spin_unlock_irq(&rds_conn_lock);
 	synchronize_rcu();
 
@@ -542,7 +542,7 @@ static void rds_conn_message_info_cmn(struct socket *sock, unsigned int len,
 
 	for (i = 0, head = rds_conn_hash; i < ARRAY_SIZE(rds_conn_hash);
 	     i++, head++) {
-		hlist_for_each_entry_rcu(conn, head, c_hash_node) {
+		hlist_for_each_entry_rcu(conn, head, c_hash_yesde) {
 			struct rds_conn_path *cp;
 			int npaths;
 
@@ -655,9 +655,9 @@ void rds_for_each_conn_info(struct socket *sock, unsigned int len,
 
 	for (i = 0, head = rds_conn_hash; i < ARRAY_SIZE(rds_conn_hash);
 	     i++, head++) {
-		hlist_for_each_entry_rcu(conn, head, c_hash_node) {
+		hlist_for_each_entry_rcu(conn, head, c_hash_yesde) {
 
-			/* XXX no c_lock usage.. */
+			/* XXX yes c_lock usage.. */
 			if (!visitor(conn, buffer))
 				continue;
 
@@ -693,12 +693,12 @@ static void rds_walk_conn_path_info(struct socket *sock, unsigned int len,
 
 	for (i = 0, head = rds_conn_hash; i < ARRAY_SIZE(rds_conn_hash);
 	     i++, head++) {
-		hlist_for_each_entry_rcu(conn, head, c_hash_node) {
+		hlist_for_each_entry_rcu(conn, head, c_hash_yesde) {
 			struct rds_conn_path *cp;
 
 			/* XXX We only copy the information from the first
-			 * path for now.  The problem is that if there are
-			 * more than one underlying paths, we cannot report
+			 * path for yesw.  The problem is that if there are
+			 * more than one underlying paths, we canyest report
 			 * information of all of them using the existing
 			 * API.  For example, there is only one next_tx_seq,
 			 * which path's next_tx_seq should we report?  It is
@@ -706,7 +706,7 @@ static void rds_walk_conn_path_info(struct socket *sock, unsigned int len,
 			 */
 			cp = conn->c_path;
 
-			/* XXX no cp_lock usage.. */
+			/* XXX yes cp_lock usage.. */
 			if (!visitor(cp, buffer))
 				continue;
 
@@ -776,7 +776,7 @@ static int rds6_conn_info_visitor(struct rds_conn_path *cp, void *buffer)
 	rds_conn_info_set(cinfo6->flags,
 			  atomic_read(&cp->cp_state) == RDS_CONN_UP,
 			  CONNECTED);
-	/* Just return 1 as there is no error case. This is a helper function
+	/* Just return 1 as there is yes error case. This is a helper function
 	 * for rds_walk_conn_path_info() and it wants a return value.
 	 */
 	return 1;
@@ -889,7 +889,7 @@ EXPORT_SYMBOL_GPL(rds_conn_drop);
 
 /*
  * If the connection is down, trigger a connect. We may have scheduled a
- * delayed reconnect however - in this case we should not interfere.
+ * delayed reconnect however - in this case we should yest interfere.
  */
 void rds_conn_path_connect_if_down(struct rds_conn_path *cp)
 {

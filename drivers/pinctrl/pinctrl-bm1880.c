@@ -945,7 +945,7 @@ static const struct pinctrl_ops bm1880_pctrl_ops = {
 	.get_groups_count = bm1880_pctrl_get_groups_count,
 	.get_group_name = bm1880_pctrl_get_group_name,
 	.get_group_pins = bm1880_pctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 

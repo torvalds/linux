@@ -234,10 +234,10 @@ static const struct reg_val cfg_ter[] = {
  * pt3_fe_init: initialize demod sub modules and ISDB-T tuners all at once.
  *
  * As for demod IC (TC90522) and ISDB-T tuners (MxL301RF),
- * the i2c sequences for init'ing them are not public and hidden in a ROM,
+ * the i2c sequences for init'ing them are yest public and hidden in a ROM,
  * and include the board specific configurations as well.
- * They are stored in a lump and cannot be taken out / accessed separately,
- * thus cannot be moved to the FE/tuner driver.
+ * They are stored in a lump and canyest be taken out / accessed separately,
+ * thus canyest be moved to the FE/tuner driver.
  */
 static int pt3_fe_init(struct pt3_board *pt3)
 {
@@ -328,7 +328,7 @@ static int pt3_fe_init(struct pt3_board *pt3)
 		ret = 0;
 		if (fe->ops.delsys[0] == SYS_ISDBT)
 			ret = fe->ops.tuner_ops.init(fe);
-		/* set only when called from pt3_probe(), not resume() */
+		/* set only when called from pt3_probe(), yest resume() */
 		if (ret == 0 && fe->dtv_property_cache.frequency == 0) {
 			fe->dtv_property_cache.frequency =
 						adap_conf[i].init_freq;
@@ -745,7 +745,7 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ver = ioread32(pt3->regs[0] + REG_VERSION);
 	if ((ver >> 16) != 0x0301) {
-		dev_warn(&pdev->dev, "PT%d, I/F-ver.:%d not supported\n",
+		dev_warn(&pdev->dev, "PT%d, I/F-ver.:%d yest supported\n",
 			 ver >> 24, (ver & 0x00ff0000) >> 16);
 		ret = -ENODEV;
 		goto err_iounmap;

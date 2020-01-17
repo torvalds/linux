@@ -239,7 +239,7 @@ struct hip04_priv {
 	unsigned int rx_buf_size;
 	unsigned int rx_cnt_remaining;
 
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 	struct phy_device *phy;
 	struct regmap *map;
 	struct work_struct tx_timeout_task;
@@ -277,7 +277,7 @@ static void hip04_config_port(struct net_device *ndev, u32 speed, u32 duplex)
 			val = MII_SPEED_10;
 		break;
 	default:
-		netdev_warn(ndev, "not supported mode\n");
+		netdev_warn(ndev, "yest supported mode\n");
 		val = MII_SPEED_10;
 		break;
 	}
@@ -553,7 +553,7 @@ hip04_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* Ensure tx_head update visible to tx reclaim */
 	smp_wmb();
 
-	/* queue is getting full, better start cleaning up now */
+	/* queue is getting full, better start cleaning up yesw */
 	if (count >= priv->tx_coalesce_frames) {
 		if (napi_schedule_prep(&priv->napi)) {
 			/* disable rx interrupt and timer */
@@ -564,7 +564,7 @@ hip04_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			__napi_schedule(&priv->napi);
 		}
 	} else if (!hrtimer_is_queued(&priv->tx_coalesce_timer)) {
-		/* cleanup not pending yet, start a new timer */
+		/* cleanup yest pending yet, start a new timer */
 		hip04_start_tx_timer(priv);
 	}
 
@@ -811,7 +811,7 @@ static int hip04_set_coalesce(struct net_device *netdev,
 {
 	struct hip04_priv *priv = netdev_priv(netdev);
 
-	/* Check not supported parameters  */
+	/* Check yest supported parameters  */
 	if ((ec->rx_max_coalesced_frames) || (ec->rx_coalesce_usecs_irq) ||
 	    (ec->rx_max_coalesced_frames_irq) || (ec->tx_coalesce_usecs_irq) ||
 	    (ec->use_adaptive_rx_coalesce) || (ec->use_adaptive_tx_coalesce) ||
@@ -901,7 +901,7 @@ static void hip04_free_ring(struct net_device *ndev, struct device *d)
 static int hip04_mac_probe(struct platform_device *pdev)
 {
 	struct device *d = &pdev->dev;
-	struct device_node *node = d->of_node;
+	struct device_yesde *yesde = d->of_yesde;
 	struct of_phandle_args arg;
 	struct net_device *ndev;
 	struct hip04_priv *priv;
@@ -932,9 +932,9 @@ static int hip04_mac_probe(struct platform_device *pdev)
 	}
 #endif
 
-	ret = of_parse_phandle_with_fixed_args(node, "port-handle", 3, 0, &arg);
+	ret = of_parse_phandle_with_fixed_args(yesde, "port-handle", 3, 0, &arg);
 	if (ret < 0) {
-		dev_warn(d, "no port-handle\n");
+		dev_warn(d, "yes port-handle\n");
 		goto init_fail;
 	}
 
@@ -946,24 +946,24 @@ static int hip04_mac_probe(struct platform_device *pdev)
 
 	/* BQL will try to keep the TX queue as short as possible, but it can't
 	 * be faster than tx_coalesce_usecs, so we need a fast timeout here,
-	 * but also long enough to gather up enough frames to ensure we don't
+	 * but also long eyesugh to gather up eyesugh frames to ensure we don't
 	 * get more interrupts than necessary.
-	 * 200us is enough for 16 frames of 1500 bytes at gigabit ethernet rate
+	 * 200us is eyesugh for 16 frames of 1500 bytes at gigabit ethernet rate
 	 */
 	priv->tx_coalesce_frames = TX_DESC_NUM * 3 / 4;
 	priv->tx_coalesce_usecs = 200;
 	priv->tx_coalesce_timer.function = tx_done;
 
-	priv->map = syscon_node_to_regmap(arg.np);
+	priv->map = syscon_yesde_to_regmap(arg.np);
 	if (IS_ERR(priv->map)) {
-		dev_warn(d, "no syscon hisilicon,hip04-ppe\n");
+		dev_warn(d, "yes syscon hisilicon,hip04-ppe\n");
 		ret = PTR_ERR(priv->map);
 		goto init_fail;
 	}
 
-	ret = of_get_phy_mode(node, &priv->phy_mode);
+	ret = of_get_phy_mode(yesde, &priv->phy_mode);
 	if (ret) {
-		dev_warn(d, "not find phy-mode\n");
+		dev_warn(d, "yest find phy-mode\n");
 		goto init_fail;
 	}
 
@@ -980,9 +980,9 @@ static int hip04_mac_probe(struct platform_device *pdev)
 		goto init_fail;
 	}
 
-	priv->phy_node = of_parse_phandle(node, "phy-handle", 0);
-	if (priv->phy_node) {
-		priv->phy = of_phy_connect(ndev, priv->phy_node,
+	priv->phy_yesde = of_parse_phandle(yesde, "phy-handle", 0);
+	if (priv->phy_yesde) {
+		priv->phy = of_phy_connect(ndev, priv->phy_yesde,
 					   &hip04_adjust_link,
 					   0, priv->phy_mode);
 		if (!priv->phy) {
@@ -1024,7 +1024,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 alloc_fail:
 	hip04_free_ring(ndev, d);
 init_fail:
-	of_node_put(priv->phy_node);
+	of_yesde_put(priv->phy_yesde);
 	free_netdev(ndev);
 	return ret;
 }
@@ -1040,7 +1040,7 @@ static int hip04_remove(struct platform_device *pdev)
 
 	hip04_free_ring(ndev, d);
 	unregister_netdev(ndev);
-	of_node_put(priv->phy_node);
+	of_yesde_put(priv->phy_yesde);
 	cancel_work_sync(&priv->tx_timeout_task);
 	free_netdev(ndev);
 

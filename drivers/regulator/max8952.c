@@ -87,7 +87,7 @@ static int max8952_set_voltage_sel(struct regulator_dev *rdev,
 	struct max8952_data *max8952 = rdev_get_drvdata(rdev);
 
 	if (!max8952->vid0_gpiod || !max8952->vid1_gpiod) {
-		/* DVS not supported */
+		/* DVS yest supported */
 		return -EPERM;
 	}
 
@@ -124,7 +124,7 @@ MODULE_DEVICE_TABLE(of, max8952_dt_match);
 static struct max8952_platform_data *max8952_parse_dt(struct device *dev)
 {
 	struct max8952_platform_data *pd;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int ret;
 	int i;
 
@@ -133,12 +133,12 @@ static struct max8952_platform_data *max8952_parse_dt(struct device *dev)
 		return NULL;
 
 	if (of_property_read_u32(np, "max8952,default-mode", &pd->default_mode))
-		dev_warn(dev, "Default mode not specified, assuming 0\n");
+		dev_warn(dev, "Default mode yest specified, assuming 0\n");
 
 	ret = of_property_read_u32_array(np, "max8952,dvs-mode-microvolt",
 					pd->dvs_mode, ARRAY_SIZE(pd->dvs_mode));
 	if (ret) {
-		dev_err(dev, "max8952,dvs-mode-microvolt property not specified");
+		dev_err(dev, "max8952,dvs-mode-microvolt property yest specified");
 		return NULL;
 	}
 
@@ -151,10 +151,10 @@ static struct max8952_platform_data *max8952_parse_dt(struct device *dev)
 	}
 
 	if (of_property_read_u32(np, "max8952,sync-freq", &pd->sync_freq))
-		dev_warn(dev, "max8952,sync-freq property not specified, defaulting to 26MHz\n");
+		dev_warn(dev, "max8952,sync-freq property yest specified, defaulting to 26MHz\n");
 
 	if (of_property_read_u32(np, "max8952,ramp-speed", &pd->ramp_speed))
-		dev_warn(dev, "max8952,ramp-speed property not specified, defaulting to 32mV/us\n");
+		dev_warn(dev, "max8952,ramp-speed property yest specified, defaulting to 32mV/us\n");
 
 	pd->reg_data = of_get_regulator_init_data(dev, np, &regulator);
 	if (!pd->reg_data) {
@@ -184,7 +184,7 @@ static int max8952_pmic_probe(struct i2c_client *client,
 
 	int ret = 0;
 
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		pdata = max8952_parse_dt(&client->dev);
 
 	if (!pdata) {
@@ -206,7 +206,7 @@ static int max8952_pmic_probe(struct i2c_client *client,
 	config.dev = &client->dev;
 	config.init_data = pdata->reg_data;
 	config.driver_data = max8952;
-	config.of_node = client->dev.of_node;
+	config.of_yesde = client->dev.of_yesde;
 
 	if (pdata->reg_data->constraints.boot_on)
 		gflags = GPIOD_OUT_HIGH;
@@ -214,7 +214,7 @@ static int max8952_pmic_probe(struct i2c_client *client,
 		gflags = GPIOD_OUT_LOW;
 	gflags |= GPIOD_FLAGS_BIT_NONEXCLUSIVE;
 	/*
-	 * Do not use devm* here: the regulator core takes over the
+	 * Do yest use devm* here: the regulator core takes over the
 	 * lifecycle management of the GPIO descriptor.
 	 */
 	gpiod = gpiod_get_optional(&client->dev,
@@ -252,7 +252,7 @@ static int max8952_pmic_probe(struct i2c_client *client,
 	/* If either VID GPIO is missing just disable this */
 	if (!max8952->vid0_gpiod || !max8952->vid1_gpiod) {
 		dev_warn(&client->dev, "VID0/1 gpio invalid: "
-			 "DVS not available.\n");
+			 "DVS yest available.\n");
 		max8952->vid0 = 0;
 		max8952->vid1 = 0;
 		/* Make sure if we have any descriptors they get set to low */
@@ -265,7 +265,7 @@ static int max8952_pmic_probe(struct i2c_client *client,
 		max8952_write_reg(max8952, MAX8952_REG_CONTROL, 0x60);
 
 		dev_err(&client->dev, "DVS modes disabled because VID0 and VID1"
-				" do not have proper controls.\n");
+				" do yest have proper controls.\n");
 	} else {
 		/*
 		 * Disable Pulldown on EN, VID0, VID1 to reduce

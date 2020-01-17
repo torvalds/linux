@@ -16,7 +16,7 @@
 #include <sound/hda_verbs.h>
 #include <drm/i915_component.h>
 
-/* codec node id */
+/* codec yesde id */
 typedef u16 hda_nid_t;
 
 struct hdac_bus;
@@ -52,8 +52,8 @@ struct hdac_device {
 	unsigned int addr;		/* codec address */
 	struct list_head list;		/* list point for bus codec_list */
 
-	hda_nid_t afg;			/* AFG node id */
-	hda_nid_t mfg;			/* MFG node id */
+	hda_nid_t afg;			/* AFG yesde id */
+	hda_nid_t mfg;			/* MFG yesde id */
 
 	/* ids */
 	unsigned int vendor_id;
@@ -74,7 +74,7 @@ struct hdac_device {
 			 unsigned int flags, unsigned int *res);
 
 	/* widgets */
-	unsigned int num_nodes;
+	unsigned int num_yesdes;
 	hda_nid_t start_nid, end_nid;
 
 	/* misc flags */
@@ -132,7 +132,7 @@ int snd_hdac_override_parm(struct hdac_device *codec, hda_nid_t nid,
 			   unsigned int parm, unsigned int val);
 int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
 			     hda_nid_t *conn_list, int max_conns);
-int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,
+int snd_hdac_get_sub_yesdes(struct hdac_device *codec, hda_nid_t nid,
 			   hda_nid_t *start_id);
 unsigned int snd_hdac_calc_stream_format(unsigned int rate,
 					 unsigned int channels,
@@ -332,7 +332,7 @@ struct hdac_bus {
 	/* behavior flags */
 	bool sync_write:1;		/* sync after verb write */
 	bool use_posbuf:1;		/* use position buffer */
-	bool snoop:1;			/* enable snooping */
+	bool syesop:1;			/* enable syesoping */
 	bool align_bdle_4k:1;		/* BDLE align 4K boundary */
 	bool reverse_assign:1;		/* assign devices in reverse order */
 	bool corbrp_self_clear:1;	/* CORBRP clears itself after reset */
@@ -491,7 +491,7 @@ struct hdac_stream {
 	bool opened:1;
 	bool running:1;
 	bool prepared:1;
-	bool no_period_wakeup:1;
+	bool yes_period_wakeup:1;
 	bool locked:1;
 	bool stripe:1;			/* apply stripe control */
 

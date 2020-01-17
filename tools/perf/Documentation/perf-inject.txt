@@ -51,7 +51,7 @@ OPTIONS
 include::itrace.txt[]
 
 --strip::
-	Use with --itrace to strip out non-synthesized events.
+	Use with --itrace to strip out yesn-synthesized events.
 
 -j::
 --jit::

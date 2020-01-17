@@ -108,7 +108,7 @@ struct amvdec_ops {
  * @stop: mandatory call when the codec needs to stop
  * @load_extended_firmware: optional call to load additional firmware bits
  * @num_pending_bufs: optional call to get the number of dst buffers on hold
- * @can_recycle: optional call to know if the codec is ready to recycle
+ * @can_recycle: optional call to kyesw if the codec is ready to recycle
  *		 a dst buffer
  * @recycle: optional call to tell the codec to recycle a dst buffer. Must go
  *	     in pair with @can_recycle
@@ -202,7 +202,7 @@ enum amvdec_status {
  * @bufs_recycle: list of buffers that need to be recycled
  * @bufs_recycle_lock: lock for the bufs_recycle list
  * @recycle_thread: task struct for the recycling thread
- * @timestamps: chronological list of src timestamps
+ * @timestamps: chroyeslogical list of src timestamps
  * @ts_spinlock: spinlock for the timestamps list
  * @last_irq_jiffies: tracks last time the vdec triggered an IRQ
  * @status: current decoding status

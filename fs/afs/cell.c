@@ -28,7 +28,7 @@ static void afs_dec_cells_outstanding(struct afs_net *net)
 }
 
 /*
- * Set the cell timer to fire after a given delay, assuming it's not already
+ * Set the cell timer to fire after a given delay, assuming it's yest already
  * set for an earlier time.
  */
 static void afs_set_cell_timer(struct afs_net *net, time64_t delay)
@@ -48,7 +48,7 @@ struct afs_cell *afs_lookup_cell_rcu(struct afs_net *net,
 				     const char *name, unsigned int namesz)
 {
 	struct afs_cell *cell = NULL;
-	struct rb_node *p;
+	struct rb_yesde *p;
 	int n, seq = 0, ret = 0;
 
 	_enter("%*.*s", namesz, namesz, name);
@@ -81,9 +81,9 @@ struct afs_cell *afs_lookup_cell_rcu(struct afs_net *net,
 			continue;
 		}
 
-		p = rcu_dereference_raw(net->cells.rb_node);
+		p = rcu_dereference_raw(net->cells.rb_yesde);
 		while (p) {
-			cell = rb_entry(p, struct afs_cell, net_node);
+			cell = rb_entry(p, struct afs_cell, net_yesde);
 
 			n = strncasecmp(cell->name, name,
 					min_t(size_t, cell->name_len, namesz));
@@ -94,7 +94,7 @@ struct afs_cell *afs_lookup_cell_rcu(struct afs_net *net,
 			} else if (n > 0) {
 				p = rcu_dereference_raw(p->rb_right);
 			} else {
-				if (atomic_inc_not_zero(&cell->usage)) {
+				if (atomic_inc_yest_zero(&cell->usage)) {
 					ret = 0;
 					break;
 				}
@@ -117,7 +117,7 @@ struct afs_cell *afs_lookup_cell_rcu(struct afs_net *net,
 
 /*
  * Set up a cell record and fill in its name, VL server address list and
- * allocate an anonymous key
+ * allocate an ayesnymous key
  */
 static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 				       const char *name, unsigned int namelen,
@@ -210,14 +210,14 @@ error:
  * Look up a cell record by name and query the DNS for VL server addresses if
  * needed.  Note that that actual DNS query is punted off to the manager thread
  * so that this function can return immediately if interrupted whilst allowing
- * cell records to be shared even if not yet fully constructed.
+ * cell records to be shared even if yest yet fully constructed.
  */
 struct afs_cell *afs_lookup_cell(struct afs_net *net,
 				 const char *name, unsigned int namesz,
 				 const char *vllist, bool excl)
 {
 	struct afs_cell *cell, *candidate, *cursor;
-	struct rb_node *parent, **pp;
+	struct rb_yesde *parent, **pp;
 	enum afs_cell_state state;
 	int ret, n;
 
@@ -249,11 +249,11 @@ struct afs_cell *afs_lookup_cell(struct afs_net *net,
 	 */
 	write_seqlock(&net->cells_lock);
 
-	pp = &net->cells.rb_node;
+	pp = &net->cells.rb_yesde;
 	parent = NULL;
 	while (*pp) {
 		parent = *pp;
-		cursor = rb_entry(parent, struct afs_cell, net_node);
+		cursor = rb_entry(parent, struct afs_cell, net_yesde);
 
 		n = strncasecmp(cursor->name, name,
 				min_t(size_t, cursor->name_len, namesz));
@@ -269,8 +269,8 @@ struct afs_cell *afs_lookup_cell(struct afs_net *net,
 
 	cell = candidate;
 	candidate = NULL;
-	rb_link_node_rcu(&cell->net_node, parent, pp);
-	rb_insert_color(&cell->net_node, &net->cells);
+	rb_link_yesde_rcu(&cell->net_yesde, parent, pp);
+	rb_insert_color(&cell->net_yesde, &net->cells);
 	atomic_inc(&net->cells_outstanding);
 	write_sequnlock(&net->cells_lock);
 
@@ -306,10 +306,10 @@ cell_already_exists:
 	kfree(candidate);
 	if (ret == 0)
 		goto wait_for_cell;
-	goto error_noput;
+	goto error_yesput;
 error:
 	afs_put_cell(net, cell);
-error_noput:
+error_yesput:
 	_leave(" = %d [error]", ret);
 	return ERR_PTR(ret);
 }
@@ -328,16 +328,16 @@ int afs_cell_init(struct afs_net *net, const char *rootcell)
 	_enter("");
 
 	if (!rootcell) {
-		/* module is loaded with no parameters, or built statically.
+		/* module is loaded with yes parameters, or built statically.
 		 * - in the future we might initialize cell DB here.
 		 */
-		_leave(" = 0 [no root]");
+		_leave(" = 0 [yes root]");
 		return 0;
 	}
 
 	cp = strchr(rootcell, ':');
 	if (!cp) {
-		_debug("kAFS: no VL server IP addresses specified");
+		_debug("kAFS: yes VL server IP addresses specified");
 		vllist = NULL;
 		len = strlen(rootcell);
 	} else {
@@ -374,7 +374,7 @@ static int afs_update_cell(struct afs_cell *cell)
 	struct afs_vlserver_list *vllist, *old = NULL, *p;
 	unsigned int min_ttl = READ_ONCE(afs_cell_min_ttl);
 	unsigned int max_ttl = READ_ONCE(afs_cell_max_ttl);
-	time64_t now, expiry = 0;
+	time64_t yesw, expiry = 0;
 	int ret = 0;
 
 	_enter("%s", cell->name);
@@ -410,19 +410,19 @@ static int afs_update_cell(struct afs_cell *cell)
 	_debug("%s: got list %d %d", cell->name, vllist->source, vllist->status);
 	cell->dns_status = vllist->status;
 
-	now = ktime_get_real_seconds();
+	yesw = ktime_get_real_seconds();
 	if (min_ttl > max_ttl)
 		max_ttl = min_ttl;
-	if (expiry < now + min_ttl)
-		expiry = now + min_ttl;
-	else if (expiry > now + max_ttl)
-		expiry = now + max_ttl;
+	if (expiry < yesw + min_ttl)
+		expiry = yesw + min_ttl;
+	else if (expiry > yesw + max_ttl)
+		expiry = yesw + max_ttl;
 
 	_debug("%s: status %d", cell->name, vllist->status);
 	if (vllist->source == DNS_RECORD_UNAVAILABLE) {
 		switch (vllist->status) {
 		case DNS_LOOKUP_GOT_NOT_FOUND:
-			/* The DNS said that the cell does not exist or there
+			/* The DNS said that the cell does yest exist or there
 			 * weren't any addresses to be had.
 			 */
 			cell->dns_expiry = expiry;
@@ -433,7 +433,7 @@ static int afs_update_cell(struct afs_cell *cell)
 		case DNS_LOOKUP_GOT_TEMP_FAILURE:
 		case DNS_LOOKUP_GOT_NS_FAILURE:
 		default:
-			cell->dns_expiry = now + 10;
+			cell->dns_expiry = yesw + 10;
 			break;
 		}
 	} else {
@@ -473,7 +473,7 @@ static void afs_cell_destroy(struct rcu_head *rcu)
 	ASSERTCMP(atomic_read(&cell->usage), ==, 0);
 
 	afs_put_vlserverlist(cell->net, rcu_access_pointer(cell->vl_servers));
-	key_put(cell->anonymous_key);
+	key_put(cell->ayesnymous_key);
 	kfree(cell);
 
 	_leave(" [destroyed]");
@@ -519,15 +519,15 @@ struct afs_cell *afs_get_cell(struct afs_cell *cell)
  */
 void afs_put_cell(struct afs_net *net, struct afs_cell *cell)
 {
-	time64_t now, expire_delay;
+	time64_t yesw, expire_delay;
 
 	if (!cell)
 		return;
 
 	_enter("%s", cell->name);
 
-	now = ktime_get_real_seconds();
-	cell->last_inactive = now;
+	yesw = ktime_get_real_seconds();
+	cell->last_inactive = yesw;
 	expire_delay = 0;
 	if (cell->vl_servers->nr_servers)
 		expire_delay = afs_cell_gc_delay;
@@ -535,19 +535,19 @@ void afs_put_cell(struct afs_net *net, struct afs_cell *cell)
 	if (atomic_dec_return(&cell->usage) > 1)
 		return;
 
-	/* 'cell' may now be garbage collected. */
+	/* 'cell' may yesw be garbage collected. */
 	afs_set_cell_timer(net, expire_delay);
 }
 
 /*
- * Allocate a key to use as a placeholder for anonymous user security.
+ * Allocate a key to use as a placeholder for ayesnymous user security.
  */
-static int afs_alloc_anon_key(struct afs_cell *cell)
+static int afs_alloc_ayesn_key(struct afs_cell *cell)
 {
 	struct key *key;
 	char keyname[4 + AFS_MAXCELLNAME + 1], *cp, *dp;
 
-	/* Create a key to represent an anonymous user. */
+	/* Create a key to represent an ayesnymous user. */
 	memcpy(keyname, "afs@", 4);
 	dp = keyname + 4;
 	cp = cell->name;
@@ -559,10 +559,10 @@ static int afs_alloc_anon_key(struct afs_cell *cell)
 	if (IS_ERR(key))
 		return PTR_ERR(key);
 
-	cell->anonymous_key = key;
+	cell->ayesnymous_key = key;
 
-	_debug("anon key %p{%x}",
-	       cell->anonymous_key, key_serial(cell->anonymous_key));
+	_debug("ayesn key %p{%x}",
+	       cell->ayesnymous_key, key_serial(cell->ayesnymous_key));
 	return 0;
 }
 
@@ -571,12 +571,12 @@ static int afs_alloc_anon_key(struct afs_cell *cell)
  */
 static int afs_activate_cell(struct afs_net *net, struct afs_cell *cell)
 {
-	struct hlist_node **p;
+	struct hlist_yesde **p;
 	struct afs_cell *pcell;
 	int ret;
 
-	if (!cell->anonymous_key) {
-		ret = afs_alloc_anon_key(cell);
+	if (!cell->ayesnymous_key) {
+		ret = afs_alloc_ayesn_key(cell);
 		if (ret < 0)
 			return ret;
 	}
@@ -654,7 +654,7 @@ again:
 		usage = 1;
 		deleted = atomic_try_cmpxchg_relaxed(&cell->usage, &usage, 0);
 		if (deleted)
-			rb_erase(&cell->net_node, &net->cells);
+			rb_erase(&cell->net_yesde, &net->cells);
 		write_sequnlock(&net->cells_lock);
 		if (deleted)
 			goto final_destruction;
@@ -730,7 +730,7 @@ final_destruction:
 }
 
 /*
- * Manage the records of cells known to a network namespace.  This includes
+ * Manage the records of cells kyeswn to a network namespace.  This includes
  * updating the DNS records and garbage collecting unused cells that were
  * automatically added.
  *
@@ -745,8 +745,8 @@ final_destruction:
 void afs_manage_cells(struct work_struct *work)
 {
 	struct afs_net *net = container_of(work, struct afs_net, cells_manager);
-	struct rb_node *cursor;
-	time64_t now = ktime_get_real_seconds(), next_manage = TIME64_MAX;
+	struct rb_yesde *cursor;
+	time64_t yesw = ktime_get_real_seconds(), next_manage = TIME64_MAX;
 	bool purging = !net->live;
 
 	_enter("");
@@ -759,7 +759,7 @@ void afs_manage_cells(struct work_struct *work)
 
 	for (cursor = rb_first(&net->cells); cursor; cursor = rb_next(cursor)) {
 		struct afs_cell *cell =
-			rb_entry(cursor, struct afs_cell, net_node);
+			rb_entry(cursor, struct afs_cell, net_yesde);
 		unsigned usage;
 		bool sched_cell = false;
 
@@ -785,7 +785,7 @@ void afs_manage_cells(struct work_struct *work)
 			if (vllist->nr_servers > 0)
 				expire_at += afs_cell_gc_delay;
 			read_unlock(&cell->vl_servers_lock);
-			if (purging || expire_at <= now)
+			if (purging || expire_at <= yesw)
 				sched_cell = true;
 			else if (expire_at < next_manage)
 				next_manage = expire_at;
@@ -807,13 +807,13 @@ void afs_manage_cells(struct work_struct *work)
 	 * the work scheduler.
 	 */
 	if (!purging && next_manage < TIME64_MAX) {
-		now = ktime_get_real_seconds();
+		yesw = ktime_get_real_seconds();
 
-		if (next_manage - now <= 0) {
+		if (next_manage - yesw <= 0) {
 			if (queue_work(afs_wq, &net->cells_manager))
 				atomic_inc(&net->cells_outstanding);
 		} else {
-			afs_set_cell_timer(net, next_manage - now);
+			afs_set_cell_timer(net, next_manage - yesw);
 		}
 	}
 

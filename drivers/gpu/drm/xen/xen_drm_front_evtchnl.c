@@ -8,7 +8,7 @@
  * Author: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/irq.h>
 
 #include <drm/drm_print.h>
@@ -55,7 +55,7 @@ again:
 			break;
 
 		default:
-			DRM_ERROR("Operation %d is not supported\n",
+			DRM_ERROR("Operation %d is yest supported\n",
 				  resp->operation);
 			break;
 		}
@@ -268,21 +268,21 @@ fail:
 
 static int evtchnl_publish(struct xenbus_transaction xbt,
 			   struct xen_drm_front_evtchnl *evtchnl,
-			   const char *path, const char *node_ring,
-			   const char *node_chnl)
+			   const char *path, const char *yesde_ring,
+			   const char *yesde_chnl)
 {
 	struct xenbus_device *xb_dev = evtchnl->front_info->xb_dev;
 	int ret;
 
 	/* write control channel ring reference */
-	ret = xenbus_printf(xbt, path, node_ring, "%u", evtchnl->gref);
+	ret = xenbus_printf(xbt, path, yesde_ring, "%u", evtchnl->gref);
 	if (ret < 0) {
 		xenbus_dev_error(xb_dev, ret, "writing ring-ref");
 		return ret;
 	}
 
 	/* write event channel ring reference */
-	ret = xenbus_printf(xbt, path, node_chnl, "%u", evtchnl->port);
+	ret = xenbus_printf(xbt, path, yesde_chnl, "%u", evtchnl->port);
 	if (ret < 0) {
 		xenbus_dev_error(xb_dev, ret, "writing event channel");
 		return ret;
@@ -345,12 +345,12 @@ fail_to_end:
 
 void xen_drm_front_evtchnl_flush(struct xen_drm_front_evtchnl *evtchnl)
 {
-	int notify;
+	int yestify;
 
 	evtchnl->u.req.ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&evtchnl->u.req.ring, notify);
-	if (notify)
-		notify_remote_via_irq(evtchnl->irq);
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&evtchnl->u.req.ring, yestify);
+	if (yestify)
+		yestify_remote_via_irq(evtchnl->irq);
 }
 
 void xen_drm_front_evtchnl_set_state(struct xen_drm_front_info *front_info,

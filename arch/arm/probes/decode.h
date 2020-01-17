@@ -36,7 +36,7 @@ void __init find_str_pc_offset(void);
 
 
 /*
- * Update ITSTATE after normal execution of an IT block instruction.
+ * Update ITSTATE after yesrmal execution of an IT block instruction.
  *
  * The 8 IT state bits are split into two parts in CPSR:
  *	ITSTATE<1:0> are in CPSR<26:25>
@@ -214,10 +214,10 @@ static inline void __kprobes alu_write_pc(long pcv, struct pt_regs *regs)
  *
  * This indicates an instruction is encoded like:
  *
- *	bits 19..16	ignore
+ *	bits 19..16	igyesre
  *	bits 15..12	any register allowed here
  *	bits 11.. 8	any register except PC allowed here
- *	bits  7.. 4	ignore
+ *	bits  7.. 4	igyesre
  *	bits  3.. 0	any register allowed here
  *
  * This register specification is checked after a decode table entry is found to
@@ -263,22 +263,22 @@ enum decode_type {
 #define DECODE_TYPE_MASK	((1 << DECODE_TYPE_BITS) - 1)
 
 enum decode_reg_type {
-	REG_TYPE_NONE = 0, /* Not a register, ignore */
+	REG_TYPE_NONE = 0, /* Not a register, igyesre */
 	REG_TYPE_ANY,	   /* Any register allowed */
 	REG_TYPE_SAMEAS16, /* Register should be same as that at bits 19..16 */
 	REG_TYPE_SP,	   /* Register must be SP */
 	REG_TYPE_PC,	   /* Register must be PC */
-	REG_TYPE_NOSP,	   /* Register must not be SP */
-	REG_TYPE_NOSPPC,   /* Register must not be SP or PC */
-	REG_TYPE_NOPC,	   /* Register must not be PC */
+	REG_TYPE_NOSP,	   /* Register must yest be SP */
+	REG_TYPE_NOSPPC,   /* Register must yest be SP or PC */
+	REG_TYPE_NOPC,	   /* Register must yest be PC */
 	REG_TYPE_NOPCWB,   /* No PC if load/store write-back flag also set */
 
 	/* The following types are used when the encoding for PC indicates
-	 * another instruction form. This distiction only matters for test
+	 * ayesther instruction form. This distiction only matters for test
 	 * case coverage checks.
 	 */
-	REG_TYPE_NOPCX,	   /* Register must not be PC */
-	REG_TYPE_NOSPPCX,  /* Register must not be SP or PC */
+	REG_TYPE_NOPCX,	   /* Register must yest be PC */
+	REG_TYPE_NOSPPCX,  /* Register must yest be SP or PC */
 
 	/* Alias to allow '0' arg to be used in REGS macro. */
 	REG_TYPE_0 = REG_TYPE_NONE
@@ -397,8 +397,8 @@ struct decode_reject {
 #define DECODE_REJECT(_mask, _value)				\
 	DECODE_HEADER(DECODE_TYPE_REJECT, _mask, _value, 0)
 
-probes_insn_handler_t probes_simulate_nop;
-probes_insn_handler_t probes_emulate_none;
+probes_insn_handler_t probes_simulate_yesp;
+probes_insn_handler_t probes_emulate_yesne;
 
 int __kprobes
 probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,

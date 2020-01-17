@@ -13,11 +13,11 @@
 
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -42,7 +42,7 @@ struct reset_reg_mask {
 
 static const struct reset_reg_mask *reset_masks;
 
-static int brcmstb_restart_handler(struct notifier_block *this,
+static int brcmstb_restart_handler(struct yestifier_block *this,
 				   unsigned long mode, void *cmd)
 {
 	int rc;
@@ -78,8 +78,8 @@ static int brcmstb_restart_handler(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block brcmstb_restart_nb = {
-	.notifier_call = brcmstb_restart_handler,
+static struct yestifier_block brcmstb_restart_nb = {
+	.yestifier_call = brcmstb_restart_handler,
 	.priority = 128,
 };
 
@@ -102,10 +102,10 @@ static const struct of_device_id of_match[] = {
 static int brcmstb_reboot_probe(struct platform_device *pdev)
 {
 	int rc;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *of_id;
 
-	of_id = of_match_node(of_match, np);
+	of_id = of_match_yesde(of_match, np);
 	if (!of_id) {
 		pr_err("failed to look up compatible string\n");
 		return -EINVAL;
@@ -135,7 +135,7 @@ static int brcmstb_reboot_probe(struct platform_device *pdev)
 	rc = register_restart_handler(&brcmstb_restart_nb);
 	if (rc)
 		dev_err(&pdev->dev,
-			"cannot register restart handler (err=%d)\n", rc);
+			"canyest register restart handler (err=%d)\n", rc);
 
 	return rc;
 }

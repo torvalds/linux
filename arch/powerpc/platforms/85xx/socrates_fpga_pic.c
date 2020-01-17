@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Copyright (C) 2008 Ilya Yanok, Emcraft Systems
+ *  Copyright (C) 2008 Ilya Yayesk, Emcraft Systems
  */
 
 #include <linux/irq.h>
@@ -237,7 +237,7 @@ static int socrates_fpga_pic_host_map(struct irq_domain *h, unsigned int virq,
 }
 
 static int socrates_fpga_pic_host_xlate(struct irq_domain *h,
-		struct device_node *ct,	const u32 *intspec, unsigned int intsize,
+		struct device_yesde *ct,	const u32 *intspec, unsigned int intsize,
 		irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
 	struct socrates_fpga_irq_info *fpga_irq = &fpga_irqs[intspec[0]];
@@ -271,7 +271,7 @@ static const struct irq_domain_ops socrates_fpga_pic_host_ops = {
 	.xlate  = socrates_fpga_pic_host_xlate,
 };
 
-void socrates_fpga_pic_init(struct device_node *pic)
+void socrates_fpga_pic_init(struct device_yesde *pic)
 {
 	unsigned long flags;
 	int i;

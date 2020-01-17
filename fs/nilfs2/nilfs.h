@@ -20,30 +20,30 @@
 #include "bmap.h"
 
 /**
- * struct nilfs_inode_info - nilfs inode data in memory
- * @i_flags: inode flags
+ * struct nilfs_iyesde_info - nilfs iyesde data in memory
+ * @i_flags: iyesde flags
  * @i_state: dynamic state flags
  * @i_bmap: pointer on i_bmap_data
  * @i_bmap_data: raw block mapping
  * @i_xattr: <TODO>
  * @i_dir_start_lookup: page index of last successful search
- * @i_cno: checkpoint number for GC inode
- * @i_btnode_cache: cached pages of b-tree nodes
+ * @i_cyes: checkpoint number for GC iyesde
+ * @i_btyesde_cache: cached pages of b-tree yesdes
  * @i_dirty: list for connecting dirty files
  * @xattr_sem: semaphore for extended attributes processing
- * @i_bh: buffer contains disk inode
+ * @i_bh: buffer contains disk iyesde
  * @i_root: root object of the current filesystem tree
- * @vfs_inode: VFS inode object
+ * @vfs_iyesde: VFS iyesde object
  */
-struct nilfs_inode_info {
+struct nilfs_iyesde_info {
 	__u32 i_flags;
 	unsigned long  i_state;		/* Dynamic state flags */
 	struct nilfs_bmap *i_bmap;
 	struct nilfs_bmap i_bmap_data;
 	__u64 i_xattr;	/* sector_t ??? */
 	__u32 i_dir_start_lookup;
-	__u64 i_cno;		/* check point number for GC inode */
-	struct address_space i_btnode_cache;
+	__u64 i_cyes;		/* check point number for GC iyesde */
+	struct address_space i_btyesde_cache;
 	struct list_head i_dirty;	/* List for connecting dirty files */
 
 #ifdef CONFIG_NILFS_XATTR
@@ -58,46 +58,46 @@ struct nilfs_inode_info {
 #endif
 	struct buffer_head *i_bh;	/*
 					 * i_bh contains a new or dirty
-					 * disk inode.
+					 * disk iyesde.
 					 */
 	struct nilfs_root *i_root;
-	struct inode vfs_inode;
+	struct iyesde vfs_iyesde;
 };
 
-static inline struct nilfs_inode_info *NILFS_I(const struct inode *inode)
+static inline struct nilfs_iyesde_info *NILFS_I(const struct iyesde *iyesde)
 {
-	return container_of(inode, struct nilfs_inode_info, vfs_inode);
+	return container_of(iyesde, struct nilfs_iyesde_info, vfs_iyesde);
 }
 
-static inline struct nilfs_inode_info *
+static inline struct nilfs_iyesde_info *
 NILFS_BMAP_I(const struct nilfs_bmap *bmap)
 {
-	return container_of(bmap, struct nilfs_inode_info, i_bmap_data);
+	return container_of(bmap, struct nilfs_iyesde_info, i_bmap_data);
 }
 
-static inline struct inode *NILFS_BTNC_I(struct address_space *btnc)
+static inline struct iyesde *NILFS_BTNC_I(struct address_space *btnc)
 {
-	struct nilfs_inode_info *ii =
-		container_of(btnc, struct nilfs_inode_info, i_btnode_cache);
-	return &ii->vfs_inode;
+	struct nilfs_iyesde_info *ii =
+		container_of(btnc, struct nilfs_iyesde_info, i_btyesde_cache);
+	return &ii->vfs_iyesde;
 }
 
 /*
- * Dynamic state flags of NILFS on-memory inode (i_state)
+ * Dynamic state flags of NILFS on-memory iyesde (i_state)
  */
 enum {
-	NILFS_I_NEW = 0,		/* Inode is newly created */
+	NILFS_I_NEW = 0,		/* Iyesde is newly created */
 	NILFS_I_DIRTY,			/* The file is dirty */
-	NILFS_I_QUEUED,			/* inode is in dirty_files list */
+	NILFS_I_QUEUED,			/* iyesde is in dirty_files list */
 	NILFS_I_BUSY,			/*
-					 * Inode is grabbed by a segment
+					 * Iyesde is grabbed by a segment
 					 * constructor
 					 */
 	NILFS_I_COLLECTED,		/* All dirty blocks are collected */
 	NILFS_I_UPDATED,		/* The file has been written back */
-	NILFS_I_INODE_SYNC,		/* dsync is not allowed for inode */
-	NILFS_I_BMAP,			/* has bmap and btnode_cache */
-	NILFS_I_GCINODE,		/* inode for GC, on memory only */
+	NILFS_I_INODE_SYNC,		/* dsync is yest allowed for iyesde */
+	NILFS_I_BMAP,			/* has bmap and btyesde_cache */
+	NILFS_I_GCINODE,		/* iyesde for GC, on memory only */
 };
 
 /*
@@ -109,7 +109,7 @@ enum {
 };
 
 /*
- * Macros to check inode numbers
+ * Macros to check iyesde numbers
  */
 #define NILFS_MDT_INO_BITS						\
 	(BIT(NILFS_DAT_INO) | BIT(NILFS_CPFILE_INO) |			\
@@ -118,12 +118,12 @@ enum {
 
 #define NILFS_SYS_INO_BITS (BIT(NILFS_ROOT_INO) | NILFS_MDT_INO_BITS)
 
-#define NILFS_FIRST_INO(sb) (((struct the_nilfs *)sb->s_fs_info)->ns_first_ino)
+#define NILFS_FIRST_INO(sb) (((struct the_nilfs *)sb->s_fs_info)->ns_first_iyes)
 
-#define NILFS_MDT_INODE(sb, ino) \
-	((ino) < NILFS_FIRST_INO(sb) && (NILFS_MDT_INO_BITS & BIT(ino)))
-#define NILFS_VALID_INODE(sb, ino) \
-	((ino) >= NILFS_FIRST_INO(sb) || (NILFS_SYS_INO_BITS & BIT(ino)))
+#define NILFS_MDT_INODE(sb, iyes) \
+	((iyes) < NILFS_FIRST_INO(sb) && (NILFS_MDT_INO_BITS & BIT(iyes)))
+#define NILFS_VALID_INODE(sb, iyes) \
+	((iyes) >= NILFS_FIRST_INO(sb) || (NILFS_SYS_INO_BITS & BIT(iyes)))
 
 /**
  * struct nilfs_transaction_info: context information for synchronization
@@ -153,7 +153,7 @@ struct nilfs_transaction_info {
 					 * end of transaction.
 					 */
 #define NILFS_TI_GC		0x0004	/* GC context */
-#define NILFS_TI_COMMIT		0x0008	/* Change happened or not */
+#define NILFS_TI_COMMIT		0x0008	/* Change happened or yest */
 #define NILFS_TI_WRITER		0x0010	/* Constructor context */
 
 
@@ -192,31 +192,31 @@ static inline int nilfs_doing_construction(void)
  * function prototype
  */
 #ifdef CONFIG_NILFS_POSIX_ACL
-#error "NILFS: not yet supported POSIX ACL"
-extern int nilfs_acl_chmod(struct inode *);
-extern int nilfs_init_acl(struct inode *, struct inode *);
+#error "NILFS: yest yet supported POSIX ACL"
+extern int nilfs_acl_chmod(struct iyesde *);
+extern int nilfs_init_acl(struct iyesde *, struct iyesde *);
 #else
-static inline int nilfs_acl_chmod(struct inode *inode)
+static inline int nilfs_acl_chmod(struct iyesde *iyesde)
 {
 	return 0;
 }
 
-static inline int nilfs_init_acl(struct inode *inode, struct inode *dir)
+static inline int nilfs_init_acl(struct iyesde *iyesde, struct iyesde *dir)
 {
-	inode->i_mode &= ~current_umask();
+	iyesde->i_mode &= ~current_umask();
 	return 0;
 }
 #endif
 
 #define NILFS_ATIME_DISABLE
 
-/* Flags that should be inherited by new inodes from their parent. */
+/* Flags that should be inherited by new iyesdes from their parent. */
 #define NILFS_FL_INHERITED						\
 	(FS_SECRM_FL | FS_UNRM_FL | FS_COMPR_FL | FS_SYNC_FL |		\
 	 FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NODUMP_FL | FS_NOATIME_FL |\
 	 FS_COMPRBLK_FL | FS_NOCOMP_FL | FS_NOTAIL_FL | FS_DIRSYNC_FL)
 
-/* Mask out flags that are inappropriate for the given type of inode. */
+/* Mask out flags that are inappropriate for the given type of iyesde. */
 static inline __u32 nilfs_mask_flags(umode_t mode, __u32 flags)
 {
 	if (S_ISDIR(mode))
@@ -228,16 +228,16 @@ static inline __u32 nilfs_mask_flags(umode_t mode, __u32 flags)
 }
 
 /* dir.c */
-extern int nilfs_add_link(struct dentry *, struct inode *);
-extern ino_t nilfs_inode_by_name(struct inode *, const struct qstr *);
-extern int nilfs_make_empty(struct inode *, struct inode *);
+extern int nilfs_add_link(struct dentry *, struct iyesde *);
+extern iyes_t nilfs_iyesde_by_name(struct iyesde *, const struct qstr *);
+extern int nilfs_make_empty(struct iyesde *, struct iyesde *);
 extern struct nilfs_dir_entry *
-nilfs_find_entry(struct inode *, const struct qstr *, struct page **);
+nilfs_find_entry(struct iyesde *, const struct qstr *, struct page **);
 extern int nilfs_delete_entry(struct nilfs_dir_entry *, struct page *);
-extern int nilfs_empty_dir(struct inode *);
-extern struct nilfs_dir_entry *nilfs_dotdot(struct inode *, struct page **);
-extern void nilfs_set_link(struct inode *, struct nilfs_dir_entry *,
-			   struct page *, struct inode *);
+extern int nilfs_empty_dir(struct iyesde *);
+extern struct nilfs_dir_entry *nilfs_dotdot(struct iyesde *, struct page **);
+extern void nilfs_set_link(struct iyesde *, struct nilfs_dir_entry *,
+			   struct page *, struct iyesde *);
 
 /* file.c */
 extern int nilfs_sync_file(struct file *, loff_t, loff_t, int);
@@ -248,46 +248,46 @@ long nilfs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *, struct nilfs_argv *,
 				       void **);
 
-/* inode.c */
-void nilfs_inode_add_blocks(struct inode *inode, int n);
-void nilfs_inode_sub_blocks(struct inode *inode, int n);
-extern struct inode *nilfs_new_inode(struct inode *, umode_t);
-extern int nilfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
-extern void nilfs_set_inode_flags(struct inode *);
-extern int nilfs_read_inode_common(struct inode *, struct nilfs_inode *);
-extern void nilfs_write_inode_common(struct inode *, struct nilfs_inode *, int);
-struct inode *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
-			    unsigned long ino);
-struct inode *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
-				unsigned long ino);
-struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
-			 unsigned long ino);
-extern struct inode *nilfs_iget_for_gc(struct super_block *sb,
-				       unsigned long ino, __u64 cno);
-extern void nilfs_update_inode(struct inode *, struct buffer_head *, int);
-extern void nilfs_truncate(struct inode *);
-extern void nilfs_evict_inode(struct inode *);
+/* iyesde.c */
+void nilfs_iyesde_add_blocks(struct iyesde *iyesde, int n);
+void nilfs_iyesde_sub_blocks(struct iyesde *iyesde, int n);
+extern struct iyesde *nilfs_new_iyesde(struct iyesde *, umode_t);
+extern int nilfs_get_block(struct iyesde *, sector_t, struct buffer_head *, int);
+extern void nilfs_set_iyesde_flags(struct iyesde *);
+extern int nilfs_read_iyesde_common(struct iyesde *, struct nilfs_iyesde *);
+extern void nilfs_write_iyesde_common(struct iyesde *, struct nilfs_iyesde *, int);
+struct iyesde *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
+			    unsigned long iyes);
+struct iyesde *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
+				unsigned long iyes);
+struct iyesde *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
+			 unsigned long iyes);
+extern struct iyesde *nilfs_iget_for_gc(struct super_block *sb,
+				       unsigned long iyes, __u64 cyes);
+extern void nilfs_update_iyesde(struct iyesde *, struct buffer_head *, int);
+extern void nilfs_truncate(struct iyesde *);
+extern void nilfs_evict_iyesde(struct iyesde *);
 extern int nilfs_setattr(struct dentry *, struct iattr *);
 extern void nilfs_write_failed(struct address_space *mapping, loff_t to);
-int nilfs_permission(struct inode *inode, int mask);
-int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh);
-extern int nilfs_inode_dirty(struct inode *);
-int nilfs_set_file_dirty(struct inode *inode, unsigned int nr_dirty);
-extern int __nilfs_mark_inode_dirty(struct inode *, int);
-extern void nilfs_dirty_inode(struct inode *, int flags);
-int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+int nilfs_permission(struct iyesde *iyesde, int mask);
+int nilfs_load_iyesde_block(struct iyesde *iyesde, struct buffer_head **pbh);
+extern int nilfs_iyesde_dirty(struct iyesde *);
+int nilfs_set_file_dirty(struct iyesde *iyesde, unsigned int nr_dirty);
+extern int __nilfs_mark_iyesde_dirty(struct iyesde *, int);
+extern void nilfs_dirty_iyesde(struct iyesde *, int flags);
+int nilfs_fiemap(struct iyesde *iyesde, struct fiemap_extent_info *fieinfo,
 		 __u64 start, __u64 len);
-static inline int nilfs_mark_inode_dirty(struct inode *inode)
+static inline int nilfs_mark_iyesde_dirty(struct iyesde *iyesde)
 {
-	return __nilfs_mark_inode_dirty(inode, I_DIRTY);
+	return __nilfs_mark_iyesde_dirty(iyesde, I_DIRTY);
 }
-static inline int nilfs_mark_inode_dirty_sync(struct inode *inode)
+static inline int nilfs_mark_iyesde_dirty_sync(struct iyesde *iyesde)
 {
-	return __nilfs_mark_inode_dirty(inode, I_DIRTY_SYNC);
+	return __nilfs_mark_iyesde_dirty(iyesde, I_DIRTY_SYNC);
 }
 
 /* super.c */
-extern struct inode *nilfs_alloc_inode(struct super_block *);
+extern struct iyesde *nilfs_alloc_iyesde(struct super_block *);
 
 extern __printf(3, 4)
 void __nilfs_msg(struct super_block *sb, const char *level,
@@ -307,12 +307,12 @@ void __nilfs_error(struct super_block *sb, const char *function,
 
 #define nilfs_msg(sb, level, fmt, ...)					\
 	do {								\
-		no_printk(fmt, ##__VA_ARGS__);				\
+		yes_printk(fmt, ##__VA_ARGS__);				\
 		(void)(sb);						\
 	} while (0)
 #define nilfs_error(sb, fmt, ...)					\
 	do {								\
-		no_printk(fmt, ##__VA_ARGS__);				\
+		yes_printk(fmt, ##__VA_ARGS__);				\
 		__nilfs_error(sb, "", " ");				\
 	} while (0)
 
@@ -331,18 +331,18 @@ struct nilfs_super_block **nilfs_prepare_super(struct super_block *sb,
 int nilfs_commit_super(struct super_block *sb, int flag);
 int nilfs_cleanup_super(struct super_block *sb);
 int nilfs_resize_fs(struct super_block *sb, __u64 newsize);
-int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
+int nilfs_attach_checkpoint(struct super_block *sb, __u64 cyes, int curr_mnt,
 			    struct nilfs_root **root);
-int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cno);
+int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cyes);
 
-/* gcinode.c */
-int nilfs_gccache_submit_read_data(struct inode *, sector_t, sector_t, __u64,
+/* gciyesde.c */
+int nilfs_gccache_submit_read_data(struct iyesde *, sector_t, sector_t, __u64,
 				   struct buffer_head **);
-int nilfs_gccache_submit_read_node(struct inode *, sector_t, __u64,
+int nilfs_gccache_submit_read_yesde(struct iyesde *, sector_t, __u64,
 				   struct buffer_head **);
 int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *);
-int nilfs_init_gcinode(struct inode *inode);
-void nilfs_remove_all_gcinodes(struct the_nilfs *nilfs);
+int nilfs_init_gciyesde(struct iyesde *iyesde);
+void nilfs_remove_all_gciyesdes(struct the_nilfs *nilfs);
 
 /* sysfs.c */
 int __init nilfs_sysfs_init(void);
@@ -353,15 +353,15 @@ int nilfs_sysfs_create_snapshot_group(struct nilfs_root *);
 void nilfs_sysfs_delete_snapshot_group(struct nilfs_root *);
 
 /*
- * Inodes and files operations
+ * Iyesdes and files operations
  */
 extern const struct file_operations nilfs_dir_operations;
-extern const struct inode_operations nilfs_file_inode_operations;
+extern const struct iyesde_operations nilfs_file_iyesde_operations;
 extern const struct file_operations nilfs_file_operations;
 extern const struct address_space_operations nilfs_aops;
-extern const struct inode_operations nilfs_dir_inode_operations;
-extern const struct inode_operations nilfs_special_inode_operations;
-extern const struct inode_operations nilfs_symlink_inode_operations;
+extern const struct iyesde_operations nilfs_dir_iyesde_operations;
+extern const struct iyesde_operations nilfs_special_iyesde_operations;
+extern const struct iyesde_operations nilfs_symlink_iyesde_operations;
 
 /*
  * filesystem type

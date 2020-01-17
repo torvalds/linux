@@ -23,7 +23,7 @@
 /*
  * This is only the first step towards a full-features scrub. It reads all
  * extent and super block and verifies the checksums. In case a bad checksum
- * is found or the extent cannot be read, good data will be written back if
+ * is found or the extent canyest be read, good data will be written back if
  * any can be found.
  *
  * Future enhancements:
@@ -47,11 +47,11 @@ struct scrub_ctx;
 #define SCRUB_BIOS_PER_SCTX	64	/* 8MB per device in flight */
 
 /*
- * the following value times PAGE_SIZE needs to be large enough to match the
- * largest node/leaf/sector size that shall be supported.
- * Values larger than BTRFS_STRIPE_LEN are not supported.
+ * the following value times PAGE_SIZE needs to be large eyesugh to match the
+ * largest yesde/leaf/sector size that shall be supported.
+ * Values larger than BTRFS_STRIPE_LEN are yest supported.
  */
-#define SCRUB_MAX_PAGES_PER_BLOCK	16	/* 64k per node/leaf/sector */
+#define SCRUB_MAX_PAGES_PER_BLOCK	16	/* 64k per yesde/leaf/sector */
 
 struct scrub_recover {
 	refcount_t		refs;
@@ -108,7 +108,7 @@ struct scrub_block {
 	struct {
 		unsigned int	header_error:1;
 		unsigned int	checksum_error:1;
-		unsigned int	no_io_error_seen:1;
+		unsigned int	yes_io_error_seen:1;
 		unsigned int	generation_error:1; /* also sets header_error */
 
 		/* The following is for the data used to check parity */
@@ -200,7 +200,7 @@ struct scrub_warning {
 };
 
 struct full_stripe_lock {
-	struct rb_node node;
+	struct rb_yesde yesde;
 	u64 logical;
 	u64 refs;
 	struct mutex mutex;
@@ -320,17 +320,17 @@ static struct full_stripe_lock *insert_full_stripe_lock(
 		struct btrfs_full_stripe_locks_tree *locks_root,
 		u64 fstripe_logical)
 {
-	struct rb_node **p;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p;
+	struct rb_yesde *parent = NULL;
 	struct full_stripe_lock *entry;
 	struct full_stripe_lock *ret;
 
 	lockdep_assert_held(&locks_root->lock);
 
-	p = &locks_root->root.rb_node;
+	p = &locks_root->root.rb_yesde;
 	while (*p) {
 		parent = *p;
-		entry = rb_entry(parent, struct full_stripe_lock, node);
+		entry = rb_entry(parent, struct full_stripe_lock, yesde);
 		if (fstripe_logical < entry->logical) {
 			p = &(*p)->rb_left;
 		} else if (fstripe_logical > entry->logical) {
@@ -351,8 +351,8 @@ static struct full_stripe_lock *insert_full_stripe_lock(
 	ret->refs = 1;
 	mutex_init(&ret->mutex);
 
-	rb_link_node(&ret->node, parent, p);
-	rb_insert_color(&ret->node, &locks_root->root);
+	rb_link_yesde(&ret->yesde, parent, p);
+	rb_insert_color(&ret->yesde, &locks_root->root);
 	return ret;
 }
 
@@ -360,24 +360,24 @@ static struct full_stripe_lock *insert_full_stripe_lock(
  * Search for a full stripe lock of a block group
  *
  * Return pointer to existing full stripe lock if found
- * Return NULL if not found
+ * Return NULL if yest found
  */
 static struct full_stripe_lock *search_full_stripe_lock(
 		struct btrfs_full_stripe_locks_tree *locks_root,
 		u64 fstripe_logical)
 {
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct full_stripe_lock *entry;
 
 	lockdep_assert_held(&locks_root->lock);
 
-	node = locks_root->root.rb_node;
-	while (node) {
-		entry = rb_entry(node, struct full_stripe_lock, node);
+	yesde = locks_root->root.rb_yesde;
+	while (yesde) {
+		entry = rb_entry(yesde, struct full_stripe_lock, yesde);
 		if (fstripe_logical < entry->logical)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (fstripe_logical > entry->logical)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return entry;
 	}
@@ -385,7 +385,7 @@ static struct full_stripe_lock *search_full_stripe_lock(
 }
 
 /*
- * Helper to get full stripe logical from a normal bytenr.
+ * Helper to get full stripe logical from a yesrmal bytenr.
  *
  * Caller must ensure @cache is a RAID56 block group.
  */
@@ -394,7 +394,7 @@ static u64 get_full_stripe_logical(struct btrfs_block_group *cache, u64 bytenr)
 	u64 ret;
 
 	/*
-	 * Due to chunk item size limit, full stripe length should not be
+	 * Due to chunk item size limit, full stripe length should yest be
 	 * larger than U32_MAX. Just a sanity check here.
 	 */
 	WARN_ON_ONCE(cache->full_stripe_len >= U32_MAX);
@@ -412,7 +412,7 @@ static u64 get_full_stripe_logical(struct btrfs_block_group *cache, u64 bytenr)
  * Lock a full stripe to avoid concurrency of recovery and read
  *
  * It's only used for profiles with parities (RAID5/6), for other profiles it
- * does nothing.
+ * does yesthing.
  *
  * Return 0 if we locked full stripe covering @bytenr, with a mutex held.
  * So caller must call unlock_full_stripe() at the same context.
@@ -435,7 +435,7 @@ static int lock_full_stripe(struct btrfs_fs_info *fs_info, u64 bytenr,
 		return -ENOENT;
 	}
 
-	/* Profiles not based on parity don't need full stripe lock */
+	/* Profiles yest based on parity don't need full stripe lock */
 	if (!(bg_cache->flags & BTRFS_BLOCK_GROUP_RAID56_MASK))
 		goto out;
 	locks_root = &bg_cache->full_stripe_locks_root;
@@ -476,7 +476,7 @@ static int unlock_full_stripe(struct btrfs_fs_info *fs_info, u64 bytenr,
 	bool freeit = false;
 	int ret = 0;
 
-	/* If we didn't acquire full stripe lock, no need to continue */
+	/* If we didn't acquire full stripe lock, yes need to continue */
 	if (!locked)
 		return 0;
 
@@ -510,7 +510,7 @@ static int unlock_full_stripe(struct btrfs_fs_info *fs_info, u64 bytenr,
 	}
 
 	if (fstripe_lock->refs == 0) {
-		rb_erase(&fstripe_lock->node, &locks_root->root);
+		rb_erase(&fstripe_lock->yesde, &locks_root->root);
 		freeit = true;
 	}
 	mutex_unlock(&locks_root->lock);
@@ -534,7 +534,7 @@ static void scrub_free_csums(struct scrub_ctx *sctx)
 	}
 }
 
-static noinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
+static yesinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
 {
 	int i;
 
@@ -571,7 +571,7 @@ static void scrub_put_ctx(struct scrub_ctx *sctx)
 		scrub_free_ctx(sctx);
 }
 
-static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
+static yesinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 		struct btrfs_fs_info *fs_info, int is_dev_replace)
 {
 	struct scrub_ctx *sctx;
@@ -579,7 +579,7 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 
 	sctx = kzalloc(sizeof(*sctx), GFP_KERNEL);
 	if (!sctx)
-		goto nomem;
+		goto yesmem;
 	refcount_set(&sctx->refs, 1);
 	sctx->is_dev_replace = is_dev_replace;
 	sctx->pages_per_rd_bio = SCRUB_PAGES_PER_RD_BIO;
@@ -591,7 +591,7 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 
 		sbio = kzalloc(sizeof(*sbio), GFP_KERNEL);
 		if (!sbio)
-			goto nomem;
+			goto yesmem;
 		sctx->bios[i] = sbio;
 
 		sbio->index = i;
@@ -627,24 +627,24 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 
 	return sctx;
 
-nomem:
+yesmem:
 	scrub_free_ctx(sctx);
 	return ERR_PTR(-ENOMEM);
 }
 
-static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
+static int scrub_print_warning_iyesde(u64 inum, u64 offset, u64 root,
 				     void *warn_ctx)
 {
 	u64 isize;
 	u32 nlink;
 	int ret;
 	int i;
-	unsigned nofs_flag;
+	unsigned yesfs_flag;
 	struct extent_buffer *eb;
-	struct btrfs_inode_item *inode_item;
+	struct btrfs_iyesde_item *iyesde_item;
 	struct scrub_warning *swarn = warn_ctx;
 	struct btrfs_fs_info *fs_info = swarn->dev->fs_info;
-	struct inode_fs_paths *ipath = NULL;
+	struct iyesde_fs_paths *ipath = NULL;
 	struct btrfs_root *local_root;
 	struct btrfs_key root_key;
 	struct btrfs_key key;
@@ -652,7 +652,7 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	root_key.objectid = root;
 	root_key.type = BTRFS_ROOT_ITEM_KEY;
 	root_key.offset = (u64)-1;
-	local_root = btrfs_read_fs_root_no_name(fs_info, &root_key);
+	local_root = btrfs_read_fs_root_yes_name(fs_info, &root_key);
 	if (IS_ERR(local_root)) {
 		ret = PTR_ERR(local_root);
 		goto err;
@@ -671,38 +671,38 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 		goto err;
 	}
 
-	eb = swarn->path->nodes[0];
-	inode_item = btrfs_item_ptr(eb, swarn->path->slots[0],
-					struct btrfs_inode_item);
-	isize = btrfs_inode_size(eb, inode_item);
-	nlink = btrfs_inode_nlink(eb, inode_item);
+	eb = swarn->path->yesdes[0];
+	iyesde_item = btrfs_item_ptr(eb, swarn->path->slots[0],
+					struct btrfs_iyesde_item);
+	isize = btrfs_iyesde_size(eb, iyesde_item);
+	nlink = btrfs_iyesde_nlink(eb, iyesde_item);
 	btrfs_release_path(swarn->path);
 
 	/*
 	 * init_path might indirectly call vmalloc, or use GFP_KERNEL. Scrub
 	 * uses GFP_NOFS in this context, so we keep it consistent but it does
-	 * not seem to be strictly necessary.
+	 * yest seem to be strictly necessary.
 	 */
-	nofs_flag = memalloc_nofs_save();
+	yesfs_flag = memalloc_yesfs_save();
 	ipath = init_ipath(4096, local_root, swarn->path);
-	memalloc_nofs_restore(nofs_flag);
+	memalloc_yesfs_restore(yesfs_flag);
 	if (IS_ERR(ipath)) {
 		ret = PTR_ERR(ipath);
 		ipath = NULL;
 		goto err;
 	}
-	ret = paths_from_inode(inum, ipath);
+	ret = paths_from_iyesde(inum, ipath);
 
 	if (ret < 0)
 		goto err;
 
 	/*
-	 * we deliberately ignore the bit ipath might have been too small to
+	 * we deliberately igyesre the bit ipath might have been too small to
 	 * hold all of the paths here
 	 */
 	for (i = 0; i < ipath->fspath->elem_cnt; ++i)
 		btrfs_warn_in_rcu(fs_info,
-"%s at logical %llu on dev %s, physical %llu, root %llu, inode %llu, offset %llu, length %llu, links %u (path: %s)",
+"%s at logical %llu on dev %s, physical %llu, root %llu, iyesde %llu, offset %llu, length %llu, links %u (path: %s)",
 				  swarn->errstr, swarn->logical,
 				  rcu_str_deref(swarn->dev->name),
 				  swarn->physical,
@@ -715,7 +715,7 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 
 err:
 	btrfs_warn_in_rcu(fs_info,
-			  "%s at logical %llu on dev %s, physical %llu, root %llu, inode %llu, offset %llu: path resolving failed with ret=%d",
+			  "%s at logical %llu on dev %s, physical %llu, root %llu, iyesde %llu, offset %llu: path resolving failed with ret=%d",
 			  swarn->errstr, swarn->logical,
 			  rcu_str_deref(swarn->dev->name),
 			  swarn->physical,
@@ -763,7 +763,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	extent_item_pos = swarn.logical - found_key.objectid;
 	swarn.extent_item_size = found_key.offset;
 
-	eb = path->nodes[0];
+	eb = path->yesdes[0];
 	ei = btrfs_item_ptr(eb, path->slots[0], struct btrfs_extent_item);
 	item_size = btrfs_item_size_nr(eb, path->slots[0]);
 
@@ -777,7 +777,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 				errstr, swarn.logical,
 				rcu_str_deref(dev->name),
 				swarn.physical,
-				ref_level ? "node" : "leaf",
+				ref_level ? "yesde" : "leaf",
 				ret < 0 ? -1 : ref_level,
 				ret < 0 ? -1 : ref_root);
 		} while (ret != 1);
@@ -786,9 +786,9 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 		btrfs_release_path(path);
 		swarn.path = path;
 		swarn.dev = dev;
-		iterate_extent_inodes(fs_info, found_key.objectid,
+		iterate_extent_iyesdes(fs_info, found_key.objectid,
 					extent_item_pos, 1,
-					scrub_print_warning_inode, &swarn, false);
+					scrub_print_warning_iyesde, &swarn, false);
 	}
 
 out:
@@ -834,7 +834,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	int page_num;
 	int success;
 	bool full_stripe_locked;
-	unsigned int nofs_flag;
+	unsigned int yesfs_flag;
 	static DEFINE_RATELIMIT_STATE(_rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
 
@@ -868,7 +868,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	 * and scrub_add_page_to_wr_bio(), which happens down the call chain of
 	 * this function.
 	 */
-	nofs_flag = memalloc_nofs_save();
+	yesfs_flag = memalloc_yesfs_save();
 	/*
 	 * For RAID5/6, race can happen for a different device scrub thread.
 	 * For data corruption, Parity and Data threads will both try
@@ -878,7 +878,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	 */
 	ret = lock_full_stripe(fs_info, logical, &full_stripe_locked);
 	if (ret < 0) {
-		memalloc_nofs_restore(nofs_flag);
+		memalloc_yesfs_restore(yesfs_flag);
 		spin_lock(&sctx->stat_lock);
 		if (ret == -ENOMEM)
 			sctx->stat.malloc_errors++;
@@ -891,11 +891,11 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	/*
 	 * read all mirrors one after the other. This includes to
 	 * re-read the extent or metadata block that failed (that was
-	 * the cause that this fixup code is called) another time,
-	 * page by page this time in order to know which pages
+	 * the cause that this fixup code is called) ayesther time,
+	 * page by page this time in order to kyesw which pages
 	 * caused I/O errors and which ones are good (for all mirrors).
 	 * It is the goal to handle the situation when more than one
-	 * mirror contains I/O errors, but the errors do not
+	 * mirror contains I/O errors, but the errors do yest
 	 * overlap, i.e. the data can be repaired by selecting the
 	 * pages from those mirrors without I/O error on the
 	 * particular pages. One example (with blocks >= 2 * PAGE_SIZE)
@@ -906,11 +906,11 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	 * taking the first page of the second mirror, and the
 	 * second page of the second mirror can be repaired by
 	 * copying the contents of the 2nd page of the 1st mirror.
-	 * One more note: if the pages of one mirror contain I/O
-	 * errors, the checksum cannot be verified. In order to get
+	 * One more yeste: if the pages of one mirror contain I/O
+	 * errors, the checksum canyest be verified. In order to get
 	 * the best data for repairing, the first attempt is to find
 	 * a mirror without I/O errors and with a validated checksum.
-	 * Only if this is not possible, the pages are picked from
+	 * Only if this is yest possible, the pages are picked from
 	 * mirrors with I/O errors without considering the checksum.
 	 * If the latter is the case, at the end, the checksum of the
 	 * repaired area is verified in order to correctly maintain
@@ -946,7 +946,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	scrub_recheck_block(fs_info, sblock_bad, 1);
 
 	if (!sblock_bad->header_error && !sblock_bad->checksum_error &&
-	    sblock_bad->no_io_error_seen) {
+	    sblock_bad->yes_io_error_seen) {
 		/*
 		 * the error disappeared after reading page by page, or
 		 * the area was part of a huge bio and other parts of the
@@ -965,7 +965,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 		goto out;
 	}
 
-	if (!sblock_bad->no_io_error_seen) {
+	if (!sblock_bad->yes_io_error_seen) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.read_errors++;
 		spin_unlock(&sctx->stat_lock);
@@ -1001,16 +1001,16 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	}
 
 	/*
-	 * now build and submit the bios for the other mirrors, check
+	 * yesw build and submit the bios for the other mirrors, check
 	 * checksums.
 	 * First try to pick the mirror which is completely without I/O
-	 * errors and also does not have a checksum error.
+	 * errors and also does yest have a checksum error.
 	 * If one is found, and if a checksum is present, the full block
-	 * that is known to contain an error is rewritten. Afterwards
-	 * the block is known to be corrected.
-	 * If a mirror is found which is completely correct, and no
+	 * that is kyeswn to contain an error is rewritten. Afterwards
+	 * the block is kyeswn to be corrected.
+	 * If a mirror is found which is completely correct, and yes
 	 * checksum is present, only those pages are rewritten that had
-	 * an I/O error in the block to be repaired, since it cannot be
+	 * an I/O error in the block to be repaired, since it canyest be
 	 * determined, which copy of the other pages is better (and it
 	 * could happen otherwise that a correct page would be
 	 * overwritten by a bad one).
@@ -1049,7 +1049,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 
 		if (!sblock_other->header_error &&
 		    !sblock_other->checksum_error &&
-		    sblock_other->no_io_error_seen) {
+		    sblock_other->yes_io_error_seen) {
 			if (sctx->is_dev_replace) {
 				scrub_write_block_to_dev_replace(sblock_other);
 				goto corrected_error;
@@ -1062,8 +1062,8 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 		}
 	}
 
-	if (sblock_bad->no_io_error_seen && !sctx->is_dev_replace)
-		goto did_not_correct_error;
+	if (sblock_bad->yes_io_error_seen && !sctx->is_dev_replace)
+		goto did_yest_correct_error;
 
 	/*
 	 * In case of I/O errors in the area that is supposed to be
@@ -1078,9 +1078,9 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	 * until the checksum verification succeeds. For example, when
 	 * the 2nd page of mirror #1 faces I/O errors, and the 2nd page
 	 * of mirror #2 is readable but the final checksum test fails,
-	 * then the 2nd page of mirror #3 could be tried, whether now
+	 * then the 2nd page of mirror #3 could be tried, whether yesw
 	 * the final checksum succeeds. But this would be a rare
-	 * exception and is therefore not implemented. At least it is
+	 * exception and is therefore yest implemented. At least it is
 	 * avoided that the good copy is overwritten.
 	 * A more useful improvement would be to pick the sectors
 	 * without I/O error based on sector sizes (512 bytes on legacy
@@ -1095,7 +1095,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 		struct scrub_page *page_bad = sblock_bad->pagev[page_num];
 		struct scrub_block *sblock_other = NULL;
 
-		/* skip no-io-error page in scrub */
+		/* skip yes-io-error page in scrub */
 		if (!page_bad->io_error && !sctx->is_dev_replace)
 			continue;
 
@@ -1109,7 +1109,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 			 */
 			sblock_other = NULL;
 		} else if (page_bad->io_error) {
-			/* try to find no-io-error page in mirrors */
+			/* try to find yes-io-error page in mirrors */
 			for (mirror_index = 0;
 			     mirror_index < BTRFS_MAX_MIRRORS &&
 			     sblocks_for_recheck[mirror_index].page_count > 0;
@@ -1127,7 +1127,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 
 		if (sctx->is_dev_replace) {
 			/*
-			 * did not find a mirror to fetch the page
+			 * did yest find a mirror to fetch the page
 			 * from. scrub_write_page_to_dev_replace()
 			 * handles this case (page->io_error), by
 			 * filling the block with zeros before
@@ -1156,7 +1156,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	if (success && !sctx->is_dev_replace) {
 		if (is_metadata || have_csum) {
 			/*
-			 * need to verify the checksum now that all
+			 * need to verify the checksum yesw that all
 			 * sectors on disk are repaired (the write
 			 * request for data to be repaired is on its way).
 			 * Just be lazy and use scrub_recheck_block()
@@ -1167,10 +1167,10 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 			scrub_recheck_block(fs_info, sblock_bad, 1);
 			if (!sblock_bad->header_error &&
 			    !sblock_bad->checksum_error &&
-			    sblock_bad->no_io_error_seen)
+			    sblock_bad->yes_io_error_seen)
 				goto corrected_error;
 			else
-				goto did_not_correct_error;
+				goto did_yest_correct_error;
 		} else {
 corrected_error:
 			spin_lock(&sctx->stat_lock);
@@ -1182,7 +1182,7 @@ corrected_error:
 				logical, rcu_str_deref(dev->name));
 		}
 	} else {
-did_not_correct_error:
+did_yest_correct_error:
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.uncorrectable_errors++;
 		spin_unlock(&sctx->stat_lock);
@@ -1216,7 +1216,7 @@ out:
 	}
 
 	ret = unlock_full_stripe(fs_info, logical, full_stripe_locked);
-	memalloc_nofs_restore(nofs_flag);
+	memalloc_yesfs_restore(yesfs_flag);
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -1284,8 +1284,8 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 	int ret;
 
 	/*
-	 * note: the two members refs and outstanding_pages
-	 * are not used (and not set) in the blocks that are used for
+	 * yeste: the two members refs and outstanding_pages
+	 * are yest used (and yest set) in the blocks that are used for
 	 * the recheck procedure
 	 */
 
@@ -1332,7 +1332,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 
 			page = kzalloc(sizeof(*page), GFP_NOFS);
 			if (!page) {
-leave_nomem:
+leave_yesmem:
 				spin_lock(&sctx->stat_lock);
 				sctx->stat.malloc_errors++;
 				spin_unlock(&sctx->stat_lock);
@@ -1373,7 +1373,7 @@ leave_nomem:
 			sblock->page_count++;
 			page->page = alloc_page(GFP_NOFS);
 			if (!page->page)
-				goto leave_nomem;
+				goto leave_yesmem;
 
 			scrub_get_recover(recover);
 			page->recover = recover;
@@ -1412,7 +1412,7 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 		return ret;
 
 	wait_for_completion_io(&done);
-	return blk_status_to_errno(bio->bi_status);
+	return blk_status_to_erryes(bio->bi_status);
 }
 
 static void scrub_recheck_block_on_raid56(struct btrfs_fs_info *fs_info,
@@ -1451,14 +1451,14 @@ out:
 	for (page_num = 0; page_num < sblock->page_count; page_num++)
 		sblock->pagev[page_num]->io_error = 1;
 
-	sblock->no_io_error_seen = 0;
+	sblock->yes_io_error_seen = 0;
 }
 
 /*
  * this function will check the on disk data for checksum errors, header
  * errors and read I/O errors. If any I/O errors happen, the exact pages
  * which are errored are marked as being bad. The goal is to enable scrub
- * to take those pages that are not errored from all the mirrors so that
+ * to take those pages that are yest errored from all the mirrors so that
  * the pages that are errored in the just handled mirror can be repaired.
  */
 static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
@@ -1467,7 +1467,7 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 {
 	int page_num;
 
-	sblock->no_io_error_seen = 1;
+	sblock->yes_io_error_seen = 1;
 
 	/* short cut for raid56 */
 	if (!retry_failed_mirror && scrub_is_page_on_raid56(sblock->pagev[0]))
@@ -1479,7 +1479,7 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 
 		if (page->dev->bdev == NULL) {
 			page->io_error = 1;
-			sblock->no_io_error_seen = 0;
+			sblock->yes_io_error_seen = 0;
 			continue;
 		}
 
@@ -1493,13 +1493,13 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 
 		if (btrfsic_submit_bio_wait(bio)) {
 			page->io_error = 1;
-			sblock->no_io_error_seen = 0;
+			sblock->yes_io_error_seen = 0;
 		}
 
 		bio_put(bio);
 	}
 
-	if (sblock->no_io_error_seen)
+	if (sblock->yes_io_error_seen)
 		scrub_recheck_block_checksum(sblock);
 }
 
@@ -1875,7 +1875,7 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 		   BTRFS_UUID_SIZE))
 		sblock->header_error = 1;
 
-	len = sctx->fs_info->nodesize - BTRFS_CSUM_SIZE;
+	len = sctx->fs_info->yesdesize - BTRFS_CSUM_SIZE;
 	mapped_size = PAGE_SIZE - BTRFS_CSUM_SIZE;
 	p = ((u8 *)mapped_buffer) + BTRFS_CSUM_SIZE;
 	index = 0;
@@ -2108,7 +2108,7 @@ static void scrub_missing_raid56_end_io(struct bio *bio)
 	struct btrfs_fs_info *fs_info = sblock->sctx->fs_info;
 
 	if (bio->bi_status)
-		sblock->no_io_error_seen = 0;
+		sblock->yes_io_error_seen = 0;
 
 	bio_put(bio);
 
@@ -2126,10 +2126,10 @@ static void scrub_missing_raid56_worker(struct btrfs_work *work)
 	logical = sblock->pagev[0]->logical;
 	dev = sblock->pagev[0]->dev;
 
-	if (sblock->no_io_error_seen)
+	if (sblock->yes_io_error_seen)
 		scrub_recheck_block_checksum(sblock);
 
-	if (!sblock->no_io_error_seen) {
+	if (!sblock->yes_io_error_seen) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.read_errors++;
 		spin_unlock(&sctx->stat_lock);
@@ -2180,7 +2180,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 		/*
 		 * We shouldn't be scrubbing a missing device. Even for dev
 		 * replace, we should only get here for RAID 5/6. We either
-		 * managed to mount something with no mirrors remaining or
+		 * managed to mount something with yes mirrors remaining or
 		 * there's a bug in scrub_remap_extent()/btrfs_map_block().
 		 */
 		goto bbio_out;
@@ -2237,7 +2237,7 @@ static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 	 * a bio later on */
 	refcount_set(&sblock->refs, 1);
 	sblock->sctx = sctx;
-	sblock->no_io_error_seen = 1;
+	sblock->yes_io_error_seen = 1;
 
 	for (index = 0; len > 0; index++) {
 		struct scrub_page *spage;
@@ -2245,7 +2245,7 @@ static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 
 		spage = kzalloc(sizeof(*spage), GFP_KERNEL);
 		if (!spage) {
-leave_nomem:
+leave_yesmem:
 			spin_lock(&sctx->stat_lock);
 			sctx->stat.malloc_errors++;
 			spin_unlock(&sctx->stat_lock);
@@ -2272,7 +2272,7 @@ leave_nomem:
 		sblock->page_count++;
 		spage->page = alloc_page(GFP_KERNEL);
 		if (!spage->page)
-			goto leave_nomem;
+			goto leave_yesmem;
 		len -= l;
 		logical += l;
 		physical += l;
@@ -2330,11 +2330,11 @@ static void scrub_bio_end_io_worker(struct btrfs_work *work)
 			struct scrub_page *spage = sbio->pagev[i];
 
 			spage->io_error = 1;
-			spage->sblock->no_io_error_seen = 0;
+			spage->sblock->yes_io_error_seen = 0;
 		}
 	}
 
-	/* now complete the scrub_block items that have all pages completed */
+	/* yesw complete the scrub_block items that have all pages completed */
 	for (i = 0; i < sbio->page_count; i++) {
 		struct scrub_page *spage = sbio->pagev[i];
 		struct scrub_block *sblock = spage->sblock;
@@ -2407,7 +2407,7 @@ static void scrub_block_complete(struct scrub_block *sblock)
 {
 	int corrupted = 0;
 
-	if (!sblock->no_io_error_seen) {
+	if (!sblock->yes_io_error_seen) {
 		corrupted = 1;
 		scrub_handle_errored_block(sblock);
 	} else {
@@ -2488,7 +2488,7 @@ static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
 		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
 			blocksize = map->stripe_len;
 		else
-			blocksize = sctx->fs_info->nodesize;
+			blocksize = sctx->fs_info->yesdesize;
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.tree_extents_scrubbed++;
 		sctx->stat.tree_bytes_scrubbed += len;
@@ -2506,7 +2506,7 @@ static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
 			/* push csums to sbio */
 			have_csum = scrub_find_csum(sctx, logical, csum);
 			if (have_csum == 0)
-				++sctx->stat.no_csum;
+				++sctx->stat.yes_csum;
 		}
 		ret = scrub_pages(sctx, logical, l, physical, dev, flags, gen,
 				  mirror_num, have_csum ? csum : NULL, 0,
@@ -2542,7 +2542,7 @@ static int scrub_pages_for_parity(struct scrub_parity *sparity,
 	 * a bio later on */
 	refcount_set(&sblock->refs, 1);
 	sblock->sctx = sctx;
-	sblock->no_io_error_seen = 1;
+	sblock->yes_io_error_seen = 1;
 	sblock->sparity = sparity;
 	scrub_parity_get(sparity);
 
@@ -2552,7 +2552,7 @@ static int scrub_pages_for_parity(struct scrub_parity *sparity,
 
 		spage = kzalloc(sizeof(*spage), GFP_KERNEL);
 		if (!spage) {
-leave_nomem:
+leave_yesmem:
 			spin_lock(&sctx->stat_lock);
 			sctx->stat.malloc_errors++;
 			spin_unlock(&sctx->stat_lock);
@@ -2582,7 +2582,7 @@ leave_nomem:
 		sblock->page_count++;
 		spage->page = alloc_page(GFP_KERNEL);
 		if (!spage->page)
-			goto leave_nomem;
+			goto leave_yesmem;
 		len -= l;
 		logical += l;
 		physical += l;
@@ -2754,7 +2754,7 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 	u64 length;
 	int ret;
 
-	if (!bitmap_andnot(sparity->dbitmap, sparity->dbitmap, sparity->ebitmap,
+	if (!bitmap_andyest(sparity->dbitmap, sparity->dbitmap, sparity->ebitmap,
 			   sparity->nsectors))
 		goto out;
 
@@ -2814,7 +2814,7 @@ static void scrub_parity_put(struct scrub_parity *sparity)
 	scrub_parity_check_and_repair(sparity);
 }
 
-static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
+static yesinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 						  struct map_lookup *map,
 						  struct btrfs_device *sdev,
 						  struct btrfs_path *path,
@@ -2895,7 +2895,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 		while (1) {
 			u64 bytes;
 
-			l = path->nodes[0];
+			l = path->yesdes[0];
 			slot = path->slots[0];
 			if (slot >= btrfs_header_nritems(l)) {
 				ret = btrfs_next_leaf(root, path);
@@ -2914,7 +2914,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 				goto next;
 
 			if (key.type == BTRFS_METADATA_ITEM_KEY)
-				bytes = fs_info->nodesize;
+				bytes = fs_info->yesdesize;
 			else
 				bytes = key.offset;
 
@@ -2939,7 +2939,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 			     key.objectid + bytes >
 			     logic_start + map->stripe_len)) {
 				btrfs_err(fs_info,
-					  "scrub: tree block %llu spanning stripes, ignored. logical=%llu",
+					  "scrub: tree block %llu spanning stripes, igyesred. logical=%llu",
 					  key.objectid, logic_start);
 				spin_lock(&sctx->stat_lock);
 				sctx->stat.uncorrectable_errors++;
@@ -3039,7 +3039,7 @@ out:
 	return ret < 0 ? ret : 0;
 }
 
-static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
+static yesinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 					   struct map_lookup *map,
 					   struct btrfs_device *scrub_dev,
 					   int num, u64 base, u64 length)
@@ -3126,7 +3126,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	/*
 	 * trigger the readahead for extent tree csum tree and wait for
 	 * completion. During readahead, the scrub is officially paused
-	 * to not hold off transaction commits
+	 * to yest hold off transaction commits
 	 */
 	logical = base + offset;
 	physical_end = physical + nstripes * map->stripe_len;
@@ -3171,7 +3171,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	blk_start_plug(&plug);
 
 	/*
-	 * now find all extents for each stripe and scrub them
+	 * yesw find all extents for each stripe and scrub them
 	 */
 	ret = 0;
 	while (physical < physical_end) {
@@ -3233,7 +3233,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			if (ret < 0)
 				goto out;
 			if (ret > 0) {
-				/* there's no smaller item, so stick with the
+				/* there's yes smaller item, so stick with the
 				 * larger one */
 				btrfs_release_path(path);
 				ret = btrfs_search_slot(NULL, root, &key,
@@ -3247,7 +3247,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 		while (1) {
 			u64 bytes;
 
-			l = path->nodes[0];
+			l = path->yesdes[0];
 			slot = path->slots[0];
 			if (slot >= btrfs_header_nritems(l)) {
 				ret = btrfs_next_leaf(root, path);
@@ -3266,7 +3266,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 				goto next;
 
 			if (key.type == BTRFS_METADATA_ITEM_KEY)
-				bytes = fs_info->nodesize;
+				bytes = fs_info->yesdesize;
 			else
 				bytes = key.offset;
 
@@ -3290,7 +3290,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			     key.objectid + bytes >
 			     logical + map->stripe_len)) {
 				btrfs_err(fs_info,
-					   "scrub: tree block %llu spanning stripes, ignored. logical=%llu",
+					   "scrub: tree block %llu spanning stripes, igyesred. logical=%llu",
 				       key.objectid, logical);
 				spin_lock(&sctx->stat_lock);
 				sctx->stat.uncorrectable_errors++;
@@ -3412,7 +3412,7 @@ out:
 	return ret < 0 ? ret : 0;
 }
 
-static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
+static yesinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 					  struct btrfs_device *scrub_dev,
 					  u64 chunk_offset, u64 length,
 					  u64 dev_offset,
@@ -3464,7 +3464,7 @@ out:
 	return ret;
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			   struct btrfs_device *scrub_dev, u64 start, u64 end)
 {
@@ -3501,7 +3501,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			break;
 		if (ret > 0) {
 			if (path->slots[0] >=
-			    btrfs_header_nritems(path->nodes[0])) {
+			    btrfs_header_nritems(path->yesdes[0])) {
 				ret = btrfs_next_leaf(root, path);
 				if (ret < 0)
 					break;
@@ -3514,7 +3514,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			}
 		}
 
-		l = path->nodes[0];
+		l = path->yesdes[0];
 		slot = path->slots[0];
 
 		btrfs_item_key_to_cpu(l, &found_key, slot);
@@ -3545,7 +3545,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 */
 		cache = btrfs_lookup_block_group(fs_info, chunk_offset);
 
-		/* some chunks are removed but not committed to disk yet,
+		/* some chunks are removed but yest committed to disk yet,
 		 * continue scrubbing */
 		if (!cache)
 			goto skip;
@@ -3575,7 +3575,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 *    We go back to 2.
 		 *
 		 * This can easily boost the amount of SYSTEM chunks if cleaner
-		 * thread can't be triggered fast enough, and use up all space
+		 * thread can't be triggered fast eyesugh, and use up all space
 		 * of btrfs_super_block::sys_chunk_array
 		 */
 		ret = btrfs_inc_block_group_ro(cache, false);
@@ -3587,7 +3587,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			/*
 			 * btrfs_inc_block_group_ro return -ENOSPC when it
 			 * failed in creating new chunk for metadata.
-			 * It is not a problem for scrub/replace, because
+			 * It is yest a problem for scrub/replace, because
 			 * metadata are always cowed, and our scrub paused
 			 * commit_transactions.
 			 */
@@ -3652,7 +3652,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 * We might have prevented the cleaner kthread from deleting
 		 * this block group if it was already unused because we raced
 		 * and set it to RO mode first. So add it back to the unused
-		 * list, otherwise it might not ever be deleted unless a manual
+		 * list, otherwise it might yest ever be deleted unless a manual
 		 * balance is triggered or it becomes used and unused again.
 		 */
 		spin_lock(&cache->lock);
@@ -3686,7 +3686,7 @@ skip:
 	return ret;
 }
 
-static noinline_for_stack int scrub_supers(struct scrub_ctx *sctx,
+static yesinline_for_stack int scrub_supers(struct scrub_ctx *sctx,
 					   struct btrfs_device *scrub_dev)
 {
 	int	i;
@@ -3724,7 +3724,7 @@ static noinline_for_stack int scrub_supers(struct scrub_ctx *sctx,
 /*
  * get a reference count on fs_info->scrub_workers. start worker if necessary
  */
-static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
+static yesinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 						int is_dev_replace)
 {
 	unsigned int flags = WQ_FREEZABLE | WQ_UNBOUND;
@@ -3774,7 +3774,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	struct scrub_ctx *sctx;
 	int ret;
 	struct btrfs_device *dev;
-	unsigned int nofs_flag;
+	unsigned int yesfs_flag;
 	struct btrfs_workqueue *scrub_workers = NULL;
 	struct btrfs_workqueue *scrub_wr_comp = NULL;
 	struct btrfs_workqueue *scrub_parity = NULL;
@@ -3782,28 +3782,28 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	if (btrfs_fs_closing(fs_info))
 		return -EAGAIN;
 
-	if (fs_info->nodesize > BTRFS_STRIPE_LEN) {
+	if (fs_info->yesdesize > BTRFS_STRIPE_LEN) {
 		/*
 		 * in this case scrub is unable to calculate the checksum
-		 * the way scrub is implemented. Do not handle this
+		 * the way scrub is implemented. Do yest handle this
 		 * situation at all because it won't ever happen.
 		 */
 		btrfs_err(fs_info,
-			   "scrub: size assumption nodesize <= BTRFS_STRIPE_LEN (%d <= %d) fails",
-		       fs_info->nodesize,
+			   "scrub: size assumption yesdesize <= BTRFS_STRIPE_LEN (%d <= %d) fails",
+		       fs_info->yesdesize,
 		       BTRFS_STRIPE_LEN);
 		return -EINVAL;
 	}
 
 	if (fs_info->sectorsize != PAGE_SIZE) {
-		/* not supported for data w/o checksums */
+		/* yest supported for data w/o checksums */
 		btrfs_err_rl(fs_info,
 			   "scrub: size assumption sectorsize != PAGE_SIZE (%d != %lu) fails",
 		       fs_info->sectorsize, PAGE_SIZE);
 		return -EINVAL;
 	}
 
-	if (fs_info->nodesize >
+	if (fs_info->yesdesize >
 	    PAGE_SIZE * SCRUB_MAX_PAGES_PER_BLOCK ||
 	    fs_info->sectorsize > PAGE_SIZE * SCRUB_MAX_PAGES_PER_BLOCK) {
 		/*
@@ -3811,8 +3811,8 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		 * struct scrub_block
 		 */
 		btrfs_err(fs_info,
-			  "scrub: size assumption nodesize and sectorsize <= SCRUB_MAX_PAGES_PER_BLOCK (%d <= %d && %d <= %d) fails",
-		       fs_info->nodesize,
+			  "scrub: size assumption yesdesize and sectorsize <= SCRUB_MAX_PAGES_PER_BLOCK (%d <= %d && %d <= %d) fails",
+		       fs_info->yesdesize,
 		       SCRUB_MAX_PAGES_PER_BLOCK,
 		       fs_info->sectorsize,
 		       SCRUB_MAX_PAGES_PER_BLOCK);
@@ -3836,7 +3836,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	if (!is_dev_replace && !readonly &&
 	    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state)) {
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-		btrfs_err_in_rcu(fs_info, "scrub: device %s is not writable",
+		btrfs_err_in_rcu(fs_info, "scrub: device %s is yest writable",
 				rcu_str_deref(dev->name));
 		ret = -EROFS;
 		goto out_free_ctx;
@@ -3891,7 +3891,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	 * is paused (done at specific points at scrub_stripe() or right above
 	 * before incrementing fs_info->scrubs_running).
 	 */
-	nofs_flag = memalloc_nofs_save();
+	yesfs_flag = memalloc_yesfs_save();
 	if (!is_dev_replace) {
 		btrfs_info(fs_info, "scrub: started on devid %llu", devid);
 		/*
@@ -3905,7 +3905,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 
 	if (!ret)
 		ret = scrub_enumerate_chunks(sctx, dev, start, end);
-	memalloc_nofs_restore(nofs_flag);
+	memalloc_yesfs_restore(yesfs_flag);
 
 	wait_event(sctx->list_wait, atomic_read(&sctx->bios_in_flight) == 0);
 	atomic_dec(&fs_info->scrubs_running);
@@ -3918,7 +3918,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 
 	if (!is_dev_replace)
 		btrfs_info(fs_info, "scrub: %s on devid %llu with status: %d",
-			ret ? "not finished" : "finished", devid, ret);
+			ret ? "yest finished" : "finished", devid, ret);
 
 	mutex_lock(&fs_info->scrub_lock);
 	dev->scrub_ctx = NULL;

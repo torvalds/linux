@@ -254,8 +254,8 @@ static struct ctl_table sctp_net_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "addip_noauth_enable",
-		.data		= &init_net.sctp.addip_noauth,
+		.procname	= "addip_yesauth_enable",
+		.data		= &init_net.sctp.addip_yesauth,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -349,7 +349,7 @@ static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 	struct net *net = current->nsproxy->net_ns;
 	struct ctl_table tbl;
 	bool changed = false;
-	char *none = "none";
+	char *yesne = "yesne";
 	char tmp[8] = {0};
 	int ret;
 
@@ -359,7 +359,7 @@ static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 		tbl.data = tmp;
 		tbl.maxlen = sizeof(tmp);
 	} else {
-		tbl.data = net->sctp.sctp_hmac_alg ? : none;
+		tbl.data = net->sctp.sctp_hmac_alg ? : yesne;
 		tbl.maxlen = strlen(tbl.data);
 	}
 
@@ -377,7 +377,7 @@ static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 			changed = true;
 		}
 #endif
-		if (!strncmp(tmp, "none", 4)) {
+		if (!strncmp(tmp, "yesne", 4)) {
 			net->sctp.sctp_hmac_alg = NULL;
 			changed = true;
 		}

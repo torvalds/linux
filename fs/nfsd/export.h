@@ -27,7 +27,7 @@ struct nfsd4_fs_location {
 struct nfsd4_fs_locations {
 	uint32_t locations_count;
 	struct nfsd4_fs_location *locations;
-/* If we're not actually serving this data ourselves (only providing a
+/* If we're yest actually serving this data ourselves (only providing a
  * list of replicas that do serve it) then we set "migrated": */
 	int migrated;
 };
@@ -51,8 +51,8 @@ struct svc_export {
 	struct auth_domain *	ex_client;
 	int			ex_flags;
 	struct path		ex_path;
-	kuid_t			ex_anon_uid;
-	kgid_t			ex_anon_gid;
+	kuid_t			ex_ayesn_uid;
+	kgid_t			ex_ayesn_gid;
 	int			ex_fsid;
 	unsigned char *		ex_uuid; /* 16 byte fsid */
 	struct nfsd4_fs_locations ex_fslocs;
@@ -100,7 +100,7 @@ struct svc_export *	rqst_find_fsidzero_export(struct svc_rqst *);
 int			exp_rootfh(struct net *, struct auth_domain *,
 					char *path, struct knfsd_fh *, int maxsize);
 __be32			exp_pseudoroot(struct svc_rqst *, struct svc_fh *);
-__be32			nfserrno(int errno);
+__be32			nfserryes(int erryes);
 
 static inline void exp_put(struct svc_export *exp)
 {

@@ -35,13 +35,13 @@ int _version SEC("version") = 1;
  *
  * Which makes it an interesting test for BTF-enabled verifier.
  */
-static __attribute__ ((noinline))
+static __attribute__ ((yesinline))
 int test_pkt_access_subprog1(volatile struct __sk_buff *skb)
 {
 	return skb->len * 2;
 }
 
-static __attribute__ ((noinline))
+static __attribute__ ((yesinline))
 int test_pkt_access_subprog2(int val, volatile struct __sk_buff *skb)
 {
 	return skb->len * val;

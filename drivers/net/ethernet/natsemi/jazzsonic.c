@@ -29,7 +29,7 @@
 #include <linux/in.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -61,11 +61,11 @@ do {									\
 } while (0)
 
 /*
- * We cannot use station (ethernet) address prefixes to detect the
+ * We canyest use station (ethernet) address prefixes to detect the
  * sonic controller since these are board manufacturer depended.
- * So we check for known Silicon Revision IDs instead.
+ * So we check for kyeswn Silicon Revision IDs instead.
  */
-static unsigned short known_revisions[] =
+static unsigned short kyeswn_revisions[] =
 {
 	0x04,			/* Mips Magnum 4000 */
 	0xffff			/* end of list */
@@ -119,18 +119,18 @@ static int sonic_probe1(struct net_device *dev)
 		return -EBUSY;
 
 	/*
-	 * get the Silicon Revision ID. If this is one of the known
+	 * get the Silicon Revision ID. If this is one of the kyeswn
 	 * one assume that we found a SONIC ethernet controller at
 	 * the expected location.
 	 */
 	silicon_revision = SONIC_READ(SONIC_SR);
 	i = 0;
-	while (known_revisions[i] != 0xffff &&
-	       known_revisions[i] != silicon_revision)
+	while (kyeswn_revisions[i] != 0xffff &&
+	       kyeswn_revisions[i] != silicon_revision)
 		i++;
 
-	if (known_revisions[i] == 0xffff) {
-		pr_info("SONIC ethernet controller not found (0x%4x)\n",
+	if (kyeswn_revisions[i] == 0xffff) {
+		pr_info("SONIC ethernet controller yest found (0x%4x)\n",
 			silicon_revision);
 		goto out;
 	}
@@ -154,7 +154,7 @@ static int sonic_probe1(struct net_device *dev)
 	lp->dma_bitmode = SONIC_BITMODE32;
 
 	/* Allocate the entire chunk of memory for the descriptors.
-           Note that this cannot cross a 64K boundary. */
+           Note that this canyest cross a 64K boundary. */
 	lp->descriptors = dma_alloc_coherent(lp->device,
 					     SIZEOF_SONIC_DESC *
 					     SONIC_BUS_SCALE(lp->dma_bitmode),
@@ -198,7 +198,7 @@ out:
 
 /*
  * Probe for a SONIC ethernet controller on a Mips Jazz board.
- * Actually probing is superfluous but we're paranoid.
+ * Actually probing is superfluous but we're parayesid.
  */
 static int jazz_sonic_probe(struct platform_device *pdev)
 {

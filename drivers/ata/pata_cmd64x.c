@@ -10,10 +10,10 @@
  * linux/drivers/ide/pci/cmd64x.c		Version 1.30	Sept 10, 2002
  *
  * cmd64x.c: Enable interrupts at initialization time on Ultra/PCI machines.
- *           Note, this driver is not used at all on other systems because
+ *           Note, this driver is yest used at all on other systems because
  *           there the "BIOS" has done all of the following already.
  *           Due to massive hardware bugs, UltraDMA is only supported
- *           on the 646U2 and not on the 646U.
+ *           on the 646U2 and yest on the 646U.
  *
  * Copyright (C) 1998		Eddie C. Dost  (ecd@skynet.be)
  * Copyright (C) 1998		David S. Miller (davem@redhat.com)
@@ -77,7 +77,7 @@ static int cmd648_cable_detect(struct ata_port *ap)
 
 	/* Check cable detect bits */
 	pci_read_config_byte(pdev, BMIDECSR, &r);
-	if (r & (1 << ap->port_no))
+	if (r & (1 << ap->port_yes))
 		return ATA_CBL_PATA80;
 	return ATA_CBL_PATA40;
 }
@@ -100,7 +100,7 @@ static void cmd64x_set_timing(struct ata_port *ap, struct ata_device *adev, u8 m
 
 	u8 reg;
 
-	/* Port layout is not logical so use a table */
+	/* Port layout is yest logical so use a table */
 	const u8 arttim_port[2][2] = {
 		{ ARTTIM0, ARTTIM1 },
 		{ ARTTIM23, ARTTIM23 }
@@ -110,8 +110,8 @@ static void cmd64x_set_timing(struct ata_port *ap, struct ata_device *adev, u8 m
 		{ DRWTIM2, DRWTIM3 }
 	};
 
-	int arttim = arttim_port[ap->port_no][adev->devno];
-	int drwtim = drwtim_port[ap->port_no][adev->devno];
+	int arttim = arttim_port[ap->port_yes][adev->devyes];
+	int drwtim = drwtim_port[ap->port_yes][adev->devyes];
 
 	/* ata_timing_compute is smart and will produce timings for MWDMA
 	   that don't violate the drives PIO capabilities. */
@@ -119,7 +119,7 @@ static void cmd64x_set_timing(struct ata_port *ap, struct ata_device *adev, u8 m
 		printk(KERN_ERR DRV_NAME ": mode computation failed.\n");
 		return;
 	}
-	if (ap->port_no) {
+	if (ap->port_yes) {
 		/* Slave has shared address setup */
 		struct ata_device *pair = ata_dev_pair(adev);
 
@@ -197,33 +197,33 @@ static void cmd64x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 regU, regD;
 
-	int pciU = UDIDETCR0 + 8 * ap->port_no;
-	int pciD = BMIDESR0 + 8 * ap->port_no;
-	int shift = 2 * adev->devno;
+	int pciU = UDIDETCR0 + 8 * ap->port_yes;
+	int pciD = BMIDESR0 + 8 * ap->port_yes;
+	int shift = 2 * adev->devyes;
 
 	pci_read_config_byte(pdev, pciD, &regD);
 	pci_read_config_byte(pdev, pciU, &regU);
 
 	/* DMA bits off */
-	regD &= ~(0x20 << adev->devno);
+	regD &= ~(0x20 << adev->devyes);
 	/* DMA control bits */
 	regU &= ~(0x30 << shift);
 	/* DMA timing bits */
-	regU &= ~(0x05 << adev->devno);
+	regU &= ~(0x05 << adev->devyes);
 
 	if (adev->dma_mode >= XFER_UDMA_0) {
 		/* Merge the timing value */
 		regU |= udma_data[adev->dma_mode - XFER_UDMA_0] << shift;
 		/* Merge the control bits */
-		regU |= 1 << adev->devno; /* UDMA on */
+		regU |= 1 << adev->devyes; /* UDMA on */
 		if (adev->dma_mode > XFER_UDMA_2) /* 15nS timing */
-			regU |= 4 << adev->devno;
+			regU |= 4 << adev->devyes;
 	} else {
-		regU &= ~ (1 << adev->devno);	/* UDMA off */
+		regU &= ~ (1 << adev->devyes);	/* UDMA off */
 		cmd64x_set_timing(ap, adev, adev->dma_mode);
 	}
 
-	regD |= 0x20 << adev->devno;
+	regD |= 0x20 << adev->devyes;
 
 	pci_write_config_byte(pdev, pciU, regU);
 	pci_write_config_byte(pdev, pciD, regD);
@@ -239,8 +239,8 @@ static void cmd64x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 static bool cmd64x_sff_irq_check(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int irq_mask = ap->port_no ? ARTTIM23_INTR_CH1 : CFR_INTR_CH0;
-	int irq_reg  = ap->port_no ? ARTTIM23 : CFR;
+	int irq_mask = ap->port_yes ? ARTTIM23_INTR_CH1 : CFR_INTR_CH0;
+	int irq_reg  = ap->port_yes ? ARTTIM23 : CFR;
 	u8 irq_stat;
 
 	/* NOTE: reading the register should clear the interrupt */
@@ -259,12 +259,12 @@ static bool cmd64x_sff_irq_check(struct ata_port *ap)
 static void cmd64x_sff_irq_clear(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int irq_reg = ap->port_no ? ARTTIM23 : CFR;
+	int irq_reg = ap->port_yes ? ARTTIM23 : CFR;
 	u8 irq_stat;
 
 	ata_bmdma_irq_clear(ap);
 
-	/* Reading the register should be enough to clear the interrupt */
+	/* Reading the register should be eyesugh to clear the interrupt */
 	pci_read_config_byte(pdev, irq_reg, &irq_stat);
 }
 
@@ -279,7 +279,7 @@ static bool cmd648_sff_irq_check(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned long base = pci_resource_start(pdev, 4);
-	int irq_mask = ap->port_no ? MRDMODE_INTR_CH1 : MRDMODE_INTR_CH0;
+	int irq_mask = ap->port_yes ? MRDMODE_INTR_CH1 : MRDMODE_INTR_CH0;
 	u8 mrdmode = inb(base + 1);
 
 	return mrdmode & irq_mask;
@@ -296,7 +296,7 @@ static void cmd648_sff_irq_clear(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned long base = pci_resource_start(pdev, 4);
-	int irq_mask = ap->port_no ? MRDMODE_INTR_CH1 : MRDMODE_INTR_CH0;
+	int irq_mask = ap->port_yes ? MRDMODE_INTR_CH1 : MRDMODE_INTR_CH0;
 	u8 mrdmode;
 
 	ata_bmdma_irq_clear(ap);
@@ -311,7 +311,7 @@ static void cmd648_sff_irq_clear(struct ata_port *ap)
  *	cmd646r1_bmdma_stop	-	DMA stop callback
  *	@qc: Command in progress
  *
- *	Stub for now while investigating the r1 quirk in the old driver.
+ *	Stub for yesw while investigating the r1 quirk in the old driver.
  */
 
 static void cmd646r1_bmdma_stop(struct ata_queued_cmd *qc)
@@ -377,7 +377,7 @@ static void cmd64x_fixup(struct pci_dev *pdev)
 static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info cmd_info[7] = {
-		{	/* CMD 643 - no UDMA */
+		{	/* CMD 643 - yes UDMA */
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = ATA_PIO4,
 			.mwdma_mask = ATA_MWDMA2,
@@ -462,7 +462,7 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			ppi[0] = &cmd_info[4];
 			ppi[1] = &cmd_info[4];
 			/* FALL THRU */
-		/* Early revs have no CNTRL_CH0 */
+		/* Early revs have yes CNTRL_CH0 */
 		case 2:
 		case 0:
 			cntrl_ch0_ok = 0;
@@ -474,14 +474,14 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* check for enabled ports */
 	pci_read_config_byte(pdev, CNTRL, &reg);
 	if (!port_ok)
-		dev_notice(&pdev->dev, "Mobility Bridge detected, ignoring CNTRL port enable/disable\n");
+		dev_yestice(&pdev->dev, "Mobility Bridge detected, igyesring CNTRL port enable/disable\n");
 	if (port_ok && cntrl_ch0_ok && !(reg & CNTRL_CH0)) {
-		dev_notice(&pdev->dev, "Primary port is disabled\n");
+		dev_yestice(&pdev->dev, "Primary port is disabled\n");
 		ppi[0] = &ata_dummy_port_info;
 
 	}
 	if (port_ok && !(reg & CNTRL_CH1)) {
-		dev_notice(&pdev->dev, "Secondary port is disabled\n");
+		dev_yestice(&pdev->dev, "Secondary port is disabled\n");
 		ppi[1] = &ata_dummy_port_info;
 	}
 

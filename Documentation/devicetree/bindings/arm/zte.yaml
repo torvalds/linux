@@ -10,7 +10,7 @@ maintainers:
   - Jun Nie <jun.nie@linaro.org>
 
 properties:
-  $nodename:
+  $yesdename:
     const: '/'
   compatible:
     oneOf:

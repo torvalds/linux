@@ -371,7 +371,7 @@ struct rt2x00_intf {
 	 * for hardware which doesn't support hardware
 	 * sequence counting.
 	 */
-	atomic_t seqno;
+	atomic_t seqyes;
 };
 
 static inline struct rt2x00_intf* vif_to_intf(struct ieee80211_vif *vif)
@@ -485,7 +485,7 @@ struct rt2x00intf_conf {
 	 * Note that all devices (except rt2500usb) have 32 bits
 	 * register word sizes. This means that whatever variable we
 	 * pass _must_ be a multiple of 32 bits. Otherwise the device
-	 * might not accept what we are sending to it.
+	 * might yest accept what we are sending to it.
 	 * This will also make it easier for the driver to write
 	 * the data to the device.
 	 */
@@ -784,7 +784,7 @@ struct rt2x00_dev {
 	/*
 	 * Device capabiltiy flags.
 	 * In these flags the device/driver capabilities are stored.
-	 * Access to these flags should occur non-atomically.
+	 * Access to these flags should occur yesn-atomically.
 	 */
 	unsigned long cap_flags;
 
@@ -826,7 +826,7 @@ struct rt2x00_dev {
 	 * register access (BBP, RF, MCU) since accessing those
 	 * registers require multiple calls to the CSR registers.
 	 * For USB devices it also protects the csr_cache since that
-	 * field is used for normal CSR access and it cannot support
+	 * field is used for yesrmal CSR access and it canyest support
 	 * multiple callers simultaneously.
 	 */
 	struct mutex csr_mutex;
@@ -928,7 +928,7 @@ struct rt2x00_dev {
 	struct ieee80211_low_level_stats low_level_stats;
 
 	/**
-	 * Work queue for all work which should not be placed
+	 * Work queue for all work which should yest be placed
 	 * on the mac80211 workqueue (because of dependencies
 	 * between various work structures).
 	 */
@@ -937,7 +937,7 @@ struct rt2x00_dev {
 	/*
 	 * Scheduled work.
 	 * NOTE: intf_work will use ieee80211_iterate_active_interfaces()
-	 * which means it cannot be placed on the hw->workqueue
+	 * which means it canyest be placed on the hw->workqueue
 	 * due to RTNL locking requirements.
 	 */
 	struct work_struct intf_work;
@@ -1032,7 +1032,7 @@ struct rt2x00_bar_list_entry {
  * Some registers require multiple attempts before success,
  * in those cases REGISTER_BUSY_COUNT attempts should be
  * taken with a REGISTER_BUSY_DELAY interval. Due to USB
- * bus delays, we do not have to loop so many times to wait
+ * bus delays, we do yest have to loop so many times to wait
  * for valid register value on that bus.
  */
 #define REGISTER_BUSY_COUNT	100
@@ -1295,7 +1295,7 @@ void rt2x00queue_unmap_skb(struct queue_entry *entry);
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  * @queue: rt2x00 queue index (see &enum data_queue_qid).
  *
- * Returns NULL for non tx queues.
+ * Returns NULL for yesn tx queues.
  */
 static inline struct data_queue *
 rt2x00queue_get_tx_queue(struct rt2x00_dev *rt2x00dev,
@@ -1426,9 +1426,9 @@ void rt2x00lib_dmastart(struct queue_entry *entry);
 void rt2x00lib_dmadone(struct queue_entry *entry);
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc);
-void rt2x00lib_txdone_nomatch(struct queue_entry *entry,
+void rt2x00lib_txdone_yesmatch(struct queue_entry *entry,
 			      struct txdone_entry_desc *txdesc);
-void rt2x00lib_txdone_noinfo(struct queue_entry *entry, u32 status);
+void rt2x00lib_txdone_yesinfo(struct queue_entry *entry, u32 status);
 void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp);
 
 /*

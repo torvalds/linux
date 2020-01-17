@@ -4,7 +4,7 @@
    drbd_receiver.c
    This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
 
-   Copyright (C) 2001-2008, LINBIT Information Technologies GmbH.
+   Copyright (C) 2001-2008, LINBIT Information Techyeslogies GmbH.
    Copyright (C) 1999-2008, Philipp Reisner <philipp.reisner@linbit.com>.
    Copyright (C) 2002-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 
@@ -47,8 +47,8 @@
  *
  * We don't care too much about "excellent" compression ratio for large
  * runlengths (all set/all clear): whether we achieve a factor of 100
- * or 1000 is not that much of an issue.
- * We do not want to waste too much on short runlengths in the "noisy"
+ * or 1000 is yest that much of an issue.
+ * We do yest want to waste too much on short runlengths in the "yesisy"
  * parts of the bitmap, though.
  *
  * There are endless variants of VLI, we experimented with:
@@ -183,15 +183,15 @@ static inline int __vli_encode_bits(u64 *out, const u64 in)
 
 /*
  * Code length is determined by some unique (e.g. unary) prefix.
- * This encodes arbitrary bit length, not whole bytes: we have a bit-stream,
- * not a byte stream.
+ * This encodes arbitrary bit length, yest whole bytes: we have a bit-stream,
+ * yest a byte stream.
  */
 
 /* for the bitstream, we need a cursor */
 struct bitstream_cursor {
 	/* the current byte */
 	u8 *b;
-	/* the current bit within *b, nomalized: 0..7 */
+	/* the current bit within *b, yesmalized: 0..7 */
 	unsigned int bit;
 };
 
@@ -211,7 +211,7 @@ static inline void bitstream_cursor_advance(struct bitstream_cursor *cur, unsign
 	cur->bit = bits & 7;
 }
 
-/* the bitstream itself knows its length */
+/* the bitstream itself kyesws its length */
 struct bitstream {
 	struct bitstream_cursor cur;
 	unsigned char *buf;
@@ -238,11 +238,11 @@ static inline void bitstream_rewind(struct bitstream *bs)
 }
 
 /* Put (at most 64) least significant bits of val into bitstream, and advance cursor.
- * Ignores "pad_bits".
- * Returns zero if bits == 0 (nothing to do).
+ * Igyesres "pad_bits".
+ * Returns zero if bits == 0 (yesthing to do).
  * Returns number of bits used if successful.
  *
- * If there is not enough room left in bitstream,
+ * If there is yest eyesugh room left in bitstream,
  * leaves bitstream unchanged and returns -ENOBUFS.
  */
 static inline int bitstream_put_bits(struct bitstream *bs, u64 val, const unsigned int bits)
@@ -256,7 +256,7 @@ static inline int bitstream_put_bits(struct bitstream *bs, u64 val, const unsign
 	if ((bs->cur.b + ((bs->cur.bit + bits -1) >> 3)) - bs->buf >= bs->buf_len)
 		return -ENOBUFS;
 
-	/* paranoia: strip off hi bits; they should not be set anyways. */
+	/* parayesia: strip off hi bits; they should yest be set anyways. */
 	if (bits < 64)
 		val &= ~0ULL >> (64 - bits);
 

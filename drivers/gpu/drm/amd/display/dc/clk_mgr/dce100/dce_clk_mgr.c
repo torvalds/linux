@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -65,9 +65,9 @@ static const struct clk_mgr_mask disp_clk_mask = {
 
 /* Max clock values for each state indexed by "enum clocks_state": */
 static const struct state_dependent_clocks dce80_max_clks_by_state[] = {
-/* ClocksStateInvalid - should not be used */
+/* ClocksStateInvalid - should yest be used */
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
-/* ClocksStateUltraLow - not expected to be used for DCE 8.0 */
+/* ClocksStateUltraLow - yest expected to be used for DCE 8.0 */
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
 /* ClocksStateLow */
 { .display_clk_khz = 352000, .pixel_clk_khz = 330000},
@@ -104,10 +104,10 @@ int dentist_get_divider_from_did(int did)
  -if SS enabled on DP Ref clock and HW de-spreading enabled with SW
  calculations for DS_INCR/DS_MODULO (this is planned to be default case)
  -if SS enabled on DP Ref clock and HW de-spreading enabled with HW
- calculations (not planned to be used, but average clock should still
+ calculations (yest planned to be used, but average clock should still
  be valid)
  -if SS enabled on DP Ref clock and HW de-spreading disabled
- (should not be case with CIK) then SW should program all rates
+ (should yest be case with CIK) then SW should program all rates
  generated according to average value (case as with previous ASICs)
   */
 
@@ -160,7 +160,7 @@ int dce12_get_dp_ref_freq_khz(struct clk_mgr *clk_mgr_base)
 }
 
 /* unit: in_khz before mode set, get pixel clock from context. ASIC register
- * may not be programmed yet
+ * may yest be programmed yet
  */
 uint32_t dce_get_max_pixel_clock_for_all_paths(struct dc_state *context)
 {
@@ -173,7 +173,7 @@ uint32_t dce_get_max_pixel_clock_for_all_paths(struct dc_state *context)
 		if (pipe_ctx->stream == NULL)
 			continue;
 
-		/* do not check under lay */
+		/* do yest check under lay */
 		if (pipe_ctx->top_pipe)
 			continue;
 
@@ -309,7 +309,7 @@ static void dce_clock_read_integrated_info(struct clk_mgr_internal *clk_mgr_dce)
 			break;
 		}
 
-		/*Do not allow bad VBIOS/SBIOS to override with invalid values,
+		/*Do yest allow bad VBIOS/SBIOS to override with invalid values,
 		 * check for > 100MHz*/
 		if (bp->integrated_info)
 			if (bp->integrated_info->disp_clk_voltage[i].max_supported_clk >= 100000)
@@ -334,7 +334,7 @@ void dce_clock_read_ss_info(struct clk_mgr_internal *clk_mgr_dce)
 				bp, AS_SIGNAL_TYPE_GPU_PLL, 0, &info);
 
 		/* Based on VBIOS, VBIOS will keep entry for GPU PLL SS
-		 * even if SS not enabled and in that case
+		 * even if SS yest enabled and in that case
 		 * SSInfo.spreadSpectrumPercentage !=0 would be sign
 		 * that SS is enabled
 		 */
@@ -358,7 +358,7 @@ void dce_clock_read_ss_info(struct clk_mgr_internal *clk_mgr_dce)
 				bp, AS_SIGNAL_TYPE_DISPLAY_PORT, 0, &info);
 
 		/* Based on VBIOS, VBIOS will keep entry for DPREFCLK SS
-		 * even if SS not enabled and in that case
+		 * even if SS yest enabled and in that case
 		 * SSInfo.spreadSpectrumPercentage !=0 would be sign
 		 * that SS is enabled
 		 */

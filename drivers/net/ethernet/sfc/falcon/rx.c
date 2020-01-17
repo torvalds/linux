@@ -116,7 +116,7 @@ static struct page *ef4_reuse_page(struct ef4_rx_queue *rx_queue)
 		return NULL;
 
 	rx_queue->page_ring[index] = NULL;
-	/* page_remove cannot exceed page_add. */
+	/* page_remove canyest exceed page_add. */
 	if (rx_queue->page_remove != rx_queue->page_add)
 		++rx_queue->page_remove;
 
@@ -144,7 +144,7 @@ static struct page *ef4_reuse_page(struct ef4_rx_queue *rx_queue)
  * This allocates a batch of pages, maps them for DMA, and populates
  * struct ef4_rx_buffers for each one. Return a negative error code or
  * 0 on success. If a single page can be used for multiple buffers,
- * then the page will either be inserted fully, or not at all.
+ * then the page will either be inserted fully, or yest at all.
  */
 static int ef4_init_rx_buffers(struct ef4_rx_queue *rx_queue, bool atomic)
 {
@@ -317,7 +317,7 @@ static void ef4_discard_rx_packet(struct ef4_channel *channel,
  * @rx_queue->@max_fill. If there is insufficient atomic
  * memory to do so, a slow fill will be scheduled.
  *
- * The caller must provide serialisation (none is used here). In practise,
+ * The caller must provide serialisation (yesne is used here). In practise,
  * this means this function must run from the NAPI handler, or be called
  * when NAPI is disabled.
  */
@@ -369,8 +369,8 @@ void ef4_fast_push_rx_descriptors(struct ef4_rx_queue *rx_queue, bool atomic)
 		   rx_queue->added_count - rx_queue->removed_count);
 
  out:
-	if (rx_queue->notified_count != rx_queue->added_count)
-		ef4_nic_notify_rx_desc(rx_queue);
+	if (rx_queue->yestified_count != rx_queue->added_count)
+		ef4_nic_yestify_rx_desc(rx_queue);
 }
 
 void ef4_rx_slow_fill(struct timer_list *t)
@@ -476,7 +476,7 @@ static struct sk_buff *ef4_rx_mk_skb(struct ef4_channel *channel,
 			       efx->rx_ip_align + efx->rx_prefix_size +
 			       hdr_len);
 	if (unlikely(skb == NULL)) {
-		atomic_inc(&efx->n_rx_noskb_drops);
+		atomic_inc(&efx->n_rx_yesskb_drops);
 		return NULL;
 	}
 
@@ -625,7 +625,7 @@ static void ef4_rx_deliver(struct ef4_channel *channel, u8 *eh,
 	skb_record_rx_queue(skb, channel->rx_queue.core_index);
 
 	/* Set the SKB flags */
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 	if (likely(rx_buf->flags & EF4_RX_PKT_CSUMMED))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
@@ -739,7 +739,7 @@ void ef4_init_rx_queue(struct ef4_rx_queue *rx_queue)
 
 	/* Initialise ptr fields */
 	rx_queue->added_count = 0;
-	rx_queue->notified_count = 0;
+	rx_queue->yestified_count = 0;
 	rx_queue->removed_count = 0;
 	rx_queue->min_fill = -1U;
 	ef4_init_rx_recycle_ring(efx, rx_queue);
@@ -936,7 +936,7 @@ bool __ef4_filter_rfs_expire(struct ef4_nic *efx, unsigned int quota)
  * ef4_filter_is_mc_recipient - test whether spec is a multicast recipient
  * @spec: Specification to test
  *
- * Return: %true if the specification is a non-drop RX filter that
+ * Return: %true if the specification is a yesn-drop RX filter that
  * matches a local MAC address I/G bit value of 1 or matches a local
  * IPv4 or IPv6 address value in the respective multicast address
  * range.  Otherwise %false.

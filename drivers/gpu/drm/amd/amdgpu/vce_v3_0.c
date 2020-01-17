@@ -18,7 +18,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -245,7 +245,7 @@ static int vce_v3_0_firmware_loaded(struct amdgpu_device *adev)
 			mdelay(10);
 		}
 
-		DRM_ERROR("VCE not responding, trying to reset the ECPU!!!\n");
+		DRM_ERROR("VCE yest responding, trying to reset the ECPU!!!\n");
 		WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 1);
 		mdelay(10);
 		WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 0);
@@ -316,7 +316,7 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 		WREG32_FIELD(VCE_STATUS, JOB_BUSY, 0);
 
 		if (r) {
-			DRM_ERROR("VCE not responding, giving up!!!\n");
+			DRM_ERROR("VCE yest responding, giving up!!!\n");
 			mutex_unlock(&adev->grbm_idx_mutex);
 			return r;
 		}
@@ -747,7 +747,7 @@ static int vce_v3_0_set_clockgating_state(void *handle,
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < 2; i++) {
-		/* Program VCE Instance 0 or 1 if not harvested */
+		/* Program VCE Instance 0 or 1 if yest harvested */
 		if (adev->vce.harvest_config & (1 << i))
 			continue;
 
@@ -816,7 +816,7 @@ static void vce_v3_0_get_clockgating_state(void *handle, u32 *flags)
 		data = RREG32_SMC(ixCURRENT_PG_STATUS);
 
 	if (data & CURRENT_PG_STATUS__VCE_PG_STATUS_MASK) {
-		DRM_INFO("Cannot get clockgating state when VCE is powergated.\n");
+		DRM_INFO("Canyest get clockgating state when VCE is powergated.\n");
 		goto out;
 	}
 
@@ -892,22 +892,22 @@ static const struct amd_ip_funcs vce_v3_0_ip_funcs = {
 static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {
 	.type = AMDGPU_RING_TYPE_VCE,
 	.align_mask = 0xf,
-	.nop = VCE_CMD_NO_OP,
+	.yesp = VCE_CMD_NO_OP,
 	.support_64bit_ptrs = false,
-	.no_user_fence = true,
+	.yes_user_fence = true,
 	.get_rptr = vce_v3_0_ring_get_rptr,
 	.get_wptr = vce_v3_0_ring_get_wptr,
 	.set_wptr = vce_v3_0_ring_set_wptr,
 	.parse_cs = amdgpu_vce_ring_parse_cs,
 	.emit_frame_size =
 		4 + /* vce_v3_0_emit_pipeline_sync */
-		6, /* amdgpu_vce_ring_emit_fence x1 no user fence */
+		6, /* amdgpu_vce_ring_emit_fence x1 yes user fence */
 	.emit_ib_size = 4, /* amdgpu_vce_ring_emit_ib */
 	.emit_ib = amdgpu_vce_ring_emit_ib,
 	.emit_fence = amdgpu_vce_ring_emit_fence,
 	.test_ring = amdgpu_vce_ring_test_ring,
 	.test_ib = amdgpu_vce_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_yesp = amdgpu_ring_insert_yesp,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
@@ -916,9 +916,9 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {
 static const struct amdgpu_ring_funcs vce_v3_0_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCE,
 	.align_mask = 0xf,
-	.nop = VCE_CMD_NO_OP,
+	.yesp = VCE_CMD_NO_OP,
 	.support_64bit_ptrs = false,
-	.no_user_fence = true,
+	.yes_user_fence = true,
 	.get_rptr = vce_v3_0_ring_get_rptr,
 	.get_wptr = vce_v3_0_ring_get_wptr,
 	.set_wptr = vce_v3_0_ring_set_wptr,
@@ -934,7 +934,7 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_vm_funcs = {
 	.emit_fence = amdgpu_vce_ring_emit_fence,
 	.test_ring = amdgpu_vce_ring_test_ring,
 	.test_ib = amdgpu_vce_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_yesp = amdgpu_ring_insert_yesp,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
@@ -974,7 +974,7 @@ const struct amdgpu_ip_block_version vce_v3_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_VCE,
 	.major = 3,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &vce_v3_0_ip_funcs,
 };
@@ -983,7 +983,7 @@ const struct amdgpu_ip_block_version vce_v3_1_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_VCE,
 	.major = 3,
-	.minor = 1,
+	.miyesr = 1,
 	.rev = 0,
 	.funcs = &vce_v3_0_ip_funcs,
 };
@@ -992,7 +992,7 @@ const struct amdgpu_ip_block_version vce_v3_4_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_VCE,
 	.major = 3,
-	.minor = 4,
+	.miyesr = 4,
 	.rev = 0,
 	.funcs = &vce_v3_0_ip_funcs,
 };

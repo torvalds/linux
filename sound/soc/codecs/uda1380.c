@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -236,8 +236,8 @@ static const char *uda1380_sdet_setting[] = {
 };
 static const char *uda1380_os_setting[] = {
 	"single-speed",
-	"double-speed (no mixing)",
-	"quad-speed (no mixing)"
+	"double-speed (yes mixing)",
+	"quad-speed (yes mixing)"
 };
 
 static const struct soc_enum uda1380_deemp_enum[] = {
@@ -269,7 +269,7 @@ static SOC_ENUM_SINGLE_DECL(uda1380_os_enum,
 static DECLARE_TLV_DB_SCALE(amix_tlv, -4950, 150, 1);
 
 /*
- * from -78 dB in 1 dB steps (3 dB steps, really. LSB are ignored),
+ * from -78 dB in 1 dB steps (3 dB steps, really. LSB are igyesred),
  * from -66 dB in 0.5 dB steps (2 dB steps, really) and
  * from -52 dB in 0.25 dB steps
  */
@@ -736,7 +736,7 @@ static const struct snd_soc_component_driver soc_component_dev_uda1380 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int uda1380_i2c_probe(struct i2c_client *i2c,

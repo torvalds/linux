@@ -17,7 +17,7 @@
 #include <linux/fs.h>
 #include <linux/console.h>
 #include <linux/genhd.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/memblock.h>
@@ -49,8 +49,8 @@
 #include <asm/natfeat.h>
 
 #if !FPSTATESIZE || !NR_IRQS
-#warning No CPU/platform type selected, your kernel will not work!
-#warning Are you building an allnoconfig kernel?
+#warning No CPU/platform type selected, your kernel will yest work!
+#warning Are you building an allyesconfig kernel?
 #endif
 
 unsigned long m68k_machtype;
@@ -147,7 +147,7 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 	save_bootinfo(record);
 
 	while ((tag = be16_to_cpu(record->tag)) != BI_LAST) {
-		int unknown = 0;
+		int unkyeswn = 0;
 		const void *data = record->data;
 		uint16_t size = be16_to_cpu(record->size);
 
@@ -187,28 +187,28 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 
 		default:
 			if (MACH_IS_AMIGA)
-				unknown = amiga_parse_bootinfo(record);
+				unkyeswn = amiga_parse_bootinfo(record);
 			else if (MACH_IS_ATARI)
-				unknown = atari_parse_bootinfo(record);
+				unkyeswn = atari_parse_bootinfo(record);
 			else if (MACH_IS_MAC)
-				unknown = mac_parse_bootinfo(record);
+				unkyeswn = mac_parse_bootinfo(record);
 			else if (MACH_IS_Q40)
-				unknown = q40_parse_bootinfo(record);
+				unkyeswn = q40_parse_bootinfo(record);
 			else if (MACH_IS_BVME6000)
-				unknown = bvme6000_parse_bootinfo(record);
+				unkyeswn = bvme6000_parse_bootinfo(record);
 			else if (MACH_IS_MVME16x)
-				unknown = mvme16x_parse_bootinfo(record);
+				unkyeswn = mvme16x_parse_bootinfo(record);
 			else if (MACH_IS_MVME147)
-				unknown = mvme147_parse_bootinfo(record);
+				unkyeswn = mvme147_parse_bootinfo(record);
 			else if (MACH_IS_HP300)
-				unknown = hp300_parse_bootinfo(record);
+				unkyeswn = hp300_parse_bootinfo(record);
 			else if (MACH_IS_APOLLO)
-				unknown = apollo_parse_bootinfo(record);
+				unkyeswn = apollo_parse_bootinfo(record);
 			else
-				unknown = 1;
+				unkyeswn = 1;
 		}
-		if (unknown)
-			pr_warn("%s: unknown tag 0x%04x ignored\n", __func__,
+		if (unkyeswn)
+			pr_warn("%s: unkyeswn tag 0x%04x igyesred\n", __func__,
 				tag);
 		record = (struct bi_record *)((unsigned long)record + size);
 	}
@@ -216,7 +216,7 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 	m68k_realnum_memory = m68k_num_memory;
 #ifdef CONFIG_SINGLE_MEMORY_CHUNK
 	if (m68k_num_memory > 1) {
-		pr_warn("%s: ignoring last %i chunks of physical memory\n",
+		pr_warn("%s: igyesring last %i chunks of physical memory\n",
 			__func__, (m68k_num_memory - 1));
 		m68k_num_memory = 1;
 	}
@@ -427,7 +427,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	}
 
 #ifdef CONFIG_M68KFPU_EMU_ONLY
-	fpu = "none(soft float)";
+	fpu = "yesne(soft float)";
 #else
 	if (m68k_fputype & FPU_68881)
 		fpu = "68881";
@@ -442,7 +442,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	else if (m68k_fputype & FPU_COLDFIRE)
 		fpu = "ColdFire";
 	else
-		fpu = "none";
+		fpu = "yesne";
 #endif
 
 	if (m68k_mmutype & MMU_68851)
@@ -460,7 +460,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	else if (m68k_mmutype & MMU_COLDFIRE)
 		mmu = "ColdFire";
 	else
-		mmu = "unknown";
+		mmu = "unkyeswn";
 
 	clockfreq = loops_per_jiffy * HZ * clockfactor;
 
@@ -506,7 +506,7 @@ static int hardware_proc_show(struct seq_file *m, void *v)
 	if (mach_get_model)
 		mach_get_model(model);
 	else
-		strcpy(model, "Unknown m68k");
+		strcpy(model, "Unkyeswn m68k");
 
 	seq_printf(m, "Model:\t\t%s\n", model);
 	for (mem = 0, i = 0; i < m68k_num_memory; i++)
@@ -535,7 +535,7 @@ void check_bugs(void)
 			"WHICH IS REQUIRED BY LINUX/M68K ***\n");
 		pr_emerg("Upgrade your hardware or join the FPU "
 			"emulation project\n");
-		panic("no FPU");
+		panic("yes FPU");
 	}
 #endif /* !CONFIG_M68KFPU_EMU */
 }

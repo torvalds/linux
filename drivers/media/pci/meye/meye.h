@@ -260,7 +260,7 @@
 #define MEYE_MAX_BUFNBRS	32
 
 /* State of a buffer */
-#define MEYE_BUF_UNUSED	0	/* not used */
+#define MEYE_BUF_UNUSED	0	/* yest used */
 #define MEYE_BUF_USING	1	/* currently grabbing / playing */
 #define MEYE_BUF_DONE	2	/* done */
 

@@ -23,11 +23,11 @@ installation and then checks the signature upon loading the module.  This
 allows increased kernel security by disallowing the loading of unsigned modules
 or modules signed with an invalid key.  Module signing increases security by
 making it harder to load a malicious module into the kernel.  The module
-signature checking is done by the kernel so that it is not necessary to have
+signature checking is done by the kernel so that it is yest necessary to have
 trusted userspace bits.
 
 This facility uses X.509 ITU-T standard certificates to encode the public keys
-involved.  The signatures are not themselves encoded in any industrial standard
+involved.  The signatures are yest themselves encoded in any industrial standard
 type.  The facility currently only supports the RSA public key encryption
 standard (though it is pluggable and permits others to be used).  The possible
 hash algorithms that can be used are SHA-1, SHA-224, SHA-256, SHA-384, and
@@ -50,9 +50,9 @@ This has a number of options available:
      (``CONFIG_MODULE_SIG_FORCE``)
 
      This specifies how the kernel should deal with a module that has a
-     signature for which the key is not known or a module that is unsigned.
+     signature for which the key is yest kyeswn or a module that is unsigned.
 
-     If this is off (ie. "permissive"), then modules for which the key is not
+     If this is off (ie. "permissive"), then modules for which the key is yest
      available and modules that are unsigned are permitted, but the kernel will
      be marked as being tainted, and the concerned modules will be marked as
      tainted, shown with the character 'E'.
@@ -62,7 +62,7 @@ This has a number of options available:
      will be loaded.  All other modules will generate an error.
 
      Irrespective of the setting here, if the module has a signature block that
-     cannot be parsed, it will be rejected out of hand.
+     canyest be parsed, it will be rejected out of hand.
 
 
  (2) :menuselection:`Automatically sign all modules`
@@ -132,9 +132,9 @@ it can be deleted or stored securely.  The public key gets built into the
 kernel so that it can be used to check the signatures as the modules are
 loaded.
 
-Under normal conditions, when ``CONFIG_MODULE_SIG_KEY`` is unchanged from its
+Under yesrmal conditions, when ``CONFIG_MODULE_SIG_KEY`` is unchanged from its
 default, the kernel build will automatically generate a new keypair using
-openssl if one does not exist in the file::
+openssl if one does yest exist in the file::
 
 	certs/signing_key.pem
 
@@ -143,11 +143,11 @@ into vmlinux) using parameters in the::
 
 	certs/x509.genkey
 
-file (which is also generated if it does not already exist).
+file (which is also generated if it does yest already exist).
 
 It is strongly recommended that you provide your own x509.genkey file.
 
-Most notably, in the x509.genkey file, the req_distinguished_name section
+Most yestably, in the x509.genkey file, the req_distinguished_name section
 should be altered from the default::
 
 	[ req_distinguished_name ]
@@ -162,11 +162,11 @@ The generated RSA key size can also be set with::
 
 
 It is also possible to manually generate the key private/public files using the
-x509.genkey key generation configuration file in the root node of the Linux
+x509.genkey key generation configuration file in the root yesde of the Linux
 kernel sources tree and the openssl command.  The following is an example to
 generate the public/private key files::
 
-	openssl req -new -nodes -utf8 -sha256 -days 36500 -batch -x509 \
+	openssl req -new -yesdes -utf8 -sha256 -days 36500 -batch -x509 \
 	   -config x509.genkey -outform PEM -out kernel_key.pem \
 	   -keyout kernel_key.pem
 
@@ -225,7 +225,7 @@ The following is an example to sign a kernel module::
 	scripts/sign-file sha512 kernel-signkey.priv \
 		kernel-signkey.x509 module.ko
 
-The hash algorithm used does not have to match the one configured, but if it
+The hash algorithm used does yest have to match the one configured, but if it
 doesn't, you should make sure that hash algorithm is either built into the
 kernel or can be loaded without requiring itself.
 
@@ -239,7 +239,7 @@ Signed modules and stripping
 
 A signed module has a digital signature simply appended at the end.  The string
 ``~Module signature appended~.`` at the end of the module's file confirms that a
-signature is present but it does not confirm that the signature is valid!
+signature is present but it does yest confirm that the signature is valid!
 
 Signed modules are BRITTLE as the signature is outside of the defined ELF
 container.  Thus they MAY NOT be stripped once the signature is computed and
@@ -252,7 +252,7 @@ Loading signed modules
 ======================
 
 Modules are loaded with insmod, modprobe, ``init_module()`` or
-``finit_module()``, exactly as for unsigned modules as no processing is
+``finit_module()``, exactly as for unsigned modules as yes processing is
 done in userspace.  The signature checking is all done within the kernel.
 
 
@@ -264,7 +264,7 @@ If ``CONFIG_MODULE_SIG_FORCE`` is enabled or module.sig_enforce=1 is supplied on
 the kernel command line, the kernel will only load validly signed modules
 for which it has a public key.   Otherwise, it will also load modules that are
 unsigned.   Any module for which the kernel has a key, but which proves to have
-a signature mismatch will not be permitted to load.
+a signature mismatch will yest be permitted to load.
 
 Any module that has an unparseable signature will be rejected.
 
@@ -275,8 +275,8 @@ Administering/protecting the private key
 
 Since the private key is used to sign modules, viruses and malware could use
 the private key to sign modules and compromise the operating system.  The
-private key must be either destroyed or moved to a secure location and not kept
-in the root node of the kernel source tree.
+private key must be either destroyed or moved to a secure location and yest kept
+in the root yesde of the kernel source tree.
 
 If you use the same private key to sign modules for multiple kernel
 configurations, you must ensure that the module version information is

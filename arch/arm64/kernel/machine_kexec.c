@@ -3,7 +3,7 @@
  * kexec for arm64
  *
  * Copyright (C) Linaro.
- * Copyright (C) Huawei Futurewei Technologies.
+ * Copyright (C) Huawei Futurewei Techyeslogies.
  */
 
 #include <linux/interrupt.h>
@@ -62,7 +62,7 @@ void machine_kexec_cleanup(struct kimage *kimage)
  * machine_kexec_prepare - Prepare for a kexec reboot.
  *
  * Called from the core kexec code when a kernel image is loaded.
- * Forbid loading a kexec kernel if we have no way of hotplugging cpus or cpus
+ * Forbid loading a kexec kernel if we have yes way of hotplugging cpus or cpus
  * are stuck in the kernel. This avoids a panic once we hit machine_kexec().
  */
 int machine_kexec_prepare(struct kimage *kimage)
@@ -256,13 +256,13 @@ static void machine_kexec_mask_interrupts(void)
 }
 
 /**
- * machine_crash_shutdown - shutdown non-crashing cpus and save registers
+ * machine_crash_shutdown - shutdown yesn-crashing cpus and save registers
  */
 void machine_crash_shutdown(struct pt_regs *regs)
 {
 	local_irq_disable();
 
-	/* shutdown non-crashing cpus */
+	/* shutdown yesn-crashing cpus */
 	crash_smp_send_stop();
 
 	/* for crashing cpu */
@@ -312,20 +312,20 @@ void crash_post_resume(void)
 }
 
 /*
- * crash_is_nosave
+ * crash_is_yessave
  *
  * Return true only if a page is part of reserved memory for crash dump kernel,
- * but does not hold any data of loaded kernel image.
+ * but does yest hold any data of loaded kernel image.
  *
  * Note that all the pages in crash dump kernel memory have been initially
  * marked as Reserved as memory was allocated via memblock_reserve().
  *
- * In hibernation, the pages which are Reserved and yet "nosave" are excluded
- * from the hibernation iamge. crash_is_nosave() does thich check for crash
+ * In hibernation, the pages which are Reserved and yet "yessave" are excluded
+ * from the hibernation iamge. crash_is_yessave() does thich check for crash
  * dump kernel and will reduce the total size of hibernation image.
  */
 
-bool crash_is_nosave(unsigned long pfn)
+bool crash_is_yessave(unsigned long pfn)
 {
 	int i;
 	phys_addr_t addr;
@@ -341,7 +341,7 @@ bool crash_is_nosave(unsigned long pfn)
 	if (!kexec_crash_image)
 		return true;
 
-	/* not part of loaded kernel image? */
+	/* yest part of loaded kernel image? */
 	for (i = 0; i < kexec_crash_image->nr_segments; i++)
 		if (addr >= kexec_crash_image->segment[i].mem &&
 				addr < (kexec_crash_image->segment[i].mem +

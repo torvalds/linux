@@ -19,7 +19,7 @@
 #include <linux/plist.h>
 #include <linux/hrtimer.h>
 #include <linux/seccomp.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/rcupdate.h>
 #include <linux/refcount.h>
 #include <linux/resource.h>
@@ -47,8 +47,8 @@ struct nameidata;
 struct nsproxy;
 struct perf_event_context;
 struct pid_namespace;
-struct pipe_inode_info;
-struct rcu_node;
+struct pipe_iyesde_info;
+struct rcu_yesde;
 struct reclaim_state;
 struct robust_list_head;
 struct root_domain;
@@ -120,7 +120,7 @@ struct task_group;
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 
 /*
- * Special states are those that do not use the normal wait-loop pattern. See
+ * Special states are those that do yest use the yesrmal wait-loop pattern. See
  * the comment with set_special_state().
  */
 #define is_special_task_state(state)				\
@@ -164,7 +164,7 @@ struct task_group;
  *   }
  *   __set_current_state(TASK_RUNNING);
  *
- * If the caller does not need such serialisation (because, for instance, the
+ * If the caller does yest need such serialisation (because, for instance, the
  * condition test and condition change and wakeup are under the same lock) then
  * use __set_current_state().
  *
@@ -181,7 +181,7 @@ struct task_group;
  * TASK_RUNNING store which can collide with __set_current_state(TASK_RUNNING).
  *
  * However, with slightly different timing the wakeup TASK_RUNNING store can
- * also collide with the TASK_UNINTERRUPTIBLE store. Losing that store is not
+ * also collide with the TASK_UNINTERRUPTIBLE store. Losing that store is yest
  * a problem either because that will result in one extra go around the loop
  * and our @cond test will save the day.
  *
@@ -195,9 +195,9 @@ struct task_group;
 
 /*
  * set_special_state() should be used for those states when the blocking task
- * can not use the regular condition based wait-loop. In that case we must
+ * can yest use the regular condition based wait-loop. In that case we must
  * serialize against wakeups such that any possible in-flight TASK_RUNNING stores
- * will not collide with our state change.
+ * will yest collide with our state change.
  */
 #define set_special_state(state_value)					\
 	do {								\
@@ -237,7 +237,7 @@ extern void io_schedule(void);
  * @lock: protects the above two fields
  *
  * Stores previous user/system time values such that we can guarantee
- * monotonicity.
+ * moyestonicity.
  */
 struct prev_cputime {
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
@@ -388,7 +388,7 @@ struct util_est {
  *
  * The 64-bit load_sum can have 4353082796 (=2^64/47742/88761) entities
  * with the highest load (=88761), always runnable on a single cfs_rq,
- * and should not overflow as the number already hits PID_MAX_LIMIT.
+ * and should yest overflow as the number already hits PID_MAX_LIMIT.
  *
  * For all other cases (including 32-bit kernels), struct load_weight's
  * weight will overflow first before we do, because:
@@ -450,8 +450,8 @@ struct sched_entity {
 	/* For load-balancing: */
 	struct load_weight		load;
 	unsigned long			runnable_weight;
-	struct rb_node			run_node;
-	struct list_head		group_node;
+	struct rb_yesde			run_yesde;
+	struct list_head		group_yesde;
 	unsigned int			on_rq;
 
 	u64				exec_start;
@@ -476,7 +476,7 @@ struct sched_entity {
 	/*
 	 * Per entity load average tracking.
 	 *
-	 * Put into separate cache line so it does not
+	 * Put into separate cache line so it does yest
 	 * collide with read-mostly values above.
 	 */
 	struct sched_avg		avg;
@@ -502,7 +502,7 @@ struct sched_rt_entity {
 } __randomize_layout;
 
 struct sched_dl_entity {
-	struct rb_node			rb_node;
+	struct rb_yesde			rb_yesde;
 
 	/*
 	 * Original scheduling parameters. Copied here from sched_attr
@@ -538,10 +538,10 @@ struct sched_dl_entity {
 	 * @dl_yielded tells if task gave up the CPU before consuming
 	 * all its available runtime during the last job.
 	 *
-	 * @dl_non_contending tells if the task is inactive while still
+	 * @dl_yesn_contending tells if the task is inactive while still
 	 * contributing to the active utilization. In other words, it
 	 * indicates if the inactive timer has been armed and its handler
-	 * has not been executed yet. This flag is useful to avoid race
+	 * has yest been executed yet. This flag is useful to avoid race
 	 * conditions between the inactive timer handler and the wakeup
 	 * code.
 	 *
@@ -551,7 +551,7 @@ struct sched_dl_entity {
 	unsigned int			dl_throttled      : 1;
 	unsigned int			dl_boosted        : 1;
 	unsigned int			dl_yielded        : 1;
-	unsigned int			dl_non_contending : 1;
+	unsigned int			dl_yesn_contending : 1;
 	unsigned int			dl_overrun	  : 1;
 
 	/*
@@ -587,7 +587,7 @@ struct sched_dl_entity {
  *
  * The active bit is set whenever a task has got an "effective" value assigned,
  * which can be different from the clamp value "requested" from user-space.
- * This allows to know a task is refcounted in the rq's bucket corresponding
+ * This allows to kyesw a task is refcounted in the rq's bucket corresponding
  * to the "effective" bucket_id.
  *
  * The user_defined bit is set whenever a task has got a task-specific clamp
@@ -622,8 +622,8 @@ enum perf_event_task_context {
 	perf_nr_task_contexts,
 };
 
-struct wake_q_node {
-	struct wake_q_node *next;
+struct wake_q_yesde {
+	struct wake_q_yesde *next;
 };
 
 struct task_struct {
@@ -650,7 +650,7 @@ struct task_struct {
 	unsigned int			ptrace;
 
 #ifdef CONFIG_SMP
-	struct llist_node		wake_entry;
+	struct llist_yesde		wake_entry;
 	int				on_cpu;
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 	/* Current CPU: */
@@ -662,7 +662,7 @@ struct task_struct {
 
 	/*
 	 * recent_used_cpu is initially set as the last CPU used by a task
-	 * that wakes affine another task. Waker/wakee relationships can
+	 * that wakes affine ayesther task. Waker/wakee relationships can
 	 * push tasks around a CPU where each wakeup moves to the next one.
 	 * Tracking a recently used CPU allows a quick search for a recently
 	 * used CPU that may be idle.
@@ -674,7 +674,7 @@ struct task_struct {
 
 	int				prio;
 	int				static_prio;
-	int				normal_prio;
+	int				yesrmal_prio;
 	unsigned int			rt_priority;
 
 	const struct sched_class	*sched_class;
@@ -693,8 +693,8 @@ struct task_struct {
 #endif
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
-	/* List of struct preempt_notifier: */
-	struct hlist_head		preempt_notifiers;
+	/* List of struct preempt_yestifier: */
+	struct hlist_head		preempt_yestifiers;
 #endif
 
 #ifdef CONFIG_BLK_DEV_IO_TRACE
@@ -709,8 +709,8 @@ struct task_struct {
 #ifdef CONFIG_PREEMPT_RCU
 	int				rcu_read_lock_nesting;
 	union rcu_special		rcu_read_unlock_special;
-	struct list_head		rcu_node_entry;
-	struct rcu_node			*rcu_blocked_node;
+	struct list_head		rcu_yesde_entry;
+	struct rcu_yesde			*rcu_blocked_yesde;
 #endif /* #ifdef CONFIG_PREEMPT_RCU */
 
 #ifdef CONFIG_TASKS_RCU
@@ -725,8 +725,8 @@ struct task_struct {
 
 	struct list_head		tasks;
 #ifdef CONFIG_SMP
-	struct plist_node		pushable_tasks;
-	struct rb_node			pushable_dl_tasks;
+	struct plist_yesde		pushable_tasks;
+	struct rb_yesde			pushable_dl_tasks;
 #endif
 
 	struct mm_struct		*mm;
@@ -777,7 +777,7 @@ struct task_struct {
 #endif
 #ifdef CONFIG_CGROUPS
 	/* disallow userland-initiated cgroup migration */
-	unsigned			no_cgroup_migration:1;
+	unsigned			yes_cgroup_migration:1;
 	/* task is frozen/stopped (used by the cgroup freezer) */
 	unsigned			frozen:1;
 #endif
@@ -827,9 +827,9 @@ struct task_struct {
 
 	/* PID/PID hash table linkage. */
 	struct pid			*thread_pid;
-	struct hlist_node		pid_links[PIDTYPE_MAX];
+	struct hlist_yesde		pid_links[PIDTYPE_MAX];
 	struct list_head		thread_group;
-	struct list_head		thread_node;
+	struct list_head		thread_yesde;
 
 	struct completion		*vfork_done;
 
@@ -858,7 +858,7 @@ struct task_struct {
 	unsigned long			nvcsw;
 	unsigned long			nivcsw;
 
-	/* Monotonic time in nsecs: */
+	/* Moyestonic time in nsecs: */
 	u64				start_time;
 
 	/* Boot based time in nsecs: */
@@ -890,7 +890,7 @@ struct task_struct {
 	/*
 	 * executable name, excluding path.
 	 *
-	 * - normally initialized setup_new_exec()
+	 * - yesrmally initialized setup_new_exec()
 	 * - access it with [gs]et_task_comm()
 	 * - lock it with task_lock()
 	 */
@@ -948,7 +948,7 @@ struct task_struct {
 	/* Protection of the PI data structures: */
 	raw_spinlock_t			pi_lock;
 
-	struct wake_q_node		wake_q;
+	struct wake_q_yesde		wake_q;
 
 #ifdef CONFIG_RT_MUTEXES
 	/* PI waiters blocked on a rt_mutex held by this task: */
@@ -965,7 +965,7 @@ struct task_struct {
 #endif
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
-	int				non_block_count;
+	int				yesn_block_count;
 #endif
 
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -1036,7 +1036,7 @@ struct task_struct {
 #endif
 #ifdef CONFIG_CPUSETS
 	/* Protected by ->alloc_lock: */
-	nodemask_t			mems_allowed;
+	yesdemask_t			mems_allowed;
 	/* Seqence number to catch updates: */
 	seqcount_t			mems_allowed_seq;
 	int				cpuset_mem_spread_rotor;
@@ -1074,7 +1074,7 @@ struct task_struct {
 	/* Protected by alloc_lock: */
 	struct mempolicy		*mempolicy;
 	short				il_prev;
-	short				pref_node_fork;
+	short				pref_yesde_fork;
 #endif
 #ifdef CONFIG_NUMA_BALANCING
 	int				numa_scan_seq;
@@ -1083,7 +1083,7 @@ struct task_struct {
 	int				numa_preferred_nid;
 	unsigned long			numa_migrate_retry;
 	/* Migration stamp: */
-	u64				node_stamp;
+	u64				yesde_stamp;
 	u64				last_task_numa_placement;
 	u64				last_sum_exec_runtime;
 	struct callback_head		numa_work;
@@ -1094,7 +1094,7 @@ struct task_struct {
 	 * from any of the following contexts:
 	 *  - RCU read-side critical section
 	 *  - current->numa_group from everywhere
-	 *  - task's runqueue locked, task not running
+	 *  - task's runqueue locked, task yest running
 	 */
 	struct numa_group __rcu		*numa_group;
 
@@ -1103,12 +1103,12 @@ struct task_struct {
 	 * faults_memory, faults_cpu, faults_memory_buffer, faults_cpu_buffer
 	 * in this precise order.
 	 *
-	 * faults_memory: Exponential decaying average of faults on a per-node
+	 * faults_memory: Exponential decaying average of faults on a per-yesde
 	 * basis. Scheduling placement decisions are made based on these
 	 * counts. The values remain static for the duration of a PTE scan.
-	 * faults_cpu: Track the nodes the process was running on when a NUMA
+	 * faults_cpu: Track the yesdes the process was running on when a NUMA
 	 * hinting fault was incurred.
-	 * faults_memory_buffer and faults_cpu_buffer: Record faults per node
+	 * faults_memory_buffer and faults_cpu_buffer: Record faults per yesde
 	 * during the current scan window. When the scan completes, the counts
 	 * in faults_memory and faults_cpu decay and these values are copied.
 	 */
@@ -1144,7 +1144,7 @@ struct task_struct {
 	};
 
 	/* Cache last used pipe for splice(): */
-	struct pipe_inode_info		*splice_pipe;
+	struct pipe_iyesde_info		*splice_pipe;
 
 	struct page_frag		task_frag;
 
@@ -1171,7 +1171,7 @@ struct task_struct {
 #endif
 	/*
 	 * Time slack values; these are used to round up poll() and
-	 * select() etc timeout values. These are in nanoseconds.
+	 * select() etc timeout values. These are in nayesseconds.
 	 */
 	u64				timer_slack_ns;
 	u64				default_timer_slack_ns;
@@ -1294,7 +1294,7 @@ struct task_struct {
 	 * WARNING: on x86, 'thread_struct' contains a variable-sized
 	 * structure.  It *MUST* be at the end of 'task_struct'.
 	 *
-	 * Do not put anything below here!
+	 * Do yest put anything below here!
 	 */
 };
 
@@ -1338,12 +1338,12 @@ static inline pid_t task_tgid_nr(struct task_struct *tsk)
 }
 
 /**
- * pid_alive - check that a task structure is not stale
+ * pid_alive - check that a task structure is yest stale
  * @p: Task structure to be checked.
  *
- * Test if a process is not yet dead (at most zombie state)
+ * Test if a process is yest yet dead (at most zombie state)
  * If pid_alive fails, then pointers within the task structure
- * can be stale and must not be dereferenced.
+ * can be stale and must yest be dereferenced.
  *
  * Return: 1 if the process is alive. 0 otherwise.
  */
@@ -1400,7 +1400,7 @@ static inline pid_t task_ppid_nr(const struct task_struct *tsk)
 	return task_ppid_nr_ns(tsk, &init_pid_ns);
 }
 
-/* Obsolete, do not use: */
+/* Obsolete, do yest use: */
 static inline pid_t task_pgrp_nr(struct task_struct *tsk)
 {
 	return task_pgrp_nr_ns(tsk, &init_pid_ns);
@@ -1465,10 +1465,10 @@ extern struct pid *cad_pid;
 #define PF_DUMPCORE		0x00000200	/* Dumped core */
 #define PF_SIGNALED		0x00000400	/* Killed by a signal */
 #define PF_MEMALLOC		0x00000800	/* Allocating memory */
-#define PF_NPROC_EXCEEDED	0x00001000	/* set_user() noticed that RLIMIT_NPROC was exceeded */
+#define PF_NPROC_EXCEEDED	0x00001000	/* set_user() yesticed that RLIMIT_NPROC was exceeded */
 #define PF_USED_MATH		0x00002000	/* If unset the fpu must be initialized before use */
 #define PF_USED_ASYNC		0x00004000	/* Used async_schedule*(), used by module init */
-#define PF_NOFREEZE		0x00008000	/* This thread should not be frozen */
+#define PF_NOFREEZE		0x00008000	/* This thread should yest be frozen */
 #define PF_FROZEN		0x00010000	/* Frozen for system suspend */
 #define PF_KSWAPD		0x00020000	/* I am kswapd */
 #define PF_MEMALLOC_NOFS	0x00040000	/* All allocation requests will inherit GFP_NOFS */
@@ -1479,12 +1479,12 @@ extern struct pid *cad_pid;
 #define PF_SWAPWRITE		0x00800000	/* Allowed to write to swap */
 #define PF_MEMSTALL		0x01000000	/* Stalled due to lack of memory */
 #define PF_UMH			0x02000000	/* I'm an Usermodehelper process */
-#define PF_NO_SETAFFINITY	0x04000000	/* Userland is not allowed to meddle with cpus_mask */
+#define PF_NO_SETAFFINITY	0x04000000	/* Userland is yest allowed to meddle with cpus_mask */
 #define PF_MCE_EARLY		0x08000000      /* Early kill for mce process policy */
 #define PF_MEMALLOC_NOCMA	0x10000000	/* All allocation request will have _GFP_MOVABLE cleared */
 #define PF_IO_WORKER		0x20000000	/* Task is an IO worker */
-#define PF_FREEZER_SKIP		0x40000000	/* Freezer should not count it as freezable */
-#define PF_SUSPEND_TASK		0x80000000      /* This thread called freeze_processes() and should not be frozen */
+#define PF_FREEZER_SKIP		0x40000000	/* Freezer should yest count it as freezable */
+#define PF_SUSPEND_TASK		0x80000000      /* This thread called freeze_processes() and should yest be frozen */
 
 /*
  * Only the _current_ task can read/write to tsk->flags, but other
@@ -1494,7 +1494,7 @@ extern struct pid *cad_pid;
  * or during fork: the ptracer task is allowed to write to the
  * child->flags of its traced child (same goes for fork, the parent
  * can write to the child->flags), because we're guaranteed the
- * child is not running and in turn not changing child->flags
+ * child is yest running and in turn yest changing child->flags
  * at the same time the parent does it.
  */
 #define clear_stopped_child_used_math(child)	do { (child)->flags &= ~PF_USED_MATH; } while (0)
@@ -1525,7 +1525,7 @@ static inline bool is_percpu_thread(void)
 }
 
 /* Per-process atomic flags. */
-#define PFA_NO_NEW_PRIVS		0	/* May not gain new privileges. */
+#define PFA_NO_NEW_PRIVS		0	/* May yest gain new privileges. */
 #define PFA_SPREAD_PAGE			1	/* Spread page cache over cpuset */
 #define PFA_SPREAD_SLAB			2	/* Spread some slab caches over cpuset */
 #define PFA_SPEC_SSB_DISABLE		3	/* Speculative Store Bypass disabled */
@@ -1546,8 +1546,8 @@ static inline bool is_percpu_thread(void)
 	static inline void task_clear_##func(struct task_struct *p)	\
 	{ clear_bit(PFA_##name, &p->atomic_flags); }
 
-TASK_PFA_TEST(NO_NEW_PRIVS, no_new_privs)
-TASK_PFA_SET(NO_NEW_PRIVS, no_new_privs)
+TASK_PFA_TEST(NO_NEW_PRIVS, yes_new_privs)
+TASK_PFA_SET(NO_NEW_PRIVS, yes_new_privs)
 
 TASK_PFA_TEST(SPREAD_PAGE, spread_page)
 TASK_PFA_SET(SPREAD_PAGE, spread_page)
@@ -1561,9 +1561,9 @@ TASK_PFA_TEST(SPEC_SSB_DISABLE, spec_ssb_disable)
 TASK_PFA_SET(SPEC_SSB_DISABLE, spec_ssb_disable)
 TASK_PFA_CLEAR(SPEC_SSB_DISABLE, spec_ssb_disable)
 
-TASK_PFA_TEST(SPEC_SSB_NOEXEC, spec_ssb_noexec)
-TASK_PFA_SET(SPEC_SSB_NOEXEC, spec_ssb_noexec)
-TASK_PFA_CLEAR(SPEC_SSB_NOEXEC, spec_ssb_noexec)
+TASK_PFA_TEST(SPEC_SSB_NOEXEC, spec_ssb_yesexec)
+TASK_PFA_SET(SPEC_SSB_NOEXEC, spec_ssb_yesexec)
+TASK_PFA_CLEAR(SPEC_SSB_NOEXEC, spec_ssb_yesexec)
 
 TASK_PFA_TEST(SPEC_SSB_FORCE_DISABLE, spec_ssb_force_disable)
 TASK_PFA_SET(SPEC_SSB_FORCE_DISABLE, spec_ssb_force_disable)
@@ -1619,9 +1619,9 @@ extern int task_curr(const struct task_struct *p);
 extern int idle_cpu(int cpu);
 extern int available_idle_cpu(int cpu);
 extern int sched_setscheduler(struct task_struct *, int, const struct sched_param *);
-extern int sched_setscheduler_nocheck(struct task_struct *, int, const struct sched_param *);
+extern int sched_setscheduler_yescheck(struct task_struct *, int, const struct sched_param *);
 extern int sched_setattr(struct task_struct *, const struct sched_attr *);
-extern int sched_setattr_nocheck(struct task_struct *, const struct sched_attr *);
+extern int sched_setattr_yescheck(struct task_struct *, const struct sched_attr *);
 extern struct task_struct *idle_task(int cpu);
 
 /**
@@ -1802,8 +1802,8 @@ static inline void cond_resched_rcu(void)
 }
 
 /*
- * Does a critical section need to be broken due to another
- * task waiting?: (technically does not depend on CONFIG_PREEMPTION,
+ * Does a critical section need to be broken due to ayesther
+ * task waiting?: (technically does yest depend on CONFIG_PREEMPTION,
  * but a general need for low latency)
  */
 static inline int spin_needbreak(spinlock_t *lock)
@@ -1851,11 +1851,11 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
 
 /*
  * In order to reduce various lock holder preemption latencies provide an
- * interface to see if a vCPU is currently running or not.
+ * interface to see if a vCPU is currently running or yest.
  *
  * This allows us to terminate optimistic spin loops and block, analogous to
  * the native optimistic spin heuristic of testing if the lock owner task is
- * running or not.
+ * running or yest.
  */
 #ifndef vcpu_is_preempted
 static inline bool vcpu_is_preempted(int cpu)
@@ -1889,19 +1889,19 @@ enum rseq_event_mask {
 	RSEQ_EVENT_MIGRATE	= (1U << RSEQ_EVENT_MIGRATE_BIT),
 };
 
-static inline void rseq_set_notify_resume(struct task_struct *t)
+static inline void rseq_set_yestify_resume(struct task_struct *t)
 {
 	if (t->rseq)
 		set_tsk_thread_flag(t, TIF_NOTIFY_RESUME);
 }
 
-void __rseq_handle_notify_resume(struct ksignal *sig, struct pt_regs *regs);
+void __rseq_handle_yestify_resume(struct ksignal *sig, struct pt_regs *regs);
 
-static inline void rseq_handle_notify_resume(struct ksignal *ksig,
+static inline void rseq_handle_yestify_resume(struct ksignal *ksig,
 					     struct pt_regs *regs)
 {
 	if (current->rseq)
-		__rseq_handle_notify_resume(ksig, regs);
+		__rseq_handle_yestify_resume(ksig, regs);
 }
 
 static inline void rseq_signal_deliver(struct ksignal *ksig,
@@ -1910,26 +1910,26 @@ static inline void rseq_signal_deliver(struct ksignal *ksig,
 	preempt_disable();
 	__set_bit(RSEQ_EVENT_SIGNAL_BIT, &current->rseq_event_mask);
 	preempt_enable();
-	rseq_handle_notify_resume(ksig, regs);
+	rseq_handle_yestify_resume(ksig, regs);
 }
 
 /* rseq_preempt() requires preemption to be disabled. */
 static inline void rseq_preempt(struct task_struct *t)
 {
 	__set_bit(RSEQ_EVENT_PREEMPT_BIT, &t->rseq_event_mask);
-	rseq_set_notify_resume(t);
+	rseq_set_yestify_resume(t);
 }
 
 /* rseq_migrate() requires preemption to be disabled. */
 static inline void rseq_migrate(struct task_struct *t)
 {
 	__set_bit(RSEQ_EVENT_MIGRATE_BIT, &t->rseq_event_mask);
-	rseq_set_notify_resume(t);
+	rseq_set_yestify_resume(t);
 }
 
 /*
  * If parent process has a registered restartable sequences area, the
- * child inherits. Only applies when forking a process, not a thread.
+ * child inherits. Only applies when forking a process, yest a thread.
  */
 static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)
 {
@@ -1953,10 +1953,10 @@ static inline void rseq_execve(struct task_struct *t)
 
 #else
 
-static inline void rseq_set_notify_resume(struct task_struct *t)
+static inline void rseq_set_yestify_resume(struct task_struct *t)
 {
 }
-static inline void rseq_handle_notify_resume(struct ksignal *ksig,
+static inline void rseq_handle_yestify_resume(struct ksignal *ksig,
 					     struct pt_regs *regs)
 {
 }

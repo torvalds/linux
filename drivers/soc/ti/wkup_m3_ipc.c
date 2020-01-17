@@ -63,7 +63,7 @@ static const struct wkup_m3_wakeup_src wakeups[] = {
 	{.irq_nr = 49,	.src = "WDT0"},
 	{.irq_nr = 50,	.src = "WDT1"},
 	{.irq_nr = 51,	.src = "ADC_TSC"},
-	{.irq_nr = 0,	.src = "Unknown"},
+	{.irq_nr = 0,	.src = "Unkyeswn"},
 };
 
 static void am33xx_txev_eoi(struct wkup_m3_ipc *m3_ipc)
@@ -123,7 +123,7 @@ static irqreturn_t wkup_m3_txev_handler(int irq, void *ipc_data)
 
 		if (ver == M3_VERSION_UNKNOWN ||
 		    ver < M3_BASELINE_VERSION) {
-			dev_warn(dev, "CM3 Firmware Version %x not supported\n",
+			dev_warn(dev, "CM3 Firmware Version %x yest supported\n",
 				 ver);
 		} else {
 			dev_info(dev, "CM3 Firmware Version = 0x%x\n", ver);
@@ -140,7 +140,7 @@ static irqreturn_t wkup_m3_txev_handler(int irq, void *ipc_data)
 		complete(&m3_ipc->sync_complete);
 		break;
 	case M3_STATE_UNKNOWN:
-		dev_warn(dev, "Unknown CM3 State\n");
+		dev_warn(dev, "Unkyeswn CM3 State\n");
 	}
 
 	am33xx_txev_enable(m3_ipc);
@@ -186,7 +186,7 @@ static int wkup_m3_ping(struct wkup_m3_ipc *m3_ipc)
 	return 0;
 }
 
-static int wkup_m3_ping_noirq(struct wkup_m3_ipc *m3_ipc)
+static int wkup_m3_ping_yesirq(struct wkup_m3_ipc *m3_ipc)
 {
 	struct device *dev = m3_ipc->dev;
 	mbox_msg_t dummy_msg = 0;
@@ -220,7 +220,7 @@ static int wkup_m3_is_available(struct wkup_m3_ipc *m3_ipc)
  * wkup_m3_set_mem_type - Pass wkup_m3 which type of memory is in use
  * @mem_type: memory type value read directly from emif
  *
- * wkup_m3 must know what memory type is in use to properly suspend
+ * wkup_m3 must kyesw what memory type is in use to properly suspend
  * and resume.
  */
 static void wkup_m3_set_mem_type(struct wkup_m3_ipc *m3_ipc, int mem_type)
@@ -301,7 +301,7 @@ static int wkup_m3_prepare_low_power(struct wkup_m3_ipc *m3_ipc, int state)
 	m3_ipc->state = M3_STATE_MSG_FOR_LP;
 
 	if (state == WKUP_M3_IDLE)
-		ret = wkup_m3_ping_noirq(m3_ipc);
+		ret = wkup_m3_ping_yesirq(m3_ipc);
 	else
 		ret = wkup_m3_ping(m3_ipc);
 
@@ -384,7 +384,7 @@ static struct wkup_m3_ipc_ops ipc_ops = {
 /**
  * wkup_m3_ipc_get - Return handle to wkup_m3_ipc
  *
- * Returns NULL if the wkup_m3 is not yet available, otherwise returns
+ * Returns NULL if the wkup_m3 is yest yet available, otherwise returns
  * pointer to wkup_m3_ipc struct.
  */
 struct wkup_m3_ipc *wkup_m3_ipc_get(void)
@@ -440,13 +440,13 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	m3_ipc->ipc_mem_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(m3_ipc->ipc_mem_base)) {
-		dev_err(dev, "could not ioremap ipc_mem\n");
+		dev_err(dev, "could yest ioremap ipc_mem\n");
 		return PTR_ERR(m3_ipc->ipc_mem_base);
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (!irq) {
-		dev_err(&pdev->dev, "no irq resource\n");
+		dev_err(&pdev->dev, "yes irq resource\n");
 		return -ENXIO;
 	}
 
@@ -462,7 +462,7 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 	m3_ipc->mbox_client.tx_prepare = NULL;
 	m3_ipc->mbox_client.rx_callback = NULL;
 	m3_ipc->mbox_client.tx_block = false;
-	m3_ipc->mbox_client.knows_txdone = false;
+	m3_ipc->mbox_client.kyesws_txdone = false;
 
 	m3_ipc->mbox = mbox_request_channel(&m3_ipc->mbox_client, 0);
 
@@ -472,15 +472,15 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 		return PTR_ERR(m3_ipc->mbox);
 	}
 
-	if (of_property_read_u32(dev->of_node, "ti,rproc", &rproc_phandle)) {
-		dev_err(&pdev->dev, "could not get rproc phandle\n");
+	if (of_property_read_u32(dev->of_yesde, "ti,rproc", &rproc_phandle)) {
+		dev_err(&pdev->dev, "could yest get rproc phandle\n");
 		ret = -ENODEV;
 		goto err_free_mbox;
 	}
 
 	m3_rproc = rproc_get_by_phandle(rproc_phandle);
 	if (!m3_rproc) {
-		dev_err(&pdev->dev, "could not get rproc handle\n");
+		dev_err(&pdev->dev, "could yest get rproc handle\n");
 		ret = -EPROBE_DEFER;
 		goto err_free_mbox;
 	}

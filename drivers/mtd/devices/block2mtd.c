@@ -52,7 +52,7 @@ static struct page *page_read(struct address_space *mapping, int index)
 /* erase a specified part of the device */
 static int _block2mtd_erase(struct block2mtd_dev *dev, loff_t to, size_t len)
 {
-	struct address_space *mapping = dev->blkdev->bd_inode->i_mapping;
+	struct address_space *mapping = dev->blkdev->bd_iyesde->i_mapping;
 	struct page *page;
 	int index = to >> PAGE_SHIFT;	// page index
 	int pages = len >> PAGE_SHIFT;
@@ -114,7 +114,7 @@ static int block2mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 			cpylen = len;	// this page
 		len = len - cpylen;
 
-		page = page_read(dev->blkdev->bd_inode->i_mapping, index);
+		page = page_read(dev->blkdev->bd_iyesde->i_mapping, index);
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
@@ -136,7 +136,7 @@ static int _block2mtd_write(struct block2mtd_dev *dev, const u_char *buf,
 		loff_t to, size_t len, size_t *retlen)
 {
 	struct page *page;
-	struct address_space *mapping = dev->blkdev->bd_inode->i_mapping;
+	struct address_space *mapping = dev->blkdev->bd_iyesde->i_mapping;
 	int index = to >> PAGE_SHIFT;	// page index
 	int offset = to & ~PAGE_MASK;	// page offset
 	int cpylen;
@@ -204,7 +204,7 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
 	kfree(dev->mtd.name);
 
 	if (dev->blkdev) {
-		invalidate_mapping_pages(dev->blkdev->bd_inode->i_mapping,
+		invalidate_mapping_pages(dev->blkdev->bd_iyesde->i_mapping,
 					0, -1);
 		blkdev_put(dev->blkdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 	}
@@ -236,7 +236,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 
 #ifndef MODULE
 	/*
-	 * We might not have the root device mounted at this point.
+	 * We might yest have the root device mounted at this point.
 	 * Try to resolve the device name by other means.
 	 */
 	for (i = 0; IS_ERR(bdev) && i <= timeout; i++) {
@@ -245,7 +245,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		if (i)
 			/*
 			 * Calling wait_for_device_probe in the first loop
-			 * was not enough, sleep for a bit in subsequent
+			 * was yest eyesugh, sleep for a bit in subsequent
 			 * go-arounds.
 			 */
 			msleep(1000);
@@ -259,7 +259,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 #endif
 
 	if (IS_ERR(bdev)) {
-		pr_err("error: cannot open device %s\n", devname);
+		pr_err("error: canyest open device %s\n", devname);
 		goto err_free_block2mtd;
 	}
 	dev->blkdev = bdev;
@@ -269,7 +269,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		goto err_free_block2mtd;
 	}
 
-	if ((long)dev->blkdev->bd_inode->i_size % erase_size) {
+	if ((long)dev->blkdev->bd_iyesde->i_size % erase_size) {
 		pr_err("erasesize must be a divisor of device size\n");
 		goto err_free_block2mtd;
 	}
@@ -284,7 +284,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 
 	dev->mtd.name = name;
 
-	dev->mtd.size = dev->blkdev->bd_inode->i_size & PAGE_MASK;
+	dev->mtd.size = dev->blkdev->bd_iyesde->i_size & PAGE_MASK;
 	dev->mtd.erasesize = erase_size;
 	dev->mtd.writesize = 1;
 	dev->mtd.writebufsize = PAGE_SIZE;
@@ -404,7 +404,7 @@ static int block2mtd_setup2(const char *val)
 	}
 
 	if (!token[0]) {
-		pr_err("no argument\n");
+		pr_err("yes argument\n");
 		return 0;
 	}
 
@@ -436,7 +436,7 @@ static int block2mtd_setup(const char *val, const struct kernel_param *kp)
 	/* If more parameters are later passed in via
 	   /sys/module/block2mtd/parameters/block2mtd
 	   and block2mtd_init() has already been called,
-	   we can parse the argument now. */
+	   we can parse the argument yesw. */
 
 	if (block2mtd_init_called)
 		return block2mtd_setup2(val);
@@ -444,7 +444,7 @@ static int block2mtd_setup(const char *val, const struct kernel_param *kp)
 	/* During early boot stage, we only save the parameters
 	   here. We must parse them later: if the param passed
 	   from kernel boot command line, block2mtd_setup() is
-	   called so early that it is not possible to resolve
+	   called so early that it is yest possible to resolve
 	   the device (even kmalloc() fails). Deter that work to
 	   block2mtd_setup2(). */
 

@@ -18,7 +18,7 @@
 
 #include <linux/compiler.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
@@ -375,11 +375,11 @@ void seccalctkipmic(u8 *key, u8 *header, u8 *data, u32 data_len, u8 *mic_code,
 #define _S_(v16)  (Sbox1[0][Lo8(v16)] ^ Sbox1[1][Hi8(v16)])
 
 /* fixed algorithm "parameters" */
-#define PHASE1_LOOP_CNT   8    /* this needs to be "big enough"     */
+#define PHASE1_LOOP_CNT   8    /* this needs to be "big eyesugh"     */
 #define TA_SIZE           6    /*  48-bit transmitter address       */
 #define TK_SIZE          16    /* 128-bit temporal key              */
 #define P1K_SIZE         10    /*  80-bit Phase1 key                */
-#define RC4_KEY_SIZE     16    /* 128-bit RC4KEY (104 bits unknown) */
+#define RC4_KEY_SIZE     16    /* 128-bit RC4KEY (104 bits unkyeswn) */
 
 
 /* 2-unsigned char by 2-unsigned char subset of the full AES S-box table */
@@ -511,7 +511,7 @@ static void phase1(u16 *p1k, const u8 *tk, const u8 *ta, u32 iv32)
  *     the final RC4KEY value is unique across all packets.
  *
  * Suggested implementation optimization: if PPK[] is "overlaid"
- *     appropriately on RC4KEY[], there is no need for the final
+ *     appropriately on RC4KEY[], there is yes need for the final
  *     for loop below that copies the PPK[] result into RC4KEY[].
  *
  **********************************************************************
@@ -525,7 +525,7 @@ static void phase2(u8 *rc4key, const u8 *tk, const u16 *p1k, u16 iv16)
 	for (i = 0; i < 5; i++)
 		PPK[i] = p1k[i]; /* first, copy P1K to PPK */
 	PPK[5]  =  p1k[4] + iv16; /* next,  add in IV16 */
-	/* Bijective non-linear mixing of the 96 bits of PPK[0..5] */
+	/* Bijective yesn-linear mixing of the 96 bits of PPK[0..5] */
 	PPK[0] += _S_(PPK[5] ^ TK16(0));   /* Mix key in each "round" */
 	PPK[1] += _S_(PPK[0] ^ TK16(1));
 	PPK[2] += _S_(PPK[1] ^ TK16(2));
@@ -542,7 +542,7 @@ static void phase2(u8 *rc4key, const u8 *tk, const u16 *p1k, u16 iv16)
 	/* Note: At this point, for a given key TK[0..15], the 96-bit output */
 	/* value PPK[0..5] is guaranteed to be unique, as a function   */
 	/* of the 96-bit "input" value   {TA,IV32,IV16}. That is, P1K  */
-	/* is now a keyed permutation of {TA,IV32,IV16}. */
+	/* is yesw a keyed permutation of {TA,IV32,IV16}. */
 	/* Set RC4KEY[0..3], which includes "cleartext" portion of RC4 key   */
 	rc4key[0] = Hi8(iv16); /* RC4KEY[0..2] is the WEP IV  */
 	rc4key[1] = (Hi8(iv16) | 0x20) & 0x7F; /* Help avoid weak (FMS) keys  */
@@ -1241,7 +1241,7 @@ static void aes_decipher(u8 *key, uint hdrlen,
 	} else {
 		qc_exists = 0;
 	}
-	/* now, decrypt pframe with hdrlen offset and plen long */
+	/* yesw, decrypt pframe with hdrlen offset and plen long */
 	payload_index = hdrlen + 8; /* 8 is for extiv */
 	for (i = 0; i < num_blocks; i++) {
 		construct_ctr_preload(ctr_preload, a4_exists, qc_exists,

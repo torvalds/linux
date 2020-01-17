@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019, Vladimir Oltean <olteanv@gmail.com>
  *
- * This module is not a complete tagger implementation. It only provides
+ * This module is yest a complete tagger implementation. It only provides
  * primitives for taggers that rely on 802.1Q VLAN tags to use. The
- * dsa_8021q_netdev_ops is registered for API compliance and not used
+ * dsa_8021q_netdev_ops is registered for API compliance and yest used
  * directly by callers.
  */
 #include <linux/if_bridge.h>
@@ -28,14 +28,14 @@
  *
  * RSV - VID[9]:
  *	To be used for further expansion of SWITCH_ID or for other purposes.
- *	Must be transmitted as zero and ignored on receive.
+ *	Must be transmitted as zero and igyesred on receive.
  *
  * SWITCH_ID - VID[8:6]:
  *	Index of switch within DSA tree. Must be between 0 and 7.
  *
  * RSV - VID[5:4]:
  *	To be used for further expansion of PORT or for other purposes.
- *	Must be transmitted as zero and ignored on receive.
+ *	Must be transmitted as zero and igyesred on receive.
  *
  * PORT - VID[3:0]:
  *	Index of switch port. Must be between 0 and 15.
@@ -106,7 +106,7 @@ static int dsa_8021q_restore_pvid(struct dsa_switch *ds, int port)
 
 	err = br_vlan_get_pvid(slave, &pvid);
 	if (!pvid || err < 0)
-		/* There is no pvid on the bridge for this port, which is
+		/* There is yes pvid on the bridge for this port, which is
 		 * perfectly valid. Nothing to restore, bye-bye!
 		 */
 		return 0;
@@ -122,7 +122,7 @@ static int dsa_8021q_restore_pvid(struct dsa_switch *ds, int port)
 
 /* If @enabled is true, installs @vid with @flags into the switch port's HW
  * filter.
- * If @enabled is false, deletes @vid (ignores @flags) from the port. Had the
+ * If @enabled is false, deletes @vid (igyesres @flags) from the port. Had the
  * user explicitly configured this @vid through the bridge core, then the @vid
  * is installed again, but this time with the flags from the bridge layer.
  */
@@ -140,7 +140,7 @@ static int dsa_8021q_vid_apply(struct dsa_switch *ds, int port, u16 vid,
 	if (err < 0)
 		return err;
 
-	/* Nothing to restore from the bridge for a non-user port.
+	/* Nothing to restore from the bridge for a yesn-user port.
 	 * The CPU port VLANs are restored implicitly with the user ports,
 	 * similar to how the bridge does in dsa_slave_vlan_add and
 	 * dsa_slave_vlan_del.
@@ -150,7 +150,7 @@ static int dsa_8021q_vid_apply(struct dsa_switch *ds, int port, u16 vid,
 
 	err = br_vlan_get_info(dp->slave, vid, &vinfo);
 	/* Couldn't determine bridge attributes for this vid,
-	 * it means the bridge had not configured it.
+	 * it means the bridge had yest configured it.
 	 */
 	if (err < 0)
 		return 0;
@@ -174,23 +174,23 @@ static int dsa_8021q_vid_apply(struct dsa_switch *ds, int port, u16 vid,
  *    that uniquely identifies it, and the egress of this pvid must be tagged
  *    towards the CPU port, so that software can recover the source port based
  *    on the VID in the frame. But this would only work for standalone ports;
- *    if bridged, this VLAN setup would break autonomous forwarding and would
+ *    if bridged, this VLAN setup would break autoyesmous forwarding and would
  *    force all switched traffic to pass through the CPU. So we must also make
  *    the other front-panel ports members of this VID we're adding, albeit
- *    we're not making it their PVID (they'll still have their own).
+ *    we're yest making it their PVID (they'll still have their own).
  *    By the way - just because we're installing the same VID in multiple
- *    switch ports doesn't mean that they'll start to talk to one another, even
- *    while not bridged: the final forwarding decision is still an AND between
+ *    switch ports doesn't mean that they'll start to talk to one ayesther, even
+ *    while yest bridged: the final forwarding decision is still an AND between
  *    the L2 forwarding information (which is limiting forwarding in this case)
- *    and the VLAN-based restrictions (of which there are none in this case,
+ *    and the VLAN-based restrictions (of which there are yesne in this case,
  *    since all ports are members).
  *  - On TX (ingress from CPU and towards network) we are faced with a problem.
  *    If we were to tag traffic (from within DSA) with the port's pvid, all
  *    would be well, assuming the switch ports were standalone. Frames would
- *    have no choice but to be directed towards the correct front-panel port.
- *    But because we also want the RX VLAN to not break bridging, then
+ *    have yes choice but to be directed towards the correct front-panel port.
+ *    But because we also want the RX VLAN to yest break bridging, then
  *    inevitably that means that we have to give them a choice (of what
- *    front-panel port to go out on), and therefore we cannot steer traffic
+ *    front-panel port to go out on), and therefore we canyest steer traffic
  *    based on the RX VID. So what we do is simply install one more VID on the
  *    front-panel and CPU ports, and profit off of the fact that steering will
  *    work just by virtue of the fact that there is only one other port that's
@@ -231,9 +231,9 @@ int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int port, bool enabled)
 		return 0;
 
 	/* Add this user port's RX VID to the membership list of all others
-	 * (including itself). This is so that bridging will not be hindered.
-	 * L2 forwarding rules still take precedence when there are no VLAN
-	 * restrictions, so there are no concerns about leaking traffic.
+	 * (including itself). This is so that bridging will yest be hindered.
+	 * L2 forwarding rules still take precedence when there are yes VLAN
+	 * restrictions, so there are yes concerns about leaking traffic.
 	 */
 	for (i = 0; i < ds->num_ports; i++) {
 		u16 flags;
@@ -322,7 +322,7 @@ EXPORT_SYMBOL_GPL(dsa_8021q_xmit);
  *       >>>>>>>   |    Destination MAC    |      Source MAC       | EType |
  *                 +-----------------------+-----------------------+-------+
  *                 ^                                                       ^
- * (now part of    |                                                       |
+ * (yesw part of    |                                                       |
  *  skb->head)     skb_mac_header                                  skb->data
  */
 struct sk_buff *dsa_8021q_remove_header(struct sk_buff *skb)

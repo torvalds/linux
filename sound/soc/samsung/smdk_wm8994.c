@@ -145,7 +145,7 @@ MODULE_DEVICE_TABLE(of, samsung_wm8994_of_match);
 static int smdk_audio_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct snd_soc_card *card = &smdk;
 	struct smdk_wm8994_data *board;
 	const struct of_device_id *id;
@@ -158,16 +158,16 @@ static int smdk_audio_probe(struct platform_device *pdev)
 
 	if (np) {
 		smdk_dai[0].cpus->dai_name = NULL;
-		smdk_dai[0].cpus->of_node = of_parse_phandle(np,
+		smdk_dai[0].cpus->of_yesde = of_parse_phandle(np,
 				"samsung,i2s-controller", 0);
-		if (!smdk_dai[0].cpus->of_node) {
+		if (!smdk_dai[0].cpus->of_yesde) {
 			dev_err(&pdev->dev,
 			   "Property 'samsung,i2s-controller' missing or invalid\n");
 			ret = -EINVAL;
 		}
 
 		smdk_dai[0].platforms->name = NULL;
-		smdk_dai[0].platforms->of_node = smdk_dai[0].cpus->of_node;
+		smdk_dai[0].platforms->of_yesde = smdk_dai[0].cpus->of_yesde;
 	}
 
 	id = of_match_device(of_match_ptr(samsung_wm8994_of_match), &pdev->dev);

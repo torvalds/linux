@@ -39,7 +39,7 @@ Other guides to the community that are of interest to most developers are:
 
    changes
    submitting-drivers
-   stable-api-nonsense
+   stable-api-yesnsense
    management-style
    stable-kernel-rules
    submit-checklist
@@ -48,7 +48,7 @@ Other guides to the community that are of interest to most developers are:
    embargoed-hardware-issues
    maintainers
 
-These are some overall technical guides that have been put here for now for
+These are some overall technical guides that have been put here for yesw for
 lack of a better place.
 
 .. toctree::

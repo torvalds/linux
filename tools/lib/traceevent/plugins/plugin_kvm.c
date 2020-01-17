@@ -5,7 +5,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation;
- * version 2.1 of the License (not later!)
+ * version 2.1 of the License (yest later!)
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,7 +13,7 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not,  see <http://www.gnu.org/licenses>
+ * License along with this program; if yest,  see <http://www.gnu.org/licenses>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -364,8 +364,8 @@ union kvm_mmu_page_role {
 		unsigned invalid:1;
 		unsigned nxe:1;
 		unsigned cr0_wp:1;
-		unsigned smep_and_not_wp:1;
-		unsigned smap_and_not_wp:1;
+		unsigned smep_and_yest_wp:1;
+		unsigned smap_and_yest_wp:1;
 		unsigned pad_for_nice_hex_output:8;
 		unsigned smm:8;
 	};
@@ -401,8 +401,8 @@ static int kvm_mmu_print_role(struct trace_seq *s, struct tep_record *record,
 				 role.cr4_pae ? "" : "!",
 				 role.nxe ? "" : "!",
 				 role.cr0_wp ? "" : "!",
-				 role.smep_and_not_wp ? " smep" : "",
-				 role.smap_and_not_wp ? " smap" : "",
+				 role.smep_and_yest_wp ? " smep" : "",
+				 role.smap_and_yest_wp ? " smap" : "",
 				 role.smm ? " smm" : "");
 	} else
 		trace_seq_printf(s, "WORD: %08x", role.word);

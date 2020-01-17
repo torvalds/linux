@@ -18,7 +18,7 @@ Required properties:
 - reg :                 Chip select address of device
 - spi-max-frequency :   Maximum SPI clocking speed of device in Hz
 - interrupts :          Should contain parameters for 1 interrupt line.
-- vwlan-supply :        Point the node of the regulator that powers/enable the
+- vwlan-supply :        Point the yesde of the regulator that powers/enable the
                         wl12xx/wl18xx chip
 
 Optional properties:

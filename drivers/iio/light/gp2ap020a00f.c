@@ -25,7 +25,7 @@
  * channels as well as high and low threshold events for the
  * illuminance_clear and proxmimity channels. Triggers
  * can be enabled simultaneously with both illuminance_clear
- * events. Proximity events cannot be enabled simultaneously
+ * events. Proximity events canyest be enabled simultaneously
  * with any triggers or illuminance events. Enabling/disabling
  * one of the proximity events automatically enables/disables
  * the other one.
@@ -87,7 +87,7 @@
 #define GP2AP020A00F_OP_ALS		0x10
 #define GP2AP020A00F_OP_PS		0x20
 #define GP2AP020A00F_OP_DEBUG		0x30
-#define GP2AP020A00F_PROX_MASK		0x08 /* PS: detection/non-detection */
+#define GP2AP020A00F_PROX_MASK		0x08 /* PS: detection/yesn-detection */
 #define GP2AP020A00F_PROX_NON_DETECT	0x00
 #define GP2AP020A00F_PROX_DETECT	0x08
 #define GP2AP020A00F_FLAG_P		0x04 /* PS: interrupt result  */
@@ -883,7 +883,7 @@ static irqreturn_t gp2ap020a00f_thresh_event_handler(int irq, void *data)
 	op_reg_val &= (~GP2AP020A00F_FLAG_A & ~GP2AP020A00F_FLAG_P
 					& ~GP2AP020A00F_PROX_DETECT);
 
-	/* Clear interrupt flags (if not in INTTYPE_PULSE mode) */
+	/* Clear interrupt flags (if yest in INTTYPE_PULSE mode) */
 	if (priv->cur_opmode != GP2AP020A00F_OPMODE_PROX_DETECT) {
 		ret = regmap_write(priv->regmap, GP2AP020A00F_OP_REG,
 								op_reg_val);
@@ -989,7 +989,7 @@ static irqreturn_t gp2ap020a00f_trigger_handler(int irq, void *data)
 	iio_push_to_buffers_with_timestamp(indio_dev, priv->buffer,
 		pf->timestamp);
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }

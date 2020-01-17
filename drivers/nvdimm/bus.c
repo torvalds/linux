@@ -142,21 +142,21 @@ static void nvdimm_bus_shutdown(struct device *dev)
 	}
 }
 
-void nd_device_notify(struct device *dev, enum nvdimm_event event)
+void nd_device_yestify(struct device *dev, enum nvdimm_event event)
 {
 	nd_device_lock(dev);
 	if (dev->driver) {
 		struct nd_device_driver *nd_drv;
 
 		nd_drv = to_nd_device_driver(dev->driver);
-		if (nd_drv->notify)
-			nd_drv->notify(dev, event);
+		if (nd_drv->yestify)
+			nd_drv->yestify(dev, event);
 	}
 	nd_device_unlock(dev);
 }
-EXPORT_SYMBOL(nd_device_notify);
+EXPORT_SYMBOL(nd_device_yestify);
 
-void nvdimm_region_notify(struct nd_region *nd_region, enum nvdimm_event event)
+void nvdimm_region_yestify(struct nd_region *nd_region, enum nvdimm_event event)
 {
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(&nd_region->dev);
 
@@ -164,9 +164,9 @@ void nvdimm_region_notify(struct nd_region *nd_region, enum nvdimm_event event)
 		return;
 
 	/* caller is responsible for holding a reference on the device */
-	nd_device_notify(&nd_region->dev, event);
+	nd_device_yestify(&nd_region->dev, event);
 }
-EXPORT_SYMBOL_GPL(nvdimm_region_notify);
+EXPORT_SYMBOL_GPL(nvdimm_region_yestify);
 
 struct clear_badblocks_context {
 	resource_size_t phys, cleared;
@@ -195,7 +195,7 @@ static int nvdimm_clear_badblocks_region(struct device *dev, void *data)
 	badblocks_clear(&nd_region->bb, sector, ctx->cleared / 512);
 
 	if (nd_region->bb_state)
-		sysfs_notify_dirent(nd_region->bb_state);
+		sysfs_yestify_dirent(nd_region->bb_state);
 
 	return 0;
 }
@@ -230,7 +230,7 @@ long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 	struct nd_cmd_clear_error clear_err;
 	struct nd_cmd_ars_cap ars_cap;
 	u32 clear_err_unit, mask;
-	unsigned int noio_flag;
+	unsigned int yesio_flag;
 	int cmd_rc, rc;
 
 	if (!nvdimm_bus)
@@ -238,7 +238,7 @@ long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 
 	nd_desc = nvdimm_bus->nd_desc;
 	/*
-	 * if ndctl does not exist, it's PMEM_LEGACY and
+	 * if ndctl does yest exist, it's PMEM_LEGACY and
 	 * we want to just pretend everything is handled.
 	 */
 	if (!nd_desc->ndctl)
@@ -247,10 +247,10 @@ long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 	memset(&ars_cap, 0, sizeof(ars_cap));
 	ars_cap.address = phys;
 	ars_cap.length = len;
-	noio_flag = memalloc_noio_save();
+	yesio_flag = memalloc_yesio_save();
 	rc = nd_desc->ndctl(nd_desc, NULL, ND_CMD_ARS_CAP, &ars_cap,
 			sizeof(ars_cap), &cmd_rc);
-	memalloc_noio_restore(noio_flag);
+	memalloc_yesio_restore(yesio_flag);
 	if (rc < 0)
 		return rc;
 	if (cmd_rc < 0)
@@ -265,10 +265,10 @@ long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 	memset(&clear_err, 0, sizeof(clear_err));
 	clear_err.address = phys;
 	clear_err.length = len;
-	noio_flag = memalloc_noio_save();
+	yesio_flag = memalloc_yesio_save();
 	rc = nd_desc->ndctl(nd_desc, NULL, ND_CMD_CLEAR_ERROR, &clear_err,
 			sizeof(clear_err), &cmd_rc);
-	memalloc_noio_restore(noio_flag);
+	memalloc_yesio_restore(yesio_flag);
 	if (rc < 0)
 		return rc;
 	if (cmd_rc < 0)
@@ -317,7 +317,7 @@ struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev)
 	for (dev = nd_dev; dev; dev = dev->parent)
 		if (is_nvdimm_bus(dev))
 			break;
-	dev_WARN_ONCE(nd_dev, !dev, "invalid dev, not on nd bus\n");
+	dev_WARN_ONCE(nd_dev, !dev, "invalid dev, yest on nd bus\n");
 	if (dev)
 		return to_nvdimm_bus(dev);
 	return NULL;
@@ -363,7 +363,7 @@ struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 	nvdimm_bus->dev.type = &nvdimm_bus_dev_type;
 	nvdimm_bus->dev.groups = nd_desc->attr_groups;
 	nvdimm_bus->dev.bus = &nvdimm_bus_type;
-	nvdimm_bus->dev.of_node = nd_desc->of_node;
+	nvdimm_bus->dev.of_yesde = nd_desc->of_yesde;
 	dev_set_name(&nvdimm_bus->dev, "ndbus%d", nvdimm_bus->id);
 	rc = device_register(&nvdimm_bus->dev);
 	if (rc) {
@@ -530,19 +530,19 @@ void __nd_device_register(struct device *dev)
 		return;
 
 	/*
-	 * Ensure that region devices always have their NUMA node set as
+	 * Ensure that region devices always have their NUMA yesde set as
 	 * early as possible. This way we are able to make certain that
 	 * any memory associated with the creation and the creation
-	 * itself of the region is associated with the correct node.
+	 * itself of the region is associated with the correct yesde.
 	 */
 	if (is_nd_region(dev))
-		set_dev_node(dev, to_nd_region(dev)->numa_node);
+		set_dev_yesde(dev, to_nd_region(dev)->numa_yesde);
 
 	dev->bus = &nvdimm_bus_type;
 	if (dev->parent) {
 		get_device(dev->parent);
-		if (dev_to_node(dev) == NUMA_NO_NODE)
-			set_dev_node(dev, dev_to_node(dev->parent));
+		if (dev_to_yesde(dev) == NUMA_NO_NODE)
+			set_dev_yesde(dev, dev_to_yesde(dev->parent));
 	}
 	get_device(dev);
 
@@ -610,7 +610,7 @@ int __nd_driver_register(struct nd_device_driver *nd_drv, struct module *owner,
 	struct device_driver *drv = &nd_drv->drv;
 
 	if (!nd_drv->type) {
-		pr_debug("driver type bitmask not set (%ps)\n",
+		pr_debug("driver type bitmask yest set (%ps)\n",
 				__builtin_return_address(0));
 		return -EINVAL;
 	}
@@ -678,14 +678,14 @@ const struct attribute_group nd_device_attribute_group = {
 	.attrs = nd_device_attributes,
 };
 
-static ssize_t numa_node_show(struct device *dev,
+static ssize_t numa_yesde_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dev_to_node(dev));
+	return sprintf(buf, "%d\n", dev_to_yesde(dev));
 }
-static DEVICE_ATTR_RO(numa_node);
+static DEVICE_ATTR_RO(numa_yesde);
 
-static int nvdimm_dev_to_target_node(struct device *dev)
+static int nvdimm_dev_to_target_yesde(struct device *dev)
 {
 	struct device *parent = dev->parent;
 	struct nd_region *nd_region = NULL;
@@ -697,19 +697,19 @@ static int nvdimm_dev_to_target_node(struct device *dev)
 
 	if (!nd_region)
 		return NUMA_NO_NODE;
-	return nd_region->target_node;
+	return nd_region->target_yesde;
 }
 
-static ssize_t target_node_show(struct device *dev,
+static ssize_t target_yesde_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", nvdimm_dev_to_target_node(dev));
+	return sprintf(buf, "%d\n", nvdimm_dev_to_target_yesde(dev));
 }
-static DEVICE_ATTR_RO(target_node);
+static DEVICE_ATTR_RO(target_yesde);
 
 static struct attribute *nd_numa_attributes[] = {
-	&dev_attr_numa_node.attr,
-	&dev_attr_target_node.attr,
+	&dev_attr_numa_yesde.attr,
+	&dev_attr_target_yesde.attr,
 	NULL,
 };
 
@@ -721,8 +721,8 @@ static umode_t nd_numa_attr_visible(struct kobject *kobj, struct attribute *a,
 	if (!IS_ENABLED(CONFIG_NUMA))
 		return 0;
 
-	if (a == &dev_attr_target_node.attr &&
-			nvdimm_dev_to_target_node(dev) == NUMA_NO_NODE)
+	if (a == &dev_attr_target_yesde.attr &&
+			nvdimm_dev_to_target_yesde(dev) == NUMA_NO_NODE)
 		return 0;
 
 	return a->mode;
@@ -1071,7 +1071,7 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 
 		in_size = nd_cmd_in_size(nvdimm, cmd, desc, i, in_env);
 		if (in_size == UINT_MAX) {
-			dev_err(dev, "%s:%s unknown input size cmd: %s field: %d\n",
+			dev_err(dev, "%s:%s unkyeswn input size cmd: %s field: %d\n",
 					__func__, dimm_name, cmd_name, i);
 			rc = -ENXIO;
 			goto out;
@@ -1107,7 +1107,7 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 		u32 copy;
 
 		if (out_size == UINT_MAX) {
-			dev_dbg(dev, "%s unknown output size cmd: %s field: %d\n",
+			dev_dbg(dev, "%s unkyeswn output size cmd: %s field: %d\n",
 					dimm_name, cmd_name, i);
 			rc = -EFAULT;
 			goto out;
@@ -1247,11 +1247,11 @@ static long dimm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return nd_ioctl(file, cmd, arg, DIMM_IOCTL);
 }
 
-static int nd_open(struct inode *inode, struct file *file)
+static int nd_open(struct iyesde *iyesde, struct file *file)
 {
-	long minor = iminor(inode);
+	long miyesr = imiyesr(iyesde);
 
-	file->private_data = (void *) minor;
+	file->private_data = (void *) miyesr;
 	return 0;
 }
 
@@ -1260,7 +1260,7 @@ static const struct file_operations nvdimm_bus_fops = {
 	.open = nd_open,
 	.unlocked_ioctl = bus_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static const struct file_operations nvdimm_fops = {
@@ -1268,7 +1268,7 @@ static const struct file_operations nvdimm_fops = {
 	.open = nd_open,
 	.unlocked_ioctl = dimm_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 int __init nvdimm_bus_init(void)

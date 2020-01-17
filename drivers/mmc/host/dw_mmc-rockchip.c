@@ -67,15 +67,15 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 	/*
 	 * Set the drive phase offset based on speed mode to achieve hold times.
 	 *
-	 * NOTE: this is _not_ a value that is dynamically tuned and is also
-	 * _not_ a value that will vary from board to board.  It is a value
+	 * NOTE: this is _yest_ a value that is dynamically tuned and is also
+	 * _yest_ a value that will vary from board to board.  It is a value
 	 * that could vary between different SoC models if they had massively
 	 * different output clock delays inside their dw_mmc IP block (delay_o),
 	 * but since it's OK to overshoot a little we don't need to do complex
 	 * calculations and can pick values that will just work for everyone.
 	 *
 	 * When picking values we'll stick with picking 0/90/180/270 since
-	 * those can be made very accurately on all known Rockchip SoCs.
+	 * those can be made very accurately on all kyeswn Rockchip SoCs.
 	 *
 	 * Note that these values match values from the DesignWare Databook
 	 * tables for the most part except for SDR12 and "ID mode".  For those
@@ -96,7 +96,7 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 		/*
 		 * In almost all cases a 90 degree phase offset will provide
 		 * sufficient hold times across all valid input clock rates
-		 * assuming delay_o is not absurd for a given SoC.  We'll use
+		 * assuming delay_o is yest absurd for a given SoC.  We'll use
 		 * that as a default.
 		 */
 		phase = 90;
@@ -151,7 +151,7 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 	int middle_phase;
 
 	if (IS_ERR(priv->sample_clk)) {
-		dev_err(host->dev, "Tuning clock (sample_clk) not defined.\n");
+		dev_err(host->dev, "Tuning clock (sample_clk) yest defined.\n");
 		return -EIO;
 	}
 
@@ -260,7 +260,7 @@ free:
 
 static int dw_mci_rk3288_parse_dt(struct dw_mci *host)
 {
-	struct device_node *np = host->dev->of_node;
+	struct device_yesde *np = host->dev->of_yesde;
 	struct dw_mci_rockchip_priv_data *priv;
 
 	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
@@ -277,11 +277,11 @@ static int dw_mci_rk3288_parse_dt(struct dw_mci *host)
 
 	priv->drv_clk = devm_clk_get(host->dev, "ciu-drive");
 	if (IS_ERR(priv->drv_clk))
-		dev_dbg(host->dev, "ciu-drive not available\n");
+		dev_dbg(host->dev, "ciu-drive yest available\n");
 
 	priv->sample_clk = devm_clk_get(host->dev, "ciu-sample");
 	if (IS_ERR(priv->sample_clk))
-		dev_dbg(host->dev, "ciu-sample not available\n");
+		dev_dbg(host->dev, "ciu-sample yest available\n");
 
 	host->priv = priv;
 
@@ -293,7 +293,7 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 	/* It is slot 8 on Rockchip SoCs */
 	host->sdio_id0 = 8;
 
-	if (of_device_is_compatible(host->dev->of_node,
+	if (of_device_is_compatible(host->dev->of_yesde,
 				    "rockchip,rk3288-dw-mshc"))
 		host->bus_hz /= RK3288_CLKGEN_DIV;
 
@@ -336,13 +336,13 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	int ret;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
-	match = of_match_node(dw_mci_rockchip_match, pdev->dev.of_node);
+	match = of_match_yesde(dw_mci_rockchip_match, pdev->dev.of_yesde);
 	drv_data = match->data;
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
@@ -352,7 +352,7 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 	if (ret) {
 		pm_runtime_disable(&pdev->dev);
 		pm_runtime_set_suspended(&pdev->dev);
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_yesidle(&pdev->dev);
 		return ret;
 	}
 
@@ -365,7 +365,7 @@ static int dw_mci_rockchip_remove(struct platform_device *pdev)
 {
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 
 	return dw_mci_pltfm_remove(pdev);
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 Nuvoton Technology corporation.
+// Copyright (c) 2018 Nuvoton Techyeslogy corporation.
 // Copyright (c) 2018 IBM Corp.
 
 #include <linux/bitops.h>
@@ -138,7 +138,7 @@ static irqreturn_t npcm_wdt_interrupt(int irq, void *data)
 {
 	struct npcm_wdt *wdt = data;
 
-	watchdog_notify_pretimeout(&wdt->wdd);
+	watchdog_yestify_pretimeout(&wdt->wdd);
 
 	return IRQ_HANDLED;
 }

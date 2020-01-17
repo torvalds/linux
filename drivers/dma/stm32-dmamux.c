@@ -82,7 +82,7 @@ static void stm32_dmamux_free(struct device *dev, void *route_data)
 static void *stm32_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 					 struct of_dma *ofdma)
 {
-	struct platform_device *pdev = of_find_device_by_node(ofdma->of_node);
+	struct platform_device *pdev = of_find_device_by_yesde(ofdma->of_yesde);
 	struct stm32_dmamux_data *dmamux = platform_get_drvdata(pdev);
 	struct stm32_dmamux *mux;
 	u32 i, min, max;
@@ -125,8 +125,8 @@ static void *stm32_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 			break;
 	mux->master = i - 1;
 
-	/* The of_node_put() will be done in of_dma_router_xlate function */
-	dma_spec->np = of_parse_phandle(ofdma->of_node, "dma-masters", i - 1);
+	/* The of_yesde_put() will be done in of_dma_router_xlate function */
+	dma_spec->np = of_parse_phandle(ofdma->of_yesde, "dma-masters", i - 1);
 	if (!dma_spec->np) {
 		dev_err(&pdev->dev, "can't get dma master\n");
 		ret = -EINVAL;
@@ -173,21 +173,21 @@ static const struct of_device_id stm32_stm32dma_master_match[] = {
 
 static int stm32_dmamux_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	const struct of_device_id *match;
-	struct device_node *dma_node;
+	struct device_yesde *dma_yesde;
 	struct stm32_dmamux_data *stm32_dmamux;
 	struct resource *res;
 	void __iomem *iomem;
 	int i, count, ret;
 	u32 dma_req;
 
-	if (!node)
+	if (!yesde)
 		return -ENODEV;
 
 	count = device_property_count_u32(&pdev->dev, "dma-masters");
 	if (count < 0) {
-		dev_err(&pdev->dev, "Can't get DMA master(s) node\n");
+		dev_err(&pdev->dev, "Can't get DMA master(s) yesde\n");
 		return -ENODEV;
 	}
 
@@ -198,16 +198,16 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 
 	dma_req = 0;
 	for (i = 1; i <= count; i++) {
-		dma_node = of_parse_phandle(node, "dma-masters", i - 1);
+		dma_yesde = of_parse_phandle(yesde, "dma-masters", i - 1);
 
-		match = of_match_node(stm32_stm32dma_master_match, dma_node);
+		match = of_match_yesde(stm32_stm32dma_master_match, dma_yesde);
 		if (!match) {
-			dev_err(&pdev->dev, "DMA master is not supported\n");
-			of_node_put(dma_node);
+			dev_err(&pdev->dev, "DMA master is yest supported\n");
+			of_yesde_put(dma_yesde);
 			return -EINVAL;
 		}
 
-		if (of_property_read_u32(dma_node, "dma-requests",
+		if (of_property_read_u32(dma_yesde, "dma-requests",
 					 &stm32_dmamux->dma_reqs[i])) {
 			dev_info(&pdev->dev,
 				 "Missing MUX output information, using %u.\n",
@@ -216,7 +216,7 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 				STM32_DMAMUX_MAX_DMA_REQUESTS;
 		}
 		dma_req += stm32_dmamux->dma_reqs[i];
-		of_node_put(dma_node);
+		of_yesde_put(dma_yesde);
 	}
 
 	if (dma_req > STM32_DMAMUX_MAX_DMA_REQUESTS) {
@@ -239,7 +239,7 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "DMAMUX defaulting on %u requests\n",
 			 stm32_dmamux->dmamux_requests);
 	}
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	iomem = devm_ioremap_resource(&pdev->dev, res);
@@ -279,7 +279,7 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 		}
 	}
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 
 	/* Reset the dmamux */
 	for (i = 0; i < stm32_dmamux->dma_requests; i++)
@@ -287,7 +287,7 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 
 	pm_runtime_put(&pdev->dev);
 
-	return of_dma_router_register(node, stm32_dmamux_route_allocate,
+	return of_dma_router_register(yesde, stm32_dmamux_route_allocate,
 				     &stm32_dmamux->dmarouter);
 }
 

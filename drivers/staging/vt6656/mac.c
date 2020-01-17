@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: mac.c
@@ -30,9 +30,9 @@
  *  In:
  *	mc_filter (mac filter)
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void vnt_mac_set_filter(struct vnt_private *priv, u64 mc_filter)
@@ -50,7 +50,7 @@ void vnt_mac_set_filter(struct vnt_private *priv, u64 mc_filter)
  * Parameters:
  *  In:
  *  Out:
- *      none
+ *      yesne
  *
  *
  */
@@ -79,9 +79,9 @@ void vnt_mac_set_bb_type(struct vnt_private *priv, u8 type)
  *      dwIoBase        - Base Address for MAC
  *
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void vnt_mac_disable_keyentry(struct vnt_private *priv, u8 entry_idx)
@@ -99,9 +99,9 @@ void vnt_mac_disable_keyentry(struct vnt_private *priv, u8 entry_idx)
  *      dwIoBase        - Base Address for MAC
  *
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void vnt_mac_set_keyentry(struct vnt_private *priv, u16 key_ctl, u32 entry_idx,

@@ -4,8 +4,8 @@
  * Copyright (c) 2000 by Takashi Iwai <tiwai@suse.de>
  *
  * Based on nm256_audio.c OSS driver in linux kernel.
- * The original author of OSS nm256 driver wishes to remain anonymous,
- * so I just put my acknoledgment to him/her here.
+ * The original author of OSS nm256 driver wishes to remain ayesnymous,
+ * so I just put my ackyesledgment to him/her here.
  * The original author's web page is found at
  *	http://www.uglx.org/sony.html
  */
@@ -44,7 +44,7 @@ static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
 static int playback_bufsize = 16;
 static int capture_bufsize = 16;
 static bool force_ac97;			/* disabled as default */
-static int buffer_top;			/* not specified */
+static int buffer_top;			/* yest specified */
 static bool use_cache;			/* disabled */
 static bool vaio_hack;			/* disabled */
 static bool reset_workaround;
@@ -65,7 +65,7 @@ MODULE_PARM_DESC(buffer_top, "Set the top address of audio buffer for " CARD_NAM
 module_param(use_cache, bool, 0444);
 MODULE_PARM_DESC(use_cache, "Enable the cache for coefficient table access.");
 module_param(vaio_hack, bool, 0444);
-MODULE_PARM_DESC(vaio_hack, "Enable workaround for Sony VAIO notebooks.");
+MODULE_PARM_DESC(vaio_hack, "Enable workaround for Sony VAIO yestebooks.");
 module_param(reset_workaround, bool, 0444);
 MODULE_PARM_DESC(reset_workaround, "Enable AC97 RESET workaround for some laptops.");
 module_param(reset_workaround_2, bool, 0444);
@@ -134,7 +134,7 @@ module_param(enable, bool, 0444);
 /* The rate register is located 2 bytes from the start of the register area. */
 #define NM_RATE_REG_OFFSET 2
 
-/* Mono/stereo flag, number of bits on playback, and rate mask. */
+/* Moyes/stereo flag, number of bits on playback, and rate mask. */
 #define NM_RATE_STEREO 1
 #define NM_RATE_BITS_16 2
 #define NM_RATE_MASK 0xf0
@@ -982,14 +982,14 @@ snd_nm256_intr_check(struct nm256 *chip)
 {
 	if (chip->badintrcount++ > 1000) {
 		/*
-		 * I'm not sure if the best thing is to stop the card from
+		 * I'm yest sure if the best thing is to stop the card from
 		 * playing or just release the interrupt (after all, we're in
-		 * a bad situation, so doing fancy stuff may not be such a good
+		 * a bad situation, so doing fancy stuff may yest be such a good
 		 * idea).
 		 *
-		 * I worry about the card engine continuing to play noise
+		 * I worry about the card engine continuing to play yesise
 		 * over and over, however--that could become a very
-		 * obnoxious problem.  And we know that when this usually
+		 * obyesxious problem.  And we kyesw that when this usually
 		 * happens things are fairly safe, it just means the user's
 		 * inserted a PCMCIA card and someone's spamming us with IRQ 9s.
 		 */
@@ -1059,10 +1059,10 @@ snd_nm256_interrupt(int irq, void *dev_id)
 		snd_nm256_writeb(chip, 0x400, cbyte & ~2);
 	}
 
-	/* Unknown interrupt. */
+	/* Unkyeswn interrupt. */
 	if (status) {
 		dev_dbg(chip->card->dev,
-			"NM256: Fire in the hole! Unknown status 0x%x\n",
+			"NM256: Fire in the hole! Unkyeswn status 0x%x\n",
 			   status);
 		/* Pray. */
 		NM_ACK_INT(chip, status);
@@ -1074,7 +1074,7 @@ snd_nm256_interrupt(int irq, void *dev_id)
 
 /*
  * Handle a potential interrupt for the device referred to by DEV_ID.
- * This handler is for the 256ZX, and is very similar to the non-ZX
+ * This handler is for the 256ZX, and is very similar to the yesn-ZX
  * routine.
  */
 
@@ -1124,10 +1124,10 @@ snd_nm256_interrupt_zx(int irq, void *dev_id)
 		snd_nm256_writeb(chip, 0x400, cbyte & ~2);
 	}
 
-	/* Unknown interrupt. */
+	/* Unkyeswn interrupt. */
 	if (status) {
 		dev_dbg(chip->card->dev,
-			"NM256: Fire in the hole! Unknown status 0x%x\n",
+			"NM256: Fire in the hole! Unkyeswn status 0x%x\n",
 			   status);
 		/* Pray. */
 		NM2_ACK_INT(chip, status);
@@ -1171,7 +1171,7 @@ snd_nm256_ac97_ready(struct nm256 *chip)
  * While most of these are identical to the reset values, we do this
  * so that we have most of the register contents cached--this avoids
  * reading from the mixer directly (which seems to be problematic,
- * probably due to ignorance).
+ * probably due to igyesrance).
  */
 
 struct initialValues {
@@ -1253,7 +1253,7 @@ snd_nm256_ac97_write(struct snd_ac97 *ac97,
 			return;
 		}
 	}
-	dev_dbg(chip->card->dev, "nm256: ac97 codec not ready..\n");
+	dev_dbg(chip->card->dev, "nm256: ac97 codec yest ready..\n");
 }
 
 /* static resolution table */
@@ -1273,7 +1273,7 @@ static const struct snd_ac97_res_table nm256_res_table[] = {
 	{ } /* terminator */
 };
 
-/* initialize the ac97 into a known state */
+/* initialize the ac97 into a kyeswn state */
 static void
 snd_nm256_ac97_reset(struct snd_ac97 *ac97)
 {
@@ -1327,7 +1327,7 @@ snd_nm256_mixer(struct nm256 *chip)
 	ac97.scaps = AC97_SCAP_AUDIO; /* we support audio! */
 	ac97.private_data = chip;
 	ac97.res_table = nm256_res_table;
-	pbus->no_vra = 1;
+	pbus->yes_vra = 1;
 	err = snd_ac97_mixer(pbus, &ac97, &chip->ac97);
 	if (err < 0)
 		return err;
@@ -1353,7 +1353,7 @@ snd_nm256_peek_for_sig(struct nm256 *chip)
 	unsigned long pointer_found = chip->buffer_end - 0x1400;
 	u32 sig;
 
-	temp = ioremap_nocache(chip->buffer_addr + chip->buffer_end - 0x400, 16);
+	temp = ioremap_yescache(chip->buffer_addr + chip->buffer_end - 0x400, 16);
 	if (temp == NULL) {
 		dev_err(chip->card->dev,
 			"Unable to scan for card signature in video RAM\n");
@@ -1499,7 +1499,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 	chip->streams[SNDRV_PCM_STREAM_CAPTURE].bufsize = capture_bufsize * 1024;
 
 	/* 
-	 * The NM256 has two memory ports.  The first port is nothing
+	 * The NM256 has two memory ports.  The first port is yesthing
 	 * more than a chunk of video RAM, which is used as the I/O ring
 	 * buffer.  The second port has the actual juicy stuff (like the
 	 * mixer and the playback engine control registers).
@@ -1518,7 +1518,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 		err = -EBUSY;
 		goto __error;
 	}
-	chip->cport = ioremap_nocache(chip->cport_addr, NM_PORT2_SIZE);
+	chip->cport = ioremap_yescache(chip->cport_addr, NM_PORT2_SIZE);
 	if (chip->cport == NULL) {
 		dev_err(card->dev, "unable to map control port %lx\n",
 			chip->cport_addr);
@@ -1527,12 +1527,12 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 	}
 
 	if (!strcmp(card->driver, "NM256AV")) {
-		/* Ok, try to see if this is a non-AC97 version of the hardware. */
+		/* Ok, try to see if this is a yesn-AC97 version of the hardware. */
 		pval = snd_nm256_readw(chip, NM_MIXER_PRESENCE);
 		if ((pval & NM_PRESENCE_MASK) != NM_PRESENCE_VALUE) {
 			if (! force_ac97) {
 				dev_err(card->dev,
-					"no ac97 is found!\n");
+					"yes ac97 is found!\n");
 				dev_err(card->dev,
 					"force the driver to load by passing in the module parameter\n");
 				dev_err(card->dev,
@@ -1548,7 +1548,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 		chip->mixer_status_offset = NM_MIXER_STATUS_OFFSET;
 		chip->mixer_status_mask = NM_MIXER_READY_MASK;
 	} else {
-		/* Not sure if there is any relevant detect for the ZX or not.  */
+		/* Not sure if there is any relevant detect for the ZX or yest.  */
 		if (snd_nm256_readb(chip, 0xa0b) != 0)
 			chip->buffer_end = 6144 * 1024;
 		else
@@ -1589,7 +1589,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 		err = -EBUSY;
 		goto __error;
 	}
-	chip->buffer = ioremap_nocache(chip->buffer_addr, chip->buffer_size);
+	chip->buffer = ioremap_yescache(chip->buffer_addr, chip->buffer_size);
 	if (chip->buffer == NULL) {
 		err = -ENOMEM;
 		dev_err(card->dev, "unable to map ring buffer at %lx\n",

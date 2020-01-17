@@ -175,7 +175,7 @@ xor_pII_mmx_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 
 	kernel_fpu_begin();
 
-	/* Make sure GCC forgets anything it knows about p4 or p5,
+	/* Make sure GCC forgets anything it kyesws about p4 or p5,
 	   such that it won't pass to the asm volatile below a
 	   register that is shared with any other variable.  That's
 	   because we modify p4 and p5 there, but we can't mark them
@@ -231,8 +231,8 @@ xor_pII_mmx_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 	: "r" (p4), "r" (p5)
 	: "memory");
 
-	/* p4 and p5 were modified, and now the variables are dead.
-	   Clobber them just to be sure nobody does something stupid
+	/* p4 and p5 were modified, and yesw the variables are dead.
+	   Clobber them just to be sure yesbody does something stupid
 	   like assuming they have some legal value.  */
 	asm("" : "=r" (p4), "=r" (p5));
 
@@ -425,7 +425,7 @@ xor_p5_mmx_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 
 	kernel_fpu_begin();
 
-	/* Make sure GCC forgets anything it knows about p4 or p5,
+	/* Make sure GCC forgets anything it kyesws about p4 or p5,
 	   such that it won't pass to the asm volatile below a
 	   register that is shared with any other variable.  That's
 	   because we modify p4 and p5 there, but we can't mark them
@@ -497,8 +497,8 @@ xor_p5_mmx_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 	: "r" (p4), "r" (p5)
 	: "memory");
 
-	/* p4 and p5 were modified, and now the variables are dead.
-	   Clobber them just to be sure nobody does something stupid
+	/* p4 and p5 were modified, and yesw the variables are dead.
+	   Clobber them just to be sure yesbody does something stupid
 	   like assuming they have some legal value.  */
 	asm("" : "=r" (p4), "=r" (p5));
 

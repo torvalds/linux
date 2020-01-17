@@ -16,7 +16,7 @@
 int main()
 {
 	/* We need getauxval(). */
-	printf("[SKIP]\tGLIBC before 2.16 cannot compile this test\n");
+	printf("[SKIP]\tGLIBC before 2.16 canyest compile this test\n");
 	return 0;
 }
 
@@ -199,4 +199,4 @@ int main()
 	}
 }
 
-#endif	/* New enough libc */
+#endif	/* New eyesugh libc */

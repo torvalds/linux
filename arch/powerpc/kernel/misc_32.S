@@ -10,7 +10,7 @@
 
 #include <linux/sys.h>
 #include <asm/unistd.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/cache.h>
@@ -269,7 +269,7 @@ _GLOBAL(real_writeb)
 
 /*
  * Flush instruction cache.
- * This is a no-op on the 601.
+ * This is a yes-op on the 601.
  */
 #ifndef CONFIG_PPC_8xx
 _GLOBAL(flush_instruction_cache)
@@ -298,7 +298,7 @@ _GLOBAL(flush_instruction_cache)
 	ori	r3,r3,L1CSR1_ICFI|L1CSR1_ICLFR
 	mtspr	SPRN_L1CSR1,r3
 #elif defined(CONFIG_PPC_BOOK3S_601)
-	blr			/* for 601, do nothing */
+	blr			/* for 601, do yesthing */
 #else
 	/* 603/604 processor - use invalidate-all bit in HID0 */
 	mfspr	r3,SPRN_HID0
@@ -330,7 +330,7 @@ _GLOBAL(copy_page)
 	rlwinm	r5, r3, 0, L1_CACHE_BYTES - 1
 	addi	r3,r3,-4
 
-0:	twnei	r5, 0	/* WARN if r3 is not cache aligned */
+0:	twnei	r5, 0	/* WARN if r3 is yest cache aligned */
 	EMIT_BUG_ENTRY 0b,__FILE__,__LINE__, BUGFLAG_WARNING
 
 	addi	r4,r4,-4
@@ -371,7 +371,7 @@ _GLOBAL(copy_page)
 #endif
 	bdnz	1b
 	beqlr
-	crnot	4*cr0+eq,4*cr0+eq
+	cryest	4*cr0+eq,4*cr0+eq
 	li	r0,MAX_COPY_PREFETCH
 	li	r11,4
 	b	2b

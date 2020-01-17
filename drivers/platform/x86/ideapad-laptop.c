@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  ideapad-laptop.c - Lenovo IdeaPad ACPI Extras
+ *  ideapad-laptop.c - Leyesvo IdeaPad ACPI Extras
  *
  *  Copyright © 2010 Intel Corporation
  *  Copyright © 2010 David Woodhouse <dwmw2@infradead.org>
@@ -95,9 +95,9 @@ struct ideapad_private {
 	const char *fnesc_guid;
 };
 
-static bool no_bt_rfkill;
-module_param(no_bt_rfkill, bool, 0444);
-MODULE_PARM_DESC(no_bt_rfkill, "No rfkill for bluetooth.");
+static bool yes_bt_rfkill;
+module_param(yes_bt_rfkill, bool, 0444);
+MODULE_PARM_DESC(yes_bt_rfkill, "No rfkill for bluetooth.");
 
 /*
  * ACPI Helpers
@@ -238,7 +238,7 @@ static int debugfs_status_show(struct seq_file *s, void *data)
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL_MAX, &value))
 		seq_printf(s, "Backlight max:\t%lu\n", value);
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL, &value))
-		seq_printf(s, "Backlight now:\t%lu\n", value);
+		seq_printf(s, "Backlight yesw:\t%lu\n", value);
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL_POWER, &value))
 		seq_printf(s, "BL power value:\t%s\n", value ? "On" : "Off");
 	seq_printf(s, "=====================\n");
@@ -412,7 +412,7 @@ static ssize_t touchpad_show(struct device *dev,
 	return sprintf(buf, "%lu\n", result);
 }
 
-/* Switch to RO for now: It might be revisited in the future */
+/* Switch to RO for yesw: It might be revisited in the future */
 static ssize_t __maybe_unused touchpad_store(struct device *dev,
 					     struct device_attribute *attr,
 					     const char *buf, size_t count)
@@ -595,9 +595,9 @@ static int ideapad_register_rfkill(struct ideapad_private *priv, int dev)
 	int ret;
 	unsigned long sw_blocked;
 
-	if (no_bt_rfkill &&
+	if (yes_bt_rfkill &&
 	    (ideapad_rfk_data[dev].type == RFKILL_TYPE_BLUETOOTH)) {
-		/* Force to enable bluetooth when no_bt_rfkill=1 */
+		/* Force to enable bluetooth when yes_bt_rfkill=1 */
 		write_ec_cmd(priv->adev->handle,
 			     ideapad_rfk_data[dev].opcode, 1);
 		return 0;
@@ -719,7 +719,7 @@ static void ideapad_input_report(struct ideapad_private *priv,
 	sparse_keymap_report_event(priv->inputdev, scancode, 1, true);
 }
 
-static void ideapad_input_novokey(struct ideapad_private *priv)
+static void ideapad_input_yesvokey(struct ideapad_private *priv)
 {
 	unsigned long long_pressed;
 
@@ -750,7 +750,7 @@ static void ideapad_check_special_buttons(struct ideapad_private *priv)
 				ideapad_input_report(priv, 64);
 				break;
 			default:
-				pr_info("Unknown special button: %lu\n", bit);
+				pr_info("Unkyeswn special button: %lu\n", bit);
 				break;
 			}
 		}
@@ -763,14 +763,14 @@ static void ideapad_check_special_buttons(struct ideapad_private *priv)
 static int ideapad_backlight_get_brightness(struct backlight_device *blightdev)
 {
 	struct ideapad_private *priv = bl_get_data(blightdev);
-	unsigned long now;
+	unsigned long yesw;
 
 	if (!priv)
 		return -EINVAL;
 
-	if (read_ec_data(priv->adev->handle, VPCCMD_R_BL, &now))
+	if (read_ec_data(priv->adev->handle, VPCCMD_R_BL, &yesw))
 		return -EIO;
-	return now;
+	return yesw;
 }
 
 static int ideapad_backlight_update_status(struct backlight_device *blightdev)
@@ -799,11 +799,11 @@ static int ideapad_backlight_init(struct ideapad_private *priv)
 {
 	struct backlight_device *blightdev;
 	struct backlight_properties props;
-	unsigned long max, now, power;
+	unsigned long max, yesw, power;
 
 	if (read_ec_data(priv->adev->handle, VPCCMD_R_BL_MAX, &max))
 		return -EIO;
-	if (read_ec_data(priv->adev->handle, VPCCMD_R_BL, &now))
+	if (read_ec_data(priv->adev->handle, VPCCMD_R_BL, &yesw))
 		return -EIO;
 	if (read_ec_data(priv->adev->handle, VPCCMD_R_BL_POWER, &power))
 		return -EIO;
@@ -817,12 +817,12 @@ static int ideapad_backlight_init(struct ideapad_private *priv)
 					      &ideapad_backlight_ops,
 					      &props);
 	if (IS_ERR(blightdev)) {
-		pr_err("Could not register backlight device\n");
+		pr_err("Could yest register backlight device\n");
 		return PTR_ERR(blightdev);
 	}
 
 	priv->blightdev = blightdev;
-	blightdev->props.brightness = now;
+	blightdev->props.brightness = yesw;
 	blightdev->props.power = power ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
 	backlight_update_status(blightdev);
 
@@ -835,7 +835,7 @@ static void ideapad_backlight_exit(struct ideapad_private *priv)
 	priv->blightdev = NULL;
 }
 
-static void ideapad_backlight_notify_power(struct ideapad_private *priv)
+static void ideapad_backlight_yestify_power(struct ideapad_private *priv)
 {
 	unsigned long power;
 	struct backlight_device *blightdev = priv->blightdev;
@@ -847,13 +847,13 @@ static void ideapad_backlight_notify_power(struct ideapad_private *priv)
 	blightdev->props.power = power ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
 }
 
-static void ideapad_backlight_notify_brightness(struct ideapad_private *priv)
+static void ideapad_backlight_yestify_brightness(struct ideapad_private *priv)
 {
-	unsigned long now;
+	unsigned long yesw;
 
 	/* if we control brightness via acpi video driver */
 	if (priv->blightdev == NULL) {
-		read_ec_data(priv->adev->handle, VPCCMD_R_BL, &now);
+		read_ec_data(priv->adev->handle, VPCCMD_R_BL, &yesw);
 		return;
 	}
 
@@ -872,7 +872,7 @@ static void ideapad_sync_touchpad_state(struct ideapad_private *priv)
 		/* Some IdeaPads don't really turn off touchpad - they only
 		 * switch the LED state. We (de)activate KBC AUX port to turn
 		 * touchpad off and on. We send KEY_TOUCHPAD_OFF and
-		 * KEY_TOUCHPAD_ON to not to get out of sync with LED */
+		 * KEY_TOUCHPAD_ON to yest to get out of sync with LED */
 		unsigned char param;
 		i8042_command(&param, value ? I8042_CMD_AUX_ENABLE :
 			      I8042_CMD_AUX_DISABLE);
@@ -880,7 +880,7 @@ static void ideapad_sync_touchpad_state(struct ideapad_private *priv)
 	}
 }
 
-static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
+static void ideapad_acpi_yestify(acpi_handle handle, u32 event, void *data)
 {
 	struct ideapad_private *priv = data;
 	unsigned long vpc1, vpc2, vpc_bit;
@@ -908,13 +908,13 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 				ideapad_sync_touchpad_state(priv);
 				break;
 			case 4:
-				ideapad_backlight_notify_brightness(priv);
+				ideapad_backlight_yestify_brightness(priv);
 				break;
 			case 3:
-				ideapad_input_novokey(priv);
+				ideapad_input_yesvokey(priv);
 				break;
 			case 2:
-				ideapad_backlight_notify_power(priv);
+				ideapad_backlight_yestify_power(priv);
 				break;
 			case 0:
 				ideapad_check_special_buttons(priv);
@@ -927,36 +927,36 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 				 */
 				break;
 			default:
-				pr_info("Unknown event: %lu\n", vpc_bit);
+				pr_info("Unkyeswn event: %lu\n", vpc_bit);
 			}
 		}
 	}
 }
 
 #if IS_ENABLED(CONFIG_ACPI_WMI)
-static void ideapad_wmi_notify(u32 value, void *context)
+static void ideapad_wmi_yestify(u32 value, void *context)
 {
 	switch (value) {
 	case 128:
 		ideapad_input_report(context, value);
 		break;
 	default:
-		pr_info("Unknown WMI event %u\n", value);
+		pr_info("Unkyeswn WMI event %u\n", value);
 	}
 }
 #endif
 
 /*
- * Some ideapads have a hardware rfkill switch, but most do not have one.
+ * Some ideapads have a hardware rfkill switch, but most do yest have one.
  * Reading VPCCMD_R_RF always results in 0 on models without a hardware rfkill,
  * switch causing ideapad_laptop to wrongly report all radios as hw-blocked.
  * There used to be a long list of DMI ids for models without a hw rfkill
  * switch here, but that resulted in playing whack a mole.
  * More importantly wrongly reporting the wifi radio as hw-blocked, results in
- * non working wifi. Whereas not reporting it hw-blocked, when it actually is
+ * yesn working wifi. Whereas yest reporting it hw-blocked, when it actually is
  * hw-blocked results in an empty SSID list, which is a much more benign
  * failure mode.
- * So the default now is the much safer option of assuming there is no
+ * So the default yesw is the much safer option of assuming there is yes
  * hardware rfkill switch. This default also actually matches most hardware,
  * since having a hw rfkill switch is quite rare on modern hardware, so this
  * also leads to a much shorter list.
@@ -1018,31 +1018,31 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 		if (ret && ret != -ENODEV)
 			goto backlight_failed;
 	}
-	ret = acpi_install_notify_handler(adev->handle,
-		ACPI_DEVICE_NOTIFY, ideapad_acpi_notify, priv);
+	ret = acpi_install_yestify_handler(adev->handle,
+		ACPI_DEVICE_NOTIFY, ideapad_acpi_yestify, priv);
 	if (ret)
-		goto notification_failed;
+		goto yestification_failed;
 
 #if IS_ENABLED(CONFIG_ACPI_WMI)
 	for (i = 0; i < ARRAY_SIZE(ideapad_wmi_fnesc_events); i++) {
-		ret = wmi_install_notify_handler(ideapad_wmi_fnesc_events[i],
-						 ideapad_wmi_notify, priv);
+		ret = wmi_install_yestify_handler(ideapad_wmi_fnesc_events[i],
+						 ideapad_wmi_yestify, priv);
 		if (ret == AE_OK) {
 			priv->fnesc_guid = ideapad_wmi_fnesc_events[i];
 			break;
 		}
 	}
 	if (ret != AE_OK && ret != AE_NOT_EXIST)
-		goto notification_failed_wmi;
+		goto yestification_failed_wmi;
 #endif
 
 	return 0;
 #if IS_ENABLED(CONFIG_ACPI_WMI)
-notification_failed_wmi:
-	acpi_remove_notify_handler(priv->adev->handle,
-		ACPI_DEVICE_NOTIFY, ideapad_acpi_notify);
+yestification_failed_wmi:
+	acpi_remove_yestify_handler(priv->adev->handle,
+		ACPI_DEVICE_NOTIFY, ideapad_acpi_yestify);
 #endif
-notification_failed:
+yestification_failed:
 	ideapad_backlight_exit(priv);
 backlight_failed:
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
@@ -1061,10 +1061,10 @@ static int ideapad_acpi_remove(struct platform_device *pdev)
 
 #if IS_ENABLED(CONFIG_ACPI_WMI)
 	if (priv->fnesc_guid)
-		wmi_remove_notify_handler(priv->fnesc_guid);
+		wmi_remove_yestify_handler(priv->fnesc_guid);
 #endif
-	acpi_remove_notify_handler(priv->adev->handle,
-		ACPI_DEVICE_NOTIFY, ideapad_acpi_notify);
+	acpi_remove_yestify_handler(priv->adev->handle,
+		ACPI_DEVICE_NOTIFY, ideapad_acpi_yestify);
 	ideapad_backlight_exit(priv);
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		ideapad_unregister_rfkill(priv, i);

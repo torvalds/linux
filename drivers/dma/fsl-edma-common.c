@@ -604,7 +604,7 @@ void fsl_edma_issue_pending(struct dma_chan *chan)
 
 	if (unlikely(fsl_chan->pm_state != RUNNING)) {
 		spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
-		/* cannot submit due to suspend */
+		/* canyest submit due to suspend */
 		return;
 	}
 
@@ -651,8 +651,8 @@ void fsl_edma_cleanup_vchan(struct dma_device *dmadev)
 	struct fsl_edma_chan *chan, *_chan;
 
 	list_for_each_entry_safe(chan, _chan,
-				&dmadev->channels, vchan.chan.device_node) {
-		list_del(&chan->vchan.chan.device_node);
+				&dmadev->channels, vchan.chan.device_yesde) {
+		list_del(&chan->vchan.chan.device_yesde);
 		tasklet_kill(&chan->vchan.task);
 	}
 }

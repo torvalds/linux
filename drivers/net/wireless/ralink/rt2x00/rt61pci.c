@@ -28,9 +28,9 @@
 /*
  * Allow hardware encryption to be disabled.
  */
-static bool modparam_nohwcrypt = false;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
+static bool modparam_yeshwcrypt = false;
+module_param_named(yeshwcrypt, modparam_yeshwcrypt, bool, 0444);
+MODULE_PARM_DESC(yeshwcrypt, "Disable hardware encryption.");
 
 /*
  * Register access.
@@ -312,8 +312,8 @@ static int rt61pci_config_shared_key(struct rt2x00_dev *rt2x00dev,
 {
 	/*
 	 * Let the software handle the shared keys,
-	 * since the hardware decryption does not work reliably,
-	 * because the firmware does not know the key's keyidx.
+	 * since the hardware decryption does yest work reliably,
+	 * because the firmware does yest kyesw the key's keyidx.
 	 */
 	return -EOPNOTSUPP;
 }
@@ -371,7 +371,7 @@ static int rt61pci_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 
 		/*
 		 * Enable pairwise lookup table for given BSS idx.
-		 * Without this, received frames will not be decrypted
+		 * Without this, received frames will yest be decrypted
 		 * by the hardware.
 		 */
 		reg = rt2x00mmio_register_read(rt2x00dev, SEC_CSR4);
@@ -379,7 +379,7 @@ static int rt61pci_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 		rt2x00mmio_register_write(rt2x00dev, SEC_CSR4, reg);
 
 		/*
-		 * The driver does not support the IV/EIV generation
+		 * The driver does yest support the IV/EIV generation
 		 * in hardware. However it doesn't support the IV/EIV
 		 * inside the ieee80211 frame either, but requires it
 		 * to be provided separately for the descriptor.
@@ -428,7 +428,7 @@ static void rt61pci_config_filter(struct rt2x00_dev *rt2x00dev,
 	 * Start configuration steps.
 	 * Note that the version error will always be dropped
 	 * and broadcast frames will always be accepted since
-	 * there is no filter for it at this time.
+	 * there is yes filter for it at this time.
 	 */
 	reg = rt2x00mmio_register_read(rt2x00dev, TXRX_CSR0);
 	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_CRC,
@@ -672,7 +672,7 @@ static void rt61pci_config_antenna_2529(struct rt2x00_dev *rt2x00dev,
 struct antenna_sel {
 	u8 word;
 	/*
-	 * value[0] -> non-LNA
+	 * value[0] -> yesn-LNA
 	 * value[1] -> LNA
 	 */
 	u8 value[2];
@@ -972,7 +972,7 @@ static void rt61pci_link_tuner(struct rt2x00_dev *rt2x00dev,
 	}
 
 	/*
-	 * If we are not associated, we should go straight to the
+	 * If we are yest associated, we should go straight to the
 	 * dynamic CCA tuning.
 	 */
 	if (!rt2x00dev->intf_associated)
@@ -1026,7 +1026,7 @@ static void rt61pci_link_tuner(struct rt2x00_dev *rt2x00dev,
 dynamic_cca_tune:
 
 	/*
-	 * r17 does not yet exceed upper limit, continue and base
+	 * r17 does yest yet exceed upper limit, continue and base
 	 * the r17 tuning on the false CCA count.
 	 */
 	if ((qual->false_cca > 512) && (qual->vgc_level < up_bound))
@@ -1252,12 +1252,12 @@ static int rt61pci_load_firmware(struct rt2x00_dev *rt2x00dev,
 	}
 
 	if (i == 100) {
-		rt2x00_err(rt2x00dev, "MCU Control register not ready\n");
+		rt2x00_err(rt2x00dev, "MCU Control register yest ready\n");
 		return -EBUSY;
 	}
 
 	/*
-	 * Hardware needs another millisecond before it is ready.
+	 * Hardware needs ayesther millisecond before it is ready.
 	 */
 	msleep(1);
 
@@ -1719,7 +1719,7 @@ static int rt61pci_set_state(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 	rt2x00mmio_register_write(rt2x00dev, MAC_CSR12, reg);
 
 	/*
-	 * Device is not guaranteed to be in the requested state yet.
+	 * Device is yest guaranteed to be in the requested state yet.
 	 * We must wait until the register indicates that the
 	 * device has entered the correct state.
 	 */
@@ -2072,11 +2072,11 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * TX_STA_FIFO is a stack of X entries, hence read TX_STA_FIFO
 	 * at most X times and also stop processing once the TX_STA_FIFO_VALID
-	 * flag is not set anymore.
+	 * flag is yest set anymore.
 	 *
 	 * The legacy drivers use X=TX_RING_SIZE but state in a comment
 	 * that the TX_STA_FIFO stack has a size of 16. We stick to our
-	 * tx ring size for now.
+	 * tx ring size for yesw.
 	 */
 	for (i = 0; i < rt2x00dev->tx->limit; i++) {
 		reg = rt2x00mmio_register_read(rt2x00dev, STA_CSR4);
@@ -2116,7 +2116,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 			rt2x00_warn(rt2x00dev, "TX status report missed for entry %d\n",
 				    entry_done->entry_idx);
 
-			rt2x00lib_txdone_noinfo(entry_done, TXDONE_UNKNOWN);
+			rt2x00lib_txdone_yesinfo(entry_done, TXDONE_UNKNOWN);
 			entry_done = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 		}
 
@@ -2271,7 +2271,7 @@ static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 	mask_mcu = reg_mcu;
 
 	/*
-	 * Disable all interrupts for which a tasklet was scheduled right now,
+	 * Disable all interrupts for which a tasklet was scheduled right yesw,
 	 * the tasklet will reenable the appropriate interrupts.
 	 */
 	spin_lock(&rt2x00dev->irqmask_lock);
@@ -2538,7 +2538,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
  * RF value list for RF5225 & RF5325
  * Supports: 2.4 GHz & 5.2 GHz, rf_sequence disabled
  */
-static const struct rf_channel rf_vals_noseq[] = {
+static const struct rf_channel rf_vals_yesseq[] = {
 	{ 1,  0x00002ccc, 0x00004786, 0x00068455, 0x000ffa0b },
 	{ 2,  0x00002ccc, 0x00004786, 0x00068455, 0x000ffa1f },
 	{ 3,  0x00002ccc, 0x0000478a, 0x00068455, 0x000ffa0b },
@@ -2674,7 +2674,7 @@ static int rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 						   EEPROM_MAC_ADDR_0));
 
 	/*
-	 * As rt61 has a global fallback table we cannot specify
+	 * As rt61 has a global fallback table we canyest specify
 	 * more then one tx rate per frame but since the hw will
 	 * try several rates (based on the fallback table) we should
 	 * initialize max_report_rates to the maximum number of rates
@@ -2694,7 +2694,7 @@ static int rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 
 	if (!rt2x00_has_cap_rf_sequence(rt2x00dev)) {
 		spec->num_channels = 14;
-		spec->channels = rf_vals_noseq;
+		spec->channels = rf_vals_yesseq;
 	} else {
 		spec->num_channels = 14;
 		spec->channels = rf_vals_seq;
@@ -2770,7 +2770,7 @@ static int rt61pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * This device has multiple filters for control frames,
-	 * but has no a separate filter for PS Poll frames.
+	 * but has yes a separate filter for PS Poll frames.
 	 */
 	__set_bit(CAPABILITY_CONTROL_FILTERS, &rt2x00dev->cap_flags);
 
@@ -2779,7 +2779,7 @@ static int rt61pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	__set_bit(REQUIRE_FIRMWARE, &rt2x00dev->cap_flags);
 	__set_bit(REQUIRE_DMA, &rt2x00dev->cap_flags);
-	if (!modparam_nohwcrypt)
+	if (!modparam_yeshwcrypt)
 		__set_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags);
 	__set_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags);
 

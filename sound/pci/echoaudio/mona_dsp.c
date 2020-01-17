@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliayes Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -46,7 +46,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 
 	if ((err = init_dsp_comm_page(chip))) {
 		dev_err(chip->card->dev,
-			"init_hw - could not initialize DSP comm page\n");
+			"init_hw - could yest initialize DSP comm page\n");
 		return err;
 	}
 
@@ -110,7 +110,7 @@ static u32 detect_input_clocks(const struct echoaudio *chip)
 
 
 
-/* Mona has an ASIC on the PCI card and another ASIC in the external box; 
+/* Mona has an ASIC on the PCI card and ayesther ASIC in the external box; 
 both need to be loaded. */
 static int load_asic(struct echoaudio *chip)
 {
@@ -202,7 +202,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 	/* Only set the clock for internal mode. */
 	if (chip->input_clock != ECHO_CLOCK_INTERNAL) {
 		dev_dbg(chip->card->dev,
-			"Cannot set sample rate - clock not set to CLK_CLOCKININTERNAL\n");
+			"Canyest set sample rate - clock yest set to CLK_CLOCKININTERNAL\n");
 		/* Save the rate anyhow */
 		chip->comm_page->sample_rate = cpu_to_le32(rate);
 		chip->sample_rate = rate;
@@ -285,7 +285,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 
 	control_reg |= clock;
 
-	chip->comm_page->sample_rate = cpu_to_le32(rate);	/* ignored by the DSP */
+	chip->comm_page->sample_rate = cpu_to_le32(rate);	/* igyesred by the DSP */
 	chip->sample_rate = rate;
 	dev_dbg(chip->card->dev,
 		"set_sample_rate: %d clock %d\n", rate, clock);
@@ -351,7 +351,7 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"Input clock 0x%x not supported for Mona\n", clock);
+			"Input clock 0x%x yest supported for Mona\n", clock);
 		return -EINVAL;
 	}
 
@@ -366,7 +366,7 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 	u32 control_reg;
 	int err, incompatible_clock;
 
-	/* Set clock to "internal" if it's not compatible with the new mode */
+	/* Set clock to "internal" if it's yest compatible with the new mode */
 	incompatible_clock = false;
 	switch (mode) {
 	case DIGITAL_MODE_SPDIF_OPTICAL:
@@ -380,7 +380,7 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"Digital mode not supported: %d\n", mode);
+			"Digital mode yest supported: %d\n", mode);
 		return -EINVAL;
 	}
 

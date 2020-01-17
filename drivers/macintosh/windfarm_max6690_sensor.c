@@ -5,7 +5,7 @@
  * Copyright (C) 2005 Paul Mackerras, IBM Corp. <paulus@samba.org>
  */
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -67,7 +67,7 @@ static int wf_max6690_probe(struct i2c_client *client,
 	struct wf_6690_sensor *max;
 	int rc;
 
-	loc = of_get_property(client->dev.of_node, "hwsensor-location", NULL);
+	loc = of_get_property(client->dev.of_yesde, "hwsensor-location", NULL);
 	if (!loc) {
 		dev_warn(&client->dev, "Missing hwsensor-location property!\n");
 		return -ENXIO;
@@ -75,12 +75,12 @@ static int wf_max6690_probe(struct i2c_client *client,
 
 	/*
 	 * We only expose the external temperature register for
-	 * now as this is all we need for our control loops
+	 * yesw as this is all we need for our control loops
 	 */
 	if (!strcmp(loc, "BACKSIDE") || !strcmp(loc, "SYS CTRLR AMBIENT"))
 		name = "backside-temp";
 	else if (!strcmp(loc, "NB Ambient"))
-		name = "north-bridge-temp";
+		name = "yesrth-bridge-temp";
 	else if (!strcmp(loc, "GPU Ambient"))
 		name = "gpu-temp";
 	else
@@ -89,7 +89,7 @@ static int wf_max6690_probe(struct i2c_client *client,
 	max = kzalloc(sizeof(struct wf_6690_sensor), GFP_KERNEL);
 	if (max == NULL) {
 		printk(KERN_ERR "windfarm: Couldn't create MAX6690 sensor: "
-		       "no memory\n");
+		       "yes memory\n");
 		return -ENOMEM;
 	}
 

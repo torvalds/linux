@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* tnum: tracked (or tristate) numbers
  *
- * A tnum tracks knowledge about the bits of a value.  Each bit can be either
- * known (0 or 1), or unknown (x).  Arithmetic operations on tnums will
- * propagate the unknown bits such that the tnum result represents all the
+ * A tnum tracks kyeswledge about the bits of a value.  Each bit can be either
+ * kyeswn (0 or 1), or unkyeswn (x).  Arithmetic operations on tnums will
+ * propagate the unkyeswn bits such that the tnum result represents all the
  * possible results for possible values of the operands.
  */
 #include <linux/kernel.h>
 #include <linux/tnum.h>
 
 #define TNUM(_v, _m)	(struct tnum){.value = _v, .mask = _m}
-/* A completely unknown value */
-const struct tnum tnum_unknown = { .value = 0, .mask = -1 };
+/* A completely unkyeswn value */
+const struct tnum tnum_unkyeswn = { .value = 0, .mask = -1 };
 
 struct tnum tnum_const(u64 value)
 {
@@ -25,7 +25,7 @@ struct tnum tnum_range(u64 min, u64 max)
 
 	/* special case, needed because 1ULL << 64 is undefined */
 	if (bits > 63)
-		return tnum_unknown;
+		return tnum_unkyeswn;
 	/* e.g. if chi = 4, bits = 3, delta = (1<<3) - 1 = 7.
 	 * if chi = 0, bits = 0, delta = (1<<0) - 1 = 0, so we return
 	 *  constant min (since min == max).
@@ -48,7 +48,7 @@ struct tnum tnum_arshift(struct tnum a, u8 min_shift)
 {
 	/* if a.value is negative, arithmetic shifting by minimum shift
 	 * will have larger negative offset compared to more shifting.
-	 * If a.value is nonnegative, arithmetic shifting by minimum shift
+	 * If a.value is yesnnegative, arithmetic shifting by minimum shift
 	 * will have larger positive offset compare to more shifting.
 	 */
 	return TNUM((s64)a.value >> min_shift, (s64)a.mask >> min_shift);
@@ -106,7 +106,7 @@ struct tnum tnum_xor(struct tnum a, struct tnum b)
 	return TNUM(v & ~mu, mu);
 }
 
-/* half-multiply add: acc += (unknown * mask * value).
+/* half-multiply add: acc += (unkyeswn * mask * value).
  * An intermediate step in the multiply algorithm.
  */
 static struct tnum hma(struct tnum acc, u64 value, u64 mask)
@@ -130,8 +130,8 @@ struct tnum tnum_mul(struct tnum a, struct tnum b)
 	return hma(acc, b.mask, a.value);
 }
 
-/* Note that if a and b disagree - i.e. one has a 'known 1' where the other has
- * a 'known 0' - this will return a 'known 1' for that bit.
+/* Note that if a and b disagree - i.e. one has a 'kyeswn 1' where the other has
+ * a 'kyeswn 0' - this will return a 'kyeswn 1' for that bit.
  */
 struct tnum tnum_intersect(struct tnum a, struct tnum b)
 {

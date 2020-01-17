@@ -39,7 +39,7 @@ struct pcm_substream {
 };
 
 enum { /* pcm streaming states */
-	STREAM_DISABLED, /* no pcm streaming */
+	STREAM_DISABLED, /* yes pcm streaming */
 	STREAM_STARTING, /* pcm streaming requested, waiting to become ready */
 	STREAM_RUNNING,  /* pcm streaming running */
 	STREAM_STOPPING
@@ -325,7 +325,7 @@ static void hiface_pcm_out_urb_handler(struct urb *usb_urb)
 		wake_up(&rt->stream_wait_queue);
 	}
 
-	/* now send our playback data (if a free out urb was found) */
+	/* yesw send our playback data (if a free out urb was found) */
 	sub = &rt->playback;
 	spin_lock_irqsave(&sub->lock, flags);
 	if (sub->active)
@@ -604,7 +604,7 @@ int hiface_pcm_init(struct hiface_chip *chip, u8 extra_freq)
 
 	ret = snd_pcm_new(chip->card, "USB-SPDIF Audio", 0, 1, 0, &pcm);
 	if (ret < 0) {
-		dev_err(&chip->dev->dev, "Cannot create pcm instance\n");
+		dev_err(&chip->dev->dev, "Canyest create pcm instance\n");
 		goto error;
 	}
 

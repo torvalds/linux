@@ -753,7 +753,7 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 			struct wm8350_led_platform_data *pdata);
 
 /*
- * Additional DCDC control not supported via regulator API
+ * Additional DCDC control yest supported via regulator API
  */
 int wm8350_dcdc_set_slot(struct wm8350 *wm8350, int dcdc, u16 start,
 			 u16 stop, u16 fault);
@@ -761,12 +761,12 @@ int wm8350_dcdc25_set_mode(struct wm8350 *wm8350, int dcdc, u16 mode,
 			   u16 ilim, u16 ramp, u16 feedback);
 
 /*
- * Additional LDO control not supported via regulator API
+ * Additional LDO control yest supported via regulator API
  */
 int wm8350_ldo_set_slot(struct wm8350 *wm8350, int ldo, u16 start, u16 stop);
 
 /*
- * Additional ISINK control not supported via regulator API
+ * Additional ISINK control yest supported via regulator API
  */
 int wm8350_isink_set_flash(struct wm8350 *wm8350, int isink, u16 mode,
 			   u16 trigger, u16 duration, u16 on_ramp,

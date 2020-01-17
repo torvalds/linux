@@ -31,7 +31,7 @@
 /* PEX Internal Configuration Registers */
 #define PCIE_STRFMR1		0x71c /* Symbol Timer & Filter Mask Register1 */
 #define PCIE_ABSERR		0x8d0 /* Bridge Slave Error Response Register */
-#define PCIE_ABSERR_SETTING	0x9401 /* Forward error of non-posted request */
+#define PCIE_ABSERR_SETTING	0x9401 /* Forward error of yesn-posted request */
 
 #define PCIE_IATU_NUM		6
 
@@ -123,7 +123,7 @@ static int ls_pcie_link_up(struct dw_pcie *pci)
 	return 1;
 }
 
-/* Forward error response of outbound non-posted requests */
+/* Forward error response of outbound yesn-posted requests */
 static void ls_pcie_fix_error_response(struct ls_pcie *pcie)
 {
 	struct dw_pcie *pci = pcie->pci;
@@ -163,7 +163,7 @@ static int ls1021_pcie_host_init(struct pcie_port *pp)
 	u32 index[2];
 	int ret;
 
-	pcie->scfg = syscon_regmap_lookup_by_phandle(dev->of_node,
+	pcie->scfg = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 						     "fsl,pcie-scfg");
 	if (IS_ERR(pcie->scfg)) {
 		ret = PTR_ERR(pcie->scfg);
@@ -172,7 +172,7 @@ static int ls1021_pcie_host_init(struct pcie_port *pp)
 		return ret;
 	}
 
-	if (of_property_read_u32_array(dev->of_node,
+	if (of_property_read_u32_array(dev->of_yesde,
 				       "fsl,pcie-scfg", index, 2)) {
 		pcie->scfg = NULL;
 		return -EINVAL;
@@ -186,8 +186,8 @@ static int ls_pcie_msi_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct device *dev = pci->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *msi_node;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *msi_yesde;
 
 	/*
 	 * The MSI domain is set by the generic of_msi_configure().  This
@@ -195,13 +195,13 @@ static int ls_pcie_msi_host_init(struct pcie_port *pp)
 	 * domain setup in dw_pcie_host_init() and also enforces the
 	 * requirement that "msi-parent" exists.
 	 */
-	msi_node = of_parse_phandle(np, "msi-parent", 0);
-	if (!msi_node) {
+	msi_yesde = of_parse_phandle(np, "msi-parent", 0);
+	if (!msi_yesde) {
 		dev_err(dev, "failed to find msi-parent\n");
 		return -EINVAL;
 	}
 
-	of_node_put(msi_node);
+	of_yesde_put(msi_yesde);
 	return 0;
 }
 

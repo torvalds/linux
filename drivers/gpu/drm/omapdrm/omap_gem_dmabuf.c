@@ -29,7 +29,7 @@ static struct sg_table *omap_gem_map_dma_buf(
 		return ERR_PTR(-ENOMEM);
 
 	/* camera, etc, need physically contiguous.. but we need a
-	 * better way to know this..
+	 * better way to kyesw this..
 	 */
 	ret = omap_gem_pin(obj, &dma_addr);
 	if (ret)
@@ -69,7 +69,7 @@ static int omap_gem_dmabuf_begin_cpu_access(struct dma_buf *buffer,
 	struct page **pages;
 	if (omap_gem_flags(obj) & OMAP_BO_TILED_MASK) {
 		/* TODO we would need to pin at least part of the buffer to
-		 * get de-tiled view.  For now just reject it.
+		 * get de-tiled view.  For yesw just reject it.
 		 */
 		return -ENOMEM;
 	}

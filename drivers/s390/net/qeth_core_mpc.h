@@ -257,8 +257,8 @@ enum qeth_ipa_funcs {
 /* SETIP/DELIP IPA Command: ***************************************************/
 enum qeth_ipa_setdelip_flags {
 	QETH_IPA_SETDELIP_DEFAULT          = 0x00L, /* default */
-	QETH_IPA_SETIP_VIPA_FLAG           = 0x01L, /* no grat. ARP */
-	QETH_IPA_SETIP_TAKEOVER_FLAG       = 0x02L, /* nofail on grat. ARP */
+	QETH_IPA_SETIP_VIPA_FLAG           = 0x01L, /* yes grat. ARP */
+	QETH_IPA_SETIP_TAKEOVER_FLAG       = 0x02L, /* yesfail on grat. ARP */
 	QETH_IPA_DELIP_ADDR_2_B_TAKEN_OVER = 0x20L,
 	QETH_IPA_DELIP_VIPA_FLAG           = 0x40L,
 	QETH_IPA_DELIP_ADDR_NEEDS_SETIP    = 0x80L,
@@ -369,13 +369,13 @@ struct qeth_ipacmd_setassparms_hdr {
 	__u16 command_code;
 	__u16 return_code;
 	__u8 number_of_replies;
-	__u8 seq_no;
+	__u8 seq_yes;
 } __attribute__((packed));
 
 struct qeth_arp_query_data {
 	__u16 request_bits;
 	__u16 reply_bits;
-	__u32 no_entries;
+	__u32 yes_entries;
 	char data; /* only for replies */
 } __attribute__((packed));
 
@@ -384,7 +384,7 @@ struct qeth_arp_query_info {
 	__u32 udata_len;
 	__u16 mask_bits;
 	__u32 udata_offset;
-	__u32 no_entries;
+	__u32 yes_entries;
 	char *udata;
 };
 
@@ -409,7 +409,7 @@ struct qeth_tso_start_data {
 
 /* SETASSPARMS IPA Command: */
 struct qeth_ipacmd_setassparms {
-	u32 assist_no;
+	u32 assist_yes;
 	struct qeth_ipacmd_setassparms_hdr hdr;
 	union {
 		__u32 flags_32bit;
@@ -431,7 +431,7 @@ struct qeth_set_routing {
 
 /* SETADAPTERPARMS IPA Command:    *******************************************/
 struct qeth_query_cmds_supp {
-	__u32 no_lantypes_supp;
+	__u32 yes_lantypes_supp;
 	__u8 lan_type;
 	__u8 reserved1[3];
 	__u32 supported_cmds;
@@ -441,7 +441,7 @@ struct qeth_query_cmds_supp {
 struct qeth_change_addr {
 	u32 cmd;
 	u32 addr_size;
-	u32 no_macs;
+	u32 yes_macs;
 	u8 addr[ETH_ALEN];
 };
 
@@ -451,7 +451,7 @@ struct qeth_snmp_cmd {
 	__u32 interface;
 	__u32 returncode;
 	__u32 firmwarelevel;
-	__u32 seqno;
+	__u32 seqyes;
 	__u8  data;
 } __attribute__ ((packed));
 
@@ -515,7 +515,7 @@ struct qeth_ipacmd_setadpparms_hdr {
 	u32 command_code;
 	u16 return_code;
 	u8 used_total;
-	u8 seq_no;
+	u8 seq_yes;
 	u8 flags;
 	u8 reserved3[3];
 };
@@ -681,7 +681,7 @@ struct qeth_ipacmd_sbp_hdr {
 	__u32 command_code;
 	__u16 return_code;
 	__u8  used_total;
-	__u8  seq_no;
+	__u8  seq_yes;
 	__u32 reserved2;
 } __packed;
 
@@ -759,11 +759,11 @@ struct qeth_ipacmd_addr_change {
 struct qeth_ipacmd_hdr {
 	__u8   command;
 	__u8   initiator;
-	__u16  seqno;
+	__u16  seqyes;
 	__u16  return_code;
 	__u8   adapter_type;
-	__u8   rel_adapter_no;
-	__u8   prim_version_no;
+	__u8   rel_adapter_yes;
+	__u8   prim_version_yes;
 	__u8   param_count;
 	__u16  prot_version;
 	__u32  ipa_supported;
@@ -794,7 +794,7 @@ struct qeth_ipa_cmd {
 
 /*
  * special command for ARP processing.
- * this is not included in setassparms command before, because we get
+ * this is yest included in setassparms command before, because we get
  * problem with the size of struct qeth_ipacmd_setassparms otherwise
  */
 enum qeth_ipa_arp_return_codes {

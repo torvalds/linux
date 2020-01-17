@@ -40,11 +40,11 @@
  * enum mei_wdt_state - internal watchdog state
  *
  * @MEI_WDT_PROBE: wd in probing stage
- * @MEI_WDT_IDLE: wd is idle and not opened
+ * @MEI_WDT_IDLE: wd is idle and yest opened
  * @MEI_WDT_START: wd was opened, start was called
  * @MEI_WDT_RUNNING: wd is expecting keep alive pings
  * @MEI_WDT_STOPPING: wd is stopping and will move to IDLE
- * @MEI_WDT_NOT_REQUIRED: wd device is not required
+ * @MEI_WDT_NOT_REQUIRED: wd device is yest required
  */
 enum mei_wdt_state {
 	MEI_WDT_PROBE,
@@ -71,7 +71,7 @@ static const char *mei_wdt_state_str(enum mei_wdt_state state)
 	case MEI_WDT_NOT_REQUIRED:
 		return "NOT_REQUIRED";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -161,7 +161,7 @@ struct mei_wdt_stop_request {
  * @wdt: mei watchdog device
  *
  * Return: 0 on success,
- *         negative errno code on failure
+ *         negative erryes code on failure
  */
 static int mei_wdt_ping(struct mei_wdt *wdt)
 {
@@ -189,7 +189,7 @@ static int mei_wdt_ping(struct mei_wdt *wdt)
  * @wdt: mei watchdog device
  *
  * Return: 0 on success,
- *         negative errno code on failure
+ *         negative erryes code on failure
  */
 static int mei_wdt_stop(struct mei_wdt *wdt)
 {
@@ -231,7 +231,7 @@ static int mei_wdt_ops_start(struct watchdog_device *wdd)
  *
  * @wdd: watchdog device
  *
- * Return: 0 if success, negative errno code for failure
+ * Return: 0 if success, negative erryes code for failure
  */
 static int mei_wdt_ops_stop(struct watchdog_device *wdd)
 {
@@ -257,7 +257,7 @@ static int mei_wdt_ops_stop(struct watchdog_device *wdd)
  *
  * @wdd: watchdog device
  *
- * Return: 0 if success, negative errno code on failure
+ * Return: 0 if success, negative erryes code on failure
  */
 static int mei_wdt_ops_ping(struct watchdog_device *wdd)
 {
@@ -287,7 +287,7 @@ static int mei_wdt_ops_ping(struct watchdog_device *wdd)
  * @wdd: watchdog device
  * @timeout: timeout value to set
  *
- * Return: 0 if success, negative errno code for failure
+ * Return: 0 if success, negative erryes code for failure
  */
 static int mei_wdt_ops_set_timeout(struct watchdog_device *wdd,
 				   unsigned int timeout)
@@ -310,7 +310,7 @@ static const struct watchdog_ops wd_ops = {
 	.set_timeout = mei_wdt_ops_set_timeout,
 };
 
-/* not const as the firmware_version field need to be retrieved */
+/* yest const as the firmware_version field need to be retrieved */
 static struct watchdog_info wd_info = {
 	.identity = INTEL_AMT_WATCHDOG_ID,
 	.options  = WDIOF_KEEPALIVEPING |
@@ -354,7 +354,7 @@ static void mei_wdt_unregister(struct mei_wdt *wdt)
  *
  * @wdt: mei watchdog device
  *
- * Return: 0 if success, negative errno code for failure
+ * Return: 0 if success, negative erryes code for failure
  */
 static int mei_wdt_register(struct mei_wdt *wdt)
 {
@@ -465,7 +465,7 @@ static void mei_wdt_rx(struct mei_cl_device *cldev)
 		return;
 	}
 
-	dev_warn(&cldev->dev, "not in correct state %s[%d]\n",
+	dev_warn(&cldev->dev, "yest in correct state %s[%d]\n",
 			 mei_wdt_state_str(wdt->state), wdt->state);
 
 out:
@@ -474,11 +474,11 @@ out:
 }
 
 /*
- * mei_wdt_notif - callback for event notification
+ * mei_wdt_yestif - callback for event yestification
  *
  * @cldev: bus device
  */
-static void mei_wdt_notif(struct mei_cl_device *cldev)
+static void mei_wdt_yestif(struct mei_cl_device *cldev)
 {
 	struct mei_wdt *wdt = mei_cldev_get_drvdata(cldev);
 
@@ -578,21 +578,21 @@ static int mei_wdt_probe(struct mei_cl_device *cldev,
 
 	ret = mei_cldev_enable(cldev);
 	if (ret < 0) {
-		dev_err(&cldev->dev, "Could not enable cl device\n");
+		dev_err(&cldev->dev, "Could yest enable cl device\n");
 		goto err_out;
 	}
 
 	ret = mei_cldev_register_rx_cb(wdt->cldev, mei_wdt_rx);
 	if (ret) {
-		dev_err(&cldev->dev, "Could not reg rx event ret=%d\n", ret);
+		dev_err(&cldev->dev, "Could yest reg rx event ret=%d\n", ret);
 		goto err_disable;
 	}
 
-	ret = mei_cldev_register_notif_cb(wdt->cldev, mei_wdt_notif);
-	/* on legacy devices notification is not supported
+	ret = mei_cldev_register_yestif_cb(wdt->cldev, mei_wdt_yestif);
+	/* on legacy devices yestification is yest supported
 	 */
 	if (ret && ret != -EOPNOTSUPP) {
-		dev_err(&cldev->dev, "Could not reg notif event ret=%d\n", ret);
+		dev_err(&cldev->dev, "Could yest reg yestif event ret=%d\n", ret);
 		goto err_disable;
 	}
 

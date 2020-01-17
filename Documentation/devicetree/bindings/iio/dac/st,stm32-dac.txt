@@ -3,11 +3,11 @@ STMicroelectronics STM32 DAC
 The STM32 DAC is a 12-bit voltage output digital-to-analog converter. The DAC
 may be configured in 8 or 12-bit mode. It has two output channels, each with
 its own converter.
-It has built-in noise and triangle waveform generator and supports external
+It has built-in yesise and triangle waveform generator and supports external
 triggers for conversions. The DAC's output buffer allows a high drive output
 current.
 
-Contents of a stm32 dac root node:
+Contents of a stm32 dac root yesde:
 -----------------------------------
 Required properties:
 - compatible: Should be one of:
@@ -26,9 +26,9 @@ Optional properties:
 - A pinctrl state named "default" for each DAC channel may be defined to set
   DAC_OUTx pin in mode of operation for analog output on external pin.
 
-Contents of a stm32 dac child node:
+Contents of a stm32 dac child yesde:
 -----------------------------------
-DAC core node should contain at least one subnode, representing a
+DAC core yesde should contain at least one subyesde, representing a
 DAC instance/channel available on the machine.
 
 Required properties:

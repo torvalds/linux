@@ -37,7 +37,7 @@ struct stack_info {
  * @fp:          The fp value in the frame record (or the real fp)
  * @pc:          The fp value in the frame record (or the real lr)
  *
- * @stacks_done: Stacks which have been entirely unwound, for which it is no
+ * @stacks_done: Stacks which have been entirely unwound, for which it is yes
  *               longer valid to unwind to.
  *
  * @prev_fp:     The fp that pointed to this frame record, or a synthetic value
@@ -45,7 +45,7 @@ struct stack_info {
  *               subsequent frame record is at an increasing address.
  * @prev_type:   The type of stack this frame record was on, or a synthetic
  *               value of STACK_TYPE_UNKNOWN. This is used to detect a
- *               transition from one stack to another.
+ *               transition from one stack to ayesther.
  *
  * @graph:       When FUNCTION_GRAPH_TRACER is selected, holds the index of a
  *               replacement lr value in the ftrace graph stack.
@@ -135,7 +135,7 @@ static inline bool on_overflow_stack(unsigned long sp,
 
 
 /*
- * We can only safely access per-cpu stacks from current in a non-preemptible
+ * We can only safely access per-cpu stacks from current in a yesn-preemptible
  * context.
  */
 static inline bool on_accessible_stack(const struct task_struct *tsk,
@@ -175,7 +175,7 @@ static inline void start_backtrace(struct stackframe *frame,
 	 * which can't be STACK_TYPE_UNKNOWN, and the first unwind will be
 	 * treated as a transition to whichever stack that happens to be. The
 	 * prev_fp value won't be used, but we set it to 0 such that it is
-	 * definitely not an accessible stack address.
+	 * definitely yest an accessible stack address.
 	 */
 	bitmap_zero(frame->stacks_done, __NR_STACK_TYPES);
 	frame->prev_fp = 0;

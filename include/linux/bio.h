@@ -56,7 +56,7 @@
 	(op_is_write(bio_op(bio)) ? WRITE : READ)
 
 /*
- * Check whether this bio carries any data or not. A NULL bio is allowed.
+ * Check whether this bio carries any data or yest. A NULL bio is allowed.
  */
 static inline bool bio_has_data(struct bio *bio)
 {
@@ -70,7 +70,7 @@ static inline bool bio_has_data(struct bio *bio)
 	return false;
 }
 
-static inline bool bio_no_advance_iter(struct bio *bio)
+static inline bool bio_yes_advance_iter(struct bio *bio)
 {
 	return bio_op(bio) == REQ_OP_DISCARD ||
 	       bio_op(bio) == REQ_OP_SECURE_ERASE ||
@@ -143,7 +143,7 @@ static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
 {
 	iter->bi_sector += bytes >> 9;
 
-	if (bio_no_advance_iter(bio))
+	if (bio_yes_advance_iter(bio))
 		iter->bi_size -= bytes;
 	else
 		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
@@ -487,14 +487,14 @@ do {						\
 	if ((bio)->bi_disk != (bdev)->bd_disk)	\
 		bio_clear_flag(bio, BIO_THROTTLED);\
 	(bio)->bi_disk = (bdev)->bd_disk;	\
-	(bio)->bi_partno = (bdev)->bd_partno;	\
+	(bio)->bi_partyes = (bdev)->bd_partyes;	\
 	bio_associate_blkg(bio);		\
 } while (0)
 
 #define bio_copy_dev(dst, src)			\
 do {						\
 	(dst)->bi_disk = (src)->bi_disk;	\
-	(dst)->bi_partno = (src)->bi_partno;	\
+	(dst)->bi_partyes = (src)->bi_partyes;	\
 	bio_clone_blkg_association(dst, src);	\
 } while (0)
 
@@ -534,7 +534,7 @@ static inline char *bvec_kmap_irq(struct bio_vec *bvec, unsigned long *flags)
 	unsigned long addr;
 
 	/*
-	 * might not be a highmem page, but the preempt/irq count
+	 * might yest be a highmem page, but the preempt/irq count
 	 * balancing is a lot nicer this way
 	 */
 	local_irq_save(*flags);
@@ -733,7 +733,7 @@ static inline bool bioset_initialized(struct bio_set *bs)
 }
 
 /*
- * a small number of entries is fine, not going to be performance critical.
+ * a small number of entries is fine, yest going to be performance critical.
  * basically we just need to survive
  */
 #define BIO_SPLIT_ENTRIES 2
@@ -822,8 +822,8 @@ static inline int bio_integrity_add_page(struct bio *bio, struct page *page,
 
 /*
  * Mark a bio as polled. Note that for async polled IO, the caller must
- * expect -EWOULDBLOCK if we cannot allocate a request (or other resources).
- * We cannot block waiting for requests on polled IO, as those completions
+ * expect -EWOULDBLOCK if we canyest allocate a request (or other resources).
+ * We canyest block waiting for requests on polled IO, as those completions
  * must be found by the caller. This is different than IRQ driven IO, where
  * it's safe to wait for IO to complete.
  */

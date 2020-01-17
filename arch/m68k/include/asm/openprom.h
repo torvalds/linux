@@ -11,7 +11,7 @@
 
 /* Empirical constants... */
 #ifdef CONFIG_SUN3
-#define KADB_DEBUGGER_BEGVM     0x0fee0000    /* There is no kadb yet but...*/
+#define KADB_DEBUGGER_BEGVM     0x0fee0000    /* There is yes kadb yet but...*/
 #define LINUX_OPPROM_BEGVM      0x0fef0000
 #define LINUX_OPPROM_ENDVM      0x0ff10000    /* I think this is right - tm */
 #else
@@ -195,7 +195,7 @@ struct linux_romvec {
 	struct linux_mem_v0 pv_v0mem;
 
 	/* Node operations. */
-	struct linux_nodeops *pv_nodeops;
+	struct linux_yesdeops *pv_yesdeops;
 
 	char **pv_bootstr;
 	struct linux_dev_v0_funcs pv_v0devops;
@@ -225,7 +225,7 @@ struct linux_romvec {
 	void (*pv_halt)(void);
 	void (**pv_synchook)(void);
 
-	/* Evaluate a forth string, not different proto for V0 and V2->up. */
+	/* Evaluate a forth string, yest different proto for V0 and V2->up. */
 	union {
 		void (*v0_eval)(int len, char *str);
 		void (*v2_eval)(char *str);
@@ -274,13 +274,13 @@ struct linux_romvec {
 #endif
 
 /* Routines for traversing the prom device tree. */
-struct linux_nodeops {
-	int (*no_nextnode)(int node);
-	int (*no_child)(int node);
-	int (*no_proplen)(int node, char *name);
-	int (*no_getprop)(int node, char *name, char *val);
-	int (*no_setprop)(int node, char *name, char *val, int len);
-	char * (*no_nextprop)(int node, char *name);
+struct linux_yesdeops {
+	int (*yes_nextyesde)(int yesde);
+	int (*yes_child)(int yesde);
+	int (*yes_proplen)(int yesde, char *name);
+	int (*yes_getprop)(int yesde, char *name, char *val);
+	int (*yes_setprop)(int yesde, char *name, char *val, int len);
+	char * (*yes_nextprop)(int yesde, char *name);
 };
 
 /* More fun PROM structures for device probing. */

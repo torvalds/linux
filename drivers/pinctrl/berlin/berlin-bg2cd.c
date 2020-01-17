@@ -2,7 +2,7 @@
 /*
  * Marvell Berlin BG2CD pinctrl driver.
  *
- * Copyright (C) 2014 Marvell Technology Group Ltd.
+ * Copyright (C) 2014 Marvell Techyeslogy Group Ltd.
  *
  * Antoine Ténart <antoine.tenart@free-electrons.com>
  */

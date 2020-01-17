@@ -76,7 +76,7 @@ static int edp_connector_mode_valid(struct drm_connector *connector,
 		edp->ctrl, mode->clock, NULL, NULL))
 		return MODE_CLOCK_RANGE;
 
-	/* Invalidate all modes if color format is not supported */
+	/* Invalidate all modes if color format is yest supported */
 	if (connector->display_info.bpc > 8)
 		return MODE_BAD;
 
@@ -122,7 +122,7 @@ struct drm_connector *msm_edp_connector_init(struct msm_edp *edp)
 	/* We don't support HPD, so only poll status until connected. */
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 
-	/* Display driver doesn't support interlace now. */
+	/* Display driver doesn't support interlace yesw. */
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 

@@ -159,7 +159,7 @@ static void ieee80211_compute_tkip_p1k(struct ieee80211_key *key, u32 iv32)
 
 	/*
 	 * Update the P1K when the IV32 is different from the value it
-	 * had when we last computed it (or when not initialised yet).
+	 * had when we last computed it (or when yest initialised yet).
 	 * This might flip-flop back and forth if packets are processed
 	 * out-of-order due to the different ACs, but then we have to
 	 * just compute the P1K more often.
@@ -216,7 +216,7 @@ EXPORT_SYMBOL(ieee80211_get_tkip_p2k);
  * Encrypt packet payload with TKIP using @key. @pos is a pointer to the
  * beginning of the buffer containing payload. This payload must include
  * the IV/Ext.IV and space for (taildroom) four octets for ICV.
- * @payload_len is the length of payload (_not_ including IV/ICV length).
+ * @payload_len is the length of payload (_yest_ including IV/ICV length).
  * @ta is the transmitter addresses.
  */
 int ieee80211_tkip_encrypt_data(struct arc4_ctx *ctx,

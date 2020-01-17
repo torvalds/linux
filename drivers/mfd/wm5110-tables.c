@@ -767,7 +767,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x000002A7, 0x2C37 },    /* R679   - Mic Detect Level 2 */
 	{ 0x000002A8, 0x1422 },    /* R680   - Mic Detect Level 3 */
 	{ 0x000002A9, 0x030A },    /* R681   - Mic Detect Level 4 */
-	{ 0x000002C3, 0x0000 },    /* R707   - Mic noise mix control 1 */
+	{ 0x000002C3, 0x0000 },    /* R707   - Mic yesise mix control 1 */
 	{ 0x000002CB, 0x0000 },    /* R715   - Isolation control */
 	{ 0x000002D3, 0x0000 },    /* R723   - Jack detect analogue */
 	{ 0x00000300, 0x0000 },    /* R768   - Input Enables */

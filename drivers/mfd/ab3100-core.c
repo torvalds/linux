@@ -9,7 +9,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -113,10 +113,10 @@ static int set_register_interruptible(struct device *dev,
 
 /*
  * The test registers exist at an I2C bus address up one
- * from the ordinary base. They are not supposed to be used
+ * from the ordinary base. They are yest supposed to be used
  * in production code, but sometimes you have to do that
  * anyway. It's currently only used from this file so declare
- * it static and do not export.
+ * it static and do yest export.
  */
 static int ab3100_set_test_register_interruptible(struct ab3100 *ab3100,
 				    u8 reg, u8 regval)
@@ -159,7 +159,7 @@ static int ab3100_get_register_interruptible(struct ab3100 *ab3100,
 
 	/*
 	 * AB3100 require an I2C "stop" command between each message, else
-	 * it will not work. The only way of achieveing this with the
+	 * it will yest work. The only way of achieveing this with the
 	 * message transport layer is to send the read and write messages
 	 * separately.
 	 */
@@ -358,9 +358,9 @@ static int mask_and_set_register_interruptible(struct device *dev, u8 bank,
  * Register a simple callback for handling any AB3100 events.
  */
 int ab3100_event_register(struct ab3100 *ab3100,
-			  struct notifier_block *nb)
+			  struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&ab3100->event_subscribers,
+	return blocking_yestifier_chain_register(&ab3100->event_subscribers,
 					       nb);
 }
 EXPORT_SYMBOL(ab3100_event_register);
@@ -369,9 +369,9 @@ EXPORT_SYMBOL(ab3100_event_register);
  * Remove a previously registered callback.
  */
 int ab3100_event_unregister(struct ab3100 *ab3100,
-			    struct notifier_block *nb)
+			    struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&ab3100->event_subscribers,
+	return blocking_yestifier_chain_unregister(&ab3100->event_subscribers,
 					    nb);
 }
 EXPORT_SYMBOL(ab3100_event_unregister);
@@ -428,12 +428,12 @@ static irqreturn_t ab3100_irq_handler(int irq, void *data)
 		ab3100->startup_events_read = true;
 	}
 	/*
-	 * The notified parties will have to mask out the events
+	 * The yestified parties will have to mask out the events
 	 * they're interested in and react to them. They will be
-	 * notified on all events, then they use the fatevent value
+	 * yestified on all events, then they use the fatevent value
 	 * to determine if they're interested.
 	 */
-	blocking_notifier_call_chain(&ab3100->event_subscribers,
+	blocking_yestifier_call_chain(&ab3100->event_subscribers,
 				     fatevent, NULL);
 
 	dev_dbg(ab3100->dev,
@@ -466,9 +466,9 @@ static int ab3100_registers_print(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int ab3100_registers_open(struct inode *inode, struct file *file)
+static int ab3100_registers_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, ab3100_registers_print, inode->i_private);
+	return single_open(file, ab3100_registers_print, iyesde->i_private);
 }
 
 static const struct file_operations ab3100_registers_fops = {
@@ -572,7 +572,7 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 static const struct file_operations ab3100_get_set_reg_fops = {
 	.open = simple_open,
 	.write = ab3100_get_set_reg,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static struct ab3100_get_set_reg_priv ab3100_get_priv;
@@ -670,7 +670,7 @@ static int ab3100_setup(struct ab3100 *ab3100)
 					  ab3100_init_settings[i].abreg,
 					  ab3100_init_settings[i].setting);
 		if (err)
-			goto exit_no_setup;
+			goto exit_yes_setup;
 	}
 
 	/*
@@ -685,7 +685,7 @@ static int ab3100_setup(struct ab3100 *ab3100)
 			0x02, 0x08);
 	}
 
- exit_no_setup:
+ exit_yes_setup:
 	return err;
 }
 
@@ -785,7 +785,7 @@ static const struct ab_family_id ids[] = {
 		.id = 0xc8,
 		.name = "P2B/R2B"
 	},
-	/* AB3000 variants, not supported */
+	/* AB3000 variants, yest supported */
 	{
 		.id = 0xa0
 	}, {
@@ -837,7 +837,7 @@ static int ab3100_probe(struct i2c_client *client,
 	if (err) {
 		dev_err(&client->dev,
 			"failed to communicate with AB3100 chip\n");
-		goto exit_no_detect;
+		goto exit_yes_detect;
 	}
 
 	for (i = 0; ids[i].id != 0x0; i++) {
@@ -845,8 +845,8 @@ static int ab3100_probe(struct i2c_client *client,
 			if (ids[i].name)
 				break;
 
-			dev_err(&client->dev, "AB3000 is not supported\n");
-			goto exit_no_detect;
+			dev_err(&client->dev, "AB3000 is yest supported\n");
+			goto exit_yes_detect;
 		}
 	}
 
@@ -854,11 +854,11 @@ static int ab3100_probe(struct i2c_client *client,
 		 sizeof(ab3100->chip_name) - 1, "AB3100 %s", ids[i].name);
 
 	if (ids[i].id == 0x0) {
-		dev_err(&client->dev, "unknown analog baseband chip id: 0x%x\n",
+		dev_err(&client->dev, "unkyeswn analog baseband chip id: 0x%x\n",
 			ab3100->chip_id);
 		dev_err(&client->dev,
 			"accepting it anyway. Please update the driver.\n");
-		goto exit_no_detect;
+		goto exit_yes_detect;
 	}
 
 	dev_info(&client->dev, "Detected chip: %s\n",
@@ -869,22 +869,22 @@ static int ab3100_probe(struct i2c_client *client,
 					       client->addr + 1);
 	if (IS_ERR(ab3100->testreg_client)) {
 		err = PTR_ERR(ab3100->testreg_client);
-		goto exit_no_testreg_client;
+		goto exit_yes_testreg_client;
 	}
 
 	err = ab3100_setup(ab3100);
 	if (err)
-		goto exit_no_setup;
+		goto exit_yes_setup;
 
 	err = devm_request_threaded_irq(&client->dev,
 					client->irq, NULL, ab3100_irq_handler,
 					IRQF_ONESHOT, "ab3100-core", ab3100);
 	if (err)
-		goto exit_no_irq;
+		goto exit_yes_irq;
 
 	err = abx500_register_ops(&client->dev, &ab3100_ops);
 	if (err)
-		goto exit_no_ops;
+		goto exit_yes_ops;
 
 	/* Set up and register the platform devices. */
 	for (i = 0; i < ARRAY_SIZE(ab3100_devs); i++) {
@@ -899,12 +899,12 @@ static int ab3100_probe(struct i2c_client *client,
 
 	return 0;
 
- exit_no_ops:
- exit_no_irq:
- exit_no_setup:
+ exit_yes_ops:
+ exit_yes_irq:
+ exit_yes_setup:
 	i2c_unregister_device(ab3100->testreg_client);
- exit_no_testreg_client:
- exit_no_detect:
+ exit_yes_testreg_client:
+ exit_yes_detect:
 	return err;
 }
 

@@ -47,7 +47,7 @@ and for memory and IO::
 The "some" line indicates the share of time in which at least some
 tasks are stalled on a given resource.
 
-The "full" line indicates the share of time in which all non-idle
+The "full" line indicates the share of time in which all yesn-idle
 tasks are stalled on a given resource simultaneously. In this state
 actual CPU cycles are going to waste, and a workload that spends
 extended time in this state is considered to be thrashing. This has
@@ -99,8 +99,8 @@ tracking window.
 
 The kernel accepts window sizes ranging from 500ms to 10s, therefore min
 monitoring update interval is 50ms and max is 1s. Min limit is set to
-prevent overly frequent polling. Max limit is chosen as a high enough number
-after which monitors are most likely not needed and psi averages can be used
+prevent overly frequent polling. Max limit is chosen as a high eyesugh number
+after which monitors are most likely yest needed and psi averages can be used
 instead.
 
 When activated, psi monitor stays active for at least the duration of one
@@ -117,7 +117,7 @@ Userspace monitor usage example
 
 ::
 
-  #include <errno.h>
+  #include <erryes.h>
   #include <fcntl.h>
   #include <stdio.h>
   #include <poll.h>
@@ -136,14 +136,14 @@ Userspace monitor usage example
 	fds.fd = open("/proc/pressure/memory", O_RDWR | O_NONBLOCK);
 	if (fds.fd < 0) {
 		printf("/proc/pressure/memory open error: %s\n",
-			strerror(errno));
+			strerror(erryes));
 		return 1;
 	}
 	fds.events = POLLPRI;
 
 	if (write(fds.fd, trig, strlen(trig) + 1) < 0) {
 		printf("/proc/pressure/memory write error: %s\n",
-			strerror(errno));
+			strerror(erryes));
 		return 1;
 	}
 
@@ -151,7 +151,7 @@ Userspace monitor usage example
 	while (1) {
 		n = poll(&fds, 1, -1);
 		if (n < 0) {
-			printf("poll error: %s\n", strerror(errno));
+			printf("poll error: %s\n", strerror(erryes));
 			return 1;
 		}
 		if (fds.revents & POLLERR) {
@@ -161,7 +161,7 @@ Userspace monitor usage example
 		if (fds.revents & POLLPRI) {
 			printf("event triggered!\n");
 		} else {
-			printf("unknown event received: 0x%x\n", fds.revents);
+			printf("unkyeswn event received: 0x%x\n", fds.revents);
 			return 1;
 		}
 	}

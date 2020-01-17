@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: baseband.c
@@ -181,7 +181,7 @@ unsigned int vnt_get_frame_time(u8 preamble_type, u8 pkt_type,
  *		- pointer to Phy Service field
  *		- pointer to Phy Signal field
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
@@ -324,9 +324,9 @@ void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
  *	priv		- Device Structure
  *	antenna_mode	- Antenna Mode
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 int vnt_set_antenna_mode(struct vnt_private *priv, u8 antenna_mode)
@@ -356,9 +356,9 @@ int vnt_set_antenna_mode(struct vnt_private *priv, u8 antenna_mode)
  *      pDevice          - Device Structure
  *      byAntennaMode    - Antenna Mode
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 
@@ -516,9 +516,9 @@ end:
  *  In:
  *	priv	- Device Structure
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 int vnt_set_short_slot_time(struct vnt_private *priv)
@@ -565,9 +565,9 @@ void vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data)
  *  In:
  *	priv	- Device Structure
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 int vnt_set_deep_sleep(struct vnt_private *priv)

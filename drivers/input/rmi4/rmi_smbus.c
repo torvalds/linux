@@ -114,7 +114,7 @@ static int rmi_smb_get_command_code(struct rmi_transport_dev *xport,
 	retval = smb_block_write(xport, i + 0x80, &new_map, sizeof(new_map));
 	if (retval < 0) {
 		/*
-		 * if not written to device mapping table
+		 * if yest written to device mapping table
 		 * clear the driver mapping table records
 		 */
 		memset(&new_map, 0, sizeof(new_map));
@@ -251,10 +251,10 @@ static int rmi_smb_reset(struct rmi_transport_dev *xport, u16 reset_addr)
 	rmi_smb_clear_state(rmi_smb);
 
 	/*
-	 * we do not call the actual reset command, it has to be handled in
+	 * we do yest call the actual reset command, it has to be handled in
 	 * PS/2 or there will be races between PS/2 and SMBus.
 	 * PS/2 should ensure that a psmouse_reset is called before
-	 * intializing the device and after it has been removed to be in a known
+	 * intializing the device and after it has been removed to be in a kyeswn
 	 * state.
 	 */
 	return rmi_smb_enable_smbus_mode(rmi_smb);
@@ -275,7 +275,7 @@ static int rmi_smb_probe(struct i2c_client *client,
 	int error;
 
 	if (!pdata) {
-		dev_err(&client->dev, "no platform data, aborting\n");
+		dev_err(&client->dev, "yes platform data, aborting\n");
 		return -ENOMEM;
 	}
 
@@ -283,12 +283,12 @@ static int rmi_smb_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_READ_BLOCK_DATA |
 				     I2C_FUNC_SMBUS_HOST_NOTIFY)) {
 		dev_err(&client->dev,
-			"adapter does not support required functionality\n");
+			"adapter does yest support required functionality\n");
 		return -ENODEV;
 	}
 
 	if (client->irq <= 0) {
-		dev_err(&client->dev, "no IRQ provided, giving up\n");
+		dev_err(&client->dev, "yes IRQ provided, giving up\n");
 		return client->irq ? client->irq : -ENODEV;
 	}
 

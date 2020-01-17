@@ -8,7 +8,7 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand data reads that was not supplied by the L3 cache.",
+        "BriefDescription": "Counts demand data reads that was yest supplied by the L3 cache.",
         "Offcore": "1"
     },
     {
@@ -20,7 +20,7 @@
         "EventName": "OCR.DEMAND_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts all demand reads for ownership (RFO) requests and software based prefetches for exclusive ownership (PREFETCHW) that was not supplied by the L3 cache.",
+        "BriefDescription": "Counts all demand reads for ownership (RFO) requests and software based prefetches for exclusive ownership (PREFETCHW) that was yest supplied by the L3 cache.",
         "Offcore": "1"
     }
 ]

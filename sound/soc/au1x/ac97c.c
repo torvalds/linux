@@ -107,7 +107,7 @@ static unsigned short au1xac97c_ac97_read(struct snd_ac97 *ac97,
 		 */
 		tmo = 0x10000;
 		while ((RD(ctx, AC97_STATUS) & STAT_CP) && --tmo)
-			asm volatile ("nop");
+			asm volatile ("yesp");
 		data = RD(ctx, AC97_CMDRESP);
 
 		if (!tmo)
@@ -176,7 +176,7 @@ static void au1xac97c_ac97_cold_reset(struct snd_ac97 *ac97)
 	while (((RD(ctx, AC97_STATUS) & STAT_RD) == 0) && --i)
 		msleep(20);
 	if (!i)
-		printk(KERN_ERR "ac97c: codec not ready after cold reset\n");
+		printk(KERN_ERR "ac97c: codec yest ready after cold reset\n");
 }
 
 /* AC97 controller operations */
@@ -248,7 +248,7 @@ static int au1xac97c_drvprobe(struct platform_device *pdev)
 				     pdev->name))
 		return -EBUSY;
 
-	ctx->mmio = devm_ioremap_nocache(&pdev->dev, iores->start,
+	ctx->mmio = devm_ioremap_yescache(&pdev->dev, iores->start,
 					 resource_size(iores));
 	if (!ctx->mmio)
 		return -EBUSY;

@@ -530,7 +530,7 @@ static int sch5627_probe(struct platform_device *pdev)
 	}
 	data->control = val;
 	if (!(data->control & 0x01)) {
-		pr_err("hardware monitoring not enabled\n");
+		pr_err("hardware monitoring yest enabled\n");
 		err = -ENODEV;
 		goto error;
 	}
@@ -564,7 +564,7 @@ static int sch5627_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	/* Note failing to register the watchdog is not a fatal error */
+	/* Note failing to register the watchdog is yest a fatal error */
 	data->watchdog = sch56xx_watchdog_register(&pdev->dev, data->addr,
 			(build_code << 24) | (build_id << 8) | hwmon_rev,
 			&data->update_lock, 1);

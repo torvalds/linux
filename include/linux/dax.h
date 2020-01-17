@@ -7,7 +7,7 @@
 #include <linux/radix-tree.h>
 #include <asm/pgtable.h>
 
-/* Flag for synchronous flush */
+/* Flag for synchroyesus flush */
 #define DAXDEV_F_SYNC (1UL << 0)
 
 typedef unsigned long dax_entry_t;
@@ -46,15 +46,15 @@ void put_dax(struct dax_device *dax_dev);
 void kill_dax(struct dax_device *dax_dev);
 void dax_write_cache(struct dax_device *dax_dev, bool wc);
 bool dax_write_cache_enabled(struct dax_device *dax_dev);
-bool __dax_synchronous(struct dax_device *dax_dev);
-static inline bool dax_synchronous(struct dax_device *dax_dev)
+bool __dax_synchroyesus(struct dax_device *dax_dev);
+static inline bool dax_synchroyesus(struct dax_device *dax_dev)
 {
-	return  __dax_synchronous(dax_dev);
+	return  __dax_synchroyesus(dax_dev);
 }
-void __set_dax_synchronous(struct dax_device *dax_dev);
-static inline void set_dax_synchronous(struct dax_device *dax_dev)
+void __set_dax_synchroyesus(struct dax_device *dax_dev);
+static inline void set_dax_synchroyesus(struct dax_device *dax_dev)
 {
-	__set_dax_synchronous(dax_dev);
+	__set_dax_synchroyesus(dax_dev);
 }
 /*
  * Check if given mapping is supported by the file / underlying device.
@@ -64,9 +64,9 @@ static inline bool daxdev_mapping_supported(struct vm_area_struct *vma,
 {
 	if (!(vma->vm_flags & VM_SYNC))
 		return true;
-	if (!IS_DAX(file_inode(vma->vm_file)))
+	if (!IS_DAX(file_iyesde(vma->vm_file)))
 		return false;
-	return dax_synchronous(dax_dev);
+	return dax_synchroyesus(dax_dev);
 }
 #else
 static inline struct dax_device *dax_get_by_host(const char *host)
@@ -77,7 +77,7 @@ static inline struct dax_device *alloc_dax(void *private, const char *host,
 		const struct dax_operations *ops, unsigned long flags)
 {
 	/*
-	 * Callers should check IS_ENABLED(CONFIG_DAX) to know if this
+	 * Callers should check IS_ENABLED(CONFIG_DAX) to kyesw if this
 	 * NULL is an error or expected.
 	 */
 	return NULL;
@@ -95,11 +95,11 @@ static inline bool dax_write_cache_enabled(struct dax_device *dax_dev)
 {
 	return false;
 }
-static inline bool dax_synchronous(struct dax_device *dax_dev)
+static inline bool dax_synchroyesus(struct dax_device *dax_dev)
 {
 	return true;
 }
-static inline void set_dax_synchronous(struct dax_device *dax_dev)
+static inline void set_dax_synchroyesus(struct dax_device *dax_dev)
 {
 }
 static inline bool daxdev_mapping_supported(struct vm_area_struct *vma,

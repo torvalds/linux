@@ -48,7 +48,7 @@ static u32 acpi_ns_get_bitmapped_type(union acpi_operand_object *return_object);
  *
  * FUNCTION:    acpi_ns_check_return_value
  *
- * PARAMETERS:  node            - Namespace node for the method/object
+ * PARAMETERS:  yesde            - Namespace yesde for the method/object
  *              info            - Method execution information block
  *              user_param_count - Number of parameters actually passed
  *              return_status   - Status from the object evaluation
@@ -62,7 +62,7 @@ static u32 acpi_ns_get_bitmapped_type(union acpi_operand_object *return_object);
  ******************************************************************************/
 
 acpi_status
-acpi_ns_check_return_value(struct acpi_namespace_node *node,
+acpi_ns_check_return_value(struct acpi_namespace_yesde *yesde,
 			   struct acpi_evaluate_info *info,
 			   u32 user_param_count,
 			   acpi_status return_status,
@@ -71,7 +71,7 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 	acpi_status status;
 	const union acpi_predefined_info *predefined;
 
-	/* If not a predefined name, we cannot validate the return object */
+	/* If yest a predefined name, we canyest validate the return object */
 
 	predefined = info->predefined;
 	if (!predefined) {
@@ -79,7 +79,7 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 	}
 
 	/*
-	 * If the method failed or did not actually return an object, we cannot
+	 * If the method failed or did yest actually return an object, we canyest
 	 * validate the return object
 	 */
 	if ((return_status != AE_OK) && (return_status != AE_CTRL_RETURN_VALUE)) {
@@ -93,10 +93,10 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 	 * has been disabled via a global option.
 	 *
 	 * 2) We have a return value, but if one wasn't expected, just exit,
-	 * this is not a problem. For example, if the "Implicit Return"
+	 * this is yest a problem. For example, if the "Implicit Return"
 	 * feature is enabled, methods will always return a value.
 	 *
-	 * 3) If the return value can be of any type, then we cannot perform
+	 * 3) If the return value can be of any type, then we canyest perform
 	 * any validation, just exit.
 	 */
 	if (acpi_gbl_disable_auto_repair ||
@@ -118,7 +118,7 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 
 	/*
 	 *
-	 * 4) If there is no return value and it is optional, just return
+	 * 4) If there is yes return value and it is optional, just return
 	 * AE_OK (_WAK).
 	 */
 	if (!(*return_object_ptr)) {
@@ -151,16 +151,16 @@ acpi_ns_check_return_value(struct acpi_namespace_node *node,
 	 * performed on a per-name basis, i.e., the code is specific to
 	 * particular predefined names.
 	 */
-	status = acpi_ns_complex_repairs(info, node, status, return_object_ptr);
+	status = acpi_ns_complex_repairs(info, yesde, status, return_object_ptr);
 
 exit:
 	/*
 	 * If the object validation failed or if we successfully repaired one
-	 * or more objects, mark the parent node to suppress further warning
+	 * or more objects, mark the parent yesde to suppress further warning
 	 * messages during the next evaluation of the same method/object.
 	 */
 	if (ACPI_FAILURE(status) || (info->return_flags & ACPI_OBJECT_REPAIRED)) {
-		node->flags |= ANOBJ_EVALUATED;
+		yesde->flags |= ANOBJ_EVALUATED;
 	}
 
 	return (status);
@@ -194,15 +194,15 @@ acpi_ns_check_object_type(struct acpi_evaluate_info *info,
 	acpi_status status = AE_OK;
 	char type_buffer[96];	/* Room for 10 types */
 
-	/* A Namespace node should not get here, but make sure */
+	/* A Namespace yesde should yest get here, but make sure */
 
 	if (return_object &&
 	    ACPI_GET_DESCRIPTOR_TYPE(return_object) == ACPI_DESC_TYPE_NAMED) {
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-				      info->node_flags,
-				      "Invalid return type - Found a Namespace node [%4.4s] type %s",
-				      return_object->node.name.ascii,
-				      acpi_ut_get_type_name(return_object->node.
+				      info->yesde_flags,
+				      "Invalid return type - Found a Namespace yesde [%4.4s] type %s",
+				      return_object->yesde.name.ascii,
+				      acpi_ut_get_type_name(return_object->yesde.
 							    type)));
 		return (AE_AML_OPERAND_TYPE);
 	}
@@ -245,18 +245,18 @@ type_error_exit:
 
 	if (!return_object) {
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-				      info->node_flags,
+				      info->yesde_flags,
 				      "Expected return object of type %s",
 				      type_buffer));
 	} else if (package_index == ACPI_NOT_PACKAGE_ELEMENT) {
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-				      info->node_flags,
+				      info->yesde_flags,
 				      "Return type mismatch - found %s, expected %s",
 				      acpi_ut_get_object_type_name
 				      (return_object), type_buffer));
 	} else {
 		ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-				      info->node_flags,
+				      info->yesde_flags,
 				      "Return Package type mismatch at index %u - "
 				      "found %s, expected %s", package_index,
 				      acpi_ut_get_object_type_name
@@ -296,7 +296,7 @@ acpi_ns_check_reference(struct acpi_evaluate_info *info,
 		return (AE_OK);
 	}
 
-	ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname, info->node_flags,
+	ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname, info->yesde_flags,
 			      "Return type mismatch - unexpected reference object type [%s] %2.2X",
 			      acpi_ut_get_reference_name(return_object),
 			      return_object->reference.class));
@@ -311,7 +311,7 @@ acpi_ns_check_reference(struct acpi_evaluate_info *info,
  * PARAMETERS:  return_object   - Object returned from method/obj evaluation
  *
  * RETURN:      Object return type. ACPI_RTYPE_ANY indicates that the object
- *              type is not supported. ACPI_RTYPE_NONE indicates that no
+ *              type is yest supported. ACPI_RTYPE_NONE indicates that yes
  *              object was returned (return_object is NULL).
  *
  * DESCRIPTION: Convert object type into a bitmapped object return type.

@@ -43,7 +43,7 @@ static unsigned int help(struct sk_buff *skb,
 	 * this one (ie. same IP: it will be TCP and master is UDP). */
 	exp->expectfn = nf_nat_follow_master;
 
-	/* Try to get same port: if not, try to change it. */
+	/* Try to get same port: if yest, try to change it. */
 	for (port = ntohs(exp->saved_proto.tcp.port); port != 0; port++) {
 		int res;
 
@@ -66,7 +66,7 @@ static unsigned int help(struct sk_buff *skb,
 	if (!nf_nat_mangle_udp_packet(skb, exp->master, ctinfo,
 				      protoff, matchoff, matchlen,
 				      buffer, strlen(buffer))) {
-		nf_ct_helper_log(skb, exp->master, "cannot mangle packet");
+		nf_ct_helper_log(skb, exp->master, "canyest mangle packet");
 		nf_ct_unexpect_related(exp);
 		return NF_DROP;
 	}

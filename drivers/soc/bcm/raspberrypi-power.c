@@ -130,7 +130,7 @@ static void rpi_init_old_power_domain(struct rpi_power_domains *rpi_domains,
 /*
  * Detects whether the firmware supports the new power domains interface.
  *
- * The firmware doesn't actually return an error on an unknown tag,
+ * The firmware doesn't actually return an error on an unkyeswn tag,
  * and just skips over it, so we do the detection by putting an
  * unexpected value in the return field and checking if it was
  * unchanged.
@@ -153,7 +153,7 @@ rpi_has_new_domain_support(struct rpi_power_domains *rpi_domains)
 
 static int rpi_power_probe(struct platform_device *pdev)
 {
-	struct device_node *fw_np;
+	struct device_yesde *fw_np;
 	struct device *dev = &pdev->dev;
 	struct rpi_power_domains *rpi_domains;
 
@@ -171,14 +171,14 @@ static int rpi_power_probe(struct platform_device *pdev)
 
 	rpi_domains->xlate.num_domains = RPI_POWER_DOMAIN_COUNT;
 
-	fw_np = of_parse_phandle(pdev->dev.of_node, "firmware", 0);
+	fw_np = of_parse_phandle(pdev->dev.of_yesde, "firmware", 0);
 	if (!fw_np) {
-		dev_err(&pdev->dev, "no firmware node\n");
+		dev_err(&pdev->dev, "yes firmware yesde\n");
 		return -ENODEV;
 	}
 
 	rpi_domains->fw = rpi_firmware_get(fw_np);
-	of_node_put(fw_np);
+	of_yesde_put(fw_np);
 	if (!rpi_domains->fw)
 		return -EPROBE_DEFER;
 
@@ -218,7 +218,7 @@ static int rpi_power_probe(struct platform_device *pdev)
 	rpi_init_power_domain(rpi_domains, RPI_POWER_DOMAIN_CDP, "CDP");
 	rpi_init_power_domain(rpi_domains, RPI_POWER_DOMAIN_ARM, "ARM");
 
-	of_genpd_add_provider_onecell(dev->of_node, &rpi_domains->xlate);
+	of_genpd_add_provider_onecell(dev->of_yesde, &rpi_domains->xlate);
 
 	platform_set_drvdata(pdev, rpi_domains);
 

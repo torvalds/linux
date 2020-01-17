@@ -9,21 +9,21 @@
         "CounterHTOff": "Fixed counter 1"
     },
     {
-        "PublicDescription": "This event counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
+        "PublicDescription": "This event counts the number of core cycles while the thread is yest in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Techyeslogy or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was yest in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
         "Counter": "Fixed counter 2",
         "UMask": "0x2",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Core cycles when the thread is not in halt state.",
+        "BriefDescription": "Core cycles when the thread is yest in halt state.",
         "CounterHTOff": "Fixed counter 2"
     },
     {
-        "PublicDescription": "This event counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
+        "PublicDescription": "This event counts the number of reference cycles when the core is yest in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is yest affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was yest in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
         "Counter": "Fixed counter 3",
         "UMask": "0x3",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Reference cycles when the core is not in halt state.",
+        "BriefDescription": "Reference cycles when the core is yest in halt state.",
         "CounterHTOff": "Fixed counter 3"
     },
     {
@@ -221,7 +221,7 @@
         "UMask": "0x0",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Thread cycles when thread is not in halt state.",
+        "BriefDescription": "Thread cycles when thread is yest in halt state.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -280,7 +280,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts the number of cycles with at least one slow LEA uop being allocated. A uop is generally considered as slow LEA if it has three sources (for example, two sources and immediate) regardless of whether it is a result of LEA instruction or not. Examples of the slow LEA uop are or uops with base, index, and offset source operands using base and index reqisters, where base is EBR/RBP/R13, using RIP relative or 16-bit addressing modes. See the Intel? 64 and IA-32 Architectures Optimization Reference Manual for more details about slow LEA instructions.",
+        "PublicDescription": "This event counts the number of cycles with at least one slow LEA uop being allocated. A uop is generally considered as slow LEA if it has three sources (for example, two sources and immediate) regardless of whether it is a result of LEA instruction or yest. Examples of the slow LEA uop are or uops with base, index, and offset source operands using base and index reqisters, where base is EBR/RBP/R13, using RIP relative or 16-bit addressing modes. See the Intel? 64 and IA-32 Architectures Optimization Reference Manual for more details about slow LEA instructions.",
         "EventCode": "0x59",
         "Counter": "0,1,2,3",
         "UMask": "0x40",
@@ -322,7 +322,7 @@
         "UMask": "0x4",
         "EventName": "RESOURCE_STALLS.RS",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles stalled due to no eligible RS entry available.",
+        "BriefDescription": "Cycles stalled due to yes eligible RS entry available.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -331,7 +331,7 @@
         "UMask": "0x8",
         "EventName": "RESOURCE_STALLS.SB",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles stalled due to no store buffers available. (not including draining form sync).",
+        "BriefDescription": "Cycles stalled due to yes store buffers available. (yest including draining form sync).",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -369,7 +369,7 @@
         "UMask": "0x1",
         "EventName": "UOPS_ISSUED.STALL_CYCLES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for the thread.",
+        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does yest issue Uops to Reservation Station (RS) for the thread.",
         "CounterMask": "1",
         "CounterHTOff": "0,1,2,3"
     },
@@ -381,7 +381,7 @@
         "AnyThread": "1",
         "EventName": "UOPS_ISSUED.CORE_STALL_CYCLES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for all threads.",
+        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does yest issue Uops to Reservation Station (RS) for all threads.",
         "CounterMask": "1",
         "CounterHTOff": "0,1,2,3"
     },
@@ -589,7 +589,7 @@
         "UMask": "0x10",
         "EventName": "BR_MISP_RETIRED.NOT_TAKEN",
         "SampleAfterValue": "400009",
-        "BriefDescription": "Mispredicted not taken branch instructions retired.",
+        "BriefDescription": "Mispredicted yest taken branch instructions retired.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -703,7 +703,7 @@
         "UMask": "0x4",
         "EventName": "CYCLE_ACTIVITY.CYCLES_NO_DISPATCH",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Each cycle there was no dispatch for this thread, increment by 1. Note this is connect to Umask 2. No dispatch can be deduced from the UOPS_EXECUTED event.",
+        "BriefDescription": "Each cycle there was yes dispatch for this thread, increment by 1. Note this is connect to Umask 2. No dispatch can be deduced from the UOPS_EXECUTED event.",
         "CounterMask": "4",
         "CounterHTOff": "0,1,2,3"
     },
@@ -733,7 +733,7 @@
         "UMask": "0x6",
         "EventName": "CYCLE_ACTIVITY.STALLS_L1D_PENDING",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Each cycle there was a miss-pending demand load this thread and no uops dispatched, increment by 1. Note this is in DCU and connected to Umask 1 and 2. Miss Pending demand load should be deduced by OR-ing increment bits of DCACHE_MISS_PEND.PENDING.",
+        "BriefDescription": "Each cycle there was a miss-pending demand load this thread and yes uops dispatched, increment by 1. Note this is in DCU and connected to Umask 1 and 2. Miss Pending demand load should be deduced by OR-ing increment bits of DCACHE_MISS_PEND.PENDING.",
         "CounterMask": "6",
         "CounterHTOff": "2"
     },
@@ -743,7 +743,7 @@
         "UMask": "0x5",
         "EventName": "CYCLE_ACTIVITY.STALLS_L2_PENDING",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Each cycle there was a MLC-miss pending demand load and no uops dispatched on this thread (i.e. Non-completed valid SQ entry allocated for demand load and waiting for Uncore), increment by 1. Note this is in MLC and connected to Umask 0 and 2.",
+        "BriefDescription": "Each cycle there was a MLC-miss pending demand load and yes uops dispatched on this thread (i.e. Non-completed valid SQ entry allocated for demand load and waiting for Uncore), increment by 1. Note this is in MLC and connected to Umask 0 and 2.",
         "CounterMask": "5",
         "CounterHTOff": "0,1,2,3"
     },
@@ -771,11 +771,11 @@
         "UMask": "0x1",
         "EventName": "LD_BLOCKS.DATA_UNKNOWN",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Loads delayed due to SB blocks, preceding store operations with known addresses but unknown data.",
+        "BriefDescription": "Loads delayed due to SB blocks, preceding store operations with kyeswn addresses but unkyeswn data.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts loads that followed a store to the same address, where the data could not be forwarded inside the pipeline from the store to the load.  The most common reason why store forwarding would be blocked is when a load's address range overlaps with a preceeding smaller uncompleted store.  See the table of not supported store forwards in the Intel? 64 and IA-32 Architectures Optimization Reference Manual.  The penalty for blocked store forwarding is that the load must wait for the store to complete before it can be issued.",
+        "PublicDescription": "This event counts loads that followed a store to the same address, where the data could yest be forwarded inside the pipeline from the store to the load.  The most common reason why store forwarding would be blocked is when a load's address range overlaps with a preceeding smaller uncompleted store.  See the table of yest supported store forwards in the Intel? 64 and IA-32 Architectures Optimization Reference Manual.  The penalty for blocked store forwarding is that the load must wait for the store to complete before it can be issued.",
         "EventCode": "0x03",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
@@ -799,7 +799,7 @@
         "UMask": "0x10",
         "EventName": "LD_BLOCKS.ALL_BLOCK",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Number of cases where any load ends up with a valid block-code written to the load buffer (including blocks due to Memory Order Buffer (MOB), Data Cache Unit (DCU), TLB, but load has no DCU miss).",
+        "BriefDescription": "Number of cases where any load ends up with a valid block-code written to the load buffer (including blocks due to Memory Order Buffer (MOB), Data Cache Unit (DCU), TLB, but load has yes DCU miss).",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -818,7 +818,7 @@
         "UMask": "0x8",
         "EventName": "LD_BLOCKS_PARTIAL.ALL_STA_BLOCK",
         "SampleAfterValue": "100003",
-        "BriefDescription": "This event counts the number of times that load operations are temporarily blocked because of older stores, with addresses that are not yet known. A load operation may incur more than one block of this type.",
+        "BriefDescription": "This event counts the number of times that load operations are temporarily blocked because of older stores, with addresses that are yest yet kyeswn. A load operation may incur more than one block of this type.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -1029,7 +1029,7 @@
         "UMask": "0x1f",
         "EventName": "BACLEARS.ANY",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts the total number when the front end is resteered, mainly when the BPU cannot provide a correct prediction and this is corrected by other branch handling mechanisms at the front end.",
+        "BriefDescription": "Counts the total number when the front end is resteered, mainly when the BPU canyest provide a correct prediction and this is corrected by other branch handling mechanisms at the front end.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -1100,7 +1100,7 @@
         "AnyThread": "1",
         "EventName": "CPU_CLK_UNHALTED.THREAD_ANY",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
+        "BriefDescription": "Core cycles when at least one thread on the physical core is yest in halt state.",
         "CounterHTOff": "Fixed counter 2"
     },
     {
@@ -1110,7 +1110,7 @@
         "AnyThread": "1",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P_ANY",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
+        "BriefDescription": "Core cycles when at least one thread on the physical core is yest in halt state.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -1181,7 +1181,7 @@
         "UMask": "0x2",
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_NONE",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles with no micro-ops executed from any thread on physical core.",
+        "BriefDescription": "Cycles with yes micro-ops executed from any thread on physical core.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {

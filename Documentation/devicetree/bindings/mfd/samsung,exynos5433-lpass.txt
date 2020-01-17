@@ -1,8 +1,8 @@
-Samsung Exynos SoC Low Power Audio Subsystem (LPASS)
+Samsung Exyyess SoC Low Power Audio Subsystem (LPASS)
 
 Required properties:
 
- - compatible		: "samsung,exynos5433-lpass"
+ - compatible		: "samsung,exyyess5433-lpass"
  - reg			: should contain the LPASS top SFR region location
 			  and size
  - clock-names		: should contain following required clocks: "sfr0_ctrl"
@@ -14,10 +14,10 @@ Required properties:
  - ranges		: must be present
 
 Each IP block of the Low Power Audio Subsystem should be specified as
-an optional sub-node. For "samsung,exynos5433-lpass" compatible this includes:
+an optional sub-yesde. For "samsung,exyyess5433-lpass" compatible this includes:
 UART, SLIMBUS, PCM, I2S, DMAC, Timers 0...4, VIC, WDT 0...1 devices.
 
-Bindings of the sub-nodes are described in:
+Bindings of the sub-yesdes are described in:
   ../serial/samsung_uart.yaml
   ../sound/samsung-i2s.txt
   ../dma/arm-pl330.txt
@@ -26,7 +26,7 @@ Bindings of the sub-nodes are described in:
 Example:
 
 audio-subsystem {
-	compatible = "samsung,exynos5433-lpass";
+	compatible = "samsung,exyyess5433-lpass";
 	reg = <0x11400000 0x100>, <0x11500000 0x08>;
 	clocks = <&cmu_aud CLK_PCLK_SFR0_CTRL>;
 	clock-names = "sfr0_ctrl";
@@ -46,7 +46,7 @@ audio-subsystem {
 	};
 
 	i2s0: i2s0@11440000 {
-		compatible = "samsung,exynos7-i2s";
+		compatible = "samsung,exyyess7-i2s";
 		reg = <0x11440000 0x100>;
 		dmas = <&adma 0 &adma 2>;
 		dma-names = "tx", "rx";
@@ -60,7 +60,7 @@ audio-subsystem {
 	};
 
 	serial_3: serial@11460000 {
-		compatible = "samsung,exynos5433-uart";
+		compatible = "samsung,exyyess5433-uart";
 		reg = <0x11460000 0x100>;
 		interrupts = <0 67 0>;
 		clocks = <&cmu_aud CLK_PCLK_AUD_UART>,

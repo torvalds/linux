@@ -8,22 +8,22 @@
 #include <linux/srcu.h>
 #include <linux/interval_tree.h>
 
-struct mmu_notifier_mm;
-struct mmu_notifier;
-struct mmu_notifier_range;
-struct mmu_interval_notifier;
+struct mmu_yestifier_mm;
+struct mmu_yestifier;
+struct mmu_yestifier_range;
+struct mmu_interval_yestifier;
 
 /**
- * enum mmu_notifier_event - reason for the mmu notifier callback
+ * enum mmu_yestifier_event - reason for the mmu yestifier callback
  * @MMU_NOTIFY_UNMAP: either munmap() that unmap the range or a mremap() that
  * move the range
  *
  * @MMU_NOTIFY_CLEAR: clear page table entry (many reasons for this like
- * madvise() or replacing a page by another one, ...).
+ * madvise() or replacing a page by ayesther one, ...).
  *
  * @MMU_NOTIFY_PROTECTION_VMA: update is due to protection change for the range
  * ie using the vma access permission (vm_page_prot) to update the whole range
- * is enough no need to inspect changes to the CPU page table (mprotect()
+ * is eyesugh yes need to inspect changes to the CPU page table (mprotect()
  * syscall)
  *
  * @MMU_NOTIFY_PROTECTION_PAGE: update is due to change in read/write flag for
@@ -33,12 +33,12 @@ struct mmu_interval_notifier;
  * @MMU_NOTIFY_SOFT_DIRTY: soft dirty accounting (still same page and same
  * access flags). User should soft dirty the page in the end callback to make
  * sure that anyone relying on soft dirtyness catch pages that might be written
- * through non CPU mappings.
+ * through yesn CPU mappings.
  *
- * @MMU_NOTIFY_RELEASE: used during mmu_interval_notifier invalidate to signal
- * that the mm refcount is zero and the range is no longer accessible.
+ * @MMU_NOTIFY_RELEASE: used during mmu_interval_yestifier invalidate to signal
+ * that the mm refcount is zero and the range is yes longer accessible.
  */
-enum mmu_notifier_event {
+enum mmu_yestifier_event {
 	MMU_NOTIFY_UNMAP = 0,
 	MMU_NOTIFY_CLEAR,
 	MMU_NOTIFY_PROTECTION_VMA,
@@ -49,43 +49,43 @@ enum mmu_notifier_event {
 
 #define MMU_NOTIFIER_RANGE_BLOCKABLE (1 << 0)
 
-struct mmu_notifier_ops {
+struct mmu_yestifier_ops {
 	/*
-	 * Called either by mmu_notifier_unregister or when the mm is
+	 * Called either by mmu_yestifier_unregister or when the mm is
 	 * being destroyed by exit_mmap, always before all pages are
-	 * freed. This can run concurrently with other mmu notifier
+	 * freed. This can run concurrently with other mmu yestifier
 	 * methods (the ones invoked outside the mm context) and it
 	 * should tear down all secondary mmu mappings and freeze the
 	 * secondary mmu. If this method isn't implemented you've to
-	 * be sure that nothing could possibly write to the pages
+	 * be sure that yesthing could possibly write to the pages
 	 * through the secondary mmu by the time the last thread with
 	 * tsk->mm == mm exits.
 	 *
-	 * As side note: the pages freed after ->release returns could
+	 * As side yeste: the pages freed after ->release returns could
 	 * be immediately reallocated by the gart at an alias physical
 	 * address with a different cache model, so if ->release isn't
 	 * implemented because all _software_ driven memory accesses
 	 * through the secondary mmu are terminated by the time the
 	 * last thread of this mm quits, you've also to be sure that
 	 * speculative _hardware_ operations can't allocate dirty
-	 * cachelines in the cpu that could not be snooped and made
+	 * cachelines in the cpu that could yest be syesoped and made
 	 * coherent with the other read and write operations happening
 	 * through the gart alias address, so leading to memory
 	 * corruption.
 	 */
-	void (*release)(struct mmu_notifier *mn,
+	void (*release)(struct mmu_yestifier *mn,
 			struct mm_struct *mm);
 
 	/*
 	 * clear_flush_young is called after the VM is
 	 * test-and-clearing the young/accessed bitflag in the
 	 * pte. This way the VM will provide proper aging to the
-	 * accesses to the page through the secondary MMUs and not
+	 * accesses to the page through the secondary MMUs and yest
 	 * only to the ones through the Linux pte.
 	 * Start-end is necessary in case the secondary MMU is mapping the page
 	 * at a smaller granularity than the primary MMU.
 	 */
-	int (*clear_flush_young)(struct mmu_notifier *mn,
+	int (*clear_flush_young)(struct mmu_yestifier *mn,
 				 struct mm_struct *mm,
 				 unsigned long start,
 				 unsigned long end);
@@ -95,18 +95,18 @@ struct mmu_notifier_ops {
 	 * latter, it is supposed to test-and-clear the young/accessed bitflag
 	 * in the secondary pte, but it may omit flushing the secondary tlb.
 	 */
-	int (*clear_young)(struct mmu_notifier *mn,
+	int (*clear_young)(struct mmu_yestifier *mn,
 			   struct mm_struct *mm,
 			   unsigned long start,
 			   unsigned long end);
 
 	/*
 	 * test_young is called to check the young/accessed bitflag in
-	 * the secondary pte. This is used to know if the page is
+	 * the secondary pte. This is used to kyesw if the page is
 	 * frequently used without actually clearing the flag or tearing
 	 * down the secondary mapping on the page.
 	 */
-	int (*test_young)(struct mmu_notifier *mn,
+	int (*test_young)(struct mmu_yestifier *mn,
 			  struct mm_struct *mm,
 			  unsigned long address);
 
@@ -114,7 +114,7 @@ struct mmu_notifier_ops {
 	 * change_pte is called in cases that pte mapping to page is changed:
 	 * for example, when ksm remaps pte to point to a new shared page.
 	 */
-	void (*change_pte)(struct mmu_notifier *mn,
+	void (*change_pte)(struct mmu_yestifier *mn,
 			   struct mm_struct *mm,
 			   unsigned long address,
 			   pte_t pte);
@@ -123,9 +123,9 @@ struct mmu_notifier_ops {
 	 * invalidate_range_start() and invalidate_range_end() must be
 	 * paired and are called only when the mmap_sem and/or the
 	 * locks protecting the reverse maps are held. If the subsystem
-	 * can't guarantee that no additional references are taken to
+	 * can't guarantee that yes additional references are taken to
 	 * the pages in the range, it has to implement the
-	 * invalidate_range() notifier to remove any references taken
+	 * invalidate_range() yestifier to remove any references taken
 	 * after invalidate_range_start().
 	 *
 	 * Invalidation of multiple concurrent ranges may be
@@ -143,7 +143,7 @@ struct mmu_notifier_ops {
 	 *
 	 * The VM will remove the page table entries and potentially
 	 * the page between invalidate_range_start() and
-	 * invalidate_range_end(). If the page must not be freed
+	 * invalidate_range_end(). If the page must yest be freed
 	 * because of pending I/O or other circumstances then the
 	 * invalidate_range_start() callback (or the initial mapping
 	 * by the driver) must make sure that the refcount is kept
@@ -158,21 +158,21 @@ struct mmu_notifier_ops {
 	 * droppped on invalidate_range_end() then the driver itself
 	 * will drop the last refcount but it must take care to flush
 	 * any secondary tlb before doing the final free on the
-	 * page. Pages will no longer be referenced by the linux
+	 * page. Pages will yes longer be referenced by the linux
 	 * address space but may still be referenced by sptes until
 	 * the last refcount is dropped.
 	 *
-	 * If blockable argument is set to false then the callback cannot
+	 * If blockable argument is set to false then the callback canyest
 	 * sleep and has to return with -EAGAIN. 0 should be returned
-	 * otherwise. Please note that if invalidate_range_start approves
-	 * a non-blocking behavior then the same applies to
+	 * otherwise. Please yeste that if invalidate_range_start approves
+	 * a yesn-blocking behavior then the same applies to
 	 * invalidate_range_end.
 	 *
 	 */
-	int (*invalidate_range_start)(struct mmu_notifier *mn,
-				      const struct mmu_notifier_range *range);
-	void (*invalidate_range_end)(struct mmu_notifier *mn,
-				     const struct mmu_notifier_range *range);
+	int (*invalidate_range_start)(struct mmu_yestifier *mn,
+				      const struct mmu_yestifier_range *range);
+	void (*invalidate_range_end)(struct mmu_yestifier *mn,
+				     const struct mmu_yestifier_range *range);
 
 	/*
 	 * invalidate_range() is either called between
@@ -181,125 +181,125 @@ struct mmu_notifier_ops {
 	 * pages are actually freed, or outside of _start()/_end() when
 	 * a (remote) TLB is necessary.
 	 *
-	 * If invalidate_range() is used to manage a non-CPU TLB with
-	 * shared page-tables, it not necessary to implement the
-	 * invalidate_range_start()/end() notifiers, as
+	 * If invalidate_range() is used to manage a yesn-CPU TLB with
+	 * shared page-tables, it yest necessary to implement the
+	 * invalidate_range_start()/end() yestifiers, as
 	 * invalidate_range() alread catches the points in time when an
 	 * external TLB range needs to be flushed. For more in depth
-	 * discussion on this see Documentation/vm/mmu_notifier.rst
+	 * discussion on this see Documentation/vm/mmu_yestifier.rst
 	 *
 	 * Note that this function might be called with just a sub-range
 	 * of what was passed to invalidate_range_start()/end(), if
 	 * called between those functions.
 	 */
-	void (*invalidate_range)(struct mmu_notifier *mn, struct mm_struct *mm,
+	void (*invalidate_range)(struct mmu_yestifier *mn, struct mm_struct *mm,
 				 unsigned long start, unsigned long end);
 
 	/*
 	 * These callbacks are used with the get/put interface to manage the
-	 * lifetime of the mmu_notifier memory. alloc_notifier() returns a new
-	 * notifier for use with the mm.
+	 * lifetime of the mmu_yestifier memory. alloc_yestifier() returns a new
+	 * yestifier for use with the mm.
 	 *
-	 * free_notifier() is only called after the mmu_notifier has been
-	 * fully put, calls to any ops callback are prevented and no ops
+	 * free_yestifier() is only called after the mmu_yestifier has been
+	 * fully put, calls to any ops callback are prevented and yes ops
 	 * callbacks are currently running. It is called from a SRCU callback
-	 * and cannot sleep.
+	 * and canyest sleep.
 	 */
-	struct mmu_notifier *(*alloc_notifier)(struct mm_struct *mm);
-	void (*free_notifier)(struct mmu_notifier *mn);
+	struct mmu_yestifier *(*alloc_yestifier)(struct mm_struct *mm);
+	void (*free_yestifier)(struct mmu_yestifier *mn);
 };
 
 /*
- * The notifier chains are protected by mmap_sem and/or the reverse map
+ * The yestifier chains are protected by mmap_sem and/or the reverse map
  * semaphores. Notifier chains are only changed when all reverse maps and
  * the mmap_sem locks are taken.
  *
- * Therefore notifier chains can only be traversed when either
+ * Therefore yestifier chains can only be traversed when either
  *
  * 1. mmap_sem is held.
- * 2. One of the reverse map locks is held (i_mmap_rwsem or anon_vma->rwsem).
+ * 2. One of the reverse map locks is held (i_mmap_rwsem or ayesn_vma->rwsem).
  * 3. No other concurrent thread can access the list (release)
  */
-struct mmu_notifier {
-	struct hlist_node hlist;
-	const struct mmu_notifier_ops *ops;
+struct mmu_yestifier {
+	struct hlist_yesde hlist;
+	const struct mmu_yestifier_ops *ops;
 	struct mm_struct *mm;
 	struct rcu_head rcu;
 	unsigned int users;
 };
 
 /**
- * struct mmu_interval_notifier_ops
+ * struct mmu_interval_yestifier_ops
  * @invalidate: Upon return the caller must stop using any SPTEs within this
  *              range. This function can sleep. Return false only if sleeping
- *              was required but mmu_notifier_range_blockable(range) is false.
+ *              was required but mmu_yestifier_range_blockable(range) is false.
  */
-struct mmu_interval_notifier_ops {
-	bool (*invalidate)(struct mmu_interval_notifier *mni,
-			   const struct mmu_notifier_range *range,
+struct mmu_interval_yestifier_ops {
+	bool (*invalidate)(struct mmu_interval_yestifier *mni,
+			   const struct mmu_yestifier_range *range,
 			   unsigned long cur_seq);
 };
 
-struct mmu_interval_notifier {
-	struct interval_tree_node interval_tree;
-	const struct mmu_interval_notifier_ops *ops;
+struct mmu_interval_yestifier {
+	struct interval_tree_yesde interval_tree;
+	const struct mmu_interval_yestifier_ops *ops;
 	struct mm_struct *mm;
-	struct hlist_node deferred_item;
+	struct hlist_yesde deferred_item;
 	unsigned long invalidate_seq;
 };
 
 #ifdef CONFIG_MMU_NOTIFIER
 
 #ifdef CONFIG_LOCKDEP
-extern struct lockdep_map __mmu_notifier_invalidate_range_start_map;
+extern struct lockdep_map __mmu_yestifier_invalidate_range_start_map;
 #endif
 
-struct mmu_notifier_range {
+struct mmu_yestifier_range {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 	unsigned long start;
 	unsigned long end;
 	unsigned flags;
-	enum mmu_notifier_event event;
+	enum mmu_yestifier_event event;
 };
 
-static inline int mm_has_notifiers(struct mm_struct *mm)
+static inline int mm_has_yestifiers(struct mm_struct *mm)
 {
-	return unlikely(mm->mmu_notifier_mm);
+	return unlikely(mm->mmu_yestifier_mm);
 }
 
-struct mmu_notifier *mmu_notifier_get_locked(const struct mmu_notifier_ops *ops,
+struct mmu_yestifier *mmu_yestifier_get_locked(const struct mmu_yestifier_ops *ops,
 					     struct mm_struct *mm);
-static inline struct mmu_notifier *
-mmu_notifier_get(const struct mmu_notifier_ops *ops, struct mm_struct *mm)
+static inline struct mmu_yestifier *
+mmu_yestifier_get(const struct mmu_yestifier_ops *ops, struct mm_struct *mm)
 {
-	struct mmu_notifier *ret;
+	struct mmu_yestifier *ret;
 
 	down_write(&mm->mmap_sem);
-	ret = mmu_notifier_get_locked(ops, mm);
+	ret = mmu_yestifier_get_locked(ops, mm);
 	up_write(&mm->mmap_sem);
 	return ret;
 }
-void mmu_notifier_put(struct mmu_notifier *mn);
-void mmu_notifier_synchronize(void);
+void mmu_yestifier_put(struct mmu_yestifier *mn);
+void mmu_yestifier_synchronize(void);
 
-extern int mmu_notifier_register(struct mmu_notifier *mn,
+extern int mmu_yestifier_register(struct mmu_yestifier *mn,
 				 struct mm_struct *mm);
-extern int __mmu_notifier_register(struct mmu_notifier *mn,
+extern int __mmu_yestifier_register(struct mmu_yestifier *mn,
 				   struct mm_struct *mm);
-extern void mmu_notifier_unregister(struct mmu_notifier *mn,
+extern void mmu_yestifier_unregister(struct mmu_yestifier *mn,
 				    struct mm_struct *mm);
 
-unsigned long mmu_interval_read_begin(struct mmu_interval_notifier *mni);
-int mmu_interval_notifier_insert(struct mmu_interval_notifier *mni,
+unsigned long mmu_interval_read_begin(struct mmu_interval_yestifier *mni);
+int mmu_interval_yestifier_insert(struct mmu_interval_yestifier *mni,
 				 struct mm_struct *mm, unsigned long start,
 				 unsigned long length,
-				 const struct mmu_interval_notifier_ops *ops);
-int mmu_interval_notifier_insert_locked(
-	struct mmu_interval_notifier *mni, struct mm_struct *mm,
+				 const struct mmu_interval_yestifier_ops *ops);
+int mmu_interval_yestifier_insert_locked(
+	struct mmu_interval_yestifier *mni, struct mm_struct *mm,
 	unsigned long start, unsigned long length,
-	const struct mmu_interval_notifier_ops *ops);
-void mmu_interval_notifier_remove(struct mmu_interval_notifier *mni);
+	const struct mmu_interval_yestifier_ops *ops);
+void mmu_interval_yestifier_remove(struct mmu_interval_yestifier *mni);
 
 /**
  * mmu_interval_set_seq - Save the invalidation sequence
@@ -307,14 +307,14 @@ void mmu_interval_notifier_remove(struct mmu_interval_notifier *mni);
  * @cur_seq - The cur_seq passed to the invalidate() callback
  *
  * This must be called unconditionally from the invalidate callback of a
- * struct mmu_interval_notifier_ops under the same lock that is used to call
+ * struct mmu_interval_yestifier_ops under the same lock that is used to call
  * mmu_interval_read_retry(). It updates the sequence number for later use by
  * mmu_interval_read_retry(). The provided cur_seq will always be odd.
  *
- * If the caller does not call mmu_interval_read_begin() or
- * mmu_interval_read_retry() then this call is not required.
+ * If the caller does yest call mmu_interval_read_begin() or
+ * mmu_interval_read_retry() then this call is yest required.
  */
-static inline void mmu_interval_set_seq(struct mmu_interval_notifier *mni,
+static inline void mmu_interval_set_seq(struct mmu_interval_yestifier *mni,
 					unsigned long cur_seq)
 {
 	WRITE_ONCE(mni->invalidate_seq, cur_seq);
@@ -334,7 +334,7 @@ static inline void mmu_interval_set_seq(struct mmu_interval_notifier *mni,
  * Returns true if an invalidation collided with this critical section, and
  * the caller should retry.
  */
-static inline bool mmu_interval_read_retry(struct mmu_interval_notifier *mni,
+static inline bool mmu_interval_read_retry(struct mmu_interval_yestifier *mni,
 					   unsigned long seq)
 {
 	return mni->invalidate_seq != seq;
@@ -350,150 +350,150 @@ static inline bool mmu_interval_read_retry(struct mmu_interval_notifier *mni,
  * has collided with this critical region and a future
  * mmu_interval_read_retry() will return true.
  *
- * False is not reliable and only suggests a collision may not have
- * occured. It can be called many times and does not have to hold the user
+ * False is yest reliable and only suggests a collision may yest have
+ * occured. It can be called many times and does yest have to hold the user
  * provided lock.
  *
  * This call can be used as part of loops and other expensive operations to
  * expedite a retry.
  */
-static inline bool mmu_interval_check_retry(struct mmu_interval_notifier *mni,
+static inline bool mmu_interval_check_retry(struct mmu_interval_yestifier *mni,
 					    unsigned long seq)
 {
 	/* Pairs with the WRITE_ONCE in mmu_interval_set_seq() */
 	return READ_ONCE(mni->invalidate_seq) != seq;
 }
 
-extern void __mmu_notifier_mm_destroy(struct mm_struct *mm);
-extern void __mmu_notifier_release(struct mm_struct *mm);
-extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
+extern void __mmu_yestifier_mm_destroy(struct mm_struct *mm);
+extern void __mmu_yestifier_release(struct mm_struct *mm);
+extern int __mmu_yestifier_clear_flush_young(struct mm_struct *mm,
 					  unsigned long start,
 					  unsigned long end);
-extern int __mmu_notifier_clear_young(struct mm_struct *mm,
+extern int __mmu_yestifier_clear_young(struct mm_struct *mm,
 				      unsigned long start,
 				      unsigned long end);
-extern int __mmu_notifier_test_young(struct mm_struct *mm,
+extern int __mmu_yestifier_test_young(struct mm_struct *mm,
 				     unsigned long address);
-extern void __mmu_notifier_change_pte(struct mm_struct *mm,
+extern void __mmu_yestifier_change_pte(struct mm_struct *mm,
 				      unsigned long address, pte_t pte);
-extern int __mmu_notifier_invalidate_range_start(struct mmu_notifier_range *r);
-extern void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *r,
+extern int __mmu_yestifier_invalidate_range_start(struct mmu_yestifier_range *r);
+extern void __mmu_yestifier_invalidate_range_end(struct mmu_yestifier_range *r,
 				  bool only_end);
-extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
+extern void __mmu_yestifier_invalidate_range(struct mm_struct *mm,
 				  unsigned long start, unsigned long end);
 extern bool
-mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *range);
+mmu_yestifier_range_update_to_read_only(const struct mmu_yestifier_range *range);
 
 static inline bool
-mmu_notifier_range_blockable(const struct mmu_notifier_range *range)
+mmu_yestifier_range_blockable(const struct mmu_yestifier_range *range)
 {
 	return (range->flags & MMU_NOTIFIER_RANGE_BLOCKABLE);
 }
 
-static inline void mmu_notifier_release(struct mm_struct *mm)
+static inline void mmu_yestifier_release(struct mm_struct *mm)
 {
-	if (mm_has_notifiers(mm))
-		__mmu_notifier_release(mm);
+	if (mm_has_yestifiers(mm))
+		__mmu_yestifier_release(mm);
 }
 
-static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
+static inline int mmu_yestifier_clear_flush_young(struct mm_struct *mm,
 					  unsigned long start,
 					  unsigned long end)
 {
-	if (mm_has_notifiers(mm))
-		return __mmu_notifier_clear_flush_young(mm, start, end);
+	if (mm_has_yestifiers(mm))
+		return __mmu_yestifier_clear_flush_young(mm, start, end);
 	return 0;
 }
 
-static inline int mmu_notifier_clear_young(struct mm_struct *mm,
+static inline int mmu_yestifier_clear_young(struct mm_struct *mm,
 					   unsigned long start,
 					   unsigned long end)
 {
-	if (mm_has_notifiers(mm))
-		return __mmu_notifier_clear_young(mm, start, end);
+	if (mm_has_yestifiers(mm))
+		return __mmu_yestifier_clear_young(mm, start, end);
 	return 0;
 }
 
-static inline int mmu_notifier_test_young(struct mm_struct *mm,
+static inline int mmu_yestifier_test_young(struct mm_struct *mm,
 					  unsigned long address)
 {
-	if (mm_has_notifiers(mm))
-		return __mmu_notifier_test_young(mm, address);
+	if (mm_has_yestifiers(mm))
+		return __mmu_yestifier_test_young(mm, address);
 	return 0;
 }
 
-static inline void mmu_notifier_change_pte(struct mm_struct *mm,
+static inline void mmu_yestifier_change_pte(struct mm_struct *mm,
 					   unsigned long address, pte_t pte)
 {
-	if (mm_has_notifiers(mm))
-		__mmu_notifier_change_pte(mm, address, pte);
+	if (mm_has_yestifiers(mm))
+		__mmu_yestifier_change_pte(mm, address, pte);
 }
 
 static inline void
-mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
+mmu_yestifier_invalidate_range_start(struct mmu_yestifier_range *range)
 {
 	might_sleep();
 
-	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
-	if (mm_has_notifiers(range->mm)) {
+	lock_map_acquire(&__mmu_yestifier_invalidate_range_start_map);
+	if (mm_has_yestifiers(range->mm)) {
 		range->flags |= MMU_NOTIFIER_RANGE_BLOCKABLE;
-		__mmu_notifier_invalidate_range_start(range);
+		__mmu_yestifier_invalidate_range_start(range);
 	}
-	lock_map_release(&__mmu_notifier_invalidate_range_start_map);
+	lock_map_release(&__mmu_yestifier_invalidate_range_start_map);
 }
 
 static inline int
-mmu_notifier_invalidate_range_start_nonblock(struct mmu_notifier_range *range)
+mmu_yestifier_invalidate_range_start_yesnblock(struct mmu_yestifier_range *range)
 {
 	int ret = 0;
 
-	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
-	if (mm_has_notifiers(range->mm)) {
+	lock_map_acquire(&__mmu_yestifier_invalidate_range_start_map);
+	if (mm_has_yestifiers(range->mm)) {
 		range->flags &= ~MMU_NOTIFIER_RANGE_BLOCKABLE;
-		ret = __mmu_notifier_invalidate_range_start(range);
+		ret = __mmu_yestifier_invalidate_range_start(range);
 	}
-	lock_map_release(&__mmu_notifier_invalidate_range_start_map);
+	lock_map_release(&__mmu_yestifier_invalidate_range_start_map);
 	return ret;
 }
 
 static inline void
-mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range)
+mmu_yestifier_invalidate_range_end(struct mmu_yestifier_range *range)
 {
-	if (mmu_notifier_range_blockable(range))
+	if (mmu_yestifier_range_blockable(range))
 		might_sleep();
 
-	if (mm_has_notifiers(range->mm))
-		__mmu_notifier_invalidate_range_end(range, false);
+	if (mm_has_yestifiers(range->mm))
+		__mmu_yestifier_invalidate_range_end(range, false);
 }
 
 static inline void
-mmu_notifier_invalidate_range_only_end(struct mmu_notifier_range *range)
+mmu_yestifier_invalidate_range_only_end(struct mmu_yestifier_range *range)
 {
-	if (mm_has_notifiers(range->mm))
-		__mmu_notifier_invalidate_range_end(range, true);
+	if (mm_has_yestifiers(range->mm))
+		__mmu_yestifier_invalidate_range_end(range, true);
 }
 
-static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
+static inline void mmu_yestifier_invalidate_range(struct mm_struct *mm,
 				  unsigned long start, unsigned long end)
 {
-	if (mm_has_notifiers(mm))
-		__mmu_notifier_invalidate_range(mm, start, end);
+	if (mm_has_yestifiers(mm))
+		__mmu_yestifier_invalidate_range(mm, start, end);
 }
 
-static inline void mmu_notifier_mm_init(struct mm_struct *mm)
+static inline void mmu_yestifier_mm_init(struct mm_struct *mm)
 {
-	mm->mmu_notifier_mm = NULL;
+	mm->mmu_yestifier_mm = NULL;
 }
 
-static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+static inline void mmu_yestifier_mm_destroy(struct mm_struct *mm)
 {
-	if (mm_has_notifiers(mm))
-		__mmu_notifier_mm_destroy(mm);
+	if (mm_has_yestifiers(mm))
+		__mmu_yestifier_mm_destroy(mm);
 }
 
 
-static inline void mmu_notifier_range_init(struct mmu_notifier_range *range,
-					   enum mmu_notifier_event event,
+static inline void mmu_yestifier_range_init(struct mmu_yestifier_range *range,
+					   enum mmu_yestifier_event event,
 					   unsigned flags,
 					   struct vm_area_struct *vma,
 					   struct mm_struct *mm,
@@ -508,121 +508,121 @@ static inline void mmu_notifier_range_init(struct mmu_notifier_range *range,
 	range->flags = flags;
 }
 
-#define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
+#define ptep_clear_flush_young_yestify(__vma, __address, __ptep)		\
 ({									\
 	int __young;							\
 	struct vm_area_struct *___vma = __vma;				\
 	unsigned long ___address = __address;				\
 	__young = ptep_clear_flush_young(___vma, ___address, __ptep);	\
-	__young |= mmu_notifier_clear_flush_young(___vma->vm_mm,	\
+	__young |= mmu_yestifier_clear_flush_young(___vma->vm_mm,	\
 						  ___address,		\
 						  ___address +		\
 							PAGE_SIZE);	\
 	__young;							\
 })
 
-#define pmdp_clear_flush_young_notify(__vma, __address, __pmdp)		\
+#define pmdp_clear_flush_young_yestify(__vma, __address, __pmdp)		\
 ({									\
 	int __young;							\
 	struct vm_area_struct *___vma = __vma;				\
 	unsigned long ___address = __address;				\
 	__young = pmdp_clear_flush_young(___vma, ___address, __pmdp);	\
-	__young |= mmu_notifier_clear_flush_young(___vma->vm_mm,	\
+	__young |= mmu_yestifier_clear_flush_young(___vma->vm_mm,	\
 						  ___address,		\
 						  ___address +		\
 							PMD_SIZE);	\
 	__young;							\
 })
 
-#define ptep_clear_young_notify(__vma, __address, __ptep)		\
+#define ptep_clear_young_yestify(__vma, __address, __ptep)		\
 ({									\
 	int __young;							\
 	struct vm_area_struct *___vma = __vma;				\
 	unsigned long ___address = __address;				\
 	__young = ptep_test_and_clear_young(___vma, ___address, __ptep);\
-	__young |= mmu_notifier_clear_young(___vma->vm_mm, ___address,	\
+	__young |= mmu_yestifier_clear_young(___vma->vm_mm, ___address,	\
 					    ___address + PAGE_SIZE);	\
 	__young;							\
 })
 
-#define pmdp_clear_young_notify(__vma, __address, __pmdp)		\
+#define pmdp_clear_young_yestify(__vma, __address, __pmdp)		\
 ({									\
 	int __young;							\
 	struct vm_area_struct *___vma = __vma;				\
 	unsigned long ___address = __address;				\
 	__young = pmdp_test_and_clear_young(___vma, ___address, __pmdp);\
-	__young |= mmu_notifier_clear_young(___vma->vm_mm, ___address,	\
+	__young |= mmu_yestifier_clear_young(___vma->vm_mm, ___address,	\
 					    ___address + PMD_SIZE);	\
 	__young;							\
 })
 
-#define	ptep_clear_flush_notify(__vma, __address, __ptep)		\
+#define	ptep_clear_flush_yestify(__vma, __address, __ptep)		\
 ({									\
 	unsigned long ___addr = __address & PAGE_MASK;			\
 	struct mm_struct *___mm = (__vma)->vm_mm;			\
 	pte_t ___pte;							\
 									\
 	___pte = ptep_clear_flush(__vma, __address, __ptep);		\
-	mmu_notifier_invalidate_range(___mm, ___addr,			\
+	mmu_yestifier_invalidate_range(___mm, ___addr,			\
 					___addr + PAGE_SIZE);		\
 									\
 	___pte;								\
 })
 
-#define pmdp_huge_clear_flush_notify(__vma, __haddr, __pmd)		\
+#define pmdp_huge_clear_flush_yestify(__vma, __haddr, __pmd)		\
 ({									\
 	unsigned long ___haddr = __haddr & HPAGE_PMD_MASK;		\
 	struct mm_struct *___mm = (__vma)->vm_mm;			\
 	pmd_t ___pmd;							\
 									\
 	___pmd = pmdp_huge_clear_flush(__vma, __haddr, __pmd);		\
-	mmu_notifier_invalidate_range(___mm, ___haddr,			\
+	mmu_yestifier_invalidate_range(___mm, ___haddr,			\
 				      ___haddr + HPAGE_PMD_SIZE);	\
 									\
 	___pmd;								\
 })
 
-#define pudp_huge_clear_flush_notify(__vma, __haddr, __pud)		\
+#define pudp_huge_clear_flush_yestify(__vma, __haddr, __pud)		\
 ({									\
 	unsigned long ___haddr = __haddr & HPAGE_PUD_MASK;		\
 	struct mm_struct *___mm = (__vma)->vm_mm;			\
 	pud_t ___pud;							\
 									\
 	___pud = pudp_huge_clear_flush(__vma, __haddr, __pud);		\
-	mmu_notifier_invalidate_range(___mm, ___haddr,			\
+	mmu_yestifier_invalidate_range(___mm, ___haddr,			\
 				      ___haddr + HPAGE_PUD_SIZE);	\
 									\
 	___pud;								\
 })
 
 /*
- * set_pte_at_notify() sets the pte _after_ running the notifier.
+ * set_pte_at_yestify() sets the pte _after_ running the yestifier.
  * This is safe to start by updating the secondary MMUs, because the primary MMU
  * pte invalidate must have already happened with a ptep_clear_flush() before
- * set_pte_at_notify() has been invoked.  Updating the secondary MMUs first is
+ * set_pte_at_yestify() has been invoked.  Updating the secondary MMUs first is
  * required when we change both the protection of the mapping from read-only to
  * read-write and the pfn (like during copy on write page faults). Otherwise the
  * old page would remain mapped readonly in the secondary MMUs after the new
  * page is already writable by some CPU through the primary MMU.
  */
-#define set_pte_at_notify(__mm, __address, __ptep, __pte)		\
+#define set_pte_at_yestify(__mm, __address, __ptep, __pte)		\
 ({									\
 	struct mm_struct *___mm = __mm;					\
 	unsigned long ___address = __address;				\
 	pte_t ___pte = __pte;						\
 									\
-	mmu_notifier_change_pte(___mm, ___address, ___pte);		\
+	mmu_yestifier_change_pte(___mm, ___address, ___pte);		\
 	set_pte_at(___mm, ___address, __ptep, ___pte);			\
 })
 
 #else /* CONFIG_MMU_NOTIFIER */
 
-struct mmu_notifier_range {
+struct mmu_yestifier_range {
 	unsigned long start;
 	unsigned long end;
 };
 
-static inline void _mmu_notifier_range_init(struct mmu_notifier_range *range,
+static inline void _mmu_yestifier_range_init(struct mmu_yestifier_range *range,
 					    unsigned long start,
 					    unsigned long end)
 {
@@ -630,88 +630,88 @@ static inline void _mmu_notifier_range_init(struct mmu_notifier_range *range,
 	range->end = end;
 }
 
-#define mmu_notifier_range_init(range,event,flags,vma,mm,start,end)  \
-	_mmu_notifier_range_init(range, start, end)
+#define mmu_yestifier_range_init(range,event,flags,vma,mm,start,end)  \
+	_mmu_yestifier_range_init(range, start, end)
 
 static inline bool
-mmu_notifier_range_blockable(const struct mmu_notifier_range *range)
+mmu_yestifier_range_blockable(const struct mmu_yestifier_range *range)
 {
 	return true;
 }
 
-static inline int mm_has_notifiers(struct mm_struct *mm)
+static inline int mm_has_yestifiers(struct mm_struct *mm)
 {
 	return 0;
 }
 
-static inline void mmu_notifier_release(struct mm_struct *mm)
+static inline void mmu_yestifier_release(struct mm_struct *mm)
 {
 }
 
-static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
+static inline int mmu_yestifier_clear_flush_young(struct mm_struct *mm,
 					  unsigned long start,
 					  unsigned long end)
 {
 	return 0;
 }
 
-static inline int mmu_notifier_test_young(struct mm_struct *mm,
+static inline int mmu_yestifier_test_young(struct mm_struct *mm,
 					  unsigned long address)
 {
 	return 0;
 }
 
-static inline void mmu_notifier_change_pte(struct mm_struct *mm,
+static inline void mmu_yestifier_change_pte(struct mm_struct *mm,
 					   unsigned long address, pte_t pte)
 {
 }
 
 static inline void
-mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
+mmu_yestifier_invalidate_range_start(struct mmu_yestifier_range *range)
 {
 }
 
 static inline int
-mmu_notifier_invalidate_range_start_nonblock(struct mmu_notifier_range *range)
+mmu_yestifier_invalidate_range_start_yesnblock(struct mmu_yestifier_range *range)
 {
 	return 0;
 }
 
 static inline
-void mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range)
+void mmu_yestifier_invalidate_range_end(struct mmu_yestifier_range *range)
 {
 }
 
 static inline void
-mmu_notifier_invalidate_range_only_end(struct mmu_notifier_range *range)
+mmu_yestifier_invalidate_range_only_end(struct mmu_yestifier_range *range)
 {
 }
 
-static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
+static inline void mmu_yestifier_invalidate_range(struct mm_struct *mm,
 				  unsigned long start, unsigned long end)
 {
 }
 
-static inline void mmu_notifier_mm_init(struct mm_struct *mm)
+static inline void mmu_yestifier_mm_init(struct mm_struct *mm)
 {
 }
 
-static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+static inline void mmu_yestifier_mm_destroy(struct mm_struct *mm)
 {
 }
 
-#define mmu_notifier_range_update_to_read_only(r) false
+#define mmu_yestifier_range_update_to_read_only(r) false
 
-#define ptep_clear_flush_young_notify ptep_clear_flush_young
-#define pmdp_clear_flush_young_notify pmdp_clear_flush_young
-#define ptep_clear_young_notify ptep_test_and_clear_young
-#define pmdp_clear_young_notify pmdp_test_and_clear_young
-#define	ptep_clear_flush_notify ptep_clear_flush
-#define pmdp_huge_clear_flush_notify pmdp_huge_clear_flush
-#define pudp_huge_clear_flush_notify pudp_huge_clear_flush
-#define set_pte_at_notify set_pte_at
+#define ptep_clear_flush_young_yestify ptep_clear_flush_young
+#define pmdp_clear_flush_young_yestify pmdp_clear_flush_young
+#define ptep_clear_young_yestify ptep_test_and_clear_young
+#define pmdp_clear_young_yestify pmdp_test_and_clear_young
+#define	ptep_clear_flush_yestify ptep_clear_flush
+#define pmdp_huge_clear_flush_yestify pmdp_huge_clear_flush
+#define pudp_huge_clear_flush_yestify pudp_huge_clear_flush
+#define set_pte_at_yestify set_pte_at
 
-static inline void mmu_notifier_synchronize(void)
+static inline void mmu_yestifier_synchronize(void)
 {
 }
 

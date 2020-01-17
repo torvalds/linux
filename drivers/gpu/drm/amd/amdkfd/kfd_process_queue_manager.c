@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -28,10 +28,10 @@
 #include "kfd_kernel_queue.h"
 #include "amdgpu_amdkfd.h"
 
-static inline struct process_queue_node *get_queue_by_qid(
+static inline struct process_queue_yesde *get_queue_by_qid(
 			struct process_queue_manager *pqm, unsigned int qid)
 {
-	struct process_queue_node *pqn;
+	struct process_queue_yesde *pqn;
 
 	list_for_each_entry(pqn, &pqm->queues, process_queue_list) {
 		if ((pqn->q && pqn->q->properties.queue_id == qid) ||
@@ -53,7 +53,7 @@ static int find_available_queue_slot(struct process_queue_manager *pqm,
 	pr_debug("The new slot id %lu\n", found);
 
 	if (found >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS) {
-		pr_info("Cannot open more queues for process with pasid 0x%x\n",
+		pr_info("Canyest open more queues for process with pasid 0x%x\n",
 				pqm->process->pasid);
 		return -ENOMEM;
 	}
@@ -79,14 +79,14 @@ int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 			void *gws)
 {
 	struct kfd_dev *dev = NULL;
-	struct process_queue_node *pqn;
+	struct process_queue_yesde *pqn;
 	struct kfd_process_device *pdd;
 	struct kgd_mem *mem = NULL;
 	int ret;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
-		pr_err("Queue id does not match any known queue\n");
+		pr_err("Queue id does yest match any kyeswn queue\n");
 		return -EINVAL;
 	}
 
@@ -147,7 +147,7 @@ int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p)
 
 void pqm_uninit(struct process_queue_manager *pqm)
 {
-	struct process_queue_node *pqn, *next;
+	struct process_queue_yesde *pqn, *next;
 
 	list_for_each_entry_safe(pqn, next, &pqm->queues, process_queue_list) {
 		if (pqn->q && pqn->q->gws)
@@ -197,7 +197,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	int retval;
 	struct kfd_process_device *pdd;
 	struct queue *q;
-	struct process_queue_node *pqn;
+	struct process_queue_yesde *pqn;
 	struct kernel_queue *kq;
 	enum kfd_queue_type type = properties->type;
 	unsigned int max_queues = 127; /* HWS limit */
@@ -214,11 +214,11 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	/*
 	 * for debug process, verify that it is within the static queues limit
 	 * currently limit is set to half of the total avail HQD slots
-	 * If we are just about to create DIQ, the is_debug flag is not set yet
+	 * If we are just about to create DIQ, the is_debug flag is yest set yet
 	 * Hence we also check the type as well
 	 */
 	if ((pdd->qpd.is_debug) || (type == KFD_QUEUE_TYPE_DIQ))
-		max_queues = dev->device_info->max_no_of_hqd/2;
+		max_queues = dev->device_info->max_yes_of_hqd/2;
 
 	if (pdd->qpd.queue_count >= max_queues)
 		return -ENOSPC;
@@ -245,7 +245,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			(type == KFD_QUEUE_TYPE_SDMA_XGMI &&
 			dev->dqm->xgmi_sdma_queue_count
 			>= get_num_xgmi_sdma_queues(dev->dqm))) {
-			pr_debug("Over-subscription is not allowed for SDMA.\n");
+			pr_debug("Over-subscription is yest allowed for SDMA.\n");
 			retval = -EPERM;
 			goto err_create_queue;
 		}
@@ -266,7 +266,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		     KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION) &&
 		((dev->dqm->processes_count >= dev->vm_info.vmid_num_kfd) ||
 		(dev->dqm->queue_count >= get_queues_num(dev->dqm)))) {
-			pr_debug("Over-subscription is not allowed when amdkfd.sched_policy == 1\n");
+			pr_debug("Over-subscription is yest allowed when amdkfd.sched_policy == 1\n");
 			retval = -EPERM;
 			goto err_create_queue;
 		}
@@ -336,7 +336,7 @@ err_allocate_pqn:
 
 int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 {
-	struct process_queue_node *pqn;
+	struct process_queue_yesde *pqn;
 	struct kfd_process_device *pdd;
 	struct device_queue_manager *dqm;
 	struct kfd_dev *dev;
@@ -348,7 +348,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
-		pr_err("Queue id does not match any known queue\n");
+		pr_err("Queue id does yest match any kyeswn queue\n");
 		return -EINVAL;
 	}
 
@@ -411,7 +411,7 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p)
 {
 	int retval;
-	struct process_queue_node *pqn;
+	struct process_queue_yesde *pqn;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
@@ -436,7 +436,7 @@ int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p)
 {
 	int retval;
-	struct process_queue_node *pqn;
+	struct process_queue_yesde *pqn;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
@@ -464,7 +464,7 @@ struct kernel_queue *pqm_get_kernel_queue(
 					struct process_queue_manager *pqm,
 					unsigned int qid)
 {
-	struct process_queue_node *pqn;
+	struct process_queue_yesde *pqn;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (pqn && pqn->kq)
@@ -479,7 +479,7 @@ int pqm_get_wave_state(struct process_queue_manager *pqm,
 		       u32 *ctl_stack_used_size,
 		       u32 *save_area_used_size)
 {
-	struct process_queue_node *pqn;
+	struct process_queue_yesde *pqn;
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
@@ -500,7 +500,7 @@ int pqm_get_wave_state(struct process_queue_manager *pqm,
 int pqm_debugfs_mqds(struct seq_file *m, void *data)
 {
 	struct process_queue_manager *pqm = data;
-	struct process_queue_node *pqn;
+	struct process_queue_yesde *pqn;
 	struct queue *q;
 	enum KFD_MQD_TYPE mqd_type;
 	struct mqd_manager *mqd_mgr;
@@ -545,7 +545,7 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 			}
 		} else {
 			seq_printf(m,
-		"  Weird: Queue node with neither kernel nor user queue\n");
+		"  Weird: Queue yesde with neither kernel yesr user queue\n");
 			continue;
 		}
 

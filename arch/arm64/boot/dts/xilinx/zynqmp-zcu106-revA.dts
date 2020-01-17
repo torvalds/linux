@@ -126,10 +126,10 @@
 	tca6416_u97: gpio@20 {
 		compatible = "ti,tca6416";
 		reg = <0x20>;
-		gpio-controller; /* interrupt not connected */
+		gpio-controller; /* interrupt yest connected */
 		#gpio-cells = <2>;
 		/*
-		 * IRQ not connected
+		 * IRQ yest connected
 		 * Lines:
 		 * 0 - SFP_SI5328_INT_ALM
 		 * 1 - HDMI_SI5328_INT_ALM
@@ -137,7 +137,7 @@
 		 * 6 - GEM3_EXP_RESET_B
 		 * 10 - FMC_HPC0_PRSNT_M2C_B
 		 * 11 - FMC_HPC1_PRSNT_M2C_B
-		 * 2-4, 7, 12-17 - not connected
+		 * 2-4, 7, 12-17 - yest connected
 		 */
 	};
 
@@ -147,7 +147,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		/*
-		 * IRQ not connected
+		 * IRQ yest connected
 		 * Lines:
 		 * 0 - VCCPSPLL_EN
 		 * 1 - MGTRAVCC_EN
@@ -163,7 +163,7 @@
 		 * 13 - PS_DIMM_SUSPEND_EN
 		 * 14 - PS_DDR4_VTERM_EN
 		 * 15 - PS_DDR4_VPP_2V5_EN
-		 * 16 - 17 - not connected
+		 * 16 - 17 - yest connected
 		 */
 	};
 
@@ -337,7 +337,7 @@
 				reg = <0x73>;
 			};
 		};
-		/* Bus 3 is not connected */
+		/* Bus 3 is yest connected */
 	};
 };
 
@@ -500,7 +500,7 @@
 /* SD1 with level shifter */
 &sdhci1 {
 	status = "okay";
-	no-1-8-v;
+	yes-1-8-v;
 };
 
 &uart0 {

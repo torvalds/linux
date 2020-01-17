@@ -2,7 +2,7 @@
 /*
  * Microchip / Atmel ECC (I2C) driver.
  *
- * Copyright (c) 2017, Microchip Technology Inc.
+ * Copyright (c) 2017, Microchip Techyeslogy Inc.
  * Author: Tudor Ambarus <tudor.ambarus@microchip.com>
  */
 
@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -37,7 +37,7 @@ static const struct {
  * atmel_i2c_checksum() - Generate 16-bit CRC as required by ATMEL ECC.
  * CRC16 verification of the count, opcode, param1, param2 and data bytes.
  * The checksum is saved in little-endian format in the least significant
- * two bytes of the command. CRC polynomial is 0x8005 and the initial register
+ * two bytes of the command. CRC polyyesmial is 0x8005 and the initial register
  * value should be zero.
  *
  * @cmd : structure used for communicating with the device.
@@ -156,7 +156,7 @@ static int atmel_i2c_status(struct device *dev, u8 *status)
 		if (error_list[i].value == err_id)
 			break;
 
-	/* if err_id is not in the error_list then ignore it */
+	/* if err_id is yest in the error_list then igyesre it */
 	if (i != err_list_len) {
 		dev_err(dev, "%02x: %s:\n", err_id, error_list[i].error_text);
 		return err_id;
@@ -172,7 +172,7 @@ static int atmel_i2c_wakeup(struct i2c_client *client)
 	int ret;
 
 	/*
-	 * The device ignores any levels or transitions on the SCL pin when the
+	 * The device igyesres any levels or transitions on the SCL pin when the
 	 * device is idle, asleep or during waking up. Don't check for error
 	 * when waking up the device.
 	 */
@@ -209,7 +209,7 @@ static int atmel_i2c_sleep(struct i2c_client *client)
  * regardless of whether some I/O transmission or command execution is in
  * progress. If a command is attempted when insufficient time remains prior to
  * watchdog timer execution, the device will return the watchdog timeout error
- * code without attempting to execute the command. There is no way to reset the
+ * code without attempting to execute the command. There is yes way to reset the
  * counter other than to put the device into sleep or idle mode and then
  * wake it up again.
  */
@@ -277,10 +277,10 @@ EXPORT_SYMBOL(atmel_i2c_enqueue);
 
 static inline size_t atmel_i2c_wake_token_sz(u32 bus_clk_rate)
 {
-	u32 no_of_bits = DIV_ROUND_UP(TWLO_USEC * bus_clk_rate, USEC_PER_SEC);
+	u32 yes_of_bits = DIV_ROUND_UP(TWLO_USEC * bus_clk_rate, USEC_PER_SEC);
 
 	/* return the size of the wake_token in bytes */
-	return DIV_ROUND_UP(no_of_bits, 8);
+	return DIV_ROUND_UP(yes_of_bits, 8);
 }
 
 static int device_sanity_check(struct i2c_client *client)
@@ -323,7 +323,7 @@ int atmel_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	u32 bus_clk_rate;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(dev, "I2C_FUNC_I2C not supported\n");
+		dev_err(dev, "I2C_FUNC_I2C yest supported\n");
 		return -ENODEV;
 	}
 

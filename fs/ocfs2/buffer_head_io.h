@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * ocfs2_buffer_head.h
  *
@@ -21,8 +21,8 @@ int ocfs2_read_blocks_sync(struct ocfs2_super *osb, u64 block,
 			   unsigned int nr, struct buffer_head *bhs[]);
 
 /*
- * If not NULL, validate() will be called on a buffer that is freshly
- * read from disk.  It will not be called if the buffer was in cache.
+ * If yest NULL, validate() will be called on a buffer that is freshly
+ * read from disk.  It will yest be called if the buffer was in cache.
  * Note that if validate() is being used for this buffer, it needs to
  * be set even for a READAHEAD call, as it marks the buffer for later
  * validation.

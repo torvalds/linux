@@ -323,7 +323,7 @@ static ssize_t isl29003_show_lux(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	/* No LUX data if not operational */
+	/* No LUX data if yest operational */
 	if (!isl29003_get_power_state(client))
 		return -EBUSY;
 

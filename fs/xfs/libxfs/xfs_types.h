@@ -8,8 +8,8 @@
 
 typedef uint32_t	prid_t;		/* project ID */
 
-typedef uint32_t	xfs_agblock_t;	/* blockno in alloc. group */
-typedef uint32_t	xfs_agino_t;	/* inode # within allocation grp */
+typedef uint32_t	xfs_agblock_t;	/* blockyes in alloc. group */
+typedef uint32_t	xfs_agiyes_t;	/* iyesde # within allocation grp */
 typedef uint32_t	xfs_extlen_t;	/* extent length in blocks */
 typedef uint32_t	xfs_agnumber_t;	/* allocation group number */
 typedef int32_t		xfs_extnum_t;	/* # of extents in a file */
@@ -25,8 +25,8 @@ typedef int64_t		xfs_lsn_t;	/* log sequence number */
 typedef uint32_t	xfs_dablk_t;	/* dir/attr block number (in file) */
 typedef uint32_t	xfs_dahash_t;	/* dir/attr hash value */
 
-typedef uint64_t	xfs_fsblock_t;	/* blockno in filesystem (agno|agbno) */
-typedef uint64_t	xfs_rfsblock_t;	/* blockno in filesystem (raw) */
+typedef uint64_t	xfs_fsblock_t;	/* blockyes in filesystem (agyes|agbyes) */
+typedef uint64_t	xfs_rfsblock_t;	/* blockyes in filesystem (raw) */
 typedef uint64_t	xfs_rtblock_t;	/* extent (block) in realtime area */
 typedef uint64_t	xfs_fileoff_t;	/* block number in a file */
 typedef uint64_t	xfs_filblks_t;	/* number of blocks in a file */
@@ -52,8 +52,8 @@ typedef void *		xfs_failaddr_t;
 
 #define NULLCOMMITLSN	((xfs_lsn_t)-1)
 
-#define	NULLFSINO	((xfs_ino_t)-1)
-#define	NULLAGINO	((xfs_agino_t)-1)
+#define	NULLFSINO	((xfs_iyes_t)-1)
+#define	NULLAGINO	((xfs_agiyes_t)-1)
 
 /*
  * Max values for extlen, extnum, aextnum.
@@ -66,8 +66,8 @@ typedef void *		xfs_failaddr_t;
  * Minimum and maximum blocksize and sectorsize.
  * The blocksize upper limit is pretty much arbitrary.
  * The sectorsize upper limit is due to sizeof(sb_sectsize).
- * CRC enable filesystems use 512 byte inodes, meaning 512 byte block sizes
- * cannot be used.
+ * CRC enable filesystems use 512 byte iyesdes, meaning 512 byte block sizes
+ * canyest be used.
  */
 #define XFS_MIN_BLOCKSIZE_LOG	9	/* i.e. 512 bytes */
 #define XFS_MAX_BLOCKSIZE_LOG	16	/* i.e. 65536 bytes */
@@ -80,7 +80,7 @@ typedef void *		xfs_failaddr_t;
 #define XFS_MAX_SECTORSIZE	(1 << XFS_MAX_SECTORSIZE_LOG)
 
 /*
- * Inode fork identifiers.
+ * Iyesde fork identifiers.
  */
 #define	XFS_DATA_FORK	0
 #define	XFS_ATTR_FORK	1
@@ -121,12 +121,12 @@ typedef enum {
 } xfs_btnum_t;
 
 #define XFS_BTNUM_STRINGS \
-	{ XFS_BTNUM_BNOi,	"bnobt" }, \
+	{ XFS_BTNUM_BNOi,	"byesbt" }, \
 	{ XFS_BTNUM_CNTi,	"cntbt" }, \
 	{ XFS_BTNUM_RMAPi,	"rmapbt" }, \
 	{ XFS_BTNUM_BMAPi,	"bmbt" }, \
-	{ XFS_BTNUM_INOi,	"inobt" }, \
-	{ XFS_BTNUM_FINOi,	"finobt" }, \
+	{ XFS_BTNUM_INOi,	"iyesbt" }, \
+	{ XFS_BTNUM_FINOi,	"fiyesbt" }, \
 	{ XFS_BTNUM_REFCi,	"refcbt" }
 
 struct xfs_name {
@@ -136,7 +136,7 @@ struct xfs_name {
 };
 
 /*
- * uid_t and gid_t are hard-coded to 32 bits in the inode.
+ * uid_t and gid_t are hard-coded to 32 bits in the iyesde.
  * Hence, an 'id' in a dquot is 32 bits..
  */
 typedef uint32_t	xfs_dqid_t;
@@ -180,21 +180,21 @@ enum xfs_ag_resv_type {
  */
 struct xfs_mount;
 
-xfs_agblock_t xfs_ag_block_count(struct xfs_mount *mp, xfs_agnumber_t agno);
-bool xfs_verify_agbno(struct xfs_mount *mp, xfs_agnumber_t agno,
-		xfs_agblock_t agbno);
-bool xfs_verify_fsbno(struct xfs_mount *mp, xfs_fsblock_t fsbno);
+xfs_agblock_t xfs_ag_block_count(struct xfs_mount *mp, xfs_agnumber_t agyes);
+bool xfs_verify_agbyes(struct xfs_mount *mp, xfs_agnumber_t agyes,
+		xfs_agblock_t agbyes);
+bool xfs_verify_fsbyes(struct xfs_mount *mp, xfs_fsblock_t fsbyes);
 
-void xfs_agino_range(struct xfs_mount *mp, xfs_agnumber_t agno,
-		xfs_agino_t *first, xfs_agino_t *last);
-bool xfs_verify_agino(struct xfs_mount *mp, xfs_agnumber_t agno,
-		xfs_agino_t agino);
-bool xfs_verify_agino_or_null(struct xfs_mount *mp, xfs_agnumber_t agno,
-		xfs_agino_t agino);
-bool xfs_verify_ino(struct xfs_mount *mp, xfs_ino_t ino);
-bool xfs_internal_inum(struct xfs_mount *mp, xfs_ino_t ino);
-bool xfs_verify_dir_ino(struct xfs_mount *mp, xfs_ino_t ino);
-bool xfs_verify_rtbno(struct xfs_mount *mp, xfs_rtblock_t rtbno);
+void xfs_agiyes_range(struct xfs_mount *mp, xfs_agnumber_t agyes,
+		xfs_agiyes_t *first, xfs_agiyes_t *last);
+bool xfs_verify_agiyes(struct xfs_mount *mp, xfs_agnumber_t agyes,
+		xfs_agiyes_t agiyes);
+bool xfs_verify_agiyes_or_null(struct xfs_mount *mp, xfs_agnumber_t agyes,
+		xfs_agiyes_t agiyes);
+bool xfs_verify_iyes(struct xfs_mount *mp, xfs_iyes_t iyes);
+bool xfs_internal_inum(struct xfs_mount *mp, xfs_iyes_t iyes);
+bool xfs_verify_dir_iyes(struct xfs_mount *mp, xfs_iyes_t iyes);
+bool xfs_verify_rtbyes(struct xfs_mount *mp, xfs_rtblock_t rtbyes);
 bool xfs_verify_icount(struct xfs_mount *mp, unsigned long long icount);
 bool xfs_verify_dablk(struct xfs_mount *mp, xfs_fileoff_t off);
 void xfs_icount_range(struct xfs_mount *mp, unsigned long long *min,

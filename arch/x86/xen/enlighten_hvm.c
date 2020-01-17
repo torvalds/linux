@@ -70,29 +70,29 @@ static void __init xen_hvm_init_mem_mapping(void)
 
 	/*
 	 * The virtual address of the shared_info page has changed, so
-	 * the vcpu_info pointer for VCPU 0 is now stale.
+	 * the vcpu_info pointer for VCPU 0 is yesw stale.
 	 *
 	 * The prepare_boot_cpu callback will re-initialize it via
 	 * xen_vcpu_setup, but we can't rely on that to be called for
 	 * old Xen versions (xen_have_vector_callback == 0).
 	 *
 	 * It is, in any case, bad to have a stale vcpu_info pointer
-	 * so reset it now.
+	 * so reset it yesw.
 	 */
 	xen_vcpu_info_reset(0);
 }
 
 static void __init init_hvm_pv_info(void)
 {
-	int major, minor;
+	int major, miyesr;
 	uint32_t eax, ebx, ecx, edx, base;
 
 	base = xen_cpuid_base();
 	eax = cpuid_eax(base + 1);
 
 	major = eax >> 16;
-	minor = eax & 0xffff;
-	printk(KERN_INFO "Xen version %d.%d.\n", major, minor);
+	miyesr = eax & 0xffff;
+	printk(KERN_INFO "Xen version %d.%d.\n", major, miyesr);
 
 	xen_domain_type = XEN_HVM_DOMAIN;
 
@@ -210,15 +210,15 @@ static void __init xen_hvm_guest_init(void)
 #endif
 }
 
-static __init int xen_parse_nopv(char *arg)
+static __init int xen_parse_yespv(char *arg)
 {
-	pr_notice("\"xen_nopv\" is deprecated, please use \"nopv\" instead\n");
+	pr_yestice("\"xen_yespv\" is deprecated, please use \"yespv\" instead\n");
 
 	if (xen_cpuid_base())
-		nopv = true;
+		yespv = true;
 	return 0;
 }
-early_param("xen_nopv", xen_parse_nopv);
+early_param("xen_yespv", xen_parse_yespv);
 
 bool __init xen_hvm_need_lapic(void)
 {
@@ -236,14 +236,14 @@ static __init void xen_hvm_guest_late_init(void)
 #ifdef CONFIG_XEN_PVH
 	/* Test for PVH domain (PVH boot path taken overrides ACPI flags). */
 	if (!xen_pvh &&
-	    (x86_platform.legacy.rtc || !x86_platform.legacy.no_vga))
+	    (x86_platform.legacy.rtc || !x86_platform.legacy.yes_vga))
 		return;
 
 	/* PVH detected. */
 	xen_pvh = true;
 
-	if (nopv)
-		panic("\"nopv\" and \"xen_nopv\" parameters are unsupported in PVH guest.");
+	if (yespv)
+		panic("\"yespv\" and \"xen_yespv\" parameters are unsupported in PVH guest.");
 
 	/* Make sure we don't fall back to (default) ACPI_IRQ_MODEL_PIC. */
 	if (!nr_ioapics && acpi_irq_model == ACPI_IRQ_MODEL_PIC)
@@ -262,25 +262,25 @@ static uint32_t __init xen_platform_hvm(void)
 	if (xen_pv_domain())
 		return 0;
 
-	if (xen_pvh_domain() && nopv) {
+	if (xen_pvh_domain() && yespv) {
 		/* Guest booting via the Xen-PVH boot entry goes here */
-		pr_info("\"nopv\" parameter is ignored in PVH guest\n");
-		nopv = false;
-	} else if (nopv && xen_domain) {
+		pr_info("\"yespv\" parameter is igyesred in PVH guest\n");
+		yespv = false;
+	} else if (yespv && xen_domain) {
 		/*
-		 * Guest booting via normal boot entry (like via grub2) goes
+		 * Guest booting via yesrmal boot entry (like via grub2) goes
 		 * here.
 		 *
-		 * Use interface functions for bare hardware if nopv,
+		 * Use interface functions for bare hardware if yespv,
 		 * xen_hvm_guest_late_init is an exception as we need to
 		 * detect PVH and panic there.
 		 */
-		h->init_platform = x86_init_noop;
-		h->x2apic_available = bool_x86_init_noop;
-		h->init_mem_mapping = x86_init_noop;
-		h->init_after_bootmem = x86_init_noop;
+		h->init_platform = x86_init_yesop;
+		h->x2apic_available = bool_x86_init_yesop;
+		h->init_mem_mapping = x86_init_yesop;
+		h->init_after_bootmem = x86_init_yesop;
 		h->guest_late_init = xen_hvm_guest_late_init;
-		x86_hyper_xen_hvm.runtime.pin_vcpu = x86_op_int_noop;
+		x86_hyper_xen_hvm.runtime.pin_vcpu = x86_op_int_yesop;
 	}
 	return xen_domain;
 }
@@ -294,5 +294,5 @@ struct hypervisor_x86 x86_hyper_xen_hvm __initdata = {
 	.init.init_mem_mapping	= xen_hvm_init_mem_mapping,
 	.init.guest_late_init	= xen_hvm_guest_late_init,
 	.runtime.pin_vcpu       = xen_pin_vcpu,
-	.ignore_nopv            = true,
+	.igyesre_yespv            = true,
 };

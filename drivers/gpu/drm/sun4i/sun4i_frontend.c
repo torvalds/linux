@@ -439,7 +439,7 @@ int sun4i_frontend_update_formats(struct sun4i_frontend *frontend,
 	}
 
 	/*
-	 * I have no idea what this does exactly, but it seems to be
+	 * I have yes idea what this does exactly, but it seems to be
 	 * related to the scaler FIR filter phase parameters.
 	 */
 	regmap_write(frontend->regs, SUN4I_FRONTEND_CH0_HORZPHASE_REG,
@@ -568,7 +568,7 @@ static int sun4i_frontend_bind(struct device *dev, struct device *master,
 
 	dev_set_drvdata(dev, frontend);
 	frontend->dev = dev;
-	frontend->node = dev->of_node;
+	frontend->yesde = dev->of_yesde;
 
 	frontend->data = of_device_get_match_data(dev);
 	if (!frontend->data)

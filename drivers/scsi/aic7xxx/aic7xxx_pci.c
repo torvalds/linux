@@ -11,14 +11,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -270,7 +270,7 @@ static const struct ahc_pci_identity ahc_pci_ident_table[] = {
 	},
 	{
 		/*
-		 * XXX Don't know the slot numbers
+		 * XXX Don't kyesw the slot numbers
 		 * so we can't identify channels
 		 */
 		ID_AHA_4944U & ID_DEV_VENDOR_MASK,
@@ -296,7 +296,7 @@ static const struct ahc_pci_identity ahc_pci_ident_table[] = {
 		"Adaptec 2940/CN Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
-	/* Ignore all SISL (AAC on MB) based controllers. */
+	/* Igyesre all SISL (AAC on MB) based controllers. */
 	{
 		ID_9005_SISL_ID,
 		ID_9005_SISL_MASK,
@@ -470,7 +470,7 @@ static const struct ahc_pci_identity ahc_pci_ident_table[] = {
 		"Adaptec aic7899 Ultra160 SCSI adapter (ARO)",
 		ahc_aic7899_setup
 	},
-	/* Generic chip probes for devices we don't know 'exactly' */
+	/* Generic chip probes for devices we don't kyesw 'exactly' */
 	{
 		ID_AIC7850 & ID_DEV_VENDOR_MASK,
 		ID_DEV_VENDOR_MASK,
@@ -678,8 +678,8 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 	full_id = ahc_compose_id(device, vendor, subdevice, subvendor);
 
 	/*
-	 * If the second function is not hooked up, ignore it.
-	 * Unfortunately, not all MB vendors implement the
+	 * If the second function is yest hooked up, igyesre it.
+	 * Unfortunately, yest all MB vendors implement the
 	 * subdevice ID as per the Adaptec spec, so do our best
 	 * to sanity check it prior to accepting the subdevice
 	 * ID as valid.
@@ -692,7 +692,7 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 	for (i = 0; i < ahc_num_pci_devs; i++) {
 		entry = &ahc_pci_ident_table[i];
 		if (entry->full_id == (full_id & entry->id_mask)) {
-			/* Honor exclusion entries. */
+			/* Hoyesr exclusion entries. */
 			if (entry->name == NULL)
 				return (NULL);
 			return (entry);
@@ -774,7 +774,7 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 	 * the parity timing wrong and thus generate lots of spurious
 	 * errors.  The chip only allows us to disable *all* parity
 	 * error reporting when doing this, so CIO bus, scb ram, and
-	 * scratch ram parity errors will be ignored too.
+	 * scratch ram parity errors will be igyesred too.
 	 */
 	if ((ahc->flags & AHC_DISABLE_PCI_PERR) != 0)
 		ahc->seqctl |= FAILDIS;
@@ -782,7 +782,7 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 	ahc->bus_intr = ahc_pci_intr;
 	ahc->bus_chip_init = ahc_pci_chip_init;
 
-	/* Remember how the card was setup in case there is no SEEPROM */
+	/* Remember how the card was setup in case there is yes SEEPROM */
 	if ((ahc_inb(ahc, HCNTRL) & POWRDN) == 0) {
 		ahc_pause(ahc);
 		if ((ahc->features & AHC_ULTRA2) != 0)
@@ -853,7 +853,7 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 	}
 
 	/*
-	 * We cannot perform ULTRA speeds without the presence
+	 * We canyest perform ULTRA speeds without the presence
 	 * of the external precision resistor.
 	 */
 	if ((ahc->features & AHC_ULTRA) != 0) {
@@ -869,7 +869,7 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 	check_extport(ahc, &sxfrctl1);
 
 	/*
-	 * Take the LED out of diagnostic mode
+	 * Take the LED out of diagyesstic mode
 	 */
 	sblkctl = ahc_inb(ahc, SBLKCTL);
 	ahc_outb(ahc, SBLKCTL, (sblkctl & ~(DIAGLEDEN|DIAGLEDON)));
@@ -883,7 +883,7 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 	if (ahc->flags & AHC_USEDEFAULTS) {
 		/*
 		 * PCI Adapter default setup
-		 * Should only be used if the adapter does not have
+		 * Should only be used if the adapter does yest have
 		 * a SEEPROM.
 		 */
 		/* See if someone else set us up already */
@@ -908,7 +908,7 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 
 	/*
 	 * Take a look to see if we have external SRAM.
-	 * We currently do not attempt to use SRAM that is
+	 * We currently do yest attempt to use SRAM that is
 	 * shared among multiple controllers.
 	 */
 	ahc_probe_ext_scbram(ahc);
@@ -956,7 +956,7 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 	ahc->init_level++;
 
 	/*
-	 * Allow interrupts now that we are completely setup.
+	 * Allow interrupts yesw that we are completely setup.
 	 */
 	return ahc_pci_map_int(ahc);
 }
@@ -1056,7 +1056,7 @@ ahc_scbram_config(struct ahc_softc *ahc, int enable, int pcheck,
 
 /*
  * Take a look to see if we have external SRAM.
- * We currently do not attempt to use SRAM that is
+ * We currently do yest attempt to use SRAM that is
  * shared among multiple controllers.
  */
 static void
@@ -1129,7 +1129,7 @@ ahc_probe_ext_scbram(struct ahc_softc *ahc)
 			num_scbs = test_num_scbs;
 	 		if (num_scbs >= 64) {
 				/*
-				 * We have enough space to move the
+				 * We have eyesugh space to move the
 				 * "busy targets table" into SCB space
 				 * and make it qualify all the way to the
 				 * lun level.
@@ -1181,7 +1181,7 @@ ahc_pci_test_register_access(struct ahc_softc *ahc)
 	/*
 	 * First a simple test to see if any
 	 * registers can be read.  Reading
-	 * HCNTRL has no side effects and has
+	 * HCNTRL has yes side effects and has
 	 * at least one bit that is guaranteed to
 	 * be zero so it is a good register to
 	 * use for this test.
@@ -1193,7 +1193,7 @@ ahc_pci_test_register_access(struct ahc_softc *ahc)
 
 	if ((hcntrl & CHIPRST) != 0) {
 		/*
-		 * The chip has not been initialized since
+		 * The chip has yest been initialized since
 		 * PCI/EISA/VLB bus reset.  Don't trust
 		 * "left over BIOS data".
 		 */
@@ -1203,9 +1203,9 @@ ahc_pci_test_register_access(struct ahc_softc *ahc)
 	/*
 	 * Next create a situation where write combining
 	 * or read prefetching could be initiated by the
-	 * CPU or host bridge.  Our device does not support
+	 * CPU or host bridge.  Our device does yest support
 	 * either, so look for data corruption and/or flagged
-	 * PCI errors.  First pause without causing another
+	 * PCI errors.  First pause without causing ayesther
 	 * chip reset.
 	 */
 	hcntrl &= ~CHIPRST;
@@ -1347,7 +1347,7 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 		}
 		/*
 		 * Clear any SCB parity errors in case this data and
-		 * its associated parity was not initialized by the BIOS
+		 * its associated parity was yest initialized by the BIOS
 		 */
 		ahc_outb(ahc, CLRINT, CLRPARERR);
 		ahc_outb(ahc, CLRINT, CLRBRKADRINT);
@@ -1441,7 +1441,7 @@ ahc_parse_pci_eeprom(struct ahc_softc *ahc, struct seeprom_config *sc)
 		}
 		if ((sc->device_flags[i] & CFXFER) == 0x04
 		 && (ultraenb & target_mask) != 0) {
-			/* Treat 10MHz as a non-ultra speed */
+			/* Treat 10MHz as a yesn-ultra speed */
 			sc->device_flags[i] &= ~CFXFER;
 		 	ultraenb &= ~target_mask;
 		}
@@ -1491,7 +1491,7 @@ ahc_parse_pci_eeprom(struct ahc_softc *ahc, struct seeprom_config *sc)
 	 && (ahc->flags & AHC_NEWEEPROM_FMT) == 0) {
 		/* Should we enable Ultra mode? */
 		if (!(sc->adapter_control & CFULTRAEN))
-			/* Treat us as a non-ultra card */
+			/* Treat us as a yesn-ultra card */
 			ultraenb = 0;
 	}
 
@@ -1499,7 +1499,7 @@ ahc_parse_pci_eeprom(struct ahc_softc *ahc, struct seeprom_config *sc)
 	 || sc->signature == CFSIGNATURE2) {
 		uint32_t devconfig;
 
-		/* Honor the STPWLEVEL settings */
+		/* Hoyesr the STPWLEVEL settings */
 		devconfig = ahc_pci_read_config(ahc->dev_softc,
 						DEVCONFIG, /*bytes*/4);
 		devconfig &= ~STPWLEVEL;
@@ -1599,18 +1599,18 @@ configure_termination(struct ahc_softc *ahc,
 		 && (ahc->features & AHC_ULTRA2) == 0) {
 			printk("%s: internal 50 cable %s present",
 			       ahc_name(ahc),
-			       internal50_present ? "is":"not");
+			       internal50_present ? "is":"yest");
 
 			if ((ahc->features & AHC_WIDE) != 0)
 				printk(", internal 68 cable %s present",
-				       internal68_present ? "is":"not");
+				       internal68_present ? "is":"yest");
 			printk("\n%s: external cable %s present\n",
 			       ahc_name(ahc),
-			       externalcable_present ? "is":"not");
+			       externalcable_present ? "is":"yest");
 		}
 		if (bootverbose)
 			printk("%s: BIOS eeprom %s present\n",
-			       ahc_name(ahc), eeprom_present ? "is" : "not");
+			       ahc_name(ahc), eeprom_present ? "is" : "yest");
 
 		if ((ahc->flags & AHC_INT50_SPEEDFLEX) != 0) {
 			/*
@@ -1641,7 +1641,7 @@ configure_termination(struct ahc_softc *ahc,
 			       "time!\n", ahc_name(ahc));
 
 			/*
-			 * Pretend there are no cables in the hope
+			 * Pretend there are yes cables in the hope
 			 * that having all of the termination on
 			 * gives us a more stable bus.
 			 */
@@ -1695,7 +1695,7 @@ configure_termination(struct ahc_softc *ahc,
 
 		/*
 		 * Setup STPWEN before setting up the rest of
-		 * the termination per the tech note on the U160 cards.
+		 * the termination per the tech yeste on the U160 cards.
 		 */
 		ahc_outb(ahc, SXFRCTL1, *sxfrctl1);
 
@@ -1732,7 +1732,7 @@ configure_termination(struct ahc_softc *ahc,
 
 		/*
 		 * Setup STPWEN before setting up the rest of
-		 * the termination per the tech note on the U160 cards.
+		 * the termination per the tech yeste on the U160 cards.
 		 */
 		ahc_outb(ahc, SXFRCTL1, *sxfrctl1);
 
@@ -1842,7 +1842,7 @@ ahc_acquire_seeprom(struct ahc_softc *ahc, struct seeprom_descriptor *sd)
 	 * granted, SEERDY will go high.  We use a 1 second
 	 * timeout which should be near 1 second more than
 	 * is needed.  Reason: after the chip reset, there
-	 * should be no contention.
+	 * should be yes contention.
 	 */
 	SEEPROM_OUTB(sd, sd->sd_MS);
 	wait = 1000;  /* 1 second timeout in msec */
@@ -1962,7 +1962,7 @@ ahc_pci_intr(struct ahc_softc *ahc)
 
 	if ((status1 & (DPE|SSE|RMA|RTA|STA|DPR)) == 0) {
 		printk("%s: Latched PCIERR interrupt with "
-		       "no status bits set\n", ahc_name(ahc)); 
+		       "yes status bits set\n", ahc_name(ahc)); 
 	} else {
 		ahc_outb(ahc, CLRINT, CLRPARERR);
 	}
@@ -1972,7 +1972,7 @@ ahc_pci_intr(struct ahc_softc *ahc)
 "%s: WARNING WARNING WARNING WARNING\n"
 "%s: Too many PCI parity errors observed as a target.\n"
 "%s: Some device on this bus is generating bad parity.\n"
-"%s: This is an error *observed by*, not *generated by*, this controller.\n"
+"%s: This is an error *observed by*, yest *generated by*, this controller.\n"
 "%s: PCI parity error checking has been disabled.\n"
 "%s: WARNING WARNING WARNING WARNING\n",
 		       ahc_name(ahc), ahc_name(ahc), ahc_name(ahc),
@@ -2015,7 +2015,7 @@ ahc_pci_resume(struct ahc_softc *ahc)
 	/*
 	 * We assume that the OS has restored our register
 	 * mappings, etc.  Just update the config space registers
-	 * that the OS doesn't know about and rely on our chip
+	 * that the OS doesn't kyesw about and rely on our chip
 	 * reset handler to handle the rest.
 	 */
 	ahc_pci_write_config(ahc->dev_softc, DEVCONFIG,
@@ -2291,7 +2291,7 @@ ahc_aic7895_setup(struct ahc_softc *ahc)
 
 		/*
 		 * The BIOS disables the use of MWI transactions
-		 * since it does not have the MWI bug work around
+		 * since it does yest have the MWI bug work around
 		 * we have.  Disabling MWI reduces performance, so
 		 * turn it on again.
 		 */
@@ -2301,8 +2301,8 @@ ahc_aic7895_setup(struct ahc_softc *ahc)
 		ahc->bugs |= AHC_PCI_MWI_BUG;
 	}
 	/*
-	 * XXX Does CACHETHEN really not work???  What about PCI retry?
-	 * on C level chips.  Need to test, but for now, play it safe.
+	 * XXX Does CACHETHEN really yest work???  What about PCI retry?
+	 * on C level chips.  Need to test, but for yesw, play it safe.
 	 */
 	ahc->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_PCI_2_1_RETRY_BUG
 		  |  AHC_CACHETHEN_BUG;

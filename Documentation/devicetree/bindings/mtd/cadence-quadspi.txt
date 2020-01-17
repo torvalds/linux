@@ -2,9 +2,9 @@
 
 Required properties:
 - compatible : should be one of the following:
-	Generic default - "cdns,qspi-nor".
-	For TI 66AK2G SoC - "ti,k2g-qspi", "cdns,qspi-nor".
-	For TI AM654 SoC  - "ti,am654-ospi", "cdns,qspi-nor".
+	Generic default - "cdns,qspi-yesr".
+	For TI 66AK2G SoC - "ti,k2g-qspi", "cdns,qspi-yesr".
+	For TI AM654 SoC  - "ti,am654-ospi", "cdns,qspi-yesr".
 - reg : Contains two entries, each of which is a tuple consisting of a
 	physical address and length. The first entry is the address and
 	length of the controller register set. The second entry is the
@@ -16,24 +16,24 @@ Required properties:
 - cdns,trigger-address : 32-bit indirect AHB trigger address.
 
 Optional properties:
-- cdns,is-decoded-cs : Flag to indicate whether decoder is used or not.
+- cdns,is-decoded-cs : Flag to indicate whether decoder is used or yest.
 - cdns,rclk-en : Flag to indicate that QSPI return clock is used to latch
   the read data rather than the QSPI clock. Make sure that QSPI return
   clock is populated on the board before using this property.
 
-Optional subnodes:
-Subnodes of the Cadence Quad SPI controller are spi slave nodes with additional
+Optional subyesdes:
+Subyesdes of the Cadence Quad SPI controller are spi slave yesdes with additional
 custom properties:
 - cdns,read-delay : Delay for read capture logic, in clock cycles
-- cdns,tshsl-ns : Delay in nanoseconds for the length that the master
+- cdns,tshsl-ns : Delay in nayesseconds for the length that the master
                   mode chip select outputs are de-asserted between
 		  transactions.
-- cdns,tsd2d-ns : Delay in nanoseconds between one chip select being
-                  de-activated and the activation of another.
-- cdns,tchsh-ns : Delay in nanoseconds between last bit of current
+- cdns,tsd2d-ns : Delay in nayesseconds between one chip select being
+                  de-activated and the activation of ayesther.
+- cdns,tchsh-ns : Delay in nayesseconds between last bit of current
                   transaction and deasserting the device chip select
 		  (qspi_n_ss_out).
-- cdns,tslch-ns : Delay in nanoseconds between setting qspi_n_ss_out low
+- cdns,tslch-ns : Delay in nayesseconds between setting qspi_n_ss_out low
                   and first bit transfer.
 - resets	: Must contain an entry for each entry in reset-names.
 		  See ../reset/reset.txt for details.
@@ -42,7 +42,7 @@ custom properties:
 Example:
 
 	qspi: spi@ff705000 {
-		compatible = "cdns,qspi-nor";
+		compatible = "cdns,qspi-yesr";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0xff705000 0x1000>,

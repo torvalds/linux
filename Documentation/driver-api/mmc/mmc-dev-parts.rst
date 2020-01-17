@@ -32,10 +32,10 @@ with::
 
 	echo 1 > /sys/block/mmcblkXbootY/ro_lock_until_next_power_on
 
-This is a feature of the card and not of the kernel. If the card does
-not support boot partition locking, the file will not exist. If the
+This is a feature of the card and yest of the kernel. If the card does
+yest support boot partition locking, the file will yest exist. If the
 feature has been disabled on the card, the file will be read-only.
 
 The boot partitions can also be locked permanently, but this feature is
-not accessible through sysfs in order to avoid accidental or malicious
+yest accessible through sysfs in order to avoid accidental or malicious
 bricking.

@@ -37,7 +37,7 @@ Required properties:
     clock-names property may be omitted.
 - resets: A phandle + reset specifier for the module reset
 
-Required nodes:
+Required yesdes:
 
 The LVDS encoder has two video ports. Their connections are modelled using the
 OF graph bindings specified in Documentation/devicetree/bindings/graph.txt.
@@ -51,7 +51,7 @@ Optional properties:
 
 - renesas,companion : phandle to the companion LVDS encoder. This property is
   mandatory for the first LVDS encoder on D3 and E3 SoCs, and shall point to
-  the second encoder to be used as a companion in dual-link mode. It shall not
+  the second encoder to be used as a companion in dual-link mode. It shall yest
   be set for any other LVDS encoder.
 
 

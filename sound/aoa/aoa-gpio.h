@@ -11,9 +11,9 @@
 #include <linux/mutex.h>
 #include <asm/prom.h>
 
-typedef void (*notify_func_t)(void *data);
+typedef void (*yestify_func_t)(void *data);
 
-enum notify_type {
+enum yestify_type {
 	AOA_NOTIFY_HEADPHONE,
 	AOA_NOTIFY_LINE_IN,
 	AOA_NOTIFY_LINE_OUT,
@@ -42,26 +42,26 @@ struct gpio_methods {
 
 	void (*set_hw_reset)(struct gpio_runtime *rt, int on);
 
-	/* use this to be notified of any events. The notification
+	/* use this to be yestified of any events. The yestification
 	 * function is passed the data, and is called in process
 	 * context by the use of schedule_work.
 	 * The interface for it is that setting a function to NULL
 	 * removes it, and they return 0 if the operation succeeded,
-	 * and -EBUSY if the notification is already assigned by
+	 * and -EBUSY if the yestification is already assigned by
 	 * someone else. */
-	int (*set_notify)(struct gpio_runtime *rt,
-			  enum notify_type type,
-			  notify_func_t notify,
+	int (*set_yestify)(struct gpio_runtime *rt,
+			  enum yestify_type type,
+			  yestify_func_t yestify,
 			  void *data);
-	/* returns 0 if not plugged in, 1 if plugged in
+	/* returns 0 if yest plugged in, 1 if plugged in
 	 * or a negative error code */
 	int (*get_detect)(struct gpio_runtime *rt,
-			  enum notify_type type);
+			  enum yestify_type type);
 };
 
-struct gpio_notification {
+struct gpio_yestification {
 	struct delayed_work work;
-	notify_func_t notify;
+	yestify_func_t yestify;
 	void *data;
 	void *gpio_private;
 	struct mutex mutex;
@@ -69,14 +69,14 @@ struct gpio_notification {
 
 struct gpio_runtime {
 	/* to be assigned by fabric */
-	struct device_node *node;
+	struct device_yesde *yesde;
 	/* since everyone needs this pointer anyway... */
 	struct gpio_methods *methods;
 	/* to be used by the gpio implementation */
 	int implementation_private;
-	struct gpio_notification headphone_notify;
-	struct gpio_notification line_in_notify;
-	struct gpio_notification line_out_notify;
+	struct gpio_yestification headphone_yestify;
+	struct gpio_yestification line_in_yestify;
+	struct gpio_yestification line_out_yestify;
 };
 
 #endif /* __AOA_GPIO_H */

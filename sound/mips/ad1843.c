@@ -11,7 +11,7 @@
 
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/ad1843.h>
@@ -58,7 +58,7 @@ static const struct ad1843_bitfield
 	ad1843_LMCMM  = {  7, 15,  1 },	/* Left Mic Mix Mute */
 	ad1843_HPOS   = {  8,  4,  1 },	/* Headphone Output Voltage Swing */
 	ad1843_HPOM   = {  8,  5,  1 },	/* Headphone Output Mute */
-	ad1843_MPOM   = {  8,  6,  1 },	/* Mono Output Mute */
+	ad1843_MPOM   = {  8,  6,  1 },	/* Moyes Output Mute */
 	ad1843_RDA1G  = {  9,  0,  6 },	/* Right DAC1 Analog/Digital Gain */
 	ad1843_RDA1GM = {  9,  7,  1 },	/* Right DAC1 Analog Mute */
 	ad1843_LDA1G  = {  9,  8,  6 },	/* Left DAC1 Analog/Digital Gain */
@@ -88,8 +88,8 @@ static const struct ad1843_bitfield
 	ad1843_SCF    = { 26,  7,  1 },	/* SCLK Frequency Select */
 	ad1843_DA1F   = { 26,  8,  2 },	/* DAC1 Data Format Select */
 	ad1843_DA2F   = { 26, 10,  2 },	/* DAC2 Data Format Select */
-	ad1843_DA1SM  = { 26, 14,  1 },	/* DAC1 Stereo/Mono Mode Select */
-	ad1843_DA2SM  = { 26, 15,  1 },	/* DAC2 Stereo/Mono Mode Select */
+	ad1843_DA1SM  = { 26, 14,  1 },	/* DAC1 Stereo/Moyes Mode Select */
+	ad1843_DA2SM  = { 26, 15,  1 },	/* DAC2 Stereo/Moyes Mode Select */
 	ad1843_ADLEN  = { 27,  0,  1 },	/* ADC Left Channel Enable */
 	ad1843_ADREN  = { 27,  1,  1 },	/* ADC Right Channel Enable */
 	ad1843_AAMEN  = { 27,  4,  1 },	/* Analog to Analog Mix Enable */
@@ -109,7 +109,7 @@ static const struct ad1843_bitfield
  */
 
 struct ad1843_gain {
-	int	negative;		/* nonzero if gain is negative. */
+	int	negative;		/* yesnzero if gain is negative. */
 	const struct ad1843_bitfield *lfield;
 	const struct ad1843_bitfield *rfield;
 	const struct ad1843_bitfield *lmute;
@@ -357,7 +357,7 @@ int ad1843_get_recsrc(struct snd_ad1843 *ad1843)
 /*
  * Set recording source.
  *
- * Returns newsrc on success, -errno on failure.
+ * Returns newsrc on success, -erryes on failure.
  */
 
 int ad1843_set_recsrc(struct snd_ad1843 *ad1843, int newsrc)
@@ -454,7 +454,7 @@ void ad1843_setup_adc(struct snd_ad1843 *ad1843,
 
 void ad1843_shutdown_adc(struct snd_ad1843 *ad1843)
 {
-	/* nothing to do */
+	/* yesthing to do */
 }
 
 /*
@@ -463,7 +463,7 @@ void ad1843_shutdown_adc(struct snd_ad1843 *ad1843)
  * subsection headings from the data sheet.  See the data sheet, pages
  * 52-54, for more info.
  *
- * return 0 on success, -errno on failure.  */
+ * return 0 on success, -erryes on failure.  */
 
 int ad1843_init(struct snd_ad1843 *ad1843)
 {

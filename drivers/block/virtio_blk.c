@@ -47,7 +47,7 @@ struct virtio_blk {
 	/* What host tells us, plus 2 for header & tailer. */
 	unsigned int sg_elems;
 
-	/* Ida index - used to track minor number allocations. */
+	/* Ida index - used to track miyesr number allocations. */
 	int index;
 
 	/* num of vqs */
@@ -80,8 +80,8 @@ static inline blk_status_t virtblk_result(struct virtblk_req *vbr)
 
 /*
  * If this is a packet command we need a couple of additional headers.  Behind
- * the normal outhdr we put a segment with the scsi command block, and before
- * the normal inhdr we put the sense data and the inhdr with additional status
+ * the yesrmal outhdr we put a segment with the scsi command block, and before
+ * the yesrmal inhdr we put the sense data and the inhdr with additional status
  * information.
  */
 #ifdef CONFIG_VIRTIO_BLK_SCSI
@@ -265,7 +265,7 @@ static void virtio_commit_rqs(struct blk_mq_hw_ctx *hctx)
 	spin_unlock_irq(&vq->lock);
 
 	if (kick)
-		virtqueue_notify(vq->vq);
+		virtqueue_yestify(vq->vq);
 }
 
 static blk_status_t virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
@@ -278,7 +278,7 @@ static blk_status_t virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 	unsigned int num;
 	int qid = hctx->queue_num;
 	int err;
-	bool notify = false;
+	bool yestify = false;
 	bool unmap = false;
 	u32 type;
 
@@ -349,11 +349,11 @@ static blk_status_t virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 	}
 
 	if (bd->last && virtqueue_kick_prepare(vblk->vqs[qid].vq))
-		notify = true;
+		yestify = true;
 	spin_unlock_irqrestore(&vblk->vqs[qid].lock, flags);
 
-	if (notify)
-		virtqueue_notify(vblk->vqs[qid].vq);
+	if (yestify)
+		virtqueue_yestify(vblk->vqs[qid].vq);
 	return BLK_STS_OK;
 }
 
@@ -375,7 +375,7 @@ static int virtblk_get_id(struct gendisk *disk, char *id_str)
 		goto out;
 
 	blk_execute_rq(vblk->disk->queue, vblk->disk, req, false);
-	err = blk_status_to_errno(virtblk_result(blk_mq_rq_to_pdu(req)));
+	err = blk_status_to_erryes(virtblk_result(blk_mq_rq_to_pdu(req)));
 out:
 	blk_put_request(req);
 	return err;
@@ -409,14 +409,14 @@ static const struct block_device_operations virtblk_fops = {
 	.getgeo = virtblk_getgeo,
 };
 
-static int index_to_minor(int index)
+static int index_to_miyesr(int index)
 {
 	return index << PART_BITS;
 }
 
-static int minor_to_index(int minor)
+static int miyesr_to_index(int miyesr)
 {
-	return minor >> PART_BITS;
+	return miyesr >> PART_BITS;
 }
 
 static ssize_t serial_show(struct device *dev,
@@ -467,7 +467,7 @@ static void virtblk_update_capacity(struct virtio_blk *vblk, bool resize)
 	string_get_size(nblocks, queue_logical_block_size(q),
 			STRING_UNITS_10, cap_str_10, sizeof(cap_str_10));
 
-	dev_notice(&vdev->dev,
+	dev_yestice(&vdev->dev,
 		   "[%s] %s%llu %d-byte logical blocks (%s/%s)\n",
 		   vblk->disk->disk_name,
 		   resize ? "new size: " : "",
@@ -592,8 +592,8 @@ static int virtblk_get_cache_mode(struct virtio_device *vdev)
 				   &writeback);
 
 	/*
-	 * If WCE is not configurable and flush is not available,
-	 * assume no writeback cache is in use.
+	 * If WCE is yest configurable and flush is yest available,
+	 * assume yes writeback cache is in use.
 	 */
 	if (err)
 		writeback = virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH);
@@ -678,7 +678,7 @@ static const struct attribute_group *virtblk_attr_groups[] = {
 };
 
 static int virtblk_init_request(struct blk_mq_tag_set *set, struct request *rq,
-		unsigned int hctx_idx, unsigned int numa_node)
+		unsigned int hctx_idx, unsigned int numa_yesde)
 {
 	struct virtio_blk *vblk = set->driver_data;
 	struct virtblk_req *vbr = blk_mq_rq_to_pdu(rq);
@@ -737,13 +737,13 @@ static int virtblk_probe(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
-	err = ida_simple_get(&vd_index_ida, 0, minor_to_index(1 << MINORBITS),
+	err = ida_simple_get(&vd_index_ida, 0, miyesr_to_index(1 << MINORBITS),
 			     GFP_KERNEL);
 	if (err < 0)
 		goto out;
 	index = err;
 
-	/* We need to know how many segments before we allocate. */
+	/* We need to kyesw how many segments before we allocate. */
 	err = virtio_cread_feature(vdev, VIRTIO_BLK_F_SEG_MAX,
 				   struct virtio_blk_config, seg_max,
 				   &sg_elems);
@@ -787,7 +787,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 	memset(&vblk->tag_set, 0, sizeof(vblk->tag_set));
 	vblk->tag_set.ops = &virtio_mq_ops;
 	vblk->tag_set.queue_depth = virtblk_queue_depth;
-	vblk->tag_set.numa_node = NUMA_NO_NODE;
+	vblk->tag_set.numa_yesde = NUMA_NO_NODE;
 	vblk->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	vblk->tag_set.cmd_size =
 		sizeof(struct virtblk_req) +
@@ -811,7 +811,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 	virtblk_name_format("vd", index, vblk->disk->disk_name, DISK_NAME_LEN);
 
 	vblk->disk->major = major;
-	vblk->disk->first_minor = index_to_minor(index);
+	vblk->disk->first_miyesr = index_to_miyesr(index);
 	vblk->disk->private_data = vblk;
 	vblk->disk->fops = &virtblk_fops;
 	vblk->disk->flags |= GENHD_FL_EXT_DEVT;
@@ -890,7 +890,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 		virtio_cread(vdev, struct virtio_blk_config, max_discard_seg,
 			     &v);
 		blk_queue_max_discard_segments(q,
-					       min_not_zero(v,
+					       min_yest_zero(v,
 							    MAX_DISCARD_SEGMENTS));
 
 		blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
@@ -928,7 +928,7 @@ static void virtblk_remove(struct virtio_device *vdev)
 	int index = vblk->index;
 	int refc;
 
-	/* Make sure no work handler is accessing the device. */
+	/* Make sure yes work handler is accessing the device. */
 	flush_work(&vblk->config_work);
 
 	del_gendisk(vblk->disk);
@@ -958,7 +958,7 @@ static int virtblk_freeze(struct virtio_device *vdev)
 	/* Ensure we don't receive any more interrupts */
 	vdev->config->reset(vdev);
 
-	/* Make sure no work handler is accessing the device. */
+	/* Make sure yes work handler is accessing the device. */
 	flush_work(&vblk->config_work);
 
 	blk_mq_quiesce_queue(vblk->disk->queue);

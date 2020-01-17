@@ -6,7 +6,7 @@
  * Copyright (C) 2008 Magnus Damm
  *
  * Portions of the code based on out-of-tree driver i2c-sh7343.c
- * Copyright (c) 2006 Carlos Munoz <carlos@kenati.com>
+ * Copyright (c) 2006 Carlos Muyesz <carlos@kenati.com>
  */
 
 #include <linux/clk.h>
@@ -53,7 +53,7 @@
 /*                                                                          */
 /* Receive operation:                                                       */
 /*                                                                          */
-/* 0 byte receive - not supported since slave may hold SDA low              */
+/* 0 byte receive - yest supported since slave may hold SDA low              */
 /*                                                                          */
 /* 1 byte receive       [TX] | [RX]                                         */
 /* BUS:     S     A8     ACK | D8(1)   ACK   P(*)                           */
@@ -225,7 +225,7 @@ static u32 sh_mobile_i2c_icch(unsigned long count_khz, u32 tHIGH, u32 tf)
 	 *   ICCH >= COUNT_CLK * (tHIGH + tf)
 	 *
 	 * SH-Mobile IIC hardware is aware of SCL transition period 'tr',
-	 * and can ignore it.  SH-Mobile IIC controller starts counting
+	 * and can igyesre it.  SH-Mobile IIC controller starts counting
 	 * the HIGH period of the SCL signal (tHIGH) after the SCL input
 	 * voltage increases at VIH.
 	 *
@@ -628,7 +628,7 @@ static int poll_busy(struct sh_mobile_i2c_data *pd)
 		 * until we're done.
 		 */
 		if (!(val & ICSR_BUSY)) {
-			/* handle missing acknowledge and arbitration lost */
+			/* handle missing ackyeswledge and arbitration lost */
 			val |= pd->sr;
 			if (val & ICSR_TACK)
 				return -ENXIO;
@@ -807,7 +807,7 @@ static int sh_mobile_i2c_hook_irqs(struct platform_device *dev, struct sh_mobile
 			ret = devm_request_irq(&dev->dev, n, sh_mobile_i2c_isr,
 					  0, dev_name(&dev->dev), pd);
 			if (ret) {
-				dev_err(&dev->dev, "cannot request IRQ %pa\n", &n);
+				dev_err(&dev->dev, "canyest request IRQ %pa\n", &n);
 				return ret;
 			}
 		}
@@ -832,7 +832,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 
 	pd->clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(pd->clk)) {
-		dev_err(&dev->dev, "cannot get clock\n");
+		dev_err(&dev->dev, "canyest get clock\n");
 		return PTR_ERR(pd->clk);
 	}
 
@@ -850,7 +850,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	if (IS_ERR(pd->reg))
 		return PTR_ERR(pd->reg);
 
-	ret = of_property_read_u32(dev->dev.of_node, "clock-frequency", &bus_speed);
+	ret = of_property_read_u32(dev->dev.of_yesde, "clock-frequency", &bus_speed);
 	pd->bus_speed = (ret || !bus_speed) ? STANDARD_MODE : bus_speed;
 	pd->clks_per_count = 1;
 
@@ -888,7 +888,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	adap->dev.parent = &dev->dev;
 	adap->retries = 5;
 	adap->nr = dev->id;
-	adap->dev.of_node = dev->dev.of_node;
+	adap->dev.of_yesde = dev->dev.of_yesde;
 
 	strlcpy(adap->name, dev->name, sizeof(adap->name));
 

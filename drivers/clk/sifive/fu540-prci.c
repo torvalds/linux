@@ -151,12 +151,12 @@ struct __prci_data {
  * struct __prci_wrpll_data - WRPLL configuration and integration data
  * @c: WRPLL current configuration record
  * @enable_bypass: fn ptr to code to bypass the WRPLL (if applicable; else NULL)
- * @disable_bypass: fn ptr to code to not bypass the WRPLL (or NULL)
+ * @disable_bypass: fn ptr to code to yest bypass the WRPLL (or NULL)
  * @cfg0_offs: WRPLL CFG0 register offset (in bytes) from the PRCI base address
  *
  * @enable_bypass and @disable_bypass are used for WRPLL instances
  * that contain a separate external glitchless clock mux downstream
- * from the PLL.  The WRPLL internal bypass mux is not glitchless.
+ * from the PLL.  The WRPLL internal bypass mux is yest glitchless.
  */
 struct __prci_wrpll_data {
 	struct wrpll_cfg c;
@@ -171,8 +171,8 @@ struct __prci_wrpll_data {
  * @parent_name: parent name for this clock
  * @ops: struct clk_ops for the Linux clock framework to use for control
  * @hw: Linux-private clock data
- * @pwd: WRPLL-specific data, associated with this clock (if not NULL)
- * @pd: PRCI-specific data associated with this clock (if not NULL)
+ * @pwd: WRPLL-specific data, associated with this clock (if yest NULL)
+ * @pd: PRCI-specific data associated with this clock (if yest NULL)
  *
  * PRCI clock data.  Used by the PRCI driver to register PRCI-provided
  * clocks to the Linux clock infrastructure.
@@ -254,7 +254,7 @@ static void __prci_wrpll_unpack(struct wrpll_cfg *c, u32 r)
 	c->flags &= (WRPLL_FLAGS_INT_FEEDBACK_MASK |
 		     WRPLL_FLAGS_EXT_FEEDBACK_MASK);
 
-	/* external feedback mode not supported */
+	/* external feedback mode yest supported */
 	c->flags |= WRPLL_FLAGS_INT_FEEDBACK_MASK;
 }
 
@@ -267,7 +267,7 @@ static void __prci_wrpll_unpack(struct wrpll_cfg *c, u32 r)
  * the caller.
  *
  * Context: Any context.  Caller must ensure that the contents of the
- *          record pointed to by @c do not change during the execution
+ *          record pointed to by @c do yest change during the execution
  *          of this function.
  *
  * Returns: a value suitable for writing into a PRCI PLL configuration
@@ -282,7 +282,7 @@ static u32 __prci_wrpll_pack(const struct wrpll_cfg *c)
 	r |= c->divq << PRCI_COREPLLCFG0_DIVQ_SHIFT;
 	r |= c->range << PRCI_COREPLLCFG0_RANGE_SHIFT;
 
-	/* external feedback mode not supported */
+	/* external feedback mode yest supported */
 	r |= PRCI_COREPLLCFG0_FSE_MASK;
 
 	return r;
@@ -522,7 +522,7 @@ static int __prci_register_clocks(struct device *dev, struct __prci_data *pd)
 	struct __prci_clock *pic;
 	int parent_count, i, r;
 
-	parent_count = of_clk_get_parent_count(dev->of_node);
+	parent_count = of_clk_get_parent_count(dev->of_yesde);
 	if (parent_count != EXPECTED_CLK_PARENT_COUNT) {
 		dev_err(dev, "expected only two parent clocks, found %d\n",
 			parent_count);
@@ -566,7 +566,7 @@ static int __prci_register_clocks(struct device *dev, struct __prci_data *pd)
 	r = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 					&pd->hw_clks);
 	if (r) {
-		dev_err(dev, "could not add hw_provider: %d\n", r);
+		dev_err(dev, "could yest add hw_provider: %d\n", r);
 		return r;
 	}
 
@@ -597,7 +597,7 @@ static int sifive_fu540_prci_probe(struct platform_device *pdev)
 
 	r = __prci_register_clocks(dev, pd);
 	if (r) {
-		dev_err(dev, "could not register clocks: %d\n", r);
+		dev_err(dev, "could yest register clocks: %d\n", r);
 		return r;
 	}
 

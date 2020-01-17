@@ -80,24 +80,24 @@ static irqreturn_t da9210_irq_handler(int irq, void *data)
 	regulator_lock(chip->rdev);
 
 	if (val & DA9210_E_OVCURR) {
-		regulator_notifier_call_chain(chip->rdev,
+		regulator_yestifier_call_chain(chip->rdev,
 					      REGULATOR_EVENT_OVER_CURRENT,
 					      NULL);
 		handled |= DA9210_E_OVCURR;
 	}
 	if (val & DA9210_E_NPWRGOOD) {
-		regulator_notifier_call_chain(chip->rdev,
+		regulator_yestifier_call_chain(chip->rdev,
 					      REGULATOR_EVENT_UNDER_VOLTAGE,
 					      NULL);
 		handled |= DA9210_E_NPWRGOOD;
 	}
 	if (val & (DA9210_E_TEMP_WARN | DA9210_E_TEMP_CRIT)) {
-		regulator_notifier_call_chain(chip->rdev,
+		regulator_yestifier_call_chain(chip->rdev,
 					      REGULATOR_EVENT_OVER_TEMP, NULL);
 		handled |= val & (DA9210_E_TEMP_WARN | DA9210_E_TEMP_CRIT);
 	}
 	if (val & DA9210_E_VMAX) {
-		regulator_notifier_call_chain(chip->rdev,
+		regulator_yestifier_call_chain(chip->rdev,
 					      REGULATOR_EVENT_REGULATION_OUT,
 					      NULL);
 		handled |= DA9210_E_VMAX;
@@ -142,7 +142,7 @@ static int da9210_i2c_probe(struct i2c_client *i2c,
 	int error;
 	const struct of_device_id *match;
 
-	if (i2c->dev.of_node && !pdata) {
+	if (i2c->dev.of_yesde && !pdata) {
 		match = of_match_device(of_match_ptr(da9210_dt_ids),
 						&i2c->dev);
 		if (!match) {
@@ -165,10 +165,10 @@ static int da9210_i2c_probe(struct i2c_client *i2c,
 
 	config.dev = &i2c->dev;
 	config.init_data = pdata ? &pdata->da9210_constraints :
-		of_get_regulator_init_data(dev, dev->of_node, &da9210_reg);
+		of_get_regulator_init_data(dev, dev->of_yesde, &da9210_reg);
 	config.driver_data = chip;
 	config.regmap = chip->regmap;
-	config.of_node = dev->of_node;
+	config.of_yesde = dev->of_yesde;
 
 	/* Mask all interrupt sources to deassert interrupt line */
 	error = regmap_write(chip->regmap, DA9210_REG_MASK_A, ~0);

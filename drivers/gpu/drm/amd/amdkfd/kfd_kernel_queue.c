@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -39,7 +39,7 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 {
 	struct queue_properties prop;
 	int retval;
-	union PM4_MES_TYPE_3_HEADER nop;
+	union PM4_MES_TYPE_3_HEADER yesp;
 
 	if (WARN_ON(type != KFD_QUEUE_TYPE_DIQ && type != KFD_QUEUE_TYPE_HIQ))
 		return false;
@@ -48,14 +48,14 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 			queue_size);
 
 	memset(&prop, 0, sizeof(prop));
-	memset(&nop, 0, sizeof(nop));
+	memset(&yesp, 0, sizeof(yesp));
 
-	nop.opcode = IT_NOP;
-	nop.type = PM4_TYPE_3;
-	nop.u32all |= PM4_COUNT_ZERO;
+	yesp.opcode = IT_NOP;
+	yesp.type = PM4_TYPE_3;
+	yesp.u32all |= PM4_COUNT_ZERO;
 
 	kq->dev = dev;
-	kq->nop_packet = nop.u32all;
+	kq->yesp_packet = yesp.u32all;
 	switch (type) {
 	case KFD_QUEUE_TYPE_DIQ:
 		kq->mqd_mgr = dev->dqm->mqd_mgrs[KFD_MQD_TYPE_DIQ];
@@ -236,22 +236,22 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 
 	if (packet_size_in_dwords > available_size) {
 		/*
-		 * make sure calling functions know
+		 * make sure calling functions kyesw
 		 * acquire_packet_buffer() failed
 		 */
-		goto err_no_space;
+		goto err_yes_space;
 	}
 
 	if (wptr + packet_size_in_dwords >= queue_size_dwords) {
 		/* make sure after rolling back to position 0, there is
-		 * still enough space.
+		 * still eyesugh space.
 		 */
 		if (packet_size_in_dwords >= rptr)
-			goto err_no_space;
+			goto err_yes_space;
 
-		/* fill nops, roll back and start at position 0 */
+		/* fill yesps, roll back and start at position 0 */
 		while (wptr > 0) {
-			queue_address[wptr] = kq->nop_packet;
+			queue_address[wptr] = kq->yesp_packet;
 			wptr = (wptr + 1) % queue_size_dwords;
 			wptr64++;
 		}
@@ -263,7 +263,7 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 
 	return 0;
 
-err_no_space:
+err_yes_space:
 	*buffer_ptr = NULL;
 	return -ENOMEM;
 }
@@ -384,7 +384,7 @@ static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 		return;
 	}
 	for (i = 0; i < 5; i++)
-		buffer[i] = kq->nop_packet;
+		buffer[i] = kq->yesp_packet;
 	kq->ops.submit_packet(kq);
 
 	pr_err("Ending kernel queue test\n");

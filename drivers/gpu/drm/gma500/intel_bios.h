@@ -39,7 +39,7 @@ struct vbios_data {
 	u8 tv_present:1;
 	u8 rsvd2:6; /* finish byte */
 	u8 rsvd3[4];
-	u8 signon[155];
+	u8 sigyesn[155];
 	u8 copyright[61];
 	u16 code_segment;
 	u8 dos_boot_mode;
@@ -52,7 +52,7 @@ struct vbios_data {
 /*
  * There are several types of BIOS data blocks (BDBs), each block has
  * an ID and size in the first 3 bytes (ID in first, size in next 2).
- * Known types are listed below.
+ * Kyeswn types are listed below.
  */
 #define BDB_GENERAL_FEATURES	  1
 #define BDB_GENERAL_DEFINITIONS	  2
@@ -86,7 +86,7 @@ struct vbios_data {
 #define BDB_LVDS_LFP_DATA	 42
 #define BDB_LVDS_BACKLIGHT	 43
 #define BDB_LVDS_POWER		 44
-#define BDB_SKIP		254 /* VBIOS private block, ignore */
+#define BDB_SKIP		254 /* VBIOS private block, igyesre */
 
 struct bdb_general_features {
 	/* bits 1 */
@@ -175,7 +175,7 @@ struct bdb_general_features {
 #define DEVICE_WIRE_DVOB_MASTER 0x0d
 #define DEVICE_WIRE_DVOC_MASTER 0x0e
 
-#define DEVICE_PORT_DVOA	0x00 /* none on 845+ */
+#define DEVICE_PORT_DVOA	0x00 /* yesne on 845+ */
 #define DEVICE_PORT_DVOB	0x01
 #define DEVICE_PORT_DVOC	0x02
 

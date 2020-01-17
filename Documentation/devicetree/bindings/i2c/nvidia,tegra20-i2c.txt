@@ -30,7 +30,7 @@ Required properties:
 	   fast-clk. Tegra114 has only one clock source called as div-clk and
 	   hence clock mechanism is changed in I2C controller.
 	 - Tegra30/Tegra20 I2C controller has enabled per packet transfer by
-	   default and there is no way to disable it. Tegra114 has this
+	   default and there is yes way to disable it. Tegra114 has this
 	   interrupt disable by default and SW need to enable explicitly.
 	Due to above changes, Tegra114 I2C driver makes incompatible with
 	previous hardware driver. Hence, tegra114 I2C controller is compatible

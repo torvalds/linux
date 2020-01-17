@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2005-2018 Andes Technology Corporation */
+/* Copyright (C) 2005-2018 Andes Techyeslogy Corporation */
 
 #include <asm/bitfield.h>
 
@@ -24,7 +24,7 @@
 #define _FP_MUL_MEAT_DW_D(R, X, Y)			\
 	_FP_MUL_MEAT_DW_2_wide(_FP_WFRACBITS_D, R, X, Y, umul_ppmm)
 
-#define _FP_DIV_MEAT_S(R, X, Y)	_FP_DIV_MEAT_1_udiv_norm(S, R, X, Y)
+#define _FP_DIV_MEAT_S(R, X, Y)	_FP_DIV_MEAT_1_udiv_yesrm(S, R, X, Y)
 #define _FP_DIV_MEAT_D(R, X, Y)	_FP_DIV_MEAT_2_udiv(D, R, X, Y)
 
 #define _FP_NANFRAC_S		((_FP_QNANBIT_S << 1) - 1)

@@ -38,7 +38,7 @@ EXPORT_SYMBOL(sg_next);
  * @sg:		The scatterlist
  *
  * Description:
- * Allows to know how many entries are in sg, taking into acount
+ * Allows to kyesw how many entries are in sg, taking into acount
  * chaining as well
  *
  **/
@@ -93,8 +93,8 @@ EXPORT_SYMBOL(sg_nents_for_len);
  *   Should only be used casually, it (currently) scans the entire list
  *   to get the last entry.
  *
- *   Note that the @sgl@ pointer passed in need not be the first one,
- *   the important bit is that @nents@ denotes the number of entries that
+ *   Note that the @sgl@ pointer passed in need yest be the first one,
+ *   the important bit is that @nents@ deyestes the number of entries that
  *   exist from @sgl@.
  *
  **/
@@ -150,11 +150,11 @@ static struct scatterlist *sg_kmalloc(unsigned int nents, gfp_t gfp_mask)
 {
 	if (nents == SG_MAX_SINGLE_ALLOC) {
 		/*
-		 * Kmemleak doesn't track page allocations as they are not
+		 * Kmemleak doesn't track page allocations as they are yest
 		 * commonly used (in a raw form) for kernel data structures.
-		 * As we chain together a list of pages and then a normal
+		 * As we chain together a list of pages and then a yesrmal
 		 * kmalloc (tracked by kmemleak), in order to for that last
-		 * allocation not to become decoupled (and thus a
+		 * allocation yest to become decoupled (and thus a
 		 * false-positive) we need to inform kmemleak of all the
 		 * intermediate allocations.
 		 */
@@ -180,7 +180,7 @@ static void sg_kfree(struct scatterlist *sg, unsigned int nents)
  * @table:	The sg table header to use
  * @max_ents:	The maximum number of entries per single scatterlist
  * @nents_first_chunk: Number of entries int the (preallocated) first
- * 	scatterlist chunk, 0 means no such preallocated first chunk
+ * 	scatterlist chunk, 0 means yes such preallocated first chunk
  * @free_fn:	Free function
  *
  *  Description:
@@ -248,7 +248,7 @@ EXPORT_SYMBOL(sg_free_table);
  * @nents:	Number of entries in sg list
  * @max_ents:	The maximum number of entries the allocator returns per call
  * @nents_first_chunk: Number of entries int the (preallocated) first
- * 	scatterlist chunk, 0 means no such preallocated chunk provided by user
+ * 	scatterlist chunk, 0 means yes such preallocated chunk provided by user
  * @gfp_mask:	GFP allocation mask
  * @alloc_fn:	Allocator to use
  *
@@ -259,7 +259,7 @@ EXPORT_SYMBOL(sg_free_table);
  *   chained in units of @max_ents.
  *
  * Notes:
- *   If this function returns non-0 (eg failure), the caller must call
+ *   If this function returns yesn-0 (eg failure), the caller must call
  *   __sg_free_table() to cleanup any leftover allocations.
  *
  **/
@@ -319,7 +319,7 @@ int __sg_alloc_table(struct sg_table *table, unsigned int nents,
 
 		/*
 		 * If this is the first mapping, assign the sg table header.
-		 * If this is not the first mapping, chain previous part.
+		 * If this is yest the first mapping, chain previous part.
 		 */
 		if (prv)
 			sg_chain(prv, prv_max_ents, sg);
@@ -327,7 +327,7 @@ int __sg_alloc_table(struct sg_table *table, unsigned int nents,
 			table->sgl = sg;
 
 		/*
-		 * If no more entries after this one, mark the end
+		 * If yes more entries after this one, mark the end
 		 */
 		if (!left)
 			sg_mark_end(&sg[sg_size - 1]);
@@ -373,12 +373,12 @@ EXPORT_SYMBOL(sg_alloc_table);
  * @n_pages:	 Number of pages in the pages array
  * @offset:      Offset from start of the first page to the start of a buffer
  * @size:        Number of valid bytes in the buffer (after offset)
- * @max_segment: Maximum size of a scatterlist node in bytes (page aligned)
+ * @max_segment: Maximum size of a scatterlist yesde in bytes (page aligned)
  * @gfp_mask:	 GFP allocation mask
  *
  *  Description:
  *    Allocate and initialize an sg table from a list of pages. Contiguous
- *    ranges of the pages are squashed into a single scatterlist node up to the
+ *    ranges of the pages are squashed into a single scatterlist yesde up to the
  *    maximum size specified in @max_segment. An user may provide an offset at a
  *    start and a size of valid data in a buffer specified by the page array.
  *    The returned sg table is released by sg_free_table.
@@ -453,7 +453,7 @@ EXPORT_SYMBOL(__sg_alloc_table_from_pages);
  *
  *  Description:
  *    Allocate and initialize an sg table from a list of pages. Contiguous
- *    ranges of the pages are squashed into a single scatterlist node. A user
+ *    ranges of the pages are squashed into a single scatterlist yesde. A user
  *    may provide an offset at a start and a size of valid data in a buffer
  *    specified by the page array. The returned sg table is released by
  *    sg_free_table.
@@ -476,7 +476,7 @@ EXPORT_SYMBOL(sg_alloc_table_from_pages);
  * sgl_alloc_order - allocate a scatterlist and its pages
  * @length: Length in bytes of the scatterlist. Must be at least one
  * @order: Second argument for alloc_pages()
- * @chainable: Whether or not to allocate an extra element in the scatterlist
+ * @chainable: Whether or yest to allocate an extra element in the scatterlist
  *	for scatterlist chaining purposes
  * @gfp: Memory allocation flags
  * @nent_p: [out] Number of entries in the scatterlist that have pages
@@ -716,7 +716,7 @@ static bool sg_miter_get_next_page(struct sg_mapping_iter *miter)
  *   stops @miter.
  *
  * Context:
- *   Don't care if @miter is stopped, or not proceeded yet.
+ *   Don't care if @miter is stopped, or yest proceeded yet.
  *   Otherwise, preemption disabled if the SG_MITER_ATOMIC is set.
  *
  * Returns:

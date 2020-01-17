@@ -18,18 +18,18 @@
 #define __LINUX_RCUTREE_H
 
 void rcu_softirq_qs(void);
-void rcu_note_context_switch(bool preempt);
+void rcu_yeste_context_switch(bool preempt);
 int rcu_needs_cpu(u64 basem, u64 *nextevt);
 void rcu_cpu_stall_reset(void);
 
 /*
  * Note a virtualization-based context switch.  This is simply a
- * wrapper around rcu_note_context_switch(), which allows TINY_RCU
+ * wrapper around rcu_yeste_context_switch(), which allows TINY_RCU
  * to save a few bytes. The caller must have disabled interrupts.
  */
-static inline void rcu_virt_note_context_switch(int cpu)
+static inline void rcu_virt_yeste_context_switch(int cpu)
 {
-	rcu_note_context_switch(false);
+	rcu_yeste_context_switch(false);
 }
 
 void synchronize_rcu_expedited(void);

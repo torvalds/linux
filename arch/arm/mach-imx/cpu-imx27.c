@@ -22,7 +22,7 @@ static int mx27_read_cpu_rev(void)
 {
 	u32 val;
 	/*
-	 * now we have access to the IO registers. As we need
+	 * yesw we have access to the IO registers. As we need
 	 * the silicon revision very early we read it here to
 	 * avoid any further hooks
 	*/
@@ -45,7 +45,7 @@ static int mx27_read_cpu_rev(void)
 /*
  * Returns:
  *	the silicon revision of the cpu
- *	-EINVAL - not a mx27
+ *	-EINVAL - yest a mx27
  */
 int mx27_revision(void)
 {

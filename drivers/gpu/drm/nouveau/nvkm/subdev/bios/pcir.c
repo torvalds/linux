@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -39,7 +39,7 @@ nvbios_pcirTe(struct nvkm_bios *bios, u32 base, u8 *ver, u16 *hdr)
 			break;
 		default:
 			nvkm_debug(&bios->subdev,
-				   "%08x: PCIR signature (%08x) unknown\n",
+				   "%08x: PCIR signature (%08x) unkyeswn\n",
 				   data, nvbios_rd32(bios, data + 0x00));
 			data = 0;
 			break;

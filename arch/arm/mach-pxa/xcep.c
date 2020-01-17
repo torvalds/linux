@@ -2,13 +2,13 @@
 /*  linux/arch/arm/mach-pxa/xcep.c
  *
  *  Support for the Iskratel Electronics XCEP platform as used in
- *  the Libera instruments from Instrumentation Technologies.
+ *  the Libera instruments from Instrumentation Techyeslogies.
  *
  *  Author:     Ales Bardorfer <ales@i-tech.si>
  *  Contributions by: Abbott, MG (Michael) <michael.abbott@diamond.ac.uk>
  *  Contributions by: Matej Kenda <matej.kenda@i-tech.si>
  *  Created:    June 2006
- *  Copyright:  (C) 2006-2009 Instrumentation Technologies
+ *  Copyright:  (C) 2006-2009 Instrumentation Techyeslogies
  */
 
 #include <linux/platform_device.h>

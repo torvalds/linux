@@ -19,7 +19,7 @@
 
 /*
  * Some clocks will have mutiple bits to enable the clocks, and
- * the bits to disable the clock is not same as enabling bits.
+ * the bits to disable the clock is yest same as enabling bits.
  */
 
 #define to_clk_mmp_gate(hw)	container_of(hw, struct mmp_clk_gate, hw)

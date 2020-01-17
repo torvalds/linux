@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -31,7 +31,7 @@
 #include "gpu_scheduler_trace.h"
 
 #define to_drm_sched_job(sched_job)		\
-		container_of((sched_job), struct drm_sched_job, queue_node)
+		container_of((sched_job), struct drm_sched_job, queue_yesde)
 
 /**
  * drm_sched_entity_init - Init a context entity used by scheduler when
@@ -94,7 +94,7 @@ EXPORT_SYMBOL(drm_sched_entity_init);
  *
  * @entity: scheduler entity
  *
- * Returns true if the entity does not have any unscheduled jobs.
+ * Returns true if the entity does yest have any unscheduled jobs.
  */
 static bool drm_sched_entity_is_idle(struct drm_sched_entity *entity)
 {
@@ -143,7 +143,7 @@ drm_sched_entity_get_free_sched(struct drm_sched_entity *entity)
 		struct drm_gpu_scheduler *sched = entity->rq_list[i]->sched;
 
 		if (!entity->rq_list[i]->sched->ready) {
-			DRM_WARN("sched%s is not ready, skipping", sched->name);
+			DRM_WARN("sched%s is yest ready, skipping", sched->name);
 			continue;
 		}
 
@@ -180,7 +180,7 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 
 	sched = entity->rq->sched;
 	/**
-	 * The client will not queue more IBs during this fini, consume existing
+	 * The client will yest queue more IBs during this fini, consume existing
 	 * queued IBs or discard them on SIGKILL
 	 */
 	if (current->flags & PF_EXITING) {
@@ -194,7 +194,7 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 				    drm_sched_entity_is_idle(entity));
 	}
 
-	/* For killed process disable any more IBs enqueue right now */
+	/* For killed process disable any more IBs enqueue right yesw */
 	last_user = cmpxchg(&entity->last_user, current->group_leader, NULL);
 	if ((!last_user || last_user == current->group_leader) &&
 	    (current->flags & PF_EXITING) && (current->exit_code == SIGKILL)) {
@@ -248,7 +248,7 @@ static void drm_sched_entity_kill_jobs(struct drm_sched_entity *entity)
 
 		/*
 		 * When pipe is hanged by older entity, new entity might
-		 * not even have chance to submit it's first job to HW
+		 * yest even have chance to submit it's first job to HW
 		 * and so entity->last_scheduled will remain NULL
 		 */
 		if (!entity->last_scheduled) {
@@ -408,7 +408,7 @@ static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 	    fence->context == entity->fence_context + 1) {
 		/*
 		 * Fence is a scheduled/finished fence from a job
-		 * which belongs to the same entity, we can ignore
+		 * which belongs to the same entity, we can igyesre
 		 * fences from ourself
 		 */
 		dma_fence_put(entity->dependency);
@@ -429,7 +429,7 @@ static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 					    drm_sched_entity_clear_dep))
 			return true;
 
-		/* Ignore it when it is already scheduled */
+		/* Igyesre it when it is already scheduled */
 		dma_fence_put(fence);
 		return false;
 	}
@@ -527,7 +527,7 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 	trace_drm_sched_job(sched_job, entity);
 	atomic_inc(&entity->rq->sched->num_jobs);
 	WRITE_ONCE(entity->last_user, current->group_leader);
-	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_node);
+	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_yesde);
 
 	/* first job wakes up scheduler */
 	if (first) {

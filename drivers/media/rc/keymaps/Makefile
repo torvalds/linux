@@ -28,7 +28,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-delock-61959.o \
 			rc-dib0700-nec.o \
 			rc-dib0700-rc5.o \
-			rc-digitalnow-tinytwin.o \
+			rc-digitalyesw-tinytwin.o \
 			rc-digittrade.o \
 			rc-dm1105-nec.o \
 			rc-dntv-live-dvb-t.o \
@@ -75,7 +75,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-msi-tvanywhere-plus.o \
 			rc-nebula.o \
 			rc-nec-terratec-cinergy-xs.o \
-			rc-norwood.o \
+			rc-yesrwood.o \
 			rc-npgtech.o \
 			rc-odroid.o \
 			rc-pctv-sedna.o \

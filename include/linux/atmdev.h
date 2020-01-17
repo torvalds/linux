@@ -59,12 +59,12 @@ enum {
 				   controlled by SVC socket layer */
 	ATM_VF_HASQOS,		/* QOS parameters have been set */
 	ATM_VF_LISTEN,		/* socket is used for listening */
-	ATM_VF_META,		/* SVC socket isn't used for normal data
+	ATM_VF_META,		/* SVC socket isn't used for yesrmal data
 				   traffic and doesn't depend on signaling
 				   to be available */
 	ATM_VF_SESSION,		/* VCC is p2mp session control descriptor */
 	ATM_VF_HASSAP,		/* SAP has been set */
-	ATM_VF_CLOSE,		/* asynchronous close - treat like VF_RELEASED*/
+	ATM_VF_CLOSE,		/* asynchroyesus close - treat like VF_RELEASED*/
 	ATM_VF_WAITING,		/* waiting for reply from sigd */
 	ATM_VF_IS_CLIP,		/* in use by CLIP protocol */
 };
@@ -83,8 +83,8 @@ enum {
 };
 
 
-#define ATM_PHY_SIG_LOST    0	/* no carrier/light */
-#define ATM_PHY_SIG_UNKNOWN 1	/* carrier/light status is unknown */
+#define ATM_PHY_SIG_LOST    0	/* yes carrier/light */
+#define ATM_PHY_SIG_UNKNOWN 1	/* carrier/light status is unkyeswn */
 #define ATM_PHY_SIG_FOUND   2	/* carrier/light okay */
 
 #define ATM_ATMOPT_CLP	1	/* set CLP bit */
@@ -117,7 +117,7 @@ struct atm_vcc {
 	/* Multipoint part ------------------------------------------------- */
 	struct atm_vcc	*session;	/* session VCC descriptor */
 	/* Other stuff ----------------------------------------------------- */
-	void		*user_back;	/* user backlink - not touched by */
+	void		*user_back;	/* user backlink - yest touched by */
 					/* native ATM stack. Currently used */
 					/* by CLIP and sch_atm. */
 };
@@ -234,7 +234,7 @@ void atm_dev_deregister(struct atm_dev *dev);
 /* atm_dev_signal_change
  *
  * Propagate lower layer signal change in atm_dev->signal to netdevice.
- * The event will be sent via a notifier call chain.
+ * The event will be sent via a yestifier call chain.
  */
 void atm_dev_signal_change(struct atm_dev *dev, char signal);
 
@@ -245,7 +245,7 @@ void atm_dev_release_vccs(struct atm_dev *dev);
 static inline void atm_account_tx(struct atm_vcc *vcc, struct sk_buff *skb)
 {
 	/*
-	 * Because ATM skbs may not belong to a sock (and we don't
+	 * Because ATM skbs may yest belong to a sock (and we don't
 	 * necessarily want to), skb->truesize may be adjusted,
 	 * escaping the hack in pskb_expand_head() which avoids
 	 * doing so for some cases. So stash the value of truesize
@@ -311,8 +311,8 @@ struct atm_ioctl {
 /**
  * register_atm_ioctl - register handler for ioctl operations
  *
- * Special (non-device) handlers of ioctl's should
- * register here. If you're a normal device, you should
+ * Special (yesn-device) handlers of ioctl's should
+ * register here. If you're a yesrmal device, you should
  * set .ioctl in your atmdev_ops instead.
  */
 void register_atm_ioctl(struct atm_ioctl *);
@@ -323,12 +323,12 @@ void register_atm_ioctl(struct atm_ioctl *);
 void deregister_atm_ioctl(struct atm_ioctl *);
 
 
-/* register_atmdevice_notifier - register atm_dev notify events
+/* register_atmdevice_yestifier - register atm_dev yestify events
  *
- * Clients like br2684 will register notify events
- * Currently we notify of signal found/lost
+ * Clients like br2684 will register yestify events
+ * Currently we yestify of signal found/lost
  */
-int register_atmdevice_notifier(struct notifier_block *nb);
-void unregister_atmdevice_notifier(struct notifier_block *nb);
+int register_atmdevice_yestifier(struct yestifier_block *nb);
+void unregister_atmdevice_yestifier(struct yestifier_block *nb);
 
 #endif

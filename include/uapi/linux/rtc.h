@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Generic RTC interface.
  * This version contains the part of the user interface to the Real Time Clock
@@ -36,7 +36,7 @@ struct rtc_time {
  */
 struct rtc_wkalrm {
 	unsigned char enabled;	/* 0 = alarm disabled, 1 = alarm enabled */
-	unsigned char pending;  /* 0 = alarm not pending, 1 = alarm pending */
+	unsigned char pending;  /* 0 = alarm yest pending, 1 = alarm pending */
 	struct rtc_time time;	/* time the alarm is set to */
 };
 

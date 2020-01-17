@@ -10,7 +10,7 @@ menuconfig X86_PLATFORM_DEVICES
 	---help---
 	  Say Y here to get to see options for device drivers for various
 	  x86 platforms, including vendor-specific laptop extension drivers.
-	  This option alone does not add any kernel code.
+	  This option alone does yest add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
@@ -45,7 +45,7 @@ config ACER_WIRELESS
           The Acer Wireless Radio Control handles the airplane mode hotkey
           present on new Acer laptops.
 
-          Say Y or M here if you have an Acer notebook with an airplane mode
+          Say Y or M here if you have an Acer yestebook with an airplane mode
           hotkey.
 
           If you choose to compile this driver as a module the module will be
@@ -62,9 +62,9 @@ config ACERHDF
 	  After loading this driver the BIOS is still in control of the fan.
 	  To let the kernel handle the fan, do:
 	  echo -n enabled > /sys/class/thermal/thermal_zoneN/mode
-	  where N=0,1,2... depending on the number of thermal nodes and the
+	  where N=0,1,2... depending on the number of thermal yesdes and the
 	  detection order of your particular system.  The "type" parameter
-	  in the same node directory will tell you if it is "acerhdf".
+	  in the same yesde directory will tell you if it is "acerhdf".
 
 	  For more information about this driver see
 	  <http://piie.net/files/acerhdf_README.txt>
@@ -95,7 +95,7 @@ config ASUS_LAPTOP
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_SPARSEKMAP
 	---help---
-	  This is a driver for Asus laptops, Lenovo SL and the Pegatron
+	  This is a driver for Asus laptops, Leyesvo SL and the Pegatron
 	  Lucid tablet. It may also support some MEDION, JVC or VICTOR
 	  laptops. It makes all the extra buttons generate standard
 	  ACPI events and input events, and on the Lucid the built-in
@@ -184,7 +184,7 @@ config DELL_LAPTOP
 	laptops (except for some models covered by the Compal driver).
 
 config DELL_WMI
-	tristate "Dell WMI notifications"
+	tristate "Dell WMI yestifications"
 	depends on ACPI_WMI
 	depends on DMI
 	depends on INPUT
@@ -220,7 +220,7 @@ config DELL_WMI_LED
 	depends on ACPI_WMI
 	help
 	  This adds support for the Latitude 2100 and similar
-	  notebooks that have an external LED.
+	  yestebooks that have an external LED.
 
 config DELL_SMO8800
 	tristate "Dell Latitude freefall driver (ACPI SMO88XX)"
@@ -292,7 +292,7 @@ config FUJITSU_TABLET
            * Possibly other Fujitsu tablet models
 
          It adds support for the panel buttons, docking station detection,
-         tablet/notebook mode detection for convertible and
+         tablet/yestebook mode detection for convertible and
          orientation detection for docked slates.
 
          If you have a Fujitsu convertible or slate, say Y or M here.
@@ -414,7 +414,7 @@ config PANASONIC_LAPTOP
 	  This driver adds support for access to backlight control and hotkeys
 	  on Panasonic Let's Note laptops.
 
-	  If you have a Panasonic Let's note laptop (such as the R1(N variant),
+	  If you have a Panasonic Let's yeste laptop (such as the R1(N variant),
 	  R2, R3, R5, T2, W2 and Y2 series), say Y.
 
 config COMPAL_LAPTOP
@@ -456,7 +456,7 @@ config SONYPI_COMPAT
 	  Build the sonypi driver compatibility code into the sony-laptop driver.
 
 config IDEAPAD_LAPTOP
-	tristate "Lenovo IdeaPad Laptop Extras"
+	tristate "Leyesvo IdeaPad Laptop Extras"
 	depends on ACPI
 	depends on RFKILL && INPUT
 	depends on SERIO_I8042
@@ -465,7 +465,7 @@ config IDEAPAD_LAPTOP
 	depends on ACPI_WMI || ACPI_WMI = n
 	select INPUT_SPARSEKMAP
 	help
-	  This is a driver for Lenovo IdeaPad netbooks contains drivers for
+	  This is a driver for Leyesvo IdeaPad netbooks contains drivers for
 	  rfkill switch, hotkey, fan control and backlight control.
 
 config SURFACE3_WMI
@@ -495,21 +495,21 @@ config THINKPAD_ACPI
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_AUDIO
 	---help---
-	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
+	  This is a driver for the IBM and Leyesvo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
 	  output switching, ThinkLight control, UltraBay eject and more.
 	  For more information about this driver see
 	  <file:Documentation/admin-guide/laptops/thinkpad-acpi.rst> and
 	  <http://ibm-acpi.sf.net/> .
 
-	  This driver was formerly known as ibm-acpi.
+	  This driver was formerly kyeswn as ibm-acpi.
 
 	  Extra functionality will be available if the rfkill (CONFIG_RFKILL)
 	  and/or ALSA (CONFIG_SND) subsystems are available in the kernel.
 	  Note that if you want ThinkPad-ACPI to be built-in instead of
 	  modular, ALSA and rfkill will also have to be built-in.
 
-	  If you have an IBM or Lenovo ThinkPad laptop, say Y or M here.
+	  If you have an IBM or Leyesvo ThinkPad laptop, say Y or M here.
 
 config THINKPAD_ACPI_ALSA_SUPPORT
 	bool "Console audio control ALSA interface"
@@ -530,8 +530,8 @@ config THINKPAD_ACPI_ALSA_SUPPORT
 	  ALSA mixer will be made read-write).  Please refer to the driver
 	  documentation for details.
 
-	  All IBM models have both volume and mute control.  Newer Lenovo
-	  models only have mute control (the volume hotkeys are just normal
+	  All IBM models have both volume and mute control.  Newer Leyesvo
+	  models only have mute control (the volume hotkeys are just yesrmal
 	  keys and volume control is done through the main HDA mixer).
 
 config THINKPAD_ACPI_DEBUGFACILITIES
@@ -539,7 +539,7 @@ config THINKPAD_ACPI_DEBUGFACILITIES
 	depends on THINKPAD_ACPI
 	---help---
 	  Enables extra stuff in the thinkpad-acpi which is completely useless
-	  for normal use.  Read the driver source to find out what it does.
+	  for yesrmal use.  Read the driver source to find out what it does.
 
 	  Say N here, unless you were told by a kernel maintainer to do
 	  otherwise.
@@ -551,7 +551,7 @@ config THINKPAD_ACPI_DEBUG
 	  Enables extra debugging information, at the expense of a slightly
 	  increase in driver size.
 
-	  If you are not sure, say N here.
+	  If you are yest sure, say N here.
 
 config THINKPAD_ACPI_UNSAFE_LEDS
 	bool "Allow control of important LEDs (unsafe)"
@@ -564,10 +564,10 @@ config THINKPAD_ACPI_UNSAFE_LEDS
 
 	  LED control on the ThinkPad is write-only (with very few
 	  exceptions on very ancient models), which makes it
-	  impossible to know beforehand if important information will
+	  impossible to kyesw beforehand if important information will
 	  be lost when one changes LED state.
 
-	  Users that know what they are doing can enable this option
+	  Users that kyesw what they are doing can enable this option
 	  and the driver will allow control of every LED, including
 	  the ones on the dock stations.
 
@@ -596,7 +596,7 @@ config THINKPAD_ACPI_VIDEO
 	  CAP_SYS_ADMIN capability, to avoid local DoS issues in platforms
 	  where it interacts badly with X.org.
 
-	  If you are not sure, say Y here but do try to check if you could
+	  If you are yest sure, say Y here but do try to check if you could
 	  be using X.org RandR instead.
 
 config THINKPAD_ACPI_HOTKEY_POLL
@@ -605,7 +605,7 @@ config THINKPAD_ACPI_HOTKEY_POLL
 	default y
 	---help---
 	  Some thinkpad models benefit from NVRAM polling to detect a few of
-	  the hot key press events.  If you know your ThinkPad model does not
+	  the hot key press events.  If you kyesw your ThinkPad model does yest
 	  need to do NVRAM polling to support any of the hot keys you use,
 	  unselecting this option will save about 1kB of memory.
 
@@ -616,7 +616,7 @@ config THINKPAD_ACPI_HOTKEY_POLL
 	  IBM, Zoom, Switch Display (fn+F7), ThinkLight, Volume up/down/mute,
 	  Brightness up/down, Display Expand (fn+F8), Hibernate (fn+F12).
 
-	  If you are not sure, say Y here.  The driver enables polling only if
+	  If you are yest sure, say Y here.  The driver enables polling only if
 	  it is strictly necessary to do so.
 
 config SENSORS_HDAPS
@@ -631,7 +631,7 @@ config SENSORS_HDAPS
 	  This driver also provides an absolute input class device, allowing
 	  the laptop to act as a pinball machine-esque joystick.
 
-	  If your ThinkPad is not recognized by the driver, please update to latest
+	  If your ThinkPad is yest recognized by the driver, please update to latest
 	  BIOS. This is especially the case for some R52 ThinkPads.
 
 	  Say Y here if you have an applicable laptop and want to experience
@@ -694,7 +694,7 @@ config ASUS_NB_WMI
 	depends on ASUS_WMI
 	depends on SERIO_I8042 || SERIO_I8042 = n
 	---help---
-	  This is a driver for newer Asus notebooks. It adds extra features
+	  This is a driver for newer Asus yestebooks. It adds extra features
 	  like wireless radio and bluetooth control, leds, hotkeys, backlight...
 
 	  For more information, see
@@ -726,7 +726,7 @@ config ASUS_WIRELESS
 	  The Asus Wireless Radio Control handles the airplane mode hotkey
 	  present on some Asus laptops.
 
-	  Say Y or M here if you have an ASUS notebook with an airplane mode
+	  Say Y or M here if you have an ASUS yestebook with an airplane mode
 	  hotkey.
 
 	  If you choose to compile this driver as a module the module will be
@@ -771,7 +771,7 @@ config INTEL_WMI_THUNDERBOLT
 	---help---
 	  Say Y here if you want to be able to use the WMI interface on select
 	  systems to force the power control of Intel Thunderbolt controllers.
-	  This is useful for updating the firmware when devices are not plugged
+	  This is useful for updating the firmware when devices are yest plugged
 	  into the controller.
 
 	  To compile this driver as a module, choose M here: the module will
@@ -782,7 +782,7 @@ config XIAOMI_WMI
 	  depends on ACPI_WMI
 	  depends on INPUT
 	  help
-	  Say Y here if you want to support WMI-based keys on Xiaomi notebooks.
+	  Say Y here if you want to support WMI-based keys on Xiaomi yestebooks.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called xiaomi-wmi.
@@ -838,14 +838,14 @@ config ACPI_TOSHIBA
 	  their lack of a BIOS setup menu and APM support.
 
 	  On these machines, all system configuration is handled through the
-	  ACPI.  This driver is required for access to controls not covered
+	  ACPI.  This driver is required for access to controls yest covered
 	  by the general ACPI drivers, such as LCD brightness, video output,
 	  etc.
 
-	  This driver differs from the non-ACPI Toshiba laptop driver (located
+	  This driver differs from the yesn-ACPI Toshiba laptop driver (located
 	  under "Processor type and features") in several aspects.
 	  Configuration is accessed by reading and writing text files in the
-	  /proc tree instead of by program interface to /dev.  Furthermore, no
+	  /proc tree instead of by program interface to /dev.  Furthermore, yes
 	  power management functions are exposed, as those are handled by the
 	  general ACPI drivers.
 
@@ -879,9 +879,9 @@ config TOSHIBA_HAPS
 	  found on recent Toshiba laptops equipped with HID TOS620A
 	  device.
 
-	  This driver receives ACPI notify events 0x80 when the sensor
+	  This driver receives ACPI yestify events 0x80 when the sensor
 	  detects a sudden move or a harsh vibration, as well as an
-	  ACPI notify event 0x81 whenever the movement or vibration has
+	  ACPI yestify event 0x81 whenever the movement or vibration has
 	  been stabilized.
 
 	  Also provides sysfs entries to get/set the desired protection
@@ -900,7 +900,7 @@ config TOSHIBA_WMI
 	  that manage the hotkeys via WMI events.
 
 	  WARNING: This driver is incomplete as it lacks a proper keymap and the
-	  *notify function only prints the ACPI event type value. Be warned that
+	  *yestify function only prints the ACPI event type value. Be warned that
 	  you will need to provide some information if you have a Toshiba model
 	  with WMI event hotkeys and want to help with the development of this
 	  driver.
@@ -991,7 +991,7 @@ config INTEL_SCU_IPC
 	default y
 	---help---
 	  IPC is used to bridge the communications between kernel and SCU on
-	  some embedded Intel x86 platforms. This is not needed for PC-type
+	  some embedded Intel x86 platforms. This is yest needed for PC-type
 	  machines.
 
 config INTEL_SCU_IPC_UTIL
@@ -1041,7 +1041,7 @@ config INTEL_IMR
 	  by hardware agents inside the SoC. Read and write masks can be
 	  defined for:
 		- eSRAM flush
-		- Dirty CPU snoop (write only)
+		- Dirty CPU syesop (write only)
 		- RMU access
 		- PCI Virtual Channel 0/Virtual Channel 1
 		- SMM mode
@@ -1064,7 +1064,7 @@ config INTEL_PMC_CORE
 	  Supported features:
 		- SLP_S0_RESIDENCY counter
 		- PCH IP Power Gating status
-		- LTR Ignore
+		- LTR Igyesre
 		- MPHY/PLL gating status (Sunrisepoint PCH only)
 
 config IBM_RTL
@@ -1074,12 +1074,12 @@ config IBM_RTL
 	 Enable support for IBM Premium Real Time Mode (PRTM).
 	 This module will allow you the enter and exit PRTM in the BIOS via
 	 sysfs on platforms that support this feature.  System in PRTM will
-	 not receive CPU-generated SMIs for recoverable errors.  Use of this
+	 yest receive CPU-generated SMIs for recoverable errors.  Use of this
 	 feature without proper support may void your hardware warranty.
 
 	 If the proper BIOS support is found the driver will load and create
 	 /sys/devices/system/ibm_rtl/.  The "state" variable will indicate
-	 whether or not the BIOS is in PRTM.
+	 whether or yest the BIOS is in PRTM.
 	 state = 0 (BIOS SMIs on)
 	 state = 1 (BIOS SMIs off)
 
@@ -1158,11 +1158,11 @@ config APPLE_GMUX
 	  control is supported by the driver.
 
 config INTEL_RST
-        tristate "Intel Rapid Start Technology Driver"
+        tristate "Intel Rapid Start Techyeslogy Driver"
 	depends on ACPI
 	---help---
 	  This driver provides support for modifying paramaters on systems
-	  equipped with Intel's Rapid Start Technology. When put in an ACPI
+	  equipped with Intel's Rapid Start Techyeslogy. When put in an ACPI
 	  sleep state, these devices will wake after either a configured
 	  timeout or when the system battery reaches a critical state,
 	  automatically copying memory contents to disk. On resume, the
@@ -1173,12 +1173,12 @@ config INTEL_SMARTCONNECT
         tristate "Intel Smart Connect disabling driver"
 	depends on ACPI
 	---help---
-	  Intel Smart Connect is a technology intended to permit devices to
+	  Intel Smart Connect is a techyeslogy intended to permit devices to
 	  update state by resuming for a short period of time at regular
 	  intervals. If a user enables this functionality under Windows and
 	  then reboots into Linux, the system may remain configured to resume
 	  on suspend. In the absence of any userspace to support it, the system
-	  will then remain awake until something triggers another suspend.
+	  will then remain awake until something triggers ayesther suspend.
 
 	  This driver checks to determine whether the device has Intel Smart
 	  Connect enabled, and if so disables it.
@@ -1229,25 +1229,25 @@ config INTEL_TELEMETRY
 	  this interface for SoC state monitoring.
 
 config MLX_PLATFORM
-	tristate "Mellanox Technologies platform support"
+	tristate "Mellayesx Techyeslogies platform support"
 	depends on I2C && REGMAP
 	---help---
-	  This option enables system support for the Mellanox Technologies
-	  platform. The Mellanox systems provide data center networking
-	  solutions based on Virtual Protocol Interconnect (VPI) technology
+	  This option enables system support for the Mellayesx Techyeslogies
+	  platform. The Mellayesx systems provide data center networking
+	  solutions based on Virtual Protocol Interconnect (VPI) techyeslogy
 	  enable seamless connectivity to 56/100Gb/s InfiniBand or 10/40/56GbE
 	  connection.
 
-	  If you have a Mellanox system, say Y or M here.
+	  If you have a Mellayesx system, say Y or M here.
 
 config INTEL_TURBO_MAX_3
-	bool "Intel Turbo Boost Max Technology 3.0 enumeration driver"
+	bool "Intel Turbo Boost Max Techyeslogy 3.0 enumeration driver"
 	depends on X86_64 && SCHED_MC_PRIO
 	---help---
 	  This driver reads maximum performance ratio of each CPU and set up
 	  the scheduler priority metrics. In this way scheduler can prefer
 	  CPU with higher performance to schedule tasks.
-	  This driver is only required when the system is not using Hardware
+	  This driver is only required when the system is yest using Hardware
 	  P-States (HWP). In HWP mode, priority can be read from ACPI tables.
 
 config TOUCHSCREEN_DMI
@@ -1255,7 +1255,7 @@ config TOUCHSCREEN_DMI
 	depends on ACPI && DMI && I2C=y && TOUCHSCREEN_SILEAD
 	---help---
 	  Certain ACPI based tablets with e.g. Silead or Chipone touchscreens
-	  do not have enough data in ACPI tables for the touchscreen driver to
+	  do yest have eyesugh data in ACPI tables for the touchscreen driver to
 	  handle the touchscreen properly, as OEMs expect the data to be baked
 	  into the tablet model specific version of the driver shipped with the
 	  the OS-image for the device. This option supplies the missing info.
@@ -1288,8 +1288,8 @@ config I2C_MULTI_INSTANTIATE
 	depends on I2C && ACPI
 	help
 	  Some ACPI-based systems list multiple i2c-devices in a single ACPI
-	  firmware-node. This driver will instantiate separate i2c-clients
-	  for each device in the firmware-node.
+	  firmware-yesde. This driver will instantiate separate i2c-clients
+	  for each device in the firmware-yesde.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called i2c-multi-instantiate.

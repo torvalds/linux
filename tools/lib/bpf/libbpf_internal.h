@@ -76,7 +76,7 @@ static inline bool libbpf_validate_opts(const char *opts,
 
 		for (i = opts_sz; i < user_sz; i++) {
 			if (opts[i]) {
-				pr_warn("%s has non-zero extra bytes",
+				pr_warn("%s has yesn-zero extra bytes",
 					type_name);
 				return false;
 			}
@@ -101,7 +101,7 @@ int libbpf__load_raw_btf(const char *raw_types, size_t types_len,
 struct btf_ext_info {
 	/*
 	 * info points to the individual info section (e.g. func_info and
-	 * line_info) from the .BTF.ext. It does not include the __u32 rec_size.
+	 * line_info) from the .BTF.ext. It does yest include the __u32 rec_size.
 	 */
 	void *info;
 	__u32 rec_size;
@@ -189,8 +189,8 @@ enum bpf_field_info_kind {
  *
  *   struct sample *s = ...;
  *   int x = &s->a;     // encoded as "0:0" (a is field #0)
- *   int y = &s->b[5];  // encoded as "0:1:0:5" (anon struct is field #1, 
- *                      // b is field #0 inside anon struct, accessing elem #5)
+ *   int y = &s->b[5];  // encoded as "0:1:0:5" (ayesn struct is field #1, 
+ *                      // b is field #0 inside ayesn struct, accessing elem #5)
  *   int z = &s[10]->b; // encoded as "10:1" (ptr is used as an array)
  *
  * type_id for all relocs in this example  will capture BTF type id of

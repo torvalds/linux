@@ -11,7 +11,7 @@
  *
  *  Bits from Jeff Garzik, Copyright RedHat, Inc.
  *
- *  This driver probably works with non-Apple versions of the
+ *  This driver probably works with yesn-Apple versions of the
  *  Broadcom chipset...
  *
  *  libata documentation is available via 'make {ps|pdf}docs',
@@ -84,7 +84,7 @@ static int k2_sata_check_atapi_dma(struct ata_queued_cmd *qc)
 	u8 cmnd = qc->scsicmd->cmnd[0];
 
 	if (qc->ap->flags & K2_FLAG_NO_ATAPI_DMA)
-		return -1;	/* ATAPI DMA not supported */
+		return -1;	/* ATAPI DMA yest supported */
 	else {
 		switch (cmnd) {
 		case READ_10:
@@ -245,7 +245,7 @@ static void k2_bmdma_setup_mmio(struct ata_queued_cmd *qc)
 		dmactl |= ATA_DMA_WR;
 	writeb(dmactl, mmio + ATA_DMA_CMD);
 
-	/* issue r/w command if this is not a ATA DMA command*/
+	/* issue r/w command if this is yest a ATA DMA command*/
 	if (qc->tf.protocol != ATA_PROT_DMA)
 		ap->ops->sff_exec_command(ap, &qc->tf);
 }
@@ -303,7 +303,7 @@ static u8 k2_stat_check_status(struct ata_port *ap)
 static int k2_sata_show_info(struct seq_file *m, struct Scsi_Host *shost)
 {
 	struct ata_port *ap;
-	struct device_node *np;
+	struct device_yesde *np;
 	int index;
 
 	/* Find  the ata_port */
@@ -311,12 +311,12 @@ static int k2_sata_show_info(struct seq_file *m, struct Scsi_Host *shost)
 	if (ap == NULL)
 		return 0;
 
-	/* Find the OF node for the PCI device proper */
-	np = pci_device_to_OF_node(to_pci_dev(ap->host->dev));
+	/* Find the OF yesde for the PCI device proper */
+	np = pci_device_to_OF_yesde(to_pci_dev(ap->host->dev));
 	if (np == NULL)
 		return 0;
 
-	/* Match it to a port node */
+	/* Match it to a port yesde */
 	index = (ap == ap->host->ports[0]) ? 0 : 1;
 	for (np = np->child; np != NULL; np = np->sibling) {
 		const u32 *reg = of_get_property(np, "reg", NULL);
@@ -430,7 +430,7 @@ static int k2_sata_init_one(struct pci_dev *pdev, const struct pci_device_id *en
 		bar_pos = 3;
 	/*
 	 * If this driver happens to only be useful on Apple's K2, then
-	 * we should check that here as it has a normal Serverworks ID
+	 * we should check that here as it has a yesrmal Serverworks ID
 	 */
 	rc = pcim_enable_device(pdev);
 	if (rc)
@@ -442,7 +442,7 @@ static int k2_sata_init_one(struct pci_dev *pdev, const struct pci_device_id *en
 	 */
 	if (pci_resource_len(pdev, bar_pos) == 0) {
 		/* In IDE mode we need to pin the device to ensure that
-			pcim_release does not clear the busmaster bit in config
+			pcim_release does yest clear the busmaster bit in config
 			space, clearing causes busmaster DMA to fail on
 			ports 3 & 4 */
 		pcim_pin_device(pdev);
@@ -459,8 +459,8 @@ static int k2_sata_init_one(struct pci_dev *pdev, const struct pci_device_id *en
 	mmio_base = host->iomap[bar_pos];
 
 	/* different controllers have different number of ports - currently 4 or 8 */
-	/* All ports are on the same function. Multi-function device is no
-	 * longer available. This should not be seen in any system. */
+	/* All ports are on the same function. Multi-function device is yes
+	 * longer available. This should yest be seen in any system. */
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 		unsigned int offset = i * K2_SATA_PORT_OFFSET;

@@ -34,9 +34,9 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 
-static int queue_dbg_open(struct inode *inode, struct file *file)
+static int queue_dbg_open(struct iyesde *iyesde, struct file *file)
 {
-	struct usba_ep *ep = inode->i_private;
+	struct usba_ep *ep = iyesde->i_private;
 	struct usba_request *req, *req_copy;
 	struct list_head *queue_data;
 
@@ -72,14 +72,14 @@ fail:
  *
  * b: buffer address
  * l: buffer length
- * I/i: interrupt/no interrupt
- * Z/z: zero/no zero
- * S/s: short ok/short not ok
+ * I/i: interrupt/yes interrupt
+ * Z/z: zero/yes zero
+ * S/s: short ok/short yest ok
  * s: status
  * n: nr_packets
- * F/f: submitted/not submitted to FIFO
- * D/d: using/not using DMA
- * L/l: last transaction/not last transaction
+ * F/f: submitted/yest submitted to FIFO
+ * D/d: using/yest using DMA
+ * L/l: last transaction/yest last transaction
  */
 static ssize_t queue_dbg_read(struct file *file, char __user *buf,
 		size_t nbytes, loff_t *ppos)
@@ -92,14 +92,14 @@ static ssize_t queue_dbg_read(struct file *file, char __user *buf,
 	if (!access_ok(buf, nbytes))
 		return -EFAULT;
 
-	inode_lock(file_inode(file));
+	iyesde_lock(file_iyesde(file));
 	list_for_each_entry_safe(req, tmp_req, queue, queue) {
 		len = snprintf(tmpbuf, sizeof(tmpbuf),
 				"%8p %08x %c%c%c %5d %c%c%c\n",
 				req->req.buf, req->req.length,
-				req->req.no_interrupt ? 'i' : 'I',
+				req->req.yes_interrupt ? 'i' : 'I',
 				req->req.zero ? 'Z' : 'z',
-				req->req.short_not_ok ? 's' : 'S',
+				req->req.short_yest_ok ? 's' : 'S',
 				req->req.status,
 				req->submitted ? 'F' : 'f',
 				req->using_dma ? 'D' : 'd',
@@ -119,12 +119,12 @@ static ssize_t queue_dbg_read(struct file *file, char __user *buf,
 		nbytes -= len;
 		buf += len;
 	}
-	inode_unlock(file_inode(file));
+	iyesde_unlock(file_iyesde(file));
 
 	return actual;
 }
 
-static int queue_dbg_release(struct inode *inode, struct file *file)
+static int queue_dbg_release(struct iyesde *iyesde, struct file *file)
 {
 	struct list_head *queue_data = file->private_data;
 	struct usba_request *req, *tmp_req;
@@ -137,21 +137,21 @@ static int queue_dbg_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int regs_dbg_open(struct inode *inode, struct file *file)
+static int regs_dbg_open(struct iyesde *iyesde, struct file *file)
 {
 	struct usba_udc *udc;
 	unsigned int i;
 	u32 *data;
 	int ret = -ENOMEM;
 
-	inode_lock(inode);
-	udc = inode->i_private;
-	data = kmalloc(inode->i_size, GFP_KERNEL);
+	iyesde_lock(iyesde);
+	udc = iyesde->i_private;
+	data = kmalloc(iyesde->i_size, GFP_KERNEL);
 	if (!data)
 		goto out;
 
 	spin_lock_irq(&udc->lock);
-	for (i = 0; i < inode->i_size / 4; i++)
+	for (i = 0; i < iyesde->i_size / 4; i++)
 		data[i] = readl_relaxed(udc->regs + i * 4);
 	spin_unlock_irq(&udc->lock);
 
@@ -159,7 +159,7 @@ static int regs_dbg_open(struct inode *inode, struct file *file)
 	ret = 0;
 
 out:
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 
 	return ret;
 }
@@ -167,19 +167,19 @@ out:
 static ssize_t regs_dbg_read(struct file *file, char __user *buf,
 		size_t nbytes, loff_t *ppos)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	int ret;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 	ret = simple_read_from_buffer(buf, nbytes, ppos,
 			file->private_data,
-			file_inode(file)->i_size);
-	inode_unlock(inode);
+			file_iyesde(file)->i_size);
+	iyesde_unlock(iyesde);
 
 	return ret;
 }
 
-static int regs_dbg_release(struct inode *inode, struct file *file)
+static int regs_dbg_release(struct iyesde *iyesde, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
@@ -188,7 +188,7 @@ static int regs_dbg_release(struct inode *inode, struct file *file)
 const struct file_operations queue_dbg_fops = {
 	.owner		= THIS_MODULE,
 	.open		= queue_dbg_open,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.read		= queue_dbg_read,
 	.release	= queue_dbg_release,
 };
@@ -608,7 +608,7 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		if (!ep->can_isoc) {
-			DBG(DBG_ERR, "ep_enable: %s is not isoc capable\n",
+			DBG(DBG_ERR, "ep_enable: %s is yest isoc capable\n",
 					ep->ep.name);
 			return -EINVAL;
 		}
@@ -678,10 +678,10 @@ static int usba_ep_disable(struct usb_ep *_ep)
 		spin_unlock_irqrestore(&udc->lock, flags);
 		/* REVISIT because this driver disables endpoints in
 		 * reset_all_endpoints() before calling disconnect(),
-		 * most gadget drivers would trigger this non-error ...
+		 * most gadget drivers would trigger this yesn-error ...
 		 */
 		if (udc->gadget.speed != USB_SPEED_UNKNOWN)
-			DBG(DBG_ERR, "ep_disable: %s not enabled\n",
+			DBG(DBG_ERR, "ep_disable: %s yest enabled\n",
 					ep->ep.name);
 		return -EINVAL;
 	}
@@ -738,8 +738,8 @@ static int queue_dma(struct usba_udc *udc, struct usba_ep *ep,
 	DBG(DBG_DMA, "%s: req l/%u d/%pad %c%c%c\n",
 		ep->ep.name, req->req.length, &req->req.dma,
 		req->req.zero ? 'Z' : 'z',
-		req->req.short_not_ok ? 'S' : 's',
-		req->req.no_interrupt ? 'I' : 'i');
+		req->req.short_yest_ok ? 'S' : 's',
+		req->req.yes_interrupt ? 'I' : 'i');
 
 	if (req->req.length > 0x10000) {
 		/* Lengths from 0 to 65536 (inclusive) are supported */
@@ -837,7 +837,7 @@ static int stop_dma(struct usba_ep *ep, u32 *pstatus)
 
 	/*
 	 * Stop the DMA controller. When writing both CH_EN
-	 * and LINK to 0, the other bits are not affected.
+	 * and LINK to 0, the other bits are yest affected.
 	 */
 	usba_dma_writel(ep, CONTROL, 0);
 
@@ -936,7 +936,7 @@ static int usba_ep_set_halt(struct usb_ep *_ep, int value)
 		return -ENODEV;
 	}
 	if (ep->is_isoc) {
-		DBG(DBG_ERR, "Attempted to halt isochronous ep %s\n",
+		DBG(DBG_ERR, "Attempted to halt isochroyesus ep %s\n",
 				ep->ep.name);
 		return -ENOTTY;
 	}
@@ -1091,7 +1091,7 @@ found_ep:
 		if (ep->fifo_size  <= 8)
 			ep->ept_cfg = USBA_BF(EPT_SIZE, USBA_EPT_SIZE_8);
 		else
-			/* LSB is bit 1, not 0 */
+			/* LSB is bit 1, yest 0 */
 			ep->ept_cfg =
 				USBA_BF(EPT_SIZE, fls(ep->fifo_size - 1) - 3);
 
@@ -1118,7 +1118,7 @@ static struct usb_endpoint_descriptor usba_ep0_desc = {
 	.bEndpointAddress = 0,
 	.bmAttributes = USB_ENDPOINT_XFER_CONTROL,
 	.wMaxPacketSize = cpu_to_le16(64),
-	/* FIXME: I have no idea what to put here */
+	/* FIXME: I have yes idea what to put here */
 	.bInterval = 1,
 };
 
@@ -1244,7 +1244,7 @@ static int do_test_mode(struct usba_udc *udc)
 				| USBA_BF(BK_NUMBER, 1));
 		if (!(usba_ep_readl(ep, CFG) & USBA_EPT_MAPPED)) {
 			set_protocol_stall(udc, ep);
-			dev_err(dev, "Test_SE0_NAK: ep0 not mapped\n");
+			dev_err(dev, "Test_SE0_NAK: ep0 yest mapped\n");
 		} else {
 			usba_ep_writel(ep, CTL_ENB, USBA_EPT_ENABLE);
 			dev_info(dev, "Entering Test_SE0_NAK mode...\n");
@@ -1260,7 +1260,7 @@ static int do_test_mode(struct usba_udc *udc)
 				| USBA_BF(BK_NUMBER, 1));
 		if (!(usba_ep_readl(ep, CFG) & USBA_EPT_MAPPED)) {
 			set_protocol_stall(udc, ep);
-			dev_err(dev, "Test_Packet: ep0 not mapped\n");
+			dev_err(dev, "Test_Packet: ep0 yest mapped\n");
 		} else {
 			usba_ep_writel(ep, CTL_ENB, USBA_EPT_ENABLE);
 			usba_writel(udc, TST, USBA_TST_PKT_MODE);
@@ -1582,7 +1582,7 @@ restart:
 		if (crq.crq.bRequestType & USB_DIR_IN) {
 			/*
 			 * The USB 2.0 spec states that "if wLength is
-			 * zero, there is no data transfer phase."
+			 * zero, there is yes data transfer phase."
 			 * However, testusb #14 seems to actually
 			 * expect a data phase even if wLength = 0...
 			 */
@@ -1608,7 +1608,7 @@ restart:
 			le16_to_cpu(crq.crq.wLength), ep->state, ret);
 
 		if (ret < 0) {
-			/* Let the host know that we failed */
+			/* Let the host kyesw that we failed */
 			set_protocol_stall(udc, ep);
 		}
 	}
@@ -1688,7 +1688,7 @@ static void usba_dma_irq(struct usba_udc *udc, struct usba_ep *ep)
 			status, pending, control);
 
 		/*
-		 * try to pretend nothing happened. We might have to
+		 * try to pretend yesthing happened. We might have to
 		 * do something here...
 		 */
 	}
@@ -2056,13 +2056,13 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 						    struct usba_udc *udc)
 {
 	u32 val;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *match;
-	struct device_node *pp;
+	struct device_yesde *pp;
 	int i, ret;
 	struct usba_ep *eps, *ep;
 
-	match = of_match_node(atmel_udc_dt_ids, np);
+	match = of_match_yesde(atmel_udc_dt_ids, np);
 	if (!match)
 		return ERR_PTR(-EINVAL);
 
@@ -2177,7 +2177,7 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 			if (ep->fifo_size  <= 8)
 				ep->ept_cfg = USBA_BF(EPT_SIZE, USBA_EPT_SIZE_8);
 			else
-				/* LSB is bit 1, not 0 */
+				/* LSB is bit 1, yest 0 */
 				ep->ept_cfg =
 				  USBA_BF(EPT_SIZE, fls(ep->fifo_size - 1) - 3);
 
@@ -2191,7 +2191,7 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 	}
 
 	if (i == 0) {
-		dev_err(&pdev->dev, "of_probe: no endpoint specified\n");
+		dev_err(&pdev->dev, "of_probe: yes endpoint specified\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -2267,7 +2267,7 @@ static int usba_udc_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, usba_udc_irq, 0,
 				"atmel_usba_udc", udc);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot request irq %d (error %d)\n",
+		dev_err(&pdev->dev, "Canyest request irq %d (error %d)\n",
 			irq, ret);
 		return ret;
 	}

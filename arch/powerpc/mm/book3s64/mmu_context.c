@@ -7,7 +7,7 @@
 
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -60,9 +60,9 @@ static int realloc_context_ids(mm_context_t *ctx)
 	 * case where ctx is newly allocated).
 	 *
 	 * We have to be a bit careful here. We must keep the existing ids in
-	 * the array, so that we can test if they're non-zero to decide if we
+	 * the array, so that we can test if they're yesn-zero to decide if we
 	 * need to allocate a new one. However in case of error we must free the
-	 * ids we've allocated but *not* any of the existing ones (or risk a
+	 * ids we've allocated but *yest* any of the existing ones (or risk a
 	 * UAF). That's why we decrement i at the start of the error handling
 	 * loop, to skip the id that we just tested but couldn't reallocate.
 	 */
@@ -108,7 +108,7 @@ static int hash__init_new_context(struct mm_struct *mm)
 	 * have id == 0) and don't alter context slice inherited via fork (which
 	 * will have id != 0).
 	 *
-	 * We should not be calling init_new_context() on init_mm. Hence a
+	 * We should yest be calling init_new_context() on init_mm. Hence a
 	 * check against 0 is OK.
 	 */
 	if (mm->context.id == 0) {
@@ -266,7 +266,7 @@ void destroy_context(struct mm_struct *mm)
 	 * The condition below handles the error case during task init. We have
 	 * set the process table entry early and if we fail a task
 	 * initialization, we need to ensure the process table entry is zeroed.
-	 * We need not worry about process table entry caches because the task
+	 * We need yest worry about process table entry caches because the task
 	 * never ran with the PID value.
 	 */
 	if (radix_enabled())
@@ -284,7 +284,7 @@ void arch_exit_mmap(struct mm_struct *mm)
 	if (radix_enabled()) {
 		/*
 		 * Radix doesn't have a valid bit in the process table
-		 * entries. However we know that at least P9 implementation
+		 * entries. However we kyesw that at least P9 implementation
 		 * will avoid caching an entry with an invalid RTS field,
 		 * and 0 is invalid. So this will do.
 		 *

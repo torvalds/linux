@@ -35,7 +35,7 @@ enum ipipeif_input_entity {
  * @formats: Active video formats
  * @input: Active input
  * @output: Active outputs
- * @video_out: Output video node
+ * @video_out: Output video yesde
  * @error: A hardware error occurred during capture
  * @alaw: A-law compression enabled (1) or disabled (0)
  * @lpf: Low pass filter enabled (1) or disabled (0)

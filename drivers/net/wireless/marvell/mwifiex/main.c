@@ -81,7 +81,7 @@ static int mwifiex_register(void *card, struct device *dev,
 	memmove(&adapter->if_ops, if_ops, sizeof(struct mwifiex_if_ops));
 	adapter->debug_mask = debug_mask;
 
-	/* card specific initialization has been deferred until now .. */
+	/* card specific initialization has been deferred until yesw .. */
 	if (adapter->if_ops.init_if)
 		if (adapter->if_ops.init_if(adapter))
 			goto error;
@@ -260,11 +260,11 @@ process_start:
 		if (adapter->hw_status == MWIFIEX_HW_STATUS_NOT_READY)
 			break;
 
-		/* For non-USB interfaces, If we process interrupts first, it
+		/* For yesn-USB interfaces, If we process interrupts first, it
 		 * would increase RX pending even further. Avoid this by
 		 * checking if rx_pending has crossed high threshold and
 		 * schedule rx work queue and then process interrupts.
-		 * For USB interface, there are no interrupts. We already have
+		 * For USB interface, there are yes interrupts. We already have
 		 * HIGH_RX_PENDING check in usb.c
 		 */
 		if (atomic_read(&adapter->rx_pending) >= HIGH_RX_PENDING &&
@@ -579,14 +579,14 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	if (!adapter->wiphy) {
 		if (mwifiex_register_cfg80211(adapter)) {
 			mwifiex_dbg(adapter, ERROR,
-				    "cannot register with cfg80211\n");
+				    "canyest register with cfg80211\n");
 			goto err_init_fw;
 		}
 	}
 
 	if (mwifiex_init_channel_scan_gap(adapter)) {
 		mwifiex_dbg(adapter, ERROR,
-			    "could not init channel stats table\n");
+			    "could yest init channel stats table\n");
 		goto err_init_chan_scan;
 	}
 
@@ -601,7 +601,7 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 					NL80211_IFTYPE_STATION, NULL);
 	if (IS_ERR(wdev)) {
 		mwifiex_dbg(adapter, ERROR,
-			    "cannot create default STA interface\n");
+			    "canyest create default STA interface\n");
 		rtnl_unlock();
 		goto err_add_intf;
 	}
@@ -611,7 +611,7 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 						NL80211_IFTYPE_AP, NULL);
 		if (IS_ERR(wdev)) {
 			mwifiex_dbg(adapter, ERROR,
-				    "cannot create AP interface\n");
+				    "canyest create AP interface\n");
 			rtnl_unlock();
 			goto err_add_intf;
 		}
@@ -622,7 +622,7 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 						NL80211_IFTYPE_P2P_CLIENT, NULL);
 		if (IS_ERR(wdev)) {
 			mwifiex_dbg(adapter, ERROR,
-				    "cannot create p2p client interface\n");
+				    "canyest create p2p client interface\n");
 			rtnl_unlock();
 			goto err_add_intf;
 		}
@@ -684,11 +684,11 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 }
 
 /*
- * This function gets the firmware and (if called asynchronously) kicks off the
+ * This function gets the firmware and (if called asynchroyesusly) kicks off the
  * HW init when done.
  */
 static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter,
-			      bool req_fw_nowait)
+			      bool req_fw_yeswait)
 {
 	int ret;
 
@@ -704,8 +704,8 @@ static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter,
 		}
 	}
 
-	if (req_fw_nowait) {
-		ret = request_firmware_nowait(THIS_MODULE, 1, adapter->fw_name,
+	if (req_fw_yeswait) {
+		ret = request_firmware_yeswait(THIS_MODULE, 1, adapter->fw_name,
 					      adapter->dev, GFP_KERNEL, adapter,
 					      mwifiex_fw_dpc);
 	} else {
@@ -716,7 +716,7 @@ static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter,
 
 	if (ret < 0)
 		mwifiex_dbg(adapter, ERROR, "request_firmware%s error %d\n",
-			    req_fw_nowait ? "_nowait" : "", ret);
+			    req_fw_yeswait ? "_yeswait" : "", ret);
 	return ret;
 }
 
@@ -891,7 +891,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_realloc_headroom(skb, MWIFIEX_MIN_DATA_HEADER_LEN);
 		if (unlikely(!new_skb)) {
 			mwifiex_dbg(priv->adapter, ERROR,
-				    "Tx: cannot alloca new_skb\n");
+				    "Tx: canyest alloca new_skb\n");
 			kfree_skb(skb);
 			priv->stats.tx_dropped++;
 			return 0;
@@ -1397,7 +1397,7 @@ static void mwifiex_uninit_sw(struct mwifiex_adapter *adapter)
 	struct mwifiex_private *priv;
 	int i;
 
-	/* We can no longer handle interrupts once we start doing the teardown
+	/* We can yes longer handle interrupts once we start doing the teardown
 	 * below.
 	 */
 	if (adapter->if_ops.disable_int)
@@ -1573,7 +1573,7 @@ static irqreturn_t mwifiex_irq_wakeup_handler(int irq, void *priv)
 
 	dev_dbg(adapter->dev, "%s: wake by wifi", __func__);
 	adapter->wake_by_wifi = true;
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 
 	/* Notify PM core we are wakeup source */
 	pm_wakeup_event(adapter->dev, 0);
@@ -1587,11 +1587,11 @@ static void mwifiex_probe_of(struct mwifiex_adapter *adapter)
 	int ret;
 	struct device *dev = adapter->dev;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		goto err_exit;
 
-	adapter->dt_node = dev->of_node;
-	adapter->irq_wakeup = irq_of_parse_and_map(adapter->dt_node, 0);
+	adapter->dt_yesde = dev->of_yesde;
+	adapter->irq_wakeup = irq_of_parse_and_map(adapter->dt_yesde, 0);
 	if (!adapter->irq_wakeup) {
 		dev_dbg(dev, "fail to parse irq_wakeup from device tree\n");
 		goto err_exit;

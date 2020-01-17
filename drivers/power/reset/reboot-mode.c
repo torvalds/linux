@@ -22,12 +22,12 @@ struct mode_info {
 static unsigned int get_reboot_mode_magic(struct reboot_mode_driver *reboot,
 					  const char *cmd)
 {
-	const char *normal = "normal";
+	const char *yesrmal = "yesrmal";
 	int magic = 0;
 	struct mode_info *info;
 
 	if (!cmd)
-		cmd = normal;
+		cmd = yesrmal;
 
 	list_for_each_entry(info, &reboot->head, list) {
 		if (!strcmp(info->mode, cmd)) {
@@ -39,13 +39,13 @@ static unsigned int get_reboot_mode_magic(struct reboot_mode_driver *reboot,
 	return magic;
 }
 
-static int reboot_mode_notify(struct notifier_block *this,
+static int reboot_mode_yestify(struct yestifier_block *this,
 			      unsigned long mode, void *cmd)
 {
 	struct reboot_mode_driver *reboot;
 	unsigned int magic;
 
-	reboot = container_of(this, struct reboot_mode_driver, reboot_notifier);
+	reboot = container_of(this, struct reboot_mode_driver, reboot_yestifier);
 	magic = get_reboot_mode_magic(reboot, cmd);
 	if (magic)
 		reboot->write(reboot, magic);
@@ -63,13 +63,13 @@ int reboot_mode_register(struct reboot_mode_driver *reboot)
 {
 	struct mode_info *info;
 	struct property *prop;
-	struct device_node *np = reboot->dev->of_node;
+	struct device_yesde *np = reboot->dev->of_yesde;
 	size_t len = strlen(PREFIX);
 	int ret;
 
 	INIT_LIST_HEAD(&reboot->head);
 
-	for_each_property_of_node(np, prop) {
+	for_each_property_of_yesde(np, prop) {
 		if (strncmp(prop->name, PREFIX, len))
 			continue;
 
@@ -101,8 +101,8 @@ int reboot_mode_register(struct reboot_mode_driver *reboot)
 		list_add_tail(&info->list, &reboot->head);
 	}
 
-	reboot->reboot_notifier.notifier_call = reboot_mode_notify;
-	register_reboot_notifier(&reboot->reboot_notifier);
+	reboot->reboot_yestifier.yestifier_call = reboot_mode_yestify;
+	register_reboot_yestifier(&reboot->reboot_yestifier);
 
 	return 0;
 
@@ -122,7 +122,7 @@ int reboot_mode_unregister(struct reboot_mode_driver *reboot)
 {
 	struct mode_info *info;
 
-	unregister_reboot_notifier(&reboot->reboot_notifier);
+	unregister_reboot_yestifier(&reboot->reboot_yestifier);
 
 	list_for_each_entry(info, &reboot->head, list)
 		kfree_const(info->mode);

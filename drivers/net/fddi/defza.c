@@ -33,7 +33,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -389,7 +389,7 @@ static int fza_init_send(struct net_device *dev,
 	spin_unlock_irqrestore(&fp->lock, flags);
 	if (!ring)
 		/* This should never happen in the uninitialized state,
-		 * so do not try to recover and just consider it fatal.
+		 * so do yest try to recover and just consider it fatal.
 		 */
 		return -ENOBUFS;
 
@@ -767,7 +767,7 @@ static void fza_rx(struct net_device *dev)
 			fp->rx_dma[i] = dma;
 		} else {
 			fp->stats.rx_dropped++;
-			pr_notice("%s: memory squeeze, dropping packet\n",
+			pr_yestice("%s: memory squeeze, dropping packet\n",
 				  fp->name);
 		}
 
@@ -808,7 +808,7 @@ static void fza_tx_smt(struct net_device *dev)
 				 */
 				skb = fza_alloc_skb_irq(dev, (len + 3) & ~3);
 				if (!skb)
-					goto err_no_skb;	/* Drop. */
+					goto err_yes_skb;	/* Drop. */
 
 				skb_data_ptr = (struct fza_buffer_tx *)
 					       skb->data;
@@ -824,7 +824,7 @@ static void fza_tx_smt(struct net_device *dev)
 
 				dev_kfree_skb_irq(skb);
 
-err_no_skb:
+err_yes_skb:
 				;
 			}
 
@@ -1312,15 +1312,15 @@ static int fza_probe(struct device *bdev)
 	start = tdev->resource.start;
 	len = tdev->resource.end - start + 1;
 	if (!request_mem_region(start, len, dev_name(bdev))) {
-		pr_err("%s: cannot reserve MMIO region\n", fp->name);
+		pr_err("%s: canyest reserve MMIO region\n", fp->name);
 		ret = -EBUSY;
 		goto err_out_kfree;
 	}
 
 	/* MMIO mapping setup. */
-	mmio = ioremap_nocache(start, len);
+	mmio = ioremap_yescache(start, len);
 	if (!mmio) {
-		pr_err("%s: cannot map MMIO\n", fp->name);
+		pr_err("%s: canyest map MMIO\n", fp->name);
 		ret = -ENOMEM;
 		goto err_out_resource;
 	}

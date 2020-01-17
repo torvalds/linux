@@ -97,12 +97,12 @@ struct dsu_hw_events {
 /*
  * struct dsu_pmu	- DSU PMU descriptor
  *
- * @pmu_lock		: Protects accesses to DSU PMU register from normal vs
+ * @pmu_lock		: Protects accesses to DSU PMU register from yesrmal vs
  *			  interrupt handler contexts.
  * @hw_events		: Holds the event counter state.
  * @associated_cpus	: CPUs attached to the DSU.
  * @active_cpu		: CPU to which the PMU is bound for accesses.
- * @cpuhp_node		: Node for CPU hotplug notifier link.
+ * @cpuhp_yesde		: Node for CPU hotplug yestifier link.
  * @num_counters	: Number of event counters implemented by the PMU,
  *			  excluding the cycle counter.
  * @irq			: Interrupt line for counter overflow.
@@ -116,7 +116,7 @@ struct dsu_pmu {
 	struct dsu_hw_events		hw_events;
 	cpumask_t			associated_cpus;
 	cpumask_t			active_cpu;
-	struct hlist_node		cpuhp_node;
+	struct hlist_yesde		cpuhp_yesde;
 	s8				num_counters;
 	int				irq;
 	DECLARE_BITMAP(cpmceid_bitmap, DSU_PMU_MAX_COMMON_EVENTS);
@@ -482,7 +482,7 @@ static void dsu_pmu_enable(struct pmu *pmu)
 	unsigned long flags;
 	struct dsu_pmu *dsu_pmu = to_dsu_pmu(pmu);
 
-	/* If no counters are added, skip enabling the PMU */
+	/* If yes counters are added, skip enabling the PMU */
 	if (bitmap_empty(dsu_pmu->hw_events.used_mask, DSU_PMU_MAX_HW_CNTRS))
 		return;
 
@@ -553,7 +553,7 @@ static int dsu_pmu_event_init(struct perf_event *event)
 		return -EOPNOTSUPP;
 	}
 
-	/* We cannot support task bound events */
+	/* We canyest support task bound events */
 	if (event->cpu < 0 || event->attach_state & PERF_ATTACH_TASK) {
 		dev_dbg(dsu_pmu->pmu.dev, "Can't support per-task counters\n");
 		return -EINVAL;
@@ -566,7 +566,7 @@ static int dsu_pmu_event_init(struct perf_event *event)
 
 	if (!cpumask_test_cpu(event->cpu, &dsu_pmu->associated_cpus)) {
 		dev_dbg(dsu_pmu->pmu.dev,
-			 "Requested cpu is not associated with the DSU\n");
+			 "Requested cpu is yest associated with the DSU\n");
 		return -EINVAL;
 	}
 	/*
@@ -605,22 +605,22 @@ static struct dsu_pmu *dsu_pmu_alloc(struct platform_device *pdev)
 /**
  * dsu_pmu_dt_get_cpus: Get the list of CPUs in the cluster.
  */
-static int dsu_pmu_dt_get_cpus(struct device_node *dev, cpumask_t *mask)
+static int dsu_pmu_dt_get_cpus(struct device_yesde *dev, cpumask_t *mask)
 {
 	int i = 0, n, cpu;
-	struct device_node *cpu_node;
+	struct device_yesde *cpu_yesde;
 
 	n = of_count_phandle_with_args(dev, "cpus", NULL);
 	if (n <= 0)
 		return -ENODEV;
 	for (; i < n; i++) {
-		cpu_node = of_parse_phandle(dev, "cpus", i);
-		if (!cpu_node)
+		cpu_yesde = of_parse_phandle(dev, "cpus", i);
+		if (!cpu_yesde)
 			break;
-		cpu = of_cpu_node_to_id(cpu_node);
-		of_node_put(cpu_node);
+		cpu = of_cpu_yesde_to_id(cpu_yesde);
+		of_yesde_put(cpu_yesde);
 		/*
-		 * We have to ignore the failures here and continue scanning
+		 * We have to igyesre the failures here and continue scanning
 		 * the list to handle cases where the nr_cpus could be capped
 		 * in the running kernel.
 		 */
@@ -683,7 +683,7 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 	if (IS_ERR(dsu_pmu))
 		return PTR_ERR(dsu_pmu);
 
-	rc = dsu_pmu_dt_get_cpus(pdev->dev.of_node, &dsu_pmu->associated_cpus);
+	rc = dsu_pmu_dt_get_cpus(pdev->dev.of_yesde, &dsu_pmu->associated_cpus);
 	if (rc) {
 		dev_warn(&pdev->dev, "Failed to parse the CPUs\n");
 		return rc;
@@ -709,7 +709,7 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 	dsu_pmu->irq = irq;
 	platform_set_drvdata(pdev, dsu_pmu);
 	rc = cpuhp_state_add_instance(dsu_pmu_cpuhp_state,
-						&dsu_pmu->cpuhp_node);
+						&dsu_pmu->cpuhp_yesde);
 	if (rc)
 		return rc;
 
@@ -732,7 +732,7 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 	rc = perf_pmu_register(&dsu_pmu->pmu, name, -1);
 	if (rc) {
 		cpuhp_state_remove_instance(dsu_pmu_cpuhp_state,
-						 &dsu_pmu->cpuhp_node);
+						 &dsu_pmu->cpuhp_yesde);
 		irq_set_affinity_hint(dsu_pmu->irq, NULL);
 	}
 
@@ -744,7 +744,7 @@ static int dsu_pmu_device_remove(struct platform_device *pdev)
 	struct dsu_pmu *dsu_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&dsu_pmu->pmu);
-	cpuhp_state_remove_instance(dsu_pmu_cpuhp_state, &dsu_pmu->cpuhp_node);
+	cpuhp_state_remove_instance(dsu_pmu_cpuhp_state, &dsu_pmu->cpuhp_yesde);
 	irq_set_affinity_hint(dsu_pmu->irq, NULL);
 
 	return 0;
@@ -764,15 +764,15 @@ static struct platform_driver dsu_pmu_driver = {
 	.remove = dsu_pmu_device_remove,
 };
 
-static int dsu_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int dsu_pmu_cpu_online(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct dsu_pmu *dsu_pmu = hlist_entry_safe(node, struct dsu_pmu,
-						   cpuhp_node);
+	struct dsu_pmu *dsu_pmu = hlist_entry_safe(yesde, struct dsu_pmu,
+						   cpuhp_yesde);
 
 	if (!cpumask_test_cpu(cpu, &dsu_pmu->associated_cpus))
 		return 0;
 
-	/* If the PMU is already managed, there is nothing to do */
+	/* If the PMU is already managed, there is yesthing to do */
 	if (!cpumask_empty(&dsu_pmu->active_cpu))
 		return 0;
 
@@ -782,17 +782,17 @@ static int dsu_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int dsu_pmu_cpu_teardown(unsigned int cpu, struct hlist_node *node)
+static int dsu_pmu_cpu_teardown(unsigned int cpu, struct hlist_yesde *yesde)
 {
 	int dst;
-	struct dsu_pmu *dsu_pmu = hlist_entry_safe(node, struct dsu_pmu,
-						   cpuhp_node);
+	struct dsu_pmu *dsu_pmu = hlist_entry_safe(yesde, struct dsu_pmu,
+						   cpuhp_yesde);
 
 	if (!cpumask_test_and_clear_cpu(cpu, &dsu_pmu->active_cpu))
 		return 0;
 
 	dst = dsu_pmu_get_online_cpu_any_but(dsu_pmu, cpu);
-	/* If there are no active CPUs in the DSU, leave IRQ disabled */
+	/* If there are yes active CPUs in the DSU, leave IRQ disabled */
 	if (dst >= nr_cpu_ids) {
 		irq_set_affinity_hint(dsu_pmu->irq, NULL);
 		return 0;

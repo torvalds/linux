@@ -16,7 +16,7 @@
 #include <sound/dmaengine_pcm.h>
 
 /*
- * The platforms dmaengine driver does not support reporting the amount of
+ * The platforms dmaengine driver does yest support reporting the amount of
  * bytes that are still left to transfer.
  */
 #define SND_DMAENGINE_PCM_FLAG_NO_RESIDUE BIT(31)
@@ -287,7 +287,7 @@ static snd_pcm_uframes_t dmaengine_pcm_pointer(
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 
 	if (pcm->flags & SND_DMAENGINE_PCM_FLAG_NO_RESIDUE)
-		return snd_dmaengine_pcm_pointer_no_residue(substream);
+		return snd_dmaengine_pcm_pointer_yes_residue(substream);
 	else
 		return snd_dmaengine_pcm_pointer(substream);
 }
@@ -363,14 +363,14 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 	const char *name;
 	struct dma_chan *chan;
 
-	if ((pcm->flags & SND_DMAENGINE_PCM_FLAG_NO_DT) || (!dev->of_node &&
-	    !(config && config->dma_dev && config->dma_dev->of_node)))
+	if ((pcm->flags & SND_DMAENGINE_PCM_FLAG_NO_DT) || (!dev->of_yesde &&
+	    !(config && config->dma_dev && config->dma_dev->of_yesde)))
 		return 0;
 
 	if (config && config->dma_dev) {
 		/*
 		 * If this warning is seen, it probably means that your Linux
-		 * device structure does not match your HW device structure.
+		 * device structure does yest match your HW device structure.
 		 * It would be best to refactor the Linux device structure to
 		 * correctly match the HW structure.
 		 */

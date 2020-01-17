@@ -21,16 +21,16 @@ value instead of just showing a gpio state summary. Plus, it could be
 present on production systems without debugging support.
 
 Given appropriate hardware documentation for the system, userspace could
-know for example that GPIO #23 controls the write protect line used to
+kyesw for example that GPIO #23 controls the write protect line used to
 protect boot loader segments in flash memory. System upgrade procedures
 may need to temporarily remove that protection, first importing a GPIO,
 then changing its output state, then updating the code before re-enabling
-the write protection. In normal use, GPIO #23 would never be touched,
-and the kernel would have no need to know about it.
+the write protection. In yesrmal use, GPIO #23 would never be touched,
+and the kernel would have yes need to kyesw about it.
 
 Again depending on appropriate hardware documentation, on some systems
 userspace GPIO can be used to determine system configuration data that
-standard kernels won't know about. And for some tasks, simple userspace
+standard kernels won't kyesw about. And for some tasks, simple userspace
 GPIO drivers could be all that the system really needs.
 
 DO NOT ABUSE SYSFS TO CONTROL HARDWARE THAT HAS PROPER KERNEL DRIVERS.
@@ -57,14 +57,14 @@ The control interfaces are write-only:
 		Userspace may ask the kernel to export control of
 		a GPIO to userspace by writing its number to this file.
 
-		Example:  "echo 19 > export" will create a "gpio19" node
-		for GPIO #19, if that's not requested by kernel code.
+		Example:  "echo 19 > export" will create a "gpio19" yesde
+		for GPIO #19, if that's yest requested by kernel code.
 
 	"unexport" ...
 		Reverses the effect of exporting to userspace.
 
 		Example:  "echo 19 > unexport" will remove a "gpio19"
-		node exported using the "export" file.
+		yesde exported using the "export" file.
 
 GPIO signals have paths like /sys/class/gpio/gpio42/ (for GPIO #42)
 and have the following read/write attributes:
@@ -73,12 +73,12 @@ and have the following read/write attributes:
 
 	"direction" ...
 		reads as either "in" or "out". This value may
-		normally be written. Writing as "out" defaults to
+		yesrmally be written. Writing as "out" defaults to
 		initializing the value as low. To ensure glitch free
 		operation, values "low" and "high" may be written to
 		configure the GPIO as an output with that initial value.
 
-		Note that this attribute *will not exist* if the kernel
+		Note that this attribute *will yest exist* if the kernel
 		doesn't support changing the direction of a GPIO, or
 		it was exported by kernel code that didn't explicitly
 		allow userspace to reconfigure this GPIO's direction.
@@ -86,7 +86,7 @@ and have the following read/write attributes:
 	"value" ...
 		reads as either 0 (low) or 1 (high). If the GPIO
 		is configured as an output, this value may be written;
-		any nonzero value is treated as high.
+		any yesnzero value is treated as high.
 
 		If the pin can be configured as interrupt-generating interrupt
 		and if it has been configured to generate interrupts (see the
@@ -99,7 +99,7 @@ and have the following read/write attributes:
 		to read the value.
 
 	"edge" ...
-		reads as either "none", "rising", "falling", or
+		reads as either "yesne", "rising", "falling", or
 		"both". Write these strings to select the signal edge(s)
 		that will make poll(2) on the "value" file return.
 
@@ -108,7 +108,7 @@ and have the following read/write attributes:
 
 	"active_low" ...
 		reads as either 0 (false) or 1 (true). Write
-		any nonzero value to invert the value attribute both
+		any yesnzero value to invert the value attribute both
 		for reading and writing. Existing and subsequent
 		poll(2) support configuration via the edge attribute
 		for "rising" and "falling" edges will follow this
@@ -124,16 +124,16 @@ read-only attributes:
 		same as N, the first GPIO managed by this chip
 
 	"label" ...
-		provided for diagnostics (not always unique)
+		provided for diagyesstics (yest always unique)
 
 	"ngpio" ...
 		how many GPIOs this manages (N to N + ngpio - 1)
 
 Board documentation should in most cases cover what GPIOs are used for
-what purposes. However, those numbers are not always stable; GPIOs on
+what purposes. However, those numbers are yest always stable; GPIOs on
 a daughtercard might be different depending on the base board being used,
 or other cards in the stack. In such cases, you may need to use the
-gpiochip nodes (possibly in conjunction with schematics) to determine
+gpiochip yesdes (possibly in conjunction with schematics) to determine
 the correct GPIO number to use for a given signal.
 
 
@@ -148,7 +148,7 @@ requested using gpio_request()::
 	/* reverse gpio_export() */
 	void gpiod_unexport(struct gpio_desc *desc);
 
-	/* create a sysfs link to an exported GPIO node */
+	/* create a sysfs link to an exported GPIO yesde */
 	int gpiod_export_link(struct device *dev, const char *name,
 		      struct gpio_desc *desc);
 
@@ -162,6 +162,6 @@ of experiments easier), or can provide an always-there interface that's
 suitable for documenting as part of a board support package.
 
 After the GPIO has been exported, gpiod_export_link() allows creating
-symlinks from elsewhere in sysfs to the GPIO sysfs node. Drivers can
+symlinks from elsewhere in sysfs to the GPIO sysfs yesde. Drivers can
 use this to provide the interface under their own device in sysfs with
 a descriptive name.

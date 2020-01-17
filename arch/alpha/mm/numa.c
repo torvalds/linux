@@ -20,8 +20,8 @@
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
 
-pg_data_t node_data[MAX_NUMNODES];
-EXPORT_SYMBOL(node_data);
+pg_data_t yesde_data[MAX_NUMNODES];
+EXPORT_SYMBOL(yesde_data);
 
 #undef DEBUG_DISCONTIG
 #ifdef DEBUG_DISCONTIG
@@ -53,32 +53,32 @@ static void __init show_mem_layout(void)
 }
 
 static void __init
-setup_memory_node(int nid, void *kernel_end)
+setup_memory_yesde(int nid, void *kernel_end)
 {
 	extern unsigned long mem_size_limit;
 	struct memclust_struct * cluster;
 	struct memdesc_struct * memdesc;
 	unsigned long start_kernel_pfn, end_kernel_pfn;
 	unsigned long start, end;
-	unsigned long node_pfn_start, node_pfn_end;
-	unsigned long node_min_pfn, node_max_pfn;
+	unsigned long yesde_pfn_start, yesde_pfn_end;
+	unsigned long yesde_min_pfn, yesde_max_pfn;
 	int i;
 	int show_init = 0;
 
-	/* Find the bounds of current node */
-	node_pfn_start = (node_mem_start(nid)) >> PAGE_SHIFT;
-	node_pfn_end = node_pfn_start + (node_mem_size(nid) >> PAGE_SHIFT);
+	/* Find the bounds of current yesde */
+	yesde_pfn_start = (yesde_mem_start(nid)) >> PAGE_SHIFT;
+	yesde_pfn_end = yesde_pfn_start + (yesde_mem_size(nid) >> PAGE_SHIFT);
 	
 	/* Find free clusters, and init and free the bootmem accordingly.  */
 	memdesc = (struct memdesc_struct *)
 	  (hwrpb->mddt_offset + (unsigned long) hwrpb);
 
-	/* find the bounds of this node (node_min_pfn/node_max_pfn) */
-	node_min_pfn = ~0UL;
-	node_max_pfn = 0UL;
+	/* find the bounds of this yesde (yesde_min_pfn/yesde_max_pfn) */
+	yesde_min_pfn = ~0UL;
+	yesde_max_pfn = 0UL;
 	for_each_mem_cluster(memdesc, cluster, i) {
 		/* Bit 0 is console/PALcode reserved.  Bit 1 is
-		   non-volatile memory -- we might want to mark
+		   yesn-volatile memory -- we might want to mark
 		   this for later.  */
 		if (cluster->usage & 3)
 			continue;
@@ -86,7 +86,7 @@ setup_memory_node(int nid, void *kernel_end)
 		start = cluster->start_pfn;
 		end = start + cluster->numpages;
 
-		if (start >= node_pfn_end || end <= node_pfn_start)
+		if (start >= yesde_pfn_end || end <= yesde_pfn_start)
 			continue;
 
 		if (!show_init) {
@@ -97,65 +97,65 @@ setup_memory_node(int nid, void *kernel_end)
 		       i, cluster->usage, cluster->start_pfn,
 		       cluster->start_pfn + cluster->numpages);
 
-		if (start < node_pfn_start)
-			start = node_pfn_start;
-		if (end > node_pfn_end)
-			end = node_pfn_end;
+		if (start < yesde_pfn_start)
+			start = yesde_pfn_start;
+		if (end > yesde_pfn_end)
+			end = yesde_pfn_end;
 
-		if (start < node_min_pfn)
-			node_min_pfn = start;
-		if (end > node_max_pfn)
-			node_max_pfn = end;
+		if (start < yesde_min_pfn)
+			yesde_min_pfn = start;
+		if (end > yesde_max_pfn)
+			yesde_max_pfn = end;
 	}
 
-	if (mem_size_limit && node_max_pfn > mem_size_limit) {
+	if (mem_size_limit && yesde_max_pfn > mem_size_limit) {
 		static int msg_shown = 0;
 		if (!msg_shown) {
 			msg_shown = 1;
 			printk("setup: forcing memory size to %ldK (from %ldK).\n",
 			       mem_size_limit << (PAGE_SHIFT - 10),
-			       node_max_pfn    << (PAGE_SHIFT - 10));
+			       yesde_max_pfn    << (PAGE_SHIFT - 10));
 		}
-		node_max_pfn = mem_size_limit;
+		yesde_max_pfn = mem_size_limit;
 	}
 
-	if (node_min_pfn >= node_max_pfn)
+	if (yesde_min_pfn >= yesde_max_pfn)
 		return;
 
-	/* Update global {min,max}_low_pfn from node information. */
-	if (node_min_pfn < min_low_pfn)
-		min_low_pfn = node_min_pfn;
-	if (node_max_pfn > max_low_pfn)
-		max_pfn = max_low_pfn = node_max_pfn;
+	/* Update global {min,max}_low_pfn from yesde information. */
+	if (yesde_min_pfn < min_low_pfn)
+		min_low_pfn = yesde_min_pfn;
+	if (yesde_max_pfn > max_low_pfn)
+		max_pfn = max_low_pfn = yesde_max_pfn;
 
 #if 0 /* we'll try this one again in a little while */
-	/* Cute trick to make sure our local node data is on local memory */
-	node_data[nid] = (pg_data_t *)(__va(node_min_pfn << PAGE_SHIFT));
+	/* Cute trick to make sure our local yesde data is on local memory */
+	yesde_data[nid] = (pg_data_t *)(__va(yesde_min_pfn << PAGE_SHIFT));
 #endif
-	printk(" Detected node memory:   start %8lu, end %8lu\n",
-	       node_min_pfn, node_max_pfn);
+	printk(" Detected yesde memory:   start %8lu, end %8lu\n",
+	       yesde_min_pfn, yesde_max_pfn);
 
-	DBGDCONT(" DISCONTIG: node_data[%d]   is at 0x%p\n", nid, NODE_DATA(nid));
+	DBGDCONT(" DISCONTIG: yesde_data[%d]   is at 0x%p\n", nid, NODE_DATA(nid));
 
 	/* Find the bounds of kernel memory.  */
 	start_kernel_pfn = PFN_DOWN(KERNEL_START_PHYS);
 	end_kernel_pfn = PFN_UP(virt_to_phys(kernel_end));
 
-	if (!nid && (node_max_pfn < end_kernel_pfn || node_min_pfn > start_kernel_pfn))
+	if (!nid && (yesde_max_pfn < end_kernel_pfn || yesde_min_pfn > start_kernel_pfn))
 		panic("kernel loaded out of ram");
 
-	memblock_add(PFN_PHYS(node_min_pfn),
-		     (node_max_pfn - node_min_pfn) << PAGE_SHIFT);
+	memblock_add(PFN_PHYS(yesde_min_pfn),
+		     (yesde_max_pfn - yesde_min_pfn) << PAGE_SHIFT);
 
 	/* Zone start phys-addr must be 2^(MAX_ORDER-1) aligned.
-	   Note that we round this down, not up - node memory
+	   Note that we round this down, yest up - yesde memory
 	   has much larger alignment than 8Mb, so it's safe. */
-	node_min_pfn &= ~((1UL << (MAX_ORDER-1))-1);
+	yesde_min_pfn &= ~((1UL << (MAX_ORDER-1))-1);
 
-	NODE_DATA(nid)->node_start_pfn = node_min_pfn;
-	NODE_DATA(nid)->node_present_pages = node_max_pfn - node_min_pfn;
+	NODE_DATA(nid)->yesde_start_pfn = yesde_min_pfn;
+	NODE_DATA(nid)->yesde_present_pages = yesde_max_pfn - yesde_min_pfn;
 
-	node_set_online(nid);
+	yesde_set_online(nid);
 }
 
 void __init
@@ -166,12 +166,12 @@ setup_memory(void *kernel_end)
 
 	show_mem_layout();
 
-	nodes_clear(node_online_map);
+	yesdes_clear(yesde_online_map);
 
 	min_low_pfn = ~0UL;
 	max_low_pfn = 0UL;
 	for (nid = 0; nid < MAX_NUMNODES; nid++)
-		setup_memory_node(nid, kernel_end);
+		setup_memory_yesde(nid, kernel_end);
 
 	kernel_size = virt_to_phys(kernel_end) - KERNEL_START_PHYS;
 	memblock_reserve(KERNEL_START_PHYS, kernel_size);
@@ -208,16 +208,16 @@ void __init paging_init(void)
 
 	/*
 	 * The old global MAX_DMA_ADDRESS per-arch API doesn't fit
-	 * in the NUMA model, for now we convert it to a pfn and
-	 * we interpret this pfn as a local per-node information.
-	 * This issue isn't very important since none of these machines
+	 * in the NUMA model, for yesw we convert it to a pfn and
+	 * we interpret this pfn as a local per-yesde information.
+	 * This issue isn't very important since yesne of these machines
 	 * have legacy ISA slots anyways.
 	 */
 	dma_local_pfn = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
 
-	for_each_online_node(nid) {
-		unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
-		unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_present_pages;
+	for_each_online_yesde(nid) {
+		unsigned long start_pfn = NODE_DATA(nid)->yesde_start_pfn;
+		unsigned long end_pfn = start_pfn + NODE_DATA(nid)->yesde_present_pages;
 
 		if (dma_local_pfn >= end_pfn - start_pfn)
 			zones_size[ZONE_DMA] = end_pfn - start_pfn;
@@ -225,8 +225,8 @@ void __init paging_init(void)
 			zones_size[ZONE_DMA] = dma_local_pfn;
 			zones_size[ZONE_NORMAL] = (end_pfn - start_pfn) - dma_local_pfn;
 		}
-		node_set_state(nid, N_NORMAL_MEMORY);
-		free_area_init_node(nid, zones_size, start_pfn, NULL);
+		yesde_set_state(nid, N_NORMAL_MEMORY);
+		free_area_init_yesde(nid, zones_size, start_pfn, NULL);
 	}
 
 	/* Initialize the kernel's ZERO_PGE. */

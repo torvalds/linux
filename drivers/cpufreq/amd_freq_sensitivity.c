@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * amd_freq_sensitivity.c: AMD frequency sensitivity feedback powersave bias
- *                         for the ondemand governor.
+ *                         for the ondemand goveryesr.
  *
  * Copyright (C) 2013 Advanced Micro Devices, Inc.
  *
@@ -43,7 +43,7 @@ static unsigned int amd_powersave_bias_target(struct cpufreq_policy *policy,
 	long d_actual, d_reference;
 	struct msr actual, reference;
 	struct cpu_data_t *data = &per_cpu(cpu_data, policy->cpu);
-	struct policy_dbs_info *policy_dbs = policy->governor_data;
+	struct policy_dbs_info *policy_dbs = policy->goveryesr_data;
 	struct dbs_data *od_data = policy_dbs->dbs_data;
 	struct od_dbs_tuners *od_tuners = od_data->tuners;
 
@@ -77,7 +77,7 @@ static unsigned int amd_powersave_bias_target(struct cpufreq_policy *policy,
 
 	clamp(sensitivity, 0, POWERSAVE_BIAS_MAX);
 
-	/* this workload is not CPU bound, so choose a lower freq */
+	/* this workload is yest CPU bound, so choose a lower freq */
 	if (sensitivity < od_tuners->powersave_bias) {
 		if (data->freq_prev == policy->cur)
 			freq_next = policy->cur;
@@ -151,5 +151,5 @@ MODULE_DEVICE_TABLE(x86cpu, amd_freq_sensitivity_ids);
 
 MODULE_AUTHOR("Jacob Shin <jacob.shin@amd.com>");
 MODULE_DESCRIPTION("AMD frequency sensitivity feedback powersave bias for "
-		"the ondemand governor.");
+		"the ondemand goveryesr.");
 MODULE_LICENSE("GPL");

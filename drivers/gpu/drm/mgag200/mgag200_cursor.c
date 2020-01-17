@@ -78,7 +78,7 @@ static int mgag200_cursor_update(struct mga_device *mdev, void *dst, void *src,
 		BUG_ON((colour_set[i]>>24 & 0xff) != 0xff);
 	}
 
-	/* now write colour indices into hardware cursor buffer */
+	/* yesw write colour indices into hardware cursor buffer */
 	for (row = 0; row < 64; row++) {
 		memset(&this_row[0], 0, 48);
 		for (col = 0; col < 64; col++) {
@@ -142,7 +142,7 @@ static int mgag200_show_cursor(struct mga_device *mdev, void *src,
 	if (off < 0) {
 		ret = (int)off;
 		dev_err(&dev->pdev->dev,
-			"failed to get cursor scanout address: %d\n", ret);
+			"failed to get cursor scayesut address: %d\n", ret);
 		goto err_drm_gem_vram_vunmap;
 	}
 
@@ -228,7 +228,7 @@ int mgag200_cursor_init(struct mga_device *mdev)
 	 * At the high end of video memory, we reserve space for
 	 * buffer objects. The cursor plane uses this memory to store
 	 * a double-buffered image of the current cursor. Hence, it's
-	 * not available for framebuffers.
+	 * yest available for framebuffers.
 	 */
 	mdev->vram_fb_available -= ncursors * size;
 

@@ -2,7 +2,7 @@
 /*
  * Pin controller and GPIO driver for Amlogic Meson SoCs
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamiyes Galvani <b.galvani@gmail.com>
  */
 
 /*
@@ -33,7 +33,7 @@
  * can be shared by more banks with different offsets.
  *
  * In addition to this there are some registers shared between all
- * banks that control the IRQ functionality. This feature is not
+ * banks that control the IRQ functionality. This feature is yest
  * supported at the moment by the driver.
  */
 
@@ -136,7 +136,7 @@ static const struct pinctrl_ops meson_pctrl_ops = {
 	.get_groups_count	= meson_get_groups_count,
 	.get_group_name		= meson_get_group_name,
 	.get_group_pins		= meson_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map		= pinctrl_utils_free_map,
 	.pin_dbg_show		= meson_pin_dbg_show,
 };
@@ -305,7 +305,7 @@ static int meson_pinconf_set_drive_strength(struct meson_pinctrl *pc,
 	int ret;
 
 	if (!pc->reg_ds) {
-		dev_err(pc->dev, "drive-strength not supported\n");
+		dev_err(pc->dev, "drive-strength yest supported\n");
 		return -ENOTSUPP;
 	}
 
@@ -598,7 +598,7 @@ static int meson_gpiolib_register(struct meson_pinctrl *pc)
 	pc->chip.base = -1;
 	pc->chip.ngpio = pc->data->num_pins;
 	pc->chip.can_sleep = false;
-	pc->chip.of_node = pc->of_node;
+	pc->chip.of_yesde = pc->of_yesde;
 	pc->chip.of_gpio_n_cells = 2;
 
 	ret = gpiochip_add_data(&pc->chip, pc);
@@ -618,14 +618,14 @@ static struct regmap_config meson_regmap_config = {
 };
 
 static struct regmap *meson_map_resource(struct meson_pinctrl *pc,
-					 struct device_node *node, char *name)
+					 struct device_yesde *yesde, char *name)
 {
 	struct resource res;
 	void __iomem *base;
 	int i;
 
-	i = of_property_match_string(node, "reg-names", name);
-	if (of_address_to_resource(node, i, &res))
+	i = of_property_match_string(yesde, "reg-names", name);
+	if (of_address_to_resource(yesde, i, &res))
 		return NULL;
 
 	base = devm_ioremap_resource(pc->dev, &res);
@@ -634,7 +634,7 @@ static struct regmap *meson_map_resource(struct meson_pinctrl *pc,
 
 	meson_regmap_config.max_register = resource_size(&res) - 4;
 	meson_regmap_config.name = devm_kasprintf(pc->dev, GFP_KERNEL,
-						  "%pOFn-%s", node,
+						  "%pOFn-%s", yesde,
 						  name);
 	if (!meson_regmap_config.name)
 		return ERR_PTR(-ENOMEM);
@@ -643,37 +643,37 @@ static struct regmap *meson_map_resource(struct meson_pinctrl *pc,
 }
 
 static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
-				  struct device_node *node)
+				  struct device_yesde *yesde)
 {
-	struct device_node *np, *gpio_np = NULL;
+	struct device_yesde *np, *gpio_np = NULL;
 
-	for_each_child_of_node(node, np) {
+	for_each_child_of_yesde(yesde, np) {
 		if (!of_find_property(np, "gpio-controller", NULL))
 			continue;
 		if (gpio_np) {
-			dev_err(pc->dev, "multiple gpio nodes\n");
-			of_node_put(np);
+			dev_err(pc->dev, "multiple gpio yesdes\n");
+			of_yesde_put(np);
 			return -EINVAL;
 		}
 		gpio_np = np;
 	}
 
 	if (!gpio_np) {
-		dev_err(pc->dev, "no gpio node found\n");
+		dev_err(pc->dev, "yes gpio yesde found\n");
 		return -EINVAL;
 	}
 
-	pc->of_node = gpio_np;
+	pc->of_yesde = gpio_np;
 
 	pc->reg_mux = meson_map_resource(pc, gpio_np, "mux");
 	if (IS_ERR_OR_NULL(pc->reg_mux)) {
-		dev_err(pc->dev, "mux registers not found\n");
+		dev_err(pc->dev, "mux registers yest found\n");
 		return pc->reg_mux ? PTR_ERR(pc->reg_mux) : -ENOENT;
 	}
 
 	pc->reg_gpio = meson_map_resource(pc, gpio_np, "gpio");
 	if (IS_ERR_OR_NULL(pc->reg_gpio)) {
-		dev_err(pc->dev, "gpio registers not found\n");
+		dev_err(pc->dev, "gpio registers yest found\n");
 		return pc->reg_gpio ? PTR_ERR(pc->reg_gpio) : -ENOENT;
 	}
 
@@ -687,7 +687,7 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 
 	pc->reg_ds = meson_map_resource(pc, gpio_np, "ds");
 	if (IS_ERR(pc->reg_ds)) {
-		dev_dbg(pc->dev, "ds registers not found - skipping\n");
+		dev_dbg(pc->dev, "ds registers yest found - skipping\n");
 		pc->reg_ds = NULL;
 	}
 
@@ -729,7 +729,7 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 	pc->dev = dev;
 	pc->data = (struct meson_pinctrl_data *) of_device_get_match_data(dev);
 
-	ret = meson_pinctrl_parse_dt(pc, dev->of_node);
+	ret = meson_pinctrl_parse_dt(pc, dev->of_yesde);
 	if (ret)
 		return ret;
 

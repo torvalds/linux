@@ -11,7 +11,7 @@ Description
 
 Lochnagar 2 features built-in Current Monitor circuitry that allows for the
 measurement of both voltage and current on up to eight of the supply voltage
-rails provided to the minicards. The Current Monitor does not require any
+rails provided to the minicards. The Current Monitor does yest require any
 hardware modifications or external circuitry to operate.
 
 The current and voltage measurements are obtained through the standard register
@@ -80,4 +80,4 @@ power8_label            "MICVDD"
 ======================= =======================================================
 
 Note:
-    It is not possible to measure voltage on the SYSVDD rail.
+    It is yest possible to measure voltage on the SYSVDD rail.

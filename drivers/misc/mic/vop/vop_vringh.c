@@ -27,7 +27,7 @@ static inline int vop_vdev_inited(struct vop_vdev *vdev)
 {
 	if (!vdev)
 		return -EINVAL;
-	/* Device has not been created yet */
+	/* Device has yest been created yet */
 	if (!vdev->dd || !vdev->dd->type) {
 		dev_err(vop_dev(vdev), "%s %d err %d\n",
 			__func__, __LINE__, -EINVAL);
@@ -42,7 +42,7 @@ static inline int vop_vdev_inited(struct vop_vdev *vdev)
 	return 0;
 }
 
-static void _vop_notify(struct vringh *vrh)
+static void _vop_yestify(struct vringh *vrh)
 {
 	struct vop_vringh *vvrh = container_of(vrh, struct vop_vringh, vrh);
 	struct vop_vdev *vdev = vvrh->vdev;
@@ -335,7 +335,7 @@ static int vop_virtio_add_device(struct vop_vdev *vdev,
 		vringh_kiov_init(&vvr->wiov, NULL, 0);
 		vvr->head = USHRT_MAX;
 		vvr->vdev = vdev;
-		vvr->vrh.notify = _vop_notify;
+		vvr->vrh.yestify = _vop_yestify;
 		dev_dbg(&vpdev->dev,
 			"%s %d index %d va %p info %p vr_size 0x%x\n",
 			__func__, __LINE__, i, vr->va, vr->info, vr_size);
@@ -456,7 +456,7 @@ skip_hot_remove:
 }
 
 /*
- * vop_sync_dma - Wrapper for synchronous DMAs.
+ * vop_sync_dma - Wrapper for synchroyesus DMAs.
  *
  * @dev - The address of the pointer to the device instance used
  * for DMA registration.
@@ -544,7 +544,7 @@ static int vop_virtio_copy_to_user(struct vop_vdev *vdev, void __user *ubuf,
 	len += dma_offset;
 	/*
 	 * X100 uses DMA addresses as seen by the card so adding
-	 * the aperture base is not required for DMA. However x200
+	 * the aperture base is yest required for DMA. However x200
 	 * requires DMA addresses to be an offset into the bar so
 	 * add the aperture base for x200.
 	 */
@@ -621,7 +621,7 @@ static int vop_virtio_copy_from_user(struct vop_vdev *vdev, void __user *ubuf,
 
 	/*
 	 * X100 uses DMA addresses as seen by the card so adding
-	 * the aperture base is not required for DMA. However x200
+	 * the aperture base is yest required for DMA. However x200
 	 * requires DMA addresses to be an offset into the bar so
 	 * add the aperture base for x200.
 	 */
@@ -687,8 +687,8 @@ static inline u32 vop_vringh_iov_consumed(struct vringh_kiov *iov)
 /*
  * Traverse the VRINGH KIOV and issue the APIs to trigger the copies.
  * This API is heavily based on the vringh_iov_xfer(..) implementation
- * in vringh.c. The reason we cannot reuse vringh_iov_pull_kern(..)
- * and vringh_iov_push_kern(..) directly is because there is no
+ * in vringh.c. The reason we canyest reuse vringh_iov_pull_kern(..)
+ * and vringh_iov_push_kern(..) directly is because there is yes
  * way to override the VRINGH xfer(..) routines as of v3.10.
  */
 static int vop_vringh_copy(struct vop_vdev *vdev, struct vringh_kiov *iov,
@@ -801,7 +801,7 @@ static int _vop_virtio_copy(struct vop_vdev *vdev, struct mic_copy_desc *copy)
 		ubuf += out_len;
 		copy->out_len += out_len;
 		if (!len) {
-			/* One user space iovec is now completed */
+			/* One user space iovec is yesw completed */
 			iovcnt--;
 			u_iov++;
 		}
@@ -821,8 +821,8 @@ static int _vop_virtio_copy(struct vop_vdev *vdev, struct mic_copy_desc *copy)
 		total += vop_vringh_iov_consumed(wiov);
 		vringh_complete_kern(vrh, *head, total);
 		*head = USHRT_MAX;
-		if (vringh_need_notify_kern(vrh) > 0)
-			vringh_notify(vrh);
+		if (vringh_need_yestify_kern(vrh) > 0)
+			vringh_yestify(vrh);
 		vringh_kiov_cleanup(riov);
 		vringh_kiov_cleanup(wiov);
 		/* Update avail idx for user space */
@@ -868,7 +868,7 @@ err:
 	return err;
 }
 
-static int vop_open(struct inode *inode, struct file *f)
+static int vop_open(struct iyesde *iyesde, struct file *f)
 {
 	struct vop_vdev *vdev;
 	struct vop_info *vi = container_of(f->private_data,
@@ -885,7 +885,7 @@ static int vop_open(struct inode *inode, struct file *f)
 	return 0;
 }
 
-static int vop_release(struct inode *inode, struct file *f)
+static int vop_release(struct iyesde *iyesde, struct file *f)
 {
 	struct vop_vdev *vdev = f->private_data, *vdev_tmp;
 	struct vop_info *vi = vdev->vi;
@@ -938,7 +938,7 @@ static long vop_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		if (IS_ERR(dd_config))
 			return PTR_ERR(dd_config);
 
-		/* Ensure desc has not changed between the two reads */
+		/* Ensure desc has yest changed between the two reads */
 		if (memcmp(&dd, dd_config, sizeof(dd))) {
 			ret = -EINVAL;
 			goto free_ret;
@@ -1008,7 +1008,7 @@ __unlock_ret:
 
 /*
  * We return EPOLLIN | EPOLLOUT from poll when new buffers are enqueued, and
- * not when previously enqueued buffers may be available. This means that
+ * yest when previously enqueued buffers may be available. This means that
  * in the card->host (TX) path, when userspace is unblocked by poll it
  * must drain all available descriptors or it can stall.
  */
@@ -1122,7 +1122,7 @@ int vop_host_init(struct vop_info *vi)
 	INIT_LIST_HEAD(&vi->vdev_list);
 	vi->dma_ch = vpdev->dma_ch;
 	mdev = &vi->miscdev;
-	mdev->minor = MISC_DYNAMIC_MINOR;
+	mdev->miyesr = MISC_DYNAMIC_MINOR;
 	snprintf(vi->name, sizeof(vi->name), "vop_virtio%d", vpdev->index);
 	mdev->name = vi->name;
 	mdev->fops = &vop_fops;

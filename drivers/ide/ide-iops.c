@@ -13,7 +13,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/genhd.h>
 #include <linux/blkpg.h>
 #include <linux/slab.h>
@@ -93,12 +93,12 @@ void ide_fixstring(u8 *s, const int bytecount, const int byteswap)
 EXPORT_SYMBOL(ide_fixstring);
 
 /*
- * This routine busy-waits for the drive status to be not "busy".
- * It then checks the status for all of the "good" bits and none
+ * This routine busy-waits for the drive status to be yest "busy".
+ * It then checks the status for all of the "good" bits and yesne
  * of the "bad" bits, and if all is okay it returns 0.  All other
  * cases return error -- caller may then invoke ide_error().
  *
- * This routine should get fixed to not hog the cpu during extra long waits..
+ * This routine should get fixed to yest hog the cpu during extra long waits..
  * That could be done by busy-waiting for the first jiffy or two, and then
  * setting a timer to wake up at half second intervals thereafter,
  * until timeout is achieved, before timing out.
@@ -126,7 +126,7 @@ int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad,
 			if (time_after(jiffies, timeout)) {
 				/*
 				 * One last read after the timeout in case
-				 * heavy interrupt load made us not make any
+				 * heavy interrupt load made us yest make any
 				 * progress during the timeout..
 				 */
 				stat = tp_ops->read_status(hwif);
@@ -248,7 +248,7 @@ u8 eighty_ninty_three(ide_drive_t *drive)
 		return 1;
 
 	if (hwif->cbl != ATA_CBL_PATA80 && !ivb)
-		goto no_80w;
+		goto yes_80w;
 
 	/*
 	 * FIXME:
@@ -275,7 +275,7 @@ u8 eighty_ninty_three(ide_drive_t *drive)
 				return 1;
 		}
 	}
-no_80w:
+yes_80w:
 	if (drive->dev_flags & IDE_DFLAG_UDMA33_WARNED)
 		return 0;
 
@@ -480,7 +480,7 @@ EXPORT_SYMBOL(ide_set_handler);
  *
  *	Helper function to issue an IDE command. This handles the
  *	atomicity requirements, command timing and ensures that the
- *	handler and IRQ setup do not race. All IDE command kick off
+ *	handler and IRQ setup do yest race. All IDE command kick off
  *	should go via this function or do equivalent locking.
  */
 
@@ -500,17 +500,17 @@ void ide_execute_command(ide_drive_t *drive, struct ide_cmd *cmd,
 	 * Drive takes 400nS to respond, we must avoid the IRQ being
 	 * serviced before that.
 	 *
-	 * FIXME: we could skip this delay with care on non shared devices
+	 * FIXME: we could skip this delay with care on yesn shared devices
 	 */
 	ndelay(400);
 	spin_unlock_irqrestore(&hwif->lock, flags);
 }
 
 /*
- * ide_wait_not_busy() waits for the currently selected device on the hwif
- * to report a non-busy status, see comments in ide_probe_port().
+ * ide_wait_yest_busy() waits for the currently selected device on the hwif
+ * to report a yesn-busy status, see comments in ide_probe_port().
  */
-int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout)
+int ide_wait_yest_busy(ide_hwif_t *hwif, unsigned long timeout)
 {
 	u8 stat = 0;
 
@@ -524,7 +524,7 @@ int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout)
 		if ((stat & ATA_BUSY) == 0)
 			return 0;
 		/*
-		 * Assume a value of 0xff means nothing is connected to
+		 * Assume a value of 0xff means yesthing is connected to
 		 * the interface and it doesn't implement the pull-down
 		 * resistor on D7.
 		 */

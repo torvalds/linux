@@ -50,12 +50,12 @@ MODULE_LICENSE("GPL v2");
  * Power button, Home button, Volume buttons support is supposed to
  * be covered by drivers/input/misc/soc_button_array.c, which is implemented
  * according to "Windows ACPI Design Guide for SoC Platforms".
- * However surface pro3 seems not to obey the specs, instead it uses
+ * However surface pro3 seems yest to obey the specs, instead it uses
  * device VGBI(MSHW0028) for dispatching the events.
  * We choose acpi_driver rather than platform_driver/i2c_driver because
  * although VGBI has an i2c resource connected to i2c controller, it
- * is not embedded in any i2c controller's scope, thus neither platform_device
- * will be created, nor i2c_client will be enumerated, we have to use
+ * is yest embedded in any i2c controller's scope, thus neither platform_device
+ * will be created, yesr i2c_client will be enumerated, we have to use
  * acpi_driver.
  */
 static const struct acpi_device_id surface_button_device_ids[] = {
@@ -73,7 +73,7 @@ struct surface_button {
 	bool suspended;
 };
 
-static void surface_button_notify(struct acpi_device *device, u32 event)
+static void surface_button_yestify(struct acpi_device *device, u32 event)
 {
 	struct surface_button *button = acpi_driver_data(device);
 	struct input_dev *input;
@@ -110,7 +110,7 @@ static void surface_button_notify(struct acpi_device *device, u32 event)
 		key_code = KEY_VOLUMEDOWN;
 		break;
 	case SURFACE_BUTTON_NOTIFY_TABLET_MODE:
-		dev_warn_once(&device->dev, "Tablet mode is not supported\n");
+		dev_warn_once(&device->dev, "Tablet mode is yest supported\n");
 		break;
 	default:
 		dev_info_ratelimited(&device->dev,
@@ -160,7 +160,7 @@ static bool surface_button_check_MSHW0040(struct acpi_device *dev)
 {
 	acpi_handle handle = dev->handle;
 	union acpi_object *result;
-	u64 oem_platform_rev = 0;	// valid revisions are nonzero
+	u64 oem_platform_rev = 0;	// valid revisions are yesnzero
 
 	// get OEM platform revision
 	result = acpi_evaluate_dsm_typed(handle, &MSHW0040_DSM_UUID,
@@ -169,7 +169,7 @@ static bool surface_button_check_MSHW0040(struct acpi_device *dev)
 					 NULL, ACPI_TYPE_INTEGER);
 
 	/*
-	 * If evaluating the _DSM fails, the method is not present. This means
+	 * If evaluating the _DSM fails, the method is yest present. This means
 	 * that we have either MSHW0028 or MSHW0040 on Pro 4 or Book 1, so we
 	 * should use this driver. We use revision 0 indicating it is
 	 * unavailable.
@@ -260,7 +260,7 @@ static struct acpi_driver surface_button_driver = {
 	.ops = {
 		.add = surface_button_add,
 		.remove = surface_button_remove,
-		.notify = surface_button_notify,
+		.yestify = surface_button_yestify,
 	},
 	.drv.pm = &surface_button_pm,
 };

@@ -3,7 +3,7 @@
     A driver for PCMCIA IDE/ATA disk cards
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.1 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may yest use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -20,10 +20,10 @@
     terms of the GNU General Public License version 2 (the "GPL"), in
     which case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
-    only under the terms of the GPL and not to allow others to use
+    only under the terms of the GPL and yest to allow others to use
     your version of this file under the MPL, indicate your decision
-    by deleting the provisions above and replace them with the notice
-    and other provisions required by the GPL.  If you do not delete
+    by deleting the provisions above and replace them with the yestice
+    and other provisions required by the GPL.  If you do yest delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
 
@@ -121,13 +121,13 @@ static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,
     struct ide_hw hw, *hws[] = { &hw };
 
     if (!request_region(io, 8, DRV_NAME)) {
-	printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
+	printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX yest free.\n",
 			DRV_NAME, io, io + 7);
 	return NULL;
     }
 
     if (!request_region(ctl, 1, DRV_NAME)) {
-	printk(KERN_ERR "%s: I/O resource 0x%lX not free.\n",
+	printk(KERN_ERR "%s: I/O resource 0x%lX yest free.\n",
 			DRV_NAME, ctl);
 	release_region(io, 8);
 	return NULL;
@@ -297,7 +297,7 @@ static const struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("ARGOSY", "PnPIDE", 0x78f308dc, 0x0c694728),
 	PCMCIA_DEVICE_PROD_ID12("CNF   ", "CD-ROM", 0x46d7db81, 0x66536591),
 	PCMCIA_DEVICE_PROD_ID12("CNF CD-M", "CD-ROM", 0x7d93b852, 0x66536591),
-	PCMCIA_DEVICE_PROD_ID12("Creative Technology Ltd.", "PCMCIA CD-ROM Interface Card", 0xff8c8a45, 0xfe8020c4),
+	PCMCIA_DEVICE_PROD_ID12("Creative Techyeslogy Ltd.", "PCMCIA CD-ROM Interface Card", 0xff8c8a45, 0xfe8020c4),
 	PCMCIA_DEVICE_PROD_ID12("Digital Equipment Corporation.", "Digital Mobile Media CD-ROM", 0x17692a66, 0xef1dcbde),
 	PCMCIA_DEVICE_PROD_ID12("EXP", "CD+GAME", 0x6f58c983, 0x63c13aaf),
 	PCMCIA_DEVICE_PROD_ID12("EXP   ", "CD-ROM", 0x0a5c52fd, 0x66536591),

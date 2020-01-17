@@ -22,47 +22,47 @@
 void
 xfs_extent_busy_insert(
 	struct xfs_trans	*tp,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		bno,
+	xfs_agnumber_t		agyes,
+	xfs_agblock_t		byes,
 	xfs_extlen_t		len,
 	unsigned int		flags)
 {
 	struct xfs_extent_busy	*new;
 	struct xfs_extent_busy	*busyp;
 	struct xfs_perag	*pag;
-	struct rb_node		**rbp;
-	struct rb_node		*parent = NULL;
+	struct rb_yesde		**rbp;
+	struct rb_yesde		*parent = NULL;
 
 	new = kmem_zalloc(sizeof(struct xfs_extent_busy), 0);
-	new->agno = agno;
-	new->bno = bno;
+	new->agyes = agyes;
+	new->byes = byes;
 	new->length = len;
 	INIT_LIST_HEAD(&new->list);
 	new->flags = flags;
 
 	/* trace before insert to be able to see failed inserts */
-	trace_xfs_extent_busy(tp->t_mountp, agno, bno, len);
+	trace_xfs_extent_busy(tp->t_mountp, agyes, byes, len);
 
-	pag = xfs_perag_get(tp->t_mountp, new->agno);
+	pag = xfs_perag_get(tp->t_mountp, new->agyes);
 	spin_lock(&pag->pagb_lock);
-	rbp = &pag->pagb_tree.rb_node;
+	rbp = &pag->pagb_tree.rb_yesde;
 	while (*rbp) {
 		parent = *rbp;
-		busyp = rb_entry(parent, struct xfs_extent_busy, rb_node);
+		busyp = rb_entry(parent, struct xfs_extent_busy, rb_yesde);
 
-		if (new->bno < busyp->bno) {
+		if (new->byes < busyp->byes) {
 			rbp = &(*rbp)->rb_left;
-			ASSERT(new->bno + new->length <= busyp->bno);
-		} else if (new->bno > busyp->bno) {
+			ASSERT(new->byes + new->length <= busyp->byes);
+		} else if (new->byes > busyp->byes) {
 			rbp = &(*rbp)->rb_right;
-			ASSERT(bno >= busyp->bno + busyp->length);
+			ASSERT(byes >= busyp->byes + busyp->length);
 		} else {
 			ASSERT(0);
 		}
 	}
 
-	rb_link_node(&new->rb_node, parent, rbp);
-	rb_insert_color(&new->rb_node, &pag->pagb_tree);
+	rb_link_yesde(&new->rb_yesde, parent, rbp);
+	rb_insert_color(&new->rb_yesde, &pag->pagb_tree);
 
 	list_add(&new->list, &tp->t_busy);
 	spin_unlock(&pag->pagb_lock);
@@ -72,44 +72,44 @@ xfs_extent_busy_insert(
 /*
  * Search for a busy extent within the range of the extent we are about to
  * allocate.  You need to be holding the busy extent tree lock when calling
- * xfs_extent_busy_search(). This function returns 0 for no overlapping busy
- * extent, -1 for an overlapping but not exact busy extent, and 1 for an exact
- * match. This is done so that a non-zero return indicates an overlap that
- * will require a synchronous transaction, but it can still be
+ * xfs_extent_busy_search(). This function returns 0 for yes overlapping busy
+ * extent, -1 for an overlapping but yest exact busy extent, and 1 for an exact
+ * match. This is done so that a yesn-zero return indicates an overlap that
+ * will require a synchroyesus transaction, but it can still be
  * used to distinguish between a partial or exact match.
  */
 int
 xfs_extent_busy_search(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		bno,
+	xfs_agnumber_t		agyes,
+	xfs_agblock_t		byes,
 	xfs_extlen_t		len)
 {
 	struct xfs_perag	*pag;
-	struct rb_node		*rbp;
+	struct rb_yesde		*rbp;
 	struct xfs_extent_busy	*busyp;
 	int			match = 0;
 
-	pag = xfs_perag_get(mp, agno);
+	pag = xfs_perag_get(mp, agyes);
 	spin_lock(&pag->pagb_lock);
 
-	rbp = pag->pagb_tree.rb_node;
+	rbp = pag->pagb_tree.rb_yesde;
 
-	/* find closest start bno overlap */
+	/* find closest start byes overlap */
 	while (rbp) {
-		busyp = rb_entry(rbp, struct xfs_extent_busy, rb_node);
-		if (bno < busyp->bno) {
+		busyp = rb_entry(rbp, struct xfs_extent_busy, rb_yesde);
+		if (byes < busyp->byes) {
 			/* may overlap, but exact start block is lower */
-			if (bno + len > busyp->bno)
+			if (byes + len > busyp->byes)
 				match = -1;
 			rbp = rbp->rb_left;
-		} else if (bno > busyp->bno) {
+		} else if (byes > busyp->byes) {
 			/* may overlap, but exact start block is higher */
-			if (bno < busyp->bno + busyp->length)
+			if (byes < busyp->byes + busyp->length)
 				match = -1;
 			rbp = rbp->rb_right;
 		} else {
-			/* bno matches busyp, length determines exact match */
+			/* byes matches busyp, length determines exact match */
 			match = (busyp->length == len) ? 1 : -1;
 			break;
 		}
@@ -120,7 +120,7 @@ xfs_extent_busy_search(
 }
 
 /*
- * The found free extent [fbno, fend] overlaps part or all of the given busy
+ * The found free extent [fbyes, fend] overlaps part or all of the given busy
  * extent.  If the overlap covers the beginning, the end, or all of the busy
  * extent, the overlapping portion can be made unbusy and used for the
  * allocation.  We can't split a busy extent because we can't modify a
@@ -135,14 +135,14 @@ xfs_extent_busy_update_extent(
 	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
 	struct xfs_extent_busy	*busyp,
-	xfs_agblock_t		fbno,
+	xfs_agblock_t		fbyes,
 	xfs_extlen_t		flen,
 	bool			userdata) __releases(&pag->pagb_lock)
 					  __acquires(&pag->pagb_lock)
 {
-	xfs_agblock_t		fend = fbno + flen;
-	xfs_agblock_t		bbno = busyp->bno;
-	xfs_agblock_t		bend = bbno + busyp->length;
+	xfs_agblock_t		fend = fbyes + flen;
+	xfs_agblock_t		bbyes = busyp->byes;
+	xfs_agblock_t		bend = bbyes + busyp->length;
 
 	/*
 	 * This extent is currently being discarded.  Give the thread
@@ -158,27 +158,27 @@ xfs_extent_busy_update_extent(
 
 	/*
 	 * If there is a busy extent overlapping a user allocation, we have
-	 * no choice but to force the log and retry the search.
+	 * yes choice but to force the log and retry the search.
 	 *
-	 * Fortunately this does not happen during normal operation, but
+	 * Fortunately this does yest happen during yesrmal operation, but
 	 * only if the filesystem is very low on space and has to dip into
-	 * the AGFL for normal allocations.
+	 * the AGFL for yesrmal allocations.
 	 */
 	if (userdata)
 		goto out_force_log;
 
-	if (bbno < fbno && bend > fend) {
+	if (bbyes < fbyes && bend > fend) {
 		/*
 		 * Case 1:
-		 *    bbno           bend
+		 *    bbyes           bend
 		 *    +BBBBBBBBBBBBBBBBB+
 		 *        +---------+
-		 *        fbno   fend
+		 *        fbyes   fend
 		 */
 
 		/*
 		 * We would have to split the busy extent to be able to track
-		 * it correct, which we cannot do because we would have to
+		 * it correct, which we canyest do because we would have to
 		 * modify the list of busy extents attached to the transaction
 		 * or CIL context, which is immutable.
 		 *
@@ -186,130 +186,130 @@ xfs_extent_busy_update_extent(
 		 * search.
 		 */
 		goto out_force_log;
-	} else if (bbno >= fbno && bend <= fend) {
+	} else if (bbyes >= fbyes && bend <= fend) {
 		/*
 		 * Case 2:
-		 *    bbno           bend
+		 *    bbyes           bend
 		 *    +BBBBBBBBBBBBBBBBB+
 		 *    +-----------------+
-		 *    fbno           fend
+		 *    fbyes           fend
 		 *
 		 * Case 3:
-		 *    bbno           bend
+		 *    bbyes           bend
 		 *    +BBBBBBBBBBBBBBBBB+
 		 *    +--------------------------+
-		 *    fbno                    fend
+		 *    fbyes                    fend
 		 *
 		 * Case 4:
-		 *             bbno           bend
+		 *             bbyes           bend
 		 *             +BBBBBBBBBBBBBBBBB+
 		 *    +--------------------------+
-		 *    fbno                    fend
+		 *    fbyes                    fend
 		 *
 		 * Case 5:
-		 *             bbno           bend
+		 *             bbyes           bend
 		 *             +BBBBBBBBBBBBBBBBB+
 		 *    +-----------------------------------+
-		 *    fbno                             fend
+		 *    fbyes                             fend
 		 *
 		 */
 
 		/*
 		 * The busy extent is fully covered by the extent we are
 		 * allocating, and can simply be removed from the rbtree.
-		 * However we cannot remove it from the immutable list
+		 * However we canyest remove it from the immutable list
 		 * tracking busy extents in the transaction or CIL context,
 		 * so set the length to zero to mark it invalid.
 		 *
 		 * We also need to restart the busy extent search from the
-		 * tree root, because erasing the node can rearrange the
+		 * tree root, because erasing the yesde can rearrange the
 		 * tree topology.
 		 */
-		rb_erase(&busyp->rb_node, &pag->pagb_tree);
+		rb_erase(&busyp->rb_yesde, &pag->pagb_tree);
 		busyp->length = 0;
 		return false;
 	} else if (fend < bend) {
 		/*
 		 * Case 6:
-		 *              bbno           bend
+		 *              bbyes           bend
 		 *             +BBBBBBBBBBBBBBBBB+
 		 *             +---------+
-		 *             fbno   fend
+		 *             fbyes   fend
 		 *
 		 * Case 7:
-		 *             bbno           bend
+		 *             bbyes           bend
 		 *             +BBBBBBBBBBBBBBBBB+
 		 *    +------------------+
-		 *    fbno            fend
+		 *    fbyes            fend
 		 *
 		 */
-		busyp->bno = fend;
-	} else if (bbno < fbno) {
+		busyp->byes = fend;
+	} else if (bbyes < fbyes) {
 		/*
 		 * Case 8:
-		 *    bbno           bend
+		 *    bbyes           bend
 		 *    +BBBBBBBBBBBBBBBBB+
 		 *        +-------------+
-		 *        fbno       fend
+		 *        fbyes       fend
 		 *
 		 * Case 9:
-		 *    bbno           bend
+		 *    bbyes           bend
 		 *    +BBBBBBBBBBBBBBBBB+
 		 *        +----------------------+
-		 *        fbno                fend
+		 *        fbyes                fend
 		 */
-		busyp->length = fbno - busyp->bno;
+		busyp->length = fbyes - busyp->byes;
 	} else {
 		ASSERT(0);
 	}
 
-	trace_xfs_extent_busy_reuse(mp, pag->pag_agno, fbno, flen);
+	trace_xfs_extent_busy_reuse(mp, pag->pag_agyes, fbyes, flen);
 	return true;
 
 out_force_log:
 	spin_unlock(&pag->pagb_lock);
 	xfs_log_force(mp, XFS_LOG_SYNC);
-	trace_xfs_extent_busy_force(mp, pag->pag_agno, fbno, flen);
+	trace_xfs_extent_busy_force(mp, pag->pag_agyes, fbyes, flen);
 	spin_lock(&pag->pagb_lock);
 	return false;
 }
 
 
 /*
- * For a given extent [fbno, flen], make sure we can reuse it safely.
+ * For a given extent [fbyes, flen], make sure we can reuse it safely.
  */
 void
 xfs_extent_busy_reuse(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		fbno,
+	xfs_agnumber_t		agyes,
+	xfs_agblock_t		fbyes,
 	xfs_extlen_t		flen,
 	bool			userdata)
 {
 	struct xfs_perag	*pag;
-	struct rb_node		*rbp;
+	struct rb_yesde		*rbp;
 
 	ASSERT(flen > 0);
 
-	pag = xfs_perag_get(mp, agno);
+	pag = xfs_perag_get(mp, agyes);
 	spin_lock(&pag->pagb_lock);
 restart:
-	rbp = pag->pagb_tree.rb_node;
+	rbp = pag->pagb_tree.rb_yesde;
 	while (rbp) {
 		struct xfs_extent_busy *busyp =
-			rb_entry(rbp, struct xfs_extent_busy, rb_node);
-		xfs_agblock_t	bbno = busyp->bno;
-		xfs_agblock_t	bend = bbno + busyp->length;
+			rb_entry(rbp, struct xfs_extent_busy, rb_yesde);
+		xfs_agblock_t	bbyes = busyp->byes;
+		xfs_agblock_t	bend = bbyes + busyp->length;
 
-		if (fbno + flen <= bbno) {
+		if (fbyes + flen <= bbyes) {
 			rbp = rbp->rb_left;
 			continue;
-		} else if (fbno >= bend) {
+		} else if (fbyes >= bend) {
 			rbp = rbp->rb_right;
 			continue;
 		}
 
-		if (!xfs_extent_busy_update_extent(mp, pag, busyp, fbno, flen,
+		if (!xfs_extent_busy_update_extent(mp, pag, busyp, fbyes, flen,
 						  userdata))
 			goto restart;
 	}
@@ -318,47 +318,47 @@ restart:
 }
 
 /*
- * For a given extent [fbno, flen], search the busy extent list to find a
- * subset of the extent that is not busy.  If *rlen is smaller than
- * args->minlen no suitable extent could be found, and the higher level
+ * For a given extent [fbyes, flen], search the busy extent list to find a
+ * subset of the extent that is yest busy.  If *rlen is smaller than
+ * args->minlen yes suitable extent could be found, and the higher level
  * code needs to force out the log and retry the allocation.
  *
  * Return the current busy generation for the AG if the extent is busy. This
  * value can be used to wait for at least one of the currently busy extents
- * to be cleared. Note that the busy list is not guaranteed to be empty after
+ * to be cleared. Note that the busy list is yest guaranteed to be empty after
  * the gen is woken. The state of a specific extent must always be confirmed
- * with another call to xfs_extent_busy_trim() before it can be used.
+ * with ayesther call to xfs_extent_busy_trim() before it can be used.
  */
 bool
 xfs_extent_busy_trim(
 	struct xfs_alloc_arg	*args,
-	xfs_agblock_t		*bno,
+	xfs_agblock_t		*byes,
 	xfs_extlen_t		*len,
 	unsigned		*busy_gen)
 {
-	xfs_agblock_t		fbno;
+	xfs_agblock_t		fbyes;
 	xfs_extlen_t		flen;
-	struct rb_node		*rbp;
+	struct rb_yesde		*rbp;
 	bool			ret = false;
 
 	ASSERT(*len > 0);
 
 	spin_lock(&args->pag->pagb_lock);
 restart:
-	fbno = *bno;
+	fbyes = *byes;
 	flen = *len;
-	rbp = args->pag->pagb_tree.rb_node;
+	rbp = args->pag->pagb_tree.rb_yesde;
 	while (rbp && flen >= args->minlen) {
 		struct xfs_extent_busy *busyp =
-			rb_entry(rbp, struct xfs_extent_busy, rb_node);
-		xfs_agblock_t	fend = fbno + flen;
-		xfs_agblock_t	bbno = busyp->bno;
-		xfs_agblock_t	bend = bbno + busyp->length;
+			rb_entry(rbp, struct xfs_extent_busy, rb_yesde);
+		xfs_agblock_t	fend = fbyes + flen;
+		xfs_agblock_t	bbyes = busyp->byes;
+		xfs_agblock_t	bend = bbyes + busyp->length;
 
-		if (fend <= bbno) {
+		if (fend <= bbyes) {
 			rbp = rbp->rb_left;
 			continue;
-		} else if (fbno >= bend) {
+		} else if (fbyes >= bend) {
 			rbp = rbp->rb_right;
 			continue;
 		}
@@ -370,39 +370,39 @@ restart:
 		if (!(args->datatype & XFS_ALLOC_USERDATA) &&
 		    !(busyp->flags & XFS_EXTENT_BUSY_DISCARDED)) {
 			if (!xfs_extent_busy_update_extent(args->mp, args->pag,
-							  busyp, fbno, flen,
+							  busyp, fbyes, flen,
 							  false))
 				goto restart;
 			continue;
 		}
 
-		if (bbno <= fbno) {
+		if (bbyes <= fbyes) {
 			/* start overlap */
 
 			/*
 			 * Case 1:
-			 *    bbno           bend
+			 *    bbyes           bend
 			 *    +BBBBBBBBBBBBBBBBB+
 			 *        +---------+
-			 *        fbno   fend
+			 *        fbyes   fend
 			 *
 			 * Case 2:
-			 *    bbno           bend
+			 *    bbyes           bend
 			 *    +BBBBBBBBBBBBBBBBB+
 			 *    +-------------+
-			 *    fbno       fend
+			 *    fbyes       fend
 			 *
 			 * Case 3:
-			 *    bbno           bend
+			 *    bbyes           bend
 			 *    +BBBBBBBBBBBBBBBBB+
 			 *        +-------------+
-			 *        fbno       fend
+			 *        fbyes       fend
 			 *
 			 * Case 4:
-			 *    bbno           bend
+			 *    bbyes           bend
 			 *    +BBBBBBBBBBBBBBBBB+
 			 *    +-----------------+
-			 *    fbno           fend
+			 *    fbyes           fend
 			 *
 			 * No unbusy region in extent, return failure.
 			 */
@@ -411,99 +411,99 @@ restart:
 
 			/*
 			 * Case 5:
-			 *    bbno           bend
+			 *    bbyes           bend
 			 *    +BBBBBBBBBBBBBBBBB+
 			 *        +----------------------+
-			 *        fbno                fend
+			 *        fbyes                fend
 			 *
 			 * Case 6:
-			 *    bbno           bend
+			 *    bbyes           bend
 			 *    +BBBBBBBBBBBBBBBBB+
 			 *    +--------------------------+
-			 *    fbno                    fend
+			 *    fbyes                    fend
 			 *
 			 * Needs to be trimmed to:
 			 *                       +-------+
-			 *                       fbno fend
+			 *                       fbyes fend
 			 */
-			fbno = bend;
+			fbyes = bend;
 		} else if (bend >= fend) {
 			/* end overlap */
 
 			/*
 			 * Case 7:
-			 *             bbno           bend
+			 *             bbyes           bend
 			 *             +BBBBBBBBBBBBBBBBB+
 			 *    +------------------+
-			 *    fbno            fend
+			 *    fbyes            fend
 			 *
 			 * Case 8:
-			 *             bbno           bend
+			 *             bbyes           bend
 			 *             +BBBBBBBBBBBBBBBBB+
 			 *    +--------------------------+
-			 *    fbno                    fend
+			 *    fbyes                    fend
 			 *
 			 * Needs to be trimmed to:
 			 *    +-------+
-			 *    fbno fend
+			 *    fbyes fend
 			 */
-			fend = bbno;
+			fend = bbyes;
 		} else {
 			/* middle overlap */
 
 			/*
 			 * Case 9:
-			 *             bbno           bend
+			 *             bbyes           bend
 			 *             +BBBBBBBBBBBBBBBBB+
 			 *    +-----------------------------------+
-			 *    fbno                             fend
+			 *    fbyes                             fend
 			 *
 			 * Can be trimmed to:
 			 *    +-------+        OR         +-------+
-			 *    fbno fend                   fbno fend
+			 *    fbyes fend                   fbyes fend
 			 *
 			 * Backward allocation leads to significant
 			 * fragmentation of directories, which degrades
 			 * directory performance, therefore we always want to
 			 * choose the option that produces forward allocation
 			 * patterns.
-			 * Preferring the lower bno extent will make the next
+			 * Preferring the lower byes extent will make the next
 			 * request use "fend" as the start of the next
-			 * allocation;  if the segment is no longer busy at
+			 * allocation;  if the segment is yes longer busy at
 			 * that point, we'll get a contiguous allocation, but
 			 * even if it is still busy, we will get a forward
 			 * allocation.
 			 * We try to avoid choosing the segment at "bend",
 			 * because that can lead to the next allocation
-			 * taking the segment at "fbno", which would be a
+			 * taking the segment at "fbyes", which would be a
 			 * backward allocation.  We only use the segment at
-			 * "fbno" if it is much larger than the current
+			 * "fbyes" if it is much larger than the current
 			 * requested size, because in that case there's a
 			 * good chance subsequent allocations will be
 			 * contiguous.
 			 */
-			if (bbno - fbno >= args->maxlen) {
+			if (bbyes - fbyes >= args->maxlen) {
 				/* left candidate fits perfect */
-				fend = bbno;
+				fend = bbyes;
 			} else if (fend - bend >= args->maxlen * 4) {
-				/* right candidate has enough free space */
-				fbno = bend;
-			} else if (bbno - fbno >= args->minlen) {
+				/* right candidate has eyesugh free space */
+				fbyes = bend;
+			} else if (bbyes - fbyes >= args->minlen) {
 				/* left candidate fits minimum requirement */
-				fend = bbno;
+				fend = bbyes;
 			} else {
 				goto fail;
 			}
 		}
 
-		flen = fend - fbno;
+		flen = fend - fbyes;
 	}
 out:
 
-	if (fbno != *bno || flen != *len) {
-		trace_xfs_extent_busy_trim(args->mp, args->agno, *bno, *len,
-					  fbno, flen);
-		*bno = fbno;
+	if (fbyes != *byes || flen != *len) {
+		trace_xfs_extent_busy_trim(args->mp, args->agyes, *byes, *len,
+					  fbyes, flen);
+		*byes = fbyes;
 		*len = flen;
 		*busy_gen = args->pag->pagb_gen;
 		ret = true;
@@ -526,9 +526,9 @@ xfs_extent_busy_clear_one(
 	struct xfs_extent_busy	*busyp)
 {
 	if (busyp->length) {
-		trace_xfs_extent_busy_clear(mp, busyp->agno, busyp->bno,
+		trace_xfs_extent_busy_clear(mp, busyp->agyes, busyp->byes,
 						busyp->length);
-		rb_erase(&busyp->rb_node, &pag->pagb_tree);
+		rb_erase(&busyp->rb_yesde, &pag->pagb_tree);
 	}
 
 	list_del_init(&busyp->list);
@@ -563,15 +563,15 @@ xfs_extent_busy_clear(
 {
 	struct xfs_extent_busy	*busyp, *n;
 	struct xfs_perag	*pag = NULL;
-	xfs_agnumber_t		agno = NULLAGNUMBER;
+	xfs_agnumber_t		agyes = NULLAGNUMBER;
 	bool			wakeup = false;
 
 	list_for_each_entry_safe(busyp, n, list, list) {
-		if (busyp->agno != agno) {
+		if (busyp->agyes != agyes) {
 			if (pag)
 				xfs_extent_busy_put_pag(pag, wakeup);
-			agno = busyp->agno;
-			pag = xfs_perag_get(mp, agno);
+			agyes = busyp->agyes;
+			pag = xfs_perag_get(mp, agyes);
 			spin_lock(&pag->pagb_lock);
 			wakeup = false;
 		}
@@ -620,10 +620,10 @@ xfs_extent_busy_wait_all(
 	struct xfs_mount	*mp)
 {
 	DEFINE_WAIT		(wait);
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agyes;
 
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		struct xfs_perag *pag = xfs_perag_get(mp, agno);
+	for (agyes = 0; agyes < mp->m_sb.sb_agcount; agyes++) {
+		struct xfs_perag *pag = xfs_perag_get(mp, agyes);
 
 		do {
 			prepare_to_wait(&pag->pagb_wait, &wait, TASK_KILLABLE);
@@ -652,8 +652,8 @@ xfs_extent_busy_ag_cmp(
 		container_of(l2, struct xfs_extent_busy, list);
 	s32 diff;
 
-	diff = b1->agno - b2->agno;
+	diff = b1->agyes - b2->agyes;
 	if (!diff)
-		diff = b1->bno - b2->bno;
+		diff = b1->byes - b2->byes;
 	return diff;
 }

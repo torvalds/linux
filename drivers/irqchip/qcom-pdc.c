@@ -122,7 +122,7 @@ static void qcom_pdc_gic_unmask(struct irq_data *d)
 }
 
 /*
- * GIC does not handle falling edge or active low. To allow falling edge and
+ * GIC does yest handle falling edge or active low. To allow falling edge and
  * active low interrupts to be handled at GIC, PDC has an inverter that inverts
  * falling edge into a rising edge and active low into an active high.
  * For the inverter to work, the polarity bit in the IRQ_CONFIG register has to
@@ -228,7 +228,7 @@ static irq_hw_number_t get_parent_hwirq(int pin)
 static int qcom_pdc_translate(struct irq_domain *d, struct irq_fwspec *fwspec,
 			      unsigned long *hwirq, unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_yesde(fwspec->fwyesde)) {
 		if (fwspec->param_count != 2)
 			return -EINVAL;
 
@@ -268,7 +268,7 @@ static int qcom_pdc_alloc(struct irq_domain *domain, unsigned int virq,
 	if (type & IRQ_TYPE_LEVEL_MASK)
 		type = IRQ_TYPE_LEVEL_HIGH;
 
-	parent_fwspec.fwnode      = domain->parent->fwnode;
+	parent_fwspec.fwyesde      = domain->parent->fwyesde;
 	parent_fwspec.param_count = 3;
 	parent_fwspec.param[0]    = 0;
 	parent_fwspec.param[1]    = parent_hwirq;
@@ -315,7 +315,7 @@ static int qcom_pdc_gpio_alloc(struct irq_domain *domain, unsigned int virq,
 	if (type & IRQ_TYPE_LEVEL_MASK)
 		type = IRQ_TYPE_LEVEL_HIGH;
 
-	parent_fwspec.fwnode      = domain->parent->fwnode;
+	parent_fwspec.fwyesde      = domain->parent->fwyesde;
 	parent_fwspec.param_count = 3;
 	parent_fwspec.param[0]    = 0;
 	parent_fwspec.param[1]    = parent_hwirq;
@@ -338,7 +338,7 @@ static const struct irq_domain_ops qcom_pdc_gpio_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static int pdc_setup_pin_mapping(struct device_node *np)
+static int pdc_setup_pin_mapping(struct device_yesde *np)
 {
 	int ret, n;
 
@@ -374,35 +374,35 @@ static int pdc_setup_pin_mapping(struct device_node *np)
 	return 0;
 }
 
-static int qcom_pdc_init(struct device_node *node, struct device_node *parent)
+static int qcom_pdc_init(struct device_yesde *yesde, struct device_yesde *parent)
 {
 	struct irq_domain *parent_domain, *pdc_domain, *pdc_gpio_domain;
 	int ret;
 
-	pdc_base = of_iomap(node, 0);
+	pdc_base = of_iomap(yesde, 0);
 	if (!pdc_base) {
-		pr_err("%pOF: unable to map PDC registers\n", node);
+		pr_err("%pOF: unable to map PDC registers\n", yesde);
 		return -ENXIO;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%pOF: unable to find PDC's parent domain\n", node);
+		pr_err("%pOF: unable to find PDC's parent domain\n", yesde);
 		ret = -ENXIO;
 		goto fail;
 	}
 
-	ret = pdc_setup_pin_mapping(node);
+	ret = pdc_setup_pin_mapping(yesde);
 	if (ret) {
-		pr_err("%pOF: failed to init PDC pin-hwirq mapping\n", node);
+		pr_err("%pOF: failed to init PDC pin-hwirq mapping\n", yesde);
 		goto fail;
 	}
 
 	pdc_domain = irq_domain_create_hierarchy(parent_domain, 0, PDC_MAX_IRQS,
-						 of_fwnode_handle(node),
+						 of_fwyesde_handle(yesde),
 						 &qcom_pdc_ops, NULL);
 	if (!pdc_domain) {
-		pr_err("%pOF: GIC domain add failed\n", node);
+		pr_err("%pOF: GIC domain add failed\n", yesde);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -410,10 +410,10 @@ static int qcom_pdc_init(struct device_node *node, struct device_node *parent)
 	pdc_gpio_domain = irq_domain_create_hierarchy(parent_domain,
 					IRQ_DOMAIN_FLAG_QCOM_PDC_WAKEUP,
 					PDC_MAX_GPIO_IRQS,
-					of_fwnode_handle(node),
+					of_fwyesde_handle(yesde),
 					&qcom_pdc_gpio_ops, NULL);
 	if (!pdc_gpio_domain) {
-		pr_err("%pOF: PDC domain add failed for GPIO domain\n", node);
+		pr_err("%pOF: PDC domain add failed for GPIO domain\n", yesde);
 		ret = -ENOMEM;
 		goto remove;
 	}

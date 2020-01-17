@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -95,7 +95,7 @@ void hubbub1_allow_self_refresh_control(struct hubbub *hubbub, bool allow)
 	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
 
 	/*
-	 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 1 means do not allow stutter
+	 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 1 means do yest allow stutter
 	 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 0 means allow stutter
 	 */
 
@@ -122,10 +122,10 @@ bool hubbub1_verify_allow_pstate_change_high(
 	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
 
 	/* pstate latency is ~20us so if we wait over 40us and pstate allow
-	 * still not asserted, we are probably stuck and going to hang
+	 * still yest asserted, we are probably stuck and going to hang
 	 *
 	 * TODO: Figure out why it takes ~100us on linux
-	 * pstate takes around ~100us on linux. Unknown currently as to
+	 * pstate takes around ~100us on linux. Unkyeswn currently as to
 	 * why it takes that long on linux
 	 */
 	static unsigned int pstate_wait_timeout_us = 200;
@@ -608,7 +608,7 @@ void hubbub1_program_watermarks(
 {
 	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
 	/*
-	 * Need to clamp to max of the register values (i.e. no wrap)
+	 * Need to clamp to max of the register values (i.e. yes wrap)
 	 * for dcn1, all wm registers are 21-bit wide
 	 */
 	hubbub1_program_urgent_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower);
@@ -637,7 +637,7 @@ void hubbub1_update_dchub(
 
 	if (REG(DCHUBBUB_SDPIF_FB_TOP) == 0) {
 		ASSERT(false);
-		/*should not come here*/
+		/*should yest come here*/
 		return;
 	}
 	/* TODO: port code from dal2 */
@@ -661,7 +661,7 @@ void hubbub1_update_dchub(
 						dh_data->zfb_size_in_byte - 1) >> 22);
 		break;
 	case FRAME_BUFFER_MODE_MIXED_ZFB_AND_LOCAL:
-		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+		/*Should yest touch FB LOCATION (done by VBIOS on AsicInit table)*/
 
 		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BASE,
 				SDPIF_AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
@@ -674,7 +674,7 @@ void hubbub1_update_dchub(
 						dh_data->zfb_size_in_byte - 1) >> 22);
 		break;
 	case FRAME_BUFFER_MODE_LOCAL_ONLY:
-		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+		/*Should yest touch FB LOCATION (done by VBIOS on AsicInit table)*/
 		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BASE,
 				SDPIF_AGP_BASE, 0);
 
@@ -756,12 +756,12 @@ static bool hubbub1_dcc_support_swizzle(
 		return true;
 	}
 	if (bytes_per_element == 2 && standard_swizzle) {
-		*segment_order_horz = segment_order__non_contiguous;
+		*segment_order_horz = segment_order__yesn_contiguous;
 		*segment_order_vert = segment_order__contiguous;
 		return true;
 	}
 	if (bytes_per_element == 4 && standard_swizzle) {
-		*segment_order_horz = segment_order__non_contiguous;
+		*segment_order_horz = segment_order__yesn_contiguous;
 		*segment_order_vert = segment_order__contiguous;
 		return true;
 	}
@@ -772,7 +772,7 @@ static bool hubbub1_dcc_support_swizzle(
 	}
 	if (bytes_per_element == 8 && display_swizzle) {
 		*segment_order_horz = segment_order__contiguous;
-		*segment_order_vert = segment_order__non_contiguous;
+		*segment_order_vert = segment_order__yesn_contiguous;
 		return true;
 	}
 
@@ -898,10 +898,10 @@ static bool hubbub1_get_dcc_compression_cap(struct hubbub *hubbub,
 			dcc_control = dcc_control__256_64_64;
 	} else {
 		if ((req128_horz_wc &&
-			segment_order_horz == segment_order__non_contiguous) ||
+			segment_order_horz == segment_order__yesn_contiguous) ||
 			(req128_vert_wc &&
-			segment_order_vert == segment_order__non_contiguous))
-			/* access_dir not known, must use most constraining */
+			segment_order_vert == segment_order__yesn_contiguous))
+			/* access_dir yest kyeswn, must use most constraining */
 			dcc_control = dcc_control__256_64_64;
 		else
 			/* reg128 is true for either horz and vert

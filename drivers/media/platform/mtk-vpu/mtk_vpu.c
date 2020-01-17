@@ -127,9 +127,9 @@ struct vpu_wdt {
  *
  * @signaled:		the signal of vpu initialization completed
  * @fw_ver:		VPU firmware version
- * @dec_capability:	decoder capability which is not used for now and
+ * @dec_capability:	decoder capability which is yest used for yesw and
  *			the value is reserved for future use
- * @enc_capability:	encoder capability which is not used for now and
+ * @enc_capability:	encoder capability which is yest used for yesw and
  *			the value is reserved for future use
  * @wq:			wait queue for VPU initialization status
  */
@@ -188,7 +188,7 @@ struct share_obj {
  *			If the other client wants to encode VP8,
  *			it has to wait until VP8 decode completes.
  * @wdt_refcnt:		WDT reference count to make sure the watchdog can be
- *			disabled if no other client is using VPU service
+ *			disabled if yes other client is using VPU service
  * @ack_wq:		The wait queue for each codec and mdp. When sleeping
  *			processes wake up, they will check the condition
  *			"ipi_id_ack" to run the corresponding action or
@@ -269,7 +269,7 @@ int vpu_ipi_register(struct platform_device *pdev,
 	struct vpu_ipi_desc *ipi_desc;
 
 	if (!vpu) {
-		dev_err(&pdev->dev, "vpu device in not ready\n");
+		dev_err(&pdev->dev, "vpu device in yest ready\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -308,7 +308,7 @@ int vpu_ipi_send(struct platform_device *pdev,
 		return ret;
 	}
 	if (!vpu_running(vpu)) {
-		dev_err(vpu->dev, "vpu_ipi_send: VPU is not running\n");
+		dev_err(vpu->dev, "vpu_ipi_send: VPU is yest running\n");
 		ret = -EINVAL;
 		goto clock_disable;
 	}
@@ -392,7 +392,7 @@ int vpu_wdt_reg_handler(struct platform_device *pdev,
 	struct vpu_wdt_handler *handler;
 
 	if (!vpu) {
-		dev_err(&pdev->dev, "vpu device in not ready\n");
+		dev_err(&pdev->dev, "vpu device in yest ready\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -450,17 +450,17 @@ EXPORT_SYMBOL_GPL(vpu_mapping_dm_addr);
 struct platform_device *vpu_get_plat_device(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *vpu_node;
+	struct device_yesde *vpu_yesde;
 	struct platform_device *vpu_pdev;
 
-	vpu_node = of_parse_phandle(dev->of_node, "mediatek,vpu", 0);
-	if (!vpu_node) {
-		dev_err(dev, "can't get vpu node\n");
+	vpu_yesde = of_parse_phandle(dev->of_yesde, "mediatek,vpu", 0);
+	if (!vpu_yesde) {
+		dev_err(dev, "can't get vpu yesde\n");
 		return NULL;
 	}
 
-	vpu_pdev = of_find_device_by_node(vpu_node);
-	of_node_put(vpu_node);
+	vpu_pdev = of_find_device_by_yesde(vpu_yesde);
+	of_yesde_put(vpu_yesde);
 	if (WARN_ON(!vpu_pdev)) {
 		dev_err(dev, "vpu pdev failed\n");
 		return NULL;
@@ -490,7 +490,7 @@ static int load_requested_vpu(struct mtk_vpu *vpu,
 	}
 	dl_size = vpu_fw->size;
 	if (dl_size > fw_size) {
-		dev_err(vpu->dev, "fw %s size %zu is abnormal\n", fw_name,
+		dev_err(vpu->dev, "fw %s size %zu is abyesrmal\n", fw_name,
 			dl_size);
 		release_firmware(vpu_fw);
 		return  -EFBIG;
@@ -647,7 +647,7 @@ static ssize_t vpu_debug_read(struct file *file, char __user *user_buf,
 		vpu->run.fw_ver, pc, wdt,
 		host_to_vpu, vpu_to_host);
 	} else {
-		len = snprintf(buf, sizeof(buf), "VPU not running\n");
+		len = snprintf(buf, sizeof(buf), "VPU yest running\n");
 	}
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
@@ -755,7 +755,7 @@ static irqreturn_t vpu_irq_handler(int irq, void *priv)
 		queue_work(vpu->wdt.wq, &vpu->wdt.ws);
 	}
 
-	/* VPU won't send another interrupt until we set VPU_TO_HOST to 0. */
+	/* VPU won't send ayesther interrupt until we set VPU_TO_HOST to 0. */
 	vpu_cfg_writel(vpu, 0x0, VPU_TO_HOST);
 	clk_disable(vpu->clk);
 

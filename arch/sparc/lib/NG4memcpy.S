@@ -117,7 +117,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	 or		%o0, %o1, %g2
 	cmp		%o2, 128
 	bl,pn		%icc, .Lmedium
-	 nop
+	 yesp
 
 .Llarge:/* len >= 0x80 */
 	/* First get dest 8 byte aligned.  */
@@ -203,8 +203,8 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	brz,pn		%o2, .Lexit
 	 cmp		%o2, 19
 	ble,pn		%icc, .Lsmall_unaligned
-	 nop
-	ba,a,pt		%icc, .Lmedium_noprefetch
+	 yesp
+	ba,a,pt		%icc, .Lmedium_yesprefetch
 
 .Lexit:	retl
 	 mov		EX_RETVAL(%o3), %o0
@@ -257,7 +257,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	brz,pn		%o2, .Lexit
 	 cmp		%o2, 19
 	ble,pn		%icc, .Lsmall_unaligned
-	 nop
+	 yesp
 	ba,a,pt		%icc, .Lmedium_unaligned
 
 #ifdef NON_USER_COPY
@@ -268,8 +268,8 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	LOAD(prefetch, %o1 + 0x40, #n_reads_strong)
 	andcc		%g2, 0x7, %g0
 	bne,pn		%icc, .Lmedium_unaligned
-	 nop
-.Lmedium_noprefetch:
+	 yesp
+.Lmedium_yesprefetch:
 	andncc		%o2, 0x20 - 1, %o5
 	be,pn		%icc, 2f
 	 sub		%o2, %o5, %o2
@@ -298,7 +298,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 3:	brz,pt		%o2, .Lexit
 	 cmp		%o2, 0x04
 	bl,pn		%icc, .Ltiny
-	 nop
+	 yesp
 	EX_LD(LOAD(lduw, %o1 + 0x00, %g1), memcpy_retl_o2)
 	add		%o1, 0x04, %o1
 	add		%o0, 0x04, %o0
@@ -321,7 +321,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	 EX_ST(STORE(stb, %g2, %o0 - 0x01), memcpy_retl_o2_plus_g1_plus_1)
 2:
 	and		%o1, 0x7, %g1
-	brz,pn		%g1, .Lmedium_noprefetch
+	brz,pn		%g1, .Lmedium_yesprefetch
 	 sll		%g1, 3, %g1
 	mov		64, %g2
 	sub		%g2, %g1, %g2
@@ -342,7 +342,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	srl		%g1, 3, %g1
 	add		%o1, %g1, %o1
 	brz,pn		%o2, .Lexit
-	 nop
+	 yesp
 	ba,pt		%icc, .Lsmall_unaligned
 
 .Ltiny:
@@ -371,7 +371,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bne,pt		%icc, 1b
 	 EX_ST(STORE(stw, %g1, %o0 - 0x04), memcpy_retl_o2_plus_o5_plus_4)
 	brz,pt		%o2, .Lexit
-	 nop
+	 yesp
 	ba,a,pt		%icc, .Ltiny
 
 .Lsmall_unaligned:
@@ -382,5 +382,5 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bne,pt		%icc, 1b
 	 EX_ST(STORE(stb, %g1, %o0 - 0x01), memcpy_retl_o2_plus_1)
 	ba,a,pt		%icc, .Lexit
-	 nop
+	 yesp
 	.size		FUNC_NAME, .-FUNC_NAME

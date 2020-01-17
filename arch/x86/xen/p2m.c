@@ -29,7 +29,7 @@
  *
  * In short, these structures contain the Machine Frame Number (MFN) of the PFN.
  *
- * However not all entries are filled with MFNs. Specifically for all other
+ * However yest all entries are filled with MFNs. Specifically for all other
  * leaf entries, or for the top  root, or middle one, for which there is a void
  * entry, we assume it is  "missing". So (for example)
  *  pfn_to_mfn(0x90909090)=INVALID_P2M_ENTRY.
@@ -41,13 +41,13 @@
  * that:
  *  pfn_to_mfn(0xc0000)=0xc0000
  *
- * The benefit of this is, that we can assume for non-RAM regions (think
+ * The benefit of this is, that we can assume for yesn-RAM regions (think
  * PCI BARs, or ACPI spaces), we can create mappings easily because we
  * get the PFN value to match the MFN.
  *
  * For this to work efficiently we have one new page p2m_identity. All entries
  * in p2m_identity are set to INVALID_P2M_ENTRY type (Xen toolstack only
- * recognizes that and MFNs, no other fancy value).
+ * recognizes that and MFNs, yes other fancy value).
  *
  * On lookup we spot that the entry points to p2m_identity and return the
  * identity value instead of dereferencing and returning INVALID_P2M_ENTRY.
@@ -57,7 +57,7 @@
  *
  * The reason for having the IDENTITY_FRAME_BIT instead of just returning the
  * PFN is that we could find ourselves where pfn_to_mfn(pfn)==pfn for a
- * non-identity pfn. To protect ourselves against we elect to set (and get) the
+ * yesn-identity pfn. To protect ourselves against we elect to set (and get) the
  * IDENTITY_FRAME_BIT on all identity mapped PFNs.
  */
 
@@ -360,7 +360,7 @@ static void __init xen_rebuild_p2m_list(unsigned long *p2m)
 		 * which will be built just afterwards.
 		 * Chunk size to test is one p2m page if we are in the middle
 		 * of a mfn_list_list mid page and the complete mid page area
-		 * if we are at index 0 of the mid page. Please note that a
+		 * if we are at index 0 of the mid page. Please yeste that a
 		 * mid page might cover more than one PMD, e.g. on 32 bit PAE
 		 * kernels.
 		 */
@@ -424,7 +424,7 @@ void __init xen_vmalloc_p2m_tree(void)
 	vm.size = ALIGN(sizeof(unsigned long) * max(xen_max_p2m_pfn, p2m_limit),
 			PMD_SIZE * PMDS_PER_MID_PAGE);
 	vm_area_register_early(&vm, PMD_SIZE * PMDS_PER_MID_PAGE);
-	pr_notice("p2m virtual area at %p, size is %lx\n", vm.addr, vm.size);
+	pr_yestice("p2m virtual area at %p, size is %lx\n", vm.addr, vm.size);
 
 	xen_max_p2m_pfn = vm.size / sizeof(unsigned long);
 
@@ -465,7 +465,7 @@ EXPORT_SYMBOL_GPL(get_phys_to_machine);
 
 /*
  * Allocate new pmd(s). It is checked whether the old pmd is still in place.
- * If not, nothing is changed. This is okay as the only reason for allocating
+ * If yest, yesthing is changed. This is okay as the only reason for allocating
  * a new pmd is to replace p2m_missing_pte or p2m_identity_pte by a individual
  * pmd. In case of PAE/x86-32 there are multiple pmds to allocate!
  */
@@ -715,7 +715,7 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 	for (i = 0; i < count; i++) {
 		unsigned long mfn, pfn;
 
-		/* Do not add to override if the map failed. */
+		/* Do yest add to override if the map failed. */
 		if (map_ops[i].status)
 			continue;
 
@@ -778,7 +778,7 @@ static int p2m_dump_show(struct seq_file *m, void *v)
 				[P2M_TYPE_IDENTITY] = "identity",
 				[P2M_TYPE_MISSING] = "missing",
 				[P2M_TYPE_PFN] = "pfn",
-				[P2M_TYPE_UNKNOWN] = "abnormal"};
+				[P2M_TYPE_UNKNOWN] = "abyesrmal"};
 	unsigned long pfn, first_pfn;
 	int type, prev_type;
 
@@ -799,7 +799,7 @@ static int p2m_dump_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int p2m_dump_open(struct inode *inode, struct file *filp)
+static int p2m_dump_open(struct iyesde *iyesde, struct file *filp)
 {
 	return single_open(filp, p2m_dump_show, NULL);
 }

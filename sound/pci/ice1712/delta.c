@@ -303,7 +303,7 @@ static void delta_1010_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
 {
 	unsigned char tmp, tmp2;
 
-	if (rate == 0)	/* no hint - S/PDIF input is master, simply return */
+	if (rate == 0)	/* yes hint - S/PDIF input is master, simply return */
 		return;
 
 	mutex_lock(&ice->gpio_mutex);
@@ -324,7 +324,7 @@ static void delta_ak4524_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 	unsigned char tmp, tmp2;
 	struct snd_ice1712 *ice = ak->private_data[0];
 
-	if (rate == 0)	/* no hint - S/PDIF input is master, simply return */
+	if (rate == 0)	/* yes hint - S/PDIF input is master, simply return */
 		return;
 
 	/* check before reset ak4524 to avoid unnecessary clicks */
@@ -397,12 +397,12 @@ static void delta_setup_spdif(struct snd_ice1712 *ice, int rate)
 	ice->spdif.cs8403_stream_bits = tmp;
 	spin_unlock_irqrestore(&ice->reg_lock, flags);
 	if (change)
-		snd_ctl_notify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &ice->spdif.stream_ctl->id);
+		snd_ctl_yestify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &ice->spdif.stream_ctl->id);
 	snd_ice1712_delta_cs8403_spdif_write(ice, tmp);
 }
 
 #define snd_ice1712_delta1010lt_wordclock_status_info \
-	snd_ctl_boolean_mono_info
+	snd_ctl_boolean_moyes_info
 
 static int snd_ice1712_delta1010lt_wordclock_status_get(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
@@ -447,7 +447,7 @@ static const struct snd_ak4xxx_private akm_audiophile_priv = {
 	.clk_mask = ICE1712_DELTA_AP_CCLK,
 	.cs_mask = ICE1712_DELTA_AP_CS_CODEC,
 	.cs_addr = ICE1712_DELTA_AP_CS_CODEC,
-	.cs_none = 0,
+	.cs_yesne = 0,
 	.add_flags = ICE1712_DELTA_AP_CS_DIGITAL,
 	.mask_flags = 0,
 };
@@ -468,7 +468,7 @@ static const struct snd_ak4xxx_private akm_delta410_priv = {
 	.clk_mask = ICE1712_DELTA_AP_CCLK,
 	.cs_mask = ICE1712_DELTA_AP_CS_CODEC,
 	.cs_addr = ICE1712_DELTA_AP_CS_CODEC,
-	.cs_none = 0,
+	.cs_yesne = 0,
 	.add_flags = ICE1712_DELTA_AP_CS_DIGITAL,
 	.mask_flags = 0,
 };
@@ -490,7 +490,7 @@ static const struct snd_ak4xxx_private akm_delta1010lt_priv = {
 	.clk_mask = ICE1712_DELTA_1010LT_CCLK,
 	.cs_mask = 0,
 	.cs_addr = 0, /* set later */
-	.cs_none = ICE1712_DELTA_1010LT_CS_NONE,
+	.cs_yesne = ICE1712_DELTA_1010LT_CS_NONE,
 	.add_flags = 0,
 	.mask_flags = 0,
 };
@@ -512,7 +512,7 @@ static const struct snd_ak4xxx_private akm_delta66e_priv = {
 	.clk_mask = ICE1712_DELTA_66E_CCLK,
 	.cs_mask = 0,
 	.cs_addr = 0, /* set later */
-	.cs_none = 0,
+	.cs_yesne = 0,
 	.add_flags = 0,
 	.mask_flags = 0,
 };
@@ -535,7 +535,7 @@ static const struct snd_ak4xxx_private akm_delta44_priv = {
 	.clk_mask = ICE1712_DELTA_CODEC_SERIAL_CLOCK,
 	.cs_mask = 0,
 	.cs_addr = 0, /* set later */
-	.cs_none = 0,
+	.cs_yesne = 0,
 	.add_flags = 0,
 	.mask_flags = 0,
 };
@@ -557,7 +557,7 @@ static const struct snd_ak4xxx_private akm_vx442_priv = {
 	.clk_mask = ICE1712_VX442_CCLK,
 	.cs_mask = 0,
 	.cs_addr = 0, /* set later */
-	.cs_none = 0,
+	.cs_yesne = 0,
 	.add_flags = 0,
 	.mask_flags = 0,
 };
@@ -580,7 +580,7 @@ static int snd_ice1712_delta_resume(struct snd_ice1712 *ice)
 		break;
 	case ICE1712_SUBDEVICE_DELTA1010:
 	case ICE1712_SUBDEVICE_MEDIASTATION:
-		/* nothing */
+		/* yesthing */
 		break;
 	case ICE1712_SUBDEVICE_DELTADIO2496:
 	case ICE1712_SUBDEVICE_DELTA66:
@@ -652,7 +652,7 @@ static int snd_ice1712_delta_init(struct snd_ice1712 *ice)
 		ice->num_total_dacs = 4;	/* two AK4324 codecs */
 		break;
 	case ICE1712_SUBDEVICE_VX442:
-	case ICE1712_SUBDEVICE_DELTA66E:	/* omni not supported yet */
+	case ICE1712_SUBDEVICE_DELTA66E:	/* omni yest supported yet */
 		ice->num_total_dacs = 4;
 		ice->num_total_adcs = 4;
 		break;
@@ -704,7 +704,7 @@ static int snd_ice1712_delta_init(struct snd_ice1712 *ice)
 		break;
 	}
 
-	/* no analog? */
+	/* yes analog? */
 	switch (ice->eeprom.subvendor) {
 	case ICE1712_SUBDEVICE_DELTA1010:
 	case ICE1712_SUBDEVICE_DELTA1010E:
@@ -796,7 +796,7 @@ static int snd_ice1712_delta_add_controls(struct snd_ice1712 *ice)
 		break;
 	}
 
-	/* normal spdif controls */
+	/* yesrmal spdif controls */
 	switch (ice->eeprom.subvendor) {
 	case ICE1712_SUBDEVICE_DELTA1010:
 	case ICE1712_SUBDEVICE_DELTADIO2496:
@@ -855,7 +855,7 @@ struct snd_ice1712_card_info snd_ice1712_delta_cards[] = {
 		.model = "dio2496",
 		.chip_init = snd_ice1712_delta_init,
 		.build_controls = snd_ice1712_delta_add_controls,
-		.no_mpu401 = 1,
+		.yes_mpu401 = 1,
 	},
 	{
 		.subvendor = ICE1712_SUBDEVICE_DELTA66,
@@ -863,7 +863,7 @@ struct snd_ice1712_card_info snd_ice1712_delta_cards[] = {
 		.model = "delta66",
 		.chip_init = snd_ice1712_delta_init,
 		.build_controls = snd_ice1712_delta_add_controls,
-		.no_mpu401 = 1,
+		.yes_mpu401 = 1,
 	},
 	{
 		.subvendor = ICE1712_SUBDEVICE_DELTA44,
@@ -871,7 +871,7 @@ struct snd_ice1712_card_info snd_ice1712_delta_cards[] = {
 		.model = "delta44",
 		.chip_init = snd_ice1712_delta_init,
 		.build_controls = snd_ice1712_delta_add_controls,
-		.no_mpu401 = 1,
+		.yes_mpu401 = 1,
 	},
 	{
 		.subvendor = ICE1712_SUBDEVICE_AUDIOPHILE,
@@ -900,7 +900,7 @@ struct snd_ice1712_card_info snd_ice1712_delta_cards[] = {
 		.model = "vx442",
 		.chip_init = snd_ice1712_delta_init,
 		.build_controls = snd_ice1712_delta_add_controls,
-		.no_mpu401 = 1,
+		.yes_mpu401 = 1,
 	},
 	{
 		.subvendor = ICE1712_SUBDEVICE_MEDIASTATION,

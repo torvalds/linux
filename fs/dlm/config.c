@@ -23,9 +23,9 @@
 #include "lowcomms.h"
 
 /*
- * /config/dlm/<cluster>/spaces/<space>/nodes/<node>/nodeid
- * /config/dlm/<cluster>/spaces/<space>/nodes/<node>/weight
- * /config/dlm/<cluster>/comms/<comm>/nodeid
+ * /config/dlm/<cluster>/spaces/<space>/yesdes/<yesde>/yesdeid
+ * /config/dlm/<cluster>/spaces/<space>/yesdes/<yesde>/weight
+ * /config/dlm/<cluster>/comms/<comm>/yesdeid
  * /config/dlm/<cluster>/comms/<comm>/local
  * /config/dlm/<cluster>/comms/<comm>/addr      (write only)
  * /config/dlm/<cluster>/comms/<comm>/addr_list (read only)
@@ -43,8 +43,8 @@ struct dlm_spaces;
 struct dlm_space;
 struct dlm_comms;
 struct dlm_comm;
-struct dlm_nodes;
-struct dlm_node;
+struct dlm_yesdes;
+struct dlm_yesde;
 
 static struct config_group *make_cluster(struct config_group *, const char *);
 static void drop_cluster(struct config_group *, struct config_item *);
@@ -55,12 +55,12 @@ static void release_space(struct config_item *);
 static struct config_item *make_comm(struct config_group *, const char *);
 static void drop_comm(struct config_group *, struct config_item *);
 static void release_comm(struct config_item *);
-static struct config_item *make_node(struct config_group *, const char *);
-static void drop_node(struct config_group *, struct config_item *);
-static void release_node(struct config_item *);
+static struct config_item *make_yesde(struct config_group *, const char *);
+static void drop_yesde(struct config_group *, struct config_item *);
+static void release_yesde(struct config_item *);
 
 static struct configfs_attribute *comm_attrs[];
-static struct configfs_attribute *node_attrs[];
+static struct configfs_attribute *yesde_attrs[];
 
 struct dlm_cluster {
 	struct config_group group;
@@ -225,23 +225,23 @@ struct dlm_comms {
 struct dlm_comm {
 	struct config_item item;
 	int seq;
-	int nodeid;
+	int yesdeid;
 	int local;
 	int addr_count;
 	struct sockaddr_storage *addr[DLM_MAX_ADDR_COUNT];
 };
 
-struct dlm_nodes {
+struct dlm_yesdes {
 	struct config_group ns_group;
 };
 
-struct dlm_node {
+struct dlm_yesde {
 	struct config_item item;
 	struct list_head list; /* space->members */
-	int nodeid;
+	int yesdeid;
 	int weight;
 	int new;
-	int comm_seq; /* copy of cm->seq when nd->nodeid is set */
+	int comm_seq; /* copy of cm->seq when nd->yesdeid is set */
 };
 
 static struct configfs_group_operations clusters_ops = {
@@ -271,13 +271,13 @@ static struct configfs_item_operations comm_ops = {
 	.release = release_comm,
 };
 
-static struct configfs_group_operations nodes_ops = {
-	.make_item = make_node,
-	.drop_item = drop_node,
+static struct configfs_group_operations yesdes_ops = {
+	.make_item = make_yesde,
+	.drop_item = drop_yesde,
 };
 
-static struct configfs_item_operations node_ops = {
-	.release = release_node,
+static struct configfs_item_operations yesde_ops = {
+	.release = release_yesde,
 };
 
 static const struct config_item_type clusters_type = {
@@ -312,14 +312,14 @@ static const struct config_item_type comm_type = {
 	.ct_owner = THIS_MODULE,
 };
 
-static const struct config_item_type nodes_type = {
-	.ct_group_ops = &nodes_ops,
+static const struct config_item_type yesdes_type = {
+	.ct_group_ops = &yesdes_ops,
 	.ct_owner = THIS_MODULE,
 };
 
-static const struct config_item_type node_type = {
-	.ct_item_ops = &node_ops,
-	.ct_attrs = node_attrs,
+static const struct config_item_type yesde_type = {
+	.ct_item_ops = &yesde_ops,
+	.ct_attrs = yesde_attrs,
 	.ct_owner = THIS_MODULE,
 };
 
@@ -334,9 +334,9 @@ static struct dlm_comm *config_item_to_comm(struct config_item *i)
 	return i ? container_of(i, struct dlm_comm, item) : NULL;
 }
 
-static struct dlm_node *config_item_to_node(struct config_item *i)
+static struct dlm_yesde *config_item_to_yesde(struct config_item *i)
 {
-	return i ? container_of(i, struct dlm_node, item) : NULL;
+	return i ? container_of(i, struct dlm_yesde, item) : NULL;
 }
 
 static struct config_group *make_cluster(struct config_group *g,
@@ -408,17 +408,17 @@ static void release_cluster(struct config_item *i)
 static struct config_group *make_space(struct config_group *g, const char *name)
 {
 	struct dlm_space *sp = NULL;
-	struct dlm_nodes *nds = NULL;
+	struct dlm_yesdes *nds = NULL;
 
 	sp = kzalloc(sizeof(struct dlm_space), GFP_NOFS);
-	nds = kzalloc(sizeof(struct dlm_nodes), GFP_NOFS);
+	nds = kzalloc(sizeof(struct dlm_yesdes), GFP_NOFS);
 
 	if (!sp || !nds)
 		goto fail;
 
 	config_group_init_type_name(&sp->group, name, &space_type);
 
-	config_group_init_type_name(&nds->ns_group, "nodes", &nodes_type);
+	config_group_init_type_name(&nds->ns_group, "yesdes", &yesdes_type);
 	configfs_add_default_group(&nds->ns_group, &sp->group);
 
 	INIT_LIST_HEAD(&sp->members);
@@ -462,7 +462,7 @@ static struct config_item *make_comm(struct config_group *g, const char *name)
 	if (!cm->seq)
 		cm->seq = dlm_comm_count++;
 
-	cm->nodeid = -1;
+	cm->yesdeid = -1;
 	cm->local = 0;
 	cm->addr_count = 0;
 	return &cm->item;
@@ -473,7 +473,7 @@ static void drop_comm(struct config_group *g, struct config_item *i)
 	struct dlm_comm *cm = config_item_to_comm(i);
 	if (local_comm == cm)
 		local_comm = NULL;
-	dlm_lowcomms_close(cm->nodeid);
+	dlm_lowcomms_close(cm->yesdeid);
 	while (cm->addr_count--)
 		kfree(cm->addr[cm->addr_count]);
 	config_item_put(i);
@@ -485,19 +485,19 @@ static void release_comm(struct config_item *i)
 	kfree(cm);
 }
 
-static struct config_item *make_node(struct config_group *g, const char *name)
+static struct config_item *make_yesde(struct config_group *g, const char *name)
 {
 	struct dlm_space *sp = config_item_to_space(g->cg_item.ci_parent);
-	struct dlm_node *nd;
+	struct dlm_yesde *nd;
 
-	nd = kzalloc(sizeof(struct dlm_node), GFP_NOFS);
+	nd = kzalloc(sizeof(struct dlm_yesde), GFP_NOFS);
 	if (!nd)
 		return ERR_PTR(-ENOMEM);
 
-	config_item_init_type_name(&nd->item, name, &node_type);
-	nd->nodeid = -1;
-	nd->weight = 1;  /* default weight of 1 if none is set */
-	nd->new = 1;     /* set to 0 once it's been read by dlm_nodeid_list() */
+	config_item_init_type_name(&nd->item, name, &yesde_type);
+	nd->yesdeid = -1;
+	nd->weight = 1;  /* default weight of 1 if yesne is set */
+	nd->new = 1;     /* set to 0 once it's been read by dlm_yesdeid_list() */
 
 	mutex_lock(&sp->members_lock);
 	list_add(&nd->list, &sp->members);
@@ -507,10 +507,10 @@ static struct config_item *make_node(struct config_group *g, const char *name)
 	return &nd->item;
 }
 
-static void drop_node(struct config_group *g, struct config_item *i)
+static void drop_yesde(struct config_group *g, struct config_item *i)
 {
 	struct dlm_space *sp = config_item_to_space(g->cg_item.ci_parent);
-	struct dlm_node *nd = config_item_to_node(i);
+	struct dlm_yesde *nd = config_item_to_yesde(i);
 
 	mutex_lock(&sp->members_lock);
 	list_del(&nd->list);
@@ -520,9 +520,9 @@ static void drop_node(struct config_group *g, struct config_item *i)
 	config_item_put(i);
 }
 
-static void release_node(struct config_item *i)
+static void release_yesde(struct config_item *i)
 {
-	struct dlm_node *nd = config_item_to_node(i);
+	struct dlm_yesde *nd = config_item_to_yesde(i);
 	kfree(nd);
 }
 
@@ -553,15 +553,15 @@ void dlm_config_exit(void)
  * Functions for user space to read/write attributes
  */
 
-static ssize_t comm_nodeid_show(struct config_item *item, char *buf)
+static ssize_t comm_yesdeid_show(struct config_item *item, char *buf)
 {
-	return sprintf(buf, "%d\n", config_item_to_comm(item)->nodeid);
+	return sprintf(buf, "%d\n", config_item_to_comm(item)->yesdeid);
 }
 
-static ssize_t comm_nodeid_store(struct config_item *item, const char *buf,
+static ssize_t comm_yesdeid_store(struct config_item *item, const char *buf,
 				 size_t len)
 {
-	int rc = kstrtoint(buf, 0, &config_item_to_comm(item)->nodeid);
+	int rc = kstrtoint(buf, 0, &config_item_to_comm(item)->yesdeid);
 
 	if (rc)
 		return rc;
@@ -605,7 +605,7 @@ static ssize_t comm_addr_store(struct config_item *item, const char *buf,
 
 	memcpy(addr, buf, len);
 
-	rv = dlm_lowcomms_addr(cm->nodeid, addr, len);
+	rv = dlm_lowcomms_addr(cm->yesdeid, addr, len);
 	if (rv) {
 		kfree(addr);
 		return rv;
@@ -660,59 +660,59 @@ static ssize_t comm_addr_list_show(struct config_item *item, char *buf)
 	return 4096 - allowance;
 }
 
-CONFIGFS_ATTR(comm_, nodeid);
+CONFIGFS_ATTR(comm_, yesdeid);
 CONFIGFS_ATTR(comm_, local);
 CONFIGFS_ATTR_WO(comm_, addr);
 CONFIGFS_ATTR_RO(comm_, addr_list);
 
 static struct configfs_attribute *comm_attrs[] = {
-	[COMM_ATTR_NODEID] = &comm_attr_nodeid,
+	[COMM_ATTR_NODEID] = &comm_attr_yesdeid,
 	[COMM_ATTR_LOCAL] = &comm_attr_local,
 	[COMM_ATTR_ADDR] = &comm_attr_addr,
 	[COMM_ATTR_ADDR_LIST] = &comm_attr_addr_list,
 	NULL,
 };
 
-static ssize_t node_nodeid_show(struct config_item *item, char *buf)
+static ssize_t yesde_yesdeid_show(struct config_item *item, char *buf)
 {
-	return sprintf(buf, "%d\n", config_item_to_node(item)->nodeid);
+	return sprintf(buf, "%d\n", config_item_to_yesde(item)->yesdeid);
 }
 
-static ssize_t node_nodeid_store(struct config_item *item, const char *buf,
+static ssize_t yesde_yesdeid_store(struct config_item *item, const char *buf,
 				 size_t len)
 {
-	struct dlm_node *nd = config_item_to_node(item);
+	struct dlm_yesde *nd = config_item_to_yesde(item);
 	uint32_t seq = 0;
-	int rc = kstrtoint(buf, 0, &nd->nodeid);
+	int rc = kstrtoint(buf, 0, &nd->yesdeid);
 
 	if (rc)
 		return rc;
-	dlm_comm_seq(nd->nodeid, &seq);
+	dlm_comm_seq(nd->yesdeid, &seq);
 	nd->comm_seq = seq;
 	return len;
 }
 
-static ssize_t node_weight_show(struct config_item *item, char *buf)
+static ssize_t yesde_weight_show(struct config_item *item, char *buf)
 {
-	return sprintf(buf, "%d\n", config_item_to_node(item)->weight);
+	return sprintf(buf, "%d\n", config_item_to_yesde(item)->weight);
 }
 
-static ssize_t node_weight_store(struct config_item *item, const char *buf,
+static ssize_t yesde_weight_store(struct config_item *item, const char *buf,
 				 size_t len)
 {
-	int rc = kstrtoint(buf, 0, &config_item_to_node(item)->weight);
+	int rc = kstrtoint(buf, 0, &config_item_to_yesde(item)->weight);
 
 	if (rc)
 		return rc;
 	return len;
 }
 
-CONFIGFS_ATTR(node_, nodeid);
-CONFIGFS_ATTR(node_, weight);
+CONFIGFS_ATTR(yesde_, yesdeid);
+CONFIGFS_ATTR(yesde_, weight);
 
-static struct configfs_attribute *node_attrs[] = {
-	[NODE_ATTR_NODEID] = &node_attr_nodeid,
-	[NODE_ATTR_WEIGHT] = &node_attr_weight,
+static struct configfs_attribute *yesde_attrs[] = {
+	[NODE_ATTR_NODEID] = &yesde_attr_yesdeid,
+	[NODE_ATTR_WEIGHT] = &yesde_attr_weight,
 	NULL,
 };
 
@@ -739,7 +739,7 @@ static void put_space(struct dlm_space *sp)
 	config_item_put(&sp->group.cg_item);
 }
 
-static struct dlm_comm *get_comm(int nodeid)
+static struct dlm_comm *get_comm(int yesdeid)
 {
 	struct config_item *i;
 	struct dlm_comm *cm = NULL;
@@ -753,7 +753,7 @@ static struct dlm_comm *get_comm(int nodeid)
 	list_for_each_entry(i, &comm_list->cg_children, ci_entry) {
 		cm = config_item_to_comm(i);
 
-		if (cm->nodeid != nodeid)
+		if (cm->yesdeid != yesdeid)
 			continue;
 		found = 1;
 		config_item_get(i);
@@ -772,12 +772,12 @@ static void put_comm(struct dlm_comm *cm)
 }
 
 /* caller must free mem */
-int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
+int dlm_config_yesdes(char *lsname, struct dlm_config_yesde **yesdes_out,
 		     int *count_out)
 {
 	struct dlm_space *sp;
-	struct dlm_node *nd;
-	struct dlm_config_node *nodes, *node;
+	struct dlm_yesde *nd;
+	struct dlm_config_yesde *yesdes, *yesde;
 	int rv, count;
 
 	sp = get_space(lsname);
@@ -793,25 +793,25 @@ int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
 
 	count = sp->members_count;
 
-	nodes = kcalloc(count, sizeof(struct dlm_config_node), GFP_NOFS);
-	if (!nodes) {
+	yesdes = kcalloc(count, sizeof(struct dlm_config_yesde), GFP_NOFS);
+	if (!yesdes) {
 		rv = -ENOMEM;
 		goto out;
 	}
 
-	node = nodes;
+	yesde = yesdes;
 	list_for_each_entry(nd, &sp->members, list) {
-		node->nodeid = nd->nodeid;
-		node->weight = nd->weight;
-		node->new = nd->new;
-		node->comm_seq = nd->comm_seq;
-		node++;
+		yesde->yesdeid = nd->yesdeid;
+		yesde->weight = nd->weight;
+		yesde->new = nd->new;
+		yesde->comm_seq = nd->comm_seq;
+		yesde++;
 
 		nd->new = 0;
 	}
 
 	*count_out = count;
-	*nodes_out = nodes;
+	*yesdes_out = yesdes;
 	rv = 0;
  out:
 	mutex_unlock(&sp->members_lock);
@@ -819,9 +819,9 @@ int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
 	return rv;
 }
 
-int dlm_comm_seq(int nodeid, uint32_t *seq)
+int dlm_comm_seq(int yesdeid, uint32_t *seq)
 {
-	struct dlm_comm *cm = get_comm(nodeid);
+	struct dlm_comm *cm = get_comm(yesdeid);
 	if (!cm)
 		return -EEXIST;
 	*seq = cm->seq;
@@ -829,9 +829,9 @@ int dlm_comm_seq(int nodeid, uint32_t *seq)
 	return 0;
 }
 
-int dlm_our_nodeid(void)
+int dlm_our_yesdeid(void)
 {
-	return local_comm ? local_comm->nodeid : 0;
+	return local_comm ? local_comm->yesdeid : 0;
 }
 
 /* num 0 is first addr, num 1 is second addr */

@@ -73,15 +73,15 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 	fhp = fh_copy(&resp->fh, &argp->fh);
 
 	/*
-	 * NFSv2 does not differentiate between "set-[ac]time-to-now"
+	 * NFSv2 does yest differentiate between "set-[ac]time-to-yesw"
 	 * which only requires access, and "set-[ac]time-to-X" which
 	 * requires ownership.
 	 * So if it looks like it might be "set both to the same time which
-	 * is close to now", and if setattr_prepare fails, then we
-	 * convert to "set to now" instead of "set to explicit time"
+	 * is close to yesw", and if setattr_prepare fails, then we
+	 * convert to "set to yesw" instead of "set to explicit time"
 	 *
 	 * We only call setattr_prepare as the last test as technically
-	 * it is not an interface that we should be using.
+	 * it is yest an interface that we should be using.
 	 */
 #define BOTH_TIME_SET (ATTR_ATIME_SET | ATTR_MTIME_SET)
 #define	MAX_TOUCH_TIME_ERROR (30*60)
@@ -92,7 +92,7 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		 *
 		 * Now just make sure time is in the right ballpark.
 		 * Solaris, at least, doesn't seem to care what the time
-		 * request is.  We require it be within 30 minutes of now.
+		 * request is.  We require it be within 30 minutes of yesw.
 		 */
 		time_t delta = iap->ia_atime.tv_sec - get_seconds();
 
@@ -106,8 +106,8 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 		    setattr_prepare(fhp->fh_dentry, iap) != 0) {
 			/*
 			 * Turn off ATTR_[AM]TIME_SET but leave ATTR_[AM]TIME.
-			 * This will cause notify_change to set these times
-			 * to "now"
+			 * This will cause yestify_change to set these times
+			 * to "yesw"
 			 */
 			iap->ia_valid &= ~BOTH_TIME_SET;
 		}
@@ -244,7 +244,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 	svc_fh		*dirfhp = &argp->fh;
 	svc_fh		*newfhp = &resp->fh;
 	struct iattr	*attr = &argp->attrs;
-	struct inode	*inode;
+	struct iyesde	*iyesde;
 	struct dentry	*dchild;
 	int		type, mode;
 	__be32		nfserr;
@@ -266,52 +266,52 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 		goto done;
 	hosterr = fh_want_write(dirfhp);
 	if (hosterr) {
-		nfserr = nfserrno(hosterr);
+		nfserr = nfserryes(hosterr);
 		goto done;
 	}
 
 	fh_lock_nested(dirfhp, I_MUTEX_PARENT);
 	dchild = lookup_one_len(argp->name, dirfhp->fh_dentry, argp->len);
 	if (IS_ERR(dchild)) {
-		nfserr = nfserrno(PTR_ERR(dchild));
+		nfserr = nfserryes(PTR_ERR(dchild));
 		goto out_unlock;
 	}
 	fh_init(newfhp, NFS_FHSIZE);
 	nfserr = fh_compose(newfhp, dirfhp->fh_export, dchild, dirfhp);
 	if (!nfserr && d_really_is_negative(dchild))
-		nfserr = nfserr_noent;
+		nfserr = nfserr_yesent;
 	dput(dchild);
 	if (nfserr) {
-		if (nfserr != nfserr_noent)
+		if (nfserr != nfserr_yesent)
 			goto out_unlock;
 		/*
 		 * If the new file handle wasn't verified, we can't tell
-		 * whether the file exists or not. Time to bail ...
+		 * whether the file exists or yest. Time to bail ...
 		 */
 		nfserr = nfserr_acces;
 		if (!newfhp->fh_dentry) {
 			printk(KERN_WARNING 
-				"nfsd_proc_create: file handle not verified\n");
+				"nfsd_proc_create: file handle yest verified\n");
 			goto out_unlock;
 		}
 	}
 
-	inode = d_inode(newfhp->fh_dentry);
+	iyesde = d_iyesde(newfhp->fh_dentry);
 
 	/* Unfudge the mode bits */
 	if (attr->ia_valid & ATTR_MODE) {
 		type = attr->ia_mode & S_IFMT;
 		mode = attr->ia_mode & ~S_IFMT;
 		if (!type) {
-			/* no type, so if target exists, assume same as that,
+			/* yes type, so if target exists, assume same as that,
 			 * else assume a file */
-			if (inode) {
-				type = inode->i_mode & S_IFMT;
+			if (iyesde) {
+				type = iyesde->i_mode & S_IFMT;
 				switch(type) {
 				case S_IFCHR:
 				case S_IFBLK:
 					/* reserve rdev for later checking */
-					rdev = inode->i_rdev;
+					rdev = iyesde->i_rdev;
 					attr->ia_valid |= ATTR_SIZE;
 
 					/* FALLTHROUGH */
@@ -331,9 +331,9 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 			} else
 				type = S_IFREG;
 		}
-	} else if (inode) {
-		type = inode->i_mode & S_IFMT;
-		mode = inode->i_mode & ~S_IFMT;
+	} else if (iyesde) {
+		type = iyesde->i_mode & S_IFMT;
+		mode = iyesde->i_mode & ~S_IFMT;
 	} else {
 		type = S_IFREG;
 		mode = 0;	/* ??? */
@@ -342,7 +342,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 	attr->ia_valid |= ATTR_MODE;
 	attr->ia_mode = mode;
 
-	/* Special treatment for non-regular files according to the
+	/* Special treatment for yesn-regular files according to the
 	 * gospel of sun micro
 	 */
 	if (type != S_IFREG) {
@@ -362,19 +362,19 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 
 		/* Make sure the type and device matches */
 		nfserr = nfserr_exist;
-		if (inode && type != (inode->i_mode & S_IFMT))
+		if (iyesde && type != (iyesde->i_mode & S_IFMT))
 			goto out_unlock;
 	}
 
 	nfserr = 0;
-	if (!inode) {
+	if (!iyesde) {
 		/* File doesn't exist. Create it and set attrs */
 		nfserr = nfsd_create_locked(rqstp, dirfhp, argp->name,
 					argp->len, attr, type, rdev, newfhp);
 	} else if (type == S_IFREG) {
 		dprintk("nfsd:   existing %s, valid=%x, size=%ld\n",
 			argp->name, attr->ia_valid, (long) attr->ia_size);
-		/* File already exists. We ignore all attributes except
+		/* File already exists. We igyesre all attributes except
 		 * size, so that creat() behaves exactly like
 		 * open(..., O_CREAT|O_TRUNC|O_WRONLY).
 		 */
@@ -401,7 +401,7 @@ nfsd_proc_remove(struct svc_rqst *rqstp)
 	dprintk("nfsd: REMOVE   %s %.*s\n", SVCFH_fmt(&argp->fh),
 		argp->len, argp->name);
 
-	/* Unlink. -SIFDIR means file must not be a directory */
+	/* Unlink. -SIFDIR means file must yest be a directory */
 	nfserr = nfsd_unlink(rqstp, &argp->fh, -S_IFDIR, argp->name, argp->len);
 	fh_put(&argp->fh);
 	return nfserr;
@@ -459,7 +459,7 @@ nfsd_proc_symlink(struct svc_rqst *rqstp)
 						page_address(rqstp->rq_arg.pages[0]),
 						argp->tlen);
 	if (IS_ERR(argp->tname))
-		return nfserrno(PTR_ERR(argp->tname));
+		return nfserryes(PTR_ERR(argp->tname));
 
 	dprintk("nfsd: SYMLINK  %s %.*s -> %.*s\n",
 		SVCFH_fmt(&argp->ffh), argp->flen, argp->fname,
@@ -476,7 +476,7 @@ nfsd_proc_symlink(struct svc_rqst *rqstp)
 }
 
 /*
- * Make directory. This operation is not idempotent.
+ * Make directory. This operation is yest idempotent.
  * N.B. After this call resp->fh needs an fh_put
  */
 static __be32
@@ -578,7 +578,7 @@ nfsd_proc_statfs(struct svc_rqst *rqstp)
 
 /*
  * NFSv2 Server procedures.
- * Only the results of non-idempotent operations are cached.
+ * Only the results of yesn-idempotent operations are cached.
  */
 struct nfsd_void { int dummy; };
 
@@ -767,10 +767,10 @@ const struct svc_version nfsd_version2 = {
 };
 
 /*
- * Map errnos to NFS errnos.
+ * Map erryess to NFS erryess.
  */
 __be32
-nfserrno (int errno)
+nfserryes (int erryes)
 {
 	static struct {
 		__be32	nfserr;
@@ -778,7 +778,7 @@ nfserrno (int errno)
 	} nfs_errtbl[] = {
 		{ nfs_ok, 0 },
 		{ nfserr_perm, -EPERM },
-		{ nfserr_noent, -ENOENT },
+		{ nfserr_yesent, -ENOENT },
 		{ nfserr_io, -EIO },
 		{ nfserr_nxio, -ENXIO },
 		{ nfserr_fbig, -E2BIG },
@@ -786,16 +786,16 @@ nfserrno (int errno)
 		{ nfserr_exist, -EEXIST },
 		{ nfserr_xdev, -EXDEV },
 		{ nfserr_mlink, -EMLINK },
-		{ nfserr_nodev, -ENODEV },
-		{ nfserr_notdir, -ENOTDIR },
+		{ nfserr_yesdev, -ENODEV },
+		{ nfserr_yestdir, -ENOTDIR },
 		{ nfserr_isdir, -EISDIR },
 		{ nfserr_inval, -EINVAL },
 		{ nfserr_fbig, -EFBIG },
-		{ nfserr_nospc, -ENOSPC },
+		{ nfserr_yesspc, -ENOSPC },
 		{ nfserr_rofs, -EROFS },
 		{ nfserr_mlink, -EMLINK },
 		{ nfserr_nametoolong, -ENAMETOOLONG },
-		{ nfserr_notempty, -ENOTEMPTY },
+		{ nfserr_yestempty, -ENOTEMPTY },
 #ifdef EDQUOT
 		{ nfserr_dquot, -EDQUOT },
 #endif
@@ -806,7 +806,7 @@ nfserrno (int errno)
 		{ nfserr_jukebox, -EWOULDBLOCK },
 		{ nfserr_jukebox, -ENOMEM },
 		{ nfserr_io, -ETXTBSY },
-		{ nfserr_notsupp, -EOPNOTSUPP },
+		{ nfserr_yestsupp, -EOPNOTSUPP },
 		{ nfserr_toosmall, -ETOOSMALL },
 		{ nfserr_serverfault, -ESERVERFAULT },
 		{ nfserr_serverfault, -ENFILE },
@@ -816,10 +816,10 @@ nfserrno (int errno)
 	int	i;
 
 	for (i = 0; i < ARRAY_SIZE(nfs_errtbl); i++) {
-		if (nfs_errtbl[i].syserr == errno)
+		if (nfs_errtbl[i].syserr == erryes)
 			return nfs_errtbl[i].nfserr;
 	}
-	WARN_ONCE(1, "nfsd: non-standard errno: %d\n", errno);
+	WARN_ONCE(1, "nfsd: yesn-standard erryes: %d\n", erryes);
 	return nfserr_io;
 }
 

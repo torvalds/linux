@@ -40,7 +40,7 @@ static void msr_save_context(struct saved_context *ctxt)
 	struct saved_msr *end = msr + ctxt->saved_msrs.num;
 
 	while (msr < end) {
-		msr->valid = !rdmsrl_safe(msr->info.msr_no, &msr->info.reg.q);
+		msr->valid = !rdmsrl_safe(msr->info.msr_yes, &msr->info.reg.q);
 		msr++;
 	}
 }
@@ -52,7 +52,7 @@ static void msr_restore_context(struct saved_context *ctxt)
 
 	while (msr < end) {
 		if (msr->valid)
-			wrmsrl(msr->info.msr_no, msr->info.reg.q);
+			wrmsrl(msr->info.msr_yes, msr->info.reg.q);
 		msr++;
 	}
 }
@@ -191,7 +191,7 @@ static void fix_processor_context(void)
  * The asm code that gets us here will have restored a usable GDT, although
  * it will be pointing to the wrong alias.
  */
-static void notrace __restore_processor_state(struct saved_context *ctxt)
+static void yestrace __restore_processor_state(struct saved_context *ctxt)
 {
 	if (ctxt->misc_enable_saved)
 		wrmsrl(MSR_IA32_MISC_ENABLE, ctxt->misc_enable);
@@ -266,7 +266,7 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 }
 
 /* Needed by apm.c */
-void notrace restore_processor_state(void)
+void yestrace restore_processor_state(void)
 {
 	__restore_processor_state(&saved_context);
 }
@@ -282,24 +282,24 @@ static void resume_play_dead(void)
 	hlt_play_dead();
 }
 
-int hibernate_resume_nonboot_cpu_disable(void)
+int hibernate_resume_yesnboot_cpu_disable(void)
 {
 	void (*play_dead)(void) = smp_ops.play_dead;
 	int ret;
 
 	/*
-	 * Ensure that MONITOR/MWAIT will not be used in the "play dead" loop
+	 * Ensure that MONITOR/MWAIT will yest be used in the "play dead" loop
 	 * during hibernate image restoration, because it is likely that the
 	 * monitored address will be actually written to at that time and then
 	 * the "dead" CPU will attempt to execute instructions again, but the
-	 * address in its instruction pointer may not be possible to resolve
+	 * address in its instruction pointer may yest be possible to resolve
 	 * any more at that point (the page tables used by it previously may
 	 * have been overwritten by hibernate image data).
 	 *
 	 * First, make sure that we wake up all the potentially disabled SMT
 	 * threads which have been initially brought up and then put into
 	 * mwait/cpuidle sleep.
-	 * Those will be put to proper (not interfering with hibernation
+	 * Those will be put to proper (yest interfering with hibernation
 	 * resume) sleep afterwards, and the resumed kernel will decide itself
 	 * what to do with them.
 	 */
@@ -307,7 +307,7 @@ int hibernate_resume_nonboot_cpu_disable(void)
 	if (ret)
 		return ret;
 	smp_ops.play_dead = resume_play_dead;
-	ret = disable_nonboot_cpus();
+	ret = disable_yesnboot_cpus();
 	smp_ops.play_dead = play_dead;
 	return ret;
 }
@@ -328,7 +328,7 @@ static int bsp_check(void)
 	return 0;
 }
 
-static int bsp_pm_callback(struct notifier_block *nb, unsigned long action,
+static int bsp_pm_callback(struct yestifier_block *nb, unsigned long action,
 			   void *ptr)
 {
 	int ret = 0;
@@ -357,18 +357,18 @@ static int bsp_pm_callback(struct notifier_block *nb, unsigned long action,
 		 * call _debug_hotplug_cpu() to restore to CPU0's state prior to
 		 * preparing the snapshot device.
 		 *
-		 * This works for normal boot case in our CPU0 hotplug debug
+		 * This works for yesrmal boot case in our CPU0 hotplug debug
 		 * mode, i.e. CPU0 is offline and user mode hibernation
 		 * software initializes during boot time.
 		 *
 		 * If CPU0 is online and user application accesses snapshot
 		 * device after boot time, this will offline CPU0 and user may
 		 * see different CPU0 state before and after accessing
-		 * the snapshot device. But hopefully this is not a case when
+		 * the snapshot device. But hopefully this is yest a case when
 		 * user debugging CPU0 hotplug. Even if users hit this case,
 		 * they can easily online CPU0 back.
 		 *
-		 * To simplify this debug code, we only consider normal boot
+		 * To simplify this debug code, we only consider yesrmal boot
 		 * case. Otherwise we need to remember CPU0's state and restore
 		 * to that state and resolve racy conditions etc.
 		 */
@@ -378,7 +378,7 @@ static int bsp_pm_callback(struct notifier_block *nb, unsigned long action,
 	default:
 		break;
 	}
-	return notifier_from_errno(ret);
+	return yestifier_from_erryes(ret);
 }
 
 static int __init bsp_pm_check_init(void)
@@ -388,7 +388,7 @@ static int __init bsp_pm_check_init(void)
 	 * cpu_hotplug_pm_callback. So cpu_hotplug_pm_callback will be called
 	 * earlier to disable cpu hotplug before bsp online check.
 	 */
-	pm_notifier(bsp_pm_callback, -INT_MAX);
+	pm_yestifier(bsp_pm_callback, -INT_MAX);
 	return 0;
 }
 
@@ -405,7 +405,7 @@ static int msr_build_context(const u32 *msr_id, const int num)
 
 	msr_array = kmalloc_array(total_num, sizeof(struct saved_msr), GFP_KERNEL);
 	if (!msr_array) {
-		pr_err("x86/pm: Can not allocate memory to save/restore MSRs during suspend.\n");
+		pr_err("x86/pm: Can yest allocate memory to save/restore MSRs during suspend.\n");
 		return -ENOMEM;
 	}
 
@@ -421,7 +421,7 @@ static int msr_build_context(const u32 *msr_id, const int num)
 	}
 
 	for (i = saved_msrs->num, j = 0; i < total_num; i++, j++) {
-		msr_array[i].info.msr_no	= msr_id[j];
+		msr_array[i].info.msr_yes	= msr_id[j];
 		msr_array[i].valid		= false;
 		msr_array[i].info.reg.q		= 0;
 	}

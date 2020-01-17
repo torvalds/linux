@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -54,7 +54,7 @@ static int amdgpu_amdkfd_get_tile_config(struct kgd_dev *kgd,
 #if 0
 /* TODO - confirm REG_GET_FIELD x2, should be OK as is... but
  * MC_ARB_RAMCFG register doesn't exist on Vega10 - initial amdgpu
- * changes commented out related code, doing the same here for now but
+ * changes commented out related code, doing the same here for yesw but
  * need to sync with Ken et al
  */
 	config->num_banks = REG_GET_FIELD(adev->gfx.config.mc_arb_ramcfg,
@@ -133,7 +133,7 @@ static void kgd_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
 
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmSH_MEM_CONFIG), sh_mem_config);
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmSH_MEM_BASES), sh_mem_bases);
-	/* APE1 no longer exists on GFX9 */
+	/* APE1 yes longer exists on GFX9 */
 
 	unlock_srbm(kgd);
 }
@@ -144,7 +144,7 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 
 	/*
-	 * We have to assume that there is no outstanding mapping.
+	 * We have to assume that there is yes outstanding mapping.
 	 * The ATC_VMID_PASID_MAPPING_UPDATE_STATUS bit could be 0 because
 	 * a mapping is in progress or because a mapping finished
 	 * and the SW cleared it.
@@ -299,7 +299,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 
 	if (wptr) {
 		/* Don't read wptr with get_user because the user
-		 * context may not be accessible (if this function
+		 * context may yest be accessible (if this function
 		 * runs in a work queue). Instead trigger a one-shot
 		 * polling read from memory in the CP. This assumes
 		 * that wptr is GPU-accessible in the queue's VMID via
@@ -406,7 +406,7 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC yest idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -560,7 +560,7 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
 
 #if 0 /* Is this still needed? */
 	/* Workaround: If IQ timer is active and the wait time is close to or
-	 * equal to 0, dequeueing is not safe. Wait until either the wait time
+	 * equal to 0, dequeueing is yest safe. Wait until either the wait time
 	 * is larger or timer is cleared. Also, ensure that IQ_REQ_PEND is
 	 * cleared before continuing. Also, ensure wait times are set to at
 	 * least 0x3.
@@ -655,7 +655,7 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 		if (temp & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC yest idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -743,7 +743,7 @@ static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid)
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 
 	if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid)) {
-		pr_err("non kfd vmid %d\n", vmid);
+		pr_err("yesn kfd vmid %d\n", vmid);
 		return 0;
 	}
 

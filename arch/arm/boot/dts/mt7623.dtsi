@@ -220,7 +220,7 @@
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		clock-frequency = <13000000>;
-		arm,cpu-registers-not-fw-configured;
+		arm,cpu-registers-yest-fw-configured;
 	};
 
 	topckgen: syscon@10000000 {
@@ -567,9 +567,9 @@
 		status = "disabled";
 	};
 
-	nor_flash: spi@11014000 {
-		compatible = "mediatek,mt7623-nor",
-			     "mediatek,mt8173-nor";
+	yesr_flash: spi@11014000 {
+		compatible = "mediatek,mt7623-yesr",
+			     "mediatek,mt8173-yesr";
 		reg = <0 0x11014000 0 0x1000>;
 		clocks = <&pericfg CLK_PERI_FLASH>,
 			 <&topckgen CLK_TOP_FLASH_SEL>;

@@ -27,7 +27,7 @@
 	};
 
 	/*
-	 * Reserve below regions from memory node:
+	 * Reserve below regions from memory yesde:
 	 *
 	 *  0x05e0,0000 - 0x05ef,ffff: MCU firmware runtime using
 	 *  0x05f0,1000 - 0x05f0,1fff: Reboot reason
@@ -76,7 +76,7 @@
 			compatible = "syscon-reboot-mode";
 			offset = <0x0>;
 
-			mode-normal	= <0x77665501>;
+			mode-yesrmal	= <0x77665501>;
 			mode-bootloader	= <0x77665500>;
 			mode-recovery	= <0x77665502>;
 		};
@@ -158,10 +158,10 @@
 
 		/*
 		 * Legend: proper name = the GPIO line is used as GPIO
-		 *         NC = not connected (not routed from the SoC)
-		 *         "[PER]" = pin is muxed for peripheral (not GPIO)
-		 *         "" = no idea, schematic doesn't say, could be
-		 *              unrouted (not connected to any external pin)
+		 *         NC = yest connected (yest routed from the SoC)
+		 *         "[PER]" = pin is muxed for peripheral (yest GPIO)
+		 *         "" = yes idea, schematic doesn't say, could be
+		 *              unrouted (yest connected to any external pin)
 		 *         LSEC = Low Speed External Connector
 		 *         HSEC = High Speed External Connector
 		 *
@@ -297,11 +297,11 @@
 			gpio-line-names = "", "", "", "", "", "", "NC", "";
 		};
 
-		/* GPIO blocks 16 thru 19 do not appear to be routed to pins */
+		/* GPIO blocks 16 thru 19 do yest appear to be routed to pins */
 
 		dwmmc_0: dwmmc0@f723d000 {
 			cap-mmc-highspeed;
-			non-removable;
+			yesn-removable;
 			bus-width = <0x8>;
 			vmmc-supply = <&ldo19>;
 		};
@@ -321,7 +321,7 @@
 
 		dwmmc_2: dwmmc2@f723f000 {
 			bus-width = <0x4>;
-			non-removable;
+			yesn-removable;
 			cap-power-off-card;
 			vmmc-supply = <&reg_vdd_3v3>;
 			mmc-pwrseq = <&wl1835_pwrseq>;
@@ -363,7 +363,7 @@
 			label = "green:user4";
 			gpios = <&gpio4 3 0>; /* <&gpio_user_led_4>; */
 			panic-indicator;
-			linux,default-trigger = "none";
+			linux,default-trigger = "yesne";
 		};
 
 		wlan_active_led {

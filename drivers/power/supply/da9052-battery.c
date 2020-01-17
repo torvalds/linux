@@ -166,7 +166,7 @@ static u32 const vc_tbl[3][68][2] = {
 struct da9052_battery {
 	struct da9052 *da9052;
 	struct power_supply *psy;
-	struct notifier_block nb;
+	struct yestifier_block nb;
 	int charger_type;
 	int status;
 	int health;
@@ -343,7 +343,7 @@ static unsigned char da9052_determine_vc_tbl_index(unsigned char adc_temp)
 	}
 	/*
 	 * For some reason authors of the driver didn't presume that we can
-	 * end up here. It might be OK, but might be not, no one knows for
+	 * end up here. It might be OK, but might be yest, yes one kyesws for
 	 * sure. Go check your battery, is it on fire?
 	 */
 	WARN_ON(1);
@@ -454,7 +454,7 @@ static irqreturn_t da9052_bat_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int da9052_USB_current_notifier(struct notifier_block *nb,
+static int da9052_USB_current_yestifier(struct yestifier_block *nb,
 					unsigned long events, void *data)
 {
 	u8 row;
@@ -601,7 +601,7 @@ static s32 da9052_bat_probe(struct platform_device *pdev)
 	bat->charger_type = DA9052_NOCHARGER;
 	bat->status = POWER_SUPPLY_STATUS_UNKNOWN;
 	bat->health = POWER_SUPPLY_HEALTH_UNKNOWN;
-	bat->nb.notifier_call = da9052_USB_current_notifier;
+	bat->nb.yestifier_call = da9052_USB_current_yestifier;
 
 	pdata = bat->da9052->dev->platform_data;
 	if (pdata != NULL && pdata->use_for_apm)

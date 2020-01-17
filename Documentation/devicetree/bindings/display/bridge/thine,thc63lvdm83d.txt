@@ -12,7 +12,7 @@ Optional properties:
 
 - powerdown-gpios: Power down control GPIO (the /PWDN pin, active low).
 
-Required nodes:
+Required yesdes:
 
 The THC63LVDM83D has two video ports. Their connections are modeled using the
 OFgraph bindings specified in Documentation/devicetree/bindings/graph.txt.

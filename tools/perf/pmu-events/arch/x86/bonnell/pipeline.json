@@ -77,7 +77,7 @@
         "UMask": "0x0",
         "EventName": "CPU_CLK_UNHALTED.CORE_P",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Core cycles when core is not halted"
+        "BriefDescription": "Core cycles when core is yest halted"
     },
     {
         "EventCode": "0x3C",
@@ -85,7 +85,7 @@
         "UMask": "0x1",
         "EventName": "CPU_CLK_UNHALTED.BUS",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Bus cycles when core is not halted"
+        "BriefDescription": "Bus cycles when core is yest halted"
     },
     {
         "EventCode": "0xA",
@@ -93,7 +93,7 @@
         "UMask": "0x0",
         "EventName": "CPU_CLK_UNHALTED.CORE",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Core cycles when core is not halted"
+        "BriefDescription": "Core cycles when core is yest halted"
     },
     {
         "EventCode": "0xA",
@@ -101,7 +101,7 @@
         "UMask": "0x0",
         "EventName": "CPU_CLK_UNHALTED.REF",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Reference cycles when core is not halted."
+        "BriefDescription": "Reference cycles when core is yest halted."
     },
     {
         "EventCode": "0x88",
@@ -125,7 +125,7 @@
         "UMask": "0x4",
         "EventName": "BR_INST_TYPE_RETIRED.IND",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "All indirect branches that are not calls."
+        "BriefDescription": "All indirect branches that are yest calls."
     },
     {
         "EventCode": "0x88",
@@ -141,7 +141,7 @@
         "UMask": "0x10",
         "EventName": "BR_INST_TYPE_RETIRED.DIR_CALL",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "All non-indirect calls"
+        "BriefDescription": "All yesn-indirect calls"
     },
     {
         "EventCode": "0x88",
@@ -173,7 +173,7 @@
         "UMask": "0x2",
         "EventName": "BR_MISSP_TYPE_RETIRED.IND",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Mispredicted ind branches that are not calls"
+        "BriefDescription": "Mispredicted ind branches that are yest calls"
     },
     {
         "EventCode": "0x89",
@@ -230,7 +230,7 @@
         "UMask": "0x10",
         "EventName": "UOPS_RETIRED.STALLED_CYCLES",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles no micro-ops retired."
+        "BriefDescription": "Cycles yes micro-ops retired."
     },
     {
         "EventCode": "0xC2",
@@ -238,7 +238,7 @@
         "UMask": "0x10",
         "EventName": "UOPS_RETIRED.STALLS",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Periods no micro-ops retired."
+        "BriefDescription": "Periods yes micro-ops retired."
     },
     {
         "EventCode": "0xC3",
@@ -262,7 +262,7 @@
         "UMask": "0x1",
         "EventName": "BR_INST_RETIRED.PRED_NOT_TAKEN",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired branch instructions that were predicted not-taken."
+        "BriefDescription": "Retired branch instructions that were predicted yest-taken."
     },
     {
         "EventCode": "0xC4",
@@ -270,7 +270,7 @@
         "UMask": "0x2",
         "EventName": "BR_INST_RETIRED.MISPRED_NOT_TAKEN",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Retired branch instructions that were mispredicted not-taken."
+        "BriefDescription": "Retired branch instructions that were mispredicted yest-taken."
     },
     {
         "EventCode": "0xC4",

@@ -18,7 +18,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -75,9 +75,9 @@ static inline int xen_acpi_get_pxm(acpi_handle h)
 	return -ENXIO;
 }
 
-int xen_acpi_notify_hypervisor_sleep(u8 sleep_state,
+int xen_acpi_yestify_hypervisor_sleep(u8 sleep_state,
 				     u32 pm1a_cnt, u32 pm1b_cnd);
-int xen_acpi_notify_hypervisor_extended_sleep(u8 sleep_state,
+int xen_acpi_yestify_hypervisor_extended_sleep(u8 sleep_state,
 				     u32 val_a, u32 val_b);
 
 static inline int xen_acpi_suspend_lowlevel(void)
@@ -95,9 +95,9 @@ static inline void xen_acpi_sleep_register(void)
 {
 	if (xen_initial_domain()) {
 		acpi_os_set_prepare_sleep(
-			&xen_acpi_notify_hypervisor_sleep);
+			&xen_acpi_yestify_hypervisor_sleep);
 		acpi_os_set_prepare_extended_sleep(
-			&xen_acpi_notify_hypervisor_extended_sleep);
+			&xen_acpi_yestify_hypervisor_extended_sleep);
 
 		acpi_suspend_lowlevel = xen_acpi_suspend_lowlevel;
 	}

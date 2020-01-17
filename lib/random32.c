@@ -23,9 +23,9 @@
  * Combined LFSR Generators", Mathematics of Computation, 68, 225 (1999),
  * 261--269: http://www.iro.umontreal.ca/~lecuyer/myftp/papers/tausme2.ps
  *
- *      ... the k_j most significant bits of z_j must be non-zero,
+ *      ... the k_j most significant bits of z_j must be yesn-zero,
  *      for each j. (Note: this restriction also applies to the
- *      computer code given in [4], but was mistakenly not mentioned
+ *      computer code given in [4], but was mistakenly yest mentioned
  *      in that paper.)
  *
  * This affects the seeding procedure by imposing the requirement
@@ -54,7 +54,7 @@ static DEFINE_PER_CPU(struct rnd_state, net_rand_state) __latent_entropy;
  *	prandom_u32_state - seeded pseudo-random number generator.
  *	@state: pointer to state structure holding seeded state.
  *
- *	This is used for pseudo-randomness with no outside seeding.
+ *	This is used for pseudo-randomness with yes outside seeding.
  *	For more random results, use prandom_u32().
  */
 u32 prandom_u32_state(struct rnd_state *state)
@@ -95,7 +95,7 @@ EXPORT_SYMBOL(prandom_u32);
  *	@buf: where to copy the pseudo-random bytes to
  *	@bytes: the requested number of bytes
  *
- *	This is used for pseudo-randomness with no outside seeding.
+ *	This is used for pseudo-randomness with yes outside seeding.
  *	For more random results, use prandom_bytes().
  */
 void prandom_bytes_state(struct rnd_state *state, void *buf, size_t bytes)
@@ -268,11 +268,11 @@ static void __prandom_reseed(bool late)
 	static DEFINE_SPINLOCK(lock);
 
 	/* Asking for random bytes might result in bytes getting
-	 * moved into the nonblocking pool and thus marking it
+	 * moved into the yesnblocking pool and thus marking it
 	 * as initialized. In this case we would double back into
 	 * this function and attempt to do a late reseed.
-	 * Ignore the pointless attempt to reseed again if we're
-	 * already waiting for bytes when the nonblocking pool
+	 * Igyesre the pointless attempt to reseed again if we're
+	 * already waiting for bytes when the yesnblocking pool
 	 * got initialized.
 	 */
 

@@ -3,7 +3,7 @@
  * NinjaSCSI-32Bi Cardbus, NinjaSCSI-32UDE PCI/CardBus SCSI driver
  * Copyright (C) 2001, 2002, 2003
  *      YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>
- *      GOTO Masanori <gotom@debian.or.jp>, <gotom@debian.org>
+ *      GOTO Masayesri <gotom@debian.or.jp>, <gotom@debian.org>
  *
  * Revision History:
  *   1.0: Initial Release.
@@ -56,7 +56,7 @@ static bool      disc_priv  = 1;	/* default: OFF */
 module_param     (disc_priv, bool, 0);
 MODULE_PARM_DESC(disc_priv,  "disconnection privilege mode (0: ON 1: OFF(default))");
 
-MODULE_AUTHOR("YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>, GOTO Masanori <gotom@debian.or.jp>");
+MODULE_AUTHOR("YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>, GOTO Masayesri <gotom@debian.or.jp>");
 MODULE_DESCRIPTION("Workbit NinjaSCSI-32Bi/UDE CardBus/PCI SCSI host bus adapter module");
 MODULE_LICENSE("GPL");
 
@@ -195,7 +195,7 @@ static int         nsp32_eh_host_reset(struct scsi_cmnd *);
 
 /* generate SCSI message */
 static void nsp32_build_identify(struct scsi_cmnd *);
-static void nsp32_build_nop     (struct scsi_cmnd *);
+static void nsp32_build_yesp     (struct scsi_cmnd *);
 static void nsp32_build_reject  (struct scsi_cmnd *);
 static void nsp32_build_sdtr    (struct scsi_cmnd *, unsigned char, unsigned char);
 
@@ -390,7 +390,7 @@ static void nsp32_build_sdtr(struct scsi_cmnd    *SCpnt,
 /*
  * No Operation Message
  */
-static void nsp32_build_nop(struct scsi_cmnd *SCpnt)
+static void nsp32_build_yesp(struct scsi_cmnd *SCpnt)
 {
 	nsp32_hw_data *data = (nsp32_hw_data *)SCpnt->device->host->hostdata;
 	int            pos  = data->msgout_len;
@@ -468,7 +468,7 @@ static int nsp32_selection_autopara(struct scsi_cmnd *SCpnt)
 	 * message out
 	 *
 	 * Note: If the range of msgout_len is 1 - 3, fill scsi_msgout.
-	 *       over 3 messages needs another routine.
+	 *       over 3 messages needs ayesther routine.
 	 */
 	if (data->msgout_len == 0) {
 		nsp32_msg(KERN_ERR, "SCSI MsgOut without any message!");
@@ -538,7 +538,7 @@ static int nsp32_selection_autopara(struct scsi_cmnd *SCpnt)
 		s |= CB_IO_MODE;
 		break;
 	default:
-		nsp32_msg(KERN_ERR, "unknown trans_method");
+		nsp32_msg(KERN_ERR, "unkyeswn trans_method");
 		break;
 	}
 	/*
@@ -628,7 +628,7 @@ static int nsp32_selection_autoscsi(struct scsi_cmnd *SCpnt)
 	 * set SCSI MSGOUT REG
 	 *
 	 * Note: If the range of msgout_len is 1 - 3, fill scsi_msgout.
-	 *       over 3 messages needs another routine.
+	 *       over 3 messages needs ayesther routine.
 	 */
 	if (data->msgout_len == 0) {
 		nsp32_msg(KERN_ERR, "SCSI MsgOut without any message!");
@@ -740,7 +740,7 @@ static int nsp32_selection_autoscsi(struct scsi_cmnd *SCpnt)
 /*
  * Arbitration Status Check
  *	
- * Note: Arbitration counter is waited during ARBIT_GO is not lifting.
+ * Note: Arbitration counter is waited during ARBIT_GO is yest lifting.
  *	 Using udelay(1) consumes CPU time and system time, but 
  *	 arbitration delay time is defined minimal 2.4us in SCSI
  *	 specification, thus udelay works as coarse grained wait timer.
@@ -770,8 +770,8 @@ static int nsp32_arbitration(struct scsi_cmnd *SCpnt, unsigned int base)
 		status = FALSE;
 	} else {
 		/*
-		 * unknown error or ARBIT_GO timeout,
-		 * something lock up! guess no connection.
+		 * unkyeswn error or ARBIT_GO timeout,
+		 * something lock up! guess yes connection.
 		 */
 		nsp32_dbg(NSP32_DEBUG_AUTOSCSI, "arbit timeout");
 		SCpnt->result = DID_NO_CONNECT << 16;
@@ -818,15 +818,15 @@ static int nsp32_reselection(struct scsi_cmnd *SCpnt, unsigned char newlun)
 	}
 
 	/*
-	 * If reselected New ID:LUN is not existed
-	 * or current nexus is not existed, unexpected
+	 * If reselected New ID:LUN is yest existed
+	 * or current nexus is yest existed, unexpected
 	 * reselection is occurred. Send reject message.
 	 */
 	if (newid >= ARRAY_SIZE(data->lunt) || newlun >= ARRAY_SIZE(data->lunt[0])) {
-		nsp32_msg(KERN_WARNING, "unknown id/lun");
+		nsp32_msg(KERN_WARNING, "unkyeswn id/lun");
 		return FALSE;
 	} else if(data->lunt[newid][newlun].SCpnt == NULL) {
-		nsp32_msg(KERN_WARNING, "no SCSI command is processing");
+		nsp32_msg(KERN_WARNING, "yes SCSI command is processing");
 		return FALSE;
 	}
 
@@ -846,7 +846,7 @@ static int nsp32_reselection(struct scsi_cmnd *SCpnt, unsigned char newlun)
  * nsp32_setup_sg_table - build scatter gather list for transfer data
  *			    with bus master.
  *
- * Note: NinjaSCSI-32Bi/UDE bus master can not transfer over 64KB at a time.
+ * Note: NinjaSCSI-32Bi/UDE bus master can yest transfer over 64KB at a time.
  */
 static int nsp32_setup_sg_table(struct scsi_cmnd *SCpnt)
 {
@@ -915,7 +915,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 		return 0;
 	}
 
-	/* check target ID is not same as this initiator ID */
+	/* check target ID is yest same as this initiator ID */
 	if (scmd_id(SCpnt) == SCpnt->device->host->this_id) {
 		nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND, "target==host???");
 		SCpnt->result = DID_BAD_TARGET << 16;
@@ -925,7 +925,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 
 	/* check target LUN is allowable value */
 	if (SCpnt->device->lun >= MAX_LUN) {
-		nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND, "no more lun");
+		nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND, "yes more lun");
 		SCpnt->result = DID_BAD_TARGET << 16;
 		done(SCpnt);
 		return 0;
@@ -969,7 +969,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 	/* 
 	 * If target is the first time to transfer after the reset
 	 * (target don't have SDTR_DONE and SDTR_INITIATOR), sync
-	 * message SDTR is needed to do synchronous transfer.
+	 * message SDTR is needed to do synchroyesus transfer.
 	 */
 	target = &data->target[scmd_id(SCpnt)];
 	data->cur_target = target;
@@ -992,7 +992,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 	} else if (target->sync_flag & SDTR_INITIATOR) {
 		/*
 		 * It was negotiating SDTR with target, sending from the
-		 * initiator, but there are no chance to remove this flag.
+		 * initiator, but there are yes chance to remove this flag.
 		 * Set async because we don't get proper negotiation.
 		 */
 		nsp32_set_async(data, target);
@@ -1004,7 +1004,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 	} else if (target->sync_flag & SDTR_TARGET) {
 		/*
 		 * It was negotiating SDTR with target, sending from target,
-		 * but there are no chance to remove this flag.  Set async
+		 * but there are yes chance to remove this flag.  Set async
 		 * because we don't get proper negotiation.
 		 */
 		nsp32_set_async(data, target);
@@ -1012,7 +1012,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 		target->sync_flag |= SDTR_DONE;
 
 		nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND,
-			  "Unknown SDTR from target is reached, fall back to async.");
+			  "Unkyeswn SDTR from target is reached, fall back to async.");
 	}
 
 	nsp32_dbg(NSP32_DEBUG_TARGETFLAG,
@@ -1073,7 +1073,7 @@ static int nsp32hw_init(nsp32_hw_data *data)
 		nsp32_index_write1(base, FIFO_FULL_SHLD_COUNT,  0x10);
 		nsp32_index_write1(base, FIFO_EMPTY_SHLD_COUNT, 0x60);
 	} else {
-		nsp32_dbg(NSP32_DEBUG_INIT, "unknown transfer mode");
+		nsp32_dbg(NSP32_DEBUG_INIT, "unkyeswn transfer mode");
 	}
 
 	nsp32_dbg(NSP32_DEBUG_INIT, "full 0x%x emp 0x%x",
@@ -1235,9 +1235,9 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 		if (auto_stat & MSGOUT_PHASE) {
 			/*
 			 * MsgOut phase was processed.
-			 * If MSG_IN_OCCUER is not set, then MsgOut phase is
+			 * If MSG_IN_OCCUER is yest set, then MsgOut phase is
 			 * completed. Thus, msgout_len must reset.  Otherwise,
-			 * nothing to do here. If MSG_OUT_OCCUER is occurred,
+			 * yesthing to do here. If MSG_OUT_OCCUER is occurred,
 			 * then we will encounter the condition and check.
 			 */
 			if (!(auto_stat & MSG_IN_OCCUER) &&
@@ -1313,7 +1313,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 		}
 
 		if (auto_stat & ILLEGAL_PHASE) {
-			/* Illegal phase is detected. SACK is not back. */
+			/* Illegal phase is detected. SACK is yest back. */
 			nsp32_msg(KERN_WARNING, 
 				  "AUTO SCSI ILLEGAL PHASE OCCUR!!!!");
 
@@ -1329,7 +1329,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 		}
 
 		if (auto_stat & COMMAND_PHASE) {
-			/* nothing to do */
+			/* yesthing to do */
 			nsp32_dbg(NSP32_DEBUG_INTR, "Command phase processed");
 		}
 
@@ -1397,7 +1397,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 	/* PCI_IRQ */
 	if (irq_stat & IRQSTATUS_PCI_IRQ) {
 		nsp32_dbg(NSP32_DEBUG_INTR, "PCI IRQ occurred");
-		/* Do nothing */
+		/* Do yesthing */
 	}
 
 	/* BMCNTERR_IRQ */
@@ -1433,19 +1433,19 @@ static int nsp32_show_info(struct seq_file *m, struct Scsi_Host *host)
 {
 	unsigned long     flags;
 	nsp32_hw_data    *data;
-	int               hostno;
+	int               hostyes;
 	unsigned int      base;
 	unsigned char     mode_reg;
 	int               id, speed;
 	long              model;
 
-	hostno = host->host_no;
+	hostyes = host->host_yes;
 	data = (nsp32_hw_data *)host->hostdata;
 	base = host->io_port;
 
 	seq_puts(m, "NinjaSCSI-32 status\n\n");
 	seq_printf(m, "Driver version:        %s, $Revision: 1.33 $\n", nsp32_release_version);
-	seq_printf(m, "SCSI host No.:         %d\n",		hostno);
+	seq_printf(m, "SCSI host No.:         %d\n",		hostyes);
 	seq_printf(m, "IRQ:                   %d\n",		host->irq);
 	seq_printf(m, "IO:                    0x%lx-0x%lx\n", host->io_port, host->io_port + host->n_io_port - 1);
 	seq_printf(m, "MMIO(virtual address): 0x%lx-0x%lx\n",	host->base, host->base + data->MmioLength - 1);
@@ -1456,7 +1456,7 @@ static int nsp32_show_info(struct seq_file *m, struct Scsi_Host *host)
 	model    = data->pci_devid->driver_data;
 
 #ifdef CONFIG_PM
-	seq_printf(m, "Power Management:      %s\n",          (mode_reg & OPTF) ? "yes" : "no");
+	seq_printf(m, "Power Management:      %s\n",          (mode_reg & OPTF) ? "no" : "yes");
 #endif
 	seq_printf(m, "OEM:                   %ld, %s\n",     (mode_reg & (OEM0|OEM1)), nsp32_model[model]);
 
@@ -1483,7 +1483,7 @@ static int nsp32_show_info(struct seq_file *m, struct Scsi_Host *host)
 				seq_puts(m, " sync");
 			}
 		} else {
-			seq_puts(m, " none");
+			seq_puts(m, " yesne");
 		}
 
 		if (data->target[id].period != 0) {
@@ -1563,7 +1563,7 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 	 *   Save Data Pointer is received. Adjust pointer.
 	 *   
 	 * NO-VALID:
-	 *   SCSI-3 says if Save Data Pointer is not received, then we restart
+	 *   SCSI-3 says if Save Data Pointer is yest received, then we restart
 	 *   processing and we can't adjust any SCSI data pointer in next data
 	 *   phase.
 	 */
@@ -1610,11 +1610,11 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 			}
 		}
 
-		/* This value has not substitude with valid value yet... */
+		/* This value has yest substitude with valid value yet... */
 		//data->cur_lunt->save_datp = data->cur_datp;
 	} else {
 		/*
-		 * no processing.
+		 * yes processing.
 		 */
 	}
 	
@@ -1627,7 +1627,7 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 	 */
 	if (data->cur_target->sync_flag & SDTR_INITIATOR) {
 		/*
-		 * SDTR negotiation pulled by the initiator has not
+		 * SDTR negotiation pulled by the initiator has yest
 		 * finished yet. Fall back to ASYNC mode.
 		 */
 		nsp32_set_async(data, data->cur_target);
@@ -1668,7 +1668,7 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 		SCpnt->SCp.Status  = nsp32_read1(base, SCSI_CSB_IN);
 		SCpnt->SCp.Message = 0;
 		nsp32_dbg(NSP32_DEBUG_BUSFREE, 
-			  "normal end stat=0x%x resid=0x%x\n",
+			  "yesrmal end stat=0x%x resid=0x%x\n",
 			  SCpnt->SCp.Status, scsi_get_resid(SCpnt));
 		SCpnt->result = (DID_OK             << 16) |
 			        (SCpnt->SCp.Message <<  8) |
@@ -1736,7 +1736,7 @@ static void nsp32_adjust_busfree(struct scsi_cmnd *SCpnt, unsigned int s_sacklen
 	}
 
 	if (sentlen == s_sacklen) {
-		/* XXX: confirm it's ok or not */
+		/* XXX: confirm it's ok or yest */
 		/* In this case, it's ok because we are at 
 		   the head element of the sg. restlen is correctly calculated. */
 	}
@@ -1792,7 +1792,7 @@ static void nsp32_msgout_occur(struct scsi_cmnd *SCpnt)
 	 * message, then No_Operation is sent (SCSI-2).
 	 */
 	if (data->msgout_len == 0) {
-		nsp32_build_nop(SCpnt);
+		nsp32_build_yesp(SCpnt);
 	}
 
 	/*
@@ -1916,7 +1916,7 @@ static void nsp32_restart_autoscsi(struct scsi_cmnd *SCpnt, unsigned short comma
 
 
 /*
- * cannot run automatically message in occur
+ * canyest run automatically message in occur
  */
 static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 			      unsigned long  irq_status,
@@ -1958,7 +1958,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 	 */
 	if (msgtype & 0x80) {
 		if (!(irq_status & IRQSTATUS_RESELECT_OCCUER)) {
-			/* Invalid (non reselect) phase */
+			/* Invalid (yesn reselect) phase */
 			goto reject;
 		}
 
@@ -1974,7 +1974,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 	/*
 	 * processing messages except for IDENTIFY
 	 *
-	 * TODO: Messages are all SCSI-2 terminology. SCSI-3 compliance is TODO.
+	 * TODO: Messages are all SCSI-2 termiyeslogy. SCSI-3 compliance is TODO.
 	 */
 	switch (msgtype) {
 	/*
@@ -1983,7 +1983,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 	case COMMAND_COMPLETE:
 	case DISCONNECT:
 		/*
-		 * These messages should not be occurred.
+		 * These messages should yest be occurred.
 		 * They should be processed on AutoSCSI sequencer.
 		 */
 		nsp32_msg(KERN_WARNING, 
@@ -2023,7 +2023,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 
 	case SAVE_POINTERS:
 		/*
-		 * These messages should not be occurred.
+		 * These messages should yest be occurred.
 		 * They should be processed on AutoSCSI sequencer.
 		 */
 		nsp32_msg (KERN_WARNING, 
@@ -2050,7 +2050,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 
 	case LINKED_CMD_COMPLETE:
 	case LINKED_FLG_CMD_COMPLETE:
-		/* queue tag is not supported currently */
+		/* queue tag is yest supported currently */
 		nsp32_msg (KERN_WARNING, 
 			   "unsupported message: 0x%x", msgtype);
 		break;
@@ -2067,7 +2067,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 	case SIMPLE_QUEUE_TAG:
 	case 0x23:
 		/*
-		 * 0x23: Ignore_Wide_Residue is not declared in scsi.h.
+		 * 0x23: Igyesre_Wide_Residue is yest declared in scsi.h.
 		 * No support is needed.
 		 */
 		if (data->msgin_len >= 1) {
@@ -2085,7 +2085,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 	case EXTENDED_MESSAGE:
 		if (data->msgin_len < 1) {
 			/*
-			 * Current position does not reach 2-byte
+			 * Current position does yest reach 2-byte
 			 * (2-byte is extended message length).
 			 */
 			msgclear = FALSE;
@@ -2096,7 +2096,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 			/*
 			 * Current extended message has msginbuf[1] + 2
 			 * (msgin_len starts counting from 0, so buf[1] + 1).
-			 * If current message position is not finished,
+			 * If current message position is yest finished,
 			 * continue receiving message.
 			 */
 			msgclear = FALSE;
@@ -2110,7 +2110,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 		switch (data->msginbuf[2]) {
 		case EXTENDED_MODIFY_DATA_POINTER:
 			/* TODO */
-			goto reject; /* not implemented yet */
+			goto reject; /* yest implemented yet */
 			break;
 
 		case EXTENDED_SDTR:
@@ -2130,13 +2130,13 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 			break;
 
 		case EXTENDED_EXTENDED_IDENTIFY:
-			/* SCSI-I only, not supported. */
-			goto reject; /* not implemented yet */
+			/* SCSI-I only, yest supported. */
+			goto reject; /* yest implemented yet */
 
 			break;
 
 		case EXTENDED_WDTR:
-			goto reject; /* not implemented yet */
+			goto reject; /* yest implemented yet */
 
 			break;
 			
@@ -2233,8 +2233,8 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 	/*
 	 * If this inititor sent the SDTR message, then target responds SDTR,
 	 * initiator SYNCREG, ACKWIDTH from SDTR parameter.
-	 * Messages are not appropriate, then send back reject message.
-	 * If initiator did not send the SDTR, but target sends SDTR, 
+	 * Messages are yest appropriate, then send back reject message.
+	 * If initiator did yest send the SDTR, but target sends SDTR, 
 	 * initiator calculator the appropriate parameter and send back SDTR.
 	 */	
 	if (target->sync_flag & SDTR_INITIATOR) {
@@ -2261,7 +2261,7 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 		if (get_offset == ASYNC_OFFSET) {
 			/*
 			 * Negotiation is succeeded, the target want
-			 * to fall back into asynchronous transfer mode.
+			 * to fall back into asynchroyesus transfer mode.
 			 */
 			goto async;
 		}
@@ -2273,7 +2273,7 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 		 *    the received sync period. If sync period is acceptable
 		 *    between sync table start_period and end_period, then
 		 *    set this I_T nexus as sent offset and period.
-		 *    If it's not acceptable, send back reject and fall back
+		 *    If it's yest acceptable, send back reject and fall back
 		 *    to async mode.
 		 */
 		if (get_period < data->synct[0].period_num) {
@@ -2288,7 +2288,7 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 
 		if (entry < 0) {
 			/*
-			 * Target want to use long period which is not 
+			 * Target want to use long period which is yest 
 			 * acceptable NinjaSCSI-32Bi/UDE.
 			 */
 			goto reject;
@@ -2457,7 +2457,7 @@ static void nsp32_wait_req(nsp32_hw_data *data, int state)
 	unsigned char bus, req_bit;
 
 	if (!((state == ASSERT) || (state == NEGATE))) {
-		nsp32_msg(KERN_ERR, "unknown state designation");
+		nsp32_msg(KERN_ERR, "unkyeswn state designation");
 	}
 	/* REQ is BIT(5) */
 	req_bit = (state == ASSERT ? BUSMON_REQ : 0);
@@ -2486,7 +2486,7 @@ static void nsp32_wait_sack(nsp32_hw_data *data, int state)
 	unsigned char bus, ack_bit;
 
 	if (!((state == ASSERT) || (state == NEGATE))) {
-		nsp32_msg(KERN_ERR, "unknown state designation");
+		nsp32_msg(KERN_ERR, "unkyeswn state designation");
 	}
 	/* ACK is BIT(4) */
 	ack_bit = (state == ASSERT ? BUSMON_ACK : 0);
@@ -2588,7 +2588,7 @@ static int nsp32_detect(struct pci_dev *pdev)
 	/*
 	 * Set clock div, CLOCK_4 (HBA has own external clock, and
 	 * dividing * 100ns/4).
-	 * Currently CLOCK_4 has only tested, not for CLOCK_2/PCICLK yet.
+	 * Currently CLOCK_4 has only tested, yest for CLOCK_2/PCICLK yet.
 	 */
 	data->clock = CLOCK_4;
 
@@ -2704,15 +2704,15 @@ static int nsp32_detect(struct pci_dev *pdev)
 	 * Note: It's important to reset SCSI bus in initialization phase.
 	 *     NinjaSCSI-32Bi/UDE HBA EEPROM seems to exchange SDTR when
 	 *     system is coming up, so SCSI devices connected to HBA is set as
-	 *     un-asynchronous mode.  It brings the merit that this HBA is
-	 *     ready to start synchronous transfer without any preparation,
+	 *     un-asynchroyesus mode.  It brings the merit that this HBA is
+	 *     ready to start synchroyesus transfer without any preparation,
 	 *     but we are difficult to control transfer speed.  In addition,
 	 *     it prevents device transfer speed from effecting EEPROM start-up
 	 *     SDTR.  NinjaSCSI-32Bi/UDE has the feature if EEPROM is set as
 	 *     Auto Mode, then FAST-10M is selected when SCSI devices are
 	 *     connected same or more than 4 devices.  It should be avoided
 	 *     depending on this specification. Thus, resetting the SCSI bus
-	 *     restores all connected SCSI devices to asynchronous mode, then
+	 *     restores all connected SCSI devices to asynchroyesus mode, then
 	 *     this driver set SDTR safely later, and we can control all SCSI
 	 *     device transfer mode.
 	 */
@@ -2852,7 +2852,7 @@ static void nsp32_do_bus_reset(nsp32_hw_data *data)
 	nsp32_write4(base, CLR_COUNTER,      CLRCOUNTER_ALLMASK);
 
 	/*
-	 * fall back to asynchronous transfer mode
+	 * fall back to asynchroyesus transfer mode
 	 * initialize SDTR negotiation flag
 	 */
 	for (i = 0; i < ARRAY_SIZE(data->target); i++) {
@@ -2937,7 +2937,7 @@ static int nsp32_getprom_param(nsp32_hw_data *data)
 		   device == PCI_DEVICE_ID_NINJASCSI_32UDE_MELCO ) {
 		ret = nsp32_getprom_at24(data);
 	} else {
-		nsp32_msg(KERN_WARNING, "Unknown EEPROM");
+		nsp32_msg(KERN_WARNING, "Unkyeswn EEPROM");
 		ret = FALSE;
 	}
 
@@ -2956,9 +2956,9 @@ static int nsp32_getprom_param(nsp32_hw_data *data)
  * AT24C01A (Logitec: LHA-600S), AT24C02 (Melco Buffalo: IFC-USLP) data map:
  *
  *   ROMADDR
- *   0x00 - 0x06 :  Device Synchronous Transfer Period (SCSI ID 0 - 6) 
+ *   0x00 - 0x06 :  Device Synchroyesus Transfer Period (SCSI ID 0 - 6) 
  *			Value 0x0: ASYNC, 0x0c: Ultra-20M, 0x19: Fast-10M
- *   0x07        :  HBA Synchronous Transfer Period
+ *   0x07        :  HBA Synchroyesus Transfer Period
  *			Value 0: AutoSync, 1: Manual Setting
  *   0x08 - 0x0f :  Not Used? (0x0)
  *   0x10        :  Bus Termination
@@ -2994,7 +2994,7 @@ static int nsp32_getprom_at24(nsp32_hw_data *data)
 	data->resettime = nsp32_prom_read(data, 0x12);
 
 	/*
-	 * HBA Synchronous Transfer Period
+	 * HBA Synchroyesus Transfer Period
 	 *
 	 * Note: auto_sync = 0: auto, 1: manual.  Ninja SCSI HBA spec says
 	 *	that if auto_sync is 0 (auto), and connected SCSI devices are
@@ -3003,7 +3003,7 @@ static int nsp32_getprom_at24(nsp32_hw_data *data)
 	 *	than 4, then transfer speed is set as FAST-10M.
 	 *
 	 *	I break this rule. The number of connected SCSI devices are
-	 *	only ignored. If auto_sync is 0 (auto), then transfer speed is
+	 *	only igyesred. If auto_sync is 0 (auto), then transfer speed is
 	 *	forced as ULTRA-20M.
 	 */
 	ret = nsp32_prom_read(data, 0x07);
@@ -3025,7 +3025,7 @@ static int nsp32_getprom_at24(nsp32_hw_data *data)
 	}
 
 	/*
-	 * each device Synchronous Transfer Period
+	 * each device Synchroyesus Transfer Period
 	 */
 	for (i = 0; i < NSP32_HOST_SCSIID; i++) {
 		target = &data->target[i];
@@ -3050,9 +3050,9 @@ static int nsp32_getprom_at24(nsp32_hw_data *data)
  * C16 110 (I-O Data: SC-NBD) data map:
  *
  *   ROMADDR
- *   0x00 - 0x06 :  Device Synchronous Transfer Period (SCSI ID 0 - 6) 
+ *   0x00 - 0x06 :  Device Synchroyesus Transfer Period (SCSI ID 0 - 6) 
  *			Value 0x0: 20MB/S, 0x1: 10MB/S, 0x2: 5MB/S, 0x3: ASYNC
- *   0x07        :  0 (HBA Synchronous Transfer Period: Auto Sync)
+ *   0x07        :  0 (HBA Synchroyesus Transfer Period: Auto Sync)
  *   0x08 - 0x0f :  Not Used? (0x0)
  *   0x10        :  Transfer Mode
  *			Value 0: PIO, 1: Busmater
@@ -3080,7 +3080,7 @@ static int nsp32_getprom_c16(nsp32_hw_data *data)
 	data->resettime = nsp32_prom_read(data, 0x11);
 
 	/*
-	 * each device Synchronous Transfer Period
+	 * each device Synchroyesus Transfer Period
 	 */
 	for (i = 0; i < NSP32_HOST_SCSIID; i++) {
 		target = &data->target[i];
@@ -3171,7 +3171,7 @@ static int nsp32_prom_read(nsp32_hw_data *data, int romaddr)
 		val += (nsp32_prom_read_bit(data) << i);
 	}
 	
-	/* no ack */
+	/* yes ack */
 	nsp32_prom_write_bit(data, 1);
 
 	/* stop condition */
@@ -3204,7 +3204,7 @@ static int nsp32_prom_get(nsp32_hw_data *data, int bit)
 	int tmp, ret;
 
 	if (bit != SDA) {
-		nsp32_msg(KERN_ERR, "return value is not appropriate");
+		nsp32_msg(KERN_ERR, "return value is yest appropriate");
 		return 0;
 	}
 

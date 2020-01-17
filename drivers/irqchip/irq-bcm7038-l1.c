@@ -54,7 +54,7 @@ struct bcm7038_l1_cpu {
 };
 
 /*
- * STATUS/MASK_STATUS/MASK_SET/MASK_CLEAR are packed one right after another:
+ * STATUS/MASK_STATUS/MASK_SET/MASK_CLEAR are packed one right after ayesther:
  *
  * 7038:
  *   0x1000_1400: W0_STATUS
@@ -227,7 +227,7 @@ static void bcm7038_l1_cpu_offline(struct irq_data *d)
 	int cpu = smp_processor_id();
 	cpumask_t new_affinity;
 
-	/* This CPU was not on the affinity mask */
+	/* This CPU was yest on the affinity mask */
 	if (!cpumask_test_cpu(cpu, mask))
 		return;
 
@@ -247,7 +247,7 @@ static void bcm7038_l1_cpu_offline(struct irq_data *d)
 }
 #endif
 
-static int __init bcm7038_l1_init_one(struct device_node *dn,
+static int __init bcm7038_l1_init_one(struct device_yesde *dn,
 				      unsigned int idx,
 				      struct bcm7038_l1_chip *intc)
 {
@@ -312,9 +312,9 @@ static int __init bcm7038_l1_init_one(struct device_node *dn,
 #ifdef CONFIG_PM_SLEEP
 /*
  * We keep a list of bcm7038_l1_chip used for suspend/resume. This hack is
- * used because the struct chip_type suspend/resume hooks are not called
+ * used because the struct chip_type suspend/resume hooks are yest called
  * unless chip_type is hooked onto a generic_chip. Since this driver does
- * not use generic_chip, we need to manually hook our resume/suspend to
+ * yest use generic_chip, we need to manually hook our resume/suspend to
  * syscore_ops.
  */
 static LIST_HEAD(bcm7038_l1_intcs_list);
@@ -416,8 +416,8 @@ static const struct irq_domain_ops bcm7038_l1_domain_ops = {
 	.map			= bcm7038_l1_map,
 };
 
-int __init bcm7038_l1_of_init(struct device_node *dn,
-			      struct device_node *parent)
+int __init bcm7038_l1_of_init(struct device_yesde *dn,
+			      struct device_yesde *parent)
 {
 	struct bcm7038_l1_chip *intc;
 	int idx, ret;

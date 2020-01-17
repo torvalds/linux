@@ -249,10 +249,10 @@ static void update_attrib_vcs_info(struct adapter *padapter, struct xmit_frame *
 
 	if (pattrib->nr_frags != 1)
 		sz = padapter->xmitpriv.frag_len;
-	else /* no frag */
+	else /* yes frag */
 		sz = pattrib->last_txcmdsz;
 
-	/* (1) RTS_Threshold is compared to the MPDU, not MSDU.
+	/* (1) RTS_Threshold is compared to the MPDU, yest MSDU.
 	 * (2) If there are more than one frag in this MSDU,
 	 *     only the first frag uses protection frame.
 	 * Other fragments are protected by previous fragment.
@@ -465,7 +465,7 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 		psta = rtw_get_bcmc_stainfo(padapter);
 	} else {
 		psta = rtw_get_stainfo(pstapriv, pattrib->ra);
-		if (!psta) { /*  if we cannot get psta => drrp the pkt */
+		if (!psta) { /*  if we canyest get psta => drrp the pkt */
 			RT_TRACE(_module_rtl871x_xmit_c_, _drv_alert_, ("\nupdate_attrib => get sta_info fail, ra: %pM\n", (pattrib->ra)));
 			res = _FAIL;
 			goto exit;
@@ -481,7 +481,7 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 		/* DBG_88E("%s ==> mac_id(%d)\n", __func__, pattrib->mac_id); */
 		pattrib->psta = psta;
 	} else {
-		/*  if we cannot get psta => drop the pkt */
+		/*  if we canyest get psta => drop the pkt */
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_alert_, ("\nupdate_attrib => get sta_info fail, ra:%pM\n", (pattrib->ra)));
 		res = _FAIL;
 		goto exit;
@@ -725,7 +725,7 @@ static s32 xmitframe_swencrypt(struct adapter *padapter, struct xmit_frame *pxmi
 			break;
 		}
 	} else {
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_notice_, ("### xmitframe_hwencrypt\n"));
+		RT_TRACE(_module_rtl871x_xmit_c_, _drv_yestice_, ("### xmitframe_hwencrypt\n"));
 	}
 
 	return _SUCCESS;
@@ -787,7 +787,7 @@ s32 rtw_make_wlanhdr(struct adapter *padapter, u8 *hdr, struct pkt_attrib *pattr
 			if (psta && psta->qos_option)
 				qos_option = true;
 		} else {
-			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("fw_state:%x is not allowed to xmit frame\n", get_fwstate(pmlmepriv)));
+			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("fw_state:%x is yest allowed to xmit frame\n", get_fwstate(pmlmepriv)));
 			res = _FAIL;
 			goto exit;
 		}
@@ -979,7 +979,7 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 
 			memcpy(pframe, pattrib->iv, pattrib->iv_len);
 
-			RT_TRACE(_module_rtl871x_xmit_c_, _drv_notice_,
+			RT_TRACE(_module_rtl871x_xmit_c_, _drv_yestice_,
 				 ("%s: keyid=%d pattrib->iv[3]=%.2x pframe=%.2x %.2x %.2x %.2x\n",
 				  __func__,
 				  padapter->securitypriv.dot11PrivacyKeyIndex,
@@ -1151,7 +1151,7 @@ struct xmit_buf *rtw_alloc_xmitbuf_ext(struct xmit_priv *pxmitpriv)
 		pxmitpriv->free_xmit_extbuf_cnt--;
 		pxmitbuf->priv_data = NULL;
 		if (pxmitbuf->sctx) {
-			DBG_88E("%s pxmitbuf->sctx is not NULL\n", __func__);
+			DBG_88E("%s pxmitbuf->sctx is yest NULL\n", __func__);
 			rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_BUF_ALLOC);
 		}
 	}
@@ -1194,7 +1194,7 @@ struct xmit_buf *rtw_alloc_xmitbuf(struct xmit_priv *pxmitpriv)
 		pxmitpriv->free_xmitbuf_cnt--;
 		pxmitbuf->priv_data = NULL;
 		if (pxmitbuf->sctx) {
-			DBG_88E("%s pxmitbuf->sctx is not NULL\n", __func__);
+			DBG_88E("%s pxmitbuf->sctx is yest NULL\n", __func__);
 			rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_BUF_ALLOC);
 		}
 	}
@@ -1212,7 +1212,7 @@ s32 rtw_free_xmitbuf(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
 		return _FAIL;
 
 	if (pxmitbuf->sctx) {
-		DBG_88E("%s pxmitbuf->sctx is not NULL\n", __func__);
+		DBG_88E("%s pxmitbuf->sctx is yest NULL\n", __func__);
 		rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_BUF_FREE);
 	}
 
@@ -1237,7 +1237,7 @@ Calling context:
 1. OS_TXENTRY
 2. RXENTRY (rx_thread or RX_ISR/RX_CallBack)
 
-If we turn on USE_RXTHREAD, then, no need for critical section.
+If we turn on USE_RXTHREAD, then, yes need for critical section.
 Otherwise, we must use _enter/_exit critical to protect free_xmit_queue...
 
 Must be very very cautious...
@@ -1413,7 +1413,7 @@ struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv, struct hw_xmi
 			if (pxmitframe) {
 				phwxmit->accnt--;
 
-				/* Remove sta node when there are no pending packets. */
+				/* Remove sta yesde when there are yes pending packets. */
 				if (list_empty(&pframe_queue->queue)) /* must be done after get_next and before break */
 					list_del_init(&ptxservq->tx_pending);
 				goto exit;
@@ -1596,8 +1596,8 @@ s32 rtw_xmit(struct adapter *padapter, struct sk_buff **ppkt)
 
 	pxmitframe = rtw_alloc_xmitframe(pxmitpriv);
 	if (!pxmitframe) {
-		RT_TRACE(_module_xmit_osdep_c_, _drv_err_, ("%s: no more pxmitframe\n", __func__));
-		DBG_88E("DBG_TX_DROP_FRAME %s no more pxmitframe\n", __func__);
+		RT_TRACE(_module_xmit_osdep_c_, _drv_err_, ("%s: yes more pxmitframe\n", __func__));
+		DBG_88E("DBG_TX_DROP_FRAME %s yes more pxmitframe\n", __func__);
 		return -1;
 	}
 
@@ -1892,7 +1892,7 @@ void wakeup_sta_to_xmit(struct adapter *padapter, struct sta_info *psta)
 	if (!psta_bmc)
 		return;
 
-	if ((pstapriv->sta_dz_bitmap & 0xfffe) == 0x0) { /* no any sta in ps mode */
+	if ((pstapriv->sta_dz_bitmap & 0xfffe) == 0x0) { /* yes any sta in ps mode */
 		spin_lock_bh(&psta_bmc->sleep_q.lock);
 
 		xmitframe_phead = get_list_head(&psta_bmc->sleep_q);
@@ -2077,5 +2077,5 @@ void rtw_ack_tx_done(struct xmit_priv *pxmitpriv, int status)
 	if (pxmitpriv->ack_tx)
 		rtw_sctx_done_err(&pack_tx_ops, status);
 	else
-		DBG_88E("%s ack_tx not set\n", __func__);
+		DBG_88E("%s ack_tx yest set\n", __func__);
 }

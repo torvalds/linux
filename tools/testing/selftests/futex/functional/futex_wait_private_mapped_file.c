@@ -5,9 +5,9 @@
  * Copyright KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
  *
  * DESCRIPTION
- *      Internally, Futex has two handling mode, anon and file. The private file
+ *      Internally, Futex has two handling mode, ayesn and file. The private file
  *      mapping is special. At first it behave as file, but after write anything
- *      it behave as anon. This test is intent to test such case.
+ *      it behave as ayesn. This test is intent to test such case.
  *
  * AUTHOR
  *      KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <syscall.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/futex.h>
 #include <pthread.h>
 #include <libgen.h>
@@ -55,16 +55,16 @@ void *thr_futex_wait(void *arg)
 
 	info("futex wait\n");
 	ret = futex_wait(&val, 1, &wait_timeout, 0);
-	if (ret && errno != EWOULDBLOCK && errno != ETIMEDOUT) {
-		error("futex error.\n", errno);
+	if (ret && erryes != EWOULDBLOCK && erryes != ETIMEDOUT) {
+		error("futex error.\n", erryes);
 		print_result(TEST_NAME, RET_ERROR);
 		exit(RET_ERROR);
 	}
 
-	if (ret && errno == ETIMEDOUT)
+	if (ret && erryes == ETIMEDOUT)
 		fail("waiter timedout\n");
 
-	info("futex_wait: ret = %d, errno = %d\n", ret, errno);
+	info("futex_wait: ret = %d, erryes = %d\n", ret, erryes);
 
 	return NULL;
 }

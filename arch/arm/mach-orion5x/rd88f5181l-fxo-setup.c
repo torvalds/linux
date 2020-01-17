@@ -37,25 +37,25 @@
 /*****************************************************************************
  * 8M NOR Flash on Device bus Boot chip select
  ****************************************************************************/
-static struct physmap_flash_data rd88f5181l_fxo_nor_boot_flash_data = {
+static struct physmap_flash_data rd88f5181l_fxo_yesr_boot_flash_data = {
 	.width		= 1,
 };
 
-static struct resource rd88f5181l_fxo_nor_boot_flash_resource = {
+static struct resource rd88f5181l_fxo_yesr_boot_flash_resource = {
 	.flags		= IORESOURCE_MEM,
 	.start		= RD88F5181L_FXO_NOR_BOOT_BASE,
 	.end		= RD88F5181L_FXO_NOR_BOOT_BASE +
 			  RD88F5181L_FXO_NOR_BOOT_SIZE - 1,
 };
 
-static struct platform_device rd88f5181l_fxo_nor_boot_flash = {
+static struct platform_device rd88f5181l_fxo_yesr_boot_flash = {
 	.name			= "physmap-flash",
 	.id			= 0,
 	.dev		= {
-		.platform_data	= &rd88f5181l_fxo_nor_boot_flash_data,
+		.platform_data	= &rd88f5181l_fxo_yesr_boot_flash_data,
 	},
 	.num_resources		= 1,
-	.resource		= &rd88f5181l_fxo_nor_boot_flash_resource,
+	.resource		= &rd88f5181l_fxo_yesr_boot_flash_resource,
 };
 
 
@@ -122,7 +122,7 @@ static void __init rd88f5181l_fxo_init(void)
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
 				    RD88F5181L_FXO_NOR_BOOT_BASE,
 				    RD88F5181L_FXO_NOR_BOOT_SIZE);
-	platform_device_register(&rd88f5181l_fxo_nor_boot_flash);
+	platform_device_register(&rd88f5181l_fxo_yesr_boot_flash);
 }
 
 static int __init

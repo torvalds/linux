@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2004 Mellayesx Techyeslogies Ltd.  All rights reserved.
  * Copyright (c) 2004 Infinicon Corporation.  All rights reserved.
  * Copyright (c) 2004 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
@@ -18,11 +18,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -36,7 +36,7 @@
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/string.h>
@@ -209,21 +209,21 @@ __attribute_const__ int ib_rate_to_mbps(enum ib_rate rate)
 EXPORT_SYMBOL(ib_rate_to_mbps);
 
 __attribute_const__ enum rdma_transport_type
-rdma_node_get_transport(unsigned int node_type)
+rdma_yesde_get_transport(unsigned int yesde_type)
 {
 
-	if (node_type == RDMA_NODE_USNIC)
+	if (yesde_type == RDMA_NODE_USNIC)
 		return RDMA_TRANSPORT_USNIC;
-	if (node_type == RDMA_NODE_USNIC_UDP)
+	if (yesde_type == RDMA_NODE_USNIC_UDP)
 		return RDMA_TRANSPORT_USNIC_UDP;
-	if (node_type == RDMA_NODE_RNIC)
+	if (yesde_type == RDMA_NODE_RNIC)
 		return RDMA_TRANSPORT_IWARP;
-	if (node_type == RDMA_NODE_UNSPECIFIED)
+	if (yesde_type == RDMA_NODE_UNSPECIFIED)
 		return RDMA_TRANSPORT_UNSPECIFIED;
 
 	return RDMA_TRANSPORT_IB;
 }
-EXPORT_SYMBOL(rdma_node_get_transport);
+EXPORT_SYMBOL(rdma_yesde_get_transport);
 
 enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device, u8 port_num)
 {
@@ -231,7 +231,7 @@ enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device, u8 port_
 	if (device->ops.get_link_layer)
 		return device->ops.get_link_layer(device, port_num);
 
-	lt = rdma_node_get_transport(device->node_type);
+	lt = rdma_yesde_get_transport(device->yesde_type);
 	if (lt == RDMA_TRANSPORT_IB)
 		return IB_LINK_LAYER_INFINIBAND;
 
@@ -324,8 +324,8 @@ EXPORT_SYMBOL(__ib_alloc_pd);
  * @udata: Valid user data or NULL for kernel object
  *
  * It is an error to call this function while any resources in the pd still
- * exist.  The caller is responsible to synchronously destroy them and
- * guarantee no new allocations will happen.
+ * exist.  The caller is responsible to synchroyesusly destroy them and
+ * guarantee yes new allocations will happen.
  */
 void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata)
 {
@@ -614,7 +614,7 @@ int ib_get_rdma_header_version(const union rdma_network_hdr *hdr)
 		return (ip4h->version == 4) ? 4 : 0;
 	/* version may be 6 or 4 because the first 20 bytes could be garbled */
 
-	/* RoCE v2 requires no options, thus header length
+	/* RoCE v2 requires yes options, thus header length
 	 * must be 5 words
 	 */
 	if (ip4h->ihl != 5)
@@ -736,7 +736,7 @@ static int ib_resolve_unicast_gid_dmac(struct ib_device *device,
 	int ret = 0;
 
 	/* If destination is link local and source GID is RoCEv1,
-	 * IP stack is not used.
+	 * IP stack is yest used.
 	 */
 	if (rdma_link_local_addr((struct in6_addr *)grh->dgid.raw) &&
 	    sgid_attr->gid_type == IB_GID_TYPE_ROCE) {
@@ -755,7 +755,7 @@ static int ib_resolve_unicast_gid_dmac(struct ib_device *device,
 
 /*
  * This function initializes address handle attributes from the incoming packet.
- * Incoming packet has dgid of the receiver node on which this code is
+ * Incoming packet has dgid of the receiver yesde on which this code is
  * getting executed and, sgid contains the GID of the sender.
  *
  * When resolving mac address of destination, the arrived dgid is used
@@ -883,7 +883,7 @@ EXPORT_SYMBOL(rdma_move_grh_sgid_attr);
  * @ah_attr: Pointer to ah attribute
  *
  * Release reference to the SGID attribute of the ah attribute if it is
- * non NULL. It is safe to call this multiple times, and safe to call it on
+ * yesn NULL. It is safe to call this multiple times, and safe to call it on
  * a zero initialized ah_attr.
  */
 void rdma_destroy_ah_attr(struct rdma_ah_attr *ah_attr)
@@ -1234,7 +1234,7 @@ struct ib_qp *ib_create_qp_user(struct ib_pd *pd,
 
 	/*
 	 * Note: all hw drivers guarantee that max_send_sge is lower than
-	 * the device RDMA WRITE SGE limit but not all hw drivers ensure that
+	 * the device RDMA WRITE SGE limit but yest all hw drivers ensure that
 	 * max_send_sge <= max_sge_rd.
 	 */
 	qp->max_write_sge = qp_init_attr->cap.max_send_sge;
@@ -1642,11 +1642,11 @@ static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 	}
 	if (attr_mask & IB_QP_ALT_PATH) {
 		/*
-		 * FIXME: This does not track the migration state, so if the
+		 * FIXME: This does yest track the migration state, so if the
 		 * user loads a new alternate path after the HW has migrated
 		 * from primary->alternate we will keep the wrong
 		 * references. This is OK for IB because the reference
-		 * counting does not serve any functional purpose.
+		 * counting does yest serve any functional purpose.
 		 */
 		ret = rdma_fill_sgid_attr(qp->device, &attr->alt_ah_attr,
 					  &old_sgid_attr_alt_av);
@@ -1765,7 +1765,7 @@ int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u8 *speed, u8 *width)
 		netdev_speed = lksettings.base.speed;
 	} else {
 		netdev_speed = SPEED_1000;
-		pr_warn("%s speed is unknown, defaulting to %d\n", netdev->name,
+		pr_warn("%s speed is unkyeswn, defaulting to %d\n", netdev->name,
 			netdev_speed);
 	}
 
@@ -2018,8 +2018,8 @@ EXPORT_SYMBOL(ib_dereg_mr_user);
  * @udata:	   user data or null for kernel objects
  *
  * Notes:
- * Memory registeration page/sg lists must not exceed max_num_sg.
- * For mr_type IB_MR_TYPE_MEM_REG, the total length cannot exceed
+ * Memory registeration page/sg lists must yest exceed max_num_sg.
+ * For mr_type IB_MR_TYPE_MEM_REG, the total length canyest exceed
  * max_num_sg * used_page_size.
  *
  */
@@ -2060,8 +2060,8 @@ EXPORT_SYMBOL(ib_alloc_mr_user);
  *                           registration
  *
  * Notes:
- * Memory registration page/sg lists must not exceed max_num_sg,
- * also the integrity page/sg lists must not exceed max_num_meta_sg.
+ * Memory registration page/sg lists must yest exceed max_num_sg,
+ * also the integrity page/sg lists must yest exceed max_num_meta_sg.
  *
  */
 struct ib_mr *ib_alloc_mr_integrity(struct ib_pd *pd,
@@ -2180,7 +2180,7 @@ static bool is_valid_mcast_lid(struct ib_qp *qp, u16 lid)
 			num_eth_ports++;
 
 	/* If we have at lease one Ethernet port, RoCE annex declares that
-	 * multicast LID should be ignored. We can't tell at this step if the
+	 * multicast LID should be igyesred. We can't tell at this step if the
 	 * QP belongs to an IB or Ethernet port.
 	 */
 	if (num_eth_ports)
@@ -2238,7 +2238,7 @@ struct ib_xrcd *__ib_alloc_xrcd(struct ib_device *device, const char *caller)
 	xrcd = device->ops.alloc_xrcd(device, NULL);
 	if (!IS_ERR(xrcd)) {
 		xrcd->device = device;
-		xrcd->inode = NULL;
+		xrcd->iyesde = NULL;
 		atomic_set(&xrcd->usecnt, 0);
 		mutex_init(&xrcd->tgt_qp_mutex);
 		INIT_LIST_HEAD(&xrcd->tgt_qp_list);
@@ -2355,7 +2355,7 @@ EXPORT_SYMBOL(ib_modify_wq);
  * @ib_rwq_ind_table_init_attr: A list of initial attributes required to
  * create the Indirection Table.
  *
- * Note: The life time of ib_rwq_ind_table_init_attr->ind_tbl is not less
+ * Note: The life time of ib_rwq_ind_table_init_attr->ind_tbl is yest less
  *	than the created ib_rwq_ind_table object and the caller is responsible
  *	for its memory allocation/free.
  */
@@ -2462,13 +2462,13 @@ int ib_set_vf_guid(struct ib_device *device, int vf, u8 port, u64 guid,
 EXPORT_SYMBOL(ib_set_vf_guid);
 
 int ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
-		   struct ifla_vf_guid *node_guid,
+		   struct ifla_vf_guid *yesde_guid,
 		   struct ifla_vf_guid *port_guid)
 {
 	if (!device->ops.get_vf_guid)
 		return -EOPNOTSUPP;
 
-	return device->ops.get_vf_guid(device, vf, port, node_guid, port_guid);
+	return device->ops.get_vf_guid(device, vf, port, yesde_guid, port_guid);
 }
 EXPORT_SYMBOL(ib_get_vf_guid);
 /**
@@ -2521,12 +2521,12 @@ EXPORT_SYMBOL(ib_map_mr_sg_pi);
  * - The first sg element is allowed to have an offset.
  * - Each sg element must either be aligned to page_size or virtually
  *   contiguous to the previous element. In case an sg element has a
- *   non-contiguous offset, the mapping prefix will not include it.
+ *   yesn-contiguous offset, the mapping prefix will yest include it.
  * - The last sg element is allowed to have length less than page_size.
  * - If sg_nents total byte length exceeds the mr max_num_sge * page_size
  *   then only max_num_sg entries will be mapped.
- * - If the MR was allocated with type IB_MR_TYPE_SG_GAPS, none of these
- *   constraints holds and the page_size argument is ignored.
+ * - If the MR was allocated with type IB_MR_TYPE_SG_GAPS, yesne of these
+ *   constraints holds and the page_size argument is igyesred.
  *
  * Returns the number of sg elements that were mapped to the memory region.
  *
@@ -2553,7 +2553,7 @@ EXPORT_SYMBOL(ib_map_mr_sg);
  * @sg_nents:      number of entries in sg
  * @sg_offset_p:   IN:  start offset in bytes into sg
  *                 OUT: offset in bytes for element n of the sg of the first
- *                      byte that has not been processed where n is the return
+ *                      byte that has yest been processed where n is the return
  *                      value of this function.
  * @set_page:      driver page assignment function pointer
  *
@@ -2590,7 +2590,7 @@ int ib_sg_to_pages(struct ib_mr *mr, struct scatterlist *sgl, int sg_nents,
 
 		/*
 		 * For the second and later elements, check whether either the
-		 * end of element i-1 or the start of element i is not aligned
+		 * end of element i-1 or the start of element i is yest aligned
 		 * on a page boundary.
 		 */
 		if (i && (last_page_off != 0 || page_addr != dma_addr)) {
@@ -2600,7 +2600,7 @@ int ib_sg_to_pages(struct ib_mr *mr, struct scatterlist *sgl, int sg_nents,
 
 			/*
 			 * Coalesce this element with the last. If it is small
-			 * enough just update mr->length. Otherwise start
+			 * eyesugh just update mr->length. Otherwise start
 			 * mapping from the next page.
 			 */
 			goto next_page;
@@ -2735,8 +2735,8 @@ static void __ib_drain_rq(struct ib_qp *qp)
  *
  * allocate the CQ using ib_alloc_cq().
  *
- * ensure that there are no other contexts that are posting WRs concurrently.
- * Otherwise the drain is not guaranteed.
+ * ensure that there are yes other contexts that are posting WRs concurrently.
+ * Otherwise the drain is yest guaranteed.
  */
 void ib_drain_sq(struct ib_qp *qp)
 {
@@ -2763,8 +2763,8 @@ EXPORT_SYMBOL(ib_drain_sq);
  *
  * allocate the CQ using ib_alloc_cq().
  *
- * ensure that there are no other contexts that are posting WRs concurrently.
- * Otherwise the drain is not guaranteed.
+ * ensure that there are yes other contexts that are posting WRs concurrently.
+ * Otherwise the drain is yest guaranteed.
  */
 void ib_drain_rq(struct ib_qp *qp)
 {
@@ -2787,8 +2787,8 @@ EXPORT_SYMBOL(ib_drain_rq);
  *
  * allocate the CQs using ib_alloc_cq().
  *
- * ensure that there are no other contexts that are posting WRs concurrently.
- * Otherwise the drain is not guaranteed.
+ * ensure that there are yes other contexts that are posting WRs concurrently.
+ * Otherwise the drain is yest guaranteed.
  */
 void ib_drain_qp(struct ib_qp *qp)
 {

@@ -30,7 +30,7 @@ static void __init acrn_init_platform(void)
 static bool acrn_x2apic_available(void)
 {
 	/*
-	 * x2apic is not supported for now. Future enablement will have to check
+	 * x2apic is yest supported for yesw. Future enablement will have to check
 	 * X86_FEATURE_X2APIC to determine whether x2apic is supported in the
 	 * guest.
 	 */
@@ -45,8 +45,8 @@ __visible void __irq_entry acrn_hv_vector_handler(struct pt_regs *regs)
 
 	/*
 	 * The hypervisor requires that the APIC EOI should be acked.
-	 * If the APIC EOI is not acked, the APIC ISR bit for the
-	 * HYPERVISOR_CALLBACK_VECTOR will not be cleared and then it
+	 * If the APIC EOI is yest acked, the APIC ISR bit for the
+	 * HYPERVISOR_CALLBACK_VECTOR will yest be cleared and then it
 	 * will block the interrupt whose vector is lower than
 	 * HYPERVISOR_CALLBACK_VECTOR.
 	 */

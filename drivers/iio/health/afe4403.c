@@ -339,7 +339,7 @@ static irqreturn_t afe4403_trigger_handler(int irq, void *private)
 
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer, pf->timestamp);
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -386,13 +386,13 @@ static const struct reg_sequence afe4403_reg_sequences[] = {
 	{ AFE4403_TIAGAIN, AFE440X_TIAGAIN_ENSEPGAIN },
 };
 
-static const struct regmap_range afe4403_yes_ranges[] = {
+static const struct regmap_range afe4403_no_ranges[] = {
 	regmap_reg_range(AFE440X_LED2VAL, AFE440X_LED1_ALED1VAL),
 };
 
 static const struct regmap_access_table afe4403_volatile_table = {
-	.yes_ranges = afe4403_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(afe4403_yes_ranges),
+	.no_ranges = afe4403_no_ranges,
+	.n_no_ranges = ARRAY_SIZE(afe4403_no_ranges),
 };
 
 static const struct regmap_config afe4403_regmap_config = {

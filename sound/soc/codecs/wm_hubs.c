@@ -174,7 +174,7 @@ static void wm_hubs_dcs_cache_set(struct snd_soc_component *component, u16 dcs_c
 	struct wm_hubs_data *hubs = snd_soc_component_get_drvdata(component);
 	struct wm_hubs_dcs_cache *cache;
 
-	if (hubs->no_cache_dac_hp_direct)
+	if (hubs->yes_cache_dac_hp_direct)
 		return;
 
 	cache = devm_kzalloc(component->dev, sizeof(*cache), GFP_KERNEL);
@@ -229,7 +229,7 @@ static int wm_hubs_read_dc_servo(struct snd_soc_component *component,
 		*reg_l = reg & WM8993_DCS_DAC_WR_VAL_0_MASK;
 		break;
 	default:
-		WARN(1, "Unknown DCS readback method\n");
+		WARN(1, "Unkyeswn DCS readback method\n");
 		ret = -1;
 	}
 	return ret;
@@ -338,7 +338,7 @@ static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 
 	/* If we're applying an offset correction then updating the
 	 * callibration would be likely to introduce further offsets. */
-	if (hubs->dcs_codes_l || hubs->dcs_codes_r || hubs->no_series_update)
+	if (hubs->dcs_codes_l || hubs->dcs_codes_r || hubs->yes_series_update)
 		return ret;
 
 	/* Only need to do this if the outputs are active */
@@ -519,7 +519,7 @@ static int hp_supply_event(struct snd_soc_dapm_widget *w,
 					    WM8993_HPOUT1R_DLY);
 			break;
 		default:
-			dev_err(component->dev, "Unknown HP startup mode %d\n",
+			dev_err(component->dev, "Unkyeswn HP startup mode %d\n",
 				hubs->hp_startup_mode);
 			break;
 		}
@@ -632,7 +632,7 @@ static int lineout_event(struct snd_soc_dapm_widget *w,
 		flag = &hubs->lineout2p_ena;
 		break;
 	default:
-		WARN(1, "Unknown line output");
+		WARN(1, "Unkyeswn line output");
 		return -EINVAL;
 	}
 

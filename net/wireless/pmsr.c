@@ -24,7 +24,7 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 	}
 
-	/* no validation needed - was already done via nested policy */
+	/* yes validation needed - was already done via nested policy */
 	nla_parse_nested_deprecated(tb, NL80211_PMSR_FTM_REQ_ATTR_MAX, ftmreq,
 				    NULL, NULL);
 
@@ -64,13 +64,13 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 	if (out->ftm.asap && !capa->ftm.asap) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[NL80211_PMSR_FTM_REQ_ATTR_ASAP],
-				    "FTM: ASAP mode not supported");
+				    "FTM: ASAP mode yest supported");
 		return -EINVAL;
 	}
 
-	if (!out->ftm.asap && !capa->ftm.non_asap) {
+	if (!out->ftm.asap && !capa->ftm.yesn_asap) {
 		NL_SET_ERR_MSG(info->extack,
-			       "FTM: non-ASAP mode not supported");
+			       "FTM: yesn-ASAP mode yest supported");
 		return -EINVAL;
 	}
 
@@ -102,7 +102,7 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 	     out->ftm.ftms_per_burst == 0)) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[NL80211_PMSR_FTM_REQ_ATTR_FTMS_PER_BURST],
-				    "FTM: FTMs per burst must be set lower than the device limit but non-zero");
+				    "FTM: FTMs per burst must be set lower than the device limit but yesn-zero");
 		return -EINVAL;
 	}
 
@@ -115,7 +115,7 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 	if (out->ftm.request_lci && !capa->ftm.request_lci) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[NL80211_PMSR_FTM_REQ_ATTR_REQUEST_LCI],
-				    "FTM: LCI request not supported");
+				    "FTM: LCI request yest supported");
 	}
 
 	out->ftm.request_civicloc =
@@ -123,7 +123,7 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 	if (out->ftm.request_civicloc && !capa->ftm.request_civicloc) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[NL80211_PMSR_FTM_REQ_ATTR_REQUEST_CIVICLOC],
-			    "FTM: civic location request not supported");
+			    "FTM: civic location request yest supported");
 	}
 
 	return 0;
@@ -139,7 +139,7 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 	struct nlattr *treq;
 	int err, rem;
 
-	/* no validation needed - was already done via nested policy */
+	/* yes validation needed - was already done via nested policy */
 	nla_parse_nested_deprecated(tb, NL80211_PMSR_PEER_ATTR_MAX, peer,
 				    NULL, NULL);
 
@@ -166,7 +166,7 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 	if (err)
 		return err;
 
-	/* no validation needed - was already done via nested policy */
+	/* yes validation needed - was already done via nested policy */
 	nla_parse_nested_deprecated(req, NL80211_PMSR_REQ_ATTR_MAX,
 				    tb[NL80211_PMSR_PEER_ATTR_REQ], NULL,
 				    NULL);
@@ -184,7 +184,7 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 	if (out->report_ap_tsf && !rdev->wiphy.pmsr_capa->report_ap_tsf) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    req[NL80211_PMSR_REQ_ATTR_GET_AP_TSF],
-				    "reporting AP TSF is not supported");
+				    "reporting AP TSF is yest supported");
 		return -EINVAL;
 	}
 
@@ -248,7 +248,7 @@ int nl80211_pmsr_start(struct sk_buff *skb, struct genl_info *info)
 		if (!rdev->wiphy.pmsr_capa->randomize_mac_addr) {
 			NL_SET_ERR_MSG_ATTR(info->extack,
 					    info->attrs[NL80211_ATTR_MAC],
-					    "device cannot randomize MAC address");
+					    "device canyest randomize MAC address");
 			err = -EINVAL;
 			goto out_err;
 		}
@@ -264,7 +264,7 @@ int nl80211_pmsr_start(struct sk_buff *skb, struct genl_info *info)
 
 	idx = 0;
 	nla_for_each_nested(peer, peers, rem) {
-		/* NB: this reuses info->attrs, but we no longer need it */
+		/* NB: this reuses info->attrs, but we yes longer need it */
 		err = pmsr_parse_peer(rdev, peer, &req->peers[idx], info);
 		if (err)
 			goto out_err;
@@ -422,22 +422,22 @@ static int nl80211_pmsr_send_result(struct sk_buff *msg,
 {
 	struct nlattr *pmsr, *peers, *peer, *resp, *data, *typedata;
 
-	pmsr = nla_nest_start_noflag(msg, NL80211_ATTR_PEER_MEASUREMENTS);
+	pmsr = nla_nest_start_yesflag(msg, NL80211_ATTR_PEER_MEASUREMENTS);
 	if (!pmsr)
 		goto error;
 
-	peers = nla_nest_start_noflag(msg, NL80211_PMSR_ATTR_PEERS);
+	peers = nla_nest_start_yesflag(msg, NL80211_PMSR_ATTR_PEERS);
 	if (!peers)
 		goto error;
 
-	peer = nla_nest_start_noflag(msg, 1);
+	peer = nla_nest_start_yesflag(msg, 1);
 	if (!peer)
 		goto error;
 
 	if (nla_put(msg, NL80211_PMSR_PEER_ATTR_ADDR, ETH_ALEN, res->addr))
 		goto error;
 
-	resp = nla_nest_start_noflag(msg, NL80211_PMSR_PEER_ATTR_RESP);
+	resp = nla_nest_start_yesflag(msg, NL80211_PMSR_PEER_ATTR_RESP);
 	if (!resp)
 		goto error;
 
@@ -454,11 +454,11 @@ static int nl80211_pmsr_send_result(struct sk_buff *msg,
 	if (res->final && nla_put_flag(msg, NL80211_PMSR_RESP_ATTR_FINAL))
 		goto error;
 
-	data = nla_nest_start_noflag(msg, NL80211_PMSR_RESP_ATTR_DATA);
+	data = nla_nest_start_yesflag(msg, NL80211_PMSR_RESP_ATTR_DATA);
 	if (!data)
 		goto error;
 
-	typedata = nla_nest_start_noflag(msg, res->type);
+	typedata = nla_nest_start_yesflag(msg, res->type);
 	if (!typedata)
 		goto error;
 

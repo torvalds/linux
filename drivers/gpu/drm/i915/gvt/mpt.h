@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -124,7 +124,7 @@ static inline int intel_gvt_hypervisor_inject_msi(struct intel_vgpu *vgpu)
 	addr = *(u32 *)(vgpu_cfg_space(vgpu) + MSI_CAP_ADDRESS(offset));
 	data = *(u16 *)(vgpu_cfg_space(vgpu) + MSI_CAP_DATA(offset));
 
-	/* Do not generate MSI if MSIEN is disable */
+	/* Do yest generate MSI if MSIEN is disable */
 	if (!(control & MSI_CAP_EN))
 		return 0;
 
@@ -381,7 +381,7 @@ static inline void intel_gvt_hypervisor_put_vfio_device(struct intel_vgpu *vgpu)
  * @gfn: guest PFN
  *
  * Returns:
- * true on valid gfn, false on not.
+ * true on valid gfn, false on yest.
  */
 static inline bool intel_gvt_hypervisor_is_valid_gfn(
 		struct intel_vgpu *vgpu, unsigned long gfn)

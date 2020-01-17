@@ -34,7 +34,7 @@ struct tegra_bo {
 	dma_addr_t iova;
 	void *vaddr;
 
-	struct drm_mm_node *mm;
+	struct drm_mm_yesde *mm;
 	unsigned long num_pages;
 	struct page **pages;
 	/* size of IOMMU mapping */

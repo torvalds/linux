@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -118,7 +118,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 			.gpuvm_size = min(adev->vm_manager.max_pfn
 					  << AMDGPU_GPU_PAGE_SHIFT,
 					  AMDGPU_GMC_HOLE_START),
-			.drm_render_minor = adev->ddev->render->index,
+			.drm_render_miyesr = adev->ddev->render->index,
 			.sdma_doorbell_idx = adev->doorbell_index.sdma_engine,
 
 		};
@@ -131,7 +131,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 				  KGD_MAX_QUEUES);
 
 		/* According to linux/bitmap.h we shouldn't use bitmap_clear if
-		 * nbits is not compile time constant
+		 * nbits is yest compile time constant
 		 */
 		last_valid_bit = 1 /* only first MEC can have compute queues */
 				* adev->gfx.mec.num_pipe_per_mec
@@ -153,10 +153,10 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 		 * set for SDMA, VCN, and IH blocks.
 		 */
 		if (adev->asic_type >= CHIP_VEGA10) {
-			gpu_resources.non_cp_doorbells_start =
-					adev->doorbell_index.first_non_cp;
-			gpu_resources.non_cp_doorbells_end =
-					adev->doorbell_index.last_non_cp;
+			gpu_resources.yesn_cp_doorbells_start =
+					adev->doorbell_index.first_yesn_cp;
+			gpu_resources.yesn_cp_doorbells_end =
+					adev->doorbell_index.last_yesn_cp;
 		}
 
 		kgd2kfd_device_init(adev->kfd.dev, adev->ddev, &gpu_resources);
@@ -474,7 +474,7 @@ int amdgpu_amdkfd_get_dmabuf_info(struct kgd_dev *kgd, int dma_buf_fd,
 		return PTR_ERR(dma_buf);
 
 	if (dma_buf->ops != &amdgpu_dmabuf_ops)
-		/* Can't handle non-graphics buffers */
+		/* Can't handle yesn-graphics buffers */
 		goto out_put;
 
 	obj = dma_buf->priv;
@@ -532,9 +532,9 @@ uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *s
 	int ret = amdgpu_xgmi_get_hops_count(adev, peer_adev);
 
 	if (ret < 0) {
-		DRM_ERROR("amdgpu: failed to get  xgmi hops count between node %d and %d. ret = %d\n",
-			adev->gmc.xgmi.physical_node_id,
-			peer_adev->gmc.xgmi.physical_node_id, ret);
+		DRM_ERROR("amdgpu: failed to get  xgmi hops count between yesde %d and %d. ret = %d\n",
+			adev->gmc.xgmi.physical_yesde_id,
+			peer_adev->gmc.xgmi.physical_yesde_id, ret);
 		ret = 0;
 	}
 	return  (uint8_t)ret;
@@ -591,7 +591,7 @@ int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
 	ib->gpu_addr = gpu_addr;
 	ib->ptr = ib_cmd;
 	ib->length_dw = ib_len;
-	/* This works for NO_HWS. TODO: need to handle without knowing VMID */
+	/* This works for NO_HWS. TODO: need to handle without kyeswing VMID */
 	job->vmid = vmid;
 
 	ret = amdgpu_ib_schedule(ring, 1, ib, job, &f);

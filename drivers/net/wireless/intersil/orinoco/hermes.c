@@ -1,23 +1,23 @@
 /* hermes.c
  *
  * Driver core for the "Hermes" wireless MAC controller, as used in
- * the Lucent Orinoco and Cabletron RoamAbout cards. It should also
+ * the Lucent Oriyesco and Cabletron RoamAbout cards. It should also
  * work on the hfa3841 and hfa3842 MAC controller chips used in the
  * Prism II chipsets.
  *
- * This is not a complete driver, just low-level access routines for
+ * This is yest a complete driver, just low-level access routines for
  * the MAC controller itself.
  *
  * Based on the prism2 driver from Absolute Value Systems' linux-wlan
  * project, the Linux wvlan_cs driver, Lucent's HCF-Light
- * (wvlan_hcf.c) library, and the NetBSD wireless driver (in no
+ * (wvlan_hcf.c) library, and the NetBSD wireless driver (in yes
  * particular order).
  *
  * Copyright (C) 2000, David Gibson, Linuxcare Australia.
  * (C) Copyright David Gibson, IBM Corp. 2001-2003.
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may yest use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -30,10 +30,10 @@
  * terms of the GNU General Public License version 2 (the "GPL"), in
  * which case the provisions of the GPL are applicable instead of the
  * above.  If you wish to allow the use of your version of this file
- * only under the terms of the GPL and not to allow others to use your
+ * only under the terms of the GPL and yest to allow others to use your
  * version of this file under the MPL, indicate your decision by
- * deleting the provisions above and replace them with the notice and
- * other provisions required by the GPL.  If you do not delete the
+ * deleting the provisions above and replace them with the yestice and
+ * other provisions required by the GPL.  If you do yest delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
  */
@@ -228,7 +228,7 @@ static int hermes_init(struct hermes *hw)
 	   out hermes_issue_cmd() will probably return -EBUSY below */
 
 	/* According to the documentation, EVSTAT may contain
-	   obsolete event occurrence information.  We have to acknowledge
+	   obsolete event occurrence information.  We have to ackyeswledge
 	   it by writing EVACK. */
 	reg = hermes_read_regn(hw, EVSTAT);
 	hermes_write_regn(hw, EVACK, reg);
@@ -357,7 +357,7 @@ static int hermes_allocate(struct hermes *hw, u16 size, u16 *fid)
 /* Set up a BAP to read a particular chunk of data from card's internal buffer.
  *
  * Returns:
- *     < 0 on internal failure (errno)
+ *     < 0 on internal failure (erryes)
  *       0 on success
  *     > 0 on error
  * from firmware
@@ -370,7 +370,7 @@ static int hermes_bap_seek(struct hermes *hw, int bap, u16 id, u16 offset)
 	int k;
 	u16 reg;
 
-	/* Paranoia.. */
+	/* Parayesia.. */
 	if ((offset > HERMES_BAP_OFFSET_MAX) || (offset % 2))
 		return -EINVAL;
 
@@ -418,7 +418,7 @@ static int hermes_bap_seek(struct hermes *hw, int bap, u16 id, u16 offset)
  * must be even.
  *
  * Returns:
- *     < 0 on internal failure (errno)
+ *     < 0 on internal failure (erryes)
  *       0 on success
  *     > 0 on error from firmware
  */
@@ -446,7 +446,7 @@ static int hermes_bap_pread(struct hermes *hw, int bap, void *buf, int len,
  * BAP. Synchronization/serialization is the caller's problem.
  *
  * Returns:
- *     < 0 on internal failure (errno)
+ *     < 0 on internal failure (erryes)
  *       0 on success
  *     > 0 on error from firmware
  */
@@ -472,7 +472,7 @@ static int hermes_bap_pwrite(struct hermes *hw, int bap, const void *buf,
 
 /* Read a Length-Type-Value record from the card.
  *
- * If length is NULL, we ignore the length read from the card, and
+ * If length is NULL, we igyesre the length read from the card, and
  * read the entire buffer regardless. This is useful because some of
  * the configuration records appear to have incorrect lengths in
  * practice.
@@ -509,7 +509,7 @@ static int hermes_read_ltv(struct hermes *hw, int bap, u16 rid,
 
 	if (rtype != rid)
 		printk(KERN_WARNING "hermes @ %p: %s(): "
-		       "rid (0x%04x) does not match type (0x%04x)\n",
+		       "rid (0x%04x) does yest match type (0x%04x)\n",
 		       hw->iobase, __func__, rid, rtype);
 	if (HERMES_RECLEN_TO_BYTES(rlength) > bufsize)
 		printk(KERN_WARNING "hermes @ %p: "
@@ -590,9 +590,9 @@ hermes_aux_control(struct hermes *hw, int enabled)
 /* About to start programming data (Hermes I)
  * offset is the entry point
  *
- * Spectrum_cs' Symbol fw does not require this
+ * Spectrum_cs' Symbol fw does yest require this
  * wl_lkm Agere fw does
- * Don't know about intersil
+ * Don't kyesw about intersil
  */
 static int hermesi_program_init(struct hermes *hw, u32 offset)
 {
@@ -603,7 +603,7 @@ static int hermesi_program_init(struct hermes *hw, u32 offset)
 	/*hermes_write_regn(hw, INTEN, 0);*/
 	/*hermes_set_irqmask(hw, 0);*/
 
-	/* Acknowledge any outstanding command */
+	/* Ackyeswledge any outstanding command */
 	hermes_write_regn(hw, EVACK, 0xFFFF);
 
 	/* Using init_cmd_wait rather than cmd_wait */
@@ -639,9 +639,9 @@ static int hermesi_program_init(struct hermes *hw, u32 offset)
 
 /* Done programming data (Hermes I)
  *
- * Spectrum_cs' Symbol fw does not require this
+ * Spectrum_cs' Symbol fw does yest require this
  * wl_lkm Agere fw does
- * Don't know about intersil
+ * Don't kyesw about intersil
  */
 static int hermesi_program_end(struct hermes *hw)
 {
@@ -662,10 +662,10 @@ static int hermesi_program_end(struct hermes *hw)
 	err = hermes_aux_control(hw, 0);
 	pr_debug("AUX disable returned %d\n", err);
 
-	/* Acknowledge any outstanding command */
+	/* Ackyeswledge any outstanding command */
 	hermes_write_regn(hw, EVACK, 0xFFFF);
 
-	/* Reinitialise, ignoring return */
+	/* Reinitialise, igyesring return */
 	(void) hw->ops->init_cmd_wait(hw, 0x0000 | HERMES_CMD_INIT,
 				      0, 0, 0, NULL);
 
@@ -700,11 +700,11 @@ static int hermes_read_pda(struct hermes *hw, __le16 *pda, u32 pda_addr,
 		if (ret)
 			return ret;
 	} else {
-		/* wl_lkm does not include PDA size in the PDA area.
+		/* wl_lkm does yest include PDA size in the PDA area.
 		 * We will pad the information into pda, so other routines
 		 * don't have to be modified */
 		pda[0] = cpu_to_le16(pda_len - 2);
-			/* Includes CFG_PROD_DATA but not itself */
+			/* Includes CFG_PROD_DATA but yest itself */
 		pda[1] = cpu_to_le16(0x0800); /* CFG_PROD_DATA */
 		data_len = pda_len - 4;
 		data = pda + 2;

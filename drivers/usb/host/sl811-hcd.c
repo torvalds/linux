@@ -9,7 +9,7 @@
  * 	Copyright (C) 1999 Roman Weissgaerber
  *
  * The SL811HS controller handles host side USB (like the SL11H, but with
- * another register set and SOF generation) as well as peripheral side USB
+ * ayesther register set and SOF generation) as well as peripheral side USB
  * (like the SL811S).  This driver version doesn't implement the Gadget API
  * for the peripheral role; or OTG (that'd need much external circuitry).
  *
@@ -24,7 +24,7 @@
  *
  * TODO:
  * - usb suspend/resume triggered by sl811
- * - various issues noted in the code
+ * - various issues yested in the code
  * - performance work; use both register banks; ...
  * - use urb->iso_frame_desc[] with ISO transfers
  */
@@ -39,7 +39,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -65,7 +65,7 @@ MODULE_ALIAS("platform:sl811-hcd");
 
 #define DRIVER_VERSION	"19 May 2005"
 
-/* for now, use only one transfer register bank */
+/* for yesw, use only one transfer register bank */
 #undef	USE_B
 
 // #define	QUIRK2
@@ -115,7 +115,7 @@ static void port_power(struct sl811 *sl811, int is_on)
 	sl811_write(sl811, SL811HS_CTLREG2, SL811HS_CTL2_INIT);
 	sl811_write(sl811, SL11H_IRQ_ENABLE, sl811->irq_enable);
 
-	// if !is_on, put into lowpower mode now
+	// if !is_on, put into lowpower mode yesw
 }
 
 /*-------------------------------------------------------------------------*/
@@ -128,7 +128,7 @@ static void port_power(struct sl811 *sl811, int is_on)
  * though setup/teardown costs may be too big to make it worthwhile.
  */
 
-/* SETUP starts a new control request.  Devices are not allowed to
+/* SETUP starts a new control request.  Devices are yest allowed to
  * STALL or NAK these; they must cancel any pending control requests.
  */
 static void setup_packet(
@@ -194,7 +194,7 @@ static void status_packet(
 
 /* IN packets can be used with any type of endpoint. here we just
  * start the transfer, data from the peripheral may arrive later.
- * urb->iso_frame_desc is currently ignored here...
+ * urb->iso_frame_desc is currently igyesred here...
  */
 static void in_packet(
 	struct sl811		*sl811,
@@ -230,7 +230,7 @@ static void in_packet(
 }
 
 /* OUT packets can be used with any type of endpoint.
- * urb->iso_frame_desc is currently ignored here...
+ * urb->iso_frame_desc is currently igyesred here...
  */
 static void out_packet(
 	struct sl811		*sl811,
@@ -344,14 +344,14 @@ static struct sl811h_ep	*start(struct sl811 *sl811, u8 bank)
 	urb = container_of(ep->hep->urb_list.next, struct urb, urb_list);
 	control = ep->defctrl;
 
-	/* if this frame doesn't have enough time left to transfer this
+	/* if this frame doesn't have eyesugh time left to transfer this
 	 * packet, wait till the next frame.  too-simple algorithm...
 	 */
 	fclock = sl811_read(sl811, SL11H_SOFTMRREG) << 6;
-	fclock -= 100;		/* setup takes not much time */
+	fclock -= 100;		/* setup takes yest much time */
 	if (urb->dev->speed == USB_SPEED_LOW) {
 		if (control & SL11H_HCTLMASK_PREAMBLE) {
-			/* also note erratum 1: some hubs won't work */
+			/* also yeste erratum 1: some hubs won't work */
 			fclock -= 800;
 		}
 		fclock -= ep->maxpacket << 8;
@@ -370,7 +370,7 @@ static struct sl811h_ep	*start(struct sl811 *sl811, u8 bank)
 				sl811->stat_overrun++;
 			control |= SL11H_HCTLMASK_AFTERSOF;
 
-		/* throttle bulk/control irq noise */
+		/* throttle bulk/control irq yesise */
 		} else if (ep->nak_count)
 			control |= SL11H_HCTLMASK_AFTERSOF;
 	}
@@ -485,7 +485,7 @@ done(struct sl811 *sl811, struct sl811h_ep *ep, u8 bank)
 
 	urb = container_of(ep->hep->urb_list.next, struct urb, urb_list);
 
-	/* we can safely ignore NAKs */
+	/* we can safely igyesre NAKs */
 	if (status & SL11H_STATMASK_NAK) {
 		// PACKET("...NAK_%02x qh%p\n", bank, ep);
 		if (!ep->period)
@@ -498,7 +498,7 @@ done(struct sl811 *sl811, struct sl811h_ep *ep, u8 bank)
 		int			len;
 		unsigned char		*buf;
 
-		/* urb->iso_frame_desc is currently ignored here... */
+		/* urb->iso_frame_desc is currently igyesred here... */
 
 		ep->nak_count = ep->error_count = 0;
 		switch (ep->nextpid) {
@@ -512,7 +512,7 @@ done(struct sl811 *sl811, struct sl811h_ep *ep, u8 bank)
 					ep->nextpid = USB_PID_ACK;
 
 				/* some bulk protocols terminate OUT transfers
-				 * by a short packet, using ZLPs not padding.
+				 * by a short packet, using ZLPs yest padding.
 				 */
 				else if (ep->length < ep->maxpacket
 						|| !(urb->transfer_flags
@@ -634,7 +634,7 @@ retry:
 	}
 
 #ifdef	QUIRK2
-	/* this may no longer be necessary ... */
+	/* this may yes longer be necessary ... */
 	if (irqstat == 0) {
 		irqstat = checkdone(sl811);
 		if (irqstat)
@@ -642,7 +642,7 @@ retry:
 	}
 #endif
 
-	/* USB packets, not necessarily handled in the order they're
+	/* USB packets, yest necessarily handled in the order they're
 	 * issued ... that's fine if they're different endpoints.
 	 */
 	if (irqstat & SL11H_INTMASK_DONE_A) {
@@ -665,7 +665,7 @@ retry:
 
 		/* be graceful about almost-inevitable periodic schedule
 		 * overruns:  continue the previous frame's transfers iff
-		 * this one has nothing scheduled.
+		 * this one has yesthing scheduled.
 		 */
 		if (sl811->next_periodic) {
 			// dev_err(hcd->self.controller, "overrun to slot %d\n", index);
@@ -766,7 +766,7 @@ static int balance(struct sl811 *sl811, u16 period, u16 load)
 	int	i, branch = -ENOSPC;
 
 	/* search for the least loaded schedule branch of that period
-	 * which has enough bandwidth left unreserved.
+	 * which has eyesugh bandwidth left unreserved.
 	 */
 	for (i = 0; i < period ; i++) {
 		if (branch < 0 || sl811->load[branch] > sl811->load[i]) {
@@ -823,12 +823,12 @@ static int sl811h_urb_enqueue(
 			|| !HC_IS_RUNNING(hcd->state)) {
 		retval = -ENODEV;
 		kfree(ep);
-		goto fail_not_linked;
+		goto fail_yest_linked;
 	}
 	retval = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (retval) {
 		kfree(ep);
-		goto fail_not_linked;
+		goto fail_yest_linked;
 	}
 
 	if (hep->hcpriv) {
@@ -901,7 +901,7 @@ static int sl811h_urb_enqueue(
 		if (ep->branch < PERIODIC_SIZE) {
 			/* NOTE:  the phase is correct here, but the value
 			 * needs offsetting by the transfer queue depth.
-			 * All current drivers ignore start_frame, so this
+			 * All current drivers igyesre start_frame, so this
 			 * is unlikely to ever matter...
 			 */
 			urb->start_frame = (sl811->frame & (PERIODIC_SIZE - 1))
@@ -919,7 +919,7 @@ static int sl811h_urb_enqueue(
 
 		/* sort each schedule branch by period (slow before fast)
 		 * to share the faster parts of the tree without needing
-		 * dummy/placeholder nodes
+		 * dummy/placeholder yesdes
 		 */
 		dev_dbg(hcd->self.controller, "schedule qh%d/%p branch %d\n",
 			ep->period, ep, ep->branch);
@@ -950,7 +950,7 @@ static int sl811h_urb_enqueue(
 fail:
 	if (retval)
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
-fail_not_linked:
+fail_yest_linked:
 	spin_unlock_irqrestore(&sl811->lock, flags);
 	return retval;
 }
@@ -972,10 +972,10 @@ static int sl811h_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	ep = hep->hcpriv;
 	if (ep) {
 		/* finish right away if this urb can't be active ...
-		 * note that some drivers wrongly expect delays
+		 * yeste that some drivers wrongly expect delays
 		 */
 		if (ep->hep->urb_list.next != &urb->urb_list) {
-			/* not front of queue?  never active */
+			/* yest front of queue?  never active */
 
 		/* for active transfers, we expect an IRQ */
 		} else if (sl811->active_a == ep) {
@@ -1037,7 +1037,7 @@ sl811h_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 	if (!list_empty(&hep->urb_list))
 		msleep(3);
 	if (!list_empty(&hep->urb_list))
-		dev_warn(hcd->self.controller, "ep %p not empty?\n", ep);
+		dev_warn(hcd->self.controller, "ep %p yest empty?\n", ep);
 
 	kfree(ep);
 	hep->hcpriv = NULL;
@@ -1066,7 +1066,7 @@ sl811h_hub_status_data(struct usb_hcd *hcd, char *buf)
 #ifdef	QUIRK3
 	unsigned long flags;
 
-	/* non-SMP HACK: use root hub timer as i/o watchdog
+	/* yesn-SMP HACK: use root hub timer as i/o watchdog
 	 * this seems essential when SOF IRQs aren't in use...
 	 */
 	local_irq_save(flags);
@@ -1098,7 +1098,7 @@ sl811h_hub_descriptor (
 	desc->bNbrPorts = 1;
 	desc->bDescLength = 9;
 
-	/* per-port power switching (gang of one!), or none */
+	/* per-port power switching (gang of one!), or yesne */
 	desc->bPwrOn2PwrGood = 0;
 	if (sl811->board && sl811->board->port_power) {
 		desc->bPwrOn2PwrGood = sl811->board->potpg;
@@ -1108,7 +1108,7 @@ sl811h_hub_descriptor (
 	} else
 		temp = HUB_CHAR_NO_LPSM;
 
-	/* no overcurrent errors detection/handling */
+	/* yes overcurrent errors detection/handling */
 	temp |= HUB_CHAR_NO_OCPM;
 
 	desc->wHubCharacteristics = cpu_to_le16(temp);
@@ -1733,7 +1733,7 @@ sl811h_probe(struct platform_device *dev)
 
 #ifdef	CONFIG_PM
 
-/* for this device there's no useful distinction between the controller
+/* for this device there's yes useful distinction between the controller
  * and its root hub.
  */
 
@@ -1763,7 +1763,7 @@ sl811h_resume(struct platform_device *dev)
 	struct usb_hcd	*hcd = platform_get_drvdata(dev);
 	struct sl811	*sl811 = hcd_to_sl811(hcd);
 
-	/* with no "check to see if VBUS is still powered" board hook,
+	/* with yes "check to see if VBUS is still powered" board hook,
 	 * let's assume it'd only be powered to enable remote wakeup.
 	 */
 	if (!sl811->port1 || !device_can_wakeup(&hcd->self.root_hub->dev)) {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #include <linux/rtnetlink.h>
 #include <net/devlink.h>
@@ -55,7 +55,7 @@ nfp_devlink_set_lanes(struct nfp_pf *pf, unsigned int idx, unsigned int lanes)
 	ret = nfp_eth_config_commit_end(nsp);
 	if (ret < 0)
 		return ret;
-	if (ret) /* no change */
+	if (ret) /* yes change */
 		return 0;
 
 	return nfp_net_refresh_port_table_sync(pf);
@@ -177,7 +177,7 @@ static const struct nfp_devlink_versions_simple {
 	const char *key;
 	const char *hwinfo;
 } nfp_devlink_versions_hwinfo[] = {
-	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_ID,	"assembly.partno", },
+	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_ID,	"assembly.partyes", },
 	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_REV,	"assembly.revision", },
 	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_MANUFACTURE, "assembly.vendor", },
 	{ "board.model", /* code name */		"assembly.model", },
@@ -269,7 +269,7 @@ nfp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 		return err;
 
 	vendor = nfp_hwinfo_lookup(pf->hwinfo, "assembly.vendor");
-	part = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partno");
+	part = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partyes");
 	sn = nfp_hwinfo_lookup(pf->hwinfo, "assembly.serial");
 	if (vendor && part && sn) {
 		char *buf;

@@ -343,7 +343,7 @@ static int st_i2c_recover_bus(struct i2c_adapter *i2c_adap)
 
 	/*
 	 * SSP IP is dual role SPI/I2C to generate 9 clock pulses
-	 * we switch to SPI node, 9 bit words and write a 0. This
+	 * we switch to SPI yesde, 9 bit words and write a 0. This
 	 * has been validate with a oscilloscope and is easier
 	 * than switching to GPIO mode.
 	 */
@@ -379,7 +379,7 @@ static int st_i2c_wait_free_bus(struct st_i2c_dev *i2c_dev)
 		usleep_range(2000, 4000);
 	}
 
-	dev_err(i2c_dev->dev, "bus not free (status = 0x%08x)\n", sta);
+	dev_err(i2c_dev->dev, "bus yest free (status = 0x%08x)\n", sta);
 
 	ret = i2c_recover_bus(&i2c_dev->adap);
 	if (ret) {
@@ -781,7 +781,7 @@ static struct i2c_bus_recovery_info st_i2c_recovery_info = {
 	.recover_bus = st_i2c_recover_bus,
 };
 
-static int st_i2c_of_get_deglitch(struct device_node *np,
+static int st_i2c_of_get_deglitch(struct device_yesde *np,
 		struct st_i2c_dev *i2c_dev)
 {
 	int ret;
@@ -805,7 +805,7 @@ static int st_i2c_of_get_deglitch(struct device_node *np,
 
 static int st_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct st_i2c_dev *i2c_dev;
 	struct resource *res;
 	u32 clk_rate;
@@ -865,7 +865,7 @@ static int st_i2c_probe(struct platform_device *pdev)
 	adap->algo = &st_i2c_algo;
 	adap->bus_recovery_info = &st_i2c_recovery_info;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 
 	init_completion(&i2c_dev->complete);
 

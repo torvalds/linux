@@ -25,9 +25,9 @@ Optional properties :
    POR value is 0x1000h. This number is in mA (e.g. 8064), see the spec for
    more information about the InputCurrent (0x3fh) register.
  - ti,external-control : Indicates that the charger is configured externally
-   and that the host should not attempt to enable/disable charging or set the
+   and that the host should yest attempt to enable/disable charging or set the
    charge voltage/current.
- - poll-interval : In case 'interrupts' is not specified, poll AC adapter
+ - poll-interval : In case 'interrupts' is yest specified, poll AC adapter
    presence with this interval (milliseconds).
 
 Example:

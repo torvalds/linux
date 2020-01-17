@@ -5,7 +5,7 @@
  * Copyright 2016 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -22,11 +22,11 @@
 #include "cec-priv.h"
 #include "cec-pin-priv.h"
 
-static inline struct cec_devnode *cec_devnode_data(struct file *filp)
+static inline struct cec_devyesde *cec_devyesde_data(struct file *filp)
 {
 	struct cec_fh *fh = filp->private_data;
 
-	return &fh->adap->devnode;
+	return &fh->adap->devyesde;
 }
 
 /* CEC file operations */
@@ -65,7 +65,7 @@ static bool cec_is_busy(const struct cec_adapter *adap,
 	if (valid_initiator || valid_follower)
 		return false;
 	/*
-	 * All others can only access the CEC adapter if there is no
+	 * All others can only access the CEC adapter if there is yes
 	 * exclusive initiator and they are in INITIATOR mode.
 	 */
 	return adap->cec_initiator ||
@@ -77,7 +77,7 @@ static long cec_adap_g_caps(struct cec_adapter *adap,
 {
 	struct cec_caps caps = {};
 
-	strscpy(caps.driver, adap->devnode.dev.parent->driver->name,
+	strscpy(caps.driver, adap->devyesde.dev.parent->driver->name,
 		sizeof(caps.driver));
 	strscpy(caps.name, adap->name, sizeof(caps.name));
 	caps.available_log_addrs = adap->available_log_addrs;
@@ -255,10 +255,10 @@ static int cec_receive_msg(struct cec_fh *fh, struct cec_msg *msg, bool block)
 			return 0;
 		}
 
-		/* No, return EAGAIN in non-blocking mode or wait */
+		/* No, return EAGAIN in yesn-blocking mode or wait */
 		mutex_unlock(&fh->lock);
 
-		/* Return when in non-blocking mode */
+		/* Return when in yesn-blocking mode */
 		if (!block)
 			return -EAGAIN;
 
@@ -380,19 +380,19 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 
 	if (mode_initiator > CEC_MODE_EXCL_INITIATOR ||
 	    mode_follower > CEC_MODE_MONITOR_ALL) {
-		dprintk(1, "%s: unknown mode\n", __func__);
+		dprintk(1, "%s: unkyeswn mode\n", __func__);
 		return -EINVAL;
 	}
 
 	if (mode_follower == CEC_MODE_MONITOR_ALL &&
 	    !(adap->capabilities & CEC_CAP_MONITOR_ALL)) {
-		dprintk(1, "%s: MONITOR_ALL not supported\n", __func__);
+		dprintk(1, "%s: MONITOR_ALL yest supported\n", __func__);
 		return -EINVAL;
 	}
 
 	if (mode_follower == CEC_MODE_MONITOR_PIN &&
 	    !(adap->capabilities & CEC_CAP_MONITOR_PIN)) {
-		dprintk(1, "%s: MONITOR_PIN not supported\n", __func__);
+		dprintk(1, "%s: MONITOR_PIN yest supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -401,7 +401,7 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 	     !(adap->capabilities & CEC_CAP_TRANSMIT)) &&
 	    mode_follower >= CEC_MODE_FOLLOWER &&
 	    mode_follower <= CEC_MODE_EXCL_FOLLOWER_PASSTHRU) {
-		dprintk(1, "%s: cannot transmit\n", __func__);
+		dprintk(1, "%s: canyest transmit\n", __func__);
 		return -EINVAL;
 	}
 
@@ -544,11 +544,11 @@ static long cec_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 }
 
-static int cec_open(struct inode *inode, struct file *filp)
+static int cec_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct cec_devnode *devnode =
-		container_of(inode->i_cdev, struct cec_devnode, cdev);
-	struct cec_adapter *adap = to_cec_adapter(devnode);
+	struct cec_devyesde *devyesde =
+		container_of(iyesde->i_cdev, struct cec_devyesde, cdev);
+	struct cec_adapter *adap = to_cec_adapter(devyesde);
 	struct cec_fh *fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	/*
 	 * Initial events that are automatically sent when the cec device is
@@ -574,19 +574,19 @@ static int cec_open(struct inode *inode, struct file *filp)
 	fh->mode_initiator = CEC_MODE_INITIATOR;
 	fh->adap = adap;
 
-	err = cec_get_device(devnode);
+	err = cec_get_device(devyesde);
 	if (err) {
 		kfree(fh);
 		return err;
 	}
 
-	mutex_lock(&devnode->lock);
-	if (list_empty(&devnode->fhs) &&
+	mutex_lock(&devyesde->lock);
+	if (list_empty(&devyesde->fhs) &&
 	    !adap->needs_hpd &&
 	    adap->phys_addr == CEC_PHYS_ADDR_INVALID) {
 		err = adap->ops->adap_enable(adap, true);
 		if (err) {
-			mutex_unlock(&devnode->lock);
+			mutex_unlock(&devyesde->lock);
 			kfree(fh);
 			return err;
 		}
@@ -618,17 +618,17 @@ static int cec_open(struct inode *inode, struct file *filp)
 	}
 #endif
 
-	list_add(&fh->list, &devnode->fhs);
-	mutex_unlock(&devnode->lock);
+	list_add(&fh->list, &devyesde->fhs);
+	mutex_unlock(&devyesde->lock);
 
 	return 0;
 }
 
 /* Override for the release function */
-static int cec_release(struct inode *inode, struct file *filp)
+static int cec_release(struct iyesde *iyesde, struct file *filp)
 {
-	struct cec_devnode *devnode = cec_devnode_data(filp);
-	struct cec_adapter *adap = to_cec_adapter(devnode);
+	struct cec_devyesde *devyesde = cec_devyesde_data(filp);
+	struct cec_adapter *adap = to_cec_adapter(devyesde);
 	struct cec_fh *fh = filp->private_data;
 	unsigned int i;
 
@@ -647,13 +647,13 @@ static int cec_release(struct inode *inode, struct file *filp)
 		cec_monitor_all_cnt_dec(adap);
 	mutex_unlock(&adap->lock);
 
-	mutex_lock(&devnode->lock);
+	mutex_lock(&devyesde->lock);
 	list_del(&fh->list);
-	if (cec_is_registered(adap) && list_empty(&devnode->fhs) &&
+	if (cec_is_registered(adap) && list_empty(&devyesde->fhs) &&
 	    !adap->needs_hpd && adap->phys_addr == CEC_PHYS_ADDR_INVALID) {
 		WARN_ON(adap->ops->adap_enable(adap, false));
 	}
-	mutex_unlock(&devnode->lock);
+	mutex_unlock(&devyesde->lock);
 
 	/* Unhook pending transmits from this filehandle. */
 	mutex_lock(&adap->lock);
@@ -685,17 +685,17 @@ static int cec_release(struct inode *inode, struct file *filp)
 	}
 	kfree(fh);
 
-	cec_put_device(devnode);
+	cec_put_device(devyesde);
 	filp->private_data = NULL;
 	return 0;
 }
 
-const struct file_operations cec_devnode_fops = {
+const struct file_operations cec_devyesde_fops = {
 	.owner = THIS_MODULE,
 	.open = cec_open,
 	.unlocked_ioctl = cec_ioctl,
 	.compat_ioctl = cec_ioctl,
 	.release = cec_release,
 	.poll = cec_poll,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };

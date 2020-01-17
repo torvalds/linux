@@ -64,20 +64,20 @@ pid_t getppid_tm(bool suspend)
 int tm_syscall(void)
 {
 	unsigned count = 0;
-	struct timeval end, now;
+	struct timeval end, yesw;
 
-	SKIP_IF(!have_htm_nosc());
+	SKIP_IF(!have_htm_yessc());
 
 	setbuf(stdout, NULL);
 
 	printf("Testing transactional syscalls for %d seconds...\n", TEST_DURATION);
 
 	gettimeofday(&end, NULL);
-	now.tv_sec = TEST_DURATION;
-	now.tv_usec = 0;
-	timeradd(&end, &now, &end);
+	yesw.tv_sec = TEST_DURATION;
+	yesw.tv_usec = 0;
+	timeradd(&end, &yesw, &end);
 
-	for (count = 0; timercmp(&now, &end, <); count++) {
+	for (count = 0; timercmp(&yesw, &end, <); count++) {
 		/*
 		 * Test a syscall within a suspended transaction and verify
 		 * that it succeeds.
@@ -91,7 +91,7 @@ int tm_syscall(void)
 		FAIL_IF(getppid_tm(false) != -1);  /* Should fail... */
 		FAIL_IF(!failure_is_persistent()); /* ...persistently... */
 		FAIL_IF(!failure_is_syscall());    /* ...with code syscall. */
-		gettimeofday(&now, 0);
+		gettimeofday(&yesw, 0);
 	}
 
 	printf("%d active and suspended transactions behaved correctly.\n", count);

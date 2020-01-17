@@ -37,16 +37,16 @@ int wimax_gnl_doit_state_get(struct sk_buff *skb, struct genl_info *info)
 	result = -ENODEV;
 	if (info->attrs[WIMAX_GNL_STGET_IFIDX] == NULL) {
 		pr_err("WIMAX_GNL_OP_STATE_GET: can't find IFIDX attribute\n");
-		goto error_no_wimax_dev;
+		goto error_yes_wimax_dev;
 	}
 	ifindex = nla_get_u32(info->attrs[WIMAX_GNL_STGET_IFIDX]);
 	wimax_dev = wimax_dev_get_by_genl_info(info, ifindex);
 	if (wimax_dev == NULL)
-		goto error_no_wimax_dev;
+		goto error_yes_wimax_dev;
 	/* Execute the operation and send the result back to user space */
 	result = wimax_state_get(wimax_dev);
 	dev_put(wimax_dev->net_dev);
-error_no_wimax_dev:
+error_yes_wimax_dev:
 	d_fnend(3, NULL, "(skb %p info %p) = %d\n", skb, info, result);
 	return result;
 }

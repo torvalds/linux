@@ -57,7 +57,7 @@ config DRM_I915_FORCE_PROBE
 	  parameter. Using the module parameter overrides this option.
 
 	  Force probe the driver for new Intel graphics devices that are
-	  recognized but not properly supported by this kernel version. It is
+	  recognized but yest properly supported by this kernel version. It is
 	  recommended to upgrade to a kernel version with proper support as soon
 	  as it is available.
 
@@ -66,7 +66,7 @@ config DRM_I915_FORCE_PROBE
 	  Use "<pci-id>[,<pci-id>,...]" to force probe the driver for listed
 	  devices. For example, "4500" or "4500,4571".
 
-	  Use "*" to force probe the driver for all known devices.
+	  Use "*" to force probe the driver for all kyeswn devices.
 
 config DRM_I915_CAPTURE_ERROR
 	bool "Enable capturing GPU state following a hang"
@@ -111,7 +111,7 @@ config DRM_I915_GVT
 	default n
 	help
 	  Choose this option if you want to enable Intel GVT-g graphics
-	  virtualization technology host support with integrated graphics.
+	  virtualization techyeslogy host support with integrated graphics.
 	  With GVT-g, it's possible to have one integrated graphics
 	  device shared by multiple VMs under different hypervisors.
 

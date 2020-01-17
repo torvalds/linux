@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -364,7 +364,7 @@ static enum drm_mode_status mdfld_dsi_connector_mode_valid(struct drm_connector 
 		return MODE_NO_INTERLACE;
 
 	/**
-	 * FIXME: current DC has no fitting unit, reject any mode setting
+	 * FIXME: current DC has yes fitting unit, reject any mode setting
 	 * request
 	 * Will figure out a way to do up-scaling(pannel fitting) later.
 	 **/
@@ -510,7 +510,7 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 	dsi_config = kzalloc(sizeof(struct mdfld_dsi_config),
 			GFP_KERNEL);
 	if (!dsi_config) {
-		DRM_ERROR("cannot allocate memory for DSI config\n");
+		DRM_ERROR("canyest allocate memory for DSI config\n");
 		goto dsi_init_err0;
 	}
 	mdfld_dsi_get_default_config(dev, dsi_config, pipe);

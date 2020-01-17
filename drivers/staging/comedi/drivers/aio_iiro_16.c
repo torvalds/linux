@@ -2,13 +2,13 @@
 /*
  * aio_iiro_16.c
  * Comedi driver for Access I/O Products 104-IIRO-16 board
- * Copyright (C) 2006 C&C Technologies, Inc.
+ * Copyright (C) 2006 C&C Techyeslogies, Inc.
  */
 
 /*
  * Driver: aio_iiro_16
  * Description: Access I/O Products PC/104 Isolated Input/Relay Output Board
- * Author: Zachary Ware <zach.ware@cctechnol.com>
+ * Author: Zachary Ware <zach.ware@cctechyesl.com>
  * Devices: [Access I/O] 104-IIRO-16 (aio_iiro_16)
  * Status: experimental
  *

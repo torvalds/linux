@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * -- <linux/cdrom.h>
  * General header file for linux CD-ROM drivers 
  * Copyright (C) 1992         David Giller, rafetmad@oxy.edu
  *               1994, 1995   Eberhard Mönkeberg, emoenke@gwdg.de
- *               1996         David van Leeuwen, david@tm.tno.nl
+ *               1996         David van Leeuwen, david@tm.tyes.nl
  *               1997, 1998   Erik Andersen, andersee@debian.org
  *               1998-2002    Jens Axboe, axboe@suse.de
  */
@@ -21,7 +21,7 @@
  * a uniform interface between software accessing CD-ROMs and the various 
  * device drivers that actually talk to the drives.  There may still be
  * 23 different kinds of strange CD-ROM drives, but at least there will 
- * now be one, and only one, Linux CD-ROM interface.
+ * yesw be one, and only one, Linux CD-ROM interface.
  *
  * Additionally, as of Linux 2.1.x, all Linux application programs 
  * should use the O_NONBLOCK option when opening a CD-ROM device 
@@ -41,9 +41,9 @@
 
 /* When a driver supports a certain function, but the cdrom drive we are 
  * using doesn't, we will return the error EDRIVE_CANT_DO_THIS.  We will 
- * borrow the "Operation not supported" error from the network folks to 
+ * borrow the "Operation yest supported" error from the network folks to 
  * accomplish this.  Maybe someday we will get a more targeted error code, 
- * but this will do for now... */
+ * but this will do for yesw... */
 #define EDRIVE_CANT_DO_THIS  EOPNOTSUPP
 
 /*******************************************************
@@ -103,7 +103,7 @@
 #define CDROMREADALL		0x5318	/* read all 2646 bytes */
 
 /* 
- * These ioctls are (now) only in ide-cd.c for controlling 
+ * These ioctls are (yesw) only in ide-cd.c for controlling 
  * drive spindown time.  They should be implemented in the
  * Uniform driver, via generic packet commands, GPCMD_MODE_SELECT_10,
  * GPCMD_MODE_SENSE_10 and the GPMODE_POWER_PAGE...
@@ -248,7 +248,7 @@ struct cdrom_read_audio
 struct cdrom_multisession
 {
 	union cdrom_addr addr; /* frame address: start-of-last-session 
-	                           (not the new "frame 16"!).  Only valid
+	                           (yest the new "frame 16"!).  Only valid
 	                           if the "xa_flag" is true. */
 	__u8 xa_flag;        /* 1: "is XA disk" */
 	__u8 addr_format;    /* CDROM_LBA or CDROM_MSF */
@@ -256,8 +256,8 @@ struct cdrom_multisession
 
 /* This struct is used with the CDROM_GET_MCN ioctl.  
  * Very few audio discs actually have Universal Product Code information, 
- * which should just be the Medium Catalog Number on the box.  Also note 
- * that the way the codeis written on CD is _not_ uniform across all discs!
+ * which should just be the Medium Catalog Number on the box.  Also yeste 
+ * that the way the codeis written on CD is _yest_ uniform across all discs!
  */  
 struct cdrom_mcn 
 {
@@ -327,7 +327,7 @@ struct cdrom_generic_command
  */
 
 /* Some generally useful CD-ROM information -- mostly based on the above */
-#define CD_MINS              74 /* max. minutes per CD, not really a limit */
+#define CD_MINS              74 /* max. minutes per CD, yest really a limit */
 #define CD_SECS              60 /* seconds per minute */
 #define CD_FRAMES            75 /* frames per second */
 #define CD_SYNC_SIZE         12 /* 12 sync bytes per raw data frame */
@@ -353,7 +353,7 @@ struct cdrom_generic_command
 
 /* CD-ROM address types (cdrom_tocentry.cdte_format) */
 #define	CDROM_LBA 0x01 /* "logical block": first frame is #0 */
-#define	CDROM_MSF 0x02 /* "minute-second-frame": binary, not bcd here! */
+#define	CDROM_MSF 0x02 /* "minute-second-frame": binary, yest bcd here! */
 
 /* bit to tell whether track is data or audio (cdrom_tocentry.cdte_ctrl) */
 #define	CDROM_DATA_TRACK	0x04
@@ -362,12 +362,12 @@ struct cdrom_generic_command
 #define	CDROM_LEADOUT		0xAA
 
 /* audio states (from SCSI-2, but seen with other drives, too) */
-#define	CDROM_AUDIO_INVALID	0x00	/* audio status not supported */
+#define	CDROM_AUDIO_INVALID	0x00	/* audio status yest supported */
 #define	CDROM_AUDIO_PLAY	0x11	/* audio play operation in progress */
 #define	CDROM_AUDIO_PAUSED	0x12	/* audio play operation paused */
 #define	CDROM_AUDIO_COMPLETED	0x13	/* audio play successfully completed */
 #define	CDROM_AUDIO_ERROR	0x14	/* audio play stopped due to error */
-#define	CDROM_AUDIO_NO_STATUS	0x15	/* no current audio status to return */
+#define	CDROM_AUDIO_NO_STATUS	0x15	/* yes current audio status to return */
 
 /* capability flags used with the uniform CD-ROM driver */ 
 #define CDC_CLOSE_TRAY		0x1     /* caddy systems _can't_ close */
@@ -393,7 +393,7 @@ struct cdrom_generic_command
 #define CDC_RAM			0x200000 /* ok to open for WRITE */
 
 /* drive status possibilities returned by CDROM_DRIVE_STATUS ioctl */
-#define CDS_NO_INFO		0	/* if not implemented */
+#define CDS_NO_INFO		0	/* if yest implemented */
 #define CDS_NO_DISC		1
 #define CDS_TRAY_OPEN		2
 #define CDS_DRIVE_NOT_READY	3
@@ -420,7 +420,7 @@ struct cdrom_generic_command
 #define CDSL_CURRENT    	INT_MAX
 
 /* For partition based multisession access. IDE can handle 64 partitions
- * per drive - SCSI CD-ROM's use minors to differentiate between the
+ * per drive - SCSI CD-ROM's use miyesrs to differentiate between the
  * various drives, so we can't do multisessions the same way there.
  * Use the -o session=x option to mount on them.
  */
@@ -511,7 +511,7 @@ struct cdrom_generic_command
 #define GPMODE_TO_PROTECT_PAGE		0x1d
 #define GPMODE_CAPABILITIES_PAGE	0x2a
 #define GPMODE_ALL_PAGES		0x3f
-/* Not in Mt. Fuji, but in ATAPI 2.6 -- deprecated now in favor
+/* Not in Mt. Fuji, but in ATAPI 2.6 -- deprecated yesw in favor
  * of MODE_SENSE_POWER_PAGE */
 #define GPMODE_CDROM_PAGE		0x0d
 

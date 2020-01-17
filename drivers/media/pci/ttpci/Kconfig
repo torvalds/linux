@@ -20,7 +20,7 @@ config DVB_AV7110
 	select DVB_LNBP21 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for SAA7146 and AV7110 based DVB cards as produced
-	  by Fujitsu-Siemens, Technotrend, Hauppauge and others.
+	  by Fujitsu-Siemens, Techyestrend, Hauppauge and others.
 
 	  This driver only supports the fullfeatured cards with
 	  onboard MPEG2 decoder.
@@ -43,7 +43,7 @@ config DVB_AV7110_OSD
 	default y if DVB_AV7110=y || DVB_AV7110=m
 	help
 	  The AV7110 firmware provides some code to generate an OnScreenDisplay
-	  on the video output. This is kind of nonstandard and not guaranteed to
+	  on the video output. This is kind of yesnstandard and yest guaranteed to
 	  be maintained.
 
 	  Anyway, some popular DVB software like VDR uses this OSD to render
@@ -106,7 +106,7 @@ config DVB_BUDGET_CI
 	  (so called Budget- or Nova-PCI cards) without onboard
 	  MPEG2 decoder, but with onboard Common Interface connector.
 
-	  Note: The Common Interface is not yet supported by this driver
+	  Note: The Common Interface is yest yet supported by this driver
 	  due to lack of information from the vendor.
 
 	  Say Y if you own such a card and want to use it.

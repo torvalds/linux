@@ -17,7 +17,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
@@ -53,7 +53,7 @@ cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 	int dfsplen;
 	char *full_path = NULL;
 
-	/* if no prefix path, simply set path to the root of share to "" */
+	/* if yes prefix path, simply set path to the root of share to "" */
 	if (pplen == 0) {
 		full_path = kzalloc(1, GFP_KERNEL);
 		return full_path;
@@ -153,18 +153,18 @@ cifs_bp_rename_retry:
 	}
 	rcu_read_unlock();
 	if (namelen != dfsplen + pplen || read_seqretry(&rename_lock, seq)) {
-		cifs_dbg(FYI, "did not end path lookup where expected. namelen=%ddfsplen=%d\n",
+		cifs_dbg(FYI, "did yest end path lookup where expected. namelen=%ddfsplen=%d\n",
 			 namelen, dfsplen);
 		/* presumably this is only possible if racing with a rename
-		of one of the parent directories  (we can not lock the dentries
+		of one of the parent directories  (we can yest lock the dentries
 		above us to prevent this, but retrying should be harmless) */
 		kfree(full_path);
 		goto cifs_bp_rename_retry;
 	}
-	/* DIR_SEP already set for byte  0 / vs \ but not for
+	/* DIR_SEP already set for byte  0 / vs \ but yest for
 	   subsequent slashes in prepath which currently must
-	   be entered the right way - not sure if there is an alternative
-	   since the '\' is a valid posix character so we can not switch
+	   be entered the right way - yest sure if there is an alternative
+	   since the '\' is a valid posix character so we can yest switch
 	   those safely to '/' if any are found in the middle of the prepath */
 	/* BB test paths to Windows with '/' in the midst of prepath */
 
@@ -195,7 +195,7 @@ cifs_bp_rename_retry:
 /*
  * Don't allow path components longer than the server max.
  * Don't allow the separator character in a path component.
- * The VFS will not allow "/", but "\" is allowed by posix.
+ * The VFS will yest allow "/", but "\" is allowed by posix.
  */
 static int
 check_name(struct dentry *direntry, struct cifs_tcon *tcon)
@@ -220,21 +220,21 @@ check_name(struct dentry *direntry, struct cifs_tcon *tcon)
 }
 
 
-/* Inode operations in similar order to how they appear in Linux file fs.h */
+/* Iyesde operations in similar order to how they appear in Linux file fs.h */
 
 static int
-cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
+cifs_do_create(struct iyesde *iyesde, struct dentry *direntry, unsigned int xid,
 	       struct tcon_link *tlink, unsigned oflags, umode_t mode,
 	       __u32 *oplock, struct cifs_fid *fid)
 {
 	int rc = -ENOENT;
 	int create_options = CREATE_NOT_DIR;
 	int desired_access;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(iyesde->i_sb);
 	struct cifs_tcon *tcon = tlink_tcon(tlink);
 	char *full_path = NULL;
 	FILE_ALL_INFO *buf = NULL;
-	struct inode *newinode = NULL;
+	struct iyesde *newiyesde = NULL;
 	int disposition;
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_open_parms oparms;
@@ -250,34 +250,34 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	if (tcon->unix_ext && cap_unix(tcon->ses) && !tcon->broken_posix_open &&
 	    (CIFS_UNIX_POSIX_PATH_OPS_CAP &
 			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
-		rc = cifs_posix_open(full_path, &newinode, inode->i_sb, mode,
+		rc = cifs_posix_open(full_path, &newiyesde, iyesde->i_sb, mode,
 				     oflags, oplock, &fid->netfid, xid);
 		switch (rc) {
 		case 0:
-			if (newinode == NULL) {
-				/* query inode info */
+			if (newiyesde == NULL) {
+				/* query iyesde info */
 				goto cifs_create_get_file_info;
 			}
 
-			if (S_ISDIR(newinode->i_mode)) {
+			if (S_ISDIR(newiyesde->i_mode)) {
 				CIFSSMBClose(xid, tcon, fid->netfid);
-				iput(newinode);
+				iput(newiyesde);
 				rc = -EISDIR;
 				goto out;
 			}
 
-			if (!S_ISREG(newinode->i_mode)) {
+			if (!S_ISREG(newiyesde->i_mode)) {
 				/*
 				 * The server may allow us to open things like
 				 * FIFOs, but the client isn't set up to deal
-				 * with that. If it's not a regular file, just
-				 * close it and proceed as if it were a normal
+				 * with that. If it's yest a regular file, just
+				 * close it and proceed as if it were a yesrmal
 				 * lookup.
 				 */
 				CIFSSMBClose(xid, tcon, fid->netfid);
 				goto cifs_create_get_file_info;
 			}
-			/* success, no need to query */
+			/* success, yes need to query */
 			goto cifs_create_set_dentry;
 
 		case -ENOENT:
@@ -286,7 +286,7 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 		case -EIO:
 		case -EINVAL:
 			/*
-			 * EIO could indicate that (posix open) operation is not
+			 * EIO could indicate that (posix open) operation is yest
 			 * supported, despite what server claimed in capability
 			 * negotiation.
 			 *
@@ -299,9 +299,9 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 		case -EREMOTE:
 		case -EOPNOTSUPP:
 			/*
-			 * EREMOTE indicates DFS junction, which is not handled
-			 * in posix open.  If either that or op not supported
-			 * returned, follow the normal lookup.
+			 * EREMOTE indicates DFS junction, which is yest handled
+			 * in posix open.  If either that or op yest supported
+			 * returned, follow the yesrmal lookup.
 			 */
 			break;
 
@@ -310,9 +310,9 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 		}
 		/*
 		 * fallthrough to retry, using older open call, this is case
-		 * where server does not support this SMB level, and falsely
+		 * where server does yest support this SMB level, and falsely
 		 * claims capability (also get here for DFS case which should be
-		 * rare for path not covered on files)
+		 * rare for path yest covered on files)
 		 */
 	}
 
@@ -330,7 +330,7 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	else if ((oflags & O_CREAT) == O_CREAT)
 		disposition = FILE_OPEN_IF;
 	else
-		cifs_dbg(FYI, "Create flag not set in create function\n");
+		cifs_dbg(FYI, "Create flag yest set in create function\n");
 
 	/*
 	 * BB add processing to set equivalent of mode - e.g. via CreateX with
@@ -349,7 +349,7 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	}
 
 	/*
-	 * if we're not using unix extensions, see if we need to set
+	 * if we're yest using unix extensions, see if we need to set
 	 * ATTR_READONLY on the create call
 	 */
 	if (!tcon->unix_ext && (mode & S_IWUGO) == 0)
@@ -374,7 +374,7 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	}
 
 	/*
-	 * If Open reported that we actually created a file then we now have to
+	 * If Open reported that we actually created a file then we yesw have to
 	 * set the mode if possible.
 	 */
 	if ((tcon->unix_ext) && (*oplock & CIFS_CREATE_ACTION)) {
@@ -388,13 +388,13 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 			args.uid = current_fsuid();
-			if (inode->i_mode & S_ISGID)
-				args.gid = inode->i_gid;
+			if (iyesde->i_mode & S_ISGID)
+				args.gid = iyesde->i_gid;
 			else
 				args.gid = current_fsgid();
 		} else {
-			args.uid = INVALID_UID; /* no change */
-			args.gid = INVALID_GID; /* no change */
+			args.uid = INVALID_UID; /* yes change */
+			args.gid = INVALID_GID; /* yes change */
 		}
 		CIFSSMBUnixSetFileInfo(xid, tcon, &args, fid->netfid,
 				       current->tgid);
@@ -411,41 +411,41 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 cifs_create_get_file_info:
 	/* server might mask mode so we have to query for it */
 	if (tcon->unix_ext)
-		rc = cifs_get_inode_info_unix(&newinode, full_path, inode->i_sb,
+		rc = cifs_get_iyesde_info_unix(&newiyesde, full_path, iyesde->i_sb,
 					      xid);
 	else {
-		rc = cifs_get_inode_info(&newinode, full_path, buf, inode->i_sb,
+		rc = cifs_get_iyesde_info(&newiyesde, full_path, buf, iyesde->i_sb,
 					 xid, fid);
-		if (newinode) {
+		if (newiyesde) {
 			if (server->ops->set_lease_key)
-				server->ops->set_lease_key(newinode, fid);
+				server->ops->set_lease_key(newiyesde, fid);
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)
-				newinode->i_mode = mode;
+				newiyesde->i_mode = mode;
 			if ((*oplock & CIFS_CREATE_ACTION) &&
 			    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID)) {
-				newinode->i_uid = current_fsuid();
-				if (inode->i_mode & S_ISGID)
-					newinode->i_gid = inode->i_gid;
+				newiyesde->i_uid = current_fsuid();
+				if (iyesde->i_mode & S_ISGID)
+					newiyesde->i_gid = iyesde->i_gid;
 				else
-					newinode->i_gid = current_fsgid();
+					newiyesde->i_gid = current_fsgid();
 			}
 		}
 	}
 
 cifs_create_set_dentry:
 	if (rc != 0) {
-		cifs_dbg(FYI, "Create worked, get_inode_info failed rc = %d\n",
+		cifs_dbg(FYI, "Create worked, get_iyesde_info failed rc = %d\n",
 			 rc);
 		goto out_err;
 	}
 
-	if (S_ISDIR(newinode->i_mode)) {
+	if (S_ISDIR(newiyesde->i_mode)) {
 		rc = -EISDIR;
 		goto out_err;
 	}
 
 	d_drop(direntry);
-	d_add(direntry, newinode);
+	d_add(direntry, newiyesde);
 
 out:
 	kfree(buf);
@@ -455,13 +455,13 @@ out:
 out_err:
 	if (server->ops->close)
 		server->ops->close(xid, tcon, fid);
-	if (newinode)
-		iput(newinode);
+	if (newiyesde)
+		iput(newiyesde);
 	goto out;
 }
 
 int
-cifs_atomic_open(struct inode *inode, struct dentry *direntry,
+cifs_atomic_open(struct iyesde *iyesde, struct dentry *direntry,
 		 struct file *file, unsigned oflags, umode_t mode)
 {
 	int rc;
@@ -475,9 +475,9 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	struct cifsFileInfo *file_info;
 
 	/*
-	 * Posix open is only called (at lookup time) for file create now. For
-	 * opens (rather than creates), because we do not know if it is a file
-	 * or directory yet, and current Samba no longer allows us to do posix
+	 * Posix open is only called (at lookup time) for file create yesw. For
+	 * opens (rather than creates), because we do yest kyesw if it is a file
+	 * or directory yet, and current Samba yes longer allows us to do posix
 	 * open on dirs, we could end up wasting an open call on what turns out
 	 * to be a dir. For file opens, we wait to call posix open till
 	 * cifs_open.  It could be added to atomic_open in the future but the
@@ -490,24 +490,24 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 
 		/*
 		 * Check for hashed negative dentry. We have already revalidated
-		 * the dentry and it is fine. No need to perform another lookup.
+		 * the dentry and it is fine. No need to perform ayesther lookup.
 		 */
 		if (!d_in_lookup(direntry))
 			return -ENOENT;
 
-		res = cifs_lookup(inode, direntry, 0);
+		res = cifs_lookup(iyesde, direntry, 0);
 		if (IS_ERR(res))
 			return PTR_ERR(res);
 
-		return finish_no_open(file, res);
+		return finish_yes_open(file, res);
 	}
 
 	xid = get_xid();
 
-	cifs_dbg(FYI, "parent inode = 0x%p name is: %pd and dentry = 0x%p\n",
-		 inode, direntry, direntry);
+	cifs_dbg(FYI, "parent iyesde = 0x%p name is: %pd and dentry = 0x%p\n",
+		 iyesde, direntry, direntry);
 
-	tlink = cifs_sb_tlink(CIFS_SB(inode->i_sb));
+	tlink = cifs_sb_tlink(CIFS_SB(iyesde->i_sb));
 	if (IS_ERR(tlink)) {
 		rc = PTR_ERR(tlink);
 		goto out_free_xid;
@@ -526,7 +526,7 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 
 	cifs_add_pending_open(&fid, tlink, &open);
 
-	rc = cifs_do_create(inode, direntry, xid, tlink, oflags, mode,
+	rc = cifs_do_create(iyesde, direntry, xid, tlink, oflags, mode,
 			    &oplock, &fid);
 
 	if (rc) {
@@ -546,9 +546,9 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	}
 
 	if (file->f_flags & O_DIRECT &&
-	    CIFS_SB(inode->i_sb)->mnt_cifs_flags & CIFS_MOUNT_STRICT_IO) {
-		if (CIFS_SB(inode->i_sb)->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
-			file->f_op = &cifs_file_direct_nobrl_ops;
+	    CIFS_SB(iyesde->i_sb)->mnt_cifs_flags & CIFS_MOUNT_STRICT_IO) {
+		if (CIFS_SB(iyesde->i_sb)->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			file->f_op = &cifs_file_direct_yesbrl_ops;
 		else
 			file->f_op = &cifs_file_direct_ops;
 		}
@@ -569,16 +569,16 @@ out_free_xid:
 	return rc;
 }
 
-int cifs_create(struct inode *inode, struct dentry *direntry, umode_t mode,
+int cifs_create(struct iyesde *iyesde, struct dentry *direntry, umode_t mode,
 		bool excl)
 {
 	int rc;
 	unsigned int xid = get_xid();
 	/*
-	 * BB below access is probably too much for mknod to request
+	 * BB below access is probably too much for mkyesd to request
 	 *    but we have to do query and setpathinfo so requesting
 	 *    less could fail (unless we want to request getatr and setatr
-	 *    permissions (only).  At least for POSIX we do not have to
+	 *    permissions (only).  At least for POSIX we do yest have to
 	 *    request so much.
 	 */
 	unsigned oflags = O_EXCL | O_CREAT | O_RDWR;
@@ -588,10 +588,10 @@ int cifs_create(struct inode *inode, struct dentry *direntry, umode_t mode,
 	struct cifs_fid fid;
 	__u32 oplock;
 
-	cifs_dbg(FYI, "cifs_create parent inode = 0x%p name is: %pd and dentry = 0x%p\n",
-		 inode, direntry, direntry);
+	cifs_dbg(FYI, "cifs_create parent iyesde = 0x%p name is: %pd and dentry = 0x%p\n",
+		 iyesde, direntry, direntry);
 
-	tlink = cifs_sb_tlink(CIFS_SB(inode->i_sb));
+	tlink = cifs_sb_tlink(CIFS_SB(iyesde->i_sb));
 	rc = PTR_ERR(tlink);
 	if (IS_ERR(tlink))
 		goto out_free_xid;
@@ -602,7 +602,7 @@ int cifs_create(struct inode *inode, struct dentry *direntry, umode_t mode,
 	if (server->ops->new_lease_key)
 		server->ops->new_lease_key(&fid);
 
-	rc = cifs_do_create(inode, direntry, xid, tlink, oflags, mode,
+	rc = cifs_do_create(iyesde, direntry, xid, tlink, oflags, mode,
 			    &oplock, &fid);
 	if (!rc && server->ops->close)
 		server->ops->close(xid, tcon, &fid);
@@ -613,7 +613,7 @@ out_free_xid:
 	return rc;
 }
 
-int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
+int cifs_mkyesd(struct iyesde *iyesde, struct dentry *direntry, umode_t mode,
 		dev_t device_number)
 {
 	int rc = -EPERM;
@@ -626,7 +626,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 	if (!old_valid_dev(device_number))
 		return -EINVAL;
 
-	cifs_sb = CIFS_SB(inode->i_sb);
+	cifs_sb = CIFS_SB(iyesde->i_sb);
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -638,14 +638,14 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		goto mknod_out;
+		goto mkyesd_out;
 	}
 
-	rc = tcon->ses->server->ops->make_node(xid, inode, direntry, tcon,
+	rc = tcon->ses->server->ops->make_yesde(xid, iyesde, direntry, tcon,
 					       full_path, mode,
 					       device_number);
 
-mknod_out:
+mkyesd_out:
 	kfree(full_path);
 	free_xid(xid);
 	cifs_put_tlink(tlink);
@@ -653,7 +653,7 @@ mknod_out:
 }
 
 struct dentry *
-cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
+cifs_lookup(struct iyesde *parent_dir_iyesde, struct dentry *direntry,
 	    unsigned int flags)
 {
 	unsigned int xid;
@@ -661,17 +661,17 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
-	struct inode *newInode = NULL;
+	struct iyesde *newIyesde = NULL;
 	char *full_path = NULL;
 
 	xid = get_xid();
 
-	cifs_dbg(FYI, "parent inode = 0x%p name is: %pd and dentry = 0x%p\n",
-		 parent_dir_inode, direntry, direntry);
+	cifs_dbg(FYI, "parent iyesde = 0x%p name is: %pd and dentry = 0x%p\n",
+		 parent_dir_iyesde, direntry, direntry);
 
 	/* check whether path exists */
 
-	cifs_sb = CIFS_SB(parent_dir_inode->i_sb);
+	cifs_sb = CIFS_SB(parent_dir_iyesde->i_sb);
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
 		free_xid(xid);
@@ -686,7 +686,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		return ERR_PTR(rc);
 	}
 
-	/* can not grab the rename sem here since it would
+	/* can yest grab the rename sem here since it would
 	deadlock in the cases (beginning of sys_rename itself)
 	in which we already have the sb rename sem */
 	full_path = build_path_from_dentry(direntry);
@@ -697,66 +697,66 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	}
 
 	if (d_really_is_positive(direntry)) {
-		cifs_dbg(FYI, "non-NULL inode in lookup\n");
+		cifs_dbg(FYI, "yesn-NULL iyesde in lookup\n");
 	} else {
-		cifs_dbg(FYI, "NULL inode in lookup\n");
+		cifs_dbg(FYI, "NULL iyesde in lookup\n");
 	}
-	cifs_dbg(FYI, "Full path: %s inode = 0x%p\n",
-		 full_path, d_inode(direntry));
+	cifs_dbg(FYI, "Full path: %s iyesde = 0x%p\n",
+		 full_path, d_iyesde(direntry));
 
 	if (pTcon->unix_ext) {
-		rc = cifs_get_inode_info_unix(&newInode, full_path,
-					      parent_dir_inode->i_sb, xid);
+		rc = cifs_get_iyesde_info_unix(&newIyesde, full_path,
+					      parent_dir_iyesde->i_sb, xid);
 	} else {
-		rc = cifs_get_inode_info(&newInode, full_path, NULL,
-				parent_dir_inode->i_sb, xid, NULL);
+		rc = cifs_get_iyesde_info(&newIyesde, full_path, NULL,
+				parent_dir_iyesde->i_sb, xid, NULL);
 	}
 
 	if (rc == 0) {
-		/* since paths are not looked up by component - the parent
+		/* since paths are yest looked up by component - the parent
 		   directories are presumed to be good here */
 		renew_parental_timestamps(direntry);
 	} else if (rc == -ENOENT) {
 		cifs_set_time(direntry, jiffies);
-		newInode = NULL;
+		newIyesde = NULL;
 	} else {
 		if (rc != -EACCES) {
 			cifs_dbg(FYI, "Unexpected lookup error %d\n", rc);
 			/* We special case check for Access Denied - since that
 			is a common return code */
 		}
-		newInode = ERR_PTR(rc);
+		newIyesde = ERR_PTR(rc);
 	}
 	kfree(full_path);
 	cifs_put_tlink(tlink);
 	free_xid(xid);
-	return d_splice_alias(newInode, direntry);
+	return d_splice_alias(newIyesde, direntry);
 }
 
 static int
 cifs_d_revalidate(struct dentry *direntry, unsigned int flags)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	if (d_really_is_positive(direntry)) {
-		inode = d_inode(direntry);
-		if ((flags & LOOKUP_REVAL) && !CIFS_CACHE_READ(CIFS_I(inode)))
-			CIFS_I(inode)->time = 0; /* force reval */
+		iyesde = d_iyesde(direntry);
+		if ((flags & LOOKUP_REVAL) && !CIFS_CACHE_READ(CIFS_I(iyesde)))
+			CIFS_I(iyesde)->time = 0; /* force reval */
 
 		if (cifs_revalidate_dentry(direntry))
 			return 0;
 		else {
 			/*
-			 * If the inode wasn't known to be a dfs entry when
+			 * If the iyesde wasn't kyeswn to be a dfs entry when
 			 * the dentry was instantiated, such as when created
-			 * via ->readdir(), it needs to be set now since the
+			 * via ->readdir(), it needs to be set yesw since the
 			 * attributes will have been updated by
 			 * cifs_revalidate_dentry().
 			 */
-			if (IS_AUTOMOUNT(inode) &&
+			if (IS_AUTOMOUNT(iyesde) &&
 			   !(direntry->d_flags & DCACHE_NEED_AUTOMOUNT)) {
 				spin_lock(&direntry->d_lock);
 				direntry->d_flags |= DCACHE_NEED_AUTOMOUNT;
@@ -800,7 +800,7 @@ cifs_d_revalidate(struct dentry *direntry, unsigned int flags)
 const struct dentry_operations cifs_dentry_ops = {
 	.d_revalidate = cifs_d_revalidate,
 	.d_automount = cifs_dfs_d_automount,
-/* d_delete:       cifs_d_delete,      */ /* not needed except for debugging */
+/* d_delete:       cifs_d_delete,      */ /* yest needed except for debugging */
 };
 
 static int cifs_ci_hash(const struct dentry *dentry, struct qstr *q)
@@ -834,7 +834,7 @@ static int cifs_ci_compare(const struct dentry *dentry,
 	 * We make the assumption here that uppercase characters in the local
 	 * codepage are always the same length as their lowercase counterparts.
 	 *
-	 * If that's ever not the case, then this will fail to match it.
+	 * If that's ever yest the case, then this will fail to match it.
 	 */
 	if (name->len != len)
 		return 1;

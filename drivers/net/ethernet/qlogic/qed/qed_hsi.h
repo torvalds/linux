@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -135,7 +135,7 @@ struct core_ll2_rx_prod {
 
 struct core_ll2_tstorm_per_queue_stat {
 	struct regpair packet_too_big_discard;
-	struct regpair no_buff_discard;
+	struct regpair yes_buff_discard;
 };
 
 struct core_ll2_ustorm_per_queue_stat {
@@ -167,7 +167,7 @@ enum core_roce_flavor_type {
 };
 
 /* Specifies how ll2 should deal with packets errors: packet_too_big and
- * no_buff.
+ * yes_buff.
  */
 struct core_rx_action_on_error {
 	u8 error_type;
@@ -869,8 +869,8 @@ struct eth_mstorm_per_pf_stat {
 struct eth_mstorm_per_queue_stat {
 	struct regpair ttl0_discard;
 	struct regpair packet_too_big_discard;
-	struct regpair no_buff_discard;
-	struct regpair not_active_discard;
+	struct regpair yes_buff_discard;
+	struct regpair yest_active_discard;
 	struct regpair tpa_coalesced_pkts;
 	struct regpair tpa_coalesced_events;
 	struct regpair tpa_aborts_num;
@@ -1023,9 +1023,9 @@ enum gft_profile_type {
 	MAX_GFT_PROFILE_TYPE
 };
 
-/* Major and Minor hsi Versions */
+/* Major and Miyesr hsi Versions */
 struct hsi_fp_ver_struct {
-	u8 minor_ver_arr[2];
+	u8 miyesr_ver_arr[2];
 	u8 major_ver_arr[2];
 };
 
@@ -1064,15 +1064,15 @@ enum malicious_vf_error_id {
 	MAX_MALICIOUS_VF_ERROR_ID
 };
 
-/* Mstorm non-triggering VF zone */
-struct mstorm_non_trigger_vf_zone {
+/* Mstorm yesn-triggering VF zone */
+struct mstorm_yesn_trigger_vf_zone {
 	struct eth_mstorm_per_queue_stat eth_queue_stat;
 	struct eth_rx_prod_data eth_rx_queue_producers[ETH_MAX_NUM_RX_QUEUES_PER_VF_QUAD];
 };
 
 /* Mstorm VF zone */
 struct mstorm_vf_zone {
-	struct mstorm_non_trigger_vf_zone non_trigger;
+	struct mstorm_yesn_trigger_vf_zone yesn_trigger;
 };
 
 /* vlan header including TPID and TCI fields */
@@ -1107,7 +1107,7 @@ enum personality_type {
 struct pf_start_tunnel_config {
 	u8 set_vxlan_udp_port_flg;
 	u8 set_geneve_udp_port_flg;
-	u8 set_no_inner_l2_vxlan_udp_port_flg;
+	u8 set_yes_inner_l2_vxlan_udp_port_flg;
 	u8 tunnel_clss_vxlan;
 	u8 tunnel_clss_l2geneve;
 	u8 tunnel_clss_ipgeneve;
@@ -1115,7 +1115,7 @@ struct pf_start_tunnel_config {
 	u8 tunnel_clss_ipgre;
 	__le16 vxlan_udp_port;
 	__le16 geneve_udp_port;
-	__le16 no_inner_l2_vxlan_udp_port;
+	__le16 yes_inner_l2_vxlan_udp_port;
 	__le16 reserved[3];
 };
 
@@ -1156,10 +1156,10 @@ struct protocol_dcb_data {
 struct pf_update_tunnel_config {
 	u8 update_rx_pf_clss;
 	u8 update_rx_def_ucast_clss;
-	u8 update_rx_def_non_ucast_clss;
+	u8 update_rx_def_yesn_ucast_clss;
 	u8 set_vxlan_udp_port_flg;
 	u8 set_geneve_udp_port_flg;
-	u8 set_no_inner_l2_vxlan_udp_port_flg;
+	u8 set_yes_inner_l2_vxlan_udp_port_flg;
 	u8 tunnel_clss_vxlan;
 	u8 tunnel_clss_l2geneve;
 	u8 tunnel_clss_ipgeneve;
@@ -1168,7 +1168,7 @@ struct pf_update_tunnel_config {
 	u8 reserved;
 	__le16 vxlan_udp_port;
 	__le16 geneve_udp_port;
-	__le16 no_inner_l2_vxlan_udp_port;
+	__le16 yes_inner_l2_vxlan_udp_port;
 	__le16 reserved1[3];
 };
 
@@ -1204,7 +1204,7 @@ enum ports_mode {
 	MAX_PORTS_MODE
 };
 
-/* use to index in hsi_fp_[major|minor]_ver_arr per protocol */
+/* use to index in hsi_fp_[major|miyesr]_ver_arr per protocol */
 enum protocol_version_array_key {
 	ETH_VER_KEY = 0,
 	ROCE_VER_KEY,
@@ -1217,15 +1217,15 @@ struct rdma_sent_stats {
 	struct regpair sent_pkts;
 };
 
-/* Pstorm non-triggering VF zone */
-struct pstorm_non_trigger_vf_zone {
+/* Pstorm yesn-triggering VF zone */
+struct pstorm_yesn_trigger_vf_zone {
 	struct eth_pstorm_per_queue_stat eth_queue_stat;
 	struct rdma_sent_stats rdma_stats;
 };
 
 /* Pstorm VF zone */
 struct pstorm_vf_zone {
-	struct pstorm_non_trigger_vf_zone non_trigger;
+	struct pstorm_yesn_trigger_vf_zone yesn_trigger;
 	struct regpair reserved[7];
 };
 
@@ -1274,8 +1274,8 @@ struct slow_path_element {
 	struct regpair data_ptr;
 };
 
-/* Tstorm non-triggering VF zone */
-struct tstorm_non_trigger_vf_zone {
+/* Tstorm yesn-triggering VF zone */
+struct tstorm_yesn_trigger_vf_zone {
 	struct rdma_rcv_stats rdma_stats;
 };
 
@@ -1301,7 +1301,7 @@ struct tstorm_per_port_stat {
 
 /* Tstorm VF zone */
 struct tstorm_vf_zone {
-	struct tstorm_non_trigger_vf_zone non_trigger;
+	struct tstorm_yesn_trigger_vf_zone yesn_trigger;
 };
 
 /* Tunnel classification scheme */
@@ -1314,8 +1314,8 @@ enum tunnel_clss {
 	MAX_TUNNEL_CLSS
 };
 
-/* Ustorm non-triggering VF zone */
-struct ustorm_non_trigger_vf_zone {
+/* Ustorm yesn-triggering VF zone */
+struct ustorm_yesn_trigger_vf_zone {
 	struct eth_ustorm_per_queue_stat eth_queue_stat;
 	struct regpair vf_pf_msg_addr;
 };
@@ -1328,7 +1328,7 @@ struct ustorm_trigger_vf_zone {
 
 /* Ustorm VF zone */
 struct ustorm_vf_zone {
-	struct ustorm_non_trigger_vf_zone non_trigger;
+	struct ustorm_yesn_trigger_vf_zone yesn_trigger;
 	struct ustorm_trigger_vf_zone trigger;
 };
 
@@ -1465,10 +1465,10 @@ enum dmae_cmd_c_dst_enum {
 };
 
 enum dmae_cmd_dst_enum {
-	dmae_cmd_dst_none_0,
+	dmae_cmd_dst_yesne_0,
 	dmae_cmd_dst_pcie,
 	dmae_cmd_dst_grc,
-	dmae_cmd_dst_none_3,
+	dmae_cmd_dst_yesne_3,
 	MAX_DMAE_CMD_DST_ENUM
 };
 
@@ -2190,7 +2190,7 @@ struct dbg_idle_chk_rule_parsing_data {
 enum dbg_idle_chk_severity_types {
 	/* idle check failure should cause an error */
 	IDLE_CHK_SEVERITY_ERROR,
-	/* idle check failure should cause an error only if theres no traffic */
+	/* idle check failure should cause an error only if theres yes traffic */
 	IDLE_CHK_SEVERITY_ERROR_NO_TRAFFIC,
 	/* idle check failure should cause a warning */
 	IDLE_CHK_SEVERITY_WARNING,
@@ -2297,7 +2297,7 @@ struct dbg_bus_storm_data {
 	u8 mode;
 	u8 hw_id;
 	u8 eid_filter_en;
-	u8 eid_range_not_mask;
+	u8 eid_range_yest_mask;
 	u8 cid_filter_en;
 	union dbg_bus_storm_eid_params eid_filter_params;
 	u32 cid;
@@ -2688,7 +2688,7 @@ struct fw_asserts_ram_section {
 
 struct fw_ver_num {
 	u8 major;
-	u8 minor;
+	u8 miyesr;
 	u8 rev;
 	u8 eng;
 };
@@ -3012,7 +3012,7 @@ void qed_read_regs(struct qed_hwfn *p_hwfn,
  *
  * The FW info contains FW-related information, such as the FW version,
  * FW image (main/L2B/kuku), FW timestamp, etc.
- * The FW info is read from the internal RAM of the first Storm that is not in
+ * The FW info is read from the internal RAM of the first Storm that is yest in
  * reset.
  *
  * @param p_hwfn -	    HW device data
@@ -3134,7 +3134,7 @@ enum dbg_status qed_dbg_idle_chk_dump(struct qed_hwfn *p_hwfn,
  *	- the version wasn't set
  *	- the trace data in MCP scratchpad contain an invalid signature
  *	- the bundle ID in NVRAM is invalid
- *	- the trace meta data cannot be found (in NVRAM or image file)
+ *	- the trace meta data canyest be found (in NVRAM or image file)
  * Otherwise, returns ok.
  */
 enum dbg_status qed_dbg_mcp_trace_get_dump_buf_size(struct qed_hwfn *p_hwfn,
@@ -3156,8 +3156,8 @@ enum dbg_status qed_dbg_mcp_trace_get_dump_buf_size(struct qed_hwfn *p_hwfn,
  *	- the specified buffer is too small
  *	- the trace data in MCP scratchpad contain an invalid signature
  *	- the bundle ID in NVRAM is invalid
- *	- the trace meta data cannot be found (in NVRAM or image file)
- *	- the trace meta data cannot be read (from NVRAM or image file)
+ *	- the trace meta data canyest be found (in NVRAM or image file)
+ *	- the trace meta data canyest be read (from NVRAM or image file)
  * Otherwise, returns ok.
  */
 enum dbg_status qed_dbg_mcp_trace_dump(struct qed_hwfn *p_hwfn,
@@ -3441,7 +3441,7 @@ enum dbg_status qed_print_idle_chk_results(struct qed_hwfn *p_hwfn,
  * @brief qed_dbg_mcp_trace_set_meta_data - Sets the MCP Trace meta data.
  *
  * Needed in case the MCP Trace dump doesn't contain the meta data (e.g. due to
- * no NVRAM access).
+ * yes NVRAM access).
  *
  * @param data - pointer to MCP Trace meta data
  * @param size - size of MCP Trace meta data in dwords
@@ -4020,7 +4020,7 @@ int qed_qm_pf_rt_init(struct qed_hwfn *p_hwfn,
  * @param p_hwfn
  * @param p_ptt - ptt window used for writing the registers
  * @param pf_id - PF ID
- * @param pf_wfq - WFQ weight. Must be non-zero.
+ * @param pf_wfq - WFQ weight. Must be yesn-zero.
  *
  * @return 0 on success, -1 on error.
  */
@@ -4048,7 +4048,7 @@ int qed_init_pf_rl(struct qed_hwfn *p_hwfn,
  * @param first_tx_pq_id- An array containing the first Tx PQ ID associated
  *	  with the VPORT for each TC. This array is filled by
  *	  qed_qm_pf_rt_init
- * @param vport_wfq - WFQ weight. Must be non-zero.
+ * @param vport_wfq - WFQ weight. Must be yesn-zero.
  *
  * @return 0 on success, -1 on error.
  */
@@ -4142,7 +4142,7 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 			   struct qed_ptt *p_ptt,
 			   bool eth_geneve_enable, bool ip_geneve_enable);
 
-void qed_set_vxlan_no_l2_enable(struct qed_hwfn *p_hwfn,
+void qed_set_vxlan_yes_l2_enable(struct qed_hwfn *p_hwfn,
 				struct qed_ptt *p_ptt, bool enable);
 
 /**
@@ -5756,7 +5756,7 @@ enum eth_filter_type {
 struct eth_in_to_in_pri_map_cfg {
 	u8 inner_vlan_pri_remap_en;
 	u8 reserved[7];
-	u8 non_rdma_in_to_in_pri_map[8];
+	u8 yesn_rdma_in_to_in_pri_map[8];
 	u8 rdma_in_to_in_pri_map[8];
 };
 
@@ -5997,7 +5997,7 @@ struct rx_queue_start_ramrod_data {
 	__le16 pxp_st_index;
 	u8 pmd_mode;
 
-	u8 notify_en;
+	u8 yestify_en;
 	u8 toggle_val;
 
 	u8 vf_rx_prod_index;
@@ -11027,7 +11027,7 @@ struct fcoe_mstorm_fcoe_conn_st_ctx_fp {
 };
 
 /* Non fast path part of the fcoe storm context of Mstorm */
-struct fcoe_mstorm_fcoe_conn_st_ctx_non_fp {
+struct fcoe_mstorm_fcoe_conn_st_ctx_yesn_fp {
 	__le16 conn_id;
 	__le16 stat_ram_addr;
 	__le16 num_pages_in_pbl;
@@ -11045,7 +11045,7 @@ struct fcoe_mstorm_fcoe_conn_st_ctx_non_fp {
 /* The fcoe storm context of Mstorm */
 struct mstorm_fcoe_conn_st_ctx {
 	struct fcoe_mstorm_fcoe_conn_st_ctx_fp fp;
-	struct fcoe_mstorm_fcoe_conn_st_ctx_non_fp non_fp;
+	struct fcoe_mstorm_fcoe_conn_st_ctx_yesn_fp yesn_fp;
 };
 
 /* fcoe connection context */
@@ -11734,7 +11734,7 @@ struct mcp_trace {
 	u32 signature;		/* Help to identify that the trace is valid */
 	u32 size;		/* the size of the trace buffer in bytes */
 	u32 curr_level;		/* 2 - all will be written to the buffer
-				 * 1 - debug trace will not be written
+				 * 1 - debug trace will yest be written
 				 * 0 - just errors will be written to the buffer
 				 */
 	u32 modules_mask[2];	/* a bit per module, 1 means write it, 0 means
@@ -11761,7 +11761,7 @@ typedef u32 offsize_t;		/* In DWORDS !!! */
 /* Offset from the beginning of the MCP scratchpad */
 #define OFFSIZE_OFFSET_SHIFT	0
 #define OFFSIZE_OFFSET_MASK	0x0000ffff
-/* Size of specific element (not the whole array if any) */
+/* Size of specific element (yest the whole array if any) */
 #define OFFSIZE_SIZE_SHIFT	16
 #define OFFSIZE_SIZE_MASK	0xffff0000
 
@@ -12348,8 +12348,8 @@ struct public_func {
 	u32 fcoe_wwn_port_name_upper;
 	u32 fcoe_wwn_port_name_lower;
 
-	u32 fcoe_wwn_node_name_upper;
-	u32 fcoe_wwn_node_name_lower;
+	u32 fcoe_wwn_yesde_name_upper;
+	u32 fcoe_wwn_yesde_name_lower;
 
 	u32 ovlan_stag;
 #define FUNC_MF_CFG_OV_STAG_MASK	0x0000ffff
@@ -13330,7 +13330,7 @@ struct nvm_cfg1_func {
 	u32 device_id;
 	u32 cmn_cfg;
 	u32 pci_cfg;
-	struct nvm_cfg_mac_address fcoe_node_wwn_mac_addr;
+	struct nvm_cfg_mac_address fcoe_yesde_wwn_mac_addr;
 	struct nvm_cfg_mac_address fcoe_port_wwn_mac_addr;
 	u32 preboot_generic_cfg;
 	u32 reserved[8];
@@ -13354,7 +13354,7 @@ enum spad_sections {
 #define MCP_TRACE_SIZE          2048	/* 2kb */
 
 /* This section is located at a fixed location in the beginning of the
- * scratchpad, to ensure that the MCP trace is not run over during MFW upgrade.
+ * scratchpad, to ensure that the MCP trace is yest run over during MFW upgrade.
  * All the rest of data has a floating location which differs from version to
  * version, and is pointed by the mcp_meta_data below.
  * Moreover, the spad_layout section is part of the MFW firmware, and is loaded

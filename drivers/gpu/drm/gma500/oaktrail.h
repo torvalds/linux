@@ -33,12 +33,12 @@ struct oaktrail_timing_info {
 	u8 width_mm_hi:4;
 	u8 hborder;
 	u8 vborder;
-	u8 unknown0:1;
+	u8 unkyeswn0:1;
 	u8 hsync_positive:1;
 	u8 vsync_positive:1;
 	u8 separate_sync:2;
 	u8 stereo:1;
-	u8 unknown6:1;
+	u8 unkyeswn6:1;
 	u8 interlaced:1;
 } __packed;
 
@@ -86,7 +86,7 @@ struct oaktrail_panel_descriptor_v1 {
 			/* 2: Type-3, */
 			/* 3: Type-4 */
 			/* Bit 2, Pixel Format, 4 bits */
-			/* Bit0: 16bpp (not supported in LNC), */
+			/* Bit0: 16bpp (yest supported in LNC), */
 			/* Bit1: 18bpp loosely packed, */
 			/* Bit2: 18bpp packed, */
 			/* Bit3: 24bpp */
@@ -116,7 +116,7 @@ struct oaktrail_panel_descriptor_v2 {
 			/* 2: Type-3, */
 			/* 3: Type-4 */
 			/* Bit 2, Pixel Format, 4 bits */
-			/* Bit0: 16bpp (not supported in LNC), */
+			/* Bit0: 16bpp (yest supported in LNC), */
 			/* Bit1: 18bpp loosely packed, */
 			/* Bit2: 18bpp packed, */
 			/* Bit3: 24bpp */
@@ -132,7 +132,7 @@ union oaktrail_panel_rx {
 		u16 MaxLaneFreq:3; /* 0: 100MHz, 1: 200MHz, 2: 300MHz, */
 		/*3: 400MHz, 4: 500MHz, 5: 600MHz, 6: 700MHz, 7: 800MHz.*/
 		u16 SupportedVideoTransferMode:2; /*0: Non-burst only */
-					/* 1: Burst and non-burst */
+					/* 1: Burst and yesn-burst */
 					/* 2/3: Reserved */
 		u16 HSClkBehavior:1; /*0: Continuous, 1: Non-continuous*/
 		u16 DuoDisplaySupport:1; /*1 bit,0: No, 1: Yes*/

@@ -159,7 +159,7 @@ static int mxc6255_probe(struct i2c_client *client,
 
 	ret = devm_iio_device_register(&client->dev, indio_dev);
 	if (ret < 0) {
-		dev_err(&client->dev, "Could not register IIO device\n");
+		dev_err(&client->dev, "Could yest register IIO device\n");
 		return ret;
 	}
 

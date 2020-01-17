@@ -20,7 +20,7 @@
  * Define a host as seen by the target.  We allocate one at boot, but also
  * allow the override it when creating controllers.  This is both to provide
  * persistence of the Host NQN over multiple boots, and to allow using
- * multiple ones, for example in a container scenario.  Because we must not
+ * multiple ones, for example in a container scenario.  Because we must yest
  * use different Host NQNs with the same Host ID we generate a Host ID and
  * use this structure to keep track of the relation between the two.
  */
@@ -63,7 +63,7 @@ enum {
  *			      with the parsing opts enum.
  * @mask:	Used by the fabrics library to parse through sysfs options
  *		on adding a NVMe controller.
- * @transport:	Holds the fabric transport "technology name" (for a lack of
+ * @transport:	Holds the fabric transport "techyeslogy name" (for a lack of
  *		better description) that will be used by an NVMe controller
  *		being added.
  * @subsysnqn:	Hold the fully qualified NQN subystem name (format defined
@@ -77,7 +77,7 @@ enum {
  * @queue_size: Number of IO queue elements.
  * @nr_io_queues: Number of controller IO queues that will be established.
  * @reconnect_delay: Time between two consecutive reconnect attempts.
- * @discovery_nqn: indicates if the subsysnqn is the well-known discovery NQN.
+ * @discovery_nqn: indicates if the subsysnqn is the well-kyeswn discovery NQN.
  * @kato:	Keep-alive timeout.
  * @host:	Virtual NVMe host, contains the NQN and Host ID.
  * @max_reconnects: maximum number of allowed reconnect attempts before removing
@@ -124,16 +124,16 @@ struct nvmf_ctrl_options {
  *			when adding a new NVMe controller.
  * @allowed_opts:	sysfs command-line options that can be specified
  *			when adding a new NVMe controller.
- * @create_ctrl():	function pointer that points to a non-NVMe
- *			implementation-specific fabric technology
+ * @create_ctrl():	function pointer that points to a yesn-NVMe
+ *			implementation-specific fabric techyeslogy
  *			that would go into starting up that fabric
  *			for the purpose of conneciton to an NVMe controller
- *			using that fabric technology.
+ *			using that fabric techyeslogy.
  *
  * Notes:
  *	1. At minimum, 'required_opts' and 'allowed_opts' should
  *	   be set to the same enum parsing options defined earlier.
- *	2. create_ctrl() must be defined (even if it does nothing)
+ *	2. create_ctrl() must be defined (even if it does yesthing)
  *	3. struct nvmf_transport_ops must be statically allocated in the
  *	   modules .bss section so that a pure module_get on @module
  *	   prevents the memory from beeing freed.
@@ -172,7 +172,7 @@ void nvmf_unregister_transport(struct nvmf_transport_ops *ops);
 void nvmf_free_options(struct nvmf_ctrl_options *opts);
 int nvmf_get_address(struct nvme_ctrl *ctrl, char *buf, int size);
 bool nvmf_should_reconnect(struct nvme_ctrl *ctrl);
-blk_status_t nvmf_fail_nonready_command(struct nvme_ctrl *ctrl,
+blk_status_t nvmf_fail_yesnready_command(struct nvme_ctrl *ctrl,
 		struct request *rq);
 bool __nvmf_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
 		bool queue_live);

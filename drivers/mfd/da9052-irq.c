@@ -202,17 +202,17 @@ int da9052_disable_irq(struct da9052 *da9052, int irq)
 }
 EXPORT_SYMBOL_GPL(da9052_disable_irq);
 
-int da9052_disable_irq_nosync(struct da9052 *da9052, int irq)
+int da9052_disable_irq_yessync(struct da9052 *da9052, int irq)
 {
 	irq = da9052_map_irq(da9052, irq);
 	if (irq < 0)
 		return irq;
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(da9052_disable_irq_nosync);
+EXPORT_SYMBOL_GPL(da9052_disable_irq_yessync);
 
 int da9052_request_irq(struct da9052 *da9052, int irq, char *name,
 			   irq_handler_t handler, void *data)

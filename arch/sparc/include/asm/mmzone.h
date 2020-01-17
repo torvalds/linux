@@ -6,9 +6,9 @@
 
 #include <linux/cpumask.h>
 
-extern struct pglist_data *node_data[];
+extern struct pglist_data *yesde_data[];
 
-#define NODE_DATA(nid)		(node_data[nid])
+#define NODE_DATA(nid)		(yesde_data[nid])
 
 extern int numa_cpu_lookup_table[];
 extern cpumask_t numa_cpumask_lookup_table[];

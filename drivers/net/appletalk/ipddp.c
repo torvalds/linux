@@ -89,7 +89,7 @@ static struct net_device * __init ipddp_init(void)
         /*
          *      The worst case header we will need is currently a
          *      ethernet header (14 bytes) and a ddp header (sizeof ddpehdr+1)
-         *      We send over SNAP so that takes another 8 bytes.
+         *      We send over SNAP so that takes ayesther 8 bytes.
          */
         dev->hard_header_len = 14+8+sizeof(struct ddpehdr)+1;
 
@@ -99,7 +99,7 @@ static struct net_device * __init ipddp_init(void)
 		return ERR_PTR(err);
 	}
 
-	/* Let the user now what mode we are in */
+	/* Let the user yesw what mode we are in */
 	if(ipddp_mode == IPDDP_ENCAP)
 		printk("%s: Appletalk-IP Encap. mode by Bradford W. Johnson <johns393@maroon.tc.umn.edu>\n", 
 			dev->name);
@@ -144,9 +144,9 @@ static netdev_tx_t ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if(ipddp_mode == IPDDP_DECAP)
 		/* 
-		 * Pull off the excess room that should not be there.
+		 * Pull off the excess room that should yest be there.
 		 * This is due to a hard-header problem. This is the
-		 * quick fix for now though, till it breaks.
+		 * quick fix for yesw though, till it breaks.
 		 */
 		skb_pull(skb, 35-(sizeof(struct ddpehdr)+1));
 
@@ -169,8 +169,8 @@ static netdev_tx_t ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
                 ddp->deh_dnet  = rt->at.s_net;   /* FIXME more hops?? */
                 ddp->deh_snet  = our_addr->s_net;
         }
-        ddp->deh_dnode = rt->at.s_node;
-        ddp->deh_snode = our_addr->s_node;
+        ddp->deh_dyesde = rt->at.s_yesde;
+        ddp->deh_syesde = our_addr->s_yesde;
         ddp->deh_dport = 72;
         ddp->deh_sport = 72;
 
@@ -190,7 +190,7 @@ static netdev_tx_t ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
 
 /*
  * Create a routing entry. We first verify that the
- * record does not already exist. If it does we return -EEXIST
+ * record does yest already exist. If it does we return -EEXIST
  */
 static int ipddp_create(struct ipddp_route *new_rt)
 {
@@ -224,7 +224,7 @@ static int ipddp_create(struct ipddp_route *new_rt)
 
 /*
  * Delete a route, we only delete a FULL match.
- * If route does not exist we return -ENOENT.
+ * If route does yest exist we return -ENOENT.
  */
 static int ipddp_delete(struct ipddp_route *rt)
 {
@@ -236,7 +236,7 @@ static int ipddp_delete(struct ipddp_route *rt)
         {
                 if(tmp->ip == rt->ip &&
 		   tmp->at.s_net == rt->at.s_net &&
-		   tmp->at.s_node == rt->at.s_node)
+		   tmp->at.s_yesde == rt->at.s_yesde)
                 {
                         *r = tmp->next;
 			spin_unlock_bh(&ipddp_route_lock);
@@ -261,7 +261,7 @@ static struct ipddp_route* __ipddp_find_route(struct ipddp_route *rt)
         {
                 if(f->ip == rt->ip &&
 		   f->at.s_net == rt->at.s_net &&
-		   f->at.s_node == rt->at.s_node)
+		   f->at.s_yesde == rt->at.s_yesde)
                         return f;
         }
 

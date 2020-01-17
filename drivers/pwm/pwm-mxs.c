@@ -84,7 +84,7 @@ static int mxs_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			mxs->base + PWM_PERIOD0 + pwm->hwpwm * 0x20);
 
 	/*
-	 * If the PWM is not enabled, turn the clock off again to save power.
+	 * If the PWM is yest enabled, turn the clock off again to save power.
 	 */
 	if (!pwm_is_enabled(pwm))
 		clk_disable_unprepare(mxs->clk);
@@ -124,7 +124,7 @@ static const struct pwm_ops mxs_pwm_ops = {
 
 static int mxs_pwm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct mxs_pwm_chip *mxs;
 	int ret;
 

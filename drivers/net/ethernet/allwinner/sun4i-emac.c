@@ -55,17 +55,17 @@ MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
  *
  * During interrupt and other critical calls, a spinlock is used to
  * protect the system, but the calls themselves save the address
- * in the address register in case they are interrupting another
+ * in the address register in case they are interrupting ayesther
  * access to the device.
  *
  * For general accesses a lock is provided so that calls which are
  * allowed to sleep are serialised so that the address register does
- * not need to be saved. This lock also serves to serialise access
+ * yest need to be saved. This lock also serves to serialise access
  * to the EEPROM and PHY access registers which are shared between
  * these two devices.
  */
 
-/* The driver supports the original EMACE, and now the two newer
+/* The driver supports the original EMACE, and yesw the two newer
  * devices, EMACA and EMACB.
  */
 
@@ -82,7 +82,7 @@ struct emac_board_info {
 
 	int			emacrx_completed_flag;
 
-	struct device_node	*phy_node;
+	struct device_yesde	*phy_yesde;
 	unsigned int		link;
 	unsigned int		speed;
 	unsigned int		duplex;
@@ -160,14 +160,14 @@ static int emac_mdio_probe(struct net_device *dev)
 	struct emac_board_info *db = netdev_priv(dev);
 	struct phy_device *phydev;
 
-	/* to-do: PHY interrupts are currently not supported */
+	/* to-do: PHY interrupts are currently yest supported */
 
 	/* attach the mac to the phy */
-	phydev = of_phy_connect(db->ndev, db->phy_node,
+	phydev = of_phy_connect(db->ndev, db->phy_yesde,
 				&emac_handle_link_change, 0,
 				db->phy_interface);
 	if (!phydev) {
-		netdev_err(db->ndev, "could not find the PHY\n");
+		netdev_err(db->ndev, "could yest find the PHY\n");
 		return -ENODEV;
 	}
 
@@ -518,7 +518,7 @@ static void emac_rx(struct net_device *dev)
 	unsigned int reg_val;
 	u32 rxhdr, rxstatus, rxcount, rxlen;
 
-	/* Check packet ready or not */
+	/* Check packet ready or yest */
 	while (1) {
 		/* race warning: the first packet might arrive with
 		 * the interrupts disabled, but the second will fix
@@ -588,7 +588,7 @@ static void emac_rx(struct net_device *dev)
 			return;
 		}
 
-		/* A packet ready now  & Get status/length */
+		/* A packet ready yesw  & Get status/length */
 		good_packet = true;
 
 		rxhdr = readl(db->membase + EMAC_RX_IO_DATA_REG);
@@ -733,7 +733,7 @@ static int emac_open(struct net_device *dev)
 	ret = emac_mdio_probe(dev);
 	if (ret < 0) {
 		free_irq(dev->irq, dev);
-		netdev_err(dev, "cannot probe MDIO bus\n");
+		netdev_err(dev, "canyest probe MDIO bus\n");
 		return ret;
 	}
 
@@ -803,7 +803,7 @@ static const struct net_device_ops emac_netdev_ops = {
  */
 static int emac_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct emac_board_info *db;
 	struct net_device *ndev;
 	int ret = 0;
@@ -811,7 +811,7 @@ static int emac_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(struct emac_board_info));
 	if (!ndev) {
-		dev_err(&pdev->dev, "could not allocate device.\n");
+		dev_err(&pdev->dev, "could yest allocate device.\n");
 		return -ENOMEM;
 	}
 
@@ -860,11 +860,11 @@ static int emac_probe(struct platform_device *pdev)
 		goto out_clk_disable_unprepare;
 	}
 
-	db->phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!db->phy_node)
-		db->phy_node = of_parse_phandle(np, "phy", 0);
-	if (!db->phy_node) {
-		dev_err(&pdev->dev, "no associated PHY\n");
+	db->phy_yesde = of_parse_phandle(np, "phy-handle", 0);
+	if (!db->phy_yesde)
+		db->phy_yesde = of_parse_phandle(np, "phy", 0);
+	if (!db->phy_yesde) {
+		dev_err(&pdev->dev, "yes associated PHY\n");
 		ret = -ENODEV;
 		goto out_release_sram;
 	}
@@ -874,7 +874,7 @@ static int emac_probe(struct platform_device *pdev)
 	if (!IS_ERR(mac_addr))
 		ether_addr_copy(ndev->dev_addr, mac_addr);
 
-	/* Check if the MAC address is valid, if not get a random one */
+	/* Check if the MAC address is valid, if yest get a random one */
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		eth_hw_addr_random(ndev);
 		dev_warn(&pdev->dev, "using random MAC address %pM\n",
@@ -913,7 +913,7 @@ out_clk_disable_unprepare:
 out_iounmap:
 	iounmap(db->membase);
 out:
-	dev_err(db->dev, "not found (%d).\n", ret);
+	dev_err(db->dev, "yest found (%d).\n", ret);
 
 	free_netdev(ndev);
 

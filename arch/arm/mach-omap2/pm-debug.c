@@ -9,8 +9,8 @@
  * Richard Woodruff <r-woodruff2@ti.com>
  * Tony Lindgren
  * Juha Yrjola
- * Amit Kucheria <amit.kucheria@nokia.com>
- * Igor Stoppa <igor.stoppa@nokia.com>
+ * Amit Kucheria <amit.kucheria@yeskia.com>
+ * Igor Stoppa <igor.stoppa@yeskia.com>
  * Jouni Hogander
  *
  * Based on pm.c for omap2

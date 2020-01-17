@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 	printf("KVM_CAP_MAX_VCPUS: %d\n", kvm_max_vcpus);
 
 	/*
-	 * Upstream KVM prior to 4.8 does not support KVM_CAP_MAX_VCPU_ID.
+	 * Upstream KVM prior to 4.8 does yest support KVM_CAP_MAX_VCPU_ID.
 	 * Userspace is supposed to use KVM_CAP_MAX_VCPUS as the maximum ID
 	 * in this case.
 	 */

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __LINUX_DECNET_NETFILTER_H
 #define __LINUX_DECNET_NETFILTER_H
 
@@ -24,7 +24,7 @@
 #define NF_DN_PRE_ROUTING	0
 /* If the packet is destined for this box. */
 #define NF_DN_LOCAL_IN		1
-/* If the packet is destined for another interface. */
+/* If the packet is destined for ayesther interface. */
 #define NF_DN_FORWARD		2
 /* Packets coming from a local process. */
 #define NF_DN_LOCAL_OUT		3

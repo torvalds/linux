@@ -55,7 +55,7 @@ static int ehci_platform_reset(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
 
-	ehci->has_synopsys_hc_bug = pdata->has_synopsys_hc_bug;
+	ehci->has_syyespsys_hc_bug = pdata->has_syyespsys_hc_bug;
 
 	if (pdata->pre_setup) {
 		retval = pdata->pre_setup(hcd);
@@ -68,7 +68,7 @@ static int ehci_platform_reset(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
-	if (pdata->no_io_watchdog)
+	if (pdata->yes_io_watchdog)
 		ehci->need_io_watchdog = 0;
 	return 0;
 }
@@ -158,26 +158,26 @@ static int ehci_platform_probe(struct platform_device *dev)
 	priv = hcd_to_ehci_priv(hcd);
 	ehci = hcd_to_ehci(hcd);
 
-	if (pdata == &ehci_platform_defaults && dev->dev.of_node) {
-		if (of_property_read_bool(dev->dev.of_node, "big-endian-regs"))
+	if (pdata == &ehci_platform_defaults && dev->dev.of_yesde) {
+		if (of_property_read_bool(dev->dev.of_yesde, "big-endian-regs"))
 			ehci->big_endian_mmio = 1;
 
-		if (of_property_read_bool(dev->dev.of_node, "big-endian-desc"))
+		if (of_property_read_bool(dev->dev.of_yesde, "big-endian-desc"))
 			ehci->big_endian_desc = 1;
 
-		if (of_property_read_bool(dev->dev.of_node, "big-endian"))
+		if (of_property_read_bool(dev->dev.of_yesde, "big-endian"))
 			ehci->big_endian_mmio = ehci->big_endian_desc = 1;
 
-		if (of_property_read_bool(dev->dev.of_node,
+		if (of_property_read_bool(dev->dev.of_yesde,
 					  "needs-reset-on-resume"))
 			priv->reset_on_resume = true;
 
-		if (of_property_read_bool(dev->dev.of_node,
+		if (of_property_read_bool(dev->dev.of_yesde,
 					  "has-transaction-translator"))
 			hcd->has_tt = 1;
 
 		for (clk = 0; clk < EHCI_MAX_CLKS; clk++) {
-			priv->clks[clk] = of_clk_get(dev->dev.of_node, clk);
+			priv->clks[clk] = of_clk_get(dev->dev.of_yesde, clk);
 			if (IS_ERR(priv->clks[clk])) {
 				err = PTR_ERR(priv->clks[clk]);
 				if (err == -EPROBE_DEFER)
@@ -210,7 +210,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 #ifndef CONFIG_USB_EHCI_BIG_ENDIAN_MMIO
 	if (ehci->big_endian_mmio) {
 		dev_err(&dev->dev,
-			"Error: CONFIG_USB_EHCI_BIG_ENDIAN_MMIO not set\n");
+			"Error: CONFIG_USB_EHCI_BIG_ENDIAN_MMIO yest set\n");
 		err = -EINVAL;
 		goto err_reset;
 	}
@@ -218,7 +218,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 #ifndef CONFIG_USB_EHCI_BIG_ENDIAN_DESC
 	if (ehci->big_endian_desc) {
 		dev_err(&dev->dev,
-			"Error: CONFIG_USB_EHCI_BIG_ENDIAN_DESC not set\n");
+			"Error: CONFIG_USB_EHCI_BIG_ENDIAN_DESC yest set\n");
 		err = -EINVAL;
 		goto err_reset;
 	}

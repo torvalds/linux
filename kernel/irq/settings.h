@@ -56,12 +56,12 @@ static inline void irq_settings_set_per_cpu(struct irq_desc *desc)
 	desc->status_use_accessors |= _IRQ_PER_CPU;
 }
 
-static inline void irq_settings_set_no_balancing(struct irq_desc *desc)
+static inline void irq_settings_set_yes_balancing(struct irq_desc *desc)
 {
 	desc->status_use_accessors |= _IRQ_NO_BALANCING;
 }
 
-static inline bool irq_settings_has_no_balance_set(struct irq_desc *desc)
+static inline bool irq_settings_has_yes_balance_set(struct irq_desc *desc)
 {
 	return desc->status_use_accessors & _IRQ_NO_BALANCING;
 }
@@ -98,12 +98,12 @@ static inline bool irq_settings_can_request(struct irq_desc *desc)
 	return !(desc->status_use_accessors & _IRQ_NOREQUEST);
 }
 
-static inline void irq_settings_clr_norequest(struct irq_desc *desc)
+static inline void irq_settings_clr_yesrequest(struct irq_desc *desc)
 {
 	desc->status_use_accessors &= ~_IRQ_NOREQUEST;
 }
 
-static inline void irq_settings_set_norequest(struct irq_desc *desc)
+static inline void irq_settings_set_yesrequest(struct irq_desc *desc)
 {
 	desc->status_use_accessors |= _IRQ_NOREQUEST;
 }
@@ -113,12 +113,12 @@ static inline bool irq_settings_can_thread(struct irq_desc *desc)
 	return !(desc->status_use_accessors & _IRQ_NOTHREAD);
 }
 
-static inline void irq_settings_clr_nothread(struct irq_desc *desc)
+static inline void irq_settings_clr_yesthread(struct irq_desc *desc)
 {
 	desc->status_use_accessors &= ~_IRQ_NOTHREAD;
 }
 
-static inline void irq_settings_set_nothread(struct irq_desc *desc)
+static inline void irq_settings_set_yesthread(struct irq_desc *desc)
 {
 	desc->status_use_accessors |= _IRQ_NOTHREAD;
 }
@@ -128,12 +128,12 @@ static inline bool irq_settings_can_probe(struct irq_desc *desc)
 	return !(desc->status_use_accessors & _IRQ_NOPROBE);
 }
 
-static inline void irq_settings_clr_noprobe(struct irq_desc *desc)
+static inline void irq_settings_clr_yesprobe(struct irq_desc *desc)
 {
 	desc->status_use_accessors &= ~_IRQ_NOPROBE;
 }
 
-static inline void irq_settings_set_noprobe(struct irq_desc *desc)
+static inline void irq_settings_set_yesprobe(struct irq_desc *desc)
 {
 	desc->status_use_accessors |= _IRQ_NOPROBE;
 }

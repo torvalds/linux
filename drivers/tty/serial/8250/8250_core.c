@@ -59,9 +59,9 @@ static unsigned int skip_txen_test; /* force skip of txen test at init time */
 
 #include <asm/serial.h>
 /*
- * SERIAL_PORT_DFNS tells us about built-in ports that have no
+ * SERIAL_PORT_DFNS tells us about built-in ports that have yes
  * standard enumeration mechanism.   Platforms that can find all
- * serial ports via mechanisms like ACPI or PCI need not supply it.
+ * serial ports via mechanisms like ACPI or PCI need yest supply it.
  */
 #ifndef SERIAL_PORT_DFNS
 #define SERIAL_PORT_DFNS
@@ -81,9 +81,9 @@ static unsigned int probe_rsa_count;
 #endif /* CONFIG_SERIAL_8250_RSA  */
 
 struct irq_info {
-	struct			hlist_node node;
+	struct			hlist_yesde yesde;
 	int			irq;
-	spinlock_t		lock;	/* Protects list not the hash */
+	spinlock_t		lock;	/* Protects list yest the hash */
 	struct list_head	*head;
 };
 
@@ -147,7 +147,7 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
  * handler that ensures that the IRQ line has been deasserted
  * before returning.  Failing to do this will result in the IRQ
  * line being stuck active, and, since ISA irqs are edge triggered,
- * no more IRQs will be seen.
+ * yes more IRQs will be seen.
  */
 static void serial_do_unlink(struct irq_info *i, struct uart_8250_port *up)
 {
@@ -162,9 +162,9 @@ static void serial_do_unlink(struct irq_info *i, struct uart_8250_port *up)
 		i->head = NULL;
 	}
 	spin_unlock_irq(&i->lock);
-	/* List empty so throw away the hash node */
+	/* List empty so throw away the hash yesde */
 	if (i->head == NULL) {
-		hlist_del(&i->node);
+		hlist_del(&i->yesde);
 		kfree(i);
 	}
 }
@@ -172,7 +172,7 @@ static void serial_do_unlink(struct irq_info *i, struct uart_8250_port *up)
 static int serial_link_irq_chain(struct uart_8250_port *up)
 {
 	struct hlist_head *h;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	struct irq_info *i;
 	int ret, irq_flags = up->port.flags & UPF_SHARE_IRQ ? IRQF_SHARED : 0;
 
@@ -181,7 +181,7 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 	h = &irq_lists[up->port.irq % NR_IRQ_HASH];
 
 	hlist_for_each(n, h) {
-		i = hlist_entry(n, struct irq_info, node);
+		i = hlist_entry(n, struct irq_info, yesde);
 		if (i->irq == up->port.irq)
 			break;
 	}
@@ -194,7 +194,7 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 		}
 		spin_lock_init(&i->lock);
 		i->irq = up->port.irq;
-		hlist_add_head(&i->node, h);
+		hlist_add_head(&i->yesde, h);
 	}
 	mutex_unlock(&hash_mutex);
 
@@ -222,11 +222,11 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 static void serial_unlink_irq_chain(struct uart_8250_port *up)
 {
 	/*
-	 * yes, some broken gcc emit "warning: 'i' may be used uninitialized"
-	 * but no, we are not going to take a patch that assigns NULL below.
+	 * no, some broken gcc emit "warning: 'i' may be used uninitialized"
+	 * but yes, we are yest going to take a patch that assigns NULL below.
 	 */
 	struct irq_info *i;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	struct hlist_head *h;
 
 	mutex_lock(&hash_mutex);
@@ -234,7 +234,7 @@ static void serial_unlink_irq_chain(struct uart_8250_port *up)
 	h = &irq_lists[up->port.irq % NR_IRQ_HASH];
 
 	hlist_for_each(n, h) {
-		i = hlist_entry(n, struct irq_info, node);
+		i = hlist_entry(n, struct irq_info, yesde);
 		if (i->irq == up->port.irq)
 			break;
 	}
@@ -250,7 +250,7 @@ static void serial_unlink_irq_chain(struct uart_8250_port *up)
 }
 
 /*
- * This function is used to handle ports that do not have an
+ * This function is used to handle ports that do yest have an
  * interrupt.  This doesn't work very well for 16450's, but gives
  * barely passable results for a 16550A.  (Although at the expense
  * of much CPU overhead).
@@ -402,11 +402,11 @@ static struct uart_8250_port serial8250_ports[UART_NR];
  * @line: serial line number
  *
  * This function retrieves struct uart_8250_port for the specific line.
- * This struct *must* *not* be used to perform a 8250 or serial core operation
- * which is not accessible otherwise. Its only purpose is to make the struct
+ * This struct *must* *yest* be used to perform a 8250 or serial core operation
+ * which is yest accessible otherwise. Its only purpose is to make the struct
  * accessible to the runtime-pm callbacks for context suspend/restore.
- * The lock assumption made here is none because runtime-pm suspend/resume
- * callbacks should not be invoked if there is any operation performed on the
+ * The lock assumption made here is yesne because runtime-pm suspend/resume
+ * callbacks should yest be invoked if there is any operation performed on the
  * port.
  */
 struct uart_8250_port *serial8250_get_port(int line)
@@ -540,7 +540,7 @@ static void __init serial8250_isa_init_ports(void)
 		struct uart_port *port = &up->port;
 
 		port->iobase   = old_serial_port[i].port;
-		port->irq      = irq_canonicalize(old_serial_port[i].irq);
+		port->irq      = irq_cayesnicalize(old_serial_port[i].irq);
 		port->irqflags = 0;
 		port->uartclk  = old_serial_port[i].baud_base * 16;
 		port->flags    = old_serial_port[i].flags;
@@ -610,7 +610,7 @@ static int univ8250_console_setup(struct console *co, char *options)
 }
 
 /**
- *	univ8250_console_match - non-standard console matching
+ *	univ8250_console_match - yesn-standard console matching
  *	@co:	  registering console
  *	@name:	  name from console command line
  *	@idx:	  index from console command line
@@ -623,9 +623,9 @@ static int univ8250_console_setup(struct console *co, char *options)
  *	replace it with the serial8250_console at 8250 driver init.
  *
  *	Performs console setup for a match (as required by interface)
- *	If no <options> are specified, then assume the h/w is already setup.
+ *	If yes <options> are specified, then assume the h/w is already setup.
  *
- *	Returns 0 if console matches; otherwise non-zero to use default matching
+ *	Returns 0 if console matches; otherwise yesn-zero to use default matching
  */
 static int univ8250_console_match(struct console *co, char *name, int idx,
 				  char *options)
@@ -694,7 +694,7 @@ static struct uart_driver serial8250_reg = {
 	.driver_name		= "serial",
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
-	.minor			= 64,
+	.miyesr			= 64,
 	.cons			= SERIAL8250_CONSOLE,
 };
 
@@ -1020,7 +1020,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 			uart->port.type = up->port.type;
 
 		/*
-		 * Only call mctrl_gpio_init(), if the device has no ACPI
+		 * Only call mctrl_gpio_init(), if the device has yes ACPI
 		 * companion device
 		 */
 		if (!has_acpi_companion(uart->port.dev)) {
@@ -1110,7 +1110,7 @@ EXPORT_SYMBOL(serial8250_register_8250_port);
  *	serial8250_unregister_port - remove a 16x50 serial port at runtime
  *	@line: serial line number
  *
- *	Remove one serial port.  This may not be called from interrupt
+ *	Remove one serial port.  This may yest be called from interrupt
  *	context.  We hand the port back to the our control.
  */
 void serial8250_unregister_port(int line)
@@ -1155,7 +1155,7 @@ static int __init serial8250_init(void)
 		nr_uarts, share_irqs ? "en" : "dis");
 
 #ifdef CONFIG_SPARC
-	ret = sunserial_register_minors(&serial8250_reg, UART_NR);
+	ret = sunserial_register_miyesrs(&serial8250_reg, UART_NR);
 #else
 	serial8250_reg.nr = UART_NR;
 	ret = uart_register_driver(&serial8250_reg);
@@ -1191,7 +1191,7 @@ unreg_pnp:
 	serial8250_pnp_exit();
 unreg_uart_drv:
 #ifdef CONFIG_SPARC
-	sunserial_unregister_minors(&serial8250_reg, UART_NR);
+	sunserial_unregister_miyesrs(&serial8250_reg, UART_NR);
 #else
 	uart_unregister_driver(&serial8250_reg);
 #endif
@@ -1204,7 +1204,7 @@ static void __exit serial8250_exit(void)
 	struct platform_device *isa_dev = serial8250_isa_devs;
 
 	/*
-	 * This tells serial8250_unregister_port() not to re-register
+	 * This tells serial8250_unregister_port() yest to re-register
 	 * the ports (thereby making serial8250_isa_driver permanently
 	 * in use.)
 	 */
@@ -1216,7 +1216,7 @@ static void __exit serial8250_exit(void)
 	serial8250_pnp_exit();
 
 #ifdef CONFIG_SPARC
-	sunserial_unregister_minors(&serial8250_reg, UART_NR);
+	sunserial_unregister_miyesrs(&serial8250_reg, UART_NR);
 #else
 	uart_unregister_driver(&serial8250_reg);
 #endif
@@ -1229,7 +1229,7 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Generic 8250/16x50 serial driver");
 
 module_param_hw(share_irqs, uint, other, 0644);
-MODULE_PARM_DESC(share_irqs, "Share IRQs with other non-8250/16x50 devices (unsafe)");
+MODULE_PARM_DESC(share_irqs, "Share IRQs with other yesn-8250/16x50 devices (unsafe)");
 
 module_param(nr_uarts, uint, 0644);
 MODULE_PARM_DESC(nr_uarts, "Maximum number of UARTs supported. (1-" __MODULE_STRING(CONFIG_SERIAL_8250_NR_UARTS) ")");

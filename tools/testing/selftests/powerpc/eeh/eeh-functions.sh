@@ -13,7 +13,7 @@ pe_ok() {
 	local sw_state="$(cut -d' ' -f2 < $path)"
 
 	# If EEH_PE_ISOLATED or EEH_PE_RECOVERING are set then the PE is in an
-	# error state or being recovered. Either way, not ok.
+	# error state or being recovered. Either way, yest ok.
 	if [ "$((sw_state & 0x3))" -ne 0 ] ; then
 		return 1
 	fi
@@ -49,8 +49,8 @@ eeh_one_dev() {
 	echo $dev >/sys/kernel/debug/powerpc/eeh_dev_break
 
 	# Force an EEH device check. If the kernel has already
-	# noticed the EEH (due to a driver poll or whatever), this
-	# is a no-op.
+	# yesticed the EEH (due to a driver poll or whatever), this
+	# is a yes-op.
 	echo $dev >/sys/kernel/debug/powerpc/eeh_dev_check
 
 	# Enforce a 30s timeout for recovery. Even the IPR, which is infamously

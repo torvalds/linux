@@ -16,7 +16,7 @@
  *
  * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
- * TODO: - NAT to a unique tuple, not to TCP source port
+ * TODO: - NAT to a unique tuple, yest to TCP source port
  * 	   (needs netfilter tuple reservation)
  */
 
@@ -88,7 +88,7 @@ static void pptp_nat_expected(struct nf_conn *ct,
 		nf_ct_expect_put(other_exp);
 		pr_debug("success\n");
 	} else {
-		pr_debug("not found!\n");
+		pr_debug("yest found!\n");
 	}
 
 	/* This must be a fresh one. */
@@ -144,15 +144,15 @@ pptp_outbound_pkt(struct sk_buff *skb,
 	case PPTP_OUT_CALL_REQUEST:
 		cid_off = offsetof(union pptp_ctrl_union, ocreq.callID);
 		/* FIXME: ideally we would want to reserve a call ID
-		 * here.  current netfilter NAT core is not able to do
-		 * this :( For now we use TCP source port. This breaks
+		 * here.  current netfilter NAT core is yest able to do
+		 * this :( For yesw we use TCP source port. This breaks
 		 * multiple calls within one control session */
 
 		/* save original call ID in nat_info */
 		nat_pptp_info->pns_call_id = ct_pptp_info->pns_call_id;
 
 		/* don't use tcph->source since we are at a DSTmanip
-		 * hook (e.g. PREROUTING) and pkt is not mangled yet */
+		 * hook (e.g. PREROUTING) and pkt is yest mangled yet */
 		new_callid = ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u.tcp.port;
 
 		/* save new call ID in ct info */
@@ -165,7 +165,7 @@ pptp_outbound_pkt(struct sk_buff *skb,
 		cid_off = offsetof(union pptp_ctrl_union, clrreq.callID);
 		break;
 	default:
-		pr_debug("unknown outbound packet 0x%04x:%s\n", msg,
+		pr_debug("unkyeswn outbound packet 0x%04x:%s\n", msg,
 			 msg <= PPTP_MSG_MAX ? pptp_msg_name[msg] :
 					       pptp_msg_name[0]);
 		/* fall through */
@@ -177,7 +177,7 @@ pptp_outbound_pkt(struct sk_buff *skb,
 	case PPTP_STOP_SESSION_REPLY:
 	case PPTP_ECHO_REQUEST:
 	case PPTP_ECHO_REPLY:
-		/* no need to alter packet */
+		/* yes need to alter packet */
 		return NF_ACCEPT;
 	}
 
@@ -268,7 +268,7 @@ pptp_inbound_pkt(struct sk_buff *skb,
 		pcid_off = offsetof(union pptp_ctrl_union, setlink.peersCallID);
 		break;
 	default:
-		pr_debug("unknown inbound packet %s\n",
+		pr_debug("unkyeswn inbound packet %s\n",
 			 msg <= PPTP_MSG_MAX ? pptp_msg_name[msg] :
 					       pptp_msg_name[0]);
 		/* fall through */
@@ -278,7 +278,7 @@ pptp_inbound_pkt(struct sk_buff *skb,
 	case PPTP_STOP_SESSION_REPLY:
 	case PPTP_ECHO_REQUEST:
 	case PPTP_ECHO_REPLY:
-		/* no need to alter packet */
+		/* yes need to alter packet */
 		return NF_ACCEPT;
 	}
 

@@ -10,7 +10,7 @@
 #include <linux/bug.h>
 #include <linux/cpumask.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
 #include <linux/kconfig.h>
@@ -57,14 +57,14 @@ static int pmu_parse_percpu_irq(struct arm_pmu *pmu, int irq)
 	return 0;
 }
 
-static bool pmu_has_irq_affinity(struct device_node *node)
+static bool pmu_has_irq_affinity(struct device_yesde *yesde)
 {
-	return !!of_find_property(node, "interrupt-affinity", NULL);
+	return !!of_find_property(yesde, "interrupt-affinity", NULL);
 }
 
-static int pmu_parse_irq_affinity(struct device_node *node, int i)
+static int pmu_parse_irq_affinity(struct device_yesde *yesde, int i)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int cpu;
 
 	/*
@@ -72,23 +72,23 @@ static int pmu_parse_irq_affinity(struct device_node *node, int i)
 	 * affinity matches our logical CPU order, as we used to assume.
 	 * This is fragile, so we'll warn in pmu_parse_irqs().
 	 */
-	if (!pmu_has_irq_affinity(node))
+	if (!pmu_has_irq_affinity(yesde))
 		return i;
 
-	dn = of_parse_phandle(node, "interrupt-affinity", i);
+	dn = of_parse_phandle(yesde, "interrupt-affinity", i);
 	if (!dn) {
 		pr_warn("failed to parse interrupt-affinity[%d] for %pOFn\n",
-			i, node);
+			i, yesde);
 		return -EINVAL;
 	}
 
-	cpu = of_cpu_node_to_id(dn);
+	cpu = of_cpu_yesde_to_id(dn);
 	if (cpu < 0) {
 		pr_warn("failed to find logical CPU for %pOFn\n", dn);
 		cpu = nr_cpu_ids;
 	}
 
-	of_node_put(dn);
+	of_yesde_put(dn);
 
 	return cpu;
 }
@@ -106,11 +106,11 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 	}
 
 	/*
-	 * In this case we have no idea which CPUs are covered by the PMU.
+	 * In this case we have yes idea which CPUs are covered by the PMU.
 	 * To match our prior behaviour, we assume all CPUs in this case.
 	 */
 	if (num_irqs == 0) {
-		pr_warn("no irqs for PMU, sampling events not supported\n");
+		pr_warn("yes irqs for PMU, sampling events yest supported\n");
 		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 		cpumask_setall(&pmu->supported_cpus);
 		return 0;
@@ -122,9 +122,9 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 			return pmu_parse_percpu_irq(pmu, irq);
 	}
 
-	if (nr_cpu_ids != 1 && !pmu_has_irq_affinity(pdev->dev.of_node)) {
-		pr_warn("no interrupt-affinity property for %pOF, guessing.\n",
-			pdev->dev.of_node);
+	if (nr_cpu_ids != 1 && !pmu_has_irq_affinity(pdev->dev.of_yesde)) {
+		pr_warn("yes interrupt-affinity property for %pOF, guessing.\n",
+			pdev->dev.of_yesde);
 	}
 
 	for (i = 0; i < num_irqs; i++) {
@@ -139,7 +139,7 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 			return -EINVAL;
 		}
 
-		cpu = pmu_parse_irq_affinity(pdev->dev.of_node, i);
+		cpu = pmu_parse_irq_affinity(pdev->dev.of_yesde, i);
 		if (cpu < 0)
 			return cpu;
 		if (cpu >= nr_cpu_ids)
@@ -193,7 +193,7 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 {
 	const struct of_device_id *of_id;
 	armpmu_init_fn init_fn;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct arm_pmu *pmu;
 	int ret = -ENODEV;
 
@@ -207,15 +207,15 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 	if (ret)
 		goto out_free;
 
-	if (node && (of_id = of_match_node(of_table, pdev->dev.of_node))) {
+	if (yesde && (of_id = of_match_yesde(of_table, pdev->dev.of_yesde))) {
 		init_fn = of_id->data;
 
-		pmu->secure_access = of_property_read_bool(pdev->dev.of_node,
+		pmu->secure_access = of_property_read_bool(pdev->dev.of_yesde,
 							   "secure-reg-access");
 
-		/* arm64 systems boot only as non-secure */
+		/* arm64 systems boot only as yesn-secure */
 		if (IS_ENABLED(CONFIG_ARM64) && pmu->secure_access) {
-			pr_warn("ignoring \"secure-reg-access\" property for arm64\n");
+			pr_warn("igyesring \"secure-reg-access\" property for arm64\n");
 			pmu->secure_access = false;
 		}
 
@@ -226,7 +226,7 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 	}
 
 	if (ret) {
-		pr_info("%pOF: failed to probe PMU!\n", node);
+		pr_info("%pOF: failed to probe PMU!\n", yesde);
 		goto out_free;
 	}
 
@@ -243,7 +243,7 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 out_free_irqs:
 	armpmu_free_irqs(pmu);
 out_free:
-	pr_info("%pOF: failed to register PMU devices!\n", node);
+	pr_info("%pOF: failed to register PMU devices!\n", yesde);
 	armpmu_free(pmu);
 	return ret;
 }

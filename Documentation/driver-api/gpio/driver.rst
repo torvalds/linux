@@ -15,9 +15,9 @@ Internal Representation of GPIOs
 
 A GPIO chip handles one or more GPIO lines. To be considered a GPIO chip, the
 lines must conform to the definition: General Purpose Input/Output. If the
-line is not general purpose, it is not GPIO and should not be handled by a
+line is yest general purpose, it is yest GPIO and should yest be handled by a
 GPIO chip. The use case is the indicative: certain lines in a system may be
-called GPIO but serve a very particular purpose thus not meeting the criteria
+called GPIO but serve a very particular purpose thus yest meeting the criteria
 of a general purpose I/O. On the other hand a LED driver line may be used as a
 GPIO and should therefore still be handled by a GPIO chip driver.
 
@@ -42,10 +42,10 @@ number). Although the integer representation is considered deprecated, it still
 has many users and thus needs to be maintained.
 
 So for example one platform could use global numbers 32-159 for GPIOs, with a
-controller defining 128 GPIOs at a "base" of 32 ; while another platform uses
-global numbers 0..63 with one set of GPIO controllers, 64-79 with another type
+controller defining 128 GPIOs at a "base" of 32 ; while ayesther platform uses
+global numbers 0..63 with one set of GPIO controllers, 64-79 with ayesther type
 of GPIO controller, and on one particular board 80-95 with an FPGA. The legacy
-numbers need not be contiguous; either of those platforms could also use numbers
+numbers need yest be contiguous; either of those platforms could also use numbers
 2000-2063 to identify GPIO lines in a bank of I2C GPIO expanders.
 
 
@@ -65,7 +65,7 @@ driver code:
  - optional line names array to identify lines
  - optional debugfs dump method (showing extra state information)
  - optional base number (will be automatically assigned if omitted)
- - optional label for diagnostics and GPIO chip mapping using platform data
+ - optional label for diagyesstics and GPIO chip mapping using platform data
 
 The code implementing a gpio_chip should support multiple instances of the
 controller, preferably using the driver model. That code will configure each
@@ -73,19 +73,19 @@ gpio_chip and issue gpiochip_add(), gpiochip_add_data(), or
 devm_gpiochip_add_data().  Removing a GPIO controller should be rare; use
 gpiochip_remove() when it is unavoidable.
 
-Often a gpio_chip is part of an instance-specific structure with states not
+Often a gpio_chip is part of an instance-specific structure with states yest
 exposed by the GPIO interfaces, such as addressing, power management, and more.
-Chips such as audio codecs will have complex non-GPIO states.
+Chips such as audio codecs will have complex yesn-GPIO states.
 
-Any debugfs dump method should normally ignore lines which haven't been
+Any debugfs dump method should yesrmally igyesre lines which haven't been
 requested. They can use gpiochip_is_requested(), which returns either
 NULL or the label associated with that GPIO line when it was requested.
 
-Realtime considerations: the GPIO driver should not use spinlock_t or any
+Realtime considerations: the GPIO driver should yest use spinlock_t or any
 sleepable APIs (like PM runtime) in its gpio_chip implementation (.get/.set
 and direction control callbacks) if it is expected to call GPIO APIs from
 atomic context on realtime kernels (inside hard IRQ handlers and similar
-contexts). Normally this should not be required.
+contexts). Normally this should yest be required.
 
 
 GPIO electrical configuration
@@ -101,7 +101,7 @@ the .set_config() callback. Currently this API supports setting:
 These settings are described below.
 
 The .set_config() callback uses the same enumerators and configuration
-semantics as the generic pin control drivers. This is not a coincidence: it is
+semantics as the generic pin control drivers. This is yest a coincidence: it is
 possible to assign the .set_config() to the function gpiochip_generic_config()
 which will result in pinctrl_gpio_set_config() being called and eventually
 ending up in the pin control back-end "behind" the GPIO controller, usually
@@ -127,15 +127,15 @@ the line, wait a little while and then sample the line again, so see if it
 still has the same value (low or high). This could also be repeated by a clever
 state machine, waiting for a line to become stable. In either case, it sets
 a certain number of milliseconds for debouncing, or just "on/off" if that time
-is not configurable.
+is yest configurable.
 
 
 GPIO lines with open drain/source support
 -----------------------------------------
 
-Open drain (CMOS) or open collector (TTL) means the line is not actively driven
+Open drain (CMOS) or open collector (TTL) means the line is yest actively driven
 high: instead you provide the drain/collector as output, so when the transistor
-is not open, it will present a high-impedance (tristate) to the external rail::
+is yest open, it will present a high-impedance (tristate) to the external rail::
 
 
    CMOS CONFIGURATION      TTL CONFIGURATION
@@ -146,7 +146,7 @@ is not open, it will present a high-impedance (tristate) to the external rail::
                 |                |\
                GND	           GND
 
-This configuration is normally used as a way to achieve one of two things:
+This configuration is yesrmally used as a way to achieve one of two things:
 
 - Level-shifting: to reach a logical level higher than that of the silicon
   where the output resides.
@@ -183,7 +183,7 @@ output. The "totem-pole" looks like so::
                      GND
 
 The desired output signal (e.g. coming directly from some GPIO output register)
-arrives at IN. The switches named "OD" and "OS" are normally closed, creating
+arrives at IN. The switches named "OD" and "OS" are yesrmally closed, creating
 a push-pull circuit.
 
 Consider the little "switches" named "OD" and "OS" that enable/disable the
@@ -194,7 +194,7 @@ high or low respectively. That is usually how software-controlled open
 drain/source works.
 
 Some GPIO hardware come in open drain / open source configuration. Some are
-hard-wired lines that will only support open drain or open source no matter
+hard-wired lines that will only support open drain or open source yes matter
 what: there is only one transistor there. Some are software-configurable:
 by flipping a bit in a register the output can be configured as open drain
 or open source, in practice by flicking open the switches labeled "OD" and "OS"
@@ -213,8 +213,8 @@ open source or push-pull. This will happen in response to the
 GPIO_OPEN_DRAIN or GPIO_OPEN_SOURCE flag set in the machine file, or coming
 from other hardware descriptions.
 
-If this state can not be configured in hardware, i.e. if the GPIO hardware does
-not support open drain/open source in hardware, the GPIO library will instead
+If this state can yest be configured in hardware, i.e. if the GPIO hardware does
+yest support open drain/open source in hardware, the GPIO library will instead
 use a trick: when a line is set as output, if the line is flagged as open
 drain, and the IN output value is low, it will be driven low as usual. But
 if the IN output value is set to high, it will instead *NOT* be driven high,
@@ -235,16 +235,16 @@ means that a pull up or pull-down resistor is available on the output of the
 GPIO line, and this resistor is software controlled.
 
 In discrete designs, a pull-up or pull-down resistor is simply soldered on
-the circuit board. This is not something we deal with or model in software. The
+the circuit board. This is yest something we deal with or model in software. The
 most you will think about these lines is that they will very likely be
 configured as open drain or open source (see the section above).
 
 The .set_config() callback can only turn pull up or down on and off, and will
-no have any semantic knowledge about the resistance used. It will only say
+yes have any semantic kyeswledge about the resistance used. It will only say
 switch a bit in a register enabling or disabling pull-up or pull-down.
 
 If the GPIO line supports shunting in different resistance values for the
-pull-up or pull-down resistor, the GPIO chip callback .set_config() will not
+pull-up or pull-down resistor, the GPIO chip callback .set_config() will yest
 suffice. For these complex use cases, a combined GPIO chip and pin controller
 need to be implemented, as the pin config interface of a pin controller
 supports more versatile control over electrical properties and can handle
@@ -268,11 +268,11 @@ irq_chip are orthogonal, and offering their services independent of each
 other.
 
 gpiod_to_irq() is just a convenience function to figure out the IRQ for a
-certain GPIO line and should not be relied upon to have been called before
+certain GPIO line and should yest be relied upon to have been called before
 the IRQ is used.
 
 Always prepare the hardware and make it ready for action in respective
-callbacks from the GPIO and irq_chip APIs. Do not rely on gpiod_to_irq() having
+callbacks from the GPIO and irq_chip APIs. Do yest rely on gpiod_to_irq() having
 been called first.
 
 We can divide GPIO irqchips in two broad categories:
@@ -284,19 +284,19 @@ We can divide GPIO irqchips in two broad categories:
   interrupt controller. This is modeled by an irqchip that will inspect bits
   inside the GPIO controller to figure out which line fired it. The irqchip
   part of the driver needs to inspect registers to figure this out and it
-  will likely also need to acknowledge that it is handling the interrupt
+  will likely also need to ackyeswledge that it is handling the interrupt
   by clearing some bit (sometime implicitly, by just reading a status
   register) and it will often need to set up the configuration such as
   edge sensitivity (rising or falling edge, or high/low level interrupt for
   example).
 
 - HIERARCHICAL INTERRUPT CHIPS: this means that each GPIO line has a dedicated
-  irq line to a parent interrupt controller one level up. There is no need
+  irq line to a parent interrupt controller one level up. There is yes need
   to inquire the GPIO hardware to figure out which line has fired, but it
-  may still be necessary to acknowledge the interrupt and set up configuration
+  may still be necessary to ackyeswledge the interrupt and set up configuration
   such as edge sensitivity.
 
-Realtime considerations: a realtime compliant GPIO driver should not use
+Realtime considerations: a realtime compliant GPIO driver should yest use
 spinlock_t or any sleepable APIs (like PM runtime) as part of its irqchip
 implementation.
 
@@ -325,17 +325,17 @@ Cascaded GPIO irqchips usually fall in one of three categories:
         chained_irq_exit(...);
 
   Chained GPIO irqchips typically can NOT set the .can_sleep flag on
-  struct gpio_chip, as everything happens directly in the callbacks: no
+  struct gpio_chip, as everything happens directly in the callbacks: yes
   slow bus traffic like I2C can be used.
 
-  Realtime considerations: Note that chained IRQ handlers will not be forced
+  Realtime considerations: Note that chained IRQ handlers will yest be forced
   threaded on -RT. As a result, spinlock_t or any sleepable APIs (like PM
   runtime) can't be used in a chained IRQ handler.
 
   If required (and if it can't be converted to the nested threaded GPIO irqchip,
   see below) a chained IRQ handler can be converted to generic irq handler and
   this way it will become a threaded IRQ handler on -RT and a hard IRQ handler
-  on non-RT (for example, see [3]).
+  on yesn-RT (for example, see [3]).
 
   The generic_handle_irq() is expected to be called with IRQ disabled,
   so the IRQ core will complain if it is called from an IRQ handler which is
@@ -350,7 +350,7 @@ Cascaded GPIO irqchips usually fall in one of three categories:
 		raw_spin_unlock_irqrestore(&bank->wa_lock, wa_lock_flags);
 
 - GENERIC CHAINED GPIO IRQCHIPS: these are the same as "CHAINED GPIO irqchips",
-  but chained IRQ handlers are not used. Instead GPIO IRQs dispatching is
+  but chained IRQ handlers are yest used. Instead GPIO IRQs dispatching is
   performed by generic IRQ handler which is configured using request_irq().
   The GPIO irqchip will then end up calling something like this sequence in
   its interrupt handler::
@@ -369,7 +369,7 @@ Cascaded GPIO irqchips usually fall in one of three categories:
   or SPI.
 
   Of course such drivers that need slow bus traffic to read out IRQ status and
-  similar, traffic which may in turn incur other IRQs to happen, cannot be
+  similar, traffic which may in turn incur other IRQs to happen, canyest be
   handled in a quick IRQ handler with IRQs disabled. Instead they need to spawn
   a thread and then mask the parent IRQ line until the interrupt is handled
   by the driver. The hallmark of this driver is to call something like
@@ -408,7 +408,7 @@ GPIO line index:
     ngpio-1, ngpio-1
 
 
-If some GPIO lines do not have corresponding IRQs, the bitmask valid_mask
+If some GPIO lines do yest have corresponding IRQs, the bitmask valid_mask
 and the flag need_valid_mask in gpio_irq_chip can be used to mask off some
 lines as invalid for associating with IRQs.
 
@@ -461,7 +461,7 @@ In this case the typical set-up will look like this::
   struct my_gpio {
       struct gpio_chip gc;
       struct irq_chip irq;
-      struct fwnode_handle *fwnode;
+      struct fwyesde_handle *fwyesde;
   };
 
   int irq; /* from platform etc */
@@ -480,14 +480,14 @@ In this case the typical set-up will look like this::
   girq->chip = &g->irq;
   girq->default_type = IRQ_TYPE_NONE;
   girq->handler = handle_bad_irq;
-  girq->fwnode = g->fwnode;
+  girq->fwyesde = g->fwyesde;
   girq->parent_domain = parent;
   girq->child_to_parent_hwirq = my_gpio_child_to_parent_hwirq;
 
   return devm_gpiochip_add_data(dev, &g->gc, g);
 
-As you can see pretty similar, but you do not supply a parent handler for
-the IRQ, instead a parent irqdomain, an fwnode for the hardware and
+As you can see pretty similar, but you do yest supply a parent handler for
+the IRQ, instead a parent irqdomain, an fwyesde for the hardware and
 a funcion .child_to_parent_hwirq() that has the purpose of looking up
 the parent hardware irq from a child (i.e. this gpio chip) hardware irq.
 As always it is good to look at examples in the kernel tree for advice
@@ -545,7 +545,7 @@ Locking IRQ usage
 
 Since GPIO and irq_chip are orthogonal, we can get conflicts between different
 use cases. For example a GPIO line used for IRQs should be an input line,
-it does not make sense to fire interrupts on an output GPIO.
+it does yest make sense to fire interrupts on an output GPIO.
 
 If there is competition inside the subsystem which side is using the
 resource (a certain GPIO line and register for example) it needs to deny
@@ -556,7 +556,7 @@ to mark the GPIO as being used as an IRQ::
 
 	int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
 
-This will prevent the use of non-irq related GPIO APIs until the GPIO IRQ lock
+This will prevent the use of yesn-irq related GPIO APIs until the GPIO IRQ lock
 is released::
 
 	void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset)
@@ -577,7 +577,7 @@ but occasionally switch that line over to drive output and then back to being
 an input with interrupts again. This happens on things like CEC (Consumer
 Electronics Control).
 
-When a GPIO is used as an IRQ signal, then gpiolib also needs to know if
+When a GPIO is used as an IRQ signal, then gpiolib also needs to kyesw if
 the IRQ is enabled or disabled. In order to inform gpiolib about this,
 the irqchip driver should call::
 
@@ -608,11 +608,11 @@ So, pay attention on above realtime considerations in the documentation.
 The following is a checklist to follow when preparing a driver for real-time
 compliance:
 
-- ensure spinlock_t is not used as part irq_chip implementation
-- ensure that sleepable APIs are not used as part irq_chip implementation
+- ensure spinlock_t is yest used as part irq_chip implementation
+- ensure that sleepable APIs are yest used as part irq_chip implementation
   If sleepable APIs have to be used, these can be done from the .irq_bus_lock()
   and .irq_bus_unlock() callbacks
-- Chained GPIO irqchips: ensure spinlock_t or any sleepable APIs are not used
+- Chained GPIO irqchips: ensure spinlock_t or any sleepable APIs are yest used
   from the chained IRQ handler
 - Generic chained GPIO irqchips: take care about generic_handle_irq() calls and
   apply corresponding work-around
@@ -645,6 +645,6 @@ functions to request and free descriptors::
 Descriptors requested with gpiochip_request_own_desc() must be released with
 gpiochip_free_own_desc().
 
-These functions must be used with care since they do not affect module use
-count. Do not use the functions to request gpio descriptors not owned by the
+These functions must be used with care since they do yest affect module use
+count. Do yest use the functions to request gpio descriptors yest owned by the
 calling driver.

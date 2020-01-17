@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -88,7 +88,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_transition(struct mod_hdcp *hdcp,
 	case H1_A45_AUTHENTICATED:
 		if (input->link_maintenance != PASS) {
 			/* 1A-07: consider invalid ri' a failure */
-			/* 1A-07a: consider read ri' not returned a failure */
+			/* 1A-07a: consider read ri' yest returned a failure */
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		}
@@ -153,7 +153,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_dp_transition(struct mod_hdcp *hdcp,
 	switch (current_state(hdcp)) {
 	case D1_A0_DETERMINE_RX_HDCP_CAPABLE:
 		if (input->bcaps_read != PASS) {
-			/* 1A-04: no authentication on bcaps read failure */
+			/* 1A-04: yes authentication on bcaps read failure */
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		} else if (input->hdcp_capable_dp != PASS) {

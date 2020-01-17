@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -45,7 +45,7 @@
 #define T6_MAX_AAD_SIZE 495
 
 
-/* Define following if h/w is not dropping the AAD and IV data before
+/* Define following if h/w is yest dropping the AAD and IV data before
  * giving the processed data
  */
 
@@ -105,7 +105,7 @@
 
 #define CHCR_SCMD_IVGEN_CTRL_HW             0
 #define CHCR_SCMD_IVGEN_CTRL_SW             1
-/* This are not really mac key size. They are intermediate values
+/* This are yest really mac key size. They are intermediate values
  * of sha engine and its size
  */
 #define CHCR_KEYCTX_MAC_KEY_SIZE_128        0
@@ -176,7 +176,7 @@ struct ablk_ctx {
 	unsigned int enckey_len;
 	unsigned char ciph_mode;
 	u8 key[CHCR_AES_MAX_KEY_LEN];
-	u8 nonce[4];
+	u8 yesnce[4];
 	u8 rrkey[AES_MAX_KEY_SIZE];
 };
 struct chcr_aead_reqctx {
@@ -230,7 +230,7 @@ struct chcr_aead_ctx {
 	struct crypto_aead *sw_cipher;
 	u8 salt[MAX_SALT];
 	u8 key[CHCR_AES_MAX_KEY_LEN];
-	u8 nonce[4];
+	u8 yesnce[4];
 	u16 hmac_ctrl;
 	u16 mayverify;
 	struct	__aead_ctx ctx[0];
@@ -267,7 +267,7 @@ struct chcr_hctx_per_wr {
 	u32 result;
 	u8 is_sg_map;
 	u8 imm;
-	/*Final callback called. Driver cannot rely on nbytes to decide
+	/*Final callback called. Driver canyest rely on nbytes to decide
 	 * final call
 	 */
 	u8 isfinal;

@@ -48,7 +48,7 @@ static DEFINE_SPINLOCK(cca_info_list_lock);
 /*
  * Simple check if the token is a valid CCA secure AES data key
  * token. If keybitsize is given, the bitsize of the key is
- * also checked. Returns 0 on success or errno value on failure.
+ * also checked. Returns 0 on success or erryes value on failure.
  */
 int cca_check_secaeskeytoken(debug_info_t *dbg, int dbflvl,
 			     const u8 *token, int keybitsize)
@@ -87,7 +87,7 @@ EXPORT_SYMBOL(cca_check_secaeskeytoken);
  * token. If keybitsize is given, the bitsize of the key is
  * also checked. If checkcpacfexport is enabled, the key is also
  * checked for the export flag to allow CPACF export.
- * Returns 0 on success or errno value on failure.
+ * Returns 0 on success or erryes value on failure.
  */
 int cca_check_secaescipherkey(debug_info_t *dbg, int dbflvl,
 			      const u8 *token, int keybitsize,
@@ -124,13 +124,13 @@ int cca_check_secaescipherkey(debug_info_t *dbg, int dbflvl,
 	}
 	if (t->plfver != 0x00 && t->plfver != 0x01) {
 		if (dbg)
-			DBF("%s token check failed, unknown plfver 0x%02x\n",
+			DBF("%s token check failed, unkyeswn plfver 0x%02x\n",
 			    __func__, (int) t->plfver);
 		return -EINVAL;
 	}
 	if (t->wpllen != 512 && t->wpllen != 576 && t->wpllen != 640) {
 		if (dbg)
-			DBF("%s token check failed, unknown wpllen %d\n",
+			DBF("%s token check failed, unkyeswn wpllen %d\n",
 			    __func__, (int) t->wpllen);
 		return -EINVAL;
 	}
@@ -175,7 +175,7 @@ EXPORT_SYMBOL(cca_check_secaescipherkey);
 /*
  * Allocate consecutive memory for request CPRB, request param
  * block, reply CPRB and reply param block and fill in values
- * for the common fields. Returns 0 on success or errno value
+ * for the common fields. Returns 0 on success or erryes value
  * on failure.
  */
 static int alloc_and_prep_cprbmem(size_t paramblen,
@@ -219,7 +219,7 @@ static int alloc_and_prep_cprbmem(size_t paramblen,
 
 /*
  * Free the cprb memory allocated with the function above.
- * If the scrub value is not zero, the memory is filled
+ * If the scrub value is yest zero, the memory is filled
  * with zeros before freeing (useful if there was some
  * clear key material in there).
  */
@@ -342,7 +342,7 @@ int cca_genseckey(u16 cardnr, u16 domain,
 		memcpy(preqparm->lv1.key_length, "KEYLN32 ", 8);
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keybitsize %d\n",
+		DEBUG_ERR("%s unkyeswn/unsupported keybitsize %d\n",
 			  __func__, keybitsize);
 		rc = -EINVAL;
 		goto out;
@@ -361,7 +361,7 @@ int cca_genseckey(u16 cardnr, u16 domain,
 	/* forward xcrb with request CPRB and reply CPRB to zcrypt dd */
 	rc = _zcrypt_send_cprb(&xcrb);
 	if (rc) {
-		DEBUG_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, errno %d\n",
+		DEBUG_ERR("%s zcrypt_send_cprb (cardnr=%d domain=%d) failed, erryes %d\n",
 			  __func__, (int) cardnr, (int) domain, rc);
 		goto out;
 	}
@@ -479,7 +479,7 @@ int cca_clr2seckey(u16 cardnr, u16 domain, u32 keybitsize,
 		keysize = 32;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keybitsize %d\n",
+		DEBUG_ERR("%s unkyeswn/unsupported keybitsize %d\n",
 			  __func__, keybitsize);
 		rc = -EINVAL;
 		goto out;
@@ -675,7 +675,7 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 			*protkeytype = PKEY_KEYTYPE_AES_256;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keylen %d\n",
+		DEBUG_ERR("%s unkyeswn/unsupported keylen %d\n",
 			  __func__, prepparm->lv3.keyblock.len);
 		rc = -EIO;
 		goto out;
@@ -809,7 +809,7 @@ int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 		break;
 	default:
 		DEBUG_ERR(
-			"%s unknown/unsupported keybitsize %d\n",
+			"%s unkyeswn/unsupported keybitsize %d\n",
 			__func__, keybitsize);
 		rc = -EINVAL;
 		goto out;
@@ -872,7 +872,7 @@ int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 	/* do some plausibility checks on the key block */
 	if (prepparm->kb.len < 120 + 5 * sizeof(uint16_t) ||
 	    prepparm->kb.len > 136 + 5 * sizeof(uint16_t)) {
-		DEBUG_ERR("%s reply with invalid or unknown key block\n",
+		DEBUG_ERR("%s reply with invalid or unkyeswn key block\n",
 			  __func__);
 		rc = -EIO;
 		goto out;
@@ -1039,13 +1039,13 @@ static int _ip_cprb_helper(u16 cardnr, u16 domain,
 	/* do some plausibility checks on the key block */
 	if (prepparm->kb.len < 120 + 5 * sizeof(uint16_t) ||
 	    prepparm->kb.len > 136 + 5 * sizeof(uint16_t)) {
-		DEBUG_ERR("%s reply with invalid or unknown key block\n",
+		DEBUG_ERR("%s reply with invalid or unkyeswn key block\n",
 			  __func__);
 		rc = -EIO;
 		goto out;
 	}
 
-	/* do not check the key here, it may be incomplete */
+	/* do yest check the key here, it may be incomplete */
 
 	/* copy the vlsc key token back */
 	t = (struct cipherkeytoken *) prepparm->kb.tlv1.key_token;
@@ -1222,7 +1222,7 @@ int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
 	preqparm->kb.len = keytoklen + 3 * sizeof(uint16_t);
 	preqparm->kb.cca_key_token_len = keytoklen + 2 * sizeof(uint16_t);
 	memcpy(preqparm->kb.cca_key_token, ckey, keytoklen);
-	/* now fill length of param block into cprb */
+	/* yesw fill length of param block into cprb */
 	preqcblk->req_parml = sizeof(struct aureqparm) + keytoklen;
 
 	/* fill xcrb struct */
@@ -1293,7 +1293,7 @@ int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
 			*protkeytype = PKEY_KEYTYPE_AES_256;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keylen %d\n",
+		DEBUG_ERR("%s unkyeswn/unsupported keylen %d\n",
 			  __func__, prepparm->vud.ckb.keylen);
 		rc = -EIO;
 		goto out;
@@ -1563,7 +1563,7 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 	struct cca_info ci;
 	int i, rc, oi = -1;
 
-	/* mkvp must not be zero, minhwtype needs to be >= 0 */
+	/* mkvp must yest be zero, minhwtype needs to be >= 0 */
 	if (mkvp == 0 || minhwtype < 0)
 		return -EINVAL;
 
@@ -1598,13 +1598,13 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 				}
 			}
 		} else {
-			/* Card is offline and/or not a CCA card. */
+			/* Card is offline and/or yest a CCA card. */
 			/* del mkvp entry from cache if it exists */
 			cca_info_cache_scrub(card, dom);
 		}
 	}
 	if (i >= MAX_ZDEV_ENTRIES_EXT) {
-		/* nothing found, so this time without cache */
+		/* yesthing found, so this time without cache */
 		for (i = 0; i < MAX_ZDEV_ENTRIES_EXT; i++) {
 			if (!(device_status[i].online &&
 			      device_status[i].functions & 0x04))
@@ -1741,7 +1741,7 @@ int cca_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
 			break;
 		/* loop 1st time: have # of eligible apqns in n */
 		if (!n) {
-			rc = -ENODEV; /* no eligible apqns found */
+			rc = -ENODEV; /* yes eligible apqns found */
 			break;
 		}
 		*nr_apqns = n;

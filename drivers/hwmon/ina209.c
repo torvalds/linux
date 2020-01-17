@@ -505,7 +505,7 @@ static int ina209_init_client(struct i2c_client *client,
 		if (pdata->shunt_uohms <= 0)
 			return -EINVAL;
 		shunt = pdata->shunt_uohms;
-	} else if (!of_property_read_u32(client->dev.of_node, "shunt-resistor",
+	} else if (!of_property_read_u32(client->dev.of_yesde, "shunt-resistor",
 					 &shunt)) {
 		if (shunt == 0)
 			return -EINVAL;

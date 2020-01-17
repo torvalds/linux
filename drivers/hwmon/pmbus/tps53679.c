@@ -2,8 +2,8 @@
 /*
  * Hardware monitoring driver for Texas Instruments TPS53679
  *
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Vadim Pasternak <vadimp@mellanox.com>
+ * Copyright (c) 2017 Mellayesx Techyeslogies. All rights reserved.
+ * Copyright (c) 2017 Vadim Pasternak <vadimp@mellayesx.com>
  */
 
 #include <linux/err.h>
@@ -106,6 +106,6 @@ static struct i2c_driver tps53679_driver = {
 
 module_i2c_driver(tps53679_driver);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellayesx.com>");
 MODULE_DESCRIPTION("PMBus driver for Texas Instruments TPS53679");
 MODULE_LICENSE("GPL");

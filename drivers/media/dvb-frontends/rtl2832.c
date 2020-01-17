@@ -942,17 +942,17 @@ err:
 	return ret;
 }
 
-static int rtl2832_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+static int rtl2832_pid_filter_ctrl(struct dvb_frontend *fe, int oyesff)
 {
 	struct rtl2832_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
 	int ret;
 	u8 u8tmp;
 
-	dev_dbg(&client->dev, "onoff=%d, slave_ts=%d\n", onoff, dev->slave_ts);
+	dev_dbg(&client->dev, "oyesff=%d, slave_ts=%d\n", oyesff, dev->slave_ts);
 
 	/* enable / disable PID filter */
-	if (onoff)
+	if (oyesff)
 		u8tmp = 0x80;
 	else
 		u8tmp = 0x00;
@@ -971,21 +971,21 @@ err:
 }
 
 static int rtl2832_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid,
-			      int onoff)
+			      int oyesff)
 {
 	struct rtl2832_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
 	int ret;
 	u8 buf[4];
 
-	dev_dbg(&client->dev, "index=%d pid=%04x onoff=%d slave_ts=%d\n",
-		index, pid, onoff, dev->slave_ts);
+	dev_dbg(&client->dev, "index=%d pid=%04x oyesff=%d slave_ts=%d\n",
+		index, pid, oyesff, dev->slave_ts);
 
 	/* skip invalid PIDs (0x2000) */
 	if (pid > 0x1fff || index > 32)
 		return 0;
 
-	if (onoff)
+	if (oyesff)
 		set_bit(index, &dev->filters);
 	else
 		clear_bit(index, &dev->filters);

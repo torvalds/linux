@@ -19,7 +19,7 @@
 #include <asm/sections.h>
 
 
-volatile unsigned long mem_err;		/* So we know an error occurred */
+volatile unsigned long mem_err;		/* So we kyesw an error occurred */
 
 /*
  * Probe memory in 4MB chunks, waiting for an error to tell us we've fallen

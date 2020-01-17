@@ -84,10 +84,10 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct rt2x00_ops *ops)
 	pci_set_master(pci_dev);
 
 	if (pci_set_mwi(pci_dev))
-		rt2x00_probe_err("MWI not available\n");
+		rt2x00_probe_err("MWI yest available\n");
 
 	if (dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32))) {
-		rt2x00_probe_err("PCI DMA not supported\n");
+		rt2x00_probe_err("PCI DMA yest supported\n");
 		retval = -EIO;
 		goto exit_release_regions;
 	}
@@ -120,7 +120,7 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct rt2x00_ops *ops)
 	/*
 	 * Because rt3290 chip use different efuse offset to read efuse data.
 	 * So before read efuse it need to indicate it is the
-	 * rt3290 or not.
+	 * rt3290 or yest.
 	 */
 	pci_read_config_word(pci_dev, PCI_DEVICE_ID, &chip);
 	rt2x00dev->chip.rt = chip;

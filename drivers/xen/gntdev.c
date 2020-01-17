@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
@@ -240,9 +240,9 @@ void gntdev_put_map(struct gntdev_priv *priv, struct gntdev_grant_map *map)
 	if (!refcount_dec_and_test(&map->users))
 		return;
 
-	if (map->notify.flags & UNMAP_NOTIFY_SEND_EVENT) {
-		notify_remote_via_evtchn(map->notify.event);
-		evtchn_put(map->notify.event);
+	if (map->yestify.flags & UNMAP_NOTIFY_SEND_EVENT) {
+		yestify_remote_via_evtchn(map->yestify.event);
+		evtchn_put(map->yestify.event);
 	}
 
 	if (map->pages && !use_ptemod)
@@ -264,7 +264,7 @@ static int find_grant_ptes(pte_t *pte, unsigned long addr, void *data)
 
 	/*
 	 * Set the PTE as special to force get_user_pages_fast() fall
-	 * back to the slow path.  If this is not supported as part of
+	 * back to the slow path.  If this is yest supported as part of
 	 * the grant map, it will be done afterwards.
 	 */
 	if (xen_feature(XENFEAT_gnttab_map_avail_bits))
@@ -357,13 +357,13 @@ static int __unmap_grant_pages(struct gntdev_grant_map *map, int offset,
 	int i, err = 0;
 	struct gntab_unmap_queue_data unmap_data;
 
-	if (map->notify.flags & UNMAP_NOTIFY_CLEAR_BYTE) {
-		int pgno = (map->notify.addr >> PAGE_SHIFT);
-		if (pgno >= offset && pgno < offset + pages) {
+	if (map->yestify.flags & UNMAP_NOTIFY_CLEAR_BYTE) {
+		int pgyes = (map->yestify.addr >> PAGE_SHIFT);
+		if (pgyes >= offset && pgyes < offset + pages) {
 			/* No need for kmap, pages are in lowmem */
-			uint8_t *tmp = pfn_to_kaddr(page_to_pfn(map->pages[pgno]));
-			tmp[map->notify.addr & (PAGE_SIZE-1)] = 0;
-			map->notify.flags &= ~UNMAP_NOTIFY_CLEAR_BYTE;
+			uint8_t *tmp = pfn_to_kaddr(page_to_pfn(map->pages[pgyes]));
+			tmp[map->yestify.addr & (PAGE_SIZE-1)] = 0;
+			map->yestify.flags &= ~UNMAP_NOTIFY_CLEAR_BYTE;
 		}
 	}
 
@@ -435,7 +435,7 @@ static void gntdev_vma_close(struct vm_area_struct *vma)
 	pr_debug("gntdev_vma_close %p\n", vma);
 	if (use_ptemod) {
 		WARN_ON(map->vma != vma);
-		mmu_interval_notifier_remove(&map->notifier);
+		mmu_interval_yestifier_remove(&map->yestifier);
 		map->vma = NULL;
 	}
 	vma->vm_private_data = NULL;
@@ -458,20 +458,20 @@ static const struct vm_operations_struct gntdev_vmops = {
 
 /* ------------------------------------------------------------------ */
 
-static bool gntdev_invalidate(struct mmu_interval_notifier *mn,
-			      const struct mmu_notifier_range *range,
+static bool gntdev_invalidate(struct mmu_interval_yestifier *mn,
+			      const struct mmu_yestifier_range *range,
 			      unsigned long cur_seq)
 {
 	struct gntdev_grant_map *map =
-		container_of(mn, struct gntdev_grant_map, notifier);
+		container_of(mn, struct gntdev_grant_map, yestifier);
 	unsigned long mstart, mend;
 	int err;
 
-	if (!mmu_notifier_range_blockable(range))
+	if (!mmu_yestifier_range_blockable(range))
 		return false;
 
 	/*
-	 * If the VMA is split or otherwise changed the notifier is not
+	 * If the VMA is split or otherwise changed the yestifier is yest
 	 * updated, but we don't want to process VA's outside the modified
 	 * VMA. FIXME: It would be much more understandable to just prevent
 	 * modifying the VMA in the first place.
@@ -494,13 +494,13 @@ static bool gntdev_invalidate(struct mmu_interval_notifier *mn,
 	return true;
 }
 
-static const struct mmu_interval_notifier_ops gntdev_mmu_ops = {
+static const struct mmu_interval_yestifier_ops gntdev_mmu_ops = {
 	.invalidate = gntdev_invalidate,
 };
 
 /* ------------------------------------------------------------------ */
 
-static int gntdev_open(struct inode *inode, struct file *flip)
+static int gntdev_open(struct iyesde *iyesde, struct file *flip)
 {
 	struct gntdev_priv *priv;
 
@@ -531,7 +531,7 @@ static int gntdev_open(struct inode *inode, struct file *flip)
 	return 0;
 }
 
-static int gntdev_release(struct inode *inode, struct file *flip)
+static int gntdev_release(struct iyesde *iyesde, struct file *flip)
 {
 	struct gntdev_priv *priv = flip->private_data;
 	struct gntdev_grant_map *map;
@@ -569,7 +569,7 @@ static long gntdev_ioctl_map_grant_ref(struct gntdev_priv *priv,
 		return -EINVAL;
 
 	err = -ENOMEM;
-	map = gntdev_alloc_map(priv, op.count, 0 /* This is not a dma-buf. */);
+	map = gntdev_alloc_map(priv, op.count, 0 /* This is yest a dma-buf. */);
 	if (!map)
 		return err;
 
@@ -646,9 +646,9 @@ static long gntdev_ioctl_get_offset_for_vaddr(struct gntdev_priv *priv,
 	return rv;
 }
 
-static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
+static long gntdev_ioctl_yestify(struct gntdev_priv *priv, void __user *u)
 {
-	struct ioctl_gntdev_unmap_notify op;
+	struct ioctl_gntdev_unmap_yestify op;
 	struct gntdev_grant_map *map;
 	int rc;
 	int out_flags;
@@ -661,10 +661,10 @@ static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
 		return -EINVAL;
 
 	/* We need to grab a reference to the event channel we are going to use
-	 * to send the notify before releasing the reference we may already have
+	 * to send the yestify before releasing the reference we may already have
 	 * (if someone has called this ioctl twice). This is required so that
-	 * it is possible to change the clear_byte part of the notification
-	 * without disturbing the event channel part, which may now be the last
+	 * it is possible to change the clear_byte part of the yestification
+	 * without disturbing the event channel part, which may yesw be the last
 	 * reference to that event channel.
 	 */
 	if (op.action & UNMAP_NOTIFY_SEND_EVENT) {
@@ -693,19 +693,19 @@ static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
 		goto unlock_out;
 	}
 
-	out_flags = map->notify.flags;
-	out_event = map->notify.event;
+	out_flags = map->yestify.flags;
+	out_event = map->yestify.event;
 
-	map->notify.flags = op.action;
-	map->notify.addr = op.index - (map->index << PAGE_SHIFT);
-	map->notify.event = op.event_channel_port;
+	map->yestify.flags = op.action;
+	map->yestify.addr = op.index - (map->index << PAGE_SHIFT);
+	map->yestify.event = op.event_channel_port;
 
 	rc = 0;
 
  unlock_out:
 	mutex_unlock(&priv->lock);
 
-	/* Drop the reference to the event channel we did not save in the map */
+	/* Drop the reference to the event channel we did yest save in the map */
 	if (out_flags & UNMAP_NOTIFY_SEND_EVENT)
 		evtchn_put(out_event);
 
@@ -929,7 +929,7 @@ static long gntdev_ioctl(struct file *flip,
 		return gntdev_ioctl_get_offset_for_vaddr(priv, ptr);
 
 	case IOCTL_GNTDEV_SET_UNMAP_NOTIFY:
-		return gntdev_ioctl_notify(priv, ptr);
+		return gntdev_ioctl_yestify(priv, ptr);
 
 	case IOCTL_GNTDEV_GRANT_COPY:
 		return gntdev_ioctl_grant_copy(priv, ptr);
@@ -949,7 +949,7 @@ static long gntdev_ioctl(struct file *flip,
 #endif
 
 	default:
-		pr_debug("priv %p, unknown cmd %x\n", priv, cmd);
+		pr_debug("priv %p, unkyeswn cmd %x\n", priv, cmd);
 		return -ENOIOCTLCMD;
 	}
 
@@ -998,8 +998,8 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 
 	if (use_ptemod) {
 		map->vma = vma;
-		err = mmu_interval_notifier_insert_locked(
-			&map->notifier, vma->vm_mm, vma->vm_start,
+		err = mmu_interval_yestifier_insert_locked(
+			&map->yestifier, vma->vm_mm, vma->vm_start,
 			vma->vm_end - vma->vm_start, &gntdev_mmu_ops);
 		if (err)
 			goto out_unlock_put;
@@ -1009,14 +1009,14 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	/*
 	 * gntdev takes the address of the PTE in find_grant_ptes() and passes
 	 * it to the hypervisor in gntdev_map_grant_pages(). The purpose of
-	 * the notifier is to prevent the hypervisor pointer to the PTE from
+	 * the yestifier is to prevent the hypervisor pointer to the PTE from
 	 * going stale.
 	 *
 	 * Since this vma's mappings can't be touched without the mmap_sem,
-	 * and we are holding it now, there is no need for the notifier_range
+	 * and we are holding it yesw, there is yes need for the yestifier_range
 	 * locking pattern.
 	 */
-	mmu_interval_read_begin(&map->notifier);
+	mmu_interval_read_begin(&map->yestifier);
 
 	if (use_ptemod) {
 		map->pages_vm_start = vma->vm_start;
@@ -1040,12 +1040,12 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	} else {
 #ifdef CONFIG_X86
 		/*
-		 * If the PTEs were not made special by the grant map
+		 * If the PTEs were yest made special by the grant map
 		 * hypercall, do so here.
 		 *
 		 * This is racy since the mapping is already visible
 		 * to userspace but userspace should be well-behaved
-		 * enough to not touch it until the mmap() call
+		 * eyesugh to yest touch it until the mmap() call
 		 * returns.
 		 */
 		if (!xen_feature(XENFEAT_gnttab_map_avail_bits)) {
@@ -1068,7 +1068,7 @@ out_put_map:
 	if (use_ptemod) {
 		unmap_grant_pages(map, 0, map->count);
 		if (map->vma) {
-			mmu_interval_notifier_remove(&map->notifier);
+			mmu_interval_yestifier_remove(&map->yestifier);
 			map->vma = NULL;
 		}
 	}
@@ -1085,7 +1085,7 @@ static const struct file_operations gntdev_fops = {
 };
 
 static struct miscdevice gntdev_miscdev = {
-	.minor        = MISC_DYNAMIC_MINOR,
+	.miyesr        = MISC_DYNAMIC_MINOR,
 	.name         = "xen/gntdev",
 	.fops         = &gntdev_fops,
 };
@@ -1103,7 +1103,7 @@ static int __init gntdev_init(void)
 
 	err = misc_register(&gntdev_miscdev);
 	if (err != 0) {
-		pr_err("Could not register gntdev device\n");
+		pr_err("Could yest register gntdev device\n");
 		return err;
 	}
 	return 0;

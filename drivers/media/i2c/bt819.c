@@ -6,7 +6,7 @@
  * Copyright (C) 1998 Dave Perks <dperks@ibm.net>
  *
  * Modifications for LML33/DC10plus unified driver
- * Copyright (C) 2000 Serguei Miridonov <mirsev@cicese.mx>
+ * Copyright (C) 2000 Serguei Miridoyesv <mirsev@cicese.mx>
  *
  * Changes by Ronald Bultje <rbultje@ronald.bitfreak.net>
  *    - moved over to linux>=2.4.x i2c protocol (9/9/2002)
@@ -42,7 +42,7 @@ struct bt819 {
 	struct v4l2_ctrl_handler hdl;
 	unsigned char reg[32];
 
-	v4l2_std_id norm;
+	v4l2_std_id yesrm;
 	int input;
 	int enable;
 };
@@ -97,7 +97,7 @@ static int bt819_write_block(struct bt819 *decoder, const u8 *data, unsigned int
 	/* the bt819 has an autoincrement function, use it if
 	 * the adapter understands raw I2C */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		/* do raw I2C, not smbus compatible */
+		/* do raw I2C, yest smbus compatible */
 		u8 block_data[32];
 		int block_len;
 
@@ -172,7 +172,7 @@ static int bt819_init(struct v4l2_subdev *sd)
 	};
 
 	struct bt819 *decoder = to_bt819(sd);
-	struct timing *timing = &timing_data[(decoder->norm & V4L2_STD_525_60) ? 1 : 0];
+	struct timing *timing = &timing_data[(decoder->yesrm & V4L2_STD_525_60) ? 1 : 0];
 
 	init[0x03 * 2 - 1] =
 	    (((timing->vdelay >> 8) & 0x03) << 6) |
@@ -186,7 +186,7 @@ static int bt819_init(struct v4l2_subdev *sd)
 	init[0x08 * 2 - 1] = timing->hscale >> 8;
 	init[0x09 * 2 - 1] = timing->hscale & 0xff;
 	/* 0x15 in array is address 0x19 */
-	init[0x15 * 2 - 1] = (decoder->norm & V4L2_STD_625_50) ? 115 : 93;	/* Chroma burst delay */
+	init[0x15 * 2 - 1] = (decoder->yesrm & V4L2_STD_625_50) ? 115 : 93;	/* Chroma burst delay */
 	/* reset */
 	bt819_write(decoder, 0x1f, 0x00);
 	mdelay(1);
@@ -237,13 +237,13 @@ static int bt819_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	struct bt819 *decoder = to_bt819(sd);
 	struct timing *timing = NULL;
 
-	v4l2_dbg(1, debug, sd, "set norm %llx\n", (unsigned long long)std);
+	v4l2_dbg(1, debug, sd, "set yesrm %llx\n", (unsigned long long)std);
 
-	if (sd->v4l2_dev == NULL || sd->v4l2_dev->notify == NULL)
-		v4l2_err(sd, "no notify found!\n");
+	if (sd->v4l2_dev == NULL || sd->v4l2_dev->yestify == NULL)
+		v4l2_err(sd, "yes yestify found!\n");
 
 	if (std & V4L2_STD_NTSC) {
-		v4l2_subdev_notify(sd, BT819_FIFO_RESET_LOW, NULL);
+		v4l2_subdev_yestify(sd, BT819_FIFO_RESET_LOW, NULL);
 		bt819_setbit(decoder, 0x01, 0, 1);
 		bt819_setbit(decoder, 0x01, 1, 0);
 		bt819_setbit(decoder, 0x01, 5, 0);
@@ -252,7 +252,7 @@ static int bt819_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 		/* bt819_setbit(decoder, 0x1a,  5, 1); */
 		timing = &timing_data[1];
 	} else if (std & V4L2_STD_PAL) {
-		v4l2_subdev_notify(sd, BT819_FIFO_RESET_LOW, NULL);
+		v4l2_subdev_yestify(sd, BT819_FIFO_RESET_LOW, NULL);
 		bt819_setbit(decoder, 0x01, 0, 1);
 		bt819_setbit(decoder, 0x01, 1, 1);
 		bt819_setbit(decoder, 0x01, 5, 1);
@@ -261,7 +261,7 @@ static int bt819_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 		/* bt819_setbit(decoder, 0x1a,  5, 0); */
 		timing = &timing_data[0];
 	} else {
-		v4l2_dbg(1, debug, sd, "unsupported norm %llx\n",
+		v4l2_dbg(1, debug, sd, "unsupported yesrm %llx\n",
 				(unsigned long long)std);
 		return -EINVAL;
 	}
@@ -276,8 +276,8 @@ static int bt819_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	bt819_write(decoder, 0x07, timing->hactive & 0xff);
 	bt819_write(decoder, 0x08, (timing->hscale >> 8) & 0xff);
 	bt819_write(decoder, 0x09, timing->hscale & 0xff);
-	decoder->norm = std;
-	v4l2_subdev_notify(sd, BT819_FIFO_RESET_HIGH, NULL);
+	decoder->yesrm = std;
+	v4l2_subdev_yestify(sd, BT819_FIFO_RESET_HIGH, NULL);
 	return 0;
 }
 
@@ -291,11 +291,11 @@ static int bt819_s_routing(struct v4l2_subdev *sd,
 	if (input > 7)
 		return -EINVAL;
 
-	if (sd->v4l2_dev == NULL || sd->v4l2_dev->notify == NULL)
-		v4l2_err(sd, "no notify found!\n");
+	if (sd->v4l2_dev == NULL || sd->v4l2_dev->yestify == NULL)
+		v4l2_err(sd, "yes yestify found!\n");
 
 	if (decoder->input != input) {
-		v4l2_subdev_notify(sd, BT819_FIFO_RESET_LOW, NULL);
+		v4l2_subdev_yestify(sd, BT819_FIFO_RESET_LOW, NULL);
 		decoder->input = input;
 		/* select mode */
 		if (decoder->input == 0) {
@@ -305,7 +305,7 @@ static int bt819_s_routing(struct v4l2_subdev *sd,
 			bt819_setbit(decoder, 0x0b, 6, 1);
 			bt819_setbit(decoder, 0x1a, 1, 0);
 		}
-		v4l2_subdev_notify(sd, BT819_FIFO_RESET_HIGH, NULL);
+		v4l2_subdev_yestify(sd, BT819_FIFO_RESET_HIGH, NULL);
 	}
 	return 0;
 }
@@ -411,14 +411,14 @@ static int bt819_probe(struct i2c_client *client,
 		break;
 	default:
 		v4l2_dbg(1, debug, sd,
-			"unknown chip version 0x%02x\n", ver);
+			"unkyeswn chip version 0x%02x\n", ver);
 		return -ENODEV;
 	}
 
 	v4l_info(client, "%s found @ 0x%x (%s)\n", name,
 			client->addr << 1, client->adapter->name);
 
-	decoder->norm = V4L2_STD_NTSC;
+	decoder->yesrm = V4L2_STD_NTSC;
 	decoder->input = 0;
 	decoder->enable = 1;
 

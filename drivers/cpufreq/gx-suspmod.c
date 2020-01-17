@@ -5,11 +5,11 @@
  *	(C) 2002 Hiroshi Miura   <miura@da-cha.org>
  *	All Rights Reserved
  *
- *      The author(s) of this software shall not be held liable for damages
+ *      The author(s) of this software shall yest be held liable for damages
  *      of any nature resulting due to the use of this software. This
- *      software is provided AS-IS with no warranties.
+ *      software is provided AS-IS with yes warranties.
  *
- * Theoretical note:
+ * Theoretical yeste:
  *
  *	(see Geode(tm) CS5530 manual (rev.4.1) page.56)
  *
@@ -75,7 +75,7 @@
 #include <linux/smp.h>
 #include <linux/cpufreq.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 
 #include <asm/cpu_device_id.h>
@@ -120,12 +120,12 @@ struct gxfreq_params {
 static struct gxfreq_params *gx_params;
 static int stock_freq;
 
-/* PCI bus clock - defaults to 30.000 if cpu_khz is not available */
+/* PCI bus clock - defaults to 30.000 if cpu_khz is yest available */
 static int pci_busclk;
 module_param(pci_busclk, int, 0444);
 
 /* maximum duration for which the cpu may be suspended
- * (32us * MAX_DURATION). If no parameter is given, this defaults
+ * (32us * MAX_DURATION). If yes parameter is given, this defaults
  * to 255.
  * Note that this leads to a maximum of 8 ms(!) where the CPU clock
  * is suspended -- processing power is just 0.39% of what it used to be,
@@ -189,7 +189,7 @@ static struct pci_dev * __init gx_detect_chipset(void)
 			return gx_pci;
 	}
 
-	pr_debug("error: no supported chipset found!\n");
+	pr_debug("error: yes supported chipset found!\n");
 	return NULL;
 }
 
@@ -290,7 +290,7 @@ static void gx_set_cpuspeed(struct cpufreq_policy *policy, unsigned int khz)
 			break;
 		default:
 			local_irq_restore(flags);
-			pr_debug("fatal: try to set unknown chipset.\n");
+			pr_debug("fatal: try to set unkyeswn chipset.\n");
 			return;
 		}
 	} else {
@@ -341,9 +341,9 @@ static int cpufreq_gx_verify(struct cpufreq_policy *policy)
 			stock_freq);
 
 	/* it needs to be assured that at least one supported frequency is
-	 * within policy->min and policy->max. If it is not, policy->max
+	 * within policy->min and policy->max. If it is yest, policy->max
 	 * needs to be increased until one frequency is supported.
-	 * policy->min may not be decreased, though. This way we guarantee a
+	 * policy->min may yest be decreased, though. This way we guarantee a
 	 * specific processing capacity.
 	 */
 	tmp_freq = gx_validate_speed(policy->min, &tmp1, &tmp2);

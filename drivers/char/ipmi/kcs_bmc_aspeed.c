@@ -6,7 +6,7 @@
 #define pr_fmt(fmt) "aspeed-kcs-bmc: " fmt
 
 #include <linux/atomic.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
@@ -91,7 +91,7 @@ static void aspeed_kcs_outb(struct kcs_bmc *kcs_bmc, u32 reg, u8 data)
 /*
  * AST_usrGuide_KCS.pdf
  * 2. Background:
- *   we note D for Data, and C for Cmd/Status, default rules are
+ *   we yeste D for Data, and C for Cmd/Status, default rules are
  *     A. KCS1 / KCS2 ( D / C:X / X+4 )
  *        D / C : CA0h / CA4h
  *        D / C : CA8h / CACh
@@ -241,15 +241,15 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 	u32 chan, addr;
 	int rc;
 
-	rc = of_property_read_u32(dev->of_node, "kcs_chan", &chan);
+	rc = of_property_read_u32(dev->of_yesde, "kcs_chan", &chan);
 	if ((rc != 0) || (chan == 0 || chan > KCS_CHANNEL_MAX)) {
-		dev_err(dev, "no valid 'kcs_chan' configured\n");
+		dev_err(dev, "yes valid 'kcs_chan' configured\n");
 		return -ENODEV;
 	}
 
-	rc = of_property_read_u32(dev->of_node, "kcs_addr", &addr);
+	rc = of_property_read_u32(dev->of_yesde, "kcs_addr", &addr);
 	if (rc) {
-		dev_err(dev, "no valid 'kcs_addr' configured\n");
+		dev_err(dev, "yes valid 'kcs_addr' configured\n");
 		return -ENODEV;
 	}
 
@@ -258,7 +258,7 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv = kcs_bmc_priv(kcs_bmc);
-	priv->map = syscon_node_to_regmap(dev->parent->of_node);
+	priv->map = syscon_yesde_to_regmap(dev->parent->of_yesde);
 	if (IS_ERR(priv->map)) {
 		dev_err(dev, "Couldn't get regmap\n");
 		return -ENODEV;

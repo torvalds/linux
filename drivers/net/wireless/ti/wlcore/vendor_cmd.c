@@ -55,7 +55,7 @@ wlcore_vendor_cmd_smart_config_start(struct wiphy *wiphy,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -90,7 +90,7 @@ wlcore_vendor_cmd_smart_config_stop(struct wiphy *wiphy,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -137,7 +137,7 @@ wlcore_vendor_cmd_smart_config_set_group_key(struct wiphy *wiphy,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 

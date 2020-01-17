@@ -524,7 +524,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	pr_debug("dev->win_size = %d\n", dev->win_size);
 
 	if(!dev->win_size) {
-		dev_err(&dev->p_dev->dev, "Cannot allocate memory window\n");
+		dev_err(&dev->p_dev->dev, "Canyest allocate memory window\n");
 		pcmciamtd_release(link);
 		return -ENODEV;
 	}
@@ -580,7 +580,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	}
 
 	if(!mtd) {
-		pr_debug("Can not find an MTD\n");
+		pr_debug("Can yest find an MTD\n");
 		pcmciamtd_release(link);
 		return -ENODEV;
 	}
@@ -605,9 +605,9 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	}
 
 	/* If the memory found is fits completely into the mapped PCMCIA window,
-	   use the faster non-remapping read/write functions */
+	   use the faster yesn-remapping read/write functions */
 	if(mtd->size <= dev->win_size) {
-		pr_debug("Using non remapping memory functions\n");
+		pr_debug("Using yesn remapping memory functions\n");
 		dev->pcmcia_map.map_priv_2 = (unsigned long)dev->win_base;
 		if (dev->pcmcia_map.bankwidth == 1) {
 			dev->pcmcia_map.read = pcmcia_read8;
@@ -624,7 +624,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 		map_destroy(mtd);
 		dev->mtd_info = NULL;
 		dev_err(&dev->p_dev->dev,
-			"Could not register the MTD device\n");
+			"Could yest register the MTD device\n");
 		pcmciamtd_release(link);
 		return -ENODEV;
 	}
@@ -703,7 +703,7 @@ static const struct pcmcia_device_id pcmciamtd_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("PRETEC", "  4MB SRAM CARD", 0xebf91155, 0x20b6bf17),
 	PCMCIA_DEVICE_PROD_ID12("SEIKO EPSON", "WWB101EN20", 0xf9876baf, 0xad0b207b),
 	PCMCIA_DEVICE_PROD_ID12("SEIKO EPSON", "WWB513EN20", 0xf9876baf, 0xe8d884ad),
-	PCMCIA_DEVICE_PROD_ID12("SMART Modular Technologies", " 4MB FLASH Card", 0x96fd8277, 0x737a5b05),
+	PCMCIA_DEVICE_PROD_ID12("SMART Modular Techyeslogies", " 4MB FLASH Card", 0x96fd8277, 0x737a5b05),
 	PCMCIA_DEVICE_PROD_ID12("Starfish, Inc.", "REX-3000", 0x05ddca47, 0xe7d67bca),
 	PCMCIA_DEVICE_PROD_ID12("Starfish, Inc.", "REX-4100", 0x05ddca47, 0x7bc32944),
 	/* the following was commented out in pcmcia-cs-3.2.7 */

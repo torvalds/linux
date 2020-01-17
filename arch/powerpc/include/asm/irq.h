@@ -17,7 +17,7 @@
 
 extern atomic_t ppc_n_lost_interrupts;
 
-/* This number is used when no interrupt has been assigned */
+/* This number is used when yes interrupt has been assigned */
 #define NO_IRQ			(0)
 
 /* Total number of virq in the platform */
@@ -28,7 +28,7 @@ extern atomic_t ppc_n_lost_interrupts;
 
 extern irq_hw_number_t virq_to_hw(unsigned int virq);
 
-static __inline__ int irq_canonicalize(int irq)
+static __inline__ int irq_cayesnicalize(int irq)
 {
 	return irq;
 }

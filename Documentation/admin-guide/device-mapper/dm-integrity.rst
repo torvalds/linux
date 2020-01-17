@@ -7,7 +7,7 @@ per-sector tags that can be used for storing integrity information.
 
 A general problem with storing integrity tags with every sector is that
 writing the sector and the integrity tag must be atomic - i.e. in case of
-crash, either both sector and integrity tag or none of them is written.
+crash, either both sector and integrity tag or yesne of them is written.
 
 To guarantee write atomicity, the dm-integrity target uses journal, it
 writes sector data and integrity tags into a journal, commits the journal
@@ -27,15 +27,15 @@ corruption on the disk or in the I/O path.
 
 There's an alternate mode of operation where dm-integrity uses bitmap
 instead of a journal. If a bit in the bitmap is 1, the corresponding
-region's data and integrity tags are not synchronized - if the machine
+region's data and integrity tags are yest synchronized - if the machine
 crashes, the unsynchronized regions will be recalculated. The bitmap mode
 is faster than the journal mode, because we don't have to write the data
 twice, but it is also less reliable, because if data corruption happens
-when the machine crashes, it may not be detected.
+when the machine crashes, it may yest be detected.
 
 When loading the target for the first time, the kernel driver will format
 the device. But it will only format the device if the superblock contains
-zeroes. If the superblock is neither valid nor zeroed, the dm-integrity
+zeroes. If the superblock is neither valid yesr zeroed, the dm-integrity
 target can't be loaded.
 
 To use the target for the first time:
@@ -65,23 +65,23 @@ Target arguments:
 
 	D - direct writes (without journal)
 		in this mode, journaling is
-		not used and data sectors and integrity tags are written
+		yest used and data sectors and integrity tags are written
 		separately. In case of crash, it is possible that the data
 		and integrity tag doesn't match.
 	J - journaled writes
 		data and integrity tags are written to the
 		journal and atomicity is guaranteed. In case of crash,
-		either both data and tag or none of them are written. The
+		either both data and tag or yesne of them are written. The
 		journaled mode degrades write throughput twice because the
 		data have to be written twice.
 	B - bitmap mode - data and metadata are written without any
 		synchronization, the driver maintains a bitmap of dirty
 		regions where data and metadata don't match. This mode can
 		only be used with internal hash.
-	R - recovery mode - in this mode, journal is not replayed,
-		checksums are not checked and writes to the device are not
+	R - recovery mode - in this mode, journal is yest replayed,
+		checksums are yest checked and writes to the device are yest
 		allowed. This mode is useful for data recovery if the
-		device cannot be activated in any of the other standard
+		device canyest be activated in any of the other standard
 		modes.
 
 5. the number of additional arguments
@@ -132,7 +132,7 @@ internal_hash:algorithm(:key)	(the key is optional)
 	"hmac(sha256):0123456789abcdef"), in this mode it will provide
 	cryptographic authentication of the data without encryption.
 
-	When this argument is not used, the integrity tags are accepted
+	When this argument is yest used, the integrity tags are accepted
 	from an upper layer target, such as dm-crypt. The upper layer
 	target should check the validity of the integrity tags.
 
@@ -158,7 +158,7 @@ journal_mac:algorithm(:key)	(the key is optional)
 	crc algorithm, to protect against malicious modification, use a
 	hmac algorithm with a key.
 
-	This option is not needed when using internal-hash because in this
+	This option is yest needed when using internal-hash because in this
 	mode, the integrity of journal entries is checked when replaying
 	the journal. Thus, modified sector number would be detected at
 	this stage.
@@ -166,7 +166,7 @@ journal_mac:algorithm(:key)	(the key is optional)
 block_size:number
 	The size of a data block in bytes.  The larger the block size the
 	less overhead there is for per-block integrity metadata.
-	Supported values are 512, 1024, 2048 and 4096 bytes.  If not
+	Supported values are 512, 1024, 2048 and 4096 bytes.  If yest
 	specified the default block size is 512 bytes.
 
 sectors_per_bit:number
@@ -179,21 +179,21 @@ bitmap_flush_interval:number
 
 fix_padding
 	Use a smaller padding of the tag area that is more
-	space-efficient. If this option is not present, large padding is
+	space-efficient. If this option is yest present, large padding is
 	used - that is for compatibility with older kernels.
 
 
 The journal mode (D/J), buffer_sectors, journal_watermark, commit_time can
 be changed when reloading the target (load an inactive table and swap the
-tables with suspend and resume). The other arguments should not be changed
+tables with suspend and resume). The other arguments should yest be changed
 when reloading the target because the layout of disk data depend on them
-and the reloaded target would be non-functional.
+and the reloaded target would be yesn-functional.
 
 
 The layout of the formatted block device:
 
 * reserved sectors
-    (they are not used by this target, they can be used for
+    (they are yest used by this target, they can be used for
     storing LUKS metadata or for other purpose), the size of the reserved
     area is specified in the target arguments
 
@@ -205,7 +205,7 @@ The layout of the formatted block device:
 	* the number of journal sections
 	* provided data sectors - the number of sectors that this target
 	  provides (i.e. the size of the device minus the size of all
-	  metadata and padding). The user of this target should not send
+	  metadata and padding). The user of this target should yest send
 	  bios that access data beyond the "provided data sectors" limit.
 	* flags
 	    SB_FLAG_HAVE_JOURNAL_MAC
@@ -251,7 +251,7 @@ The layout of the formatted block device:
 	512-byte sector of the journal ends with 8-byte commit id. If the
 	commit id matches on all sectors in a journal section, then it is
 	assumed that the section was written correctly. If the commit id
-	doesn't match, the section was written partially and it should not
+	doesn't match, the section was written partially and it should yest
 	be replayed.
 
 * one or more runs of interleaved tags and data.

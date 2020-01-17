@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/compiler.h>
 #include <linux/hrtimer.h>
@@ -19,7 +19,7 @@
 extern struct vdso_data *__get_datapage(void);
 extern struct vdso_data *__get_timerpage(void);
 
-static notrace unsigned int __vdso_read_begin(const struct vdso_data *vdata)
+static yestrace unsigned int __vdso_read_begin(const struct vdso_data *vdata)
 {
 	u32 seq;
 repeat:
@@ -31,7 +31,7 @@ repeat:
 	return seq;
 }
 
-static notrace unsigned int vdso_read_begin(const struct vdso_data *vdata)
+static yestrace unsigned int vdso_read_begin(const struct vdso_data *vdata)
 {
 	unsigned int seq;
 
@@ -41,13 +41,13 @@ static notrace unsigned int vdso_read_begin(const struct vdso_data *vdata)
 	return seq;
 }
 
-static notrace int vdso_read_retry(const struct vdso_data *vdata, u32 start)
+static yestrace int vdso_read_retry(const struct vdso_data *vdata, u32 start)
 {
 	smp_rmb();		/* Pairs with smp_wmb in vdso_write_begin */
 	return vdata->seq_count != start;
 }
 
-static notrace long clock_gettime_fallback(clockid_t _clkid,
+static yestrace long clock_gettime_fallback(clockid_t _clkid,
 					   struct __kernel_old_timespec *_ts)
 {
 	register struct __kernel_old_timespec *ts asm("$r1") = _ts;
@@ -63,7 +63,7 @@ static notrace long clock_gettime_fallback(clockid_t _clkid,
 	return ret;
 }
 
-static notrace int do_realtime_coarse(struct __kernel_old_timespec *ts,
+static yestrace int do_realtime_coarse(struct __kernel_old_timespec *ts,
 				      struct vdso_data *vdata)
 {
 	u32 seq;
@@ -78,7 +78,7 @@ static notrace int do_realtime_coarse(struct __kernel_old_timespec *ts,
 	return 0;
 }
 
-static notrace int do_monotonic_coarse(struct __kernel_old_timespec *ts,
+static yestrace int do_moyestonic_coarse(struct __kernel_old_timespec *ts,
 				       struct vdso_data *vdata)
 {
 	u32 seq;
@@ -98,22 +98,22 @@ static notrace int do_monotonic_coarse(struct __kernel_old_timespec *ts,
 	return 0;
 }
 
-static notrace inline u64 vgetsns(struct vdso_data *vdso)
+static yestrace inline u64 vgetsns(struct vdso_data *vdso)
 {
-	u32 cycle_now;
+	u32 cycle_yesw;
 	u32 cycle_delta;
 	u32 *timer_cycle_base;
 
 	timer_cycle_base =
 	    (u32 *) ((char *)__get_timerpage() + vdso->cycle_count_offset);
-	cycle_now = readl_relaxed(timer_cycle_base);
+	cycle_yesw = readl_relaxed(timer_cycle_base);
 	if (true == vdso->cycle_count_down)
-		cycle_now = ~(*timer_cycle_base);
-	cycle_delta = cycle_now - (u32) vdso->cs_cycle_last;
+		cycle_yesw = ~(*timer_cycle_base);
+	cycle_delta = cycle_yesw - (u32) vdso->cs_cycle_last;
 	return ((u64) cycle_delta & vdso->cs_mask) * vdso->cs_mult;
 }
 
-static notrace int do_realtime(struct __kernel_old_timespec *ts, struct vdso_data *vdata)
+static yestrace int do_realtime(struct __kernel_old_timespec *ts, struct vdso_data *vdata)
 {
 	unsigned count;
 	u64 ns;
@@ -131,7 +131,7 @@ static notrace int do_realtime(struct __kernel_old_timespec *ts, struct vdso_dat
 	return 0;
 }
 
-static notrace int do_monotonic(struct __kernel_old_timespec *ts, struct vdso_data *vdata)
+static yestrace int do_moyestonic(struct __kernel_old_timespec *ts, struct vdso_data *vdata)
 {
 	u64 ns;
 	u32 seq;
@@ -155,7 +155,7 @@ static notrace int do_monotonic(struct __kernel_old_timespec *ts, struct vdso_da
 	return 0;
 }
 
-notrace int __vdso_clock_gettime(clockid_t clkid, struct __kernel_old_timespec *ts)
+yestrace int __vdso_clock_gettime(clockid_t clkid, struct __kernel_old_timespec *ts)
 {
 	struct vdso_data *vdata;
 	int ret = -1;
@@ -169,13 +169,13 @@ notrace int __vdso_clock_gettime(clockid_t clkid, struct __kernel_old_timespec *
 		ret = do_realtime_coarse(ts, vdata);
 		break;
 	case CLOCK_MONOTONIC_COARSE:
-		ret = do_monotonic_coarse(ts, vdata);
+		ret = do_moyestonic_coarse(ts, vdata);
 		break;
 	case CLOCK_REALTIME:
 		ret = do_realtime(ts, vdata);
 		break;
 	case CLOCK_MONOTONIC:
-		ret = do_monotonic(ts, vdata);
+		ret = do_moyestonic(ts, vdata);
 		break;
 	default:
 		break;
@@ -187,7 +187,7 @@ notrace int __vdso_clock_gettime(clockid_t clkid, struct __kernel_old_timespec *
 	return ret;
 }
 
-static notrace int clock_getres_fallback(clockid_t _clk_id,
+static yestrace int clock_getres_fallback(clockid_t _clk_id,
 					  struct __kernel_old_timespec *_res)
 {
 	register clockid_t clk_id asm("$r0") = _clk_id;
@@ -203,7 +203,7 @@ static notrace int clock_getres_fallback(clockid_t _clk_id,
 	return ret;
 }
 
-notrace int __vdso_clock_getres(clockid_t clk_id, struct __kernel_old_timespec *res)
+yestrace int __vdso_clock_getres(clockid_t clk_id, struct __kernel_old_timespec *res)
 {
 	struct vdso_data *vdata = __get_datapage();
 
@@ -227,7 +227,7 @@ notrace int __vdso_clock_getres(clockid_t clk_id, struct __kernel_old_timespec *
 	return 0;
 }
 
-static notrace inline int gettimeofday_fallback(struct __kernel_old_timeval *_tv,
+static yestrace inline int gettimeofday_fallback(struct __kernel_old_timeval *_tv,
 						struct timezone *_tz)
 {
 	register struct __kernel_old_timeval *tv asm("$r0") = _tv;
@@ -243,7 +243,7 @@ static notrace inline int gettimeofday_fallback(struct __kernel_old_timeval *_tv
 	return ret;
 }
 
-notrace int __vdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz)
+yestrace int __vdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz)
 {
 	struct __kernel_old_timespec ts;
 	struct vdso_data *vdata;

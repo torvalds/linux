@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2018 ARM Limited
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techyeslogies
  * Author: Alex Smith <alex.smith@imgtec.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -180,25 +180,25 @@ static __always_inline u64 __arch_get_hw_counter(s32 clock_mode)
 #ifdef CONFIG_CLKSRC_MIPS_GIC
 	const struct vdso_data *data = get_vdso_data();
 #endif
-	u64 cycle_now;
+	u64 cycle_yesw;
 
 	switch (clock_mode) {
 #ifdef CONFIG_CSRC_R4K
 	case VDSO_CLOCK_R4K:
-		cycle_now = read_r4k_count();
+		cycle_yesw = read_r4k_count();
 		break;
 #endif
 #ifdef CONFIG_CLKSRC_MIPS_GIC
 	case VDSO_CLOCK_GIC:
-		cycle_now = read_gic_count(data);
+		cycle_yesw = read_gic_count(data);
 		break;
 #endif
 	default:
-		cycle_now = __VDSO_USE_SYSCALL;
+		cycle_yesw = __VDSO_USE_SYSCALL;
 		break;
 	}
 
-	return cycle_now;
+	return cycle_yesw;
 }
 
 static __always_inline const struct vdso_data *__arch_get_vdso_data(void)

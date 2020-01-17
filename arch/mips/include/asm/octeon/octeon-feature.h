@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -96,7 +96,7 @@ extern enum octeon_feature_bits __octeon_feature_bits;
 /**
  * octeon_has_crypto() - Check if this OCTEON has crypto acceleration support.
  *
- * Returns: Non-zero if the feature exists. Zero if the feature does not exist.
+ * Returns: Non-zero if the feature exists. Zero if the feature does yest exist.
  */
 static inline int octeon_has_crypto(void)
 {
@@ -111,7 +111,7 @@ static inline int octeon_has_crypto(void)
  * @feature: Feature to check for. This should always be a constant so the
  *		  compiler can remove the switch statement through optimization.
  *
- * Returns Non zero if the feature exists. Zero if the feature does not
+ * Returns Non zero if the feature exists. Zero if the feature does yest
  *	   exist.
  */
 static inline bool octeon_has_feature(enum octeon_feature feature)
@@ -124,7 +124,7 @@ static inline bool octeon_has_feature(enum octeon_feature feature)
 		if (OCTEON_IS_MODEL(OCTEON_CN6XXX)) {
 			union cvmx_mio_fus_dat2 fus_2;
 			fus_2.u64 = cvmx_read_csr(CVMX_MIO_FUS_DAT2);
-			return !fus_2.s.nocrypto && !fus_2.s.nomul && fus_2.s.dorm_crypto;
+			return !fus_2.s.yescrypto && !fus_2.s.yesmul && fus_2.s.dorm_crypto;
 		} else {
 			return false;
 		}

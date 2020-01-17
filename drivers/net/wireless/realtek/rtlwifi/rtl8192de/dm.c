@@ -372,7 +372,7 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 	if (rtlpriv->mac80211.opmode != NL80211_IFTYPE_STATION)
 		return;
 	RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "progress\n");
-	/* Decide the current status and if modify initial gain or not */
+	/* Decide the current status and if modify initial gain or yest */
 	if (rtlpriv->mac80211.link_state >= MAC80211_LINKED)
 		de_digtable->cursta_cstate = DIG_STA_CONNECT;
 	else
@@ -394,10 +394,10 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 		 "dm_DIG() Before: Recover_cnt=%d, rx_gain_min=%x\n",
 		 de_digtable->recover_cnt, de_digtable->rx_gain_min);
 
-	/* deal with abnormally large false alarm */
+	/* deal with abyesrmally large false alarm */
 	if (falsealm_cnt->cnt_all > 10000) {
 		RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
-			 "dm_DIG(): Abnormally false alarm case\n");
+			 "dm_DIG(): Abyesrmally false alarm case\n");
 
 		de_digtable->large_fa_hit++;
 		if (de_digtable->forbidden_igi < de_digtable->cur_igvalue) {
@@ -584,7 +584,7 @@ void rtl92d_dm_init_edca_turbo(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->dm.current_turbo_edca = false;
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_yesnbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
 }
 
@@ -618,7 +618,7 @@ static void rtl92d_dm_check_edca_turbo(struct ieee80211_hw *hw)
 			edca_be_dl |= 0x005e0000;
 	}
 
-	if ((!rtlpriv->dm.is_any_nonbepkts) &&
+	if ((!rtlpriv->dm.is_any_yesnbepkts) &&
 	    (!rtlpriv->dm.disable_framebursting)) {
 		cur_txok_cnt = rtlpriv->stats.txbytesunicast - last_txok_cnt;
 		cur_rxok_cnt = rtlpriv->stats.rxbytesunicast - last_rxok_cnt;
@@ -648,7 +648,7 @@ static void rtl92d_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	}
 
 exit:
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_yesnbepkts = false;
 	last_txok_cnt = rtlpriv->stats.txbytesunicast;
 	last_rxok_cnt = rtlpriv->stats.rxbytesunicast;
 }

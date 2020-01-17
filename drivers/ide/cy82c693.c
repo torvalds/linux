@@ -24,7 +24,7 @@
  *	trial and error!  By using a to low value will cause DMA timeouts
  *	and drop IDE performance, and by using a to high value will cause
  *	audio playback to scatter.
- *	If you know a better value or how to calc it, please let me know.
+ *	If you kyesw a better value or how to calc it, please let me kyesw.
  */
 
 /* twice the value written in cy82c693ub datasheet */
@@ -67,13 +67,13 @@ static void cy82c693_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	outb(data, CY82_DATA_PORT);
 
 	/*
-	 * note: below we set the value for Bus Master IDE TimeOut Register
-	 * I'm not absolutely sure what this does, but it solved my problem
-	 * with IDE DMA and sound, so I now can play sound and work with
+	 * yeste: below we set the value for Bus Master IDE TimeOut Register
+	 * I'm yest absolutely sure what this does, but it solved my problem
+	 * with IDE DMA and sound, so I yesw can play sound and work with
 	 * my IDE driver at the same time :-)
 	 *
-	 * If you know the correct (best) value for this register please
-	 * let me know - ASK
+	 * If you kyesw the correct (best) value for this register please
+	 * let me kyesw - ASK
 	 */
 
 	data = BUSMASTER_TIMEOUT;
@@ -95,7 +95,7 @@ static void cy82c693_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 		dev = pci_get_slot(dev->bus, dev->devfn+1);
 		if (!dev) {
 			printk(KERN_ERR "%s: tune_drive: "
-				"Cannot find secondary interface!\n",
+				"Canyest find secondary interface!\n",
 				drive->name);
 			return;
 		}
@@ -108,7 +108,7 @@ static void cy82c693_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	time_8 = clamp_val(t.act8b - 1, 0, 15) |
 		 (clamp_val(t.rec8b - 1, 0, 15) << 4);
 
-	/* now let's write  the clocks registers */
+	/* yesw let's write  the clocks registers */
 	if ((drive->dn & 1) == 0) {
 		/*
 		 * set master drive
@@ -121,7 +121,7 @@ static void cy82c693_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 		addrCtrl |= clamp_val(t.setup - 1, 0, 15);
 		pci_write_config_dword(dev, CY82_IDE_ADDRSETUP, addrCtrl);
 
-		/* now let's set the remaining registers */
+		/* yesw let's set the remaining registers */
 		pci_write_config_byte(dev, CY82_IDE_MASTER_IOR, time_16);
 		pci_write_config_byte(dev, CY82_IDE_MASTER_IOW, time_16);
 		pci_write_config_byte(dev, CY82_IDE_MASTER_8BIT, time_8);
@@ -137,7 +137,7 @@ static void cy82c693_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 		addrCtrl |= (clamp_val(t.setup - 1, 0, 15) << 4);
 		pci_write_config_dword(dev, CY82_IDE_ADDRSETUP, addrCtrl);
 
-		/* now let's set the remaining registers */
+		/* yesw let's set the remaining registers */
 		pci_write_config_byte(dev, CY82_IDE_SLAVE_IOR, time_16);
 		pci_write_config_byte(dev, CY82_IDE_SLAVE_IOW, time_16);
 		pci_write_config_byte(dev, CY82_IDE_SLAVE_8BIT, time_8);

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #ifndef __MLX5_LAG_MP_H__
 #define __MLX5_LAG_MP_H__
@@ -14,7 +14,7 @@ enum mlx5_lag_port_affinity {
 };
 
 struct lag_mp {
-	struct notifier_block     fib_nb;
+	struct yestifier_block     fib_nb;
 	struct fib_info           *mfi; /* used in tracking fib events */
 };
 

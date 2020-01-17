@@ -238,7 +238,7 @@ void vesa_store_edid(void)
 #ifdef CONFIG_FIRMWARE_EDID
 	struct biosregs ireg, oreg;
 
-	/* Apparently used as a nonsense token... */
+	/* Apparently used as a yesnsense token... */
 	memset(&boot_params.edid_info, 0x13, sizeof(boot_params.edid_info));
 
 	if (vginfo.version < 0x0200)
@@ -267,7 +267,7 @@ void vesa_store_edid(void)
 #endif /* CONFIG_FIRMWARE_EDID */
 }
 
-#endif /* not _WAKEUP */
+#endif /* yest _WAKEUP */
 
 static __videocard video_vesa =
 {

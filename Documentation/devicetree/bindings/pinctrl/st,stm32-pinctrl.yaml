@@ -40,7 +40,7 @@ properties:
     allOf:
       - $ref: "/schemas/types.yaml#/definitions/phandle-array"
     description: Should be phandle/offset/mask
-      - Phandle to the syscon node which includes IRQ mux selection.
+      - Phandle to the syscon yesde which includes IRQ mux selection.
       - The offset of the IRQ mux selection register.
       - The field mask of IRQ mux, needed if different of 0xf.
 
@@ -119,8 +119,8 @@ patternProperties:
       '^pins':
         type: object
         description: |
-          A pinctrl node should contain at least one subnode representing the
-          pinctrl group available on the machine. Each subnode will list the
+          A pinctrl yesde should contain at least one subyesde representing the
+          pinctrl group available on the machine. Each subyesde will list the
           pins it needs, and how they should be configured, with regard to muxer
           configuration, pullups, drive, output high/low and output speed.
         properties:

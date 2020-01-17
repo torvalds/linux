@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -8,7 +8,7 @@
 #include "helpers/helpers.h"
 
 static const char *cpu_vendor_table[X86_VENDOR_MAX] = {
-	"Unknown", "GenuineIntel", "AuthenticAMD", "HygonGenuine",
+	"Unkyeswn", "GenuineIntel", "AuthenticAMD", "HygonGenuine",
 };
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -41,22 +41,22 @@ cpuid_func(edx);
  *
  * Returns 0 on success or a negativ error code
  *
- * TBD: Should there be a cpuid alternative for this if /proc is not mounted?
+ * TBD: Should there be a cpuid alternative for this if /proc is yest mounted?
  */
 int get_cpu_info(struct cpupower_cpu_info *cpu_info)
 {
 	FILE *fp;
 	char value[64];
 	unsigned int proc, x;
-	unsigned int unknown = 0xffffff;
+	unsigned int unkyeswn = 0xffffff;
 	unsigned int cpuid_level, ext_cpuid_level;
 
 	int ret = -EINVAL;
 
 	cpu_info->vendor		= X86_VENDOR_UNKNOWN;
-	cpu_info->family		= unknown;
-	cpu_info->model			= unknown;
-	cpu_info->stepping		= unknown;
+	cpu_info->family		= unkyeswn;
+	cpu_info->model			= unkyeswn;
+	cpu_info->stepping		= unkyeswn;
 	cpu_info->caps			= 0;
 
 	fp = fopen("/proc/cpuinfo", "r");
@@ -93,9 +93,9 @@ int get_cpu_info(struct cpupower_cpu_info *cpu_info)
 
 			/* Exit -> all values must have been set */
 			if (cpu_info->vendor == X86_VENDOR_UNKNOWN ||
-			    cpu_info->family == unknown ||
-			    cpu_info->model == unknown ||
-			    cpu_info->stepping == unknown) {
+			    cpu_info->family == unkyeswn ||
+			    cpu_info->model == unkyeswn ||
+			    cpu_info->stepping == unkyeswn) {
 				ret = -EINVAL;
 				goto out;
 			}

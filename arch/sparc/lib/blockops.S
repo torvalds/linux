@@ -64,7 +64,7 @@ ENTRY(bzero_1page)
 	 add	%o0, 0x100, %o0
 
 	retl
-	 nop
+	 yesp
 ENDPROC(bzero_1page)
 EXPORT_SYMBOL(bzero_1page)
 
@@ -88,6 +88,6 @@ ENTRY(__copy_1page)
 	 add	%o1, 0x100, %o1
 
 	retl
-	 nop
+	 yesp
 ENDPROC(__copy_1page)
 EXPORT_SYMBOL(__copy_1page)

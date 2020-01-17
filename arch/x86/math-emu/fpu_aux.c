@@ -17,7 +17,7 @@
 #include "status_w.h"
 #include "control_w.h"
 
-static void fnop(void)
+static void fyesp(void)
 {
 }
 
@@ -25,9 +25,9 @@ static void fclex(void)
 {
 	partial_status &=
 	    ~(SW_Backward | SW_Summary | SW_Stack_Fault | SW_Precision |
-	      SW_Underflow | SW_Overflow | SW_Zero_Div | SW_Denorm_Op |
+	      SW_Underflow | SW_Overflow | SW_Zero_Div | SW_Deyesrm_Op |
 	      SW_Invalid);
-	no_ip_update = 1;
+	yes_ip_update = 1;
 }
 
 /* Needs to be externally visible */
@@ -48,7 +48,7 @@ void fpstate_init_soft(struct swregs_state *soft)
 	iaddr->offset = 0;
 	iaddr->selector = 0;
 	iaddr->opcode = 0;
-	soft->no_update = 1;
+	soft->yes_update = 1;
 }
 
 void finit(void)
@@ -57,11 +57,11 @@ void finit(void)
 }
 
 /*
- * These are nops on the i387..
+ * These are yesps on the i387..
  */
-#define feni fnop
-#define fdisi fnop
-#define fsetpm fnop
+#define feni fyesp
+#define fdisi fyesp
+#define fsetpm fyesp
 
 static FUNC const finit_table[] = {
 	feni, fdisi, fclex, finit,
@@ -76,7 +76,7 @@ void finit_(void)
 static void fstsw_ax(void)
 {
 	*(short *)&FPU_EAX = status_word();
-	no_ip_update = 1;
+	yes_ip_update = 1;
 }
 
 static FUNC const fstsw_table[] = {
@@ -89,14 +89,14 @@ void fstsw_(void)
 	(fstsw_table[FPU_rm]) ();
 }
 
-static FUNC const fp_nop_table[] = {
-	fnop, FPU_illegal, FPU_illegal, FPU_illegal,
+static FUNC const fp_yesp_table[] = {
+	fyesp, FPU_illegal, FPU_illegal, FPU_illegal,
 	FPU_illegal, FPU_illegal, FPU_illegal, FPU_illegal
 };
 
-void fp_nop(void)
+void fp_yesp(void)
 {
-	(fp_nop_table[FPU_rm]) ();
+	(fp_yesp_table[FPU_rm]) ();
 }
 
 void fld_i_(void)
@@ -248,7 +248,7 @@ void ffree_(void)
 
 void ffreep(void)
 {
-	/* ffree st(i) + pop - unofficial code */
+	/* ffree st(i) + pop - uyesfficial code */
 	FPU_settagi(FPU_rm, TAG_Empty);
 	FPU_pop();
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <linux/mpls.h>
@@ -16,7 +16,7 @@
 #include "main.h"
 #include "../nfp_net_repr.h"
 
-/* The kernel versions of TUNNEL_* are not ABI and therefore vulnerable
+/* The kernel versions of TUNNEL_* are yest ABI and therefore vulnerable
  * to change. Such changes will break our FW ABI.
  */
 #define NFP_FL_TUNNEL_CSUM			cpu_to_be16(0x01)
@@ -46,7 +46,7 @@ nfp_fl_push_mpls(struct nfp_fl_push_mpls *push_mpls,
 		return -EOPNOTSUPP;
 	}
 
-	/* Leave MPLS TC as a default value of 0 if not explicitly set. */
+	/* Leave MPLS TC as a default value of 0 if yest explicitly set. */
 	if (act->mpls_push.tc != ACT_MPLS_TC_NOT_SET)
 		mpls_lse |= act->mpls_push.tc << MPLS_LS_TC_SHIFT;
 
@@ -194,12 +194,12 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 	if (tun_type) {
 		/* Verify the egress netdev matches the tunnel type. */
 		if (!nfp_fl_netdev_is_tunnel_type(out_dev, tun_type)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: egress interface does not match the required tunnel type");
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: egress interface does yest match the required tunnel type");
 			return -EOPNOTSUPP;
 		}
 
 		if (*tun_out_cnt) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot offload more than one tunnel mirred output per filter");
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: canyest offload more than one tunnel mirred output per filter");
 			return -EOPNOTSUPP;
 		}
 		(*tun_out_cnt)++;
@@ -214,13 +214,13 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 		output->flags = cpu_to_be16(tmp_flags);
 		gid = nfp_flower_lag_get_output_id(app, out_dev);
 		if (gid < 0) {
-			NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot find group id for LAG action");
+			NL_SET_ERR_MSG_MOD(extack, "invalid entry: canyest find group id for LAG action");
 			return gid;
 		}
 		output->port = cpu_to_be32(NFP_FL_LAG_OUT | gid);
 	} else if (nfp_flower_internal_port_can_offload(app, out_dev)) {
 		if (!(priv->flower_ext_feats & NFP_FL_FEATS_PRE_TUN_RULES)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: pre-tunnel rules not supported in loaded firmware");
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: pre-tunnel rules yest supported in loaded firmware");
 			return -EOPNOTSUPP;
 		}
 
@@ -245,7 +245,7 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 		}
 
 		if (!nfp_netdev_is_nfp_repr(out_dev)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: egress interface is not an nfp port");
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: egress interface is yest an nfp port");
 			return -EOPNOTSUPP;
 		}
 
@@ -413,7 +413,7 @@ nfp_fl_set_ipv4_tun(struct nfp_app *app, struct nfp_fl_set_ipv4_tun *set_tun,
 	if (ip_tun->options_len &&
 	    (tun_type != NFP_FL_TUNNEL_GENEVE ||
 	    !(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE_OPT))) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support geneve options offload");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does yest support geneve options offload");
 		return -EOPNOTSUPP;
 	}
 
@@ -456,7 +456,7 @@ nfp_fl_set_ipv4_tun(struct nfp_app *app, struct nfp_fl_set_ipv4_tun *set_tun,
 
 	if (!(ip_tun->key.tun_flags & NFP_FL_TUNNEL_KEY) ||
 	    ip_tun->key.tun_flags & ~NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support tunnel flag offload");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does yest support tunnel flag offload");
 		return -EOPNOTSUPP;
 	}
 	set_tun->tun_flags = ip_tun->key.tun_flags;
@@ -744,7 +744,7 @@ static u32 nfp_fl_csum_l4_to_flag(u8 ip_proto)
 	case IPPROTO_UDP:
 		return TCA_CSUM_UPDATE_FLAG_UDP;
 	default:
-		/* All other protocols will be ignored by FW */
+		/* All other protocols will be igyesred by FW */
 		return 0;
 	}
 }
@@ -906,11 +906,11 @@ nfp_flower_output_action(struct nfp_app *app,
 	struct nfp_fl_output *output;
 	int err, prelag_size;
 
-	/* If csum_updated has not been reset by now, it means HW will
-	 * incorrectly update csums when they are not requested.
+	/* If csum_updated has yest been reset by yesw, it means HW will
+	 * incorrectly update csums when they are yest requested.
 	 */
 	if (*csum_updated) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: set actions without updating checksums are not supported");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: set actions without updating checksums are yest supported");
 		return -EOPNOTSUPP;
 	}
 
@@ -929,7 +929,7 @@ nfp_flower_output_action(struct nfp_app *app,
 
 	if (priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
 		/* nfp_fl_pre_lag returns -err or size of prelag action added.
-		 * This will be 0 if it is not egressing to a lag dev.
+		 * This will be 0 if it is yest egressing to a lag dev.
 		 */
 		prelag_size = nfp_fl_pre_lag(app, act, nfp_fl, *a_len, extack);
 		if (prelag_size < 0) {
@@ -1029,7 +1029,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 
 		/* Pre-tunnel action is required for tunnel encap.
 		 * This checks for next hop entries on NFP.
-		 * If none, the packet falls back before applying other actions.
+		 * If yesne, the packet falls back before applying other actions.
 		 */
 		if (*a_len + sizeof(struct nfp_fl_pre_tunnel) +
 		    sizeof(struct nfp_fl_set_ipv4_tun) > NFP_FL_MAX_A_SIZ) {
@@ -1062,7 +1062,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 			return -EOPNOTSUPP;
 		break;
 	case FLOW_ACTION_CSUM:
-		/* csum action requests recalc of something we have not fixed */
+		/* csum action requests recalc of something we have yest fixed */
 		if (act->csum_flags & ~*csum_updated) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: unsupported csum update action in action list");
 			return -EOPNOTSUPP;
@@ -1121,7 +1121,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		*pkt_host = true;
 		break;
 	default:
-		/* Currently we do not handle any other actions. */
+		/* Currently we do yest handle any other actions. */
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: unsupported action in action list");
 		return -EOPNOTSUPP;
 	}
@@ -1203,7 +1203,7 @@ int nfp_flower_compile_action(struct nfp_app *app,
 	}
 
 	/* We optimise when the action list is small, this can unfortunately
-	 * not happen once we have more than one action in the action list.
+	 * yest happen once we have more than one action in the action list.
 	 */
 	if (act_cnt > 1)
 		nfp_flow->meta.shortcut = cpu_to_be32(NFP_FL_SC_ACT_NULL);

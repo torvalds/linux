@@ -79,7 +79,7 @@
 #define DAS16CS_MISC2_LDIR		BIT(6)	/* 1=dio3:0 output; 0=input */
 #define DAS16CS_MISC2_TRGPOL		BIT(5)	/* 1=active lo; 0=hi */
 #define DAS16CS_MISC2_TRGSEL		BIT(4)	/* 1=edge; 0=level */
-#define DAS16CS_MISC2_FFNE		BIT(3)	/* ro - 1=FIFO not empty */
+#define DAS16CS_MISC2_FFNE		BIT(3)	/* ro - 1=FIFO yest empty */
 #define DAS16CS_MISC2_TRGCLR		BIT(3)	/* wo - 1=clr (monstable) */
 #define DAS16CS_MISC2_CLK2		BIT(2)	/* 1=10 MHz; 0=1 MHz */
 #define DAS16CS_MISC2_CTR1		BIT(1)	/* 1=int. 100 kHz; 0=ext. clk */
@@ -105,7 +105,7 @@ static const struct das16cs_board das16cs_boards[] = {
 		.device_id	= 0x4009,
 	}, {
 		.name		= "PC-CARD DAS16/16",
-		.device_id	= 0x0000,	/* unknown */
+		.device_id	= 0x0000,	/* unkyeswn */
 	},
 };
 
@@ -208,7 +208,7 @@ static int das16cs_ao_insn_write(struct comedi_device *dev,
 		outw(devpriv->misc1, dev->iobase + DAS16CS_MISC1_REG);
 		udelay(1);
 
-		/* raise the DACxCS line for the non-selected channel */
+		/* raise the DACxCS line for the yesn-selected channel */
 		misc1 = devpriv->misc1 & ~DAS16CS_MISC1_DAC_MASK;
 		if (chan)
 			misc1 |= DAS16CS_MISC1_DAC0CS;
@@ -313,7 +313,7 @@ static int das16cs_counter_insn_config(struct comedi_device *dev,
 			data[2] = I8254_OSC_BASE_100KHZ;
 		} else {
 			data[1] = 1;
-			data[2] = 0;	/* unknown */
+			data[2] = 0;	/* unkyeswn */
 		}
 		break;
 	default:

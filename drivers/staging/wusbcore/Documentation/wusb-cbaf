@@ -37,7 +37,7 @@ COMMAND/ARGS are
  get-cdid DEVICE
 
    Get the device ID associated to the HOST-CHID we sent with
-   'set-chid'. We might not know about it.
+   'set-chid'. We might yest kyesw about it.
 
  set-cc DEVICE
 
@@ -123,7 +123,7 @@ case $1 in
         help
         ;;
     *)
-        echo "E: Unknown usage" 1>&2
+        echo "E: Unkyeswn usage" 1>&2
         help 1>&2
         result=1
 esac

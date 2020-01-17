@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techyeslogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -360,7 +360,7 @@ void wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 	u8 msg_id;
 
 	msg_type = frame[0];
-	msg_id = frame[1];      /* seq no */
+	msg_id = frame[1];      /* seq yes */
 	frame += 4;
 	size -= 4;
 	rsp->type = 0;
@@ -369,13 +369,13 @@ void wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 	case WILC_RESP_MSG_TYPE_CONFIG_REPLY:
 		wilc_wlan_parse_response_frame(wilc, frame, size);
 		rsp->type = WILC_CFG_RSP;
-		rsp->seq_no = msg_id;
+		rsp->seq_yes = msg_id;
 		break;
 
 	case WILC_RESP_MSG_TYPE_STATUS_INFO:
 		wilc_wlan_parse_info_frame(wilc, frame);
 		rsp->type = WILC_CFG_RSP_STATUS;
-		rsp->seq_no = msg_id;
+		rsp->seq_yes = msg_id;
 		/* call host interface info parse as well */
 		wilc_gnrl_async_info_received(wilc, frame - 4, size + 4);
 		break;
@@ -389,7 +389,7 @@ void wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 		break;
 
 	default:
-		rsp->seq_no = msg_id;
+		rsp->seq_yes = msg_id;
 		break;
 	}
 }

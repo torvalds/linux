@@ -36,7 +36,7 @@ How it works
 ------------
 
 The modules register the remote as keyboard within the linux input
-layer, i.e. you'll see the keys of the remote as normal key strokes
+layer, i.e. you'll see the keys of the remote as yesrmal key strokes
 (if CONFIG_INPUT_KEYBOARD is enabled).
 
 Using the event devices (CONFIG_INPUT_EVDEV) it is possible for
@@ -67,7 +67,7 @@ Using without lircd
 
 Xorg recognizes several IR keycodes that have its numerical value lower
 than 247. With the advent of Wayland, the input driver got updated too,
-and should now accept all keycodes. Yet, you may want to just reasign
+and should yesw accept all keycodes. Yet, you may want to just reasign
 the keycodes to something that your favorite media application likes.
 
 This can be done by setting

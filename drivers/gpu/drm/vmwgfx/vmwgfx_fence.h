@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -97,7 +97,7 @@ extern int vmw_fence_obj_wait(struct vmw_fence_obj *fence,
 extern void vmw_fence_obj_flush(struct vmw_fence_obj *fence);
 
 extern int vmw_fence_create(struct vmw_fence_manager *fman,
-			    uint32_t seqno,
+			    uint32_t seqyes,
 			    struct vmw_fence_obj **p_fence);
 
 extern int vmw_user_fence_create(struct drm_file *file_priv,

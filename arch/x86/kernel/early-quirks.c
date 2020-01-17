@@ -82,7 +82,7 @@ static void __init nvidia_bugs(int num, int slot, int func)
 #ifdef CONFIG_ACPI
 #ifdef CONFIG_X86_IO_APIC
 	/*
-	 * Only applies to Nvidia root ports (bus 0) and not to
+	 * Only applies to Nvidia root ports (bus 0) and yest to
 	 * Nvidia graphics cards with PCI ports on secondary buses.
 	 */
 	if (num)
@@ -91,8 +91,8 @@ static void __init nvidia_bugs(int num, int slot, int func)
 	/*
 	 * All timer overrides on Nvidia are
 	 * wrong unless HPET is enabled.
-	 * Unfortunately that's not true on many Asus boards.
-	 * We don't know yet how to detect this automatically, but
+	 * Unfortunately that's yest true on many Asus boards.
+	 * We don't kyesw yet how to detect this automatically, but
 	 * at least allow a command line override.
 	 */
 	if (acpi_use_timer_override)
@@ -101,7 +101,7 @@ static void __init nvidia_bugs(int num, int slot, int func)
 	if (acpi_table_parse(ACPI_SIG_HPET, nvidia_hpet_check)) {
 		acpi_skip_timer_override = 1;
 		printk(KERN_INFO "Nvidia board "
-		       "detected. Ignoring ACPI "
+		       "detected. Igyesring ACPI "
 		       "timer override.\n");
 		printk(KERN_INFO "If you got timer trouble "
 			"try acpi_use_timer_override\n");
@@ -151,7 +151,7 @@ static void __init ati_bugs(int num, int slot, int func)
 
 	if (acpi_skip_timer_override) {
 		printk(KERN_INFO "SB4X0 revision 0x%x\n", d);
-		printk(KERN_INFO "Ignoring ACPI timer override.\n");
+		printk(KERN_INFO "Igyesring ACPI timer override.\n");
 		printk(KERN_INFO "If you got timer trouble "
 		       "try acpi_use_timer_override\n");
 	}
@@ -193,7 +193,7 @@ static void __init ati_bugs_contd(int num, int slot, int func)
 
 	if (acpi_skip_timer_override) {
 		printk(KERN_INFO "SB600 revision 0x%x\n", rev);
-		printk(KERN_INFO "Ignoring ACPI timer override.\n");
+		printk(KERN_INFO "Igyesring ACPI timer override.\n");
 		printk(KERN_INFO "If you got timer trouble "
 		       "try acpi_use_timer_override\n");
 	}
@@ -230,12 +230,12 @@ static void __init intel_remapping_check(int num, int slot, int func)
 
 /*
  * Systems with Intel graphics controllers set aside memory exclusively
- * for gfx driver use.  This memory is not marked in the E820 as reserved
+ * for gfx driver use.  This memory is yest marked in the E820 as reserved
  * or as RAM, and so is subject to overlap from E820 manipulation later
  * in the boot process.  On some systems, MMIO space is allocated on top,
  * despite the efforts of the "RAM buffer" approach, which simply rounds
  * memory boundaries up to 64M to try to catch space that may decode
- * as RAM and so is not suitable for MMIO.
+ * as RAM and so is yest suitable for MMIO.
  */
 
 #define KB(x)	((x) * 1024UL)
@@ -266,7 +266,7 @@ static resource_size_t __init i845_tseg_size(void)
 	case I845_TSEG_SIZE_512K:	return KB(512);
 	case I845_TSEG_SIZE_1M:		return MB(1);
 	default:
-		WARN(1, "Unknown ESMRAMC value: %x!\n", esmramc);
+		WARN(1, "Unkyeswn ESMRAMC value: %x!\n", esmramc);
 	}
 	return 0;
 }
@@ -362,10 +362,10 @@ static resource_size_t __init i830_stolen_size(int num, int slot, int func)
 	case I830_GMCH_GMS_STOLEN_512:	return KB(512);
 	case I830_GMCH_GMS_STOLEN_1024:	return MB(1);
 	case I830_GMCH_GMS_STOLEN_8192:	return MB(8);
-	/* local memory isn't part of the normal address space */
+	/* local memory isn't part of the yesrmal address space */
 	case I830_GMCH_GMS_LOCAL:	return 0;
 	default:
-		WARN(1, "Unknown GMCH_CTRL value: %x!\n", gmch_ctrl);
+		WARN(1, "Unkyeswn GMCH_CTRL value: %x!\n", gmch_ctrl);
 	}
 
 	return 0;
@@ -394,7 +394,7 @@ static resource_size_t __init gen3_stolen_size(int num, int slot, int func)
 	case INTEL_GMCH_GMS_STOLEN_224M:return MB(224);
 	case INTEL_GMCH_GMS_STOLEN_352M:return MB(352);
 	default:
-		WARN(1, "Unknown GMCH_CTRL value: %x!\n", gmch_ctrl);
+		WARN(1, "Unkyeswn GMCH_CTRL value: %x!\n", gmch_ctrl);
 	}
 
 	return 0;
@@ -607,7 +607,7 @@ static void __init force_disable_hpet(int num, int slot, int func)
 {
 #ifdef CONFIG_HPET_TIMER
 	boot_hpet_disable = true;
-	pr_info("x86/hpet: Will disable the HPET for this platform because it's not reliable\n");
+	pr_info("x86/hpet: Will disable the HPET for this platform because it's yest reliable\n");
 #endif
 }
 
@@ -636,7 +636,7 @@ static void __init apple_airport_reset(int bus, int slot, int func)
 
 		pmcsr = read_pci_config_16(bus, slot, func, BCM4331_PM_CAP + PCI_PM_CTRL);
 		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) != PCI_D0) {
-			pr_err("pci 0000:%02x:%02x.%d: Cannot power up Apple AirPort card\n",
+			pr_err("pci 0000:%02x:%02x.%d: Canyest power up Apple AirPort card\n",
 			       bus, slot, func);
 			return;
 		}
@@ -648,7 +648,7 @@ static void __init apple_airport_reset(int bus, int slot, int func)
 
 	mmio = early_ioremap(addr, BCM4331_MMIO_SIZE);
 	if (!mmio) {
-		pr_err("pci 0000:%02x:%02x.%d: Cannot iomap Apple AirPort card\n",
+		pr_err("pci 0000:%02x:%02x.%d: Canyest iomap Apple AirPort card\n",
 		       bus, slot, func);
 		return;
 	}
@@ -731,7 +731,7 @@ static void __init early_pci_scan_bus(int bus);
  *
  * Check the vendor & device ID against the early quirks table.
  *
- * If the device is single function, let early_pci_scan_bus() know so we don't
+ * If the device is single function, let early_pci_scan_bus() kyesw so we don't
  * poke at this device again.
  */
 static int __init check_dev_quirk(int num, int slot, int func)
@@ -746,7 +746,7 @@ static int __init check_dev_quirk(int num, int slot, int func)
 	class = read_pci_config_16(num, slot, func, PCI_CLASS_DEVICE);
 
 	if (class == 0xffff)
-		return -1; /* no class, treat as single function */
+		return -1; /* yes class, treat as single function */
 
 	vendor = read_pci_config_16(num, slot, func, PCI_VENDOR_ID);
 

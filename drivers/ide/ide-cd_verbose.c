@@ -19,7 +19,7 @@ void ide_cd_log_error(const char *name, struct request *failed_command,
 		      struct request_sense *sense)
 {
 	/* Suppress printing unit attention and `in progress of becoming ready'
-	   errors when we're not being verbose. */
+	   errors when we're yest being verbose. */
 	if (sense->sense_key == UNIT_ATTENTION ||
 	    (sense->sense_key == NOT_READY && (sense->asc == 4 ||
 						sense->asc == 0x3a)))
@@ -121,7 +121,7 @@ static const struct {
 	{ 0x000014, "Play operation stopped due to error" },
 	{ 0x000015, "No current audio status to return" },
 	{ 0x010c0a, "Write error - padding blocks added" },
-	{ 0x011700, "Recovered data with no error correction applied" },
+	{ 0x011700, "Recovered data with yes error correction applied" },
 	{ 0x011701, "Recovered data with retries" },
 	{ 0x011702, "Recovered data with positive head offset" },
 	{ 0x011703, "Recovered data with negative head offset" },
@@ -138,18 +138,18 @@ static const struct {
 		    " - Predicted media failure" },
 	{ 0x015dff, "Failure prediction threshold exceeded - False" },
 	{ 0x017301, "Power calibration area almost full" },
-	{ 0x020400, "Logical unit not ready - cause not reportable" },
+	{ 0x020400, "Logical unit yest ready - cause yest reportable" },
 	/* Following is misspelled in ATAPI 2.6, _and_ in Mt. Fuji */
-	{ 0x020401, "Logical unit not ready"
+	{ 0x020401, "Logical unit yest ready"
 		    " - in progress [sic] of becoming ready" },
-	{ 0x020402, "Logical unit not ready - initializing command required" },
-	{ 0x020403, "Logical unit not ready - manual intervention required" },
-	{ 0x020404, "Logical unit not ready - format in progress" },
-	{ 0x020407, "Logical unit not ready - operation in progress" },
-	{ 0x020408, "Logical unit not ready - long write in progress" },
+	{ 0x020402, "Logical unit yest ready - initializing command required" },
+	{ 0x020403, "Logical unit yest ready - manual intervention required" },
+	{ 0x020404, "Logical unit yest ready - format in progress" },
+	{ 0x020407, "Logical unit yest ready - operation in progress" },
+	{ 0x020408, "Logical unit yest ready - long write in progress" },
 	{ 0x020600, "No reference position found (media may be upside down)" },
 	{ 0x023000, "Incompatible medium installed" },
-	{ 0x023a00, "Medium not present" },
+	{ 0x023a00, "Medium yest present" },
 	{ 0x025300, "Media load or eject failed" },
 	{ 0x025700, "Unable to recover table of contents" },
 	{ 0x030300, "Peripheral device write fault" },
@@ -161,7 +161,7 @@ static const struct {
 	{ 0x030c03, "Write error - recommend reassignment" },
 	{ 0x030c04, "Compression check miscompare error" },
 	{ 0x030c05, "Data expansion occurred during compress" },
-	{ 0x030c06, "Block not compressible" },
+	{ 0x030c06, "Block yest compressible" },
 	{ 0x030c07, "Write error - recovery needed" },
 	{ 0x030c08, "Write error - recovery failed" },
 	{ 0x030c09, "Write error - loss of streaming" },
@@ -190,7 +190,7 @@ static const struct {
 	{ 0x041501, "Mechanical positioning or changer error" },
 	{ 0x041502, "Positioning error detected by read of medium" },
 	{ 0x043c00, "Mechanical positioning or changer error" },
-	{ 0x044000, "Diagnostic failure on component (ASCQ)" },
+	{ 0x044000, "Diagyesstic failure on component (ASCQ)" },
 	{ 0x044400, "Internal CD/DVD logical unit failure" },
 	{ 0x04b600, "Media load mechanism failed" },
 	{ 0x051a00, "Parameter list length error" },
@@ -199,15 +199,15 @@ static const struct {
 	{ 0x052102, "Invalid address for write" },
 	{ 0x052400, "Invalid field in command packet" },
 	{ 0x052600, "Invalid field in parameter list" },
-	{ 0x052601, "Parameter not supported" },
+	{ 0x052601, "Parameter yest supported" },
 	{ 0x052602, "Parameter value invalid" },
 	{ 0x052700, "Write protected media" },
 	{ 0x052c00, "Command sequence error" },
-	{ 0x052c03, "Current program area is not empty" },
+	{ 0x052c03, "Current program area is yest empty" },
 	{ 0x052c04, "Current program area is empty" },
-	{ 0x053001, "Cannot read medium - unknown format" },
-	{ 0x053002, "Cannot read medium - incompatible format" },
-	{ 0x053900, "Saving parameters not supported" },
+	{ 0x053001, "Canyest read medium - unkyeswn format" },
+	{ 0x053002, "Canyest read medium - incompatible format" },
+	{ 0x053900, "Saving parameters yest supported" },
 	{ 0x054e00, "Overlapped commands attempted" },
 	{ 0x055302, "Medium removal prevented" },
 	{ 0x055500, "System resource failure" },
@@ -215,9 +215,9 @@ static const struct {
 	{ 0x056400, "Illegal mode for this track or incompatible medium" },
 	{ 0x056f00, "Copy protection key exchange failure"
 		    " - Authentication failure" },
-	{ 0x056f01, "Copy protection key exchange failure - Key not present" },
+	{ 0x056f01, "Copy protection key exchange failure - Key yest present" },
 	{ 0x056f02, "Copy protection key exchange failure"
-		     " - Key not established" },
+		     " - Key yest established" },
 	{ 0x056f03, "Read of scrambled sector without authentication" },
 	{ 0x056f04, "Media region code is mismatched to logical unit" },
 	{ 0x056f05, "Drive region must be permanent"
@@ -236,19 +236,19 @@ static const struct {
 	{ 0x065a00, "Operator request or state change input (unspecified)" },
 	{ 0x065a01, "Operator medium removal request" },
 	{ 0x0bb900, "Play operation aborted" },
-	/* Here we use 0xff for the key (not a valid key) to signify
+	/* Here we use 0xff for the key (yest a valid key) to signify
 	 * that these can have _any_ key value associated with them... */
 	{ 0xff0401, "Logical unit is in process of becoming ready" },
-	{ 0xff0400, "Logical unit not ready, cause not reportable" },
-	{ 0xff0402, "Logical unit not ready, initializing command required" },
-	{ 0xff0403, "Logical unit not ready, manual intervention required" },
-	{ 0xff0500, "Logical unit does not respond to selection" },
+	{ 0xff0400, "Logical unit yest ready, cause yest reportable" },
+	{ 0xff0402, "Logical unit yest ready, initializing command required" },
+	{ 0xff0403, "Logical unit yest ready, manual intervention required" },
+	{ 0xff0500, "Logical unit does yest respond to selection" },
 	{ 0xff0800, "Logical unit communication failure" },
 	{ 0xff0802, "Logical unit communication parity error" },
 	{ 0xff0801, "Logical unit communication time-out" },
-	{ 0xff2500, "Logical unit not supported" },
+	{ 0xff2500, "Logical unit yest supported" },
 	{ 0xff4c00, "Logical unit failed self-configuration" },
-	{ 0xff3e00, "Logical unit has not self-configured yet" },
+	{ 0xff3e00, "Logical unit has yest self-configured yet" },
 };
 
 void ide_cd_log_error(const char *name, struct request *failed_command,
@@ -266,7 +266,7 @@ void ide_cd_log_error(const char *name, struct request *failed_command,
 	else if (sense->error_code == 0x7f)
 		printk(KERN_CONT "  Vendor-specific Error: ");
 	else
-		printk(KERN_CONT "  Unknown Error Type: ");
+		printk(KERN_CONT "  Unkyeswn Error Type: ");
 
 	if (sense->sense_key < ARRAY_SIZE(sense_key_texts))
 		s = sense_key_texts[sense->sense_key];
@@ -274,7 +274,7 @@ void ide_cd_log_error(const char *name, struct request *failed_command,
 	printk(KERN_CONT "%s -- (Sense key=0x%02x)\n", s, sense->sense_key);
 
 	if (sense->asc == 0x40) {
-		sprintf(buf, "Diagnostic failure on component 0x%02x",
+		sprintf(buf, "Diagyesstic failure on component 0x%02x",
 			sense->ascq);
 		s = buf;
 	} else {

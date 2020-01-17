@@ -3,8 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004, 2005 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2004, 2005 MIPS Techyeslogies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Techyeslogies Ltd.
  */
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -26,7 +26,7 @@ static int hw_tcs, hw_vpes;
 int vpe_run(struct vpe *v)
 {
 	unsigned long flags, val, dmt_flag;
-	struct vpe_notifications *notifier;
+	struct vpe_yestifications *yestifier;
 	unsigned int vpeflags;
 	struct tc *t;
 
@@ -49,7 +49,7 @@ int vpe_run(struct vpe *v)
 		local_irq_restore(flags);
 
 		pr_warn("VPE loader: No TC's associated with VPE %d\n",
-			v->minor);
+			v->miyesr);
 
 		return -ENOEXEC;
 	}
@@ -61,7 +61,7 @@ int vpe_run(struct vpe *v)
 
 	settc(t->index);
 
-	/* should check it is halted, and not activated */
+	/* should check it is halted, and yest activated */
 	if ((read_tc_c0_tcstatus() & TCSTATUS_A) ||
 	   !(read_tc_c0_tchalt() & TCHALT_H)) {
 		evpe(vpeflags);
@@ -82,7 +82,7 @@ int vpe_run(struct vpe *v)
 	write_tc_c0_tccontext((unsigned long)0);
 
 	/*
-	 * Mark the TC as activated, not interrupt exempt and not dynamically
+	 * Mark the TC as activated, yest interrupt exempt and yest dynamically
 	 * allocatable
 	 */
 	val = read_tc_c0_tcstatus();
@@ -138,8 +138,8 @@ int vpe_run(struct vpe *v)
 	emt(dmt_flag);
 	local_irq_restore(flags);
 
-	list_for_each_entry(notifier, &v->notify, list)
-		notifier->start(VPE_MODULE_MINOR);
+	list_for_each_entry(yestifier, &v->yestify, list)
+		yestifier->start(VPE_MODULE_MINOR);
 
 	return 0;
 }
@@ -159,7 +159,7 @@ void cleanup_tc(struct tc *tc)
 	settc(tc->index);
 	tmp = read_tc_c0_tcstatus();
 
-	/* mark not allocated and not dynamically allocatable */
+	/* mark yest allocated and yest dynamically allocatable */
 	tmp &= ~(TCSTATUS_A | TCSTATUS_DA);
 	tmp |= TCSTATUS_IXMT;	/* interrupt exempt */
 	write_tc_c0_tcstatus(tmp);
@@ -202,7 +202,7 @@ int vpe_start(void *vpe, unsigned long start)
 }
 EXPORT_SYMBOL(vpe_start);
 
-/* halt it for now */
+/* halt it for yesw */
 int vpe_stop(void *vpe)
 {
 	struct vpe *v = vpe;
@@ -262,10 +262,10 @@ static ssize_t store_kill(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t len)
 {
 	struct vpe *vpe = get_vpe(aprp_cpu_index());
-	struct vpe_notifications *notifier;
+	struct vpe_yestifications *yestifier;
 
-	list_for_each_entry(notifier, &vpe->notify, list)
-		notifier->stop(aprp_cpu_index());
+	list_for_each_entry(yestifier, &vpe->yestify, list)
+		yestifier->stop(aprp_cpu_index());
 
 	release_progmem(vpe->load_addr);
 	cleanup_tc(get_tc(aprp_cpu_index()));
@@ -334,19 +334,19 @@ int __init vpe_module_init(void)
 	int tc, err;
 
 	if (!cpu_has_mipsmt) {
-		pr_warn("VPE loader: not a MIPS MT capable processor\n");
+		pr_warn("VPE loader: yest a MIPS MT capable processor\n");
 		return -ENODEV;
 	}
 
 	if (vpelimit == 0) {
-		pr_warn("No VPEs reserved for AP/SP, not initialize VPE loader\n"
+		pr_warn("No VPEs reserved for AP/SP, yest initialize VPE loader\n"
 			"Pass maxvpes=<n> argument as kernel argument\n");
 
 		return -ENODEV;
 	}
 
 	if (aprp_cpu_index() == 0) {
-		pr_warn("No TCs reserved for AP/SP, not initialize VPE loader\n"
+		pr_warn("No TCs reserved for AP/SP, yest initialize VPE loader\n"
 			"Pass maxtcs=<n> argument as kernel argument\n");
 
 		return -ENODEV;
@@ -456,11 +456,11 @@ int __init vpe_module_init(void)
 			/*
 			 * A TC that is bound to any other VPE gets bound to
 			 * VPE0, ideally I'd like to make it homeless but it
-			 * doesn't appear to let me bind a TC to a non-existent
+			 * doesn't appear to let me bind a TC to a yesn-existent
 			 * VPE. Which is perfectly reasonable.
 			 *
 			 * The (un)bound state is visible to an EJTAG probe so
-			 * may notify GDB...
+			 * may yestify GDB...
 			 */
 			tmp = read_tc_c0_tcbind();
 			if (tmp & TCBIND_CURVPE) {
@@ -476,7 +476,7 @@ int __init vpe_module_init(void)
 
 			tmp = read_tc_c0_tcstatus();
 
-			/* mark not activated and not dynamically allocatable */
+			/* mark yest activated and yest dynamically allocatable */
 			tmp &= ~(TCSTATUS_A | TCSTATUS_DA);
 			tmp |= TCSTATUS_IXMT;	/* interrupt exempt */
 			write_tc_c0_tcstatus(tmp);

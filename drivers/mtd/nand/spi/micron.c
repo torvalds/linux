@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2016-2017 Micron Technology, Inc.
+ * Copyright (c) 2016-2017 Micron Techyeslogy, Inc.
  *
  * Authors:
  *	Peter Pan <peterpandong@micron.com>

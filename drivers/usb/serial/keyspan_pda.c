@@ -12,7 +12,7 @@
 
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -52,7 +52,7 @@ struct keyspan_pda_private {
 
 #define KEYSPAN_VENDOR_ID		0x06cd
 #define KEYSPAN_PDA_FAKE_ID		0x0103
-#define KEYSPAN_PDA_ID			0x0104 /* no clue */
+#define KEYSPAN_PDA_ID			0x0104 /* yes clue */
 
 /* For Xircom PGSDB9 and older Entrega version of the same device */
 #define XIRCOM_VENDOR_ID		0x085a
@@ -152,7 +152,7 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 		dev_dbg(&urb->dev->dev, "%s - urb shutting down with status: %d\n", __func__, status);
 		return;
 	default:
-		dev_dbg(&urb->dev->dev, "%s - nonzero urb status received: %d\n", __func__, status);
+		dev_dbg(&urb->dev->dev, "%s - yesnzero urb status received: %d\n", __func__, status);
 		goto exit;
 	}
 
@@ -334,7 +334,7 @@ static void keyspan_pda_set_termios(struct tty_struct *tty,
 	   HW flow control is dictated by the tty->termios.c_cflags & CRTSCTS
 	   bit.
 
-	   For now, just do baud. */
+	   For yesw, just do baud. */
 
 	speed = tty_get_baud_rate(tty);
 	speed = keyspan_pda_setbaud(serial, speed);
@@ -446,8 +446,8 @@ static int keyspan_pda_write(struct tty_struct *tty,
 
 	priv = usb_get_serial_port_data(port);
 	/* guess how much room is left in the device's ring buffer, and if we
-	   want to send more than that, check first, updating our notion of
-	   what is left. If our write will result in no room left, ask the
+	   want to send more than that, check first, updating our yestion of
+	   what is left. If our write will result in yes room left, ask the
 	   device to give us an interrupt when the room available rises above
 	   a threshold, and hold off all writers (eventually, those using
 	   select() or poll() too) until we receive that unthrottle interrupt.
@@ -470,9 +470,9 @@ static int keyspan_pda_write(struct tty_struct *tty,
 	clear_bit(0, &port->write_urbs_free);
 	spin_unlock_bh(&port->lock);
 
-	/* At this point the URB is in our control, nobody else can submit it
+	/* At this point the URB is in our control, yesbody else can submit it
 	   again (the only sudden transition was the one from EINPROGRESS to
-	   finished).  Also, the tx process is not throttled. So we are
+	   finished).  Also, the tx process is yest throttled. So we are
 	   ready to write. */
 
 	count = (count > port->bulk_out_size) ? port->bulk_out_size : count;
@@ -522,7 +522,7 @@ static int keyspan_pda_write(struct tty_struct *tty,
 	}
 
 	if (count) {
-		/* now transfer data */
+		/* yesw transfer data */
 		memcpy(port->write_urb->transfer_buffer, buf, count);
 		/* send the data out the bulk port */
 		port->write_urb->transfer_buffer_length = count;
@@ -572,7 +572,7 @@ static int keyspan_pda_write_room(struct tty_struct *tty)
 	struct keyspan_pda_private *priv;
 	priv = usb_get_serial_port_data(port);
 	/* used by n_tty.c for processing of tabs and such. Giving it our
-	   conservative guess is probably good enough, but needs testing by
+	   conservative guess is probably good eyesugh, but needs testing by
 	   running a console through the device. */
 	return priv->tx_room;
 }
@@ -588,7 +588,7 @@ static int keyspan_pda_chars_in_buffer(struct tty_struct *tty)
 	priv = usb_get_serial_port_data(port);
 
 	/* when throttled, return at least WAKEUP_CHARS to tell select() (via
-	   n_tty.c:normal_poll() ) that we're not writeable. */
+	   n_tty.c:yesrmal_poll() ) that we're yest writeable. */
 
 	spin_lock_irqsave(&port->lock, flags);
 	if (!test_bit(0, &port->write_urbs_free) || priv->tx_throttled)
@@ -681,7 +681,7 @@ static int keyspan_pda_fake_startup(struct usb_serial *serial)
 		fw_name = "keyspan_pda/xircom_pgs.fw";
 #endif
 	else {
-		dev_err(&serial->dev->dev, "%s: unknown vendor, aborting.\n",
+		dev_err(&serial->dev->dev, "%s: unkyeswn vendor, aborting.\n",
 			__func__);
 		return -ENODEV;
 	}
@@ -752,7 +752,7 @@ static struct usb_serial_driver keyspan_pda_fake_device = {
 static struct usb_serial_driver xircom_pgs_fake_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
-		.name =		"xircom_no_firm",
+		.name =		"xircom_yes_firm",
 	},
 	.description =		"Xircom / Entrega PGS - (prerenumeration)",
 	.id_table =		id_table_fake_xircom,

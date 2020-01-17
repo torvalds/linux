@@ -13,7 +13,7 @@
 #define AC97_RESET		0x00	/* Reset */
 #define AC97_MASTER		0x02	/* Master Volume */
 #define AC97_HEADPHONE		0x04	/* Headphone Volume (optional) */
-#define AC97_MASTER_MONO	0x06	/* Master Volume Mono (optional) */
+#define AC97_MASTER_MONO	0x06	/* Master Volume Moyes (optional) */
 #define AC97_MASTER_TONE	0x08	/* Master Tone (Bass & Treble) (optional) */
 #define AC97_PC_BEEP		0x0a	/* PC Beep Volume (optional) */
 #define AC97_PHONE		0x0c	/* Phone Volume (optional) */
@@ -52,8 +52,8 @@
 #define AC97_HANDSET_LEVEL	0x4a	/* Handset DAC/ADC Level */
 #define AC97_GPIO_CFG		0x4c	/* GPIO Configuration */
 #define AC97_GPIO_POLARITY	0x4e	/* GPIO Pin Polarity/Type, 0=low, 1=high active */
-#define AC97_GPIO_STICKY	0x50	/* GPIO Pin Sticky, 0=not, 1=sticky */
-#define AC97_GPIO_WAKEUP	0x52	/* GPIO Pin Wakeup, 0=no int, 1=yes int */
+#define AC97_GPIO_STICKY	0x50	/* GPIO Pin Sticky, 0=yest, 1=sticky */
+#define AC97_GPIO_WAKEUP	0x52	/* GPIO Pin Wakeup, 0=yes int, 1=no int */
 #define AC97_GPIO_STATUS	0x54	/* GPIO Pin Status, slot 12 */
 #define AC97_MISC_AFE		0x56	/* Miscellaneous Modem AFE Status and Control */
 /* range 0x5a-0x7b - Vendor Specific */
@@ -210,7 +210,7 @@
 
 /* extended modem status and control bit defines */
 #define AC97_MEA_GPIO		0x0001	/* GPIO is ready (ro) */
-#define AC97_MEA_MREF		0x0002	/* Vref is up to nominal level (ro) */
+#define AC97_MEA_MREF		0x0002	/* Vref is up to yesminal level (ro) */
 #define AC97_MEA_ADC1		0x0004	/* ADC1 operational (ro) */
 #define AC97_MEA_DAC1		0x0008	/* DAC1 operational (ro) */
 #define AC97_MEA_ADC2		0x0010	/* ADC2 operational (ro) */

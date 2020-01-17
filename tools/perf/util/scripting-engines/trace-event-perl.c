@@ -14,7 +14,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if yest, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/bitmap.h>
 #include <linux/time64.h>
 
@@ -280,41 +280,41 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 
 	while (1) {
 		HV *elem;
-		struct callchain_cursor_node *node;
-		node = callchain_cursor_current(&callchain_cursor);
-		if (!node)
+		struct callchain_cursor_yesde *yesde;
+		yesde = callchain_cursor_current(&callchain_cursor);
+		if (!yesde)
 			break;
 
 		elem = newHV();
 		if (!elem)
 			goto exit;
 
-		if (!hv_stores(elem, "ip", newSVuv(node->ip))) {
+		if (!hv_stores(elem, "ip", newSVuv(yesde->ip))) {
 			hv_undef(elem);
 			goto exit;
 		}
 
-		if (node->ms.sym) {
+		if (yesde->ms.sym) {
 			HV *sym = newHV();
 			if (!sym) {
 				hv_undef(elem);
 				goto exit;
 			}
-			if (!hv_stores(sym, "start",   newSVuv(node->ms.sym->start)) ||
-			    !hv_stores(sym, "end",     newSVuv(node->ms.sym->end)) ||
-			    !hv_stores(sym, "binding", newSVuv(node->ms.sym->binding)) ||
-			    !hv_stores(sym, "name",    newSVpvn(node->ms.sym->name,
-								node->ms.sym->namelen)) ||
-			    !hv_stores(elem, "sym",    newRV_noinc((SV*)sym))) {
+			if (!hv_stores(sym, "start",   newSVuv(yesde->ms.sym->start)) ||
+			    !hv_stores(sym, "end",     newSVuv(yesde->ms.sym->end)) ||
+			    !hv_stores(sym, "binding", newSVuv(yesde->ms.sym->binding)) ||
+			    !hv_stores(sym, "name",    newSVpvn(yesde->ms.sym->name,
+								yesde->ms.sym->namelen)) ||
+			    !hv_stores(elem, "sym",    newRV_yesinc((SV*)sym))) {
 				hv_undef(sym);
 				hv_undef(elem);
 				goto exit;
 			}
 		}
 
-		if (node->ms.map) {
-			struct map *map = node->ms.map;
-			const char *dsoname = "[unknown]";
+		if (yesde->ms.map) {
+			struct map *map = yesde->ms.map;
+			const char *dsoname = "[unkyeswn]";
 			if (map && map->dso) {
 				if (symbol_conf.show_kernel_path && map->dso->long_name)
 					dsoname = map->dso->long_name;
@@ -328,11 +328,11 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 		}
 
 		callchain_cursor_advance(&callchain_cursor);
-		av_push(list, newRV_noinc((SV*)elem));
+		av_push(list, newRV_yesinc((SV*)elem));
 	}
 
 exit:
-	return newRV_noinc((SV*)list);
+	return newRV_yesinc((SV*)list);
 }
 
 static void perl_process_tracepoint(struct perf_sample *sample,
@@ -357,7 +357,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 		return;
 
 	if (!event) {
-		pr_debug("ug! no event found for type %" PRIu64, (u64)evsel->core.attr.config);
+		pr_debug("ug! yes event found for type %" PRIu64, (u64)evsel->core.attr.config);
 		return;
 	}
 
@@ -539,7 +539,7 @@ static int perl_stop_script(void)
 
 static int perl_generate_script(struct tep_handle *pevent, const char *outfile)
 {
-	int i, not_first, count, nr_events;
+	int i, yest_first, count, nr_events;
 	struct tep_event **all_events;
 	struct tep_event *event = NULL;
 	struct tep_format_field *f;
@@ -565,7 +565,7 @@ static int perl_generate_script(struct tep_handle *pevent, const char *outfile)
 	fprintf(ofp, "# all events.  They don't necessarily correspond to "
 		"the 'common_*' fields\n");
 
-	fprintf(ofp, "# in the format files.  Those fields not available as "
+	fprintf(ofp, "# in the format files.  Those fields yest available as "
 		"handler params can\n");
 
 	fprintf(ofp, "# be retrieved using Perl functions of the form "
@@ -590,15 +590,15 @@ static int perl_generate_script(struct tep_handle *pevent, const char *outfile)
 sub print_backtrace\n\
 {\n\
 	my $callchain = shift;\n\
-	for my $node (@$callchain)\n\
+	for my $yesde (@$callchain)\n\
 	{\n\
-		if(exists $node->{sym})\n\
+		if(exists $yesde->{sym})\n\
 		{\n\
-			printf( \"\\t[\\%%x] \\%%s\\n\", $node->{ip}, $node->{sym}{name});\n\
+			printf( \"\\t[\\%%x] \\%%s\\n\", $yesde->{ip}, $yesde->{sym}{name});\n\
 		}\n\
 		else\n\
 		{\n\
-			printf( \"\\t[\\%%x]\\n\", $node{ip});\n\
+			printf( \"\\t[\\%%x]\\n\", $yesde{ip});\n\
 		}\n\
 	}\n\
 }\n\n\
@@ -621,11 +621,11 @@ sub print_backtrace\n\
 		fprintf(ofp, "$common_comm, ");
 		fprintf(ofp, "$common_callchain,\n\t    ");
 
-		not_first = 0;
+		yest_first = 0;
 		count = 0;
 
 		for (f = event->format.fields; f; f = f->next) {
-			if (not_first++)
+			if (yest_first++)
 				fprintf(ofp, ", ");
 			if (++count % 5 == 0)
 				fprintf(ofp, "\n\t    ");
@@ -640,11 +640,11 @@ sub print_backtrace\n\
 
 		fprintf(ofp, "\tprintf(\"");
 
-		not_first = 0;
+		yest_first = 0;
 		count = 0;
 
 		for (f = event->format.fields; f; f = f->next) {
-			if (not_first++)
+			if (yest_first++)
 				fprintf(ofp, ", ");
 			if (count && count % 4 == 0) {
 				fprintf(ofp, "\".\n\t       \"");
@@ -664,11 +664,11 @@ sub print_backtrace\n\
 
 		fprintf(ofp, "\\n\",\n\t       ");
 
-		not_first = 0;
+		yest_first = 0;
 		count = 0;
 
 		for (f = event->format.fields; f; f = f->next) {
-			if (not_first++)
+			if (yest_first++)
 				fprintf(ofp, ", ");
 
 			if (++count % 5 == 0)

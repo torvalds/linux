@@ -107,7 +107,7 @@ static int mpls_xmit(struct sk_buff *skb)
 	if (!out_dev->header_ops)
 		hh_len = 0;
 
-	/* Ensure there is enough space for the headers in the skb */
+	/* Ensure there is eyesugh space for the headers in the skb */
 	if (skb_cow(skb, hh_len + new_header_size))
 		goto drop;
 

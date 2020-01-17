@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -70,9 +70,9 @@ static inline u32 pci_cfg_read_32bit(struct pci_bus *bus, unsigned int devfn,
 	if (cpu_is_xlp9xx()) {
 		/* be very careful on SoC buses */
 		if (bus->number == 0) {
-			/* Scan only existing nodes - uboot bug? */
+			/* Scan only existing yesdes - uboot bug? */
 			if (PCI_SLOT(devfn) != 0 ||
-					   !nlm_node_present(PCI_FUNC(devfn)))
+					   !nlm_yesde_present(PCI_FUNC(devfn)))
 				return 0xffffffff;
 		} else if (bus->parent->number == 0) {	/* SoC bus */
 			if (PCI_SLOT(devfn) == 0)	/* b.0.0 hangs */
@@ -197,7 +197,7 @@ struct pci_dev *xlp_get_pcie_link(const struct pci_dev *dev)
 	}
 }
 
-int xlp_socdev_to_node(const struct pci_dev *lnkdev)
+int xlp_socdev_to_yesde(const struct pci_dev *lnkdev)
 {
 	if (cpu_is_xlp9xx())
 		return PCI_FUNC(lnkdev->bus->self->devfn);
@@ -208,7 +208,7 @@ int xlp_socdev_to_node(const struct pci_dev *lnkdev)
 int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	struct pci_dev *lnkdev;
-	int lnkfunc, node;
+	int lnkfunc, yesde;
 
 	/*
 	 * For XLP PCIe, there is an IRQ per Link, find out which
@@ -219,9 +219,9 @@ int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		return 0;
 
 	lnkfunc = PCI_FUNC(lnkdev->devfn);
-	node = xlp_socdev_to_node(lnkdev);
+	yesde = xlp_socdev_to_yesde(lnkdev);
 
-	return nlm_irq_to_xirq(node, PIC_PCIE_LINK_LEGACY_IRQ(lnkfunc));
+	return nlm_irq_to_xirq(yesde, PIC_PCIE_LINK_LEGACY_IRQ(lnkfunc));
 }
 
 /* Do platform specific device initialization at pci_enable_device() time */
@@ -236,13 +236,13 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
  * readl/writel.
  */
 #ifdef __BIG_ENDIAN
-static void xlp_config_pci_bswap(int node, int link)
+static void xlp_config_pci_bswap(int yesde, int link)
 {
 	uint64_t nbubase, lnkbase;
 	u32 reg;
 
-	nbubase = nlm_get_bridge_regbase(node);
-	lnkbase = nlm_get_pcie_base(node, link);
+	nbubase = nlm_get_bridge_regbase(yesde);
+	lnkbase = nlm_get_pcie_base(yesde, link);
 
 	/*
 	 *  Enable byte swap in hardware. Program each link's PCIe SWAP regions
@@ -282,8 +282,8 @@ static void xlp_config_pci_bswap(int node, int link)
 	}
 }
 #else
-/* Swap configuration not needed in little-endian mode */
-static inline void xlp_config_pci_bswap(int node, int link) {}
+/* Swap configuration yest needed in little-endian mode */
+static inline void xlp_config_pci_bswap(int yesde, int link) {}
 #endif /* __BIG_ENDIAN */
 
 static int __init pcibios_init(void)
@@ -301,7 +301,7 @@ static int __init pcibios_init(void)
 	ioport_resource.end   = ~0;
 
 	for (n = 0; n < NLM_NR_NODES; n++) {
-		if (!nlm_node_present(n))
+		if (!nlm_yesde_present(n))
 			continue;
 
 		for (link = 0; link < PCIE_NLINKS; link++) {
@@ -309,9 +309,9 @@ static int __init pcibios_init(void)
 			if (nlm_read_pci_reg(pciebase, 0) == 0xffffffff)
 				continue;
 			xlp_config_pci_bswap(n, link);
-			xlp_init_node_msi_irqs(n, link);
+			xlp_init_yesde_msi_irqs(n, link);
 
-			/* put in intpin and irq - u-boot does not */
+			/* put in intpin and irq - u-boot does yest */
 			reg = nlm_read_pci_reg(pciebase, 0xf);
 			reg &= ~0x1ffu;
 			reg |= (1 << 8) | PIC_PCIE_LINK_LEGACY_IRQ(link);

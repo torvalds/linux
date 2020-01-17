@@ -37,10 +37,10 @@
 static struct gpio charger_gpios[] = {
 	{ CORGI_GPIO_ADC_TEMP_ON, GPIOF_OUT_INIT_LOW, "ADC Temp On" },
 	{ CORGI_GPIO_CHRG_ON,	  GPIOF_OUT_INIT_LOW, "Charger On" },
-	{ CORGI_GPIO_CHRG_UKN,	  GPIOF_OUT_INIT_LOW, "Charger Unknown" },
+	{ CORGI_GPIO_CHRG_UKN,	  GPIOF_OUT_INIT_LOW, "Charger Unkyeswn" },
 	{ CORGI_GPIO_AC_IN,	  GPIOF_IN, "Charger Detection" },
 	{ CORGI_GPIO_KEY_INT,	  GPIOF_IN, "Key Interrupt" },
-	{ CORGI_GPIO_WAKEUP,	  GPIOF_IN, "System wakeup notification" },
+	{ CORGI_GPIO_WAKEUP,	  GPIOF_IN, "System wakeup yestification" },
 };
 
 static void corgi_charger_init(void)
@@ -177,14 +177,14 @@ static struct sharpsl_charger_machinfo corgi_pm_machinfo = {
 	.charge_acin_high = SHARPSL_CHARGE_ON_ACIN_HIGH,
 	.charge_acin_low  = SHARPSL_CHARGE_ON_ACIN_LOW,
 	.fatal_acin_volt  = SHARPSL_FATAL_ACIN_VOLT,
-	.fatal_noacin_volt= SHARPSL_FATAL_NOACIN_VOLT,
+	.fatal_yesacin_volt= SHARPSL_FATAL_NOACIN_VOLT,
 	.bat_levels       = 40,
-	.bat_levels_noac  = sharpsl_battery_levels_noac,
+	.bat_levels_yesac  = sharpsl_battery_levels_yesac,
 	.bat_levels_acin  = sharpsl_battery_levels_acin,
 	.status_high_acin = 188,
 	.status_low_acin  = 178,
-	.status_high_noac = 185,
-	.status_low_noac  = 175,
+	.status_high_yesac = 185,
+	.status_low_yesac  = 175,
 };
 
 static struct platform_device *corgipm_device;

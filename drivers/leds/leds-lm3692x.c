@@ -174,20 +174,20 @@ static int lm3692x_brightness_set(struct led_classdev *led_cdev,
 
 	ret = lm3692x_fault_check(led);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot read/clear faults: %d\n",
+		dev_err(&led->client->dev, "Canyest read/clear faults: %d\n",
 			ret);
 		goto out;
 	}
 
 	ret = regmap_write(led->regmap, LM3692X_BRT_MSB, brt_val);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot write MSB: %d\n", ret);
+		dev_err(&led->client->dev, "Canyest write MSB: %d\n", ret);
 		goto out;
 	}
 
 	ret = regmap_write(led->regmap, LM3692X_BRT_LSB, led_brightness_lsb);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot write LSB: %d\n", ret);
+		dev_err(&led->client->dev, "Canyest write LSB: %d\n", ret);
 		goto out;
 	}
 out:
@@ -214,7 +214,7 @@ static int lm3692x_init(struct lm3692x_led *led)
 
 	ret = lm3692x_fault_check(led);
 	if (ret) {
-		dev_err(&led->client->dev, "Cannot read/clear faults: %d\n",
+		dev_err(&led->client->dev, "Canyest read/clear faults: %d\n",
 			ret);
 		goto out;
 	}
@@ -233,7 +233,7 @@ static int lm3692x_init(struct lm3692x_led *led)
 	if (ret)
 		goto out;
 
-	/* Set the brightness to 0 so when enabled the LEDs do not come
+	/* Set the brightness to 0 so when enabled the LEDs do yest come
 	 * on with full brightness.
 	 */
 	ret = regmap_write(led->regmap, LM3692X_BRT_MSB, 0);
@@ -298,7 +298,7 @@ static int lm3692x_init(struct lm3692x_led *led)
 
 		ret = -EINVAL;
 		dev_err(&led->client->dev,
-			"LED3 sync not available on this device\n");
+			"LED3 sync yest available on this device\n");
 		goto out;
 	}
 
@@ -324,7 +324,7 @@ out:
 
 static int lm3692x_probe_dt(struct lm3692x_led *led)
 {
-	struct fwnode_handle *child = NULL;
+	struct fwyesde_handle *child = NULL;
 	struct led_init_data init_data = {};
 	int ret;
 
@@ -350,22 +350,22 @@ static int lm3692x_probe_dt(struct lm3692x_led *led)
 		led->regulator = NULL;
 	}
 
-	child = device_get_next_child_node(&led->client->dev, child);
+	child = device_get_next_child_yesde(&led->client->dev, child);
 	if (!child) {
-		dev_err(&led->client->dev, "No LED Child node\n");
+		dev_err(&led->client->dev, "No LED Child yesde\n");
 		return -ENODEV;
 	}
 
-	fwnode_property_read_string(child, "linux,default-trigger",
+	fwyesde_property_read_string(child, "linux,default-trigger",
 				    &led->led_dev.default_trigger);
 
-	ret = fwnode_property_read_u32(child, "reg", &led->led_enable);
+	ret = fwyesde_property_read_u32(child, "reg", &led->led_enable);
 	if (ret) {
 		dev_err(&led->client->dev, "reg DT property missing\n");
 		return ret;
 	}
 
-	init_data.fwnode = child;
+	init_data.fwyesde = child;
 	init_data.devicename = led->client->name;
 	init_data.default_label = ":";
 

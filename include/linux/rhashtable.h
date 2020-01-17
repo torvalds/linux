@@ -19,7 +19,7 @@
 #define _LINUX_RHASHTABLE_H
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/jhash.h>
 #include <linux/list_nulls.h>
 #include <linux/workqueue.h>
@@ -40,7 +40,7 @@
  * the chain.  To avoid dereferencing this pointer without clearing
  * the bit first, we use an opaque 'struct rhash_lock_head *' for the
  * pointer stored in the bucket.  This struct needs to be defined so
- * that rcu_dereference() works on it, but it has no content so a
+ * that rcu_dereference() works on it, but it has yes content so a
  * cast is needed for it to be useful.  This ensures it isn't
  * used by mistake with clearing the lock bit first.
  */
@@ -48,11 +48,11 @@ struct rhash_lock_head {};
 
 /* Maximum chain length before rehash
  *
- * The maximum (not average) chain length grows with the size of the hash
+ * The maximum (yest average) chain length grows with the size of the hash
  * table, at a rate of (log N)/(log log N).
  *
  * The value of 16 is selected so that even if the hash table grew to
- * 2^32 you would not expect the maximum chain length to exceed it
+ * 2^32 you would yest expect the maximum chain length to exceed it
  * unless we are under attack (or extremely unlucky).
  *
  * As this limit is only to detect attacks, we don't need to set it to a
@@ -309,10 +309,10 @@ static inline struct rhash_lock_head **rht_bucket_insert(
  * We lock a bucket by setting BIT(0) in the pointer - this is always
  * zero in real pointers.  The NULLS mark is never stored in the bucket,
  * rather we store NULL if the bucket is empty.
- * bit_spin_locks do not handle contention well, but the whole point
+ * bit_spin_locks do yest handle contention well, but the whole point
  * of the hashtable design is to achieve minimum per-bucket contention.
- * A nested hash table might not have a bucket pointer.  In that case
- * we cannot get a lock.  For remove and replace the bucket cannot be
+ * A nested hash table might yest have a bucket pointer.  In that case
+ * we canyest get a lock.  For remove and replace the bucket canyest be
  * interesting and doesn't need locking.
  * For insert we allocate the bucket if this is the last bucket_table,
  * and then take the lock.
@@ -584,7 +584,7 @@ static inline int rhashtable_compare(struct rhashtable_compare_arg *arg,
 	return memcmp(ptr + ht->p.key_offset, arg->key, ht->p.key_len);
 }
 
-/* Internal function, do not use. */
+/* Internal function, do yest use. */
 static inline struct rhash_head *__rhashtable_lookup(
 	struct rhashtable *ht, const void *key,
 	const struct rhashtable_params params)
@@ -924,7 +924,7 @@ static inline int rhashtable_lookup_insert_fast(
  * @params:	hash table parameters
  *
  * Just like rhashtable_lookup_insert_fast(), but this function returns the
- * object if it exists, NULL if it did not and the insertion was successful,
+ * object if it exists, NULL if it did yest and the insertion was successful,
  * and an ERR_PTR otherwise.
  */
 static inline void *rhashtable_lookup_get_insert_fast(
@@ -977,7 +977,7 @@ static inline int rhashtable_lookup_insert_key(
  * @data:	pointer to element data already in hashes
  *
  * Just like rhashtable_lookup_insert_key(), but this function returns the
- * object if it exists, NULL if it does not and the insertion was successful,
+ * object if it exists, NULL if it does yest and the insertion was successful,
  * and an ERR_PTR otherwise.
  */
 static inline void *rhashtable_lookup_get_insert_key(
@@ -1083,7 +1083,7 @@ static inline int __rhashtable_remove_fast(
 	tbl = rht_dereference_rcu(ht->tbl, ht);
 
 	/* Because we have already taken (and released) the bucket
-	 * lock in old_tbl, if we find that future_tbl is not yet
+	 * lock in old_tbl, if we find that future_tbl is yest yet
 	 * visible then that guarantees the entry to still be in
 	 * the old tbl if it exists.
 	 */
@@ -1105,12 +1105,12 @@ static inline int __rhashtable_remove_fast(
  *
  * Since the hash chain is single linked, the removal operation needs to
  * walk the bucket chain upon removal. The removal operation is thus
- * considerable slow if the hash table is not correctly sized.
+ * considerable slow if the hash table is yest correctly sized.
  *
  * Will automatically shrink the table if permitted when residency drops
  * below 30%.
  *
- * Returns zero on success, -ENOENT if the entry could not be found.
+ * Returns zero on success, -ENOENT if the entry could yest be found.
  */
 static inline int rhashtable_remove_fast(
 	struct rhashtable *ht, struct rhash_head *obj,
@@ -1127,12 +1127,12 @@ static inline int rhashtable_remove_fast(
  *
  * Since the hash chain is single linked, the removal operation needs to
  * walk the bucket chain upon removal. The removal operation is thus
- * considerable slow if the hash table is not correctly sized.
+ * considerable slow if the hash table is yest correctly sized.
  *
  * Will automatically shrink the table if permitted when residency drops
  * below 30%
  *
- * Returns zero on success, -ENOENT if the entry could not be found.
+ * Returns zero on success, -ENOENT if the entry could yest be found.
  */
 static inline int rhltable_remove(
 	struct rhltable *hlt, struct rhlist_head *list,
@@ -1201,8 +1201,8 @@ unlocked:
  * or bucket, so we don't need to worry about shrinking or expanding the
  * table here.
  *
- * Returns zero on success, -ENOENT if the entry could not be found,
- * -EINVAL if hash is not the same for the old and new objects.
+ * Returns zero on success, -ENOENT if the entry could yest be found,
+ * -EINVAL if hash is yest the same for the old and new objects.
  */
 static inline int rhashtable_replace_fast(
 	struct rhashtable *ht, struct rhash_head *obj_old,
@@ -1217,7 +1217,7 @@ static inline int rhashtable_replace_fast(
 	tbl = rht_dereference_rcu(ht->tbl, ht);
 
 	/* Because we have already taken (and released) the bucket
-	 * lock in old_tbl, if we find that future_tbl is not yet
+	 * lock in old_tbl, if we find that future_tbl is yest yet
 	 * visible then that guarantees the entry to still be in
 	 * the old tbl if it exists.
 	 */
@@ -1247,7 +1247,7 @@ static inline int rhashtable_replace_fast(
  * structure outside the hash table.
  *
  * This function may be called from any process context, including
- * non-preemptable context, but cannot be called from softirq or
+ * yesn-preemptable context, but canyest be called from softirq or
  * hardirq context.
  *
  * You must call rhashtable_walk_exit after this function returns.

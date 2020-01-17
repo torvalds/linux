@@ -145,7 +145,7 @@ static int uniphier_aidet_domain_alloc(struct irq_domain *domain,
 		return ret;
 
 	/* parent is GIC */
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwyesde = domain->parent->fwyesde;
 	parent_fwspec.param_count = 3;
 	parent_fwspec.param[0] = 0;		/* SPI */
 	parent_fwspec.param[1] = hwirq;
@@ -163,16 +163,16 @@ static const struct irq_domain_ops uniphier_aidet_domain_ops = {
 static int uniphier_aidet_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *parent_np;
+	struct device_yesde *parent_np;
 	struct irq_domain *parent_domain;
 	struct uniphier_aidet_priv *priv;
 
-	parent_np = of_irq_find_parent(dev->of_node);
+	parent_np = of_irq_find_parent(dev->of_yesde);
 	if (!parent_np)
 		return -ENXIO;
 
 	parent_domain = irq_find_host(parent_np);
-	of_node_put(parent_np);
+	of_yesde_put(parent_np);
 	if (!parent_domain)
 		return -EPROBE_DEFER;
 
@@ -189,7 +189,7 @@ static int uniphier_aidet_probe(struct platform_device *pdev)
 	priv->domain = irq_domain_create_hierarchy(
 					parent_domain, 0,
 					UNIPHIER_AIDET_NR_IRQS,
-					of_node_to_fwnode(dev->of_node),
+					of_yesde_to_fwyesde(dev->of_yesde),
 					&uniphier_aidet_domain_ops, priv);
 	if (!priv->domain)
 		return -ENOMEM;

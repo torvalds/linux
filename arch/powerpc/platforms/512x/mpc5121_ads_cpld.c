@@ -16,18 +16,18 @@
 #include <linux/io.h>
 #include <asm/prom.h>
 
-static struct device_node *cpld_pic_node;
+static struct device_yesde *cpld_pic_yesde;
 static struct irq_domain *cpld_pic_host;
 
 /*
- * Bits to ignore in the misc_status register
+ * Bits to igyesre in the misc_status register
  * 0x10 touch screen pendown is hard routed to irq1
  * 0x02 pci status is read from pci status register
  */
 #define MISC_IGNORE 0x12
 
 /*
- * Nothing to ignore in pci status register
+ * Nothing to igyesre in pci status register
  */
 #define PCI_IGNORE 0x00
 
@@ -82,15 +82,15 @@ static struct irq_chip cpld_pic = {
 };
 
 static int
-cpld_pic_get_irq(int offset, u8 ignore, u8 __iomem *statusp,
+cpld_pic_get_irq(int offset, u8 igyesre, u8 __iomem *statusp,
 			    u8 __iomem *maskp)
 {
 	int cpld_irq;
 	u8 status = in_8(statusp);
 	u8 mask = in_8(maskp);
 
-	/* ignore don't cares and masked irqs */
-	status |= (ignore | mask);
+	/* igyesre don't cares and masked irqs */
+	status |= (igyesre | mask);
 
 	if (status == 0xff)
 		return 0;
@@ -120,10 +120,10 @@ static void cpld_pic_cascade(struct irq_desc *desc)
 }
 
 static int
-cpld_pic_host_match(struct irq_domain *h, struct device_node *node,
+cpld_pic_host_match(struct irq_domain *h, struct device_yesde *yesde,
 		    enum irq_domain_bus_token bus_token)
 {
-	return cpld_pic_node == node;
+	return cpld_pic_yesde == yesde;
 }
 
 static int
@@ -143,29 +143,29 @@ static const struct irq_domain_ops cpld_pic_host_ops = {
 void __init
 mpc5121_ads_cpld_map(void)
 {
-	struct device_node *np = NULL;
+	struct device_yesde *np = NULL;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121ads-cpld-pic");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,mpc5121ads-cpld-pic");
 	if (!np) {
-		printk(KERN_ERR "CPLD PIC init: can not find cpld-pic node\n");
+		printk(KERN_ERR "CPLD PIC init: can yest find cpld-pic yesde\n");
 		return;
 	}
 
 	cpld_regs = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 void __init
 mpc5121_ads_cpld_pic_init(void)
 {
 	unsigned int cascade_irq;
-	struct device_node *np = NULL;
+	struct device_yesde *np = NULL;
 
 	pr_debug("cpld_ic_init\n");
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121ads-cpld-pic");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,mpc5121ads-cpld-pic");
 	if (!np) {
-		printk(KERN_ERR "CPLD PIC init: can not find cpld-pic node\n");
+		printk(KERN_ERR "CPLD PIC init: can yest find cpld-pic yesde\n");
 		return;
 	}
 
@@ -178,7 +178,7 @@ mpc5121_ads_cpld_pic_init(void)
 
 	/*
 	 * statically route touch screen pendown through 1
-	 * and ignore it here
+	 * and igyesre it here
 	 * route all others through our cascade irq
 	 */
 	out_8(&cpld_regs->route, 0xfd);
@@ -186,7 +186,7 @@ mpc5121_ads_cpld_pic_init(void)
 	/* unmask pci ints in misc mask */
 	out_8(&cpld_regs->misc_mask, ~(MISC_IGNORE));
 
-	cpld_pic_node = of_node_get(np);
+	cpld_pic_yesde = of_yesde_get(np);
 
 	cpld_pic_host = irq_domain_add_linear(np, 16, &cpld_pic_host_ops, NULL);
 	if (!cpld_pic_host) {
@@ -196,5 +196,5 @@ mpc5121_ads_cpld_pic_init(void)
 
 	irq_set_chained_handler(cascade_irq, cpld_pic_cascade);
 end:
-	of_node_put(np);
+	of_yesde_put(np);
 }

@@ -17,7 +17,7 @@
  * from the address that it was linked at, so we must use RELOC/PTRRELOC
  * to access static data (including strings).  -- paulus
  */
-notrace unsigned long __init early_init(unsigned long dt_ptr)
+yestrace unsigned long __init early_init(unsigned long dt_ptr)
 {
 	unsigned long kva, offset = reloc_offset();
 

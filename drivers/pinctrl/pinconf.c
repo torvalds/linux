@@ -38,14 +38,14 @@ int pinconf_check_ops(struct pinctrl_dev *pctldev)
 int pinconf_validate_map(const struct pinctrl_map *map, int i)
 {
 	if (!map->data.configs.group_or_pin) {
-		pr_err("failed to register map %s (%d): no group/pin given\n",
+		pr_err("failed to register map %s (%d): yes group/pin given\n",
 		       map->name, i);
 		return -EINVAL;
 	}
 
 	if (!map->data.configs.num_configs ||
 			!map->data.configs.configs) {
-		pr_err("failed to register map %s (%d): no configs given\n",
+		pr_err("failed to register map %s (%d): yes configs given\n",
 		       map->name, i);
 		return -EINVAL;
 	}
@@ -60,7 +60,7 @@ int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
 
 	if (!ops || !ops->pin_config_get) {
 		dev_dbg(pctldev->dev,
-			"cannot get pin configuration, .pin_config_get missing in driver\n");
+			"canyest get pin configuration, .pin_config_get missing in driver\n");
 		return -ENOTSUPP;
 	}
 
@@ -86,7 +86,7 @@ int pin_config_group_get(const char *dev_name, const char *pin_group,
 
 	if (!ops || !ops->pin_config_group_get) {
 		dev_dbg(pctldev->dev,
-			"cannot get configuration for pin group, missing group config get function in driver\n");
+			"canyest get configuration for pin group, missing group config get function in driver\n");
 		ret = -ENOTSUPP;
 		goto unlock;
 	}
@@ -115,7 +115,7 @@ int pinconf_map_to_setting(const struct pinctrl_map *map,
 		pin = pin_get_from_name(pctldev,
 					map->data.configs.group_or_pin);
 		if (pin < 0) {
-			dev_err(pctldev->dev, "could not map pin config for \"%s\"",
+			dev_err(pctldev->dev, "could yest map pin config for \"%s\"",
 				map->data.configs.group_or_pin);
 			return pin;
 		}
@@ -125,7 +125,7 @@ int pinconf_map_to_setting(const struct pinctrl_map *map,
 		pin = pinctrl_get_group_selector(pctldev,
 					 map->data.configs.group_or_pin);
 		if (pin < 0) {
-			dev_err(pctldev->dev, "could not map group config for \"%s\"",
+			dev_err(pctldev->dev, "could yest map group config for \"%s\"",
 				map->data.configs.group_or_pin);
 			return pin;
 		}
@@ -293,7 +293,7 @@ static void pinconf_dump_pin(struct pinctrl_dev *pctldev,
 {
 	const struct pinconf_ops *ops = pctldev->desc->confops;
 
-	/* no-op when not using generic pin config */
+	/* yes-op when yest using generic pin config */
 	pinconf_generic_dump_pins(pctldev, s, NULL, pin);
 	if (ops && ops->pin_config_dbg_show)
 		ops->pin_config_dbg_show(pctldev, s, pin);
@@ -315,7 +315,7 @@ static int pinconf_pins_show(struct seq_file *s, void *what)
 
 		pin = pctldev->desc->pins[i].number;
 		desc = pin_desc_get(pctldev, pin);
-		/* Skip if we cannot search the pin */
+		/* Skip if we canyest search the pin */
 		if (!desc)
 			continue;
 
@@ -336,7 +336,7 @@ static void pinconf_dump_group(struct pinctrl_dev *pctldev,
 {
 	const struct pinconf_ops *ops = pctldev->desc->confops;
 
-	/* no-op when not using generic pin config */
+	/* yes-op when yest using generic pin config */
 	pinconf_generic_dump_pins(pctldev, s, gname, 0);
 	if (ops && ops->pin_config_group_dbg_show)
 		ops->pin_config_group_dbg_show(pctldev, s, selector);

@@ -515,7 +515,7 @@ struct class_parms {
 struct serv_parm {	/* Structure is in Big Endian format */
 	struct csp cmn;
 	struct lpfc_name portName;
-	struct lpfc_name nodeName;
+	struct lpfc_name yesdeName;
 	struct class_parms cls1;
 	struct class_parms cls2;
 	struct class_parms cls3;
@@ -841,30 +841,30 @@ typedef struct _PRLO {		/* Structure is in Big Endian format */
 typedef struct _ADISC {		/* Structure is in Big Endian format */
 	uint32_t hardAL_PA;
 	struct lpfc_name portName;
-	struct lpfc_name nodeName;
+	struct lpfc_name yesdeName;
 	uint32_t DID;
 } __packed ADISC;
 
 typedef struct _FARP {		/* Structure is in Big Endian format */
 	uint32_t Mflags:8;
 	uint32_t Odid:24;
-#define FARP_NO_ACTION          0	/* FARP information enclosed, no
+#define FARP_NO_ACTION          0	/* FARP information enclosed, yes
 					   action */
 #define FARP_MATCH_PORT         0x1	/* Match on Responder Port Name */
 #define FARP_MATCH_NODE         0x2	/* Match on Responder Node Name */
-#define FARP_MATCH_IP           0x4	/* Match on IP address, not supported */
-#define FARP_MATCH_IPV4         0x5	/* Match on IPV4 address, not
+#define FARP_MATCH_IP           0x4	/* Match on IP address, yest supported */
+#define FARP_MATCH_IPV4         0x5	/* Match on IPV4 address, yest
 					   supported */
-#define FARP_MATCH_IPV6         0x6	/* Match on IPV6 address, not
+#define FARP_MATCH_IPV6         0x6	/* Match on IPV6 address, yest
 					   supported */
 	uint32_t Rflags:8;
 	uint32_t Rdid:24;
 #define FARP_REQUEST_PLOGI      0x1	/* Request for PLOGI */
 #define FARP_REQUEST_FARPR      0x2	/* Request for FARP Response */
 	struct lpfc_name OportName;
-	struct lpfc_name OnodeName;
+	struct lpfc_name OyesdeName;
 	struct lpfc_name RportName;
-	struct lpfc_name RnodeName;
+	struct lpfc_name RyesdeName;
 	uint8_t Oipaddr[16];
 	uint8_t Ripaddr[16];
 } FARP;
@@ -872,7 +872,7 @@ typedef struct _FARP {		/* Structure is in Big Endian format */
 typedef struct _FAN {		/* Structure is in Big Endian format */
 	uint32_t Fdid;
 	struct lpfc_name FportName;
-	struct lpfc_name FnodeName;
+	struct lpfc_name FyesdeName;
 } __packed FAN;
 
 typedef struct _SCR {		/* Structure is in Big Endian format */
@@ -913,7 +913,7 @@ typedef struct _RNID {		/* Structure is in Big Endian format */
 	uint8_t resvd1;
 	uint8_t SpecificLen;
 	struct lpfc_name portName;
-	struct lpfc_name nodeName;
+	struct lpfc_name yesdeName;
 	union {
 		RNID_TOP_DISC topologyDisc;	/* topology disc (0xdf) */
 	} un;
@@ -1100,7 +1100,7 @@ struct fc_lcb_res_frame {
 };
 
 /*
- * Read Diagnostic Parameters (RDP) ELS frame.
+ * Read Diagyesstic Parameters (RDP) ELS frame.
  */
 #define SFF_PG0_IDENT_SFP              0x3
 
@@ -2034,7 +2034,7 @@ typedef struct ULP_BDL {	/* SLI-2 */
 
 enum lpfc_protgrp_type {
 	LPFC_PG_TYPE_INVALID = 0, /* used to indicate errors                  */
-	LPFC_PG_TYPE_NO_DIF,	  /* no DIF data pointed to by prot grp       */
+	LPFC_PG_TYPE_NO_DIF,	  /* yes DIF data pointed to by prot grp       */
 	LPFC_PG_TYPE_EMBD_DIF,	  /* DIF is embedded (inline) with data       */
 	LPFC_PG_TYPE_DIF_BUF	  /* DIF has its own scatter/gather list      */
 };
@@ -2135,7 +2135,7 @@ struct lpfc_pde7 {
 typedef struct {
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t rsvd2:25;
-	uint32_t acknowledgment:1;
+	uint32_t ackyeswledgment:1;
 	uint32_t version:1;
 	uint32_t erase_or_prog:1;
 	uint32_t update_flash:1;
@@ -2149,7 +2149,7 @@ typedef struct {
 	uint32_t update_flash:1;
 	uint32_t erase_or_prog:1;
 	uint32_t version:1;
-	uint32_t acknowledgment:1;
+	uint32_t ackyeswledgment:1;
 	uint32_t rsvd2:25;
 #endif
 
@@ -2170,7 +2170,7 @@ typedef struct {
 	uint32_t rsvd1[3];	/* Read as all one's */
 	uint32_t rsvd2;		/* Read as all zero's */
 	uint32_t portname[2];	/* N_PORT name */
-	uint32_t nodename[2];	/* NODE name */
+	uint32_t yesdename[2];	/* NODE name */
 
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t pref_DID:24;
@@ -2189,7 +2189,7 @@ typedef struct {
 	uint32_t rsvd1[3];	/* Must be all one's */
 	uint32_t rsvd2;		/* Must be all zero's */
 	uint32_t portname[2];	/* N_PORT name */
-	uint32_t nodename[2];	/* NODE name */
+	uint32_t yesdename[2];	/* NODE name */
 
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t pref_DID:24;
@@ -2338,7 +2338,7 @@ typedef struct {
 } CONFIG_LINK;
 
 /* Structure for MB Command PART_SLIM (08)
- * will be removed since SLI1 is no longer supported!
+ * will be removed since SLI1 is yes longer supported!
  */
 typedef struct {
 #ifdef __BIG_ENDIAN_BITFIELD
@@ -2402,7 +2402,7 @@ typedef struct {
 /* Structure for MB Command RESET_RING (10) */
 
 typedef struct {
-	uint32_t ring_no;
+	uint32_t ring_yes;
 } RESET_RING_VAR;
 
 /* Structure for MB Command READ_CONFIG (11) */
@@ -3186,11 +3186,11 @@ struct config_hbq_var {
 
 		struct {
 			#ifdef __BIG_ENDIAN_BITFIELD
-				uint32_t	seqlenoff	:16;
+				uint32_t	seqleyesff	:16;
 				uint32_t	maxlen		:16;
 			#else	/*  __LITTLE_ENDIAN */
 				uint32_t	maxlen		:16;
-				uint32_t	seqlenoff	:16;
+				uint32_t	seqleyesff	:16;
 			#endif
 			#ifdef __BIG_ENDIAN_BITFIELD
 				uint32_t	rsvd1		:28;
@@ -3204,11 +3204,11 @@ struct config_hbq_var {
 
 		struct {
 			#ifdef __BIG_ENDIAN_BITFIELD
-				uint32_t	seqlenoff	:16;
+				uint32_t	seqleyesff	:16;
 				uint32_t	maxlen		:16;
 			#else	/*  __LITTLE_ENDIAN */
 				uint32_t	maxlen		:16;
-				uint32_t	seqlenoff	:16;
+				uint32_t	seqleyesff	:16;
 			#endif
 			#ifdef __BIG_ENDIAN_BITFIELD
 				uint32_t	cmdcodeoff	:28;
@@ -3226,11 +3226,11 @@ struct config_hbq_var {
 
 		struct {
 			#ifdef __BIG_ENDIAN_BITFIELD
-				uint32_t	seqlenoff	:16;
+				uint32_t	seqleyesff	:16;
 				uint32_t	maxlen		:16;
 			#else	/*  __LITTLE_ENDIAN */
 				uint32_t	maxlen		:16;
-				uint32_t	seqlenoff	:16;
+				uint32_t	seqleyesff	:16;
 			#endif
 			#ifdef __BIG_ENDIAN_BITFIELD
 				uint32_t	cmdcodeoff	:28;
@@ -3286,12 +3286,12 @@ typedef struct {
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t rsvd1     : 19;  /* Reserved                             */
 	uint32_t cdss      :  1;  /* Configure Data Security SLI          */
-	uint32_t casabt    :  1;  /* Configure async abts status notice   */
+	uint32_t casabt    :  1;  /* Configure async abts status yestice   */
 	uint32_t rsvd2     :  2;  /* Reserved                             */
 	uint32_t cbg       :  1;  /* Configure BlockGuard                 */
 	uint32_t cmv       :  1;  /* Configure Max VPIs                   */
 	uint32_t ccrp      :  1;  /* Config Command Ring Polling          */
-	uint32_t csah      :  1;  /* Configure Synchronous Abort Handling */
+	uint32_t csah      :  1;  /* Configure Synchroyesus Abort Handling */
 	uint32_t chbs      :  1;  /* Cofigure Host Backing store          */
 	uint32_t cinb      :  1;  /* Enable Interrupt Notification Block  */
 	uint32_t cerbm	   :  1;  /* Configure Enhanced Receive Buf Mgmt  */
@@ -3303,24 +3303,24 @@ typedef struct {
 	uint32_t cerbm	   :  1;  /* Configure Enhanced Receive Buf Mgmt  */
 	uint32_t cinb      :  1;  /* Enable Interrupt Notification Block  */
 	uint32_t chbs      :  1;  /* Cofigure Host Backing store          */
-	uint32_t csah      :  1;  /* Configure Synchronous Abort Handling */
+	uint32_t csah      :  1;  /* Configure Synchroyesus Abort Handling */
 	uint32_t ccrp      :  1;  /* Config Command Ring Polling          */
 	uint32_t cmv	   :  1;  /* Configure Max VPIs                   */
 	uint32_t cbg       :  1;  /* Configure BlockGuard                 */
 	uint32_t rsvd2     :  2;  /* Reserved                             */
-	uint32_t casabt    :  1;  /* Configure async abts status notice   */
+	uint32_t casabt    :  1;  /* Configure async abts status yestice   */
 	uint32_t cdss      :  1;  /* Configure Data Security SLI          */
 	uint32_t rsvd1     : 19;  /* Reserved                             */
 #endif
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t rsvd3     : 19;  /* Reserved                             */
 	uint32_t gdss      :  1;  /* Configure Data Security SLI          */
-	uint32_t gasabt    :  1;  /* Grant async abts status notice       */
+	uint32_t gasabt    :  1;  /* Grant async abts status yestice       */
 	uint32_t rsvd4     :  2;  /* Reserved                             */
 	uint32_t gbg       :  1;  /* Grant BlockGuard                     */
 	uint32_t gmv	   :  1;  /* Grant Max VPIs                       */
 	uint32_t gcrp	   :  1;  /* Grant Command Ring Polling           */
-	uint32_t gsah	   :  1;  /* Grant Synchronous Abort Handling     */
+	uint32_t gsah	   :  1;  /* Grant Synchroyesus Abort Handling     */
 	uint32_t ghbs	   :  1;  /* Grant Host Backing Store             */
 	uint32_t ginb	   :  1;  /* Grant Interrupt Notification Block   */
 	uint32_t gerbm	   :  1;  /* Grant ERBM Request                   */
@@ -3332,12 +3332,12 @@ typedef struct {
 	uint32_t gerbm	   :  1;  /* Grant ERBM Request                   */
 	uint32_t ginb	   :  1;  /* Grant Interrupt Notification Block   */
 	uint32_t ghbs	   :  1;  /* Grant Host Backing Store             */
-	uint32_t gsah	   :  1;  /* Grant Synchronous Abort Handling     */
+	uint32_t gsah	   :  1;  /* Grant Synchroyesus Abort Handling     */
 	uint32_t gcrp	   :  1;  /* Grant Command Ring Polling           */
 	uint32_t gmv	   :  1;  /* Grant Max VPIs                       */
 	uint32_t gbg       :  1;  /* Grant BlockGuard                     */
 	uint32_t rsvd4     :  2;  /* Reserved                             */
-	uint32_t gasabt    :  1;  /* Grant async abts status notice       */
+	uint32_t gasabt    :  1;  /* Grant async abts status yestice       */
 	uint32_t gdss      :  1;  /* Configure Data Security SLI          */
 	uint32_t rsvd3     : 19;  /* Reserved                             */
 #endif
@@ -3458,20 +3458,20 @@ typedef struct {
 	uint32_t rsvd0:27;
 	uint32_t discardFarp:1;
 	uint32_t IPEnable:1;
-	uint32_t nodeName:1;
+	uint32_t yesdeName:1;
 	uint32_t portName:1;
 	uint32_t filterEnable:1;
 #else	/*  __LITTLE_ENDIAN_BITFIELD */
 	uint32_t filterEnable:1;
 	uint32_t portName:1;
-	uint32_t nodeName:1;
+	uint32_t yesdeName:1;
 	uint32_t IPEnable:1;
 	uint32_t discardFarp:1;
 	uint32_t rsvd:27;
 #endif
 
 	uint8_t portname[8];	/* Used to be struct lpfc_name */
-	uint8_t nodename[8];
+	uint8_t yesdename[8];
 	uint32_t rsvd1;
 	uint32_t rsvd2;
 	uint32_t rsvd3;
@@ -3493,7 +3493,7 @@ typedef struct {
 /* Union of all Mailbox Command types */
 #define MAILBOX_CMD_WSIZE	32
 #define MAILBOX_CMD_SIZE	(MAILBOX_CMD_WSIZE * sizeof(uint32_t))
-/* ext_wsize times 4 bytes should not be greater than max xmit size */
+/* ext_wsize times 4 bytes should yest be greater than max xmit size */
 #define MAILBOX_EXT_WSIZE	512
 #define MAILBOX_EXT_SIZE	(MAILBOX_EXT_WSIZE * sizeof(uint32_t))
 #define MAILBOX_HBA_EXT_OFFSET  0x100
@@ -3620,9 +3620,9 @@ typedef struct {
 #define RJT_BAD_S_ID       0x02	/* Invalid S_ID field */
 #define RJT_UNAVAIL_TEMP   0x03	/* N_Port unavailable temp. */
 #define RJT_UNAVAIL_PERM   0x04	/* N_Port unavailable perm. */
-#define RJT_UNSUP_CLASS    0x05	/* Class not supported */
+#define RJT_UNSUP_CLASS    0x05	/* Class yest supported */
 #define RJT_DELIM_ERR      0x06	/* Delimiter usage error */
-#define RJT_UNSUP_TYPE     0x07	/* Type not supported */
+#define RJT_UNSUP_TYPE     0x07	/* Type yest supported */
 #define RJT_BAD_CONTROL    0x08	/* Invalid link conrtol */
 #define RJT_BAD_RCTL       0x09	/* R_CTL invalid */
 #define RJT_BAD_FCTL       0x0A	/* F_CTL invalid */
@@ -3638,9 +3638,9 @@ typedef struct {
 #define RJT_UNEXPECTED_ACK 0x14	/* Unexpected ACK */
 #define RJT_LOGIN_REQUIRED 0x16	/* Login required */
 #define RJT_TOO_MANY_SEQ   0x17	/* Excessive sequences */
-#define RJT_XCHG_NOT_STRT  0x18	/* Exchange not started */
-#define RJT_UNSUP_SEC_HDR  0x19	/* Security hdr not supported */
-#define RJT_UNAVAIL_PATH   0x1A	/* Fabric Path not available */
+#define RJT_XCHG_NOT_STRT  0x18	/* Exchange yest started */
+#define RJT_UNSUP_SEC_HDR  0x19	/* Security hdr yest supported */
+#define RJT_UNAVAIL_PATH   0x1A	/* Fabric Path yest available */
 #define RJT_VENDOR_UNIQUE  0xFF	/* Vendor unique error */
 
 #define IOERR_SUCCESS                 0x00	/* statLocalError */
@@ -3719,7 +3719,7 @@ typedef union {
 
 #define BC      0x02		/* Broadcast Received  - Fctl */
 #define SI      0x04		/* Sequence Initiative */
-#define LA      0x08		/* Ignore Link Attention state */
+#define LA      0x08		/* Igyesre Link Attention state */
 #define LS      0x80		/* Last Sequence */
 	} hcsw;
 	uint32_t reserved;
@@ -4191,7 +4191,7 @@ typedef struct _IOCB {	/* IOCB structure */
 
 #define IOCB_FCP	   1	/* IOCB is used for FCP ELS cmds-ulpRsvByte */
 #define IOCB_IP		   2	/* IOCB is used for IP ELS cmds */
-#define PARM_UNUSED        0	/* PU field (Word 4) not used */
+#define PARM_UNUSED        0	/* PU field (Word 4) yest used */
 #define PARM_REL_OFF       1	/* PU field (Word 4) = R. O. */
 #define PARM_READ_CHECK    2	/* PU field (Word 4) = Data Transfer Length */
 #define PARM_NPIV_DID	   3
@@ -4217,7 +4217,7 @@ typedef struct _IOCB {	/* IOCB structure */
 #define IOSTAT_RSVD4           0xE
 #define IOSTAT_NEED_BUFFER     0xF
 #define IOSTAT_DRIVER_REJECT   0x10   /* ulpStatus  - Driver defined */
-#define IOSTAT_DEFAULT         0xF    /* Same as rsvd5 for now */
+#define IOSTAT_DEFAULT         0xF    /* Same as rsvd5 for yesw */
 #define IOSTAT_CNT             0x11
 
 } IOCB_t;

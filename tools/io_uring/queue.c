@@ -2,7 +2,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 
 #include "liburing.h"
@@ -36,7 +36,7 @@ static int __io_uring_get_cqe(struct io_uring *ring,
 		ret = io_uring_enter(ring->ring_fd, 0, 1,
 					IORING_ENTER_GETEVENTS, NULL);
 		if (ret < 0)
-			return -errno;
+			return -erryes;
 	} while (1);
 
 	return 0;
@@ -44,7 +44,7 @@ static int __io_uring_get_cqe(struct io_uring *ring,
 
 /*
  * Return an IO completion, if one is readily available. Returns 0 with
- * cqe_ptr filled in on success, -errno on failure.
+ * cqe_ptr filled in on success, -erryes on failure.
  */
 int io_uring_peek_cqe(struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
 {
@@ -53,7 +53,7 @@ int io_uring_peek_cqe(struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
 
 /*
  * Return an IO completion, waiting for it if necessary. Returns 0 with
- * cqe_ptr filled in on success, -errno on failure.
+ * cqe_ptr filled in on success, -erryes on failure.
  */
 int io_uring_wait_cqe(struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
 {
@@ -126,7 +126,7 @@ submit:
 	ret = io_uring_enter(ring->ring_fd, submitted, 0,
 				IORING_ENTER_GETEVENTS, NULL);
 	if (ret < 0)
-		return -errno;
+		return -erryes;
 
 	return ret;
 }

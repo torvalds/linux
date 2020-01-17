@@ -2,8 +2,8 @@
 
 #include <linux/compiler.h>
 #include <linux/context_tracking.h>
-#include <linux/errno.h>
-#include <linux/nospec.h>
+#include <linux/erryes.h>
+#include <linux/yesspec.h>
 #include <linux/ptrace.h>
 #include <linux/syscalls.h>
 
@@ -14,15 +14,15 @@
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
 
-long compat_arm_syscall(struct pt_regs *regs, int scno);
+long compat_arm_syscall(struct pt_regs *regs, int scyes);
 long sys_ni_syscall(void);
 
-static long do_ni_syscall(struct pt_regs *regs, int scno)
+static long do_ni_syscall(struct pt_regs *regs, int scyes)
 {
 #ifdef CONFIG_COMPAT
 	long ret;
 	if (is_compat_task()) {
-		ret = compat_arm_syscall(regs, scno);
+		ret = compat_arm_syscall(regs, scyes);
 		if (ret != -ENOSYS)
 			return ret;
 	}
@@ -36,18 +36,18 @@ static long __invoke_syscall(struct pt_regs *regs, syscall_fn_t syscall_fn)
 	return syscall_fn(regs);
 }
 
-static void invoke_syscall(struct pt_regs *regs, unsigned int scno,
+static void invoke_syscall(struct pt_regs *regs, unsigned int scyes,
 			   unsigned int sc_nr,
 			   const syscall_fn_t syscall_table[])
 {
 	long ret;
 
-	if (scno < sc_nr) {
+	if (scyes < sc_nr) {
 		syscall_fn_t syscall_fn;
-		syscall_fn = syscall_table[array_index_nospec(scno, sc_nr)];
+		syscall_fn = syscall_table[array_index_yesspec(scyes, sc_nr)];
 		ret = __invoke_syscall(regs, syscall_fn);
 	} else {
-		ret = do_ni_syscall(regs, scno);
+		ret = do_ni_syscall(regs, scyes);
 	}
 
 	regs->regs[0] = ret;
@@ -90,28 +90,28 @@ static void cortex_a76_erratum_1463225_svc_handler(void)
 static void cortex_a76_erratum_1463225_svc_handler(void) { }
 #endif /* CONFIG_ARM64_ERRATUM_1463225 */
 
-static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
+static void el0_svc_common(struct pt_regs *regs, int scyes, int sc_nr,
 			   const syscall_fn_t syscall_table[])
 {
 	unsigned long flags = current_thread_info()->flags;
 
 	regs->orig_x0 = regs->regs[0];
-	regs->syscallno = scno;
+	regs->syscallyes = scyes;
 
 	cortex_a76_erratum_1463225_svc_handler();
 	local_daif_restore(DAIF_PROCCTX);
 	user_exit();
 
 	if (has_syscall_work(flags)) {
-		/* set default errno for user-issued syscall(-1) */
-		if (scno == NO_SYSCALL)
+		/* set default erryes for user-issued syscall(-1) */
+		if (scyes == NO_SYSCALL)
 			regs->regs[0] = -ENOSYS;
-		scno = syscall_trace_enter(regs);
-		if (scno == NO_SYSCALL)
+		scyes = syscall_trace_enter(regs);
+		if (scyes == NO_SYSCALL)
 			goto trace_exit;
 	}
 
-	invoke_syscall(regs, scno, sc_nr, syscall_table);
+	invoke_syscall(regs, scyes, sc_nr, syscall_table);
 
 	/*
 	 * The tracing status may have changed under our feet, so we have to

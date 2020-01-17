@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include "of_private.h"
 
 /**
@@ -26,9 +26,9 @@
 const struct of_device_id *of_match_device(const struct of_device_id *matches,
 					   const struct device *dev)
 {
-	if ((!matches) || (!dev->of_node))
+	if ((!matches) || (!dev->of_yesde))
 		return NULL;
-	return of_match_node(matches, dev->of_node);
+	return of_match_yesde(matches, dev->of_yesde);
 }
 EXPORT_SYMBOL(of_match_device);
 
@@ -55,7 +55,7 @@ EXPORT_SYMBOL(of_dev_put);
 
 int of_device_add(struct platform_device *ofdev)
 {
-	BUG_ON(ofdev->dev.of_node == NULL);
+	BUG_ON(ofdev->dev.of_yesde == NULL);
 
 	/* name and id have to be set so that the platform bus doesn't get
 	 * confused on matching */
@@ -63,11 +63,11 @@ int of_device_add(struct platform_device *ofdev)
 	ofdev->id = PLATFORM_DEVID_NONE;
 
 	/*
-	 * If this device has not binding numa node in devicetree, that is
-	 * of_node_to_nid returns NUMA_NO_NODE. device_add will assume that this
-	 * device is on the same node as the parent.
+	 * If this device has yest binding numa yesde in devicetree, that is
+	 * of_yesde_to_nid returns NUMA_NO_NODE. device_add will assume that this
+	 * device is on the same yesde as the parent.
 	 */
-	set_dev_node(&ofdev->dev, of_node_to_nid(ofdev->dev.of_node));
+	set_dev_yesde(&ofdev->dev, of_yesde_to_nid(ofdev->dev.of_yesde));
 
 	return device_add(&ofdev->dev);
 }
@@ -75,18 +75,18 @@ int of_device_add(struct platform_device *ofdev)
 /**
  * of_dma_configure - Setup DMA configuration
  * @dev:	Device to apply DMA configuration
- * @np:		Pointer to OF node having DMA configuration
+ * @np:		Pointer to OF yesde having DMA configuration
  * @force_dma:  Whether device is to be set up by of_dma_configure() even if
- *		DMA capability is not explicitly described by firmware.
+ *		DMA capability is yest explicitly described by firmware.
  *
  * Try to get devices's DMA configuration from DT and update it
  * accordingly.
  *
  * If platform code needs to use its own special DMA configuration, it
- * can use a platform bus notifier and handle BUS_NOTIFY_ADD_DEVICE events
+ * can use a platform bus yestifier and handle BUS_NOTIFY_ADD_DEVICE events
  * to fix up DMA configuration.
  */
-int of_dma_configure(struct device *dev, struct device_node *np, bool force_dma)
+int of_dma_configure(struct device *dev, struct device_yesde *np, bool force_dma)
 {
 	u64 dma_addr, paddr, size = 0;
 	int ret;
@@ -100,7 +100,7 @@ int of_dma_configure(struct device *dev, struct device_node *np, bool force_dma)
 		/*
 		 * For legacy reasons, we have to assume some devices need
 		 * DMA configuration regardless of whether "dma-ranges" is
-		 * correctly specified or not.
+		 * correctly specified or yest.
 		 */
 		if (!force_dma)
 			return ret == -ENODEV ? 0 : ret;
@@ -129,11 +129,11 @@ int of_dma_configure(struct device *dev, struct device_node *np, bool force_dma)
 	/*
 	 * If @dev is expected to be DMA-capable then the bus code that created
 	 * it should have initialised its dma_mask pointer by this point. For
-	 * now, we'll continue the legacy behaviour of coercing it to the
-	 * coherent mask if not, but we'll no longer do so quietly.
+	 * yesw, we'll continue the legacy behaviour of coercing it to the
+	 * coherent mask if yest, but we'll yes longer do so quietly.
 	 */
 	if (!dev->dma_mask) {
-		dev_warn(dev, "DMA mask not set\n");
+		dev_warn(dev, "DMA mask yest set\n");
 		dev->dma_mask = &dev->coherent_dma_mask;
 	}
 
@@ -158,14 +158,14 @@ int of_dma_configure(struct device *dev, struct device_node *np, bool force_dma)
 
 	coherent = of_dma_is_coherent(np);
 	dev_dbg(dev, "device is%sdma coherent\n",
-		coherent ? " " : " not ");
+		coherent ? " " : " yest ");
 
 	iommu = of_iommu_configure(dev, np);
 	if (IS_ERR(iommu) && PTR_ERR(iommu) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
 	dev_dbg(dev, "device is%sbehind an iommu\n",
-		iommu ? " " : " not ");
+		iommu ? " " : " yest ");
 
 	arch_setup_dma_ops(dev, dma_addr, size, iommu, coherent);
 
@@ -206,19 +206,19 @@ static ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len
 	ssize_t csize;
 	ssize_t tsize;
 
-	if ((!dev) || (!dev->of_node))
+	if ((!dev) || (!dev->of_yesde))
 		return -ENODEV;
 
 	/* Name & Type */
 	/* %p eats all alphanum characters, so %c must be used here */
-	csize = snprintf(str, len, "of:N%pOFn%c%s", dev->of_node, 'T',
-			 of_node_get_device_type(dev->of_node));
+	csize = snprintf(str, len, "of:N%pOFn%c%s", dev->of_yesde, 'T',
+			 of_yesde_get_device_type(dev->of_yesde));
 	tsize = csize;
 	len -= csize;
 	if (str)
 		str += csize;
 
-	of_property_for_each_string(dev->of_node, "compatible", p, compat) {
+	of_property_for_each_string(dev->of_yesde, "compatible", p, compat) {
 		csize = strlen(compat) + 1;
 		tsize += csize;
 		if (csize > len)
@@ -287,19 +287,19 @@ void of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 	struct property *p;
 	int seen = 0;
 
-	if ((!dev) || (!dev->of_node))
+	if ((!dev) || (!dev->of_yesde))
 		return;
 
-	add_uevent_var(env, "OF_NAME=%pOFn", dev->of_node);
-	add_uevent_var(env, "OF_FULLNAME=%pOF", dev->of_node);
-	type = of_node_get_device_type(dev->of_node);
+	add_uevent_var(env, "OF_NAME=%pOFn", dev->of_yesde);
+	add_uevent_var(env, "OF_FULLNAME=%pOF", dev->of_yesde);
+	type = of_yesde_get_device_type(dev->of_yesde);
 	if (type)
 		add_uevent_var(env, "OF_TYPE=%s", type);
 
 	/* Since the compatible field can contain pretty much anything
-	 * it's not really legal to split it out with commas. We split it
+	 * it's yest really legal to split it out with commas. We split it
 	 * up using a number of environment variables instead. */
-	of_property_for_each_string(dev->of_node, "compatible", p, compat) {
+	of_property_for_each_string(dev->of_yesde, "compatible", p, compat) {
 		add_uevent_var(env, "OF_COMPATIBLE_%d=%s", seen, compat);
 		seen++;
 	}
@@ -308,7 +308,7 @@ void of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 	seen = 0;
 	mutex_lock(&of_mutex);
 	list_for_each_entry(app, &aliases_lookup, link) {
-		if (dev->of_node == app->np) {
+		if (dev->of_yesde == app->np) {
 			add_uevent_var(env, "OF_ALIAS_%d=%s", seen,
 				       app->alias);
 			seen++;
@@ -321,7 +321,7 @@ int of_device_uevent_modalias(struct device *dev, struct kobj_uevent_env *env)
 {
 	int sl;
 
-	if ((!dev) || (!dev->of_node))
+	if ((!dev) || (!dev->of_yesde))
 		return -ENODEV;
 
 	/* Devicetree modalias is tricky, we add it in 2 steps */

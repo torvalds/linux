@@ -516,7 +516,7 @@ static struct vpbe_enc_mode_info dm365evm_enc_preset_timing[] = {
 #define VENC_STD_ALL	(V4L2_STD_NTSC | V4L2_STD_PAL)
 
 /*
- * The outputs available from VPBE + ecnoders. Keep the
+ * The outputs available from VPBE + ecyesders. Keep the
  * the order same as that of encoders. First those from venc followed by that
  * from encoders. Index in the output refers to index on a particular
  * encoder.Driver uses this index to pass it to encoder when it supports more
@@ -715,7 +715,7 @@ fail:
 			pr_warn("%s(): error registering the aemif device: %d\n",
 				__func__, rc);
 	} else {
-		/* no OneNAND support yet */
+		/* yes OneNAND support yet */
 	}
 
 	/* Leave external chips in reset when unused. */

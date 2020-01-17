@@ -15,7 +15,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/irq.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/acpi.h>
 #include <linux/memblock.h>
 #include <linux/earlycpio.h>
@@ -273,7 +273,7 @@ acpi_get_subtable_type(char *id)
  * on it. Assumption is that there's only single handler for particular
  * entry id.
  *
- * The table_size is not the size of the complete ACPI table (the length
+ * The table_size is yest the size of the complete ACPI table (the length
  * field in the header struct), but only the size of the root table; i.e.,
  * the offset from the very first byte of the complete ACPI table, to the
  * first byte of the very first subtable.
@@ -302,7 +302,7 @@ static int __init acpi_parse_entries_array(char *id, unsigned long table_size,
 		return -EINVAL;
 
 	if (!table_header) {
-		pr_warn("%4.4s not present\n", id);
+		pr_warn("%4.4s yest present\n", id);
 		return -ENODEV;
 	}
 
@@ -376,7 +376,7 @@ int __init acpi_table_parse_entries_array(char *id,
 
 	acpi_get_table(id, instance, &table_header);
 	if (!table_header) {
-		pr_warn("%4.4s not present\n", id);
+		pr_warn("%4.4s yest present\n", id);
 		return -ENODEV;
 	}
 
@@ -418,7 +418,7 @@ int __init acpi_table_parse_madt(enum acpi_madt_type id,
  * Scan the ACPI System Descriptor Table (STD) for a table matching @id,
  * run @handler on it.
  *
- * Return 0 if table found, -errno if not.
+ * Return 0 if table found, -erryes if yest.
  */
 int __init acpi_table_parse(char *id, acpi_tbl_table_handler handler)
 {
@@ -445,8 +445,8 @@ int __init acpi_table_parse(char *id, acpi_tbl_table_handler handler)
 
 /*
  * The BIOS is supposed to supply a single APIC/MADT,
- * but some report two.  Provide a knob to use either.
- * (don't you wish instance 0 and 1 were not the same?)
+ * but some report two.  Provide a kyesb to use either.
+ * (don't you wish instance 0 and 1 were yest the same?)
  */
 static void __init check_multiple_madt(void)
 {
@@ -457,7 +457,7 @@ static void __init check_multiple_madt(void)
 		pr_warn("BIOS bug: multiple APIC/MADT found, using %d\n",
 			acpi_apic_instance);
 		pr_warn("If \"acpi_apic_instance=%d\" works better, "
-			"notify linux-acpi@vger.kernel.org\n",
+			"yestify linux-acpi@vger.kernel.org\n",
 			acpi_apic_instance ? 0 : 2);
 		acpi_put_table(table);
 
@@ -515,7 +515,7 @@ void __init acpi_table_upgrade(void)
 {
 	void *data;
 	size_t size;
-	int sig, no, table_nr = 0, total_offset = 0;
+	int sig, yes, table_nr = 0, total_offset = 0;
 	long offset = 0;
 	struct acpi_table_header *table;
 	char cpio_path[32] = "kernel/firmware/acpi/";
@@ -532,7 +532,7 @@ void __init acpi_table_upgrade(void)
 	if (data == NULL || size == 0)
 		return;
 
-	for (no = 0; no < NR_ACPI_INITRD_TABLES; no++) {
+	for (yes = 0; yes < NR_ACPI_INITRD_TABLES; yes++) {
 		file = find_cpio_data(cpio_path, data, size, &offset);
 		if (!file.data)
 			break;
@@ -553,12 +553,12 @@ void __init acpi_table_upgrade(void)
 				break;
 
 		if (!table_sigs[sig]) {
-			pr_err("ACPI OVERRIDE: Unknown signature [%s%s]\n",
+			pr_err("ACPI OVERRIDE: Unkyeswn signature [%s%s]\n",
 				cpio_path, file.name);
 			continue;
 		}
 		if (file.size != table->length) {
-			pr_err("ACPI OVERRIDE: File length does not match table length [%s%s]\n",
+			pr_err("ACPI OVERRIDE: File length does yest match table length [%s%s]\n",
 				cpio_path, file.name);
 			continue;
 		}
@@ -580,7 +580,7 @@ void __init acpi_table_upgrade(void)
 		return;
 
 	if (security_locked_down(LOCKDOWN_ACPI_TABLES)) {
-		pr_notice("kernel is locked down, ignoring table override\n");
+		pr_yestice("kernel is locked down, igyesring table override\n");
 		return;
 	}
 
@@ -592,12 +592,12 @@ void __init acpi_table_upgrade(void)
 		return;
 	}
 	/*
-	 * Only calling e820_add_reserve does not work and the
+	 * Only calling e820_add_reserve does yest work and the
 	 * tables are invalid (memory got used) later.
 	 * memblock_reserve works as expected and the tables won't get modified.
-	 * But it's not enough on X86 because ioremap will
+	 * But it's yest eyesugh on X86 because ioremap will
 	 * complain later (used by acpi_os_map_memory) that the pages
-	 * that should get mapped are not marked "reserved".
+	 * that should get mapped are yest marked "reserved".
 	 * Both memblock_reserve and e820__range_add (via arch_reserve_mem_area)
 	 * works fine.
 	 */
@@ -609,9 +609,9 @@ void __init acpi_table_upgrade(void)
 	 * tables one time, we will hit the limit. Need to map chunks
 	 * one by one during copying the same as that in relocate_initrd().
 	 */
-	for (no = 0; no < table_nr; no++) {
-		unsigned char *src_p = acpi_initrd_files[no].data;
-		phys_addr_t size = acpi_initrd_files[no].size;
+	for (yes = 0; yes < table_nr; yes++) {
+		unsigned char *src_p = acpi_initrd_files[yes].data;
+		phys_addr_t size = acpi_initrd_files[yes].size;
 		phys_addr_t dest_addr = acpi_tables_addr + total_offset;
 		phys_addr_t slop, clen;
 		char *dest_p;
@@ -722,7 +722,7 @@ static void __init acpi_table_initrd_scan(void)
 		}
 		/*
 		 * Mark the table to avoid being used in
-		 * acpi_table_initrd_override(). Though this is not possible
+		 * acpi_table_initrd_override(). Though this is yest possible
 		 * because override is disabled in acpi_install_table().
 		 */
 		if (test_and_set_bit(table_index, acpi_initrd_installed)) {
@@ -828,7 +828,7 @@ static int __init acpi_parse_apic_instance(char *str)
 	if (kstrtoint(str, 0, &acpi_apic_instance))
 		return -EINVAL;
 
-	pr_notice("Shall use APIC/MADT table %d\n", acpi_apic_instance);
+	pr_yestice("Shall use APIC/MADT table %d\n", acpi_apic_instance);
 
 	return 0;
 }

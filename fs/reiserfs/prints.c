@@ -350,7 +350,7 @@ void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...)
  *   be read, thus the need for the while loop.
  *
  *   Numbering scheme for panic used by Vladimir and Anatoly( Hans completely
- *   ignores this scheme, and considers it pointless complexity):
+ *   igyesres this scheme, and considers it pointless complexity):
  *
  *   panics in reiserfs_fs.h have numbers from 1000 to 1999
  *   super.c			2000 to 2999
@@ -359,12 +359,12 @@ void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...)
  *   stree.c			5000 to 5999
  *   prints.c			6000 to 6999
  *   namei.c			7000 to 7999
- *   fix_nodes.c		8000 to 8999
+ *   fix_yesdes.c		8000 to 8999
  *   dir.c			9000 to 9999
  *   lbalance.c			10000 to 10999
- *   ibalance.c			11000 to 11999 not ready
+ *   ibalance.c			11000 to 11999 yest ready
  *   do_balan.c			12000 to 12999
- *   inode.c			13000 to 13999
+ *   iyesde.c			13000 to 13999
  *   file.c			14000 to 14999
  *   objectid.c			15000 - 15999
  *   buffer.c			16000 - 16999
@@ -415,7 +415,7 @@ void __reiserfs_error(struct super_block *sb, const char *id,
 	reiserfs_abort_journal(sb, -EIO);
 }
 
-void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...)
+void reiserfs_abort(struct super_block *sb, int erryes, const char *fmt, ...)
 {
 	do_reiserfs_warning(fmt);
 
@@ -431,11 +431,11 @@ void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...)
 	       error_buf);
 
 	sb->s_flags |= SB_RDONLY;
-	reiserfs_abort_journal(sb, errno);
+	reiserfs_abort_journal(sb, erryes);
 }
 
 /*
- * this prints internal nodes (4 keys/items in line) (dc_number,
+ * this prints internal yesdes (4 keys/items in line) (dc_number,
  * dc_size)[k_dirid, k_objectid, k_offset, k_uniqueness](dc_number,
  * dc_size)...
  */
@@ -539,10 +539,10 @@ char *reiserfs_hashname(int code)
 	if (code == R5_HASH)
 		return "r5";
 
-	return "unknown";
+	return "unkyeswn";
 }
 
-/* return 1 if this is not super block */
+/* return 1 if this is yest super block */
 static int print_super_block(struct buffer_head *bh)
 {
 	struct reiserfs_super_block *rs =
@@ -695,7 +695,7 @@ void store_print_tb(struct tree_balance *tb)
 		tb->sbytes[0], tb->snum[1], tb->sbytes[1],
 		tb->cur_blknum, tb->lkey[0], tb->rkey[0]);
 
-	/* this prints balance parameters for non-leaf levels */
+	/* this prints balance parameters for yesn-leaf levels */
 	h = 0;
 	do {
 		h++;
@@ -709,7 +709,7 @@ void store_print_tb(struct tree_balance *tb)
 		"=====================================================================\n"
 		"FEB list: ");
 
-	/* print FEB list (list of buffers in form (bh (b_blocknr, b_count), that will be used for new nodes) */
+	/* print FEB list (list of buffers in form (bh (b_blocknr, b_count), that will be used for new yesdes) */
 	h = 0;
 	for (i = 0; i < ARRAY_SIZE(tb->FEB); i++)
 		sprintf(print_tb_buf + strlen(print_tb_buf),
@@ -782,9 +782,9 @@ void print_statistics(struct super_block *s)
 {
 
 	/*
-	   printk ("reiserfs_put_super: session statistics: balances %d, fix_nodes %d, \
+	   printk ("reiserfs_put_super: session statistics: balances %d, fix_yesdes %d, \
 	   bmap with search %d, without %d, dir2ind %d, ind2dir %d\n",
-	   REISERFS_SB(s)->s_do_balance, REISERFS_SB(s)->s_fix_nodes,
+	   REISERFS_SB(s)->s_do_balance, REISERFS_SB(s)->s_fix_yesdes,
 	   REISERFS_SB(s)->s_bmaps, REISERFS_SB(s)->s_bmaps_without_search,
 	   REISERFS_SB(s)->s_direct2indirect, REISERFS_SB(s)->s_indirect2direct);
 	 */

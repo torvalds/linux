@@ -76,10 +76,10 @@ deadline_rb_root(struct deadline_data *dd, struct request *rq)
 static inline struct request *
 deadline_latter_request(struct request *rq)
 {
-	struct rb_node *node = rb_next(&rq->rb_node);
+	struct rb_yesde *yesde = rb_next(&rq->rb_yesde);
 
-	if (node)
-		return rb_entry_rq(node);
+	if (yesde)
+		return rb_entry_rq(yesde);
 
 	return NULL;
 }
@@ -113,9 +113,9 @@ static void deadline_remove_request(struct request_queue *q, struct request *rq)
 	list_del_init(&rq->queuelist);
 
 	/*
-	 * We might not be on the rbtree, if we are doing an insert merge
+	 * We might yest be on the rbtree, if we are doing an insert merge
 	 */
-	if (!RB_EMPTY_NODE(&rq->rb_node))
+	if (!RB_EMPTY_NODE(&rq->rb_yesde))
 		deadline_del_rq_rb(dd, rq);
 
 	elv_rqhash_del(q, rq);
@@ -153,7 +153,7 @@ static void dd_merged_requests(struct request_queue *q, struct request *req,
 	}
 
 	/*
-	 * kill knowledge of next, this one is a goner
+	 * kill kyeswledge of next, this one is a goner
 	 */
 	deadline_remove_request(q, next);
 }
@@ -177,7 +177,7 @@ deadline_move_request(struct deadline_data *dd, struct request *rq)
 }
 
 /*
- * deadline_check_fifo returns 0 if there are no expired requests on the fifo,
+ * deadline_check_fifo returns 0 if there are yes expired requests on the fifo,
  * 1 otherwise. Requires !list_empty(&dd->fifo_list[data_dir])
  */
 static inline int deadline_check_fifo(struct deadline_data *dd, int ddir)
@@ -295,7 +295,7 @@ static struct request *__dd_dispatch_request(struct deadline_data *dd)
 		goto dispatch_request;
 
 	/*
-	 * at this point we are not running a batch. select the appropriate
+	 * at this point we are yest running a batch. select the appropriate
 	 * data direction (read / write)
 	 */
 
@@ -312,7 +312,7 @@ static struct request *__dd_dispatch_request(struct deadline_data *dd)
 	}
 
 	/*
-	 * there are either no reads or writes have been starved
+	 * there are either yes reads or writes have been starved
 	 */
 
 	if (writes) {
@@ -330,7 +330,7 @@ dispatch_writes:
 
 dispatch_find_request:
 	/*
-	 * we are not running a batch, find best request for selected data_dir
+	 * we are yest running a batch, find best request for selected data_dir
 	 */
 	next_rq = deadline_next_request(dd, data_dir);
 	if (deadline_check_fifo(dd, data_dir) || !next_rq) {
@@ -349,7 +349,7 @@ dispatch_find_request:
 	}
 
 	/*
-	 * For a zoned block device, if we only have writes queued and none of
+	 * For a zoned block device, if we only have writes queued and yesne of
 	 * them can be dispatched, rq will be NULL.
 	 */
 	if (!rq)
@@ -412,7 +412,7 @@ static int dd_init_queue(struct request_queue *q, struct elevator_type *e)
 	if (!eq)
 		return -ENOMEM;
 
-	dd = kzalloc_node(sizeof(*dd), GFP_KERNEL, q->node);
+	dd = kzalloc_yesde(sizeof(*dd), GFP_KERNEL, q->yesde);
 	if (!dd) {
 		kobject_put(&eq->kobj);
 		return -ENOMEM;
@@ -550,7 +550,7 @@ static void dd_prepare_request(struct request *rq, struct bio *bio)
  * completed write requests. Do this while holding the zone lock
  * spinlock so that the zone is never unlocked while deadline_fifo_request()
  * or deadline_next_request() are executing. This function is called for
- * all requests, whether or not these requests complete successfully.
+ * all requests, whether or yest these requests complete successfully.
  *
  * For a zoned block device, __dd_dispatch_request() may have stopped
  * dispatching requests if all the queued requests are write requests directed

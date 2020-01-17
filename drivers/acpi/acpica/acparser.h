@@ -178,7 +178,7 @@ acpi_status
 acpi_ps_walk_parsed_aml(union acpi_parse_object *start_op,
 			union acpi_parse_object *end_op,
 			union acpi_operand_object *mth_desc,
-			struct acpi_namespace_node *start_node,
+			struct acpi_namespace_yesde *start_yesde,
 			union acpi_operand_object **params,
 			union acpi_operand_object **caller_return_desc,
 			acpi_owner_id owner_id,

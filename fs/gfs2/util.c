@@ -21,7 +21,7 @@
 
 struct kmem_cache *gfs2_glock_cachep __read_mostly;
 struct kmem_cache *gfs2_glock_aspace_cachep __read_mostly;
-struct kmem_cache *gfs2_inode_cachep __read_mostly;
+struct kmem_cache *gfs2_iyesde_cachep __read_mostly;
 struct kmem_cache *gfs2_bufdata_cachep __read_mostly;
 struct kmem_cache *gfs2_rgrpd_cachep __read_mostly;
 struct kmem_cache *gfs2_quotad_cachep __read_mostly;
@@ -148,22 +148,22 @@ int gfs2_consist_i(struct gfs2_sbd *sdp, int cluster_wide, const char *function,
 }
 
 /**
- * gfs2_consist_inode_i - Flag an inode consistency error and withdraw
+ * gfs2_consist_iyesde_i - Flag an iyesde consistency error and withdraw
  * Returns: -1 if this call withdrew the machine,
  *          0 if it was already withdrawn
  */
 
-int gfs2_consist_inode_i(struct gfs2_inode *ip, int cluster_wide,
+int gfs2_consist_iyesde_i(struct gfs2_iyesde *ip, int cluster_wide,
 			 const char *function, char *file, unsigned int line)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_iyesde);
 	int rv;
 	rv = gfs2_lm_withdraw(sdp,
 			      "fatal: filesystem consistency error\n"
-			      "  inode = %llu %llu\n"
+			      "  iyesde = %llu %llu\n"
 			      "  function = %s, file = %s, line = %u\n",
-			      (unsigned long long)ip->i_no_formal_ino,
-			      (unsigned long long)ip->i_no_addr,
+			      (unsigned long long)ip->i_yes_formal_iyes,
+			      (unsigned long long)ip->i_yes_addr,
 			      function, file, line);
 	return rv;
 }

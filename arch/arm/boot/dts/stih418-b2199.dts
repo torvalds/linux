@@ -11,7 +11,7 @@
 	compatible = "st,stih418-b2199", "st,stih418";
 
 	chosen {
-		bootargs = "clk_ignore_unused";
+		bootargs = "clk_igyesre_unused";
 		stdout-path = &sbc_serial0;
 	};
 
@@ -82,7 +82,7 @@
 			sd-uhs-sdr50;
 			sd-uhs-sdr104;
 			sd-uhs-ddr50;
-			non-removable;
+			yesn-removable;
 		};
 
 		miphy28lp_phy: miphy28lp@0 {

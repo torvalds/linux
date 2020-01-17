@@ -640,7 +640,7 @@ static int atmel_hlcdc_dc_atomic_commit(struct drm_device *dev,
 	/* We have our own synchronization through the commit lock. */
 	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
 
-	/* Swap state succeeded, this is the point of no return. */
+	/* Swap state succeeded, this is the point of yes return. */
 	drm_atomic_state_get(state);
 	if (async)
 		queue_work(dc->wq, &commit->work);
@@ -703,7 +703,7 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 	struct atmel_hlcdc_dc *dc;
 	int ret;
 
-	match = of_match_node(atmel_hlcdc_of_match, dev->dev->parent->of_node);
+	match = of_match_yesde(atmel_hlcdc_of_match, dev->dev->parent->of_yesde);
 	if (!match) {
 		dev_err(&pdev->dev, "invalid compatible string\n");
 		return -ENODEV;
@@ -855,7 +855,7 @@ static struct drm_driver atmel_hlcdc_dc_driver = {
 	.desc = "Atmel HLCD Controller DRM",
 	.date = "20141504",
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 };
 
 static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)

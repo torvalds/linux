@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techyeslogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -24,7 +24,7 @@
 
 static unsigned char fdt_buf[16 << 10] __initdata;
 
-/* determined physical memory size, not overridden by command line args	 */
+/* determined physical memory size, yest overridden by command line args	 */
 extern unsigned long physical_memsize;
 
 enum mem_map {
@@ -140,7 +140,7 @@ static void __init append_memory(void *fdt, int root_off)
 		"ememsize", "memsize",
 	};
 
-	/* if a memory node already exists, leave it alone */
+	/* if a memory yesde already exists, leave it alone */
 	mem_off = fdt_path_offset(fdt, "/memory");
 	if (mem_off >= 0)
 		return;
@@ -195,7 +195,7 @@ static void __init append_memory(void *fdt, int root_off)
 		mem_map = config & ROCIT_CONFIG_GEN1_MEMMAP_MASK;
 		mem_map >>= ROCIT_CONFIG_GEN1_MEMMAP_SHIFT;
 	} else {
-		/* if not using ROCit, presume the v1 memory map */
+		/* if yest using ROCit, presume the v1 memory map */
 		mem_map = MEM_MAP_V1;
 	}
 	if (mem_map > MEM_MAP_V2)
@@ -203,13 +203,13 @@ static void __init append_memory(void *fdt, int root_off)
 		      (unsigned int)mem_map);
 
 	/* append memory to the DT */
-	mem_off = fdt_add_subnode(fdt, root_off, "memory");
+	mem_off = fdt_add_subyesde(fdt, root_off, "memory");
 	if (mem_off < 0)
-		panic("Unable to add memory node to DT: %d", mem_off);
+		panic("Unable to add memory yesde to DT: %d", mem_off);
 
 	err = fdt_setprop_string(fdt, mem_off, "device_type", "memory");
 	if (err)
-		panic("Unable to set memory node device_type: %d", err);
+		panic("Unable to set memory yesde device_type: %d", err);
 
 	mem_entries = gen_fdt_mem_array(mem_array, physical_memsize, mem_map);
 	err = fdt_setprop(fdt, mem_off, "reg", mem_array,
@@ -240,7 +240,7 @@ static void __init remove_gic(void *fdt)
 		 * On systems using the RocIT system controller a GIC may be
 		 * present without a CM. Detect whether that is the case.
 		 */
-		biu_base = ioremap_nocache(MSC01_BIU_REG_BASE,
+		biu_base = ioremap_yescache(MSC01_BIU_REG_BASE,
 				MSC01_BIU_ADDRSPACE_SZ);
 		sc_cfg = __raw_readl(biu_base + MSC01_SC_CFG_OFS);
 		if (sc_cfg & MSC01_SC_CFG_GICPRES_MSK) {
@@ -251,28 +251,28 @@ static void __init remove_gic(void *fdt)
 		}
 	}
 
-	gic_off = fdt_node_offset_by_compatible(fdt, -1, "mti,gic");
+	gic_off = fdt_yesde_offset_by_compatible(fdt, -1, "mti,gic");
 	if (gic_off < 0) {
-		pr_warn("malta-dtshim: unable to find DT GIC node: %d\n",
+		pr_warn("malta-dtshim: unable to find DT GIC yesde: %d\n",
 			gic_off);
 		return;
 	}
 
-	err = fdt_nop_node(fdt, gic_off);
+	err = fdt_yesp_yesde(fdt, gic_off);
 	if (err)
-		pr_warn("malta-dtshim: unable to nop GIC node\n");
+		pr_warn("malta-dtshim: unable to yesp GIC yesde\n");
 
-	i8259_off = fdt_node_offset_by_compatible(fdt, -1, "intel,i8259");
+	i8259_off = fdt_yesde_offset_by_compatible(fdt, -1, "intel,i8259");
 	if (i8259_off < 0) {
-		pr_warn("malta-dtshim: unable to find DT i8259 node: %d\n",
+		pr_warn("malta-dtshim: unable to find DT i8259 yesde: %d\n",
 			i8259_off);
 		return;
 	}
 
-	cpu_off = fdt_node_offset_by_compatible(fdt, -1,
+	cpu_off = fdt_yesde_offset_by_compatible(fdt, -1,
 			"mti,cpu-interrupt-controller");
 	if (cpu_off < 0) {
-		pr_warn("malta-dtshim: unable to find CPU intc node: %d\n",
+		pr_warn("malta-dtshim: unable to find CPU intc yesde: %d\n",
 			cpu_off);
 		return;
 	}
@@ -312,7 +312,7 @@ void __init *malta_dt_shim(void *fdt)
 
 	root_off = fdt_path_offset(fdt_buf, "/");
 	if (root_off < 0)
-		panic("No / node in DT");
+		panic("No / yesde in DT");
 
 	compat = fdt_getprop(fdt_buf, root_off, "compatible", &len);
 	if (!compat)

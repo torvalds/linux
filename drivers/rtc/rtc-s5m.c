@@ -78,7 +78,7 @@ struct s5m_rtc_reg_config {
 	unsigned int autoclear_udr_mask;
 	/*
 	 * Masks in UDR field for time and alarm operations.
-	 * The read time mask can be 0. Rest should not.
+	 * The read time mask can be 0. Rest should yest.
 	 */
 	unsigned int read_time_udr_mask;
 	unsigned int write_time_udr_mask;
@@ -207,7 +207,7 @@ static int s5m8767_tm_to_data(struct rtc_time *tm, u8 *data)
 	data[RTC_YEAR1] = tm->tm_year > 100 ? (tm->tm_year - 100) : 0;
 
 	if (tm->tm_year < 100) {
-		pr_err("RTC cannot handle the year %d\n",
+		pr_err("RTC canyest handle the year %d\n",
 		       1900 + tm->tm_year);
 		return -EINVAL;
 	} else {
@@ -327,7 +327,7 @@ static int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 
 	ret = s5m8767_wait_for_udr_update(info);
 
-	/* On S2MPS13 the AUDR is not auto-cleared */
+	/* On S2MPS13 the AUDR is yest auto-cleared */
 	if (info->device_type == S2MPS13X)
 		regmap_update_bits(info->regmap, info->regs->udr_update,
 				   S2MPS13_RTC_AUDR_MASK, 0);
@@ -719,7 +719,7 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	int ret, alarm_irq;
 
 	if (!pdata) {
-		dev_err(pdev->dev.parent, "Platform data not supplied\n");
+		dev_err(pdev->dev.parent, "Platform data yest supplied\n");
 		return -ENODEV;
 	}
 
@@ -755,7 +755,7 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(&pdev->dev,
-				"Device type %lu is not supported by RTC driver\n",
+				"Device type %lu is yest supported by RTC driver\n",
 				platform_get_device_id(pdev)->driver_data);
 		return -ENODEV;
 	}
@@ -803,7 +803,7 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	}
 
 	if (!info->irq) {
-		dev_info(&pdev->dev, "Alarm IRQ not available\n");
+		dev_info(&pdev->dev, "Alarm IRQ yest available\n");
 		return 0;
 	}
 

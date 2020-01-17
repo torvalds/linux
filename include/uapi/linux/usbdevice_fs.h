@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*****************************************************************************/
 
 /*
@@ -18,7 +18,7 @@
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License
- *	along with this program; if not, write to the Free Software
+ *	along with this program; if yest, write to the Free Software
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *  History:
@@ -129,14 +129,14 @@ struct usbdevfs_urb {
 	};
 	int error_count;
 	unsigned int signr;	/* signal to be sent on completion,
-				  or 0 if none should be sent. */
+				  or 0 if yesne should be sent. */
 	void __user *usercontext;
 	struct usbdevfs_iso_packet_desc iso_frame_desc[0];
 };
 
 /* ioctls for talking directly to drivers */
 struct usbdevfs_ioctl {
-	int	ifno;		/* interface 0..N ; negative numbers reserved */
+	int	ifyes;		/* interface 0..N ; negative numbers reserved */
 	int	ioctl_code;	/* MUST encode size + direction of data so the
 				 * macros in <asm/ioctl.h> give correct values */
 	void __user *data;	/* param buffer (in, or out) */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -41,14 +41,14 @@
 struct mlx5_vxlan {
 	struct mlx5_core_dev		*mdev;
 	spinlock_t			lock; /* protect vxlan table */
-	/* max_num_ports is usuallly 4, 16 buckets is more than enough */
+	/* max_num_ports is usuallly 4, 16 buckets is more than eyesugh */
 	DECLARE_HASHTABLE(htable, 4);
 	int				num_ports;
 	struct mutex                    sync_lock; /* sync add/del port HW operations */
 };
 
 struct mlx5_vxlan_port {
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 	refcount_t refcount;
 	u16 udp_port;
 };
@@ -121,7 +121,7 @@ int mlx5_vxlan_add_port(struct mlx5_vxlan *vxlan, u16 port)
 	mutex_lock(&vxlan->sync_lock);
 	if (vxlan->num_ports >= mlx5_vxlan_max_udp_ports(vxlan->mdev)) {
 		mlx5_core_info(vxlan->mdev,
-			       "UDP port (%d) not offloaded, max number of UDP ports (%d) are already offloaded\n",
+			       "UDP port (%d) yest offloaded, max number of UDP ports (%d) are already offloaded\n",
 			       port, mlx5_vxlan_max_udp_ports(vxlan->mdev));
 		ret = -ENOSPC;
 		goto unlock;
@@ -215,7 +215,7 @@ struct mlx5_vxlan *mlx5_vxlan_create(struct mlx5_core_dev *mdev)
 void mlx5_vxlan_destroy(struct mlx5_vxlan *vxlan)
 {
 	struct mlx5_vxlan_port *vxlanp;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	int bkt;
 
 	if (!mlx5_vxlan_allowed(vxlan))

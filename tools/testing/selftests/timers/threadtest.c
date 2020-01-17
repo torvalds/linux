@@ -120,7 +120,7 @@ void *independent_thread(void *arg)
 int main(int argc, char **argv)
 {
 	int thread_count, i;
-	time_t start, now, runtime;
+	time_t start, yesw, runtime;
 	char buf[255];
 	pthread_t pth[MAX_THREADS];
 	int opt;
@@ -169,11 +169,11 @@ int main(int argc, char **argv)
 	for (i = 0; i < thread_count; i++)
 		pthread_create(&pth[i], 0, thread, 0);
 
-	while (time(&now) < start + runtime) {
+	while (time(&yesw) < start + runtime) {
 		sleep(1);
 		if (done) {
 			ret = 1;
-			strftime(buf, 255, "%a, %d %b %Y %T %z", localtime(&now));
+			strftime(buf, 255, "%a, %d %b %Y %T %z", localtime(&yesw));
 			printf("%s\n", buf);
 			goto out;
 		}

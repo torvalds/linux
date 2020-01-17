@@ -108,7 +108,7 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 		}
 		if (pdev->device == PCI_DEVICE_ID_FRESCO_LOGIC_PDK)
 			xhci->quirks |= XHCI_BROKEN_STREAMS;
-		/* Fresco Logic confirms: all revisions of this chip do not
+		/* Fresco Logic confirms: all revisions of this chip do yest
 		 * support MSI, even though some of them claim to in their PCI
 		 * capabilities.
 		 */
@@ -292,7 +292,7 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	if (!xhci->sbrn)
 		pci_read_config_byte(pdev, XHCI_SBRN_OFFSET, &xhci->sbrn);
 
-	/* imod_interval is the interrupt moderation value in nanoseconds. */
+	/* imod_interval is the interrupt moderation value in nayesseconds. */
 	xhci->imod_interval = 40000;
 
 	retval = xhci_gen_setup(hcd, xhci_pci_quirks);
@@ -322,12 +322,12 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	driver = (struct hc_driver *)id->driver_data;
 
 	/* Prevent runtime suspending between USB-2 and USB-3 initialization */
-	pm_runtime_get_noresume(&dev->dev);
+	pm_runtime_get_yesresume(&dev->dev);
 
 	/* Register the USB 2.0 roothub.
-	 * FIXME: USB core must know to register the USB 2.0 roothub first.
+	 * FIXME: USB core must kyesw to register the USB 2.0 roothub first.
 	 * This is sort of silly, because we could just set the HCD driver flags
-	 * to say USB 2.0, but I'm not sure what the implications would be in
+	 * to say USB 2.0, but I'm yest sure what the implications would be in
 	 * the other parts of the HCD code.
 	 */
 	retval = usb_hcd_pci_probe(dev, id);
@@ -335,7 +335,7 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (retval)
 		goto put_runtime_pm;
 
-	/* USB 2.0 roothub is stored in the PCI device now. */
+	/* USB 2.0 roothub is stored in the PCI device yesw. */
 	hcd = dev_get_drvdata(&dev->dev);
 	xhci = hcd_to_xhci(hcd);
 	xhci->shared_hcd = usb_create_shared_hcd(driver, &dev->dev,
@@ -363,7 +363,7 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		xhci_pme_acpi_rtd3_enable(dev);
 
 	/* USB-2 and USB-3 roothubs initialized, allow runtime pm suspend */
-	pm_runtime_put_noidle(&dev->dev);
+	pm_runtime_put_yesidle(&dev->dev);
 
 	if (xhci->quirks & XHCI_DEFAULT_PM_RUNTIME_ALLOW)
 		pm_runtime_allow(&dev->dev);
@@ -375,7 +375,7 @@ put_usb3_hcd:
 dealloc_usb2_hcd:
 	usb_hcd_pci_remove(dev);
 put_runtime_pm:
-	pm_runtime_put_noidle(&dev->dev);
+	pm_runtime_put_yesidle(&dev->dev);
 	return retval;
 }
 
@@ -408,7 +408,7 @@ static void xhci_pci_remove(struct pci_dev *dev)
  * through a vendor specific SSIC CONFIG register at offset 0x883c,
  * SSIC PORT need to be marked as "unused" before putting xHCI
  * into D3. After D3 exit, the SSIC port need to be marked as "used".
- * Without this change, xHCI might not enter D3 state.
+ * Without this change, xHCI might yest enter D3 state.
  */
 static void xhci_ssic_port_unused_quirk(struct usb_hcd *hcd, bool suspend)
 {
@@ -422,7 +422,7 @@ static void xhci_ssic_port_unused_quirk(struct usb_hcd *hcd, bool suspend)
 				SSIC_PORT_CFG2 +
 				i * SSIC_PORT_CFG2_OFFSET;
 
-		/* Notify SSIC that SSIC profile programming is not done. */
+		/* Notify SSIC that SSIC profile programming is yest done. */
 		val = readl(reg) & ~PROG_DONE;
 		writel(val, reg);
 
@@ -490,19 +490,19 @@ static int xhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 	int			retval = 0;
 
 	/* The BIOS on systems with the Intel Panther Point chipset may or may
-	 * not support xHCI natively.  That means that during system resume, it
+	 * yest support xHCI natively.  That means that during system resume, it
 	 * may switch the ports back to EHCI so that users can use their
 	 * keyboard to select a kernel from GRUB after resume from hibernate.
 	 *
 	 * The BIOS is supposed to remember whether the OS had xHCI ports
 	 * enabled before resume, and switch the ports back to xHCI when the
-	 * BIOS/OS semaphore is written, but we all know we can't trust BIOS
+	 * BIOS/OS semaphore is written, but we all kyesw we can't trust BIOS
 	 * writers.
 	 *
 	 * Unconditionally switch the ports back to xHCI after a system resume.
-	 * It should not matter whether the EHCI or xHCI controller is
-	 * resumed first. It's enough to do the switchover in xHCI because
-	 * USB core won't notice anything as the hub driver doesn't start
+	 * It should yest matter whether the EHCI or xHCI controller is
+	 * resumed first. It's eyesugh to do the switchover in xHCI because
+	 * USB core won't yestice anything as the hub driver doesn't start
 	 * running again until after all the devices (including both EHCI and
 	 * xHCI host controllers) have been resumed.
 	 */
@@ -527,7 +527,7 @@ static void xhci_pci_shutdown(struct usb_hcd *hcd)
 
 	xhci_shutdown(hcd);
 
-	/* Yet another workaround for spurious wakeups at shutdown with HSW */
+	/* Yet ayesther workaround for spurious wakeups at shutdown with HSW */
 	if (xhci->quirks & XHCI_SPURIOUS_WAKEUP)
 		pci_set_power_state(pdev, PCI_D3hot);
 }

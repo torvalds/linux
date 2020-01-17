@@ -125,7 +125,7 @@ ENDPROC(cpu_xsc3_reset)
  *
  * Cause the processor to idle
  *
- * For now we do nothing but go to idle mode for every case
+ * For yesw we do yesthing but go to idle mode for every case
  *
  * XScale supports clock switching, but using idle mode support
  * allows external hardware to react to system state changes.
@@ -181,8 +181,8 @@ __flush_whole_cache:
  *	Invalidate a range of cache entries in the specified
  *	address space.
  *
- *	- start - start address (may not be aligned)
- *	- end	- end address (exclusive, may not be aligned)
+ *	- start - start address (may yest be aligned)
+ *	- end	- end address (exclusive, may yest be aligned)
  *	- vma	- vma_area_struct describing address space
  */
 	.align	5
@@ -208,7 +208,7 @@ ENTRY(xsc3_flush_user_cache_range)
  *	coherent_kern_range(start, end)
  *
  *	Ensure coherency between the I cache and the D cache in the
- *	region described by start.  If you have non-snooping
+ *	region described by start.  If you have yesn-syesoping
  *	Harvard caches, you need to implement this function.
  *
  *	- start  - virtual start address
@@ -234,7 +234,7 @@ ENTRY(xsc3_coherent_user_range)
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
  *
- *	Ensure no D cache aliasing occurs, either with itself or
+ *	Ensure yes D cache aliasing occurs, either with itself or
  *	the I cache.
  *
  *	- addr	- kernel address
@@ -256,8 +256,8 @@ ENTRY(xsc3_flush_kern_dcache_area)
  *	dma_inv_range(start, end)
  *
  *	Invalidate (discard) the specified virtual address range.
- *	May not write back any entries.  If 'start' or 'end'
- *	are not cache line aligned, those lines must be written
+ *	May yest write back any entries.  If 'start' or 'end'
+ *	are yest cache line aligned, those lines must be written
  *	back.
  *
  *	- start  - virtual start address
@@ -379,8 +379,8 @@ cpu_xsc3_mt_table:
 	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK
 	.long	PTE_EXT_TEX(1) | PTE_BUFFERABLE			@ L_PTE_MT_DEV_SHARED
 	.long	0x00						@ unused
-	.long	0x00						@ L_PTE_MT_MINICACHE (not present)
-	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEALLOC (not present?)
+	.long	0x00						@ L_PTE_MT_MINICACHE (yest present)
+	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEALLOC (yest present?)
 	.long	0x00						@ unused
 	.long	PTE_EXT_TEX(1)					@ L_PTE_MT_DEV_WC
 	.long	0x00						@ unused

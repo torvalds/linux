@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -133,7 +133,7 @@ enum sge_context_type {		/* SGE egress context types */
 };
 
 enum {
-	AN_PKT_SIZE = 32,	/* async notification packet size */
+	AN_PKT_SIZE = 32,	/* async yestification packet size */
 	IMMED_PKT_SIZE = 48	/* packet size for immediate data */
 };
 
@@ -176,7 +176,7 @@ struct mc5_stats {
 	unsigned long parity_err;
 	unsigned long active_rgn_full;
 	unsigned long nfa_srch_err;
-	unsigned long unknown_cmd;
+	unsigned long unkyeswn_cmd;
 	unsigned long reqq_parity_err;
 	unsigned long dispq_parity_err;
 	unsigned long del_act_empty;
@@ -262,8 +262,8 @@ struct tp_mib_stats {
 	u32 ipInHdrErrors_lo;
 	u32 ipInAddrErrors_hi;
 	u32 ipInAddrErrors_lo;
-	u32 ipInUnknownProtos_hi;
-	u32 ipInUnknownProtos_lo;
+	u32 ipInUnkyeswnProtos_hi;
+	u32 ipInUnkyeswnProtos_lo;
 	u32 ipInDiscards_hi;
 	u32 ipInDiscards_lo;
 	u32 ipInDelivers_hi;
@@ -342,7 +342,7 @@ enum {
 	DEFAULT_NFILTERS = 128
 };
 
-/* MC5 modes, these must be non-0 */
+/* MC5 modes, these must be yesn-0 */
 enum {
 	MC5_MODE_144_BIT = 1,
 	MC5_MODE_72_BIT = 2
@@ -504,13 +504,13 @@ enum {
 
 /* PHY module types */
 enum {
-	phy_modtype_none,
+	phy_modtype_yesne,
 	phy_modtype_sr,
 	phy_modtype_lr,
 	phy_modtype_lrm,
 	phy_modtype_twinax,
 	phy_modtype_twinax_long,
-	phy_modtype_unknown
+	phy_modtype_unkyeswn
 };
 
 /* PHY operations */

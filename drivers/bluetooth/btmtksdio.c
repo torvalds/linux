@@ -198,7 +198,7 @@ static int mtk_hci_wmt_sync(struct hci_dev *hdev,
 	}
 
 	/* The vendor specific WMT commands are all answered by a vendor
-	 * specific event and will not have the Command Status or Command
+	 * specific event and will yest have the Command Status or Command
 	 * Complete as with usual HCI command flow control.
 	 *
 	 * After sending the command, wait for BTMTKSDIO_TX_WAIT_VND_EVT
@@ -263,7 +263,7 @@ static int btmtksdio_tx_packet(struct btmtksdio_dev *bdev,
 	struct mtkbtsdio_hdr *sdio_hdr;
 	int err;
 
-	/* Make sure that there are enough rooms for SDIO header */
+	/* Make sure that there are eyesugh rooms for SDIO header */
 	if (unlikely(skb_headroom(skb) < sizeof(*sdio_hdr))) {
 		err = pskb_expand_head(skb, sizeof(*sdio_hdr), 0,
 				       GFP_ATOMIC);
@@ -420,7 +420,7 @@ static int btmtksdio_rx_packet(struct btmtksdio_dev *bdev, u16 rx_size)
 	/* Remove MediaTek SDIO header */
 	skb_pull(skb, sizeof(*sdio_hdr));
 
-	/* We have to dig into the packet to get payload size and then know how
+	/* We have to dig into the packet to get payload size and then kyesw how
 	 * many padding bytes at the tail, these padding bytes should be removed
 	 * before the packet is indicated to the core layer.
 	 */
@@ -435,7 +435,7 @@ static int btmtksdio_rx_packet(struct btmtksdio_dev *bdev, u16 rx_size)
 		goto err_kfree_skb;
 	}
 
-	/* Remaining bytes cannot hold a header*/
+	/* Remaining bytes canyest hold a header*/
 	if (skb->len < (&pkts[i])->hlen) {
 		bt_dev_err(bdev->hdev, "The size of bt header is mismatched");
 		goto err_kfree_skb;
@@ -455,7 +455,7 @@ static int btmtksdio_rx_packet(struct btmtksdio_dev *bdev, u16 rx_size)
 
 	pad_size = skb->len - (&pkts[i])->hlen -  dlen;
 
-	/* Remaining bytes cannot hold a payload */
+	/* Remaining bytes canyest hold a payload */
 	if (pad_size < 0) {
 		bt_dev_err(bdev->hdev, "The size of bt payload is mismatched");
 		goto err_kfree_skb;
@@ -484,7 +484,7 @@ static void btmtksdio_interrupt(struct sdio_func *func)
 	u16 rx_size;
 
 	/* It is required that the host gets ownership from the device before
-	 * accessing any register, however, if SDIO host is not being released,
+	 * accessing any register, however, if SDIO host is yest being released,
 	 * a potential deadlock probably happens in a circular wait between SDIO
 	 * IRQ work and PM runtime work. So, we have to explicitly release SDIO
 	 * host here and claim again after the PM runtime work is all done.
@@ -506,7 +506,7 @@ static void btmtksdio_interrupt(struct sdio_func *func)
 	 * Note that we don't ack any status during operations to avoid race
 	 * condition between the host and the device such as it's possible to
 	 * mistakenly ack RX_DONE for the next packet and then cause interrupts
-	 * not be raised again but there is still pending data in the hardware
+	 * yest be raised again but there is still pending data in the hardware
 	 * FIFO.
 	 */
 	sdio_writel(func, int_status, MTK_REG_CHISR, NULL);
@@ -556,7 +556,7 @@ static int btmtksdio_open(struct hci_dev *hdev)
 	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
 				 status & C_COM_DRV_OWN, 2000, 1000000);
 	if (err < 0) {
-		bt_dev_err(bdev->hdev, "Cannot get ownership from device");
+		bt_dev_err(bdev->hdev, "Canyest get ownership from device");
 		goto err_disable_func;
 	}
 
@@ -578,7 +578,7 @@ static int btmtksdio_open(struct hci_dev *hdev)
 		goto err_release_irq;
 
 	/* SDIO CMD 5 allows the SDIO device back to idle state an
-	 * synchronous interrupt is supported in SDIO 4-bit mode
+	 * synchroyesus interrupt is supported in SDIO 4-bit mode
 	 */
 	sdio_writel(bdev->func, SDIO_INT_CTL | SDIO_RE_INIT_EN,
 		    MTK_REG_CSDIOCSR, &err);
@@ -636,7 +636,7 @@ static int btmtksdio_close(struct hci_dev *hdev)
 	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
 				 !(status & C_COM_DRV_OWN), 2000, 1000000);
 	if (err < 0)
-		bt_dev_err(bdev->hdev, "Cannot return ownership to device");
+		bt_dev_err(bdev->hdev, "Canyest return ownership to device");
 
 	sdio_disable_func(bdev->func);
 
@@ -782,7 +782,7 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 
 	if (status == BTMTK_WMT_PATCH_DONE) {
 		bt_dev_info(hdev, "Firmware already downloaded");
-		goto ignore_setup_fw;
+		goto igyesre_setup_fw;
 	}
 
 	/* Setup a firmware which the device definitely requires */
@@ -790,7 +790,7 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 	if (err < 0)
 		return err;
 
-ignore_setup_fw:
+igyesre_setup_fw:
 	/* Query whether the device is already enabled */
 	err = readx_poll_timeout(btmtksdio_func_query, hdev, status,
 				 status < 0 || status != BTMTK_WMT_ON_PROGRESS,
@@ -805,7 +805,7 @@ ignore_setup_fw:
 
 	if (status == BTMTK_WMT_ON_DONE) {
 		bt_dev_info(hdev, "function already on");
-		goto ignore_func_on;
+		goto igyesre_func_on;
 	}
 
 	/* Enable Bluetooth protocol */
@@ -821,7 +821,7 @@ ignore_setup_fw:
 		return err;
 	}
 
-ignore_func_on:
+igyesre_func_on:
 	/* Apply the low power environment setup */
 	tci_sleep.mode = 0x5;
 	tci_sleep.duration = cpu_to_le16(0x640);
@@ -889,7 +889,7 @@ static int btmtksdio_shutdown(struct hci_dev *hdev)
 		return err;
 	}
 
-	pm_runtime_put_noidle(bdev->dev);
+	pm_runtime_put_yesidle(bdev->dev);
 	pm_runtime_disable(bdev->dev);
 
 	return 0;
@@ -988,12 +988,12 @@ static int btmtksdio_probe(struct sdio_func *func,
 	 * Unbound SDIO functions are always suspended.
 	 * During probe, the function is set active and the usage count
 	 * is incremented.  If the driver supports runtime PM,
-	 * it should call pm_runtime_put_noidle() in its probe routine and
-	 * pm_runtime_get_noresume() in its remove routine.
+	 * it should call pm_runtime_put_yesidle() in its probe routine and
+	 * pm_runtime_get_yesresume() in its remove routine.
 	 *
-	 * So, put a pm_runtime_put_noidle here !
+	 * So, put a pm_runtime_put_yesidle here !
 	 */
-	pm_runtime_put_noidle(bdev->dev);
+	pm_runtime_put_yesidle(bdev->dev);
 
 	return 0;
 }
@@ -1007,7 +1007,7 @@ static void btmtksdio_remove(struct sdio_func *func)
 		return;
 
 	/* Be consistent the state in btmtksdio_probe */
-	pm_runtime_get_noresume(bdev->dev);
+	pm_runtime_get_yesresume(bdev->dev);
 
 	hdev = bdev->hdev;
 

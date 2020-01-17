@@ -44,7 +44,7 @@ typedef void (*printf_fn_t)(const char *, ...);
  * While previous function pointers are pretty trivial (C-syntax-level
  * trivial), the following are deciphered here for future generations:
  *
- * - `fn_ptr2_t`: function, taking anonymous struct as a first arg and pointer
+ * - `fn_ptr2_t`: function, taking ayesnymous struct as a first arg and pointer
  *   to a function, that takes int and returns int, as a second arg; returning
  *   a pointer to a const pointer to a char. Equivalent to:
  *	typedef struct { int a; } s_t;
@@ -52,7 +52,7 @@ typedef void (*printf_fn_t)(const char *, ...);
  *	typedef char * const * (*fn_ptr2_t)(s_t, fn_t);
  *
  * - `fn_complext_t`: pointer to a function returning struct and accepting
- *   union and struct. All structs and enum are anonymous and defined inline.
+ *   union and struct. All structs and enum are ayesnymous and defined inline.
  *
  * - `signal_t: pointer to a function accepting a pointer to a function as an
  *   argument and returning pointer to a function as a result. Sane equivalent:
@@ -62,7 +62,7 @@ typedef void (*printf_fn_t)(const char *, ...);
  * - fn_ptr_arr1_t: array of pointers to a function accepting pointer to
  *   a pointer to an int and returning pointer to a char. Easy.
  *
- * - fn_ptr_arr2_t: array of const pointers to a function taking no arguments
+ * - fn_ptr_arr2_t: array of const pointers to a function taking yes arguments
  *   and returning a const pointer to a function, that takes pointer to a
  *   `int -> char *` function and returns pointer to a char. Equivalent:
  *   typedef char * (*fn_input_t)(int);
@@ -115,7 +115,7 @@ typedef struct {
 	int x;
 	int y;
 	int z;
-} anon_struct_t;
+} ayesn_struct_t;
 
 struct struct_fwd;
 
@@ -159,11 +159,11 @@ struct struct_in_struct {
 	union union_simple also_simple;
 	struct {
 		int a;
-	} not_so_hard_as_well;
+	} yest_so_hard_as_well;
 	union {
 		int b;
 		int c;
-	} anon_union_is_good;
+	} ayesn_union_is_good;
 	struct {
 		int d;
 		int e;
@@ -211,7 +211,7 @@ struct root_struct {
 	e2_t _2_1;
 	e3_t _2_2;
 	struct struct_w_typedefs _3;
-	anon_struct_t _7;
+	ayesn_struct_t _7;
 	struct struct_fwd *_8;
 	struct_fwd_t *_9;
 	struct_fwd_ptr_t _10;

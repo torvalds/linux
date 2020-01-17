@@ -18,7 +18,7 @@ struct xchk_xattr_buf {
 	 * walking the attributes; or for computing attr block bitmaps when
 	 * checking the attribute tree.
 	 *
-	 * Each bitmap contains enough bits to track every byte in an attr
+	 * Each bitmap contains eyesugh bits to track every byte in an attr
 	 * block (rounded up to the size of an unsigned long).  The attr block
 	 * used space bitmap starts at the beginning of the buffer; the free
 	 * space bitmap follows immediately after; and we have a third buffer

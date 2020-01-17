@@ -6,9 +6,9 @@ staging directory.
       - keep it in an external patch (my preferred option)
       - replace call to mbedtls with kernel crypto API (necessitate a
         bunch of work)
-      - pull mbedtls in kernel (non-realistic)
+      - pull mbedtls in kernel (yesn-realistic)
 
-  - mac80211 interface does not (yet) have expected quality to be placed
+  - mac80211 interface does yest (yet) have expected quality to be placed
     outside of staging:
       - Some processings are redundant with mac80211 ones
       - Many members from wfx_dev/wfx_vif can be retrieved from mac80211

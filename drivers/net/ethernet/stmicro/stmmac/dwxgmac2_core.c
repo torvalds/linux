@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2018 Syyespsys, Inc. and/or its affiliates.
  * stmmac XGMAC support.
  */
 
@@ -660,19 +660,19 @@ static const struct dwxgmac3_error_desc dwxgmac3_mac_errors[32]= {
 	{ true, "CTES", "CSR FSM Timeout Error" },
 	{ true, "ATES", "APP FSM Timeout Error" },
 	{ true, "PTES", "PTP FSM Timeout Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 18 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 19 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 20 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 18 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 19 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 20 */
 	{ true, "MSTTES", "Master Read/Write Timeout Error" },
 	{ true, "SLVTES", "Slave Read/Write Timeout Error" },
 	{ true, "ATITES", "Application Timeout on ATI Interface Error" },
 	{ true, "ARITES", "Application Timeout on ARI Interface Error" },
 	{ true, "FSMPES", "FSM State Parity Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 26 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 27 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 28 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 29 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 30 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 26 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 27 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 28 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 29 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 30 */
 	{ true, "CPI", "Control Register Parity Check Error" },
 };
 
@@ -693,35 +693,35 @@ static const struct dwxgmac3_error_desc dwxgmac3_mtl_errors[32]= {
 	{ true, "TXCES", "MTL TX Memory Error" },
 	{ true, "TXAMS", "MTL TX Memory Address Mismatch Error" },
 	{ true, "TXUES", "MTL TX Memory Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 3 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 3 */
 	{ true, "RXCES", "MTL RX Memory Error" },
 	{ true, "RXAMS", "MTL RX Memory Address Mismatch Error" },
 	{ true, "RXUES", "MTL RX Memory Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 7 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 7 */
 	{ true, "ECES", "MTL EST Memory Error" },
 	{ true, "EAMS", "MTL EST Memory Address Mismatch Error" },
 	{ true, "EUES", "MTL EST Memory Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 11 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 11 */
 	{ true, "RPCES", "MTL RX Parser Memory Error" },
 	{ true, "RPAMS", "MTL RX Parser Memory Address Mismatch Error" },
 	{ true, "RPUES", "MTL RX Parser Memory Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 15 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 16 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 17 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 18 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 19 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 20 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 21 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 22 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 23 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 24 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 25 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 26 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 27 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 28 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 29 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 30 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 31 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 15 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 16 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 17 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 18 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 19 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 20 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 21 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 22 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 23 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 24 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 25 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 26 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 27 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 28 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 29 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 30 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 31 */
 };
 
 static void dwxgmac3_handle_mtl_err(struct net_device *ndev,
@@ -741,35 +741,35 @@ static const struct dwxgmac3_error_desc dwxgmac3_dma_errors[32]= {
 	{ true, "TCES", "DMA TSO Memory Error" },
 	{ true, "TAMS", "DMA TSO Memory Address Mismatch Error" },
 	{ true, "TUES", "DMA TSO Memory Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 3 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 3 */
 	{ true, "DCES", "DMA DCACHE Memory Error" },
 	{ true, "DAMS", "DMA DCACHE Address Mismatch Error" },
 	{ true, "DUES", "DMA DCACHE Memory Error" },
-	{ false, "UNKNOWN", "Unknown Error" }, /* 7 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 8 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 9 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 10 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 11 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 12 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 13 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 14 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 15 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 16 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 17 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 18 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 19 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 20 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 21 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 22 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 23 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 24 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 25 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 26 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 27 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 28 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 29 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 30 */
-	{ false, "UNKNOWN", "Unknown Error" }, /* 31 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 7 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 8 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 9 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 10 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 11 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 12 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 13 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 14 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 15 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 16 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 17 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 18 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 19 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 20 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 21 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 22 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 23 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 24 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 25 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 26 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 27 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 28 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 29 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 30 */
+	{ false, "UNKNOWN", "Unkyeswn Error" }, /* 31 */
 };
 
 static void dwxgmac3_handle_dma_err(struct net_device *ndev,
@@ -961,16 +961,16 @@ dwxgmac3_rxp_get_next_entry(struct stmmac_tc_entry *entries,
 	for (i = count - 1; i >= 0; i--) {
 		entry = &entries[i];
 
-		/* Do not update unused entries */
+		/* Do yest update unused entries */
 		if (!entry->in_use)
 			continue;
-		/* Do not update already updated entries (i.e. fragments) */
+		/* Do yest update already updated entries (i.e. fragments) */
 		if (entry->in_hw)
 			continue;
 		/* Let last entry be updated last */
 		if (entry->is_last)
 			continue;
-		/* Do not return fragments */
+		/* Do yest return fragments */
 		if (entry->is_frag)
 			continue;
 		/* Check if we already checked this prio */
@@ -1179,7 +1179,7 @@ static int dwxgmac2_filter_wait(struct mac_device_info *hw)
 	return 0;
 }
 
-static int dwxgmac2_filter_read(struct mac_device_info *hw, u32 filter_no,
+static int dwxgmac2_filter_read(struct mac_device_info *hw, u32 filter_yes,
 				u8 reg, u32 *data)
 {
 	void __iomem *ioaddr = hw->pcsr;
@@ -1190,7 +1190,7 @@ static int dwxgmac2_filter_read(struct mac_device_info *hw, u32 filter_no,
 	if (ret)
 		return ret;
 
-	value = ((filter_no << XGMAC_IDDR_FNUM) | reg) << XGMAC_IDDR_SHIFT;
+	value = ((filter_yes << XGMAC_IDDR_FNUM) | reg) << XGMAC_IDDR_SHIFT;
 	value |= XGMAC_TT | XGMAC_XB;
 	writel(value, ioaddr + XGMAC_L3L4_ADDR_CTRL);
 
@@ -1202,7 +1202,7 @@ static int dwxgmac2_filter_read(struct mac_device_info *hw, u32 filter_no,
 	return 0;
 }
 
-static int dwxgmac2_filter_write(struct mac_device_info *hw, u32 filter_no,
+static int dwxgmac2_filter_write(struct mac_device_info *hw, u32 filter_yes,
 				 u8 reg, u32 data)
 {
 	void __iomem *ioaddr = hw->pcsr;
@@ -1215,14 +1215,14 @@ static int dwxgmac2_filter_write(struct mac_device_info *hw, u32 filter_no,
 
 	writel(data, ioaddr + XGMAC_L3L4_DATA);
 
-	value = ((filter_no << XGMAC_IDDR_FNUM) | reg) << XGMAC_IDDR_SHIFT;
+	value = ((filter_yes << XGMAC_IDDR_FNUM) | reg) << XGMAC_IDDR_SHIFT;
 	value |= XGMAC_XB;
 	writel(value, ioaddr + XGMAC_L3L4_ADDR_CTRL);
 
 	return dwxgmac2_filter_wait(hw);
 }
 
-static int dwxgmac2_config_l3_filter(struct mac_device_info *hw, u32 filter_no,
+static int dwxgmac2_config_l3_filter(struct mac_device_info *hw, u32 filter_yes,
 				     bool en, bool ipv6, bool sa, bool inv,
 				     u32 match)
 {
@@ -1234,11 +1234,11 @@ static int dwxgmac2_config_l3_filter(struct mac_device_info *hw, u32 filter_no,
 	value |= XGMAC_FILTER_IPFE;
 	writel(value, ioaddr + XGMAC_PACKET_FILTER);
 
-	ret = dwxgmac2_filter_read(hw, filter_no, XGMAC_L3L4_CTRL, &value);
+	ret = dwxgmac2_filter_read(hw, filter_yes, XGMAC_L3L4_CTRL, &value);
 	if (ret)
 		return ret;
 
-	/* For IPv6 not both SA/DA filters can be active */
+	/* For IPv6 yest both SA/DA filters can be active */
 	if (ipv6) {
 		value |= XGMAC_L3PEN0;
 		value &= ~(XGMAC_L3SAM0 | XGMAC_L3SAIM0);
@@ -1265,27 +1265,27 @@ static int dwxgmac2_config_l3_filter(struct mac_device_info *hw, u32 filter_no,
 		}
 	}
 
-	ret = dwxgmac2_filter_write(hw, filter_no, XGMAC_L3L4_CTRL, value);
+	ret = dwxgmac2_filter_write(hw, filter_yes, XGMAC_L3L4_CTRL, value);
 	if (ret)
 		return ret;
 
 	if (sa) {
-		ret = dwxgmac2_filter_write(hw, filter_no, XGMAC_L3_ADDR0, match);
+		ret = dwxgmac2_filter_write(hw, filter_yes, XGMAC_L3_ADDR0, match);
 		if (ret)
 			return ret;
 	} else {
-		ret = dwxgmac2_filter_write(hw, filter_no, XGMAC_L3_ADDR1, match);
+		ret = dwxgmac2_filter_write(hw, filter_yes, XGMAC_L3_ADDR1, match);
 		if (ret)
 			return ret;
 	}
 
 	if (!en)
-		return dwxgmac2_filter_write(hw, filter_no, XGMAC_L3L4_CTRL, 0);
+		return dwxgmac2_filter_write(hw, filter_yes, XGMAC_L3L4_CTRL, 0);
 
 	return 0;
 }
 
-static int dwxgmac2_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
+static int dwxgmac2_config_l4_filter(struct mac_device_info *hw, u32 filter_yes,
 				     bool en, bool udp, bool sa, bool inv,
 				     u32 match)
 {
@@ -1297,7 +1297,7 @@ static int dwxgmac2_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
 	value |= XGMAC_FILTER_IPFE;
 	writel(value, ioaddr + XGMAC_PACKET_FILTER);
 
-	ret = dwxgmac2_filter_read(hw, filter_no, XGMAC_L3L4_CTRL, &value);
+	ret = dwxgmac2_filter_read(hw, filter_yes, XGMAC_L3L4_CTRL, &value);
 	if (ret)
 		return ret;
 
@@ -1319,26 +1319,26 @@ static int dwxgmac2_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
 			value |= XGMAC_L4DPIM0;
 	}
 
-	ret = dwxgmac2_filter_write(hw, filter_no, XGMAC_L3L4_CTRL, value);
+	ret = dwxgmac2_filter_write(hw, filter_yes, XGMAC_L3L4_CTRL, value);
 	if (ret)
 		return ret;
 
 	if (sa) {
 		value = match & XGMAC_L4SP0;
 
-		ret = dwxgmac2_filter_write(hw, filter_no, XGMAC_L4_ADDR, value);
+		ret = dwxgmac2_filter_write(hw, filter_yes, XGMAC_L4_ADDR, value);
 		if (ret)
 			return ret;
 	} else {
 		value = (match << XGMAC_L4DP0_SHIFT) & XGMAC_L4DP0;
 
-		ret = dwxgmac2_filter_write(hw, filter_no, XGMAC_L4_ADDR, value);
+		ret = dwxgmac2_filter_write(hw, filter_yes, XGMAC_L4_ADDR, value);
 		if (ret)
 			return ret;
 	}
 
 	if (!en)
-		return dwxgmac2_filter_write(hw, filter_no, XGMAC_L3L4_CTRL, 0);
+		return dwxgmac2_filter_write(hw, filter_yes, XGMAC_L3L4_CTRL, 0);
 
 	return 0;
 }

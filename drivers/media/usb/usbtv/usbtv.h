@@ -6,9 +6,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -49,7 +49,7 @@
 #define USBTV_CONTROL_REG	11
 #define USBTV_REQUEST_REG	12
 
-/* Number of concurrent isochronous urbs submitted.
+/* Number of concurrent isochroyesus urbs submitted.
  * Higher numbers was seen to overly saturate the USB bus. */
 #define USBTV_ISOC_TRANSFERS	16
 #define USBTV_ISOC_PACKETS	8
@@ -70,9 +70,9 @@
 
 #define USBTV_TV_STD  (V4L2_STD_525_60 | V4L2_STD_PAL | V4L2_STD_SECAM)
 
-/* parameters for supported TV norms */
-struct usbtv_norm_params {
-	v4l2_std_id norm;
+/* parameters for supported TV yesrms */
+struct usbtv_yesrm_params {
+	v4l2_std_id yesrm;
 	int cap_width, cap_height;
 };
 
@@ -108,7 +108,7 @@ struct usbtv {
 		USBTV_COMPOSITE_INPUT,
 		USBTV_SVIDEO_INPUT,
 	} input;
-	v4l2_std_id norm;
+	v4l2_std_id yesrm;
 	int width, height;
 	int n_chunks;
 	int iso_size;

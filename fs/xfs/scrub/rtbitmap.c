@@ -12,7 +12,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
 #include "xfs_rtalloc.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 
@@ -20,7 +20,7 @@
 int
 xchk_setup_rt(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
 	int			error;
 
@@ -52,8 +52,8 @@ xchk_rtbitmap_rec(
 	blockcount = rec->ar_extcount * tp->t_mountp->m_sb.sb_rextsize;
 
 	if (startblock + blockcount <= startblock ||
-	    !xfs_verify_rtbno(sc->mp, startblock) ||
-	    !xfs_verify_rtbno(sc->mp, startblock + blockcount - 1))
+	    !xfs_verify_rtbyes(sc->mp, startblock) ||
+	    !xfs_verify_rtbyes(sc->mp, startblock + blockcount - 1))
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 	return 0;
 }
@@ -66,7 +66,7 @@ xchk_rtbitmap(
 	int			error;
 
 	/* Invoke the fork scrubber. */
-	error = xchk_metadata_inode_forks(sc);
+	error = xchk_metadata_iyesde_forks(sc);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
@@ -83,31 +83,31 @@ int
 xchk_rtsummary(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_inode	*rsumip = sc->mp->m_rsumip;
-	struct xfs_inode	*old_ip = sc->ip;
+	struct xfs_iyesde	*rsumip = sc->mp->m_rsumip;
+	struct xfs_iyesde	*old_ip = sc->ip;
 	uint			old_ilock_flags = sc->ilock_flags;
 	int			error = 0;
 
 	/*
-	 * We ILOCK'd the rt bitmap ip in the setup routine, now lock the
-	 * rt summary ip in compliance with the rt inode locking rules.
+	 * We ILOCK'd the rt bitmap ip in the setup routine, yesw lock the
+	 * rt summary ip in compliance with the rt iyesde locking rules.
 	 *
 	 * Since we switch sc->ip to rsumip we have to save the old ilock
-	 * flags so that we don't mix up the inode state that @sc tracks.
+	 * flags so that we don't mix up the iyesde state that @sc tracks.
 	 */
 	sc->ip = rsumip;
 	sc->ilock_flags = XFS_ILOCK_EXCL | XFS_ILOCK_RTSUM;
 	xfs_ilock(sc->ip, sc->ilock_flags);
 
 	/* Invoke the fork scrubber. */
-	error = xchk_metadata_inode_forks(sc);
+	error = xchk_metadata_iyesde_forks(sc);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		goto out;
 
 	/* XXX: implement this some day */
 	xchk_set_incomplete(sc);
 out:
-	/* Switch back to the rtbitmap inode and lock flags. */
+	/* Switch back to the rtbitmap iyesde and lock flags. */
 	xfs_iunlock(sc->ip, sc->ilock_flags);
 	sc->ilock_flags = old_ilock_flags;
 	sc->ip = old_ip;
@@ -115,11 +115,11 @@ out:
 }
 
 
-/* xref check that the extent is not free in the rtbitmap */
+/* xref check that the extent is yest free in the rtbitmap */
 void
 xchk_xref_is_used_rt_space(
 	struct xfs_scrub	*sc,
-	xfs_rtblock_t		fsbno,
+	xfs_rtblock_t		fsbyes,
 	xfs_extlen_t		len)
 {
 	xfs_rtblock_t		startext;
@@ -131,8 +131,8 @@ xchk_xref_is_used_rt_space(
 	if (xchk_skip_xref(sc->sm))
 		return;
 
-	startext = fsbno;
-	endext = fsbno + len - 1;
+	startext = fsbyes;
+	endext = fsbyes + len - 1;
 	do_div(startext, sc->mp->m_sb.sb_rextsize);
 	do_div(endext, sc->mp->m_sb.sb_rextsize);
 	extcount = endext - startext + 1;
@@ -142,7 +142,7 @@ xchk_xref_is_used_rt_space(
 	if (!xchk_should_check_xref(sc, &error, NULL))
 		goto out_unlock;
 	if (is_free)
-		xchk_ino_xref_set_corrupt(sc, sc->mp->m_rbmip->i_ino);
+		xchk_iyes_xref_set_corrupt(sc, sc->mp->m_rbmip->i_iyes);
 out_unlock:
 	xfs_iunlock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
 }

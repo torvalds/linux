@@ -22,7 +22,7 @@ static void GLUE(X_PFX,ack_pending)(struct kvmppc_xive_vcpu *xc)
 	 */
 	eieio();
 
-	/* Perform the acknowledge OS to register cycle. */
+	/* Perform the ackyeswledge OS to register cycle. */
 	ack = be16_to_cpu(__x_readw(__x_tima + TM_SPC_ACK_OS_REG));
 
 	/* Synchronize subsequent queue accesses */
@@ -152,23 +152,23 @@ static u32 GLUE(X_PFX,scan_interrupts)(struct kvmppc_xive_vcpu *xc,
 skip_ipi:
 		/*
 		 * Try to fetch from the queue. Will return 0 for a
-		 * non-queueing priority (ie, qpage = 0).
+		 * yesn-queueing priority (ie, qpage = 0).
 		 */
 		hirq = __xive_read_eq(qpage, q->msk, &idx, &toggle);
 
 		/*
 		 * If this was a signal for an MFFR change done by
 		 * H_IPI we skip it. Additionally, if we were fetching
-		 * we EOI it now, thus re-enabling reception of a new
+		 * we EOI it yesw, thus re-enabling reception of a new
 		 * such signal.
 		 *
-		 * We also need to do that if prio is 0 and we had no
-		 * page for the queue. In this case, we have non-queued
+		 * We also need to do that if prio is 0 and we had yes
+		 * page for the queue. In this case, we have yesn-queued
 		 * IPI that needs to be EOId.
 		 *
-		 * This is safe because if we have another pending MFRR
+		 * This is safe because if we have ayesther pending MFRR
 		 * change that wasn't observed above, the Q bit will have
-		 * been set and another occurrence of the IPI will trigger.
+		 * been set and ayesther occurrence of the IPI will trigger.
 		 */
 		if (hirq == XICS_IPI || (prio == 0 && !qpage)) {
 			if (scan_type == scan_fetch) {
@@ -189,7 +189,7 @@ skip_ipi:
 		if (hirq == XICS_DUMMY)
 			goto skip_ipi;
 
-		/* Clear the pending bit if the queue is now empty */
+		/* Clear the pending bit if the queue is yesw empty */
 		if (!hirq) {
 			pending &= ~(1 << prio);
 
@@ -226,7 +226,7 @@ skip_ipi:
 		}
 	}
 
-	/* If we are just taking a "peek", do nothing else */
+	/* If we are just taking a "peek", do yesthing else */
 	if (scan_type == scan_poll)
 		return hirq;
 
@@ -234,7 +234,7 @@ skip_ipi:
 	xc->pending = pending;
 
 	/*
-	 * If this is an EOI that's it, no CPPR adjustment done here,
+	 * If this is an EOI that's it, yes CPPR adjustment done here,
 	 * all we needed was cleanup the stale pending bits and check
 	 * if there's anything left.
 	 */
@@ -327,7 +327,7 @@ X_STATIC unsigned long GLUE(X_PFX,h_ipoll)(struct kvm_vcpu *vcpu, unsigned long 
 
 	xc->GLUE(X_STAT_PFX,h_ipoll)++;
 
-	/* Grab the target VCPU if not the current one */
+	/* Grab the target VCPU if yest the current one */
 	if (xc->server_num != server) {
 		vcpu = kvmppc_xive_find_server(vcpu->kvm, server);
 		if (!vcpu)
@@ -375,7 +375,7 @@ static void GLUE(X_PFX,scan_for_rerouted_irqs)(struct kvmppc_xive *xive,
 {
 	unsigned int prio;
 
-	/* For each priority that is now masked */
+	/* For each priority that is yesw masked */
 	for (prio = xc->cppr; prio < KVMPPC_XIVE_Q_COUNT; prio++) {
 		struct xive_q *q = &xc->queues[prio];
 		struct kvmppc_xive_irq_state *state;
@@ -421,7 +421,7 @@ static void GLUE(X_PFX,scan_for_rerouted_irqs)(struct kvmppc_xive *xive,
 			/* Find the HW interrupt */
 			kvmppc_xive_select_irq(state, &hw_num, &xd);
 
-			/* If it's not an LSI, set PQ to 11 the EOI will force a resend */
+			/* If it's yest an LSI, set PQ to 11 the EOI will force a resend */
 			if (!(xd->flags & XIVE_IRQ_FLAG_LSI))
 				GLUE(X_PFX,esb_load)(xd, XIVE_ESB_SET_PQ_11);
 
@@ -470,11 +470,11 @@ X_STATIC int GLUE(X_PFX,h_cppr)(struct kvm_vcpu *vcpu, unsigned long cppr)
 	} else {
 		/*
 		 * We are masking more, we need to check the queue for any
-		 * interrupt that has been routed to another CPU, take
+		 * interrupt that has been routed to ayesther CPU, take
 		 * it out (replace it with the dummy) and retrigger it.
 		 *
 		 * This is necessary since those interrupts may otherwise
-		 * never be processed, at least not until this CPU restores
+		 * never be processed, at least yest until this CPU restores
 		 * its CPPR.
 		 *
 		 * This is in theory racy vs. HW adding new interrupts to
@@ -532,7 +532,7 @@ X_STATIC int GLUE(X_PFX,h_eoi)(struct kvm_vcpu *vcpu, unsigned long xirr)
 	/* Find interrupt source */
 	sb = kvmppc_xive_find_source(xive, irq, &src);
 	if (!sb) {
-		pr_devel(" source not found !\n");
+		pr_devel(" source yest found !\n");
 		rc = H_PARAMETER;
 		/* Same as above */
 		smp_mb();
@@ -623,7 +623,7 @@ X_STATIC int GLUE(X_PFX,h_ipi)(struct kvm_vcpu *vcpu, unsigned long server,
 	 * to the IPI must happen after the above mfrr update is
 	 * globally visible so that:
 	 *
-	 * - Synchronize with another CPU doing an H_EOI or a H_CPPR
+	 * - Synchronize with ayesther CPU doing an H_EOI or a H_CPPR
 	 *   updating xc->cppr then reading xc->mfrr.
 	 *
 	 * - The target of the IPI sees the xc->mfrr update

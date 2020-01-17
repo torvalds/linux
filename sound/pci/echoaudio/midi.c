@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliayes Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -81,7 +81,7 @@ static int write_midi(struct echoaudio *chip, u8 *data, int bytes)
 
 
 /* Run the state machine for MIDI input data
-MIDI time code sync isn't supported by this code right now, but you still need
+MIDI time code sync isn't supported by this code right yesw, but you still need
 this state machine to parse the incoming MIDI data stream.  Every time the DSP
 sees a 0xF1 byte come in, it adds the DSP sample position to the MIDI data
 stream. The DSP sample position is represented as a 32 bit unsigned value,
@@ -134,7 +134,7 @@ static int midi_service_irq(struct echoaudio *chip)
 		consists of MIDI bytes and timestamps for the MIDI time code
 		0xF1 bytes. mtc_process_data() is a little state machine that
 		parses the stream. If you get MIDI_IN_SKIP_DATA back, then
-		this is a timestamp byte, not a MIDI byte, so don't store it
+		this is a timestamp byte, yest a MIDI byte, so don't store it
 		in the MIDI input buffer. */
 		if (mtc_process_data(chip, midi_byte) == MIDI_IN_SKIP_DATA)
 			continue;

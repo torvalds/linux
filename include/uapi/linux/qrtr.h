@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_QRTR_H
 #define _LINUX_QRTR_H
 
@@ -10,7 +10,7 @@
 
 struct sockaddr_qrtr {
 	__kernel_sa_family_t sq_family;
-	__u32 sq_node;
+	__u32 sq_yesde;
 	__u32 sq_port;
 };
 
@@ -35,12 +35,12 @@ struct qrtr_ctrl_pkt {
 		struct {
 			__le32 service;
 			__le32 instance;
-			__le32 node;
+			__le32 yesde;
 			__le32 port;
 		} server;
 
 		struct {
-			__le32 node;
+			__le32 yesde;
 			__le32 port;
 		} client;
 	};

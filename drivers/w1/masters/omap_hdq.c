@@ -228,7 +228,7 @@ static void omap_w1_search_bus(void *_hdq, struct w1_master *master_dev,
 
 	rn_le = cpu_to_le64(module_id);
 	/*
-	 * HDQ might not obey truly the 1-wire spec.
+	 * HDQ might yest obey truly the 1-wire spec.
 	 * So calculate CRC based on module parameter.
 	 */
 	cs = w1_calc_crc8((u8 *)&rn_le, 7);
@@ -281,7 +281,7 @@ static int omap_hdq_break(struct hdq_data *hdq_data)
 
 	ret = mutex_lock_interruptible(&hdq_data->hdq_mutex);
 	if (ret < 0) {
-		dev_dbg(hdq_data->dev, "Could not acquire mutex\n");
+		dev_dbg(hdq_data->dev, "Could yest acquire mutex\n");
 		ret = -EINTR;
 		goto rtn;
 	}
@@ -323,7 +323,7 @@ static int omap_hdq_break(struct hdq_data *hdq_data)
 	 */
 	if (!(hdq_reg_in(hdq_data, OMAP_HDQ_CTRL_STATUS) &
 			OMAP_HDQ_CTRL_STATUS_PRESENCE)) {
-		dev_dbg(hdq_data->dev, "Presence bit not set\n");
+		dev_dbg(hdq_data->dev, "Presence bit yest set\n");
 		ret = -ETIMEDOUT;
 		goto out;
 	}
@@ -476,7 +476,7 @@ static u8 omap_w1_triplet(void *_hdq, u8 bdir)
 {
 	u8 id_bit, comp_bit;
 	int err;
-	u8 ret = 0x3; /* no slaves responded */
+	u8 ret = 0x3; /* yes slaves responded */
 	struct hdq_data *hdq_data = _hdq;
 	u8 ctrl = OMAP_HDQ_CTRL_STATUS_SINGLE | OMAP_HDQ_CTRL_STATUS_GO |
 		  OMAP_HDQ_CTRL_STATUS_INTERRUPTMASK;
@@ -486,7 +486,7 @@ static u8 omap_w1_triplet(void *_hdq, u8 bdir)
 
 	err = mutex_lock_interruptible(&hdq_data->hdq_mutex);
 	if (err < 0) {
-		dev_dbg(hdq_data->dev, "Could not acquire mutex\n");
+		dev_dbg(hdq_data->dev, "Could yest acquire mutex\n");
 		goto rtn;
 	}
 
@@ -519,7 +519,7 @@ static u8 omap_w1_triplet(void *_hdq, u8 bdir)
 	comp_bit = (hdq_reg_in(_hdq, OMAP_HDQ_RX_DATA) & 0x01);
 
 	if (id_bit && comp_bit) {
-		ret = 0x03;  /* no slaves responded */
+		ret = 0x03;  /* yes slaves responded */
 		goto out;
 	}
 	if (!id_bit && !comp_bit) {
@@ -577,7 +577,7 @@ static u8 omap_w1_read_byte(void *_hdq)
 	if (ret) {
 		ret = mutex_lock_interruptible(&hdq_data->hdq_mutex);
 		if (ret < 0) {
-			dev_dbg(hdq_data->dev, "Could not acquire mutex\n");
+			dev_dbg(hdq_data->dev, "Could yest acquire mutex\n");
 			return -EINTR;
 		}
 		hdq_data->init_trans = 0;
@@ -593,7 +593,7 @@ static u8 omap_w1_read_byte(void *_hdq)
 	if (hdq_data->init_trans) {
 		ret = mutex_lock_interruptible(&hdq_data->hdq_mutex);
 		if (ret < 0) {
-			dev_dbg(hdq_data->dev, "Could not acquire mutex\n");
+			dev_dbg(hdq_data->dev, "Could yest acquire mutex\n");
 			return -EINTR;
 		}
 		hdq_data->init_trans = 0;
@@ -618,14 +618,14 @@ static void omap_w1_write_byte(void *_hdq, u8 byte)
 	/*
 	 * We need to reset the slave before
 	 * issuing the SKIP ROM command, else
-	 * the slave will not work.
+	 * the slave will yest work.
 	 */
 	if (byte == W1_SKIP_ROM)
 		omap_hdq_break(hdq_data);
 
 	ret = mutex_lock_interruptible(&hdq_data->hdq_mutex);
 	if (ret < 0) {
-		dev_dbg(hdq_data->dev, "Could not acquire mutex\n");
+		dev_dbg(hdq_data->dev, "Could yest acquire mutex\n");
 		return;
 	}
 	hdq_data->init_trans++;
@@ -642,7 +642,7 @@ static void omap_w1_write_byte(void *_hdq, u8 byte)
 		omap_hdq_put(hdq_data);
 		ret = mutex_lock_interruptible(&hdq_data->hdq_mutex);
 		if (ret < 0) {
-			dev_dbg(hdq_data->dev, "Could not acquire mutex\n");
+			dev_dbg(hdq_data->dev, "Could yest acquire mutex\n");
 			return;
 		}
 		hdq_data->init_trans = 0;
@@ -709,7 +709,7 @@ static int omap_hdq_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, irq, hdq_isr, 0, "omap_hdq", hdq_data);
 	if (ret < 0) {
-		dev_dbg(&pdev->dev, "could not request irq\n");
+		dev_dbg(&pdev->dev, "could yest request irq\n");
 		goto err_irq;
 	}
 
@@ -717,7 +717,7 @@ static int omap_hdq_probe(struct platform_device *pdev)
 
 	pm_runtime_put_sync(&pdev->dev);
 
-	ret = of_property_read_string(pdev->dev.of_node, "ti,mode", &mode);
+	ret = of_property_read_string(pdev->dev.of_yesde, "ti,mode", &mode);
 	if (ret < 0 || !strcmp(mode, "hdq")) {
 		hdq_data->mode = 0;
 		omap_w1_master.search = omap_w1_search_bus;
@@ -751,7 +751,7 @@ static int omap_hdq_remove(struct platform_device *pdev)
 	mutex_lock(&hdq_data->hdq_mutex);
 
 	if (hdq_data->hdq_usecount) {
-		dev_dbg(&pdev->dev, "removed when use count is not zero\n");
+		dev_dbg(&pdev->dev, "removed when use count is yest zero\n");
 		mutex_unlock(&hdq_data->hdq_mutex);
 		return -EBUSY;
 	}

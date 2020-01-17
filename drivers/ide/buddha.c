@@ -97,7 +97,7 @@ typedef enum BuddhaType_Enum {
 static const char *buddha_board_name[] = { "Buddha", "Catweasel", "X-Surf" };
 
     /*
-     *  Check and acknowledge the interrupt status
+     *  Check and ackyeswledge the interrupt status
      */
 
 static int buddha_test_irq(ide_hwif_t *hwif)
@@ -217,7 +217,7 @@ fail_base2:
 				irq_port = buddha_board + buddha_irqports[i];
 			} else {
 				base = buddha_board + xsurf_bases[i];
-				/* X-Surf has no CS1* (Control/AltStat) */
+				/* X-Surf has yes CS1* (Control/AltStat) */
 				ctl = 0;
 				irq_port = buddha_board + xsurf_irqports[i];
 			}

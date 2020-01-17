@@ -84,7 +84,7 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 				ret = err;
 			} else if (mtd_is_bitflip(err)) {
 				mtd->ecc_stats.corrected++;
-				/* Do not overwrite -EBADMSG !! */
+				/* Do yest overwrite -EBADMSG !! */
 				if (!ret)
 					ret = err;
 			} else
@@ -247,7 +247,7 @@ concat_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 				ret = err;
 			} else if (mtd_is_bitflip(err)) {
 				mtd->ecc_stats.corrected++;
-				/* Do not overwrite -EBADMSG !! */
+				/* Do yest overwrite -EBADMSG !! */
 				if (!ret)
 					ret = err;
 			} else
@@ -360,7 +360,7 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 			return -EINVAL;
 
 		/*
-		 * now find the erase region where the to-be-erased area ends:
+		 * yesw find the erase region where the to-be-erased area ends:
 		 */
 		for (; i < concat->mtd.numeraseregions &&
 		     (instr->addr + instr->len) >= erase_regions[i].offset;
@@ -400,7 +400,7 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 	/* must never happen since size limit has been verified above */
 	BUG_ON(i >= concat->num_subdev);
 
-	/* now do the erase: */
+	/* yesw do the erase: */
 	err = 0;
 	for (; length > 0; i++) {
 		/* loop for all subdevices affected by this request */
@@ -424,7 +424,7 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 		/*
 		 * erase->addr specifies the offset of the area to be
 		 * erased *within the current subdevice*. It can be
-		 * non-zero only the first time through this loop, i.e.
+		 * yesn-zero only the first time through this loop, i.e.
 		 * for the first subdevice where blocks need to be erased.
 		 * All the following erases must begin at the start of the
 		 * current subdevice, i.e. at offset zero.
@@ -590,7 +590,7 @@ static int concat_block_markbad(struct mtd_info *mtd, loff_t ofs)
 /*
  * This function constructs a virtual MTD device by concatenating
  * num_devs MTD devices. A pointer to the new device object is
- * stored to *new_dev upon success. This function does _not_
+ * stored to *new_dev upon success. This function does _yest_
  * register any devices: this is the caller's responsibility.
  */
 struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to concatenate */

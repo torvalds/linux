@@ -4,7 +4,7 @@
 #include <linux/bpf.h>
 #include <linux/if_link.h>
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,7 +41,7 @@ static void int_exit(int sig)
 		else if (!curr_prog_id)
 			printf("couldn't find a prog id on a given iface\n");
 		else
-			printf("program on interface changed, not removing\n");
+			printf("program on interface changed, yest removing\n");
 	}
 	exit(0);
 }
@@ -212,7 +212,7 @@ int main(int argc, char **argv)
 				tnl.family = family;
 			} else if (tnl.family != family) {
 				fprintf(stderr,
-					"The IP version of the src and dst addresses used in the IP encapsulation does not match\n");
+					"The IP version of the src and dst addresses used in the IP encapsulation does yest match\n");
 				return 1;
 			}
 			break;
@@ -268,7 +268,7 @@ int main(int argc, char **argv)
 		return 1;
 
 	if (!prog_fd) {
-		printf("bpf_prog_load_xattr: %s\n", strerror(errno));
+		printf("bpf_prog_load_xattr: %s\n", strerror(erryes));
 		return 1;
 	}
 
@@ -298,7 +298,7 @@ int main(int argc, char **argv)
 
 	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
 	if (err) {
-		printf("can't get prog info - %s\n", strerror(errno));
+		printf("can't get prog info - %s\n", strerror(erryes));
 		return err;
 	}
 	prog_id = info.id;

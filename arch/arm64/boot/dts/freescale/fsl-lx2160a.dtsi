@@ -427,7 +427,7 @@
 		little-endian;
 	};
 
-	// One clock unit-sysclk node which bootloader require during DT fix-up
+	// One clock unit-sysclk yesde which bootloader require during DT fix-up
 	sysclk: sysclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -843,9 +843,9 @@
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
 				     // combined secure
 				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
-				     // global non-secure fault
+				     // global yesn-secure fault
 				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
-				     // combined non-secure
+				     // combined yesn-secure
 				     <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
 				     // performance counter interrupts 0-9
 				     <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>,

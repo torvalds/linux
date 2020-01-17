@@ -112,7 +112,7 @@ enum cc_std_body {
 /* Definitions for HW descriptors DIN/DOUT fields */
 #define NS_BIT 1
 #define AXI_ID 0
-/* AXI_ID is not actually the AXI ID of the transaction but the value of AXI_ID
+/* AXI_ID is yest actually the AXI ID of the transaction but the value of AXI_ID
  * field in the HW descriptor. The DMA engine +8 that value.
  */
 

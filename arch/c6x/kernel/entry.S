@@ -12,7 +12,7 @@
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 ; Registers naming
 #define DP	B14
@@ -42,7 +42,7 @@
 	.endm
 
 	;;
-	;;  This defines the normal kernel pt_regs layout.
+	;;  This defines the yesrmal kernel pt_regs layout.
 	;;
 	.macro SAVE_ALL __rp __tsr
 	STW	.D2T2	B0,*SP--[2]		; save original B0
@@ -114,9 +114,9 @@
 	STDW	.D2T1	A5:A4,*SP--[1]		; save TSR and orig A4
 
 	;; We left an unused word on the stack just above pt_regs.
-	;; It is used to save whether or not this frame is due to
+	;; It is used to save whether or yest this frame is due to
 	;; a syscall. It is cleared here, but the syscall handler
-	;; sets it to a non-zero value.
+	;; sets it to a yesn-zero value.
 	MVK	.L2	0,B1
 	STW	.D2T2	B1,*+SP(REGS__END+8)	; clear syscall flag
 	.endm
@@ -248,7 +248,7 @@ syscall_exit_work:
 
 work_pending:
 	AND	.D1	_TIF_NEED_RESCHED,A2,A0
- [!A0]	BNOP	.S1	work_notifysig,5
+ [!A0]	BNOP	.S1	work_yestifysig,5
 
 work_resched:
 #ifdef CONFIG_C6X_BIG_KERNEL
@@ -273,10 +273,10 @@ work_rescheduled:
  [!A0]	BNOP	.S1	restore_all,5
  [A1]	BNOP	.S1	work_resched,5
 
-work_notifysig:
-	;; enable interrupts for do_notify_resume()
+work_yestifysig:
+	;; enable interrupts for do_yestify_resume()
 	UNMASK_INT B2
-	B	.S2	do_notify_resume
+	B	.S2	do_yestify_resume
 	LDW	.D2T1	*+SP(REGS__END+8),A6 ; syscall flag
 	ADDKPC	.S2	resume_userspace,B3,1
 	ADD	.S1X	8,SP,A4		; pt_regs pointer is first arg
@@ -327,7 +327,7 @@ system_call_saved:
 
 	UNMASK_INT B2			; re-enable global IT
 
-system_call_saved_noack:
+system_call_saved_yesack:
 	;; Check system call number
 	MVK	.S2	__NR_syscalls,B1
 #ifdef CONFIG_C6X_BIG_KERNEL
@@ -536,8 +536,8 @@ ret_from_trap:
  [!B0]	BNOP	.S2	ret_from_exception,5
 
 #ifdef CONFIG_C6X_BIG_KERNEL
-	MVKL	.S2	system_call_saved_noack,B3
-	MVKH	.S2	system_call_saved_noack,B3
+	MVKL	.S2	system_call_saved_yesack,B3
+	MVKH	.S2	system_call_saved_yesack,B3
 #endif
 	LDW	.D2T2	*+SP(REGS_B0+8),B0
 	LDW	.D2T1	*+SP(REGS_A4+8),A4
@@ -548,7 +548,7 @@ ret_from_trap:
 #ifdef CONFIG_C6X_BIG_KERNEL
  ||	B	.S2	B3
 #else
- ||	B	.S2	system_call_saved_noack
+ ||	B	.S2	system_call_saved_yesack
 #endif
 	LDW	.D2T2	*+SP(REGS_B8+8),B8
 	NOP	4

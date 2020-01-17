@@ -42,7 +42,7 @@ EXPORT_SYMBOL_GPL(__i2c_first_dynamic_bus_num);
  * The I2C devices will be created later, after the adapter for the relevant
  * bus has been registered.  After that moment, standard driver model tools
  * are used to bind "new style" I2C drivers to the devices.  The bus number
- * for any device declared using this routine is not available for dynamic
+ * for any device declared using this routine is yest available for dynamic
  * allocation.
  *
  * The board info passed can safely be __initdata, but be careful of embedded

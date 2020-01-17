@@ -2,7 +2,7 @@
 /*
  * Faraday FTGMAC100 Gigabit Ethernet
  *
- * (C) Copyright 2009-2011 Faraday Technology
+ * (C) Copyright 2009-2011 Faraday Techyeslogy
  * Po-Yu Chuang <ratbert@faraday-tech.com>
  */
 
@@ -32,7 +32,7 @@
 #define DRV_NAME	"ftgmac100"
 #define DRV_VERSION	"0.7"
 
-/* Arbitrary values, I am not sure the HW has limits */
+/* Arbitrary values, I am yest sure the HW has limits */
 #define MAX_RX_QUEUE_ENTRIES	1024
 #define MAX_TX_QUEUE_ENTRIES	1024
 #define MIN_RX_QUEUE_ENTRIES	32
@@ -141,7 +141,7 @@ static int ftgmac100_reset_and_config_mac(struct ftgmac100 *priv)
 
 	switch (priv->cur_speed) {
 	case SPEED_10:
-	case 0: /* no link */
+	case 0: /* yes link */
 		break;
 
 	case SPEED_100:
@@ -152,7 +152,7 @@ static int ftgmac100_reset_and_config_mac(struct ftgmac100 *priv)
 		maccr |= FTGMAC100_MACCR_GIGA_MODE;
 		break;
 	default:
-		netdev_err(priv->netdev, "Unknown speed %d !\n",
+		netdev_err(priv->netdev, "Unkyeswn speed %d !\n",
 			   priv->cur_speed);
 		break;
 	}
@@ -500,7 +500,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 		}
 	}
 
-	/* If the packet had no skb (failed to allocate earlier)
+	/* If the packet had yes skb (failed to allocate earlier)
 	 * then try to allocate one and skip
 	 */
 	skb = priv->rx_skbs[pointer];
@@ -542,7 +542,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	map = le32_to_cpu(rxdes->rxdes3);
 
 #if defined(CONFIG_ARM) && !defined(CONFIG_ARM_DMA_USE_IOMMU)
-	/* When we don't have an iommu, we can save cycles by not
+	/* When we don't have an iommu, we can save cycles by yest
 	 * invalidating the cache for the part of the packet that
 	 * wasn't received.
 	 */
@@ -810,7 +810,7 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	/* Update next TX pointer */
 	priv->tx_pointer = pointer;
 
-	/* If there isn't enough room for all the fragments of a new packet
+	/* If there isn't eyesugh room for all the fragments of a new packet
 	 * in the TX ring, stop the queue. The sequence below is race free
 	 * vs. a concurrent restart in ftgmac100_poll()
 	 */
@@ -845,8 +845,8 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 		txdes->txdes0 = cpu_to_le32(ctl_stat & priv->txdes0_edotr_mask);
 	}
 
-	/* This cannot be reached if we successfully mapped the
-	 * last fragment, so we know ftgmac100_free_tx_packet()
+	/* This canyest be reached if we successfully mapped the
+	 * last fragment, so we kyesw ftgmac100_free_tx_packet()
 	 * hasn't freed the skb yet.
 	 */
  drop:
@@ -1000,7 +1000,7 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 	bool tx_pause, rx_pause;
 	int new_speed;
 
-	/* We store "no link" as speed 0 */
+	/* We store "yes link" as speed 0 */
 	if (!phydev->link)
 		new_speed = 0;
 	else
@@ -1016,7 +1016,7 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 		tx_pause = priv->tx_pause;
 	}
 
-	/* Link hasn't changed, do nothing */
+	/* Link hasn't changed, do yesthing */
 	if (phydev->speed == priv->cur_speed &&
 	    phydev->duplex == priv->cur_duplex &&
 	    rx_pause == priv->rx_pause &&
@@ -1034,14 +1034,14 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 	priv->rx_pause = rx_pause;
 	priv->tx_pause = tx_pause;
 
-	/* Link is down, do nothing else */
+	/* Link is down, do yesthing else */
 	if (!new_speed)
 		return;
 
 	/* Disable all interrupts */
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 
-	/* Reset the adapter asynchronously */
+	/* Reset the adapter asynchroyesusly */
 	schedule_work(&priv->reset_task);
 }
 
@@ -1052,7 +1052,7 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv, phy_interface_t intf)
 
 	phydev = phy_find_first(priv->mii_bus);
 	if (!phydev) {
-		netdev_info(netdev, "%s: no PHY found\n", netdev->name);
+		netdev_info(netdev, "%s: yes PHY found\n", netdev->name);
 		return -ENODEV;
 	}
 
@@ -1060,7 +1060,7 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv, phy_interface_t intf)
 			     &ftgmac100_adjust_link, intf);
 
 	if (IS_ERR(phydev)) {
-		netdev_err(netdev, "%s: Could not attach to PHY\n", netdev->name);
+		netdev_err(netdev, "%s: Could yest attach to PHY\n", netdev->name);
 		return PTR_ERR(phydev);
 	}
 
@@ -1236,7 +1236,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 	struct ftgmac100 *priv = netdev_priv(netdev);
 	unsigned int status, new_mask = FTGMAC100_INT_BAD;
 
-	/* Fetch and clear interrupt bits, process abnormal ones */
+	/* Fetch and clear interrupt bits, process abyesrmal ones */
 	status = ioread32(priv->base + FTGMAC100_OFFSET_ISR);
 	iowrite32(status, priv->base + FTGMAC100_OFFSET_ISR);
 	if (unlikely(status & FTGMAC100_INT_BAD)) {
@@ -1352,7 +1352,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static int ftgmac100_init_all(struct ftgmac100 *priv, bool ignore_alloc_err)
+static int ftgmac100_init_all(struct ftgmac100 *priv, bool igyesre_alloc_err)
 {
 	int err = 0;
 
@@ -1361,7 +1361,7 @@ static int ftgmac100_init_all(struct ftgmac100 *priv, bool ignore_alloc_err)
 
 	/* Realloc rx descriptors */
 	err = ftgmac100_alloc_rx_buffers(priv);
-	if (err && !ignore_alloc_err)
+	if (err && !igyesre_alloc_err)
 		return err;
 
 	/* Reinit and restart HW */
@@ -1442,7 +1442,7 @@ static int ftgmac100_open(struct net_device *netdev)
 
 	/* When using NC-SI we force the speed to 100Mbit/s full duplex,
 	 *
-	 * Otherwise we leave it set to 0 (no link), the link
+	 * Otherwise we leave it set to 0 (yes link), the link
 	 * message from the PHY layer will handle setting it up to
 	 * something else if needed.
 	 */
@@ -1511,7 +1511,7 @@ static int ftgmac100_stop(struct net_device *netdev)
 
 	/* Note about the reset task: We are called with the rtnl lock
 	 * held, so we are synchronized against the core of the reset
-	 * task. We must not try to synchronously cancel it otherwise
+	 * task. We must yest try to synchroyesusly cancel it otherwise
 	 * we can deadlock. But since it will test for netif_running()
 	 * which has already been cleared by the net core, we don't
 	 * anything special to do.
@@ -1613,7 +1613,7 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 	struct ftgmac100 *priv = netdev_priv(netdev);
 	struct platform_device *pdev = to_platform_device(priv->dev);
 	phy_interface_t phy_intf = PHY_INTERFACE_MODE_RGMII;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int i, err = 0;
 	u32 reg;
 
@@ -1641,16 +1641,16 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 		if (err)
 			phy_intf = PHY_INTERFACE_MODE_RGMII;
 
-		/* Aspeed only supports these. I don't know about other IP
+		/* Aspeed only supports these. I don't kyesw about other IP
 		 * block vendors so I'm going to just let them through for
-		 * now. Note that this is only a warning if for some obscure
+		 * yesw. Note that this is only a warning if for some obscure
 		 * reason the DT really means to lie about it or it's a newer
-		 * part we don't know about.
+		 * part we don't kyesw about.
 		 *
 		 * On the Aspeed SoC there are additionally straps and SCU
 		 * control bits that could tell us what the interface is
 		 * (or allow us to configure it while the IP block is held
-		 * in reset). For now I chose to keep this driver away from
+		 * in reset). For yesw I chose to keep this driver away from
 		 * those SoC specific bits and assume the device-tree is
 		 * right and the SCU has been configured properly by pinmux
 		 * or the firmware.
@@ -1680,7 +1680,7 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 
 	err = mdiobus_register(priv->mii_bus);
 	if (err) {
-		dev_err(priv->dev, "Cannot register MDIO bus!\n");
+		dev_err(priv->dev, "Canyest register MDIO bus!\n");
 		goto err_register_mdiobus;
 	}
 
@@ -1742,9 +1742,9 @@ static int ftgmac100_setup_clk(struct ftgmac100 *priv)
 	if (rc)
 		goto cleanup_clk;
 
-	/* RCLK is for RMII, typically used for NCSI. Optional because its not
+	/* RCLK is for RMII, typically used for NCSI. Optional because its yest
 	 * necessary if it's the AST2400 MAC, or the MAC is configured for
-	 * RGMII, or the controller is not an ASPEED-based controller.
+	 * RGMII, or the controller is yest an ASPEED-based controller.
 	 */
 	priv->rclk = devm_clk_get_optional(priv->dev, "RCLK");
 	rc = clk_prepare_enable(priv->rclk);
@@ -1763,7 +1763,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	int irq;
 	struct net_device *netdev;
 	struct ftgmac100 *priv;
-	struct device_node *np;
+	struct device_yesde *np;
 	int err = 0;
 
 	if (!pdev)
@@ -1802,7 +1802,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	priv->res = request_mem_region(res->start, resource_size(res),
 				       dev_name(&pdev->dev));
 	if (!priv->res) {
-		dev_err(&pdev->dev, "Could not reserve memory region\n");
+		dev_err(&pdev->dev, "Could yest reserve memory region\n");
 		err = -ENOMEM;
 		goto err_req_mem;
 	}
@@ -1824,7 +1824,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	/* MAC address from chip or random one */
 	ftgmac100_initial_mac(priv);
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_yesde;
 	if (np && (of_device_is_compatible(np, "aspeed,ast2400-mac") ||
 		   of_device_is_compatible(np, "aspeed,ast2500-mac") ||
 		   of_device_is_compatible(np, "aspeed,ast2600-mac"))) {
@@ -1838,7 +1838,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	if (np && of_get_property(np, "use-ncsi", NULL)) {
 		if (!IS_ENABLED(CONFIG_NET_NCSI)) {
-			dev_err(&pdev->dev, "NCSI stack not enabled\n");
+			dev_err(&pdev->dev, "NCSI stack yest enabled\n");
 			goto err_ncsi_dev;
 		}
 
@@ -1866,8 +1866,8 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		phy_attached_info(phy);
 	} else if (np && !of_get_child_by_name(np, "mdio")) {
 		/* Support legacy ASPEED devicetree descriptions that decribe a
-		 * MAC with an embedded MDIO controller but have no "mdio"
-		 * child node. Automatically scan the MDIO bus for available
+		 * MAC with an embedded MDIO controller but have yes "mdio"
+		 * child yesde. Automatically scan the MDIO bus for available
 		 * PHYs.
 		 */
 		priv->use_ncsi = false;
@@ -1897,7 +1897,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	/* AST2400  doesn't have working HW checksum generation */
 	if (np && (of_device_is_compatible(np, "aspeed,ast2400-mac")))
 		netdev->hw_features &= ~NETIF_F_HW_CSUM;
-	if (np && of_get_property(np, "no-hw-checksum", NULL))
+	if (np && of_get_property(np, "yes-hw-checksum", NULL))
 		netdev->hw_features &= ~(NETIF_F_HW_CSUM | NETIF_F_RXCSUM);
 	netdev->features |= netdev->hw_features;
 

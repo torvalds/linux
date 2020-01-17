@@ -27,6 +27,6 @@ raises interrupt when critical temperature reached.
 
 This abx500 is a common layer which can monitor all of the sensors, every
 specific abx500 chip has its special configurations in its own file, e.g. some
-sensors can be configured invisible if they are not available on that chip, and
+sensors can be configured invisible if they are yest available on that chip, and
 the corresponding gpadc_addr should be set to 0, thus this sensor won't be
 polled.

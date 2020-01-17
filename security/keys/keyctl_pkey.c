@@ -265,7 +265,7 @@ error_params:
 /*
  * Verify a signature.
  *
- * Verify a public key signature using the given key, or if not given, search
+ * Verify a public key signature using the given key, or if yest given, search
  * for a matching key.
  *
  * _info is a string of supplementary information in key=val format.  For

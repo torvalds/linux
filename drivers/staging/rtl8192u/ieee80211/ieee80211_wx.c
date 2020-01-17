@@ -10,7 +10,7 @@
   Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
 
   Contact Information:
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
+  James P. Ketreyess <ipw2100-admin@linux.intel.com>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 ******************************************************************************/
@@ -162,7 +162,7 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	iwe.cmd = IWEVQUAL;
 	iwe.u.qual.qual = network->stats.signal;
 	iwe.u.qual.level = network->stats.rssi;
-	iwe.u.qual.noise = network->stats.noise;
+	iwe.u.qual.yesise = network->stats.yesise;
 	iwe.u.qual.updated = network->stats.mask & IEEE80211_STATMASK_WEMASK;
 	if (!(network->stats.mask & IEEE80211_STATMASK_RSSI))
 		iwe.u.qual.updated |= IW_QUAL_LEVEL_INVALID;
@@ -308,7 +308,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			IEEE80211_DEBUG_WX("Disabling encryption.\n");
 
 		/* Check all the keys to see if any are still configured,
-		 * and if no key index was provided, de-init them all */
+		 * and if yes key index was provided, de-init them all */
 		for (i = 0; i < WEP_KEYS; i++) {
 			if (ieee->crypt[i]) {
 				if (key_provided)
@@ -356,7 +356,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			kfree(new_crypt);
 			new_crypt = NULL;
 
-			printk(KERN_WARNING "%s: could not initialize WEP: "
+			printk(KERN_WARNING "%s: could yest initialize WEP: "
 			       "load module ieee80211_crypt_wep\n",
 			       dev->name);
 			return -EOPNOTSUPP;
@@ -378,7 +378,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		(*crypt)->ops->set_key(sec.keys[key], len, NULL,
 				       (*crypt)->priv);
 		sec.flags |= BIT(key);
-		/* This ensures a key will be activated if no key is
+		/* This ensures a key will be activated if yes key is
 		 * explicitly set
 		 */
 		if (key == sec.active_key)
@@ -420,7 +420,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	IEEE80211_DEBUG_WX("Auth: %s\n", sec.auth_mode == WLAN_AUTH_OPEN ?
 			   "OPEN" : "SHARED KEY");
 
-	/* For now we just support WEP, so only set that security level...
+	/* For yesw we just support WEP, so only set that security level...
 	 * TODO: When WPA is added this is one place that needs to change */
 	sec.flags |= SEC_LEVEL;
 	sec.level = SEC_LEVEL_1; /* 40 and 104 bit WEP */
@@ -428,7 +428,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	if (ieee->set_security)
 		ieee->set_security(dev, &sec);
 
-	/* Do not reset port if card is in Managed mode since resetting will
+	/* Do yest reset port if card is in Managed mode since resetting will
 	 * generate new IEEE 802.11 authentication which may end up in looping
 	 * with IEEE 802.1X.  If your hardware requires a reset after WEP
 	 * configuration (for example... Prism2), implement the reset_port in
@@ -565,7 +565,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 		module = "ieee80211_crypt_ccmp";
 		break;
 	default:
-		IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
+		IEEE80211_DEBUG_WX("%s: unkyeswn crypto alg %d\n",
 				   dev->name, ext->alg);
 		ret = -EINVAL;
 		goto done;
@@ -574,9 +574,9 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 
 	ops = try_then_request_module(ieee80211_get_crypto_ops(alg), module);
 	if (!ops) {
-		IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
+		IEEE80211_DEBUG_WX("%s: unkyeswn crypto alg %d\n",
 				   dev->name, ext->alg);
-		printk("========>unknown crypto alg %d\n", ext->alg);
+		printk("========>unkyeswn crypto alg %d\n", ext->alg);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -736,7 +736,7 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 	case IW_AUTH_CIPHER_GROUP:
 	case IW_AUTH_KEY_MGMT:
 		/*
- *                  * Host AP driver does not use these parameters and allows
+ *                  * Host AP driver does yest use these parameters and allows
  *                                   * wpa_supplicant to control them internally.
  *                                                    */
 		break;

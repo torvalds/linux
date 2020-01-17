@@ -17,7 +17,7 @@
  * Updated: Thu Jan 8 16:45:45 MST 2015
  * Status: works
  *
- * This module is not used directly by end-users. Rather, it is used by other
+ * This module is yest used directly by end-users. Rather, it is used by other
  * drivers to provide support for an 8254 Programmable Interval Timer. These
  * counters are typically used to generate the pacer clock used for data
  * acquisition. Some drivers also expose the counters for general purpose use.
@@ -27,7 +27,7 @@
  * comedi_8254_init() / comedi_8254_mm_init()
  *	Initializes this module to access the 8254 registers. The _mm version
  *	sets up the module for MMIO register access the other for PIO access.
- *	The pointer returned from these functions is normally stored in the
+ *	The pointer returned from these functions is yesrmally stored in the
  *	comedi_device dev->pacer and will be freed by the comedi core during
  *	the driver (*detach). If a driver has multiple 8254 devices, they need
  *	to be stored in the drivers private data and freed when the driver is
@@ -55,7 +55,7 @@
  *	The largest possible initial count is 0; this is equivalent to 2^16
  *	for binary counting and 10^4 for BCD counting.
  *
- *	NOTE: The counter does not stop when it reaches zero. In Mode 0, 1, 4,
+ *	NOTE: The counter does yest stop when it reaches zero. In Mode 0, 1, 4,
  *	and 5 the counter "wraps around" to the highest count, either 0xffff
  *	for binary counting or 9999 for BCD counting, and continues counting.
  *	Modes 2 and 3 are periodic; the counter reloads itself with the initial
@@ -110,7 +110,7 @@
  * driver to handle any additional instructions.
  *
  * NOTE: Gate control, clock routing, and any interrupt handling for the
- * counters is not handled by this module. These features are driver dependent.
+ * counters is yest handled by this module. These features are driver dependent.
  */
 
 #include <linux/module.h>
@@ -347,11 +347,11 @@ EXPORT_SYMBOL_GPL(comedi_8254_update_divisors);
 /**
  * comedi_8254_cascade_ns_to_timer - calculate the cascaded divisor values
  * @i8254:	comedi_8254 struct for the timer
- * @nanosec:	the desired ns time
+ * @nayessec:	the desired ns time
  * @flags:	comedi_cmd flags
  */
 void comedi_8254_cascade_ns_to_timer(struct comedi_8254 *i8254,
-				     unsigned int *nanosec,
+				     unsigned int *nayessec,
 				     unsigned int flags)
 {
 	unsigned int d1 = i8254->next_div1 ? i8254->next_div1 : I8254_MAX_COUNT;
@@ -369,7 +369,7 @@ void comedi_8254_cascade_ns_to_timer(struct comedi_8254 *i8254,
 	unsigned int ns_high;
 
 	/* exit early if everything is already correct */
-	if (div * i8254->osc_base == *nanosec &&
+	if (div * i8254->osc_base == *nayessec &&
 	    d1 > 1 && d1 <= I8254_MAX_COUNT &&
 	    d2 > 1 && d2 <= I8254_MAX_COUNT &&
 	    /* check for overflow */
@@ -378,7 +378,7 @@ void comedi_8254_cascade_ns_to_timer(struct comedi_8254 *i8254,
 	    div * i8254->osc_base > i8254->osc_base)
 		return;
 
-	div = *nanosec / i8254->osc_base;
+	div = *nayessec / i8254->osc_base;
 	d2 = I8254_MAX_COUNT;
 	start = div / d2;
 	if (start < 2)
@@ -387,12 +387,12 @@ void comedi_8254_cascade_ns_to_timer(struct comedi_8254 *i8254,
 		for (d2 = div / d1;
 		     d1 * d2 <= div + d1 + 1 && d2 <= I8254_MAX_COUNT; d2++) {
 			ns = i8254->osc_base * d1 * d2;
-			if (ns <= *nanosec && ns > ns_glb) {
+			if (ns <= *nayessec && ns > ns_glb) {
 				ns_glb = ns;
 				d1_glb = d1;
 				d2_glb = d2;
 			}
-			if (ns >= *nanosec && ns < ns_lub) {
+			if (ns >= *nayessec && ns < ns_lub) {
 				ns_lub = ns;
 				d1_lub = d1;
 				d2_lub = d2;
@@ -405,7 +405,7 @@ void comedi_8254_cascade_ns_to_timer(struct comedi_8254 *i8254,
 	default:
 		ns_high = d1_lub * d2_lub * i8254->osc_base;
 		ns_low = d1_glb * d2_glb * i8254->osc_base;
-		if (ns_high - *nanosec < *nanosec - ns_low) {
+		if (ns_high - *nayessec < *nayessec - ns_low) {
 			d1 = d1_lub;
 			d2 = d2_lub;
 		} else {
@@ -423,33 +423,33 @@ void comedi_8254_cascade_ns_to_timer(struct comedi_8254 *i8254,
 		break;
 	}
 
-	*nanosec = d1 * d2 * i8254->osc_base;
+	*nayessec = d1 * d2 * i8254->osc_base;
 	i8254->next_div1 = d1;
 	i8254->next_div2 = d2;
 }
 EXPORT_SYMBOL_GPL(comedi_8254_cascade_ns_to_timer);
 
 /**
- * comedi_8254_ns_to_timer - calculate the divisor value for nanosec timing
+ * comedi_8254_ns_to_timer - calculate the divisor value for nayessec timing
  * @i8254:	comedi_8254 struct for the timer
- * @nanosec:	the desired ns time
+ * @nayessec:	the desired ns time
  * @flags:	comedi_cmd flags
  */
 void comedi_8254_ns_to_timer(struct comedi_8254 *i8254,
-			     unsigned int *nanosec, unsigned int flags)
+			     unsigned int *nayessec, unsigned int flags)
 {
 	unsigned int divisor;
 
 	switch (flags & CMDF_ROUND_MASK) {
 	default:
 	case CMDF_ROUND_NEAREST:
-		divisor = DIV_ROUND_CLOSEST(*nanosec, i8254->osc_base);
+		divisor = DIV_ROUND_CLOSEST(*nayessec, i8254->osc_base);
 		break;
 	case CMDF_ROUND_UP:
-		divisor = DIV_ROUND_UP(*nanosec, i8254->osc_base);
+		divisor = DIV_ROUND_UP(*nayessec, i8254->osc_base);
 		break;
 	case CMDF_ROUND_DOWN:
-		divisor = *nanosec / i8254->osc_base;
+		divisor = *nayessec / i8254->osc_base;
 		break;
 	}
 	if (divisor < 2)
@@ -457,7 +457,7 @@ void comedi_8254_ns_to_timer(struct comedi_8254 *i8254,
 	if (divisor > I8254_MAX_COUNT)
 		divisor = I8254_MAX_COUNT;
 
-	*nanosec = divisor * i8254->osc_base;
+	*nayessec = divisor * i8254->osc_base;
 	i8254->next_div = divisor;
 }
 EXPORT_SYMBOL_GPL(comedi_8254_ns_to_timer);
@@ -563,7 +563,7 @@ void comedi_8254_subdevice_init(struct comedi_subdevice *s,
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 	s->n_chan	= 3;
 	s->maxdata	= 0xffff;
-	s->range_table	= &range_unknown;
+	s->range_table	= &range_unkyeswn;
 	s->insn_read	= comedi_8254_insn_read;
 	s->insn_write	= comedi_8254_insn_write;
 	s->insn_config	= comedi_8254_insn_config;

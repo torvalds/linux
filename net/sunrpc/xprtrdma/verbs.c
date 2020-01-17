@@ -14,14 +14,14 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      yestice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright yestice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. yesr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
@@ -106,7 +106,7 @@ static void rpcrdma_xprt_drain(struct rpcrdma_xprt *r_xprt)
 }
 
 /**
- * rpcrdma_qp_event_handler - Handle one QP event (error notification)
+ * rpcrdma_qp_event_handler - Handle one QP event (error yestification)
  * @event: details of the event
  * @context: ep that owns QP where event occurred
  *
@@ -143,7 +143,7 @@ rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 
 /**
  * rpcrdma_wc_receive - Invoked by RDMA provider for each polled Receive WC
- * @cq:	completion queue (ignored)
+ * @cq:	completion queue (igyesred)
  * @wc:	completed WR
  *
  */
@@ -344,8 +344,8 @@ out:
  * rpcrdma_ia_open - Open and initialize an Interface Adapter.
  * @xprt: transport with IA to (re)initialize
  *
- * Returns 0 on success, negative errno if an appropriate
- * Interface Adapter could not be found and opened.
+ * Returns 0 on success, negative erryes if an appropriate
+ * Interface Adapter could yest be found and opened.
  */
 int
 rpcrdma_ia_open(struct rpcrdma_xprt *xprt)
@@ -372,7 +372,7 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt)
 			break;
 		/*FALLTHROUGH*/
 	default:
-		pr_err("rpcrdma: Device %s does not support memreg mode %d\n",
+		pr_err("rpcrdma: Device %s does yest support memreg mode %d\n",
 		       ia->ri_id->device->name, xprt_rdma_memreg_strategy);
 		rc = -EINVAL;
 		goto out_err;
@@ -404,7 +404,7 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 	/* This is similar to rpcrdma_ep_destroy, but:
 	 * - Don't cancel the connect worker.
 	 * - Don't call rpcrdma_ep_disconnect, which waits
-	 *   for another conn upcall, which will deadlock.
+	 *   for ayesther conn upcall, which will deadlock.
 	 * - rdma_disconnect is unneeded, the underlying
 	 *   connection is already gone.
 	 */
@@ -462,7 +462,7 @@ rpcrdma_ia_close(struct rpcrdma_ia *ia)
  * rpcrdma_ep_create - Create unconnected endpoint
  * @r_xprt: transport to instantiate
  *
- * Returns zero on success, or a negative errno.
+ * Returns zero on success, or a negative erryes.
  */
 int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 {
@@ -543,7 +543,7 @@ int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 	ep->rep_remote_cma.private_data = pmsg;
 	ep->rep_remote_cma.private_data_len = sizeof(*pmsg);
 
-	/* Client offers RDMA Read but does not initiate */
+	/* Client offers RDMA Read but does yest initiate */
 	ep->rep_remote_cma.initiator_depth = 0;
 	ep->rep_remote_cma.responder_resources =
 		min_t(int, U8_MAX, ia->ri_id->device->attrs.max_qp_rd_atom);
@@ -555,8 +555,8 @@ int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 	ep->rep_remote_cma.retry_count = 6;
 
 	/* RPC-over-RDMA handles its own flow control. In addition,
-	 * make all RNR NAKs visible so we know that RPC-over-RDMA
-	 * flow control is working correctly (no NAKs should be seen).
+	 * make all RNR NAKs visible so we kyesw that RPC-over-RDMA
+	 * flow control is working correctly (yes NAKs should be seen).
 	 */
 	ep->rep_remote_cma.flow_control = 0;
 	ep->rep_remote_cma.rnr_retry_count = 0;
@@ -592,7 +592,7 @@ void rpcrdma_ep_destroy(struct rpcrdma_xprt *r_xprt)
 }
 
 /* Re-establish a connection after a device removal event.
- * Unlike a normal reconnection, a fresh PD and a new set
+ * Unlike a yesrmal reconnection, a fresh PD and a new set
  * of MRs and buffers is needed.
  */
 static int rpcrdma_ep_recreate_xprt(struct rpcrdma_xprt *r_xprt,
@@ -651,7 +651,7 @@ static int rpcrdma_ep_reconnect(struct rpcrdma_xprt *r_xprt,
 	 * previously allocated MRs. Also, the same device means
 	 * the transport's previous DMA mappings are still valid.
 	 *
-	 * This is a sanity check only. There should be no way these
+	 * This is a sanity check only. There should be yes way these
 	 * point to two different devices here.
 	 */
 	old = id;
@@ -696,13 +696,13 @@ retry:
 		rc = rdma_create_qp(ia->ri_id, ia->ri_pd, &qp_init_attr);
 		if (rc) {
 			rc = -ENETUNREACH;
-			goto out_noupdate;
+			goto out_yesupdate;
 		}
 		break;
 	case -ENODEV:
 		rc = rpcrdma_ep_recreate_xprt(r_xprt, &qp_init_attr);
 		if (rc)
-			goto out_noupdate;
+			goto out_yesupdate;
 		break;
 	default:
 		rc = rpcrdma_ep_reconnect(r_xprt, &qp_init_attr);
@@ -736,7 +736,7 @@ out:
 	if (rc)
 		ep->rep_connected = rc;
 
-out_noupdate:
+out_yesupdate:
 	trace_xprtrdma_connect(r_xprt, rc);
 	return rc;
 }
@@ -756,7 +756,7 @@ rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 						   rx_ep);
 	int rc;
 
-	/* returns without wait if ID is not connected */
+	/* returns without wait if ID is yest connected */
 	rc = rdma_disconnect(ia->ri_id);
 	if (!rc)
 		wait_event_interruptible(ep->rep_connect_wait,
@@ -838,8 +838,8 @@ static int rpcrdma_sendctxs_create(struct rpcrdma_xprt *r_xprt)
 	return 0;
 }
 
-/* The sendctx queue is not guaranteed to have a size that is a
- * power of two, thus the helpers in circ_buf.h cannot be used.
+/* The sendctx queue is yest guaranteed to have a size that is a
+ * power of two, thus the helpers in circ_buf.h canyest be used.
  * The other option is to use modulus (%), which can be expensive.
  */
 static unsigned long rpcrdma_sendctx_next(struct rpcrdma_buffer *buf,
@@ -883,7 +883,7 @@ struct rpcrdma_sendctx *rpcrdma_sendctx_get_locked(struct rpcrdma_xprt *r_xprt)
 	return sc;
 
 out_emptyq:
-	/* The queue is "empty" if there have not been enough Send
+	/* The queue is "empty" if there have yest been eyesugh Send
 	 * completions recently. This is a sign the Send Queue is
 	 * backing up. Cause the caller to pause and try again.
 	 */
@@ -981,7 +981,7 @@ void rpcrdma_mrs_refresh(struct rpcrdma_xprt *r_xprt)
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 
-	/* If there is no underlying device, it's no use to
+	/* If there is yes underlying device, it's yes use to
 	 * wake the refresh worker.
 	 */
 	if (ep->rep_connected != -ENODEV) {
@@ -1110,19 +1110,19 @@ static void rpcrdma_rep_destroy(struct rpcrdma_rep *rep)
 
 static struct rpcrdma_rep *rpcrdma_rep_get_locked(struct rpcrdma_buffer *buf)
 {
-	struct llist_node *node;
+	struct llist_yesde *yesde;
 
 	/* Calls to llist_del_first are required to be serialized */
-	node = llist_del_first(&buf->rb_free_reps);
-	if (!node)
+	yesde = llist_del_first(&buf->rb_free_reps);
+	if (!yesde)
 		return NULL;
-	return llist_entry(node, struct rpcrdma_rep, rr_node);
+	return llist_entry(yesde, struct rpcrdma_rep, rr_yesde);
 }
 
 static void rpcrdma_rep_put(struct rpcrdma_buffer *buf,
 			    struct rpcrdma_rep *rep)
 {
-	llist_add(&rep->rr_node, &buf->rb_free_reps);
+	llist_add(&rep->rr_yesde, &buf->rb_free_reps);
 }
 
 static void rpcrdma_reps_unmap(struct rpcrdma_xprt *r_xprt)
@@ -1146,7 +1146,7 @@ static void rpcrdma_reps_destroy(struct rpcrdma_buffer *buf)
  * rpcrdma_buffer_create - Create initial set of req/rep objects
  * @r_xprt: transport instance to (re)initialize
  *
- * Returns zero on success, otherwise a negative errno.
+ * Returns zero on success, otherwise a negative erryes.
  */
 int rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 {
@@ -1273,7 +1273,7 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
  * rpcrdma_mr_get - Allocate an rpcrdma_mr object
  * @r_xprt: controlling transport
  *
- * Returns an initialized rpcrdma_mr or NULL if no free
+ * Returns an initialized rpcrdma_mr or NULL if yes free
  * rpcrdma_mr objects are available.
  */
 struct rpcrdma_mr *
@@ -1311,7 +1311,7 @@ void rpcrdma_mr_put(struct rpcrdma_mr *mr)
  * rpcrdma_buffer_get - Get a request buffer
  * @buffers: Buffer pool from which to obtain a buffer
  *
- * Returns a fresh rpcrdma_req, or NULL if none are available.
+ * Returns a fresh rpcrdma_req, or NULL if yesne are available.
  */
 struct rpcrdma_req *
 rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
@@ -1412,7 +1412,7 @@ bool rpcrdma_regbuf_realloc(struct rpcrdma_regbuf *rb, size_t size, gfp_t flags)
  * @r_xprt: controlling transport instance
  * @rb: regbuf to be mapped
  *
- * Returns true if the buffer is now DMA mapped to @r_xprt's device
+ * Returns true if the buffer is yesw DMA mapped to @r_xprt's device
  */
 bool __rpcrdma_regbuf_dma_map(struct rpcrdma_xprt *r_xprt,
 			      struct rpcrdma_regbuf *rb)

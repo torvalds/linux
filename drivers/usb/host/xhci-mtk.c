@@ -123,7 +123,7 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 	ret = readl_poll_timeout(&ippc->ip_pw_sts1, value,
 			  (check_val == (value & check_val)), 100, 20000);
 	if (ret) {
-		dev_err(mtk->dev, "clocks are not stable (0x%x)\n", value);
+		dev_err(mtk->dev, "clocks are yest stable (0x%x)\n", value);
 		return ret;
 	}
 
@@ -312,7 +312,7 @@ static void usb_wakeup_ip_sleep_set(struct xhci_hcd_mtk *mtk, bool enable)
 }
 
 static int usb_wakeup_of_property_parse(struct xhci_hcd_mtk *mtk,
-				struct device_node *dn)
+				struct device_yesde *dn)
 {
 	struct of_phandle_args args;
 	int ret;
@@ -329,8 +329,8 @@ static int usb_wakeup_of_property_parse(struct xhci_hcd_mtk *mtk,
 
 	mtk->uwk_reg_base = args.args[0];
 	mtk->uwk_vers = args.args[1];
-	mtk->uwk = syscon_node_to_regmap(args.np);
-	of_node_put(args.np);
+	mtk->uwk = syscon_yesde_to_regmap(args.np);
+	of_yesde_put(args.np);
 	dev_info(mtk->dev, "uwk - reg:0x%x, version:%d\n",
 			mtk->uwk_reg_base, mtk->uwk_vers);
 
@@ -382,15 +382,15 @@ static void xhci_mtk_quirks(struct device *dev, struct xhci_hcd *xhci)
 	struct xhci_hcd_mtk *mtk = hcd_to_mtk(hcd);
 
 	/*
-	 * As of now platform drivers don't provide MSI support so we ensure
-	 * here that the generic code does not try to make a pci_dev from our
+	 * As of yesw platform drivers don't provide MSI support so we ensure
+	 * here that the generic code does yest try to make a pci_dev from our
 	 * dev struct in order to setup MSI
 	 */
 	xhci->quirks |= XHCI_PLAT;
 	xhci->quirks |= XHCI_MTK_HOST;
 	/*
 	 * MTK host controller gives a spurious successful event after a
-	 * short transfer. Ignore it.
+	 * short transfer. Igyesre it.
 	 */
 	xhci->quirks |= XHCI_SPURIOUS_SUCCESS;
 	if (mtk->lpm_support)
@@ -425,7 +425,7 @@ static int xhci_mtk_setup(struct usb_hcd *hcd)
 static int xhci_mtk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct xhci_hcd_mtk *mtk;
 	const struct hc_driver *driver;
 	struct xhci_hcd *xhci;
@@ -459,12 +459,12 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	mtk->lpm_support = of_property_read_bool(node, "usb3-lpm-capable");
-	/* optional property, ignore the error if it does not exist */
-	of_property_read_u32(node, "mediatek,u3p-dis-msk",
+	mtk->lpm_support = of_property_read_bool(yesde, "usb3-lpm-capable");
+	/* optional property, igyesre the error if it does yest exist */
+	of_property_read_u32(yesde, "mediatek,u3p-dis-msk",
 			     &mtk->u3p_dis_msk);
 
-	ret = usb_wakeup_of_property_parse(mtk, node);
+	ret = usb_wakeup_of_property_parse(mtk, yesde);
 	if (ret) {
 		dev_err(dev, "failed to parse uwk property\n");
 		return ret;
@@ -533,7 +533,7 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	xhci->main_hcd = hcd;
 
 	/*
-	 * imod_interval is the interrupt moderation value in nanoseconds.
+	 * imod_interval is the interrupt moderation value in nayesseconds.
 	 * The increment interval is 8 times as much as that defined in
 	 * the xHCI spec on MTK's controller.
 	 */
@@ -611,7 +611,7 @@ static int xhci_mtk_remove(struct platform_device *dev)
 /*
  * if ip sleep fails, and all clocks are disabled, access register will hang
  * AHB bus, so stop polling roothubs to avoid regs access on bus suspend.
- * and no need to check whether ip sleep failed or not; this will cause SPM
+ * and yes need to check whether ip sleep failed or yest; this will cause SPM
  * to wake up system immediately after system suspend complete if ip sleep
  * fails, it is what we wanted.
  */

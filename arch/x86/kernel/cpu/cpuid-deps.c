@@ -12,10 +12,10 @@ struct cpuid_dep {
 /*
  * Table of CPUID features that depend on others.
  *
- * This only includes dependencies that can be usefully disabled, not
+ * This only includes dependencies that can be usefully disabled, yest
  * features part of the base set (like FPU).
  *
- * Note this all is not __init / __initdata because it can be
+ * Note this all is yest __init / __initdata because it can be
  * called from cpu hotplug. It shouldn't do anything in this case,
  * but it's difficult to tell that to the init reference checker.
  */
@@ -75,7 +75,7 @@ static const struct cpuid_dep cpuid_deps[] = {
 static inline void clear_feature(struct cpuinfo_x86 *c, unsigned int feature)
 {
 	/*
-	 * Note: This could use the non atomic __*_bit() variants, but the
+	 * Note: This could use the yesn atomic __*_bit() variants, but the
 	 * rest of the cpufeature code uses atomics as well, so keep it for
 	 * consistency. Cleanup all of it separately.
 	 */

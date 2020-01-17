@@ -10,13 +10,13 @@
 #include <linux/mm.h>
 #include <linux/genalloc.h>
 #include <linux/gfp.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/dma-direct.h>
 #include <linux/dma-mapping.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <linux/dma-contiguous.h>
 #include <linux/highmem.h>
 #include <linux/memblock.h>
@@ -95,12 +95,12 @@ static struct arm_dma_buffer *arm_dma_buffer_find(void *virt)
 }
 
 /*
- * The DMA API is built upon the notion of "buffer ownership".  A buffer
+ * The DMA API is built upon the yestion of "buffer ownership".  A buffer
  * is either exclusively owned by the CPU (and therefore may be accessed
  * by it) or exclusively owned by the DMA device.  These helper functions
  * represent the transitions between these two ownership states.
  *
- * Note, however, that on later ARMs, this notion does not work due to
+ * Note, however, that on later ARMs, this yestion does yest work due to
  * speculative prefetches.  We model our approach on the assumption that
  * the CPU does do speculative prefetches, which means we clean caches
  * before transfers and delay cache invalidation until transfer completion.
@@ -247,7 +247,7 @@ static u64 get_coherent_dma_mask(struct device *dev)
 		mask = dev->coherent_dma_mask;
 
 		/*
-		 * Sanity check the DMA mask - it must be non-zero, and
+		 * Sanity check the DMA mask - it must be yesn-zero, and
 		 * must be able to be satisfied by a DMA allocation.
 		 */
 		if (mask == 0) {
@@ -366,7 +366,7 @@ static int __init atomic_pool_init(void)
 	if (!atomic_pool)
 		goto out;
 	/*
-	 * The atomic pool is only used for non-coherent allocations
+	 * The atomic pool is only used for yesn-coherent allocations
 	 * so we must pass NORMAL for coherent_flag.
 	 */
 	if (dev_get_cma_area(NULL))
@@ -443,11 +443,11 @@ void __init dma_contiguous_remap(void)
 
 		/*
 		 * Clear previous low-memory mapping to ensure that the
-		 * TLB does not see any conflicting entries, then flush
+		 * TLB does yest see any conflicting entries, then flush
 		 * the TLB of the old entries before creating new mappings.
 		 *
 		 * This ensures that any speculatively loaded TLB entries
-		 * (even though they may be rare) can not cause any problems,
+		 * (even though they may be rare) can yest cause any problems,
 		 * and ensures that this code is architecturally compliant.
 		 */
 		for (addr = __phys_to_virt(start); addr < __phys_to_virt(end);
@@ -487,7 +487,7 @@ static void *__alloc_remap_buffer(struct device *dev, size_t size, gfp_t gfp,
 	void *ptr = NULL;
 	/*
 	 * __alloc_remap_buffer is only called when the device is
-	 * non-coherent
+	 * yesn-coherent
 	 */
 	page = __dma_alloc_buffer(dev, size, gfp, NORMAL);
 	if (!page)
@@ -512,7 +512,7 @@ static void *__alloc_from_pool(size_t size, struct page **ret_page)
 	void *ptr = NULL;
 
 	if (!atomic_pool) {
-		WARN(1, "coherent pool not initialised!\n");
+		WARN(1, "coherent pool yest initialised!\n");
 		return NULL;
 	}
 
@@ -725,9 +725,9 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 
 	/*
 	 * Following is a work-around (a.k.a. hack) to prevent pages
-	 * with __GFP_COMP being passed to split_page() which cannot
+	 * with __GFP_COMP being passed to split_page() which canyest
 	 * handle them.  The real problem is that this flag probably
-	 * should be 0 on ARM as it is not supported on this
+	 * should be 0 on ARM as it is yest supported on this
 	 * platform; see CONFIG_HUGETLBFS.
 	 */
 	gfp &= ~(__GFP_COMP);
@@ -870,7 +870,7 @@ int arm_dma_get_sgtable(struct device *dev, struct sg_table *sgt,
 	struct page *page;
 	int ret;
 
-	/* If the PFN is not valid, we do not have a struct page */
+	/* If the PFN is yest valid, we do yest have a struct page */
 	if (!pfn_valid(pfn))
 		return -ENXIO;
 
@@ -897,7 +897,7 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 	/*
 	 * A single sg entry may refer to multiple physically contiguous
 	 * pages.  But we still need to process highmem pages individually.
-	 * If highmem is not configured then the bulk of this loop gets
+	 * If highmem is yest configured then the bulk of this loop gets
 	 * optimized out.
 	 */
 	do {
@@ -910,7 +910,7 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 			if (len + offset > PAGE_SIZE)
 				len = PAGE_SIZE - offset;
 
-			if (cache_is_vipt_nonaliasing()) {
+			if (cache_is_vipt_yesnaliasing()) {
 				vaddr = kmap_atomic(page);
 				op(vaddr + offset, len, dir);
 				kunmap_atomic(vaddr);
@@ -950,7 +950,7 @@ static void __dma_page_cpu_to_dev(struct page *page, unsigned long off,
 	} else {
 		outer_clean_range(paddr, paddr + size);
 	}
-	/* FIXME: non-speculating: flush on bidirectional mappings? */
+	/* FIXME: yesn-speculating: flush on bidirectional mappings? */
 }
 
 static void __dma_page_dev_to_cpu(struct page *page, unsigned long off,
@@ -958,7 +958,7 @@ static void __dma_page_dev_to_cpu(struct page *page, unsigned long off,
 {
 	phys_addr_t paddr = page_to_phys(page) + off;
 
-	/* FIXME: non-speculating: not required */
+	/* FIXME: yesn-speculating: yest required */
 	/* in any case, don't bother invalidating if DMA to device */
 	if (dir != DMA_TO_DEVICE) {
 		outer_inv_range(paddr, paddr + size);
@@ -1217,7 +1217,7 @@ static inline void __free_iova(struct dma_iommu_mapping *mapping,
 	if (addr + size > bitmap_base + mapping_size) {
 		/*
 		 * The address range to be freed reaches into the iova
-		 * range of the next bitmap. This should not happen as
+		 * range of the next bitmap. This should yest happen as
 		 * we don't allow this in __alloc_iova (at the
 		 * moment).
 		 */
@@ -1292,7 +1292,7 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
 			/* See if it's easy to allocate a high-order chunk */
 			pages[i] = alloc_pages(gfp | __GFP_NORETRY, order);
 
-			/* Go down a notch at first sign of pressure */
+			/* Go down a yestch at first sign of pressure */
 			if (!pages[i]) {
 				order_idx++;
 				continue;
@@ -1475,9 +1475,9 @@ static void *__arm_iommu_alloc_attrs(struct device *dev, size_t size,
 
 	/*
 	 * Following is a work-around (a.k.a. hack) to prevent pages
-	 * with __GFP_COMP being passed to split_page() which cannot
+	 * with __GFP_COMP being passed to split_page() which canyest
 	 * handle them.  The real problem is that this flag probably
-	 * should be 0 on ARM as it is not supported on this
+	 * should be 0 on ARM as it is yest supported on this
 	 * platform; see CONFIG_HUGETLBFS.
 	 */
 	gfp &= ~(__GFP_COMP);
@@ -1557,7 +1557,7 @@ static int arm_coherent_iommu_mmap_attrs(struct device *dev,
 
 /*
  * free a page as defined by the above mapping.
- * Must not be called with IRQs disabled.
+ * Must yest be called with IRQs disabled.
  */
 static void __arm_iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 	dma_addr_t handle, unsigned long attrs, int coherent_flag)
@@ -2217,7 +2217,7 @@ EXPORT_SYMBOL_GPL(arm_iommu_attach_device);
  * @dev: valid struct device pointer
  *
  * Detaches the provided device from a previously attached map.
- * This overwrites the dma_ops pointer with appropriate non-IOMMU ops.
+ * This overwrites the dma_ops pointer with appropriate yesn-IOMMU ops.
  */
 void arm_iommu_detach_device(struct device *dev)
 {

@@ -6,8 +6,8 @@
  * This file defines various macros to transfer memory areas across
  * the user/kernel boundary.  This needs to be done carefully because
  * this code is executed in kernel mode and uses user-specified
- * addresses.  Thus, we need to be careful not to let the user to
- * trick us into accessing kernel memory that would normally be
+ * addresses.  Thus, we need to be careful yest to let the user to
+ * trick us into accessing kernel memory that would yesrmally be
  * inaccessible.  This code is also fairly performance sensitive,
  * so we want to spend as little time doing safety checks as
  * possible.
@@ -72,20 +72,20 @@ static inline int __access_ok(const void __user *p, unsigned long size)
  * These are the main single-value transfer routines.  They automatically
  * use the right size if we just have the right pointer type.
  *
- * Careful to not
+ * Careful to yest
  * (a) re-use the arguments for side effects (sizeof/typeof is ok)
- * (b) require any knowledge of processes at this stage
+ * (b) require any kyeswledge of processes at this stage
  */
 #define put_user(x, ptr)	__put_user_check((__typeof__(*(ptr))) (x), (ptr), sizeof(*(ptr)))
 #define get_user(x, ptr)	__get_user_check((x), (ptr), sizeof(*(ptr)))
 
 /*
- * The "__xxx" versions do not do address space checking, useful when
+ * The "__xxx" versions do yest do address space checking, useful when
  * doing multiple accesses to the same area (the programmer has to do the
  * checks by hand with "access_ok()")
  */
-#define __put_user(x, ptr)	__put_user_nocheck((__typeof__(*(ptr))) (x), (ptr), sizeof(*(ptr)))
-#define __get_user(x, ptr)	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
+#define __put_user(x, ptr)	__put_user_yescheck((__typeof__(*(ptr))) (x), (ptr), sizeof(*(ptr)))
+#define __get_user(x, ptr)	__get_user_yescheck((x), (ptr), sizeof(*(ptr)))
 
 #ifdef ASM_SUPPORTED
   struct __large_struct { unsigned long buf[100]; };
@@ -108,7 +108,7 @@ do {												\
 
 /*
  * The "__put_user_size()" macro tells gcc it reads from memory instead of writing it.  This
- * is because they do not write to any memory gcc knows about, so there are no aliasing
+ * is because they do yest write to any memory gcc kyesws about, so there are yes aliasing
  * issues.
  */
 # define __put_user_size(val, addr, n, err)							\
@@ -137,11 +137,11 @@ do {									\
 } while (0)
 #endif /* !ASM_SUPPORTED */
 
-extern void __get_user_unknown (void);
+extern void __get_user_unkyeswn (void);
 
 /*
  * Evaluating arguments X, PTR, SIZE, and SEGMENT may involve subroutine-calls, which
- * could clobber r8 and r9 (among others).  Thus, be careful not to evaluate it while
+ * could clobber r8 and r9 (among others).  Thus, be careful yest to evaluate it while
  * using r8/r9.
  */
 #define __do_get_user(check, x, ptr, size)						\
@@ -156,20 +156,20 @@ extern void __get_user_unknown (void);
 		      case 2: __get_user_size(__gu_val, __gu_ptr, 2, __gu_err); break;	\
 		      case 4: __get_user_size(__gu_val, __gu_ptr, 4, __gu_err); break;	\
 		      case 8: __get_user_size(__gu_val, __gu_ptr, 8, __gu_err); break;	\
-		      default: __get_user_unknown(); break;				\
+		      default: __get_user_unkyeswn(); break;				\
 		}									\
 	(x) = (__force __typeof__(*(__gu_ptr))) __gu_val;				\
 	__gu_err;									\
 })
 
-#define __get_user_nocheck(x, ptr, size)	__do_get_user(0, x, ptr, size)
+#define __get_user_yescheck(x, ptr, size)	__do_get_user(0, x, ptr, size)
 #define __get_user_check(x, ptr, size)	__do_get_user(1, x, ptr, size)
 
-extern void __put_user_unknown (void);
+extern void __put_user_unkyeswn (void);
 
 /*
  * Evaluating arguments X, PTR, SIZE, and SEGMENT may involve subroutine-calls, which
- * could clobber r8 (among others).  Thus, be careful not to evaluate them while using r8.
+ * could clobber r8 (among others).  Thus, be careful yest to evaluate them while using r8.
  */
 #define __do_put_user(check, x, ptr, size)						\
 ({											\
@@ -184,12 +184,12 @@ extern void __put_user_unknown (void);
 		      case 2: __put_user_size(__pu_x, __pu_ptr, 2, __pu_err); break;	\
 		      case 4: __put_user_size(__pu_x, __pu_ptr, 4, __pu_err); break;	\
 		      case 8: __put_user_size(__pu_x, __pu_ptr, 8, __pu_err); break;	\
-		      default: __put_user_unknown(); break;				\
+		      default: __put_user_unkyeswn(); break;				\
 		}									\
 	__pu_err;									\
 })
 
-#define __put_user_nocheck(x, ptr, size)	__do_put_user(0, x, ptr, size)
+#define __put_user_yescheck(x, ptr, size)	__do_put_user(0, x, ptr, size)
 #define __put_user_check(x, ptr, size)	__do_put_user(1, x, ptr, size)
 
 /*

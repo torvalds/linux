@@ -6,12 +6,12 @@ Required properties:
 - interrupts : Should be the port interrupt shared by all 32 pins, if
   one number.  If two numbers, the first one is the interrupt shared
   by low 16 pins and the second one is for high 16 pins.
-- gpio-controller : Marks the device node as a gpio controller.
+- gpio-controller : Marks the device yesde as a gpio controller.
 - #gpio-cells : Should be two.  The first cell is the pin number and
   the second cell is used to specify the gpio polarity:
       0 = active high
       1 = active low
-- interrupt-controller: Marks the device node as an interrupt controller.
+- interrupt-controller: Marks the device yesde as an interrupt controller.
 - #interrupt-cells : Should be 2.  The first cell is the GPIO number.
   The second cell bits[3:0] is used to specify trigger type and level flags:
       1 = low-to-high edge triggered.

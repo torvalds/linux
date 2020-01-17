@@ -6,12 +6,12 @@
    met:
 
        * Redistributions of source code must retain the above copyright
-	 notice, this list of conditions and the following disclaimer.
+	 yestice, this list of conditions and the following disclaimer.
        * Redistributions in binary form must reproduce the above copyright
-	 notice, this list of conditions and the following disclaimer in
+	 yestice, this list of conditions and the following disclaimer in
 	 the documentation and/or other materials provided with the
 	 distribution.
-       * Neither the name of the copyright holder nor the names of its
+       * Neither the name of the copyright holder yesr the names of its
 	 contributors may be used to endorse or promote products derived
 	 from this software without specific prior written permission.
 
@@ -339,9 +339,9 @@ struct qxl_surface_create {
 struct qxl_ring_header {
 	uint32_t num_items;
 	uint32_t prod;
-	uint32_t notify_on_prod;
+	uint32_t yestify_on_prod;
 	uint32_t cons;
-	uint32_t notify_on_cons;
+	uint32_t yestify_on_cons;
 };
 
 /* qxl-1 compat: append only */
@@ -854,7 +854,7 @@ struct qxl_image {
 
 /* A QXLHead is a single monitor output backed by a QXLSurface.
  * x and y offsets are unsigned since they are used in relation to
- * the given surface, not the same as the x, y coordinates in the guest
+ * the given surface, yest the same as the x, y coordinates in the guest
  * screen reference frame. */
 struct qxl_head {
 	uint32_t id;
@@ -868,7 +868,7 @@ struct qxl_head {
 
 struct qxl_monitors_config {
 	uint16_t count;
-	uint16_t max_allowed; /* If it is 0 no fixed limit is given by the
+	uint16_t max_allowed; /* If it is 0 yes fixed limit is given by the
 				 driver */
 	struct qxl_head heads[0];
 };

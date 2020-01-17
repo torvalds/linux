@@ -8,7 +8,7 @@
  *
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <linux/kernel.h>
@@ -35,9 +35,9 @@ int regs_query_register_offset(const char *name)
 	if (!name || strncmp(name, "%r", 2))
 		return -EINVAL;
 
-	errno = 0;
+	erryes = 0;
 	gpr = strtoul(name + 2, NULL, 10);
-	if (errno || gpr >= 16)
+	if (erryes || gpr >= 16)
 		return -EINVAL;
 
 	return offsetof(user_pt_regs, gprs) + 8 * gpr;

@@ -9,7 +9,7 @@
  * 13 - Corruption of internal register reads/writes following
  *      SDRAM reads (rev A0, B0, B1)
  *
- * We ignore rev. A0 and B0 devices; I don't think they're worth supporting.
+ * We igyesre rev. A0 and B0 devices; I don't think they're worth supporting.
  *
  * The SDRAM type can be passed on the command line as cpu_sa1110.sdram=type
  */
@@ -207,7 +207,7 @@ static inline void sdram_set_refresh(u_int dri)
  * always a multiple of the memory clock (fixed at cpu_clock / 2).
  *
  * FIXME: we don't currently take account of burst accesses here,
- * but neither do Intels DM nor Angel.
+ * but neither do Intels DM yesr Angel.
  */
 static void
 sdram_update_refresh(u_int cpu_khz, struct sdram_params *sdram)
@@ -285,8 +285,8 @@ static int sa1110_target(struct cpufreq_policy *policy, unsigned int ppcr)
 		ldr	%0, [%1, #0]				\n\
 		b	3f					\n\
 2:		b	1b					\n\
-3:		nop						\n\
-		nop"
+3:		yesp						\n\
+		yesp"
 		: "=&r" (unused)
 		: "r" (&MDCNFG), "r" (&PPCR), "0" (sd.mdcnfg),
 		  "r" (sd.mdrefr), "r" (sd.mdcas[0]),
@@ -294,7 +294,7 @@ static int sa1110_target(struct cpufreq_policy *policy, unsigned int ppcr)
 	local_irq_restore(flags);
 
 	/*
-	 * Now, return the SDRAM refresh back to normal.
+	 * Now, return the SDRAM refresh back to yesrmal.
 	 */
 	sdram_update_refresh(sa11x0_freq_table[ppcr].frequency, sdram);
 
@@ -350,7 +350,7 @@ static int __init sa1110_clk_init(void)
 			name = "KM416S4030CT";
 		if (machine_is_jornada720() || machine_is_h3600())
 			name = "K4S281632B-1H";
-		if (machine_is_nanoengine())
+		if (machine_is_nayesengine())
 			name = "MT48LC8M16A2TG-75";
 	}
 

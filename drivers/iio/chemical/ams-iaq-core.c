@@ -3,7 +3,7 @@
  * ams-iaq-core.c - Support for AMS iAQ-Core VOC sensors
  *
  * Copyright (C) 2015, 2018
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Rayesstay <matt.rayesstay@konsulko.com>
  */
 
 #include <linux/module.h>
@@ -185,6 +185,6 @@ static struct i2c_driver ams_iaqcore_driver = {
 };
 module_i2c_driver(ams_iaqcore_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Rayesstay <matt.rayesstay@konsulko.com>");
 MODULE_DESCRIPTION("AMS iAQ-Core VOC sensors");
 MODULE_LICENSE("GPL v2");

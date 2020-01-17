@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Intel IXP4xx HSS (synchronous serial port) driver for Linux
+ * Intel IXP4xx HSS (synchroyesus serial port) driver for Linux
  *
  * Copyright (C) 2007-2008 Krzysztof Hałasa <khc@pm.waw.pl>
  */
@@ -106,7 +106,7 @@
  /* Data rate is full (default) or half the configured clk speed */
 #define PCR_HALF_CLK_RATE		0x00200000
 
-/* Invert data between NPE and HSS FIFOs? (default = no) */
+/* Invert data between NPE and HSS FIFOs? (default = yes) */
 #define PCR_DATA_POLARITY_INVERT	0x00100000
 
 /* TX/RX endianness, default = LSB */
@@ -143,14 +143,14 @@
 #define CCR_NPE_HFIFO_2_HDLC		0x04000000
 #define CCR_NPE_HFIFO_3_OR_4HDLC	0x08000000
 
-/* default = no loopback */
+/* default = yes loopback */
 #define CCR_LOOPBACK			0x02000000
 
 /* HSS number, default = 0 (first) */
 #define CCR_SECOND_HSS			0x01000000
 
 
-/* hss_config, clkCR: main:10, num:10, denom:12 */
+/* hss_config, clkCR: main:10, num:10, deyesm:12 */
 #define CLK42X_SPEED_EXP	((0x3FF << 22) | (  2 << 12) |   15) /*65 KHz*/
 
 #define CLK42X_SPEED_512KHZ	((  130 << 22) | (  2 << 12) |   15)
@@ -778,9 +778,9 @@ static int hss_hdlc_poll(struct napi_struct *napi, int budget)
 		received++;
 	}
 #if DEBUG_RX
-	printk(KERN_DEBUG "hss_hdlc_poll: end, not all work done\n");
+	printk(KERN_DEBUG "hss_hdlc_poll: end, yest all work done\n");
 #endif
-	return received;	/* not all work done */
+	return received;	/* yest all work done */
 }
 
 
@@ -847,7 +847,7 @@ static int hss_hdlc_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	len = skb->len;
 #ifdef __ARMEB__
-	offset = 0; /* no need to keep alignment */
+	offset = 0; /* yes need to keep alignment */
 	bytes = len;
 	mem = skb->data;
 #else
@@ -1065,7 +1065,7 @@ static int hss_hdlc_open(struct net_device *dev)
 			goto err_unlock;
 	spin_unlock_irqrestore(&npe_lock, flags);
 
-	/* Populate queues with buffers, no failure after this point */
+	/* Populate queues with buffers, yes failure after this point */
 	for (i = 0; i < TX_DESCS; i++)
 		queue_put_desc(port->plat->txreadyq,
 			       tx_desc_phys(port, i), tx_desc_ptr(port, i));
@@ -1225,7 +1225,7 @@ static void find_best_clock(u32 rate, u32 *best, u32 *reg)
 		u64 c = (b + 1) * (u64)rate;
 		do_div(c, ixp4xx_timer_freq - rate * a);
 		c--;
-		if (c >= 0xFFF) { /* 12-bit - no need to check more 'b's */
+		if (c >= 0xFFF) { /* 12-bit - yes need to check more 'b's */
 			if (b == 0 && /* also try a bit higher rate */
 			    !check_clock(rate, a - 1, 1, 1, best, &diff, reg))
 				return;

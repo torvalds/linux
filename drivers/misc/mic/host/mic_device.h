@@ -11,7 +11,7 @@
 
 #include <linux/cdev.h>
 #include <linux/idr.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/irqreturn.h>
 #include <linux/dmaengine.h>
 #include <linux/miscdevice.h>
@@ -141,7 +141,7 @@ static inline u32 mic_mmio_read(struct mic_mw *mw, u32 offset)
  * @val: the data value to put into the register
  * @offset: register offset.
  *
- * RETURNS: none.
+ * RETURNS: yesne.
  */
 static inline void
 mic_mmio_write(struct mic_mw *mw, u32 val, u32 offset)

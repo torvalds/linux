@@ -3,7 +3,7 @@
  * These are the MPEG2 state controls for use with stateless MPEG-2
  * codec drivers.
  *
- * It turns out that these structs are not stable yet and will undergo
+ * It turns out that these structs are yest stable yet and will undergo
  * more changes. So keep them private until they are stable and ready to
  * become part of the official public API.
  */
@@ -69,14 +69,14 @@ struct v4l2_ctrl_mpeg2_slice_params {
 struct v4l2_ctrl_mpeg2_quantization {
 	/* ISO/IEC 13818-2, ITU-T Rec. H.262: Quant matrix extension */
 	__u8	load_intra_quantiser_matrix;
-	__u8	load_non_intra_quantiser_matrix;
+	__u8	load_yesn_intra_quantiser_matrix;
 	__u8	load_chroma_intra_quantiser_matrix;
-	__u8	load_chroma_non_intra_quantiser_matrix;
+	__u8	load_chroma_yesn_intra_quantiser_matrix;
 
 	__u8	intra_quantiser_matrix[64];
-	__u8	non_intra_quantiser_matrix[64];
+	__u8	yesn_intra_quantiser_matrix[64];
 	__u8	chroma_intra_quantiser_matrix[64];
-	__u8	chroma_non_intra_quantiser_matrix[64];
+	__u8	chroma_yesn_intra_quantiser_matrix[64];
 };
 
 #endif

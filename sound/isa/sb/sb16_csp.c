@@ -56,7 +56,7 @@ struct desc_header {
 	__le16 VOC_type;
 	__le16 flags_play_rec;
 	__le16 flags_16bit_8bit;
-	__le16 flags_stereo_mono;
+	__le16 flags_stereo_moyes;
 	__le16 flags_rates;
 };
 
@@ -345,7 +345,7 @@ static int snd_sb_csp_riff_load(struct snd_sb_csp * p,
 			break;
 		case CODE_HEADER:
 			if (func_nr != info.func_req)
-				break;	/* not required function, try next */
+				break;	/* yest required function, try next */
 			data_ptr += sizeof(item_type);
 
 			/* destroy QSound mixer element */
@@ -426,7 +426,7 @@ static int snd_sb_csp_riff_load(struct snd_sb_csp * p,
 					   le16_to_cpu(funcdesc_h.VOC_type));
 				return -EINVAL;
 			}
-			p->acc_channels = le16_to_cpu(funcdesc_h.flags_stereo_mono);
+			p->acc_channels = le16_to_cpu(funcdesc_h.flags_stereo_moyes);
 			p->acc_width = le16_to_cpu(funcdesc_h.flags_16bit_8bit);
 			p->acc_rates = le16_to_cpu(funcdesc_h.flags_rates);
 
@@ -441,7 +441,7 @@ static int snd_sb_csp_riff_load(struct snd_sb_csp * p,
 			return 0;
 		}
 	}
-	snd_printd("%s: Function #%d not found\n", __func__, info.func_req);
+	snd_printd("%s: Function #%d yest found\n", __func__, info.func_req);
 	return -EINVAL;
 }
 
@@ -647,7 +647,7 @@ static int snd_sb_csp_load(struct snd_sb_csp * p, const unsigned char *buf, int 
 	} else {
 		/*
 		 * Read mixer register SB_DSP4_DMASETUP after loading 'main' code.
-		 * Start CSP chip if no 16bit DMA channel is set - some kind
+		 * Start CSP chip if yes 16bit DMA channel is set - some kind
 		 * of autorun or perhaps a bugfix?
 		 */
 		spin_lock(&p->chip->mixer_lock);
@@ -721,7 +721,7 @@ static int snd_sb_csp_autoload(struct snd_sb_csp * p, snd_pcm_format_t pcm_sfmt,
 	if (p->running & (SNDRV_SB_CSP_ST_RUNNING | SNDRV_SB_CSP_ST_LOADED)) 
 		return -EBUSY;
 
-	/* autoload microcode only if requested hardware codec is not already loaded */
+	/* autoload microcode only if requested hardware codec is yest already loaded */
 	if (((1U << (__force int)pcm_sfmt) & p->acc_format) && (play_rec_mode & p->mode)) {
 		p->running = SNDRV_SB_CSP_ST_AUTO;
 	} else {
@@ -792,7 +792,7 @@ static int snd_sb_csp_start(struct snd_sb_csp * p, int sample_width, int channel
 	unsigned long flags;
 
 	if (!(p->running & (SNDRV_SB_CSP_ST_LOADED | SNDRV_SB_CSP_ST_AUTO))) {
-		snd_printd("%s: Microcode not loaded\n", __func__);
+		snd_printd("%s: Microcode yest loaded\n", __func__);
 		return -ENXIO;
 	}
 	if (p->running & SNDRV_SB_CSP_ST_RUNNING) {
@@ -821,7 +821,7 @@ static int snd_sb_csp_start(struct snd_sb_csp * p, int sample_width, int channel
 
 	s_type = 0x00;
 	if (channels == SNDRV_SB_CSP_MONO)
-		s_type = 0x11;	/* 000n 000n    (n = 1 if mono) */
+		s_type = 0x11;	/* 000n 000n    (n = 1 if moyes) */
 	if (sample_width == SNDRV_SB_CSP_SAMPLE_8BIT)
 		s_type |= 0x22;	/* 00dX 00dX    (d = 1 if 8 bit samples) */
 
@@ -947,7 +947,7 @@ static int snd_sb_csp_restart(struct snd_sb_csp * p)
  * QSound mixer control for PCM
  */
 
-#define snd_sb_qsound_switch_info	snd_ctl_boolean_mono_info
+#define snd_sb_qsound_switch_info	snd_ctl_boolean_moyes_info
 
 static int snd_sb_qsound_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1147,7 +1147,7 @@ static void info_read(struct snd_info_entry *entry, struct snd_info_buffer *buff
 				    p->acc_format,
 				    ((p->acc_width & SNDRV_SB_CSP_SAMPLE_16BIT) ? "16bit" : "-"),
 				    ((p->acc_width & SNDRV_SB_CSP_SAMPLE_8BIT) ? "8bit" : "-"),
-				    ((p->acc_channels & SNDRV_SB_CSP_MONO) ? "mono" : "-"),
+				    ((p->acc_channels & SNDRV_SB_CSP_MONO) ? "moyes" : "-"),
 				    ((p->acc_channels & SNDRV_SB_CSP_STEREO) ? "stereo" : "-"),
 				    ((p->mode & SNDRV_SB_CSP_MODE_DSP_WRITE) ? "playback" : "-"),
 				    ((p->mode & SNDRV_SB_CSP_MODE_DSP_READ) ? "capture" : "-"));
@@ -1159,7 +1159,7 @@ static void info_read(struct snd_info_entry *entry, struct snd_info_buffer *buff
 	if (p->running & SNDRV_SB_CSP_ST_RUNNING) {
 		snd_iprintf(buffer, "Processing %dbit %s PCM samples\n",
 			    ((p->run_width & SNDRV_SB_CSP_SAMPLE_16BIT) ? 16 : 8),
-			    ((p->run_channels & SNDRV_SB_CSP_MONO) ? "mono" : "stereo"));
+			    ((p->run_channels & SNDRV_SB_CSP_MONO) ? "moyes" : "stereo"));
 	}
 	if (p->running & SNDRV_SB_CSP_ST_QSOUND) {
 		snd_iprintf(buffer, "Qsound position: left = 0x%x, right = 0x%x\n",

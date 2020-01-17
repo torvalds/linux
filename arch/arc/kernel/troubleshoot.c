@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <linux/ptrace.h>
@@ -23,7 +23,7 @@
  *   -Prints 3 regs per line and a CR.
  *   -To continue, callee regs right after scratch, special handling of CR
  */
-static noinline void print_reg_file(long *reg_rev, int start_num)
+static yesinline void print_reg_file(long *reg_rev, int start_num)
 {
 	unsigned int i;
 	char buf[512];
@@ -87,13 +87,13 @@ static void show_faulting_vma(unsigned long address)
 	struct mm_struct *active_mm = current->active_mm;
 
 	/* can't use print_vma_addr() yet as it doesn't check for
-	 * non-inclusive vma
+	 * yesn-inclusive vma
 	 */
 	down_read(&active_mm->mmap_sem);
 	vma = find_vma(active_mm, address);
 
 	/* check against the find_vma( ) behaviour which returns the next VMA
-	 * if the container VMA is not found
+	 * if the container VMA is yest found
 	 */
 	if (vma && (vma->vm_start <= address)) {
 		char buf[ARC_PATH_MAX];
@@ -122,7 +122,7 @@ static void show_ecr_verbose(struct pt_regs *regs)
 
 	pr_info("\n[ECR   ]: 0x%08lx => ", regs->event);
 
-	/* For Data fault, this is data address not instruction addr */
+	/* For Data fault, this is data address yest instruction addr */
 	address = current->thread.fault_address;
 
 	vec = regs->ecr_vec;
@@ -135,7 +135,7 @@ static void show_ecr_verbose(struct pt_regs *regs)
 		       ((cause_code == 0x02) ? "Write" : "EX"),
 		       address, regs->ret);
 	} else if (vec == ECR_V_ITLB_MISS) {
-		pr_cont("Insn could not be fetched\n");
+		pr_cont("Insn could yest be fetched\n");
 	} else if (vec == ECR_V_MACH_CHK) {
 		pr_cont("Machine Check (%s)\n", (cause_code == 0x0) ?
 					"Double Fault" : "Other Fatal Err");
@@ -147,7 +147,7 @@ static void show_ecr_verbose(struct pt_regs *regs)
 		         IS_ENABLED(CONFIG_ISA_ARCOMPACT))
 			pr_cont("Misaligned r/w from 0x%08lx\n", address);
 		else
-			pr_cont("%s access not allowed on page\n",
+			pr_cont("%s access yest allowed on page\n",
 				(cause_code == 0x01) ? "Read" :
 				((cause_code == 0x02) ? "Write" : "EX"));
 	} else if (vec == ECR_V_INSN_ERR) {
@@ -196,7 +196,7 @@ void show_regs(struct pt_regs *regs)
 		(void *)regs->blink, (void *)regs->ret);
 
 	if (user_mode(regs))
-		show_faulting_vma(regs->ret); /* faulting code, not data */
+		show_faulting_vma(regs->ret); /* faulting code, yest data */
 
 	pr_info("[STAT32]: 0x%08lx", regs->status32);
 

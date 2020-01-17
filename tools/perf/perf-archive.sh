@@ -24,7 +24,7 @@ NOBUILDID=0000000000000000000000000000000000000000
 
 perf buildid-list -i $PERF_DATA --with-hits | grep -v "^$NOBUILDID " > $BUILDIDS
 if [ ! -s $BUILDIDS ] ; then
-	echo "perf archive: no build-ids found"
+	echo "perf archive: yes build-ids found"
 	rm $BUILDIDS || true
 	exit 1
 fi

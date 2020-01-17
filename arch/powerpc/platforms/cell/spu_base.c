@@ -142,7 +142,7 @@ static inline void spu_load_slb(struct spu *spu, int slbe, struct copro_slb *slb
 	out_be64(&priv2->slb_index_W, slbe);
 	/* set invalid before writing vsid */
 	out_be64(&priv2->slb_esid_RW, 0);
-	/* now it's safe to write the vsid */
+	/* yesw it's safe to write the vsid */
 	out_be64(&priv2->slb_vsid_RW, slb->vsid);
 	/* setting the new esid makes the entry valid again */
 	out_be64(&priv2->slb_esid_RW, slb->esid);
@@ -222,7 +222,7 @@ static void __spu_kernel_slb(void *addr, struct copro_slb *slb)
 }
 
 /**
- * Given an array of @nr_slbs SLB entries, @slbs, return non-zero if the
+ * Given an array of @nr_slbs SLB entries, @slbs, return yesn-zero if the
  * address @new_addr is present.
  */
 static inline int __slb_present(struct copro_slb *slbs, int nr_slbs,
@@ -244,7 +244,7 @@ static inline int __slb_present(struct copro_slb *slbs, int nr_slbs,
  *
  * Because the lscsa and code may cross segment boundaries, we check to see
  * if mappings are required for the start and end of each range. We currently
- * assume that the mappings are smaller that one segment - if not, something
+ * assume that the mappings are smaller that one segment - if yest, something
  * is seriously wrong.
  */
 void spu_setup_kernel_slbs(struct spu *spu, struct spu_lscsa *lscsa,
@@ -354,13 +354,13 @@ spu_irq_class_2(int irq, void *data)
 	spin_lock(&spu->register_lock);
 	stat = spu_int_stat_get(spu, 2);
 	mask = spu_int_mask_get(spu, 2);
-	/* ignore interrupts we're not waiting for */
+	/* igyesre interrupts we're yest waiting for */
 	stat &= mask;
-	/* mailbox interrupts are level triggered. mask them now before
-	 * acknowledging */
+	/* mailbox interrupts are level triggered. mask them yesw before
+	 * ackyeswledging */
 	if (stat & mailbox_intrs)
 		spu_int_mask_and(spu, 2, ~(stat & mailbox_intrs));
-	/* acknowledge all interrupts before the callbacks */
+	/* ackyeswledge all interrupts before the callbacks */
 	spu_int_stat_clear(spu, 2, stat);
 
 	pr_debug("class 2 interrupt %d, %lx, %lx\n", irq, stat, mask);
@@ -553,7 +553,7 @@ static int spu_create_dev(struct spu *spu)
 		return ret;
 	}
 
-	sysfs_add_device_to_node(&spu->dev, spu->node);
+	sysfs_add_device_to_yesde(&spu->dev, spu->yesde);
 
 	return 0;
 }
@@ -592,10 +592,10 @@ static int __init create_spu(void *data)
 	if (ret)
 		goto out_free_irqs;
 
-	mutex_lock(&cbe_spu_info[spu->node].list_mutex);
-	list_add(&spu->cbe_list, &cbe_spu_info[spu->node].spus);
-	cbe_spu_info[spu->node].n_spus++;
-	mutex_unlock(&cbe_spu_info[spu->node].list_mutex);
+	mutex_lock(&cbe_spu_info[spu->yesde].list_mutex);
+	list_add(&spu->cbe_list, &cbe_spu_info[spu->yesde].spus);
+	cbe_spu_info[spu->yesde].n_spus++;
+	mutex_unlock(&cbe_spu_info[spu->yesde].list_mutex);
 
 	mutex_lock(&spu_full_list_mutex);
 	spin_lock_irqsave(&spu_full_list_lock, flags);
@@ -631,7 +631,7 @@ static unsigned long long spu_acct_time(struct spu *spu,
 
 	/*
 	 * If the spu is idle or the context is stopped, utilization
-	 * statistics are not updated.  Apply the time delta from the
+	 * statistics are yest updated.  Apply the time delta from the
 	 * last recorded state of the spu.
 	 */
 	if (spu->stats.util_state == state)
@@ -677,7 +677,7 @@ struct crash_spu_info {
 	u64 saved_mfc_dsisr;
 };
 
-#define CRASH_NUM_SPUS	16	/* Enough for current hardware */
+#define CRASH_NUM_SPUS	16	/* Eyesugh for current hardware */
 static struct crash_spu_info crash_spu_info[CRASH_NUM_SPUS];
 
 static void crash_kexec_stop_spus(void)
@@ -725,7 +725,7 @@ static void crash_register_spus(struct list_head *list)
 
 	ret = crash_shutdown_register(&crash_kexec_stop_spus);
 	if (ret)
-		printk(KERN_ERR "Could not register SPU crash handler");
+		printk(KERN_ERR "Could yest register SPU crash handler");
 }
 
 #else

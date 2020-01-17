@@ -32,9 +32,9 @@ struct pwm_bl_data {
 	bool			legacy;
 	unsigned int		post_pwm_on_delay;
 	unsigned int		pwm_off_delay;
-	int			(*notify)(struct device *,
+	int			(*yestify)(struct device *,
 					  int brightness);
-	void			(*notify_after)(struct device *,
+	void			(*yestify_after)(struct device *,
 					int brightness);
 	int			(*check_fb)(struct device *, struct fb_info *);
 	void			(*exit)(struct device *);
@@ -117,8 +117,8 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 	    bl->props.state & BL_CORE_FBBLANK)
 		brightness = 0;
 
-	if (pb->notify)
-		brightness = pb->notify(pb->dev, brightness);
+	if (pb->yestify)
+		brightness = pb->yestify(pb->dev, brightness);
 
 	if (brightness > 0) {
 		pwm_get_state(pb->pwm, &state);
@@ -129,8 +129,8 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 		pwm_backlight_power_off(pb);
 	}
 
-	if (pb->notify_after)
-		pb->notify_after(pb->dev, brightness);
+	if (pb->yestify_after)
+		pb->yestify_after(pb->dev, brightness);
 
 	return 0;
 }
@@ -205,7 +205,7 @@ int pwm_backlight_brightness_default(struct device *dev,
 
 	/*
 	 * Once we have 4096 levels there's little point going much higher...
-	 * neither interactive sliders nor animation benefits from having
+	 * neither interactive sliders yesr animation benefits from having
 	 * more values in the table.
 	 */
 	data->max_brightness =
@@ -235,7 +235,7 @@ int pwm_backlight_brightness_default(struct device *dev,
 static int pwm_backlight_parse_dt(struct device *dev,
 				  struct platform_pwm_backlight_data *data)
 {
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	unsigned int num_levels = 0;
 	unsigned int levels_count;
 	unsigned int num_steps = 0;
@@ -245,7 +245,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 	u32 value;
 	int ret;
 
-	if (!node)
+	if (!yesde)
 		return -ENODEV;
 
 	memset(data, 0, sizeof(*data));
@@ -254,17 +254,17 @@ static int pwm_backlight_parse_dt(struct device *dev,
 	 * These values are optional and set as 0 by default, the out values
 	 * are modified only if a valid u32 value can be decoded.
 	 */
-	of_property_read_u32(node, "post-pwm-on-delay-ms",
+	of_property_read_u32(yesde, "post-pwm-on-delay-ms",
 			     &data->post_pwm_on_delay);
-	of_property_read_u32(node, "pwm-off-delay-ms", &data->pwm_off_delay);
+	of_property_read_u32(yesde, "pwm-off-delay-ms", &data->pwm_off_delay);
 
 	data->enable_gpio = -EINVAL;
 
 	/*
-	 * Determine the number of brightness levels, if this property is not
+	 * Determine the number of brightness levels, if this property is yest
 	 * set a default table of brightness levels will be used.
 	 */
-	prop = of_find_property(node, "brightness-levels", &length);
+	prop = of_find_property(yesde, "brightness-levels", &length);
 	if (!prop)
 		return 0;
 
@@ -279,13 +279,13 @@ static int pwm_backlight_parse_dt(struct device *dev,
 		if (!data->levels)
 			return -ENOMEM;
 
-		ret = of_property_read_u32_array(node, "brightness-levels",
+		ret = of_property_read_u32_array(yesde, "brightness-levels",
 						 data->levels,
 						 data->max_brightness);
 		if (ret < 0)
 			return ret;
 
-		ret = of_property_read_u32(node, "default-brightness-level",
+		ret = of_property_read_u32(yesde, "default-brightness-level",
 					   &value);
 		if (ret < 0)
 			return ret;
@@ -297,7 +297,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 		 * interpolation between each of the values of brightness levels
 		 * and creates a new pre-computed table.
 		 */
-		of_property_read_u32(node, "num-interpolated-steps",
+		of_property_read_u32(yesde, "num-interpolated-steps",
 				     &num_steps);
 
 		/*
@@ -312,7 +312,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 			}
 
 			/*
-			 * Recalculate the number of brightness levels, now
+			 * Recalculate the number of brightness levels, yesw
 			 * taking in consideration the number of interpolated
 			 * steps between two levels.
 			 */
@@ -424,24 +424,24 @@ static bool pwm_backlight_is_linear(struct platform_pwm_backlight_data *data)
 
 static int pwm_backlight_initial_power_state(const struct pwm_bl_data *pb)
 {
-	struct device_node *node = pb->dev->of_node;
+	struct device_yesde *yesde = pb->dev->of_yesde;
 
-	/* Not booted with device tree or no phandle link to the node */
-	if (!node || !node->phandle)
+	/* Not booted with device tree or yes phandle link to the yesde */
+	if (!yesde || !yesde->phandle)
 		return FB_BLANK_UNBLANK;
 
 	/*
 	 * If the driver is probed from the device tree and there is a
-	 * phandle link pointing to the backlight node, it is safe to
-	 * assume that another driver will enable the backlight at the
+	 * phandle link pointing to the backlight yesde, it is safe to
+	 * assume that ayesther driver will enable the backlight at the
 	 * appropriate time. Therefore, if it is disabled, keep it so.
 	 */
 
-	/* if the enable GPIO is disabled, do not enable the backlight */
+	/* if the enable GPIO is disabled, do yest enable the backlight */
 	if (pb->enable_gpio && gpiod_get_value_cansleep(pb->enable_gpio) == 0)
 		return FB_BLANK_POWERDOWN;
 
-	/* The regulator is disabled, do not enable the backlight */
+	/* The regulator is disabled, do yest enable the backlight */
 	if (!regulator_is_enabled(pb->power_supply))
 		return FB_BLANK_POWERDOWN;
 
@@ -458,7 +458,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	struct platform_pwm_backlight_data defdata;
 	struct backlight_properties props;
 	struct backlight_device *bl;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct pwm_bl_data *pb;
 	struct pwm_state state;
 	unsigned int i;
@@ -486,8 +486,8 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		goto err_alloc;
 	}
 
-	pb->notify = data->notify;
-	pb->notify_after = data->notify_after;
+	pb->yestify = data->yestify;
+	pb->yestify_after = data->yestify_after;
 	pb->check_fb = data->check_fb;
 	pb->exit = data->exit;
 	pb->dev = &pdev->dev;
@@ -519,10 +519,10 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * If the GPIO is not known to be already configured as output, that
+	 * If the GPIO is yest kyeswn to be already configured as output, that
 	 * is, if gpiod_get_direction returns either 1 or -EINVAL, change the
 	 * direction to output and set the GPIO as active.
-	 * Do not force the GPIO to active when it was already output as it
+	 * Do yest force the GPIO to active when it was already output as it
 	 * could cause backlight flickering or we would enable the backlight too
 	 * early. Leave the decision of the initial backlight state for later.
 	 */
@@ -537,7 +537,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	}
 
 	pb->pwm = devm_pwm_get(&pdev->dev, NULL);
-	if (IS_ERR(pb->pwm) && PTR_ERR(pb->pwm) != -EPROBE_DEFER && !node) {
+	if (IS_ERR(pb->pwm) && PTR_ERR(pb->pwm) != -EPROBE_DEFER && !yesde) {
 		dev_err(&pdev->dev, "unable to request PWM, trying legacy API\n");
 		pb->legacy = true;
 		pb->pwm = pwm_request(data->pwm_id, "pwm-backlight");
@@ -557,8 +557,8 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 
 	/*
 	 * The DT case will set the pwm_period_ns field to 0 and store the
-	 * period, parsed from the DT, in the PWM device. For the non-DT case,
-	 * set the period from platform data if it has not already been set
+	 * period, parsed from the DT, in the PWM device. For the yesn-DT case,
+	 * set the period from platform data if it has yest already been set
 	 * via the PWM lookup table.
 	 */
 	if (!state.period && (data->pwm_period_ns > 0))
@@ -578,8 +578,8 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 
 		/*
 		 * For the DT case, only when brightness levels is defined
-		 * data->levels is filled. For the non-DT case, data->levels
-		 * can come from platform data, however is not usual.
+		 * data->levels is filled. For the yesn-DT case, data->levels
+		 * can come from platform data, however is yest usual.
 		 */
 		for (i = 0; i <= data->max_brightness; i++)
 			if (data->levels[i] > pb->scale)
@@ -591,14 +591,14 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 			props.scale = BACKLIGHT_SCALE_NON_LINEAR;
 	} else if (!data->max_brightness) {
 		/*
-		 * If no brightness levels are provided and max_brightness is
-		 * not set, use the default brightness table. For the DT case,
-		 * max_brightness is set to 0 when brightness levels is not
-		 * specified. For the non-DT case, max_brightness is usually
+		 * If yes brightness levels are provided and max_brightness is
+		 * yest set, use the default brightness table. For the DT case,
+		 * max_brightness is set to 0 when brightness levels is yest
+		 * specified. For the yesn-DT case, max_brightness is usually
 		 * set to some value.
 		 */
 
-		/* Get the PWM period (in nanoseconds) */
+		/* Get the PWM period (in nayesseconds) */
 		pwm_get_state(pb->pwm, &state);
 
 		ret = pwm_backlight_brightness_default(&pdev->dev, data,
@@ -619,7 +619,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		props.scale = BACKLIGHT_SCALE_NON_LINEAR;
 	} else {
 		/*
-		 * That only happens for the non-DT case, where platform data
+		 * That only happens for the yesn-DT case, where platform data
 		 * sets the max_brightness value.
 		 */
 		pb->scale = data->max_brightness;
@@ -689,13 +689,13 @@ static int pwm_backlight_suspend(struct device *dev)
 	struct backlight_device *bl = dev_get_drvdata(dev);
 	struct pwm_bl_data *pb = bl_get_data(bl);
 
-	if (pb->notify)
-		pb->notify(pb->dev, 0);
+	if (pb->yestify)
+		pb->yestify(pb->dev, 0);
 
 	pwm_backlight_power_off(pb);
 
-	if (pb->notify_after)
-		pb->notify_after(pb->dev, 0);
+	if (pb->yestify_after)
+		pb->yestify_after(pb->dev, 0);
 
 	return 0;
 }

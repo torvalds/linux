@@ -6,7 +6,7 @@
  */
 #include <asm/processor.h>
 #include <asm/cache.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/ppc_asm.h>
 #include <asm/export.h>
 #include <asm/code-patching-asm.h>
@@ -86,9 +86,9 @@ EXPORT_SYMBOL(memset16)
  * to set them to zero.  This requires that the destination
  * area is cacheable.  -- paulus
  *
- * During early init, cache might not be active yet, so dcbz cannot be used.
+ * During early init, cache might yest be active yet, so dcbz canyest be used.
  * We therefore skip the optimised bloc that uses dcbz. This jump is
- * replaced by a nop once cache is active. This is done in machine_init()
+ * replaced by a yesp once cache is active. This is done in machine_init()
  */
 _GLOBAL_KASAN(memset)
 	cmplwi	0,r5,4
@@ -105,10 +105,10 @@ _GLOBAL_KASAN(memset)
 	cmplwi	0,r4,0
 	/*
 	 * Skip optimised bloc until cache is enabled. Will be replaced
-	 * by 'bne' during boot to use normal procedure if r4 is not zero
+	 * by 'bne' during boot to use yesrmal procedure if r4 is yest zero
 	 */
 5:	b	2f
-	patch_site	5b, patch__memset_nocache
+	patch_site	5b, patch__memset_yescache
 
 	clrlwi	r7,r6,32-LG_CACHELINE_BYTES
 	add	r8,r7,r5
@@ -159,9 +159,9 @@ EXPORT_SYMBOL_KASAN(memset)
  * We only use this version if the source and dest don't overlap.
  * -- paulus.
  *
- * During early init, cache might not be active yet, so dcbz cannot be used.
+ * During early init, cache might yest be active yet, so dcbz canyest be used.
  * We therefore jump to generic_memcpy which doesn't use dcbz. This jump is
- * replaced by a nop once cache is active. This is done in machine_init()
+ * replaced by a yesp once cache is active. This is done in machine_init()
  */
 _GLOBAL_KASAN(memmove)
 	cmplw	0,r3,r4
@@ -170,7 +170,7 @@ _GLOBAL_KASAN(memmove)
 
 _GLOBAL_KASAN(memcpy)
 1:	b	generic_memcpy
-	patch_site	1b, patch__memcpy_nocache
+	patch_site	1b, patch__memcpy_yescache
 
 	add	r7,r3,r5		/* test if the src & dst overlap */
 	add	r8,r4,r5
@@ -186,7 +186,7 @@ _GLOBAL_KASAN(memcpy)
 	beq	58f
 
 	cmplw	0,r5,r0			/* is this more than total to do? */
-	blt	63f			/* if not much to do */
+	blt	63f			/* if yest much to do */
 	andi.	r8,r0,3			/* get it word-aligned first */
 	subf	r5,r0,r5
 	mtctr	r8
@@ -332,7 +332,7 @@ _GLOBAL(__copy_tofrom_user)
 	beq	58f
 
 	cmplw	0,r5,r0			/* is this more than total to do? */
-	blt	63f			/* if not much to do */
+	blt	63f			/* if yest much to do */
 	andi.	r8,r0,3			/* get it word-aligned first */
 	mtctr	r8
 	beq+	61f
@@ -488,7 +488,7 @@ _GLOBAL(__copy_tofrom_user)
 94:	li	r5,0
 	li	r3,0
 /*
- * At this stage the number of bytes not copied is
+ * At this stage the number of bytes yest copied is
  * r5 + (ctr << r3), and r9 is 0 for read or 1 for write.
  */
 99:	mfctr	r0

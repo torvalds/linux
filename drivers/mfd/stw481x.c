@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 
 /*
- * This driver can only access the non-USB portions of STw4811, the register
+ * This driver can only access the yesn-USB portions of STw4811, the register
  * range 0x00-0x10 dealing with USB is bound to the two special I2C pins used
  * for USB control.
  */

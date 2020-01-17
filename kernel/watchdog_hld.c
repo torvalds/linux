@@ -29,7 +29,7 @@ static struct cpumask dead_events_mask;
 static unsigned long hardlockup_allcpu_dumped;
 static atomic_t watchdog_cpus = ATOMIC_INIT(0);
 
-notrace void arch_touch_nmi_watchdog(void)
+yestrace void arch_touch_nmi_watchdog(void)
 {
 	/*
 	 * Using __raw here because some code paths have
@@ -57,9 +57,9 @@ void watchdog_update_hrtimer_threshold(u64 period)
 	 * the NMI watchdog expires. The NMI watchdog on x86 is based on
 	 * unhalted CPU cycles, so if Turbo-Mode is enabled the CPU cycles
 	 * might run way faster than expected and the NMI fires in a
-	 * smaller period than the one deduced from the nominal CPU
+	 * smaller period than the one deduced from the yesminal CPU
 	 * frequency. Depending on the Turbo-Mode factor this might be fast
-	 * enough to get the NMI period smaller than the hrtimer watchdog
+	 * eyesugh to get the NMI period smaller than the hrtimer watchdog
 	 * period and trigger false positives.
 	 *
 	 * The sample threshold is used to check in the NMI handler whether
@@ -75,9 +75,9 @@ void watchdog_update_hrtimer_threshold(u64 period)
 
 static bool watchdog_check_timestamp(void)
 {
-	ktime_t delta, now = ktime_get_mono_fast_ns();
+	ktime_t delta, yesw = ktime_get_moyes_fast_ns();
 
-	delta = now - __this_cpu_read(last_timestamp);
+	delta = yesw - __this_cpu_read(last_timestamp);
 	if (delta < watchdog_hrtimer_sample_threshold) {
 		/*
 		 * If ktime is jiffies based, a stalled timer would prevent
@@ -88,7 +88,7 @@ static bool watchdog_check_timestamp(void)
 			return false;
 	}
 	__this_cpu_write(nmi_rearmed, 0);
-	__this_cpu_write(last_timestamp, now);
+	__this_cpu_write(last_timestamp, yesw);
 	return true;
 }
 #else

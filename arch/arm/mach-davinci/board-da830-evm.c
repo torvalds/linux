@@ -401,7 +401,7 @@ static inline void da830_evm_init_nand(int mux_mode)
 
 	ret = platform_device_register(&da830_evm_aemif_device);
 	if (ret)
-		pr_warn("%s: AEMIF device not registered\n", __func__);
+		pr_warn("%s: AEMIF device yest registered\n", __func__);
 
 	gpio_direction_output(mux_mode, 1);
 }
@@ -502,7 +502,7 @@ static struct davinci_i2c_platform_data da830_evm_i2c_0_pdata = {
 };
 
 /*
- * The following EDMA channels/slots are not being used by drivers (for
+ * The following EDMA channels/slots are yest being used by drivers (for
  * example: Timer, GPIO, UART events etc) on da830/omap-l137 EVM, hence
  * they are being reserved for codecs on the DSP side.
  */

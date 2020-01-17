@@ -19,7 +19,7 @@
 #include <linux/kallsyms.h>
 #include <linux/security.h>
 #include <linux/seq_file.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/irqflags.h>
 #include <linux/debugfs.h>
 #include <linux/tracefs.h>
@@ -45,7 +45,7 @@
 #include <linux/trace.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/rt.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/irq_work.h>
 #include <linux/workqueue.h>
 
@@ -54,7 +54,7 @@
 
 /*
  * On boot up, the ring buffer is set to the minimum size, so that
- * we do not waste memory on systems that are not using tracing.
+ * we do yest waste memory on systems that are yest using tracing.
  */
 bool ring_buffer_expanded;
 
@@ -68,7 +68,7 @@ bool ring_buffer_expanded;
 static bool __read_mostly tracing_selftest_running;
 
 /*
- * If a tracer is running, we do not want to run SELFTEST.
+ * If a tracer is running, we do yest want to run SELFTEST.
  */
 bool __read_mostly tracing_selftest_disabled;
 
@@ -89,7 +89,7 @@ dummy_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 }
 
 /*
- * To prevent the comm cache from being overwritten when no
+ * To prevent the comm cache from being overwritten when yes
  * tracing is active, only save the comm when a trace event
  * occurred.
  */
@@ -150,7 +150,7 @@ static DEFINE_MUTEX(trace_eval_mutex);
  * The trace_eval_maps are saved in an array with two extra elements,
  * one at the beginning, and one at the end. The beginning item contains
  * the count of the saved maps (head.length), and the module they
- * belong to if not built in (head.mod). The ending item contains a
+ * belong to if yest built in (head.mod). The ending item contains a
  * pointer to the next array of saved eval_map items.
  */
 union trace_eval_map_item {
@@ -304,7 +304,7 @@ static void __trace_array_put(struct trace_array *this_tr)
 /**
  * trace_array_put - Decrement the reference counter for this trace array.
  *
- * NOTE: Use this when we no longer need the trace array returned by
+ * NOTE: Use this when we yes longer need the trace array returned by
  * trace_array_get_by_name(). This ensures the trace array can be later
  * destroyed.
  *
@@ -368,7 +368,7 @@ trace_find_filtered_pid(struct trace_pid_list *filtered_pids, pid_t search_pid)
 {
 	/*
 	 * If pid_max changed after filtered_pids was created, we
-	 * by default ignore all pids greater than the previous pid_max.
+	 * by default igyesre all pids greater than the previous pid_max.
 	 */
 	if (search_pid >= filtered_pids->pid_max)
 		return false;
@@ -377,19 +377,19 @@ trace_find_filtered_pid(struct trace_pid_list *filtered_pids, pid_t search_pid)
 }
 
 /**
- * trace_ignore_this_task - should a task be ignored for tracing
+ * trace_igyesre_this_task - should a task be igyesred for tracing
  * @filtered_pids: The list of pids to check
- * @task: The task that should be ignored if not filtered
+ * @task: The task that should be igyesred if yest filtered
  *
- * Checks if @task should be traced or not from @filtered_pids.
+ * Checks if @task should be traced or yest from @filtered_pids.
  * Returns true if @task should *NOT* be traced.
  * Returns false if @task should be traced.
  */
 bool
-trace_ignore_this_task(struct trace_pid_list *filtered_pids, struct task_struct *task)
+trace_igyesre_this_task(struct trace_pid_list *filtered_pids, struct task_struct *task)
 {
 	/*
-	 * Return false, because if filtered_pids does not exist,
+	 * Return false, because if filtered_pids does yest exist,
 	 * all pids are good to trace.
 	 */
 	if (!filtered_pids)
@@ -505,7 +505,7 @@ int trace_pid_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-/* 128 should be much more than enough */
+/* 128 should be much more than eyesugh */
 #define PID_BUF_SIZE		127
 
 int trace_pid_write(struct trace_pid_list *filtered_pids,
@@ -525,10 +525,10 @@ int trace_pid_write(struct trace_pid_list *filtered_pids,
 		return -ENOMEM;
 
 	/*
-	 * Always recreate a new array. The write is an all or nothing
+	 * Always recreate a new array. The write is an all or yesthing
 	 * operation. Always create a new array when adding new pids by
 	 * the user. If the operation fails, then the current list is
-	 * not modified.
+	 * yest modified.
 	 */
 	pid_list = kmalloc(sizeof(*pid_list), GFP_KERNEL);
 	if (!pid_list) {
@@ -603,32 +603,32 @@ int trace_pid_write(struct trace_pid_list *filtered_pids,
 	return read;
 }
 
-static u64 buffer_ftrace_now(struct trace_buffer *buf, int cpu)
+static u64 buffer_ftrace_yesw(struct trace_buffer *buf, int cpu)
 {
 	u64 ts;
 
-	/* Early boot up does not have a buffer yet */
+	/* Early boot up does yest have a buffer yet */
 	if (!buf->buffer)
 		return trace_clock_local();
 
 	ts = ring_buffer_time_stamp(buf->buffer, cpu);
-	ring_buffer_normalize_time_stamp(buf->buffer, cpu, &ts);
+	ring_buffer_yesrmalize_time_stamp(buf->buffer, cpu, &ts);
 
 	return ts;
 }
 
-u64 ftrace_now(int cpu)
+u64 ftrace_yesw(int cpu)
 {
-	return buffer_ftrace_now(&global_trace.trace_buffer, cpu);
+	return buffer_ftrace_yesw(&global_trace.trace_buffer, cpu);
 }
 
 /**
  * tracing_is_enabled - Show if global_trace has been disabled
  *
- * Shows if the global trace has been enabled or not. It uses the
+ * Shows if the global trace has been enabled or yest. It uses the
  * mirror flag "buffer_disabled" to be used in fast paths such as for
  * the irqsoff tracer. But it may be inaccurate due to races. If you
- * need to know the accurate state, use tracing_is_on() which is a little
+ * need to kyesw the accurate state, use tracing_is_on() which is a little
  * slower, but accurate.
  */
 int tracing_is_enabled(void)
@@ -649,7 +649,7 @@ int tracing_is_enabled(void)
  *
  * This number is purposely set to a low number of 16384.
  * If the dump on oops happens, it will be much appreciated
- * to not have to wait for all that output. Anyway this can be
+ * to yest have to wait for all that output. Anyway this can be
  * boot time and run time configurable.
  */
 #define TRACE_BUF_SIZE_DEFAULT	1441792UL /* 16384 * 88 (sizeof(entry)) */
@@ -669,12 +669,12 @@ DEFINE_MUTEX(trace_types_lock);
  *
  * ring buffer serializes readers, but it is low level protection.
  * The validity of the events (which returns by ring_buffer_peek() ..etc)
- * are not protected by ring buffer.
+ * are yest protected by ring buffer.
  *
  * The content of events may become garbage if we allow other process consumes
  * these events concurrently:
- *   A) the page of the consumed events may become a normal page
- *      (not reader page) in ring buffer, and this page will be rewrited
+ *   A) the page of the consumed events may become a yesrmal page
+ *      (yest reader page) in ring buffer, and this page will be rewrited
  *      by events producer.
  *   B) The page of the consumed events may become a page for splice_read,
  *      and this page will be returned to system.
@@ -801,7 +801,7 @@ void tracer_tracing_on(struct trace_array *tr)
 	/*
 	 * This flag is looked at when buffers haven't been allocated
 	 * yet, or by some tracers (like irqsoff), that just want to
-	 * know if the ring buffer has been disabled, but it can handle
+	 * kyesw if the ring buffer has been disabled, but it can handle
 	 * races of where it gets disabled but we still do a record.
 	 * As the check is in the fast path of the tracers, it is more
 	 * important to be fast than accurate.
@@ -938,7 +938,7 @@ void tracing_snapshot_instance_cond(struct trace_array *tr, void *cond_data)
 
 	if (in_nmi()) {
 		internal_trace_puts("*** SNAPSHOT CALLED FROM NMI CONTEXT ***\n");
-		internal_trace_puts("*** snapshot is being ignored        ***\n");
+		internal_trace_puts("*** snapshot is being igyesred        ***\n");
 		return;
 	}
 
@@ -949,10 +949,10 @@ void tracing_snapshot_instance_cond(struct trace_array *tr, void *cond_data)
 		return;
 	}
 
-	/* Note, snapshot can not be used when the tracer uses it */
+	/* Note, snapshot can yest be used when the tracer uses it */
 	if (tracer->use_max_tr) {
 		internal_trace_puts("*** LATENCY TRACER ACTIVE ***\n");
-		internal_trace_puts("*** Can not use snapshot (sorry) ***\n");
+		internal_trace_puts("*** Can yest use snapshot (sorry) ***\n");
 		return;
 	}
 
@@ -977,7 +977,7 @@ void tracing_snapshot_instance(struct trace_array *tr)
  * a tracing_snapshot_alloc(), or by doing it manually
  * with: echo 1 > /sys/kernel/debug/tracing/snapshot
  *
- * If the snapshot buffer is not allocated, it will stop tracing.
+ * If the snapshot buffer is yest allocated, it will stop tracing.
  * Basically making a permanent snapshot.
  */
 void tracing_snapshot(void)
@@ -1015,7 +1015,7 @@ EXPORT_SYMBOL_GPL(tracing_snapshot_cond);
  * tracing_snapshot_cond_enable(), the user-defined cond_data is saved
  * with the snapshot.  This accessor is used to retrieve it.
  *
- * Should not be called from cond_snapshot.update(), since it takes
+ * Should yest be called from cond_snapshot.update(), since it takes
  * the tr->max_lock lock, which the code calling
  * cond_snapshot.update() has already done.
  *
@@ -1156,9 +1156,9 @@ int tracing_snapshot_cond_enable(struct trace_array *tr, void *cond_data,
 	/*
 	 * The cond_snapshot can only change to NULL without the
 	 * trace_types_lock. We don't care if we race with it going
-	 * to NULL, but we want to make sure that it's not set to
+	 * to NULL, but we want to make sure that it's yest set to
 	 * something other than NULL when we get here, which we can
-	 * do safely with only holding the trace_types_lock and not
+	 * do safely with only holding the trace_types_lock and yest
 	 * having to take the max_lock.
 	 */
 	if (tr->cond_snapshot) {
@@ -1212,17 +1212,17 @@ EXPORT_SYMBOL_GPL(tracing_snapshot_cond_disable);
 #else
 void tracing_snapshot(void)
 {
-	WARN_ONCE(1, "Snapshot feature not enabled, but internal snapshot used");
+	WARN_ONCE(1, "Snapshot feature yest enabled, but internal snapshot used");
 }
 EXPORT_SYMBOL_GPL(tracing_snapshot);
 void tracing_snapshot_cond(struct trace_array *tr, void *cond_data)
 {
-	WARN_ONCE(1, "Snapshot feature not enabled, but internal conditional snapshot used");
+	WARN_ONCE(1, "Snapshot feature yest enabled, but internal conditional snapshot used");
 }
 EXPORT_SYMBOL_GPL(tracing_snapshot_cond);
 int tracing_alloc_snapshot(void)
 {
-	WARN_ONCE(1, "Snapshot feature not enabled, but snapshot allocation used");
+	WARN_ONCE(1, "Snapshot feature yest enabled, but snapshot allocation used");
 	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(tracing_alloc_snapshot);
@@ -1256,7 +1256,7 @@ void tracer_tracing_off(struct trace_array *tr)
 	/*
 	 * This flag is looked at when buffers haven't been allocated
 	 * yet, or by some tracers (like irqsoff), that just want to
-	 * know if the ring buffer has been disabled, but it can handle
+	 * kyesw if the ring buffer has been disabled, but it can handle
 	 * races of where it gets disabled but we still do a record.
 	 * As the check is in the fast path of the tracers, it is more
 	 * important to be fast than accurate.
@@ -1270,7 +1270,7 @@ void tracer_tracing_off(struct trace_array *tr)
  * tracing_off - turn off tracing buffers
  *
  * This function stops the tracing buffers from recording data.
- * It does not disable any overhead the tracers themselves may
+ * It does yest disable any overhead the tracers themselves may
  * be causing. This function simply causes all recording to
  * the ring buffers to fail.
  */
@@ -1288,9 +1288,9 @@ void disable_trace_on_warning(void)
 
 /**
  * tracer_tracing_is_on - show real state of ring buffer enabled
- * @tr : the trace array to know if ring buffer is enabled
+ * @tr : the trace array to kyesw if ring buffer is enabled
  *
- * Shows real state of the ring buffer if it is enabled or not.
+ * Shows real state of the ring buffer if it is enabled or yest.
  */
 bool tracer_tracing_is_on(struct trace_array *tr)
 {
@@ -1315,7 +1315,7 @@ static int __init set_buf_size(char *str)
 	if (!str)
 		return 0;
 	buf_size = memparse(str, &str);
-	/* nr_entries can not be zero */
+	/* nr_entries can yest be zero */
 	if (buf_size == 0)
 		return 0;
 	trace_buf_size = buf_size;
@@ -1361,15 +1361,15 @@ static const char *trace_options[] = {
 static struct {
 	u64 (*func)(void);
 	const char *name;
-	int in_ns;		/* is this clock in nanoseconds? */
+	int in_ns;		/* is this clock in nayesseconds? */
 } trace_clocks[] = {
 	{ trace_clock_local,		"local",	1 },
 	{ trace_clock_global,		"global",	1 },
 	{ trace_clock_counter,		"counter",	0 },
 	{ trace_clock_jiffies,		"uptime",	0 },
 	{ trace_clock,			"perf",		1 },
-	{ ktime_get_mono_fast_ns,	"mono",		1 },
-	{ ktime_get_raw_fast_ns,	"mono_raw",	1 },
+	{ ktime_get_moyes_fast_ns,	"moyes",		1 },
+	{ ktime_get_raw_fast_ns,	"moyes_raw",	1 },
 	{ ktime_get_boot_fast_ns,	"boot",		1 },
 	ARCH_TRACE_CLOCKS
 };
@@ -1435,7 +1435,7 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 	cnt--;
 
 	/*
-	 * The parser is not finished with the last write,
+	 * The parser is yest finished with the last write,
 	 * continue reading the user input without skipping spaces.
 	 */
 	if (!parser->cont) {
@@ -1458,7 +1458,7 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		}
 	}
 
-	/* read the non-space input */
+	/* read the yesn-space input */
 	while (cnt && !isspace(ch) && ch) {
 		if (parser->idx < parser->size - 1)
 			parser->buffer[parser->idx++] = ch;
@@ -1473,7 +1473,7 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		cnt--;
 	}
 
-	/* We either got finished input or we have to wait for another call. */
+	/* We either got finished input or we have to wait for ayesther call. */
 	if (isspace(ch) || !ch) {
 		parser->buffer[parser->idx] = 0;
 		parser->cont = false;
@@ -1517,56 +1517,56 @@ static const struct file_operations tracing_max_lat_fops;
 #if (defined(CONFIG_TRACER_MAX_TRACE) || defined(CONFIG_HWLAT_TRACER)) && \
 	defined(CONFIG_FSNOTIFY)
 
-static struct workqueue_struct *fsnotify_wq;
+static struct workqueue_struct *fsyestify_wq;
 
-static void latency_fsnotify_workfn(struct work_struct *work)
+static void latency_fsyestify_workfn(struct work_struct *work)
 {
 	struct trace_array *tr = container_of(work, struct trace_array,
-					      fsnotify_work);
-	fsnotify(tr->d_max_latency->d_inode, FS_MODIFY,
-		 tr->d_max_latency->d_inode, FSNOTIFY_EVENT_INODE, NULL, 0);
+					      fsyestify_work);
+	fsyestify(tr->d_max_latency->d_iyesde, FS_MODIFY,
+		 tr->d_max_latency->d_iyesde, FSNOTIFY_EVENT_INODE, NULL, 0);
 }
 
-static void latency_fsnotify_workfn_irq(struct irq_work *iwork)
+static void latency_fsyestify_workfn_irq(struct irq_work *iwork)
 {
 	struct trace_array *tr = container_of(iwork, struct trace_array,
-					      fsnotify_irqwork);
-	queue_work(fsnotify_wq, &tr->fsnotify_work);
+					      fsyestify_irqwork);
+	queue_work(fsyestify_wq, &tr->fsyestify_work);
 }
 
 static void trace_create_maxlat_file(struct trace_array *tr,
 				     struct dentry *d_tracer)
 {
-	INIT_WORK(&tr->fsnotify_work, latency_fsnotify_workfn);
-	init_irq_work(&tr->fsnotify_irqwork, latency_fsnotify_workfn_irq);
+	INIT_WORK(&tr->fsyestify_work, latency_fsyestify_workfn);
+	init_irq_work(&tr->fsyestify_irqwork, latency_fsyestify_workfn_irq);
 	tr->d_max_latency = trace_create_file("tracing_max_latency", 0644,
 					      d_tracer, &tr->max_latency,
 					      &tracing_max_lat_fops);
 }
 
-__init static int latency_fsnotify_init(void)
+__init static int latency_fsyestify_init(void)
 {
-	fsnotify_wq = alloc_workqueue("tr_max_lat_wq",
+	fsyestify_wq = alloc_workqueue("tr_max_lat_wq",
 				      WQ_UNBOUND | WQ_HIGHPRI, 0);
-	if (!fsnotify_wq) {
+	if (!fsyestify_wq) {
 		pr_err("Unable to allocate tr_max_lat_wq\n");
 		return -ENOMEM;
 	}
 	return 0;
 }
 
-late_initcall_sync(latency_fsnotify_init);
+late_initcall_sync(latency_fsyestify_init);
 
-void latency_fsnotify(struct trace_array *tr)
+void latency_fsyestify(struct trace_array *tr)
 {
-	if (!fsnotify_wq)
+	if (!fsyestify_wq)
 		return;
 	/*
-	 * We cannot call queue_work(&tr->fsnotify_work) from here because it's
+	 * We canyest call queue_work(&tr->fsyestify_work) from here because it's
 	 * possible that we are called from __schedule() or do_idle(), which
 	 * could cause a deadlock.
 	 */
-	irq_work_queue(&tr->fsnotify_irqwork);
+	irq_work_queue(&tr->fsyestify_irqwork);
 }
 
 /*
@@ -1605,7 +1605,7 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	strncpy(max_data->comm, tsk->comm, TASK_COMM_LEN);
 	max_data->pid = tsk->pid;
 	/*
-	 * If tsk == current, then use current_uid(), as that does not use
+	 * If tsk == current, then use current_uid(), as that does yest use
 	 * RCU. The irq tracer can be called out of RCU scope.
 	 */
 	if (tsk == current)
@@ -1619,7 +1619,7 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 
 	/* record this tasks comm */
 	tracing_record_cmdline(tsk);
-	latency_fsnotify(tr);
+	latency_fsyestify(tr);
 }
 
 /**
@@ -1642,8 +1642,8 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu,
 	WARN_ON_ONCE(!irqs_disabled());
 
 	if (!tr->allocated_snapshot) {
-		/* Only the nop tracer should hit this when disabling */
-		WARN_ON_ONCE(tr->current_trace != &nop_trace);
+		/* Only the yesp tracer should hit this when disabling */
+		WARN_ON_ONCE(tr->current_trace != &yesp_trace);
 		return;
 	}
 
@@ -1685,8 +1685,8 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 
 	WARN_ON_ONCE(!irqs_disabled());
 	if (!tr->allocated_snapshot) {
-		/* Only the nop tracer should hit this when disabling */
-		WARN_ON_ONCE(tr->current_trace != &nop_trace);
+		/* Only the yesp tracer should hit this when disabling */
+		WARN_ON_ONCE(tr->current_trace != &yesp_trace);
 		return;
 	}
 
@@ -1698,7 +1698,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 		/*
 		 * We failed to swap the buffer due to a commit taking
 		 * place on this CPU. We fail to record, but we reset
-		 * the max trace buffer (no one writes directly to it)
+		 * the max trace buffer (yes one writes directly to it)
 		 * and flag that it failed.
 		 */
 		trace_array_printk_buf(tr->max_buffer.buffer, _THIS_IP_,
@@ -1756,7 +1756,7 @@ static int run_tracer_selftest(struct tracer *type)
 
 	/*
 	 * If a tracer registers early in boot up (before scheduling is
-	 * initialized and such), then do not run its selftests yet.
+	 * initialized and such), then do yest run its selftests yet.
 	 * Instead, run it a little later in the boot process.
 	 */
 	if (!selftests_can_run)
@@ -1767,7 +1767,7 @@ static int run_tracer_selftest(struct tracer *type)
 	 * Here we reset the trace buffer, and set the current
 	 * tracer to be this tracer. The tracer can then run some
 	 * internal tracing to verify that everything is in order.
-	 * If we fail, we do not register this tracer.
+	 * If we fail, we do yest register this tracer.
 	 */
 	tracing_reset_online_cpus(&tr->trace_buffer);
 
@@ -1889,7 +1889,7 @@ int __init register_tracer(struct tracer *type)
 	}
 
 	if (security_locked_down(LOCKDOWN_TRACEFS)) {
-		pr_warn("Can not register tracer %s due to lockdown\n",
+		pr_warn("Can yest register tracer %s due to lockdown\n",
 			   type->name);
 		return -EPERM;
 	}
@@ -1991,7 +1991,7 @@ void tracing_reset_online_cpus(struct trace_buffer *buf)
 	/* Make sure all commits have finished */
 	synchronize_rcu();
 
-	buf->time_start = buffer_ftrace_now(buf, buf->cpu);
+	buf->time_start = buffer_ftrace_yesw(buf, buf->cpu);
 
 	for_each_online_cpu(cpu)
 		ring_buffer_reset_cpu(buffer, cpu);
@@ -2231,9 +2231,9 @@ static int trace_save_cmdline(struct task_struct *tsk)
 		return 0;
 
 	/*
-	 * It's not the end of the world if we don't get
+	 * It's yest the end of the world if we don't get
 	 * the lock, but we also don't want to spin
-	 * nor do we want to disable interrupts,
+	 * yesr do we want to disable interrupts,
 	 * so if we miss here, then better luck next time.
 	 */
 	if (!arch_spin_trylock(&trace_cmdline_lock))
@@ -2459,8 +2459,8 @@ static int trace_buffered_event_ref;
  *
  * When events are being filtered, it is quicker to use a temporary
  * buffer to write the event data into if there's a likely chance
- * that it will not be committed. The discard of the ring buffer
- * is not as fast as committing, and is much slower than copying
+ * that it will yest be committed. The discard of the ring buffer
+ * is yest as fast as committing, and is much slower than copying
  * a commit.
  *
  * When an event is to be filtered, allocate per cpu buffers to
@@ -2480,7 +2480,7 @@ void trace_buffered_event_enable(void)
 		return;
 
 	for_each_tracing_cpu(cpu) {
-		page = alloc_pages_node(cpu_to_node(cpu),
+		page = alloc_pages_yesde(cpu_to_yesde(cpu),
 					GFP_KERNEL | __GFP_NORETRY, 0);
 		if (!page)
 			goto failed;
@@ -2505,7 +2505,7 @@ void trace_buffered_event_enable(void)
 
 static void enable_trace_buffered_event(void *data)
 {
-	/* Probably not needed, but do it anyway */
+	/* Probably yest needed, but do it anyway */
 	smp_rmb();
 	this_cpu_dec(trace_buffered_event_cnt);
 }
@@ -2518,9 +2518,9 @@ static void disable_trace_buffered_event(void *data)
 /**
  * trace_buffered_event_disable - disable buffering events
  *
- * When a filter is removed, it is faster to not use the buffered
+ * When a filter is removed, it is faster to yest use the buffered
  * events, and to commit directly into the ring buffer. Free up
- * the temp buffers when there are no more users. This requires
+ * the temp buffers when there are yes more users. This requires
  * special synchronization with current events.
  */
 void trace_buffered_event_disable(void)
@@ -2593,7 +2593,7 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
 	 * If tracing is off, but we have triggers enabled
 	 * we still need to look at the event data. Use the temp_buffer
 	 * to store the trace event for the tigger to use. It's recusive
-	 * safe and will not be recorded anywhere.
+	 * safe and will yest be recorded anywhere.
 	 */
 	if (!entry && trace_file->flags & EVENT_FILE_FL_TRIGGER_COND) {
 		*current_rb = temp_buffer;
@@ -2649,7 +2649,7 @@ int tracepoint_printk_sysctl(struct ctl_table *table, int write,
 
 	/*
 	 * This will force exiting early, as tracepoint_printk
-	 * is always zero when tracepoint_printk_iter is not allocated
+	 * is always zero when tracepoint_printk_iter is yest allocated
 	 */
 	if (!tracepoint_print_iter)
 		tracepoint_printk = 0;
@@ -2697,20 +2697,20 @@ void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 	__buffer_unlock_commit(buffer, event);
 
 	/*
-	 * If regs is not set, then skip the necessary functions.
+	 * If regs is yest set, then skip the necessary functions.
 	 * Note, we can still get here via blktrace, wakeup tracer
 	 * and mmiotrace, but that's ok if they lose a function or
-	 * two. They are not that meaningful.
+	 * two. They are yest that meaningful.
 	 */
 	ftrace_trace_stack(tr, buffer, flags, regs ? 0 : STACK_SKIP, pc, regs);
 	ftrace_trace_userstack(buffer, flags, pc);
 }
 
 /*
- * Similar to trace_buffer_unlock_commit_regs() but do not dump stack.
+ * Similar to trace_buffer_unlock_commit_regs() but do yest dump stack.
  */
 void
-trace_buffer_unlock_commit_nostack(struct ring_buffer *buffer,
+trace_buffer_unlock_commit_yesstack(struct ring_buffer *buffer,
 				   struct ring_buffer_event *event)
 {
 	__buffer_unlock_commit(buffer, event);
@@ -2748,7 +2748,7 @@ static void ftrace_exports(struct ring_buffer_event *event)
 {
 	struct trace_export *export;
 
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 
 	export = rcu_dereference_raw_check(ftrace_exports_list);
 	while (export) {
@@ -2756,7 +2756,7 @@ static void ftrace_exports(struct ring_buffer_event *event)
 		export = rcu_dereference_raw_check(export->next);
 	}
 
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 }
 
 static inline void
@@ -2764,9 +2764,9 @@ add_trace_export(struct trace_export **list, struct trace_export *export)
 {
 	rcu_assign_pointer(export->next, *list);
 	/*
-	 * We are entering export into the list but another
+	 * We are entering export into the list but ayesther
 	 * CPU might be walking that list. We need to make sure
-	 * the export->next pointer is valid before another CPU sees
+	 * the export->next pointer is valid before ayesther CPU sees
 	 * the export pointer included into the list.
 	 */
 	rcu_assign_pointer(*list, export);
@@ -2866,7 +2866,7 @@ trace_function(struct trace_array *tr,
 
 #ifdef CONFIG_STACKTRACE
 
-/* Allow 4 levels of nesting: normal, softirq, irq, NMI */
+/* Allow 4 levels of nesting: yesrmal, softirq, irq, NMI */
 #define FTRACE_KSTACK_NESTING	4
 
 #define FTRACE_KSTACK_ENTRIES	(PAGE_SIZE / FTRACE_KSTACK_NESTING)
@@ -2896,7 +2896,7 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
 
 	/*
 	 * Add one, for this function and the call to save_stack_trace()
-	 * If regs is set, then these functions will not be in the way.
+	 * If regs is set, then these functions will yest be in the way.
 	 */
 #ifndef CONFIG_UNWINDER_ORC
 	if (!regs)
@@ -2904,12 +2904,12 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
 #endif
 
 	/*
-	 * Since events can happen in NMIs there's no safe way to
+	 * Since events can happen in NMIs there's yes safe way to
 	 * use the per cpu ftrace_stacks. We reserve it and if an interrupt
 	 * or NMI comes in, it will just have to use the default
 	 * FTRACE_STACK_SIZE.
 	 */
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 
 	stackidx = __this_cpu_inc_return(ftrace_stack_reserve) - 1;
 
@@ -2953,7 +2953,7 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
 	/* Again, don't let gcc optimize things here */
 	barrier();
 	__this_cpu_dec(ftrace_stack_reserve);
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 
 }
 
@@ -2982,7 +2982,7 @@ void __trace_stack(struct trace_array *tr, unsigned long flags, int skip,
 	 * When an NMI triggers, RCU is enabled via rcu_nmi_enter(),
 	 * but if the above rcu_is_watching() failed, then the NMI
 	 * triggered someplace critical, and rcu_irq_enter() should
-	 * not be called from NMI.
+	 * yest be called from NMI.
 	 */
 	if (unlikely(in_nmi()))
 		return;
@@ -3028,7 +3028,7 @@ ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 		return;
 
 	/*
-	 * NMIs can not handle page faults, even with fix ups.
+	 * NMIs can yest handle page faults, even with fix ups.
 	 * The save user stack can (and often does) fault.
 	 */
 	if (unlikely(in_nmi()))
@@ -3109,7 +3109,7 @@ static int alloc_percpu_trace_buffer(void)
 	struct trace_buffer_struct *buffers;
 
 	buffers = alloc_percpu(struct trace_buffer_struct);
-	if (WARN(!buffers, "Could not allocate percpu trace_printk buffer"))
+	if (WARN(!buffers, "Could yest allocate percpu trace_printk buffer"))
 		return -ENOMEM;
 
 	trace_percpu_buffer = buffers;
@@ -3137,7 +3137,7 @@ void trace_printk_init_buffers(void)
 	pr_warn("** This means that this is a DEBUG kernel and it is     **\n");
 	pr_warn("** unsafe for production use.                           **\n");
 	pr_warn("**                                                      **\n");
-	pr_warn("** If you see this message and you are not debugging    **\n");
+	pr_warn("** If you see this message and you are yest debugging    **\n");
 	pr_warn("** the kernel, report this immediately to your vendor!  **\n");
 	pr_warn("**                                                      **\n");
 	pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
@@ -3202,12 +3202,12 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	pause_graph_tracing();
 
 	pc = preempt_count();
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 
 	tbuffer = get_trace_buf();
 	if (!tbuffer) {
 		len = 0;
-		goto out_nobuffer;
+		goto out_yesbuffer;
 	}
 
 	len = vbin_printf((u32 *)tbuffer, TRACE_BUF_SIZE/sizeof(int), fmt, args);
@@ -3235,8 +3235,8 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 out:
 	put_trace_buf();
 
-out_nobuffer:
-	preempt_enable_notrace();
+out_yesbuffer:
+	preempt_enable_yestrace();
 	unpause_graph_tracing();
 
 	return len;
@@ -3262,13 +3262,13 @@ __trace_array_vprintk(struct ring_buffer *buffer,
 	pause_graph_tracing();
 
 	pc = preempt_count();
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 
 
 	tbuffer = get_trace_buf();
 	if (!tbuffer) {
 		len = 0;
-		goto out_nobuffer;
+		goto out_yesbuffer;
 	}
 
 	len = vscnprintf(tbuffer, TRACE_BUF_SIZE, fmt, args);
@@ -3291,8 +3291,8 @@ __trace_array_vprintk(struct ring_buffer *buffer,
 out:
 	put_trace_buf();
 
-out_nobuffer:
-	preempt_enable_notrace();
+out_yesbuffer:
+	preempt_enable_yestrace();
 	unpause_graph_tracing();
 
 	return len;
@@ -3610,7 +3610,7 @@ get_total_entries_cpu(struct trace_buffer *buf, unsigned long *total,
 	count = ring_buffer_entries_cpu(buf->buffer, cpu);
 	/*
 	 * If this buffer has skipped entries, then we hold all
-	 * entries for the trace and we need to ignore the
+	 * entries for the trace and we need to igyesre the
 	 * ones before the time stamp.
 	 */
 	if (per_cpu_ptr(buf->data, cpu)->skipped_entries) {
@@ -3750,7 +3750,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 #elif defined(CONFIG_PREEMPT_RT)
 		   "preempt_rt",
 #else
-		   "unknown",
+		   "unkyeswn",
 #endif
 		   /* These are reserved for later use */
 		   0, 0, 0, 0);
@@ -3834,7 +3834,7 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 	if (event)
 		return event->funcs->trace(iter, sym_flags, event);
 
-	trace_seq_printf(s, "Unknown type %d\n", entry->type);
+	trace_seq_printf(s, "Unkyeswn type %d\n", entry->type);
 
 	return trace_handle_return(s);
 }
@@ -4001,7 +4001,7 @@ void trace_latency_header(struct seq_file *m)
 	struct trace_iterator *iter = m->private;
 	struct trace_array *tr = iter->tr;
 
-	/* print nothing if the buffers are empty */
+	/* print yesthing if the buffers are empty */
 	if (trace_empty(iter))
 		return;
 
@@ -4022,7 +4022,7 @@ void trace_default_header(struct seq_file *m)
 		return;
 
 	if (iter->iter_flags & TRACE_FILE_LAT_FMT) {
-		/* print nothing if the buffers are empty */
+		/* print yesthing if the buffers are empty */
 		if (trace_empty(iter))
 			return;
 		print_trace_header(m, iter);
@@ -4052,26 +4052,26 @@ static void test_ftrace_alive(struct seq_file *m)
 static void show_snapshot_main_help(struct seq_file *m)
 {
 	seq_puts(m, "# echo 0 > snapshot : Clears and frees snapshot buffer\n"
-		    "# echo 1 > snapshot : Allocates snapshot buffer, if not already allocated.\n"
+		    "# echo 1 > snapshot : Allocates snapshot buffer, if yest already allocated.\n"
 		    "#                      Takes a snapshot of the main buffer.\n"
-		    "# echo 2 > snapshot : Clears snapshot buffer (but does not allocate or free)\n"
+		    "# echo 2 > snapshot : Clears snapshot buffer (but does yest allocate or free)\n"
 		    "#                      (Doesn't have to be '2' works with any number that\n"
-		    "#                       is not a '0' or '1')\n");
+		    "#                       is yest a '0' or '1')\n");
 }
 
 static void show_snapshot_percpu_help(struct seq_file *m)
 {
 	seq_puts(m, "# echo 0 > snapshot : Invalid for per_cpu snapshot file.\n");
 #ifdef CONFIG_RING_BUFFER_ALLOW_SWAP
-	seq_puts(m, "# echo 1 > snapshot : Allocates snapshot buffer, if not already allocated.\n"
+	seq_puts(m, "# echo 1 > snapshot : Allocates snapshot buffer, if yest already allocated.\n"
 		    "#                      Takes a snapshot of the main buffer for this cpu.\n");
 #else
 	seq_puts(m, "# echo 1 > snapshot : Not supported with this kernel.\n"
 		    "#                     Must use main snapshot file to allocate.\n");
 #endif
-	seq_puts(m, "# echo 2 > snapshot : Clears this cpu's snapshot buffer (but does not allocate)\n"
+	seq_puts(m, "# echo 2 > snapshot : Clears this cpu's snapshot buffer (but does yest allocate)\n"
 		    "#                      (Doesn't have to be '2' works with any number that\n"
-		    "#                       is not a '0' or '1')\n");
+		    "#                       is yest a '0' or '1')\n");
 }
 
 static void print_snapshot_help(struct seq_file *m, struct trace_iterator *iter)
@@ -4113,11 +4113,11 @@ static int s_show(struct seq_file *m, void *v)
 	} else if (iter->leftover) {
 		/*
 		 * If we filled the seq_file buffer earlier, we
-		 * want to just show it now.
+		 * want to just show it yesw.
 		 */
 		ret = trace_print_seq(m, &iter->seq);
 
-		/* ret should this time be zero, but you never know */
+		/* ret should this time be zero, but you never kyesw */
 		iter->leftover = ret;
 
 	} else {
@@ -4140,10 +4140,10 @@ static int s_show(struct seq_file *m, void *v)
  * Should be used after trace_array_get(), trace_types_lock
  * ensures that i_cdev was already initialized.
  */
-static inline int tracing_get_cpu(struct inode *inode)
+static inline int tracing_get_cpu(struct iyesde *iyesde)
 {
-	if (inode->i_cdev) /* See trace_create_cpu_file() */
-		return (long)inode->i_cdev - 1;
+	if (iyesde->i_cdev) /* See trace_create_cpu_file() */
+		return (long)iyesde->i_cdev - 1;
 	return RING_BUFFER_ALL_CPUS;
 }
 
@@ -4155,9 +4155,9 @@ static const struct seq_operations tracer_seq_ops = {
 };
 
 static struct trace_iterator *
-__tracing_open(struct inode *inode, struct file *file, bool snapshot)
+__tracing_open(struct iyesde *iyesde, struct file *file, bool snapshot)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	struct trace_iterator *iter;
 	int cpu;
 
@@ -4198,22 +4198,22 @@ __tracing_open(struct inode *inode, struct file *file, bool snapshot)
 		iter->trace_buffer = &tr->trace_buffer;
 	iter->snapshot = snapshot;
 	iter->pos = -1;
-	iter->cpu_file = tracing_get_cpu(inode);
+	iter->cpu_file = tracing_get_cpu(iyesde);
 	mutex_init(&iter->mutex);
 
 	/* Notify the tracer early; before we stop tracing. */
 	if (iter->trace && iter->trace->open)
 		iter->trace->open(iter);
 
-	/* Annotate start of buffers if we had overruns */
+	/* Anyestate start of buffers if we had overruns */
 	if (ring_buffer_overruns(iter->trace_buffer->buffer))
 		iter->iter_flags |= TRACE_FILE_ANNOTATE;
 
-	/* Output in nanoseconds only if we are using a clock in nanoseconds. */
+	/* Output in nayesseconds only if we are using a clock in nayesseconds. */
 	if (trace_clocks[tr->clock_id].in_ns)
 		iter->iter_flags |= TRACE_FILE_TIME_IN_NS;
 
-	/* stop the trace while dumping if we are not opening "snapshot" */
+	/* stop the trace while dumping if we are yest opening "snapshot" */
 	if (!iter->snapshot)
 		tracing_stop_tr(tr);
 
@@ -4247,11 +4247,11 @@ __tracing_open(struct inode *inode, struct file *file, bool snapshot)
 	kfree(iter->trace);
 	kfree(iter->buffer_iter);
 release:
-	seq_release_private(inode, file);
+	seq_release_private(iyesde, file);
 	return ERR_PTR(-ENOMEM);
 }
 
-int tracing_open_generic(struct inode *inode, struct file *filp)
+int tracing_open_generic(struct iyesde *iyesde, struct file *filp)
 {
 	int ret;
 
@@ -4259,7 +4259,7 @@ int tracing_open_generic(struct inode *inode, struct file *filp)
 	if (ret)
 		return ret;
 
-	filp->private_data = inode->i_private;
+	filp->private_data = iyesde->i_private;
 	return 0;
 }
 
@@ -4272,23 +4272,23 @@ bool tracing_is_disabled(void)
  * Open and update trace_array ref count.
  * Must have the current trace_array passed to it.
  */
-int tracing_open_generic_tr(struct inode *inode, struct file *filp)
+int tracing_open_generic_tr(struct iyesde *iyesde, struct file *filp)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	int ret;
 
 	ret = tracing_check_open_get_tr(tr);
 	if (ret)
 		return ret;
 
-	filp->private_data = inode->i_private;
+	filp->private_data = iyesde->i_private;
 
 	return 0;
 }
 
-static int tracing_release(struct inode *inode, struct file *file)
+static int tracing_release(struct iyesde *iyesde, struct file *file)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	struct seq_file *m = file->private_data;
 	struct trace_iterator *iter;
 	int cpu;
@@ -4298,7 +4298,7 @@ static int tracing_release(struct inode *inode, struct file *file)
 		return 0;
 	}
 
-	/* Writes do not use seq_file */
+	/* Writes do yest use seq_file */
 	iter = m->private;
 	mutex_lock(&trace_types_lock);
 
@@ -4322,31 +4322,31 @@ static int tracing_release(struct inode *inode, struct file *file)
 	free_cpumask_var(iter->started);
 	kfree(iter->trace);
 	kfree(iter->buffer_iter);
-	seq_release_private(inode, file);
+	seq_release_private(iyesde, file);
 
 	return 0;
 }
 
-static int tracing_release_generic_tr(struct inode *inode, struct file *file)
+static int tracing_release_generic_tr(struct iyesde *iyesde, struct file *file)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 
 	trace_array_put(tr);
 	return 0;
 }
 
-static int tracing_single_release_tr(struct inode *inode, struct file *file)
+static int tracing_single_release_tr(struct iyesde *iyesde, struct file *file)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 
 	trace_array_put(tr);
 
-	return single_release(inode, file);
+	return single_release(iyesde, file);
 }
 
-static int tracing_open(struct inode *inode, struct file *file)
+static int tracing_open(struct iyesde *iyesde, struct file *file)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	struct trace_iterator *iter;
 	int ret;
 
@@ -4356,7 +4356,7 @@ static int tracing_open(struct inode *inode, struct file *file)
 
 	/* If this file was open for write, then erase contents */
 	if ((file->f_mode & FMODE_WRITE) && (file->f_flags & O_TRUNC)) {
-		int cpu = tracing_get_cpu(inode);
+		int cpu = tracing_get_cpu(iyesde);
 		struct trace_buffer *trace_buf = &tr->trace_buffer;
 
 #ifdef CONFIG_TRACER_MAX_TRACE
@@ -4371,7 +4371,7 @@ static int tracing_open(struct inode *inode, struct file *file)
 	}
 
 	if (file->f_mode & FMODE_READ) {
-		iter = __tracing_open(inode, file, false);
+		iter = __tracing_open(iyesde, file, false);
 		if (IS_ERR(iter))
 			ret = PTR_ERR(iter);
 		else if (tr->trace_flags & TRACE_ITER_LATENCY_FMT)
@@ -4385,7 +4385,7 @@ static int tracing_open(struct inode *inode, struct file *file)
 }
 
 /*
- * Some tracers are not suitable for instance buffers.
+ * Some tracers are yest suitable for instance buffers.
  * A tracer is always available for the global array (toplevel)
  * or if it explicitly states that it is.
  */
@@ -4462,9 +4462,9 @@ static const struct seq_operations show_traces_seq_ops = {
 	.show		= t_show,
 };
 
-static int show_traces_open(struct inode *inode, struct file *file)
+static int show_traces_open(struct iyesde *iyesde, struct file *file)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	struct seq_file *m;
 	int ret;
 
@@ -4484,12 +4484,12 @@ static int show_traces_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int show_traces_release(struct inode *inode, struct file *file)
+static int show_traces_release(struct iyesde *iyesde, struct file *file)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 
 	trace_array_put(tr);
-	return seq_release(inode, file);
+	return seq_release(iyesde, file);
 }
 
 static ssize_t
@@ -4530,7 +4530,7 @@ static ssize_t
 tracing_cpumask_read(struct file *filp, char __user *ubuf,
 		     size_t count, loff_t *ppos)
 {
-	struct trace_array *tr = file_inode(filp)->i_private;
+	struct trace_array *tr = file_iyesde(filp)->i_private;
 	char *mask_str;
 	int len;
 
@@ -4558,7 +4558,7 @@ static ssize_t
 tracing_cpumask_write(struct file *filp, const char __user *ubuf,
 		      size_t count, loff_t *ppos)
 {
-	struct trace_array *tr = file_inode(filp)->i_private;
+	struct trace_array *tr = file_iyesde(filp)->i_private;
 	cpumask_var_t tracing_cpumask_new;
 	int err, cpu;
 
@@ -4624,14 +4624,14 @@ static int tracing_trace_options_show(struct seq_file *m, void *v)
 		if (tr->trace_flags & (1 << i))
 			seq_printf(m, "%s\n", trace_options[i]);
 		else
-			seq_printf(m, "no%s\n", trace_options[i]);
+			seq_printf(m, "yes%s\n", trace_options[i]);
 	}
 
 	for (i = 0; trace_opts[i].name; i++) {
 		if (tracer_flags & trace_opts[i].bit)
 			seq_printf(m, "%s\n", trace_opts[i].name);
 		else
-			seq_printf(m, "no%s\n", trace_opts[i].name);
+			seq_printf(m, "yes%s\n", trace_opts[i].name);
 	}
 	mutex_unlock(&trace_types_lock);
 
@@ -4689,7 +4689,7 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
 	    (mask == TRACE_ITER_RECORD_CMD))
 		lockdep_assert_held(&event_mutex);
 
-	/* do nothing if flag is already set */
+	/* do yesthing if flag is already set */
 	if (!!(tr->trace_flags & mask) == !!enabled)
 		return 0;
 
@@ -4750,7 +4750,7 @@ static int trace_set_options(struct trace_array *tr, char *option)
 
 	cmp = strstrip(option);
 
-	len = str_has_prefix(cmp, "no");
+	len = str_has_prefix(cmp, "yes");
 	if (len)
 		neg = 1;
 
@@ -4760,7 +4760,7 @@ static int trace_set_options(struct trace_array *tr, char *option)
 	mutex_lock(&trace_types_lock);
 
 	ret = match_string(trace_options, -1, cmp);
-	/* If no option could be set, test the specific tracer options */
+	/* If yes option could be set, test the specific tracer options */
 	if (ret < 0)
 		ret = set_tracer_option(tr, cmp, neg);
 	else
@@ -4825,16 +4825,16 @@ tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
-static int tracing_trace_options_open(struct inode *inode, struct file *file)
+static int tracing_trace_options_open(struct iyesde *iyesde, struct file *file)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	int ret;
 
 	ret = tracing_check_open_get_tr(tr);
 	if (ret)
 		return ret;
 
-	ret = single_open(file, tracing_trace_options_show, inode->i_private);
+	ret = single_open(file, tracing_trace_options_show, iyesde->i_private);
 	if (ret < 0)
 		trace_array_put(tr);
 
@@ -4863,7 +4863,7 @@ static const char readme_msg[] =
 	"  buffer_size_kb\t- view and modify size of per cpu buffer\n"
 	"  buffer_total_size_kb  - view total size of all cpu buffers\n\n"
 	"  trace_clock\t\t-change the clock used to order events\n"
-	"       local:   Per cpu clock but may not be synced across CPUs\n"
+	"       local:   Per cpu clock but may yest be synced across CPUs\n"
 	"      global:   Synced across CPUs but slows tracing down.\n"
 	"     counter:   Not a clock, but just an increment\n"
 	"      uptime:   Jiffy counter from time of boot\n"
@@ -4880,7 +4880,7 @@ static const char readme_msg[] =
 	"  instances\t\t- Make sub-buffers with: mkdir instances/foo\n"
 	"\t\t\t  Remove sub-buffer with rmdir\n"
 	"  trace_options\t\t- Set format or modify how tracing happens\n"
-	"\t\t\t  Disable an option by prefixing 'no' to the\n"
+	"\t\t\t  Disable an option by prefixing 'yes' to the\n"
 	"\t\t\t  option name\n"
 	"  saved_cmdlines_size\t- echo command number in here to store comm-pid list\n"
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -4910,16 +4910,16 @@ static const char readme_msg[] =
 	"\t     The second will disable tracing at most 3 times when do_trap is hit\n"
 	"\t       The first time do trap is hit and it disables tracing, the\n"
 	"\t       counter will decrement to 2. If tracing is already disabled,\n"
-	"\t       the counter will not decrement. It only decrements when the\n"
+	"\t       the counter will yest decrement. It only decrements when the\n"
 	"\t       trigger did work\n"
 	"\t     To remove trigger without count:\n"
 	"\t       echo '!<function>:<trigger> > set_ftrace_filter\n"
 	"\t     To remove trigger with a count:\n"
 	"\t       echo '!<function>:<trigger>:0 > set_ftrace_filter\n"
-	"  set_ftrace_notrace\t- echo function name in here to never trace.\n"
+	"  set_ftrace_yestrace\t- echo function name in here to never trace.\n"
 	"\t    accepts: func_full_name, *func_end, func_begin*, *func_middle*\n"
 	"\t    modules: Can select a group via module command :mod:\n"
-	"\t    Does not accept triggers\n"
+	"\t    Does yest accept triggers\n"
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #ifdef CONFIG_FUNCTION_TRACER
 	"  set_ftrace_pid\t- Write pid(s) to only function trace those pids\n"
@@ -4927,7 +4927,7 @@ static const char readme_msg[] =
 #endif
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	"  set_graph_function\t- Trace the nested calls of a function (function_graph)\n"
-	"  set_graph_notrace\t- Do not trace the nested calls of a function (function_graph)\n"
+	"  set_graph_yestrace\t- Do yest trace the nested calls of a function (function_graph)\n"
 	"  max_graph_depth\t- Trace a limited depth of nested calls (0 is unlimited)\n"
 #endif
 #ifdef CONFIG_TRACER_SNAPSHOT
@@ -5031,7 +5031,7 @@ static const char readme_msg[] =
 	"\t     echo '!<trigger> > <system>/<event>/trigger\n"
 	"\t   To remove a trigger with a count:\n"
 	"\t     echo '!<trigger>:0 > <system>/<event>/trigger\n"
-	"\t   Filters can be ignored when removing a trigger.\n"
+	"\t   Filters can be igyesred when removing a trigger.\n"
 #ifdef CONFIG_HIST_TRIGGERS
 	"      hist trigger\t- If set, event hits are aggregated into a hash table\n"
 	"\t    Format: hist:keys=<field1[,field2,...]>\n"
@@ -5073,14 +5073,14 @@ static const char readme_msg[] =
 	"\t            .log2       display log2 value rather than raw number\n"
 	"\t            .usecs      display a common_timestamp in microseconds\n\n"
 	"\t    The 'pause' parameter can be used to pause an existing hist\n"
-	"\t    trigger or to start a hist trigger but not log any events\n"
+	"\t    trigger or to start a hist trigger but yest log any events\n"
 	"\t    until told to do so.  'continue' can be used to start or\n"
 	"\t    restart a paused hist trigger.\n\n"
 	"\t    The 'clear' parameter will clear the contents of a running\n"
 	"\t    hist trigger and leave its current paused/active state\n"
 	"\t    unchanged.\n\n"
 	"\t    The enable_hist and disable_hist triggers can be used to\n"
-	"\t    have one event conditionally start and stop another event's\n"
+	"\t    have one event conditionally start and stop ayesther event's\n"
 	"\t    already-attached hist trigger.  The syntax is analogous to\n"
 	"\t    the enable_event and disable_event triggers.\n\n"
 	"\t    Hist trigger handlers and actions are executed whenever a\n"
@@ -5167,7 +5167,7 @@ static const struct seq_operations tracing_saved_tgids_seq_ops = {
 	.show		= saved_tgids_show,
 };
 
-static int tracing_saved_tgids_open(struct inode *inode, struct file *filp)
+static int tracing_saved_tgids_open(struct iyesde *iyesde, struct file *filp)
 {
 	int ret;
 
@@ -5247,7 +5247,7 @@ static const struct seq_operations tracing_saved_cmdlines_seq_ops = {
 	.show		= saved_cmdlines_show,
 };
 
-static int tracing_saved_cmdlines_open(struct inode *inode, struct file *filp)
+static int tracing_saved_cmdlines_open(struct iyesde *iyesde, struct file *filp)
 {
 	int ret;
 
@@ -5358,7 +5358,7 @@ static void *eval_map_next(struct seq_file *m, void *v, loff_t *pos)
 	union trace_eval_map_item *ptr = v;
 
 	/*
-	 * Paranoid! If ptr points to end, we don't want to increment past it.
+	 * Parayesid! If ptr points to end, we don't want to increment past it.
 	 * This really should never happen.
 	 */
 	ptr = update_eval_map(ptr);
@@ -5415,7 +5415,7 @@ static const struct seq_operations tracing_eval_map_seq_ops = {
 	.show		= eval_map_show,
 };
 
-static int tracing_eval_map_open(struct inode *inode, struct file *filp)
+static int tracing_eval_map_open(struct iyesde *iyesde, struct file *filp)
 {
 	int ret;
 
@@ -5698,9 +5698,9 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer);
  * Used to clear out the tracer before deletion of an instance.
  * Must have trace_types_lock held.
  */
-static void tracing_set_nop(struct trace_array *tr)
+static void tracing_set_yesp(struct trace_array *tr)
 {
-	if (tr->current_trace == &nop_trace)
+	if (tr->current_trace == &yesp_trace)
 		return;
 	
 	tr->current_trace->enabled--;
@@ -5708,7 +5708,7 @@ static void tracing_set_nop(struct trace_array *tr)
 	if (tr->current_trace->reset)
 		tr->current_trace->reset(tr);
 
-	tr->current_trace = &nop_trace;
+	tr->current_trace = &yesp_trace;
 }
 
 static void add_tracer_options(struct trace_array *tr, struct tracer *t)
@@ -5760,8 +5760,8 @@ static int tracing_set_tracer(struct trace_array *tr, const char *buf)
 	}
 #endif
 	/* Some tracers won't work on kernel command line */
-	if (system_state < SYSTEM_RUNNING && t->noboot) {
-		pr_warn("Tracer '%s' is not allowed on command line, ignored\n",
+	if (system_state < SYSTEM_RUNNING && t->yesboot) {
+		pr_warn("Tracer '%s' is yest allowed on command line, igyesred\n",
 			t->name);
 		goto out;
 	}
@@ -5785,8 +5785,8 @@ static int tracing_set_tracer(struct trace_array *tr, const char *buf)
 	if (tr->current_trace->reset)
 		tr->current_trace->reset(tr);
 
-	/* Current trace needs to be nop_trace before synchronize_rcu */
-	tr->current_trace = &nop_trace;
+	/* Current trace needs to be yesp_trace before synchronize_rcu */
+	tr->current_trace = &yesp_trace;
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 	had_max_tr = tr->allocated_snapshot;
@@ -5794,7 +5794,7 @@ static int tracing_set_tracer(struct trace_array *tr, const char *buf)
 	if (had_max_tr && !t->use_max_tr) {
 		/*
 		 * We need to make sure that the update_max_tr sees that
-		 * current_trace changed to nop_trace to keep it from
+		 * current_trace changed to yesp_trace to keep it from
 		 * swapping the buffers after we resize it.
 		 * The update_max_tr is called from interrupts disabled
 		 * so a synchronized_sched() is sufficient.
@@ -5940,9 +5940,9 @@ tracing_max_lat_write(struct file *filp, const char __user *ubuf,
 
 #endif
 
-static int tracing_open_pipe(struct inode *inode, struct file *filp)
+static int tracing_open_pipe(struct iyesde *iyesde, struct file *filp)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	struct trace_iterator *iter;
 	int ret;
 
@@ -5968,26 +5968,26 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 		goto fail;
 	}
 
-	/* trace pipe does not show start of buffer */
+	/* trace pipe does yest show start of buffer */
 	cpumask_setall(iter->started);
 
 	if (tr->trace_flags & TRACE_ITER_LATENCY_FMT)
 		iter->iter_flags |= TRACE_FILE_LAT_FMT;
 
-	/* Output in nanoseconds only if we are using a clock in nanoseconds. */
+	/* Output in nayesseconds only if we are using a clock in nayesseconds. */
 	if (trace_clocks[tr->clock_id].in_ns)
 		iter->iter_flags |= TRACE_FILE_TIME_IN_NS;
 
 	iter->tr = tr;
 	iter->trace_buffer = &tr->trace_buffer;
-	iter->cpu_file = tracing_get_cpu(inode);
+	iter->cpu_file = tracing_get_cpu(iyesde);
 	mutex_init(&iter->mutex);
 	filp->private_data = iter;
 
 	if (iter->trace->pipe_open)
 		iter->trace->pipe_open(iter);
 
-	nonseekable_open(inode, filp);
+	yesnseekable_open(iyesde, filp);
 
 	tr->current_trace->ref++;
 out:
@@ -6001,10 +6001,10 @@ fail:
 	return ret;
 }
 
-static int tracing_release_pipe(struct inode *inode, struct file *file)
+static int tracing_release_pipe(struct iyesde *iyesde, struct file *file)
 {
 	struct trace_iterator *iter = file->private_data;
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 
 	mutex_lock(&trace_types_lock);
 
@@ -6161,7 +6161,7 @@ waitagain:
 		/*
 		 * Setting the full flag means we reached the trace_seq buffer
 		 * size and we should leave by partial output condition above.
-		 * One of the trace_seq_* functions is not used properly.
+		 * One of the trace_seq_* functions is yest used properly.
 		 */
 		WARN_ONCE(iter->seq.full, "full flag set for trace type %d",
 			  iter->ent->type);
@@ -6175,7 +6175,7 @@ waitagain:
 		trace_seq_init(&iter->seq);
 
 	/*
-	 * If there was nothing to send to user, in spite of consuming trace
+	 * If there was yesthing to send to user, in spite of consuming trace
 	 * entries, go back to wait for more entries.
 	 */
 	if (sret == -EBUSY)
@@ -6218,7 +6218,7 @@ tracing_fill_pipe_page(size_t rem, struct trace_iterator *iter)
 		}
 
 		/*
-		 * This should not be hit, because it should only
+		 * This should yest be hit, because it should only
 		 * be set if the iter->seq overflowed. But check it
 		 * anyway to be safe.
 		 */
@@ -6249,7 +6249,7 @@ tracing_fill_pipe_page(size_t rem, struct trace_iterator *iter)
 
 static ssize_t tracing_splice_read_pipe(struct file *filp,
 					loff_t *ppos,
-					struct pipe_inode_info *pipe,
+					struct pipe_iyesde_info *pipe,
 					size_t len,
 					unsigned int flags)
 {
@@ -6337,9 +6337,9 @@ static ssize_t
 tracing_entries_read(struct file *filp, char __user *ubuf,
 		     size_t cnt, loff_t *ppos)
 {
-	struct inode *inode = file_inode(filp);
-	struct trace_array *tr = inode->i_private;
-	int cpu = tracing_get_cpu(inode);
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct trace_array *tr = iyesde->i_private;
+	int cpu = tracing_get_cpu(iyesde);
 	char buf[64];
 	int r = 0;
 	ssize_t ret;
@@ -6385,8 +6385,8 @@ static ssize_t
 tracing_entries_write(struct file *filp, const char __user *ubuf,
 		      size_t cnt, loff_t *ppos)
 {
-	struct inode *inode = file_inode(filp);
-	struct trace_array *tr = inode->i_private;
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct trace_array *tr = iyesde->i_private;
 	unsigned long val;
 	int ret;
 
@@ -6400,7 +6400,7 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 
 	/* value is in KB */
 	val <<= 10;
-	ret = tracing_resize_ring_buffer(tr, val, tracing_get_cpu(inode));
+	ret = tracing_resize_ring_buffer(tr, val, tracing_get_cpu(iyesde));
 	if (ret < 0)
 		return ret;
 
@@ -6438,8 +6438,8 @@ tracing_free_buffer_write(struct file *filp, const char __user *ubuf,
 			  size_t cnt, loff_t *ppos)
 {
 	/*
-	 * There is no need to read what the user has written, this function
-	 * is just to make sure that there is no error when "echo" is used
+	 * There is yes need to read what the user has written, this function
+	 * is just to make sure that there is yes error when "echo" is used
 	 */
 
 	*ppos += cnt;
@@ -6448,9 +6448,9 @@ tracing_free_buffer_write(struct file *filp, const char __user *ubuf,
 }
 
 static int
-tracing_free_buffer_release(struct inode *inode, struct file *filp)
+tracing_free_buffer_release(struct iyesde *iyesde, struct file *filp)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 
 	/* disable tracing ? */
 	if (tr->trace_flags & TRACE_ITER_STOP_ON_FREE)
@@ -6503,7 +6503,7 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
 					    irq_flags, preempt_count());
 	if (unlikely(!event))
-		/* Ring buffer disabled, return as if not open for write */
+		/* Ring buffer disabled, return as if yest open for write */
 		return -EBADF;
 
 	entry = ring_buffer_event_data(event);
@@ -6519,7 +6519,7 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	len = cnt;
 
 	if (tr->trace_marker_file && !list_empty(&tr->trace_marker_file->triggers)) {
-		/* do not add \n before testing triggers, but add \0 */
+		/* do yest add \n before testing triggers, but add \0 */
 		entry->buf[cnt] = '\0';
 		tt = event_triggers_call(tr->trace_marker_file, entry, event);
 	}
@@ -6541,7 +6541,7 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	return written;
 }
 
-/* Limit it for now to 3K (including tag) */
+/* Limit it for yesw to 3K (including tag) */
 #define RAW_DATA_MAX_SIZE (1024*3)
 
 static ssize_t
@@ -6583,7 +6583,7 @@ tracing_mark_raw_write(struct file *filp, const char __user *ubuf,
 	event = __trace_buffer_lock_reserve(buffer, TRACE_RAW_DATA, size,
 					    irq_flags, preempt_count());
 	if (!event)
-		/* Ring buffer disabled, return as if not open for write */
+		/* Ring buffer disabled, return as if yest open for write */
 		return -EBADF;
 
 	entry = ring_buffer_event_data(event);
@@ -6637,7 +6637,7 @@ int tracing_set_clock(struct trace_array *tr, const char *clockstr)
 	ring_buffer_set_clock(tr->trace_buffer.buffer, trace_clocks[i].func);
 
 	/*
-	 * New clock may not be consistent with the previous clock.
+	 * New clock may yest be consistent with the previous clock.
 	 * Reset the buffer so that it doesn't have incomparable timestamps.
 	 */
 	tracing_reset_online_cpus(&tr->trace_buffer);
@@ -6681,16 +6681,16 @@ static ssize_t tracing_clock_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
-static int tracing_clock_open(struct inode *inode, struct file *file)
+static int tracing_clock_open(struct iyesde *iyesde, struct file *file)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	int ret;
 
 	ret = tracing_check_open_get_tr(tr);
 	if (ret)
 		return ret;
 
-	ret = single_open(file, tracing_clock_show, inode->i_private);
+	ret = single_open(file, tracing_clock_show, iyesde->i_private);
 	if (ret < 0)
 		trace_array_put(tr);
 
@@ -6713,16 +6713,16 @@ static int tracing_time_stamp_mode_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int tracing_time_stamp_mode_open(struct inode *inode, struct file *file)
+static int tracing_time_stamp_mode_open(struct iyesde *iyesde, struct file *file)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	int ret;
 
 	ret = tracing_check_open_get_tr(tr);
 	if (ret)
 		return ret;
 
-	ret = single_open(file, tracing_time_stamp_mode_show, inode->i_private);
+	ret = single_open(file, tracing_time_stamp_mode_show, iyesde->i_private);
 	if (ret < 0)
 		trace_array_put(tr);
 
@@ -6768,9 +6768,9 @@ struct ftrace_buffer_info {
 };
 
 #ifdef CONFIG_TRACER_SNAPSHOT
-static int tracing_snapshot_open(struct inode *inode, struct file *file)
+static int tracing_snapshot_open(struct iyesde *iyesde, struct file *file)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	struct trace_iterator *iter;
 	struct seq_file *m;
 	int ret;
@@ -6780,7 +6780,7 @@ static int tracing_snapshot_open(struct inode *inode, struct file *file)
 		return ret;
 
 	if (file->f_mode & FMODE_READ) {
-		iter = __tracing_open(inode, file, true);
+		iter = __tracing_open(iyesde, file, true);
 		if (IS_ERR(iter))
 			ret = PTR_ERR(iter);
 	} else {
@@ -6798,7 +6798,7 @@ static int tracing_snapshot_open(struct inode *inode, struct file *file)
 
 		iter->tr = tr;
 		iter->trace_buffer = &tr->max_buffer;
-		iter->cpu_file = tracing_get_cpu(inode);
+		iter->cpu_file = tracing_get_cpu(iyesde);
 		m->private = iter;
 		file->private_data = m;
 	}
@@ -6892,12 +6892,12 @@ out:
 	return ret;
 }
 
-static int tracing_snapshot_release(struct inode *inode, struct file *file)
+static int tracing_snapshot_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 	int ret;
 
-	ret = tracing_release(inode, file);
+	ret = tracing_release(iyesde, file);
 
 	if (file->f_mode & FMODE_READ)
 		return ret;
@@ -6910,27 +6910,27 @@ static int tracing_snapshot_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int tracing_buffers_open(struct inode *inode, struct file *filp);
+static int tracing_buffers_open(struct iyesde *iyesde, struct file *filp);
 static ssize_t tracing_buffers_read(struct file *filp, char __user *ubuf,
 				    size_t count, loff_t *ppos);
-static int tracing_buffers_release(struct inode *inode, struct file *file);
+static int tracing_buffers_release(struct iyesde *iyesde, struct file *file);
 static ssize_t tracing_buffers_splice_read(struct file *file, loff_t *ppos,
-		   struct pipe_inode_info *pipe, size_t len, unsigned int flags);
+		   struct pipe_iyesde_info *pipe, size_t len, unsigned int flags);
 
-static int snapshot_raw_open(struct inode *inode, struct file *filp)
+static int snapshot_raw_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct ftrace_buffer_info *info;
 	int ret;
 
 	/* The following checks for tracefs lockdown */
-	ret = tracing_buffers_open(inode, filp);
+	ret = tracing_buffers_open(iyesde, filp);
 	if (ret < 0)
 		return ret;
 
 	info = filp->private_data;
 
 	if (info->iter.trace->use_max_tr) {
-		tracing_buffers_release(inode, filp);
+		tracing_buffers_release(iyesde, filp);
 		return -EBUSY;
 	}
 
@@ -6972,7 +6972,7 @@ static const struct file_operations tracing_pipe_fops = {
 	.read		= tracing_read_pipe,
 	.splice_read	= tracing_splice_read_pipe,
 	.release	= tracing_release_pipe,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static const struct file_operations tracing_entries_fops = {
@@ -7039,7 +7039,7 @@ static const struct file_operations snapshot_raw_fops = {
 	.read		= tracing_buffers_read,
 	.release	= tracing_buffers_release,
 	.splice_read	= tracing_buffers_splice_read,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 #endif /* CONFIG_TRACER_SNAPSHOT */
@@ -7094,7 +7094,7 @@ static struct tracing_log_err *get_tracing_log_err(struct trace_array *tr)
  * within @cmd.
  *
  * Returns the index within @cmd of the first occurence of @str or 0
- * if @str was not found.
+ * if @str was yest found.
  */
 unsigned int err_pos(char *cmd, const char *str)
 {
@@ -7132,7 +7132,7 @@ unsigned int err_pos(char *cmd, const char *str)
  * truncation mode to it i.e. echo > tracing/error_log.
  *
  * NOTE: the @errs array along with the @type param are used to
- * produce a static error string - this string is not copied and saved
+ * produce a static error string - this string is yest copied and saved
  * when the error is logged - only a pointer to it is saved.  See
  * existing callers for examples of how static strings are typically
  * defined for use with tracing_log_err().
@@ -7237,9 +7237,9 @@ static const struct seq_operations tracing_err_log_seq_ops = {
 	.show   = tracing_err_log_seq_show
 };
 
-static int tracing_err_log_open(struct inode *inode, struct file *file)
+static int tracing_err_log_open(struct iyesde *iyesde, struct file *file)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	int ret = 0;
 
 	ret = tracing_check_open_get_tr(tr);
@@ -7269,14 +7269,14 @@ static ssize_t tracing_err_log_write(struct file *file,
 	return count;
 }
 
-static int tracing_err_log_release(struct inode *inode, struct file *file)
+static int tracing_err_log_release(struct iyesde *iyesde, struct file *file)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 
 	trace_array_put(tr);
 
 	if (file->f_mode & FMODE_READ)
-		seq_release(inode, file);
+		seq_release(iyesde, file);
 
 	return 0;
 }
@@ -7289,9 +7289,9 @@ static const struct file_operations tracing_err_log_fops = {
 	.release        = tracing_err_log_release,
 };
 
-static int tracing_buffers_open(struct inode *inode, struct file *filp)
+static int tracing_buffers_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct trace_array *tr = inode->i_private;
+	struct trace_array *tr = iyesde->i_private;
 	struct ftrace_buffer_info *info;
 	int ret;
 
@@ -7308,7 +7308,7 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 	mutex_lock(&trace_types_lock);
 
 	info->iter.tr		= tr;
-	info->iter.cpu_file	= tracing_get_cpu(inode);
+	info->iter.cpu_file	= tracing_get_cpu(iyesde);
 	info->iter.trace	= tr->current_trace;
 	info->iter.trace_buffer = &tr->trace_buffer;
 	info->spare		= NULL;
@@ -7321,7 +7321,7 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 
 	mutex_unlock(&trace_types_lock);
 
-	ret = nonseekable_open(inode, filp);
+	ret = yesnseekable_open(iyesde, filp);
 	if (ret < 0)
 		trace_array_put(tr);
 
@@ -7411,7 +7411,7 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 	return size;
 }
 
-static int tracing_buffers_release(struct inode *inode, struct file *file)
+static int tracing_buffers_release(struct iyesde *iyesde, struct file *file)
 {
 	struct ftrace_buffer_info *info = file->private_data;
 	struct trace_iterator *iter = &info->iter;
@@ -7447,7 +7447,7 @@ static void buffer_ref_release(struct buffer_ref *ref)
 	kfree(ref);
 }
 
-static void buffer_pipe_buf_release(struct pipe_inode_info *pipe,
+static void buffer_pipe_buf_release(struct pipe_iyesde_info *pipe,
 				    struct pipe_buffer *buf)
 {
 	struct buffer_ref *ref = (struct buffer_ref *)buf->private;
@@ -7456,7 +7456,7 @@ static void buffer_pipe_buf_release(struct pipe_inode_info *pipe,
 	buf->private = 0;
 }
 
-static bool buffer_pipe_buf_get(struct pipe_inode_info *pipe,
+static bool buffer_pipe_buf_get(struct pipe_iyesde_info *pipe,
 				struct pipe_buffer *buf)
 {
 	struct buffer_ref *ref = (struct buffer_ref *)buf->private;
@@ -7472,7 +7472,7 @@ static bool buffer_pipe_buf_get(struct pipe_inode_info *pipe,
 static const struct pipe_buf_operations buffer_pipe_buf_ops = {
 	.confirm		= generic_pipe_buf_confirm,
 	.release		= buffer_pipe_buf_release,
-	.steal			= generic_pipe_buf_nosteal,
+	.steal			= generic_pipe_buf_yessteal,
 	.get			= buffer_pipe_buf_get,
 };
 
@@ -7491,7 +7491,7 @@ static void buffer_spd_release(struct splice_pipe_desc *spd, unsigned int i)
 
 static ssize_t
 tracing_buffers_splice_read(struct file *file, loff_t *ppos,
-			    struct pipe_inode_info *pipe, size_t len,
+			    struct pipe_iyesde_info *pipe, size_t len,
 			    unsigned int flags)
 {
 	struct ftrace_buffer_info *info = file->private_data;
@@ -7604,17 +7604,17 @@ static const struct file_operations tracing_buffers_fops = {
 	.poll		= tracing_buffers_poll,
 	.release	= tracing_buffers_release,
 	.splice_read	= tracing_buffers_splice_read,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static ssize_t
 tracing_stats_read(struct file *filp, char __user *ubuf,
 		   size_t count, loff_t *ppos)
 {
-	struct inode *inode = file_inode(filp);
-	struct trace_array *tr = inode->i_private;
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct trace_array *tr = iyesde->i_private;
 	struct trace_buffer *trace_buf = &tr->trace_buffer;
-	int cpu = tracing_get_cpu(inode);
+	int cpu = tracing_get_cpu(iyesde);
 	struct trace_seq *s;
 	unsigned long cnt;
 	unsigned long long t;
@@ -7647,13 +7647,13 @@ tracing_stats_read(struct file *filp, char __user *ubuf,
 
 		t = ns2usecs(ring_buffer_time_stamp(trace_buf->buffer, cpu));
 		usec_rem = do_div(t, USEC_PER_SEC);
-		trace_seq_printf(s, "now ts: %5llu.%06lu\n", t, usec_rem);
+		trace_seq_printf(s, "yesw ts: %5llu.%06lu\n", t, usec_rem);
 	} else {
 		/* counter or tsc mode for trace_clock */
 		trace_seq_printf(s, "oldest event ts: %llu\n",
 				ring_buffer_oldest_event_ts(trace_buf->buffer, cpu));
 
-		trace_seq_printf(s, "now ts: %llu\n",
+		trace_seq_printf(s, "yesw ts: %llu\n",
 				ring_buffer_time_stamp(trace_buf->buffer, cpu));
 	}
 
@@ -7895,7 +7895,7 @@ static struct dentry *tracing_dentry_percpu(struct trace_array *tr, int cpu)
 	tr->percpu_dir = tracefs_create_dir("per_cpu", d_tracer);
 
 	WARN_ONCE(!tr->percpu_dir,
-		  "Could not create tracefs directory 'per_cpu/%d'\n", cpu);
+		  "Could yest create tracefs directory 'per_cpu/%d'\n", cpu);
 
 	return tr->percpu_dir;
 }
@@ -7907,7 +7907,7 @@ trace_create_cpu_file(const char *name, umode_t mode, struct dentry *parent,
 	struct dentry *ret = trace_create_file(name, mode, parent, data, fops);
 
 	if (ret) /* See tracing_get_cpu() */
-		d_inode(ret)->i_cdev = (void *)(cpu + 1);
+		d_iyesde(ret)->i_cdev = (void *)(cpu + 1);
 	return ret;
 }
 
@@ -7916,7 +7916,7 @@ tracing_init_tracefs_percpu(struct trace_array *tr, long cpu)
 {
 	struct dentry *d_percpu = tracing_dentry_percpu(tr, cpu);
 	struct dentry *d_cpu;
-	char cpu_dir[30]; /* 30 characters should be more than enough */
+	char cpu_dir[30]; /* 30 characters should be more than eyesugh */
 
 	if (!d_percpu)
 		return;
@@ -7924,7 +7924,7 @@ tracing_init_tracefs_percpu(struct trace_array *tr, long cpu)
 	snprintf(cpu_dir, 30, "cpu%ld", cpu);
 	d_cpu = tracefs_create_dir(cpu_dir, d_percpu);
 	if (!d_cpu) {
-		pr_warn("Could not create tracefs '%s' entry\n", cpu_dir);
+		pr_warn("Could yest create tracefs '%s' entry\n", cpu_dir);
 		return;
 	}
 
@@ -8113,7 +8113,7 @@ struct dentry *trace_create_file(const char *name,
 
 	ret = tracefs_create_file(name, mode, parent, data, fops);
 	if (!ret)
-		pr_warn("Could not create tracefs '%s' entry\n", name);
+		pr_warn("Could yest create tracefs '%s' entry\n", name);
 
 	return ret;
 }
@@ -8132,7 +8132,7 @@ static struct dentry *trace_options_init_dentry(struct trace_array *tr)
 
 	tr->options = tracefs_create_dir("options", d_tracer);
 	if (!tr->options) {
-		pr_warn("Could not create tracefs directory 'options'\n");
+		pr_warn("Could yest create tracefs directory 'options'\n");
 		return NULL;
 	}
 
@@ -8186,7 +8186,7 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 		return;
 
 	for (i = 0; i < tr->nr_topts; i++) {
-		/* Make sure there's no duplicate flags. */
+		/* Make sure there's yes duplicate flags. */
 		if (WARN_ON_ONCE(tr->topts[i].tracer->flags == tracer->flags))
 			return;
 	}
@@ -8283,7 +8283,7 @@ rb_simple_write(struct file *filp, const char __user *ubuf,
 	if (buffer) {
 		mutex_lock(&trace_types_lock);
 		if (!!val == tracer_tracing_is_on(tr)) {
-			val = 0; /* do nothing */
+			val = 0; /* do yesthing */
 		} else if (val) {
 			tracer_tracing_on(tr);
 			if (tr->current_trace->start)
@@ -8488,7 +8488,7 @@ static struct trace_array *trace_array_create(const char *name)
 
 	tr->max_lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
-	tr->current_trace = &nop_trace;
+	tr->current_trace = &yesp_trace;
 
 	INIT_LIST_HEAD(&tr->systems);
 	INIT_LIST_HEAD(&tr->events);
@@ -8559,11 +8559,11 @@ out_unlock:
  * @name: The name of the trace array to be looked up/created.
  *
  * Returns pointer to trace array with given name.
- * NULL, if it cannot be created.
+ * NULL, if it canyest be created.
  *
  * NOTE: This function increments the reference counter associated with the
- * trace array returned. This makes sure it cannot be freed while in use.
- * Use trace_array_put() once the trace array is no longer needed.
+ * trace array returned. This makes sure it canyest be freed while in use.
+ * Use trace_array_put() once the trace array is yes longer needed.
  *
  */
 struct trace_array *trace_array_get_by_name(const char *name)
@@ -8608,7 +8608,7 @@ static int __remove_instance(struct trace_array *tr)
 			set_tracer_flag(tr, 1 << i, 0);
 	}
 
-	tracing_set_nop(tr);
+	tracing_set_yesp(tr);
 	clear_ftrace_function_probes(tr);
 	event_trace_del_tracer(tr);
 	ftrace_clear_pids(tr);
@@ -8754,7 +8754,7 @@ init_tracer_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 #endif
 
 	if (ftrace_create_function_files(tr, d_tracer))
-		WARN(1, "Could not allocate function filter files");
+		WARN(1, "Could yest allocate function filter files");
 
 #ifdef CONFIG_TRACER_SNAPSHOT
 	trace_create_file("snapshot", 0644, d_tracer,
@@ -8847,8 +8847,8 @@ static void trace_module_add_evals(struct module *mod)
 		return;
 
 	/*
-	 * Modules with bad taint do not have events created, do
-	 * not bother with enums either.
+	 * Modules with bad taint do yest have events created, do
+	 * yest bother with enums either.
 	 */
 	if (trace_module_has_bad_taint(mod))
 		return;
@@ -8888,7 +8888,7 @@ static void trace_module_remove_evals(struct module *mod)
 static inline void trace_module_remove_evals(struct module *mod) { }
 #endif /* CONFIG_TRACE_EVAL_MAP_FILE */
 
-static int trace_module_notify(struct notifier_block *self,
+static int trace_module_yestify(struct yestifier_block *self,
 			       unsigned long val, void *data)
 {
 	struct module *mod = data;
@@ -8905,8 +8905,8 @@ static int trace_module_notify(struct notifier_block *self,
 	return 0;
 }
 
-static struct notifier_block trace_module_nb = {
-	.notifier_call = trace_module_notify,
+static struct yestifier_block trace_module_nb = {
+	.yestifier_call = trace_module_yestify,
 	.priority = 0,
 };
 #endif /* CONFIG_MODULES */
@@ -8946,7 +8946,7 @@ static __init int tracer_init_tracefs(void)
 	trace_create_eval_file(d_tracer);
 
 #ifdef CONFIG_MODULES
-	register_module_notifier(&trace_module_nb);
+	register_module_yestifier(&trace_module_nb);
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -8961,7 +8961,7 @@ static __init int tracer_init_tracefs(void)
 	return 0;
 }
 
-static int trace_panic_handler(struct notifier_block *this,
+static int trace_panic_handler(struct yestifier_block *this,
 			       unsigned long event, void *unused)
 {
 	if (ftrace_dump_on_oops)
@@ -8969,13 +8969,13 @@ static int trace_panic_handler(struct notifier_block *this,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block trace_panic_notifier = {
-	.notifier_call  = trace_panic_handler,
+static struct yestifier_block trace_panic_yestifier = {
+	.yestifier_call  = trace_panic_handler,
 	.next           = NULL,
 	.priority       = 150   /* priority: INT_MAX >= x >= 0 */
 };
 
-static int trace_die_handler(struct notifier_block *self,
+static int trace_die_handler(struct yestifier_block *self,
 			     unsigned long val,
 			     void *data)
 {
@@ -8990,8 +8990,8 @@ static int trace_die_handler(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block trace_die_notifier = {
-	.notifier_call = trace_die_handler,
+static struct yestifier_block trace_die_yestifier = {
+	.yestifier_call = trace_die_handler,
 	.priority = 200
 };
 
@@ -9016,14 +9016,14 @@ trace_printk_seq(struct trace_seq *s)
 		s->seq.len = TRACE_MAX_PRINT;
 
 	/*
-	 * More paranoid code. Although the buffer size is set to
+	 * More parayesid code. Although the buffer size is set to
 	 * PAGE_SIZE, and TRACE_MAX_PRINT is 1000, this is just
 	 * an extra layer of protection.
 	 */
 	if (WARN_ON_ONCE(s->seq.len >= s->seq.size))
 		s->seq.len = s->seq.size - 1;
 
-	/* should be zero ended, but we are paranoid. */
+	/* should be zero ended, but we are parayesid. */
 	s->buffer[s->seq.len] = 0;
 
 	printk(KERN_TRACE "%s", s->buffer);
@@ -9041,11 +9041,11 @@ void trace_init_global_iter(struct trace_iterator *iter)
 	if (iter->trace && iter->trace->open)
 		iter->trace->open(iter);
 
-	/* Annotate start of buffers if we had overruns */
+	/* Anyestate start of buffers if we had overruns */
 	if (ring_buffer_overruns(iter->trace_buffer->buffer))
 		iter->iter_flags |= TRACE_FILE_ANNOTATE;
 
-	/* Output in nanoseconds only if we are using a clock in nanoseconds. */
+	/* Output in nayesseconds only if we are using a clock in nayesseconds. */
 	if (trace_clocks[iter->tr->clock_id].in_ns)
 		iter->iter_flags |= TRACE_FILE_TIME_IN_NS;
 }
@@ -9116,7 +9116,7 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 	/*
 	 * We need to stop all tracing on all CPUS to read the
 	 * the next buffer. This is a bit expensive, but is
-	 * not done often. We fill all what we can read,
+	 * yest done often. We fill all what we can read,
 	 * and then release the locks again.
 	 */
 
@@ -9317,7 +9317,7 @@ __init static int tracer_alloc_buffers(void)
 	if (trace_boot_clock) {
 		ret = tracing_set_clock(&global_trace, trace_boot_clock);
 		if (ret < 0)
-			pr_warn("Trace clock %s not defined, going back to default\n",
+			pr_warn("Trace clock %s yest defined, going back to default\n",
 				trace_boot_clock);
 	}
 
@@ -9326,7 +9326,7 @@ __init static int tracer_alloc_buffers(void)
 	 * needs to be set before we register anything. This is
 	 * just a bootstrap of current_trace anyway.
 	 */
-	global_trace.current_trace = &nop_trace;
+	global_trace.current_trace = &yesp_trace;
 
 	global_trace.max_lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
@@ -9334,7 +9334,7 @@ __init static int tracer_alloc_buffers(void)
 
 	init_trace_flags_index(&global_trace);
 
-	register_tracer(&nop_trace);
+	register_tracer(&yesp_trace);
 
 	/* Function tracing may start here (via kernel command line) */
 	init_function_trace();
@@ -9342,10 +9342,10 @@ __init static int tracer_alloc_buffers(void)
 	/* All seems OK, enable tracing */
 	tracing_disabled = 0;
 
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &trace_panic_notifier);
+	atomic_yestifier_chain_register(&panic_yestifier_list,
+				       &trace_panic_yestifier);
 
-	register_die_notifier(&trace_die_notifier);
+	register_die_yestifier(&trace_die_yestifier);
 
 	global_trace.flags = TRACE_ARRAY_FL_GLOBAL;
 
@@ -9397,7 +9397,7 @@ __init static int clear_boot_tracer(void)
 {
 	/*
 	 * The default tracer at boot buffer is an init section.
-	 * This function is called in lateinit. If we did not
+	 * This function is called in lateinit. If we did yest
 	 * find the boot tracer, then clear it out, to prevent
 	 * later registration from accessing the buffer that is
 	 * about to be freed.
@@ -9405,7 +9405,7 @@ __init static int clear_boot_tracer(void)
 	if (!default_bootup_tracer)
 		return 0;
 
-	printk(KERN_INFO "ftrace bootup tracer '%s' not registered.\n",
+	printk(KERN_INFO "ftrace bootup tracer '%s' yest registered.\n",
 	       default_bootup_tracer);
 	default_bootup_tracer = NULL;
 

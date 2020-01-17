@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. include:: <isonum.txt>
 .. _v4l2spec:
@@ -86,7 +86,7 @@ Authors, in alphabetical order:
 
 - Ribalda, Ricardo
 
-  - Introduce HSV formats and other minor changes.
+  - Introduce HSV formats and other miyesr changes.
 
 - Rubli, Martin
 
@@ -130,8 +130,8 @@ Software Defined Radio (SDR) Interface.
 
 :revision: 4.1 / 2015-02-13 (*mcc*)
 
-Fix documentation for media controller device nodes and add support for
-DVB device nodes. Add support for Tuner sub-device.
+Fix documentation for media controller device yesdes and add support for
+DVB device yesdes. Add support for Tuner sub-device.
 
 
 :revision: 3.19 / 2014-12-05 (*hv*)
@@ -221,7 +221,7 @@ Added V4L2_CTRL_FLAG_VOLATILE.
 
 :revision: 3.1 / 2011-06-27 (*mcc, po, hv*)
 
-Documented that VIDIOC_QUERYCAP now returns a per-subsystem version
+Documented that VIDIOC_QUERYCAP yesw returns a per-subsystem version
 instead of a per-driver one. Standardize an error code for invalid
 ioctl. Added V4L2_CTRL_TYPE_BITMASK.
 
@@ -330,14 +330,14 @@ Corrected V4L2_PIX_FMT_HM12 description.
 
 :revision: 0.16 / 2006-10-08 (*mhs*)
 
-VIDIOC_ENUM_FRAMESIZES and VIDIOC_ENUM_FRAMEINTERVALS are now part
+VIDIOC_ENUM_FRAMESIZES and VIDIOC_ENUM_FRAMEINTERVALS are yesw part
 of the API.
 
 
 :revision: 0.15 / 2006-09-23 (*mhs*)
 
 Cleaned up the bibliography, added BT.653 and BT.1119.
-capture.c/start_capturing() for user pointer I/O did not initialize the
+capture.c/start_capturing() for user pointer I/O did yest initialize the
 buffer index. Documented the V4L MPEG and MJPEG VID_TYPEs and
 V4L2_PIX_FMT_SBGGR8. Updated the list of reserved pixel formats. See
 the history chapter for API changes.
@@ -409,12 +409,12 @@ latest API changes. Closed gaps in the history chapter.
 
 :revision: 0.3 / 2003-02-05 (*mhs*)
 
-Another draft, more corrections.
+Ayesther draft, more corrections.
 
 
 :revision: 0.2 / 2003-01-15 (*mhs*)
 
-Second draft, with corrections pointed out by Gerd Knorr.
+Second draft, with corrections pointed out by Gerd Kyesrr.
 
 
 :revision: 0.1 / 2002-12-01 (*mhs*)

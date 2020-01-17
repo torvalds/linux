@@ -79,7 +79,7 @@ static void rvu_setup_hw_capabilities(struct rvu *rvu)
 }
 
 /* Poll a RVU block's register 'offset', for a 'zero'
- * or 'nonzero' at bits specified by 'mask'
+ * or 'yesnzero' at bits specified by 'mask'
  */
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero)
 {
@@ -206,7 +206,7 @@ int rvu_get_lf(struct rvu *rvu, struct rvu_block *block, u16 pcifunc, u16 slot)
  * Some silicon variants of OcteonTX2 supports
  * multiple blocks of same type.
  *
- * @pcifunc has to be zero when no LF is yet attached.
+ * @pcifunc has to be zero when yes LF is yet attached.
  */
 int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc)
 {
@@ -222,7 +222,7 @@ int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc)
 		blkaddr = BLKADDR_NPA;
 		goto exit;
 	case BLKTYPE_NIX:
-		/* For now assume NIX0 */
+		/* For yesw assume NIX0 */
 		if (!pcifunc) {
 			blkaddr = BLKADDR_NIX0;
 			goto exit;
@@ -238,7 +238,7 @@ int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc)
 		blkaddr = BLKADDR_TIM;
 		goto exit;
 	case BLKTYPE_CPT:
-		/* For now assume CPT0 */
+		/* For yesw assume CPT0 */
 		if (!pcifunc) {
 			blkaddr = BLKADDR_CPT0;
 			goto exit;
@@ -522,7 +522,7 @@ static int rvu_setup_msix_resources(struct rvu *rvu)
 
 	for (pf = 0; pf < hw->total_pfs; pf++) {
 		cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf));
-		/* If PF is not enabled, nothing to do */
+		/* If PF is yest enabled, yesthing to do */
 		if (!((cfg >> 20) & 0x01))
 			continue;
 
@@ -553,7 +553,7 @@ static int rvu_setup_msix_resources(struct rvu *rvu)
 
 		/* Set MSIX offset for PF's 'RVU_PF_INT_VEC' vectors.
 		 * These are allocated on driver init and never freed,
-		 * so no need to set 'msix_lfmap' for these.
+		 * so yes need to set 'msix_lfmap' for these.
 		 */
 		cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_INT_CFG(pf));
 		nvecs = (cfg >> 12) & 0xFF;
@@ -584,7 +584,7 @@ setup_vfmsix:
 
 			/* Set MSIX offset for HWVF's 'RVU_VF_INT_VEC' vectors.
 			 * These are allocated on driver init and never freed,
-			 * so no need to set 'msix_lfmap' for these.
+			 * so yes need to set 'msix_lfmap' for these.
 			 */
 			cfg = rvu_read64(rvu, BLKADDR_RVUM,
 					 RVU_PRIV_HWVFX_INT_CFG(hwvf + vf));
@@ -1218,7 +1218,7 @@ int rvu_mbox_handler_attach_resources(struct rvu *rvu,
 		rvu_attach_block(rvu, pcifunc, BLKTYPE_NIX, 1);
 
 	if (attach->sso) {
-		/* RVU func doesn't know which exact LF or slot is attached
+		/* RVU func doesn't kyesw which exact LF or slot is attached
 		 * to it, it always sees as slot 0,1,2. So for a 'modify'
 		 * request, simply detach all existing attached LFs/slots
 		 * and attach a fresh.
@@ -1400,7 +1400,7 @@ static int rvu_process_mbox_msg(struct otx2_mbox *mbox, int devid,
 {
 	struct rvu *rvu = pci_get_drvdata(mbox->pdev);
 
-	/* Check if valid, if not reply with a invalid msg */
+	/* Check if valid, if yest reply with a invalid msg */
 	if (req->sig != OTX2_MBOX_REQ_SIG)
 		goto bad_message;
 
@@ -1414,7 +1414,7 @@ static int rvu_process_mbox_msg(struct otx2_mbox *mbox, int devid,
 			mbox, devid,					\
 			sizeof(struct _rsp_type));			\
 		/* some handlers should complete even if reply */	\
-		/* could not be allocated */				\
+		/* could yest be allocated */				\
 		if (!rsp &&						\
 		    _id != MBOX_MSG_DETACH_RESOURCES &&			\
 		    _id != MBOX_MSG_NIX_TXSCH_FREE &&			\
@@ -1568,7 +1568,7 @@ static void __rvu_mbox_up_handler(struct rvu_work *mwork, int type)
 
 		if (msg->id >= MBOX_MSG_MAX) {
 			dev_err(rvu->dev,
-				"Mbox msg with unknown ID 0x%x\n", msg->id);
+				"Mbox msg with unkyeswn ID 0x%x\n", msg->id);
 			goto end;
 		}
 
@@ -2044,9 +2044,9 @@ static int rvu_afvf_msix_vectors_num_ok(struct rvu *rvu)
 	pfvf = &rvu->pf[0];
 	offset = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_INT_CFG(0)) & 0x3ff;
 
-	/* Make sure there are enough MSIX vectors configured so that
+	/* Make sure there are eyesugh MSIX vectors configured so that
 	 * VF interrupts can be handled. Offset equal to zero means
-	 * that PF vectors are not configured and overlapping AF vectors.
+	 * that PF vectors are yest configured and overlapping AF vectors.
 	 */
 	return (pfvf->msix.max >= RVU_AF_INT_VEC_CNT + RVU_PF_INT_VEC_CNT) &&
 	       offset;
@@ -2350,7 +2350,7 @@ static int rvu_enable_sriov(struct rvu *rvu)
 
 	if (!rvu_afvf_msix_vectors_num_ok(rvu)) {
 		dev_warn(&pdev->dev,
-			 "Skipping SRIOV enablement since not enough IRQs are available\n");
+			 "Skipping SRIOV enablement since yest eyesugh IRQs are available\n");
 		return 0;
 	}
 
@@ -2369,7 +2369,7 @@ static int rvu_enable_sriov(struct rvu *rvu)
 
 	/* Save VFs number for reference in VF interrupts handlers.
 	 * Since interrupts might start arriving during SRIOV enablement
-	 * ordinary API cannot be used to get number of enabled VFs.
+	 * ordinary API canyest be used to get number of enabled VFs.
 	 */
 	rvu->vfs = vfs;
 

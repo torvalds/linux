@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * The contents of this file are private to DMA engine drivers, and is not
+ * The contents of this file are private to DMA engine drivers, and is yest
  * part of the API to be used by DMA engine users.
  */
 #ifndef DMAENGINE_H
@@ -23,7 +23,7 @@ static inline void dma_cookie_init(struct dma_chan *chan)
  * dma_cookie_assign - assign a DMA engine cookie to the descriptor
  * @tx: descriptor needing cookie
  *
- * Assign a unique non-zero per-channel cookie to the descriptor.
+ * Assign a unique yesn-zero per-channel cookie to the descriptor.
  * Note: caller is expected to hold a lock to prevent concurrency.
  */
 static inline dma_cookie_t dma_cookie_assign(struct dma_async_tx_descriptor *tx)
@@ -63,7 +63,7 @@ static inline void dma_cookie_complete(struct dma_async_tx_descriptor *tx)
  * @state: dma_tx_state structure to return last/used cookies
  *
  * Report the status of the cookie, filling in the state structure if
- * non-NULL.  No locking is required.
+ * yesn-NULL.  No locking is required.
  */
 static inline enum dma_status dma_cookie_status(struct dma_chan *chan,
 	dma_cookie_t cookie, struct dma_tx_state *state)
@@ -145,7 +145,7 @@ dmaengine_desc_callback_invoke(struct dmaengine_desc_callback *cb,
  * @result: transaction result
  *
  * Call dmaengine_desc_get_callback() and dmaengine_desc_callback_invoke()
- * in a single function since no work is necessary in between for the driver.
+ * in a single function since yes work is necessary in between for the driver.
  * Locking is dependent on the driver.
  */
 static inline void
@@ -162,7 +162,7 @@ dmaengine_desc_get_callback_invoke(struct dma_async_tx_descriptor *tx,
  * dmaengine_desc_callback_valid - verify the callback is valid in cb
  * @cb: callback info struct
  *
- * Return a bool that verifies whether callback in cb is valid or not.
+ * Return a bool that verifies whether callback in cb is valid or yest.
  * No locking is required.
  */
 static inline bool

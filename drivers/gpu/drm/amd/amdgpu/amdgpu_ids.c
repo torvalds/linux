@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -54,7 +54,7 @@ struct amdgpu_pasid_cb {
  * available if possible.
  *
  * Returns a positive integer on success. Returns %-EINVAL if bits==0.
- * Returns %-ENOSPC if no PASID was available. Returns %-ENOMEM on
+ * Returns %-ENOSPC if yes PASID was available. Returns %-ENOMEM on
  * memory allocation failure.
  */
 int amdgpu_pasid_alloc(unsigned int bits)
@@ -153,7 +153,7 @@ void amdgpu_pasid_free_delayed(struct dma_resv *resv,
 	return;
 
 fallback:
-	/* Not enough memory for the delayed delete, as last resort
+	/* Not eyesugh memory for the delayed delete, as last resort
 	 * block for all the fences to complete.
 	 */
 	dma_resv_wait_timeout_rcu(resv, true, false,
@@ -190,7 +190,7 @@ bool amdgpu_vmid_had_gpu_reset(struct amdgpu_device *adev,
  * @sync: sync object where we add dependencies
  * @idle: resulting idle VMID
  *
- * Try to find an idle VMID, if none is idle add a fence to wait to the sync
+ * Try to find an idle VMID, if yesne is idle add a fence to wait to the sync
  * object. Returns -ENOMEM when we are out of memory.
  */
 static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
@@ -224,7 +224,7 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
 	/* If we can't find a idle VMID to use, wait till one becomes available */
 	if (&(*idle)->list == &id_mgr->ids_lru) {
 		u64 fence_context = adev->vm_manager.fence_context + ring->idx;
-		unsigned seqno = ++adev->vm_manager.seqno[ring->idx];
+		unsigned seqyes = ++adev->vm_manager.seqyes[ring->idx];
 		struct dma_fence_array *array;
 		unsigned j;
 
@@ -233,7 +233,7 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
 			dma_fence_get(fences[j]);
 
 		array = dma_fence_array_create(i, fences, fence_context,
-					       seqno, true);
+					       seqyes, true);
 		if (!array) {
 			for (j = 0; j < i; ++j)
 				dma_fence_put(fences[j]);
@@ -289,7 +289,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 	     !dma_fence_is_signaled((*id)->last_flush))) {
 		struct dma_fence *tmp;
 
-		/* to prevent one context starved by another context */
+		/* to prevent one context starved by ayesther context */
 		(*id)->pd_gpu_addr = 0;
 		tmp = amdgpu_sync_peek_fence(&(*id)->active, ring);
 		if (tmp) {
@@ -431,7 +431,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (!id) {
 			struct dma_fence *updates = sync->last_vm_update;
 
-			/* Still no ID to use? Then use the idle one found earlier */
+			/* Still yes ID to use? Then use the idle one found earlier */
 			id = idle;
 
 			/* Remember this submission as user of the VMID */

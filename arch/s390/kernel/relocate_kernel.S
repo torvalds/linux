@@ -31,7 +31,7 @@ ENTRY(relocate_kernel)
 	.base:
 		lghi	%r7,PAGE_SIZE	# load PAGE_SIZE in r7
 		lghi	%r9,PAGE_SIZE	# load PAGE_SIZE in r9
-		lg	%r5,0(%r2)	# read another word for indirection page
+		lg	%r5,0(%r2)	# read ayesther word for indirection page
 		aghi	%r2,8		# increment pointer
 		tml	%r5,0x1		# is it a destination page?
 		je	.indir_check	# NO, goto "indir_check"
@@ -50,7 +50,7 @@ ENTRY(relocate_kernel)
 		j	.done		# ok, lets finish it here...
 	.source_test:
 		tml	%r5,0x8		# it should be a source indicator...
-		je	.base		# NO, ignore it...
+		je	.base		# NO, igyesre it...
 		lgr	%r8,%r5		# r8 = r5
 		nill	%r8,0xf000	# masking
 	0:	mvcle	%r6,%r8,0x0	# copy PAGE_SIZE bytes from r8 to r6 - pad with 0

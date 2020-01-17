@@ -48,15 +48,15 @@ struct lt_init {
 struct lt_sendlap {
 	unsigned char command;
 	unsigned char mailbox;
-	unsigned char dnode;
+	unsigned char dyesde;
 	unsigned char laptype;
 	unsigned short length;	/* host order */
 };
 
 struct lt_rcvlap {
 	unsigned char command;
-	unsigned char dnode;
-	unsigned char snode;
+	unsigned char dyesde;
+	unsigned char syesde;
 	unsigned char laptype;
 	unsigned short length;	/* host order */
 };

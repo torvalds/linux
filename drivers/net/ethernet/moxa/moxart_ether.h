@@ -5,7 +5,7 @@
  * Jonas Jensen <jonas.jensen@gmail.com>
  *
  * Based on code from
- * Moxa Technology Co., Ltd. <www.moxa.com>
+ * Moxa Techyeslogy Co., Ltd. <www.moxa.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
@@ -173,7 +173,7 @@
 #define RX_MULTIPKT		BIT(16)	/* receive all multicast packets */
 #define FULLDUP			BIT(15)	/* full duplex */
 #define CRC_APD			BIT(14)	/* append CRC to transmitted packet */
-#define RCV_ALL			BIT(12)	/* ignore incoming packet destination */
+#define RCV_ALL			BIT(12)	/* igyesre incoming packet destination */
 #define RX_FTL			BIT(11)	/* accept packets larger than 1518 B */
 #define RX_RUNT			BIT(10)	/* accept packets smaller than 64 B */
 #define HT_MULTI_EN		BIT(9)	/* accept on hash and mcast pass */

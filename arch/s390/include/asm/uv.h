@@ -6,13 +6,13 @@
  *
  * Author(s):
  *	Vasily Gorbik <gor@linux.ibm.com>
- *	Janosch Frank <frankja@linux.ibm.com>
+ *	Jayessch Frank <frankja@linux.ibm.com>
  */
 #ifndef _ASM_S390_UV_H
 #define _ASM_S390_UV_H
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/bug.h>
 #include <asm/page.h>
 
@@ -89,7 +89,7 @@ static inline int share(unsigned long addr, u16 cmd)
 		return -EOPNOTSUPP;
 	/*
 	 * Sharing is page wise, if we encounter addresses that are
-	 * not page aligned, we assume something went wrong. If
+	 * yest page aligned, we assume something went wrong. If
 	 * malloced structs are passed to this function, we could leak
 	 * data to the hypervisor.
 	 */

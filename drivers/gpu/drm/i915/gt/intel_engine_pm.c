@@ -87,8 +87,8 @@ __queue_and_release_pm(struct i915_request *rq,
 	 * submission, as we don't want to underflow either the
 	 * engine->wakeref.counter or our timeline->active_count.
 	 *
-	 * Equally, we cannot allow a new submission to start until
-	 * after we finish queueing, nor could we allow that submitter
+	 * Equally, we canyest allow a new submission to start until
+	 * after we finish queueing, yesr could we allow that submitter
 	 * to retire us before we are ready!
 	 */
 	spin_lock(&timelines->lock);
@@ -122,7 +122,7 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 		return true;
 
 	/*
-	 * Note, we do this without taking the timeline->mutex. We cannot
+	 * Note, we do this without taking the timeline->mutex. We canyest
 	 * as we may be called while retiring the kernel context and so
 	 * already underneath the timeline->mutex. Instead we rely on the
 	 * exclusive property of the __engine_park that prevents anyone
@@ -176,12 +176,12 @@ out_unlock:
 
 static void call_idle_barriers(struct intel_engine_cs *engine)
 {
-	struct llist_node *node, *next;
+	struct llist_yesde *yesde, *next;
 
-	llist_for_each_safe(node, next, llist_del_all(&engine->barrier_tasks)) {
+	llist_for_each_safe(yesde, next, llist_del_all(&engine->barrier_tasks)) {
 		struct dma_fence_cb *cb =
-			container_of((struct list_head *)node,
-				     typeof(*cb), node);
+			container_of((struct list_head *)yesde,
+				     typeof(*cb), yesde);
 
 		cb->func(NULL, cb);
 	}
@@ -196,8 +196,8 @@ static int __engine_park(struct intel_wakeref *wf)
 
 	/*
 	 * If one and only one request is completed between pm events,
-	 * we know that we are inside the kernel context and it is
-	 * safe to power down. (We are paranoid in case that runtime
+	 * we kyesw that we are inside the kernel context and it is
+	 * safe to power down. (We are parayesid in case that runtime
 	 * suspend causes corruption to the active context image, and
 	 * want to avoid that impacting userspace.)
 	 */
@@ -223,7 +223,7 @@ static int __engine_park(struct intel_wakeref *wf)
 		engine->pinned_default_state = NULL;
 	}
 
-	engine->execlists.no_priolist = false;
+	engine->execlists.yes_priolist = false;
 
 	/* While gt calls i915_vma_parked(), we have to break the lock cycle */
 	intel_gt_pm_put_async(engine->gt);

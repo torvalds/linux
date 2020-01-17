@@ -280,7 +280,7 @@ void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 	/*
 	 * No actual flushing is required for the GTT write domain for reads
 	 * from the GTT domain. Writes to it "immediately" go to main memory
-	 * as far as we know, so there's no chipset flush. It also doesn't
+	 * as far as we kyesw, so there's yes chipset flush. It also doesn't
 	 * land in the GPU render cache.
 	 *
 	 * However, we do have to enforce the order so that all writes through
@@ -292,7 +292,7 @@ void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 	 * timing. This issue has only been observed when switching quickly
 	 * between GTT writes and CPU reads from inside the kernel on recent hw,
 	 * and it appears to only affect discrete GTT blocks (i.e. on LLC
-	 * system agents we cannot reproduce this behaviour, until Cannonlake
+	 * system agents we canyest reproduce this behaviour, until Canyesnlake
 	 * that was!).
 	 */
 

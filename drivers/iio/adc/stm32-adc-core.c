@@ -176,7 +176,7 @@ struct stm32h7_adc_ck_spec {
 };
 
 static const struct stm32h7_adc_ck_spec stm32h7_adc_ckmodes_spec[] = {
-	/* 00: CK_ADC[1..3]: Asynchronous clock modes */
+	/* 00: CK_ADC[1..3]: Asynchroyesus clock modes */
 	{ 0, 0, 1 },
 	{ 0, 1, 2 },
 	{ 0, 2, 4 },
@@ -189,7 +189,7 @@ static const struct stm32h7_adc_ck_spec stm32h7_adc_ckmodes_spec[] = {
 	{ 0, 9, 64 },
 	{ 0, 10, 128 },
 	{ 0, 11, 256 },
-	/* HCLK used: Synchronous clock modes (1, 2 or 4 prescaler) */
+	/* HCLK used: Synchroyesus clock modes (1, 2 or 4 prescaler) */
 	{ 1, 0, 1 },
 	{ 2, 0, 2 },
 	{ 3, 0, 4 },
@@ -215,7 +215,7 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 	 */
 	if (priv->aclk) {
 		/*
-		 * Asynchronous clock modes (e.g. ckmode == 0)
+		 * Asynchroyesus clock modes (e.g. ckmode == 0)
 		 * From spec: PLL output musn't exceed max rate
 		 */
 		rate = clk_get_rate(priv->aclk);
@@ -237,7 +237,7 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 		}
 	}
 
-	/* Synchronous clock modes (e.g. ckmode is 1, 2 or 3) */
+	/* Synchroyesus clock modes (e.g. ckmode is 1, 2 or 3) */
 	rate = clk_get_rate(priv->bclk);
 	if (!rate) {
 		dev_err(&pdev->dev, "Invalid bus clock rate: 0\n");
@@ -372,7 +372,7 @@ static const struct irq_domain_ops stm32_adc_domain_ops = {
 static int stm32_adc_irq_probe(struct platform_device *pdev,
 			       struct stm32_adc_priv *priv)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	unsigned int i;
 
 	for (i = 0; i < STM32_ADC_MAX_ADCS; i++) {
@@ -482,7 +482,7 @@ static int stm32_adc_core_switches_supply_en(struct stm32_adc_priv *priv,
 		}
 	}
 
-	/* Fallback using vdda (default), nothing to do */
+	/* Fallback using vdda (default), yesthing to do */
 	dev_dbg(dev, "analog switches supplied by vdda (%d uV)\n",
 		priv->vdda_uv);
 
@@ -584,7 +584,7 @@ static void stm32_adc_core_hw_stop(struct device *dev)
 static int stm32_adc_core_switches_probe(struct device *dev,
 					 struct stm32_adc_priv *priv)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int ret;
 
 	/* Analog switches supply can be controlled by syscfg (optional) */
@@ -655,12 +655,12 @@ static int stm32_adc_probe(struct platform_device *pdev)
 {
 	struct stm32_adc_priv *priv;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct resource *res;
 	u32 max_rate;
 	int ret;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -716,7 +716,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_set_autosuspend_delay(dev, STM32_ADC_CORE_SLEEP_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
@@ -734,7 +734,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	priv->common.vref_mv = ret / 1000;
 	dev_dbg(&pdev->dev, "vref+=%dmV\n", priv->common.vref_mv);
 
-	ret = of_property_read_u32(pdev->dev.of_node, "st,max-clk-rate-hz",
+	ret = of_property_read_u32(pdev->dev.of_yesde, "st,max-clk-rate-hz",
 				   &max_rate);
 	if (!ret)
 		priv->max_clk_rate = min(max_rate, priv->cfg->max_clk_rate_hz);
@@ -767,7 +767,7 @@ err_hw_stop:
 err_pm_stop:
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 
 	return ret;
 }
@@ -783,7 +783,7 @@ static int stm32_adc_remove(struct platform_device *pdev)
 	stm32_adc_core_hw_stop(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 
 	return 0;
 }

@@ -54,8 +54,8 @@ typedef struct _COEX_DM_8723B_2ANT {
 	u8 curBtDecPwrLvl;
 	u8 preFwDacSwingLvl;
 	u8 curFwDacSwingLvl;
-	bool bCurIgnoreWlanAct;
-	bool bPreIgnoreWlanAct;
+	bool bCurIgyesreWlanAct;
+	bool bPreIgyesreWlanAct;
 	u8 prePsTdma;
 	u8 curPsTdma;
 	u8 psTdmaPara[5];
@@ -127,7 +127,7 @@ typedef struct _COEX_STA_8723B_2ANT {
 } COEX_STA_8723B_2ANT, *PCOEX_STA_8723B_2ANT;
 
 /*  */
-/*  The following is interface which will notify coex module. */
+/*  The following is interface which will yestify coex module. */
 /*  */
 void EXhalbtc8723b2ant_PowerOnSetting(PBTC_COEXIST pBtCoexist);
 void EXhalbtc8723b2ant_InitHwConfig(PBTC_COEXIST pBtCoexist, bool bWifiOnly);

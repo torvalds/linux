@@ -24,10 +24,10 @@ static void __init imx25_dt_init(void)
 
 static void __init mx25_init_irq(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *avic_base;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,avic");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,avic");
 	avic_base = of_iomap(np, 0);
 	BUG_ON(!avic_base);
 	mxc_init_irq(avic_base);

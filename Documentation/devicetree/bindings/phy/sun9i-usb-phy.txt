@@ -7,14 +7,14 @@ Required properties:
 - reg : a list of offset + length pairs
 - #phy-cells : from the generic phy bindings, must be 0
 - phy_type : "hsic" for HSIC usage;
-	     other values or absence of this property indicates normal USB
+	     other values or absence of this property indicates yesrmal USB
 - clocks : phandle + clock specifier for the phy clocks
 - clock-names : depending on the "phy_type" property,
-  * "phy" for normal USB
+  * "phy" for yesrmal USB
   * "hsic_480M", "hsic_12M" for HSIC
 - resets : a list of phandle + reset specifier pairs
 - reset-names : depending on the "phy_type" property,
-  * "phy" for normal USB
+  * "phy" for yesrmal USB
   * "hsic" for HSIC
 
 Optional Properties:

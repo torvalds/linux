@@ -90,7 +90,7 @@
  * CKEN clock type
  * This clock takes it source from 2 possible parents :
  *  - a low power parent
- *  - a normal parent
+ *  - a yesrmal parent
  *
  *  +------------+     +-----------+
  *  |  Low Power | --- | x mult_lp |
@@ -147,7 +147,7 @@ static inline int dummy_clk_set_parent(struct clk_hw *hw, u8 index)
 extern void clkdev_pxa_register(int ckid, const char *con_id,
 				const char *dev_id, struct clk *clk);
 extern int clk_pxa_cken_init(const struct desc_clk_cken *clks, int nb_clks);
-void clk_pxa_dt_common_init(struct device_node *np);
+void clk_pxa_dt_common_init(struct device_yesde *np);
 
 void pxa2xx_core_turbo_switch(bool on);
 void pxa2xx_cpll_change(struct pxa2xx_freq *freq,

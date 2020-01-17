@@ -14,7 +14,7 @@ description:
   SiFive SoC-based boards
 
 properties:
-  $nodename:
+  $yesdename:
     const: '/'
   compatible:
     items:

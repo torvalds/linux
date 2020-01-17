@@ -39,15 +39,15 @@ static inline dev_t old_decode_dev(u16 val)
 static inline u32 new_encode_dev(dev_t dev)
 {
 	unsigned major = MAJOR(dev);
-	unsigned minor = MINOR(dev);
-	return (minor & 0xff) | (major << 8) | ((minor & ~0xff) << 12);
+	unsigned miyesr = MINOR(dev);
+	return (miyesr & 0xff) | (major << 8) | ((miyesr & ~0xff) << 12);
 }
 
 static inline dev_t new_decode_dev(u32 dev)
 {
 	unsigned major = (dev & 0xfff00) >> 8;
-	unsigned minor = (dev & 0xff) | ((dev >> 12) & 0xfff00);
-	return MKDEV(major, minor);
+	unsigned miyesr = (dev & 0xff) | ((dev >> 12) & 0xfff00);
+	return MKDEV(major, miyesr);
 }
 
 static inline u64 huge_encode_dev(dev_t dev)
@@ -75,7 +75,7 @@ static inline unsigned sysv_major(u32 dev)
 	return (dev >> 18) & 0x3fff;
 }
 
-static inline unsigned sysv_minor(u32 dev)
+static inline unsigned sysv_miyesr(u32 dev)
 {
 	return dev & 0x3ffff;
 }

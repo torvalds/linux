@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -1052,7 +1052,7 @@ void qed_set_vxlan_enable(struct qed_hwfn *p_hwfn,
 		reg_val =
 		    qed_rd(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2);
 
-		/* Update output  only if tunnel blocks not included. */
+		/* Update output  only if tunnel blocks yest included. */
 		if (reg_val == (u32)PRS_ETH_OUTPUT_FORMAT)
 			qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2,
 			       (u32)PRS_ETH_TUNN_OUTPUT_FORMAT);
@@ -1087,7 +1087,7 @@ void qed_set_gre_enable(struct qed_hwfn *p_hwfn,
 		reg_val =
 		    qed_rd(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2);
 
-		/* Update output  only if tunnel blocks not included. */
+		/* Update output  only if tunnel blocks yest included. */
 		if (reg_val == (u32)PRS_ETH_OUTPUT_FORMAT)
 			qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2,
 			       (u32)PRS_ETH_TUNN_OUTPUT_FORMAT);
@@ -1140,7 +1140,7 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 		reg_val =
 		    qed_rd(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2);
 
-		/* Update output  only if tunnel blocks not included. */
+		/* Update output  only if tunnel blocks yest included. */
 		if (reg_val == (u32)PRS_ETH_OUTPUT_FORMAT)
 			qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2,
 			       (u32)PRS_ETH_TUNN_OUTPUT_FORMAT);
@@ -1151,7 +1151,7 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 	       eth_geneve_enable ? 1 : 0);
 	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_IP_ENABLE, ip_geneve_enable ? 1 : 0);
 
-	/* EDPM with geneve tunnel not supported in BB */
+	/* EDPM with geneve tunnel yest supported in BB */
 	if (QED_IS_BB_B0(p_hwfn->cdev))
 		return;
 
@@ -1169,7 +1169,7 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 #define PRS_ETH_VXLAN_NO_L2_ENABLE_OFFSET   4
 #define PRS_ETH_VXLAN_NO_L2_OUTPUT_FORMAT      -927094512
 
-void qed_set_vxlan_no_l2_enable(struct qed_hwfn *p_hwfn,
+void qed_set_vxlan_yes_l2_enable(struct qed_hwfn *p_hwfn,
 				struct qed_ptt *p_ptt, bool enable)
 {
 	u32 reg_val, cfg_mask;
@@ -1232,7 +1232,7 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 		    bool udp,
 		    bool ipv4, bool ipv6, enum gft_profile_type profile_type)
 {
-	u32 reg_val, cam_line, ram_line_lo, ram_line_hi, search_non_ip_as_gft;
+	u32 reg_val, cam_line, ram_line_lo, ram_line_hi, search_yesn_ip_as_gft;
 
 	if (!ipv6 && !ipv4)
 		DP_NOTICE(p_hwfn,
@@ -1249,10 +1249,10 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 	reg_val |= PARSER_ETH_CONN_CM_HDR << PRS_REG_CM_HDR_GFT_CM_HDR_SHIFT;
 	qed_wr(p_hwfn, p_ptt, PRS_REG_CM_HDR_GFT, reg_val);
 
-	/* Do not load context only cid in PRS on match. */
+	/* Do yest load context only cid in PRS on match. */
 	qed_wr(p_hwfn, p_ptt, PRS_REG_LOAD_L2_FILTER, 0);
 
-	/* Do not use tenant ID exist bit for gft search */
+	/* Do yest use tenant ID exist bit for gft search */
 	qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_TENANT_ID, 0);
 
 	/* Set Cam */
@@ -1301,8 +1301,8 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 	ram_line_lo = 0;
 	ram_line_hi = 0;
 
-	/* Search no IP as GFT */
-	search_non_ip_as_gft = 0;
+	/* Search yes IP as GFT */
+	search_yesn_ip_as_gft = 0;
 
 	/* Tunnel type */
 	SET_FIELD(ram_line_lo, GFT_RAM_LINE_TUNNEL_DST_PORT, 1);
@@ -1329,11 +1329,11 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 		SET_FIELD(ram_line_lo, GFT_RAM_LINE_TUNNEL_ETHERTYPE, 1);
 
 		/* Allow tunneled traffic without inner IP */
-		search_non_ip_as_gft = 1;
+		search_yesn_ip_as_gft = 1;
 	}
 
 	qed_wr(p_hwfn,
-	       p_ptt, PRS_REG_SEARCH_NON_IP_AS_GFT, search_non_ip_as_gft);
+	       p_ptt, PRS_REG_SEARCH_NON_IP_AS_GFT, search_yesn_ip_as_gft);
 	qed_wr(p_hwfn,
 	       p_ptt,
 	       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id,
@@ -1343,7 +1343,7 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 	       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id + REG_SIZE,
 	       ram_line_hi);
 
-	/* Set default profile so that no filter match will happen */
+	/* Set default profile so that yes filter match will happen */
 	qed_wr(p_hwfn,
 	       p_ptt,
 	       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE *

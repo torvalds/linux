@@ -47,14 +47,14 @@
  * IRQF_IRQPOLL - Interrupt is used for polling (only the interrupt that is
  *                registered first in a shared interrupt is considered for
  *                performance reasons)
- * IRQF_ONESHOT - Interrupt is not reenabled after the hardirq handler finished.
+ * IRQF_ONESHOT - Interrupt is yest reenabled after the hardirq handler finished.
  *                Used by threaded interrupts which need to keep the
  *                irq line disabled until the threaded handler has been run.
- * IRQF_NO_SUSPEND - Do not disable this IRQ during suspend.  Does not guarantee
+ * IRQF_NO_SUSPEND - Do yest disable this IRQ during suspend.  Does yest guarantee
  *                   that this interrupt will wake the system from a suspended
  *                   state.  See Documentation/power/suspend-and-interrupts.rst
  * IRQF_FORCE_RESUME - Force enable it on resume even if IRQF_NO_SUSPEND is set
- * IRQF_NO_THREAD - Interrupt cannot be threaded
+ * IRQF_NO_THREAD - Interrupt canyest be threaded
  * IRQF_EARLY_RESUME - Resume IRQ early during syscore instead of at device
  *                resume time.
  * IRQF_COND_SUSPEND - If the IRQ is shared with a NO_SUSPEND user, execute this
@@ -121,12 +121,12 @@ struct irqaction {
 	unsigned long		thread_mask;
 	const char		*name;
 	struct proc_dir_entry	*dir;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
-extern irqreturn_t no_action(int cpl, void *dev_id);
+extern irqreturn_t yes_action(int cpl, void *dev_id);
 
 /*
- * If a (PCI) device interrupt is not connected we set dev->irq to
+ * If a (PCI) device interrupt is yest connected we set dev->irq to
  * IRQ_NOTCONNECTED. This causes request_irq() to fail with -ENOTCONN, so we
  * can distingiush that case from other error returns.
  *
@@ -216,7 +216,7 @@ extern void devm_free_irq(struct device *dev, unsigned int irq, void *dev_id);
 
 /*
  * On lockdep we dont want to enable hardirqs in hardirq
- * context. Use local_irq_enable_in_hardirq() to annotate
+ * context. Use local_irq_enable_in_hardirq() to anyestate
  * kernel code that has to do this nevertheless (pretty much
  * the only valid case is for old/broken hardware that is
  * insanely slow).
@@ -232,7 +232,7 @@ extern void devm_free_irq(struct device *dev, unsigned int irq, void *dev_id);
 # define local_irq_enable_in_hardirq()	local_irq_enable()
 #endif
 
-extern void disable_irq_nosync(unsigned int irq);
+extern void disable_irq_yessync(unsigned int irq);
 extern bool disable_hardirq(unsigned int irq);
 extern void disable_irq(unsigned int irq);
 extern void disable_percpu_irq(unsigned int irq);
@@ -241,7 +241,7 @@ extern void enable_percpu_irq(unsigned int irq, unsigned int type);
 extern bool irq_percpu_is_enabled(unsigned int irq);
 extern void irq_wake_thread(unsigned int irq, void *dev_id);
 
-extern void disable_nmi_nosync(unsigned int irq);
+extern void disable_nmi_yessync(unsigned int irq);
 extern void disable_percpu_nmi(unsigned int irq);
 extern void enable_nmi(unsigned int irq);
 extern void enable_percpu_nmi(unsigned int irq, unsigned int type);
@@ -254,22 +254,22 @@ extern void resume_device_irqs(void);
 extern void rearm_wake_irq(unsigned int irq);
 
 /**
- * struct irq_affinity_notify - context for notification of IRQ affinity changes
- * @irq:		Interrupt to which notification applies
+ * struct irq_affinity_yestify - context for yestification of IRQ affinity changes
+ * @irq:		Interrupt to which yestification applies
  * @kref:		Reference count, for internal use
  * @work:		Work item, for internal use
- * @notify:		Function to be called on change.  This will be
+ * @yestify:		Function to be called on change.  This will be
  *			called in process context.
  * @release:		Function to be called on release.  This will be
  *			called in process context.  Once registered, the
  *			structure must only be freed when this function is
  *			called or later.
  */
-struct irq_affinity_notify {
+struct irq_affinity_yestify {
 	unsigned int irq;
 	struct kref kref;
 	struct work_struct work;
-	void (*notify)(struct irq_affinity_notify *, const cpumask_t *mask);
+	void (*yestify)(struct irq_affinity_yestify *, const cpumask_t *mask);
 	void (*release)(struct kref *ref);
 };
 
@@ -321,7 +321,7 @@ extern int __irq_set_affinity(unsigned int irq, const struct cpumask *cpumask,
  * @irq:	Interrupt to set affinity
  * @cpumask:	cpumask
  *
- * Fails if cpumask does not contain an online CPU
+ * Fails if cpumask does yest contain an online CPU
  */
 static inline int
 irq_set_affinity(unsigned int irq, const struct cpumask *cpumask)
@@ -352,7 +352,7 @@ extern int irq_select_affinity(unsigned int irq);
 extern int irq_set_affinity_hint(unsigned int irq, const struct cpumask *m);
 
 extern int
-irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *notify);
+irq_set_affinity_yestifier(unsigned int irq, struct irq_affinity_yestify *yestify);
 
 struct irq_affinity_desc *
 irq_create_affinity_masks(unsigned int nvec, struct irq_affinity *affd);
@@ -386,7 +386,7 @@ static inline int irq_set_affinity_hint(unsigned int irq,
 }
 
 static inline int
-irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *notify)
+irq_set_affinity_yestifier(unsigned int irq, struct irq_affinity_yestify *yestify)
 {
 	return 0;
 }
@@ -409,25 +409,25 @@ irq_calc_affinity_vectors(unsigned int minvec, unsigned int maxvec,
 /*
  * Special lockdep variants of irq disabling/enabling.
  * These should be used for locking constructs that
- * know that a particular irq context which is disabled,
+ * kyesw that a particular irq context which is disabled,
  * and which is the only irq-context user of a lock,
  * that it's safe to take the lock in the irq-disabled
  * section without disabling hardirqs.
  *
- * On !CONFIG_LOCKDEP they are equivalent to the normal
+ * On !CONFIG_LOCKDEP they are equivalent to the yesrmal
  * irq disable/enable methods.
  */
-static inline void disable_irq_nosync_lockdep(unsigned int irq)
+static inline void disable_irq_yessync_lockdep(unsigned int irq)
 {
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 #ifdef CONFIG_LOCKDEP
 	local_irq_disable();
 #endif
 }
 
-static inline void disable_irq_nosync_lockdep_irqsave(unsigned int irq, unsigned long *flags)
+static inline void disable_irq_yessync_lockdep_irqsave(unsigned int irq, unsigned long *flags)
 {
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 #ifdef CONFIG_LOCKDEP
 	local_irq_save(*flags);
 #endif
@@ -517,10 +517,10 @@ extern bool force_irqthreads;
 #define hard_irq_disable()	do { } while(0)
 #endif
 
-/* PLEASE, avoid to allocate new softirqs, if you need not _really_ high
+/* PLEASE, avoid to allocate new softirqs, if you need yest _really_ high
    frequency threaded job scheduling. For almost all the purposes
-   tasklets are more than enough. F.e. all serial device BHs et
-   al. should be converted to tasklets, not to softirqs.
+   tasklets are more than eyesugh. F.e. all serial device BHs et
+   al. should be converted to tasklets, yest to softirqs.
  */
 
 enum
@@ -592,12 +592,12 @@ static inline struct task_struct *this_cpu_ksoftirqd(void)
    Properties:
    * If tasklet_schedule() is called, then tasklet is guaranteed
      to be executed on some cpu at least once after this.
-   * If the tasklet is already scheduled, but its execution is still not
+   * If the tasklet is already scheduled, but its execution is still yest
      started, it will be executed only once.
-   * If this tasklet is already running on another CPU (or schedule is called
+   * If this tasklet is already running on ayesther CPU (or schedule is called
      from tasklet itself), it is rescheduled for later.
-   * Tasklet is strictly serialized wrt itself, but not
-     wrt another tasklets. If client needs some intertask synchronization,
+   * Tasklet is strictly serialized wrt itself, but yest
+     wrt ayesther tasklets. If client needs some intertask synchronization,
      he makes it with spinlocks.
  */
 
@@ -661,7 +661,7 @@ static inline void tasklet_hi_schedule(struct tasklet_struct *t)
 		__tasklet_hi_schedule(t);
 }
 
-static inline void tasklet_disable_nosync(struct tasklet_struct *t)
+static inline void tasklet_disable_yessync(struct tasklet_struct *t)
 {
 	atomic_inc(&t->count);
 	smp_mb__after_atomic();
@@ -669,7 +669,7 @@ static inline void tasklet_disable_nosync(struct tasklet_struct *t)
 
 static inline void tasklet_disable(struct tasklet_struct *t)
 {
-	tasklet_disable_nosync(t);
+	tasklet_disable_yessync(t);
 	tasklet_unlock_wait(t);
 	smp_mb();
 }
@@ -690,8 +690,8 @@ extern void tasklet_init(struct tasklet_struct *t,
  *
  * probe_irq_on() and probe_irq_off() provide robust primitives
  * for accurate IRQ probing during kernel initialization.  They are
- * reasonably simple to use, are not "fooled" by spurious interrupts,
- * and, unlike other attempts at IRQ probing, they do not get hung on
+ * reasonably simple to use, are yest "fooled" by spurious interrupts,
+ * and, unlike other attempts at IRQ probing, they do yest get hung on
  * stuck interrupts (such as unused PS2 mouse interfaces on ASUS boards).
  *
  * For reasonably foolproof probing, use them as follows:
@@ -700,16 +700,16 @@ extern void tasklet_init(struct tasklet_struct *t,
  * 2. sti();
  * 3. irqs = probe_irq_on();      // "take over" all unassigned idle IRQs
  * 4. enable the device and cause it to trigger an interrupt.
- * 5. wait for the device to interrupt, using non-intrusive polling or a delay.
- * 6. irq = probe_irq_off(irqs);  // get IRQ number, 0=none, negative=multiple
+ * 5. wait for the device to interrupt, using yesn-intrusive polling or a delay.
+ * 6. irq = probe_irq_off(irqs);  // get IRQ number, 0=yesne, negative=multiple
  * 7. service the device to clear its pending interrupt.
- * 8. loop again if paranoia is required.
+ * 8. loop again if parayesia is required.
  *
  * probe_irq_on() returns a mask of allocated irq's.
  *
  * probe_irq_off() takes the mask as a parameter,
  * and returns the irq number which occurred,
- * or zero if none occurred, or a negative irq number
+ * or zero if yesne occurred, or a negative irq number
  * if more than one irq occurred.
  */
 
@@ -744,7 +744,7 @@ static inline void init_irq_proc(void)
 #ifdef CONFIG_IRQ_TIMINGS
 void irq_timings_enable(void);
 void irq_timings_disable(void);
-u64 irq_timings_next_event(u64 now);
+u64 irq_timings_next_event(u64 yesw);
 #endif
 
 struct seq_file;
@@ -756,7 +756,7 @@ extern int arch_probe_nr_irqs(void);
 extern int arch_early_irq_init(void);
 
 /*
- * We want to know which function is an entrypoint of a hardirq or a softirq.
+ * We want to kyesw which function is an entrypoint of a hardirq or a softirq.
  */
 #define __irq_entry		 __attribute__((__section__(".irqentry.text")))
 #define __softirq_entry  \

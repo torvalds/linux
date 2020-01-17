@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * dcache.h
  *
@@ -16,28 +16,28 @@ extern const struct dentry_operations ocfs2_dentry_ops;
 
 struct ocfs2_dentry_lock {
 	unsigned int		dl_count;
-	u64			dl_parent_blkno;
+	u64			dl_parent_blkyes;
 
 	/*
-	 * The ocfs2_dentry_lock keeps an inode reference until
+	 * The ocfs2_dentry_lock keeps an iyesde reference until
 	 * dl_lockres has been destroyed. This is usually done in
 	 * ->d_iput() anyway, so there should be minimal impact.
 	 */
-	struct inode		*dl_inode;
+	struct iyesde		*dl_iyesde;
 	struct ocfs2_lock_res	dl_lockres;
 };
 
-int ocfs2_dentry_attach_lock(struct dentry *dentry, struct inode *inode,
-			     u64 parent_blkno);
+int ocfs2_dentry_attach_lock(struct dentry *dentry, struct iyesde *iyesde,
+			     u64 parent_blkyes);
 
 void ocfs2_dentry_lock_put(struct ocfs2_super *osb,
 			   struct ocfs2_dentry_lock *dl);
 
-struct dentry *ocfs2_find_local_alias(struct inode *inode, u64 parent_blkno,
+struct dentry *ocfs2_find_local_alias(struct iyesde *iyesde, u64 parent_blkyes,
 				      int skip_unhashed);
 
 void ocfs2_dentry_move(struct dentry *dentry, struct dentry *target,
-		       struct inode *old_dir, struct inode *new_dir);
+		       struct iyesde *old_dir, struct iyesde *new_dir);
 
 extern spinlock_t dentry_attach_lock;
 void ocfs2_dentry_attach_gen(struct dentry *dentry);

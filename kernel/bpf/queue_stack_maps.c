@@ -2,7 +2,7 @@
 /*
  * queue_stack_maps.c: BPF queue and stack maps
  *
- * Copyright (c) 2018 Politecnico di Torino
+ * Copyright (c) 2018 Politecnico di Toriyes
  */
 #include <linux/bpf.h>
 #include <linux/list.h>
@@ -66,7 +66,7 @@ static int queue_stack_map_alloc_check(union bpf_attr *attr)
 
 static struct bpf_map *queue_stack_map_alloc(union bpf_attr *attr)
 {
-	int ret, numa_node = bpf_map_attr_numa_node(attr);
+	int ret, numa_yesde = bpf_map_attr_numa_yesde(attr);
 	struct bpf_map_memory mem = {0};
 	struct bpf_queue_stack *qs;
 	u64 size, queue_size, cost;
@@ -78,7 +78,7 @@ static struct bpf_map *queue_stack_map_alloc(union bpf_attr *attr)
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	qs = bpf_map_area_alloc(queue_size, numa_node);
+	qs = bpf_map_area_alloc(queue_size, numa_yesde);
 	if (!qs) {
 		bpf_map_charge_finish(&mem);
 		return ERR_PTR(-ENOMEM);

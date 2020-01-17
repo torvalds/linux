@@ -44,7 +44,7 @@ struct magellan {
 
 /*
  * magellan_crunch_nibbles() verifies that the bytes sent from the Magellan
- * have correct upper nibbles for the lower ones, if not, the packet will
+ * have correct upper nibbles for the lower ones, if yest, the packet will
  * be thrown away. It also strips these upper halves to simplify further
  * processing.
  */

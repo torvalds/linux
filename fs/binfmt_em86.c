@@ -17,7 +17,7 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/file.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 
 #define EM86_INTERP	"/usr/bin/em86"
@@ -81,8 +81,8 @@ static int load_em86(struct linux_binprm *bprm)
 	bprm->argc++;
 
 	/*
-	 * OK, now restart the process with the interpreter's inode.
-	 * Note that we use open_exec() as the name is now in kernel
+	 * OK, yesw restart the process with the interpreter's iyesde.
+	 * Note that we use open_exec() as the name is yesw in kernel
 	 * space, and we don't need to copy it.
 	 */
 	file = open_exec(interp);

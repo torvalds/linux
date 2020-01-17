@@ -222,8 +222,8 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 
 	/*
 	 * Driver does mostly sequential access, so sacrifice TLB efficiency
-	 * for faster allocation. Also, no CPU access on the source queue,
-	 * so no kernel mapping needed.
+	 * for faster allocation. Also, yes CPU access on the source queue,
+	 * so yes kernel mapping needed.
 	 */
 	src_vq->dma_attrs = DMA_ATTR_ALLOC_SINGLE_PAGES |
 			    DMA_ATTR_NO_KERNEL_MAPPING;
@@ -398,9 +398,9 @@ static int hantro_open(struct file *filp)
 	int allowed_codecs, ret;
 
 	/*
-	 * We do not need any extra locking here, because we operate only
+	 * We do yest need any extra locking here, because we operate only
 	 * on local data here, except reading few fields from dev, which
-	 * do not change through device's lifetime (which is guaranteed by
+	 * do yest change through device's lifetime (which is guaranteed by
 	 * reference on module from open()) and V4L2 internal objects (such
 	 * as vdev and ctx->fh), which have proper locking done in respective
 	 * helper functions used here.
@@ -500,7 +500,7 @@ static int hantro_register_entity(struct media_device *mdev,
 	entity->obj_type = MEDIA_ENTITY_TYPE_BASE;
 	if (function == MEDIA_ENT_F_IO_V4L) {
 		entity->info.dev.major = VIDEO_MAJOR;
-		entity->info.dev.minor = vdev->minor;
+		entity->info.dev.miyesr = vdev->miyesr;
 	}
 
 	name = devm_kasprintf(mdev->dev, GFP_KERNEL, "%s-%s", vdev->name,
@@ -566,35 +566,35 @@ static int hantro_attach_func(struct hantro_dev *vpu,
 		goto err_rm_links0;
 
 	/* Create video interface */
-	func->intf_devnode = media_devnode_create(mdev, MEDIA_INTF_T_V4L_VIDEO,
+	func->intf_devyesde = media_devyesde_create(mdev, MEDIA_INTF_T_V4L_VIDEO,
 						  0, VIDEO_MAJOR,
-						  func->vdev.minor);
-	if (!func->intf_devnode) {
+						  func->vdev.miyesr);
+	if (!func->intf_devyesde) {
 		ret = -ENOMEM;
 		goto err_rm_links1;
 	}
 
 	/* Connect the two DMA engines to the interface */
 	link = media_create_intf_link(&func->vdev.entity,
-				      &func->intf_devnode->intf,
+				      &func->intf_devyesde->intf,
 				      MEDIA_LNK_FL_IMMUTABLE |
 				      MEDIA_LNK_FL_ENABLED);
 	if (!link) {
 		ret = -ENOMEM;
-		goto err_rm_devnode;
+		goto err_rm_devyesde;
 	}
 
-	link = media_create_intf_link(&func->sink, &func->intf_devnode->intf,
+	link = media_create_intf_link(&func->sink, &func->intf_devyesde->intf,
 				      MEDIA_LNK_FL_IMMUTABLE |
 				      MEDIA_LNK_FL_ENABLED);
 	if (!link) {
 		ret = -ENOMEM;
-		goto err_rm_devnode;
+		goto err_rm_devyesde;
 	}
 	return 0;
 
-err_rm_devnode:
-	media_devnode_remove(func->intf_devnode);
+err_rm_devyesde:
+	media_devyesde_remove(func->intf_devyesde);
 
 err_rm_links1:
 	media_entity_remove_links(&func->sink);
@@ -616,7 +616,7 @@ err_rel_entity0:
 
 static void hantro_detach_func(struct hantro_func *func)
 {
-	media_devnode_remove(func->intf_devnode);
+	media_devyesde_remove(func->intf_devyesde);
 	media_entity_remove_links(&func->sink);
 	media_entity_remove_links(&func->proc);
 	media_entity_remove_links(&func->vdev.entity);
@@ -632,7 +632,7 @@ static int hantro_add_func(struct hantro_dev *vpu, unsigned int funcid)
 	struct video_device *vfd;
 	int ret;
 
-	match = of_match_node(of_hantro_match, vpu->dev->of_node);
+	match = of_match_yesde(of_hantro_match, vpu->dev->of_yesde);
 	func = devm_kzalloc(vpu->dev, sizeof(*func), GFP_KERNEL);
 	if (!func) {
 		v4l2_err(&vpu->v4l2_dev, "Failed to allocate video device\n");
@@ -747,7 +747,7 @@ static int hantro_probe(struct platform_device *pdev)
 	mutex_init(&vpu->vpu_mutex);
 	spin_lock_init(&vpu->irqlock);
 
-	match = of_match_node(of_hantro_match, pdev->dev.of_node);
+	match = of_match_yesde(of_hantro_match, pdev->dev.of_yesde);
 	vpu->variant = match->data;
 
 	INIT_DELAYED_WORK(&vpu->watchdog_work, hantro_watchdog);
@@ -784,7 +784,7 @@ static int hantro_probe(struct platform_device *pdev)
 
 	ret = dma_set_coherent_mask(vpu->dev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(vpu->dev, "Could not set DMA coherent mask.\n");
+		dev_err(vpu->dev, "Could yest set DMA coherent mask.\n");
 		return ret;
 	}
 	vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
@@ -804,7 +804,7 @@ static int hantro_probe(struct platform_device *pdev)
 				       vpu->variant->irqs[i].handler, 0,
 				       dev_name(vpu->dev), vpu);
 		if (ret) {
-			dev_err(vpu->dev, "Could not request %s IRQ.\n",
+			dev_err(vpu->dev, "Could yest request %s IRQ.\n",
 				irq_name);
 			return ret;
 		}

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -30,8 +30,8 @@ struct amdgpu_gtt_mgr {
 	atomic64_t available;
 };
 
-struct amdgpu_gtt_node {
-	struct drm_mm_node node;
+struct amdgpu_gtt_yesde {
+	struct drm_mm_yesde yesde;
 	struct ttm_buffer_object *tbo;
 };
 
@@ -150,9 +150,9 @@ static int amdgpu_gtt_mgr_fini(struct ttm_mem_type_manager *man)
  */
 bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_mem_reg *mem)
 {
-	struct amdgpu_gtt_node *node = mem->mm_node;
+	struct amdgpu_gtt_yesde *yesde = mem->mm_yesde;
 
-	return (node->node.start != AMDGPU_BO_INVALID_OFFSET);
+	return (yesde->yesde.start != AMDGPU_BO_INVALID_OFFSET);
 }
 
 /**
@@ -163,7 +163,7 @@ bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_mem_reg *mem)
  * @place: placement flags and restrictions
  * @mem: the resulting mem object
  *
- * Allocate the address space for a node.
+ * Allocate the address space for a yesde.
  */
 static int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 				struct ttm_buffer_object *tbo,
@@ -172,7 +172,7 @@ static int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
 	struct amdgpu_gtt_mgr *mgr = man->priv;
-	struct amdgpu_gtt_node *node = mem->mm_node;
+	struct amdgpu_gtt_yesde *yesde = mem->mm_yesde;
 	enum drm_mm_insert_mode mode;
 	unsigned long fpfn, lpfn;
 	int r;
@@ -195,26 +195,26 @@ static int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 		mode = DRM_MM_INSERT_HIGH;
 
 	spin_lock(&mgr->lock);
-	r = drm_mm_insert_node_in_range(&mgr->mm, &node->node, mem->num_pages,
+	r = drm_mm_insert_yesde_in_range(&mgr->mm, &yesde->yesde, mem->num_pages,
 					mem->page_alignment, 0, fpfn, lpfn,
 					mode);
 	spin_unlock(&mgr->lock);
 
 	if (!r)
-		mem->start = node->node.start;
+		mem->start = yesde->yesde.start;
 
 	return r;
 }
 
 /**
- * amdgpu_gtt_mgr_new - allocate a new node
+ * amdgpu_gtt_mgr_new - allocate a new yesde
  *
  * @man: TTM memory type manager
  * @tbo: TTM BO we need this range for
  * @place: placement flags and restrictions
  * @mem: the resulting mem object
  *
- * Dummy, allocate the node but no space for it yet.
+ * Dummy, allocate the yesde but yes space for it yet.
  */
 static int amdgpu_gtt_mgr_new(struct ttm_mem_type_manager *man,
 			      struct ttm_buffer_object *tbo,
@@ -222,7 +222,7 @@ static int amdgpu_gtt_mgr_new(struct ttm_mem_type_manager *man,
 			      struct ttm_mem_reg *mem)
 {
 	struct amdgpu_gtt_mgr *mgr = man->priv;
-	struct amdgpu_gtt_node *node;
+	struct amdgpu_gtt_yesde *yesde;
 	int r;
 
 	spin_lock(&mgr->lock);
@@ -234,27 +234,27 @@ static int amdgpu_gtt_mgr_new(struct ttm_mem_type_manager *man,
 	atomic64_sub(mem->num_pages, &mgr->available);
 	spin_unlock(&mgr->lock);
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node) {
+	yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+	if (!yesde) {
 		r = -ENOMEM;
 		goto err_out;
 	}
 
-	node->node.start = AMDGPU_BO_INVALID_OFFSET;
-	node->node.size = mem->num_pages;
-	node->tbo = tbo;
-	mem->mm_node = node;
+	yesde->yesde.start = AMDGPU_BO_INVALID_OFFSET;
+	yesde->yesde.size = mem->num_pages;
+	yesde->tbo = tbo;
+	mem->mm_yesde = yesde;
 
 	if (place->fpfn || place->lpfn || place->flags & TTM_PL_FLAG_TOPDOWN) {
 		r = amdgpu_gtt_mgr_alloc(man, tbo, place, mem);
 		if (unlikely(r)) {
-			kfree(node);
-			mem->mm_node = NULL;
+			kfree(yesde);
+			mem->mm_yesde = NULL;
 			r = 0;
 			goto err_out;
 		}
 	} else {
-		mem->start = node->node.start;
+		mem->start = yesde->yesde.start;
 	}
 
 	return 0;
@@ -278,19 +278,19 @@ static void amdgpu_gtt_mgr_del(struct ttm_mem_type_manager *man,
 			       struct ttm_mem_reg *mem)
 {
 	struct amdgpu_gtt_mgr *mgr = man->priv;
-	struct amdgpu_gtt_node *node = mem->mm_node;
+	struct amdgpu_gtt_yesde *yesde = mem->mm_yesde;
 
-	if (!node)
+	if (!yesde)
 		return;
 
 	spin_lock(&mgr->lock);
-	if (node->node.start != AMDGPU_BO_INVALID_OFFSET)
-		drm_mm_remove_node(&node->node);
+	if (yesde->yesde.start != AMDGPU_BO_INVALID_OFFSET)
+		drm_mm_remove_yesde(&yesde->yesde);
 	spin_unlock(&mgr->lock);
 	atomic64_add(mem->num_pages, &mgr->available);
 
-	kfree(node);
-	mem->mm_node = NULL;
+	kfree(yesde);
+	mem->mm_yesde = NULL;
 }
 
 /**
@@ -311,14 +311,14 @@ uint64_t amdgpu_gtt_mgr_usage(struct ttm_mem_type_manager *man)
 int amdgpu_gtt_mgr_recover(struct ttm_mem_type_manager *man)
 {
 	struct amdgpu_gtt_mgr *mgr = man->priv;
-	struct amdgpu_gtt_node *node;
-	struct drm_mm_node *mm_node;
+	struct amdgpu_gtt_yesde *yesde;
+	struct drm_mm_yesde *mm_yesde;
 	int r = 0;
 
 	spin_lock(&mgr->lock);
-	drm_mm_for_each_node(mm_node, &mgr->mm) {
-		node = container_of(mm_node, struct amdgpu_gtt_node, node);
-		r = amdgpu_ttm_recover_gart(node->tbo);
+	drm_mm_for_each_yesde(mm_yesde, &mgr->mm) {
+		yesde = container_of(mm_yesde, struct amdgpu_gtt_yesde, yesde);
+		r = amdgpu_ttm_recover_gart(yesde->tbo);
 		if (r)
 			break;
 	}
@@ -352,7 +352,7 @@ static void amdgpu_gtt_mgr_debug(struct ttm_mem_type_manager *man,
 const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func = {
 	.init = amdgpu_gtt_mgr_init,
 	.takedown = amdgpu_gtt_mgr_fini,
-	.get_node = amdgpu_gtt_mgr_new,
-	.put_node = amdgpu_gtt_mgr_del,
+	.get_yesde = amdgpu_gtt_mgr_new,
+	.put_yesde = amdgpu_gtt_mgr_del,
 	.debug = amdgpu_gtt_mgr_debug
 };

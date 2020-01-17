@@ -2,13 +2,13 @@
 #ifndef __NOUVEAU_CHAN_H__
 #define __NOUVEAU_CHAN_H__
 #include <nvif/object.h>
-#include <nvif/notify.h>
+#include <nvif/yestify.h>
 struct nvif_device;
 
-struct nouveau_channel {
+struct yesuveau_channel {
 	struct nvif_device *device;
-	struct nouveau_drm *drm;
-	struct nouveau_vmm *vmm;
+	struct yesuveau_drm *drm;
+	struct yesuveau_vmm *vmm;
 
 	int chid;
 	u64 inst;
@@ -19,8 +19,8 @@ struct nouveau_channel {
 	struct nvif_object nvsw;
 
 	struct {
-		struct nouveau_bo *buffer;
-		struct nouveau_vma *vma;
+		struct yesuveau_bo *buffer;
+		struct yesuveau_vma *vma;
 		struct nvif_object ctxdma;
 		u64 addr;
 	} push;
@@ -44,18 +44,18 @@ struct nouveau_channel {
 
 	struct nvif_object user;
 
-	struct nvif_notify kill;
+	struct nvif_yestify kill;
 	atomic_t killed;
 };
 
-int nouveau_channels_init(struct nouveau_drm *);
+int yesuveau_channels_init(struct yesuveau_drm *);
 
-int  nouveau_channel_new(struct nouveau_drm *, struct nvif_device *,
+int  yesuveau_channel_new(struct yesuveau_drm *, struct nvif_device *,
 			 u32 arg0, u32 arg1, bool priv,
-			 struct nouveau_channel **);
-void nouveau_channel_del(struct nouveau_channel **);
-int  nouveau_channel_idle(struct nouveau_channel *);
+			 struct yesuveau_channel **);
+void yesuveau_channel_del(struct yesuveau_channel **);
+int  yesuveau_channel_idle(struct yesuveau_channel *);
 
-extern int nouveau_vram_pushbuf;
+extern int yesuveau_vram_pushbuf;
 
 #endif

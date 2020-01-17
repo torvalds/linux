@@ -10,7 +10,7 @@
  * with 8 bidirectional data lines (D0 - D7) and 3 bidirectional status
  * lines (BUSY, POUT, SEL), 1 output control line /STROBE (raised automatically
  * in hardware when the data register is accessed), and 1 input control line
- * /ACK, able to cause an interrupt, but both not directly settable by
+ * /ACK, able to cause an interrupt, but both yest directly settable by
  * software.
  */
 
@@ -38,14 +38,14 @@
 static void amiga_write_data(struct parport *p, unsigned char data)
 {
 	DPRINTK(KERN_DEBUG "write_data %c\n",data);
-	/* Triggers also /STROBE. This behavior cannot be changed */
+	/* Triggers also /STROBE. This behavior canyest be changed */
 	ciaa.prb = data;
 	mb();
 }
 
 static unsigned char amiga_read_data(struct parport *p)
 {
-	/* Triggers also /STROBE. This behavior cannot be changed */
+	/* Triggers also /STROBE. This behavior canyest be changed */
 	return ciaa.prb;
 }
 
@@ -53,8 +53,8 @@ static unsigned char control_amiga_to_pc(unsigned char control)
 {
 	return PARPORT_CONTROL_SELECT |
 	      PARPORT_CONTROL_AUTOFD | PARPORT_CONTROL_STROBE;
-	/* fake value: interrupt enable, select in, no reset,
-	no autolf, no strobe - seems to be closest the wiring diagram */
+	/* fake value: interrupt enable, select in, yes reset,
+	yes autolf, yes strobe - seems to be closest the wiring diagram */
 }
 
 static void amiga_write_control(struct parport *p, unsigned char control)
@@ -89,7 +89,7 @@ static unsigned char status_amiga_to_pc(unsigned char status)
 		ret |= PARPORT_STATUS_PAPEROUT;
 	if (status & 4) /* Selected */
 		ret |= PARPORT_STATUS_SELECT;
-	/* the rest is not connected or handled autonomously in hardware */
+	/* the rest is yest connected or handled autoyesmously in hardware */
 
 	return ret;
 }
@@ -214,7 +214,7 @@ static int __init amiga_parallel_probe(struct platform_device *pdev)
 
 	printk(KERN_INFO "%s: Amiga built-in port using irq\n", p->name);
 	/* XXX: set operating mode */
-	parport_announce_port(p);
+	parport_anyesunce_port(p);
 
 	platform_set_drvdata(pdev, p);
 

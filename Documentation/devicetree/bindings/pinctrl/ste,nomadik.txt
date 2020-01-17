@@ -3,62 +3,62 @@ ST Ericsson Nomadik pinmux controller
 Required properties:
 - compatible: "stericsson,db8500-pinctrl", "stericsson,db8540-pinctrl",
               "stericsson,stn8815-pinctrl"
-- nomadik-gpio-chips: array of phandles to the corresponding GPIO chips
+- yesmadik-gpio-chips: array of phandles to the corresponding GPIO chips
               (these have the register ranges used by the pin controller).
 - prcm: phandle to the PRCMU managing the back end of this pin controller
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration yesde".
 
-ST Ericsson's pin configuration nodes act as a container for an arbitrary number of
-subnodes. Each of these subnodes represents some desired configuration for a
+ST Ericsson's pin configuration yesdes act as a container for an arbitrary number of
+subyesdes. Each of these subyesdes represents some desired configuration for a
 pin, a group, or a list of pins or groups. This configuration can include the
 mux function to select on those pin(s)/group(s), and various pin configuration
 parameters, such as input, output, pull up, pull down...
 
-The name of each subnode is not important; all subnodes should be enumerated
-and processed purely based on their content. The subnodes use the generic
-pin multiplexing node layout from the standard pin control bindings
+The name of each subyesde is yest important; all subyesdes should be enumerated
+and processed purely based on their content. The subyesdes use the generic
+pin multiplexing yesde layout from the standard pin control bindings
 (see pinctrl-bindings.txt):
 
-Required pin multiplexing subnode properties:
+Required pin multiplexing subyesde properties:
 - function: A string containing the name of the function to mux to the
   pin or group.
 - groups : An array of strings. Each string contains the name of a pin
   group that will be combined with the function to form a multiplexing
   set-up.
 
-Required pin configuration subnode properties:
+Required pin configuration subyesde properties:
 - pins: A string array describing the pins affected by the configuration
-  in the node.
-- ste,config: Handle of pin configuration node
+  in the yesde.
+- ste,config: Handle of pin configuration yesde
   (e.g. ste,config = <&slpm_in_wkup_pdis>)
 
 - ste,input : <0/1/2>
-	0: input with no pull
+	0: input with yes pull
 	1: input with pull up,
 	2: input with pull down,
 
 - ste,output: <0/1/2>
 	0: output low,
 	1: output high,
-	2: output (value is not specified).
+	2: output (value is yest specified).
 
 - ste,sleep: <0/1>
 	0: sleep mode disable,
 	1: sleep mode enable.
 
 - ste,sleep-input: <0/1/2/3>
-	0: sleep input with no pull,
+	0: sleep input with yes pull,
 	1: sleep input with pull up,
 	2: sleep input with pull down.
-	3: sleep input and keep last input configuration (no pull, pull up or pull down).
+	3: sleep input and keep last input configuration (yes pull, pull up or pull down).
 
 - ste,sleep-output: <0/1/2>
 	0: sleep output low,
 	1: sleep output high,
-	2: sleep output (value is not specified).
+	2: sleep output (value is yest specified).
 
 - ste,sleep-gpio: <0/1>
 	0: disable sleep gpio mode,
@@ -76,7 +76,7 @@ Example board file extract:
 
 	pinctrl@80157000 {
 		compatible = "stericsson,db8500-pinctrl";
-		nomadik-gpio-chips = <&gpio0>, <&gpio1>, <&gpio2>, <&gpio3>;
+		yesmadik-gpio-chips = <&gpio0>, <&gpio1>, <&gpio2>, <&gpio3>;
 		prcm = <&prcmu>;
 
 		pinctrl-names = "default";

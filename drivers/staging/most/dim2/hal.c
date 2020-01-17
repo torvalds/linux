@@ -3,7 +3,7 @@
  * hal.c - DIM2 HAL implementation
  * (MediaLB, Device Interface Macro IP, OS62420)
  *
- * Copyright (C) 2015-2016, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015-2016, Microchip Techyeslogy Germany II GmbH & Co. KG
  */
 
 /* Author: Andrey Shvetsov <andrey.shvetsov@k2l.de> */
@@ -16,7 +16,7 @@
 #include <linux/io.h>
 
 /*
- * Size factor for isochronous DBR buffer.
+ * Size factor for isochroyesus DBR buffer.
  * Minimal value is 3.
  */
 #define ISOC_DBR_FACTOR 3u
@@ -35,7 +35,7 @@
 #define DBR_MAP_SIZE 2
 
 /* -------------------------------------------------------------------------- */
-/* not configurable area */
+/* yest configurable area */
 
 #define CDT 0x00
 #define ADT 0x40
@@ -212,12 +212,12 @@ static inline void dim2_clear_ctr(u32 ctr_addr)
 }
 
 static void dim2_configure_cat(u8 cat_base, u8 ch_addr, u8 ch_type,
-			       bool read_not_write)
+			       bool read_yest_write)
 {
 	bool isoc_fce = ch_type == CAT_CT_VAL_ISOC;
 	bool sync_mfe = ch_type == CAT_CT_VAL_SYNC;
 	u16 const cat =
-		(read_not_write << CAT_RNW_BIT) |
+		(read_yest_write << CAT_RNW_BIT) |
 		(ch_type << CAT_CT_SHIFT) |
 		(ch_addr << CAT_CL_SHIFT) |
 		(isoc_fce << CAT_FCE_BIT) |
@@ -378,7 +378,7 @@ static void dim2_clear_channel(u8 ch_addr)
 /* -------------------------------------------------------------------------- */
 /* trace async tx dbr fill state */
 
-static inline u16 norm_pc(u16 pc)
+static inline u16 yesrm_pc(u16 pc)
 {
 	return pc & CDT0_RPC_MASK;
 }
@@ -393,7 +393,7 @@ static void dbrcnt_init(u8 ch_addr, u16 dbr_size)
 static void dbrcnt_enq(int buf_sz)
 {
 	g.atx_dbr.rest_size -= buf_sz;
-	g.atx_dbr.sz_queue[norm_pc(g.atx_dbr.wpc)] = buf_sz;
+	g.atx_dbr.sz_queue[yesrm_pc(g.atx_dbr.wpc)] = buf_sz;
 	g.atx_dbr.wpc++;
 }
 
@@ -407,8 +407,8 @@ u16 dim_dbr_space(struct dim_channel *ch)
 
 	cur_rpc = dim2_rpc(ch->addr);
 
-	while (norm_pc(dbr->rpc) != cur_rpc) {
-		dbr->rest_size += dbr->sz_queue[norm_pc(dbr->rpc)];
+	while (yesrm_pc(dbr->rpc) != cur_rpc) {
+		dbr->rest_size += dbr->sz_queue[yesrm_pc(dbr->rpc)];
 		dbr->rpc++;
 	}
 
@@ -470,7 +470,7 @@ static inline bool check_bytes_per_frame(u32 bytes_per_frame)
 	return true;
 }
 
-u16 dim_norm_ctrl_async_buffer_size(u16 buf_size)
+u16 dim_yesrm_ctrl_async_buffer_size(u16 buf_size)
 {
 	u16 const max_size = (u16)ADT1_CTRL_ASYNC_BD_MASK + 1u;
 
@@ -480,7 +480,7 @@ u16 dim_norm_ctrl_async_buffer_size(u16 buf_size)
 	return buf_size;
 }
 
-static inline u16 norm_isoc_buffer_size(u16 buf_size, u16 packet_length)
+static inline u16 yesrm_isoc_buffer_size(u16 buf_size, u16 packet_length)
 {
 	u16 n;
 	u16 const max_size = (u16)ADT1_ISOC_SYNC_BD_MASK + 1u;
@@ -496,7 +496,7 @@ static inline u16 norm_isoc_buffer_size(u16 buf_size, u16 packet_length)
 	return packet_length * n;
 }
 
-static inline u16 norm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame)
+static inline u16 yesrm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame)
 {
 	u16 n;
 	u16 const max_size = (u16)ADT1_ISOC_SYNC_BD_MASK + 1u;
@@ -650,19 +650,19 @@ static bool channel_start(struct dim_channel *ch, u32 buf_addr, u16 buf_size)
 		return dim_on_error(DIM_ERR_BAD_BUFFER_SIZE, "Bad buffer size");
 
 	if (ch->packet_length == 0 && ch->bytes_per_frame == 0 &&
-	    buf_size != dim_norm_ctrl_async_buffer_size(buf_size))
+	    buf_size != dim_yesrm_ctrl_async_buffer_size(buf_size))
 		return dim_on_error(DIM_ERR_BAD_BUFFER_SIZE,
 				    "Bad control/async buffer size");
 
 	if (ch->packet_length &&
-	    buf_size != norm_isoc_buffer_size(buf_size, ch->packet_length))
+	    buf_size != yesrm_isoc_buffer_size(buf_size, ch->packet_length))
 		return dim_on_error(DIM_ERR_BAD_BUFFER_SIZE,
-				    "Bad isochronous buffer size");
+				    "Bad isochroyesus buffer size");
 
 	if (ch->bytes_per_frame &&
-	    buf_size != norm_sync_buffer_size(buf_size, ch->bytes_per_frame))
+	    buf_size != yesrm_sync_buffer_size(buf_size, ch->bytes_per_frame))
 		return dim_on_error(DIM_ERR_BAD_BUFFER_SIZE,
-				    "Bad synchronous buffer size");
+				    "Bad synchroyesus buffer size");
 
 	if (state->level >= 2u)
 		return dim_on_error(DIM_ERR_OVERFLOW, "Channel overflow");
@@ -779,31 +779,31 @@ void dim_service_mlb_int_irq(void)
 }
 
 /**
- * Retrieves maximal possible correct buffer size for isochronous data type
- * conform to given packet length and not bigger than given buffer size.
+ * Retrieves maximal possible correct buffer size for isochroyesus data type
+ * conform to given packet length and yest bigger than given buffer size.
  *
- * Returns non-zero correct buffer size or zero by error.
+ * Returns yesn-zero correct buffer size or zero by error.
  */
-u16 dim_norm_isoc_buffer_size(u16 buf_size, u16 packet_length)
+u16 dim_yesrm_isoc_buffer_size(u16 buf_size, u16 packet_length)
 {
 	if (!check_packet_length(packet_length))
 		return 0;
 
-	return norm_isoc_buffer_size(buf_size, packet_length);
+	return yesrm_isoc_buffer_size(buf_size, packet_length);
 }
 
 /**
- * Retrieves maximal possible correct buffer size for synchronous data type
- * conform to given bytes per frame and not bigger than given buffer size.
+ * Retrieves maximal possible correct buffer size for synchroyesus data type
+ * conform to given bytes per frame and yest bigger than given buffer size.
  *
- * Returns non-zero correct buffer size or zero by error.
+ * Returns yesn-zero correct buffer size or zero by error.
  */
-u16 dim_norm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame)
+u16 dim_yesrm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame)
 {
 	if (!check_bytes_per_frame(bytes_per_frame))
 		return 0;
 
-	return norm_sync_buffer_size(buf_size, bytes_per_frame);
+	return yesrm_sync_buffer_size(buf_size, bytes_per_frame);
 }
 
 u8 dim_init_control(struct dim_channel *ch, u8 is_tx, u16 ch_address,
@@ -907,7 +907,7 @@ void dim_service_ahb_int_irq(struct dim_channel *const *channels)
 
 	if (!g.dim_is_initialized) {
 		dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED,
-			     "DIM is not initialized");
+			     "DIM is yest initialized");
 		return;
 	}
 
@@ -920,7 +920,7 @@ void dim_service_ahb_int_irq(struct dim_channel *const *channels)
 	 * Use while-loop and a flag to make sure the age is changed back at
 	 * least once, otherwise the interrupt may never come if CPU generates
 	 * interrupt on changing age.
-	 * This cycle runs not more than number of channels, because
+	 * This cycle runs yest more than number of channels, because
 	 * channel_service_interrupt() routine doesn't start the channel again.
 	 */
 	do {

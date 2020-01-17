@@ -13,10 +13,10 @@ Please see Documentation/x86/x86_64/machinecheck.rst for sysfs runtime tunables.
 
    mce=off
 		Disable machine check
-   mce=no_cmci
+   mce=yes_cmci
 		Disable CMCI(Corrected Machine Check Interrupt) that
 		Intel processor supports.  Usually this disablement is
-		not recommended, but it might be handy if your hardware
+		yest recommended, but it might be handy if your hardware
 		is misbehaving.
 		Note that you'll get more problems without CMCI than with
 		due to the shared banks, i.e. you might get duplicated
@@ -24,19 +24,19 @@ Please see Documentation/x86/x86_64/machinecheck.rst for sysfs runtime tunables.
    mce=dont_log_ce
 		Don't make logs for corrected errors.  All events reported
 		as corrected are silently cleared by OS.
-		This option will be useful if you have no interest in any
+		This option will be useful if you have yes interest in any
 		of corrected errors.
-   mce=ignore_ce
+   mce=igyesre_ce
 		Disable features for corrected errors, e.g. polling timer
-		and CMCI.  All events reported as corrected are not cleared
+		and CMCI.  All events reported as corrected are yest cleared
 		by OS and remained in its error banks.
-		Usually this disablement is not recommended, however if
+		Usually this disablement is yest recommended, however if
 		there is an agent checking/clearing corrected errors
 		(e.g. BIOS or hardware monitoring applications), conflicting
-		with OS's error handling, and you cannot deactivate the agent,
+		with OS's error handling, and you canyest deactivate the agent,
 		then this option will be a help.
-   mce=no_lmce
-		Do not opt-in to Local MCE delivery. Use legacy method
+   mce=yes_lmce
+		Do yest opt-in to Local MCE delivery. Use legacy method
 		to broadcast MCEs.
    mce=bootlog
 		Enable logging of machine checks left over from booting.
@@ -45,7 +45,7 @@ Please see Documentation/x86/x86_64/machinecheck.rst for sysfs runtime tunables.
 		If your BIOS doesn't do that it's a good idea to enable though
 		to make sure you log even machine check events that result
 		in a reboot. On Intel systems it is enabled by default.
-   mce=nobootlog
+   mce=yesbootlog
 		Disable boot machine check logging.
    mce=tolerancelevel[,monarchtimeout] (number,number)
 		tolerance levels:
@@ -64,14 +64,14 @@ Please see Documentation/x86/x86_64/machinecheck.rst for sysfs runtime tunables.
 		bios. Without this option, Linux always sets the CMCI
 		threshold to 1. Enabling this may make memory predictive failure
 		analysis less effective if the bios sets thresholds for memory
-		errors since we will not see details for all errors.
+		errors since we will yest see details for all errors.
    mce=recovery
 		Force-enable recoverable machine check code paths
 
-   nomce (for compatibility with i386)
+   yesmce (for compatibility with i386)
 		same as mce=off
 
-   Everything else is in sysfs now.
+   Everything else is in sysfs yesw.
 
 APICs
 =====
@@ -79,22 +79,22 @@ APICs
    apic
 	Use IO-APIC. Default
 
-   noapic
+   yesapic
 	Don't use the IO-APIC.
 
    disableapic
 	Don't use the local APIC
 
-   nolapic
+   yeslapic
      Don't use the local APIC (alias for i386 compatibility)
 
    pirq=...
 	See Documentation/x86/i386/IO-APIC.rst
 
-   noapictimer
+   yesapictimer
 	Don't set up the APIC timer
 
-   no_timer_check
+   yes_timer_check
 	Don't check the IO-APIC timer. This can work around
 	problems with incorrect timer initialization on some boards.
 
@@ -105,10 +105,10 @@ APICs
 Timing
 ======
 
-  notsc
+  yestsc
     Deprecated, use tsc=unstable instead.
 
-  nohpet
+  yeshpet
     Don't use the HPET timer.
 
 Idle loop
@@ -119,8 +119,8 @@ Idle loop
     event. This will make the CPUs eat a lot more power, but may be useful
     to get slightly better performance in multiprocessor benchmarks. It also
     makes some profiling using performance counters more accurate.
-    Please note that on systems with MONITOR/MWAIT support (like Intel EM64T
-    CPUs) this option has no performance advantage over the normal idle loop.
+    Please yeste that on systems with MONITOR/MWAIT support (like Intel EM64T
+    CPUs) this option has yes performance advantage over the yesrmal idle loop.
     It may also interact badly with hyperthreading.
 
 Rebooting
@@ -138,17 +138,17 @@ Rebooting
       kbd
         Use the keyboard controller. cold reset (default)
       acpi
-        Use the ACPI RESET_REG in the FADT. If ACPI is not configured or
-        the ACPI reset does not work, the reboot path attempts the reset
+        Use the ACPI RESET_REG in the FADT. If ACPI is yest configured or
+        the ACPI reset does yest work, the reboot path attempts the reset
         using the keyboard controller.
       efi
-        Use efi reset_system runtime service. If EFI is not configured or
-        the EFI reset does not work, the reboot path attempts the reset using
+        Use efi reset_system runtime service. If EFI is yest configured or
+        the EFI reset does yest work, the reboot path attempts the reset using
         the keyboard controller.
 
    Using warm reset will be much faster especially on big memory
-   systems because the BIOS will not go through the memory check.
-   Disadvantage is that not all hardware will be completely reinitialized
+   systems because the BIOS will yest go through the memory check.
+   Disadvantage is that yest all hardware will be completely reinitialized
    on reboot so there may be boot problems on some systems.
 
    reboot=force
@@ -158,7 +158,7 @@ Rebooting
 Non Executable Mappings
 =======================
 
-  noexec=on|off
+  yesexec=on|off
     on
       Enable(default)
     off
@@ -168,22 +168,22 @@ NUMA
 ====
 
   numa=off
-    Only set up a single NUMA node spanning all memory.
+    Only set up a single NUMA yesde spanning all memory.
 
-  numa=noacpi
+  numa=yesacpi
     Don't parse the SRAT table for NUMA setup
 
   numa=fake=<size>[MG]
-    If given as a memory unit, fills all system RAM with nodes of
-    size interleaved over physical nodes.
+    If given as a memory unit, fills all system RAM with yesdes of
+    size interleaved over physical yesdes.
 
   numa=fake=<N>
-    If given as an integer, fills all system RAM with N fake nodes
-    interleaved over physical nodes.
+    If given as an integer, fills all system RAM with N fake yesdes
+    interleaved over physical yesdes.
 
   numa=fake=<N>U
     If given as an integer followed by 'U', it will divide each
-    physical node into N emulated nodes.
+    physical yesde into N emulated yesdes.
 
 ACPI
 ====
@@ -193,14 +193,14 @@ ACPI
   acpi=ht
     Use ACPI boot table parsing, but don't enable ACPI interpreter
   acpi=force
-    Force ACPI on (currently not needed)
+    Force ACPI on (currently yest needed)
   acpi=strict
     Disable out of spec ACPI workarounds.
   acpi_sci={edge,level,high,low}
     Set up ACPI SCI interrupt.
-  acpi=noirq
+  acpi=yesirq
     Don't route interrupts
-  acpi=nocmcff
+  acpi=yescmcff
     Disable firmware first mode for corrected errors. This
     disables parsing the HEST CMC error source to check if
     firmware has set the FF flag. This may result in
@@ -222,15 +222,15 @@ PCI
   pci=irqmask=MASK
     Set PCI interrupt mask to MASK
   pci=lastbus=NUMBER
-    Scan up to NUMBER busses, no matter what the mptable says.
-  pci=noacpi
+    Scan up to NUMBER busses, yes matter what the mptable says.
+  pci=yesacpi
     Don't use ACPI to set up PCI interrupt routing.
 
 IOMMU (input/output memory management unit)
 ===========================================
 Multiple x86-64 PCI-DMA mapping implementations exist, for example:
 
-   1. <kernel/dma/direct.c>: use no hardware/software IOMMU at all
+   1. <kernel/dma/direct.c>: use yes hardware/software IOMMU at all
       (e.g. because you have < 3 GB memory).
       Kernel boot message: "PCI-DMA: Disabling IOMMU"
 
@@ -238,7 +238,7 @@ Multiple x86-64 PCI-DMA mapping implementations exist, for example:
       Kernel boot message: "PCI-DMA: using GART IOMMU"
 
    3. <arch/x86_64/kernel/pci-swiotlb.c> : Software IOMMU implementation. Used
-      e.g. if there is no hardware IOMMU in the system and it is need because
+      e.g. if there is yes hardware IOMMU in the system and it is need because
       you have >3GB memory or told the kernel to us it (iommu=soft))
       Kernel boot message: "PCI-DMA: Using software bounce buffering
       for IO (SWIOTLB)"
@@ -250,19 +250,19 @@ Multiple x86-64 PCI-DMA mapping implementations exist, for example:
 
 ::
 
-  iommu=[<size>][,noagp][,off][,force][,noforce]
-  [,memaper[=<order>]][,merge][,fullflush][,nomerge]
-  [,noaperture][,calgary]
+  iommu=[<size>][,yesagp][,off][,force][,yesforce]
+  [,memaper[=<order>]][,merge][,fullflush][,yesmerge]
+  [,yesaperture][,calgary]
 
 General iommu options:
 
     off
       Don't initialize and use any kind of IOMMU.
-    noforce
-      Don't force hardware IOMMU usage when it is not needed. (default).
+    yesforce
+      Don't force hardware IOMMU usage when it is yest needed. (default).
     force
       Force the use of the hardware IOMMU even when it is
-      not actually needed (e.g. because < 3 GB memory).
+      yest actually needed (e.g. because < 3 GB memory).
     soft
       Use software bounce buffering (SWIOTLB) (default for
       Intel machines). This can be used to prevent the usage
@@ -276,18 +276,18 @@ iommu options only relevant to the AMD GART hardware IOMMU:
       Overwrite iommu off workarounds for specific chipsets.
     fullflush
       Flush IOMMU on each allocation (default).
-    nofullflush
+    yesfullflush
       Don't use IOMMU fullflush.
     memaper[=<order>]
       Allocate an own aperture over RAM with size 32MB<<order.
       (default: order=1, i.e. 64MB)
     merge
       Do scatter-gather (SG) merging. Implies "force" (experimental).
-    nomerge
+    yesmerge
       Don't do scatter-gather (SG) merging.
-    noaperture
-      Ask the IOMMU not to touch the aperture for AGP.
-    noagp
+    yesaperture
+      Ask the IOMMU yest to touch the aperture for AGP.
+    yesagp
       Don't initialize the AGP driver and use full aperture.
     panic
       Always panic when IOMMU overflows.
@@ -313,7 +313,7 @@ pSeries and xSeries machines
       32MB; the largest, 8MB table, can cover an IO space of 4GB.
       Normally the kernel will make the right choice by itself.
     calgary=[translate_empty_slots]
-      Enable translation even on slots that have no devices attached to
+      Enable translation even on slots that have yes devices attached to
       them, in case a device will be hotplugged in the future.
     calgary=[disable=<PCI bus number>]
       Disable translation on a given PHB. For
@@ -329,7 +329,7 @@ pSeries and xSeries machines
 Miscellaneous
 =============
 
-  nogbpages
-    Do not use GB pages for kernel direct mappings.
+  yesgbpages
+    Do yest use GB pages for kernel direct mappings.
   gbpages
     Use GB pages for kernel direct mappings.

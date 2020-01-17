@@ -164,7 +164,7 @@ static void netvsc_revoke_recv_buf(struct hv_device *device,
 				       (unsigned long)revoke_packet,
 				       VM_PKT_DATA_INBAND, 0);
 		/* If the failure is because the channel is rescinded;
-		 * ignore the failure since we cannot send on a rescinded
+		 * igyesre the failure since we canyest send on a rescinded
 		 * channel. This would allow us to properly cleanup
 		 * even when the channel is rescinded.
 		 */
@@ -215,7 +215,7 @@ static void netvsc_revoke_send_buf(struct hv_device *device,
 				       VM_PKT_DATA_INBAND, 0);
 
 		/* If the failure is because the channel is rescinded;
-		 * ignore the failure since we cannot send on a rescinded
+		 * igyesre the failure since we canyest send on a rescinded
 		 * channel. This would allow us to properly cleanup
 		 * even when the channel is rescinded.
 		 */
@@ -281,11 +281,11 @@ static void netvsc_teardown_send_gpadl(struct hv_device *device,
 int netvsc_alloc_recv_comp_ring(struct netvsc_device *net_device, u32 q_idx)
 {
 	struct netvsc_channel *nvchan = &net_device->chan_table[q_idx];
-	int node = cpu_to_node(nvchan->channel->target_cpu);
+	int yesde = cpu_to_yesde(nvchan->channel->target_cpu);
 	size_t size;
 
 	size = net_device->recv_completion_cnt * sizeof(struct recv_comp_data);
-	nvchan->mrc.slots = vzalloc_node(size, node);
+	nvchan->mrc.slots = vzalloc_yesde(size, yesde);
 	if (!nvchan->mrc.slots)
 		nvchan->mrc.slots = vzalloc(size);
 
@@ -348,7 +348,7 @@ static int netvsc_init_buf(struct hv_device *device,
 
 	trace_nvsp_send(ndev, init_packet);
 
-	/* Send the gpadl notification request */
+	/* Send the gpadl yestification request */
 	ret = vmbus_sendpacket(device->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
@@ -429,7 +429,7 @@ static int netvsc_init_buf(struct hv_device *device,
 
 	trace_nvsp_send(ndev, init_packet);
 
-	/* Send the gpadl notification request */
+	/* Send the gpadl yestification request */
 	ret = vmbus_sendpacket(device->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
@@ -588,7 +588,7 @@ static int netvsc_connect_vsp(struct hv_device *device,
 		send_ndis_ver.ndis_major_ver =
 				(ndis_version & 0xFFFF0000) >> 16;
 	init_packet->msg.v1_msg.
-		send_ndis_ver.ndis_minor_ver =
+		send_ndis_ver.ndis_miyesr_ver =
 				ndis_version & 0xFFFF;
 
 	trace_nvsp_send(ndev, init_packet);
@@ -638,7 +638,7 @@ void netvsc_device_remove(struct hv_device *device)
 		netif_napi_del(&net_device->chan_table[i].napi);
 
 	/*
-	 * At this point, no one should be accessing net_device
+	 * At this point, yes one should be accessing net_device
 	 * except in here
 	 */
 	netdev_dbg(ndev, "net device safe to remove\n");
@@ -744,7 +744,7 @@ static void netvsc_send_completion(struct net_device *ndev,
 
 	default:
 		netdev_err(ndev,
-			   "Unknown send completion type %d received!!\n",
+			   "Unkyeswn send completion type %d received!!\n",
 			   nvsp_packet->hdr.msg_type);
 	}
 }
@@ -956,7 +956,7 @@ int netvsc_send(struct net_device *ndev,
 	}
 
 	/* Keep aggregating only if stack says more data is coming
-	 * and not doing mixed modes send and not flow blocked
+	 * and yest doing mixed modes send and yest flow blocked
 	 */
 	xmit_more = netdev_xmit_more() &&
 		!packet->cp_partial &&
@@ -1125,7 +1125,7 @@ static int netvsc_receive(struct net_device *ndev,
 	/* Make sure this is a valid nvsp packet */
 	if (unlikely(nvsp->hdr.msg_type != NVSP_MSG1_TYPE_SEND_RNDIS_PKT)) {
 		netif_err(net_device_ctx, rx_err, ndev,
-			  "Unknown nvsp packet type received %u\n",
+			  "Unkyeswn nvsp packet type received %u\n",
 			  nvsp->hdr.msg_type);
 		return 0;
 	}
@@ -1316,10 +1316,10 @@ int netvsc_poll(struct napi_struct *napi, int budget)
 	/* Send any pending receive completions */
 	ret = send_recv_completions(ndev, net_device, nvchan);
 
-	/* If it did not exhaust NAPI budget this time
-	 *  and not doing busy poll
+	/* If it did yest exhaust NAPI budget this time
+	 *  and yest doing busy poll
 	 * then re-enable host interrupts
-	 *  and reschedule if ring is not empty
+	 *  and reschedule if ring is yest empty
 	 *   or sending receive completion failed.
 	 */
 	if (work_done < budget &&
@@ -1374,7 +1374,7 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 		net_device_ctx->tx_table[i] = 0;
 
 	/* Because the device uses NAPI, all the interrupt batching and
-	 * control is done via Net softirq, not the channel handling
+	 * control is done via Net softirq, yest the channel handling
 	 */
 	set_channel_read_mode(device->channel, HV_CALL_ISR);
 

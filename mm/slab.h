@@ -12,10 +12,10 @@
  * or the allocator must include definitions for all fields
  * provided in kmem_cache_common in their definition of kmem_cache.
  *
- * Once we can do anonymous structs (C11 standard) we could put a
- * anonymous struct definition in these allocators so that the
+ * Once we can do ayesnymous structs (C11 standard) we could put a
+ * ayesnymous struct definition in these allocators so that the
  * separate allocations in the kmem_cache structure of SLAB and
- * SLUB is no longer needed.
+ * SLUB is yes longer needed.
  */
 struct kmem_cache {
 	unsigned int object_size;/* The original size of the object */
@@ -40,7 +40,7 @@ struct memcg_cache_array {
 /*
  * This is the main placeholder for memcg-related information in kmem caches.
  * Both the root cache and the child caches will have it. For the root cache,
- * this will hold a dynamically allocated array large enough to hold
+ * this will hold a dynamically allocated array large eyesugh to hold
  * information about the currently limited memcgs in the system. To allow the
  * array to be accessed without taking any locks, on relocation we free the old
  * version only after a grace period.
@@ -56,7 +56,7 @@ struct memcg_cache_array {
  *		used to index child cachces during allocation and cleared
  *		early during shutdown.
  *
- * @root_caches_node: List node for slab_root_caches list.
+ * @root_caches_yesde: List yesde for slab_root_caches list.
  *
  * @children:	List of all child caches.  While the child caches are also
  *		reachable through @memcg_caches, a child cache remains on
@@ -66,23 +66,23 @@ struct memcg_cache_array {
  *
  * @memcg:	Pointer to the memcg this cache belongs to.
  *
- * @children_node: List node for @root_cache->children list.
+ * @children_yesde: List yesde for @root_cache->children list.
  *
- * @kmem_caches_node: List node for @memcg->kmem_caches list.
+ * @kmem_caches_yesde: List yesde for @memcg->kmem_caches list.
  */
 struct memcg_cache_params {
 	struct kmem_cache *root_cache;
 	union {
 		struct {
 			struct memcg_cache_array __rcu *memcg_caches;
-			struct list_head __root_caches_node;
+			struct list_head __root_caches_yesde;
 			struct list_head children;
 			bool dying;
 		};
 		struct {
 			struct mem_cgroup *memcg;
-			struct list_head children_node;
-			struct list_head kmem_caches_node;
+			struct list_head children_yesde;
+			struct list_head kmem_caches_yesde;
 			struct percpu_ref refcnt;
 
 			void (*work_fn)(struct kmem_cache *);
@@ -120,9 +120,9 @@ struct memcg_cache_params {
  */
 enum slab_state {
 	DOWN,			/* No slab functionality yet */
-	PARTIAL,		/* SLUB: kmem_cache_node available */
-	PARTIAL_NODE,		/* SLAB: kmalloc size for node struct available */
-	UP,			/* Slab caches usable but not all extras yet */
+	PARTIAL,		/* SLUB: kmem_cache_yesde available */
+	PARTIAL_NODE,		/* SLAB: kmalloc size for yesde struct available */
+	UP,			/* Slab caches usable but yest all extras yet */
 	FULL			/* Everything is working */
 };
 
@@ -262,7 +262,7 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 
 /*
  * Generic implementation of bulk operations
- * These are useful for situations in which the allocator cannot
+ * These are useful for situations in which the allocator canyest
  * perform optimizations. In that case segments of the object listed
  * may be allocated or freed using these operations.
  */
@@ -279,7 +279,7 @@ static inline int cache_vmstat_idx(struct kmem_cache *s)
 
 /* List of all root caches. */
 extern struct list_head		slab_root_caches;
-#define root_caches_node	memcg_params.__root_caches_node
+#define root_caches_yesde	memcg_params.__root_caches_yesde
 
 /*
  * Iterate over all memcg caches of the given root cache. The caller must hold
@@ -287,7 +287,7 @@ extern struct list_head		slab_root_caches;
  */
 #define for_each_memcg_cache(iter, root) \
 	list_for_each_entry(iter, &(root)->memcg_params.children, \
-			    memcg_params.children_node)
+			    memcg_params.children_yesde)
 
 static inline bool is_root_cache(struct kmem_cache *s)
 {
@@ -320,13 +320,13 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
 }
 
 /*
- * Expects a pointer to a slab page. Please note, that PageSlab() check
+ * Expects a pointer to a slab page. Please yeste, that PageSlab() check
  * isn't sufficient, as it returns true also for tail compound slab pages,
- * which do not have slab_cache pointer set.
+ * which do yest have slab_cache pointer set.
  * So this function assumes that the page can pass PageSlab() && !PageTail()
  * check.
  *
- * The kmem_cache can be reparented asynchronously. The caller must ensure
+ * The kmem_cache can be reparented asynchroyesusly. The caller must ensure
  * the memcg lifetime, e.g. by taking rcu_read_lock() or cgroup_mutex.
  */
 static inline struct mem_cgroup *memcg_from_slab_page(struct page *page)
@@ -341,8 +341,8 @@ static inline struct mem_cgroup *memcg_from_slab_page(struct page *page)
 }
 
 /*
- * Charge the slab page belonging to the non-root kmem_cache.
- * Can be called for non-root kmem_caches only.
+ * Charge the slab page belonging to the yesn-root kmem_cache.
+ * Can be called for yesn-root kmem_caches only.
  */
 static __always_inline int memcg_charge_slab(struct page *page,
 					     gfp_t gfp, int order,
@@ -359,7 +359,7 @@ static __always_inline int memcg_charge_slab(struct page *page,
 	rcu_read_unlock();
 
 	if (unlikely(!memcg || mem_cgroup_is_root(memcg))) {
-		mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+		mod_yesde_page_state(page_pgdat(page), cache_vmstat_idx(s),
 				    (1 << order));
 		percpu_ref_get_many(&s->memcg_params.refcnt, 1 << order);
 		return 0;
@@ -381,8 +381,8 @@ out:
 }
 
 /*
- * Uncharge a slab page belonging to a non-root kmem_cache.
- * Can be called for non-root kmem_caches only.
+ * Uncharge a slab page belonging to a yesn-root kmem_cache.
+ * Can be called for yesn-root kmem_caches only.
  */
 static __always_inline void memcg_uncharge_slab(struct page *page, int order,
 						struct kmem_cache *s)
@@ -397,7 +397,7 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
 		mod_lruvec_state(lruvec, cache_vmstat_idx(s), -(1 << order));
 		memcg_kmem_uncharge_memcg(page, order, memcg);
 	} else {
-		mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+		mod_yesde_page_state(page_pgdat(page), cache_vmstat_idx(s),
 				    -(1 << order));
 	}
 	rcu_read_unlock();
@@ -412,7 +412,7 @@ extern void memcg_link_cache(struct kmem_cache *s, struct mem_cgroup *memcg);
 
 /* If !memcg, all caches are root. */
 #define slab_root_caches	slab_caches
-#define root_caches_node	list
+#define root_caches_yesde	list
 
 #define for_each_memcg_cache(iter, root) \
 	for ((void)(iter), (void)(root); 0; )
@@ -470,7 +470,7 @@ static inline struct kmem_cache *virt_to_cache(const void *obj)
 	struct page *page;
 
 	page = virt_to_head_page(obj);
-	if (WARN_ONCE(!PageSlab(page), "%s: Object is not a Slab page!\n",
+	if (WARN_ONCE(!PageSlab(page), "%s: Object is yest a Slab page!\n",
 					__func__))
 		return NULL;
 	return page->slab_cache;
@@ -481,7 +481,7 @@ static __always_inline int charge_slab_page(struct page *page,
 					    struct kmem_cache *s)
 {
 	if (is_root_cache(s)) {
-		mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+		mod_yesde_page_state(page_pgdat(page), cache_vmstat_idx(s),
 				    1 << order);
 		return 0;
 	}
@@ -493,7 +493,7 @@ static __always_inline void uncharge_slab_page(struct page *page, int order,
 					       struct kmem_cache *s)
 {
 	if (is_root_cache(s)) {
-		mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+		mod_yesde_page_state(page_pgdat(page), cache_vmstat_idx(s),
 				    -(1 << order));
 		return;
 	}
@@ -506,10 +506,10 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 	struct kmem_cache *cachep;
 
 	/*
-	 * When kmemcg is not being used, both assignments should return the
+	 * When kmemcg is yest being used, both assignments should return the
 	 * same value. but we don't want to pay the assignment price in that
-	 * case. If it is not compiled in, the compiler should be smart enough
-	 * to not do even the assignment. In that case, slab_equal_or_root
+	 * case. If it is yest compiled in, the compiler should be smart eyesugh
+	 * to yest do even the assignment. In that case, slab_equal_or_root
 	 * will also be a constant.
 	 */
 	if (!memcg_kmem_enabled() &&
@@ -595,7 +595,7 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
 /*
  * The slab lists for all objects.
  */
-struct kmem_cache_node {
+struct kmem_cache_yesde {
 	spinlock_t list_lock;
 
 #ifdef CONFIG_SLAB
@@ -606,9 +606,9 @@ struct kmem_cache_node {
 	unsigned long free_slabs;	/* length of free slab list only */
 	unsigned long free_objects;
 	unsigned int free_limit;
-	unsigned int colour_next;	/* Per-node cache coloring */
-	struct array_cache *shared;	/* shared per node */
-	struct alien_cache **alien;	/* on other nodes */
+	unsigned int colour_next;	/* Per-yesde cache coloring */
+	struct array_cache *shared;	/* shared per yesde */
+	struct alien_cache **alien;	/* on other yesdes */
 	unsigned long next_reap;	/* updated without locking */
 	int free_touched;		/* updated without locking */
 #endif
@@ -625,18 +625,18 @@ struct kmem_cache_node {
 
 };
 
-static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
+static inline struct kmem_cache_yesde *get_yesde(struct kmem_cache *s, int yesde)
 {
-	return s->node[node];
+	return s->yesde[yesde];
 }
 
 /*
- * Iterator over all nodes. The body will be executed for each node that has
- * a kmem_cache_node structure allocated (which is true for all online nodes)
+ * Iterator over all yesdes. The body will be executed for each yesde that has
+ * a kmem_cache_yesde structure allocated (which is true for all online yesdes)
  */
-#define for_each_kmem_cache_node(__s, __node, __n) \
-	for (__node = 0; __node < nr_node_ids; __node++) \
-		 if ((__n = get_node(__s, __node)))
+#define for_each_kmem_cache_yesde(__s, __yesde, __n) \
+	for (__yesde = 0; __yesde < nr_yesde_ids; __yesde++) \
+		 if ((__n = get_yesde(__s, __yesde)))
 
 #endif
 

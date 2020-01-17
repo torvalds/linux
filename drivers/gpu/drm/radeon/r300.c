@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -124,7 +124,7 @@ void rv370_pcie_gart_set_page(struct radeon_device *rdev, unsigned i,
 
 	/* on x86 we want this to be CPU endian, on powerpc
 	 * on powerpc without HW swappers, it'll get swapped on way
-	 * into VRAM - so no need for cpu_to_le32 on VRAM tables */
+	 * into VRAM - so yes need for cpu_to_le32 on VRAM tables */
 	writel(entry, ((void __iomem *)ptr) + (i * 4));
 }
 
@@ -217,7 +217,7 @@ void r300_fence_ring_emit(struct radeon_device *rdev,
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
 
 	/* Who ever call radeon_fence_emit should call ring_lock and ask
-	 * for enough space (today caller are ib schedule and buffer move) */
+	 * for eyesugh space (today caller are ib schedule and buffer move) */
 	/* Write SC register so SC & US assert idle */
 	radeon_ring_write(ring, PACKET0(R300_RE_SCISSORS_TL, 0));
 	radeon_ring_write(ring, 0);
@@ -592,8 +592,8 @@ int rv370_get_pcie_lanes(struct radeon_device *rdev)
 #if defined(CONFIG_DEBUG_FS)
 static int rv370_debugfs_pcie_gart_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t tmp;
 
@@ -766,7 +766,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		/* RB3D_CCTL */
 		if ((idx_value & (1 << 10)) && /* CMASK_ENABLE */
 		    p->rdev->cmask_filp != p->filp) {
-			DRM_ERROR("Invalid RB3D_CCTL: Cannot enable CMASK.\n");
+			DRM_ERROR("Invalid RB3D_CCTL: Canyest enable CMASK.\n");
 			return -EINVAL;
 		}
 		track->num_cb = ((idx_value >> 5) & 0x3) + 1;
@@ -1162,7 +1162,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		/* valid register only on RV530 */
 		if (p->rdev->family == CHIP_RV530)
 			break;
-		/* fallthrough do not move */
+		/* fallthrough do yest move */
 	default:
 		goto fail;
 	}
@@ -1275,7 +1275,7 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 	case PACKET3_NOP:
 		break;
 	default:
-		DRM_ERROR("Packet3 opcode %x not supported\n", pkt->opcode);
+		DRM_ERROR("Packet3 opcode %x yest supported\n", pkt->opcode);
 		return -EINVAL;
 	}
 	return 0;
@@ -1311,7 +1311,7 @@ int r300_cs_parse(struct radeon_cs_parser *p)
 			r = r300_packet3_check(p, &pkt);
 			break;
 		default:
-			DRM_ERROR("Unknown packet type %d !\n", pkt.type);
+			DRM_ERROR("Unkyeswn packet type %d !\n", pkt.type);
 			return -EINVAL;
 		}
 		if (r) {
@@ -1446,7 +1446,7 @@ int r300_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Make sur GART are not working */
+	/* Make sur GART are yest working */
 	if (rdev->flags & RADEON_IS_PCIE)
 		rv370_pcie_gart_disable(rdev);
 	if (rdev->flags & RADEON_IS_PCI)
@@ -1540,7 +1540,7 @@ int r300_init(struct radeon_device *rdev)
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
 	}
-	/* check if cards are posted or not */
+	/* check if cards are posted or yest */
 	if (radeon_boot_test_post_card(rdev) == false)
 		return -EINVAL;
 	/* Set asic errata */

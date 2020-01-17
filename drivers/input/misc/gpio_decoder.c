@@ -86,7 +86,7 @@ static int gpio_decoder_probe(struct platform_device *pdev)
 	}
 
 	if (decoder->input_gpios->ndescs < 2) {
-		dev_err(dev, "not enough gpios found\n");
+		dev_err(dev, "yest eyesugh gpios found\n");
 		return -EINVAL;
 	}
 

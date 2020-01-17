@@ -16,37 +16,37 @@ description: |+
   already been set up to scan out from the memory pointed to by the
   reg property.
 
-  Since simplefb nodes represent runtime information they must be
-  sub-nodes of the chosen node (*). Simplefb nodes must be named
+  Since simplefb yesdes represent runtime information they must be
+  sub-yesdes of the chosen yesde (*). Simplefb yesdes must be named
   framebuffer@<address>.
 
-  If the devicetree contains nodes for the display hardware used by a
-  simplefb, then the simplefb node must contain a property called
+  If the devicetree contains yesdes for the display hardware used by a
+  simplefb, then the simplefb yesde must contain a property called
   display, which contains a phandle pointing to the primary display
-  hw node, so that the OS knows which simplefb to disable when handing
+  hw yesde, so that the OS kyesws which simplefb to disable when handing
   over control to a driver for the real hardware. The bindings for the
-  hw nodes must specify which node is considered the primary node.
+  hw yesdes must specify which yesde is considered the primary yesde.
 
   It is advised to add display# aliases to help the OS determine how
   to number things. If display# aliases are used, then if the simplefb
-  node contains a display property then the /aliases/display# path
-  must point to the display hw node the display property points to,
-  otherwise it must point directly to the simplefb node.
+  yesde contains a display property then the /aliases/display# path
+  must point to the display hw yesde the display property points to,
+  otherwise it must point directly to the simplefb yesde.
 
-  If a simplefb node represents the preferred console for user
-  interaction, then the chosen node stdout-path property should point
-  to it, or to the primary display hw node, as with display#
+  If a simplefb yesde represents the preferred console for user
+  interaction, then the chosen yesde stdout-path property should point
+  to it, or to the primary display hw yesde, as with display#
   aliases. If display aliases are used then it should be set to the
   alias instead.
 
   It is advised that devicetree files contain pre-filled, disabled
-  framebuffer nodes, so that the firmware only needs to update the
+  framebuffer yesdes, so that the firmware only needs to update the
   mode information and enable them. This way if e.g. later on support
-  for more display clocks get added, the simplefb nodes will already
-  contain this info and the firmware does not need to be updated.
+  for more display clocks get added, the simplefb yesdes will already
+  contain this info and the firmware does yest need to be updated.
 
-  If pre-filled framebuffer nodes are used, the firmware may need
-  extra information to find the right node. In that case an extra
+  If pre-filled framebuffer yesdes are used, the firmware may need
+  extra information to find the right yesde. In that case an extra
   platform specific compatible and platform specific properties should
   be used and documented.
 
@@ -90,7 +90,7 @@ properties:
 
   display:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: Primary display hardware node
+    description: Primary display hardware yesde
 
   allwinner,pipeline:
     description: Pipeline used by the framebuffer on Allwinner SoCs

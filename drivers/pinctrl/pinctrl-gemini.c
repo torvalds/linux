@@ -93,10 +93,10 @@ struct gemini_pin_group {
  * This register controls all Gemini pad/pin multiplexing
  *
  * It is a tricky register though:
- * - For the bits named *_ENABLE, once you DISABLE something, it simply cannot
+ * - For the bits named *_ENABLE, once you DISABLE something, it simply canyest
  *   be brought back online, so it means permanent disablement of the
  *   corresponding pads.
- * - For the bits named *_DISABLE, once you enable something, it cannot be
+ * - For the bits named *_DISABLE, once you enable something, it canyest be
  *   DISABLED again. So you select a flash configuration once, and then
  *   you are stuck with it.
  */
@@ -185,7 +185,7 @@ static const struct pinctrl_pin_desc gemini_3512_pins[] = {
 	PINCTRL_PIN(34, "B17 PCI AD30"),
 	PINCTRL_PIN(35, "B18 PCI AD29"),
 	/* Row C */
-	PINCTRL_PIN(36, "C1 CIR RST N"), /* REALLY? CIR is not in 3512... */
+	PINCTRL_PIN(36, "C1 CIR RST N"), /* REALLY? CIR is yest in 3512... */
 	PINCTRL_PIN(37, "C2 XTALI"),
 	PINCTRL_PIN(38, "C3 PWR BTN"),
 	PINCTRL_PIN(39, "C4 RTC CLKO"),
@@ -617,7 +617,7 @@ static const unsigned int pflash_3512_pins[] = {
 /*
  * The parallel flash can be set up in a 26-bit address bus mode exposing
  * A[0-15] (A[15] takes the place of ALE), but it has the
- * side effect of stealing pins from GMAC1 and TVC so these blocks cannot be
+ * side effect of stealing pins from GMAC1 and TVC so these blocks canyest be
  * used at the same time.
  */
 static const unsigned int pflash_3512_pins_extended[] = {
@@ -836,7 +836,7 @@ static const struct gemini_pin_group gemini_3512_pin_groups[] = {
 	},
 	/*
 	 * The construction is done such that it is possible to use a serial
-	 * flash together with a NAND or parallel (NOR) flash, but it is not
+	 * flash together with a NAND or parallel (NOR) flash, but it is yest
 	 * possible to use NAND and parallel flash together. To use serial
 	 * flash with one of the two others, the muxbits need to be flipped
 	 * around before any access.
@@ -1566,7 +1566,7 @@ static const unsigned int pflash_3516_pins[] = {
 /*
  * The parallel flash can be set up in a 26-bit address bus mode exposing
  * A[0-15] (A[15] takes the place of ALE), but it has the
- * side effect of stealing pins from GMAC1 and TVC so these blocks cannot be
+ * side effect of stealing pins from GMAC1 and TVC so these blocks canyest be
  * used at the same time.
  */
 static const unsigned int pflash_3516_pins_extended[] = {
@@ -1786,7 +1786,7 @@ static const struct gemini_pin_group gemini_3516_pin_groups[] = {
 	},
 	/*
 	 * The construction is done such that it is possible to use a serial
-	 * flash together with a NAND or parallel (NOR) flash, but it is not
+	 * flash together with a NAND or parallel (NOR) flash, but it is yest
 	 * possible to use NAND and parallel flash together. To use serial
 	 * flash with one of the two others, the muxbits need to be flipped
 	 * around before any access.
@@ -2020,7 +2020,7 @@ static const struct pinctrl_ops gemini_pctrl_ops = {
 	.get_group_name = gemini_get_group_name,
 	.get_group_pins = gemini_get_group_pins,
 	.pin_dbg_show = gemini_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -2229,10 +2229,10 @@ static int gemini_pmx_set_mux(struct pinctrl_dev *pctldev,
 	for_each_set_bit(i, &tmp, PADS_MAXBIT) {
 		bool enabled = !(i > 3);
 
-		/* Did not go low though it should */
+		/* Did yest go low though it should */
 		if (after & BIT(i)) {
 			dev_err(pmx->dev,
-				"pin group %s could not be %s: "
+				"pin group %s could yest be %s: "
 				"probably a hardware limitation\n",
 				gemini_padgroups[i],
 				enabled ? "enabled" : "disabled");
@@ -2251,10 +2251,10 @@ static int gemini_pmx_set_mux(struct pinctrl_dev *pctldev,
 	for_each_set_bit(i, &tmp, PADS_MAXBIT) {
 		bool enabled = (i > 3);
 
-		/* Did not go high though it should */
+		/* Did yest go high though it should */
 		if (!(after & BIT(i))) {
 			dev_err(pmx->dev,
-				"pin group %s could not be %s: "
+				"pin group %s could yest be %s: "
 				"probably a hardware limitation\n",
 				gemini_padgroups[i],
 				enabled ? "enabled" : "disabled");
@@ -2458,7 +2458,7 @@ static int gemini_pinconf_group_set(struct pinctrl_dev *pctldev,
 	/* First figure out if this group supports configs */
 	if (!grp->driving_mask) {
 		dev_err(pmx->dev, "pin config group \"%s\" does "
-			"not support drive strength setting\n",
+			"yest support drive strength setting\n",
 			grp->name);
 		return -EINVAL;
 	}
@@ -2539,20 +2539,20 @@ static int gemini_pmx_probe(struct platform_device *pdev)
 	pmx->dev = &pdev->dev;
 	parent = dev->parent;
 	if (!parent) {
-		dev_err(dev, "no parent to pin controller\n");
+		dev_err(dev, "yes parent to pin controller\n");
 		return -ENODEV;
 	}
-	map = syscon_node_to_regmap(parent->of_node);
+	map = syscon_yesde_to_regmap(parent->of_yesde);
 	if (IS_ERR(map)) {
-		dev_err(dev, "no syscon regmap\n");
+		dev_err(dev, "yes syscon regmap\n");
 		return PTR_ERR(map);
 	}
 	pmx->map = map;
 
-	/* Check that regmap works at first call, then no more */
+	/* Check that regmap works at first call, then yes more */
 	ret = regmap_read(map, GLOBAL_WORD_ID, &val);
 	if (ret) {
-		dev_err(dev, "cannot access regmap\n");
+		dev_err(dev, "canyest access regmap\n");
 		return ret;
 	}
 	val >>= 8;
@@ -2572,7 +2572,7 @@ static int gemini_pmx_probe(struct platform_device *pdev)
 		gemini_pmx_desc.npins = ARRAY_SIZE(gemini_3516_pins);
 		dev_info(dev, "detected 3516 chip variant\n");
 	} else {
-		dev_err(dev, "unknown chip ID: %04x\n", val);
+		dev_err(dev, "unkyeswn chip ID: %04x\n", val);
 		return -ENODEV;
 	}
 
@@ -2592,11 +2592,11 @@ static int gemini_pmx_probe(struct platform_device *pdev)
 	/* Check if flash pin is set */
 	regmap_read(map, GLOBAL_STATUS, &val);
 	pmx->flash_pin = !!(val & GLOBAL_STATUS_FLPIN);
-	dev_info(dev, "flash pin is %s\n", pmx->flash_pin ? "set" : "not set");
+	dev_info(dev, "flash pin is %s\n", pmx->flash_pin ? "set" : "yest set");
 
 	pmx->pctl = devm_pinctrl_register(dev, &gemini_pmx_desc, pmx);
 	if (IS_ERR(pmx->pctl)) {
-		dev_err(dev, "could not register pinmux driver\n");
+		dev_err(dev, "could yest register pinmux driver\n");
 		return PTR_ERR(pmx->pctl);
 	}
 

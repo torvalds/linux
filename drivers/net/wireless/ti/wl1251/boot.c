@@ -180,7 +180,7 @@ int wl1251_boot_init_seq(struct wl1251 *wl)
 	 * set regulator output voltage for n divider to
 	 * 1.35-BB_REFDIV[1:0], set charge pump current- BB_CPGAIN[4:2],
 	 * set BB PLL Loop filter capacitor2- BB_C2[7:5], set gain of BB
-	 * PLL auto-call to normal mode- BB_CALGAIN_3DB[8]
+	 * PLL auto-call to yesrmal mode- BB_CALGAIN_3DB[8]
 	 */
 	wl1251_reg_write32(wl, 0x003058f0, 0x29);
 
@@ -264,7 +264,7 @@ int wl1251_boot_run_firmware(struct wl1251 *wl)
 	wl1251_acx_fw_version(wl, wl->fw_ver, sizeof(wl->fw_ver));
 
 	/*
-	 * in case of full asynchronous mode the firmware event must be
+	 * in case of full asynchroyesus mode the firmware event must be
 	 * ready to receive event from the command mailbox
 	 */
 
@@ -319,7 +319,7 @@ static int wl1251_boot_upload_firmware(struct wl1251 *wl)
 		CHUNK_SIZE);
 
 	if ((fw_data_len % 4) != 0) {
-		wl1251_error("firmware length not multiple of four");
+		wl1251_error("firmware length yest multiple of four");
 		return -EIO;
 	}
 
@@ -466,7 +466,7 @@ static int wl1251_boot_upload_nvs(struct wl1251 *wl)
 
 int wl1251_boot(struct wl1251 *wl)
 {
-	int ret = 0, minor_minor_e2_ver;
+	int ret = 0, miyesr_miyesr_e2_ver;
 	u32 tmp, boot_data;
 
 	/* halt embedded ARM CPU while loading firmware */
@@ -501,13 +501,13 @@ int wl1251_boot(struct wl1251 *wl)
 	tmp = wl1251_reg_read32(wl, SCR_PAD3);
 
 	/* 8. check bootdata and call restart sequence */
-	wl->boot_attr.minor = (tmp & 0x00FF0000) >> 16;
-	minor_minor_e2_ver = (tmp & 0xFF000000) >> 24;
+	wl->boot_attr.miyesr = (tmp & 0x00FF0000) >> 16;
+	miyesr_miyesr_e2_ver = (tmp & 0xFF000000) >> 24;
 
 	wl1251_debug(DEBUG_BOOT, "radioType 0x%x majorE2Ver 0x%x "
-		     "minorE2Ver 0x%x minor_minor_e2_ver 0x%x",
+		     "miyesrE2Ver 0x%x miyesr_miyesr_e2_ver 0x%x",
 		     wl->boot_attr.radio_type, wl->boot_attr.major,
-		     wl->boot_attr.minor, minor_minor_e2_ver);
+		     wl->boot_attr.miyesr, miyesr_miyesr_e2_ver);
 
 	ret = wl1251_boot_init_seq(wl);
 	if (ret < 0)
@@ -522,7 +522,7 @@ int wl1251_boot(struct wl1251 *wl)
 	 * pWhalBus->uBootData and start uploading firmware
 	 */
 	if ((boot_data & ECPU_CONTROL_HALT) == 0) {
-		wl1251_error("boot failed, ECPU_CONTROL_HALT not set");
+		wl1251_error("boot failed, ECPU_CONTROL_HALT yest set");
 		ret = -EIO;
 		goto out;
 	}

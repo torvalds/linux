@@ -16,7 +16,7 @@
 #include <linux/mfd/cros_ec.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/platform_data/cros_ec_chardev.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -38,7 +38,7 @@ struct chardev_data {
 
 struct chardev_priv {
 	struct cros_ec_dev *ec_dev;
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 	wait_queue_head_t wait_event;
 	unsigned long event_mask;
 	struct list_head events;
@@ -46,7 +46,7 @@ struct chardev_priv {
 };
 
 struct ec_event {
-	struct list_head node;
+	struct list_head yesde;
 	size_t size;
 	u8 event_type;
 	u8 data[0];
@@ -55,7 +55,7 @@ struct ec_event {
 static int ec_get_version(struct cros_ec_dev *ec, char *str, int maxlen)
 {
 	static const char * const current_image_name[] = {
-		"unknown", "read-only", "read-write", "invalid",
+		"unkyeswn", "read-only", "read-write", "invalid",
 	};
 	struct ec_response_get_version *resp;
 	struct cros_ec_command *msg;
@@ -71,7 +71,7 @@ static int ec_get_version(struct cros_ec_dev *ec, char *str, int maxlen)
 	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
 	if (ret < 0) {
 		snprintf(str, maxlen,
-			 "Unknown EC version, returned error: %d\n",
+			 "Unkyeswn EC version, returned error: %d\n",
 			 msg->result);
 		goto exit;
 	}
@@ -90,12 +90,12 @@ exit:
 	return ret;
 }
 
-static int cros_ec_chardev_mkbp_event(struct notifier_block *nb,
+static int cros_ec_chardev_mkbp_event(struct yestifier_block *nb,
 				      unsigned long queued_during_suspend,
-				      void *_notify)
+				      void *_yestify)
 {
 	struct chardev_priv *priv = container_of(nb, struct chardev_priv,
-						 notifier);
+						 yestifier);
 	struct cros_ec_device *ec_dev = priv->ec_dev->ec_dev;
 	struct ec_event *event;
 	unsigned long event_bit = 1 << ec_dev->event_data.event_type;
@@ -114,7 +114,7 @@ static int cros_ec_chardev_mkbp_event(struct notifier_block *nb,
 	memcpy(event->data, &ec_dev->event_data.data, ec_dev->event_size);
 
 	spin_lock(&priv->wait_event.lock);
-	list_add_tail(&event->node, &priv->events);
+	list_add_tail(&event->yesde, &priv->events);
 	priv->event_len += total_size;
 	wake_up_locked(&priv->wait_event);
 	spin_unlock(&priv->wait_event.lock);
@@ -146,8 +146,8 @@ static struct ec_event *cros_ec_chardev_fetch_event(struct chardev_priv *priv,
 		goto out;
 	}
 
-	event = list_first_entry(&priv->events, struct ec_event, node);
-	list_del(&event->node);
+	event = list_first_entry(&priv->events, struct ec_event, yesde);
+	list_del(&event->yesde);
 	priv->event_len -= sizeof(*event) + event->size;
 
 out:
@@ -158,7 +158,7 @@ out:
 /*
  * Device file ops
  */
-static int cros_ec_chardev_open(struct inode *inode, struct file *filp)
+static int cros_ec_chardev_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct miscdevice *mdev = filp->private_data;
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(mdev->parent);
@@ -173,13 +173,13 @@ static int cros_ec_chardev_open(struct inode *inode, struct file *filp)
 	filp->private_data = priv;
 	INIT_LIST_HEAD(&priv->events);
 	init_waitqueue_head(&priv->wait_event);
-	nonseekable_open(inode, filp);
+	yesnseekable_open(iyesde, filp);
 
-	priv->notifier.notifier_call = cros_ec_chardev_mkbp_event;
-	ret = blocking_notifier_chain_register(&ec_dev->ec_dev->event_notifier,
-					       &priv->notifier);
+	priv->yestifier.yestifier_call = cros_ec_chardev_mkbp_event;
+	ret = blocking_yestifier_chain_register(&ec_dev->ec_dev->event_yestifier,
+					       &priv->yestifier);
 	if (ret) {
-		dev_err(ec_dev->dev, "failed to register event notifier\n");
+		dev_err(ec_dev->dev, "failed to register event yestifier\n");
 		kfree(priv);
 	}
 
@@ -216,7 +216,7 @@ static ssize_t cros_ec_chardev_read(struct file *filp, char __user *buffer,
 		if (IS_ERR(event))
 			return PTR_ERR(event);
 		/*
-		 * length == 0 is special - no IO is done but we check
+		 * length == 0 is special - yes IO is done but we check
 		 * for error conditions.
 		 */
 		if (length == 0)
@@ -233,7 +233,7 @@ static ssize_t cros_ec_chardev_read(struct file *filp, char __user *buffer,
 	}
 
 	/*
-	 * Legacy behavior if no event mask is defined
+	 * Legacy behavior if yes event mask is defined
 	 */
 	if (*offset != 0)
 		return 0;
@@ -251,17 +251,17 @@ static ssize_t cros_ec_chardev_read(struct file *filp, char __user *buffer,
 	return count;
 }
 
-static int cros_ec_chardev_release(struct inode *inode, struct file *filp)
+static int cros_ec_chardev_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct chardev_priv *priv = filp->private_data;
 	struct cros_ec_dev *ec_dev = priv->ec_dev;
 	struct ec_event *event, *e;
 
-	blocking_notifier_chain_unregister(&ec_dev->ec_dev->event_notifier,
-					   &priv->notifier);
+	blocking_yestifier_chain_unregister(&ec_dev->ec_dev->event_yestifier,
+					   &priv->yestifier);
 
-	list_for_each_entry_safe(event, e, &priv->events, node) {
-		list_del(&event->node);
+	list_for_each_entry_safe(event, e, &priv->events, yesde) {
+		list_del(&event->yesde);
 		kfree(event);
 	}
 	kfree(priv);
@@ -384,7 +384,7 @@ static int cros_ec_chardev_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data->ec_dev = ec_dev;
-	data->misc.minor = MISC_DYNAMIC_MINOR;
+	data->misc.miyesr = MISC_DYNAMIC_MINOR;
 	data->misc.fops = &chardev_fops;
 	data->misc.name = ec_platform->ec_name;
 	data->misc.parent = pdev->dev.parent;

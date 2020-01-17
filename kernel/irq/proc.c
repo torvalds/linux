@@ -29,7 +29,7 @@
  * permitted by procfs.
  *
  * The read from /proc/interrupts is a different problem because there
- * is no protection. So the lookup and the access to irqdesc
+ * is yes protection. So the lookup and the access to irqdesc
  * information must be protected by sparse_irq_lock.
  */
 static struct proc_dir_entry *root_irq_dir;
@@ -100,7 +100,7 @@ static int irq_affinity_hint_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-int no_irq_affinity;
+int yes_irq_affinity;
 static int irq_affinity_proc_show(struct seq_file *m, void *v)
 {
 	return show_irq_affinity(AFFINITY, m);
@@ -115,11 +115,11 @@ static int irq_affinity_list_proc_show(struct seq_file *m, void *v)
 static ssize_t write_irq_affinity(int type, struct file *file,
 		const char __user *buffer, size_t count, loff_t *pos)
 {
-	unsigned int irq = (int)(long)PDE_DATA(file_inode(file));
+	unsigned int irq = (int)(long)PDE_DATA(file_iyesde(file));
 	cpumask_var_t new_value;
 	int err;
 
-	if (!irq_can_set_affinity_usr(irq) || no_irq_affinity)
+	if (!irq_can_set_affinity_usr(irq) || yes_irq_affinity)
 		return -EIO;
 
 	if (!alloc_cpumask_var(&new_value, GFP_KERNEL))
@@ -133,7 +133,7 @@ static ssize_t write_irq_affinity(int type, struct file *file,
 		goto free_cpumask;
 
 	/*
-	 * Do not allow disabling IRQs completely - it's a too easy
+	 * Do yest allow disabling IRQs completely - it's a too easy
 	 * way to make the system unusable accidentally :-) At least
 	 * one online CPU still has to be targeted.
 	 */
@@ -166,14 +166,14 @@ static ssize_t irq_affinity_list_proc_write(struct file *file,
 	return write_irq_affinity(1, file, buffer, count, pos);
 }
 
-static int irq_affinity_proc_open(struct inode *inode, struct file *file)
+static int irq_affinity_proc_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, irq_affinity_proc_show, PDE_DATA(inode));
+	return single_open(file, irq_affinity_proc_show, PDE_DATA(iyesde));
 }
 
-static int irq_affinity_list_proc_open(struct inode *inode, struct file *file)
+static int irq_affinity_list_proc_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, irq_affinity_list_proc_show, PDE_DATA(inode));
+	return single_open(file, irq_affinity_list_proc_show, PDE_DATA(iyesde));
 }
 
 static const struct file_operations irq_affinity_proc_fops = {
@@ -224,7 +224,7 @@ static ssize_t default_affinity_write(struct file *file,
 		goto out;
 
 	/*
-	 * Do not allow disabling IRQs completely - it's a too easy
+	 * Do yest allow disabling IRQs completely - it's a too easy
 	 * way to make the system unusable accidentally :-) At least
 	 * one online CPU still has to be targeted.
 	 */
@@ -241,9 +241,9 @@ out:
 	return err;
 }
 
-static int default_affinity_open(struct inode *inode, struct file *file)
+static int default_affinity_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, default_affinity_show, PDE_DATA(inode));
+	return single_open(file, default_affinity_show, PDE_DATA(iyesde));
 }
 
 static const struct file_operations default_affinity_proc_fops = {
@@ -254,11 +254,11 @@ static const struct file_operations default_affinity_proc_fops = {
 	.write		= default_affinity_write,
 };
 
-static int irq_node_proc_show(struct seq_file *m, void *v)
+static int irq_yesde_proc_show(struct seq_file *m, void *v)
 {
 	struct irq_desc *desc = irq_to_desc((long) m->private);
 
-	seq_printf(m, "%d\n", irq_desc_get_node(desc));
+	seq_printf(m, "%d\n", irq_desc_get_yesde(desc));
 	return 0;
 }
 #endif
@@ -319,12 +319,12 @@ void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 	void __maybe_unused *irqp = (void *)(unsigned long) irq;
 	char name [MAX_NAMELEN];
 
-	if (!root_irq_dir || (desc->irq_data.chip == &no_irq_chip))
+	if (!root_irq_dir || (desc->irq_data.chip == &yes_irq_chip))
 		return;
 
 	/*
 	 * irq directories are registered only when a handler is
-	 * added, not when the descriptor is created, so multiple
+	 * added, yest when the descriptor is created, so multiple
 	 * tasks might try to register at the same time.
 	 */
 	mutex_lock(&register_lock);
@@ -352,7 +352,7 @@ void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 	proc_create_data("smp_affinity_list", 0644, desc->dir,
 			 &irq_affinity_list_proc_fops, irqp);
 
-	proc_create_single_data("node", 0444, desc->dir, irq_node_proc_show,
+	proc_create_single_data("yesde", 0444, desc->dir, irq_yesde_proc_show,
 			irqp);
 # ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
 	proc_create_single_data("effective_affinity", 0444, desc->dir,
@@ -378,7 +378,7 @@ void unregister_irq_proc(unsigned int irq, struct irq_desc *desc)
 	remove_proc_entry("smp_affinity", desc->dir);
 	remove_proc_entry("affinity_hint", desc->dir);
 	remove_proc_entry("smp_affinity_list", desc->dir);
-	remove_proc_entry("node", desc->dir);
+	remove_proc_entry("yesde", desc->dir);
 # ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
 	remove_proc_entry("effective_affinity", desc->dir);
 	remove_proc_entry("effective_affinity_list", desc->dir);

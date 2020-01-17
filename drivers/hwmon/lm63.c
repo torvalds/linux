@@ -39,13 +39,13 @@
 
 /*
  * Addresses to scan
- * Address is fully defined internally and cannot be changed except for
+ * Address is fully defined internally and canyest be changed except for
  * LM64 which has one pin dedicated to address selection.
  * LM63 and LM96163 have address 0x4c.
  * LM64 can have address 0x18 or 0x4e.
  */
 
-static const unsigned short normal_i2c[] = { 0x18, 0x4c, 0x4e, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x18, 0x4c, 0x4e, I2C_CLIENT_END };
 
 /*
  * The LM63 registers
@@ -450,7 +450,7 @@ static ssize_t pwm1_enable_store(struct device *dev,
 /*
  * There are 8bit registers for both local(temp1) and remote(temp2) sensor.
  * For remote sensor registers temp2_offset has to be considered,
- * for local sensor it must not.
+ * for local sensor it must yest.
  * So we need separate 8bit accessors for local and remote sensor.
  */
 static ssize_t show_local_temp8(struct device *dev,
@@ -609,7 +609,7 @@ static ssize_t show_lut_temp_hyst(struct device *dev,
 }
 
 /*
- * And now the other way around, user-space provides an absolute
+ * And yesw the other way around, user-space provides an absolute
  * hysteresis value and we have to store a relative one
  */
 static ssize_t temp2_crit_hyst_store(struct device *dev,
@@ -1103,7 +1103,7 @@ static int lm63_probe(struct i2c_client *client,
 	mutex_init(&data->update_lock);
 
 	/* Set the device type */
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		data->kind = (enum chips)of_device_get_match_data(&client->dev);
 	else
 		data->kind = id->driver_data;
@@ -1166,7 +1166,7 @@ static struct i2c_driver lm63_driver = {
 	.probe		= lm63_probe,
 	.id_table	= lm63_id,
 	.detect		= lm63_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(lm63_driver);

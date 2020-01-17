@@ -8,7 +8,7 @@
  * Author: Max Asböck <amax@us.ibm.com>
  */
 
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include "ibmasm.h"
 #include "dot_command.h"
 #include "lowlevel.h"
@@ -23,28 +23,28 @@ static int suspend_heartbeats = 0;
  * In the case of a panic the interrupt handler continues to work and thus
  * continues to respond to heartbeats, making the service processor believe
  * the OS is still running and thus preventing a reboot.
- * To prevent this from happening a callback is added the panic_notifier_list.
+ * To prevent this from happening a callback is added the panic_yestifier_list.
  * Before responding to a heartbeat the driver checks if a panic has happened,
- * if yes it suspends heartbeat, causing the service processor to reboot as
+ * if no it suspends heartbeat, causing the service processor to reboot as
  * expected.
  */
-static int panic_happened(struct notifier_block *n, unsigned long val, void *v)
+static int panic_happened(struct yestifier_block *n, unsigned long val, void *v)
 {
 	suspend_heartbeats = 1;
 	return 0;
 }
 
-static struct notifier_block panic_notifier = { panic_happened, NULL, 1 };
+static struct yestifier_block panic_yestifier = { panic_happened, NULL, 1 };
 
-void ibmasm_register_panic_notifier(void)
+void ibmasm_register_panic_yestifier(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list, &panic_notifier);
+	atomic_yestifier_chain_register(&panic_yestifier_list, &panic_yestifier);
 }
 
-void ibmasm_unregister_panic_notifier(void)
+void ibmasm_unregister_panic_yestifier(void)
 {
-	atomic_notifier_chain_unregister(&panic_notifier_list,
-			&panic_notifier);
+	atomic_yestifier_chain_unregister(&panic_yestifier_list,
+			&panic_yestifier);
 }
 
 

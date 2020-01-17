@@ -52,7 +52,7 @@ enum imx_sc_error_codes {
 	IMX_SC_ERR_VERSION = 1,	/* Incompatible API version */
 	IMX_SC_ERR_CONFIG = 2,	/* Configuration error */
 	IMX_SC_ERR_PARM = 3,	/* Bad parameter */
-	IMX_SC_ERR_NOACCESS = 4,	/* Permission error (no access) */
+	IMX_SC_ERR_NOACCESS = 4,	/* Permission error (yes access) */
 	IMX_SC_ERR_LOCKED = 5,	/* Permission error (locked) */
 	IMX_SC_ERR_UNAVAILABLE = 6,	/* Unavailable (out of resources) */
 	IMX_SC_ERR_NOTFOUND = 7,	/* Not found */
@@ -80,10 +80,10 @@ static int imx_sc_linux_errmap[IMX_SC_ERR_LAST] = {
 
 static struct imx_sc_ipc *imx_sc_ipc_handle;
 
-static inline int imx_sc_to_linux_errno(int errno)
+static inline int imx_sc_to_linux_erryes(int erryes)
 {
-	if (errno >= IMX_SC_ERR_NONE && errno < IMX_SC_ERR_LAST)
-		return imx_sc_linux_errmap[errno];
+	if (erryes >= IMX_SC_ERR_NONE && erryes < IMX_SC_ERR_LAST)
+		return imx_sc_linux_errmap[erryes];
 	return -EIO;
 }
 
@@ -108,7 +108,7 @@ static void imx_scu_rx_callback(struct mbox_client *c, void *msg)
 	u32 *data = msg;
 
 	if (!sc_ipc->msg) {
-		dev_warn(sc_ipc->dev, "unexpected rx idx %d 0x%08x, ignore!\n",
+		dev_warn(sc_ipc->dev, "unexpected rx idx %d 0x%08x, igyesre!\n",
 				sc_chan->idx, *data);
 		return;
 	}
@@ -118,7 +118,7 @@ static void imx_scu_rx_callback(struct mbox_client *c, void *msg)
 		sc_ipc->rx_size = hdr->size;
 		dev_dbg(sc_ipc->dev, "msg rx size %u\n", sc_ipc->rx_size);
 		if (sc_ipc->rx_size > 4)
-			dev_warn(sc_ipc->dev, "RPC does not support receiving over 4 words: %u\n",
+			dev_warn(sc_ipc->dev, "RPC does yest support receiving over 4 words: %u\n",
 				 sc_ipc->rx_size);
 	}
 
@@ -213,7 +213,7 @@ out:
 
 	dev_dbg(sc_ipc->dev, "RPC SVC done\n");
 
-	return imx_sc_to_linux_errno(ret);
+	return imx_sc_to_linux_erryes(ret);
 }
 EXPORT_SYMBOL(imx_scu_call_rpc);
 
@@ -244,7 +244,7 @@ static int imx_scu_probe(struct platform_device *pdev)
 		cl = &sc_chan->cl;
 		cl->dev = dev;
 		cl->tx_block = false;
-		cl->knows_txdone = true;
+		cl->kyesws_txdone = true;
 		cl->rx_callback = imx_scu_rx_callback;
 
 		sc_chan->sc_ipc = sc_ipc;
@@ -259,7 +259,7 @@ static int imx_scu_probe(struct platform_device *pdev)
 		}
 
 		dev_dbg(dev, "request mbox chan %s\n", chan_name);
-		/* chan_name is not used anymore by framework */
+		/* chan_name is yest used anymore by framework */
 		kfree(chan_name);
 	}
 

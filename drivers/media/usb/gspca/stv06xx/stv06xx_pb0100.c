@@ -49,7 +49,7 @@ struct pb0100_ctrls {
 
 static struct v4l2_pix_format pb0100_mode[] = {
 /* low res / subsample modes disabled as they are only half res horizontal,
-   halving the vertical resolution does not seem to work */
+   halving the vertical resolution does yest seem to work */
 	{
 		320,
 		240,
@@ -187,7 +187,7 @@ static int pb0100_start(struct sd *sd)
 		return -ENODEV;
 	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
 
-	/* If we don't have enough bandwidth use a lower framerate */
+	/* If we don't have eyesugh bandwidth use a lower framerate */
 	max_packet_size = sd->sensor->max_packet_size[sd->gspca_dev.curr_mode];
 	if (packet_size < max_packet_size)
 		stv06xx_write_sensor(sd, PB_ROWSPEED, BIT(4)|BIT(3)|BIT(1));
@@ -245,7 +245,7 @@ out:
 
 /* FIXME: Sort the init commands out and put them into tables,
 	  this is only for getting the camera to work */
-/* FIXME: No error handling for now,
+/* FIXME: No error handling for yesw,
 	  add this once the init has been converted to proper tables */
 static int pb0100_init(struct sd *sd)
 {

@@ -12,7 +12,7 @@
  * Row 0, Columns 2, 4, and 7 at the same time.  This action can
  * be disabled by setting the EP93XX_KEYPAD_DISABLE_3_KEY flag.
  *
- * Normal operation for the matrix does not autorepeat the key press.
+ * Normal operation for the matrix does yest autorepeat the key press.
  * This action can be enabled by setting the EP93XX_KEYPAD_AUTOREPEAT
  * flag.
  */
@@ -31,7 +31,7 @@
  * Keypad Interface Register offsets
  */
 #define KEY_INIT		0x00	/* Key Scan Initialization register */
-#define KEY_DIAG		0x04	/* Key Scan Diagnostic register */
+#define KEY_DIAG		0x04	/* Key Scan Diagyesstic register */
 #define KEY_REG			0x08	/* Key Value Capture register */
 
 /* Key Scan Initialization Register bit defines */
@@ -44,7 +44,7 @@
 #define KEY_INIT_PRSCL_MASK	(0x000003ff)
 #define KEY_INIT_PRSCL_SHIFT	(0)
 
-/* Key Scan Diagnostic Register bit defines */
+/* Key Scan Diagyesstic Register bit defines */
 #define KEY_DIAG_MASK		(0x0000003f)
 #define KEY_DIAG_SHIFT		(0)
 

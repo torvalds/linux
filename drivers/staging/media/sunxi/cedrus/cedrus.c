@@ -343,7 +343,7 @@ static const struct video_device cedrus_video_device = {
 	.vfl_dir	= VFL_DIR_M2M,
 	.fops		= &cedrus_fops,
 	.ioctl_ops	= &cedrus_ioctl_ops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.release	= video_device_release_empty,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
 };
@@ -457,7 +457,7 @@ static int cedrus_remove(struct platform_device *pdev)
 {
 	struct cedrus_dev *dev = platform_get_drvdata(pdev);
 
-	if (media_devnode_is_registered(dev->mdev.devnode)) {
+	if (media_devyesde_is_registered(dev->mdev.devyesde)) {
 		media_device_unregister(&dev->mdev);
 		v4l2_m2m_unregister_media_controller(dev->m2m_dev);
 		media_device_cleanup(&dev->mdev);

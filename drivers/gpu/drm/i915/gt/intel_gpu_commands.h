@@ -11,8 +11,8 @@
  * Target address alignments required for GPU access e.g.
  * MI_STORE_DWORD_IMM.
  */
-#define alignof_dword 4
-#define alignof_qword 8
+#define aligyesf_dword 4
+#define aligyesf_qword 8
 
 /*
  * Instruction field definitions used by the command parser
@@ -130,7 +130,7 @@
 /*
  * Official intel docs are somewhat sloppy concerning MI_LOAD_REGISTER_IMM:
  * - Always issue a MI_NOOP _before_ the MI_LOAD_REGISTER_IMM - otherwise hw
- *   simply ignores the register load under certain conditions.
+ *   simply igyesres the register load under certain conditions.
  * - One can actually load arbitrary many arbitrary registers: Simply issue x
  *   address/value pairs. Don't overdue it, though, x <= 2^4 must hold!
  */

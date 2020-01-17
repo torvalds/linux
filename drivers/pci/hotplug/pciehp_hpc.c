@@ -50,7 +50,7 @@ static inline int pciehp_request_irq(struct controller *ctrl)
 	retval = request_threaded_irq(irq, pciehp_isr, pciehp_ist,
 				      IRQF_SHARED, "pciehp", ctrl);
 	if (retval)
-		ctrl_err(ctrl, "Cannot get irq %d for the hotplug controller\n",
+		ctrl_err(ctrl, "Canyest get irq %d for the hotplug controller\n",
 			 irq);
 	return retval;
 }
@@ -71,7 +71,7 @@ static int pcie_poll_cmd(struct controller *ctrl, int timeout)
 	do {
 		pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
 		if (slot_status == (u16) ~0) {
-			ctrl_info(ctrl, "%s: no response from device\n",
+			ctrl_info(ctrl, "%s: yes response from device\n",
 				  __func__);
 			return 0;
 		}
@@ -92,11 +92,11 @@ static void pcie_wait_cmd(struct controller *ctrl)
 	unsigned int msecs = pciehp_poll_mode ? 2500 : 1000;
 	unsigned long duration = msecs_to_jiffies(msecs);
 	unsigned long cmd_timeout = ctrl->cmd_started + duration;
-	unsigned long now, timeout;
+	unsigned long yesw, timeout;
 	int rc;
 
 	/*
-	 * If the controller does not generate notifications for command
+	 * If the controller does yest generate yestifications for command
 	 * completions, we never need to wait between writes.
 	 */
 	if (NO_CMD_CMPL(ctrl))
@@ -109,11 +109,11 @@ static void pcie_wait_cmd(struct controller *ctrl)
 	 * Even if the command has already timed out, we want to call
 	 * pcie_poll_cmd() so it can clear PCI_EXP_SLTSTA_CC.
 	 */
-	now = jiffies;
-	if (time_before_eq(cmd_timeout, now))
+	yesw = jiffies;
+	if (time_before_eq(cmd_timeout, yesw))
 		timeout = 1;
 	else
-		timeout = cmd_timeout - now;
+		timeout = cmd_timeout - yesw;
 
 	if (ctrl->slot_ctrl & PCI_EXP_SLTCTL_HPIE &&
 	    ctrl->slot_ctrl & PCI_EXP_SLTCTL_CCIE)
@@ -147,7 +147,7 @@ static void pcie_do_write_cmd(struct controller *ctrl, u16 cmd,
 
 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &slot_ctrl);
 	if (slot_ctrl == (u16) ~0) {
-		ctrl_info(ctrl, "%s: no response from device\n", __func__);
+		ctrl_info(ctrl, "%s: yes response from device\n", __func__);
 		goto out;
 	}
 
@@ -194,7 +194,7 @@ static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 }
 
 /* Same as above without waiting for the hardware to latch */
-static void pcie_write_cmd_nowait(struct controller *ctrl, u16 cmd, u16 mask)
+static void pcie_write_cmd_yeswait(struct controller *ctrl, u16 cmd, u16 mask)
 {
 	pcie_do_write_cmd(ctrl, cmd, mask, false);
 }
@@ -207,7 +207,7 @@ static void pcie_write_cmd_nowait(struct controller *ctrl, u16 cmd, u16 mask)
  * possible that the card is removed immediately after this so the
  * caller may need to take it into account.
  *
- * If the hotplug controller itself is not available anymore returns
+ * If the hotplug controller itself is yest available anymore returns
  * %-ENODEV.
  */
 int pciehp_check_link_active(struct controller *ctrl)
@@ -264,7 +264,7 @@ int pciehp_check_link_status(struct controller *ctrl)
 	found = pci_bus_check_dev(ctrl->pcie->port->subordinate,
 					PCI_DEVFN(0, 0));
 
-	/* ignore link or presence changes up to this point */
+	/* igyesre link or presence changes up to this point */
 	if (found)
 		atomic_and(~(PCI_EXP_SLTSTA_DLLSC | PCI_EXP_SLTSTA_PDC),
 			   &ctrl->pending_events);
@@ -392,7 +392,7 @@ void pciehp_get_latch_status(struct controller *ctrl, u8 *status)
  * removed immediately after the check so the caller may need to take
  * this into account.
  *
- * It the hotplug controller itself is not available anymore returns
+ * It the hotplug controller itself is yest available anymore returns
  * %-ENODEV.
  */
 int pciehp_card_present(struct controller *ctrl)
@@ -417,8 +417,8 @@ int pciehp_card_present(struct controller *ctrl)
  * bit is set.  This is a concession to broken hotplug ports which hardwire
  * Presence Detect State to zero, such as Wilocity's [1ae9:0200].
  *
- * Returns: %1 if the slot is occupied and %0 if it is not. If the hotplug
- *	    port is not present anymore returns %-ENODEV.
+ * Returns: %1 if the slot is occupied and %0 if it is yest. If the hotplug
+ *	    port is yest present anymore returns %-ENODEV.
  */
 int pciehp_card_present_or_link_active(struct controller *ctrl)
 {
@@ -447,7 +447,7 @@ int pciehp_set_raw_indicator_status(struct hotplug_slot *hotplug_slot,
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 
 	pci_config_pm_runtime_get(pdev);
-	pcie_write_cmd_nowait(ctrl, status << 6,
+	pcie_write_cmd_yeswait(ctrl, status << 6,
 			      PCI_EXP_SLTCTL_AIC | PCI_EXP_SLTCTL_PIC);
 	pci_config_pm_runtime_put(pdev);
 	return 0;
@@ -483,7 +483,7 @@ void pciehp_set_indicators(struct controller *ctrl, int pwr, int attn)
 	}
 
 	if (cmd) {
-		pcie_write_cmd_nowait(ctrl, cmd, mask);
+		pcie_write_cmd_yeswait(ctrl, cmd, mask);
 		ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 			 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, cmd);
 	}
@@ -509,7 +509,7 @@ int pciehp_power_on_slot(struct controller *ctrl)
 
 	retval = pciehp_link_enable(ctrl);
 	if (retval)
-		ctrl_err(ctrl, "%s: Can not enable the link!\n", __func__);
+		ctrl_err(ctrl, "%s: Can yest enable the link!\n", __func__);
 
 	return retval;
 }
@@ -543,10 +543,10 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	 * Mask the interrupt until then.
 	 */
 	if (parent) {
-		pm_runtime_get_noresume(parent);
+		pm_runtime_get_yesresume(parent);
 		if (!pm_runtime_active(parent)) {
 			pm_runtime_put(parent);
-			disable_irq_nosync(irq);
+			disable_irq_yessync(irq);
 			atomic_or(RERUN_ISR, &ctrl->pending_events);
 			return IRQ_WAKE_THREAD;
 		}
@@ -554,7 +554,7 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &status);
 	if (status == (u16) ~0) {
-		ctrl_info(ctrl, "%s: no response from device\n", __func__);
+		ctrl_info(ctrl, "%s: yes response from device\n", __func__);
 		if (parent)
 			pm_runtime_put(parent);
 		return IRQ_NONE;
@@ -562,7 +562,7 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 
 	/*
 	 * Slot Status contains plain status bits as well as event
-	 * notification bits; right now we only want the event bits.
+	 * yestification bits; right yesw we only want the event bits.
 	 */
 	events = status & (PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
 			   PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_CC |
@@ -587,7 +587,7 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 		pm_runtime_put(parent);
 
 	/*
-	 * Command Completed notifications are not deferred to the
+	 * Command Completed yestifications are yest deferred to the
 	 * IRQ thread because it may be waiting for their arrival.
 	 */
 	if (events & PCI_EXP_SLTSTA_CC) {
@@ -601,8 +601,8 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 		events &= ~PCI_EXP_SLTSTA_CC;
 	}
 
-	if (pdev->ignore_hotplug) {
-		ctrl_dbg(ctrl, "ignoring hotplug event %#06x\n", events);
+	if (pdev->igyesre_hotplug) {
+		ctrl_dbg(ctrl, "igyesring hotplug event %#06x\n", events);
 		return IRQ_HANDLED;
 	}
 
@@ -691,25 +691,25 @@ static int pciehp_poll(void *data)
 	return 0;
 }
 
-static void pcie_enable_notification(struct controller *ctrl)
+static void pcie_enable_yestification(struct controller *ctrl)
 {
 	u16 cmd, mask;
 
 	/*
-	 * TBD: Power fault detected software notification support.
+	 * TBD: Power fault detected software yestification support.
 	 *
-	 * Power fault detected software notification is not enabled
-	 * now, because it caused power fault detected interrupt storm
+	 * Power fault detected software yestification is yest enabled
+	 * yesw, because it caused power fault detected interrupt storm
 	 * on some machines. On those machines, power fault detected
 	 * bit in the slot status register was set again immediately
 	 * when it is cleared in the interrupt service routine, and
-	 * next power fault detected interrupt was notified again.
+	 * next power fault detected interrupt was yestified again.
 	 */
 
 	/*
 	 * Always enable link events: thus link-up and link-down shall
 	 * always be treated as hotplug and unplug respectively. Enable
-	 * presence detect only if Attention Button is not present.
+	 * presence detect only if Attention Button is yest present.
 	 */
 	cmd = PCI_EXP_SLTCTL_DLLSCE;
 	if (ATTN_BUTTN(ctrl))
@@ -724,12 +724,12 @@ static void pcie_enable_notification(struct controller *ctrl)
 		PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE |
 		PCI_EXP_SLTCTL_DLLSCE);
 
-	pcie_write_cmd_nowait(ctrl, cmd, mask);
+	pcie_write_cmd_yeswait(ctrl, cmd, mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, cmd);
 }
 
-static void pcie_disable_notification(struct controller *ctrl)
+static void pcie_disable_yestification(struct controller *ctrl)
 {
 	u16 mask;
 
@@ -774,8 +774,8 @@ void pcie_disable_interrupt(struct controller *ctrl)
 /*
  * pciehp has a 1:1 bus:slot relationship so we ultimately want a secondary
  * bus reset of the bridge, but at the same time we want to ensure that it is
- * not seen as a hot-unplug, followed by the hot-plug of the device. Thus,
- * disable link state notification and presence detection change notification
+ * yest seen as a hot-unplug, followed by the hot-plug of the device. Thus,
+ * disable link state yestification and presence detection change yestification
  * momentarily, if we see that they could interfere. Also, clear any spurious
  * events after.
  */
@@ -805,7 +805,7 @@ int pciehp_reset_slot(struct hotplug_slot *hotplug_slot, int probe)
 	rc = pci_bridge_secondary_bus_reset(ctrl->pcie->port);
 
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, stat_mask);
-	pcie_write_cmd_nowait(ctrl, ctrl_mask, ctrl_mask);
+	pcie_write_cmd_yeswait(ctrl, ctrl_mask, ctrl_mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, ctrl_mask);
 
@@ -813,21 +813,21 @@ int pciehp_reset_slot(struct hotplug_slot *hotplug_slot, int probe)
 	return rc;
 }
 
-int pcie_init_notification(struct controller *ctrl)
+int pcie_init_yestification(struct controller *ctrl)
 {
 	if (pciehp_request_irq(ctrl))
 		return -1;
-	pcie_enable_notification(ctrl);
-	ctrl->notification_enabled = 1;
+	pcie_enable_yestification(ctrl);
+	ctrl->yestification_enabled = 1;
 	return 0;
 }
 
-void pcie_shutdown_notification(struct controller *ctrl)
+void pcie_shutdown_yestification(struct controller *ctrl)
 {
-	if (ctrl->notification_enabled) {
-		pcie_disable_notification(ctrl);
+	if (ctrl->yestification_enabled) {
+		pcie_disable_yestification(ctrl);
 		pciehp_free_irq(ctrl);
-		ctrl->notification_enabled = 0;
+		ctrl->yestification_enabled = 0;
 	}
 }
 
@@ -864,7 +864,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 		slot_cap &= ~(PCI_EXP_SLTCAP_AIP | PCI_EXP_SLTCAP_PIP);
 
 	/*
-	 * We assume no Thunderbolt controllers support Command Complete events,
+	 * We assume yes Thunderbolt controllers support Command Complete events,
 	 * but some controllers falsely claim they do.
 	 */
 	if (pdev->is_thunderbolt)
@@ -908,12 +908,12 @@ struct controller *pcie_init(struct pcie_device *dev)
 
 	/*
 	 * If empty slot's power status is on, turn power off.  The IRQ isn't
-	 * requested yet, so avoid triggering a notification with this command.
+	 * requested yet, so avoid triggering a yestification with this command.
 	 */
 	if (POWER_CTRL(ctrl)) {
 		pciehp_get_power_status(ctrl, &poweron);
 		if (!pciehp_card_present_or_link_active(ctrl) && poweron) {
-			pcie_disable_notification(ctrl);
+			pcie_disable_yestification(ctrl);
 			pciehp_power_off_slot(ctrl);
 		}
 	}

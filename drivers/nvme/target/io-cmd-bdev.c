@@ -44,7 +44,7 @@ void nvmet_bdev_set_limits(struct block_device *bdev, struct nvme_id_ns *id)
 	/* NPDG = Namespace Preferred Deallocate Alignment */
 	id->npda = id->npdg;
 	/* NOWS = Namespace Optimal Write Size */
-	id->nows = to0based(ql->io_opt / ql->logical_block_size);
+	id->yesws = to0based(ql->io_opt / ql->logical_block_size);
 }
 
 int nvmet_bdev_ns_enable(struct nvmet_ns *ns)
@@ -62,7 +62,7 @@ int nvmet_bdev_ns_enable(struct nvmet_ns *ns)
 		ns->bdev = NULL;
 		return ret;
 	}
-	ns->size = i_size_read(ns->bdev->bd_inode);
+	ns->size = i_size_read(ns->bdev->bd_iyesde);
 	ns->blksize_shift = blksize_bits(bdev_logical_block_size(ns->bdev));
 	return 0;
 }
@@ -82,7 +82,7 @@ static u16 blk_to_nvme_status(struct nvmet_req *req, blk_status_t blk_sts)
 	if (likely(blk_sts == BLK_STS_OK))
 		return status;
 	/*
-	 * Right now there exists M : 1 mapping between block layer error
+	 * Right yesw there exists M : 1 mapping between block layer error
 	 * to the NVMe status code (see nvme_error_status()). For consistency,
 	 * when we reverse map we use most appropriate NVMe Status code from
 	 * the group of the NVMe staus codes used in the nvme_error_status().
@@ -243,7 +243,7 @@ static u16 nvmet_bdev_discard_range(struct nvmet_req *req,
 			GFP_KERNEL, 0, bio);
 	if (ret && ret != -EOPNOTSUPP) {
 		req->error_slba = le64_to_cpu(range->slba);
-		return errno_to_nvme_status(req, ret);
+		return erryes_to_nvme_status(req, ret);
 	}
 	return NVME_SC_SUCCESS;
 }
@@ -319,7 +319,7 @@ static void nvmet_bdev_execute_write_zeroes(struct nvmet_req *req)
 		bio->bi_end_io = nvmet_bio_done;
 		submit_bio(bio);
 	} else {
-		nvmet_req_complete(req, errno_to_nvme_status(req, ret));
+		nvmet_req_complete(req, erryes_to_nvme_status(req, ret));
 	}
 }
 

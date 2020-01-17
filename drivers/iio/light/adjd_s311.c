@@ -7,7 +7,7 @@
  * driver for ADJD-S311-CR999 digital color sensor (10-bit channels for
  * red, green, blue, clear); 7-bit I2C slave address 0x74
  *
- * limitations: no calibration, no offset mode, no sleep mode
+ * limitations: yes calibration, yes offset mode, yes sleep mode
  */
 
 #include <linux/module.h>
@@ -86,7 +86,7 @@ static int adjd_s311_req_data(struct iio_dev *indio_dev)
 
 	if (tries < 0) {
 		dev_err(&data->client->dev,
-			"adjd_s311_req_data() failed, data not ready\n");
+			"adjd_s311_req_data() failed, data yest ready\n");
 		return -EIO;
 	}
 
@@ -135,7 +135,7 @@ static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer, time_ns);
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -193,7 +193,7 @@ static int adjd_s311_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		*val = 0;
 		/*
-		 * not documented, based on measurement:
+		 * yest documented, based on measurement:
 		 * 4095 LSBs correspond to roughly 4 ms
 		 */
 		*val2 = ret & ADJD_S311_INT_MASK;

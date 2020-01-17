@@ -149,7 +149,7 @@ TRACE_EVENT(kvm_unmap_hva_range,
 		__entry->end		= end;
 	),
 
-	TP_printk("mmu notifier unmap range: %#08lx -- %#08lx",
+	TP_printk("mmu yestifier unmap range: %#08lx -- %#08lx",
 		  __entry->start, __entry->end)
 );
 
@@ -165,7 +165,7 @@ TRACE_EVENT(kvm_set_spte_hva,
 		__entry->hva		= hva;
 	),
 
-	TP_printk("mmu notifier set pte hva: %#08lx", __entry->hva)
+	TP_printk("mmu yestifier set pte hva: %#08lx", __entry->hva)
 );
 
 TRACE_EVENT(kvm_age_hva,
@@ -182,7 +182,7 @@ TRACE_EVENT(kvm_age_hva,
 		__entry->end		= end;
 	),
 
-	TP_printk("mmu notifier age hva: %#08lx -- %#08lx",
+	TP_printk("mmu yestifier age hva: %#08lx -- %#08lx",
 		  __entry->start, __entry->end)
 );
 
@@ -198,7 +198,7 @@ TRACE_EVENT(kvm_test_age_hva,
 		__entry->hva		= hva;
 	),
 
-	TP_printk("mmu notifier test age hva: %#08lx", __entry->hva)
+	TP_printk("mmu yestifier test age hva: %#08lx", __entry->hva)
 );
 
 TRACE_EVENT(kvm_set_way_flush,
@@ -220,24 +220,24 @@ TRACE_EVENT(kvm_set_way_flush,
 );
 
 TRACE_EVENT(kvm_toggle_cache,
-	    TP_PROTO(unsigned long vcpu_pc, bool was, bool now),
-	    TP_ARGS(vcpu_pc, was, now),
+	    TP_PROTO(unsigned long vcpu_pc, bool was, bool yesw),
+	    TP_ARGS(vcpu_pc, was, yesw),
 
 	    TP_STRUCT__entry(
 		    __field(	unsigned long,	vcpu_pc		)
 		    __field(	bool,		was		)
-		    __field(	bool,		now		)
+		    __field(	bool,		yesw		)
 	    ),
 
 	    TP_fast_assign(
 		    __entry->vcpu_pc		= vcpu_pc;
 		    __entry->was		= was;
-		    __entry->now		= now;
+		    __entry->yesw		= yesw;
 	    ),
 
-	    TP_printk("VM op at 0x%016lx (cache was %s, now %s)",
+	    TP_printk("VM op at 0x%016lx (cache was %s, yesw %s)",
 		      __entry->vcpu_pc, __entry->was ? "on" : "off",
-		      __entry->now ? "on" : "off")
+		      __entry->yesw ? "on" : "off")
 );
 
 /*

@@ -351,7 +351,7 @@ int mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 void mt7601u_phy_recalibrate_after_assoc(struct mt7601u_dev *dev);
 int mt7601u_phy_get_rssi(struct mt7601u_dev *dev,
 			 struct mt7601u_rxwi *rxwi, u16 rate);
-void mt7601u_phy_con_cal_onoff(struct mt7601u_dev *dev,
+void mt7601u_phy_con_cal_oyesff(struct mt7601u_dev *dev,
 			       struct ieee80211_bss_conf *info);
 
 /* MAC */

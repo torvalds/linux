@@ -10,7 +10,7 @@
 #include <linux/types.h>
 
 #ifndef __ASM_ARCH_MXC_HARDWARE_H__
-#error "Do not include directly."
+#error "Do yest include directly."
 #endif
 
 #define MXC_CPU_MX1		1

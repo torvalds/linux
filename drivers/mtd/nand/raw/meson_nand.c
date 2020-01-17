@@ -105,7 +105,7 @@
 #define PER_INFO_BYTE		8
 
 struct meson_nfc_nand_chip {
-	struct list_head node;
+	struct list_head yesde;
 	struct nand_chip nand;
 	unsigned long clk_rate;
 	unsigned long level1_divider;
@@ -297,7 +297,7 @@ static void meson_nfc_drain_cmd(struct meson_nfc *nfc)
 	 *  a) fetch and b) excute.
 	 * There might be cases when the driver see command queue is empty,
 	 * but the Nand flash controller still has two commands buffered,
-	 * one is fetched into NFC request queue (ready to run), and another
+	 * one is fetched into NFC request queue (ready to run), and ayesther
 	 * is actively executing. So pushing 2 "IDLE" commands guarantees that
 	 * the pipeline is emptied.
 	 */
@@ -1206,7 +1206,7 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 	nand->ecc.read_oob = meson_nfc_read_oob;
 
 	if (nand->options & NAND_BUSWIDTH_16) {
-		dev_err(nfc->dev, "16bits bus width not supported");
+		dev_err(nfc->dev, "16bits bus width yest supported");
 		return -EINVAL;
 	}
 	ret = meson_chip_buffer_init(nand);
@@ -1225,7 +1225,7 @@ static const struct nand_controller_ops meson_nand_controller_ops = {
 
 static int
 meson_nfc_nand_chip_init(struct device *dev,
-			 struct meson_nfc *nfc, struct device_node *np)
+			 struct meson_nfc *nfc, struct device_yesde *np)
 {
 	struct meson_nfc_nand_chip *meson_chip;
 	struct nand_chip *nand;
@@ -1249,7 +1249,7 @@ meson_nfc_nand_chip_init(struct device *dev,
 	for (i = 0; i < nsels; i++) {
 		ret = of_property_read_u32_index(np, "reg", i, &tmp);
 		if (ret) {
-			dev_err(dev, "could not retrieve register property: %d\n",
+			dev_err(dev, "could yest retrieve register property: %d\n",
 				ret);
 			return ret;
 		}
@@ -1263,7 +1263,7 @@ meson_nfc_nand_chip_init(struct device *dev,
 	nand = &meson_chip->nand;
 	nand->controller = &nfc->controller;
 	nand->controller->ops = &meson_nand_controller_ops;
-	nand_set_flash_node(nand, np);
+	nand_set_flash_yesde(nand, np);
 	nand_set_controller_data(nand, nfc);
 
 	nand->options |= NAND_USE_BOUNCE_BUFFER;
@@ -1282,7 +1282,7 @@ meson_nfc_nand_chip_init(struct device *dev,
 		return ret;
 	}
 
-	list_add_tail(&meson_chip->node, &nfc->chips);
+	list_add_tail(&meson_chip->yesde, &nfc->chips);
 
 	return 0;
 }
@@ -1295,7 +1295,7 @@ static int meson_nfc_nand_chip_cleanup(struct meson_nfc *nfc)
 
 	while (!list_empty(&nfc->chips)) {
 		meson_chip = list_first_entry(&nfc->chips,
-					      struct meson_nfc_nand_chip, node);
+					      struct meson_nfc_nand_chip, yesde);
 		mtd = nand_to_mtd(&meson_chip->nand);
 		ret = mtd_device_unregister(mtd);
 		if (ret)
@@ -1303,7 +1303,7 @@ static int meson_nfc_nand_chip_cleanup(struct meson_nfc *nfc)
 
 		meson_nfc_free_buffer(&meson_chip->nand);
 		nand_cleanup(&meson_chip->nand);
-		list_del(&meson_chip->node);
+		list_del(&meson_chip->yesde);
 	}
 
 	return 0;
@@ -1312,15 +1312,15 @@ static int meson_nfc_nand_chip_cleanup(struct meson_nfc *nfc)
 static int meson_nfc_nand_chips_init(struct device *dev,
 				     struct meson_nfc *nfc)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *nand_np;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *nand_np;
 	int ret;
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_yesde(np, nand_np) {
 		ret = meson_nfc_nand_chip_init(dev, nfc, nand_np);
 		if (ret) {
 			meson_nfc_nand_chip_cleanup(nfc);
-			of_node_put(nand_np);
+			of_yesde_put(nand_np);
 			return ret;
 		}
 	}
@@ -1391,7 +1391,7 @@ static int meson_nfc_probe(struct platform_device *pdev)
 		return PTR_ERR(nfc->reg_base);
 
 	nfc->reg_clk =
-		syscon_regmap_lookup_by_phandle(dev->of_node,
+		syscon_regmap_lookup_by_phandle(dev->of_yesde,
 						"amlogic,mmc-syscon");
 	if (IS_ERR(nfc->reg_clk)) {
 		dev_err(dev, "Failed to lookup clock base\n");

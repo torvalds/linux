@@ -14,7 +14,7 @@
  *  code, and exception/interrupt return code for PowerPC.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <asm/unistd.h>
 #include <asm/processor.h>
@@ -164,9 +164,9 @@ system_call:			/* label this so stack traces look sane */
 	ld	r11, PACA_THREAD_INFO(r13)
 	ld	r10,TI_FLAGS(r11)
 	andi.	r11,r10,_TIF_SYSCALL_DOTRACE
-	bne	.Lsyscall_dotrace		/* does not return */
+	bne	.Lsyscall_dotrace		/* does yest return */
 	cmpldi	0,r0,NR_syscalls
-	bge-	.Lsyscall_enosys
+	bge-	.Lsyscall_eyessys
 
 .Lsyscall:
 /*
@@ -186,11 +186,11 @@ system_call:			/* label this so stack traces look sane */
 15:
 	slwi	r0,r0,3
 
-	barrier_nospec_asm
+	barrier_yesspec_asm
 	/*
 	 * Prevent the load of the handler below (based on the user-passed
 	 * system call number) being speculatively executed until the test
-	 * against NR_syscalls and branch to .Lsyscall_enosys above has
+	 * against NR_syscalls and branch to .Lsyscall_eyessys above has
 	 * committed.
 	 */
 
@@ -228,7 +228,7 @@ system_call_exit:
 	 * Disable interrupts so current_thread_info()->flags can't change,
 	 * and so that we don't get interrupted after loading SRR0/1.
 	 *
-	 * Leave MSR_RI enabled for now, because with THREAD_INFO_IN_TASK we
+	 * Leave MSR_RI enabled for yesw, because with THREAD_INFO_IN_TASK we
 	 * could fault on the load of the TI_FLAGS below.
 	 */
 #ifdef CONFIG_PPC_BOOK3E
@@ -355,7 +355,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	b	.Lsyscall_exit
 
 
-.Lsyscall_enosys:
+.Lsyscall_eyessys:
 	li	r3,-ENOSYS
 	b	.Lsyscall_exit
 	
@@ -421,7 +421,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	rldimi	r10, r9, MSR_TM_LG, 63-MSR_TM_LG
 	mtmsrd	r10, 0
 
-	/* tabort, this dooms the transaction, nothing else */
+	/* tabort, this dooms the transaction, yesthing else */
 	li	r9, (TM_CAUSE_SYSCALL|TM_CAUSE_PERSISTENT)
 	TABORT(R9)
 
@@ -442,7 +442,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 _ASM_NOKPROBE_SYMBOL(system_call_common);
 _ASM_NOKPROBE_SYMBOL(system_call_exit);
 
-/* Save non-volatile GPRs, if not already saved. */
+/* Save yesn-volatile GPRs, if yest already saved. */
 _GLOBAL(save_nvgprs)
 	ld	r11,_TRAP(r1)
 	andi.	r0,r11,1
@@ -458,7 +458,7 @@ _ASM_NOKPROBE_SYMBOL(save_nvgprs);
  * The sigsuspend and rt_sigsuspend system calls can call do_signal
  * and thus put the process into the stopped state where we might
  * want to examine its user state with ptrace.  Therefore we need
- * to save all the nonvolatile registers (r14 - r31) before calling
+ * to save all the yesnvolatile registers (r14 - r31) before calling
  * the C code.  Similarly, fork, vfork and clone need the full
  * register state on the stack so that it can be copied to the child.
  */
@@ -519,15 +519,15 @@ _GLOBAL(ret_from_kernel_thread)
 #ifdef CONFIG_PPC_BOOK3S_64
 
 #define FLUSH_COUNT_CACHE	\
-1:	nop;			\
+1:	yesp;			\
 	patch_site 1b, patch__call_flush_count_cache
 
 
 #define BCCTR_FLUSH	.long 0x4c400420
 
-.macro nops number
+.macro yesps number
 	.rept \number
-	nop
+	yesp
 	.endr
 .endm
 
@@ -542,14 +542,14 @@ flush_count_cache:
 	bl	.+4
 	.endr
 	b	1f
-	nops	6
+	yesps	6
 
 	.balign 32
 	/* Restore LR */
 1:	mtlr	r9
 
 	// If we're just flushing the link stack, return here
-3:	nop
+3:	yesp
 	patch_site 3b patch__flush_link_stack_return
 
 	li	r9,0x7fff
@@ -557,15 +557,15 @@ flush_count_cache:
 
 	BCCTR_FLUSH
 
-2:	nop
+2:	yesp
 	patch_site 2b patch__flush_count_cache_return
 
-	nops	3
+	yesps	3
 
 	.rept 278
 	.balign 32
 	BCCTR_FLUSH
-	nops	7
+	yesps	7
 	.endr
 
 	blr
@@ -633,7 +633,7 @@ _GLOBAL(_switch)
 	 * of the task being switched.
 	 */
 #ifdef CONFIG_PPC_BOOK3S
-/* Cancel all explict user streams as they will have no use after context
+/* Cancel all explict user streams as they will have yes use after context
  * switch and will stop the HW from creating streams itself
  */
 	DCBT_BOOK3S_STOP_ALL_STREAM_IDS(r6)
@@ -661,7 +661,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_1T_SEGMENT)
 	clrldi.	r0,r6,2		/* is new ESID c00000000? */
 	cmpd	cr1,r6,r9	/* or is new ESID the same as current ESID? */
 	cror	eq,4*cr1+eq,eq
-	beq	2f		/* if yes, don't slbie it */
+	beq	2f		/* if no, don't slbie it */
 
 	/* Bolt in the new stack SLB entry */
 	ld	r7,KSP_VSID(r4)	/* Get new stack's VSID */
@@ -686,7 +686,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	STDX_BE	r0,r12,r9			/* Save ESID */
 
 	/* No need to check for MMU_FTR_NO_SLBIE_B here, since when
-	 * we have 1TB segments, the only CPUs known to have the errata
+	 * we have 1TB segments, the only CPUs kyeswn to have the errata
 	 * only support less than 1TB of system memory and we'll never
 	 * actually hit this code path.
 	 */
@@ -708,10 +708,10 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	addi	r7,r7,THREAD_SIZE-SWITCH_FRAME_SIZE
 
 	/*
-	 * PMU interrupts in radix may come in here. They will use r1, not
-	 * PACAKSAVE, so this stack switch will not cause a problem. They
+	 * PMU interrupts in radix may come in here. They will use r1, yest
+	 * PACAKSAVE, so this stack switch will yest cause a problem. They
 	 * will store to the process stack, which may then be migrated to
-	 * another CPU. However the rq lock release on this CPU paired with
+	 * ayesther CPU. However the rq lock release on this CPU paired with
 	 * the rq lock acquire on the new CPU before the stack becomes
 	 * active on the new CPU, will order those stores.
 	 */
@@ -794,7 +794,7 @@ _GLOBAL(ret_from_except_lite)
 2:
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	andi.	r0,r4,_TIF_USER_WORK_MASK & ~_TIF_RESTORE_TM
-	bne	3f		/* only restore TM if nothing else to do */
+	bne	3f		/* only restore TM if yesthing else to do */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	restore_tm_state
 	b	restore
@@ -802,14 +802,14 @@ _GLOBAL(ret_from_except_lite)
 #endif
 	bl	save_nvgprs
 	/*
-	 * Use a non volatile GPR to save and restore our thread_info flags
+	 * Use a yesn volatile GPR to save and restore our thread_info flags
 	 * across the call to restore_interrupts.
 	 */
 	mr	r30,r4
 	bl	restore_interrupts
 	mr	r4,r30
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	do_notify_resume
+	bl	do_yestify_resume
 	b	ret_from_except
 
 resume_kernel:
@@ -905,11 +905,11 @@ restore:
 	bne-	.Lrestore_check_irq_replay
 
 	/*
-	 * Get here when nothing happened while soft-disabled, just
+	 * Get here when yesthing happened while soft-disabled, just
 	 * soft-enable and move-on. We will hard-enable as a side
 	 * effect of rfi
 	 */
-.Lrestore_no_replay:
+.Lrestore_yes_replay:
 	TRACE_ENABLE_INTS
 	li	r0,IRQS_ENABLED
 	stb	r0,PACAIRQSOFTMASK(r13);
@@ -922,7 +922,7 @@ restore:
 	b	exception_return_book3e
 #else
 	/*
-	 * Clear the reservation. If we know the CPU tracks the address of
+	 * Clear the reservation. If we kyesw the CPU tracks the address of
 	 * the reservation then we can potentially save some cycles and use
 	 * a larx. On POWER6 and POWER7 this is significantly faster.
 	 */
@@ -934,9 +934,9 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 
 	/*
 	 * Some code path such as load_up_fpu or altivec return directly
-	 * here. They run entirely hard disabled and do not alter the
+	 * here. They run entirely hard disabled and do yest alter the
 	 * interrupt state. They also don't use lwarx/stwcx. and thus
-	 * are known not to leave dangling reservations.
+	 * are kyeswn yest to leave dangling reservations.
 	 */
 	.globl	fast_exception_return
 fast_exception_return:
@@ -970,7 +970,7 @@ fast_exception_return:
 	/*
 	 * r13 is our per cpu area, only restore it if we are returning to
 	 * userspace the value stored in the stack frame may belong to
-	 * another CPU.
+	 * ayesther CPU.
 	 */
 	andi.	r0,r3,MSR_PR
 	beq	1f
@@ -1044,7 +1044,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	stb	r7,PACAIRQHAPPENED(r13)
 1:
 #if defined(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG) && defined(CONFIG_BUG)
-	/* The interrupt should not have soft enabled. */
+	/* The interrupt should yest have soft enabled. */
 	lbz	r7,PACAIRQSOFTMASK(r13)
 1:	tdeqi	r7,IRQS_ENABLED
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
@@ -1065,7 +1065,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	 */
 	bl	__check_irq_replay
 	cmpwi	cr0,r3,0
-	beq	.Lrestore_no_replay
+	beq	.Lrestore_yes_replay
  
 	/*
 	 * We need to re-emit an interrupt. We do so by re-using our
@@ -1078,7 +1078,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	std	r4,_TRAP(r1)
 
 	/*
-	 * PACA_IRQ_HARD_DIS won't always be set here, so set it now
+	 * PACA_IRQ_HARD_DIS won't always be set here, so set it yesw
 	 * to reconcile the IRQ state. Tracing is already accounted for.
 	 */
 	lbz	r4,PACAIRQHAPPENED(r13)
@@ -1140,7 +1140,7 @@ _ASM_NOKPROBE_SYMBOL(fast_exception_return);
  * On CHRP, the Run-Time Abstraction Services (RTAS) have to be
  * called with the MMU off.
  *
- * In addition, we need to be in 32b mode, at least for now.
+ * In addition, we need to be in 32b mode, at least for yesw.
  * 
  * Note: r3 is an input parameter to rtas, so don't trash it...
  */
@@ -1155,7 +1155,7 @@ _GLOBAL(enter_rtas)
    	 */
 	SAVE_GPR(2, r1)			/* Save the TOC */
 	SAVE_GPR(13, r1)		/* Save paca */
-	SAVE_8GPRS(14, r1)		/* Save the non-volatiles */
+	SAVE_8GPRS(14, r1)		/* Save the yesn-volatiles */
 	SAVE_10GPRS(22, r1)		/* ditto */
 
 	mfcr	r4
@@ -1170,13 +1170,13 @@ _GLOBAL(enter_rtas)
 	std	r8,_DSISR(r1)
 
 	/* Temporary workaround to clear CR until RTAS can be modified to
-	 * ignore all bits.
+	 * igyesre all bits.
 	 */
 	li	r0,0
 	mtcr	r0
 
 #ifdef CONFIG_BUG
-	/* There is no way it is acceptable to get here with interrupts enabled,
+	/* There is yes way it is acceptable to get here with interrupts enabled,
 	 * check it with the asm equivalent of WARN_ON
 	 */
 	lbz	r0,PACAIRQSOFTMASK(r13)
@@ -1263,7 +1263,7 @@ rtas_restore_regs:
 	/* relocation is on at this point */
 	REST_GPR(2, r1)			/* Restore the TOC */
 	REST_GPR(13, r1)		/* Restore paca */
-	REST_8GPRS(14, r1)		/* Restore the non-volatiles */
+	REST_8GPRS(14, r1)		/* Restore the yesn-volatiles */
 	REST_10GPRS(22, r1)		/* ditto */
 
 	GET_PACA(r13)

@@ -2,7 +2,7 @@
 /*
  * max8997-private.h - Voltage regulator driver for the Maxim 8997
  *
- *  Copyright (C) 2010 Samsung Electrnoics
+ *  Copyright (C) 2010 Samsung Electryesics
  *  MyungJoo Ham <myungjoo.ham@samsung.com>
  */
 
@@ -304,7 +304,7 @@ enum max8997_irq_source {
 	PMIC_INT3,
 	PMIC_INT4,
 
-	FUEL_GAUGE, /* Ignored (MAX17042 driver handles) */
+	FUEL_GAUGE, /* Igyesred (MAX17042 driver handles) */
 
 	MUIC_INT1,
 	MUIC_INT2,
@@ -375,10 +375,10 @@ struct max8997_dev {
 	struct mutex iolock;
 
 	unsigned long type;
-	struct platform_device *battery; /* battery control (not fuel gauge) */
+	struct platform_device *battery; /* battery control (yest fuel gauge) */
 
 	int irq;
-	int ono;
+	int oyes;
 	struct irq_domain *irq_domain;
 	struct mutex irqlock;
 	int irq_masks_cur[MAX8997_IRQ_GROUP_NR];

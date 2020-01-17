@@ -79,7 +79,7 @@ static inline void rmci_maybe_off(void)
  * This mapping is temporary and will disappear as soon as the
  * setup done by MMU_Init() is applied.
  *
- * For now, we align the BAT and then map 8Mb on 601 and 16Mb
+ * For yesw, we align the BAT and then map 8Mb on 601 and 16Mb
  * on other PPCs. This may cause trouble if the framebuffer
  * is really badly aligned, but I didn't encounter this case
  * yet.
@@ -155,7 +155,7 @@ void btext_map(void)
 	unsigned long base, offset, size;
 	unsigned char *vbase;
 
-	/* By default, we are no longer mapped */
+	/* By default, we are yes longer mapped */
 	boot_text_mapped = 0;
 	if (!dispDeviceBase)
 		return;
@@ -170,7 +170,7 @@ void btext_map(void)
 	boot_text_mapped = 1;
 }
 
-static int btext_initialize(struct device_node *np)
+static int btext_initialize(struct device_yesde *np)
 {
 	unsigned int width, height, depth, pitch;
 	unsigned long address = 0;
@@ -208,7 +208,7 @@ static int btext_initialize(struct device_node *np)
 	if (prop)
 		address = *prop;
 
-	/* FIXME: Add support for PCI reg properties. Right now, only
+	/* FIXME: Add support for PCI reg properties. Right yesw, only
 	 * reliable on macs
 	 */
 	if (address == 0)
@@ -230,21 +230,21 @@ static int btext_initialize(struct device_node *np)
 	return 0;
 }
 
-int __init btext_find_display(int allow_nonstdout)
+int __init btext_find_display(int allow_yesnstdout)
 {
-	struct device_node *np = of_stdout;
+	struct device_yesde *np = of_stdout;
 	int rc = -ENODEV;
 
-	if (!of_node_is_type(np, "display")) {
+	if (!of_yesde_is_type(np, "display")) {
 		printk("boot stdout isn't a display !\n");
 		np = NULL;
 	}
 	if (np)
 		rc = btext_initialize(np);
-	if (rc == 0 || !allow_nonstdout)
+	if (rc == 0 || !allow_yesnstdout)
 		return rc;
 
-	for_each_node_by_type(np, "display") {
+	for_each_yesde_by_type(np, "display") {
 		if (of_get_property(np, "linux,opened", NULL)) {
 			printk("trying %pOF ...\n", np);
 			rc = btext_initialize(np);
@@ -470,7 +470,7 @@ static inline void draw_byte_8(unsigned char *font, unsigned int *base, int rb)
 	}
 }
 
-static noinline void draw_byte(unsigned char c, long locX, long locY)
+static yesinline void draw_byte(unsigned char c, long locX, long locY)
 {
 	unsigned char *base	= calc_base(locX << 3, locY << 4);
 	unsigned char *font	= &vga_font[((unsigned int)c) * 16];

@@ -5,7 +5,7 @@
  * Copyright (C) 2017 KUNBUS GmbH
  *
  * The MAX3191x makes 8 digital 24V inputs available via SPI.
- * Multiple chips can be daisy-chained, the spec does not impose
+ * Multiple chips can be daisy-chained, the spec does yest impose
  * a limit on the number of chips and neither does this driver.
  *
  * Either of two modes is selectable: In 8-bit mode, only the state
@@ -14,7 +14,7 @@
  * a CRC and indicator bits for undervoltage and overtemperature.
  * The driver returns an error instead of potentially bogus data
  * if any of these fault conditions occur.  However it does allow
- * readout of non-faulting chips in the same daisy-chain.
+ * readout of yesn-faulting chips in the same daisy-chain.
  *
  * MAX3191x supports four debounce settings and the driver is
  * capable of configuring these differently for each chip in the
@@ -62,7 +62,7 @@ enum max3191x_mode {
  * @undervolt1: bitmap signaling undervoltage alarm for each chip
  * @undervolt2: bitmap signaling undervoltage warning for each chip
  * @fault: bitmap signaling assertion of @fault_pins for each chip
- * @ignore_uv: whether to ignore undervoltage alarms;
+ * @igyesre_uv: whether to igyesre undervoltage alarms;
  *	set by a device property if the chips are powered through
  *	5VOUT instead of VCC24V, in which case they will constantly
  *	signal undervoltage;
@@ -85,7 +85,7 @@ struct max3191x_chip {
 	unsigned long *undervolt1;
 	unsigned long *undervolt2;
 	unsigned long *fault;
-	bool ignore_uv;
+	bool igyesre_uv;
 };
 
 #define MAX3191X_NGPIO 8
@@ -150,7 +150,7 @@ static int max3191x_readout_locked(struct max3191x_chip *max3191x)
 				dev_err_ratelimited(dev,
 					"chip %d: overtemperature\n", i);
 
-			if (!max3191x->ignore_uv) {
+			if (!max3191x->igyesre_uv) {
 				uv1 = !((status >> 2) & 1);
 				__assign_bit(i, max3191x->undervolt1, uv1);
 				if (uv1)
@@ -165,7 +165,7 @@ static int max3191x_readout_locked(struct max3191x_chip *max3191x)
 			}
 		}
 
-		if (max3191x->fault_pins && !max3191x->ignore_uv) {
+		if (max3191x->fault_pins && !max3191x->igyesre_uv) {
 			/* fault pin shared by all chips or per chip */
 			struct gpio_desc *fault_pin =
 				(max3191x->fault_pins->ndescs == 1)
@@ -191,8 +191,8 @@ static int max3191x_readout_locked(struct max3191x_chip *max3191x)
 static bool max3191x_chip_is_faulting(struct max3191x_chip *max3191x,
 				      unsigned int chipnum)
 {
-	/* without status byte the only diagnostic is the fault pin */
-	if (!max3191x->ignore_uv && test_bit(chipnum, max3191x->fault))
+	/* without status byte the only diagyesstic is the fault pin */
+	if (!max3191x->igyesre_uv && test_bit(chipnum, max3191x->fault))
 		return true;
 
 	if (max3191x->mode == STATUS_BYTE_DISABLED)
@@ -200,7 +200,7 @@ static bool max3191x_chip_is_faulting(struct max3191x_chip *max3191x,
 
 	return test_bit(chipnum, max3191x->crc_error) ||
 	       test_bit(chipnum, max3191x->overtemp)  ||
-	       (!max3191x->ignore_uv &&
+	       (!max3191x->igyesre_uv &&
 		test_bit(chipnum, max3191x->undervolt1));
 }
 
@@ -340,7 +340,7 @@ static struct gpio_descs *devm_gpiod_get_array_optional_count(
 		return NULL;
 
 	if (found != expected && found != 1) {
-		dev_err(dev, "ignoring %s-gpios: found %d, expected %u or 1\n",
+		dev_err(dev, "igyesring %s-gpios: found %d, expected %u or 1\n",
 			con_id, found, expected);
 		return NULL;
 	}
@@ -401,12 +401,12 @@ static int max3191x_probe(struct spi_device *spi)
 				 max3191x->modesel_pins->desc,
 				 max3191x->modesel_pins->info, max3191x->mode);
 
-	max3191x->ignore_uv = device_property_read_bool(dev,
-						  "maxim,ignore-undervoltage");
+	max3191x->igyesre_uv = device_property_read_bool(dev,
+						  "maxim,igyesre-undervoltage");
 
 	if (max3191x->db0_pins && max3191x->db1_pins &&
 	    max3191x->db0_pins->ndescs != max3191x->db1_pins->ndescs) {
-		dev_err(dev, "ignoring maxim,db*-gpios: array len mismatch\n");
+		dev_err(dev, "igyesring maxim,db*-gpios: array len mismatch\n");
 		devm_gpiod_put_array(dev, max3191x->db0_pins);
 		devm_gpiod_put_array(dev, max3191x->db1_pins);
 		max3191x->db0_pins = NULL;

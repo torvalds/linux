@@ -112,8 +112,8 @@ static bool dsa_port_is_user(struct dsa_port *dp)
 	return dp->type == DSA_PORT_TYPE_USER;
 }
 
-static struct dsa_port *dsa_tree_find_port_by_node(struct dsa_switch_tree *dst,
-						   struct device_node *dn)
+static struct dsa_port *dsa_tree_find_port_by_yesde(struct dsa_switch_tree *dst,
+						   struct device_yesde *dn)
 {
 	struct dsa_port *dp;
 
@@ -154,22 +154,22 @@ static bool dsa_port_setup_routing_table(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_switch_tree *dst = ds->dst;
-	struct device_node *dn = dp->dn;
+	struct device_yesde *dn = dp->dn;
 	struct of_phandle_iterator it;
 	struct dsa_port *link_dp;
 	struct dsa_link *dl;
 	int err;
 
 	of_for_each_phandle(&it, err, dn, "link", NULL, 0) {
-		link_dp = dsa_tree_find_port_by_node(dst, it.node);
+		link_dp = dsa_tree_find_port_by_yesde(dst, it.yesde);
 		if (!link_dp) {
-			of_node_put(it.node);
+			of_yesde_put(it.yesde);
 			return false;
 		}
 
 		dl = dsa_link_touch(dp, link_dp);
 		if (!dl) {
-			of_node_put(it.node);
+			of_yesde_put(it.yesde);
 			return false;
 		}
 	}
@@ -210,7 +210,7 @@ static int dsa_tree_setup_default_cpu(struct dsa_switch_tree *dst)
 
 	cpu_dp = dsa_tree_find_first_cpu(dst);
 	if (!cpu_dp) {
-		pr_err("DSA: tree %d has no CPU port\n", dst->index);
+		pr_err("DSA: tree %d has yes CPU port\n", dst->index);
 		return -EINVAL;
 	}
 
@@ -367,7 +367,7 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	/* Initialize ds->phys_mii_mask before registering the slave MDIO bus
 	 * driver and before ops->setup() has run, since the switch drivers and
 	 * the slave MDIO bus driver rely on these values for probing PHY
-	 * devices or not
+	 * devices or yest
 	 */
 	ds->phys_mii_mask |= dsa_user_ports(ds);
 
@@ -384,13 +384,13 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	if (err)
 		goto free_devlink;
 
-	err = dsa_switch_register_notifier(ds);
+	err = dsa_switch_register_yestifier(ds);
 	if (err)
 		goto unregister_devlink;
 
 	err = ds->ops->setup(ds);
 	if (err < 0)
-		goto unregister_notifier;
+		goto unregister_yestifier;
 
 	devlink_params_publish(ds->devlink);
 
@@ -398,22 +398,22 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 		ds->slave_mii_bus = devm_mdiobus_alloc(ds->dev);
 		if (!ds->slave_mii_bus) {
 			err = -ENOMEM;
-			goto unregister_notifier;
+			goto unregister_yestifier;
 		}
 
 		dsa_slave_mii_bus_init(ds);
 
 		err = mdiobus_register(ds->slave_mii_bus);
 		if (err < 0)
-			goto unregister_notifier;
+			goto unregister_yestifier;
 	}
 
 	ds->setup = true;
 
 	return 0;
 
-unregister_notifier:
-	dsa_switch_unregister_notifier(ds);
+unregister_yestifier:
+	dsa_switch_unregister_yestifier(ds);
 unregister_devlink:
 	devlink_unregister(ds->devlink);
 free_devlink:
@@ -431,7 +431,7 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 	if (ds->slave_mii_bus && ds->ops->phy_read)
 		mdiobus_unregister(ds->slave_mii_bus);
 
-	dsa_switch_unregister_notifier(ds);
+	dsa_switch_unregister_yestifier(ds);
 
 	if (ds->ops->teardown)
 		ds->ops->teardown(ds);
@@ -640,9 +640,9 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 	return 0;
 }
 
-static int dsa_port_parse_of(struct dsa_port *dp, struct device_node *dn)
+static int dsa_port_parse_of(struct dsa_port *dp, struct device_yesde *dn)
 {
-	struct device_node *ethernet = of_parse_phandle(dn, "ethernet", 0);
+	struct device_yesde *ethernet = of_parse_phandle(dn, "ethernet", 0);
 	const char *name = of_get_property(dn, "label", NULL);
 	bool link = of_property_read_bool(dn, "link");
 
@@ -651,7 +651,7 @@ static int dsa_port_parse_of(struct dsa_port *dp, struct device_node *dn)
 	if (ethernet) {
 		struct net_device *master;
 
-		master = of_find_net_device_by_node(ethernet);
+		master = of_find_net_device_by_yesde(ethernet);
 		if (!master)
 			return -EPROBE_DEFER;
 
@@ -665,43 +665,43 @@ static int dsa_port_parse_of(struct dsa_port *dp, struct device_node *dn)
 }
 
 static int dsa_switch_parse_ports_of(struct dsa_switch *ds,
-				     struct device_node *dn)
+				     struct device_yesde *dn)
 {
-	struct device_node *ports, *port;
+	struct device_yesde *ports, *port;
 	struct dsa_port *dp;
 	int err = 0;
 	u32 reg;
 
 	ports = of_get_child_by_name(dn, "ports");
 	if (!ports) {
-		dev_err(ds->dev, "no ports child node found\n");
+		dev_err(ds->dev, "yes ports child yesde found\n");
 		return -EINVAL;
 	}
 
-	for_each_available_child_of_node(ports, port) {
+	for_each_available_child_of_yesde(ports, port) {
 		err = of_property_read_u32(port, "reg", &reg);
 		if (err)
-			goto out_put_node;
+			goto out_put_yesde;
 
 		if (reg >= ds->num_ports) {
 			err = -EINVAL;
-			goto out_put_node;
+			goto out_put_yesde;
 		}
 
 		dp = dsa_to_port(ds, reg);
 
 		err = dsa_port_parse_of(dp, port);
 		if (err)
-			goto out_put_node;
+			goto out_put_yesde;
 	}
 
-out_put_node:
-	of_node_put(ports);
+out_put_yesde:
+	of_yesde_put(ports);
 	return err;
 }
 
 static int dsa_switch_parse_member_of(struct dsa_switch *ds,
-				      struct device_node *dn)
+				      struct device_yesde *dn)
 {
 	u32 m[2] = { 0, 0 };
 	int sz;
@@ -734,7 +734,7 @@ static int dsa_switch_touch_ports(struct dsa_switch *ds)
 	return 0;
 }
 
-static int dsa_switch_parse_of(struct dsa_switch *ds, struct device_node *dn)
+static int dsa_switch_parse_of(struct dsa_switch *ds, struct device_yesde *dn)
 {
 	int err;
 
@@ -807,7 +807,7 @@ static int dsa_switch_parse(struct dsa_switch *ds, struct dsa_chip_data *cd)
 
 	ds->cd = cd;
 
-	/* We don't support interconnected switches nor multiple trees via
+	/* We don't support interconnected switches yesr multiple trees via
 	 * platform data, so this is the unique switch of the tree.
 	 */
 	ds->index = 0;
@@ -826,14 +826,14 @@ static int dsa_switch_probe(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst;
 	struct dsa_chip_data *pdata;
-	struct device_node *np;
+	struct device_yesde *np;
 	int err;
 
 	if (!ds->dev)
 		return -ENODEV;
 
 	pdata = ds->dev->platform_data;
-	np = ds->dev->of_node;
+	np = ds->dev->of_yesde;
 
 	if (!ds->num_ports)
 		return -EINVAL;

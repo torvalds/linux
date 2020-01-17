@@ -407,7 +407,7 @@ static int bcm5482_read_status(struct phy_device *phydev)
 
 static int bcm5481_config_aneg(struct phy_device *phydev)
 {
-	struct device_node *np = phydev->mdio.dev.of_node;
+	struct device_yesde *np = phydev->mdio.dev.of_yesde;
 	int ret;
 
 	/* Aneg firsly. */
@@ -439,7 +439,7 @@ static int bcm54616s_probe(struct phy_device *phydev)
 	 * is 01b, and the link between PHY and its link partner can be
 	 * either 1000Base-X or 100Base-FX.
 	 * RGMII-1000Base-X is properly supported, but RGMII-100Base-FX
-	 * support is still missing as of now.
+	 * support is still missing as of yesw.
 	 */
 	intf_sel = (val & BCM54XX_SHD_INTF_SEL_MASK) >> 1;
 	if (intf_sel == 1) {
@@ -502,7 +502,7 @@ static int brcm_fet_config_init(struct phy_device *phydev)
 {
 	int reg, err, err2, brcmtest;
 
-	/* Reset the PHY to bring it to a known state. */
+	/* Reset the PHY to bring it to a kyeswn state. */
 	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
 	if (err < 0)
 		return err;

@@ -12,7 +12,7 @@
  */
 
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -139,13 +139,13 @@ static int syscall_available(void)
 {
 	int rc;
 
-	errno = 0;
+	erryes = 0;
 	rc = syscall(__NR_subpage_prot, 0, 0, 0);
 
-	return rc == 0 || (errno != ENOENT && errno != ENOSYS);
+	return rc == 0 || (erryes != ENOENT && erryes != ENOSYS);
 }
 
-int test_anon(void)
+int test_ayesn(void)
 {
 	unsigned long align;
 	struct sigaction act = {
@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
 {
 	int rc;
 
-	rc = test_harness(test_anon, "subpage_prot_anon");
+	rc = test_harness(test_ayesn, "subpage_prot_ayesn");
 	if (rc)
 		return rc;
 

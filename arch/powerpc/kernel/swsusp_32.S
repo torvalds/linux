@@ -189,7 +189,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	/* Disable MSR:DR to make sure we don't take a TLB or
 	 * hash miss during the copy, as our hash table will
 	 * for a while be unusable. For .text, we assume we are
-	 * covered by a BAT. This works only for non-G5 at this
+	 * covered by a BAT. This works only for yesn-G5 at this
 	 * point. G5 will need a better approach, possibly using
 	 * a small temporary hash table filled with large mappings,
 	 * disabling the MMU completely isn't a good option for
@@ -259,9 +259,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	bdnz	1b
 	sync
 
-	/* Ok, we are now running with the kernel data of the old
+	/* Ok, we are yesw running with the kernel data of the old
 	 * kernel fully restored. We can get to the save area
-	 * easily now. As for the rest of the code, it assumes the
+	 * easily yesw. As for the rest of the code, it assumes the
 	 * loader kernel and the booted one are exactly identical
 	 */
 	lis	r11,swsusp_save_area@h
@@ -396,7 +396,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	li	r3,0
 	blr
 
-/* FIXME:This construct is actually not useful since we don't shut
+/* FIXME:This construct is actually yest useful since we don't shut
  * down the instruction MMU, we could just flip back MSR-DR on.
  */
 turn_on_mmu:

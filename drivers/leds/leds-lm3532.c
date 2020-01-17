@@ -543,9 +543,9 @@ static int lm3532_parse_als(struct lm3532_data *priv)
 	return ret;
 }
 
-static int lm3532_parse_node(struct lm3532_data *priv)
+static int lm3532_parse_yesde(struct lm3532_data *priv)
 {
-	struct fwnode_handle *child = NULL;
+	struct fwyesde_handle *child = NULL;
 	struct lm3532_led *led;
 	const char *name;
 	int control_bank;
@@ -576,13 +576,13 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 	else
 		priv->runtime_ramp_down = lm3532_get_ramp_index(ramp_time);
 
-	device_for_each_child_node(priv->dev, child) {
+	device_for_each_child_yesde(priv->dev, child) {
 		led = &priv->leds[i];
 
-		ret = fwnode_property_read_u32(child, "reg", &control_bank);
+		ret = fwyesde_property_read_u32(child, "reg", &control_bank);
 		if (ret) {
 			dev_err(&priv->client->dev, "reg property missing\n");
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 			goto child_out;
 		}
 
@@ -593,16 +593,16 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 
 		led->control_bank = control_bank;
 
-		ret = fwnode_property_read_u32(child, "ti,led-mode",
+		ret = fwyesde_property_read_u32(child, "ti,led-mode",
 					       &led->mode);
 		if (ret) {
 			dev_err(&priv->client->dev, "ti,led-mode property missing\n");
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 			goto child_out;
 		}
 
-		if (fwnode_property_present(child, "led-max-microamp") &&
-		    fwnode_property_read_u32(child, "led-max-microamp",
+		if (fwyesde_property_present(child, "led-max-microamp") &&
+		    fwyesde_property_read_u32(child, "led-max-microamp",
 					     &led->full_scale_current))
 			dev_err(&priv->client->dev,
 				"Failed getting led-max-microamp\n");
@@ -621,25 +621,25 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 			led->mode = LM3532_I2C_CTRL;
 		}
 
-		led->num_leds = fwnode_property_count_u32(child, "led-sources");
+		led->num_leds = fwyesde_property_count_u32(child, "led-sources");
 		if (led->num_leds > LM3532_MAX_LED_STRINGS) {
 			dev_err(&priv->client->dev, "To many LED string defined\n");
 			continue;
 		}
 
-		ret = fwnode_property_read_u32_array(child, "led-sources",
+		ret = fwyesde_property_read_u32_array(child, "led-sources",
 						    led->led_strings,
 						    led->num_leds);
 		if (ret) {
 			dev_err(&priv->client->dev, "led-sources property missing\n");
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 			goto child_out;
 		}
 
-		fwnode_property_read_string(child, "linux,default-trigger",
+		fwyesde_property_read_string(child, "linux,default-trigger",
 					    &led->led_dev.default_trigger);
 
-		ret = fwnode_property_read_string(child, "label", &name);
+		ret = fwyesde_property_read_string(child, "label", &name);
 		if (ret)
 			snprintf(led->label, sizeof(led->label),
 				"%s::", priv->client->name);
@@ -655,7 +655,7 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 		if (ret) {
 			dev_err(&priv->client->dev, "led register err: %d\n",
 				ret);
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 			goto child_out;
 		}
 
@@ -663,7 +663,7 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 		if (ret) {
 			dev_err(&priv->client->dev, "register init err: %d\n",
 				ret);
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 			goto child_out;
 		}
 
@@ -681,9 +681,9 @@ static int lm3532_probe(struct i2c_client *client,
 	int ret = 0;
 	int count;
 
-	count = device_get_child_node_count(&client->dev);
+	count = device_get_child_yesde_count(&client->dev);
 	if (!count) {
-		dev_err(&client->dev, "LEDs are not defined in device tree!");
+		dev_err(&client->dev, "LEDs are yest defined in device tree!");
 		return -ENODEV;
 	}
 
@@ -706,9 +706,9 @@ static int lm3532_probe(struct i2c_client *client,
 	mutex_init(&drvdata->lock);
 	i2c_set_clientdata(client, drvdata);
 
-	ret = lm3532_parse_node(drvdata);
+	ret = lm3532_parse_yesde(drvdata);
 	if (ret) {
-		dev_err(&client->dev, "Failed to parse node\n");
+		dev_err(&client->dev, "Failed to parse yesde\n");
 		return ret;
 	}
 

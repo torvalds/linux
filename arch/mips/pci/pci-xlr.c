@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -225,7 +225,7 @@ int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 	int irq, ret;
 	u16 val;
 
-	/* MSI not supported on XLR */
+	/* MSI yest supported on XLR */
 	if (!nlm_chip_is_xls())
 		return 1;
 

@@ -38,39 +38,39 @@ static struct {
 	.lock = __SPIN_LOCK_UNLOCKED(ctx_list.lock),
 };
 
-/* Used by contexts that did not set up notify flag pointers */
-static bool ctx_dummy_notify;
+/* Used by contexts that did yest set up yestify flag pointers */
+static bool ctx_dummy_yestify;
 
-static void ctx_signal_notify(struct vmci_ctx *context)
+static void ctx_signal_yestify(struct vmci_ctx *context)
 {
-	*context->notify = true;
+	*context->yestify = true;
 }
 
-static void ctx_clear_notify(struct vmci_ctx *context)
+static void ctx_clear_yestify(struct vmci_ctx *context)
 {
-	*context->notify = false;
+	*context->yestify = false;
 }
 
 /*
- * If nothing requires the attention of the guest, clears both
- * notify flag and call.
+ * If yesthing requires the attention of the guest, clears both
+ * yestify flag and call.
  */
-static void ctx_clear_notify_call(struct vmci_ctx *context)
+static void ctx_clear_yestify_call(struct vmci_ctx *context)
 {
 	if (context->pending_datagrams == 0 &&
 	    vmci_handle_arr_get_size(context->pending_doorbell_array) == 0)
-		ctx_clear_notify(context);
+		ctx_clear_yestify(context);
 }
 
 /*
- * Sets the context's notify flag iff datagrams are pending for this
- * context.  Called from vmci_setup_notify().
+ * Sets the context's yestify flag iff datagrams are pending for this
+ * context.  Called from vmci_setup_yestify().
  */
-void vmci_ctx_check_signal_notify(struct vmci_ctx *context)
+void vmci_ctx_check_signal_yestify(struct vmci_ctx *context)
 {
 	spin_lock(&context->lock);
 	if (context->pending_datagrams)
-		ctx_signal_notify(context);
+		ctx_signal_yestify(context);
 	spin_unlock(&context->lock);
 }
 
@@ -115,7 +115,7 @@ struct vmci_ctx *vmci_ctx_create(u32 cid, u32 priv_flags,
 	spin_lock_init(&context->lock);
 	INIT_LIST_HEAD(&context->list_item);
 	INIT_LIST_HEAD(&context->datagram_queue);
-	INIT_LIST_HEAD(&context->notifier_list);
+	INIT_LIST_HEAD(&context->yestifier_list);
 
 	/* Initialize host-specific VMCI context. */
 	init_waitqueue_head(&context->host_context.wait_queue);
@@ -148,8 +148,8 @@ struct vmci_ctx *vmci_ctx_create(u32 cid, u32 priv_flags,
 	if (cred)
 		context->cred = get_cred(cred);
 
-	context->notify = &ctx_dummy_notify;
-	context->notify_page = NULL;
+	context->yestify = &ctx_dummy_yestify;
+	context->yestify_page = NULL;
 
 	/*
 	 * If we collide with an existing context we generate a new
@@ -196,9 +196,9 @@ void vmci_ctx_destroy(struct vmci_ctx *context)
 }
 
 /*
- * Fire notification for all contexts interested in given cid.
+ * Fire yestification for all contexts interested in given cid.
  */
-static int ctx_fire_notification(u32 context_id, u32 priv_flags)
+static int ctx_fire_yestification(u32 context_id, u32 priv_flags)
 {
 	u32 i, array_size;
 	struct vmci_ctx *sub_ctx;
@@ -216,22 +216,22 @@ static int ctx_fire_notification(u32 context_id, u32 priv_flags)
 
 	/*
 	 * Scan all contexts to find who is interested in being
-	 * notified about given contextID.
+	 * yestified about given contextID.
 	 */
 	rcu_read_lock();
 	list_for_each_entry_rcu(sub_ctx, &ctx_list.head, list_item) {
-		struct vmci_handle_list *node;
+		struct vmci_handle_list *yesde;
 
 		/*
-		 * We only deliver notifications of the removal of
+		 * We only deliver yestifications of the removal of
 		 * contexts, if the two contexts are allowed to
 		 * interact.
 		 */
 		if (vmci_deny_interaction(priv_flags, sub_ctx->priv_flags))
 			continue;
 
-		list_for_each_entry_rcu(node, &sub_ctx->notifier_list, node) {
-			if (!vmci_handle_is_equal(node->handle, context_handle))
+		list_for_each_entry_rcu(yesde, &sub_ctx->yestifier_list, yesde) {
+			if (!vmci_handle_is_equal(yesde->handle, context_handle))
 				continue;
 
 			vmci_handle_arr_append_entry(&subscriber_array,
@@ -271,7 +271,7 @@ static int ctx_fire_notification(u32 context_id, u32 priv_flags)
 /*
  * Returns the current number of pending datagrams. The call may
  * also serve as a synchronization point for the datagram queue,
- * as no enqueue operations can occur concurrently.
+ * as yes enqueue operations can occur concurrently.
  */
 int vmci_ctx_pending_datagrams(u32 cid, u32 *pending)
 {
@@ -329,7 +329,7 @@ int vmci_ctx_enqueue_datagram(u32 cid, struct vmci_datagram *dg)
 
 	/*
 	 * We put a higher limit on datagrams from the hypervisor.  If
-	 * the pending datagram is not from hypervisor, then we check
+	 * the pending datagram is yest from hypervisor, then we check
 	 * if enqueueing it would exceed the
 	 * VMCI_MAX_DATAGRAM_QUEUE_SIZE limit on the destination.  If
 	 * the pending datagram is from hypervisor, we allow it to be
@@ -354,7 +354,7 @@ int vmci_ctx_enqueue_datagram(u32 cid, struct vmci_datagram *dg)
 	list_add(&dq_entry->list_item, &context->datagram_queue);
 	context->pending_datagrams++;
 	context->datagram_queue_size += vmci_dg_size;
-	ctx_signal_notify(context);
+	ctx_signal_yestify(context);
 	wake_up(&context->host_context.wait_queue);
 	spin_unlock(&context->lock);
 	vmci_ctx_put(context);
@@ -364,7 +364,7 @@ int vmci_ctx_enqueue_datagram(u32 cid, struct vmci_datagram *dg)
 
 /*
  * Verifies whether a context with the specified context ID exists.
- * FIXME: utility is dubious as no decisions can be reliably made
+ * FIXME: utility is dubious as yes decisions can be reliably made
  * using this data as context can appear and disappear at any time.
  */
 bool vmci_ctx_exists(u32 cid)
@@ -402,7 +402,7 @@ struct vmci_ctx *vmci_ctx_get(u32 cid)
 			 * The context owner drops its own reference to the
 			 * context only after removing it from the list and
 			 * waiting for RCU grace period to expire. This
-			 * means that we are not about to increase the
+			 * means that we are yest about to increase the
 			 * reference count of something that is in the
 			 * process of being destroyed.
 			 */
@@ -426,18 +426,18 @@ static void ctx_free_ctx(struct kref *kref)
 	struct vmci_ctx *context = container_of(kref, struct vmci_ctx, kref);
 	struct vmci_datagram_queue_entry *dq_entry, *dq_entry_tmp;
 	struct vmci_handle temp_handle;
-	struct vmci_handle_list *notifier, *tmp;
+	struct vmci_handle_list *yestifier, *tmp;
 
 	/*
-	 * Fire event to all contexts interested in knowing this
+	 * Fire event to all contexts interested in kyeswing this
 	 * context is dying.
 	 */
-	ctx_fire_notification(context->cid, context->priv_flags);
+	ctx_fire_yestification(context->cid, context->priv_flags);
 
 	/*
 	 * Cleanup all queue pair resources attached to context.  If
 	 * the VM dies without cleaning up, this code will make sure
-	 * that no resources are leaked.
+	 * that yes resources are leaked.
 	 */
 	temp_handle = vmci_handle_arr_get_entry(context->queue_pair_array, 0);
 	while (!vmci_handle_is_equal(temp_handle, VMCI_INVALID_HANDLE)) {
@@ -468,16 +468,16 @@ static void ctx_free_ctx(struct kref *kref)
 		kfree(dq_entry);
 	}
 
-	list_for_each_entry_safe(notifier, tmp,
-				 &context->notifier_list, node) {
-		list_del(&notifier->node);
-		kfree(notifier);
+	list_for_each_entry_safe(yestifier, tmp,
+				 &context->yestifier_list, yesde) {
+		list_del(&yestifier->yesde);
+		kfree(yestifier);
 	}
 
 	vmci_handle_arr_destroy(context->queue_pair_array);
 	vmci_handle_arr_destroy(context->doorbell_array);
 	vmci_handle_arr_destroy(context->pending_doorbell_array);
-	vmci_ctx_unset_notify(context);
+	vmci_ctx_unset_yestify(context);
 	if (context->cred)
 		put_cred(context->cred);
 	kfree(context);
@@ -488,9 +488,9 @@ static void ctx_free_ctx(struct kref *kref)
  * the context it will be deallocated. A context is created with
  * a reference count of one, and on destroy, it is removed from
  * the context list before its reference count is decremented. Thus,
- * if we reach zero, we are sure that nobody else are about to increment
+ * if we reach zero, we are sure that yesbody else are about to increment
  * it (they need the entry in the context list for that), and so there
- * is no need for locking.
+ * is yes need for locking.
  */
 void vmci_ctx_put(struct vmci_ctx *context)
 {
@@ -516,7 +516,7 @@ int vmci_ctx_dequeue_datagram(struct vmci_ctx *context,
 	/* Dequeue the next datagram entry. */
 	spin_lock(&context->lock);
 	if (context->pending_datagrams == 0) {
-		ctx_clear_notify_call(context);
+		ctx_clear_yestify_call(context);
 		spin_unlock(&context->lock);
 		pr_devel("No datagrams pending\n");
 		return VMCI_ERROR_NO_MORE_DATAGRAMS;
@@ -540,7 +540,7 @@ int vmci_ctx_dequeue_datagram(struct vmci_ctx *context,
 	context->pending_datagrams--;
 	context->datagram_queue_size -= dq_entry->dg_size;
 	if (context->pending_datagrams == 0) {
-		ctx_clear_notify_call(context);
+		ctx_clear_yestify_call(context);
 		rv = VMCI_SUCCESS;
 	} else {
 		/*
@@ -570,35 +570,35 @@ int vmci_ctx_dequeue_datagram(struct vmci_ctx *context,
 }
 
 /*
- * Reverts actions set up by vmci_setup_notify().  Unmaps and unlocks the
- * page mapped/locked by vmci_setup_notify().
+ * Reverts actions set up by vmci_setup_yestify().  Unmaps and unlocks the
+ * page mapped/locked by vmci_setup_yestify().
  */
-void vmci_ctx_unset_notify(struct vmci_ctx *context)
+void vmci_ctx_unset_yestify(struct vmci_ctx *context)
 {
-	struct page *notify_page;
+	struct page *yestify_page;
 
 	spin_lock(&context->lock);
 
-	notify_page = context->notify_page;
-	context->notify = &ctx_dummy_notify;
-	context->notify_page = NULL;
+	yestify_page = context->yestify_page;
+	context->yestify = &ctx_dummy_yestify;
+	context->yestify_page = NULL;
 
 	spin_unlock(&context->lock);
 
-	if (notify_page) {
-		kunmap(notify_page);
-		put_page(notify_page);
+	if (yestify_page) {
+		kunmap(yestify_page);
+		put_page(yestify_page);
 	}
 }
 
 /*
  * Add remote_cid to list of contexts current contexts wants
- * notifications from/about.
+ * yestifications from/about.
  */
-int vmci_ctx_add_notification(u32 context_id, u32 remote_cid)
+int vmci_ctx_add_yestification(u32 context_id, u32 remote_cid)
 {
 	struct vmci_ctx *context;
-	struct vmci_handle_list *notifier, *n;
+	struct vmci_handle_list *yestifier, *n;
 	int result;
 	bool exists = false;
 
@@ -607,7 +607,7 @@ int vmci_ctx_add_notification(u32 context_id, u32 remote_cid)
 		return VMCI_ERROR_NOT_FOUND;
 
 	if (VMCI_CONTEXT_IS_VM(context_id) && VMCI_CONTEXT_IS_VM(remote_cid)) {
-		pr_devel("Context removed notifications for other VMs not supported (src=0x%x, remote=0x%x)\n",
+		pr_devel("Context removed yestifications for other VMs yest supported (src=0x%x, remote=0x%x)\n",
 			 context_id, remote_cid);
 		result = VMCI_ERROR_DST_UNREACHABLE;
 		goto out;
@@ -618,36 +618,36 @@ int vmci_ctx_add_notification(u32 context_id, u32 remote_cid)
 		goto out;
 	}
 
-	notifier = kmalloc(sizeof(struct vmci_handle_list), GFP_KERNEL);
-	if (!notifier) {
+	yestifier = kmalloc(sizeof(struct vmci_handle_list), GFP_KERNEL);
+	if (!yestifier) {
 		result = VMCI_ERROR_NO_MEM;
 		goto out;
 	}
 
-	INIT_LIST_HEAD(&notifier->node);
-	notifier->handle = vmci_make_handle(remote_cid, VMCI_EVENT_HANDLER);
+	INIT_LIST_HEAD(&yestifier->yesde);
+	yestifier->handle = vmci_make_handle(remote_cid, VMCI_EVENT_HANDLER);
 
 	spin_lock(&context->lock);
 
-	if (context->n_notifiers < VMCI_MAX_CONTEXTS) {
-		list_for_each_entry(n, &context->notifier_list, node) {
-			if (vmci_handle_is_equal(n->handle, notifier->handle)) {
+	if (context->n_yestifiers < VMCI_MAX_CONTEXTS) {
+		list_for_each_entry(n, &context->yestifier_list, yesde) {
+			if (vmci_handle_is_equal(n->handle, yestifier->handle)) {
 				exists = true;
 				break;
 			}
 		}
 
 		if (exists) {
-			kfree(notifier);
+			kfree(yestifier);
 			result = VMCI_ERROR_ALREADY_EXISTS;
 		} else {
-			list_add_tail_rcu(&notifier->node,
-					  &context->notifier_list);
-			context->n_notifiers++;
+			list_add_tail_rcu(&yestifier->yesde,
+					  &context->yestifier_list);
+			context->n_yestifiers++;
 			result = VMCI_SUCCESS;
 		}
 	} else {
-		kfree(notifier);
+		kfree(yestifier);
 		result = VMCI_ERROR_NO_MEM;
 	}
 
@@ -660,12 +660,12 @@ int vmci_ctx_add_notification(u32 context_id, u32 remote_cid)
 
 /*
  * Remove remote_cid from current context's list of contexts it is
- * interested in getting notifications from/about.
+ * interested in getting yestifications from/about.
  */
-int vmci_ctx_remove_notification(u32 context_id, u32 remote_cid)
+int vmci_ctx_remove_yestification(u32 context_id, u32 remote_cid)
 {
 	struct vmci_ctx *context;
-	struct vmci_handle_list *notifier, *tmp;
+	struct vmci_handle_list *yestifier, *tmp;
 	struct vmci_handle handle;
 	bool found = false;
 
@@ -676,11 +676,11 @@ int vmci_ctx_remove_notification(u32 context_id, u32 remote_cid)
 	handle = vmci_make_handle(remote_cid, VMCI_EVENT_HANDLER);
 
 	spin_lock(&context->lock);
-	list_for_each_entry_safe(notifier, tmp,
-				 &context->notifier_list, node) {
-		if (vmci_handle_is_equal(notifier->handle, handle)) {
-			list_del_rcu(&notifier->node);
-			context->n_notifiers--;
+	list_for_each_entry_safe(yestifier, tmp,
+				 &context->yestifier_list, yesde) {
+		if (vmci_handle_is_equal(yestifier->handle, handle)) {
+			list_del_rcu(&yestifier->yesde);
+			context->n_yestifiers--;
 			found = true;
 			break;
 		}
@@ -689,7 +689,7 @@ int vmci_ctx_remove_notification(u32 context_id, u32 remote_cid)
 
 	if (found) {
 		synchronize_rcu();
-		kfree(notifier);
+		kfree(yestifier);
 	}
 
 	vmci_ctx_put(context);
@@ -697,35 +697,35 @@ int vmci_ctx_remove_notification(u32 context_id, u32 remote_cid)
 	return found ? VMCI_SUCCESS : VMCI_ERROR_NOT_FOUND;
 }
 
-static int vmci_ctx_get_chkpt_notifiers(struct vmci_ctx *context,
+static int vmci_ctx_get_chkpt_yestifiers(struct vmci_ctx *context,
 					u32 *buf_size, void **pbuf)
 {
-	u32 *notifiers;
+	u32 *yestifiers;
 	size_t data_size;
 	struct vmci_handle_list *entry;
 	int i = 0;
 
-	if (context->n_notifiers == 0) {
+	if (context->n_yestifiers == 0) {
 		*buf_size = 0;
 		*pbuf = NULL;
 		return VMCI_SUCCESS;
 	}
 
-	data_size = context->n_notifiers * sizeof(*notifiers);
+	data_size = context->n_yestifiers * sizeof(*yestifiers);
 	if (*buf_size < data_size) {
 		*buf_size = data_size;
 		return VMCI_ERROR_MORE_DATA;
 	}
 
-	notifiers = kmalloc(data_size, GFP_ATOMIC); /* FIXME: want GFP_KERNEL */
-	if (!notifiers)
+	yestifiers = kmalloc(data_size, GFP_ATOMIC); /* FIXME: want GFP_KERNEL */
+	if (!yestifiers)
 		return VMCI_ERROR_NO_MEM;
 
-	list_for_each_entry(entry, &context->notifier_list, node)
-		notifiers[i++] = entry->handle.context;
+	list_for_each_entry(entry, &context->yestifier_list, yesde)
+		yestifiers[i++] = entry->handle.context;
 
 	*buf_size = data_size;
-	*pbuf = notifiers;
+	*pbuf = yestifiers;
 	return VMCI_SUCCESS;
 }
 
@@ -780,13 +780,13 @@ int vmci_ctx_get_chkpt_state(u32 context_id,
 
 	switch (cpt_type) {
 	case VMCI_NOTIFICATION_CPT_STATE:
-		result = vmci_ctx_get_chkpt_notifiers(context, buf_size, pbuf);
+		result = vmci_ctx_get_chkpt_yestifiers(context, buf_size, pbuf);
 		break;
 
 	case VMCI_WELLKNOWN_CPT_STATE:
 		/*
 		 * For compatibility with VMX'en with VM to VM communication, we
-		 * always return zero wellknown handles.
+		 * always return zero wellkyeswn handles.
 		 */
 
 		*buf_size = 0;
@@ -826,9 +826,9 @@ int vmci_ctx_set_chkpt_state(u32 context_id,
 	if (cpt_type == VMCI_WELLKNOWN_CPT_STATE && num_ids > 0) {
 		/*
 		 * We would end up here if VMX with VM to VM communication
-		 * attempts to restore a checkpoint with wellknown handles.
+		 * attempts to restore a checkpoint with wellkyeswn handles.
 		 */
-		pr_warn("Attempt to restore checkpoint with obsolete wellknown handles\n");
+		pr_warn("Attempt to restore checkpoint with obsolete wellkyeswn handles\n");
 		return VMCI_ERROR_OBSOLETE;
 	}
 
@@ -839,7 +839,7 @@ int vmci_ctx_set_chkpt_state(u32 context_id,
 
 	for (i = 0; i < num_ids && result == VMCI_SUCCESS; i++) {
 		current_id = ((u32 *)cpt_buf)[i];
-		result = vmci_ctx_add_notification(context_id, current_id);
+		result = vmci_ctx_add_yestification(context_id, current_id);
 		if (result != VMCI_SUCCESS)
 			break;
 	}
@@ -851,13 +851,13 @@ int vmci_ctx_set_chkpt_state(u32 context_id,
 }
 
 /*
- * Retrieves the specified context's pending notifications in the
+ * Retrieves the specified context's pending yestifications in the
  * form of a handle array. The handle arrays returned are the
- * actual data - not a copy and should not be modified by the
+ * actual data - yest a copy and should yest be modified by the
  * caller. They must be released using
- * vmci_ctx_rcv_notifications_release.
+ * vmci_ctx_rcv_yestifications_release.
  */
-int vmci_ctx_rcv_notifications_get(u32 context_id,
+int vmci_ctx_rcv_yestifications_get(u32 context_id,
 				   struct vmci_handle_arr **db_handle_array,
 				   struct vmci_handle_arr **qp_handle_array)
 {
@@ -887,12 +887,12 @@ int vmci_ctx_rcv_notifications_get(u32 context_id,
 }
 
 /*
- * Releases handle arrays with pending notifications previously
- * retrieved using vmci_ctx_rcv_notifications_get. If the
- * notifications were not successfully handed over to the guest,
+ * Releases handle arrays with pending yestifications previously
+ * retrieved using vmci_ctx_rcv_yestifications_get. If the
+ * yestifications were yest successfully handed over to the guest,
  * success must be false.
  */
-void vmci_ctx_rcv_notifications_release(u32 context_id,
+void vmci_ctx_rcv_yestifications_release(u32 context_id,
 					struct vmci_handle_arr *db_handle_array,
 					struct vmci_handle_arr *qp_handle_array,
 					bool success)
@@ -904,9 +904,9 @@ void vmci_ctx_rcv_notifications_release(u32 context_id,
 		struct vmci_handle handle;
 
 		/*
-		 * New notifications may have been added while we were not
+		 * New yestifications may have been added while we were yest
 		 * holding the context lock, so we transfer any new pending
-		 * doorbell notifications to the old array, and reinstate the
+		 * doorbell yestifications to the old array, and reinstate the
 		 * old array.
 		 */
 
@@ -925,7 +925,7 @@ void vmci_ctx_rcv_notifications_release(u32 context_id,
 		context->pending_doorbell_array = db_handle_array;
 		db_handle_array = NULL;
 	} else {
-		ctx_clear_notify_call(context);
+		ctx_clear_yestify_call(context);
 	}
 	spin_unlock(&context->lock);
 	vmci_ctx_put(context);
@@ -939,7 +939,7 @@ void vmci_ctx_rcv_notifications_release(u32 context_id,
 
 /*
  * Registers that a new doorbell handle has been allocated by the
- * context. Only doorbell handles registered can be notified.
+ * context. Only doorbell handles registered can be yestified.
  */
 int vmci_ctx_dbell_create(u32 context_id, struct vmci_handle handle)
 {
@@ -1027,16 +1027,16 @@ int vmci_ctx_dbell_destroy_all(u32 context_id)
 }
 
 /*
- * Registers a notification of a doorbell handle initiated by the
- * specified source context. The notification of doorbells are
+ * Registers a yestification of a doorbell handle initiated by the
+ * specified source context. The yestification of doorbells are
  * subject to the same isolation rules as datagram delivery. To
- * allow host side senders of notifications a finer granularity
+ * allow host side senders of yestifications a finer granularity
  * of sender rights than those assigned to the sending context
  * itself, the host context is required to specify a different
  * set of privilege flags that will override the privileges of
  * the source context.
  */
-int vmci_ctx_notify_dbell(u32 src_cid,
+int vmci_ctx_yestify_dbell(u32 src_cid,
 			  struct vmci_handle handle,
 			  u32 src_priv_flags)
 {
@@ -1058,7 +1058,7 @@ int vmci_ctx_notify_dbell(u32 src_cid,
 
 		if (VMCI_CONTEXT_IS_VM(src_cid) &&
 		    VMCI_CONTEXT_IS_VM(handle.context)) {
-			pr_devel("Doorbell notification from VM to VM not supported (src=0x%x, dst=0x%x)\n",
+			pr_devel("Doorbell yestification from VM to VM yest supported (src=0x%x, dst=0x%x)\n",
 				 src_cid, handle.context);
 			result = VMCI_ERROR_DST_UNREACHABLE;
 			goto out;
@@ -1083,7 +1083,7 @@ int vmci_ctx_notify_dbell(u32 src_cid,
 	}
 
 	if (handle.context == VMCI_HOST_CONTEXT_ID) {
-		result = vmci_dbell_host_context_notify(src_cid, handle);
+		result = vmci_dbell_host_context_yestify(src_cid, handle);
 	} else {
 		spin_lock(&dst_context->lock);
 
@@ -1098,7 +1098,7 @@ int vmci_ctx_notify_dbell(u32 src_cid,
 					&dst_context->pending_doorbell_array,
 					handle);
 				if (result == VMCI_SUCCESS) {
-					ctx_signal_notify(dst_context);
+					ctx_signal_yestify(dst_context);
 					wake_up(&dst_context->host_context.wait_queue);
 				}
 			} else {

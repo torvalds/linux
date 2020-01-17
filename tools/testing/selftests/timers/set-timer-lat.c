@@ -20,7 +20,7 @@
  */
 
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
@@ -46,7 +46,7 @@
 
 
 #define NSEC_PER_SEC 1000000000ULL
-#define UNRESONABLE_LATENCY 40000000 /* 40ms in nanosecs */
+#define UNRESONABLE_LATENCY 40000000 /* 40ms in nayessecs */
 
 #define TIMER_SECS 1
 int alarmcount;
@@ -94,7 +94,7 @@ long long timespec_sub(struct timespec a, struct timespec b)
 }
 
 
-void sigalarm(int signo)
+void sigalarm(int sigyes)
 {
 	long long delta_ns;
 	struct timespec ts;
@@ -128,8 +128,8 @@ int setup_timer(int clock_id, int flags, int interval, timer_t *tm1)
 
 	/* Set up timer: */
 	memset(&se, 0, sizeof(se));
-	se.sigev_notify = SIGEV_SIGNAL;
-	se.sigev_signo = SIGRTMAX;
+	se.sigev_yestify = SIGEV_SIGNAL;
+	se.sigev_sigyes = SIGRTMAX;
 	se.sigev_value.sival_int = 0;
 
 	max_latency_ns = 0;
@@ -214,7 +214,7 @@ int do_timer(int clock_id, int flags)
 	int err;
 
 	err = setup_timer(clock_id, flags, interval, &tm1);
-	/* Unsupported case - return 0 to not fail the test */
+	/* Unsupported case - return 0 to yest fail the test */
 	if (err)
 		return err == 1 ? 0 : err;
 
@@ -233,7 +233,7 @@ int do_timer_oneshot(int clock_id, int flags)
 	int err;
 
 	err = setup_timer(clock_id, flags, interval, &tm1);
-	/* Unsupported case - return 0 to not fail the test */
+	/* Unsupported case - return 0 to yest fail the test */
 	if (err)
 		return err == 1 ? 0 : err;
 
@@ -241,7 +241,7 @@ int do_timer_oneshot(int clock_id, int flags)
 	timeout.tv_sec = 5;
 	do {
 		err = select(0, NULL, NULL, NULL, &timeout);
-	} while (err == -1 && errno == EINTR);
+	} while (err == -1 && erryes == EINTR);
 
 	timer_delete(tm1);
 	err = check_timer_latency(flags, interval);

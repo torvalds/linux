@@ -17,7 +17,7 @@
  *	x1 - from
  *	x2 - n
  * Returns:
- *	x0 - bytes not copied
+ *	x0 - bytes yest copied
  */
 	.macro ldrb1 ptr, regB, val
 	ldrb  \ptr, [\regB], \val
@@ -62,6 +62,6 @@ EXPORT_SYMBOL(__arch_copy_to_user)
 
 	.section .fixup,"ax"
 	.align	2
-9998:	sub	x0, end, dst			// bytes not copied
+9998:	sub	x0, end, dst			// bytes yest copied
 	ret
 	.previous

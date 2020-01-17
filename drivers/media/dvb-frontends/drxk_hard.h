@@ -253,7 +253,7 @@ struct drxk_state {
 	bool   m_smart_ant_inverted;
 	bool   m_b_debug_enable_bridge;
 	bool   m_b_p_down_open_bridge;  /* only open DRXK bridge before power-down once it has been accessed */
-	bool   m_b_power_down;        /* Power down when not used */
+	bool   m_b_power_down;        /* Power down when yest used */
 
 	u32    m_iqm_fs_rate_ofs;      /* frequency shift as written to DRXK register (28bit fixpoint) */
 
@@ -295,7 +295,7 @@ struct drxk_state {
 	struct s_cfg_pre_saw m_atv_pre_saw_cfg; /* settings for ATV pre SAW sense */
 	bool              m_phase_correction_bypass;
 	s16               m_atv_top_vid_peak;
-	u16               m_atv_top_noise_th;
+	u16               m_atv_top_yesise_th;
 	enum e_drxk_sif_attenuation m_sif_attenuation;
 	bool              m_enable_cvbs_output;
 	bool              m_enable_sif_output;
@@ -347,7 +347,7 @@ struct drxk_state {
 
 	bool	enable_merr_cfg;
 	bool	single_master;
-	bool	no_i2c_bridge;
+	bool	yes_i2c_bridge;
 	bool	antenna_dvbt;
 	u16	antenna_gpio;
 

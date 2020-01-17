@@ -152,7 +152,7 @@ int intel_pasid_alloc_table(struct device *dev)
 
 	size = max_pasid >> (PASID_PDE_SHIFT - 3);
 	order = size ? get_order(size) : 0;
-	pages = alloc_pages_node(info->iommu->node,
+	pages = alloc_pages_yesde(info->iommu->yesde,
 				 GFP_KERNEL | __GFP_ZERO, order);
 	if (!pages) {
 		kfree(pasid_table);
@@ -242,7 +242,7 @@ struct pasid_entry *intel_pasid_get_entry(struct device *dev, int pasid)
 	spin_lock(&pasid_lock);
 	entries = get_pasid_table_from_pde(&dir[dir_index]);
 	if (!entries) {
-		entries = alloc_pgtable_page(info->iommu->node);
+		entries = alloc_pgtable_page(info->iommu->yesde);
 		if (!entries) {
 			spin_unlock(&pasid_lock);
 			return NULL;
@@ -367,10 +367,10 @@ static inline void pasid_set_present(struct pasid_entry *pe)
 }
 
 /*
- * Setup Page Walk Snoop bit (Bit 87) of a scalable mode PASID
+ * Setup Page Walk Syesop bit (Bit 87) of a scalable mode PASID
  * entry.
  */
-static inline void pasid_set_page_snoop(struct pasid_entry *pe, bool value)
+static inline void pasid_set_page_syesop(struct pasid_entry *pe, bool value)
 {
 	pasid_set_bits(&pe->val[1], 1 << 23, value << 23);
 }
@@ -505,7 +505,7 @@ int intel_pasid_setup_first_level(struct intel_iommu *iommu,
 
 	pasid_set_domain_id(pte, did);
 	pasid_set_address_width(pte, iommu->agaw);
-	pasid_set_page_snoop(pte, !!ecap_smpwc(iommu->ecap));
+	pasid_set_page_syesop(pte, !!ecap_smpwc(iommu->ecap));
 
 	/* Setup Present and PASID Granular Transfer Type: */
 	pasid_set_translation_type(pte, 1);
@@ -538,7 +538,7 @@ int intel_pasid_setup_second_level(struct intel_iommu *iommu,
 	u16 did;
 
 	/*
-	 * If hardware advertises no support for second level
+	 * If hardware advertises yes support for second level
 	 * translation, return directly.
 	 */
 	if (!ecap_slts(iommu->ecap)) {
@@ -575,7 +575,7 @@ int intel_pasid_setup_second_level(struct intel_iommu *iommu,
 	pasid_set_address_width(pte, agaw);
 	pasid_set_translation_type(pte, 2);
 	pasid_set_fault_enable(pte);
-	pasid_set_page_snoop(pte, !!ecap_smpwc(iommu->ecap));
+	pasid_set_page_syesop(pte, !!ecap_smpwc(iommu->ecap));
 
 	/*
 	 * Since it is a second level only translation setup, we should
@@ -618,7 +618,7 @@ int intel_pasid_setup_pass_through(struct intel_iommu *iommu,
 	pasid_set_address_width(pte, iommu->agaw);
 	pasid_set_translation_type(pte, 4);
 	pasid_set_fault_enable(pte);
-	pasid_set_page_snoop(pte, !!ecap_smpwc(iommu->ecap));
+	pasid_set_page_syesop(pte, !!ecap_smpwc(iommu->ecap));
 
 	/*
 	 * We should set SRE bit as well since the addresses are expected

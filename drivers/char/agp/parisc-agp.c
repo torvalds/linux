@@ -393,7 +393,7 @@ parisc_agp_init(void)
 	/* Find our parent Pluto */
 	sba = sba_list->dev;
 	if (!IS_PLUTO(sba)) {
-		printk(KERN_INFO DRVPFX "No Pluto found, so no AGPGART for you.\n");
+		printk(KERN_INFO DRVPFX "No Pluto found, so yes AGPGART for you.\n");
 		goto out;
 	}
 

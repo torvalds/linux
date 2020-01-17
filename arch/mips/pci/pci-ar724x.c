@@ -177,7 +177,7 @@ static int ar724x_pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 			/*
 			 * WAR for a hw issue. If the BAR0 register of the
 			 * device is set to the proper base address, the
-			 * memory space of the device is not accessible.
+			 * memory space of the device is yest accessible.
 			 *
 			 * Cache the intended value so it can be read back,
 			 * and write a SoC specific constant value to the

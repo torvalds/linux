@@ -61,7 +61,7 @@ static int ccm4309_aes_nx_set_key(struct crypto_aead *tfm,
 
 	key_len -= 3;
 
-	memcpy(nx_ctx->priv.ccm.nonce, in_key + key_len, 3);
+	memcpy(nx_ctx->priv.ccm.yesnce, in_key + key_len, 3);
 
 	return ccm_aes_nx_set_key(tfm, in_key, key_len);
 }
@@ -179,7 +179,7 @@ static int generate_pat(u8                   *iv,
 	 * 2^64 -1 bytes maximum AAD length.
 	 *
 	 * However, in the cryptoapi's aead_request structure,
-	 * assoclen is an unsigned int, thus it cannot hold a length
+	 * assoclen is an unsigned int, thus it canyest hold a length
 	 * value greater than 2^32 - 1.
 	 * Thus the AAD is further constrained by this and is never
 	 * greater than 2^32.
@@ -230,7 +230,7 @@ static int generate_pat(u8                   *iv,
 		}
 	}
 
-	/* now copy any remaining AAD to scatterlist and call nx... */
+	/* yesw copy any remaining AAD to scatterlist and call nx... */
 	if (!assoclen) {
 		return rc;
 	} else if (assoclen <= 14) {
@@ -484,7 +484,7 @@ static int ccm4309_aes_nx_encrypt(struct aead_request *req)
 	u8 *iv = rctx->iv;
 
 	iv[0] = 3;
-	memcpy(iv + 1, nx_ctx->priv.ccm.nonce, 3);
+	memcpy(iv + 1, nx_ctx->priv.ccm.yesnce, 3);
 	memcpy(iv + 4, req->iv, 8);
 
 	return ccm_nx_encrypt(req, iv, req->assoclen - 8);
@@ -508,7 +508,7 @@ static int ccm4309_aes_nx_decrypt(struct aead_request *req)
 	u8 *iv = rctx->iv;
 
 	iv[0] = 3;
-	memcpy(iv + 1, nx_ctx->priv.ccm.nonce, 3);
+	memcpy(iv + 1, nx_ctx->priv.ccm.yesnce, 3);
 	memcpy(iv + 4, req->iv, 8);
 
 	return ccm_nx_decrypt(req, iv, req->assoclen - 8);

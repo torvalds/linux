@@ -13,7 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel_stat.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
@@ -21,7 +21,7 @@
 #include <linux/mm.h>
 
 #include <asm/apic.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 
@@ -111,16 +111,16 @@ static inline int execute_on_irq_stack(int overflow, struct irq_desc *desc)
  */
 int irq_init_percpu_irqstack(unsigned int cpu)
 {
-	int node = cpu_to_node(cpu);
+	int yesde = cpu_to_yesde(cpu);
 	struct page *ph, *ps;
 
 	if (per_cpu(hardirq_stack_ptr, cpu))
 		return 0;
 
-	ph = alloc_pages_node(node, THREADINFO_GFP, THREAD_SIZE_ORDER);
+	ph = alloc_pages_yesde(yesde, THREADINFO_GFP, THREAD_SIZE_ORDER);
 	if (!ph)
 		return -ENOMEM;
-	ps = alloc_pages_node(node, THREADINFO_GFP, THREAD_SIZE_ORDER);
+	ps = alloc_pages_yesde(yesde, THREADINFO_GFP, THREAD_SIZE_ORDER);
 	if (!ps) {
 		__free_pages(ph, THREAD_SIZE_ORDER);
 		return -ENOMEM;

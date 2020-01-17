@@ -17,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/cache.h>
 #include <linux/profile.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/cpu.h>
@@ -59,7 +59,7 @@ DEFINE_PER_CPU_READ_MOSTLY(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);
 
 /*
- * as from 2.5, kernels no longer have an init_tasks structure
+ * as from 2.5, kernels yes longer have an init_tasks structure
  * so we need some other way of telling a new secondary core
  * where to place its SVC stack
  */
@@ -147,7 +147,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 
 		switch (status & CPU_BOOT_STATUS_MASK) {
 		default:
-			pr_err("CPU%u: failed in unknown state : 0x%lx\n",
+			pr_err("CPU%u: failed in unkyeswn state : 0x%lx\n",
 					cpu, status);
 			cpus_stuck_in_kernel++;
 			break;
@@ -156,14 +156,14 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 				pr_crit("CPU%u: died during early boot\n", cpu);
 				break;
 			}
-			pr_crit("CPU%u: may not have shut down cleanly\n", cpu);
+			pr_crit("CPU%u: may yest have shut down cleanly\n", cpu);
 			/* Fall through */
 		case CPU_STUCK_IN_KERNEL:
 			pr_crit("CPU%u: is stuck in kernel\n", cpu);
 			if (status & CPU_STUCK_REASON_52_BIT_VA)
-				pr_crit("CPU%u: does not support 52-bit VAs\n", cpu);
+				pr_crit("CPU%u: does yest support 52-bit VAs\n", cpu);
 			if (status & CPU_STUCK_REASON_NO_GRAN)
-				pr_crit("CPU%u: does not support %luK granule \n", cpu, PAGE_SIZE / SZ_1K);
+				pr_crit("CPU%u: does yest support %luK granule \n", cpu, PAGE_SIZE / SZ_1K);
 			cpus_stuck_in_kernel++;
 			break;
 		case CPU_PANIC_KERNEL:
@@ -192,7 +192,7 @@ static void init_gic_priority_masking(void)
  * This is the secondary CPU boot entry.  We're using this CPUs
  * idle thread stack, but a set of temporary page tables.
  */
-asmlinkage notrace void secondary_start_kernel(void)
+asmlinkage yestrace void secondary_start_kernel(void)
 {
 	u64 mpidr = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
 	struct mm_struct *mm = &init_mm;
@@ -238,14 +238,14 @@ asmlinkage notrace void secondary_start_kernel(void)
 	/*
 	 * Enable GIC and timers.
 	 */
-	notify_cpu_starting(cpu);
+	yestify_cpu_starting(cpu);
 
 	store_cpu_topology(cpu);
 	numa_add_cpu(cpu);
 
 	/*
-	 * OK, now it's safe to let the boot CPU continue.  Wait for
-	 * the CPU migration code to notice that the CPU is online
+	 * OK, yesw it's safe to let the boot CPU continue.  Wait for
+	 * the CPU migration code to yestice that the CPU is online
 	 * before we continue.
 	 */
 	pr_info("CPU%u: Booted secondary processor 0x%010lx [0x%08x]\n",
@@ -268,7 +268,7 @@ static int op_cpu_disable(unsigned int cpu)
 {
 	/*
 	 * If we don't have a cpu_die method, abort before we reach the point
-	 * of no return. CPU0 may not have an cpu_ops, so test for it.
+	 * of yes return. CPU0 may yest have an cpu_ops, so test for it.
 	 */
 	if (!cpu_ops[cpu] || !cpu_ops[cpu]->cpu_die)
 		return -EOPNOTSUPP;
@@ -300,7 +300,7 @@ int __cpu_disable(void)
 
 	/*
 	 * Take this CPU offline.  Once we clear this, we can't return,
-	 * and we must not schedule until we're ready to give up the cpu.
+	 * and we must yest schedule until we're ready to give up the cpu.
 	 */
 	set_cpu_online(cpu, false);
 
@@ -315,7 +315,7 @@ int __cpu_disable(void)
 static int op_cpu_kill(unsigned int cpu)
 {
 	/*
-	 * If we have no means of synchronising with the dying CPU, then assume
+	 * If we have yes means of synchronising with the dying CPU, then assume
 	 * that it is really dead. We can only wait for an arbitrary length of
 	 * time and hope that it's dead, so let's skip the wait and just hope.
 	 */
@@ -337,17 +337,17 @@ void __cpu_die(unsigned int cpu)
 		pr_crit("CPU%u: cpu didn't die\n", cpu);
 		return;
 	}
-	pr_notice("CPU%u: shutdown\n", cpu);
+	pr_yestice("CPU%u: shutdown\n", cpu);
 
 	/*
-	 * Now that the dying CPU is beyond the point of no return w.r.t.
+	 * Now that the dying CPU is beyond the point of yes return w.r.t.
 	 * in-kernel synchronisation, try to get the firwmare to help us to
 	 * verify that it has really left the kernel before we consider
 	 * clobbering anything it might still be using.
 	 */
 	err = op_cpu_kill(cpu);
 	if (err)
-		pr_warn("CPU%d may not have shut down cleanly: %d\n", cpu, err);
+		pr_warn("CPU%d may yest have shut down cleanly: %d\n", cpu, err);
 }
 
 /*
@@ -362,13 +362,13 @@ void cpu_die(void)
 
 	local_daif_mask();
 
-	/* Tell __cpu_die() that this CPU is now safe to dispose of */
+	/* Tell __cpu_die() that this CPU is yesw safe to dispose of */
 	(void)cpu_report_death();
 
 	/*
 	 * Actually shutdown the CPU. This must never fail. The specific hotplug
 	 * mechanism must perform all required cache maintenance to ensure that
-	 * no dirty lines are lost in the process of shutting down the CPU.
+	 * yes dirty lines are lost in the process of shutting down the CPU.
 	 */
 	cpu_ops[cpu]->cpu_die(cpu);
 
@@ -384,7 +384,7 @@ void cpu_die_early(void)
 {
 	int cpu = smp_processor_id();
 
-	pr_crit("CPU%d: will not boot\n", cpu);
+	pr_crit("CPU%d: will yest boot\n", cpu);
 
 	/* Mark this CPU absent */
 	set_cpu_present(cpu, 0);
@@ -428,8 +428,8 @@ void __init smp_prepare_boot_cpu(void)
 	cpuinfo_store_boot_cpu();
 
 	/*
-	 * We now know enough about the boot CPU to apply the
-	 * alternatives that cannot wait until interrupt handling
+	 * We yesw kyesw eyesugh about the boot CPU to apply the
+	 * alternatives that canyest wait until interrupt handling
 	 * and/or scheduling is enabled.
 	 */
 	apply_boot_alternatives();
@@ -439,13 +439,13 @@ void __init smp_prepare_boot_cpu(void)
 		init_gic_priority_masking();
 }
 
-static u64 __init of_get_cpu_mpidr(struct device_node *dn)
+static u64 __init of_get_cpu_mpidr(struct device_yesde *dn)
 {
 	const __be32 *cell;
 	u64 hwid;
 
 	/*
-	 * A cpu node with missing "reg" property is
+	 * A cpu yesde with missing "reg" property is
 	 * considered invalid to build a cpu_logical_map
 	 * entry.
 	 */
@@ -468,7 +468,7 @@ static u64 __init of_get_cpu_mpidr(struct device_node *dn)
 
 /*
  * Duplicate MPIDRs are a recipe for disaster. Scan all initialized
- * entries and check for duplicates. If any is found just ignore the
+ * entries and check for duplicates. If any is found just igyesre the
  * cpu. cpu_logical_map was initialized to INVALID_HWID to avoid
  * matching valid MPIDR values.
  */
@@ -560,7 +560,7 @@ acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
 	 * Set-up the ACPI parking protocol cpu entries
 	 * while initializing the cpu_logical_map to
 	 * avoid parsing MADT entries multiple times for
-	 * nothing (ie a valid cpu_logical_map entry should
+	 * yesthing (ie a valid cpu_logical_map entry should
 	 * contain a valid parking protocol data set to
 	 * initialize the cpu if the parking protocol is
 	 * the only available enable method).
@@ -604,13 +604,13 @@ static void __init acpi_parse_and_init_cpus(void)
 	 * static tables, namely the MADT and the SRAT.
 	 *
 	 * Thus, it is simpler to first create the cpu logical map through
-	 * an MADT walk and then map the logical cpus to their node ids
+	 * an MADT walk and then map the logical cpus to their yesde ids
 	 * as separate steps.
 	 */
-	acpi_map_cpus_to_nodes();
+	acpi_map_cpus_to_yesdes();
 
 	for (i = 0; i < nr_cpu_ids; i++)
-		early_map_cpu_to_node(i, acpi_numa_get_nid(i));
+		early_map_cpu_to_yesde(i, acpi_numa_get_nid(i));
 }
 #else
 #define acpi_parse_and_init_cpus(...)	do { } while (0)
@@ -623,9 +623,9 @@ static void __init acpi_parse_and_init_cpus(void)
  */
 static void __init of_parse_and_init_cpus(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 
-	for_each_of_cpu_node(dn) {
+	for_each_of_cpu_yesde(dn) {
 		u64 hwid = of_get_cpu_mpidr(dn);
 
 		if (hwid == INVALID_HWID)
@@ -651,7 +651,7 @@ static void __init of_parse_and_init_cpus(void)
 			}
 
 			bootcpu_valid = true;
-			early_map_cpu_to_node(0, of_node_to_nid(dn));
+			early_map_cpu_to_yesde(0, of_yesde_to_nid(dn));
 
 			/*
 			 * cpu_logical_map has already been
@@ -668,7 +668,7 @@ static void __init of_parse_and_init_cpus(void)
 		pr_debug("cpu logical map 0x%llx\n", hwid);
 		cpu_logical_map(cpu_count) = hwid;
 
-		early_map_cpu_to_node(cpu_count, of_node_to_nid(dn));
+		early_map_cpu_to_yesde(cpu_count, of_yesde_to_nid(dn));
 next:
 		cpu_count++;
 	}
@@ -693,13 +693,13 @@ void __init smp_init_cpus(void)
 			cpu_count, nr_cpu_ids);
 
 	if (!bootcpu_valid) {
-		pr_err("missing boot CPU MPIDR, not enabling secondaries\n");
+		pr_err("missing boot CPU MPIDR, yest enabling secondaries\n");
 		return;
 	}
 
 	/*
 	 * We need to set the cpu_logical_map entries before enabling
-	 * the cpus so that cpu processor description entries (DT cpu nodes
+	 * the cpus so that cpu processor description entries (DT cpu yesdes
 	 * and ACPI MADT entries) can be retrieved by matching the cpu hwid
 	 * with entries in cpu_logical_map while initializing the cpus.
 	 * If the cpu set-up fails, invalidate the cpu_logical_map entry.
@@ -726,7 +726,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	numa_add_cpu(this_cpu);
 
 	/*
-	 * If UP is mandated by "nosmp" (which implies "maxcpus=0"), don't set
+	 * If UP is mandated by "yessmp" (which implies "maxcpus=0"), don't set
 	 * secondary CPUs present.
 	 */
 	if (max_cpus == 0)
@@ -937,7 +937,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 #endif
 
 	default:
-		pr_crit("CPU%u: Unknown IPI message 0x%x\n", cpu, ipinr);
+		pr_crit("CPU%u: Unkyeswn IPI message 0x%x\n", cpu, ipinr);
 		break;
 	}
 
@@ -1033,7 +1033,7 @@ bool smp_crash_stop_failed(void)
 #endif
 
 /*
- * not supported here
+ * yest supported here
  */
 int setup_profiling_timer(unsigned int multiplier)
 {

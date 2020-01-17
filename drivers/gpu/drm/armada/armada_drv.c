@@ -44,7 +44,7 @@ static struct drm_driver armada_drm_driver = {
 	.dumb_create		= armada_gem_dumb_create,
 	.gem_vm_ops		= &armada_gem_vm_ops,
 	.major			= 1,
-	.minor			= 0,
+	.miyesr			= 0,
 	.name			= "armada-drm",
 	.desc			= "Armada SoC DRM",
 	.date			= "20120730",
@@ -198,7 +198,7 @@ static void armada_drm_unbind(struct device *dev)
 
 static int compare_of(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->of_yesde == data;
 }
 
 static int compare_dev_name(struct device *dev, void *data)
@@ -208,16 +208,16 @@ static int compare_dev_name(struct device *dev, void *data)
 }
 
 static void armada_add_endpoints(struct device *dev,
-	struct component_match **match, struct device_node *dev_node)
+	struct component_match **match, struct device_yesde *dev_yesde)
 {
-	struct device_node *ep, *remote;
+	struct device_yesde *ep, *remote;
 
-	for_each_endpoint_of_node(dev_node, ep) {
+	for_each_endpoint_of_yesde(dev_yesde, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
 		if (remote && of_device_is_available(remote))
 			drm_of_component_match_add(dev, match, compare_of,
 						   remote);
-		of_node_put(remote);
+		of_yesde_put(remote);
 	}
 }
 
@@ -253,8 +253,8 @@ static int armada_drm_probe(struct platform_device *pdev)
 		for (i = 0; devices[i]; i++) {
 			d = bus_find_device_by_name(&platform_bus_type, NULL,
 						    devices[i]);
-			if (d && d->of_node)
-				armada_add_endpoints(dev, &match, d->of_node);
+			if (d && d->of_yesde)
+				armada_add_endpoints(dev, &match, d->of_yesde);
 			put_device(d);
 		}
 	}

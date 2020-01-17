@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  smssdio.c - Siano 1xxx SDIO interface driver
+ *  smssdio.c - Siayes 1xxx SDIO interface driver
  *
  *  Copyright 2008 Pierre Ossman
  *
- * Based on code by Siano Mobile Silicon, Inc.,
+ * Based on code by Siayes Mobile Silicon, Inc.,
  * Copyright (C) 2006-2008, Uri Shkolnik
  *
  * This hardware is a bit odd in that all transfers should be done
@@ -16,7 +16,7 @@
  */
 
 /*
- * General cleanup notes:
+ * General cleanup yestes:
  *
  * - only typedefs should be name *_t
  *
@@ -82,7 +82,7 @@ struct smssdio_device {
 };
 
 /*******************************************************************/
-/* Siano core callbacks                                            */
+/* Siayes core callbacks                                            */
 /*******************************************************************/
 
 static int smssdio_sendrequest(void *context, void *buffer, size_t size)
@@ -132,7 +132,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 	smsdev = sdio_get_drvdata(func);
 
 	/*
-	 * The interrupt register has no defined meaning. It is just
+	 * The interrupt register has yes defined meaning. It is just
 	 * a way of turning of the level triggered interrupt.
 	 */
 	(void)sdio_readb(func, SMSSDIO_INT, &ret);
@@ -200,7 +200,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 
 		/*
 		 * ..then fall back to one block at a time if that is
-		 * not possible...
+		 * yest possible...
 		 *
 		 * (we have to do this manually because of the
 		 * problem with the "increase address" bit)
@@ -353,7 +353,7 @@ static int __init smssdio_module_init(void)
 {
 	int ret = 0;
 
-	printk(KERN_INFO "smssdio: Siano SMS1xxx SDIO driver\n");
+	printk(KERN_INFO "smssdio: Siayes SMS1xxx SDIO driver\n");
 	printk(KERN_INFO "smssdio: Copyright Pierre Ossman\n");
 
 	ret = sdio_register_driver(&smssdio_driver);
@@ -369,6 +369,6 @@ static void __exit smssdio_module_exit(void)
 module_init(smssdio_module_init);
 module_exit(smssdio_module_exit);
 
-MODULE_DESCRIPTION("Siano SMS1xxx SDIO driver");
+MODULE_DESCRIPTION("Siayes SMS1xxx SDIO driver");
 MODULE_AUTHOR("Pierre Ossman");
 MODULE_LICENSE("GPL");

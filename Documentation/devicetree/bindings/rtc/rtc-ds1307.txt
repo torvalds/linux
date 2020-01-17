@@ -32,7 +32,7 @@ Optional properties:
 	Possible values are 250, 2000, 4000
 	Should be given if trickle charger should be enabled
 - trickle-diode-disable : ds1339, ds1340 and ds 1388 only
-	Do not use internal trickle charger diode
+	Do yest use internal trickle charger diode
 	Should be given if internal trickle charger diode should be disabled
 
 Example:

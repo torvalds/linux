@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Mellanox Technologies All rights reserved.
+/* Copyright (c) 2018, Mellayesx Techyeslogies All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -11,11 +11,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -257,7 +257,7 @@ static int fill_sg_in(struct scatterlist *sg_in,
 		 * to drop the packet and avoid retransmission.
 		 *
 		 * There is a corner case where the packet contains
-		 * both an acked and a non-acked record.
+		 * both an acked and a yesn-acked record.
 		 * We currently don't handle that case and rely
 		 * on TCP to retranmit a packet that doesn't contain
 		 * already acked payload.

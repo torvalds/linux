@@ -9,8 +9,8 @@
 #include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/topology.h>
-#include <linux/node.h>
-#include <linux/nodemask.h>
+#include <linux/yesde.h>
+#include <linux/yesdemask.h>
 #include <linux/export.h>
 
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
@@ -47,8 +47,8 @@ static int __init topology_init(void)
 	int i, ret;
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
-	for_each_online_node(i)
-		register_one_node(i);
+	for_each_online_yesde(i)
+		register_one_yesde(i);
 #endif
 
 	for_each_present_cpu(i) {
@@ -65,13 +65,13 @@ static int __init topology_init(void)
 #if defined(CONFIG_NUMA) && !defined(CONFIG_SMP)
 	/*
 	 * In the UP case, make sure the CPU association is still
-	 * registered under each node. Without this, sysfs fails
-	 * to make the connection between nodes other than node0
+	 * registered under each yesde. Without this, sysfs fails
+	 * to make the connection between yesdes other than yesde0
 	 * and cpu0.
 	 */
-	for_each_online_node(i)
-		if (i != numa_node_id())
-			register_cpu_under_node(raw_smp_processor_id(), i);
+	for_each_online_yesde(i)
+		if (i != numa_yesde_id())
+			register_cpu_under_yesde(raw_smp_processor_id(), i);
 #endif
 
 	return 0;

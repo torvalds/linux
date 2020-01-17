@@ -8,7 +8,7 @@
 ** ++roman: translate accesses via an array
 ** ++Milan: support for ChipRAM usage
 ** ++yambo: converted to 2.0 kernel
-** ++yambo: modularized and support added for 3 minor devices including:
+** ++yambo: modularized and support added for 3 miyesr devices including:
 **          MAJOR  MINOR  DESCRIPTION
 **          -----  -----  ----------------------------------------------
 **          37     0       Use Zorro II and Chip ram
@@ -19,8 +19,8 @@
 **
 ** Permission to use, copy, modify, and distribute this software and its
 ** documentation for any purpose and without fee is hereby granted, provided
-** that the above copyright notice appear in all copies and that both that
-** copyright notice and this permission notice appear in supporting
+** that the above copyright yestice appear in all copies and that both that
+** copyright yestice and this permission yestice appear in supporting
 ** documentation.  This software is provided "as is" without express or
 ** implied warranty.
 */
@@ -50,7 +50,7 @@
 #define Z2MINOR_MEMLIST2      (5)
 #define Z2MINOR_MEMLIST3      (6)
 #define Z2MINOR_MEMLIST4      (7)
-#define Z2MINOR_COUNT         (8) /* Move this down when adding a new minor */
+#define Z2MINOR_COUNT         (8) /* Move this down when adding a new miyesr */
 
 #define Z2RAM_CHUNK1024       ( Z2RAM_CHUNKSIZE >> 10 )
 
@@ -178,7 +178,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 
 		if (index >= m68k_realnum_memory) {
 			printk( KERN_ERR DEVICE_NAME
-				": no such entry in z2ram_map\n" );
+				": yes such entry in z2ram_map\n" );
 		        goto err_out;
 		}
 
@@ -194,7 +194,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 		vaddr = (unsigned long)ioremap_wt(paddr, size);
 
 #else
-		vaddr = (unsigned long)z_remap_nocache_nonser(paddr, size);
+		vaddr = (unsigned long)z_remap_yescache_yesnser(paddr, size);
 #endif
 		z2ram_map = 
 			kmalloc_array(size / Z2RAM_CHUNKSIZE,
@@ -203,7 +203,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 		if ( z2ram_map == NULL )
 		{
 		    printk( KERN_ERR DEVICE_NAME
-			": cannot get mem for z2ram_map\n" );
+			": canyest get mem for z2ram_map\n" );
 		    goto err_out;
 		}
 
@@ -228,7 +228,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 		if ( z2ram_map == NULL )
 		{
 		    printk( KERN_ERR DEVICE_NAME
-			": cannot get mem for z2ram_map\n" );
+			": canyest get mem for z2ram_map\n" );
 		    goto err_out;
 		}
 
@@ -249,7 +249,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 		if ( z2ram_map == NULL )
 		{
 		    printk( KERN_ERR DEVICE_NAME
-			": cannot get mem for z2ram_map\n" );
+			": canyest get mem for z2ram_map\n" );
 		    goto err_out;
 		}
 
@@ -267,7 +267,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 		if ( z2ram_map == NULL )
 		{
 		    printk( KERN_ERR DEVICE_NAME
-			": cannot get mem for z2ram_map\n" );
+			": canyest get mem for z2ram_map\n" );
 		    goto err_out;
 		}
 
@@ -290,7 +290,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 	if ( z2ram_size == 0 )
 	{
 	    printk( KERN_NOTICE DEVICE_NAME
-		": no unused ZII/Chip RAM found\n" );
+		": yes unused ZII/Chip RAM found\n" );
 	    goto err_out_kfree;
 	}
 
@@ -369,7 +369,7 @@ z2_init(void)
     }
 
     z2ram_gendisk->major = Z2RAM_MAJOR;
-    z2ram_gendisk->first_minor = 0;
+    z2ram_gendisk->first_miyesr = 0;
     z2ram_gendisk->fops = &z2_fops;
     sprintf(z2ram_gendisk->disk_name, "z2ram");
 

@@ -226,14 +226,14 @@ static int zd1301_frontend_detach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int zd1301_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int zd1301_streaming_ctrl(struct dvb_frontend *fe, int oyesff)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 	struct usb_interface *intf = d->intf;
 	int ret;
-	u8 buf[3] = {0x03, 0x00, onoff ? 0x07 : 0x08};
+	u8 buf[3] = {0x03, 0x00, oyesff ? 0x07 : 0x08};
 
-	dev_dbg(&intf->dev, "onoff=%d\n", onoff);
+	dev_dbg(&intf->dev, "oyesff=%d\n", oyesff);
 
 	ret = zd1301_ctrl_msg(d, buf, 3, NULL, 0);
 	if (ret)
@@ -279,7 +279,7 @@ static struct usb_driver zd1301_usb_driver = {
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
 	.reset_resume = dvb_usbv2_reset_resume,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 module_usb_driver(zd1301_usb_driver);

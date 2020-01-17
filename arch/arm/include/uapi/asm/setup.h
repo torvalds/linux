@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *  linux/include/asm/setup.h
  *
@@ -19,7 +19,7 @@
 
 #define COMMAND_LINE_SIZE 1024
 
-/* The list ends with an ATAG_NONE node. */
+/* The list ends with an ATAG_NONE yesde. */
 #define ATAG_NONE	0x00000000
 
 struct tag_header {
@@ -27,7 +27,7 @@ struct tag_header {
 	__u32 tag;
 };
 
-/* The list must start with an ATAG_CORE node */
+/* The list must start with an ATAG_CORE yesde */
 #define ATAG_CORE	0x54410001
 
 struct tag_core {
@@ -36,7 +36,7 @@ struct tag_core {
 	__u32 rootdev;
 };
 
-/* it is allowed to have multiple ATAG_MEM nodes */
+/* it is allowed to have multiple ATAG_MEM yesdes */
 #define ATAG_MEM	0x54410002
 
 struct tag_mem32 {
@@ -83,7 +83,7 @@ struct tag_initrd {
 	__u32 size;	/* size of compressed ramdisk image in bytes */
 };
 
-/* board serial number. "64 bits should be enough for everybody" */
+/* board serial number. "64 bits should be eyesugh for everybody" */
 #define ATAG_SERIAL	0x54410006
 
 struct tag_serialnr {

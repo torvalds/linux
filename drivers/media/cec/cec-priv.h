@@ -17,8 +17,8 @@
 			pr_info("cec-%s: " fmt, adap->name, ## arg);	\
 	} while (0)
 
-/* devnode to cec_adapter */
-#define to_cec_adapter(node) container_of(node, struct cec_adapter, devnode)
+/* devyesde to cec_adapter */
+#define to_cec_adapter(yesde) container_of(yesde, struct cec_adapter, devyesde)
 
 static inline bool msg_is_raw(const struct cec_msg *msg)
 {
@@ -27,8 +27,8 @@ static inline bool msg_is_raw(const struct cec_msg *msg)
 
 /* cec-core.c */
 extern int cec_debug;
-int cec_get_device(struct cec_devnode *devnode);
-void cec_put_device(struct cec_devnode *devnode);
+int cec_get_device(struct cec_devyesde *devyesde);
+void cec_put_device(struct cec_devyesde *devyesde);
 
 /* cec-adap.c */
 int cec_monitor_all_cnt_inc(struct cec_adapter *adap);
@@ -46,6 +46,6 @@ void cec_queue_event_fh(struct cec_fh *fh,
 			const struct cec_event *new_ev, u64 ts);
 
 /* cec-api.c */
-extern const struct file_operations cec_devnode_fops;
+extern const struct file_operations cec_devyesde_fops;
 
 #endif

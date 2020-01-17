@@ -2,7 +2,7 @@ Device tree bindings for HiSilicon INNO USB2 PHY
 
 Required properties:
 - compatible: Should be one of the following strings:
-	"hisilicon,inno-usb2-phy",
+	"hisilicon,inyes-usb2-phy",
 	"hisilicon,hi3798cv200-usb2-phy".
 - reg: Should be the address space for PHY configuration register in peripheral
   controller, e.g. PERI_USB0 for USB 2.0 PHY01 on Hi3798CV200 SoC.
@@ -13,11 +13,11 @@ Required properties:
 - #address-cells: Must be 1.
 - #size-cells: Must be 0.
 
-The INNO USB2 PHY device should be a child node of peripheral controller that
+The INNO USB2 PHY device should be a child yesde of peripheral controller that
 contains the PHY configuration register, and each device suppports up to 2 PHY
-ports which are represented as child nodes of INNO USB2 PHY device.
+ports which are represented as child yesdes of INNO USB2 PHY device.
 
-Required properties for PHY port node:
+Required properties for PHY port yesde:
 - reg: The PHY port instance number.
 - #phy-cells: Defined by generic PHY bindings.  Must be 0.
 - resets: The phandle and reset specifier pair for PHY port reset signal.

@@ -61,7 +61,7 @@ static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
  * Last entry must be all 0s
  *
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
- *   Class, Class Mask, private data (not used) }
+ *   Class, Class Mask, private data (yest used) }
  */
 static const struct pci_device_id ixgbevf_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF), board_82599_vf },
@@ -86,7 +86,7 @@ MODULE_VERSION(DRV_VERSION);
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
 static int debug = -1;
 module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=yesne,...,16=all)");
 
 static struct workqueue_struct *ixgbevf_wq;
 
@@ -131,7 +131,7 @@ static void ixgbevf_check_remove(struct ixgbe_hw *hw, u32 reg)
 {
 	u32 value;
 
-	/* The following check not only optimizes a bit by not
+	/* The following check yest only optimizes a bit by yest
 	 * performing a read on the status register when the
 	 * register just read was a status register read that
 	 * returned IXGBE_FAILED_READ_REG. It also blocks any
@@ -283,14 +283,14 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 	do {
 		union ixgbe_adv_tx_desc *eop_desc = tx_buffer->next_to_watch;
 
-		/* if next_to_watch is not set then there is no work pending */
+		/* if next_to_watch is yest set then there is yes work pending */
 		if (!eop_desc)
 			break;
 
 		/* prevent any other reads prior to eop_desc */
 		smp_rmb();
 
-		/* if DD is not set pending work has not been completed */
+		/* if DD is yest set pending work has yest been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)))
 			break;
 
@@ -470,7 +470,7 @@ static inline void ixgbevf_rx_checksum(struct ixgbevf_ring *ring,
 				       union ixgbe_adv_rx_desc *rx_desc,
 				       struct sk_buff *skb)
 {
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 
 	/* Rx csum disabled */
 	if (!(ring->netdev->features & NETIF_F_RXCSUM))
@@ -556,7 +556,7 @@ static void ixgbevf_put_rx_buffer(struct ixgbevf_ring *rx_ring,
 		ixgbevf_reuse_rx_page(rx_ring, rx_buffer);
 	} else {
 		if (IS_ERR(skb))
-			/* We are not reusing the buffer so unmap it and free
+			/* We are yest reusing the buffer so unmap it and free
 			 * any references we are holding to it
 			 */
 			dma_unmap_page_attrs(rx_ring->dev, rx_buffer->dma,
@@ -572,16 +572,16 @@ static void ixgbevf_put_rx_buffer(struct ixgbevf_ring *rx_ring,
 }
 
 /**
- * ixgbevf_is_non_eop - process handling of non-EOP buffers
+ * ixgbevf_is_yesn_eop - process handling of yesn-EOP buffers
  * @rx_ring: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
  *
  * This function updates next to clean.  If the buffer is an EOP buffer
  * this function exits returning false, otherwise it will place the
  * sk_buff in the next buffer to be chained and return true indicating
- * that this is in fact a non-EOP buffer.
+ * that this is in fact a yesn-EOP buffer.
  **/
-static bool ixgbevf_is_non_eop(struct ixgbevf_ring *rx_ring,
+static bool ixgbevf_is_yesn_eop(struct ixgbevf_ring *rx_ring,
 			       union ixgbe_adv_rx_desc *rx_desc)
 {
 	u32 ntc = rx_ring->next_to_clean + 1;
@@ -656,7 +656,7 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_ring *rx_ring,
 	struct ixgbevf_rx_buffer *bi;
 	unsigned int i = rx_ring->next_to_use;
 
-	/* nothing to do or no valid netdev defined */
+	/* yesthing to do or yes valid netdev defined */
 	if (!cleaned_count || !rx_ring->netdev)
 		return;
 
@@ -704,7 +704,7 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_ring *rx_ring,
 		rx_ring->next_to_alloc = i;
 
 		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch.  (Only
+		 * kyesw there are new descriptors to fetch.  (Only
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64).
 		 */
@@ -720,14 +720,14 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_ring *rx_ring,
  * @skb: pointer to current skb being fixed
  *
  * Check for corrupted packet headers caused by senders on the local L2
- * embedded NIC switch not setting up their Tx Descriptors right.  These
+ * embedded NIC switch yest setting up their Tx Descriptors right.  These
  * should be very rare.
  *
  * Also address the case where we are pulling data in on pages only
- * and as such no data is present in the skb header.
+ * and as such yes data is present in the skb header.
  *
- * In addition if skb is not at least 60 bytes we need to pad it so that
- * it is large enough to qualify as a valid Ethernet frame.
+ * In addition if skb is yest at least 60 bytes we need to pad it so that
+ * it is large eyesugh to qualify as a valid Ethernet frame.
  *
  * Returns true if an error was encountered and skb was freed.
  **/
@@ -739,7 +739,7 @@ static bool ixgbevf_cleanup_headers(struct ixgbevf_ring *rx_ring,
 	if (IS_ERR(skb))
 		return true;
 
-	/* verify that the packet does not have any known errors */
+	/* verify that the packet does yest have any kyeswn errors */
 	if (unlikely(ixgbevf_test_staterr(rx_desc,
 					  IXGBE_RXDADV_ERR_FRAME_ERR_MASK))) {
 		struct net_device *netdev = rx_ring->netdev;
@@ -760,7 +760,7 @@ static bool ixgbevf_cleanup_headers(struct ixgbevf_ring *rx_ring,
 /**
  * ixgbevf_reuse_rx_page - page flip buffer and store it back on the ring
  * @rx_ring: rx descriptor ring to store buffers on
- * @old_buff: donor buffer to have page reused
+ * @old_buff: doyesr buffer to have page reused
  *
  * Synchronizes page for reuse by the adapter
  **/
@@ -883,7 +883,7 @@ struct sk_buff *ixgbevf_construct_skb(struct ixgbevf_ring *rx_ring,
 	 *
 	 * For ixgbevf_construct_skb() mode it means that the
 	 * xdp->data_meta will always point to xdp->data, since
-	 * the helper cannot expand the head. Should this ever
+	 * the helper canyest expand the head. Should this ever
 	 * changed in future for legacy-rx mode on, then lets also
 	 * add xdp->data_meta handling here.
 	 */
@@ -1142,7 +1142,7 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 			break;
 
 		/* This memory barrier is needed to keep us from reading
-		 * any other fields out of the rx_desc until we know the
+		 * any other fields out of the rx_desc until we kyesw the
 		 * RXD_STAT_DD bit is set
 		 */
 		rmb();
@@ -1191,8 +1191,8 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		ixgbevf_put_rx_buffer(rx_ring, rx_buffer, skb);
 		cleaned_count++;
 
-		/* fetch next buffer in frame if non-eop */
-		if (ixgbevf_is_non_eop(rx_ring, rx_desc))
+		/* fetch next buffer in frame if yesn-eop */
+		if (ixgbevf_is_yesn_eop(rx_ring, rx_desc))
 			continue;
 
 		/* verify the packet layout is correct */
@@ -1235,7 +1235,7 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 			adapter->xdp_ring[rx_ring->queue_index];
 
 		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch.
+		 * kyesw there are new descriptors to fetch.
 		 */
 		wmb();
 		ixgbevf_write_tail(xdp_ring, xdp_ring->next_to_use);
@@ -1292,7 +1292,7 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 			clean_complete = false;
 	}
 
-	/* If all work not completed, return budget and keep polling */
+	/* If all work yest completed, return budget and keep polling */
 	if (!clean_complete)
 		return budget;
 
@@ -1322,7 +1322,7 @@ void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector)
 	int v_idx = q_vector->v_idx;
 	u32 itr_reg = q_vector->itr & IXGBE_MAX_EITR;
 
-	/* set the WDIS bit to not clear the timer bits and cause an
+	/* set the WDIS bit to yest clear the timer bits and cause an
 	 * immediate assertion of the interrupt
 	 */
 	itr_reg |= IXGBE_EITR_CNT_WDIS;
@@ -1579,10 +1579,10 @@ free_queue_irqs:
 		free_irq(adapter->msix_entries[vector].vector,
 			 adapter->q_vector[vector]);
 	}
-	/* This failure is non-recoverable - it indicates the system is
-	 * out of MSIX vector resources and the VF driver cannot run
+	/* This failure is yesn-recoverable - it indicates the system is
+	 * out of MSIX vector resources and the VF driver canyest run
 	 * without them.  Set the number of msix vectors to zero
-	 * indicating that not enough can be allocated.  The error
+	 * indicating that yest eyesugh can be allocated.  The error
 	 * will be returned to the user indicating device open failed.
 	 * Any further attempts to force the driver to open will also
 	 * fail.  The only way to recover is to unload the driver and
@@ -1734,7 +1734,7 @@ static void ixgbevf_configure_tx_ring(struct ixgbevf_adapter *adapter,
 		txdctl = IXGBE_READ_REG(hw, IXGBE_VFTXDCTL(reg_idx));
 	}  while (--wait_loop && !(txdctl & IXGBE_TXDCTL_ENABLE));
 	if (!wait_loop)
-		hw_dbg(hw, "Could not enable Tx Queue %d\n", reg_idx);
+		hw_dbg(hw, "Could yest enable Tx Queue %d\n", reg_idx);
 }
 
 /**
@@ -1813,7 +1813,7 @@ static void ixgbevf_disable_rx_queue(struct ixgbevf_adapter *adapter,
 	} while (--wait_loop && (rxdctl & IXGBE_RXDCTL_ENABLE));
 
 	if (!wait_loop)
-		pr_err("RXDCTL.ENABLE queue %d not cleared while polling\n",
+		pr_err("RXDCTL.ENABLE queue %d yest cleared while polling\n",
 		       reg_idx);
 }
 
@@ -1833,7 +1833,7 @@ static void ixgbevf_rx_desc_queue_enable(struct ixgbevf_adapter *adapter,
 	} while (--wait_loop && !(rxdctl & IXGBE_RXDCTL_ENABLE));
 
 	if (!wait_loop)
-		pr_err("RXDCTL.ENABLE queue %d not set while polling\n",
+		pr_err("RXDCTL.ENABLE queue %d yest set while polling\n",
 		       reg_idx);
 }
 
@@ -1841,7 +1841,7 @@ static void ixgbevf_rx_desc_queue_enable(struct ixgbevf_adapter *adapter,
  * ixgbevf_init_rss_key - Initialize adapter RSS key
  * @adapter: device handle
  *
- * Allocates and initializes the RSS key if it is not allocated.
+ * Allocates and initializes the RSS key if it is yest allocated.
  **/
 static inline int ixgbevf_init_rss_key(struct ixgbevf_adapter *adapter)
 {
@@ -1942,7 +1942,7 @@ static void ixgbevf_configure_rx_ring(struct ixgbevf_adapter *adapter,
 
 	ixgbevf_configure_srrctl(adapter, ring, reg_idx);
 
-	/* RXDCTL.RLPML does not work on 82599 */
+	/* RXDCTL.RLPML does yest work on 82599 */
 	if (adapter->hw.mac.type != ixgbe_mac_82599_vf) {
 		rxdctl &= ~(IXGBE_RXDCTL_RLPMLMASK |
 			    IXGBE_RXDCTL_RLPML_EN);
@@ -2003,7 +2003,7 @@ static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 		ixgbevf_setup_vfmrqc(adapter);
 
 	spin_lock_bh(&adapter->mbx_lock);
-	/* notify the PF of our intent to use this size of frame */
+	/* yestify the PF of our intent to use this size of frame */
 	ret = hw->mac.ops.set_rlpml(hw, netdev->mtu + ETH_HLEN + ETH_FCS_LEN);
 	spin_unlock_bh(&adapter->mbx_lock);
 	if (ret)
@@ -2268,13 +2268,13 @@ static void ixgbevf_negotiate_api(struct ixgbevf_adapter *adapter)
 		ixgbe_mbox_api_12,
 		ixgbe_mbox_api_11,
 		ixgbe_mbox_api_10,
-		ixgbe_mbox_api_unknown
+		ixgbe_mbox_api_unkyeswn
 	};
 	int err, idx = 0;
 
 	spin_lock_bh(&adapter->mbx_lock);
 
-	while (api[idx] != ixgbe_mbox_api_unknown) {
+	while (api[idx] != ixgbe_mbox_api_unkyeswn) {
 		err = hw->mac.ops.negotiate_api_version(hw, api[idx]);
 		if (!err)
 			break;
@@ -2470,7 +2470,7 @@ void ixgbevf_down(struct ixgbevf_adapter *adapter)
 
 	/* signal that we are down to the interrupt handler */
 	if (test_and_set_bit(__IXGBEVF_DOWN, &adapter->state))
-		return; /* do nothing if already down */
+		return; /* do yesthing if already down */
 
 	/* disable all enabled Rx queues */
 	for (i = 0; i < adapter->num_rx_queues; i++)
@@ -2490,7 +2490,7 @@ void ixgbevf_down(struct ixgbevf_adapter *adapter)
 
 	del_timer_sync(&adapter->service_timer);
 
-	/* disable transmits in the hardware now that interrupts are off */
+	/* disable transmits in the hardware yesw that interrupts are off */
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		u8 reg_idx = adapter->tx_ring[i]->reg_idx;
 
@@ -2559,7 +2559,7 @@ static int ixgbevf_acquire_msix_vectors(struct ixgbevf_adapter *adapter,
 
 	/* The more we get, the more we will assign to Tx/Rx Cleanup
 	 * for the separate queues...where Rx Cleanup >= Tx Cleanup.
-	 * Right now, we simply care about how many we'll get; we'll
+	 * Right yesw, we simply care about how many we'll get; we'll
 	 * set them up later while requesting irq's.
 	 */
 	vectors = pci_enable_msix_range(adapter->pdev, adapter->msix_entries,
@@ -2640,7 +2640,7 @@ static void ixgbevf_set_num_queues(struct ixgbevf_adapter *adapter)
 }
 
 /**
- * ixgbevf_set_interrupt_capability - set MSI-X or FAIL if not supported
+ * ixgbevf_set_interrupt_capability - set MSI-X or FAIL if yest supported
  * @adapter: board private structure to initialize
  *
  * Attempt to configure the interrupts using the best available
@@ -2669,7 +2669,7 @@ static int ixgbevf_set_interrupt_capability(struct ixgbevf_adapter *adapter)
 		adapter->msix_entries[vector].entry = vector;
 
 	/* A failure in MSI-X entry allocation isn't fatal, but the VF driver
-	 * does not support any other modes, so we will simply fail here. Note
+	 * does yest support any other modes, so we will simply fail here. Note
 	 * that we clean up the msix_entries pointer else-where.
 	 */
 	return ixgbevf_acquire_msix_vectors(adapter, v_budget);
@@ -3051,7 +3051,7 @@ static int ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 			dev_info(&pdev->dev, "Error reading MAC address\n");
 		else if (is_zero_ether_addr(adapter->hw.mac.addr))
 			dev_info(&pdev->dev,
-				 "MAC address not assigned by administrator.\n");
+				 "MAC address yest assigned by administrator.\n");
 		ether_addr_copy(netdev->dev_addr, hw->mac.addr);
 	}
 
@@ -3264,7 +3264,7 @@ static void ixgbevf_watchdog_link_is_up(struct ixgbevf_adapter *adapter)
 		 "1 Gbps" :
 		 (adapter->link_speed == IXGBE_LINK_SPEED_100_FULL) ?
 		 "100 Mbps" :
-		 "unknown speed");
+		 "unkyeswn speed");
 
 	netif_carrier_on(netdev);
 }
@@ -3295,7 +3295,7 @@ static void ixgbevf_watchdog_link_is_down(struct ixgbevf_adapter *adapter)
  **/
 static void ixgbevf_watchdog_subtask(struct ixgbevf_adapter *adapter)
 {
-	/* if interface is down do nothing */
+	/* if interface is down do yesthing */
 	if (test_bit(__IXGBEVF_DOWN, &adapter->state) ||
 	    test_bit(__IXGBEVF_RESETTING, &adapter->state))
 		return;
@@ -3351,7 +3351,7 @@ void ixgbevf_free_tx_resources(struct ixgbevf_ring *tx_ring)
 	vfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
 
-	/* if not set, then don't free */
+	/* if yest set, then don't free */
 	if (!tx_ring->desc)
 		return;
 
@@ -3420,7 +3420,7 @@ err:
  * @adapter: board private structure
  *
  * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
+ * more of the rings is populated (while the rest are yest).  It is the
  * callers duty to clean those orphaned rings.
  *
  * Return 0 on success, negative on failure
@@ -3505,7 +3505,7 @@ err:
  * @adapter: board private structure
  *
  * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
+ * more of the rings is populated (while the rest are yest).  It is the
  * callers duty to clean those orphaned rings.
  *
  * Return 0 on success, negative on failure
@@ -3576,7 +3576,7 @@ static void ixgbevf_free_all_rx_resources(struct ixgbevf_adapter *adapter)
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the watchdog timer is started,
- * and the stack is notified that the interface is ready.
+ * and the stack is yestified that the interface is ready.
  **/
 int ixgbevf_open(struct net_device *netdev)
 {
@@ -3672,7 +3672,7 @@ static void ixgbevf_close_suspend(struct ixgbevf_adapter *adapter)
  * ixgbevf_close - Disables a network interface
  * @netdev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is yest allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the drivers control, but
@@ -3697,14 +3697,14 @@ static void ixgbevf_queue_reset_subtask(struct ixgbevf_adapter *adapter)
 				&adapter->state))
 		return;
 
-	/* if interface is down do nothing */
+	/* if interface is down do yesthing */
 	if (test_bit(__IXGBEVF_DOWN, &adapter->state) ||
 	    test_bit(__IXGBEVF_RESETTING, &adapter->state))
 		return;
 
 	/* Hardware has to reinitialize queues and interrupts to
 	 * match packet buffer alignment. Unfortunately, the
-	 * hardware is not flexible enough to do this dynamically.
+	 * hardware is yest flexible eyesugh to do this dynamically.
 	 */
 	rtnl_lock();
 
@@ -3787,7 +3787,7 @@ static int ixgbevf_tso(struct ixgbevf_ring *tx_ring,
 		int len = csum_start - trans_start;
 
 		/* IP header will have to cancel out any data that
-		 * is not a part of the outer IP header, so set to
+		 * is yest a part of the outer IP header, so set to
 		 * a reverse csum if needed, else init check to 0.
 		 */
 		ip.v4->check = (skb_shinfo(skb)->gso_type & SKB_GSO_PARTIAL) ?
@@ -3857,7 +3857,7 @@ static void ixgbevf_tx_csum(struct ixgbevf_ring *tx_ring,
 	u32 type_tucmd = 0;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
-		goto no_csum;
+		goto yes_csum;
 
 	switch (skb->csum_offset) {
 	case offsetof(struct tcphdr, check):
@@ -3877,7 +3877,7 @@ static void ixgbevf_tx_csum(struct ixgbevf_ring *tx_ring,
 		/* fall through */
 	default:
 		skb_checksum_help(skb);
-		goto no_csum;
+		goto yes_csum;
 	}
 
 	if (first->protocol == htons(ETH_P_IP))
@@ -3887,7 +3887,7 @@ static void ixgbevf_tx_csum(struct ixgbevf_ring *tx_ring,
 	first->tx_flags |= IXGBE_TX_FLAGS_CSUM;
 	vlan_macip_lens = skb_checksum_start_offset(skb) -
 			  skb_network_offset(skb);
-no_csum:
+yes_csum:
 	/* vlan_macip_lens: MACLEN, VLAN tag */
 	vlan_macip_lens |= skb_network_offset(skb) << IXGBE_ADVTXD_MACLEN_SHIFT;
 	vlan_macip_lens |= first->tx_flags & IXGBE_TX_FLAGS_VLAN_MASK;
@@ -4030,7 +4030,7 @@ static void ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 
 	skb_tx_timestamp(skb);
 
-	/* Force memory writes to complete before letting h/w know there
+	/* Force memory writes to complete before letting h/w kyesw there
 	 * are new descriptors to fetch.  (Only applicable for weak-ordered
 	 * memory model archs, such as IA-64).
 	 *
@@ -4048,7 +4048,7 @@ static void ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 
 	tx_ring->next_to_use = i;
 
-	/* notify HW of packet */
+	/* yestify HW of packet */
 	ixgbevf_write_tail(tx_ring, i);
 
 	return;
@@ -4092,7 +4092,7 @@ static int __ixgbevf_maybe_stop_tx(struct ixgbevf_ring *tx_ring, int size)
 	 */
 	smp_mb();
 
-	/* We need to check again in a case another CPU has just
+	/* We need to check again in a case ayesther CPU has just
 	 * made room available.
 	 */
 	if (likely(ixgbevf_desc_unused(tx_ring) < size))
@@ -4262,12 +4262,12 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 
 	/* prevent MTU being changed to a size unsupported by XDP */
 	if (adapter->xdp_prog) {
-		dev_warn(&adapter->pdev->dev, "MTU cannot be changed while XDP program is loaded\n");
+		dev_warn(&adapter->pdev->dev, "MTU canyest be changed while XDP program is loaded\n");
 		return -EPERM;
 	}
 
 	spin_lock_bh(&adapter->mbx_lock);
-	/* notify the PF of our intent to use this size of frame */
+	/* yestify the PF of our intent to use this size of frame */
 	ret = hw->mac.ops.set_rlpml(hw, max_frame);
 	spin_unlock_bh(&adapter->mbx_lock);
 	if (ret)
@@ -4329,7 +4329,7 @@ static int ixgbevf_resume(struct pci_dev *pdev)
 
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable PCI device from suspend\n");
+		dev_err(&pdev->dev, "Canyest enable PCI device from suspend\n");
 		return err;
 	}
 
@@ -4439,7 +4439,7 @@ ixgbevf_features_check(struct sk_buff *skb, struct net_device *dev,
 				    NETIF_F_TSO6);
 
 	/* We can only support IPV4 TSO in tunnels if we can mangle the
-	 * inner IP ID field, so strip TSO if MANGLEID is not supported.
+	 * inner IP ID field, so strip TSO if MANGLEID is yest supported.
 	 */
 	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID))
 		features &= ~NETIF_F_TSO;
@@ -4467,7 +4467,7 @@ static int ixgbevf_xdp_setup(struct net_device *dev, struct bpf_prog *prog)
 	if (!!prog != !!old_prog) {
 		/* Hardware has to reinitialize queues and interrupts to
 		 * match packet buffer alignment. Unfortunately, the
-		 * hardware is not flexible enough to do this dynamically.
+		 * hardware is yest flexible eyesugh to do this dynamically.
 		 */
 		if (netif_running(dev))
 			ixgbevf_close(dev);
@@ -4652,7 +4652,7 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->mpls_features |= IXGBEVF_GSO_PARTIAL_FEATURES;
 	netdev->hw_enc_features |= netdev->vlan_features;
 
-	/* set this bit last since it cannot be part of vlan_features */
+	/* set this bit last since it canyest be part of vlan_features */
 	netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER |
 			    NETIF_F_HW_VLAN_CTAG_RX |
 			    NETIF_F_HW_VLAN_CTAG_TX;
@@ -4835,7 +4835,7 @@ static pci_ers_result_t ixgbevf_io_slot_reset(struct pci_dev *pdev)
 
 	if (pci_enable_device_mem(pdev)) {
 		dev_err(&pdev->dev,
-			"Cannot re-enable PCI device after reset.\n");
+			"Canyest re-enable PCI device after reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
@@ -4854,7 +4854,7 @@ static pci_ers_result_t ixgbevf_io_slot_reset(struct pci_dev *pdev)
  * @pdev: Pointer to PCI device
  *
  * This callback is called when the error recovery driver tells us that
- * its OK to resume normal operation. Implementation resembles the
+ * its OK to resume yesrmal operation. Implementation resembles the
  * second-half of the ixgbevf_resume routine.
  **/
 static void ixgbevf_io_resume(struct pci_dev *pdev)

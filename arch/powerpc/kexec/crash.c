@@ -133,7 +133,7 @@ again:
 		return;
 	}
 
-	printk(KERN_EMERG "ERROR: %d cpu(s) not responding\n",
+	printk(KERN_EMERG "ERROR: %d cpu(s) yest responding\n",
 		ncpus - atomic_read(&cpus_in_crash));
 
 	/*
@@ -189,7 +189,7 @@ void crash_kexec_secondary(struct pt_regs *regs)
 	/* Wait for the primary crash CPU to signal its progress */
 	while (crashing_cpu < 0) {
 		if (--msecs < 0) {
-			/* No response, kdump image may not have been loaded */
+			/* No response, kdump image may yest have been loaded */
 			local_irq_restore(flags);
 			return;
 		}
@@ -267,7 +267,7 @@ int crash_shutdown_register(crash_shutdown_t handler)
 
 	if (i == CRASH_HANDLER_MAX) {
 		printk(KERN_ERR "Crash shutdown handles full, "
-		       "not registered.\n");
+		       "yest registered.\n");
 		rc = 1;
 	}
 
@@ -286,7 +286,7 @@ int crash_shutdown_unregister(crash_shutdown_t handler)
 			break;
 
 	if (i == CRASH_HANDLER_MAX) {
-		printk(KERN_ERR "Crash shutdown handle not found\n");
+		printk(KERN_ERR "Crash shutdown handle yest found\n");
 		rc = 1;
 	} else {
 		/* Shift handles down */
@@ -294,7 +294,7 @@ int crash_shutdown_unregister(crash_shutdown_t handler)
 			crash_shutdown_handles[i] =
 				crash_shutdown_handles[i+1];
 		/*
-		 * Reset last entry to NULL now that it has been shifted down,
+		 * Reset last entry to NULL yesw that it has been shifted down,
 		 * this will allow new handles to be added here.
 		 */
 		crash_shutdown_handles[i] = NULL;
@@ -324,8 +324,8 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	hard_irq_disable();
 
 	/*
-	 * Make a note of crashing cpu. Will be used in machine_kexec
-	 * such that another IPI will not be sent.
+	 * Make a yeste of crashing cpu. Will be used in machine_kexec
+	 * such that ayesther IPI will yest be sent.
 	 */
 	crashing_cpu = smp_processor_id();
 

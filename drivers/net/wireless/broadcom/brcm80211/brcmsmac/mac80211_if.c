@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -199,7 +199,7 @@ static struct ieee80211_channel brcms_5ghz_nphy_chantable[] = {
 
 /*
  * The rate table is used for both 2.4G and 5G rates. The
- * latter being a subset as it does not support CCK rates.
+ * latter being a subset as it does yest support CCK rates.
  */
 static struct ieee80211_rate legacy_ratetable[] = {
 	RATE(10, 0),
@@ -230,7 +230,7 @@ static const struct ieee80211_supported_band brcms_band_2GHz_nphy_template = {
 		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
 		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
 		   .mcs = {
-			   /* placeholders for now */
+			   /* placeholders for yesw */
 			   .rx_mask = {0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
 			   .rx_highest = cpu_to_le16(500),
 			   .tx_params = IEEE80211_HT_MCS_TX_DEFINED}
@@ -251,7 +251,7 @@ static const struct ieee80211_supported_band brcms_band_5GHz_nphy_template = {
 		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
 		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
 		   .mcs = {
-			   /* placeholders for now */
+			   /* placeholders for yesw */
 			   .rx_mask = {0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
 			   .rx_highest = cpu_to_le16(500),
 			   .tx_params = IEEE80211_HT_MCS_TX_DEFINED}
@@ -309,7 +309,7 @@ static void brcms_free(struct brcms_info *wl)
 		wl->pub = NULL;
 	}
 
-	/* virtual interface deletion is deferred so we cannot spinwait */
+	/* virtual interface deletion is deferred so we canyest spinwait */
 
 	/* wait for all pending callbacks to complete */
 	while (atomic_read(&wl->callbacks) > 0)
@@ -327,7 +327,7 @@ static void brcms_free(struct brcms_info *wl)
 
 /*
 * called from both kernel as from this kernel module (error flow on attach)
-* precondition: perimeter lock is not acquired.
+* precondition: perimeter lock is yest acquired.
 */
 static void brcms_remove(struct bcma_device *pdev)
 {
@@ -349,7 +349,7 @@ static void brcms_remove(struct bcma_device *pdev)
 
 /*
  * Precondition: Since this function is called in brcms_pci_probe() context,
- * no locking is required.
+ * yes locking is required.
  */
 static void brcms_release_fw(struct brcms_info *wl)
 {
@@ -362,7 +362,7 @@ static void brcms_release_fw(struct brcms_info *wl)
 
 /*
  * Precondition: Since this function is called in brcms_pci_probe() context,
- * no locking is required.
+ * yes locking is required.
  */
 static int brcms_request_fw(struct brcms_info *wl, struct bcma_device *pdev)
 {
@@ -425,7 +425,7 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 	bool blocked;
 	int err;
 
-	if (!wl->ucode.bcm43xx_bomminor) {
+	if (!wl->ucode.bcm43xx_bommiyesr) {
 		err = brcms_request_fw(wl, wl->wlc->hw->d11core);
 		if (err)
 			return -ENOENT;
@@ -439,7 +439,7 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
 
 	spin_lock_bh(&wl->lock);
-	/* avoid acknowledging frames before a non-monitor device is added */
+	/* avoid ackyeswledging frames before a yesn-monitor device is added */
 	wl->mute_tx = true;
 
 	if (!wl->pub->up)
@@ -491,12 +491,12 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct brcms_info *wl = hw->priv;
 
-	/* Just STA, AP and ADHOC for now */
+	/* Just STA, AP and ADHOC for yesw */
 	if (vif->type != NL80211_IFTYPE_STATION &&
 	    vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_ADHOC) {
 		brcms_err(wl->wlc->hw->d11core,
-			  "%s: Attempt to add type %d, only STA, AP and AdHoc for now\n",
+			  "%s: Attempt to add type %d, only STA, AP and AdHoc for yesw\n",
 			  __func__, vif->type);
 		return -EOPNOTSUPP;
 	}
@@ -847,7 +847,7 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		spin_unlock_bh(&wl->lock);
 		if (!status) {
 			brcms_dbg_ht(wl->wlc->hw->d11core,
-				     "START: tid %d is not agg\'able\n", tid);
+				     "START: tid %d is yest agg\'able\n", tid);
 			return -EINVAL;
 		}
 		return IEEE80211_AMPDU_TX_START_IMMEDIATE;
@@ -876,7 +876,7 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		break;
 	default:
 		brcms_err(wl->wlc->hw->d11core,
-			  "%s: Invalid command, ignoring\n", __func__);
+			  "%s: Invalid command, igyesring\n", __func__);
 	}
 
 	return 0;
@@ -910,7 +910,7 @@ static void brcms_ops_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct brcms_info *wl = hw->priv;
 	int ret;
 
-	no_printk("%s: drop = %s\n", __func__, drop ? "true" : "false");
+	yes_printk("%s: drop = %s\n", __func__, drop ? "true" : "false");
 
 	ret = wait_event_timeout(wl->tx_flush_wq,
 				 brcms_tx_flush_completed(wl),
@@ -1041,7 +1041,7 @@ static irqreturn_t brcms_isr(int irq, void *dev_id)
 }
 
 /*
- * is called in brcms_pci_probe() context, therefore no locking required.
+ * is called in brcms_pci_probe() context, therefore yes locking required.
  */
 static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 {
@@ -1083,7 +1083,7 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 }
 
 /*
- * is called in brcms_pci_probe() context, therefore no locking required.
+ * is called in brcms_pci_probe() context, therefore yes locking required.
  */
 static int ieee_hw_init(struct ieee80211_hw *hw)
 {
@@ -1121,7 +1121,7 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
  * Attach to the WL device identified by vendor and device parameters.
  * regs is a host accessible memory address pointing to WL device registers.
  *
- * is called in brcms_bcma_probe() context, therefore no locking required.
+ * is called in brcms_bcma_probe() context, therefore yes locking required.
  */
 static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 {
@@ -1261,7 +1261,7 @@ static int brcms_suspend(struct bcma_device *pdev)
 	hw = bcma_get_drvdata(pdev);
 	wl = hw->priv;
 	if (!wl) {
-		pr_err("%s: %s: no driver private struct!\n", KBUILD_MODNAME,
+		pr_err("%s: %s: yes driver private struct!\n", KBUILD_MODNAME,
 		       __func__);
 		return -ENODEV;
 	}
@@ -1362,7 +1362,7 @@ uint brcms_reset(struct brcms_info *wl)
 	brcms_dbg_info(wl->wlc->hw->d11core, "Resetting wl%d\n", wl->pub->unit);
 	brcms_c_reset(wl->wlc);
 
-	/* dpc will not be rescheduled */
+	/* dpc will yest be rescheduled */
 	wl->resched = false;
 
 	/* inform publicly that interface is down */
@@ -1442,7 +1442,7 @@ void brcms_down(struct brcms_info *wl)
 	spin_unlock_bh(&wl->lock);
 
 	/* For HIGH_only driver, it's important to actually schedule other work,
-	 * not just spin wait since everything runs at schedule level
+	 * yest just spin wait since everything runs at schedule level
 	 */
 	SPINWAIT((atomic_read(&wl->callbacks) > callbacks), 100 * 1000);
 
@@ -1450,7 +1450,7 @@ void brcms_down(struct brcms_info *wl)
 }
 
 /*
-* precondition: perimeter lock is not acquired
+* precondition: perimeter lock is yest acquired
  */
 static void _brcms_timer(struct work_struct *work)
 {
@@ -1588,7 +1588,7 @@ void brcms_free_timer(struct brcms_timer *t)
 }
 
 /*
- * precondition: no locking required
+ * precondition: yes locking required
  */
 int brcms_ucode_init_buf(struct brcms_info *wl, void **pbuf, u32 idx)
 {
@@ -1612,7 +1612,7 @@ int brcms_ucode_init_buf(struct brcms_info *wl, void **pbuf, u32 idx)
 		}
 	}
 	brcms_err(wl->wlc->hw->d11core,
-		  "ERROR: ucode buf tag:%d can not be found!\n", idx);
+		  "ERROR: ucode buf tag:%d can yest be found!\n", idx);
 	*pbuf = NULL;
 fail:
 	return -ENODATA;
@@ -1620,7 +1620,7 @@ fail:
 
 /*
  * Precondition: Since this function is called in brcms_bcma_probe() context,
- * no locking is required.
+ * yes locking is required.
  */
 int brcms_ucode_init_uint(struct brcms_info *wl, size_t *n_bytes, u32 idx)
 {
@@ -1645,7 +1645,7 @@ int brcms_ucode_init_uint(struct brcms_info *wl, size_t *n_bytes, u32 idx)
 		}
 	}
 	brcms_err(wl->wlc->hw->d11core,
-		  "ERROR: ucode tag:%d can not be found!\n", idx);
+		  "ERROR: ucode tag:%d can yest be found!\n", idx);
 	return -ENOMSG;
 }
 
@@ -1661,7 +1661,7 @@ void brcms_ucode_free_buf(void *p)
  * checks validity of all firmware images loaded from user space
  *
  * Precondition: Since this function is called in brcms_bcma_probe() context,
- * no locking is required.
+ * yes locking is required.
  */
 int brcms_check_firmwares(struct brcms_info *wl)
 {
@@ -1681,7 +1681,7 @@ int brcms_check_firmwares(struct brcms_info *wl)
 				  __func__);
 			rc = -EBADF;
 		} else if (fw_hdr->size % sizeof(struct firmware_hdr)) {
-			wiphy_err(wl->wiphy, "%s: non integral fw hdr file "
+			wiphy_err(wl->wiphy, "%s: yesn integral fw hdr file "
 				"size %zu/%zu\n", __func__, fw_hdr->size,
 				sizeof(struct firmware_hdr));
 			rc = -EBADF;

@@ -49,10 +49,10 @@ static unsigned long pdt_entry[MAX_PDT_ENTRIES] __page_aligned_bss;
  * A pdt_entry holds the physical address in bits 0-57, bits 58-61 are
  * reserved, bit 62 is the perm bit and bit 63 is the error_type bit.
  * The perm bit indicates whether the error have been verified as a permanent
- * error (value of 1) or has not been verified, and may be transient (value
+ * error (value of 1) or has yest been verified, and may be transient (value
  * of 0). The error_type bit indicates whether the error is a single bit error
  * (value of 1) or a multiple bit error.
- * On non-PAT machines phys_addr is encoded in bits 0-59 and error_type in bit
+ * On yesn-PAT machines phys_addr is encoded in bits 0-59 and error_type in bit
  * 63. Those machines don't provide the perm bit.
  */
 
@@ -158,13 +158,13 @@ void __init pdc_pdt_init(void)
 
 	if (ret != PDC_OK) {
 		pdt_type = PDT_PDC;
-		/* non-PAT machines provide the standard PDC call */
+		/* yesn-PAT machines provide the standard PDC call */
 		ret = pdc_mem_pdt_info(&pdt_status);
 	}
 
 	if (ret != PDC_OK) {
 		pdt_type = PDT_NONE;
-		pr_info("PDT: Firmware does not provide any page deallocation"
+		pr_info("PDT: Firmware does yest provide any page deallocation"
 			" information.\n");
 		return;
 	}
@@ -273,7 +273,7 @@ static int pdt_mainloop(void *unused)
 			return -EINVAL;
 		}
 
-		/* if no new PDT entries, just wait again */
+		/* if yes new PDT entries, just wait again */
 		num = pdt_status.pdt_entries - old_num_entries;
 		if (num <= 0)
 			continue;
@@ -329,7 +329,7 @@ static int pdt_mainloop(void *unused)
 			else
 				soft_offline_page(pde >> PAGE_SHIFT, 0);
 #else
-			pr_crit("PDT: memory error at 0x%lx ignored.\n"
+			pr_crit("PDT: memory error at 0x%lx igyesred.\n"
 				"Rebuild kernel with CONFIG_MEMORY_FAILURE=y "
 				"for real handling.\n",
 				pde & PDT_ADDR_PHYS_MASK);

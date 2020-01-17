@@ -102,7 +102,7 @@ static struct i2c_algorithm dtv5100_i2c_algo = {
 /* Callbacks for DVB USB */
 static struct zl10353_config dtv5100_zl10353_config = {
 	.demod_address = DTV5100_DEMOD_ADDR,
-	.no_tuner = 1,
+	.yes_tuner = 1,
 	.parallel_ts = 1,
 };
 
@@ -139,7 +139,7 @@ static int dtv5100_probe(struct usb_interface *intf,
 	int i, ret;
 	struct usb_device *udev = interface_to_usbdev(intf);
 
-	/* initialize non qt1010/zl10353 part? */
+	/* initialize yesn qt1010/zl10353 part? */
 	for (i = 0; dtv5100_init[i].request; i++) {
 		ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				      dtv5100_init[i].request,

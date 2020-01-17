@@ -76,8 +76,8 @@ void __init ixp4xx_map_io(void)
 void __init ixp4xx_init_irq(void)
 {
 	/*
-	 * ixp4xx does not implement the XScale PWRMODE register
-	 * so it must not call cpu_do_idle().
+	 * ixp4xx does yest implement the XScale PWRMODE register
+	 * so it must yest call cpu_do_idle().
 	 */
 	cpu_idle_poll_ctrl(true);
 
@@ -286,7 +286,7 @@ static int ixp4xx_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t s
 	return (dma_addr + size) > SZ_64M;
 }
 
-static int ixp4xx_platform_notify_remove(struct device *dev)
+static int ixp4xx_platform_yestify_remove(struct device *dev)
 {
 	if (dev_is_pci(dev))
 		dmabounce_unregister_dev(dev);
@@ -298,7 +298,7 @@ static int ixp4xx_platform_notify_remove(struct device *dev)
 /*
  * Setup DMA mask to 64MB on PCI devices and 4 GB on all other things.
  */
-static int ixp4xx_platform_notify(struct device *dev)
+static int ixp4xx_platform_yestify(struct device *dev)
 {
 	dev->dma_mask = &dev->coherent_dma_mask;
 
@@ -354,9 +354,9 @@ static void ixp4xx_iounmap(volatile void __iomem *addr)
 
 void __init ixp4xx_init_early(void)
 {
-	platform_notify = ixp4xx_platform_notify;
+	platform_yestify = ixp4xx_platform_yestify;
 #ifdef CONFIG_PCI
-	platform_notify_remove = ixp4xx_platform_notify_remove;
+	platform_yestify_remove = ixp4xx_platform_yestify_remove;
 #endif
 #ifdef CONFIG_IXP4XX_INDIRECT_PCI
 	arch_ioremap_caller = ixp4xx_ioremap_caller;

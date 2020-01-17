@@ -48,7 +48,7 @@ Ptr____Call (c)
 
 #define SLEEP_ACTIVE_INCREMENT		0		/* Enable task tree thread to go to sleep
 											   This should only ever be used on the Background thread */
-#define STANDARD_ACTIVE_INCREMENT	1		/* Task tree thread normal operation */
+#define STANDARD_ACTIVE_INCREMENT	1		/* Task tree thread yesrmal operation */
 #define SUSPEND_ACTIVE_INCREMENT	2		/* Cause execution to suspend in the task tree thread
                                                This should only ever be used on the Background thread */
 
@@ -129,7 +129,7 @@ struct dsp_task_tree_data {
 	   currently unused */
 	___DSP_DUAL_16BIT_ALLOC(
 	    mem_upd_ptr,
-	/* Data structure for controlling synchronous link update */
+	/* Data structure for controlling synchroyesus link update */
 	    link_upd_ptr
 	)
   

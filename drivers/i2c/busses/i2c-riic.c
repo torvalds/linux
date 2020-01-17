@@ -186,7 +186,7 @@ static irqreturn_t riic_tdre_isr(int irq, void *data)
 		riic_clear_set_bit(riic, ICIER_TIE, ICIER_TEIE, RIIC_ICIER);
 
 	/*
-	 * This acks the TIE interrupt. We get another TIE immediately if our
+	 * This acks the TIE interrupt. We get ayesther TIE immediately if our
 	 * value could be moved to the shadow shift register right away. So
 	 * this must be after updates to ICIER (where we want to disable TIE)!
 	 */
@@ -212,7 +212,7 @@ static irqreturn_t riic_tend_isr(int irq, void *data)
 		riic_clear_set_bit(riic, ICIER_TEIE, ICIER_SPIE, RIIC_ICIER);
 		writeb(ICCR2_SP, riic->base + RIIC_ICCR2);
 	} else {
-		/* Transfer is complete, but do not send STOP */
+		/* Transfer is complete, but do yest send STOP */
 		riic_clear_set_bit(riic, ICIER_TEIE, 0, RIIC_ICIER);
 		complete(&riic->msg_done);
 	}
@@ -300,8 +300,8 @@ static int riic_init_hw(struct riic_dev *riic, struct i2c_timings *t)
 	/*
 	 * Assume the default register settings:
 	 *  FER.SCLE = 1 (SCL sync circuit enabled, adds 2 or 3 cycles)
-	 *  FER.NFE = 1 (noise circuit enabled)
-	 *  MR3.NF = 0 (1 cycle of noise filtered out)
+	 *  FER.NFE = 1 (yesise circuit enabled)
+	 *  MR3.NF = 0 (1 cycle of yesise filtered out)
 	 *
 	 * Freq (CKS=000) = (I2CCLK + tr + tf)/ (BRH + 3 + 1) + (BRL + 3 + 1)
 	 * Freq (CKS!=000) = (I2CCLK + tr + tf)/ (BRH + 2 + 1) + (BRL + 2 + 1)
@@ -431,7 +431,7 @@ static int riic_i2c_probe(struct platform_device *pdev)
 	adap->owner = THIS_MODULE;
 	adap->algo = &riic_algo;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 
 	init_completion(&riic->msg_done);
 

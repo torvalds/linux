@@ -2,7 +2,7 @@
 /*
  * PSC clock descriptions for TI DaVinci DM365
  *
- * Copyright (C) 2018 David Lechner <david@lechnology.com>
+ * Copyright (C) 2018 David Lechner <david@lechyeslogy.com>
  */
 
 #include <linux/clk-provider.h>
@@ -71,13 +71,13 @@ static const struct davinci_lpsc_clk_info dm365_psc_info[] = {
 	/*
 	 * The TRM (ARM Subsystem User's Guide) shows two clocks input into
 	 * voice codec module (PLL2 SYSCLK4 with a DIV2 and PLL1 SYSCLK4). Its
-	 * not fully clear from documentation which clock should be considered
+	 * yest fully clear from documentation which clock should be considered
 	 * as parent for PSC. The clock chosen here is to maintain
 	 * compatibility with existing code in arch/arm/mach-davinci/dm365.c
 	 */
 	LPSC(44, 0, voice_codec, pll2_sysclk4, voice_codec_clkdev, 0),
 	/*
-	 * Its not fully clear from TRM (ARM Subsystem User's Guide) as to what
+	 * Its yest fully clear from TRM (ARM Subsystem User's Guide) as to what
 	 * the parent of VPSS DAC LPSC should actually be. PLL1 SYSCLK3 feeds
 	 * into HDVICP and MJCP. The clock chosen here is to remain compatible
 	 * with code existing in arch/arm/mach-davinci/dm365.c

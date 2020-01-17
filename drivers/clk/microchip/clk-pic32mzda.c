@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Purna Chandra Mandal,<purna.mandal@microchip.com>
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techyeslogy Inc.  All rights reserved.
  */
 #include <dt-bindings/clock/microchip,pic32-clock.h>
 #include <linux/clk.h>
@@ -78,7 +78,7 @@ static const struct pic32_periph_clk_data periph_clocks[] = {
 
 static const struct pic32_sys_clk_data sys_mux_clk = {
 	.slew_reg = 0x1c0,
-	.slew_div = 2, /* step of div_4 -> div_2 -> no_div */
+	.slew_div = 2, /* step of div_4 -> div_2 -> yes_div */
 	.init_data = {
 		.name = "sys_clk",
 		.parent_names = (const char *[]) {
@@ -128,17 +128,17 @@ struct pic32mzda_clk_data {
 	struct clk *clks[MAXCLKS];
 	struct pic32_clk_common core;
 	struct clk_onecell_data onecell_data;
-	struct notifier_block failsafe_notifier;
+	struct yestifier_block failsafe_yestifier;
 };
 
-static int pic32_fscm_nmi(struct notifier_block *nb,
+static int pic32_fscm_nmi(struct yestifier_block *nb,
 			  unsigned long action, void *data)
 {
 	struct pic32mzda_clk_data *cd;
 
-	cd  = container_of(nb, struct pic32mzda_clk_data, failsafe_notifier);
+	cd  = container_of(nb, struct pic32mzda_clk_data, failsafe_yestifier);
 
-	/* SYSCLK is now running from BFRCCLK. Report clock failure. */
+	/* SYSCLK is yesw running from BFRCCLK. Report clock failure. */
 	if (readl(cd->core.iobase) & BIT(2))
 		pr_alert("pic32-clk: FSCM detected clk failure.\n");
 
@@ -150,7 +150,7 @@ static int pic32_fscm_nmi(struct notifier_block *nb,
 static int pic32mzda_clk_probe(struct platform_device *pdev)
 {
 	const char *const pll_mux_parents[] = {"posc_clk", "frc_clk"};
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct pic32mzda_clk_data *cd;
 	struct pic32_clk_common *core;
 	struct clk *pll_mux_clk, *clk;
@@ -162,7 +162,7 @@ static int pic32mzda_clk_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	core = &cd->core;
-	core->iobase = of_io_request_and_map(np, 0, of_node_full_name(np));
+	core->iobase = of_io_request_and_map(np, 0, of_yesde_full_name(np));
 	if (IS_ERR(core->iobase)) {
 		dev_err(&pdev->dev, "pic32-clk: failed to map registers\n");
 		return PTR_ERR(core->iobase);
@@ -240,8 +240,8 @@ static int pic32mzda_clk_probe(struct platform_device *pdev)
 	}
 
 	/* register NMI for failsafe clock monitor */
-	cd->failsafe_notifier.notifier_call = pic32_fscm_nmi;
-	return register_nmi_notifier(&cd->failsafe_notifier);
+	cd->failsafe_yestifier.yestifier_call = pic32_fscm_nmi;
+	return register_nmi_yestifier(&cd->failsafe_yestifier);
 }
 
 static const struct of_device_id pic32mzda_clk_match_table[] = {

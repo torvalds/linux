@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __HDLC_IOCTL_H__
 #define __HDLC_IOCTL_H__
 
@@ -79,7 +79,7 @@ typedef struct {
     unsigned int timeout;
 } cisco_proto;
 
-/* PPP doesn't need any info now - supply length = 0 to ioctl */
+/* PPP doesn't need any info yesw - supply length = 0 to ioctl */
 
 #endif /* __ASSEMBLY__ */
 #endif /* __HDLC_IOCTL_H__ */

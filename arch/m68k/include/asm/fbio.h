@@ -10,7 +10,7 @@
 
 /* Frame buffer types */
 #define FBTYPE_NOTYPE           -1
-#define FBTYPE_SUN1BW           0   /* mono */
+#define FBTYPE_SUN1BW           0   /* moyes */
 #define FBTYPE_SUN1COLOR        1 
 #define FBTYPE_SUN2BW           2 
 #define FBTYPE_SUN2COLOR        3 
@@ -35,9 +35,9 @@
 #define FBTYPE_MDICOLOR         20      /* cg14 */
 #define FBTYPE_TCXCOLOR		21	/* SUNW,tcx card */
 
-#define FBTYPE_LASTPLUSONE      21	/* This is not last + 1 in fact... */
+#define FBTYPE_LASTPLUSONE      21	/* This is yest last + 1 in fact... */
 
-/* Does not seem to be listed in the Sun file either */
+/* Does yest seem to be listed in the Sun file either */
 #define FBTYPE_CREATOR          22
 #define FBTYPE_PCI_IGA1682	23
 #define FBTYPE_P9100COLOR	24
@@ -80,13 +80,13 @@ struct  fbcmap {
  
 struct fbsattr {
         int     flags;
-        int     emu_type;	/* -1 if none */
+        int     emu_type;	/* -1 if yesne */
         int     dev_specific[FB_ATTR_NDEVSPECIFIC];
 };
  
 struct fbgattr {
         int     real_type;	/* real frame buffer type */
-        int     owner;		/* unknown */
+        int     owner;		/* unkyeswn */
         struct fbtype fbtype;	/* real frame buffer fbtype */
         struct fbsattr sattr;   
         int     emu_types[FB_ATTR_NEMUTYPES]; /* supported emulations */

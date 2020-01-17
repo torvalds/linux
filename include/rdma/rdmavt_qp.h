@@ -25,12 +25,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -82,7 +82,7 @@
  * RVT_S_WAIT_RNR - waiting for RNR timeout
  * RVT_S_WAIT_SSN_CREDIT - waiting for RC credits to process next SWQE
  * RVT_S_WAIT_DMA - waiting for send DMA queue to drain before generating
- *                  next send completion entry not via send DMA
+ *                  next send completion entry yest via send DMA
  * RVT_S_WAIT_PIO - waiting for a send buffer to be available
  * RVT_S_WAIT_TX - waiting for a struct verbs_txreq to be available
  * RVT_S_WAIT_DMA_DESC - waiting for DMA descriptors to be available
@@ -423,8 +423,8 @@ struct rvt_qp {
 	s8 s_ahgidx;
 	u8 s_state;             /* opcode of last packet sent */
 	u8 s_ack_state;         /* opcode of packet to ACK */
-	u8 s_nak_state;         /* non-zero if NAK is pending */
-	u8 r_nak_state;         /* non-zero if NAK is pending */
+	u8 s_nak_state;         /* yesn-zero if NAK is pending */
+	u8 r_nak_state;         /* yesn-zero if NAK is pending */
 	u8 s_retry;             /* requester retry counter */
 	u8 s_rnr_retry;         /* requester RNR retry counter */
 	u8 s_num_rd_atomic;     /* number of RDMA read/atomic pending */
@@ -438,7 +438,7 @@ struct rvt_qp {
 	atomic_t local_ops_pending; /* number of fast_reg/local_inv reqs */
 
 	/*
-	 * This sge list MUST be last. Do not add anything below here.
+	 * This sge list MUST be last. Do yest add anything below here.
 	 */
 	struct rvt_sge r_sg_list[0] /* verified SGEs */
 		____cacheline_aligned_in_smp;
@@ -471,7 +471,7 @@ static inline struct rvt_qp *ibqp_to_rvtqp(struct ib_qp *ibqp)
 /*
  * QPN-map pages start out as NULL, they get allocated upon
  * first use and are never deallocated. This way,
- * large bitmaps are not allocated unless large numbers of QPs are used.
+ * large bitmaps are yest allocated unless large numbers of QPs are used.
  */
 struct rvt_qpn_map {
 	void *page;
@@ -512,7 +512,7 @@ struct rvt_mcast_addr {
 };
 
 struct rvt_mcast {
-	struct rb_node rb_node;
+	struct rb_yesde rb_yesde;
 	struct rvt_mcast_addr mcast_addr;
 	struct list_head qp_list;
 	wait_queue_head_t wait;
@@ -521,7 +521,7 @@ struct rvt_mcast {
 };
 
 /*
- * Since struct rvt_swqe is not a fixed size, we can't simply index into
+ * Since struct rvt_swqe is yest a fixed size, we can't simply index into
  * struct rvt_qp.s_wq.  This function does the array index computation.
  */
 static inline struct rvt_swqe *rvt_get_swqe_ptr(struct rvt_qp *qp,
@@ -534,7 +534,7 @@ static inline struct rvt_swqe *rvt_get_swqe_ptr(struct rvt_qp *qp,
 }
 
 /*
- * Since struct rvt_rwqe is not a fixed size, we can't simply index into
+ * Since struct rvt_rwqe is yest a fixed size, we can't simply index into
  * struct rvt_rwq.wq.  This function does the array index computation.
  */
 static inline struct rvt_rwqe *rvt_get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
@@ -617,14 +617,14 @@ static inline void rvt_qp_wqe_reserve(
  * s_avail.
  *
  * An smp_mp__after_atomic() is used to insure
- * the compiler does not juggle the order of the s_last
+ * the compiler does yest juggle the order of the s_last
  * ring index and the decrementing of s_reserved_used.
  */
 static inline void rvt_qp_wqe_unreserve(struct rvt_qp *qp, int flags)
 {
 	if (unlikely(flags & RVT_SEND_RESERVE_USED)) {
 		atomic_dec(&qp->s_reserved_used);
-		/* insure no compiler re-order up to s_last change */
+		/* insure yes compiler re-order up to s_last change */
 		smp_mb__after_atomic();
 	}
 }
@@ -651,7 +651,7 @@ __be32 rvt_compute_aeth(struct rvt_qp *qp);
 /**
  * rvt_get_credit - flush the send work queue of a QP
  * @qp: the qp who's send work queue to flush
- * @aeth: the Acknowledge Extended Transport Header
+ * @aeth: the Ackyeswledge Extended Transport Header
  *
  * The QP s_lock should be held.
  */
@@ -709,7 +709,7 @@ static inline unsigned long rvt_timeout_to_jiffies(u8 timeout)
  * @qpn: the QP number to look up
  *
  * The caller must hold the rcu_read_lock(), and keep the lock until
- * the returned qp is no longer in use.
+ * the returned qp is yes longer in use.
  */
 static inline struct rvt_qp *rvt_lookup_qpn(struct rvt_dev_info *rdi,
 					    struct rvt_ibport *rvp,
@@ -963,7 +963,7 @@ static inline u32 ib_cq_head(struct ib_cq *send_cq)
  * @rvt_rq: request queue data structure
  *
  * This function should only be called if the rvt_mmap_info()
- * has not succeeded.
+ * has yest succeeded.
  */
 static inline void rvt_free_rq(struct rvt_rq *rq)
 {
@@ -987,11 +987,11 @@ static inline struct rvt_ibport *rvt_to_iport(struct rvt_qp *qp)
 }
 
 /**
- * rvt_rc_credit_avail - Check if there are enough RC credits for the request
+ * rvt_rc_credit_avail - Check if there are eyesugh RC credits for the request
  * @qp: the qp
  * @wqe: the request
  *
- * This function returns false when there are not enough credits for the given
+ * This function returns false when there are yest eyesugh credits for the given
  * request and true otherwise.
  */
 static inline bool rvt_rc_credit_avail(struct rvt_qp *qp, struct rvt_swqe *wqe)

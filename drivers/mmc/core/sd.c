@@ -317,7 +317,7 @@ static int mmc_read_switch(struct mmc_card *card)
 
 	/*
 	 * Find out the card's support bits with a mode 0 operation.
-	 * The argument does not matter, as the support bits do not
+	 * The argument does yest matter, as the support bits do yest
 	 * change with the arguments.
 	 */
 	err = mmc_sd_switch(card, 0, 0, 0, status);
@@ -536,7 +536,7 @@ static int sd_set_current_limit(struct mmc_card *card, u8 *status)
 
 	/*
 	 * Current limit switch is only defined for SDR50, SDR104, and DDR50
-	 * bus speed modes. For other bus speed modes, we do not change the
+	 * bus speed modes. For other bus speed modes, we do yest change the
 	 * current limit.
 	 */
 	if ((card->sd_bus_speed != UHS_SDR50_BUS_SPEED) &&
@@ -559,7 +559,7 @@ static int sd_set_current_limit(struct mmc_card *card, u8 *status)
 	 * maximum 300ma from the host.
 	 *
 	 * The above is incorrect: if we try to set a current limit that is
-	 * not supported by the card, the card can rightfully error out the
+	 * yest supported by the card, the card can rightfully error out the
 	 * attempt, and remain at the default current limit.  This results
 	 * in a 300mA card being limited to 200mA even though the host
 	 * supports 800mA. Failures seen with SanDisk 8GB UHS cards with
@@ -882,8 +882,8 @@ int mmc_sd_setup_card(struct mmc_host *host, struct mmc_card *card,
 	/*
 	 * For SPI, enable CRC as appropriate.
 	 * This CRC enable is located AFTER the reading of the
-	 * card registers because some SDHC cards are not able
-	 * to provide valid CRCs for non-512-byte blocks.
+	 * card registers because some SDHC cards are yest able
+	 * to provide valid CRCs for yesn-512-byte blocks.
 	 */
 	if (mmc_host_is_spi(host)) {
 		err = mmc_spi_set_crc(host, use_spi_crc);
@@ -898,7 +898,7 @@ int mmc_sd_setup_card(struct mmc_host *host, struct mmc_card *card,
 		int ro = mmc_sd_get_ro(host);
 
 		if (ro < 0) {
-			pr_warn("%s: host does not support reading read-only switch, assuming write-enable\n",
+			pr_warn("%s: host does yest support reading read-only switch, assuming write-enable\n",
 				mmc_hostname(host));
 		} else if (ro > 0) {
 			mmc_card_set_readonly(card);
@@ -1020,7 +1020,7 @@ retry:
 		goto free_card;
 
 	/*
-	 * If the card has not been power cycled, it may still be using 1.8V
+	 * If the card has yest been power cycled, it may still be using 1.8V
 	 * signaling. Detect that situation and try to initialize a UHS-I (1.8V)
 	 * transfer mode.
 	 */

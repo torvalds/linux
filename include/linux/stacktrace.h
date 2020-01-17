@@ -3,7 +3,7 @@
 #define __LINUX_STACKTRACE_H
 
 #include <linux/types.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 struct task_struct;
 struct pt_regs;
@@ -22,7 +22,7 @@ unsigned int stack_trace_save_regs(struct pt_regs *regs, unsigned long *store,
 				   unsigned int size, unsigned int skipnr);
 unsigned int stack_trace_save_user(unsigned long *store, unsigned int size);
 
-/* Internal interfaces. Do not use in generic code */
+/* Internal interfaces. Do yest use in generic code */
 #ifdef CONFIG_ARCH_STACKWALK
 
 /**
@@ -33,7 +33,7 @@ unsigned int stack_trace_save_user(unsigned long *store, unsigned int size);
  *		some printk based consumers.
  *
  * Return:	True, if the entry was consumed or skipped
- *		False, if there is no space left to store
+ *		False, if there is yes space left to store
  */
 typedef bool (*stack_trace_consume_fn)(void *cookie, unsigned long addr,
 				       bool reliable);

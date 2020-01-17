@@ -7,7 +7,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/err.h>
 #include <linux/btf.h>
 #include <gelf.h>
@@ -29,7 +29,7 @@ struct btf {
 	};
 	struct btf_type **types;
 	const char *strings;
-	void *nohdr_data;
+	void *yeshdr_data;
 	__u32 nr_types;
 	__u32 types_size;
 	__u32 data_size;
@@ -75,7 +75,7 @@ static int btf_parse_hdr(struct btf *btf)
 	__u32 meta_left;
 
 	if (btf->data_size < sizeof(struct btf_header)) {
-		pr_debug("BTF header not found\n");
+		pr_debug("BTF header yest found\n");
 		return -EINVAL;
 	}
 
@@ -96,7 +96,7 @@ static int btf_parse_hdr(struct btf *btf)
 
 	meta_left = btf->data_size - sizeof(*hdr);
 	if (!meta_left) {
-		pr_debug("BTF has no data\n");
+		pr_debug("BTF has yes data\n");
 		return -EINVAL;
 	}
 
@@ -116,11 +116,11 @@ static int btf_parse_hdr(struct btf *btf)
 	}
 
 	if (hdr->type_off & 0x02) {
-		pr_debug("BTF type section is not aligned to 4 bytes\n");
+		pr_debug("BTF type section is yest aligned to 4 bytes\n");
 		return -EINVAL;
 	}
 
-	btf->nohdr_data = btf->hdr + 1;
+	btf->yeshdr_data = btf->hdr + 1;
 
 	return 0;
 }
@@ -128,7 +128,7 @@ static int btf_parse_hdr(struct btf *btf)
 static int btf_parse_str_sec(struct btf *btf)
 {
 	const struct btf_header *hdr = btf->hdr;
-	const char *start = btf->nohdr_data + hdr->str_off;
+	const char *start = btf->yeshdr_data + hdr->str_off;
 	const char *end = start + btf->hdr->str_len;
 
 	if (!hdr->str_len || hdr->str_len - 1 > BTF_MAX_STR_OFFSET ||
@@ -180,9 +180,9 @@ static int btf_type_size(struct btf_type *t)
 static int btf_parse_type_sec(struct btf *btf)
 {
 	struct btf_header *hdr = btf->hdr;
-	void *nohdr_data = btf->nohdr_data;
-	void *next_type = nohdr_data + hdr->type_off;
-	void *end_type = nohdr_data + hdr->str_off;
+	void *yeshdr_data = btf->yeshdr_data;
+	void *next_type = yeshdr_data + hdr->type_off;
+	void *end_type = yeshdr_data + hdr->str_off;
 
 	while (next_type < end_type) {
 		struct btf_type *t = next_type;
@@ -417,8 +417,8 @@ struct btf *btf__parse_elf(const char *path, struct btf_ext **btf_ext)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
-		err = -errno;
-		pr_warn("failed to open %s: %s\n", path, strerror(errno));
+		err = -erryes;
+		pr_warn("failed to open %s: %s\n", path, strerror(erryes));
 		return ERR_PTR(err);
 	}
 
@@ -434,7 +434,7 @@ struct btf *btf__parse_elf(const char *path, struct btf_ext **btf_ext)
 		goto done;
 	}
 	if (!btf_check_endianness(&ehdr)) {
-		pr_warn("non-native ELF endianness is not supported\n");
+		pr_warn("yesn-native ELF endianness is yest supported\n");
 		goto done;
 	}
 	if (!elf_rawdata(elf_getscn(elf, ehdr.e_shstrndx), NULL)) {
@@ -503,7 +503,7 @@ done:
 	if (err)
 		return ERR_PTR(err);
 	/*
-	 * btf is always parsed before btf_ext, so no need to clean up
+	 * btf is always parsed before btf_ext, so yes need to clean up
 	 * btf_ext, if btf loading failed
 	 */
 	if (IS_ERR(btf))
@@ -620,8 +620,8 @@ int btf__load(struct btf *btf)
 	btf->fd = bpf_load_btf(btf->data, btf->data_size,
 			       log_buf, log_buf_size, false);
 	if (btf->fd < 0) {
-		err = -errno;
-		pr_warn("Error loading BTF: %s(%d)\n", strerror(errno), errno);
+		err = -erryes;
+		pr_warn("Error loading BTF: %s(%d)\n", strerror(erryes), erryes);
 		if (*log_buf)
 			pr_warn("%s\n", log_buf);
 		goto done;
@@ -666,7 +666,7 @@ int btf__get_from_id(__u32 id, struct btf **btf)
 	if (btf_fd < 0)
 		return 0;
 
-	/* we won't know btf_size until we call bpf_obj_get_info_by_fd(). so
+	/* we won't kyesw btf_size until we call bpf_obj_get_info_by_fd(). so
 	 * let's start with a sane default - 4KiB here - and resize it only if
 	 * bpf_obj_get_info_by_fd() needs a bigger buffer.
 	 */
@@ -698,7 +698,7 @@ int btf__get_from_id(__u32 id, struct btf **btf)
 	}
 
 	if (err || btf_info.btf_size > last_size) {
-		err = errno;
+		err = erryes;
 		goto exit_free;
 	}
 
@@ -735,14 +735,14 @@ int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 
 	container_id = btf__find_by_name(btf, container_name);
 	if (container_id < 0) {
-		pr_debug("map:%s container_name:%s cannot be found in BTF. Missing BPF_ANNOTATE_KV_PAIR?\n",
+		pr_debug("map:%s container_name:%s canyest be found in BTF. Missing BPF_ANNOTATE_KV_PAIR?\n",
 			 map_name, container_name);
 		return container_id;
 	}
 
 	container_type = btf__type_by_id(btf, container_id);
 	if (!container_type) {
-		pr_warn("map:%s cannot find BTF type for container_id:%u\n",
+		pr_warn("map:%s canyest find BTF type for container_id:%u\n",
 			map_name, container_id);
 		return -EINVAL;
 	}
@@ -807,7 +807,7 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 		return 0;
 
 	if (ext_sec->off & 0x03) {
-		pr_debug(".BTF.ext %s section is not aligned to 4 bytes\n",
+		pr_debug(".BTF.ext %s section is yest aligned to 4 bytes\n",
 		     ext_sec->desc);
 		return -EINVAL;
 	}
@@ -823,7 +823,7 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 
 	/* At least a record size */
 	if (info_left < sizeof(__u32)) {
-		pr_debug(".BTF.ext %s record size not found\n", ext_sec->desc);
+		pr_debug(".BTF.ext %s record size yest found\n", ext_sec->desc);
 		return -EINVAL;
 	}
 
@@ -839,9 +839,9 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 	sinfo = info + sizeof(__u32);
 	info_left -= sizeof(__u32);
 
-	/* If no records, return failure now so .BTF.ext won't be used. */
+	/* If yes records, return failure yesw so .BTF.ext won't be used. */
 	if (!info_left) {
-		pr_debug("%s section in .BTF.ext has no records", ext_sec->desc);
+		pr_debug("%s section in .BTF.ext has yes records", ext_sec->desc);
 		return -EINVAL;
 	}
 
@@ -851,7 +851,7 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 		__u32 num_records;
 
 		if (info_left < sec_hdrlen) {
-			pr_debug("%s section header is not found in .BTF.ext\n",
+			pr_debug("%s section header is yest found in .BTF.ext\n",
 			     ext_sec->desc);
 			return -EINVAL;
 		}
@@ -928,7 +928,7 @@ static int btf_ext_parse_hdr(__u8 *data, __u32 data_size)
 
 	if (data_size < offsetofend(struct btf_ext_header, hdr_len) ||
 	    data_size < hdr->hdr_len) {
-		pr_debug("BTF.ext header not found");
+		pr_debug("BTF.ext header yest found");
 		return -EINVAL;
 	}
 
@@ -948,7 +948,7 @@ static int btf_ext_parse_hdr(__u8 *data, __u32 data_size)
 	}
 
 	if (data_size == hdr->hdr_len) {
-		pr_debug("BTF.ext has no data\n");
+		pr_debug("BTF.ext has yes data\n");
 		return -EINVAL;
 	}
 
@@ -1112,7 +1112,7 @@ static int btf_dedup_remap_types(struct btf_dedup *d);
  * section with all BTF type descriptors and string data. It overwrites that
  * memory in-place with deduplicated types and strings without any loss of
  * information. If optional `struct btf_ext` representing '.BTF.ext' ELF section
- * is provided, all the strings referenced from .BTF.ext section are honored
+ * is provided, all the strings referenced from .BTF.ext section are hoyesred
  * and updated to point to the right offsets after deduplication.
  *
  * If function returns with error, type/string data might be garbled and should
@@ -1133,7 +1133,7 @@ static int btf_dedup_remap_types(struct btf_dedup *d);
  * binary. This algorithm ensures that each unique type is represented by single
  * BTF type descriptor, greatly reducing resulting size of BTF data.
  *
- * Compilation unit isolation and subsequent duplication of data is not the only
+ * Compilation unit isolation and subsequent duplication of data is yest the only
  * problem. The same type hierarchy (e.g., struct and all the type that struct
  * references) in different compilation units can be represented in BTF to
  * various degrees of completeness (or, rather, incompleteness) due to
@@ -1170,18 +1170,18 @@ static int btf_dedup_remap_types(struct btf_dedup *d);
  *	struct B* b_ptr;
  * };
  *
- * In case of CU #1, BTF data will know only that `struct B` exist (but no
- * more), but will know the complete type information about `struct A`. While
- * for CU #2, it will know full type information about `struct B`, but will
- * only know about forward declaration of `struct A` (in BTF terms, it will
+ * In case of CU #1, BTF data will kyesw only that `struct B` exist (but yes
+ * more), but will kyesw the complete type information about `struct A`. While
+ * for CU #2, it will kyesw full type information about `struct B`, but will
+ * only kyesw about forward declaration of `struct A` (in BTF terms, it will
  * have `BTF_KIND_FWD` type descriptor with name `B`).
  *
- * This compilation unit isolation means that it's possible that there is no
+ * This compilation unit isolation means that it's possible that there is yes
  * single CU with complete type information describing structs `S`, `A`, and
  * `B`. Also, we might get tons of duplicated and redundant type information.
  *
  * Additional complication we need to keep in mind comes from the fact that
- * types, in general, can form graphs containing cycles, not just DAGs.
+ * types, in general, can form graphs containing cycles, yest just DAGs.
  *
  * While algorithm does deduplication, it also merges and resolves type
  * information (unless disabled throught `struct btf_opts`), whenever possible.
@@ -1219,23 +1219,23 @@ static int btf_dedup_remap_types(struct btf_dedup *d);
  * 5. Types compaction.
  * 6. Types remapping.
  *
- * Algorithm determines canonical type descriptor, which is a single
- * representative type for each truly unique type. This canonical type is the
+ * Algorithm determines cayesnical type descriptor, which is a single
+ * representative type for each truly unique type. This cayesnical type is the
  * one that will go into final deduplicated BTF type information. For
  * struct/unions, it is also the type that algorithm will merge additional type
  * information into (while resolving FWDs), as it discovers it from data in
  * other CUs. Each input BTF type eventually gets either mapped to itself, if
- * that type is canonical, or to some other type, if that type is equivalent
- * and was chosen as canonical representative. This mapping is stored in
+ * that type is cayesnical, or to some other type, if that type is equivalent
+ * and was chosen as cayesnical representative. This mapping is stored in
  * `btf_dedup->map` array. This map is also used to record STRUCT/UNION that
  * FWD type got resolved to.
  *
- * To facilitate fast discovery of canonical types, we also maintain canonical
+ * To facilitate fast discovery of cayesnical types, we also maintain cayesnical
  * index (`btf_dedup->dedup_table`), which maps type descriptor's signature hash
- * (i.e., hashed kind, name, size, fields, etc) into a list of canonical types
+ * (i.e., hashed kind, name, size, fields, etc) into a list of cayesnical types
  * that match that signature. With sufficiently good choice of type signature
- * hashing function, we can limit number of canonical types for each unique type
- * signature to a very small number, allowing to find canonical type for any
+ * hashing function, we can limit number of cayesnical types for each unique type
+ * signature to a very small number, allowing to find cayesnical type for any
  * duplicated type very quickly.
  *
  * Struct/union deduplication is the most critical part and algorithm for
@@ -1302,13 +1302,13 @@ struct btf_dedup {
 	struct btf_ext *btf_ext;
 	/*
 	 * This is a map from any type's signature hash to a list of possible
-	 * canonical representative type candidates. Hash collisions are
-	 * ignored, so even types of various kinds can share same list of
+	 * cayesnical representative type candidates. Hash collisions are
+	 * igyesred, so even types of various kinds can share same list of
 	 * candidates, which is fine because we rely on subsequent
 	 * btf_xxx_equal() checks to authoritatively verify type equality.
 	 */
 	struct hashmap *dedup_table;
-	/* Canonical types map */
+	/* Cayesnical types map */
 	__u32 *map;
 	/* Hypothetical mapping, used during type graph equivalence checks */
 	__u32 *hypot_map;
@@ -1337,8 +1337,8 @@ static long hash_combine(long h, long value)
 	return h * 31 + value;
 }
 
-#define for_each_dedup_cand(d, node, hash) \
-	hashmap__for_each_key_entry(d->dedup_table, node, (void *)hash)
+#define for_each_dedup_cand(d, yesde, hash) \
+	hashmap__for_each_key_entry(d->dedup_table, yesde, (void *)hash)
 
 static int btf_dedup_table_add(struct btf_dedup *d, long hash, __u32 type_id)
 {
@@ -1415,7 +1415,7 @@ static struct btf_dedup *btf_dedup_new(struct btf *btf, struct btf_ext *btf_ext,
 		return ERR_PTR(-ENOMEM);
 
 	d->opts.dont_resolve_fwds = opts && opts->dont_resolve_fwds;
-	/* dedup_table_size is now used only to force collisions in tests */
+	/* dedup_table_size is yesw used only to force collisions in tests */
 	if (opts && opts->dedup_table_size == 1)
 		hash_fn = btf_dedup_collision_hash_fn;
 
@@ -1434,12 +1434,12 @@ static struct btf_dedup *btf_dedup_new(struct btf *btf, struct btf_ext *btf_ext,
 		err = -ENOMEM;
 		goto done;
 	}
-	/* special BTF "void" type is made canonical immediately */
+	/* special BTF "void" type is made cayesnical immediately */
 	d->map[0] = 0;
 	for (i = 1; i <= btf->nr_types; i++) {
 		struct btf_type *t = d->btf->types[i];
 
-		/* VAR and DATASEC are never deduped and are self-canonical */
+		/* VAR and DATASEC are never deduped and are self-cayesnical */
 		if (btf_is_var(t) || btf_is_datasec(t))
 			d->map[i] = i;
 		else
@@ -1618,7 +1618,7 @@ static int btf_str_remap_offset(__u32 *str_off_ptr, void *ctx)
 }
 
 /*
- * Dedup string and filter out those that are not referenced from either .BTF
+ * Dedup string and filter out those that are yest referenced from either .BTF
  * or .BTF.ext (if provided) sections.
  *
  * This is done by building index of all strings in BTF's string section,
@@ -1631,7 +1631,7 @@ static int btf_str_remap_offset(__u32 *str_off_ptr, void *ctx)
 static int btf_dedup_strings(struct btf_dedup *d)
 {
 	const struct btf_header *hdr = d->btf->hdr;
-	char *start = (char *)d->btf->nohdr_data + hdr->str_off;
+	char *start = (char *)d->btf->yeshdr_data + hdr->str_off;
 	char *end = start + d->btf->hdr->str_len;
 	char *p = start, *tmp_strs = NULL;
 	struct btf_str_ptrs strs = {
@@ -1826,14 +1826,14 @@ static bool btf_compat_enum(struct btf_type *t1, struct btf_type *t2)
 {
 	if (!btf_is_enum_fwd(t1) && !btf_is_enum_fwd(t2))
 		return btf_equal_enum(t1, t2);
-	/* ignore vlen when comparing */
+	/* igyesre vlen when comparing */
 	return t1->name_off == t2->name_off &&
 	       (t1->info & ~0xffff) == (t2->info & ~0xffff) &&
 	       t1->size == t2->size;
 }
 
 /*
- * Calculate type signature hash of STRUCT/UNION, ignoring referenced type IDs,
+ * Calculate type signature hash of STRUCT/UNION, igyesring referenced type IDs,
  * as referenced type IDs equivalence is established separately during type
  * graph equivalence check algorithm.
  */
@@ -1847,14 +1847,14 @@ static long btf_hash_struct(struct btf_type *t)
 	for (i = 0; i < vlen; i++) {
 		h = hash_combine(h, member->name_off);
 		h = hash_combine(h, member->offset);
-		/* no hashing of referenced type ID, it can be unresolved yet */
+		/* yes hashing of referenced type ID, it can be unresolved yet */
 		member++;
 	}
 	return h;
 }
 
 /*
- * Check structural compatibility of two FUNC_PROTOs, ignoring referenced type
+ * Check structural compatibility of two FUNC_PROTOs, igyesring referenced type
  * IDs. This check is performed during type graph equivalence check and
  * referenced types equivalence is checked separately.
  */
@@ -1881,8 +1881,8 @@ static bool btf_shallow_equal_struct(struct btf_type *t1, struct btf_type *t2)
 
 /*
  * Calculate type signature hash of ARRAY, including referenced type IDs,
- * under assumption that they were already resolved to canonical type IDs and
- * are not going to change.
+ * under assumption that they were already resolved to cayesnical type IDs and
+ * are yest going to change.
  */
 static long btf_hash_array(struct btf_type *t)
 {
@@ -1897,10 +1897,10 @@ static long btf_hash_array(struct btf_type *t)
 
 /*
  * Check exact equality of two ARRAYs, taking into account referenced
- * type IDs, under assumption that they were already resolved to canonical
- * type IDs and are not going to change.
+ * type IDs, under assumption that they were already resolved to cayesnical
+ * type IDs and are yest going to change.
  * This function is called during reference types deduplication to compare
- * ARRAY to potential canonical representative.
+ * ARRAY to potential cayesnical representative.
  */
 static bool btf_equal_array(struct btf_type *t1, struct btf_type *t2)
 {
@@ -1917,7 +1917,7 @@ static bool btf_equal_array(struct btf_type *t1, struct btf_type *t2)
 }
 
 /*
- * Check structural compatibility of two ARRAYs, ignoring referenced type
+ * Check structural compatibility of two ARRAYs, igyesring referenced type
  * IDs. This check is performed during type graph equivalence check and
  * referenced types equivalence is checked separately.
  */
@@ -1931,8 +1931,8 @@ static bool btf_compat_array(struct btf_type *t1, struct btf_type *t2)
 
 /*
  * Calculate type signature hash of FUNC_PROTO, including referenced type IDs,
- * under assumption that they were already resolved to canonical type IDs and
- * are not going to change.
+ * under assumption that they were already resolved to cayesnical type IDs and
+ * are yest going to change.
  */
 static long btf_hash_fnproto(struct btf_type *t)
 {
@@ -1951,10 +1951,10 @@ static long btf_hash_fnproto(struct btf_type *t)
 
 /*
  * Check exact equality of two FUNC_PROTOs, taking into account referenced
- * type IDs, under assumption that they were already resolved to canonical
- * type IDs and are not going to change.
+ * type IDs, under assumption that they were already resolved to cayesnical
+ * type IDs and are yest going to change.
  * This function is called during reference types deduplication to compare
- * FUNC_PROTO to potential canonical representative.
+ * FUNC_PROTO to potential cayesnical representative.
  */
 static bool btf_equal_fnproto(struct btf_type *t1, struct btf_type *t2)
 {
@@ -1978,7 +1978,7 @@ static bool btf_equal_fnproto(struct btf_type *t1, struct btf_type *t2)
 }
 
 /*
- * Check structural compatibility of two FUNC_PROTOs, ignoring referenced type
+ * Check structural compatibility of two FUNC_PROTOs, igyesring referenced type
  * IDs. This check is performed during type graph equivalence check and
  * referenced types equivalence is checked separately.
  */
@@ -2006,16 +2006,16 @@ static bool btf_compat_fnproto(struct btf_type *t1, struct btf_type *t2)
 
 /*
  * Deduplicate primitive types, that can't reference other types, by calculating
- * their type signature hash and comparing them with any possible canonical
- * candidate. If no canonical candidate matches, type itself is marked as
- * canonical and is added into `btf_dedup->dedup_table` as another candidate.
+ * their type signature hash and comparing them with any possible cayesnical
+ * candidate. If yes cayesnical candidate matches, type itself is marked as
+ * cayesnical and is added into `btf_dedup->dedup_table` as ayesther candidate.
  */
 static int btf_dedup_prim_type(struct btf_dedup *d, __u32 type_id)
 {
 	struct btf_type *t = d->btf->types[type_id];
 	struct hashmap_entry *hash_entry;
 	struct btf_type *cand;
-	/* if we don't find equivalent type, then we are canonical */
+	/* if we don't find equivalent type, then we are cayesnical */
 	__u32 new_id = type_id;
 	__u32 cand_id;
 	long h;
@@ -2064,7 +2064,7 @@ static int btf_dedup_prim_type(struct btf_dedup *d, __u32 type_id)
 					new_id = cand_id;
 					break;
 				}
-				/* resolve canonical enum fwd to full enum */
+				/* resolve cayesnical enum fwd to full enum */
 				d->map[cand_id] = type_id;
 			}
 		}
@@ -2106,7 +2106,7 @@ static int btf_dedup_prim_types(struct btf_dedup *d)
 }
 
 /*
- * Check whether type is already mapped into canonical one (could be to itself).
+ * Check whether type is already mapped into cayesnical one (could be to itself).
  */
 static inline bool is_type_mapped(struct btf_dedup *d, uint32_t type_id)
 {
@@ -2114,9 +2114,9 @@ static inline bool is_type_mapped(struct btf_dedup *d, uint32_t type_id)
 }
 
 /*
- * Resolve type ID into its canonical type ID, if any; otherwise return original
+ * Resolve type ID into its cayesnical type ID, if any; otherwise return original
  * type ID. If type is FWD and is resolved into STRUCT/UNION already, follow
- * STRUCT/UNION link and resolve it into canonical type ID as well.
+ * STRUCT/UNION link and resolve it into cayesnical type ID as well.
  */
 static inline __u32 resolve_type_id(struct btf_dedup *d, __u32 type_id)
 {
@@ -2154,55 +2154,55 @@ static inline __u16 btf_fwd_kind(struct btf_type *t)
 /*
  * Check equivalence of BTF type graph formed by candidate struct/union (we'll
  * call it "candidate graph" in this description for brevity) to a type graph
- * formed by (potential) canonical struct/union ("canonical graph" for brevity
- * here, though keep in mind that not all types in canonical graph are
- * necessarily canonical representatives themselves, some of them might be
- * duplicates or its uniqueness might not have been established yet).
+ * formed by (potential) cayesnical struct/union ("cayesnical graph" for brevity
+ * here, though keep in mind that yest all types in cayesnical graph are
+ * necessarily cayesnical representatives themselves, some of them might be
+ * duplicates or its uniqueness might yest have been established yet).
  * Returns:
  *  - >0, if type graphs are equivalent;
- *  -  0, if not equivalent;
+ *  -  0, if yest equivalent;
  *  - <0, on error.
  *
  * Algorithm performs side-by-side DFS traversal of both type graphs and checks
  * equivalence of BTF types at each step. If at any point BTF types in candidate
- * and canonical graphs are not compatible structurally, whole graphs are
+ * and cayesnical graphs are yest compatible structurally, whole graphs are
  * incompatible. If types are structurally equivalent (i.e., all information
- * except referenced type IDs is exactly the same), a mapping from `canon_id` to
+ * except referenced type IDs is exactly the same), a mapping from `cayesn_id` to
  * a `cand_id` is recored in hypothetical mapping (`btf_dedup->hypot_map`).
  * If a type references other types, then those referenced types are checked
  * for equivalence recursively.
  *
- * During DFS traversal, if we find that for current `canon_id` type we
+ * During DFS traversal, if we find that for current `cayesn_id` type we
  * already have some mapping in hypothetical map, we check for two possible
  * situations:
- *   - `canon_id` is mapped to exactly the same type as `cand_id`. This will
+ *   - `cayesn_id` is mapped to exactly the same type as `cand_id`. This will
  *     happen when type graphs have cycles. In this case we assume those two
  *     types are equivalent.
- *   - `canon_id` is mapped to different type. This is contradiction in our
- *     hypothetical mapping, because same graph in canonical graph corresponds
+ *   - `cayesn_id` is mapped to different type. This is contradiction in our
+ *     hypothetical mapping, because same graph in cayesnical graph corresponds
  *     to two different types in candidate graph, which for equivalent type
  *     graphs shouldn't happen. This condition terminates equivalence check
  *     with negative result.
  *
- * If type graphs traversal exhausts types to check and find no contradiction,
+ * If type graphs traversal exhausts types to check and find yes contradiction,
  * then type graphs are equivalent.
  *
  * When checking types for equivalence, there is one special case: FWD types.
- * If FWD type resolution is allowed and one of the types (either from canonical
+ * If FWD type resolution is allowed and one of the types (either from cayesnical
  * or candidate graph) is FWD and other is STRUCT/UNION (depending on FWD's kind
  * flag) and their names match, hypothetical mapping is updated to point from
  * FWD to STRUCT/UNION. If graphs will be determined as equivalent successfully,
  * this mapping will be used to record FWD -> STRUCT/UNION mapping permanently.
  *
  * Technically, this could lead to incorrect FWD to STRUCT/UNION resolution,
- * if there are two exactly named (or anonymous) structs/unions that are
+ * if there are two exactly named (or ayesnymous) structs/unions that are
  * compatible structurally, one of which has FWD field, while other is concrete
  * STRUCT/UNION, but according to C sources they are different structs/unions
  * that are referencing different types with the same name. This is extremely
  * unlikely to happen, but btf_dedup API allows to disable FWD resolution if
  * this logic is causing problems.
  *
- * Doing FWD resolution means that both candidate and/or canonical graphs can
+ * Doing FWD resolution means that both candidate and/or cayesnical graphs can
  * consists of portions of the graph that come from multiple compilation units.
  * This is due to the fact that types within single compilation unit are always
  * deduplicated and FWDs are already resolved, if referenced struct/union
@@ -2214,99 +2214,99 @@ static inline __u16 btf_fwd_kind(struct btf_type *t)
  * same 'int' primitive type) and could even have "overlapping" parts of type
  * graph that describe same subset of types.
  *
- * This in turn means that our assumption that each type in canonical graph
- * must correspond to exactly one type in candidate graph might not hold
+ * This in turn means that our assumption that each type in cayesnical graph
+ * must correspond to exactly one type in candidate graph might yest hold
  * anymore and will make it harder to detect contradictions using hypothetical
  * map. To handle this problem, we allow to follow FWD -> STRUCT/UNION
- * resolution only in canonical graph. FWDs in candidate graphs are never
+ * resolution only in cayesnical graph. FWDs in candidate graphs are never
  * resolved. To see why it's OK, let's check all possible situations w.r.t. FWDs
  * that can occur:
- *   - Both types in canonical and candidate graphs are FWDs. If they are
+ *   - Both types in cayesnical and candidate graphs are FWDs. If they are
  *     structurally equivalent, then they can either be both resolved to the
- *     same STRUCT/UNION or not resolved at all. In both cases they are
- *     equivalent and there is no need to resolve FWD on candidate side.
- *   - Both types in canonical and candidate graphs are concrete STRUCT/UNION,
- *     so nothing to resolve as well, algorithm will check equivalence anyway.
- *   - Type in canonical graph is FWD, while type in candidate is concrete
+ *     same STRUCT/UNION or yest resolved at all. In both cases they are
+ *     equivalent and there is yes need to resolve FWD on candidate side.
+ *   - Both types in cayesnical and candidate graphs are concrete STRUCT/UNION,
+ *     so yesthing to resolve as well, algorithm will check equivalence anyway.
+ *   - Type in cayesnical graph is FWD, while type in candidate is concrete
  *     STRUCT/UNION. In this case candidate graph comes from single compilation
  *     unit, so there is exactly one BTF type for each unique C type. After
  *     resolving FWD into STRUCT/UNION, there might be more than one BTF type
- *     in canonical graph mapping to single BTF type in candidate graph, but
- *     because hypothetical mapping maps from canonical to candidate types, it's
- *     alright, and we still maintain the property of having single `canon_id`
- *     mapping to single `cand_id` (there could be two different `canon_id`
- *     mapped to the same `cand_id`, but it's not contradictory).
- *   - Type in canonical graph is concrete STRUCT/UNION, while type in candidate
+ *     in cayesnical graph mapping to single BTF type in candidate graph, but
+ *     because hypothetical mapping maps from cayesnical to candidate types, it's
+ *     alright, and we still maintain the property of having single `cayesn_id`
+ *     mapping to single `cand_id` (there could be two different `cayesn_id`
+ *     mapped to the same `cand_id`, but it's yest contradictory).
+ *   - Type in cayesnical graph is concrete STRUCT/UNION, while type in candidate
  *     graph is FWD. In this case we are just going to check compatibility of
  *     STRUCT/UNION and corresponding FWD, and if they are compatible, we'll
  *     assume that whatever STRUCT/UNION FWD resolves to must be equivalent to
- *     a concrete STRUCT/UNION from canonical graph. If the rest of type graphs
+ *     a concrete STRUCT/UNION from cayesnical graph. If the rest of type graphs
  *     turn out equivalent, we'll re-resolve FWD to concrete STRUCT/UNION from
- *     canonical graph.
+ *     cayesnical graph.
  */
 static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
-			      __u32 canon_id)
+			      __u32 cayesn_id)
 {
 	struct btf_type *cand_type;
-	struct btf_type *canon_type;
+	struct btf_type *cayesn_type;
 	__u32 hypot_type_id;
 	__u16 cand_kind;
-	__u16 canon_kind;
+	__u16 cayesn_kind;
 	int i, eq;
 
-	/* if both resolve to the same canonical, they must be equivalent */
-	if (resolve_type_id(d, cand_id) == resolve_type_id(d, canon_id))
+	/* if both resolve to the same cayesnical, they must be equivalent */
+	if (resolve_type_id(d, cand_id) == resolve_type_id(d, cayesn_id))
 		return 1;
 
-	canon_id = resolve_fwd_id(d, canon_id);
+	cayesn_id = resolve_fwd_id(d, cayesn_id);
 
-	hypot_type_id = d->hypot_map[canon_id];
+	hypot_type_id = d->hypot_map[cayesn_id];
 	if (hypot_type_id <= BTF_MAX_NR_TYPES)
 		return hypot_type_id == cand_id;
 
-	if (btf_dedup_hypot_map_add(d, canon_id, cand_id))
+	if (btf_dedup_hypot_map_add(d, cayesn_id, cand_id))
 		return -ENOMEM;
 
 	cand_type = d->btf->types[cand_id];
-	canon_type = d->btf->types[canon_id];
+	cayesn_type = d->btf->types[cayesn_id];
 	cand_kind = btf_kind(cand_type);
-	canon_kind = btf_kind(canon_type);
+	cayesn_kind = btf_kind(cayesn_type);
 
-	if (cand_type->name_off != canon_type->name_off)
+	if (cand_type->name_off != cayesn_type->name_off)
 		return 0;
 
 	/* FWD <--> STRUCT/UNION equivalence check, if enabled */
 	if (!d->opts.dont_resolve_fwds
-	    && (cand_kind == BTF_KIND_FWD || canon_kind == BTF_KIND_FWD)
-	    && cand_kind != canon_kind) {
+	    && (cand_kind == BTF_KIND_FWD || cayesn_kind == BTF_KIND_FWD)
+	    && cand_kind != cayesn_kind) {
 		__u16 real_kind;
 		__u16 fwd_kind;
 
 		if (cand_kind == BTF_KIND_FWD) {
-			real_kind = canon_kind;
+			real_kind = cayesn_kind;
 			fwd_kind = btf_fwd_kind(cand_type);
 		} else {
 			real_kind = cand_kind;
-			fwd_kind = btf_fwd_kind(canon_type);
+			fwd_kind = btf_fwd_kind(cayesn_type);
 		}
 		return fwd_kind == real_kind;
 	}
 
-	if (cand_kind != canon_kind)
+	if (cand_kind != cayesn_kind)
 		return 0;
 
 	switch (cand_kind) {
 	case BTF_KIND_INT:
-		return btf_equal_int(cand_type, canon_type);
+		return btf_equal_int(cand_type, cayesn_type);
 
 	case BTF_KIND_ENUM:
 		if (d->opts.dont_resolve_fwds)
-			return btf_equal_enum(cand_type, canon_type);
+			return btf_equal_enum(cand_type, cayesn_type);
 		else
-			return btf_compat_enum(cand_type, canon_type);
+			return btf_compat_enum(cand_type, cayesn_type);
 
 	case BTF_KIND_FWD:
-		return btf_equal_common(cand_type, canon_type);
+		return btf_equal_common(cand_type, cayesn_type);
 
 	case BTF_KIND_CONST:
 	case BTF_KIND_VOLATILE:
@@ -2314,63 +2314,63 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 	case BTF_KIND_PTR:
 	case BTF_KIND_TYPEDEF:
 	case BTF_KIND_FUNC:
-		if (cand_type->info != canon_type->info)
+		if (cand_type->info != cayesn_type->info)
 			return 0;
-		return btf_dedup_is_equiv(d, cand_type->type, canon_type->type);
+		return btf_dedup_is_equiv(d, cand_type->type, cayesn_type->type);
 
 	case BTF_KIND_ARRAY: {
-		const struct btf_array *cand_arr, *canon_arr;
+		const struct btf_array *cand_arr, *cayesn_arr;
 
-		if (!btf_compat_array(cand_type, canon_type))
+		if (!btf_compat_array(cand_type, cayesn_type))
 			return 0;
 		cand_arr = btf_array(cand_type);
-		canon_arr = btf_array(canon_type);
+		cayesn_arr = btf_array(cayesn_type);
 		eq = btf_dedup_is_equiv(d,
-			cand_arr->index_type, canon_arr->index_type);
+			cand_arr->index_type, cayesn_arr->index_type);
 		if (eq <= 0)
 			return eq;
-		return btf_dedup_is_equiv(d, cand_arr->type, canon_arr->type);
+		return btf_dedup_is_equiv(d, cand_arr->type, cayesn_arr->type);
 	}
 
 	case BTF_KIND_STRUCT:
 	case BTF_KIND_UNION: {
-		const struct btf_member *cand_m, *canon_m;
+		const struct btf_member *cand_m, *cayesn_m;
 		__u16 vlen;
 
-		if (!btf_shallow_equal_struct(cand_type, canon_type))
+		if (!btf_shallow_equal_struct(cand_type, cayesn_type))
 			return 0;
 		vlen = btf_vlen(cand_type);
 		cand_m = btf_members(cand_type);
-		canon_m = btf_members(canon_type);
+		cayesn_m = btf_members(cayesn_type);
 		for (i = 0; i < vlen; i++) {
-			eq = btf_dedup_is_equiv(d, cand_m->type, canon_m->type);
+			eq = btf_dedup_is_equiv(d, cand_m->type, cayesn_m->type);
 			if (eq <= 0)
 				return eq;
 			cand_m++;
-			canon_m++;
+			cayesn_m++;
 		}
 
 		return 1;
 	}
 
 	case BTF_KIND_FUNC_PROTO: {
-		const struct btf_param *cand_p, *canon_p;
+		const struct btf_param *cand_p, *cayesn_p;
 		__u16 vlen;
 
-		if (!btf_compat_fnproto(cand_type, canon_type))
+		if (!btf_compat_fnproto(cand_type, cayesn_type))
 			return 0;
-		eq = btf_dedup_is_equiv(d, cand_type->type, canon_type->type);
+		eq = btf_dedup_is_equiv(d, cand_type->type, cayesn_type->type);
 		if (eq <= 0)
 			return eq;
 		vlen = btf_vlen(cand_type);
 		cand_p = btf_params(cand_type);
-		canon_p = btf_params(canon_type);
+		cayesn_p = btf_params(cayesn_type);
 		for (i = 0; i < vlen; i++) {
-			eq = btf_dedup_is_equiv(d, cand_p->type, canon_p->type);
+			eq = btf_dedup_is_equiv(d, cand_p->type, cayesn_p->type);
 			if (eq <= 0)
 				return eq;
 			cand_p++;
-			canon_p++;
+			cayesn_p++;
 		}
 		return 1;
 	}
@@ -2383,29 +2383,29 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 
 /*
  * Use hypothetical mapping, produced by successful type graph equivalence
- * check, to augment existing struct/union canonical mapping, where possible.
+ * check, to augment existing struct/union cayesnical mapping, where possible.
  *
  * If BTF_KIND_FWD resolution is allowed, this mapping is also used to record
  * FWD -> STRUCT/UNION correspondence as well. FWD resolution is bidirectional:
- * it doesn't matter if FWD type was part of canonical graph or candidate one,
+ * it doesn't matter if FWD type was part of cayesnical graph or candidate one,
  * we are recording the mapping anyway. As opposed to carefulness required
  * for struct/union correspondence mapping (described below), for FWD resolution
- * it's not important, as by the time that FWD type (reference type) will be
+ * it's yest important, as by the time that FWD type (reference type) will be
  * deduplicated all structs/unions will be deduped already anyway.
  *
  * Recording STRUCT/UNION mapping is purely a performance optimization and is
- * not required for correctness. It needs to be done carefully to ensure that
- * struct/union from candidate's type graph is not mapped into corresponding
- * struct/union from canonical type graph that itself hasn't been resolved into
- * canonical representative. The only guarantee we have is that canonical
- * struct/union was determined as canonical and that won't change. But any
- * types referenced through that struct/union fields could have been not yet
+ * yest required for correctness. It needs to be done carefully to ensure that
+ * struct/union from candidate's type graph is yest mapped into corresponding
+ * struct/union from cayesnical type graph that itself hasn't been resolved into
+ * cayesnical representative. The only guarantee we have is that cayesnical
+ * struct/union was determined as cayesnical and that won't change. But any
+ * types referenced through that struct/union fields could have been yest yet
  * resolved, so in case like that it's too early to establish any kind of
  * correspondence between structs/unions.
  *
- * No canonical correspondence is derived for primitive types (they are already
+ * No cayesnical correspondence is derived for primitive types (they are already
  * deduplicated completely already anyway) or reference types (they rely on
- * stability of struct/union canonical relationship for equivalence checks).
+ * stability of struct/union cayesnical relationship for equivalence checks).
  */
 static void btf_dedup_merge_hypot_map(struct btf_dedup *d)
 {
@@ -2423,14 +2423,14 @@ static void btf_dedup_merge_hypot_map(struct btf_dedup *d)
 		c_kind = btf_kind(d->btf->types[c_id]);
 		/*
 		 * Resolve FWD into STRUCT/UNION.
-		 * It's ok to resolve FWD into STRUCT/UNION that's not yet
-		 * mapped to canonical representative (as opposed to
+		 * It's ok to resolve FWD into STRUCT/UNION that's yest yet
+		 * mapped to cayesnical representative (as opposed to
 		 * STRUCT/UNION <--> STRUCT/UNION mapping logic below), because
 		 * eventually that struct is going to be mapped and all resolved
-		 * FWDs will automatically resolve to correct canonical
+		 * FWDs will automatically resolve to correct cayesnical
 		 * representative. This will happen before ref type deduping,
 		 * which critically depends on stability of these mapping. This
-		 * stability is not a requirement for STRUCT/UNION equivalence
+		 * stability is yest a requirement for STRUCT/UNION equivalence
 		 * checks, though.
 		 */
 		if (t_kind != BTF_KIND_FWD && c_kind == BTF_KIND_FWD)
@@ -2446,7 +2446,7 @@ static void btf_dedup_merge_hypot_map(struct btf_dedup *d)
 			 * as a perf optimization, we can map struct/union
 			 * that's part of type graph we just verified for
 			 * equivalence. We can do that for struct/union that has
-			 * canonical representative only, though.
+			 * cayesnical representative only, though.
 			 */
 			d->map[t_id] = c_id;
 		}
@@ -2458,28 +2458,28 @@ static void btf_dedup_merge_hypot_map(struct btf_dedup *d)
  *
  * For each struct/union type its type signature hash is calculated, taking
  * into account type's name, size, number, order and names of fields, but
- * ignoring type ID's referenced from fields, because they might not be deduped
+ * igyesring type ID's referenced from fields, because they might yest be deduped
  * completely until after reference types deduplication phase. This type hash
- * is used to iterate over all potential canonical types, sharing same hash.
- * For each canonical candidate we check whether type graphs that they form
+ * is used to iterate over all potential cayesnical types, sharing same hash.
+ * For each cayesnical candidate we check whether type graphs that they form
  * (through referenced types in fields and so on) are equivalent using algorithm
  * implemented in `btf_dedup_is_equiv`. If such equivalence is found and
  * BTF_KIND_FWD resolution is allowed, then hypothetical mapping
  * (btf_dedup->hypot_map) produced by aforementioned type graph equivalence
  * algorithm is used to record FWD -> STRUCT/UNION mapping. It's also used to
- * potentially map other structs/unions to their canonical representatives,
+ * potentially map other structs/unions to their cayesnical representatives,
  * if such relationship hasn't yet been established. This speeds up algorithm
  * by eliminating some of the duplicate work.
  *
- * If no matching canonical representative was found, struct/union is marked
- * as canonical for itself and is added into btf_dedup->dedup_table hash map
+ * If yes matching cayesnical representative was found, struct/union is marked
+ * as cayesnical for itself and is added into btf_dedup->dedup_table hash map
  * for further look ups.
  */
 static int btf_dedup_struct_type(struct btf_dedup *d, __u32 type_id)
 {
 	struct btf_type *cand_type, *t;
 	struct hashmap_entry *hash_entry;
-	/* if we don't find equivalent type, then we are canonical */
+	/* if we don't find equivalent type, then we are cayesnical */
 	__u32 new_id = type_id;
 	__u16 kind;
 	long h;
@@ -2549,23 +2549,23 @@ static int btf_dedup_struct_types(struct btf_dedup *d)
  * Once all primitive and struct/union types got deduplicated, we can easily
  * deduplicate all other (reference) BTF types. This is done in two steps:
  *
- * 1. Resolve all referenced type IDs into their canonical type IDs. This
+ * 1. Resolve all referenced type IDs into their cayesnical type IDs. This
  * resolution can be done either immediately for primitive or struct/union types
  * (because they were deduped in previous two phases) or recursively for
  * reference types. Recursion will always terminate at either primitive or
  * struct/union type, at which point we can "unwind" chain of reference types
- * one by one. There is no danger of encountering cycles because in C type
+ * one by one. There is yes danger of encountering cycles because in C type
  * system the only way to form type cycle is through struct/union, so any chain
  * of reference types, even those taking part in a type cycle, will inevitably
  * reach struct/union at some point.
  *
- * 2. Once all referenced type IDs are resolved into canonical ones, BTF type
- * becomes "stable", in the sense that no further deduplication will cause
- * any changes to it. With that, it's now possible to calculate type's signature
+ * 2. Once all referenced type IDs are resolved into cayesnical ones, BTF type
+ * becomes "stable", in the sense that yes further deduplication will cause
+ * any changes to it. With that, it's yesw possible to calculate type's signature
  * hash (this time taking into account referenced type IDs) and loop over all
- * potential canonical representatives. If no match was found, current type
- * will become canonical representative of itself and will be added into
- * btf_dedup->dedup_table as another possible canonical representative.
+ * potential cayesnical representatives. If yes match was found, current type
+ * will become cayesnical representative of itself and will be added into
+ * btf_dedup->dedup_table as ayesther possible cayesnical representative.
  */
 static int btf_dedup_ref_type(struct btf_dedup *d, __u32 type_id)
 {
@@ -2693,9 +2693,9 @@ static int btf_dedup_ref_types(struct btf_dedup *d)
 /*
  * Compact types.
  *
- * After we established for each type its corresponding canonical representative
- * type, we now can eliminate types that are not canonical and leave only
- * canonical ones layed out sequentially in memory by copying them over
+ * After we established for each type its corresponding cayesnical representative
+ * type, we yesw can eliminate types that are yest cayesnical and leave only
+ * cayesnical ones layed out sequentially in memory by copying them over
  * duplicates. During compaction btf_dedup->hypot_map array is reused to store
  * a map from original type ID to a new compacted type ID, which will be used
  * during next phase to "fix up" type IDs, referenced from struct/union and
@@ -2713,7 +2713,7 @@ static int btf_dedup_compact_types(struct btf_dedup *d)
 	for (i = 1; i <= d->btf->nr_types; i++)
 		d->hypot_map[i] = BTF_UNPROCESSED_ID;
 
-	types_start = d->btf->nohdr_data + d->btf->hdr->type_off;
+	types_start = d->btf->yeshdr_data + d->btf->hdr->type_off;
 	p = types_start;
 
 	for (i = 1; i <= d->btf->nr_types; i++) {
@@ -2742,7 +2742,7 @@ static int btf_dedup_compact_types(struct btf_dedup *d)
 	d->btf->types = new_types;
 
 	/* make sure string section follows type information without gaps */
-	d->btf->hdr->str_off = p - (char *)d->btf->nohdr_data;
+	d->btf->hdr->str_off = p - (char *)d->btf->yeshdr_data;
 	memmove(p, d->btf->strings, d->btf->hdr->str_len);
 	d->btf->strings = p;
 	p += d->btf->hdr->str_len;
@@ -2753,7 +2753,7 @@ static int btf_dedup_compact_types(struct btf_dedup *d)
 
 /*
  * Figure out final (deduplicated and compacted) type ID for provided original
- * `type_id` by first resolving it into corresponding canonical type ID and
+ * `type_id` by first resolving it into corresponding cayesnical type ID and
  * then mapping it to a deduplicated type ID, stored in btf_dedup->hypot_map,
  * which is populated during compaction phase.
  */

@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -118,7 +118,7 @@ savage_bci_wait_fifo_s4(drm_savage_private_t * dev_priv, unsigned int n)
  * Waiting for events.
  *
  * The BIOSresets the event tag to 0 on mode changes. Therefore we
- * never emit 0 to the event tag. If we find a 0 event tag we know the
+ * never emit 0 to the event tag. If we find a 0 event tag we kyesw the
  * BIOS stomped on it and return success assuming that the BIOS waited
  * for engine idle.
  *
@@ -448,7 +448,7 @@ static void savage_dma_flush(drm_savage_private_t * dev_priv)
 		  first, cur, dev_priv->dma_pages[first].flushed,
 		  dev_priv->dma_pages[cur].used, pad, align);
 
-	/* pad with noops */
+	/* pad with yesops */
 	if (pad) {
 		uint32_t *dma_ptr = (uint32_t *) dev_priv->cmd_dma->handle +
 		    cur * SAVAGE_DMA_PAGE_SIZE + dev_priv->dma_pages[cur].used;
@@ -565,7 +565,7 @@ int savage_driver_load(struct drm_device *dev, unsigned long chipset)
 
 /*
  * Initialize mappings. On Savage4 and SavageIX the alignment
- * and size of the aperture is not suitable for automatic MTRR setup
+ * and size of the aperture is yest suitable for automatic MTRR setup
  * in drm_legacy_addmap. Therefore we add them manually before the maps are
  * initialized, and tear them down on last close.
  */
@@ -709,14 +709,14 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 
 	dev_priv->sarea = drm_legacy_getsarea(dev);
 	if (!dev_priv->sarea) {
-		DRM_ERROR("could not find sarea!\n");
+		DRM_ERROR("could yest find sarea!\n");
 		savage_do_cleanup_bci(dev);
 		return -EINVAL;
 	}
 	if (init->status_offset != 0) {
 		dev_priv->status = drm_legacy_findmap(dev, init->status_offset);
 		if (!dev_priv->status) {
-			DRM_ERROR("could not find shadow status region!\n");
+			DRM_ERROR("could yest find shadow status region!\n");
 			savage_do_cleanup_bci(dev);
 			return -EINVAL;
 		}
@@ -728,7 +728,7 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 		dev->agp_buffer_map = drm_legacy_findmap(dev,
 						       init->buffers_offset);
 		if (!dev->agp_buffer_map) {
-			DRM_ERROR("could not find DMA buffer region!\n");
+			DRM_ERROR("could yest find DMA buffer region!\n");
 			savage_do_cleanup_bci(dev);
 			return -EINVAL;
 		}
@@ -743,7 +743,7 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 		dev_priv->agp_textures =
 		    drm_legacy_findmap(dev, init->agp_textures_offset);
 		if (!dev_priv->agp_textures) {
-			DRM_ERROR("could not find agp texture region!\n");
+			DRM_ERROR("could yest find agp texture region!\n");
 			savage_do_cleanup_bci(dev);
 			return -EINVAL;
 		}
@@ -753,26 +753,26 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 
 	if (init->cmd_dma_offset) {
 		if (S3_SAVAGE3D_SERIES(dev_priv->chipset)) {
-			DRM_ERROR("command DMA not supported on "
+			DRM_ERROR("command DMA yest supported on "
 				  "Savage3D/MX/IX.\n");
 			savage_do_cleanup_bci(dev);
 			return -EINVAL;
 		}
 		if (dev->dma && dev->dma->buflist) {
-			DRM_ERROR("command and vertex DMA not supported "
+			DRM_ERROR("command and vertex DMA yest supported "
 				  "at the same time.\n");
 			savage_do_cleanup_bci(dev);
 			return -EINVAL;
 		}
 		dev_priv->cmd_dma = drm_legacy_findmap(dev, init->cmd_dma_offset);
 		if (!dev_priv->cmd_dma) {
-			DRM_ERROR("could not find command DMA region!\n");
+			DRM_ERROR("could yest find command DMA region!\n");
 			savage_do_cleanup_bci(dev);
 			return -EINVAL;
 		}
 		if (dev_priv->dma_type == SAVAGE_DMA_AGP) {
 			if (dev_priv->cmd_dma->type != _DRM_AGP) {
-				DRM_ERROR("AGP command DMA region is not a "
+				DRM_ERROR("AGP command DMA region is yest a "
 					  "_DRM_AGP map!\n");
 				savage_do_cleanup_bci(dev);
 				return -EINVAL;
@@ -785,7 +785,7 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 				return -ENOMEM;
 			}
 		} else if (dev_priv->cmd_dma->type != _DRM_CONSISTENT) {
-			DRM_ERROR("PCI command DMA region is not a "
+			DRM_ERROR("PCI command DMA region is yest a "
 				  "_DRM_CONSISTENT map!\n");
 			savage_do_cleanup_bci(dev);
 			return -EINVAL;
@@ -803,7 +803,7 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 		dev_priv->fake_dma.handle = kmalloc(SAVAGE_FAKE_DMA_SIZE,
 						    GFP_KERNEL);
 		if (!dev_priv->fake_dma.handle) {
-			DRM_ERROR("could not allocate faked DMA buffer!\n");
+			DRM_ERROR("could yest allocate faked DMA buffer!\n");
 			savage_do_cleanup_bci(dev);
 			return -ENOMEM;
 		}
@@ -880,13 +880,13 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 		dev_priv->emit_clip_rect = savage_emit_clip_rect_s4;
 
 	if (savage_freelist_init(dev) < 0) {
-		DRM_ERROR("could not initialize freelist\n");
+		DRM_ERROR("could yest initialize freelist\n");
 		savage_do_cleanup_bci(dev);
 		return -ENOMEM;
 	}
 
 	if (savage_dma_init(dev_priv) < 0) {
-		DRM_ERROR("could not initialize command DMA\n");
+		DRM_ERROR("could yest initialize command DMA\n");
 		savage_do_cleanup_bci(dev);
 		return -ENOMEM;
 	}

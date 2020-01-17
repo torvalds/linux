@@ -26,7 +26,7 @@ A device is removed from the core when its reference count goes to
   void put_device(struct device * dev);
 
 get_device() will return a pointer to the struct device passed to it
-if the reference is not already 0 (if it's in the process of being
+if the reference is yest already 0 (if it's in the process of being
 removed already).
 
 A driver can access the lock in the device structure using::
@@ -98,12 +98,12 @@ to remove the device attributes.
 Word of warning:  While the kernel allows device_create_file() and
 device_remove_file() to be called on a device at any time, userspace has
 strict expectations on when attributes get created.  When a new device is
-registered in the kernel, a uevent is generated to notify userspace (like
+registered in the kernel, a uevent is generated to yestify userspace (like
 udev) that a new device is available.  If attributes are added after the
-device is registered, then userspace won't get notified and userspace will
-not know about the new attributes.
+device is registered, then userspace won't get yestified and userspace will
+yest kyesw about the new attributes.
 
 This is important for device driver that need to publish additional
 attributes for a device at driver probe time.  If the device driver simply
 calls device_create_file() on the device structure passed to it, then
-userspace will never be notified of the new attributes.
+userspace will never be yestified of the new attributes.

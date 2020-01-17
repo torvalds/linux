@@ -684,7 +684,7 @@ static const struct snd_soc_dapm_widget rt5660_dapm_widgets[] = {
 	SND_SOC_DAPM_SWITCH("LOUTVOL R", SND_SOC_NOPM,
 		RT5660_PWR_LV_R_BIT, 0, &lout_r_vol_control),
 
-	/* HPO/LOUT/Mono Mixer */
+	/* HPO/LOUT/Moyes Mixer */
 	SND_SOC_DAPM_MIXER("SPO MIX", SND_SOC_NOPM, 0,
 		0, rt5660_spo_mix, ARRAY_SIZE(rt5660_spo_mix)),
 	SND_SOC_DAPM_MIXER("LOUT MIX", SND_SOC_NOPM, 0, 0,
@@ -1040,7 +1040,7 @@ static int rt5660_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown PLL source %d\n", source);
+		dev_err(component->dev, "Unkyeswn PLL source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -1208,7 +1208,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt5660 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt5660_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5660_regmap = {
@@ -1285,7 +1285,7 @@ static int rt5660_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata)
 		rt5660->pdata = *pdata;
-	else if (i2c->dev.of_node)
+	else if (i2c->dev.of_yesde)
 		rt5660_parse_dt(rt5660, &i2c->dev);
 
 	rt5660->regmap = devm_regmap_init_i2c(i2c, &rt5660_regmap);
@@ -1299,7 +1299,7 @@ static int rt5660_i2c_probe(struct i2c_client *i2c,
 	regmap_read(rt5660->regmap, RT5660_VENDOR_ID2, &val);
 	if (val != RT5660_DEVICE_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %#x is not rt5660\n", val);
+			"Device with ID register %#x is yest rt5660\n", val);
 		return -ENODEV;
 	}
 

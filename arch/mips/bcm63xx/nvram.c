@@ -38,7 +38,7 @@ void __init bcm63xx_nvram_init(void *addr)
 			expected_crc, crc);
 
 	/* Cable modems have a different NVRAM which is embedded in the eCos
-	 * firmware and not easily extractible, give at least a MAC address
+	 * firmware and yest easily extractible, give at least a MAC address
 	 * pool.
 	 */
 	if (BCMCPU_IS_3368()) {
@@ -59,7 +59,7 @@ int bcm63xx_nvram_get_mac_address(u8 *mac)
 	int count;
 
 	if (mac_addr_used >= nvram.mac_addr_count) {
-		pr_err("not enough mac addresses\n");
+		pr_err("yest eyesugh mac addresses\n");
 		return -ENODEV;
 	}
 

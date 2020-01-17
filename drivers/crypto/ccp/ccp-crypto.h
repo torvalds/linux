@@ -99,7 +99,7 @@ struct ccp_aes_ctx {
 	unsigned int key_len;
 	u8 key[AES_MAX_KEY_SIZE * 2];
 
-	u8 nonce[CTR_RFC3686_NONCE_SIZE];
+	u8 yesnce[CTR_RFC3686_NONCE_SIZE];
 
 	/* CMAC key structures */
 	struct scatterlist k1_sg;
@@ -177,7 +177,7 @@ struct ccp_des3_req_ctx {
 };
 
 /* SHA-related defines
- * These values must be large enough to accommodate any variant
+ * These values must be large eyesugh to accommodate any variant
  */
 #define MAX_SHA_CONTEXT_SIZE	SHA512_DIGEST_SIZE
 #define MAX_SHA_BLOCK_SIZE	SHA512_BLOCK_SIZE

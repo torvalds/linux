@@ -12,7 +12,7 @@ static s32 fm10k_iov_msg_error(struct fm10k_hw *hw, u32 **results,
 	struct fm10k_intfc *interface = hw->back;
 	struct pci_dev *pdev = interface->pdev;
 
-	dev_err(&pdev->dev, "Unknown message ID %u on VF %d\n",
+	dev_err(&pdev->dev, "Unkyeswn message ID %u on VF %d\n",
 		**results & FM10K_TLV_ID_MASK, vf_info->vf_idx);
 
 	return fm10k_tlv_msg_error(hw, results, mbx);
@@ -62,7 +62,7 @@ static s32 fm10k_iov_msg_queue_mac_vlan(struct fm10k_hw *hw, u32 **results,
 		 * them when the pf_vid has been set. In this case, the PF
 		 * should have already cleared the VLAN_TABLE, and if we
 		 * allowed them, it could allow a rogue VF to receive traffic
-		 * on a VLAN it was not assigned. In the single-bit case, we
+		 * on a VLAN it was yest assigned. In the single-bit case, we
 		 * need to modify requests for VLAN 0 to use the default PF or
 		 * SW vid when assigned.
 		 */
@@ -156,7 +156,7 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 	s64 vflre;
 	int i;
 
-	/* if there is no iov_data then there is no mailbox to process */
+	/* if there is yes iov_data then there is yes mailbox to process */
 	if (!READ_ONCE(interface->iov_data))
 		return 0;
 
@@ -164,7 +164,7 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 
 	iov_data = interface->iov_data;
 
-	/* check again now that we are in the RCU block */
+	/* check again yesw that we are in the RCU block */
 	if (!iov_data)
 		goto read_unlock;
 
@@ -200,7 +200,7 @@ s32 fm10k_iov_mbx(struct fm10k_intfc *interface)
 	struct fm10k_iov_data *iov_data;
 	int i;
 
-	/* if there is no iov_data then there is no mailbox to process */
+	/* if there is yes iov_data then there is yes mailbox to process */
 	if (!READ_ONCE(interface->iov_data))
 		return 0;
 
@@ -208,7 +208,7 @@ s32 fm10k_iov_mbx(struct fm10k_intfc *interface)
 
 	iov_data = interface->iov_data;
 
-	/* check again now that we are in the RCU block */
+	/* check again yesw that we are in the RCU block */
 	if (!iov_data)
 		goto read_unlock;
 
@@ -220,7 +220,7 @@ s32 fm10k_iov_mbx(struct fm10k_intfc *interface)
 	 * messages processed at once could cause a mailbox timeout on the PF.
 	 * To prevent this, store a pointer to the next VF mbx to process. Use
 	 * that as the start of the loop so that we don't starve whichever VF
-	 * got ignored on the previous run.
+	 * got igyesred on the previous run.
 	 */
 process_mbx:
 	for (i = iov_data->next_vf_mbx ? : iov_data->num_vfs; i--;) {
@@ -231,7 +231,7 @@ process_mbx:
 		/* process the SM mailbox first to drain outgoing messages */
 		hw->mbx.ops.process(hw, &hw->mbx);
 
-		/* verify port mapping is valid, if not reset port */
+		/* verify port mapping is valid, if yest reset port */
 		if (vf_info->vf_flags && !fm10k_glort_valid_pf(hw, glort)) {
 			hw->iov.ops.reset_lport(hw, vf_info);
 			fm10k_clear_macvlan_queue(interface, glort, false);
@@ -315,7 +315,7 @@ static void fm10k_mask_aer_comp_abort(struct pci_dev *pdev)
 	/* Mask the completion abort bit in the ERR_UNCOR_MASK register,
 	 * preventing the device from reporting these errors to the upstream
 	 * PCIe root device. This avoids bringing down platforms which upgrade
-	 * non-fatal completer aborts into machine check exceptions. Completer
+	 * yesn-fatal completer aborts into machine check exceptions. Completer
 	 * aborts can occur whenever a VF reads a queue it doesn't own.
 	 */
 	pci_read_config_dword(pdev, pos + PCI_ERR_UNCOR_MASK, &err_mask);
@@ -334,7 +334,7 @@ int fm10k_iov_resume(struct pci_dev *pdev)
 	/* pull out num_vfs from iov_data */
 	num_vfs = iov_data ? iov_data->num_vfs : 0;
 
-	/* return error if iov_data is not already populated */
+	/* return error if iov_data is yest already populated */
 	if (!iov_data)
 		return -ENOMEM;
 
@@ -373,7 +373,7 @@ int fm10k_iov_resume(struct pci_dev *pdev)
 		/* mailbox is disconnected so we don't send a message */
 		hw->iov.ops.assign_default_mac_vlan(hw, vf_info);
 
-		/* now we are ready so we can connect */
+		/* yesw we are ready so we can connect */
 		vf_info->mbx.ops.connect(hw, &vf_info->mbx);
 	}
 
@@ -387,15 +387,15 @@ s32 fm10k_iov_update_pvid(struct fm10k_intfc *interface, u16 glort, u16 pvid)
 	struct fm10k_vf_info *vf_info;
 	u16 vf_idx = (glort - hw->mac.dglort_map) & FM10K_DGLORTMAP_NONE;
 
-	/* no IOV support, not our message to process */
+	/* yes IOV support, yest our message to process */
 	if (!iov_data)
 		return FM10K_ERR_PARAM;
 
-	/* glort outside our range, not our message to process */
+	/* glort outside our range, yest our message to process */
 	if (vf_idx >= iov_data->num_vfs)
 		return FM10K_ERR_PARAM;
 
-	/* determine if an update has occurred and if so notify the VF */
+	/* determine if an update has occurred and if so yestify the VF */
 	vf_info = &iov_data->vf_info[vf_idx];
 	if (vf_info->sw_vid != pvid) {
 		vf_info->sw_vid = pvid;
@@ -436,7 +436,7 @@ static s32 fm10k_iov_alloc_data(struct pci_dev *pdev, int num_vfs)
 	if (!hw->iov.ops.assign_resources)
 		return -ENODEV;
 
-	/* nothing to do if no VFs are requested */
+	/* yesthing to do if yes VFs are requested */
 	if (!num_vfs)
 		return 0;
 
@@ -481,7 +481,7 @@ void fm10k_iov_disable(struct pci_dev *pdev)
 {
 	if (pci_num_vf(pdev) && pci_vfs_assigned(pdev))
 		dev_err(&pdev->dev,
-			"Cannot disable SR-IOV while VFs are assigned\n");
+			"Canyest disable SR-IOV while VFs are assigned\n");
 	else
 		pci_disable_sriov(pdev);
 
@@ -495,7 +495,7 @@ int fm10k_iov_configure(struct pci_dev *pdev, int num_vfs)
 
 	if (current_vfs && pci_vfs_assigned(pdev)) {
 		dev_err(&pdev->dev,
-			"Cannot modify SR-IOV while VFs are assigned\n");
+			"Canyest modify SR-IOV while VFs are assigned\n");
 		num_vfs = current_vfs;
 	} else {
 		pci_disable_sriov(pdev);
@@ -507,7 +507,7 @@ int fm10k_iov_configure(struct pci_dev *pdev, int num_vfs)
 	if (err)
 		return err;
 
-	/* allocate VFs if not already allocated */
+	/* allocate VFs if yest already allocated */
 	if (num_vfs && num_vfs != current_vfs) {
 		err = pci_enable_sriov(pdev, num_vfs);
 		if (err) {
@@ -609,7 +609,7 @@ int fm10k_ndo_set_vf_vlan(struct net_device *netdev, int vf_idx, u16 vid,
 
 	vf_info = &iov_data->vf_info[vf_idx];
 
-	/* exit if there is nothing to do */
+	/* exit if there is yesthing to do */
 	if (vf_info->pf_vid == vid)
 		return 0;
 
@@ -635,7 +635,7 @@ int fm10k_ndo_set_vf_bw(struct net_device *netdev, int vf_idx,
 	if (!iov_data || vf_idx >= iov_data->num_vfs)
 		return -EINVAL;
 
-	/* rate limit cannot be less than 10Mbs or greater than link speed */
+	/* rate limit canyest be less than 10Mbs or greater than link speed */
 	if (max_rate &&
 	    (max_rate < FM10K_VF_TC_MIN || max_rate > FM10K_VF_TC_MAX))
 		return -EINVAL;

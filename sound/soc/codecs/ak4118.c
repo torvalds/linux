@@ -215,7 +215,7 @@ static int ak4118_set_dai_fmt(struct snd_soc_dai *dai,
 		goto exit;
 	}
 
-	/* format not supported */
+	/* format yest supported */
 	if (dif < 0) {
 		ret = dif;
 		goto exit;
@@ -280,7 +280,7 @@ static irqreturn_t ak4118_irq_handler(int irq, void *data)
 		if (!kctl)
 			continue;
 		id = &kctl->id;
-		snd_ctl_notify(component->card->snd_card,
+		snd_ctl_yestify(component->card->snd_card,
 			       SNDRV_CTL_EVENT_MASK_VALUE, id);
 	}
 
@@ -344,7 +344,7 @@ static const struct snd_soc_component_driver soc_component_drv_ak4118 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ak4118_regmap = {

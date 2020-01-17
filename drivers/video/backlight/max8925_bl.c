@@ -100,7 +100,7 @@ static const struct backlight_ops max8925_backlight_ops = {
 
 static void max8925_backlight_dt_init(struct platform_device *pdev)
 {
-	struct device_node *nproot = pdev->dev.parent->of_node, *np;
+	struct device_yesde *nproot = pdev->dev.parent->of_yesde, *np;
 	struct max8925_backlight_pdata *pdata;
 	u32 val;
 
@@ -115,14 +115,14 @@ static void max8925_backlight_dt_init(struct platform_device *pdev)
 
 	np = of_get_child_by_name(nproot, "backlight");
 	if (!np) {
-		dev_err(&pdev->dev, "failed to find backlight node\n");
+		dev_err(&pdev->dev, "failed to find backlight yesde\n");
 		return;
 	}
 
 	if (!of_property_read_u32(np, "maxim,max8925-dual-string", &val))
 		pdata->dual_string = val;
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	pdev->dev.platform_data = pdata;
 }

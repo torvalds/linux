@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/input.h>
@@ -181,7 +181,7 @@ palmz71_get_pendown_state(void)
 
 static const struct ads7846_platform_data palmz71_ts_info = {
 	.model			= 7846,
-	.vref_delay_usecs	= 100,	/* internal, no capacitor */
+	.vref_delay_usecs	= 100,	/* internal, yes capacitor */
 	.x_plate_ohms		= 419,
 	.y_plate_ohms		= 486,
 	.get_pendown_state	= palmz71_get_pendown_state,
@@ -242,7 +242,7 @@ palmz71_gpio_setup(int early)
 	} else {
 		/* Set MMC/SD host WP pin as input */
 		if (gpio_request(PALMZ71_MMC_WP_GPIO, "MMC WP") < 0) {
-			printk(KERN_ERR "Could not reserve WP GPIO!\n");
+			printk(KERN_ERR "Could yest reserve WP GPIO!\n");
 			return;
 		}
 		gpio_direction_input(PALMZ71_MMC_WP_GPIO);
@@ -250,7 +250,7 @@ palmz71_gpio_setup(int early)
 		/* Monitor the Power-cable-connected signal */
 		if (gpio_request(PALMZ71_USBDETECT_GPIO, "USB detect") < 0) {
 			printk(KERN_ERR
-				"Could not reserve cable signal GPIO!\n");
+				"Could yest reserve cable signal GPIO!\n");
 			return;
 		}
 		gpio_direction_input(PALMZ71_USBDETECT_GPIO);

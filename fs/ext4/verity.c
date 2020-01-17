@@ -29,16 +29,16 @@
 #include "ext4_extents.h"
 #include "ext4_jbd2.h"
 
-static inline loff_t ext4_verity_metadata_pos(const struct inode *inode)
+static inline loff_t ext4_verity_metadata_pos(const struct iyesde *iyesde)
 {
-	return round_up(inode->i_size, 65536);
+	return round_up(iyesde->i_size, 65536);
 }
 
 /*
- * Read some verity metadata from the inode.  __vfs_read() can't be used because
+ * Read some verity metadata from the iyesde.  __vfs_read() can't be used because
  * we need to read beyond i_size.
  */
-static int pagecache_read(struct inode *inode, void *buf, size_t count,
+static int pagecache_read(struct iyesde *iyesde, void *buf, size_t count,
 			  loff_t pos)
 {
 	while (count) {
@@ -47,7 +47,7 @@ static int pagecache_read(struct inode *inode, void *buf, size_t count,
 		struct page *page;
 		void *addr;
 
-		page = read_mapping_page(inode->i_mapping, pos >> PAGE_SHIFT,
+		page = read_mapping_page(iyesde->i_mapping, pos >> PAGE_SHIFT,
 					 NULL);
 		if (IS_ERR(page))
 			return PTR_ERR(page);
@@ -66,13 +66,13 @@ static int pagecache_read(struct inode *inode, void *buf, size_t count,
 }
 
 /*
- * Write some verity metadata to the inode for FS_IOC_ENABLE_VERITY.
+ * Write some verity metadata to the iyesde for FS_IOC_ENABLE_VERITY.
  * kernel_write() can't be used because the file descriptor is readonly.
  */
-static int pagecache_write(struct inode *inode, const void *buf, size_t count,
+static int pagecache_write(struct iyesde *iyesde, const void *buf, size_t count,
 			   loff_t pos)
 {
-	if (pos + count > inode->i_sb->s_maxbytes)
+	if (pos + count > iyesde->i_sb->s_maxbytes)
 		return -EFBIG;
 
 	while (count) {
@@ -83,7 +83,7 @@ static int pagecache_write(struct inode *inode, const void *buf, size_t count,
 		void *addr;
 		int res;
 
-		res = pagecache_write_begin(NULL, inode->i_mapping, pos, n, 0,
+		res = pagecache_write_begin(NULL, iyesde->i_mapping, pos, n, 0,
 					    &page, &fsdata);
 		if (res)
 			return res;
@@ -92,7 +92,7 @@ static int pagecache_write(struct inode *inode, const void *buf, size_t count,
 		memcpy(addr + offset_in_page(pos), buf, n);
 		kunmap_atomic(addr);
 
-		res = pagecache_write_end(NULL, inode->i_mapping, pos, n, n,
+		res = pagecache_write_end(NULL, iyesde->i_mapping, pos, n, n,
 					  page, fsdata);
 		if (res < 0)
 			return res;
@@ -108,34 +108,34 @@ static int pagecache_write(struct inode *inode, const void *buf, size_t count,
 
 static int ext4_begin_enable_verity(struct file *filp)
 {
-	struct inode *inode = file_inode(filp);
-	const int credits = 2; /* superblock and inode for ext4_orphan_add() */
+	struct iyesde *iyesde = file_iyesde(filp);
+	const int credits = 2; /* superblock and iyesde for ext4_orphan_add() */
 	handle_t *handle;
 	int err;
 
-	if (ext4_verity_in_progress(inode))
+	if (ext4_verity_in_progress(iyesde))
 		return -EBUSY;
 
 	/*
 	 * Since the file was opened readonly, we have to initialize the jbd
-	 * inode and quotas here and not rely on ->open() doing it.  This must
+	 * iyesde and quotas here and yest rely on ->open() doing it.  This must
 	 * be done before evicting the inline data.
 	 */
 
-	err = ext4_inode_attach_jinode(inode);
+	err = ext4_iyesde_attach_jiyesde(iyesde);
 	if (err)
 		return err;
 
-	err = dquot_initialize(inode);
+	err = dquot_initialize(iyesde);
 	if (err)
 		return err;
 
-	err = ext4_convert_inline_data(inode);
+	err = ext4_convert_inline_data(iyesde);
 	if (err)
 		return err;
 
-	if (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) {
-		ext4_warning_inode(inode,
+	if (!ext4_test_iyesde_flag(iyesde, EXT4_INODE_EXTENTS)) {
+		ext4_warning_iyesde(iyesde,
 				   "verity is only allowed on extent-based files");
 		return -EOPNOTSUPP;
 	}
@@ -144,17 +144,17 @@ static int ext4_begin_enable_verity(struct file *filp)
 	 * ext4 uses the last allocated block to find the verity descriptor, so
 	 * we must remove any other blocks past EOF which might confuse things.
 	 */
-	err = ext4_truncate(inode);
+	err = ext4_truncate(iyesde);
 	if (err)
 		return err;
 
-	handle = ext4_journal_start(inode, EXT4_HT_INODE, credits);
+	handle = ext4_journal_start(iyesde, EXT4_HT_INODE, credits);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
-	err = ext4_orphan_add(handle, inode);
+	err = ext4_orphan_add(handle, iyesde);
 	if (err == 0)
-		ext4_set_inode_state(inode, EXT4_STATE_VERITY_IN_PROGRESS);
+		ext4_set_iyesde_state(iyesde, EXT4_STATE_VERITY_IN_PROGRESS);
 
 	ext4_journal_stop(handle);
 	return err;
@@ -172,84 +172,84 @@ static int ext4_begin_enable_verity(struct file *filp)
  * xattrs.  Also, if the descriptor includes a large signature blob it may be
  * too large to store in an xattr without the EA_INODE feature.
  */
-static int ext4_write_verity_descriptor(struct inode *inode, const void *desc,
+static int ext4_write_verity_descriptor(struct iyesde *iyesde, const void *desc,
 					size_t desc_size, u64 merkle_tree_size)
 {
-	const u64 desc_pos = round_up(ext4_verity_metadata_pos(inode) +
-				      merkle_tree_size, i_blocksize(inode));
+	const u64 desc_pos = round_up(ext4_verity_metadata_pos(iyesde) +
+				      merkle_tree_size, i_blocksize(iyesde));
 	const u64 desc_end = desc_pos + desc_size;
 	const __le32 desc_size_disk = cpu_to_le32(desc_size);
 	const u64 desc_size_pos = round_up(desc_end + sizeof(desc_size_disk),
-					   i_blocksize(inode)) -
+					   i_blocksize(iyesde)) -
 				  sizeof(desc_size_disk);
 	int err;
 
-	err = pagecache_write(inode, desc, desc_size, desc_pos);
+	err = pagecache_write(iyesde, desc, desc_size, desc_pos);
 	if (err)
 		return err;
 
-	return pagecache_write(inode, &desc_size_disk, sizeof(desc_size_disk),
+	return pagecache_write(iyesde, &desc_size_disk, sizeof(desc_size_disk),
 			       desc_size_pos);
 }
 
 static int ext4_end_enable_verity(struct file *filp, const void *desc,
 				  size_t desc_size, u64 merkle_tree_size)
 {
-	struct inode *inode = file_inode(filp);
-	const int credits = 2; /* superblock and inode for ext4_orphan_del() */
+	struct iyesde *iyesde = file_iyesde(filp);
+	const int credits = 2; /* superblock and iyesde for ext4_orphan_del() */
 	handle_t *handle;
 	int err = 0;
 	int err2;
 
 	if (desc != NULL) {
 		/* Succeeded; write the verity descriptor. */
-		err = ext4_write_verity_descriptor(inode, desc, desc_size,
+		err = ext4_write_verity_descriptor(iyesde, desc, desc_size,
 						   merkle_tree_size);
 
 		/* Write all pages before clearing VERITY_IN_PROGRESS. */
 		if (!err)
-			err = filemap_write_and_wait(inode->i_mapping);
+			err = filemap_write_and_wait(iyesde->i_mapping);
 	}
 
 	/* If we failed, truncate anything we wrote past i_size. */
 	if (desc == NULL || err)
-		ext4_truncate(inode);
+		ext4_truncate(iyesde);
 
 	/*
 	 * We must always clean up by clearing EXT4_STATE_VERITY_IN_PROGRESS and
-	 * deleting the inode from the orphan list, even if something failed.
+	 * deleting the iyesde from the orphan list, even if something failed.
 	 * If everything succeeded, we'll also set the verity bit in the same
 	 * transaction.
 	 */
 
-	ext4_clear_inode_state(inode, EXT4_STATE_VERITY_IN_PROGRESS);
+	ext4_clear_iyesde_state(iyesde, EXT4_STATE_VERITY_IN_PROGRESS);
 
-	handle = ext4_journal_start(inode, EXT4_HT_INODE, credits);
+	handle = ext4_journal_start(iyesde, EXT4_HT_INODE, credits);
 	if (IS_ERR(handle)) {
-		ext4_orphan_del(NULL, inode);
+		ext4_orphan_del(NULL, iyesde);
 		return PTR_ERR(handle);
 	}
 
-	err2 = ext4_orphan_del(handle, inode);
+	err2 = ext4_orphan_del(handle, iyesde);
 	if (err2)
 		goto out_stop;
 
 	if (desc != NULL && !err) {
 		struct ext4_iloc iloc;
 
-		err = ext4_reserve_inode_write(handle, inode, &iloc);
+		err = ext4_reserve_iyesde_write(handle, iyesde, &iloc);
 		if (err)
 			goto out_stop;
-		ext4_set_inode_flag(inode, EXT4_INODE_VERITY);
-		ext4_set_inode_flags(inode);
-		err = ext4_mark_iloc_dirty(handle, inode, &iloc);
+		ext4_set_iyesde_flag(iyesde, EXT4_INODE_VERITY);
+		ext4_set_iyesde_flags(iyesde);
+		err = ext4_mark_iloc_dirty(handle, iyesde, &iloc);
 	}
 out_stop:
 	ext4_journal_stop(handle);
 	return err ?: err2;
 }
 
-static int ext4_get_verity_descriptor_location(struct inode *inode,
+static int ext4_get_verity_descriptor_location(struct iyesde *iyesde,
 					       size_t *desc_size_ret,
 					       u64 *desc_pos_ret)
 {
@@ -267,18 +267,18 @@ static int ext4_get_verity_descriptor_location(struct inode *inode,
 	 * See ext4_write_verity_descriptor().
 	 */
 
-	if (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) {
-		EXT4_ERROR_INODE(inode, "verity file doesn't use extents");
+	if (!ext4_test_iyesde_flag(iyesde, EXT4_INODE_EXTENTS)) {
+		EXT4_ERROR_INODE(iyesde, "verity file doesn't use extents");
 		return -EFSCORRUPTED;
 	}
 
-	path = ext4_find_extent(inode, EXT_MAX_BLOCKS - 1, NULL, 0);
+	path = ext4_find_extent(iyesde, EXT_MAX_BLOCKS - 1, NULL, 0);
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 
 	last_extent = path[path->p_depth].p_ext;
 	if (!last_extent) {
-		EXT4_ERROR_INODE(inode, "verity file has no extents");
+		EXT4_ERROR_INODE(iyesde, "verity file has yes extents");
 		ext4_ext_drop_refs(path);
 		kfree(path);
 		return -EFSCORRUPTED;
@@ -286,7 +286,7 @@ static int ext4_get_verity_descriptor_location(struct inode *inode,
 
 	end_lblk = le32_to_cpu(last_extent->ee_block) +
 		   ext4_ext_get_actual_len(last_extent);
-	desc_size_pos = (u64)end_lblk << inode->i_blkbits;
+	desc_size_pos = (u64)end_lblk << iyesde->i_blkbits;
 	ext4_ext_drop_refs(path);
 	kfree(path);
 
@@ -294,7 +294,7 @@ static int ext4_get_verity_descriptor_location(struct inode *inode,
 		goto bad;
 	desc_size_pos -= sizeof(desc_size_disk);
 
-	err = pagecache_read(inode, &desc_size_disk, sizeof(desc_size_disk),
+	err = pagecache_read(iyesde, &desc_size_disk, sizeof(desc_size_disk),
 			     desc_size_pos);
 	if (err)
 		return err;
@@ -308,8 +308,8 @@ static int ext4_get_verity_descriptor_location(struct inode *inode,
 	if (desc_size > INT_MAX || desc_size > desc_size_pos)
 		goto bad;
 
-	desc_pos = round_down(desc_size_pos - desc_size, i_blocksize(inode));
-	if (desc_pos < ext4_verity_metadata_pos(inode))
+	desc_pos = round_down(desc_size_pos - desc_size, i_blocksize(iyesde));
+	if (desc_pos < ext4_verity_metadata_pos(iyesde))
 		goto bad;
 
 	*desc_size_ret = desc_size;
@@ -317,45 +317,45 @@ static int ext4_get_verity_descriptor_location(struct inode *inode,
 	return 0;
 
 bad:
-	EXT4_ERROR_INODE(inode, "verity file corrupted; can't find descriptor");
+	EXT4_ERROR_INODE(iyesde, "verity file corrupted; can't find descriptor");
 	return -EFSCORRUPTED;
 }
 
-static int ext4_get_verity_descriptor(struct inode *inode, void *buf,
+static int ext4_get_verity_descriptor(struct iyesde *iyesde, void *buf,
 				      size_t buf_size)
 {
 	size_t desc_size = 0;
 	u64 desc_pos = 0;
 	int err;
 
-	err = ext4_get_verity_descriptor_location(inode, &desc_size, &desc_pos);
+	err = ext4_get_verity_descriptor_location(iyesde, &desc_size, &desc_pos);
 	if (err)
 		return err;
 
 	if (buf_size) {
 		if (desc_size > buf_size)
 			return -ERANGE;
-		err = pagecache_read(inode, buf, desc_size, desc_pos);
+		err = pagecache_read(iyesde, buf, desc_size, desc_pos);
 		if (err)
 			return err;
 	}
 	return desc_size;
 }
 
-static struct page *ext4_read_merkle_tree_page(struct inode *inode,
+static struct page *ext4_read_merkle_tree_page(struct iyesde *iyesde,
 					       pgoff_t index)
 {
-	index += ext4_verity_metadata_pos(inode) >> PAGE_SHIFT;
+	index += ext4_verity_metadata_pos(iyesde) >> PAGE_SHIFT;
 
-	return read_mapping_page(inode->i_mapping, index, NULL);
+	return read_mapping_page(iyesde->i_mapping, index, NULL);
 }
 
-static int ext4_write_merkle_tree_block(struct inode *inode, const void *buf,
+static int ext4_write_merkle_tree_block(struct iyesde *iyesde, const void *buf,
 					u64 index, int log_blocksize)
 {
-	loff_t pos = ext4_verity_metadata_pos(inode) + (index << log_blocksize);
+	loff_t pos = ext4_verity_metadata_pos(iyesde) + (index << log_blocksize);
 
-	return pagecache_write(inode, buf, 1 << log_blocksize, pos);
+	return pagecache_write(iyesde, buf, 1 << log_blocksize, pos);
 }
 
 const struct fsverity_operations ext4_verityops = {

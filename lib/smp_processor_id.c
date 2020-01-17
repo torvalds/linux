@@ -8,7 +8,7 @@
 #include <linux/kprobes.h>
 #include <linux/sched.h>
 
-notrace static nokprobe_inline
+yestrace static yeskprobe_inline
 unsigned int check_preemption_disabled(const char *what1, const char *what2)
 {
 	int this_cpu = raw_smp_processor_id();
@@ -35,7 +35,7 @@ unsigned int check_preemption_disabled(const char *what1, const char *what2)
 	/*
 	 * Avoid recursion:
 	 */
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 
 	if (!printk_ratelimit())
 		goto out_enable;
@@ -47,19 +47,19 @@ unsigned int check_preemption_disabled(const char *what1, const char *what2)
 	dump_stack();
 
 out_enable:
-	preempt_enable_no_resched_notrace();
+	preempt_enable_yes_resched_yestrace();
 out:
 	return this_cpu;
 }
 
-notrace unsigned int debug_smp_processor_id(void)
+yestrace unsigned int debug_smp_processor_id(void)
 {
 	return check_preemption_disabled("smp_processor_id", "");
 }
 EXPORT_SYMBOL(debug_smp_processor_id);
 NOKPROBE_SYMBOL(debug_smp_processor_id);
 
-notrace void __this_cpu_preempt_check(const char *op)
+yestrace void __this_cpu_preempt_check(const char *op)
 {
 	check_preemption_disabled("__this_cpu_", op);
 }

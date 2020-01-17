@@ -16,7 +16,7 @@
  * http://www.iitb.ac.in
  *
  * Notes :
- * - Dynalog India Pvt. Ltd. does not have a registered PCI Vendor ID and
+ * - Dynalog India Pvt. Ltd. does yest have a registered PCI Vendor ID and
  *   they are using the PLX Technlogies Vendor ID since that is the PCI Chip
  *   used in the card.
  * - Dynalog India Pvt. Ltd. has provided the internal register specification

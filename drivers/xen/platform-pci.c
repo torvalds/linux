@@ -4,7 +4,7 @@
  *
  * Xen platform PCI device driver
  *
- * Authors: ssmith@xensource.com and stefano.stabellini@eu.citrix.com
+ * Authors: ssmith@xensource.com and stefayes.stabellini@eu.citrix.com
  *
  * Copyright (c) 2005, Intel Corporation.
  * Copyright (c) 2007, XenSource Inc.
@@ -53,7 +53,7 @@ static uint64_t get_callback_via(struct pci_dev *pdev)
 
 	pin = pdev->pin;
 
-	/* We don't know the GSI. Specify the PCI INTx line instead. */
+	/* We don't kyesw the GSI. Specify the PCI INTx line instead. */
 	return ((uint64_t)0x01 << HVM_CALLBACK_VIA_TYPE_SHIFT) | /* PCI INTx identifier */
 		((uint64_t)pci_domain_nr(pdev->bus) << 32) |
 		((uint64_t)pdev->bus->number << 16) |
@@ -111,7 +111,7 @@ static int platform_pci_probe(struct pci_dev *pdev,
 	mmio_len = pci_resource_len(pdev, 1);
 
 	if (mmio_addr == 0 || ioaddr == 0) {
-		dev_err(&pdev->dev, "no resources found\n");
+		dev_err(&pdev->dev, "yes resources found\n");
 		ret = -ENOENT;
 		goto pci_out;
 	}
@@ -169,7 +169,7 @@ static const struct pci_device_id platform_pci_tbl[] = {
 };
 
 static struct dev_pm_ops platform_pm_ops = {
-	.resume_noirq =   platform_pci_resume,
+	.resume_yesirq =   platform_pci_resume,
 };
 
 static struct pci_driver platform_driver = {

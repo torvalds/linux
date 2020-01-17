@@ -34,7 +34,7 @@ struct blkcg;
 extern int blk_trace_ioctl(struct block_device *, unsigned, char __user *);
 extern void blk_trace_shutdown(struct request_queue *);
 extern __printf(3, 4)
-void __trace_note_message(struct blk_trace *, struct blkcg *blkcg, const char *fmt, ...);
+void __trace_yeste_message(struct blk_trace *, struct blkcg *blkcg, const char *fmt, ...);
 
 /**
  * blk_add_trace_msg - Add a (simple) message to the blktrace stream
@@ -46,20 +46,20 @@ void __trace_note_message(struct blk_trace *, struct blkcg *blkcg, const char *f
  *     Records a (simple) message onto the blktrace stream.
  *
  *     NOTE: BLK_TN_MAX_MSG characters are output at most.
- *     NOTE: Can not use 'static inline' due to presence of var args...
+ *     NOTE: Can yest use 'static inline' due to presence of var args...
  *
  **/
 #define blk_add_cgroup_trace_msg(q, cg, fmt, ...)			\
 	do {								\
 		struct blk_trace *bt = (q)->blk_trace;			\
 		if (unlikely(bt))					\
-			__trace_note_message(bt, cg, fmt, ##__VA_ARGS__);\
+			__trace_yeste_message(bt, cg, fmt, ##__VA_ARGS__);\
 	} while (0)
 #define blk_add_trace_msg(q, fmt, ...)					\
 	blk_add_cgroup_trace_msg(q, NULL, fmt, ##__VA_ARGS__)
 #define BLK_TN_MAX_MSG		128
 
-static inline bool blk_trace_note_message_enabled(struct request_queue *q)
+static inline bool blk_trace_yeste_message_enabled(struct request_queue *q)
 {
 	struct blk_trace *bt = q->blk_trace;
 	if (likely(!bt))
@@ -89,7 +89,7 @@ extern struct attribute_group blk_trace_attr_group;
 # define blk_add_trace_msg(q, fmt, ...)			do { } while (0)
 # define blk_add_cgroup_trace_msg(q, cg, fmt, ...)	do { } while (0)
 # define blk_trace_remove_sysfs(dev)			do { } while (0)
-# define blk_trace_note_message_enabled(q)		(false)
+# define blk_trace_yeste_message_enabled(q)		(false)
 static inline int blk_trace_init_sysfs(struct device *dev)
 {
 	return 0;
@@ -117,7 +117,7 @@ extern void blk_fill_rwbs(char *rwbs, unsigned int op, int bytes);
 static inline sector_t blk_rq_trace_sector(struct request *rq)
 {
 	/*
-	 * Tracing should ignore starting sector for passthrough requests and
+	 * Tracing should igyesre starting sector for passthrough requests and
 	 * requests where starting sector didn't get set.
 	 */
 	if (blk_rq_is_passthrough(rq) || blk_rq_pos(rq) == (sector_t)-1)

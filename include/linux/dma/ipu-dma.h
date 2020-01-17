@@ -30,7 +30,7 @@ enum ipu_channel {
 	IDMAC_IC_11 = 11,
 	IDMAC_IC_12 = 12,
 	IDMAC_IC_13 = 13,
-	IDMAC_SDC_0 = 14,	/* Background synchronous display data */
+	IDMAC_SDC_0 = 14,	/* Background synchroyesus display data */
 	IDMAC_SDC_1 = 15,	/* Foreground data (overlay) */
 	IDMAC_SDC_2 = 16,
 	IDMAC_SDC_3 = 17,

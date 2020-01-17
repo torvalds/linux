@@ -29,43 +29,43 @@
 #include <linux/seq_file.h>
 #include <linux/exportfs.h>
 #include "compr.h"
-#include "nodelist.h"
+#include "yesdelist.h"
 
 static void jffs2_put_super(struct super_block *);
 
-static struct kmem_cache *jffs2_inode_cachep;
+static struct kmem_cache *jffs2_iyesde_cachep;
 
-static struct inode *jffs2_alloc_inode(struct super_block *sb)
+static struct iyesde *jffs2_alloc_iyesde(struct super_block *sb)
 {
-	struct jffs2_inode_info *f;
+	struct jffs2_iyesde_info *f;
 
-	f = kmem_cache_alloc(jffs2_inode_cachep, GFP_KERNEL);
+	f = kmem_cache_alloc(jffs2_iyesde_cachep, GFP_KERNEL);
 	if (!f)
 		return NULL;
-	return &f->vfs_inode;
+	return &f->vfs_iyesde;
 }
 
-static void jffs2_free_inode(struct inode *inode)
+static void jffs2_free_iyesde(struct iyesde *iyesde)
 {
-	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
+	struct jffs2_iyesde_info *f = JFFS2_INODE_INFO(iyesde);
 
 	kfree(f->target);
-	kmem_cache_free(jffs2_inode_cachep, f);
+	kmem_cache_free(jffs2_iyesde_cachep, f);
 }
 
 static void jffs2_i_init_once(void *foo)
 {
-	struct jffs2_inode_info *f = foo;
+	struct jffs2_iyesde_info *f = foo;
 
 	mutex_init(&f->sem);
-	inode_init_once(&f->vfs_inode);
+	iyesde_init_once(&f->vfs_iyesde);
 }
 
 static const char *jffs2_compr_name(unsigned int compr)
 {
 	switch (compr) {
 	case JFFS2_COMPR_MODE_NONE:
-		return "none";
+		return "yesne";
 #ifdef CONFIG_JFFS2_LZO
 	case JFFS2_COMPR_MODE_FORCELZO:
 		return "lzo";
@@ -109,44 +109,44 @@ static int jffs2_sync_fs(struct super_block *sb, int wait)
 	return 0;
 }
 
-static struct inode *jffs2_nfs_get_inode(struct super_block *sb, uint64_t ino,
+static struct iyesde *jffs2_nfs_get_iyesde(struct super_block *sb, uint64_t iyes,
 					 uint32_t generation)
 {
 	/* We don't care about i_generation. We'll destroy the flash
-	   before we start re-using inode numbers anyway. And even
+	   before we start re-using iyesde numbers anyway. And even
 	   if that wasn't true, we'd have other problems...*/
-	return jffs2_iget(sb, ino);
+	return jffs2_iget(sb, iyes);
 }
 
 static struct dentry *jffs2_fh_to_dentry(struct super_block *sb, struct fid *fid,
 					 int fh_len, int fh_type)
 {
         return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
-                                    jffs2_nfs_get_inode);
+                                    jffs2_nfs_get_iyesde);
 }
 
 static struct dentry *jffs2_fh_to_parent(struct super_block *sb, struct fid *fid,
 					 int fh_len, int fh_type)
 {
         return generic_fh_to_parent(sb, fid, fh_len, fh_type,
-                                    jffs2_nfs_get_inode);
+                                    jffs2_nfs_get_iyesde);
 }
 
 static struct dentry *jffs2_get_parent(struct dentry *child)
 {
-	struct jffs2_inode_info *f;
-	uint32_t pino;
+	struct jffs2_iyesde_info *f;
+	uint32_t piyes;
 
 	BUG_ON(!d_is_dir(child));
 
-	f = JFFS2_INODE_INFO(d_inode(child));
+	f = JFFS2_INODE_INFO(d_iyesde(child));
 
-	pino = f->inocache->pino_nlink;
+	piyes = f->iyescache->piyes_nlink;
 
-	JFFS2_DEBUG("Parent of directory ino #%u is #%u\n",
-		    f->inocache->ino, pino);
+	JFFS2_DEBUG("Parent of directory iyes #%u is #%u\n",
+		    f->iyescache->iyes, piyes);
 
-	return d_obtain_alias(jffs2_iget(child->d_sb, pino));
+	return d_obtain_alias(jffs2_iget(child->d_sb, piyes));
 }
 
 static const struct export_operations jffs2_export_ops = {
@@ -174,7 +174,7 @@ static const struct fs_parameter_spec jffs2_param_specs[] = {
 };
 
 static const struct fs_parameter_enum jffs2_param_enums[] = {
-	{ Opt_override_compr,	"none",	JFFS2_COMPR_MODE_NONE },
+	{ Opt_override_compr,	"yesne",	JFFS2_COMPR_MODE_NONE },
 #ifdef CONFIG_JFFS2_LZO
 	{ Opt_override_compr,	"lzo",	JFFS2_COMPR_MODE_FORCELZO },
 #endif
@@ -231,12 +231,12 @@ static int jffs2_reconfigure(struct fs_context *fc)
 
 static const struct super_operations jffs2_super_operations =
 {
-	.alloc_inode =	jffs2_alloc_inode,
-	.free_inode =	jffs2_free_inode,
+	.alloc_iyesde =	jffs2_alloc_iyesde,
+	.free_iyesde =	jffs2_free_iyesde,
 	.put_super =	jffs2_put_super,
 	.statfs =	jffs2_statfs,
-	.evict_inode =	jffs2_evict_inode,
-	.dirty_inode =	jffs2_dirty_inode,
+	.evict_iyesde =	jffs2_evict_iyesde,
+	.dirty_iyesde =	jffs2_dirty_iyesde,
 	.show_options =	jffs2_show_options,
 	.sync_fs =	jffs2_sync_fs,
 };
@@ -260,9 +260,9 @@ static int jffs2_fill_super(struct super_block *sb, struct fs_context *fc)
 	mutex_init(&c->alloc_sem);
 	mutex_init(&c->erase_free_sem);
 	init_waitqueue_head(&c->erase_wait);
-	init_waitqueue_head(&c->inocache_wq);
+	init_waitqueue_head(&c->iyescache_wq);
 	spin_lock_init(&c->erase_completion_lock);
-	spin_lock_init(&c->inocache_lock);
+	spin_lock_init(&c->iyescache_lock);
 
 	sb->s_op = &jffs2_super_operations;
 	sb->s_export_op = &jffs2_export_ops;
@@ -316,11 +316,11 @@ static void jffs2_put_super (struct super_block *sb)
 
 	jffs2_sum_exit(c);
 
-	jffs2_free_ino_caches(c);
-	jffs2_free_raw_node_refs(c);
+	jffs2_free_iyes_caches(c);
+	jffs2_free_raw_yesde_refs(c);
 	kvfree(c->blocks);
 	jffs2_flash_cleanup(c);
-	kfree(c->inocache_list);
+	kfree(c->iyescache_list);
 	jffs2_clear_xattr_subsystem(c);
 	mtd_sync(c->mtd);
 	jffs2_dbg(1, "%s(): returning\n", __func__);
@@ -348,16 +348,16 @@ static int __init init_jffs2_fs(void)
 {
 	int ret;
 
-	/* Paranoia checks for on-medium structures. If we ask GCC
+	/* Parayesia checks for on-medium structures. If we ask GCC
 	   to pack them with __attribute__((packed)) then it _also_
-	   assumes that they're not aligned -- so it emits crappy
+	   assumes that they're yest aligned -- so it emits crappy
 	   code on some architectures. Ideally we want an attribute
-	   which means just 'no padding', without the alignment
+	   which means just 'yes padding', without the alignment
 	   thing. But GCC doesn't have that -- we have to just
 	   hope the structs are the right sizes, instead. */
-	BUILD_BUG_ON(sizeof(struct jffs2_unknown_node) != 12);
+	BUILD_BUG_ON(sizeof(struct jffs2_unkyeswn_yesde) != 12);
 	BUILD_BUG_ON(sizeof(struct jffs2_raw_dirent) != 40);
-	BUILD_BUG_ON(sizeof(struct jffs2_raw_inode) != 68);
+	BUILD_BUG_ON(sizeof(struct jffs2_raw_iyesde) != 68);
 	BUILD_BUG_ON(sizeof(struct jffs2_raw_summary) != 32);
 
 	pr_info("version 2.2."
@@ -369,13 +369,13 @@ static int __init init_jffs2_fs(void)
 #endif
 	       " © 2001-2006 Red Hat, Inc.\n");
 
-	jffs2_inode_cachep = kmem_cache_create("jffs2_i",
-					     sizeof(struct jffs2_inode_info),
+	jffs2_iyesde_cachep = kmem_cache_create("jffs2_i",
+					     sizeof(struct jffs2_iyesde_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     jffs2_i_init_once);
-	if (!jffs2_inode_cachep) {
-		pr_err("error: Failed to initialise inode cache\n");
+	if (!jffs2_iyesde_cachep) {
+		pr_err("error: Failed to initialise iyesde cache\n");
 		return -ENOMEM;
 	}
 	ret = jffs2_compressors_init();
@@ -400,7 +400,7 @@ static int __init init_jffs2_fs(void)
  out_compressors:
 	jffs2_compressors_exit();
  out:
-	kmem_cache_destroy(jffs2_inode_cachep);
+	kmem_cache_destroy(jffs2_iyesde_cachep);
 	return ret;
 }
 
@@ -411,11 +411,11 @@ static void __exit exit_jffs2_fs(void)
 	jffs2_compressors_exit();
 
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(jffs2_inode_cachep);
+	kmem_cache_destroy(jffs2_iyesde_cachep);
 }
 
 module_init(init_jffs2_fs);

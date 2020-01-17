@@ -18,7 +18,7 @@
 #include <sound/pcm_params.h>
 #include "q6asm.h"
 #include "q6routing.h"
-#include "q6dsp-errno.h"
+#include "q6dsp-erryes.h"
 
 #define DRV_NAME	"q6asm-fe-dai"
 
@@ -32,7 +32,7 @@
 #define CAPTURE_MIN_PERIOD_SIZE     320
 #define SID_MASK_DEFAULT	0xF
 
-/* Default values used if user space does not set */
+/* Default values used if user space does yest set */
 #define COMPR_PLAYBACK_MIN_FRAGMENT_SIZE (8 * 1024)
 #define COMPR_PLAYBACK_MAX_FRAGMENT_SIZE (128 * 1024)
 #define COMPR_PLAYBACK_MIN_NUM_FRAGMENTS (4)
@@ -305,15 +305,15 @@ static int q6asm_dai_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		ret = q6asm_run_nowait(prtd->audio_client, 0, 0, 0);
+		ret = q6asm_run_yeswait(prtd->audio_client, 0, 0, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		prtd->state = Q6ASM_STREAM_STOPPED;
-		ret = q6asm_cmd_nowait(prtd->audio_client, CMD_EOS);
+		ret = q6asm_cmd_yeswait(prtd->audio_client, CMD_EOS);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		ret = q6asm_cmd_nowait(prtd->audio_client, CMD_PAUSE);
+		ret = q6asm_cmd_yeswait(prtd->audio_client, CMD_PAUSE);
 		break;
 	default:
 		ret = -EINVAL;
@@ -339,7 +339,7 @@ static int q6asm_dai_open(struct snd_soc_component *component,
 
 	pdata = snd_soc_component_get_drvdata(component);
 	if (!pdata) {
-		pr_err("Drv data not found ..\n");
+		pr_err("Drv data yest found ..\n");
 		return -EINVAL;
 	}
 
@@ -352,7 +352,7 @@ static int q6asm_dai_open(struct snd_soc_component *component,
 				(q6asm_cb)event_handler, prtd, stream_id,
 				LEGACY_PCM_MODE);
 	if (IS_ERR(prtd->audio_client)) {
-		pr_info("%s: Could not allocate memory\n", __func__);
+		pr_info("%s: Could yest allocate memory\n", __func__);
 		ret = PTR_ERR(prtd->audio_client);
 		kfree(prtd);
 		return ret;
@@ -549,7 +549,7 @@ static int q6asm_dai_compr_open(struct snd_compr_stream *stream)
 	stream_id = cpu_dai->driver->id;
 	pdata = snd_soc_component_get_drvdata(c);
 	if (!pdata) {
-		dev_err(dev, "Drv data not found ..\n");
+		dev_err(dev, "Drv data yest found ..\n");
 		return -EINVAL;
 	}
 
@@ -562,7 +562,7 @@ static int q6asm_dai_compr_open(struct snd_compr_stream *stream)
 					(q6asm_cb)compress_event_handler,
 					prtd, stream_id, LEGACY_PCM_MODE);
 	if (IS_ERR(prtd->audio_client)) {
-		dev_err(dev, "Could not allocate memory\n");
+		dev_err(dev, "Could yest allocate memory\n");
 		ret = PTR_ERR(prtd->audio_client);
 		goto free_prtd;
 	}
@@ -572,7 +572,7 @@ static int q6asm_dai_compr_open(struct snd_compr_stream *stream)
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, dev, size,
 				  &prtd->dma_buffer);
 	if (ret) {
-		dev_err(dev, "Cannot allocate buffer(s)\n");
+		dev_err(dev, "Canyest allocate buffer(s)\n");
 		goto free_client;
 	}
 
@@ -720,15 +720,15 @@ static int q6asm_dai_compr_trigger(struct snd_compr_stream *stream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		ret = q6asm_run_nowait(prtd->audio_client, 0, 0, 0);
+		ret = q6asm_run_yeswait(prtd->audio_client, 0, 0, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		prtd->state = Q6ASM_STREAM_STOPPED;
-		ret = q6asm_cmd_nowait(prtd->audio_client, CMD_EOS);
+		ret = q6asm_cmd_yeswait(prtd->audio_client, CMD_EOS);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		ret = q6asm_cmd_nowait(prtd->audio_client, CMD_PAUSE);
+		ret = q6asm_cmd_yeswait(prtd->audio_client, CMD_PAUSE);
 		break;
 	default:
 		ret = -EINVAL;
@@ -839,7 +839,7 @@ static int q6asm_dai_pcm_new(struct snd_soc_component *component,
 		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, dev, size,
 					  &psubstream->dma_buffer);
 		if (ret) {
-			dev_err(dev, "Cannot allocate buffer(s)\n");
+			dev_err(dev, "Canyest allocate buffer(s)\n");
 			return ret;
 		}
 	}
@@ -849,7 +849,7 @@ static int q6asm_dai_pcm_new(struct snd_soc_component *component,
 		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, dev, size,
 					  &csubstream->dma_buffer);
 		if (ret) {
-			dev_err(dev, "Cannot allocate buffer(s)\n");
+			dev_err(dev, "Canyest allocate buffer(s)\n");
 			if (psubstream)
 				snd_dma_free_pages(&psubstream->dma_buffer);
 			return ret;
@@ -906,21 +906,21 @@ static int of_q6asm_parse_dai_data(struct device *dev,
 {
 	static struct snd_soc_dai_driver *dai_drv;
 	struct snd_soc_pcm_stream empty_stream;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int ret, id, dir;
 
 	memset(&empty_stream, 0, sizeof(empty_stream));
 
-	for_each_child_of_node(dev->of_node, node) {
-		ret = of_property_read_u32(node, "reg", &id);
+	for_each_child_of_yesde(dev->of_yesde, yesde) {
+		ret = of_property_read_u32(yesde, "reg", &id);
 		if (ret || id >= MAX_SESSIONS || id < 0) {
-			dev_err(dev, "valid dai id not found:%d\n", ret);
+			dev_err(dev, "valid dai id yest found:%d\n", ret);
 			continue;
 		}
 
 		dai_drv = &q6asm_fe_dais[id];
 
-		ret = of_property_read_u32(node, "direction", &dir);
+		ret = of_property_read_u32(yesde, "direction", &dir);
 		if (ret)
 			continue;
 
@@ -929,7 +929,7 @@ static int of_q6asm_parse_dai_data(struct device *dev,
 		else if (dir == Q6ASM_DAI_TX)
 			dai_drv->playback = empty_stream;
 
-		if (of_property_read_bool(node, "is-compress-dai"))
+		if (of_property_read_bool(yesde, "is-compress-dai"))
 			dai_drv->compress_new = snd_soc_new_compress;
 	}
 
@@ -939,7 +939,7 @@ static int of_q6asm_parse_dai_data(struct device *dev,
 static int q6asm_dai_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct of_phandle_args args;
 	struct q6asm_dai_data *pdata;
 	int rc;
@@ -948,7 +948,7 @@ static int q6asm_dai_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	rc = of_parse_phandle_with_fixed_args(node, "iommus", 1, 0, &args);
+	rc = of_parse_phandle_with_fixed_args(yesde, "iommus", 1, 0, &args);
 	if (rc < 0)
 		pdata->sid = -1;
 	else

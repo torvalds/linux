@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause) */
 /*
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
@@ -26,12 +26,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -71,16 +71,16 @@
 #define HFI1_USER_SWMAJOR 6
 
 /*
- * Minor version differences are always compatible
+ * Miyesr version differences are always compatible
  * a within a major version, however if user software is larger
  * than driver software, some new features and/or structure fields
- * may not be implemented; the user code must deal with this if it
+ * may yest be implemented; the user code must deal with this if it
  * cares, or it must abort after initialization reports the difference.
  */
 #define HFI1_USER_SWMINOR 3
 
 /*
- * We will encode the major/minor inside a single 32bit version number.
+ * We will encode the major/miyesr inside a single 32bit version number.
  */
 #define HFI1_SWMAJOR_SHIFT 16
 
@@ -174,7 +174,7 @@ struct hfi1_sdma_comp_entry {
 };
 
 /*
- * Device status and notifications from driver to user-space.
+ * Device status and yestifications from driver to user-space.
  */
 struct hfi1_status {
 	__aligned_u64 dev;      /* device/hw status bits */

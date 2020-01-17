@@ -3,7 +3,7 @@
  * Pistachio platform setup
  *
  * Copyright (C) 2014 Google, Inc.
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techyeslogies
  */
 
 #include <linux/init.h>
@@ -24,7 +24,7 @@
 /*
  * Core revision register decoding
  * Bits 23 to 20: Major rev
- * Bits 15 to 8: Minor rev
+ * Bits 15 to 8: Miyesr rev
  * Bits 7 to 0: Maintenance rev
  */
 #define PISTACHIO_CORE_REV_REG	0xB81483D0
@@ -58,7 +58,7 @@ const char *get_system_type(void)
 void __init *plat_get_fdt(void)
 {
 	if (fw_arg0 != -2)
-		panic("Device-tree not present");
+		panic("Device-tree yest present");
 	return (void *)fw_arg1;
 }
 

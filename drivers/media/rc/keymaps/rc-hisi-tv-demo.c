@@ -2,7 +2,7 @@
 /*
  * Keytable for remote controller of HiSilicon tv demo board.
  *
- * Copyright (c) 2017 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2017 HiSilicon Techyeslogies Co., Ltd.
  */
 
 #include <linux/module.h>

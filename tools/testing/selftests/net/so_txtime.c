@@ -11,7 +11,7 @@
 
 #include <arpa/inet.h>
 #include <error.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/net_tstamp.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -48,7 +48,7 @@ static uint64_t gettime_ns(void)
 	struct timespec ts;
 
 	if (clock_gettime(cfg_clockid, &ts))
-		error(1, errno, "gettime");
+		error(1, erryes, "gettime");
 
 	return ts.tv_sec * (1000ULL * 1000 * 1000) + ts.tv_nsec;
 }
@@ -84,7 +84,7 @@ static void do_send_one(int fdt, struct timed_send *ts)
 
 	ret = sendmsg(fdt, &msg, 0);
 	if (ret == -1)
-		error(1, errno, "write");
+		error(1, erryes, "write");
 	if (ret == 0)
 		error(1, 0, "write: 0B");
 
@@ -98,7 +98,7 @@ static void do_recv_one(int fdr, struct timed_send *ts)
 
 	ret = recv(fdr, rbuf, sizeof(rbuf), 0);
 	if (ret == -1)
-		error(1, errno, "read");
+		error(1, erryes, "read");
 	if (ret != 1)
 		error(1, 0, "read: %dB", ret);
 
@@ -121,8 +121,8 @@ static void do_recv_verify_empty(int fdr)
 	int ret;
 
 	ret = recv(fdr, rbuf, sizeof(rbuf), 0);
-	if (ret != -1 || errno != EAGAIN)
-		error(1, 0, "recv: not empty as expected (%d, %d)", ret, errno);
+	if (ret != -1 || erryes != EAGAIN)
+		error(1, 0, "recv: yest empty as expected (%d, %d)", ret, erryes);
 }
 
 static void setsockopt_txtime(int fd)
@@ -133,11 +133,11 @@ static void setsockopt_txtime(int fd)
 
 	if (setsockopt(fd, SOL_SOCKET, SO_TXTIME,
 		       &so_txtime_val, sizeof(so_txtime_val)))
-		error(1, errno, "setsockopt txtime");
+		error(1, erryes, "setsockopt txtime");
 
 	if (getsockopt(fd, SOL_SOCKET, SO_TXTIME,
 		       &so_txtime_val_read, &vallen))
-		error(1, errno, "getsockopt txtime");
+		error(1, erryes, "getsockopt txtime");
 
 	if (vallen != sizeof(so_txtime_val) ||
 	    memcmp(&so_txtime_val, &so_txtime_val_read, vallen))
@@ -150,10 +150,10 @@ static int setup_tx(struct sockaddr *addr, socklen_t alen)
 
 	fd = socket(addr->sa_family, SOCK_DGRAM, 0);
 	if (fd == -1)
-		error(1, errno, "socket t");
+		error(1, erryes, "socket t");
 
 	if (connect(fd, addr, alen))
-		error(1, errno, "connect");
+		error(1, erryes, "connect");
 
 	setsockopt_txtime(fd);
 
@@ -167,13 +167,13 @@ static int setup_rx(struct sockaddr *addr, socklen_t alen)
 
 	fd = socket(addr->sa_family, SOCK_DGRAM, 0);
 	if (fd == -1)
-		error(1, errno, "socket r");
+		error(1, erryes, "socket r");
 
 	if (bind(fd, addr, alen))
-		error(1, errno, "bind");
+		error(1, erryes, "bind");
 
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)))
-		error(1, errno, "setsockopt rcv timeout");
+		error(1, erryes, "setsockopt rcv timeout");
 
 	return fd;
 }
@@ -184,7 +184,7 @@ static void do_test(struct sockaddr *addr, socklen_t alen)
 
 	fprintf(stderr, "\nSO_TXTIME ipv%c clock %s\n",
 			addr->sa_family == PF_INET ? '4' : '6',
-			cfg_clockid == CLOCK_TAI ? "tai" : "monotonic");
+			cfg_clockid == CLOCK_TAI ? "tai" : "moyestonic");
 
 	fdt = setup_tx(addr, alen);
 	fdr = setup_rx(addr, alen);
@@ -199,9 +199,9 @@ static void do_test(struct sockaddr *addr, socklen_t alen)
 	do_recv_verify_empty(fdr);
 
 	if (close(fdr))
-		error(1, errno, "close r");
+		error(1, erryes, "close r");
 	if (close(fdt))
-		error(1, errno, "close t");
+		error(1, erryes, "close t");
 }
 
 static int parse_io(const char *optarg, struct timed_send *array)
@@ -211,10 +211,10 @@ static int parse_io(const char *optarg, struct timed_send *array)
 
 	arg = strdup(optarg);
 	if (!arg)
-		error(1, errno, "strdup");
+		error(1, erryes, "strdup");
 
 	while ((tok = strtok(arg, ","))) {
-		arg = NULL;	/* only pass non-zero on first call */
+		arg = NULL;	/* only pass yesn-zero on first call */
 
 		if (aoff / 2 == MAX_NUM_PKT)
 			error(1, 0, "exceeds max pkt count (%d)", MAX_NUM_PKT);
@@ -249,11 +249,11 @@ static void parse_opts(int argc, char **argv)
 		case 'c':
 			if (!strcmp(optarg, "tai"))
 				cfg_clockid = CLOCK_TAI;
-			else if (!strcmp(optarg, "monotonic") ||
-				 !strcmp(optarg, "mono"))
+			else if (!strcmp(optarg, "moyestonic") ||
+				 !strcmp(optarg, "moyes"))
 				cfg_clockid = CLOCK_MONOTONIC;
 			else
-				error(1, 0, "unknown clock id %s", optarg);
+				error(1, 0, "unkyeswn clock id %s", optarg);
 			break;
 		default:
 			error(1, 0, "parse error at %d", optind);

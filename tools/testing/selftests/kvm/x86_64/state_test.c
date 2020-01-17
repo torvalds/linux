@@ -28,7 +28,7 @@ void l2_guest_code(void)
         /* Exit to L1 */
 	vmcall();
 
-	/* L1 has now set up a shadow VMCS for us.  */
+	/* L1 has yesw set up a shadow VMCS for us.  */
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffee);
 	GUEST_SYNC(10);
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffee);
@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
+			TEST_ASSERT(false, "Unkyeswn ucall 0x%x.", uc.cmd);
 		}
 
 		/* UCALL_SYNC is handled here.  */

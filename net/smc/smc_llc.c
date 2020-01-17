@@ -156,7 +156,7 @@ static void smc_llc_tx_handler(struct smc_wr_tx_pend_priv *pend,
  *
  * Reserves and pre-fills an entry for a pending work request send/tx.
  * Used by mid-level smc_llc_send_msg() to prepare for later actual send/tx.
- * Can sleep due to smc_get_ctrl_buf (if not in softirq context).
+ * Can sleep due to smc_get_ctrl_buf (if yest in softirq context).
  *
  * Return: 0 on success, otherwise an error value.
  */
@@ -175,7 +175,7 @@ static int smc_llc_add_pending_send(struct smc_link *link,
 		"must increase SMC_WR_BUF_SIZE to at least sizeof(struct smc_llc_msg)");
 	BUILD_BUG_ON_MSG(
 		sizeof(union smc_llc_msg) != SMC_WR_TX_SIZE,
-		"must adapt SMC_WR_TX_SIZE to sizeof(struct smc_llc_msg); if not all smc_wr upper layer protocols use the same message size any more, must start to set link->wr_tx_sges[i].length on each individual smc_wr_tx_send()");
+		"must adapt SMC_WR_TX_SIZE to sizeof(struct smc_llc_msg); if yest all smc_wr upper layer protocols use the same message size any more, must start to set link->wr_tx_sges[i].length on each individual smc_wr_tx_send()");
 	BUILD_BUG_ON_MSG(
 		sizeof(struct smc_llc_tx_pend) > SMC_WR_TX_PEND_PRIV_SIZE,
 		"must increase SMC_WR_TX_PEND_PRIV_SIZE to at least sizeof(struct smc_llc_tx_pend)");
@@ -272,7 +272,7 @@ static void smc_llc_prep_add_link(struct smc_llc_msg_add_link *addllc,
 	addllc->hd.length = sizeof(struct smc_llc_msg_add_link);
 	if (reqresp == SMC_LLC_RESP) {
 		addllc->hd.flags |= SMC_LLC_FLAG_RESP;
-		/* always reject more links for now */
+		/* always reject more links for yesw */
 		addllc->hd.flags |= SMC_LLC_FLAG_ADD_LNK_REJ;
 		addllc->hd.add_link_rej_rsn = SMC_LLC_REJ_RSN_NO_ALT_PATH;
 	}
@@ -406,7 +406,7 @@ static void smc_llc_rx_confirm_link(struct smc_link *link,
 	struct smc_link_group *lgr = smc_get_lgr(link);
 	int conf_rc;
 
-	/* RMBE eyecatchers are not supported */
+	/* RMBE eyecatchers are yest supported */
 	if (llc->hd.flags & SMC_LLC_FLAG_NO_RMBE_EYEC)
 		conf_rc = 0;
 	else
@@ -505,7 +505,7 @@ static void smc_llc_rx_confirm_rkey(struct smc_link *link,
 				    llc->rtoken[0].rmb_vaddr,
 				    llc->rtoken[0].rmb_key);
 
-		/* ignore rtokens for other links, we have only one link */
+		/* igyesre rtokens for other links, we have only one link */
 
 		llc->hd.flags |= SMC_LLC_FLAG_RESP;
 		if (rc < 0)
@@ -520,7 +520,7 @@ static void smc_llc_rx_confirm_rkey_cont(struct smc_link *link,
 	if (llc->hd.flags & SMC_LLC_FLAG_RESP) {
 		/* unused as long as we don't send this type of msg */
 	} else {
-		/* ignore rtokens for other links, we have only one link */
+		/* igyesre rtokens for other links, we have only one link */
 		llc->hd.flags |= SMC_LLC_FLAG_RESP;
 		smc_llc_send_message(link, llc, sizeof(*llc));
 	}
@@ -563,7 +563,7 @@ static void smc_llc_rx_handler(struct ib_wc *wc, void *buf)
 	if (llc->raw.hdr.length != sizeof(*llc))
 		return; /* invalid message */
 	if (link->state == SMC_LNK_INACTIVE)
-		return; /* link not active, drop msg */
+		return; /* link yest active, drop msg */
 
 	switch (llc->raw.hdr.common.type) {
 	case SMC_LLC_TEST_LINK:

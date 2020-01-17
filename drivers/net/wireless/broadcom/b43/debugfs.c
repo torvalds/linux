@@ -404,22 +404,22 @@ static int restart_write_file(struct b43_wldev *dev,
 	return err;
 }
 
-static unsigned long calc_expire_secs(unsigned long now,
+static unsigned long calc_expire_secs(unsigned long yesw,
 				      unsigned long time,
 				      unsigned long expire)
 {
 	expire = time + expire;
 
-	if (time_after(now, expire))
+	if (time_after(yesw, expire))
 		return 0; /* expired */
-	if (expire < now) {
+	if (expire < yesw) {
 		/* jiffies wrapped */
 		expire -= MAX_JIFFY_OFFSET;
-		now -= MAX_JIFFY_OFFSET;
+		yesw -= MAX_JIFFY_OFFSET;
 	}
-	B43_WARN_ON(expire < now);
+	B43_WARN_ON(expire < yesw);
 
-	return (expire - now) / HZ;
+	return (expire - yesw) / HZ;
 }
 
 static ssize_t loctls_read_file(struct b43_wldev *dev,
@@ -429,11 +429,11 @@ static ssize_t loctls_read_file(struct b43_wldev *dev,
 	struct b43_txpower_lo_control *lo;
 	int i, err = 0;
 	struct b43_lo_calib *cal;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	struct b43_phy *phy = &dev->phy;
 
 	if (phy->type != B43_PHYTYPE_G) {
-		fappend("Device is not a G-PHY\n");
+		fappend("Device is yest a G-PHY\n");
 		err = -ENODEV;
 		goto out;
 	}
@@ -443,12 +443,12 @@ static ssize_t loctls_read_file(struct b43_wldev *dev,
 		dev->phy.hardware_power_control);
 	fappend("TX Bias: 0x%02X,  TX Magn: 0x%02X  (expire in %lu sec)\n",
 		lo->tx_bias, lo->tx_magn,
-		calc_expire_secs(now, lo->txctl_measured_time,
+		calc_expire_secs(yesw, lo->txctl_measured_time,
 				 B43_LO_TXCTL_EXPIRE));
 	fappend("Power Vector: 0x%08X%08X  (expires in %lu sec)\n",
 		(unsigned int)((lo->power_vector & 0xFFFFFFFF00000000ULL) >> 32),
 		(unsigned int)(lo->power_vector & 0x00000000FFFFFFFFULL),
-		calc_expire_secs(now, lo->pwr_vec_read_time,
+		calc_expire_secs(yesw, lo->pwr_vec_read_time,
 				 B43_LO_PWRVEC_EXPIRE));
 
 	fappend("\nCalibrated settings:\n");
@@ -462,7 +462,7 @@ static ssize_t loctls_read_file(struct b43_wldev *dev,
 			cal->bbatt.att,
 			cal->rfatt.att, cal->rfatt.with_padmix,
 			cal->ctl.i, cal->ctl.q,
-			calc_expire_secs(now, cal->calib_time,
+			calc_expire_secs(yesw, cal->calib_time,
 					 B43_LO_CALIB_EXPIRE),
 			active ? "  ACTIVE" : "");
 	}

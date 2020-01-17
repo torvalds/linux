@@ -154,7 +154,7 @@ static int hwmon_thermal_add_sensor(struct device *dev,
 						   &hwmon_thermal_ops);
 	/*
 	 * If CONFIG_THERMAL_OF is disabled, this returns -ENODEV,
-	 * so ignore that error but forward any other error.
+	 * so igyesre that error but forward any other error.
 	 */
 	if (IS_ERR(tzd) && (PTR_ERR(tzd) != -ENODEV))
 		return PTR_ERR(tzd);
@@ -265,7 +265,7 @@ static struct attribute *hwmon_genattr(struct device *dev,
 	const char *name;
 	bool is_string = is_string_attr(type, attr);
 
-	/* The attribute is invisible if there is no template string */
+	/* The attribute is invisible if there is yes template string */
 	if (!template)
 		return ERR_PTR(-ENOENT);
 
@@ -309,7 +309,7 @@ static struct attribute *hwmon_genattr(struct device *dev,
 }
 
 /*
- * Chip attributes are not attribute templates but actual sysfs attributes.
+ * Chip attributes are yest attribute templates but actual sysfs attributes.
  * See hwmon_genattr() for special handling.
  */
 static const char * const hwmon_chip_attrs[] = {
@@ -572,7 +572,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 	/* Complain about invalid characters in hwmon name attribute */
 	if (name && (!strlen(name) || strpbrk(name, "-* \t\n")))
 		dev_warn(dev,
-			 "hwmon: '%s' is not a valid name attribute, please fix\n",
+			 "hwmon: '%s' is yest a valid name attribute, please fix\n",
 			 name);
 
 	id = ida_simple_get(&hwmon_ida, 0, 0, GFP_KERNEL);
@@ -625,7 +625,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 	hwdev->name = name;
 	hdev->class = &hwmon_class;
 	hdev->parent = dev;
-	hdev->of_node = dev ? dev->of_node : NULL;
+	hdev->of_yesde = dev ? dev->of_yesde : NULL;
 	hwdev->chip = chip;
 	dev_set_drvdata(hdev, drvdata);
 	dev_set_name(hdev, HWMON_ID_FORMAT, id);
@@ -633,7 +633,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 	if (err)
 		goto free_hwmon;
 
-	if (dev && dev->of_node && chip && chip->ops->read &&
+	if (dev && dev->of_yesde && chip && chip->ops->read &&
 	    chip->info[0]->type == hwmon_chip &&
 	    (chip->info[0]->config[0] & HWMON_C_REGISTER_TZ)) {
 		const struct hwmon_channel_info **info = chip->info;
@@ -680,7 +680,7 @@ ida_remove:
  * @drvdata: driver data to attach to created device
  * @groups: List of attribute groups to create
  *
- * hwmon_device_unregister() must be called when the device is no
+ * hwmon_device_unregister() must be called when the device is yes
  * longer needed.
  *
  * Returns the pointer to the new device.
@@ -703,9 +703,9 @@ EXPORT_SYMBOL_GPL(hwmon_device_register_with_groups);
  * @name: hwmon name attribute
  * @drvdata: driver data to attach to created device
  * @chip: pointer to hwmon chip information
- * @extra_groups: pointer to list of additional non-standard attribute groups
+ * @extra_groups: pointer to list of additional yesn-standard attribute groups
  *
- * hwmon_device_unregister() must be called when the device is no
+ * hwmon_device_unregister() must be called when the device is yes
  * longer needed.
  *
  * Returns the pointer to the new device.
@@ -733,7 +733,7 @@ EXPORT_SYMBOL_GPL(hwmon_device_register_with_info);
  * hwmon_device_register - register w/ hwmon
  * @dev: the device to register
  *
- * hwmon_device_unregister() must be called when the device is no
+ * hwmon_device_unregister() must be called when the device is yes
  * longer needed.
  *
  * Returns the pointer to the new device.

@@ -28,7 +28,7 @@
 /*
  * C(hrome)B(ase)A(ttached)S(witch) - switch exported by Chrome EC and reporting
  * state of the "Whiskers" base - attached or detached. Whiskers USB device also
- * reports position of the keyboard - folded or not. Combining base state and
+ * reports position of the keyboard - folded or yest. Combining base state and
  * position allows us to generate proper "Tablet mode" events.
  */
 struct cbas_ec {
@@ -36,7 +36,7 @@ struct cbas_ec {
 	struct input_dev *input;
 	bool base_present;
 	bool base_folded;
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 };
 
 static struct cbas_ec cbas_ec;
@@ -88,11 +88,11 @@ static int cbas_ec_query_base(struct cros_ec_device *ec_dev, bool get_state,
 	return ret;
 }
 
-static int cbas_ec_notify(struct notifier_block *nb,
+static int cbas_ec_yestify(struct yestifier_block *nb,
 			      unsigned long queued_during_suspend,
-			      void *_notify)
+			      void *_yestify)
 {
-	struct cros_ec_device *ec = _notify;
+	struct cros_ec_device *ec = _yestify;
 	unsigned long flags;
 	bool base_present;
 
@@ -110,11 +110,11 @@ static int cbas_ec_notify(struct notifier_block *nb,
 			spin_lock_irqsave(&cbas_ec_lock, flags);
 
 			/*
-			 * While input layer dedupes the events, we do not want
+			 * While input layer dedupes the events, we do yest want
 			 * to disrupt the state reported by the base by
 			 * overriding it with state reported by the LID. Only
 			 * report changes, as we assume that on attach the base
-			 * is not folded.
+			 * is yest folded.
 			 */
 			if (base_present != cbas_ec.base_present) {
 				input_report_switch(cbas_ec.input,
@@ -166,7 +166,7 @@ static SIMPLE_DEV_PM_OPS(cbas_ec_pm_ops, NULL, cbas_ec_resume);
 
 static void cbas_ec_set_input(struct input_dev *input)
 {
-	/* Take the lock so hammer_event() does not race with us here */
+	/* Take the lock so hammer_event() does yest race with us here */
 	spin_lock_irq(&cbas_ec_lock);
 	cbas_ec.input = input;
 	spin_unlock_irq(&cbas_ec_lock);
@@ -197,7 +197,7 @@ static int __cbas_ec_probe(struct platform_device *pdev)
 
 	error = input_register_device(input);
 	if (error) {
-		dev_err(&pdev->dev, "cannot register input device: %d\n",
+		dev_err(&pdev->dev, "canyest register input device: %d\n",
 			error);
 		return error;
 	}
@@ -205,7 +205,7 @@ static int __cbas_ec_probe(struct platform_device *pdev)
 	/* Seed the state */
 	error = cbas_ec_query_base(ec, true, &cbas_ec.base_present);
 	if (error) {
-		dev_err(&pdev->dev, "cannot query base state: %d\n", error);
+		dev_err(&pdev->dev, "canyest query base state: %d\n", error);
 		return error;
 	}
 
@@ -221,11 +221,11 @@ static int __cbas_ec_probe(struct platform_device *pdev)
 	cbas_ec_set_input(input);
 
 	cbas_ec.dev = &pdev->dev;
-	cbas_ec.notifier.notifier_call = cbas_ec_notify;
-	error = blocking_notifier_chain_register(&ec->event_notifier,
-						 &cbas_ec.notifier);
+	cbas_ec.yestifier.yestifier_call = cbas_ec_yestify;
+	error = blocking_yestifier_chain_register(&ec->event_yestifier,
+						 &cbas_ec.yestifier);
 	if (error) {
-		dev_err(&pdev->dev, "cannot register notifier: %d\n", error);
+		dev_err(&pdev->dev, "canyest register yestifier: %d\n", error);
 		cbas_ec_set_input(NULL);
 		return error;
 	}
@@ -258,8 +258,8 @@ static int cbas_ec_remove(struct platform_device *pdev)
 
 	mutex_lock(&cbas_ec_reglock);
 
-	blocking_notifier_chain_unregister(&ec->event_notifier,
-					   &cbas_ec.notifier);
+	blocking_yestifier_chain_unregister(&ec->event_yestifier,
+					   &cbas_ec.yestifier);
 	cbas_ec_set_input(NULL);
 
 	mutex_unlock(&cbas_ec_reglock);
@@ -307,7 +307,7 @@ static int hammer_kbd_brightness_set_blocking(struct led_classdev *cdev,
 	 */
 	ret = hid_hw_power(led->hdev, PM_HINT_FULLON);
 	if (ret < 0) {
-		hid_err(led->hdev, "failed: device not resumed %d\n", ret);
+		hid_err(led->hdev, "failed: device yest resumed %d\n", ret);
 		return ret;
 	}
 
@@ -382,7 +382,7 @@ static int hammer_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 {
 	if (usage->hid == HID_USAGE_KBD_FOLDED) {
 		/*
-		 * We do not want to have this usage mapped as it will get
+		 * We do yest want to have this usage mapped as it will get
 		 * mixed in with "base attached" signal and delivered over
 		 * separate input device for tablet switch mode.
 		 */
@@ -472,7 +472,7 @@ static int hammer_probe(struct hid_device *hdev,
 
 	/*
 	 * We always want to poll for, and handle tablet mode events from
-	 * devices that have folded usage, even when nobody has opened the input
+	 * devices that have folded usage, even when yesbody has opened the input
 	 * device. This also prevents the hid core from dropping early tablet
 	 * mode events from the device.
 	 */
@@ -503,12 +503,12 @@ static void hammer_remove(struct hid_device *hdev)
 
 		/*
 		 * If we are disconnecting then most likely Whiskers is
-		 * being removed. Even if it is not removed, without proper
-		 * keyboard we should not stay in clamshell mode.
+		 * being removed. Even if it is yest removed, without proper
+		 * keyboard we should yest stay in clamshell mode.
 		 *
-		 * The reason for doing it here and not waiting for signal
+		 * The reason for doing it here and yest waiting for signal
 		 * from EC, is that on some devices there are high leakage
-		 * on Whiskers pins and we do not detect disconnect reliably,
+		 * on Whiskers pins and we do yest detect disconnect reliably,
 		 * resulting in devices being stuck in clamshell mode.
 		 */
 		spin_lock_irqsave(&cbas_ec_lock, flags);

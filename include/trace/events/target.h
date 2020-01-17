@@ -141,7 +141,7 @@ TRACE_EVENT(target_sequencer_start,
 		__field( unsigned int,	data_length	)
 		__field( unsigned int,	task_attribute  )
 		__array( unsigned char,	cdb, TCM_MAX_COMMAND_SIZE	)
-		__string( initiator,	cmd->se_sess->se_node_acl->initiatorname	)
+		__string( initiator,	cmd->se_sess->se_yesde_acl->initiatorname	)
 	),
 
 	TP_fast_assign(
@@ -150,7 +150,7 @@ TRACE_EVENT(target_sequencer_start,
 		__entry->data_length	= cmd->data_length;
 		__entry->task_attribute	= cmd->sam_task_attr;
 		memcpy(__entry->cdb, cmd->t_task_cdb, TCM_MAX_COMMAND_SIZE);
-		__assign_str(initiator, cmd->se_sess->se_node_acl->initiatorname);
+		__assign_str(initiator, cmd->se_sess->se_yesde_acl->initiatorname);
 	),
 
 	TP_printk("%s -> LUN %03u %s data_length %6u  CDB %s  (TA:%s C:%02x)",
@@ -179,7 +179,7 @@ TRACE_EVENT(target_cmd_complete,
 		__field( unsigned char,	sense_length	)
 		__array( unsigned char,	cdb, TCM_MAX_COMMAND_SIZE	)
 		__array( unsigned char,	sense_data, 18	)
-		__string(initiator,	cmd->se_sess->se_node_acl->initiatorname)
+		__string(initiator,	cmd->se_sess->se_yesde_acl->initiatorname)
 	),
 
 	TP_fast_assign(
@@ -192,7 +192,7 @@ TRACE_EVENT(target_cmd_complete,
 			min(18, ((u8 *) cmd->sense_buffer)[SPC_ADD_SENSE_LEN_OFFSET] + 8) : 0;
 		memcpy(__entry->cdb, cmd->t_task_cdb, TCM_MAX_COMMAND_SIZE);
 		memcpy(__entry->sense_data, cmd->sense_buffer, __entry->sense_length);
-		__assign_str(initiator, cmd->se_sess->se_node_acl->initiatorname);
+		__assign_str(initiator, cmd->se_sess->se_yesde_acl->initiatorname);
 	),
 
 	TP_printk("%s <- LUN %03u status %s (sense len %d%s%s)  %s data_length %6u  CDB %s  (TA:%s C:%02x)",

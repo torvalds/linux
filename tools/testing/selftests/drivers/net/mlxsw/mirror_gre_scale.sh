@@ -136,7 +136,7 @@ mirror_gre_test()
 	local should_fail=$1; shift
 
 	if ! tc_offload_check $TC_FLOWER_NUM_NETIFS; then
-		check_err 1 "Could not test offloaded functionality"
+		check_err 1 "Could yest test offloaded functionality"
 		return
 	fi
 

@@ -4,7 +4,7 @@ FPGA Device Feature List (DFL) Framework Overview
 
 Authors:
 
-- Enno Luebbers <enno.luebbers@intel.com>
+- Enyes Luebbers <enyes.luebbers@intel.com>
 - Xiao Guangrong <guangrong.xiao@linux.intel.com>
 - Wu Hao <hao.wu@intel.com>
 
@@ -133,7 +133,7 @@ An AFU is attached to a port FIU and exposes a fixed length MMIO region to be
 used for accelerator-specific control registers.
 
 User-space applications can acquire exclusive access to an AFU attached to a
-port by using open() on the port device node and release it using close().
+port by using open() on the port device yesde and release it using close().
 
 The following functions are exposed through ioctls:
 
@@ -233,7 +233,7 @@ reconfiguration of a PR bitstream file. The PR bitstream file must have been
 generated for the exact static FPGA region and targeted reconfigurable region
 (port) of the FPGA, otherwise, the reconfiguration operation will fail and
 possibly cause system instability. This compatibility can be checked by
-comparing the compatibility ID noted in the header of PR bitstream file against
+comparing the compatibility ID yested in the header of PR bitstream file against
 the compat_id exposed by the target FPGA region. This check is usually done by
 userspace before calling the reconfiguration IOCTL.
 
@@ -372,7 +372,7 @@ In general, the FME/AFU sysfs interfaces are named as follows::
 with 'n' consecutively numbering all FMEs and 'm' consecutively numbering all
 ports.
 
-The device nodes used for ioctl() or mmap() can be referenced through::
+The device yesdes used for ioctl() or mmap() can be referenced through::
 
 	/sys/class/fpga_region/<regionX>/<dfl-fme.n>/dev
 	/sys/class/fpga_region/<regionX>/<dfl-port.n>/dev
@@ -402,5 +402,5 @@ could be a reference.
 Open discussion
 ===============
 FME driver exports one ioctl (DFL_FPGA_FME_PORT_PR) for partial reconfiguration
-to user now. In the future, if unified user interfaces for reconfiguration are
+to user yesw. In the future, if unified user interfaces for reconfiguration are
 added, FME driver should switch to them from ioctl interface.

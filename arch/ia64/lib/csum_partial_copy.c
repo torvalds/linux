@@ -112,7 +112,7 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 	unsigned long result;
 
 	/* XXX Fixme
-	 * for now we separate the copy from checksum for obvious
+	 * for yesw we separate the copy from checksum for obvious
 	 * alignment difficulties. Look at the Alpha code and you'll be
 	 * scared.
 	 */
@@ -132,10 +132,10 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 EXPORT_SYMBOL(csum_partial_copy_from_user);
 
 __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
+csum_partial_copy_yescheck(const void *src, void *dst, int len, __wsum sum)
 {
 	return csum_partial_copy_from_user((__force const void __user *)src,
 					   dst, len, sum, NULL);
 }
 
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
+EXPORT_SYMBOL(csum_partial_copy_yescheck);

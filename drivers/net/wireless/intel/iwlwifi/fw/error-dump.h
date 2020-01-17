@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -91,7 +91,7 @@
  *	paged to the DRAM.
  * @IWL_FW_ERROR_DUMP_RADIO_REG: Dump the radio registers.
  * @IWL_FW_ERROR_DUMP_EXTERNAL: used only by external code utilities, and
- *	for that reason is not in use in any other place in the Linux Wi-Fi
+ *	for that reason is yest in use in any other place in the Linux Wi-Fi
  *	stack.
  * @IWL_FW_ERROR_DUMP_MEM_CFG: the addresses and sizes of fifos in the smem,
  *	which we get from the fw after ALIVE. The content is structured as
@@ -113,7 +113,7 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_PAGING = 12,
 	IWL_FW_ERROR_DUMP_RADIO_REG = 13,
 	IWL_FW_ERROR_DUMP_INTERNAL_TXF = 14,
-	IWL_FW_ERROR_DUMP_EXTERNAL = 15, /* Do not move */
+	IWL_FW_ERROR_DUMP_EXTERNAL = 15, /* Do yest move */
 	IWL_FW_ERROR_DUMP_MEM_CFG = 16,
 	IWL_FW_ERROR_DUMP_D3_DEBUG_DATA = 17,
 
@@ -193,9 +193,9 @@ enum iwl_fw_error_dump_family {
  * @bus_human_readable: name of the bus used
  * @num_of_lmacs: the number of lmacs
  * @lmac_err_id: the lmac 0/1 error_id/rt_status that triggered the latest dump
- *	if the dump collection was not initiated by an assert, the value is 0
+ *	if the dump collection was yest initiated by an assert, the value is 0
  * @umac_err_id: the umac error_id/rt_status that triggered the latest dump
- *	if the dump collection was not initiated by an assert, the value is 0
+ *	if the dump collection was yest initiated by an assert, the value is 0
  */
 struct iwl_fw_error_dump_info {
 	__le32 hw_type;
@@ -408,9 +408,9 @@ struct iwl_fw_ini_dump_cfg_name {
  * @rf_id_step: HW RF id step
  * @rf_id_type: HW RF id type
  * @lmac_major: lmac major version
- * @lmac_minor: lmac minor version
+ * @lmac_miyesr: lmac miyesr version
  * @umac_major: umac major version
- * @umac_minor: umac minor version
+ * @umac_miyesr: umac miyesr version
  * @fw_mon_mode: FW monitor mode &enum iwl_fw_ini_buffer_location
  * @regions_mask: bitmap mask of regions ids in the dump
  * @build_tag_len: length of the build tag
@@ -432,9 +432,9 @@ struct iwl_fw_ini_dump_info {
 	__le32 rf_id_step;
 	__le32 rf_id_type;
 	__le32 lmac_major;
-	__le32 lmac_minor;
+	__le32 lmac_miyesr;
 	__le32 umac_major;
-	__le32 umac_minor;
+	__le32 umac_miyesr;
 	__le32 fw_mon_mode;
 	__le64 regions_mask;
 	__le32 build_tag_len;
@@ -513,7 +513,7 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  * enum iwl_fw_dbg_trigger - triggers available
  *
  * @FW_DBG_TRIGGER_USER: trigger log collection by user
- *	This should not be defined as a trigger to the driver, but a value the
+ *	This should yest be defined as a trigger to the driver, but a value the
  *	driver should set to indicate that the trigger was initiated by the
  *	user.
  * @FW_DBG_TRIGGER_FW_ASSERT: trigger log collection when the firmware asserts
@@ -521,7 +521,7 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  *	missed.
  * @FW_DBG_TRIGGER_CHANNEL_SWITCH: trigger log collection upon channel switch.
  * @FW_DBG_TRIGGER_FW_NOTIF: trigger log collection when the firmware sends a
- *	command response or a notification.
+ *	command response or a yestification.
  * @FW_DBG_TRIGGER_MLME: trigger log collection upon MLME event.
  * @FW_DBG_TRIGGER_STATS: trigger log collection upon statistics threshold.
  * @FW_DBG_TRIGGER_RSSI: trigger log collection when the rssi of the beacon

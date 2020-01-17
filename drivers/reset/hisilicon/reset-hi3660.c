@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2016-2017 Linaro Ltd.
- * Copyright (c) 2016-2017 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016-2017 HiSilicon Techyeslogies Co., Ltd.
  */
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
@@ -76,7 +76,7 @@ static int hi3660_reset_xlate(struct reset_controller_dev *rcdev,
 static int hi3660_reset_probe(struct platform_device *pdev)
 {
 	struct hi3660_reset_controller *rc;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 
 	rc = devm_kzalloc(dev, sizeof(*rc), GFP_KERNEL);
@@ -90,7 +90,7 @@ static int hi3660_reset_probe(struct platform_device *pdev)
 	}
 
 	rc->rst.ops = &hi3660_reset_ops,
-	rc->rst.of_node = np;
+	rc->rst.of_yesde = np;
 	rc->rst.of_reset_n_cells = 2;
 	rc->rst.of_xlate = hi3660_reset_xlate;
 

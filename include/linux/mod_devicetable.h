@@ -25,8 +25,8 @@ typedef unsigned long kernel_ulong_t;
  * @class:		Device class, subclass, and "interface" to match.
  *			See Appendix D of the PCI Local Bus Spec or
  *			include/linux/pci_ids.h for a full list of classes.
- *			Most drivers do not need to specify class/class_mask
- *			as vendor/device is normally sufficient.
+ *			Most drivers do yest need to specify class/class_mask
+ *			as vendor/device is yesrmally sufficient.
  * @class_mask:		Limit which sub-fields of the class field are compared.
  *			See drivers/scsi/sym53c8xx_2/ for example of usage.
  * @driver_data:	Data private to the driver.
@@ -111,7 +111,7 @@ struct ieee1394_device_id {
  * and provide it to the USB core through their usb_driver structure.
  *
  * See the usb_match_id() function for information about how matches are
- * performed.  Briefly, you will normally use one of several macros to help
+ * performed.  Briefly, you will yesrmally use one of several macros to help
  * construct these entries.  Each entry you provide will either identify
  * one or more specific products, or will identify a class of products
  * which have agreed to behave the same.  You should put the more specific
@@ -141,7 +141,7 @@ struct usb_device_id {
 	/* Used for vendor-specific interface matches */
 	__u8		bInterfaceNumber;
 
-	/* not matched against */
+	/* yest matched against */
 	kernel_ulong_t	driver_info
 		__attribute__((aligned(sizeof(kernel_ulong_t))));
 };
@@ -284,14 +284,14 @@ struct pcmcia_device_id {
 	__u8		function;
 
 	/* for pseudo multi-function devices */
-	__u8		device_no;
+	__u8		device_yes;
 
 	__u32		prod_id_hash[4];
 
-	/* not matched against in kernelspace */
+	/* yest matched against in kernelspace */
 	const char *	prod_id[4];
 
-	/* not matched against */
+	/* yest matched against */
 	kernel_ulong_t	driver_info;
 	char *		cisfile;
 };
@@ -550,7 +550,7 @@ enum dmi_field {
 	DMI_CHASSIS_SERIAL,
 	DMI_CHASSIS_ASSET_TAG,
 	DMI_STRING_MAX,
-	DMI_OEM_STRING,	/* special case - will not be in dmi_ident */
+	DMI_OEM_STRING,	/* special case - will yest be in dmi_ident */
 };
 
 struct dmi_strmatch {
@@ -568,8 +568,8 @@ struct dmi_system_id {
 /*
  * struct dmi_device_id appears during expansion of
  * "MODULE_DEVICE_TABLE(dmi, x)". Compiler doesn't look inside it
- * but this is enough for gcc 3.4.6 to error out:
- *	error: storage size of '__mod_dmi_device_table' isn't known
+ * but this is eyesugh for gcc 3.4.6 to error out:
+ *	error: storage size of '__mod_dmi_device_table' isn't kyeswn
  */
 #define dmi_device_id dmi_system_id
 
@@ -616,7 +616,7 @@ struct zorro_device_id {
 	kernel_ulong_t driver_data;	/* Data private to the driver */
 };
 
-#define ZORRO_WILDCARD			(0xffffffff)	/* not official */
+#define ZORRO_WILDCARD			(0xffffffff)	/* yest official */
 
 #define ZORRO_DEVICE_MODALIAS_FMT	"zorro:i%08X"
 
@@ -656,7 +656,7 @@ struct mips_cdmm_device_id {
 
 /*
  * MODULE_DEVICE_TABLE expects this struct to be called x86cpu_device_id.
- * Although gcc seems to ignore this error, clang fails without this define.
+ * Although gcc seems to igyesre this error, clang fails without this define.
  */
 #define x86cpu_device_id x86_cpu_id
 struct x86_cpu_id {

@@ -44,7 +44,7 @@ EXPORT_SYMBOL(net_ratelimit);
 /*
  * Convert an ASCII string to binary IP.
  * This is outside of net/ipv4/ because various code that uses IP addresses
- * is otherwise not dependent on the TCP/IP stack.
+ * is otherwise yest dependent on the TCP/IP stack.
  */
 
 __be32 in_aton(const char *str)
@@ -108,7 +108,7 @@ static inline int xdigit2bin(char c, int delim)
  * @src: the start of the IPv4 address string
  * @srclen: the length of the string, -1 means strlen(src)
  * @dst: the binary (u8[4] array) representation of the IPv4 address
- * @delim: the delimiter of the IPv4 address in @src, -1 means no delimiter
+ * @delim: the delimiter of the IPv4 address in @src, -1 means yes delimiter
  * @end: A pointer to the end of the parsed string will be placed here
  *
  * Return one on success, return zero when any error occurs
@@ -174,7 +174,7 @@ EXPORT_SYMBOL(in4_pton);
  * @src: the start of the IPv6 address string
  * @srclen: the length of the string, -1 means strlen(src)
  * @dst: the binary (u8[16] array) representation of the IPv6 address
- * @delim: the delimiter of the IPv6 address in @src, -1 means no delimiter
+ * @delim: the delimiter of the IPv6 address in @src, -1 means yes delimiter
  * @end: A pointer to the end of the parsed string will be placed here
  *
  * Return one on success, return zero when any error occurs
@@ -361,10 +361,10 @@ static int inet6_pton(struct net *net, const char *src, u16 port_num,
  * @net: net namespace (used for scope handling)
  * @af: address family, AF_INET, AF_INET6 or AF_UNSPEC for either
  * @src: the start of the address string
- * @port: the start of the port string (or NULL for none)
+ * @port: the start of the port string (or NULL for yesne)
  * @addr: output socket address
  *
- * Return zero on success, return errno when any error occurs.
+ * Return zero on success, return erryes when any error occurs.
  */
 int inet_pton_with_scope(struct net *net, __kernel_sa_family_t af,
 		const char *src, const char *port, struct sockaddr_storage *addr)

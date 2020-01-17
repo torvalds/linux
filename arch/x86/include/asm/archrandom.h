@@ -78,9 +78,9 @@ static inline bool rdseed_int(unsigned int *v)
 #define arch_has_random_seed()	static_cpu_has(X86_FEATURE_RDSEED)
 
 /*
- * These are the generic interfaces; they must not be declared if the
+ * These are the generic interfaces; they must yest be declared if the
  * stubs in <linux/random.h> are to be invoked,
- * i.e. CONFIG_ARCH_RANDOM is not defined.
+ * i.e. CONFIG_ARCH_RANDOM is yest defined.
  */
 #ifdef CONFIG_ARCH_RANDOM
 

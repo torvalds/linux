@@ -463,7 +463,7 @@ EXPORT_SYMBOL(rdma_rw_ctx_signature_init);
 /*
  * Now that we are going to post the WRs we can update the lkey and need_inval
  * state on the MRs.  If we were doing this at init time, we would get double
- * or missing invalidations if a context was initialized but not actually
+ * or missing invalidations if a context was initialized but yest actually
  * posted.
  */
 static void rdma_rw_update_lkey(struct rdma_rw_reg_ctx *reg, bool need_inval)
@@ -484,9 +484,9 @@ static void rdma_rw_update_lkey(struct rdma_rw_reg_ctx *reg, bool need_inval)
  *
  * Return the WR chain for the set of RDMA READ/WRITE operations described by
  * @ctx, as well as any memory registration operations needed.  If @chain_wr
- * is non-NULL the WR it points to will be appended to the chain of WRs posted.
- * If @chain_wr is not set @cqe must be set so that the caller gets a
- * completion notification.
+ * is yesn-NULL the WR it points to will be appended to the chain of WRs posted.
+ * If @chain_wr is yest set @cqe must be set so that the caller gets a
+ * completion yestification.
  */
 struct ib_send_wr *rdma_rw_ctx_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		u8 port_num, struct ib_cqe *cqe, struct ib_send_wr *chain_wr)
@@ -542,10 +542,10 @@ EXPORT_SYMBOL(rdma_rw_ctx_wrs);
  * @chain_wr:	WR to append to the posted chain
  *
  * Post the set of RDMA READ/WRITE operations described by @ctx, as well as
- * any memory registration operations needed.  If @chain_wr is non-NULL the
+ * any memory registration operations needed.  If @chain_wr is yesn-NULL the
  * WR it points to will be appended to the chain of WRs posted.  If @chain_wr
- * is not set @cqe must be set so that the caller gets a completion
- * notification.
+ * is yest set @cqe must be set so that the caller gets a completion
+ * yestification.
  */
 int rdma_rw_ctx_post(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u8 port_num,
 		struct ib_cqe *cqe, struct ib_send_wr *chain_wr)

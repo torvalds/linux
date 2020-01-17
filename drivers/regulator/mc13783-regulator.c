@@ -18,25 +18,25 @@
 #include "mc13xxx.h"
 
 #define MC13783_REG_SWITCHERS0			24
-/* Enable does not exist for SW1A */
+/* Enable does yest exist for SW1A */
 #define MC13783_REG_SWITCHERS0_SW1AEN			0
 #define MC13783_REG_SWITCHERS0_SW1AVSEL			0
 #define MC13783_REG_SWITCHERS0_SW1AVSEL_M		(63 << 0)
 
 #define MC13783_REG_SWITCHERS1			25
-/* Enable does not exist for SW1B */
+/* Enable does yest exist for SW1B */
 #define MC13783_REG_SWITCHERS1_SW1BEN			0
 #define MC13783_REG_SWITCHERS1_SW1BVSEL			0
 #define MC13783_REG_SWITCHERS1_SW1BVSEL_M		(63 << 0)
 
 #define MC13783_REG_SWITCHERS2			26
-/* Enable does not exist for SW2A */
+/* Enable does yest exist for SW2A */
 #define MC13783_REG_SWITCHERS2_SW2AEN			0
 #define MC13783_REG_SWITCHERS2_SW2AVSEL			0
 #define MC13783_REG_SWITCHERS2_SW2AVSEL_M		(63 << 0)
 
 #define MC13783_REG_SWITCHERS3			27
-/* Enable does not exist for SW2B */
+/* Enable does yest exist for SW2B */
 #define MC13783_REG_SWITCHERS3_SW2BEN			0
 #define MC13783_REG_SWITCHERS3_SW2BVSEL			0
 #define MC13783_REG_SWITCHERS3_SW2BVSEL_M		(63 << 0)
@@ -228,22 +228,22 @@ static const unsigned int mc13783_pwgtdrv_val[] = {
 
 static const struct regulator_ops mc13783_gpo_regulator_ops;
 
-#define MC13783_DEFINE(prefix, name, node, reg, vsel_reg, voltages)	\
-	MC13xxx_DEFINE(MC13783_REG_, name, node, reg, vsel_reg, voltages, \
+#define MC13783_DEFINE(prefix, name, yesde, reg, vsel_reg, voltages)	\
+	MC13xxx_DEFINE(MC13783_REG_, name, yesde, reg, vsel_reg, voltages, \
 			mc13xxx_regulator_ops)
 
-#define MC13783_FIXED_DEFINE(prefix, name, node, reg, voltages)		\
-	MC13xxx_FIXED_DEFINE(MC13783_REG_, name, node, reg, voltages,	\
+#define MC13783_FIXED_DEFINE(prefix, name, yesde, reg, voltages)		\
+	MC13xxx_FIXED_DEFINE(MC13783_REG_, name, yesde, reg, voltages,	\
 			mc13xxx_fixed_regulator_ops)
 
-#define MC13783_GPO_DEFINE(prefix, name, node, reg, voltages)		\
-	MC13xxx_GPO_DEFINE(MC13783_REG_, name, node, reg, voltages,	\
+#define MC13783_GPO_DEFINE(prefix, name, yesde, reg, voltages)		\
+	MC13xxx_GPO_DEFINE(MC13783_REG_, name, yesde, reg, voltages,	\
 			mc13783_gpo_regulator_ops)
 
-#define MC13783_DEFINE_SW(_name, _node, _reg, _vsel_reg, _voltages)	\
-	MC13783_DEFINE(REG, _name, _node, _reg, _vsel_reg, _voltages)
-#define MC13783_DEFINE_REGU(_name, _node, _reg, _vsel_reg, _voltages)	\
-	MC13783_DEFINE(REG, _name, _node, _reg, _vsel_reg, _voltages)
+#define MC13783_DEFINE_SW(_name, _yesde, _reg, _vsel_reg, _voltages)	\
+	MC13783_DEFINE(REG, _name, _yesde, _reg, _vsel_reg, _voltages)
+#define MC13783_DEFINE_REGU(_name, _yesde, _reg, _vsel_reg, _voltages)	\
+	MC13783_DEFINE(REG, _name, _yesde, _reg, _vsel_reg, _voltages)
 
 static struct mc13xxx_regulator mc13783_regulators[] = {
 	MC13783_DEFINE_SW(SW1A, sw1a, SWITCHERS0, SWITCHERS0, mc13783_sw1x_val),
@@ -422,13 +422,13 @@ static int mc13783_regulator_probe(struct platform_device *pdev)
 	for (i = 0; i < priv->num_regulators; i++) {
 		struct regulator_init_data *init_data;
 		struct regulator_desc *desc;
-		struct device_node *node = NULL;
+		struct device_yesde *yesde = NULL;
 		int id;
 
 		if (mc13xxx_data) {
 			id = mc13xxx_data[i].id;
 			init_data = mc13xxx_data[i].init_data;
-			node = mc13xxx_data[i].node;
+			yesde = mc13xxx_data[i].yesde;
 		} else {
 			id = pdata->regulators[i].id;
 			init_data = pdata->regulators[i].init_data;
@@ -438,7 +438,7 @@ static int mc13783_regulator_probe(struct platform_device *pdev)
 		config.dev = &pdev->dev;
 		config.init_data = init_data;
 		config.driver_data = priv;
-		config.of_node = node;
+		config.of_yesde = yesde;
 
 		priv->regulators[i] = devm_regulator_register(&pdev->dev, desc,
 							      &config);

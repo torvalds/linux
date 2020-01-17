@@ -172,7 +172,7 @@ MXC_SPI_BUF_RX(u32)
 MXC_SPI_BUF_TX(u32)
 
 /* First entry is reserved, second entry is valid only if SDHC_SPIEN is set
- * (which is currently not the case in this driver)
+ * (which is currently yest the case in this driver)
  */
 static int mxc_clkdivs[] = {0, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192,
 	256, 384, 512, 768, 1024};
@@ -439,11 +439,11 @@ static unsigned int mx51_ecspi_clkdiv(struct spi_imx_data *spi_imx,
 	if (fin > fspi << post)
 		post++;
 
-	/* now we have: (fin <= fspi << post) with post being minimal */
+	/* yesw we have: (fin <= fspi << post) with post being minimal */
 
 	post = max(4U, post) - 4;
 	if (unlikely(post > 0xf)) {
-		dev_err(spi_imx->dev, "cannot set clock freq: %u (base freq: %u)\n",
+		dev_err(spi_imx->dev, "canyest set clock freq: %u (base freq: %u)\n",
 				fspi, fin);
 		return 0xff;
 	}
@@ -519,7 +519,7 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 
 	/*
 	 * The ctrl register must be written first, with the EN bit set other
-	 * registers must not be written to.
+	 * registers must yest be written to.
 	 */
 	writel(ctrl, spi_imx->base + MX51_ECSPI_CTRL);
 
@@ -532,7 +532,7 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 
 	/*
 	 * eCSPI burst completion by Chip Select signal in Slave mode
-	 * is not functional for imx53 Soc, config SPI burst completed when
+	 * is yest functional for imx53 Soc, config SPI burst completed when
 	 * BURST_LENGTH + 1 bits are received
 	 */
 	if (spi_imx->slave_mode && is_imx53_ecspi(spi_imx))
@@ -595,7 +595,7 @@ static int mx51_ecspi_prepare_transfer(struct spi_imx_data *spi_imx,
 	 * propagate into the hardware. It takes exactly one tick of the
 	 * SCLK clock, but we will wait two SCLK clock just to be sure. The
 	 * effect of the delay it takes for the hardware to apply changes
-	 * is noticable if the SCLK clock run very slow. In such a case, if
+	 * is yesticable if the SCLK clock run very slow. In such a case, if
 	 * the polarity of SCLK should be inverted, the GPIO ChipSelect might
 	 * be asserted before the SCLK polarity changes, which would disrupt
 	 * the SPI communication as the device on the other end would consider
@@ -664,7 +664,7 @@ static void mx51_ecspi_reset(struct spi_imx_data *spi_imx)
 
 /* These functions also work for the i.MX35, but be aware that
  * the i.MX35 has a slightly different register layout for bits
- * we do not use here.
+ * we do yest use here.
  */
 static void mx31_intctrl(struct spi_imx_data *spi_imx, int enable)
 {
@@ -1202,7 +1202,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	spi_imx->bits_per_word = t->bits_per_word;
 
 	/*
-	 * Initialize the functions for transfer. To transfer non byte-aligned
+	 * Initialize the functions for transfer. To transfer yesn byte-aligned
 	 * words, we have to use multiple word-size bursts, we can't use
 	 * dynamic_burst in that case.
 	 */
@@ -1342,13 +1342,13 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	unsigned int bytes_per_word, i;
 	int ret;
 
-	/* Get the right burst length from the last sg to ensure no tail data */
+	/* Get the right burst length from the last sg to ensure yes tail data */
 	bytes_per_word = spi_imx_bytes_per_word(transfer->bits_per_word);
 	for (i = spi_imx->devtype_data->fifo_size / 2; i > 0; i--) {
 		if (!(sg_dma_len(last_sg) % (i * bytes_per_word)))
 			break;
 	}
-	/* Use 1 as wml in case no available burst length got */
+	/* Use 1 as wml in case yes available burst length got */
 	if (i == 0)
 		i = 1;
 
@@ -1580,7 +1580,7 @@ static int spi_imx_slave_abort(struct spi_master *master)
 
 static int spi_imx_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *of_id =
 			of_match_device(spi_imx_dt_ids, &pdev->dev);
 	struct spi_imx_master *mxc_platform_info =
@@ -1645,7 +1645,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 		if (!of_property_read_u32(np, "num-cs", &num_cs))
 			master->num_chipselect = num_cs;
-		/* If not preset, default value of 1 is used */
+		/* If yest preset, default value of 1 is used */
 	}
 
 	spi_imx->bitbang.chipselect = spi_imx_chipselect;
@@ -1709,7 +1709,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	spi_imx->spi_clk = clk_get_rate(spi_imx->clk_per);
 	/*
-	 * Only validated on i.mx35 and i.mx6 now, can remove the constraint
+	 * Only validated on i.mx35 and i.mx6 yesw, can remove the constraint
 	 * if validated on other chips.
 	 */
 	if (spi_imx->devtype_data->has_dmamode) {
@@ -1726,7 +1726,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	spi_imx->devtype_data->intctrl(spi_imx, 0);
 
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	ret = spi_bitbang_start(&spi_imx->bitbang);
 	if (ret) {
 		dev_err(&pdev->dev, "bitbang start failed with %d\n", ret);

@@ -353,7 +353,7 @@ struct ipw_qos_info {
 	struct libipw_qos_parameters *def_qos_parm_CCK;
 	u32 burst_duration_CCK;
 	u32 burst_duration_OFDM;
-	u16 qos_no_ack_mask;
+	u16 qos_yes_ack_mask;
 	int burst_enable;
 };
 
@@ -566,13 +566,13 @@ struct ipw_cmd_stats {
 	__le16 rssi_silence_threshold;
 	__le16 rx_ovfl_frame_supplied;
 	__le16 last_rx_frame_signal;
-	__le16 last_rx_frame_noise;
-	__le16 rx_autodetec_no_ofdm;
-	__le16 rx_autodetec_no_barker;
+	__le16 last_rx_frame_yesise;
+	__le16 rx_autodetec_yes_ofdm;
+	__le16 rx_autodetec_yes_barker;
 	__le16 reserved;
 } __packed;
 
-struct notif_channel_result {
+struct yestif_channel_result {
 	u8 channel_num;
 	struct ipw_cmd_stats stats;
 	u8 uReserved;
@@ -581,24 +581,24 @@ struct notif_channel_result {
 #define SCAN_COMPLETED_STATUS_COMPLETE  1
 #define SCAN_COMPLETED_STATUS_ABORTED   2
 
-struct notif_scan_complete {
+struct yestif_scan_complete {
 	u8 scan_type;
 	u8 num_channels;
 	u8 status;
 	u8 reserved;
 } __packed;
 
-struct notif_frag_length {
+struct yestif_frag_length {
 	__le16 frag_length;
 	__le16 reserved;
 } __packed;
 
-struct notif_beacon_state {
+struct yestif_beacon_state {
 	__le32 state;
 	__le32 number;
 } __packed;
 
-struct notif_tgi_tx_key {
+struct yestif_tgi_tx_key {
 	u8 key_state;
 	u8 security_type;
 	u8 station_index;
@@ -608,49 +608,49 @@ struct notif_tgi_tx_key {
 #define SILENCE_OVER_THRESH (1)
 #define SILENCE_UNDER_THRESH (2)
 
-struct notif_link_deterioration {
+struct yestif_link_deterioration {
 	struct ipw_cmd_stats stats;
 	u8 rate;
 	u8 modulation;
 	struct rate_histogram histogram;
-	u8 silence_notification_type;	/* SILENCE_OVER/UNDER_THRESH */
+	u8 silence_yestification_type;	/* SILENCE_OVER/UNDER_THRESH */
 	__le16 silence_count;
 } __packed;
 
-struct notif_association {
+struct yestif_association {
 	u8 state;
 } __packed;
 
-struct notif_authenticate {
+struct yestif_authenticate {
 	u8 state;
 	struct machdr24 addr;
 	__le16 status;
 } __packed;
 
-struct notif_calibration {
+struct yestif_calibration {
 	u8 data[104];
 } __packed;
 
-struct notif_noise {
+struct yestif_yesise {
 	__le32 value;
 } __packed;
 
-struct ipw_rx_notification {
+struct ipw_rx_yestification {
 	u8 reserved[8];
 	u8 subtype;
 	u8 flags;
 	__le16 size;
 	union {
-		struct notif_association assoc;
-		struct notif_authenticate auth;
-		struct notif_channel_result channel_result;
-		struct notif_scan_complete scan_complete;
-		struct notif_frag_length frag_len;
-		struct notif_beacon_state beacon_state;
-		struct notif_tgi_tx_key tgi_tx_key;
-		struct notif_link_deterioration link_deterioration;
-		struct notif_calibration calibration;
-		struct notif_noise noise;
+		struct yestif_association assoc;
+		struct yestif_authenticate auth;
+		struct yestif_channel_result channel_result;
+		struct yestif_scan_complete scan_complete;
+		struct yestif_frag_length frag_len;
+		struct yestif_beacon_state beacon_state;
+		struct yestif_tgi_tx_key tgi_tx_key;
+		struct yestif_link_deterioration link_deterioration;
+		struct yestif_calibration calibration;
+		struct yestif_yesise yesise;
 		u8 raw[0];
 	} u;
 } __packed;
@@ -659,7 +659,7 @@ struct ipw_rx_frame {
 	__le32 reserved1;
 	u8 parent_tsf[4];	// fw_use[0] is boolean for OUR_TSF_IS_GREATER
 	u8 received_channel;	// The channel that this frame was received on.
-	// Note that for .11b this does not have to be
+	// Note that for .11b this does yest have to be
 	// the same as the channel that it was sent.
 	// Filled by LMAC
 	u8 frameStatus;
@@ -668,7 +668,7 @@ struct ipw_rx_frame {
 	u8 agc;
 	u8 rssi_dbm;
 	__le16 signal;
-	__le16 noise;
+	__le16 yesise;
 	u8 antennaAndPhy;
 	u8 control;		// control bit should be on in bg
 	u8 rtscts_rate;		// rate of rts or cts (in rts cts sequence rate
@@ -689,7 +689,7 @@ struct ipw_rx_packet {
 	struct ipw_rx_header header;
 	union {
 		struct ipw_rx_frame frame;
-		struct ipw_rx_notification notification;
+		struct ipw_rx_yestification yestification;
 	} u;
 } __packed;
 
@@ -701,7 +701,7 @@ struct ipw_rx_mem_buffer {
 	dma_addr_t dma_addr;
 	struct sk_buff *skb;
 	struct list_head list;
-};				/* Not transferred over network, so not  __packed */
+};				/* Not transferred over network, so yest  __packed */
 
 struct ipw_rx_queue {
 	struct ipw_rx_mem_buffer pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
@@ -714,7 +714,7 @@ struct ipw_rx_queue {
 	struct list_head rx_free;	/* Own an SKBs */
 	struct list_head rx_used;	/* No SKB allocated */
 	spinlock_t lock;
-};				/* Not transferred over network, so not  __packed */
+};				/* Not transferred over network, so yest  __packed */
 
 struct alive_command_responce {
 	u8 alive_command;
@@ -760,7 +760,7 @@ struct ipw_sys_config {
 	u8 reserved1;
 	u8 answer_broadcast_ssid_probe;
 	u8 accept_all_data_frames;
-	u8 accept_non_directed_frames;
+	u8 accept_yesn_directed_frames;
 	u8 exclude_unicast_unencrypted;
 	u8 disable_unicast_decryption;
 	u8 exclude_multicast_unencrypted;
@@ -774,7 +774,7 @@ struct ipw_sys_config {
 	u8 silence_threshold;
 	u8 accept_all_mgmt_bcpr;
 	u8 accept_all_mgmt_frames;
-	u8 pass_noise_stats_to_host;
+	u8 pass_yesise_stats_to_host;
 	u8 reserved3;
 } __packed;
 
@@ -912,10 +912,10 @@ struct ipw_retry_limit {
 	__le16 reserved;
 } __packed;
 
-struct ipw_dino_config {
-	__le32 dino_config_addr;
-	__le16 dino_config_size;
-	u8 dino_response;
+struct ipw_diyes_config {
+	__le32 diyes_config_addr;
+	__le16 diyes_config_size;
+	u8 diyes_response;
 	u8 reserved;
 } __packed;
 
@@ -938,7 +938,7 @@ struct ipw_rx_key {
 
 struct ipw_country_channel_info {
 	u8 first_channel;
-	u8 no_channels;
+	u8 yes_channels;
 	s8 max_tx_power;
 } __packed;
 
@@ -997,7 +997,7 @@ struct ipw_cmd {	 /* XXX */
 	u32 len;   /**< incoming parameters length, bytes */
   /**
    * command parameters.
-   * There should be enough space for incoming and
+   * There should be eyesugh space for incoming and
    * outcoming parameters.
    * Incoming parameters listed 1-st, followed by outcoming params.
    * nParams=(len+3)/4+status_len
@@ -1136,7 +1136,7 @@ struct ipw_prom_priv {
 #endif
 
 #if defined(CONFIG_IPW2200_RADIOTAP) || defined(CONFIG_IPW2200_PROMISCUOUS)
-/* Magic struct that slots into the radiotap header -- no reason
+/* Magic struct that slots into the radiotap header -- yes reason
  * to build this manually element by element, we can write it much
  * more efficiently than we can parse it. ORDER MATTERS HERE
  *
@@ -1151,7 +1151,7 @@ struct ipw_rt_hdr {
 	__le16 rt_channel;	/* channel in mhz */
 	__le16 rt_chbitmask;	/* channel bitfield */
 	s8 rt_dbmsignal;	/* signal in dbM, kluged to signed */
-	s8 rt_dbmnoise;
+	s8 rt_dbmyesise;
 	u8 rt_antenna;	/* antenna number */
 	u8 payload[0];  /* payload... */
 } __packed;
@@ -1182,7 +1182,7 @@ struct ipw_priv {
 	struct fw_image_desc sram_desc;
 
 	/* result of ucode download */
-	struct alive_command_responce dino_alive;
+	struct alive_command_responce diyes_alive;
 
 	wait_queue_head_t wait_command_queue;
 	wait_queue_head_t wait_state;
@@ -1197,7 +1197,7 @@ struct ipw_priv {
 
 	struct average average_missed_beacons;
 	s16 exp_avg_rssi;
-	s16 exp_avg_noise;
+	s16 exp_avg_yesise;
 	u32 port_type;
 	int rx_bufs_min;	  /**< minimum number of bufs in Rx queue */
 	int rx_pend_max;	  /**< maximum pending buffers for one IRQ */
@@ -1214,13 +1214,13 @@ struct ipw_priv {
 	struct ipw_rates supp;		   /**< software defined */
 	struct ipw_rates extended;	   /**< use for corresp. IE, AP only */
 
-	struct notif_link_deterioration last_link_deterioration; /** for statistics */
+	struct yestif_link_deterioration last_link_deterioration; /** for statistics */
 	struct ipw_cmd *hcmd; /**< host command currently executed */
 
 	wait_queue_head_t hcmd_wq;     /**< host command waits for execution */
 	u32 tsf_bcn[2];		     /**< TSF from latest beacon */
 
-	struct notif_calibration calib;	/**< last calibration */
+	struct yestif_calibration calib;	/**< last calibration */
 
 	/* ordinal interface with firmware */
 	u32 table0_addr;
@@ -1246,9 +1246,9 @@ struct ipw_priv {
 	u8 short_retry_limit;
 	u8 long_retry_limit;
 
-	u32 notif_missed_beacons;
+	u32 yestif_missed_beacons;
 
-	/* Statistics and counters normalized with each association */
+	/* Statistics and counters yesrmalized with each association */
 	u32 last_missed_beacons;
 	u32 last_tx_packets;
 	u32 last_rx_packets;
@@ -1415,7 +1415,7 @@ do { if (ipw_debug_level & (level)) \
  *
  * you simply need to add your entry to the ipw_debug_levels array.
  *
- * If you do not see debug_level in /proc/net/ipw then you do not have
+ * If you do yest see debug_level in /proc/net/ipw then you do yest have
  * CONFIG_IPW2200_DEBUG defined in your kernel configuration
  *
  */
@@ -1535,7 +1535,7 @@ do { if (ipw_debug_level & (level)) \
 #define IPW_DOMAIN_0_END 0x1000
 #define CLX_MEM_BAR_SIZE 0x1000
 
-/* Dino/baseband control registers bits */
+/* Diyes/baseband control registers bits */
 
 #define DINO_ENABLE_SYSTEM 0x80	/* 1 = baseband processor on, 0 = reset */
 #define DINO_ENABLE_CS     0x40	/* 1 = enable ucode load */
@@ -1980,7 +1980,7 @@ struct ipw_cmd_log {
 #define CFG_SYS_ANTENNA_BOTH            0x00	/* NIC selects best antenna */
 #define CFG_SYS_ANTENNA_A               0x01	/* force antenna A */
 #define CFG_SYS_ANTENNA_B               0x03	/* force antenna B */
-#define CFG_SYS_ANTENNA_SLOW_DIV        0x02	/* consider background noise */
+#define CFG_SYS_ANTENNA_SLOW_DIV        0x02	/* consider background yesise */
 
 #define IPW_MAX_CONFIG_RETRIES 10
 

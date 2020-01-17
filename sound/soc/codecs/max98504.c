@@ -27,12 +27,12 @@ struct max98504_priv {
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[MAX98504_NUM_SUPPLIES];
 	unsigned int pcm_rx_channels;
-	bool brownout_enable;
-	unsigned int brownout_threshold;
-	unsigned int brownout_attenuation;
-	unsigned int brownout_attack_hold;
-	unsigned int brownout_timed_hold;
-	unsigned int brownout_release_rate;
+	bool browyesut_enable;
+	unsigned int browyesut_threshold;
+	unsigned int browyesut_attenuation;
+	unsigned int browyesut_attack_hold;
+	unsigned int browyesut_timed_hold;
+	unsigned int browyesut_release_rate;
 };
 
 static struct reg_default max98504_reg_defaults[] = {
@@ -133,23 +133,23 @@ static int max98504_component_probe(struct snd_soc_component *c)
 	regmap_write(map, MAX98504_SOFTWARE_RESET, 0x1);
 	msleep(20);
 
-	if (!max98504->brownout_enable)
+	if (!max98504->browyesut_enable)
 		return 0;
 
 	regmap_write(map, MAX98504_PVDD_BROWNOUT_ENABLE, 0x1);
 
 	regmap_write(map, MAX98504_PVDD_BROWNOUT_CONFIG_1,
-		     (max98504->brownout_threshold & 0x1f) << 3 |
-		     (max98504->brownout_attenuation & 0x3));
+		     (max98504->browyesut_threshold & 0x1f) << 3 |
+		     (max98504->browyesut_attenuation & 0x3));
 
 	regmap_write(map, MAX98504_PVDD_BROWNOUT_CONFIG_2,
-		     max98504->brownout_attack_hold & 0xff);
+		     max98504->browyesut_attack_hold & 0xff);
 
 	regmap_write(map, MAX98504_PVDD_BROWNOUT_CONFIG_3,
-		     max98504->brownout_timed_hold & 0xff);
+		     max98504->browyesut_timed_hold & 0xff);
 
 	regmap_write(map, MAX98504_PVDD_BROWNOUT_CONFIG_4,
-		     max98504->brownout_release_rate & 0xff);
+		     max98504->browyesut_release_rate & 0xff);
 
 	return 0;
 }
@@ -162,7 +162,7 @@ static void max98504_component_remove(struct snd_soc_component *c)
 }
 
 static const char *spk_source_mux_text[] = {
-	"PCM Monomix", "Analog In", "PDM Left", "PDM Right"
+	"PCM Moyesmix", "Analog In", "PDM Left", "PDM Right"
 };
 
 static const struct soc_enum spk_source_mux_enum =
@@ -175,7 +175,7 @@ static const struct snd_kcontrol_new spk_source_mux =
 
 static const struct snd_soc_dapm_route max98504_dapm_routes[] = {
 	{ "SPKOUT", NULL, "Global Enable" },
-	{ "SPK Source", "PCM Monomix", "DAC PCM" },
+	{ "SPK Source", "PCM Moyesmix", "DAC PCM" },
 	{ "SPK Source", "Analog In", "AIN" },
 	{ "SPK Source", "PDM Left", "DAC PDM" },
 	{ "SPK Source", "PDM Right", "DAC PDM" },
@@ -308,7 +308,7 @@ static int max98504_i2c_probe(struct i2c_client *client,
 			      const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct max98504_priv *max98504;
 	int i, ret;
 
@@ -316,19 +316,19 @@ static int max98504_i2c_probe(struct i2c_client *client,
 	if (!max98504)
 		return -ENOMEM;
 
-	if (node) {
-		if (!of_property_read_u32(node, "maxim,brownout-threshold",
-					&max98504->brownout_threshold))
-			max98504->brownout_enable = true;
+	if (yesde) {
+		if (!of_property_read_u32(yesde, "maxim,browyesut-threshold",
+					&max98504->browyesut_threshold))
+			max98504->browyesut_enable = true;
 
-		of_property_read_u32(node, "maxim,brownout-attenuation",
-					&max98504->brownout_attenuation);
-		of_property_read_u32(node, "maxim,brownout-attack-hold-ms",
-					&max98504->brownout_attack_hold);
-		of_property_read_u32(node, "maxim,brownout-timed-hold-ms",
-					&max98504->brownout_timed_hold);
-		of_property_read_u32(node, "maxim,brownout-release-rate-ms",
-					&max98504->brownout_release_rate);
+		of_property_read_u32(yesde, "maxim,browyesut-attenuation",
+					&max98504->browyesut_attenuation);
+		of_property_read_u32(yesde, "maxim,browyesut-attack-hold-ms",
+					&max98504->browyesut_attack_hold);
+		of_property_read_u32(yesde, "maxim,browyesut-timed-hold-ms",
+					&max98504->browyesut_timed_hold);
+		of_property_read_u32(yesde, "maxim,browyesut-release-rate-ms",
+					&max98504->browyesut_release_rate);
 	}
 
 	max98504->regmap = devm_regmap_init_i2c(client, &max98504_regmap);

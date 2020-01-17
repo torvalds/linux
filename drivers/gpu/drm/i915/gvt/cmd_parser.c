@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -293,7 +293,7 @@ struct decode_info {
 
 /*
  * Below MFX and VBE cmd definition is from vaapi intel driver project (BSD License)
- * git://anongit.freedesktop.org/vaapi/intel-driver
+ * git://ayesngit.freedesktop.org/vaapi/intel-driver
  * src/i965_defines.h
  *
  */
@@ -385,7 +385,7 @@ typedef int (*parser_cmd_handler)(struct parser_exec_state *s);
 static int gvt_check_valid_cmd_length(int len, int valid_len)
 {
 	if (valid_len != len) {
-		gvt_err("len is not valid:  len=%u  valid_len=%u\n",
+		gvt_err("len is yest valid:  len=%u  valid_len=%u\n",
 			len, valid_len);
 		return -EFAULT;
 	}
@@ -423,7 +423,7 @@ struct cmd_info {
 	u16 devices;
 
 	/* which DWords are address that need fix up.
-	 * bit 0 means a 32-bit non address operand in command
+	 * bit 0 means a 32-bit yesn address operand in command
 	 * bit 1 means address operand, which could be 32-bit
 	 * or 64-bit depending on different architectures.(
 	 * defined by "gmadr_bytes_in_cmd" in intel_gvt.
@@ -445,7 +445,7 @@ struct cmd_info {
 };
 
 struct cmd_entry {
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 	const struct cmd_info *info;
 };
 
@@ -810,7 +810,7 @@ static inline int cmd_length(struct parser_exec_state *s)
 	return get_cmd_length(s->info, cmd_val(s, 0));
 }
 
-/* do not remove this, some platform may need clflush here */
+/* do yest remove this, some platform may need clflush here */
 #define patch_value(s, addr, val) do { \
 	*addr = val; \
 } while (0)
@@ -828,36 +828,36 @@ static bool is_shadowed_mmio(unsigned int offset)
 	return ret;
 }
 
-static inline bool is_force_nonpriv_mmio(unsigned int offset)
+static inline bool is_force_yesnpriv_mmio(unsigned int offset)
 {
 	return (offset >= 0x24d0 && offset < 0x2500);
 }
 
-static int force_nonpriv_reg_handler(struct parser_exec_state *s,
+static int force_yesnpriv_reg_handler(struct parser_exec_state *s,
 		unsigned int offset, unsigned int index, char *cmd)
 {
 	struct intel_gvt *gvt = s->vgpu->gvt;
 	unsigned int data;
 	u32 ring_base;
-	u32 nopid;
+	u32 yespid;
 	struct drm_i915_private *dev_priv = s->vgpu->gvt->dev_priv;
 
 	if (!strcmp(cmd, "lri"))
 		data = cmd_val(s, index + 1);
 	else {
-		gvt_err("Unexpected forcenonpriv 0x%x write from cmd %s\n",
+		gvt_err("Unexpected forceyesnpriv 0x%x write from cmd %s\n",
 			offset, cmd);
 		return -EINVAL;
 	}
 
 	ring_base = dev_priv->engine[s->ring_id]->mmio_base;
-	nopid = i915_mmio_reg_offset(RING_NOPID(ring_base));
+	yespid = i915_mmio_reg_offset(RING_NOPID(ring_base));
 
-	if (!intel_gvt_in_force_nonpriv_whitelist(gvt, data) &&
-			data != nopid) {
-		gvt_err("Unexpected forcenonpriv 0x%x LRI write, value=0x%x\n",
+	if (!intel_gvt_in_force_yesnpriv_whitelist(gvt, data) &&
+			data != yespid) {
+		gvt_err("Unexpected forceyesnpriv 0x%x LRI write, value=0x%x\n",
 			offset, data);
-		patch_value(s, cmd_ptr(s, index), nopid);
+		patch_value(s, cmd_ptr(s, index), yespid);
 		return 0;
 	}
 	return 0;
@@ -892,7 +892,7 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	}
 
 	if (!intel_gvt_mmio_is_cmd_access(gvt, offset)) {
-		gvt_vgpu_err("%s access to non-render register (%x)\n",
+		gvt_vgpu_err("%s access to yesn-render register (%x)\n",
 				cmd, offset);
 		return -EBADRQC;
 	}
@@ -906,8 +906,8 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	    mocs_cmd_reg_handler(s, offset, index))
 		return -EINVAL;
 
-	if (is_force_nonpriv_mmio(offset) &&
-		force_nonpriv_reg_handler(s, offset, index, cmd))
+	if (is_force_yesnpriv_mmio(offset) &&
+		force_yesnpriv_reg_handler(s, offset, index, cmd))
 		return -EPERM;
 
 	if (offset == i915_mmio_reg_offset(DERRMR) ||
@@ -973,7 +973,7 @@ static int cmd_handler_lri(struct parser_exec_state *s)
 	 */
 	#define MAX_VALID_LEN 127
 	if ((cmd_len < valid_len) || (cmd_len > MAX_VALID_LEN)) {
-		gvt_err("len is not valid:  len=%u  valid_len=%u\n",
+		gvt_err("len is yest valid:  len=%u  valid_len=%u\n",
 			cmd_len, valid_len);
 		return -EFAULT;
 	}
@@ -1074,34 +1074,34 @@ static int cmd_handler_srm(struct parser_exec_state *s)
 }
 
 struct cmd_interrupt_event {
-	int pipe_control_notify;
+	int pipe_control_yestify;
 	int mi_flush_dw;
 	int mi_user_interrupt;
 };
 
 static struct cmd_interrupt_event cmd_interrupt_events[] = {
 	[RCS0] = {
-		.pipe_control_notify = RCS_PIPE_CONTROL,
+		.pipe_control_yestify = RCS_PIPE_CONTROL,
 		.mi_flush_dw = INTEL_GVT_EVENT_RESERVED,
 		.mi_user_interrupt = RCS_MI_USER_INTERRUPT,
 	},
 	[BCS0] = {
-		.pipe_control_notify = INTEL_GVT_EVENT_RESERVED,
+		.pipe_control_yestify = INTEL_GVT_EVENT_RESERVED,
 		.mi_flush_dw = BCS_MI_FLUSH_DW,
 		.mi_user_interrupt = BCS_MI_USER_INTERRUPT,
 	},
 	[VCS0] = {
-		.pipe_control_notify = INTEL_GVT_EVENT_RESERVED,
+		.pipe_control_yestify = INTEL_GVT_EVENT_RESERVED,
 		.mi_flush_dw = VCS_MI_FLUSH_DW,
 		.mi_user_interrupt = VCS_MI_USER_INTERRUPT,
 	},
 	[VCS1] = {
-		.pipe_control_notify = INTEL_GVT_EVENT_RESERVED,
+		.pipe_control_yestify = INTEL_GVT_EVENT_RESERVED,
 		.mi_flush_dw = VCS2_MI_FLUSH_DW,
 		.mi_user_interrupt = VCS2_MI_USER_INTERRUPT,
 	},
 	[VECS0] = {
-		.pipe_control_notify = INTEL_GVT_EVENT_RESERVED,
+		.pipe_control_yestify = INTEL_GVT_EVENT_RESERVED,
 		.mi_flush_dw = VECS_MI_FLUSH_DW,
 		.mi_user_interrupt = VECS_MI_USER_INTERRUPT,
 	},
@@ -1155,7 +1155,7 @@ static int cmd_handler_pipe_control(struct parser_exec_state *s)
 		return ret;
 
 	if (cmd_val(s, 1) & PIPE_CONTROL_NOTIFY)
-		set_bit(cmd_interrupt_events[s->ring_id].pipe_control_notify,
+		set_bit(cmd_interrupt_events[s->ring_id].pipe_control_yestify,
 				s->workload->pending_events);
 	return 0;
 }
@@ -1299,7 +1299,7 @@ static int skl_decode_mi_display_flip(struct parser_exec_state *s,
 		break;
 
 	default:
-		gvt_vgpu_err("unknown plane code %d\n", plane);
+		gvt_vgpu_err("unkyeswn plane code %d\n", plane);
 		return -EBADRQC;
 	}
 
@@ -1335,10 +1335,10 @@ static int gen8_check_mi_display_flip(struct parser_exec_state *s,
 	}
 
 	if (stride != info->stride_val)
-		gvt_dbg_cmd("cannot change stride during async flip\n");
+		gvt_dbg_cmd("canyest change stride during async flip\n");
 
 	if (tile != info->tile_val)
-		gvt_dbg_cmd("cannot change tile during async flip\n");
+		gvt_dbg_cmd("canyest change tile during async flip\n");
 
 	return 0;
 }
@@ -1674,7 +1674,7 @@ static int cmd_handler_mi_flush_dw(struct parser_exec_state *s)
 			patch_value(s, cmd_ptr(s, 0), val);
 		}
 	}
-	/* Check notify bit */
+	/* Check yestify bit */
 	if ((cmd_val(s, 0) & (1 << 8)))
 		set_bit(cmd_interrupt_events[s->ring_id].mi_flush_dw,
 				s->workload->pending_events);
@@ -1726,7 +1726,7 @@ static int batch_buffer_needs_scan(struct parser_exec_state *s)
 {
 	/* Decide privilege based on address space */
 	if (cmd_val(s, 0) & (1 << 8) &&
-			!(s->vgpu->scan_nonprivbb & (1 << s->ring_id)))
+			!(s->vgpu->scan_yesnprivbb & (1 << s->ring_id)))
 		return 0;
 	return 1;
 }
@@ -1755,7 +1755,7 @@ static int find_bb_size(struct parser_exec_state *s,
 	cmd = cmd_val(s, 0);
 	info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
 	if (info == NULL) {
-		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x, addr_type=%s, ring %d, workload=%p\n",
+		gvt_vgpu_err("unkyeswn cmd 0x%x, opcode=0x%x, addr_type=%s, ring %d, workload=%p\n",
 				cmd, get_opcode(cmd, s->ring_id),
 				(s->buf_addr_type == PPGTT_BUFFER) ?
 				"ppgtt" : "ggtt", s->ring_id, s->workload);
@@ -1767,7 +1767,7 @@ static int find_bb_size(struct parser_exec_state *s,
 			return -EFAULT;
 		info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
 		if (info == NULL) {
-			gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x, addr_type=%s, ring %d, workload=%p\n",
+			gvt_vgpu_err("unkyeswn cmd 0x%x, opcode=0x%x, addr_type=%s, ring %d, workload=%p\n",
 				cmd, get_opcode(cmd, s->ring_id),
 				(s->buf_addr_type == PPGTT_BUFFER) ?
 				"ppgtt" : "ggtt", s->ring_id, s->workload);
@@ -1801,7 +1801,7 @@ static int audit_bb_end(struct parser_exec_state *s, void *va)
 
 	info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
 	if (info == NULL) {
-		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x, addr_type=%s, ring %d, workload=%p\n",
+		gvt_vgpu_err("unkyeswn cmd 0x%x, opcode=0x%x, addr_type=%s, ring %d, workload=%p\n",
 			cmd, get_opcode(cmd, s->ring_id),
 			(s->buf_addr_type == PPGTT_BUFFER) ?
 			"ppgtt" : "ggtt", s->ring_id, s->workload);
@@ -1844,12 +1844,12 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	bb->ppgtt = (s->buf_addr_type == GTT_BUFFER) ? false : true;
 
 	/* the start_offset stores the batch buffer's start gma's
-	 * offset relative to page boundary. so for non-privileged batch
+	 * offset relative to page boundary. so for yesn-privileged batch
 	 * buffer, the shadowed gem object holds exactly the same page
 	 * layout as original gem object. This is for the convience of
-	 * replacing the whole non-privilged batch buffer page to this
+	 * replacing the whole yesn-privilged batch buffer page to this
 	 * shadowed one in PPGTT at the same gma address. (this replacing
-	 * action is not implemented yet now, but may be necessary in
+	 * action is yest implemented yet yesw, but may be necessary in
 	 * future).
 	 * for prileged batch buffer, we just change start gma address to
 	 * that of shadowed page.
@@ -1939,7 +1939,7 @@ static int cmd_handler_mi_batch_buffer_start(struct parser_exec_state *s)
 
 	second_level = BATCH_BUFFER_2ND_LEVEL_BIT(cmd_val(s, 0)) == 1;
 	if (second_level && (s->buf_type != BATCH_BUFFER_INSTRUCTION)) {
-		gvt_vgpu_err("Jumping to 2nd level BB from RB is not allowed\n");
+		gvt_vgpu_err("Jumping to 2nd level BB from RB is yest allowed\n");
 		return -EFAULT;
 	}
 
@@ -1967,7 +1967,7 @@ static int cmd_handler_mi_batch_buffer_start(struct parser_exec_state *s)
 	return ret;
 }
 
-static int mi_noop_index;
+static int mi_yesop_index;
 
 static const struct cmd_info cmd_info[] = {
 	{"MI_NOOP", OP_MI_NOOP, F_LEN_CONST, R_ALL, D_ALL, 0, 1, NULL},
@@ -2664,12 +2664,12 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 
 	/* fastpath for MI_NOOP */
 	if (cmd == MI_NOOP)
-		info = &cmd_info[mi_noop_index];
+		info = &cmd_info[mi_yesop_index];
 	else
 		info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
 
 	if (info == NULL) {
-		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x, addr_type=%s, ring %d, workload=%p\n",
+		gvt_vgpu_err("unkyeswn cmd 0x%x, opcode=0x%x, addr_type=%s, ring %d, workload=%p\n",
 				cmd, get_opcode(cmd, s->ring_id),
 				(s->buf_addr_type == PPGTT_BUFFER) ?
 				"ppgtt" : "ggtt", s->ring_id, s->workload);
@@ -2716,8 +2716,8 @@ static inline bool gma_out_of_range(unsigned long gma,
 		return (gma > gma_tail) && (gma < gma_head);
 }
 
-/* Keep the consistent return type, e.g EBADRQC for unknown
- * cmd, EFAULT for invalid address, EPERM for nonpriv. later
+/* Keep the consistent return type, e.g EBADRQC for unkyeswn
+ * cmd, EFAULT for invalid address, EPERM for yesnpriv. later
  * works as the input of VM healthy status.
  */
 static int command_scan(struct parser_exec_state *s,
@@ -3070,7 +3070,7 @@ static int init_cmd_table(struct intel_gvt *gvt)
 			return -EEXIST;
 		}
 		if (cmd_info[i].opcode == OP_MI_NOOP)
-			mi_noop_index = i;
+			mi_yesop_index = i;
 
 		INIT_HLIST_NODE(&e->hlist);
 		add_cmd_entry(gvt, e);
@@ -3083,7 +3083,7 @@ static int init_cmd_table(struct intel_gvt *gvt)
 
 static void clean_cmd_table(struct intel_gvt *gvt)
 {
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	struct cmd_entry *e;
 	int i;
 

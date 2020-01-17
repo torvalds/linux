@@ -168,7 +168,7 @@ EXPORT_SYMBOL(xt_unregister_matches);
 
 
 /*
- * These are weird, but module loading must not be done with mutex
+ * These are weird, but module loading must yest be done with mutex
  * held (since they will register), and we have to have a single
  * function to use.
  */
@@ -365,7 +365,7 @@ static int target_revfn(u8 af, const char *name, u8 revision, int *bestp)
 	return have_rev;
 }
 
-/* Returns true or false (if no such extension at all) */
+/* Returns true or false (if yes such extension at all) */
 int xt_find_revision(u8 af, const char *name, u8 revision, int target,
 		     int *err)
 {
@@ -474,7 +474,7 @@ int xt_check_match(struct xt_mtchk_param *par,
 	}
 	if (par->match->table != NULL &&
 	    strcmp(par->match->table, par->table) != 0) {
-		pr_info_ratelimited("%s_tables: %s match: only valid in %s table, not %s\n",
+		pr_info_ratelimited("%s_tables: %s match: only valid in %s table, yest %s\n",
 				    xt_prefix[par->family], par->match->name,
 				    par->match->table, par->table);
 		return -EINVAL;
@@ -518,7 +518,7 @@ EXPORT_SYMBOL_GPL(xt_check_match);
  * Validates that all matches add up to the beginning of the target,
  * and that each match covers at least the base structure size.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erryes on failure.
  */
 static int xt_check_entry_match(const char *match, const char *target,
 				const size_t alignment)
@@ -526,7 +526,7 @@ static int xt_check_entry_match(const char *match, const char *target,
 	const struct xt_entry_match *pos;
 	int length = target - match;
 
-	if (length == 0) /* no matches */
+	if (length == 0) /* yes matches */
 		return 0;
 
 	pos = (struct xt_entry_match *)match;
@@ -557,7 +557,7 @@ static int xt_check_entry_match(const char *match, const char *target,
  *
  * Validates that the hook entry and underflows points are set up.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erryes on failure.
  */
 int xt_check_table_hooks(const struct xt_table_info *info, unsigned int valid_hooks)
 {
@@ -787,7 +787,7 @@ int xt_compat_match_to_user(const struct xt_entry_match *m,
 }
 EXPORT_SYMBOL_GPL(xt_compat_match_to_user);
 
-/* non-compat version may have padding after verdict */
+/* yesn-compat version may have padding after verdict */
 struct compat_xt_standard_target {
 	struct compat_xt_entry_target t;
 	compat_uint_t verdict;
@@ -842,7 +842,7 @@ int xt_compat_check_entry_offsets(const void *base, const char *elems,
 	BUILD_BUG_ON(sizeof(struct compat_xt_entry_match) != sizeof(struct xt_entry_match));
 
 	return xt_check_entry_match(elems, base + target_offset,
-				    __alignof__(struct compat_xt_entry_match));
+				    __aligyesf__(struct compat_xt_entry_match));
 }
 EXPORT_SYMBOL(xt_compat_check_entry_offsets);
 #endif /* CONFIG_COMPAT */
@@ -858,7 +858,7 @@ EXPORT_SYMBOL(xt_compat_check_entry_offsets);
  * validates that target_offset and next_offset are sane and that all
  * match sizes (if any) align with the target offset.
  *
- * This function does not validate the targets or matches themselves, it
+ * This function does yest validate the targets or matches themselves, it
  * only tests that all the offsets and sizes are correct, that all
  * match structures are aligned, and that the last structure ends where
  * the target structure begins.
@@ -867,7 +867,7 @@ EXPORT_SYMBOL(xt_compat_check_entry_offsets);
  *
  * The arp/ip/ip6t_entry structure @base must have passed following tests:
  * - it must point to a valid memory location
- * - base to base + next_offset must be accessible, i.e. not exceed allocated
+ * - base to base + next_offset must be accessible, i.e. yest exceed allocated
  *   length.
  *
  * A well-formed entry looks like this:
@@ -886,9 +886,9 @@ EXPORT_SYMBOL(xt_compat_check_entry_offsets);
  * next_offset: start of the next rule; also: size of this rule.
  * Since targets have a minimum size, target_offset + minlen <= next_offset.
  *
- * Every match stores its size, sum of sizes must not exceed target_offset.
+ * Every match stores its size, sum of sizes must yest exceed target_offset.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erryes on failure.
  */
 int xt_check_entry_offsets(const void *base,
 			   const char *elems,
@@ -930,7 +930,7 @@ int xt_check_entry_offsets(const void *base,
 	}
 
 	return xt_check_entry_match(elems, base + target_offset,
-				    __alignof__(struct xt_entry_match));
+				    __aligyesf__(struct xt_entry_match));
 }
 EXPORT_SYMBOL(xt_check_entry_offsets);
 
@@ -992,7 +992,7 @@ int xt_check_target(struct xt_tgchk_param *par,
 	}
 	if (par->target->table != NULL &&
 	    strcmp(par->target->table, par->table) != 0) {
-		pr_info_ratelimited("%s_tables: %s target: only valid in %s table, not %s\n",
+		pr_info_ratelimited("%s_tables: %s target: only valid in %s table, yest %s\n",
 				    xt_prefix[par->family], par->target->name,
 				    par->target->table, par->table);
 		return -EINVAL;
@@ -1304,7 +1304,7 @@ static int xt_jumpstack_alloc(struct xt_table_info *i)
 	if (i->jumpstack == NULL)
 		return -ENOMEM;
 
-	/* ruleset without jumps -- no stack needed */
+	/* ruleset without jumps -- yes stack needed */
 	if (i->stacksize == 0)
 		return 0;
 
@@ -1320,8 +1320,8 @@ static int xt_jumpstack_alloc(struct xt_table_info *i)
 	 */
 	size = sizeof(void *) * i->stacksize * 2u;
 	for_each_possible_cpu(cpu) {
-		i->jumpstack[cpu] = kvmalloc_node(size, GFP_KERNEL,
-			cpu_to_node(cpu));
+		i->jumpstack[cpu] = kvmalloc_yesde(size, GFP_KERNEL,
+			cpu_to_yesde(cpu));
 		if (i->jumpstack[cpu] == NULL)
 			/*
 			 * Freeing will be done later on by the callers. The
@@ -1390,7 +1390,7 @@ xt_replace_table(struct xt_table *table,
 	smp_wmb();
 
 	/*
-	 * Even though table entries have now been swapped, other CPU's
+	 * Even though table entries have yesw been swapped, other CPU's
 	 * may still be using the old entries...
 	 */
 	local_bh_enable();
@@ -1488,7 +1488,7 @@ EXPORT_SYMBOL_GPL(xt_unregister_table);
 static void *xt_table_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct net *net = seq_file_net(seq);
-	u_int8_t af = (unsigned long)PDE_DATA(file_inode(seq->file));
+	u_int8_t af = (unsigned long)PDE_DATA(file_iyesde(seq->file));
 
 	mutex_lock(&xt[af].mutex);
 	return seq_list_start(&net->xt.tables[af], *pos);
@@ -1497,14 +1497,14 @@ static void *xt_table_seq_start(struct seq_file *seq, loff_t *pos)
 static void *xt_table_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct net *net = seq_file_net(seq);
-	u_int8_t af = (unsigned long)PDE_DATA(file_inode(seq->file));
+	u_int8_t af = (unsigned long)PDE_DATA(file_iyesde(seq->file));
 
 	return seq_list_next(v, &net->xt.tables[af], pos);
 }
 
 static void xt_table_seq_stop(struct seq_file *seq, void *v)
 {
-	u_int8_t af = (unsigned long)PDE_DATA(file_inode(seq->file));
+	u_int8_t af = (unsigned long)PDE_DATA(file_iyesde(seq->file));
 
 	mutex_unlock(&xt[af].mutex);
 }
@@ -1548,7 +1548,7 @@ static void *xt_mttg_seq_next(struct seq_file *seq, void *v, loff_t *ppos,
 		[MTTG_TRAV_NFP_UNSPEC] = MTTG_TRAV_NFP_SPEC,
 		[MTTG_TRAV_NFP_SPEC]   = MTTG_TRAV_DONE,
 	};
-	uint8_t nfproto = (unsigned long)PDE_DATA(file_inode(seq->file));
+	uint8_t nfproto = (unsigned long)PDE_DATA(file_iyesde(seq->file));
 	struct nf_mttg_trav *trav = seq->private;
 
 	switch (trav->class) {
@@ -1597,7 +1597,7 @@ static void *xt_mttg_seq_start(struct seq_file *seq, loff_t *pos,
 
 static void xt_mttg_seq_stop(struct seq_file *seq, void *v)
 {
-	uint8_t nfproto = (unsigned long)PDE_DATA(file_inode(seq->file));
+	uint8_t nfproto = (unsigned long)PDE_DATA(file_iyesde(seq->file));
 	struct nf_mttg_trav *trav = seq->private;
 
 	switch (trav->class) {

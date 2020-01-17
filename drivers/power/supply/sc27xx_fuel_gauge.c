@@ -154,7 +154,7 @@ static bool sc27xx_fgu_is_first_poweron(struct sc27xx_fgu_data *data)
 	/*
 	 * When FGU has been powered down, the user area registers became
 	 * default value (0xffff), which can be used to valid if the system is
-	 * first power on or not.
+	 * first power on or yest.
 	 */
 	if (mode == SC27XX_FGU_FIRST_POWERTON || cap == SC27XX_FGU_DEFAULT_CAP)
 		return true;
@@ -199,7 +199,7 @@ static int sc27xx_fgu_save_boot_mode(struct sc27xx_fgu_data *data,
 
 	/*
 	 * According to the datasheet, we should set the USER_AREA_CLEAR to 0 to
-	 * make the user area data available, otherwise we can not save the user
+	 * make the user area data available, otherwise we can yest save the user
 	 * area data.
 	 */
 	return regmap_update_bits(data->regmap,
@@ -242,7 +242,7 @@ static int sc27xx_fgu_save_last_cap(struct sc27xx_fgu_data *data, int cap)
 
 	/*
 	 * According to the datasheet, we should set the USER_AREA_CLEAR to 0 to
-	 * make the user area data available, otherwise we can not save the user
+	 * make the user area data available, otherwise we can yest save the user
 	 * area data.
 	 */
 	return regmap_update_bits(data->regmap,
@@ -264,8 +264,8 @@ static int sc27xx_fgu_read_last_cap(struct sc27xx_fgu_data *data, int *cap)
 }
 
 /*
- * When system boots on, we can not read battery capacity from coulomb
- * registers, since now the coulomb registers are invalid. So we should
+ * When system boots on, we can yest read battery capacity from coulomb
+ * registers, since yesw the coulomb registers are invalid. So we should
  * calculate the battery open circuit voltage, and get current battery
  * capacity according to the capacity table.
  */
@@ -275,7 +275,7 @@ static int sc27xx_fgu_get_boot_capacity(struct sc27xx_fgu_data *data, int *cap)
 	bool is_first_poweron = sc27xx_fgu_is_first_poweron(data);
 
 	/*
-	 * If system is not the first power on, we should use the last saved
+	 * If system is yest the first power on, we should use the last saved
 	 * battery capacity as the initial battery capacity. Otherwise we should
 	 * re-calculate the initial battery capacity.
 	 */
@@ -392,7 +392,7 @@ static int sc27xx_fgu_get_capacity(struct sc27xx_fgu_data *data, int *cap)
 	delta_cap = DIV_ROUND_CLOSEST(temp * 100, data->total_cap);
 	*cap = delta_cap + data->init_cap;
 
-	/* Calibrate the battery capacity in a normal range. */
+	/* Calibrate the battery capacity in a yesrmal range. */
 	sc27xx_fgu_capacity_calibration(data, *cap, false);
 
 	return 0;
@@ -703,7 +703,7 @@ static void sc27xx_fgu_capacity_calibration(struct sc27xx_fgu_data *data,
 	}
 
 	/*
-	 * If we are in charging mode, then we do not need to calibrate the
+	 * If we are in charging mode, then we do yest need to calibrate the
 	 * lower capacity.
 	 */
 	if (chg_sts == POWER_SUPPLY_STATUS_CHARGING)
@@ -725,7 +725,7 @@ static void sc27xx_fgu_capacity_calibration(struct sc27xx_fgu_data *data,
 	} else if ((ocv > data->cap_table[data->table_len - 1].ocv && cap <= 0) ||
 		   (ocv > data->min_volt && cap <= data->alarm_cap)) {
 		/*
-		 * If current OCV value is not matchable with current capacity,
+		 * If current OCV value is yest matchable with current capacity,
 		 * we should re-calculate current capacity by looking up the
 		 * OCV table.
 		 */
@@ -909,7 +909,7 @@ static int sc27xx_fgu_hw_init(struct sc27xx_fgu_data *data)
 
 	/*
 	 * For SC27XX fuel gauge device, we only use one ocv-capacity
-	 * table in normal temperature 20 Celsius.
+	 * table in yesrmal temperature 20 Celsius.
 	 */
 	table = power_supply_find_ocv2cap_table(&info, 20, &data->table_len);
 	if (!table)
@@ -961,7 +961,7 @@ static int sc27xx_fgu_hw_init(struct sc27xx_fgu_data *data)
 	/*
 	 * Set the voltage low overload threshold, which means when the battery
 	 * voltage is lower than this threshold, the controller will generate
-	 * one interrupt to notify.
+	 * one interrupt to yestify.
 	 */
 	alarm_adc = sc27xx_fgu_voltage_to_adc(data, data->min_volt / 1000);
 	ret = regmap_update_bits(data->regmap, data->base + SC27XX_FGU_LOW_OVERLOAD,
@@ -974,7 +974,7 @@ static int sc27xx_fgu_hw_init(struct sc27xx_fgu_data *data)
 	/*
 	 * Set the coulomb counter delta threshold, that means when the coulomb
 	 * counter change is multiples of the delta threshold, the controller
-	 * will generate one interrupt to notify the users to update the battery
+	 * will generate one interrupt to yestify the users to update the battery
 	 * capacity. Now we set the delta threshold as a counter value of 1%
 	 * capacity.
 	 */
@@ -1030,7 +1030,7 @@ disable_fgu:
 static int sc27xx_fgu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct power_supply_config fgu_cfg = { };
 	struct sc27xx_fgu_data *data;
 	int ret, irq;
@@ -1081,7 +1081,7 @@ static int sc27xx_fgu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 	fgu_cfg.drv_data = data;
-	fgu_cfg.of_node = np;
+	fgu_cfg.of_yesde = np;
 	data->battery = devm_power_supply_register(dev, &sc27xx_fgu_desc,
 						   &fgu_cfg);
 	if (IS_ERR(data->battery)) {
@@ -1103,7 +1103,7 @@ static int sc27xx_fgu_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "no irq resource specified\n");
+		dev_err(dev, "yes irq resource specified\n");
 		return irq;
 	}
 
@@ -1162,7 +1162,7 @@ static int sc27xx_fgu_suspend(struct device *dev)
 		return ret;
 
 	/*
-	 * If we are charging, then no need to enable the FGU interrupts to
+	 * If we are charging, then yes need to enable the FGU interrupts to
 	 * adjust the battery capacity.
 	 */
 	if (status != POWER_SUPPLY_STATUS_NOT_CHARGING &&
@@ -1183,7 +1183,7 @@ static int sc27xx_fgu_suspend(struct device *dev)
 
 	/*
 	 * If current OCV is less than the minimum voltage, we should enable the
-	 * coulomb counter threshold interrupt to notify events to adjust the
+	 * coulomb counter threshold interrupt to yestify events to adjust the
 	 * battery capacity.
 	 */
 	if (ocv < data->min_volt) {

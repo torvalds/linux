@@ -11,7 +11,7 @@
  */
 #include <linux/compiler.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -47,7 +47,7 @@ static void __init tc_bus_add_devices(struct tc_bus *tbus)
 	for (slot = 0; slot < tbus->num_tcslots; slot++) {
 		slotaddr = tbus->slot_base + slot * slotsize;
 		extslotaddr = tbus->ext_slot_base + slot * extslotsize;
-		module = ioremap_nocache(slotaddr, slotsize);
+		module = ioremap_yescache(slotaddr, slotsize);
 		BUG_ON(!module);
 
 		offset = TC_OLDCARD;
@@ -122,7 +122,7 @@ static void __init tc_bus_add_devices(struct tc_bus *tbus)
 			tdev->resource.start = extslotaddr;
 			tdev->resource.end = extslotaddr + devsize - 1;
 		} else {
-			pr_err("%s: Cannot provide slot space "
+			pr_err("%s: Canyest provide slot space "
 			       "(%ldMiB required, up to %ldMiB supported)\n",
 			       dev_name(&tdev->dev), (long)(devsize >> 20),
 			       (long)(max(slotsize, extslotsize) >> 20));
@@ -138,7 +138,7 @@ static void __init tc_bus_add_devices(struct tc_bus *tbus)
 			put_device(&tdev->dev);
 			goto out_err;
 		}
-		list_add_tail(&tdev->node, &tbus->devices);
+		list_add_tail(&tdev->yesde, &tbus->devices);
 
 out_err:
 		iounmap(module);
@@ -175,7 +175,7 @@ static int __init tc_init(void)
 		tc_bus.resource[0].flags = IORESOURCE_MEM;
 		if (request_resource(&iomem_resource,
 				     &tc_bus.resource[0]) < 0) {
-			pr_err("tc: Cannot reserve resource\n");
+			pr_err("tc: Canyest reserve resource\n");
 			goto out_err_device;
 		}
 		if (tc_bus.ext_slot_size) {
@@ -187,7 +187,7 @@ static int __init tc_init(void)
 			tc_bus.resource[1].flags = IORESOURCE_MEM;
 			if (request_resource(&iomem_resource,
 					     &tc_bus.resource[1]) < 0) {
-				pr_err("tc: Cannot reserve resource\n");
+				pr_err("tc: Canyest reserve resource\n");
 				goto out_err_resource;
 			}
 		}

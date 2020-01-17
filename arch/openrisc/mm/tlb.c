@@ -14,7 +14,7 @@
 
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -65,7 +65,7 @@ void local_flush_tlb_all(void)
 /*
  * Invalidate a single page.  This is what the xTLBEIR register is for.
  *
- * There's no point in checking the vma for PAGE_EXEC to determine whether it's
+ * There's yes point in checking the vma for PAGE_EXEC to determine whether it's
  * the data or instruction TLB that should be flushed... that would take more
  * than the few instructions that the following compiles down to!
  *
@@ -74,11 +74,11 @@ void local_flush_tlb_all(void)
  */
 
 #define flush_dtlb_page_eir(addr) mtspr(SPR_DTLBEIR, addr)
-#define flush_dtlb_page_no_eir(addr) \
+#define flush_dtlb_page_yes_eir(addr) \
 	mtspr_off(SPR_DTLBMR_BASE(0), DTLB_OFFSET(addr), 0);
 
 #define flush_itlb_page_eir(addr) mtspr(SPR_ITLBEIR, addr)
-#define flush_itlb_page_no_eir(addr) \
+#define flush_itlb_page_yes_eir(addr) \
 	mtspr_off(SPR_ITLBMR_BASE(0), ITLB_OFFSET(addr), 0);
 
 void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
@@ -86,12 +86,12 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
 	if (have_dtlbeir)
 		flush_dtlb_page_eir(addr);
 	else
-		flush_dtlb_page_no_eir(addr);
+		flush_dtlb_page_yes_eir(addr);
 
 	if (have_itlbeir)
 		flush_itlb_page_eir(addr);
 	else
-		flush_itlb_page_no_eir(addr);
+		flush_itlb_page_yes_eir(addr);
 }
 
 void local_flush_tlb_range(struct vm_area_struct *vma,
@@ -108,19 +108,19 @@ void local_flush_tlb_range(struct vm_area_struct *vma,
 		if (dtlbeir)
 			flush_dtlb_page_eir(addr);
 		else
-			flush_dtlb_page_no_eir(addr);
+			flush_dtlb_page_yes_eir(addr);
 
 		if (itlbeir)
 			flush_itlb_page_eir(addr);
 		else
-			flush_itlb_page_no_eir(addr);
+			flush_itlb_page_yes_eir(addr);
 	}
 }
 
 /*
  * Invalidate the selected mm context only.
  *
- * FIXME: Due to some bug here, we're flushing everything for now.
+ * FIXME: Due to some bug here, we're flushing everything for yesw.
  * This should be changed to loop over over mm and call flush_tlb_range.
  */
 
@@ -181,7 +181,7 @@ void destroy_context(struct mm_struct *mm)
 
 void __init tlb_init(void)
 {
-	/* Do nothing... */
+	/* Do yesthing... */
 	/* invalidate the entire TLB */
 	/* flush_tlb_all(); */
 }

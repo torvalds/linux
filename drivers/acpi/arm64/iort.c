@@ -25,122 +25,122 @@
 
 struct iort_its_msi_chip {
 	struct list_head	list;
-	struct fwnode_handle	*fw_node;
+	struct fwyesde_handle	*fw_yesde;
 	phys_addr_t		base_addr;
 	u32			translation_id;
 };
 
-struct iort_fwnode {
+struct iort_fwyesde {
 	struct list_head list;
-	struct acpi_iort_node *iort_node;
-	struct fwnode_handle *fwnode;
+	struct acpi_iort_yesde *iort_yesde;
+	struct fwyesde_handle *fwyesde;
 };
-static LIST_HEAD(iort_fwnode_list);
-static DEFINE_SPINLOCK(iort_fwnode_lock);
+static LIST_HEAD(iort_fwyesde_list);
+static DEFINE_SPINLOCK(iort_fwyesde_lock);
 
 /**
- * iort_set_fwnode() - Create iort_fwnode and use it to register
- *		       iommu data in the iort_fwnode_list
+ * iort_set_fwyesde() - Create iort_fwyesde and use it to register
+ *		       iommu data in the iort_fwyesde_list
  *
- * @node: IORT table node associated with the IOMMU
- * @fwnode: fwnode associated with the IORT node
+ * @yesde: IORT table yesde associated with the IOMMU
+ * @fwyesde: fwyesde associated with the IORT yesde
  *
  * Returns: 0 on success
  *          <0 on failure
  */
-static inline int iort_set_fwnode(struct acpi_iort_node *iort_node,
-				  struct fwnode_handle *fwnode)
+static inline int iort_set_fwyesde(struct acpi_iort_yesde *iort_yesde,
+				  struct fwyesde_handle *fwyesde)
 {
-	struct iort_fwnode *np;
+	struct iort_fwyesde *np;
 
-	np = kzalloc(sizeof(struct iort_fwnode), GFP_ATOMIC);
+	np = kzalloc(sizeof(struct iort_fwyesde), GFP_ATOMIC);
 
 	if (WARN_ON(!np))
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&np->list);
-	np->iort_node = iort_node;
-	np->fwnode = fwnode;
+	np->iort_yesde = iort_yesde;
+	np->fwyesde = fwyesde;
 
-	spin_lock(&iort_fwnode_lock);
-	list_add_tail(&np->list, &iort_fwnode_list);
-	spin_unlock(&iort_fwnode_lock);
+	spin_lock(&iort_fwyesde_lock);
+	list_add_tail(&np->list, &iort_fwyesde_list);
+	spin_unlock(&iort_fwyesde_lock);
 
 	return 0;
 }
 
 /**
- * iort_get_fwnode() - Retrieve fwnode associated with an IORT node
+ * iort_get_fwyesde() - Retrieve fwyesde associated with an IORT yesde
  *
- * @node: IORT table node to be looked-up
+ * @yesde: IORT table yesde to be looked-up
  *
- * Returns: fwnode_handle pointer on success, NULL on failure
+ * Returns: fwyesde_handle pointer on success, NULL on failure
  */
-static inline struct fwnode_handle *iort_get_fwnode(
-			struct acpi_iort_node *node)
+static inline struct fwyesde_handle *iort_get_fwyesde(
+			struct acpi_iort_yesde *yesde)
 {
-	struct iort_fwnode *curr;
-	struct fwnode_handle *fwnode = NULL;
+	struct iort_fwyesde *curr;
+	struct fwyesde_handle *fwyesde = NULL;
 
-	spin_lock(&iort_fwnode_lock);
-	list_for_each_entry(curr, &iort_fwnode_list, list) {
-		if (curr->iort_node == node) {
-			fwnode = curr->fwnode;
+	spin_lock(&iort_fwyesde_lock);
+	list_for_each_entry(curr, &iort_fwyesde_list, list) {
+		if (curr->iort_yesde == yesde) {
+			fwyesde = curr->fwyesde;
 			break;
 		}
 	}
-	spin_unlock(&iort_fwnode_lock);
+	spin_unlock(&iort_fwyesde_lock);
 
-	return fwnode;
+	return fwyesde;
 }
 
 /**
- * iort_delete_fwnode() - Delete fwnode associated with an IORT node
+ * iort_delete_fwyesde() - Delete fwyesde associated with an IORT yesde
  *
- * @node: IORT table node associated with fwnode to delete
+ * @yesde: IORT table yesde associated with fwyesde to delete
  */
-static inline void iort_delete_fwnode(struct acpi_iort_node *node)
+static inline void iort_delete_fwyesde(struct acpi_iort_yesde *yesde)
 {
-	struct iort_fwnode *curr, *tmp;
+	struct iort_fwyesde *curr, *tmp;
 
-	spin_lock(&iort_fwnode_lock);
-	list_for_each_entry_safe(curr, tmp, &iort_fwnode_list, list) {
-		if (curr->iort_node == node) {
+	spin_lock(&iort_fwyesde_lock);
+	list_for_each_entry_safe(curr, tmp, &iort_fwyesde_list, list) {
+		if (curr->iort_yesde == yesde) {
 			list_del(&curr->list);
 			kfree(curr);
 			break;
 		}
 	}
-	spin_unlock(&iort_fwnode_lock);
+	spin_unlock(&iort_fwyesde_lock);
 }
 
 /**
- * iort_get_iort_node() - Retrieve iort_node associated with an fwnode
+ * iort_get_iort_yesde() - Retrieve iort_yesde associated with an fwyesde
  *
- * @fwnode: fwnode associated with device to be looked-up
+ * @fwyesde: fwyesde associated with device to be looked-up
  *
- * Returns: iort_node pointer on success, NULL on failure
+ * Returns: iort_yesde pointer on success, NULL on failure
  */
-static inline struct acpi_iort_node *iort_get_iort_node(
-			struct fwnode_handle *fwnode)
+static inline struct acpi_iort_yesde *iort_get_iort_yesde(
+			struct fwyesde_handle *fwyesde)
 {
-	struct iort_fwnode *curr;
-	struct acpi_iort_node *iort_node = NULL;
+	struct iort_fwyesde *curr;
+	struct acpi_iort_yesde *iort_yesde = NULL;
 
-	spin_lock(&iort_fwnode_lock);
-	list_for_each_entry(curr, &iort_fwnode_list, list) {
-		if (curr->fwnode == fwnode) {
-			iort_node = curr->iort_node;
+	spin_lock(&iort_fwyesde_lock);
+	list_for_each_entry(curr, &iort_fwyesde_list, list) {
+		if (curr->fwyesde == fwyesde) {
+			iort_yesde = curr->iort_yesde;
 			break;
 		}
 	}
-	spin_unlock(&iort_fwnode_lock);
+	spin_unlock(&iort_fwyesde_lock);
 
-	return iort_node;
+	return iort_yesde;
 }
 
-typedef acpi_status (*iort_find_node_callback)
-	(struct acpi_iort_node *node, void *context);
+typedef acpi_status (*iort_find_yesde_callback)
+	(struct acpi_iort_yesde *yesde, void *context);
 
 /* Root pointer to the mapped IORT table */
 static struct acpi_table_header *iort_table;
@@ -153,12 +153,12 @@ static DEFINE_SPINLOCK(iort_msi_chip_lock);
  * ITS ID and base address to the list from where we can get it back later on.
  * @trans_id: ITS ID.
  * @base: ITS base address.
- * @fw_node: Domain token.
+ * @fw_yesde: Domain token.
  *
- * Returns: 0 on success, -ENOMEM if no memory when allocating list element
+ * Returns: 0 on success, -ENOMEM if yes memory when allocating list element
  */
 int iort_register_domain_token(int trans_id, phys_addr_t base,
-			       struct fwnode_handle *fw_node)
+			       struct fwyesde_handle *fw_yesde)
 {
 	struct iort_its_msi_chip *its_msi_chip;
 
@@ -166,7 +166,7 @@ int iort_register_domain_token(int trans_id, phys_addr_t base,
 	if (!its_msi_chip)
 		return -ENOMEM;
 
-	its_msi_chip->fw_node = fw_node;
+	its_msi_chip->fw_yesde = fw_yesde;
 	its_msi_chip->translation_id = trans_id;
 	its_msi_chip->base_addr = base;
 
@@ -181,7 +181,7 @@ int iort_register_domain_token(int trans_id, phys_addr_t base,
  * iort_deregister_domain_token() - Deregister domain token based on ITS ID
  * @trans_id: ITS ID.
  *
- * Returns: none.
+ * Returns: yesne.
  */
 void iort_deregister_domain_token(int trans_id)
 {
@@ -204,66 +204,66 @@ void iort_deregister_domain_token(int trans_id)
  *
  * Returns: domain token when find on the list, NULL otherwise
  */
-struct fwnode_handle *iort_find_domain_token(int trans_id)
+struct fwyesde_handle *iort_find_domain_token(int trans_id)
 {
-	struct fwnode_handle *fw_node = NULL;
+	struct fwyesde_handle *fw_yesde = NULL;
 	struct iort_its_msi_chip *its_msi_chip;
 
 	spin_lock(&iort_msi_chip_lock);
 	list_for_each_entry(its_msi_chip, &iort_msi_chip_list, list) {
 		if (its_msi_chip->translation_id == trans_id) {
-			fw_node = its_msi_chip->fw_node;
+			fw_yesde = its_msi_chip->fw_yesde;
 			break;
 		}
 	}
 	spin_unlock(&iort_msi_chip_lock);
 
-	return fw_node;
+	return fw_yesde;
 }
 
-static struct acpi_iort_node *iort_scan_node(enum acpi_iort_node_type type,
-					     iort_find_node_callback callback,
+static struct acpi_iort_yesde *iort_scan_yesde(enum acpi_iort_yesde_type type,
+					     iort_find_yesde_callback callback,
 					     void *context)
 {
-	struct acpi_iort_node *iort_node, *iort_end;
+	struct acpi_iort_yesde *iort_yesde, *iort_end;
 	struct acpi_table_iort *iort;
 	int i;
 
 	if (!iort_table)
 		return NULL;
 
-	/* Get the first IORT node */
+	/* Get the first IORT yesde */
 	iort = (struct acpi_table_iort *)iort_table;
-	iort_node = ACPI_ADD_PTR(struct acpi_iort_node, iort,
-				 iort->node_offset);
-	iort_end = ACPI_ADD_PTR(struct acpi_iort_node, iort_table,
+	iort_yesde = ACPI_ADD_PTR(struct acpi_iort_yesde, iort,
+				 iort->yesde_offset);
+	iort_end = ACPI_ADD_PTR(struct acpi_iort_yesde, iort_table,
 				iort_table->length);
 
-	for (i = 0; i < iort->node_count; i++) {
-		if (WARN_TAINT(iort_node >= iort_end, TAINT_FIRMWARE_WORKAROUND,
-			       "IORT node pointer overflows, bad table!\n"))
+	for (i = 0; i < iort->yesde_count; i++) {
+		if (WARN_TAINT(iort_yesde >= iort_end, TAINT_FIRMWARE_WORKAROUND,
+			       "IORT yesde pointer overflows, bad table!\n"))
 			return NULL;
 
-		if (iort_node->type == type &&
-		    ACPI_SUCCESS(callback(iort_node, context)))
-			return iort_node;
+		if (iort_yesde->type == type &&
+		    ACPI_SUCCESS(callback(iort_yesde, context)))
+			return iort_yesde;
 
-		iort_node = ACPI_ADD_PTR(struct acpi_iort_node, iort_node,
-					 iort_node->length);
+		iort_yesde = ACPI_ADD_PTR(struct acpi_iort_yesde, iort_yesde,
+					 iort_yesde->length);
 	}
 
 	return NULL;
 }
 
-static acpi_status iort_match_node_callback(struct acpi_iort_node *node,
+static acpi_status iort_match_yesde_callback(struct acpi_iort_yesde *yesde,
 					    void *context)
 {
 	struct device *dev = context;
 	acpi_status status = AE_NOT_FOUND;
 
-	if (node->type == ACPI_IORT_NODE_NAMED_COMPONENT) {
+	if (yesde->type == ACPI_IORT_NODE_NAMED_COMPONENT) {
 		struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
-		struct acpi_device *adev = to_acpi_device_node(dev->fwnode);
+		struct acpi_device *adev = to_acpi_device_yesde(dev->fwyesde);
 		struct acpi_iort_named_component *ncomp;
 
 		if (!adev)
@@ -275,16 +275,16 @@ static acpi_status iort_match_node_callback(struct acpi_iort_node *node,
 			goto out;
 		}
 
-		ncomp = (struct acpi_iort_named_component *)node->node_data;
+		ncomp = (struct acpi_iort_named_component *)yesde->yesde_data;
 		status = !strcmp(ncomp->device_name, buf.pointer) ?
 							AE_OK : AE_NOT_FOUND;
 		acpi_os_free(buf.pointer);
-	} else if (node->type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX) {
+	} else if (yesde->type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX) {
 		struct acpi_iort_root_complex *pci_rc;
 		struct pci_bus *bus;
 
 		bus = to_pci_bus(dev);
-		pci_rc = (struct acpi_iort_root_complex *)node->node_data;
+		pci_rc = (struct acpi_iort_root_complex *)yesde->yesde_data;
 
 		/*
 		 * It is assumed that PCI segment numbers maps one-to-one
@@ -301,7 +301,7 @@ out:
 static int iort_id_map(struct acpi_iort_id_mapping *map, u8 type, u32 rid_in,
 		       u32 *rid_out)
 {
-	/* Single mapping does not care for input id */
+	/* Single mapping does yest care for input id */
 	if (map->flags & ACPI_IORT_ID_SINGLE_MAPPING) {
 		if (type == ACPI_IORT_NODE_NAMED_COMPONENT ||
 		    type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX) {
@@ -309,7 +309,7 @@ static int iort_id_map(struct acpi_iort_id_mapping *map, u8 type, u32 rid_in,
 			return 0;
 		}
 
-		pr_warn(FW_BUG "[map %p] SINGLE MAPPING flag not allowed for node type %d, skipping ID map\n",
+		pr_warn(FW_BUG "[map %p] SINGLE MAPPING flag yest allowed for yesde type %d, skipping ID map\n",
 			map, type);
 		return -ENXIO;
 	}
@@ -322,34 +322,34 @@ static int iort_id_map(struct acpi_iort_id_mapping *map, u8 type, u32 rid_in,
 	return 0;
 }
 
-static struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
+static struct acpi_iort_yesde *iort_yesde_get_id(struct acpi_iort_yesde *yesde,
 					       u32 *id_out, int index)
 {
-	struct acpi_iort_node *parent;
+	struct acpi_iort_yesde *parent;
 	struct acpi_iort_id_mapping *map;
 
-	if (!node->mapping_offset || !node->mapping_count ||
-				     index >= node->mapping_count)
+	if (!yesde->mapping_offset || !yesde->mapping_count ||
+				     index >= yesde->mapping_count)
 		return NULL;
 
-	map = ACPI_ADD_PTR(struct acpi_iort_id_mapping, node,
-			   node->mapping_offset + index * sizeof(*map));
+	map = ACPI_ADD_PTR(struct acpi_iort_id_mapping, yesde,
+			   yesde->mapping_offset + index * sizeof(*map));
 
 	/* Firmware bug! */
 	if (!map->output_reference) {
-		pr_err(FW_BUG "[node %p type %d] ID map has NULL parent reference\n",
-		       node, node->type);
+		pr_err(FW_BUG "[yesde %p type %d] ID map has NULL parent reference\n",
+		       yesde, yesde->type);
 		return NULL;
 	}
 
-	parent = ACPI_ADD_PTR(struct acpi_iort_node, iort_table,
+	parent = ACPI_ADD_PTR(struct acpi_iort_yesde, iort_table,
 			       map->output_reference);
 
 	if (map->flags & ACPI_IORT_ID_SINGLE_MAPPING) {
-		if (node->type == ACPI_IORT_NODE_NAMED_COMPONENT ||
-		    node->type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX ||
-		    node->type == ACPI_IORT_NODE_SMMU_V3 ||
-		    node->type == ACPI_IORT_NODE_PMCG) {
+		if (yesde->type == ACPI_IORT_NODE_NAMED_COMPONENT ||
+		    yesde->type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX ||
+		    yesde->type == ACPI_IORT_NODE_SMMU_V3 ||
+		    yesde->type == ACPI_IORT_NODE_PMCG) {
 			*id_out = map->output_base;
 			return parent;
 		}
@@ -358,31 +358,31 @@ static struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
 	return NULL;
 }
 
-static int iort_get_id_mapping_index(struct acpi_iort_node *node)
+static int iort_get_id_mapping_index(struct acpi_iort_yesde *yesde)
 {
 	struct acpi_iort_smmu_v3 *smmu;
 
-	switch (node->type) {
+	switch (yesde->type) {
 	case ACPI_IORT_NODE_SMMU_V3:
 		/*
 		 * SMMUv3 dev ID mapping index was introduced in revision 1
-		 * table, not available in revision 0
+		 * table, yest available in revision 0
 		 */
-		if (node->revision < 1)
+		if (yesde->revision < 1)
 			return -EINVAL;
 
-		smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+		smmu = (struct acpi_iort_smmu_v3 *)yesde->yesde_data;
 		/*
-		 * ID mapping index is only ignored if all interrupts are
+		 * ID mapping index is only igyesred if all interrupts are
 		 * GSIV based
 		 */
 		if (smmu->event_gsiv && smmu->pri_gsiv && smmu->gerr_gsiv
 		    && smmu->sync_gsiv)
 			return -EINVAL;
 
-		if (smmu->id_mapping_index >= node->mapping_count) {
-			pr_err(FW_BUG "[node %p type %d] ID mapping index overflows valid mappings\n",
-			       node, node->type);
+		if (smmu->id_mapping_index >= yesde->mapping_count) {
+			pr_err(FW_BUG "[yesde %p type %d] ID mapping index overflows valid mappings\n",
+			       yesde, yesde->type);
 			return -EINVAL;
 		}
 
@@ -394,33 +394,33 @@ static int iort_get_id_mapping_index(struct acpi_iort_node *node)
 	}
 }
 
-static struct acpi_iort_node *iort_node_map_id(struct acpi_iort_node *node,
+static struct acpi_iort_yesde *iort_yesde_map_id(struct acpi_iort_yesde *yesde,
 					       u32 id_in, u32 *id_out,
 					       u8 type_mask)
 {
 	u32 id = id_in;
 
-	/* Parse the ID mapping tree to find specified node type */
-	while (node) {
+	/* Parse the ID mapping tree to find specified yesde type */
+	while (yesde) {
 		struct acpi_iort_id_mapping *map;
 		int i, index;
 
-		if (IORT_TYPE_MASK(node->type) & type_mask) {
+		if (IORT_TYPE_MASK(yesde->type) & type_mask) {
 			if (id_out)
 				*id_out = id;
-			return node;
+			return yesde;
 		}
 
-		if (!node->mapping_offset || !node->mapping_count)
+		if (!yesde->mapping_offset || !yesde->mapping_count)
 			goto fail_map;
 
-		map = ACPI_ADD_PTR(struct acpi_iort_id_mapping, node,
-				   node->mapping_offset);
+		map = ACPI_ADD_PTR(struct acpi_iort_id_mapping, yesde,
+				   yesde->mapping_offset);
 
 		/* Firmware bug! */
 		if (!map->output_reference) {
-			pr_err(FW_BUG "[node %p type %d] ID map has NULL parent reference\n",
-			       node, node->type);
+			pr_err(FW_BUG "[yesde %p type %d] ID map has NULL parent reference\n",
+			       yesde, yesde->type);
 			goto fail_map;
 		}
 
@@ -429,22 +429,22 @@ static struct acpi_iort_node *iort_node_map_id(struct acpi_iort_node *node,
 		 * associated ID map to prevent erroneous multi-stage
 		 * IORT ID translations.
 		 */
-		index = iort_get_id_mapping_index(node);
+		index = iort_get_id_mapping_index(yesde);
 
 		/* Do the ID translation */
-		for (i = 0; i < node->mapping_count; i++, map++) {
+		for (i = 0; i < yesde->mapping_count; i++, map++) {
 			/* if it is special mapping index, skip it */
 			if (i == index)
 				continue;
 
-			if (!iort_id_map(map, node->type, id, &id))
+			if (!iort_id_map(map, yesde->type, id, &id))
 				break;
 		}
 
-		if (i == node->mapping_count)
+		if (i == yesde->mapping_count)
 			goto fail_map;
 
-		node = ACPI_ADD_PTR(struct acpi_iort_node, iort_table,
+		yesde = ACPI_ADD_PTR(struct acpi_iort_yesde, iort_table,
 				    map->output_reference);
 	}
 
@@ -456,26 +456,26 @@ fail_map:
 	return NULL;
 }
 
-static struct acpi_iort_node *iort_node_map_platform_id(
-		struct acpi_iort_node *node, u32 *id_out, u8 type_mask,
+static struct acpi_iort_yesde *iort_yesde_map_platform_id(
+		struct acpi_iort_yesde *yesde, u32 *id_out, u8 type_mask,
 		int index)
 {
-	struct acpi_iort_node *parent;
+	struct acpi_iort_yesde *parent;
 	u32 id;
 
 	/* step 1: retrieve the initial dev id */
-	parent = iort_node_get_id(node, &id, index);
+	parent = iort_yesde_get_id(yesde, &id, index);
 	if (!parent)
 		return NULL;
 
 	/*
-	 * optional step 2: map the initial dev id if its parent is not
+	 * optional step 2: map the initial dev id if its parent is yest
 	 * the target type we want, map it again for the use cases such
 	 * as NC (named component) -> SMMU -> ITS. If the type is matched,
 	 * return the initial dev id and its parent pointer directly.
 	 */
 	if (!(IORT_TYPE_MASK(parent->type) & type_mask))
-		parent = iort_node_map_id(parent, id, id_out, type_mask);
+		parent = iort_yesde_map_id(parent, id, id_out, type_mask);
 	else
 		if (id_out)
 			*id_out = id;
@@ -483,28 +483,28 @@ static struct acpi_iort_node *iort_node_map_platform_id(
 	return parent;
 }
 
-static struct acpi_iort_node *iort_find_dev_node(struct device *dev)
+static struct acpi_iort_yesde *iort_find_dev_yesde(struct device *dev)
 {
 	struct pci_bus *pbus;
 
 	if (!dev_is_pci(dev)) {
-		struct acpi_iort_node *node;
+		struct acpi_iort_yesde *yesde;
 		/*
-		 * scan iort_fwnode_list to see if it's an iort platform
-		 * device (such as SMMU, PMCG),its iort node already cached
-		 * and associated with fwnode when iort platform devices
+		 * scan iort_fwyesde_list to see if it's an iort platform
+		 * device (such as SMMU, PMCG),its iort yesde already cached
+		 * and associated with fwyesde when iort platform devices
 		 * were initialized.
 		 */
-		node = iort_get_iort_node(dev->fwnode);
-		if (node)
-			return node;
+		yesde = iort_get_iort_yesde(dev->fwyesde);
+		if (yesde)
+			return yesde;
 
 		/*
-		 * if not, then it should be a platform device defined in
-		 * DSDT/SSDT (with Named Component node in IORT)
+		 * if yest, then it should be a platform device defined in
+		 * DSDT/SSDT (with Named Component yesde in IORT)
 		 */
-		return iort_scan_node(ACPI_IORT_NODE_NAMED_COMPONENT,
-				      iort_match_node_callback, dev);
+		return iort_scan_yesde(ACPI_IORT_NODE_NAMED_COMPONENT,
+				      iort_match_yesde_callback, dev);
 	}
 
 	/* Find a PCI root bus */
@@ -512,8 +512,8 @@ static struct acpi_iort_node *iort_find_dev_node(struct device *dev)
 	while (!pci_is_root_bus(pbus))
 		pbus = pbus->parent;
 
-	return iort_scan_node(ACPI_IORT_NODE_PCI_ROOT_COMPLEX,
-			      iort_match_node_callback, &pbus->dev);
+	return iort_scan_yesde(ACPI_IORT_NODE_PCI_ROOT_COMPLEX,
+			      iort_match_yesde_callback, &pbus->dev);
 }
 
 /**
@@ -525,14 +525,14 @@ static struct acpi_iort_node *iort_find_dev_node(struct device *dev)
  */
 u32 iort_msi_map_rid(struct device *dev, u32 req_id)
 {
-	struct acpi_iort_node *node;
+	struct acpi_iort_yesde *yesde;
 	u32 dev_id;
 
-	node = iort_find_dev_node(dev);
-	if (!node)
+	yesde = iort_find_dev_yesde(dev);
+	if (!yesde)
 		return req_id;
 
-	iort_node_map_id(node, req_id, &dev_id, IORT_MSI_TYPE);
+	iort_yesde_map_id(yesde, req_id, &dev_id, IORT_MSI_TYPE);
 	return dev_id;
 }
 
@@ -546,20 +546,20 @@ u32 iort_msi_map_rid(struct device *dev, u32 req_id)
 int iort_pmsi_get_dev_id(struct device *dev, u32 *dev_id)
 {
 	int i, index;
-	struct acpi_iort_node *node;
+	struct acpi_iort_yesde *yesde;
 
-	node = iort_find_dev_node(dev);
-	if (!node)
+	yesde = iort_find_dev_yesde(dev);
+	if (!yesde)
 		return -ENODEV;
 
-	index = iort_get_id_mapping_index(node);
+	index = iort_get_id_mapping_index(yesde);
 	/* if there is a valid index, go get the dev_id directly */
 	if (index >= 0) {
-		if (iort_node_get_id(node, dev_id, index))
+		if (iort_yesde_get_id(yesde, dev_id, index))
 			return 0;
 	} else {
-		for (i = 0; i < node->mapping_count; i++) {
-			if (iort_node_map_platform_id(node, dev_id,
+		for (i = 0; i < yesde->mapping_count; i++) {
+			if (iort_yesde_map_platform_id(yesde, dev_id,
 						      IORT_MSI_TYPE, i))
 				return 0;
 		}
@@ -599,18 +599,18 @@ static int iort_dev_find_its_id(struct device *dev, u32 req_id,
 				unsigned int idx, int *its_id)
 {
 	struct acpi_iort_its_group *its;
-	struct acpi_iort_node *node;
+	struct acpi_iort_yesde *yesde;
 
-	node = iort_find_dev_node(dev);
-	if (!node)
+	yesde = iort_find_dev_yesde(dev);
+	if (!yesde)
 		return -ENXIO;
 
-	node = iort_node_map_id(node, req_id, NULL, IORT_MSI_TYPE);
-	if (!node)
+	yesde = iort_yesde_map_id(yesde, req_id, NULL, IORT_MSI_TYPE);
+	if (!yesde)
 		return -ENXIO;
 
 	/* Move to ITS specific data */
-	its = (struct acpi_iort_its_group *)node->node_data;
+	its = (struct acpi_iort_its_group *)yesde->yesde_data;
 	if (idx >= its->its_count) {
 		dev_err(dev, "requested ITS ID index [%d] overruns ITS entries [%d]\n",
 			idx, its->its_count);
@@ -630,7 +630,7 @@ static int iort_dev_find_its_id(struct device *dev, u32 req_id,
  */
 struct irq_domain *iort_get_device_domain(struct device *dev, u32 req_id)
 {
-	struct fwnode_handle *handle;
+	struct fwyesde_handle *handle;
 	int its_id;
 
 	if (iort_dev_find_its_id(dev, req_id, 0, &its_id))
@@ -640,48 +640,48 @@ struct irq_domain *iort_get_device_domain(struct device *dev, u32 req_id)
 	if (!handle)
 		return NULL;
 
-	return irq_find_matching_fwnode(handle, DOMAIN_BUS_PCI_MSI);
+	return irq_find_matching_fwyesde(handle, DOMAIN_BUS_PCI_MSI);
 }
 
 static void iort_set_device_domain(struct device *dev,
-				   struct acpi_iort_node *node)
+				   struct acpi_iort_yesde *yesde)
 {
 	struct acpi_iort_its_group *its;
-	struct acpi_iort_node *msi_parent;
+	struct acpi_iort_yesde *msi_parent;
 	struct acpi_iort_id_mapping *map;
-	struct fwnode_handle *iort_fwnode;
+	struct fwyesde_handle *iort_fwyesde;
 	struct irq_domain *domain;
 	int index;
 
-	index = iort_get_id_mapping_index(node);
+	index = iort_get_id_mapping_index(yesde);
 	if (index < 0)
 		return;
 
-	map = ACPI_ADD_PTR(struct acpi_iort_id_mapping, node,
-			   node->mapping_offset + index * sizeof(*map));
+	map = ACPI_ADD_PTR(struct acpi_iort_id_mapping, yesde,
+			   yesde->mapping_offset + index * sizeof(*map));
 
 	/* Firmware bug! */
 	if (!map->output_reference ||
 	    !(map->flags & ACPI_IORT_ID_SINGLE_MAPPING)) {
-		pr_err(FW_BUG "[node %p type %d] Invalid MSI mapping\n",
-		       node, node->type);
+		pr_err(FW_BUG "[yesde %p type %d] Invalid MSI mapping\n",
+		       yesde, yesde->type);
 		return;
 	}
 
-	msi_parent = ACPI_ADD_PTR(struct acpi_iort_node, iort_table,
+	msi_parent = ACPI_ADD_PTR(struct acpi_iort_yesde, iort_table,
 				  map->output_reference);
 
 	if (!msi_parent || msi_parent->type != ACPI_IORT_NODE_ITS_GROUP)
 		return;
 
 	/* Move to ITS specific data */
-	its = (struct acpi_iort_its_group *)msi_parent->node_data;
+	its = (struct acpi_iort_its_group *)msi_parent->yesde_data;
 
-	iort_fwnode = iort_find_domain_token(its->identifiers[0]);
-	if (!iort_fwnode)
+	iort_fwyesde = iort_find_domain_token(its->identifiers[0]);
+	if (!iort_fwyesde)
 		return;
 
-	domain = irq_find_matching_fwnode(iort_fwnode, DOMAIN_BUS_PLATFORM_MSI);
+	domain = irq_find_matching_fwyesde(iort_fwyesde, DOMAIN_BUS_PLATFORM_MSI);
 	if (domain)
 		dev_set_msi_domain(dev, domain);
 }
@@ -695,20 +695,20 @@ static void iort_set_device_domain(struct device *dev,
  */
 static struct irq_domain *iort_get_platform_device_domain(struct device *dev)
 {
-	struct acpi_iort_node *node, *msi_parent = NULL;
-	struct fwnode_handle *iort_fwnode;
+	struct acpi_iort_yesde *yesde, *msi_parent = NULL;
+	struct fwyesde_handle *iort_fwyesde;
 	struct acpi_iort_its_group *its;
 	int i;
 
-	/* find its associated iort node */
-	node = iort_scan_node(ACPI_IORT_NODE_NAMED_COMPONENT,
-			      iort_match_node_callback, dev);
-	if (!node)
+	/* find its associated iort yesde */
+	yesde = iort_scan_yesde(ACPI_IORT_NODE_NAMED_COMPONENT,
+			      iort_match_yesde_callback, dev);
+	if (!yesde)
 		return NULL;
 
-	/* then find its msi parent node */
-	for (i = 0; i < node->mapping_count; i++) {
-		msi_parent = iort_node_map_platform_id(node, NULL,
+	/* then find its msi parent yesde */
+	for (i = 0; i < yesde->mapping_count; i++) {
+		msi_parent = iort_yesde_map_platform_id(yesde, NULL,
 						       IORT_MSI_TYPE, i);
 		if (msi_parent)
 			break;
@@ -718,13 +718,13 @@ static struct irq_domain *iort_get_platform_device_domain(struct device *dev)
 		return NULL;
 
 	/* Move to ITS specific data */
-	its = (struct acpi_iort_its_group *)msi_parent->node_data;
+	its = (struct acpi_iort_its_group *)msi_parent->yesde_data;
 
-	iort_fwnode = iort_find_domain_token(its->identifiers[0]);
-	if (!iort_fwnode)
+	iort_fwyesde = iort_find_domain_token(its->identifiers[0]);
+	if (!iort_fwyesde)
 		return NULL;
 
-	return irq_find_matching_fwnode(iort_fwnode, DOMAIN_BUS_PLATFORM_MSI);
+	return irq_find_matching_fwyesde(iort_fwyesde, DOMAIN_BUS_PLATFORM_MSI);
 }
 
 void acpi_configure_pmsi_domain(struct device *dev)
@@ -746,17 +746,17 @@ static int __maybe_unused __get_pci_rid(struct pci_dev *pdev, u16 alias,
 }
 
 #ifdef CONFIG_IOMMU_API
-static struct acpi_iort_node *iort_get_msi_resv_iommu(struct device *dev)
+static struct acpi_iort_yesde *iort_get_msi_resv_iommu(struct device *dev)
 {
-	struct acpi_iort_node *iommu;
+	struct acpi_iort_yesde *iommu;
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 
-	iommu = iort_get_iort_node(fwspec->iommu_fwnode);
+	iommu = iort_get_iort_yesde(fwspec->iommu_fwyesde);
 
 	if (iommu && (iommu->type == ACPI_IORT_NODE_SMMU_V3)) {
 		struct acpi_iort_smmu_v3 *smmu;
 
-		smmu = (struct acpi_iort_smmu_v3 *)iommu->node_data;
+		smmu = (struct acpi_iort_smmu_v3 *)iommu->yesde_data;
 		if (smmu->model == ACPI_IORT_SMMU_V3_HISILICON_HI161X)
 			return iommu;
 	}
@@ -788,7 +788,7 @@ static inline int iort_add_device_replay(const struct iommu_ops *ops,
  * @head: Reserved region list from iommu_get_resv_regions()
  *
  * Returns: Number of msi reserved regions on success (0 if platform
- *          doesn't require the reservation or no associated msi regions),
+ *          doesn't require the reservation or yes associated msi regions),
  *          appropriate error value otherwise. The ITS interrupt translation
  *          spaces (ITS_base + SZ_64K, SZ_64K) associated with the device
  *          are the msi reserved regions.
@@ -797,11 +797,11 @@ int iort_iommu_msi_get_resv_regions(struct device *dev, struct list_head *head)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct acpi_iort_its_group *its;
-	struct acpi_iort_node *iommu_node, *its_node = NULL;
+	struct acpi_iort_yesde *iommu_yesde, *its_yesde = NULL;
 	int i, resv = 0;
 
-	iommu_node = iort_get_msi_resv_iommu(dev);
-	if (!iommu_node)
+	iommu_yesde = iort_get_msi_resv_iommu(dev);
+	if (!iommu_yesde)
 		return 0;
 
 	/*
@@ -814,18 +814,18 @@ int iort_iommu_msi_get_resv_regions(struct device *dev, struct list_head *head)
 	 */
 
 	for (i = 0; i < fwspec->num_ids; i++) {
-		its_node = iort_node_map_id(iommu_node,
+		its_yesde = iort_yesde_map_id(iommu_yesde,
 					fwspec->ids[i],
 					NULL, IORT_MSI_TYPE);
-		if (its_node)
+		if (its_yesde)
 			break;
 	}
 
-	if (!its_node)
+	if (!its_yesde)
 		return 0;
 
 	/* Move to ITS specific data */
-	its = (struct acpi_iort_its_group *)its_node->node_data;
+	its = (struct acpi_iort_its_group *)its_yesde->yesde_data;
 
 	for (i = 0; i < its->its_count; i++) {
 		phys_addr_t base;
@@ -854,16 +854,16 @@ static inline bool iort_iommu_driver_enabled(u8 type)
 	case ACPI_IORT_NODE_SMMU:
 		return IS_BUILTIN(CONFIG_ARM_SMMU);
 	default:
-		pr_warn("IORT node type %u does not describe an SMMU\n", type);
+		pr_warn("IORT yesde type %u does yest describe an SMMU\n", type);
 		return false;
 	}
 }
 
 static int arm_smmu_iort_xlate(struct device *dev, u32 streamid,
-			       struct fwnode_handle *fwnode,
+			       struct fwyesde_handle *fwyesde,
 			       const struct iommu_ops *ops)
 {
-	int ret = iommu_fwspec_init(dev, fwnode, ops);
+	int ret = iommu_fwspec_init(dev, fwyesde, ops);
 
 	if (!ret)
 		ret = iommu_fwspec_add_ids(dev, &streamid, 1);
@@ -871,55 +871,55 @@ static int arm_smmu_iort_xlate(struct device *dev, u32 streamid,
 	return ret;
 }
 
-static bool iort_pci_rc_supports_ats(struct acpi_iort_node *node)
+static bool iort_pci_rc_supports_ats(struct acpi_iort_yesde *yesde)
 {
 	struct acpi_iort_root_complex *pci_rc;
 
-	pci_rc = (struct acpi_iort_root_complex *)node->node_data;
+	pci_rc = (struct acpi_iort_root_complex *)yesde->yesde_data;
 	return pci_rc->ats_attribute & ACPI_IORT_ATS_SUPPORTED;
 }
 
-static int iort_iommu_xlate(struct device *dev, struct acpi_iort_node *node,
+static int iort_iommu_xlate(struct device *dev, struct acpi_iort_yesde *yesde,
 			    u32 streamid)
 {
 	const struct iommu_ops *ops;
-	struct fwnode_handle *iort_fwnode;
+	struct fwyesde_handle *iort_fwyesde;
 
-	if (!node)
+	if (!yesde)
 		return -ENODEV;
 
-	iort_fwnode = iort_get_fwnode(node);
-	if (!iort_fwnode)
+	iort_fwyesde = iort_get_fwyesde(yesde);
+	if (!iort_fwyesde)
 		return -ENODEV;
 
 	/*
 	 * If the ops look-up fails, this means that either
-	 * the SMMU drivers have not been probed yet or that
-	 * the SMMU drivers are not built in the kernel;
+	 * the SMMU drivers have yest been probed yet or that
+	 * the SMMU drivers are yest built in the kernel;
 	 * Depending on whether the SMMU drivers are built-in
-	 * in the kernel or not, defer the IOMMU configuration
+	 * in the kernel or yest, defer the IOMMU configuration
 	 * or just abort it.
 	 */
-	ops = iommu_ops_from_fwnode(iort_fwnode);
+	ops = iommu_ops_from_fwyesde(iort_fwyesde);
 	if (!ops)
-		return iort_iommu_driver_enabled(node->type) ?
+		return iort_iommu_driver_enabled(yesde->type) ?
 		       -EPROBE_DEFER : -ENODEV;
 
-	return arm_smmu_iort_xlate(dev, streamid, iort_fwnode, ops);
+	return arm_smmu_iort_xlate(dev, streamid, iort_fwyesde, ops);
 }
 
 struct iort_pci_alias_info {
 	struct device *dev;
-	struct acpi_iort_node *node;
+	struct acpi_iort_yesde *yesde;
 };
 
 static int iort_pci_iommu_init(struct pci_dev *pdev, u16 alias, void *data)
 {
 	struct iort_pci_alias_info *info = data;
-	struct acpi_iort_node *parent;
+	struct acpi_iort_yesde *parent;
 	u32 streamid;
 
-	parent = iort_node_map_id(info->node, alias, &streamid,
+	parent = iort_yesde_map_id(info->yesde, alias, &streamid,
 				  IORT_IOMMU_TYPE);
 	return iort_iommu_xlate(info->dev, parent, streamid);
 }
@@ -934,14 +934,14 @@ static int iort_pci_iommu_init(struct pci_dev *pdev, u16 alias, void *data)
  */
 const struct iommu_ops *iort_iommu_configure(struct device *dev)
 {
-	struct acpi_iort_node *node, *parent;
+	struct acpi_iort_yesde *yesde, *parent;
 	const struct iommu_ops *ops;
 	u32 streamid = 0;
 	int err = -ENODEV;
 
 	/*
 	 * If we already translated the fwspec there
-	 * is nothing left to do, return the iommu_ops.
+	 * is yesthing left to do, return the iommu_ops.
 	 */
 	ops = iort_fwspec_iommu_ops(dev);
 	if (ops)
@@ -951,27 +951,27 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 		struct pci_bus *bus = to_pci_dev(dev)->bus;
 		struct iort_pci_alias_info info = { .dev = dev };
 
-		node = iort_scan_node(ACPI_IORT_NODE_PCI_ROOT_COMPLEX,
-				      iort_match_node_callback, &bus->dev);
-		if (!node)
+		yesde = iort_scan_yesde(ACPI_IORT_NODE_PCI_ROOT_COMPLEX,
+				      iort_match_yesde_callback, &bus->dev);
+		if (!yesde)
 			return NULL;
 
-		info.node = node;
+		info.yesde = yesde;
 		err = pci_for_each_dma_alias(to_pci_dev(dev),
 					     iort_pci_iommu_init, &info);
 
-		if (!err && iort_pci_rc_supports_ats(node))
+		if (!err && iort_pci_rc_supports_ats(yesde))
 			dev->iommu_fwspec->flags |= IOMMU_FWSPEC_PCI_RC_ATS;
 	} else {
 		int i = 0;
 
-		node = iort_scan_node(ACPI_IORT_NODE_NAMED_COMPONENT,
-				      iort_match_node_callback, dev);
-		if (!node)
+		yesde = iort_scan_yesde(ACPI_IORT_NODE_NAMED_COMPONENT,
+				      iort_match_yesde_callback, dev);
+		if (!yesde)
 			return NULL;
 
 		do {
-			parent = iort_node_map_platform_id(node, &streamid,
+			parent = iort_yesde_map_platform_id(yesde, &streamid,
 							   IORT_IOMMU_TYPE,
 							   i++);
 
@@ -989,7 +989,7 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 		err = iort_add_device_replay(ops, dev);
 	}
 
-	/* Ignore all other errors apart from EPROBE_DEFER */
+	/* Igyesre all other errors apart from EPROBE_DEFER */
 	if (err == -EPROBE_DEFER) {
 		ops = ERR_PTR(err);
 	} else if (err) {
@@ -1013,15 +1013,15 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 
 static int nc_dma_get_range(struct device *dev, u64 *size)
 {
-	struct acpi_iort_node *node;
+	struct acpi_iort_yesde *yesde;
 	struct acpi_iort_named_component *ncomp;
 
-	node = iort_scan_node(ACPI_IORT_NODE_NAMED_COMPONENT,
-			      iort_match_node_callback, dev);
-	if (!node)
+	yesde = iort_scan_yesde(ACPI_IORT_NODE_NAMED_COMPONENT,
+			      iort_match_yesde_callback, dev);
+	if (!yesde)
 		return -ENODEV;
 
-	ncomp = (struct acpi_iort_named_component *)node->node_data;
+	ncomp = (struct acpi_iort_named_component *)yesde->yesde_data;
 
 	*size = ncomp->memory_address_limit >= 64 ? U64_MAX :
 			1ULL<<ncomp->memory_address_limit;
@@ -1031,16 +1031,16 @@ static int nc_dma_get_range(struct device *dev, u64 *size)
 
 static int rc_dma_get_range(struct device *dev, u64 *size)
 {
-	struct acpi_iort_node *node;
+	struct acpi_iort_yesde *yesde;
 	struct acpi_iort_root_complex *rc;
 	struct pci_bus *pbus = to_pci_dev(dev)->bus;
 
-	node = iort_scan_node(ACPI_IORT_NODE_PCI_ROOT_COMPLEX,
-			      iort_match_node_callback, &pbus->dev);
-	if (!node || node->revision < 1)
+	yesde = iort_scan_yesde(ACPI_IORT_NODE_PCI_ROOT_COMPLEX,
+			      iort_match_yesde_callback, &pbus->dev);
+	if (!yesde || yesde->revision < 1)
 		return -ENODEV;
 
-	rc = (struct acpi_iort_root_complex *)node->node_data;
+	rc = (struct acpi_iort_root_complex *)yesde->yesde_data;
 
 	*size = rc->memory_address_limit >= 64 ? U64_MAX :
 			1ULL<<rc->memory_address_limit;
@@ -1063,11 +1063,11 @@ void iort_dma_setup(struct device *dev, u64 *dma_addr, u64 *dma_size)
 	/*
 	 * If @dev is expected to be DMA-capable then the bus code that created
 	 * it should have initialised its dma_mask pointer by this point. For
-	 * now, we'll continue the legacy behaviour of coercing it to the
-	 * coherent mask if not, but we'll no longer do so quietly.
+	 * yesw, we'll continue the legacy behaviour of coercing it to the
+	 * coherent mask if yest, but we'll yes longer do so quietly.
 	 */
 	if (!dev->dma_mask) {
-		dev_warn(dev, "DMA mask not set\n");
+		dev_warn(dev, "DMA mask yest set\n");
 		dev->dma_mask = &dev->coherent_dma_mask;
 	}
 
@@ -1111,7 +1111,7 @@ static void __init acpi_iort_register_irq(int hwirq, const char *name,
 				    ACPI_ACTIVE_HIGH);
 
 	if (irq <= 0) {
-		pr_err("could not register gsi hwirq %d name [%s]\n", hwirq,
+		pr_err("could yest register gsi hwirq %d name [%s]\n", hwirq,
 								      name);
 		return;
 	}
@@ -1122,14 +1122,14 @@ static void __init acpi_iort_register_irq(int hwirq, const char *name,
 	res->name = name;
 }
 
-static int __init arm_smmu_v3_count_resources(struct acpi_iort_node *node)
+static int __init arm_smmu_v3_count_resources(struct acpi_iort_yesde *yesde)
 {
 	struct acpi_iort_smmu_v3 *smmu;
 	/* Always present mem resource */
 	int num_res = 1;
 
 	/* Retrieve SMMUv3 specific data */
-	smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+	smmu = (struct acpi_iort_smmu_v3 *)yesde->yesde_data;
 
 	if (smmu->event_gsiv)
 		num_res++;
@@ -1149,7 +1149,7 @@ static int __init arm_smmu_v3_count_resources(struct acpi_iort_node *node)
 static bool arm_smmu_v3_is_combined_irq(struct acpi_iort_smmu_v3 *smmu)
 {
 	/*
-	 * Cavium ThunderX2 implementation doesn't not support unique
+	 * Cavium ThunderX2 implementation doesn't yest support unique
 	 * irq line. Use single irq line for all the SMMUv3 interrupts.
 	 */
 	if (smmu->model != ACPI_IORT_SMMU_V3_CAVIUM_CN99XX)
@@ -1177,13 +1177,13 @@ static unsigned long arm_smmu_v3_resource_size(struct acpi_iort_smmu_v3 *smmu)
 }
 
 static void __init arm_smmu_v3_init_resources(struct resource *res,
-					      struct acpi_iort_node *node)
+					      struct acpi_iort_yesde *yesde)
 {
 	struct acpi_iort_smmu_v3 *smmu;
 	int num_res = 0;
 
 	/* Retrieve SMMUv3 specific data */
-	smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+	smmu = (struct acpi_iort_smmu_v3 *)yesde->yesde_data;
 
 	res[num_res].start = smmu->base_address;
 	res[num_res].end = smmu->base_address +
@@ -1221,13 +1221,13 @@ static void __init arm_smmu_v3_init_resources(struct resource *res,
 }
 
 static void __init arm_smmu_v3_dma_configure(struct device *dev,
-					     struct acpi_iort_node *node)
+					     struct acpi_iort_yesde *yesde)
 {
 	struct acpi_iort_smmu_v3 *smmu;
 	enum dev_dma_attr attr;
 
 	/* Retrieve SMMUv3 specific data */
-	smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+	smmu = (struct acpi_iort_smmu_v3 *)yesde->yesde_data;
 
 	attr = (smmu->flags & ACPI_IORT_SMMU_V3_COHACC_OVERRIDE) ?
 			DEV_DMA_COHERENT : DEV_DMA_NON_COHERENT;
@@ -1244,18 +1244,18 @@ static void __init arm_smmu_v3_dma_configure(struct device *dev,
  * set numa proximity domain for smmuv3 device
  */
 static int  __init arm_smmu_v3_set_proximity(struct device *dev,
-					      struct acpi_iort_node *node)
+					      struct acpi_iort_yesde *yesde)
 {
 	struct acpi_iort_smmu_v3 *smmu;
 
-	smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+	smmu = (struct acpi_iort_smmu_v3 *)yesde->yesde_data;
 	if (smmu->flags & ACPI_IORT_SMMU_V3_PXM_VALID) {
-		int dev_node = acpi_map_pxm_to_node(smmu->pxm);
+		int dev_yesde = acpi_map_pxm_to_yesde(smmu->pxm);
 
-		if (dev_node != NUMA_NO_NODE && !node_online(dev_node))
+		if (dev_yesde != NUMA_NO_NODE && !yesde_online(dev_yesde))
 			return -EINVAL;
 
-		set_dev_node(dev, dev_node);
+		set_dev_yesde(dev, dev_yesde);
 		pr_info("SMMU-v3[%llx] Mapped to Proximity domain %d\n",
 			smmu->base_address,
 			smmu->pxm);
@@ -1266,15 +1266,15 @@ static int  __init arm_smmu_v3_set_proximity(struct device *dev,
 #define arm_smmu_v3_set_proximity NULL
 #endif
 
-static int __init arm_smmu_count_resources(struct acpi_iort_node *node)
+static int __init arm_smmu_count_resources(struct acpi_iort_yesde *yesde)
 {
 	struct acpi_iort_smmu *smmu;
 
 	/* Retrieve SMMU specific data */
-	smmu = (struct acpi_iort_smmu *)node->node_data;
+	smmu = (struct acpi_iort_smmu *)yesde->yesde_data;
 
 	/*
-	 * Only consider the global fault interrupt and ignore the
+	 * Only consider the global fault interrupt and igyesre the
 	 * configuration access interrupt.
 	 *
 	 * MMIO address and global fault interrupt resources are always
@@ -1285,21 +1285,21 @@ static int __init arm_smmu_count_resources(struct acpi_iort_node *node)
 }
 
 static void __init arm_smmu_init_resources(struct resource *res,
-					   struct acpi_iort_node *node)
+					   struct acpi_iort_yesde *yesde)
 {
 	struct acpi_iort_smmu *smmu;
 	int i, hw_irq, trigger, num_res = 0;
 	u64 *ctx_irq, *glb_irq;
 
 	/* Retrieve SMMU specific data */
-	smmu = (struct acpi_iort_smmu *)node->node_data;
+	smmu = (struct acpi_iort_smmu *)yesde->yesde_data;
 
 	res[num_res].start = smmu->base_address;
 	res[num_res].end = smmu->base_address + smmu->span - 1;
 	res[num_res].flags = IORESOURCE_MEM;
 	num_res++;
 
-	glb_irq = ACPI_ADD_PTR(u64, node, smmu->global_interrupt_offset);
+	glb_irq = ACPI_ADD_PTR(u64, yesde, smmu->global_interrupt_offset);
 	/* Global IRQs */
 	hw_irq = IORT_IRQ_MASK(glb_irq[0]);
 	trigger = IORT_IRQ_TRIGGER_MASK(glb_irq[0]);
@@ -1308,7 +1308,7 @@ static void __init arm_smmu_init_resources(struct resource *res,
 				     &res[num_res++]);
 
 	/* Context IRQs */
-	ctx_irq = ACPI_ADD_PTR(u64, node, smmu->context_interrupt_offset);
+	ctx_irq = ACPI_ADD_PTR(u64, yesde, smmu->context_interrupt_offset);
 	for (i = 0; i < smmu->context_interrupt_count; i++) {
 		hw_irq = IORT_IRQ_MASK(ctx_irq[i]);
 		trigger = IORT_IRQ_TRIGGER_MASK(ctx_irq[i]);
@@ -1319,13 +1319,13 @@ static void __init arm_smmu_init_resources(struct resource *res,
 }
 
 static void __init arm_smmu_dma_configure(struct device *dev,
-					  struct acpi_iort_node *node)
+					  struct acpi_iort_yesde *yesde)
 {
 	struct acpi_iort_smmu *smmu;
 	enum dev_dma_attr attr;
 
 	/* Retrieve SMMU specific data */
-	smmu = (struct acpi_iort_smmu *)node->node_data;
+	smmu = (struct acpi_iort_smmu *)yesde->yesde_data;
 
 	attr = (smmu->flags & ACPI_IORT_SMMU_COHERENT_WALK) ?
 			DEV_DMA_COHERENT : DEV_DMA_NON_COHERENT;
@@ -1337,12 +1337,12 @@ static void __init arm_smmu_dma_configure(struct device *dev,
 	acpi_dma_configure(dev, attr);
 }
 
-static int __init arm_smmu_v3_pmcg_count_resources(struct acpi_iort_node *node)
+static int __init arm_smmu_v3_pmcg_count_resources(struct acpi_iort_yesde *yesde)
 {
 	struct acpi_iort_pmcg *pmcg;
 
 	/* Retrieve PMCG specific data */
-	pmcg = (struct acpi_iort_pmcg *)node->node_data;
+	pmcg = (struct acpi_iort_pmcg *)yesde->yesde_data;
 
 	/*
 	 * There are always 2 memory resources.
@@ -1352,12 +1352,12 @@ static int __init arm_smmu_v3_pmcg_count_resources(struct acpi_iort_node *node)
 }
 
 static void __init arm_smmu_v3_pmcg_init_resources(struct resource *res,
-						   struct acpi_iort_node *node)
+						   struct acpi_iort_yesde *yesde)
 {
 	struct acpi_iort_pmcg *pmcg;
 
 	/* Retrieve PMCG specific data */
-	pmcg = (struct acpi_iort_pmcg *)node->node_data;
+	pmcg = (struct acpi_iort_pmcg *)yesde->yesde_data;
 
 	res[0].start = pmcg->page0_base_address;
 	res[0].end = pmcg->page0_base_address + SZ_4K - 1;
@@ -1394,14 +1394,14 @@ static int __init arm_smmu_v3_pmcg_add_platdata(struct platform_device *pdev)
 
 struct iort_dev_config {
 	const char *name;
-	int (*dev_init)(struct acpi_iort_node *node);
+	int (*dev_init)(struct acpi_iort_yesde *yesde);
 	void (*dev_dma_configure)(struct device *dev,
-				  struct acpi_iort_node *node);
-	int (*dev_count_resources)(struct acpi_iort_node *node);
+				  struct acpi_iort_yesde *yesde);
+	int (*dev_count_resources)(struct acpi_iort_yesde *yesde);
 	void (*dev_init_resources)(struct resource *res,
-				     struct acpi_iort_node *node);
+				     struct acpi_iort_yesde *yesde);
 	int (*dev_set_proximity)(struct device *dev,
-				    struct acpi_iort_node *node);
+				    struct acpi_iort_yesde *yesde);
 	int (*dev_add_platdata)(struct platform_device *pdev);
 };
 
@@ -1428,9 +1428,9 @@ static const struct iort_dev_config iort_arm_smmu_v3_pmcg_cfg __initconst = {
 };
 
 static __init const struct iort_dev_config *iort_get_dev_cfg(
-			struct acpi_iort_node *node)
+			struct acpi_iort_yesde *yesde)
 {
-	switch (node->type) {
+	switch (yesde->type) {
 	case ACPI_IORT_NODE_SMMU_V3:
 		return &iort_arm_smmu_v3_cfg;
 	case ACPI_IORT_NODE_SMMU:
@@ -1443,15 +1443,15 @@ static __init const struct iort_dev_config *iort_get_dev_cfg(
 }
 
 /**
- * iort_add_platform_device() - Allocate a platform device for IORT node
- * @node: Pointer to device ACPI IORT node
+ * iort_add_platform_device() - Allocate a platform device for IORT yesde
+ * @yesde: Pointer to device ACPI IORT yesde
  *
  * Returns: 0 on success, <0 failure
  */
-static int __init iort_add_platform_device(struct acpi_iort_node *node,
+static int __init iort_add_platform_device(struct acpi_iort_yesde *yesde,
 					   const struct iort_dev_config *ops)
 {
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	struct platform_device *pdev;
 	struct resource *r;
 	int ret, count;
@@ -1461,12 +1461,12 @@ static int __init iort_add_platform_device(struct acpi_iort_node *node,
 		return -ENOMEM;
 
 	if (ops->dev_set_proximity) {
-		ret = ops->dev_set_proximity(&pdev->dev, node);
+		ret = ops->dev_set_proximity(&pdev->dev, yesde);
 		if (ret)
 			goto dev_put;
 	}
 
-	count = ops->dev_count_resources(node);
+	count = ops->dev_count_resources(yesde);
 
 	r = kcalloc(count, sizeof(*r), GFP_KERNEL);
 	if (!r) {
@@ -1474,7 +1474,7 @@ static int __init iort_add_platform_device(struct acpi_iort_node *node,
 		goto dev_put;
 	}
 
-	ops->dev_init_resources(r, node);
+	ops->dev_init_resources(r, yesde);
 
 	ret = platform_device_add_resources(pdev, r, count);
 	/*
@@ -1487,32 +1487,32 @@ static int __init iort_add_platform_device(struct acpi_iort_node *node,
 		goto dev_put;
 
 	/*
-	 * Platform devices based on PMCG nodes uses platform_data to
+	 * Platform devices based on PMCG yesdes uses platform_data to
 	 * pass the hardware model info to the driver. For others, add
-	 * a copy of IORT node pointer to platform_data to be used to
+	 * a copy of IORT yesde pointer to platform_data to be used to
 	 * retrieve IORT data information.
 	 */
 	if (ops->dev_add_platdata)
 		ret = ops->dev_add_platdata(pdev);
 	else
-		ret = platform_device_add_data(pdev, &node, sizeof(node));
+		ret = platform_device_add_data(pdev, &yesde, sizeof(yesde));
 
 	if (ret)
 		goto dev_put;
 
-	fwnode = iort_get_fwnode(node);
+	fwyesde = iort_get_fwyesde(yesde);
 
-	if (!fwnode) {
+	if (!fwyesde) {
 		ret = -ENODEV;
 		goto dev_put;
 	}
 
-	pdev->dev.fwnode = fwnode;
+	pdev->dev.fwyesde = fwyesde;
 
 	if (ops->dev_dma_configure)
-		ops->dev_dma_configure(&pdev->dev, node);
+		ops->dev_dma_configure(&pdev->dev, yesde);
 
-	iort_set_device_domain(&pdev->dev, node);
+	iort_set_device_domain(&pdev->dev, yesde);
 
 	ret = platform_device_add(pdev);
 	if (ret)
@@ -1529,26 +1529,26 @@ dev_put:
 }
 
 #ifdef CONFIG_PCI
-static void __init iort_enable_acs(struct acpi_iort_node *iort_node)
+static void __init iort_enable_acs(struct acpi_iort_yesde *iort_yesde)
 {
 	static bool acs_enabled __initdata;
 
 	if (acs_enabled)
 		return;
 
-	if (iort_node->type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX) {
-		struct acpi_iort_node *parent;
+	if (iort_yesde->type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX) {
+		struct acpi_iort_yesde *parent;
 		struct acpi_iort_id_mapping *map;
 		int i;
 
-		map = ACPI_ADD_PTR(struct acpi_iort_id_mapping, iort_node,
-				   iort_node->mapping_offset);
+		map = ACPI_ADD_PTR(struct acpi_iort_id_mapping, iort_yesde,
+				   iort_yesde->mapping_offset);
 
-		for (i = 0; i < iort_node->mapping_count; i++, map++) {
+		for (i = 0; i < iort_yesde->mapping_count; i++, map++) {
 			if (!map->output_reference)
 				continue;
 
-			parent = ACPI_ADD_PTR(struct acpi_iort_node,
+			parent = ACPI_ADD_PTR(struct acpi_iort_yesde,
 					iort_table,  map->output_reference);
 			/*
 			 * If we detect a RC->SMMU mapping, make sure
@@ -1564,14 +1564,14 @@ static void __init iort_enable_acs(struct acpi_iort_node *iort_node)
 	}
 }
 #else
-static inline void iort_enable_acs(struct acpi_iort_node *iort_node) { }
+static inline void iort_enable_acs(struct acpi_iort_yesde *iort_yesde) { }
 #endif
 
 static void __init iort_init_platform_devices(void)
 {
-	struct acpi_iort_node *iort_node, *iort_end;
+	struct acpi_iort_yesde *iort_yesde, *iort_end;
 	struct acpi_table_iort *iort;
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	int i, ret;
 	const struct iort_dev_config *ops;
 
@@ -1581,38 +1581,38 @@ static void __init iort_init_platform_devices(void)
 	 */
 	iort = (struct acpi_table_iort *)iort_table;
 
-	/* Get the first IORT node */
-	iort_node = ACPI_ADD_PTR(struct acpi_iort_node, iort,
-				 iort->node_offset);
-	iort_end = ACPI_ADD_PTR(struct acpi_iort_node, iort,
+	/* Get the first IORT yesde */
+	iort_yesde = ACPI_ADD_PTR(struct acpi_iort_yesde, iort,
+				 iort->yesde_offset);
+	iort_end = ACPI_ADD_PTR(struct acpi_iort_yesde, iort,
 				iort_table->length);
 
-	for (i = 0; i < iort->node_count; i++) {
-		if (iort_node >= iort_end) {
-			pr_err("iort node pointer overflows, bad table\n");
+	for (i = 0; i < iort->yesde_count; i++) {
+		if (iort_yesde >= iort_end) {
+			pr_err("iort yesde pointer overflows, bad table\n");
 			return;
 		}
 
-		iort_enable_acs(iort_node);
+		iort_enable_acs(iort_yesde);
 
-		ops = iort_get_dev_cfg(iort_node);
+		ops = iort_get_dev_cfg(iort_yesde);
 		if (ops) {
-			fwnode = acpi_alloc_fwnode_static();
-			if (!fwnode)
+			fwyesde = acpi_alloc_fwyesde_static();
+			if (!fwyesde)
 				return;
 
-			iort_set_fwnode(iort_node, fwnode);
+			iort_set_fwyesde(iort_yesde, fwyesde);
 
-			ret = iort_add_platform_device(iort_node, ops);
+			ret = iort_add_platform_device(iort_yesde, ops);
 			if (ret) {
-				iort_delete_fwnode(iort_node);
-				acpi_free_fwnode_static(fwnode);
+				iort_delete_fwyesde(iort_yesde);
+				acpi_free_fwyesde_static(fwyesde);
 				return;
 			}
 		}
 
-		iort_node = ACPI_ADD_PTR(struct acpi_iort_node, iort_node,
-					 iort_node->length);
+		iort_yesde = ACPI_ADD_PTR(struct acpi_iort_yesde, iort_yesde,
+					 iort_yesde->length);
 	}
 }
 

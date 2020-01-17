@@ -16,7 +16,7 @@
 /*
  * calculate best rational approximation for a given fraction
  * taking into account restricted register size, e.g. to find
- * appropriate values for a pll with 5 bit denominator and
+ * appropriate values for a pll with 5 bit deyesminator and
  * 8 bit numerator register fields, trying to set up with a
  * frequency ratio of 3.1415, one would say:
  *
@@ -24,16 +24,16 @@
  *		(1 << 8) - 1, (1 << 5) - 1, &n, &d);
  *
  * you may look at given_numerator as a fixed point number,
- * with the fractional part size described in given_denominator.
+ * with the fractional part size described in given_deyesminator.
  *
  * for theoretical background, see:
  * http://en.wikipedia.org/wiki/Continued_fraction
  */
 
 void rational_best_approximation(
-	unsigned long given_numerator, unsigned long given_denominator,
-	unsigned long max_numerator, unsigned long max_denominator,
-	unsigned long *best_numerator, unsigned long *best_denominator)
+	unsigned long given_numerator, unsigned long given_deyesminator,
+	unsigned long max_numerator, unsigned long max_deyesminator,
+	unsigned long *best_numerator, unsigned long *best_deyesminator)
 {
 	/* n/d is the starting rational, which is continually
 	 * decreased each iteration using the Euclidean algorithm.
@@ -48,7 +48,7 @@ void rational_best_approximation(
 	 */
 	unsigned long n, d, n0, d0, n1, d1, n2, d2;
 	n = given_numerator;
-	d = given_denominator;
+	d = given_deyesminator;
 	n0 = d1 = 0;
 	n1 = d0 = 1;
 
@@ -77,9 +77,9 @@ void rational_best_approximation(
 		 * largest semi-convergent, the final term of which is
 		 * found below as 't'.
 		 */
-		if ((n2 > max_numerator) || (d2 > max_denominator)) {
+		if ((n2 > max_numerator) || (d2 > max_deyesminator)) {
 			unsigned long t = min((max_numerator - n0) / n1,
-					      (max_denominator - d0) / d1);
+					      (max_deyesminator - d0) / d1);
 
 			/* This tests if the semi-convergent is closer
 			 * than the previous convergent.
@@ -96,7 +96,7 @@ void rational_best_approximation(
 		d1 = d2;
 	}
 	*best_numerator = n1;
-	*best_denominator = d1;
+	*best_deyesminator = d1;
 }
 
 EXPORT_SYMBOL(rational_best_approximation);

@@ -1,4 +1,4 @@
-* Maxim MAX310X advanced Universal Asynchronous Receiver-Transmitter (UART)
+* Maxim MAX310X advanced Universal Asynchroyesus Receiver-Transmitter (UART)
 
 Required properties:
 - compatible: Should be one of the following:
@@ -15,7 +15,7 @@ Required properties:
   "osc" if an external clock source is used.
 
 Optional properties:
-- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-controller: Marks the device yesde as a GPIO controller.
 - #gpio-cells: Should be two. The first cell is the GPIO number and
   the second cell is used to specify the GPIO polarity:
     0 = active high,

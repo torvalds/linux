@@ -2,7 +2,7 @@
 #include <linux/highmem.h>
 #include <linux/kdebug.h>
 #include <linux/types.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/sched.h>
 #include <linux/uprobes.h>
 
@@ -39,7 +39,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *aup,
 	inst.word = aup->insn[0];
 
 	if (__insn_is_compact_branch(inst)) {
-		pr_notice("Uprobes for compact branches are not supported\n");
+		pr_yestice("Uprobes for compact branches are yest supported\n");
 		return -EINVAL;
 	}
 
@@ -140,7 +140,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *aup, struct pt_regs *regs)
  * like do_page_fault/do_trap/etc sets thread.trap_nr != -1.
  *
  * arch_uprobe_pre_xol/arch_uprobe_post_xol save/restore thread.trap_nr,
- * arch_uprobe_xol_was_trapped() simply checks that ->trap_nr is not equal to
+ * arch_uprobe_xol_was_trapped() simply checks that ->trap_nr is yest equal to
  * UPROBE_TRAP_NR == -1 set by arch_uprobe_pre_xol().
  */
 bool arch_uprobe_xol_was_trapped(struct task_struct *tsk)
@@ -151,7 +151,7 @@ bool arch_uprobe_xol_was_trapped(struct task_struct *tsk)
 	return false;
 }
 
-int arch_uprobe_exception_notify(struct notifier_block *self,
+int arch_uprobe_exception_yestify(struct yestifier_block *self,
 	unsigned long val, void *data)
 {
 	struct die_args *args = data;
@@ -167,11 +167,11 @@ int arch_uprobe_exception_notify(struct notifier_block *self,
 
 	switch (val) {
 	case DIE_UPROBE:
-		if (uprobe_pre_sstep_notifier(regs))
+		if (uprobe_pre_sstep_yestifier(regs))
 			return NOTIFY_STOP;
 		break;
 	case DIE_UPROBE_XOL:
-		if (uprobe_post_sstep_notifier(regs))
+		if (uprobe_post_sstep_yestifier(regs))
 			return NOTIFY_STOP;
 	default:
 		break;
@@ -213,7 +213,7 @@ unsigned long arch_uretprobe_hijack_return_addr(
  * @vaddr: the virtual address to insert the opcode.
  *
  * For mm @mm, store the breakpoint instruction at @vaddr.
- * Return 0 (success) or a negative errno.
+ * Return 0 (success) or a negative erryes.
  *
  * This version overrides the weak version in kernel/events/uprobes.c.
  * It is required to handle MIPS16 and microMIPS.
@@ -254,7 +254,7 @@ unsigned long uprobe_get_swbp_addr(struct pt_regs *regs)
  * See if the instruction can be emulated.
  * Returns true if instruction was emulated, false otherwise.
  *
- * For now we always emulate so this function just returns 0.
+ * For yesw we always emulate so this function just returns 0.
  */
 bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {

@@ -327,13 +327,13 @@ static int sifive_spi_probe(struct platform_device *pdev)
 
 	/* Optional parameters */
 	ret =
-	  of_property_read_u32(pdev->dev.of_node, "sifive,fifo-depth",
+	  of_property_read_u32(pdev->dev.of_yesde, "sifive,fifo-depth",
 			       &spi->fifo_depth);
 	if (ret < 0)
 		spi->fifo_depth = SIFIVE_SPI_DEFAULT_DEPTH;
 
 	ret =
-	  of_property_read_u32(pdev->dev.of_node, "sifive,max-bits-per-word",
+	  of_property_read_u32(pdev->dev.of_yesde, "sifive,max-bits-per-word",
 			       &max_bits_per_word);
 
 	if (!ret && max_bits_per_word < 8) {
@@ -355,7 +355,7 @@ static int sifive_spi_probe(struct platform_device *pdev)
 	cs_bits = sifive_spi_read(spi, SIFIVE_SPI_REG_CSDEF);
 	sifive_spi_write(spi, SIFIVE_SPI_REG_CSDEF, spi->cs_inactive);
 	if (!cs_bits) {
-		dev_err(&pdev->dev, "Could not auto probe CS lines\n");
+		dev_err(&pdev->dev, "Could yest auto probe CS lines\n");
 		ret = -EINVAL;
 		goto disable_clk;
 	}
@@ -368,7 +368,7 @@ static int sifive_spi_probe(struct platform_device *pdev)
 	}
 
 	/* Define our master */
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->bus_num = pdev->id;
 	master->num_chipselect = num_cs;
 	master->mode_bits = SPI_CPHA | SPI_CPOL

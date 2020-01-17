@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -24,22 +24,22 @@
 
 #include <drm/drm_dp_helper.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_connector.h"
-#include "nouveau_encoder.h"
-#include "nouveau_crtc.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_connector.h"
+#include "yesuveau_encoder.h"
+#include "yesuveau_crtc.h"
 
 #include <nvif/class.h>
 #include <nvif/cl5070.h>
 
 MODULE_PARM_DESC(mst, "Enable DisplayPort multi-stream (default: enabled)");
-static int nouveau_mst = 1;
-module_param_named(mst, nouveau_mst, int, 0400);
+static int yesuveau_mst = 1;
+module_param_named(mst, yesuveau_mst, int, 0400);
 
 static void
-nouveau_dp_probe_oui(struct drm_device *dev, struct nvkm_i2c_aux *aux, u8 *dpcd)
+yesuveau_dp_probe_oui(struct drm_device *dev, struct nvkm_i2c_aux *aux, u8 *dpcd)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	u8 buf[3];
 
 	if (!(dpcd[DP_DOWN_STREAM_PORT_COUNT] & DP_OUI_SUPPORT))
@@ -56,10 +56,10 @@ nouveau_dp_probe_oui(struct drm_device *dev, struct nvkm_i2c_aux *aux, u8 *dpcd)
 }
 
 int
-nouveau_dp_detect(struct nouveau_encoder *nv_encoder)
+yesuveau_dp_detect(struct yesuveau_encoder *nv_encoder)
 {
 	struct drm_device *dev = nv_encoder->base.base.dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_i2c_aux *aux;
 	u8 dpcd[8];
 	int ret;
@@ -89,9 +89,9 @@ nouveau_dp_detect(struct nouveau_encoder *nv_encoder)
 	NV_DEBUG(drm, "maximum: %dx%d\n",
 		     nv_encoder->dp.link_nr, nv_encoder->dp.link_bw);
 
-	nouveau_dp_probe_oui(dev, aux, dpcd);
+	yesuveau_dp_probe_oui(dev, aux, dpcd);
 
-	ret = nv50_mstm_detect(nv_encoder->dp.mstm, dpcd, nouveau_mst);
+	ret = nv50_mstm_detect(nv_encoder->dp.mstm, dpcd, yesuveau_mst);
 	if (ret == 1)
 		return NOUVEAU_DP_MST;
 	if (ret == 0)

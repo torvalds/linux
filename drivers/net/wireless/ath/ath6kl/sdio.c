@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -321,7 +321,7 @@ static int ath6kl_sdio_scat_rw(struct ath6kl_sdio *ar_sdio,
 			       scat_req->scat_entries,
 			       scat_req->scat_list);
 
-	/* synchronous call to process request */
+	/* synchroyesus call to process request */
 	mmc_wait_for_req(ar_sdio->func->card->host, &mmc_req);
 
 	sdio_release_host(ar_sdio->func);
@@ -639,21 +639,21 @@ static void ath6kl_sdio_irq_disable(struct ath6kl *ar)
 static struct hif_scatter_req *ath6kl_sdio_scatter_req_get(struct ath6kl *ar)
 {
 	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
-	struct hif_scatter_req *node = NULL;
+	struct hif_scatter_req *yesde = NULL;
 
 	spin_lock_bh(&ar_sdio->scat_lock);
 
 	if (!list_empty(&ar_sdio->scat_req)) {
-		node = list_first_entry(&ar_sdio->scat_req,
+		yesde = list_first_entry(&ar_sdio->scat_req,
 					struct hif_scatter_req, list);
-		list_del(&node->list);
+		list_del(&yesde->list);
 
-		node->scat_q_depth = get_queue_depth(&ar_sdio->scat_req);
+		yesde->scat_q_depth = get_queue_depth(&ar_sdio->scat_req);
 	}
 
 	spin_unlock_bh(&ar_sdio->scat_lock);
 
-	return node;
+	return yesde;
 }
 
 static void ath6kl_sdio_scatter_req_add(struct ath6kl *ar,
@@ -1001,7 +1001,7 @@ static int ath6kl_set_addrwin_reg(struct ath6kl *ar, u32 reg_addr, u32 addr)
 	/*
 	 * Write the address register again, this time write the whole
 	 * 4-byte value. The effect here is that the LSB write causes the
-	 * cycle to start, the extra 3 byte write to bytes 1,2,3 has no
+	 * cycle to start, the extra 3 byte write to bytes 1,2,3 has yes
 	 * effect since we are writing the same values again
 	 */
 	status = ath6kl_sdio_read_write_sync(ar, reg_addr, (u8 *)(&addr),
@@ -1075,7 +1075,7 @@ static int ath6kl_sdio_bmi_credits(struct ath6kl *ar)
 		/*
 		 * Hit the credit counter with a 4-byte access, the first byte
 		 * read will hit the counter and cause a decrement, while the
-		 * remaining 3 bytes has no effect. The rationale behind this
+		 * remaining 3 bytes has yes effect. The rationale behind this
 		 * is to make all HIF accesses 4-byte aligned.
 		 */
 		ret = ath6kl_sdio_read_write_sync(ar, addr,
@@ -1088,7 +1088,7 @@ static int ath6kl_sdio_bmi_credits(struct ath6kl *ar)
 		}
 
 		/* The counter is only 8 bits.
-		 * Ignore anything in the upper 3 bytes
+		 * Igyesre anything in the upper 3 bytes
 		 */
 		ar->bmi.cmd_credits &= 0xFF;
 	}
@@ -1157,17 +1157,17 @@ static int ath6kl_sdio_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
 	u32 addr;
 
 	/*
-	 * During normal bootup, small reads may be required.
+	 * During yesrmal bootup, small reads may be required.
 	 * Rather than issue an HIF Read and then wait as the Target
 	 * adds successive bytes to the FIFO, we wait here until
-	 * we know that response data is available.
+	 * we kyesw that response data is available.
 	 *
 	 * This allows us to cleanly timeout on an unexpected
 	 * Target failure rather than risk problems at the HIF level.
 	 * In particular, this avoids SDIO timeouts and possibly garbage
 	 * data on some host controllers.  And on an interconnect
 	 * such as Compact Flash (as well as some SDIO masters) which
-	 * does not provide any indication on data timeout, it avoids
+	 * does yest provide any indication on data timeout, it avoids
 	 * a potential hang or garbage response.
 	 *
 	 * Synchronization is more difficult for reads larger than the
@@ -1176,11 +1176,11 @@ static int ath6kl_sdio_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
 	 * HIF Read and removes some FIFO data.  So for large reads the
 	 * Host proceeds to post an HIF Read BEFORE all the data is
 	 * actually available to read.  Fortunately, large BMI reads do
-	 * not occur in practice -- they're supported for debug/development.
+	 * yest occur in practice -- they're supported for debug/development.
 	 *
 	 * So Host/Target BMI synchronization is divided into these cases:
 	 *  CASE 1: length < 4
-	 *        Should not happen
+	 *        Should yest happen
 	 *
 	 *  CASE 2: 4 <= length <= 128
 	 *        Wait for first 4 bytes to be in FIFO
@@ -1194,12 +1194,12 @@ static int ath6kl_sdio_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
 	 * For most uses, a small timeout should be sufficient and we will
 	 * usually see a response quickly; but there may be some unusual
 	 * (debug) cases of BMI_EXECUTE where we want an larger timeout.
-	 * For now, we use an unbounded busy loop while waiting for
+	 * For yesw, we use an unbounded busy loop while waiting for
 	 * BMI_EXECUTE.
 	 *
 	 * If BMI_EXECUTE ever needs to support longer-latency execution,
 	 * especially in production, this code needs to be enhanced to sleep
-	 * and yield.  Also note that BMI_COMMUNICATION_TIMEOUT is currently
+	 * and yield.  Also yeste that BMI_COMMUNICATION_TIMEOUT is currently
 	 * a function of Host processor speed.
 	 */
 	if (len >= 4) { /* NB: Currently, always true */
@@ -1226,7 +1226,7 @@ static void ath6kl_sdio_stop(struct ath6kl *ar)
 	struct bus_request *req, *tmp_req;
 	void *context;
 
-	/* FIXME: make sure that wq is not queued again */
+	/* FIXME: make sure that wq is yest queued again */
 
 	cancel_work_sync(&ar_sdio->wr_async_work);
 

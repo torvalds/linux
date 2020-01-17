@@ -199,7 +199,7 @@ NAME_ALG_MAP = {
 }
 
 
-class UnknownAlgorithmIdError(Exception):
+class UnkyeswnAlgorithmIdError(Exception):
     def __init__(self, alg):
         self.alg = alg
 
@@ -207,7 +207,7 @@ class UnknownAlgorithmIdError(Exception):
         return '0x%0x' % (alg)
 
 
-class UnknownAlgorithmNameError(Exception):
+class UnkyeswnAlgorithmNameError(Exception):
     def __init__(self, name):
         self.name = name
 
@@ -215,7 +215,7 @@ class UnknownAlgorithmNameError(Exception):
         return name
 
 
-class UnknownPCRBankError(Exception):
+class UnkyeswnPCRBankError(Exception):
     def __init__(self, alg):
         self.alg = alg
 
@@ -247,21 +247,21 @@ class ProtocolError(Exception):
 class AuthCommand(object):
     """TPMS_AUTH_COMMAND"""
 
-    def __init__(self, session_handle=TPM2_RS_PW, nonce='', session_attributes=0,
+    def __init__(self, session_handle=TPM2_RS_PW, yesnce='', session_attributes=0,
                  hmac=''):
         self.session_handle = session_handle
-        self.nonce = nonce
+        self.yesnce = yesnce
         self.session_attributes = session_attributes
         self.hmac = hmac
 
     def __str__(self):
-        fmt = '>I H%us B H%us' % (len(self.nonce), len(self.hmac))
-        return struct.pack(fmt, self.session_handle, len(self.nonce),
-                           self.nonce, self.session_attributes, len(self.hmac),
+        fmt = '>I H%us B H%us' % (len(self.yesnce), len(self.hmac))
+        return struct.pack(fmt, self.session_handle, len(self.yesnce),
+                           self.yesnce, self.session_attributes, len(self.hmac),
                            self.hmac)
 
     def __len__(self):
-        fmt = '>I H%us B H%us' % (len(self.nonce), len(self.hmac))
+        fmt = '>I H%us B H%us' % (len(self.yesnce), len(self.hmac))
         return struct.calcsize(fmt)
 
 
@@ -322,22 +322,22 @@ class Public(object):
 
 def get_digest_size(alg):
     ds = ALG_DIGEST_SIZE_MAP.get(alg)
-    if not ds:
-        raise UnknownAlgorithmIdError(alg)
+    if yest ds:
+        raise UnkyeswnAlgorithmIdError(alg)
     return ds
 
 
 def get_hash_function(alg):
     f = ALG_HASH_FUNCTION_MAP.get(alg)
-    if not f:
-        raise UnknownAlgorithmIdError(alg)
+    if yest f:
+        raise UnkyeswnAlgorithmIdError(alg)
     return f
 
 
 def get_algorithm(name):
     alg = NAME_ALG_MAP.get(name)
-    if not alg:
-        raise UnknownAlgorithmNameError(name)
+    if yest alg:
+        raise UnkyeswnAlgorithmNameError(name)
     return alg
 
 
@@ -482,8 +482,8 @@ class Client:
                    name_alg = TPM2_ALG_SHA1):
         ds = get_digest_size(name_alg)
         dig = self.__calc_pcr_digest(pcrs, bank_alg, name_alg)
-        if not dig:
-            raise UnknownPCRBankError(bank_alg)
+        if yest dig:
+            raise UnkyeswnPCRBankError(bank_alg)
 
         pcrsel_len = max((max(pcrs) >> 3) + 1, 3)
         pcrsel = [0] * pcrsel_len
@@ -582,10 +582,10 @@ class Client:
     def seal(self, parent_key, data, auth_value, policy_dig,
              name_alg = TPM2_ALG_SHA1):
         ds = get_digest_size(name_alg)
-        assert(not policy_dig or ds == len(policy_dig))
+        assert(yest policy_dig or ds == len(policy_dig))
 
         attributes = 0
-        if not policy_dig:
+        if yest policy_dig:
             attributes |= Public.USER_WITH_AUTH
             policy_dig = ''
 

@@ -13,7 +13,7 @@
  * Description: SSV Embedded Systems DIL/Net-PC
  * Author: Robert Schwebel <robert@schwebel.de>
  * Devices: [SSV Embedded Systems] DIL/Net-PC 1486 (dnp-1486)
- * Status: unknown
+ * Status: unkyeswn
  */
 
 /* include files ----------------------------------------------------------- */

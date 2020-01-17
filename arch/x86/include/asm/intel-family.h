@@ -6,7 +6,7 @@
  * "Big Core" Processors (Branded as Core, Xeon, etc...)
  *
  * While adding a new CPUID for a new microarchitecture, add a new
- * group to keep logically sorted out in chronological order. Within
+ * group to keep logically sorted out in chroyeslogical order. Within
  * that group keep the CPUID for the variants sorted by model number.
  *
  * The defined symbol names have the following form:

@@ -4,7 +4,7 @@
 
   This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
 
-  Copyright (C) 2001-2008, LINBIT Information Technologies GmbH.
+  Copyright (C) 2001-2008, LINBIT Information Techyeslogies GmbH.
   Copyright (C) 1999-2008, Philipp Reisner <philipp.reisner@linbit.com>.
   Copyright (C) 2002-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 
@@ -55,15 +55,15 @@ extern int drbd_enable_faults;
 extern int drbd_fault_rate;
 #endif
 
-extern unsigned int drbd_minor_count;
+extern unsigned int drbd_miyesr_count;
 extern char drbd_usermode_helper[];
 extern int drbd_proc_details;
 
 
 /* This is used to stop/restart our threads.
- * Cannot use SIGTERM nor SIGKILL, since these
+ * Canyest use SIGTERM yesr SIGKILL, since these
  * are sent out by init on runlevel changes
- * I choose SIGHUP for now.
+ * I choose SIGHUP for yesw.
  */
 #define DRBD_SIGKILL SIGHUP
 
@@ -275,7 +275,7 @@ struct drbd_request {
 	struct drbd_work w;
 	struct drbd_device *device;
 
-	/* if local IO is not allowed, will be NULL.
+	/* if local IO is yest allowed, will be NULL.
 	 * if local IO _is_ allowed, holds the locally submitted bio clone,
 	 * or, after local IO completion, the ERR_PTR(error).
 	 * see drbd_request_endio(). */
@@ -306,7 +306,7 @@ struct drbd_request {
 	/* for DRBD internal statistics */
 
 	/* Minimal set of time stamps to determine if we wait for activity log
-	 * transactions, local disk or peer.  32 bit "jiffies" are good enough,
+	 * transactions, local disk or peer.  32 bit "jiffies" are good eyesugh,
 	 * we don't expect a DRBD request to be stalled for several month.
 	 */
 
@@ -340,8 +340,8 @@ struct drbd_request {
 	 *  acked_jif
 	 *      when did we receive (or fake, in protocol A) a remote ACK
 	 *  net_done_jif
-	 *      when did we receive final acknowledgement (P_BARRIER_ACK),
-	 *      or decide, e.g. on connection loss, that we do no longer expect
+	 *      when did we receive final ackyeswledgement (P_BARRIER_ACK),
+	 *      or decide, e.g. on connection loss, that we do yes longer expect
 	 *      anything from this peer for this request.
 	 *
 	 *  pre_submit_jif
@@ -410,8 +410,8 @@ struct drbd_peer_request {
 /* ee flag bits.
  * While corresponding bios are in flight, the only modification will be
  * set_bit WAS_ERROR, which has to be atomic.
- * If no bios are in flight yet, or all have been completed,
- * non-atomic modification to ee->flags is ok.
+ * If yes bios are in flight yet, or all have been completed,
+ * yesn-atomic modification to ee->flags is ok.
  */
 enum {
 	__EE_CALL_AL_COMPLETE_IO,
@@ -420,7 +420,7 @@ enum {
 	/* is this a TRIM aka REQ_OP_DISCARD? */
 	__EE_TRIM,
 	/* explicit zero-out requested, or
-	 * our lower level cannot handle trim,
+	 * our lower level canyest handle trim,
 	 * and we want to fall back to zeroout instead */
 	__EE_ZEROOUT,
 
@@ -456,7 +456,7 @@ enum {
 	__EE_WRITE_SAME,
 
 	/* this originates from application on peer
-	 * (not some resync or verify or other DRBD internal request) */
+	 * (yest some resync or verify or other DRBD internal request) */
 	__EE_APPLICATION,
 
 	/* If it contains only 0 bytes, send back P_RS_DEALLOCATED */
@@ -481,19 +481,19 @@ enum {
 /* flag bits per device */
 enum {
 	UNPLUG_REMOTE,		/* sending a "UnplugRemote" could help */
-	MD_DIRTY,		/* current uuids and flags not yet on disk */
+	MD_DIRTY,		/* current uuids and flags yest yet on disk */
 	USE_DEGR_WFC_T,		/* degr-wfc-timeout instead of wfc-timeout. */
 	CL_ST_CHG_SUCCESS,
 	CL_ST_CHG_FAIL,
-	CRASHED_PRIMARY,	/* This node was a crashed primary.
+	CRASHED_PRIMARY,	/* This yesde was a crashed primary.
 				 * Gets cleared when the state.conn
 				 * goes into C_CONNECTED state. */
 	CONSIDER_RESYNC,
 
-	MD_NO_FUA,		/* Users wants us to not use FUA/FLUSH on meta data dev */
+	MD_NO_FUA,		/* Users wants us to yest use FUA/FLUSH on meta data dev */
 
 	BITMAP_IO,		/* suspend application io;
-				   once no more io in flight, start bitmap io */
+				   once yes more io in flight, start bitmap io */
 	BITMAP_IO_QUEUED,       /* Started bitmap IO */
 	WAS_IO_ERROR,		/* Local disk failed, returned IO error */
 	WAS_READ_ERROR,		/* Local disk READ failed (set additionally to the above) */
@@ -537,7 +537,7 @@ enum bm_flag {
 	BM_DONT_TEST  = 0x4,
 
 	/* so we can mark it locked for bulk operation,
-	 * and still allow all non-bulk operations */
+	 * and still allow all yesn-bulk operations */
 	BM_IS_LOCKED  = 0x8,
 
 	/* (test bit, count bit) allowed (common case) */
@@ -595,7 +595,7 @@ struct drbd_backing_dev {
 	struct block_device *md_bdev;
 	struct drbd_md md;
 	struct disk_conf *disk_conf; /* RCU, for updates: resource->conf_update */
-	sector_t known_size; /* last known size of that backing device */
+	sector_t kyeswn_size; /* last kyeswn size of that backing device */
 };
 
 struct drbd_md_io {
@@ -627,7 +627,7 @@ extern struct fifo_buffer *fifo_alloc(int fifo_size);
 /* flag bits per connection */
 enum {
 	NET_CONGESTED,		/* The data socket is congested */
-	RESOLVE_CONFLICTS,	/* Set on one node, cleared on the peer! */
+	RESOLVE_CONFLICTS,	/* Set on one yesde, cleared on the peer! */
 	SEND_PING,
 	GOT_PING_ACK,		/* set when we receive a ping_ack packet, ping_wait gets woken */
 	CONN_WD_ST_CHG_REQ,	/* A cluster wide state change on the connection is active */
@@ -635,11 +635,11 @@ enum {
 	CONN_WD_ST_CHG_FAIL,
 	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
 	CREATE_BARRIER,		/* next P_DATA is preceded by a P_BARRIER */
-	STATE_SENT,		/* Do not change state/UUIDs while this is set */
+	STATE_SENT,		/* Do yest change state/UUIDs while this is set */
 	CALLBACK_PENDING,	/* Whether we have a call_usermodehelper(, UMH_WAIT_PROC)
 				 * pending, from drbd worker context.
 				 * If set, bdi_write_congested() returns true,
-				 * so shrink_page_list() would not recurse into,
+				 * so shrink_page_list() would yest recurse into,
 				 * and potentially deadlock on, this drbd worker.
 				 */
 	DISCONNECT_SENT,
@@ -667,7 +667,7 @@ struct drbd_resource {
 	spinlock_t req_lock;
 
 	unsigned susp:1;		/* IO suspended by user */
-	unsigned susp_nod:1;		/* IO suspended because no data */
+	unsigned susp_yesd:1;		/* IO suspended because yes data */
 	unsigned susp_fen:1;		/* IO suspended because fence peer handler runs */
 
 	enum write_ordering_e write_ordering;
@@ -714,7 +714,7 @@ struct drbd_connection {
 	unsigned long last_received;	/* in jiffies, either socket */
 	unsigned int ko_count;
 
-	struct list_head transfer_log;	/* all requests not yet fully processed */
+	struct list_head transfer_log;	/* all requests yest yet fully processed */
 
 	struct crypto_shash *cram_hmac_tfm;
 	struct crypto_shash *integrity_tfm;  /* checksums we compute, updates protected by connection->data->mutex */
@@ -744,7 +744,7 @@ struct drbd_connection {
 	 * protected by resource->req_lock */
 	struct drbd_request *req_next; /* DRBD 9: todo.req_next */
 	struct drbd_request *req_ack_pending;
-	struct drbd_request *req_not_net_done;
+	struct drbd_request *req_yest_net_done;
 
 	/* sender side */
 	struct drbd_work_queue sender_work;
@@ -767,7 +767,7 @@ struct drbd_connection {
 
 		/* how many write requests have been sent
 		 * with req->epoch == current_epoch_nr.
-		 * If none, no P_BARRIER will be sent. */
+		 * If yesne, yes P_BARRIER will be sent. */
 		unsigned current_epoch_writes;
 	} send;
 };
@@ -819,7 +819,7 @@ struct drbd_device {
 
 	unsigned long flush_jif;
 #ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_minor;
+	struct dentry *debugfs_miyesr;
 	struct dentry *debugfs_vol;
 	struct dentry *debugfs_vol_oldest_requests;
 	struct dentry *debugfs_vol_act_log_extents;
@@ -829,7 +829,7 @@ struct drbd_device {
 #endif
 
 	unsigned int vnr;	/* volume number within the connection */
-	unsigned int minor;	/* device minor number */
+	unsigned int miyesr;	/* device miyesr number */
 
 	struct kref kref;
 
@@ -895,7 +895,7 @@ struct drbd_device {
 	unsigned long rs_same_csum;
 #define DRBD_SYNC_MARKS 8
 #define DRBD_SYNC_MARK_STEP (3*HZ)
-	/* block not up-to-date at mark [unit BM_BLOCK_SIZE] */
+	/* block yest up-to-date at mark [unit BM_BLOCK_SIZE] */
 	unsigned long rs_mark_left[DRBD_SYNC_MARKS];
 	/* marks's time [unit jiffies] */
 	unsigned long rs_mark_time[DRBD_SYNC_MARKS];
@@ -906,7 +906,7 @@ struct drbd_device {
 	/* where does the admin want us to start? (sector) */
 	sector_t ov_start_sector;
 	sector_t ov_stop_sector;
-	/* where are we now? (sector) */
+	/* where are we yesw? (sector) */
 	sector_t ov_position;
 	/* Start sector of out of sync range (to merge printk reporting). */
 	sector_t ov_last_oos_start;
@@ -988,7 +988,7 @@ struct drbd_bm_aio_ctx {
 
 struct drbd_config_context {
 	/* assigned from drbd_genlmsghdr */
-	unsigned int minor;
+	unsigned int miyesr;
 	/* assigned from request attributes, if present */
 	unsigned int volume;
 #define VOLUME_UNSPECIFIED		(-1U)
@@ -1008,9 +1008,9 @@ struct drbd_config_context {
 	struct drbd_connection *connection;
 };
 
-static inline struct drbd_device *minor_to_device(unsigned int minor)
+static inline struct drbd_device *miyesr_to_device(unsigned int miyesr)
 {
-	return (struct drbd_device *)idr_find(&drbd_devices, minor);
+	return (struct drbd_device *)idr_find(&drbd_devices, miyesr);
 }
 
 static inline struct drbd_peer_device *first_peer_device(struct drbd_device *device)
@@ -1051,9 +1051,9 @@ conn_peer_device(struct drbd_connection *connection, int volume_number)
 #define for_each_peer_device_safe(peer_device, tmp, device) \
 	list_for_each_entry_safe(peer_device, tmp, &device->peer_devices, peer_devices)
 
-static inline unsigned int device_to_minor(struct drbd_device *device)
+static inline unsigned int device_to_miyesr(struct drbd_device *device)
 {
-	return device->minor;
+	return device->miyesr;
 }
 
 /*
@@ -1064,7 +1064,7 @@ static inline unsigned int device_to_minor(struct drbd_device *device)
 
 enum dds_flags {
 	DDSF_FORCED    = 1,
-	DDSF_NO_RESYNC = 2, /* Do not run a resync for the new space */
+	DDSF_NO_RESYNC = 2, /* Do yest run a resync for the new space */
 };
 
 extern void drbd_init_set_defaults(struct drbd_device *device);
@@ -1217,7 +1217,7 @@ extern int drbd_bmio_clear_n_write(struct drbd_device *device) __must_hold(local
 #define cpu_to_lel(A) cpu_to_le64(A)
 #define lel_to_cpu(A) le64_to_cpu(A)
 #else
-#error "LN2 of BITS_PER_LONG unknown!"
+#error "LN2 of BITS_PER_LONG unkyeswn!"
 #endif
 
 /* resync bitmap */
@@ -1229,7 +1229,7 @@ struct bm_extent {
 	struct lc_element lce;
 };
 
-#define BME_NO_WRITES  0  /* bm_extent.flags: no more requests on this one! */
+#define BME_NO_WRITES  0  /* bm_extent.flags: yes more requests on this one! */
 #define BME_LOCKED     1  /* bm_extent.flags: syncer active on this one. */
 #define BME_PRIORITY   2  /* finish resync IO on this extent ASAP! App IO waiting! */
 
@@ -1237,8 +1237,8 @@ struct bm_extent {
 /*
  * We need to store one bit for a block.
  * Example: 1GB disk @ 4096 byte blocks ==> we need 32 KB bitmap.
- * Bit 0 ==> local node thinks this block is binary identical on both nodes
- * Bit 1 ==> local node thinks this block needs to be synced.
+ * Bit 0 ==> local yesde thinks this block is binary identical on both yesdes
+ * Bit 1 ==> local yesde thinks this block needs to be synced.
  */
 
 #define SLEEP_TIME (HZ/10)
@@ -1313,27 +1313,27 @@ struct bm_extent {
  * you should use 64bit OS for that much storage, anyways. */
 #define DRBD_MAX_SECTORS_FLEX BM_BIT_TO_SECT(0xffff7fff)
 #else
-/* we allow up to 1 PiB now on 64bit architecture with "flexible" meta data */
+/* we allow up to 1 PiB yesw on 64bit architecture with "flexible" meta data */
 #define DRBD_MAX_SECTORS_FLEX (1UL << 51)
-/* corresponds to (1UL << 38) bits right now. */
+/* corresponds to (1UL << 38) bits right yesw. */
 #endif
 
 /* Estimate max bio size as 256 * PAGE_SIZE,
  * so for typical PAGE_SIZE of 4k, that is (1<<20) Byte.
  * Since we may live in a mixed-platform cluster,
- * we limit us to a platform agnostic constant here for now.
+ * we limit us to a platform agyesstic constant here for yesw.
  * A followup commit may allow even bigger BIO sizes,
  * once we thought that through. */
 #define DRBD_MAX_BIO_SIZE (1U << 20)
 #if DRBD_MAX_BIO_SIZE > (BIO_MAX_PAGES << PAGE_SHIFT)
-#error Architecture not supported: DRBD_MAX_BIO_SIZE > BIO_MAX_SIZE
+#error Architecture yest supported: DRBD_MAX_BIO_SIZE > BIO_MAX_SIZE
 #endif
 #define DRBD_MAX_BIO_SIZE_SAFE (1U << 12)       /* Works always = 4k */
 
 #define DRBD_MAX_SIZE_H80_PACKET (1U << 15) /* Header 80 only allows packets up to 32KiB data */
 #define DRBD_MAX_BIO_SIZE_P95    (1U << 17) /* Protocol 95 to 99 allows bios up to 128KiB */
 
-/* For now, don't allow more than half of what we can "activate" in one
+/* For yesw, don't allow more than half of what we can "activate" in one
  * activity log transaction to be discarded in one go. We may need to rework
  * drbd_al_begin_io() to allow for even larger discard ranges */
 #define DRBD_MAX_BATCH_BIO_SIZE	 (AL_UPDATES_PER_TRANSACTION/2*AL_EXTENT_SIZE)
@@ -1397,7 +1397,7 @@ extern mempool_t drbd_ee_mempool;
 /* drbd's page pool, used to buffer data received from the peer,
  * or data requested by the peer.
  *
- * This does not have an emergency reserve.
+ * This does yest have an emergency reserve.
  *
  * When allocating from this pool, it first takes pages from the pool.
  * Only if the pool is depleted will try to allocate from the system.
@@ -1431,8 +1431,8 @@ extern struct bio_set drbd_io_bio_set;
 
 extern struct mutex resources_mutex;
 
-extern int conn_lowest_minor(struct drbd_connection *connection);
-extern enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsigned int minor);
+extern int conn_lowest_miyesr(struct drbd_connection *connection);
+extern enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsigned int miyesr);
 extern void drbd_destroy_device(struct kref *kref);
 extern void drbd_delete_device(struct drbd_device *device);
 
@@ -1458,7 +1458,7 @@ extern int is_valid_ar_handle(struct drbd_request *, sector_t);
 
 /* drbd_nl.c */
 
-extern struct mutex notification_mutex;
+extern struct mutex yestification_mutex;
 
 extern void drbd_suspend_io(struct drbd_device *device);
 extern void drbd_resume_io(struct drbd_device *device);
@@ -1492,7 +1492,7 @@ extern void drbd_md_endio(struct bio *bio);
 extern void drbd_peer_request_endio(struct bio *bio);
 extern void drbd_request_endio(struct bio *bio);
 extern int drbd_worker(struct drbd_thread *thi);
-enum drbd_ret_code drbd_resync_after_valid(struct drbd_device *device, int o_minor);
+enum drbd_ret_code drbd_resync_after_valid(struct drbd_device *device, int o_miyesr);
 void drbd_resync_after_changed(struct drbd_device *device);
 extern void drbd_start_resync(struct drbd_device *device, enum drbd_conns side);
 extern void resume_next_sg(struct drbd_device *device);
@@ -1584,7 +1584,7 @@ static inline void drbd_tcp_uncork(struct socket *sock)
 			(char*)&val, sizeof(val));
 }
 
-static inline void drbd_tcp_nodelay(struct socket *sock)
+static inline void drbd_tcp_yesdelay(struct socket *sock)
 {
 	int val = 1;
 	(void) kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY,
@@ -1630,7 +1630,7 @@ int drbd_seq_show(struct seq_file *seq, void *v);
 
 /* drbd_actlog.c */
 extern bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *i);
-extern int drbd_al_begin_io_nonblock(struct drbd_device *device, struct drbd_interval *i);
+extern int drbd_al_begin_io_yesnblock(struct drbd_device *device, struct drbd_interval *i);
 extern void drbd_al_begin_io_commit(struct drbd_device *device);
 extern bool drbd_al_begin_io_fastpath(struct drbd_device *device, struct drbd_interval *i);
 extern void drbd_al_begin_io(struct drbd_device *device, struct drbd_interval *i);
@@ -1673,27 +1673,27 @@ struct sib_info {
 };
 void drbd_bcast_event(struct drbd_device *device, const struct sib_info *sib);
 
-extern void notify_resource_state(struct sk_buff *,
+extern void yestify_resource_state(struct sk_buff *,
 				  unsigned int,
 				  struct drbd_resource *,
 				  struct resource_info *,
-				  enum drbd_notification_type);
-extern void notify_device_state(struct sk_buff *,
+				  enum drbd_yestification_type);
+extern void yestify_device_state(struct sk_buff *,
 				unsigned int,
 				struct drbd_device *,
 				struct device_info *,
-				enum drbd_notification_type);
-extern void notify_connection_state(struct sk_buff *,
+				enum drbd_yestification_type);
+extern void yestify_connection_state(struct sk_buff *,
 				    unsigned int,
 				    struct drbd_connection *,
 				    struct connection_info *,
-				    enum drbd_notification_type);
-extern void notify_peer_device_state(struct sk_buff *,
+				    enum drbd_yestification_type);
+extern void yestify_peer_device_state(struct sk_buff *,
 				     unsigned int,
 				     struct drbd_peer_device *,
 				     struct peer_device_info *,
-				     enum drbd_notification_type);
-extern void notify_helper(enum drbd_notification_type, struct drbd_device *,
+				     enum drbd_yestification_type);
+extern void yestify_helper(enum drbd_yestification_type, struct drbd_device *,
 			  struct drbd_connection *, const char *, int);
 
 /*
@@ -1729,7 +1729,7 @@ static inline union drbd_state drbd_read_state(struct drbd_device *device)
 
 	rv.i = device->state.i;
 	rv.susp = resource->susp;
-	rv.susp_nod = resource->susp_nod;
+	rv.susp_yesd = resource->susp_yesd;
 	rv.susp_fen = resource->susp_fen;
 
 	return rv;
@@ -1753,7 +1753,7 @@ static inline void __drbd_chk_io_error_(struct drbd_device *device,
 	ep = rcu_dereference(device->ldev->disk_conf)->on_io_error;
 	rcu_read_unlock();
 	switch (ep) {
-	case EP_PASS_ON: /* FIXME would this be better named "Ignore"? */
+	case EP_PASS_ON: /* FIXME would this be better named "Igyesre"? */
 		if (df == DRBD_READ_ERROR || df == DRBD_WRITE_ERROR) {
 			if (__ratelimit(&drbd_ratelimit_state))
 				drbd_err(device, "Local IO failed in %s.\n", where);
@@ -1772,10 +1772,10 @@ static inline void __drbd_chk_io_error_(struct drbd_device *device,
 		 * errors can be "healed" by writing good data to the affected
 		 * blocks, which triggers block re-allocation in lower layers.
 		 *
-		 * If we can not write the bitmap after a READ error,
+		 * If we can yest write the bitmap after a READ error,
 		 * we may need to trigger a full sync (see w_go_diskless()).
 		 *
-		 * Force-detach is not really an IO error, but rather a
+		 * Force-detach is yest really an IO error, but rather a
 		 * desperate measure to try to deal with a completely
 		 * unresponsive lower level IO stack.
 		 * Still it should be treated as a WRITE error.
@@ -1824,7 +1824,7 @@ static inline void drbd_chk_io_error_(struct drbd_device *device,
  * @bdev:	Meta data block device.
  *
  * BTW, for internal meta data, this happens to be the maximum capacity
- * we could agree upon with our peer node.
+ * we could agree upon with our peer yesde.
  */
 static inline sector_t drbd_md_first_sector(struct drbd_backing_dev *bdev)
 {
@@ -1858,14 +1858,14 @@ static inline sector_t drbd_md_last_sector(struct drbd_backing_dev *bdev)
 static inline sector_t drbd_get_capacity(struct block_device *bdev)
 {
 	/* return bdev ? get_capacity(bdev->bd_disk) : 0; */
-	return bdev ? i_size_read(bdev->bd_inode) >> 9 : 0;
+	return bdev ? i_size_read(bdev->bd_iyesde) >> 9 : 0;
 }
 
 /**
- * drbd_get_max_capacity() - Returns the capacity we announce to out peer
+ * drbd_get_max_capacity() - Returns the capacity we anyesunce to out peer
  * @bdev:	Meta data block device.
  *
- * returns the capacity we announce to out peer.  we clip ourselves at the
+ * returns the capacity we anyesunce to out peer.  we clip ourselves at the
  * various MAX_SECTORS, because if we don't, current implementation will
  * oops sooner or later
  */
@@ -1988,12 +1988,12 @@ static inline void drbd_thread_stop(struct drbd_thread *thi)
 	_drbd_thread_stop(thi, false, true);
 }
 
-static inline void drbd_thread_stop_nowait(struct drbd_thread *thi)
+static inline void drbd_thread_stop_yeswait(struct drbd_thread *thi)
 {
 	_drbd_thread_stop(thi, false, false);
 }
 
-static inline void drbd_thread_restart_nowait(struct drbd_thread *thi)
+static inline void drbd_thread_restart_yeswait(struct drbd_thread *thi)
 {
 	_drbd_thread_stop(thi, true, false);
 }
@@ -2104,7 +2104,7 @@ static inline bool is_sync_state(enum drbd_conns connection_state)
 }
 
 /**
- * get_ldev() - Increase the ref count on device->ldev. Returns 0 if there is no ldev
+ * get_ldev() - Increase the ref count on device->ldev. Returns 0 if there is yes ldev
  * @_device:		DRBD device.
  * @_min_state:		Minimum device state required for success.
  *
@@ -2121,11 +2121,11 @@ static inline void put_ldev(struct drbd_device *device)
 	/* We must check the state *before* the atomic_dec becomes visible,
 	 * or we have a theoretical race where someone hitting zero,
 	 * while state still D_FAILED, will then see D_DISKLESS in the
-	 * condition below and calling into destroy, where he must not, yet. */
+	 * condition below and calling into destroy, where he must yest, yet. */
 	int i = atomic_dec_return(&device->local_cnt);
 
 	/* This may be called from some endio handler,
-	 * so we must not sleep here. */
+	 * so we must yest sleep here. */
 
 	__release(local);
 	D_ASSERT(device, i >= 0);
@@ -2184,7 +2184,7 @@ static inline int drbd_state_is_stable(struct drbd_device *device)
 	 * for any newly introduced state we may have forgotten to add here */
 
 	switch ((enum drbd_conns)s.conn) {
-	/* new io only accepted when there is no connection, ... */
+	/* new io only accepted when there is yes connection, ... */
 	case C_STANDALONE:
 	case C_WF_CONNECTION:
 	/* ... or there is a well established connection. */
@@ -2216,11 +2216,11 @@ static inline int drbd_state_is_stable(struct drbd_device *device)
 			return 0;
 		break;
 
-		/* no new io accepted in these states */
+		/* yes new io accepted in these states */
 	case C_WF_BITMAP_T:
 	case C_WF_SYNC_UUID:
 	case C_MASK:
-		/* not "stable" */
+		/* yest "stable" */
 		return 0;
 	}
 
@@ -2234,12 +2234,12 @@ static inline int drbd_state_is_stable(struct drbd_device *device)
 		/* disk state is stable as well. */
 		break;
 
-	/* no new io accepted during transitional states */
+	/* yes new io accepted during transitional states */
 	case D_ATTACHING:
 	case D_NEGOTIATING:
 	case D_UNKNOWN:
 	case D_MASK:
-		/* not "stable" */
+		/* yest "stable" */
 		return 0;
 	}
 
@@ -2250,7 +2250,7 @@ static inline int drbd_suspended(struct drbd_device *device)
 {
 	struct drbd_resource *resource = device->resource;
 
-	return resource->susp || resource->susp_fen || resource->susp_nod;
+	return resource->susp || resource->susp_fen || resource->susp_yesd;
 }
 
 static inline bool may_inc_ap_bio(struct drbd_device *device)
@@ -2266,7 +2266,7 @@ static inline bool may_inc_ap_bio(struct drbd_device *device)
 	 * in various places, we only allow new application io
 	 * to start during "stable" states. */
 
-	/* no new io accepted when attaching or detaching the disk */
+	/* yes new io accepted when attaching or detaching the disk */
 	if (!drbd_state_is_stable(device))
 		return false;
 
@@ -2296,7 +2296,7 @@ static inline void inc_ap_bio(struct drbd_device *device)
 {
 	/* we wait here
 	 *    as long as the device is suspended
-	 *    until the bitmap is no longer on the fly during connection
+	 *    until the bitmap is yes longer on the fly during connection
 	 *    handshake as long as we would exceed the max_buffer limit.
 	 *
 	 * to avoid races with the reconnect code,
@@ -2341,7 +2341,7 @@ static inline int drbd_set_ed_uuid(struct drbd_device *device, u64 val)
 
 static inline int drbd_queue_order_type(struct drbd_device *device)
 {
-	/* sorry, we currently have no working implementation
+	/* sorry, we currently have yes working implementation
 	 * of distributed TCQ stuff */
 #ifndef QUEUE_ORDERED_NONE
 #define QUEUE_ORDERED_NONE 0

@@ -14,7 +14,7 @@
  */
 
 /*
- * The PPC4xx SPI controller has no FIFO so each sent/received byte will
+ * The PPC4xx SPI controller has yes FIFO so each sent/received byte will
  * generate an interrupt to the CPU. This can cause high CPU utilization.
  * This driver allows platforms to reduce the interrupt load on the CPU
  * during SPI transfers by setting max_speed_hz via the device tree.
@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -53,7 +53,7 @@
 #define SPI_PPC4XX_MODE_SPE	(0x80 >> 4)
 
 /*
- * SPI_PPC4XX_MODE_RD = 0 means "MSB first" - this is the normal mode
+ * SPI_PPC4XX_MODE_RD = 0 means "MSB first" - this is the yesrmal mode
  * SPI_PPC4XX_MODE_RD = 1 means "LSB first" - this is bit-reversed mode
  * Note: This is identical to SPI_LSB_FIRST.
  */
@@ -177,7 +177,7 @@ static int spi_ppc4xx_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 	speed = spi->max_speed_hz;
 
 	/*
-	 * Modify the configuration if the transfer overrides it.  Do not allow
+	 * Modify the configuration if the transfer overrides it.  Do yest allow
 	 * the transfer to overwrite the generic configuration with zeros.
 	 */
 	if (t) {
@@ -222,7 +222,7 @@ static int spi_ppc4xx_setup(struct spi_device *spi)
 	struct spi_ppc4xx_cs *cs = spi->controller_state;
 
 	if (!spi->max_speed_hz) {
-		dev_err(&spi->dev, "invalid max_speed_hz (must be non-zero)\n");
+		dev_err(&spi->dev, "invalid max_speed_hz (must be yesn-zero)\n");
 		return -EINVAL;
 	}
 
@@ -235,7 +235,7 @@ static int spi_ppc4xx_setup(struct spi_device *spi)
 
 	/*
 	 * We set all bits of the SPI0_MODE register, so,
-	 * no need to read-modify-write
+	 * yes need to read-modify-write
 	 */
 	cs->mode = SPI_PPC4XX_MODE_SPE;
 
@@ -267,8 +267,8 @@ static void spi_ppc4xx_chipsel(struct spi_device *spi, int value)
 	unsigned int cspol;
 
 	/*
-	 * If there are no chip selects at all, or if this is the special
-	 * case of a non-existent (dummy) chip select, do nothing.
+	 * If there are yes chip selects at all, or if this is the special
+	 * case of a yesn-existent (dummy) chip select, do yesthing.
 	 */
 
 	if (!hw->master->num_chipselect || hw->gpios[cs] == -EEXIST)
@@ -297,7 +297,7 @@ static irqreturn_t spi_ppc4xx_int(int irq, void *dev_id)
 	/*
 	 * BSY de-asserts one cycle after the transfer is complete.  The
 	 * interrupt is asserted after the transfer is complete.  The exact
-	 * relationship is not documented, hence this code.
+	 * relationship is yest documented, hence this code.
 	 */
 
 	if (unlikely(status & SPI_PPC4XX_SR_BSY)) {
@@ -381,9 +381,9 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	struct spi_master *master;
 	struct spi_bitbang *bbp;
 	struct resource resource;
-	struct device_node *np = op->dev.of_node;
+	struct device_yesde *np = op->dev.of_yesde;
 	struct device *dev = &op->dev;
-	struct device_node *opbnp;
+	struct device_yesde *opbnp;
 	int ret;
 	int num_gpios;
 	const unsigned int *clk;
@@ -391,7 +391,7 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	master = spi_alloc_master(dev, sizeof *hw);
 	if (master == NULL)
 		return -ENOMEM;
-	master->dev.of_node = np;
+	master->dev.of_yesde = np;
 	platform_set_drvdata(op, master);
 	hw = spi_master_get_devdata(master);
 	hw->master = master;
@@ -462,27 +462,27 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	bbp->master->num_chipselect = num_gpios > 0 ? num_gpios : 0;
 
 	/* Get the clock for the OPB */
-	opbnp = of_find_compatible_node(NULL, NULL, "ibm,opb");
+	opbnp = of_find_compatible_yesde(NULL, NULL, "ibm,opb");
 	if (opbnp == NULL) {
-		dev_err(dev, "OPB: cannot find node\n");
+		dev_err(dev, "OPB: canyest find yesde\n");
 		ret = -ENODEV;
 		goto free_gpios;
 	}
 	/* Get the clock (Hz) for the OPB */
 	clk = of_get_property(opbnp, "clock-frequency", NULL);
 	if (clk == NULL) {
-		dev_err(dev, "OPB: no clock-frequency property set\n");
-		of_node_put(opbnp);
+		dev_err(dev, "OPB: yes clock-frequency property set\n");
+		of_yesde_put(opbnp);
 		ret = -ENODEV;
 		goto free_gpios;
 	}
 	hw->opb_freq = *clk;
 	hw->opb_freq >>= 2;
-	of_node_put(opbnp);
+	of_yesde_put(opbnp);
 
 	ret = of_address_to_resource(np, 0, &resource);
 	if (ret) {
-		dev_err(dev, "error while parsing device node resource\n");
+		dev_err(dev, "error while parsing device yesde resource\n");
 		goto free_gpios;
 	}
 	hw->mapbase = resource.start;

@@ -3,7 +3,7 @@
  * imr_selftest.c -- Intel Isolated Memory Region self-test driver
  *
  * Copyright(c) 2013 Intel Corporation.
- * Copyright(c) 2015 Bryan O'Donoghue <pure.logic@nexus-software.ie>
+ * Copyright(c) 2015 Bryan O'Doyesghue <pure.logic@nexus-software.ie>
  *
  * IMR self test. The purpose of this module is to run a set of tests on the
  * IMR API to validate it's sanity. We check for overlapping, reserved
@@ -110,7 +110,7 @@ static const struct x86_cpu_id imr_ids[] __initconst = {
 /**
  * imr_self_test_init - entry point for IMR driver.
  *
- * return: -ENODEV for no IMR support 0 if good to go.
+ * return: -ENODEV for yes IMR support 0 if good to go.
  */
 static int __init imr_self_test_init(void)
 {

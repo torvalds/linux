@@ -20,7 +20,7 @@
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 
@@ -109,7 +109,7 @@ static void inject_mce(struct mce *m)
 {
 	struct mce *i = &per_cpu(injectm, m->extcpu);
 
-	/* Make sure no one reads partially written injectm */
+	/* Make sure yes one reads partially written injectm */
 	i->finished = 0;
 	mb();
 	m->finished = 0;
@@ -156,7 +156,7 @@ static void raise_exception(struct mce *m, struct pt_regs *pregs)
 static cpumask_var_t mce_inject_cpumask;
 static DEFINE_MUTEX(mce_inject_mutex);
 
-static int mce_raise_notify(unsigned int cmd, struct pt_regs *regs)
+static int mce_raise_yestify(unsigned int cmd, struct pt_regs *regs)
 {
 	int cpu = smp_processor_id();
 	struct mce *m = this_cpu_ptr(&injectm);
@@ -211,7 +211,7 @@ static int raise_local(void)
 	} else if (m->status) {
 		pr_info("Starting machine check poll CPU %d\n", cpu);
 		raise_poll(m);
-		mce_notify_irq();
+		mce_yestify_irq();
 		pr_info("Machine check poll done on CPU %d\n", cpu);
 	} else
 		m->finished = 0;
@@ -274,7 +274,7 @@ static void __maybe_unused raise_mce(struct mce *m)
 	}
 }
 
-static int mce_inject_raise(struct notifier_block *nb, unsigned long val,
+static int mce_inject_raise(struct yestifier_block *nb, unsigned long val,
 			    void *data)
 {
 	struct mce *m = (struct mce *)data;
@@ -289,8 +289,8 @@ static int mce_inject_raise(struct notifier_block *nb, unsigned long val,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block inject_nb = {
-	.notifier_call  = mce_inject_raise,
+static struct yestifier_block inject_nb = {
+	.yestifier_call  = mce_inject_raise,
 };
 
 /*
@@ -409,24 +409,24 @@ static void trigger_thr_int(void *info)
 	asm volatile("int %0" :: "i" (THRESHOLD_APIC_VECTOR));
 }
 
-static u32 get_nbc_for_node(int node_id)
+static u32 get_nbc_for_yesde(int yesde_id)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
-	u32 cores_per_node;
+	u32 cores_per_yesde;
 
-	cores_per_node = (c->x86_max_cores * smp_num_siblings) / amd_get_nodes_per_socket();
+	cores_per_yesde = (c->x86_max_cores * smp_num_siblings) / amd_get_yesdes_per_socket();
 
-	return cores_per_node * node_id;
+	return cores_per_yesde * yesde_id;
 }
 
 static void toggle_nb_mca_mst_cpu(u16 nid)
 {
-	struct amd_northbridge *nb;
+	struct amd_yesrthbridge *nb;
 	struct pci_dev *F3;
 	u32 val;
 	int err;
 
-	nb = node_to_amd_nb(nid);
+	nb = yesde_to_amd_nb(nid);
 	if (!nb)
 		return;
 
@@ -507,7 +507,7 @@ static void do_inject(void)
 	/*
 	 * Ensure necessary status bits for deferred errors:
 	 * - MCx_STATUS[Deferred]: make sure it is a deferred error
-	 * - MCx_STATUS[UC] cleared: deferred errors are _not_ UC
+	 * - MCx_STATUS[UC] cleared: deferred errors are _yest_ UC
 	 */
 	if (inj_type == DFR_INT_INJ) {
 		i_mce.status |= MCI_STATUS_DEFERRED;
@@ -515,15 +515,15 @@ static void do_inject(void)
 	}
 
 	/*
-	 * For multi node CPUs, logging and reporting of bank 4 errors happens
-	 * only on the node base core. Refer to D18F3x44[NbMcaToMstCpuEn] for
+	 * For multi yesde CPUs, logging and reporting of bank 4 errors happens
+	 * only on the yesde base core. Refer to D18F3x44[NbMcaToMstCpuEn] for
 	 * Fam10h and later BKDGs.
 	 */
 	if (boot_cpu_has(X86_FEATURE_AMD_DCM) &&
 	    b == 4 &&
 	    boot_cpu_data.x86 < 0x17) {
 		toggle_nb_mca_mst_cpu(amd_get_nb_id(cpu));
-		cpu = get_nbc_for_node(amd_get_nb_id(cpu));
+		cpu = get_nbc_for_yesde(amd_get_nb_id(cpu));
 	}
 
 	get_online_cpus();
@@ -555,7 +555,7 @@ err:
 }
 
 /*
- * This denotes into which bank we're injecting and triggers
+ * This deyestes into which bank we're injecting and triggers
  * the injection, at the same time.
  */
 static int inj_bank_set(void *data, u64 val)
@@ -564,12 +564,12 @@ static int inj_bank_set(void *data, u64 val)
 	u8 n_banks;
 	u64 cap;
 
-	/* Get bank count on target CPU so we can handle non-uniform values. */
+	/* Get bank count on target CPU so we can handle yesn-uniform values. */
 	rdmsrl_on_cpu(m->extcpu, MSR_IA32_MCG_CAP, &cap);
 	n_banks = cap & MCG_BANKCNT_MASK;
 
 	if (val >= n_banks) {
-		pr_err("MCA bank %llu non-existent on CPU%d\n", val, m->extcpu);
+		pr_err("MCA bank %llu yesn-existent on CPU%d\n", val, m->extcpu);
 		return -EINVAL;
 	}
 
@@ -643,7 +643,7 @@ static const struct file_operations readme_fops = {
 	.read		= inj_readme_read,
 };
 
-static struct dfs_node {
+static struct dfs_yesde {
 	char *name;
 	const struct file_operations *fops;
 	umode_t perm;
@@ -676,7 +676,7 @@ static int __init inject_init(void)
 
 	debugfs_init();
 
-	register_nmi_handler(NMI_LOCAL, mce_raise_notify, 0, "mce_notify");
+	register_nmi_handler(NMI_LOCAL, mce_raise_yestify, 0, "mce_yestify");
 	mce_register_injector_chain(&inject_nb);
 
 	setup_inj_struct(&i_mce);
@@ -690,7 +690,7 @@ static void __exit inject_exit(void)
 {
 
 	mce_unregister_injector_chain(&inject_nb);
-	unregister_nmi_handler(NMI_LOCAL, "mce_notify");
+	unregister_nmi_handler(NMI_LOCAL, "mce_yestify");
 
 	debugfs_remove_recursive(dfs_inj);
 	dfs_inj = NULL;

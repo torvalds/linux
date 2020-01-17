@@ -53,9 +53,9 @@ static inline void ehci_qtd_free (struct ehci_hcd *ehci, struct ehci_qtd *qtd)
 
 static void qh_destroy(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	/* clean qtds first, and know this is not linked */
+	/* clean qtds first, and kyesw this is yest linked */
 	if (!list_empty (&qh->qtd_list) || qh->qh_next.ptr) {
-		ehci_dbg (ehci, "unused qh not empty!\n");
+		ehci_dbg (ehci, "unused qh yest empty!\n");
 		BUG ();
 	}
 	if (qh->dummy)
@@ -80,12 +80,12 @@ static struct ehci_qh *ehci_qh_alloc (struct ehci_hcd *ehci, gfp_t flags)
 	qh->qh_dma = dma;
 	// INIT_LIST_HEAD (&qh->qh_list);
 	INIT_LIST_HEAD (&qh->qtd_list);
-	INIT_LIST_HEAD(&qh->unlink_node);
+	INIT_LIST_HEAD(&qh->unlink_yesde);
 
 	/* dummy td enables safe urb queuing */
 	qh->dummy = ehci_qtd_alloc (ehci, flags);
 	if (qh->dummy == NULL) {
-		ehci_dbg (ehci, "no dummy td\n");
+		ehci_dbg (ehci, "yes dummy td\n");
 		goto fail1;
 	}
 done:

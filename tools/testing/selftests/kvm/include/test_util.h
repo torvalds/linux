@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include "kselftest.h"

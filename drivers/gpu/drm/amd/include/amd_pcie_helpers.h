@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -126,7 +126,7 @@ static inline uint16_t get_pcie_lane_support(uint32_t pcie_lane_width_cap,
 							}
 						}
 						if (j > 7)
-							pr_err("Cannot find a valid PCIE lane width!\n");
+							pr_err("Canyest find a valid PCIE lane width!\n");
 					}
 				}
 				break;

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/fsnotify_backend.h>
+#include <linux/fsyestify_backend.h>
 #include <linux/idr.h>
 #include <linux/init.h>
-#include <linux/inotify.h>
-#include <linux/fanotify.h>
+#include <linux/iyestify.h>
+#include <linux/fayestify.h>
 #include <linux/kernel.h>
 #include <linux/namei.h>
 #include <linux/sched.h>
@@ -14,9 +14,9 @@
 #include <linux/proc_fs.h>
 #include <linux/exportfs.h>
 
-#include "inotify/inotify.h"
+#include "iyestify/iyestify.h"
 #include "fdinfo.h"
-#include "fsnotify.h"
+#include "fsyestify.h"
 
 #if defined(CONFIG_PROC_FS)
 
@@ -24,10 +24,10 @@
 
 static void show_fdinfo(struct seq_file *m, struct file *f,
 			void (*show)(struct seq_file *m,
-				     struct fsnotify_mark *mark))
+				     struct fsyestify_mark *mark))
 {
-	struct fsnotify_group *group = f->private_data;
-	struct fsnotify_mark *mark;
+	struct fsyestify_group *group = f->private_data;
+	struct fsyestify_mark *mark;
 
 	mutex_lock(&group->mark_mutex);
 	list_for_each_entry(mark, &group->marks_list, g_list) {
@@ -39,7 +39,7 @@ static void show_fdinfo(struct seq_file *m, struct file *f,
 }
 
 #if defined(CONFIG_EXPORTFS)
-static void show_mark_fhandle(struct seq_file *m, struct inode *inode)
+static void show_mark_fhandle(struct seq_file *m, struct iyesde *iyesde)
 {
 	struct {
 		struct file_handle handle;
@@ -50,9 +50,9 @@ static void show_mark_fhandle(struct seq_file *m, struct inode *inode)
 	f.handle.handle_bytes = sizeof(f.pad);
 	size = f.handle.handle_bytes >> 2;
 
-	ret = exportfs_encode_inode_fh(inode, (struct fid *)f.handle.f_handle, &size, NULL);
+	ret = exportfs_encode_iyesde_fh(iyesde, (struct fid *)f.handle.f_handle, &size, NULL);
 	if ((ret == FILEID_INVALID) || (ret < 0)) {
-		WARN_ONCE(1, "Can't encode file handler for inotify: %d\n", ret);
+		WARN_ONCE(1, "Can't encode file handler for iyestify: %d\n", ret);
 		return;
 	}
 
@@ -66,24 +66,24 @@ static void show_mark_fhandle(struct seq_file *m, struct inode *inode)
 		seq_printf(m, "%02x", (int)f.handle.f_handle[i]);
 }
 #else
-static void show_mark_fhandle(struct seq_file *m, struct inode *inode)
+static void show_mark_fhandle(struct seq_file *m, struct iyesde *iyesde)
 {
 }
 #endif
 
 #ifdef CONFIG_INOTIFY_USER
 
-static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
+static void iyestify_fdinfo(struct seq_file *m, struct fsyestify_mark *mark)
 {
-	struct inotify_inode_mark *inode_mark;
-	struct inode *inode;
+	struct iyestify_iyesde_mark *iyesde_mark;
+	struct iyesde *iyesde;
 
 	if (mark->connector->type != FSNOTIFY_OBJ_TYPE_INODE)
 		return;
 
-	inode_mark = container_of(mark, struct inotify_inode_mark, fsn_mark);
-	inode = igrab(fsnotify_conn_inode(mark->connector));
-	if (inode) {
+	iyesde_mark = container_of(mark, struct iyestify_iyesde_mark, fsn_mark);
+	iyesde = igrab(fsyestify_conn_iyesde(mark->connector));
+	if (iyesde) {
 		/*
 		 * IN_ALL_EVENTS represents all of the mask bits
 		 * that we expose to userspace.  There is at
@@ -91,63 +91,63 @@ static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
 		 * used only internally to the kernel.
 		 */
 		u32 mask = mark->mask & IN_ALL_EVENTS;
-		seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:%x ",
-			   inode_mark->wd, inode->i_ino, inode->i_sb->s_dev,
-			   mask, mark->ignored_mask);
-		show_mark_fhandle(m, inode);
+		seq_printf(m, "iyestify wd:%x iyes:%lx sdev:%x mask:%x igyesred_mask:%x ",
+			   iyesde_mark->wd, iyesde->i_iyes, iyesde->i_sb->s_dev,
+			   mask, mark->igyesred_mask);
+		show_mark_fhandle(m, iyesde);
 		seq_putc(m, '\n');
-		iput(inode);
+		iput(iyesde);
 	}
 }
 
-void inotify_show_fdinfo(struct seq_file *m, struct file *f)
+void iyestify_show_fdinfo(struct seq_file *m, struct file *f)
 {
-	show_fdinfo(m, f, inotify_fdinfo);
+	show_fdinfo(m, f, iyestify_fdinfo);
 }
 
 #endif /* CONFIG_INOTIFY_USER */
 
 #ifdef CONFIG_FANOTIFY
 
-static void fanotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
+static void fayestify_fdinfo(struct seq_file *m, struct fsyestify_mark *mark)
 {
 	unsigned int mflags = 0;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	if (mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY)
 		mflags |= FAN_MARK_IGNORED_SURV_MODIFY;
 
 	if (mark->connector->type == FSNOTIFY_OBJ_TYPE_INODE) {
-		inode = igrab(fsnotify_conn_inode(mark->connector));
-		if (!inode)
+		iyesde = igrab(fsyestify_conn_iyesde(mark->connector));
+		if (!iyesde)
 			return;
-		seq_printf(m, "fanotify ino:%lx sdev:%x mflags:%x mask:%x ignored_mask:%x ",
-			   inode->i_ino, inode->i_sb->s_dev,
-			   mflags, mark->mask, mark->ignored_mask);
-		show_mark_fhandle(m, inode);
+		seq_printf(m, "fayestify iyes:%lx sdev:%x mflags:%x mask:%x igyesred_mask:%x ",
+			   iyesde->i_iyes, iyesde->i_sb->s_dev,
+			   mflags, mark->mask, mark->igyesred_mask);
+		show_mark_fhandle(m, iyesde);
 		seq_putc(m, '\n');
-		iput(inode);
+		iput(iyesde);
 	} else if (mark->connector->type == FSNOTIFY_OBJ_TYPE_VFSMOUNT) {
-		struct mount *mnt = fsnotify_conn_mount(mark->connector);
+		struct mount *mnt = fsyestify_conn_mount(mark->connector);
 
-		seq_printf(m, "fanotify mnt_id:%x mflags:%x mask:%x ignored_mask:%x\n",
-			   mnt->mnt_id, mflags, mark->mask, mark->ignored_mask);
+		seq_printf(m, "fayestify mnt_id:%x mflags:%x mask:%x igyesred_mask:%x\n",
+			   mnt->mnt_id, mflags, mark->mask, mark->igyesred_mask);
 	} else if (mark->connector->type == FSNOTIFY_OBJ_TYPE_SB) {
-		struct super_block *sb = fsnotify_conn_sb(mark->connector);
+		struct super_block *sb = fsyestify_conn_sb(mark->connector);
 
-		seq_printf(m, "fanotify sdev:%x mflags:%x mask:%x ignored_mask:%x\n",
-			   sb->s_dev, mflags, mark->mask, mark->ignored_mask);
+		seq_printf(m, "fayestify sdev:%x mflags:%x mask:%x igyesred_mask:%x\n",
+			   sb->s_dev, mflags, mark->mask, mark->igyesred_mask);
 	}
 }
 
-void fanotify_show_fdinfo(struct seq_file *m, struct file *f)
+void fayestify_show_fdinfo(struct seq_file *m, struct file *f)
 {
-	struct fsnotify_group *group = f->private_data;
+	struct fsyestify_group *group = f->private_data;
 
-	seq_printf(m, "fanotify flags:%x event-flags:%x\n",
-		   group->fanotify_data.flags, group->fanotify_data.f_flags);
+	seq_printf(m, "fayestify flags:%x event-flags:%x\n",
+		   group->fayestify_data.flags, group->fayestify_data.f_flags);
 
-	show_fdinfo(m, f, fanotify_fdinfo);
+	show_fdinfo(m, f, fayestify_fdinfo);
 }
 
 #endif /* CONFIG_FANOTIFY */

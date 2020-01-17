@@ -12,7 +12,7 @@ Required properties:
 	  Required if compatible is "fsl,imx6sx-mqs".
 
 Required if compatible is "fsl,imx8qm-mqs":
-  - power-domains: A phandle of PM domain provider node.
+  - power-domains: A phandle of PM domain provider yesde.
   - reg: Offset and length of the register set for the device.
 
 Example:

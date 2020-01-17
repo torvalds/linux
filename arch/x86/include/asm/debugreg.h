@@ -18,11 +18,11 @@ DECLARE_PER_CPU(unsigned long, cpu_dr7);
 	native_set_debugreg(register, value)
 #endif
 
-static inline unsigned long native_get_debugreg(int regno)
+static inline unsigned long native_get_debugreg(int regyes)
 {
 	unsigned long val = 0;	/* Damn you, gcc! */
 
-	switch (regno) {
+	switch (regyes) {
 	case 0:
 		asm("mov %%db0, %0" :"=r" (val));
 		break;
@@ -47,9 +47,9 @@ static inline unsigned long native_get_debugreg(int regno)
 	return val;
 }
 
-static inline void native_set_debugreg(int regno, unsigned long value)
+static inline void native_set_debugreg(int regyes, unsigned long value)
 {
-	switch (regno) {
+	switch (regyes) {
 	case 0:
 		asm("mov %0, %%db0"	::"r" (value));
 		break;

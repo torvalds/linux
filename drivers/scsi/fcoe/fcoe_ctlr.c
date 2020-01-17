@@ -17,7 +17,7 @@
 #include <linux/ethtool.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <net/rtnetlink.h>
@@ -50,7 +50,7 @@ static int fcoe_ctlr_vn_lookup(struct fcoe_ctlr *, u32, u8 *);
 static int fcoe_ctlr_vlan_recv(struct fcoe_ctlr *, struct sk_buff *);
 
 static u8 fcoe_all_fcfs[ETH_ALEN] = FIP_ALL_FCF_MACS;
-static u8 fcoe_all_enode[ETH_ALEN] = FIP_ALL_ENODE_MACS;
+static u8 fcoe_all_eyesde[ETH_ALEN] = FIP_ALL_ENODE_MACS;
 static u8 fcoe_all_vn2vn[ETH_ALEN] = FIP_ALL_VN2VN_MACS;
 static u8 fcoe_all_p2p[ETH_ALEN] = FIP_ALL_P2P_MACS;
 
@@ -69,12 +69,12 @@ static const char * const fcoe_ctlr_states[] = {
 
 static const char *fcoe_ctlr_state(enum fip_state state)
 {
-	const char *cp = "unknown";
+	const char *cp = "unkyeswn";
 
 	if (state < ARRAY_SIZE(fcoe_ctlr_states))
 		cp = fcoe_ctlr_states[state];
 	if (!cp)
-		cp = "unknown";
+		cp = "unkyeswn";
 	return cp;
 }
 
@@ -97,7 +97,7 @@ static void fcoe_ctlr_set_state(struct fcoe_ctlr *fip, enum fip_state state)
  * fcoe_ctlr_mtu_valid() - Check if a FCF's MTU is valid
  * @fcf: The FCF to check
  *
- * Return non-zero if FCF fcoe_size has been validated.
+ * Return yesn-zero if FCF fcoe_size has been validated.
  */
 static inline int fcoe_ctlr_mtu_valid(const struct fcoe_fcf *fcf)
 {
@@ -108,7 +108,7 @@ static inline int fcoe_ctlr_mtu_valid(const struct fcoe_fcf *fcf)
  * fcoe_ctlr_fcf_usable() - Check if a FCF is usable
  * @fcf: The FCF to check
  *
- * Return non-zero if the FCF is usable.
+ * Return yesn-zero if the FCF is usable.
  */
 static inline int fcoe_ctlr_fcf_usable(struct fcoe_fcf *fcf)
 {
@@ -206,7 +206,7 @@ static int fcoe_sysfs_fcf_add(struct fcoe_fcf *new)
 		 * them. This is ensured because both recv_adv and
 		 * age_fcfs are protected by the the fcoe_ctlr's mutex.
 		 * This means that we should never get a FCF with a
-		 * non-NULL priv pointer.
+		 * yesn-NULL priv pointer.
 		 */
 		BUG_ON(fcf_dev->priv);
 
@@ -287,10 +287,10 @@ static void fcoe_ctlr_reset_fcfs(struct fcoe_ctlr *fip)
  * This is called by FCoE drivers before freeing the &fcoe_ctlr.
  *
  * The receive handler will have been deleted before this to guarantee
- * that no more recv_work will be scheduled.
+ * that yes more recv_work will be scheduled.
  *
  * The timer routine will simply return once we set FIP_ST_DISABLED.
- * This guarantees that no further timeouts or work will be scheduled.
+ * This guarantees that yes further timeouts or work will be scheduled.
  */
 void fcoe_ctlr_destroy(struct fcoe_ctlr *fip)
 {
@@ -307,14 +307,14 @@ void fcoe_ctlr_destroy(struct fcoe_ctlr *fip)
 EXPORT_SYMBOL(fcoe_ctlr_destroy);
 
 /**
- * fcoe_ctlr_announce() - announce new FCF selection
+ * fcoe_ctlr_anyesunce() - anyesunce new FCF selection
  * @fip: The FCoE controller
  *
  * Also sets the destination MAC for FCoE and control packets
  *
- * Called with neither ctlr_mutex nor ctlr_lock held.
+ * Called with neither ctlr_mutex yesr ctlr_lock held.
  */
-static void fcoe_ctlr_announce(struct fcoe_ctlr *fip)
+static void fcoe_ctlr_anyesunce(struct fcoe_ctlr *fip)
 {
 	struct fcoe_fcf *sel;
 	struct fcoe_fcf *fcf;
@@ -335,13 +335,13 @@ static void fcoe_ctlr_announce(struct fcoe_ctlr *fip)
 	if (!is_zero_ether_addr(fip->dest_addr)) {
 		printk(KERN_NOTICE "libfcoe: host%d: "
 		       "FIP Fibre-Channel Forwarder MAC %pM deselected\n",
-		       fip->lp->host->host_no, fip->dest_addr);
+		       fip->lp->host->host_yes, fip->dest_addr);
 		memset(fip->dest_addr, 0, ETH_ALEN);
 	}
 	if (sel) {
 		printk(KERN_INFO "libfcoe: host%d: FIP selected "
 		       "Fibre-Channel Forwarder MAC %pM\n",
-		       fip->lp->host->host_no, sel->fcf_mac);
+		       fip->lp->host->host_yes, sel->fcf_mac);
 		memcpy(fip->dest_addr, sel->fcoe_mac, ETH_ALEN);
 		fip->map_dest = 0;
 	}
@@ -354,14 +354,14 @@ unlock:
  * @fip: The FCoE controller to get the maximum FCoE size from
  *
  * Returns the maximum packet size including the FCoE header and trailer,
- * but not including any Ethernet or VLAN headers.
+ * but yest including any Ethernet or VLAN headers.
  */
 static inline u32 fcoe_ctlr_fcoe_size(struct fcoe_ctlr *fip)
 {
 	/*
 	 * Determine the max FCoE frame size allowed, including
 	 * FCoE header and trailer.
-	 * Note:  lp->mfs is currently the payload size, not the frame size.
+	 * Note:  lp->mfs is currently the payload size, yest the frame size.
 	 */
 	return fip->lp->mfs + sizeof(struct fc_frame_header) +
 		sizeof(struct fcoe_hdr) + sizeof(struct fcoe_crc_eof);
@@ -489,9 +489,9 @@ static void fcoe_ctlr_reset(struct fcoe_ctlr *fip)
  * fcoe_ctlr_link_down() - Stop a FCoE controller
  * @fip: The FCoE controller to be stopped
  *
- * Returns non-zero if the link was up and now isn't.
+ * Returns yesn-zero if the link was up and yesw isn't.
  *
- * Called from the LLD when the network link is not ready.
+ * Called from the LLD when the network link is yest ready.
  * There may be multiple calls while the link is down.
  */
 int fcoe_ctlr_link_down(struct fcoe_ctlr *fip)
@@ -588,14 +588,14 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip,
  * fcoe_ctlr_encaps() - Encapsulate an ELS frame for FIP, without sending it
  * @fip:   The FCoE controller for the ELS frame
  * @dtype: The FIP descriptor type for the frame
- * @skb:   The FCoE ELS frame including FC header but no FCoE headers
+ * @skb:   The FCoE ELS frame including FC header but yes FCoE headers
  * @d_id:  The destination port ID.
  *
- * Returns non-zero error code on failure.
+ * Returns yesn-zero error code on failure.
  *
  * The caller must check that the length is a multiple of 4.
  *
- * The @skb must have enough headroom (28 bytes) and tailroom (8 bytes).
+ * The @skb must have eyesugh headroom (28 bytes) and tailroom (8 bytes).
  * Headroom includes the FIP encapsulation description, FIP header, and
  * Ethernet header.  The tailroom is for the FIP MAC descriptor.
  */
@@ -680,17 +680,17 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
  * fcoe_ctlr_els_send() - Send an ELS frame encapsulated by FIP if appropriate.
  * @fip:	FCoE controller.
  * @lport:	libfc fc_lport to send from
- * @skb:	FCoE ELS frame including FC header but no FCoE headers.
+ * @skb:	FCoE ELS frame including FC header but yes FCoE headers.
  *
- * Returns a non-zero error code if the frame should not be sent.
+ * Returns a yesn-zero error code if the frame should yest be sent.
  * Returns zero if the caller should send the frame with FCoE encapsulation.
  *
  * The caller must check that the length is a multiple of 4.
- * The SKB must have enough headroom (28 bytes) and tailroom (8 bytes).
+ * The SKB must have eyesugh headroom (28 bytes) and tailroom (8 bytes).
  * The the skb must also be an fc_frame.
  *
  * This is called from the lower-level driver with spinlocks held,
- * so we must not take a mutex here.
+ * so we must yest take a mutex here.
  */
 int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct fc_lport *lport,
 		       struct sk_buff *skb)
@@ -758,7 +758,7 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct fc_lport *lport,
 		break;
 	case ELS_LS_ACC:
 		/*
-		 * If non-FIP, we may have gotten an SID by accepting an FLOGI
+		 * If yesn-FIP, we may have gotten an SID by accepting an FLOGI
 		 * from a point-to-point connection.  Switch to using
 		 * the source mac based on the SID.  The destination
 		 * MAC in this case would have been set by receiving the
@@ -804,12 +804,12 @@ EXPORT_SYMBOL(fcoe_ctlr_els_send);
  * Called with lock held and preemption disabled.
  *
  * An FCF is considered old if we have missed two advertisements.
- * That is, there have been no valid advertisement from it for 2.5
+ * That is, there have been yes valid advertisement from it for 2.5
  * times its keep-alive period.
  *
  * In addition, determine the time when an FCF selection can occur.
  *
- * Also, increment the MissDiscAdvCount when no advertisement is received
+ * Also, increment the MissDiscAdvCount when yes advertisement is received
  * for the corresponding FCF for 1.5 * FKA_ADV_PERIOD (FC-BB-5 LESB).
  *
  * Returns the time in jiffies for the next call.
@@ -836,7 +836,7 @@ static unsigned long fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
 				printk(KERN_INFO "libfcoe: host%d: "
 				       "Missing Discovery Advertisement "
 				       "for fab %16.16llx count %lld\n",
-				       fip->lp->host->host_no, fcf->fabric_name,
+				       fip->lp->host->host_yes, fcf->fabric_name,
 				       stats->MissDiscAdvCount);
 			} else if (time_after(next_timer, deadline))
 				next_timer = deadline;
@@ -884,7 +884,7 @@ static unsigned long fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
  * @fcf: The resulting FCF entry
  *
  * Returns zero on a valid parsed advertisement,
- * otherwise returns non zero value.
+ * otherwise returns yesn zero value.
  */
 static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 			       struct sk_buff *skb, struct fcoe_fcf *fcf)
@@ -985,7 +985,7 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 		default:
 			LIBFCOE_FIP_DBG(fip, "unexpected descriptor type %x "
 					"in FIP adv\n", desc->fip_dtype);
-			/* standard says ignore unknown descriptors >= 128 */
+			/* standard says igyesre unkyeswn descriptors >= 128 */
 			if (desc->fip_dtype < FIP_DT_NON_CRITICAL)
 				return -EINVAL;
 			break;
@@ -1061,7 +1061,7 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		/*
 		 * Update the FCF's keep-alive descriptor flags.
 		 * Other flag changes from new advertisements are
-		 * ignored after a solicited advertisement is
+		 * igyesred after a solicited advertisement is
 		 * received and the FCF is selectable (usable).
 		 */
 		fcf->fd_flags = new.fd_flags;
@@ -1085,7 +1085,7 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 				fcf->fabric_name, fcf->fcf_mac);
 
 	/*
-	 * If this advertisement is not solicited and our max receive size
+	 * If this advertisement is yest solicited and our max receive size
 	 * hasn't been verified, send a solicited advertisement.
 	 */
 	if (!mtu_valid)
@@ -1103,14 +1103,14 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	/*
 	 * Put this FCF at the head of the list for priority among equals.
 	 * This helps in the case of an NPV switch which insists we use
-	 * the FCF that answers multicast solicitations, not the others that
+	 * the FCF that answers multicast solicitations, yest the others that
 	 * are sending periodic multicast advertisements.
 	 */
 	if (mtu_valid)
 		list_move(&fcf->list, &fip->fcfs);
 
 	/*
-	 * If this is the first validated FCF, note the time and
+	 * If this is the first validated FCF, yeste the time and
 	 * set a timer to trigger selection.
 	 */
 	if (mtu_valid && !fip->sel_fcf && !fip->sel_time &&
@@ -1226,7 +1226,7 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		default:
 			LIBFCOE_FIP_DBG(fip, "unexpected descriptor type %x "
 					"in FIP adv\n", desc->fip_dtype);
-			/* standard says ignore unknown descriptors >= 128 */
+			/* standard says igyesre unkyeswn descriptors >= 128 */
 			if (desc->fip_dtype < FIP_DT_NON_CRITICAL)
 				goto drop;
 			if (desc_cnt <= 2) {
@@ -1258,7 +1258,7 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 			if (fip->flogi_oxid == ntohs(fh->fh_ox_id)) {
 				fip->flogi_oxid = FC_XID_UNKNOWN;
 				if (els_dtype == FIP_DT_FLOGI)
-					fcoe_ctlr_announce(fip);
+					fcoe_ctlr_anyesunce(fip);
 			}
 		} else if (els_dtype == FIP_DT_FLOGI &&
 			   !fcoe_ctlr_flogi_retry(fip))
@@ -1333,7 +1333,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 		 * We are yet to select best FCF, but we got CVL in the
 		 * meantime. reset the ctlr and let it rediscover the FCF
 		 */
-		LIBFCOE_FIP_DBG(fip, "Resetting fcoe_ctlr as FCF has not been "
+		LIBFCOE_FIP_DBG(fip, "Resetting fcoe_ctlr as FCF has yest been "
 		    "selected yet\n");
 		mutex_lock(&fip->ctlr_mutex);
 		fcoe_ctlr_reset(fip);
@@ -1357,7 +1357,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 	 * reset everything and go back to solicitation.
 	 */
 	if (!lport->port_id) {
-		LIBFCOE_FIP_DBG(fip, "lport not logged in, resoliciting\n");
+		LIBFCOE_FIP_DBG(fip, "lport yest logged in, resoliciting\n");
 		mutex_lock(&fip->ctlr_mutex);
 		fcoe_ctlr_reset(fip);
 		mutex_unlock(&fip->ctlr_mutex);
@@ -1433,7 +1433,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 			}
 			break;
 		default:
-			/* standard says ignore unknown descriptors >= 128 */
+			/* standard says igyesre unkyeswn descriptors >= 128 */
 			if (desc->fip_dtype < FIP_DT_NON_CRITICAL)
 				goto err;
 			break;
@@ -1449,7 +1449,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 		LIBFCOE_FIP_DBG(fip, "missing descriptors mask %x\n",
 				desc_mask);
 	else if (!num_vlink_desc) {
-		LIBFCOE_FIP_DBG(fip, "CVL: no Vx_Port descriptor found\n");
+		LIBFCOE_FIP_DBG(fip, "CVL: yes Vx_Port descriptor found\n");
 		/*
 		 * No Vx_Port description. Clear all NPIV ports,
 		 * followed by physical port
@@ -1530,7 +1530,7 @@ EXPORT_SYMBOL(fcoe_ctlr_recv);
  * @fip: The FCoE controller that received the frame
  * @skb: The received FIP frame
  *
- * Returns non-zero if the frame is dropped.
+ * Returns yesn-zero if the frame is dropped.
  */
 static int fcoe_ctlr_recv_handler(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
@@ -1552,7 +1552,7 @@ static int fcoe_ctlr_recv_handler(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		    !ether_addr_equal(eh->h_dest, fcoe_all_p2p))
 			goto drop;
 	} else if (!ether_addr_equal(eh->h_dest, fip->ctl_src_addr) &&
-		   !ether_addr_equal(eh->h_dest, fcoe_all_enode))
+		   !ether_addr_equal(eh->h_dest, fcoe_all_eyesde))
 		goto drop;
 	fiph = (struct fip_header *)skb->data;
 	op = ntohs(fiph->fip_op);
@@ -1609,9 +1609,9 @@ drop:
  * fcoe_ctlr_select() - Select the best FCF (if possible)
  * @fip: The FCoE controller
  *
- * Returns the selected FCF, or NULL if none are usable.
+ * Returns the selected FCF, or NULL if yesne are usable.
  *
- * If there are conflicting advertisements, no FCF can be chosen.
+ * If there are conflicting advertisements, yes FCF can be chosen.
  *
  * If there is already a selected FCF, this will choose a better one or
  * an equivalent one that hasn't already been sent a FLOGI.
@@ -1665,10 +1665,10 @@ static struct fcoe_fcf *fcoe_ctlr_select(struct fcoe_ctlr *fip)
  * fcoe_ctlr_flogi_send_locked() - send FIP-encapsulated FLOGI to current FCF
  * @fip: The FCoE controller
  *
- * Returns non-zero error if it could not be sent.
+ * Returns yesn-zero error if it could yest be sent.
  *
  * Called with ctlr_mutex and ctlr_lock held.
- * Caller must verify that fip->sel_fcf is not NULL.
+ * Caller must verify that fip->sel_fcf is yest NULL.
  */
 static int fcoe_ctlr_flogi_send_locked(struct fcoe_ctlr *fip)
 {
@@ -1705,8 +1705,8 @@ static int fcoe_ctlr_flogi_send_locked(struct fcoe_ctlr *fip)
  * fcoe_ctlr_flogi_retry() - resend FLOGI request to a new FCF if possible
  * @fip: The FCoE controller
  *
- * Returns non-zero error code if there's no FLOGI request to retry or
- * no alternate FCF available.
+ * Returns yesn-zero error code if there's yes FLOGI request to retry or
+ * yes alternate FCF available.
  */
 static int fcoe_ctlr_flogi_retry(struct fcoe_ctlr *fip)
 {
@@ -1737,7 +1737,7 @@ static int fcoe_ctlr_flogi_retry(struct fcoe_ctlr *fip)
  *
  * Done here because fcoe_ctlr_els_send() can't get mutex.
  *
- * Called with ctlr_mutex held.  The caller must not hold ctlr_lock.
+ * Called with ctlr_mutex held.  The caller must yest hold ctlr_lock.
  */
 static void fcoe_ctlr_flogi_send(struct fcoe_ctlr *fip)
 {
@@ -1885,11 +1885,11 @@ static void fcoe_ctlr_recv_work(struct work_struct *recv_work)
 }
 
 /**
- * fcoe_ctlr_recv_flogi() - Snoop pre-FIP receipt of FLOGI response
+ * fcoe_ctlr_recv_flogi() - Syesop pre-FIP receipt of FLOGI response
  * @fip: The FCoE controller
- * @fp:	 The FC frame to snoop
+ * @fp:	 The FC frame to syesop
  *
- * Snoop potential response to FLOGI or even incoming FLOGI.
+ * Syesop potential response to FLOGI or even incoming FLOGI.
  *
  * The caller has checked that we are waiting for login as indicated
  * by fip->flogi_oxid != FC_XID_UNKNOWN.
@@ -1897,7 +1897,7 @@ static void fcoe_ctlr_recv_work(struct work_struct *recv_work)
  * The caller is responsible for freeing the frame.
  * Fill in the granted_mac address.
  *
- * Return non-zero if the frame should not be delivered to libfc.
+ * Return yesn-zero if the frame should yest be delivered to libfc.
  */
 int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_lport *lport,
 			 struct fc_frame *fp)
@@ -1922,7 +1922,7 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_lport *lport,
 		}
 		fcoe_ctlr_set_state(fip, FIP_ST_NON_FIP);
 		LIBFCOE_FIP_DBG(fip,
-				"received FLOGI LS_ACC using non-FIP mode\n");
+				"received FLOGI LS_ACC using yesn-FIP mode\n");
 
 		/*
 		 * FLOGI accepted.
@@ -1948,8 +1948,8 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_lport *lport,
 			memcpy(fip->dest_addr, sa, ETH_ALEN);
 			fip->map_dest = 0;
 			if (fip->state == FIP_ST_AUTO)
-				LIBFCOE_FIP_DBG(fip, "received non-FIP FLOGI. "
-						"Setting non-FIP mode\n");
+				LIBFCOE_FIP_DBG(fip, "received yesn-FIP FLOGI. "
+						"Setting yesn-FIP mode\n");
 			fcoe_ctlr_set_state(fip, FIP_ST_NON_FIP);
 		}
 		mutex_unlock(&fip->ctlr_mutex);
@@ -2118,7 +2118,7 @@ static void fcoe_ctlr_vn_send(struct fcoe_ctlr *fip,
  * @rdata: remote port private data
  * @event: The event that occurred
  *
- * Locking Note:  The rport lock must not be held when calling this function.
+ * Locking Note:  The rport lock must yest be held when calling this function.
  */
 static void fcoe_ctlr_vn_rport_callback(struct fc_lport *lport,
 					struct fc_rport_priv *rdata,
@@ -2223,9 +2223,9 @@ static void fcoe_ctlr_vn_restart(struct fcoe_ctlr *fip)
 	/*
 	 * Get proposed port ID.
 	 * If this is the first try after link up, use any previous port_id.
-	 * If there was none, use the low bits of the port_name.
+	 * If there was yesne, use the low bits of the port_name.
 	 * On subsequent tries, get the next random one.
-	 * Don't use reserved IDs, use another non-zero value, just as random.
+	 * Don't use reserved IDs, use ayesther yesn-zero value, just as random.
 	 */
 	port_id = fip->port_id;
 	if (fip->probe_tries)
@@ -2264,8 +2264,8 @@ static void fcoe_ctlr_vn_start(struct fcoe_ctlr *fip)
  * @skb: incoming packet
  * @rdata: buffer for resulting parsed VN entry plus fcoe_rport
  *
- * Returns non-zero error number on error.
- * Does not consume the packet.
+ * Returns yesn-zero error number on error.
+ * Does yest consume the packet.
  */
 static int fcoe_ctlr_vn_parse(struct fcoe_ctlr *fip,
 			      struct sk_buff *skb,
@@ -2301,7 +2301,7 @@ static int fcoe_ctlr_vn_parse(struct fcoe_ctlr *fip,
 			    BIT(FIP_DT_FCOE_SIZE);
 		break;
 	default:
-		LIBFCOE_FIP_DBG(fip, "vn_parse unknown subcode %u\n", sub);
+		LIBFCOE_FIP_DBG(fip, "vn_parse unkyeswn subcode %u\n", sub);
 		return -EINVAL;
 	}
 
@@ -2339,13 +2339,13 @@ static int fcoe_ctlr_vn_parse(struct fcoe_ctlr *fip,
 					 macd->fd_mac);
 				return -EINVAL;
 			}
-			memcpy(frport->enode_mac, macd->fd_mac, ETH_ALEN);
+			memcpy(frport->eyesde_mac, macd->fd_mac, ETH_ALEN);
 			break;
 		case FIP_DT_NAME:
 			if (dlen != sizeof(struct fip_wwn_desc))
 				goto len_err;
 			wwn = (struct fip_wwn_desc *)desc;
-			frport->rdata.ids.node_name =
+			frport->rdata.ids.yesde_name =
 				get_unaligned_be64(&wwn->fd_wwn);
 			break;
 		case FIP_DT_VN_ID:
@@ -2370,7 +2370,7 @@ static int fcoe_ctlr_vn_parse(struct fcoe_ctlr *fip,
 		default:
 			LIBFCOE_FIP_DBG(fip, "unexpected descriptor type %x "
 					"in FIP probe\n", dtype);
-			/* standard says ignore unknown descriptors >= 128 */
+			/* standard says igyesre unkyeswn descriptors >= 128 */
 			if (dtype < FIP_DT_NON_CRITICAL)
 				return -EINVAL;
 			break;
@@ -2417,7 +2417,7 @@ static void fcoe_ctlr_vn_probe_req(struct fcoe_ctlr *fip,
 		LIBFCOE_FIP_DBG(fip, "vn_probe_req: send reply, state %x\n",
 				fip->state);
 		fcoe_ctlr_vn_send(fip, FIP_SC_VN_PROBE_REP,
-				  frport->enode_mac, 0);
+				  frport->eyesde_mac, 0);
 		break;
 	case FIP_ST_VNMP_PROBE1:
 	case FIP_ST_VNMP_PROBE2:
@@ -2425,7 +2425,7 @@ static void fcoe_ctlr_vn_probe_req(struct fcoe_ctlr *fip,
 		 * Decide whether to reply to the Probe.
 		 * Our selected address is never a "recorded" one, so
 		 * only reply if our WWPN is greater and the
-		 * Probe's REC bit is not set.
+		 * Probe's REC bit is yest set.
 		 * If we don't reply, we will change our address.
 		 */
 		if (fip->lp->wwpn > frport->rdata.ids.port_name &&
@@ -2433,7 +2433,7 @@ static void fcoe_ctlr_vn_probe_req(struct fcoe_ctlr *fip,
 			LIBFCOE_FIP_DBG(fip, "vn_probe_req: "
 					"port_id collision\n");
 			fcoe_ctlr_vn_send(fip, FIP_SC_VN_PROBE_REP,
-					  frport->enode_mac, 0);
+					  frport->eyesde_mac, 0);
 			break;
 		}
 		/* fall through */
@@ -2443,7 +2443,7 @@ static void fcoe_ctlr_vn_probe_req(struct fcoe_ctlr *fip,
 		fcoe_ctlr_vn_restart(fip);
 		break;
 	default:
-		LIBFCOE_FIP_DBG(fip, "vn_probe_req: ignore state %x\n",
+		LIBFCOE_FIP_DBG(fip, "vn_probe_req: igyesre state %x\n",
 				fip->state);
 		break;
 	}
@@ -2471,7 +2471,7 @@ static void fcoe_ctlr_vn_probe_reply(struct fcoe_ctlr *fip,
 		fcoe_ctlr_vn_restart(fip);
 		break;
 	case FIP_ST_VNMP_UP:
-		LIBFCOE_FIP_DBG(fip, "vn_probe_reply: send claim notify\n");
+		LIBFCOE_FIP_DBG(fip, "vn_probe_reply: send claim yestify\n");
 		fcoe_ctlr_vn_send_claim(fip);
 		break;
 	default:
@@ -2513,15 +2513,15 @@ static void fcoe_ctlr_vn_add(struct fcoe_ctlr *fip, struct fcoe_rport *new)
 	ids = &rdata->ids;
 	if ((ids->port_name != -1 &&
 	     ids->port_name != new->rdata.ids.port_name) ||
-	    (ids->node_name != -1 &&
-	     ids->node_name != new->rdata.ids.node_name)) {
+	    (ids->yesde_name != -1 &&
+	     ids->yesde_name != new->rdata.ids.yesde_name)) {
 		mutex_unlock(&rdata->rp_mutex);
 		LIBFCOE_FIP_DBG(fip, "vn_add rport logoff %6.6x\n", port_id);
 		fc_rport_logoff(rdata);
 		mutex_lock(&rdata->rp_mutex);
 	}
 	ids->port_name = new->rdata.ids.port_name;
-	ids->node_name = new->rdata.ids.node_name;
+	ids->yesde_name = new->rdata.ids.yesde_name;
 	mutex_unlock(&rdata->rp_mutex);
 
 	frport = fcoe_ctlr_rport(rdata);
@@ -2531,7 +2531,7 @@ static void fcoe_ctlr_vn_add(struct fcoe_ctlr *fip, struct fcoe_rport *new)
 	frport->fcoe_len = new->fcoe_len;
 	frport->flags = new->flags;
 	frport->login_count = new->login_count;
-	memcpy(frport->enode_mac, new->enode_mac, ETH_ALEN);
+	memcpy(frport->eyesde_mac, new->eyesde_mac, ETH_ALEN);
 	memcpy(frport->vn_mac, new->vn_mac, ETH_ALEN);
 	frport->time = 0;
 }
@@ -2539,10 +2539,10 @@ static void fcoe_ctlr_vn_add(struct fcoe_ctlr *fip, struct fcoe_rport *new)
 /**
  * fcoe_ctlr_vn_lookup() - Find VN remote port's MAC address
  * @fip: The FCoE controller
- * @port_id:  The port_id of the remote VN_node
+ * @port_id:  The port_id of the remote VN_yesde
  * @mac: buffer which will hold the VN_NODE destination MAC address, if found.
  *
- * Returns non-zero error if no remote port found.
+ * Returns yesn-zero error if yes remote port found.
  */
 static int fcoe_ctlr_vn_lookup(struct fcoe_ctlr *fip, u32 port_id, u8 *mac)
 {
@@ -2554,7 +2554,7 @@ static int fcoe_ctlr_vn_lookup(struct fcoe_ctlr *fip, u32 port_id, u8 *mac)
 	rdata = fc_rport_lookup(lport, port_id);
 	if (rdata) {
 		frport = fcoe_ctlr_rport(rdata);
-		memcpy(mac, frport->enode_mac, ETH_ALEN);
+		memcpy(mac, frport->eyesde_mac, ETH_ALEN);
 		ret = 0;
 		kref_put(&rdata->kref, fc_rport_destroy);
 	}
@@ -2562,13 +2562,13 @@ static int fcoe_ctlr_vn_lookup(struct fcoe_ctlr *fip, u32 port_id, u8 *mac)
 }
 
 /**
- * fcoe_ctlr_vn_claim_notify() - handle received FIP VN2VN Claim Notification
+ * fcoe_ctlr_vn_claim_yestify() - handle received FIP VN2VN Claim Notification
  * @fip: The FCoE controller
  * @new: newly-parsed FCoE rport as a template for new rdata
  *
  * Called with ctlr_mutex held.
  */
-static void fcoe_ctlr_vn_claim_notify(struct fcoe_ctlr *fip,
+static void fcoe_ctlr_vn_claim_yestify(struct fcoe_ctlr *fip,
 				      struct fcoe_rport *new)
 {
 	if (new->flags & FIP_FL_REC_OR_P2P) {
@@ -2581,7 +2581,7 @@ static void fcoe_ctlr_vn_claim_notify(struct fcoe_ctlr *fip,
 	case FIP_ST_VNMP_PROBE1:
 	case FIP_ST_VNMP_PROBE2:
 		if (new->rdata.ids.port_id == fip->port_id) {
-			LIBFCOE_FIP_DBG(fip, "vn_claim_notify: "
+			LIBFCOE_FIP_DBG(fip, "vn_claim_yestify: "
 					"restart, state %d\n",
 					fip->state);
 			fcoe_ctlr_vn_restart(fip);
@@ -2591,26 +2591,26 @@ static void fcoe_ctlr_vn_claim_notify(struct fcoe_ctlr *fip,
 	case FIP_ST_VNMP_UP:
 		if (new->rdata.ids.port_id == fip->port_id) {
 			if (new->rdata.ids.port_name > fip->lp->wwpn) {
-				LIBFCOE_FIP_DBG(fip, "vn_claim_notify: "
+				LIBFCOE_FIP_DBG(fip, "vn_claim_yestify: "
 						"restart, port_id collision\n");
 				fcoe_ctlr_vn_restart(fip);
 				break;
 			}
-			LIBFCOE_FIP_DBG(fip, "vn_claim_notify: "
-					"send claim notify\n");
+			LIBFCOE_FIP_DBG(fip, "vn_claim_yestify: "
+					"send claim yestify\n");
 			fcoe_ctlr_vn_send_claim(fip);
 			break;
 		}
-		LIBFCOE_FIP_DBG(fip, "vn_claim_notify: send reply to %x\n",
+		LIBFCOE_FIP_DBG(fip, "vn_claim_yestify: send reply to %x\n",
 				new->rdata.ids.port_id);
-		fcoe_ctlr_vn_send(fip, FIP_SC_VN_CLAIM_REP, new->enode_mac,
+		fcoe_ctlr_vn_send(fip, FIP_SC_VN_CLAIM_REP, new->eyesde_mac,
 				  min((u32)new->fcoe_len,
 				      fcoe_ctlr_fcoe_size(fip)));
 		fcoe_ctlr_vn_add(fip, new);
 		break;
 	default:
-		LIBFCOE_FIP_DBG(fip, "vn_claim_notify: "
-				"ignoring claim from %x\n",
+		LIBFCOE_FIP_DBG(fip, "vn_claim_yestify: "
+				"igyesring claim from %x\n",
 				new->rdata.ids.port_id);
 		break;
 	}
@@ -2653,7 +2653,7 @@ static void fcoe_ctlr_vn_beacon(struct fcoe_ctlr *fip,
 	}
 	rdata = fc_rport_lookup(lport, new->rdata.ids.port_id);
 	if (rdata) {
-		if (rdata->ids.node_name == new->rdata.ids.node_name &&
+		if (rdata->ids.yesde_name == new->rdata.ids.yesde_name &&
 		    rdata->ids.port_name == new->rdata.ids.port_name) {
 			frport = fcoe_ctlr_rport(rdata);
 
@@ -2675,10 +2675,10 @@ static void fcoe_ctlr_vn_beacon(struct fcoe_ctlr *fip,
 
 	/*
 	 * Beacon from a new neighbor.
-	 * Send a claim notify if one hasn't been sent recently.
+	 * Send a claim yestify if one hasn't been sent recently.
 	 * Don't add the neighbor yet.
 	 */
-	LIBFCOE_FIP_DBG(fip, "beacon from new rport %x. sending claim notify\n",
+	LIBFCOE_FIP_DBG(fip, "beacon from new rport %x. sending claim yestify\n",
 			new->rdata.ids.port_id);
 	if (time_after(jiffies,
 		       fip->sol_time + msecs_to_jiffies(FIP_VN_ANN_WAIT)))
@@ -2732,7 +2732,7 @@ static unsigned long fcoe_ctlr_vn_age(struct fcoe_ctlr *fip)
  * @fip: The FCoE controller that received the frame
  * @skb: The received FIP frame
  *
- * Returns non-zero if the frame is dropped.
+ * Returns yesn-zero if the frame is dropped.
  * Always consumes the frame.
  */
 static int fcoe_ctlr_vn_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
@@ -2770,7 +2770,7 @@ static int fcoe_ctlr_vn_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		fcoe_ctlr_vn_probe_reply(fip, &frport);
 		break;
 	case FIP_SC_VN_CLAIM_NOTIFY:
-		fcoe_ctlr_vn_claim_notify(fip, &frport);
+		fcoe_ctlr_vn_claim_yestify(fip, &frport);
 		break;
 	case FIP_SC_VN_CLAIM_REP:
 		fcoe_ctlr_vn_claim_resp(fip, &frport);
@@ -2779,7 +2779,7 @@ static int fcoe_ctlr_vn_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		fcoe_ctlr_vn_beacon(fip, &frport);
 		break;
 	default:
-		LIBFCOE_FIP_DBG(fip, "vn_recv unknown subcode %d\n", sub);
+		LIBFCOE_FIP_DBG(fip, "vn_recv unkyeswn subcode %d\n", sub);
 		rc = -1;
 		break;
 	}
@@ -2795,8 +2795,8 @@ drop:
  * @skb: incoming packet
  * @rdata: buffer for resulting parsed VLAN entry plus fcoe_rport
  *
- * Returns non-zero error number on error.
- * Does not consume the packet.
+ * Returns yesn-zero error number on error.
+ * Does yest consume the packet.
  */
 static int fcoe_ctlr_vlan_parse(struct fcoe_ctlr *fip,
 			      struct sk_buff *skb,
@@ -2821,7 +2821,7 @@ static int fcoe_ctlr_vlan_parse(struct fcoe_ctlr *fip,
 		desc_mask = BIT(FIP_DT_MAC) | BIT(FIP_DT_NAME);
 		break;
 	default:
-		LIBFCOE_FIP_DBG(fip, "vn_parse unknown subcode %u\n", sub);
+		LIBFCOE_FIP_DBG(fip, "vn_parse unkyeswn subcode %u\n", sub);
 		return -EINVAL;
 	}
 
@@ -2859,19 +2859,19 @@ static int fcoe_ctlr_vlan_parse(struct fcoe_ctlr *fip,
 					 macd->fd_mac);
 				return -EINVAL;
 			}
-			memcpy(frport->enode_mac, macd->fd_mac, ETH_ALEN);
+			memcpy(frport->eyesde_mac, macd->fd_mac, ETH_ALEN);
 			break;
 		case FIP_DT_NAME:
 			if (dlen != sizeof(struct fip_wwn_desc))
 				goto len_err;
 			wwn = (struct fip_wwn_desc *)desc;
-			frport->rdata.ids.node_name =
+			frport->rdata.ids.yesde_name =
 				get_unaligned_be64(&wwn->fd_wwn);
 			break;
 		default:
 			LIBFCOE_FIP_DBG(fip, "unexpected descriptor type %x "
 					"in FIP probe\n", dtype);
-			/* standard says ignore unknown descriptors >= 128 */
+			/* standard says igyesre unkyeswn descriptors >= 128 */
 			if (dtype < FIP_DT_NON_CRITICAL)
 				return -EINVAL;
 			break;
@@ -2890,7 +2890,7 @@ len_err:
 /**
  * fcoe_ctlr_vlan_send() - Send a FIP VLAN Notification
  * @fip: The FCoE controller
- * @sub: sub-opcode for vlan notification or vn2vn vlan notification
+ * @sub: sub-opcode for vlan yestification or vn2vn vlan yestification
  * @dest: The destination Ethernet MAC address
  * @min_len: minimum size of the Ethernet payload to be sent
  */
@@ -2899,7 +2899,7 @@ static void fcoe_ctlr_vlan_send(struct fcoe_ctlr *fip,
 			      const u8 *dest)
 {
 	struct sk_buff *skb;
-	struct fip_vlan_notify_frame {
+	struct fip_vlan_yestify_frame {
 		struct ethhdr eth;
 		struct fip_header fip;
 		struct fip_mac_desc mac;
@@ -2916,11 +2916,11 @@ static void fcoe_ctlr_vlan_send(struct fcoe_ctlr *fip,
 	if (!skb)
 		return;
 
-	LIBFCOE_FIP_DBG(fip, "fip %s vlan notification, vlan %d\n",
+	LIBFCOE_FIP_DBG(fip, "fip %s vlan yestification, vlan %d\n",
 			fip->mode == FIP_MODE_VN2VN ? "vn2vn" : "fcf",
 			fip->lp->vlan);
 
-	frame = (struct fip_vlan_notify_frame *)skb->data;
+	frame = (struct fip_vlan_yestify_frame *)skb->data;
 	memset(frame, 0, len);
 	memcpy(frame->eth.h_dest, dest, ETH_ALEN);
 
@@ -2964,7 +2964,7 @@ static void fcoe_ctlr_vlan_disc_reply(struct fcoe_ctlr *fip,
 	if (fip->mode == FIP_MODE_VN2VN)
 		sub = FIP_SC_VL_VN2VN_NOTE;
 
-	fcoe_ctlr_vlan_send(fip, sub, frport->enode_mac);
+	fcoe_ctlr_vlan_send(fip, sub, frport->eyesde_mac);
 }
 
 /**
@@ -3105,14 +3105,14 @@ static void fcoe_ctlr_vn_timeout(struct fcoe_ctlr *fip)
 		hton24(mac + 3, new_port_id);
 		fcoe_ctlr_map_dest(fip);
 		fip->update_mac(fip->lp, mac);
-		LIBFCOE_FIP_DBG(fip, "vn_timeout: send claim notify\n");
+		LIBFCOE_FIP_DBG(fip, "vn_timeout: send claim yestify\n");
 		fcoe_ctlr_vn_send_claim(fip);
 		next_time = jiffies + msecs_to_jiffies(FIP_VN_ANN_WAIT);
 		break;
 	case FIP_ST_VNMP_CLAIM:
 		/*
 		 * This may be invoked either by starting discovery so don't
-		 * go to the next state unless it's been long enough.
+		 * go to the next state unless it's been long eyesugh.
 		 */
 		next_time = fip->sol_time + msecs_to_jiffies(FIP_VN_ANN_WAIT);
 		if (time_after_eq(jiffies, next_time)) {
@@ -3148,7 +3148,7 @@ static void fcoe_ctlr_vn_timeout(struct fcoe_ctlr *fip)
 unlock:
 	mutex_unlock(&fip->ctlr_mutex);
 
-	/* If port ID is new, notify local port after dropping ctlr_mutex */
+	/* If port ID is new, yestify local port after dropping ctlr_mutex */
 	if (new_port_id)
 		fc_lport_set_local_id(fip->lp, new_port_id);
 }
@@ -3163,7 +3163,7 @@ unlock:
  * (fc_disc_config) while an lport is going through the libfc state
  * machine. The mode can only be changed when a fcoe_ctlr device is
  * disabled, so that should ensure that this routine is only called
- * when nothing is happening.
+ * when yesthing is happening.
  */
 static void fcoe_ctlr_mode_set(struct fc_lport *lport, struct fcoe_ctlr *fip,
 			       enum fip_mode fip_mode)
@@ -3199,7 +3199,7 @@ static void fcoe_ctlr_mode_set(struct fc_lport *lport, struct fcoe_ctlr *fip,
  * @lport:    The local port to configure libfc for
  * @fip:      The FCoE controller in use by the local port
  * @tt:       The libfc function template
- * @init_fcp: If non-zero, the FCP portion of libfc should be initialized
+ * @init_fcp: If yesn-zero, the FCP portion of libfc should be initialized
  *
  * Returns : 0 for success
  */

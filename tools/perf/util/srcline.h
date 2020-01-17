@@ -33,24 +33,24 @@ struct inline_list {
 	struct list_head	list;
 };
 
-struct inline_node {
+struct inline_yesde {
 	u64			addr;
 	struct list_head	val;
-	struct rb_node		rb_node;
+	struct rb_yesde		rb_yesde;
 };
 
 /* parse inlined frames for the given address */
-struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr,
+struct inline_yesde *dso__parse_addr_inlines(struct dso *dso, u64 addr,
 					    struct symbol *sym);
-/* free resources associated to the inline node list */
-void inline_node__delete(struct inline_node *node);
+/* free resources associated to the inline yesde list */
+void inline_yesde__delete(struct inline_yesde *yesde);
 
-/* insert the inline node list into the DSO, which will take ownership */
+/* insert the inline yesde list into the DSO, which will take ownership */
 void inlines__tree_insert(struct rb_root_cached *tree,
-			  struct inline_node *inlines);
-/* find previously inserted inline node list */
-struct inline_node *inlines__tree_find(struct rb_root_cached *tree, u64 addr);
-/* delete all nodes within the tree of inline_node s */
+			  struct inline_yesde *inlines);
+/* find previously inserted inline yesde list */
+struct inline_yesde *inlines__tree_find(struct rb_root_cached *tree, u64 addr);
+/* delete all yesdes within the tree of inline_yesde s */
 void inlines__tree_delete(struct rb_root_cached *tree);
 
 #endif /* PERF_SRCLINE_H */

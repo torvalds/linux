@@ -259,7 +259,7 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 		dev_priv->lfp_lvds_vbt_mode = panel_fixed_mode;
 		drm_mode_debug_printmodeline(panel_fixed_mode);
 	} else {
-		dev_dbg(dev_priv->dev->dev, "ignoring invalid LVDS VBT\n");
+		dev_dbg(dev_priv->dev->dev, "igyesring invalid LVDS VBT\n");
 		dev_priv->lvds_vbt = 0;
 		kfree(panel_fixed_mode);
 	}
@@ -340,7 +340,7 @@ parse_sdvo_device_mapping(struct drm_psb_private *dev_priv,
 	 * parsing of sdvo device info
 	 */
 	if (p_defs->child_dev_size != sizeof(*p_child)) {
-		/* different child dev size . Ignore it */
+		/* different child dev size . Igyesre it */
 		DRM_DEBUG_KMS("different child size is found. Invalid.\n");
 		return;
 	}
@@ -359,8 +359,8 @@ parse_sdvo_device_mapping(struct drm_psb_private *dev_priv,
 		if (p_child->slave_addr != SLAVE_ADDR1 &&
 			p_child->slave_addr != SLAVE_ADDR2) {
 			/*
-			 * If the slave address is neither 0x70 nor 0x72,
-			 * it is not a SDVO device. Skip it.
+			 * If the slave address is neither 0x70 yesr 0x72,
+			 * it is yest a SDVO device. Skip it.
 			 */
 			continue;
 		}
@@ -395,7 +395,7 @@ parse_sdvo_device_mapping(struct drm_psb_private *dev_priv,
 		}
 		if (p_child->slave2_addr) {
 			/* Maybe this is a SDVO device with multiple inputs */
-			/* And the mapping info is not added */
+			/* And the mapping info is yest added */
 			DRM_DEBUG_KMS("there exists the slave2_addr. Maybe this"
 				" is a SDVO device with multiple inputs.\n");
 		}
@@ -426,7 +426,7 @@ parse_driver_features(struct drm_psb_private *dev_priv,
 	dev_priv->lvds_enabled_in_vbt = driver->lvds_config != 0;
 	DRM_DEBUG_KMS("LVDS VBT config bits: 0x%x\n", driver->lvds_config);
 
-	/* This bit means to use 96Mhz for DPLL_A or not */
+	/* This bit means to use 96Mhz for DPLL_A or yest */
 	if (driver->primary_lfp_id)
 		dev_priv->dplla_96mhz = true;
 	else
@@ -444,7 +444,7 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
 
 	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!p_defs) {
-		DRM_DEBUG_KMS("No general definition block is found, no devices defined.\n");
+		DRM_DEBUG_KMS("No general definition block is found, yes devices defined.\n");
 		return;
 	}
 	/* judge whether the size of child device meets the requirements.
@@ -453,7 +453,7 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
 	 * parsing of sdvo device info
 	 */
 	if (p_defs->child_dev_size != sizeof(*p_child)) {
-		/* different child dev size . Ignore it */
+		/* different child dev size . Igyesre it */
 		DRM_DEBUG_KMS("different child size is found. Invalid.\n");
 		return;
 	}
@@ -473,7 +473,7 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
 		count++;
 	}
 	if (!count) {
-		DRM_DEBUG_KMS("no child dev is parsed from VBT\n");
+		DRM_DEBUG_KMS("yes child dev is parsed from VBT\n");
 		return;
 	}
 	dev_priv->child_dev = kcalloc(count, sizeof(*p_child), GFP_KERNEL);
@@ -511,7 +511,7 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
  * feed an updated VBT back through that, compared to what we'll fetch using
  * this method of groping around in the BIOS data.
  *
- * Returns 0 on success, nonzero on failure.
+ * Returns 0 on success, yesnzero on failure.
  */
 int psb_intel_init_bios(struct drm_device *dev)
 {

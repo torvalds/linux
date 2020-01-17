@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _touch:
 
@@ -15,7 +15,7 @@ Touch Devices
 
 Touch devices are accessed through character device special files named
 ``/dev/v4l-touch0`` to ``/dev/v4l-touch255`` with major number 81 and
-dynamically allocated minor numbers 0 to 255.
+dynamically allocated miyesr numbers 0 to 255.
 
 Overview
 ========
@@ -24,18 +24,18 @@ Sensors may be Optical, or Projected Capacitive touch (PCT).
 
 Processing is required to analyse the raw data and produce input events. In
 some systems, this may be performed on the ASIC and the raw data is purely a
-side-channel for diagnostics or tuning. In other systems, the ASIC is a simple
+side-channel for diagyesstics or tuning. In other systems, the ASIC is a simple
 analogue front end device which delivers touch data at high rate, and any touch
 processing must be done on the host.
 
 For capacitive touch sensing, the touchscreen is composed of an array of
 horizontal and vertical conductors (alternatively called rows/columns, X/Y
-lines, or tx/rx). Mutual Capacitance measured is at the nodes where the
+lines, or tx/rx). Mutual Capacitance measured is at the yesdes where the
 conductors cross. Alternatively, Self Capacitance measures the signal from each
 column and row independently.
 
 A touch input may be determined by comparing the raw capacitance measurement to
-a no-touch reference (or "baseline") measurement:
+a yes-touch reference (or "baseline") measurement:
 
 Delta = Raw - Reference
 

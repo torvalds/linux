@@ -10,7 +10,7 @@
  * Generic header for SuperH (H)SCI(F) (used by sh/sh64 and related parts)
  */
 
-/* Serial Control Register (@ = not supported by all parts) */
+/* Serial Control Register (@ = yest supported by all parts) */
 #define SCSCR_TIE	BIT(7)	/* Transmit Interrupt Enable */
 #define SCSCR_RIE	BIT(6)	/* Receive Interrupt Enable */
 #define SCSCR_TE	BIT(5)	/* Transmit Enable */

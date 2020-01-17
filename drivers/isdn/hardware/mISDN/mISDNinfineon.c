@@ -176,7 +176,7 @@ MODULE_DEVICE_TABLE(pci, infineon_ids);
 #define TIGER_IPAC_ALE		0xC0
 #define TIGER_IPAC_PORT		0xC8
 
-/* ELSA (now Develo) PCI cards */
+/* ELSA (yesw Develo) PCI cards */
 #define ELSA_IRQ_ADDR		0x4c
 #define ELSA_IRQ_MASK		0x04
 #define QS1000_IRQ_OFF		0x01
@@ -262,7 +262,7 @@ IOFUNC_MEMIO(ISAC, inf_hw, u32, isac.a.p)
 IOFUNC_MEMIO(IPAC, inf_hw, u32, hscx.a.p)
 
 static irqreturn_t
-diva_irq(int intno, void *dev_id)
+diva_irq(int intyes, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	u8 val;
@@ -280,7 +280,7 @@ diva_irq(int intno, void *dev_id)
 }
 
 static irqreturn_t
-diva20x_irq(int intno, void *dev_id)
+diva20x_irq(int intyes, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	u8 val;
@@ -299,7 +299,7 @@ diva20x_irq(int intno, void *dev_id)
 }
 
 static irqreturn_t
-tiger_irq(int intno, void *dev_id)
+tiger_irq(int intyes, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	u8 val;
@@ -317,7 +317,7 @@ tiger_irq(int intno, void *dev_id)
 }
 
 static irqreturn_t
-elsa_irq(int intno, void *dev_id)
+elsa_irq(int intyes, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	u8 val;
@@ -335,7 +335,7 @@ elsa_irq(int intno, void *dev_id)
 }
 
 static irqreturn_t
-niccy_irq(int intno, void *dev_id)
+niccy_irq(int intyes, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	u32 val;
@@ -354,7 +354,7 @@ niccy_irq(int intno, void *dev_id)
 }
 
 static irqreturn_t
-gazel_irq(int intno, void *dev_id)
+gazel_irq(int intyes, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	irqreturn_t ret;
@@ -366,7 +366,7 @@ gazel_irq(int intno, void *dev_id)
 }
 
 static irqreturn_t
-ipac_irq(int intno, void *dev_id)
+ipac_irq(int intyes, void *dev_id)
 {
 	struct inf_hw *hw = dev_id;
 	u8 val;
@@ -485,7 +485,7 @@ reset_inf(struct inf_hw *hw)
 	u32 val;
 
 	if (debug & DEBUG_HW)
-		pr_notice("%s: resetting card\n", hw->name);
+		pr_yestice("%s: resetting card\n", hw->name);
 	switch (hw->ci->typ) {
 	case INF_DIVA20:
 	case INF_DIVA20U:
@@ -580,7 +580,7 @@ inf_ctrl(struct inf_hw *hw, u32 cmd, u_long arg)
 		reset_inf(hw);
 		break;
 	default:
-		pr_info("%s: %s unknown command %x %lx\n",
+		pr_info("%s: %s unkyeswn command %x %lx\n",
 			hw->name, __func__, cmd, arg);
 		ret = -EINVAL;
 		break;
@@ -614,10 +614,10 @@ init_irq(struct inf_hw *hw)
 		spin_unlock_irqrestore(&hw->lock, flags);
 		msleep_interruptible(10);
 		if (debug & DEBUG_HW)
-			pr_notice("%s: IRQ %d count %d\n", hw->name,
+			pr_yestice("%s: IRQ %d count %d\n", hw->name,
 				  hw->irq, hw->irqcnt);
 		if (!hw->irqcnt) {
-			pr_info("%s: IRQ(%d) got no requests during init %d\n",
+			pr_info("%s: IRQ(%d) got yes requests during init %d\n",
 				hw->name, hw->irq, 3 - cnt);
 		} else
 			return 0;
@@ -674,7 +674,7 @@ setup_io(struct inf_hw *hw)
 			hw->cfg.p = ioremap(hw->cfg.start, hw->cfg.size);
 		hw->cfg.mode = hw->ci->cfg_mode;
 		if (debug & DEBUG_HW)
-			pr_notice("%s: IO cfg %lx (%lu bytes) mode%d\n",
+			pr_yestice("%s: IO cfg %lx (%lu bytes) mode%d\n",
 				  hw->name, (ulong)hw->cfg.start,
 				  (ulong)hw->cfg.size, hw->ci->cfg_mode);
 
@@ -704,7 +704,7 @@ setup_io(struct inf_hw *hw)
 		}
 		hw->addr.mode = hw->ci->addr_mode;
 		if (debug & DEBUG_HW)
-			pr_notice("%s: IO addr %lx (%lu bytes) mode%d\n",
+			pr_yestice("%s: IO addr %lx (%lu bytes) mode%d\n",
 				  hw->name, (ulong)hw->addr.start,
 				  (ulong)hw->addr.size, hw->ci->addr_mode);
 
@@ -924,7 +924,7 @@ setup_instance(struct inf_hw *card)
 	err = init_irq(card);
 	if (!err)  {
 		inf_cnt++;
-		pr_notice("Infineon %d cards installed\n", inf_cnt);
+		pr_yestice("Infineon %d cards installed\n", inf_cnt);
 		return 0;
 	}
 	mISDN_unregister_device(&card->ipac.isac.dch.dev);
@@ -1081,13 +1081,13 @@ inf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	card->ci = get_card_info(ent->driver_data);
 	if (!card->ci) {
-		pr_info("mISDN: do not have information about adapter at %s\n",
+		pr_info("mISDN: do yest have information about adapter at %s\n",
 			pci_name(pdev));
 		kfree(card);
 		pci_disable_device(pdev);
 		return -EINVAL;
 	} else
-		pr_notice("mISDN: found adapter %s at %s\n",
+		pr_yestice("mISDN: found adapter %s at %s\n",
 			  card->ci->full, pci_name(pdev));
 
 	card->irq = pdev->irq;
@@ -1147,7 +1147,7 @@ infineon_init(void)
 {
 	int err;
 
-	pr_notice("Infineon ISDN Driver Rev. %s\n", INFINEON_REV);
+	pr_yestice("Infineon ISDN Driver Rev. %s\n", INFINEON_REV);
 	err = pci_register_driver(&infineon_driver);
 	return err;
 }

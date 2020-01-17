@@ -14,11 +14,11 @@
 #if defined(CONFIG_COLDFIRE)
 /*
  * The ColdFire runs the delay loop at significantly different speeds
- * depending upon long word alignment or not.  We'll pad it to
+ * depending upon long word alignment or yest.  We'll pad it to
  * long word alignment which is the faster version.
  * The 0x4a8e is of course a 'tstl %fp' instruction.  This is better
  * than using a NOP (0x4e71) instruction because it executes in one
- * cycle not three and doesn't allow for an arbitrary delay waiting
+ * cycle yest three and doesn't allow for an arbitrary delay waiting
  * for bus cycles to finish.  Also fp/a6 isn't likely to cause a
  * stall waiting for the register to become valid if such is added
  * to the coldfire at some stage.
@@ -46,7 +46,7 @@ extern void __bad_udelay(void);
 
 #ifdef CONFIG_CPU_HAS_NO_MULDIV64
 /*
- * The simpler m68k and ColdFire processors do not have a 32*32->64
+ * The simpler m68k and ColdFire processors do yest have a 32*32->64
  * multiply instruction. So we need to handle them a little differently.
  * We use a bit of shifting and a single 32*32->32 multiply to get close.
  */
@@ -92,20 +92,20 @@ static inline void __udelay(unsigned long usecs)
 	((n) > 20000 ? __bad_udelay() : __const_udelay(n)) : __udelay(n))
 
 /*
- * nanosecond delay:
+ * nayessecond delay:
  *
  * ((((HZSCALE) >> 11) * (loops_per_jiffy >> 11)) >> 6) is the number of loops
  * per microsecond
  *
  * 1000 / ((((HZSCALE) >> 11) * (loops_per_jiffy >> 11)) >> 6) is the number of
- * nanoseconds per loop
+ * nayesseconds per loop
  *
  * So n / ( 1000 / ((((HZSCALE) >> 11) * (loops_per_jiffy >> 11)) >> 6) ) would
- * be the number of loops for n nanoseconds
+ * be the number of loops for n nayesseconds
  */
 
 /*
- * The simpler m68k and ColdFire processors do not have a 32*32->64
+ * The simpler m68k and ColdFire processors do yest have a 32*32->64
  * multiply instruction. So we need to handle them a little differently.
  * We use a bit of shifting and a single 32*32->32 multiply to get close.
  * This is a macro so that the const version can factor out the first

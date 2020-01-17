@@ -83,7 +83,7 @@ static int __init mac_scsi_setup(char *str)
 		setup_sg_tablesize = ints[3];
 	if (ints[0] >= 4)
 		setup_hostid = ints[4];
-	/* ints[5] (use_tagged_queuing) is ignored */
+	/* ints[5] (use_tagged_queuing) is igyesred */
 	if (ints[0] >= 6)
 		setup_use_pdma = ints[6];
 	if (ints[0] >= 7)
@@ -99,7 +99,7 @@ __setup("mac5380=", mac_scsi_setup);
  * specify the number of bytes between the delays expected from a SCSI target.
  * This allows the operating system to "prevent bus errors when a target fails
  * to deliver the next byte within the processor bus error timeout period."
- * Linux SCSI drivers lack knowledge of the timing behaviour of SCSI targets
+ * Linux SCSI drivers lack kyeswledge of the timing behaviour of SCSI targets
  * so bus errors are unavoidable.
  *
  * If a MOVE.B instruction faults, we assume that zero bytes were transferred
@@ -112,7 +112,7 @@ __setup("mac5380=", mac_scsi_setup);
 #define MOVE_BYTE(operands) \
 	asm volatile ( \
 		"1:     moveb " operands "     \n" \
-		"11:    nop                    \n" \
+		"11:    yesp                    \n" \
 		"       addq #1,%0             \n" \
 		"       subq #1,%1             \n" \
 		"40:                           \n" \
@@ -131,7 +131,7 @@ __setup("mac5380=", mac_scsi_setup);
 		: "+a" (addr), "+r" (n), "+r" (result) : "a" (io))
 
 /*
- * If a MOVE.W (or MOVE.L) instruction faults, it cannot be retried because
+ * If a MOVE.W (or MOVE.L) instruction faults, it canyest be retried because
  * the residual byte count would be uncertain. In that situation the MOVE_WORD
  * macro clears n in the fixup section to abort the transfer.
  */
@@ -139,7 +139,7 @@ __setup("mac5380=", mac_scsi_setup);
 #define MOVE_WORD(operands) \
 	asm volatile ( \
 		"1:     movew " operands "     \n" \
-		"11:    nop                    \n" \
+		"11:    yesp                    \n" \
 		"       subq #2,%1             \n" \
 		"40:                           \n" \
 		"                              \n" \
@@ -175,7 +175,7 @@ __setup("mac5380=", mac_scsi_setup);
 		"14:    movew " operands "     \n" \
 		"15:    movew " operands "     \n" \
 		"16:    movew " operands "     \n" \
-		"17:    nop                    \n" \
+		"17:    yesp                    \n" \
 		"       subl  #32,%1           \n" \
 		"40:                           \n" \
 		"                              \n" \
@@ -456,7 +456,7 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 
 	if (!hwreg_present((unsigned char *)pio_mem->start +
 	                   (STATUS_REG << 4))) {
-		pr_info(PFX "no device detected at %pap\n", &pio_mem->start);
+		pr_info(PFX "yes device detected at %pap\n", &pio_mem->start);
 		return -ENODEV;
 	}
 

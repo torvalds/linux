@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Hisilicon Limited.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -339,7 +339,7 @@ static void hns_roce_loop_free(struct hns_roce_dev *hr_dev,
 			dma_free_coherent(dev, pbl_bt_sz, mr->pbl_bt_l1[i],
 					  mr->pbl_l1_dma_addr[i]);
 	} else {
-		dev_warn(dev, "not support: mhop_num=%d, err_loop_index=%d.",
+		dev_warn(dev, "yest support: mhop_num=%d, err_loop_index=%d.",
 			 mhop_num, err_loop_index);
 		return;
 	}
@@ -1064,7 +1064,7 @@ int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 		if (!(npage % (1 << (mtt->page_shift - PAGE_SHIFT)))) {
 			if (page_addr & ((1 << mtt->page_shift) - 1)) {
 				dev_err(dev,
-					"page_addr 0x%llx is not page_shift %d alignment!\n",
+					"page_addr 0x%llx is yest page_shift %d alignment!\n",
 					page_addr, mtt->page_shift);
 				ret = -EINVAL;
 				goto out;

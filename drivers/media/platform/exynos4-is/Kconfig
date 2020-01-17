@@ -54,7 +54,7 @@ config VIDEO_EXYNOS_FIMC_LITE
 	  host interface.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called exynos-fimc-lite.
+	  module will be called exyyess-fimc-lite.
 
 config VIDEO_EXYNOS4_FIMC_IS
 	tristate "EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver"
@@ -68,7 +68,7 @@ config VIDEO_EXYNOS4_FIMC_IS
 	  FIMC-IS (Imaging Subsystem).
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called exynos4-fimc-is.
+	  module will be called exyyess4-fimc-is.
 
 config VIDEO_EXYNOS4_ISP_DMA_CAPTURE
 	bool "EXYNOS4x12 FIMC-IS ISP Direct DMA capture support"
@@ -76,7 +76,7 @@ config VIDEO_EXYNOS4_ISP_DMA_CAPTURE
 	select VIDEO_EXYNOS4_IS_COMMON
 	default y
 	help
-	  This option enables an additional video device node exposing a V4L2
+	  This option enables an additional video device yesde exposing a V4L2
 	  video capture interface for the FIMC-IS ISP raw (Bayer) capture DMA.
 
 endif # VIDEO_SAMSUNG_EXYNOS4_IS

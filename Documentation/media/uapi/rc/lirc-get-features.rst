@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _lirc_get_features:
 
@@ -18,7 +18,7 @@ Name
 
 LIRC_GET_FEATURES - Get the underlying hardware device's features
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, LIRC_GET_FEATURES, __u32 *features)
@@ -38,8 +38,8 @@ Description
 ===========
 
 
-Get the underlying hardware device's features. If a driver does not
-announce support of certain features, calling of the corresponding ioctls
+Get the underlying hardware device's features. If a driver does yest
+anyesunce support of certain features, calling of the corresponding ioctls
 is undefined.
 
 LIRC features
@@ -65,7 +65,7 @@ LIRC features
     This is raw IR driver for receiving. This means that
     :ref:`LIRC_MODE_MODE2 <lirc-mode-MODE2>` is used. This also implies
     that :ref:`LIRC_MODE_SCANCODE <lirc-mode-SCANCODE>` is also supported,
-    as long as the kernel is recent enough. Use the
+    as long as the kernel is recent eyesugh. Use the
     :ref:`lirc_set_rec_mode` to switch modes.
 
 .. _LIRC-CAN-REC-LIRCCODE:
@@ -175,7 +175,7 @@ LIRC features
     The driver supports sending (also called as IR blasting or IR TX) using
     :ref:`LIRC_MODE_PULSE <lirc-mode-pulse>`. This implies that
     :ref:`LIRC_MODE_SCANCODE <lirc-mode-SCANCODE>` is also supported for
-    transmit, as long as the kernel is recent enough. Use the
+    transmit, as long as the kernel is recent eyesugh. Use the
     :ref:`lirc_set_send_mode` to switch modes.
 
 .. _LIRC-CAN-SEND-MODE2:
@@ -195,6 +195,6 @@ LIRC features
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

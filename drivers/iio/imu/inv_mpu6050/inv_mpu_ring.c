@@ -39,14 +39,14 @@ static void inv_mpu6050_update_period(struct inv_mpu6050_state *st,
 	bool use_it_timestamp = false;
 
 	if (st->it_timestamp == 0) {
-		/* not initialized, forced to use it_timestamp */
+		/* yest initialized, forced to use it_timestamp */
 		use_it_timestamp = true;
 	} else if (nb == 1) {
 		/*
 		 * Validate the use of it timestamp by checking if interrupt
 		 * has been delayed.
 		 * nb > 1 means interrupt was delayed for more than 1 sample,
-		 * so it's obviously not good.
+		 * so it's obviously yest good.
 		 * Compute the chip period between 2 interrupts for validating.
 		 */
 		delta = div_s64(timestamp - st->it_timestamp, divider);
@@ -207,8 +207,8 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 		bytes_per_datum += INV_MPU9X50_BYTES_MAGN;
 
 	/*
-	 * read fifo_count register to know how many bytes are inside the FIFO
-	 * right now
+	 * read fifo_count register to kyesw how many bytes are inside the FIFO
+	 * right yesw
 	 */
 	result = regmap_bulk_read(st->map, st->reg->fifo_count_h, data,
 				  INV_MPU6050_FIFO_COUNT_BYTE);
@@ -246,7 +246,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 
 end_session:
 	mutex_unlock(&st->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 
@@ -254,7 +254,7 @@ flush_fifo:
 	/* Flush HW and SW FIFOs. */
 	inv_reset_fifo(indio_dev);
 	mutex_unlock(&st->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }

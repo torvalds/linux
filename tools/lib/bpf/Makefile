@@ -6,7 +6,7 @@ LIBBPF_VERSION := $(shell \
 	sort -rV | head -n1 | cut -d'_' -f2)
 LIBBPF_MAJOR_VERSION := $(firstword $(subst ., ,$(LIBBPF_VERSION)))
 
-MAKEFLAGS += --no-print-directory
+MAKEFLAGS += --yes-print-directory
 
 # This will work when bpf is built in tools env. where srctree
 # isn't set and when invoked from selftests build, where srctree

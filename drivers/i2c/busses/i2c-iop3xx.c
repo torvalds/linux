@@ -5,14 +5,14 @@
 /* Copyright (C) 2003 Peter Milne, D-TACQ Solutions Ltd
  *                    <Peter dot Milne at D hyphen TACQ dot com>
  *
- * With acknowledgements to i2c-algo-ibm_ocp.c by
+ * With ackyeswledgements to i2c-algo-ibm_ocp.c by
  * Ian DaSilva, MontaVista Software, Inc. idasilva@mvista.com
  *
  * And i2c-algo-pcf.c, which was created by Simon G. Vogl and Hans Berglund:
  *
  * Copyright (C) 1995-1997 Simon G. Vogl, 1998-2000 Hans Berglund
  *
- * And which acknowledged Kyösti Mälkki <kmalkki@cc.hut.fi>,
+ * And which ackyeswledged Kyösti Mälkki <kmalkki@cc.hut.fi>,
  * Frodo Looijaard <frodol@dds.nl>, Martin Bailey<mbailey@littlefeet-inc.com>
  *
  * Major cleanup by Deepak Saxena <dsaxena@plexity.net>, 01/2005:
@@ -31,7 +31,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
@@ -78,7 +78,7 @@ iop3xx_i2c_enable(struct i2c_algo_iop3xx_data *iop3xx_adap)
 	if (iop3xx_adap->gpio_sda)
 		gpiod_set_raw_value(iop3xx_adap->gpio_sda, 0);
 
-	/* NB SR bits not same position as CR IE bits :-( */
+	/* NB SR bits yest same position as CR IE bits :-( */
 	iop3xx_adap->SR_enabled =
 		IOP3XX_ISR_ALD | IOP3XX_ISR_BERRD |
 		IOP3XX_ISR_RXFULL | IOP3XX_ISR_TXEMPTY;
@@ -478,7 +478,7 @@ iop3xx_i2c_probe(struct platform_device *pdev)
 	new_adapter->owner = THIS_MODULE;
 	new_adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	new_adapter->dev.parent = &pdev->dev;
-	new_adapter->dev.of_node = pdev->dev.of_node;
+	new_adapter->dev.of_yesde = pdev->dev.of_yesde;
 	new_adapter->nr = pdev->id;
 
 	/*

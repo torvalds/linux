@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -27,13 +27,13 @@
 /**
  * DOC: Intel GVT-g host support
  *
- * Intel GVT-g is a graphics virtualization technology which shares the
+ * Intel GVT-g is a graphics virtualization techyeslogy which shares the
  * GPU among multiple virtual machines on a time-sharing basis. Each
  * virtual machine is presented a virtual GPU (vGPU), which has equivalent
  * features as the underlying physical GPU (pGPU), so i915 driver can run
  * seamlessly in a virtual machine.
  *
- * To virtualize GPU resources GVT-g driver depends on hypervisor technology
+ * To virtualize GPU resources GVT-g driver depends on hypervisor techyeslogy
  * e.g KVM/VFIO/mdev, Xen, etc. to provide resource access trapping capability
  * and be virtualized within GVT-g device module. More architectural design
  * doc is available on https://01.org/group/2230/documentation-list.
@@ -104,7 +104,7 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (USES_GUC_SUBMISSION(dev_priv)) {
-		DRM_ERROR("i915 GVT-g loading failed due to Graphics virtualization is not yet supported with GuC submission\n");
+		DRM_ERROR("i915 GVT-g loading failed due to Graphics virtualization is yest yet supported with GuC submission\n");
 		return -EIO;
 	}
 

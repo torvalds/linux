@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -108,7 +108,7 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_MMHUB_0				1
 #define AMDGPU_MMHUB_1				2
 
-/* hardcode that limit for now */
+/* hardcode that limit for yesw */
 #define AMDGPU_VA_RESERVED_SIZE			(1ULL << 20)
 
 /* max vmids dedicated for process */
@@ -245,17 +245,17 @@ struct amdgpu_vm {
 	/* PT BOs which relocated and their parent need an update */
 	struct list_head	relocated;
 
-	/* per VM BOs moved, but not yet updated in the PT */
+	/* per VM BOs moved, but yest yet updated in the PT */
 	struct list_head	moved;
 
-	/* All BOs of this VM not currently in the state machine */
+	/* All BOs of this VM yest currently in the state machine */
 	struct list_head	idle;
 
-	/* regular invalidated BOs, but not yet updated in the PT */
+	/* regular invalidated BOs, but yest yet updated in the PT */
 	struct list_head	invalidated;
 	spinlock_t		invalidated_lock;
 
-	/* BO mappings freed, but not yet updated in the PT */
+	/* BO mappings freed, but yest yet updated in the PT */
 	struct list_head	freed;
 
 	/* contains the page directory */
@@ -285,8 +285,8 @@ struct amdgpu_vm {
 	/* Points to the KFD process VM info */
 	struct amdkfd_process_info *process_info;
 
-	/* List node in amdkfd_process_info.vm_list_head */
-	struct list_head	vm_list_node;
+	/* List yesde in amdkfd_process_info.vm_list_head */
+	struct list_head	vm_list_yesde;
 
 	/* Valid while the PD is reserved or fenced */
 	uint64_t		pd_phys_addr;
@@ -306,7 +306,7 @@ struct amdgpu_vm_manager {
 
 	/* Handling of VM fences */
 	u64					fence_context;
-	unsigned				seqno[AMDGPU_MAX_RINGS];
+	unsigned				seqyes[AMDGPU_MAX_RINGS];
 
 	uint64_t				max_pfn;
 	uint32_t				num_level;
@@ -420,6 +420,6 @@ void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
 
 void amdgpu_vm_move_to_lru_tail(struct amdgpu_device *adev,
 				struct amdgpu_vm *vm);
-void amdgpu_vm_del_from_lru_notify(struct ttm_buffer_object *bo);
+void amdgpu_vm_del_from_lru_yestify(struct ttm_buffer_object *bo);
 
 #endif

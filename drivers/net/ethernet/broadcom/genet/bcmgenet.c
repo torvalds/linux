@@ -16,7 +16,7 @@
 #include <linux/string.h>
 #include <linux/if_ether.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -106,7 +106,7 @@ static inline void dmadesc_set_addr(struct bcmgenet_priv *priv,
 {
 	bcmgenet_writel(lower_32_bits(addr), d + DMA_DESC_ADDRESS_LO);
 
-	/* Register writes to GISB bus can take couple hundred nanoseconds
+	/* Register writes to GISB bus can take couple hundred nayesseconds
 	 * and are done for each packet, save these expensive writes unless
 	 * the platform is explicitly configured for 64-bits/LPAE.
 	 */
@@ -131,7 +131,7 @@ static inline dma_addr_t dmadesc_get_addr(struct bcmgenet_priv *priv,
 
 	addr = bcmgenet_readl(d + DMA_DESC_ADDRESS_LO);
 
-	/* Register writes to GISB bus can take couple hundred nanoseconds
+	/* Register writes to GISB bus can take couple hundred nayesseconds
 	 * and are done for each packet, save these expensive writes unless
 	 * the platform is explicitly configured for 64-bits/LPAE.
 	 */
@@ -331,7 +331,7 @@ static const u8 bcmgenet_dma_regs_v1[] = {
 	[DMA_RING16_TIMEOUT]	= 0x6C,
 };
 
-/* Set at runtime once bcmgenet version is known */
+/* Set at runtime once bcmgenet version is kyeswn */
 static const u8 *bcmgenet_dma_regs;
 
 static inline struct bcmgenet_priv *dev_to_priv(struct device *dev)
@@ -427,7 +427,7 @@ static const u8 genet_dma_ring_regs_v123[] = {
 	[TDMA_WRITE_PTR]		= 0x20,
 };
 
-/* Set at runtime once GENET version is known */
+/* Set at runtime once GENET version is kyeswn */
 static const u8 *genet_dma_ring_regs;
 
 static inline u32 bcmgenet_tdma_ring_readl(struct bcmgenet_priv *priv,
@@ -677,7 +677,7 @@ static int bcmgenet_set_coalesce(struct net_device *dev,
 	if (ec->rx_coalesce_usecs == 0 && ec->rx_max_coalesced_frames == 0)
 		return -EINVAL;
 
-	/* GENET TDMA hardware does not support a configurable timeout, but will
+	/* GENET TDMA hardware does yest support a configurable timeout, but will
 	 * always generate an interrupt either after MBDONE packets have been
 	 * transmitted, or when the ring is empty.
 	 */
@@ -686,8 +686,8 @@ static int bcmgenet_set_coalesce(struct net_device *dev,
 	    ec->use_adaptive_tx_coalesce)
 		return -EOPNOTSUPP;
 
-	/* Program all TX queues with the same values, as there is no
-	 * ethtool knob to do coalescing on a per-queue basis
+	/* Program all TX queues with the same values, as there is yes
+	 * ethtool kyesb to do coalescing on a per-queue basis
 	 */
 	for (i = 0; i < priv->hw_params->tx_queues; i++)
 		bcmgenet_tdma_ring_writel(priv, i,
@@ -801,7 +801,7 @@ static const struct bcmgenet_stats bcmgenet_gstrings_stats[] = {
 	STAT_GENET_MIB_RX("rx_fcs", mib.rx.fcs),
 	STAT_GENET_MIB_RX("rx_control", mib.rx.cf),
 	STAT_GENET_MIB_RX("rx_pause", mib.rx.pf),
-	STAT_GENET_MIB_RX("rx_unknown", mib.rx.uo),
+	STAT_GENET_MIB_RX("rx_unkyeswn", mib.rx.uo),
 	STAT_GENET_MIB_RX("rx_align", mib.rx.aln),
 	STAT_GENET_MIB_RX("rx_outrange", mib.rx.flr),
 	STAT_GENET_MIB_RX("rx_code", mib.rx.cde),
@@ -1218,7 +1218,7 @@ static void bcmgenet_power_up(struct bcmgenet_priv *priv,
 	}
 }
 
-/* ioctl handle special commands that are not present in ethtool. */
+/* ioctl handle special commands that are yest present in ethtool. */
 static int bcmgenet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	if (!netif_running(dev))
@@ -1477,7 +1477,7 @@ static void bcmgenet_tx_reclaim_all(struct net_device *dev)
 	bcmgenet_tx_reclaim(dev, &priv->tx_rings[DESC_INDEX]);
 }
 
-/* Reallocate the SKB to put enough headroom in front of it and insert
+/* Reallocate the SKB to put eyesugh headroom in front of it and insert
  * the transmit checksum offsets in the descriptors
  */
 static struct sk_buff *bcmgenet_put_tx_csum(struct net_device *dev,
@@ -1492,7 +1492,7 @@ static struct sk_buff *bcmgenet_put_tx_csum(struct net_device *dev,
 
 	if (unlikely(skb_headroom(skb) < sizeof(*status))) {
 		/* If 64 byte status block enabled, must make sure skb has
-		 * enough headroom for us to insert 64B status block.
+		 * eyesugh headroom for us to insert 64B status block.
 		 */
 		new_skb = skb_realloc_headroom(skb, sizeof(*status));
 		dev_kfree_skb(skb);
@@ -1800,7 +1800,7 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 			dma_length_status = status->length_status;
 		}
 
-		/* DMA flags and length are still valid no matter how
+		/* DMA flags and length are still valid yes matter how
 		 * we got the Receive Status Vector (64B RSB or register)
 		 */
 		dma_flag = dma_length_status & 0xffff;
@@ -2146,7 +2146,7 @@ static void bcmgenet_init_tx_ring(struct bcmgenet_priv *priv,
 	bcmgenet_tdma_ring_writel(priv, index, 0, TDMA_PROD_INDEX);
 	bcmgenet_tdma_ring_writel(priv, index, 0, TDMA_CONS_INDEX);
 	bcmgenet_tdma_ring_writel(priv, index, 1, DMA_MBUF_DONE_THRESH);
-	/* Disable rate control for now */
+	/* Disable rate control for yesw */
 	bcmgenet_tdma_ring_writel(priv, index, flow_period_val,
 				  TDMA_FLOW_PERIOD);
 	bcmgenet_tdma_ring_writel(priv, index,
@@ -2857,7 +2857,7 @@ static void bcmgenet_netif_start(struct net_device *dev)
 
 	bcmgenet_enable_tx_napi(priv);
 
-	/* Monitor link interrupts now */
+	/* Monitor link interrupts yesw */
 	bcmgenet_link_intr_enable(priv);
 
 	phy_start(dev->phydev);
@@ -2875,8 +2875,8 @@ static int bcmgenet_open(struct net_device *dev)
 	/* Turn on the clock */
 	clk_prepare_enable(priv->clk);
 
-	/* If this is an internal GPHY, power it back on now, before UniMAC is
-	 * brought out of reset as absolutely no UniMAC activity is allowed
+	/* If this is an internal GPHY, power it back on yesw, before UniMAC is
+	 * brought out of reset as absolutely yes UniMAC activity is allowed
 	 */
 	if (priv->internal_phy)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
@@ -2974,7 +2974,7 @@ static void bcmgenet_netif_stop(struct net_device *dev)
 	bcmgenet_intr_disable(priv);
 
 	/* Wait for pending work items to complete. Since interrupts are
-	 * disabled no new work will be scheduled.
+	 * disabled yes new work will be scheduled.
 	 */
 	cancel_work_sync(&priv->bcmgenet_irq_work);
 
@@ -3156,7 +3156,7 @@ static int bcmgenet_set_mac_addr(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 
-	/* Setting the MAC address at the hardware level is not possible
+	/* Setting the MAC address at the hardware level is yest possible
 	 * without disabling the UniMAC RX/TX enable bits.
 	 */
 	if (netif_running(dev))
@@ -3381,7 +3381,7 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 
 	if (GENET_IS_V5(priv)) {
 		/* The EPHY revision should come from the MDIO registers of
-		 * the PHY not from GENET.
+		 * the PHY yest from GENET.
 		 */
 		if (gphy_rev != 0) {
 			pr_warn("GENET is reporting EPHY revision: 0x%04x\n",
@@ -3391,7 +3391,7 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 	} else if (gphy_rev == 0 || gphy_rev == 0x01ff) {
 		pr_warn("Invalid GPHY revision detected: 0x%04x\n", gphy_rev);
 		return;
-	/* This is the good old scheme, just GPHY major, no minor nor patch */
+	/* This is the good old scheme, just GPHY major, yes miyesr yesr patch */
 	} else if ((gphy_rev & 0xf0) != 0) {
 		priv->gphy_rev = gphy_rev << 8;
 	/* This is the new scheme, GPHY major rolls over with 0x10 = rev G0 */
@@ -3401,7 +3401,7 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (!(params->flags & GENET_HAS_40BITS))
-		pr_warn("GENET does not support 40-bits PA\n");
+		pr_warn("GENET does yest support 40-bits PA\n");
 #endif
 
 	pr_debug("Configuration for version: %d\n"
@@ -3471,7 +3471,7 @@ MODULE_DEVICE_TABLE(of, bcmgenet_match);
 static int bcmgenet_probe(struct platform_device *pdev)
 {
 	struct bcmgenet_platform_data *pd = pdev->dev.platform_data;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	const struct of_device_id *of_id = NULL;
 	const struct bcmgenet_plat_data *pdata;
 	struct bcmgenet_priv *priv;
@@ -3490,7 +3490,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	}
 
 	if (dn) {
-		of_id = of_match_node(bcmgenet_match, dn);
+		of_id = of_match_yesde(bcmgenet_match, dn);
 		if (!of_id)
 			return -EINVAL;
 	}
@@ -3592,8 +3592,8 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		priv->clk_eee = NULL;
 	}
 
-	/* If this is an internal GPHY, power it on now, before UniMAC is
-	 * brought out of reset as absolutely no UniMAC activity is allowed
+	/* If this is an internal GPHY, power it on yesw, before UniMAC is
+	 * brought out of reset as absolutely yes UniMAC activity is allowed
 	 */
 	if (dn && !of_property_read_string(dn, "phy-mode", &phy_mode_str) &&
 	    !strcasecmp(phy_mode_str, "internal"))
@@ -3669,8 +3669,8 @@ static int bcmgenet_resume(struct device *d)
 	if (ret)
 		return ret;
 
-	/* If this is an internal GPHY, power it back on now, before UniMAC is
-	 * brought out of reset as absolutely no UniMAC activity is allowed
+	/* If this is an internal GPHY, power it back on yesw, before UniMAC is
+	 * brought out of reset as absolutely yes UniMAC activity is allowed
 	 */
 	if (priv->internal_phy)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);

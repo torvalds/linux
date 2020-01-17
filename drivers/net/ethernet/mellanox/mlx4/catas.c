@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -45,7 +45,7 @@ enum {
 int mlx4_internal_err_reset = 1;
 module_param_named(internal_err_reset, mlx4_internal_err_reset,  int, 0644);
 MODULE_PARM_DESC(internal_err_reset,
-		 "Reset device on internal errors if non-zero (default 1)");
+		 "Reset device on internal errors if yesn-zero (default 1)");
 
 static int read_vendor_id(struct mlx4_dev *dev)
 {
@@ -106,12 +106,12 @@ static int mlx4_reset_slave(struct mlx4_dev *dev)
 	comm_flags = swab32(readl((__iomem char *)priv->mfunc.comm +
 				  MLX4_COMM_CHAN_FLAGS));
 	if (comm_flags == 0xffffffff) {
-		mlx4_err(dev, "VF reset is not needed\n");
+		mlx4_err(dev, "VF reset is yest needed\n");
 		return 0;
 	}
 
 	if (!(dev->caps.vf_caps & MLX4_VF_CAP_FLAG_RESET)) {
-		mlx4_err(dev, "VF reset is not supported\n");
+		mlx4_err(dev, "VF reset is yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -193,7 +193,7 @@ void mlx4_enter_error_state(struct mlx4_dev_persistent *persist)
 	dev->persist->state |= MLX4_DEVICE_STATE_INTERNAL_ERROR;
 	mutex_unlock(&persist->device_state_mutex);
 
-	/* At that step HW was already reset, now notify clients */
+	/* At that step HW was already reset, yesw yestify clients */
 	mlx4_dispatch_event(dev, MLX4_DEV_EVENT_CATASTROPHIC_ERROR, 0);
 	mlx4_cmd_wake_completions(dev);
 	return;

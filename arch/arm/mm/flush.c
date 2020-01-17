@@ -142,7 +142,7 @@ void __flush_ptrace_access(struct page *page, unsigned long uaddr, void *kaddr,
 		return;
 	}
 
-	/* VIPT non-aliasing D-cache */
+	/* VIPT yesn-aliasing D-cache */
 	if (flags & FLAG_PA_IS_EXEC) {
 		unsigned long addr = (unsigned long)kaddr;
 		if (icache_is_vipt_aliasing())
@@ -207,7 +207,7 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
 		__cpuc_flush_dcache_area(page_address(page), page_size(page));
 	} else {
 		unsigned long i;
-		if (cache_is_vipt_nonaliasing()) {
+		if (cache_is_vipt_yesnaliasing()) {
 			for (i = 0; i < compound_nr(page); i++) {
 				void *addr = kmap_atomic(page + i);
 				__cpuc_flush_dcache_area(addr, PAGE_SIZE);
@@ -253,7 +253,7 @@ static void __flush_dcache_aliases(struct address_space *mapping, struct page *p
 		unsigned long offset;
 
 		/*
-		 * If this VMA is not in our MM, we can ignore it.
+		 * If this VMA is yest in our MM, we can igyesre it.
 		 */
 		if (mpnt->vm_mm != mm)
 			continue;
@@ -272,8 +272,8 @@ void __sync_icache_dcache(pte_t pteval)
 	struct page *page;
 	struct address_space *mapping;
 
-	if (cache_is_vipt_nonaliasing() && !pte_exec(pteval))
-		/* only flush non-aliasing VIPT caches for exec mappings */
+	if (cache_is_vipt_yesnaliasing() && !pte_exec(pteval))
+		/* only flush yesn-aliasing VIPT caches for exec mappings */
 		return;
 	pfn = pte_pfn(pteval);
 	if (!pfn_valid(pfn))
@@ -298,19 +298,19 @@ void __sync_icache_dcache(pte_t pteval)
  * of this page.
  *
  * We have three cases to consider:
- *  - VIPT non-aliasing cache: fully coherent so nothing required.
+ *  - VIPT yesn-aliasing cache: fully coherent so yesthing required.
  *  - VIVT: fully aliasing, so we need to handle every alias in our
  *          current VM view.
  *  - VIPT aliasing: need to handle one alias in our current VM view.
  *
  * If we need to handle aliasing:
- *  If the page only exists in the page cache and there are no user
+ *  If the page only exists in the page cache and there are yes user
  *  space mappings, we can be lazy and remember that we may have dirty
  *  kernel cache lines for later.  Otherwise, we assume we have
  *  aliasing mappings.
  *
  * Note that we disable the lazy flush for SMP configurations where
- * the cache maintenance operations are not automatically broadcasted.
+ * the cache maintenance operations are yest automatically broadcasted.
  */
 void flush_dcache_page(struct page *page)
 {
@@ -323,7 +323,7 @@ void flush_dcache_page(struct page *page)
 	if (page == ZERO_PAGE(0))
 		return;
 
-	if (!cache_ops_need_broadcast() && cache_is_vipt_nonaliasing()) {
+	if (!cache_ops_need_broadcast() && cache_is_vipt_yesnaliasing()) {
 		if (test_bit(PG_dcache_clean, &page->flags))
 			clear_bit(PG_dcache_clean, &page->flags);
 		return;
@@ -349,8 +349,8 @@ EXPORT_SYMBOL(flush_dcache_page);
  * Ensure cache coherency for the kernel mapping of this page. We can
  * assume that the page is pinned via kmap.
  *
- * If the page only exists in the page cache and there are no user
- * space mappings, this is a no-op since the page was already marked
+ * If the page only exists in the page cache and there are yes user
+ * space mappings, this is a yes-op since the page was already marked
  * dirty at creation.  Otherwise, we need to flush the dirty kernel
  * cache lines directly.
  */
@@ -379,20 +379,20 @@ void flush_kernel_dcache_page(struct page *page)
 EXPORT_SYMBOL(flush_kernel_dcache_page);
 
 /*
- * Flush an anonymous page so that users of get_user_pages()
+ * Flush an ayesnymous page so that users of get_user_pages()
  * can safely access the data.  The expected sequence is:
  *
  *  get_user_pages()
- *    -> flush_anon_page
+ *    -> flush_ayesn_page
  *  memcpy() to/from page
  *  if written to page, flush_dcache_page()
  */
-void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
+void __flush_ayesn_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
 {
 	unsigned long pfn;
 
-	/* VIPT non-aliasing caches need do nothing */
-	if (cache_is_vipt_nonaliasing())
+	/* VIPT yesn-aliasing caches need do yesthing */
+	if (cache_is_vipt_yesnaliasing())
 		return;
 
 	/*

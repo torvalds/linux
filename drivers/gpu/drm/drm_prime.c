@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -91,15 +91,15 @@ struct drm_prime_member {
 	struct dma_buf *dma_buf;
 	uint32_t handle;
 
-	struct rb_node dmabuf_rb;
-	struct rb_node handle_rb;
+	struct rb_yesde dmabuf_rb;
+	struct rb_yesde handle_rb;
 };
 
 static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 				    struct dma_buf *dma_buf, uint32_t handle)
 {
 	struct drm_prime_member *member;
-	struct rb_node **p, *rb;
+	struct rb_yesde **p, *rb;
 
 	member = kmalloc(sizeof(*member), GFP_KERNEL);
 	if (!member)
@@ -110,7 +110,7 @@ static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 	member->handle = handle;
 
 	rb = NULL;
-	p = &prime_fpriv->dmabufs.rb_node;
+	p = &prime_fpriv->dmabufs.rb_yesde;
 	while (*p) {
 		struct drm_prime_member *pos;
 
@@ -121,11 +121,11 @@ static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 		else
 			p = &rb->rb_left;
 	}
-	rb_link_node(&member->dmabuf_rb, rb, p);
+	rb_link_yesde(&member->dmabuf_rb, rb, p);
 	rb_insert_color(&member->dmabuf_rb, &prime_fpriv->dmabufs);
 
 	rb = NULL;
-	p = &prime_fpriv->handles.rb_node;
+	p = &prime_fpriv->handles.rb_yesde;
 	while (*p) {
 		struct drm_prime_member *pos;
 
@@ -136,7 +136,7 @@ static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 		else
 			p = &rb->rb_left;
 	}
-	rb_link_node(&member->handle_rb, rb, p);
+	rb_link_yesde(&member->handle_rb, rb, p);
 	rb_insert_color(&member->handle_rb, &prime_fpriv->handles);
 
 	return 0;
@@ -145,9 +145,9 @@ static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 static struct dma_buf *drm_prime_lookup_buf_by_handle(struct drm_prime_file_private *prime_fpriv,
 						      uint32_t handle)
 {
-	struct rb_node *rb;
+	struct rb_yesde *rb;
 
-	rb = prime_fpriv->handles.rb_node;
+	rb = prime_fpriv->handles.rb_yesde;
 	while (rb) {
 		struct drm_prime_member *member;
 
@@ -167,9 +167,9 @@ static int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpri
 				       struct dma_buf *dma_buf,
 				       uint32_t *handle)
 {
-	struct rb_node *rb;
+	struct rb_yesde *rb;
 
-	rb = prime_fpriv->dmabufs.rb_node;
+	rb = prime_fpriv->dmabufs.rb_yesde;
 	while (rb) {
 		struct drm_prime_member *member;
 
@@ -190,9 +190,9 @@ static int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpri
 void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpriv,
 					struct dma_buf *dma_buf)
 {
-	struct rb_node *rb;
+	struct rb_yesde *rb;
 
-	rb = prime_fpriv->dmabufs.rb_node;
+	rb = prime_fpriv->dmabufs.rb_yesde;
 	while (rb) {
 		struct drm_prime_member *member;
 
@@ -221,7 +221,7 @@ void drm_prime_init_file_private(struct drm_prime_file_private *prime_fpriv)
 
 void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv)
 {
-	/* by now drm_gem_release should've made sure the list is empty */
+	/* by yesw drm_gem_release should've made sure the list is empty */
 	WARN_ON(!RB_EMPTY_ROOT(&prime_fpriv->dmabufs));
 }
 
@@ -389,14 +389,14 @@ static struct dma_buf *export_and_register_object(struct drm_device *dev,
 	else
 		dmabuf = drm_gem_prime_export(obj, flags);
 	if (IS_ERR(dmabuf)) {
-		/* normally the created dma-buf takes ownership of the ref,
+		/* yesrmally the created dma-buf takes ownership of the ref,
 		 * but if that fails then drop the ref
 		 */
 		return dmabuf;
 	}
 
 	/*
-	 * Note that callers do not need to clean up the export cache
+	 * Note that callers do yest need to clean up the export cache
 	 * since the check for obj->handle_count guarantees that someone
 	 * will clean it up.
 	 */
@@ -457,7 +457,7 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 
 	dmabuf = export_and_register_object(dev, obj, flags);
 	if (IS_ERR(dmabuf)) {
-		/* normally the created dma-buf takes ownership of the ref,
+		/* yesrmally the created dma-buf takes ownership of the ref,
 		 * but if that fails then drop the ref
 		 */
 		ret = PTR_ERR(dmabuf);
@@ -481,7 +481,7 @@ out_have_obj:
 out_have_handle:
 	ret = dma_buf_fd(dmabuf, flags);
 	/*
-	 * We must _not_ remove the buffer from the handle cache since the newly
+	 * We must _yest_ remove the buffer from the handle cache since the newly
 	 * created dma buf is already linked in the global obj->dma_buf pointer,
 	 * and that is invariant as long as a userspace gem handle exists.
 	 * Closing the handle will clean out the cache anyway, so we don't leak.
@@ -556,7 +556,7 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
  * &drm_driver.gem_prime_import_sg_table.
  *
  * Note that similarly to the export helpers this permanently pins the
- * underlying backing storage. Which is ok for scanout, but is not the best
+ * underlying backing storage. Which is ok for scayesut, but is yest the best
  * option for sharing lots of buffers for rendering.
  */
 
@@ -730,18 +730,18 @@ int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	}
 
 	/* Used by drm_gem_mmap() to lookup the GEM object */
-	priv->minor = obj->dev->primary;
+	priv->miyesr = obj->dev->primary;
 	fil->private_data = priv;
 
-	ret = drm_vma_node_allow(&obj->vma_node, priv);
+	ret = drm_vma_yesde_allow(&obj->vma_yesde, priv);
 	if (ret)
 		goto out;
 
-	vma->vm_pgoff += drm_vma_node_start(&obj->vma_node);
+	vma->vm_pgoff += drm_vma_yesde_start(&obj->vma_yesde);
 
 	ret = obj->dev->driver->fops->mmap(fil, vma);
 
-	drm_vma_node_revoke(&obj->vma_node, priv);
+	drm_vma_yesde_revoke(&obj->vma_yesde, priv);
 out:
 	kfree(priv);
 	kfree(fil);
@@ -759,7 +759,7 @@ EXPORT_SYMBOL(drm_gem_prime_mmap);
  * &dma_buf_ops.mmap callback. It just forwards to &drm_driver.gem_prime_mmap,
  * which should be set to drm_gem_prime_mmap().
  *
- * FIXME: There's really no point to this wrapper, drivers which need anything
+ * FIXME: There's really yes point to this wrapper, drivers which need anything
  * else but drm_gem_prime_mmap can roll their own &dma_buf_ops.mmap callback.
  *
  * Returns 0 on success or a negative error code on failure.

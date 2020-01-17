@@ -15,7 +15,7 @@
 #include "hfi_parser.h"
 
 static void event_seq_changed(struct venus_core *core, struct venus_inst *inst,
-			      struct hfi_msg_event_notify_pkt *pkt)
+			      struct hfi_msg_event_yestify_pkt *pkt)
 {
 	enum hfi_version ver = core->res->hfi_version;
 	struct hfi_event_data event = {0};
@@ -112,12 +112,12 @@ static void event_seq_changed(struct venus_core *core, struct venus_inst *inst,
 	} while (num_properties_changed > 0);
 
 done:
-	inst->ops->event_notify(inst, EVT_SYS_EVENT_CHANGE, &event);
+	inst->ops->event_yestify(inst, EVT_SYS_EVENT_CHANGE, &event);
 }
 
 static void event_release_buffer_ref(struct venus_core *core,
 				     struct venus_inst *inst,
-				     struct hfi_msg_event_notify_pkt *pkt)
+				     struct hfi_msg_event_yestify_pkt *pkt)
 {
 	struct hfi_event_data event = {0};
 	struct hfi_msg_event_release_buffer_ref_pkt *data;
@@ -131,11 +131,11 @@ static void event_release_buffer_ref(struct venus_core *core,
 	event.tag = data->output_tag;
 
 	inst->error = HFI_ERR_NONE;
-	inst->ops->event_notify(inst, EVT_SYS_EVENT_CHANGE, &event);
+	inst->ops->event_yestify(inst, EVT_SYS_EVENT_CHANGE, &event);
 }
 
 static void event_sys_error(struct venus_core *core, u32 event,
-			    struct hfi_msg_event_notify_pkt *pkt)
+			    struct hfi_msg_event_yestify_pkt *pkt)
 {
 	if (pkt)
 		dev_dbg(core->dev,
@@ -143,12 +143,12 @@ static void event_sys_error(struct venus_core *core, u32 event,
 			pkt->shdr.session_id, pkt->event_data1,
 			pkt->event_data2);
 
-	core->core_ops->event_notify(core, event);
+	core->core_ops->event_yestify(core, event);
 }
 
 static void
 event_session_error(struct venus_core *core, struct venus_inst *inst,
-		    struct hfi_msg_event_notify_pkt *pkt)
+		    struct hfi_msg_event_yestify_pkt *pkt)
 {
 	struct device *dev = core->dev;
 
@@ -159,7 +159,7 @@ event_session_error(struct venus_core *core, struct venus_inst *inst,
 		return;
 
 	switch (pkt->event_data1) {
-	/* non fatal session errors */
+	/* yesn fatal session errors */
 	case HFI_ERR_SESSION_INVALID_SCALE_FACTOR:
 	case HFI_ERR_SESSION_UNSUPPORT_BUFFERTYPE:
 	case HFI_ERR_SESSION_UNSUPPORTED_SETTING:
@@ -172,15 +172,15 @@ event_session_error(struct venus_core *core, struct venus_inst *inst,
 			pkt->shdr.session_id);
 
 		inst->error = pkt->event_data1;
-		inst->ops->event_notify(inst, EVT_SESSION_ERROR, NULL);
+		inst->ops->event_yestify(inst, EVT_SESSION_ERROR, NULL);
 		break;
 	}
 }
 
-static void hfi_event_notify(struct venus_core *core, struct venus_inst *inst,
+static void hfi_event_yestify(struct venus_core *core, struct venus_inst *inst,
 			     void *packet)
 {
-	struct hfi_msg_event_notify_pkt *pkt = packet;
+	struct hfi_msg_event_yestify_pkt *pkt = packet;
 
 	if (!packet)
 		return;
@@ -257,7 +257,7 @@ static void hfi_sys_property_info(struct venus_core *core,
 	struct device *dev = core->dev;
 
 	if (!pkt->num_properties) {
-		dev_dbg(dev, "%s: no properties\n", __func__);
+		dev_dbg(dev, "%s: yes properties\n", __func__);
 		return;
 	}
 
@@ -266,7 +266,7 @@ static void hfi_sys_property_info(struct venus_core *core,
 		sys_get_prop_image_version(dev, pkt);
 		break;
 	default:
-		dev_dbg(dev, "%s: unknown property data\n", __func__);
+		dev_dbg(dev, "%s: unkyeswn property data\n", __func__);
 		break;
 	}
 }
@@ -370,7 +370,7 @@ static void hfi_session_prop_info(struct venus_core *core,
 
 	if (!pkt->num_properties) {
 		error = HFI_ERR_SESSION_INVALID_PARAMETER;
-		dev_err(dev, "%s: no properties\n", __func__);
+		dev_err(dev, "%s: yes properties\n", __func__);
 		goto done;
 	}
 
@@ -387,7 +387,7 @@ static void hfi_session_prop_info(struct venus_core *core,
 	case HFI_PROPERTY_CONFIG_VDEC_ENTROPY:
 		break;
 	default:
-		dev_dbg(dev, "%s: unknown property id:%x\n", __func__,
+		dev_dbg(dev, "%s: unkyeswn property id:%x\n", __func__,
 			pkt->data[0]);
 		return;
 	}
@@ -605,8 +605,8 @@ struct hfi_done_handler {
 
 static const struct hfi_done_handler handlers[] = {
 	{.pkt = HFI_MSG_EVENT_NOTIFY,
-	 .pkt_sz = sizeof(struct hfi_msg_event_notify_pkt),
-	 .done = hfi_event_notify,
+	 .pkt_sz = sizeof(struct hfi_msg_event_yestify_pkt),
+	 .done = hfi_event_yestify,
 	},
 	{.pkt = HFI_MSG_SYS_INIT,
 	 .pkt_sz = sizeof(struct hfi_msg_sys_init_done_pkt),
@@ -749,12 +749,12 @@ u32 hfi_process_msg_packet(struct venus_core *core, struct hfi_pkt_hdr *hdr)
 		inst = to_instance(core, pkt->shdr.session_id);
 
 		if (!inst)
-			dev_warn(dev, "no valid instance(pkt session_id:%x, pkt:%x)\n",
+			dev_warn(dev, "yes valid instance(pkt session_id:%x, pkt:%x)\n",
 				 pkt->shdr.session_id,
 				 handler ? handler->pkt : 0);
 
 		/*
-		 * Event of type HFI_EVENT_SYS_ERROR will not have any session
+		 * Event of type HFI_EVENT_SYS_ERROR will yest have any session
 		 * associated with it
 		 */
 		if (!inst && hdr->pkt_type != HFI_MSG_EVENT_NOTIFY) {

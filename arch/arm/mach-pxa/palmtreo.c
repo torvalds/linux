@@ -134,7 +134,7 @@ static unsigned long treo680_pin_config[] __initdata = {
 	GPIO100_KP_MKIN_0 | WAKEUP_ON_LEVEL_HIGH,
 	GPIO99_KP_MKIN_5,
 
-	/* LCD... L_BIAS alt fn not configured on Treo680; is GPIO instead */
+	/* LCD... L_BIAS alt fn yest configured on Treo680; is GPIO instead */
 	GPIOxx_LCD_16BPP,
 	GPIO74_LCD_FCLK,
 	GPIO75_LCD_LCLK,
@@ -340,7 +340,7 @@ static inline void palmtreo_uhc_init(void) {}
 static struct gpio_led treo680_gpio_leds[] = {
 	{
 		.name			= "treo680:vibra:vibra",
-		.default_trigger	= "none",
+		.default_trigger	= "yesne",
 		.gpio			= GPIO_NR_TREO680_VIBRATE_EN,
 	},
 	{
@@ -350,7 +350,7 @@ static struct gpio_led treo680_gpio_leds[] = {
 	},
 	{
 		.name			= "treo680:white:keybbl",
-		.default_trigger	= "none",
+		.default_trigger	= "yesne",
 		.gpio			= GPIO_NR_TREO680_KEYB_BL,
 	},
 };
@@ -363,7 +363,7 @@ static struct gpio_led_platform_data treo680_gpio_led_info = {
 static struct gpio_led centro_gpio_leds[] = {
 	{
 		.name			= "centro:vibra:vibra",
-		.default_trigger	= "none",
+		.default_trigger	= "yesne",
 		.gpio			= GPIO_NR_CENTRO_VIBRATE_EN,
 	},
 	{
@@ -373,7 +373,7 @@ static struct gpio_led centro_gpio_leds[] = {
 	},
 	{
 		.name			= "centro:white:keybbl",
-		.default_trigger	= "none",
+		.default_trigger	= "yesne",
 		.active_low		= 1,
 		.gpio			= GPIO_NR_CENTRO_KEYB_BL,
 	},

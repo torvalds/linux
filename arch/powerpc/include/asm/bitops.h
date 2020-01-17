@@ -48,7 +48,7 @@
 #define PPC_BIT(bit)		(1UL << PPC_BITLSHIFT(bit))
 #define PPC_BITMASK(bs, be)	((PPC_BIT(bs) - PPC_BIT(be)) | PPC_BIT(bs))
 
-/* Put a PPC bit into a "normal" bit position */
+/* Put a PPC bit into a "yesrmal" bit position */
 #define PPC_BITEXTRACT(bits, ppc_bit, dst_bit)			\
 	((((bits) >> PPC_BITLSHIFT(ppc_bit)) & 1) << (dst_bit))
 
@@ -194,7 +194,7 @@ clear_bit_unlock_return_word(int nr, volatile unsigned long *addr)
 
 #endif /* CONFIG_PPC64 */
 
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/yesn-atomic.h>
 
 static inline void arch___clear_bit_unlock(int nr, volatile unsigned long *addr)
 {
@@ -203,7 +203,7 @@ static inline void arch___clear_bit_unlock(int nr, volatile unsigned long *addr)
 }
 
 /*
- * Return the zero-based bit position (LE, not IBM bit numbering) of
+ * Return the zero-based bit position (LE, yest IBM bit numbering) of
  * the most significant 1-bit in a double word.
  */
 #define __ilog2(x)	ilog2(x)

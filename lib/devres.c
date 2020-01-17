@@ -38,7 +38,7 @@ static void __iomem *__devm_ioremap(struct device *dev, resource_size_t offset,
 		addr = ioremap(offset, size);
 		break;
 	case DEVM_IOREMAP_NC:
-		addr = ioremap_nocache(offset, size);
+		addr = ioremap_yescache(offset, size);
 		break;
 	case DEVM_IOREMAP_UC:
 		addr = ioremap_uc(offset, size);
@@ -88,20 +88,20 @@ void __iomem *devm_ioremap_uc(struct device *dev, resource_size_t offset,
 EXPORT_SYMBOL_GPL(devm_ioremap_uc);
 
 /**
- * devm_ioremap_nocache - Managed ioremap_nocache()
+ * devm_ioremap_yescache - Managed ioremap_yescache()
  * @dev: Generic device to remap IO address for
  * @offset: Resource address to map
  * @size: Size of map
  *
- * Managed ioremap_nocache().  Map is automatically unmapped on driver
+ * Managed ioremap_yescache().  Map is automatically unmapped on driver
  * detach.
  */
-void __iomem *devm_ioremap_nocache(struct device *dev, resource_size_t offset,
+void __iomem *devm_ioremap_yescache(struct device *dev, resource_size_t offset,
 				   resource_size_t size)
 {
 	return __devm_ioremap(dev, offset, size, DEVM_IOREMAP_NC);
 }
-EXPORT_SYMBOL(devm_ioremap_nocache);
+EXPORT_SYMBOL(devm_ioremap_yescache);
 
 /**
  * devm_ioremap_wc - Managed ioremap_wc()
@@ -205,32 +205,32 @@ void __iomem *devm_ioremap_resource_wc(struct device *dev,
 
 /*
  * devm_of_iomap - Requests a resource and maps the memory mapped IO
- *		   for a given device_node managed by a given device
+ *		   for a given device_yesde managed by a given device
  *
  * Checks that a resource is a valid memory region, requests the memory
  * region and ioremaps it. All operations are managed and will be undone
  * on driver detach of the device.
  *
  * This is to be used when a device requests/maps resources described
- * by other device tree nodes (children or otherwise).
+ * by other device tree yesdes (children or otherwise).
  *
  * @dev:	The device "managing" the resource
- * @node:       The device-tree node where the resource resides
+ * @yesde:       The device-tree yesde where the resource resides
  * @index:	index of the MMIO range in the "reg" property
- * @size:	Returns the size of the resource (pass NULL if not needed)
+ * @size:	Returns the size of the resource (pass NULL if yest needed)
  * Returns a pointer to the requested and mapped memory or an ERR_PTR() encoded
  * error code on failure. Usage example:
  *
- *	base = devm_of_iomap(&pdev->dev, node, 0, NULL);
+ *	base = devm_of_iomap(&pdev->dev, yesde, 0, NULL);
  *	if (IS_ERR(base))
  *		return PTR_ERR(base);
  */
-void __iomem *devm_of_iomap(struct device *dev, struct device_node *node, int index,
+void __iomem *devm_of_iomap(struct device *dev, struct device_yesde *yesde, int index,
 			    resource_size_t *size)
 {
 	struct resource res;
 
-	if (of_address_to_resource(node, index, &res))
+	if (of_address_to_resource(yesde, index, &res))
 		return IOMEM_ERR_PTR(-EINVAL);
 	if (size)
 		*size = resource_size(&res);
@@ -365,7 +365,7 @@ void __iomem *pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen)
 	BUG_ON(bar >= PCIM_IOMAP_MAX);
 
 	tbl = (void __iomem **)pcim_iomap_table(pdev);
-	if (!tbl || tbl[bar])	/* duplicate mappings not allowed */
+	if (!tbl || tbl[bar])	/* duplicate mappings yest allowed */
 		return NULL;
 
 	tbl[bar] = pci_iomap(pdev, bar, maxlen);

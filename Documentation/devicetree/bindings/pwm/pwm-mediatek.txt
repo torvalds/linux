@@ -13,7 +13,7 @@ Required properties:
    the cell format.
  - clocks: phandle and clock specifier of the PWM reference clock.
  - clock-names: must contain the following, except for MT7628 which
-                has no clocks
+                has yes clocks
    - "top": the top clock generator
    - "main": clock used by the PWM core
    - "pwm1-8": the eight per PWM clocks for mt2712

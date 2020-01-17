@@ -131,7 +131,7 @@ static bool l2tp_udp_mt(const struct sk_buff *skb, struct xt_action_param *par, 
 	return l2tp_match(info, &data);
 }
 
-/* Parse L2TP header fields for IP encapsulation (no UDP header).
+/* Parse L2TP header fields for IP encapsulation (yes UDP header).
  * L2TPv3 data packets have a different form with IP encap. See
  * RC3931, Section 4.1.1.1, L2TPv3 Session Header over IP.
  * RC3931, Section 4.1.1.2, L2TPv3 Control and Data Traffic over IP.
@@ -213,7 +213,7 @@ static int l2tp_mt_check(const struct xt_mtchk_param *par)
 	/* Check for invalid flags */
 	if (info->flags & ~(XT_L2TP_TID | XT_L2TP_SID | XT_L2TP_VERSION |
 			    XT_L2TP_TYPE)) {
-		pr_info_ratelimited("unknown flags: %x\n", info->flags);
+		pr_info_ratelimited("unkyeswn flags: %x\n", info->flags);
 		return -EINVAL;
 	}
 
@@ -228,7 +228,7 @@ static int l2tp_mt_check(const struct xt_mtchk_param *par)
 	}
 
 	/* If version 2 is specified, check that incompatible params
-	 * are not supplied
+	 * are yest supplied
 	 */
 	if (info->flags & XT_L2TP_VERSION) {
 		if ((info->version < 2) || (info->version > 3)) {

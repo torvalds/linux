@@ -57,6 +57,6 @@ config GIGASET_DEBUG
 	bool "Gigaset debugging"
 	help
 	  This enables debugging code in the Gigaset drivers.
-	  If in doubt, say yes.
+	  If in doubt, say no.
 
 endif # ISDN_DRV_GIGASET

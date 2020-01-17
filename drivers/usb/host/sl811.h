@@ -9,7 +9,7 @@
 
 /*
  * SL811HS has transfer registers, and control registers.  In host/master
- * mode one set of registers is used; in peripheral/slave mode, another.
+ * mode one set of registers is used; in peripheral/slave mode, ayesther.
  *  - SL11H only has some "A" transfer registers from 0x00-0x04
  *  - SL811HS also has "B" registers from 0x08-0x0c
  *  - SL811S (or HS in slave mode) has four A+B sets, at 00, 10, 20, 30
@@ -82,7 +82,7 @@
 #	define SL11H_INTMASK_DP		0x80	/* only in INTSTATREG */
 #define SL11S_ADDRESS		7
 
-/* 0x08-0x0c are for the B buffer (not in SL11) */
+/* 0x08-0x0c are for the B buffer (yest in SL11) */
 
 #define SL11H_IRQ_STATUS	0x0D	/* write to ack */
 #define SL11H_HWREVREG		0x0E	/* read */

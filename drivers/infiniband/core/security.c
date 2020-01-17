@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -162,7 +162,7 @@ static void qp_to_error(struct ib_qp_security *sec)
 
 	/* If the QP is in the process of being destroyed
 	 * the qp pointer in the security structure is
-	 * undefined.  It cannot be modified now.
+	 * undefined.  It canyest be modified yesw.
 	 */
 	if (sec->destroying)
 		return;
@@ -457,7 +457,7 @@ EXPORT_SYMBOL(ib_create_qp_security);
 
 void ib_destroy_qp_security_begin(struct ib_qp_security *sec)
 {
-	/* Return if not IB */
+	/* Return if yest IB */
 	if (!sec)
 		return;
 
@@ -477,7 +477,7 @@ void ib_destroy_qp_security_begin(struct ib_qp_security *sec)
 	 */
 	sec->destroying = true;
 
-	/* Record the error list count to know how many completions
+	/* Record the error list count to kyesw how many completions
 	 * to wait for.
 	 */
 	sec->error_comps_pending = atomic_read(&sec->error_list_count);
@@ -490,7 +490,7 @@ void ib_destroy_qp_security_abort(struct ib_qp_security *sec)
 	int ret;
 	int i;
 
-	/* Return if not IB */
+	/* Return if yest IB */
 	if (!sec)
 		return;
 
@@ -510,7 +510,7 @@ void ib_destroy_qp_security_abort(struct ib_qp_security *sec)
 	 *
 	 * Because these setting were listed already
 	 * and removed during ib_destroy_qp_security_begin
-	 * we know the pkey_index_qp_list for the PKey
+	 * we kyesw the pkey_index_qp_list for the PKey
 	 * already exists so port_pkey_list_insert won't fail.
 	 */
 	if (sec->ports_pkeys) {
@@ -529,7 +529,7 @@ void ib_destroy_qp_security_end(struct ib_qp_security *sec)
 {
 	int i;
 
-	/* Return if not IB */
+	/* Return if yest IB */
 	if (!sec)
 		return;
 
@@ -593,7 +593,7 @@ int ib_security_modify_qp(struct ib_qp *qp,
 	WARN_ONCE((qp_attr_mask & IB_QP_PORT &&
 		   rdma_protocol_ib(real_qp->device, qp_attr->port_num) &&
 		   !real_qp->qp_sec),
-		   "%s: QP security is not initialized for IB QP: %d\n",
+		   "%s: QP security is yest initialized for IB QP: %d\n",
 		   __func__, real_qp->qp_num);
 
 	/* The port/pkey settings are maintained only for the real QP. Open

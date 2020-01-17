@@ -459,7 +459,7 @@
 			bus-width = <8>;
 			cap-mmc-highspeed;
 			cap-mmc-hw-reset;
-			non-removable;
+			yesn-removable;
 		};
 
 		sd: sdhc@5a400000 {

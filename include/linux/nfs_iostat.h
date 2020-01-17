@@ -7,10 +7,10 @@
  *
  *  NFS client per-mount statistics provide information about the
  *  health of the NFS client and the health of each NFS mount point.
- *  Generally these are not for detailed problem diagnosis, but
+ *  Generally these are yest for detailed problem diagyessis, but
  *  simply to indicate that there is a problem.
  *
- *  These counters are not meant to be human-readable, but are meant
+ *  These counters are yest meant to be human-readable, but are meant
  *  to be integrated into system monitoring tools such as "sar" and
  *  "iostat".  As such, the counters are sampled by the tools over
  *  time, and are never zeroed after a file system is mounted.

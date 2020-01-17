@@ -79,7 +79,7 @@ struct parmarea {
 	char command_line[ARCH_COMMAND_LINE_SIZE];	/* 0x10480 */
 };
 
-extern int noexec_disabled;
+extern int yesexec_disabled;
 extern int memory_end_set;
 extern unsigned long memory_end;
 extern unsigned long vmalloc_size;
@@ -108,7 +108,7 @@ extern unsigned long __swsusp_reset_dma;
  * Console mode. Override with conmode=
  */
 extern unsigned int console_mode;
-extern unsigned int console_devno;
+extern unsigned int console_devyes;
 extern unsigned int console_irq;
 
 extern char vmhalt_cmd[];
@@ -143,7 +143,7 @@ static inline void vmcp_cma_reserve(void) { }
 void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault);
 
 void cmma_init(void);
-void cmma_init_nodat(void);
+void cmma_init_yesdat(void);
 
 extern void (*_machine_restart)(char *command);
 extern void (*_machine_halt)(void);

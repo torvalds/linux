@@ -23,7 +23,7 @@ u32 vexpress_config_get_master(void);
 void vexpress_config_lock(void *arg);
 void vexpress_config_unlock(void *arg);
 
-int vexpress_config_get_topo(struct device_node *node, u32 *site,
+int vexpress_config_get_topo(struct device_yesde *yesde, u32 *site,
 		u32 *position, u32 *dcc);
 
 /* Config bridge API */

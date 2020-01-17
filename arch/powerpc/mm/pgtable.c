@@ -34,11 +34,11 @@ static inline int is_exec_fault(void)
 }
 
 /* We only try to do i/d cache coherency on stuff that looks like
- * reasonably "normal" PTEs. We currently require a PTE to be present
+ * reasonably "yesrmal" PTEs. We currently require a PTE to be present
  * and we avoid _PAGE_SPECIAL and cache inhibited pte. We also only do that
  * on userspace PTEs
  */
-static inline int pte_looks_normal(pte_t pte)
+static inline int pte_looks_yesrmal(pte_t pte)
 {
 
 	if (pte_present(pte) && !pte_special(pte)) {
@@ -66,7 +66,7 @@ static struct page *maybe_pte_to_page(pte_t pte)
 #ifdef CONFIG_PPC_BOOK3S
 
 /* Server-style MMU handles coherency when hashing if HW exec permission
- * is supposed per page (currently 64-bit only). If not, then, we always
+ * is supposed per page (currently 64-bit only). If yest, then, we always
  * flush the cache for valid PTEs in set_pte. Embedded CPU without HW exec
  * support falls into the same category.
  */
@@ -77,7 +77,7 @@ static pte_t set_pte_filter_hash(pte_t pte)
 		return pte;
 
 	pte = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
-	if (pte_looks_normal(pte) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
+	if (pte_looks_yesrmal(pte) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
 				       cpu_has_feature(CPU_FTR_NOEXECUTE))) {
 		struct page *pg = maybe_pte_to_page(pte);
 		if (!pg)
@@ -98,7 +98,7 @@ static pte_t set_pte_filter_hash(pte_t pte) { return pte; }
 
 /* Embedded type MMU with HW exec support. This is a bit more complicated
  * as we don't have two bits to spare for _PAGE_EXEC and _PAGE_HWEXEC so
- * instead we "filter out" the exec permission for non clean pages.
+ * instead we "filter out" the exec permission for yesn clean pages.
  */
 static pte_t set_pte_filter(pte_t pte)
 {
@@ -108,7 +108,7 @@ static pte_t set_pte_filter(pte_t pte)
 		return set_pte_filter_hash(pte);
 
 	/* No exec permission in the first place, move on */
-	if (!pte_exec(pte) || !pte_looks_normal(pte))
+	if (!pte_exec(pte) || !pte_looks_yesrmal(pte))
 		return pte;
 
 	/* If you set _PAGE_EXEC on weird pages you're on your own */
@@ -148,7 +148,7 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 		return pte;
 
 #ifdef CONFIG_DEBUG_VM
-	/* So this is an exec fault, _PAGE_EXEC is not set. If it was
+	/* So this is an exec fault, _PAGE_EXEC is yest set. If it was
 	 * an error we would have bailed out earlier in do_page_fault()
 	 * but let's make sure of it
 	 */
@@ -180,16 +180,16 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 		pte_t pte)
 {
 	/*
-	 * Make sure hardware valid bit is not set. We don't do
+	 * Make sure hardware valid bit is yest set. We don't do
 	 * tlb flush for this update.
 	 */
-	VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
+	VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protyesne(*ptep));
 
 	/* Add the pte bit when trying to set a pte */
 	pte = pte_mkpte(pte);
 
-	/* Note: mm->context.id might not yet have been assigned as
-	 * this context might not have been activated yet when this
+	/* Note: mm->context.id might yest yet have been assigned as
+	 * this context might yest have been activated yet when this
 	 * is called.
 	 */
 	pte = set_pte_filter(pte);
@@ -200,7 +200,7 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 
 /*
  * This is called when relaxing access to a PTE. It's also called in the page
- * fault path when we don't hit any of the major fault cases, ie, a minor
+ * fault path when we don't hit any of the major fault cases, ie, a miyesr
  * update of _PAGE_ACCESSED, _PAGE_DIRTY, etc... The generic code will have
  * handled those two for us, we additionally deal with missing execute
  * permission here on some processors
@@ -249,7 +249,7 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 
 #else
 		/*
-		 * Not used on non book3s64 platforms. But 8xx
+		 * Not used on yesn book3s64 platforms. But 8xx
 		 * can possibly use tsize derived from hstate.
 		 */
 		psize = 0;
@@ -271,17 +271,17 @@ void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 	if (mm == &init_mm)
 		return;
 	pgd = mm->pgd + pgd_index(addr);
-	BUG_ON(pgd_none(*pgd));
+	BUG_ON(pgd_yesne(*pgd));
 	pud = pud_offset(pgd, addr);
-	BUG_ON(pud_none(*pud));
+	BUG_ON(pud_yesne(*pud));
 	pmd = pmd_offset(pud, addr);
 	/*
-	 * khugepaged to collapse normal pages to hugepage, first set
-	 * pmd to none to force page fault/gup to take mmap_sem. After
-	 * pmd is set to none, we do a pte_clear which does this assertion
-	 * so if we find pmd none, return.
+	 * khugepaged to collapse yesrmal pages to hugepage, first set
+	 * pmd to yesne to force page fault/gup to take mmap_sem. After
+	 * pmd is set to yesne, we do a pte_clear which does this assertion
+	 * so if we find pmd yesne, return.
 	 */
-	if (pmd_none(*pmd))
+	if (pmd_yesne(*pmd))
 		return;
 	BUG_ON(!pmd_present(*pmd));
 	assert_spin_locked(pte_lockptr(mm, pmd));
@@ -300,7 +300,7 @@ EXPORT_SYMBOL_GPL(vmalloc_to_phys);
 /*
  * We have 4 cases for pgds and pmds:
  * (1) invalid (all zeroes)
- * (2) pointer to next table, as normal; bottom 6 bits == 0
+ * (2) pointer to next table, as yesrmal; bottom 6 bits == 0
  * (3) leaf pte for huge page _PAGE_PTE set
  * (4) hugepd pointer, _PAGE_PTE = 0 and bits [2..6] indicate size of table
  *
@@ -330,10 +330,10 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 	/*
 	 * Always operate on the local stack value. This make sure the
 	 * value don't get updated by a parallel THP split/collapse,
-	 * page fault or a page unmap. The return pte_t * is still not
+	 * page fault or a page unmap. The return pte_t * is still yest
 	 * stable. So should be checked there for above conditions.
 	 */
-	if (pgd_none(pgd))
+	if (pgd_yesne(pgd))
 		return NULL;
 
 	if (pgd_is_leaf(pgd)) {
@@ -347,7 +347,7 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 	}
 
 	/*
-	 * Even if we end up with an unmap, the pgtable will not
+	 * Even if we end up with an unmap, the pgtable will yest
 	 * be freed, because we do an rcu free and here we are
 	 * irq disabled
 	 */
@@ -355,7 +355,7 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 	pudp = pud_offset(&pgd, ea);
 	pud  = READ_ONCE(*pudp);
 
-	if (pud_none(pud))
+	if (pud_yesne(pud))
 		return NULL;
 
 	if (pud_is_leaf(pud)) {
@@ -376,7 +376,7 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 	 * A hugepage collapse is captured by this condition, see
 	 * pmdp_collapse_flush.
 	 */
-	if (pmd_none(pmd))
+	if (pmd_yesne(pmd))
 		return NULL;
 
 #ifdef CONFIG_PPC_BOOK3S_64

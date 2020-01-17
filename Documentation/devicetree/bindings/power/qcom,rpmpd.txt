@@ -55,15 +55,15 @@ should use the RPMH_REGULATOR_LEVEL_* constants from
 				opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
 			};
 
-			rpmhpd_opp_nom: opp6 {
+			rpmhpd_opp_yesm: opp6 {
 				opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
 			};
 
-			rpmhpd_opp_nom_l1: opp7 {
+			rpmhpd_opp_yesm_l1: opp7 {
 				opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
 			};
 
-			rpmhpd_opp_nom_l2: opp8 {
+			rpmhpd_opp_yesm_l2: opp8 {
 				opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
 			};
 
@@ -99,7 +99,7 @@ Example: rpm power domain controller and OPP table
 				opp-level = <3>;
 			};
 
-			rpmpd_opp_normal: opp4 {
+			rpmpd_opp_yesrmal: opp4 {
 				opp-level = <4>;
 			};
 
@@ -143,6 +143,6 @@ Example: Client/Consumer device using OPP table
 
 		opp4 {
 			opp-hz = /bits/ 64 <25000000>;
-			required-opps = <&rpmpd_opp_normal>;
+			required-opps = <&rpmpd_opp_yesrmal>;
 		};
 	};

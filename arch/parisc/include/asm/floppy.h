@@ -12,7 +12,7 @@
 
 
 /*
- * The DMA channel used by the floppy controller cannot access data at
+ * The DMA channel used by the floppy controller canyest access data at
  * addresses >= 16MB
  *
  * Went back to the 1MB limit, as some people had problems with the floppy
@@ -129,7 +129,7 @@ static int vdma_request_dma(unsigned int dmanr, const char * device_id)
 	return 0;
 }
 
-static void vdma_nop(unsigned int dummy)
+static void vdma_yesp(unsigned int dummy)
 {
 }
 
@@ -162,7 +162,7 @@ static unsigned long vdma_mem_alloc(unsigned long size)
 
 }
 
-#define nodma_mem_alloc(size) vdma_mem_alloc(size)
+#define yesdma_mem_alloc(size) vdma_mem_alloc(size)
 
 static void _fd_dma_mem_free(unsigned long addr, unsigned long size)
 {
@@ -236,7 +236,7 @@ static struct fd_routine_l {
 	},
 	{
 		vdma_request_dma,
-		vdma_nop,
+		vdma_yesp,
 		vdma_get_dma_residue,
 		vdma_mem_alloc,
 		vdma_dma_setup
@@ -244,7 +244,7 @@ static struct fd_routine_l {
 };
 
 
-static int FDC1 = 0x3f0; /* Lies.  Floppy controller is memory mapped, not io mapped */
+static int FDC1 = 0x3f0; /* Lies.  Floppy controller is memory mapped, yest io mapped */
 static int FDC2 = -1;
 
 #define FLOPPY0_TYPE	0

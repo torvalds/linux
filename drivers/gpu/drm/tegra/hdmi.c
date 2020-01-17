@@ -500,12 +500,12 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 	if (hdmi->config->has_hda) {
 		/*
 		 * Inject null samples into the audio FIFO for every frame in
-		 * which the codec did not receive any samples. This applies
+		 * which the codec did yest receive any samples. This applies
 		 * to stereo LPCM only.
 		 *
 		 * XXX: This seems to be a remnant of MCP days when this was
-		 * used to work around issues with monitors not being able to
-		 * play back system startup sounds early. It is possibly not
+		 * used to work around issues with monitors yest being able to
+		 * play back system startup sounds early. It is possibly yest
 		 * needed on Linux at all.
 		 */
 		if (hdmi->format.channels == 2)
@@ -519,7 +519,7 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 	}
 
 	/*
-	 * On Tegra20, HDA is not a supported audio source and the source
+	 * On Tegra20, HDA is yest a supported audio source and the source
 	 * select field is part of the AUDIO_CNTRL0 register.
 	 */
 	value = AUDIO_CNTRL0_FRAMES_PER_BLOCK(0xc0) |
@@ -543,7 +543,7 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 					  hdmi->pixel_clock, &config);
 	if (err < 0) {
 		dev_err(hdmi->dev,
-			"cannot set audio to %u Hz at %u Hz pixel clock\n",
+			"canyest set audio to %u Hz at %u Hz pixel clock\n",
 			hdmi->format.sample_rate, hdmi->pixel_clock);
 		return err;
 	}
@@ -608,7 +608,7 @@ static void tegra_hdmi_write_eld(struct tegra_hdmi *hdmi)
 	/*
 	 * The HDA codec will always report an ELD buffer size of 96 bytes and
 	 * the HDA codec driver will check that each byte read from the buffer
-	 * is valid. Therefore every byte must be written, even if no 96 bytes
+	 * is valid. Therefore every byte must be written, even if yes 96 bytes
 	 * were parsed from EDID.
 	 */
 	for (i = length; i < HDMI_ELD_BUFFER_SIZE; i++)
@@ -1027,10 +1027,10 @@ static const struct debugfs_reg32 tegra_hdmi_regs[] = {
 
 static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct tegra_hdmi *hdmi = node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct tegra_hdmi *hdmi = yesde->info_ent->data;
 	struct drm_crtc *crtc = hdmi->output.encoder.crtc;
-	struct drm_device *drm = node->minor->dev;
+	struct drm_device *drm = yesde->miyesr->dev;
 	unsigned int i;
 	int err = 0;
 
@@ -1061,7 +1061,7 @@ static int tegra_hdmi_late_register(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
 	unsigned int i, count = ARRAY_SIZE(debugfs_files);
-	struct drm_minor *minor = connector->dev->primary;
+	struct drm_miyesr *miyesr = connector->dev->primary;
 	struct dentry *root = connector->debugfs_entry;
 	struct tegra_hdmi *hdmi = to_hdmi(output);
 	int err;
@@ -1074,7 +1074,7 @@ static int tegra_hdmi_late_register(struct drm_connector *connector)
 	for (i = 0; i < count; i++)
 		hdmi->debugfs_files[i].data = hdmi;
 
-	err = drm_debugfs_create_files(hdmi->debugfs_files, count, root, minor);
+	err = drm_debugfs_create_files(hdmi->debugfs_files, count, root, miyesr);
 	if (err < 0)
 		goto free;
 
@@ -1090,11 +1090,11 @@ free:
 static void tegra_hdmi_early_unregister(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
-	struct drm_minor *minor = connector->dev->primary;
+	struct drm_miyesr *miyesr = connector->dev->primary;
 	unsigned int count = ARRAY_SIZE(debugfs_files);
 	struct tegra_hdmi *hdmi = to_hdmi(output);
 
-	drm_debugfs_remove_files(hdmi->debugfs_files, count, minor);
+	drm_debugfs_remove_files(hdmi->debugfs_files, count, miyesr);
 	kfree(hdmi->debugfs_files);
 	hdmi->debugfs_files = NULL;
 }

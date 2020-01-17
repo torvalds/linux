@@ -4,7 +4,7 @@
  *
  * BadgePAD 4 specific initialization
  *
- *   Tim Connors <connors@hpl.hp.com>
+ *   Tim Conyesrs <conyesrs@hpl.hp.com>
  *   Christopher Hoover <ch@hpl.hp.com>
  *
  * Copyright (C) 2002 Hewlett-Packard Company
@@ -18,7 +18,7 @@
 #include <linux/tty.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
 
@@ -159,7 +159,7 @@ static struct resource badge4_flash_resource =
 
 static int five_v_on __initdata = 0;
 
-static int __init five_v_on_setup(char *ignore)
+static int __init five_v_on_setup(char *igyesre)
 {
 	five_v_on = 1;
 	return 1;
@@ -274,11 +274,11 @@ void badge4_set_5V(unsigned subsystem, int on)
 
 	/* detect on->off and off->on transitions */
 	if ((!old_5V_bitmap) && (badge4_5V_bitmap)) {
-		/* was off, now on */
+		/* was off, yesw on */
 		printk(KERN_INFO "%s: enabling 5V supply rail\n", __func__);
 		GPSR = BADGE4_GPIO_PCMEN5V;
 	} else if ((old_5V_bitmap) && (!badge4_5V_bitmap)) {
-		/* was on, now off */
+		/* was on, yesw off */
 		printk(KERN_INFO "%s: disabling 5V supply rail\n", __func__);
 		GPCR = BADGE4_GPIO_PCMEN5V;
 	}

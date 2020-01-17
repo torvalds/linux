@@ -52,7 +52,7 @@
  * @frame_count: how many frames assembles a full packet
  *
  * Each data frame passed to the high-speed DMA ring has this header. If
- * the XDomain network directory announces that %TBNET_MATCH_FRAGS_ID is
+ * the XDomain network directory anyesunces that %TBNET_MATCH_FRAGS_ID is
  * supported then @frame_id is filled, otherwise it stays %0.
  */
 struct thunderbolt_ip_frame_header {
@@ -214,7 +214,7 @@ static void tbnet_fill_header(struct thunderbolt_ip_header *hdr, u64 route,
 {
 	u32 length_sn;
 
-	/* Length does not include route_hi/lo and length_sn fields */
+	/* Length does yest include route_hi/lo and length_sn fields */
 	length_sn = (size - 3 * 4) / 4;
 	length_sn |= (sequence << TBIP_HDR_SN_SHIFT) & TBIP_HDR_SN_MASK;
 
@@ -427,7 +427,7 @@ static int tbnet_handle_packet(const void *buf, size_t size, void *data)
 			net->transmit_path = pkg->transmit_path;
 
 			/* If we reached the number of max retries or
-			 * previous logout, schedule another round of
+			 * previous logout, schedule ayesther round of
 			 * login retries
 			 */
 			if (net->login_retries >= TBNET_LOGIN_RETRIES ||
@@ -989,7 +989,7 @@ static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 	*tucso = csum_fold(wsum);
 
 	/* Checksum is finally calculated and we don't touch the memory
-	 * anymore, so DMA sync the frames now.
+	 * anymore, so DMA sync the frames yesw.
 	 */
 	for (i = 0; i < frame_count; i++) {
 		dma_sync_single_for_device(dma_dev, frames[i]->frame.buffer_phy,
@@ -1226,7 +1226,7 @@ static int tbnet_probe(struct tb_service *svc, const struct tb_service_id *id)
 	 * sized smaller packets.
 	 *
 	 * In order to receive large packets from the networking stack,
-	 * we need to announce support for most of the offloading
+	 * we need to anyesunce support for most of the offloading
 	 * features here.
 	 */
 	dev->hw_features = NETIF_F_SG | NETIF_F_ALL_TSO | NETIF_F_GRO |

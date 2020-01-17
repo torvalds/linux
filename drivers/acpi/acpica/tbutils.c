@@ -36,7 +36,7 @@ acpi_status acpi_tb_initialize_facs(void)
 {
 	struct acpi_table_facs *facs;
 
-	/* If Hardware Reduced flag is set, there is no FACS */
+	/* If Hardware Reduced flag is set, there is yes FACS */
 
 	if (acpi_gbl_reduced_hardware) {
 		acpi_gbl_FACS = NULL;
@@ -57,7 +57,7 @@ acpi_status acpi_tb_initialize_facs(void)
 		acpi_gbl_FACS = facs;
 	}
 
-	/* If there is no FACS, just continue. There was already an error msg */
+	/* If there is yes FACS, just continue. There was already an error msg */
 
 	return (AE_OK);
 }
@@ -93,7 +93,7 @@ void acpi_tb_check_dsdt_header(void)
 
 		ACPI_ERROR((AE_INFO,
 			    "Please send DMI info to linux-acpi@vger.kernel.org\n"
-			    "If system does not work as expected, please boot with acpi=copy_dsdt"));
+			    "If system does yest work as expected, please boot with acpi=copy_dsdt"));
 
 		/* Disable further error messages */
 
@@ -112,7 +112,7 @@ void acpi_tb_check_dsdt_header(void)
  * RETURN:      The copied DSDT
  *
  * DESCRIPTION: Implements a subsystem option to copy the DSDT to local memory.
- *              Some very bad BIOSs are known to either corrupt the DSDT or
+ *              Some very bad BIOSs are kyeswn to either corrupt the DSDT or
  *              install a new, bad DSDT. This copy works around the problem.
  *
  ******************************************************************************/
@@ -126,7 +126,7 @@ struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index)
 
 	new_table = ACPI_ALLOCATE(table_desc->length);
 	if (!new_table) {
-		ACPI_ERROR((AE_INFO, "Could not copy DSDT of length 0x%X",
+		ACPI_ERROR((AE_INFO, "Could yest copy DSDT of length 0x%X",
 			    table_desc->length));
 		return (NULL);
 	}
@@ -169,7 +169,7 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
 
 	/*
 	 * Get the table physical address (32-bit for RSDT, 64-bit for XSDT):
-	 * Note: Addresses are 32-bit aligned (not 64) in both RSDT and XSDT
+	 * Note: Addresses are 32-bit aligned (yest 64) in both RSDT and XSDT
 	 */
 	if (table_entry_size == ACPI_RSDT_ENTRY_SIZE) {
 		/*
@@ -212,8 +212,8 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
  * DESCRIPTION: This function is called to parse the Root System Description
  *              Table (RSDT or XSDT)
  *
- * NOTE:        Tables are mapped (not copied) for efficiency. The FACS must
- *              be mapped and cannot be copied because it contains the actual
+ * NOTE:        Tables are mapped (yest copied) for efficiency. The FACS must
+ *              be mapped and canyest be copied because it contains the actual
  *              memory location of the ACPI Global Lock.
  *
  ******************************************************************************/
@@ -245,10 +245,10 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 				   ACPI_CAST_PTR(struct acpi_table_header,
 						 rsdp));
 
-	/* Use XSDT if present and not overridden. Otherwise, use RSDT */
+	/* Use XSDT if present and yest overridden. Otherwise, use RSDT */
 
 	if ((rsdp->revision > 1) &&
-	    rsdp->xsdt_physical_address && !acpi_gbl_do_not_use_xsdt) {
+	    rsdp->xsdt_physical_address && !acpi_gbl_do_yest_use_xsdt) {
 		/*
 		 * RSDP contains an XSDT (64-bit physical addresses). We must use
 		 * the XSDT if the revision is > 1 and the XSDT pointer is present,
@@ -264,7 +264,7 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 	}
 
 	/*
-	 * It is not possible to map more than one entry in some environments,
+	 * It is yest possible to map more than one entry in some environments,
 	 * so unmap the RSDP here before mapping other tables
 	 */
 	acpi_os_unmap_memory(rsdp, sizeof(struct acpi_table_rsdp));
@@ -409,7 +409,7 @@ acpi_tb_get_table(struct acpi_table_desc *table_desc,
  * RETURN:      None
  *
  * DESCRIPTION: Decrease a reference to a table descriptor and release the
- *              validated table pointer if no references.
+ *              validated table pointer if yes references.
  *              If the table descriptor is an entry of the root table list,
  *              this API must be invoked with ACPI_MTX_TABLES acquired.
  *

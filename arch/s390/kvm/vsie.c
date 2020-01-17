@@ -78,7 +78,7 @@ static void prefix_unmapped_sync(struct vsie_page *vsie_page)
 /* mark the prefix as mapped, this will allow the VSIE to run */
 static void prefix_mapped(struct vsie_page *vsie_page)
 {
-	atomic_andnot(PROG_REQUEST, &vsie_page->scb_s.prog20);
+	atomic_andyest(PROG_REQUEST, &vsie_page->scb_s.prog20);
 }
 
 /* test if the prefix is mapped into the gmap shadow */
@@ -94,7 +94,7 @@ static void update_intervention_requests(struct vsie_page *vsie_page)
 	int cpuflags;
 
 	cpuflags = atomic_read(&vsie_page->scb_o->cpuflags);
-	atomic_andnot(bits, &vsie_page->scb_s.cpuflags);
+	atomic_andyest(bits, &vsie_page->scb_s.cpuflags);
 	atomic_or(cpuflags & bits, &vsie_page->scb_s.cpuflags);
 }
 
@@ -272,12 +272,12 @@ static int setup_apcb(struct kvm_vcpu *vcpu, struct kvm_s390_crypto_cb *crycb_s,
  * in the shadow CRYCB.
  * Using format-2 enables the firmware to choose the right format when
  * scheduling the SIE.
- * There is nothing to do for format-0.
+ * There is yesthing to do for format-0.
  *
  * This function centralize the issuing of set_validity_icpt() for all
  * the subfunctions working on the crycb.
  *
- * Returns: - 0 if shadowed or nothing to do
+ * Returns: - 0 if shadowed or yesthing to do
  *          - > 0 if control has to be given to guest 2
  */
 static int shadow_crycb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
@@ -359,7 +359,7 @@ static void prepare_ibc(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
 	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;
-	/* READ_ONCE does not work on bitfields - use a temporary variable */
+	/* READ_ONCE does yest work on bitfields - use a temporary variable */
 	const uint32_t __new_ibc = scb_o->ibc;
 	const uint32_t new_ibc = READ_ONCE(__new_ibc) & 0x0fffU;
 	__u64 min_ibc = (sclp.ibc >> 16) & 0x0fffU;
@@ -438,7 +438,7 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
-	/* READ_ONCE does not work on bitfields - use a temporary variable */
+	/* READ_ONCE does yest work on bitfields - use a temporary variable */
 	const uint32_t __new_prefix = scb_o->prefix;
 	const uint32_t new_prefix = READ_ONCE(__new_prefix);
 	const bool wants_tx = READ_ONCE(scb_o->ecb) & ECB_TE;
@@ -480,7 +480,7 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	scb_s->ictl = scb_o->ictl;
 	/*
 	 * SKEY handling functions can't deal with false setting of PTE invalid
-	 * bits. Therefore we cannot provide interpretation and would later
+	 * bits. Therefore we canyest provide interpretation and would later
 	 * have to provide own emulation handlers.
 	 */
 	if (!(atomic_read(&scb_s->cpuflags) & CPUSTAT_KSS))
@@ -557,7 +557,7 @@ out:
 	return rc;
 }
 
-void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
+void kvm_s390_vsie_gmap_yestifier(struct gmap *gmap, unsigned long start,
 				 unsigned long end)
 {
 	struct kvm *kvm = gmap->private;
@@ -594,8 +594,8 @@ void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
 /*
  * Map the first prefix page and if tx is enabled also the second prefix page.
  *
- * The prefix will be protected, a gmap notifier will inform about unmaps.
- * The shadow scb must not be executed until the prefix is remapped, this is
+ * The prefix will be protected, a gmap yestifier will inform about unmaps.
+ * The shadow scb must yest be executed until the prefix is remapped, this is
  * guaranteed by properly handling PROG_REQUEST.
  *
  * Returns: - 0 on if successfully mapped or already mapped
@@ -638,7 +638,7 @@ static int map_prefix(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
  * Will always be pinned writable.
  *
  * Returns: - 0 on success
- *          - -EINVAL if the gpa is not valid guest storage
+ *          - -EINVAL if the gpa is yest valid guest storage
  */
 static int pin_guest_page(struct kvm *kvm, gpa_t gpa, hpa_t *hpa)
 {
@@ -710,7 +710,7 @@ static void unpin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
  * page, we have to fall back to shadowing.
  *
  * As we reuse the sca, the vcpu pointers contained in it are invalid. We must
- * therefore not enable any facilities that access these pointers (e.g. SIGPIF).
+ * therefore yest enable any facilities that access these pointers (e.g. SIGPIF).
  *
  * Returns: - 0 if all blocks were pinned.
  *          - > 0 if control has to be given to guest 2
@@ -753,7 +753,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			rc = set_validity_icpt(scb_s, 0x0080U);
 			goto unpin;
 		}
-		/* 256 bytes cannot cross page boundaries */
+		/* 256 bytes canyest cross page boundaries */
 		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
 		if (rc) {
 			rc = set_validity_icpt(scb_s, 0x0080U);
@@ -770,7 +770,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			goto unpin;
 		}
 		/*
-		 * 512 bytes vector registers cannot cross page boundaries
+		 * 512 bytes vector registers canyest cross page boundaries
 		 * if this block gets bigger, we have to shadow it.
 		 */
 		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
@@ -788,7 +788,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			rc = set_validity_icpt(scb_s, 0x0043U);
 			goto unpin;
 		}
-		/* 64 bytes cannot cross page boundaries */
+		/* 64 bytes canyest cross page boundaries */
 		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
 		if (rc) {
 			rc = set_validity_icpt(scb_s, 0x0043U);
@@ -816,7 +816,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			rc = set_validity_icpt(scb_s, 0x10b2U);
 			goto unpin;
 		}
-		/* Due to alignment rules (checked above) this cannot
+		/* Due to alignment rules (checked above) this canyest
 		 * cross page boundaries
 		 */
 		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
@@ -884,7 +884,7 @@ static int inject_fault(struct kvm_vcpu *vcpu, __u16 code, __u64 vaddr,
 			(((unsigned int) !write_flag) + 1) << 10,
 			/* 62-63: asce id (alway primary == 0) */
 		.exc_access_id = 0, /* always primary */
-		.op_access_id = 0, /* not MVPG */
+		.op_access_id = 0, /* yest MVPG */
 	};
 	int rc;
 
@@ -927,7 +927,7 @@ static int handle_fault(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
  * Retry the previous fault that required guest 2 intervention. This avoids
  * one superfluous SIE re-entry and direct exit.
  *
- * Will ignore any errors. The next SIE fault will do proper fault handling.
+ * Will igyesre any errors. The next SIE fault will do proper fault handling.
  */
 static void handle_last_fault(struct kvm_vcpu *vcpu,
 			      struct vsie_page *vsie_page)
@@ -1014,7 +1014,7 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	 * The guest is running with BPBC, so we have to force it on for our
 	 * nested guest. This is done by enabling BPBC globally, so the BPBC
 	 * control in the SCB (which the nested guest can modify) is simply
-	 * ignored.
+	 * igyesred.
 	 */
 	if (test_kvm_facility(vcpu->kvm, 82) &&
 	    vcpu->arch.sie_block->fpf & FPF_BPBC)
@@ -1064,7 +1064,7 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			rc = handle_stfle(vcpu, vsie_page);
 		break;
 	case ICPT_STOP:
-		/* stop not requested by g2 - must have been a kick */
+		/* stop yest requested by g2 - must have been a kick */
 		if (!(atomic_read(&scb_o->cpuflags) & CPUSTAT_STOP_INT))
 			clear_vsie_icpt(vsie_page);
 		break;
@@ -1158,7 +1158,7 @@ static void unregister_shadow_scb(struct kvm_vcpu *vcpu)
  * Run the vsie on a shadowed scb, managing the gmap shadow, handling
  * prefix pages and faults.
  *
- * Returns: - 0 if no errors occurred
+ * Returns: - 0 if yes errors occurred
  *          - > 0 if control has to be given to guest 2
  *          - -ENOMEM if out of memory
  */
@@ -1177,7 +1177,7 @@ static int vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			rc = do_vsie_run(vcpu, vsie_page);
 			gmap_enable(vcpu->arch.gmap);
 		}
-		atomic_andnot(PROG_BLOCK_SIE, &scb_s->prog20);
+		atomic_andyest(PROG_BLOCK_SIE, &scb_s->prog20);
 
 		if (rc == -EAGAIN)
 			rc = 0;
@@ -1194,7 +1194,7 @@ static int vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		 * points at the responsible instruction, we have to
 		 * forward the PSW and set the ilc. If we can't read guest 3
 		 * instruction, we can use an arbitrary ilc. Let's always use
-		 * ilen = 4 for now, so we can avoid reading in guest 3 virtual
+		 * ilen = 4 for yesw, so we can avoid reading in guest 3 virtual
 		 * memory. (we could also fake the shadow so the hardware
 		 * handles it).
 		 */
@@ -1210,7 +1210,7 @@ static int vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
  * Get or create a vsie page for a scb address.
  *
  * Returns: - address of a vsie page (cached or new one)
- *          - NULL if the same scb address is already used by another VCPU
+ *          - NULL if the same scb address is already used by ayesther VCPU
  *          - ERR_PTR(-ENOMEM) if out of memory
  */
 static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
@@ -1245,7 +1245,7 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 		kvm->arch.vsie.pages[kvm->arch.vsie.page_count] = page;
 		kvm->arch.vsie.page_count++;
 	} else {
-		/* reuse an existing entry that belongs to nobody */
+		/* reuse an existing entry that belongs to yesbody */
 		while (true) {
 			page = kvm->arch.vsie.pages[kvm->arch.vsie.next];
 			if (page_ref_inc_return(page) == 2)
@@ -1308,7 +1308,7 @@ int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu)
 	if (IS_ERR(vsie_page))
 		return PTR_ERR(vsie_page);
 	else if (!vsie_page)
-		/* double use of sie control block - simply do nothing */
+		/* double use of sie control block - simply do yesthing */
 		return 0;
 
 	rc = pin_scb(vcpu, vsie_page, scb_addr);

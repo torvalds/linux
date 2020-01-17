@@ -195,15 +195,15 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
  * !present ptes.  We need to start storing swap entries above
  * there.  We also need to avoid using A and D because of an
  * erratum where they can be incorrectly set by hardware on
- * non-present PTEs.
+ * yesn-present PTEs.
  *
  * SD (1) in swp entry is used to store soft dirty bit, which helps us
  * remember soft dirty over page migration
  *
- * Bit 7 in swp entry should be 0 because pmd_present checks not only P,
+ * Bit 7 in swp entry should be 0 because pmd_present checks yest only P,
  * but also L and G.
  *
- * The offset is inverted by a binary not operation to make the high
+ * The offset is inverted by a binary yest operation to make the high
  * physical bits set.
  */
 #define SWP_TYPE_BITS		5
@@ -223,7 +223,7 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
 
 /*
  * Shift the offset up "too far" by TYPE bits, then down again
- * The offset is inverted by a binary not operation to make the high
+ * The offset is inverted by a binary yest operation to make the high
  * physical bits set.
  */
 #define __swp_entry(type, offset) ((swp_entry_t) { \

@@ -13,7 +13,7 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <sys/ucontext.h>
-#include <errno.h>
+#include <erryes.h>
 #include <err.h>
 #include <sched.h>
 #include <stdbool.h>
@@ -107,7 +107,7 @@ static int init_vsys(void)
 
 	maps = fopen("/proc/self/maps", "r");
 	if (!maps) {
-		printf("[WARN]\tCould not open /proc/self/maps -- assuming vsyscall is r-x\n");
+		printf("[WARN]\tCould yest open /proc/self/maps -- assuming vsyscall is r-x\n");
 		vsyscall_map_r = true;
 		return 0;
 	}
@@ -129,7 +129,7 @@ static int init_vsys(void)
 
 		if (start != (void *)0xffffffffff600000 ||
 		    end != (void *)0xffffffffff601000) {
-			printf("[FAIL]\taddress range is nonsense\n");
+			printf("[FAIL]\taddress range is yesnsense\n");
 			nerrs++;
 		}
 
@@ -144,7 +144,7 @@ static int init_vsys(void)
 	fclose(maps);
 
 	if (!found) {
-		printf("\tno vsyscall map in /proc/self/maps\n");
+		printf("\tyes vsyscall map in /proc/self/maps\n");
 		vsyscall_map_r = false;
 		vsyscall_map_x = false;
 	}
@@ -171,10 +171,10 @@ static inline long sys_time(time_t *t)
 	return syscall(SYS_time, t);
 }
 
-static inline long sys_getcpu(unsigned * cpu, unsigned * node,
+static inline long sys_getcpu(unsigned * cpu, unsigned * yesde,
 			      void* cache)
 {
-	return syscall(SYS_getcpu, cpu, node, cache);
+	return syscall(SYS_getcpu, cpu, yesde, cache);
 }
 
 static jmp_buf jmpbuf;
@@ -323,14 +323,14 @@ static int test_getcpu(int cpu)
 		return nerrs;
 	}
 
-	unsigned cpu_sys, cpu_vdso, cpu_vsys, node_sys, node_vdso, node_vsys;
-	unsigned node = 0;
-	bool have_node = false;
-	ret_sys = sys_getcpu(&cpu_sys, &node_sys, 0);
+	unsigned cpu_sys, cpu_vdso, cpu_vsys, yesde_sys, yesde_vdso, yesde_vsys;
+	unsigned yesde = 0;
+	bool have_yesde = false;
+	ret_sys = sys_getcpu(&cpu_sys, &yesde_sys, 0);
 	if (vdso_getcpu)
-		ret_vdso = vdso_getcpu(&cpu_vdso, &node_vdso, 0);
+		ret_vdso = vdso_getcpu(&cpu_vdso, &yesde_vdso, 0);
 	if (vsyscall_map_x)
-		ret_vsys = vgetcpu(&cpu_vsys, &node_vsys, 0);
+		ret_vsys = vgetcpu(&cpu_vsys, &yesde_vsys, 0);
 
 	if (ret_sys == 0) {
 		if (cpu_sys != cpu) {
@@ -338,8 +338,8 @@ static int test_getcpu(int cpu)
 			nerrs++;
 		}
 
-		have_node = true;
-		node = node_sys;
+		have_yesde = true;
+		yesde = yesde_sys;
 	}
 
 	if (vdso_getcpu) {
@@ -347,9 +347,9 @@ static int test_getcpu(int cpu)
 			printf("[FAIL]\tvDSO getcpu() failed\n");
 			nerrs++;
 		} else {
-			if (!have_node) {
-				have_node = true;
-				node = node_vdso;
+			if (!have_yesde) {
+				have_yesde = true;
+				yesde = yesde_vdso;
 			}
 
 			if (cpu_vdso != cpu) {
@@ -359,11 +359,11 @@ static int test_getcpu(int cpu)
 				printf("[OK]\tvDSO reported correct CPU\n");
 			}
 
-			if (node_vdso != node) {
-				printf("[FAIL]\tvDSO reported node %hu but should be %hu\n", node_vdso, node);
+			if (yesde_vdso != yesde) {
+				printf("[FAIL]\tvDSO reported yesde %hu but should be %hu\n", yesde_vdso, yesde);
 				nerrs++;
 			} else {
-				printf("[OK]\tvDSO reported correct node\n");
+				printf("[OK]\tvDSO reported correct yesde\n");
 			}
 		}
 	}
@@ -373,9 +373,9 @@ static int test_getcpu(int cpu)
 			printf("[FAIL]\tvsyscall getcpu() failed\n");
 			nerrs++;
 		} else {
-			if (!have_node) {
-				have_node = true;
-				node = node_vsys;
+			if (!have_yesde) {
+				have_yesde = true;
+				yesde = yesde_vsys;
 			}
 
 			if (cpu_vsys != cpu) {
@@ -385,11 +385,11 @@ static int test_getcpu(int cpu)
 				printf("[OK]\tvsyscall reported correct CPU\n");
 			}
 
-			if (node_vsys != node) {
-				printf("[FAIL]\tvsyscall reported node %hu but should be %hu\n", node_vsys, node);
+			if (yesde_vsys != yesde) {
+				printf("[FAIL]\tvsyscall reported yesde %hu but should be %hu\n", yesde_vsys, yesde);
 				nerrs++;
 			} else {
-				printf("[OK]\tvsyscall reported correct node\n");
+				printf("[OK]\tvsyscall reported correct yesde\n");
 			}
 		}
 	}
@@ -418,7 +418,7 @@ static int test_vsys_r(void)
 	} else if (can_read) {
 		printf("[OK]\tWe have read access\n");
 	} else {
-		printf("[OK]\tWe do not have read access: #PF(0x%lx)\n",
+		printf("[OK]\tWe do yest have read access: #PF(0x%lx)\n",
 		       segv_err);
 	}
 #endif
@@ -445,7 +445,7 @@ static int test_vsys_x(void)
 	}
 
 	if (can_exec) {
-		printf("[FAIL]\tExecuting the vsyscall did not page fault\n");
+		printf("[FAIL]\tExecuting the vsyscall did yest page fault\n");
 		return 1;
 	} else if (segv_err & (1 << 4)) { /* INSTR */
 		printf("[OK]\tExecuting the vsyscall page failed: #PF(0x%lx)\n",
@@ -475,7 +475,7 @@ static int test_process_vm_readv(void)
 	remote.iov_len = 4096;
 	ret = process_vm_readv(getpid(), &local, 1, &remote, 1, 0);
 	if (ret != 4096) {
-		printf("[OK]\tprocess_vm_readv() failed (ret = %d, errno = %d)\n", ret, errno);
+		printf("[OK]\tprocess_vm_readv() failed (ret = %d, erryes = %d)\n", ret, erryes);
 		return 0;
 	}
 

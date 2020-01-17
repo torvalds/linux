@@ -6,7 +6,7 @@ struct reboot_mode_driver {
 	struct device *dev;
 	struct list_head head;
 	int (*write)(struct reboot_mode_driver *reboot, unsigned int magic);
-	struct notifier_block reboot_notifier;
+	struct yestifier_block reboot_yestifier;
 };
 
 int reboot_mode_register(struct reboot_mode_driver *reboot);

@@ -27,21 +27,21 @@ static inline block_t *block_end(struct buffer_head *bh)
 	return (block_t *)((char*)bh->b_data + bh->b_size);
 }
 
-static inline Indirect *get_branch(struct inode *inode,
+static inline Indirect *get_branch(struct iyesde *iyesde,
 					int depth,
 					int *offsets,
 					Indirect chain[DEPTH],
 					int *err)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	Indirect *p = chain;
 	struct buffer_head *bh;
 
 	*err = 0;
-	/* i_data is not going away, no lock needed */
-	add_chain (chain, NULL, i_data(inode) + *offsets);
+	/* i_data is yest going away, yes lock needed */
+	add_chain (chain, NULL, i_data(iyesde) + *offsets);
 	if (!p->key)
-		goto no_block;
+		goto yes_block;
 	while (--depth) {
 		bh = sb_bread(sb, block_to_cpu(p->key));
 		if (!bh)
@@ -52,7 +52,7 @@ static inline Indirect *get_branch(struct inode *inode,
 		add_chain(++p, bh, (block_t *)bh->b_data + *++offsets);
 		read_unlock(&pointers_lock);
 		if (!p->key)
-			goto no_block;
+			goto yes_block;
 	}
 	return NULL;
 
@@ -60,31 +60,31 @@ changed:
 	read_unlock(&pointers_lock);
 	brelse(bh);
 	*err = -EAGAIN;
-	goto no_block;
+	goto yes_block;
 failure:
 	*err = -EIO;
-no_block:
+yes_block:
 	return p;
 }
 
-static int alloc_branch(struct inode *inode,
+static int alloc_branch(struct iyesde *iyesde,
 			     int num,
 			     int *offsets,
 			     Indirect *branch)
 {
 	int n = 0;
 	int i;
-	int parent = minix_new_block(inode);
+	int parent = minix_new_block(iyesde);
 
 	branch[0].key = cpu_to_block(parent);
 	if (parent) for (n = 1; n < num; n++) {
 		struct buffer_head *bh;
 		/* Allocate the next block */
-		int nr = minix_new_block(inode);
+		int nr = minix_new_block(iyesde);
 		if (!nr)
 			break;
 		branch[n].key = cpu_to_block(nr);
-		bh = sb_getblk(inode->i_sb, parent);
+		bh = sb_getblk(iyesde->i_sb, parent);
 		lock_buffer(bh);
 		memset(bh->b_data, 0, bh->b_size);
 		branch[n].bh = bh;
@@ -92,7 +92,7 @@ static int alloc_branch(struct inode *inode,
 		*branch[n].p = branch[n].key;
 		set_buffer_uptodate(bh);
 		unlock_buffer(bh);
-		mark_buffer_dirty_inode(bh, inode);
+		mark_buffer_dirty_iyesde(bh, iyesde);
 		parent = nr;
 	}
 	if (n == num)
@@ -102,11 +102,11 @@ static int alloc_branch(struct inode *inode,
 	for (i = 1; i < n; i++)
 		bforget(branch[i].bh);
 	for (i = 0; i < n; i++)
-		minix_free_block(inode, block_to_cpu(branch[i].key));
+		minix_free_block(iyesde, block_to_cpu(branch[i].key));
 	return -ENOSPC;
 }
 
-static inline int splice_branch(struct inode *inode,
+static inline int splice_branch(struct iyesde *iyesde,
 				     Indirect chain[DEPTH],
 				     Indirect *where,
 				     int num)
@@ -123,15 +123,15 @@ static inline int splice_branch(struct inode *inode,
 
 	write_unlock(&pointers_lock);
 
-	/* We are done with atomic stuff, now do the rest of housekeeping */
+	/* We are done with atomic stuff, yesw do the rest of housekeeping */
 
-	inode->i_ctime = current_time(inode);
+	iyesde->i_ctime = current_time(iyesde);
 
 	/* had we spliced it onto indirect block? */
 	if (where->bh)
-		mark_buffer_dirty_inode(where->bh, inode);
+		mark_buffer_dirty_iyesde(where->bh, iyesde);
 
-	mark_inode_dirty(inode);
+	mark_iyesde_dirty(iyesde);
 	return 0;
 
 changed:
@@ -139,11 +139,11 @@ changed:
 	for (i = 1; i < num; i++)
 		bforget(where[i].bh);
 	for (i = 0; i < num; i++)
-		minix_free_block(inode, block_to_cpu(where[i].key));
+		minix_free_block(iyesde, block_to_cpu(where[i].key));
 	return -EAGAIN;
 }
 
-static int get_block(struct inode * inode, sector_t block,
+static int get_block(struct iyesde * iyesde, sector_t block,
 			struct buffer_head *bh, int create)
 {
 	int err = -EIO;
@@ -151,18 +151,18 @@ static int get_block(struct inode * inode, sector_t block,
 	Indirect chain[DEPTH];
 	Indirect *partial;
 	int left;
-	int depth = block_to_path(inode, block, offsets);
+	int depth = block_to_path(iyesde, block, offsets);
 
 	if (depth == 0)
 		goto out;
 
 reread:
-	partial = get_branch(inode, depth, offsets, chain, &err);
+	partial = get_branch(iyesde, depth, offsets, chain, &err);
 
-	/* Simplest case - block found, no allocation needed */
+	/* Simplest case - block found, yes allocation needed */
 	if (!partial) {
 got_it:
-		map_bh(bh, inode->i_sb, block_to_cpu(chain[depth-1].key));
+		map_bh(bh, iyesde->i_sb, block_to_cpu(chain[depth-1].key));
 		/* Clean up and exit */
 		partial = chain+depth-1; /* the whole chain */
 		goto cleanup;
@@ -188,11 +188,11 @@ out:
 		goto changed;
 
 	left = (chain + depth) - partial;
-	err = alloc_branch(inode, left, offsets+(partial-chain), partial);
+	err = alloc_branch(iyesde, left, offsets+(partial-chain), partial);
 	if (err)
 		goto cleanup;
 
-	if (splice_branch(inode, chain, partial, left) < 0)
+	if (splice_branch(iyesde, chain, partial, left) < 0)
 		goto changed;
 
 	set_buffer_new(bh);
@@ -214,7 +214,7 @@ static inline int all_zeroes(block_t *p, block_t *q)
 	return 1;
 }
 
-static Indirect *find_shared(struct inode *inode,
+static Indirect *find_shared(struct iyesde *iyesde,
 				int depth,
 				int offsets[DEPTH],
 				Indirect chain[DEPTH],
@@ -226,14 +226,14 @@ static Indirect *find_shared(struct inode *inode,
 	*top = 0;
 	for (k = depth; k > 1 && !offsets[k-1]; k--)
 		;
-	partial = get_branch(inode, k, offsets, chain, &err);
+	partial = get_branch(iyesde, k, offsets, chain, &err);
 
 	write_lock(&pointers_lock);
 	if (!partial)
 		partial = chain + k-1;
 	if (!partial->key && *partial->p) {
 		write_unlock(&pointers_lock);
-		goto no_top;
+		goto yes_top;
 	}
 	for (p=partial;p>chain && all_zeroes((block_t*)p->bh->b_data,p->p);p--)
 		;
@@ -250,11 +250,11 @@ static Indirect *find_shared(struct inode *inode,
 		brelse(partial->bh);
 		partial--;
 	}
-no_top:
+yes_top:
 	return partial;
 }
 
-static inline void free_data(struct inode *inode, block_t *p, block_t *q)
+static inline void free_data(struct iyesde *iyesde, block_t *p, block_t *q)
 {
 	unsigned long nr;
 
@@ -262,12 +262,12 @@ static inline void free_data(struct inode *inode, block_t *p, block_t *q)
 		nr = block_to_cpu(*p);
 		if (nr) {
 			*p = 0;
-			minix_free_block(inode, nr);
+			minix_free_block(iyesde, nr);
 		}
 	}
 }
 
-static void free_branches(struct inode *inode, block_t *p, block_t *q, int depth)
+static void free_branches(struct iyesde *iyesde, block_t *p, block_t *q, int depth)
 {
 	struct buffer_head * bh;
 	unsigned long nr;
@@ -278,23 +278,23 @@ static void free_branches(struct inode *inode, block_t *p, block_t *q, int depth
 			if (!nr)
 				continue;
 			*p = 0;
-			bh = sb_bread(inode->i_sb, nr);
+			bh = sb_bread(iyesde->i_sb, nr);
 			if (!bh)
 				continue;
-			free_branches(inode, (block_t*)bh->b_data,
+			free_branches(iyesde, (block_t*)bh->b_data,
 				      block_end(bh), depth);
 			bforget(bh);
-			minix_free_block(inode, nr);
-			mark_inode_dirty(inode);
+			minix_free_block(iyesde, nr);
+			mark_iyesde_dirty(iyesde);
 		}
 	} else
-		free_data(inode, p, q);
+		free_data(iyesde, p, q);
 }
 
-static inline void truncate (struct inode * inode)
+static inline void truncate (struct iyesde * iyesde)
 {
-	struct super_block *sb = inode->i_sb;
-	block_t *idata = i_data(inode);
+	struct super_block *sb = iyesde->i_sb;
+	block_t *idata = i_data(iyesde);
 	int offsets[DEPTH];
 	Indirect chain[DEPTH];
 	Indirect *partial;
@@ -303,33 +303,33 @@ static inline void truncate (struct inode * inode)
 	int first_whole;
 	long iblock;
 
-	iblock = (inode->i_size + sb->s_blocksize -1) >> sb->s_blocksize_bits;
-	block_truncate_page(inode->i_mapping, inode->i_size, get_block);
+	iblock = (iyesde->i_size + sb->s_blocksize -1) >> sb->s_blocksize_bits;
+	block_truncate_page(iyesde->i_mapping, iyesde->i_size, get_block);
 
-	n = block_to_path(inode, iblock, offsets);
+	n = block_to_path(iyesde, iblock, offsets);
 	if (!n)
 		return;
 
 	if (n == 1) {
-		free_data(inode, idata+offsets[0], idata + DIRECT);
+		free_data(iyesde, idata+offsets[0], idata + DIRECT);
 		first_whole = 0;
 		goto do_indirects;
 	}
 
 	first_whole = offsets[0] + 1 - DIRECT;
-	partial = find_shared(inode, n, offsets, chain, &nr);
+	partial = find_shared(iyesde, n, offsets, chain, &nr);
 	if (nr) {
 		if (partial == chain)
-			mark_inode_dirty(inode);
+			mark_iyesde_dirty(iyesde);
 		else
-			mark_buffer_dirty_inode(partial->bh, inode);
-		free_branches(inode, &nr, &nr+1, (chain+n-1) - partial);
+			mark_buffer_dirty_iyesde(partial->bh, iyesde);
+		free_branches(iyesde, &nr, &nr+1, (chain+n-1) - partial);
 	}
 	/* Clear the ends of indirect blocks on the shared branch */
 	while (partial > chain) {
-		free_branches(inode, partial->p + 1, block_end(partial->bh),
+		free_branches(iyesde, partial->p + 1, block_end(partial->bh),
 				(chain+n-1) - partial);
-		mark_buffer_dirty_inode(partial->bh, inode);
+		mark_buffer_dirty_iyesde(partial->bh, iyesde);
 		brelse (partial->bh);
 		partial--;
 	}
@@ -339,13 +339,13 @@ do_indirects:
 		nr = idata[DIRECT+first_whole];
 		if (nr) {
 			idata[DIRECT+first_whole] = 0;
-			mark_inode_dirty(inode);
-			free_branches(inode, &nr, &nr+1, first_whole+1);
+			mark_iyesde_dirty(iyesde);
+			free_branches(iyesde, &nr, &nr+1, first_whole+1);
 		}
 		first_whole++;
 	}
-	inode->i_mtime = inode->i_ctime = current_time(inode);
-	mark_inode_dirty(inode);
+	iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
+	mark_iyesde_dirty(iyesde);
 }
 
 static inline unsigned nblocks(loff_t size, struct super_block *sb)

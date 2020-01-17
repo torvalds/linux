@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_VSOCKMON_H
 #define _UAPI_VSOCKMON_H
 
@@ -21,14 +21,14 @@
  *
  * The vsockmon header is a transport-independent description of the packet.
  * It duplicates some of the information from the transport header so that
- * no transport-specific knowledge is necessary to process packets.
+ * yes transport-specific kyeswledge is necessary to process packets.
  *
  * The transport header is useful for low-level transport-specific packet
  * analysis.  Transport type is given in af_vsockmon_hdr->transport and
  * transport header length is given in af_vsockmon_hdr->len.
  *
  * If af_vsockmon_hdr->op is AF_VSOCK_OP_PAYLOAD then the payload follows the
- * transport header.  Other ops do not have a payload.
+ * transport header.  Other ops do yest have a payload.
  */
 
 struct af_vsockmon_hdr {

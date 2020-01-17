@@ -46,11 +46,11 @@ static void reserve_range(struct pnp_dev *dev, struct resource *r, int port)
 
 	/*
 	 * Failures at this point are usually harmless. pci quirks for
-	 * example do reserve stuff they know about too, so we may well
+	 * example do reserve stuff they kyesw about too, so we may well
 	 * have double reservations.
 	 */
 	dev_info(&dev->dev, "%pR %s reserved\n", r,
-		 res ? "has been" : "could not be");
+		 res ? "has been" : "could yest be");
 }
 
 static void reserve_resources_of_dev(struct pnp_dev *dev)
@@ -67,10 +67,10 @@ static void reserve_resources_of_dev(struct pnp_dev *dev)
 			/*
 			 * Below 0x100 is only standard PC hardware
 			 * (pics, kbd, timer, dma, ...)
-			 * We should not get resource conflicts there,
+			 * We should yest get resource conflicts there,
 			 * and the kernel reserves these anyway
 			 * (see arch/i386/kernel/setup.c).
-			 * So, do nothing
+			 * So, do yesthing
 			 */
 			continue;
 		if (res->end < res->start)

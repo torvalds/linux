@@ -597,7 +597,7 @@ static int arizona_runtime_resume(struct device *dev)
 		} else {
 			/*
 			 * As this is only called for the internal regulator
-			 * (where we know voltage ranges available) it is ok
+			 * (where we kyesw voltage ranges available) it is ok
 			 * to request an exact range.
 			 */
 			ret = regulator_set_voltage(arizona->dcvdd,
@@ -673,7 +673,7 @@ static int arizona_runtime_suspend(struct device *dev)
 		} else {
 			/*
 			 * As this is only called for the internal regulator
-			 * (where we know voltage ranges available) it is ok
+			 * (where we kyesw voltage ranges available) it is ok
 			 * to request an exact range.
 			 */
 			ret = regulator_set_voltage(arizona->dcvdd,
@@ -728,13 +728,13 @@ static int arizona_runtime_suspend(struct device *dev)
 	regcache_mark_dirty(arizona->regmap);
 	regulator_disable(arizona->dcvdd);
 
-	/* Allow us to completely power down if no jack detection */
+	/* Allow us to completely power down if yes jack detection */
 	if (!jd_active) {
 		dev_dbg(arizona->dev, "Fully powering off\n");
 
 		arizona->has_fully_powered_off = true;
 
-		disable_irq_nosync(arizona->irq);
+		disable_irq_yessync(arizona->irq);
 		arizona_enable_reset(arizona);
 		regulator_bulk_disable(arizona->num_core_supplies,
 				       arizona->core_supplies);
@@ -755,7 +755,7 @@ static int arizona_suspend(struct device *dev)
 	return 0;
 }
 
-static int arizona_suspend_noirq(struct device *dev)
+static int arizona_suspend_yesirq(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
 
@@ -765,7 +765,7 @@ static int arizona_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int arizona_resume_noirq(struct device *dev)
+static int arizona_resume_yesirq(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
 
@@ -791,8 +791,8 @@ const struct dev_pm_ops arizona_pm_ops = {
 			   arizona_runtime_resume,
 			   NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(arizona_suspend, arizona_resume)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(arizona_suspend_noirq,
-				      arizona_resume_noirq)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(arizona_suspend_yesirq,
+				      arizona_resume_yesirq)
 };
 EXPORT_SYMBOL_GPL(arizona_pm_ops);
 
@@ -813,7 +813,7 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 	struct arizona_pdata *pdata = &arizona->pdata;
 	int ret, i;
 
-	/* Handle old non-standard DT binding */
+	/* Handle old yesn-standard DT binding */
 	pdata->reset = devm_gpiod_get(arizona->dev, "wlf,reset", GPIOD_OUT_LOW);
 	if (IS_ERR(pdata->reset)) {
 		ret = PTR_ERR(pdata->reset);
@@ -832,7 +832,7 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 		pdata->reset = NULL;
 	}
 
-	ret = of_property_read_u32_array(arizona->dev->of_node,
+	ret = of_property_read_u32_array(arizona->dev->of_yesde,
 					 "wlf,gpio-defaults",
 					 pdata->gpio_defaults,
 					 ARRAY_SIZE(pdata->gpio_defaults));
@@ -1030,7 +1030,7 @@ int arizona_dev_init(struct arizona *arizona)
 		arizona->num_core_supplies = ARRAY_SIZE(wm5102_core_supplies);
 		break;
 	default:
-		dev_err(arizona->dev, "Unknown device type %d\n",
+		dev_err(arizona->dev, "Unkyeswn device type %d\n",
 			arizona->type);
 		return -ENODEV;
 	}
@@ -1107,7 +1107,7 @@ int arizona_dev_init(struct arizona *arizona)
 
 	regcache_cache_only(arizona->regmap, false);
 
-	/* Verify that this is a chip we know about */
+	/* Verify that this is a chip we kyesw about */
 	ret = regmap_read(arizona->regmap, ARIZONA_SOFTWARE_RESET, &reg);
 	if (ret != 0) {
 		dev_err(dev, "Failed to read ID register: %d\n", ret);
@@ -1122,7 +1122,7 @@ int arizona_dev_init(struct arizona *arizona)
 	case 0x8997:
 		break;
 	default:
-		dev_err(arizona->dev, "Unknown device ID: %x\n", reg);
+		dev_err(arizona->dev, "Unkyeswn device ID: %x\n", reg);
 		ret = -ENODEV;
 		goto err_reset;
 	}
@@ -1282,7 +1282,7 @@ int arizona_dev_init(struct arizona *arizona)
 		}
 		break;
 	default:
-		dev_err(arizona->dev, "Unknown device ID %x\n", reg);
+		dev_err(arizona->dev, "Unkyeswn device ID %x\n", reg);
 		ret = -ENODEV;
 		goto err_reset;
 	}

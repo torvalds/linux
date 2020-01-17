@@ -34,8 +34,8 @@
 
 /* An active session for the subscriber. */
 struct pdp_ctx {
-	struct hlist_node	hlist_tid;
-	struct hlist_node	hlist_addr;
+	struct hlist_yesde	hlist_tid;
+	struct hlist_yesde	hlist_addr;
 
 	union {
 		struct {
@@ -269,7 +269,7 @@ static int gtp1u_udp_encap_recv(struct gtp_dev *gtp, struct sk_buff *skb)
 	if (gtp1->flags & GTP1_F_MASK)
 		hdrlen += 4;
 
-	/* Make sure the header is larger enough, including extensions. */
+	/* Make sure the header is larger eyesugh, including extensions. */
 	if (!pskb_may_pull(skb, hdrlen))
 		return -1;
 
@@ -408,7 +408,7 @@ static inline void gtp0_push_header(struct sk_buff *skb, struct pdp_ctx *pctx)
 
 	gtp0 = skb_push(skb, sizeof(*gtp0));
 
-	gtp0->flags	= 0x1e; /* v0, GTP-non-prime. */
+	gtp0->flags	= 0x1e; /* v0, GTP-yesn-prime. */
 	gtp0->type	= GTP_TPDU;
 	gtp0->length	= htons(payload_len);
 	gtp0->seq	= htons((atomic_inc_return(&pctx->tx_seq) - 1) % 0xffff);
@@ -431,7 +431,7 @@ static inline void gtp1_push_header(struct sk_buff *skb, struct pdp_ctx *pctx)
 	 *	  +--+--+--+--+--+--+--+--+
 	 *	    0  0  1  1	1  0  0  0
 	 */
-	gtp1->flags	= 0x30; /* v1, GTP-non-prime. */
+	gtp1->flags	= 0x30; /* v1, GTP-yesn-prime. */
 	gtp1->type	= GTP_TPDU;
 	gtp1->length	= htons(payload_len);
 	gtp1->tid	= htonl(pctx->u.v1.o_tei);
@@ -500,7 +500,7 @@ static int gtp_build_skb_ip4(struct sk_buff *skb, struct net_device *dev,
 		pctx = ipv4_pdp_find(gtp, iph->daddr);
 
 	if (!pctx) {
-		netdev_dbg(dev, "no PDP ctx found for %pI4, skip\n",
+		netdev_dbg(dev, "yes PDP ctx found for %pI4, skip\n",
 			   &iph->daddr);
 		return -ENOENT;
 	}
@@ -508,7 +508,7 @@ static int gtp_build_skb_ip4(struct sk_buff *skb, struct net_device *dev,
 
 	rt = ip4_route_output_gtp(&fl4, pctx->sk, pctx->peer_addr_ip4.s_addr);
 	if (IS_ERR(rt)) {
-		netdev_dbg(dev, "no route to SSGN %pI4\n",
+		netdev_dbg(dev, "yes route to SSGN %pI4\n",
 			   &pctx->peer_addr_ip4.s_addr);
 		dev->stats.tx_carrier_errors++;
 		goto err;
@@ -800,12 +800,12 @@ static struct sock *gtp_encap_enable_socket(int fd, int type,
 
 	sock = sockfd_lookup(fd, &err);
 	if (!sock) {
-		pr_debug("gtp socket fd=%d not found\n", fd);
+		pr_debug("gtp socket fd=%d yest found\n", fd);
 		return NULL;
 	}
 
 	if (sock->sk->sk_protocol != IPPROTO_UDP) {
-		pr_debug("socket fd=%d not UDP\n", fd);
+		pr_debug("socket fd=%d yest UDP\n", fd);
 		sk = ERR_PTR(-EINVAL);
 		goto out_sock;
 	}
@@ -915,7 +915,7 @@ static void ipv4_pdp_fill(struct pdp_ctx *pctx, struct genl_info *info)
 	case GTP_V0:
 		/* According to TS 09.60, sections 7.5.1 and 7.5.2, the flow
 		 * label needs to be the same for uplink and downlink packets,
-		 * so let's annotate this.
+		 * so let's anyestate this.
 		 */
 		pctx->u.v0.tid = nla_get_u64(info->attrs[GTPA_TID]);
 		pctx->u.v0.flow = nla_get_u16(info->attrs[GTPA_FLOW]);
@@ -992,7 +992,7 @@ static int gtp_pdp_add(struct gtp_dev *gtp, struct sock *sk,
 	switch (pctx->gtp_version) {
 	case GTP_V0:
 		/* TS 09.60: "The flow label identifies unambiguously a GTP
-		 * flow.". We use the tid for this instead, I cannot find a
+		 * flow.". We use the tid for this instead, I canyest find a
 		 * situation in which this doesn't unambiguosly identify the
 		 * PDP context.
 		 */

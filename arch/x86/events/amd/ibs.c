@@ -46,16 +46,16 @@ static u32 ibs_caps;
  * NMI handled (this is fundamentally racy in the face or multiple NMI sources,
  * someone else can consume our BIT and our NMI will go unhandled).
  *
- * And since we cannot set/clear this separate bit together with the EN bit,
+ * And since we canyest set/clear this separate bit together with the EN bit,
  * there are races; if we cleared STARTED early, an NMI could land in
  * between clearing STARTED and clearing the EN bit (in fact multiple NMIs
- * could happen if the period is small enough), and consume our STOPPED bit
+ * could happen if the period is small eyesugh), and consume our STOPPED bit
  * and trigger streams of unhandled NMIs.
  *
  * If, however, we clear STARTED late, an NMI can hit between clearing the
  * EN bit and clearing STARTED, still see STARTED set and process the event.
  * If this event will have the VALID bit clear, we bail properly, but this
- * is not a given. With VALID set we can end up calling pmu::stop() again
+ * is yest a given. With VALID set we can end up calling pmu::stop() again
  * (the throttle logic) and trigger the WARNs in there.
  *
  * So what we do is set STOPPING before clearing EN to avoid the pmu::stop()
@@ -172,10 +172,10 @@ perf_event_try_update(struct perf_event *event, u64 new_raw_count, int width)
 
 	/*
 	 * Now we have the new raw value and have updated the prev
-	 * timestamp already. We can now calculate the elapsed delta
+	 * timestamp already. We can yesw calculate the elapsed delta
 	 * (event-)time and add that to the generic event.
 	 *
-	 * Careful, not all hw sign-extends above the physical width
+	 * Careful, yest all hw sign-extends above the physical width
 	 * of the count.
 	 */
 	delta = (new_raw_count << shift) - (prev_raw_count << shift);
@@ -212,7 +212,7 @@ static struct perf_ibs *get_ibs_pmu(int type)
  *
  * The rip of IBS samples has skid 0. Thus, IBS supports precise
  * levels 1 and 2 and the PERF_EFLAGS_EXACT is set. In rare cases the
- * rip is invalid when IBS was not able to record the rip correctly.
+ * rip is invalid when IBS was yest able to record the rip correctly.
  * We clear PERF_EFLAGS_EXACT and take the rip from pt_regs then.
  *
  */
@@ -278,11 +278,11 @@ static int perf_ibs_init(struct perf_event *event)
 
 	if (hwc->sample_period) {
 		if (config & perf_ibs->cnt_mask)
-			/* raw max_cnt may not be set */
+			/* raw max_cnt may yest be set */
 			return -EINVAL;
 		if (!event->attr.sample_freq && hwc->sample_period & 0x0f)
 			/*
-			 * lower 4 bits can not be set in ibs max cnt,
+			 * lower 4 bits can yest be set in ibs max cnt,
 			 * but allowing it in case we adjust the
 			 * sample period to set a frequency.
 			 */
@@ -318,7 +318,7 @@ static int perf_ibs_set_period(struct perf_ibs *perf_ibs,
 {
 	int overflow;
 
-	/* ignore lower 4 bits in min count: */
+	/* igyesre lower 4 bits in min count: */
 	overflow = perf_event_set_period(hwc, 1<<4, perf_ibs->max_period, period);
 	local64_set(&hwc->prev_count, 0);
 
@@ -350,7 +350,7 @@ perf_ibs_event_update(struct perf_ibs *perf_ibs, struct perf_event *event,
 	u64 count = perf_ibs->get_count(*config);
 
 	/*
-	 * Set width to 64 since we do not overflow on max width but
+	 * Set width to 64 since we do yest overflow on max width but
 	 * instead on max count. In perf_ibs_set_period() we clear
 	 * prev count manually on overflow.
 	 */
@@ -368,7 +368,7 @@ static inline void perf_ibs_enable_event(struct perf_ibs *perf_ibs,
 
 /*
  * Erratum #420 Instruction-Based Sampling Engine May Generate
- * Interrupt that Cannot Be Cleared:
+ * Interrupt that Canyest Be Cleared:
  *
  * Must clear counter mask first, then clear the enable bit. See
  * Revision Guide for AMD Family 10h Processors, Publication #41322.
@@ -384,9 +384,9 @@ static inline void perf_ibs_disable_event(struct perf_ibs *perf_ibs,
 }
 
 /*
- * We cannot restore the ibs pmu state, so we always needs to update
+ * We canyest restore the ibs pmu state, so we always needs to update
  * the event while stopping it and then reset the state when starting
- * again. Thus, ignoring PERF_EF_RELOAD and PERF_EF_UPDATE flags in
+ * again. Thus, igyesring PERF_EF_RELOAD and PERF_EF_UPDATE flags in
  * perf_ibs_start()/perf_ibs_stop() and instead always do it.
  */
 static void perf_ibs_start(struct perf_event *event, int flags)
@@ -444,11 +444,11 @@ static void perf_ibs_stop(struct perf_event *event, int flags)
 		/*
 		 * Clear STARTED after disabling the hardware; if it were
 		 * cleared before an NMI hitting after the clear but before
-		 * clearing the EN bit might think it a spurious NMI and not
+		 * clearing the EN bit might think it a spurious NMI and yest
 		 * handle it.
 		 *
 		 * Clearing it after, however, creates the problem of the NMI
-		 * handler seeing STARTED but not having a valid sample.
+		 * handler seeing STARTED but yest having a valid sample.
 		 */
 		clear_bit(IBS_STARTED, pcpu->state);
 		WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
@@ -459,7 +459,7 @@ static void perf_ibs_stop(struct perf_event *event, int flags)
 		return;
 
 	/*
-	 * Clear valid bit to not count rollovers on update, rollovers
+	 * Clear valid bit to yest count rollovers on update, rollovers
 	 * are only updated in the irq handler.
 	 */
 	config &= ~perf_ibs->valid_mask;
@@ -607,7 +607,7 @@ fail:
 	perf_ibs_event_update(perf_ibs, event, config);
 	perf_sample_data_init(&data, 0, hwc->last_period);
 	if (!perf_ibs_set_period(perf_ibs, hwc, &period))
-		goto out;	/* no sw counter overflow */
+		goto out;	/* yes sw counter overflow */
 
 	ibs_data.caps = ibs_caps;
 	size = 1;
@@ -768,7 +768,7 @@ static __init u32 __get_ibs_caps(void)
 
 	caps = cpuid_eax(IBS_CPUID_FEATURES);
 	if (!(caps & IBS_CAPS_AVAIL))
-		/* cpuid flags not valid */
+		/* cpuid flags yest valid */
 		return IBS_CAPS_DEFAULT;
 
 	return caps;
@@ -812,7 +812,7 @@ static inline int ibs_eilvt_valid(void)
 	}
 
 	if (!get_eilvt(offset)) {
-		pr_err(FW_BUG "cpu %d, IBS interrupt offset %d not available (MSR%08X=0x%016llx)\n",
+		pr_err(FW_BUG "cpu %d, IBS interrupt offset %d yest available (MSR%08X=0x%016llx)\n",
 		       smp_processor_id(), offset, MSR_AMD64_IBSCTL, val);
 		goto out;
 	}
@@ -827,10 +827,10 @@ out:
 static int setup_ibs_ctl(int ibs_eilvt_off)
 {
 	struct pci_dev *cpu_cfg;
-	int nodes;
+	int yesdes;
 	u32 value = 0;
 
-	nodes = 0;
+	yesdes = 0;
 	cpu_cfg = NULL;
 	do {
 		cpu_cfg = pci_get_device(PCI_VENDOR_ID_AMD,
@@ -838,7 +838,7 @@ static int setup_ibs_ctl(int ibs_eilvt_off)
 					 cpu_cfg);
 		if (!cpu_cfg)
 			break;
-		++nodes;
+		++yesdes;
 		pci_write_config_dword(cpu_cfg, IBSCTL, ibs_eilvt_off
 				       | IBSCTL_LVT_OFFSET_VALID);
 		pci_read_config_dword(cpu_cfg, IBSCTL, &value);
@@ -850,8 +850,8 @@ static int setup_ibs_ctl(int ibs_eilvt_off)
 		}
 	} while (1);
 
-	if (!nodes) {
-		pr_debug("No CPU node configured for IBS\n");
+	if (!yesdes) {
+		pr_debug("No CPU yesde configured for IBS\n");
 		return -ENODEV;
 	}
 
@@ -861,9 +861,9 @@ static int setup_ibs_ctl(int ibs_eilvt_off)
 /*
  * This runs only on the current cpu. We try to find an LVT offset and
  * setup the local APIC. For this we must disable preemption. On
- * success we initialize all nodes with this offset. This updates then
- * the offset in the IBS_CTL per-node msr. The per-core APIC setup of
- * the IBS interrupt vector is handled by perf_ibs_cpu_notifier that
+ * success we initialize all yesdes with this offset. This updates then
+ * the offset in the IBS_CTL per-yesde msr. The per-core APIC setup of
+ * the IBS interrupt vector is handled by perf_ibs_cpu_yestifier that
  * is using the new offset.
  */
 static void force_ibs_eilvt_setup(void)
@@ -905,7 +905,7 @@ static void ibs_eilvt_setup(void)
 {
 	/*
 	 * Force LVT offset assignment for family 10h: The offsets are
-	 * not assigned by the BIOS for this family, so the OS is
+	 * yest assigned by the BIOS for this family, so the OS is
 	 * responsible for doing it. If the OS assignment fails, fall
 	 * back to BIOS settings and try to setup this.
 	 */
@@ -996,7 +996,7 @@ static __init int amd_ibs_init(void)
 
 	caps = __get_ibs_caps();
 	if (!caps)
-		return -ENODEV;	/* ibs not supported by the cpu */
+		return -ENODEV;	/* ibs yest supported by the cpu */
 
 	ibs_eilvt_setup();
 

@@ -150,7 +150,7 @@ static umode_t pwm_fan_attrs_visible(struct kobject *kobj, struct attribute *a,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
 
-	/* Hide fan_input in case no interrupt is available  */
+	/* Hide fan_input in case yes interrupt is available  */
 	if (n == 1 && ctx->irq <= 0)
 		return 0;
 
@@ -208,7 +208,7 @@ pwm_fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
 
 	ret = __set_pwm(ctx, ctx->pwm_fan_cooling_levels[state]);
 	if (ret) {
-		dev_err(&cdev->device, "Cannot set pwm!\n");
+		dev_err(&cdev->device, "Canyest set pwm!\n");
 		return ret;
 	}
 
@@ -226,7 +226,7 @@ static const struct thermal_cooling_device_ops pwm_fan_cooling_ops = {
 static int pwm_fan_of_get_cooling_data(struct device *dev,
 				       struct pwm_fan_ctx *ctx)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int num, i, ret;
 
 	if (!of_find_property(np, "cooling-levels", NULL))
@@ -247,7 +247,7 @@ static int pwm_fan_of_get_cooling_data(struct device *dev,
 	ret = of_property_read_u32_array(np, "cooling-levels",
 					 ctx->pwm_fan_cooling_levels, num);
 	if (ret) {
-		dev_err(dev, "Property 'cooling-levels' cannot be read!\n");
+		dev_err(dev, "Property 'cooling-levels' canyest be read!\n");
 		return ret;
 	}
 
@@ -292,12 +292,12 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 	mutex_init(&ctx->lock);
 
-	ctx->pwm = devm_of_pwm_get(dev, dev->of_node, NULL);
+	ctx->pwm = devm_of_pwm_get(dev, dev->of_yesde, NULL);
 	if (IS_ERR(ctx->pwm)) {
 		ret = PTR_ERR(ctx->pwm);
 
 		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Could not get PWM: %d\n", ret);
+			dev_err(dev, "Could yest get PWM: %d\n", ret);
 
 		return ret;
 	}
@@ -343,7 +343,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	of_property_read_u32(dev->of_node, "pulses-per-revolution", &ppr);
+	of_property_read_u32(dev->of_yesde, "pulses-per-revolution", &ppr);
 	ctx->pulses_per_revolution = ppr;
 	if (!ctx->pulses_per_revolution) {
 		dev_err(dev, "pulses-per-revolution can't be zero.\n");
@@ -375,7 +375,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	ctx->pwm_fan_state = ctx->pwm_fan_max_state;
 	if (IS_ENABLED(CONFIG_THERMAL)) {
 		cdev = devm_thermal_of_cooling_device_register(dev,
-			dev->of_node, "pwm-fan", ctx, &pwm_fan_cooling_ops);
+			dev->of_yesde, "pwm-fan", ctx, &pwm_fan_cooling_ops);
 		if (IS_ERR(cdev)) {
 			ret = PTR_ERR(cdev);
 			dev_err(dev,

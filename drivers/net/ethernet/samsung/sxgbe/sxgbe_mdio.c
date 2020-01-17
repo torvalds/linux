@@ -192,7 +192,7 @@ int sxgbe_mdio_register(struct net_device *ndev)
 			}
 
 			/* If we're  going to bind the MAC to this PHY bus,
-			 * and no PHY number was provided to the MAC,
+			 * and yes PHY number was provided to the MAC,
 			 * use the one probed here.
 			 */
 			if (priv->plat->phy_addr == -1)
@@ -219,7 +219,7 @@ int sxgbe_mdio_register(struct net_device *ndev)
 	}
 
 	if (!phy_found) {
-		netdev_err(ndev, "PHY not found\n");
+		netdev_err(ndev, "PHY yest found\n");
 		goto phyfound_err;
 	}
 

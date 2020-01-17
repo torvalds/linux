@@ -179,7 +179,7 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
  *
  *   Nth_byte starts from 1 for the first byte.
  *   Direction is r for READ or w for WRITE.
- *   bio_flags is ignored if 0.
+ *   bio_flags is igyesred if 0.
  */
 static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
@@ -205,7 +205,7 @@ static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
 	if (!fc) {
-		ti->error = "Cannot allocate context";
+		ti->error = "Canyest allocate context";
 		return -ENOMEM;
 	}
 	fc->start_time = jiffies;
@@ -398,7 +398,7 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio,
 			   !test_bit(ERROR_WRITES, &fc->flags)) {
 			/*
 			 * Error read during the down_interval if drop_writes
-			 * and error_writes were not configured.
+			 * and error_writes were yest configured.
 			 */
 			*error = BLK_STS_IOERR;
 		}
@@ -453,7 +453,7 @@ static int flakey_prepare_ioctl(struct dm_target *ti, struct block_device **bdev
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
 	if (fc->start ||
-	    ti->len != i_size_read((*bdev)->bd_inode) >> SECTOR_SHIFT)
+	    ti->len != i_size_read((*bdev)->bd_iyesde) >> SECTOR_SHIFT)
 		return 1;
 	return 0;
 }

@@ -10,8 +10,8 @@
 struct isp1362_platform_data {
 	/* Enable internal pulldown resistors on downstream ports */
 	unsigned sel15Kres:1;
-	/* Clock cannot be stopped */
-	unsigned clknotstop:1;
+	/* Clock canyest be stopped */
+	unsigned clkyeststop:1;
 	/* On-chip overcurrent protection */
 	unsigned oc_enable:1;
 	/* INT output polarity */
@@ -24,8 +24,8 @@ struct isp1362_platform_data {
 	unsigned dack_act_high:1;
 	/* chip can be resumed via H_WAKEUP pin */
 	unsigned remote_wakeup_connected:1;
-	/* Switch or not to switch (keep always powered) */
-	unsigned no_power_switching:1;
+	/* Switch or yest to switch (keep always powered) */
+	unsigned yes_power_switching:1;
 	/* Ganged port power switching (0) or individual port power switching (1) */
 	unsigned power_switching_mode:1;
 	/* Given port_power, msec/2 after power on till power good */

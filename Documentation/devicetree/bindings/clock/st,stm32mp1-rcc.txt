@@ -14,8 +14,8 @@ binding usage.
 Required properties:
 - compatible: "st,stm32mp1-rcc", "syscon"
 - reg: should be register base and length as documented in the datasheet
-- #clock-cells: 1, device nodes should specify the clock in their
-  "clocks" property, containing a phandle to the clock device node,
+- #clock-cells: 1, device yesdes should specify the clock in their
+  "clocks" property, containing a phandle to the clock device yesde,
   an index specifying the clock to use.
 - #reset-cells: Shall be 1
 - interrupts: Should contain a general interrupt line and a interrupt line
@@ -41,8 +41,8 @@ tree sources.
 Specifying softreset control of devices
 =======================================
 
-Device nodes should specify the reset channel required in their "resets"
-property, containing a phandle to the reset device node and an index specifying
+Device yesdes should specify the reset channel required in their "resets"
+property, containing a phandle to the reset device yesde and an index specifying
 which channel to use.
 The index is the bit number within the RCC registers bank, starting from RCC
 base address.

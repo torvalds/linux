@@ -145,12 +145,12 @@ static void axi_clkgen_calc_params(unsigned long fin, unsigned long fout,
 }
 
 static void axi_clkgen_calc_clk_params(unsigned int divider, unsigned int *low,
-	unsigned int *high, unsigned int *edge, unsigned int *nocount)
+	unsigned int *high, unsigned int *edge, unsigned int *yescount)
 {
 	if (divider == 1)
-		*nocount = 1;
+		*yescount = 1;
 	else
-		*nocount = 0;
+		*yescount = 0;
 
 	*high = divider / 2;
 	*edge = divider % 2;
@@ -169,7 +169,7 @@ static void axi_clkgen_read(struct axi_clkgen *axi_clkgen,
 	*val = readl(axi_clkgen->base + reg);
 }
 
-static int axi_clkgen_wait_non_busy(struct axi_clkgen *axi_clkgen)
+static int axi_clkgen_wait_yesn_busy(struct axi_clkgen *axi_clkgen)
 {
 	unsigned int timeout = 10000;
 	unsigned int val;
@@ -190,7 +190,7 @@ static int axi_clkgen_mmcm_read(struct axi_clkgen *axi_clkgen,
 	unsigned int reg_val;
 	int ret;
 
-	ret = axi_clkgen_wait_non_busy(axi_clkgen);
+	ret = axi_clkgen_wait_yesn_busy(axi_clkgen);
 	if (ret < 0)
 		return ret;
 
@@ -199,7 +199,7 @@ static int axi_clkgen_mmcm_read(struct axi_clkgen *axi_clkgen,
 
 	axi_clkgen_write(axi_clkgen, AXI_CLKGEN_V2_REG_DRP_CNTRL, reg_val);
 
-	ret = axi_clkgen_wait_non_busy(axi_clkgen);
+	ret = axi_clkgen_wait_yesn_busy(axi_clkgen);
 	if (ret < 0)
 		return ret;
 
@@ -214,7 +214,7 @@ static int axi_clkgen_mmcm_write(struct axi_clkgen *axi_clkgen,
 	unsigned int reg_val = 0;
 	int ret;
 
-	ret = axi_clkgen_wait_non_busy(axi_clkgen);
+	ret = axi_clkgen_wait_yesn_busy(axi_clkgen);
 	if (ret < 0)
 		return ret;
 
@@ -251,7 +251,7 @@ static int axi_clkgen_set_rate(struct clk_hw *clk_hw,
 {
 	struct axi_clkgen *axi_clkgen = clk_hw_to_axi_clkgen(clk_hw);
 	unsigned int d, m, dout;
-	unsigned int nocount;
+	unsigned int yescount;
 	unsigned int high;
 	unsigned int edge;
 	unsigned int low;
@@ -269,21 +269,21 @@ static int axi_clkgen_set_rate(struct clk_hw *clk_hw,
 	filter = axi_clkgen_lookup_filter(m - 1);
 	lock = axi_clkgen_lookup_lock(m - 1);
 
-	axi_clkgen_calc_clk_params(dout, &low, &high, &edge, &nocount);
+	axi_clkgen_calc_clk_params(dout, &low, &high, &edge, &yescount);
 	axi_clkgen_mmcm_write(axi_clkgen, MMCM_REG_CLKOUT0_1,
 		(high << 6) | low, 0xefff);
 	axi_clkgen_mmcm_write(axi_clkgen, MMCM_REG_CLKOUT0_2,
-		(edge << 7) | (nocount << 6), 0x03ff);
+		(edge << 7) | (yescount << 6), 0x03ff);
 
-	axi_clkgen_calc_clk_params(d, &low, &high, &edge, &nocount);
+	axi_clkgen_calc_clk_params(d, &low, &high, &edge, &yescount);
 	axi_clkgen_mmcm_write(axi_clkgen, MMCM_REG_CLK_DIV,
-		(edge << 13) | (nocount << 12) | (high << 6) | low, 0x3fff);
+		(edge << 13) | (yescount << 12) | (high << 6) | low, 0x3fff);
 
-	axi_clkgen_calc_clk_params(m, &low, &high, &edge, &nocount);
+	axi_clkgen_calc_clk_params(m, &low, &high, &edge, &yescount);
 	axi_clkgen_mmcm_write(axi_clkgen, MMCM_REG_CLK_FB1,
 		(high << 6) | low, 0xefff);
 	axi_clkgen_mmcm_write(axi_clkgen, MMCM_REG_CLK_FB2,
-		(edge << 7) | (nocount << 6), 0x03ff);
+		(edge << 7) | (yescount << 6), 0x03ff);
 
 	axi_clkgen_mmcm_write(axi_clkgen, MMCM_REG_LOCK1, lock & 0x3ff, 0x3ff);
 	axi_clkgen_mmcm_write(axi_clkgen, MMCM_REG_LOCK2,
@@ -416,10 +416,10 @@ static int axi_clkgen_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
-	id = of_match_node(axi_clkgen_ids, pdev->dev.of_node);
+	id = of_match_yesde(axi_clkgen_ids, pdev->dev.of_yesde);
 	if (!id)
 		return -ENODEV;
 
@@ -432,18 +432,18 @@ static int axi_clkgen_probe(struct platform_device *pdev)
 	if (IS_ERR(axi_clkgen->base))
 		return PTR_ERR(axi_clkgen->base);
 
-	init.num_parents = of_clk_get_parent_count(pdev->dev.of_node);
+	init.num_parents = of_clk_get_parent_count(pdev->dev.of_yesde);
 	if (init.num_parents < 1 || init.num_parents > 2)
 		return -EINVAL;
 
 	for (i = 0; i < init.num_parents; i++) {
-		parent_names[i] = of_clk_get_parent_name(pdev->dev.of_node, i);
+		parent_names[i] = of_clk_get_parent_name(pdev->dev.of_yesde, i);
 		if (!parent_names[i])
 			return -EINVAL;
 	}
 
-	clk_name = pdev->dev.of_node->name;
-	of_property_read_string(pdev->dev.of_node, "clock-output-names",
+	clk_name = pdev->dev.of_yesde->name;
+	of_property_read_string(pdev->dev.of_yesde, "clock-output-names",
 		&clk_name);
 
 	init.name = clk_name;
@@ -458,13 +458,13 @@ static int axi_clkgen_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return of_clk_add_hw_provider(pdev->dev.of_node, of_clk_hw_simple_get,
+	return of_clk_add_hw_provider(pdev->dev.of_yesde, of_clk_hw_simple_get,
 				      &axi_clkgen->clk_hw);
 }
 
 static int axi_clkgen_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 
 	return 0;
 }

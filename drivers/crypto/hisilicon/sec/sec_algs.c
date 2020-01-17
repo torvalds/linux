@@ -389,10 +389,10 @@ static int sec_send_request(struct sec_request *sec_req, struct sec_queue *queue
 	list_for_each_entry_safe(el, temp, &sec_req->elements, head) {
 		/*
 		 * Add to hardware queue only under following circumstances
-		 * 1) Software and hardware queue empty so no chain dependencies
+		 * 1) Software and hardware queue empty so yes chain dependencies
 		 * 2) No dependencies as new IV - (check software queue empty
 		 *    to maintain order)
-		 * 3) No dependencies because the mode does no chaining.
+		 * 3) No dependencies because the mode does yes chaining.
 		 *
 		 * In other cases first insert onto the software queue which
 		 * is then emptied as requests complete
@@ -403,7 +403,7 @@ static int sec_send_request(struct sec_request *sec_req, struct sec_queue *queue
 			ret = sec_queue_send(queue, &el->req, sec_req);
 			if (ret == -EAGAIN) {
 				/* Wait unti we can send then try again */
-				/* DEAD if here - should not happen */
+				/* DEAD if here - should yest happen */
 				ret = -EBUSY;
 				goto err_unlock;
 			}
@@ -476,7 +476,7 @@ static void sec_skcipher_alg_callback(struct sec_bd_info *sec_resp,
 		crypto_inc(skreq->iv, 16);
 		break;
 	default:
-		/* Do not update */
+		/* Do yest update */
 		break;
 	}
 
@@ -489,7 +489,7 @@ static void sec_skcipher_alg_callback(struct sec_bd_info *sec_resp,
 				"Error getting next element from kfifo %d\n",
 				ret);
 		else
-			/* We know there is space so this cannot fail */
+			/* We kyesw there is space so this canyest fail */
 			sec_queue_send(ctx->queue, &nextrequest->req,
 				       nextrequest->sec_req);
 	} else if (!list_empty(&ctx->backlog)) {
@@ -608,7 +608,7 @@ err_unmap_sg:
 }
 
 /*
- * Reverses the sec_map_and_split_sg call for messages not yet added to
+ * Reverses the sec_map_and_split_sg call for messages yest yet added to
  * the queues.
  */
 static void sec_unmap_sg_on_err(struct scatterlist *sgl, int steps,
@@ -657,7 +657,7 @@ static struct sec_request_el
 	req->w0 |= ((el_size >> 20) << SEC_BD_W0_C_GRAN_SIZE_21_20_S) &
 		SEC_BD_W0_C_GRAN_SIZE_21_20_M;
 
-	/* Writing whole u32 so no need to take care of masking */
+	/* Writing whole u32 so yes need to take care of masking */
 	req->w2 = ((1 << SEC_BD_W2_GRAN_NUM_S) & SEC_BD_W2_GRAN_NUM_M) |
 		((el_size << SEC_BD_W2_C_GRAN_SIZE_15_0_S) &
 		 SEC_BD_W2_C_GRAN_SIZE_15_0_M);
@@ -754,7 +754,7 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	/*
 	 * Future optimization.
 	 * In the chaining case we can't use a dma pool bounce buffer
-	 * but in the case where we know there is no chaining we can
+	 * but in the case where we kyesw there is yes chaining we can
 	 */
 	if (crypto_skcipher_ivsize(atfm)) {
 		sec_req->dma_iv = dma_map_single(info->dev, skreq->iv,
@@ -792,7 +792,7 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	 * must succeed or fail atomically.
 	 *
 	 * Big hammer test of both software and hardware queues - could be
-	 * more refined but this is unlikely to happen so no need.
+	 * more refined but this is unlikely to happen so yes need.
 	 */
 
 	/* Grab a big lock for a long time to avoid concurrency issues */
@@ -800,9 +800,9 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 
 	/*
 	 * Can go on to queue if we have space in either:
-	 * 1) The hardware queue and no software queue
+	 * 1) The hardware queue and yes software queue
 	 * 2) The software queue
-	 * AND there is nothing in the backlog.  If there is backlog we
+	 * AND there is yesthing in the backlog.  If there is backlog we
 	 * have to only queue to the backlog queue and return busy.
 	 */
 	if ((!sec_queue_can_enqueue(queue, steps) &&

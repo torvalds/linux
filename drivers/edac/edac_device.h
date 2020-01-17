@@ -13,7 +13,7 @@
  *     Dave Peterson <dsp@llnl.gov> <dave_peterson@pobox.com>
  *
  * Refactored for multi-source files:
- *	Doug Thompson <norsk5@xmission.com>
+ *	Doug Thompson <yesrsk5@xmission.com>
  *
  * Please look at Documentation/driver-api/edac.rst for more info about
  * EDAC core structs and functions.
@@ -93,7 +93,7 @@ struct edac_dev_sysfs_attribute {
 
 /* edac_dev_sysfs_block_attribute structure
  *
- *	used in leaf 'block' nodes for adding controls/attributes
+ *	used in leaf 'block' yesdes for adding controls/attributes
  *
  *	each block in each instance of the containing control structure
  *	can have an array of the following. The show and store functions
@@ -171,7 +171,7 @@ struct edac_device_ctl_info {
 	 * An array of structures, NULL terminated
 	 *
 	 * If attributes are desired, then set to array of attributes
-	 * If no attributes are desired, leave NULL
+	 * If yes attributes are desired, leave NULL
 	 */
 	struct edac_dev_sysfs_attribute *sysfs_attributes;
 
@@ -248,7 +248,7 @@ extern struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 		int device_index);
 
 /* The offset value can be:
- *	-1 indicating no offset value
+ *	-1 indicating yes offset value
  *	0 for zero-based block numbers
  *	1 for 1-based block number
  *	other for other-based block number
@@ -281,7 +281,7 @@ extern int edac_device_add_device(struct edac_device_ctl_info *edac_dev);
  *
  * Returns:
  *	Pointer to removed edac_device structure,
- *	or %NULL if device not found.
+ *	or %NULL if device yest found.
  */
 extern struct edac_device_ctl_info *edac_device_del_device(struct device *dev);
 

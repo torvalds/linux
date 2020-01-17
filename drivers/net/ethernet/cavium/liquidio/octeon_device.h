@@ -30,7 +30,7 @@
 #define  OCTEON_CN66XX_PCIID          0x92177d
 #define  OCTEON_CN23XX_PCIID_PF       0x9702177d
 /** Driver identifies chips by these Ids, created by clubbing together
- *  DeviceId+RevisionId; Where Revision Id is not used to distinguish
+ *  DeviceId+RevisionId; Where Revision Id is yest used to distinguish
  *  between chips, a value of 0 is used for revision id.
  */
 #define  OCTEON_CN68XX                0x0091
@@ -226,7 +226,7 @@ struct octeon_board_info {
 	char name[OCT_BOARD_NAME];
 	char serial_number[OCT_SERIAL_LEN];
 	u64 major;
-	u64 minor;
+	u64 miyesr;
 };
 
 struct octeon_fn_list {
@@ -610,7 +610,7 @@ struct octeon_device {
 	/* for 25G NIC speed change */
 	u8  speed_boot;
 	u8  speed_setting;
-	u8  no_speed_setting;
+	u8  yes_speed_setting;
 
 	u32    vfstats_poll;
 #define LIO_VFSTATS_POLL 10
@@ -775,7 +775,7 @@ int octeon_mem_access_ok(struct octeon_device *oct);
  * @param oct which octeon to send to
  * @param timeout_in_ms pointer to how long to wait until DDR is initialized
  * in ms.
- *                      If contents are 0, it waits until contents are non-zero
+ *                      If contents are 0, it waits until contents are yesn-zero
  *                      before starting to check.
  * @return Zero on success, negative on failure.
  */
@@ -807,7 +807,7 @@ int octeon_init_consoles(struct octeon_device *oct);
  * @param oct:          which octeon to add to
  * @param console_num:  which console
  * @param dbg_enb:      ptr to debug enablement string, one of:
- *                    * NULL for no debug output (i.e. disabled)
+ *                    * NULL for yes debug output (i.e. disabled)
  *                    * empty string enables debug output (via default method)
  *                    * specific string to enable debug console output
  *
@@ -845,7 +845,7 @@ int octeon_console_send_cmd(struct octeon_device *oct, char *cmd_str,
  *
  *  @return 0 if success.
  *         -EINVAL if file is incompatible or badly formatted.
- *         -ENODEV if no handler was found for the application type or an
+ *         -ENODEV if yes handler was found for the application type or an
  *         invalid octeon id was passed.
  */
 int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
@@ -867,9 +867,9 @@ int octeon_setup_instr_queues(struct octeon_device *oct);
  */
 int octeon_setup_output_queues(struct octeon_device *oct);
 
-int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no);
+int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_yes);
 
-int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_no);
+int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_yes);
 
 /** Turns off the input and output queues for the device
  *  @param oct which octeon to disable
@@ -878,10 +878,10 @@ int octeon_set_io_queues_off(struct octeon_device *oct);
 
 /** Turns on or off the given output queue for the device
  *  @param oct which octeon to change
- *  @param q_no which queue
+ *  @param q_yes which queue
  *  @param enable 1 to enable, 0 to disable
  */
-void octeon_set_droq_pkt_op(struct octeon_device *oct, u32 q_no, u32 enable);
+void octeon_set_droq_pkt_op(struct octeon_device *oct, u32 q_yes, u32 enable);
 
 /** Retrieve the config for the device
  *  @param oct which octeon

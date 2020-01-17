@@ -11,7 +11,7 @@
 
 /*
  * Copy to/from user are the same, except that for packets with a load and
- * a store, I don't know how to tell which kind of exception we got.
+ * a store, I don't kyesw how to tell which kind of exception we got.
  * Therefore, we duplicate the function, and handle faulting addresses
  * differently for each function
  */
@@ -44,7 +44,7 @@
 		jumpr r31
 	}
 	/* Normal copy loops.  Use dst-dst_sav to compute distance */
-	/* dst holds best write, no need to unwind any loops */
+	/* dst holds best write, yes need to unwind any loops */
 	/* X - (A - B) == X + B - A */
 	.falign
 8189:

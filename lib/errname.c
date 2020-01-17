@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/build_bug.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/errname.h>
 #include <linux/kernel.h>
 
 /*
- * Ensure these tables do not accidentally become gigantic if some
- * huge errno makes it in. On most architectures, the first table will
+ * Ensure these tables do yest accidentally become gigantic if some
+ * huge erryes makes it in. On most architectures, the first table will
  * only have about 140 entries, but mips and parisc have more sparsely
- * allocated errnos (with EHWPOISON = 257 on parisc, and EDQUOT = 1133
+ * allocated erryess (with EHWPOISON = 257 on parisc, and EDQUOT = 1133
  * on mips), so this wastes a bit of space on those - though we
  * special case the EDQUOT case.
  */

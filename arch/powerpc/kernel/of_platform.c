@@ -18,7 +18,7 @@
 #include <linux/of_platform.h>
 #include <linux/atomic.h>
 
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/topology.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
@@ -40,10 +40,10 @@ static int of_pci_phb_probe(struct platform_device *dev)
 	if (ppc_md.pci_setup_phb == NULL)
 		return -ENODEV;
 
-	pr_info("Setting up PCI bus %pOF\n", dev->dev.of_node);
+	pr_info("Setting up PCI bus %pOF\n", dev->dev.of_yesde);
 
 	/* Alloc and setup PHB data structure */
-	phb = pcibios_alloc_controller(dev->dev.of_node);
+	phb = pcibios_alloc_controller(dev->dev.of_yesde);
 	if (!phb)
 		return -ENODEV;
 
@@ -57,7 +57,7 @@ static int of_pci_phb_probe(struct platform_device *dev)
 	}
 
 	/* Process "ranges" property */
-	pci_process_bridge_OF_ranges(phb, dev->dev.of_node, 0);
+	pci_process_bridge_OF_ranges(phb, dev->dev.of_yesde, 0);
 
 	/* Init pci_dn data structures */
 	pci_devs_phb_init_dynamic(phb);
@@ -66,8 +66,8 @@ static int of_pci_phb_probe(struct platform_device *dev)
 	eeh_dev_phb_init_dynamic(phb);
 
 	/* Register devices with EEH */
-	if (dev->dev.of_node->child)
-		eeh_add_device_tree_early(PCI_DN(dev->dev.of_node));
+	if (dev->dev.of_yesde->child)
+		eeh_add_device_tree_early(PCI_DN(dev->dev.of_yesde));
 
 	/* Scan the bus */
 	pcibios_scan_phb(phb);
@@ -75,7 +75,7 @@ static int of_pci_phb_probe(struct platform_device *dev)
 		return -ENXIO;
 
 	/* Claim resources. This might need some rework as well depending
-	 * whether we are doing probe-only or not, like assigning unassigned
+	 * whether we are doing probe-only or yest, like assigning unassigned
 	 * resources etc...
 	 */
 	pcibios_claim_one_bus(phb->bus);

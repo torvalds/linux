@@ -223,7 +223,7 @@ struct fm_event_msg_hdr {
 #define FM_RX_RSSI_THRESHOLD_MIN	-128
 #define FM_RX_RSSI_THRESHOLD_MAX	127
 
-/* Stereo/Mono mode */
+/* Stereo/Moyes mode */
 #define FM_STEREO_MODE		0
 #define FM_MONO_MODE		1
 #define FM_STEREO_SOFT_BLEND	1
@@ -370,7 +370,7 @@ int fmc_set_freq(struct fmdev *, u32);
 int fmc_set_mode(struct fmdev *, u8);
 int fmc_set_region(struct fmdev *, u8);
 int fmc_set_mute_mode(struct fmdev *, u8);
-int fmc_set_stereo_mono(struct fmdev *, u16);
+int fmc_set_stereo_moyes(struct fmdev *, u16);
 int fmc_set_rds_mode(struct fmdev *, u8);
 
 int fmc_get_freq(struct fmdev *, u32 *);

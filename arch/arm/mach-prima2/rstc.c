@@ -71,14 +71,14 @@ static void sirfsoc_restart(enum reboot_mode mode, const char *cmd)
 
 static int sirfsoc_rstc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	sirfsoc_rstc_base = of_iomap(np, 0);
 	if (!sirfsoc_rstc_base) {
 		dev_err(&pdev->dev, "unable to map rstc cpu registers\n");
 		return -ENOMEM;
 	}
 
-	sirfsoc_reset_controller.of_node = np;
+	sirfsoc_reset_controller.of_yesde = np;
 	arm_pm_restart = sirfsoc_restart;
 
 	if (IS_ENABLED(CONFIG_RESET_CONTROLLER))

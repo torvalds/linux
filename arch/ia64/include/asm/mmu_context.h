@@ -11,7 +11,7 @@
  * Routines to manage the allocation of task context numbers.  Task context
  * numbers are used to reduce or eliminate the need to perform TLB flushes
  * due to context switches.  Context numbers are implemented using ia-64
- * region ids.  Since the IA-64 TLB does not consider the region number when
+ * region ids.  Since the IA-64 TLB does yest consider the region number when
  * performing a TLB lookup, we need to assign a unique region id to each
  * region in a process.  We use the least significant three bits in aregion
  * id for this purpose.
@@ -86,7 +86,7 @@ get_mmu_context (struct mm_struct *mm)
 		goto out;
 
 	spin_lock_irqsave(&ia64_ctx.lock, flags);
-	/* re-check, now that we've got the lock: */
+	/* re-check, yesw that we've got the lock: */
 	context = mm->context;
 	if (context == 0) {
 		cpumask_clear(mm_cpumask(mm));
@@ -104,7 +104,7 @@ get_mmu_context (struct mm_struct *mm)
 	spin_unlock_irqrestore(&ia64_ctx.lock, flags);
 out:
 	/*
-	 * Ensure we're not starting to use "context" before any old
+	 * Ensure we're yest starting to use "context" before any old
 	 * uses of it are gone from our TLB.
 	 */
 	delayed_tlb_flush();
@@ -114,7 +114,7 @@ out:
 
 /*
  * Initialize context number to some sane value.  MM is guaranteed to be a
- * brand-new address-space, so no TLB flushing is needed, ever.
+ * brand-new address-space, so yes TLB flushing is needed, ever.
  */
 static inline int
 init_new_context (struct task_struct *p, struct mm_struct *mm)
@@ -172,7 +172,7 @@ activate_context (struct mm_struct *mm)
 			cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
 		reload_context(context);
 		/*
-		 * in the unlikely event of a TLB-flush by another thread,
+		 * in the unlikely event of a TLB-flush by ayesther thread,
 		 * redo the load.
 		 */
 	} while (unlikely(context != mm->context));
@@ -188,7 +188,7 @@ activate_mm (struct mm_struct *prev, struct mm_struct *next)
 {
 	/*
 	 * We may get interrupts here, but that's OK because interrupt
-	 * handlers cannot touch user-space.
+	 * handlers canyest touch user-space.
 	 */
 	ia64_set_kr(IA64_KR_PT_BASE, __pa(next->pgd));
 	activate_context(next);

@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -71,7 +71,7 @@ EXPORT_SYMBOL(ttm_eu_backoff_reservation);
  * If a buffer in the list is marked for CPU access, we back off and
  * wait for that buffer to become free for GPU access.
  *
- * If a buffer is reserved for another validation, the validator with
+ * If a buffer is reserved for ayesther validation, the validator with
  * the highest validation sequence backs off and waits for that buffer
  * to become unreserved. This prevents deadlocks when validating multiple
  * buffers in different orders.

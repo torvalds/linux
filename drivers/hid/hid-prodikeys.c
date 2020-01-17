@@ -44,7 +44,7 @@ struct pcmidi_sustain {
 	struct pcmidi_snd	*pm;
 	struct timer_list	timer;
 	unsigned char		status;
-	unsigned char		note;
+	unsigned char		yeste;
 	unsigned char		velocity;
 };
 
@@ -59,7 +59,7 @@ struct pcmidi_snd {
 	unsigned short			midi_sustain;
 	unsigned short			midi_channel;
 	short				midi_octave;
-	struct pcmidi_sustain		sustained_notes[PCMIDI_SUSTAINED_MAX];
+	struct pcmidi_sustain		sustained_yestes[PCMIDI_SUSTAINED_MAX];
 	unsigned short			fn_state;
 	unsigned short			last_key[24];
 	spinlock_t			rawmidi_in_lock;
@@ -210,36 +210,36 @@ static struct device_attribute *sysfs_device_attr_octave = {
 		};
 
 
-static void pcmidi_send_note(struct pcmidi_snd *pm,
-	unsigned char status, unsigned char note, unsigned char velocity)
+static void pcmidi_send_yeste(struct pcmidi_snd *pm,
+	unsigned char status, unsigned char yeste, unsigned char velocity)
 {
 	unsigned long flags;
 	unsigned char buffer[3];
 
 	buffer[0] = status;
-	buffer[1] = note;
+	buffer[1] = yeste;
 	buffer[2] = velocity;
 
 	spin_lock_irqsave(&pm->rawmidi_in_lock, flags);
 
 	if (!pm->in_substream)
-		goto drop_note;
+		goto drop_yeste;
 	if (!test_bit(pm->in_substream->number, &pm->in_triggered))
-		goto drop_note;
+		goto drop_yeste;
 
 	snd_rawmidi_receive(pm->in_substream, buffer, 3);
 
-drop_note:
+drop_yeste:
 	spin_unlock_irqrestore(&pm->rawmidi_in_lock, flags);
 
 	return;
 }
 
-static void pcmidi_sustained_note_release(struct timer_list *t)
+static void pcmidi_sustained_yeste_release(struct timer_list *t)
 {
 	struct pcmidi_sustain *pms = from_timer(pms, t, timer);
 
-	pcmidi_send_note(pms->pm, pms->status, pms->note, pms->velocity);
+	pcmidi_send_yeste(pms->pm, pms->status, pms->yeste, pms->velocity);
 	pms->in_use = 0;
 }
 
@@ -249,10 +249,10 @@ static void init_sustain_timers(struct pcmidi_snd *pm)
 	unsigned i;
 
 	for (i = 0; i < PCMIDI_SUSTAINED_MAX; i++) {
-		pms = &pm->sustained_notes[i];
+		pms = &pm->sustained_yestes[i];
 		pms->in_use = 0;
 		pms->pm = pm;
-		timer_setup(&pms->timer, pcmidi_sustained_note_release, 0);
+		timer_setup(&pms->timer, pcmidi_sustained_yeste_release, 0);
 	}
 }
 
@@ -262,7 +262,7 @@ static void stop_sustain_timers(struct pcmidi_snd *pm)
 	unsigned i;
 
 	for (i = 0; i < PCMIDI_SUSTAINED_MAX; i++) {
-		pms = &pm->sustained_notes[i];
+		pms = &pm->sustained_yestes[i];
 		pms->in_use = 1;
 		del_timer_sync(&pms->timer);
 	}
@@ -337,30 +337,30 @@ static int pcmidi_handle_report3(struct pcmidi_snd *pm, u8 *data, int size)
 {
 	struct pcmidi_sustain *pms;
 	unsigned i, j;
-	unsigned char status, note, velocity;
+	unsigned char status, yeste, velocity;
 
-	unsigned num_notes = (size-1)/2;
-	for (j = 0; j < num_notes; j++)	{
-		note = data[j*2+1];
+	unsigned num_yestes = (size-1)/2;
+	for (j = 0; j < num_yestes; j++)	{
+		yeste = data[j*2+1];
 		velocity = data[j*2+2];
 
-		if (note < 0x81) { /* note on */
+		if (yeste < 0x81) { /* yeste on */
 			status = 128 + 16 + pm->midi_channel; /* 1001nnnn */
-			note = note - 0x54 + PCMIDI_MIDDLE_C +
+			yeste = yeste - 0x54 + PCMIDI_MIDDLE_C +
 				(pm->midi_octave * 12);
 			if (0 == velocity)
-				velocity = 1; /* force note on */
-		} else { /* note off */
+				velocity = 1; /* force yeste on */
+		} else { /* yeste off */
 			status = 128 + pm->midi_channel; /* 1000nnnn */
-			note = note - 0x94 + PCMIDI_MIDDLE_C +
+			yeste = yeste - 0x94 + PCMIDI_MIDDLE_C +
 				(pm->midi_octave*12);
 
 			if (pm->midi_sustain_mode) {
 				for (i = 0; i < PCMIDI_SUSTAINED_MAX; i++) {
-					pms = &pm->sustained_notes[i];
+					pms = &pm->sustained_yestes[i];
 					if (!pms->in_use) {
 						pms->status = status;
-						pms->note = note;
+						pms->yeste = yeste;
 						pms->velocity = velocity;
 						pms->in_use = 1;
 
@@ -372,7 +372,7 @@ static int pcmidi_handle_report3(struct pcmidi_snd *pm, u8 *data, int size)
 				}
 			}
 		}
-		pcmidi_send_note(pm, status, note, velocity);
+		pcmidi_send_yeste(pm, status, yeste, velocity);
 	}
 
 	return 1;
@@ -408,7 +408,7 @@ static int pcmidi_handle_report4(struct pcmidi_snd *pm, u8 *data)
 			else
 				pcmidi_submit_output_report(pm, 0xc6);
 			continue;
-		case 0x020000: /* midi launcher..send a key (qwerty) or not? */
+		case 0x020000: /* midi launcher..send a key (qwerty) or yest? */
 			pcmidi_submit_output_report(pm, 0xc1);
 			pm->midi_mode ^= 0x01;
 

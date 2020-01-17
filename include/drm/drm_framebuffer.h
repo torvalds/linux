@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -78,10 +78,10 @@ struct drm_framebuffer_funcs {
 	 *
 	 * Optional callback for the dirty fb IOCTL.
 	 *
-	 * Userspace can notify the driver via this callback that an area of the
+	 * Userspace can yestify the driver via this callback that an area of the
 	 * framebuffer has changed and should be flushed to the display
 	 * hardware. This can also be used internally, e.g. by the fbdev
-	 * emulation, though that's not the case currently.
+	 * emulation, though that's yest the case currently.
 	 *
 	 * See documentation in drm_mode.h for the struct drm_mode_fb_dirty_cmd
 	 * for more information as all the semantics and arguments have a one to
@@ -104,8 +104,8 @@ struct drm_framebuffer_funcs {
  * struct drm_framebuffer - frame buffer object
  *
  * Note that the fb is refcounted for the benefit of driver internals,
- * for example some hw, disabling a CRTC/plane is asynchronous, and
- * scanout does not actually complete until the next vblank.  So some
+ * for example some hw, disabling a CRTC/plane is asynchroyesus, and
+ * scayesut does yest actually complete until the next vblank.  So some
  * cleanup (like releasing the reference(s) on the backing GEM bo(s))
  * should be deferred.  In cases like this, the driver would like to
  * hold a ref to the fb even though it has already been removed from
@@ -153,7 +153,7 @@ struct drm_framebuffer {
 	 * per buffer. For userspace created object this is copied from
 	 * drm_mode_fb_cmd2.
 	 *
-	 * Note that this is a linear offset and does not take into account
+	 * Note that this is a linear offset and does yest take into account
 	 * tiling or buffer laytou per @modifier. It meant to be used when the
 	 * actual pixel data for this framebuffer plane starts at an offset,
 	 * e.g.  when multiple planes are allocated within the same backing
@@ -161,7 +161,7 @@ struct drm_framebuffer {
 	 * @offsets must at least be tile-size aligned, but hardware often has
 	 * stricter requirements.
 	 *
-	 * This should not be used to specifiy x/y pixel offsets into the buffer
+	 * This should yest be used to specifiy x/y pixel offsets into the buffer
 	 * data (even for linear buffers). Specifying an x/y pixel offset is
 	 * instead done through the source rectangle in &struct drm_plane_state.
 	 */

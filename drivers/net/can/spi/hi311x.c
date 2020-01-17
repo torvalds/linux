@@ -185,9 +185,9 @@ static void hi3110_clean(struct net_device *net)
 }
 
 /* Note about handling of error return of hi3110_spi_trans: accessing
- * registers via SPI is not really different conceptually than using
- * normal I/O assembler instructions, although it's much more
- * complicated from a practical POV. So it's not advisable to always
+ * registers via SPI is yest really different conceptually than using
+ * yesrmal I/O assembler instructions, although it's much more
+ * complicated from a practical POV. So it's yest advisable to always
  * check the return value of this function. Imagine that every
  * read{b,l}, write{b,l} and friends would be bracketed in "if ( < 0)
  * error();", it would be a great mess (well there are some situation
@@ -418,7 +418,7 @@ static int hi3110_get_berr_counter(const struct net_device *net,
 	return 0;
 }
 
-static int hi3110_set_normal_mode(struct spi_device *spi)
+static int hi3110_set_yesrmal_mode(struct spi_device *spi)
 {
 	struct hi3110_priv *priv = spi_get_drvdata(spi);
 	u8 reg = 0;
@@ -499,7 +499,7 @@ static int hi3110_hw_reset(struct spi_device *spi)
 		return -ENODEV;
 
 	/* As per the datasheet it appears the error flags are
-	 * not cleared on reset. Explicitly clear them by performing a read
+	 * yest cleared on reset. Explicitly clear them by performing a read
 	 */
 	hi3110_read(spi, HI3110_READ_ERR);
 
@@ -605,11 +605,11 @@ static void hi3110_restart_work_handler(struct work_struct *ws)
 		hi3110_hw_reset(spi);
 		hi3110_setup(net);
 		if (priv->after_suspend & HI3110_AFTER_SUSPEND_RESTART) {
-			hi3110_set_normal_mode(spi);
+			hi3110_set_yesrmal_mode(spi);
 		} else if (priv->after_suspend & HI3110_AFTER_SUSPEND_UP) {
 			netif_device_attach(net);
 			hi3110_clean(net);
-			hi3110_set_normal_mode(spi);
+			hi3110_set_yesrmal_mode(spi);
 			netif_wake_queue(net);
 		} else {
 			hi3110_hw_sleep(spi);
@@ -623,7 +623,7 @@ static void hi3110_restart_work_handler(struct work_struct *ws)
 		hi3110_hw_reset(spi);
 		hi3110_setup(net);
 		hi3110_clean(net);
-		hi3110_set_normal_mode(spi);
+		hi3110_set_yesrmal_mode(spi);
 		netif_wake_queue(net);
 	}
 	mutex_unlock(&priv->hi3110_lock);
@@ -780,7 +780,7 @@ static int hi3110_open(struct net_device *net)
 	if (ret)
 		goto out_free_wq;
 
-	ret = hi3110_set_normal_mode(spi);
+	ret = hi3110_set_yesrmal_mode(spi);
 	if (ret)
 		goto out_free_wq;
 
@@ -837,7 +837,7 @@ static int hi3110_can_probe(struct spi_device *spi)
 
 	clk = devm_clk_get(&spi->dev, NULL);
 	if (IS_ERR(clk)) {
-		dev_err(&spi->dev, "no CAN clock source defined\n");
+		dev_err(&spi->dev, "yes CAN clock source defined\n");
 		return PTR_ERR(clk);
 	}
 	freq = clk_get_rate(clk);
@@ -919,7 +919,7 @@ static int hi3110_can_probe(struct spi_device *spi)
 	ret = hi3110_hw_probe(spi);
 	if (ret) {
 		if (ret == -ENODEV)
-			dev_err(&spi->dev, "Cannot initialize %x. Wrong wiring?\n",
+			dev_err(&spi->dev, "Canyest initialize %x. Wrong wiring?\n",
 				priv->model);
 		goto error_probe;
 	}
@@ -974,8 +974,8 @@ static int __maybe_unused hi3110_can_suspend(struct device *dev)
 	priv->force_quit = 1;
 	disable_irq(spi->irq);
 
-	/* Note: at this point neither IST nor workqueues are running.
-	 * open/stop cannot be called anyway so locking is not needed
+	/* Note: at this point neither IST yesr workqueues are running.
+	 * open/stop canyest be called anyway so locking is yest needed
 	 */
 	if (netif_running(net)) {
 		netif_device_detach(net);

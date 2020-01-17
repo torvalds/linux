@@ -148,12 +148,12 @@ static struct regmap *vexpress_syscfg_regmap_init(struct device *dev,
 	u32 site, position, dcc;
 	int i;
 
-	err = vexpress_config_get_topo(dev->of_node, &site,
+	err = vexpress_config_get_topo(dev->of_yesde, &site,
 				&position, &dcc);
 	if (err)
 		return ERR_PTR(err);
 
-	prop = of_find_property(dev->of_node,
+	prop = of_find_property(dev->of_yesde,
 			"arm,vexpress-sysreg,func", NULL);
 	if (!prop)
 		return ERR_PTR(-EINVAL);
@@ -163,9 +163,9 @@ static struct regmap *vexpress_syscfg_regmap_init(struct device *dev,
 
 	/*
 	 * "arm,vexpress-energy" function used to be described
-	 * by its first device only, now it requires both
+	 * by its first device only, yesw it requires both
 	 */
-	if (num == 1 && of_device_is_compatible(dev->of_node,
+	if (num == 1 && of_device_is_compatible(dev->of_yesde,
 			"arm,vexpress-energy")) {
 		num = 2;
 		energy_quirk[0] = *val;

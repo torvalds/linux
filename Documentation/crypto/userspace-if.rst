@@ -18,12 +18,12 @@ crypto API. A working example of this description is libkcapi that can
 be obtained from [1]. That library can be used by user space
 applications that require cryptographic services from the kernel.
 
-Some details of the in-kernel kernel crypto API aspects do not apply to
-user space, however. This includes the difference between synchronous
-and asynchronous invocations. The user space API call is fully
-synchronous.
+Some details of the in-kernel kernel crypto API aspects do yest apply to
+user space, however. This includes the difference between synchroyesus
+and asynchroyesus invocations. The user space API call is fully
+synchroyesus.
 
-[1] http://www.chronox.de/libkcapi.html
+[1] http://www.chroyesx.de/libkcapi.html
 
 User Space API General Remarks
 ------------------------------
@@ -41,7 +41,7 @@ following ciphers are accessible:
 
 The interface is provided via socket type using the type AF_ALG. In
 addition, the setsockopt option type is SOL_ALG. In case the user space
-header files do not export these flags yet, use the following macros:
+header files do yest export these flags yet, use the following macros:
 
 ::
 
@@ -122,8 +122,8 @@ should be processed with the message digest. The send system call allows
 the following flags to be specified:
 
 -  MSG_MORE: If this flag is set, the send system call acts like a
-   message digest update function where the final hash is not yet
-   calculated. If the flag is not set, the send system call calculates
+   message digest update function where the final hash is yest yet
+   calculated. If the flag is yest set, the send system call calculates
    the final message digest immediately.
 
 With the recv() system call, the application can read the message digest
@@ -131,7 +131,7 @@ from the kernel crypto API. If the buffer is too small for the message
 digest, the flag MSG_TRUNC is set by the kernel.
 
 In order to set a message digest key, the calling application must use
-the setsockopt() option of ALG_SET_KEY. If the key is not set the HMAC
+the setsockopt() option of ALG_SET_KEY. If the key is yest set the HMAC
 operation is performed without the initial HMAC state change caused by
 the key.
 
@@ -249,7 +249,7 @@ must make sure that all data matches the constraints given in
 With the recv() system call, the application can read the result of the
 cipher operation from the kernel crypto API. The output buffer must be
 at least as large as defined with the memory structure below. If the
-output data size is smaller, the cipher operation is not performed.
+output data size is smaller, the cipher operation is yest performed.
 
 The authenticated decryption operation may indicate an integrity error.
 Such breach in integrity is marked with the -EBADMSG error code.
@@ -267,8 +267,8 @@ communicated between user and kernel space as one data stream:
 -  authentication tag
 
 The sizes of the AAD and the authentication tag are provided with the
-sendmsg and setsockopt calls (see there). As the kernel knows the size
-of the entire data stream, the kernel is now able to calculate the right
+sendmsg and setsockopt calls (see there). As the kernel kyesws the size
+of the entire data stream, the kernel is yesw able to calculate the right
 offsets of the data components in the data stream.
 
 The user space caller must arrange the aforementioned information in the
@@ -297,13 +297,13 @@ follows:
     struct sockaddr_alg sa = {
         .salg_family = AF_ALG,
         .salg_type = "rng", /* this selects the symmetric cipher */
-        .salg_name = "drbg_nopr_sha256" /* this is the cipher name */
+        .salg_name = "drbg_yespr_sha256" /* this is the cipher name */
     };
 
 
 Depending on the RNG type, the RNG must be seeded. The seed is provided
 using the setsockopt interface to set the key. For example, the
-ansi_cprng requires a seed. The DRBGs do not require a seed, but may be
+ansi_cprng requires a seed. The DRBGs do yest require a seed, but may be
 seeded.
 
 Using the read()/recvmsg() system calls, random numbers can be obtained.
@@ -384,4 +384,4 @@ Please see [1] for libkcapi which provides an easy-to-use wrapper around
 the aforementioned Netlink kernel interface. [1] also contains a test
 application that invokes all libkcapi API calls.
 
-[1] http://www.chronox.de/libkcapi.html
+[1] http://www.chroyesx.de/libkcapi.html

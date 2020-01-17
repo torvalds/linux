@@ -263,7 +263,7 @@ static int cnl_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
 	return ret;
 }
 
-static unsigned int cnl_get_errno(struct sst_dsp *ctx)
+static unsigned int cnl_get_erryes(struct sst_dsp *ctx)
 {
 	return sst_dsp_shim_read(ctx, CNL_ADSP_ERROR_CODE);
 }
@@ -272,7 +272,7 @@ static const struct skl_dsp_fw_ops cnl_fw_ops = {
 	.set_state_D0 = cnl_set_dsp_D0,
 	.set_state_D3 = cnl_set_dsp_D3,
 	.load_fw = cnl_load_base_firmware,
-	.get_fw_errcode = cnl_get_errno,
+	.get_fw_errcode = cnl_get_erryes,
 };
 
 static struct sst_ops cnl_ops = {
@@ -336,7 +336,7 @@ static irqreturn_t cnl_dsp_irq_thread_handler(int irq, void *context)
 			skl_ipc_process_reply(ipc, header);
 		} else {
 			dev_dbg(dsp->dev, "IPC irq: Notification from firmware\n");
-			skl_ipc_process_notification(ipc, header);
+			skl_ipc_process_yestification(ipc, header);
 		}
 		/* clear busy interrupt */
 		sst_dsp_shim_update_bits_forced(dsp, CNL_ADSP_REG_HIPCTDR,
@@ -422,7 +422,7 @@ int cnl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 
 	ret = skl_sst_ctx_init(dev, irq, fw_name, dsp_ops, dsp, &cnl_dev);
 	if (ret < 0) {
-		dev_err(dev, "%s: no device\n", __func__);
+		dev_err(dev, "%s: yes device\n", __func__);
 		return ret;
 	}
 
@@ -485,4 +485,4 @@ void cnl_sst_dsp_cleanup(struct device *dev, struct skl_dev *skl)
 EXPORT_SYMBOL_GPL(cnl_sst_dsp_cleanup);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Intel Cannonlake IPC driver");
+MODULE_DESCRIPTION("Intel Canyesnlake IPC driver");

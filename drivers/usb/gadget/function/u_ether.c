@@ -23,7 +23,7 @@
 
 /*
  * This component encapsulates the Ethernet link glue needed to provide
- * one (!) network link through the USB gadget stack, normally "usb0".
+ * one (!) network link through the USB gadget stack, yesrmally "usb0".
  *
  * The control and data models are handled by the function driver which
  * connects to this code; such as CDC Ethernet (ECM or EEM),
@@ -31,7 +31,7 @@
  * management.
  *
  * Link level addressing is handled by this component using module
- * parameters; if no such parameters are provided, random link level
+ * parameters; if yes such parameters are provided, random link level
  * addresses are used.  Each end of the link uses one address.  The
  * host end address is exported in various ways, and is often recorded
  * in configuration databases.
@@ -78,7 +78,7 @@ struct eth_dev {
 #define	WORK_RX_MEMORY		0
 
 	bool			zlp;
-	bool			no_skb_reserve;
+	bool			yes_skb_reserve;
 	u8			host_mac[ETH_ALEN];
 	u8			dev_mac[ETH_ALEN];
 };
@@ -193,11 +193,11 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 		return -ENOTCONN;
 	}
 
-	/* Padding up to RX_EXTRA handles minor disagreements with host.
+	/* Padding up to RX_EXTRA handles miyesr disagreements with host.
 	 * Normally we use the USB "terminate on short read" convention;
-	 * so allow up to (N*maxpacket), since that memory is normally
+	 * so allow up to (N*maxpacket), since that memory is yesrmally
 	 * already allocated.  Some hardware doesn't deal well with short
-	 * reads (e.g. DMA must be N*maxpacket), so for now don't trim a
+	 * reads (e.g. DMA must be N*maxpacket), so for yesw don't trim a
 	 * byte off the end (to force hardware errors on overflow).
 	 *
 	 * RNDIS uses internal framing, and explicitly allows senders to
@@ -219,15 +219,15 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 
 	skb = __netdev_alloc_skb(dev->net, size + NET_IP_ALIGN, gfp_flags);
 	if (skb == NULL) {
-		DBG(dev, "no rx skb\n");
-		goto enomem;
+		DBG(dev, "yes rx skb\n");
+		goto eyesmem;
 	}
 
 	/* Some platforms perform better when IP packets are aligned,
 	 * but on at least one, checksumming fails otherwise.  Note:
 	 * RNDIS headers involve variable numbers of LE32 values.
 	 */
-	if (likely(!dev->no_skb_reserve))
+	if (likely(!dev->yes_skb_reserve))
 		skb_reserve(skb, NET_IP_ALIGN);
 
 	req->buf = skb->data;
@@ -237,7 +237,7 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 
 	retval = usb_ep_queue(out, req, gfp_flags);
 	if (retval == -ENOMEM)
-enomem:
+eyesmem:
 		defer_kevent(dev, WORK_RX_MEMORY);
 	if (retval) {
 		DBG(dev, "rx submit --> %d\n", retval);
@@ -258,7 +258,7 @@ static void rx_complete(struct usb_ep *ep, struct usb_request *req)
 
 	switch (status) {
 
-	/* normal completion */
+	/* yesrmal completion */
 	case 0:
 		skb_put(skb, req->actual);
 
@@ -295,7 +295,7 @@ static void rx_complete(struct usb_ep *ep, struct usb_request *req)
 			dev->net->stats.rx_packets++;
 			dev->net->stats.rx_bytes += skb2->len;
 
-			/* no buffer copies needed, unless hardware can't
+			/* yes buffer copies needed, unless hardware can't
 			 * use skb buffers.
 			 */
 			status = netif_rx(skb2);
@@ -502,7 +502,7 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 		if (is_multicast_ether_addr(dest)) {
 			u16	type;
 
-			/* ignores USB_CDC_PACKET_TYPE_MULTICAST and host
+			/* igyesres USB_CDC_PACKET_TYPE_MULTICAST and host
 			 * SET_ETHERNET_MULTICAST_FILTERS requests
 			 */
 			if (is_broadcast_ether_addr(dest))
@@ -514,7 +514,7 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 				return NETDEV_TX_OK;
 			}
 		}
-		/* ignores USB_CDC_PACKET_TYPE_DIRECTED */
+		/* igyesres USB_CDC_PACKET_TYPE_DIRECTED */
 	}
 
 	spin_lock_irqsave(&dev->req_lock, flags);
@@ -536,9 +536,9 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 		netif_stop_queue(net);
 	spin_unlock_irqrestore(&dev->req_lock, flags);
 
-	/* no buffer copies needed, unless the network stack did it
+	/* yes buffer copies needed, unless the network stack did it
 	 * or the hardware can't use skb buffers.
-	 * or there's not enough space for extra headers we need
+	 * or there's yest eyesugh space for extra headers we need
 	 */
 	if (dev->wrap) {
 		unsigned long	flags;
@@ -549,7 +549,7 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 		spin_unlock_irqrestore(&dev->lock, flags);
 		if (!skb) {
 			/* Multi frame CDC protocols may store the frame for
-			 * later which is not a dropped frame.
+			 * later which is yest a dropped frame.
 			 */
 			if (dev->port_usb &&
 					dev->port_usb->supports_multi_frame)
@@ -563,7 +563,7 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 	req->context = skb;
 	req->complete = tx_complete;
 
-	/* NCM requires no zlp if transfer is dwNtbInMaxSize */
+	/* NCM requires yes zlp if transfer is dwNtbInMaxSize */
 	if (dev->port_usb &&
 	    dev->port_usb->is_fixed &&
 	    length == dev->port_usb->fixed_in_len &&
@@ -573,7 +573,7 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 		req->zero = 1;
 
 	/* use zlp framing on tx for strict CDC-Ether conformance,
-	 * though any robust network rx path ignores extra padding.
+	 * though any robust network rx path igyesres extra padding.
 	 * and some hardware doesn't like to write zlps.
 	 */
 	if (req->zero && !dev->zlp && (length % in->maxpacket) == 0)
@@ -650,7 +650,7 @@ static int eth_stop(struct net_device *net)
 		dev->net->stats.rx_errors, dev->net->stats.tx_errors
 		);
 
-	/* ensure there are no more active requests */
+	/* ensure there are yes more active requests */
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->port_usb) {
 		struct gether	*link = dev->port_usb;
@@ -660,7 +660,7 @@ static int eth_stop(struct net_device *net)
 		if (link->close)
 			link->close(link);
 
-		/* NOTE:  we have no abort-queue primitive we could use
+		/* NOTE:  we have yes abort-queue primitive we could use
 		 * to cancel all pending I/O.  Instead, we disable then
 		 * reenable the endpoints ... this idiom may leave toggle
 		 * wrong, but that's a self-correcting error.
@@ -884,7 +884,7 @@ int gether_register_netdev(struct net_device *net)
 	status = dev_set_mac_address(net, &sa, NULL);
 	rtnl_unlock();
 	if (status)
-		pr_warn("cannot set self ethernet address: %d\n", status);
+		pr_warn("canyest set self ethernet address: %d\n", status);
 	else
 		INFO(dev, "MAC %pM\n", dev->dev_mac);
 
@@ -1030,19 +1030,19 @@ void gether_cleanup(struct eth_dev *dev)
 EXPORT_SYMBOL_GPL(gether_cleanup);
 
 /**
- * gether_connect - notify network layer that USB link is active
+ * gether_connect - yestify network layer that USB link is active
  * @link: the USB link, set up with endpoints, descriptors matching
  *	current device speed, and any framing wrapper(s) set up.
  * Context: irqs blocked
  *
- * This is called to activate endpoints and let the network layer know
+ * This is called to activate endpoints and let the network layer kyesw
  * the connection is active ("carrier detect").  It may cause the I/O
  * queues to open and start letting network packets flow, but will in
  * any case activate the endpoints so that they respond properly to the
  * USB host.
  *
  * Verify net_device pointer returned using IS_ERR().  If it doesn't
- * indicate some error code (negative errno), ep->driver_data values
+ * indicate some error code (negative erryes), ep->driver_data values
  * have been overwritten.
  */
 struct net_device *gether_connect(struct gether *link)
@@ -1075,7 +1075,7 @@ struct net_device *gether_connect(struct gether *link)
 
 	if (result == 0) {
 		dev->zlp = link->is_zlp_ok;
-		dev->no_skb_reserve = gadget_avoids_skb_reserve(dev->gadget);
+		dev->yes_skb_reserve = gadget_avoids_skb_reserve(dev->gadget);
 		DBG(dev, "qlen %d\n", qlen(dev->gadget, dev->qmult));
 
 		dev->header_len = link->header_len;
@@ -1112,12 +1112,12 @@ fail0:
 EXPORT_SYMBOL_GPL(gether_connect);
 
 /**
- * gether_disconnect - notify network layer that USB link is inactive
+ * gether_disconnect - yestify network layer that USB link is inactive
  * @link: the USB link, on which gether_connect() was called
  * Context: irqs blocked
  *
- * This is called to deactivate endpoints and let the network layer know
- * the connection went inactive ("no carrier").
+ * This is called to deactivate endpoints and let the network layer kyesw
+ * the connection went inactive ("yes carrier").
  *
  * On return, the state is as if gether_connect() had never been called.
  * The endpoints are inactive, and accordingly without active USB I/O.
@@ -1137,7 +1137,7 @@ void gether_disconnect(struct gether *link)
 	netif_stop_queue(dev->net);
 	netif_carrier_off(dev->net);
 
-	/* disable endpoints, forcing (synchronous) completion
+	/* disable endpoints, forcing (synchroyesus) completion
 	 * of all pending i/o.  then free the request objects
 	 * and forget about the endpoints.
 	 */

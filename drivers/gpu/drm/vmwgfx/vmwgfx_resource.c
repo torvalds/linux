@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -40,7 +40,7 @@
 void vmw_resource_mob_attach(struct vmw_resource *res)
 {
 	struct vmw_buffer_object *backup = res->backup;
-	struct rb_node **new = &backup->res_tree.rb_node, *parent = NULL;
+	struct rb_yesde **new = &backup->res_tree.rb_yesde, *parent = NULL;
 
 	dma_resv_assert_held(res->backup->base.base.resv);
 	res->used_prio = (res->res_dirty) ? res->func->dirty_prio :
@@ -48,15 +48,15 @@ void vmw_resource_mob_attach(struct vmw_resource *res)
 
 	while (*new) {
 		struct vmw_resource *this =
-			container_of(*new, struct vmw_resource, mob_node);
+			container_of(*new, struct vmw_resource, mob_yesde);
 
 		parent = *new;
 		new = (res->backup_offset < this->backup_offset) ?
 			&((*new)->rb_left) : &((*new)->rb_right);
 	}
 
-	rb_link_node(&res->mob_node, parent, new);
-	rb_insert_color(&res->mob_node, &backup->res_tree);
+	rb_link_yesde(&res->mob_yesde, parent, new);
+	rb_insert_color(&res->mob_yesde, &backup->res_tree);
 
 	vmw_bo_prio_add(backup, res->used_prio);
 }
@@ -71,8 +71,8 @@ void vmw_resource_mob_detach(struct vmw_resource *res)
 
 	dma_resv_assert_held(backup->base.base.resv);
 	if (vmw_resource_mob_attached(res)) {
-		rb_erase(&res->mob_node, &backup->res_tree);
-		RB_CLEAR_NODE(&res->mob_node);
+		rb_erase(&res->mob_yesde, &backup->res_tree);
+		RB_CLEAR_NODE(&res->mob_yesde);
 		vmw_bo_prio_del(backup, res->used_prio);
 	}
 }
@@ -218,7 +218,7 @@ int vmw_resource_init(struct vmw_private *dev_priv, struct vmw_resource *res,
 	res->res_free = res_free;
 	res->dev_priv = dev_priv;
 	res->func = func;
-	RB_CLEAR_NODE(&res->mob_node);
+	RB_CLEAR_NODE(&res->mob_yesde);
 	INIT_LIST_HEAD(&res->lru_head);
 	INIT_LIST_HEAD(&res->binding_head);
 	res->id = -1;
@@ -295,7 +295,7 @@ out_bad_resource:
  * type, -EINVAL will be returned.
  */
 struct vmw_resource *
-vmw_user_resource_noref_lookup_handle(struct vmw_private *dev_priv,
+vmw_user_resource_yesref_lookup_handle(struct vmw_private *dev_priv,
 				      struct ttm_object_file *tfile,
 				      uint32_t handle,
 				      const struct vmw_user_resource_conv
@@ -303,12 +303,12 @@ vmw_user_resource_noref_lookup_handle(struct vmw_private *dev_priv,
 {
 	struct ttm_base_object *base;
 
-	base = ttm_base_object_noref_lookup(tfile, handle);
+	base = ttm_base_object_yesref_lookup(tfile, handle);
 	if (!base)
 		return ERR_PTR(-ESRCH);
 
 	if (unlikely(ttm_base_object_type(base) != converter->object_type)) {
-		ttm_base_object_noref_release();
+		ttm_base_object_yesref_release();
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -373,11 +373,11 @@ static int vmw_resource_buf_alloc(struct vmw_resource *res,
 			      interruptible,
 			      &vmw_bo_bo_free);
 	if (unlikely(ret != 0))
-		goto out_no_bo;
+		goto out_yes_bo;
 
 	res->backup = backup;
 
-out_no_bo:
+out_yes_bo:
 	return ret;
 }
 
@@ -560,7 +560,7 @@ vmw_resource_check_buffer(struct ww_acquire_ctx *ticket,
 	list_add_tail(&val_buf->head, &val_list);
 	ret = ttm_eu_reserve_buffers(ticket, &val_list, interruptible, NULL);
 	if (unlikely(ret != 0))
-		goto out_no_reserve;
+		goto out_yes_reserve;
 
 	if (res->func->needs_backup && !vmw_resource_mob_attached(res))
 		return 0;
@@ -571,13 +571,13 @@ vmw_resource_check_buffer(struct ww_acquire_ctx *ticket,
 			      &ctx);
 
 	if (unlikely(ret != 0))
-		goto out_no_validate;
+		goto out_yes_validate;
 
 	return 0;
 
-out_no_validate:
+out_yes_validate:
 	ttm_eu_backoff_reservation(ticket, &val_list);
-out_no_reserve:
+out_yes_reserve:
 	ttm_bo_put(val_buf->bo);
 	val_buf->bo = NULL;
 	if (backup_dirty)
@@ -593,11 +593,11 @@ out_no_reserve:
  *
  * This function takes the resource off the LRU list and make sure
  * a backup buffer is present for guest-backed resources. However,
- * the buffer may not be bound to the resource at this point.
+ * the buffer may yest be bound to the resource at this point.
  *
  */
 int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
-			 bool no_backup)
+			 bool yes_backup)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
 	int ret;
@@ -607,7 +607,7 @@ int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
 	spin_unlock(&dev_priv->resource_lock);
 
 	if (res->func->needs_backup && res->backup == NULL &&
-	    !no_backup) {
+	    !yes_backup) {
 		ret = vmw_resource_buf_alloc(res, interruptible);
 		if (unlikely(ret != 0)) {
 			DRM_ERROR("Failed to allocate a backup buffer "
@@ -670,13 +670,13 @@ static int vmw_resource_do_evict(struct ww_acquire_ctx *ticket,
 		     (!func->needs_backup || vmw_resource_mob_attached(res)))) {
 		ret = func->unbind(res, res->res_dirty, &val_buf);
 		if (unlikely(ret != 0))
-			goto out_no_unbind;
+			goto out_yes_unbind;
 		vmw_resource_mob_detach(res);
 	}
 	ret = func->destroy(res);
 	res->backup_dirty = true;
 	res->res_dirty = false;
-out_no_unbind:
+out_yes_unbind:
 	vmw_resource_backoff_reservation(ticket, &val_buf);
 
 	return ret;
@@ -745,7 +745,7 @@ int vmw_resource_validate(struct vmw_resource *res, bool intr,
 			if (ret == -ERESTARTSYS ||
 			    ++err_count > VMW_RES_EVICT_ERR_COUNT) {
 				vmw_resource_unreference(&evict_res);
-				goto out_no_validate;
+				goto out_yes_validate;
 			}
 		}
 
@@ -753,7 +753,7 @@ int vmw_resource_validate(struct vmw_resource *res, bool intr,
 	} while (1);
 
 	if (unlikely(ret != 0))
-		goto out_no_validate;
+		goto out_yes_validate;
 	else if (!res->func->needs_backup && res->backup) {
 		WARN_ON_ONCE(vmw_resource_mob_attached(res));
 		vmw_bo_unreference(&res->backup);
@@ -761,7 +761,7 @@ int vmw_resource_validate(struct vmw_resource *res, bool intr,
 
 	return 0;
 
-out_no_validate:
+out_yes_validate:
 	return ret;
 }
 
@@ -773,7 +773,7 @@ out_no_validate:
  *
  * Evicts the Guest Backed hardware resource if the backup
  * buffer is being moved out of MOB memory.
- * Note that this function will not race with the resource
+ * Note that this function will yest race with the resource
  * validation code, since resource validation and eviction
  * both require the backup buffer to be reserved.
  */
@@ -786,9 +786,9 @@ void vmw_resource_unbind_list(struct vmw_buffer_object *vbo)
 
 	dma_resv_assert_held(vbo->base.base.resv);
 	while (!RB_EMPTY_ROOT(&vbo->res_tree)) {
-		struct rb_node *node = vbo->res_tree.rb_node;
+		struct rb_yesde *yesde = vbo->res_tree.rb_yesde;
 		struct vmw_resource *res =
-			container_of(node, struct vmw_resource, mob_node);
+			container_of(yesde, struct vmw_resource, mob_yesde);
 
 		if (!WARN_ON_ONCE(!res->func->unbind))
 			(void) res->func->unbind(res, res->res_dirty, &val_buf);
@@ -820,7 +820,7 @@ int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob)
 	} *cmd;
 
 
-	/* No query bound, so do nothing */
+	/* No query bound, so do yesthing */
 	if (!dx_query_mob || !dx_query_mob->dx_query_ctx)
 		return 0;
 
@@ -846,7 +846,7 @@ int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob)
 
 
 /**
- * vmw_query_move_notify - Read back cached query states
+ * vmw_query_move_yestify - Read back cached query states
  *
  * @bo: The TTM buffer object about to move.
  * @mem: The memory region @bo is moving to.
@@ -854,7 +854,7 @@ int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob)
  * Called before the query MOB is swapped out to read back cached query
  * states from the device.
  */
-void vmw_query_move_notify(struct ttm_buffer_object *bo,
+void vmw_query_move_yestify(struct ttm_buffer_object *bo,
 			   struct ttm_mem_reg *mem)
 {
 	struct vmw_buffer_object *dx_query_mob;
@@ -993,7 +993,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 	mutex_lock(&dev_priv->cmdbuf_mutex);
 	ret = vmw_resource_reserve(res, interruptible, false);
 	if (ret)
-		goto out_no_reserve;
+		goto out_yes_reserve;
 
 	if (res->pin_count == 0) {
 		struct vmw_buffer_object *vbo = NULL;
@@ -1009,7 +1009,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 					 &ctx);
 				if (ret) {
 					ttm_bo_unreserve(&vbo->base);
-					goto out_no_validate;
+					goto out_yes_validate;
 				}
 			}
 
@@ -1020,13 +1020,13 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 		if (vbo)
 			ttm_bo_unreserve(&vbo->base);
 		if (ret)
-			goto out_no_validate;
+			goto out_yes_validate;
 	}
 	res->pin_count++;
 
-out_no_validate:
+out_yes_validate:
 	vmw_resource_unreserve(res, false, false, false, NULL, 0UL);
-out_no_reserve:
+out_yes_reserve:
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
 	ttm_write_unlock(&dev_priv->reservation_sem);
 
@@ -1103,7 +1103,7 @@ void vmw_resource_dirty_update(struct vmw_resource *res, pgoff_t start,
 int vmw_resources_clean(struct vmw_buffer_object *vbo, pgoff_t start,
 			pgoff_t end, pgoff_t *num_prefault)
 {
-	struct rb_node *cur = vbo->res_tree.rb_node;
+	struct rb_yesde *cur = vbo->res_tree.rb_yesde;
 	struct vmw_resource *found = NULL;
 	unsigned long res_start = start << PAGE_SHIFT;
 	unsigned long res_end = end << PAGE_SHIFT;
@@ -1115,7 +1115,7 @@ int vmw_resources_clean(struct vmw_buffer_object *vbo, pgoff_t start,
 	 */
 	while (cur) {
 		struct vmw_resource *cur_res =
-			container_of(cur, struct vmw_resource, mob_node);
+			container_of(cur, struct vmw_resource, mob_yesde);
 
 		if (cur_res->backup_offset >= res_end) {
 			cur = cur->rb_left;
@@ -1147,11 +1147,11 @@ int vmw_resources_clean(struct vmw_buffer_object *vbo, pgoff_t start,
 			found->res_dirty = false;
 		}
 		last_cleaned = found->backup_offset + found->backup_size;
-		cur = rb_next(&found->mob_node);
+		cur = rb_next(&found->mob_yesde);
 		if (!cur)
 			break;
 
-		found = container_of(cur, struct vmw_resource, mob_node);
+		found = container_of(cur, struct vmw_resource, mob_yesde);
 		if (found->backup_offset >= res_end)
 			break;
 	}

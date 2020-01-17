@@ -34,7 +34,7 @@
  *	symname	Character string containing symbol name
  *      symtab  Structure to receive results
  * Returns:
- *	0	Symbol not found, symtab zero filled
+ *	0	Symbol yest found, symtab zero filled
  *	1	Symbol mapped to module/symbol/section, data in symtab
  */
 int kdbgetsymval(const char *symname, kdb_symtab_t *symtab)
@@ -75,8 +75,8 @@ static char *kdb_name_table[100];	/* arbitrary size */
  *	then the caller sees its string change without warning.  To
  *	avoid cluttering up the main kdb code with lots of kdb_strdup,
  *	tests and kfree calls, kdbnearsym maintains an LRU list of the
- *	last few unique strings.  The list is sized large enough to
- *	hold active strings, no kdb caller of kdbnearsym makes more
+ *	last few unique strings.  The list is sized large eyesugh to
+ *	hold active strings, yes kdb caller of kdbnearsym makes more
  *	than ~20 later calls before using a saved value.
  */
 int kdbnearsym(unsigned long addr, kdb_symtab_t *symtab)
@@ -95,7 +95,7 @@ int kdbnearsym(unsigned long addr, kdb_symtab_t *symtab)
 		goto out;
 	knt1 = debug_kmalloc(knt1_size, GFP_ATOMIC);
 	if (!knt1) {
-		kdb_printf("kdbnearsym: addr=0x%lx cannot kmalloc knt1\n",
+		kdb_printf("kdbnearsym: addr=0x%lx canyest kmalloc knt1\n",
 			   addr);
 		goto out;
 	}
@@ -111,8 +111,8 @@ int kdbnearsym(unsigned long addr, kdb_symtab_t *symtab)
 
 	if (ret) {
 		int i;
-		/* Another 2.6 kallsyms "feature".  Sometimes the sym_name is
-		 * set but the buffer passed into kallsyms_lookup is not used,
+		/* Ayesther 2.6 kallsyms "feature".  Sometimes the sym_name is
+		 * set but the buffer passed into kallsyms_lookup is yest used,
 		 * so it contains garbage.  The caller has to work out which
 		 * buffer needs to be saved.
 		 *
@@ -225,7 +225,7 @@ int kallsyms_symbol_complete(char *prefix_name, int max_len)
  *			buffer
  * Returns:
  *	1 if a symbol matches the given prefix.
- *	0 if no string found
+ *	0 if yes string found
  */
 int kallsyms_symbol_next(char *prefix_name, int flag, int buf_size)
 {
@@ -299,9 +299,9 @@ void kdb_symbol_print(unsigned long addr, const kdb_symtab_t *symtab_p,
  *	str	The string to duplicate.
  *	type	Flags to kmalloc for the new string.
  * Returns:
- *	Address of the new string, NULL if storage could not be allocated.
+ *	Address of the new string, NULL if storage could yest be allocated.
  * Remarks:
- *	This is not in lib/string.c because it uses kmalloc which is not
+ *	This is yest in lib/string.c because it uses kmalloc which is yest
  *	available when string.o is used in boot loaders.
  */
 char *kdb_strdup(const char *str, gfp_t type)
@@ -536,7 +536,7 @@ int kdb_putword(unsigned long addr, unsigned long word, size_t size)
 /*
  * kdb_task_state_string - Convert a string containing any of the
  *	letters DRSTCZEUIMA to a mask for the process state field and
- *	return the value.  If no argument is supplied, return the mask
+ *	return the value.  If yes argument is supplied, return the mask
  *	that corresponds to environment variable PS, DRSTCZEU by
  *	default.
  * Inputs:
@@ -545,9 +545,9 @@ int kdb_putword(unsigned long addr, unsigned long word, size_t size)
  *	Mask for process state.
  * Notes:
  *	The mask folds data from several sources into a single long value, so
- *	be careful not to overlap the bits.  TASK_* bits are in the LSB,
+ *	be careful yest to overlap the bits.  TASK_* bits are in the LSB,
  *	special cases like UNRUNNABLE are in the MSB.  As of 2.6.10-rc1 there
- *	is no overlap between TASK_* and EXIT_* but that may not always be
+ *	is yes overlap between TASK_* and EXIT_* but that may yest always be
  *	true, so EXIT_* bits are shifted left 16 bits before being stored in
  *	the mask.
  */
@@ -602,7 +602,7 @@ unsigned long kdb_task_state_string(const char *s)
 			res = ~0UL;
 			break;
 		default:
-			  kdb_printf("%s: unknown flag '%c' ignored\n",
+			  kdb_printf("%s: unkyeswn flag '%c' igyesred\n",
 				     __func__, *s);
 			  break;
 		}
@@ -684,7 +684,7 @@ void kdb_print_nameval(const char *name, unsigned long val)
 
 /* Last ditch allocator for debugging, so we can still debug even when
  * the GFP_ATOMIC pool has been exhausted.  The algorithms are tuned
- * for space usage, not for speed.  One smallish memory pool, the free
+ * for space usage, yest for speed.  One smallish memory pool, the free
  * chain is always in ascending address order to allow coalescing,
  * allocations are done in brute force best fit.
  */
@@ -696,10 +696,10 @@ struct debug_alloc_header {
 };
 
 /* The memory returned by this allocator must be aligned, which means
- * so must the header size.  Do not assume that sizeof(struct
+ * so must the header size.  Do yest assume that sizeof(struct
  * debug_alloc_header) is a multiple of the alignment, explicitly
  * calculate the overhead of this header, including the alignment.
- * The rest of this code must not use sizeof() on any header or
+ * The rest of this code must yest use sizeof() on any header or
  * pointer to a header.
  */
 #define dah_align 8
@@ -710,13 +710,13 @@ static char *debug_alloc_pool = (char *)debug_alloc_pool_aligned;
 static u32 dah_first, dah_first_call = 1, dah_used, dah_used_max;
 
 /* Locking is awkward.  The debug code is called from all contexts,
- * including non maskable interrupts.  A normal spinlock is not safe
- * in NMI context.  Try to get the debug allocator lock, if it cannot
- * be obtained after a second then give up.  If the lock could not be
+ * including yesn maskable interrupts.  A yesrmal spinlock is yest safe
+ * in NMI context.  Try to get the debug allocator lock, if it canyest
+ * be obtained after a second then give up.  If the lock could yest be
  * previously obtained on this cpu then only try once.
  *
- * sparse has no annotation for "this function _sometimes_ acquires a
- * lock", so fudge the acquire/release notation.
+ * sparse has yes anyestation for "this function _sometimes_ acquires a
+ * lock", so fudge the acquire/release yestation.
  */
 static DEFINE_SPINLOCK(dap_lock);
 static int get_dap_lock(void)
@@ -813,7 +813,7 @@ void debug_kfree(void *p)
 	}
 	if (!get_dap_lock()) {
 		__release(dap_lock);	/* we never actually got it */
-		return;		/* memory leak, cannot be helped */
+		return;		/* memory leak, canyest be helped */
 	}
 	h = (struct debug_alloc_header *)((char *)p - dah_overhead);
 	memset(p, POISON_FREE, h->size - 1);

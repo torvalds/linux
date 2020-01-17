@@ -53,7 +53,7 @@
 #define ANW6410_PA_DM9000	(0x18000000)
 
 /* A hardware buffer to control external devices is mapped at 0x30000000.
- * It can not be read. So current status must be kept in anw6410_extdev_status.
+ * It can yest be read. So current status must be kept in anw6410_extdev_status.
  */
 #define ANW6410_VA_EXTDEV	S3C_ADDR(0x02000000)
 #define ANW6410_PA_EXTDEV	(0x30000000)

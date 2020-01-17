@@ -9,7 +9,7 @@
 #include "panfrost_device.h"
 
 /*
- * This is not a complete list of issues, but only the ones the driver needs
+ * This is yest a complete list of issues, but only the ones the driver needs
  * to care about.
  */
 enum panfrost_hw_issue {
@@ -17,14 +17,14 @@ enum panfrost_hw_issue {
 	 * are commited */
 	HW_ISSUE_6367,
 
-	/* On job complete with non-done the cache is not flushed */
+	/* On job complete with yesn-done the cache is yest flushed */
 	HW_ISSUE_6787,
 
 	/* Write of PRFCNT_CONFIG_MODE_MANUAL to PRFCNT_CONFIG causes a
 	 * instrumentation dump if PRFCNT_TILER_EN is enabled */
 	HW_ISSUE_8186,
 
-	/* TIB: Reports faults from a vtile which has not yet been allocated */
+	/* TIB: Reports faults from a vtile which has yest yet been allocated */
 	HW_ISSUE_8245,
 
 	/* uTLB deadlock could occur when writing to an invalid page at the
@@ -32,11 +32,11 @@ enum panfrost_hw_issue {
 	 * 4 PTEs == 16K block of mapping) */
 	HW_ISSUE_8316,
 
-	/* HT: TERMINATE for RUN command ignored if previous LOAD_DESCRIPTOR is
+	/* HT: TERMINATE for RUN command igyesred if previous LOAD_DESCRIPTOR is
 	 * still executing */
 	HW_ISSUE_8394,
 
-	/* CSE: Sends a TERMINATED response for a task that should not be
+	/* CSE: Sends a TERMINATED response for a task that should yest be
 	 * terminated */
 	HW_ISSUE_8401,
 
@@ -54,14 +54,14 @@ enum panfrost_hw_issue {
 	 * won't complete until all 4 tasks have completed */
 	HW_ISSUE_9435,
 
-	/* HT: Tiler returns TERMINATED for non-terminated command */
+	/* HT: Tiler returns TERMINATED for yesn-terminated command */
 	HW_ISSUE_9510,
 
 	/* Occasionally the GPU will issue multiple page faults for the same
 	 * address before the MMU page table has been read by the GPU */
 	HW_ISSUE_9630,
 
-	/* RA DCD load request to SDC returns invalid load ignore causing
+	/* RA DCD load request to SDC returns invalid load igyesre causing
 	 * colour buffer mismatch */
 	HW_ISSUE_10327,
 
@@ -97,7 +97,7 @@ enum panfrost_hw_issue {
 	/* Pause buffer can cause a fragment job hang */
 	HW_ISSUE_11035,
 
-	/* Dynamic Core Scaling not supported due to errata */
+	/* Dynamic Core Scaling yest supported due to errata */
 	HW_ISSUE_11056,
 
 	/* Clear encoder state for a hard stopped fragment job which is AFBC
@@ -108,7 +108,7 @@ enum panfrost_hw_issue {
 	/* Keep tiler module clock on to prevent GPU stall */
 	HW_ISSUE_T76X_3953,
 
-	/* Must ensure L2 is not transitioning when we reset. Workaround with a
+	/* Must ensure L2 is yest transitioning when we reset. Workaround with a
 	 * busy wait until L2 completes transition; ensure there is a maximum
 	 * loop count as she may never complete her transition. (On chips
 	 * without this errata, it's totally okay if L2 transitions.) */

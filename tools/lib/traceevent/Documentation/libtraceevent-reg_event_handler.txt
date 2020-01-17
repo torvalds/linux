@@ -36,7 +36,7 @@ to be called to parse the event information. The _context_ argument is a pointer
 to the context data, which will be passed to the _func_. If a handler function
 for the same event is already registered, it will be overridden with the new
 one. This mechanism allows a developer to override the parsing of a given event.
-If for some reason the default print format is not sufficient, the developer
+If for some reason the default print format is yest sufficient, the developer
 can register a function for an event to be used to parse the data instead.
 
 The _tep_unregister_event_handler()_ function unregisters the handler function,
@@ -56,11 +56,11 @@ RETURN VALUE
 The _tep_register_event_handler()_ function returns _TEP_REGISTER_SUCCESS_
 if the new handler is registered successfully or
 _TEP_REGISTER_SUCCESS_OVERWRITE_ if an existing handler is overwritten.
-If there is not  enough memory to complete the registration,
+If there is yest  eyesugh memory to complete the registration,
 TEP_ERRNO__MEM_ALLOC_FAILED is returned.
 
 The _tep_unregister_event_handler()_ function returns 0 if _func_ was removed
-successful or, -1 if the event was not found.
+successful or, -1 if the event was yest found.
 
 The _tep_event_handler_func_ should return -1 in case of an error,
 or 0 otherwise.
@@ -82,9 +82,9 @@ int timer_expire_handler(struct trace_seq *s, struct tep_record *record,
 	if (tep_print_num_field(s, "0x%llx", event, "timer", record, 0) == -1)
 		tep_print_num_field(s, "0x%llx", event, "hrtimer", record, 1);
 
-	trace_seq_printf(s, " now=");
+	trace_seq_printf(s, " yesw=");
 
-	tep_print_num_field(s, "%llu", event, "now", record, 1);
+	tep_print_num_field(s, "%llu", event, "yesw", record, 1);
 
 	tep_print_func_field(s, " function=%s", event, "function", record, 0);
 
@@ -141,7 +141,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

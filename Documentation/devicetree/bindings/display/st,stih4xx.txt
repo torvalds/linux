@@ -39,7 +39,7 @@ STMicroelectronics stih4xx platforms
     See ../reset/reset.txt for details.
   - reset-names: names of the resets listed in resets property in the same
     order.
-  - st,vtg: phandle(s) on vtg device (main and aux) nodes.
+  - st,vtg: phandle(s) on vtg device (main and aux) yesdes.
 
 - sti-tvout: video out hardware block
   must be a child of sti-display-subsystem
@@ -112,7 +112,7 @@ sti-hqvdp:
     See ../reset/reset.txt for details.
   - reset-names: names of the resets listed in resets property in the same
     order.
-  - st,vtg: phandle on vtg main device node.
+  - st,vtg: phandle on vtg main device yesde.
 
 Example:
 

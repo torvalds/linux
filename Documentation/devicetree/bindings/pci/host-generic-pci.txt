@@ -2,8 +2,8 @@
 
 Firmware-initialised PCI host controllers and PCI emulations, such as the
 virtio-pci implementations found in kvmtool and other para-virtualised
-systems, do not require driver support for complexities such as regulator
-and clock management. In fact, the controller may not even require the
+systems, do yest require driver support for complexities such as regulator
+and clock management. In fact, the controller may yest even require the
 configuration of a control interface by the operating system, instead
 presenting a set of fixed windows describing a subset of IO, Memory and
 Configuration Spaces.
@@ -12,7 +12,7 @@ Such a controller can be described purely in terms of the standardized device
 tree bindings communicated in pci.txt:
 
 
-Properties of the host controller node:
+Properties of the host controller yesde:
 
 - compatible     : Must be "pci-host-cam-generic" or "pci-host-ecam-generic"
                    depending on the layout of configuration space (CAM vs
@@ -21,7 +21,7 @@ Properties of the host controller node:
 - device_type    : Must be "pci".
 
 - ranges         : As described in IEEE Std 1275-1994, but must provide
-                   at least a definition of non-prefetchable memory. One
+                   at least a definition of yesn-prefetchable memory. One
                    or both of prefetchable Memory and IO Space may also
                    be provided.
 
@@ -35,15 +35,15 @@ Properties of the host controller node:
 
 - reg            : The Configuration Space base address and size, as accessed
                    from the parent bus.  The base address corresponds to
-                   the first bus in the "bus-range" property.  If no
+                   the first bus in the "bus-range" property.  If yes
                    "bus-range" is specified, this will be bus 0 (the default).
 
-Properties of the /chosen node:
+Properties of the /chosen yesde:
 
 - linux,pci-probe-only
                  : Optional property which takes a single-cell argument.
                    If '0', then Linux will assign devices in its usual manner,
-                   otherwise it will not try to assign devices and instead use
+                   otherwise it will yest try to assign devices and instead use
                    them as they are configured already.
 
 Configuration Space is assumed to be memory-mapped (as opposed to being

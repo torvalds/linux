@@ -61,8 +61,8 @@ struct lm3560_flash {
 	struct v4l2_subdev subdev_led[LM3560_LED_MAX];
 };
 
-#define to_lm3560_flash(_ctrl, _no)	\
-	container_of(_ctrl->handler, struct lm3560_flash, ctrls_led[_no])
+#define to_lm3560_flash(_ctrl, _yes)	\
+	container_of(_ctrl->handler, struct lm3560_flash, ctrls_led[_yes])
 
 /* enable mode control */
 static int lm3560_mode_ctrl(struct lm3560_flash *flash)
@@ -88,11 +88,11 @@ static int lm3560_mode_ctrl(struct lm3560_flash *flash)
 
 /* led1/2 enable/disable */
 static int lm3560_enable_ctrl(struct lm3560_flash *flash,
-			      enum lm3560_led_id led_no, bool on)
+			      enum lm3560_led_id led_yes, bool on)
 {
 	int rval;
 
-	if (led_no == LM3560_LED0) {
+	if (led_yes == LM3560_LED0) {
 		if (on)
 			rval = regmap_update_bits(flash->regmap,
 						  REG_ENABLE, 0x08, 0x08);
@@ -112,18 +112,18 @@ static int lm3560_enable_ctrl(struct lm3560_flash *flash,
 
 /* torch1/2 brightness control */
 static int lm3560_torch_brt_ctrl(struct lm3560_flash *flash,
-				 enum lm3560_led_id led_no, unsigned int brt)
+				 enum lm3560_led_id led_yes, unsigned int brt)
 {
 	int rval;
 	u8 br_bits;
 
 	if (brt < LM3560_TORCH_BRT_MIN)
-		return lm3560_enable_ctrl(flash, led_no, false);
+		return lm3560_enable_ctrl(flash, led_yes, false);
 	else
-		rval = lm3560_enable_ctrl(flash, led_no, true);
+		rval = lm3560_enable_ctrl(flash, led_yes, true);
 
 	br_bits = LM3560_TORCH_BRT_uA_TO_REG(brt);
-	if (led_no == LM3560_LED0)
+	if (led_yes == LM3560_LED0)
 		rval = regmap_update_bits(flash->regmap,
 					  REG_TORCH_BR, 0x07, br_bits);
 	else
@@ -135,18 +135,18 @@ static int lm3560_torch_brt_ctrl(struct lm3560_flash *flash,
 
 /* flash1/2 brightness control */
 static int lm3560_flash_brt_ctrl(struct lm3560_flash *flash,
-				 enum lm3560_led_id led_no, unsigned int brt)
+				 enum lm3560_led_id led_yes, unsigned int brt)
 {
 	int rval;
 	u8 br_bits;
 
 	if (brt < LM3560_FLASH_BRT_MIN)
-		return lm3560_enable_ctrl(flash, led_no, false);
+		return lm3560_enable_ctrl(flash, led_yes, false);
 	else
-		rval = lm3560_enable_ctrl(flash, led_no, true);
+		rval = lm3560_enable_ctrl(flash, led_yes, true);
 
 	br_bits = LM3560_FLASH_BRT_uA_TO_REG(brt);
-	if (led_no == LM3560_LED0)
+	if (led_yes == LM3560_LED0)
 		rval = regmap_update_bits(flash->regmap,
 					  REG_FLASH_BR, 0x0f, br_bits);
 	else
@@ -157,9 +157,9 @@ static int lm3560_flash_brt_ctrl(struct lm3560_flash *flash,
 }
 
 /* v4l2 controls  */
-static int lm3560_get_ctrl(struct v4l2_ctrl *ctrl, enum lm3560_led_id led_no)
+static int lm3560_get_ctrl(struct v4l2_ctrl *ctrl, enum lm3560_led_id led_yes)
 {
-	struct lm3560_flash *flash = to_lm3560_flash(ctrl, led_no);
+	struct lm3560_flash *flash = to_lm3560_flash(ctrl, led_yes);
 	int rval = -EINVAL;
 
 	mutex_lock(&flash->lock);
@@ -184,9 +184,9 @@ out:
 	return rval;
 }
 
-static int lm3560_set_ctrl(struct v4l2_ctrl *ctrl, enum lm3560_led_id led_no)
+static int lm3560_set_ctrl(struct v4l2_ctrl *ctrl, enum lm3560_led_id led_yes)
 {
-	struct lm3560_flash *flash = to_lm3560_flash(ctrl, led_no);
+	struct lm3560_flash *flash = to_lm3560_flash(ctrl, led_yes);
 	u8 tout_bits;
 	int rval = -EINVAL;
 
@@ -231,11 +231,11 @@ static int lm3560_set_ctrl(struct v4l2_ctrl *ctrl, enum lm3560_led_id led_no)
 		break;
 
 	case V4L2_CID_FLASH_INTENSITY:
-		rval = lm3560_flash_brt_ctrl(flash, led_no, ctrl->val);
+		rval = lm3560_flash_brt_ctrl(flash, led_yes, ctrl->val);
 		break;
 
 	case V4L2_CID_FLASH_TORCH_INTENSITY:
-		rval = lm3560_torch_brt_ctrl(flash, led_no, ctrl->val);
+		rval = lm3560_torch_brt_ctrl(flash, led_yes, ctrl->val);
 		break;
 	}
 
@@ -276,13 +276,13 @@ static const struct v4l2_ctrl_ops lm3560_led_ctrl_ops[LM3560_LED_MAX] = {
 };
 
 static int lm3560_init_controls(struct lm3560_flash *flash,
-				enum lm3560_led_id led_no)
+				enum lm3560_led_id led_yes)
 {
 	struct v4l2_ctrl *fault;
-	u32 max_flash_brt = flash->pdata->max_flash_brt[led_no];
-	u32 max_torch_brt = flash->pdata->max_torch_brt[led_no];
-	struct v4l2_ctrl_handler *hdl = &flash->ctrls_led[led_no];
-	const struct v4l2_ctrl_ops *ops = &lm3560_led_ctrl_ops[led_no];
+	u32 max_flash_brt = flash->pdata->max_flash_brt[led_yes];
+	u32 max_torch_brt = flash->pdata->max_torch_brt[led_yes];
+	struct v4l2_ctrl_handler *hdl = &flash->ctrls_led[led_yes];
+	const struct v4l2_ctrl_ops *ops = &lm3560_led_ctrl_ops[led_yes];
 
 	v4l2_ctrl_handler_init(hdl, 8);
 
@@ -331,7 +331,7 @@ static int lm3560_init_controls(struct lm3560_flash *flash,
 	if (hdl->error)
 		return hdl->error;
 
-	flash->subdev_led[led_no].ctrl_handler = hdl;
+	flash->subdev_led[led_yes].ctrl_handler = hdl;
 	return 0;
 }
 
@@ -347,27 +347,27 @@ static const struct regmap_config lm3560_regmap = {
 };
 
 static int lm3560_subdev_init(struct lm3560_flash *flash,
-			      enum lm3560_led_id led_no, char *led_name)
+			      enum lm3560_led_id led_yes, char *led_name)
 {
 	struct i2c_client *client = to_i2c_client(flash->dev);
 	int rval;
 
-	v4l2_i2c_subdev_init(&flash->subdev_led[led_no], client, &lm3560_ops);
-	flash->subdev_led[led_no].flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	strscpy(flash->subdev_led[led_no].name, led_name,
-		sizeof(flash->subdev_led[led_no].name));
-	rval = lm3560_init_controls(flash, led_no);
+	v4l2_i2c_subdev_init(&flash->subdev_led[led_yes], client, &lm3560_ops);
+	flash->subdev_led[led_yes].flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	strscpy(flash->subdev_led[led_yes].name, led_name,
+		sizeof(flash->subdev_led[led_yes].name));
+	rval = lm3560_init_controls(flash, led_yes);
 	if (rval)
 		goto err_out;
-	rval = media_entity_pads_init(&flash->subdev_led[led_no].entity, 0, NULL);
+	rval = media_entity_pads_init(&flash->subdev_led[led_yes].entity, 0, NULL);
 	if (rval < 0)
 		goto err_out;
-	flash->subdev_led[led_no].entity.function = MEDIA_ENT_F_FLASH;
+	flash->subdev_led[led_yes].entity.function = MEDIA_ENT_F_FLASH;
 
 	return rval;
 
 err_out:
-	v4l2_ctrl_handler_free(&flash->ctrls_led[led_no]);
+	v4l2_ctrl_handler_free(&flash->ctrls_led[led_yes]);
 	return rval;
 }
 
@@ -408,7 +408,7 @@ static int lm3560_probe(struct i2c_client *client,
 		return rval;
 	}
 
-	/* if there is no platform data, use chip default value */
+	/* if there is yes platform data, use chip default value */
 	if (pdata == NULL) {
 		pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 		if (pdata == NULL)

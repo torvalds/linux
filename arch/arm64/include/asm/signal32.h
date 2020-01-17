@@ -10,7 +10,7 @@
 
 struct compat_sigcontext {
 	/* We always set these two fields to 0 */
-	compat_ulong_t			trap_no;
+	compat_ulong_t			trap_yes;
 	compat_ulong_t			error_code;
 
 	compat_ulong_t			oldmask;

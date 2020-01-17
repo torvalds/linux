@@ -74,7 +74,7 @@ static void etnaviv_gem_prime_release(struct etnaviv_gem_object *etnaviv_obj)
 		dma_buf_vunmap(etnaviv_obj->base.import_attach->dmabuf,
 			       etnaviv_obj->vaddr);
 
-	/* Don't drop the pages for imported dmabuf, as they are not
+	/* Don't drop the pages for imported dmabuf, as they are yest
 	 * ours, just free the array we allocated:
 	 */
 	if (etnaviv_obj->pages)

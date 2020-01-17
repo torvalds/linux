@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -50,7 +50,7 @@ struct mlx5e_neigh_update_table {
 	struct list_head	neigh_list;
 	/* protect lookup/remove operations */
 	struct mutex		encap_lock;
-	struct notifier_block   netevent_nb;
+	struct yestifier_block   netevent_nb;
 	struct delayed_work     neigh_stats_work;
 	unsigned long           min_interval; /* jiffies */
 };
@@ -67,12 +67,12 @@ struct mlx5_rep_uplink_priv {
 	 * tc_indr_block_cb_priv_list is used to lookup indirect callback
 	 * private data
 	 *
-	 * netdevice_nb is the netdev events notifier - used to register
+	 * netdevice_nb is the netdev events yestifier - used to register
 	 * tunnel devices for block events
 	 *
 	 */
 	struct list_head	    tc_indr_block_priv_list;
-	struct notifier_block	    netdevice_nb;
+	struct yestifier_block	    netdevice_nb;
 
 	struct mlx5_tun_entropy tun_entropy;
 
@@ -109,7 +109,7 @@ struct mlx5e_neigh {
 };
 
 struct mlx5e_neigh_hash_entry {
-	struct rhash_head rhash_node;
+	struct rhash_head rhash_yesde;
 	struct mlx5e_neigh m_neigh;
 	struct mlx5e_priv *priv;
 
@@ -132,7 +132,7 @@ struct mlx5e_neigh_hash_entry {
 
 	/* neigh hash entry can be deleted only when the refcount is zero.
 	 * refcount is needed to avoid neigh hash entry removal by TC, while
-	 * it's used by the neigh notification call.
+	 * it's used by the neigh yestification call.
 	 */
 	refcount_t refcnt;
 
@@ -156,10 +156,10 @@ struct mlx5e_encap_entry {
 	/* neigh hash entry list of encaps sharing the same neigh */
 	struct list_head encap_list;
 	struct mlx5e_neigh m_neigh;
-	/* a node of the eswitch encap hash table which keeping all the encap
+	/* a yesde of the eswitch encap hash table which keeping all the encap
 	 * entries
 	 */
-	struct hlist_node encap_hlist;
+	struct hlist_yesde encap_hlist;
 	struct list_head flows;
 	struct mlx5_pkt_reformat *pkt_reformat;
 	const struct ip_tunnel_info *tun_info;

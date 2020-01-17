@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -112,7 +112,7 @@ enum sync_source {
 	SYNC_SOURCE_GSL_GROUP2,
 
 	/* Source based on GSL IOs */
-	/* These IOs normally used as GSL input/output */
+	/* These IOs yesrmally used as GSL input/output */
 	SYNC_SOURCE_GSL_IO_FIRST,
 	SYNC_SOURCE_GSL_IO_GENLOCK_CLOCK = SYNC_SOURCE_GSL_IO_FIRST,
 	SYNC_SOURCE_GSL_IO_GENLOCK_VSYNC,

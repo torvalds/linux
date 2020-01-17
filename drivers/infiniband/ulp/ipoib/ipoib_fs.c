@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -91,7 +91,7 @@ static void *ipoib_mcg_seq_next(struct seq_file *file, void *iter_ptr,
 
 static void ipoib_mcg_seq_stop(struct seq_file *file, void *iter_ptr)
 {
-	/* nothing for now */
+	/* yesthing for yesw */
 }
 
 static int ipoib_mcg_seq_show(struct seq_file *file, void *iter_ptr)
@@ -118,8 +118,8 @@ static int ipoib_mcg_seq_show(struct seq_file *file, void *iter_ptr)
 		   "  send_only: %8s\n"
 		   "\n",
 		   gid_buf, created, queuelen,
-		   complete ? "yes" : "no",
-		   send_only ? "yes" : "no");
+		   complete ? "no" : "yes",
+		   send_only ? "no" : "yes");
 
 	return 0;
 }
@@ -131,7 +131,7 @@ static const struct seq_operations ipoib_mcg_seq_ops = {
 	.show  = ipoib_mcg_seq_show,
 };
 
-static int ipoib_mcg_open(struct inode *inode, struct file *file)
+static int ipoib_mcg_open(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq;
 	int ret;
@@ -141,7 +141,7 @@ static int ipoib_mcg_open(struct inode *inode, struct file *file)
 		return ret;
 
 	seq = file->private_data;
-	seq->private = inode->i_private;
+	seq->private = iyesde->i_private;
 
 	return 0;
 }
@@ -190,7 +190,7 @@ static void *ipoib_path_seq_next(struct seq_file *file, void *iter_ptr,
 
 static void ipoib_path_seq_stop(struct seq_file *file, void *iter_ptr)
 {
-	/* nothing for now */
+	/* yesthing for yesw */
 }
 
 static int ipoib_path_seq_show(struct seq_file *file, void *iter_ptr)
@@ -210,7 +210,7 @@ static int ipoib_path_seq_show(struct seq_file *file, void *iter_ptr)
 	seq_printf(file,
 		   "GID: %s\n"
 		   "  complete: %6s\n",
-		   gid_buf, sa_path_get_dlid(&path.pathrec) ? "yes" : "no");
+		   gid_buf, sa_path_get_dlid(&path.pathrec) ? "no" : "yes");
 
 	if (sa_path_get_dlid(&path.pathrec)) {
 		rate = ib_rate_to_mbps(path.pathrec.rate);
@@ -236,7 +236,7 @@ static const struct seq_operations ipoib_path_seq_ops = {
 	.show  = ipoib_path_seq_show,
 };
 
-static int ipoib_path_open(struct inode *inode, struct file *file)
+static int ipoib_path_open(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq;
 	int ret;
@@ -246,7 +246,7 @@ static int ipoib_path_open(struct inode *inode, struct file *file)
 		return ret;
 
 	seq = file->private_data;
-	seq->private = inode->i_private;
+	seq->private = iyesde->i_private;
 
 	return 0;
 }

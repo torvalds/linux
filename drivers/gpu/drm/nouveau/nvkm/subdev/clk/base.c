@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -328,7 +328,7 @@ nvkm_pstate_work(struct work_struct *work)
 	}
 
 	wake_up_all(&clk->wait);
-	nvkm_notify_get(&clk->pwrsrc_ntfy);
+	nvkm_yestify_get(&clk->pwrsrc_ntfy);
 }
 
 static int
@@ -558,10 +558,10 @@ nvkm_clk_dstate(struct nvkm_clk *clk, int req, int rel)
 }
 
 static int
-nvkm_clk_pwrsrc(struct nvkm_notify *notify)
+nvkm_clk_pwrsrc(struct nvkm_yestify *yestify)
 {
 	struct nvkm_clk *clk =
-		container_of(notify, typeof(*clk), pwrsrc_ntfy);
+		container_of(yestify, typeof(*clk), pwrsrc_ntfy);
 	nvkm_pstate_calc(clk, false);
 	return NVKM_NOTIFY_DROP;
 }
@@ -580,7 +580,7 @@ static int
 nvkm_clk_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_clk *clk = nvkm_clk(subdev);
-	nvkm_notify_put(&clk->pwrsrc_ntfy);
+	nvkm_yestify_put(&clk->pwrsrc_ntfy);
 	flush_work(&clk->work);
 	if (clk->func->fini)
 		clk->func->fini(clk);
@@ -601,7 +601,7 @@ nvkm_clk_init(struct nvkm_subdev *subdev)
 	while (clock->name != nv_clk_src_max) {
 		ret = nvkm_clk_read(clk, clock->name);
 		if (ret < 0) {
-			nvkm_error(subdev, "%02x freq unknown\n", clock->name);
+			nvkm_error(subdev, "%02x freq unkyeswn\n", clock->name);
 			return ret;
 		}
 		clk->bstate.base.domain[clock->name] = ret;
@@ -627,7 +627,7 @@ nvkm_clk_dtor(struct nvkm_subdev *subdev)
 	struct nvkm_clk *clk = nvkm_clk(subdev);
 	struct nvkm_pstate *pstate, *temp;
 
-	nvkm_notify_fini(&clk->pwrsrc_ntfy);
+	nvkm_yestify_fini(&clk->pwrsrc_ntfy);
 
 	/* Early return if the pstates have been provided statically */
 	if (clk->func->pstates)
@@ -678,7 +678,7 @@ nvkm_clk_ctor(const struct nvkm_clk_func *func, struct nvkm_device *device,
 	init_waitqueue_head(&clk->wait);
 	atomic_set(&clk->waiting, 0);
 
-	/* If no pstates are provided, try and fetch them from the BIOS */
+	/* If yes pstates are provided, try and fetch them from the BIOS */
 	if (!func->pstates) {
 		idx = 0;
 		do {
@@ -690,7 +690,7 @@ nvkm_clk_ctor(const struct nvkm_clk_func *func, struct nvkm_device *device,
 		clk->state_nr = func->nr_pstates;
 	}
 
-	ret = nvkm_notify_init(NULL, &device->event, nvkm_clk_pwrsrc, true,
+	ret = nvkm_yestify_init(NULL, &device->event, nvkm_clk_pwrsrc, true,
 			       NULL, 0, 0, &clk->pwrsrc_ntfy);
 	if (ret)
 		return ret;

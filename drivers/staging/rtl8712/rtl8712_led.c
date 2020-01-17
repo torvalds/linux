@@ -48,7 +48,7 @@ enum _LED_STATE_871x {
 			     * the # of times to blink is depend on time
 			     * for scanning.
 			     */
-	LED_NO_LINK_BLINK = 7, /* LED is blinking during no link state. */
+	LED_NO_LINK_BLINK = 7, /* LED is blinking during yes link state. */
 	LED_BLINK_StartToBlink = 8,/* Customized for Sercomm Printer
 				    * Server case
 				    */

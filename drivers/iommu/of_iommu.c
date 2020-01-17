@@ -21,19 +21,19 @@
 /**
  * of_get_dma_window - Parse *dma-window property and returns 0 if found.
  *
- * @dn: device node
+ * @dn: device yesde
  * @prefix: prefix for property name if any
  * @index: index to start to parse
- * @busno: Returns busno if supported. Otherwise pass NULL
+ * @busyes: Returns busyes if supported. Otherwise pass NULL
  * @addr: Returns address that DMA starts
  * @size: Returns the range that DMA can handle
  *
  * This supports different formats flexibly. "prefix" can be
- * configured if any. "busno" and "index" are optionally
- * specified. Set 0(or NULL) if not used.
+ * configured if any. "busyes" and "index" are optionally
+ * specified. Set 0(or NULL) if yest used.
  */
-int of_get_dma_window(struct device_node *dn, const char *prefix, int index,
-		      unsigned long *busno, dma_addr_t *addr, size_t *size)
+int of_get_dma_window(struct device_yesde *dn, const char *prefix, int index,
+		      unsigned long *busyes, dma_addr_t *addr, size_t *size)
 {
 	const __be32 *dma_window, *end;
 	int bytes, cur_index = 0;
@@ -58,9 +58,9 @@ int of_get_dma_window(struct device_node *dn, const char *prefix, int index,
 		u32 cells;
 		const void *prop;
 
-		/* busno is one cell if supported */
-		if (busno)
-			*busno = be32_to_cpup(dma_window++);
+		/* busyes is one cell if supported */
+		if (busyes)
+			*busyes = be32_to_cpup(dma_window++);
 
 		prop = of_get_property(dn, addrname, NULL);
 		if (!prop)
@@ -90,15 +90,15 @@ static int of_iommu_xlate(struct device *dev,
 			  struct of_phandle_args *iommu_spec)
 {
 	const struct iommu_ops *ops;
-	struct fwnode_handle *fwnode = &iommu_spec->np->fwnode;
+	struct fwyesde_handle *fwyesde = &iommu_spec->np->fwyesde;
 	int err;
 
-	ops = iommu_ops_from_fwnode(fwnode);
+	ops = iommu_ops_from_fwyesde(fwyesde);
 	if ((ops && !ops->of_xlate) ||
 	    !of_device_is_available(iommu_spec->np))
 		return NO_IOMMU;
 
-	err = iommu_fwspec_init(dev, &iommu_spec->np->fwnode, ops);
+	err = iommu_fwspec_init(dev, &iommu_spec->np->fwyesde, ops);
 	if (err)
 		return err;
 	/*
@@ -114,7 +114,7 @@ static int of_iommu_xlate(struct device *dev,
 
 struct of_pci_iommu_alias_info {
 	struct device *dev;
-	struct device_node *np;
+	struct device_yesde *np;
 };
 
 static int of_pci_iommu_init(struct pci_dev *pdev, u16 alias, void *data)
@@ -129,12 +129,12 @@ static int of_pci_iommu_init(struct pci_dev *pdev, u16 alias, void *data)
 		return err == -ENODEV ? NO_IOMMU : err;
 
 	err = of_iommu_xlate(info->dev, &iommu_spec);
-	of_node_put(iommu_spec.np);
+	of_yesde_put(iommu_spec.np);
 	return err;
 }
 
 static int of_fsl_mc_iommu_init(struct fsl_mc_device *mc_dev,
-				struct device_node *master_np)
+				struct device_yesde *master_np)
 {
 	struct of_phandle_args iommu_spec = { .args_count = 1 };
 	int err;
@@ -146,12 +146,12 @@ static int of_fsl_mc_iommu_init(struct fsl_mc_device *mc_dev,
 		return err == -ENODEV ? NO_IOMMU : err;
 
 	err = of_iommu_xlate(&mc_dev->dev, &iommu_spec);
-	of_node_put(iommu_spec.np);
+	of_yesde_put(iommu_spec.np);
 	return err;
 }
 
 const struct iommu_ops *of_iommu_configure(struct device *dev,
-					   struct device_node *master_np)
+					   struct device_yesde *master_np)
 {
 	const struct iommu_ops *ops = NULL;
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
@@ -191,7 +191,7 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 						   "#iommu-cells",
 						   idx, &iommu_spec)) {
 			err = of_iommu_xlate(dev, &iommu_spec);
-			of_node_put(iommu_spec.np);
+			of_yesde_put(iommu_spec.np);
 			idx++;
 			if (err)
 				break;
@@ -200,8 +200,8 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 
 
 	/*
-	 * Two success conditions can be represented by non-negative err here:
-	 * >0 : there is no IOMMU, or one was unavailable for non-fatal reasons
+	 * Two success conditions can be represented by yesn-negative err here:
+	 * >0 : there is yes IOMMU, or one was unavailable for yesn-fatal reasons
 	 *  0 : we found an IOMMU, and dev->fwspec is initialised appropriately
 	 * <0 : any actual error
 	 */
@@ -217,7 +217,7 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 	if (!err && dev->bus && !device_iommu_mapped(dev))
 		err = iommu_probe_device(dev);
 
-	/* Ignore all other errors apart from EPROBE_DEFER */
+	/* Igyesre all other errors apart from EPROBE_DEFER */
 	if (err == -EPROBE_DEFER) {
 		ops = ERR_PTR(err);
 	} else if (err < 0) {

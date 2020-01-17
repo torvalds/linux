@@ -29,18 +29,18 @@ char *err_print_prefix = KERN_NOTICE;
  * Generic
  */
 void
-mchk_dump_mem(void *data, size_t length, char **annotation)
+mchk_dump_mem(void *data, size_t length, char **anyestation)
 {
 	unsigned long *ldata = data;
 	size_t i;
 	
 	for (i = 0; (i * sizeof(*ldata)) < length; i++) {
-		if (annotation && !annotation[i]) 
-			annotation = NULL;
+		if (anyestation && !anyestation[i]) 
+			anyestation = NULL;
 		printk("%s    %08x: %016lx    %s\n",
 		       err_print_prefix,
 		       (unsigned)(i * sizeof(*ldata)), ldata[i],
-		       annotation ? annotation[i] : "");
+		       anyestation ? anyestation[i] : "");
 	}
 }
 
@@ -83,7 +83,7 @@ mchk_dump_logout_frame(struct el_common *mchk_header)
  */
 /* Data */
 static struct el_subpacket_handler *subpacket_handler_list = NULL;
-static struct el_subpacket_annotation *subpacket_annotation_list = NULL;
+static struct el_subpacket_anyestation *subpacket_anyestation_list = NULL;
 
 static struct el_subpacket *
 el_process_header_subpacket(struct el_subpacket *header)
@@ -128,8 +128,8 @@ el_process_header_subpacket(struct el_subpacket *header)
 		packet_count = 1;
 		timestamp.as_int = 0;
 		break;
-	default: /* Unknown */
-		printk("%s** Unknown header - CLASS %d TYPE %d, aborting\n",
+	default: /* Unkyeswn */
+		printk("%s** Unkyeswn header - CLASS %d TYPE %d, aborting\n",
 		       err_print_prefix,
 		       header->class, header->type);
 		return NULL;		
@@ -198,7 +198,7 @@ el_process_subpacket(struct el_subpacket *header)
 
 	switch(header->class) {
 	case EL_CLASS__TERMINATION:
-		/* Termination packet, there are no more */
+		/* Termination packet, there are yes more */
 		break;
 	case EL_CLASS__HEADER: 
 		next = el_process_header_subpacket(header);
@@ -217,25 +217,25 @@ el_process_subpacket(struct el_subpacket *header)
 }
 
 void 
-el_annotate_subpacket(struct el_subpacket *header)
+el_anyestate_subpacket(struct el_subpacket *header)
 {
-	struct el_subpacket_annotation *a;
-	char **annotation = NULL;
+	struct el_subpacket_anyestation *a;
+	char **anyestation = NULL;
 
-	for (a = subpacket_annotation_list; a; a = a->next) {
+	for (a = subpacket_anyestation_list; a; a = a->next) {
 		if (a->class == header->class &&
 		    a->type == header->type &&
 		    a->revision == header->revision) {
 			/*
-			 * We found the annotation
+			 * We found the anyestation
 			 */
-			annotation = a->annotation;
+			anyestation = a->anyestation;
 			printk("%s  %s\n", err_print_prefix, a->description);
 			break;
 		}
 	}
 
-	mchk_dump_mem(header, header->length, annotation);
+	mchk_dump_mem(header, header->length, anyestation);
 }
 
 static void __init
@@ -252,7 +252,7 @@ cdl_process_console_data_log(int cpu, struct percpu_struct *pcpu)
 	for (err = 0; header && (header->class != EL_CLASS__TERMINATION); err++)
 		header = el_process_subpacket(header);
 
-	/* let the console know it's ok to clear the error(s) at restart */
+	/* let the console kyesw it's ok to clear the error(s) at restart */
 	pcpu->console_data_log_pa = 0;
 
 	printk("%s*** %d total error(s) logged\n"
@@ -277,17 +277,17 @@ cdl_check_console_data_log(void)
 }
 
 int __init
-cdl_register_subpacket_annotation(struct el_subpacket_annotation *new)
+cdl_register_subpacket_anyestation(struct el_subpacket_anyestation *new)
 {
-	struct el_subpacket_annotation *a = subpacket_annotation_list;
+	struct el_subpacket_anyestation *a = subpacket_anyestation_list;
 
-	if (a == NULL) subpacket_annotation_list = new;
+	if (a == NULL) subpacket_anyestation_list = new;
 	else {
 		for (; a->next != NULL; a = a->next) {
 			if ((a->class == new->class && a->type == new->type) ||
 			    a == new) {
 				printk("Attempted to re-register "
-				       "subpacket annotation\n");
+				       "subpacket anyestation\n");
 				return -EINVAL;
 			}
 		}

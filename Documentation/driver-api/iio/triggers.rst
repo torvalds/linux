@@ -59,7 +59,7 @@ Let's see a simple example of how to setup a trigger to be used by a driver::
       /* setup trigger operations field */
       trig->ops = &trigger_ops;
 
-      /* now register the trigger with the IIO core */
+      /* yesw register the trigger with the IIO core */
       iio_trigger_register(trig);
 
 IIO trigger ops

@@ -7,7 +7,7 @@
  * Copyright (c) 2016 Texas Instruments Incorporated
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
@@ -353,7 +353,7 @@ int omap_aes_4106gcm_encrypt(struct aead_request *req)
 	struct omap_aes_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 	struct omap_aes_reqctx *rctx = aead_request_ctx(req);
 
-	memcpy(rctx->iv, ctx->nonce, 4);
+	memcpy(rctx->iv, ctx->yesnce, 4);
 	memcpy(rctx->iv + 4, req->iv, 8);
 	return omap_aes_gcm_crypt(req, FLAGS_ENCRYPT | FLAGS_GCM |
 				  FLAGS_RFC4106_GCM);
@@ -364,7 +364,7 @@ int omap_aes_4106gcm_decrypt(struct aead_request *req)
 	struct omap_aes_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 	struct omap_aes_reqctx *rctx = aead_request_ctx(req);
 
-	memcpy(rctx->iv, ctx->nonce, 4);
+	memcpy(rctx->iv, ctx->yesnce, 4);
 	memcpy(rctx->iv + 4, req->iv, 8);
 	return omap_aes_gcm_crypt(req, FLAGS_GCM | FLAGS_RFC4106_GCM);
 }
@@ -398,7 +398,7 @@ int omap_aes_4106gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 		return -EINVAL;
 
 	memcpy(ctx->key, key, keylen);
-	memcpy(ctx->nonce, key + keylen, 4);
+	memcpy(ctx->yesnce, key + keylen, 4);
 	ctx->keylen = keylen;
 
 	return 0;

@@ -97,7 +97,7 @@ void bnx2i_identify_device(struct bnx2i_hba *hba, struct cnic_dev *dev)
 	} else if (test_bit(CNIC_F_BNX2X_CLASS, &dev->flags)) {
 		set_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type);
 	} else {
-		printk(KERN_ALERT "bnx2i: unknown device, 0x%x\n",
+		printk(KERN_ALERT "bnx2i: unkyeswn device, 0x%x\n",
 				  hba->pci_did);
 	}
 }
@@ -112,7 +112,7 @@ struct bnx2i_hba *get_adapter_list_head(void)
 	struct bnx2i_hba *tmp_hba;
 
 	if (!adapter_count)
-		goto hba_not_found;
+		goto hba_yest_found;
 
 	mutex_lock(&bnx2i_dev_lock);
 	list_for_each_entry(tmp_hba, &adapter_list, link) {
@@ -122,7 +122,7 @@ struct bnx2i_hba *get_adapter_list_head(void)
 		}
 	}
 	mutex_unlock(&bnx2i_dev_lock);
-hba_not_found:
+hba_yest_found:
 	return hba;
 }
 
@@ -166,7 +166,7 @@ void bnx2i_start(void *handle)
 	struct bnx2i_hba *hba = handle;
 	int i = HZ;
 
-	/* On some bnx2x devices, it is possible that iSCSI is no
+	/* On some bnx2x devices, it is possible that iSCSI is yes
 	 * longer supported after firmware is downloaded.  In that
 	 * case, the iscsi_init_msg will return failure.
 	 */
@@ -193,7 +193,7 @@ static void bnx2i_chip_cleanup(struct bnx2i_hba *hba)
 	if (hba->ofld_conns_active) {
 		/* Stage to force the disconnection
 		 * This is the case where the daemon is either slow or
-		 * not present
+		 * yest present
 		 */
 		printk(KERN_ALERT "bnx2i: (%s) chip cleanup for %d active "
 			"connections\n", hba->netdev->name,
@@ -214,7 +214,7 @@ static void bnx2i_chip_cleanup(struct bnx2i_hba *hba)
  * bnx2i_stop - cnic callback to shutdown adapter instance
  * @handle:	transparent handle pointing to adapter structure
  *
- * driver checks if adapter is already in shutdown mode, if not start
+ * driver checks if adapter is already in shutdown mode, if yest start
  *	the shutdown process
  */
 void bnx2i_stop(void *handle)
@@ -276,7 +276,7 @@ static int bnx2i_init_one(struct bnx2i_hba *hba, struct cnic_dev *cnic)
 
 	mutex_lock(&bnx2i_dev_lock);
 	if (!cnic->max_iscsi_conn) {
-		printk(KERN_ALERT "bnx2i: dev %s does not support "
+		printk(KERN_ALERT "bnx2i: dev %s does yest support "
 			"iSCSI\n", hba->netdev->name);
 		rc = -EOPNOTSUPP;
 		goto out;
@@ -293,11 +293,11 @@ static int bnx2i_init_one(struct bnx2i_hba *hba, struct cnic_dev *cnic)
 		printk(KERN_ALERT "bnx2i, duplicate registration"
 				  "hba=%p, cnic=%p\n", hba, cnic);
 	else if (rc == -EAGAIN)
-		printk(KERN_ERR "bnx2i, driver not registered\n");
+		printk(KERN_ERR "bnx2i, driver yest registered\n");
 	else if (rc == -EINVAL)
 		printk(KERN_ERR "bnx2i, invalid type %d\n", CNIC_ULP_ISCSI);
 	else
-		printk(KERN_ERR "bnx2i dev reg, unknown error, %d\n", rc);
+		printk(KERN_ERR "bnx2i dev reg, unkyeswn error, %d\n", rc);
 
 out:
 	mutex_unlock(&bnx2i_dev_lock);
@@ -345,7 +345,7 @@ void bnx2i_ulp_exit(struct cnic_dev *dev)
 
 	hba = bnx2i_find_hba_for_cnic(dev);
 	if (!hba) {
-		printk(KERN_INFO "bnx2i_ulp_exit: hba not "
+		printk(KERN_INFO "bnx2i_ulp_exit: hba yest "
 				 "found, dev 0x%p\n", dev);
 		return;
 	}
@@ -415,8 +415,8 @@ static int bnx2i_cpu_online(unsigned int cpu)
 
 	p = &per_cpu(bnx2i_percpu, cpu);
 
-	thread = kthread_create_on_node(bnx2i_percpu_io_thread, (void *)p,
-					cpu_to_node(cpu),
+	thread = kthread_create_on_yesde(bnx2i_percpu_io_thread, (void *)p,
+					cpu_to_yesde(cpu),
 					"bnx2i_thread/%d", cpu);
 	if (IS_ERR(thread))
 		return PTR_ERR(thread);
@@ -479,14 +479,14 @@ static int __init bnx2i_mod_init(void)
 	bnx2i_scsi_xport_template =
 			iscsi_register_transport(&bnx2i_iscsi_transport);
 	if (!bnx2i_scsi_xport_template) {
-		printk(KERN_ERR "Could not register bnx2i transport.\n");
+		printk(KERN_ERR "Could yest register bnx2i transport.\n");
 		err = -ENOMEM;
 		goto out;
 	}
 
 	err = cnic_register_driver(CNIC_ULP_ISCSI, &bnx2i_cnic_cb);
 	if (err) {
-		printk(KERN_ERR "Could not register bnx2i cnic driver.\n");
+		printk(KERN_ERR "Could yest register bnx2i cnic driver.\n");
 		goto unreg_xport;
 	}
 

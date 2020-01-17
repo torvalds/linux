@@ -47,18 +47,18 @@ void translation_exception(struct pt_regs *regs);
 void vector_exception(struct pt_regs *regs);
 
 void do_per_trap(struct pt_regs *regs);
-void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str);
+void do_report_trap(struct pt_regs *regs, int si_sigyes, int si_code, char *str);
 void syscall_trace(struct pt_regs *regs, int entryexit);
 void kernel_stack_overflow(struct pt_regs * regs);
 void do_signal(struct pt_regs *regs);
 void handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 		     struct pt_regs *regs);
-void do_notify_resume(struct pt_regs *regs);
+void do_yestify_resume(struct pt_regs *regs);
 
 void __init init_IRQ(void);
 void do_IRQ(struct pt_regs *regs, int irq);
 void do_restart(void);
-void __init startup_init_nobss(void);
+void __init startup_init_yesbss(void);
 void __init startup_init(void);
 void die(struct pt_regs *regs, const char *str);
 int setup_profiling_timer(unsigned int multiplier);

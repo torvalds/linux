@@ -33,7 +33,7 @@ struct apd_private_data;
  * struct apd_device_desc - a descriptor for apd device
  * @flags: device flags like %ACPI_APD_SYSFS, %ACPI_APD_PM
  * @fixed_clk_rate: fixed rate input clock source for acpi device;
- *			0 means no fixed rate input clock source
+ *			0 means yes fixed rate input clock source
  * @setup: a hook routine to set device resource during create platform device
  *
  * Device description defined as acpi_device_id.driver_data
@@ -98,7 +98,7 @@ static int st_misc_setup(struct apd_private_data *pdata)
 	if (ret < 0)
 		return -ENOENT;
 
-	list_for_each_entry(rentry, &resource_list, node) {
+	list_for_each_entry(rentry, &resource_list, yesde) {
 		clk_data->base = devm_ioremap(&adev->dev, rentry->res->start,
 					      resource_size(rentry->res));
 		break;

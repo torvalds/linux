@@ -12,10 +12,10 @@
  * Note: This implementation is limited to a power of 2 number of
  * threads per core and the same number for each core in the system
  * (though it would work if some processors had less threads as long
- * as the CPU numbers are still allocated, just not brought online).
+ * as the CPU numbers are still allocated, just yest brought online).
  *
  * However, the API allows for a different implementation in the future
- * if needed, as long as you only use the functions and not the variables
+ * if needed, as long as you only use the functions and yest the variables
  * directly.
  */
 

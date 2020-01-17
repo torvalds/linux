@@ -120,7 +120,7 @@ static void spics_free(struct gpio_chip *chip, unsigned offset)
 
 static int spics_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct spear_spics *spics;
 	int ret;
 

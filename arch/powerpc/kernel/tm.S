@@ -104,7 +104,7 @@ EXPORT_SYMBOL_GPL(tm_abort);
  * Purpose is to both abort transactions of, and preserve the state of,
  * a transactions at a context switch. We preserve/restore both sets of process
  * state to restore them when the thread's scheduled again.  We continue in
- * userland as though nothing happened, but when the transaction is resumed
+ * userland as though yesthing happened, but when the transaction is resumed
  * they will abort back to the checkpointed state we save out here.
  *
  * Call with IRQs off, stacks get all out of sync for some periods in here!
@@ -241,7 +241,7 @@ _GLOBAL(tm_reclaim)
 	mfspr	r3, SPRN_TFHAR
 	std	r3, _NIP(r7)			/* Returns to failhandler */
 	/*
-	 * The checkpointed NIP is ignored when rescheduling/rechkpting,
+	 * The checkpointed NIP is igyesred when rescheduling/rechkpting,
 	 * but is used in signal return to 'wind back' to the abort handler.
 	 */
 
@@ -361,7 +361,7 @@ _GLOBAL(__tm_recheckpoint)
 
 	/*
 	 * Make r7 look like an exception frame so that we can use the neat
-	 * GPRx(n) macros. r7 is now NOT a pt_regs ptr!
+	 * GPRx(n) macros. r7 is yesw NOT a pt_regs ptr!
 	 */
 	subi	r7, r7, STACK_FRAME_OVERHEAD
 
@@ -446,7 +446,7 @@ restore_gprs:
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0
 
 	/*
-	 * Do final sanity check on MSR to make sure we are not transactional
+	 * Do final sanity check on MSR to make sure we are yest transactional
 	 * or suspended.
 	 */
 	mfmsr   r6
@@ -495,7 +495,7 @@ restore_gprs:
 	HMT_MEDIUM
 
 	/*
-	 * Our transactional state has now changed.
+	 * Our transactional state has yesw changed.
 	 *
 	 * Now just get out of here.  Transactional (current) state will be
 	 * updated once restore is called on the return path in the _switch-ed

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -101,7 +101,7 @@ enum CPL_opcode {
 
 	CPL_PASS_ACCEPT_REQ = 0x70,
 
-	CPL_ASYNC_NOTIF = 0x80,	/* fake opcode for async notifications */
+	CPL_ASYNC_NOTIF = 0x80,	/* fake opcode for async yestifications */
 
 	CPL_TX_DMA_ACK = 0xA0,
 	CPL_RDMA_READ_REQ = 0xA1,
@@ -641,7 +641,7 @@ struct cpl_act_establish {
 struct cpl_get_tcb {
 	WR_HDR;
 	union opcode_tid ot;
-	__be16 cpuno;
+	__be16 cpuyes;
 	__be16 rsvd;
 };
 
@@ -963,7 +963,7 @@ struct cpl_rx_data_ack {
 #define V_RX_DACK_CHANGE(x) ((x) << S_RX_DACK_CHANGE)
 #define F_RX_DACK_CHANGE    V_RX_DACK_CHANGE(1U)
 
-struct cpl_rx_urg_notify {
+struct cpl_rx_urg_yestify {
 	RSS_HDR union opcode_tid ot;
 	__be32 seq;
 };

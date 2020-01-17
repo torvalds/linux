@@ -23,7 +23,7 @@ void scsi_show_command(struct rtsx_chip *chip)
 {
 	struct scsi_cmnd *srb = chip->srb;
 	char *what = NULL;
-	bool unknown_cmd = false;
+	bool unkyeswn_cmd = false;
 	int len;
 
 	switch (srb->cmnd[0]) {
@@ -295,8 +295,8 @@ void scsi_show_command(struct rtsx_chip *chip)
 		what = "Realtek's vendor command";
 		break;
 	default:
-		what = "(unknown command)";
-		unknown_cmd = true;
+		what = "(unkyeswn command)";
+		unkyeswn_cmd = true;
 		break;
 	}
 
@@ -304,7 +304,7 @@ void scsi_show_command(struct rtsx_chip *chip)
 		dev_dbg(rtsx_dev(chip), "Command %s (%d bytes)\n",
 			what, srb->cmd_len);
 
-	if (unknown_cmd) {
+	if (unkyeswn_cmd) {
 		len = min_t(unsigned short, srb->cmd_len, 16);
 		dev_dbg(rtsx_dev(chip), "%*ph\n", len, srb->cmnd);
 	}
@@ -427,8 +427,8 @@ static int test_unit_ready(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	if (get_lun_card(chip, SCSI_LUN(srb)) == SD_CARD) {
 		struct sd_info *sd_card = &chip->sd_card;
 
-		if (sd_card->sd_lock_notify) {
-			sd_card->sd_lock_notify = 0;
+		if (sd_card->sd_lock_yestify) {
+			sd_card->sd_lock_yestify = 0;
 			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_CHANGE);
 			return TRANSPORT_FAILED;
 		} else if (sd_card->sd_lock_status & SD_LOCKED) {
@@ -1543,7 +1543,7 @@ static int get_dev_status(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	u8 card = get_lun_card(chip, lun);
 	u8 status[32];
 #ifdef SUPPORT_OCP
-	u8 oc_now_mask = 0, oc_ever_mask = 0;
+	u8 oc_yesw_mask = 0, oc_ever_mask = 0;
 #endif
 
 	memset(status, 0, 32);
@@ -1570,14 +1570,14 @@ static int get_dev_status(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	status[8] = 0;
 	if (CHECK_LUN_MODE(chip, SD_MS_2LUN) &&
 	    (chip->lun2card[lun] == MS_CARD)) {
-		oc_now_mask = MS_OC_NOW;
+		oc_yesw_mask = MS_OC_NOW;
 		oc_ever_mask = MS_OC_EVER;
 	} else {
-		oc_now_mask = SD_OC_NOW;
+		oc_yesw_mask = SD_OC_NOW;
 		oc_ever_mask = SD_OC_EVER;
 	}
 
-	if (chip->ocp_stat & oc_now_mask)
+	if (chip->ocp_stat & oc_yesw_mask)
 		status[8] |= 0x02;
 
 	if (chip->ocp_stat & oc_ever_mask)
@@ -2911,7 +2911,7 @@ static int sd_extension_cmnd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		break;
 
 	case SD_EXECUTE_NO_DATA:
-		result = sd_execute_no_data(srb, chip);
+		result = sd_execute_yes_data(srb, chip);
 		break;
 
 	case SD_EXECUTE_READ:

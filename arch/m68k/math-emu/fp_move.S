@@ -7,12 +7,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    yestice, and the entire permission yestice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may yest be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -38,7 +38,7 @@
 #include "fp_emu.h"
 #include "fp_decode.h"
 
-do_no_pc_mode=1
+do_yes_pc_mode=1
 
 	.globl	fp_fmove_fp2mem
 
@@ -93,7 +93,7 @@ fp_data:
 	.long	fp_data_byte, fp_ill
 
 fp_data_byte:
-	jsr	fp_normalize_ext
+	jsr	fp_yesrmalize_ext
 	jsr	fp_conv_ext2byte
 	move.l	%d0,%d1
 	swap	%d2
@@ -105,7 +105,7 @@ fp_data_byte:
 	jra	fp_final
 
 fp_data_word:
-	jsr	fp_normalize_ext
+	jsr	fp_yesrmalize_ext
 	jsr	fp_conv_ext2short
 	move.l	%d0,%d1
 	swap	%d2
@@ -117,7 +117,7 @@ fp_data_word:
 	jra	fp_final
 
 fp_data_long:
-	jsr	fp_normalize_ext
+	jsr	fp_yesrmalize_ext
 	jsr	fp_conv_ext2long
 	swap	%d2
 	move.w	%d2,%d1
@@ -125,7 +125,7 @@ fp_data_long:
 	jra	fp_final
 
 fp_data_single:
-	jsr	fp_normalize_ext
+	jsr	fp_yesrmalize_ext
 	jsr	fp_conv_ext2single
 	swap	%d2
 	move.w	%d2,%d1
@@ -186,7 +186,7 @@ fp_putdest:
 	move.l	-(%a0),-(%sp)
 	move.l	-(%a0),-(%sp)
 	move.l	%sp,%a0
-	jsr	fp_normalize_ext
+	jsr	fp_yesrmalize_ext
 
 	swap	%d2
 	jmp	([0f:w,%pc,%d2.w*4])
@@ -221,7 +221,7 @@ fp_format_extended:
 	jra	fp_finish_move
 
 fp_format_packed:
-	/* not supported yet */
+	/* yest supported yet */
 	lea	(12,%sp),%sp
 	jra	fp_ill
 

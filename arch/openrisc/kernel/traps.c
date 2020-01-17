@@ -10,7 +10,7 @@
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
  *
- *  Here we handle the break vectors not used by the system call
+ *  Here we handle the break vectors yest used by the system call
  *  mechanism, as well as some general stack/register dumping
  *  things.
  */
@@ -23,7 +23,7 @@
 #include <linux/extable.h>
 #include <linux/kmod.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/timer.h>
 #include <linux/mm.h>
@@ -126,13 +126,13 @@ bad:
 	printk("\n");
 }
 
-void nommu_dump_state(struct pt_regs *regs,
+void yesmmu_dump_state(struct pt_regs *regs,
 		      unsigned long ea, unsigned long vector)
 {
 	int i;
 	unsigned long addr, stack = regs->sp;
 
-	printk("\n\r[nommu_dump_state] :: ea %lx, vector %lx\n\r", ea, vector);
+	printk("\n\r[yesmmu_dump_state] :: ea %lx, vector %lx\n\r", ea, vector);
 
 	printk("CPU #: %d\n"
 	       "   PC: %08lx    SR: %08lx    SP: %08lx\n",
@@ -202,7 +202,7 @@ void nommu_dump_state(struct pt_regs *regs,
 	printk("\n");
 }
 
-/* This is normally the 'Oops' routine */
+/* This is yesrmally the 'Oops' routine */
 void die(const char *str, struct pt_regs *regs, long err)
 {
 
@@ -215,13 +215,13 @@ void die(const char *str, struct pt_regs *regs, long err)
 	/* shut down interrupts */
 	local_irq_disable();
 
-	__asm__ __volatile__("l.nop   1");
+	__asm__ __volatile__("l.yesp   1");
 	do {} while (1);
 #endif
 	do_exit(SIGSEGV);
 }
 
-/* This is normally the 'Oops' routine */
+/* This is yesrmally the 'Oops' routine */
 void die_if_kernel(const char *str, struct pt_regs *regs, long err)
 {
 	if (user_mode(regs))

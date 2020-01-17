@@ -147,7 +147,7 @@ static int mvs_64xx_chip_reset(struct mvs_info *mvi)
 	u32 tmp;
 	int i;
 
-	/* make sure interrupts are masked immediately (paranoia) */
+	/* make sure interrupts are masked immediately (parayesia) */
 	mw32(MVS_GBL_CTL, 0);
 	tmp = mr32(MVS_GBL_CTL);
 
@@ -166,7 +166,7 @@ static int mvs_64xx_chip_reset(struct mvs_info *mvi)
 		}
 	}
 
-	/* make sure interrupts are masked immediately (paranoia) */
+	/* make sure interrupts are masked immediately (parayesia) */
 	mw32(MVS_GBL_CTL, 0);
 	tmp = mr32(MVS_GBL_CTL);
 

@@ -187,7 +187,7 @@ struct mpc52xx_xlb {
 	u32 master_pri_enable;	/* XLB + 0x64 */
 	u32 master_priority;	/* XLB + 0x68 */
 	u32 base_address;	/* XLB + 0x6c */
-	u32 snoop_window;	/* XLB + 0x70 */
+	u32 syesop_window;	/* XLB + 0x70 */
 };
 
 #define MPC52xx_XLB_CFG_PLDIS		(1 << 31)
@@ -219,7 +219,7 @@ struct mpc52xx_cdm {
 	u8 ccs_qreq_test;	/* CDM + 0x1f  reg7 byte3 */
 
 	u8 soft_reset;		/* CDM + 0x20  u8 byte0 */
-	u8 no_ckstp;		/* CDM + 0x21  u8 byte0 */
+	u8 yes_ckstp;		/* CDM + 0x21  u8 byte0 */
 	u8 reserved2[2];	/* CDM + 0x22  u8 byte1,2,3 */
 
 	u8 pll_lock;		/* CDM + 0x24  reg9 byte0 */
@@ -274,8 +274,8 @@ extern void mpc52xx_declare_of_platform_devices(void);
 extern int mpc5200_psc_ac97_gpio_reset(int psc_number);
 extern void mpc52xx_map_common_devices(void);
 extern int mpc52xx_set_psc_clkdiv(int psc_id, int clkdiv);
-extern unsigned int mpc52xx_get_xtal_freq(struct device_node *node);
-extern void __noreturn mpc52xx_restart(char *cmd);
+extern unsigned int mpc52xx_get_xtal_freq(struct device_yesde *yesde);
+extern void __yesreturn mpc52xx_restart(char *cmd);
 
 /* mpc52xx_gpt.c */
 struct mpc52xx_gpt_priv;
@@ -318,7 +318,7 @@ struct mpc52xx_lpbfifo_request {
 	int irq_count;
 	int irq_ticks;
 	u8 last_byte;
-	int buffer_not_done_cnt;
+	int buffer_yest_done_cnt;
 };
 
 extern int mpc52xx_lpbfifo_submit(struct mpc52xx_lpbfifo_request *req);
@@ -332,7 +332,7 @@ extern unsigned int mpc52xx_get_irq(void);
 
 /* mpc52xx_pci.c */
 #ifdef CONFIG_PCI
-extern int __init mpc52xx_add_bridge(struct device_node *node);
+extern int __init mpc52xx_add_bridge(struct device_yesde *yesde);
 extern void __init mpc52xx_setup_pci(void);
 #else
 static inline void mpc52xx_setup_pci(void) { }

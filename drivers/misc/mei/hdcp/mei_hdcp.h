@@ -81,7 +81,7 @@ enum me_hdcp_status {
 	ME_HDCP_STATUS_NOT_INTEGRATED_PORT	= 0x603c,
 	ME_HDCP_STATUS_SESSION_MAX_REACHED	= 0x603d,
 
-	/* hdcp capable bit is not set in rx_caps(error is unique to DP) */
+	/* hdcp capable bit is yest set in rx_caps(error is unique to DP) */
 	ME_HDCP_STATUS_NOT_HDCP_CAPABLE		= 0x6041,
 
 	ME_HDCP_STATUS_INVALID_STREAM_COUNT	= 0x6042,
@@ -177,7 +177,7 @@ struct hdcp_cmd_header {
 } __packed;
 
 /* Empty command request or response. No data follows the header. */
-struct hdcp_cmd_no_data {
+struct hdcp_cmd_yes_data {
 	struct hdcp_cmd_header header;
 } __packed;
 

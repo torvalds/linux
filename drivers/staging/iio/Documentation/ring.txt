@@ -32,7 +32,7 @@ read_last
   use without a separate read from the device.
 
 rip_first_n
-  The primary buffer reading function. Note that it may well not return
+  The primary buffer reading function. Note that it may well yest return
   as much data as requested.
 
 request_update

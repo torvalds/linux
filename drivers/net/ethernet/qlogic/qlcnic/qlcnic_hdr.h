@@ -122,7 +122,7 @@ enum {
 	QLCNIC_HW_OCM1_CRB_AGT_ADR = 0x07
 };
 
-/*  Floaters - non existent modules */
+/*  Floaters - yesn existent modules */
 #define QLCNIC_HW_EFC_RPMX0_CRB_AGT_ADR	0x67
 
 /*  This field defines PCI/X adr [25:20] of agents on the CRB */
@@ -538,7 +538,7 @@ enum {
 /*
  * CrbPortPhanCntrHi/Lo is used to pass the address of HostPhantomIndex address
  * which can be read by the Phantom host to get producer/consumer indexes from
- * Phantom/Casper. If it is not HOST_SHARED_MEMORY, then the following
+ * Phantom/Casper. If it is yest HOST_SHARED_MEMORY, then the following
  * registers will be used for the addresses of the ring's shared memory
  * on the Phantom.
  */
@@ -807,13 +807,13 @@ enum {
  *	Bit 2 : enable_rx => 1:enable frame recv, 0:disable
  *	Bit 3 : rx_synced => R/O: recv enable synched to recv stream
  *	Bit 4 : tx_flowctl => 1:enable pause frame generation, 0:disable
- *	Bit 5 : rx_flowctl => 1:act on recv'd pause frames, 0:ignore
- *	Bit 8 : loopback => 1:loop MAC xmits to MAC recvs, 0:normal
- *	Bit 16: tx_reset_pb => 1:reset frame xmit protocol blk, 0:no-op
- *	Bit 17: rx_reset_pb => 1:reset frame recv protocol blk, 0:no-op
- *	Bit 18: tx_reset_mac => 1:reset data/ctl multiplexer blk, 0:no-op
- *	Bit 19: rx_reset_mac => 1:reset ctl frames & timers blk, 0:no-op
- *	Bit 31: soft_reset => 1:reset the MAC and the SERDES, 0:no-op
+ *	Bit 5 : rx_flowctl => 1:act on recv'd pause frames, 0:igyesre
+ *	Bit 8 : loopback => 1:loop MAC xmits to MAC recvs, 0:yesrmal
+ *	Bit 16: tx_reset_pb => 1:reset frame xmit protocol blk, 0:yes-op
+ *	Bit 17: rx_reset_pb => 1:reset frame recv protocol blk, 0:yes-op
+ *	Bit 18: tx_reset_mac => 1:reset data/ctl multiplexer blk, 0:yes-op
+ *	Bit 19: rx_reset_mac => 1:reset ctl frames & timers blk, 0:yes-op
+ *	Bit 31: soft_reset => 1:reset the MAC and the SERDES, 0:yes-op
  */
 #define qlcnic_gb_rx_flowctl(config_word)	\
 	((config_word) |= 1 << 5)
@@ -899,18 +899,18 @@ enum {
 /*
  * PHY-Specific Status Register (reg 17).
  *
- * Bit 0      : jabber => 1:jabber detected, 0:not
- * Bit 1      : polarity => 1:polarity reversed, 0:normal
+ * Bit 0      : jabber => 1:jabber detected, 0:yest
+ * Bit 1      : polarity => 1:polarity reversed, 0:yesrmal
  * Bit 2      : recvpause => 1:receive pause enabled, 0:disabled
  * Bit 3      : xmitpause => 1:transmit pause enabled, 0:disabled
  * Bit 4      : energydetect => 1:sleep, 0:active
- * Bit 5      : downshift => 1:downshift, 0:no downshift
- * Bit 6      : crossover => 1:MDIX (crossover), 0:MDI (no crossover)
- * Bits 7-9   : cablelen => not valid in 10Mb/s mode
+ * Bit 5      : downshift => 1:downshift, 0:yes downshift
+ * Bit 6      : crossover => 1:MDIX (crossover), 0:MDI (yes crossover)
+ * Bits 7-9   : cablelen => yest valid in 10Mb/s mode
  *			0:<50m, 1:50-80m, 2:80-110m, 3:110-140m, 4:>140m
  * Bit 10     : link => 1:link up, 0:link down
- * Bit 11     : resolved => 1:speed and duplex resolved, 0:not yet
- * Bit 12     : pagercvd => 1:page received, 0:page not received
+ * Bit 11     : resolved => 1:speed and duplex resolved, 0:yest yet
+ * Bit 12     : pagercvd => 1:page received, 0:page yest received
  * Bit 13     : duplex => 1:full duplex, 0:half duplex
  * Bits 14-15 : speed => 0:10Mb/s, 1:100Mb/s, 2:1000Mb/s, 3:rsvd
  */

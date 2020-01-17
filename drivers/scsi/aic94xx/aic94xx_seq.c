@@ -19,7 +19,7 @@
 #include "aic94xx_seq.h"
 #include "aic94xx_dump.h"
 
-/* It takes no more than 0.05 us for an instruction
+/* It takes yes more than 0.05 us for an instruction
  * to complete. So waiting for 1 us should be more than
  * plenty.
  */
@@ -32,8 +32,8 @@ static u16 cseq_vecs[CSEQ_NUM_VECS], lseq_vecs[LSEQ_NUM_VECS], mode2_task,
 static const u8 *cseq_code, *lseq_code;
 static u32 cseq_code_size, lseq_code_size;
 
-static u16 first_scb_site_no = 0xFFFF;
-static u16 last_scb_site_no;
+static u16 first_scb_site_yes = 0xFFFF;
+static u16 last_scb_site_yes;
 
 /* ---------- Pause/Unpause CSEQ/LSEQ ---------- */
 
@@ -278,7 +278,7 @@ static int asd_download_seq(struct asd_ha_struct *asd_ha,
 	int err = 0;
 
 	if (size % 4) {
-		asd_printk("sequencer program not multiple of 4\n");
+		asd_printk("sequencer program yest multiple of 4\n");
 		return -1;
 	}
 
@@ -346,7 +346,7 @@ static int asd_download_seq(struct asd_ha_struct *asd_ha, const u8 *_prog,
 	const u32 *prog = (u32 *) _prog;
 
 	if (size % 4) {
-		asd_printk("sequencer program not multiple of 4\n");
+		asd_printk("sequencer program yest multiple of 4\n");
 		return -1;
 	}
 
@@ -383,7 +383,7 @@ static int asd_seq_download_seqs(struct asd_ha_struct *asd_ha)
 	int 	err;
 
 	if (!asd_ha->hw_prof.enabled_phys) {
-		asd_printk("%s: no enabled phys!\n", pci_name(asd_ha->pcidev));
+		asd_printk("%s: yes enabled phys!\n", pci_name(asd_ha->pcidev));
 		return -ENODEV;
 	}
 
@@ -478,9 +478,9 @@ static void asd_init_cseq_mip(struct asd_ha_struct *asd_ha)
 		asd_write_reg_byte(asd_ha, CSEQ_FREE_SCB_MASK, (u8)cmdctx);
 	}
 	asd_write_reg_word(asd_ha, CSEQ_BUILTIN_FREE_SCB_HEAD,
-			   first_scb_site_no);
+			   first_scb_site_yes);
 	asd_write_reg_word(asd_ha, CSEQ_BUILTIN_FREE_SCB_TAIL,
-			   last_scb_site_no);
+			   last_scb_site_yes);
 	asd_write_reg_word(asd_ha, CSEQ_EXTENDED_FREE_SCB_HEAD, 0xFFFF);
 	asd_write_reg_word(asd_ha, CSEQ_EXTENDED_FREE_SCB_TAIL, 0xFFFF);
 
@@ -519,7 +519,7 @@ static void asd_init_cseq_mdp(struct asd_ha_struct *asd_ha)
 		asd_write_reg_byte(asd_ha, i*moffs+CSEQ_LRM_SAVE_SCRPAGE, 0);
 	}
 
-	/* CSEQ Mode dependent, mode 0-7, page 1 and 2 shall be ignored. */
+	/* CSEQ Mode dependent, mode 0-7, page 1 and 2 shall be igyesred. */
 
 	/* CSEQ Mode dependent, mode 8, page 0 setup. */
 	asd_write_reg_word(asd_ha, CSEQ_RET_ADDR, 0xFFFF);
@@ -535,7 +535,7 @@ static void asd_init_cseq_mdp(struct asd_ha_struct *asd_ha)
 	asd_write_reg_byte(asd_ha, CSEQ_SCRATCH_FLAGS, 0);
 	asd_write_reg_word(asd_ha, CSEQ_HSB_SITE, 0);
 	asd_write_reg_word(asd_ha, CSEQ_FIRST_INV_SCB_SITE,
-			   (u16)last_scb_site_no+1);
+			   (u16)last_scb_site_yes+1);
 	asd_write_reg_word(asd_ha, CSEQ_FIRST_INV_DDB_SITE,
 			   (u16)asd_ha->hw_prof.max_ddbs);
 
@@ -563,7 +563,7 @@ static void asd_init_cseq_mdp(struct asd_ha_struct *asd_ha)
 
 	asd_write_reg_byte(asd_ha, CSEQ_HQ_DONE_PASS, ASD_DEF_DL_TOGGLE);
 
-	/* CSEQ Mode dependent, mode 8, page 3 shall be ignored. */
+	/* CSEQ Mode dependent, mode 8, page 3 shall be igyesred. */
 }
 
 /**
@@ -723,7 +723,7 @@ static void asd_init_lseq_mdp(struct asd_ha_struct *asd_ha,  int lseq)
 	asd_write_reg_word(asd_ha, LmSEQ_EMPTY_TRANS_CTX(lseq), 0);
 	asd_write_reg_word(asd_ha, LmSEQ_RESP_LEN(lseq), 0);
 	asd_write_reg_word(asd_ha, LmSEQ_FIRST_INV_SCB_SITE(lseq),
-			   (u16)last_scb_site_no+1);
+			   (u16)last_scb_site_yes+1);
 	asd_write_reg_word(asd_ha, LmSEQ_INTEN_SAVE(lseq),
 			    (u16) ((LmM0INTEN_MASK & 0xFFFF0000) >> 16));
 	asd_write_reg_word(asd_ha, LmSEQ_INTEN_SAVE(lseq) + 2,
@@ -854,54 +854,54 @@ static void asd_init_lseq_scratch(struct asd_ha_struct *asd_ha)
  *
  * This should be done before initializing common CSEQ and LSEQ
  * scratch since those areas depend on some computed values here,
- * last_scb_site_no, etc.
+ * last_scb_site_yes, etc.
  */
 static void asd_init_scb_sites(struct asd_ha_struct *asd_ha)
 {
-	u16	site_no;
+	u16	site_yes;
 	u16     max_scbs = 0;
 
-	for (site_no = asd_ha->hw_prof.max_scbs-1;
-	     site_no != (u16) -1;
-	     site_no--) {
+	for (site_yes = asd_ha->hw_prof.max_scbs-1;
+	     site_yes != (u16) -1;
+	     site_yes--) {
 		u16	i;
 
 		/* Initialize all fields in the SCB site to 0. */
 		for (i = 0; i < ASD_SCB_SIZE; i += 4)
-			asd_scbsite_write_dword(asd_ha, site_no, i, 0);
+			asd_scbsite_write_dword(asd_ha, site_yes, i, 0);
 
 		/* Initialize SCB Site Opcode field to invalid. */
-		asd_scbsite_write_byte(asd_ha, site_no,
+		asd_scbsite_write_byte(asd_ha, site_yes,
 				       offsetof(struct scb_header, opcode),
 				       0xFF);
 
 		/* Initialize SCB Site Flags field to mean a response
 		 * frame has been received.  This means inadvertent
 		 * frames received to be dropped. */
-		asd_scbsite_write_byte(asd_ha, site_no, 0x49, 0x01);
+		asd_scbsite_write_byte(asd_ha, site_yes, 0x49, 0x01);
 
 		/* Workaround needed by SEQ to fix a SATA issue is to exclude
 		 * certain SCB sites from the free list. */
-		if (!SCB_SITE_VALID(site_no))
+		if (!SCB_SITE_VALID(site_yes))
 			continue;
 
-		if (last_scb_site_no == 0)
-			last_scb_site_no = site_no;
+		if (last_scb_site_yes == 0)
+			last_scb_site_yes = site_yes;
 
 		/* For every SCB site, we need to initialize the
 		 * following fields: Q_NEXT, SCB_OPCODE, SCB_FLAGS,
 		 * and SG Element Flag. */
 
 		/* Q_NEXT field of the last SCB is invalidated. */
-		asd_scbsite_write_word(asd_ha, site_no, 0, first_scb_site_no);
+		asd_scbsite_write_word(asd_ha, site_yes, 0, first_scb_site_yes);
 
-		first_scb_site_no = site_no;
+		first_scb_site_yes = site_yes;
 		max_scbs++;
 	}
 	asd_ha->hw_prof.max_scbs = max_scbs;
 	ASD_DPRINTK("max_scbs:%d\n", asd_ha->hw_prof.max_scbs);
-	ASD_DPRINTK("first_scb_site_no:0x%x\n", first_scb_site_no);
-	ASD_DPRINTK("last_scb_site_no:0x%x\n", last_scb_site_no);
+	ASD_DPRINTK("first_scb_site_yes:0x%x\n", first_scb_site_yes);
+	ASD_DPRINTK("last_scb_site_yes:0x%x\n", last_scb_site_yes);
 }
 
 /**
@@ -1129,7 +1129,7 @@ static void asd_init_ddb_0(struct asd_ha_struct *asd_ha)
 	asd_ddbsite_write_byte(asd_ha, 0,
 		 offsetof(struct asd_ddb_seq_shared, settable_max_contexts),0);
 	asd_ddbsite_write_byte(asd_ha, 0,
-	       offsetof(struct asd_ddb_seq_shared, conn_not_active), 0xFF);
+	       offsetof(struct asd_ddb_seq_shared, conn_yest_active), 0xFF);
 	asd_ddbsite_write_byte(asd_ha, 0,
 	       offsetof(struct asd_ddb_seq_shared, phy_is_up), 0x00);
 	/* DDB 0 is reserved */
@@ -1236,7 +1236,7 @@ static int asd_request_firmware(struct asd_ha_struct *asd_ha)
 
 	header.csum = le32_to_cpu(hdr_ptr->csum);
 	header.major = le32_to_cpu(hdr_ptr->major);
-	header.minor = le32_to_cpu(hdr_ptr->minor);
+	header.miyesr = le32_to_cpu(hdr_ptr->miyesr);
 	header.cseq_table_offset = le32_to_cpu(hdr_ptr->cseq_table_offset);
 	header.cseq_table_size = le32_to_cpu(hdr_ptr->cseq_table_size);
 	header.lseq_table_offset = le32_to_cpu(hdr_ptr->lseq_table_offset);
@@ -1264,7 +1264,7 @@ static int asd_request_firmware(struct asd_ha_struct *asd_ha)
 	}
 
 	asd_printk("Found sequencer Firmware version %d.%d (%s)\n",
-		   header.major, header.minor, hdr_ptr->version);
+		   header.major, header.miyesr, hdr_ptr->version);
 
 	if (header.major != SAS_RAZOR_SEQUENCER_FW_MAJOR) {
 		asd_printk("Firmware Major Version Mismatch;"
@@ -1353,7 +1353,7 @@ int asd_start_seqs(struct asd_ha_struct *asd_ha)
  * sequencer checks phy_is_up when pending SCBs are to be sent, and
  * when an open address frame has been received.
  *
- * 2) When we know of ports, we call this function to update the map
+ * 2) When we kyesw of ports, we call this function to update the map
  * of phys participaing in that port, i.e. we update the
  * port_map_by_links in DDB 0.  When a HARD_RESET primitive has been
  * received, the sequencer disables all phys in that port.

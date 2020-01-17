@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -105,7 +105,7 @@ err_out:
 static int tcf_pedit_key_ex_dump(struct sk_buff *skb,
 				 struct tcf_pedit_key_ex *keys_ex, int n)
 {
-	struct nlattr *keys_start = nla_nest_start_noflag(skb,
+	struct nlattr *keys_start = nla_nest_start_yesflag(skb,
 							  TCA_PEDIT_KEYS_EX);
 
 	if (!keys_start)
@@ -113,7 +113,7 @@ static int tcf_pedit_key_ex_dump(struct sk_buff *skb,
 	for (; n > 0; n--) {
 		struct nlattr *key_start;
 
-		key_start = nla_nest_start_noflag(skb, TCA_PEDIT_KEY_EX);
+		key_start = nla_nest_start_yesflag(skb, TCA_PEDIT_KEY_EX);
 		if (!key_start)
 			goto nla_failure;
 

@@ -32,7 +32,7 @@ static int acpi_container_offline(struct container_dev *cdev)
 	struct acpi_device *child;
 
 	/* Check all of the dependent devices' physical companions. */
-	list_for_each_entry(child, &adev->children, node)
+	list_for_each_entry(child, &adev->children, yesde)
 		if (!acpi_scan_is_offline(child, false))
 			return -EBUSY;
 
@@ -45,7 +45,7 @@ static void acpi_container_release(struct device *dev)
 }
 
 static int container_device_attach(struct acpi_device *adev,
-				   const struct acpi_device_id *not_used)
+				   const struct acpi_device_id *yest_used)
 {
 	struct container_dev *cdev;
 	struct device *dev;
@@ -96,7 +96,7 @@ static struct acpi_scan_handler container_handler = {
 	.hotplug = {
 		.enabled = true,
 		.demand_offline = true,
-		.notify_online = container_device_online,
+		.yestify_online = container_device_online,
 	},
 };
 

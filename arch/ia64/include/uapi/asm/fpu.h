@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _ASM_IA64_FPU_H
 #define _ASM_IA64_FPU_H
 
@@ -11,7 +11,7 @@
 
 /* floating point status register: */
 #define FPSR_TRAP_VD	(1 << 0)	/* invalid op trap disabled */
-#define FPSR_TRAP_DD	(1 << 1)	/* denormal trap disabled */
+#define FPSR_TRAP_DD	(1 << 1)	/* deyesrmal trap disabled */
 #define FPSR_TRAP_ZD	(1 << 2)	/* zero-divide trap disabled */
 #define FPSR_TRAP_OD	(1 << 3)	/* overflow trap disabled */
 #define FPSR_TRAP_UD	(1 << 4)	/* underflow trap disabled */
@@ -30,7 +30,7 @@
 
 /* floating-point status field flags: */
 #define FPSF_V		(1 <<  7)		/* invalid operation flag */
-#define FPSF_D		(1 <<  8)		/* denormal/unnormal operand flag */
+#define FPSF_D		(1 <<  8)		/* deyesrmal/unyesrmal operand flag */
 #define FPSF_Z		(1 <<  9)		/* zero divide (IEEE) flag */
 #define FPSF_O		(1 << 10)		/* overflow (IEEE) flag */
 #define FPSF_U		(1 << 11)		/* underflow (IEEE) flag */

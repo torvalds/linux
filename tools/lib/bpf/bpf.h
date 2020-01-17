@@ -10,7 +10,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation;
- * version 2.1 of the License (not later!)
+ * version 2.1 of the License (yest later!)
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not,  see <http://www.gnu.org/licenses>
+ * License along with this program; if yest,  see <http://www.gnu.org/licenses>
  */
 #ifndef __LIBBPF_BPF_H
 #define __LIBBPF_BPF_H
@@ -43,7 +43,7 @@ struct bpf_create_map_attr {
 	__u32 key_size;
 	__u32 value_size;
 	__u32 max_entries;
-	__u32 numa_node;
+	__u32 numa_yesde;
 	__u32 btf_fd;
 	__u32 btf_key_type_id;
 	__u32 btf_value_type_id;
@@ -53,18 +53,18 @@ struct bpf_create_map_attr {
 
 LIBBPF_API int
 bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr);
-LIBBPF_API int bpf_create_map_node(enum bpf_map_type map_type, const char *name,
+LIBBPF_API int bpf_create_map_yesde(enum bpf_map_type map_type, const char *name,
 				   int key_size, int value_size,
-				   int max_entries, __u32 map_flags, int node);
+				   int max_entries, __u32 map_flags, int yesde);
 LIBBPF_API int bpf_create_map_name(enum bpf_map_type map_type, const char *name,
 				   int key_size, int value_size,
 				   int max_entries, __u32 map_flags);
 LIBBPF_API int bpf_create_map(enum bpf_map_type map_type, int key_size,
 			      int value_size, int max_entries, __u32 map_flags);
-LIBBPF_API int bpf_create_map_in_map_node(enum bpf_map_type map_type,
+LIBBPF_API int bpf_create_map_in_map_yesde(enum bpf_map_type map_type,
 					  const char *name, int key_size,
 					  int inner_map_fd, int max_entries,
-					  __u32 map_flags, int node);
+					  __u32 map_flags, int yesde);
 LIBBPF_API int bpf_create_map_in_map(enum bpf_map_type map_type,
 				     const char *name, int key_size,
 				     int inner_map_fd, int max_entries,
@@ -154,7 +154,7 @@ struct bpf_prog_test_run_attr {
 LIBBPF_API int bpf_prog_test_run_xattr(struct bpf_prog_test_run_attr *test_attr);
 
 /*
- * bpf_prog_test_run does not check that data_out is large enough. Consider
+ * bpf_prog_test_run does yest check that data_out is large eyesugh. Consider
  * using bpf_prog_test_run_xattr instead.
  */
 LIBBPF_API int bpf_prog_test_run(int prog_fd, int repeat, void *data,

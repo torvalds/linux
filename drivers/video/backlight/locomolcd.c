@@ -6,7 +6,7 @@
  * Maintainer: Pavel Machek <pavel@ucw.cz> (unless John wants to :-)
  *
  * This driver assumes single CPU. That's okay, because collie is
- * slightly old hardware, and no one is going to retrofit second CPU to
+ * slightly old hardware, and yes one is going to retrofit second CPU to
  * old PDA.
  */
 
@@ -122,7 +122,7 @@ static int locomolcd_set_intensity(struct backlight_device *bd)
 
 	switch (intensity) {
 	/*
-	 * AC and non-AC are handled differently,
+	 * AC and yesn-AC are handled differently,
 	 * but produce same results in sharp code?
 	 */
 	case 0:

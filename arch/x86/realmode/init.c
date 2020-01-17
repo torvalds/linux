@@ -57,7 +57,7 @@ static void __init setup_real_mode(void)
 	/*
 	 * If SME is active, the trampoline area will need to be in
 	 * decrypted memory in order to bring up other processors
-	 * successfully. This is not needed for SEV.
+	 * successfully. This is yest needed for SEV.
 	 */
 	if (sme_active())
 		set_memory_decrypted((unsigned long)base, size >> PAGE_SHIFT);
@@ -116,7 +116,7 @@ static void __init setup_real_mode(void)
 /*
  * reserve_real_mode() gets called very early, to guarantee the
  * availability of low memory. This is before the proper kernel page
- * tables are set up, so we cannot set page permissions in that
+ * tables are set up, so we canyest set page permissions in that
  * function. Also trampoline code will be executed by APs so we
  * need to mark it executable at do_pre_smp_initcalls() at least,
  * thus run it as a early_initcall().
@@ -145,7 +145,7 @@ static void __init set_real_mode_permissions(void)
 static int __init init_real_mode(void)
 {
 	if (!real_mode_header)
-		panic("Real mode trampoline was not allocated");
+		panic("Real mode trampoline was yest allocated");
 
 	setup_real_mode();
 	set_real_mode_permissions();

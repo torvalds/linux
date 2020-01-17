@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -42,7 +42,7 @@ int dc_setup_system_context(struct dc *dc, struct dc_phy_addr_space_config *pa_c
 	if (dc->hwss.init_sys_ctx) {
 		num_vmids = dc->hwss.init_sys_ctx(dc->hwseq, dc, pa_config);
 
-		/* Pre-init system aperture start/end for all HUBP instances (if not gating?)
+		/* Pre-init system aperture start/end for all HUBP instances (if yest gating?)
 		 * or cache system aperture if using power gating
 		 */
 		memcpy(&dc->vm_pa_config, pa_config, sizeof(struct dc_phy_addr_space_config));

@@ -178,7 +178,7 @@ struct fsl_dcu_soc_data {
 
 struct fsl_dcu_drm_device {
 	struct device *dev;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct regmap *regmap;
 	int irq;
 	struct clk *clk;

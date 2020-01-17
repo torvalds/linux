@@ -3,7 +3,7 @@
  *
  * Xen transport layer.
  *
- * Copyright (C) 2017 by Stefano Stabellini <stefano@aporeto.com>
+ * Copyright (C) 2017 by Stefayes Stabellini <stefayes@aporeto.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
@@ -18,7 +18,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -184,7 +184,7 @@ again:
 	prod += size;
 	ring->intf->out_prod = prod;
 	spin_unlock_irqrestore(&ring->lock, flags);
-	notify_remote_via_irq(ring->irq);
+	yestify_remote_via_irq(ring->irq);
 	p9_req_put(p9_req);
 
 	return 0;
@@ -209,7 +209,7 @@ static void p9_xen_response(struct work_struct *work)
 
 		if (xen_9pfs_queued(prod, cons, XEN_9PFS_RING_SIZE) <
 		    sizeof(h)) {
-			notify_remote_via_irq(ring->irq);
+			yestify_remote_via_irq(ring->irq);
 			return;
 		}
 
@@ -255,7 +255,7 @@ static irqreturn_t xen_9pfs_front_event_handler(int irq, void *r)
 	struct xen_9pfs_dataring *ring = r;
 
 	if (!ring || !ring->priv->client) {
-		/* ignore spurious interrupt */
+		/* igyesre spurious interrupt */
 		return IRQ_HANDLED;
 	}
 
@@ -433,10 +433,10 @@ static int xen_9pfs_front_probe(struct xenbus_device *dev,
 		xenbus_dev_fatal(dev, ret, "starting transaction");
 		goto error;
 	}
-	ret = xenbus_printf(xbt, dev->nodename, "version", "%u", 1);
+	ret = xenbus_printf(xbt, dev->yesdename, "version", "%u", 1);
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "num-rings", "%u",
+	ret = xenbus_printf(xbt, dev->yesdename, "num-rings", "%u",
 			    priv->num_rings);
 	if (ret)
 		goto error_xenbus;
@@ -445,18 +445,18 @@ static int xen_9pfs_front_probe(struct xenbus_device *dev,
 
 		BUILD_BUG_ON(XEN_9PFS_NUM_RINGS > 9);
 		sprintf(str, "ring-ref%u", i);
-		ret = xenbus_printf(xbt, dev->nodename, str, "%d",
+		ret = xenbus_printf(xbt, dev->yesdename, str, "%d",
 				    priv->rings[i].ref);
 		if (ret)
 			goto error_xenbus;
 
 		sprintf(str, "event-channel-%u", i);
-		ret = xenbus_printf(xbt, dev->nodename, str, "%u",
+		ret = xenbus_printf(xbt, dev->yesdename, str, "%u",
 				    priv->rings[i].evtchn);
 		if (ret)
 			goto error_xenbus;
 	}
-	priv->tag = xenbus_read(xbt, dev->nodename, "tag", NULL);
+	priv->tag = xenbus_read(xbt, dev->yesdename, "tag", NULL);
 	if (IS_ERR(priv->tag)) {
 		ret = PTR_ERR(priv->tag);
 		goto error_xenbus;
@@ -500,7 +500,7 @@ static void xen_9pfs_front_changed(struct xenbus_device *dev,
 	case XenbusStateReconfigured:
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
-	case XenbusStateUnknown:
+	case XenbusStateUnkyeswn:
 		break;
 
 	case XenbusStateInitWait:
@@ -553,6 +553,6 @@ static void p9_trans_xen_exit(void)
 }
 module_exit(p9_trans_xen_exit);
 
-MODULE_AUTHOR("Stefano Stabellini <stefano@aporeto.com>");
+MODULE_AUTHOR("Stefayes Stabellini <stefayes@aporeto.com>");
 MODULE_DESCRIPTION("Xen Transport for 9P");
 MODULE_LICENSE("GPL");

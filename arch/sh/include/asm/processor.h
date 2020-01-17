@@ -42,7 +42,7 @@ enum cpu_type {
 	/* SH-5 types */
         CPU_SH5_101, CPU_SH5_103,
 
-	/* Unknown subtype */
+	/* Unkyeswn subtype */
 	CPU_SH_NONE
 };
 
@@ -75,7 +75,7 @@ struct tlb_info {
 
 struct sh_cpuinfo {
 	unsigned int type, family;
-	int cut_major, cut_minor;
+	int cut_major, cut_miyesr;
 	unsigned long loops_per_jiffy;
 	unsigned long asid_cache;
 

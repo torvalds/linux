@@ -24,10 +24,10 @@ config VIDEO_ADV_DEBUG
 	  In doubt, say N.
 
 config VIDEO_FIXED_MINOR_RANGES
-	bool "Enable old-style fixed minor ranges on drivers/video devices"
+	bool "Enable old-style fixed miyesr ranges on drivers/video devices"
 	help
-	  Say Y here to enable the old-style fixed-range minor assignments.
-	  Only useful if you rely on the old behavior and use mknod instead of udev.
+	  Say Y here to enable the old-style fixed-range miyesr assignments.
+	  Only useful if you rely on the old behavior and use mkyesd instead of udev.
 
 	  When in doubt, say N.
 

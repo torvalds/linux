@@ -3,7 +3,7 @@
  * linux/arch/arm/mach-omap2/board-n8x0.c
  *
  * Copyright (C) 2005-2009 Nokia Corporation
- * Author: Juha Yrjola <juha.yrjola@nokia.com>
+ * Author: Juha Yrjola <juha.yrjola@yeskia.com>
  *
  * Modified from mach-omap2/board-generic.c
  */
@@ -50,15 +50,15 @@ static u32 board_caps;
 
 static void board_check_revision(void)
 {
-	if (of_machine_is_compatible("nokia,n800"))
+	if (of_machine_is_compatible("yeskia,n800"))
 		board_caps = NOKIA_N800;
-	else if (of_machine_is_compatible("nokia,n810"))
+	else if (of_machine_is_compatible("yeskia,n810"))
 		board_caps = NOKIA_N810;
-	else if (of_machine_is_compatible("nokia,n810-wimax"))
+	else if (of_machine_is_compatible("yeskia,n810-wimax"))
 		board_caps = NOKIA_N810_WIMAX;
 
 	if (!board_caps)
-		pr_err("Unknown board\n");
+		pr_err("Unkyeswn board\n");
 }
 
 #if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
@@ -112,13 +112,13 @@ static struct musb_hdrc_platform_data tusb_data = {
 static void __init n8x0_usb_init(void)
 {
 	int ret = 0;
-	static const char announce[] __initconst = KERN_INFO "TUSB 6010\n";
+	static const char anyesunce[] __initconst = KERN_INFO "TUSB 6010\n";
 
 	/* PM companion chip power control pin */
 	ret = gpio_request_one(TUSB6010_GPIO_ENABLE, GPIOF_OUT_INIT_LOW,
 			       "TUSB6010 enable");
 	if (ret != 0) {
-		printk(KERN_ERR "Could not get TUSB power GPIO%i\n",
+		printk(KERN_ERR "Could yest get TUSB power GPIO%i\n",
 		       TUSB6010_GPIO_ENABLE);
 		return;
 	}
@@ -130,7 +130,7 @@ static void __init n8x0_usb_init(void)
 	if (ret != 0)
 		goto err;
 
-	printk(announce);
+	printk(anyesunce);
 
 	return;
 
@@ -340,9 +340,9 @@ static void n8x0_mmc_callback(void *data, u8 card_mask)
 		*openp = 0;
 
 #ifdef CONFIG_MMC_OMAP
-	omap_mmc_notify_cover_event(mmc_device, index, *openp);
+	omap_mmc_yestify_cover_event(mmc_device, index, *openp);
 #else
-	pr_warn("MMC: notify cover event not available\n");
+	pr_warn("MMC: yestify cover event yest available\n");
 #endif
 }
 
@@ -430,7 +430,7 @@ static void n8x0_mmc_cleanup(struct device *dev)
 
 /*
  * MMC controller1 has two slots that are multiplexed via I2C.
- * MMC controller2 is not in use.
+ * MMC controller2 is yest in use.
  */
 static struct omap_mmc_platform_data mmc1_data = {
 	.nr_slots			= 0,
@@ -477,10 +477,10 @@ static void __init n8x0_mmc_init(void)
 		mmc1_data.slots[0].name = "external";
 
 		/*
-		 * Some Samsung Movinand chips do not like open-ended
+		 * Some Samsung Movinand chips do yest like open-ended
 		 * multi-block reads and fall to braind-dead state
 		 * while doing so. Reducing the number of blocks in
-		 * the transfer or delays in clock disable do not help
+		 * the transfer or delays in clock disable do yest help
 		 */
 		mmc1_data.slots[1].name = "internal";
 		mmc1_data.slots[1].ban_openended = 1;
@@ -524,7 +524,7 @@ static int n8x0_auto_sleep_regulators(void)
 
 	ret = menelaus_set_regulator_sleep(1, val);
 	if (ret < 0) {
-		pr_err("Could not set regulators to sleep on menelaus: %u\n",
+		pr_err("Could yest set regulators to sleep on menelaus: %u\n",
 		       ret);
 		return ret;
 	}
@@ -537,7 +537,7 @@ static int n8x0_auto_voltage_scale(void)
 
 	ret = menelaus_set_vcore_hw(1400, 1050);
 	if (ret < 0) {
-		pr_err("Could not set VCORE voltage on menelaus: %u\n", ret);
+		pr_err("Could yest set VCORE voltage on menelaus: %u\n", ret);
 		return ret;
 	}
 	return 0;

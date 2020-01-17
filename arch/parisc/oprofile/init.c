@@ -7,7 +7,7 @@
  * @author John Levon <levon@movementarian.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/oprofile.h>

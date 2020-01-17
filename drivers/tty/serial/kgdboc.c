@@ -25,7 +25,7 @@
 
 static struct kgdb_io		kgdboc_io_ops;
 
-/* -1 = init not run yet, 0 = unconfigured, 1 = configured. */
+/* -1 = init yest run yet, 0 = unconfigured, 1 = configured. */
 static int configured		= -1;
 
 static char config[MAX_CONFIG_LEN];
@@ -45,13 +45,13 @@ static int kgdboc_reset_connect(struct input_handler *handler,
 {
 	input_reset_device(dev);
 
-	/* Return an error - we do not want to bind, just to reset */
+	/* Return an error - we do yest want to bind, just to reset */
 	return -ENODEV;
 }
 
 static void kgdboc_reset_disconnect(struct input_handle *handle)
 {
-	/* We do not expect anyone to actually bind to us */
+	/* We do yest expect anyone to actually bind to us */
 	BUG();
 }
 
@@ -150,7 +150,7 @@ static int configure_kgdboc(void)
 
 	if (!strlen(config) || isspace(config[0])) {
 		err = 0;
-		goto noconfig;
+		goto yesconfig;
 	}
 
 	kgdboc_io_ops.is_console = 0;
@@ -167,7 +167,7 @@ static int configure_kgdboc(void)
 
 	p = tty_find_polling_driver(cptr, &tty_line);
 	if (!p)
-		goto noconfig;
+		goto yesconfig;
 
 	cons = console_drivers;
 	while (cons) {
@@ -186,7 +186,7 @@ static int configure_kgdboc(void)
 do_register:
 	err = kgdb_register_io_module(&kgdboc_io_ops);
 	if (err)
-		goto noconfig;
+		goto yesconfig;
 
 	err = kgdb_register_nmi_console();
 	if (err)
@@ -198,7 +198,7 @@ do_register:
 
 nmi_con_failed:
 	kgdb_unregister_io_module(&kgdboc_io_ops);
-noconfig:
+yesconfig:
 	kgdboc_unregister_kbd();
 	config[0] = 0;
 	configured = 0;
@@ -242,14 +242,14 @@ static int param_set_kgdboc_var(const char *kmessage,
 		return -ENOSPC;
 	}
 
-	/* Only copy in the string if the init function has not run yet */
+	/* Only copy in the string if the init function has yest run yet */
 	if (configured < 0) {
 		strcpy(config, kmessage);
 		return 0;
 	}
 
 	if (kgdb_connected) {
-		pr_err("Cannot reconfigure while KGDB is connected.\n");
+		pr_err("Canyest reconfigure while KGDB is connected.\n");
 
 		return -EBUSY;
 	}
@@ -278,12 +278,12 @@ static void kgdboc_pre_exp_handler(void)
 	if (!kgdb_connected)
 		try_module_get(THIS_MODULE);
 
-	atomic_inc(&ignore_console_lock_warning);
+	atomic_inc(&igyesre_console_lock_warning);
 }
 
 static void kgdboc_post_exp_handler(void)
 {
-	atomic_dec(&ignore_console_lock_warning);
+	atomic_dec(&igyesre_console_lock_warning);
 
 	/* decrement the module count when the debugger detaches */
 	if (!kgdb_connected)
@@ -307,7 +307,7 @@ static struct kgdb_io kgdboc_io_ops = {
 static int kgdboc_option_setup(char *opt)
 {
 	if (!opt) {
-		pr_err("config string not provided\n");
+		pr_err("config string yest provided\n");
 		return -EINVAL;
 	}
 

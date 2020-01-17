@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -51,7 +51,7 @@ enum gpio_result {
  * @brief
  * Used to identify the specific GPIO device
  *
- * @notes
+ * @yestes
  * These constants are used as indices in a vector.
  * Thus they should start from zero and be contiguous.
  */
@@ -239,8 +239,8 @@ enum gpio_mode {
  * get_signal_source() will return GPIO_SYGNAL_SOURCE__UNKNOWN
  * when one of the following holds:
  *    1. GPIO is input GPIO
- *    2. GPIO is not opened in HW mode
- *    3. GPIO does not have fixed signal source
+ *    2. GPIO is yest opened in HW mode
+ *    3. GPIO does yest have fixed signal source
  *    (like DC_GenericA have mux instead fixed)
  */
 enum gpio_signal_source {

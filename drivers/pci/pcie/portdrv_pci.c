@@ -9,7 +9,7 @@
 
 #include <linux/pci.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/init.h>
@@ -19,13 +19,13 @@
 #include "../pci.h"
 #include "portdrv.h"
 
-/* If this switch is set, PCIe port native services should not be enabled. */
+/* If this switch is set, PCIe port native services should yest be enabled. */
 bool pcie_ports_disabled;
 
 /*
  * If the user specified "pcie_ports=native", use the PCIe services regardless
  * of whether the platform has given us permission.  On ACPI systems, this
- * means we ignore _OSC.
+ * means we igyesre _OSC.
  */
 bool pcie_ports_native;
 
@@ -71,12 +71,12 @@ static int pcie_port_runtime_idle(struct device *dev)
 
 static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.suspend	= pcie_port_device_suspend,
-	.resume_noirq	= pcie_port_device_resume_noirq,
+	.resume_yesirq	= pcie_port_device_resume_yesirq,
 	.resume		= pcie_port_device_resume,
 	.freeze		= pcie_port_device_suspend,
 	.thaw		= pcie_port_device_resume,
 	.poweroff	= pcie_port_device_suspend,
-	.restore_noirq	= pcie_port_device_resume_noirq,
+	.restore_yesirq	= pcie_port_device_resume_yesirq,
 	.restore	= pcie_port_device_resume,
 	.runtime_suspend = pcie_port_runtime_suspend,
 	.runtime_resume	= pcie_port_device_runtime_resume,
@@ -121,7 +121,7 @@ static int pcie_portdrv_probe(struct pci_dev *dev,
 	if (pci_bridge_d3_possible(dev)) {
 		/*
 		 * Keep the port resumed 100ms to make sure things like
-		 * config space accesses from userspace (lspci) will not
+		 * config space accesses from userspace (lspci) will yest
 		 * cause the port to repeatedly suspend and resume.
 		 */
 		pm_runtime_set_autosuspend_delay(&dev->dev, 100);
@@ -138,7 +138,7 @@ static void pcie_portdrv_remove(struct pci_dev *dev)
 {
 	if (pci_bridge_d3_possible(dev)) {
 		pm_runtime_forbid(&dev->dev);
-		pm_runtime_get_noresume(&dev->dev);
+		pm_runtime_get_yesresume(&dev->dev);
 		pm_runtime_dont_use_autosuspend(&dev->dev);
 	}
 
@@ -148,7 +148,7 @@ static void pcie_portdrv_remove(struct pci_dev *dev)
 static pci_ers_result_t pcie_portdrv_error_detected(struct pci_dev *dev,
 					enum pci_channel_state error)
 {
-	/* Root Port has no impact. Always recovers. */
+	/* Root Port has yes impact. Always recovers. */
 	return PCI_ERS_RESULT_CAN_RECOVER;
 }
 
@@ -220,7 +220,7 @@ static struct pci_driver pcie_portdriver = {
 
 static int __init dmi_pcie_pme_disable_msi(const struct dmi_system_id *d)
 {
-	pr_notice("%s detected: will not use MSI for PCIe PME signaling\n",
+	pr_yestice("%s detected: will yest use MSI for PCIe PME signaling\n",
 		  d->ident);
 	pcie_pme_disable_msi();
 	return 0;
@@ -228,7 +228,7 @@ static int __init dmi_pcie_pme_disable_msi(const struct dmi_system_id *d)
 
 static const struct dmi_system_id pcie_portdrv_dmi_table[] __initconst = {
 	/*
-	 * Boxes that should not use MSI for PCIe PME signaling.
+	 * Boxes that should yest use MSI for PCIe PME signaling.
 	 */
 	{
 	 .callback = dmi_pcie_pme_disable_msi,
@@ -248,7 +248,7 @@ static void __init pcie_init_services(void)
 	pcie_pme_init();
 	pcie_dpc_init();
 	pcie_hp_init();
-	pcie_bandwidth_notification_init();
+	pcie_bandwidth_yestification_init();
 }
 
 static int __init pcie_portdrv_init(void)

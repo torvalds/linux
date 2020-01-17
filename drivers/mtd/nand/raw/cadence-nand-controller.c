@@ -112,7 +112,7 @@
 #define TRAN_CFG_1				0x0404
 /* Size of last data sector. */
 #define		TRAN_CFG_1_LAST_SEC_SIZE	GENMASK(31, 16)
-/* Size of not-last data sector. */
+/* Size of yest-last data sector. */
 #define		TRAN_CFG_1_SECTOR_SIZE		GENMASK(15, 0)
 
 /* ECC engine configuration register 0. */
@@ -160,9 +160,9 @@
 #define		CTRL_FEATURES_NVDDR_2_3		BIT(28)
 /* Support for NV-DDR work mode. */
 #define		CTRL_FEATURES_NVDDR		BIT(27)
-/* Support for asynchronous work mode. */
+/* Support for asynchroyesus work mode. */
 #define		CTRL_FEATURES_ASYNC		BIT(26)
-/* Support for asynchronous work mode. */
+/* Support for asynchroyesus work mode. */
 #define		CTRL_FEATURES_N_BANKS		GENMASK(25, 24)
 /* Slave and Master DMA data width. */
 #define		CTRL_FEATURES_DMA_DWITH64	BIT(21)
@@ -366,7 +366,7 @@
 #define STAT_ECC_CORR		6
 /* Status of operation - unsuspected state. */
 #define STAT_UNKNOWN		7
-/* Status of operation - operation is not completed yet. */
+/* Status of operation - operation is yest completed yet. */
 #define STAT_BUSY		0xFF
 
 #define BCH_MAX_NUM_CORR_CAPS		8
@@ -505,7 +505,7 @@ struct cdns_nand_chip {
 	struct cadence_nand_timings timings;
 	struct nand_chip chip;
 	u8 nsels;
-	struct list_head node;
+	struct list_head yesde;
 
 	/*
 	 * part of oob area of NAND flash memory page.
@@ -772,7 +772,7 @@ static irqreturn_t cadence_nand_isr(int irq, void *dev_id)
 
 	if (irq_detected(cdns_ctrl, &irq_status)) {
 		/* Handle interrupt. */
-		/* First acknowledge it. */
+		/* First ackyeswledge it. */
 		cadence_nand_clear_interrupt(cdns_ctrl, &irq_status);
 		/* Status in the device context for someone to read. */
 		cdns_ctrl->irq_status.status |= irq_status.status;
@@ -970,7 +970,7 @@ static int cadence_nand_cdma_finish(struct cdns_nand_ctrl *cdns_ctrl)
 						       desc_ptr->status);
 		dev_err(cdns_ctrl->dev, ":CDMA error %x\n", desc_ptr->status);
 	} else if (desc_ptr->status & CDMA_CS_COMP) {
-		/* Descriptor finished with no errors. */
+		/* Descriptor finished with yes errors. */
 		if (desc_ptr->command_flags & CDMA_CF_CONT) {
 			dev_info(cdns_ctrl->dev, "DMA unsupported flag is set");
 			status = STAT_UNKNOWN;
@@ -1896,7 +1896,7 @@ static int cadence_nand_read_buf(struct cdns_nand_ctrl *cdns_ctrl,
 			 "Slave DMA transfer failed. Try again using bounce buffer.");
 	}
 
-	/* If DMA transfer is not possible or failed then use bounce buffer. */
+	/* If DMA transfer is yest possible or failed then use bounce buffer. */
 	status = cadence_nand_slave_dma_transfer(cdns_ctrl, cdns_ctrl->buf,
 						 cdns_ctrl->io.dma,
 						 sdma_size, DMA_FROM_DEVICE);
@@ -1950,7 +1950,7 @@ static int cadence_nand_write_buf(struct cdns_nand_ctrl *cdns_ctrl,
 			 "Slave DMA transfer failed. Try again using bounce buffer.");
 	}
 
-	/* If DMA transfer is not possible or failed then use bounce buffer. */
+	/* If DMA transfer is yest possible or failed then use bounce buffer. */
 	memcpy(cdns_ctrl->buf, buf, len);
 
 	status = cadence_nand_slave_dma_transfer(cdns_ctrl, cdns_ctrl->buf,
@@ -1970,9 +1970,9 @@ static int cadence_nand_force_byte_access(struct nand_chip *chip,
 	int status;
 
 	/*
-	 * Callers of this function do not verify if the NAND is using a 16-bit
-	 * an 8-bit bus for normal operations, so we need to take care of that
-	 * here by leaving the configuration unchanged if the NAND does not have
+	 * Callers of this function do yest verify if the NAND is using a 16-bit
+	 * an 8-bit bus for yesrmal operations, so we need to take care of that
+	 * here by leaving the configuration unchanged if the NAND does yest have
 	 * the NAND_BUSWIDTH_16 flag set.
 	 */
 	if (!(chip->options & NAND_BUSWIDTH_16))
@@ -2080,7 +2080,7 @@ static int cadence_nand_cmd_erase(struct nand_chip *chip,
 	}
 
 	/*
-	 * If it is not an erase operation then handle operation
+	 * If it is yest an erase operation then handle operation
 	 * by calling exec_op function.
 	 */
 	for (op_id = 0; op_id < subop->ninstrs; op_id++) {
@@ -2128,7 +2128,7 @@ static int cadence_nand_cmd_data(struct nand_chip *chip,
 		ret = cadence_nand_force_byte_access(chip, true);
 		if (ret) {
 			dev_err(cdns_ctrl->dev,
-				"cannot change byte access generic data cmd failed\n");
+				"canyest change byte access generic data cmd failed\n");
 			return ret;
 		}
 	}
@@ -2160,7 +2160,7 @@ static int cadence_nand_cmd_data(struct nand_chip *chip,
 		ret = cadence_nand_force_byte_access(chip, false);
 		if (ret) {
 			dev_err(cdns_ctrl->dev,
-				"cannot change byte access generic data cmd failed\n");
+				"canyest change byte access generic data cmd failed\n");
 		}
 	}
 
@@ -2334,9 +2334,9 @@ cadence_nand_setup_data_interface(struct nand_chip *chip, int chipnr,
 	 * for tRP and tRH timings. If it is NOT possible to sample data
 	 * with optimal tRP/tRH settings, the parameters will be extended.
 	 * If clk_period is 50ns (the lowest value) this condition is met
-	 * for asynchronous timing modes 1, 2, 3, 4 and 5.
+	 * for asynchroyesus timing modes 1, 2, 3, 4 and 5.
 	 * If clk_period is 20ns the condition is met only
-	 * for asynchronous timing mode 5.
+	 * for asynchroyesus timing mode 5.
 	 */
 	if (sdr->tRC_min <= clk_period &&
 	    sdr->tRP_min <= (clk_period / 2) &&
@@ -2350,8 +2350,8 @@ cadence_nand_setup_data_interface(struct nand_chip *chip, int chipnr,
 					 ext_rd_mode);
 		/*
 		 * Check if data valid window and sampling point can be found
-		 * and is not on the edge (ie. we have hold margin).
-		 * If not extend the tRP timings.
+		 * and is yest on the edge (ie. we have hold margin).
+		 * If yest extend the tRP timings.
 		 */
 		if (tdvw > 0) {
 			if (tdvw_max <= tdvw_min ||
@@ -2364,7 +2364,7 @@ cadence_nand_setup_data_interface(struct nand_chip *chip, int chipnr,
 			}
 		} else {
 			/*
-			 * There is no valid window
+			 * There is yes valid window
 			 * to be able to sample data the tRP need to be widen.
 			 * Very safe calculations are performed here.
 			 */
@@ -2390,7 +2390,7 @@ cadence_nand_setup_data_interface(struct nand_chip *chip, int chipnr,
 		/*
 		 * Check if data valid window and sampling point can be found
 		 * or if it is at the edge check if previous is valid
-		 * - if not extend the tRP timings.
+		 * - if yest extend the tRP timings.
 		 */
 		if (tdvw > 0) {
 			tdvw_max = calc_tdvw_max(trp_cnt, clk_period,
@@ -2405,7 +2405,7 @@ cadence_nand_setup_data_interface(struct nand_chip *chip, int chipnr,
 			       * dqs_sampl_res) <= tdvw_min))) {
 				/*
 				 * Data valid window width is lower than
-				 * sampling resolution and do not hit any
+				 * sampling resolution and do yest hit any
 				 * sampling point to be sure the sampling point
 				 * will be found the RE low pulse width will be
 				 *  extended by one clock cycle.
@@ -2414,7 +2414,7 @@ cadence_nand_setup_data_interface(struct nand_chip *chip, int chipnr,
 			}
 		} else {
 			/*
-			 * There is no valid window to be able to sample data.
+			 * There is yes valid window to be able to sample data.
 			 * The tRP need to be widen.
 			 * Very safe calculations are performed here.
 			 */
@@ -2474,7 +2474,7 @@ cadence_nand_setup_data_interface(struct nand_chip *chip, int chipnr,
 	t->timings0 = reg;
 	dev_dbg(cdns_ctrl->dev, "TIMINGS0_SDR\t%x\n", reg);
 
-	/* The following is related to single signal so skew is not needed. */
+	/* The following is related to single signal so skew is yest needed. */
 	trhz_cnt = calc_cycl(sdr->tRHZ_max, clk_period);
 	trhz_cnt = trhz_cnt + 1;
 	twb_cnt = calc_cycl((sdr->tWB_max + board_delay), clk_period);
@@ -2486,7 +2486,7 @@ cadence_nand_setup_data_interface(struct nand_chip *chip, int chipnr,
 	twb_cnt = twb_cnt + 3 + 5;
 	/*
 	 * The following is related to the we edge of the random data input
-	 * sequence so skew is not needed.
+	 * sequence so skew is yest needed.
 	 */
 	tvdly_cnt = calc_cycl(500000 + if_skew, clk_period);
 	reg = FIELD_PREP(TIMINGS1_TRHZ, trhz_cnt);
@@ -2552,7 +2552,7 @@ cadence_nand_setup_data_interface(struct nand_chip *chip, int chipnr,
 		rd_del_sel = phony_dqs_timing + 3;
 	} else {
 		dev_warn(cdns_ctrl->dev,
-			 "ERROR : cannot find valid sampling point\n");
+			 "ERROR : canyest find valid sampling point\n");
 	}
 
 	reg = FIELD_PREP(PHY_CTRL_PHONY_DQS, phony_dqs_timing);
@@ -2670,7 +2670,7 @@ int cadence_nand_attach_chip(struct nand_chip *chip)
 	/* Is 32-bit DMA supported? */
 	ret = dma_set_mask(cdns_ctrl->dev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(cdns_ctrl->dev, "no usable DMA configuration\n");
+		dev_err(cdns_ctrl->dev, "yes usable DMA configuration\n");
 		return ret;
 	}
 
@@ -2686,7 +2686,7 @@ static const struct nand_controller_ops cadence_nand_controller_ops = {
 };
 
 static int cadence_nand_chip_init(struct cdns_nand_ctrl *cdns_ctrl,
-				  struct device_node *np)
+				  struct device_yesde *np)
 {
 	struct cdns_nand_chip *cdns_chip;
 	struct mtd_info *mtd;
@@ -2705,7 +2705,7 @@ static int cadence_nand_chip_init(struct cdns_nand_ctrl *cdns_ctrl,
 				 (nsels * sizeof(u8)),
 				 GFP_KERNEL);
 	if (!cdns_chip) {
-		dev_err(cdns_ctrl->dev, "could not allocate chip structure\n");
+		dev_err(cdns_ctrl->dev, "could yest allocate chip structure\n");
 		return -ENOMEM;
 	}
 
@@ -2716,7 +2716,7 @@ static int cadence_nand_chip_init(struct cdns_nand_ctrl *cdns_ctrl,
 		ret = of_property_read_u32_index(np, "reg", i, &cs);
 		if (ret) {
 			dev_err(cdns_ctrl->dev,
-				"could not retrieve reg property: %d\n",
+				"could yest retrieve reg property: %d\n",
 				ret);
 			return ret;
 		}
@@ -2739,20 +2739,20 @@ static int cadence_nand_chip_init(struct cdns_nand_ctrl *cdns_ctrl,
 
 	chip = &cdns_chip->chip;
 	chip->controller = &cdns_ctrl->controller;
-	nand_set_flash_node(chip, np);
+	nand_set_flash_yesde(chip, np);
 
 	mtd = nand_to_mtd(chip);
 	mtd->dev.parent = cdns_ctrl->dev;
 
 	/*
 	 * Default to HW ECC engine mode. If the nand-ecc-mode property is given
-	 * in the DT node, this entry will be overwritten in nand_scan_ident().
+	 * in the DT yesde, this entry will be overwritten in nand_scan_ident().
 	 */
 	chip->ecc.mode = NAND_ECC_HW;
 
 	ret = nand_scan(chip, cdns_chip->nsels);
 	if (ret) {
-		dev_err(cdns_ctrl->dev, "could not scan the nand chip\n");
+		dev_err(cdns_ctrl->dev, "could yest scan the nand chip\n");
 		return ret;
 	}
 
@@ -2764,7 +2764,7 @@ static int cadence_nand_chip_init(struct cdns_nand_ctrl *cdns_ctrl,
 		return ret;
 	}
 
-	list_add_tail(&cdns_chip->node, &cdns_ctrl->chips);
+	list_add_tail(&cdns_chip->yesde, &cdns_ctrl->chips);
 
 	return 0;
 }
@@ -2773,16 +2773,16 @@ static void cadence_nand_chips_cleanup(struct cdns_nand_ctrl *cdns_ctrl)
 {
 	struct cdns_nand_chip *entry, *temp;
 
-	list_for_each_entry_safe(entry, temp, &cdns_ctrl->chips, node) {
+	list_for_each_entry_safe(entry, temp, &cdns_ctrl->chips, yesde) {
 		nand_release(&entry->chip);
-		list_del(&entry->node);
+		list_del(&entry->yesde);
 	}
 }
 
 static int cadence_nand_chips_init(struct cdns_nand_ctrl *cdns_ctrl)
 {
-	struct device_node *np = cdns_ctrl->dev->of_node;
-	struct device_node *nand_np;
+	struct device_yesde *np = cdns_ctrl->dev->of_yesde;
+	struct device_yesde *nand_np;
 	int max_cs = cdns_ctrl->caps2.max_banks;
 	int nchips, ret;
 
@@ -2795,10 +2795,10 @@ static int cadence_nand_chips_init(struct cdns_nand_ctrl *cdns_ctrl)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_yesde(np, nand_np) {
 		ret = cadence_nand_chip_init(cdns_ctrl, nand_np);
 		if (ret) {
-			of_node_put(nand_np);
+			of_yesde_put(nand_np);
 			cadence_nand_chips_cleanup(cdns_ctrl);
 			return ret;
 		}
@@ -2985,7 +2985,7 @@ static int cadence_nand_dt_probe(struct platform_device *ofdev)
 
 	cdns_ctrl->nf_clk_rate = clk_get_rate(dt->clk);
 
-	ret = of_property_read_u32(ofdev->dev.of_node,
+	ret = of_property_read_u32(ofdev->dev.of_yesde,
 				   "cdns,board-delay-ps", &val);
 	if (ret) {
 		val = 4830;

@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 yestice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -67,7 +67,7 @@
 
 static int debug = -1;
 module_param(debug, int, 0444);
-MODULE_PARM_DESC(debug, "Module/Driver verbosity level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Module/Driver verbosity level (0=yesne,...,16=all)");
 
 static u16 tx_timeout = 1000;
 module_param(tx_timeout, ushort, 0444);
@@ -100,7 +100,7 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 
 #define DPAA_CS_THRESHOLD_1G 0x06000000
 /* Egress congestion threshold on 1G ports, range 0x1000 .. 0x10000000
- * The size in bytes of the egress Congestion State notification threshold on
+ * The size in bytes of the egress Congestion State yestification threshold on
  * 1G ports. The 1G dTSECs can quite easily be flooded by cores doing Tx in a
  * tight loop (e.g. by sending UDP datagrams at "while(1) speed"),
  * and the larger the frame size, the more acute the problem.
@@ -108,14 +108,14 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
  * - avoiding the device staying congested for a prolonged time (risking
  *   the netdev watchdog to fire - see also the tx_timeout module param);
  * - affecting performance of protocols such as TCP, which otherwise
- *   behave well under the congestion notification mechanism;
+ *   behave well under the congestion yestification mechanism;
  * - preventing the Tx cores from tightly-looping (as if the congestion
  *   threshold was too low to be effective);
  * - running out of memory if the CS threshold is set too high.
  */
 
 #define DPAA_CS_THRESHOLD_10G 0x10000000
-/* The size in bytes of the egress Congestion State notification threshold on
+/* The size in bytes of the egress Congestion State yestification threshold on
  * 10G ports, range 0x1000 .. 0x10000000
  */
 
@@ -199,7 +199,7 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	const u8 *mac_addr;
 	int i, err;
 
-	/* Although we access another CPU's private data here
+	/* Although we access ayesther CPU's private data here
 	 * we do it at initialization so it is safe
 	 */
 	for_each_possible_cpu(i) {
@@ -227,7 +227,7 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	net_dev->features |= NETIF_F_RXCSUM;
 
 	net_dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
-	/* we do not want shared skbs on TX */
+	/* we do yest want shared skbs on TX */
 	net_dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 
 	net_dev->features |= net_dev->hw_features;
@@ -484,7 +484,7 @@ static int dpaa_bp_alloc_pool(struct dpaa_bp *dpaa_bp)
 	int err;
 
 	if (dpaa_bp->size == 0 || dpaa_bp->config_count == 0) {
-		pr_err("%s: Buffer pool is not properly initialized! Missing size or initial number of buffers\n",
+		pr_err("%s: Buffer pool is yest properly initialized! Missing size or initial number of buffers\n",
 		       __func__);
 		return -EINVAL;
 	}
@@ -559,7 +559,7 @@ static void dpaa_bp_free(struct dpaa_bp *dpaa_bp)
 
 	/* the mapping between bpid and dpaa_bp is done very late in the
 	 * allocation procedure; if something failed before the mapping, the bp
-	 * was not configured, therefore we don't need the below instructions
+	 * was yest configured, therefore we don't need the below instructions
 	 */
 	if (!bp)
 		return;
@@ -764,7 +764,7 @@ static void dpaa_eth_add_channel(u16 channel, struct device *dev)
 	}
 }
 
-/* Congestion group state change notification callback.
+/* Congestion group state change yestification callback.
  * Stops the device's egress queues while they are congested and
  * wakes them upon exiting congested state.
  * Also updates some CGR-related stats.
@@ -900,7 +900,7 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 			dpaa_setup_egress(priv, fq, tx_port,
 					  &fq_cbs->egress_ern);
 			/* If we have more Tx queues than the number of cores,
-			 * just ignore the extra ones.
+			 * just igyesre the extra ones.
 			 */
 			if (egress_cnt < DPAA_ETH_TXQ_NUM)
 				priv->egress_fqs[egress_cnt++] = &fq->fq_base;
@@ -916,7 +916,7 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 			break;
 		default:
 			dev_warn(priv->net_dev->dev.parent,
-				 "Unknown FQ type detected!\n");
+				 "Unkyeswn FQ type detected!\n");
 			break;
 		}
 	}
@@ -990,7 +990,7 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 
 		/* Put all egress queues in a congestion group of their own.
 		 * Sensu stricto, the Tx confirmation queues are Rx FQs,
-		 * rather than Tx - but they nonetheless account for the
+		 * rather than Tx - but they yesnetheless account for the
 		 * memory footprint on behalf of egress traffic. We therefore
 		 * place them in the netdev's CGR, along with the Tx FQs.
 		 */
@@ -1007,7 +1007,7 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 			 * composed of small datagrams.
 			 * Unfortunately, QMan's OAL value is capped to an
 			 * insufficient value, but even that is better than
-			 * no overhead accounting at all.
+			 * yes overhead accounting at all.
 			 */
 			initfq.we_mask |= cpu_to_be16(QM_INITFQ_WE_OAC);
 			qm_fqd_set_oac(&initfq.fqd, QM_OAC_CG);
@@ -1152,8 +1152,8 @@ static int dpaa_eth_init_tx_port(struct fman_port *port, struct dpaa_fq *errq,
 	buf_prefix_content.pass_time_stamp = true;
 	buf_prefix_content.data_align = DPAA_FD_DATA_ALIGNMENT;
 
-	params.specific_params.non_rx_params.err_fqid = errq->fqid;
-	params.specific_params.non_rx_params.dflt_fqid = defq->fqid;
+	params.specific_params.yesn_rx_params.err_fqid = errq->fqid;
+	params.specific_params.yesn_rx_params.dflt_fqid = defq->fqid;
 
 	err = fman_port_config(port, &params);
 	if (err) {
@@ -1360,8 +1360,8 @@ static void count_ern(struct dpaa_percpu_priv *percpu_priv,
 }
 
 /* Turn on HW checksum computation for this outgoing frame.
- * If the current protocol is not something we support in this regard
- * (or if the stack has already computed the SW checksum), we do nothing.
+ * If the current protocol is yest something we support in this regard
+ * (or if the stack has already computed the SW checksum), we do yesthing.
  *
  * Returns 0 if all goes well (or HW csum doesn't apply), and a negative value
  * otherwise.
@@ -1454,7 +1454,7 @@ static int dpaa_enable_tx_csum(struct dpaa_priv *priv,
 
 	/* On P1023 and similar platforms fd->cmd interpretation could
 	 * be disabled by setting CONTEXT_A bit ICMD; currently this bit
-	 * is not set so we do not need to check; in the future, if/when
+	 * is yest set so we do yest need to check; in the future, if/when
 	 * using context_a we need to check this bit
 	 */
 
@@ -1514,7 +1514,7 @@ static int dpaa_bp_seed(struct dpaa_bp *dpaa_bp)
 		int *count_ptr = per_cpu_ptr(dpaa_bp->percpu_count, i);
 		int j;
 
-		/* Although we access another CPU's counters here
+		/* Although we access ayesther CPU's counters here
 		 * we do it at boot time so it is safe
 		 */
 		for (j = 0; j < dpaa_bp->config_count; j += 8)
@@ -1571,10 +1571,10 @@ static int dpaa_eth_refill_bpools(struct dpaa_priv *priv)
 
 /* Cleanup function for outgoing frame descriptors that were built on Tx path,
  * either contiguous frames or scatter/gather ones.
- * Skb freeing is not handled here.
+ * Skb freeing is yest handled here.
  *
  * This function may be called on error paths in the Tx function, so guard
- * against cases when not all fd relevant fields were filled in. To avoid
+ * against cases when yest all fd relevant fields were filled in. To avoid
  * reading the invalid transmission timestamp for the error paths set ts to
  * false.
  *
@@ -1648,7 +1648,7 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 static u8 rx_csum_offload(const struct dpaa_priv *priv, const struct qm_fd *fd)
 {
 	/* The parser has run and performed L4 checksum validation.
-	 * We know there were no parser errors (and implicitly no
+	 * We kyesw there were yes parser errors (and implicitly yes
 	 * L4 csum error), otherwise we wouldn't be here.
 	 */
 	if ((priv->net_dev->features & NETIF_F_RXCSUM) &&
@@ -1656,14 +1656,14 @@ static u8 rx_csum_offload(const struct dpaa_priv *priv, const struct qm_fd *fd)
 		return CHECKSUM_UNNECESSARY;
 
 	/* We're here because either the parser didn't run or the L4 checksum
-	 * was not verified. This may include the case of a UDP frame with
+	 * was yest verified. This may include the case of a UDP frame with
 	 * checksum zero or an L4 proto other than TCP/UDP
 	 */
 	return CHECKSUM_NONE;
 }
 
 /* Build a linear skb around the received buffer.
- * We are guaranteed there is enough room at the end of the data buffer to
+ * We are guaranteed there is eyesugh room at the end of the data buffer to
  * accommodate the shared info area of the skb.
  */
 static struct sk_buff *contig_fd_to_skb(const struct dpaa_priv *priv,
@@ -1728,7 +1728,7 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 	sgt = vaddr + fd_off;
 	skb = NULL;
 	for (i = 0; i < DPAA_SGT_MAX_ENTRIES; i++) {
-		/* Extension bit is not supported */
+		/* Extension bit is yest supported */
 		WARN_ON(qm_sg_entry_is_ext(&sgt[i]));
 
 		sg_addr = qm_sg_addr(&sgt[i]);
@@ -1753,7 +1753,7 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 
 			skb->ip_summed = rx_csum_offload(priv, fd);
 
-			/* Make sure forwarded skbs will have enough space
+			/* Make sure forwarded skbs will have eyesugh space
 			 * on Tx, if extra headers are added.
 			 */
 			WARN_ON(fd_off != priv->rx_headroom);
@@ -1779,7 +1779,7 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 			 */
 			frag_off = qm_sg_entry_get_off(&sgt[i]) + page_offset;
 			frag_len = qm_sg_entry_get_len(&sgt[i]);
-			/* skb_add_rx_frag() does no checking on the page; if
+			/* skb_add_rx_frag() does yes checking on the page; if
 			 * we pass it a tail page, we'll end up with
 			 * bad page accounting and eventually with segafults.
 			 */
@@ -1868,7 +1868,7 @@ static int skb_to_contig_fd(struct dpaa_priv *priv,
 	qm_fd_set_contig(fd, priv->tx_headroom, skb->len);
 	fd->cmd |= cpu_to_be32(FM_FD_CMD_FCO);
 
-	/* Map the entire buffer size that may be seen by FMan, but no more */
+	/* Map the entire buffer size that may be seen by FMan, but yes more */
 	addr = dma_map_single(priv->tx_dma_dev, buff_start,
 			      priv->tx_headroom + skb->len, dma_dir);
 	if (unlikely(dma_mapping_error(priv->tx_dma_dev, addr))) {
@@ -2026,7 +2026,7 @@ static netdev_tx_t
 dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 {
 	const int queue_mapping = skb_get_queue_mapping(skb);
-	bool nonlinear = skb_is_nonlinear(skb);
+	bool yesnlinear = skb_is_yesnlinear(skb);
 	struct rtnl_link_stats64 *percpu_stats;
 	struct dpaa_percpu_priv *percpu_priv;
 	struct netdev_queue *txq;
@@ -2041,34 +2041,34 @@ dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 
 	qm_fd_clear_fd(&fd);
 
-	if (!nonlinear) {
+	if (!yesnlinear) {
 		/* We're going to store the skb backpointer at the beginning
 		 * of the data buffer, so we need a privately owned skb
 		 *
-		 * We've made sure skb is not shared in dev->priv_flags,
-		 * we need to verify the skb head is not cloned
+		 * We've made sure skb is yest shared in dev->priv_flags,
+		 * we need to verify the skb head is yest cloned
 		 */
 		if (skb_cow_head(skb, priv->tx_headroom))
-			goto enomem;
+			goto eyesmem;
 
-		WARN_ON(skb_is_nonlinear(skb));
+		WARN_ON(skb_is_yesnlinear(skb));
 	}
 
 	/* MAX_SKB_FRAGS is equal or larger than our dpaa_SGT_MAX_ENTRIES;
 	 * make sure we don't feed FMan with more fragments than it supports.
 	 */
-	if (unlikely(nonlinear &&
+	if (unlikely(yesnlinear &&
 		     (skb_shinfo(skb)->nr_frags >= DPAA_SGT_MAX_ENTRIES))) {
 		/* If the egress skb contains more fragments than we support
-		 * we have no choice but to linearize it ourselves.
+		 * we have yes choice but to linearize it ourselves.
 		 */
 		if (__skb_linearize(skb))
-			goto enomem;
+			goto eyesmem;
 
-		nonlinear = skb_is_nonlinear(skb);
+		yesnlinear = skb_is_yesnlinear(skb);
 	}
 
-	if (nonlinear) {
+	if (yesnlinear) {
 		/* Just create a S/G fd based on the skb */
 		err = skb_to_sg_fd(priv, skb, &fd);
 		percpu_priv->tx_frag_skbuffs++;
@@ -2094,7 +2094,7 @@ dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 
 	dpaa_cleanup_tx_fd(priv, &fd, false);
 skb_to_fd_failed:
-enomem:
+eyesmem:
 	percpu_stats->tx_errors++;
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
@@ -2463,7 +2463,7 @@ static int dpaa_phy_init(struct net_device *net_dev)
 	priv = netdev_priv(net_dev);
 	mac_dev = priv->mac_dev;
 
-	phy_dev = of_phy_connect(net_dev, mac_dev->phy_node,
+	phy_dev = of_phy_connect(net_dev, mac_dev->phy_yesde,
 				 &dpaa_adjust_link, 0,
 				 mac_dev->phy_if);
 	if (!phy_dev) {
@@ -2471,7 +2471,7 @@ static int dpaa_phy_init(struct net_device *net_dev)
 		return -ENODEV;
 	}
 
-	/* Remove any features not supported by the controller */
+	/* Remove any features yest supported by the controller */
 	ethtool_convert_legacy_u32_to_link_mode(mask, mac_dev->if_support);
 	linkmode_and(phy_dev->supported, phy_dev->supported, mask);
 
@@ -2547,7 +2547,7 @@ static int dpaa_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:
 		/* Couldn't disable rx/tx timestamping separately.
-		 * Do nothing here.
+		 * Do yesthing here.
 		 */
 		priv->tx_tstamp = false;
 		break;
@@ -2561,13 +2561,13 @@ static int dpaa_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	if (config.rx_filter == HWTSTAMP_FILTER_NONE) {
 		/* Couldn't disable rx/tx timestamping separately.
-		 * Do nothing here.
+		 * Do yesthing here.
 		 */
 		priv->rx_tstamp = false;
 	} else {
 		priv->mac_dev->set_tstamp(priv->mac_dev->fman_mac, true);
 		priv->rx_tstamp = true;
-		/* TS is set for all frame types, not only those requested */
+		/* TS is set for all frame types, yest only those requested */
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 	}
 
@@ -2667,7 +2667,7 @@ static struct dpaa_bp *dpaa_bp_alloc(struct device *dev)
 }
 
 /* Place all ingress FQs (Rx Default, Rx Error) in a dedicated CGR.
- * We won't be sending congestion notifications to FMan; for now, we just use
+ * We won't be sending congestion yestifications to FMan; for yesw, we just use
  * this CGR to generate enqueue rejections to FMan in order to drop the frames
  * before they reach our ingress queues and eat up memory.
  */

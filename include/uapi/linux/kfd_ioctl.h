@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -31,7 +31,7 @@
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
-	__u32 minor_version;	/* from KFD */
+	__u32 miyesr_version;	/* from KFD */
 };
 
 /* For kfd_ioctl_create_queue_args.queue_type. */
@@ -106,10 +106,10 @@ struct kfd_ioctl_set_memory_policy_args {
 };
 
 /*
- * All counters are monotonic. They are used for profiling of compute jobs.
+ * All counters are moyestonic. They are used for profiling of compute jobs.
  * The profiling is done by userspace.
  *
- * In case of GPU reset, the counter should not be affected.
+ * In case of GPU reset, the counter should yest be affected.
  */
 
 struct kfd_ioctl_get_clock_counters_args {
@@ -144,7 +144,7 @@ struct kfd_ioctl_get_process_apertures_args {
 			process_apertures[NUM_OF_SUPPORTED_GPUS];/* from KFD */
 
 	/* from KFD, should be in the range [1 - NUM_OF_SUPPORTED_GPUS] */
-	__u32 num_of_nodes;
+	__u32 num_of_yesdes;
 	__u32 pad;
 };
 
@@ -157,7 +157,7 @@ struct kfd_ioctl_get_process_apertures_new_args {
 	 *  kfd_process_device_apertures_ptr
 	 * from KFD - Number of entries filled by KFD.
 	 */
-	__u32 num_of_nodes;
+	__u32 num_of_yesdes;
 	__u32 pad;
 };
 
@@ -223,7 +223,7 @@ struct kfd_ioctl_create_event_args {
 	__u32 event_trigger_data;	/* from KFD - signal events only */
 	__u32 event_type;		/* to KFD */
 	__u32 auto_reset;		/* to KFD */
-	__u32 node_id;		/* to KFD - only valid for certain
+	__u32 yesde_id;		/* to KFD - only valid for certain
 							event types */
 	__u32 event_id;		/* from KFD */
 	__u32 event_slot_index;	/* from KFD */
@@ -245,7 +245,7 @@ struct kfd_ioctl_reset_event_args {
 };
 
 struct kfd_memory_exception_failure {
-	__u32 NotPresent;	/* Page not present or supervisor privilege */
+	__u32 NotPresent;	/* Page yest present or supervisor privilege */
 	__u32 ReadOnly;	/* Write access to a read-only page */
 	__u32 NoExecute;	/* Execute access to a page marked NX */
 	__u32 imprecise;	/* Can't determine the	exact fault address */
@@ -256,10 +256,10 @@ struct kfd_hsa_memory_exception_data {
 	struct kfd_memory_exception_failure failure;
 	__u64 va;
 	__u32 gpu_id;
-	__u32 ErrorType; /* 0 = no RAS error,
+	__u32 ErrorType; /* 0 = yes RAS error,
 			  * 1 = ECC_SRAM,
 			  * 2 = Link_SYNFLOOD (poison),
-			  * 3 = GPU hang (not attributable to a specific cause),
+			  * 3 = GPU hang (yest attributable to a specific cause),
 			  * other values reserved
 			  */
 };
@@ -355,7 +355,7 @@ struct kfd_ioctl_acquire_vm_args {
  * @size:        size in bytes
  * @handle:      buffer handle returned to user mode, used to refer to
  *               this allocation for mapping, unmapping and freeing
- * @mmap_offset: for CPU-mapping the allocation by mmapping a render node
+ * @mmap_offset: for CPU-mapping the allocation by mmapping a render yesde
  *               for userptrs this is overloaded to specify the CPU address
  * @gpu_id:      device identifier
  * @flags:       memory type and attributes. See KFD_IOC_ALLOC_MEM_FLAGS above

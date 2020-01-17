@@ -564,7 +564,7 @@ static void _InitBeaconParameters(struct adapter *Adapter)
 	usb_write8(Adapter, REG_BCNDMATIM, BCN_DMA_ATIME_INT_TIME); /*  2ms */
 
 	/*  Suggested by designer timchen. Change beacon AIFS to the largest number */
-	/*  beacause test chip does not contension before sending beacon. by tynli. 2009.11.03 */
+	/*  beacause test chip does yest contension before sending beacon. by tynli. 2009.11.03 */
 	usb_write16(Adapter, REG_BCNTCFG, 0x660F);
 
 	haldata->RegBcnCtrlVal = usb_read8(Adapter, REG_BCN_CTRL);
@@ -683,9 +683,9 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	if (pwrctrlpriv->reg_rfoff)
 		pwrctrlpriv->rf_pwrstate = rf_off;
 
-	/*  2010/08/09 MH We need to check if we need to turnon or off RF after detecting */
+	/*  2010/08/09 MH We need to check if we need to turyesn or off RF after detecting */
 	/*  HW GPIO pin. Before PHY_RFConfig8192C. */
-	/*  2010/08/26 MH If Efuse does not support sective suspend then disable the function. */
+	/*  2010/08/26 MH If Efuse does yest support sective suspend then disable the function. */
 
 	if (!pregistrypriv->wifi_spec) {
 		txpktbuf_bndy = TX_PAGE_BOUNDARY_88E;
@@ -818,9 +818,9 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	rtl8188e_InitHalDm(Adapter);
 
 	/*  2010/08/11 MH Merge from 8192SE for Minicard init. We need to confirm current radio status */
-	/*  and then decide to enable RF or not.!!!??? For Selective suspend mode. We may not */
+	/*  and then decide to enable RF or yest.!!!??? For Selective suspend mode. We may yest */
 	/*  call initstruct adapter. May cause some problem?? */
-	/*  Fix the bug that Hw/Sw radio off before S3/S4, the RF off action will not be executed */
+	/*  Fix the bug that Hw/Sw radio off before S3/S4, the RF off action will yest be executed */
 	/*  in MgntActSet_RF_State() after wake up, because the value of haldata->eRFPowerState */
 	/*  is the same as eRfOff, we should change it to eRfOn after we config RF parameters. */
 	/*  Added by tynli. 2010.03.30. */
@@ -1037,7 +1037,7 @@ static void Hal_EfuseParseMACAddr_8188EU(struct adapter *adapt, u8 *hwinfo, bool
 		/* Read Permanent MAC address */
 		memcpy(eeprom->mac_addr, &hwinfo[EEPROM_MAC_ADDR_88EU], ETH_ALEN);
 	}
-	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
+	RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_,
 		 ("Hal_EfuseParseMACAddr_8188EU: Permanent Address = %pM\n",
 		 eeprom->mac_addr));
 }
@@ -1259,7 +1259,7 @@ void rtw_hal_set_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 			/*  2007.01.16, by Emily */
 			/*  Select RRSR (in Legacy-OFDM and CCK) */
 			/*  For 8190, we select only 24M, 12M, 6M, 11M, 5.5M, 2M, and 1M from the Basic rate. */
-			/*  We do not use other rates. */
+			/*  We do yest use other rates. */
 			hal_set_brate_cfg(val, &BrateCfg);
 			DBG_88E("HW_VAR_BASIC_RATE: BrateCfg(%#x)\n", BrateCfg);
 
@@ -1330,7 +1330,7 @@ void rtw_hal_set_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 		}
 		break;
 	case HW_VAR_MLME_DISCONNECT:
-		/* Set RCR to not to receive data frame when NO LINK state */
+		/* Set RCR to yest to receive data frame when NO LINK state */
 		/* reject all data frames */
 		usb_write16(Adapter, REG_RXFLTMAP2, 0x00);
 
@@ -1342,7 +1342,7 @@ void rtw_hal_set_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 		break;
 	case HW_VAR_MLME_SITESURVEY:
 		if (*((u8 *)val)) { /* under sitesurvey */
-			/* config RCR to receive different BSSID & not to receive data frame */
+			/* config RCR to receive different BSSID & yest to receive data frame */
 			u32 v = usb_read32(Adapter, REG_RCR);
 
 			v &= ~(RCR_CBSSID_BCN);
@@ -1740,7 +1740,7 @@ void rtw_hal_get_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 		{
 			/* When we halt NIC, we should check if FW LPS is leave. */
 			if (Adapter->pwrctrlpriv.rf_pwrstate == rf_off) {
-				/*  If it is in HW/SW Radio OFF or IPS state, we do not check Fw LPS Leave, */
+				/*  If it is in HW/SW Radio OFF or IPS state, we do yest check Fw LPS Leave, */
 				/*  because Fw is unload. */
 				val[0] = true;
 			} else {

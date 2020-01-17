@@ -233,7 +233,7 @@ void mmp_register_div_clks(struct mmp_clk_unit *unit,
 	.bit_fc = (fc),					\
 }
 
-void mmp_clk_init(struct device_node *np, struct mmp_clk_unit *unit,
+void mmp_clk_init(struct device_yesde *np, struct mmp_clk_unit *unit,
 		int nr_clks);
 void mmp_clk_add(struct mmp_clk_unit *unit, unsigned int id,
 		struct clk *clk);

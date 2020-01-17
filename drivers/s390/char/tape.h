@@ -54,7 +54,7 @@ do { \
 #define TAPE_VERSION_MINOR 0
 #define TAPE_MAGIC "tape"
 
-#define TAPE_MINORS_PER_DEV 2	    /* two minors per device */
+#define TAPE_MINORS_PER_DEV 2	    /* two miyesrs per device */
 #define TAPEBLOCK_HSEC_SIZE	2048
 #define TAPEBLOCK_HSEC_S2B	2
 #define TAPEBLOCK_RETRIES	5
@@ -179,7 +179,7 @@ struct tape_char_data {
 /* Tape Info */
 struct tape_device {
 	/* entry in tape_device_list */
-	struct list_head		node;
+	struct list_head		yesde;
 
 	int				cdev_id;
 	struct ccw_device *		cdev;
@@ -211,8 +211,8 @@ struct tape_device {
 	/* Request wait queue. */
 	wait_queue_head_t		wait_queue;
 
-	/* Each tape device has (currently) two minor numbers. */
-	int				first_minor;
+	/* Each tape device has (currently) two miyesr numbers. */
+	int				first_miyesr;
 
 	/* Number of tapemarks required for correct termination. */
 	int				required_tapemarks;
@@ -259,7 +259,7 @@ tape_do_io_async_free(struct tape_device *device, struct tape_request *request)
 }
 
 extern int tape_oper_handler(int irq, int status);
-extern void tape_noper_handler(int irq, int status);
+extern void tape_yesper_handler(int irq, int status);
 extern int tape_open(struct tape_device *);
 extern int tape_release(struct tape_device *);
 extern int tape_mtop(struct tape_device *, int, int);

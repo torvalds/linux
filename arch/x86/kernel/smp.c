@@ -34,7 +34,7 @@
 #include <asm/virtext.h>
 
 /*
- *	Some notes on x86 processor bugs affecting SMP operation:
+ *	Some yestes on x86 processor bugs affecting SMP operation:
  *
  *	Pentium, Pentium Pro, II, III (and all CPUs) have bugs.
  *	The Linux implications for SMP are handled as follows:
@@ -54,21 +54,21 @@
  *	A3AP.	see PPro 7AP
  *
  *	Pentium Pro
- *		None of 1AP-9AP errata are visible to the normal user,
+ *		None of 1AP-9AP errata are visible to the yesrmal user,
  *	except occasional delivery of 'spurious interrupt' as trap #15.
- *	This is very rare and a non-problem.
+ *	This is very rare and a yesn-problem.
  *
- *	1AP.	Linux maps APIC as non-cacheable
+ *	1AP.	Linux maps APIC as yesn-cacheable
  *	2AP.	worked around in hardware
  *	3AP.	fixed in C0 and above steppings microcode update.
- *		Linux does not use excessive STARTUP_IPIs.
+ *		Linux does yest use excessive STARTUP_IPIs.
  *	4AP.	worked around in hardware
- *	5AP.	symmetric IO mode (normal Linux operation) not affected.
- *		'noapic' mode has vector 0xf filled out properly.
- *	6AP.	'noapic' mode might be affected - fixed in later steppings
- *	7AP.	We do not assume writes to the LVT deassering IRQs
- *	8AP.	We do not enable low power mode (deep sleep) during MP bootup
- *	9AP.	We do not use mixed mode
+ *	5AP.	symmetric IO mode (yesrmal Linux operation) yest affected.
+ *		'yesapic' mode has vector 0xf filled out properly.
+ *	6AP.	'yesapic' mode might be affected - fixed in later steppings
+ *	7AP.	We do yest assume writes to the LVT deassering IRQs
+ *	8AP.	We do yest enable low power mode (deep sleep) during MP bootup
+ *	9AP.	We do yest use mixed mode
  *
  *	Pentium
  *		There is a marginal case where REP MOVS on 100MHz SMP
@@ -88,32 +88,32 @@
  *	4AP.	Linux never generated 3 interrupts of the same priority
  *		to cause a lost local interrupt.
  *	5AP.	Remote read is never used
- *	6AP.	not affected - worked around in hardware
- *	7AP.	not affected - worked around in hardware
- *	8AP.	worked around in hardware - we get explicit CS errors if not
- *	9AP.	only 'noapic' mode affected. Might generate spurious
+ *	6AP.	yest affected - worked around in hardware
+ *	7AP.	yest affected - worked around in hardware
+ *	8AP.	worked around in hardware - we get explicit CS errors if yest
+ *	9AP.	only 'yesapic' mode affected. Might generate spurious
  *		interrupts, we log only the first one and count the
  *		rest silently.
- *	10AP.	not affected - worked around in hardware
+ *	10AP.	yest affected - worked around in hardware
  *	11AP.	Linux reads the APIC between writes to avoid this, as per
  *		the documentation. Make sure you preserve this as it affects
  *		the C stepping chips too.
- *	12AP.	not affected - worked around in hardware
- *	13AP.	not affected - worked around in hardware
+ *	12AP.	yest affected - worked around in hardware
+ *	13AP.	yest affected - worked around in hardware
  *	14AP.	we always deassert INIT during bootup
- *	15AP.	not affected - worked around in hardware
- *	16AP.	not affected - worked around in hardware
- *	17AP.	not affected - worked around in hardware
- *	18AP.	not affected - worked around in hardware
- *	19AP.	not affected - worked around in BIOS
+ *	15AP.	yest affected - worked around in hardware
+ *	16AP.	yest affected - worked around in hardware
+ *	17AP.	yest affected - worked around in hardware
+ *	18AP.	yest affected - worked around in hardware
+ *	19AP.	yest affected - worked around in BIOS
  *
  *	If this sounds worrying believe me these bugs are either ___RARE___,
  *	or are signal timing bugs worked around in hardware and there's
- *	about nothing of note with C stepping upwards.
+ *	about yesthing of yeste with C stepping upwards.
  */
 
 static atomic_t stopping_cpu = ATOMIC_INIT(-1);
-static bool smp_no_nmi_ipi = false;
+static bool smp_yes_nmi_ipi = false;
 
 static int smp_stop_nmi_callback(unsigned int val, struct pt_regs *regs)
 {
@@ -155,7 +155,7 @@ static void native_stop_other_cpus(int wait)
 
 	/*
 	 * Use an own vector here because smp_call_function
-	 * does lots of things not suitable in a panic situation.
+	 * does lots of things yest suitable in a panic situation.
 	 */
 
 	/*
@@ -179,8 +179,8 @@ static void native_stop_other_cpus(int wait)
 
 		/*
 		 * Don't wait longer than a second for IPI completion. The
-		 * wait request is not checked here because that would
-		 * prevent an NMI shutdown attempt in case that not all
+		 * wait request is yest checked here because that would
+		 * prevent an NMI shutdown attempt in case that yest all
 		 * CPUs reach shutdown state.
 		 */
 		timeout = USEC_PER_SEC;
@@ -195,7 +195,7 @@ static void native_stop_other_cpus(int wait)
 		 * and send the IPI. In any case try to wait for the other
 		 * CPUs to stop.
 		 */
-		if (!smp_no_nmi_ipi && !register_stop_handler()) {
+		if (!smp_yes_nmi_ipi && !register_stop_handler()) {
 			/* Sync above data before sending IRQ */
 			wmb();
 
@@ -206,7 +206,7 @@ static void native_stop_other_cpus(int wait)
 		/*
 		 * Don't wait longer than 10 ms if the caller didn't
 		 * reqeust it. If wait is true, the machine hangs here if
-		 * one or more CPUs do not reach shutdown state.
+		 * one or more CPUs do yest reach shutdown state.
 		 */
 		timeout = USEC_PER_MSEC * 10;
 		while (num_online_cpus() > 1 && (wait || timeout--))
@@ -264,13 +264,13 @@ __visible void __irq_entry smp_call_function_single_interrupt(struct pt_regs *r)
 	exiting_irq();
 }
 
-static int __init nonmi_ipi_setup(char *str)
+static int __init yesnmi_ipi_setup(char *str)
 {
-	smp_no_nmi_ipi = true;
+	smp_yes_nmi_ipi = true;
 	return 1;
 }
 
-__setup("nonmi_ipi", nonmi_ipi_setup);
+__setup("yesnmi_ipi", yesnmi_ipi_setup);
 
 struct smp_ops smp_ops = {
 	.smp_prepare_boot_cpu	= native_smp_prepare_boot_cpu,

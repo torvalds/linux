@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Moxa C101 synchronous serial card driver for Linux
+ * Moxa C101 synchroyesus serial card driver for Linux
  *
  * Copyright (C) 2000-2003 Krzysztof Halasa <khc@pm.waw.pl>
  *
@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/hdlc.h>
@@ -91,8 +91,8 @@ static card_t **new_card = &first_card;
 } while(0)
 
 #define port_to_card(port)	   (port)
-#define log_node(port)		   (0)
-#define phy_node(port)		   (0)
+#define log_yesde(port)		   (0)
+#define phy_yesde(port)		   (0)
 #define winsize(card)		   (C101_WINDOW_SIZE)
 #define win0base(card)		   ((card)->win0base)
 #define winbase(card)      	   ((card)->win0base + 0x2000)
@@ -128,7 +128,7 @@ static void sca_msci_intr(port_t *port)
 {
 	u8 stat = sca_in(MSCI0_OFFSET + ST1, port); /* read MSCI ST1 status */
 
-	/* Reset MSCI TX underrun and CDCD (ignored) status bit */
+	/* Reset MSCI TX underrun and CDCD (igyesred) status bit */
 	sca_out(stat & (ST1_UDRN | ST1_CDCD), MSCI0_OFFSET + ST1, port);
 
 	if (stat & ST1_UDRN) {
@@ -331,21 +331,21 @@ static int __init c101_run(unsigned long irq, unsigned long winbase)
 	}
 
 	if (request_irq(irq, sca_intr, 0, devname, card)) {
-		pr_err("could not allocate IRQ\n");
+		pr_err("could yest allocate IRQ\n");
 		c101_destroy_card(card);
 		return -EBUSY;
 	}
 	card->irq = irq;
 
 	if (!request_mem_region(winbase, C101_MAPPED_RAM_SIZE, devname)) {
-		pr_err("could not request RAM window\n");
+		pr_err("could yest request RAM window\n");
 		c101_destroy_card(card);
 		return -EBUSY;
 	}
 	card->phy_winbase = winbase;
 	card->win0base = ioremap(winbase, C101_MAPPED_RAM_SIZE);
 	if (!card->win0base) {
-		pr_err("could not map I/O address\n");
+		pr_err("could yest map I/O address\n");
 		c101_destroy_card(card);
 		return -EFAULT;
 	}
@@ -398,9 +398,9 @@ static int __init c101_init(void)
 {
 	if (hw == NULL) {
 #ifdef MODULE
-		pr_info("no card initialized\n");
+		pr_info("yes card initialized\n");
 #endif
-		return -EINVAL;	/* no parameters specified, abort */
+		return -EINVAL;	/* yes parameters specified, abort */
 	}
 
 	pr_info("%s\n", version);

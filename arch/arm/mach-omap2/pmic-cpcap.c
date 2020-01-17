@@ -239,7 +239,7 @@ int __init omap4_cpcap_init(void)
 {
 	struct voltagedomain *voltdm;
 
-	if (!of_find_compatible_node(NULL, NULL, "motorola,cpcap"))
+	if (!of_find_compatible_yesde(NULL, NULL, "motorola,cpcap"))
 		return -ENODEV;
 
 	voltdm = voltdm_lookup("mpu");

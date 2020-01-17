@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Hisilicon Limited.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -216,7 +216,7 @@ static int get_hem_table_config(struct hns_roce_dev *hr_dev,
 		mhop->hop_num = hr_dev->caps.idx_hop_num;
 		break;
 	default:
-		dev_err(dev, "Table %d not support multi-hop addressing!\n",
+		dev_err(dev, "Table %d yest support multi-hop addressing!\n",
 			type);
 		return -EINVAL;
 	}
@@ -264,7 +264,7 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 		mhop->l0_idx = table_idx;
 		break;
 	default:
-		dev_err(dev, "Table %d not support hop_num = %d!\n",
+		dev_err(dev, "Table %d yest support hop_num = %d!\n",
 			     table->type, mhop->hop_num);
 		return -EINVAL;
 	}
@@ -414,7 +414,7 @@ static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 		}
 
 		if (end <= 0) {
-			dev_err(dev, "Write bt_cmd err,hw_sync is not zero.\n");
+			dev_err(dev, "Write bt_cmd err,hw_sync is yest zero.\n");
 			spin_unlock_irqrestore(lock, flags);
 			return -EBUSY;
 		}
@@ -482,7 +482,7 @@ static int hns_roce_table_mhop_get(struct hns_roce_dev *hr_dev,
 		hem_idx = mhop.l0_idx;
 		break;
 	default:
-		dev_err(dev, "Table %d not support hop_num = %d!\n",
+		dev_err(dev, "Table %d yest support hop_num = %d!\n",
 			     table->type, hop_num);
 		return -EINVAL;
 	}
@@ -695,7 +695,7 @@ static void hns_roce_table_mhop_put(struct hns_roce_dev *hr_dev,
 		hem_idx = mhop.l0_idx;
 		break;
 	default:
-		dev_err(dev, "Table %d not support hop_num = %d!\n",
+		dev_err(dev, "Table %d yest support hop_num = %d!\n",
 			     table->type, hop_num);
 		return;
 	}
@@ -924,7 +924,7 @@ void hns_roce_table_put_range(struct hns_roce_dev *hr_dev,
 
 int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_hem_table *table, u32 type,
-			    unsigned long obj_size, unsigned long nobj,
+			    unsigned long obj_size, unsigned long yesbj,
 			    int use_lowmem)
 {
 	unsigned long obj_per_chunk;
@@ -933,7 +933,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 	if (!hns_roce_check_whether_mhop(hr_dev, type)) {
 		table->table_chunk_size = hr_dev->caps.chunk_sz;
 		obj_per_chunk = table->table_chunk_size / obj_size;
-		num_hem = (nobj + obj_per_chunk - 1) / obj_per_chunk;
+		num_hem = (yesbj + obj_per_chunk - 1) / obj_per_chunk;
 
 		table->hem = kcalloc(num_hem, sizeof(*table->hem), GFP_KERNEL);
 		if (!table->hem)
@@ -955,7 +955,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 		hop_num = mhop.hop_num;
 
 		obj_per_chunk = buf_chunk_size / obj_size;
-		num_hem = (nobj + obj_per_chunk - 1) / obj_per_chunk;
+		num_hem = (yesbj + obj_per_chunk - 1) / obj_per_chunk;
 		bt_chunk_num = bt_chunk_size / BA_BYTE_LEN;
 		if (type >= HEM_TYPE_MTT)
 			num_bt_l0 = bt_chunk_num;
@@ -1001,7 +1001,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 
 	table->type = type;
 	table->num_hem = num_hem;
-	table->num_obj = nobj;
+	table->num_obj = yesbj;
 	table->obj_size = obj_size;
 	table->lowmem = use_lowmem;
 	mutex_init(&table->mutex);

@@ -34,7 +34,7 @@
 2:
 	di
 	wait
-	b	2b			# Unknown CPU, loop forever.
+	b	2b			# Unkyeswn CPU, loop forever.
 1:
 	PTR_LA	t1, paravirt_smp_sp
 	PTR_SLL	t0, PTR_SCALESHIFT

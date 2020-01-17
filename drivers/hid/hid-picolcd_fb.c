@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /***************************************************************************
- *   Copyright (C) 2010-2012 by Bruno Prémont <bonbons@linux-vserver.org>  *
+ *   Copyright (C) 2010-2012 by Bruyes Prémont <bonbons@linux-vserver.org>  *
  *                                                                         *
  *   Based on Logitech G13 driver (v0.4)                                   *
  *     Copyright (C) 2009 by Rick L. Vinyard, Jr. <rvinyard@cs.nmsu.edu>   *
@@ -333,7 +333,7 @@ static ssize_t picolcd_fb_write(struct fb_info *info, const char __user *buf,
 
 static int picolcd_fb_blank(int blank, struct fb_info *info)
 {
-	/* We let fb notification do this for us via lcd/backlight device */
+	/* We let fb yestification do this for us via lcd/backlight device */
 	return 0;
 }
 
@@ -341,7 +341,7 @@ static void picolcd_fb_destroy(struct fb_info *info)
 {
 	struct picolcd_fb_data *fbdata = info->par;
 
-	/* make sure no work is deferred */
+	/* make sure yes work is deferred */
 	fb_deferred_io_cleanup(info);
 
 	/* No thridparty should ever unregister our framebuffer! */
@@ -513,7 +513,7 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 			sizeof(struct picolcd_fb_data) +
 			PICOLCDFB_SIZE, dev);
 	if (!info)
-		goto err_nomem;
+		goto err_yesmem;
 
 	info->fbdefio = info->par;
 	*info->fbdefio = picolcd_fb_defio;
@@ -539,7 +539,7 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 	fbdata->bitmap  = vmalloc(PICOLCDFB_SIZE*8);
 	if (fbdata->bitmap == NULL) {
 		dev_err(dev, "can't get a free page for framebuffer\n");
-		goto err_nomem;
+		goto err_yesmem;
 	}
 	info->screen_base = (char __force __iomem *)fbdata->bitmap;
 	info->fix.smem_start = (unsigned long)fbdata->bitmap;
@@ -572,7 +572,7 @@ err_sysfs:
 err_cleanup:
 	data->fb_info    = NULL;
 
-err_nomem:
+err_yesmem:
 	if (fbdata)
 		vfree(fbdata->bitmap);
 	framebuffer_release(info);
@@ -596,8 +596,8 @@ void picolcd_exit_framebuffer(struct picolcd_data *data)
 	fbdata->picolcd = NULL;
 	spin_unlock_irqrestore(&fbdata->lock, flags);
 
-	/* make sure there is no running update - thus that fbdata->picolcd
-	 * once obtained under lock is guaranteed not to get free() under
+	/* make sure there is yes running update - thus that fbdata->picolcd
+	 * once obtained under lock is guaranteed yest to get free() under
 	 * the feet of the deferred work */
 	flush_delayed_work(&info->deferred_work);
 

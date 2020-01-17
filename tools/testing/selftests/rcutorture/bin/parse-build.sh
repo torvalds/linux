@@ -25,7 +25,7 @@ if grep -q CC < $F || test -n "$TORTURE_TRUST_MAKE"
 then
 	:
 else
-	print_bug $title no build
+	print_bug $title yes build
 	exit 1
 fi
 

@@ -3,7 +3,7 @@
  * linux/drivers/video/mmp/fb/mmpfb.c
  * Framebuffer driver for Marvell Display controller.
  *
- * Copyright (C) 2012 Marvell Technology Group Ltd.
+ * Copyright (C) 2012 Marvell Techyeslogy Group Ltd.
  * Authors: Zhou Zhu <zzhu3@marvell.com>
  */
 #include <linux/module.h>
@@ -217,9 +217,9 @@ static void pixfmt_to_var(struct fb_var_screeninfo *var, int pix_fmt)
 
 /*
  * fb framework has its limitation:
- * 1. input color/output color is not seprated
- * 2. fb_videomode not include output color
- * so for fb usage, we keep a output format which is not changed
+ * 1. input color/output color is yest seprated
+ * 2. fb_videomode yest include output color
+ * so for fb usage, we keep a output format which is yest changed
  *  then it's added for mmpmode
  */
 static void fbmode_to_mmpmode(struct mmp_mode *mode,
@@ -242,7 +242,7 @@ static void fbmode_to_mmpmode(struct mmp_mode *mode,
 	mode->vsync_len = videomode->vsync_len;
 	mode->hsync_invert = !!(videomode->sync & FB_SYNC_HOR_HIGH_ACT);
 	mode->vsync_invert = !!(videomode->sync & FB_SYNC_VERT_HIGH_ACT);
-	/* no defined flag in fb, use vmode>>3*/
+	/* yes defined flag in fb, use vmode>>3*/
 	mode->invert_pixclock = !!(videomode->vmode & 8);
 	mode->pix_fmt_out = output_fmt;
 }
@@ -310,21 +310,21 @@ static u32 to_rgb(u16 red, u16 green, u16 blue)
 	return (red << 16) | (green << 8) | blue;
 }
 
-static int mmpfb_setcolreg(unsigned int regno, unsigned int red,
+static int mmpfb_setcolreg(unsigned int regyes, unsigned int red,
 		unsigned int green, unsigned int blue,
 		unsigned int trans, struct fb_info *info)
 {
 	struct mmpfb_info *fbi = info->par;
 	u32 val;
 
-	if (info->fix.visual == FB_VISUAL_TRUECOLOR && regno < 16) {
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR && regyes < 16) {
 		val =  chan_to_field(red,   &info->var.red);
 		val |= chan_to_field(green, &info->var.green);
 		val |= chan_to_field(blue , &info->var.blue);
-		fbi->pseudo_palette[regno] = val;
+		fbi->pseudo_palette[regyes] = val;
 	}
 
-	if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR && regno < 256) {
+	if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR && regyes < 256) {
 		val = to_rgb(red, green, blue);
 		/* TODO */
 	}
@@ -363,7 +363,7 @@ static int var_update(struct fb_info *info)
 	/* set var according to best video mode*/
 	m = (struct fb_videomode *)fb_match_mode(var, &info->modelist);
 	if (!m) {
-		dev_err(fbi->dev, "set par: no match mode, use best mode\n");
+		dev_err(fbi->dev, "set par: yes match mode, use best mode\n");
 		m = (struct fb_videomode *)fb_find_best_mode(var,
 				&info->modelist);
 		fb_videomode_to_var(var, m);
@@ -442,7 +442,7 @@ static void mmpfb_power(struct mmpfb_info *fbi, int power)
 			* var->bits_per_pixel / 8;
 		mmp_overlay_set_addr(fbi->overlay, &addr);
 	}
-	mmp_overlay_set_onoff(fbi->overlay, power);
+	mmp_overlay_set_oyesff(fbi->overlay, power);
 }
 
 static int mmpfb_blank(int blank, struct fb_info *info)
@@ -506,7 +506,7 @@ static int fb_info_setup(struct fb_info *info,
 	/* Initialise static fb parameters.*/
 	info->flags = FBINFO_DEFAULT | FBINFO_PARTIAL_PAN_OK |
 		FBINFO_HWACCEL_XPAN | FBINFO_HWACCEL_YPAN;
-	info->node = -1;
+	info->yesde = -1;
 	strcpy(info->fix.id, fbi->name);
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.type_aux = 0;
@@ -546,7 +546,7 @@ static int mmpfb_probe(struct platform_device *pdev)
 
 	mi = pdev->dev.platform_data;
 	if (mi == NULL) {
-		dev_err(&pdev->dev, "no platform data defined\n");
+		dev_err(&pdev->dev, "yes platform data defined\n");
 		return -EINVAL;
 	}
 
@@ -591,7 +591,7 @@ static int mmpfb_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * if get modes success, means not hotplug panels, use caculated buffer
+	 * if get modes success, means yest hotplug panels, use caculated buffer
 	 * or use default size
 	 */
 	if (modes_num > 0) {
@@ -630,7 +630,7 @@ static int mmpfb_probe(struct platform_device *pdev)
 	}
 
 	dev_info(fbi->dev, "loaded to /dev/fb%d <%s>.\n",
-		info->node, info->fix.id);
+		info->yesde, info->fix.id);
 
 #ifdef CONFIG_LOGO
 	if (fbi->fb_start) {

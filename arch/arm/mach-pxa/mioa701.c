@@ -158,7 +158,7 @@ static unsigned long mioa701_pin_config[] = {
 	GPIO117_I2C_SCL,
 	GPIO118_I2C_SDA,
 
-	/* Unknown */
+	/* Unkyeswn */
 	MFP_CFG_IN(GPIO20, AF0),
 	MFP_CFG_IN(GPIO21, AF0),
 	MFP_CFG_IN(GPIO33, AF0),
@@ -327,7 +327,7 @@ err_irq:
 	printk(KERN_ERR "Mioa701: Can't request GSM_ON irq\n");
 	gpio_free_array(ARRAY_AND_SIZE(gsm_gpios));
 err_gpio:
-	printk(KERN_ERR "Mioa701: gsm not available\n");
+	printk(KERN_ERR "Mioa701: gsm yest available\n");
 	return rc;
 }
 
@@ -429,7 +429,7 @@ static struct platform_device docg3 = {
  *   - initialize GPIOs (depends on value at 0xa020b020)
  *   - initialize coprossessors
  *   - if edge detect on PWR_SCL(GPIO3), then proceed to cold start
- *   - or if value at 0xa020b000 not equal to 0x0f0f0f0f, proceed to cold start
+ *   - or if value at 0xa020b000 yest equal to 0x0f0f0f0f, proceed to cold start
  *   - else do a resume, ie. jump to addr 0xa0100000
  */
 #define RESUME_ENABLE_ADDR	0xa020b000
@@ -458,7 +458,7 @@ static int mioa701_sys_suspend(void)
 	u32 *mem_resume_vector	= phys_to_virt(RESUME_VECTOR_ADDR);
 	u32 *mem_resume_enabler = phys_to_virt(RESUME_ENABLE_ADDR);
 	u32 *mem_resume_bt	= phys_to_virt(RESUME_BT_ADDR);
-	u32 *mem_resume_unknown	= phys_to_virt(RESUME_UNKNOWN_ADDR);
+	u32 *mem_resume_unkyeswn	= phys_to_virt(RESUME_UNKNOWN_ADDR);
 
 	/* Devices prepare suspend */
 	is_bt_on = !!gpio_get_value(GPIO83_BT_ON);
@@ -469,7 +469,7 @@ static int mioa701_sys_suspend(void)
 		save_buffer[i] = mem_resume_vector[i];
 	save_buffer[i++] = *mem_resume_enabler;
 	save_buffer[i++] = *mem_resume_bt;
-	save_buffer[i++] = *mem_resume_unknown;
+	save_buffer[i++] = *mem_resume_unkyeswn;
 
 	*mem_resume_enabler = RESUME_ENABLE_VAL;
 	*mem_resume_bt	    = is_bt_on;
@@ -484,13 +484,13 @@ static void mioa701_sys_resume(void)
 	u32 *mem_resume_vector	= phys_to_virt(RESUME_VECTOR_ADDR);
 	u32 *mem_resume_enabler = phys_to_virt(RESUME_ENABLE_ADDR);
 	u32 *mem_resume_bt	= phys_to_virt(RESUME_BT_ADDR);
-	u32 *mem_resume_unknown	= phys_to_virt(RESUME_UNKNOWN_ADDR);
+	u32 *mem_resume_unkyeswn	= phys_to_virt(RESUME_UNKNOWN_ADDR);
 
 	for (i = 0; i < BOOTSTRAP_WORDS; i++)
 		mem_resume_vector[i] = save_buffer[i];
 	*mem_resume_enabler = save_buffer[i++];
 	*mem_resume_bt	    = save_buffer[i++];
-	*mem_resume_unknown = save_buffer[i++];
+	*mem_resume_unkyeswn = save_buffer[i++];
 }
 
 static struct syscore_ops mioa701_syscore_ops = {

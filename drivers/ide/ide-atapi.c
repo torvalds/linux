@@ -56,20 +56,20 @@ int ide_check_atapi_device(ide_drive_t *drive, const char *s)
 #endif
 
 	if (protocol != 2)
-		printk(KERN_ERR "%s: %s: protocol (0x%02x) is not ATAPI\n",
+		printk(KERN_ERR "%s: %s: protocol (0x%02x) is yest ATAPI\n",
 			s, drive->name, protocol);
 	else if ((drive->media == ide_floppy && device_type != 0) ||
 		 (drive->media == ide_tape && device_type != 1))
 		printk(KERN_ERR "%s: %s: invalid device type (0x%02x)\n",
 			s, drive->name, device_type);
 	else if (removable == 0)
-		printk(KERN_ERR "%s: %s: the removable flag is not set\n",
+		printk(KERN_ERR "%s: %s: the removable flag is yest set\n",
 			s, drive->name);
 	else if (drive->media == ide_floppy && drq_type == 3)
-		printk(KERN_ERR "%s: %s: sorry, DRQ type (0x%02x) not "
+		printk(KERN_ERR "%s: %s: sorry, DRQ type (0x%02x) yest "
 			"supported\n", s, drive->name, drq_type);
 	else if (packet_size != 0)
-		printk(KERN_ERR "%s: %s: packet size (0x%02x) is not 12 "
+		printk(KERN_ERR "%s: %s: packet size (0x%02x) is yest 12 "
 			"bytes\n", s, drive->name, packet_size);
 	else
 		return 1;
@@ -302,8 +302,8 @@ int ide_cd_expiry(ide_drive_t *drive)
 	debug_log("%s: scsi_req(rq)->cmd[0]: 0x%x\n", __func__, scsi_req(rq)->cmd[0]);
 
 	/*
-	 * Some commands are *slow* and normally take a long time to complete.
-	 * Usually we can use the ATAPI "disconnect" to bypass this, but not all
+	 * Some commands are *slow* and yesrmally take a long time to complete.
+	 * Usually we can use the ATAPI "disconnect" to bypass this, but yest all
 	 * commands/drives support that. Let ide_timer_expiry keep polling us
 	 * for these.
 	 */
@@ -386,7 +386,7 @@ int ide_check_ireason(ide_drive_t *drive, struct request *rq, int len,
 		if (dev_is_idecd(drive)) {
 			/*
 			 * Some drives (ASUS) seem to tell us that status info
-			 * is available.  Just get it and ignore.
+			 * is available.  Just get it and igyesre.
 			 */
 			(void)hwif->tp_ops->read_status(hwif);
 			return 0;
@@ -485,7 +485,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			/* Retry operation */
 			ide_retry_pc(drive);
 
-			/* queued, but not started */
+			/* queued, but yest started */
 			return ide_stopped;
 		}
 		pc->error = 0;
@@ -588,7 +588,7 @@ static u8 ide_wait_ireason(ide_drive_t *drive, u8 ireason)
 		ireason = ide_read_ireason(drive);
 		if (retries == 0) {
 			printk(KERN_ERR PFX "%s: (IO,CoD != (0,1) while issuing"
-					" a packet command, ignoring\n",
+					" a packet command, igyesring\n",
 					drive->name);
 			ireason |= ATAPI_COD;
 			ireason &= ~ATAPI_IO;

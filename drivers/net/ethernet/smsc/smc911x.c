@@ -47,7 +47,7 @@ static const char version[] =
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/crc32.h>
 #include <linux/device.h>
@@ -83,7 +83,7 @@ MODULE_ALIAS("platform:smc911x");
 
 /*
  * The internal workings of the driver.  If you are changing anything
- * here with the SMC stuff, you should have the datasheet and know
+ * here with the SMC stuff, you should have the datasheet and kyesw
  * what you are doing.
  */
 #define CARDNAME "smc911x"
@@ -294,7 +294,7 @@ static void smc911x_enable(struct net_device *dev)
 	SMC_SET_FIFO_RSA(lp, 0x01);
 	SMC_SET_FIFO_RSL(lp, 0x00);
 
-	/* now, enable interrupts */
+	/* yesw, enable interrupts */
 	mask = INT_EN_TDFA_EN_ | INT_EN_TSFL_EN_ | INT_EN_RSFL_EN_ |
 		INT_EN_GPT_INT_EN_ | INT_EN_RXDFH_INT_EN_ | INT_EN_RXE_EN_ |
 		INT_EN_PHY_INT_EN_;
@@ -496,9 +496,9 @@ static void smc911x_hardware_send_pkt(struct net_device *dev)
 }
 
 /*
- * Since I am not sure if I will have enough room in the chip's ram
+ * Since I am yest sure if I will have eyesugh room in the chip's ram
  * to store the packet, I call this routine which either sends it
- * now, or set the card to generates an interrupt when ready
+ * yesw, or set the card to generates an interrupt when ready
  * for the packet.
  */
 static netdev_tx_t
@@ -593,7 +593,7 @@ static void smc911x_tx(struct net_device *dev)
 		DBG(SMC_DEBUG_TX, dev, "Tx FIFO tag 0x%04x status 0x%04x\n",
 		    (tx_status & 0xffff0000) >> 16,
 		    tx_status & 0x0000ffff);
-		/* count Tx errors, but ignore lost carrier errors when in
+		/* count Tx errors, but igyesre lost carrier errors when in
 		 * full-duplex mode */
 		if ((tx_status & TX_STS_ES_) && !(lp->ctl_rfduplx &&
 		    !(tx_status & 0x00000306))) {
@@ -771,7 +771,7 @@ static int smc911x_phy_fixed(struct net_device *dev)
  *
  * Issue a software reset for the specified PHY and
  * wait up to 100ms for the reset to complete.	 We should
- * not access the PHY for 50ms after issuing the reset.
+ * yest access the PHY for 50ms after issuing the reset.
  *
  * The time to wait appears to be dependent on the PHY.
  *
@@ -798,7 +798,7 @@ static int smc911x_phy_reset(struct net_device *dev, int phy)
 		spin_unlock_irqrestore(&lp->lock, flags);
 		if (!(reg & PMT_CTRL_PHY_RST_)) {
 			/* extra delay required because the phy may
-			 * not be completed with its reset
+			 * yest be completed with its reset
 			 * when PHY_BCR_RESET_ is cleared. 256us
 			 * should suffice, but use 500us to be safe
 			 */
@@ -885,7 +885,7 @@ static void smc911x_phy_configure(struct work_struct *work)
 	DBG(SMC_DEBUG_FUNC, dev, "--> %s()\n", __func__);
 
 	/*
-	 * We should not be called if phy_type is zero.
+	 * We should yest be called if phy_type is zero.
 	 */
 	if (lp->phy_type == 0)
 		return;
@@ -904,7 +904,7 @@ static void smc911x_phy_configure(struct work_struct *work)
 		 PHY_INT_MASK_ANEG_COMP_ | PHY_INT_MASK_REMOTE_FAULT_ |
 		 PHY_INT_MASK_LINK_DOWN_);
 
-	/* If the user requested no auto neg, then go set his request */
+	/* If the user requested yes auto neg, then go set his request */
 	if (lp->mii.force_media) {
 		smc911x_phy_fixed(dev);
 		goto smc911x_phy_configure_exit;
@@ -932,7 +932,7 @@ static void smc911x_phy_configure(struct work_struct *work)
 	if (my_phy_caps & BMSR_10HALF)
 		my_ad_caps |= ADVERTISE_10HALF;
 
-	/* Disable capabilities not selected by our user */
+	/* Disable capabilities yest selected by our user */
 	if (lp->ctl_rspeed != 100)
 		my_ad_caps &= ~(ADVERTISE_100BASE4|ADVERTISE_100FULL|ADVERTISE_100HALF);
 
@@ -946,7 +946,7 @@ static void smc911x_phy_configure(struct work_struct *work)
 	/*
 	 * Read the register back.	 Without this, it appears that when
 	 * auto-negotiation is restarted, sometimes it isn't ready and
-	 * the link does not come up.
+	 * the link does yest come up.
 	 */
 	udelay(10);
 	SMC_GET_PHY_MII_ADV(lp, phyaddr, status);
@@ -1233,7 +1233,7 @@ smc911x_rx_dma_irq(void *data)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
- * Polling receive - used by netconsole and other diagnostic tools
+ * Polling receive - used by netconsole and other diagyesstic tools
  * to allow network i/o with interrupts disabled.
  */
 static void smc911x_poll_controller(struct net_device *dev)
@@ -1343,7 +1343,7 @@ static void smc911x_set_multicast_list(struct net_device *dev)
 		/* be sure I get rid of flags I might have set */
 		mcr &= ~(MAC_CR_PRMS_ | MAC_CR_MCPAS_);
 
-		/* now, the table can be loaded into the chipset */
+		/* yesw, the table can be loaded into the chipset */
 		update_multicast = 1;
 	} else	 {
 		DBG(SMC_DEBUG_MISC, dev, "~(MAC_CR_PRMS_|MAC_CR_MCPAS_)\n");
@@ -1400,7 +1400,7 @@ smc911x_open(struct net_device *dev)
  * smc911x_close
  *
  * this makes the board clean up everything that it can
- * and not talk to the outside world.	 Caused by
+ * and yest talk to the outside world.	 Caused by
  * an 'ifconfig ethX down'
  */
 static int smc911x_close(struct net_device *dev)
@@ -1416,7 +1416,7 @@ static int smc911x_close(struct net_device *dev)
 	smc911x_shutdown(dev);
 
 	if (lp->phy_type != 0) {
-		/* We need to ensure that no calls to
+		/* We need to ensure that yes calls to
 		 * smc911x_phy_configure are pending.
 		 */
 		cancel_work_sync(&lp->phy_configure);
@@ -1589,7 +1589,7 @@ static int smc911x_ethtool_wait_eeprom_ready(struct net_device *dev)
 		e2p_cmd = SMC_GET_E2P_CMD(lp);
 	}
 	if (timeout == 0) {
-		PRINTK(dev, "%s timeout waiting for EEPROM CMD not busy\n",
+		PRINTK(dev, "%s timeout waiting for EEPROM CMD yest busy\n",
 		       __func__);
 		return -ETIMEDOUT;
 	}
@@ -1725,7 +1725,7 @@ static int smc911x_findirq(struct net_device *dev)
 	} while (--timeout);
 
 	/*
-	 * there is really nothing that I can do here if timeout fails,
+	 * there is really yesthing that I can do here if timeout fails,
 	 * as autoirq_report will return a 0 anyway, which is what I
 	 * want in this case.	 Plus, the clean up is needed in both
 	 * cases.
@@ -1765,7 +1765,7 @@ static const struct net_device_ops smc911x_netdev_ops = {
  * Here I do typical initialization tasks.
  *
  * o  Initialize the structure if needed
- * o  print out my vanity message if not done so already
+ * o  print out my vanity message if yest done so already
  * o  print out what type of hardware is detected
  * o  print out the ethernet address
  * o  find the IRQ
@@ -1810,7 +1810,7 @@ static int smc911x_probe(struct net_device *dev)
 		if (chip_ids[i].id == chip_id) break;
 	}
 	if (!chip_ids[i].id) {
-		netdev_err(dev, "Unknown chip ID %04x\n", chip_id);
+		netdev_err(dev, "Unkyeswn chip ID %04x\n", chip_id);
 		retval = -ENODEV;
 		goto err_out;
 	}
@@ -1878,7 +1878,7 @@ static int smc911x_probe(struct net_device *dev)
 		case 14:/* 1920 Rx Data Fifo Size */
 			lp->afc_cfg=0x0006032F;break;
 		 default:
-			 PRINTK(dev, "ERROR -- no AFC_CFG setting found");
+			 PRINTK(dev, "ERROR -- yes AFC_CFG setting found");
 			 break;
 	}
 
@@ -1891,14 +1891,14 @@ static int smc911x_probe(struct net_device *dev)
 	/* Get the MAC address */
 	SMC_GET_MAC_ADDR(lp, dev->dev_addr);
 
-	/* now, reset the chip, and put it into a known state */
+	/* yesw, reset the chip, and put it into a kyeswn state */
 	smc911x_reset(dev);
 
 	/*
 	 * If dev->irq is 0, then the device has to be banged on to see
 	 * what the IRQ is.
 	 *
-	 * Specifying an IRQ is done with the assumption that the user knows
+	 * Specifying an IRQ is done with the assumption that the user kyesws
 	 * what (s)he is doing.  No checking is done!!!!
 	 */
 	if (dev->irq < 1) {
@@ -1918,7 +1918,7 @@ static int smc911x_probe(struct net_device *dev)
 		retval = -ENODEV;
 		goto err_out;
 	}
-	dev->irq = irq_canonicalize(dev->irq);
+	dev->irq = irq_cayesnicalize(dev->irq);
 
 	dev->netdev_ops = &smc911x_netdev_ops;
 	dev->watchdog_timeo = msecs_to_jiffies(watchdog);
@@ -1987,7 +1987,7 @@ static int smc911x_probe(struct net_device *dev)
 
 	retval = register_netdev(dev);
 	if (retval == 0) {
-		/* now, print out the card info, in a short format.. */
+		/* yesw, print out the card info, in a short format.. */
 		netdev_info(dev, "%s (rev %d) at %#lx IRQ %d",
 			    version_string, lp->revision,
 			    dev->base_addr, dev->irq);
@@ -2044,7 +2044,7 @@ static int smc911x_drv_probe(struct platform_device *pdev)
 	void __iomem *addr;
 	int ret;
 
-	/* ndev is not valid yet, so avoid passing it in. */
+	/* ndev is yest valid yet, so avoid passing it in. */
 	DBG(SMC_DEBUG_FUNC, "--> %s\n",  __func__);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -2099,7 +2099,7 @@ release_both:
 release_1:
 		release_mem_region(res->start, SMC911X_IO_EXTENT);
 out:
-		pr_info("%s: not found (%d).\n", CARDNAME, ret);
+		pr_info("%s: yest found (%d).\n", CARDNAME, ret);
 	}
 #ifdef SMC_USE_DMA
 	else {

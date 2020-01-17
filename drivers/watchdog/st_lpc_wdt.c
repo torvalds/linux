@@ -151,7 +151,7 @@ static int st_wdog_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *match;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct st_wdog *st_wdog;
 	struct regmap *regmap;
 	struct clk *clk;
@@ -220,7 +220,7 @@ static int st_wdog_probe(struct platform_device *pdev)
 		return ret;
 
 	watchdog_set_drvdata(&st_wdog_dev, st_wdog);
-	watchdog_set_nowayout(&st_wdog_dev, WATCHDOG_NOWAYOUT);
+	watchdog_set_yeswayout(&st_wdog_dev, WATCHDOG_NOWAYOUT);
 
 	/* Init Watchdog timeout with value in DT */
 	ret = watchdog_init_timeout(&st_wdog_dev, 0, dev);

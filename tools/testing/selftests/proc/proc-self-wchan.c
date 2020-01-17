@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -16,7 +16,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 
 int main(void)
@@ -26,7 +26,7 @@ int main(void)
 
 	fd = open("/proc/self/wchan", O_RDONLY);
 	if (fd == -1) {
-		if (errno == ENOENT)
+		if (erryes == ENOENT)
 			return 4;
 		return 1;
 	}

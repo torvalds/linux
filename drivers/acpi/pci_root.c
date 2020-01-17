@@ -29,7 +29,7 @@ ACPI_MODULE_NAME("pci_root");
 #define ACPI_PCI_ROOT_CLASS		"pci_bridge"
 #define ACPI_PCI_ROOT_DEVICE_NAME	"PCI Root Bridge"
 static int acpi_pci_root_add(struct acpi_device *device,
-			     const struct acpi_device_id *not_used);
+			     const struct acpi_device_id *yest_used);
 static void acpi_pci_root_remove(struct acpi_device *device);
 
 static int acpi_pci_root_scan_dependent(struct acpi_device *adev)
@@ -61,11 +61,11 @@ static struct acpi_scan_handler pci_root_handler = {
 static DEFINE_MUTEX(osc_lock);
 
 /**
- * acpi_is_root_bridge - determine whether an ACPI CA node is a PCI root bridge
- * @handle - the ACPI CA node in question.
+ * acpi_is_root_bridge - determine whether an ACPI CA yesde is a PCI root bridge
+ * @handle - the ACPI CA yesde in question.
  *
  * Note: we could make this API take a struct acpi_device * instead, but
- * for now, it's more convenient to operate on an acpi_handle.
+ * for yesw, it's more convenient to operate on an acpi_handle.
  */
 int acpi_is_root_bridge(acpi_handle handle)
 {
@@ -246,8 +246,8 @@ struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
 }
 EXPORT_SYMBOL_GPL(acpi_pci_find_root);
 
-struct acpi_handle_node {
-	struct list_head node;
+struct acpi_handle_yesde {
+	struct list_head yesde;
 	acpi_handle handle;
 };
 
@@ -261,7 +261,7 @@ struct acpi_handle_node {
  * If the device is found, its reference count is increased and this
  * function returns a pointer to its data structure.  The caller must
  * decrement the reference count by calling pci_dev_put().
- * If no device is found, %NULL is returned.
+ * If yes device is found, %NULL is returned.
  */
 struct pci_dev *acpi_get_pci_dev(acpi_handle handle)
 {
@@ -271,7 +271,7 @@ struct pci_dev *acpi_get_pci_dev(acpi_handle handle)
 	acpi_handle phandle;
 	struct pci_bus *pbus;
 	struct pci_dev *pdev = NULL;
-	struct acpi_handle_node *node, *tmp;
+	struct acpi_handle_yesde *yesde, *tmp;
 	struct acpi_pci_root *root;
 	LIST_HEAD(device_list);
 
@@ -280,13 +280,13 @@ struct pci_dev *acpi_get_pci_dev(acpi_handle handle)
 	 */
 	phandle = handle;
 	while (!acpi_is_root_bridge(phandle)) {
-		node = kzalloc(sizeof(struct acpi_handle_node), GFP_KERNEL);
-		if (!node)
+		yesde = kzalloc(sizeof(struct acpi_handle_yesde), GFP_KERNEL);
+		if (!yesde)
 			goto out;
 
-		INIT_LIST_HEAD(&node->node);
-		node->handle = phandle;
-		list_add(&node->node, &device_list);
+		INIT_LIST_HEAD(&yesde->yesde);
+		yesde->handle = phandle;
+		list_add(&yesde->yesde, &device_list);
 
 		status = acpi_get_parent(phandle, &phandle);
 		if (ACPI_FAILURE(status))
@@ -304,8 +304,8 @@ struct pci_dev *acpi_get_pci_dev(acpi_handle handle)
 	 * original handle. Assumes that everything between the PCI root
 	 * bridge and the device we're looking for must be a P2P bridge.
 	 */
-	list_for_each_entry(node, &device_list, node) {
-		acpi_handle hnd = node->handle;
+	list_for_each_entry(yesde, &device_list, yesde) {
+		acpi_handle hnd = yesde->handle;
 		status = acpi_evaluate_integer(hnd, "_ADR", NULL, &adr);
 		if (ACPI_FAILURE(status))
 			goto out;
@@ -320,7 +320,7 @@ struct pci_dev *acpi_get_pci_dev(acpi_handle handle)
 		pci_dev_put(pdev);
 
 		/*
-		 * This function may be called for a non-PCI device that has a
+		 * This function may be called for a yesn-PCI device that has a
 		 * PCI parent (eg. a disk under a PCI SATA controller).  In that
 		 * case pdev->subordinate will be NULL for the parent.
 		 */
@@ -331,8 +331,8 @@ struct pci_dev *acpi_get_pci_dev(acpi_handle handle)
 		}
 	}
 out:
-	list_for_each_entry_safe(node, tmp, &device_list, node)
-		kfree(node);
+	list_for_each_entry_safe(yesde, tmp, &device_list, yesde)
+		kfree(yesde);
 
 	return pdev;
 }
@@ -349,7 +349,7 @@ EXPORT_SYMBOL_GPL(acpi_get_pci_dev);
  * returned mask, run _OSC request for it.
  *
  * The variable at the @mask address may be modified regardless of whether or
- * not the function returns success.  On success it will contain the mask of
+ * yest the function returns success.  On success it will contain the mask of
  * _OSC bits the BIOS has granted control of, but its contents are meaningless
  * on failure.
  **/
@@ -384,13 +384,13 @@ acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
 			goto out;
 		if (ctrl == *mask)
 			break;
-		decode_osc_control(root, "platform does not support",
+		decode_osc_control(root, "platform does yest support",
 				   ctrl & ~(*mask));
 		ctrl = *mask;
 	}
 
 	if ((ctrl & req) != req) {
-		decode_osc_control(root, "not requesting control; platform does not support",
+		decode_osc_control(root, "yest requesting control; platform does yest support",
 				   req & ~(ctrl));
 		status = AE_SUPPORT;
 		goto out;
@@ -408,7 +408,7 @@ out:
 }
 EXPORT_SYMBOL(acpi_pci_osc_control_set);
 
-static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
+static void negotiate_os_control(struct acpi_pci_root *root, int *yes_aspm,
 				 bool is_pcie)
 {
 	u32 support, control, requested;
@@ -418,7 +418,7 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 
 	/*
 	 * Apple always return failure on _OSC calls when _OSI("Darwin") has
-	 * been called successfully. We know the feature set supported by the
+	 * been called successfully. We kyesw the feature set supported by the
 	 * platform, so avoid calling _OSC at all
 	 */
 	if (x86_apple_machine) {
@@ -444,7 +444,7 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 	decode_osc_support(root, "OS supports", support);
 	status = acpi_pci_osc_support(root, support);
 	if (ACPI_FAILURE(status)) {
-		*no_aspm = 1;
+		*yes_aspm = 1;
 
 		/* _OSC is optional for PCI host bridges */
 		if ((status == AE_NOT_FOUND) && !is_pcie)
@@ -457,12 +457,12 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 	}
 
 	if (pcie_ports_disabled) {
-		dev_info(&device->dev, "PCIe port services disabled; not requesting _OSC control\n");
+		dev_info(&device->dev, "PCIe port services disabled; yest requesting _OSC control\n");
 		return;
 	}
 
 	if ((support & ACPI_PCIE_REQ_SUPPORT) != ACPI_PCIE_REQ_SUPPORT) {
-		decode_osc_support(root, "not requesting OS control; OS requires",
+		decode_osc_support(root, "yest requesting OS control; OS requires",
 				   ACPI_PCIE_REQ_SUPPORT);
 		return;
 	}
@@ -491,7 +491,7 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 	status = acpi_pci_osc_control_set(handle, &control,
 					  OSC_PCI_EXPRESS_CAPABILITY_CONTROL);
 	if (ACPI_SUCCESS(status)) {
-		decode_osc_control(root, "OS now controls", control);
+		decode_osc_control(root, "OS yesw controls", control);
 		if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
 			/*
 			 * We have ASPM control, but the FADT indicates that
@@ -499,7 +499,7 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 			 * intact and prevent the OS from touching it.
 			 */
 			dev_info(&device->dev, "FADT indicates ASPM is unsupported, using BIOS configuration\n");
-			*no_aspm = 1;
+			*yes_aspm = 1;
 		}
 	} else {
 		decode_osc_control(root, "OS requested", requested);
@@ -514,19 +514,19 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 		 * flag here, to defer the action until after the ACPI
 		 * root scan.
 		 */
-		*no_aspm = 1;
+		*yes_aspm = 1;
 	}
 }
 
 static int acpi_pci_root_add(struct acpi_device *device,
-			     const struct acpi_device_id *not_used)
+			     const struct acpi_device_id *yest_used)
 {
 	unsigned long long segment, bus;
 	acpi_status status;
 	int result;
 	struct acpi_pci_root *root;
 	acpi_handle handle = device->handle;
-	int no_aspm = 0;
+	int yes_aspm = 0;
 	bool hotadd = system_state == SYSTEM_RUNNING;
 	bool is_pcie;
 
@@ -543,7 +543,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		goto end;
 	}
 
-	/* Check _CRS first, then _BBN.  If no _BBN, default to zero. */
+	/* Check _CRS first, then _BBN.  If yes _BBN, default to zero. */
 	root->secondary.flags = IORESOURCE_BUS;
 	status = try_get_root_bridge_busnr(handle, &root->secondary);
 	if (ACPI_FAILURE(status)) {
@@ -555,7 +555,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		 */
 		root->secondary.end = 0xFF;
 		dev_warn(&device->dev,
-			 FW_BUG "no secondary bus range in _CRS\n");
+			 FW_BUG "yes secondary bus range in _CRS\n");
 		status = acpi_evaluate_integer(handle, METHOD_NAME__BBN,
 					       NULL, &bus);
 		if (ACPI_SUCCESS(status))
@@ -587,7 +587,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	root->mcfg_addr = acpi_pci_root_get_mcfg_addr(handle);
 
 	is_pcie = strcmp(acpi_device_hid(device), "PNP0A08") == 0;
-	negotiate_os_control(root, &no_aspm, is_pcie);
+	negotiate_os_control(root, &yes_aspm, is_pcie);
 
 	/*
 	 * TBD: Need PCI interface for enumeration/configuration of roots.
@@ -597,23 +597,23 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	 * Scan the Root Bridge
 	 * --------------------
 	 * Must do this prior to any attempt to bind the root device, as the
-	 * PCI namespace does not get created until this call is made (and
-	 * thus the root bridge's pci_dev does not exist).
+	 * PCI namespace does yest get created until this call is made (and
+	 * thus the root bridge's pci_dev does yest exist).
 	 */
 	root->bus = pci_acpi_scan_root(root);
 	if (!root->bus) {
 		dev_err(&device->dev,
-			"Bus %04x:%02x not present in PCI namespace\n",
+			"Bus %04x:%02x yest present in PCI namespace\n",
 			root->segment, (unsigned int)root->secondary.start);
 		device->driver_data = NULL;
 		result = -ENODEV;
 		goto remove_dmar;
 	}
 
-	if (no_aspm)
-		pcie_no_aspm();
+	if (yes_aspm)
+		pcie_yes_aspm();
 
-	pci_acpi_add_bus_pm_notifier(device);
+	pci_acpi_add_bus_pm_yestifier(device);
 	device_set_wakeup_capable(root->bus->bridge, device->wakeup.flags.valid);
 
 	if (hotadd) {
@@ -655,7 +655,7 @@ static void acpi_pci_root_remove(struct acpi_device *device)
 
 	pci_ioapic_remove(root);
 	device_set_wakeup_capable(root->bus->bridge, false);
-	pci_acpi_remove_bus_pm_notifier(device);
+	pci_acpi_remove_bus_pm_yestifier(device);
 
 	pci_remove_root_bus(root->bus);
 	WARN_ON(acpi_ioapic_remove(root));
@@ -692,15 +692,15 @@ static void acpi_pci_root_validate_resources(struct device *dev,
 		if (!(res1->flags & type))
 			goto next;
 
-		/* Exclude non-addressable range or non-addressable portion */
+		/* Exclude yesn-addressable range or yesn-addressable portion */
 		end = min(res1->end, root->end);
 		if (end <= res1->start) {
-			dev_info(dev, "host bridge window %pR (ignored, not CPU addressable)\n",
+			dev_info(dev, "host bridge window %pR (igyesred, yest CPU addressable)\n",
 				 res1);
 			free = true;
 			goto next;
 		} else if (res1->end != end) {
-			dev_info(dev, "host bridge window %pR ([%#llx-%#llx] ignored, not CPU addressable)\n",
+			dev_info(dev, "host bridge window %pR ([%#llx-%#llx] igyesred, yest CPU addressable)\n",
 				 res1, (unsigned long long)end + 1,
 				 (unsigned long long)res1->end);
 			res1->end = end;
@@ -713,13 +713,13 @@ static void acpi_pci_root_validate_resources(struct device *dev,
 
 			/*
 			 * I don't like throwing away windows because then
-			 * our resources no longer match the ACPI _CRS, but
+			 * our resources yes longer match the ACPI _CRS, but
 			 * the kernel resource tree doesn't allow overlaps.
 			 */
 			if (resource_overlaps(res1, res2)) {
 				res2->start = min(res1->start, res2->start);
 				res2->end = max(res1->end, res2->end);
-				dev_info(dev, "host bridge window expanded to %pR; %pR ignored\n",
+				dev_info(dev, "host bridge window expanded to %pR; %pR igyesred\n",
 					 res2, res1);
 				free = true;
 				goto next;
@@ -735,7 +735,7 @@ next:
 	}
 }
 
-static void acpi_pci_root_remap_iospace(struct fwnode_handle *fwnode,
+static void acpi_pci_root_remap_iospace(struct fwyesde_handle *fwyesde,
 			struct resource_entry *entry)
 {
 #ifdef PCI_IOBASE
@@ -745,7 +745,7 @@ static void acpi_pci_root_remap_iospace(struct fwnode_handle *fwnode,
 	resource_size_t length = resource_size(res);
 	unsigned long port;
 
-	if (pci_register_io_range(fwnode, cpu_addr, length))
+	if (pci_register_io_range(fwyesde, cpu_addr, length))
 		goto err;
 
 	port = pci_address_to_pio(cpu_addr);
@@ -783,11 +783,11 @@ int acpi_pci_probe_root_resources(struct acpi_pci_root_info *info)
 			 "failed to parse _CRS method, error code %d\n", ret);
 	else if (ret == 0)
 		dev_dbg(&device->dev,
-			"no IO and memory resources present in _CRS\n");
+			"yes IO and memory resources present in _CRS\n");
 	else {
 		resource_list_for_each_entry_safe(entry, tmp, list) {
 			if (entry->res->flags & IORESOURCE_IO)
-				acpi_pci_root_remap_iospace(&device->fwnode,
+				acpi_pci_root_remap_iospace(&device->fwyesde,
 						entry);
 
 			if (entry->res->flags & IORESOURCE_DISABLED)
@@ -828,7 +828,7 @@ static void pci_acpi_root_add_resources(struct acpi_pci_root_info *info)
 		conflict = insert_resource_conflict(root, res);
 		if (conflict) {
 			dev_info(&info->bridge->dev,
-				 "ignoring host bridge window %pR (conflicts with %s %pR)\n",
+				 "igyesring host bridge window %pR (conflicts with %s %pR)\n",
 				 res, conflict->name, conflict);
 			resource_list_destroy_entry(entry);
 		}
@@ -877,7 +877,7 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 {
 	int ret, busnum = root->secondary.start;
 	struct acpi_device *device = root->device;
-	int node = acpi_get_node(device->handle);
+	int yesde = acpi_get_yesde(device->handle);
 	struct pci_bus *bus;
 	struct pci_host_bridge *host_bridge;
 	union acpi_object *obj;
@@ -931,8 +931,8 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 	pci_scan_child_bus(bus);
 	pci_set_host_bridge_release(host_bridge, acpi_pci_root_release_info,
 				    info);
-	if (node != NUMA_NO_NODE)
-		dev_printk(KERN_DEBUG, &bus->dev, "on NUMA node %d\n", node);
+	if (yesde != NUMA_NO_NODE)
+		dev_printk(KERN_DEBUG, &bus->dev, "on NUMA yesde %d\n", yesde);
 	return bus;
 
 out_release_info:

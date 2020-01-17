@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
+ * 3. Neither the name of IBM yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND
@@ -126,12 +126,12 @@ struct virtio_blk_config {
 /*
  * Command types
  *
- * Usage is a bit tricky as some bits are used as flags and some are not.
+ * Usage is a bit tricky as some bits are used as flags and some are yest.
  *
  * Rules:
  *   VIRTIO_BLK_T_OUT may be combined with VIRTIO_BLK_T_SCSI_CMD or
  *   VIRTIO_BLK_T_BARRIER.  VIRTIO_BLK_T_FLUSH is a command of its own
- *   and may not be combined with any of the other flags.
+ *   and may yest be combined with any of the other flags.
  */
 
 /* These two define direction. */
@@ -139,7 +139,7 @@ struct virtio_blk_config {
 #define VIRTIO_BLK_T_OUT	1
 
 #ifndef VIRTIO_BLK_NO_LEGACY
-/* This bit says it's a scsi command, not an actual read or write. */
+/* This bit says it's a scsi command, yest an actual read or write. */
 #define VIRTIO_BLK_T_SCSI_CMD	2
 #endif /* VIRTIO_BLK_NO_LEGACY */
 
@@ -162,7 +162,7 @@ struct virtio_blk_config {
 
 /*
  * This comes first in the read scatter-gather list.
- * For legacy virtio, if VIRTIO_F_ANY_LAYOUT is not negotiated,
+ * For legacy virtio, if VIRTIO_F_ANY_LAYOUT is yest negotiated,
  * this is the first element of the read scatter-gather list.
  */
 struct virtio_blk_outhdr {

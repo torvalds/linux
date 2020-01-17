@@ -197,11 +197,11 @@ module_pcmcia_driver(airo_driver);
     are met:
 
     1. Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
+       yestice, this list of conditions and the following disclaimer.
     2. Redistributions in binary form must reproduce the above copyright
-       notice, this list of conditions and the following disclaimer in the
+       yestice, this list of conditions and the following disclaimer in the
        documentation and/or other materials provided with the distribution.
-    3. The name of the author may not be used to endorse or promote
+    3. The name of the author may yest be used to endorse or promote
        products derived from this software without specific prior written
        permission.
 

@@ -142,7 +142,7 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 		if (sb->nbuckets > LONG_MAX)
 			goto err;
 
-		err = "Not enough buckets";
+		err = "Not eyesugh buckets";
 		if (sb->nbuckets < 1 << 7)
 			goto err;
 
@@ -168,7 +168,7 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 		    sb->nr_in_set > MAX_CACHES_PER_SET)
 			goto err;
 
-		err = "Journal buckets not sequential";
+		err = "Journal buckets yest sequential";
 		for (i = 0; i < sb->keys; i++)
 			if (sb->d[i] != sb->first_bucket + i)
 				goto err;
@@ -485,7 +485,7 @@ static struct uuid_entry *uuid_find_empty(struct cache_set *c)
  * it's just an opaque integer.
  *
  * The gens and the priorities don't have a whole lot to do with each other, and
- * it's actually the gens that must be written out at specific times - it's no
+ * it's actually the gens that must be written out at specific times - it's yes
  * big deal if the priorities don't get written, if we lose them we just reuse
  * buckets in suboptimal order.
  *
@@ -536,13 +536,13 @@ int bch_prio_write(struct cache *ca, bool wait)
 	struct bucket *b;
 	struct closure cl;
 
-	pr_debug("free_prio=%zu, free_none=%zu, free_inc=%zu",
+	pr_debug("free_prio=%zu, free_yesne=%zu, free_inc=%zu",
 		 fifo_used(&ca->free[RESERVE_PRIO]),
 		 fifo_used(&ca->free[RESERVE_NONE]),
 		 fifo_used(&ca->free_inc));
 
 	/*
-	 * Pre-check if there are enough free buckets. In the non-blocking
+	 * Pre-check if there are eyesugh free buckets. In the yesn-blocking
 	 * scenario it's better to fail early rather than starting to allocate
 	 * buckets and do a cleanup later in case of failure.
 	 */
@@ -765,12 +765,12 @@ static void bcache_device_attach(struct bcache_device *d, struct cache_set *c,
 	closure_get(&c->caching);
 }
 
-static inline int first_minor_to_idx(int first_minor)
+static inline int first_miyesr_to_idx(int first_miyesr)
 {
-	return (first_minor/BCACHE_MINORS);
+	return (first_miyesr/BCACHE_MINORS);
 }
 
-static inline int idx_to_first_minor(int idx)
+static inline int idx_to_first_miyesr(int idx)
 {
 	return (idx * BCACHE_MINORS);
 }
@@ -797,7 +797,7 @@ static void bcache_device_free(struct bcache_device *d)
 			blk_cleanup_queue(disk->queue);
 
 		ida_simple_remove(&bcache_device_idx,
-				  first_minor_to_idx(disk->first_minor));
+				  first_miyesr_to_idx(disk->first_miyesr));
 		put_disk(disk);
 	}
 
@@ -855,7 +855,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 	snprintf(d->disk->disk_name, DISK_NAME_LEN, "bcache%i", idx);
 
 	d->disk->major		= bcache_major;
-	d->disk->first_minor	= idx_to_first_minor(idx);
+	d->disk->first_miyesr	= idx_to_first_miyesr(idx);
 	d->disk->fops		= &bcache_ops;
 	d->disk->private_data	= d;
 
@@ -928,7 +928,7 @@ static int cached_dev_status_update(void *arg)
 			pr_err("%s: disable I/O request due to backing "
 			       "device offline", dc->disk.name);
 			dc->io_disable = true;
-			/* let others know earlier that io_disable is true */
+			/* let others kyesw earlier that io_disable is true */
 			smp_mb();
 			bcache_device_stop(&dc->disk);
 			break;
@@ -1014,7 +1014,7 @@ int bch_cached_dev_run(struct cached_dev *dc)
  * If BCACHE_DEV_RATE_DW_RUNNING is set, it means routine of the delayed
  * work dc->writeback_rate_update is running. Wait until the routine
  * quits (BCACHE_DEV_RATE_DW_RUNNING is clear), then continue to
- * cancel it. If BCACHE_DEV_RATE_DW_RUNNING is not clear after time_out
+ * cancel it. If BCACHE_DEV_RATE_DW_RUNNING is yest clear after time_out
  * seconds, give up waiting here and continue to cancel it too.
  */
 static void cancel_writeback_rate_update_dwork(struct cached_dev *dc)
@@ -1158,7 +1158,7 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 
 		u = uuid_find_empty(c);
 		if (!u) {
-			pr_err("Not caching %s, no room for UUID",
+			pr_err("Not caching %s, yes room for UUID",
 			       dc->backing_dev_name);
 			return -EINVAL;
 		}
@@ -1220,7 +1220,7 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 	if (ret && (ret != -EBUSY)) {
 		up_write(&dc->writeback_lock);
 		/*
-		 * bch_register_lock is held, bcache_device_stop() is not
+		 * bch_register_lock is held, bcache_device_stop() is yest
 		 * able to be directly called. The kthread and kworker
 		 * created previously in bch_cached_dev_writeback_start()
 		 * have to be stopped manually here.
@@ -1354,7 +1354,7 @@ static int register_bdev(struct cache_sb *sb, struct page *sb_page,
 				 struct block_device *bdev,
 				 struct cached_dev *dc)
 {
-	const char *err = "cannot allocate memory";
+	const char *err = "canyest allocate memory";
 	struct cache_set *c;
 	int ret = -ENOMEM;
 
@@ -1395,7 +1395,7 @@ static int register_bdev(struct cache_sb *sb, struct page *sb_page,
 
 	return 0;
 err:
-	pr_notice("error %s: %s", dc->backing_dev_name, err);
+	pr_yestice("error %s: %s", dc->backing_dev_name, err);
 	bcache_device_stop(&dc->disk);
 	return ret;
 }
@@ -1490,7 +1490,7 @@ int bch_flash_dev_create(struct cache_set *c, uint64_t size)
 
 	u = uuid_find_empty(c);
 	if (!u) {
-		pr_err("Can't create volume, no room for UUID");
+		pr_err("Can't create volume, yes room for UUID");
 		return -EINVAL;
 	}
 
@@ -1512,7 +1512,7 @@ bool bch_cached_dev_error(struct cached_dev *dc)
 		return false;
 
 	dc->io_disable = true;
-	/* make others know io_disable is true earlier */
+	/* make others kyesw io_disable is true earlier */
 	smp_mb();
 
 	pr_err("stop %s: too many IO errors on backing device %s\n",
@@ -1625,14 +1625,14 @@ static void cache_set_flush(struct closure *cl)
 		list_add(&c->root->list, &c->btree_cache);
 
 	/*
-	 * Avoid flushing cached nodes if cache set is retiring
+	 * Avoid flushing cached yesdes if cache set is retiring
 	 * due to too many I/O errors detected.
 	 */
 	if (!test_bit(CACHE_SET_IO_DISABLE, &c->flags))
 		list_for_each_entry(b, &c->btree_cache, list) {
 			mutex_lock(&b->write_lock);
-			if (btree_node_dirty(b))
-				__bch_btree_node_write(b, NULL);
+			if (btree_yesde_dirty(b))
+				__bch_btree_yesde_write(b, NULL);
 			mutex_unlock(&b->write_lock);
 		}
 
@@ -1662,7 +1662,7 @@ static void cache_set_flush(struct closure *cl)
  *  BCH_CACHED_DEV_STOP_ALWAYS         1               YES
  *
  * The expected behavior is, if stop_when_cache_set_failed is configured to
- * "auto" via sysfs interface, the bcache device will not be stopped if the
+ * "auto" via sysfs interface, the bcache device will yest be stopped if the
  * backing device is clean on the broken cache device.
  */
 static void conditional_stop_bcache_device(struct cache_set *c,
@@ -1682,9 +1682,9 @@ static void conditional_stop_bcache_device(struct cache_set *c,
 			d->disk->disk_name);
 		/*
 		 * There might be a small time gap that cache set is
-		 * released but bcache device is not. Inside this time
+		 * released but bcache device is yest. Inside this time
 		 * gap, regular I/O requests will directly go into
-		 * backing device as no cache set attached to. This
+		 * backing device as yes cache set attached to. This
 		 * behavior may also introduce potential inconsistence
 		 * data in writeback mode while cache is dirty.
 		 * Therefore before calling bcache_device_stop() due
@@ -1692,7 +1692,7 @@ static void conditional_stop_bcache_device(struct cache_set *c,
 		 * explicitly set to true.
 		 */
 		dc->io_disable = true;
-		/* make others know io_disable is true earlier */
+		/* make others kyesw io_disable is true earlier */
 		smp_mb();
 		bcache_device_stop(d);
 	} else {
@@ -1766,7 +1766,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	closure_init(&c->caching, &c->cl);
 	set_closure_fn(&c->caching, __cache_set_unregister, system_wq);
 
-	/* Maybe create continue_at_noreturn() and use it here? */
+	/* Maybe create continue_at_yesreturn() and use it here? */
 	closure_set_stopped(&c->cl);
 	closure_put(&c->cl);
 
@@ -1845,7 +1845,7 @@ err:
 
 static int run_cache_set(struct cache_set *c)
 {
-	const char *err = "cannot allocate memory";
+	const char *err = "canyest allocate memory";
 	struct cached_dev *dc, *t;
 	struct cache *ca;
 	struct closure cl;
@@ -1863,13 +1863,13 @@ static int run_cache_set(struct cache_set *c)
 		struct bkey *k;
 		struct jset *j;
 
-		err = "cannot allocate memory for journal";
+		err = "canyest allocate memory for journal";
 		if (bch_journal_read(c, &journal))
 			goto err;
 
 		pr_debug("btree_journal_read() done");
 
-		err = "no journal entries found";
+		err = "yes journal entries found";
 		if (list_empty(&journal))
 			goto err;
 
@@ -1892,7 +1892,7 @@ static int run_cache_set(struct cache_set *c)
 			goto err;
 
 		err = "error reading btree root";
-		c->root = bch_btree_node_get(c, NULL, k,
+		c->root = bch_btree_yesde_get(c, NULL, k,
 					     j->btree_level,
 					     true, NULL);
 		if (IS_ERR_OR_NULL(c->root))
@@ -1922,7 +1922,7 @@ static int run_cache_set(struct cache_set *c)
 			sc.nr_to_scan = c->btree_cache_used * c->btree_pages;
 			/* first run to clear b->accessed tag */
 			c->shrink.scan_objects(&c->shrink, &sc);
-			/* second run to reap non-accessed nodes */
+			/* second run to reap yesn-accessed yesdes */
 			c->shrink.scan_objects(&c->shrink, &sc);
 		}
 
@@ -1959,7 +1959,7 @@ static int run_cache_set(struct cache_set *c)
 		if (bch_journal_replay(c, &journal))
 			goto err;
 	} else {
-		pr_notice("invalidating existing data");
+		pr_yestice("invalidating existing data");
 
 		for_each_cache(ca, c, i) {
 			unsigned int j;
@@ -1983,18 +1983,18 @@ static int run_cache_set(struct cache_set *c)
 			bch_prio_write(ca, true);
 		mutex_unlock(&c->bucket_lock);
 
-		err = "cannot allocate new UUID bucket";
+		err = "canyest allocate new UUID bucket";
 		if (__uuid_write(c))
 			goto err;
 
-		err = "cannot allocate new btree root";
-		c->root = __bch_btree_node_alloc(c, NULL, 0, true, NULL);
+		err = "canyest allocate new btree root";
+		c->root = __bch_btree_yesde_alloc(c, NULL, 0, true, NULL);
 		if (IS_ERR_OR_NULL(c->root))
 			goto err;
 
 		mutex_lock(&c->root->write_lock);
 		bkey_copy_key(&c->root->key, &MAX_KEY);
-		bch_btree_node_write(c->root, &cl);
+		bch_btree_yesde_write(c->root, &cl);
 		mutex_unlock(&c->root->write_lock);
 
 		bch_btree_set_root(c->root);
@@ -2050,7 +2050,7 @@ static bool can_attach_cache(struct cache *ca, struct cache_set *c)
 static const char *register_cache_set(struct cache *ca)
 {
 	char buf[12];
-	const char *err = "cannot allocate memory";
+	const char *err = "canyest allocate memory";
 	struct cache_set *c;
 
 	list_for_each_entry(c, &bch_cache_sets, list)
@@ -2059,7 +2059,7 @@ static const char *register_cache_set(struct cache *ca)
 				return "duplicate cache set member";
 
 			if (!can_attach_cache(ca, c))
-				return "cache sb does not match set";
+				return "cache sb does yest match set";
 
 			if (!CACHE_SYNC(&ca->sb))
 				SET_CACHE_SYNC(&c->sb, false);
@@ -2160,8 +2160,8 @@ static int cache_alloc(struct cache *ca)
 	bio_init(&ca->journal.bio, ca->journal.bio.bi_inline_vecs, 8);
 
 	/*
-	 * when ca->sb.njournal_buckets is not zero, journal exists,
-	 * and in bch_journal_replay(), tree node may split,
+	 * when ca->sb.njournal_buckets is yest zero, journal exists,
+	 * and in bch_journal_replay(), tree yesde may split,
 	 * so bucket of RESERVE_BTREE type is needed,
 	 * the worst situation is all journal buckets are valid journal,
 	 * and all the keys need to replay,
@@ -2195,7 +2195,7 @@ static int cache_alloc(struct cache *ca)
 
 	if (!init_fifo(&ca->free[RESERVE_NONE], free, GFP_KERNEL)) {
 		err = "ca->free[RESERVE_NONE] alloc failed";
-		goto err_none_alloc;
+		goto err_yesne_alloc;
 	}
 
 	if (!init_fifo(&ca->free_inc, free << 2, GFP_KERNEL)) {
@@ -2245,7 +2245,7 @@ err_heap_alloc:
 	free_fifo(&ca->free_inc);
 err_free_inc_alloc:
 	free_fifo(&ca->free[RESERVE_NONE]);
-err_none_alloc:
+err_yesne_alloc:
 	free_fifo(&ca->free[RESERVE_MOVINGGC]);
 err_movinggc_alloc:
 	free_fifo(&ca->free[RESERVE_PRIO]);
@@ -2255,7 +2255,7 @@ err_btree_alloc:
 err_free:
 	module_put(THIS_MODULE);
 	if (err)
-		pr_notice("error %s: %s", ca->cache_dev_name, err);
+		pr_yestice("error %s: %s", ca->cache_dev_name, err);
 	return ret;
 }
 
@@ -2280,8 +2280,8 @@ static int register_cache(struct cache_sb *sb, struct page *sb_page,
 	ret = cache_alloc(ca);
 	if (ret != 0) {
 		/*
-		 * If we failed here, it means ca->kobj is not initialized yet,
-		 * kobject_put() won't be called and there is no chance to
+		 * If we failed here, it means ca->kobj is yest initialized yet,
+		 * kobject_put() won't be called and there is yes chance to
 		 * call blkdev_put() to bdev in bch_cache_release(). So we
 		 * explicitly call blkdev_put() here.
 		 */
@@ -2291,7 +2291,7 @@ static int register_cache(struct cache_sb *sb, struct page *sb_page,
 		else if (ret == -EPERM)
 			err = "cache_alloc(): cache device is too small";
 		else
-			err = "cache_alloc(): unknown error";
+			err = "cache_alloc(): unkyeswn error";
 		goto err;
 	}
 
@@ -2319,7 +2319,7 @@ out:
 
 err:
 	if (err)
-		pr_notice("error %s: %s", ca->cache_dev_name, err);
+		pr_yestice("error %s: %s", ca->cache_dev_name, err);
 
 	return ret;
 }
@@ -2373,7 +2373,7 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 			       const char *buffer, size_t size)
 {
 	ssize_t ret = -EINVAL;
-	const char *err = "cannot allocate memory";
+	const char *err = "canyest allocate memory";
 	char *path = NULL;
 	struct cache_sb *sb = NULL;
 	struct block_device *bdev = NULL;
@@ -2514,7 +2514,7 @@ static ssize_t bch_pending_bdevs_cleanup(struct kobject *k,
 	return ret;
 }
 
-static int bcache_reboot(struct notifier_block *n, unsigned long code, void *x)
+static int bcache_reboot(struct yestifier_block *n, unsigned long code, void *x)
 {
 	if (bcache_is_reboot)
 		return NOTIFY_DONE;
@@ -2534,11 +2534,11 @@ static int bcache_reboot(struct notifier_block *n, unsigned long code, void *x)
 		if (bcache_is_reboot)
 			goto out;
 
-		/* New registration is rejected since now */
+		/* New registration is rejected since yesw */
 		bcache_is_reboot = true;
 		/*
 		 * Make registering caller (if there is) on other CPU
-		 * core know bcache_is_reboot set to true earlier
+		 * core kyesw bcache_is_reboot set to true earlier
 		 */
 		smp_mb();
 
@@ -2551,7 +2551,7 @@ static int bcache_reboot(struct notifier_block *n, unsigned long code, void *x)
 		pr_info("Stopping all devices:");
 
 		/*
-		 * The reason bch_register_lock is not held to call
+		 * The reason bch_register_lock is yest held to call
 		 * bch_cache_set_stop() and bcache_device_stop() is to
 		 * avoid potential deadlock during reboot, because cache
 		 * set or bcache device stopping process will acqurie
@@ -2559,9 +2559,9 @@ static int bcache_reboot(struct notifier_block *n, unsigned long code, void *x)
 		 *
 		 * We are safe here because bcache_is_reboot sets to
 		 * true already, register_bcache() will reject new
-		 * registration now. bcache_is_reboot also makes sure
+		 * registration yesw. bcache_is_reboot also makes sure
 		 * bcache_reboot() won't be re-entered on by other thread,
-		 * so there is no race in following list iteration by
+		 * so there is yes race in following list iteration by
 		 * list_for_each_entry_safe().
 		 */
 		list_for_each_entry_safe(c, tc, &bch_cache_sets, list)
@@ -2600,7 +2600,7 @@ static int bcache_reboot(struct notifier_block *n, unsigned long code, void *x)
 		if (stopped)
 			pr_info("All devices stopped");
 		else
-			pr_notice("Timeout waiting for devices to be closed");
+			pr_yestice("Timeout waiting for devices to be closed");
 out:
 		mutex_unlock(&bch_register_lock);
 	}
@@ -2608,8 +2608,8 @@ out:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block reboot = {
-	.notifier_call	= bcache_reboot,
+static struct yestifier_block reboot = {
+	.yestifier_call	= bcache_reboot,
 	.priority	= INT_MAX, /* before any real devices */
 };
 
@@ -2626,7 +2626,7 @@ static void bcache_exit(void)
 
 	if (bcache_major)
 		unregister_blkdev(bcache_major, "bcache");
-	unregister_reboot_notifier(&reboot);
+	unregister_reboot_yestifier(&reboot);
 	mutex_destroy(&bch_register_lock);
 }
 
@@ -2669,11 +2669,11 @@ static int __init bcache_init(void)
 
 	mutex_init(&bch_register_lock);
 	init_waitqueue_head(&unregister_wait);
-	register_reboot_notifier(&reboot);
+	register_reboot_yestifier(&reboot);
 
 	bcache_major = register_blkdev(0, "bcache");
 	if (bcache_major < 0) {
-		unregister_reboot_notifier(&reboot);
+		unregister_reboot_yestifier(&reboot);
 		mutex_destroy(&bch_register_lock);
 		return bcache_major;
 	}

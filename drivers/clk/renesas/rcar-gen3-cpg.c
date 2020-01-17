@@ -46,17 +46,17 @@ static void cpg_reg_modify(void __iomem *reg, u32 clear, u32 set)
 	spin_unlock_irqrestore(&cpg_lock, flags);
 };
 
-struct cpg_simple_notifier {
-	struct notifier_block nb;
+struct cpg_simple_yestifier {
+	struct yestifier_block nb;
 	void __iomem *reg;
 	u32 saved;
 };
 
-static int cpg_simple_notifier_call(struct notifier_block *nb,
+static int cpg_simple_yestifier_call(struct yestifier_block *nb,
 				    unsigned long action, void *data)
 {
-	struct cpg_simple_notifier *csn =
-		container_of(nb, struct cpg_simple_notifier, nb);
+	struct cpg_simple_yestifier *csn =
+		container_of(nb, struct cpg_simple_yestifier, nb);
 
 	switch (action) {
 	case PM_EVENT_SUSPEND:
@@ -70,11 +70,11 @@ static int cpg_simple_notifier_call(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static void cpg_simple_notifier_register(struct raw_notifier_head *notifiers,
-					 struct cpg_simple_notifier *csn)
+static void cpg_simple_yestifier_register(struct raw_yestifier_head *yestifiers,
+					 struct cpg_simple_yestifier *csn)
 {
-	csn->nb.notifier_call = cpg_simple_notifier_call;
-	raw_notifier_chain_register(notifiers, &csn->nb);
+	csn->nb.yestifier_call = cpg_simple_yestifier_call;
+	raw_yestifier_chain_register(yestifiers, &csn->nb);
 }
 
 /*
@@ -158,9 +158,9 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	cpg_reg_modify(zclk->kick_reg, 0, CPG_FRQCRB_KICK);
 
 	/*
-	 * Note: There is no HW information about the worst case latency.
+	 * Note: There is yes HW information about the worst case latency.
 	 *
-	 * Using experimental measurements, it seems that no more than
+	 * Using experimental measurements, it seems that yes more than
 	 * ~10 iterations are needed, independently of the CPU rate.
 	 * Since this value might be dependent of external xtal rate, pll1
 	 * rate or even the other emulation clocks rate, use 1000 as a
@@ -241,7 +241,7 @@ struct sd_div_table {
 struct sd_clock {
 	struct clk_hw hw;
 	const struct sd_div_table *div_table;
-	struct cpg_simple_notifier csn;
+	struct cpg_simple_yestifier csn;
 	unsigned int div_num;
 	unsigned int cur_div_idx;
 };
@@ -261,7 +261,7 @@ struct sd_clock {
  *  1         0         3 (8)      0 (2)     16
  *  1         0         4 (16)     0 (2)     32
  *
- *  NOTE: There is a quirk option to ignore the first row of the dividers
+ *  NOTE: There is a quirk option to igyesre the first row of the dividers
  *  table when searching for suitable settings. This is because HS400 on
  *  early ES versions of H3 and M3-W requires a specific setting to work.
  */
@@ -384,7 +384,7 @@ static u32 cpg_quirks __initdata;
 
 static struct clk * __init cpg_sd_clk_register(const char *name,
 	void __iomem *base, unsigned int offset, const char *parent_name,
-	struct raw_notifier_head *notifiers)
+	struct raw_yestifier_head *yestifiers)
 {
 	struct clk_init_data init;
 	struct sd_clock *clock;
@@ -419,7 +419,7 @@ static struct clk * __init cpg_sd_clk_register(const char *name,
 	if (IS_ERR(clk))
 		goto free_clock;
 
-	cpg_simple_notifier_register(notifiers, &clock->csn);
+	cpg_simple_yestifier_register(yestifiers, &clock->csn);
 	return clk;
 
 free_clock:
@@ -431,10 +431,10 @@ struct rpc_clock {
 	struct clk_divider div;
 	struct clk_gate gate;
 	/*
-	 * One notifier covers both RPC and RPCD2 clocks as they are both
+	 * One yestifier covers both RPC and RPCD2 clocks as they are both
 	 * controlled by the same RPCCKCR register...
 	 */
-	struct cpg_simple_notifier csn;
+	struct cpg_simple_yestifier csn;
 };
 
 static const struct clk_div_table cpg_rpcsrc_div_table[] = {
@@ -447,7 +447,7 @@ static const struct clk_div_table cpg_rpc_div_table[] = {
 
 static struct clk * __init cpg_rpc_clk_register(const char *name,
 	void __iomem *base, const char *parent_name,
-	struct raw_notifier_head *notifiers)
+	struct raw_yestifier_head *yestifiers)
 {
 	struct rpc_clock *rpc;
 	struct clk *clk;
@@ -476,7 +476,7 @@ static struct clk * __init cpg_rpc_clk_register(const char *name,
 		return clk;
 	}
 
-	cpg_simple_notifier_register(notifiers, &rpc->csn);
+	cpg_simple_yestifier_register(yestifiers, &rpc->csn);
 	return clk;
 }
 
@@ -545,7 +545,7 @@ static const struct soc_device_attribute cpg_quirks_match[] __initconst = {
 struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
 	struct clk **clks, void __iomem *base,
-	struct raw_notifier_head *notifiers)
+	struct raw_yestifier_head *yestifiers)
 {
 	const struct clk *parent;
 	unsigned int mult = 1;
@@ -564,8 +564,8 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 	case CLK_TYPE_GEN3_PLL0:
 		/*
 		 * PLL0 is a configurable multiplier clock. Register it as a
-		 * fixed factor clock for now as there's no generic multiplier
-		 * clock implementation and we currently have no need to change
+		 * fixed factor clock for yesw as there's yes generic multiplier
+		 * clock implementation and we currently have yes need to change
 		 * the multiplier value.
 		 */
 		value = readl(base + CPG_PLL0CR);
@@ -582,8 +582,8 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 	case CLK_TYPE_GEN3_PLL2:
 		/*
 		 * PLL2 is a configurable multiplier clock. Register it as a
-		 * fixed factor clock for now as there's no generic multiplier
-		 * clock implementation and we currently have no need to change
+		 * fixed factor clock for yesw as there's yes generic multiplier
+		 * clock implementation and we currently have yes need to change
 		 * the multiplier value.
 		 */
 		value = readl(base + CPG_PLL2CR);
@@ -600,8 +600,8 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 	case CLK_TYPE_GEN3_PLL4:
 		/*
 		 * PLL4 is a configurable multiplier clock. Register it as a
-		 * fixed factor clock for now as there's no generic multiplier
-		 * clock implementation and we currently have no need to change
+		 * fixed factor clock for yesw as there's yes generic multiplier
+		 * clock implementation and we currently have yes need to change
 		 * the multiplier value.
 		 */
 		value = readl(base + CPG_PLL4CR);
@@ -612,11 +612,11 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN3_SD:
 		return cpg_sd_clk_register(core->name, base, core->offset,
-					   __clk_get_name(parent), notifiers);
+					   __clk_get_name(parent), yestifiers);
 
 	case CLK_TYPE_GEN3_R:
 		if (cpg_quirks & RCKCR_CKSEL) {
-			struct cpg_simple_notifier *csn;
+			struct cpg_simple_yestifier *csn;
 
 			csn = kzalloc(sizeof(*csn), GFP_KERNEL);
 			if (!csn)
@@ -636,7 +636,7 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 			}
 
 			writel(value, csn->reg);
-			cpg_simple_notifier_register(notifiers, csn);
+			cpg_simple_yestifier_register(yestifiers, csn);
 			break;
 		}
 
@@ -696,7 +696,7 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN3_RPC:
 		return cpg_rpc_clk_register(core->name, base,
-					    __clk_get_name(parent), notifiers);
+					    __clk_get_name(parent), yestifiers);
 
 	case CLK_TYPE_GEN3_RPCD2:
 		return cpg_rpcd2_clk_register(core->name, base,

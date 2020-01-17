@@ -6,7 +6,7 @@
  * GNU General Public License.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Authors: David Howells <dhowells@redhat.com>
@@ -31,9 +31,9 @@
 
 static void afs_i_init_once(void *foo);
 static void afs_kill_super(struct super_block *sb);
-static struct inode *afs_alloc_inode(struct super_block *sb);
-static void afs_destroy_inode(struct inode *inode);
-static void afs_free_inode(struct inode *inode);
+static struct iyesde *afs_alloc_iyesde(struct super_block *sb);
+static void afs_destroy_iyesde(struct iyesde *iyesde);
+static void afs_free_iyesde(struct iyesde *iyesde);
 static int afs_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int afs_show_devname(struct seq_file *m, struct dentry *root);
 static int afs_show_options(struct seq_file *m, struct dentry *root);
@@ -54,17 +54,17 @@ int afs_net_id;
 
 static const struct super_operations afs_super_ops = {
 	.statfs		= afs_statfs,
-	.alloc_inode	= afs_alloc_inode,
-	.drop_inode	= afs_drop_inode,
-	.destroy_inode	= afs_destroy_inode,
-	.free_inode	= afs_free_inode,
-	.evict_inode	= afs_evict_inode,
+	.alloc_iyesde	= afs_alloc_iyesde,
+	.drop_iyesde	= afs_drop_iyesde,
+	.destroy_iyesde	= afs_destroy_iyesde,
+	.free_iyesde	= afs_free_iyesde,
+	.evict_iyesde	= afs_evict_iyesde,
 	.show_devname	= afs_show_devname,
 	.show_options	= afs_show_options,
 };
 
-static struct kmem_cache *afs_inode_cachep;
-static atomic_t afs_count_active_inodes;
+static struct kmem_cache *afs_iyesde_cachep;
+static atomic_t afs_count_active_iyesdes;
 
 enum afs_param {
 	Opt_autocell,
@@ -104,24 +104,24 @@ int __init afs_fs_init(void)
 
 	_enter("");
 
-	/* create ourselves an inode cache */
-	atomic_set(&afs_count_active_inodes, 0);
+	/* create ourselves an iyesde cache */
+	atomic_set(&afs_count_active_iyesdes, 0);
 
 	ret = -ENOMEM;
-	afs_inode_cachep = kmem_cache_create("afs_inode_cache",
-					     sizeof(struct afs_vnode),
+	afs_iyesde_cachep = kmem_cache_create("afs_iyesde_cache",
+					     sizeof(struct afs_vyesde),
 					     0,
 					     SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT,
 					     afs_i_init_once);
-	if (!afs_inode_cachep) {
-		printk(KERN_NOTICE "kAFS: Failed to allocate inode cache\n");
+	if (!afs_iyesde_cachep) {
+		printk(KERN_NOTICE "kAFS: Failed to allocate iyesde cache\n");
 		return ret;
 	}
 
-	/* now export our filesystem to lesser mortals */
+	/* yesw export our filesystem to lesser mortals */
 	ret = register_filesystem(&afs_fs_type);
 	if (ret < 0) {
-		kmem_cache_destroy(afs_inode_cachep);
+		kmem_cache_destroy(afs_iyesde_cachep);
 		_leave(" = %d", ret);
 		return ret;
 	}
@@ -140,18 +140,18 @@ void afs_fs_exit(void)
 	afs_mntpt_kill_timer();
 	unregister_filesystem(&afs_fs_type);
 
-	if (atomic_read(&afs_count_active_inodes) != 0) {
-		printk("kAFS: %d active inode objects still present\n",
-		       atomic_read(&afs_count_active_inodes));
+	if (atomic_read(&afs_count_active_iyesdes) != 0) {
+		printk("kAFS: %d active iyesde objects still present\n",
+		       atomic_read(&afs_count_active_iyesdes));
 		BUG();
 	}
 
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(afs_inode_cachep);
+	kmem_cache_destroy(afs_iyesde_cachep);
 	_leave("");
 }
 
@@ -167,7 +167,7 @@ static int afs_show_devname(struct seq_file *m, struct dentry *root)
 	char pref = '%';
 
 	if (as->dyn_root) {
-		seq_puts(m, "none");
+		seq_puts(m, "yesne");
 		return 0;
 	}
 
@@ -199,7 +199,7 @@ static int afs_show_options(struct seq_file *m, struct dentry *root)
 
 	if (as->dyn_root)
 		seq_puts(m, ",dyn");
-	if (test_bit(AFS_VNODE_AUTOCELL, &AFS_FS_I(d_inode(root))->flags))
+	if (test_bit(AFS_VNODE_AUTOCELL, &AFS_FS_I(d_iyesde(root))->flags))
 		seq_puts(m, ",autocell");
 	switch (as->flock_mode) {
 	case afs_flock_mode_unset:	break;
@@ -237,14 +237,14 @@ static int afs_parse_source(struct fs_context *fc, struct fs_parameter *param)
 	_enter(",%s", name);
 
 	if (!name) {
-		printk(KERN_ERR "kAFS: no volume name specified\n");
+		printk(KERN_ERR "kAFS: yes volume name specified\n");
 		return -EINVAL;
 	}
 
 	if ((name[0] != '%' && name[0] != '#') || !name[1]) {
 		/* To use dynroot, we don't want to have to provide a source */
-		if (strcmp(name, "none") == 0) {
-			ctx->no_cell = true;
+		if (strcmp(name, "yesne") == 0) {
+			ctx->yes_cell = true;
 			return 0;
 		}
 		printk(KERN_ERR "kAFS: unparsable volume name\n");
@@ -361,8 +361,8 @@ static int afs_validate_fc(struct fs_context *fc)
 	struct key *key;
 
 	if (!ctx->dyn_root) {
-		if (ctx->no_cell) {
-			pr_warn("kAFS: Can only specify source 'none' with -o dyn\n");
+		if (ctx->yes_cell) {
+			pr_warn("kAFS: Can only specify source 'yesne' with -o dyn\n");
 			return -EINVAL;
 		}
 
@@ -418,7 +418,7 @@ static int afs_dynroot_test_super(struct super_block *sb, struct fs_context *fc)
 
 static int afs_set_super(struct super_block *sb, struct fs_context *fc)
 {
-	return set_anon_super(sb, NULL);
+	return set_ayesn_super(sb, NULL);
 }
 
 /*
@@ -428,7 +428,7 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 {
 	struct afs_super_info *as = AFS_FS_S(sb);
 	struct afs_iget_data iget_data;
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	int ret;
 
 	_enter("");
@@ -446,29 +446,29 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 		return ret;
 	sb->s_bdi->ra_pages	= VM_READAHEAD_PAGES;
 
-	/* allocate the root inode and dentry */
+	/* allocate the root iyesde and dentry */
 	if (as->dyn_root) {
-		inode = afs_iget_pseudo_dir(sb, true);
+		iyesde = afs_iget_pseudo_dir(sb, true);
 	} else {
 		sprintf(sb->s_id, "%llu", as->volume->vid);
 		afs_activate_volume(as->volume);
 		iget_data.fid.vid	= as->volume->vid;
-		iget_data.fid.vnode	= 1;
-		iget_data.fid.vnode_hi	= 0;
+		iget_data.fid.vyesde	= 1;
+		iget_data.fid.vyesde_hi	= 0;
 		iget_data.fid.unique	= 1;
 		iget_data.cb_v_break	= as->volume->cb_v_break;
 		iget_data.cb_s_break	= 0;
-		inode = afs_iget(sb, ctx->key, &iget_data, NULL, NULL, NULL);
+		iyesde = afs_iget(sb, ctx->key, &iget_data, NULL, NULL, NULL);
 	}
 
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	if (IS_ERR(iyesde))
+		return PTR_ERR(iyesde);
 
 	if (ctx->autocell || as->dyn_root)
-		set_bit(AFS_VNODE_AUTOCELL, &AFS_FS_I(inode)->flags);
+		set_bit(AFS_VNODE_AUTOCELL, &AFS_FS_I(iyesde)->flags);
 
 	ret = -ENOMEM;
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(iyesde);
 	if (!sb->s_root)
 		goto error;
 
@@ -531,7 +531,7 @@ static void afs_kill_super(struct super_block *sb)
 	 */
 	if (as->volume)
 		afs_clear_callback_interests(net, as->volume->servers);
-	kill_anon_super(sb);
+	kill_ayesn_super(sb);
 	if (as->volume)
 		afs_deactivate_volume(as->volume);
 	afs_destroy_sbi(as);
@@ -639,80 +639,80 @@ static int afs_init_fs_context(struct fs_context *fc)
 }
 
 /*
- * Initialise an inode cache slab element prior to any use.  Note that
- * afs_alloc_inode() *must* reset anything that could incorrectly leak from one
- * inode to another.
+ * Initialise an iyesde cache slab element prior to any use.  Note that
+ * afs_alloc_iyesde() *must* reset anything that could incorrectly leak from one
+ * iyesde to ayesther.
  */
-static void afs_i_init_once(void *_vnode)
+static void afs_i_init_once(void *_vyesde)
 {
-	struct afs_vnode *vnode = _vnode;
+	struct afs_vyesde *vyesde = _vyesde;
 
-	memset(vnode, 0, sizeof(*vnode));
-	inode_init_once(&vnode->vfs_inode);
-	mutex_init(&vnode->io_lock);
-	init_rwsem(&vnode->validate_lock);
-	spin_lock_init(&vnode->wb_lock);
-	spin_lock_init(&vnode->lock);
-	INIT_LIST_HEAD(&vnode->wb_keys);
-	INIT_LIST_HEAD(&vnode->pending_locks);
-	INIT_LIST_HEAD(&vnode->granted_locks);
-	INIT_DELAYED_WORK(&vnode->lock_work, afs_lock_work);
-	seqlock_init(&vnode->cb_lock);
+	memset(vyesde, 0, sizeof(*vyesde));
+	iyesde_init_once(&vyesde->vfs_iyesde);
+	mutex_init(&vyesde->io_lock);
+	init_rwsem(&vyesde->validate_lock);
+	spin_lock_init(&vyesde->wb_lock);
+	spin_lock_init(&vyesde->lock);
+	INIT_LIST_HEAD(&vyesde->wb_keys);
+	INIT_LIST_HEAD(&vyesde->pending_locks);
+	INIT_LIST_HEAD(&vyesde->granted_locks);
+	INIT_DELAYED_WORK(&vyesde->lock_work, afs_lock_work);
+	seqlock_init(&vyesde->cb_lock);
 }
 
 /*
- * allocate an AFS inode struct from our slab cache
+ * allocate an AFS iyesde struct from our slab cache
  */
-static struct inode *afs_alloc_inode(struct super_block *sb)
+static struct iyesde *afs_alloc_iyesde(struct super_block *sb)
 {
-	struct afs_vnode *vnode;
+	struct afs_vyesde *vyesde;
 
-	vnode = kmem_cache_alloc(afs_inode_cachep, GFP_KERNEL);
-	if (!vnode)
+	vyesde = kmem_cache_alloc(afs_iyesde_cachep, GFP_KERNEL);
+	if (!vyesde)
 		return NULL;
 
-	atomic_inc(&afs_count_active_inodes);
+	atomic_inc(&afs_count_active_iyesdes);
 
-	/* Reset anything that shouldn't leak from one inode to the next. */
-	memset(&vnode->fid, 0, sizeof(vnode->fid));
-	memset(&vnode->status, 0, sizeof(vnode->status));
+	/* Reset anything that shouldn't leak from one iyesde to the next. */
+	memset(&vyesde->fid, 0, sizeof(vyesde->fid));
+	memset(&vyesde->status, 0, sizeof(vyesde->status));
 
-	vnode->volume		= NULL;
-	vnode->lock_key		= NULL;
-	vnode->permit_cache	= NULL;
-	RCU_INIT_POINTER(vnode->cb_interest, NULL);
+	vyesde->volume		= NULL;
+	vyesde->lock_key		= NULL;
+	vyesde->permit_cache	= NULL;
+	RCU_INIT_POINTER(vyesde->cb_interest, NULL);
 #ifdef CONFIG_AFS_FSCACHE
-	vnode->cache		= NULL;
+	vyesde->cache		= NULL;
 #endif
 
-	vnode->flags		= 1 << AFS_VNODE_UNSET;
-	vnode->lock_state	= AFS_VNODE_LOCK_NONE;
+	vyesde->flags		= 1 << AFS_VNODE_UNSET;
+	vyesde->lock_state	= AFS_VNODE_LOCK_NONE;
 
-	init_rwsem(&vnode->rmdir_lock);
+	init_rwsem(&vyesde->rmdir_lock);
 
-	_leave(" = %p", &vnode->vfs_inode);
-	return &vnode->vfs_inode;
+	_leave(" = %p", &vyesde->vfs_iyesde);
+	return &vyesde->vfs_iyesde;
 }
 
-static void afs_free_inode(struct inode *inode)
+static void afs_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(afs_inode_cachep, AFS_FS_I(inode));
+	kmem_cache_free(afs_iyesde_cachep, AFS_FS_I(iyesde));
 }
 
 /*
- * destroy an AFS inode struct
+ * destroy an AFS iyesde struct
  */
-static void afs_destroy_inode(struct inode *inode)
+static void afs_destroy_iyesde(struct iyesde *iyesde)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vyesde *vyesde = AFS_FS_I(iyesde);
 
-	_enter("%p{%llx:%llu}", inode, vnode->fid.vid, vnode->fid.vnode);
+	_enter("%p{%llx:%llu}", iyesde, vyesde->fid.vid, vyesde->fid.vyesde);
 
-	_debug("DESTROY INODE %p", inode);
+	_debug("DESTROY INODE %p", iyesde);
 
-	ASSERTCMP(rcu_access_pointer(vnode->cb_interest), ==, NULL);
+	ASSERTCMP(rcu_access_pointer(vyesde->cb_interest), ==, NULL);
 
-	atomic_dec(&afs_count_active_inodes);
+	atomic_dec(&afs_count_active_iyesdes);
 }
 
 /*
@@ -723,7 +723,7 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct afs_super_info *as = AFS_FS_S(dentry->d_sb);
 	struct afs_fs_cursor fc;
 	struct afs_volume_status vs;
-	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
+	struct afs_vyesde *vyesde = AFS_FS_I(d_iyesde(dentry));
 	struct key *key;
 	int ret;
 
@@ -738,20 +738,20 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		return 0;
 	}
 
-	key = afs_request_key(vnode->volume->cell);
+	key = afs_request_key(vyesde->volume->cell);
 	if (IS_ERR(key))
 		return PTR_ERR(key);
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
+	if (afs_begin_vyesde_operation(&fc, vyesde, key, true)) {
 		fc.flags |= AFS_FS_CURSOR_NO_VSLEEP;
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(vnode);
+			fc.cb_break = afs_calc_vyesde_cb_break(vyesde);
 			afs_fs_get_volume_status(&fc, &vs);
 		}
 
-		afs_check_for_remote_deletion(&fc, fc.vnode);
-		ret = afs_end_vnode_operation(&fc);
+		afs_check_for_remote_deletion(&fc, fc.vyesde);
+		ret = afs_end_vyesde_operation(&fc);
 	}
 
 	key_put(key);

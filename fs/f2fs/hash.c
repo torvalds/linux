@@ -105,7 +105,7 @@ static f2fs_hash_t __f2fs_dentry_hash(const struct qstr *name_info,
 	return f2fs_hash;
 }
 
-f2fs_hash_t f2fs_dentry_hash(const struct inode *dir,
+f2fs_hash_t f2fs_dentry_hash(const struct iyesde *dir,
 		const struct qstr *name_info, struct fscrypt_name *fname)
 {
 #ifdef CONFIG_UNICODE

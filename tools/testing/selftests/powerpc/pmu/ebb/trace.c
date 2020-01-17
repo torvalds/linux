@@ -3,7 +3,7 @@
  * Copyright 2014, Michael Ellerman, IBM Corp.
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,7 +45,7 @@ static bool trace_check_alloc(struct trace_buffer *tb, void *p)
 	/*
 	 * If we ever overflowed don't allow any more input. This prevents us
 	 * from dropping a large item and then later logging a small one. The
-	 * buffer should just stop when overflow happened, not be patchy. If
+	 * buffer should just stop when overflow happened, yest be patchy. If
 	 * you're overflowing, make your buffer bigger.
 	 */
 	if (tb->overflow)

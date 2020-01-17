@@ -66,7 +66,7 @@ struct synthhid_msg {
 
 union synthhid_version {
 	struct {
-		u16 minor_version;
+		u16 miyesr_version;
 		u16 major_version;
 	};
 	u32 version;
@@ -192,7 +192,7 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 	if (desc->bLength == 0)
 		goto cleanup;
 
-	/* The pointer is not NULL when we resume from hibernation */
+	/* The pointer is yest NULL when we resume from hibernation */
 	if (input_device->hid_desc != NULL)
 		kfree(input_device->hid_desc);
 	input_device->hid_desc = kmemdup(desc, desc->bLength, GFP_ATOMIC);
@@ -206,7 +206,7 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 		goto cleanup;
 	}
 
-	/* The pointer is not NULL when we resume from hibernation */
+	/* The pointer is yest NULL when we resume from hibernation */
 	if (input_device->report_desc != NULL)
 		kfree(input_device->report_desc);
 	input_device->report_desc = kzalloc(input_device->report_desc_size,

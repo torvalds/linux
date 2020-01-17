@@ -84,9 +84,9 @@ EXPORT_SYMBOL_GPL(whci_wait_for);
  * NOTE: the capinfo and capdata registers are slightly different
  *       (size and cap-id fields). So for cap #0, we need to fill
  *       in. Size comes from the size of the register block
- *       (statically calculated); cap_id comes from nowhere, we use
+ *       (statically calculated); cap_id comes from yeswhere, we use
  *       zero, that is reserved, for the radio controller, because
- *       none was defined at the spec level.
+ *       yesne was defined at the spec level.
  */
 static int whci_add_cap(struct whci_card *card, int n)
 {
@@ -194,12 +194,12 @@ static int whci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	for (n = 0; n <= card->n_caps; n++) {
 		err = whci_add_cap(card, n);
 		if (err < 0 && n == 0) {
-			dev_err(&pci->dev, "cannot bind UWB radio controller:"
+			dev_err(&pci->dev, "canyest bind UWB radio controller:"
 				" %d\n", err);
 			goto error_bind;
 		}
 		if (err < 0)
-			dev_warn(&pci->dev, "warning: cannot bind capability "
+			dev_warn(&pci->dev, "warning: canyest bind capability "
 				 "#%u: %d\n", n, err);
 	}
 	pci_set_drvdata(pci, card);

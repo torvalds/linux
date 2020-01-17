@@ -3,13 +3,13 @@
  * arch/alpha/lib/dbg_current.S
  * Contributed by Richard Henderson (rth@cygnus.com)
  *
- * Trap if we find current not correct.
+ * Trap if we find current yest correct.
  */
 
 #include <asm/pal.h>
 
 	.text
-	.set noat
+	.set yesat
 
 	.globl _mcount
 	.ent _mcount

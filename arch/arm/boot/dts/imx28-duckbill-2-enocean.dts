@@ -12,7 +12,7 @@
 
 / {
 	model = "I2SE Duckbill 2 EnOcean";
-	compatible = "i2se,duckbill-2-enocean", "i2se,duckbill-2", "fsl,imx28";
+	compatible = "i2se,duckbill-2-eyescean", "i2se,duckbill-2", "fsl,imx28";
 
 	memory@40000000 {
 		device_type = "memory";
@@ -29,7 +29,7 @@
 				bus-width = <8>;
 				vmmc-supply = <&reg_3p3v>;
 				status = "okay";
-				non-removable;
+				yesn-removable;
 			};
 
 			ssp2: spi@80014000 {
@@ -90,7 +90,7 @@
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
-				enocean_button: enocean-button@0 {
+				eyescean_button: eyescean-button@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_AUART0_RTS__GPIO_3_3
@@ -183,18 +183,18 @@
 			linux,default-trigger = "heartbeat";
 		};
 
-		enocean-blue {
-			label = "duckbill:blue:enocean";
+		eyescean-blue {
+			label = "duckbill:blue:eyescean";
 			gpios = <&gpio3 24 GPIO_ACTIVE_LOW>;
 		};
 
-		enocean-red {
-			label = "duckbill:red:enocean";
+		eyescean-red {
+			label = "duckbill:red:eyescean";
 			gpios = <&gpio3 25 GPIO_ACTIVE_LOW>;
 		};
 
-		enocean-green {
-			label = "duckbill:green:enocean";
+		eyescean-green {
+			label = "duckbill:green:eyescean";
 			gpios = <&gpio3 2 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -202,9 +202,9 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
-		pinctrl-0 = <&enocean_button>;
+		pinctrl-0 = <&eyescean_button>;
 
-		enocean {
+		eyescean {
 			label = "EnOcean";
 			linux,code = <KEY_NEW>;
 			gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>;

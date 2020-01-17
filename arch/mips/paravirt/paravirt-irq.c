@@ -258,7 +258,7 @@ void irq_mbox_ipi(int cpu, unsigned int actions)
 	__raw_writel(mask, mips_irq_chip + mips_irq_chip_reg_raw_w1s + sizeof(u32));
 }
 
-static void irq_mbox_cpu_onoffline(struct irq_data *data,  void __iomem *base)
+static void irq_mbox_cpu_oyesffline(struct irq_data *data,  void __iomem *base)
 {
 	unsigned int mbox = data->irq - MIPS_IRQ_MBOX0;
 	unsigned int cpuid = get_ebase_cpunum();
@@ -273,12 +273,12 @@ static void irq_mbox_cpu_onoffline(struct irq_data *data,  void __iomem *base)
 
 static void irq_mbox_cpu_online(struct irq_data *data)
 {
-	irq_mbox_cpu_onoffline(data, mips_irq_chip + mips_irq_chip_reg_en_w1s + sizeof(u32));
+	irq_mbox_cpu_oyesffline(data, mips_irq_chip + mips_irq_chip_reg_en_w1s + sizeof(u32));
 }
 
 static void irq_mbox_cpu_offline(struct irq_data *data)
 {
-	irq_mbox_cpu_onoffline(data, mips_irq_chip + mips_irq_chip_reg_en_w1c + sizeof(u32));
+	irq_mbox_cpu_oyesffline(data, mips_irq_chip + mips_irq_chip_reg_en_w1c + sizeof(u32));
 }
 
 static struct irq_chip irq_chip_mbox = {
@@ -302,7 +302,7 @@ static void __init irq_pci_init(void)
 	stride = 8 * (1 + ((num_bits - 1) / 64));
 
 
-	pr_notice("mips_irq_chip: %u bits, reg stride: %d\n", num_bits, stride);
+	pr_yestice("mips_irq_chip: %u bits, reg stride: %d\n", num_bits, stride);
 	mips_irq_chip_reg_raw		= MIPS_IRQ_CHIP_REGS + 0 * stride;
 	mips_irq_chip_reg_raw_w1s	= MIPS_IRQ_CHIP_REGS + 1 * stride;
 	mips_irq_chip_reg_raw_w1c	= MIPS_IRQ_CHIP_REGS + 2 * stride;

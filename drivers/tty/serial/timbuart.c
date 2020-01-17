@@ -55,7 +55,7 @@ static void timbuart_start_tx(struct uart_port *port)
 	struct timbuart_port *uart =
 		container_of(port, struct timbuart_port, port);
 
-	/* do not transfer anything here -> fire off the tasklet */
+	/* do yest transfer anything here -> fire off the tasklet */
 	tasklet_schedule(&uart->tasklet);
 }
 
@@ -309,7 +309,7 @@ static const char *timbuart_type(struct uart_port *port)
 	return port->type == PORT_UNKNOWN ? "timbuart" : NULL;
 }
 
-/* We do not request/release mappings of the registers here,
+/* We do yest request/release mappings of the registers here,
  * currently it's done in the proble function.
  */
 static void timbuart_release_port(struct uart_port *port)
@@ -406,7 +406,7 @@ static struct uart_driver timbuart_driver = {
 	.driver_name = "timberdale_uart",
 	.dev_name = "ttyTU",
 	.major = TIMBUART_MAJOR,
-	.minor = TIMBUART_MINOR,
+	.miyesr = TIMBUART_MINOR,
 	.nr = 1
 };
 

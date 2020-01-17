@@ -54,7 +54,7 @@ void pcicore_write16(struct ssb_pcicore *pc, u16 offset, u16 value)
 
 #include <asm/paccess.h>
 /* Probe a 32bit value on the bus and catch bus exceptions.
- * Returns nonzero on a bus exception.
+ * Returns yesnzero on a bus exception.
  * This is MIPS specific */
 #define mips_busprobe32(val, addr)	get_dbe((val), ((u32 *)(addr)))
 
@@ -122,7 +122,7 @@ static int ssb_extpci_read_config(struct ssb_pcicore *pc,
 	if (unlikely(!addr))
 		goto out;
 	err = -ENOMEM;
-	mmio = ioremap_nocache(addr, len);
+	mmio = ioremap_yescache(addr, len);
 	if (!mmio)
 		goto out;
 
@@ -168,7 +168,7 @@ static int ssb_extpci_write_config(struct ssb_pcicore *pc,
 	if (unlikely(!addr))
 		goto out;
 	err = -ENOMEM;
-	mmio = ioremap_nocache(addr, len);
+	mmio = ioremap_yescache(addr, len);
 	if (!mmio)
 		goto out;
 
@@ -259,7 +259,7 @@ static struct pci_controller ssb_pcicore_controller = {
 int ssb_pcicore_plat_dev_init(struct pci_dev *d)
 {
 	if (d->bus->ops != &ssb_pcicore_pciops) {
-		/* This is not a device on the PCI-core bridge. */
+		/* This is yest a device on the PCI-core bridge. */
 		return -ENODEV;
 	}
 
@@ -278,7 +278,7 @@ static void ssb_pcicore_fixup_pcibridge(struct pci_dev *dev)
 	u8 lat;
 
 	if (dev->bus->ops != &ssb_pcicore_pciops) {
-		/* This is not a device on the PCI-core bridge. */
+		/* This is yest a device on the PCI-core bridge. */
 		return;
 	}
 	if (dev->bus->number != 0 || PCI_SLOT(dev->devfn) != 0)
@@ -296,7 +296,7 @@ static void ssb_pcicore_fixup_pcibridge(struct pci_dev *dev)
 	/* Enable PCI bridge BAR1 prefetch and burst */
 	pci_write_config_dword(dev, SSB_BAR1_CONTROL, 3);
 
-	/* Make sure our latency is high enough to handle the devices behind us */
+	/* Make sure our latency is high eyesugh to handle the devices behind us */
 	lat = 168;
 	dev_info(&dev->dev,
 		 "PCI: Fixing latency timer of device %s to %u\n",
@@ -309,7 +309,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_ANY_ID, PCI_ANY_ID, ssb_pcicore_fixup_pcibridge);
 int ssb_pcicore_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	if (dev->bus->ops != &ssb_pcicore_pciops) {
-		/* This is not a device on the PCI-core bridge. */
+		/* This is yest a device on the PCI-core bridge. */
 		return -ENODEV;
 	}
 	return ssb_mips_irq(extpci_core->dev) + 2;
@@ -359,10 +359,10 @@ static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 			SSB_PCICORE_SBTOPCI_MEM | SSB_PCI_DMA);
 
 	/*
-	 * Accessing PCI config without a proper delay after devices reset (not
+	 * Accessing PCI config without a proper delay after devices reset (yest
 	 * GPIO reset) was causing reboots on WRT300N v1.0 (BCM4704).
 	 * Tested delay 850 us lowered reboot chance to 50-80%, 1000 us fixed it
-	 * completely. Flushing all writes was also tested but with no luck.
+	 * completely. Flushing all writes was also tested but with yes luck.
 	 * The same problem was reported for WRT350N v1 (BCM4705), so we just
 	 * sleep here unconditionally.
 	 */
@@ -381,8 +381,8 @@ static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 
 	/* Ok, ready to run, register it to the system.
 	 * The following needs change, if we want to port hostmode
-	 * to non-MIPS platform. */
-	ssb_pcicore_controller.io_map_base = (unsigned long)ioremap_nocache(SSB_PCI_MEM, 0x04000000);
+	 * to yesn-MIPS platform. */
+	ssb_pcicore_controller.io_map_base = (unsigned long)ioremap_yescache(SSB_PCI_MEM, 0x04000000);
 	set_io_port_base(ssb_pcicore_controller.io_map_base);
 	/* Give some time to the PCI controller to configure itself with the new
 	 * values. Not waiting at this point causes crashes of the machine. */
@@ -404,7 +404,7 @@ static int pcicore_is_in_hostmode(struct ssb_pcicore *pc)
 	if (bus->sprom.boardflags_lo & SSB_PCICORE_BFL_NOPCI)
 		return 0;
 
-	/* The 200-pin BCM4712 package does not bond out PCI. Even when
+	/* The 200-pin BCM4712 package does yest bond out PCI. Even when
 	 * PCI is bonded out, some boards may leave the pins floating. */
 	if (bus->chip_id == 0x4712) {
 		if (bus->chip_package == SSB_CHIPPACK_BCM4712S)
@@ -683,9 +683,9 @@ int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,
 	u32 tmp;
 
 	if (dev->bus->bustype != SSB_BUSTYPE_PCI) {
-		/* This SSB device is not on a PCI host-bus. So the IRQs are
-		 * not routed through the PCI core.
-		 * So we must not enable routing through the PCI core. */
+		/* This SSB device is yest on a PCI host-bus. So the IRQs are
+		 * yest routed through the PCI core.
+		 * So we must yest enable routing through the PCI core. */
 		goto out;
 	}
 

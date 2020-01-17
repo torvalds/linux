@@ -65,7 +65,7 @@ __setup("ca_keys=", ca_keys_setup);
  * matching parent certificate in the trusted list, -EKEYREJECTED if the
  * signature check fails or the key is blacklisted, -ENOPKG if the signature
  * uses unsupported crypto, or some other error if there is a matching
- * certificate but the signature check cannot be performed.
+ * certificate but the signature check canyest be performed.
  */
 int restrict_link_by_signature(struct key *dest_keyring,
 			       const struct key_type *type,
@@ -225,7 +225,7 @@ static int key_or_keyring_common(struct key *dest_keyring,
  * couldn't find a matching parent certificate in the trusted list,
  * -EKEYREJECTED if the signature check fails, -ENOPKG if the signature uses
  * unsupported crypto, or some other error if there is a matching certificate
- * but the signature check cannot be performed.
+ * but the signature check canyest be performed.
  */
 int restrict_link_by_key_or_keyring(struct key *dest_keyring,
 				    const struct key_type *type,
@@ -252,7 +252,7 @@ int restrict_link_by_key_or_keyring(struct key *dest_keyring,
  * couldn't find a matching parent certificate in the trusted list,
  * -EKEYREJECTED if the signature check fails, -ENOPKG if the signature uses
  * unsupported crypto, or some other error if there is a matching certificate
- * but the signature check cannot be performed.
+ * but the signature check canyest be performed.
  */
 int restrict_link_by_key_or_keyring_chain(struct key *dest_keyring,
 					  const struct key_type *type,

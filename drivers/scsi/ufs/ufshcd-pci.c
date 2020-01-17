@@ -24,10 +24,10 @@
  * without warranty of any kind. You are solely responsible for
  * determining the appropriateness of using and distributing
  * the program and assume all risks associated with your exercise
- * of rights with respect to the program, including but not limited
+ * of rights with respect to the program, including but yest limited
  * to infringement of third party rights, the risks and costs of
  * program errors, damage to or loss of data, programs or equipment,
- * and unavailability or interruption of operations. Under no
+ * and unavailability or interruption of operations. Under yes
  * circumstances will the contributor of this Program be liable for
  * any damages of any kind arising from your use or distribution of
  * this program.
@@ -49,8 +49,8 @@ static int ufs_intel_disable_lcc(struct ufs_hba *hba)
 	return 0;
 }
 
-static int ufs_intel_link_startup_notify(struct ufs_hba *hba,
-					 enum ufs_notify_change_status status)
+static int ufs_intel_link_startup_yestify(struct ufs_hba *hba,
+					 enum ufs_yestify_change_status status)
 {
 	int err = 0;
 
@@ -69,7 +69,7 @@ static int ufs_intel_link_startup_notify(struct ufs_hba *hba,
 
 static struct ufs_hba_variant_ops ufs_intel_cnl_hba_vops = {
 	.name                   = "intel-pci",
-	.link_startup_notify	= ufs_intel_link_startup_notify,
+	.link_startup_yestify	= ufs_intel_link_startup_yestify,
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -78,7 +78,7 @@ static struct ufs_hba_variant_ops ufs_intel_cnl_hba_vops = {
  * @dev: pointer to PCI device handle
  *
  * Returns 0 if successful
- * Returns non-zero otherwise
+ * Returns yesn-zero otherwise
  */
 static int ufshcd_pci_suspend(struct device *dev)
 {
@@ -90,7 +90,7 @@ static int ufshcd_pci_suspend(struct device *dev)
  * @dev: pointer to PCI device handle
  *
  * Returns 0 if successful
- * Returns non-zero otherwise
+ * Returns yesn-zero otherwise
  */
 static int ufshcd_pci_resume(struct device *dev)
 {
@@ -132,7 +132,7 @@ static void ufshcd_pci_remove(struct pci_dev *pdev)
 	struct ufs_hba *hba = pci_get_drvdata(pdev);
 
 	pm_runtime_forbid(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	ufshcd_remove(hba);
 	ufshcd_dealloc_host(hba);
 }
@@ -142,7 +142,7 @@ static void ufshcd_pci_remove(struct pci_dev *pdev)
  * @pdev: pointer to PCI device handle
  * @id: PCI device id
  *
- * Returns 0 on success, non-zero value on failure
+ * Returns 0 on success, yesn-zero value on failure
  */
 static int
 ufshcd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -183,7 +183,7 @@ ufshcd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	pci_set_drvdata(pdev, hba);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 
 	return 0;

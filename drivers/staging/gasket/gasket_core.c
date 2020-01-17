@@ -38,7 +38,7 @@
 /*
  * "Private" members of gasket_driver_desc.
  *
- * Contains internal per-device type tracking data, i.e., data not appropriate
+ * Contains internal per-device type tracking data, i.e., data yest appropriate
  * as part of the public interface for the generic framework.
  */
 struct gasket_internal_desc {
@@ -63,7 +63,7 @@ enum do_map_region_status {
 	/* Attempted to map region and failed. */
 	DO_MAP_REGION_FAILURE,
 
-	/* The requested region to map was not part of a mappable region. */
+	/* The requested region to map was yest part of a mappable region. */
 	DO_MAP_REGION_INVALID,
 };
 
@@ -85,7 +85,7 @@ static const struct gasket_num_name gasket_status_name_table[] = {
 	{ 0, NULL },
 };
 
-/* Enumeration of the automatic Gasket framework sysfs nodes. */
+/* Enumeration of the automatic Gasket framework sysfs yesdes. */
 enum gasket_sysfs_attribute_type {
 	ATTR_BAR_OFFSETS,
 	ATTR_BAR_SIZES,
@@ -119,7 +119,7 @@ check_and_invoke_callback(struct gasket_dev *gasket_dev,
 
 /* Perform a standard Gasket callback without grabbing gasket_dev->mutex. */
 static inline int
-gasket_check_and_invoke_callback_nolock(struct gasket_dev *gasket_dev,
+gasket_check_and_invoke_callback_yeslock(struct gasket_dev *gasket_dev,
 					int (*cb_function)(struct gasket_dev *))
 {
 	int ret = 0;
@@ -130,7 +130,7 @@ gasket_check_and_invoke_callback_nolock(struct gasket_dev *gasket_dev,
 }
 
 /*
- * Return nonzero if the gasket_cdev_info is owned by the current thread group
+ * Return yesnzero if the gasket_cdev_info is owned by the current thread group
  * ID.
  */
 static int gasket_owned_by_current_tgid(struct gasket_cdev_info *info)
@@ -203,7 +203,7 @@ static int gasket_alloc_dev(struct gasket_internal_desc *internal_desc,
 
 	gasket_dev = *pdev = kzalloc(sizeof(*gasket_dev), GFP_KERNEL);
 	if (!gasket_dev) {
-		pr_err("no memory for device, parent %s\n", parent_name);
+		pr_err("yes memory for device, parent %s\n", parent_name);
 		return -ENOMEM;
 	}
 	internal_desc->devs[dev_idx] = gasket_dev;
@@ -217,22 +217,22 @@ static int gasket_alloc_dev(struct gasket_internal_desc *internal_desc,
 	/* gasket_bar_data is uninitialized. */
 	gasket_dev->num_page_tables = driver_desc->num_page_tables;
 	/* max_page_table_size and *page table are uninit'ed */
-	/* interrupt_data is not initialized. */
+	/* interrupt_data is yest initialized. */
 	/* status is 0, or GASKET_STATUS_DEAD */
 
 	dev_info = &gasket_dev->dev_info;
 	snprintf(dev_info->name, GASKET_NAME_MAX, "%s_%u", driver_desc->name,
 		 gasket_dev->dev_idx);
 	dev_info->devt =
-		MKDEV(driver_desc->major, driver_desc->minor +
+		MKDEV(driver_desc->major, driver_desc->miyesr +
 		      gasket_dev->dev_idx);
 	dev_info->device =
 		device_create(internal_desc->class, parent, dev_info->devt,
 			      gasket_dev, dev_info->name);
 
-	/* cdev has not yet been added; cdev_added is 0 */
+	/* cdev has yest yet been added; cdev_added is 0 */
 	dev_info->gasket_dev_ptr = gasket_dev;
-	/* ownership is all 0, indicating no owner or opens. */
+	/* ownership is all 0, indicating yes owner or opens. */
 
 	return 0;
 }
@@ -253,7 +253,7 @@ static void gasket_free_dev(struct gasket_dev *gasket_dev)
  * Maps the specified bar into kernel space.
  *
  * Returns 0 on success, a negative error code otherwise.
- * A zero-sized BAR will not be mapped, but is not an error.
+ * A zero-sized BAR will yest be mapped, but is yest an error.
  */
 static int gasket_map_pci_bar(struct gasket_dev *gasket_dev, int bar_num)
 {
@@ -267,7 +267,7 @@ static int gasket_map_pci_bar(struct gasket_dev *gasket_dev, int bar_num)
 		return 0;
 
 	if (driver_desc->bar_descriptions[bar_num].type != PCI_BAR) {
-		/* not PCI: skip this entry */
+		/* yest PCI: skip this entry */
 		return 0;
 	}
 	/*
@@ -278,7 +278,7 @@ static int gasket_map_pci_bar(struct gasket_dev *gasket_dev, int bar_num)
 	gasket_dev->bar_data[bar_num].phys_base =
 		(ulong)pci_resource_start(gasket_dev->pci_dev, bar_num);
 	if (!gasket_dev->bar_data[bar_num].phys_base) {
-		dev_err(gasket_dev->dev, "Cannot get BAR%u base address\n",
+		dev_err(gasket_dev->dev, "Canyest get BAR%u base address\n",
 			bar_num);
 		return -EINVAL;
 	}
@@ -297,17 +297,17 @@ static int gasket_map_pci_bar(struct gasket_dev *gasket_dev, int bar_num)
 				gasket_dev->bar_data[bar_num].length_bytes,
 				gasket_dev->dev_info.name)) {
 		dev_err(gasket_dev->dev,
-			"Cannot get BAR %d memory region %p\n",
+			"Canyest get BAR %d memory region %p\n",
 			bar_num, &gasket_dev->pci_dev->resource[bar_num]);
 		return -EINVAL;
 	}
 
 	gasket_dev->bar_data[bar_num].virt_base =
-		ioremap_nocache(gasket_dev->bar_data[bar_num].phys_base,
+		ioremap_yescache(gasket_dev->bar_data[bar_num].phys_base,
 				gasket_dev->bar_data[bar_num].length_bytes);
 	if (!gasket_dev->bar_data[bar_num].virt_base) {
 		dev_err(gasket_dev->dev,
-			"Cannot remap BAR %d memory region %p\n",
+			"Canyest remap BAR %d memory region %p\n",
 			bar_num, &gasket_dev->pci_dev->resource[bar_num]);
 		ret = -ENOMEM;
 		goto fail;
@@ -328,7 +328,7 @@ fail:
 /*
  * Releases PCI BAR mapping.
  *
- * A zero-sized or not-mapped BAR will not be unmapped, but is not an error.
+ * A zero-sized or yest-mapped BAR will yest be unmapped, but is yest an error.
  */
 static void gasket_unmap_pci_bar(struct gasket_dev *dev, int bar_num)
 {
@@ -349,7 +349,7 @@ static void gasket_unmap_pci_bar(struct gasket_dev *dev, int bar_num)
 
 	base = pci_resource_start(dev->pci_dev, bar_num);
 	if (!base) {
-		dev_err(dev->dev, "cannot get PCI BAR%u base address\n",
+		dev_err(dev->dev, "canyest get PCI BAR%u base address\n",
 			bar_num);
 		return;
 	}
@@ -405,7 +405,7 @@ static int gasket_get_hw_status(struct gasket_dev *gasket_dev)
 	const struct gasket_driver_desc *driver_desc =
 		gasket_dev->internal_desc->driver_desc;
 
-	status = gasket_check_and_invoke_callback_nolock(gasket_dev,
+	status = gasket_check_and_invoke_callback_yeslock(gasket_dev,
 							 driver_desc->device_status_cb);
 	if (status != GASKET_STATUS_ALIVE) {
 		dev_dbg(gasket_dev->dev, "Hardware reported status %d.\n",
@@ -565,7 +565,7 @@ static ssize_t gasket_sysfs_data_show(struct device *device,
 		}
 		break;
 	default:
-		dev_dbg(gasket_dev->dev, "Unknown attribute: %s\n",
+		dev_dbg(gasket_dev->dev, "Unkyeswn attribute: %s\n",
 			attr->attr.name);
 		ret = 0;
 		break;
@@ -613,7 +613,7 @@ static int gasket_add_cdev(struct gasket_cdev_info *dev_info,
 	ret = cdev_add(&dev_info->cdev, dev_info->devt, 1);
 	if (ret) {
 		dev_err(dev_info->gasket_dev_ptr->dev,
-			"cannot add char device [ret=%d]\n", ret);
+			"canyest add char device [ret=%d]\n", ret);
 		return ret;
 	}
 	dev_info->cdev_added = 1;
@@ -649,7 +649,7 @@ EXPORT_SYMBOL(gasket_disable_device);
  * Registered driver descriptor lookup for PCI devices.
  *
  * Precondition: Called with g_mutex held (to avoid a race on return).
- * Returns NULL if no matching device was found.
+ * Returns NULL if yes matching device was found.
  */
 static struct gasket_internal_desc *
 lookup_pci_internal_desc(struct pci_dev *pci_dev)
@@ -681,13 +681,13 @@ static bool gasket_mmap_has_permissions(struct gasket_dev *gasket_dev,
 	if (capable(CAP_SYS_ADMIN))
 		return true;
 
-	/* Never allow non-sysadmins to access to a dead device. */
+	/* Never allow yesn-sysadmins to access to a dead device. */
 	if (gasket_dev->status != GASKET_STATUS_ALIVE) {
 		dev_dbg(gasket_dev->dev, "Device is dead.\n");
 		return false;
 	}
 
-	/* Make sure that no wrong flags are set. */
+	/* Make sure that yes wrong flags are set. */
 	requested_permissions =
 		(vma->vm_flags & (VM_WRITE | VM_READ | VM_EXEC));
 	if (requested_permissions & ~(bar_permissions)) {
@@ -698,7 +698,7 @@ static bool gasket_mmap_has_permissions(struct gasket_dev *gasket_dev,
 		return false;
 	}
 
-	/* Do not allow a non-owner to write. */
+	/* Do yest allow a yesn-owner to write. */
 	if ((vma->vm_flags & VM_WRITE) &&
 	    !gasket_owned_by_current_tgid(&gasket_dev->dev_info)) {
 		dev_dbg(gasket_dev->dev,
@@ -747,7 +747,7 @@ static int gasket_get_bar_index(const struct gasket_dev *gasket_dev,
 			}
 		}
 	}
-	/* If we haven't found the address by now, it is invalid. */
+	/* If we haven't found the address by yesw, it is invalid. */
 	return -EINVAL;
 }
 
@@ -779,7 +779,7 @@ gasket_mm_get_mapping_addrs(const struct gasket_mappable_region *region,
 	if (bar_offset + requested_length < range_start) {
 		/*
 		 * If the requested region is completely below the range,
-		 * there is nothing to map.
+		 * there is yesthing to map.
 		 */
 		return false;
 	} else if (bar_offset <= range_start) {
@@ -788,7 +788,7 @@ gasket_mm_get_mapping_addrs(const struct gasket_mappable_region *region,
 		 * 1) Only map starting from the beginning of this
 		 *      range's phys. offset, so we don't map unmappable
 		 *	memory.
-		 * 2) The length of the virtual memory to not map is the
+		 * 2) The length of the virtual memory to yest map is the
 		 *	delta between the bar offset and the
 		 *	mappable start (and since the mappable start is
 		 *	bigger, start - req.)
@@ -806,7 +806,7 @@ gasket_mm_get_mapping_addrs(const struct gasket_mappable_region *region,
 		/*
 		 * If the bar offset is within this range:
 		 * 1) Map starting from the bar offset.
-		 * 2) Because there is no forbidden memory between the
+		 * 2) Because there is yes forbidden memory between the
 		 *	bar offset and the range start,
 		 *	virt_offset is 0.
 		 * 3) The map length is the minimum of the requested
@@ -822,7 +822,7 @@ gasket_mm_get_mapping_addrs(const struct gasket_mappable_region *region,
 
 	/*
 	 * If the requested [start] offset is above range_end,
-	 * there's nothing to map.
+	 * there's yesthing to map.
 	 */
 	return false;
 }
@@ -984,7 +984,7 @@ static int gasket_mmap_coherent(struct gasket_dev *gasket_dev,
 		return -EPERM;
 	}
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	ret = remap_pfn_range(vma, vma->vm_start,
 			      (gasket_dev->coherent_buffer.phys_base) >>
@@ -1025,7 +1025,7 @@ static int gasket_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	if (vma->vm_start & ~PAGE_MASK) {
 		dev_err(gasket_dev->dev,
-			"Base address not page-aligned: 0x%lx\n",
+			"Base address yest page-aligned: 0x%lx\n",
 			vma->vm_start);
 		trace_gasket_mmap_exit(-EINVAL);
 		return -EINVAL;
@@ -1039,7 +1039,7 @@ static int gasket_mmap(struct file *filp, struct vm_area_struct *vma)
 				vma_size);
 
 	/*
-	 * Check if the raw offset is within a bar region. If not, check if it
+	 * Check if the raw offset is within a bar region. If yest, check if it
 	 * is a coherent region.
 	 */
 	bar_index = gasket_get_bar_index(gasket_dev, raw_offset);
@@ -1064,7 +1064,7 @@ static int gasket_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (is_coherent_region)
 		return gasket_mmap_coherent(gasket_dev, vma);
 
-	/* Everything in the rest of this function is for normal BAR mapping. */
+	/* Everything in the rest of this function is for yesrmal BAR mapping. */
 
 	/*
 	 * Subtract the base of the bar from the raw offset to get the
@@ -1110,10 +1110,10 @@ static int gasket_mmap(struct file *filp, struct vm_area_struct *vma)
 	}
 
 	/* Marks the VMA's pages as uncacheable. */
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	for (i = 0; i < num_map_regions; i++) {
 		map_status = do_map_region(gasket_dev, vma, &map_regions[i]);
-		/* Try the next region if this one was not mappable. */
+		/* Try the next region if this one was yest mappable. */
 		if (map_status == DO_MAP_REGION_INVALID)
 			continue;
 		if (map_status == DO_MAP_REGION_FAILURE) {
@@ -1126,10 +1126,10 @@ static int gasket_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	kfree(map_regions);
 
-	/* If we could not map any memory, the request was invalid. */
+	/* If we could yest map any memory, the request was invalid. */
 	if (!has_mapped_anything) {
 		dev_err(gasket_dev->dev,
-			"Map request did not contain a valid region.\n");
+			"Map request did yest contain a valid region.\n");
 		trace_gasket_mmap_exit(-EINVAL);
 		return -EINVAL;
 	}
@@ -1153,14 +1153,14 @@ fail:
 /*
  * Open the char device file.
  *
- * If the open is for writing, and the device is not owned, this process becomes
+ * If the open is for writing, and the device is yest owned, this process becomes
  * the owner.  If the open is for writing and the device is already owned by
  * some other process, it is an error.  If this process is the owner, increment
  * the open count.
  *
  * Returns 0 if successful, a negative error number otherwise.
  */
-static int gasket_open(struct inode *inode, struct file *filp)
+static int gasket_open(struct iyesde *iyesde, struct file *filp)
 {
 	int ret;
 	struct gasket_dev *gasket_dev;
@@ -1168,7 +1168,7 @@ static int gasket_open(struct inode *inode, struct file *filp)
 	struct gasket_ownership *ownership;
 	char task_name[TASK_COMM_LEN];
 	struct gasket_cdev_info *dev_info =
-	    container_of(inode->i_cdev, struct gasket_cdev_info, cdev);
+	    container_of(iyesde->i_cdev, struct gasket_cdev_info, cdev);
 	struct pid_namespace *pid_ns = task_active_pid_ns(current);
 	bool is_root = ns_capable(pid_ns->user_ns, CAP_SYS_ADMIN);
 
@@ -1177,7 +1177,7 @@ static int gasket_open(struct inode *inode, struct file *filp)
 	ownership = &dev_info->ownership;
 	get_task_comm(task_name, current);
 	filp->private_data = gasket_dev;
-	inode->i_size = 0;
+	iyesde->i_size = 0;
 
 	dev_dbg(gasket_dev->dev,
 		"Attempting to open with tgid %u (%s) (f_mode: 0%03o, "
@@ -1185,7 +1185,7 @@ static int gasket_open(struct inode *inode, struct file *filp)
 		current->tgid, task_name, filp->f_mode,
 		(filp->f_mode & FMODE_WRITE), is_root);
 
-	/* Always allow non-writing accesses. */
+	/* Always allow yesn-writing accesses. */
 	if (!(filp->f_mode & FMODE_WRITE)) {
 		dev_dbg(gasket_dev->dev, "Allowing read-only opening.\n");
 		return 0;
@@ -1197,19 +1197,19 @@ static int gasket_open(struct inode *inode, struct file *filp)
 		"Current owner open count (owning tgid %u): %d.\n",
 		ownership->owner, ownership->write_open_count);
 
-	/* Opening a node owned by another TGID is an error (unless root) */
+	/* Opening a yesde owned by ayesther TGID is an error (unless root) */
 	if (ownership->is_owned && ownership->owner != current->tgid &&
 	    !is_root) {
 		dev_err(gasket_dev->dev,
-			"Process %u is opening a node held by %u.\n",
+			"Process %u is opening a yesde held by %u.\n",
 			current->tgid, ownership->owner);
 		mutex_unlock(&gasket_dev->mutex);
 		return -EPERM;
 	}
 
-	/* If the node is not owned, assign it to the current TGID. */
+	/* If the yesde is yest owned, assign it to the current TGID. */
 	if (!ownership->is_owned) {
-		ret = gasket_check_and_invoke_callback_nolock(gasket_dev,
+		ret = gasket_check_and_invoke_callback_yeslock(gasket_dev,
 							      driver_desc->device_open_cb);
 		if (ret) {
 			dev_err(gasket_dev->dev,
@@ -1219,7 +1219,7 @@ static int gasket_open(struct inode *inode, struct file *filp)
 		}
 		ownership->is_owned = 1;
 		ownership->owner = current->tgid;
-		dev_dbg(gasket_dev->dev, "Device owner is now tgid %u\n",
+		dev_dbg(gasket_dev->dev, "Device owner is yesw tgid %u\n",
 			ownership->owner);
 	}
 
@@ -1239,7 +1239,7 @@ static int gasket_open(struct inode *inode, struct file *filp)
  *
  * Returns 0 if successful, a negative error number otherwise.
  */
-static int gasket_release(struct inode *inode, struct file *file)
+static int gasket_release(struct iyesde *iyesde, struct file *file)
 {
 	int i;
 	struct gasket_dev *gasket_dev;
@@ -1247,7 +1247,7 @@ static int gasket_release(struct inode *inode, struct file *file)
 	const struct gasket_driver_desc *driver_desc;
 	char task_name[TASK_COMM_LEN];
 	struct gasket_cdev_info *dev_info =
-		container_of(inode->i_cdev, struct gasket_cdev_info, cdev);
+		container_of(iyesde->i_cdev, struct gasket_cdev_info, cdev);
 	struct pid_namespace *pid_ns = task_active_pid_ns(current);
 	bool is_root = ns_capable(pid_ns->user_ns, CAP_SYS_ADMIN);
 
@@ -1258,7 +1258,7 @@ static int gasket_release(struct inode *inode, struct file *file)
 	mutex_lock(&gasket_dev->mutex);
 
 	dev_dbg(gasket_dev->dev,
-		"Releasing device node. Call origin: tgid %u (%s) "
+		"Releasing device yesde. Call origin: tgid %u (%s) "
 		"(f_mode: 0%03o, fmode_write: %d, is_root: %u)\n",
 		current->tgid, task_name, file->f_mode,
 		(file->f_mode & FMODE_WRITE), is_root);
@@ -1268,7 +1268,7 @@ static int gasket_release(struct inode *inode, struct file *file)
 	if (file->f_mode & FMODE_WRITE) {
 		ownership->write_open_count--;
 		if (ownership->write_open_count == 0) {
-			dev_dbg(gasket_dev->dev, "Device is now free\n");
+			dev_dbg(gasket_dev->dev, "Device is yesw free\n");
 			ownership->is_owned = 0;
 			ownership->owner = 0;
 
@@ -1282,7 +1282,7 @@ static int gasket_release(struct inode *inode, struct file *file)
 			}
 
 			/* Closes device, enters power save. */
-			gasket_check_and_invoke_callback_nolock(gasket_dev,
+			gasket_check_and_invoke_callback_yeslock(gasket_dev,
 								driver_desc->device_close_cb);
 		}
 	}
@@ -1296,7 +1296,7 @@ static int gasket_release(struct inode *inode, struct file *file)
 /*
  * Gasket ioctl dispatch function.
  *
- * Check if the ioctl is a generic ioctl. If not, pass the ioctl to the
+ * Check if the ioctl is a generic ioctl. If yest, pass the ioctl to the
  * ioctl_handler_cb registered in the driver description.
  * If the ioctl is a generic ioctl, pass it to gasket_ioctl_handler.
  */
@@ -1318,14 +1318,14 @@ static long gasket_ioctl(struct file *filp, uint cmd, ulong arg)
 
 	if (!gasket_is_supported_ioctl(cmd)) {
 		/*
-		 * The ioctl handler is not a standard Gasket callback, since
+		 * The ioctl handler is yest a standard Gasket callback, since
 		 * it requires different arguments. This means we can't use
 		 * check_and_invoke_callback.
 		 */
 		if (driver_desc->ioctl_handler_cb)
 			return driver_desc->ioctl_handler_cb(filp, cmd, argp);
 
-		dev_dbg(gasket_dev->dev, "Received unknown ioctl 0x%x\n", cmd);
+		dev_dbg(gasket_dev->dev, "Received unkyeswn ioctl 0x%x\n", cmd);
 		return -EINVAL;
 	}
 
@@ -1335,7 +1335,7 @@ static long gasket_ioctl(struct file *filp, uint cmd, ulong arg)
 /* File operations for all Gasket devices. */
 static const struct file_operations gasket_file_ops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.mmap = gasket_mmap,
 	.open = gasket_open,
 	.release = gasket_release,
@@ -1392,7 +1392,7 @@ int gasket_enable_device(struct gasket_dev *gasket_dev)
 	}
 	gasket_dev->hardware_revision = ret;
 
-	/* device_status_cb returns a device status, not an error code. */
+	/* device_status_cb returns a device status, yest an error code. */
 	gasket_dev->status = gasket_get_hw_status(gasket_dev);
 	if (gasket_dev->status == GASKET_STATUS_DEAD)
 		dev_err(gasket_dev->dev, "Device reported as unhealthy.\n");
@@ -1419,7 +1419,7 @@ static int __gasket_add_device(struct device *parent_dev,
 	if (ret)
 		return ret;
 	if (IS_ERR(gasket_dev->dev_info.device)) {
-		dev_err(parent_dev, "Cannot create %s device %s [ret = %ld]\n",
+		dev_err(parent_dev, "Canyest create %s device %s [ret = %ld]\n",
 			driver_desc->name, gasket_dev->dev_info.name,
 			PTR_ERR(gasket_dev->dev_info.device));
 		ret = -ENODEV;
@@ -1479,7 +1479,7 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 	mutex_unlock(&g_mutex);
 	if (!internal_desc) {
 		dev_err(&pci_dev->dev,
-			"PCI add device called for unknown driver type\n");
+			"PCI add device called for unkyeswn driver type\n");
 		return -ENODEV;
 	}
 
@@ -1501,7 +1501,7 @@ int gasket_pci_add_device(struct pci_dev *pci_dev,
 				&pci_dev->dev.kobj, dev_name(&pci_dev->dev));
 	if (ret) {
 		dev_err(gasket_dev->dev,
-			"Cannot create sysfs pci link: %d\n", ret);
+			"Canyest create sysfs pci link: %d\n", ret);
 		goto cleanup_pci;
 	}
 
@@ -1583,13 +1583,13 @@ int gasket_reset(struct gasket_dev *gasket_dev)
 	int ret;
 
 	mutex_lock(&gasket_dev->mutex);
-	ret = gasket_reset_nolock(gasket_dev);
+	ret = gasket_reset_yeslock(gasket_dev);
 	mutex_unlock(&gasket_dev->mutex);
 	return ret;
 }
 EXPORT_SYMBOL(gasket_reset);
 
-int gasket_reset_nolock(struct gasket_dev *gasket_dev)
+int gasket_reset_yeslock(struct gasket_dev *gasket_dev)
 {
 	int ret;
 	int i;
@@ -1626,7 +1626,7 @@ int gasket_reset_nolock(struct gasket_dev *gasket_dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(gasket_reset_nolock);
+EXPORT_SYMBOL(gasket_reset_yeslock);
 
 gasket_ioctl_permissions_cb_t
 gasket_get_ioctl_permissions_cb(struct gasket_dev *gasket_dev)
@@ -1652,7 +1652,7 @@ struct device *gasket_get_device(struct gasket_dev *dev)
 }
 
 /**
- * Asynchronously waits on device.
+ * Asynchroyesusly waits on device.
  * @gasket_dev: Device struct.
  * @bar: Bar
  * @offset: Register offset
@@ -1728,17 +1728,17 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 		class_create(driver_desc->module, driver_desc->name);
 
 	if (IS_ERR(internal->class)) {
-		pr_err("Cannot register %s class [ret=%ld]\n",
+		pr_err("Canyest register %s class [ret=%ld]\n",
 		       driver_desc->name, PTR_ERR(internal->class));
 		ret = PTR_ERR(internal->class);
 		goto unregister_gasket_driver;
 	}
 
 	ret = register_chrdev_region(MKDEV(driver_desc->major,
-					   driver_desc->minor), GASKET_DEV_MAX,
+					   driver_desc->miyesr), GASKET_DEV_MAX,
 				     driver_desc->name);
 	if (ret) {
-		pr_err("cannot register %s char driver [ret=%d]\n",
+		pr_err("canyest register %s char driver [ret=%d]\n",
 		       driver_desc->name, ret);
 		goto destroy_class;
 	}
@@ -1773,13 +1773,13 @@ void gasket_unregister_device(const struct gasket_driver_desc *driver_desc)
 
 	if (!internal_desc) {
 		mutex_unlock(&g_mutex);
-		pr_err("request to unregister unknown desc: %s, %d:%d\n",
+		pr_err("request to unregister unkyeswn desc: %s, %d:%d\n",
 		       driver_desc->name, driver_desc->major,
-		       driver_desc->minor);
+		       driver_desc->miyesr);
 		return;
 	}
 
-	unregister_chrdev_region(MKDEV(driver_desc->major, driver_desc->minor),
+	unregister_chrdev_region(MKDEV(driver_desc->major, driver_desc->miyesr),
 				 GASKET_DEV_MAX);
 
 	class_destroy(internal_desc->class);

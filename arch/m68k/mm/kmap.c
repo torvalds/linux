@@ -29,7 +29,7 @@
 /*
  * For 040/060 we can use the virtual memory area like other architectures,
  * but for 020/030 we want to use early termination page descriptors and we
- * can't mix this with normal page descriptors, so we have to copy that code
+ * can't mix this with yesrmal page descriptors, so we have to copy that code
  * (mm/vmalloc.c) and return appropriately aligned addresses.
  */
 
@@ -257,7 +257,7 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 		pud_dir = pud_offset(p4d_dir, virtaddr);
 		pmd_dir = pmd_alloc(&init_mm, pud_dir, virtaddr);
 		if (!pmd_dir) {
-			printk("ioremap: no mem for pmd_dir\n");
+			printk("ioremap: yes mem for pmd_dir\n");
 			return NULL;
 		}
 
@@ -272,7 +272,7 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 		{
 			pte_dir = pte_alloc_kernel(pmd_dir, virtaddr);
 			if (!pte_dir) {
-				printk("ioremap: no mem for pte_dir\n");
+				printk("ioremap: yes mem for pte_dir\n");
 				return NULL;
 			}
 

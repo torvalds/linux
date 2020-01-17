@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /* This file is derived from the GAS 2.1.4 assembler control file.
    The GAS product is under the GNU General Public License, version 2 or later.
    As such, this file is also under that license.
@@ -19,7 +19,7 @@
 #define  E_DIMNUM    4   /* Number of array dimensions in auxiliary entry */
 
 /*
- * These defines are byte order independent. There is no alignment of fields
+ * These defines are byte order independent. There is yes alignment of fields
  * permitted in the structures. Therefore they are declared as characters
  * and the values loaded from the character positions. It also makes it
  * nice to have it "endian" independent.
@@ -71,7 +71,7 @@ struct COFF_filehdr {
  *   Bits for f_flags:
  *
  *	F_RELFLG	relocation info stripped from file
- *	F_EXEC		file is executable  (i.e. no unresolved external
+ *	F_EXEC		file is executable  (i.e. yes unresolved external
  *			references)
  *	F_LNNO		line numbers stripped from file
  *	F_LSYMS		local symbols stripped from file
@@ -85,7 +85,7 @@ struct COFF_filehdr {
  *	F_AR32W		this file has the byte ordering of an AR32W machine
  *			(e.g. 3b,maxi)
  *	F_PATCH		file contains "patch" list in optional header
- *	F_NODF		(minimal file only) no decision functions for
+ *	F_NODF		(minimal file only) yes decision functions for
  *			replaced functions
  */
 
@@ -119,12 +119,12 @@ struct COFF_filehdr {
 
 /********************** AOUT "OPTIONAL HEADER" **********************/
 
-/* Linux COFF must have this "optional" header. Standard COFF has no entry
-   location for the "entry" point. They normally would start with the first
-   location of the .text section. This is not a good idea for linux. So,
-   the use of this "optional" header is not optional. It is required.
+/* Linux COFF must have this "optional" header. Standard COFF has yes entry
+   location for the "entry" point. They yesrmally would start with the first
+   location of the .text section. This is yest a good idea for linux. So,
+   the use of this "optional" header is yest optional. It is required.
 
-   Do not be tempted to assume that the size of the optional header is
+   Do yest be tempted to assume that the size of the optional header is
    a constant and simply index the next byte by the size of this structure.
    Use the 'f_opthdr' field in the main coff header for the size of the
    structure actually written to the file!!
@@ -161,9 +161,9 @@ struct COFF_scnhdr {
   char		s_size[4];	/* section size			    */
   char		s_scnptr[4];	/* file ptr to raw data for section */
   char		s_relptr[4];	/* file ptr to relocation	    */
-  char		s_lnnoptr[4];	/* file ptr to line numbers	    */
+  char		s_lnyesptr[4];	/* file ptr to line numbers	    */
   char		s_nreloc[2];	/* number of relocation entries	    */
-  char		s_nlnno[2];	/* number of line number entries    */
+  char		s_nlnyes[2];	/* number of line number entries    */
   char		s_flags[4];	/* flags			    */
 };
 
@@ -187,7 +187,7 @@ struct COFF_scnhdr {
 
 #define COFF_STYP_REG     0x00 /* regular segment                          */
 #define COFF_STYP_DSECT   0x01 /* dummy segment                            */
-#define COFF_STYP_NOLOAD  0x02 /* no-load segment                          */
+#define COFF_STYP_NOLOAD  0x02 /* yes-load segment                          */
 #define COFF_STYP_GROUP   0x04 /* group segment                            */
 #define COFF_STYP_PAD     0x08 /* .pad segment                             */
 #define COFF_STYP_COPY    0x10 /* copy section                             */
@@ -215,19 +215,19 @@ struct COFF_slib {
 
 /* 1 line number entry for every "breakpointable" source line in a section.
  * Line numbers are grouped on a per function basis; first entry in a function
- * grouping will have l_lnno = 0 and in place of physical address will be the
+ * grouping will have l_lnyes = 0 and in place of physical address will be the
  * symbol table index of the function name.
  */
 
-struct COFF_lineno {
+struct COFF_lineyes {
   union {
-    char l_symndx[4];	/* function name symbol index, iff l_lnno == 0*/
+    char l_symndx[4];	/* function name symbol index, iff l_lnyes == 0*/
     char l_paddr[4];	/* (physical) address of line number	*/
   } l_addr;
-  char l_lnno[2];	/* line number		*/
+  char l_lnyes[2];	/* line number		*/
 };
 
-#define	COFF_LINENO	struct COFF_lineno
+#define	COFF_LINENO	struct COFF_lineyes
 #define	COFF_LINESZ	6
 
 /********************** SYMBOLS **********************/
@@ -276,7 +276,7 @@ union COFF_auxent {
     char x_tagndx[4];	        /* str, un, or enum tag indx */
     union {
       struct {
-	char  x_lnno[2];        /* declaration line number */
+	char  x_lnyes[2];        /* declaration line number */
 	char  x_size[2];        /* str/union/array size */
       } x_lnsz;
       char x_fsize[4];	        /* size of function */
@@ -284,7 +284,7 @@ union COFF_auxent {
 
     union {
       struct {		        /* if ISFCN, tag, or .bb */
-	char x_lnnoptr[4];	/* ptr to fcn line # */
+	char x_lnyesptr[4];	/* ptr to fcn line # */
 	char x_endndx[4];	/* entry ndx past block end */
       } x_fcn;
 
@@ -315,7 +315,7 @@ union COFF_auxent {
   struct {
     char x_scnlen[4];	/* section length */
     char x_nreloc[2];	/* # relocation entries */
-    char x_nlinno[2];	/* # line numbers */
+    char x_nlinyes[2];	/* # line numbers */
   } x_scn;
 
 /*

@@ -27,14 +27,14 @@ static struct mdp4_kms *get_kms(struct drm_encoder *encoder)
 
 #ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 #include <mach/board.h>
-/* not ironically named at all.. no, really.. */
+/* yest ironically named at all.. yes, really.. */
 static void bs_init(struct mdp4_dtv_encoder *mdp4_dtv_encoder)
 {
 	struct drm_device *dev = mdp4_dtv_encoder->base.dev;
 	struct lcdc_platform_data *dtv_pdata = mdp4_find_pdata("dtv.0");
 
 	if (!dtv_pdata) {
-		DRM_DEV_ERROR(dev->dev, "could not find dtv pdata\n");
+		DRM_DEV_ERROR(dev->dev, "could yest find dtv pdata\n");
 		return;
 	}
 
@@ -150,12 +150,12 @@ static void mdp4_dtv_encoder_disable(struct drm_encoder *encoder)
 	mdp4_write(mdp4_kms, REG_MDP4_DTV_ENABLE, 0);
 
 	/*
-	 * Wait for a vsync so we know the ENABLE=0 latched before
+	 * Wait for a vsync so we kyesw the ENABLE=0 latched before
 	 * the (connector) source of the vsync's gets disabled,
 	 * otherwise we end up in a funny state if we re-enable
 	 * before the disable latches, which results that some of
 	 * the settings changes for the new modeset (like new
-	 * scanout buffer) don't latch properly..
+	 * scayesut buffer) don't latch properly..
 	 */
 	mdp_irq_wait(&mdp4_kms->base, MDP4_IRQ_EXTERNAL_VSYNC);
 

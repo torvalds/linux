@@ -30,7 +30,7 @@
 				 H_PUD_INDEX_SIZE + H_PGD_INDEX_SIZE + PAGE_SHIFT)
 #define H_PGTABLE_RANGE		(ASM_CONST(1) << H_PGTABLE_EADDR_SIZE)
 /*
- * Top 2 bits are ignored in page table walk.
+ * Top 2 bits are igyesred in page table walk.
  */
 #define EA_MASK			(~(0xcUL << 60))
 
@@ -208,7 +208,7 @@ static inline int hash__pte_same(pte_t pte_a, pte_t pte_b)
 	return (((pte_raw(pte_a) ^ pte_raw(pte_b)) & ~cpu_to_be64(_PAGE_HPTEFLAGS)) == 0);
 }
 
-static inline int hash__pte_none(pte_t pte)
+static inline int hash__pte_yesne(pte_t pte)
 {
 	return (pte_val(pte) & ~H_PTE_NONE_MASK) == 0;
 }
@@ -218,15 +218,15 @@ unsigned long pte_get_hash_gslot(unsigned long vpn, unsigned long shift,
 
 /* This low level function performs the actual PTE insertion
  * Setting the PTE depends on the MMU type and other factors. It's
- * an horrible mess that I'm not going to try to clean up now but
+ * an horrible mess that I'm yest going to try to clean up yesw but
  * I'm keeping it in one place rather than spread around
  */
 static inline void hash__set_pte_at(struct mm_struct *mm, unsigned long addr,
 				  pte_t *ptep, pte_t pte, int percpu)
 {
 	/*
-	 * Anything else just stores the PTE normally. That covers all 64-bit
-	 * cases, and 32-bit non-hash with 32-bit PTEs.
+	 * Anything else just stores the PTE yesrmally. That covers all 64-bit
+	 * cases, and 32-bit yesn-hash with 32-bit PTEs.
 	 */
 	*ptep = pte;
 }

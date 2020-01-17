@@ -85,13 +85,13 @@ static void regdump(struct net_device *dev)
 
 /* Parameters that can be set with 'insmod' */
 
-static int node;
+static int yesde;
 static int timeout = 3;
 static int backplane;
 static int clockp;
 static int clockm;
 
-module_param(node, int, 0);
+module_param(yesde, int, 0);
 module_param(timeout, int, 0);
 module_param(backplane, int, 0);
 module_param(clockp, int, 0);
@@ -133,7 +133,7 @@ static int com20020_probe(struct pcmcia_device *p_dev)
 	lp->hw.owner = THIS_MODULE;
 
 	/* fill in our module parameters as defaults */
-	dev->dev_addr[0] = node;
+	dev->dev_addr[0] = yesde;
 
 	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 	p_dev->resource[0]->end = 16;
@@ -252,7 +252,7 @@ static int com20020_config(struct pcmcia_device *link)
 	i = com20020_found(dev, 0);	/* calls register_netdev */
 
 	if (i != 0) {
-		dev_notice(&link->dev,
+		dev_yestice(&link->dev,
 			   "com20020_found() failed\n");
 		goto failed;
 	}

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 Nokia Corporation. All rights reserved.
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@yeskia.com>
  */
 
 #ifndef __LINUX_HSI_H__
@@ -15,7 +15,7 @@
 #include <linux/scatterlist.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 /* HSI message ttype */
 #define HSI_MSG_READ	0
@@ -130,7 +130,7 @@ struct hsi_client {
 	/* private: */
 	void			(*ehandler)(struct hsi_client *, unsigned long);
 	unsigned int		pclaimed:1;
-	struct notifier_block	nb;
+	struct yestifier_block	nb;
 };
 
 #define to_hsi_client(dev) container_of(dev, struct hsi_client, device)
@@ -180,7 +180,7 @@ static inline void hsi_unregister_client_driver(struct hsi_client_driver *drv)
  * @channel: Channel were to TX/RX the message
  * @ttype: Transfer type (TX if set, RX otherwise)
  * @break_frame: if true HSI will send/receive a break frame. Data buffers are
- *		ignored in the request.
+ *		igyesred in the request.
  */
 struct hsi_msg {
 	struct list_head	link;
@@ -210,12 +210,12 @@ void hsi_free_msg(struct hsi_msg *msg);
  * @shared: Set when port can be shared by different clients
  * @claimed: Reference count of clients which claimed the port
  * @lock: Serialize port claim
- * @async: Asynchronous transfer callback
+ * @async: Asynchroyesus transfer callback
  * @setup: Callback to set the HSI client configuration
  * @flush: Callback to clean the HW state and destroy all pending transfers
  * @start_tx: Callback to inform that a client wants to TX data
- * @stop_tx: Callback to inform that a client no longer wishes to TX data
- * @release: Callback to inform that a client no longer uses the port
+ * @stop_tx: Callback to inform that a client yes longer wishes to TX data
+ * @release: Callback to inform that a client yes longer uses the port
  * @n_head: Notifier chain for signaling port events to the clients.
  */
 struct hsi_port {
@@ -233,7 +233,7 @@ struct hsi_port {
 	int				(*stop_tx)(struct hsi_client *cl);
 	int				(*release)(struct hsi_client *cl);
 	/* private */
-	struct blocking_notifier_head	n_head;
+	struct blocking_yestifier_head	n_head;
 };
 
 #define to_hsi_port(dev) container_of(dev, struct hsi_port, device)
@@ -287,10 +287,10 @@ void hsi_port_unregister_clients(struct hsi_port *port);
 
 #ifdef CONFIG_OF
 void hsi_add_clients_from_dt(struct hsi_port *port,
-			     struct device_node *clients);
+			     struct device_yesde *clients);
 #else
 static inline void hsi_add_clients_from_dt(struct hsi_port *port,
-					   struct device_node *clients)
+					   struct device_yesde *clients)
 {
 	return;
 }
@@ -349,7 +349,7 @@ static inline unsigned int hsi_port_id(struct hsi_client *cl)
  * When sharing ports, clients should either relay on a single
  * client setup or have the same setup for all of them.
  *
- * Return -errno on failure, 0 on success
+ * Return -erryes on failure, 0 on success
  */
 static inline int hsi_setup(struct hsi_client *cl)
 {
@@ -365,7 +365,7 @@ static inline int hsi_setup(struct hsi_client *cl)
  * This function will destroy all pending hsi_msg in the port and reset
  * the HW port so it is ready to receive and transmit from a clean state.
  *
- * Return -errno on failure, 0 on success
+ * Return -erryes on failure, 0 on success
  */
 static inline int hsi_flush(struct hsi_client *cl)
 {
@@ -379,7 +379,7 @@ static inline int hsi_flush(struct hsi_client *cl)
  * @cl: Pointer to the HSI client
  * @msg: HSI message descriptor of the transfer
  *
- * Return -errno on failure, 0 on success
+ * Return -erryes on failure, 0 on success
  */
 static inline int hsi_async_read(struct hsi_client *cl, struct hsi_msg *msg)
 {
@@ -392,7 +392,7 @@ static inline int hsi_async_read(struct hsi_client *cl, struct hsi_msg *msg)
  * @cl: Pointer to the HSI client
  * @msg: HSI message descriptor of the transfer
  *
- * Return -errno on failure, 0 on success
+ * Return -erryes on failure, 0 on success
  */
 static inline int hsi_async_write(struct hsi_client *cl, struct hsi_msg *msg)
 {
@@ -404,7 +404,7 @@ static inline int hsi_async_write(struct hsi_client *cl, struct hsi_msg *msg)
  * hsi_start_tx - Signal the port that the client wants to start a TX
  * @cl: Pointer to the HSI client
  *
- * Return -errno on failure, 0 on success
+ * Return -erryes on failure, 0 on success
  */
 static inline int hsi_start_tx(struct hsi_client *cl)
 {
@@ -414,10 +414,10 @@ static inline int hsi_start_tx(struct hsi_client *cl)
 }
 
 /**
- * hsi_stop_tx - Signal the port that the client no longer wants to transmit
+ * hsi_stop_tx - Signal the port that the client yes longer wants to transmit
  * @cl: Pointer to the HSI client
  *
- * Return -errno on failure, 0 on success
+ * Return -erryes on failure, 0 on success
  */
 static inline int hsi_stop_tx(struct hsi_client *cl)
 {

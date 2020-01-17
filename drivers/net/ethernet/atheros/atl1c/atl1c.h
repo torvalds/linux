@@ -11,7 +11,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -292,7 +292,7 @@ enum atl1c_nic_type {
 };
 
 enum atl1c_trans_queue {
-	atl1c_trans_normal = 0,
+	atl1c_trans_yesrmal = 0,
 	atl1c_trans_high = 1
 };
 
@@ -344,7 +344,7 @@ struct atl1c_hw_stats {
 	unsigned long tx_late_col;	/* The number of packets transmitted with late collisions. */
 	unsigned long tx_abort_col;	/* The number of transmit packets aborted due to excessive collisions. */
 	unsigned long tx_underrun;	/* The number of transmit packets aborted due to transmit FIFO underrun, or TRD FIFO underrun */
-	unsigned long tx_rd_eop;	/* The number of times that read beyond the EOP into the next frame area when TRD was not written timely */
+	unsigned long tx_rd_eop;	/* The number of times that read beyond the EOP into the next frame area when TRD was yest written timely */
 	unsigned long tx_len_err;	/* The number of transmit packets with length field does NOT match the actual frame size. */
 	unsigned long tx_trunc;		/* The number of transmit packets truncated due to size exceeding MTU. */
 	unsigned long tx_bcast_byte;	/* The byte count of broadcast packet transmitted, excluding FCS. */

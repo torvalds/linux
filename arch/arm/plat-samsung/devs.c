@@ -108,7 +108,7 @@ static struct resource s3c_adc_resource[] = {
 };
 
 struct platform_device s3c_device_adc = {
-	.name		= "exynos-adc",
+	.name		= "exyyess-adc",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(s3c_adc_resource),
 	.resource	= s3c_adc_resource,
@@ -638,9 +638,9 @@ void __init s3c24xx_fb_set_platdata(struct s3c2410fb_mach_info *pd)
 			sizeof(struct s3c2410fb_display) * npd->num_displays,
 			GFP_KERNEL);
 		if (!npd->displays)
-			printk(KERN_ERR "no memory for LCD display data\n");
+			printk(KERN_ERR "yes memory for LCD display data\n");
 	} else {
-		printk(KERN_ERR "no memory for LCD platform data\n");
+		printk(KERN_ERR "yes memory for LCD platform data\n");
 	}
 }
 #endif /* CONFIG_PLAT_S3C24XX */
@@ -667,7 +667,7 @@ struct platform_device s3c_device_nand = {
  * to new kernel memory. The code returns 0 if the copy happened correctly or
  * an error code for the calling function to display.
  *
- * Note, we currently do not try and look to see if we've already copied the
+ * Note, we currently do yest try and look to see if we've already copied the
  * data in a previous set.
  */
 static int __init s3c_nand_copy_set(struct s3c2410_nand_set *set)
@@ -702,7 +702,7 @@ void __init s3c_nand_set_platdata(struct s3c2410_platform_nand *nand)
 	int size;
 	int ret;
 
-	/* note, if we get a failure in allocation, we simply drop out of the
+	/* yeste, if we get a failure in allocation, we simply drop out of the
 	 * function. If there is so little memory available at initialisation
 	 * time then there is little chance the system is going to run.
 	 */
@@ -711,7 +711,7 @@ void __init s3c_nand_set_platdata(struct s3c2410_platform_nand *nand)
 	if (!npd)
 		return;
 
-	/* now see if we need to copy any of the nand set data */
+	/* yesw see if we need to copy any of the nand set data */
 
 	size = sizeof(struct s3c2410_nand_set) * npd->nr_sets;
 	if (size) {
@@ -723,7 +723,7 @@ void __init s3c_nand_set_platdata(struct s3c2410_platform_nand *nand)
 		npd->sets = to;	/* set, even if we failed */
 
 		if (!to) {
-			printk(KERN_ERR "%s: no memory for sets\n", __func__);
+			printk(KERN_ERR "%s: yes memory for sets\n", __func__);
 			return;
 		}
 

@@ -2,7 +2,7 @@
 AArch64 TAGGED ADDRESS ABI
 ==========================
 
-Authors: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Authors: Vincenzo Frasciyes <vincenzo.frasciyes@arm.com>
          Catalin Marinas <catalin.marinas@arm.com>
 
 Date: 21 August 2019
@@ -15,7 +15,7 @@ ABI on AArch64 Linux.
 
 On AArch64 the ``TCR_EL1.TBI0`` bit is set by default, allowing
 userspace (EL0) to perform memory accesses through 64-bit pointers with
-a non-zero top byte. This document describes the relaxation of the
+a yesn-zero top byte. This document describes the relaxation of the
 syscall ABI that allows userspace to pass certain tagged pointers to
 kernel syscalls.
 
@@ -24,7 +24,7 @@ kernel syscalls.
 
 From the kernel syscall interface perspective and for the purposes of
 this document, a "valid tagged pointer" is a pointer with a potentially
-non-zero top-byte that references an address in the user process address
+yesn-zero top-byte that references an address in the user process address
 space obtained in one of the following ways:
 
 - ``mmap()`` syscall where either:
@@ -43,7 +43,7 @@ space obtained in one of the following ways:
 The AArch64 Tagged Address ABI has two stages of relaxation depending
 how the user addresses are used by the kernel:
 
-1. User addresses not accessed by the kernel but used for address space
+1. User addresses yest accessed by the kernel but used for address space
    management (e.g. ``mmap()``, ``mprotect()``, ``madvise()``). The use
    of valid tagged pointers in this context is always allowed.
 
@@ -106,7 +106,7 @@ ABI relaxation:
 
 - ``shmat()`` and ``shmdt()``.
 
-Any attempt to use non-zero tagged pointers may result in an error code
+Any attempt to use yesn-zero tagged pointers may result in an error code
 being returned, a (fatal) signal being raised, or other modes of
 failure.
 
@@ -141,7 +141,7 @@ failure.
    	if (ptr == MAP_FAILED)
    		return 1;
    
-   	/* set a non-zero tag if the ABI is available */
+   	/* set a yesn-zero tag if the ABI is available */
    	if (tbi_enabled)
    		tag = rand() & 0xff;
    	ptr = (char *)((unsigned long)ptr | (tag << TAG_SHIFT));

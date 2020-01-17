@@ -2,7 +2,7 @@
  *
  * EHCI SuperH driver platform data
  *
- * Copyright (C) 2012  Nobuhiro Iwamatsu <nobuhiro.iwamatsu.yj@renesas.com>
+ * Copyright (C) 2012  Nobuhiro Iwamatsu <yesbuhiro.iwamatsu.yj@renesas.com>
  * Copyright (C) 2012  Renesas Solutions Corp.
  */
 

@@ -2,7 +2,7 @@
 	"empty prog",
 	.insns = {
 	},
-	.errstr = "unknown opcode 00",
+	.errstr = "unkyeswn opcode 00",
 	.result = REJECT,
 },
 {
@@ -14,10 +14,10 @@
 	.result = REJECT,
 },
 {
-	"no bpf_exit",
+	"yes bpf_exit",
 	.insns = {
 	BPF_ALU64_REG(BPF_MOV, BPF_REG_0, BPF_REG_2),
 	},
-	.errstr = "not an exit",
+	.errstr = "yest an exit",
 	.result = REJECT,
 },

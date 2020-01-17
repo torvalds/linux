@@ -3,7 +3,7 @@
  *	Linux NET3:	Internet Group Management Protocol  [IGMP]
  *
  *	This code implements the IGMP protocol as defined in RFC1112. There has
- *	been a further revision of this protocol since which is now supported.
+ *	been a further revision of this protocol since which is yesw supported.
  *
  *	If you have trouble with this module be careful what gcc you have used,
  *	the older version didn't come out right using gcc 2.5.8, the newer one
@@ -18,13 +18,13 @@
  *					the memory usage of all the tiny little
  *					functions.
  *		Alan Cox	:	Dumped the header building experiment.
- *		Alan Cox	:	Minor tweaks ready for multicast routing
+ *		Alan Cox	:	Miyesr tweaks ready for multicast routing
  *					and extended IGMP protocol.
  *		Alan Cox	:	Removed a load of inline directives. Gcc 2.5.8
  *					writes utterly bogus code otherwise (sigh)
  *					fixed IGMP loopback to behave in the manner
  *					desired by mrouted, fixed the fact it has been
- *					broken since 1.3.6 and cleaned up a few minor
+ *					broken since 1.3.6 and cleaned up a few miyesr
  *					points.
  *
  *		Chih-Jen Chang	:	Tried to revise IGMP to Version 2
@@ -45,11 +45,11 @@
  *		Christian Daudt :	igmp timer wasn't set for local group
  *					memberships but was being deleted,
  *					which caused a "del_timer() called
- *					from %p with timer not initialized\n"
+ *					from %p with timer yest initialized\n"
  *					message (960131).
  *		Christian Daudt :	removed del_timer from
  *					igmp_timer_expire function (960205).
- *             Christian Daudt :       igmp_heard_report now only calls
+ *             Christian Daudt :       igmp_heard_report yesw only calls
  *                                     igmp_timer_expire if tm->running is
  *                                     true (960216).
  *		Malcolm Beattie :	ttl comparison wrong in igmp_rcv made
@@ -114,11 +114,11 @@
 
 #define IGMP_INITIAL_REPORT_DELAY		(1)
 
-/* IGMP_INITIAL_REPORT_DELAY is not from IGMP specs!
+/* IGMP_INITIAL_REPORT_DELAY is yest from IGMP specs!
  * IGMP specs require to report membership immediately after
  * joining a group, but we delay the first report by a
- * small interval. It seems more natural and still does not
- * contradict to specs provided this delay is small enough.
+ * small interval. It seems more natural and still does yest
+ * contradict to specs provided this delay is small eyesugh.
  */
 
 #define IGMP_V1_SEEN(in_dev) \
@@ -511,7 +511,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 			continue;
 		}
 
-		/* Based on RFC3376 5.1. Should not send source-list change
+		/* Based on RFC3376 5.1. Should yest send source-list change
 		 * records when there is a filter mode change.
 		 */
 		if (((gdeleted && pmc->sfmode == MCAST_EXCLUDE) ||
@@ -911,7 +911,7 @@ static bool igmp_heard_report(struct in_device *in_dev, __be32 group)
 	struct ip_mc_list *im;
 	struct net *net = dev_net(in_dev->dev);
 
-	/* Timers are only set for non-local groups */
+	/* Timers are only set for yesn-local groups */
 
 	if (group == IGMP_ALL_HOSTS)
 		return false;
@@ -965,7 +965,7 @@ static bool igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 		/* clear deleted report items */
 		igmpv3_clear_delrec(in_dev);
 	} else if (len < 12) {
-		return true;	/* ignore bogus packet; freed by caller */
+		return true;	/* igyesre bogus packet; freed by caller */
 	} else if (IGMP_V1_SEEN(in_dev)) {
 		/* This is a v3 query with v1 queriers present */
 		max_delay = IGMP_QUERY_RESPONSE_INTERVAL;
@@ -1013,7 +1013,7 @@ static bool igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 
 		if (!group) { /* general query */
 			if (ih3->nsrcs)
-				return true;	/* no sources allowed */
+				return true;	/* yes sources allowed */
 			igmp_gq_start_timer(in_dev);
 			return false;
 		}
@@ -1168,10 +1168,10 @@ static void igmpv3_add_delrec(struct in_device *in_dev, struct ip_mc_list *im,
 	struct net *net = dev_net(in_dev->dev);
 
 	/* this is an "ip_mc_list" for convenience; only the fields below
-	 * are actually used. In particular, the refcnt and users are not
+	 * are actually used. In particular, the refcnt and users are yest
 	 * used for management of the delete list. Using the same structure
 	 * for deleted items allows change reports to use common code with
-	 * non-deleted or query-response MCA's.
+	 * yesn-deleted or query-response MCA's.
 	 */
 	pmc = kzalloc(sizeof(*pmc), gfp);
 	if (!pmc)
@@ -1349,7 +1349,7 @@ static void igmp_group_added(struct ip_mc_list *im)
 	/* else, v3 */
 
 	/* Based on RFC3376 5.1, for newly added INCLUDE SSM, we should
-	 * not send filter-mode change record as the mode should be from
+	 * yest send filter-mode change record as the mode should be from
 	 * IN() to IN(A).
 	 */
 	if (im->sfmode == MCAST_EXCLUDE)
@@ -1383,7 +1383,7 @@ static void ip_mc_hash_add(struct in_device *in_dev,
 		return;
 	}
 
-	/* do not use a hash table for small number of items */
+	/* do yest use a hash table for small number of items */
 	if (in_dev->mc_count < 4)
 		return;
 
@@ -1597,7 +1597,7 @@ static int ip_mc_check_igmp_csum(struct sk_buff *skb)
  *
  * -EINVAL: A broken packet was detected, i.e. it violates some internet
  *  standard
- * -ENOMSG: IP header validation succeeded but it is not an IGMP packet.
+ * -ENOMSG: IP header validation succeeded but it is yest an IGMP packet.
  * -ENOMEM: A memory allocation failure happened.
  *
  * Caller needs to set the skb network header and free any returned skb if it
@@ -1622,7 +1622,7 @@ int ip_mc_check_igmp(struct sk_buff *skb)
 EXPORT_SYMBOL(ip_mc_check_igmp);
 
 /*
- *	Resend IGMP JOIN report; used by netdev notifier.
+ *	Resend IGMP JOIN report; used by netdev yestifier.
  */
 static void ip_mc_rejoin_groups(struct in_device *in_dev)
 {
@@ -1641,7 +1641,7 @@ static void ip_mc_rejoin_groups(struct in_device *in_dev)
 			continue;
 
 		/* a failover is happening and switches
-		 * must be notified immediately
+		 * must be yestified immediately
 		 */
 		if (IGMP_V1_SEEN(in_dev))
 			type = IGMP_HOST_MEMBERSHIP_REPORT;
@@ -1856,7 +1856,7 @@ static int ip_mc_del1_src(struct ip_mc_list *pmc, int sfmode,
 		psf_prev = psf;
 	}
 	if (!psf || psf->sf_count[sfmode] == 0) {
-		/* source filter not found, or count wrong =>  bug */
+		/* source filter yest found, or count wrong =>  bug */
 		return -ESRCH;
 	}
 	psf->sf_count[sfmode]--;
@@ -1869,7 +1869,7 @@ static int ip_mc_del1_src(struct ip_mc_list *pmc, int sfmode,
 		struct net *net = dev_net(in_dev->dev);
 #endif
 
-		/* no more filters for this source */
+		/* yes more filters for this source */
 		if (psf_prev)
 			psf_prev->sf_next = psf->sf_next;
 		else
@@ -1907,7 +1907,7 @@ static int ip_mc_del_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
 			break;
 	}
 	if (!pmc) {
-		/* MCA not found?? bug */
+		/* MCA yest found?? bug */
 		rcu_read_unlock();
 		return -ESRCH;
 	}
@@ -2039,7 +2039,7 @@ static int sf_setstate(struct ip_mc_list *pmc)
 			psf->sf_crcount = 0;
 			/*
 			 * add or update "delete" records if an active filter
-			 * is now inactive
+			 * is yesw inactive
 			 */
 			for (dpsf = pmc->tomb; dpsf; dpsf = dpsf->sf_next)
 				if (dpsf->sf_inaddr == psf->sf_inaddr)
@@ -2079,7 +2079,7 @@ static int ip_mc_add_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
 			break;
 	}
 	if (!pmc) {
-		/* MCA not found?? bug */
+		/* MCA yest found?? bug */
 		rcu_read_unlock();
 		return -ESRCH;
 	}
@@ -2118,7 +2118,7 @@ static int ip_mc_add_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
 		else if (pmc->sfcount[MCAST_INCLUDE])
 			pmc->sfmode = MCAST_INCLUDE;
 #ifdef CONFIG_IP_MULTICAST
-		/* else no filters; keep old mode for reports */
+		/* else yes filters; keep old mode for reports */
 
 		pmc->crcount = in_dev->mr_qrv ?: net->ipv4.sysctl_igmp_qrv;
 		in_dev->mr_ifc_count = pmc->crcount;
@@ -2233,7 +2233,7 @@ static int ip_mc_leave_src(struct sock *sk, struct ip_mc_socklist *iml,
 	err = ip_mc_del_src(in_dev, &iml->multi.imr_multiaddr.s_addr,
 			iml->sfmode, psf->sl_count, psf->sl_addr, 0);
 	RCU_INIT_POINTER(iml->sflist, NULL);
-	/* decrease mem now to avoid the memleak warning */
+	/* decrease mem yesw to avoid the memleak warning */
 	atomic_sub(IP_SFLSIZE(psf->sl_max), &sk->sk_omem_alloc);
 	kfree_rcu(psf, rcu);
 	return err;
@@ -2277,7 +2277,7 @@ int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 		if (in_dev)
 			ip_mc_dec_group(in_dev, group);
 
-		/* decrease mem now to avoid the memleak warning */
+		/* decrease mem yesw to avoid the memleak warning */
 		atomic_sub(sizeof(*iml), &sk->sk_omem_alloc);
 		kfree_rcu(iml, rcu);
 		return 0;
@@ -2352,7 +2352,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 			if (rv == 0)
 				break;
 		}
-		if (rv)		/* source not found */
+		if (rv)		/* source yest found */
 			goto done;	/* err = -EADDRNOTAVAIL */
 
 		/* special case - (INCLUDE, empty) == LEAVE_GROUP */
@@ -2393,7 +2393,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 		if (psl) {
 			for (i = 0; i < psl->sl_count; i++)
 				newpsl->sl_addr[i] = psl->sl_addr[i];
-			/* decrease mem now to avoid the memleak warning */
+			/* decrease mem yesw to avoid the memleak warning */
 			atomic_sub(IP_SFLSIZE(psl->sl_max), &sk->sk_omem_alloc);
 			kfree_rcu(psl, rcu);
 		}
@@ -2493,7 +2493,7 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 	if (psl) {
 		(void) ip_mc_del_src(in_dev, &msf->imsf_multiaddr, pmc->sfmode,
 			psl->sl_count, psl->sl_addr, 0);
-		/* decrease mem now to avoid the memleak warning */
+		/* decrease mem yesw to avoid the memleak warning */
 		atomic_sub(IP_SFLSIZE(psl->sl_max), &sk->sk_omem_alloc);
 		kfree_rcu(psl, rcu);
 	} else
@@ -2687,7 +2687,7 @@ void ip_mc_drop_socket(struct sock *sk)
 		(void) ip_mc_leave_src(sk, iml, in_dev);
 		if (in_dev)
 			ip_mc_dec_group(in_dev, iml->multi.imr_multiaddr.s_addr);
-		/* decrease mem now to avoid the memleak warning */
+		/* decrease mem yesw to avoid the memleak warning */
 		atomic_sub(sizeof(*iml), &sk->sk_omem_alloc);
 		kfree_rcu(iml, rcu);
 	}
@@ -3044,10 +3044,10 @@ static struct pernet_operations igmp_net_ops = {
 };
 #endif
 
-static int igmp_netdev_event(struct notifier_block *this,
+static int igmp_netdev_event(struct yestifier_block *this,
 			     unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct in_device *in_dev;
 
 	switch (event) {
@@ -3062,8 +3062,8 @@ static int igmp_netdev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block igmp_notifier = {
-	.notifier_call = igmp_netdev_event,
+static struct yestifier_block igmp_yestifier = {
+	.yestifier_call = igmp_netdev_event,
 };
 
 int __init igmp_mc_init(void)
@@ -3074,15 +3074,15 @@ int __init igmp_mc_init(void)
 	err = register_pernet_subsys(&igmp_net_ops);
 	if (err)
 		return err;
-	err = register_netdevice_notifier(&igmp_notifier);
+	err = register_netdevice_yestifier(&igmp_yestifier);
 	if (err)
-		goto reg_notif_fail;
+		goto reg_yestif_fail;
 	return 0;
 
-reg_notif_fail:
+reg_yestif_fail:
 	unregister_pernet_subsys(&igmp_net_ops);
 	return err;
 #else
-	return register_netdevice_notifier(&igmp_notifier);
+	return register_netdevice_yestifier(&igmp_yestifier);
 #endif
 }

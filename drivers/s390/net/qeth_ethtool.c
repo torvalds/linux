@@ -49,8 +49,8 @@ static const struct qeth_stats card_stats[] = {
 	QETH_CARD_STAT("rx0 SG skbs", rx_sg_skbs),
 	QETH_CARD_STAT("rx0 SG page frags", rx_sg_frags),
 	QETH_CARD_STAT("rx0 SG page allocs", rx_sg_alloc_page),
-	QETH_CARD_STAT("rx0 dropped, no memory", rx_dropped_nomem),
-	QETH_CARD_STAT("rx0 dropped, bad format", rx_dropped_notsupp),
+	QETH_CARD_STAT("rx0 dropped, yes memory", rx_dropped_yesmem),
+	QETH_CARD_STAT("rx0 dropped, bad format", rx_dropped_yestsupp),
 	QETH_CARD_STAT("rx0 dropped, runt", rx_dropped_runt),
 };
 
@@ -90,7 +90,7 @@ static int qeth_get_sset_count(struct net_device *dev, int stringset)
 	switch (stringset) {
 	case ETH_SS_STATS:
 		return CARD_STATS_LEN +
-		       card->qdio.no_out_queues * TXQ_STATS_LEN;
+		       card->qdio.yes_out_queues * TXQ_STATS_LEN;
 	default:
 		return -EINVAL;
 	}
@@ -103,7 +103,7 @@ static void qeth_get_ethtool_stats(struct net_device *dev,
 	unsigned int i;
 
 	qeth_add_stat_data(&data, &card->stats, card_stats, CARD_STATS_LEN);
-	for (i = 0; i < card->qdio.no_out_queues; i++)
+	for (i = 0; i < card->qdio.yes_out_queues; i++)
 		qeth_add_stat_data(&data, &card->qdio.out_qs[i]->stats,
 				   txq_stats, TXQ_STATS_LEN);
 }
@@ -134,7 +134,7 @@ static void qeth_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	case ETH_SS_STATS:
 		qeth_add_stat_strings(&data, prefix, card_stats,
 				      CARD_STATS_LEN);
-		for (i = 0; i < card->qdio.no_out_queues; i++) {
+		for (i = 0; i < card->qdio.yes_out_queues; i++) {
 			snprintf(prefix, ETH_GSTRING_LEN, "tx%u ", i);
 			qeth_add_stat_strings(&data, prefix, txq_stats,
 					      TXQ_STATS_LEN);
@@ -166,7 +166,7 @@ static void qeth_get_channels(struct net_device *dev,
 	struct qeth_card *card = dev->ml_priv;
 
 	channels->max_rx = dev->num_rx_queues;
-	channels->max_tx = card->qdio.no_out_queues;
+	channels->max_tx = card->qdio.yes_out_queues;
 	channels->max_other = 0;
 	channels->max_combined = 0;
 	channels->rx_count = dev->real_num_rx_queues;
@@ -308,7 +308,7 @@ static int qeth_get_link_ksettings(struct net_device *netdev,
 	qeth_set_cmd_adv_sup(cmd, cmd->base.speed, cmd->base.port);
 
 	/* Check if we can obtain more accurate information.	 */
-	/* If QUERY_CARD_INFO command is not supported or fails, */
+	/* If QUERY_CARD_INFO command is yest supported or fails, */
 	/* just return the heuristics that was filled above.	 */
 	rc = qeth_query_card_info(card, &carrier_info);
 	if (rc == -EOPNOTSUPP) /* for old hardware, return heuristic */

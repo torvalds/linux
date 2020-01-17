@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -129,7 +129,7 @@ enum {
 /* If a Time Event has bounded repetitions, this is the maximal value */
 #define TE_V1_REPEAT_MAX_MSK_V1	0x0fffffff
 
-/* Time Event dependencies: none, on another TE, or in a specific time */
+/* Time Event dependencies: yesne, on ayesther TE, or in a specific time */
 enum {
 	TE_V1_INDEPENDENT		= 0,
 	TE_V1_DEP_OTHER			= BIT(0),
@@ -138,21 +138,21 @@ enum {
 }; /* MAC_EVENT_DEPENDENCY_POLICY_API_E_VER_2 */
 
 /*
- * @TE_V1_NOTIF_NONE: no notifications
- * @TE_V1_NOTIF_HOST_EVENT_START: request/receive notification on event start
- * @TE_V1_NOTIF_HOST_EVENT_END:request/receive notification on event end
+ * @TE_V1_NOTIF_NONE: yes yestifications
+ * @TE_V1_NOTIF_HOST_EVENT_START: request/receive yestification on event start
+ * @TE_V1_NOTIF_HOST_EVENT_END:request/receive yestification on event end
  * @TE_V1_NOTIF_INTERNAL_EVENT_START: internal FW use
  * @TE_V1_NOTIF_INTERNAL_EVENT_END: internal FW use.
- * @TE_V1_NOTIF_HOST_FRAG_START: request/receive notification on frag start
- * @TE_V1_NOTIF_HOST_FRAG_END:request/receive notification on frag end
+ * @TE_V1_NOTIF_HOST_FRAG_START: request/receive yestification on frag start
+ * @TE_V1_NOTIF_HOST_FRAG_END:request/receive yestification on frag end
  * @TE_V1_NOTIF_INTERNAL_FRAG_START: internal FW use.
  * @TE_V1_NOTIF_INTERNAL_FRAG_END: internal FW use.
  *
- * Supported Time event notifications configuration.
- * A notification (both event and fragment) includes a status indicating weather
- * the FW was able to schedule the event or not. For fragment start/end
- * notification the status is always success. There is no start/end fragment
- * notification for monolithic events.
+ * Supported Time event yestifications configuration.
+ * A yestification (both event and fragment) includes a status indicating weather
+ * the FW was able to schedule the event or yest. For fragment start/end
+ * yestification the status is always success. There is yes start/end fragment
+ * yestification for moyeslithic events.
  */
 enum {
 	TE_V1_NOTIF_NONE = 0,
@@ -199,22 +199,22 @@ enum {
 
 /**
  * enum iwl_time_event_policy - Time event policy values
- * A notification (both event and fragment) includes a status indicating weather
- * the FW was able to schedule the event or not. For fragment start/end
- * notification the status is always success. There is no start/end fragment
- * notification for monolithic events.
+ * A yestification (both event and fragment) includes a status indicating weather
+ * the FW was able to schedule the event or yest. For fragment start/end
+ * yestification the status is always success. There is yes start/end fragment
+ * yestification for moyeslithic events.
  *
- * @TE_V2_DEFAULT_POLICY: independent, social, present, unoticable
- * @TE_V2_NOTIF_HOST_EVENT_START: request/receive notification on event start
- * @TE_V2_NOTIF_HOST_EVENT_END:request/receive notification on event end
+ * @TE_V2_DEFAULT_POLICY: independent, social, present, uyesticable
+ * @TE_V2_NOTIF_HOST_EVENT_START: request/receive yestification on event start
+ * @TE_V2_NOTIF_HOST_EVENT_END:request/receive yestification on event end
  * @TE_V2_NOTIF_INTERNAL_EVENT_START: internal FW use
  * @TE_V2_NOTIF_INTERNAL_EVENT_END: internal FW use.
- * @TE_V2_NOTIF_HOST_FRAG_START: request/receive notification on frag start
- * @TE_V2_NOTIF_HOST_FRAG_END:request/receive notification on frag end
+ * @TE_V2_NOTIF_HOST_FRAG_START: request/receive yestification on frag start
+ * @TE_V2_NOTIF_HOST_FRAG_END:request/receive yestification on frag end
  * @TE_V2_NOTIF_INTERNAL_FRAG_START: internal FW use.
  * @TE_V2_NOTIF_INTERNAL_FRAG_END: internal FW use.
  * @TE_V2_START_IMMEDIATELY: start time event immediately
- * @TE_V2_DEP_OTHER: depends on another time event
+ * @TE_V2_DEP_OTHER: depends on ayesther time event
  * @TE_V2_DEP_TSF: depends on a specific time
  * @TE_V2_EVENT_SOCIOPATHIC: can't co-exist with other events of tha same MAC
  * @TE_V2_ABSENCE: are we present or absent during the Time Event.
@@ -222,7 +222,7 @@ enum {
 enum iwl_time_event_policy {
 	TE_V2_DEFAULT_POLICY = 0x0,
 
-	/* notifications (event start/stop, fragment start/stop) */
+	/* yestifications (event start/stop, fragment start/stop) */
 	TE_V2_NOTIF_HOST_EVENT_START = BIT(0),
 	TE_V2_NOTIF_HOST_EVENT_END = BIT(1),
 	TE_V2_NOTIF_INTERNAL_EVENT_START = BIT(2),
@@ -262,7 +262,7 @@ enum iwl_time_event_policy {
  * @duration: duration of event in TU
  * @repeat: how many repetitions to do, can be TE_REPEAT_ENDLESS
  * @max_frags: maximal number of fragments the Time Event can be divided to
- * @policy: defines whether uCode shall notify the host or other uCode modules
+ * @policy: defines whether uCode shall yestify the host or other uCode modules
  *	on event and/or fragment start and/or end
  *	using one of TE_INDEPENDENT, TE_DEP_OTHER, TE_DEP_TSF
  *	TE_EVENT_SOCIOPATHIC
@@ -301,16 +301,16 @@ struct iwl_time_event_resp {
 } __packed; /* MAC_TIME_EVENT_RSP_API_S_VER_1 */
 
 /**
- * struct iwl_time_event_notif - notifications of time event start/stop
+ * struct iwl_time_event_yestif - yestifications of time event start/stop
  * ( TIME_EVENT_NOTIFICATION = 0x2a )
  * @timestamp: action timestamp in GP2
  * @session_id: session's unique id
  * @unique_id: unique id of the Time Event itself
  * @id_and_color: ID and color of the relevant MAC
  * @action: &enum iwl_time_event_policy
- * @status: true if scheduled, false otherwise (not executed)
+ * @status: true if scheduled, false otherwise (yest executed)
  */
-struct iwl_time_event_notif {
+struct iwl_time_event_yestif {
 	__le32 timestamp;
 	__le32 session_id;
 	__le32 unique_id;
@@ -322,7 +322,7 @@ struct iwl_time_event_notif {
 /*
  * struct iwl_hs20_roc_req_tail - tail of iwl_hs20_roc_req
  *
- * @node_addr: Our MAC Address
+ * @yesde_addr: Our MAC Address
  * @reserved: reserved for alignment
  * @apply_time: GP2 value to start (should always be the current GP2 value)
  * @apply_time_max_delay: Maximum apply time delay value in TU. Defines max
@@ -331,7 +331,7 @@ struct iwl_time_event_notif {
  *	timeEventDuration = min(duration, remainingQuota)
  */
 struct iwl_hs20_roc_req_tail {
-	u8 node_addr[ETH_ALEN];
+	u8 yesde_addr[ETH_ALEN];
 	__le16 reserved;
 	__le32 apply_time;
 	__le32 apply_time_max_delay;
@@ -353,7 +353,7 @@ struct iwl_hs20_roc_req_tail {
  * @action: action to perform, one of FW_CTXT_ACTION_*
  * @event_unique_id: If the action FW_CTXT_ACTION_REMOVE then the
  *	event_unique_id should be the id of the time event assigned by ucode.
- *	Otherwise ignore the event_unique_id.
+ *	Otherwise igyesre the event_unique_id.
  * @sta_id_and_color: station id and color, resumed during "Remain On Channel"
  *	activity.
  * @channel_info: channel info
@@ -380,7 +380,7 @@ enum iwl_mvm_hot_spot {
 /*
  * Aux ROC command response
  *
- * In response to iwl_hs20_roc_req the FW sends this command to notify the
+ * In response to iwl_hs20_roc_req the FW sends this command to yestify the
  * driver the uid of the timevent.
  *
  * ( HOT_SPOT_CMD 0x53 )
@@ -401,10 +401,10 @@ struct iwl_hs20_roc_res {
  *	* A rather short event that can't be fragmented and with a very
  *	high priority. If every goes well (99% of the cases) the
  *	association should complete within this first event. During
- *	that event, no other activity will happen in the firmware,
+ *	that event, yes other activity will happen in the firmware,
  *	which is why it can't be too long.
  *	The length of this event is hard-coded in the firmware: 300TUs.
- *	* Another event which can be much longer (it's duration is
+ *	* Ayesther event which can be much longer (it's duration is
  *	configurable by the driver) which has a slightly lower
  *	priority and that can be fragmented allowing other activities
  *	to run while this event is running.
@@ -412,13 +412,13 @@ struct iwl_hs20_roc_res {
  *	the BSS MAC as associated. Neither of the events will be removed
  *	for the P2P_STA MAC.
  *	Only the duration is configurable for this protection.
- * @SESSION_PROTECT_CONF_GO_CLIENT_ASSOC: not used
+ * @SESSION_PROTECT_CONF_GO_CLIENT_ASSOC: yest used
  * @SESSION_PROTECT_CONF_P2P_DEVICE_DISCOV: Schedule the P2P Device to be in
  *	listen mode. Will be fragmented. Valid only on the P2P Device MAC.
  *	Valid only on the P2P Device MAC. The firmware will take into account
  *	the duration, the interval and the repetition count.
  * @SESSION_PROTECT_CONF_P2P_GO_NEGOTIATION: Schedule the P2P Device to be be
- *	able to run the GO Negotiation. Will not be fragmented and not
+ *	able to run the GO Negotiation. Will yest be fragmented and yest
  *	repetitive. Valid only on the P2P Device MAC. Only the duration will
  *	be taken into account.
  */
@@ -436,8 +436,8 @@ enum iwl_mvm_session_prot_conf_id {
  * @action: can be either FW_CTXT_ACTION_ADD or FW_CTXT_ACTION_REMOVE
  * @conf_id: see &enum iwl_mvm_session_prot_conf_id
  * @duration_tu: the duration of the whole protection in TUs.
- * @repetition_count: not used
- * @interval: not used
+ * @repetition_count: yest used
+ * @interval: yest used
  *
  * Note: the session protection will always be scheduled to start as
  * early as possible, but the maximum delay is configuration dependent.
@@ -455,16 +455,16 @@ struct iwl_mvm_session_prot_cmd {
 } __packed; /* SESSION_PROTECTION_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_mvm_session_prot_notif - session protection started / ended
+ * struct iwl_mvm_session_prot_yestif - session protection started / ended
  * @mac_id: the mac id for which the session protection started / ended
  * @status: 1 means success, 0 means failure
  * @start: 1 means the session protection started, 0 means it ended
  * @conf_id: the configuration id of the session that started / eneded
  *
- * Note that any session protection will always get two notifications: start
- * and end even the firmware could not schedule it.
+ * Note that any session protection will always get two yestifications: start
+ * and end even the firmware could yest schedule it.
  */
-struct iwl_mvm_session_prot_notif {
+struct iwl_mvm_session_prot_yestif {
 	__le32 mac_id;
 	__le32 status;
 	__le32 start;

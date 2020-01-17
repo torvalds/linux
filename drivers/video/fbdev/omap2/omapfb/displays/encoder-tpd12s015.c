@@ -200,10 +200,10 @@ static const struct omapdss_hdmi_ops tpd_hdmi_ops = {
 static int tpd_probe_of(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct omap_dss_device *in;
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(yesde);
 	if (IS_ERR(in)) {
 		dev_err(&pdev->dev, "failed to find video source\n");
 		return PTR_ERR(in);
@@ -227,7 +227,7 @@ static int tpd_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ddata);
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		r = tpd_probe_of(pdev);
 		if (r)
 			return r;

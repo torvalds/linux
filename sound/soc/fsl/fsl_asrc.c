@@ -136,7 +136,7 @@ int fsl_asrc_request_pair(int channels, struct fsl_asrc_pair *pair)
 	}
 
 	if (index == ASRC_INVALID_PAIR) {
-		dev_err(dev, "all pairs are busy now\n");
+		dev_err(dev, "all pairs are busy yesw\n");
 		ret = -EBUSY;
 	} else if (asrc_priv->channel_avail < channels) {
 		dev_err(dev, "can't afford required channels: %d\n", channels);
@@ -224,7 +224,7 @@ static int fsl_asrc_set_ideal_ratio(struct fsl_asrc_pair *pair,
 	int i;
 
 	if (!outrate) {
-		pair_err("output rate should not be zero\n");
+		pair_err("output rate should yest be zero\n");
 		return -EINVAL;
 	}
 
@@ -263,7 +263,7 @@ static int fsl_asrc_set_ideal_ratio(struct fsl_asrc_pair *pair,
  * Note:
  * The ideal ratio configuration can work with a flexible clock rate setting.
  * Using IDEAL_RATIO_RATE gives a faster converting speed but overloads ASRC.
- * For a regular audio playback, the clock rate should not be slower than an
+ * For a regular audio playback, the clock rate should yest be slower than an
  * clock rate aligning with the output sample rate; For a use case requiring
  * faster conversion, set use_ideal_rate to have the faster speed.
  */
@@ -289,7 +289,7 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 
 	/* Validate channels */
 	if (config->channel_num < 1 || config->channel_num > 10) {
-		pair_err("does not support %d channels\n", config->channel_num);
+		pair_err("does yest support %d channels\n", config->channel_num);
 		return -EINVAL;
 	}
 
@@ -304,7 +304,7 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 		input_word_width = ASRC_WIDTH_24_BIT;
 		break;
 	default:
-		pair_err("does not support this input format, %d\n",
+		pair_err("does yest support this input format, %d\n",
 			 config->input_format);
 		return -EINVAL;
 	}
@@ -317,7 +317,7 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 		output_word_width = ASRC_WIDTH_24_BIT;
 		break;
 	default:
-		pair_err("does not support this output format, %d\n",
+		pair_err("does yest support this output format, %d\n",
 			 config->output_format);
 		return -EINVAL;
 	}
@@ -364,10 +364,10 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 	div[IN] = (u32)clk_rate;
 
 	/*
-	 * The divider range is [1, 1024], defined by the hardware. For non-
+	 * The divider range is [1, 1024], defined by the hardware. For yesn-
 	 * ideal ratio configuration, clock rate has to be strictly aligned
 	 * with the sample rate. For ideal ratio configuration, clock rates
-	 * only result in different converting speeds. So remainder does not
+	 * only result in different converting speeds. So remainder does yest
 	 * matter, as long as we keep the divider within its valid range.
 	 */
 	if (div[IN] == 0 || (!ideal && (div[IN] > 1024 || rem[IN] != 0))) {
@@ -530,7 +530,7 @@ static int fsl_asrc_dai_startup(struct snd_pcm_substream *substream,
 {
 	struct fsl_asrc *asrc_priv = snd_soc_dai_get_drvdata(dai);
 
-	/* Odd channel number is not valid for older ASRC (channel_bits==3) */
+	/* Odd channel number is yest valid for older ASRC (channel_bits==3) */
 	if (asrc_priv->channel_bits == 3)
 		snd_pcm_hw_constraint_step(substream->runtime, 0,
 					   SNDRV_PCM_HW_PARAM_CHANNELS, 2);
@@ -862,7 +862,7 @@ static irqreturn_t fsl_asrc_isr(int irq, void *dev_id)
 
 	/*
 	 * We here use dev_dbg() for all exceptions because ASRC itself does
-	 * not care if FIFO overflowed or underrun while a warning in the
+	 * yest care if FIFO overflowed or underrun while a warning in the
 	 * interrupt would result a ridged conversion.
 	 */
 	for (index = ASRC_PAIR_A; index < ASRC_PAIR_MAX_NUM; index++) {
@@ -900,7 +900,7 @@ static irqreturn_t fsl_asrc_isr(int irq, void *dev_id)
 
 static int fsl_asrc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct fsl_asrc *asrc_priv;
 	struct resource *res;
 	void __iomem *regs;

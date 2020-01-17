@@ -4,7 +4,7 @@
  *
  * Changes:
  *	Mitsuru KANDA @USAGI
- * 	Kazunori MIYAZAWA @USAGI
+ * 	Kazuyesri MIYAZAWA @USAGI
  * 	Kunihiro Ishiguro <kunihiro@ipinfusion.com>
  * 		IPv6 support
  * 	YOSHIFUJI Hideaki @USAGI
@@ -52,7 +52,7 @@ static HLIST_HEAD(xfrm_state_gc_list);
 
 static inline bool xfrm_state_hold_rcu(struct xfrm_state __rcu *x)
 {
-	return refcount_inc_not_zero(&x->refcnt);
+	return refcount_inc_yest_zero(&x->refcnt);
 }
 
 static inline unsigned int xfrm_dst_hash(struct net *net,
@@ -85,7 +85,7 @@ static void xfrm_hash_transfer(struct hlist_head *list,
 			       struct hlist_head *nspitable,
 			       unsigned int nhashmask)
 {
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	struct xfrm_state *x;
 
 	hlist_for_each_entry_safe(x, tmp, list, bydst) {
@@ -505,7 +505,7 @@ static void ___xfrm_state_destroy(struct xfrm_state *x)
 static void xfrm_state_gc_task(struct work_struct *work)
 {
 	struct xfrm_state *x;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	struct hlist_head gc_list;
 
 	spin_lock_bh(&xfrm_state_gc_lock);
@@ -522,7 +522,7 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 {
 	struct xfrm_state *x = container_of(me, struct xfrm_state, mtimer);
 	enum hrtimer_restart ret = HRTIMER_NORESTART;
-	time64_t now = ktime_get_real_seconds();
+	time64_t yesw = ktime_get_real_seconds();
 	time64_t next = TIME64_MAX;
 	int warn = 0;
 	int err = 0;
@@ -534,14 +534,14 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 		goto expired;
 	if (x->lft.hard_add_expires_seconds) {
 		long tmo = x->lft.hard_add_expires_seconds +
-			x->curlft.add_time - now;
+			x->curlft.add_time - yesw;
 		if (tmo <= 0) {
 			if (x->xflags & XFRM_SOFT_EXPIRE) {
 				/* enter hard expire without soft expire first?!
 				 * setting a new date could trigger this.
 				 * workaround: fix x->curflt.add_time by below:
 				 */
-				x->curlft.add_time = now - x->saved_tmo - 1;
+				x->curlft.add_time = yesw - x->saved_tmo - 1;
 				tmo = x->lft.hard_add_expires_seconds - x->saved_tmo;
 			} else
 				goto expired;
@@ -551,7 +551,7 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 	}
 	if (x->lft.hard_use_expires_seconds) {
 		long tmo = x->lft.hard_use_expires_seconds +
-			(x->curlft.use_time ? : now) - now;
+			(x->curlft.use_time ? : yesw) - yesw;
 		if (tmo <= 0)
 			goto expired;
 		if (tmo < next)
@@ -561,7 +561,7 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 		goto resched;
 	if (x->lft.soft_add_expires_seconds) {
 		long tmo = x->lft.soft_add_expires_seconds +
-			x->curlft.add_time - now;
+			x->curlft.add_time - yesw;
 		if (tmo <= 0) {
 			warn = 1;
 			x->xflags &= ~XFRM_SOFT_EXPIRE;
@@ -573,7 +573,7 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 	}
 	if (x->lft.soft_use_expires_seconds) {
 		long tmo = x->lft.soft_use_expires_seconds +
-			(x->curlft.use_time ? : now) - now;
+			(x->curlft.use_time ? : yesw) - yesw;
 		if (tmo <= 0)
 			warn = 1;
 		else if (tmo < next)
@@ -585,7 +585,7 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 		km_state_expired(x, 0, 0);
 resched:
 	if (next != TIME64_MAX) {
-		hrtimer_forward_now(&x->mtimer, ktime_set(next, 0));
+		hrtimer_forward_yesw(&x->mtimer, ktime_set(next, 0));
 		ret = HRTIMER_RESTART;
 	}
 
@@ -1009,7 +1009,7 @@ static void xfrm_state_look_at(struct xfrm_policy *pol, struct xfrm_state *x,
 	 *
 	 * Entering area of "sysdeps".
 	 *
-	 * 3. If state is not valid, selector is temporary, it selects
+	 * 3. If state is yest valid, selector is temporary, it selects
 	 *    only session which triggered previous resolution. Key
 	 *    manager will do something to install a state with proper
 	 *    selector.
@@ -1102,8 +1102,8 @@ found:
 		}
 
 		c.net = net;
-		/* If the KMs have no listeners (yet...), avoid allocating an SA
-		 * for each and every packet - garbage collection might not
+		/* If the KMs have yes listeners (yet...), avoid allocating an SA
+		 * for each and every packet - garbage collection might yest
 		 * handle the flood.
 		 */
 		if (!km_is_alive(&c)) {
@@ -1892,7 +1892,7 @@ xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n,
 }
 #endif
 
-/* Silly enough, but I'm lazy to build resolution list */
+/* Silly eyesugh, but I'm lazy to build resolution list */
 
 static struct xfrm_state *__xfrm_find_acq_byseq(struct net *net, u32 mark, u32 seq)
 {
@@ -2107,7 +2107,7 @@ static void xfrm_replay_timer_handler(struct timer_list *t)
 
 	if (x->km.state == XFRM_STATE_VALID) {
 		if (xfrm_aevent_is_on(xs_net(x)))
-			x->repl->notify(x, XFRM_REPLAY_TIMEOUT);
+			x->repl->yestify(x, XFRM_REPLAY_TIMEOUT);
 		else
 			x->xflags |= XFRM_TIME_DEFER;
 	}
@@ -2117,29 +2117,29 @@ static void xfrm_replay_timer_handler(struct timer_list *t)
 
 static LIST_HEAD(xfrm_km_list);
 
-void km_policy_notify(struct xfrm_policy *xp, int dir, const struct km_event *c)
+void km_policy_yestify(struct xfrm_policy *xp, int dir, const struct km_event *c)
 {
 	struct xfrm_mgr *km;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(km, &xfrm_km_list, list)
-		if (km->notify_policy)
-			km->notify_policy(xp, dir, c);
+		if (km->yestify_policy)
+			km->yestify_policy(xp, dir, c);
 	rcu_read_unlock();
 }
 
-void km_state_notify(struct xfrm_state *x, const struct km_event *c)
+void km_state_yestify(struct xfrm_state *x, const struct km_event *c)
 {
 	struct xfrm_mgr *km;
 	rcu_read_lock();
 	list_for_each_entry_rcu(km, &xfrm_km_list, list)
-		if (km->notify)
-			km->notify(x, c);
+		if (km->yestify)
+			km->yestify(x, c);
 	rcu_read_unlock();
 }
 
-EXPORT_SYMBOL(km_policy_notify);
-EXPORT_SYMBOL(km_state_notify);
+EXPORT_SYMBOL(km_policy_yestify);
+EXPORT_SYMBOL(km_state_yestify);
 
 void km_state_expired(struct xfrm_state *x, int hard, u32 portid)
 {
@@ -2148,7 +2148,7 @@ void km_state_expired(struct xfrm_state *x, int hard, u32 portid)
 	c.data.hard = hard;
 	c.portid = portid;
 	c.event = XFRM_MSG_EXPIRE;
-	km_state_notify(x, &c);
+	km_state_yestify(x, &c);
 }
 
 EXPORT_SYMBOL(km_state_expired);
@@ -2196,7 +2196,7 @@ void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 portid)
 	c.data.hard = hard;
 	c.portid = portid;
 	c.event = XFRM_MSG_POLEXPIRE;
-	km_policy_notify(pol, dir, &c);
+	km_policy_yestify(pol, dir, &c);
 }
 EXPORT_SYMBOL(km_policy_expired);
 
@@ -2448,7 +2448,7 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 	int err;
 
 	if (family == AF_INET &&
-	    xs_net(x)->ipv4.sysctl_ip_no_pmtu_disc)
+	    xs_net(x)->ipv4.sysctl_ip_yes_pmtu_disc)
 		x->props.flags |= XFRM_STATE_NOPMTUDISC;
 
 	err = -EPROTONOSUPPORT;
@@ -2689,40 +2689,40 @@ void xfrm_audit_state_replay(struct xfrm_state *x,
 		return;
 	xfrm_audit_helper_pktinfo(skb, x->props.family, audit_buf);
 	spi = ntohl(x->id.spi);
-	audit_log_format(audit_buf, " spi=%u(0x%x) seqno=%u",
+	audit_log_format(audit_buf, " spi=%u(0x%x) seqyes=%u",
 			 spi, spi, ntohl(net_seq));
 	audit_log_end(audit_buf);
 }
 EXPORT_SYMBOL_GPL(xfrm_audit_state_replay);
 
-void xfrm_audit_state_notfound_simple(struct sk_buff *skb, u16 family)
+void xfrm_audit_state_yestfound_simple(struct sk_buff *skb, u16 family)
 {
 	struct audit_buffer *audit_buf;
 
-	audit_buf = xfrm_audit_start("SA-notfound");
+	audit_buf = xfrm_audit_start("SA-yestfound");
 	if (audit_buf == NULL)
 		return;
 	xfrm_audit_helper_pktinfo(skb, family, audit_buf);
 	audit_log_end(audit_buf);
 }
-EXPORT_SYMBOL_GPL(xfrm_audit_state_notfound_simple);
+EXPORT_SYMBOL_GPL(xfrm_audit_state_yestfound_simple);
 
-void xfrm_audit_state_notfound(struct sk_buff *skb, u16 family,
+void xfrm_audit_state_yestfound(struct sk_buff *skb, u16 family,
 			       __be32 net_spi, __be32 net_seq)
 {
 	struct audit_buffer *audit_buf;
 	u32 spi;
 
-	audit_buf = xfrm_audit_start("SA-notfound");
+	audit_buf = xfrm_audit_start("SA-yestfound");
 	if (audit_buf == NULL)
 		return;
 	xfrm_audit_helper_pktinfo(skb, family, audit_buf);
 	spi = ntohl(net_spi);
-	audit_log_format(audit_buf, " spi=%u(0x%x) seqno=%u",
+	audit_log_format(audit_buf, " spi=%u(0x%x) seqyes=%u",
 			 spi, spi, ntohl(net_seq));
 	audit_log_end(audit_buf);
 }
-EXPORT_SYMBOL_GPL(xfrm_audit_state_notfound);
+EXPORT_SYMBOL_GPL(xfrm_audit_state_yestfound);
 
 void xfrm_audit_state_icvfail(struct xfrm_state *x,
 			      struct sk_buff *skb, u8 proto)
@@ -2737,7 +2737,7 @@ void xfrm_audit_state_icvfail(struct xfrm_state *x,
 	xfrm_audit_helper_pktinfo(skb, x->props.family, audit_buf);
 	if (xfrm_parse_spi(skb, proto, &net_spi, &net_seq) == 0) {
 		u32 spi = ntohl(net_spi);
-		audit_log_format(audit_buf, " spi=%u(0x%x) seqno=%u",
+		audit_log_format(audit_buf, " spi=%u(0x%x) seqyes=%u",
 				 spi, spi, ntohl(net_seq));
 	}
 	audit_log_end(audit_buf);

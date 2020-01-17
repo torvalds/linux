@@ -78,7 +78,7 @@ static void kvmppc_fixup_split_real(struct kvm_vcpu *vcpu)
 	if ((msr & (MSR_IR|MSR_DR)) != MSR_DR)
 		return;
 
-	/* We have not fixed up the guest already */
+	/* We have yest fixed up the guest already */
 	if (vcpu->arch.hflags & BOOK3S_HFLAG_SPLIT_HACK)
 		return;
 
@@ -263,7 +263,7 @@ void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Maybe we were already preempted and synced the svcpu from
-	 * our preempt notifiers. Don't bother touching this svcpu then.
+	 * our preempt yestifiers. Don't bother touching this svcpu then.
 	 */
 	if (!svcpu->in_use)
 		goto out;
@@ -306,7 +306,7 @@ void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	/*
 	 * Unlike other MSR bits, MSR[TS]bits can be changed at guest without
-	 * notifying host:
+	 * yestifying host:
 	 *  modified by unprivileged instructions like "tbegin"/"tend"/
 	 * "tresume"/"tsuspend" in PR KVM guest.
 	 *
@@ -351,7 +351,7 @@ void kvmppc_restore_tm_sprs(struct kvm_vcpu *vcpu)
 	tm_disable();
 }
 
-/* loadup math bits which is enabled at kvmppc_get_msr() but not enabled at
+/* loadup math bits which is enabled at kvmppc_get_msr() but yest enabled at
  * hardware.
  */
 static void kvmppc_handle_lost_math_exts(struct kvm_vcpu *vcpu)
@@ -554,7 +554,7 @@ static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 	 */
 	if (vcpu->arch.magic_page_pa &&
 	    !(old_msr & MSR_PR) && !(old_msr & MSR_SF) && (msr & MSR_SF)) {
-		/* going from RTAS to normal kernel code */
+		/* going from RTAS to yesrmal kernel code */
 		kvmppc_mmu_pte_flush(vcpu, (uint32_t)vcpu->arch.magic_page_pa,
 				     ~0xFFFUL);
 	}
@@ -601,7 +601,7 @@ void kvmppc_set_pvr_pr(struct kvm_vcpu *vcpu, u32 pvr)
 	    !strcmp(cur_cpu_spec->platform, "ppc970"))
 		vcpu->arch.hflags |= BOOK3S_HFLAG_DCBZ32;
 
-	/* Cell performs badly if MSR_FEx are set. So let's hope nobody
+	/* Cell performs badly if MSR_FEx are set. So let's hope yesbody
 	   really needs them in a VM on Cell and force disable them. */
 	if (!strcmp(cur_cpu_spec->platform, "ppc-cell-be"))
 		to_book3s(vcpu)->msr_mask &= ~(MSR_FE0 | MSR_FE1);
@@ -766,7 +766,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	}
 
 	if (page_found == -ENOENT || page_found == -EPERM) {
-		/* Page not found in guest PTE entries, or protection fault */
+		/* Page yest found in guest PTE entries, or protection fault */
 		u64 flags;
 
 		if (page_found == -EPERM)
@@ -780,7 +780,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			kvmppc_core_queue_inst_storage(vcpu, flags);
 		}
 	} else if (page_found == -EINVAL) {
-		/* Page not found in guest SLB */
+		/* Page yest found in guest SLB */
 		kvmppc_set_dar(vcpu, kvmppc_get_fault_dar(vcpu));
 		kvmppc_book3s_queue_irqprio(vcpu, vec + 0x80);
 	} else if (kvmppc_visible_gpa(vcpu, pte.raddr)) {
@@ -792,7 +792,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 */
 			kvmppc_mmu_unmap_page(vcpu, &pte);
 		}
-		/* The guest's PTE is not mapped yet. Map on the host */
+		/* The guest's PTE is yest mapped yet. Map on the host */
 		if (kvmppc_mmu_map_page(vcpu, &pte, iswrite) == -EIO) {
 			/* Exit KVM if mapping failed */
 			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
@@ -864,7 +864,7 @@ void kvmppc_giveup_fac(struct kvm_vcpu *vcpu, ulong fac)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (!(vcpu->arch.shadow_fscr & (1ULL << fac))) {
-		/* Facility not available to the guest, ignore giveup request*/
+		/* Facility yest available to the guest, igyesre giveup request*/
 		return;
 	}
 
@@ -948,7 +948,7 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 
 /*
  * Kernel code using FP or VMX could have flushed guest state to
- * the thread_struct; if so, get it back now.
+ * the thread_struct; if so, get it back yesw.
  */
 static void kvmppc_handle_lost_ext(struct kvm_vcpu *vcpu)
 {
@@ -1024,7 +1024,7 @@ static int kvmppc_handle_fac(struct kvm_vcpu *vcpu, ulong fac)
 	}
 
 	if (!guest_fac_enabled) {
-		/* Facility not enabled by the guest */
+		/* Facility yest enabled by the guest */
 		kvmppc_trigger_fac_interrupt(vcpu, fac);
 		return RESUME_GUEST;
 	}
@@ -1045,7 +1045,7 @@ static int kvmppc_handle_fac(struct kvm_vcpu *vcpu, ulong fac)
 	/* Since we disabled MSR_TM at privilege state, the mfspr instruction
 	 * for TM spr can trigger TM fac unavailable. In this case, the
 	 * emulation is handled by kvmppc_emulate_fac(), which invokes
-	 * kvmppc_emulate_mfspr() finally. But note the mfspr can include
+	 * kvmppc_emulate_mfspr() finally. But yeste the mfspr can include
 	 * RT for NV registers. So it need to restore those NV reg to reflect
 	 * the update.
 	 */
@@ -1100,7 +1100,7 @@ static int kvmppc_exit_pr_progint(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	/*
 	 * shadow_srr1 only contains valid flags if we came here via a program
 	 * exception. The other exceptions (emulation assist, FP unavailable,
-	 * etc.) do not provide flags in SRR1, so use an illegal-instruction
+	 * etc.) do yest provide flags in SRR1, so use an illegal-instruction
 	 * exception when injecting a program interrupt into the guest.
 	 */
 	if (exit_nr == BOOK3S_INTERRUPT_PROGRAM)
@@ -1195,7 +1195,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		}
 #endif
 
-		/* only care about PTEG not found errors, but leave NX alone */
+		/* only care about PTEG yest found errors, but leave NX alone */
 		if (shadow_srr1 & 0x40000000) {
 			int idx = srcu_read_lock(&vcpu->kvm->srcu);
 			r = kvmppc_handle_pagefault(run, vcpu, kvmppc_get_pc(vcpu), exit_nr);
@@ -1206,7 +1206,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			/*
 			 * XXX If we do the dcbz hack we use the NX bit to flush&patch the page,
 			 *     so we can't use the NX bit inside the guest. Let's cross our fingers,
-			 *     that no guest that needs the dcbz hack does NX.
+			 *     that yes guest that needs the dcbz hack does NX.
 			 */
 			kvmppc_mmu_pte_flush(vcpu, kvmppc_get_pc(vcpu), ~0xFFFUL);
 			r = RESUME_GUEST;
@@ -1460,7 +1460,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		if (s <= 0)
 			r = s;
 		else {
-			/* interrupts now hard-disabled */
+			/* interrupts yesw hard-disabled */
 			kvmppc_fix_ee_before_entry();
 		}
 
@@ -1862,7 +1862,7 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	ret = kvmppc_prepare_to_enter(vcpu);
 	if (ret <= 0)
 		goto out;
-	/* interrupts now hard-disabled */
+	/* interrupts yesw hard-disabled */
 
 	/* Save FPU, Altivec and VSX state */
 	giveup_all(current);
@@ -1911,7 +1911,7 @@ static int kvm_vm_ioctl_get_dirty_log_pr(struct kvm *kvm,
 	if (r)
 		goto out;
 
-	/* If nothing is dirty, don't bother messing with page tables. */
+	/* If yesthing is dirty, don't bother messing with page tables. */
 	if (is_dirty) {
 		slots = kvm_memslots(kvm);
 		memslot = id_to_memslot(slots, log->slot);
@@ -1991,7 +1991,7 @@ static int kvm_vm_ioctl_get_smmu_info_pr(struct kvm *kvm,
 	 * support it, but unfortunately we don't have a vcpu easily
 	 * to hand here to test.  Just pick the first vcpu, and if
 	 * that doesn't exist yet, report the minimum capability,
-	 * i.e., no 64k pages.
+	 * i.e., yes 64k pages.
 	 * 1T segment support goes along with 64k pages.
 	 */
 	i = 1;
@@ -2028,7 +2028,7 @@ static int kvm_configure_mmu_pr(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 static int kvm_vm_ioctl_get_smmu_info_pr(struct kvm *kvm,
 					 struct kvm_ppc_smmu_info *info)
 {
-	/* We should not get called */
+	/* We should yest get called */
 	BUG();
 }
 #endif /* CONFIG_PPC64 */
@@ -2074,7 +2074,7 @@ static int kvmppc_core_check_processor_compat_pr(void)
 	/*
 	 * PR KVM can work on POWER9 inside a guest partition
 	 * running in HPT mode.  It can't work if we are using
-	 * radix translation (because radix provides no way for
+	 * radix translation (because radix provides yes way for
 	 * a process to have unique translations in quadrant 3).
 	 */
 	if (cpu_has_feature(CPU_FTR_ARCH_300) && radix_enabled())

@@ -103,7 +103,7 @@ int ixp4xx_pci_read_errata(u32 addr, u32 cmd, u32* data)
 
 	/* 
 	 * PCI workaround  - only works if NP PCI space reads have 
-	 * no side effects!!! Read 8 times. last one will be good.
+	 * yes side effects!!! Read 8 times. last one will be good.
 	 */
 	for (i = 0; i < 8; i++) {
 		*PCI_NP_CBE = cmd;
@@ -118,7 +118,7 @@ int ixp4xx_pci_read_errata(u32 addr, u32 cmd, u32* data)
 	return retval;
 }
 
-int ixp4xx_pci_read_no_errata(u32 addr, u32 cmd, u32* data)
+int ixp4xx_pci_read_yes_errata(u32 addr, u32 cmd, u32* data)
 {
 	unsigned long flags;
 	int retval = 0;
@@ -130,7 +130,7 @@ int ixp4xx_pci_read_no_errata(u32 addr, u32 cmd, u32* data)
 	/* set up and execute the read */    
 	*PCI_NP_CBE = cmd;
 
-	/* the result of the read is now in NP_RDATA */
+	/* the result of the read is yesw in NP_RDATA */
 	*data = *PCI_NP_RDATA; 
 
 	if(check_master_abort())
@@ -179,7 +179,7 @@ static u32 ixp4xx_config_addr(u8 bus_num, u16 devfn, int where)
 
 /*
  * Mask table, bits to mask for quantity of size 1, 2 or 4 bytes.
- * 0 and 3 are not valid indexes...
+ * 0 and 3 are yest valid indexes...
  */
 static u32 bytemask[] = {
 	/*0*/	0,
@@ -329,7 +329,7 @@ void __init ixp4xx_pci_preinit(void)
 			"PCI Non-Prefetch Workaround Enabled\n");
 		ixp4xx_pci_read = ixp4xx_pci_read_errata;
 	} else
-		ixp4xx_pci_read = ixp4xx_pci_read_no_errata;
+		ixp4xx_pci_read = ixp4xx_pci_read_yes_errata;
 
 
 	/* hook in our fault handler for PCI errors */

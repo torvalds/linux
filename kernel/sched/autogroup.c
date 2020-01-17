@@ -2,7 +2,7 @@
 /*
  * Auto-group scheduling implementation:
  */
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include "sched.h"
 
 unsigned int __read_mostly sysctl_sched_autogroup_enabled = 1;
@@ -113,7 +113,7 @@ bool task_wants_autogroup(struct task_struct *p, struct task_group *tg)
 	 * value of signal->autogroup but in this case sched_move_task() will
 	 * be called again before autogroup_kref_put().
 	 *
-	 * However, there is no way sched_autogroup_exit_task() could tell us
+	 * However, there is yes way sched_autogroup_exit_task() could tell us
 	 * to avoid autogroup->tg, so we abuse PF_EXITING flag for this case.
 	 */
 	if (p->flags & PF_EXITING)
@@ -125,8 +125,8 @@ bool task_wants_autogroup(struct task_struct *p, struct task_group *tg)
 void sched_autogroup_exit_task(struct task_struct *p)
 {
 	/*
-	 * We are going to call exit_notify() and autogroup_move_group() can't
-	 * see this thread after that: we can no longer use signal->autogroup.
+	 * We are going to call exit_yestify() and autogroup_move_group() can't
+	 * see this thread after that: we can yes longer use signal->autogroup.
 	 * See the PF_EXITING check in task_wants_autogroup().
 	 */
 	sched_move_task(p);
@@ -152,8 +152,8 @@ autogroup_move_group(struct task_struct *p, struct autogroup *ag)
 	 * We can't avoid sched_move_task() after we changed signal->autogroup,
 	 * this process can already run with task_group() == prev->tg or we can
 	 * race with cgroup code which can read autogroup = prev under rq->lock.
-	 * In the latter case for_each_thread() can not miss a migrating thread,
-	 * cpu_cgroup_attach() must not be possible after cgroup_exit() and it
+	 * In the latter case for_each_thread() can yest miss a migrating thread,
+	 * cpu_cgroup_attach() must yest be possible after cgroup_exit() and it
 	 * can't be removed from thread list, we hold ->siglock.
 	 *
 	 * If an exiting thread was already removed from thread list we rely on
@@ -166,7 +166,7 @@ autogroup_move_group(struct task_struct *p, struct autogroup *ag)
 	autogroup_kref_put(prev);
 }
 
-/* Allocates GFP_KERNEL, cannot be called under any spinlock: */
+/* Allocates GFP_KERNEL, canyest be called under any spinlock: */
 void sched_autogroup_create_attach(struct task_struct *p)
 {
 	struct autogroup *ag = autogroup_create();
@@ -178,7 +178,7 @@ void sched_autogroup_create_attach(struct task_struct *p)
 }
 EXPORT_SYMBOL(sched_autogroup_create_attach);
 
-/* Cannot be called under siglock. Currently has no users: */
+/* Canyest be called under siglock. Currently has yes users: */
 void sched_autogroup_detach(struct task_struct *p)
 {
 	autogroup_move_group(p, &autogroup_default);
@@ -201,7 +201,7 @@ static int __init setup_autogroup(char *str)
 
 	return 1;
 }
-__setup("noautogroup", setup_autogroup);
+__setup("yesautogroup", setup_autogroup);
 
 #ifdef CONFIG_PROC_FS
 
@@ -229,7 +229,7 @@ int proc_sched_autogroup_set_nice(struct task_struct *p, int nice)
 	next = HZ / 10 + jiffies;
 	ag = autogroup_task_get(p);
 
-	idx = array_index_nospec(nice + 20, 40);
+	idx = array_index_yesspec(nice + 20, 40);
 	shares = scale_load(sched_prio_to_weight[idx]);
 
 	down_write(&ag->lock);

@@ -36,7 +36,7 @@ do {									\
 	}								\
 } while (0)
 #else
-#define mb_debug(n, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
+#define mb_debug(n, fmt, ...)	yes_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define EXT4_MB_HISTORY_ALLOC		1	/* allocation */
@@ -83,7 +83,7 @@ struct ext4_free_data {
 	struct list_head		efd_list;
 
 	/* this links the free block information from group_info */
-	struct rb_node			efd_node;
+	struct rb_yesde			efd_yesde;
 
 	/* group which free block extent belongs */
 	ext4_group_t			efd_group;
@@ -97,7 +97,7 @@ struct ext4_free_data {
 };
 
 struct ext4_prealloc_space {
-	struct list_head	pa_inode_list;
+	struct list_head	pa_iyesde_list;
 	struct list_head	pa_group_list;
 	union {
 		struct list_head pa_tmp_list;
@@ -110,9 +110,9 @@ struct ext4_prealloc_space {
 	ext4_lblk_t		pa_lstart;	/* log. block */
 	ext4_grpblk_t		pa_len;		/* len of preallocated chunk */
 	ext4_grpblk_t		pa_free;	/* how many blocks are free */
-	unsigned short		pa_type;	/* pa type. inode or group */
+	unsigned short		pa_type;	/* pa type. iyesde or group */
 	spinlock_t		*pa_obj_lock;
-	struct inode		*pa_inode;	/* hack, for history only */
+	struct iyesde		*pa_iyesde;	/* hack, for history only */
 };
 
 enum {
@@ -146,13 +146,13 @@ struct ext4_locality_group {
 };
 
 struct ext4_allocation_context {
-	struct inode *ac_inode;
+	struct iyesde *ac_iyesde;
 	struct super_block *ac_sb;
 
 	/* original request */
 	struct ext4_free_extent ac_o_ex;
 
-	/* goal request (normalized ac_o_ex) */
+	/* goal request (yesrmalized ac_o_ex) */
 	struct ext4_free_extent ac_g_ex;
 
 	/* the best found extent */
@@ -195,13 +195,13 @@ struct ext4_buddy {
 static inline ext4_fsblk_t ext4_grp_offs_to_block(struct super_block *sb,
 					struct ext4_free_extent *fex)
 {
-	return ext4_group_first_block_no(sb, fex->fe_group) +
+	return ext4_group_first_block_yes(sb, fex->fe_group) +
 		(fex->fe_start << EXT4_SB(sb)->s_cluster_bits);
 }
 
 typedef int (*ext4_mballoc_query_range_fn)(
 	struct super_block		*sb,
-	ext4_group_t			agno,
+	ext4_group_t			agyes,
 	ext4_grpblk_t			start,
 	ext4_grpblk_t			len,
 	void				*priv);
@@ -209,7 +209,7 @@ typedef int (*ext4_mballoc_query_range_fn)(
 int
 ext4_mballoc_query_range(
 	struct super_block		*sb,
-	ext4_group_t			agno,
+	ext4_group_t			agyes,
 	ext4_grpblk_t			start,
 	ext4_grpblk_t			end,
 	ext4_mballoc_query_range_fn	formatter,

@@ -3,12 +3,12 @@
  * Copyright 2010-2011 Picochip Ltd., Jamie Iles
  * http://www.picochip.com
  *
- * This file implements a driver for the Synopsys DesignWare watchdog device
+ * This file implements a driver for the Syyespsys DesignWare watchdog device
  * in the many subsystems. The watchdog has 16 different timeout periods
  * and these are a function of the input clock frequency.
  *
- * The DesignWare watchdog cannot be stopped once it has been started so we
- * do not implement a stop function. The watchdog core will continue to send
+ * The DesignWare watchdog canyest be stopped once it has been started so we
+ * do yest implement a stop function. The watchdog core will continue to send
  * heartbeat requests after the watchdog device has been closed.
  */
 
@@ -40,9 +40,9 @@
 
 #define DW_WDT_DEFAULT_SECONDS	30
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started "
 		 "(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 struct dw_wdt {
@@ -184,7 +184,7 @@ static unsigned int dw_wdt_get_timeleft(struct watchdog_device *wdd)
 static const struct watchdog_info dw_wdt_ident = {
 	.options	= WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT |
 			  WDIOF_MAGICCLOSE,
-	.identity	= "Synopsys DesignWare Watchdog",
+	.identity	= "Syyespsys DesignWare Watchdog",
 };
 
 static const struct watchdog_ops dw_wdt_ops = {
@@ -275,7 +275,7 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	wdd->parent = dev;
 
 	watchdog_set_drvdata(wdd, dw_wdt);
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_yeswayout(wdd, yeswayout);
 	watchdog_init_timeout(wdd, 0, dev);
 
 	/*
@@ -338,5 +338,5 @@ static struct platform_driver dw_wdt_driver = {
 module_platform_driver(dw_wdt_driver);
 
 MODULE_AUTHOR("Jamie Iles");
-MODULE_DESCRIPTION("Synopsys DesignWare Watchdog Driver");
+MODULE_DESCRIPTION("Syyespsys DesignWare Watchdog Driver");
 MODULE_LICENSE("GPL");

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -51,10 +51,10 @@ struct drm_property_enum {
  * of the property with the set of permissible values. This means that when a
  * driver wants to use a property with the same name on different objects, but
  * with different value ranges, then it must create property for each one. An
- * example would be rotation of &drm_plane, when e.g. the primary plane cannot
+ * example would be rotation of &drm_plane, when e.g. the primary plane canyest
  * be rotated. But if both the name and the value range match, then the same
  * property structure can be instantiated multiple times for the same object.
- * Userspace must be able to cope with this and cannot assume that the same
+ * Userspace must be able to cope with this and canyest assume that the same
  * symbolic property will have the same modeset object ID on all modeset
  * objects.
  *
@@ -146,10 +146,10 @@ struct drm_property {
 	 *
 	 * DRM_MODE_PROP_ATOMIC
 	 *     Set for properties which encode atomic modeset state. Such
-	 *     properties are not exposed to legacy userspace.
+	 *     properties are yest exposed to legacy userspace.
 	 *
 	 * DRM_MODE_PROP_IMMUTABLE
-	 *     Set for properties whose values cannot be changed by
+	 *     Set for properties whose values canyest be changed by
 	 *     userspace. The kernel is allowed to update the value of these
 	 *     properties. This is generally used to expose probe state to
 	 *     userspace, e.g. the EDID, or the connector path property on DP

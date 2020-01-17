@@ -113,7 +113,7 @@ static int mtk_pconf_set_ies_smt(struct mtk_pinctrl *pctl, unsigned pin,
 	unsigned int bit;
 
 	/**
-	 * Due to some soc are not support ies/smt config, add this special
+	 * Due to some soc are yest support ies/smt config, add this special
 	 * control to handle it.
 	 */
 	if (!pctl->devdata->spec_ies_smt_set &&
@@ -461,7 +461,7 @@ static bool mtk_pctrl_is_function_valid(struct mtk_pinctrl *pctl,
 	return false;
 }
 
-static int mtk_pctrl_dt_node_to_map_func(struct mtk_pinctrl *pctl,
+static int mtk_pctrl_dt_yesde_to_map_func(struct mtk_pinctrl *pctl,
 		u32 pin, u32 fnum, struct mtk_pinctrl_group *grp,
 		struct pinctrl_map **map, unsigned *reserved_maps,
 		unsigned *num_maps)
@@ -487,8 +487,8 @@ static int mtk_pctrl_dt_node_to_map_func(struct mtk_pinctrl *pctl,
 	return 0;
 }
 
-static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-				      struct device_node *node,
+static int mtk_pctrl_dt_subyesde_to_map(struct pinctrl_dev *pctldev,
+				      struct device_yesde *yesde,
 				      struct pinctrl_map **map,
 				      unsigned *reserved_maps,
 				      unsigned *num_maps)
@@ -504,14 +504,14 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	struct mtk_pinctrl_group *grp;
 	struct mtk_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 
-	pins = of_find_property(node, "pinmux", NULL);
+	pins = of_find_property(yesde, "pinmux", NULL);
 	if (!pins) {
-		dev_err(pctl->dev, "missing pins property in node %pOFn .\n",
-				node);
+		dev_err(pctl->dev, "missing pins property in yesde %pOFn .\n",
+				yesde);
 		return -EINVAL;
 	}
 
-	err = pinconf_generic_parse_dt_config(node, pctldev, &configs,
+	err = pinconf_generic_parse_dt_config(yesde, pctldev, &configs,
 		&num_configs);
 	if (err)
 		return err;
@@ -540,7 +540,7 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		goto exit;
 
 	for (i = 0; i < num_pins; i++) {
-		err = of_property_read_u32_index(node, "pinmux",
+		err = of_property_read_u32_index(yesde, "pinmux",
 				i, &pinfunc);
 		if (err)
 			goto exit;
@@ -563,7 +563,7 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 			goto exit;
 		}
 
-		err = mtk_pctrl_dt_node_to_map_func(pctl, pin, func, grp, map,
+		err = mtk_pctrl_dt_yesde_to_map_func(pctl, pin, func, grp, map,
 				reserved_maps, num_maps);
 		if (err < 0)
 			goto exit;
@@ -585,11 +585,11 @@ exit:
 	return err;
 }
 
-static int mtk_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				 struct device_node *np_config,
+static int mtk_pctrl_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+				 struct device_yesde *np_config,
 				 struct pinctrl_map **map, unsigned *num_maps)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned reserved_maps;
 	int ret;
 
@@ -597,12 +597,12 @@ static int mtk_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = 0;
 	reserved_maps = 0;
 
-	for_each_child_of_node(np_config, np) {
-		ret = mtk_pctrl_dt_subnode_to_map(pctldev, np, map,
+	for_each_child_of_yesde(np_config, np) {
+		ret = mtk_pctrl_dt_subyesde_to_map(pctldev, np, map,
 				&reserved_maps, num_maps);
 		if (ret < 0) {
 			pinctrl_utils_free_map(pctldev, *map, *num_maps);
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 	}
@@ -639,7 +639,7 @@ static int mtk_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinctrl_ops mtk_pctrl_ops = {
-	.dt_node_to_map		= mtk_pctrl_dt_node_to_map,
+	.dt_yesde_to_map		= mtk_pctrl_dt_yesde_to_map,
 	.dt_free_map		= pinctrl_utils_free_map,
 	.get_groups_count	= mtk_pctrl_get_groups_count,
 	.get_group_name		= mtk_pctrl_get_group_name,
@@ -887,8 +887,8 @@ static int mtk_eint_resume(struct device *device)
 }
 
 const struct dev_pm_ops mtk_eint_pm_ops = {
-	.suspend_noirq = mtk_eint_suspend,
-	.resume_noirq = mtk_eint_resume,
+	.suspend_yesirq = mtk_eint_suspend,
+	.resume_yesirq = mtk_eint_resume,
 };
 
 static int mtk_pctrl_build_state(struct platform_device *pdev)
@@ -981,7 +981,7 @@ static const struct mtk_eint_xt mtk_eint_xt = {
 
 static int mtk_eint_init(struct mtk_pinctrl *pctl, struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	if (!of_property_read_bool(np, "interrupt-controller"))
 		return -ENODEV;
@@ -1017,7 +1017,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 {
 	struct pinctrl_pin_desc *pins;
 	struct mtk_pinctrl *pctl;
-	struct device_node *np = pdev->dev.of_node, *node;
+	struct device_yesde *np = pdev->dev.of_yesde, *yesde;
 	struct property *prop;
 	int ret, i;
 
@@ -1033,22 +1033,22 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	node = of_parse_phandle(np, "mediatek,pctl-regmap", 0);
-	if (node) {
-		pctl->regmap1 = syscon_node_to_regmap(node);
+	yesde = of_parse_phandle(np, "mediatek,pctl-regmap", 0);
+	if (yesde) {
+		pctl->regmap1 = syscon_yesde_to_regmap(yesde);
 		if (IS_ERR(pctl->regmap1))
 			return PTR_ERR(pctl->regmap1);
 	} else if (regmap) {
 		pctl->regmap1  = regmap;
 	} else {
-		dev_err(&pdev->dev, "Pinctrl node has not register regmap.\n");
+		dev_err(&pdev->dev, "Pinctrl yesde has yest register regmap.\n");
 		return -EINVAL;
 	}
 
 	/* Only 8135 has two base addr, other SoCs have only one. */
-	node = of_parse_phandle(np, "mediatek,pctl-regmap", 1);
-	if (node) {
-		pctl->regmap2 = syscon_node_to_regmap(node);
+	yesde = of_parse_phandle(np, "mediatek,pctl-regmap", 1);
+	if (yesde) {
+		pctl->regmap2 = syscon_yesde_to_regmap(yesde);
 		if (IS_ERR(pctl->regmap2))
 			return PTR_ERR(pctl->regmap2);
 	}

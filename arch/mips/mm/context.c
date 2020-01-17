@@ -24,7 +24,7 @@ void get_new_mmu_context(struct mm_struct *mm)
 	u64 asid;
 
 	/*
-	 * This function is specific to ASIDs, and should not be called when
+	 * This function is specific to ASIDs, and should yest be called when
 	 * MMIDs are in use.
 	 */
 	if (WARN_ON(IS_ENABLED(CONFIG_DEBUG_VM) && cpu_has_mmid))
@@ -49,7 +49,7 @@ void check_mmu_context(struct mm_struct *mm)
 	unsigned int cpu = smp_processor_id();
 
 	/*
-	 * This function is specific to ASIDs, and should not be called when
+	 * This function is specific to ASIDs, and should yest be called when
 	 * MMIDs are in use.
 	 */
 	if (WARN_ON(IS_ENABLED(CONFIG_DEBUG_VM) && cpu_has_mmid))
@@ -77,7 +77,7 @@ static void flush_context(void)
 
 		/*
 		 * If this CPU has already been through a
-		 * rollover, but hasn't run another task in
+		 * rollover, but hasn't run ayesther task in
 		 * the meantime, we must preserve its reserved
 		 * MMID, as this is the only trace we have of
 		 * the process it is still running.
@@ -192,7 +192,7 @@ void check_switch_mmu_context(struct mm_struct *mm)
 	 * MMID switch fast-path, to avoid acquiring cpu_mmid_lock when it's
 	 * unnecessary.
 	 *
-	 * The memory ordering here is subtle. If our active_mmids is non-zero
+	 * The memory ordering here is subtle. If our active_mmids is yesn-zero
 	 * and the MMID matches the current version, then we update the CPU's
 	 * asid_cache with a relaxed cmpxchg. Racing with a concurrent rollover
 	 * means that either:

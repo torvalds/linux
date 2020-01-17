@@ -159,7 +159,7 @@ static int pxa27x_ohci_select_pmm(struct pxa27x_ohci *pxa_ohci, int mode)
 		break;
 	default:
 		printk( KERN_ERR
-			"Invalid mode %d, set to non-power switch mode.\n",
+			"Invalid mode %d, set to yesn-power switch mode.\n",
 			mode );
 
 		uhcrhda |= RH_A_NPS;
@@ -350,7 +350,7 @@ MODULE_DEVICE_TABLE(of, pxa_ohci_dt_ids);
 
 static int ohci_pxa_of_init(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct pxaohci_platform_data *pdata;
 	u32 tmp;
 	int ret;
@@ -358,8 +358,8 @@ static int ohci_pxa_of_init(struct platform_device *pdev)
 	if (!np)
 		return 0;
 
-	/* Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
+	/* Right yesw device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for yesw.
 	 * Once we have dma capability bindings this can go away.
 	 */
 	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -380,7 +380,7 @@ static int ohci_pxa_of_init(struct platform_device *pdev)
 		pdata->flags |= POWER_SENSE_LOW;
 	if (of_property_read_bool(np, "marvell,power-control-low"))
 		pdata->flags |= POWER_CONTROL_LOW;
-	if (of_property_read_bool(np, "marvell,no-oc-protection"))
+	if (of_property_read_bool(np, "marvell,yes-oc-protection"))
 		pdata->flags |= NO_OC_PROTECTION;
 	if (of_property_read_bool(np, "marvell,oc-mode-perport"))
 		pdata->flags |= OC_MODE_PERPORT;
@@ -439,7 +439,7 @@ static int ohci_hcd_pxa27x_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		pr_err("no resource of IORESOURCE_IRQ");
+		pr_err("yes resource of IORESOURCE_IRQ");
 		return irq;
 	}
 
@@ -514,7 +514,7 @@ static int ohci_hcd_pxa27x_probe(struct platform_device *pdev)
  *
  * Reverses the effect of ohci_hcd_pxa27x_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
- * context, normally "rmmod", "apmd", or something similar.
+ * context, yesrmally "rmmod", "apmd", or something similar.
  *
  */
 static int ohci_hcd_pxa27x_remove(struct platform_device *pdev)

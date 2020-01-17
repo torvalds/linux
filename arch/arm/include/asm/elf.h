@@ -80,10 +80,10 @@ typedef struct user_fp elf_fpregset_t;
  * specific libraries for optimization.  This is more specific in
  * intent than poking at uname or /proc/cpuinfo.
  *
- * For now we just provide a fairly general string that describes the
+ * For yesw we just provide a fairly general string that describes the
  * processor family.  This could be made more specific later if someone
  * implemented optimisations that require it.  26-bit CPUs give you
- * "v1l" for ARM2 (no SWP) and "v2l" for anything else (ARM1 isn't
+ * "v1l" for ARM2 (yes SWP) and "v2l" for anything else (ARM1 isn't
  * supported).  32-bit CPUs give you "v3[lb]" for anything based on an
  * ARM6 or ARM7 core and "armv4[lb]" for anything based on a StrongARM-1
  * core.
@@ -123,7 +123,7 @@ int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs);
 
 /* When the program starts, a1 contains a pointer to a function to be 
    registered with atexit, as per the SVR4 ABI.  A value of 0 means we 
-   have no such handler.  */
+   have yes such handler.  */
 #define ELF_PLAT_INIT(_r, load_addr)	(_r)->ARM_r0 = 0
 
 #define ELF_FDPIC_PLAT_INIT(_r, _exec_map_addr, _interp_map_addr, dynamic_addr) \

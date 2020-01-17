@@ -11,7 +11,7 @@
  * published by the Free Software Foundation.                                *
  *                                                                           *
  * You should have received a copy of the GNU General Public License along   *
- * with this program; if not, see <http://www.gnu.org/licenses/>.            *
+ * with this program; if yest, see <http://www.gnu.org/licenses/>.            *
  *                                                                           *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED    *
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF      *
@@ -239,7 +239,7 @@ struct cpl_pass_accept_req {
 	u8  src_mac[6];
 	u8  rsvd[2];
 	u32 rcv_isn;
-	u32 unknown_tcp_options;
+	u32 unkyeswn_tcp_options;
 };
 
 struct cpl_pass_accept_rpl {
@@ -428,8 +428,8 @@ struct cpl_rx_data_ddp {
 };
 
 /*
- * We want this header's alignment to be no more stringent than 2-byte aligned.
- * All fields are u8 or u16 except for the length.  However that field is not
+ * We want this header's alignment to be yes more stringent than 2-byte aligned.
+ * All fields are u8 or u16 except for the length.  However that field is yest
  * used so we break it into 2 16-bit parts to easily meet our alignment needs.
  */
 struct cpl_tx_pkt {

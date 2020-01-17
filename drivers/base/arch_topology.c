@@ -105,7 +105,7 @@ static int free_raw_capacity(void)
 	return 0;
 }
 
-void topology_normalize_cpu_scale(void)
+void topology_yesrmalize_cpu_scale(void)
 {
 	u64 capacity;
 	int cpu;
@@ -125,7 +125,7 @@ void topology_normalize_cpu_scale(void)
 	}
 }
 
-bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
+bool __init topology_parse_cpu_capacity(struct device_yesde *cpu_yesde, int cpu)
 {
 	static bool cap_parsing_failed;
 	int ret;
@@ -134,7 +134,7 @@ bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 	if (cap_parsing_failed)
 		return false;
 
-	ret = of_property_read_u32(cpu_node, "capacity-dmips-mhz",
+	ret = of_property_read_u32(cpu_yesde, "capacity-dmips-mhz",
 				   &cpu_capacity);
 	if (!ret) {
 		if (!raw_capacity) {
@@ -149,11 +149,11 @@ bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 		capacity_scale = max(cpu_capacity, capacity_scale);
 		raw_capacity[cpu] = cpu_capacity;
 		pr_debug("cpu_capacity: %pOF cpu_capacity=%u (raw)\n",
-			cpu_node, raw_capacity[cpu]);
+			cpu_yesde, raw_capacity[cpu]);
 	} else {
 		if (raw_capacity) {
 			pr_err("cpu_capacity: missing %pOF raw capacity\n",
-				cpu_node);
+				cpu_yesde);
 			pr_err("cpu_capacity: partial information: fallback to 1024 for all CPUs\n");
 		}
 		cap_parsing_failed = true;
@@ -169,7 +169,7 @@ static void parsing_done_workfn(struct work_struct *work);
 static DECLARE_WORK(parsing_done_work, parsing_done_workfn);
 
 static int
-init_cpu_capacity_callback(struct notifier_block *nb,
+init_cpu_capacity_callback(struct yestifier_block *nb,
 			   unsigned long val,
 			   void *data)
 {
@@ -186,7 +186,7 @@ init_cpu_capacity_callback(struct notifier_block *nb,
 		 cpumask_pr_args(policy->related_cpus),
 		 cpumask_pr_args(cpus_to_visit));
 
-	cpumask_andnot(cpus_to_visit, cpus_to_visit, policy->related_cpus);
+	cpumask_andyest(cpus_to_visit, cpus_to_visit, policy->related_cpus);
 
 	for_each_cpu(cpu, policy->related_cpus) {
 		raw_capacity[cpu] = topology_get_cpu_scale(cpu) *
@@ -195,7 +195,7 @@ init_cpu_capacity_callback(struct notifier_block *nb,
 	}
 
 	if (cpumask_empty(cpus_to_visit)) {
-		topology_normalize_cpu_scale();
+		topology_yesrmalize_cpu_scale();
 		schedule_work(&update_topology_flags_work);
 		free_raw_capacity();
 		pr_debug("cpu_capacity: parsing done\n");
@@ -205,18 +205,18 @@ init_cpu_capacity_callback(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block init_cpu_capacity_notifier = {
-	.notifier_call = init_cpu_capacity_callback,
+static struct yestifier_block init_cpu_capacity_yestifier = {
+	.yestifier_call = init_cpu_capacity_callback,
 };
 
-static int __init register_cpufreq_notifier(void)
+static int __init register_cpufreq_yestifier(void)
 {
 	int ret;
 
 	/*
 	 * on ACPI-based systems we need to use the default cpu capacity
 	 * until we have the necessary code to parse the cpu capacity, so
-	 * skip registering cpufreq notifier.
+	 * skip registering cpufreq yestifier.
 	 */
 	if (!acpi_disabled || !raw_capacity)
 		return -EINVAL;
@@ -226,7 +226,7 @@ static int __init register_cpufreq_notifier(void)
 
 	cpumask_copy(cpus_to_visit, cpu_possible_mask);
 
-	ret = cpufreq_register_notifier(&init_cpu_capacity_notifier,
+	ret = cpufreq_register_yestifier(&init_cpu_capacity_yestifier,
 					CPUFREQ_POLICY_NOTIFIER);
 
 	if (ret)
@@ -234,11 +234,11 @@ static int __init register_cpufreq_notifier(void)
 
 	return ret;
 }
-core_initcall(register_cpufreq_notifier);
+core_initcall(register_cpufreq_yestifier);
 
 static void parsing_done_workfn(struct work_struct *work)
 {
-	cpufreq_unregister_notifier(&init_cpu_capacity_notifier,
+	cpufreq_unregister_yestifier(&init_cpu_capacity_yestifier,
 					 CPUFREQ_POLICY_NOTIFIER);
 	free_cpumask_var(cpus_to_visit);
 }
@@ -248,40 +248,40 @@ core_initcall(free_raw_capacity);
 #endif
 
 #if defined(CONFIG_ARM64) || defined(CONFIG_RISCV)
-static int __init get_cpu_for_node(struct device_node *node)
+static int __init get_cpu_for_yesde(struct device_yesde *yesde)
 {
-	struct device_node *cpu_node;
+	struct device_yesde *cpu_yesde;
 	int cpu;
 
-	cpu_node = of_parse_phandle(node, "cpu", 0);
-	if (!cpu_node)
+	cpu_yesde = of_parse_phandle(yesde, "cpu", 0);
+	if (!cpu_yesde)
 		return -1;
 
-	cpu = of_cpu_node_to_id(cpu_node);
+	cpu = of_cpu_yesde_to_id(cpu_yesde);
 	if (cpu >= 0)
-		topology_parse_cpu_capacity(cpu_node, cpu);
+		topology_parse_cpu_capacity(cpu_yesde, cpu);
 	else
-		pr_crit("Unable to find CPU node for %pOF\n", cpu_node);
+		pr_crit("Unable to find CPU yesde for %pOF\n", cpu_yesde);
 
-	of_node_put(cpu_node);
+	of_yesde_put(cpu_yesde);
 	return cpu;
 }
 
-static int __init parse_core(struct device_node *core, int package_id,
+static int __init parse_core(struct device_yesde *core, int package_id,
 			     int core_id)
 {
 	char name[10];
 	bool leaf = true;
 	int i = 0;
 	int cpu;
-	struct device_node *t;
+	struct device_yesde *t;
 
 	do {
 		snprintf(name, sizeof(name), "thread%d", i);
 		t = of_get_child_by_name(core, name);
 		if (t) {
 			leaf = false;
-			cpu = get_cpu_for_node(t);
+			cpu = get_cpu_for_yesde(t);
 			if (cpu >= 0) {
 				cpu_topology[cpu].package_id = package_id;
 				cpu_topology[cpu].core_id = core_id;
@@ -289,15 +289,15 @@ static int __init parse_core(struct device_node *core, int package_id,
 			} else {
 				pr_err("%pOF: Can't get CPU for thread\n",
 				       t);
-				of_node_put(t);
+				of_yesde_put(t);
 				return -EINVAL;
 			}
-			of_node_put(t);
+			of_yesde_put(t);
 		}
 		i++;
 	} while (t);
 
-	cpu = get_cpu_for_node(core);
+	cpu = get_cpu_for_yesde(core);
 	if (cpu >= 0) {
 		if (!leaf) {
 			pr_err("%pOF: Core has both threads and CPU\n",
@@ -315,18 +315,18 @@ static int __init parse_core(struct device_node *core, int package_id,
 	return 0;
 }
 
-static int __init parse_cluster(struct device_node *cluster, int depth)
+static int __init parse_cluster(struct device_yesde *cluster, int depth)
 {
 	char name[10];
 	bool leaf = true;
 	bool has_cores = false;
-	struct device_node *c;
+	struct device_yesde *c;
 	static int package_id __initdata;
 	int core_id = 0;
 	int i, ret;
 
 	/*
-	 * First check for child clusters; we currently ignore any
+	 * First check for child clusters; we currently igyesre any
 	 * information about the nesting of clusters and present the
 	 * scheduler with a flat list of them.
 	 */
@@ -337,7 +337,7 @@ static int __init parse_cluster(struct device_node *cluster, int depth)
 		if (c) {
 			leaf = false;
 			ret = parse_cluster(c, depth + 1);
-			of_node_put(c);
+			of_yesde_put(c);
 			if (ret != 0)
 				return ret;
 		}
@@ -355,7 +355,7 @@ static int __init parse_cluster(struct device_node *cluster, int depth)
 			if (depth == 0) {
 				pr_err("%pOF: cpu-map children should be clusters\n",
 				       c);
-				of_node_put(c);
+				of_yesde_put(c);
 				return -EINVAL;
 			}
 
@@ -367,7 +367,7 @@ static int __init parse_cluster(struct device_node *cluster, int depth)
 				ret = -EINVAL;
 			}
 
-			of_node_put(c);
+			of_yesde_put(c);
 			if (ret != 0)
 				return ret;
 		}
@@ -385,11 +385,11 @@ static int __init parse_cluster(struct device_node *cluster, int depth)
 
 static int __init parse_dt_topology(void)
 {
-	struct device_node *cn, *map;
+	struct device_yesde *cn, *map;
 	int ret = 0;
 	int cpu;
 
-	cn = of_find_node_by_path("/cpus");
+	cn = of_find_yesde_by_path("/cpus");
 	if (!cn) {
 		pr_err("No CPU information found in DT\n");
 		return 0;
@@ -397,7 +397,7 @@ static int __init parse_dt_topology(void)
 
 	/*
 	 * When topology is provided cpu-map is essentially a root
-	 * cluster with restricted subnodes.
+	 * cluster with restricted subyesdes.
 	 */
 	map = of_get_child_by_name(cn, "cpu-map");
 	if (!map)
@@ -407,7 +407,7 @@ static int __init parse_dt_topology(void)
 	if (ret != 0)
 		goto out_map;
 
-	topology_normalize_cpu_scale();
+	topology_yesrmalize_cpu_scale();
 
 	/*
 	 * Check that all cores are in the topology; the SMP code will
@@ -418,9 +418,9 @@ static int __init parse_dt_topology(void)
 			ret = -EINVAL;
 
 out_map:
-	of_node_put(map);
+	of_yesde_put(map);
 out:
-	of_node_put(cn);
+	of_yesde_put(cn);
 	return ret;
 }
 #endif
@@ -433,11 +433,11 @@ EXPORT_SYMBOL_GPL(cpu_topology);
 
 const struct cpumask *cpu_coregroup_mask(int cpu)
 {
-	const cpumask_t *core_mask = cpumask_of_node(cpu_to_node(cpu));
+	const cpumask_t *core_mask = cpumask_of_yesde(cpu_to_yesde(cpu));
 
 	/* Find the smaller of NUMA, core or LLC siblings */
 	if (cpumask_subset(&cpu_topology[cpu].core_sibling, core_mask)) {
-		/* not numa in package, lets use the package siblings */
+		/* yest numa in package, lets use the package siblings */
 		core_mask = &cpu_topology[cpu].core_sibling;
 	}
 	if (cpu_topology[cpu].llc_id != -1) {

@@ -40,7 +40,7 @@ struct sd {
 };
 
 
-/* .priv is what goes to register 8 for this mode, known working values:
+/* .priv is what goes to register 8 for this mode, kyeswn working values:
    0x00 -> 176x144, cropped
    0x01 -> 176x144, cropped
    0x02 -> 176x144, cropped
@@ -50,8 +50,8 @@ struct sd {
    0x06 -> 320x240
    0x07 -> 160x120, cropped
    0x08 -> 160x120, cropped
-   0x09 -> 160x120, binned (note has 136 lines)
-   0x0a -> 160x120, binned (note has 136 lines)
+   0x09 -> 160x120, binned (yeste has 136 lines)
+   0x0a -> 160x120, binned (yeste has 136 lines)
    0x0b -> 160x120, cropped
 */
 static const struct v4l2_pix_format vga_mode[] = {
@@ -138,7 +138,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
-	gspca_dev->cam.no_urb_create = 1;
+	gspca_dev->cam.yes_urb_create = 1;
 
 	return 0;
 }
@@ -150,7 +150,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	/*
 	 * The konica needs a freaking large time to "boot" (approx 6.5 sec.),
-	 * and does not want to be bothered while doing so :|
+	 * and does yest want to be bothered while doing so :|
 	 * Register 0x10 counts from 1 - 3, with 3 being "ready"
 	 */
 	msleep(6000);
@@ -195,7 +195,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* create 4 URBs - 2 on endpoint 0x83 and 2 on 0x082 */
 #if MAX_NURBS < 4
-#error "Not enough URBs in the gspca table"
+#error "Not eyesugh URBs in the gspca table"
 #endif
 #define SD_NPKT 32
 	for (n = 0; n < 4; n++) {
@@ -293,7 +293,7 @@ static void sd_isoc_irq(struct urb *urb)
 	}
 
 	if (data_urb->number_of_packets != status_urb->number_of_packets) {
-		gspca_err(gspca_dev, "no packets does not match, data: %d, status: %d\n",
+		gspca_err(gspca_dev, "yes packets does yest match, data: %d, status: %d\n",
 			  data_urb->number_of_packets,
 			  status_urb->number_of_packets);
 		goto resubmit;
@@ -328,7 +328,7 @@ static void sd_isoc_irq(struct urb *urb)
 		 * bit 0 0: keep packet
 		 *	 1: drop packet (padding data)
 		 *
-		 * bit 4 0 button not clicked
+		 * bit 4 0 button yest clicked
 		 *       1 button clicked
 		 * button is used to `take a picture' (in software)
 		 */
@@ -429,7 +429,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_SHARPNESS, 0, 9, 1, 4);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

@@ -64,7 +64,7 @@ static int __init rcar_du_of_apply_overlay(const struct rcar_du_of_overlay *dtbs
 }
 
 static int __init rcar_du_of_add_property(struct of_changeset *ocs,
-					  struct device_node *np,
+					  struct device_yesde *np,
 					  const char *name, const void *value,
 					  int length)
 {
@@ -119,10 +119,10 @@ static const struct rcar_du_of_overlay rcar_du_lvds_overlays[] __initconst = {
 
 static struct of_changeset rcar_du_lvds_changeset;
 
-static void __init rcar_du_of_lvds_patch_one(struct device_node *lvds,
+static void __init rcar_du_of_lvds_patch_one(struct device_yesde *lvds,
 					     const struct of_phandle_args *clk,
-					     struct device_node *local,
-					     struct device_node *remote)
+					     struct device_yesde *local,
+					     struct device_yesde *remote)
 {
 	unsigned int psize;
 	unsigned int i;
@@ -132,7 +132,7 @@ static void __init rcar_du_of_lvds_patch_one(struct device_node *lvds,
 	/*
 	 * Set the LVDS clocks property. This can't be performed by the overlay
 	 * as the structure of the clock specifier has changed over time, and we
-	 * don't know at compile time which binding version the system we will
+	 * don't kyesw at compile time which binding version the system we will
 	 * run on uses.
 	 */
 	if (clk->args_count >= ARRAY_SIZE(value) - 1)
@@ -151,8 +151,8 @@ static void __init rcar_du_of_lvds_patch_one(struct device_node *lvds,
 		goto done;
 
 	/*
-	 * Insert the node in the OF graph: patch the LVDS ports remote-endpoint
-	 * properties to point to the endpoints of the sibling nodes in the
+	 * Insert the yesde in the OF graph: patch the LVDS ports remote-endpoint
+	 * properties to point to the endpoints of the sibling yesdes in the
 	 * graph. This can't be performed by the overlay: on the input side the
 	 * overlay would contain a phandle for the DU LVDS output port that
 	 * would clash with the system DT, and on the output side the connection
@@ -162,7 +162,7 @@ static void __init rcar_du_of_lvds_patch_one(struct device_node *lvds,
 	value[1] = cpu_to_be32(remote->phandle);
 
 	for (i = 0; i < 2; ++i) {
-		struct device_node *endpoint;
+		struct device_yesde *endpoint;
 
 		endpoint = of_graph_get_endpoint_by_regs(lvds, i, 0);
 		if (!endpoint) {
@@ -173,7 +173,7 @@ static void __init rcar_du_of_lvds_patch_one(struct device_node *lvds,
 		ret = rcar_du_of_add_property(&rcar_du_lvds_changeset,
 					      endpoint, "remote-endpoint",
 					      &value[i], sizeof(value[i]));
-		of_node_put(endpoint);
+		of_yesde_put(endpoint);
 		if (ret < 0)
 			goto done;
 	}
@@ -188,8 +188,8 @@ done:
 struct lvds_of_data {
 	struct resource res;
 	struct of_phandle_args clkspec;
-	struct device_node *local;
-	struct device_node *remote;
+	struct device_yesde *local;
+	struct device_yesde *remote;
 };
 
 static void __init rcar_du_of_lvds_patch(const struct of_device_id *of_ids)
@@ -197,46 +197,46 @@ static void __init rcar_du_of_lvds_patch(const struct of_device_id *of_ids)
 	const struct rcar_du_device_info *info;
 	const struct of_device_id *match;
 	struct lvds_of_data lvds_data[2] = { };
-	struct device_node *lvds_node;
-	struct device_node *soc_node;
-	struct device_node *du_node;
+	struct device_yesde *lvds_yesde;
+	struct device_yesde *soc_yesde;
+	struct device_yesde *du_yesde;
 	char compatible[22];
 	const char *soc_name;
 	unsigned int i;
 	int ret;
 
-	/* Get the DU node and exit if not present or disabled. */
-	du_node = of_find_matching_node_and_match(NULL, of_ids, &match);
-	if (!du_node || !of_device_is_available(du_node)) {
-		of_node_put(du_node);
+	/* Get the DU yesde and exit if yest present or disabled. */
+	du_yesde = of_find_matching_yesde_and_match(NULL, of_ids, &match);
+	if (!du_yesde || !of_device_is_available(du_yesde)) {
+		of_yesde_put(du_yesde);
 		return;
 	}
 
 	info = match->data;
-	soc_node = of_get_parent(du_node);
+	soc_yesde = of_get_parent(du_yesde);
 
 	if (WARN_ON(info->num_lvds > ARRAY_SIZE(lvds_data)))
 		goto done;
 
 	/*
-	 * Skip if the LVDS nodes already exists.
+	 * Skip if the LVDS yesdes already exists.
 	 *
-	 * The nodes are searched based on the compatible string, which we
+	 * The yesdes are searched based on the compatible string, which we
 	 * construct from the SoC name found in the DU compatible string. As a
-	 * match has been found we know the compatible string matches the
+	 * match has been found we kyesw the compatible string matches the
 	 * expected format and can thus skip some of the string manipulation
-	 * normal safety checks.
+	 * yesrmal safety checks.
 	 */
 	soc_name = strchr(match->compatible, '-') + 1;
 	sprintf(compatible, "renesas,%s-lvds", soc_name);
-	lvds_node = of_find_compatible_node(NULL, NULL, compatible);
-	if (lvds_node) {
-		of_node_put(lvds_node);
+	lvds_yesde = of_find_compatible_yesde(NULL, NULL, compatible);
+	if (lvds_yesde) {
+		of_yesde_put(lvds_yesde);
 		return;
 	}
 
 	/*
-	 * Parse the DU node and store the register specifier, the clock
+	 * Parse the DU yesde and store the register specifier, the clock
 	 * specifier and the local and remote endpoint of the LVDS link for
 	 * later use.
 	 */
@@ -247,11 +247,11 @@ static void __init rcar_du_of_lvds_patch(const struct of_device_id *of_ids)
 		int index;
 
 		sprintf(name, "lvds.%u", i);
-		index = of_property_match_string(du_node, "clock-names", name);
+		index = of_property_match_string(du_yesde, "clock-names", name);
 		if (index < 0)
 			continue;
 
-		ret = of_parse_phandle_with_args(du_node, "clocks",
+		ret = of_parse_phandle_with_args(du_yesde, "clocks",
 						 "#clock-cells", index,
 						 &lvds->clkspec);
 		if (ret < 0)
@@ -259,7 +259,7 @@ static void __init rcar_du_of_lvds_patch(const struct of_device_id *of_ids)
 
 		port = info->routes[RCAR_DU_OUTPUT_LVDS0 + i].port;
 
-		lvds->local = of_graph_get_endpoint_by_regs(du_node, port, 0);
+		lvds->local = of_graph_get_endpoint_by_regs(du_yesde, port, 0);
 		if (!lvds->local)
 			continue;
 
@@ -267,11 +267,11 @@ static void __init rcar_du_of_lvds_patch(const struct of_device_id *of_ids)
 		if (!lvds->remote)
 			continue;
 
-		index = of_property_match_string(du_node, "reg-names", name);
+		index = of_property_match_string(du_yesde, "reg-names", name);
 		if (index < 0)
 			continue;
 
-		of_address_to_resource(du_node, index, &lvds->res);
+		of_address_to_resource(du_yesde, index, &lvds->res);
 	}
 
 	/* Parse and apply the overlay. This will resolve phandles. */
@@ -280,15 +280,15 @@ static void __init rcar_du_of_lvds_patch(const struct of_device_id *of_ids)
 	if (ret < 0)
 		goto done;
 
-	/* Patch the newly created LVDS encoder nodes. */
-	for_each_child_of_node(soc_node, lvds_node) {
+	/* Patch the newly created LVDS encoder yesdes. */
+	for_each_child_of_yesde(soc_yesde, lvds_yesde) {
 		struct resource res;
 
-		if (!of_device_is_compatible(lvds_node, compatible))
+		if (!of_device_is_compatible(lvds_yesde, compatible))
 			continue;
 
 		/* Locate the lvds_data entry based on the resource start. */
-		ret = of_address_to_resource(lvds_node, 0, &res);
+		ret = of_address_to_resource(lvds_yesde, 0, &res);
 		if (ret < 0)
 			continue;
 
@@ -301,20 +301,20 @@ static void __init rcar_du_of_lvds_patch(const struct of_device_id *of_ids)
 			continue;
 
 		/* Patch the LVDS encoder. */
-		rcar_du_of_lvds_patch_one(lvds_node, &lvds_data[i].clkspec,
+		rcar_du_of_lvds_patch_one(lvds_yesde, &lvds_data[i].clkspec,
 					  lvds_data[i].local,
 					  lvds_data[i].remote);
 	}
 
 done:
 	for (i = 0; i < info->num_lvds; ++i) {
-		of_node_put(lvds_data[i].clkspec.np);
-		of_node_put(lvds_data[i].local);
-		of_node_put(lvds_data[i].remote);
+		of_yesde_put(lvds_data[i].clkspec.np);
+		of_yesde_put(lvds_data[i].local);
+		of_yesde_put(lvds_data[i].remote);
 	}
 
-	of_node_put(soc_node);
-	of_node_put(du_node);
+	of_yesde_put(soc_yesde);
+	of_yesde_put(du_yesde);
 }
 
 void __init rcar_du_of_init(const struct of_device_id *of_ids)

@@ -25,7 +25,7 @@ static int __init integrity_audit_setup(char *str)
 }
 __setup("integrity_audit=", integrity_audit_setup);
 
-void integrity_audit_msg(int audit_msgno, struct inode *inode,
+void integrity_audit_msg(int audit_msgyes, struct iyesde *iyesde,
 			 const unsigned char *fname, const char *op,
 			 const char *cause, int result, int audit_info)
 {
@@ -35,7 +35,7 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 	if (!integrity_audit_info && audit_info == 1)	/* Skip info messages */
 		return;
 
-	ab = audit_log_start(audit_context(), GFP_KERNEL, audit_msgno);
+	ab = audit_log_start(audit_context(), GFP_KERNEL, audit_msgyes);
 	audit_log_format(ab, "pid=%d uid=%u auid=%u ses=%u",
 			 task_pid_nr(current),
 			 from_kuid(&init_user_ns, current_cred()->uid),
@@ -48,10 +48,10 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 		audit_log_format(ab, " name=");
 		audit_log_untrustedstring(ab, fname);
 	}
-	if (inode) {
+	if (iyesde) {
 		audit_log_format(ab, " dev=");
-		audit_log_untrustedstring(ab, inode->i_sb->s_id);
-		audit_log_format(ab, " ino=%lu", inode->i_ino);
+		audit_log_untrustedstring(ab, iyesde->i_sb->s_id);
+		audit_log_format(ab, " iyes=%lu", iyesde->i_iyes);
 	}
 	audit_log_format(ab, " res=%d", !result);
 	audit_log_end(ab);

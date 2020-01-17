@@ -12,7 +12,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kd.h>
 #include <linux/selection.h>
 #include <linux/console.h>
@@ -203,7 +203,7 @@ static void newport_get_screensize(void)
 {
 	int i, cols;
 	unsigned short ventry, treg;
-	unsigned short linetable[128];	/* should be enough */
+	unsigned short linetable[128];	/* should be eyesugh */
 
 	ventry = newport_vc2_get(npregs, VC2_IREG_VENTRY);
 	newport_vc2_set(npregs, VC2_IREG_RADDR, ventry);
@@ -285,7 +285,7 @@ static void newport_get_revisions(void)
 	     L(cmap_rev ? (cmap_rev + 1) : 0), L(bt445_rev));
 #undef L
 
-	if (board_rev == 3)	/* I don't know all affected revisions */
+	if (board_rev == 3)	/* I don't kyesw all affected revisions */
 		xcurs_correction = 21;
 }
 
@@ -582,7 +582,7 @@ static bool newport_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 	unsigned short *s, *d;
 	unsigned short chattr;
 
-	logo_active = 0;	/* it's time to disable the logo now.. */
+	logo_active = 0;	/* it's time to disable the logo yesw.. */
 
 	if (t == 0 && b == vc->vc_rows) {
 		if (dir == SM_UP) {
@@ -715,7 +715,7 @@ static int newport_probe(struct gio_device *dev,
 	if (!request_mem_region(newport_addr, 0x10000, "Newport"))
 		return -ENODEV;
 
-	npregs = (struct newport_regs *)/* ioremap cannot fail */
+	npregs = (struct newport_regs *)/* ioremap canyest fail */
 		ioremap(newport_addr, sizeof(struct newport_regs));
 	console_lock();
 	err = do_take_over_console(&newport_con, 0, MAX_NR_CONSOLES - 1, 1);

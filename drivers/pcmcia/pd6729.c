@@ -32,7 +32,7 @@ MODULE_AUTHOR("Jun Komuro <komurojun-mbn@nifty.com>");
 
 /*
  * simple helper functions
- * External clock time, in nanoseconds.  120 ns = 8.33 MHz
+ * External clock time, in nayesseconds.  120 ns = 8.33 MHz
  */
 #define to_cycles(ns)	((ns)/120)
 
@@ -193,7 +193,7 @@ static irqreturn_t pd6729_interrupt(int irq, void *dev)
 
 			/* card status change register */
 			csc = indirect_read(&socket[i], I365_CSC);
-			if (csc == 0)  /* no events on this socket */
+			if (csc == 0)  /* yes events on this socket */
 				continue;
 
 			handled = 1;
@@ -226,7 +226,7 @@ static irqreturn_t pd6729_interrupt(int irq, void *dev)
 			active |= events;
 		}
 
-		if (active == 0) /* no more events to handle */
+		if (active == 0) /* yes more events to handle */
 			break;
 	}
 	return IRQ_RETVAL(handled);
@@ -259,14 +259,14 @@ static int pd6729_get_status(struct pcmcia_socket *sock, u_int *value)
 
 	/*
 	 * IO cards have a different meaning of bits 0,1
-	 * Also notice the inverse-logic on the bits
+	 * Also yestice the inverse-logic on the bits
 	 */
 	if (indirect_read(socket, I365_INTCTL) & I365_PC_IOCARD) {
 		/* IO card */
 		if (!(status & I365_CS_STSCHG))
 			*value |= SS_STSCHG;
 	} else {
-		/* non I/O card */
+		/* yesn I/O card */
 		if (!(status & I365_CS_BVD1))
 			*value |= SS_BATDEAD;
 		if (!(status & I365_CS_BVD2))
@@ -277,7 +277,7 @@ static int pd6729_get_status(struct pcmcia_socket *sock, u_int *value)
 		*value |= SS_WRPROT;	/* card is write protected */
 
 	if (status & I365_CS_READY)
-		*value |= SS_READY;	/* card is not busy */
+		*value |= SS_READY;	/* card is yest busy */
 
 	if (status & I365_CS_POWERON)
 		*value |= SS_POWERON;	/* power is applied to the card */
@@ -353,7 +353,7 @@ static int pd6729_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 
 	switch (state->Vpp) {
 	case 0:
-		dev_dbg(&sock->dev, "not setting Vpp on socket %i\n",
+		dev_dbg(&sock->dev, "yest setting Vpp on socket %i\n",
 			socket->number);
 		break;
 	case 33:
@@ -413,7 +413,7 @@ static int pd6729_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 		reg |= socket->card_irq;
 	indirect_write(socket, I365_INTCTL, reg);
 
-	/* now clear the (probably bogus) pending stuff by doing a dummy read */
+	/* yesw clear the (probably bogus) pending stuff by doing a dummy read */
 	(void)indirect_read(socket, I365_CSC);
 
 	return 0;
@@ -528,7 +528,7 @@ static int pd6729_set_mem_map(struct pcmcia_socket *sock,
 		   "socket %i\n", socket->number);*/
 		i |= I365_MEM_REG;
 	} else {
-		/* dev_dbg(&sock->dev, "requesting normal memory for "
+		/* dev_dbg(&sock->dev, "requesting yesrmal memory for "
 		   "socket %i\n", socket->number);*/
 	}
 	indirect_write16(socket, base + I365_W_OFF, i);
@@ -613,7 +613,7 @@ static u_int pd6729_isa_scan(void)
 			printk("%s%d", ((mask & ((1<<i)-1)) ? "," : ""), i);
 
 	if (mask == 0)
-		printk("none!");
+		printk("yesne!");
 	else
 		printk("  polling status changes.\n");
 
@@ -652,7 +652,7 @@ static int pd6729_pci_probe(struct pci_dev *dev,
 		"on irq %d\n",
 		(unsigned long long)pci_resource_start(dev, 0), dev->irq);
 	/*
-	 * Since we have no memory BARs some firmware may not
+	 * Since we have yes memory BARs some firmware may yest
 	 * have had PCI_COMMAND_MEMORY enabled, yet the device needs it.
 	 */
 	pci_read_config_byte(dev, PCI_COMMAND, &configbyte);
@@ -673,7 +673,7 @@ static int pd6729_pci_probe(struct pci_dev *dev,
 
 	mask = pd6729_isa_scan();
 	if (irq_mode == 0 && mask == 0) {
-		dev_warn(&dev->dev, "no ISA interrupt is available.\n");
+		dev_warn(&dev->dev, "yes ISA interrupt is available.\n");
 		ret = -ENODEV;
 		goto err_out_free_res;
 	}
@@ -690,7 +690,7 @@ static int pd6729_pci_probe(struct pci_dev *dev,
 		socket[i].number = i;
 
 		socket[i].socket.ops = &pd6729_operations;
-		socket[i].socket.resource_ops = &pccard_nonstatic_ops;
+		socket[i].socket.resource_ops = &pccard_yesnstatic_ops;
 		socket[i].socket.dev.parent = &dev->dev;
 		socket[i].socket.driver_data = &socket[i];
 	}

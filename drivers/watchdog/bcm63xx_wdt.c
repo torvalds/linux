@@ -10,7 +10,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -48,9 +48,9 @@ static struct {
 static int expect_close;
 
 static int wdt_time = WDT_DEFAULT_TIME;
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /* HW functions */
@@ -110,21 +110,21 @@ static int bcm63xx_wdt_settimeout(int new_time)
 	return 0;
 }
 
-static int bcm63xx_wdt_open(struct inode *inode, struct file *file)
+static int bcm63xx_wdt_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(0, &bcm63xx_wdt_device.inuse))
 		return -EBUSY;
 
 	bcm63xx_wdt_start();
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int bcm63xx_wdt_release(struct inode *inode, struct file *file)
+static int bcm63xx_wdt_release(struct iyesde *iyesde, struct file *file)
 {
 	if (expect_close == 42)
 		bcm63xx_wdt_pause();
 	else {
-		pr_crit("Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, yest stopping watchdog!\n");
 		bcm63xx_wdt_start();
 	}
 	clear_bit(0, &bcm63xx_wdt_device.inuse);
@@ -136,7 +136,7 @@ static ssize_t bcm63xx_wdt_write(struct file *file, const char *data,
 				size_t len, loff_t *ppos)
 {
 	if (len) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			/* In case it was set long ago */
@@ -218,7 +218,7 @@ static long bcm63xx_wdt_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations bcm63xx_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= bcm63xx_wdt_write,
 	.unlocked_ioctl	= bcm63xx_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -227,7 +227,7 @@ static const struct file_operations bcm63xx_wdt_fops = {
 };
 
 static struct miscdevice bcm63xx_wdt_miscdev = {
-	.minor	= WATCHDOG_MINOR,
+	.miyesr	= WATCHDOG_MINOR,
 	.name	= "watchdog",
 	.fops	= &bcm63xx_wdt_fops,
 };
@@ -246,7 +246,7 @@ static int bcm63xx_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	bcm63xx_wdt_device.regs = devm_ioremap_nocache(&pdev->dev, r->start,
+	bcm63xx_wdt_device.regs = devm_ioremap_yescache(&pdev->dev, r->start,
 							resource_size(r));
 	if (!bcm63xx_wdt_device.regs) {
 		dev_err(&pdev->dev, "failed to remap I/O resources\n");
@@ -284,7 +284,7 @@ unregister_timer:
 
 static int bcm63xx_wdt_remove(struct platform_device *pdev)
 {
-	if (!nowayout)
+	if (!yeswayout)
 		bcm63xx_wdt_pause();
 
 	misc_deregister(&bcm63xx_wdt_miscdev);

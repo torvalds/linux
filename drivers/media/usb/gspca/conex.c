@@ -676,7 +676,7 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 	} while (--retry);
 	if (retry == 0)
 		gspca_err(gspca_dev, "Damned Errors sending jpeg Table\n");
-	/* send the qtable now */
+	/* send the qtable yesw */
 	reg_r(gspca_dev, 0x0001, 1);		/* -> 0x18 */
 	length = 8;
 	for (i = 0; i < 18; i++) {
@@ -906,7 +906,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	sd->sat = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_SATURATION, 0, 7, 1, 3);
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

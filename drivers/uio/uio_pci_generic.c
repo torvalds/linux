@@ -4,7 +4,7 @@
  * Copyright (C) 2009 Red Hat, Inc.
  * Author: Michael S. Tsirkin <mst@redhat.com>
  *
- * Since the driver does not declare any device ids, you must allocate
+ * Since the driver does yest declare any device ids, you must allocate
  * id and bind the device to the driver yourself.  For example:
  *
  * # echo "8086 10f5" > /sys/bus/pci/drivers/uio_pci_generic/new_id
@@ -13,7 +13,7 @@
  * # ls -l /sys/bus/pci/devices/0000:00:19.0/driver
  * .../0000:00:19.0/driver -> ../../../bus/pci/drivers/uio_pci_generic
  *
- * Driver won't bind to devices which do not support the Interrupt Disable Bit
+ * Driver won't bind to devices which do yest support the Interrupt Disable Bit
  * in the command register. All devices compliant to PCI 2.3 (circa 2002) and
  * all compliant PCI Express devices should support this bit.
  */
@@ -39,7 +39,7 @@ to_uio_pci_generic_dev(struct uio_info *info)
 	return container_of(info, struct uio_pci_generic_dev, info);
 }
 
-static int release(struct uio_info *info, struct inode *inode)
+static int release(struct uio_info *info, struct iyesde *iyesde)
 {
 	struct uio_pci_generic_dev *gdev = to_uio_pci_generic_dev(info);
 
@@ -48,7 +48,7 @@ static int release(struct uio_info *info, struct inode *inode)
 	 * people (mis)use it with such devices.
 	 * Let's at least make sure DMA isn't left enabled after the userspace
 	 * driver closes the fd.
-	 * Note that there's a non-zero chance doing this will wedge the device
+	 * Note that there's a yesn-zero chance doing this will wedge the device
 	 * at least until reset.
 	 */
 	pci_clear_master(gdev->pdev);
@@ -102,7 +102,7 @@ static int probe(struct pci_dev *pdev,
 		gdev->info.handler = irqhandler;
 	} else {
 		dev_warn(&pdev->dev, "No IRQ assigned to device: "
-			 "no support for interrupts?\n");
+			 "yes support for interrupts?\n");
 	}
 
 	err = uio_register_device(&pdev->dev, &gdev->info);

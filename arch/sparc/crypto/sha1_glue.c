@@ -165,7 +165,7 @@ static int __init sha1_sparc64_mod_init(void)
 		pr_info("Using sparc64 sha1 opcode optimized SHA-1 implementation\n");
 		return crypto_register_shash(&alg);
 	}
-	pr_info("sparc64 sha1 opcode not available.\n");
+	pr_info("sparc64 sha1 opcode yest available.\n");
 	return -ENODEV;
 }
 

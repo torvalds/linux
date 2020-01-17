@@ -26,52 +26,52 @@ enum count_cache_flush_type {
 static enum count_cache_flush_type count_cache_flush_type = COUNT_CACHE_FLUSH_NONE;
 static bool link_stack_flush_enabled;
 
-bool barrier_nospec_enabled;
-static bool no_nospec;
+bool barrier_yesspec_enabled;
+static bool yes_yesspec;
 static bool btb_flush_enabled;
 #if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_BOOK3S_64)
-static bool no_spectrev2;
+static bool yes_spectrev2;
 #endif
 
-static void enable_barrier_nospec(bool enable)
+static void enable_barrier_yesspec(bool enable)
 {
-	barrier_nospec_enabled = enable;
-	do_barrier_nospec_fixups(enable);
+	barrier_yesspec_enabled = enable;
+	do_barrier_yesspec_fixups(enable);
 }
 
-void setup_barrier_nospec(void)
+void setup_barrier_yesspec(void)
 {
 	bool enable;
 
 	/*
 	 * It would make sense to check SEC_FTR_SPEC_BAR_ORI31 below as well.
-	 * But there's a good reason not to. The two flags we check below are
-	 * both are enabled by default in the kernel, so if the hcall is not
+	 * But there's a good reason yest to. The two flags we check below are
+	 * both are enabled by default in the kernel, so if the hcall is yest
 	 * functional they will be enabled.
 	 * On a system where the host firmware has been updated (so the ori
 	 * functions as a barrier), but on which the hypervisor (KVM/Qemu) has
-	 * not been updated, we would like to enable the barrier. Dropping the
+	 * yest been updated, we would like to enable the barrier. Dropping the
 	 * check for SEC_FTR_SPEC_BAR_ORI31 achieves that. The only downside is
 	 * we potentially enable the barrier on systems where the host firmware
-	 * is not updated, but that's harmless as it's a no-op.
+	 * is yest updated, but that's harmless as it's a yes-op.
 	 */
 	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) &&
 		 security_ftr_enabled(SEC_FTR_BNDS_CHK_SPEC_BAR);
 
-	if (!no_nospec && !cpu_mitigations_off())
-		enable_barrier_nospec(enable);
+	if (!yes_yesspec && !cpu_mitigations_off())
+		enable_barrier_yesspec(enable);
 }
 
-static int __init handle_nospectre_v1(char *p)
+static int __init handle_yesspectre_v1(char *p)
 {
-	no_nospec = true;
+	yes_yesspec = true;
 
 	return 0;
 }
-early_param("nospectre_v1", handle_nospectre_v1);
+early_param("yesspectre_v1", handle_yesspectre_v1);
 
 #ifdef CONFIG_DEBUG_FS
-static int barrier_nospec_set(void *data, u64 val)
+static int barrier_yesspec_set(void *data, u64 val)
 {
 	switch (val) {
 	case 0:
@@ -81,31 +81,31 @@ static int barrier_nospec_set(void *data, u64 val)
 		return -EINVAL;
 	}
 
-	if (!!val == !!barrier_nospec_enabled)
+	if (!!val == !!barrier_yesspec_enabled)
 		return 0;
 
-	enable_barrier_nospec(!!val);
+	enable_barrier_yesspec(!!val);
 
 	return 0;
 }
 
-static int barrier_nospec_get(void *data, u64 *val)
+static int barrier_yesspec_get(void *data, u64 *val)
 {
-	*val = barrier_nospec_enabled ? 1 : 0;
+	*val = barrier_yesspec_enabled ? 1 : 0;
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(fops_barrier_nospec, barrier_nospec_get,
-			 barrier_nospec_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_barrier_yesspec, barrier_yesspec_get,
+			 barrier_yesspec_set, "%llu\n");
 
-static __init int barrier_nospec_debugfs_init(void)
+static __init int barrier_yesspec_debugfs_init(void)
 {
-	debugfs_create_file_unsafe("barrier_nospec", 0600,
+	debugfs_create_file_unsafe("barrier_yesspec", 0600,
 				   powerpc_debugfs_root, NULL,
-				   &fops_barrier_nospec);
+				   &fops_barrier_yesspec);
 	return 0;
 }
-device_initcall(barrier_nospec_debugfs_init);
+device_initcall(barrier_yesspec_debugfs_init);
 
 static __init int security_feature_debugfs_init(void)
 {
@@ -117,19 +117,19 @@ device_initcall(security_feature_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */
 
 #if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_BOOK3S_64)
-static int __init handle_nospectre_v2(char *p)
+static int __init handle_yesspectre_v2(char *p)
 {
-	no_spectrev2 = true;
+	yes_spectrev2 = true;
 
 	return 0;
 }
-early_param("nospectre_v2", handle_nospectre_v2);
+early_param("yesspectre_v2", handle_yesspectre_v2);
 #endif /* CONFIG_PPC_FSL_BOOK3E || CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
 void setup_spectre_v2(void)
 {
-	if (no_spectrev2 || cpu_mitigations_off())
+	if (yes_spectrev2 || cpu_mitigations_off())
 		do_btb_flush_fixups();
 	else
 		btb_flush_enabled = true;
@@ -179,7 +179,7 @@ ssize_t cpu_show_spectre_v1(struct device *dev, struct device_attribute *attr, c
 	seq_buf_init(&s, buf, PAGE_SIZE - 1);
 
 	if (security_ftr_enabled(SEC_FTR_BNDS_CHK_SPEC_BAR)) {
-		if (barrier_nospec_enabled)
+		if (barrier_yesspec_enabled)
 			seq_buf_printf(&s, "Mitigation: __user pointer sanitization");
 		else
 			seq_buf_printf(&s, "Vulnerable");
@@ -245,17 +245,17 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr, c
  */
 
 static enum stf_barrier_type stf_enabled_flush_types;
-static bool no_stf_barrier;
+static bool yes_stf_barrier;
 bool stf_barrier;
 
-static int __init handle_no_stf_barrier(char *p)
+static int __init handle_yes_stf_barrier(char *p)
 {
 	pr_info("stf-barrier: disabled on command line.");
-	no_stf_barrier = true;
+	yes_stf_barrier = true;
 	return 0;
 }
 
-early_param("no_stf_barrier", handle_no_stf_barrier);
+early_param("yes_stf_barrier", handle_yes_stf_barrier);
 
 /* This is the generic flag used by other architectures */
 static int __init handle_ssbd(char *p)
@@ -264,7 +264,7 @@ static int __init handle_ssbd(char *p)
 		/* Until firmware tells us, we have the barrier with auto */
 		return 0;
 	} else if (strncmp(p, "off", 3) == 0) {
-		handle_no_stf_barrier(NULL);
+		handle_yes_stf_barrier(NULL);
 		return 0;
 	} else
 		return 1;
@@ -274,12 +274,12 @@ static int __init handle_ssbd(char *p)
 early_param("spec_store_bypass_disable", handle_ssbd);
 
 /* This is the generic flag used by other architectures */
-static int __init handle_no_ssbd(char *p)
+static int __init handle_yes_ssbd(char *p)
 {
-	handle_no_stf_barrier(NULL);
+	handle_yes_stf_barrier(NULL);
 	return 0;
 }
-early_param("nospec_store_bypass_disable", handle_no_ssbd);
+early_param("yesspec_store_bypass_disable", handle_yes_ssbd);
 
 static void stf_barrier_enable(bool enable)
 {
@@ -298,7 +298,7 @@ void setup_stf_barrier(void)
 
 	hv = cpu_has_feature(CPU_FTR_HVMODE);
 
-	/* Default to fallback in case fw-features are not available */
+	/* Default to fallback in case fw-features are yest available */
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
 		type = STF_BARRIER_EIEIO;
 	else if (cpu_has_feature(CPU_FTR_ARCH_207S))
@@ -322,7 +322,7 @@ void setup_stf_barrier(void)
 
 	stf_enabled_flush_types = type;
 
-	if (!no_stf_barrier && !cpu_mitigations_off())
+	if (!yes_stf_barrier && !cpu_mitigations_off())
 		stf_barrier_enable(enable);
 }
 
@@ -341,7 +341,7 @@ ssize_t cpu_show_spec_store_bypass(struct device *dev, struct device_attribute *
 			type = "fallback";
 			break;
 		default:
-			type = "unknown";
+			type = "unkyeswn";
 		}
 		return sprintf(buf, "Mitigation: Kernel entry/exit barrier (%s)\n", type);
 	}
@@ -390,7 +390,7 @@ static __init int stf_barrier_debugfs_init(void)
 device_initcall(stf_barrier_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */
 
-static void no_count_cache_flush(void)
+static void yes_count_cache_flush(void)
 {
 	count_cache_flush_type = COUNT_CACHE_FLUSH_NONE;
 	pr_info("count-cache-flush: software flush disabled.\n");
@@ -409,7 +409,7 @@ static void toggle_count_cache_flush(bool enable)
 #endif
 		pr_info("link-stack-flush: software flush disabled.\n");
 		link_stack_flush_enabled = false;
-		no_count_cache_flush();
+		yes_count_cache_flush();
 		return;
 	}
 
@@ -429,7 +429,7 @@ static void toggle_count_cache_flush(bool enable)
 	// If we just need to flush the link stack, patch an early return
 	if (!security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE)) {
 		patch_instruction_site(&patch__flush_link_stack_return, PPC_INST_BLR);
-		no_count_cache_flush();
+		yes_count_cache_flush();
 		return;
 	}
 
@@ -448,16 +448,16 @@ void setup_count_cache_flush(void)
 {
 	bool enable = true;
 
-	if (no_spectrev2 || cpu_mitigations_off()) {
+	if (yes_spectrev2 || cpu_mitigations_off()) {
 		if (security_ftr_enabled(SEC_FTR_BCCTRL_SERIALISED) ||
 		    security_ftr_enabled(SEC_FTR_COUNT_CACHE_DISABLED))
-			pr_warn("Spectre v2 mitigations not fully under software control, can't disable\n");
+			pr_warn("Spectre v2 mitigations yest fully under software control, can't disable\n");
 
 		enable = false;
 	}
 
 	/*
-	 * There's no firmware feature flag/hypervisor bit to tell us we need to
+	 * There's yes firmware feature flag/hypervisor bit to tell us we need to
 	 * flush the link stack on context switch. So we set it here if we see
 	 * either of the Spectre v2 mitigations that aim to protect userspace.
 	 */

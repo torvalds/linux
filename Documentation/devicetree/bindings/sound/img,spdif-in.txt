@@ -1,4 +1,4 @@
-Imagination Technologies SPDIF Input Controller
+Imagination Techyeslogies SPDIF Input Controller
 
 Required Properties:
 

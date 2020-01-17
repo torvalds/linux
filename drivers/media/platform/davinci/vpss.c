@@ -230,7 +230,7 @@ static int dm355_enable_clock(enum vpss_clock_sel clock_sel, int en)
 
 	switch (clock_sel) {
 	case VPSS_VPBE_CLOCK:
-		/* nothing since lsb */
+		/* yesthing since lsb */
 		break;
 	case VPSS_VENC_CLOCK_SEL:
 		shift = 2;
@@ -396,7 +396,7 @@ static int vpss_probe(struct platform_device *pdev)
 	char *platform_name;
 
 	if (!pdev->dev.platform_data) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "yes platform data\n");
 		return -ENOENT;
 	}
 
@@ -408,7 +408,7 @@ static int vpss_probe(struct platform_device *pdev)
 	else if (!strcmp(platform_name, "dm644x_vpss"))
 		oper_cfg.platform = DM644X;
 	else {
-		dev_err(&pdev->dev, "vpss driver not supported on this platform\n");
+		dev_err(&pdev->dev, "vpss driver yest supported on this platform\n");
 		return -ENODEV;
 	}
 

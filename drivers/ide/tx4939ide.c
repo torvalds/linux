@@ -351,7 +351,7 @@ static int tx4939ide_dma_test_irq(ide_drive_t *drive)
 	ide_int = ctl & (TX4939IDE_INT_XFEREND | TX4939IDE_INT_HOST);
 	switch (ide_int) {
 	case TX4939IDE_INT_HOST:
-		/* On error, XFEREND might not be asserted. */
+		/* On error, XFEREND might yest be asserted. */
 		stat = tx4939ide_readb(base, TX4939IDE_AltStat_DevCtl);
 		if ((stat & (ATA_BUSY | ATA_DRQ | ATA_ERR)) == ATA_ERR)
 			found = 1;
@@ -370,7 +370,7 @@ static int tx4939ide_dma_test_irq(ide_drive_t *drive)
 		break;
 	}
 	/*
-	 * Do not clear XFEREND, HOST now.  They will be cleared by
+	 * Do yest clear XFEREND, HOST yesw.  They will be cleared by
 	 * clearing bit2 of DMA_Stat.
 	 */
 	ctl &= ~ide_int;
@@ -411,7 +411,7 @@ static int tx4939ide_init_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 	hwif->dma_base =
 		hwif->extra_base + tx4939ide_swizzleb(TX4939IDE_DMA_Cmd);
 	/*
-	 * Note that we cannot use ATA_DMA_TABLE_OFS, ATA_DMA_STATUS
+	 * Note that we canyest use ATA_DMA_TABLE_OFS, ATA_DMA_STATUS
 	 * for big endian.
 	 */
 	return ide_allocate_dma_engine(hwif);
@@ -427,7 +427,7 @@ static void tx4939ide_tf_load_fixup(ide_drive_t *drive)
 	 * Fix ATA100 CORE System Control Register. (The write to the
 	 * Device/Head register may write wrong data to the System
 	 * Control Register)
-	 * While Sys_Ctl is written here, dev_select() is not needed.
+	 * While Sys_Ctl is written here, dev_select() is yest needed.
 	 */
 	tx4939ide_writew(sysctl, base, TX4939IDE_Sys_Ctl);
 }

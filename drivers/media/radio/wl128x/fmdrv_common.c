@@ -91,7 +91,7 @@ static void fm_irq_handle_intmsk_cmd_resp(struct fmdev *);
 
 /*
  * When FM common module receives interrupt packet, following handlers
- * will be executed one after another to service the interrupt(s)
+ * will be executed one after ayesther to service the interrupt(s)
  */
 enum fmc_irq_handler_index {
 	FM_SEND_FLAG_GETCMD_IDX,
@@ -302,7 +302,7 @@ static void recv_tasklet(unsigned long arg)
 		/* Is this for interrupt handler? */
 		else if (evt_hdr->op == fmdev->pre_op && fmdev->resp_comp == NULL) {
 			if (fmdev->resp_skb != NULL)
-				fmerr("Response SKB ptr not NULL\n");
+				fmerr("Response SKB ptr yest NULL\n");
 
 			spin_lock_irqsave(&fmdev->resp_skb_lock, flags);
 			fmdev->resp_skb = skb;
@@ -319,7 +319,7 @@ static void recv_tasklet(unsigned long arg)
 
 		/*
 		 * Check flow control field. If Num_FM_HCI_Commands field is
-		 * not zero, schedule FM TX tasklet.
+		 * yest zero, schedule FM TX tasklet.
 		 */
 		if (num_fm_hci_cmds && atomic_read(&fmdev->tx_cnt))
 			if (!skb_queue_empty(&fmdev->tx_q))
@@ -354,7 +354,7 @@ static void send_tasklet(unsigned long arg)
 	fmdev->pre_op = fm_cb(skb)->fm_op;
 
 	if (fmdev->resp_comp != NULL)
-		fmerr("Response completion handler is not NULL\n");
+		fmerr("Response completion handler is yest NULL\n");
 
 	fmdev->resp_comp = fm_cb(skb)->completion;
 
@@ -423,7 +423,7 @@ static int fm_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type,	void *payload,
 
 		/*
 		 * If firmware download has finished and the command is
-		 * not a read command then payload is != NULL - a write
+		 * yest a read command then payload is != NULL - a write
 		 * command with u16 payload - convert to be16
 		 */
 		if (payload != NULL)
@@ -474,7 +474,7 @@ int fmc_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type, void *payload,
 
 	evt_hdr = (void *)skb->data;
 	if (evt_hdr->status != 0) {
-		fmerr("Received event pkt status(%d) is not zero\n",
+		fmerr("Received event pkt status(%d) is yest zero\n",
 			   evt_hdr->status);
 		kfree_skb(skb);
 		return -EIO;
@@ -510,7 +510,7 @@ static inline int check_cmdresp_status(struct fmdev *fmdev,
 
 	fm_evt_hdr = (void *)(*skb)->data;
 	if (fm_evt_hdr->status != 0) {
-		fmerr("irq: opcode %x response status is not zero Initiating irq recovery process\n",
+		fmerr("irq: opcode %x response status is yest zero Initiating irq recovery process\n",
 				fm_evt_hdr->op);
 
 		mod_timer(&fmdev->irq_info.timer, jiffies + FM_DRV_TX_TIMEOUT);
@@ -530,7 +530,7 @@ static inline void fm_irq_common_cmd_resp_helper(struct fmdev *fmdev, u8 stage)
 
 /*
  * Interrupt process timeout handler.
- * One of the irq handler did not get proper response from the chip. So take
+ * One of the irq handler did yest get proper response from the chip. So take
  * recovery action here. FM interrupts are disabled in the beginning of
  * interrupt process. Therefore reset stage index to re-enable default
  * interrupts. So that next interrupt will be processed as usual.
@@ -561,7 +561,7 @@ static void fm_irq_send_flag_getcmd(struct fmdev *fmdev)
 {
 	u16 flag;
 
-	/* Send FLAG_GET command , to know the source of interrupt */
+	/* Send FLAG_GET command , to kyesw the source of interrupt */
 	if (!fm_send_cmd(fmdev, FLAG_GET, REG_RD, NULL, sizeof(flag), NULL))
 		fm_irq_timeout_stage(fmdev, FM_HANDLE_FLAG_GETCMD_RESP_IDX);
 }
@@ -592,7 +592,7 @@ static void fm_irq_handle_flag_getcmd_resp(struct fmdev *fmdev)
 static void fm_irq_handle_hw_malfunction(struct fmdev *fmdev)
 {
 	if (fmdev->irq_info.flag & FM_MAL_EVENT & fmdev->irq_info.mask)
-		fmerr("irq: HW MAL int received - do nothing\n");
+		fmerr("irq: HW MAL int received - do yesthing\n");
 
 	/* Continue next function in interrupt handler table */
 	fm_irq_call_stage(fmdev, FM_RDS_START_IDX);
@@ -653,13 +653,13 @@ static void fm_rx_update_af_cache(struct fmdev *fmdev, u8 af)
 		if (stat_info->af_cache[index] == freq)
 			break;
 	}
-	/* Reached the limit of the list - ignore the next AF */
+	/* Reached the limit of the list - igyesre the next AF */
 	if (index == stat_info->af_list_max) {
 		fmdbg("AF cache is full\n");
 		return;
 	}
 	/*
-	 * If we reached the end of the list then this AF is not
+	 * If we reached the end of the list then this AF is yest
 	 * in the list - add it.
 	 */
 	if (index == stat_info->afcache_size) {
@@ -867,7 +867,7 @@ static void fm_irq_afjump_set_pi(struct fmdev *fmdev)
 {
 	u16 payload;
 
-	/* Set PI code - must be updated if the AF list is not empty */
+	/* Set PI code - must be updated if the AF list is yest empty */
 	payload = fmdev->rx.stat_info.picode;
 	if (!fm_send_cmd(fmdev, RDS_PI_SET, REG_WR, &payload, sizeof(payload), NULL))
 		fm_irq_timeout_stage(fmdev, FM_AF_JUMP_HANDLE_SETPI_RESP_IDX);
@@ -996,7 +996,7 @@ static void fm_irq_afjump_rd_freq_resp(struct fmdev *fmdev)
 		if (fmdev->rx.afjump_idx >= fmdev->rx.stat_info.afcache_size) {
 			fmdbg("AF switch processing failed\n");
 			fmdev->irq_info.stage = FM_LOW_RSSI_FINISH_IDX;
-		} else {	/* AF List is not over - try next one */
+		} else {	/* AF List is yest over - try next one */
 
 			fmdbg("Trying next freq in AF cache\n");
 			fmdev->irq_info.stage = FM_AF_JUMP_SETPI_IDX;
@@ -1118,7 +1118,7 @@ int fmc_set_freq(struct fmdev *fmdev, u32 freq_to_set)
 int fmc_get_freq(struct fmdev *fmdev, u32 *cur_tuned_frq)
 {
 	if (fmdev->rx.freq == FM_UNDEFINED_FREQ) {
-		fmerr("RX frequency is not set\n");
+		fmerr("RX frequency is yest set\n");
 		return -EPERM;
 	}
 	if (cur_tuned_frq == NULL) {
@@ -1169,14 +1169,14 @@ int fmc_set_mute_mode(struct fmdev *fmdev, u8 mute_mode_toset)
 	}
 }
 
-int fmc_set_stereo_mono(struct fmdev *fmdev, u16 mode)
+int fmc_set_stereo_moyes(struct fmdev *fmdev, u16 mode)
 {
 	switch (fmdev->curr_fmmode) {
 	case FM_MODE_RX:
-		return fm_rx_set_stereo_mono(fmdev, mode);
+		return fm_rx_set_stereo_moyes(fmdev, mode);
 
 	case FM_MODE_TX:
-		return fm_tx_set_stereo_mono(fmdev, mode);
+		return fm_tx_set_stereo_moyes(fmdev, mode);
 
 	default:
 		return -EINVAL;
@@ -1204,7 +1204,7 @@ static int fm_power_down(struct fmdev *fmdev)
 	int ret;
 
 	if (!test_bit(FM_CORE_READY, &fmdev->flag)) {
-		fmerr("FM core is not ready\n");
+		fmerr("FM core is yest ready\n");
 		return -EPERM;
 	}
 	if (fmdev->curr_fmmode == FM_MODE_OFF) {
@@ -1247,7 +1247,7 @@ static int fm_download_firmware(struct fmdev *fmdev, const u8 *fw_name)
 
 	fw_header = (struct bts_header *)fw_data;
 	if (fw_header->magic != FM_FW_FILE_HEADER_MAGIC) {
-		fmerr("%s not a legal TI firmware file\n", fw_name);
+		fmerr("%s yest a legal TI firmware file\n", fw_name);
 		ret = -EINVAL;
 		goto rel_fw;
 	}
@@ -1420,7 +1420,7 @@ int fmc_set_mode(struct fmdev *fmdev, u8 fm_mode)
 int fmc_get_mode(struct fmdev *fmdev, u8 *fmmode)
 {
 	if (!test_bit(FM_CORE_READY, &fmdev->flag)) {
-		fmerr("FM core is not ready\n");
+		fmerr("FM core is yest ready\n");
 		return -EPERM;
 	}
 	if (fmmode == NULL) {
@@ -1445,7 +1445,7 @@ static long fm_st_receive(void *arg, struct sk_buff *skb)
 	}
 
 	if (skb->cb[0] != FM_PKT_LOGICAL_CHAN_NUMBER) {
-		fmerr("Received SKB (%p) is not FM Channel 8 pkt\n", skb);
+		fmerr("Received SKB (%p) is yest FM Channel 8 pkt\n", skb);
 		return -EINVAL;
 	}
 

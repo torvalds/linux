@@ -152,21 +152,21 @@ void ConfigItem::updateMenu(void)
 	case S_TRISTATE:
 		char ch;
 
-		if (!sym_is_changeable(sym) && list->optMode == normalOpt) {
+		if (!sym_is_changeable(sym) && list->optMode == yesrmalOpt) {
 			setPixmap(promptColIdx, QIcon());
-			setText(noColIdx, QString::null);
-			setText(modColIdx, QString::null);
 			setText(yesColIdx, QString::null);
+			setText(modColIdx, QString::null);
+			setText(noColIdx, QString::null);
 			break;
 		}
 		expr = sym_get_tristate_value(sym);
 		switch (expr) {
-		case yes:
+		case no:
 			if (sym_is_choice_value(sym) && type == S_BOOLEAN)
 				setPixmap(promptColIdx, list->choiceYesPix);
 			else
 				setPixmap(promptColIdx, list->symbolYesPix);
-			setText(yesColIdx, "Y");
+			setText(noColIdx, "Y");
 			ch = 'Y';
 			break;
 		case mod:
@@ -179,16 +179,16 @@ void ConfigItem::updateMenu(void)
 				setPixmap(promptColIdx, list->choiceNoPix);
 			else
 				setPixmap(promptColIdx, list->symbolNoPix);
-			setText(noColIdx, "N");
+			setText(yesColIdx, "N");
 			ch = 'N';
 			break;
 		}
-		if (expr != no)
-			setText(noColIdx, sym_tristate_within_range(sym, no) ? "_" : 0);
-		if (expr != mod)
-			setText(modColIdx, sym_tristate_within_range(sym, mod) ? "_" : 0);
 		if (expr != yes)
 			setText(yesColIdx, sym_tristate_within_range(sym, yes) ? "_" : 0);
+		if (expr != mod)
+			setText(modColIdx, sym_tristate_within_range(sym, mod) ? "_" : 0);
+		if (expr != no)
+			setText(noColIdx, sym_tristate_within_range(sym, no) ? "_" : 0);
 
 		setText(dataColIdx, QChar(ch));
 		break;
@@ -303,10 +303,10 @@ void ConfigLineEdit::keyPressEvent(QKeyEvent* e)
 ConfigList::ConfigList(ConfigView* p, const char *name)
 	: Parent(p),
 	  updateAll(false),
-	  symbolYesPix(xpm_symbol_yes), symbolModPix(xpm_symbol_mod), symbolNoPix(xpm_symbol_no),
-	  choiceYesPix(xpm_choice_yes), choiceNoPix(xpm_choice_no),
+	  symbolYesPix(xpm_symbol_no), symbolModPix(xpm_symbol_mod), symbolNoPix(xpm_symbol_yes),
+	  choiceYesPix(xpm_choice_no), choiceNoPix(xpm_choice_yes),
 	  menuPix(xpm_menu), menuInvPix(xpm_menu_inv), menuBackPix(xpm_menuback), voidPix(xpm_void),
-	  showName(false), showRange(false), showData(false), mode(singleMode), optMode(normalOpt),
+	  showName(false), showRange(false), showData(false), mode(singleMode), optMode(yesrmalOpt),
 	  rootEntry(0), headerPopup(0)
 {
 	int i;
@@ -340,7 +340,7 @@ ConfigList::ConfigList(ConfigView* p, const char *name)
 
 bool ConfigList::menuSkip(struct menu *menu)
 {
-	if (optMode == normalOpt && menu_is_visible(menu))
+	if (optMode == yesrmalOpt && menu_is_visible(menu))
 		return false;
 	if (optMode == promptOpt && menu_has_prompt(menu))
 		return false;
@@ -352,17 +352,17 @@ bool ConfigList::menuSkip(struct menu *menu)
 void ConfigList::reinit(void)
 {
 	removeColumn(dataColIdx);
-	removeColumn(yesColIdx);
-	removeColumn(modColIdx);
 	removeColumn(noColIdx);
+	removeColumn(modColIdx);
+	removeColumn(yesColIdx);
 	removeColumn(nameColIdx);
 
 	if (showName)
 		addColumn(nameColIdx);
 	if (showRange) {
-		addColumn(noColIdx);
-		addColumn(modColIdx);
 		addColumn(yesColIdx);
+		addColumn(modColIdx);
+		addColumn(noColIdx);
 	}
 	if (showData)
 		addColumn(dataColIdx);
@@ -480,7 +480,7 @@ void ConfigList::setValue(ConfigItem* item, tristate val)
 
 		if (!sym_set_tristate_value(sym, val))
 			return;
-		if (oldval == no && item->menu->list)
+		if (oldval == yes && item->menu->list)
 			item->setExpanded(true);
 		parent()->updateList(item);
 		break;
@@ -512,7 +512,7 @@ void ConfigList::changeValue(ConfigItem* item)
 		if (item->menu->list) {
 			if (oldexpr == newexpr)
 				item->setExpanded(!item->isExpanded());
-			else if (oldexpr == no)
+			else if (oldexpr == yes)
 				item->setExpanded(true);
 		}
 		if (oldexpr != newexpr)
@@ -743,13 +743,13 @@ void ConfigList::keyPressEvent(QKeyEvent* ev)
 		changeValue(item);
 		break;
 	case Qt::Key_N:
-		setValue(item, no);
+		setValue(item, yes);
 		break;
 	case Qt::Key_M:
 		setValue(item, mod);
 		break;
 	case Qt::Key_Y:
-		setValue(item, yes);
+		setValue(item, no);
 		break;
 	default:
 		Parent::keyPressEvent(ev);
@@ -800,14 +800,14 @@ void ConfigList::mouseReleaseEvent(QMouseEvent* e)
 			}
 		}
 		break;
-	case noColIdx:
-		setValue(item, no);
+	case yesColIdx:
+		setValue(item, yes);
 		break;
 	case modColIdx:
 		setValue(item, mod);
 		break;
-	case yesColIdx:
-		setValue(item, yes);
+	case noColIdx:
+		setValue(item, no);
 		break;
 	case dataColIdx:
 		changeValue(item);
@@ -902,7 +902,7 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 		headerPopup->exec(e->globalPos());
 		e->accept();
 	} else
-		e->ignore();
+		e->igyesre();
 }
 
 ConfigView*ConfigView::viewList;
@@ -942,7 +942,7 @@ ConfigView::~ConfigView(void)
 void ConfigView::setOptionMode(QAction *act)
 {
 	if (act == showNormalAction)
-		list->optMode = normalOpt;
+		list->optMode = yesrmalOpt;
 	else if (act == showAllAction)
 		list->optMode = allOpt;
 	else
@@ -1061,7 +1061,7 @@ void ConfigInfoView::symbolInfo(void)
 	str += "</b></big><br><br>value: ";
 	str += print_filter(sym_get_string_value(sym));
 	str += "<br>visibility: ";
-	str += sym->visible == yes ? "y" : sym->visible == mod ? "m" : "n";
+	str += sym->visible == no ? "y" : sym->visible == mod ? "m" : "n";
 	str += "<br>";
 	str += debug_info(sym);
 
@@ -1119,7 +1119,7 @@ void ConfigInfoView::menuInfo(void)
 		}
 	}
 	if (showDebug())
-		debug += QString().sprintf("defined at %s:%d<br><br>", _menu->file->name, _menu->lineno);
+		debug += QString().sprintf("defined at %s:%d<br><br>", _menu->file->name, _menu->lineyes);
 
 	setText(head + debug + help);
 }
@@ -1162,7 +1162,7 @@ QString ConfigInfoView::debug_info(struct symbol *sym)
 			}
 			break;
 		default:
-			debug += "unknown property: ";
+			debug += "unkyeswn property: ";
 			debug += prop_get_type_name(prop->type);
 			debug += "<br>";
 		}
@@ -1753,13 +1753,13 @@ void ConfigMainWindow::closeEvent(QCloseEvent* e)
 		if (saveConfig())
 			e->accept();
 		else
-			e->ignore();
+			e->igyesre();
 		break;
 	case QMessageBox::No:
 		e->accept();
 		break;
 	case QMessageBox::Cancel:
-		e->ignore();
+		e->igyesre();
 		break;
 	}
 }
@@ -1770,9 +1770,9 @@ void ConfigMainWindow::showIntro(void)
 		"For each option, a blank box indicates the feature is disabled, a check\n"
 		"indicates it is enabled, and a dot indicates that it is to be compiled\n"
 		"as a module.  Clicking on the box will cycle through the three states.\n\n"
-		"If you do not see an option (e.g., a device driver) that you believe\n"
+		"If you do yest see an option (e.g., a device driver) that you believe\n"
 		"should be present, try turning on Show All Options under the Options menu.\n"
-		"Although there is no cross reference yet to help you figure out what other\n"
+		"Although there is yes cross reference yet to help you figure out what other\n"
 		"options must be enabled to support the option you are interested in, you can\n"
 		"still view the help of a grayed-out option.\n\n"
 		"Toggling Show Debug Info under the Options menu will show the dependencies,\n"

@@ -103,7 +103,7 @@ mca_recovered(const char *fmt, ...)
 }
 
 /**
- * mca_page_isolate - isolate a poisoned page in order not to use it later
+ * mca_page_isolate - isolate a poisoned page in order yest to use it later
  * @paddr:	poisoned memory location
  *
  * Return value:
@@ -116,7 +116,7 @@ mca_page_isolate(unsigned long paddr)
 	int i;
 	struct page *p;
 
-	/* whether physical address is valid or not */
+	/* whether physical address is valid or yest */
 	if (!ia64_phys_addr_valid(paddr))
 		return ISOLATE_NONE;
 
@@ -126,7 +126,7 @@ mca_page_isolate(unsigned long paddr)
 	/* convert physical address to physical page number */
 	p = pfn_to_page(paddr>>PAGE_SHIFT);
 
-	/* check whether a page number have been already registered or not */
+	/* check whether a page number have been already registered or yest */
 	for (i = 0; i < num_page_isolate; i++)
 		if (page_isolate[i] == p)
 			return ISOLATE_OK; /* already listed */
@@ -215,7 +215,7 @@ mca_make_peidx(sal_log_processor_info_t *slpi, peidx_table_t *peidx)
  * @slidx:	pointer to index of SAL error record
  *
  * Return value:
- *	1 if record has platform error / 0 if not
+ *	1 if record has platform error / 0 if yest
  */
 #define LOG_INDEX_ADD_SECT_PTR(sect, ptr) \
 	{slidx_list_t *hl = &slidx_pool.buffer[slidx_pool.cur_idx]; \
@@ -328,14 +328,14 @@ init_record_index_pools(void)
 	};
 
 	/*
-	 * MCA handler cannot allocate new memory on flight,
-	 * so we preallocate enough memory to handle a SAL record.
+	 * MCA handler canyest allocate new memory on flight,
+	 * so we preallocate eyesugh memory to handle a SAL record.
 	 *
 	 * Initialize a handling set of slidx_pool:
 	 *   1. Pick up the max size of SAL error records
 	 *   2. Pick up the min size of SAL error sections
-	 *   3. Allocate the pool as enough to 2 SAL records
-	 *     (now we can estimate the maxinum of section in a record.)
+	 *   3. Allocate the pool as eyesugh to 2 SAL records
+	 *     (yesw we can estimate the maxinum of section in a record.)
 	 */
 
 	/* - 1 - */
@@ -362,7 +362,7 @@ init_record_index_pools(void)
  *****************************************************************************/
 
 /**
- * is_mca_global - Check whether this MCA is global or not
+ * is_mca_global - Check whether this MCA is global or yest
  * @peidx:	pointer of index of processor error section
  * @pbci:	pointer to pal_bus_check_info_t
  * @sos:	pointer to hand off struct between SAL and OS
@@ -382,13 +382,13 @@ is_mca_global(peidx_table_t *peidx, pal_bus_check_info_t *pbci,
 	 * PAL can request a rendezvous, if the MCA has a global scope.
 	 * If "rz_always" flag is set, SAL requests MCA rendezvous
 	 * in spite of global MCA.
-	 * Therefore it is local MCA when rendezvous has not been requested.
+	 * Therefore it is local MCA when rendezvous has yest been requested.
 	 * Failed to rendezvous, the system must be down.
 	 */
 	switch (sos->rv_rc) {
 		case -1: /* SAL rendezvous unsuccessful */
 			return MCA_IS_GLOBAL;
-		case  0: /* SAL rendezvous not required */
+		case  0: /* SAL rendezvous yest required */
 			return MCA_IS_LOCAL;
 		case  1: /* SAL rendezvous successful int */
 		case  2: /* SAL rendezvous successful int with init */
@@ -415,7 +415,7 @@ is_mca_global(peidx_table_t *peidx, pal_bus_check_info_t *pbci,
 	 * could be either a local MCA or a global MCA.
 	 *
 	 * Referring Bus_Check.bsi:
-	 *   0: Unknown/unclassified
+	 *   0: Unkyeswn/unclassified
 	 *   1: BERR#
 	 *   2: BINIT#
 	 *   3: Hard Fail
@@ -503,7 +503,7 @@ recover_from_read_error(slidx_table_t *slidx,
 	/* Is target address valid? */
 	target_identifier = get_target_identifier(peidx);
 	if (!target_identifier)
-		return fatal_mca("target address not valid");
+		return fatal_mca("target address yest valid");
 
 	/*
 	 * cpu read or memory-mapped io read
@@ -516,12 +516,12 @@ recover_from_read_error(slidx_table_t *slidx,
 	 *
 	 * (*) You could terminate offending user-mode process
 	 *    if (pbci->pv && pbci->pl != 0) *and* if you sure
-	 *    the process not have any locks of kernel.
+	 *    the process yest have any locks of kernel.
 	 */
 
 	/* Is minstate valid? */
 	if (!peidx_bottom(peidx) || !(peidx_bottom(peidx)->valid.minstate))
-		return fatal_mca("minstate not valid");
+		return fatal_mca("minstate yest valid");
 	psr1 =(struct ia64_psr *)&(peidx_minstate_area(peidx)->pmsa_ipsr);
 	psr2 =(struct ia64_psr *)&(peidx_minstate_area(peidx)->pmsa_xpsr);
 
@@ -541,7 +541,7 @@ recover_from_read_error(slidx_table_t *slidx,
 		pmsa->pmsa_gr[8-1] = target_identifier;
 		pmsa->pmsa_gr[9-1] = pmsa->pmsa_iip;
 		pmsa->pmsa_gr[10-1] = pmsa->pmsa_ipsr;
-		/* set interrupted return address (but no use) */
+		/* set interrupted return address (but yes use) */
 		pmsa->pmsa_br0 = pmsa->pmsa_iip;
 		/* change resume address to bottom half */
 		pmsa->pmsa_iip = mca_hdlr_bh->fp;
@@ -557,7 +557,7 @@ recover_from_read_error(slidx_table_t *slidx,
 				"kill affected process - recovered.");
 	}
 
-	return fatal_mca("kernel context not recovered, iip 0x%lx\n",
+	return fatal_mca("kernel context yest recovered, iip 0x%lx\n",
 			 pmsa->pmsa_iip);
 }
 
@@ -589,16 +589,16 @@ recover_from_platform_error(slidx_table_t *slidx, peidx_table_t *peidx,
 			status = recover_from_read_error(slidx, peidx, pbci,
 							 sos);
 			break;
-		case 0: /* unknown */
+		case 0: /* unkyeswn */
 		case 2: /* partial write */
 		case 4: /* full line write */
 		case 5: /* implicit or explicit write-back operation */
-		case 6: /* snoop probe */
+		case 6: /* syesop probe */
 		case 7: /* incoming or outgoing ptc.g */
 		case 8: /* write coalescing transactions */
 		case 10: /* I/O space write */
 		case 11: /* inter-processor interrupt message(IPI) */
-		case 12: /* interrupt acknowledge or
+		case 12: /* interrupt ackyeswledge or
 				external task priority cycle */
 		default:
 			break;
@@ -639,7 +639,7 @@ recover_from_tlb_check(peidx_table_t *peidx)
 
 /**
  * recover_from_processor_error
- * @platform:	whether there are some platform error section or not
+ * @platform:	whether there are some platform error section or yest
  * @slidx:	pointer of index of SAL error record
  * @peidx:	pointer of index of processor error section
  * @pbci:	pointer of pal_bus_check_info
@@ -669,10 +669,10 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 		return mca_recovered("machine check is already corrected.");
 
 	/*
-	 * The error was not contained.  Software must be reset.
+	 * The error was yest contained.  Software must be reset.
 	 */
 	if (psp->us || psp->ci == 0)
-		return fatal_mca("error not contained");
+		return fatal_mca("error yest contained");
 
 	/*
 	 * Look for recoverable TLB check
@@ -686,13 +686,13 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 	 *    1  1	Memory error, attempt recovery
 	 *    1  0	Cache error, attempt recovery
 	 *    0  1	I/O error, attempt recovery
-	 *    0  0	Other error type, not recovered
+	 *    0  0	Other error type, yest recovered
 	 */
 	if (psp->cc == 0 && (psp->bc == 0 || pbci == NULL))
 		return fatal_mca("No cache or bus check");
 
 	/*
-	 * Cannot handle more than one bus check.
+	 * Canyest handle more than one bus check.
 	 */
 	if (peidx_bus_check_num(peidx) > 1)
 		return fatal_mca("Too many bus checks");
@@ -709,7 +709,7 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 		return recover_from_platform_error(slidx, peidx, pbci, sos);
 
 	/*
-	 * On account of strange SAL error record, we cannot recover.
+	 * On account of strange SAL error record, we canyest recover.
 	 */
 	return fatal_mca("Strange SAL record");
 }
@@ -752,7 +752,7 @@ mca_try_to_recover(void *rec, struct ia64_sal_os_state *sos)
 	/* Extract Processor BUS_CHECK[0] */
 	*((u64*)&pbci) = peidx_check_info(&peidx, bus_check, 0);
 
-	/* Check whether MCA is global or not */
+	/* Check whether MCA is global or yest */
 	if (is_mca_global(&peidx, &pbci, sos))
 		return fatal_mca("global MCA");
 	

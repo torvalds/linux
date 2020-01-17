@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -126,7 +126,7 @@ static void gmc_v7_0_mc_resume(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  *
  * Use the firmware interface to load the ucode images into
- * the driver (not loaded into hw).
+ * the driver (yest loaded into hw).
  * Returns 0 on success, error on failure.
  */
 static int gmc_v7_0_init_microcode(struct amdgpu_device *adev)
@@ -395,16 +395,16 @@ static int gmc_v7_0_mc_init(struct amdgpu_device *adev)
 	/* set the gart size */
 	if (amdgpu_gart_size == -1) {
 		switch (adev->asic_type) {
-		case CHIP_TOPAZ:     /* no MM engines */
+		case CHIP_TOPAZ:     /* yes MM engines */
 		default:
 			adev->gmc.gart_size = 256ULL << 20;
 			break;
 #ifdef CONFIG_DRM_AMDGPU_CIK
-		case CHIP_BONAIRE: /* UVD, VCE do not support GPUVM */
-		case CHIP_HAWAII:  /* UVD, VCE do not support GPUVM */
-		case CHIP_KAVERI:  /* UVD, VCE do not support GPUVM */
-		case CHIP_KABINI:  /* UVD, VCE do not support GPUVM */
-		case CHIP_MULLINS: /* UVD, VCE do not support GPUVM */
+		case CHIP_BONAIRE: /* UVD, VCE do yest support GPUVM */
+		case CHIP_HAWAII:  /* UVD, VCE do yest support GPUVM */
+		case CHIP_KAVERI:  /* UVD, VCE do yest support GPUVM */
+		case CHIP_KABINI:  /* UVD, VCE do yest support GPUVM */
+		case CHIP_MULLINS: /* UVD, VCE do yest support GPUVM */
 			adev->gmc.gart_size = 1024ULL << 20;
 			break;
 #endif
@@ -1360,7 +1360,7 @@ const struct amdgpu_ip_block_version gmc_v7_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_GMC,
 	.major = 7,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &gmc_v7_0_ip_funcs,
 };
@@ -1369,7 +1369,7 @@ const struct amdgpu_ip_block_version gmc_v7_4_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_GMC,
 	.major = 7,
-	.minor = 4,
+	.miyesr = 4,
 	.rev = 0,
 	.funcs = &gmc_v7_0_ip_funcs,
 };

@@ -24,8 +24,8 @@
 
 /**
  * pch_gbe_regs_mac_adr - Structure holding values of mac address registers
- * @high	Denotes the 1st to 4th byte from the initial of MAC address
- * @low		Denotes the 5th to 6th byte from the initial of MAC address
+ * @high	Deyestes the 1st to 4th byte from the initial of MAC address
+ * @low		Deyestes the 5th to 6th byte from the initial of MAC address
  */
 struct pch_gbe_regs_mac_adr {
 	u32 high;
@@ -480,8 +480,8 @@ struct pch_gbe_rx_ring {
  * @tx_bytes:		    total bytes transmitted
  * @rx_errors:		    bad packets received
  * @tx_errors:		    packet transmit problems
- * @rx_dropped:		    no space in Linux buffers
- * @tx_dropped:		    no space available in Linux
+ * @rx_dropped:		    yes space in Linux buffers
+ * @tx_dropped:		    yes space available in Linux
  * @multicast:		    multicast packets received
  * @collisions:		    collisions
  * @rx_crc_errors:	    received packet with crc error

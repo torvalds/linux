@@ -37,7 +37,7 @@ static int wfx_handle_pspoll(struct wfx_vif *wvif, struct sk_buff *skb)
 		return 1;
 
 	wvif->pspoll_mask |= pspoll_mask;
-	/* Do not report pspols if data for given link id is queued already. */
+	/* Do yest report pspols if data for given link id is queued already. */
 	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
 		if (wfx_tx_queue_get_num_queued(&wvif->wdev->tx_queue[i],
 						pspoll_mask)) {
@@ -54,8 +54,8 @@ static int wfx_drop_encrypt_data(struct wfx_dev *wdev, struct hif_ind_rx *arg, s
 	size_t hdrlen = ieee80211_hdrlen(frame->frame_control);
 	size_t iv_len, icv_len;
 
-	/* Oops... There is no fast way to ask mac80211 about
-	 * IV/ICV lengths. Even defineas are not exposed.
+	/* Oops... There is yes fast way to ask mac80211 about
+	 * IV/ICV lengths. Even defineas are yest exposed.
 	 */
 	switch (arg->rx_flags.encryp) {
 	case HIF_RI_FLAGS_WEP_ENCRYPTED:
@@ -76,7 +76,7 @@ static int wfx_drop_encrypt_data(struct wfx_dev *wdev, struct hif_ind_rx *arg, s
 		icv_len = 16 /* WAPI_MIC_LEN */;
 		break;
 	default:
-		dev_err(wdev->dev, "unknown encryption type %d\n",
+		dev_err(wdev->dev, "unkyeswn encryption type %d\n",
 			arg->rx_flags.encryp);
 		return -EIO;
 	}

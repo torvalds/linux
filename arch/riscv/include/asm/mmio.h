@@ -15,7 +15,7 @@
 #include <asm/mmiowb.h>
 
 #ifndef CONFIG_MMU
-#define pgprot_noncached(x)	(x)
+#define pgprot_yesncached(x)	(x)
 #endif /* CONFIG_MMU */
 
 /* Generic IO read/write.  These perform native-endian accesses. */
@@ -84,7 +84,7 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 #endif
 
 /*
- * Unordered I/O memory access primitives.  These are even more relaxed than
+ * Uyesrdered I/O memory access primitives.  These are even more relaxed than
  * the relaxed versions, as they don't even order accesses between successive
  * operations to the I/O regions.
  */
@@ -103,13 +103,13 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 
 /*
  * Relaxed I/O memory access primitives. These follow the Device memory
- * ordering rules but do not guarantee any ordering relative to Normal memory
+ * ordering rules but do yest guarantee any ordering relative to Normal memory
  * accesses.  These are defined to order the indicated access (either a read or
  * write) with all other I/O memory accesses. Since the platform specification
- * defines that all I/O regions are strongly ordered on channel 2, no explicit
+ * defines that all I/O regions are strongly ordered on channel 2, yes explicit
  * fences are required to enforce this ordering.
  */
-/* FIXME: These are now the same as asm-generic */
+/* FIXME: These are yesw the same as asm-generic */
 #define __io_rbr()		do {} while (0)
 #define __io_rar()		do {} while (0)
 #define __io_rbw()		do {} while (0)

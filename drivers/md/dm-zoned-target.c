@@ -99,7 +99,7 @@ static inline void dmz_bio_endio(struct bio *bio, blk_status_t status)
 
 /*
  * Completion callback for an internally cloned target BIO. This terminates the
- * target BIO when there are no more references to its context.
+ * target BIO when there are yes more references to its context.
  */
 static void dmz_clone_endio(struct bio *clone)
 {
@@ -266,7 +266,7 @@ static int dmz_handle_direct_write(struct dmz_target *dmz,
 
 /*
  * Write blocks in the buffer zone of @zone.
- * If no buffer zone is assigned yet, get one.
+ * If yes buffer zone is assigned yet, get one.
  * Called with @zone write locked.
  */
 static int dmz_handle_buffered_write(struct dmz_target *dmz,
@@ -348,7 +348,7 @@ static int dmz_handle_discard(struct dmz_target *dmz, struct dm_zone *zone,
 	sector_t chunk_block = dmz_chunk_block(dmz->dev, block);
 	int ret = 0;
 
-	/* For unmapped chunks, there is nothing to do */
+	/* For unmapped chunks, there is yesthing to do */
 	if (!zone)
 		return 0;
 
@@ -398,7 +398,7 @@ static void dmz_handle_bio(struct dmz_target *dmz, struct dm_chunk_work *cw,
 	}
 
 	/*
-	 * Get the data zone mapping the chunk. There may be no
+	 * Get the data zone mapping the chunk. There may be yes
 	 * mapping for read and discard. If a mapping is obtained,
 	 + the zone returned will be set to active state.
 	 */
@@ -439,7 +439,7 @@ static void dmz_handle_bio(struct dmz_target *dmz, struct dm_chunk_work *cw,
 	if (zone)
 		dmz_put_chunk_mapping(zmd, zone);
 out:
-	dmz_bio_endio(bio, errno_to_blk_status(ret));
+	dmz_bio_endio(bio, erryes_to_blk_status(ret));
 
 	dmz_unlock_metadata(zmd);
 }
@@ -513,7 +513,7 @@ static void dmz_flush_work(struct work_struct *work)
 		if (!bio)
 			break;
 
-		dmz_bio_endio(bio, errno_to_blk_status(ret));
+		dmz_bio_endio(bio, erryes_to_blk_status(ret));
 	}
 
 	queue_delayed_work(dmz->flush_wq, &dmz->flush_work, DMZ_FLUSH_PERIOD);
@@ -521,7 +521,7 @@ static void dmz_flush_work(struct work_struct *work)
 
 /*
  * Get a chunk work and start it to process a new BIO.
- * If the BIO chunk has no work yet, create one.
+ * If the BIO chunk has yes work yet, create one.
  */
 static int dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 {
@@ -531,7 +531,7 @@ static int dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 
 	mutex_lock(&dmz->chunk_lock);
 
-	/* Get the BIO chunk work. If one is not active yet, create one */
+	/* Get the BIO chunk work. If one is yest active yet, create one */
 	cw = radix_tree_lookup(&dmz->chunk_rxtree, chunk);
 	if (!cw) {
 
@@ -711,12 +711,12 @@ static int dmz_get_zoned_device(struct dm_target *ti, char *path)
 	}
 
 	q = bdev_get_queue(dev->bdev);
-	dev->capacity = i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT;
+	dev->capacity = i_size_read(dev->bdev->bd_iyesde) >> SECTOR_SHIFT;
 	aligned_capacity = dev->capacity &
 				~((sector_t)blk_queue_zone_sectors(q) - 1);
 	if (ti->begin ||
 	    ((ti->len != dev->capacity) && (ti->len != aligned_capacity))) {
-		ti->error = "Partial mapping not supported";
+		ti->error = "Partial mapping yest supported";
 		ret = -EINVAL;
 		goto err;
 	}
@@ -789,7 +789,7 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err_dev;
 	}
 
-	/* Set target (no write same support) */
+	/* Set target (yes write same support) */
 	ti->max_io_len = dev->zone_nr_sectors << 9;
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;

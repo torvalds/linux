@@ -18,7 +18,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  * 02111-1307, USA
  */
@@ -143,7 +143,7 @@ static int tps51632_init_dcdc(struct tps51632_chip *tps,
 		 * TPS51632 hw behavior: VMAX register can be write only
 		 * once as it get locked after first write. The lock get
 		 * reset only when device is power-reset.
-		 * Write register only when lock bit is not enabled.
+		 * Write register only when lock bit is yest enabled.
 		 */
 		ret = regmap_read(tps->regmap, TPS51632_VMAX_REG, &vmax);
 		if (ret < 0) {
@@ -228,13 +228,13 @@ static struct tps51632_regulator_platform_data *
 				      const struct regulator_desc *desc)
 {
 	struct tps51632_regulator_platform_data *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
-	pdata->reg_init_data = of_get_regulator_init_data(dev, dev->of_node,
+	pdata->reg_init_data = of_get_regulator_init_data(dev, dev->of_yesde,
 							  desc);
 	if (!pdata->reg_init_data) {
 		dev_err(dev, "Not able to get OF regulator init data\n");
@@ -269,7 +269,7 @@ static int tps51632_probe(struct i2c_client *client,
 	int ret;
 	struct regulator_config config = { };
 
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		const struct of_device_id *match;
 		match = of_match_device(of_match_ptr(tps51632_of_match),
 				&client->dev);
@@ -296,7 +296,7 @@ static int tps51632_probe(struct i2c_client *client,
 	tps->desc.owner = THIS_MODULE;
 
 	pdata = dev_get_platdata(&client->dev);
-	if (!pdata && client->dev.of_node)
+	if (!pdata && client->dev.of_yesde)
 		pdata = of_get_tps51632_platform_data(&client->dev, &tps->desc);
 	if (!pdata) {
 		dev_err(&client->dev, "No Platform data\n");
@@ -343,7 +343,7 @@ static int tps51632_probe(struct i2c_client *client,
 	config.init_data = pdata->reg_init_data;
 	config.driver_data = tps;
 	config.regmap = tps->regmap;
-	config.of_node = client->dev.of_node;
+	config.of_yesde = client->dev.of_yesde;
 
 	rdev = devm_regulator_register(&client->dev, &tps->desc, &config);
 	if (IS_ERR(rdev)) {

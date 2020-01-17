@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -295,7 +295,7 @@ static int s5k6a3_probe(struct i2c_client *client)
 	if (IS_ERR(sensor->clock))
 		return PTR_ERR(sensor->clock);
 
-	gpio = of_get_gpio_flags(dev->of_node, 0, NULL);
+	gpio = of_get_gpio_flags(dev->of_yesde, 0, NULL);
 	if (!gpio_is_valid(gpio))
 		return gpio;
 
@@ -306,7 +306,7 @@ static int s5k6a3_probe(struct i2c_client *client)
 
 	sensor->gpio_reset = gpio;
 
-	if (of_property_read_u32(dev->of_node, "clock-frequency",
+	if (of_property_read_u32(dev->of_yesde, "clock-frequency",
 				 &sensor->clock_frequency)) {
 		sensor->clock_frequency = S5K6A3_DEFAULT_CLK_FREQ;
 		dev_info(dev, "using default %u Hz clock frequency\n",
@@ -336,7 +336,7 @@ static int s5k6a3_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	pm_runtime_no_callbacks(dev);
+	pm_runtime_yes_callbacks(dev);
 	pm_runtime_enable(dev);
 
 	ret = v4l2_async_register_subdev(sd);

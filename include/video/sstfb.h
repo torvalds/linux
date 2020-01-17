@@ -301,7 +301,7 @@
 #define SSTFB_GET_VGAPASS	_IOR('F', 0xdd, __u32)
 
 
-/* used to know witch clock to set */
+/* used to kyesw witch clock to set */
 enum {
 	VID_CLOCK=0,
 	GFX_CLOCK=1,

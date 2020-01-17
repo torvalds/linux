@@ -62,15 +62,15 @@ properties:
 
   pinctrl-names: true
 
-  renesas,no-ether-link:
+  renesas,yes-ether-link:
     type: boolean
     description:
-      specify when a board does not provide a proper Ether LINK signal
+      specify when a board does yest provide a proper Ether LINK signal
 
   renesas,ether-link-active-low:
     type: boolean
     description:
-      specify when the Ether LINK signal is active-low instead of normal
+      specify when the Ether LINK signal is active-low instead of yesrmal
       active-high
 
 required:

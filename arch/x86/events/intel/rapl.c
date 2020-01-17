@@ -39,8 +39,8 @@
  * We manage those counters as free running (read-only). They may be
  * use simultaneously by other tools, such as turbostat.
  *
- * The events only support system-wide mode counting. There is no
- * sampling support because it does not make sense and is not
+ * The events only support system-wide mode counting. There is yes
+ * sampling support because it does yest make sense and is yest
  * supported by the RAPL hardware.
  *
  * Because we want to avoid floating-point operations in the kernel,
@@ -55,7 +55,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/perf_event.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include "../perf_event.h"
@@ -145,7 +145,7 @@ static inline struct rapl_pmu *cpu_to_rapl_pmu(unsigned int cpu)
 	unsigned int dieid = topology_logical_die_id(cpu);
 
 	/*
-	 * The unsigned check also catches the '-1' return value for non
+	 * The unsigned check also catches the '-1' return value for yesn
 	 * existent mappings in the topology map.
 	 */
 	return dieid < rapl_pmus->maxdie ? rapl_pmus->pmus[dieid] : NULL;
@@ -192,10 +192,10 @@ again:
 
 	/*
 	 * Now we have the new raw value and have updated the prev
-	 * timestamp already. We can now calculate the elapsed delta
+	 * timestamp already. We can yesw calculate the elapsed delta
 	 * (event-)time and add that to the generic event.
 	 *
-	 * Careful, not all hw sign-extends above the physical width
+	 * Careful, yest all hw sign-extends above the physical width
 	 * of the count.
 	 */
 	delta = (new_raw_count << shift) - (prev_raw_count << shift);
@@ -230,7 +230,7 @@ static enum hrtimer_restart rapl_hrtimer_handle(struct hrtimer *hrtimer)
 
 	raw_spin_unlock_irqrestore(&pmu->lock, flags);
 
-	hrtimer_forward_now(hrtimer, pmu->timer_interval);
+	hrtimer_forward_yesw(hrtimer, pmu->timer_interval);
 
 	return HRTIMER_RESTART;
 }
@@ -349,7 +349,7 @@ static int rapl_pmu_event_init(struct perf_event *event)
 	if (!cfg || cfg >= NR_RAPL_DOMAINS + 1)
 		return -EINVAL;
 
-	cfg = array_index_nospec((long)cfg, NR_RAPL_DOMAINS + 1);
+	cfg = array_index_yesspec((long)cfg, NR_RAPL_DOMAINS + 1);
 	bit = cfg - 1;
 
 	/* check event supported */
@@ -357,7 +357,7 @@ static int rapl_pmu_event_init(struct perf_event *event)
 		return -EINVAL;
 
 	/* unsupported modes and filters */
-	if (event->attr.sample_period) /* no sampling */
+	if (event->attr.sample_period) /* yes sampling */
 		return -EINVAL;
 
 	/* must be done before validate_group */
@@ -417,7 +417,7 @@ RAPL_EVENT_ATTR_STR(energy-gpu.scale,     rapl_gpu_scale, "2.3283064365386962890
 RAPL_EVENT_ATTR_STR(energy-psys.scale,   rapl_psys_scale, "2.3283064365386962890625e-10");
 
 /*
- * There are no default events, but we need to create
+ * There are yes default events, but we need to create
  * "events" group (with empty attrs) before updating
  * it with detected events.
  */
@@ -549,7 +549,7 @@ static int rapl_cpu_online(unsigned int cpu)
 	int target;
 
 	if (!pmu) {
-		pmu = kzalloc_node(sizeof(*pmu), GFP_KERNEL, cpu_to_node(cpu));
+		pmu = kzalloc_yesde(sizeof(*pmu), GFP_KERNEL, cpu_to_yesde(cpu));
 		if (!pmu)
 			return -ENOMEM;
 
@@ -795,7 +795,7 @@ module_init(rapl_pmu_init);
 
 static void __exit intel_rapl_exit(void)
 {
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_RAPL_ONLINE);
+	cpuhp_remove_state_yescalls(CPUHP_AP_PERF_X86_RAPL_ONLINE);
 	perf_pmu_unregister(&rapl_pmus->pmu);
 	cleanup_rapl_pmus();
 }

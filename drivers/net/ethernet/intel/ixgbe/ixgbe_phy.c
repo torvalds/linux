@@ -238,7 +238,7 @@ static bool ixgbe_probe_phy(struct ixgbe_hw *hw, u16 phy_addr)
 
 	hw->phy.type = ixgbe_get_phy_type_from_id(hw->phy.id);
 
-	if (hw->phy.type == ixgbe_phy_unknown) {
+	if (hw->phy.type == ixgbe_phy_unkyeswn) {
 		hw->phy.ops.read_reg(hw,
 				     MDIO_PMA_EXTABLE,
 				     MDIO_MMD_PMAPMD,
@@ -246,7 +246,7 @@ static bool ixgbe_probe_phy(struct ixgbe_hw *hw, u16 phy_addr)
 		if (ext_ability &
 		    (MDIO_PMA_EXTABLE_10GBT |
 		     MDIO_PMA_EXTABLE_1000BT))
-			hw->phy.type = ixgbe_phy_cu_unknown;
+			hw->phy.type = ixgbe_phy_cu_unkyeswn;
 		else
 			hw->phy.type = ixgbe_phy_generic;
 	}
@@ -272,7 +272,7 @@ s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
 			hw->phy.phy_semaphore_mask = IXGBE_GSSR_PHY0_SM;
 	}
 
-	if (hw->phy.type != ixgbe_phy_unknown)
+	if (hw->phy.type != ixgbe_phy_unkyeswn)
 		return 0;
 
 	if (hw->phy.nw_mng_if_sel) {
@@ -292,9 +292,9 @@ s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
 		}
 	}
 
-	/* Certain media types do not have a phy so an address will not
+	/* Certain media types do yest have a phy so an address will yest
 	 * be found and the code will take this path.  Caller has to
-	 * decide if it is an error or not.
+	 * decide if it is an error or yest.
 	 */
 	if (status)
 		hw->phy.mdio.prtad = MDIO_PRTAD_NONE;
@@ -308,7 +308,7 @@ s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
  *
  * This function checks the MMNGC.MNG_VETO bit to see if there are
  * any constraints on link from manageability.  For MAC's that don't
- * have this bit just return false since the link can not be blocked
+ * have this bit just return false since the link can yest be blocked
  * via this method.
  **/
 bool ixgbe_check_reset_blocked(struct ixgbe_hw *hw)
@@ -381,7 +381,7 @@ static enum ixgbe_phy_type ixgbe_get_phy_type_from_id(u32 phy_id)
 		phy_type = ixgbe_phy_x550em_ext_t;
 		break;
 	default:
-		phy_type = ixgbe_phy_unknown;
+		phy_type = ixgbe_phy_unkyeswn;
 		break;
 	}
 
@@ -398,10 +398,10 @@ s32 ixgbe_reset_phy_generic(struct ixgbe_hw *hw)
 	u16 ctrl = 0;
 	s32 status = 0;
 
-	if (hw->phy.type == ixgbe_phy_unknown)
+	if (hw->phy.type == ixgbe_phy_unkyeswn)
 		status = ixgbe_identify_phy_generic(hw);
 
-	if (status != 0 || hw->phy.type == ixgbe_phy_none)
+	if (status != 0 || hw->phy.type == ixgbe_phy_yesne)
 		return status;
 
 	/* Don't reset PHY if it's shut down due to overtemp. */
@@ -495,7 +495,7 @@ s32 ixgbe_read_phy_reg_mdi(struct ixgbe_hw *hw, u32 reg_addr, u32 device_type,
 
 
 	if ((command & IXGBE_MSCA_MDI_COMMAND) != 0) {
-		hw_dbg(hw, "PHY address command did not complete.\n");
+		hw_dbg(hw, "PHY address command did yest complete.\n");
 		return IXGBE_ERR_PHY;
 	}
 
@@ -873,7 +873,7 @@ static bool ixgbe_x550em_a_has_mii(struct ixgbe_hw *hw)
 
 	/* For the C3000 family of SoCs (x550em_a) the internal ixgbe devices
 	 * are always downstream of root ports @ 0000:00:16.0 & 0000:00:17.0
-	 * It's not valid for function 0 to be disabled and function 1 is up,
+	 * It's yest valid for function 0 to be disabled and function 1 is up,
 	 * so the lowest numbered ixgbe dev will be device 0 function 0 on one
 	 * of those two root ports
 	 */
@@ -923,7 +923,7 @@ s32 ixgbe_mii_bus_init(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_X550EM_A_1G_T:
 	case IXGBE_DEV_ID_X550EM_A_1G_T_L:
 		if (!ixgbe_x550em_a_has_mii(hw))
-			goto ixgbe_no_mii_bus;
+			goto ixgbe_yes_mii_bus;
 		bus->read = &ixgbe_x550em_a_mii_bus_read;
 		bus->write = &ixgbe_x550em_a_mii_bus_write;
 		break;
@@ -954,7 +954,7 @@ s32 ixgbe_mii_bus_init(struct ixgbe_hw *hw)
 		return 0;
 	}
 
-ixgbe_no_mii_bus:
+ixgbe_yes_mii_bus:
 	devm_mdiobus_free(dev, bus);
 	return err;
 }
@@ -1297,7 +1297,7 @@ s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw)
 	}
 
 	if ((phy_data & MDIO_CTRL1_RESET) != 0) {
-		hw_dbg(hw, "PHY reset did not complete.\n");
+		hw_dbg(hw, "PHY reset did yest complete.\n");
 		return IXGBE_ERR_PHY;
 	}
 
@@ -1385,7 +1385,7 @@ s32 ixgbe_identify_module_generic(struct ixgbe_hw *hw)
 	case ixgbe_media_type_fiber_qsfp:
 		return ixgbe_identify_qsfp_module_generic(hw);
 	default:
-		hw->phy.sfp_type = ixgbe_sfp_type_not_present;
+		hw->phy.sfp_type = ixgbe_sfp_type_yest_present;
 		return IXGBE_ERR_SFP_NOT_PRESENT;
 	}
 
@@ -1413,7 +1413,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 	u16 enforce_sfp = 0;
 
 	if (hw->mac.ops.get_media_type(hw) != ixgbe_media_type_fiber) {
-		hw->phy.sfp_type = ixgbe_sfp_type_not_present;
+		hw->phy.sfp_type = ixgbe_sfp_type_yest_present;
 		return IXGBE_ERR_SFP_NOT_PRESENT;
 	}
 
@@ -1475,7 +1475,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		else if (comp_codes_10g & IXGBE_SFF_10GBASELR_CAPABLE)
 			hw->phy.sfp_type = ixgbe_sfp_type_lr;
 		else
-			hw->phy.sfp_type = ixgbe_sfp_type_unknown;
+			hw->phy.sfp_type = ixgbe_sfp_type_unkyeswn;
 	} else {
 		if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE) {
 			if (hw->bus.lan_id == 0)
@@ -1498,7 +1498,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 					ixgbe_sfp_type_da_act_lmt_core1;
 			} else {
 				hw->phy.sfp_type =
-						ixgbe_sfp_type_unknown;
+						ixgbe_sfp_type_unkyeswn;
 			}
 		} else if (comp_codes_10g &
 			   (IXGBE_SFF_10GBASESR_CAPABLE |
@@ -1531,14 +1531,14 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 				hw->phy.sfp_type =
 					ixgbe_sfp_type_1g_lx_core1;
 		} else {
-			hw->phy.sfp_type = ixgbe_sfp_type_unknown;
+			hw->phy.sfp_type = ixgbe_sfp_type_unkyeswn;
 		}
 	}
 
 	if (hw->phy.sfp_type != stored_sfp_type)
 		hw->phy.sfp_setup_needed = true;
 
-	/* Determine if the SFP+ PHY is dual speed or not. */
+	/* Determine if the SFP+ PHY is dual speed or yest. */
 	hw->phy.multispeed_fiber = false;
 	if (((comp_codes_1g & IXGBE_SFF_1GBASESX_CAPABLE) &&
 	     (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)) ||
@@ -1596,12 +1596,12 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		default:
 			if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE)
 				hw->phy.type =
-					 ixgbe_phy_sfp_passive_unknown;
+					 ixgbe_phy_sfp_passive_unkyeswn;
 			else if (cable_tech & IXGBE_SFF_DA_ACTIVE_CABLE)
 				hw->phy.type =
-					ixgbe_phy_sfp_active_unknown;
+					ixgbe_phy_sfp_active_unkyeswn;
 			else
-				hw->phy.type = ixgbe_phy_sfp_unknown;
+				hw->phy.type = ixgbe_phy_sfp_unkyeswn;
 			break;
 		}
 	}
@@ -1639,20 +1639,20 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		if (hw->phy.type == ixgbe_phy_sfp_intel)
 			return 0;
 		if (hw->allow_unsupported_sfp) {
-			e_warn(drv, "WARNING: Intel (R) Network Connections are quality tested using Intel (R) Ethernet Optics.  Using untested modules is not supported and may cause unstable operation or damage to the module or the adapter.  Intel Corporation is not responsible for any harm caused by using untested modules.\n");
+			e_warn(drv, "WARNING: Intel (R) Network Connections are quality tested using Intel (R) Ethernet Optics.  Using untested modules is yest supported and may cause unstable operation or damage to the module or the adapter.  Intel Corporation is yest responsible for any harm caused by using untested modules.\n");
 			return 0;
 		}
-		hw_dbg(hw, "SFP+ module not supported\n");
+		hw_dbg(hw, "SFP+ module yest supported\n");
 		hw->phy.type = ixgbe_phy_sfp_unsupported;
 		return IXGBE_ERR_SFP_NOT_SUPPORTED;
 	}
 	return 0;
 
 err_read_i2c_eeprom:
-	hw->phy.sfp_type = ixgbe_sfp_type_not_present;
+	hw->phy.sfp_type = ixgbe_sfp_type_yest_present;
 	if (hw->phy.type != ixgbe_phy_nl) {
 		hw->phy.id = 0;
-		hw->phy.type = ixgbe_phy_unknown;
+		hw->phy.type = ixgbe_phy_unkyeswn;
 	}
 	return IXGBE_ERR_SFP_NOT_PRESENT;
 }
@@ -1680,7 +1680,7 @@ static s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 	bool active_cable = false;
 
 	if (hw->mac.ops.get_media_type(hw) != ixgbe_media_type_fiber_qsfp) {
-		hw->phy.sfp_type = ixgbe_sfp_type_not_present;
+		hw->phy.sfp_type = ixgbe_sfp_type_yest_present;
 		return IXGBE_ERR_SFP_NOT_PRESENT;
 	}
 
@@ -1713,7 +1713,7 @@ static s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 		goto err_read_i2c_eeprom;
 
 	if (comp_codes_10g & IXGBE_SFF_QSFP_DA_PASSIVE_CABLE) {
-		hw->phy.type = ixgbe_phy_qsfp_passive_unknown;
+		hw->phy.type = ixgbe_phy_qsfp_passive_unkyeswn;
 		if (hw->bus.lan_id == 0)
 			hw->phy.sfp_type = ixgbe_sfp_type_da_cu_core0;
 		else
@@ -1753,7 +1753,7 @@ static s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 		}
 
 		if (active_cable) {
-			hw->phy.type = ixgbe_phy_qsfp_active_unknown;
+			hw->phy.type = ixgbe_phy_qsfp_active_unkyeswn;
 			if (hw->bus.lan_id == 0)
 				hw->phy.sfp_type =
 						ixgbe_sfp_type_da_act_lmt_core0;
@@ -1770,7 +1770,7 @@ static s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 	if (hw->phy.sfp_type != stored_sfp_type)
 		hw->phy.sfp_setup_needed = true;
 
-	/* Determine if the QSFP+ PHY is dual speed or not. */
+	/* Determine if the QSFP+ PHY is dual speed or yest. */
 	hw->phy.multispeed_fiber = false;
 	if (((comp_codes_1g & IXGBE_SFF_1GBASESX_CAPABLE) &&
 	     (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)) ||
@@ -1810,7 +1810,7 @@ static s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 		if (vendor_oui == IXGBE_SFF_VENDOR_OUI_INTEL)
 			hw->phy.type = ixgbe_phy_qsfp_intel;
 		else
-			hw->phy.type = ixgbe_phy_qsfp_unknown;
+			hw->phy.type = ixgbe_phy_qsfp_unkyeswn;
 
 		hw->mac.ops.get_device_caps(hw, &enforce_sfp);
 		if (!(enforce_sfp & IXGBE_DEVICE_CAPS_ALLOW_ANY_SFP)) {
@@ -1818,10 +1818,10 @@ static s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 			if (hw->phy.type == ixgbe_phy_qsfp_intel)
 				return 0;
 			if (hw->allow_unsupported_sfp) {
-				e_warn(drv, "WARNING: Intel (R) Network Connections are quality tested using Intel (R) Ethernet Optics. Using untested modules is not supported and may cause unstable operation or damage to the module or the adapter. Intel Corporation is not responsible for any harm caused by using untested modules.\n");
+				e_warn(drv, "WARNING: Intel (R) Network Connections are quality tested using Intel (R) Ethernet Optics. Using untested modules is yest supported and may cause unstable operation or damage to the module or the adapter. Intel Corporation is yest responsible for any harm caused by using untested modules.\n");
 				return 0;
 			}
-			hw_dbg(hw, "QSFP module not supported\n");
+			hw_dbg(hw, "QSFP module yest supported\n");
 			hw->phy.type = ixgbe_phy_sfp_unsupported;
 			return IXGBE_ERR_SFP_NOT_SUPPORTED;
 		}
@@ -1830,9 +1830,9 @@ static s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 	return 0;
 
 err_read_i2c_eeprom:
-	hw->phy.sfp_type = ixgbe_sfp_type_not_present;
+	hw->phy.sfp_type = ixgbe_sfp_type_yest_present;
 	hw->phy.id = 0;
-	hw->phy.type = ixgbe_phy_unknown;
+	hw->phy.type = ixgbe_phy_unkyeswn;
 
 	return IXGBE_ERR_SFP_NOT_PRESENT;
 }
@@ -1853,10 +1853,10 @@ s32 ixgbe_get_sfp_init_sequence_offsets(struct ixgbe_hw *hw,
 	u16 sfp_id;
 	u16 sfp_type = hw->phy.sfp_type;
 
-	if (hw->phy.sfp_type == ixgbe_sfp_type_unknown)
+	if (hw->phy.sfp_type == ixgbe_sfp_type_unkyeswn)
 		return IXGBE_ERR_SFP_NOT_SUPPORTED;
 
-	if (hw->phy.sfp_type == ixgbe_sfp_type_not_present)
+	if (hw->phy.sfp_type == ixgbe_sfp_type_yest_present)
 		return IXGBE_ERR_SFP_NOT_PRESENT;
 
 	if ((hw->device_id == IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM) &&
@@ -1904,7 +1904,7 @@ s32 ixgbe_get_sfp_init_sequence_offsets(struct ixgbe_hw *hw,
 			if (hw->eeprom.ops.read(hw, *list_offset, data_offset))
 				goto err_phy;
 			if ((!*data_offset) || (*data_offset == 0xFFFF)) {
-				hw_dbg(hw, "SFP+ module not supported\n");
+				hw_dbg(hw, "SFP+ module yest supported\n");
 				return IXGBE_ERR_SFP_NOT_SUPPORTED;
 			} else {
 				break;
@@ -1986,7 +1986,7 @@ static bool ixgbe_is_sfp_probe(struct ixgbe_hw *hw, u8 offset, u8 addr)
 {
 	if (addr == IXGBE_I2C_EEPROM_DEV_ADDR &&
 	    offset == IXGBE_SFF_IDENTIFIER &&
-	    hw->phy.sfp_type == ixgbe_sfp_type_not_present)
+	    hw->phy.sfp_type == ixgbe_sfp_type_yest_present)
 		return true;
 	return false;
 }
@@ -2377,7 +2377,7 @@ static s32 ixgbe_get_i2c_ack(struct ixgbe_hw *hw)
 	}
 
 	if (ack == 1) {
-		hw_dbg(hw, "I2C ack was not received.\n");
+		hw_dbg(hw, "I2C ack was yest received.\n");
 		status = IXGBE_ERR_I2C;
 	}
 
@@ -2449,7 +2449,7 @@ static s32 ixgbe_clock_out_i2c_bit(struct ixgbe_hw *hw, bool data)
 		 */
 		udelay(IXGBE_I2C_T_LOW);
 	} else {
-		hw_dbg(hw, "I2C data was not set to %X\n", data);
+		hw_dbg(hw, "I2C data was yest set to %X\n", data);
 		return IXGBE_ERR_I2C;
 	}
 
@@ -2545,7 +2545,7 @@ static s32 ixgbe_set_i2c_data(struct ixgbe_hw *hw, u32 *i2cctl, bool data)
 	/* Verify data was set correctly */
 	*i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL(hw));
 	if (data != ixgbe_get_i2c_data(hw, i2cctl)) {
-		hw_dbg(hw, "Error - I2C data was not set to %X.\n", data);
+		hw_dbg(hw, "Error - I2C data was yest set to %X.\n", data);
 		return IXGBE_ERR_I2C;
 	}
 

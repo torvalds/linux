@@ -6,7 +6,7 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/platform_device.h>
@@ -17,7 +17,7 @@
 
 /*
  * The JTAG ID's of the supported FPGA's. The ID is 32bit wide
- * reversed as noted in the manual.
+ * reversed as yested in the manual.
  */
 #define ID_ECP3_17	0xc2088080
 #define ID_ECP3_35	0xc2048080
@@ -76,7 +76,7 @@ static void firmware_load(const struct firmware *fw, void *context)
 	u32 status;
 
 	if (fw == NULL) {
-		dev_err(&spi->dev, "Cannot load firmware, aborting\n");
+		dev_err(&spi->dev, "Canyest load firmware, aborting\n");
 		return;
 	}
 
@@ -174,7 +174,7 @@ static void firmware_load(const struct firmware *fw, void *context)
 	if (status & FPGA_STATUS_DONE)
 		dev_info(&spi->dev, "FPGA successfully configured!\n");
 	else
-		dev_info(&spi->dev, "FPGA not configured (DONE not set)\n");
+		dev_info(&spi->dev, "FPGA yest configured (DONE yest set)\n");
 
 	/*
 	 * Don't forget to release the firmware again
@@ -199,7 +199,7 @@ static int lattice_ecp3_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, data);
 
 	init_completion(&data->fw_loaded);
-	err = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	err = request_firmware_yeswait(THIS_MODULE, FW_ACTION_HOTPLUG,
 				      FIRMWARE_NAME, &spi->dev,
 				      GFP_KERNEL, spi, firmware_load);
 	if (err) {

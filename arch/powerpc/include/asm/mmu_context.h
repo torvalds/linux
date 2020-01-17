@@ -109,7 +109,7 @@ extern void mmu_context_init(void);
 static inline int alloc_extended_context(struct mm_struct *mm,
 					 unsigned long ea)
 {
-	/* non book3s_64 should never find this called */
+	/* yesn book3s_64 should never find this called */
 	WARN_ON(1);
 	return -ENOMEM;
 }
@@ -166,12 +166,12 @@ static inline void mm_context_remove_copro(struct mm_struct *mm)
 	 * TLBIs, so we need to flush first before decrementing
 	 * 'copros'. If this API is used by several callers for the
 	 * same context, it can lead to over-flushing. It's hopefully
-	 * not common enough to be a problem.
+	 * yest common eyesugh to be a problem.
 	 *
-	 * Skip on hash, as we don't know how to do the proper flush
+	 * Skip on hash, as we don't kyesw how to do the proper flush
 	 * for the time being. Invalidations will remain global if
 	 * used on hash. Note that we can't drop 'copros' either, as
-	 * it could make some invalidations local with no flush
+	 * it could make some invalidations local with yes flush
 	 * in-between.
 	 */
 	if (radix_enabled()) {

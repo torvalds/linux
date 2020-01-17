@@ -3,7 +3,7 @@
  * Generic OPP helper interface for CPU device
  *
  * Copyright (C) 2009-2014 Texas Instruments Incorporated.
- *	Nishanth Menon
+ *	Nishanth Meyesn
  *	Romit Dasgupta
  *	Kevin Hilman
  */
@@ -13,7 +13,7 @@
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 
@@ -33,8 +33,8 @@
  * expected that the caller does the required maintenance such as freeing
  * the table as required.
  *
- * Returns -EINVAL for bad pointers, -ENODEV if the device is not found, -ENOMEM
- * if no memory available for the operation (table is not populated), returns 0
+ * Returns -EINVAL for bad pointers, -ENODEV if the device is yest found, -ENOMEM
+ * if yes memory available for the operation (table is yest populated), returns 0
  * if successful and table is populated.
  *
  * WARNING: It is  important for the callers to ensure refreshing their copy of
@@ -182,7 +182,7 @@ int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev,
 			continue;
 		}
 
-		/* Mark opp-table as multiple CPUs are sharing it now */
+		/* Mark opp-table as multiple CPUs are sharing it yesw */
 		opp_table->shared_opp = OPP_TABLE_ACCESS_SHARED;
 	}
 
@@ -200,7 +200,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_sharing_cpus);
  * This updates the @cpumask with CPUs that are sharing OPPs with @cpu_dev.
  *
  * Returns -ENODEV if OPP table isn't already present and -EINVAL if the OPP
- * table's status is access-unknown.
+ * table's status is access-unkyeswn.
  */
 int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 {
@@ -221,7 +221,7 @@ int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 
 	if (opp_table->shared_opp == OPP_TABLE_ACCESS_SHARED) {
 		mutex_lock(&opp_table->lock);
-		list_for_each_entry(opp_dev, &opp_table->dev_list, node)
+		list_for_each_entry(opp_dev, &opp_table->dev_list, yesde)
 			cpumask_set_cpu(opp_dev->dev->id, cpumask);
 		mutex_unlock(&opp_table->lock);
 	} else {

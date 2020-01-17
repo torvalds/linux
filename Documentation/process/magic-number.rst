@@ -46,7 +46,7 @@ Changelog::
   something will change before 2.2.x. The entries are
   sorted by number field.
 
-					Krzysztof G. Baranowski
+					Krzysztof G. Barayeswski
 					<mailto: kgb@knm.org.pl>
 					29 Jul 1998
 
@@ -74,10 +74,10 @@ MKISS_DRIVER_MAGIC    0x04bf           mkiss_channel            ``drivers/net/mk
 HDLC_MAGIC            0x239e           n_hdlc                   ``drivers/char/n_hdlc.c``
 APM_BIOS_MAGIC        0x4101           apm_user                 ``arch/x86/kernel/apm_32.c``
 CYCLADES_MAGIC        0x4359           cyclades_port            ``include/linux/cyclades.h``
-DB_MAGIC              0x4442           fc_info                  ``drivers/net/iph5526_novram.c``
-DL_MAGIC              0x444d           fc_info                  ``drivers/net/iph5526_novram.c``
+DB_MAGIC              0x4442           fc_info                  ``drivers/net/iph5526_yesvram.c``
+DL_MAGIC              0x444d           fc_info                  ``drivers/net/iph5526_yesvram.c``
 FASYNC_MAGIC          0x4601           fasync_struct            ``include/linux/fs.h``
-FF_MAGIC              0x4646           fc_info                  ``drivers/net/iph5526_novram.c``
+FF_MAGIC              0x4646           fc_info                  ``drivers/net/iph5526_yesvram.c``
 ISICOM_MAGIC          0x4d54           isi_port                 ``include/linux/isicom.h``
 PTY_MAGIC             0x5001                                    ``drivers/char/pty.c``
 PPP_MAGIC             0x5002           ppp                      ``include/linux/if_pppvar.h``
@@ -156,7 +156,7 @@ NMI_MAGIC             0x48414d4d455201 nmi_s                    ``arch/mips/incl
 Note that there are also defined special per-driver magic numbers in sound
 memory management. See ``include/sound/sndmagic.h`` for complete list of them. Many
 OSS sound drivers have their magic numbers constructed from the soundcard PCI
-ID - these are not listed here as well.
+ID - these are yest listed here as well.
 
-HFS is another larger user of magic numbers - you can find them in
+HFS is ayesther larger user of magic numbers - you can find them in
 ``fs/hfs/hfs.h``.

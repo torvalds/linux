@@ -56,7 +56,7 @@ int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt, __be32 *rdma_resp,
 	spin_lock(&xprt->queue_lock);
 	req = xprt_lookup_rqst(xprt, xid);
 	if (!req)
-		goto out_notfound;
+		goto out_yestfound;
 
 	dst = &req->rq_private_buf.head[0];
 	memcpy(&req->rq_private_buf, &req->rq_rcv_buf, sizeof(struct xdr_buf));
@@ -92,7 +92,7 @@ out_shortreply:
 		xprt, src->iov_len);
 	goto out;
 
-out_notfound:
+out_yestfound:
 	dprintk("svcrdma: unrecognized bc reply: xprt=%p, xid=%08x\n",
 		xprt, be32_to_cpu(xid));
 	goto out_unlock;
@@ -104,11 +104,11 @@ out_notfound:
  * the RPC/RDMA request.
  *
  * This is similar to svc_rdma_send_reply_msg, but takes a struct
- * rpc_rqst instead, does not support chunks, and avoids blocking
+ * rpc_rqst instead, does yest support chunks, and avoids blocking
  * memory allocation.
  *
  * XXX: There is still an opportunity to block in svc_rdma_send()
- * if there are no SQ entries to post the Send. This may occur if
+ * if there are yes SQ entries to post the Send. This may occur if
  * the adapter has a small maximum SQ depth.
  */
 static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,

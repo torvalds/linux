@@ -64,7 +64,7 @@ int brcms_led_register(struct brcms_info *wl)
 	unsigned gpio = -1;
 	bool active_low = false;
 
-	/* none by default */
+	/* yesne by default */
 	radio_led->gpio = -1;
 	radio_led->active_low = false;
 
@@ -97,7 +97,7 @@ int brcms_led_register(struct brcms_info *wl)
 	}
 	err = gpio_direction_output(gpio, 1);
 	if (err) {
-		wiphy_err(wl->wiphy, "cannot set led gpio %d to output (err: %d)\n",
+		wiphy_err(wl->wiphy, "canyest set led gpio %d to output (err: %d)\n",
 			  gpio, err);
 		return err;
 	}
@@ -112,7 +112,7 @@ int brcms_led_register(struct brcms_info *wl)
 	err = led_classdev_register(wiphy_dev(wl->wiphy), &wl->led_dev);
 
 	if (err) {
-		wiphy_err(wl->wiphy, "cannot register led device: %s (err: %d)\n",
+		wiphy_err(wl->wiphy, "canyest register led device: %s (err: %d)\n",
 			  wl->radio_led.name, err);
 		return err;
 	}

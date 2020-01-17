@@ -2,7 +2,7 @@
 /*
  * Xilinx SystemACE device driver
  *
- * Copyright 2007 Secret Lab Technologies Ltd.
+ * Copyright 2007 Secret Lab Techyeslogies Ltd.
  */
 
 /*
@@ -39,12 +39,12 @@
  *       cleared.
  *    3. release the lock.
  *
- *    Individual states do not sleep in any way.  If a condition needs to
+ *    Individual states do yest sleep in any way.  If a condition needs to
  *    be waited for then the state much clear the fsm_continue flag and
  *    either schedule the FSM to be run again at a later time, or expect
  *    an interrupt to call the FSM when the desired condition is met.
  *
- *    In normal operation, the FSM is processed at interrupt context
+ *    In yesrmal operation, the FSM is processed at interrupt context
  *    either when the driver's tasklet is scheduled, or when an irq is
  *    raised by the hardware.  The tasklet can be scheduled at any time.
  *    The request method in particular schedules the tasklet when a new
@@ -60,7 +60,7 @@
  *    2. ace_fsm_yieldirq()
  *       - Call if an irq is expected from the HW
  *       - clears the fsm_continue flag to exit the processing loop
- *       - does not reschedule the tasklet so the FSM will not be processed
+ *       - does yest reschedule the tasklet so the FSM will yest be processed
  *         again until an irq is received.
  *    After calling a yield function, the state must return control back
  *    to the FSM main loop.
@@ -81,7 +81,7 @@
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -495,7 +495,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		ace->fsm_state, ace->id_req_count);
 #endif
 
-	/* Verify that there is actually a CF in the slot. If not, then
+	/* Verify that there is actually a CF in the slot. If yest, then
 	 * bail out back to the idle state and wake up all the waiters */
 	status = ace_in32(ace, ACE_STATUS);
 	if ((status & ACE_STATUS_CFDETECT) == 0) {
@@ -512,7 +512,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		while ((req = ace_get_next_request(ace->queue)) != NULL)
 			blk_mq_end_request(req, BLK_STS_IOERR);
 
-		/* Drop back to IDLE state and notify waiters */
+		/* Drop back to IDLE state and yestify waiters */
 		ace->fsm_state = ACE_FSM_STATE_IDLE;
 		ace->id_result = -EIO;
 		while (ace->id_req_count) {
@@ -643,7 +643,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 				ata_id_u32(ace->cf_id, ATA_ID_LBA_CAPACITY));
 		}
 
-		/* We're done, drop to IDLE state and notify waiters */
+		/* We're done, drop to IDLE state and yestify waiters */
 		ace->fsm_state = ACE_FSM_STATE_IDLE;
 		ace->id_result = ace->data_result;
 		while (ace->id_req_count) {
@@ -712,7 +712,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		}
 		if (!(status & ACE_STATUS_DATABUFRDY)) {
 			dev_dbg(ace->dev,
-				"DATABUF not set; t=%i iter=%i c=%i dc=%i irq=%i\n",
+				"DATABUF yest set; t=%i iter=%i c=%i dc=%i irq=%i\n",
 				ace->fsm_task, ace->fsm_iter_num,
 				blk_rq_cur_sectors(ace->req) * 16,
 				ace->data_count, ace->in_irq);
@@ -733,7 +733,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 			break;
 		}
 
-		/* bio finished; is there another one? */
+		/* bio finished; is there ayesther one? */
 		if (blk_update_request(ace->req, BLK_STS_OK,
 		    blk_rq_cur_bytes(ace->req))) {
 			/* dev_dbg(ace->dev, "next block; h=%u c=%u\n",
@@ -1027,7 +1027,7 @@ static int ace_setup(struct ace_device *ace)
 		goto err_alloc_disk;
 
 	ace->gd->major = ace_major;
-	ace->gd->first_minor = ace->id * ACE_NUM_MINORS;
+	ace->gd->first_miyesr = ace->id * ACE_NUM_MINORS;
 	ace->gd->fops = &ace_fops;
 	ace->gd->events = DISK_EVENT_MEDIA_CHANGE;
 	ace->gd->queue = ace->queue;
@@ -1131,7 +1131,7 @@ static int ace_alloc(struct device *dev, int id, resource_size_t physaddr,
 
 	if (!physaddr) {
 		rc = -ENODEV;
-		goto err_noreg;
+		goto err_yesreg;
 	}
 
 	/* Allocate and initialize the ace device structure */
@@ -1159,8 +1159,8 @@ err_setup:
 	dev_set_drvdata(dev, NULL);
 	kfree(ace);
 err_alloc:
-err_noreg:
-	dev_err(dev, "could not initialize device, err=%i\n", rc);
+err_yesreg:
+	dev_err(dev, "could yest initialize device, err=%i\n", rc);
 	return rc;
 }
 
@@ -1183,7 +1183,7 @@ static void ace_free(struct device *dev)
 static int ace_probe(struct platform_device *dev)
 {
 	resource_size_t physaddr = 0;
-	int bus_width = ACE_BUS_WIDTH_16; /* FIXME: should not be hard coded */
+	int bus_width = ACE_BUS_WIDTH_16; /* FIXME: should yest be hard coded */
 	u32 id = dev->id;
 	int irq = 0;
 	int i;
@@ -1191,9 +1191,9 @@ static int ace_probe(struct platform_device *dev)
 	dev_dbg(&dev->dev, "ace_probe(%p)\n", dev);
 
 	/* device id and bus width */
-	if (of_property_read_u32(dev->dev.of_node, "port-number", &id))
+	if (of_property_read_u32(dev->dev.of_yesde, "port-number", &id))
 		id = 0;
-	if (of_find_property(dev->dev.of_node, "8-bit", NULL))
+	if (of_find_property(dev->dev.of_yesde, "8-bit", NULL))
 		bus_width = ACE_BUS_WIDTH_8;
 
 	for (i = 0; i < dev->num_resources; i++) {

@@ -41,7 +41,7 @@ static struct kmem_cache *creg_cmd_pool;
 #elif defined(__BIG_ENDIAN)
 #define LITTLE_ENDIAN 0
 #else
-#error Unknown endianess!!! Aborting...
+#error Unkyeswn endianess!!! Aborting...
 #endif
 
 static int copy_to_creg_data(struct rsxx_cardinfo *card,
@@ -135,7 +135,7 @@ static void creg_kick_queue(struct rsxx_cardinfo *card)
 	/*
 	 * We have to set the timer before we push the new command. Otherwise,
 	 * we could create a race condition that would occur if the timer
-	 * was not canceled, and expired after the new command was pushed,
+	 * was yest canceled, and expired after the new command was pushed,
 	 * but before the command was issued to hardware.
 	 */
 	mod_timer(&card->creg_ctrl.cmd_timer,
@@ -229,7 +229,7 @@ static void creg_cmd_done(struct work_struct *work)
 			    creg_ctrl.done_work);
 
 	/*
-	 * The timer could not be cancelled for some reason,
+	 * The timer could yest be cancelled for some reason,
 	 * race to pop the active command.
 	 */
 	if (del_timer_sync(&card->creg_ctrl.cmd_timer) == 0)
@@ -265,10 +265,10 @@ static void creg_cmd_done(struct work_struct *work)
 	if (cmd->op == CREG_OP_READ) {
 		unsigned int cnt8 = ioread32(card->regmap + CREG_CNT);
 
-		/* Paranoid Sanity Checks */
+		/* Parayesid Sanity Checks */
 		if (!cmd->buf) {
 			dev_err(CARD_TO_DEV(card),
-				"Buffer not given for read.\n");
+				"Buffer yest given for read.\n");
 			st = -EIO;
 			goto creg_done;
 		}
@@ -347,7 +347,7 @@ static void creg_reset(struct rsxx_cardinfo *card)
 	mutex_unlock(&card->creg_ctrl.reset_lock);
 }
 
-/* Used for synchronous accesses */
+/* Used for synchroyesus accesses */
 struct creg_completion {
 	struct completion	*cmd_done;
 	int			st;
@@ -400,13 +400,13 @@ static int __issue_creg_rw(struct rsxx_cardinfo *card,
 
 	/*
 	 * The creg interface is guaranteed to complete. It has a timeout
-	 * mechanism that will kick in if hardware does not respond.
+	 * mechanism that will kick in if hardware does yest respond.
 	 */
 	st = wait_for_completion_timeout(completion.cmd_done, timeout);
 	if (st == 0) {
 		/*
-		 * This is really bad, because the kernel timer did not
-		 * expire and notify us of a timeout!
+		 * This is really bad, because the kernel timer did yest
+		 * expire and yestify us of a timeout!
 		 */
 		dev_crit(CARD_TO_DEV(card),
 			"cregs timer failed\n");
@@ -418,9 +418,9 @@ static int __issue_creg_rw(struct rsxx_cardinfo *card,
 
 	if (completion.st) {
 		/*
-		* This read is needed to verify that there has not been any
+		* This read is needed to verify that there has yest been any
 		* extreme errors that might have occurred, i.e. EEH. The
-		* function iowrite32 will not detect EEH errors, so it is
+		* function iowrite32 will yest detect EEH errors, so it is
 		* necessary that we recover if such an error is the reason
 		* for the timeout. This is a dummy read.
 		*/
@@ -557,7 +557,7 @@ static void hw_log_msg(struct rsxx_cardinfo *card, const char *str, int len)
 		dev_warn(CARD_TO_DEV(card), "HW: %.*s", len, str);
 		break;
 	case '5':
-		dev_notice(CARD_TO_DEV(card), "HW: %.*s", len, str);
+		dev_yestice(CARD_TO_DEV(card), "HW: %.*s", len, str);
 		break;
 	case '6':
 		dev_info(CARD_TO_DEV(card), "HW: %.*s", len, str);

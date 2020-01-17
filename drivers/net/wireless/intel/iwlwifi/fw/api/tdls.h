@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -142,13 +142,13 @@ struct iwl_tdls_channel_switch_cmd {
 } __packed; /* TDLS_STA_CHANNEL_SWITCH_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_tdls_channel_switch_notif - TDLS channel switch start notification
+ * struct iwl_tdls_channel_switch_yestif - TDLS channel switch start yestification
  *
- * @status: non-zero on success
+ * @status: yesn-zero on success
  * @offchannel_duration: duration given in microseconds
  * @sta_id: peer currently performing the channel-switch with
  */
-struct iwl_tdls_channel_switch_notif {
+struct iwl_tdls_channel_switch_yestif {
 	__le32 status;
 	__le32 offchannel_duration;
 	__le32 sta_id;

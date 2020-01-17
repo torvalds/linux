@@ -232,7 +232,7 @@ static int __init nlm_i2c_init(void)
 	int err = 0;
 	unsigned int offset;
 
-	/* I2C bus 0 does not have any useful devices, configure only bus 1 */
+	/* I2C bus 0 does yest have any useful devices, configure only bus 1 */
 	offset = NETLOGIC_IO_I2C_1_OFFSET;
 	nlm_xlr_i2c_1.resource[0].start = CPHYSADDR(nlm_mmio_base(offset));
 	nlm_xlr_i2c_1.resource[0].end = nlm_xlr_i2c_1.resource[0].start + 0xfff;
@@ -242,7 +242,7 @@ static int __init nlm_i2c_init(void)
 	err = i2c_register_board_info(1, nlm_i2c_board_info1,
 				ARRAY_SIZE(nlm_i2c_board_info1));
 	if (err < 0)
-		pr_err("nlm-i2c: cannot register board I2C devices\n");
+		pr_err("nlm-i2c: canyest register board I2C devices\n");
 	return err;
 }
 

@@ -66,7 +66,7 @@ config QCOM_CLK_RPMH
 	tristate "RPMh Clock Driver"
 	depends on QCOM_RPMH
 	help
-	 RPMh manages shared resources on some Qualcomm Technologies, Inc.
+	 RPMh manages shared resources on some Qualcomm Techyeslogies, Inc.
 	 SoCs. It accepts requests from other hardware subsystems via RSC.
 	 Say Y if you want to support the clocks exposed by RPMh on
 	 platforms such as SDM845.
@@ -303,7 +303,7 @@ config SDM_DISPCC_845
 	tristate "SDM845 Display Clock Controller"
 	select SDM_GCC_845
 	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Support for the display clock controller on Qualcomm Techyeslogies, Inc
 	  SDM845 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
@@ -328,7 +328,7 @@ config SPMI_PMIC_CLKDIV
 	depends on SPMI || COMPILE_TEST
 	help
 	  This driver supports the clkdiv functionality on the Qualcomm
-	  Technologies, Inc. SPMI PMIC. It configures the frequency of
+	  Techyeslogies, Inc. SPMI PMIC. It configures the frequency of
 	  clkdiv outputs of the PMIC. These clocks are typically wired
 	  through alternate functions on GPIO pins.
 

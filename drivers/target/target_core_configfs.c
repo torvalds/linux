@@ -109,7 +109,7 @@ static ssize_t target_core_item_dbroot_store(struct config_item *item,
 	mutex_lock(&g_tf_lock);
 	if (!list_empty(&g_tf_list)) {
 		mutex_unlock(&g_tf_lock);
-		pr_err("db_root: cannot be changed: target drivers registered");
+		pr_err("db_root: canyest be changed: target drivers registered");
 		return -EINVAL;
 	}
 
@@ -132,13 +132,13 @@ static ssize_t target_core_item_dbroot_store(struct config_item *item,
 	fp = filp_open(db_root_stage, O_RDONLY, 0);
 	if (IS_ERR(fp)) {
 		mutex_unlock(&g_tf_lock);
-		pr_err("db_root: cannot open: %s\n", db_root_stage);
+		pr_err("db_root: canyest open: %s\n", db_root_stage);
 		return -EINVAL;
 	}
-	if (!S_ISDIR(file_inode(fp)->i_mode)) {
+	if (!S_ISDIR(file_iyesde(fp)->i_mode)) {
 		filp_close(fp, NULL);
 		mutex_unlock(&g_tf_lock);
-		pr_err("db_root: not a directory: %s\n", db_root_stage);
+		pr_err("db_root: yest a directory: %s\n", db_root_stage);
 		return -EINVAL;
 	}
 	filp_close(fp, NULL);
@@ -202,9 +202,9 @@ static struct config_group *target_core_register_fabric(
 		 *
 		 * mkdir -p /sys/kernel/config/target/$MODULE_NAME
 		 *
-		 * Note that this does not limit which TCM fabric module can be
+		 * Note that this does yest limit which TCM fabric module can be
 		 * registered, but simply provids auto loading logic for modules with
-		 * mkdir(2) system calls with known TCM fabric modules.
+		 * mkdir(2) system calls with kyeswn TCM fabric modules.
 		 */
 
 		if (!strncmp(name, "iscsi", 5)) {
@@ -393,8 +393,8 @@ static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 		pr_err("Missing tfo->write_pending()\n");
 		return -EINVAL;
 	}
-	if (!tfo->set_default_node_attributes) {
-		pr_err("Missing tfo->set_default_node_attributes()\n");
+	if (!tfo->set_default_yesde_attributes) {
+		pr_err("Missing tfo->set_default_yesde_attributes()\n");
 		return -EINVAL;
 	}
 	if (!tfo->get_cmd_state) {
@@ -457,7 +457,7 @@ int target_register_template(const struct target_core_fabric_ops *fo)
 
 	tf = kzalloc(sizeof(struct target_fabric_configfs), GFP_KERNEL);
 	if (!tf) {
-		pr_err("%s: could not allocate memory!\n", __func__);
+		pr_err("%s: could yest allocate memory!\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -531,7 +531,7 @@ DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_type);
 DEF_CONFIGFS_ATTRIB_SHOW(hw_pi_prot_type);
 DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_verify);
 DEF_CONFIGFS_ATTRIB_SHOW(enforce_pr_isids);
-DEF_CONFIGFS_ATTRIB_SHOW(is_nonrot);
+DEF_CONFIGFS_ATTRIB_SHOW(is_yesnrot);
 DEF_CONFIGFS_ATTRIB_SHOW(emulate_rest_reord);
 DEF_CONFIGFS_ATTRIB_SHOW(force_pr_aptpl);
 DEF_CONFIGFS_ATTRIB_SHOW(hw_block_size);
@@ -588,14 +588,14 @@ DEF_CONFIGFS_ATTRIB_STORE_BOOL(emulate_caw);
 DEF_CONFIGFS_ATTRIB_STORE_BOOL(emulate_3pc);
 DEF_CONFIGFS_ATTRIB_STORE_BOOL(emulate_pr);
 DEF_CONFIGFS_ATTRIB_STORE_BOOL(enforce_pr_isids);
-DEF_CONFIGFS_ATTRIB_STORE_BOOL(is_nonrot);
+DEF_CONFIGFS_ATTRIB_STORE_BOOL(is_yesnrot);
 
 #define DEF_CONFIGFS_ATTRIB_STORE_STUB(_name)				\
 static ssize_t _name##_store(struct config_item *item, const char *page,\
 		size_t count)						\
 {									\
 	printk_once(KERN_WARNING					\
-		"ignoring deprecated %s attribute\n",			\
+		"igyesring deprecated %s attribute\n",			\
 		__stringify(_name));					\
 	return count;							\
 }
@@ -663,7 +663,7 @@ static ssize_t emulate_write_cache_store(struct config_item *item,
 		return ret;
 
 	if (flag && da->da_dev->transport->get_write_cache) {
-		pr_err("emulate_write_cache not supported for this device\n");
+		pr_err("emulate_write_cache yest supported for this device\n");
 		return -EINVAL;
 	}
 
@@ -737,11 +737,11 @@ static ssize_t emulate_tpu_store(struct config_item *item,
 		return ret;
 
 	/*
-	 * We expect this value to be non-zero when generic Block Layer
+	 * We expect this value to be yesn-zero when generic Block Layer
 	 * Discard supported is detected iblock_create_virtdevice().
 	 */
 	if (flag && !da->max_unmap_block_desc_count) {
-		pr_err("Generic Block Discard not supported\n");
+		pr_err("Generic Block Discard yest supported\n");
 		return -ENOSYS;
 	}
 
@@ -763,11 +763,11 @@ static ssize_t emulate_tpws_store(struct config_item *item,
 		return ret;
 
 	/*
-	 * We expect this value to be non-zero when generic Block Layer
+	 * We expect this value to be yesn-zero when generic Block Layer
 	 * Discard supported is detected iblock_create_virtdevice().
 	 */
 	if (flag && !da->max_unmap_block_desc_count) {
-		pr_err("Generic Block Discard not supported\n");
+		pr_err("Generic Block Discard yest supported\n");
 		return -ENOSYS;
 	}
 
@@ -794,20 +794,20 @@ static ssize_t pi_prot_type_store(struct config_item *item,
 		return -EINVAL;
 	}
 	if (flag == 2) {
-		pr_err("DIF TYPE2 protection currently not supported\n");
+		pr_err("DIF TYPE2 protection currently yest supported\n");
 		return -ENOSYS;
 	}
 	if (da->hw_pi_prot_type) {
 		pr_warn("DIF protection enabled on underlying hardware,"
-			" ignoring\n");
+			" igyesring\n");
 		return count;
 	}
 	if (!dev->transport->init_prot || !dev->transport->free_prot) {
-		/* 0 is only allowed value for non-supporting backends */
+		/* 0 is only allowed value for yesn-supporting backends */
 		if (flag == 0)
 			return count;
 
-		pr_err("DIF protection not supported by backend: %s\n",
+		pr_err("DIF protection yest supported by backend: %s\n",
 		       dev->transport->name);
 		return -ENOSYS;
 	}
@@ -862,7 +862,7 @@ static ssize_t pi_prot_format_store(struct config_item *item,
 		return count;
 
 	if (!dev->transport->format_prot) {
-		pr_err("DIF protection format not supported by backend %s\n",
+		pr_err("DIF protection format yest supported by backend %s\n",
 		       dev->transport->name);
 		return -ENOSYS;
 	}
@@ -901,11 +901,11 @@ static ssize_t pi_prot_verify_store(struct config_item *item,
 	}
 	if (da->hw_pi_prot_type) {
 		pr_warn("DIF protection enabled on underlying hardware,"
-			" ignoring\n");
+			" igyesring\n");
 		return count;
 	}
 	if (!da->pi_prot_type) {
-		pr_warn("DIF protection not supported by backend, ignoring\n");
+		pr_warn("DIF protection yest supported by backend, igyesring\n");
 		return count;
 	}
 	da->pi_prot_verify = flag;
@@ -948,7 +948,7 @@ static ssize_t emulate_rest_reord_store(struct config_item *item,
 
 	if (flag != 0) {
 		printk(KERN_ERR "dev[%p]: SE Device emulation of restricted"
-			" reordering not implemented\n", da->da_dev);
+			" reordering yest implemented\n", da->da_dev);
 		return -ENOSYS;
 	}
 	da->emulate_rest_reord = flag;
@@ -975,11 +975,11 @@ static ssize_t unmap_zeroes_data_store(struct config_item *item,
 		return -EINVAL;
 	}
 	/*
-	 * We expect this value to be non-zero when generic Block Layer
+	 * We expect this value to be yesn-zero when generic Block Layer
 	 * Discard supported is detected iblock_configure_device().
 	 */
 	if (flag && !da->max_unmap_block_desc_count) {
-		pr_err("dev[%p]: Thin Provisioning LBPRZ will not be set"
+		pr_err("dev[%p]: Thin Provisioning LBPRZ will yest be set"
 		       " because max_unmap_block_desc_count is zero\n",
 		       da->da_dev);
 		return -ENOSYS;
@@ -1048,7 +1048,7 @@ static ssize_t optimal_sectors_store(struct config_item *item,
 		return -EINVAL;
 	}
 	if (val > da->hw_max_sectors) {
-		pr_err("dev[%p]: Passed optimal_sectors %u cannot be"
+		pr_err("dev[%p]: Passed optimal_sectors %u canyest be"
 			" greater than hw_max_sectors: %u\n",
 			da->da_dev, val, da->hw_max_sectors);
 		return -EINVAL;
@@ -1129,7 +1129,7 @@ CONFIGFS_ATTR_RO(, hw_pi_prot_type);
 CONFIGFS_ATTR(, pi_prot_format);
 CONFIGFS_ATTR(, pi_prot_verify);
 CONFIGFS_ATTR(, enforce_pr_isids);
-CONFIGFS_ATTR(, is_nonrot);
+CONFIGFS_ATTR(, is_yesnrot);
 CONFIGFS_ATTR(, emulate_rest_reord);
 CONFIGFS_ATTR(, force_pr_aptpl);
 CONFIGFS_ATTR_RO(, hw_block_size);
@@ -1170,7 +1170,7 @@ struct configfs_attribute *sbc_attrib_attrs[] = {
 	&attr_pi_prot_format,
 	&attr_pi_prot_verify,
 	&attr_enforce_pr_isids,
-	&attr_is_nonrot,
+	&attr_is_yesnrot,
 	&attr_emulate_rest_reord,
 	&attr_force_pr_aptpl,
 	&attr_hw_block_size,
@@ -1234,7 +1234,7 @@ static ssize_t target_check_inquiry_data(char *buf)
 	 */
 	for (i = 0; i < len; i++) {
 		if (buf[i] < 0x20 || buf[i] > 0x7E) {
-			pr_err("Emulated T10 Inquiry Data contains non-ASCII-printable characters\n");
+			pr_err("Emulated T10 Inquiry Data contains yesn-ASCII-printable characters\n");
 			return -EINVAL;
 		}
 	}
@@ -1432,17 +1432,17 @@ static ssize_t target_wwn_vpd_unit_serial_store(struct config_item *item,
 
 	/*
 	 * If Linux/SCSI subsystem_api_t plugin got a VPD Unit Serial
-	 * from the struct scsi_device level firmware, do not allow
+	 * from the struct scsi_device level firmware, do yest allow
 	 * VPD Unit Serial to be emulated.
 	 *
 	 * Note this struct scsi_device could also be emulating VPD
-	 * information from its drivers/scsi LLD.  But for now we assume
+	 * information from its drivers/scsi LLD.  But for yesw we assume
 	 * it is doing 'the right thing' wrt a world wide unique
 	 * VPD Unit Serial Number that OS dependent multipath can depend on.
 	 */
 	if (dev->dev_flags & DF_FIRMWARE_VPD_UNIT_SERIAL) {
 		pr_err("Underlying SCSI device firmware provided VPD"
-			" Unit Serial, ignoring request\n");
+			" Unit Serial, igyesring request\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1595,7 +1595,7 @@ static struct se_device *pr_to_dev(struct config_item *item)
 static ssize_t target_core_dev_pr_show_spc3_res(struct se_device *dev,
 		char *page)
 {
-	struct se_node_acl *se_nacl;
+	struct se_yesde_acl *se_nacl;
 	struct t10_pr_registration *pr_reg;
 	char i_buf[PR_REG_ISID_ID_LEN];
 
@@ -1617,11 +1617,11 @@ static ssize_t target_core_dev_pr_show_spc2_res(struct se_device *dev,
 		char *page)
 {
 	struct se_session *sess = dev->reservation_holder;
-	struct se_node_acl *se_nacl;
+	struct se_yesde_acl *se_nacl;
 	ssize_t len;
 
 	if (sess) {
-		se_nacl = sess->se_node_acl;
+		se_nacl = sess->se_yesde_acl;
 		len = sprintf(page,
 			      "SPC-2 Reservation: %s Initiator: %s\n",
 			      se_nacl->se_tpg->se_tpg_tfo->fabric_name,
@@ -1684,7 +1684,7 @@ static ssize_t target_pr_res_pr_holder_tg_port_show(struct config_item *item,
 		char *page)
 {
 	struct se_device *dev = pr_to_dev(item);
-	struct se_node_acl *se_nacl;
+	struct se_yesde_acl *se_nacl;
 	struct se_portal_group *se_tpg;
 	struct t10_pr_registration *pr_reg;
 	const struct target_core_fabric_ops *tfo;
@@ -1816,15 +1816,15 @@ static ssize_t target_pr_res_aptpl_metadata_show(struct config_item *item,
 }
 
 enum {
-	Opt_initiator_fabric, Opt_initiator_node, Opt_initiator_sid,
+	Opt_initiator_fabric, Opt_initiator_yesde, Opt_initiator_sid,
 	Opt_sa_res_key, Opt_res_holder, Opt_res_type, Opt_res_scope,
 	Opt_res_all_tg_pt, Opt_mapped_lun, Opt_target_fabric,
-	Opt_target_node, Opt_tpgt, Opt_port_rtpi, Opt_target_lun, Opt_err
+	Opt_target_yesde, Opt_tpgt, Opt_port_rtpi, Opt_target_lun, Opt_err
 };
 
 static match_table_t tokens = {
 	{Opt_initiator_fabric, "initiator_fabric=%s"},
-	{Opt_initiator_node, "initiator_node=%s"},
+	{Opt_initiator_yesde, "initiator_yesde=%s"},
 	{Opt_initiator_sid, "initiator_sid=%s"},
 	{Opt_sa_res_key, "sa_res_key=%s"},
 	{Opt_res_holder, "res_holder=%d"},
@@ -1833,7 +1833,7 @@ static match_table_t tokens = {
 	{Opt_res_all_tg_pt, "res_all_tg_pt=%d"},
 	{Opt_mapped_lun, "mapped_lun=%u"},
 	{Opt_target_fabric, "target_fabric=%s"},
-	{Opt_target_node, "target_node=%s"},
+	{Opt_target_yesde, "target_yesde=%s"},
 	{Opt_tpgt, "tpgt=%d"},
 	{Opt_port_rtpi, "port_rtpi=%d"},
 	{Opt_target_lun, "target_lun=%u"},
@@ -1885,14 +1885,14 @@ static ssize_t target_pr_res_aptpl_metadata_store(struct config_item *item,
 				goto out;
 			}
 			break;
-		case Opt_initiator_node:
+		case Opt_initiator_yesde:
 			i_port = match_strdup(args);
 			if (!i_port) {
 				ret = -ENOMEM;
 				goto out;
 			}
 			if (strlen(i_port) >= PR_APTPL_MAX_IPORT_LEN) {
-				pr_err("APTPL metadata initiator_node="
+				pr_err("APTPL metadata initiator_yesde="
 					" exceeds PR_APTPL_MAX_IPORT_LEN: %d\n",
 					PR_APTPL_MAX_IPORT_LEN);
 				ret = -EINVAL;
@@ -1963,14 +1963,14 @@ static ssize_t target_pr_res_aptpl_metadata_store(struct config_item *item,
 				goto out;
 			}
 			break;
-		case Opt_target_node:
+		case Opt_target_yesde:
 			t_port = match_strdup(args);
 			if (!t_port) {
 				ret = -ENOMEM;
 				goto out;
 			}
 			if (strlen(t_port) >= PR_APTPL_MAX_TPORT_LEN) {
-				pr_err("APTPL metadata target_node="
+				pr_err("APTPL metadata target_yesde="
 					" exceeds PR_APTPL_MAX_TPORT_LEN: %d\n",
 					PR_APTPL_MAX_TPORT_LEN);
 				ret = -EINVAL;
@@ -2687,13 +2687,13 @@ static ssize_t target_tg_pt_gp_alua_access_state_store(struct config_item *item,
 	int new_state, ret;
 
 	if (!tg_pt_gp->tg_pt_gp_valid_id) {
-		pr_err("Unable to do implicit ALUA on non valid"
+		pr_err("Unable to do implicit ALUA on yesn valid"
 			" tg_pt_gp ID: %hu\n", tg_pt_gp->tg_pt_gp_valid_id);
 		return -EINVAL;
 	}
 	if (!target_dev_configured(dev)) {
 		pr_err("Unable to set alua_access_state while device is"
-		       " not configured\n");
+		       " yest configured\n");
 		return -ENODEV;
 	}
 
@@ -2739,7 +2739,7 @@ static ssize_t target_tg_pt_gp_alua_access_status_store(
 	int new_status, ret;
 
 	if (!tg_pt_gp->tg_pt_gp_valid_id) {
-		pr_err("Unable to do set ALUA access status on non"
+		pr_err("Unable to do set ALUA access status on yesn"
 			" valid tg_pt_gp ID: %hu\n",
 			tg_pt_gp->tg_pt_gp_valid_id);
 		return -EINVAL;
@@ -2794,7 +2794,7 @@ static ssize_t target_tg_pt_gp_alua_support_##_name##_store(		\
 	int ret;							\
 									\
 	if (!t->tg_pt_gp_valid_id) {					\
-		pr_err("Unable to do set " #_name " ALUA state on non"	\
+		pr_err("Unable to do set " #_name " ALUA state on yesn"	\
 		       " valid tg_pt_gp ID: %hu\n",			\
 		       t->tg_pt_gp_valid_id);				\
 		return -EINVAL;						\
@@ -2823,7 +2823,7 @@ ALUA_SUPPORTED_STATE_ATTR(lba_dependent, ALUA_LBD_SUP);
 ALUA_SUPPORTED_STATE_ATTR(unavailable, ALUA_U_SUP);
 ALUA_SUPPORTED_STATE_ATTR(standby, ALUA_S_SUP);
 ALUA_SUPPORTED_STATE_ATTR(active_optimized, ALUA_AO_SUP);
-ALUA_SUPPORTED_STATE_ATTR(active_nonoptimized, ALUA_AN_SUP);
+ALUA_SUPPORTED_STATE_ATTR(active_yesyesptimized, ALUA_AN_SUP);
 
 static ssize_t target_tg_pt_gp_alua_write_metadata_show(
 		struct config_item *item, char *page)
@@ -2855,16 +2855,16 @@ static ssize_t target_tg_pt_gp_alua_write_metadata_store(
 	return count;
 }
 
-static ssize_t target_tg_pt_gp_nonop_delay_msecs_show(struct config_item *item,
+static ssize_t target_tg_pt_gp_yesyesp_delay_msecs_show(struct config_item *item,
 		char *page)
 {
-	return core_alua_show_nonop_delay_msecs(to_tg_pt_gp(item), page);
+	return core_alua_show_yesyesp_delay_msecs(to_tg_pt_gp(item), page);
 }
 
-static ssize_t target_tg_pt_gp_nonop_delay_msecs_store(struct config_item *item,
+static ssize_t target_tg_pt_gp_yesyesp_delay_msecs_store(struct config_item *item,
 		const char *page, size_t count)
 {
-	return core_alua_store_nonop_delay_msecs(to_tg_pt_gp(item), page,
+	return core_alua_store_yesyesp_delay_msecs(to_tg_pt_gp(item), page,
 			count);
 }
 
@@ -2992,9 +2992,9 @@ CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_lba_dependent);
 CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_unavailable);
 CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_standby);
 CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_active_optimized);
-CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_active_nonoptimized);
+CONFIGFS_ATTR(target_tg_pt_gp_, alua_support_active_yesyesptimized);
 CONFIGFS_ATTR(target_tg_pt_gp_, alua_write_metadata);
-CONFIGFS_ATTR(target_tg_pt_gp_, nonop_delay_msecs);
+CONFIGFS_ATTR(target_tg_pt_gp_, yesyesp_delay_msecs);
 CONFIGFS_ATTR(target_tg_pt_gp_, trans_delay_msecs);
 CONFIGFS_ATTR(target_tg_pt_gp_, implicit_trans_secs);
 CONFIGFS_ATTR(target_tg_pt_gp_, preferred);
@@ -3010,10 +3010,10 @@ static struct configfs_attribute *target_core_alua_tg_pt_gp_attrs[] = {
 	&target_tg_pt_gp_attr_alua_support_lba_dependent,
 	&target_tg_pt_gp_attr_alua_support_unavailable,
 	&target_tg_pt_gp_attr_alua_support_standby,
-	&target_tg_pt_gp_attr_alua_support_active_nonoptimized,
+	&target_tg_pt_gp_attr_alua_support_active_yesyesptimized,
 	&target_tg_pt_gp_attr_alua_support_active_optimized,
 	&target_tg_pt_gp_attr_alua_write_metadata,
-	&target_tg_pt_gp_attr_nonop_delay_msecs,
+	&target_tg_pt_gp_attr_yesyesp_delay_msecs,
 	&target_tg_pt_gp_attr_trans_delay_msecs,
 	&target_tg_pt_gp_attr_implicit_trans_secs,
 	&target_tg_pt_gp_attr_preferred,
@@ -3149,7 +3149,7 @@ static struct config_group *target_core_make_subdev(
 	struct se_hba *hba = item_to_hba(hba_ci);
 	struct target_backend *tb = hba->backend;
 	struct se_device *dev;
-	int errno = -ENOMEM, ret;
+	int erryes = -ENOMEM, ret;
 
 	ret = mutex_lock_interruptible(&hba->hba_access_mutex);
 	if (ret)
@@ -3213,7 +3213,7 @@ out_free_device:
 	target_free_device(dev);
 out_unlock:
 	mutex_unlock(&hba->hba_access_mutex);
-	return ERR_PTR(errno);
+	return ERR_PTR(erryes);
 }
 
 static void target_core_drop_subdev(
@@ -3383,7 +3383,7 @@ static struct config_group *target_core_call_addhbatotarget(
 		return ERR_PTR(ret);
 	}
 	/*
-	 * Load up TCM subsystem plugins if they have not already been loaded.
+	 * Load up TCM subsystem plugins if they have yest already been loaded.
 	 */
 	transport_subsystem_check_init();
 
@@ -3440,12 +3440,12 @@ static void target_init_dbroot(void)
 	snprintf(db_root_stage, DB_ROOT_LEN, DB_ROOT_PREFERRED);
 	fp = filp_open(db_root_stage, O_RDONLY, 0);
 	if (IS_ERR(fp)) {
-		pr_err("db_root: cannot open: %s\n", db_root_stage);
+		pr_err("db_root: canyest open: %s\n", db_root_stage);
 		return;
 	}
-	if (!S_ISDIR(file_inode(fp)->i_mode)) {
+	if (!S_ISDIR(file_iyesde(fp)->i_mode)) {
 		filp_close(fp, NULL);
-		pr_err("db_root: not a valid directory: %s\n", db_root_stage);
+		pr_err("db_root: yest a valid directory: %s\n", db_root_stage);
 		return;
 	}
 	filp_close(fp, NULL);

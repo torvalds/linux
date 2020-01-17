@@ -2,7 +2,7 @@
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
  * Drivers based on or derived from this code fall under the GPL and must
- * retain the authorship, copyright and license notice.  This file is not
+ * retain the authorship, copyright and license yestice.  This file is yest
  * a complete program and may only be used when the entire operating
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
@@ -113,7 +113,7 @@
 
 /*
  * The interrupt rate is maintained at 3k per second with the moderation
- * parameters for most traffic but not all. This is the maximum interrupt
+ * parameters for most traffic but yest all. This is the maximum interrupt
  * count allowed per function with INTA or per vector in the case of
  * MSI-X in a 10 millisecond time period. Enabled only for Titan 1A.
  */
@@ -153,14 +153,14 @@ enum vxge_mac_addr_state {
 struct vxge_drv_config {
 	int config_dev_cnt;
 	int total_dev_cnt;
-	int g_no_cpus;
+	int g_yes_cpus;
 	unsigned int vpath_per_dev;
 };
 
 struct macInfo {
 	unsigned char macaddr[ETH_ALEN];
 	unsigned char macmask[ETH_ALEN];
-	unsigned int vpath_no;
+	unsigned int vpath_yes;
 	enum vxge_mac_addr_state state;
 };
 
@@ -228,7 +228,7 @@ struct vxge_fifo_stats {
 	u64 tx_bytes;
 
 	unsigned long tx_errors;
-	unsigned long txd_not_free;
+	unsigned long txd_yest_free;
 	unsigned long txd_out_of_desc;
 	unsigned long pci_map_fail;
 };
@@ -246,7 +246,7 @@ struct vxge_fifo {
 	unsigned long interrupt_count;
 	unsigned long jiffies;
 
-	u32 tx_vector_no;
+	u32 tx_vector_yes;
 	/* Tx stats */
 	struct vxge_fifo_stats stats;
 } ____cacheline_aligned;
@@ -289,7 +289,7 @@ struct vxge_ring {
 #define VXGE_MAX_MAC_ADDR_COUNT		30
 
 	int vlan_tag_strip;
-	u32 rx_vector_no;
+	u32 rx_vector_yes;
 	enum vxge_hw_status last_status;
 
 	/* Rx stats */
@@ -321,7 +321,7 @@ struct vxge_vpath {
 	u32 level_trace;
 };
 #define VXGE_COPY_DEBUG_INFO_TO_LL(vdev, err, trace) {	\
-	for (i = 0; i < vdev->no_of_vpath; i++) {		\
+	for (i = 0; i < vdev->yes_of_vpath; i++) {		\
 		vdev->vpaths[i].level_err = err;		\
 		vdev->vpaths[i].level_trace = trace;		\
 	}							\
@@ -353,7 +353,7 @@ struct vxgedev {
 	 */
 	u16		all_multi_flg;
 
-	/* A flag indicating whether rx_hwts is to be used or not. */
+	/* A flag indicating whether rx_hwts is to be used or yest. */
 	u32	rx_hwts:1,
 		titan1:1;
 
@@ -370,7 +370,7 @@ struct vxgedev {
 	enum vxge_hw_event cric_err_event;
 
 	int max_vpath_supported;
-	int no_of_vpath;
+	int yes_of_vpath;
 
 	struct napi_struct napi;
 	/* A debug option, when enabled and if error condition occurs,
@@ -378,7 +378,7 @@ struct vxgedev {
 	 * - mask all interrupts
 	 * - Not clear the source of the alarm
 	 * - gracefully stop all I/O
-	 * A diagnostic dump of register and stats at this point
+	 * A diagyesstic dump of register and stats at this point
 	 * reveals very useful information.
 	 */
 	int exec_mode;

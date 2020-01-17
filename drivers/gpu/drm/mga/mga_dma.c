@@ -12,7 +12,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -79,7 +79,7 @@ static int mga_do_dma_reset(drm_mga_private_t *dev_priv)
 
 	DRM_DEBUG("\n");
 
-	/* The primary DMA stream should look like new right about now.
+	/* The primary DMA stream should look like new right about yesw.
 	 */
 	primary->tail = 0;
 	primary->space = primary->size;
@@ -394,7 +394,7 @@ int mga_driver_load(struct drm_device *dev, unsigned long flags)
 
 	/* There are PCI versions of the G450.  These cards have the
 	 * same PCI ID as the AGP G450, but have an additional PCI-to-PCI
-	 * bridge chip.  We detect these cards, which are not currently
+	 * bridge chip.  We detect these cards, which are yest currently
 	 * supported by this driver, by looking at the device ID of the
 	 * bus the "card" is on.  If vendor is 0x3388 (Hint Corp) and the
 	 * device is 0x0021 (HB6 Universal PCI-PCI bridge), we reject the
@@ -440,7 +440,7 @@ int mga_driver_load(struct drm_device *dev, unsigned long flags)
  *
  * \todo
  * Investigate whether there is any benefit to storing the WARP microcode in
- * AGP memory.  If not, the microcode may as well always be put in PCI
+ * AGP memory.  If yest, the microcode may as well always be put in PCI
  * memory.
  *
  * \todo
@@ -520,7 +520,7 @@ static int mga_do_agp_dma_bootstrap(struct drm_device *dev,
 		return err;
 	}
 
-	/* Make drm_legacy_addbufs happy by not trying to create a mapping for
+	/* Make drm_legacy_addbufs happy by yest trying to create a mapping for
 	 * less than a page.
 	 */
 	if (warp_size < PAGE_SIZE)
@@ -640,7 +640,7 @@ static int mga_do_pci_dma_bootstrap(struct drm_device *dev,
 		return -EFAULT;
 	}
 
-	/* Make drm_legacy_addbufs happy by not trying to create a mapping for
+	/* Make drm_legacy_addbufs happy by yest trying to create a mapping for
 	 * less than a page.
 	 */
 	if (warp_size < PAGE_SIZE)
@@ -758,7 +758,7 @@ static int mga_do_dma_bootstrap(struct drm_device *dev,
 		mga_do_cleanup_dma(dev, MINIMAL_CLEANUP);
 
 	/* Not only do we want to try and initialized PCI cards for PCI DMA,
-	 * but we also try to initialized AGP cards that could not be
+	 * but we also try to initialized AGP cards that could yest be
 	 * initialized for AGP DMA.  This covers the case where we have an AGP
 	 * card in a system with an unsupported AGP chipset.  In that case the
 	 * card will be detected as AGP, but we won't be able to allocate any
@@ -931,7 +931,7 @@ static int mga_do_init_dma(struct drm_device *dev, drm_mga_init_t *init)
 	dev_priv->sarea_priv->last_frame.wrap = 0;
 
 	if (mga_freelist_init(dev, dev_priv) < 0) {
-		DRM_ERROR("could not initialize freelist\n");
+		DRM_ERROR("could yest initialize freelist\n");
 		return -ENOMEM;
 	}
 
@@ -944,7 +944,7 @@ static int mga_do_cleanup_dma(struct drm_device *dev, int full_cleanup)
 	DRM_DEBUG("\n");
 
 	/* Make sure interrupts are disabled here because the uninstall ioctl
-	 * may not have been called from userspace and after dev_private
+	 * may yest have been called from userspace and after dev_private
 	 * is freed, it's too late.
 	 */
 	if (dev->irq_enabled)

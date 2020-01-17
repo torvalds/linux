@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -364,7 +364,7 @@ static int saa7706h_probe(struct i2c_client *client,
 	if (err < 0)
 		goto err;
 	if (err != SUPPORTED_DSP1_ROM_VER)
-		v4l2_warn(sd, "Unknown DSP1 ROM code version: 0x%x\n", err);
+		v4l2_warn(sd, "Unkyeswn DSP1 ROM code version: 0x%x\n", err);
 	state->muted = 1;
 
 	/* startup in a muted state */

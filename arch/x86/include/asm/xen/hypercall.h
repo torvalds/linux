@@ -18,7 +18,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -35,7 +35,7 @@
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 
@@ -44,7 +44,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/smap.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 #include <xen/interface/xen.h>
 #include <xen/interface/sched.h>
@@ -67,7 +67,7 @@ struct xen_dm_op_buf;
  *
  * - Mark all registers as potentially clobbered
  *    Even unused parameters can be clobbered by the hypervisor, so we
- *    need to make sure gcc knows it.
+ *    need to make sure gcc kyesws it.
  *
  * - Avoid compiler bugs.
  *    This is the tricky part.  Because x86_32 has such a constrained

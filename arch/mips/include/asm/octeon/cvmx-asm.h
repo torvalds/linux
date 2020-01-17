@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -41,24 +41,24 @@
 #ifdef __OCTEON__
 
 /* Deprecated, will be removed in future release */
-#define CVMX_SYNCIO asm volatile ("nop")
+#define CVMX_SYNCIO asm volatile ("yesp")
 
 #define CVMX_SYNCIOBDMA asm volatile ("synciobdma" : : : "memory")
 
 /* Deprecated, will be removed in future release */
-#define CVMX_SYNCIOALL asm volatile ("nop")
+#define CVMX_SYNCIOALL asm volatile ("yesp")
 
 /*
  * We actually use two syncw instructions in a row when we need a write
  * memory barrier. This is because the CN3XXX series of Octeons have
- * errata Core-401. This can cause a single syncw to not enforce
+ * errata Core-401. This can cause a single syncw to yest enforce
  * ordering under very rare conditions. Even if it is rare, better safe
  * than sorry.
  */
 #define CVMX_SYNCW asm volatile ("syncw\n\tsyncw" : : : "memory")
 
 /*
- * Define new sync instructions to be normal SYNC instructions for
+ * Define new sync instructions to be yesrmal SYNC instructions for
  * operating systems that use threads.
  */
 #define CVMX_SYNCWS CVMX_SYNCW
@@ -70,12 +70,12 @@
  * assembler stays happy.
  */
 /* Deprecated, will be removed in future release */
-#define CVMX_SYNCIO asm volatile ("nop")
+#define CVMX_SYNCIO asm volatile ("yesp")
 
 #define CVMX_SYNCIOBDMA asm volatile ("sync" : : : "memory")
 
 /* Deprecated, will be removed in future release */
-#define CVMX_SYNCIOALL asm volatile ("nop")
+#define CVMX_SYNCIOALL asm volatile ("yesp")
 
 #define CVMX_SYNCW asm volatile ("sync" : : : "memory")
 #define CVMX_SYNCWS CVMX_SYNCW
@@ -86,7 +86,7 @@
 /*
  * CVMX_PREPARE_FOR_STORE makes each byte of the block unpredictable
  * (actually old value or zero) until that byte is stored to (by this or
- * another processor. Note that the value of each byte is not only
+ * ayesther processor. Note that the value of each byte is yest only
  * unpredictable, but may also change again - up until the point when one
  * of the cores stores to the byte.
  */
@@ -96,7 +96,7 @@
 /*
  * This is a command headed to the L2 controller to tell it to clear
  * its dirty bit for a block. Basically, SW is telling HW that the
- * current version of the block will not be used.
+ * current version of the block will yest be used.
  */
 #define CVMX_DONT_WRITE_BACK(address, offset) \
 	asm volatile ("pref 29, " CVMX_TMP_STR(offset) "(%[rbase])" : : \

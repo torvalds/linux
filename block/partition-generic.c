@@ -4,7 +4,7 @@
  *  Copyright (C) 1991-1998  Linus Torvalds
  *  Re-organised Feb 1998 Russell King
  *
- *  We now have independent partition support from the
+ *  We yesw have independent partition support from the
  *  block drivers, which allows all the partition code to
  *  be grouped in one location, and it to be mostly self
  *  contained.
@@ -32,28 +32,28 @@ extern void md_autodetect_dev(dev_t dev);
  * a pointer to that same buffer (for convenience).
  */
 
-char *disk_name(struct gendisk *hd, int partno, char *buf)
+char *disk_name(struct gendisk *hd, int partyes, char *buf)
 {
-	if (!partno)
+	if (!partyes)
 		snprintf(buf, BDEVNAME_SIZE, "%s", hd->disk_name);
 	else if (isdigit(hd->disk_name[strlen(hd->disk_name)-1]))
-		snprintf(buf, BDEVNAME_SIZE, "%sp%d", hd->disk_name, partno);
+		snprintf(buf, BDEVNAME_SIZE, "%sp%d", hd->disk_name, partyes);
 	else
-		snprintf(buf, BDEVNAME_SIZE, "%s%d", hd->disk_name, partno);
+		snprintf(buf, BDEVNAME_SIZE, "%s%d", hd->disk_name, partyes);
 
 	return buf;
 }
 
 const char *bdevname(struct block_device *bdev, char *buf)
 {
-	return disk_name(bdev->bd_disk, bdev->bd_part->partno, buf);
+	return disk_name(bdev->bd_disk, bdev->bd_part->partyes, buf);
 }
 
 EXPORT_SYMBOL(bdevname);
 
 const char *bio_devname(struct bio *bio, char *buf)
 {
-	return disk_name(bio->bi_disk, bio->bi_partno, buf);
+	return disk_name(bio->bi_disk, bio->bi_partyes, buf);
 }
 EXPORT_SYMBOL(bio_devname);
 
@@ -64,7 +64,7 @@ EXPORT_SYMBOL(bio_devname);
  */
 const char *__bdevname(dev_t dev, char *buffer)
 {
-	scnprintf(buffer, BDEVNAME_SIZE, "unknown-block(%u,%u)",
+	scnprintf(buffer, BDEVNAME_SIZE, "unkyeswn-block(%u,%u)",
 				MAJOR(dev), MINOR(dev));
 	return buffer;
 }
@@ -76,7 +76,7 @@ static ssize_t part_partition_show(struct device *dev,
 {
 	struct hd_struct *p = dev_to_part(dev);
 
-	return sprintf(buf, "%d\n", p->partno);
+	return sprintf(buf, "%d\n", p->partyes);
 }
 
 static ssize_t part_start_show(struct device *dev,
@@ -235,7 +235,7 @@ static int part_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct hd_struct *part = dev_to_part(dev);
 
-	add_uevent_var(env, "PARTN=%u", part->partno);
+	add_uevent_var(env, "PARTN=%u", part->partyes);
 	if (part->info && part->info->volname[0])
 		add_uevent_var(env, "PARTNAME=%s", part->info->volname);
 	return 0;
@@ -270,26 +270,26 @@ void __delete_partition(struct percpu_ref *ref)
  * Must be called either with bd_mutex held, before a disk can be opened or
  * after all disk users are gone.
  */
-void delete_partition(struct gendisk *disk, int partno)
+void delete_partition(struct gendisk *disk, int partyes)
 {
 	struct disk_part_tbl *ptbl =
 		rcu_dereference_protected(disk->part_tbl, 1);
 	struct hd_struct *part;
 
-	if (partno >= ptbl->len)
+	if (partyes >= ptbl->len)
 		return;
 
-	part = rcu_dereference_protected(ptbl->part[partno], 1);
+	part = rcu_dereference_protected(ptbl->part[partyes], 1);
 	if (!part)
 		return;
 
-	rcu_assign_pointer(ptbl->part[partno], NULL);
+	rcu_assign_pointer(ptbl->part[partyes], NULL);
 	rcu_assign_pointer(ptbl->last_lookup, NULL);
 	kobject_put(part->holder_dir);
 	device_del(part_to_dev(part));
 
 	/*
-	 * Remove gendisk pointer from idr so that it cannot be looked up
+	 * Remove gendisk pointer from idr so that it canyest be looked up
 	 * while RCU period before freeing gendisk is running to prevent
 	 * use-after-free issues. Note that the device number stays
 	 * "in-use" until we really free the gendisk.
@@ -309,7 +309,7 @@ static DEVICE_ATTR(whole_disk, 0444, whole_disk_show, NULL);
  * Must be called either with bd_mutex held, before a disk can be opened or
  * after all disk users are gone.
  */
-struct hd_struct *add_partition(struct gendisk *disk, int partno,
+struct hd_struct *add_partition(struct gendisk *disk, int partyes,
 				sector_t start, sector_t len, int flags,
 				struct partition_meta_info *info)
 {
@@ -321,12 +321,12 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	const char *dname;
 	int err;
 
-	err = disk_expand_part_tbl(disk, partno);
+	err = disk_expand_part_tbl(disk, partyes);
 	if (err)
 		return ERR_PTR(err);
 	ptbl = rcu_dereference_protected(disk->part_tbl, 1);
 
-	if (ptbl->part[partno])
+	if (ptbl->part[partyes])
 		return ERR_PTR(-EBUSY);
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
@@ -347,7 +347,7 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	p->discard_alignment =
 		queue_limit_discard_alignment(&disk->queue->limits, start);
 	p->nr_sects = len;
-	p->partno = partno;
+	p->partyes = partyes;
 	p->policy = get_disk_ro(disk);
 
 	if (info) {
@@ -362,9 +362,9 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 
 	dname = dev_name(ddev);
 	if (isdigit(dname[strlen(dname) - 1]))
-		dev_set_name(pdev, "%sp%d", dname, partno);
+		dev_set_name(pdev, "%sp%d", dname, partyes);
 	else
-		dev_set_name(pdev, "%s%d", dname, partno);
+		dev_set_name(pdev, "%s%d", dname, partyes);
 
 	device_initialize(pdev);
 	pdev->class = &block_class;
@@ -402,7 +402,7 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	}
 
 	/* everything is up and running, commence */
-	rcu_assign_pointer(ptbl->part[partno], p);
+	rcu_assign_pointer(ptbl->part[partyes], p);
 
 	/* suppress uevent if the disk suppresses it */
 	if (!dev_get_uevent_suppress(ddev))
@@ -458,7 +458,7 @@ int blk_drop_partitions(struct gendisk *disk, struct block_device *bdev)
 
 	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
 	while ((part = disk_part_iter_next(&piter)))
-		delete_partition(disk, part->partno);
+		delete_partition(disk, part->partyes);
 	disk_part_iter_exit(&piter);
 
 	return 0;
@@ -492,7 +492,7 @@ static bool blk_add_partition(struct gendisk *disk, struct block_device *bdev,
 			return false;
 
 		/*
-		 * We can not ignore partitions of broken tables created by for
+		 * We can yest igyesre partitions of broken tables created by for
 		 * example camera firmware, but we limit them to the end of the
 		 * disk to avoid creating invalid block devices.
 		 */
@@ -502,7 +502,7 @@ static bool blk_add_partition(struct gendisk *disk, struct block_device *bdev,
 	part = add_partition(disk, p, from, size, state->parts[p].flags,
 			     &state->parts[p].info);
 	if (IS_ERR(part)) {
-		printk(KERN_ERR " %s: p%d could not be added: %ld\n",
+		printk(KERN_ERR " %s: p%d could yest be added: %ld\n",
 		       disk->disk_name, p, -PTR_ERR(part));
 		return true;
 	}
@@ -540,10 +540,10 @@ int blk_add_partitions(struct gendisk *disk, struct block_device *bdev)
 	}
 
 	/*
-	 * Partitions are not supported on zoned block devices.
+	 * Partitions are yest supported on zoned block devices.
 	 */
 	if (bdev_is_zoned(bdev)) {
-		pr_warn("%s: ignoring partition table on zoned block device\n",
+		pr_warn("%s: igyesring partition table on zoned block device\n",
 			disk->disk_name);
 		ret = 0;
 		goto out_free_state;
@@ -567,7 +567,7 @@ int blk_add_partitions(struct gendisk *disk, struct block_device *bdev)
 
 	/*
 	 * Detect the highest partition number and preallocate disk->part_tbl.
-	 * This is an optimization and not strictly necessary.
+	 * This is an optimization and yest strictly necessary.
 	 */
 	for (p = 1, highest = 0; p < state->limit; p++)
 		if (state->parts[p].size)
@@ -586,7 +586,7 @@ out_free_state:
 
 unsigned char *read_dev_sector(struct block_device *bdev, sector_t n, Sector *p)
 {
-	struct address_space *mapping = bdev->bd_inode->i_mapping;
+	struct address_space *mapping = bdev->bd_iyesde->i_mapping;
 	struct page *page;
 
 	page = read_mapping_page(mapping, (pgoff_t)(n >> (PAGE_SHIFT-9)), NULL);

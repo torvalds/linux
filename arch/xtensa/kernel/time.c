@@ -14,7 +14,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/clocksource.h>
@@ -39,7 +39,7 @@ static u64 ccount_read(struct clocksource *cs)
 	return (u64)get_ccount();
 }
 
-static u64 notrace ccount_sched_clock_read(void)
+static u64 yestrace ccount_sched_clock_read(void)
 {
 	return get_ccount();
 }
@@ -75,7 +75,7 @@ static int ccount_timer_set_next_event(unsigned long delta,
 }
 
 /*
- * There is no way to disable the timer interrupt at the device level,
+ * There is yes way to disable the timer interrupt at the device level,
  * only at the intenable register itself. Since enable_irq/disable_irq
  * calls are nested, we need to make sure that these calls are
  * balanced.
@@ -86,7 +86,7 @@ static int ccount_timer_shutdown(struct clock_event_device *evt)
 		container_of(evt, struct ccount_timer, evt);
 
 	if (timer->irq_enabled) {
-		disable_irq_nosync(evt->irq);
+		disable_irq_yessync(evt->irq);
 		timer->irq_enabled = 0;
 	}
 	return 0;
@@ -154,21 +154,21 @@ void local_timer_setup(unsigned cpu)
 #ifdef CONFIG_OF
 static void __init calibrate_ccount(void)
 {
-	struct device_node *cpu;
+	struct device_yesde *cpu;
 	struct clk *clk;
 
-	cpu = of_find_compatible_node(NULL, NULL, "cdns,xtensa-cpu");
+	cpu = of_find_compatible_yesde(NULL, NULL, "cdns,xtensa-cpu");
 	if (cpu) {
 		clk = of_clk_get(cpu, 0);
 		if (!IS_ERR(clk)) {
 			ccount_freq = clk_get_rate(clk);
 			return;
 		} else {
-			pr_warn("%s: CPU input clock not found\n",
+			pr_warn("%s: CPU input clock yest found\n",
 				__func__);
 		}
 	} else {
-		pr_warn("%s: CPU node not found in the device tree\n",
+		pr_warn("%s: CPU yesde yest found in the device tree\n",
 			__func__);
 	}
 
@@ -195,7 +195,7 @@ void __init time_init(void)
 	ccount_freq = CONFIG_XTENSA_CPU_CLOCK*1000000UL;
 #endif
 	WARN(!ccount_freq,
-	     "%s: CPU clock frequency is not set up correctly\n",
+	     "%s: CPU clock frequency is yest set up correctly\n",
 	     __func__);
 	clocksource_register_hz(&ccount_clocksource, ccount_freq);
 	local_timer_setup(0);

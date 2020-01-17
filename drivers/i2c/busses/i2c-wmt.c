@@ -5,7 +5,7 @@
  *  Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
  *
  *  Derived from GPLv2+ licensed source:
- *  - Copyright (C) 2008 WonderMedia Technologies, Inc.
+ *  - Copyright (C) 2008 WonderMedia Techyeslogies, Inc.
  */
 
 #include <linux/clk.h>
@@ -90,7 +90,7 @@ struct wmt_i2c_dev {
 	u16			cmd_status;
 };
 
-static int wmt_i2c_wait_bus_not_busy(struct wmt_i2c_dev *i2c_dev)
+static int wmt_i2c_wait_bus_yest_busy(struct wmt_i2c_dev *i2c_dev)
 {
 	unsigned long timeout;
 
@@ -129,7 +129,7 @@ static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 	int xfer_len = 0;
 
 	if (!(pmsg->flags & I2C_M_NOSTART)) {
-		ret = wmt_i2c_wait_bus_not_busy(i2c_dev);
+		ret = wmt_i2c_wait_bus_yest_busy(i2c_dev);
 		if (ret < 0)
 			return ret;
 	}
@@ -220,7 +220,7 @@ static int wmt_i2c_read(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 	u32 xfer_len = 0;
 
 	if (!(pmsg->flags & I2C_M_NOSTART)) {
-		ret = wmt_i2c_wait_bus_not_busy(i2c_dev);
+		ret = wmt_i2c_wait_bus_yest_busy(i2c_dev);
 		if (ret < 0)
 			return ret;
 	}
@@ -369,7 +369,7 @@ static int wmt_i2c_reset_hardware(struct wmt_i2c_dev *i2c_dev)
 
 static int wmt_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct wmt_i2c_dev *i2c_dev;
 	struct i2c_adapter *adap;
 	struct resource *res;
@@ -417,7 +417,7 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	adap->owner = THIS_MODULE;
 	adap->algo = &wmt_i2c_algo;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 
 	init_completion(&i2c_dev->complete);
 

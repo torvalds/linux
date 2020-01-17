@@ -10,14 +10,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -82,11 +82,11 @@ MBODY		((\\[^\n])*[^\n\\]*)+
 %x MACROBODY
 
 %%
-\n			{ ++yylineno; }
+\n			{ ++yylineyes; }
 \r			;
 "/*"			{ BEGIN COMMENT;  /* Enter comment eating state */ }
 <COMMENT>"/*"		{ fprintf(stderr, "Warning! Comment within comment."); }
-<COMMENT>\n		{ ++yylineno; }
+<COMMENT>\n		{ ++yylineyes; }
 <COMMENT>[^*/\n]*	;
 <COMMENT>"*"+[^*/\n]*	;
 <COMMENT>"/"+[^*/\n]*	;
@@ -110,7 +110,7 @@ if[ \t]*\(		{
 					*string_buf_ptr++ = ')';
 				}
 			}
-<CEXPR>\n		{ ++yylineno; }
+<CEXPR>\n		{ ++yylineyes; }
 <CEXPR>\r		;
 <CEXPR>[^()\n]+	{
 				char *yptr;
@@ -182,7 +182,7 @@ accumulator		{ return T_ACCUM; }
 mode_pointer		{ return T_MODE_PTR; }
 allones			{ return T_ALLONES; }
 allzeros		{ return T_ALLZEROS; }
-none			{ return T_NONE; }
+yesne			{ return T_NONE; }
 sindex			{ return T_SINDEX; }
 A			{ return T_A; }
 
@@ -217,13 +217,13 @@ dec			{ return T_DEC; }
 stc			{ return T_STC;	}
 clc			{ return T_CLC; }
 cmp			{ return T_CMP;	}
-not			{ return T_NOT;	}
+yest			{ return T_NOT;	}
 xor			{ return T_XOR;	}
 test			{ return T_TEST;}
 and			{ return T_AND;	}
 or			{ return T_OR;	}
 ret			{ return T_RET; }
-nop			{ return T_NOP; }
+yesp			{ return T_NOP; }
 
 	/* ARP2 16bit extensions */
 	/* or16			{ return T_OR16; } */
@@ -289,7 +289,7 @@ nop			{ return T_NOP; }
 <MACRODEF>{WORD}{SPACE}	{ 
 				char *yptr;
 
-				/* Strip space and return as a normal symbol */
+				/* Strip space and return as a yesrmal symbol */
 				yptr = yytext;
 				while (*yptr != ' ' && *yptr != '\t')
 					yptr++;
@@ -304,7 +304,7 @@ nop			{ return T_NOP; }
 				 * We store the symbol with its opening
 				 * parren so we can differentiate macros
 				 * that take args from macros with the
-				 * same name that do not take args as
+				 * same name that do yest take args as
 				 * is allowed in C.
 				 */
 				BEGIN MACROARGLIST;
@@ -370,7 +370,7 @@ nop			{ return T_NOP; }
 			}
 <MACROBODY>\\\n		{
 				/* Eat escaped newlines. */
-				++yylineno;
+				++yylineyes;
 			}
 <MACROBODY>\r		;
 <MACROBODY>\n		{
@@ -378,7 +378,7 @@ nop			{ return T_NOP; }
 				BEGIN INITIAL;
 				*string_buf_ptr = '\0';
 				yylval.str = string_buf;
-				++yylineno;
+				++yylineyes;
 				return T_MACROBODY;
 			}
 <MACROBODY>{MBODY}	{
@@ -449,7 +449,7 @@ nop			{ return T_NOP; }
 
 typedef struct include {
         YY_BUFFER_STATE  buffer;
-        int              lineno;
+        int              lineyes;
         char            *filename;
 	SLIST_ENTRY(include) links;
 }include_t;
@@ -500,12 +500,12 @@ include_file(char *file_name, include_type type)
 			/* NOTREACHED */
 		}
 		include->buffer = YY_CURRENT_BUFFER;
-		include->lineno = yylineno;
+		include->lineyes = yylineyes;
 		include->filename = yyfilename;
 		SLIST_INSERT_HEAD(&include_stack, include, links);
 	}
 	yy_switch_to_buffer(yy_create_buffer(newfile, YY_BUF_SIZE));
-	yylineno = 1;
+	yylineyes = 1;
 	yyfilename = strdup(file_name);
 }
 
@@ -608,7 +608,7 @@ yywrap()
 	include = include_stack.slh_first;
 	if (include != NULL) {
 		yy_switch_to_buffer(include->buffer);
-		yylineno = include->lineno;
+		yylineyes = include->lineyes;
 		yyfilename = include->filename;
 		SLIST_REMOVE_HEAD(&include_stack, links);
 		free(include);

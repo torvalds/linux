@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *	fs/bfs/inode.c
- *	BFS superblock and inode operations.
+ *	fs/bfs/iyesde.c
+ *	BFS superblock and iyesde operations.
  *	Copyright (C) 1999-2018 Tigran Aivazian <aivazian.tigran@gmail.com>
  *	From fs/minix, Copyright (C) 1991, 1992 Linus Torvalds.
  *	Made endianness-clean by Andrew Stribblehill <ads@wompom.org>, 2005.
@@ -31,123 +31,123 @@ MODULE_LICENSE("GPL");
 #define dprintf(x...)
 #endif
 
-struct inode *bfs_iget(struct super_block *sb, unsigned long ino)
+struct iyesde *bfs_iget(struct super_block *sb, unsigned long iyes)
 {
-	struct bfs_inode *di;
-	struct inode *inode;
+	struct bfs_iyesde *di;
+	struct iyesde *iyesde;
 	struct buffer_head *bh;
 	int block, off;
 
-	inode = iget_locked(sb, ino);
-	if (!inode)
+	iyesde = iget_locked(sb, iyes);
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(iyesde->i_state & I_NEW))
+		return iyesde;
 
-	if ((ino < BFS_ROOT_INO) || (ino > BFS_SB(inode->i_sb)->si_lasti)) {
-		printf("Bad inode number %s:%08lx\n", inode->i_sb->s_id, ino);
+	if ((iyes < BFS_ROOT_INO) || (iyes > BFS_SB(iyesde->i_sb)->si_lasti)) {
+		printf("Bad iyesde number %s:%08lx\n", iyesde->i_sb->s_id, iyes);
 		goto error;
 	}
 
-	block = (ino - BFS_ROOT_INO) / BFS_INODES_PER_BLOCK + 1;
-	bh = sb_bread(inode->i_sb, block);
+	block = (iyes - BFS_ROOT_INO) / BFS_INODES_PER_BLOCK + 1;
+	bh = sb_bread(iyesde->i_sb, block);
 	if (!bh) {
-		printf("Unable to read inode %s:%08lx\n", inode->i_sb->s_id,
-									ino);
+		printf("Unable to read iyesde %s:%08lx\n", iyesde->i_sb->s_id,
+									iyes);
 		goto error;
 	}
 
-	off = (ino - BFS_ROOT_INO) % BFS_INODES_PER_BLOCK;
-	di = (struct bfs_inode *)bh->b_data + off;
+	off = (iyes - BFS_ROOT_INO) % BFS_INODES_PER_BLOCK;
+	di = (struct bfs_iyesde *)bh->b_data + off;
 
-	inode->i_mode = 0x0000FFFF & le32_to_cpu(di->i_mode);
+	iyesde->i_mode = 0x0000FFFF & le32_to_cpu(di->i_mode);
 	if (le32_to_cpu(di->i_vtype) == BFS_VDIR) {
-		inode->i_mode |= S_IFDIR;
-		inode->i_op = &bfs_dir_inops;
-		inode->i_fop = &bfs_dir_operations;
+		iyesde->i_mode |= S_IFDIR;
+		iyesde->i_op = &bfs_dir_iyesps;
+		iyesde->i_fop = &bfs_dir_operations;
 	} else if (le32_to_cpu(di->i_vtype) == BFS_VREG) {
-		inode->i_mode |= S_IFREG;
-		inode->i_op = &bfs_file_inops;
-		inode->i_fop = &bfs_file_operations;
-		inode->i_mapping->a_ops = &bfs_aops;
+		iyesde->i_mode |= S_IFREG;
+		iyesde->i_op = &bfs_file_iyesps;
+		iyesde->i_fop = &bfs_file_operations;
+		iyesde->i_mapping->a_ops = &bfs_aops;
 	}
 
-	BFS_I(inode)->i_sblock =  le32_to_cpu(di->i_sblock);
-	BFS_I(inode)->i_eblock =  le32_to_cpu(di->i_eblock);
-	BFS_I(inode)->i_dsk_ino = le16_to_cpu(di->i_ino);
-	i_uid_write(inode, le32_to_cpu(di->i_uid));
-	i_gid_write(inode,  le32_to_cpu(di->i_gid));
-	set_nlink(inode, le32_to_cpu(di->i_nlink));
-	inode->i_size = BFS_FILESIZE(di);
-	inode->i_blocks = BFS_FILEBLOCKS(di);
-	inode->i_atime.tv_sec =  le32_to_cpu(di->i_atime);
-	inode->i_mtime.tv_sec =  le32_to_cpu(di->i_mtime);
-	inode->i_ctime.tv_sec =  le32_to_cpu(di->i_ctime);
-	inode->i_atime.tv_nsec = 0;
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_ctime.tv_nsec = 0;
+	BFS_I(iyesde)->i_sblock =  le32_to_cpu(di->i_sblock);
+	BFS_I(iyesde)->i_eblock =  le32_to_cpu(di->i_eblock);
+	BFS_I(iyesde)->i_dsk_iyes = le16_to_cpu(di->i_iyes);
+	i_uid_write(iyesde, le32_to_cpu(di->i_uid));
+	i_gid_write(iyesde,  le32_to_cpu(di->i_gid));
+	set_nlink(iyesde, le32_to_cpu(di->i_nlink));
+	iyesde->i_size = BFS_FILESIZE(di);
+	iyesde->i_blocks = BFS_FILEBLOCKS(di);
+	iyesde->i_atime.tv_sec =  le32_to_cpu(di->i_atime);
+	iyesde->i_mtime.tv_sec =  le32_to_cpu(di->i_mtime);
+	iyesde->i_ctime.tv_sec =  le32_to_cpu(di->i_ctime);
+	iyesde->i_atime.tv_nsec = 0;
+	iyesde->i_mtime.tv_nsec = 0;
+	iyesde->i_ctime.tv_nsec = 0;
 
 	brelse(bh);
-	unlock_new_inode(inode);
-	return inode;
+	unlock_new_iyesde(iyesde);
+	return iyesde;
 
 error:
-	iget_failed(inode);
+	iget_failed(iyesde);
 	return ERR_PTR(-EIO);
 }
 
-static struct bfs_inode *find_inode(struct super_block *sb, u16 ino, struct buffer_head **p)
+static struct bfs_iyesde *find_iyesde(struct super_block *sb, u16 iyes, struct buffer_head **p)
 {
-	if ((ino < BFS_ROOT_INO) || (ino > BFS_SB(sb)->si_lasti)) {
-		printf("Bad inode number %s:%08x\n", sb->s_id, ino);
+	if ((iyes < BFS_ROOT_INO) || (iyes > BFS_SB(sb)->si_lasti)) {
+		printf("Bad iyesde number %s:%08x\n", sb->s_id, iyes);
 		return ERR_PTR(-EIO);
 	}
 
-	ino -= BFS_ROOT_INO;
+	iyes -= BFS_ROOT_INO;
 
-	*p = sb_bread(sb, 1 + ino / BFS_INODES_PER_BLOCK);
+	*p = sb_bread(sb, 1 + iyes / BFS_INODES_PER_BLOCK);
 	if (!*p) {
-		printf("Unable to read inode %s:%08x\n", sb->s_id, ino);
+		printf("Unable to read iyesde %s:%08x\n", sb->s_id, iyes);
 		return ERR_PTR(-EIO);
 	}
 
-	return (struct bfs_inode *)(*p)->b_data +  ino % BFS_INODES_PER_BLOCK;
+	return (struct bfs_iyesde *)(*p)->b_data +  iyes % BFS_INODES_PER_BLOCK;
 }
 
-static int bfs_write_inode(struct inode *inode, struct writeback_control *wbc)
+static int bfs_write_iyesde(struct iyesde *iyesde, struct writeback_control *wbc)
 {
-	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
-	unsigned int ino = (u16)inode->i_ino;
+	struct bfs_sb_info *info = BFS_SB(iyesde->i_sb);
+	unsigned int iyes = (u16)iyesde->i_iyes;
 	unsigned long i_sblock;
-	struct bfs_inode *di;
+	struct bfs_iyesde *di;
 	struct buffer_head *bh;
 	int err = 0;
 
-	dprintf("ino=%08x\n", ino);
+	dprintf("iyes=%08x\n", iyes);
 
-	di = find_inode(inode->i_sb, ino, &bh);
+	di = find_iyesde(iyesde->i_sb, iyes, &bh);
 	if (IS_ERR(di))
 		return PTR_ERR(di);
 
 	mutex_lock(&info->bfs_lock);
 
-	if (ino == BFS_ROOT_INO)
+	if (iyes == BFS_ROOT_INO)
 		di->i_vtype = cpu_to_le32(BFS_VDIR);
 	else
 		di->i_vtype = cpu_to_le32(BFS_VREG);
 
-	di->i_ino = cpu_to_le16(ino);
-	di->i_mode = cpu_to_le32(inode->i_mode);
-	di->i_uid = cpu_to_le32(i_uid_read(inode));
-	di->i_gid = cpu_to_le32(i_gid_read(inode));
-	di->i_nlink = cpu_to_le32(inode->i_nlink);
-	di->i_atime = cpu_to_le32(inode->i_atime.tv_sec);
-	di->i_mtime = cpu_to_le32(inode->i_mtime.tv_sec);
-	di->i_ctime = cpu_to_le32(inode->i_ctime.tv_sec);
-	i_sblock = BFS_I(inode)->i_sblock;
+	di->i_iyes = cpu_to_le16(iyes);
+	di->i_mode = cpu_to_le32(iyesde->i_mode);
+	di->i_uid = cpu_to_le32(i_uid_read(iyesde));
+	di->i_gid = cpu_to_le32(i_gid_read(iyesde));
+	di->i_nlink = cpu_to_le32(iyesde->i_nlink);
+	di->i_atime = cpu_to_le32(iyesde->i_atime.tv_sec);
+	di->i_mtime = cpu_to_le32(iyesde->i_mtime.tv_sec);
+	di->i_ctime = cpu_to_le32(iyesde->i_ctime.tv_sec);
+	i_sblock = BFS_I(iyesde)->i_sblock;
 	di->i_sblock = cpu_to_le32(i_sblock);
-	di->i_eblock = cpu_to_le32(BFS_I(inode)->i_eblock);
-	di->i_eoffset = cpu_to_le32(i_sblock * BFS_BSIZE + inode->i_size - 1);
+	di->i_eblock = cpu_to_le32(BFS_I(iyesde)->i_eblock);
+	di->i_eoffset = cpu_to_le32(i_sblock * BFS_BSIZE + iyesde->i_size - 1);
 
 	mark_buffer_dirty(bh);
 	if (wbc->sync_mode == WB_SYNC_ALL) {
@@ -160,45 +160,45 @@ static int bfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	return err;
 }
 
-static void bfs_evict_inode(struct inode *inode)
+static void bfs_evict_iyesde(struct iyesde *iyesde)
 {
-	unsigned long ino = inode->i_ino;
-	struct bfs_inode *di;
+	unsigned long iyes = iyesde->i_iyes;
+	struct bfs_iyesde *di;
 	struct buffer_head *bh;
-	struct super_block *s = inode->i_sb;
+	struct super_block *s = iyesde->i_sb;
 	struct bfs_sb_info *info = BFS_SB(s);
-	struct bfs_inode_info *bi = BFS_I(inode);
+	struct bfs_iyesde_info *bi = BFS_I(iyesde);
 
-	dprintf("ino=%08lx\n", ino);
+	dprintf("iyes=%08lx\n", iyes);
 
-	truncate_inode_pages_final(&inode->i_data);
-	invalidate_inode_buffers(inode);
-	clear_inode(inode);
+	truncate_iyesde_pages_final(&iyesde->i_data);
+	invalidate_iyesde_buffers(iyesde);
+	clear_iyesde(iyesde);
 
-	if (inode->i_nlink)
+	if (iyesde->i_nlink)
 		return;
 
-	di = find_inode(s, inode->i_ino, &bh);
+	di = find_iyesde(s, iyesde->i_iyes, &bh);
 	if (IS_ERR(di))
 		return;
 
 	mutex_lock(&info->bfs_lock);
-	/* clear on-disk inode */
-	memset(di, 0, sizeof(struct bfs_inode));
+	/* clear on-disk iyesde */
+	memset(di, 0, sizeof(struct bfs_iyesde));
 	mark_buffer_dirty(bh);
 	brelse(bh);
 
-	if (bi->i_dsk_ino) {
+	if (bi->i_dsk_iyes) {
 		if (bi->i_sblock)
 			info->si_freeb += bi->i_eblock + 1 - bi->i_sblock;
 		info->si_freei++;
-		clear_bit(ino, info->si_imap);
-		bfs_dump_imap("evict_inode", s);
+		clear_bit(iyes, info->si_imap);
+		bfs_dump_imap("evict_iyesde", s);
 	}
 
 	/*
 	 * If this was the last file, make the previous block
-	 * "last block of the last file" even if there is no
+	 * "last block of the last file" even if there is yes
 	 * real file there, saves us 1 gap.
 	 */
 	if (info->si_lf_eblk == bi->i_eblock)
@@ -235,56 +235,56 @@ static int bfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static struct kmem_cache *bfs_inode_cachep;
+static struct kmem_cache *bfs_iyesde_cachep;
 
-static struct inode *bfs_alloc_inode(struct super_block *sb)
+static struct iyesde *bfs_alloc_iyesde(struct super_block *sb)
 {
-	struct bfs_inode_info *bi;
-	bi = kmem_cache_alloc(bfs_inode_cachep, GFP_KERNEL);
+	struct bfs_iyesde_info *bi;
+	bi = kmem_cache_alloc(bfs_iyesde_cachep, GFP_KERNEL);
 	if (!bi)
 		return NULL;
-	return &bi->vfs_inode;
+	return &bi->vfs_iyesde;
 }
 
-static void bfs_free_inode(struct inode *inode)
+static void bfs_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(bfs_inode_cachep, BFS_I(inode));
+	kmem_cache_free(bfs_iyesde_cachep, BFS_I(iyesde));
 }
 
 static void init_once(void *foo)
 {
-	struct bfs_inode_info *bi = foo;
+	struct bfs_iyesde_info *bi = foo;
 
-	inode_init_once(&bi->vfs_inode);
+	iyesde_init_once(&bi->vfs_iyesde);
 }
 
-static int __init init_inodecache(void)
+static int __init init_iyesdecache(void)
 {
-	bfs_inode_cachep = kmem_cache_create("bfs_inode_cache",
-					     sizeof(struct bfs_inode_info),
+	bfs_iyesde_cachep = kmem_cache_create("bfs_iyesde_cache",
+					     sizeof(struct bfs_iyesde_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
-	if (bfs_inode_cachep == NULL)
+	if (bfs_iyesde_cachep == NULL)
 		return -ENOMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_iyesdecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(bfs_inode_cachep);
+	kmem_cache_destroy(bfs_iyesde_cachep);
 }
 
 static const struct super_operations bfs_sops = {
-	.alloc_inode	= bfs_alloc_inode,
-	.free_inode	= bfs_free_inode,
-	.write_inode	= bfs_write_inode,
-	.evict_inode	= bfs_evict_inode,
+	.alloc_iyesde	= bfs_alloc_iyesde,
+	.free_iyesde	= bfs_free_iyesde,
+	.write_iyesde	= bfs_write_iyesde,
+	.evict_iyesde	= bfs_evict_iyesde,
 	.put_super	= bfs_put_super,
 	.statfs		= bfs_statfs,
 };
@@ -313,7 +313,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct buffer_head *bh, *sbh;
 	struct bfs_super_block *bfs_sb;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	unsigned i;
 	struct bfs_sb_info *info;
 	int ret = -EINVAL;
@@ -349,23 +349,23 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 		goto out1;
 	}
 
-	info->si_lasti = (le32_to_cpu(bfs_sb->s_start) - BFS_BSIZE) / sizeof(struct bfs_inode) + BFS_ROOT_INO - 1;
+	info->si_lasti = (le32_to_cpu(bfs_sb->s_start) - BFS_BSIZE) / sizeof(struct bfs_iyesde) + BFS_ROOT_INO - 1;
 	if (info->si_lasti == BFS_MAX_LASTI)
-		printf("WARNING: filesystem %s was created with 512 inodes, the real maximum is 511, mounting anyway\n", s->s_id);
+		printf("WARNING: filesystem %s was created with 512 iyesdes, the real maximum is 511, mounting anyway\n", s->s_id);
 	else if (info->si_lasti > BFS_MAX_LASTI) {
-		printf("Impossible last inode number %lu > %d on %s\n", info->si_lasti, BFS_MAX_LASTI, s->s_id);
+		printf("Impossible last iyesde number %lu > %d on %s\n", info->si_lasti, BFS_MAX_LASTI, s->s_id);
 		goto out1;
 	}
 	for (i = 0; i < BFS_ROOT_INO; i++)
 		set_bit(i, info->si_imap);
 
 	s->s_op = &bfs_sops;
-	inode = bfs_iget(s, BFS_ROOT_INO);
-	if (IS_ERR(inode)) {
-		ret = PTR_ERR(inode);
+	iyesde = bfs_iget(s, BFS_ROOT_INO);
+	if (IS_ERR(iyesde)) {
+		ret = PTR_ERR(iyesde);
 		goto out1;
 	}
-	s->s_root = d_make_root(inode);
+	s->s_root = d_make_root(iyesde);
 	if (!s->s_root) {
 		ret = -ENOMEM;
 		goto out1;
@@ -379,7 +379,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	/* can we read the last block? */
 	bh = sb_bread(s, info->si_blocks - 1);
 	if (!bh) {
-		printf("Last block not available on %s: %lu\n", s->s_id, info->si_blocks - 1);
+		printf("Last block yest available on %s: %lu\n", s->s_id, info->si_blocks - 1);
 		ret = -EIO;
 		goto out2;
 	}
@@ -387,7 +387,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 
 	bh = NULL;
 	for (i = BFS_ROOT_INO; i <= info->si_lasti; i++) {
-		struct bfs_inode *di;
+		struct bfs_iyesde *di;
 		int block = (i - BFS_ROOT_INO) / BFS_INODES_PER_BLOCK + 1;
 		int off = (i - BFS_ROOT_INO) % BFS_INODES_PER_BLOCK;
 		unsigned long eblock;
@@ -400,9 +400,9 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 		if (!bh)
 			continue;
 
-		di = (struct bfs_inode *)bh->b_data + off;
+		di = (struct bfs_iyesde *)bh->b_data + off;
 
-		/* test if filesystem is not corrupted */
+		/* test if filesystem is yest corrupted */
 
 		i_eoff = le32_to_cpu(di->i_eoffset);
 		i_sblock = le32_to_cpu(di->i_sblock);
@@ -415,14 +415,14 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 			(i_eoff != le32_to_cpu(-1) && i_eoff > s_size) ||
 			i_sblock * BFS_BSIZE > i_eoff) {
 
-			printf("Inode 0x%08x corrupted on %s\n", i, s->s_id);
+			printf("Iyesde 0x%08x corrupted on %s\n", i, s->s_id);
 
 			brelse(bh);
 			ret = -EIO;
 			goto out2;
 		}
 
-		if (!di->i_ino) {
+		if (!di->i_iyes) {
 			info->si_freei++;
 			continue;
 		}
@@ -467,7 +467,7 @@ MODULE_ALIAS_FS("bfs");
 
 static int __init init_bfs_fs(void)
 {
-	int err = init_inodecache();
+	int err = init_iyesdecache();
 	if (err)
 		goto out1;
 	err = register_filesystem(&bfs_fs_type);
@@ -475,7 +475,7 @@ static int __init init_bfs_fs(void)
 		goto out;
 	return 0;
 out:
-	destroy_inodecache();
+	destroy_iyesdecache();
 out1:
 	return err;
 }
@@ -483,7 +483,7 @@ out1:
 static void __exit exit_bfs_fs(void)
 {
 	unregister_filesystem(&bfs_fs_type);
-	destroy_inodecache();
+	destroy_iyesdecache();
 }
 
 module_init(init_bfs_fs)

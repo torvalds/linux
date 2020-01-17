@@ -246,7 +246,7 @@ static int cs35l34_sdin_event(struct snd_soc_dapm_widget *w,
 		ret = regmap_update_bits(priv->regmap, CS35L34_PWRCTL1,
 						CS35L34_PDN_ALL, 0);
 		if (ret < 0) {
-			dev_err(component->dev, "Cannot set Power bits %d\n", ret);
+			dev_err(component->dev, "Canyest set Power bits %d\n", ret);
 			return ret;
 		}
 		usleep_range(5000, 5100);
@@ -410,7 +410,7 @@ static int cs35l34_mclk_event(struct snd_soc_dapm_widget *w,
 			usleep_range(5000, 5100);
 		}
 		if (i == PDN_DONE_ATTEMPTS)
-			pr_err("%s Device did not power down properly\n",
+			pr_err("%s Device did yest power down properly\n",
 				__func__);
 		break;
 	default:
@@ -786,7 +786,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l34 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static struct regmap_config cs35l34_regmap = {
@@ -805,7 +805,7 @@ static struct regmap_config cs35l34_regmap = {
 static int cs35l34_handle_of_data(struct i2c_client *i2c_client,
 				struct cs35l34_platform_data *pdata)
 {
-	struct device_node *np = i2c_client->dev.of_node;
+	struct device_yesde *np = i2c_client->dev.of_yesde;
 	unsigned int val;
 
 	if (of_property_read_u32(np, "cirrus,boost-vtge-millivolt",
@@ -822,13 +822,13 @@ static int cs35l34_handle_of_data(struct i2c_client *i2c_client,
 			pdata->boost_vtge = ((val - 3300)/100) + 1;
 	} else {
 		dev_warn(&i2c_client->dev,
-			"Boost Voltage not specified. Using VP\n");
+			"Boost Voltage yest specified. Using VP\n");
 	}
 
-	if (of_property_read_u32(np, "cirrus,boost-ind-nanohenry", &val) >= 0) {
+	if (of_property_read_u32(np, "cirrus,boost-ind-nayeshenry", &val) >= 0) {
 		pdata->boost_ind = val;
 	} else {
-		dev_err(&i2c_client->dev, "Inductor not specified.\n");
+		dev_err(&i2c_client->dev, "Inductor yest specified.\n");
 		return -EINVAL;
 	}
 
@@ -886,7 +886,7 @@ static irqreturn_t cs35l34_irq_thread(int irq, void *data)
 	if (sticky1 & CS35L34_CAL_ERR) {
 		dev_err(component->dev, "Cal error\n");
 
-		/* error is no longer asserted; safe to reset */
+		/* error is yes longer asserted; safe to reset */
 		if (!(current1 & CS35L34_CAL_ERR)) {
 			dev_dbg(component->dev, "Cal error release\n");
 			regmap_update_bits(cs35l34->regmap,
@@ -899,7 +899,7 @@ static irqreturn_t cs35l34_irq_thread(int irq, void *data)
 			regmap_update_bits(cs35l34->regmap,
 					CS35L34_PROT_RELEASE_CTL,
 					CS35L34_CAL_ERR_RLS, 0);
-			/* note: amp will re-calibrate on next resume */
+			/* yeste: amp will re-calibrate on next resume */
 		}
 	}
 
@@ -909,7 +909,7 @@ static irqreturn_t cs35l34_irq_thread(int irq, void *data)
 	if (sticky1 & CS35L34_AMP_SHORT) {
 		dev_crit(component->dev, "Amp short error\n");
 
-		/* error is no longer asserted; safe to reset */
+		/* error is yes longer asserted; safe to reset */
 		if (!(current1 & CS35L34_AMP_SHORT)) {
 			dev_dbg(component->dev,
 				"Amp short error release\n");
@@ -929,7 +929,7 @@ static irqreturn_t cs35l34_irq_thread(int irq, void *data)
 	if (sticky1 & CS35L34_OTW) {
 		dev_crit(component->dev, "Over temperature warning\n");
 
-		/* error is no longer asserted; safe to reset */
+		/* error is yes longer asserted; safe to reset */
 		if (!(current1 & CS35L34_OTW)) {
 			dev_dbg(component->dev,
 				"Over temperature warning release\n");
@@ -949,7 +949,7 @@ static irqreturn_t cs35l34_irq_thread(int irq, void *data)
 	if (sticky1 & CS35L34_OTE) {
 		dev_crit(component->dev, "Over temperature error\n");
 
-		/* error is no longer asserted; safe to reset */
+		/* error is yes longer asserted; safe to reset */
 		if (!(current1 & CS35L34_OTE)) {
 			dev_dbg(component->dev,
 				"Over temperature error release\n");
@@ -1042,7 +1042,7 @@ static int cs35l34_i2c_probe(struct i2c_client *i2c_client,
 		if (!pdata)
 			return -ENOMEM;
 
-		if (i2c_client->dev.of_node) {
+		if (i2c_client->dev.of_yesde) {
 			ret = cs35l34_handle_of_data(i2c_client, pdata);
 			if (ret != 0)
 				return ret;

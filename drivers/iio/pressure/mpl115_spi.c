@@ -2,7 +2,7 @@
 /*
  * Freescale MPL115A1 pressure/temperature sensor
  *
- * Copyright (c) 2016 Akinobu Mita <akinobu.mita@gmail.com>
+ * Copyright (c) 2016 Akiyesbu Mita <akiyesbu.mita@gmail.com>
  *
  * Datasheet: http://www.nxp.com/files/sensors/doc/data_sheet/MPL115A1.pdf
  */
@@ -98,6 +98,6 @@ static struct spi_driver mpl115_spi_driver = {
 };
 module_spi_driver(mpl115_spi_driver);
 
-MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
+MODULE_AUTHOR("Akiyesbu Mita <akiyesbu.mita@gmail.com>");
 MODULE_DESCRIPTION("Freescale MPL115A1 pressure/temperature driver");
 MODULE_LICENSE("GPL");

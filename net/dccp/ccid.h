@@ -138,14 +138,14 @@ void ccid_hc_tx_delete(struct ccid *ccid, struct sock *sk);
  * queued packet may be sent, using the return code of ccid_hc_tx_send_packet().
  * The following modes are supported via the symbolic constants below:
  * - timer-based pacing    (CCID returns a delay value in milliseconds);
- * - autonomous dequeueing (CCID internally schedules dccps_xmitlet).
+ * - autoyesmous dequeueing (CCID internally schedules dccps_xmitlet).
  */
 
 enum ccid_dequeueing_decision {
-	CCID_PACKET_SEND_AT_ONCE =	 0x00000,  /* "green light": no delay */
+	CCID_PACKET_SEND_AT_ONCE =	 0x00000,  /* "green light": yes delay */
 	CCID_PACKET_DELAY_MAX =		 0x0FFFF,  /* maximum delay in msecs  */
 	CCID_PACKET_DELAY =		 0x10000,  /* CCID msec-delay mode */
-	CCID_PACKET_WILL_DEQUEUE_LATER = 0x20000,  /* CCID autonomous mode */
+	CCID_PACKET_WILL_DEQUEUE_LATER = 0x20000,  /* CCID autoyesmous mode */
 	CCID_PACKET_ERR =		 0xF0000,  /* error condition */
 };
 

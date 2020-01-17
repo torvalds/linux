@@ -47,8 +47,8 @@
 
 /* MCR20A CCA Type */
 enum {
-	MCR20A_CCA_ED,	  // energy detect - CCA bit not active,
-			  // not to be used for T and CCCA sequences
+	MCR20A_CCA_ED,	  // energy detect - CCA bit yest active,
+			  // yest to be used for T and CCCA sequences
 	MCR20A_CCA_MODE1, // energy detect - CCA bit ACTIVE
 	MCR20A_CCA_MODE2, // 802.15.4 compliant signal detect - CCA bit ACTIVE
 	MCR20A_CCA_MODE3
@@ -177,7 +177,7 @@ mcr20a_dar_writeable(struct device *dev, unsigned int reg)
 	case DAR_PLL_FRAC0_LSB:
 	case DAR_PLL_FRAC0_MSB:
 	case DAR_PA_PWR:
-	/* no DAR_ACM */
+	/* yes DAR_ACM */
 	case DAR_OVERWRITE_VER:
 	case DAR_CLK_OUT_CTRL:
 	case DAR_PWR_MODES:
@@ -521,7 +521,7 @@ mcr20a_start(struct ieee802154_hw *hw)
 	dev_dbg(printdev(lp), "%s\n", __func__);
 
 	/* No slotted operation */
-	dev_dbg(printdev(lp), "no slotted operation\n");
+	dev_dbg(printdev(lp), "yes slotted operation\n");
 	ret = regmap_update_bits(lp->regmap_dar, DAR_PHY_CTRL1,
 				 DAR_PHY_CTRL1_SLOTTED, 0x0);
 	if (ret < 0)
@@ -954,7 +954,7 @@ static irqreturn_t mcr20a_irq_isr(int irq, void *data)
 	struct mcr20a_local *lp = data;
 	int ret;
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 
 	lp->irq_header[0] = MCR20A_READ_REG(DAR_IRQ_STS1);
 	/* read IRQSTSx */
@@ -1130,7 +1130,7 @@ mcr20a_phy_init(struct mcr20a_local *lp)
 	if (ret)
 		goto err_ret;
 
-	/* SRC_CTRL : enable Acknowledge Frame Pending and
+	/* SRC_CTRL : enable Ackyeswledge Frame Pending and
 	 * Source Address Matching Enable
 	 */
 	ret = regmap_write(lp->regmap_dar, DAR_SRC_CTRL,
@@ -1233,7 +1233,7 @@ mcr20a_probe(struct spi_device *spi)
 	dev_dbg(&spi->dev, "%s\n", __func__);
 
 	if (!spi->irq) {
-		dev_err(&spi->dev, "no IRQ specified\n");
+		dev_err(&spi->dev, "yes IRQ specified\n");
 		return -EINVAL;
 	}
 
@@ -1313,7 +1313,7 @@ mcr20a_probe(struct spi_device *spi)
 	ret = devm_request_irq(&spi->dev, spi->irq, mcr20a_irq_isr,
 			       irq_type, dev_name(&spi->dev), lp);
 	if (ret) {
-		dev_err(&spi->dev, "could not request_irq for mcr20a\n");
+		dev_err(&spi->dev, "could yest request_irq for mcr20a\n");
 		ret = -ENODEV;
 		goto free_dev;
 	}

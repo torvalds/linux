@@ -19,9 +19,9 @@
  * Status: works
  *
  * Configuration options:
- *   none
+ *   yesne
  *
- * Manual configuration of PCI(e) cards is not supported; they are configured
+ * Manual configuration of PCI(e) cards is yest supported; they are configured
  * automatically.
  *
  * SUBDEVICES
@@ -87,7 +87,7 @@
  *       3.  Internal 100 kHz clock.
  *       4.  Internal 10 kHz clock.
  *       5.  Internal 1 kHz clock.
- *       6.  OUT n-1, the output of counter channel n-1 (see note 1 below).
+ *       6.  OUT n-1, the output of counter channel n-1 (see yeste 1 below).
  *       7.  Ext Clock, the counter chip's dedicated Ext Clock input from
  *         the SK1 connector.  This pin is shared by all three counter
  *         channels on the chip.
@@ -114,7 +114,7 @@
  *       2.  GAT n, the counter channel's dedicated GAT input from the SK1
  *         connector.  (N.B. for other values, the counter channel's GATn
  *         pin on the SK1 connector is an output!)
- *       3.  /OUT n-2, the inverted output of counter channel n-2 (see note
+ *       3.  /OUT n-2, the inverted output of counter channel n-2 (see yeste
  *         2 below).
  *       4.  Reserved.
  *       5.  Reserved.
@@ -127,7 +127,7 @@
  *
  *       6.  /GAT n, negated version of the counter channel's dedicated
  *         GAT input (negated version of gate source 2).
- *       7.  OUT n-2, the non-inverted output of counter channel n-2
+ *       7.  OUT n-2, the yesn-inverted output of counter channel n-2
  *         (negated version of gate source 3).
  *       8.  "Pattern present" signal, HIGH while pattern present.
  *       9.  "Pattern occurred" latched signal, latches HIGH when pattern
@@ -145,15 +145,15 @@
  *   INSN_CONFIG_GET_GATE_SRC.  Returns the counter channel's current gate
  *     source in data[2].
  *
- * Clock and gate interconnection notes:
+ * Clock and gate interconnection yestes:
  *
  *   1.  Clock source OUT n-1 is the output of the preceding channel on the
  *   same counter subdevice if n > 0, or the output of channel 2 on the
- *   preceding counter subdevice (see note 3) if n = 0.
+ *   preceding counter subdevice (see yeste 3) if n = 0.
  *
  *   2.  Gate source /OUT n-2 is the inverted output of channel 0 on the
  *   same counter subdevice if n = 2, or the inverted output of channel n+1
- *   on the preceding counter subdevice (see note 3) if n < 2.
+ *   on the preceding counter subdevice (see yeste 3) if n < 2.
  *
  *   3.  The counter subdevices are connected in a ring, so the highest
  *   counter subdevice precedes the lowest.
@@ -162,8 +162,8 @@
  *
  * The 'INTERRUPT' subdevice pretends to be a digital input subdevice.  The
  * digital inputs come from the interrupt status register.  The number of
- * channels matches the number of interrupt sources.  The PC214E does not
- * have an interrupt status register; see notes on 'INTERRUPT SOURCES'
+ * channels matches the number of interrupt sources.  The PC214E does yest
+ * have an interrupt status register; see yestes on 'INTERRUPT SOURCES'
  * below.
  *
  * INTERRUPT SOURCES
@@ -193,11 +193,11 @@
  * bit to 1 in the interrupt status register.
  *
  * When the interrupt status register value as a whole (actually, just the
- * 6 least significant bits) goes from zero to non-zero, the board will
+ * 6 least significant bits) goes from zero to yesn-zero, the board will
  * generate an interrupt.  The interrupt will remain asserted until the
  * interrupt status register is cleared to zero.  To clear a bit to zero in
  * the interrupt status register, the corresponding interrupt source must
- * be disabled in the interrupt source enable register (there is no
+ * be disabled in the interrupt source enable register (there is yes
  * separate interrupt clear register).
  *
  * COMMANDS
@@ -258,7 +258,7 @@ static const struct dio200_board dio200_pci_boards[] = {
 		.mainbar	= 1,
 		.n_subdevs	= 8,
 		.sdtype		= {
-			sd_8255, sd_none, sd_8255, sd_none,
+			sd_8255, sd_yesne, sd_8255, sd_yesne,
 			sd_8254, sd_8254, sd_timer, sd_intr
 		},
 		.sdinfo		= {
@@ -273,7 +273,7 @@ static const struct dio200_board dio200_pci_boards[] = {
 		.mainbar	= 1,
 		.n_subdevs	= 8,
 		.sdtype		= {
-			sd_8255, sd_none, sd_none, sd_none,
+			sd_8255, sd_yesne, sd_yesne, sd_yesne,
 			sd_8254, sd_8254, sd_timer, sd_intr
 		},
 		.sdinfo		= {
@@ -362,7 +362,7 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 		dev->mmio = pci_ioremap_bar(pci_dev, bar);
 		if (!dev->mmio) {
 			dev_err(dev->class_dev,
-				"error! cannot remap registers\n");
+				"error! canyest remap registers\n");
 			return -ENOMEM;
 		}
 	} else {

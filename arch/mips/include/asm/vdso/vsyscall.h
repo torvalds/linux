@@ -22,7 +22,7 @@ struct vdso_data *__mips_get_k_vdso_data(void)
 static __always_inline
 int __mips_get_clock_mode(struct timekeeper *tk)
 {
-	u32 clock_mode = tk->tkr_mono.clock->archdata.vdso_clock_mode;
+	u32 clock_mode = tk->tkr_moyes.clock->archdata.vdso_clock_mode;
 
 	return clock_mode;
 }

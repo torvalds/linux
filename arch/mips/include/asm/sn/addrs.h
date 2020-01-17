@@ -52,7 +52,7 @@
 
 /*
  * The following macros are used to index to the beginning of a specific
- * node's address space.
+ * yesde's address space.
  */
 
 #define NODE_OFFSET(_n)		(UINT64_CAST (_n) << NODE_SIZE_BITS)
@@ -78,7 +78,7 @@
 /*
  * The following definitions pertain to the IO special address
  * space.  They define the location of the big and little windows
- * of any given node.
+ * of any given yesde.
  */
 
 #define SWIN_SIZE_BITS		24
@@ -95,7 +95,7 @@
 #define SWIN_WIDGETADDR(addr)	((addr) & SWIN_SIZEMASK)
 #define SWIN_WIDGETNUM(addr)	(((addr)  >> SWIN_SIZE_BITS) & SWIN_WIDGET_MASK)
 /*
- * Verify if addr belongs to small window address on node with "nasid"
+ * Verify if addr belongs to small window address on yesde with "nasid"
  *
  *
  * NOTE: "addr" is expected to be XKPHYS address, and NOT physical
@@ -112,7 +112,7 @@
  * The following define the major position-independent aliases used
  * in SN.
  *	UALIAS -- 256MB in size, reads in the UALIAS result in
- *			uncached references to the memory of the reader's node.
+ *			uncached references to the memory of the reader's yesde.
  *	CPU_UALIAS -- 128kb in size, the bottom part of UALIAS is flipped
  *			depending on which CPU does the access to provide
  *			all CPUs with unique uncached memory at low addresses.
@@ -129,7 +129,7 @@
 
 /*
  * The bottom of ualias space is flipped depending on whether you're
- * processor 0 or 1 within a node.
+ * processor 0 or 1 within a yesde.
  */
 #ifdef CONFIG_SGI_IP27
 #define UALIAS_FLIP_BASE	UALIAS_BASE
@@ -165,7 +165,7 @@
 /*
  * Macros for referring the Hub's back door space
  *
- *   These macros correctly process addresses in any node's space.
+ *   These macros correctly process addresses in any yesde's space.
  *   WARNING: They won't work in assembler.
  *
  *   BDDIR_ENTRY_LO returns the address of the low double-word of the dir
@@ -245,7 +245,7 @@
 
 /*
  * WARNING:
- *	When certain Hub chip workaround are defined, it's not sufficient
+ *	When certain Hub chip workaround are defined, it's yest sufficient
  *	to dereference the *_HUB_ADDR() macros.	 You should instead use
  *	HUB_L() and HUB_S() if you must deal with pointers to hub registers.
  *	Otherwise, the recommended approach is to use *_HUB_L() and *_HUB_S().

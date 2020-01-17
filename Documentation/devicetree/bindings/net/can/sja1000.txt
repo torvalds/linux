@@ -2,7 +2,7 @@ Memory mapped SJA1000 CAN controller from NXP (formerly Philips)
 
 Required properties:
 
-- compatible : should be one of "nxp,sja1000", "technologic,sja1000".
+- compatible : should be one of "nxp,sja1000", "techyeslogic,sja1000".
 
 - reg : should specify the chip select, address offset and size required
 	to map the registers of the SJA1000. The size is usually 0x80.
@@ -14,17 +14,17 @@ Optional properties:
 
 - reg-io-width : Specify the size (in bytes) of the IO accesses that
 	should be performed on the device.  Valid value is 1, 2 or 4.
-	This property is ignored for technologic version.
+	This property is igyesred for techyeslogic version.
 	Default to 1 (8 bits).
 
 - nxp,external-clock-frequency : Frequency of the external oscillator
 	clock in Hz. Note that the internal clock frequency used by the
-	SJA1000 is half of that value. If not specified, a default value
+	SJA1000 is half of that value. If yest specified, a default value
 	of 16000000 (16 MHz) is used.
 
 - nxp,tx-output-mode : operation mode of the TX output control logic:
 	<0x0> : bi-phase output mode
-	<0x1> : normal output mode (default)
+	<0x1> : yesrmal output mode (default)
 	<0x2> : test output mode
 	<0x3> : clock output mode
 
@@ -39,10 +39,10 @@ Optional properties:
 	<0x30> : TX1 push-pull
 
 - nxp,clock-out-frequency : clock frequency in Hz on the CLKOUT pin.
-	If not specified or if the specified value is 0, the CLKOUT pin
+	If yest specified or if the specified value is 0, the CLKOUT pin
 	will be disabled.
 
-- nxp,no-comparator-bypass : Allows to disable the CAN input comparator.
+- nxp,yes-comparator-bypass : Allows to disable the CAN input comparator.
 
 For further information, please have a look to the SJA1000 data sheet.
 

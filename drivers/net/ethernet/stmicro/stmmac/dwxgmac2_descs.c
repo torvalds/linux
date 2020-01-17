@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2018 Syyespsys, Inc. and/or its affiliates.
  * stmmac XGMAC support.
  */
 
@@ -17,7 +17,7 @@ static int dwxgmac2_get_tx_status(void *data, struct stmmac_extra_stats *x,
 	if (unlikely(tdes3 & XGMAC_TDES3_OWN))
 		return tx_dma_own;
 	if (likely(!(tdes3 & XGMAC_TDES3_LD)))
-		return tx_not_ls;
+		return tx_yest_ls;
 
 	return ret;
 }
@@ -32,7 +32,7 @@ static int dwxgmac2_get_rx_status(void *data, struct stmmac_extra_stats *x,
 	if (unlikely(rdes3 & XGMAC_RDES3_CTXT))
 		return discard_frame;
 	if (likely(!(rdes3 & XGMAC_RDES3_LD)))
-		return rx_not_ls;
+		return rx_yest_ls;
 	if (unlikely((rdes3 & XGMAC_RDES3_ES) && (rdes3 & XGMAC_RDES3_LD)))
 		return discard_frame;
 

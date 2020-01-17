@@ -101,7 +101,7 @@ struct zx_dma_chan {
 	u32			cyclic;
 	struct virt_dma_chan	vc;
 	struct zx_dma_phy	*phy;
-	struct list_head	node;
+	struct list_head	yesde;
 	dma_addr_t		dev_addr;
 	enum dma_status		status;
 };
@@ -202,7 +202,7 @@ static int zx_dma_start_txd(struct zx_dma_chan *c)
 		 * fetch and remove request from vc->desc_issued
 		 * so vc->desc_issued only contains desc pending
 		 */
-		list_del(&ds->vd.node);
+		list_del(&ds->vd.yesde);
 		c->phy->ds_run = ds;
 		c->phy->ds_done = NULL;
 		/* start dma */
@@ -223,7 +223,7 @@ static void zx_dma_task(struct zx_dma_dev *d)
 
 	/* check new dma request of running channel in vc->desc_issued */
 	list_for_each_entry_safe(c, cn, &d->slave.channels,
-				 vc.chan.device_node) {
+				 vc.chan.device_yesde) {
 		spin_lock_irqsave(&c->vc.lock, flags);
 		p = c->phy;
 		if (p && p->ds_done && zx_dma_start_txd(c)) {
@@ -240,11 +240,11 @@ static void zx_dma_task(struct zx_dma_dev *d)
 	spin_lock_irqsave(&d->lock, flags);
 	while (!list_empty(&d->chan_pending)) {
 		c = list_first_entry(&d->chan_pending,
-				     struct zx_dma_chan, node);
+				     struct zx_dma_chan, yesde);
 		p = &d->phy[c->id];
 		if (!p->vchan) {
 			/* remove from d->chan_pending */
-			list_del_init(&c->node);
+			list_del_init(&c->yesde);
 			pch_alloc |= 1 << c->id;
 			/* Mark this channel allocated */
 			p->vchan = c;
@@ -321,7 +321,7 @@ static void zx_dma_free_chan_resources(struct dma_chan *chan)
 	unsigned long flags;
 
 	spin_lock_irqsave(&d->lock, flags);
-	list_del_init(&c->node);
+	list_del_init(&c->yesde);
 	spin_unlock_irqrestore(&d->lock, flags);
 
 	vchan_free_chan_resources(&c->vc);
@@ -387,15 +387,15 @@ static void zx_dma_issue_pending(struct dma_chan *chan)
 	/* add request to vc->desc_issued */
 	if (vchan_issue_pending(&c->vc)) {
 		spin_lock(&d->lock);
-		if (!c->phy && list_empty(&c->node)) {
+		if (!c->phy && list_empty(&c->yesde)) {
 			/* if new channel, add chan_pending */
-			list_add_tail(&c->node, &d->chan_pending);
+			list_add_tail(&c->yesde, &d->chan_pending);
 			issue = 1;
 			dev_dbg(d->slave.dev, "vchan %p: issued\n", &c->vc);
 		}
 		spin_unlock(&d->lock);
 	} else {
-		dev_dbg(d->slave.dev, "vchan %p: nothing to issue\n", &c->vc);
+		dev_dbg(d->slave.dev, "vchan %p: yesthing to issue\n", &c->vc);
 	}
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 
@@ -473,8 +473,8 @@ static int zx_pre_config(struct zx_dma_chan *c, enum dma_transfer_direction dir)
 	case DMA_MEM_TO_DEV:
 		c->dev_addr = cfg->dst_addr;
 		/* dst len is calculated from src width, len and dst width.
-		 * We need make sure dst len not exceed MAX LEN.
-		 * Trailing single transaction that does not fill a full
+		 * We need make sure dst len yest exceed MAX LEN.
+		 * Trailing single transaction that does yest fill a full
 		 * burst also require identical src/dst data width.
 		 */
 		dst_width = zx_dma_burst_width(cfg->dst_addr_width);
@@ -668,7 +668,7 @@ static int zx_dma_terminate_all(struct dma_chan *chan)
 
 	/* Prevent this channel being scheduled */
 	spin_lock(&d->lock);
-	list_del_init(&c->node);
+	list_del_init(&c->yesde);
 	spin_unlock(&d->lock);
 
 	/* Clear the tx descriptor lists */
@@ -764,16 +764,16 @@ static int zx_dma_probe(struct platform_device *op)
 	if (IS_ERR(d->base))
 		return PTR_ERR(d->base);
 
-	of_property_read_u32((&op->dev)->of_node,
+	of_property_read_u32((&op->dev)->of_yesde,
 			     "dma-channels", &d->dma_channels);
-	of_property_read_u32((&op->dev)->of_node,
+	of_property_read_u32((&op->dev)->of_yesde,
 			     "dma-requests", &d->dma_requests);
 	if (!d->dma_requests || !d->dma_channels)
 		return -EINVAL;
 
 	d->clk = devm_clk_get(&op->dev, NULL);
 	if (IS_ERR(d->clk)) {
-		dev_err(&op->dev, "no dma clk\n");
+		dev_err(&op->dev, "yes dma clk\n");
 		return PTR_ERR(d->clk);
 	}
 
@@ -835,7 +835,7 @@ static int zx_dma_probe(struct platform_device *op)
 		struct zx_dma_chan *c = &d->chans[i];
 
 		c->status = DMA_IN_PROGRESS;
-		INIT_LIST_HEAD(&c->node);
+		INIT_LIST_HEAD(&c->yesde);
 		c->vc.desc_free = zx_dma_free_desc;
 		vchan_init(&c->vc, &d->slave);
 	}
@@ -857,7 +857,7 @@ static int zx_dma_probe(struct platform_device *op)
 	if (ret)
 		goto clk_dis;
 
-	ret = of_dma_controller_register((&op->dev)->of_node,
+	ret = of_dma_controller_register((&op->dev)->of_yesde,
 					 zx_of_dma_simple_xlate, d);
 	if (ret)
 		goto of_dma_register_fail;
@@ -882,11 +882,11 @@ static int zx_dma_remove(struct platform_device *op)
 	devm_free_irq(&op->dev, d->irq, d);
 
 	dma_async_device_unregister(&d->slave);
-	of_dma_controller_free((&op->dev)->of_node);
+	of_dma_controller_free((&op->dev)->of_yesde);
 
 	list_for_each_entry_safe(c, cn, &d->slave.channels,
-				 vc.chan.device_node) {
-		list_del(&c->vc.chan.device_node);
+				 vc.chan.device_yesde) {
+		list_del(&c->vc.chan.device_yesde);
 	}
 	clk_disable_unprepare(d->clk);
 

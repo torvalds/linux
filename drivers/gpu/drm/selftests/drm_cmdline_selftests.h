@@ -12,7 +12,7 @@
 cmdline_test(drm_cmdline_test_force_d_only)
 cmdline_test(drm_cmdline_test_force_D_only_dvi)
 cmdline_test(drm_cmdline_test_force_D_only_hdmi)
-cmdline_test(drm_cmdline_test_force_D_only_not_digital)
+cmdline_test(drm_cmdline_test_force_D_only_yest_digital)
 cmdline_test(drm_cmdline_test_force_e_only)
 cmdline_test(drm_cmdline_test_margin_only)
 cmdline_test(drm_cmdline_test_interlace_only)

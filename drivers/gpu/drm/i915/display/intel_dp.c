@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -27,7 +27,7 @@
 
 #include <linux/export.h>
 #include <linux/i2c.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -234,9 +234,9 @@ intel_dp_link_required(int pixel_clock, int bpp)
 int
 intel_dp_max_data_rate(int max_link_clock, int max_lanes)
 {
-	/* max_link_clock is the link symbol clock (LS_Clk) in kHz and not the
+	/* max_link_clock is the link symbol clock (LS_Clk) in kHz and yest the
 	 * link rate that is generally expressed in Gbps. Since, 8 bits of data
-	 * is transmitted every LS_Clk per lane, there is no need to account for
+	 * is transmitted every LS_Clk per lane, there is yes need to account for
 	 * the channel encoding that is done in the PHY layer here.
 	 */
 
@@ -389,7 +389,7 @@ static int intersect_rates(const int *source_rates, int source_len,
 	return k;
 }
 
-/* return index of rate in rates array, or -1 if not found */
+/* return index of rate in rates array, or -1 if yest found */
 static int intel_dp_rate_index(const int *rates, int len, int rate)
 {
 	int i;
@@ -411,7 +411,7 @@ static void intel_dp_set_common_rates(struct intel_dp *intel_dp)
 						     intel_dp->num_sink_rates,
 						     intel_dp->common_rates);
 
-	/* Paranoia, there should always be something in common. */
+	/* Parayesia, there should always be something in common. */
 	if (WARN_ON(intel_dp->num_common_rates == 0)) {
 		intel_dp->common_rates[0] = 162000;
 		intel_dp->num_common_rates = 1;
@@ -539,7 +539,7 @@ static u16 intel_dp_dsc_get_output_bpp(struct drm_i915_private *i915,
 		return 0;
 	}
 
-	/* Find the nearest match in the array of known BPPs from VESA */
+	/* Find the nearest match in the array of kyeswn BPPs from VESA */
 	for (i = 0; i < ARRAY_SIZE(valid_dsc_bpp) - 1; i++) {
 		if (bits_per_pixel < valid_dsc_bpp[i + 1])
 			break;
@@ -787,7 +787,7 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 
 	/*
 	 * The DPLL for the pipe must be enabled for this to work.
-	 * So enable temporarily it if it's not already enabled.
+	 * So enable temporarily it if it's yest already enabled.
 	 */
 	if (!pll_enabled) {
 		release_cl_override = IS_CHERRYVIEW(dev_priv) &&
@@ -831,7 +831,7 @@ static enum pipe vlv_find_free_pps(struct drm_i915_private *dev_priv)
 
 	/*
 	 * We don't have power sequencer currently.
-	 * Pick one that's not used by other ports.
+	 * Pick one that's yest used by other ports.
 	 */
 	for_each_intel_dp(&dev_priv->drm, encoder) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
@@ -877,7 +877,7 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 	pipe = vlv_find_free_pps(dev_priv);
 
 	/*
-	 * Didn't find one. This should not happen since there
+	 * Didn't find one. This should yest happen since there
 	 * are two power sequencers and up to two eDP ports.
 	 */
 	if (WARN_ON(pipe == INVALID_PIPE))
@@ -997,7 +997,7 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 
 	/* didn't find one? just let vlv_power_sequencer_pipe() pick one when needed */
 	if (intel_dp->pps_pipe == INVALID_PIPE) {
-		DRM_DEBUG_KMS("no initial power sequencer for [ENCODER:%d:%s]\n",
+		DRM_DEBUG_KMS("yes initial power sequencer for [ENCODER:%d:%s]\n",
 			      intel_dig_port->base.base.base.id,
 			      intel_dig_port->base.base.name);
 		return;
@@ -1025,7 +1025,7 @@ void intel_power_sequencer_reset(struct drm_i915_private *dev_priv)
 	 * mutex when power_domain functions are called while holding pps_mutex.
 	 * That also means that in order to use pps_pipe the code needs to
 	 * hold both a power domain reference and pps_mutex, and the power domain
-	 * reference get/put must be done while _not_ holding pps_mutex.
+	 * reference get/put must be done while _yest_ holding pps_mutex.
 	 * pps_{lock,unlock}() do these steps in the correct order, so one
 	 * should use them always.
 	 */
@@ -1098,13 +1098,13 @@ _pp_stat_reg(struct intel_dp *intel_dp)
 	return regs.pp_stat;
 }
 
-/* Reboot notifier handler to shutdown panel power to guarantee T12 timing
-   This function only applicable when panel PM state is not to be tracked */
-static int edp_notify_handler(struct notifier_block *this, unsigned long code,
+/* Reboot yestifier handler to shutdown panel power to guarantee T12 timing
+   This function only applicable when panel PM state is yest to be tracked */
+static int edp_yestify_handler(struct yestifier_block *this, unsigned long code,
 			      void *unused)
 {
 	struct intel_dp *intel_dp = container_of(this, typeof(* intel_dp),
-						 edp_notifier);
+						 edp_yestifier);
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	intel_wakeref_t wakeref;
 
@@ -1183,7 +1183,7 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 	u32 status;
 	bool done;
 
-#define C (((status = intel_uncore_read_notrace(&i915->uncore, ch_ctl)) & DP_AUX_CH_CTL_SEND_BUSY) == 0)
+#define C (((status = intel_uncore_read_yestrace(&i915->uncore, ch_ctl)) & DP_AUX_CH_CTL_SEND_BUSY) == 0)
 	done = wait_event_timeout(i915->gmbus_wait_queue, C,
 				  msecs_to_jiffies_timeout(timeout_ms));
 
@@ -1191,7 +1191,7 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 	trace_i915_reg_rw(false, ch_ctl, status, sizeof(status), true);
 
 	if (!done)
-		DRM_ERROR("%s did not complete or timeout within %ums (status 0x%08x)\n",
+		DRM_ERROR("%s did yest complete or timeout within %ums (status 0x%08x)\n",
 			  intel_dp->aux.name, timeout_ms, status);
 #undef C
 
@@ -1237,7 +1237,7 @@ static u32 hsw_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 
 	if (dig_port->aux_ch != AUX_CH_A && HAS_PCH_LPT_H(dev_priv)) {
-		/* Workaround for non-ULT HSW */
+		/* Workaround for yesn-ULT HSW */
 		switch (index) {
 		case 0: return 63;
 		case 1: return 72;
@@ -1366,7 +1366,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 
 	/* Try to wait for any previous AUX channel activity */
 	for (try = 0; try < 3; try++) {
-		status = intel_uncore_read_notrace(uncore, ch_ctl);
+		status = intel_uncore_read_yestrace(uncore, ch_ctl);
 		if ((status & DP_AUX_CH_CTL_SEND_BUSY) == 0)
 			break;
 		msleep(1);
@@ -1378,7 +1378,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 		const u32 status = intel_uncore_read(uncore, ch_ctl);
 
 		if (status != intel_dp->aux_busy_last_status) {
-			WARN(1, "dp_aux_ch not started status 0x%08x\n",
+			WARN(1, "dp_aux_ch yest started status 0x%08x\n",
 			     status);
 			intel_dp->aux_busy_last_status = status;
 		}
@@ -1440,14 +1440,14 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	}
 
 	if ((status & DP_AUX_CH_CTL_DONE) == 0) {
-		DRM_ERROR("dp_aux_ch not done status 0x%08x\n", status);
+		DRM_ERROR("dp_aux_ch yest done status 0x%08x\n", status);
 		ret = -EBUSY;
 		goto out;
 	}
 
 done:
 	/* Check for timeout or receive error.
-	 * Timeouts occur when the sink is not connected
+	 * Timeouts occur when the sink is yest connected
 	 */
 	if (status & DP_AUX_CH_CTL_RECEIVE_ERROR) {
 		DRM_ERROR("dp_aux_ch receive error status 0x%08x\n", status);
@@ -1456,7 +1456,7 @@ done:
 	}
 
 	/* Timeouts occur when the device isn't connected, so they're
-	 * "normal" -- don't fill the kernel log with these */
+	 * "yesrmal" -- don't fill the kernel log with these */
 	if (status & DP_AUX_CH_CTL_TIME_OUT_ERROR) {
 		DRM_DEBUG_KMS("dp_aux_ch timeout status 0x%08x\n", status);
 		ret = -ETIMEDOUT;
@@ -1468,8 +1468,8 @@ done:
 		      DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT);
 
 	/*
-	 * By BSpec: "Message sizes of 0 or >20 are not allowed."
-	 * We have no idea of what happened so we return -EBUSY so
+	 * By BSpec: "Message sizes of 0 or >20 are yest allowed."
+	 * We have yes idea of what happened so we return -EBUSY so
 	 * drm layer takes care for the necessary retries.
 	 */
 	if (recv_bytes == 0 || recv_bytes > 20) {
@@ -1741,7 +1741,7 @@ intel_dp_aux_init(struct intel_dp *intel_dp)
 
 	drm_dp_aux_init(&intel_dp->aux);
 
-	/* Failure to allocate our preferred name is not critical */
+	/* Failure to allocate our preferred name is yest critical */
 	intel_dp->aux.name = kasprintf(GFP_KERNEL, "DPDDC-%c",
 				       port_name(encoder->port));
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
@@ -2080,7 +2080,7 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	}
 
 	/*
-	 * For now enable DSC for max bpp, max link rate, max lane count.
+	 * For yesw enable DSC for max bpp, max link rate, max lane count.
 	 * Optimize this later for the minimum possible link rate/lane count
 	 * with DSC enabled for the requested mode.
 	 */
@@ -2110,7 +2110,7 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 						     adjusted_mode->crtc_clock,
 						     adjusted_mode->crtc_hdisplay);
 		if (!dsc_max_output_bpp || !dsc_dp_slice_count) {
-			DRM_DEBUG_KMS("Compressed BPP/Slice Count not supported\n");
+			DRM_DEBUG_KMS("Compressed BPP/Slice Count yest supported\n");
 			return -EINVAL;
 		}
 		pipe_config->dsc.compressed_bpp = min_t(u16,
@@ -2127,14 +2127,14 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		if (pipe_config->dsc.slice_count > 1) {
 			pipe_config->dsc.dsc_split = true;
 		} else {
-			DRM_DEBUG_KMS("Cannot split stream to use 2 VDSC instances\n");
+			DRM_DEBUG_KMS("Canyest split stream to use 2 VDSC instances\n");
 			return -EINVAL;
 		}
 	}
 
 	ret = intel_dp_compute_dsc_params(intel_dp, pipe_config);
 	if (ret < 0) {
-		DRM_DEBUG_KMS("Cannot compute valid DSC parameters for Input Bpp = %d "
+		DRM_DEBUG_KMS("Canyest compute valid DSC parameters for Input Bpp = %d "
 			      "Compressed BPP = %d\n",
 			      pipe_config->pipe_bpp,
 			      pipe_config->dsc.compressed_bpp);
@@ -2678,7 +2678,7 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 /*
  * Must be paired with intel_edp_panel_vdd_off() or
  * intel_edp_panel_off().
- * Nested calls to these functions are not allowed since
+ * Nested calls to these functions are yest allowed since
  * we drop the lock. Caller must use some higher level
  * locking to prevent nested calls from other threads.
  */
@@ -2755,7 +2755,7 @@ static void edp_panel_vdd_schedule_off(struct intel_dp *intel_dp)
 	unsigned long delay;
 
 	/*
-	 * Queue the timer to fire a long time from now (relative to the power
+	 * Queue the timer to fire a long time from yesw (relative to the power
 	 * down delay) to keep the panel power up across a sequence of
 	 * operations.
 	 */
@@ -2777,7 +2777,7 @@ static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
-	I915_STATE_WARN(!intel_dp->want_panel_vdd, "[ENCODER:%d:%s] VDD not forced on",
+	I915_STATE_WARN(!intel_dp->want_panel_vdd, "[ENCODER:%d:%s] VDD yest forced on",
 			dp_to_dig_port(intel_dp)->base.base.base.id,
 			dp_to_dig_port(intel_dp)->base.base.name);
 
@@ -3013,7 +3013,7 @@ static void assert_dp_port(struct intel_dp *intel_dp, bool state)
 	I915_STATE_WARN(cur_state != state,
 			"[ENCODER:%d:%s] state assertion failure (expected %s, current %s)\n",
 			dig_port->base.base.base.id, dig_port->base.base.name,
-			onoff(state), onoff(cur_state));
+			oyesff(state), oyesff(cur_state));
 }
 #define assert_dp_port_disabled(d) assert_dp_port((d), false)
 
@@ -3023,7 +3023,7 @@ static void assert_edp_pll(struct drm_i915_private *dev_priv, bool state)
 
 	I915_STATE_WARN(cur_state != state,
 			"eDP PLL state assertion failure (expected %s, current %s)\n",
-			onoff(state), onoff(cur_state));
+			oyesff(state), oyesff(cur_state));
 }
 #define assert_edp_pll_enabled(d) assert_edp_pll((d), true)
 #define assert_edp_pll_disabled(d) assert_edp_pll((d), false)
@@ -3092,7 +3092,7 @@ static bool downstream_hpd_needs_d0(struct intel_dp *intel_dp)
 	/*
 	 * DPCD 1.2+ should support BRANCH_DEVICE_CTRL, and thus
 	 * be capable of signalling downstream hpd with a long pulse.
-	 * Whether or not that means D3 is safe to use is not clear,
+	 * Whether or yest that means D3 is safe to use is yest clear,
 	 * but let's assume so until proven otherwise.
 	 *
 	 * FIXME should really check all downstream ports...
@@ -3190,7 +3190,7 @@ bool intel_dp_port_enabled(struct drm_i915_private *dev_priv,
 
 	ret = val & DP_PORT_EN;
 
-	/* asserts want to know the pipe even if the port is disabled */
+	/* asserts want to kyesw the pipe even if the port is disabled */
 	if (IS_IVYBRIDGE(dev_priv) && port == PORT_A)
 		*pipe = (val & DP_PIPE_SEL_MASK_IVB) >> DP_PIPE_SEL_SHIFT_IVB;
 	else if (HAS_PCH_CPT(dev_priv) && port != PORT_A)
@@ -3294,11 +3294,11 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 		 *
 		 * Some machines in UEFI boot mode provide us a VBT that has 18
 		 * bpp and 1.62 GHz link bandwidth for eDP, which for reasons
-		 * unknown we fail to light up. Yet the same BIOS boots up with
+		 * unkyeswn we fail to light up. Yet the same BIOS boots up with
 		 * 24 bpp and 2.7 GHz link. Use the same bpp as the BIOS uses as
-		 * max, not what it tells us to use.
+		 * max, yest what it tells us to use.
 		 *
-		 * Note: This will still be broken if the eDP panel is not lit
+		 * Note: This will still be broken if the eDP panel is yest lit
 		 * up by the BIOS, and thus we can't get the mode at module
 		 * load.
 		 */
@@ -3350,9 +3350,9 @@ static void g4x_post_disable_dp(struct intel_encoder *encoder,
 	enum port port = encoder->port;
 
 	/*
-	 * Bspec does not list a specific disable sequence for g4x DP.
+	 * Bspec does yest list a specific disable sequence for g4x DP.
 	 * Follow the ilk+ sequence (disable pipe before the port) for
-	 * g4x DP as it does not suffer from underruns like the normal
+	 * g4x DP as it does yest suffer from underruns like the yesrmal
 	 * g4x modeset sequence (disable pipe after the port).
 	 */
 	intel_dp_link_down(encoder, old_crtc_state);
@@ -3443,7 +3443,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			*DP |= DP_LINK_TRAIN_PAT_2_CPT;
 			break;
 		case DP_TRAINING_PATTERN_3:
-			DRM_DEBUG_KMS("TPS3 not supported, using TPS2 instead\n");
+			DRM_DEBUG_KMS("TPS3 yest supported, using TPS2 instead\n");
 			*DP |= DP_LINK_TRAIN_PAT_2_CPT;
 			break;
 		}
@@ -3462,7 +3462,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			*DP |= DP_LINK_TRAIN_PAT_2;
 			break;
 		case DP_TRAINING_PATTERN_3:
-			DRM_DEBUG_KMS("TPS3 not supported, using TPS2 instead\n");
+			DRM_DEBUG_KMS("TPS3 yest supported, using TPS2 instead\n");
 			*DP |= DP_LINK_TRAIN_PAT_2;
 			break;
 		}
@@ -3480,7 +3480,7 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 
 	/*
 	 * Magic for VLV/CHV. We _must_ first set up the register
-	 * without actually enabling the port, and then do another
+	 * without actually enabling the port, and then do ayesther
 	 * write to enable the port. Otherwise link training will
 	 * fail when the power sequencer is freshly used for this port.
 	 */
@@ -3640,7 +3640,7 @@ static void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
 	if (intel_dp->pps_pipe != INVALID_PIPE &&
 	    intel_dp->pps_pipe != crtc->pipe) {
 		/*
-		 * If another power sequencer was being used on this
+		 * If ayesther power sequencer was being used on this
 		 * port previously make sure to turn off vdd there while
 		 * we still have control of it.
 		 */
@@ -3649,7 +3649,7 @@ static void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
 
 	/*
 	 * We may be stealing the power
-	 * sequencer from another port.
+	 * sequencer from ayesther port.
 	 */
 	vlv_steal_power_sequencer(dev_priv, crtc->pipe);
 
@@ -3658,7 +3658,7 @@ static void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
-	/* now it's all ours */
+	/* yesw it's all ours */
 	intel_dp->pps_pipe = crtc->pipe;
 
 	DRM_DEBUG_KMS("initializing pipe %c power sequencer for [ENCODER:%d:%s]\n",
@@ -3696,7 +3696,7 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder,
 
 	intel_enable_dp(encoder, pipe_config, conn_state);
 
-	/* Second common lane will stay alive on its own now */
+	/* Second common lane will stay alive on its own yesw */
 	chv_phy_release_cl2_override(encoder);
 }
 
@@ -4135,7 +4135,7 @@ void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
 	/*
 	 * Until TGL on PORT_A we can have only eDP in SST mode. There the only
 	 * reason we need to set idle transmission mode is to work around a HW
-	 * issue where we enable the pipe while not in idle link-training mode.
+	 * issue where we enable the pipe while yest in idle link-training mode.
 	 * In this case there is requirement to wait for a minimum number of
 	 * idle patterns to be sent.
 	 */
@@ -4282,7 +4282,7 @@ static void intel_dp_get_dsc_sink_cap(struct intel_dp *intel_dp)
 {
 	/*
 	 * Clear the cached register set to avoid using stale values
-	 * for the sinks that do not support DSC.
+	 * for the sinks that do yest support DSC.
 	 */
 	memset(intel_dp->dsc_dpcd, 0, sizeof(intel_dp->dsc_dpcd));
 
@@ -4331,10 +4331,10 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 	 * Read the eDP display control registers.
 	 *
 	 * Do this independent of DP_DPCD_DISPLAY_CONTROL_CAPABLE bit in
-	 * DP_EDP_CONFIGURATION_CAP, because some buggy displays do not have it
+	 * DP_EDP_CONFIGURATION_CAP, because some buggy displays do yest have it
 	 * set, but require eDP 1.4+ detection (e.g. for supported link rates
 	 * method). The display control registers should read zero if they're
-	 * not supported anyway.
+	 * yest supported anyway.
 	 */
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_EDP_DPCD_REV,
 			     intel_dp->edp_dpcd, sizeof(intel_dp->edp_dpcd)) ==
@@ -4400,7 +4400,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 
 	/*
 	 * Don't clobber cached eDP rates. Also skip re-reading
-	 * the OUI/ID since we know it won't change.
+	 * the OUI/ID since we kyesw it won't change.
 	 */
 	if (!intel_dp_is_edp(intel_dp)) {
 		drm_dp_read_desc(&intel_dp->aux, &intel_dp->desc,
@@ -4411,7 +4411,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	}
 
 	/*
-	 * Some eDP panels do not set a valid value for sink count, that is why
+	 * Some eDP panels do yest set a valid value for sink count, that is why
 	 * it don't care about read it here and in intel_edp_init_dpcd().
 	 */
 	if (!intel_dp_is_edp(intel_dp) &&
@@ -4432,10 +4432,10 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 
 		/*
 		 * SINK_COUNT == 0 and DOWNSTREAM_PORT_PRESENT == 1 implies that
-		 * a dongle is present but no display. Unless we require to know
-		 * if a dongle is present or not, we don't need to update
+		 * a dongle is present but yes display. Unless we require to kyesw
+		 * if a dongle is present or yest, we don't need to update
 		 * downstream port information. So, an early return here saves
-		 * time from performing other operations which are not required.
+		 * time from performing other operations which are yest required.
 		 */
 		if (!intel_dp->sink_count)
 			return false;
@@ -4445,7 +4445,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		return true; /* native DP sink */
 
 	if (intel_dp->dpcd[DP_DPCD_REV] == 0x10)
-		return true; /* no per-port downstream info */
+		return true; /* yes per-port downstream info */
 
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_DOWNSTREAM_PORT_0,
 			     intel_dp->downstream_ports,
@@ -4486,8 +4486,8 @@ intel_dp_configure_mst(struct intel_dp *intel_dp)
 
 	DRM_DEBUG_KMS("[ENCODER:%d:%s] MST support: port: %s, sink: %s, modparam: %s\n",
 		      encoder->base.base.id, encoder->base.name,
-		      yesno(intel_dp->can_mst), yesno(sink_can_mst),
-		      yesno(i915_modparams.enable_dp_mst));
+		      noyes(intel_dp->can_mst), noyes(sink_can_mst),
+		      noyes(i915_modparams.enable_dp_mst));
 
 	if (!intel_dp->can_mst)
 		return;
@@ -4693,7 +4693,7 @@ intel_dp_setup_hdr_metadata_infoframe_sdp(struct intel_dp *intel_dp,
 	 * Table 2-100 and Table 2-101
 	 */
 
-	/* Packet ID, 00h for non-Audio INFOFRAME */
+	/* Packet ID, 00h for yesn-Audio INFOFRAME */
 	infoframe_sdp.sdp_header.HB0 = 0;
 	/*
 	 * Packet Type 80h + Non-audio INFOFRAME Type value
@@ -4915,7 +4915,7 @@ static void intel_dp_handle_test_request(struct intel_dp *intel_dp)
 
 	status = drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_REQUEST, &request);
 	if (status <= 0) {
-		DRM_DEBUG_KMS("Could not read test request from sink\n");
+		DRM_DEBUG_KMS("Could yest read test request from sink\n");
 		goto update_status;
 	}
 
@@ -4947,7 +4947,7 @@ static void intel_dp_handle_test_request(struct intel_dp *intel_dp)
 update_status:
 	status = drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_RESPONSE, response);
 	if (status <= 0)
-		DRM_DEBUG_KMS("Could not write test response to sink\n");
+		DRM_DEBUG_KMS("Could yest write test response to sink\n");
 }
 
 static int
@@ -4969,7 +4969,7 @@ go_again:
 			/* check link status - esi[10] = 0x200c */
 			if (intel_dp->active_mst_links > 0 &&
 			    !drm_dp_channel_eq_ok(&esi[10], intel_dp->lane_count)) {
-				DRM_DEBUG_KMS("channel EQ not ok, retraining\n");
+				DRM_DEBUG_KMS("channel EQ yest ok, retraining\n");
 				intel_dp_start_link_train(intel_dp);
 				intel_dp_stop_link_train(intel_dp);
 			}
@@ -5018,7 +5018,7 @@ intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 	/*
 	 * While PSR source HW is enabled, it will control main-link sending
 	 * frames, enabling and disabling it so trying to do a retrain will fail
-	 * as the link would or not be on or it could mix training patterns
+	 * as the link would or yest be on or it could mix training patterns
 	 * and frame data at the same time causing retrain to fail.
 	 * Also when exiting PSR, HW will retrain the link anyways fixing
 	 * any link status error.
@@ -5037,7 +5037,7 @@ intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 					intel_dp->lane_count))
 		return false;
 
-	/* Retrain if Channel EQ or CR not ok */
+	/* Retrain if Channel EQ or CR yest ok */
 	return !drm_dp_channel_eq_ok(link_status, intel_dp->lane_count);
 }
 
@@ -5107,15 +5107,15 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 }
 
 /*
- * If display is now connected check links status,
- * there has been known issues of link loss triggering
+ * If display is yesw connected check links status,
+ * there has been kyeswn issues of link loss triggering
  * long pulse.
  *
  * Some sinks (eg. ASUS PB287Q) seem to perform some
  * weird HPD ping pong during modesets. So we can apparently
  * end up with HPD going low during a modeset, and then
  * going back up soon after. And once that happens we must
- * retrain the link to get a picture. That's in case no
+ * retrain the link to get a picture. That's in case yes
  * userspace component reacted to intermittent HPD dip.
  */
 static enum intel_hotplug_state
@@ -5188,7 +5188,7 @@ static void intel_dp_check_service_irq(struct intel_dp *intel_dp)
  *  4. Check link status on receipt of hot-plug interrupt
  *
  * intel_dp_short_pulse -  handles short pulse interrupts
- * when full detection is not required.
+ * when full detection is yest required.
  * Returns %true if short pulse is handled and full detection
  * is NOT required and %false otherwise.
  */
@@ -5255,7 +5255,7 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 	if (!intel_dp_get_dpcd(intel_dp))
 		return connector_status_disconnected;
 
-	/* if there's no downstream port, we're done */
+	/* if there's yes downstream port, we're done */
 	if (!drm_dp_is_branch(dpcd))
 		return connector_status_connected;
 
@@ -5270,26 +5270,26 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 	if (intel_dp_can_mst(intel_dp))
 		return connector_status_connected;
 
-	/* If no HPD, poke DDC gently */
+	/* If yes HPD, poke DDC gently */
 	if (drm_probe_ddc(&intel_dp->aux.ddc))
 		return connector_status_connected;
 
-	/* Well we tried, say unknown for unreliable port types */
+	/* Well we tried, say unkyeswn for unreliable port types */
 	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11) {
 		type = intel_dp->downstream_ports[0] & DP_DS_PORT_TYPE_MASK;
 		if (type == DP_DS_PORT_TYPE_VGA ||
 		    type == DP_DS_PORT_TYPE_NON_EDID)
-			return connector_status_unknown;
+			return connector_status_unkyeswn;
 	} else {
 		type = intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
 			DP_DWN_STRM_PORT_TYPE_MASK;
 		if (type == DP_DWN_STRM_PORT_TYPE_ANALOG ||
 		    type == DP_DWN_STRM_PORT_TYPE_OTHER)
-			return connector_status_unknown;
+			return connector_status_unkyeswn;
 	}
 
-	/* Anything else is out of spec, warn and ignore */
-	DRM_DEBUG_KMS("Broken DP branch device, ignoring\n");
+	/* Anything else is out of spec, warn and igyesre */
+	DRM_DEBUG_KMS("Broken DP branch device, igyesring\n");
 	return connector_status_disconnected;
 }
 
@@ -5662,7 +5662,7 @@ intel_dp_detect(struct drm_connector *connector,
 	}
 
 	/*
-	 * Some external monitors do not signal loss of link synchronization
+	 * Some external monitors do yest signal loss of link synchronization
 	 * with an IRQ_HPD, so force a link status check.
 	 */
 	if (!intel_dp_is_edp(intel_dp)) {
@@ -5738,7 +5738,7 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 			return ret;
 	}
 
-	/* if eDP has no EDID, fall back to fixed mode */
+	/* if eDP has yes EDID, fall back to fixed mode */
 	if (intel_dp_is_edp(intel_attached_dp(connector)) &&
 	    intel_connector->panel.fixed_mode) {
 		struct drm_display_mode *mode;
@@ -5803,9 +5803,9 @@ void intel_dp_encoder_flush_work(struct drm_encoder *encoder)
 		with_pps_lock(intel_dp, wakeref)
 			edp_panel_vdd_off_sync(intel_dp);
 
-		if (intel_dp->edp_notifier.notifier_call) {
-			unregister_reboot_notifier(&intel_dp->edp_notifier);
-			intel_dp->edp_notifier.notifier_call = NULL;
+		if (intel_dp->edp_yestifier.yestifier_call) {
+			unregister_reboot_yestifier(&intel_dp->edp_yestifier);
+			intel_dp->edp_yestifier.yestifier_call = NULL;
 		}
 	}
 
@@ -5893,7 +5893,7 @@ int intel_dp_hdcp_write_an_aksv(struct intel_digital_port *intel_dig_port,
 
 	reply = (rxbuf[0] >> 4) & DP_AUX_NATIVE_REPLY_MASK;
 	if (reply != DP_AUX_NATIVE_REPLY_ACK) {
-		DRM_DEBUG_KMS("Aksv write: no DP_AUX_NATIVE_REPLY_ACK %x\n",
+		DRM_DEBUG_KMS("Aksv write: yes DP_AUX_NATIVE_REPLY_ACK %x\n",
 			      reply);
 		return -EIO;
 	}
@@ -6083,7 +6083,7 @@ struct hdcp2_dp_msg_data {
 	u32 offset;
 	bool msg_detectable;
 	u32 timeout;
-	u32 timeout2; /* Added for non_paired situation */
+	u32 timeout2; /* Added for yesn_paired situation */
 };
 
 static const struct hdcp2_dp_msg_data hdcp2_dp_msg_data[] = {
@@ -6188,7 +6188,7 @@ intel_dp_hdcp2_wait_for_msg(struct intel_digital_port *intel_dig_port,
 		timeout = hdcp2_msg_data->timeout;
 
 	/*
-	 * There is no way to detect the CERT, LPRIME and STREAM_READY
+	 * There is yes way to detect the CERT, LPRIME and STREAM_READY
 	 * availability. So Wait for timeout and read the msg.
 	 */
 	if (!hdcp2_msg_data->msg_detectable) {
@@ -6196,7 +6196,7 @@ intel_dp_hdcp2_wait_for_msg(struct intel_digital_port *intel_dig_port,
 		ret = 0;
 	} else {
 		/*
-		 * As we want to check the msg availability at timeout, Ignoring
+		 * As we want to check the msg availability at timeout, Igyesring
 		 * the timeout at wait for CP_IRQ.
 		 */
 		intel_dp_hdcp_wait_for_cp_irq(hdcp, timeout);
@@ -6317,7 +6317,7 @@ int intel_dp_hdcp2_read_msg(struct intel_digital_port *intel_dig_port,
 	}
 	bytes_to_recv = size - 1;
 
-	/* DP adaptation msgs has no msg_id */
+	/* DP adaptation msgs has yes msg_id */
 	byte++;
 
 	while (bytes_to_recv) {
@@ -6530,7 +6530,7 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		 * would end up in an endless cycle of
 		 * "vdd off -> long hpd -> vdd on -> detect -> vdd off -> ..."
 		 */
-		DRM_DEBUG_KMS("ignoring long hpd on eDP [ENCODER:%d:%s]\n",
+		DRM_DEBUG_KMS("igyesring long hpd on eDP [ENCODER:%d:%s]\n",
 			      intel_dig_port->base.base.base.id,
 			      intel_dig_port->base.base.name);
 		return IRQ_HANDLED;
@@ -6549,7 +6549,7 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	if (intel_dp->is_mst) {
 		if (intel_dp_check_mst_status(intel_dp) == -EINVAL) {
 			/*
-			 * If we were in MST mode, and device is not
+			 * If we were in MST mode, and device is yest
 			 * there, get out of MST mode
 			 */
 			DRM_DEBUG_KMS("MST device may have disappeared %d vs %d\n",
@@ -6574,11 +6574,11 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	return IRQ_HANDLED;
 }
 
-/* check the VBT to see whether the eDP is on another port */
+/* check the VBT to see whether the eDP is on ayesther port */
 bool intel_dp_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
 {
 	/*
-	 * eDP not supported on g4x. so bail out early just
+	 * eDP yest supported on g4x. so bail out early just
 	 * for a bit extra safety in case the VBT is bonkers.
 	 */
 	if (INTEL_GEN(dev_priv) < 5)
@@ -6729,8 +6729,8 @@ intel_dp_init_panel_power_sequencer(struct intel_dp *intel_dp)
 	/* Upper limits from eDP 1.3 spec. Note that we use the clunky units of
 	 * our hw here, which are all in 100usec. */
 	spec.t1_t3 = 210 * 10;
-	spec.t8 = 50 * 10; /* no limit for t8, use t7 instead */
-	spec.t9 = 50 * 10; /* no limit for t9, make it symmetric with t8 */
+	spec.t8 = 50 * 10; /* yes limit for t8, use t7 instead */
+	spec.t9 = 50 * 10; /* yes limit for t9, make it symmetric with t8 */
 	spec.t10 = 500 * 10;
 	/* This one is special and actually in units of 100ms, but zero
 	 * based in the hw (so we need to add 100 ms). But the sw vbt
@@ -6805,7 +6805,7 @@ intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 	 * hooked up to any port. This would mess up the
 	 * power domain tracking the first time we pick
 	 * one of these power sequencers for use since
-	 * edp_panel_vdd_on() would notice that the VDD was
+	 * edp_panel_vdd_on() would yestice that the VDD was
 	 * already on and therefore wouldn't grab the power
 	 * domain reference. Disable VDD first to avoid this.
 	 * This also avoids spuriously turning the VDD on as
@@ -6898,7 +6898,7 @@ static void intel_dp_pps_init(struct intel_dp *intel_dp)
  * @refresh_rate: RR to be programmed
  *
  * This function gets called when refresh rate (RR) has to be changed from
- * one frequency to another. Switches can be between high and low RR
+ * one frequency to ayesther. Switches can be between high and low RR
  * supported by the panel or to any other RR based on media playback (in
  * this case, RR value needs to be passed from user space).
  *
@@ -6913,17 +6913,17 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 	enum drrs_refresh_rate_type index = DRRS_HIGH_RR;
 
 	if (refresh_rate <= 0) {
-		DRM_DEBUG_KMS("Refresh rate should be positive non-zero.\n");
+		DRM_DEBUG_KMS("Refresh rate should be positive yesn-zero.\n");
 		return;
 	}
 
 	if (intel_dp == NULL) {
-		DRM_DEBUG_KMS("DRRS not supported.\n");
+		DRM_DEBUG_KMS("DRRS yest supported.\n");
 		return;
 	}
 
 	if (!intel_crtc) {
-		DRM_DEBUG_KMS("DRRS: intel_crtc not initialized\n");
+		DRM_DEBUG_KMS("DRRS: intel_crtc yest initialized\n");
 		return;
 	}
 
@@ -6938,12 +6938,12 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 
 	if (index == dev_priv->drrs.refresh_rate_type) {
 		DRM_DEBUG_KMS(
-			"DRRS requested for previously set RR...ignoring\n");
+			"DRRS requested for previously set RR...igyesring\n");
 		return;
 	}
 
 	if (!crtc_state->base.active) {
-		DRM_DEBUG_KMS("eDP encoder disabled. CRTC not Active\n");
+		DRM_DEBUG_KMS("eDP encoder disabled. CRTC yest Active\n");
 		return;
 	}
 
@@ -7130,7 +7130,7 @@ void intel_edp_drrs_invalidate(struct drm_i915_private *dev_priv,
  * This function gets called every time rendering on the given planes has
  * completed or flip on a crtc is completed. So DRRS should be upclocked
  * (LOW_RR -> HIGH_RR). And also Idleness detection should be started again,
- * if no other planes are dirty.
+ * if yes other planes are dirty.
  *
  * Dirty frontbuffers relevant to DRRS are tracked in busy_frontbuffer_bits.
  */
@@ -7163,7 +7163,7 @@ void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,
 				dev_priv->drrs.dp->attached_connector->panel.fixed_mode->vrefresh);
 
 	/*
-	 * flush also means no more activity hence schedule downclock, if all
+	 * flush also means yes more activity hence schedule downclock, if all
 	 * other fbs are quiescent too
 	 */
 	if (!dev_priv->drrs.busy_frontbuffer_bits)
@@ -7187,7 +7187,7 @@ void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,
  * Static DRRS involves changing refresh rate (RR) by doing a full modeset
  * (may appear as a blink on screen) and is used in dock-undock scenario.
  * Seamless DRRS involves changing RR without any visual effect to the user
- * and can be used during normal system usage. This is done by programming
+ * and can be used during yesrmal system usage. This is done by programming
  * certain registers.
  *
  * Support for static/seamless DRRS may be indicated in the VBT based on
@@ -7198,7 +7198,7 @@ void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,
  * The implementation is based on frontbuffer tracking implementation.  When
  * there is a disturbance on the screen triggered by user activity or a periodic
  * system activity, DRRS is disabled (RR is changed to high RR).  When there is
- * no movement on screen, after a timeout of 1 second, a switch to low RR is
+ * yes movement on screen, after a timeout of 1 second, a switch to low RR is
  * made.
  *
  * For integration with frontbuffer tracking code, intel_edp_drrs_invalidate()
@@ -7244,7 +7244,7 @@ intel_dp_drrs_init(struct intel_connector *connector,
 
 	downclock_mode = intel_panel_edid_downclock_mode(connector, fixed_mode);
 	if (!downclock_mode) {
-		DRM_DEBUG_KMS("Downclock mode is not found. DRRS not supported\n");
+		DRM_DEBUG_KMS("Downclock mode is yest found. DRRS yest supported\n");
 		return NULL;
 	}
 
@@ -7281,7 +7281,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	 */
 	if (intel_get_lvds_encoder(dev_priv)) {
 		WARN_ON(!(HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)));
-		DRM_INFO("LVDS was detected, not registering eDP\n");
+		DRM_INFO("LVDS was detected, yest registering eDP\n");
 
 		return false;
 	}
@@ -7326,8 +7326,8 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	mutex_unlock(&dev->mode_config.mutex);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		intel_dp->edp_notifier.notifier_call = edp_notify_handler;
-		register_reboot_notifier(&intel_dp->edp_notifier);
+		intel_dp->edp_yestifier.yestifier_call = edp_yestify_handler;
+		register_reboot_yestifier(&intel_dp->edp_yestifier);
 
 		/*
 		 * Figure out the current pipe for the initial backlight setup.
@@ -7381,7 +7381,7 @@ static void intel_dp_modeset_retry_work_fn(struct work_struct *work)
 
 	/* Grab the locks before changing connector property*/
 	mutex_lock(&connector->dev->mode_config.mutex);
-	/* Set connector link status to BAD and send a Uevent to notify
+	/* Set connector link status to BAD and send a Uevent to yestify
 	 * userspace to do a modeset.
 	 */
 	drm_connector_set_link_status_property(connector,
@@ -7409,7 +7409,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		  intel_dp_modeset_retry_work_fn);
 
 	if (WARN(intel_dig_port->max_lanes < 1,
-		 "Not enough lanes (%d) for DP on [ENCODER:%d:%s]\n",
+		 "Not eyesugh lanes (%d) for DP on [ENCODER:%d:%s]\n",
 		 intel_dig_port->max_lanes, intel_encoder->base.base.id,
 		 intel_encoder->base.name))
 		return false;
@@ -7497,7 +7497,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 
 	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written
 	 * 0xd.  Failure to do so will result in spurious interrupts being
-	 * generated on the port when a cable is not attached.
+	 * generated on the port when a cable is yest attached.
 	 */
 	if (IS_G45(dev_priv)) {
 		u32 temp = I915_READ(PEG_BAND_GAP_DATA);

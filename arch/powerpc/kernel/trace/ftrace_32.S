@@ -32,7 +32,7 @@ _GLOBAL(ftrace_caller)
 .globl ftrace_call
 ftrace_call:
 	bl	ftrace_stub
-	nop
+	yesp
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 .globl ftrace_graph_call
 ftrace_graph_call:
@@ -59,7 +59,7 @@ _GLOBAL(ftrace_graph_caller)
 	lwz	r3,52(r1)
 
 	bl	prepare_ftrace_return
-	nop
+	yesp
 
         /*
          * prepare_ftrace_return gives us the address we divert to.
@@ -80,7 +80,7 @@ _GLOBAL(return_to_handler)
 	mr	r31, r1
 
 	bl	ftrace_return_to_handler
-	nop
+	yesp
 
 	/* return value has real return address */
 	mtlr	r3

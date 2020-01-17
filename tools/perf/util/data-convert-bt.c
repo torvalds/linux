@@ -6,7 +6,7 @@
  * Copyright (C) 2014, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
@@ -86,7 +86,7 @@ struct convert {
 
 	u64			events_size;
 	u64			events_count;
-	u64			non_sample_count;
+	u64			yesn_sample_count;
 
 	/* Ordered events configured queue size. */
 	u64			queue_size;
@@ -228,7 +228,7 @@ static unsigned long long adjust_signedness(unsigned long long value_int, int si
 		break;
 	case 8:
 		/*
-		 * For 64 bit value, return it self. There is no need
+		 * For 64 bit value, return it self. There is yes need
 		 * to fill high bit.
 		 */
 		/* Fall through */
@@ -593,7 +593,7 @@ static int add_generic_values(struct ctf_writer *cw,
 
 	/*
 	 * missing:
-	 *   PERF_SAMPLE_TIME         - not needed as we have it in
+	 *   PERF_SAMPLE_TIME         - yest needed as we have it in
 	 *                              ctf event header
 	 *   PERF_SAMPLE_READ         - TODO
 	 *   PERF_SAMPLE_RAW          - tracepoint fields are handled separately
@@ -773,7 +773,7 @@ static int get_sample_cpu(struct ctf_writer *cw, struct perf_sample *sample,
 #define STREAM_FLUSH_COUNT 100000
 
 /*
- * Currently we have no other way to determine the
+ * Currently we have yes other way to determine the
  * time for the stream flush other than keep track
  * of the number of events and check it against
  * threshold.
@@ -874,7 +874,7 @@ static int process_##_name##_event(struct perf_tool *tool,	\
 	struct ctf_stream *cs;					\
 	int ret;						\
 								\
-	c->non_sample_count++;					\
+	c->yesn_sample_count++;					\
 	c->events_size += _event->header.size;			\
 	event = bt_ctf_event_create(event_class);		\
 	if (!event) {						\
@@ -945,7 +945,7 @@ static char *change_name(char *name, char *orig_name, int dup)
 		goto out;
 	/*
 	 * Add '_' prefix to potential keywork.  According to
-	 * Mathieu Desnoyers (https://lkml.org/lkml/2015/1/23/652),
+	 * Mathieu Desyesyers (https://lkml.org/lkml/2015/1/23/652),
 	 * futher CTF spec updating may require us to use '$'.
 	 */
 	if (dup < 0)
@@ -1092,7 +1092,7 @@ static int add_generic_types(struct ctf_writer *cw, struct evsel *evsel,
 
 	/*
 	 * missing:
-	 *   PERF_SAMPLE_TIME         - not needed as we have it in
+	 *   PERF_SAMPLE_TIME         - yest needed as we have it in
 	 *                              ctf event header
 	 *   PERF_SAMPLE_READ         - TODO
 	 *   PERF_SAMPLE_CALLCHAIN    - TODO
@@ -1284,7 +1284,7 @@ __FUNC_ADD_NON_SAMPLE_EVENT_CLASS(mmap2,
 #undef __NON_SAMPLE_ADD_FIELD
 #undef __FUNC_ADD_NON_SAMPLE_EVENT_CLASS
 
-static int setup_non_sample_events(struct ctf_writer *cw,
+static int setup_yesn_sample_events(struct ctf_writer *cw,
 				   struct perf_session *session __maybe_unused)
 {
 	int ret;
@@ -1332,7 +1332,7 @@ static int setup_streams(struct ctf_writer *cw, struct perf_session *session)
 
 	/*
 	 * Try to get the number of cpus used in the data file,
-	 * if not present fallback to the MAX_CPUS.
+	 * if yest present fallback to the MAX_CPUS.
 	 */
 	ncpus = ph->env.nr_cpus_avail ?: MAX_CPUS;
 
@@ -1638,7 +1638,7 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 	if (setup_events(cw, session))
 		goto free_session;
 
-	if (opts->all && setup_non_sample_events(cw, session))
+	if (opts->all && setup_yesn_sample_events(cw, session))
 		goto free_session;
 
 	if (setup_streams(cw, session))
@@ -1659,10 +1659,10 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 		(double) c.events_size / 1024.0 / 1024.0,
 		c.events_count);
 
-	if (!c.non_sample_count)
+	if (!c.yesn_sample_count)
 		fprintf(stderr, ") ]\n");
 	else
-		fprintf(stderr, ", %" PRIu64 " non-samples) ]\n", c.non_sample_count);
+		fprintf(stderr, ", %" PRIu64 " yesn-samples) ]\n", c.yesn_sample_count);
 
 	cleanup_events(session);
 	perf_session__delete(session);

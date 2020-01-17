@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This code is derived from the VIA reference driver (copyright message
- * below) provided to Red Hat by VIA Networking Technologies, Inc. for
+ * below) provided to Red Hat by VIA Networking Techyeslogies, Inc. for
  * addition to the Linux kernel.
  *
  * The code has been merged into one source file, cleaned up to follow
@@ -15,14 +15,14 @@
  * The changes are (c) Copyright 2004, Red Hat Inc. <alan@lxorguk.ukuu.org.uk>
  * Additional fixes and clean up: Francois Romieu
  *
- * This source has not been verified for use in safety critical systems.
+ * This source has yest been verified for use in safety critical systems.
  *
  * Please direct queries about the revamped driver to the linux-kernel
- * list not VIA.
+ * list yest VIA.
  *
  * Original code:
  *
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * Author: Chuang Liang-Shing, AJ Jiang
@@ -38,7 +38,7 @@
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -250,7 +250,7 @@ static const struct ethtool_ops velocity_ethtool_ops;
     Define module options
 */
 
-MODULE_AUTHOR("VIA Networking Technologies, Inc.");
+MODULE_AUTHOR("VIA Networking Techyeslogies, Inc.");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VIA Networking Velocity Family Gigabit Ethernet Adapter Driver");
 
@@ -330,7 +330,7 @@ VELOCITY_PARAM(flow_control, "Enable flow control ability");
    5: indicate 1000Mbps full duplex mode
 
    Note:
-   if EEPROM have been set to the force mode, this option is ignored
+   if EEPROM have been set to the force mode, this option is igyesred
    by driver.
 */
 VELOCITY_PARAM(speed_duplex, "Setting the speed and duplex mode");
@@ -373,7 +373,7 @@ MODULE_DEVICE_TABLE(pci, velocity_pci_id_table);
 
 /**
  *	Describe the OF device identifiers that we support in this
- *	device driver. Used for devicetree nodes.
+ *	device driver. Used for devicetree yesdes.
  */
 static const struct of_device_id velocity_of_ids[] = {
 	{ .compatible = "via,velocity-vt6110", .data = &chip_info_table[0] },
@@ -431,7 +431,7 @@ static void velocity_set_int_opt(int *opt, int val, int min, int max, int def,
  *	velocity_set_bool_opt	-	parser for boolean options
  *	@opt: pointer to option value
  *	@val: value the user requested (or -1 for default)
- *	@def: default value (yes/no)
+ *	@def: default value (no/yes)
  *	@flag: numeric value to set for true.
  *	@name: property name
  *	@dev: device name
@@ -662,14 +662,14 @@ static void enable_mii_autopoll(struct mac_regs __iomem *regs)
  *	@data: buffer for received data
  *
  *	Perform a single read of an MII 16bit register. Returns zero
- *	on success or -ETIMEDOUT if the PHY did not respond.
+ *	on success or -ETIMEDOUT if the PHY did yest respond.
  */
 static int velocity_mii_read(struct mac_regs __iomem *regs, u8 index, u16 *data)
 {
 	u16 ww;
 
 	/*
-	 *	Disable MIICR_MAUTO, so that mii addr can be set normally
+	 *	Disable MIICR_MAUTO, so that mii addr can be set yesrmally
 	 */
 	safe_disable_mii_autopoll(regs);
 
@@ -740,14 +740,14 @@ static u32 mii_check_media_mode(struct mac_regs __iomem *regs)
  *	@data: 16bit data for the MII register
  *
  *	Perform a single write to an MII 16bit register. Returns zero
- *	on success or -ETIMEDOUT if the PHY did not respond.
+ *	on success or -ETIMEDOUT if the PHY did yest respond.
  */
 static int velocity_mii_write(struct mac_regs __iomem *regs, u8 mii_addr, u16 data)
 {
 	u16 ww;
 
 	/*
-	 *	Disable MIICR_MAUTO, so that mii addr can be set normally
+	 *	Disable MIICR_MAUTO, so that mii addr can be set yesrmally
 	 */
 	safe_disable_mii_autopoll(regs);
 
@@ -880,7 +880,7 @@ static int velocity_set_media_mode(struct velocity_info *vptr, u32 mii_status)
 	       (mii_status==curr_status)) {
 	   vptr->mii_status=mii_check_media_mode(vptr->mac_regs);
 	   vptr->mii_status=check_connection_type(vptr->mac_regs);
-	   VELOCITY_PRT(MSG_LEVEL_INFO, "Velocity link no change\n");
+	   VELOCITY_PRT(MSG_LEVEL_INFO, "Velocity link yes change\n");
 	   return 0;
 	   }
 	 */
@@ -1323,7 +1323,7 @@ static void velocity_init_registers(struct velocity_info *vptr,
 		netif_stop_queue(netdev);
 
 		/*
-		 *	Reset RX to prevent RX pointer not on the 4X location
+		 *	Reset RX to prevent RX pointer yest on the 4X location
 		 */
 		velocity_rx_reset(vptr);
 		mac_rx_queue_run(regs);
@@ -1353,7 +1353,7 @@ static void velocity_init_registers(struct velocity_info *vptr,
 		velocity_soft_reset(vptr);
 		mdelay(5);
 
-		if (!vptr->no_eeprom) {
+		if (!vptr->yes_eeprom) {
 			mac_eeprom_reload(regs);
 			for (i = 0; i < 6; i++)
 				writeb(netdev->dev_addr[i], regs->PAR + i);
@@ -1637,7 +1637,7 @@ out:
  *	@vptr:	velocity
  *
  *	Set up the transmit ring and chain the ring pointers together.
- *	Returns zero on success or a negative posix errno code for
+ *	Returns zero on success or a negative posix erryes code for
  *	failure.
  */
 static int velocity_init_td_ring(struct velocity_info *vptr)
@@ -1708,7 +1708,7 @@ err_free_dma_rings_0:
  *	@tdinfo: buffer
  *
  *	Release an transmit buffer. If the buffer was preallocated then
- *	recycle it, if not then unmap the buffer.
+ *	recycle it, if yest then unmap the buffer.
  */
 static void velocity_free_tx_buf(struct velocity_info *vptr,
 		struct velocity_td_info *tdinfo, struct tx_desc *td)
@@ -1764,7 +1764,7 @@ static void velocity_free_td_ring_entry(struct velocity_info *vptr,
  *	@vptr: velocity
  *
  *	Free up the transmit ring for this particular velocity adapter.
- *	We free the ring contents but not the ring itself.
+ *	We free the ring contents but yest the ring itself.
  */
 static void velocity_free_td_ring(struct velocity_info *vptr)
 {
@@ -1794,7 +1794,7 @@ static void velocity_free_rings(struct velocity_info *vptr)
  *	@status: card status
  *
  *	Process an error report from the hardware and attempt to recover
- *	the card itself. At the moment we cannot recover from some
+ *	the card itself. At the moment we canyest recover from some
  *	theoretically impossible errors but this could be fixed using
  *	the pci_device_failed logic to bounce the hardware
  *
@@ -1955,7 +1955,7 @@ static int velocity_tx_srv(struct velocity_info *vptr)
  */
 static inline void velocity_rx_csum(struct rx_desc *rd, struct sk_buff *skb)
 {
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 
 	if (rd->rdesc1.CSM & CSM_IPKT) {
 		if (rd->rdesc1.CSM & CSM_IPOK) {
@@ -1978,7 +1978,7 @@ static inline void velocity_rx_csum(struct rx_desc *rd, struct sk_buff *skb)
  *
  *	Replace the current skb that is scheduled for Rx processing by a
  *	shorter, immediately allocated skb, if the received packet is small
- *	enough. This function returns a negative value if the received
+ *	eyesugh. This function returns a negative value if the received
  *	packet is too big or if memory is exhausted.
  */
 static int velocity_rx_copy(struct sk_buff **rx_skb, int pkt_size,
@@ -2148,7 +2148,7 @@ static int velocity_poll(struct napi_struct *napi, int budget)
 	rx_done = velocity_rx_srv(vptr, budget);
 	spin_lock_irqsave(&vptr->lock, flags);
 	velocity_tx_srv(vptr);
-	/* If budget not fully consumed, exit the polling mode */
+	/* If budget yest fully consumed, exit the polling mode */
 	if (rx_done < budget) {
 		napi_complete_done(napi, rx_done);
 		mac_enable_int(vptr->mac_regs);
@@ -2164,8 +2164,8 @@ static int velocity_poll(struct napi_struct *napi, int budget)
  *	@dev_instance: interrupting device
  *
  *	Called whenever an interrupt is generated by the velocity
- *	adapter IRQ line. We may not be the source of the interrupt
- *	and need to identify initially if we are, and if not exit as
+ *	adapter IRQ line. We may yest be the source of the interrupt
+ *	and need to identify initially if we are, and if yest exit as
  *	efficiently as possible.
  */
 static irqreturn_t velocity_intr(int irq, void *dev_instance)
@@ -2345,7 +2345,7 @@ out_0:
  *  @dev: network device
  *
  *
- *  Used by NETCONSOLE and other diagnostic tools to allow network I/P
+ *  Used by NETCONSOLE and other diagyesstic tools to allow network I/P
  *  with interrupts disabled.
  */
 static void velocity_poll_controller(struct net_device *dev)
@@ -2459,7 +2459,7 @@ static struct net_device_stats *velocity_get_stats(struct net_device *dev)
 	dev->stats.rx_errors = vptr->mib_counter[HW_MIB_ifRxErrorPkts];
 	dev->stats.rx_length_errors = vptr->mib_counter[HW_MIB_ifInRangeLengthErrors];
 
-//  unsigned long   rx_dropped;     /* no space in linux buffers    */
+//  unsigned long   rx_dropped;     /* yes space in linux buffers    */
 	dev->stats.collisions = vptr->mib_counter[HW_MIB_ifTxEtherCollisions];
 	/* detailed rx_errors: */
 //  unsigned long   rx_length_errors;
@@ -2663,7 +2663,7 @@ static int velocity_get_pci_info(struct velocity_info *vptr)
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_IO)) {
 		dev_err(&pdev->dev,
-			   "region #0 is not an I/O resource, aborting.\n");
+			   "region #0 is yest an I/O resource, aborting.\n");
 		return -EINVAL;
 	}
 
@@ -2693,10 +2693,10 @@ static int velocity_get_platform_info(struct velocity_info *vptr)
 	struct resource res;
 	int ret;
 
-	if (of_get_property(vptr->dev->of_node, "no-eeprom", NULL))
-		vptr->no_eeprom = 1;
+	if (of_get_property(vptr->dev->of_yesde, "yes-eeprom", NULL))
+		vptr->yes_eeprom = 1;
 
-	ret = of_address_to_resource(vptr->dev->of_node, 0, &res);
+	ret = of_address_to_resource(vptr->dev->of_yesde, 0, &res);
 	if (ret) {
 		dev_err(vptr->dev, "unable to find memory address\n");
 		return ret;
@@ -2742,7 +2742,7 @@ static u32 velocity_get_link(struct net_device *dev)
  *	@bustype: bus that device is connected to
  *
  *	Configure a discovered adapter from scratch. Return a negative
- *	errno error code on failure paths.
+ *	erryes error code on failure paths.
  */
 static int velocity_probe(struct device *dev, int irq,
 			   const struct velocity_info_tbl *info,
@@ -2760,7 +2760,7 @@ static int velocity_probe(struct device *dev, int irq,
 	 * can support more than MAX_UNITS.
 	 */
 	if (velocity_nics >= MAX_UNITS) {
-		dev_notice(dev, "already found %d NICs.\n", velocity_nics);
+		dev_yestice(dev, "already found %d NICs.\n", velocity_nics);
 		return -ENODEV;
 	}
 
@@ -2776,7 +2776,7 @@ static int velocity_probe(struct device *dev, int irq,
 	if (first) {
 		printk(KERN_INFO "%s Ver. %s\n",
 			VELOCITY_FULL_DRV_NAM, VELOCITY_VERSION);
-		printk(KERN_INFO "Copyright (c) 2002, 2003 VIA Networking Technologies, Inc.\n");
+		printk(KERN_INFO "Copyright (c) 2002, 2003 VIA Networking Techyeslogies, Inc.\n");
 		printk(KERN_INFO "Copyright (c) 2004 Red Hat Inc.\n");
 		first = 0;
 	}
@@ -2820,7 +2820,7 @@ static int velocity_probe(struct device *dev, int irq,
 	velocity_get_options(&vptr->options, velocity_nics, drv_string);
 
 	/*
-	 *	Mask out the options cannot be set to the chip
+	 *	Mask out the options canyest be set to the chip
 	 */
 
 	vptr->options.flags &= info->flags;
@@ -2946,7 +2946,7 @@ static int velocity_platform_probe(struct platform_device *pdev)
 		return -EINVAL;
 	info = of_id->data;
 
-	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	irq = irq_of_parse_and_map(pdev->dev.of_yesde, 0);
 	if (!irq)
 		return -EINVAL;
 
@@ -3599,7 +3599,7 @@ static const char velocity_gstrings[][ETH_GSTRING_LEN] = {
 	"rx_long_ok",
 	"rx_long_err",
 	"tx_sqe_errors",
-	"rx_no_buf",
+	"rx_yes_buf",
 	"rx_symbol_errors",
 	"in_range_length_errors",
 	"late_collisions"
@@ -3660,7 +3660,7 @@ static const struct ethtool_ops velocity_ethtool_ops = {
 };
 
 #if defined(CONFIG_PM) && defined(CONFIG_INET)
-static int velocity_netdev_event(struct notifier_block *nb, unsigned long notification, void *ptr)
+static int velocity_netdev_event(struct yestifier_block *nb, unsigned long yestification, void *ptr)
 {
 	struct in_ifaddr *ifa = ptr;
 	struct net_device *dev = ifa->ifa_dev->dev;
@@ -3672,24 +3672,24 @@ static int velocity_netdev_event(struct notifier_block *nb, unsigned long notifi
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block velocity_inetaddr_notifier = {
-	.notifier_call	= velocity_netdev_event,
+static struct yestifier_block velocity_inetaddr_yestifier = {
+	.yestifier_call	= velocity_netdev_event,
 };
 
-static void velocity_register_notifier(void)
+static void velocity_register_yestifier(void)
 {
-	register_inetaddr_notifier(&velocity_inetaddr_notifier);
+	register_inetaddr_yestifier(&velocity_inetaddr_yestifier);
 }
 
-static void velocity_unregister_notifier(void)
+static void velocity_unregister_yestifier(void)
 {
-	unregister_inetaddr_notifier(&velocity_inetaddr_notifier);
+	unregister_inetaddr_yestifier(&velocity_inetaddr_yestifier);
 }
 
 #else
 
-#define velocity_register_notifier()	do {} while (0)
-#define velocity_unregister_notifier()	do {} while (0)
+#define velocity_register_yestifier()	do {} while (0)
+#define velocity_unregister_yestifier()	do {} while (0)
 
 #endif	/* defined(CONFIG_PM) && defined(CONFIG_INET) */
 
@@ -3705,14 +3705,14 @@ static int __init velocity_init_module(void)
 {
 	int ret_pci, ret_platform;
 
-	velocity_register_notifier();
+	velocity_register_yestifier();
 
 	ret_pci = pci_register_driver(&velocity_pci_driver);
 	ret_platform = platform_driver_register(&velocity_platform_driver);
 
-	/* if both_registers failed, remove the notifier */
+	/* if both_registers failed, remove the yestifier */
 	if ((ret_pci < 0) && (ret_platform < 0)) {
-		velocity_unregister_notifier();
+		velocity_unregister_yestifier();
 		return ret_pci;
 	}
 
@@ -3723,13 +3723,13 @@ static int __init velocity_init_module(void)
  *	velocity_cleanup	-	module unload
  *
  *	When the velocity hardware is unloaded this function is called.
- *	It will clean up the notifiers and the unregister the PCI
+ *	It will clean up the yestifiers and the unregister the PCI
  *	driver interface for this hardware. This in turn cleans up
  *	all discovered interfaces before returning from the function
  */
 static void __exit velocity_cleanup_module(void)
 {
-	velocity_unregister_notifier();
+	velocity_unregister_yestifier();
 
 	pci_unregister_driver(&velocity_pci_driver);
 	platform_driver_unregister(&velocity_platform_driver);

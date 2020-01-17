@@ -4,7 +4,7 @@
 #include <linux/zalloc.h>
 #include "block-info.h"
 #include "sort.h"
-#include "annotate.h"
+#include "anyestate.h"
 #include "symbol.h"
 #include "dso.h"
 #include "map.h"
@@ -120,7 +120,7 @@ static void init_block_info(struct block_info *bi, struct symbol *sym,
 int block_info__process_sym(struct hist_entry *he, struct block_hist *bh,
 			    u64 *block_cycles_aggr, u64 total_cycles)
 {
-	struct annotation *notes;
+	struct anyestation *yestes;
 	struct cyc_hist *ch;
 	static struct addr_location al;
 	u64 cycles = 0;
@@ -132,10 +132,10 @@ int block_info__process_sym(struct hist_entry *he, struct block_hist *bh,
 	al.map = he->ms.map;
 	al.sym = he->ms.sym;
 
-	notes = symbol__annotation(he->ms.sym);
-	if (!notes || !notes->src || !notes->src->cycles_hist)
+	yestes = symbol__anyestation(he->ms.sym);
+	if (!yestes || !yestes->src || !yestes->src->cycles_hist)
 		return 0;
-	ch = notes->src->cycles_hist;
+	ch = yestes->src->cycles_hist;
 	for (unsigned int i = 0; i < symbol__size(he->ms.sym); i++) {
 		if (ch[i].num_aggr) {
 			struct block_info *bi;
@@ -321,7 +321,7 @@ static int block_dso_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	}
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", block_fmt->width,
-			 "[unknown]");
+			 "[unkyeswn]");
 }
 
 static void init_block_header(struct block_fmt *block_fmt)
@@ -398,17 +398,17 @@ static void process_block_report(struct hists *hists,
 				 struct block_report *block_report,
 				 u64 total_cycles)
 {
-	struct rb_node *next = rb_first_cached(&hists->entries);
+	struct rb_yesde *next = rb_first_cached(&hists->entries);
 	struct block_hist *bh = &block_report->hist;
 	struct hist_entry *he;
 
 	init_block_hist(bh, block_report->fmts);
 
 	while (next) {
-		he = rb_entry(next, struct hist_entry, rb_node);
+		he = rb_entry(next, struct hist_entry, rb_yesde);
 		block_info__process_sym(he, bh, &block_report->cycles,
 					total_cycles);
-		next = rb_next(&he->rb_node);
+		next = rb_next(&he->rb_yesde);
 	}
 
 	for (int i = 0; i < PERF_HPP_REPORT__BLOCK_MAX_INDEX; i++) {
@@ -442,7 +442,7 @@ struct block_report *block_info__create_report(struct evlist *evlist,
 
 int report__browse_block_hists(struct block_hist *bh, float min_percent,
 			       struct evsel *evsel, struct perf_env *env,
-			       struct annotation_options *annotation_opts)
+			       struct anyestation_options *anyestation_opts)
 {
 	int ret;
 
@@ -456,7 +456,7 @@ int report__browse_block_hists(struct block_hist *bh, float min_percent,
 	case 1:
 		symbol_conf.report_individual_block = true;
 		ret = block_hists_tui_browse(bh, evsel, min_percent,
-					     env, annotation_opts);
+					     env, anyestation_opts);
 		hists__delete_entries(&bh->block_hists);
 		return ret;
 	default:

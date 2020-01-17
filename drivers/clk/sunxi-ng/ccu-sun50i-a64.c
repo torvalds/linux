@@ -46,9 +46,9 @@ static struct ccu_nkmp pll_cpux_clk = {
  *
  * With sigma-delta modulation for fractional-N on the audio PLL,
  * we have to use specific dividers. This means the variable divider
- * can no longer be used, as the audio codec requests the exact clock
- * rates we support through this mechanism. So we now hard code the
- * variable divider to 1. This means the clock rates will no longer
+ * can yes longer be used, as the audio codec requests the exact clock
+ * rates we support through this mechanism. So we yesw hard code the
+ * variable divider to 1. This means the clock rates will yes longer
  * match the clock names.
  */
 #define SUN50I_A64_PLL_AUDIO_REG	0x008
@@ -159,7 +159,7 @@ static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(pll_gpu_clk, "pll-gpu",
 
 /*
  * The output function can be changed to something more complex that
- * we do not handle yet.
+ * we do yest handle yet.
  *
  * Hardcode the mode so that we don't fall in that case.
  */
@@ -416,7 +416,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(nand_clk, "nand", mod0_default_parents, 0x080,
 /*
  * MMC clocks are the new timing mode (see A83T & H3) variety, but without
  * the mode switch. This means they have a 2x post divider between the clock
- * and the MMC module. This is not documented in the manual, but is taken
+ * and the MMC module. This is yest documented in the manual, but is taken
  * into consideration when setting the mmc module clocks in the BSP kernel.
  * Without it, MMC performance is degraded.
  *
@@ -603,7 +603,7 @@ static const struct clk_hw *clk_parent_pll_audio[] = {
 	&pll_audio_base_clk.common.hw
 };
 
-/* We hardcode the divider to 1 for now */
+/* We hardcode the divider to 1 for yesw */
 static CLK_FIXED_FACTOR_HWS(pll_audio_clk, "pll-audio",
 			    clk_parent_pll_audio,
 			    1, 1, CLK_SET_RATE_PARENT);
@@ -939,7 +939,7 @@ static int sun50i_a64_ccu_probe(struct platform_device *pdev)
 
 	writel(0x515, reg + SUN50I_A64_PLL_MIPI_REG);
 
-	return sunxi_ccu_probe(pdev->dev.of_node, reg, &sun50i_a64_ccu_desc);
+	return sunxi_ccu_probe(pdev->dev.of_yesde, reg, &sun50i_a64_ccu_desc);
 }
 
 static const struct of_device_id sun50i_a64_ccu_ids[] = {

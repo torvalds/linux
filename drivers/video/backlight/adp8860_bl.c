@@ -7,7 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
@@ -669,12 +669,12 @@ static int adp8860_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter,
 					I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(&client->dev, "SMBUS Byte Data not Supported\n");
+		dev_err(&client->dev, "SMBUS Byte Data yest Supported\n");
 		return -EIO;
 	}
 
 	if (!pdata) {
-		dev_err(&client->dev, "no platform data?\n");
+		dev_err(&client->dev, "yes platform data?\n");
 		return -EINVAL;
 	}
 

@@ -1126,9 +1126,9 @@ enum dev_aspm_mode {
  * @ltr_idle_latency: ltr mode idle latency
  * @ltr_l1off_latency: ltr mode l1off latency
  * @dev_aspm_mode: device aspm mode
- * @l1_snooze_delay: l1 snooze delay
+ * @l1_syesoze_delay: l1 syesoze delay
  * @ltr_l1off_sspwrgate: ltr l1off sspwrgate
- * @ltr_l1off_snooze_sspwrgate: ltr l1off snooze sspwrgate
+ * @ltr_l1off_syesoze_sspwrgate: ltr l1off syesoze sspwrgate
  * @ocp_en: enable ocp flag
  * @sd_400mA_ocp_thd: 400mA ocp thd
  * @sd_800mA_ocp_thd: 800mA ocp thd
@@ -1143,9 +1143,9 @@ struct rtsx_cr_option {
 	u32 ltr_idle_latency;
 	u32 ltr_l1off_latency;
 	enum dev_aspm_mode dev_aspm_mode;
-	u32 l1_snooze_delay;
+	u32 l1_syesoze_delay;
 	u8 ltr_l1off_sspwrgate;
-	u8 ltr_l1off_snooze_sspwrgate;
+	u8 ltr_l1off_syesoze_sspwrgate;
 	bool ocp_en;
 	u8 sd_400mA_ocp_thd;
 	u8 sd_800mA_ocp_thd;
@@ -1292,7 +1292,7 @@ int rtsx_pci_read_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 *val);
 void rtsx_pci_stop_cmd(struct rtsx_pcr *pcr);
 void rtsx_pci_add_cmd(struct rtsx_pcr *pcr,
 		u8 cmd_type, u16 reg_addr, u8 mask, u8 data);
-void rtsx_pci_send_cmd_no_wait(struct rtsx_pcr *pcr);
+void rtsx_pci_send_cmd_yes_wait(struct rtsx_pcr *pcr);
 int rtsx_pci_send_cmd(struct rtsx_pcr *pcr, int timeout);
 int rtsx_pci_transfer_data(struct rtsx_pcr *pcr, struct scatterlist *sglist,
 		int num_sg, bool read, int timeout);

@@ -23,18 +23,18 @@
 #define RECLAIM_DISTANCE 15
 
 /*
- * Returns a bitmask of CPUs on Node 'node'.
+ * Returns a bitmask of CPUs on Node 'yesde'.
  */
-#define cpumask_of_node(node) ((node) == -1 ?				\
+#define cpumask_of_yesde(yesde) ((yesde) == -1 ?				\
 			       cpu_all_mask :				\
-			       &node_to_cpu_mask[node])
+			       &yesde_to_cpu_mask[yesde])
 
 /*
- * Determines the node for a given pci bus
+ * Determines the yesde for a given pci bus
  */
-#define pcibus_to_node(bus) PCI_CONTROLLER(bus)->node
+#define pcibus_to_yesde(bus) PCI_CONTROLLER(bus)->yesde
 
-void build_cpu_to_node_map(void);
+void build_cpu_to_yesde_map(void);
 
 #endif /* CONFIG_NUMA */
 
@@ -47,9 +47,9 @@ void build_cpu_to_node_map(void);
 
 extern void arch_fix_phys_package_id(int num, u32 slot);
 
-#define cpumask_of_pcibus(bus)	(pcibus_to_node(bus) == -1 ?		\
+#define cpumask_of_pcibus(bus)	(pcibus_to_yesde(bus) == -1 ?		\
 				 cpu_all_mask :				\
-				 cpumask_of_node(pcibus_to_node(bus)))
+				 cpumask_of_yesde(pcibus_to_yesde(bus)))
 
 #include <asm-generic/topology.h>
 

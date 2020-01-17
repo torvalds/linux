@@ -115,7 +115,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define __pmd_page(pmd) \
 ((unsigned long) __va (pmd_val (pmd) & PAGE_MASK))
 
-static inline int pte_none (pte_t pte) { return !pte_val (pte); }
+static inline int pte_yesne (pte_t pte) { return !pte_val (pte); }
 static inline int pte_present (pte_t pte) { return pte_val (pte) & SUN3_PAGE_VALID; }
 static inline void pte_clear (struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
@@ -130,14 +130,14 @@ static inline void pte_clear (struct mm_struct *mm, unsigned long addr, pte_t *p
 #define pmd_page(pmd)		virt_to_page(__pmd_page(pmd))
 
 
-static inline int pmd_none2 (pmd_t *pmd) { return !pmd_val (*pmd); }
-#define pmd_none(pmd) pmd_none2(&(pmd))
+static inline int pmd_yesne2 (pmd_t *pmd) { return !pmd_val (*pmd); }
+#define pmd_yesne(pmd) pmd_yesne2(&(pmd))
 //static inline int pmd_bad (pmd_t pmd) { return (pmd_val (pmd) & SUN3_PMD_MASK) != SUN3_PMD_MAGIC; }
 static inline int pmd_bad2 (pmd_t *pmd) { return 0; }
 #define pmd_bad(pmd) pmd_bad2(&(pmd))
 static inline int pmd_present2 (pmd_t *pmd) { return pmd_val (*pmd) & SUN3_PMD_VALID; }
 /* #define pmd_present(pmd) pmd_present2(&(pmd)) */
-#define pmd_present(pmd) (!pmd_none2(&(pmd)))
+#define pmd_present(pmd) (!pmd_yesne2(&(pmd)))
 static inline void pmd_clear (pmd_t *pmdp) { pmd_val (*pmdp) = 0; }
 
 
@@ -149,7 +149,7 @@ static inline void pmd_clear (pmd_t *pmdp) { pmd_val (*pmdp) = 0; }
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not...
+ * Undefined behaviour if yest...
  * [we have the full set here even if they don't change from m68k]
  */
 static inline int pte_write(pte_t pte)		{ return pte_val(pte) & SUN3_PAGE_WRITEABLE; }
@@ -163,7 +163,7 @@ static inline pte_t pte_mkold(pte_t pte)	{ pte_val(pte) &= ~SUN3_PAGE_ACCESSED; 
 static inline pte_t pte_mkwrite(pte_t pte)	{ pte_val(pte) |= SUN3_PAGE_WRITEABLE; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte)	{ pte_val(pte) |= SUN3_PAGE_MODIFIED; return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ pte_val(pte) |= SUN3_PAGE_ACCESSED; return pte; }
-static inline pte_t pte_mknocache(pte_t pte)	{ pte_val(pte) |= SUN3_PAGE_NOCACHE; return pte; }
+static inline pte_t pte_mkyescache(pte_t pte)	{ pte_val(pte) |= SUN3_PAGE_NOCACHE; return pte; }
 // use this version when caches work...
 //static inline pte_t pte_mkcache(pte_t pte)	{ pte_val(pte) &= SUN3_PAGE_NOCACHE; return pte; }
 // until then, use:

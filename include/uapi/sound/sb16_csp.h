@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *  Copyright (c) 1999 by Uros Bizjak <uros@kss-loka.si>
  *                        Takashi Iwai <tiwai@suse.de>
@@ -16,7 +16,7 @@
  *   GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
+ *   along with this program; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
@@ -75,7 +75,7 @@ struct snd_sb_csp_microcode {
 	unsigned char data[SNDRV_SB_CSP_MAX_MICROCODE_FILE_SIZE];
 };
 
-/* start CSP with sample_width in mono/stereo */
+/* start CSP with sample_width in moyes/stereo */
 struct snd_sb_csp_start {
 	int sample_width;	/* sample width, look above */
 	int channels;		/* channels, look above */
@@ -104,7 +104,7 @@ struct snd_sb_csp_info {
  * defined for some architectures like MIPS, and it leads to build errors.
  * (x86 and co have 14-bit size, thus it's valid, though.)
  * As a workaround for skipping the size-limit check, here we don't use the
- * normal _IOW() macro but _IOC() with the manual argument.
+ * yesrmal _IOW() macro but _IOC() with the manual argument.
  */
 #define SNDRV_SB_CSP_IOCTL_LOAD_CODE	\
 	_IOC(_IOC_WRITE, 'H', 0x11, sizeof(struct snd_sb_csp_microcode))

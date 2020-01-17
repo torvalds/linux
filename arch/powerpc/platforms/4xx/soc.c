@@ -6,13 +6,13 @@
  *
  * L2 cache routines cloned from arch/ppc/syslib/ibm440gx_common.c which is:
  *   Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- *   Copyright (c) 2003 - 2006 Zultys Technologies
+ *   Copyright (c) 2003 - 2006 Zultys Techyeslogies
  */
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/of_irq.h>
@@ -28,7 +28,7 @@ static u32 dcrbase_l2c;
  * L2-cache
  */
 
-/* Issue L2C diagnostic command */
+/* Issue L2C diagyesstic command */
 static inline u32 l2c_diag(u32 addr)
 {
 	mtdcr(dcrbase_l2c + DCRN_L2C0_ADDR, addr);
@@ -69,7 +69,7 @@ static irqreturn_t l2c_error_handler(int irq, void *dev)
 
 static int __init ppc4xx_l2c_probe(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 r;
 	unsigned long flags;
 	int irq;
@@ -79,7 +79,7 @@ static int __init ppc4xx_l2c_probe(void)
 	const u32 *prop;
 	u32 l2_size;
 
-	np = of_find_compatible_node(NULL, NULL, "ibm,l2-cache");
+	np = of_find_compatible_yesde(NULL, NULL, "ibm,l2-cache");
 	if (!np)
 		return 0;
 
@@ -87,7 +87,7 @@ static int __init ppc4xx_l2c_probe(void)
 	prop = of_get_property(np, "cache-size", NULL);
 	if (prop == NULL) {
 		printk(KERN_ERR "%pOF: Can't get cache-size!\n", np);
-		of_node_put(np);
+		of_yesde_put(np);
 		return -ENODEV;
 	}
 	l2_size = prop[0];
@@ -96,7 +96,7 @@ static int __init ppc4xx_l2c_probe(void)
 	dcrreg = of_get_property(np, "dcr-reg", &len);
 	if (!dcrreg || (len != 4 * sizeof(u32))) {
 		printk(KERN_ERR "%pOF: Can't get DCR register base !", np);
-		of_node_put(np);
+		of_yesde_put(np);
 		return -ENODEV;
 	}
 	dcrbase_isram = dcrreg[0];
@@ -106,15 +106,15 @@ static int __init ppc4xx_l2c_probe(void)
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
 		printk(KERN_ERR "irq_of_parse_and_map failed\n");
-		of_node_put(np);
+		of_yesde_put(np);
 		return -ENODEV;
 	}
 
 	/* Install error handler */
 	if (request_irq(irq, l2c_error_handler, 0, "L2C", 0) < 0) {
-		printk(KERN_ERR "Cannot install L2C error handler"
-		       ", cache is not enabled\n");
-		of_node_put(np);
+		printk(KERN_ERR "Canyest install L2C error handler"
+		       ", cache is yest enabled\n");
+		of_yesde_put(np);
 		return -ENODEV;
 	}
 
@@ -149,7 +149,7 @@ static int __init ppc4xx_l2c_probe(void)
 	/* Clear Cache Parity and Tag Errors */
 	mtdcr(dcrbase_l2c + DCRN_L2C0_CMD, L2C_CMD_CCP | L2C_CMD_CTE);
 
-	/* Enable 64G snoop region starting at 0 */
+	/* Enable 64G syesop region starting at 0 */
 	r = mfdcr(dcrbase_l2c + DCRN_L2C0_SNP0) &
 		~(L2C_SNP_BA_MASK | L2C_SNP_SSR_MASK);
 	r |= L2C_SNP_SSR_32G | L2C_SNP_ESR;
@@ -181,22 +181,22 @@ static int __init ppc4xx_l2c_probe(void)
 
 	printk(KERN_INFO "%dk L2-cache enabled\n", l2_size >> 10);
 
-	of_node_put(np);
+	of_yesde_put(np);
 	return 0;
 }
 arch_initcall(ppc4xx_l2c_probe);
 
 /*
  * Apply a system reset. Alternatively a board specific value may be
- * provided via the "reset-type" property in the cpu node.
+ * provided via the "reset-type" property in the cpu yesde.
  */
 void ppc4xx_reset_system(char *cmd)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 reset_type = DBCR0_RST_SYSTEM;
 	const u32 *prop;
 
-	np = of_get_cpu_node(0, NULL);
+	np = of_get_cpu_yesde(0, NULL);
 	if (np) {
 		prop = of_get_property(np, "reset-type", NULL);
 

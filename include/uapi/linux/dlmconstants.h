@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /******************************************************************************
 *******************************************************************************
 **
@@ -41,8 +41,8 @@
  *
  * DLM_LKF_NOQUEUE
  *
- * Do not queue the lock request on the wait queue if it cannot be granted
- * immediately.  If the lock cannot be granted because of this flag, DLM will
+ * Do yest queue the lock request on the wait queue if it canyest be granted
+ * immediately.  If the lock canyest be granted because of this flag, DLM will
  * either return -EAGAIN from the dlm_lock call or will return 0 from
  * dlm_lock and -EAGAIN in the lock status block when the AST is executed.
  *
@@ -54,7 +54,7 @@
  * DLM_LKF_CONVERT
  *
  * Indicates a lock conversion request.  For conversions the name and namelen
- * are ignored and the lock ID in the LKSB is used to identify the lock.
+ * are igyesred and the lock ID in the LKSB is used to identify the lock.
  *
  * DLM_LKF_VALBLK
  *
@@ -81,12 +81,12 @@
  *
  * DLM_LKF_PERSISTENT
  *
- * Only relevant to locks originating in userspace.  A persistent lock will not
+ * Only relevant to locks originating in userspace.  A persistent lock will yest
  * be removed if the process holding the lock exits.
  *
  * DLM_LKF_NODLCKWT
  *
- * Do not cancel the lock if it gets into conversion deadlock.
+ * Do yest cancel the lock if it gets into conversion deadlock.
  * Exclude this lock from being monitored due to DLM_LSFL_TIMEWARN.
  *
  * DLM_LKF_NODLCKBLK
@@ -96,12 +96,12 @@
  * DLM_LKF_EXPEDITE
  *
  * Used only with new requests for NL mode locks.  Tells the lock manager
- * to grant the lock, ignoring other locks in convert and wait queues.
+ * to grant the lock, igyesring other locks in convert and wait queues.
  *
  * DLM_LKF_NOQUEUEBAST
  *
  * Send blocking AST's before returning -EAGAIN to the caller.  It is only
- * used along with the NOQUEUE flag.  Blocking AST's are not sent for failed
+ * used along with the NOQUEUE flag.  Blocking AST's are yest sent for failed
  * NOQUEUE requests otherwise.
  *
  * DLM_LKF_HEADQUE
@@ -119,7 +119,7 @@
  *
  * DLM_LKF_ALTPR
  *
- * If the requested mode cannot be granted immediately, try to grant the lock
+ * If the requested mode canyest be granted immediately, try to grant the lock
  * in PR mode instead.  If this alternate mode is granted instead of the
  * requested mode, DLM_SBF_ALTMODE is returned in the lksb.
  *
@@ -155,7 +155,7 @@
 #define DLM_LKF_TIMEOUT		0x00040000
 
 /*
- * Some return codes that are not in errno.h
+ * Some return codes that are yest in erryes.h
  */
 
 #define DLM_ECANCEL		0x10001

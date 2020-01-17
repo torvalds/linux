@@ -39,7 +39,7 @@
 #define __MACH2PHYS_SHIFT      2
 
 /*
- * Virtual addresses beyond this are not modifiable by guest OSes. The
+ * Virtual addresses beyond this are yest modifiable by guest OSes. The
  * machine->physical mapping table starts at this address, read-only.
  */
 #define __HYPERVISOR_VIRT_START 0xF5800000
@@ -89,7 +89,7 @@ typedef struct xen_callback xen_callback_t;
 
 
 /*
- * Page-directory addresses above 4GB do not fit into architectural %cr3.
+ * Page-directory addresses above 4GB do yest fit into architectural %cr3.
  * When accessing %cr3, or equivalent field in vcpu_guest_context, guests
  * must use the following accessor macros to pack/unpack valid MFNs.
  *

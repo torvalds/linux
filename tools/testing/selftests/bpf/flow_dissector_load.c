@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <error.h>
-#include <errno.h>
+#include <erryes.h>
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,7 +30,7 @@ static void load_and_attach_program(void)
 	if (ret)
 		error(1, 0, "bpf_flow_load %s", cfg_path_name);
 
-	ret = bpf_prog_attach(prog_fd, 0 /* Ignore */, BPF_FLOW_DISSECTOR, 0);
+	ret = bpf_prog_attach(prog_fd, 0 /* Igyesre */, BPF_FLOW_DISSECTOR, 0);
 	if (ret)
 		error(1, 0, "bpf_prog_attach %s", cfg_path_name);
 
@@ -52,7 +52,7 @@ static void detach_program(void)
 	sprintf(command, "rm -r %s", cfg_pin_path);
 	ret = system(command);
 	if (ret)
-		error(1, errno, "%s", command);
+		error(1, erryes, "%s", command);
 }
 
 static void parse_opts(int argc, char **argv)

@@ -2,7 +2,7 @@
 /*
  * driver for Earthsoft PT1/PT2
  *
- * Copyright (C) 2009 HIRANO Takahito <hiranotaka@zng.info>
+ * Copyright (C) 2009 HIRANO Takahito <hirayestaka@zng.info>
  *
  * based on pt1dvr - http://pt1dvr.sourceforge.jp/
  *	by Tomoaki Ishikawa <tomy@users.sourceforge.jp>
@@ -327,7 +327,7 @@ static int pt1_sync(struct pt1 *pt1)
 			return 0;
 		pt1_write_reg(pt1, 0, 0x00000008);
 	}
-	dev_err(&pt1->pdev->dev, "could not sync\n");
+	dev_err(&pt1->pdev->dev, "could yest sync\n");
 	return -EIO;
 }
 
@@ -352,7 +352,7 @@ static int pt1_unlock(struct pt1 *pt1)
 			return 0;
 		usleep_range(1000, 2000);
 	}
-	dev_err(&pt1->pdev->dev, "could not unlock\n");
+	dev_err(&pt1->pdev->dev, "could yest unlock\n");
 	return -EIO;
 }
 
@@ -366,7 +366,7 @@ static int pt1_reset_pci(struct pt1 *pt1)
 			return 0;
 		usleep_range(1000, 2000);
 	}
-	dev_err(&pt1->pdev->dev, "could not reset PCI\n");
+	dev_err(&pt1->pdev->dev, "could yest reset PCI\n");
 	return -EIO;
 }
 
@@ -380,7 +380,7 @@ static int pt1_reset_ram(struct pt1 *pt1)
 			return 0;
 		usleep_range(1000, 2000);
 	}
-	dev_err(&pt1->pdev->dev, "could not reset RAM\n");
+	dev_err(&pt1->pdev->dev, "could yest reset RAM\n");
 	return -EIO;
 }
 
@@ -397,7 +397,7 @@ static int pt1_do_enable_ram(struct pt1 *pt1)
 		}
 		usleep_range(1000, 2000);
 	}
-	dev_err(&pt1->pdev->dev, "could not enable RAM\n");
+	dev_err(&pt1->pdev->dev, "could yest enable RAM\n");
 	return -EIO;
 }
 
@@ -1479,6 +1479,6 @@ static struct pci_driver pt1_driver = {
 
 module_pci_driver(pt1_driver);
 
-MODULE_AUTHOR("Takahito HIRANO <hiranotaka@zng.info>");
+MODULE_AUTHOR("Takahito HIRANO <hirayestaka@zng.info>");
 MODULE_DESCRIPTION("Earthsoft PT1/PT2 Driver");
 MODULE_LICENSE("GPL");

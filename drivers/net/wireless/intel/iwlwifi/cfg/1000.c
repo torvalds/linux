@@ -81,13 +81,13 @@ static const struct iwl_eeprom_params iwl1000_eeprom_params = {
 	.trans.csr = &iwl_csr_v1
 
 const struct iwl_cfg iwl1000_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 1000 BGN",
+	.name = "Intel(R) Centriyes(R) Wireless-N 1000 BGN",
 	IWL_DEVICE_1000,
 	.ht_params = &iwl1000_ht_params,
 };
 
 const struct iwl_cfg iwl1000_bg_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 1000 BG",
+	.name = "Intel(R) Centriyes(R) Wireless-N 1000 BG",
 	IWL_DEVICE_1000,
 };
 
@@ -108,13 +108,13 @@ const struct iwl_cfg iwl1000_bg_cfg = {
 	.trans.csr = &iwl_csr_v1
 
 const struct iwl_cfg iwl100_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 100 BGN",
+	.name = "Intel(R) Centriyes(R) Wireless-N 100 BGN",
 	IWL_DEVICE_100,
 	.ht_params = &iwl1000_ht_params,
 };
 
 const struct iwl_cfg iwl100_bg_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 100 BG",
+	.name = "Intel(R) Centriyes(R) Wireless-N 100 BG",
 	IWL_DEVICE_100,
 };
 

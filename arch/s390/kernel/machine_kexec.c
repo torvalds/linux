@@ -39,9 +39,9 @@ extern const unsigned long long relocate_kernel_len;
 #ifdef CONFIG_CRASH_DUMP
 
 /*
- * PM notifier callback for kdump
+ * PM yestifier callback for kdump
  */
-static int machine_kdump_pm_cb(struct notifier_block *nb, unsigned long action,
+static int machine_kdump_pm_cb(struct yestifier_block *nb, unsigned long action,
 			       void *ptr)
 {
 	switch (action) {
@@ -63,7 +63,7 @@ static int machine_kdump_pm_cb(struct notifier_block *nb, unsigned long action,
 
 static int __init machine_kdump_pm_init(void)
 {
-	pm_notifier(machine_kdump_pm_cb, 0);
+	pm_yestifier(machine_kdump_pm_cb, 0);
 	return 0;
 }
 arch_initcall(machine_kdump_pm_init);
@@ -103,7 +103,7 @@ static void __do_machine_kdump(void *image)
  * Start kdump: create a LGR log entry, store status of all CPUs and
  * branch to __do_machine_kdump.
  */
-static noinline void __machine_kdump(void *image)
+static yesinline void __machine_kdump(void *image)
 {
 	struct mcesa *mcesa;
 	union ctlreg2 cr2_old, cr2_new;
@@ -137,7 +137,7 @@ static noinline void __machine_kdump(void *image)
 	 * a tail call of store_status. The backchain in the dump will look
 	 * like this:
 	 *   restart_int_handler ->  __machine_kexec -> __do_machine_kdump
-	 * The call to store_status() will not return.
+	 * The call to store_status() will yest return.
 	 */
 	store_status(__do_machine_kdump, image);
 }
@@ -165,7 +165,7 @@ static bool kdump_csum_valid(struct kimage *image)
 	int rc;
 
 	preempt_disable();
-	rc = CALL_ON_STACK(do_start_kdump, S390_lowcore.nodat_stack, 1, image);
+	rc = CALL_ON_STACK(do_start_kdump, S390_lowcore.yesdat_stack, 1, image);
 	preempt_enable();
 	return rc == 0;
 #else
@@ -235,7 +235,7 @@ int machine_kexec_prepare(struct kimage *image)
 	if (image->type == KEXEC_TYPE_CRASH)
 		return machine_kexec_prepare_kdump();
 
-	/* We don't support anything but the default image type for now. */
+	/* We don't support anything but the default image type for yesw. */
 	if (image->type != KEXEC_TYPE_DEFAULT)
 		return -EINVAL;
 
@@ -259,7 +259,7 @@ void arch_crash_save_vmcoreinfo(void)
 	vmcoreinfo_append_str("SDMA=%lx\n", __sdma);
 	vmcoreinfo_append_str("EDMA=%lx\n", __edma);
 	vmcoreinfo_append_str("KERNELOFFSET=%lx\n", kaslr_offset());
-	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_note());
+	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_yeste());
 }
 
 void machine_shutdown(void)
@@ -272,7 +272,7 @@ void machine_crash_shutdown(struct pt_regs *regs)
 }
 
 /*
- * Do normal kexec
+ * Do yesrmal kexec
  */
 static void __do_machine_kexec(void *data)
 {
@@ -282,7 +282,7 @@ static void __do_machine_kexec(void *data)
 	s390_reset_system();
 	data_mover = (relocate_kernel_t) page_to_phys(image->control_code_page);
 
-	__arch_local_irq_stnsm(0xfb); /* disable DAT - avoid no-execute */
+	__arch_local_irq_stnsm(0xfb); /* disable DAT - avoid yes-execute */
 	/* Call the moving routine */
 	(*data_mover)(&image->head, image->start);
 
@@ -291,7 +291,7 @@ static void __do_machine_kexec(void *data)
 }
 
 /*
- * Reset system and call either kdump or normal kexec
+ * Reset system and call either kdump or yesrmal kexec
  */
 static void __machine_kexec(void *data)
 {
@@ -307,7 +307,7 @@ static void __machine_kexec(void *data)
 }
 
 /*
- * Do either kdump or normal kexec. In case of kdump we first ask
+ * Do either kdump or yesrmal kexec. In case of kdump we first ask
  * purgatory, if kdump checksums are valid.
  */
 void machine_kexec(struct kimage *image)

@@ -60,7 +60,7 @@ dbl_fmpy(
 	 */
 	if (Dbl_isinfinity_exponent(opnd1p1)) {
 		if (Dbl_iszero_mantissa(opnd1p1,opnd1p2)) {
-			if (Dbl_isnotnan(opnd2p1,opnd2p2)) {
+			if (Dbl_isyestnan(opnd2p1,opnd2p2)) {
 				if (Dbl_iszero_exponentmantissa(opnd2p1,opnd2p2)) {
 					/* 
 					 * invalid since operands are infinity 
@@ -158,7 +158,7 @@ dbl_fmpy(
 	/*
 	 * Generate mantissa
 	 */
-	if (Dbl_isnotzero_exponent(opnd1p1)) {
+	if (Dbl_isyestzero_exponent(opnd1p1)) {
 		/* set hidden bit */
 		Dbl_clear_signexponent_set_hidden(opnd1p1);
 	}
@@ -169,13 +169,13 @@ dbl_fmpy(
 			Dbl_copytoptr(resultp1,resultp2,dstptr);
 			return(NOEXCEPTION);
 		}
-                /* is denormalized, adjust exponent */
+                /* is deyesrmalized, adjust exponent */
                 Dbl_clear_signexponent(opnd1p1);
                 Dbl_leftshiftby1(opnd1p1,opnd1p2);
-		Dbl_normalize(opnd1p1,opnd1p2,dest_exponent);
+		Dbl_yesrmalize(opnd1p1,opnd1p2,dest_exponent);
 	}
 	/* opnd2 needs to have hidden bit set with msb in hidden bit */
-	if (Dbl_isnotzero_exponent(opnd2p1)) {
+	if (Dbl_isyestzero_exponent(opnd2p1)) {
 		Dbl_clear_signexponent_set_hidden(opnd2p1);
 	}
 	else {
@@ -185,10 +185,10 @@ dbl_fmpy(
 			Dbl_copytoptr(resultp1,resultp2,dstptr);
 			return(NOEXCEPTION);
 		}
-                /* is denormalized; want to normalize */
+                /* is deyesrmalized; want to yesrmalize */
                 Dbl_clear_signexponent(opnd2p1);
                 Dbl_leftshiftby1(opnd2p1,opnd2p2);
-		Dbl_normalize(opnd2p1,opnd2p2,dest_exponent);
+		Dbl_yesrmalize(opnd2p1,opnd2p2,dest_exponent);
 	}
 
 	/* Multiply two source mantissas together */
@@ -228,7 +228,7 @@ dbl_fmpy(
 		/* result mantissa >= 2. */
 		dest_exponent++;
 	}
-	/* check for denormalized result */
+	/* check for deyesrmalized result */
 	while (Dbit3p1(opnd3p1)==0) {
 		Dbl_leftshiftby1(opnd3p1,opnd3p2);
 		dest_exponent--;
@@ -314,7 +314,7 @@ dbl_fmpy(
 			case ROUNDPLUS: 
 				if (Dbl_iszero_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
-					if (Dbl_isone_hiddenoverflow(opnd3p1))
+					if (Dbl_isone_hiddeyesverflow(opnd3p1))
                 			    is_tiny = FALSE;
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
@@ -322,7 +322,7 @@ dbl_fmpy(
 			case ROUNDMINUS: 
 				if (Dbl_isone_sign(resultp1)) {
 					Dbl_increment(opnd3p1,opnd3p2);
-					if (Dbl_isone_hiddenoverflow(opnd3p1))
+					if (Dbl_isone_hiddeyesverflow(opnd3p1))
                 			    is_tiny = FALSE;
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
@@ -331,7 +331,7 @@ dbl_fmpy(
 				if (guardbit && (stickybit || 
 				    Dbl_isone_lowmantissap2(opnd3p2))) {
 				      	Dbl_increment(opnd3p1,opnd3p2);
-					if (Dbl_isone_hiddenoverflow(opnd3p1))
+					if (Dbl_isone_hiddeyesverflow(opnd3p1))
                 			    is_tiny = FALSE;
 					Dbl_decrement(opnd3p1,opnd3p2);
 				}
@@ -340,10 +340,10 @@ dbl_fmpy(
 		}
 
 		/*
-		 * denormalize result or set to signed zero
+		 * deyesrmalize result or set to signed zero
 		 */
 		stickybit = inexact;
-		Dbl_denormalize(opnd3p1,opnd3p2,dest_exponent,guardbit,
+		Dbl_deyesrmalize(opnd3p1,opnd3p2,dest_exponent,guardbit,
 		 stickybit,inexact);
 
 		/* return zero or smallest number */

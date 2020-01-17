@@ -9,7 +9,7 @@
  */
 
 #include <linux/hw_breakpoint.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kprobes.h>
 #include <linux/percpu.h>
 #include <linux/kernel.h>
@@ -39,7 +39,7 @@ int hw_breakpoint_slots(int type)
 {
 	if (type == TYPE_DATA)
 		return HBP_NUM;
-	return 0;		/* no instruction breakpoints available */
+	return 0;		/* yes instruction breakpoints available */
 }
 
 /*
@@ -59,7 +59,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 	*slot = bp;
 
 	/*
-	 * Do not install DABR values if the instruction must be single-stepped.
+	 * Do yest install DABR values if the instruction must be single-stepped.
 	 * If so, DABR will be populated in single_step_dabr_instruction().
 	 */
 	if (current->thread.last_hit_ubp != bp)
@@ -100,7 +100,7 @@ void arch_unregister_hw_breakpoint(struct perf_event *bp)
 	 * If the breakpoint is unregistered between a hw_breakpoint_handler()
 	 * and the single_step_dabr_instruction(), then cleanup the breakpoint
 	 * restoration variables to prevent dangling pointers.
-	 * FIXME, this should not be using bp->ctx at all! Sayeth peterz.
+	 * FIXME, this should yest be using bp->ctx at all! Sayeth peterz.
 	 */
 	if (bp->ctx && bp->ctx->task && bp->ctx->task != ((void *)-1L))
 		bp->ctx->task->thread.last_hit_ubp = NULL;
@@ -206,7 +206,7 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 
 /*
  * Restores the breakpoint on the debug registers.
- * Invoke this function if it is known that the execution context is
+ * Invoke this function if it is kyeswn that the execution context is
  * about to change to cause loss of MSR_SE settings.
  */
 void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
@@ -235,7 +235,7 @@ dar_range_overlaps(unsigned long dar, int size, struct arch_hw_breakpoint *info)
 }
 
 /*
- * Handle debug exception notifications.
+ * Handle debug exception yestifications.
  */
 static bool stepping_handler(struct pt_regs *regs, struct perf_event *bp,
 			     struct arch_hw_breakpoint *info)
@@ -265,7 +265,7 @@ static bool stepping_handler(struct pt_regs *regs, struct perf_event *bp,
 	if (size && !dar_range_overlaps(regs->dar, size, info))
 		info->type |= HW_BRK_TYPE_EXTRANEOUS_IRQ;
 
-	/* Do not emulate user-space instructions, instead single-step them */
+	/* Do yest emulate user-space instructions, instead single-step them */
 	if (user_mode(regs)) {
 		current->thread.last_hit_ubp = bp;
 		regs->msr |= MSR_SE;
@@ -280,7 +280,7 @@ static bool stepping_handler(struct pt_regs *regs, struct perf_event *bp,
 fail:
 	/*
 	 * We've failed in reliably handling the hw-breakpoint. Unregister
-	 * it and throw a warning message to let the user know about it.
+	 * it and throw a warning message to let the user kyesw about it.
 	 */
 	WARN(1, "Unable to handle hardware breakpoint. Breakpoint at "
 		"0x%lx will be disabled.", addr);
@@ -391,10 +391,10 @@ static int single_step_dabr_instruction(struct die_args *args)
 NOKPROBE_SYMBOL(single_step_dabr_instruction);
 
 /*
- * Handle debug exception notifications.
+ * Handle debug exception yestifications.
  */
-int hw_breakpoint_exceptions_notify(
-		struct notifier_block *unused, unsigned long val, void *data)
+int hw_breakpoint_exceptions_yestify(
+		struct yestifier_block *unused, unsigned long val, void *data)
 {
 	int ret = NOTIFY_DONE;
 
@@ -409,7 +409,7 @@ int hw_breakpoint_exceptions_notify(
 
 	return ret;
 }
-NOKPROBE_SYMBOL(hw_breakpoint_exceptions_notify);
+NOKPROBE_SYMBOL(hw_breakpoint_exceptions_yestify);
 
 /*
  * Release the user breakpoints used by ptrace

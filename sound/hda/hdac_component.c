@@ -237,7 +237,7 @@ static const struct component_master_ops hdac_component_master_ops = {
 };
 
 /**
- * snd_hdac_acomp_register_notifier - Register audio component ops
+ * snd_hdac_acomp_register_yestifier - Register audio component ops
  * @bus: HDA core bus
  * @aops: audio component ops
  *
@@ -248,7 +248,7 @@ static const struct component_master_ops hdac_component_master_ops = {
  *
  * Returns zero for success or a negative error code.
  */
-int snd_hdac_acomp_register_notifier(struct hdac_bus *bus,
+int snd_hdac_acomp_register_yestifier(struct hdac_bus *bus,
 				    const struct drm_audio_component_audio_ops *aops)
 {
 	if (!bus->audio_component)
@@ -257,7 +257,7 @@ int snd_hdac_acomp_register_notifier(struct hdac_bus *bus,
 	bus->audio_component->audio_ops = aops;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_acomp_register_notifier);
+EXPORT_SYMBOL_GPL(snd_hdac_acomp_register_yestifier);
 
 /**
  * snd_hdac_acomp_init - Initialize audio component

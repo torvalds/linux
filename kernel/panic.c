@@ -15,7 +15,7 @@
 #include <linux/kgdb.h>
 #include <linux/kmsg_dump.h>
 #include <linux/kallsyms.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/vt_kern.h>
 #include <linux/module.h>
 #include <linux/random.h>
@@ -42,7 +42,7 @@ static unsigned long tainted_mask =
 static int pause_on_oops;
 static int pause_on_oops_flag;
 static DEFINE_SPINLOCK(pause_on_oops_lock);
-bool crash_kexec_post_notifiers;
+bool crash_kexec_post_yestifiers;
 int panic_on_warn __read_mostly;
 
 int panic_timeout = CONFIG_PANIC_TIMEOUT;
@@ -56,11 +56,11 @@ EXPORT_SYMBOL_GPL(panic_timeout);
 #define PANIC_PRINT_ALL_PRINTK_MSG	0x00000020
 unsigned long panic_print;
 
-ATOMIC_NOTIFIER_HEAD(panic_notifier_list);
+ATOMIC_NOTIFIER_HEAD(panic_yestifier_list);
 
-EXPORT_SYMBOL(panic_notifier_list);
+EXPORT_SYMBOL(panic_yestifier_list);
 
-static long no_blink(int state)
+static long yes_blink(int state)
 {
 	return 0;
 }
@@ -79,7 +79,7 @@ void __weak panic_smp_self_stop(void)
 }
 
 /*
- * Stop ourselves in NMI context if another CPU has already panicked. Arch code
+ * Stop ourselves in NMI context if ayesther CPU has already panicked. Arch code
  * may override this to prepare for crash dumping, e.g. save regs info.
  */
 void __weak nmi_panic_self_stop(struct pt_regs *regs)
@@ -106,7 +106,7 @@ void __weak crash_smp_send_stop(void)
 
 	/*
 	 * Note smp_send_stop is the usual smp shutdown function, which
-	 * unfortunately means it may not be hardened to work in a panic
+	 * unfortunately means it may yest be hardened to work in a panic
 	 * situation.
 	 */
 	smp_send_stop();
@@ -117,7 +117,7 @@ atomic_t panic_cpu = ATOMIC_INIT(PANIC_CPU_INVALID);
 
 /*
  * A variant of panic() called from NMI context. We return if we've already
- * panicked on this CPU. If another CPU already panicked, loop in
+ * panicked on this CPU. If ayesther CPU already panicked, loop in
  * nmi_panic_self_stop() which can provide architecture dependent code such
  * as saving register state for crash dump.
  */
@@ -171,20 +171,20 @@ void panic(const char *fmt, ...)
 	long i, i_next = 0, len;
 	int state = 0;
 	int old_cpu, this_cpu;
-	bool _crash_kexec_post_notifiers = crash_kexec_post_notifiers;
+	bool _crash_kexec_post_yestifiers = crash_kexec_post_yestifiers;
 
 	/*
 	 * Disable local interrupts. This will prevent panic_smp_self_stop
 	 * from deadlocking the first cpu that invokes the panic, since
-	 * there is nothing to prevent an interrupt handler (that runs
+	 * there is yesthing to prevent an interrupt handler (that runs
 	 * after setting panic_cpu) from invoking panic() again.
 	 */
 	local_irq_disable();
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 
 	/*
 	 * It's possible to come here directly from a panic-assertion and
-	 * not have preempt disabled. Some functions called from here want
+	 * yest have preempt disabled. Some functions called from here want
 	 * preempt to be disabled. No point enabling it later though...
 	 *
 	 * Only one CPU is allowed to execute the panic code from here. For
@@ -212,7 +212,7 @@ void panic(const char *fmt, ...)
 	if (len && buf[len - 1] == '\n')
 		buf[len - 1] = '\0';
 
-	pr_emerg("Kernel panic - not syncing: %s\n", buf);
+	pr_emerg("Kernel panic - yest syncing: %s\n", buf);
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 	/*
 	 * Avoid nested stack-dumping if a panic occurs during oops processing
@@ -231,24 +231,24 @@ void panic(const char *fmt, ...)
 	/*
 	 * If we have crashed and we have a crash kernel loaded let it handle
 	 * everything else.
-	 * If we want to run this after calling panic_notifiers, pass
-	 * the "crash_kexec_post_notifiers" option to the kernel.
+	 * If we want to run this after calling panic_yestifiers, pass
+	 * the "crash_kexec_post_yestifiers" option to the kernel.
 	 *
 	 * Bypass the panic_cpu check and call __crash_kexec directly.
 	 */
-	if (!_crash_kexec_post_notifiers) {
+	if (!_crash_kexec_post_yestifiers) {
 		printk_safe_flush_on_panic();
 		__crash_kexec(NULL);
 
 		/*
 		 * Note smp_send_stop is the usual smp shutdown function, which
-		 * unfortunately means it may not be hardened to work in a
+		 * unfortunately means it may yest be hardened to work in a
 		 * panic situation.
 		 */
 		smp_send_stop();
 	} else {
 		/*
-		 * If we want to do crash dump after notifier calls and
+		 * If we want to do crash dump after yestifier calls and
 		 * kmsg_dump, we will need architecture dependent extra
 		 * works in addition to stopping other CPUs.
 		 */
@@ -259,7 +259,7 @@ void panic(const char *fmt, ...)
 	 * Run any panic handlers, including those that might need to
 	 * add information to the kmsg dump output.
 	 */
-	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
+	atomic_yestifier_call_chain(&panic_yestifier_list, 0, buf);
 
 	/* Call flush even twice. It tries harder with a single online CPU */
 	printk_safe_flush_on_panic();
@@ -267,14 +267,14 @@ void panic(const char *fmt, ...)
 
 	/*
 	 * If you doubt kdump always works fine in any situation,
-	 * "crash_kexec_post_notifiers" offers you a chance to run
-	 * panic_notifiers and dumping kmsg before kdump.
-	 * Note: since some panic_notifiers can make crashed kernel
+	 * "crash_kexec_post_yestifiers" offers you a chance to run
+	 * panic_yestifiers and dumping kmsg before kdump.
+	 * Note: since some panic_yestifiers can make crashed kernel
 	 * more unstable, it can increase risks of the kdump failure too.
 	 *
 	 * Bypass the panic_cpu check and call __crash_kexec directly.
 	 */
-	if (_crash_kexec_post_notifiers)
+	if (_crash_kexec_post_yestifiers)
 		__crash_kexec(NULL);
 
 #ifdef CONFIG_VT
@@ -288,7 +288,7 @@ void panic(const char *fmt, ...)
 	 * buffer.  Try to acquire the lock then release it regardless of the
 	 * result.  The release will also print the buffers out.  Locks debug
 	 * should be disabled to avoid reporting bad unlock balance when
-	 * panic() is not being callled from OOPS.
+	 * panic() is yest being callled from OOPS.
 	 */
 	debug_locks_off();
 	console_flush_on_panic(CONSOLE_FLUSH_PENDING);
@@ -296,12 +296,12 @@ void panic(const char *fmt, ...)
 	panic_print_sys_info();
 
 	if (!panic_blink)
-		panic_blink = no_blink;
+		panic_blink = yes_blink;
 
 	if (panic_timeout > 0) {
 		/*
 		 * Delay timeout seconds before rebooting the machine.
-		 * We can't use the "normal" timers since we just panicked.
+		 * We can't use the "yesrmal" timers since we just panicked.
 		 */
 		pr_emerg("Rebooting in %d seconds..\n", panic_timeout);
 
@@ -316,7 +316,7 @@ void panic(const char *fmt, ...)
 	}
 	if (panic_timeout != 0) {
 		/*
-		 * This will not be a clean reboot, with everything
+		 * This will yest be a clean reboot, with everything
 		 * shutting down.  But if there is a chance of
 		 * rebooting the system it will be rebooted.
 		 */
@@ -336,9 +336,9 @@ void panic(const char *fmt, ...)
 #if defined(CONFIG_S390)
 	disabled_wait();
 #endif
-	pr_emerg("---[ end Kernel panic - not syncing: %s ]---\n", buf);
+	pr_emerg("---[ end Kernel panic - yest syncing: %s ]---\n", buf);
 
-	/* Do not scroll important messages printed above */
+	/* Do yest scroll important messages printed above */
 	suppress_printk = 1;
 	local_irq_enable();
 	for (i = 0; ; i += PANIC_TIMER_STEP) {
@@ -421,12 +421,12 @@ unsigned long get_taint(void)
 }
 
 /**
- * add_taint: add a taint flag if not already set.
+ * add_taint: add a taint flag if yest already set.
  * @flag: one of the TAINT_* constants.
  * @lockdep_ok: whether lock debugging is still OK.
  *
  * If something bad has gone wrong, you'll want @lockdebug_ok = false, but for
- * some notewortht-but-not-corrupting cases, it can be set to true.
+ * some yestewortht-but-yest-corrupting cases, it can be set to true.
  */
 void add_taint(unsigned flag, enum lockdep_ok lockdep_ok)
 {
@@ -461,7 +461,7 @@ static void do_oops_enter_exit(void)
 
 	spin_lock_irqsave(&pause_on_oops_lock, flags);
 	if (pause_on_oops_flag == 0) {
-		/* This CPU may now print the oops message */
+		/* This CPU may yesw print the oops message */
 		pause_on_oops_flag = 1;
 	} else {
 		/* We need to stall this CPU */
@@ -573,7 +573,7 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 
 	if (panic_on_warn) {
 		/*
-		 * This thread may hit another WARN() in the panic path.
+		 * This thread may hit ayesther WARN() in the panic path.
 		 * Resetting this prevents additional WARN() from panicking the
 		 * system on this thread.  Other threads are blocked by the
 		 * panic_mutex in panic().
@@ -675,7 +675,7 @@ core_param(panic, panic_timeout, int, 0644);
 core_param(panic_print, panic_print, ulong, 0644);
 core_param(pause_on_oops, pause_on_oops, int, 0644);
 core_param(panic_on_warn, panic_on_warn, int, 0644);
-core_param(crash_kexec_post_notifiers, crash_kexec_post_notifiers, bool, 0644);
+core_param(crash_kexec_post_yestifiers, crash_kexec_post_yestifiers, bool, 0644);
 
 static int __init oops_setup(char *s)
 {

@@ -3,7 +3,7 @@
  *  compress_core.c - compress offload core
  *
  *  Copyright (C) 2011 Intel Corporation
- *  Authors:	Vinod Koul <vinod.koul@linux.intel.com>
+ *  Authors:	Viyesd Koul <viyesd.koul@linux.intel.com>
  *		Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -42,9 +42,9 @@
 
 /* TODO:
  * - add substream support for multiple devices in case of
- *	SND_DYNAMIC_MINORS is not used
- * - Multiple node representation
- *	driver should be able to register multiple nodes
+ *	SND_DYNAMIC_MINORS is yest used
+ * - Multiple yesde representation
+ *	driver should be able to register multiple yesdes
  */
 
 static DEFINE_MUTEX(device_mutex);
@@ -57,7 +57,7 @@ struct snd_compr_file {
 static void error_delayed_work(struct work_struct *work);
 
 /*
- * a note on stream states used:
+ * a yeste on stream states used:
  * we use following states in the compressed core
  * SNDRV_PCM_STATE_OPEN: When stream has been opened.
  * SNDRV_PCM_STATE_SETUP: When stream has been initialized. This is done by
@@ -74,13 +74,13 @@ static void error_delayed_work(struct work_struct *work);
  *	SNDRV_COMPRESS_PAUSE. It can be stopped or resumed by calling
  *	SNDRV_COMPRESS_STOP or SNDRV_COMPRESS_RESUME respectively.
  */
-static int snd_compr_open(struct inode *inode, struct file *f)
+static int snd_compr_open(struct iyesde *iyesde, struct file *f)
 {
 	struct snd_compr *compr;
 	struct snd_compr_file *data;
 	struct snd_compr_runtime *runtime;
 	enum snd_compr_direction dirn;
-	int maj = imajor(inode);
+	int maj = imajor(iyesde);
 	int ret;
 
 	if ((f->f_flags & O_ACCMODE) == O_WRONLY)
@@ -91,13 +91,13 @@ static int snd_compr_open(struct inode *inode, struct file *f)
 		return -EINVAL;
 
 	if (maj == snd_major)
-		compr = snd_lookup_minor_data(iminor(inode),
+		compr = snd_lookup_miyesr_data(imiyesr(iyesde),
 					SNDRV_DEVICE_TYPE_COMPRESS);
 	else
 		return -EBADFD;
 
 	if (compr == NULL) {
-		pr_err("no device data!!!\n");
+		pr_err("yes device data!!!\n");
 		return -ENODEV;
 	}
 
@@ -140,7 +140,7 @@ static int snd_compr_open(struct inode *inode, struct file *f)
 	return ret;
 }
 
-static int snd_compr_free(struct inode *inode, struct file *f)
+static int snd_compr_free(struct iyesde *iyesde, struct file *f)
 {
 	struct snd_compr_file *data = f->private_data;
 	struct snd_compr_runtime *runtime = data->stream.runtime;
@@ -202,7 +202,7 @@ static size_t snd_compr_calc_avail(struct snd_compr_stream *stream,
 			pr_debug("both pointers are same, returning full avail\n");
 			return stream->runtime->buffer_size;
 		} else {
-			pr_debug("both pointers are same, returning no avail\n");
+			pr_debug("both pointers are same, returning yes avail\n");
 			return 0;
 		}
 	}
@@ -272,7 +272,7 @@ static int snd_compr_write_data(struct snd_compr_stream *stream,
 		if (copy_from_user(runtime->buffer, buf + copy, count - copy))
 			return -EFAULT;
 	}
-	/* if DSP cares, let it know data has been written */
+	/* if DSP cares, let it kyesw data has been written */
 	if (stream->ops->ack)
 		stream->ops->ack(stream, count);
 	return count;
@@ -344,7 +344,7 @@ static ssize_t snd_compr_read(struct file *f, char __user *buf,
 	mutex_lock(&stream->device->lock);
 
 	/* read is allowed when stream is running, paused, draining and setup
-	 * (yes setup is state which we transition to after stop, so if user
+	 * (no setup is state which we transition to after stop, so if user
 	 * wants to read data after stop we allow that)
 	 */
 	switch (stream->runtime->state) {
@@ -506,7 +506,7 @@ static int snd_compr_allocate_buffer(struct snd_compr_stream *stream,
 
 			if (buffer_size > stream->runtime->dma_buffer_p->bytes)
 				dev_err(&stream->device->dev,
-						"Not enough DMA buffer");
+						"Not eyesugh DMA buffer");
 			else
 				buffer = stream->runtime->dma_buffer_p->area;
 
@@ -532,7 +532,7 @@ static int snd_compress_check_input(struct snd_compr_params *params)
 	    params->buffer.fragments == 0)
 		return -EINVAL;
 
-	/* now codec parameters */
+	/* yesw codec parameters */
 	if (params->codec.id == 0 || params->codec.id > SND_AUDIOCODEC_MAX)
 		return -EINVAL;
 
@@ -551,7 +551,7 @@ snd_compr_set_params(struct snd_compr_stream *stream, unsigned long arg)
 	if (stream->runtime->state == SNDRV_PCM_STATE_OPEN) {
 		/*
 		 * we should allow parameter change only when stream has been
-		 * opened not in other cases
+		 * opened yest in other cases
 		 */
 		params = memdup_user((void __user *)arg, sizeof(*params));
 		if (IS_ERR(params))
@@ -638,7 +638,7 @@ snd_compr_set_metadata(struct snd_compr_stream *stream, unsigned long arg)
 		return -ENXIO;
 	/*
 	* we should allow parameter change only when stream has been
-	* opened not in other cases
+	* opened yest in other cases
 	*/
 	if (copy_from_user(&metadata, (void __user *)arg, sizeof(metadata)))
 		return -EFAULT;
@@ -722,7 +722,7 @@ static int snd_compr_stop(struct snd_compr_stream *stream)
 
 	retval = stream->ops->trigger(stream, SNDRV_PCM_TRIGGER_STOP);
 	if (!retval) {
-		snd_compr_drain_notify(stream);
+		snd_compr_drain_yestify(stream);
 		stream->runtime->total_bytes_available = 0;
 		stream->runtime->total_bytes_transferred = 0;
 	}
@@ -774,9 +774,9 @@ static int snd_compress_wait_for_drain(struct snd_compr_stream *stream)
 
 	/*
 	 * We are called with lock held. So drop the lock while we wait for
-	 * drain complete notification from the driver
+	 * drain complete yestification from the driver
 	 *
-	 * It is expected that driver will notify the drain completion and then
+	 * It is expected that driver will yestify the drain completion and then
 	 * stream will be moved to SETUP state, even if draining resulted in an
 	 * error. We can trigger next track after this.
 	 */
@@ -1190,5 +1190,5 @@ int snd_compress_deregister(struct snd_compr *device)
 EXPORT_SYMBOL_GPL(snd_compress_deregister);
 
 MODULE_DESCRIPTION("ALSA Compressed offload framework");
-MODULE_AUTHOR("Vinod Koul <vinod.koul@linux.intel.com>");
+MODULE_AUTHOR("Viyesd Koul <viyesd.koul@linux.intel.com>");
 MODULE_LICENSE("GPL v2");

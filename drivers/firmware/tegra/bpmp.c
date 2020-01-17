@@ -42,13 +42,13 @@ struct tegra_bpmp *tegra_bpmp_get(struct device *dev)
 {
 	struct platform_device *pdev;
 	struct tegra_bpmp *bpmp;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_parse_phandle(dev->of_node, "nvidia,bpmp", 0);
+	np = of_parse_phandle(dev->of_yesde, "nvidia,bpmp", 0);
 	if (!np)
 		return ERR_PTR(-ENOENT);
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_yesde(np);
 	if (!pdev) {
 		bpmp = ERR_PTR(-ENODEV);
 		goto put;
@@ -62,7 +62,7 @@ struct tegra_bpmp *tegra_bpmp_get(struct device *dev)
 	}
 
 put:
-	of_node_put(np);
+	of_yesde_put(np);
 	return bpmp;
 }
 EXPORT_SYMBOL_GPL(tegra_bpmp_get);
@@ -161,7 +161,7 @@ static int
 tegra_bpmp_wait_request_channel_free(struct tegra_bpmp_channel *channel)
 {
 	unsigned long timeout = channel->bpmp->soc->channels.cpu_tx.timeout;
-	ktime_t start, now;
+	ktime_t start, yesw;
 
 	start = ns_to_ktime(local_clock());
 
@@ -169,8 +169,8 @@ tegra_bpmp_wait_request_channel_free(struct tegra_bpmp_channel *channel)
 		if (tegra_bpmp_is_request_channel_free(channel))
 			return 0;
 
-		now = ns_to_ktime(local_clock());
-	} while (ktime_us_delta(now, start) < timeout);
+		yesw = ns_to_ktime(local_clock());
+	} while (ktime_us_delta(yesw, start) < timeout);
 
 	return -ETIMEDOUT;
 }
@@ -756,23 +756,23 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, bpmp);
 
-	err = of_platform_default_populate(pdev->dev.of_node, NULL, &pdev->dev);
+	err = of_platform_default_populate(pdev->dev.of_yesde, NULL, &pdev->dev);
 	if (err < 0)
 		goto free_mrq;
 
-	if (of_find_property(pdev->dev.of_node, "#clock-cells", NULL)) {
+	if (of_find_property(pdev->dev.of_yesde, "#clock-cells", NULL)) {
 		err = tegra_bpmp_init_clocks(bpmp);
 		if (err < 0)
 			goto free_mrq;
 	}
 
-	if (of_find_property(pdev->dev.of_node, "#reset-cells", NULL)) {
+	if (of_find_property(pdev->dev.of_yesde, "#reset-cells", NULL)) {
 		err = tegra_bpmp_init_resets(bpmp);
 		if (err < 0)
 			goto free_mrq;
 	}
 
-	if (of_find_property(pdev->dev.of_node, "#power-domain-cells", NULL)) {
+	if (of_find_property(pdev->dev.of_yesde, "#power-domain-cells", NULL)) {
 		err = tegra_bpmp_init_powergates(bpmp);
 		if (err < 0)
 			goto free_mrq;
@@ -804,7 +804,7 @@ static int __maybe_unused tegra_bpmp_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops tegra_bpmp_pm_ops = {
-	.resume_noirq = tegra_bpmp_resume,
+	.resume_yesirq = tegra_bpmp_resume,
 };
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_186_SOC) || \

@@ -20,16 +20,16 @@
 /* Bad block numbers are stored sorted in a single page.
  * 64bits is used for each block or extent.
  * 54 bits are sector number, 9 bits are extent size,
- * 1 bit is an 'acknowledged' flag.
+ * 1 bit is an 'ackyeswledged' flag.
  */
 #define MAX_BADBLOCKS	(PAGE_SIZE/8)
 
 struct badblocks {
 	struct device *dev;	/* set by devm_init_badblocks */
 	int count;		/* count of bad blocks */
-	int unacked_exist;	/* there probably are unacknowledged
+	int unacked_exist;	/* there probably are unackyeswledged
 				 * bad blocks.  This is only cleared
-				 * when a read discovers none
+				 * when a read discovers yesne
 				 */
 	int shift;		/* shift from sectors to block size
 				 * a -ve shift means badblocks are
@@ -44,7 +44,7 @@ struct badblocks {
 int badblocks_check(struct badblocks *bb, sector_t s, int sectors,
 		   sector_t *first_bad, int *bad_sectors);
 int badblocks_set(struct badblocks *bb, sector_t s, int sectors,
-			int acknowledged);
+			int ackyeswledged);
 int badblocks_clear(struct badblocks *bb, sector_t s, int sectors);
 void ack_all_badblocks(struct badblocks *bb);
 ssize_t badblocks_show(struct badblocks *bb, char *page, int unack);
@@ -57,7 +57,7 @@ int devm_init_badblocks(struct device *dev, struct badblocks *bb);
 static inline void devm_exit_badblocks(struct device *dev, struct badblocks *bb)
 {
 	if (bb->dev != dev) {
-		dev_WARN_ONCE(dev, 1, "%s: badblocks instance not associated\n",
+		dev_WARN_ONCE(dev, 1, "%s: badblocks instance yest associated\n",
 				__func__);
 		return;
 	}

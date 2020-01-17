@@ -119,7 +119,7 @@ static void dm355leopard_mmcsd_gpios(unsigned gpio)
 	gpio_request(gpio + 2, "mmc1_ro");
 	gpio_request(gpio + 3, "mmc1_cd");
 
-	/* we "know" these are input-only so we don't
+	/* we "kyesw" these are input-only so we don't
 	 * need to call gpio_direction_input()
 	 */
 

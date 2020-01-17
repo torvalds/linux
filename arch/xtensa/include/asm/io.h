@@ -25,7 +25,7 @@
 
 #ifdef CONFIG_MMU
 
-void __iomem *xtensa_ioremap_nocache(unsigned long addr, unsigned long size);
+void __iomem *xtensa_ioremap_yescache(unsigned long addr, unsigned long size);
 void __iomem *xtensa_ioremap_cache(unsigned long addr, unsigned long size);
 void xtensa_iounmap(volatile void __iomem *addr);
 
@@ -38,7 +38,7 @@ static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 	    && offset - XCHAL_KIO_PADDR < XCHAL_KIO_SIZE)
 		return (void*)(offset-XCHAL_KIO_PADDR+XCHAL_KIO_BYPASS_VADDR);
 	else
-		return xtensa_ioremap_nocache(offset, size);
+		return xtensa_ioremap_yescache(offset, size);
 }
 
 static inline void __iomem *ioremap_cache(unsigned long offset,

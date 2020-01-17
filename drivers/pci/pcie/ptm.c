@@ -15,7 +15,7 @@ static void pci_ptm_info(struct pci_dev *dev)
 
 	switch (dev->ptm_granularity) {
 	case 0:
-		snprintf(clock_desc, sizeof(clock_desc), "unknown");
+		snprintf(clock_desc, sizeof(clock_desc), "unkyeswn");
 		break;
 	case 255:
 		snprintf(clock_desc, sizeof(clock_desc), ">254ns");
@@ -45,7 +45,7 @@ void pci_ptm_init(struct pci_dev *dev)
 
 	/*
 	 * Enable PTM only on interior devices (root ports, switch ports,
-	 * etc.) on the assumption that it causes no link traffic until an
+	 * etc.) on the assumption that it causes yes link traffic until an
 	 * endpoint enables it.
 	 */
 	if ((pci_pcie_type(dev) == PCI_EXP_TYPE_ENDPOINT ||
@@ -56,7 +56,7 @@ void pci_ptm_init(struct pci_dev *dev)
 	local_clock = (cap & PCI_PTM_GRANULARITY_MASK) >> 8;
 
 	/*
-	 * There's no point in enabling PTM unless it's enabled in the
+	 * There's yes point in enabling PTM unless it's enabled in the
 	 * upstream device or this device can be a PTM Root itself.  Per
 	 * the spec recommendation (PCIe r3.1, sec 7.32.3), select the
 	 * furthest upstream Time Source as the PTM Root.
@@ -105,7 +105,7 @@ int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
 	 * For a PCIe Endpoint, PTM is only useful if the endpoint can
 	 * issue PTM requests to upstream devices that have PTM enabled.
 	 *
-	 * For Root Complex Integrated Endpoints, there is no upstream
+	 * For Root Complex Integrated Endpoints, there is yes upstream
 	 * device, so there must be some implementation-specific way to
 	 * associate the endpoint with a time source.
 	 */

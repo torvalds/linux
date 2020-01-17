@@ -5,7 +5,7 @@
 /*
  * This structure defines the interface between the tty line discipline
  * implementation and the tty routines.  The following routines can be
- * defined; unless noted otherwise, they are optional, and can be
+ * defined; unless yested otherwise, they are optional, and can be
  * filled in with a null pointer.
  *
  * int	(*open)(struct tty_struct *);
@@ -31,7 +31,7 @@
  *
  *	This function is called when the user requests to read from
  *	the tty.  The line discipline will return whatever characters
- *	it has buffered up for the user.  If this function is not
+ *	it has buffered up for the user.  If this function is yest
  *	defined, the user will receive an EIO error.
  *
  * ssize_t (*write)(struct tty_struct * tty, struct file * file,
@@ -41,13 +41,13 @@
  *	tty.  The line discipline will deliver the characters to the
  *	low-level tty device for transmission, optionally performing
  *	some processing on the characters first.  If this function is
- *	not defined, the user will receive an EIO error.
+ *	yest defined, the user will receive an EIO error.
  *
  * int	(*ioctl)(struct tty_struct * tty, struct file * file,
  *		 unsigned int cmd, unsigned long arg);
  *
  *	This function is called when the user requests an ioctl which
- *	is not handled by the tty layer or the low-level tty driver.
+ *	is yest handled by the tty layer or the low-level tty driver.
  *	It is intended for ioctls which affect line discpline
  *	operation.  Note that the search order for ioctls is (1) tty
  *	layer, (2) tty low-level driver, (3) line discpline.  So a
@@ -60,14 +60,14 @@
  *	Process ioctl calls from 32-bit process on 64-bit system
  *
  *	NOTE: only ioctls that are neither "pointer to compatible
- *	structure" nor tty-generic.  Something private that takes
+ *	structure" yesr tty-generic.  Something private that takes
  *	an integer or a pointer to wordsize-sensitive structure
  *	belongs here, but most of ldiscs will happily leave
  *	it NULL.
  *
  * void	(*set_termios)(struct tty_struct *tty, struct ktermios * old);
  *
- *	This function notifies the line discpline that a change has
+ *	This function yestifies the line discpline that a change has
  *	been made to the termios structure.
  *
  * int	(*poll)(struct tty_struct * tty, struct file * file,
@@ -93,9 +93,9 @@
  *	This function is called by the low-level tty driver to signal
  *	that line discpline should try to send more characters to the
  *	low-level driver for transmission.  If the line discpline does
- *	not have any more data to send, it can just return. If the line
+ *	yest have any more data to send, it can just return. If the line
  *	discipline does have some data to send, please arise a tasklet
- *	or workqueue to do the real data transfer. Do not send data in
+ *	or workqueue to do the real data transfer. Do yest send data in
  *	this hook, it may leads to a deadlock.
  *
  * int (*hangup)(struct tty_struct *)

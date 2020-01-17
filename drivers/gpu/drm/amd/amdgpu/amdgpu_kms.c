@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -112,7 +112,7 @@ void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
 	mutex_lock(&mgpu_info.mutex);
 
 	if (mgpu_info.num_gpu >= MAX_GPU_INSTANCE) {
-		DRM_ERROR("Cannot register more gpu instance\n");
+		DRM_ERROR("Canyest register more gpu instance\n");
 		mutex_unlock(&mgpu_info.mutex);
 		return;
 	}
@@ -171,7 +171,7 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	}
 
 	/* Call ACPI methods: require modeset init
-	 * but failure is not fatal
+	 * but failure is yest fatal
 	 */
 	if (!r) {
 		acpi_status = amdgpu_acpi_init(adev);
@@ -194,7 +194,7 @@ out:
 	if (r) {
 		/* balance pm_runtime_get_sync in amdgpu_driver_unload_kms */
 		if (adev->rmmio && amdgpu_device_is_px(dev))
-			pm_runtime_put_noidle(dev->dev);
+			pm_runtime_put_yesidle(dev->dev);
 		amdgpu_driver_unload_kms(dev);
 	}
 
@@ -423,7 +423,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 			num_rings);
 
 	result->hw_ip_version_major = adev->ip_blocks[i].version->major;
-	result->hw_ip_version_minor = adev->ip_blocks[i].version->minor;
+	result->hw_ip_version_miyesr = adev->ip_blocks[i].version->miyesr;
 	result->capabilities_flags = 0;
 	result->available_rings = (1 << num_rings) - 1;
 	result->ib_start_alignment = ib_start_alignment;
@@ -477,7 +477,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			}
 		}
 		if (!found) {
-			DRM_DEBUG_KMS("unknown crtc id %d\n", info->mode_crtc.id);
+			DRM_DEBUG_KMS("unkyeswn crtc id %d\n", info->mode_crtc.id);
 			return -EINVAL;
 		}
 		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
@@ -539,7 +539,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		struct drm_amdgpu_info_firmware fw_info;
 		int ret;
 
-		/* We only support one instance of each IP block right now. */
+		/* We only support one instance of each IP block right yesw. */
 		if (info->query_fw.ip_instance != 0)
 			return -EINVAL;
 
@@ -933,7 +933,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 
 /*
- * Outdated mess for old drm with Xorg being in charge (void function now).
+ * Outdated mess for old drm with Xorg being in charge (void function yesw).
  */
 /**
  * amdgpu_driver_lastclose_kms - drm callback for last close
@@ -1116,7 +1116,7 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 		return -EINVAL;
 	}
 
-	/* The hw increments its frame counter at start of vsync, not at start
+	/* The hw increments its frame counter at start of vsync, yest at start
 	 * of vblank, as is required by DRM core vblank counter handling.
 	 * Cook the hw count here to make it appear to the caller as if it
 	 * incremented at start of vblank. We measure distance to start of
@@ -1130,11 +1130,11 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 		 */
 		do {
 			count = amdgpu_display_vblank_get_counter(adev, pipe);
-			/* Ask amdgpu_display_get_crtc_scanoutpos to return
+			/* Ask amdgpu_display_get_crtc_scayesutpos to return
 			 * vpos as distance to start of vblank, instead of
-			 * regular vertical scanout pos.
+			 * regular vertical scayesut pos.
 			 */
-			stat = amdgpu_display_get_crtc_scanoutpos(
+			stat = amdgpu_display_get_crtc_scayesutpos(
 				dev, pipe, GET_DISTANCE_TO_VBLANKSTART,
 				&vpos, &hpos, NULL, NULL,
 				&adev->mode_info.crtcs[pipe]->base.hwmode);
@@ -1224,8 +1224,8 @@ const int amdgpu_max_kms_ioctl = ARRAY_SIZE(amdgpu_ioctls_kms);
 
 static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_amdgpu_info_firmware fw_info;
 	struct drm_amdgpu_query_fw query_fw;

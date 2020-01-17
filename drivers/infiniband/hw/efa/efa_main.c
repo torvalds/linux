@@ -30,14 +30,14 @@ MODULE_DEVICE_TABLE(pci, efa_pci_tbl);
 	(BIT(EFA_ADMIN_FATAL_ERROR) | BIT(EFA_ADMIN_WARNING) | \
 	 BIT(EFA_ADMIN_NOTIFICATION) | BIT(EFA_ADMIN_KEEP_ALIVE))
 
-/* This handler will called for unknown event group or unimplemented handlers */
+/* This handler will called for unkyeswn event group or unimplemented handlers */
 static void unimplemented_aenq_handler(void *data,
 				       struct efa_admin_aenq_entry *aenq_e)
 {
 	struct efa_dev *dev = (struct efa_dev *)data;
 
 	ibdev_err(&dev->ibdev,
-		  "Unknown event was received or event with unimplemented handler\n");
+		  "Unkyeswn event was received or event with unimplemented handler\n");
 }
 
 static void efa_keep_alive(void *data, struct efa_admin_aenq_entry *aenq_e)
@@ -251,7 +251,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	if (err)
 		goto err_release_doorbell_bar;
 
-	dev->ibdev.node_type = RDMA_NODE_UNSPECIFIED;
+	dev->ibdev.yesde_type = RDMA_NODE_UNSPECIFIED;
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = 1;
 	dev->ibdev.dev.parent = &pdev->dev;

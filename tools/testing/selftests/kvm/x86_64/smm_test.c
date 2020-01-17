@@ -35,7 +35,7 @@
 #define DONE 0xff
 
 /*
- * This is compiled as normal 64-bit code, however, SMI handler is executed
+ * This is compiled as yesrmal 64-bit code, however, SMI handler is executed
  * in real-address mode. To stay simple we're limiting ourselves to a mode
  * independent subset of asm here.
  * SMI handler always report back fixed stage SMRAM_STAGE.
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, SMRAM_GPA,
 				    SMRAM_MEMSLOT, SMRAM_PAGES, 0);
 	TEST_ASSERT(vm_phy_pages_alloc(vm, SMRAM_PAGES, SMRAM_GPA, SMRAM_MEMSLOT)
-		    == SMRAM_GPA, "could not allocate guest physical addresses?");
+		    == SMRAM_GPA, "could yest allocate guest physical addresses?");
 
 	memset(addr_gpa2hva(vm, SMRAM_GPA), 0x0, SMRAM_SIZE);
 	memcpy(addr_gpa2hva(vm, SMRAM_GPA) + 0x8000, smi_handler,

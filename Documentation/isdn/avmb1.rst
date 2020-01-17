@@ -28,13 +28,13 @@ You need at least /dev/capi20 to load the firmware.
 
 ::
 
-    mknod /dev/capi20 c 68 0
-    mknod /dev/capi20.00 c 68 1
-    mknod /dev/capi20.01 c 68 2
+    mkyesd /dev/capi20 c 68 0
+    mkyesd /dev/capi20.00 c 68 1
+    mkyesd /dev/capi20.01 c 68 2
     .
     .
     .
-    mknod /dev/capi20.19 c 68 20
+    mkyesd /dev/capi20.19 c 68 20
 
 Running
 -------
@@ -139,10 +139,10 @@ or "FV: 1,2" to use CAPI channel bundling.
 	1 2057 1699 1721 1699
 
 /proc/capi/capi20: statistics of capi.o (/dev/capi20)
-    minor nopen nrecvdropmsg nrecvctlmsg nrecvdatamsg sentctlmsg sentdatamsg
-	minor:
-	    minor device number of capi device
-	nopen:
+    miyesr yespen nrecvdropmsg nrecvctlmsg nrecvdatamsg sentctlmsg sentdatamsg
+	miyesr:
+	    miyesr device number of capi device
+	yespen:
 	    number of calls to devices open
 	nrecvdropmsg:
 	    capi messages dropped (messages in recvqueue in close)
@@ -239,7 +239,7 @@ ftp://ftp.avm.de/cardware/b1/linux/
 Bugs
 ----
 
-If you find any please let me know.
+If you find any please let me kyesw.
 
 Enjoy,
 

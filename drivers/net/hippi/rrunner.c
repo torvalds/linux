@@ -5,7 +5,7 @@
  * Copyright (C) 1998-2002 by Jes Sorensen, <jes@wildopensource.com>.
  *
  * Thanks to Essential Communication for providing us with hardware
- * and very comprehensive documentation without which I would not have
+ * and very comprehensive documentation without which I would yest have
  * been able to write this driver. A special thank you to John Gibbon
  * for sorting out the legal issues, with the NDA, allowing the code to
  * be released under the GPL.
@@ -26,7 +26,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -69,7 +69,7 @@ static const struct net_device_ops rr_netdev_ops = {
 };
 
 /*
- * Implementation notes:
+ * Implementation yestes:
  *
  * The DMA engine only allows for DMA within physical 64KB chunks of
  * memory. The current approach of the driver (and stack) is to use
@@ -79,8 +79,8 @@ static const struct net_device_ops rr_netdev_ops = {
  * chunk.
  *
  * On the long term, relying on being able to allocate 64KB linear
- * chunks of memory is not feasible and the skb handling code and the
- * stack will need to know about I/O vectors or something similar.
+ * chunks of memory is yest feasible and the skb handling code and the
+ * stack will need to kyesw about I/O vectors or something similar.
  */
 
 static int rr_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -242,7 +242,7 @@ static void rr_remove_one(struct pci_dev *pdev)
 
 
 /*
- * Commands are considered to be slow, thus there is no reason to
+ * Commands are considered to be slow, thus there is yes reason to
  * inline this.
  */
 static void rr_issue_cmd(struct rr_private *rrpriv, struct cmd *cmd)
@@ -366,7 +366,7 @@ static int rr_reset(struct net_device *dev)
 		writel(0, &regs->CmdRing[i]);
 
 /*
- * Why 32 ? is this not cache line size dependent?
+ * Why 32 ? is this yest cache line size dependent?
  */
 	writel(RBURST_64|WBURST_64, &regs->PciState);
 	wmb();
@@ -443,7 +443,7 @@ static u32 rr_read_eeprom_word(struct rr_private *rrpriv,
 /*
  * Write a string to the EEPROM.
  *
- * This is only called when the firmware is not running.
+ * This is only called when the firmware is yest running.
  */
 static unsigned int write_eeprom(struct rr_private *rrpriv,
 				 unsigned long offset,
@@ -464,7 +464,7 @@ static unsigned int write_eeprom(struct rr_private *rrpriv,
 		mb();
 		data = buf[i] << 24;
 		/*
-		 * Only try to write the data if it is not the same
+		 * Only try to write the data if it is yest the same
 		 * value already.
 		 */
 		if ((readl(&regs->WinData) & 0xff000000) != data){
@@ -527,7 +527,7 @@ static int rr_init(struct net_device *dev)
 
 	/*
 	 * Read the hardware address from the eeprom.  The HW address
-	 * is not really necessary for HIPPI but awfully convenient.
+	 * is yest really necessary for HIPPI but awfully convenient.
 	 * The pointer arithmetic to put it in dev_addr is ugly, but
 	 * Donald Becker does it this way for the GigE version of this
 	 * card and it's shorter and more portable than any
@@ -714,7 +714,7 @@ static int rr_init1(struct net_device *dev)
 
 
 /*
- * All events are considered to be slow (RX/TX ints do not generate
+ * All events are considered to be slow (RX/TX ints do yest generate
  * events) and are handled here, outside the main interrupt handler,
  * to reduce the size of the handler.
  */
@@ -745,7 +745,7 @@ static u32 rr_handle_event(struct net_device *dev, u32 prodidx, u32 eidx)
 			printk(KERN_INFO "%s: Optical link OFF\n", dev->name);
 			break;
 		case E_RX_IDLE:
-			printk(KERN_WARNING "%s: RX data not moving\n",
+			printk(KERN_WARNING "%s: RX data yest moving\n",
 			       dev->name);
 			goto drop;
 		case E_WATCHDOG:
@@ -1329,7 +1329,7 @@ static int rr_close(struct net_device *dev)
 
 
 	/*
-	 * Lock to make sure we are not cleaning up while another CPU
+	 * Lock to make sure we are yest cleaning up while ayesther CPU
 	 * is handling interrupts.
 	 */
 	spin_lock_irqsave(&rrpriv->lock, flags);
@@ -1486,7 +1486,7 @@ static int rr_load_firmware(struct net_device *dev)
 
 	/*
 	 * First wipe the entire SRAM, otherwise we might run into all
-	 * kinds of trouble ... sigh, this took almost all afternoon
+	 * kinds of trouble ... sigh, this took almost all afteryeson
 	 * to track down ;-(
 	 */
 	io = readl(&regs->ExtIo);

@@ -25,12 +25,12 @@
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>
 
-static int no_hypercall;
+static int yes_hypercall;
 MODULE_PARM_DESC(off, "Inhibit the hypercall.");
-module_param_named(off, no_hypercall, int, 0400);
+module_param_named(off, yes_hypercall, int, 0400);
 
 /*
- * Note: Do not convert the acpi_id* below to cpumask_var_t or use cpumask_bit
+ * Note: Do yest convert the acpi_id* below to cpumask_var_t or use cpumask_bit
  * - as those shrink to nr_cpu_bits (which is dependent on possible_cpu), which
  * can be less than what we want to put in. Instead use the 'nr_acpi_bits'
  * which is dynamically computed based on the MADT or x2APIC table.
@@ -108,7 +108,7 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 
 	set_xen_guest_handle(op.u.set_pminfo.power.states, dst_cx_states);
 
-	if (!no_hypercall)
+	if (!yes_hypercall)
 		ret = HYPERVISOR_platform_op(&op);
 
 	if (!ret) {
@@ -122,7 +122,7 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 		}
 	} else if ((ret != -EINVAL) && (ret != -ENOSYS))
 		/* EINVAL means the ACPI ID is incorrect - meaning the ACPI
-		 * table is referencing a non-existing CPU - which can happen
+		 * table is referencing a yesn-existing CPU - which can happen
 		 * with broken ACPI tables. */
 		pr_err("(CX): Hypervisor error (%d) for ACPI CPU%u\n",
 		       ret, _pr->acpi_id);
@@ -169,7 +169,7 @@ static int xen_copy_psd_data(struct acpi_processor *_pr,
 
 	pdomain = &(_pr->performance->domain_info);
 
-	/* 'acpi_processor_preregister_performance' does not parse if the
+	/* 'acpi_processor_preregister_performance' does yest parse if the
 	 * num_processors <= 1, but Xen still requires it. Do it manually here.
 	 */
 	if (pdomain->num_processors <= 1) {
@@ -188,7 +188,7 @@ static int xen_copy_pct_data(struct acpi_pct_register *pct,
 			     struct xen_pct_register *dst_pct)
 {
 	/* It would be nice if you could just do 'memcpy(pct, dst_pct') but
-	 * sadly the Xen structure did not have the proper padding so the
+	 * sadly the Xen structure did yest have the proper padding so the
 	 * descriptor field takes two (dst_pct) bytes instead of one (pct).
 	 */
 	dst_pct->descriptor = pct->descriptor;
@@ -236,7 +236,7 @@ static int push_pxx_to_hypervisor(struct acpi_processor *_pr)
 		goto err_free;
 	}
 
-	if (!no_hypercall)
+	if (!yes_hypercall)
 		ret = HYPERVISOR_platform_op(&op);
 
 	if (!ret) {
@@ -254,7 +254,7 @@ static int push_pxx_to_hypervisor(struct acpi_processor *_pr)
 		}
 	} else if ((ret != -EINVAL) && (ret != -ENOSYS))
 		/* EINVAL means the ACPI ID is incorrect - meaning the ACPI
-		 * table is referencing a non-existing CPU - which can happen
+		 * table is referencing a yesn-existing CPU - which can happen
 		 * with broken ACPI tables. */
 		pr_warn("(_PXX): Hypervisor error (%d) for ACPI CPU%u\n",
 			ret, _pr->acpi_id);
@@ -429,9 +429,9 @@ upload:
 		unsigned int i;
 		for_each_set_bit(i, acpi_id_present, nr_acpi_bits) {
 			pr_backup->acpi_id = i;
-			/* Mask out C-states if there are no _CST or PBLK */
+			/* Mask out C-states if there are yes _CST or PBLK */
 			pr_backup->flags.power = test_bit(i, acpi_id_cst_present);
-			/* num_entries is non-zero if we evaluated _PSD */
+			/* num_entries is yesn-zero if we evaluated _PSD */
 			if (acpi_psd[i].num_entries) {
 				memcpy(&pr_backup->performance->domain_info,
 				       &acpi_psd[i],
@@ -502,7 +502,7 @@ static void xen_acpi_processor_resume(void)
 	static DECLARE_WORK(wq, xen_acpi_processor_resume_worker);
 
 	/*
-	 * xen_upload_processor_pm_data() calls non-atomic code.
+	 * xen_upload_processor_pm_data() calls yesn-atomic code.
 	 * However, the context for xen_acpi_processor_resume is syscore
 	 * with only the boot CPU online and in an atomic context.
 	 *
@@ -535,9 +535,9 @@ static int __init xen_acpi_processor_init(void)
 		return -ENOMEM;
 	}
 	for_each_possible_cpu(i) {
-		if (!zalloc_cpumask_var_node(
+		if (!zalloc_cpumask_var_yesde(
 			&per_cpu_ptr(acpi_perf_data, i)->shared_cpu_map,
-			GFP_KERNEL, cpu_to_node(i))) {
+			GFP_KERNEL, cpu_to_yesde(i))) {
 			rc = -ENOMEM;
 			goto err_out;
 		}

@@ -41,7 +41,7 @@ ktime_t tick_period;
  *    update is handling it.
  *
  * 2) Hand off the duty in the NOHZ idle case by setting the value to
- *    TICK_DO_TIMER_NONE, i.e. a non existing CPU. So the next cpu which looks
+ *    TICK_DO_TIMER_NONE, i.e. a yesn existing CPU. So the next cpu which looks
  *    at it will take over and keep the time keeping alive.  The handover
  *    procedure also covers cpu hotplug.
  */
@@ -121,7 +121,7 @@ void tick_handle_periodic(struct clock_event_device *dev)
 		return;
 	for (;;) {
 		/*
-		 * Setup the next period for devices, which do not have
+		 * Setup the next period for devices, which do yest have
 		 * periodic mode:
 		 */
 		next = ktime_add(next, tick_period);
@@ -210,7 +210,7 @@ static void tick_setup_device(struct tick_device *td,
 	 */
 	if (!td->evtdev) {
 		/*
-		 * If no cpu took the do_timer update, assign it to
+		 * If yes cpu took the do_timer update, assign it to
 		 * this cpu:
 		 */
 		if (tick_do_timer_cpu == TICK_DO_TIMER_BOOT) {
@@ -220,16 +220,16 @@ static void tick_setup_device(struct tick_device *td,
 			tick_period = NSEC_PER_SEC / HZ;
 #ifdef CONFIG_NO_HZ_FULL
 			/*
-			 * The boot CPU may be nohz_full, in which case set
+			 * The boot CPU may be yeshz_full, in which case set
 			 * tick_do_timer_boot_cpu so the first housekeeping
 			 * secondary that comes up will take do_timer from
 			 * us.
 			 */
-			if (tick_nohz_full_cpu(cpu))
+			if (tick_yeshz_full_cpu(cpu))
 				tick_do_timer_boot_cpu = cpu;
 
 		} else if (tick_do_timer_boot_cpu != -1 &&
-						!tick_nohz_full_cpu(cpu)) {
+						!tick_yeshz_full_cpu(cpu)) {
 			tick_take_do_timer_from_boot();
 			tick_do_timer_boot_cpu = -1;
 			WARN_ON(tick_do_timer_cpu != cpu);
@@ -243,13 +243,13 @@ static void tick_setup_device(struct tick_device *td,
 	} else {
 		handler = td->evtdev->event_handler;
 		next_event = td->evtdev->next_event;
-		td->evtdev->event_handler = clockevents_handle_noop;
+		td->evtdev->event_handler = clockevents_handle_yesop;
 	}
 
 	td->evtdev = newdev;
 
 	/*
-	 * When the device is not per cpu, pin the interrupt to the
+	 * When the device is yest per cpu, pin the interrupt to the
 	 * current cpu:
 	 */
 	if (!cpumask_equal(newdev->cpumask, cpumask))
@@ -279,7 +279,7 @@ void tick_install_replacement(struct clock_event_device *newdev)
 	clockevents_exchange_device(td->evtdev, newdev);
 	tick_setup_device(td, newdev, cpu, cpumask_of(cpu));
 	if (newdev->features & CLOCK_EVT_FEAT_ONESHOT)
-		tick_oneshot_notify();
+		tick_oneshot_yestify();
 }
 
 static bool tick_check_percpu(struct clock_event_device *curdev,
@@ -311,7 +311,7 @@ static bool tick_check_preferred(struct clock_event_device *curdev,
 
 	/*
 	 * Use the higher rated one, but prefer a CPU local device with a lower
-	 * rating than a non-CPU local device
+	 * rating than a yesn-CPU local device
 	 */
 	return !curdev ||
 		newdev->rating > curdev->rating ||
@@ -359,7 +359,7 @@ void tick_check_new_device(struct clock_event_device *newdev)
 	/*
 	 * Replace the eventually existing device by the new
 	 * device. If the current device is the broadcast device, do
-	 * not give it back to the clockevents layer !
+	 * yest give it back to the clockevents layer !
 	 */
 	if (tick_is_broadcast_device(curdev)) {
 		clockevents_shutdown(curdev);
@@ -368,7 +368,7 @@ void tick_check_new_device(struct clock_event_device *newdev)
 	clockevents_exchange_device(curdev, newdev);
 	tick_setup_device(td, newdev, cpu, cpumask_of(cpu));
 	if (newdev->features & CLOCK_EVT_FEAT_ONESHOT)
-		tick_oneshot_notify();
+		tick_oneshot_yestify();
 	return;
 
 out_bc:
@@ -385,8 +385,8 @@ out_bc:
  * The system enters/leaves a state, where affected devices might stop
  * Returns 0 on success, -EBUSY if the cpu is used to broadcast wakeups.
  *
- * Called with interrupts disabled, so clockevents_lock is not
- * required here because the local clock event device cannot go away
+ * Called with interrupts disabled, so clockevents_lock is yest
+ * required here because the local clock event device canyest go away
  * under us.
  */
 int tick_broadcast_oneshot_control(enum tick_broadcast_state state)
@@ -405,7 +405,7 @@ EXPORT_SYMBOL_GPL(tick_broadcast_oneshot_control);
  * Transfer the do_timer job away from a dying cpu.
  *
  * Called with interrupts disabled. Not locking required. If
- * tick_do_timer_cpu is owned by this cpu, nothing can change it.
+ * tick_do_timer_cpu is owned by this cpu, yesthing can change it.
  */
 void tick_handover_do_timer(void)
 {
@@ -420,7 +420,7 @@ void tick_handover_do_timer(void)
 /*
  * Shutdown an event device on a given cpu:
  *
- * This is called on a life CPU, when a CPU is dead. So we cannot
+ * This is called on a life CPU, when a CPU is dead. So we canyest
  * access the hardware device itself.
  * We just set the mode and remove it from the lists.
  */
@@ -437,7 +437,7 @@ void tick_shutdown(unsigned int cpu)
 		 */
 		clockevent_set_state(dev, CLOCK_EVT_STATE_DETACHED);
 		clockevents_exchange_device(dev, NULL);
-		dev->event_handler = clockevents_handle_noop;
+		dev->event_handler = clockevents_handle_yesop;
 		td->evtdev = NULL;
 	}
 }
@@ -518,7 +518,7 @@ static unsigned int tick_freeze_depth;
  * suspend timekeeping.  Otherwise suspend the local tick.
  *
  * Call with interrupts disabled.  Must be balanced with %tick_unfreeze().
- * Interrupts must not be enabled before the subsequent %tick_unfreeze().
+ * Interrupts must yest be enabled before the subsequent %tick_unfreeze().
  */
 void tick_freeze(void)
 {
@@ -545,7 +545,7 @@ void tick_freeze(void)
  * timekeeping.  Otherwise resume the local tick.
  *
  * Call with interrupts disabled.  Must be balanced with %tick_freeze().
- * Interrupts must not be enabled after the preceding %tick_freeze().
+ * Interrupts must yest be enabled after the preceding %tick_freeze().
  */
 void tick_unfreeze(void)
 {
@@ -573,5 +573,5 @@ void tick_unfreeze(void)
 void __init tick_init(void)
 {
 	tick_broadcast_init();
-	tick_nohz_init();
+	tick_yeshz_init();
 }

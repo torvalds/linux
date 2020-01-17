@@ -138,7 +138,7 @@ int test__thread_map_remove(struct test *test __maybe_unused, int subtest __mayb
 	if (verbose > 0)
 		thread_map__fprintf(threads, stderr);
 
-	TEST_ASSERT_VAL("failed to not remove thread",
+	TEST_ASSERT_VAL("failed to yest remove thread",
 			thread_map__remove(threads, 0));
 
 	for (i = 0; i < threads->nr; i++)

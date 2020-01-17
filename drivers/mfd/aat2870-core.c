@@ -131,7 +131,7 @@ static int __aat2870_write(struct aat2870_data *aat2870, u8 addr, u8 val)
 	}
 
 	if (!aat2870->reg_cache[addr].writeable) {
-		dev_err(aat2870->dev, "Address 0x%02x is not writeable\n",
+		dev_err(aat2870->dev, "Address 0x%02x is yest writeable\n",
 			addr);
 		return -EINVAL;
 	}

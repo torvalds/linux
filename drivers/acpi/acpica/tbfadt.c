@@ -169,7 +169,7 @@ acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
 	bit_width = (u8)(byte_width * 8);
 	if (byte_width > 31) {	/* (31*8)=248, (32*8)=256 */
 		/*
-		 * No error for GPE blocks, because we do not use the bit_width
+		 * No error for GPE blocks, because we do yest use the bit_width
 		 * for GPEs, the legacy length (byte_width) is used instead to
 		 * allow for a large number of GPEs.
 		 */
@@ -185,7 +185,7 @@ acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
 	}
 
 	/*
-	 * The 64-bit Address field is non-aligned in the byte packed
+	 * The 64-bit Address field is yesn-aligned in the byte packed
 	 * GAS struct.
 	 */
 	ACPI_MOVE_64_TO_64(&generic_address->address, &address);
@@ -295,7 +295,7 @@ void acpi_tb_parse_fadt(void)
 	length = fadt_desc->length;
 
 	/*
-	 * Validate the FADT checksum before we copy the table. Ignore
+	 * Validate the FADT checksum before we copy the table. Igyesre
 	 * checksum error as we want to try to get the DSDT and FACS.
 	 */
 	(void)acpi_tb_verify_checksum(table, length);
@@ -315,7 +315,7 @@ void acpi_tb_parse_fadt(void)
 				       ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
 				       FALSE, TRUE, &acpi_gbl_dsdt_index);
 
-	/* If Hardware Reduced flag is set, there is no FACS */
+	/* If Hardware Reduced flag is set, there is yes FACS */
 
 	if (!acpi_gbl_reduced_hardware) {
 		if (acpi_gbl_FADT.facs) {
@@ -396,7 +396,7 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
  *
  * FUNCTION:    acpi_tb_convert_fadt
  *
- * PARAMETERS:  none - acpi_gbl_FADT is used.
+ * PARAMETERS:  yesne - acpi_gbl_FADT is used.
  *
  * RETURN:      None
  *
@@ -418,13 +418,13 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
  * 32-bit V1.0 fields to the 64-bit X fields if the 64-bit X field is originally
  * zero.
  *
- * For ACPI 1.0 FADTs (that contain no 64-bit addresses), all 32-bit address
+ * For ACPI 1.0 FADTs (that contain yes 64-bit addresses), all 32-bit address
  * fields are expanded to the corresponding 64-bit X fields in the internal
  * common FADT.
  *
- * For ACPI 2.0+ FADTs, all valid (non-zero) 32-bit address fields are expanded
+ * For ACPI 2.0+ FADTs, all valid (yesn-zero) 32-bit address fields are expanded
  * to the corresponding 64-bit X fields, if the 64-bit field is originally
- * zero. Adhering to the ACPI specification, we completely ignore the 32-bit
+ * zero. Adhering to the ACPI specification, we completely igyesre the 32-bit
  * field if the 64-bit field is valid, regardless of whether the host OS is
  * 32-bit or 64-bit.
  *
@@ -512,7 +512,7 @@ static void acpi_tb_convert_fadt(void)
 		 * the 64-bit address structures.
 		 *
 		 * November 2013:
-		 * Now always use the 64-bit address if it is valid (non-zero), in
+		 * Now always use the 64-bit address if it is valid (yesn-zero), in
 		 * accordance with the ACPI specification which states that a 64-bit
 		 * address supersedes the 32-bit version. This behavior can be
 		 * overridden by the acpi_gbl_use32_bit_fadt_addresses flag.
@@ -523,14 +523,14 @@ static void acpi_tb_convert_fadt(void)
 		 * Address32 zero, Address64 [don't care]   - Use Address64
 		 *
 		 * No override: if acpi_gbl_use32_bit_fadt_addresses is FALSE, and:
-		 * Address32 non-zero, Address64 zero       - Copy/use Address32
-		 * Address32 non-zero == Address64 non-zero - Use Address64
-		 * Address32 non-zero != Address64 non-zero - Warning, use Address64
+		 * Address32 yesn-zero, Address64 zero       - Copy/use Address32
+		 * Address32 yesn-zero == Address64 yesn-zero - Use Address64
+		 * Address32 yesn-zero != Address64 yesn-zero - Warning, use Address64
 		 *
 		 * Override: if acpi_gbl_use32_bit_fadt_addresses is TRUE, and:
-		 * Address32 non-zero, Address64 zero       - Copy/use Address32
-		 * Address32 non-zero == Address64 non-zero - Copy/use Address32
-		 * Address32 non-zero != Address64 non-zero - Warning, copy/use Address32
+		 * Address32 yesn-zero, Address64 zero       - Copy/use Address32
+		 * Address32 yesn-zero == Address64 yesn-zero - Copy/use Address32
+		 * Address32 yesn-zero != Address64 yesn-zero - Warning, copy/use Address32
 		 *
 		 * Note: space_id is always I/O for 32-bit legacy address fields
 		 */
@@ -554,7 +554,7 @@ static void acpi_tb_convert_fadt(void)
 				 * For each extended field, check for length mismatch
 				 * between the legacy length field and the corresponding
 				 * 64-bit X length field.
-				 * Note: If the legacy length field is > 0xFF bits, ignore
+				 * Note: If the legacy length field is > 0xFF bits, igyesre
 				 * this check. (GPE registers can be larger than the
 				 * 64-bit GAS structure can accommodate, 0xFF bits).
 				 */
@@ -593,7 +593,7 @@ static void acpi_tb_convert_fadt(void)
 		if (fadt_info_table[i].flags & ACPI_FADT_REQUIRED) {
 			/*
 			 * Field is required (Pm1a_event, Pm1a_control).
-			 * Both the address and length must be non-zero.
+			 * Both the address and length must be yesn-zero.
 			 */
 			if (!address64->address || !length) {
 				ACPI_BIOS_ERROR((AE_INFO,
@@ -691,7 +691,7 @@ static void acpi_tb_setup_fadt_registers(void)
 
 	/*
 	 * Calculate separate GAS structs for the PM1x (A/B) Status and Enable
-	 * registers. These addresses do not appear (directly) in the FADT, so it
+	 * registers. These addresses do yest appear (directly) in the FADT, so it
 	 * is useful to pre-calculate them from the PM1 Event Block definitions.
 	 *
 	 * The PM event blocks are split into two register blocks, first is the

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -27,7 +27,7 @@
 
 /*
  * Note: Only for GVT-g virtual VBT generation, other usage must
- * not do like this.
+ * yest do like this.
  */
 #define _INTEL_BIOS_PRIVATE
 #include "display/intel_vbt_defs.h"
@@ -63,7 +63,7 @@ struct bdb_data_header {
 
 /* For supporting windows guest with opregion, here hardcode the emulated
  * bdb header version as '186', and the corresponding child_device_config
- * length should be '33' but not '38'.
+ * length should be '33' but yest '38'.
  */
 struct efp_child_device_config {
 	u16 handle;
@@ -243,7 +243,7 @@ int intel_vgpu_init_opregion(struct intel_vgpu *vgpu)
 	header->opregion_ver = 0x02000000;
 	header->mboxes = MBOX_VBT;
 
-	/* for unknown reason, the value in LID field is incorrect
+	/* for unkyeswn reason, the value in LID field is incorrect
 	 * which block the windows guest, so workaround it by force
 	 * setting it to "OPEN"
 	 */
@@ -272,7 +272,7 @@ static int map_vgpu_opregion(struct intel_vgpu *vgpu, bool map)
 				vgpu_opregion(vgpu)->gfn[i],
 				mfn, 1, map);
 		if (ret) {
-			gvt_vgpu_err("fail to map GFN to MFN, errno: %d\n",
+			gvt_vgpu_err("fail to map GFN to MFN, erryes: %d\n",
 				ret);
 			return ret;
 		}
@@ -319,7 +319,7 @@ int intel_vgpu_opregion_base_write_handler(struct intel_vgpu *vgpu, u32 gpa)
 		break;
 	default:
 		ret = -EINVAL;
-		gvt_vgpu_err("not supported hypervisor\n");
+		gvt_vgpu_err("yest supported hypervisor\n");
 	}
 
 	return ret;
@@ -387,7 +387,7 @@ static const char *opregion_func_name(u32 func)
 		break;
 
 	default:
-		name = "Unknown";
+		name = "Unkyeswn";
 		break;
 	}
 	return name;
@@ -432,7 +432,7 @@ static const char *opregion_subfunc_name(u32 subfunc)
 		break;
 
 	default:
-		name = "Unknown";
+		name = "Unkyeswn";
 		break;
 	}
 	return name;
@@ -502,7 +502,7 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 
 		break;
 	default:
-		gvt_vgpu_err("not supported hypervisor\n");
+		gvt_vgpu_err("yest supported hypervisor\n");
 		return -EINVAL;
 	}
 
@@ -510,7 +510,7 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 		gvt_vgpu_err("requesting SMI service\n");
 		return 0;
 	}
-	/* ignore non 0->1 trasitions */
+	/* igyesre yesn 0->1 trasitions */
 	if ((vgpu_cfg_space(vgpu)[INTEL_GVT_PCI_SWSCI]
 				& SWSCI_SCI_TRIGGER) ||
 			!(swsci & SWSCI_SCI_TRIGGER)) {
@@ -526,7 +526,7 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 				opregion_subfunc_name(subfunc));
 		/*
 		 * emulate exit status of function call, '0' means
-		 * "failure, generic, unsupported or unknown cause"
+		 * "failure, generic, unsupported or unkyeswn cause"
 		 */
 		scic &= ~OPREGION_SCIC_EXIT_MASK;
 		goto out;
@@ -562,7 +562,7 @@ out:
 
 		break;
 	default:
-		gvt_vgpu_err("not supported hypervisor\n");
+		gvt_vgpu_err("yest supported hypervisor\n");
 		return -EINVAL;
 	}
 

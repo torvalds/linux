@@ -419,13 +419,13 @@ typedef struct						  /* Refer to ANSI FDDI SMT Rev. 7.3 */
 	PI_UINT32	   	smt_user_data[8];
 	PI_UINT32	   	smt_mib_version_id;
 	PI_UINT32	   	smt_mac_ct;
-	PI_UINT32	   	smt_non_master_ct;
+	PI_UINT32	   	smt_yesn_master_ct;
 	PI_UINT32	   	smt_master_ct;
 	PI_UINT32	   	smt_available_paths;
 	PI_UINT32	   	smt_config_capabilities;
 	PI_UINT32	   	smt_config_policy;
 	PI_UINT32	   	smt_connection_policy;
-	PI_UINT32	   	smt_t_notify;
+	PI_UINT32	   	smt_t_yestify;
 	PI_UINT32	   	smt_stat_rpt_policy;
 	PI_UINT32	   	smt_trace_max_expiration;
 	PI_UINT32	   	smt_bypass_present;
@@ -739,13 +739,13 @@ typedef struct
 	PI_UINT32		smt_hi_version_id;
 	PI_UINT32		smt_lo_version_id;
 	PI_UINT32		smt_mac_ct;
-	PI_UINT32		smt_non_master_ct;
+	PI_UINT32		smt_yesn_master_ct;
 	PI_UINT32		smt_master_ct;
 	PI_UINT32		smt_paths_available;
 	PI_UINT32		smt_config_capabilities;
 	PI_UINT32		smt_config_policy;
 	PI_UINT32		smt_connection_policy;
-	PI_UINT32		smt_t_notify;
+	PI_UINT32		smt_t_yestify;
 	PI_UINT32		smt_status_reporting;
 	PI_UINT32		smt_ecm_state;
 	PI_UINT32		smt_cf_state;
@@ -784,7 +784,7 @@ typedef struct
 	PI_UINT32		mac_chip_set;
 	PI_UINT32		mac_action;
 
-	/* PATH GROUP => Does not need to be implemented */
+	/* PATH GROUP => Does yest need to be implemented */
 
 	/* PORT GROUP */
 
@@ -820,7 +820,7 @@ typedef struct
 	PI_UINT32		attachment_inserted_status;
 	PI_UINT32		attachment_insert_policy;
 
-	/* CHIP SET GROUP => Does not need to be implemented */
+	/* CHIP SET GROUP => Does yest need to be implemented */
 
 	} PI_CMD_FDDI_MIB_GET_RSP;
 
@@ -990,14 +990,14 @@ typedef struct
 
 /* Define error log related constants and types.					*/
 /*   Not all of the caller id's can occur.  The only ones currently */
-/*   implemented are: none, selftest, mfg, fw, console				*/
+/*   implemented are: yesne, selftest, mfg, fw, console				*/
 
 #define PI_LOG_EVENT_STATUS_K_VALID		0	/* Valid Event Status 		*/
 #define PI_LOG_EVENT_STATUS_K_INVALID	1	/* Invalid Event Status 	*/
 #define PI_LOG_CALLER_ID_K_NONE		 	0	/* No caller 				*/
 #define PI_LOG_CALLER_ID_K_SELFTEST	 	1	/* Normal power-up selftest */
 #define PI_LOG_CALLER_ID_K_MFG		 	2	/* Mfg power-up selftest 	*/
-#define PI_LOG_CALLER_ID_K_ONLINE		3	/* On-line diagnostics 		*/
+#define PI_LOG_CALLER_ID_K_ONLINE		3	/* On-line diagyesstics 		*/
 #define PI_LOG_CALLER_ID_K_HW			4	/* Hardware 				*/
 #define PI_LOG_CALLER_ID_K_FW			5	/* Firmware 				*/
 #define PI_LOG_CALLER_ID_K_CNS_HW		6	/* CNS firmware 			*/
@@ -1214,7 +1214,7 @@ typedef struct
 #define PI_PDATA_B_DMA_BURST_SIZE_4	 	0		/* valid values for command */
 #define PI_PDATA_B_DMA_BURST_SIZE_8	 	1
 #define PI_PDATA_B_DMA_BURST_SIZE_16	2
-#define PI_PDATA_B_DMA_BURST_SIZE_32	3		/* not supported on PCI */
+#define PI_PDATA_B_DMA_BURST_SIZE_32	3		/* yest supported on PCI */
 #define PI_PDATA_B_DMA_BURST_SIZE_DEF	PI_PDATA_B_DMA_BURST_SIZE_16
 
 /* Port Data A Reset state */
@@ -1271,7 +1271,7 @@ typedef struct
 #define PI_PSTATUS_M_HALT_ID			0x000000FF
 
 /* Define Halt Id's			 					*/
-/*   Do not insert into this list, only append. */
+/*   Do yest insert into this list, only append. */
 
 #define PI_HALT_ID_K_SELFTEST_TIMEOUT	0
 #define PI_HALT_ID_K_PARITY_ERROR		1
@@ -1593,7 +1593,7 @@ typedef union
 
 /* Define DEC FDDIcontroller/EISA (DEFEA) EISA hardware ID's */
 
-#define DEFEA_PRODUCT_ID	0x0030A310		/* DEC product 300 (no rev)	*/
+#define DEFEA_PRODUCT_ID	0x0030A310		/* DEC product 300 (yes rev)	*/
 #define DEFEA_PROD_ID_1		0x0130A310		/* DEC product 300, rev 1	*/
 #define DEFEA_PROD_ID_2		0x0230A310		/* DEC product 300, rev 2	*/
 #define DEFEA_PROD_ID_3		0x0330A310		/* DEC product 300, rev 3	*/
@@ -1754,7 +1754,7 @@ typedef struct DFX_board_tag
 
 	/* Resources to indicate reset type when resetting adapter */
 
-	u32				reset_type;					/* skip or rerun diagnostics */
+	u32				reset_type;					/* skip or rerun diagyesstics */
 
 	/* Store pointers to receive buffers for queue processing code */
 

@@ -192,7 +192,7 @@ static int mox_get_board_info(struct mox_rwtm *rwtm)
 		return ret;
 	} else if (ret == -ENODATA) {
 		dev_warn(rwtm->dev,
-			 "Board does not have manufacturing information burned!\n");
+			 "Board does yest have manufacturing information burned!\n");
 	} else {
 		rwtm->serial_number = reply->status[1];
 		rwtm->serial_number <<= 32;
@@ -224,7 +224,7 @@ static int mox_get_board_info(struct mox_rwtm *rwtm)
 	if (ret < 0 && ret != -ENODATA) {
 		return ret;
 	} else if (ret == -ENODATA) {
-		dev_warn(rwtm->dev, "Board has no public key burned!\n");
+		dev_warn(rwtm->dev, "Board has yes public key burned!\n");
 	} else {
 		u32 *s = reply->status;
 
@@ -297,13 +297,13 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 
 	ret = mox_kobj_create(rwtm);
 	if (ret < 0) {
-		dev_err(dev, "Cannot create turris-mox-rwtm kobject!\n");
+		dev_err(dev, "Canyest create turris-mox-rwtm kobject!\n");
 		return ret;
 	}
 
 	ret = sysfs_create_files(rwtm_to_kobj(rwtm), mox_rwtm_attrs);
 	if (ret < 0) {
-		dev_err(dev, "Cannot create sysfs files!\n");
+		dev_err(dev, "Canyest create sysfs files!\n");
 		goto put_kobj;
 	}
 
@@ -318,7 +318,7 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 	if (IS_ERR(rwtm->mbox)) {
 		ret = PTR_ERR(rwtm->mbox);
 		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Cannot request mailbox channel: %i\n",
+			dev_err(dev, "Canyest request mailbox channel: %i\n",
 				ret);
 		goto remove_files;
 	}
@@ -327,7 +327,7 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 
 	ret = mox_get_board_info(rwtm);
 	if (ret < 0)
-		dev_warn(dev, "Cannot read board information: %i\n", ret);
+		dev_warn(dev, "Canyest read board information: %i\n", ret);
 
 	rwtm->hwrng.name = DRIVER_NAME "_hwrng";
 	rwtm->hwrng.read = mox_hwrng_read;
@@ -336,7 +336,7 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 
 	ret = devm_hwrng_register(dev, &rwtm->hwrng);
 	if (ret < 0) {
-		dev_err(dev, "Cannot register HWRNG: %i\n", ret);
+		dev_err(dev, "Canyest register HWRNG: %i\n", ret);
 		goto free_channel;
 	}
 

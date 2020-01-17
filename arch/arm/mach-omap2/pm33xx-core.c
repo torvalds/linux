@@ -8,7 +8,7 @@
 
 #include <asm/smp_scu.h>
 #include <asm/suspend.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/platform_data/pm33xx.h>
 #include <linux/clk.h>
 #include <linux/platform_data/gpio-omap.h>
@@ -47,9 +47,9 @@ static int am43xx_map_scu(void)
 static int am33xx_check_off_mode_enable(void)
 {
 	if (enable_off_mode)
-		pr_warn("WARNING: This platform does not support off-mode, entering DeepSleep suspend.\n");
+		pr_warn("WARNING: This platform does yest support off-mode, entering DeepSleep suspend.\n");
 
-	/* off mode not supported on am335x so return 0 always */
+	/* off mode yest supported on am335x so return 0 always */
 	return 0;
 }
 
@@ -62,7 +62,7 @@ static int am43xx_check_off_mode_enable(void)
 	if (of_machine_is_compatible("ti,am437x-gp-evm") && enable_off_mode)
 		return enable_off_mode;
 	else if (enable_off_mode)
-		pr_warn("WARNING: This platform does not support off-mode, entering DeepSleep suspend.\n");
+		pr_warn("WARNING: This platform does yest support off-mode, entering DeepSleep suspend.\n");
 
 	return 0;
 }
@@ -97,7 +97,7 @@ static int am33xx_suspend_init(void)
 	gfx_l4ls_clkdm = clkdm_lookup("gfx_l4ls_gfx_clkdm");
 
 	if (!gfx_l4ls_clkdm) {
-		pr_err("PM: Cannot lookup gfx_l4ls_clkdm clockdomains\n");
+		pr_err("PM: Canyest lookup gfx_l4ls_clkdm clockdomains\n");
 		return -ENODEV;
 	}
 
@@ -112,7 +112,7 @@ static int am43xx_suspend_init(void)
 
 	ret = am43xx_map_scu();
 	if (ret) {
-		pr_err("PM: Could not ioremap SCU\n");
+		pr_err("PM: Could yest ioremap SCU\n");
 		return ret;
 	}
 
@@ -135,7 +135,7 @@ static void amx3_post_suspend_common(void)
 	 */
 	status = pwrdm_read_pwrst(gfx_pwrdm);
 	if (status != PWRDM_POWER_OFF)
-		pr_err("PM: GFX domain did not transition: %x\n", status);
+		pr_err("PM: GFX domain did yest transition: %x\n", status);
 }
 
 static int am33xx_suspend(unsigned int state, int (*fn)(unsigned long),
@@ -149,8 +149,8 @@ static int am33xx_suspend(unsigned int state, int (*fn)(unsigned long),
 
 	/*
 	 * BUG: GFX_L4LS clock domain needs to be woken up to
-	 * ensure thet L4LS clock domain does not get stuck in
-	 * transition. If that happens L3 module does not get
+	 * ensure thet L4LS clock domain does yest get stuck in
+	 * transition. If that happens L3 module does yest get
 	 * disabled, thereby leading to PER power domain
 	 * transition failing
 	 */

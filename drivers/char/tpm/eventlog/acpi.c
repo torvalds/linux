@@ -55,7 +55,7 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 
 	log = &chip->log;
 
-	/* Unfortuntely ACPI does not associate the event log with a specific
+	/* Unfortuntely ACPI does yest associate the event log with a specific
 	 * TPM, like PPI. Thus all ACPI TPMs will read the same log.
 	 */
 	if (!chip->acpi_dev_handle)

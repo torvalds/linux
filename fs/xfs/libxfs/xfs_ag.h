@@ -12,7 +12,7 @@ struct xfs_trans;
 
 struct aghdr_init_data {
 	/* per ag data */
-	xfs_agblock_t		agno;		/* ag to init */
+	xfs_agblock_t		agyes;		/* ag to init */
 	xfs_extlen_t		agsize;		/* new AG size */
 	struct list_head	buffer_list;	/* buffer writeback list */
 	xfs_rfsblock_t		nfree;		/* cumulative new free space */
@@ -26,7 +26,7 @@ struct aghdr_init_data {
 int xfs_ag_init_headers(struct xfs_mount *mp, struct aghdr_init_data *id);
 int xfs_ag_extend_space(struct xfs_mount *mp, struct xfs_trans *tp,
 			struct aghdr_init_data *id, xfs_extlen_t len);
-int xfs_ag_get_geometry(struct xfs_mount *mp, xfs_agnumber_t agno,
+int xfs_ag_get_geometry(struct xfs_mount *mp, xfs_agnumber_t agyes,
 			struct xfs_ag_geometry *ageo);
 
 #endif /* __LIBXFS_AG_H */

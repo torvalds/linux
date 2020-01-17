@@ -15,7 +15,7 @@
 #include "kselftest.h"
 
 /* Dumps the current stack trace to stderr. */
-static void __attribute__((noinline)) test_dump_stack(void);
+static void __attribute__((yesinline)) test_dump_stack(void);
 static void test_dump_stack(void)
 {
 	/*
@@ -24,7 +24,7 @@ static void test_dump_stack(void)
 	 *	addr2line -s -e /proc/$PPID/exe -fpai {backtrace addresses} | \
 	 *		grep -v test_dump_stack | cat -n 1>&2
 	 *
-	 * Note that the spacing is different and there's no newline.
+	 * Note that the spacing is different and there's yes newline.
 	 */
 	size_t i;
 	size_t n = 20;
@@ -44,15 +44,15 @@ static void test_dump_stack(void)
 	/*
 	 * Skip the first 3 frames: backtrace, test_dump_stack, and
 	 * test_assert. We hope that backtrace isn't inlined and the other two
-	 * we've declared noinline.
+	 * we've declared yesinline.
 	 */
 	for (i = 2; i < n; i++)
 		c += sprintf(c, " %lx", ((unsigned long) stack[i]) - 1);
 	c += sprintf(c, "%s", pipeline);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-result"
+#pragma GCC diagyesstic push
+#pragma GCC diagyesstic igyesred "-Wunused-result"
 	system(cmd);
-#pragma GCC diagnostic pop
+#pragma GCC diagyesstic pop
 }
 
 static pid_t _gettid(void)
@@ -60,7 +60,7 @@ static pid_t _gettid(void)
 	return syscall(SYS_gettid);
 }
 
-void __attribute__((noinline))
+void __attribute__((yesinline))
 test_assert(bool exp, const char *exp_str,
 	const char *file, unsigned int line, const char *fmt, ...)
 {
@@ -73,7 +73,7 @@ test_assert(bool exp, const char *exp_str,
 			"  %s:%u: %s\n"
 			"  pid=%d tid=%d - %s\n",
 			file, line, exp_str, getpid(), _gettid(),
-			strerror(errno));
+			strerror(erryes));
 		test_dump_stack();
 		if (fmt) {
 			fputs("  ", stderr);
@@ -82,7 +82,7 @@ test_assert(bool exp, const char *exp_str,
 		}
 		va_end(ap);
 
-		if (errno == EACCES)
+		if (erryes == EACCES)
 			ksft_exit_skip("Access denied - Exiting.\n");
 		exit(254);
 	}

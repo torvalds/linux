@@ -279,7 +279,7 @@ int ext_sd_send_cmd_get_rsp(struct rtsx_chip *chip, u8 cmd_idx,
 int ext_sd_get_rsp(struct rtsx_chip *chip, int len, u8 *rsp, u8 rsp_type);
 
 int sd_pass_thru_mode(struct scsi_cmnd *srb, struct rtsx_chip *chip);
-int sd_execute_no_data(struct scsi_cmnd *srb, struct rtsx_chip *chip);
+int sd_execute_yes_data(struct scsi_cmnd *srb, struct rtsx_chip *chip);
 int sd_execute_read_data(struct scsi_cmnd *srb, struct rtsx_chip *chip);
 int sd_execute_write_data(struct scsi_cmnd *srb, struct rtsx_chip *chip);
 int sd_get_cmd_rsp(struct scsi_cmnd *srb, struct rtsx_chip *chip);

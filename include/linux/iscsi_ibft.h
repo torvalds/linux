@@ -5,7 +5,7 @@
  *  Copyright 2007 IBM, Inc.
  *  by Konrad Rzeszutek <konradr@linux.vnet.ibm.com>
  *  Copyright 2008
- *  by Konrad Rzeszutek <ketuzsezr@darnok.org>
+ *  by Konrad Rzeszutek <ketuzsezr@daryesk.org>
  *
  * This code exposes the iSCSI Boot Format Table to userland via sysfs.
  */
@@ -17,7 +17,7 @@
 
 /*
  * Logical location of iSCSI Boot Format Table.
- * If the value is NULL there is no iBFT on the machine.
+ * If the value is NULL there is yes iBFT on the machine.
  */
 extern struct acpi_table_ibft *ibft_addr;
 

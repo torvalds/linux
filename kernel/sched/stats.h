@@ -107,7 +107,7 @@ static inline void psi_ttwu_dequeue(struct task_struct *p)
 	/*
 	 * Is the task being migrated during a wakeup? Make sure to
 	 * deregister its sleep-persistent psi states from the old
-	 * queue, and let psi_enqueue() know it has to requeue.
+	 * queue, and let psi_enqueue() kyesw it has to requeue.
 	 */
 	if (unlikely(p->in_iowait || (p->flags & PF_MEMSTALL))) {
 		struct rq_flags rf;
@@ -148,18 +148,18 @@ static inline void sched_info_reset_dequeued(struct task_struct *t)
 }
 
 /*
- * We are interested in knowing how long it was from the *first* time a
+ * We are interested in kyeswing how long it was from the *first* time a
  * task was queued to the time that it finally hit a CPU, we call this routine
  * from dequeue_task() to account for possible rq->clock skew across CPUs. The
  * delta taken on each CPU would annul the skew.
  */
 static inline void sched_info_dequeued(struct rq *rq, struct task_struct *t)
 {
-	unsigned long long now = rq_clock(rq), delta = 0;
+	unsigned long long yesw = rq_clock(rq), delta = 0;
 
 	if (sched_info_on()) {
 		if (t->sched_info.last_queued)
-			delta = now - t->sched_info.last_queued;
+			delta = yesw - t->sched_info.last_queued;
 	}
 	sched_info_reset_dequeued(t);
 	t->sched_info.run_delay += delta;
@@ -168,19 +168,19 @@ static inline void sched_info_dequeued(struct rq *rq, struct task_struct *t)
 }
 
 /*
- * Called when a task finally hits the CPU.  We can now calculate how
- * long it was waiting to run.  We also note when it began so that we
+ * Called when a task finally hits the CPU.  We can yesw calculate how
+ * long it was waiting to run.  We also yeste when it began so that we
  * can keep stats on how long its timeslice is.
  */
 static void sched_info_arrive(struct rq *rq, struct task_struct *t)
 {
-	unsigned long long now = rq_clock(rq), delta = 0;
+	unsigned long long yesw = rq_clock(rq), delta = 0;
 
 	if (t->sched_info.last_queued)
-		delta = now - t->sched_info.last_queued;
+		delta = yesw - t->sched_info.last_queued;
 	sched_info_reset_dequeued(t);
 	t->sched_info.run_delay += delta;
-	t->sched_info.last_arrival = now;
+	t->sched_info.last_arrival = yesw;
 	t->sched_info.pcount++;
 
 	rq_sched_info_arrive(rq, delta);
@@ -188,7 +188,7 @@ static void sched_info_arrive(struct rq *rq, struct task_struct *t)
 
 /*
  * This function is only called from enqueue_task(), but also only updates
- * the timestamp if it is already not set.  It's assumed that
+ * the timestamp if it is already yest set.  It's assumed that
  * sched_info_dequeued() will clear that stamp when appropriate.
  */
 static inline void sched_info_queued(struct rq *rq, struct task_struct *t)
@@ -204,7 +204,7 @@ static inline void sched_info_queued(struct rq *rq, struct task_struct *t)
  * due, typically, to expiring its time slice (this may also be called when
  * switching to the idle task).  Now we can calculate how long we ran.
  * Also, if the process is still in the TASK_RUNNING state, call
- * sched_info_queued() to mark that it has now again started waiting on
+ * sched_info_queued() to mark that it has yesw again started waiting on
  * the runqueue.
  */
 static inline void sched_info_depart(struct rq *rq, struct task_struct *t)
@@ -226,7 +226,7 @@ static inline void
 __sched_info_switch(struct rq *rq, struct task_struct *prev, struct task_struct *next)
 {
 	/*
-	 * prev now departs the CPU.  It's not interesting to record
+	 * prev yesw departs the CPU.  It's yest interesting to record
 	 * stats about how efficient we were at scheduling the idle
 	 * process, however.
 	 */

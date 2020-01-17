@@ -23,8 +23,8 @@ Example old-style driver
 
   static struct i2c_driver example_driver;
 
-  static unsigned short ignore[] = { I2C_CLIENT_END };
-  static unsigned short normal_addr[] = { OUR_ADDR, I2C_CLIENT_END };
+  static unsigned short igyesre[] = { I2C_CLIENT_END };
+  static unsigned short yesrmal_addr[] = { OUR_ADDR, I2C_CLIENT_END };
 
   I2C_CLIENT_INSMOD;
 
@@ -99,8 +99,8 @@ as follows::
 
   - static struct i2c_driver example_driver;
 
-  - static unsigned short ignore[] = { I2C_CLIENT_END };
-  - static unsigned short normal_addr[] = { OUR_ADDR, I2C_CLIENT_END };
+  - static unsigned short igyesre[] = { I2C_CLIENT_END };
+  - static unsigned short yesrmal_addr[] = { OUR_ADDR, I2C_CLIENT_END };
 
   - I2C_CLIENT_INSMOD;
 
@@ -129,7 +129,7 @@ which include the i2c_client that it will be working with::
   +			   const struct i2c_device_id *id)
 
 Change the name of example_attach to example_probe to align it with the
-i2c_driver entry names. The rest of the probe routine will now need to be
+i2c_driver entry names. The rest of the probe routine will yesw need to be
 changed as the i2c_client has already been setup for use.
 
 The necessary client fields have already been setup before
@@ -142,12 +142,12 @@ can be removed::
   -
   -	strscpy(client->i2c_client.name, "example", sizeof(client->i2c_client.name));
 
-The i2c_set_clientdata is now::
+The i2c_set_clientdata is yesw::
 
   -	i2c_set_clientdata(&state->client, state);
   +	i2c_set_clientdata(client, state);
 
-The call to i2c_attach_client is no longer needed, if the probe
+The call to i2c_attach_client is yes longer needed, if the probe
 routine exits successfully, then the driver will be automatically
 attached by the core. Change the probe routine as so::
 
@@ -174,7 +174,7 @@ the new i2c client as so::
   -	struct device *dev = &adap->dev;  /* to use for dev_ reports */
   + 	struct device *dev = &i2c_client->dev;  /* to use for dev_ reports */
 
-And remove the change after our client is attached, as the driver no
+And remove the change after our client is attached, as the driver yes
 longer needs to register a new client structure with the core::
 
   -	dev = &state->i2c_client.dev;
@@ -199,7 +199,7 @@ in it::
 
 Update the detach method, by changing the name to _remove and
 to delete the i2c_detach_client call. It is possible that you
-can also remove the ret variable as it is not needed for any
+can also remove the ret variable as it is yest needed for any
 of the core functions.
 
 ::
@@ -229,7 +229,7 @@ and other utilities::
   +	.id_table	= example_ids,
 
 
-Our driver should now look like this::
+Our driver should yesw look like this::
 
   struct example_state {
 	struct i2c_client	*client;

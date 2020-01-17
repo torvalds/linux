@@ -251,7 +251,7 @@ int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
 	int misc_cfg = MV88E6352_G2_SCRATCH_MISC_CFG;
 	int config_data1 = MV88E6352_G2_SCRATCH_CONFIG_DATA1;
 	int config_data2 = MV88E6352_G2_SCRATCH_CONFIG_DATA2;
-	bool no_cpu;
+	bool yes_cpu;
 	u8 p0_mode;
 	int err;
 	u8 val;
@@ -269,14 +269,14 @@ int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
 	if (err)
 		return err;
 
-	no_cpu = !!(val & MV88E6352_G2_SCRATCH_CONFIG_DATA1_NO_CPU);
+	yes_cpu = !!(val & MV88E6352_G2_SCRATCH_CONFIG_DATA1_NO_CPU);
 
 	err = mv88e6xxx_g2_scratch_read(chip, misc_cfg, &val);
 	if (err)
 		return err;
 
 	/* NO_CPU being 0 inverts the meaning of the bit */
-	if (!no_cpu)
+	if (!yes_cpu)
 		external = !external;
 
 	if (external)

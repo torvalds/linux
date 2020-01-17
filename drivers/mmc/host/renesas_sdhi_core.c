@@ -76,7 +76,7 @@ static void renesas_sdhi_sdbuf_width(struct tmio_mmc_host *host, int width)
 			val = 0x0001;
 		break;
 	default:
-		/* nothing to do */
+		/* yesthing to do */
 		return;
 	}
 
@@ -99,7 +99,7 @@ static int renesas_sdhi_clk_enable(struct tmio_mmc_host *host)
 	}
 
 	/*
-	 * The clock driver may not know what maximum frequency
+	 * The clock driver may yest kyesw what maximum frequency
 	 * actually works, so it should be set with the max-frequency
 	 * property which will already have been read to f_max.  If it
 	 * was missing, assume the current frequency is the maximum.
@@ -131,10 +131,10 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 		return clk_get_rate(priv->clk);
 
 	/*
-	 * We want the bus clock to be as close as possible to, but no
+	 * We want the bus clock to be as close as possible to, but yes
 	 * greater than, new_clock.  As we can divide by 1 << i for
 	 * any i in [0, 9] we want the input clock to be as close as
-	 * possible, but no greater than, new_clock << i.
+	 * possible, but yes greater than, new_clock << i.
 	 */
 	for (i = min(9, ilog2(UINT_MAX / new_clock)); i >= 0; i--) {
 		freq = clk_round_rate(priv->clk, new_clock << i);
@@ -193,7 +193,7 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 
 out:
-	/* HW engineers overrode docs: no sleep needed on R-Car2+ */
+	/* HW engineers overrode docs: yes sleep needed on R-Car2+ */
 	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
 		usleep_range(10000, 11000);
 }
@@ -594,7 +594,7 @@ static int renesas_sdhi_multi_io_quirk(struct mmc_card *card,
 	 * multiple block read of one or two blocks,
 	 * depending on the timing with which the
 	 * response register is read, the response
-	 * value may not be read properly.
+	 * value may yest be read properly.
 	 * Use single block read for this HW bug
 	 */
 	if ((direction == MMC_DATA_READ) &&
@@ -613,7 +613,7 @@ static void renesas_sdhi_enable_dma(struct tmio_mmc_host *host, bool enable)
 	renesas_sdhi_sdbuf_width(host, enable ? width : 16);
 }
 
-static const struct renesas_sdhi_quirks sdhi_quirks_4tap_nohs400 = {
+static const struct renesas_sdhi_quirks sdhi_quirks_4tap_yeshs400 = {
 	.hs400_disabled = true,
 	.hs400_4taps = true,
 };
@@ -622,16 +622,16 @@ static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
 	.hs400_4taps = true,
 };
 
-static const struct renesas_sdhi_quirks sdhi_quirks_nohs400 = {
+static const struct renesas_sdhi_quirks sdhi_quirks_yeshs400 = {
 	.hs400_disabled = true,
 };
 
 static const struct soc_device_attribute sdhi_quirks_match[]  = {
-	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_4tap_nohs400 },
+	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_4tap_yeshs400 },
 	{ .soc_id = "r8a7795", .revision = "ES2.0", .data = &sdhi_quirks_4tap },
-	{ .soc_id = "r8a7796", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
-	{ .soc_id = "r8a774a1", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
-	{ .soc_id = "r8a77980", .data = &sdhi_quirks_nohs400 },
+	{ .soc_id = "r8a7796", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_yeshs400 },
+	{ .soc_id = "r8a774a1", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_yeshs400 },
+	{ .soc_id = "r8a77980", .data = &sdhi_quirks_yeshs400 },
 	{ /* Sentinel. */ },
 };
 
@@ -671,18 +671,18 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		ret = PTR_ERR(priv->clk);
-		dev_err(&pdev->dev, "cannot get clock: %d\n", ret);
+		dev_err(&pdev->dev, "canyest get clock: %d\n", ret);
 		return ret;
 	}
 
 	/*
 	 * Some controllers provide a 2nd clock just to run the internal card
 	 * detection logic. Unfortunately, the existing driver architecture does
-	 * not support a separation of clocks for runtime PM usage. When
+	 * yest support a separation of clocks for runtime PM usage. When
 	 * native hotplug is used, the tmio driver assumes that the core
-	 * must continue to run for card detect to stay active, so we cannot
+	 * must continue to run for card detect to stay active, so we canyest
 	 * disable it.
-	 * Additionally, it is prohibited to supply a clock to the core but not
+	 * Additionally, it is prohibited to supply a clock to the core but yest
 	 * to the card detect circuit. That leaves us with if separate clocks
 	 * are presented, we must treat them both as virtually 1 clock.
 	 */
@@ -747,7 +747,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		}
 	}
 
-	/* Orginally registers were 16 bit apart, could be 32 or 64 nowadays */
+	/* Orginally registers were 16 bit apart, could be 32 or 64 yeswadays */
 	if (!host->bus_shift && resource_size(res) > 0x100) /* old way to determine the shift */
 		host->bus_shift = 1;
 
@@ -782,7 +782,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		goto efree;
 
 	ver = sd_ctrl_read16(host, CTL_VERSION);
-	/* GEN2_SDR104 is first known SDHI to use 32bit block count */
+	/* GEN2_SDR104 is first kyeswn SDHI to use 32bit block count */
 	if (ver < SDHI_VER_GEN2_SDR104 && mmc_data->max_blk_count > U16_MAX)
 		mmc_data->max_blk_count = U16_MAX;
 
@@ -813,7 +813,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		}
 
 		if (!hit)
-			dev_warn(&host->pdev->dev, "Unknown clock rate for SDR104\n");
+			dev_warn(&host->pdev->dev, "Unkyeswn clock rate for SDR104\n");
 
 		host->init_tuning = renesas_sdhi_init_tuning;
 		host->prepare_tuning = renesas_sdhi_prepare_tuning;

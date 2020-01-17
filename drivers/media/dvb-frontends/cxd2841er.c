@@ -1417,7 +1417,7 @@ static int cxd2841er_read_ber_c(struct cxd2841er_priv *priv,
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x62, data, sizeof(data));
 	if (!(data[0] & 0x80)) {
 		dev_dbg(&priv->i2c->dev,
-				"%s(): no valid BER data\n", __func__);
+				"%s(): yes valid BER data\n", __func__);
 		return -EINVAL;
 	}
 	bit_err = ((u32)(data[0] & 0x3f) << 16) |
@@ -1428,7 +1428,7 @@ static int cxd2841er_read_ber_c(struct cxd2841er_priv *priv,
 
 	if ((period_exp <= 11) && (bit_err > (1 << period_exp) * 204 * 8)) {
 		dev_dbg(&priv->i2c->dev,
-				"%s(): period_exp(%u) or bit_err(%u)  not in range. no valid BER data\n",
+				"%s(): period_exp(%u) or bit_err(%u)  yest in range. yes valid BER data\n",
 				__func__, period_exp, bit_err);
 		return -EINVAL;
 	}
@@ -1465,7 +1465,7 @@ static int cxd2841er_read_ber_i(struct cxd2841er_priv *priv,
 
 	if (!pktnum[0] && !pktnum[1]) {
 		dev_dbg(&priv->i2c->dev,
-				"%s(): no valid BER data\n", __func__);
+				"%s(): yes valid BER data\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1511,7 +1511,7 @@ static int cxd2841er_mon_read_ber_s(struct cxd2841er_priv *priv,
 		}
 		return 0;
 	}
-	dev_dbg(&priv->i2c->dev, "%s(): no data available\n", __func__);
+	dev_dbg(&priv->i2c->dev, "%s(): yes data available\n", __func__);
 	return -EINVAL;
 }
 
@@ -1561,7 +1561,7 @@ static int cxd2841er_mon_read_ber_s2(struct cxd2841er_priv *priv,
 		return 0;
 	} else {
 		dev_dbg(&priv->i2c->dev,
-			"%s(): no data available\n", __func__);
+			"%s(): yes data available\n", __func__);
 	}
 	return -EINVAL;
 }
@@ -1581,7 +1581,7 @@ static int cxd2841er_read_ber_t2(struct cxd2841er_priv *priv,
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x39, data, sizeof(data));
 	if (!(data[0] & 0x10)) {
 		dev_dbg(&priv->i2c->dev,
-			"%s(): no valid BER data\n", __func__);
+			"%s(): yes valid BER data\n", __func__);
 		return -EINVAL;
 	}
 	*bit_error = ((u32)(data[0] & 0x0f) << 24) |
@@ -1601,7 +1601,7 @@ static int cxd2841er_read_ber_t2(struct cxd2841er_priv *priv,
 
 	/*
 	 * FIXME: the right thing would be to return bit_error untouched,
-	 * but, as we don't know the scale returned by the counters, let's
+	 * but, as we don't kyesw the scale returned by the counters, let's
 	 * at least preserver BER = bit_error/bit_count.
 	 */
 	if (period_exp >= 4) {
@@ -1629,7 +1629,7 @@ static int cxd2841er_read_ber_t(struct cxd2841er_priv *priv,
 	cxd2841er_read_reg(priv, I2C_SLVT, 0x39, data);
 	if (!(data[0] & 0x01)) {
 		dev_dbg(&priv->i2c->dev,
-			"%s(): no valid BER data\n", __func__);
+			"%s(): yes valid BER data\n", __func__);
 		return 0;
 	}
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x22, data, sizeof(data));
@@ -1639,7 +1639,7 @@ static int cxd2841er_read_ber_t(struct cxd2841er_priv *priv,
 
 	/*
 	 * FIXME: the right thing would be to return bit_error untouched,
-	 * but, as we don't know the scale returned by the counters, let's
+	 * but, as we don't kyesw the scale returned by the counters, let's
 	 * at least preserver BER = bit_error/bit_count.
 	 */
 	*bit_count = period / 128;
@@ -1725,7 +1725,7 @@ static u32 cxd2841er_dvbs_read_snr(struct cxd2841er_priv *priv,
 		}
 	} else {
 		dev_dbg(&priv->i2c->dev,
-			"%s(): no data available\n", __func__);
+			"%s(): yes data available\n", __func__);
 		return -EINVAL;
 	}
 done:
@@ -2059,7 +2059,7 @@ static void cxd2841er_read_snr(struct dvb_frontend *fe)
 		ret = cxd2841er_dvbs_read_snr(priv, p->delivery_system, &tmp);
 		break;
 	default:
-		dev_dbg(&priv->i2c->dev, "%s(): unknown delivery system %d\n",
+		dev_dbg(&priv->i2c->dev, "%s(): unkyeswn delivery system %d\n",
 			__func__, p->delivery_system);
 		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 		return;
@@ -2112,24 +2112,24 @@ static int cxd2841er_dvbt2_set_profile(
 	struct cxd2841er_priv *priv, enum cxd2841er_dvbt2_profile_t profile)
 {
 	u8 tune_mode;
-	u8 seq_not2d_time;
+	u8 seq_yest2d_time;
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	switch (profile) {
 	case DVBT2_PROFILE_BASE:
 		tune_mode = 0x01;
 		/* Set early unlock time */
-		seq_not2d_time = (priv->xtal == SONY_XTAL_24000)?0x0E:0x0C;
+		seq_yest2d_time = (priv->xtal == SONY_XTAL_24000)?0x0E:0x0C;
 		break;
 	case DVBT2_PROFILE_LITE:
 		tune_mode = 0x05;
 		/* Set early unlock time */
-		seq_not2d_time = (priv->xtal == SONY_XTAL_24000)?0x2E:0x28;
+		seq_yest2d_time = (priv->xtal == SONY_XTAL_24000)?0x2E:0x28;
 		break;
 	case DVBT2_PROFILE_ANY:
 		tune_mode = 0x00;
 		/* Set early unlock time */
-		seq_not2d_time = (priv->xtal == SONY_XTAL_24000)?0x2E:0x28;
+		seq_yest2d_time = (priv->xtal == SONY_XTAL_24000)?0x2E:0x28;
 		break;
 	default:
 		return -EINVAL;
@@ -2141,7 +2141,7 @@ static int cxd2841er_dvbt2_set_profile(
 	/* Set SLV-T Bank : 0x2B */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x2b);
 	/* Set early unlock detection time */
-	cxd2841er_write_reg(priv, I2C_SLVT, 0x9d, seq_not2d_time);
+	cxd2841er_write_reg(priv, I2C_SLVT, 0x9d, seq_yest2d_time);
 	return 0;
 }
 
@@ -2173,35 +2173,35 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 	u32 iffreq, ifhz;
 	u8 data[MAX_WRITE_REGSIZE];
 
-	static const uint8_t nominalRate8bw[3][5] = {
+	static const uint8_t yesminalRate8bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x11, 0xF0, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x15, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x11, 0xF0, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
 
-	static const uint8_t nominalRate7bw[3][5] = {
+	static const uint8_t yesminalRate7bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x14, 0x80, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x18, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x14, 0x80, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
 
-	static const uint8_t nominalRate6bw[3][5] = {
+	static const uint8_t yesminalRate6bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x17, 0xEA, 0xAA, 0xAA, 0xAA}, /* 20.5MHz XTal */
 		{0x1C, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x17, 0xEA, 0xAA, 0xAA, 0xAA}  /* 41MHz XTal */
 	};
 
-	static const uint8_t nominalRate5bw[3][5] = {
+	static const uint8_t yesminalRate5bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x1C, 0xB3, 0x33, 0x33, 0x33}, /* 20.5MHz XTal */
 		{0x21, 0x99, 0x99, 0x99, 0x99}, /* 24MHz XTal */
 		{0x1C, 0xB3, 0x33, 0x33, 0x33}  /* 41MHz XTal */
 	};
 
-	static const uint8_t nominalRate17bw[3][5] = {
+	static const uint8_t yesminalRate17bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x58, 0xE2, 0xAF, 0xE0, 0xBC}, /* 20.5MHz XTal */
 		{0x68, 0x0F, 0xA2, 0x32, 0xD0}, /* 24MHz XTal */
@@ -2260,7 +2260,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 	case 8000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate8bw[priv->xtal], 5);
+				0x9F, yesminalRate8bw[priv->xtal], 5);
 
 		/* Set SLV-T Bank : 0x27 */
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x27);
@@ -2290,7 +2290,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 	case 7000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate7bw[priv->xtal], 5);
+				0x9F, yesminalRate7bw[priv->xtal], 5);
 
 		/* Set SLV-T Bank : 0x27 */
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x27);
@@ -2320,7 +2320,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 	case 6000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate6bw[priv->xtal], 5);
+				0x9F, yesminalRate6bw[priv->xtal], 5);
 
 		/* Set SLV-T Bank : 0x27 */
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x27);
@@ -2350,7 +2350,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 	case 5000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate5bw[priv->xtal], 5);
+				0x9F, yesminalRate5bw[priv->xtal], 5);
 
 		/* Set SLV-T Bank : 0x27 */
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x27);
@@ -2380,7 +2380,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 	case 1712000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate17bw[priv->xtal], 5);
+				0x9F, yesminalRate17bw[priv->xtal], 5);
 
 		/* Set SLV-T Bank : 0x27 */
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x27);
@@ -2418,25 +2418,25 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 {
 	u8 data[MAX_WRITE_REGSIZE];
 	u32 iffreq, ifhz;
-	static const u8 nominalRate8bw[3][5] = {
+	static const u8 yesminalRate8bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x11, 0xF0, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x15, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x11, 0xF0, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
-	static const u8 nominalRate7bw[3][5] = {
+	static const u8 yesminalRate7bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x14, 0x80, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x18, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x14, 0x80, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
-	static const u8 nominalRate6bw[3][5] = {
+	static const u8 yesminalRate6bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x17, 0xEA, 0xAA, 0xAA, 0xAA}, /* 20.5MHz XTal */
 		{0x1C, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x17, 0xEA, 0xAA, 0xAA, 0xAA}  /* 41MHz XTal */
 	};
-	static const u8 nominalRate5bw[3][5] = {
+	static const u8 yesminalRate5bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x1C, 0xB3, 0x33, 0x33, 0x33}, /* 20.5MHz XTal */
 		{0x21, 0x99, 0x99, 0x99, 0x99}, /* 24MHz XTal */
@@ -2490,7 +2490,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 	case 8000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate8bw[priv->xtal], 5);
+				0x9F, yesminalRate8bw[priv->xtal], 5);
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		*/
@@ -2527,7 +2527,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 	case 7000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate7bw[priv->xtal], 5);
+				0x9F, yesminalRate7bw[priv->xtal], 5);
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		*/
@@ -2564,7 +2564,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 	case 6000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate6bw[priv->xtal], 5);
+				0x9F, yesminalRate6bw[priv->xtal], 5);
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		*/
@@ -2601,7 +2601,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 	case 5000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate5bw[priv->xtal], 5);
+				0x9F, yesminalRate5bw[priv->xtal], 5);
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		*/
@@ -2647,19 +2647,19 @@ static int cxd2841er_sleep_tc_to_active_i_band(
 	u8 data[3];
 
 	/* TRCG Nominal Rate */
-	static const u8 nominalRate8bw[3][5] = {
+	static const u8 yesminalRate8bw[3][5] = {
 		{0x00, 0x00, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x11, 0xB8, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x00, 0x00, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
 
-	static const u8 nominalRate7bw[3][5] = {
+	static const u8 yesminalRate7bw[3][5] = {
 		{0x00, 0x00, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x14, 0x40, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x00, 0x00, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
 
-	static const u8 nominalRate6bw[3][5] = {
+	static const u8 yesminalRate6bw[3][5] = {
 		{0x14, 0x2E, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x17, 0xA0, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x14, 0x2E, 0x00, 0x00, 0x00}  /* 41MHz XTal */
@@ -2692,7 +2692,7 @@ static int cxd2841er_sleep_tc_to_active_i_band(
 	/* Set SLV-T Bank : 0x10 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x10);
 
-	/*  20.5/41MHz Xtal support is not available
+	/*  20.5/41MHz Xtal support is yest available
 	 *  on ISDB-T 7MHzBW and 8MHzBW
 	*/
 	if (priv->xtal != SONY_XTAL_24000 && bandwidth > 6000000) {
@@ -2706,7 +2706,7 @@ static int cxd2841er_sleep_tc_to_active_i_band(
 	case 8000000:
 		/* TRCG Nominal Rate */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate8bw[priv->xtal], 5);
+				0x9F, yesminalRate8bw[priv->xtal], 5);
 		/*  Group delay equaliser settings for ASCOT tuners optimized */
 		if (priv->flags & CXD2841ER_ASCOT)
 			cxd2841er_write_regs(priv, I2C_SLVT,
@@ -2737,7 +2737,7 @@ static int cxd2841er_sleep_tc_to_active_i_band(
 	case 7000000:
 		/* TRCG Nominal Rate */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate7bw[priv->xtal], 5);
+				0x9F, yesminalRate7bw[priv->xtal], 5);
 		/*  Group delay equaliser settings for ASCOT tuners optimized */
 		if (priv->flags & CXD2841ER_ASCOT)
 			cxd2841er_write_regs(priv, I2C_SLVT,
@@ -2768,7 +2768,7 @@ static int cxd2841er_sleep_tc_to_active_i_band(
 	case 6000000:
 		/* TRCG Nominal Rate */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate6bw[priv->xtal], 5);
+				0x9F, yesminalRate6bw[priv->xtal], 5);
 		/*  Group delay equaliser settings for ASCOT tuners optimized */
 		if (priv->flags & CXD2841ER_ASCOT)
 			cxd2841er_write_regs(priv, I2C_SLVT,
@@ -3627,7 +3627,7 @@ static int cxd2841er_sleep_tc(struct dvb_frontend *fe)
 			break;
 		default:
 			dev_warn(&priv->i2c->dev,
-				"%s(): unknown delivery system %d\n",
+				"%s(): unkyeswn delivery system %d\n",
 				__func__, priv->system);
 		}
 	}

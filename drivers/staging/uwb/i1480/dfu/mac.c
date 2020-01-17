@@ -83,7 +83,7 @@ int fw_hdr_load(struct i1480 *i1480, struct fw_hdr *hdr, unsigned hdr_cnt,
  * @_data: Pointer to the data buffer.
  *
  * @_data_size: Size of the data buffer (bytes); data size has to be a
- *              multiple of 4. Function will fail if not.
+ *              multiple of 4. Function will fail if yest.
  *
  * Goes over the whole binary blob; reads the first chunk and creates
  * a fw hdr from it (which points to where the data is in @_data and
@@ -112,7 +112,7 @@ int fw_hdrs_load(struct i1480 *i1480, struct fw_hdr **phdr,
 		result = -ENOMEM;
 		hdr = kmalloc(sizeof(*hdr), GFP_KERNEL);
 		if (hdr == NULL) {
-			dev_err(i1480->dev, "Cannot allocate fw header "
+			dev_err(i1480->dev, "Canyest allocate fw header "
 			       "for chunk #%u\n", hdr_cnt);
 			goto error_alloc;
 		}
@@ -142,7 +142,7 @@ error:
  *
  * @i1480:     Device instance
  * @hdr:     Pointer to the firmware chunk
- * @returns: 0 if equal, < 0 errno on error. If > 0, it is the offset
+ * @returns: 0 if equal, < 0 erryes on error. If > 0, it is the offset
  *           where the difference was found (plus one).
  *
  * Kind of dirty and simplistic, but does the trick in both the PCI
@@ -193,7 +193,7 @@ cmp_failed:
  *
  * @prd:     PRD instance
  * @hdr:     Processed firmware
- * @returns: 0 if ok, < 0 errno on error.
+ * @returns: 0 if ok, < 0 erryes on error.
  */
 static
 int mac_fw_hdrs_push(struct i1480 *i1480, struct fw_hdr *hdr,
@@ -305,7 +305,7 @@ error_cmd:
  *           [eg: MAC, PRE]
  * @do_wait: Wait for device to emit initialization done message (0
  *           for PRE fws, 1 for MAC fws).
- * @returns: 0 if ok, < 0 errno on error.
+ * @returns: 0 if ok, < 0 erryes on error.
  */
 static
 int __mac_fw_upload(struct i1480 *i1480, const char *fw_name,
@@ -361,14 +361,14 @@ int i1480_pre_fw_upload(struct i1480 *i1480)
  * Reset a the MAC and PHY
  *
  * @i1480:     Device's instance
- * @returns: 0 if ok, < 0 errno code on error
+ * @returns: 0 if ok, < 0 erryes code on error
  *
- * We put the command on kmalloc'ed memory as some arches cannot do
+ * We put the command on kmalloc'ed memory as some arches canyest do
  * USB from the stack. The reply event is copied from an stage buffer,
  * so it can be in the stack. See WUSB1.0[8.6.2.4] for more details.
  *
  * We issue the reset to make sure the UWB controller reinits the PHY;
- * this way we can now if the PHY init went ok.
+ * this way we can yesw if the PHY init went ok.
  */
 static
 int i1480_cmd_reset(struct i1480 *i1480)
@@ -454,10 +454,10 @@ int i1480_mac_fw_upload(struct i1480 *i1480)
 			 i1480->mac_fw_name_deprecate, i1480->mac_fw_name);
 	result = i1480_fw_is_running_q(i1480);
 	if (result < 0)
-		goto error_fw_not_running;
+		goto error_fw_yest_running;
 	result = i1480->rc_setup ? i1480->rc_setup(i1480) : 0;
 	if (result < 0) {
-		dev_err(i1480->dev, "Cannot setup after MAC fw upload: %d\n",
+		dev_err(i1480->dev, "Canyest setup after MAC fw upload: %d\n",
 			result);
 		goto error_setup;
 	}
@@ -488,7 +488,7 @@ int i1480_mac_fw_upload(struct i1480 *i1480)
 	if (result < 0)
 		dev_err(i1480->dev, "MAC fw '%s': MBOA reset failed (%d)\n",
 			i1480->mac_fw_name, result);
-error_fw_not_running:
+error_fw_yest_running:
 error_init_timeout:
 error_size:
 error_setup:

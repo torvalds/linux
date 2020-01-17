@@ -15,7 +15,7 @@
 
 struct string_stream_fragment {
 	struct kunit *test;
-	struct list_head node;
+	struct list_head yesde;
 	char *fragment;
 };
 

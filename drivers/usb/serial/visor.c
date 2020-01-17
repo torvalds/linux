@@ -12,7 +12,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -285,16 +285,16 @@ static void visor_read_int_callback(struct urb *urb)
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - yesnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
 
 	/*
-	 * This information is still unknown what it can be used for.
-	 * If anyone has an idea, please let the author know...
+	 * This information is still unkyeswn what it can be used for.
+	 * If anyone has an idea, please let the author kyesw...
 	 *
-	 * Rumor has it this endpoint is used to notify when data
+	 * Rumor has it this endpoint is used to yestify when data
 	 * is ready to be read from the bulk ones.
 	 */
 	usb_serial_debug_data(&port->dev, __func__, urb->actual_length,
@@ -370,7 +370,7 @@ static int palm_os_3_probe(struct usb_serial *serial,
 			string = "Remote File System";
 			break;
 		default:
-			string = "unknown";
+			string = "unkyeswn";
 			break;
 		}
 		dev_info(dev, "%s: port %d, is for %s use\n",
@@ -386,7 +386,7 @@ static int palm_os_3_probe(struct usb_serial *serial,
 	 */
 	usb_set_serial_data(serial, (void *)(long)num_ports);
 
-	/* ask for the number of bytes available, but ignore the
+	/* ask for the number of bytes available, but igyesre the
 	   response as it is broken */
 	retval = usb_control_msg(serial->dev,
 				  usb_rcvctrlpipe(serial->dev, 0),
@@ -475,7 +475,7 @@ static int visor_calc_num_ports(struct usb_serial *serial,
 
 	/*
 	 * Only swap the bulk endpoints for the Handspring devices with
-	 * interrupt in endpoints, which for now are the Treo devices.
+	 * interrupt in endpoints, which for yesw are the Treo devices.
 	 */
 	if (!(vid == HANDSPRING_VENDOR_ID || vid == KYOCERA_VENDOR_ID) ||
 			epds->num_interrupt_in == 0)

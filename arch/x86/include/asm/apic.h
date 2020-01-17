@@ -184,8 +184,8 @@ static inline void lapic_shutdown(void) { }
 #define local_apic_timer_c2_ok		1
 static inline void init_apic_mappings(void) { }
 static inline void disable_local_APIC(void) { }
-# define setup_boot_APIC_clock x86_init_noop
-# define setup_secondary_APIC_clock x86_init_noop
+# define setup_boot_APIC_clock x86_init_yesop
+# define setup_secondary_APIC_clock x86_init_yesop
 static inline void lapic_update_tsc_freq(void) { }
 static inline void init_bsp_APIC(void) { }
 static inline void apic_intr_mode_init(void) { }
@@ -232,13 +232,13 @@ static inline u32 native_apic_msr_read(u32 reg)
 
 static inline void native_x2apic_wait_icr_idle(void)
 {
-	/* no need to wait for icr idle in x2apic */
+	/* yes need to wait for icr idle in x2apic */
 	return;
 }
 
 static inline u32 native_safe_x2apic_wait_icr_idle(void)
 {
-	/* no need to wait for icr idle in x2apic */
+	/* yes need to wait for icr idle in x2apic */
 	return 0;
 }
 
@@ -478,7 +478,7 @@ extern void generic_bigsmp_probe(void);
 
 DECLARE_EARLY_PER_CPU_READ_MOSTLY(u16, x86_bios_cpu_apicid);
 
-extern struct apic apic_noop;
+extern struct apic apic_yesop;
 
 static inline unsigned int read_apic_id(void)
 {

@@ -265,7 +265,7 @@ static int spi_geni_prepare_message(struct spi_master *spi,
 static int spi_geni_init(struct spi_geni_master *mas)
 {
 	struct geni_se *se = &mas->se;
-	unsigned int proto, major, minor, ver;
+	unsigned int proto, major, miyesr, ver;
 
 	pm_runtime_get_sync(mas->dev);
 
@@ -289,9 +289,9 @@ static int spi_geni_init(struct spi_geni_master *mas)
 	mas->tx_wm = 1;
 	ver = geni_se_get_qup_hw_version(se);
 	major = GENI_SE_VERSION_MAJOR(ver);
-	minor = GENI_SE_VERSION_MINOR(ver);
+	miyesr = GENI_SE_VERSION_MINOR(ver);
 
-	if (major == 1 && minor == 0)
+	if (major == 1 && miyesr == 0)
 		mas->oversampling = 2;
 	else
 		mas->oversampling = 1;
@@ -505,7 +505,7 @@ static irqreturn_t geni_spi_isr(int irq, void *data)
 		 * system from stalling due an interrupt storm.
 		 * If this happens when all Rx bytes haven't been received, log
 		 * the condition.
-		 * The only known time this can happen is if bits_per_word != 8
+		 * The only kyeswn time this can happen is if bits_per_word != 8
 		 * and some registers that expect xfer lengths in num spi_words
 		 * weren't written correctly.
 		 */
@@ -566,7 +566,7 @@ static int spi_geni_probe(struct platform_device *pdev)
 	mas->se.clk = clk;
 
 	spi->bus_num = -1;
-	spi->dev.of_node = pdev->dev.of_node;
+	spi->dev.of_yesde = pdev->dev.of_yesde;
 	spi->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP | SPI_CS_HIGH;
 	spi->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	spi->num_chipselect = 4;

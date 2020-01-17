@@ -171,7 +171,7 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct snd_soc_card *card = &snd_soc_card_rk;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct rk_drvdata *machine;
 	struct of_phandle_args args;
 
@@ -196,7 +196,7 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 		ret = devm_gpio_request_one(&pdev->dev, machine->gpio_hp_en,
 					    GPIOF_OUT_INIT_LOW, "hp_en");
 		if (ret) {
-			dev_err(card->dev, "cannot get hp_en gpio\n");
+			dev_err(card->dev, "canyest get hp_en gpio\n");
 			return ret;
 		}
 	}
@@ -207,10 +207,10 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rk_dailink.codecs[0].of_node = of_parse_phandle(np,
+	rk_dailink.codecs[0].of_yesde = of_parse_phandle(np,
 							"rockchip,audio-codec",
 							0);
-	if (!rk_dailink.codecs[0].of_node) {
+	if (!rk_dailink.codecs[0].of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,audio-codec' missing or invalid\n");
 		return -EINVAL;
@@ -229,15 +229,15 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rk_dailink.cpus->of_node = of_parse_phandle(np, "rockchip,i2s-controller",
+	rk_dailink.cpus->of_yesde = of_parse_phandle(np, "rockchip,i2s-controller",
 						  0);
-	if (!rk_dailink.cpus->of_node) {
+	if (!rk_dailink.cpus->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,i2s-controller' missing or invalid\n");
 		return -EINVAL;
 	}
 
-	rk_dailink.platforms->of_node = rk_dailink.cpus->of_node;
+	rk_dailink.platforms->of_yesde = rk_dailink.cpus->of_yesde;
 
 	ret = snd_soc_of_parse_audio_routing(card, "rockchip,routing");
 	if (ret) {

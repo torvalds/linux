@@ -73,7 +73,7 @@ struct kvaser_usb_dev_card_data {
 	};
 };
 
-/* Context for an outstanding, not yet ACKed, transmission */
+/* Context for an outstanding, yest yet ACKed, transmission */
 struct kvaser_usb_tx_urb_context {
 	struct kvaser_usb_net_priv *priv;
 	u32 echo_index;
@@ -91,7 +91,7 @@ struct kvaser_usb {
 	struct usb_anchor rx_submitted;
 
 	/* @max_tx_urbs: Firmware-reported maximum number of outstanding,
-	 * not yet ACKed, transmissions on this device. This value is
+	 * yest yet ACKed, transmissions on this device. This value is
 	 * also used as a sentinel for marking free tx contexts.
 	 */
 	u32 fw_version;

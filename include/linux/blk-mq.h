@@ -20,7 +20,7 @@ struct blk_mq_hw_ctx {
 		/**
 		 * @dispatch: Used for requests that are ready to be
 		 * dispatched to the hardware but for some reason (e.g. lack of
-		 * resources) could not be sent to the hardware. As soon as the
+		 * resources) could yest be sent to the hardware. As soon as the
 		 * driver can send new requests, requests at this list will
 		 * be sent first for a fairer dispatch.
 		 */
@@ -77,7 +77,7 @@ struct blk_mq_hw_ctx {
 	struct sbitmap		ctx_map;
 
 	/**
-	 * @dispatch_from: Software queue to be used when no scheduler was
+	 * @dispatch_from: Software queue to be used when yes scheduler was
 	 * selected.
 	 */
 	struct blk_mq_ctx	*dispatch_from;
@@ -98,8 +98,8 @@ struct blk_mq_hw_ctx {
 	/** @dispatch_wait_lock: Lock for dispatch_wait queue. */
 	spinlock_t		dispatch_wait_lock;
 	/**
-	 * @dispatch_wait: Waitqueue to put requests when there is no tag
-	 * available at the moment, to wait for another try in the future.
+	 * @dispatch_wait: Waitqueue to put requests when there is yes tag
+	 * available at the moment, to wait for ayesther try in the future.
 	 */
 	wait_queue_entry_t	dispatch_wait;
 
@@ -117,7 +117,7 @@ struct blk_mq_hw_ctx {
 	/**
 	 * @sched_tags: Tags owned by I/O scheduler. If there is an I/O
 	 * scheduler associated with a request queue, a tag is assigned when
-	 * that request is allocated. Else, this member is not used.
+	 * that request is allocated. Else, this member is yest used.
 	 */
 	struct blk_mq_tags	*sched_tags;
 
@@ -129,8 +129,8 @@ struct blk_mq_hw_ctx {
 	/** @dispatched: Number of dispatch requests by queue. */
 	unsigned long		dispatched[BLK_MQ_MAX_DISPATCH_ORDER];
 
-	/** @numa_node: NUMA node the storage adapter has been connected to. */
-	unsigned int		numa_node;
+	/** @numa_yesde: NUMA yesde the storage adapter has been connected to. */
+	unsigned int		numa_yesde;
 	/** @queue_num: Index of this hardware queue. */
 	unsigned int		queue_num;
 
@@ -141,7 +141,7 @@ struct blk_mq_hw_ctx {
 	atomic_t		nr_active;
 
 	/** @cpuhp_dead: List to store request if some CPU die. */
-	struct hlist_node	cpuhp_dead;
+	struct hlist_yesde	cpuhp_dead;
 	/** @kobj: Kernel object for sysfs. */
 	struct kobject		kobj;
 
@@ -191,7 +191,7 @@ struct blk_mq_queue_map {
 
 /**
  * enum hctx_type - Type of hardware queue
- * @HCTX_TYPE_DEFAULT:	All I/O not otherwise accounted for.
+ * @HCTX_TYPE_DEFAULT:	All I/O yest otherwise accounted for.
  * @HCTX_TYPE_READ:	Just for READ I/O.
  * @HCTX_TYPE_POLL:	Polled I/O of any kind.
  * @HCTX_MAX_TYPES:	Number of types of hctx.
@@ -208,7 +208,7 @@ enum hctx_type {
  * struct blk_mq_tag_set - tag set that can be shared between request queues
  * @map:	   One or more ctx -> hctx mappings. One map exists for each
  *		   hardware queue type (enum hctx_type) that the driver wishes
- *		   to support. There are no restrictions on maps being of the
+ *		   to support. There are yes restrictions on maps being of the
  *		   same size, and it's perfectly legal to share maps between
  *		   types.
  * @nr_maps:	   Number of elements in the @map array. A number in the range
@@ -221,7 +221,7 @@ enum hctx_type {
  *		   allocations.
  * @cmd_size:	   Number of additional bytes to allocate per request. The block
  *		   driver owns these additional bytes.
- * @numa_node:	   NUMA node the storage adapter has been connected to.
+ * @numa_yesde:	   NUMA yesde the storage adapter has been connected to.
  * @timeout:	   Request processing timeout in jiffies.
  * @flags:	   Zero or more BLK_MQ_F_* flags.
  * @driver_data:   Pointer to data owned by the block driver that created this
@@ -240,7 +240,7 @@ struct blk_mq_tag_set {
 	unsigned int		queue_depth;
 	unsigned int		reserved_tags;
 	unsigned int		cmd_size;
-	int			numa_node;
+	int			numa_yesde;
 	unsigned int		timeout;
 	unsigned int		flags;
 	void			*driver_data;
@@ -366,7 +366,7 @@ struct blk_mq_ops {
 	cleanup_rq_fn		*cleanup_rq;
 
 	/**
-	 * @busy: If set, returns whether or not this queue currently is busy.
+	 * @busy: If set, returns whether or yest this queue currently is busy.
 	 */
 	busy_fn			*busy;
 
@@ -516,7 +516,7 @@ int blk_mq_freeze_queue_wait_timeout(struct request_queue *q,
 int blk_mq_map_queues(struct blk_mq_queue_map *qmap);
 void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues);
 
-void blk_mq_quiesce_queue_nowait(struct request_queue *q);
+void blk_mq_quiesce_queue_yeswait(struct request_queue *q);
 
 unsigned int blk_mq_rq_cpu(struct request *rq);
 

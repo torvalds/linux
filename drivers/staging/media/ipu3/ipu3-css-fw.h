@@ -134,7 +134,7 @@ struct imgu_fw_bl_info {
 };
 
 struct imgu_fw_acc_info {
-	u32 per_frame_data;	/* Dummy for now */
+	u32 per_frame_data;	/* Dummy for yesw */
 };
 
 union imgu_fw_union {

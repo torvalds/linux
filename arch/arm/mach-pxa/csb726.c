@@ -262,7 +262,7 @@ static void __init csb726_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(csb726_pin_config));
 /*	__raw_writel(0x7ffc3ffc, MSC1); *//* LAN9215/EXP_CS */
-/*	__raw_writel(0x06697ff4, MSC2); *//* none/SM501 */
+/*	__raw_writel(0x06697ff4, MSC2); *//* yesne/SM501 */
 	__raw_writel((__raw_readl(MSC2) & ~0xffff) | 0x7ff4, MSC2); /* SM501 */
 
 	pxa_set_ffuart_info(NULL);

@@ -292,7 +292,7 @@ static ssize_t k90_show_macro_mode(struct device *dev,
 		macro_mode = "SW";
 		break;
 	default:
-		dev_warn(dev, "K90 in unknown mode: %02hhx.\n",
+		dev_warn(dev, "K90 in unkyeswn mode: %02hhx.\n",
 			 data[0]);
 		ret = -EIO;
 		goto out;
@@ -674,7 +674,7 @@ static int corsair_input_mapping(struct hid_device *dev,
 
 /*
  * The report descriptor of some of the Corsair gaming mice is
- * non parseable as they define two consecutive Logical Minimum for
+ * yesn parseable as they define two consecutive Logical Minimum for
  * the Usage Page (Consumer) in rdescs bytes 75 and 77 being 77 0x16
  * that should be obviousy 0x26 for Logical Magimum of 16 bits. This
  * prevents poper parsing of the report descriptor due Logical

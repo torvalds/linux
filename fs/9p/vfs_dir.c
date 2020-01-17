@@ -9,7 +9,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/stat.h>
@@ -128,7 +128,7 @@ static int v9fs_dir_readdir(struct file *file, struct dir_context *ctx)
 			}
 
 			over = !dir_emit(ctx, st.name, strlen(st.name),
-					 v9fs_qid2ino(&st.qid), dt_type(&st));
+					 v9fs_qid2iyes(&st.qid), dt_type(&st));
 			p9stat_free(&st);
 			if (over)
 				return 0;
@@ -185,7 +185,7 @@ static int v9fs_dir_readdir_dotl(struct file *file, struct dir_context *ctx)
 
 			if (!dir_emit(ctx, curdirent.d_name,
 				      strlen(curdirent.d_name),
-				      v9fs_qid2ino(&curdirent.qid),
+				      v9fs_qid2iyes(&curdirent.qid),
 				      curdirent.d_type))
 				return 0;
 
@@ -198,18 +198,18 @@ static int v9fs_dir_readdir_dotl(struct file *file, struct dir_context *ctx)
 
 /**
  * v9fs_dir_release - close a directory
- * @inode: inode of the directory
+ * @iyesde: iyesde of the directory
  * @filp: file pointer to a directory
  *
  */
 
-int v9fs_dir_release(struct inode *inode, struct file *filp)
+int v9fs_dir_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct p9_fid *fid;
 
 	fid = filp->private_data;
-	p9_debug(P9_DEBUG_VFS, "inode: %p filp: %p fid: %d\n",
-		 inode, filp, fid ? fid->fid : -1);
+	p9_debug(P9_DEBUG_VFS, "iyesde: %p filp: %p fid: %d\n",
+		 iyesde, filp, fid ? fid->fid : -1);
 	if (fid)
 		p9_client_clunk(fid);
 	return 0;

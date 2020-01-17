@@ -35,7 +35,7 @@ static inline int xfrm4_rcv_encap_finish(struct net *net, struct sock *sk,
 	if (!skb_dst(skb)) {
 		const struct iphdr *iph = ip_hdr(skb);
 
-		if (ip_route_input_noref(skb, iph->daddr, iph->saddr,
+		if (ip_route_input_yesref(skb, iph->daddr, iph->saddr,
 					 iph->tos, skb->dev))
 			goto drop;
 	}
@@ -95,7 +95,7 @@ int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 	__be32 *udpdata32;
 	__u16 encap_type = up->encap_type;
 
-	/* if this is not encapsulated socket, then just return now */
+	/* if this is yest encapsulated socket, then just return yesw */
 	if (!encap_type)
 		return 1;
 

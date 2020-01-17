@@ -10,7 +10,7 @@
   */
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
@@ -171,7 +171,7 @@ static int get_port_memory(struct icom_port *icom_port)
 	icom_port->xmit_buf =
 	    pci_alloc_consistent(dev, 4096, &icom_port->xmit_buf_pci);
 	if (!icom_port->xmit_buf) {
-		dev_err(&dev->dev, "Can not allocate Transmit buffer\n");
+		dev_err(&dev->dev, "Can yest allocate Transmit buffer\n");
 		return -ENOMEM;
 	}
 
@@ -181,7 +181,7 @@ static int get_port_memory(struct icom_port *icom_port)
 	icom_port->recv_buf =
 	    pci_alloc_consistent(dev, 4096, &icom_port->recv_buf_pci);
 	if (!icom_port->recv_buf) {
-		dev_err(&dev->dev, "Can not allocate Receive buffer\n");
+		dev_err(&dev->dev, "Can yest allocate Receive buffer\n");
 		free_port_memory(icom_port);
 		return -ENOMEM;
 	}
@@ -191,7 +191,7 @@ static int get_port_memory(struct icom_port *icom_port)
 	icom_port->statStg =
 	    pci_alloc_consistent(dev, 4096, &icom_port->statStg_pci);
 	if (!icom_port->statStg) {
-		dev_err(&dev->dev, "Can not allocate Status buffer\n");
+		dev_err(&dev->dev, "Can yest allocate Status buffer\n");
 		free_port_memory(icom_port);
 		return -ENOMEM;
 	}
@@ -202,7 +202,7 @@ static int get_port_memory(struct icom_port *icom_port)
 	    pci_alloc_consistent(dev, 4096, &icom_port->xmitRestart_pci);
 	if (!icom_port->xmitRestart) {
 		dev_err(&dev->dev,
-			"Can not allocate xmit Restart buffer\n");
+			"Can yest allocate xmit Restart buffer\n");
 		free_port_memory(icom_port);
 		return -ENOMEM;
 	}
@@ -239,7 +239,7 @@ static int get_port_memory(struct icom_port *icom_port)
 	/* FIDs */
 	startStgAddr = stgAddr;
 
-	/* fill in every entry, even if no buffer */
+	/* fill in every entry, even if yes buffer */
 	for (index = 0; index <  NUM_RBUFFS; index++) {
 		trace(icom_port, "FID_ADDR", stgAddr);
 		stgAddr = stgAddr + sizeof(icom_port->statStg->rcv[0]);
@@ -417,7 +417,7 @@ static void load_code(struct icom_port *icom_port)
 	new_page = pci_alloc_consistent(dev, 4096, &temp_pci);
 
 	if (!new_page) {
-		dev_err(&dev->dev, "Can not allocate DMA buffer\n");
+		dev_err(&dev->dev, "Can yest allocate DMA buffer\n");
 		status = -1;
 		goto load_code_exit;
 	}
@@ -474,7 +474,7 @@ static void load_code(struct icom_port *icom_port)
 		cable_id = (cable_id & ICOM_CABLE_ID_MASK) >> 4;
 		icom_port->cable_id = cable_id;
 	} else {
-		dev_err(&dev->dev,"Invalid or no cable attached\n");
+		dev_err(&dev->dev,"Invalid or yes cable attached\n");
 		icom_port->cable_id = NO_CABLE;
 	}
 
@@ -490,7 +490,7 @@ static void load_code(struct icom_port *icom_port)
 		/* Stop processor */
 		stop_processor(icom_port);
 
-		dev_err(&icom_port->adapter->pci_dev->dev,"Port not operational\n");
+		dev_err(&icom_port->adapter->pci_dev->dev,"Port yest operational\n");
 	}
 
 	if (new_page != NULL)
@@ -529,7 +529,7 @@ static int startup(struct icom_port *icom_port)
 		/* reload adapter code, pick up any potential changes in cable id */
 		load_code(icom_port);
 
-		/* still no sign of cable, error out */
+		/* still yes sign of cable, error out */
 		raw_cable_id = readb(&icom_port->dram->cable_id);
 		cable_id = (raw_cable_id & ICOM_CABLE_ID_MASK) >> 4;
 		if (!(raw_cable_id & ICOM_CABLE_ID_VALID) ||
@@ -782,12 +782,12 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 
 			/*
 			 * Now check to see if character should be
-			 * ignored, and mask off conditions which
-			 * should be ignored.
+			 * igyesred, and mask off conditions which
+			 * should be igyesred.
 			 */
-			if (status & icom_port->ignore_status_mask) {
+			if (status & icom_port->igyesre_status_mask) {
 				trace(icom_port, "IGNORE_CHAR", 0);
-				goto ignore_char;
+				goto igyesre_char;
 			}
 
 			status &= icom_port->read_status_mask;
@@ -811,7 +811,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 			 * affect the current character
 			 */
 			tty_insert_flip_char(port, 0, TTY_OVERRUN);
-ignore_char:
+igyesre_char:
 		icom_port->statStg->rcv[rcv_buff].flags = 0;
 		icom_port->statStg->rcv[rcv_buff].leLength = 0;
 		icom_port->statStg->rcv[rcv_buff].WorkingLength =
@@ -1172,27 +1172,27 @@ static void icom_set_termios(struct uart_port *port,
 		ICOM_PORT->read_status_mask |= SA_FLAGS_BREAK_DET;
 
 	/*
-	 * Characters to ignore
+	 * Characters to igyesre
 	 */
-	ICOM_PORT->ignore_status_mask = 0;
+	ICOM_PORT->igyesre_status_mask = 0;
 	if (iflag & IGNPAR)
-		ICOM_PORT->ignore_status_mask |=
+		ICOM_PORT->igyesre_status_mask |=
 		    SA_FLAGS_PARITY_ERROR | SA_FLAGS_FRAME_ERROR;
 	if (iflag & IGNBRK) {
-		ICOM_PORT->ignore_status_mask |= SA_FLAGS_BREAK_DET;
+		ICOM_PORT->igyesre_status_mask |= SA_FLAGS_BREAK_DET;
 		/*
-		 * If we're ignore parity and break indicators, ignore
+		 * If we're igyesre parity and break indicators, igyesre
 		 * overruns too.  (For real raw support).
 		 */
 		if (iflag & IGNPAR)
-			ICOM_PORT->ignore_status_mask |= SA_FLAGS_OVERRUN;
+			ICOM_PORT->igyesre_status_mask |= SA_FLAGS_OVERRUN;
 	}
 
 	/*
-	 * !!! ignore all characters if CREAD is not set
+	 * !!! igyesre all characters if CREAD is yest set
 	 */
 	if ((cflag & CREAD) == 0)
-		ICOM_PORT->ignore_status_mask |= SA_FL_RCV_DONE;
+		ICOM_PORT->igyesre_status_mask |= SA_FL_RCV_DONE;
 
 	/* Turn off Receiver to prepare for reset */
 	writeb(CMD_RCV_DISABLE, &ICOM_PORT->dram->CmdReg);
@@ -1295,7 +1295,7 @@ static struct uart_driver icom_uart_driver = {
 	.driver_name = ICOM_DRIVER_NAME,
 	.dev_name = "ttyA",
 	.major = ICOM_MAJOR,
-	.minor = ICOM_MINOR_START,
+	.miyesr = ICOM_MINOR_START,
 	.nr = NR_PORTS,
 	.cons = ICOM_CONSOLE,
 };

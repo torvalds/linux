@@ -300,7 +300,7 @@ err:
 	return ret;
 }
 
-static int palm27x_backlight_notify(struct device *dev, int brightness)
+static int palm27x_backlight_yestify(struct device *dev, int brightness)
 {
 	gpio_set_value(palm_bl_power, brightness);
 	if (gpio_is_valid(palm_lcd_power))
@@ -320,7 +320,7 @@ static struct platform_pwm_backlight_data palm27x_backlight_data = {
 	.dft_brightness	= 0x7e,
 	.enable_gpio	= -1,
 	.init		= palm27x_backlight_init,
-	.notify		= palm27x_backlight_notify,
+	.yestify		= palm27x_backlight_yestify,
 	.exit		= palm27x_backlight_exit,
 };
 

@@ -5,7 +5,7 @@ The cpia2 driver
 
 Authors: Peter Pregler <Peter_Pregler@email.com>,
 Scott J. Bertin <scottbertin@yahoo.com>, and
-Jarl Totland <Jarl.Totland@bdc.no> for the original cpia driver, which
+Jarl Totland <Jarl.Totland@bdc.yes> for the original cpia driver, which
 this one was modelled from.
 
 Introduction
@@ -14,14 +14,14 @@ Introduction
 This is a driver for STMicroelectronics's CPiA2 (second generation
 Colour Processor Interface ASIC) based cameras. This camera outputs an MJPEG
 stream at up to vga size. It implements the Video4Linux interface as much as
-possible.  Since the V4L interface does not support compressed formats, only
+possible.  Since the V4L interface does yest support compressed formats, only
 an mjpeg enabled application can be used with the camera. We have modified the
 gqcam application to view this stream.
 
 The driver is implemented as two kernel modules. The cpia2 module
 contains the camera functions and the V4L interface.  The cpia2_usb module
 contains usb specific functions.  The main reason for this was the size of the
-module was getting out of hand, so I separated them.  It is not likely that
+module was getting out of hand, so I separated them.  It is yest likely that
 there will be a parallel port version.
 
 Features
@@ -81,14 +81,14 @@ Setting the options
 If you are using modules, edit /etc/modules.conf and add an options
 line like this:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	options cpia2 num_buffers=3 buffer_size=65535
 
 If the driver is compiled into the kernel, at boot time specify them
 like this:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	cpia2.num_buffers=3 cpia2.buffer_size=65535
 
@@ -105,8 +105,8 @@ increase image quality until it is close to the size in the table.  As long
 as the compression engine can keep up with the frame rate, after a short time
 the images will all be about the size in the table, regardless of resolution.
 
-At low alternate settings, the compression engine may not be able to
-compress the image enough and will reduce the frame rate by producing larger
+At low alternate settings, the compression engine may yest be able to
+compress the image eyesugh and will reduce the frame rate by producing larger
 images.
 
 The default of 68k should be good for most users.  This will handle
@@ -131,11 +131,11 @@ Table: Image size(bytes)
 How many buffers should I use?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For normal streaming, 3 should give the best results.  With only 2,
+For yesrmal streaming, 3 should give the best results.  With only 2,
 it is possible for the camera to finish sending one image just after a
 program has started reading the other.  If this happens, the driver must drop
 a frame.  The exception to this is if you have a heavily loaded machine.  In
-this case use 2 buffers.  You are probably not reading at the full frame rate.
+this case use 2 buffers.  You are probably yest reading at the full frame rate.
 If the camera can send multiple images before a read finishes, it could
 overwrite the third buffer before the read finishes, leading to a corrupt
 image.  Single and double buffering have extra checks to avoid overwriting.
@@ -157,7 +157,7 @@ Notes to developers
 Programmer's overview of cpia2 driver
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Cpia2 is the second generation video coprocessor from VLSI Vision Ltd (now a
+Cpia2 is the second generation video coprocessor from VLSI Vision Ltd (yesw a
 division of ST Microelectronics).  There are two versions.  The first is the
 STV0672, which is capable of up to 30 frames per second (fps) in frame sizes
 up to CIF, and 15 fps for VGA frames.  The STV0676 is an improved version,
@@ -174,7 +174,7 @@ header files are marked with VP4 or VP5 as part of the symbol name.
 The cameras appear externally as three sets of registers. Setting register
 values is the only way to control the camera.  Some settings are
 interdependant, such as the sequence required to power up the camera. I will
-try to make note of all of these cases.
+try to make yeste of all of these cases.
 
 The register sets are called blocks.  Block 0 is the system block.  This
 section is always powered on when the camera is plugged in.  It contains

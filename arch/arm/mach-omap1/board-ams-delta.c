@@ -6,7 +6,7 @@
  *
  * Board specific inits for the Amstrad E3 (codename Delta) videophone
  *
- * Copyright (C) 2006 Jonathan McDowell <noodles@earth.li>
+ * Copyright (C) 2006 Jonathan McDowell <yesodles@earth.li>
  */
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
@@ -461,7 +461,7 @@ static struct platform_device ams_delta_camera_device = {
 };
 
 static struct omap1_cam_platform_data ams_delta_camera_platform_data = {
-	.camexclk_khz	= 12000,	/* default 12MHz clock, no extra DPLL */
+	.camexclk_khz	= 12000,	/* default 12MHz clock, yes extra DPLL */
 	.lclk_khz_max	= 1334,		/* results in 5fps CIF, 10fps QCIF */
 };
 
@@ -576,9 +576,9 @@ static struct gpiod_lookup_table *ams_delta_gpio_tables[] __initdata = {
 };
 
 /*
- * Some drivers may not use GPIO lookup tables but need to be provided
+ * Some drivers may yest use GPIO lookup tables but need to be provided
  * with GPIO numbers.  The same applies to GPIO based IRQ lines - some
- * drivers may even not use GPIO layer but expect just IRQ numbers.
+ * drivers may even yest use GPIO layer but expect just IRQ numbers.
  * We could either define GPIO lookup tables then use them on behalf
  * of those devices, or we can use GPIO driver level methods for
  * identification of GPIO and IRQ numbers. For the purpose of the latter,
@@ -602,7 +602,7 @@ static struct plat_serial8250_port ams_delta_modem_ports[];
 /*
  * Obtain MODEM IRQ GPIO descriptor using its hardware pin
  * number and assign related IRQ number to the MODEM port.
- * Keep the GPIO descriptor open so nobody steps in.
+ * Keep the GPIO descriptor open so yesbody steps in.
  */
 static void __init modem_assign_irq(struct gpio_chip *chip)
 {
@@ -634,7 +634,7 @@ static void __init omap_gpio_deps_init(void)
 
 	chip = gpiochip_find(OMAP_GPIO_LABEL, gpiochip_match_by_label);
 	if (!chip) {
-		pr_err("%s: OMAP GPIO chip not found\n", __func__);
+		pr_err("%s: OMAP GPIO chip yest found\n", __func__);
 		return;
 	}
 
@@ -828,7 +828,7 @@ static int __init modem_nreset_init(void)
  * That requirement can be fulfilled in several ways:
  * - with a descriptor of already functional modem_nreset regulator
  *   assigned to the MODEM private data,
- * - with the regulator not yet controlled by modem_pm function but
+ * - with the regulator yest yet controlled by modem_pm function but
  *   already enabled by default on probe,
  * - before the modem_nreset regulator is probed, with the pin already
  *   set high explicitly.
@@ -895,7 +895,7 @@ static void __init ams_delta_map_io(void)
 }
 
 MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
-	/* Maintainer: Jonathan McDowell <noodles@earth.li> */
+	/* Maintainer: Jonathan McDowell <yesodles@earth.li> */
 	.atag_offset	= 0x100,
 	.map_io		= ams_delta_map_io,
 	.init_early	= omap1_init_early,

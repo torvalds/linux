@@ -59,7 +59,7 @@ struct tilcdc_crtc {
 };
 #define to_tilcdc_crtc(x) container_of(x, struct tilcdc_crtc, base)
 
-static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
+static void set_scayesut(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
@@ -220,7 +220,7 @@ static void tilcdc_crtc_set_clk(struct drm_crtc *crtc)
 	if (ret < 0 || tilcdc_pclk_diff(req_rate, clk_rate) > 5) {
 		/*
 		 * If we fail to set the clock rate (some architectures don't
-		 * use the common clock framework yet and may not implement
+		 * use the common clock framework yet and may yest implement
 		 * all the clk API calls for every clock), try the next best
 		 * thing: adjusting the clock divider, unless clk_get_rate()
 		 * failed as well.
@@ -375,7 +375,7 @@ static void tilcdc_crtc_set_mode(struct drm_crtc *crtc)
 		~(LCDC_TFT_MODE | LCDC_MONO_8BIT_MODE | LCDC_MONOCHROME_MODE |
 		  LCDC_V2_TFT_24BPP_MODE | LCDC_V2_TFT_24BPP_UNPACK |
 		  0x000ff000 /* Palette Loading Delay bits */);
-	reg |= LCDC_TFT_MODE; /* no monochrome/passive support */
+	reg |= LCDC_TFT_MODE; /* yes moyeschrome/passive support */
 	if (info->tft_alt_mode)
 		reg |= LCDC_TFT_ALT_ENABLE;
 	if (priv->rev == 2) {
@@ -433,7 +433,7 @@ static void tilcdc_crtc_set_mode(struct drm_crtc *crtc)
 
 	tilcdc_crtc_load_palette(crtc);
 
-	set_scanout(crtc, fb);
+	set_scayesut(crtc, fb);
 
 	crtc->hwmode = crtc->state->adjusted_mode;
 
@@ -466,7 +466,7 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 			  LCDC_PALETTE_LOAD_MODE(DATA_ONLY),
 			  LCDC_PALETTE_LOAD_MODE_MASK);
 
-	/* There is no real chance for a race here as the time stamp
+	/* There is yes real chance for a race here as the time stamp
 	 * is taken before the raster DMA is started. The spin-lock is
 	 * taken to have a memory barrier after taking the time-stamp
 	 * and to avoid a context switch between taking the stamp and
@@ -574,7 +574,7 @@ static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
 
 	flush_workqueue(priv->wq);
 
-	of_node_put(crtc->port);
+	of_yesde_put(crtc->port);
 	drm_crtc_cleanup(crtc);
 }
 
@@ -608,7 +608,7 @@ int tilcdc_crtc_update_fb(struct drm_crtc *crtc,
 		if (tdiff < TILCDC_VBLANK_SAFETY_THRESHOLD_US)
 			tilcdc_crtc->next_fb = fb;
 		else
-			set_scanout(crtc, fb);
+			set_scayesut(crtc, fb);
 
 		spin_unlock_irqrestore(&tilcdc_crtc->irq_lock, flags);
 	}
@@ -628,7 +628,7 @@ static bool tilcdc_crtc_mode_fixup(struct drm_crtc *crtc,
 		return true;
 
 	/*
-	 * tilcdc does not generate VESA-compliant sync but aligns
+	 * tilcdc does yest generate VESA-compliant sync but aligns
 	 * VS on the second edge of HS instead of first edge.
 	 * We use adjusted_mode, to fixup sync by aligning both rising
 	 * edges and add HSKEW offset to fix the sync.
@@ -650,7 +650,7 @@ static bool tilcdc_crtc_mode_fixup(struct drm_crtc *crtc,
 static int tilcdc_crtc_atomic_check(struct drm_crtc *crtc,
 				    struct drm_crtc_state *state)
 {
-	/* If we are not active we don't care */
+	/* If we are yest active we don't care */
 	if (!state->active)
 		return 0;
 
@@ -875,16 +875,16 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 	if (stat & LCDC_END_OF_FRAME0) {
 		unsigned long flags;
 		bool skip_event = false;
-		ktime_t now;
+		ktime_t yesw;
 
-		now = ktime_get();
+		yesw = ktime_get();
 
 		spin_lock_irqsave(&tilcdc_crtc->irq_lock, flags);
 
-		tilcdc_crtc->last_vblank = now;
+		tilcdc_crtc->last_vblank = yesw;
 
 		if (tilcdc_crtc->next_fb) {
-			set_scanout(crtc, tilcdc_crtc->next_fb);
+			set_scayesut(crtc, tilcdc_crtc->next_fb);
 			tilcdc_crtc->next_fb = NULL;
 			skip_event = true;
 		}
@@ -956,7 +956,7 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 	if (stat & LCDC_FRAME_DONE) {
 		tilcdc_crtc->frame_done = true;
 		wake_up(&tilcdc_crtc->frame_done_wq);
-		/* rev 1 lcdc appears to hang if irq is not disbaled here */
+		/* rev 1 lcdc appears to hang if irq is yest disbaled here */
 		if (priv->rev == 1)
 			tilcdc_clear(dev, LCDC_RASTER_CTRL_REG,
 				     LCDC_V1_FRAME_DONE_INT_ENA);
@@ -1017,10 +1017,10 @@ int tilcdc_crtc_create(struct drm_device *dev)
 	drm_crtc_helper_add(crtc, &tilcdc_crtc_helper_funcs);
 
 	if (priv->is_componentized) {
-		crtc->port = of_graph_get_port_by_id(dev->dev->of_node, 0);
+		crtc->port = of_graph_get_port_by_id(dev->dev->of_yesde, 0);
 		if (!crtc->port) { /* This should never happen */
-			dev_err(dev->dev, "Port node not found in %pOF\n",
-				dev->dev->of_node);
+			dev_err(dev->dev, "Port yesde yest found in %pOF\n",
+				dev->dev->of_yesde);
 			ret = -EINVAL;
 			goto fail;
 		}

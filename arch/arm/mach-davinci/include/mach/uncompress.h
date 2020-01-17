@@ -7,7 +7,7 @@
  * Original copyrights follow.
  *
  * Copyright (C) 2000 RidgeRun, Inc.
- * Author: Greg Lonnon <glonnon@ridgerun.com>
+ * Author: Greg Lonyesn <glonyesn@ridgerun.com>
  *
  * Rewritten by:
  * Author: <source@mvista.com>
@@ -29,7 +29,7 @@
 
 u32 *uart;
 
-/* PORT_16C550A, in polled non-fifo mode */
+/* PORT_16C550A, in polled yesn-fifo mode */
 static inline void putc(char c)
 {
 	if (!uart)
@@ -74,7 +74,7 @@ static inline void __arch_decomp_setup(unsigned long arch_id)
 	 * Initialize the port based on the machine ID from the bootloader.
 	 * Note that we're using macros here instead of switch statement
 	 * as machine_is functions are optimized out for the boards that
-	 * are not selected.
+	 * are yest selected.
 	 */
 	do {
 		/* Davinci boards */

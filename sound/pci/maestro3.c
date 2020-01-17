@@ -1223,7 +1223,7 @@ static void snd_m3_pcm_setup2(struct snd_m3 *chip, struct m3_dma *s,
 	u32 freq;
 
 	/* 
-	 * put us in the lists if we're not already there
+	 * put us in the lists if we're yest already there
 	 */
 	if (! s->in_lists) {
 		s->index[0] = snd_m3_add_list(chip, s->index_list[0],
@@ -1235,7 +1235,7 @@ static void snd_m3_pcm_setup2(struct snd_m3 *chip, struct m3_dma *s,
 		s->in_lists = 1;
 	}
 
-	/* write to 'mono' word */
+	/* write to 'moyes' word */
 	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 			  s->inst.data + SRC3_DIRECTION_OFFSET + 1, 
 			  runtime->channels == 2 ? 0 : 1);
@@ -1388,7 +1388,7 @@ static int snd_m3_pcm_hw_params(struct snd_pcm_substream *substream,
 	/* set buffer address */
 	s->buffer_addr = substream->runtime->dma_addr;
 	if (s->buffer_addr & 0x3) {
-		dev_err(substream->pcm->card->dev, "oh my, not aligned\n");
+		dev_err(substream->pcm->card->dev, "oh my, yest aligned\n");
 		s->buffer_addr = s->buffer_addr & ~0x3;
 	}
 	return 0;
@@ -1524,7 +1524,7 @@ static void snd_m3_update_ptr(struct snd_m3 *chip, struct m3_dma *s)
 /* The m3's hardware volume works by incrementing / decrementing 2 counters
    (without wrap around) in response to volume button presses and then
    generating an interrupt. The pair of counters is stored in bits 1-3 and 5-7
-   of a byte wide register. The meaning of bits 0 and 4 is unknown. */
+   of a byte wide register. The meaning of bits 0 and 4 is unkyeswn. */
 static void snd_m3_update_hw_volume(struct work_struct *work)
 {
 	struct snd_m3 *chip = container_of(work, struct snd_m3, hwvol_work);
@@ -1538,7 +1538,7 @@ static void snd_m3_update_hw_volume(struct work_struct *work)
 	/* Reset the volume counters to 4. Tests on the allegro integrated
 	   into a Compaq N600C laptop, have revealed that:
 	   1) Writing any value will result in the 2 counters being reset to
-	      4 so writing 0x88 is not strictly necessary
+	      4 so writing 0x88 is yest strictly necessary
 	   2) Writing to any of the 4 involved registers will reset all 4
 	      of them (and reading them always returns the same value for all
 	      of them)
@@ -1549,7 +1549,7 @@ static void snd_m3_update_hw_volume(struct work_struct *work)
 	outb(0x88, chip->iobase + SHADOW_MIX_REG_MASTER);
 	outb(0x88, chip->iobase + HW_VOL_COUNTER_MASTER);
 
-	/* Ignore spurious HV interrupts during suspend / resume, this avoids
+	/* Igyesre spurious HV interrupts during suspend / resume, this avoids
 	   mistaking them for a mute button press. */
 	if (chip->in_suspend)
 		return;
@@ -1561,7 +1561,7 @@ static void snd_m3_update_hw_volume(struct work_struct *work)
 	val = snd_ac97_read(chip->ac97, AC97_MASTER);
 	switch (x) {
 	case 0x88:
-		/* The counters have not changed, yet we've received a HV
+		/* The counters have yest changed, yet we've received a HV
 		   interrupt. According to tests run by various people this
 		   happens when pressing the mute button. */
 		val ^= 0x8000;
@@ -1582,7 +1582,7 @@ static void snd_m3_update_hw_volume(struct work_struct *work)
 		break;
 	}
 	if (snd_ac97_update(chip->ac97, AC97_MASTER, val))
-		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->master_switch->id);
 #else
 	if (!chip->input_dev)
@@ -1591,7 +1591,7 @@ static void snd_m3_update_hw_volume(struct work_struct *work)
 	val = 0;
 	switch (x) {
 	case 0x88:
-		/* The counters have not changed, yet we've received a HV
+		/* The counters have yest changed, yet we've received a HV
 		   interrupt. According to tests run by various people this
 		   happens when pressing the mute button. */
 		val = KEY_MUTE;
@@ -1651,7 +1651,7 @@ static irqreturn_t snd_m3_interrupt(int irq, void *dev_id)
 		}
 	}
 
-#if 0 /* TODO: not supported yet */
+#if 0 /* TODO: yest supported yet */
 	if ((status & MPU401_INT_PENDING) && chip->rmidi)
 		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data, regs);
 #endif
@@ -1751,7 +1751,7 @@ snd_m3_substream_close(struct snd_m3 *chip, struct snd_pcm_substream *subs)
 	struct m3_dma *s = subs->runtime->private_data;
 
 	if (s == NULL)
-		return; /* not opened properly */
+		return; /* yest opened properly */
 
 	spin_lock_irq(&chip->reg_lock);
 	if (s->substream && s->running)
@@ -1874,7 +1874,7 @@ snd_m3_pcm(struct snd_m3 * chip, int device)
 
 /*
  * Wait for the ac97 serial bus to be free.
- * return nonzero if the bus is still busy.
+ * return yesnzero if the bus is still busy.
  */
 static int snd_m3_ac97_wait(struct snd_m3 *chip)
 {
@@ -1917,7 +1917,7 @@ snd_m3_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short val)
 	snd_m3_outb(chip, reg & 0x7f, CODEC_COMMAND);
 	/*
 	 * Workaround for buggy ES1988 integrated AC'97 codec. It remains silent
-	 * until the MASTER volume or mute is touched (alsactl restore does not
+	 * until the MASTER volume or mute is touched (alsactl restore does yest
 	 * work).
 	 */
 	if (ac97->id == 0x45838308 && reg == AC97_MASTER) {
@@ -1948,7 +1948,7 @@ static void snd_m3_remote_codec_config(struct snd_m3 *chip, int isremote)
 }
 
 /* 
- * hack, returns non zero on err 
+ * hack, returns yesn zero on err 
  */
 static int snd_m3_try_read_vendor(struct snd_m3 *chip)
 {
@@ -2115,7 +2115,7 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 	}
 
 	/*
-	 * We only have this one client and we know that 0x400
+	 * We only have this one client and we kyesw that 0x400
 	 * is free in our kernel's mem map, so lets just
 	 * drop it there.  It seems that the minisrc doesn't
 	 * need vectors, so we won't bother with them..
@@ -2199,7 +2199,7 @@ static int snd_m3_assp_client_init(struct snd_m3 *chip, struct m3_dma *s, int in
 
 	if ((address + (data_bytes/2)) >= 0x1c00) {
 		dev_err(chip->card->dev,
-			"no memory for %d bytes at ind %d (addr 0x%x)\n",
+			"yes memory for %d bytes at ind %d (addr 0x%x)\n",
 			   data_bytes, index, address);
 		return -ENOMEM;
 	}
@@ -2277,7 +2277,7 @@ snd_m3_chip_init(struct snd_m3 *chip)
 	unsigned long io = chip->iobase;
 	u32 n;
 	u16 w;
-	u8 t; /* makes as much sense as 'n', no? */
+	u8 t; /* makes as much sense as 'n', yes? */
 
 	pci_read_config_word(pcidev, PCI_LEGACY_AUDIO_CTRL, &w);
 	w &= ~(SOUND_BLASTER_ENABLE|FM_SYNTHESIS_ENABLE|
@@ -2333,7 +2333,7 @@ snd_m3_enable_ints(struct snd_m3 *chip)
 	unsigned long io = chip->iobase;
 	unsigned short val;
 
-	/* TODO: MPU401 not supported yet */
+	/* TODO: MPU401 yest supported yet */
 	val = ASSP_INT_ENABLE /*| MPU401_INT_ENABLE*/;
 	if (chip->hv_config & HV_CTRL_ENABLE)
 		val |= HV_INT_ENABLE;
@@ -2362,7 +2362,7 @@ static int snd_m3_free(struct snd_m3 *chip)
 		spin_lock_irq(&chip->reg_lock);
 		for (i = 0; i < chip->num_substreams; i++) {
 			s = &chip->substreams[i];
-			/* check surviving pcms; this should not happen though.. */
+			/* check surviving pcms; this should yest happen though.. */
 			if (s->substream && s->running)
 				snd_m3_pcm_stop(chip, s, s->substream);
 		}
@@ -2542,7 +2542,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(28)) < 0 ||
 	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(28)) < 0) {
 		dev_err(card->dev,
-			"architecture does not support 28bit PCI busmaster DMA\n");
+			"architecture does yest support 28bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -2742,14 +2742,14 @@ snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	if (err < 0)
 		goto free_card;
 
-#if 0 /* TODO: not supported yet */
+#if 0 /* TODO: yest supported yet */
 	/* TODO enable MIDI IRQ and I/O */
 	err = snd_mpu401_uart_new(chip->card, 0, MPU401_HW_MPU401,
 				  chip->iobase + MPU401_DATA_PORT,
 				  MPU401_INFO_INTEGRATED | MPU401_INFO_IRQ_HOOK,
 				  -1, &chip->rmidi);
 	if (err < 0)
-		dev_warn(card->dev, "no MIDI support.\n");
+		dev_warn(card->dev, "yes MIDI support.\n");
 #endif
 
 	pci_set_drvdata(pci, card);

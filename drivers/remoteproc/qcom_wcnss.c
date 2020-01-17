@@ -215,7 +215,7 @@ static int wcnss_start(struct rproc *rproc)
 
 	mutex_lock(&wcnss->iris_lock);
 	if (!wcnss->iris) {
-		dev_err(wcnss->dev, "no iris registered\n");
+		dev_err(wcnss->dev, "yes iris registered\n");
 		ret = -EINVAL;
 		goto release_iris_lock;
 	}
@@ -410,10 +410,10 @@ static int wcnss_request_irq(struct qcom_wcnss *wcnss,
 
 	ret = platform_get_irq_byname(pdev, name);
 	if (ret < 0 && optional) {
-		dev_dbg(&pdev->dev, "no %s IRQ defined, ignoring\n", name);
+		dev_dbg(&pdev->dev, "yes %s IRQ defined, igyesring\n", name);
 		return 0;
 	} else if (ret < 0) {
-		dev_err(&pdev->dev, "no %s IRQ defined\n", name);
+		dev_err(&pdev->dev, "yes %s IRQ defined\n", name);
 		return ret;
 	}
 
@@ -429,17 +429,17 @@ static int wcnss_request_irq(struct qcom_wcnss *wcnss,
 
 static int wcnss_alloc_memory_region(struct qcom_wcnss *wcnss)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct resource r;
 	int ret;
 
-	node = of_parse_phandle(wcnss->dev->of_node, "memory-region", 0);
-	if (!node) {
-		dev_err(wcnss->dev, "no memory-region specified\n");
+	yesde = of_parse_phandle(wcnss->dev->of_yesde, "memory-region", 0);
+	if (!yesde) {
+		dev_err(wcnss->dev, "yes memory-region specified\n");
 		return -EINVAL;
 	}
 
-	ret = of_address_to_resource(node, 0, &r);
+	ret = of_address_to_resource(yesde, 0, &r);
 	if (ret)
 		return ret;
 
@@ -470,7 +470,7 @@ static int wcnss_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 
 	if (!qcom_scm_pas_supported(WCNSS_PAS_ID)) {
-		dev_err(&pdev->dev, "PAS is not available for WCNSS\n");
+		dev_err(&pdev->dev, "PAS is yest available for WCNSS\n");
 		return -ENXIO;
 	}
 
@@ -554,7 +554,7 @@ static int wcnss_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_rproc;
 
-	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	return of_platform_populate(pdev->dev.of_yesde, NULL, NULL, &pdev->dev);
 
 free_rproc:
 	rproc_free(rproc);

@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mempool.h>
 
 #include <scsi/scsi_tcq.h>
@@ -35,7 +35,7 @@ static inline const char *
 snic_tgt_type_to_str(int typ)
 {
 	return ((typ > SNIC_TGT_NONE && typ <= SNIC_TGT_SAN) ?
-		 snic_tgt_type_str[typ] : "Unknown");
+		 snic_tgt_type_str[typ] : "Unkyeswn");
 }
 
 static const char * const snic_tgt_state_str[] = {
@@ -233,7 +233,7 @@ snic_tgt_del(struct work_struct *work)
 	/* Cleanup IOs */
 	snic_tgt_scsi_abort_io(tgt);
 
-	/* Unblock IOs now, to flush if there are any. */
+	/* Unblock IOs yesw, to flush if there are any. */
 	scsi_target_unblock(&tgt->dev, SDEV_TRANSPORT_OFFLINE);
 
 	/* Delete SCSI Target and sdevs */
@@ -286,18 +286,18 @@ snic_tgt_create(struct snic *snic, struct snic_tgt_id *tgtid)
 	switch (tgt->tdata.typ) {
 	case SNIC_TGT_DAS:
 		dev_set_name(&tgt->dev, "snic_das_tgt:%d:%d-%d",
-			     snic->shost->host_no, tgt->channel, tgt->id);
+			     snic->shost->host_yes, tgt->channel, tgt->id);
 		break;
 
 	case SNIC_TGT_SAN:
 		dev_set_name(&tgt->dev, "snic_san_tgt:%d:%d-%d",
-			     snic->shost->host_no, tgt->channel, tgt->id);
+			     snic->shost->host_yes, tgt->channel, tgt->id);
 		break;
 
 	default:
-		SNIC_HOST_INFO(snic->shost, "Target type Unknown Detected.\n");
+		SNIC_HOST_INFO(snic->shost, "Target type Unkyeswn Detected.\n");
 		dev_set_name(&tgt->dev, "snic_das_tgt:%d:%d-%d",
-			     snic->shost->host_no, tgt->channel, tgt->id);
+			     snic->shost->host_yes, tgt->channel, tgt->id);
 		break;
 	}
 

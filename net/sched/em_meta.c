@@ -8,7 +8,7 @@
  *
  * 	The metadata ematch compares two meta objects where each object
  * 	represents either a meta value stored in the kernel or a static
- * 	value provided by userspace. The objects are not provided by
+ * 	value provided by userspace. The objects are yest provided by
  * 	userspace itself but rather a definition providing the information
  * 	to build them. Every object is of a certain type which must be
  * 	equal to the object it is being compared to.
@@ -41,10 +41,10 @@
  *
  * 	This is a simplified schema, the complexity varies depending
  * 	on the meta type. Obviously, the length of the data must also
- * 	be provided for non-numeric types.
+ * 	be provided for yesn-numeric types.
  *
  * 	Additionally, type dependent modifiers such as shift operators
- * 	or mask may be applied to extend the functionaliy. As of now,
+ * 	or mask may be applied to extend the functionaliy. As of yesw,
  * 	the variable length type supports shifting the byte string to
  * 	the right, eating up any number of octets and thus supporting
  * 	wildcard interface name comparisons such as "ppp%" matching
@@ -269,12 +269,12 @@ META_COLLECTOR(int_rtiif)
  * Socket Attributes
  **************************************************************************/
 
-#define skip_nonlocal(skb) \
+#define skip_yesnlocal(skb) \
 	(unlikely(skb->sk == NULL))
 
 META_COLLECTOR(int_sk_family)
 {
-	if (skip_nonlocal(skb)) {
+	if (skip_yesnlocal(skb)) {
 		*err = -1;
 		return;
 	}
@@ -283,7 +283,7 @@ META_COLLECTOR(int_sk_family)
 
 META_COLLECTOR(int_sk_state)
 {
-	if (skip_nonlocal(skb)) {
+	if (skip_yesnlocal(skb)) {
 		*err = -1;
 		return;
 	}
@@ -292,7 +292,7 @@ META_COLLECTOR(int_sk_state)
 
 META_COLLECTOR(int_sk_reuse)
 {
-	if (skip_nonlocal(skb)) {
+	if (skip_yesnlocal(skb)) {
 		*err = -1;
 		return;
 	}
@@ -301,7 +301,7 @@ META_COLLECTOR(int_sk_reuse)
 
 META_COLLECTOR(int_sk_bound_if)
 {
-	if (skip_nonlocal(skb)) {
+	if (skip_yesnlocal(skb)) {
 		*err = -1;
 		return;
 	}
@@ -311,7 +311,7 @@ META_COLLECTOR(int_sk_bound_if)
 
 META_COLLECTOR(var_sk_bound_if)
 {
-	if (skip_nonlocal(skb)) {
+	if (skip_yesnlocal(skb)) {
 		*err = -1;
 		return;
 	}
@@ -332,7 +332,7 @@ META_COLLECTOR(var_sk_bound_if)
 
 META_COLLECTOR(int_sk_refcnt)
 {
-	if (skip_nonlocal(skb)) {
+	if (skip_yesnlocal(skb)) {
 		*err = -1;
 		return;
 	}
@@ -484,7 +484,7 @@ META_COLLECTOR(int_sk_alloc)
 
 META_COLLECTOR(int_sk_hash)
 {
-	if (skip_nonlocal(skb)) {
+	if (skip_yesnlocal(skb)) {
 		*err = -1;
 		return;
 	}
@@ -731,7 +731,7 @@ nla_put_failure:
 
 static int meta_int_compare(struct meta_obj *a, struct meta_obj *b)
 {
-	/* Let gcc optimize it, the unlikely is not really based on
+	/* Let gcc optimize it, the unlikely is yest really based on
 	 * some numbers but jump free code for mismatches seems
 	 * more logical. */
 	if (unlikely(a->value == b->value))

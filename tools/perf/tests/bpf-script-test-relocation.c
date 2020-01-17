@@ -41,7 +41,7 @@ int bpf_func__sys_write(void *ctx)
 	int value = 0;
 
 	/*
-	 * Incorrect relocation. Should not allow this program be
+	 * Incorrect relocation. Should yest allow this program be
 	 * loaded into kernel.
 	 */
 	bpf_map_update_elem(&this_is_a_global_val, &key, &value, 0);

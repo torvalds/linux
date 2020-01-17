@@ -287,7 +287,7 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 
 	i2c->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(i2c->clk)) {
-		dev_err(&pdev->dev, "no clock defined\n");
+		dev_err(&pdev->dev, "yes clock defined\n");
 		return PTR_ERR(i2c->clk);
 	}
 	ret = clk_prepare_enable(i2c->clk);
@@ -298,12 +298,12 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 
 	i2c->dev = &pdev->dev;
 
-	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	if (of_property_read_u32(pdev->dev.of_yesde, "clock-frequency",
 				 &i2c->bus_freq))
 		i2c->bus_freq = 100000;
 
 	if (i2c->bus_freq == 0) {
-		dev_warn(i2c->dev, "clock-frequency 0 not supported\n");
+		dev_warn(i2c->dev, "clock-frequency 0 yest supported\n");
 		return -EINVAL;
 	}
 
@@ -313,7 +313,7 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 	adap->retries = 3;
 	adap->dev.parent = &pdev->dev;
 	i2c_set_adapdata(adap, i2c);
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 	strlcpy(adap->name, dev_name(&pdev->dev), sizeof(adap->name));
 
 	platform_set_drvdata(pdev, i2c);

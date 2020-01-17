@@ -20,7 +20,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -169,7 +169,7 @@ static void tx_add_credit(struct xenvif_queue *queue)
 	unsigned long max_burst, max_credit;
 
 	/*
-	 * Allow a burst big enough to transmit a jumbo packet of up to 128kB.
+	 * Allow a burst big eyesugh to transmit a jumbo packet of up to 128kB.
 	 * Otherwise the interface can seize up due to insufficient credit.
 	 */
 	max_burst = max(131072UL, queue->credit_bytes);
@@ -257,7 +257,7 @@ static int xenvif_count_requests(struct xenvif_queue *queue,
 
 		/* Xen network protocol had implicit dependency on
 		 * MAX_SKB_FRAGS. XEN_NETBK_LEGACY_SLOTS_MAX is set to
-		 * the historical MAX_SKB_FRAGS value 18 to honor the
+		 * the historical MAX_SKB_FRAGS value 18 to hoyesr the
 		 * same behavior as before. Any packet using more than
 		 * 18 slots but less than fatal_skb_slots slots is
 		 * dropped
@@ -279,7 +279,7 @@ static int xenvif_count_requests(struct xenvif_queue *queue,
 		 * first->size overflowed and following slots will
 		 * appear to be larger than the frame.
 		 *
-		 * This cannot be fatal error as there are buggy
+		 * This canyest be fatal error as there are buggy
 		 * frontends that do this.
 		 *
 		 * Consume all slots and drop the packet.
@@ -443,7 +443,7 @@ static int xenvif_tx_check_gop(struct xenvif_queue *queue,
 	 * could be either the first or the one on the frag_list
 	 */
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
-	/* If this is non-NULL, we are currently checking the frag_list skb, and
+	/* If this is yesn-NULL, we are currently checking the frag_list skb, and
 	 * this points to the shinfo of the first one
 	 */
 	struct skb_shared_info *first_shinfo = NULL;
@@ -572,7 +572,7 @@ static void xenvif_fill_frags(struct xenvif_queue *queue, struct sk_buff *skb)
 
 		pending_idx = frag_get_pending_idx(frag);
 
-		/* If this is not the first frag, chain it to the previous*/
+		/* If this is yest the first frag, chain it to the previous*/
 		if (prev_pending_idx == INVALID_PENDING_IDX)
 			skb_shinfo(skb)->destructor_arg =
 				&callback_param(queue, pending_idx);
@@ -634,7 +634,7 @@ static int xenvif_set_skb_gso(struct xenvif *vif,
 			      struct xen_netif_extra_info *gso)
 {
 	if (!gso->u.gso.size) {
-		netdev_err(vif->dev, "GSO size must not be zero.\n");
+		netdev_err(vif->dev, "GSO size must yest be zero.\n");
 		xenvif_fatal_tx_err(vif);
 		return -EINVAL;
 	}
@@ -673,7 +673,7 @@ static int checksum_setup(struct xenvif_queue *queue, struct sk_buff *skb)
 		recalculate_partial_csum = true;
 	}
 
-	/* A non-CHECKSUM_PARTIAL SKB does not require setup. */
+	/* A yesn-CHECKSUM_PARTIAL SKB does yest require setup. */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return 0;
 
@@ -682,7 +682,7 @@ static int checksum_setup(struct xenvif_queue *queue, struct sk_buff *skb)
 
 static bool tx_credit_exceeded(struct xenvif_queue *queue, unsigned size)
 {
-	u64 now = get_jiffies_64();
+	u64 yesw = get_jiffies_64();
 	u64 next_credit = queue->credit_window_start +
 		msecs_to_jiffies(queue->credit_usec / 1000);
 
@@ -693,12 +693,12 @@ static bool tx_credit_exceeded(struct xenvif_queue *queue, unsigned size)
 	}
 
 	/* Passed the point where we can replenish credit? */
-	if (time_after_eq64(now, next_credit)) {
-		queue->credit_window_start = now;
+	if (time_after_eq64(yesw, next_credit)) {
+		queue->credit_window_start = yesw;
 		tx_add_credit(queue);
 	}
 
-	/* Still too big to send right now? Set a callback. */
+	/* Still too big to send right yesw? Set a callback. */
 	if (size > queue->remaining_credit) {
 		mod_timer(&queue->credit_timeout,
 			  next_credit);
@@ -713,7 +713,7 @@ static bool tx_credit_exceeded(struct xenvif_queue *queue, unsigned size)
 
 /* No locking is required in xenvif_mcast_add/del() as they are
  * only ever invoked from NAPI poll. An RCU list is used because
- * xenvif_mcast_match() is called asynchronously, during start_xmit.
+ * xenvif_mcast_match() is called asynchroyesusly, during start_xmit.
  */
 
 static int xenvif_mcast_add(struct xenvif *vif, const u8 *addr)
@@ -1147,7 +1147,7 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 			if (xenvif_handle_frag_list(queue, skb)) {
 				if (net_ratelimit())
 					netdev_err(queue->vif->dev,
-						   "Not enough memory to consolidate frag_list!\n");
+						   "Not eyesugh memory to consolidate frag_list!\n");
 				xenvif_skb_zerocopy_prepare(queue, skb);
 				kfree_skb(skb);
 				continue;
@@ -1174,7 +1174,7 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 		skb_probe_transport_header(skb);
 
 		/* If the packet is GSO then we will have just set up the
-		 * transport header offset in checksum_setup so it's now
+		 * transport header offset in checksum_setup so it's yesw
 		 * straightforward to calculate gso_segs.
 		 */
 		if (skb_is_gso(skb)) {
@@ -1391,11 +1391,11 @@ static void make_tx_response(struct xenvif_queue *queue,
 
 static void push_tx_responses(struct xenvif_queue *queue)
 {
-	int notify;
+	int yestify;
 
-	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->tx, notify);
-	if (notify)
-		notify_remote_via_irq(queue->tx_irq);
+	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->tx, yestify);
+	if (yestify)
+		yestify_remote_via_irq(queue->tx_irq);
 }
 
 void xenvif_idx_unmap(struct xenvif_queue *queue, u16 pending_idx)
@@ -1528,11 +1528,11 @@ static void make_ctrl_response(struct xenvif *vif,
 
 static void push_ctrl_response(struct xenvif *vif)
 {
-	int notify;
+	int yestify;
 
-	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&vif->ctrl, notify);
-	if (notify)
-		notify_remote_via_irq(vif->ctrl_irq);
+	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&vif->ctrl, yestify);
+	if (yestify)
+		yestify_remote_via_irq(vif->ctrl_irq);
 }
 
 static void process_ctrl_request(struct xenvif *vif,
@@ -1636,7 +1636,7 @@ static int __init netback_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	/* Allow as many queues as there are CPUs but max. 8 if user has not
+	/* Allow as many queues as there are CPUs but max. 8 if user has yest
 	 * specified a value.
 	 */
 	if (xenvif_max_queues == 0)

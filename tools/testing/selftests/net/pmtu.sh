@@ -69,8 +69,8 @@
 #
 # - pmtu_vti4_exception
 #	Set up vti tunnel on top of veth, with xfrm states and policies, in two
-#	namespaces with matching endpoints. Check that route exception is not
-#	created if link layer MTU is not exceeded, then exceed it and check that
+#	namespaces with matching endpoints. Check that route exception is yest
+#	created if link layer MTU is yest exceeded, then exceed it and check that
 #	exception is created with the expected PMTU. The approach described
 #	below for IPv6 doesn't apply here, because, on IPv4, administrative MTU
 #	changes alone won't affect PMTU
@@ -93,7 +93,7 @@
 #
 # - pmtu_vti4_link_add_mtu
 #	Set up vti4 interface passing MTU value at link creation, check MTU is
-#	configured, and that link is not created with invalid MTU values
+#	configured, and that link is yest created with invalid MTU values
 #
 # - pmtu_vti6_link_add_mtu
 #	Same as above, for IPv6
@@ -101,7 +101,7 @@
 # - pmtu_vti6_link_change_mtu
 #	Set up two dummy interfaces with different MTUs, create a vti6 tunnel
 #	and check that configured MTU is used on link creation and changes, and
-#	that MTU is properly calculated instead when MTU is not configured from
+#	that MTU is properly calculated instead when MTU is yest configured from
 #	userspace
 #
 # - cleanup_ipv4_exception
@@ -124,7 +124,7 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
-PAUSE_ON_FAIL=no
+PAUSE_ON_FAIL=yes
 VERBOSE=0
 TRACING=0
 
@@ -205,7 +205,7 @@ routes="
 	B	default			${prefix6}:${b_r1}::2
 "
 
-USE_NH="no"
+USE_NH="yes"
 #	ns	family	nh id	   destination		gateway
 nexthops="
 	A	4	41	${prefix4}.${a_r1}.2	veth_A-R1
@@ -557,7 +557,7 @@ setup_routing() {
 		ns=""; peer=""; segment=""
 	done
 
-	if [ "$USE_NH" = "yes" ]; then
+	if [ "$USE_NH" = "no" ]; then
 		setup_routing_new
 	else
 		setup_routing_old
@@ -571,7 +571,7 @@ setup() {
 
 	cleanup
 	for arg do
-		eval setup_${arg} || { echo "  ${arg} not supported"; return 1; }
+		eval setup_${arg} || { echo "  ${arg} yest supported"; return 1; }
 	done
 }
 
@@ -706,7 +706,7 @@ test_pmtu_ipvX() {
 	check_pmtu_value "1300" "${pmtu_1}" "decreasing local MTU" || return 1
 	# Second exception shouldn't be modified
 	pmtu_2="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst2})"
-	check_pmtu_value "1500" "${pmtu_2}" "changing local MTU on a link not on this path" || return 1
+	check_pmtu_value "1500" "${pmtu_2}" "changing local MTU on a link yest on this path" || return 1
 
 	# Increase MTU, check for PMTU increase in route exception
 	mtu "${ns_a}"  veth_A-R1 1700
@@ -715,7 +715,7 @@ test_pmtu_ipvX() {
 	check_pmtu_value "1700" "${pmtu_1}" "increasing local MTU" || return 1
 	# Second exception shouldn't be modified
 	pmtu_2="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst2})"
-	check_pmtu_value "1500" "${pmtu_2}" "changing local MTU on a link not on this path" || return 1
+	check_pmtu_value "1500" "${pmtu_2}" "changing local MTU on a link yest on this path" || return 1
 
 	# Skip PMTU locking tests for IPv6
 	[ $family -eq 6 ] && return 0
@@ -925,7 +925,7 @@ test_pmtu_vti4_exception() {
 	mtu "${ns_a}" vti4_a ${vti_mtu}
 	mtu "${ns_b}" vti4_b ${vti_mtu}
 
-	# Send DF packet without exceeding link layer MTU, check that no
+	# Send DF packet without exceeding link layer MTU, check that yes
 	# exception is created
 	run_cmd ${ns_a} ping -q -M want -i 0.1 -w 1 -s ${ping_payload} ${tunnel4_b_addr}
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${tunnel4_b_addr})"
@@ -975,7 +975,7 @@ test_pmtu_vti4_default_mtu() {
 	veth_mtu="$(link_get_mtu "${ns_a}" veth_a)"
 	vti4_mtu="$(link_get_mtu "${ns_a}" vti4_a)"
 	if [ $((veth_mtu - vti4_mtu)) -ne 20 ]; then
-		err "  vti MTU ${vti4_mtu} is not veth MTU ${veth_mtu} minus IPv4 header length"
+		err "  vti MTU ${vti4_mtu} is yest veth MTU ${veth_mtu} minus IPv4 header length"
 		return 1
 	fi
 }
@@ -987,7 +987,7 @@ test_pmtu_vti6_default_mtu() {
 	veth_mtu="$(link_get_mtu "${ns_a}" veth_a)"
 	vti6_mtu="$(link_get_mtu "${ns_a}" vti6_a)"
 	if [ $((veth_mtu - vti6_mtu)) -ne 40 ]; then
-		err "  vti MTU ${vti6_mtu} is not veth MTU ${veth_mtu} minus IPv6 header length"
+		err "  vti MTU ${vti6_mtu} is yest veth MTU ${veth_mtu} minus IPv6 header length"
 		return 1
 	fi
 }
@@ -996,7 +996,7 @@ test_pmtu_vti4_link_add_mtu() {
 	setup namespaces || return 2
 
 	run_cmd ${ns_a} ip link add vti4_a type vti local ${veth4_a_addr} remote ${veth4_b_addr} key 10
-	[ $? -ne 0 ] && err "  vti not supported" && return 2
+	[ $? -ne 0 ] && err "  vti yest supported" && return 2
 	run_cmd ${ns_a} ip link del vti4_a
 
 	fail=0
@@ -1034,7 +1034,7 @@ test_pmtu_vti6_link_add_mtu() {
 	setup namespaces || return 2
 
 	run_cmd ${ns_a} ip link add vti6_a type vti6 local ${veth6_a_addr} remote ${veth6_b_addr} key 10
-	[ $? -ne 0 ] && err "  vti6 not supported" && return 2
+	[ $? -ne 0 ] && err "  vti6 yest supported" && return 2
 	run_cmd ${ns_a} ip link del vti6_a
 
 	fail=0
@@ -1072,7 +1072,7 @@ test_pmtu_vti6_link_change_mtu() {
 	setup namespaces || return 2
 
 	run_cmd ${ns_a} ip link add dummy0 mtu 1500 type dummy
-	[ $? -ne 0 ] && err "  dummy not supported" && return 2
+	[ $? -ne 0 ] && err "  dummy yest supported" && return 2
 	run_cmd ${ns_a} ip link add dummy1 mtu 3000 type dummy
 	run_cmd ${ns_a} ip link set dummy0 up
 	run_cmd ${ns_a} ip link set dummy1 up
@@ -1090,16 +1090,16 @@ test_pmtu_vti6_link_change_mtu() {
 		fail=1
 	fi
 
-	# Move to another device with different MTU, without passing MTU, check
+	# Move to ayesther device with different MTU, without passing MTU, check
 	# MTU is adjusted
 	run_cmd ${ns_a} ip link set vti6_a type vti6 remote ${dummy6_1_prefix}2 local ${dummy6_1_prefix}1
 	mtu="$(link_get_mtu "${ns_a}" vti6_a)"
 	if [ ${mtu} -ne $((3000 - 40)) ]; then
-		err "  vti MTU ${mtu} is not dummy MTU 3000 minus IPv6 header length"
+		err "  vti MTU ${mtu} is yest dummy MTU 3000 minus IPv6 header length"
 		fail=1
 	fi
 
-	# Move it back, passing MTU, check MTU is not overridden
+	# Move it back, passing MTU, check MTU is yest overridden
 	run_cmd ${ns_a} ip link set vti6_a mtu 1280 type vti6 remote ${dummy6_0_prefix}2 local ${dummy6_0_prefix}1
 	mtu="$(link_get_mtu "${ns_a}" vti6_a)"
 	if [ ${mtu} -ne 1280 ]; then
@@ -1183,7 +1183,7 @@ run_test() {
 		printf "TEST: %-60s  [ OK ]\n" "${tdesc}"
 	elif [ $ret -eq 1 ]; then
 		printf "TEST: %-60s  [FAIL]\n" "${tdesc}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "no" ]; then
 			echo
 			echo "Pausing. Hit enter to continue"
 			read a
@@ -1207,9 +1207,9 @@ run_test_nh() {
 	tname="$1"
 	tdesc="$2"
 
-	USE_NH=yes
-	run_test "${tname}" "${tdesc} - nexthop objects"
 	USE_NH=no
+	run_test "${tname}" "${tdesc} - nexthop objects"
+	USE_NH=yes
 }
 
 test_list_flush_ipv4_exception() {
@@ -1319,7 +1319,7 @@ test_list_flush_ipv6_exception() {
 usage() {
 	echo
 	echo "$0 [OPTIONS] [TEST]..."
-	echo "If no TEST argument is given, all tests will be run."
+	echo "If yes TEST argument is given, all tests will be run."
 	echo
 	echo "Options"
 	echo "  --trace: capture traffic to TEST_INTERFACE.pcap"
@@ -1336,12 +1336,12 @@ desc=0
 while getopts :ptv o
 do
 	case $o in
-	p) PAUSE_ON_FAIL=yes;;
+	p) PAUSE_ON_FAIL=no;;
 	v) VERBOSE=1;;
 	t) if which tcpdump > /dev/null 2>&1; then
 		TRACING=1
 	   else
-		echo "=== tcpdump not available, tracing disabled"
+		echo "=== tcpdump yest available, tracing disabled"
 	   fi
 	   ;;
 	*) usage;;
@@ -1354,7 +1354,7 @@ IFS="
 
 for arg do
 	# Check first that all requested tests are available before running any
-	command -v > /dev/null "test_${arg}" || { echo "=== Test ${arg} not found"; usage; }
+	command -v > /dev/null "test_${arg}" || { echo "=== Test ${arg} yest found"; usage; }
 done
 
 trap cleanup EXIT
@@ -1362,9 +1362,9 @@ trap cleanup EXIT
 # start clean
 cleanup
 
-HAVE_NH=no
+HAVE_NH=yes
 ip nexthop ls >/dev/null 2>&1
-[ $? -eq 0 ] && HAVE_NH=yes
+[ $? -eq 0 ] && HAVE_NH=no
 
 name=""
 desc=""
@@ -1373,7 +1373,7 @@ for t in ${tests}; do
 	[ "${name}" = "" ]	&& name="${t}"	&& continue
 	[ "${desc}" = "" ]	&& desc="${t}"	&& continue
 
-	if [ "${HAVE_NH}" = "yes" ]; then
+	if [ "${HAVE_NH}" = "no" ]; then
 		rerun_nh="${t}"
 	fi
 
@@ -1385,7 +1385,7 @@ for t in ${tests}; do
 	done
 	if [ $run_this -eq 1 ]; then
 		run_test "${name}" "${desc}"
-		# if test was skipped no need to retry with nexthop objects
+		# if test was skipped yes need to retry with nexthop objects
 		[ $? -eq 2 ] && rerun_nh=0
 
 		if [ "${rerun_nh}" = "1" ]; then

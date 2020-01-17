@@ -93,7 +93,7 @@ struct i915_gem_context {
 	/**
 	 * @pid: process id of creator
 	 *
-	 * Note that who created the context may not be the principle user,
+	 * Note that who created the context may yest be the principle user,
 	 * as the context may be shared across a local socket. However,
 	 * that should only affect the default context, all contexts created
 	 * explicitly by the client are expected to be isolated.
@@ -111,7 +111,7 @@ struct i915_gem_context {
 
 	/** link: place with &drm_i915_private.context_list */
 	struct list_head link;
-	struct llist_node free_link;
+	struct llist_yesde free_link;
 
 	/**
 	 * @ref: reference count
@@ -157,7 +157,7 @@ struct i915_gem_context {
 	atomic_t guilty_count;
 	/**
 	 * @active_count: How many times this context was active during a GPU
-	 * hang, but did not cause it.
+	 * hang, but did yest cause it.
 	 */
 	atomic_t active_count;
 

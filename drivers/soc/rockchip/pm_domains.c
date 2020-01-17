@@ -356,7 +356,7 @@ static int rockchip_pd_attach_dev(struct generic_pm_domain *genpd,
 	}
 
 	i = 0;
-	while ((clk = of_clk_get(dev->of_node, i++)) && !IS_ERR(clk)) {
+	while ((clk = of_clk_get(dev->of_yesde, i++)) && !IS_ERR(clk)) {
 		dev_dbg(dev, "adding clock '%pC' to list of PM clocks\n", clk);
 		error = pm_clk_add_clk(dev, clk);
 		if (error) {
@@ -379,33 +379,33 @@ static void rockchip_pd_detach_dev(struct generic_pm_domain *genpd,
 }
 
 static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
-				      struct device_node *node)
+				      struct device_yesde *yesde)
 {
 	const struct rockchip_domain_info *pd_info;
 	struct rockchip_pm_domain *pd;
-	struct device_node *qos_node;
+	struct device_yesde *qos_yesde;
 	int i, j;
 	u32 id;
 	int error;
 
-	error = of_property_read_u32(node, "reg", &id);
+	error = of_property_read_u32(yesde, "reg", &id);
 	if (error) {
 		dev_err(pmu->dev,
 			"%pOFn: failed to retrieve domain id (reg): %d\n",
-			node, error);
+			yesde, error);
 		return -EINVAL;
 	}
 
 	if (id >= pmu->info->num_domains) {
 		dev_err(pmu->dev, "%pOFn: invalid domain id %d\n",
-			node, id);
+			yesde, id);
 		return -EINVAL;
 	}
 
 	pd_info = &pmu->info->domain_info[id];
 	if (!pd_info) {
 		dev_err(pmu->dev, "%pOFn: undefined domain id %d\n",
-			node, id);
+			yesde, id);
 		return -EINVAL;
 	}
 
@@ -416,7 +416,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	pd->info = pd_info;
 	pd->pmu = pmu;
 
-	pd->num_clks = of_clk_get_parent_count(node);
+	pd->num_clks = of_clk_get_parent_count(yesde);
 	if (pd->num_clks > 0) {
 		pd->clks = devm_kcalloc(pmu->dev, pd->num_clks,
 					sizeof(*pd->clks), GFP_KERNEL);
@@ -424,17 +424,17 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 			return -ENOMEM;
 	} else {
 		dev_dbg(pmu->dev, "%pOFn: doesn't have clocks: %d\n",
-			node, pd->num_clks);
+			yesde, pd->num_clks);
 		pd->num_clks = 0;
 	}
 
 	for (i = 0; i < pd->num_clks; i++) {
-		pd->clks[i].clk = of_clk_get(node, i);
+		pd->clks[i].clk = of_clk_get(yesde, i);
 		if (IS_ERR(pd->clks[i].clk)) {
 			error = PTR_ERR(pd->clks[i].clk);
 			dev_err(pmu->dev,
 				"%pOFn: failed to get clk at index %d: %d\n",
-				node, i, error);
+				yesde, i, error);
 			return error;
 		}
 	}
@@ -443,7 +443,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	if (error)
 		goto err_put_clocks;
 
-	pd->num_qos = of_count_phandle_with_args(node, "pm_qos",
+	pd->num_qos = of_count_phandle_with_args(yesde, "pm_qos",
 						 NULL);
 
 	if (pd->num_qos > 0) {
@@ -467,18 +467,18 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 		}
 
 		for (j = 0; j < pd->num_qos; j++) {
-			qos_node = of_parse_phandle(node, "pm_qos", j);
-			if (!qos_node) {
+			qos_yesde = of_parse_phandle(yesde, "pm_qos", j);
+			if (!qos_yesde) {
 				error = -ENODEV;
 				goto err_unprepare_clocks;
 			}
-			pd->qos_regmap[j] = syscon_node_to_regmap(qos_node);
+			pd->qos_regmap[j] = syscon_yesde_to_regmap(qos_yesde);
 			if (IS_ERR(pd->qos_regmap[j])) {
 				error = -ENODEV;
-				of_node_put(qos_node);
+				of_yesde_put(qos_yesde);
 				goto err_unprepare_clocks;
 			}
-			of_node_put(qos_node);
+			of_yesde_put(qos_yesde);
 		}
 	}
 
@@ -486,11 +486,11 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	if (error) {
 		dev_err(pmu->dev,
 			"failed to power on domain '%pOFn': %d\n",
-			node, error);
+			yesde, error);
 		goto err_unprepare_clocks;
 	}
 
-	pd->genpd.name = node->name;
+	pd->genpd.name = yesde->name;
 	pd->genpd.power_off = rockchip_pd_power_off;
 	pd->genpd.power_on = rockchip_pd_power_on;
 	pd->genpd.attach_dev = rockchip_pd_attach_dev;
@@ -516,7 +516,7 @@ static void rockchip_pm_remove_one_domain(struct rockchip_pm_domain *pd)
 
 	/*
 	 * We're in the error cleanup already, so we only complain,
-	 * but won't emit another error on top of the original one.
+	 * but won't emit ayesther error on top of the original one.
 	 */
 	ret = pm_genpd_remove(&pd->genpd);
 	if (ret < 0)
@@ -562,13 +562,13 @@ static void rockchip_configure_pd_cnt(struct rockchip_pmu *pmu,
 }
 
 static int rockchip_pm_add_subdomain(struct rockchip_pmu *pmu,
-				     struct device_node *parent)
+				     struct device_yesde *parent)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct generic_pm_domain *child_domain, *parent_domain;
 	int error;
 
-	for_each_child_of_node(parent, np) {
+	for_each_child_of_yesde(parent, np) {
 		u32 idx;
 
 		error = of_property_read_u32(parent, "reg", &idx);
@@ -582,7 +582,7 @@ static int rockchip_pm_add_subdomain(struct rockchip_pmu *pmu,
 
 		error = rockchip_pm_add_one_domain(pmu, np);
 		if (error) {
-			dev_err(pmu->dev, "failed to handle node %pOFn: %d\n",
+			dev_err(pmu->dev, "failed to handle yesde %pOFn: %d\n",
 				np, error);
 			goto err_out;
 		}
@@ -612,15 +612,15 @@ static int rockchip_pm_add_subdomain(struct rockchip_pmu *pmu,
 	return 0;
 
 err_out:
-	of_node_put(np);
+	of_yesde_put(np);
 	return error;
 }
 
 static int rockchip_pm_domain_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *node;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *yesde;
 	struct device *parent;
 	struct rockchip_pmu *pmu;
 	const struct of_device_id *match;
@@ -628,7 +628,7 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 	int error;
 
 	if (!np) {
-		dev_err(dev, "device tree node not found\n");
+		dev_err(dev, "device tree yesde yest found\n");
 		return -ENODEV;
 	}
 
@@ -656,13 +656,13 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 
 	parent = dev->parent;
 	if (!parent) {
-		dev_err(dev, "no parent for syscon devices\n");
+		dev_err(dev, "yes parent for syscon devices\n");
 		return -ENODEV;
 	}
 
-	pmu->regmap = syscon_node_to_regmap(parent->of_node);
+	pmu->regmap = syscon_yesde_to_regmap(parent->of_yesde);
 	if (IS_ERR(pmu->regmap)) {
-		dev_err(dev, "no regmap available\n");
+		dev_err(dev, "yes regmap available\n");
 		return PTR_ERR(pmu->regmap);
 	}
 
@@ -679,26 +679,26 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 
 	error = -ENODEV;
 
-	for_each_available_child_of_node(np, node) {
-		error = rockchip_pm_add_one_domain(pmu, node);
+	for_each_available_child_of_yesde(np, yesde) {
+		error = rockchip_pm_add_one_domain(pmu, yesde);
 		if (error) {
-			dev_err(dev, "failed to handle node %pOFn: %d\n",
-				node, error);
-			of_node_put(node);
+			dev_err(dev, "failed to handle yesde %pOFn: %d\n",
+				yesde, error);
+			of_yesde_put(yesde);
 			goto err_out;
 		}
 
-		error = rockchip_pm_add_subdomain(pmu, node);
+		error = rockchip_pm_add_subdomain(pmu, yesde);
 		if (error < 0) {
-			dev_err(dev, "failed to handle subdomain node %pOFn: %d\n",
-				node, error);
-			of_node_put(node);
+			dev_err(dev, "failed to handle subdomain yesde %pOFn: %d\n",
+				yesde, error);
+			of_yesde_put(yesde);
 			goto err_out;
 		}
 	}
 
 	if (error) {
-		dev_dbg(dev, "no power domains defined\n");
+		dev_dbg(dev, "yes power domains defined\n");
 		goto err_out;
 	}
 

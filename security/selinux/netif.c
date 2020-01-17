@@ -2,7 +2,7 @@
 /*
  * Network interface table.
  *
- * Network interfaces (devices) do not have a security field, so we
+ * Network interfaces (devices) do yest have a security field, so we
  * maintain a table associating each interface with a SID.
  *
  * Author: James Morris <jmorris@redhat.com>
@@ -17,7 +17,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/netdevice.h>
 #include <linux/rcupdate.h>
 #include <net/net_namespace.h>
@@ -62,7 +62,7 @@ static inline u32 sel_netif_hashfn(const struct net *ns, int ifindex)
  *
  * Description:
  * Search the network interface table and return the record matching @ifindex.
- * If an entry can not be found in the table return NULL.
+ * If an entry can yest be found in the table return NULL.
  *
  */
 static inline struct sel_netif *sel_netif_find(const struct net *ns,
@@ -247,10 +247,10 @@ void sel_netif_flush(void)
 	spin_unlock_bh(&sel_netif_lock);
 }
 
-static int sel_netif_netdev_notifier_handler(struct notifier_block *this,
+static int sel_netif_netdev_yestifier_handler(struct yestifier_block *this,
 					     unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (event == NETDEV_DOWN)
 		sel_netif_kill(dev_net(dev), dev->ifindex);
@@ -258,8 +258,8 @@ static int sel_netif_netdev_notifier_handler(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block sel_netif_netdev_notifier = {
-	.notifier_call = sel_netif_netdev_notifier_handler,
+static struct yestifier_block sel_netif_netdev_yestifier = {
+	.yestifier_call = sel_netif_netdev_yestifier_handler,
 };
 
 static __init int sel_netif_init(void)
@@ -272,7 +272,7 @@ static __init int sel_netif_init(void)
 	for (i = 0; i < SEL_NETIF_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&sel_netif_hash[i]);
 
-	register_netdevice_notifier(&sel_netif_netdev_notifier);
+	register_netdevice_yestifier(&sel_netif_netdev_yestifier);
 
 	return 0;
 }

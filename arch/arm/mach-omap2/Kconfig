@@ -226,11 +226,11 @@ config OMAP3_SDRC_AC_TIMING
 	bool "Enable SDRC AC timing register changes"
 	depends on ARCH_OMAP3
 	help
-	  If you know that none of your system initiators will attempt to
+	  If you kyesw that yesne of your system initiators will attempt to
 	  access SDRAM during CORE DVFS, select Y here.  This should boost
 	  SDRAM performance at lower CORE OPPs.  There are relatively few
-	  users who will wish to say yes at this point - almost everyone will
-	  wish to say no.  Selecting yes without understanding what is
+	  users who will wish to say no at this point - almost everyone will
+	  wish to say yes.  Selecting no without understanding what is
 	  going on could result in system crashes;
 
 endmenu
@@ -242,7 +242,7 @@ config OMAP5_ERRATA_801819
 	depends on SOC_OMAP5 || SOC_DRA7XX
 	help
 	  A livelock can occur in the L2 cache arbitration that might prevent
-	  a snoop from completing. Under certain conditions this can cause the
+	  a syesop from completing. Under certain conditions this can cause the
 	  system to deadlock.
 
 endmenu

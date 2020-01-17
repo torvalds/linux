@@ -9,14 +9,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -80,13 +80,13 @@ VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#77 $"
 	}
 
 /*
- * Registers marked "dont_generate_debug_code" are not (yet) referenced
+ * Registers marked "dont_generate_debug_code" are yest (yet) referenced
  * from the driver code, and this keyword inhibit generation
  * of debug code for them.
  *
  * REG_PRETTY_PRINT config will complain if dont_generate_debug_code
  * is added to the register which is referenced in the driver.
- * Unreferenced register with no dont_generate_debug_code will result
+ * Unreferenced register with yes dont_generate_debug_code will result
  * in dead code. No warning is issued.
  */
 
@@ -133,10 +133,10 @@ register SEQINTCODE {
 	access_mode	RW
 	field {
 		NO_SEQINT,			/* No seqint pending. */
-		BAD_PHASE,			/* unknown scsi bus phase */
+		BAD_PHASE,			/* unkyeswn scsi bus phase */
 		SEND_REJECT,			/* sending a message reject */
 		PROTO_VIOLATION, 		/* Protocol Violation */
-		NO_MATCH,			/* no cmd match for reconnect */
+		NO_MATCH,			/* yes cmd match for reconnect */
 		IGN_WIDE_RES,			/* Complex IGN Wide Res Msg */
 		PDATA_REINIT,			/*
 						 * Returned to data phase
@@ -147,7 +147,7 @@ register SEQINTCODE {
 						 */
 		HOST_MSG_LOOP,			/*
 						 * The bus is ready for the
-						 * host to perform another
+						 * host to perform ayesther
 						 * message transaction.  This
 						 * mechanism is used for things
 						 * like sync/wide negotiation
@@ -162,7 +162,7 @@ register SEQINTCODE {
 						 */
 		MKMSG_FAILED,			/*
 						 * Target completed command
-						 * without honoring our ATN
+						 * without hoyesring our ATN
 						 * request to issue a message. 
 						 */
 		MISSED_BUSFREE,			/*
@@ -184,16 +184,16 @@ register SEQINTCODE {
 						 * an expected busfree.
 						 */
 		TASKMGMT_CMD_CMPLT_OKAY,	/*
-						 * A command with a non-zero
+						 * A command with a yesn-zero
 						 * task management function
-						 * has completed via the normal
+						 * has completed via the yesrmal
 						 * command completion method
 						 * for commands with a zero
 						 * task management function.
 						 * This happens when an attempt
 						 * to abort a command loses
 						 * the race for the command to
-						 * complete normally.
+						 * complete yesrmally.
 						 */
 		TRACEPOINT0,
 		TRACEPOINT1,
@@ -752,7 +752,7 @@ register OVLYRXMSG1 {
 }
 
 /*
- * No Snoop Enable
+ * No Syesop Enable
  */
 register NSENABLE {
 	address			0x091
@@ -1863,7 +1863,7 @@ register TARGIDIN {
 /*
  * Selection/Reselection ID
  * Upper four bits are the device id.  The ONEBIT is set when the re/selecting
- * device did not set its own ID.
+ * device did yest set its own ID.
  */
 register SELID {
 	address			0x049
@@ -2044,7 +2044,7 @@ register SIMODE2 {
 }
 
 /*
- * Physical Error Diagnosis
+ * Physical Error Diagyessis
  */
 register PERRDIAG {
 	address			0x04E
@@ -2715,7 +2715,7 @@ const	AHD_SLEWRATE_SHIFT	3
 const	AHD_SLEWRATE_DEF_REVA	0x08
 const	AHD_SLEWRATE_DEF_REVB	0x08
 
-/* Rev A does not have any amplitude setting. */
+/* Rev A does yest have any amplitude setting. */
 const AHD_ANNEXCOL_AMPLITUDE	6
 const	AHD_AMPLITUDE_MASK	0x7
 const	AHD_AMPLITUDE_SHIFT	0
@@ -2903,7 +2903,7 @@ register CCSCBACNT {
 
 /*
  * SCB Autopointer
- * SCB-Next Address Snooping logic.  When an SCB is transferred to
+ * SCB-Next Address Syesoping logic.  When an SCB is transferred to
  * the card, the next SCB address to be used by the CMC array can
  * be autoloaded from that transfer.
  */
@@ -3324,7 +3324,7 @@ register RCVRBIASCALC {
 /*
  * Data FIFO Backup Read Pointer
  * Contains the data FIFO address to be restored if the last
- * data accessed from the data FIFO was not transferred successfully.
+ * data accessed from the data FIFO was yest transferred successfully.
  */
 register DFBKPTR {
 	address			0x0C9
@@ -3411,7 +3411,7 @@ register SEQCTL0 {
 
 /*
  * Sequencer Control 1
- * Instruction RAM Diagnostics
+ * Instruction RAM Diagyesstics
  */
 register SEQCTL1 {
 	address			0x0D7
@@ -3553,12 +3553,12 @@ register ALLZEROS {
 
 /*
  * No Destination
- * Writes to this register have no effect.
+ * Writes to this register have yes effect.
  */
 register NONE {
 	address			0x0EA
 	access_mode WO
-	none
+	yesne
 	dont_generate_debug_code
 }
 
@@ -3745,7 +3745,7 @@ scratch_ram {
 	}
 	/*
 	 * head of list of SCBs that have
-	 * completed but have not been
+	 * completed but have yest been
 	 * put into the qoutfifo.
 	 */
 	COMPLETE_SCB_HEAD {
@@ -3780,9 +3780,9 @@ scratch_ram {
 	}
 	/*
 	 * head of list of SCBs that have
-	 * been uploaded to the host, but cannot
+	 * been uploaded to the host, but canyest
 	 * be completed until the QFREEZE is in
-	 * full effect (i.e. no selections pending).
+	 * full effect (i.e. yes selections pending).
 	 */
 	COMPLETE_ON_QFREEZE_HEAD {
 		size		2
@@ -4036,7 +4036,7 @@ scratch_ram {
 	}
 	/*
 	 * Target-mode CDB type to CDB length table used
-	 * in non-packetized operation.
+	 * in yesn-packetized operation.
 	 */
 	CMDSIZE_TABLE {
 		size		8
@@ -4045,7 +4045,7 @@ scratch_ram {
 	}
 	/*
 	 * When an SCB with the MK_MESSAGE flag is
-	 * queued to the controller, it cannot enter
+	 * queued to the controller, it canyest enter
 	 * the waiting for selection list until the
 	 * selections for any previously queued
 	 * commands to that target complete.  During
@@ -4138,8 +4138,8 @@ scb {
 	SCB_TASK_ATTRIBUTE {
 		size	1
 		/*
-		 * Overloaded field for non-packetized 
-		 * ignore wide residue message handling.
+		 * Overloaded field for yesn-packetized 
+		 * igyesre wide residue message handling.
 		 */
 		field	SCB_XFERLEN_ODD	0x01
 		dont_generate_debug_code

@@ -131,7 +131,7 @@ static int stm32_timer_start(struct stm32_timer_trigger *priv,
 		return -EINVAL;
 	}
 
-	/* Check if nobody else use the timer */
+	/* Check if yesbody else use the timer */
 	regmap_read(priv->regmap, TIM_CCER, &ccer);
 	if (ccer & TIM_CCER_CCXE)
 		return -EBUSY;
@@ -681,7 +681,7 @@ static struct stm32_timer_trigger *stm32_setup_counter_device(struct device *dev
 	indio_dev->modes = INDIO_HARDWARE_TRIGGERED;
 	indio_dev->num_channels = 1;
 	indio_dev->channels = &stm32_trigger_channel;
-	indio_dev->dev.of_node = dev->of_node;
+	indio_dev->dev.of_yesde = dev->of_yesde;
 
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
@@ -726,7 +726,7 @@ static int stm32_timer_trigger_probe(struct platform_device *pdev)
 	unsigned int index;
 	int ret;
 
-	if (of_property_read_u32(dev->of_node, "reg", &index))
+	if (of_property_read_u32(dev->of_yesde, "reg", &index))
 		return -EINVAL;
 
 	cfg = (const struct stm32_timer_trigger_cfg *)
@@ -780,7 +780,7 @@ static const struct of_device_id stm32_trig_of_match[] = {
 		.compatible = "st,stm32h7-timer-trigger",
 		.data = (void *)&stm32h7_timer_trg_cfg,
 	},
-	{ /* end node */ },
+	{ /* end yesde */ },
 };
 MODULE_DEVICE_TABLE(of, stm32_trig_of_match);
 

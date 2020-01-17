@@ -33,7 +33,7 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 	struct dasd_device *base;
 	int len;
 
-	/* Make sure the minor for this device exists. */
+	/* Make sure the miyesr for this device exists. */
 	base = block->base;
 	if (base->devindex >= DASD_PER_MAJOR)
 		return -EBUSY;
@@ -44,7 +44,7 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 
 	/* Initialize gendisk structure. */
 	gdp->major = DASD_MAJOR;
-	gdp->first_minor = base->devindex << DASD_PARTN_BITS;
+	gdp->first_miyesr = base->devindex << DASD_PARTN_BITS;
 	gdp->fops = &dasd_device_operations;
 
 	/*
@@ -125,11 +125,11 @@ int dasd_scan_partitions(struct dasd_block *block)
 
 	/*
 	 * Since the matching blkdev_put call to the blkdev_get in
-	 * this function is not called before dasd_destroy_partitions
+	 * this function is yest called before dasd_destroy_partitions
 	 * the offline open_count limit needs to be increased from
 	 * 0 to 1. This is done by setting device->bdev (see
 	 * dasd_generic_set_offline). As long as the partition
-	 * detection is running no offline should be allowed. That
+	 * detection is running yes offline should be allowed. That
 	 * is why the assignment to device->bdev is done AFTER
 	 * the BLKRRPART ioctl.
 	 */
@@ -138,7 +138,7 @@ int dasd_scan_partitions(struct dasd_block *block)
 }
 
 /*
- * Remove all inodes in the system for a device, delete the
+ * Remove all iyesdes in the system for a device, delete the
  * partitions and make device unusable by setting its size to zero.
  */
 void dasd_destroy_partitions(struct dasd_block *block)
@@ -164,7 +164,7 @@ void dasd_destroy_partitions(struct dasd_block *block)
 	memset(&barg, 0, sizeof(struct blkpg_ioctl_arg));
 	barg.data = (void __force __user *) &bpart;
 	barg.op = BLKPG_DEL_PARTITION;
-	for (bpart.pno = block->gdp->minors - 1; bpart.pno > 0; bpart.pno--)
+	for (bpart.pyes = block->gdp->miyesrs - 1; bpart.pyes > 0; bpart.pyes--)
 		ioctl_by_bdev(bdev, BLKPG, (unsigned long) &barg);
 
 	invalidate_partition(block->gdp, 0);

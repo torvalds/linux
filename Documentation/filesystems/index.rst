@@ -4,7 +4,7 @@ Filesystems in the Linux kernel
 
 This under-development manual will, some glorious day, provide
 comprehensive information on how the Linux virtual filesystem (VFS) layer
-works, along with the filesystems that sit below it.  For now, what we have
+works, along with the filesystems that sit below it.  For yesw, what we have
 can be found below.
 
 Core VFS documentation

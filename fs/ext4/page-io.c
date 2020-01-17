@@ -88,7 +88,7 @@ struct ext4_io_end_vec *ext4_last_io_end_vec(ext4_io_end_t *io_end)
  * provides compatibility with dmesg scrapers that look for a specific
  * buffer I/O error message.  We really need a unified error reporting
  * structure to userspace ala Digital Unix's uerf system, but it's
- * probably not going to happen in my lifetime, due to LKML politics...
+ * probably yest going to happen in my lifetime, due to LKML politics...
  */
 static void buffer_io_error(struct buffer_head *bh)
 {
@@ -172,33 +172,33 @@ static void ext4_release_io_end(ext4_io_end_t *io_end)
  * we are protected from truncate touching same part of extent tree by the
  * fact that truncate code waits for all DIO to finish (thus exclusion from
  * direct IO is achieved) and also waits for PageWriteback bits. Thus we
- * cannot get to ext4_ext_truncate() before all IOs overlapping that range are
+ * canyest get to ext4_ext_truncate() before all IOs overlapping that range are
  * completed (happens from ext4_free_ioend()).
  */
 static int ext4_end_io_end(ext4_io_end_t *io_end)
 {
-	struct inode *inode = io_end->inode;
+	struct iyesde *iyesde = io_end->iyesde;
 	handle_t *handle = io_end->handle;
 	int ret = 0;
 
-	ext4_debug("ext4_end_io_nolock: io_end 0x%p from inode %lu,list->next 0x%p,"
+	ext4_debug("ext4_end_io_yeslock: io_end 0x%p from iyesde %lu,list->next 0x%p,"
 		   "list->prev 0x%p\n",
-		   io_end, inode->i_ino, io_end->list.next, io_end->list.prev);
+		   io_end, iyesde->i_iyes, io_end->list.next, io_end->list.prev);
 
 	io_end->handle = NULL;	/* Following call will use up the handle */
 	ret = ext4_convert_unwritten_io_end_vec(handle, io_end);
-	if (ret < 0 && !ext4_forced_shutdown(EXT4_SB(inode->i_sb))) {
-		ext4_msg(inode->i_sb, KERN_EMERG,
+	if (ret < 0 && !ext4_forced_shutdown(EXT4_SB(iyesde->i_sb))) {
+		ext4_msg(iyesde->i_sb, KERN_EMERG,
 			 "failed to convert unwritten extents to written "
 			 "extents -- potential data loss!  "
-			 "(inode %lu, error %d)", inode->i_ino, ret);
+			 "(iyesde %lu, error %d)", iyesde->i_iyes, ret);
 	}
 	ext4_clear_io_unwritten_flag(io_end);
 	ext4_release_io_end(io_end);
 	return ret;
 }
 
-static void dump_completed_IO(struct inode *inode, struct list_head *head)
+static void dump_completed_IO(struct iyesde *iyesde, struct list_head *head)
 {
 #ifdef	EXT4FS_DEBUG
 	struct list_head *cur, *before, *after;
@@ -207,7 +207,7 @@ static void dump_completed_IO(struct inode *inode, struct list_head *head)
 	if (list_empty(head))
 		return;
 
-	ext4_debug("Dump inode %lu completed io list\n", inode->i_ino);
+	ext4_debug("Dump iyesde %lu completed io list\n", iyesde->i_iyes);
 	list_for_each_entry(io_end, head, list) {
 		cur = &io_end->list;
 		before = cur->prev;
@@ -215,17 +215,17 @@ static void dump_completed_IO(struct inode *inode, struct list_head *head)
 		after = cur->next;
 		io_end1 = container_of(after, ext4_io_end_t, list);
 
-		ext4_debug("io 0x%p from inode %lu,prev 0x%p,next 0x%p\n",
-			    io_end, inode->i_ino, io_end0, io_end1);
+		ext4_debug("io 0x%p from iyesde %lu,prev 0x%p,next 0x%p\n",
+			    io_end, iyesde->i_iyes, io_end0, io_end1);
 	}
 #endif
 }
 
-/* Add the io_end to per-inode completed end_io list. */
+/* Add the io_end to per-iyesde completed end_io list. */
 static void ext4_add_complete_io(ext4_io_end_t *io_end)
 {
-	struct ext4_inode_info *ei = EXT4_I(io_end->inode);
-	struct ext4_sb_info *sbi = EXT4_SB(io_end->inode->i_sb);
+	struct ext4_iyesde_info *ei = EXT4_I(io_end->iyesde);
+	struct ext4_sb_info *sbi = EXT4_SB(io_end->iyesde->i_sb);
 	struct workqueue_struct *wq;
 	unsigned long flags;
 
@@ -240,17 +240,17 @@ static void ext4_add_complete_io(ext4_io_end_t *io_end)
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 }
 
-static int ext4_do_flush_completed_IO(struct inode *inode,
+static int ext4_do_flush_completed_IO(struct iyesde *iyesde,
 				      struct list_head *head)
 {
 	ext4_io_end_t *io_end;
 	struct list_head unwritten;
 	unsigned long flags;
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_iyesde_info *ei = EXT4_I(iyesde);
 	int err, ret = 0;
 
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	dump_completed_IO(inode, head);
+	dump_completed_IO(iyesde, head);
 	list_replace_init(head, &unwritten);
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 
@@ -271,17 +271,17 @@ static int ext4_do_flush_completed_IO(struct inode *inode,
  */
 void ext4_end_io_rsv_work(struct work_struct *work)
 {
-	struct ext4_inode_info *ei = container_of(work, struct ext4_inode_info,
+	struct ext4_iyesde_info *ei = container_of(work, struct ext4_iyesde_info,
 						  i_rsv_conversion_work);
-	ext4_do_flush_completed_IO(&ei->vfs_inode, &ei->i_rsv_conversion_list);
+	ext4_do_flush_completed_IO(&ei->vfs_iyesde, &ei->i_rsv_conversion_list);
 }
 
-ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
+ext4_io_end_t *ext4_init_io_end(struct iyesde *iyesde, gfp_t flags)
 {
 	ext4_io_end_t *io_end = kmem_cache_zalloc(io_end_cachep, flags);
 
 	if (io_end) {
-		io_end->inode = inode;
+		io_end->iyesde = iyesde;
 		INIT_LIST_HEAD(&io_end->list);
 		INIT_LIST_HEAD(&io_end->list_vec);
 		atomic_set(&io_end->count, 1);
@@ -342,15 +342,15 @@ static void ext4_end_bio(struct bio *bio)
 	bio->bi_end_io = NULL;
 
 	if (bio->bi_status) {
-		struct inode *inode = io_end->inode;
+		struct iyesde *iyesde = io_end->iyesde;
 
-		ext4_warning(inode->i_sb, "I/O error %d writing to inode %lu "
+		ext4_warning(iyesde->i_sb, "I/O error %d writing to iyesde %lu "
 			     "starting block %llu)",
-			     bio->bi_status, inode->i_ino,
+			     bio->bi_status, iyesde->i_iyes,
 			     (unsigned long long)
-			     bi_sector >> (inode->i_blkbits - 9));
-		mapping_set_error(inode->i_mapping,
-				blk_status_to_errno(bio->bi_status));
+			     bi_sector >> (iyesde->i_blkbits - 9));
+		mapping_set_error(iyesde->i_mapping,
+				blk_status_to_erryes(bio->bi_status));
 	}
 
 	if (io_end->flag & EXT4_IO_END_UNWRITTEN) {
@@ -363,7 +363,7 @@ static void ext4_end_bio(struct bio *bio)
 		ext4_put_io_end_defer(io_end);
 	} else {
 		/*
-		 * Drop io_end reference early. Inode can get freed once
+		 * Drop io_end reference early. Iyesde can get freed once
 		 * we finish the bio.
 		 */
 		ext4_put_io_end_defer(io_end);
@@ -379,7 +379,7 @@ void ext4_io_submit(struct ext4_io_submit *io)
 	if (bio) {
 		int io_op_flags = io->io_wbc->sync_mode == WB_SYNC_ALL ?
 				  REQ_SYNC : 0;
-		io->io_bio->bi_write_hint = io->io_end->inode->i_write_hint;
+		io->io_bio->bi_write_hint = io->io_end->iyesde->i_write_hint;
 		bio_set_op_attrs(io->io_bio, REQ_OP_WRITE, io_op_flags);
 		submit_bio(io->io_bio);
 	}
@@ -414,7 +414,7 @@ static void io_submit_init_bio(struct ext4_io_submit *io,
 }
 
 static void io_submit_add_bh(struct ext4_io_submit *io,
-			     struct inode *inode,
+			     struct iyesde *iyesde,
 			     struct page *page,
 			     struct buffer_head *bh)
 {
@@ -426,7 +426,7 @@ submit_and_retry:
 	}
 	if (io->io_bio == NULL) {
 		io_submit_init_bio(io, bh);
-		io->io_bio->bi_write_hint = inode->i_write_hint;
+		io->io_bio->bi_write_hint = iyesde->i_write_hint;
 	}
 	ret = bio_add_page(io->io_bio, page, bh->b_size, bh_offset(bh));
 	if (ret != bh->b_size)
@@ -442,7 +442,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 			bool keep_towrite)
 {
 	struct page *bounce_page = NULL;
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	unsigned block_start;
 	struct buffer_head *bh, *head;
 	int ret = 0;
@@ -463,16 +463,16 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	 *
 	 * The page straddles i_size.  It must be zeroed out on each and every
 	 * writepage invocation because it may be mmapped.  "A file is mapped
-	 * in multiples of the page size.  For a file that is not a multiple of
+	 * in multiples of the page size.  For a file that is yest a multiple of
 	 * the page size, the remaining memory is zeroed when mapped, and
-	 * writes to that region are not written out to the file."
+	 * writes to that region are yest written out to the file."
 	 */
 	if (len < PAGE_SIZE)
 		zero_user_segment(page, len, PAGE_SIZE);
 	/*
 	 * In the first loop we prepare and mark buffers to submit. We have to
 	 * mark all buffers in the page before submitting so that
-	 * end_page_writeback() cannot be called from ext4_bio_end_io() when IO
+	 * end_page_writeback() canyest be called from ext4_bio_end_io() when IO
 	 * on the first buffer finishes and we are still working on submitting
 	 * the second buffer.
 	 */
@@ -508,9 +508,9 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	 * (e.g. holes) to be unnecessarily encrypted, but this is rare and
 	 * can't happen in the common case of blocksize == PAGE_SIZE.
 	 */
-	if (IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode) && nr_to_submit) {
+	if (IS_ENCRYPTED(iyesde) && S_ISREG(iyesde->i_mode) && nr_to_submit) {
 		gfp_t gfp_flags = GFP_NOFS;
-		unsigned int enc_bytes = round_up(len, i_blocksize(inode));
+		unsigned int enc_bytes = round_up(len, i_blocksize(iyesde));
 
 	retry_encrypt:
 		bounce_page = fscrypt_encrypt_pagecache_blocks(page, enc_bytes,
@@ -540,7 +540,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	do {
 		if (!buffer_async_write(bh))
 			continue;
-		io_submit_add_bh(io, inode,
+		io_submit_add_bh(io, iyesde,
 				 bounce_page ? bounce_page : page, bh);
 		nr_submitted++;
 		clear_buffer_dirty(bh);

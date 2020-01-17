@@ -138,7 +138,7 @@ EXPORT_SYMBOL_GPL(nfnetlink_has_listeners);
 int nfnetlink_send(struct sk_buff *skb, struct net *net, u32 portid,
 		   unsigned int group, int echo, gfp_t flags)
 {
-	return nlmsg_notify(net->nfnl, skb, portid, group, echo, flags);
+	return nlmsg_yestify(net->nfnl, skb, portid, group, echo, flags);
 }
 EXPORT_SYMBOL_GPL(nfnetlink_send);
 
@@ -578,7 +578,7 @@ static int nfnetlink_bind(struct net *net, int group)
 	ss = nfnetlink_get_subsys(type << 8);
 	rcu_read_unlock();
 	if (!ss)
-		request_module_nowait("nfnetlink-subsys-%d", type);
+		request_module_yeswait("nfnetlink-subsys-%d", type);
 	return 0;
 }
 #endif

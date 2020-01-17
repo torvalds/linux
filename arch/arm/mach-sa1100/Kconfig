@@ -12,7 +12,7 @@ config SA1100_ASSABET
 	select REGULATOR_FIXED_VOLTAGE
 	help
 	  Say Y here if you are using the Intel(R) StrongARM(R) SA-1110
-	  Microprocessor Development Board (also known as the Assabet).
+	  Microprocessor Development Board (also kyeswn as the Assabet).
 
 config ASSABET_NEPONSET
 	bool "Include support for Neponset"
@@ -117,36 +117,36 @@ config SA1100_LART
 	select ARM_SA1100_CPUFREQ
 	help
 	  Say Y here if you are using the Linux Advanced Radio Terminal
-	  (also known as the LART).  See <http://www.lartmaker.nl/> for
+	  (also kyeswn as the LART).  See <http://www.lartmaker.nl/> for
 	  information on the LART.
 
 config SA1100_NANOENGINE
-	bool "nanoEngine"
+	bool "nayesEngine"
 	select ARM_SA1110_CPUFREQ
 	select FORCE_PCI
 	select PCI_NANOENGINE
 	help
-	  Say Y here if you are using the Bright Star Engineering nanoEngine.
-	  See <http://www.brightstareng.com/arm/nanoeng.htm> for information
-	  on the BSE nanoEngine.
+	  Say Y here if you are using the Bright Star Engineering nayesEngine.
+	  See <http://www.brightstareng.com/arm/nayeseng.htm> for information
+	  on the BSE nayesEngine.
 
 config SA1100_PLEB
 	bool "PLEB"
 	select ARM_SA1100_CPUFREQ
 	help
 	  Say Y here if you are using version 1 of the Portable Linux
-	  Embedded Board (also known as PLEB).
+	  Embedded Board (also kyeswn as PLEB).
 	  See <http://www.disy.cse.unsw.edu.au/Hardware/PLEB/>
 	  for more information.
 
 config SA1100_SHANNON
-	bool "Shannon"
+	bool "Shanyesn"
 	select ARM_SA1100_CPUFREQ
 	select REGULATOR
 	select REGULATOR_FIXED_VOLTAGE
 	help
-	  The Shannon (also known as a Tuxscreen, and also as a IS2630) was a
-	  limited edition webphone produced by Philips. The Shannon is a SA1100
+	  The Shanyesn (also kyeswn as a Tuxscreen, and also as a IS2630) was a
+	  limited edition webphone produced by Philips. The Shanyesn is a SA1100
 	  platform with a 640x480 LCD, touchscreen, CIR keyboard, PCMCIA slots,
 	  and a telco interface.
 

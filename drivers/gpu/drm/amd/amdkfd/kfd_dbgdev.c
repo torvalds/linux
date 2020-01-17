@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -39,7 +39,7 @@
 #include "kfd_dbgdev.h"
 #include "kfd_device_queue_manager.h"
 
-static void dbgdev_address_watch_disable_nodiq(struct kfd_dev *dev)
+static void dbgdev_address_watch_disable_yesdiq(struct kfd_dev *dev)
 {
 	dev->kfd2kgd->address_watch_disable(dev->kgd);
 }
@@ -99,7 +99,7 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 	ib_packet->bitfields5.pasid = pasid;
 
 	/*
-	 * for now we use release mem for GPU-CPU synchronization
+	 * for yesw we use release mem for GPU-CPU synchronization
 	 * Consider WaitRegMem + WriteData as a better alternative
 	 * we get a GART allocations ( gpu/cpu mapping),
 	 * for the sync variable, and wait until:
@@ -163,11 +163,11 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 	return status;
 }
 
-static int dbgdev_register_nodiq(struct kfd_dbgdev *dbgdev)
+static int dbgdev_register_yesdiq(struct kfd_dbgdev *dbgdev)
 {
 	/*
-	 * no action is needed in this case,
-	 * just make sure diq will not be used
+	 * yes action is needed in this case,
+	 * just make sure diq will yest be used
 	 */
 
 	dbgdev->kq = NULL;
@@ -207,10 +207,10 @@ static int dbgdev_register_diq(struct kfd_dbgdev *dbgdev)
 	return status;
 }
 
-static int dbgdev_unregister_nodiq(struct kfd_dbgdev *dbgdev)
+static int dbgdev_unregister_yesdiq(struct kfd_dbgdev *dbgdev)
 {
 	/* disable watch address */
-	dbgdev_address_watch_disable_nodiq(dbgdev->dev);
+	dbgdev_address_watch_disable_yesdiq(dbgdev->dev);
 	return 0;
 }
 
@@ -256,7 +256,7 @@ static void dbgdev_address_watch_set_registers(
 
 	cntl->bitfields.mode = adw_info->watch_mode[index];
 	cntl->bitfields.vmid = (uint32_t) vmid;
-	/* for now assume it is an ATC address */
+	/* for yesw assume it is an ATC address */
 	cntl->u32All |= ADDRESS_WATCH_REG_CNTL_ATC_BIT;
 
 	pr_debug("\t\t%20s %08x\n", "set reg mask :", cntl->bitfields.mask);
@@ -266,7 +266,7 @@ static void dbgdev_address_watch_set_registers(
 			addrLo->bitfields.addr);
 }
 
-static int dbgdev_address_watch_nodiq(struct kfd_dbgdev *dbgdev,
+static int dbgdev_address_watch_yesdiq(struct kfd_dbgdev *dbgdev,
 				      struct dbg_address_watch_info *adw_info)
 {
 	union TCP_WATCH_ADDR_H_BITS addrHi;
@@ -279,7 +279,7 @@ static int dbgdev_address_watch_nodiq(struct kfd_dbgdev *dbgdev,
 	pdd = kfd_get_process_device_data(dbgdev->dev,
 					adw_info->process);
 	if (!pdd) {
-		pr_err("Failed to get pdd for wave control no DIQ\n");
+		pr_err("Failed to get pdd for wave control yes DIQ\n");
 		return -EFAULT;
 	}
 
@@ -294,7 +294,7 @@ static int dbgdev_address_watch_nodiq(struct kfd_dbgdev *dbgdev,
 	}
 
 	if (!adw_info->watch_mode || !adw_info->watch_address) {
-		pr_err("adw_info fields are not valid\n");
+		pr_err("adw_info fields are yest valid\n");
 		return -EINVAL;
 	}
 
@@ -345,7 +345,7 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 	unsigned int i;
 	int status;
 	size_t ib_size = sizeof(struct pm4__set_config_reg) * 4;
-	/* we do not control the vmid in DIQ mode, just a place holder */
+	/* we do yest control the vmid in DIQ mode, just a place holder */
 	unsigned int vmid = 0;
 
 	addrHi.u32All = 0;
@@ -359,7 +359,7 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 	}
 
 	if (!adw_info->watch_mode || !adw_info->watch_address) {
-		pr_err("adw_info fields are not valid\n");
+		pr_err("adw_info fields are yest valid\n");
 		return -EINVAL;
 	}
 
@@ -449,7 +449,7 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 				aw_reg_add_dword - AMD_CONFIG_REG_BASE;
 		packets_vec[2].reg_data[0] = addrLo.u32All;
 
-		/* enable watch flag if address is not zero*/
+		/* enable watch flag if address is yest zero*/
 		if (adw_info->watch_address[i] > 0)
 			cntl.bitfields.valid = 1;
 		else
@@ -601,7 +601,7 @@ static int dbgdev_wave_control_diq(struct kfd_dbgdev *dbgdev,
 		return status;
 	}
 
-	/* we do not control the VMID in DIQ, so reset it to a known value */
+	/* we do yest control the VMID in DIQ, so reset it to a kyeswn value */
 	reg_sq_cmd.bits.vm_id = 0;
 
 	pr_debug("\t\t %30s\n", "* * * * * * * * * * * * * * * * * *");
@@ -694,7 +694,7 @@ static int dbgdev_wave_control_diq(struct kfd_dbgdev *dbgdev,
 	return status;
 }
 
-static int dbgdev_wave_control_nodiq(struct kfd_dbgdev *dbgdev,
+static int dbgdev_wave_control_yesdiq(struct kfd_dbgdev *dbgdev,
 					struct dbg_wave_control_info *wac_info)
 {
 	int status;
@@ -708,7 +708,7 @@ static int dbgdev_wave_control_nodiq(struct kfd_dbgdev *dbgdev,
 	pdd = kfd_get_process_device_data(dbgdev->dev, wac_info->process);
 
 	if (!pdd) {
-		pr_err("Failed to get pdd for wave control no DIQ\n");
+		pr_err("Failed to get pdd for wave control yes DIQ\n");
 		return -EFAULT;
 	}
 	status = dbgdev_wave_control_set_registers(wac_info, &reg_sq_cmd,
@@ -718,7 +718,7 @@ static int dbgdev_wave_control_nodiq(struct kfd_dbgdev *dbgdev,
 		return status;
 	}
 
-	/* for non DIQ we need to patch the VMID: */
+	/* for yesn DIQ we need to patch the VMID: */
 
 	reg_sq_cmd.bits.vm_id = pdd->qpd.vmid;
 
@@ -808,7 +808,7 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 	if (status != 0)
 		return -EINVAL;
 
-	/* for non DIQ we need to patch the VMID: */
+	/* for yesn DIQ we need to patch the VMID: */
 	reg_sq_cmd.bits.vm_id = vmid;
 
 	dev->kfd2kgd->wave_control_execute(dev->kgd,
@@ -828,10 +828,10 @@ void kfd_dbgdev_init(struct kfd_dbgdev *pdbgdev, struct kfd_dev *pdev,
 
 	switch (type) {
 	case DBGDEV_TYPE_NODIQ:
-		pdbgdev->dbgdev_register = dbgdev_register_nodiq;
-		pdbgdev->dbgdev_unregister = dbgdev_unregister_nodiq;
-		pdbgdev->dbgdev_wave_control = dbgdev_wave_control_nodiq;
-		pdbgdev->dbgdev_address_watch = dbgdev_address_watch_nodiq;
+		pdbgdev->dbgdev_register = dbgdev_register_yesdiq;
+		pdbgdev->dbgdev_unregister = dbgdev_unregister_yesdiq;
+		pdbgdev->dbgdev_wave_control = dbgdev_wave_control_yesdiq;
+		pdbgdev->dbgdev_address_watch = dbgdev_address_watch_yesdiq;
 		break;
 	case DBGDEV_TYPE_DIQ:
 	default:

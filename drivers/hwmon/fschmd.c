@@ -15,7 +15,7 @@
  *			<thilo.cestonaro.external@fujitsu-siemens.com>
  *  Copyright (C) 2004, 2005 Stefan Ott <stefan@desire.ch>
  *  Copyright (C) 2003, 2004 Reinhard Nissl <rnissl@gmx.de>
- *  Copyright (c) 2001 Martin Knoblauch <mkn@teraport.de, knobi@knobisoft.de>
+ *  Copyright (c) 2001 Martin Kyesblauch <mkn@teraport.de, kyesbi@kyesbisoft.de>
  *  Copyright (C) 2000 Hermann Jung <hej@odn.de>
  */
 
@@ -37,12 +37,12 @@
 #include <linux/kref.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x73, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x73, I2C_CLIENT_END };
 
 /* Insmod parameters */
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 enum chips { fscpos, fscher, fscscy, fschrc, fschmd, fschds, fscsyl };
@@ -94,7 +94,7 @@ static const int FSCHMD_NO_VOLT_SENSORS[7] = { 3, 3, 3, 3, 3, 3, 6 };
 /*
  * minimum pwm at which the fan is driven (pwm can be increased depending on
  * the temp. Notice that for the scy some fans share there minimum speed.
- * Also notice that with the scy the sensor order is different than with the
+ * Also yestice that with the scy the sensor order is different than with the
  * other chips, this order was in the 2.4 driver and kept for consistency.
  */
 static const u8 FSCHMD_REG_FAN_MIN[7][7] = {
@@ -173,7 +173,7 @@ static const u8 FSCHMD_REG_TEMP_STATE[7][11] = {
 };
 
 /*
- * temperature high limit registers, FSC does not document these. Proven to be
+ * temperature high limit registers, FSC does yest document these. Proven to be
  * there with field testing on the fscher and fschrc, already supported / used
  * in the fscscy 2.4 driver. FSC has confirmed that the fschmd has registers
  * at these addresses, but doesn't want to confirm they are the same as with
@@ -192,7 +192,7 @@ static const u8 FSCHMD_REG_TEMP_LIMIT[7][11] = {
 
 /*
  * These were found through experimenting with an fscher, currently they are
- * not used, but we keep them around for future reference.
+ * yest used, but we keep them around for future reference.
  * On the fscsyl AUTOP1 lives at 0x#c (so 0x5c for fan1, 0x6c for fan2, etc),
  * AUTOP2 lives at 0x#e, and 0x#1 is a bitmask defining which temps influence
  * the fan speed.
@@ -246,7 +246,7 @@ static struct i2c_driver fschmd_driver = {
 	.remove		= fschmd_remove,
 	.id_table	= fschmd_id,
 	.detect		= fschmd_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 /*
@@ -277,7 +277,7 @@ struct fschmd_data {
 	u8 volt[6];		/* voltage */
 	u8 temp_act[11];	/* temperature */
 	u8 temp_status[11];	/* status of sensor */
-	u8 temp_max[11];	/* high temp limit, notice: undocumented! */
+	u8 temp_max[11];	/* high temp limit, yestice: undocumented! */
 	u8 fan_act[7];		/* fans revolutions per second */
 	u8 fan_status[7];	/* fan status */
 	u8 fan_min[7];		/* fan min value for rps */
@@ -286,7 +286,7 @@ struct fschmd_data {
 
 /*
  * Global variables to hold information read from special DMI tables, which are
- * available on FSC machines with an fscher or later chip. There is no need to
+ * available on FSC machines with an fscher or later chip. There is yes need to
  * protect these with a lock as they are only modified from our attach function
  * which always gets called with the i2c-core lock held and never accessed
  * before the attach function is done with them.
@@ -297,11 +297,11 @@ static int dmi_vref = -1;
 
 /*
  * Somewhat ugly :( global data pointer list with all fschmd devices, so that
- * we can find our device data as when using misc_register there is no other
+ * we can find our device data as when using misc_register there is yes other
  * method to get to ones device data from the open fop.
  */
 static LIST_HEAD(watchdog_data_list);
-/* Note this lock not only protect list access, but also data.kref access */
+/* Note this lock yest only protect list access, but also data.kref access */
 static DEFINE_MUTEX(watchdog_data_mutex);
 
 /*
@@ -384,7 +384,7 @@ static ssize_t temp_fault_show(struct device *dev,
 	int index = to_sensor_dev_attr(devattr)->index;
 	struct fschmd_data *data = fschmd_update_device(dev);
 
-	/* bit 0 set means sensor working ok, so no fault! */
+	/* bit 0 set means sensor working ok, so yes fault! */
 	if (data->temp_status[index] & FSCHMD_TEMP_WORKING)
 		return sprintf(buf, "0\n");
 	else
@@ -453,7 +453,7 @@ static ssize_t fan_div_store(struct device *dev,
 		break;
 	default:
 		dev_err(dev,
-			"fan_div value %lu not supported. Choose one of 2, 4 or 8!\n",
+			"fan_div value %lu yest supported. Choose one of 2, 4 or 8!\n",
 			v);
 		return -EINVAL;
 	}
@@ -724,7 +724,7 @@ static int watchdog_set_timeout(struct fschmd_data *data, int timeout)
 	/* Write new timeout value */
 	i2c_smbus_write_byte_data(data->client,
 		FSCHMD_REG_WDOG_PRESET[data->kind], data->watchdog_preset);
-	/* Write new control register, do not trigger! */
+	/* Write new control register, do yest trigger! */
 	i2c_smbus_write_byte_data(data->client,
 		FSCHMD_REG_WDOG_CONTROL[data->kind],
 		data->watchdog_control & ~FSCHMD_WDOG_CONTROL_TRIGGER);
@@ -792,7 +792,7 @@ leave:
 	return ret;
 }
 
-static int watchdog_open(struct inode *inode, struct file *filp)
+static int watchdog_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct fschmd_data *pos, *data = NULL;
 	int watchdog_is_open;
@@ -806,12 +806,12 @@ static int watchdog_open(struct inode *inode, struct file *filp)
 	if (!mutex_trylock(&watchdog_data_mutex))
 		return -ERESTARTSYS;
 	list_for_each_entry(pos, &watchdog_data_list, list) {
-		if (pos->watchdog_miscdev.minor == iminor(inode)) {
+		if (pos->watchdog_miscdev.miyesr == imiyesr(iyesde)) {
 			data = pos;
 			break;
 		}
 	}
-	/* Note we can never not have found data, so we don't check for this */
+	/* Note we can never yest have found data, so we don't check for this */
 	watchdog_is_open = test_and_set_bit(0, &data->watchdog_is_open);
 	if (!watchdog_is_open)
 		kref_get(&data->kref);
@@ -824,10 +824,10 @@ static int watchdog_open(struct inode *inode, struct file *filp)
 	watchdog_trigger(data);
 	filp->private_data = data;
 
-	return stream_open(inode, filp);
+	return stream_open(iyesde, filp);
 }
 
-static int watchdog_release(struct inode *inode, struct file *filp)
+static int watchdog_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct fschmd_data *data = filp->private_data;
 
@@ -837,7 +837,7 @@ static int watchdog_release(struct inode *inode, struct file *filp)
 	} else {
 		watchdog_trigger(data);
 		dev_crit(&data->client->dev,
-			"unexpected close, not stopping watchdog!\n");
+			"unexpected close, yest stopping watchdog!\n");
 	}
 
 	clear_bit(0, &data->watchdog_is_open);
@@ -856,7 +856,7 @@ static ssize_t watchdog_write(struct file *filp, const char __user *buf,
 	struct fschmd_data *data = filp->private_data;
 
 	if (count) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			/* Clear it in case it was set with a previous write */
@@ -891,7 +891,7 @@ static long watchdog_ioctl(struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
 		ident.firmware_version = data->revision;
-		if (!nowayout)
+		if (!yeswayout)
 			ident.options |= WDIOF_MAGICCLOSE;
 		if (copy_to_user((void __user *)arg, &ident, sizeof(ident)))
 			ret = -EFAULT;
@@ -949,7 +949,7 @@ static long watchdog_ioctl(struct file *filp, unsigned int cmd,
 
 static const struct file_operations watchdog_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.open = watchdog_open,
 	.release = watchdog_release,
 	.write = watchdog_write,
@@ -990,7 +990,7 @@ static void fschmd_dmi_decode(const struct dmi_header *header, void *dummy)
 		return;
 
 	/*
-	 * After the subtype comes 1 unknown byte and then blocks of 5 bytes,
+	 * After the subtype comes 1 unkyeswn byte and then blocks of 5 bytes,
 	 * consisting of what Siemens calls an "Entity" number, followed by
 	 * 2 16-bit words in LSB first order
 	 */
@@ -1031,7 +1031,7 @@ static void fschmd_dmi_decode(const struct dmi_header *header, void *dummy)
 		/*
 		 * According to the docs there should be separate dmi entries
 		 * for the mult's and offsets of in3-5 of the syl, but on
-		 * my test machine these are not present
+		 * my test machine these are yest present
 		 */
 		dmi_mult[3] = dmi_mult[2];
 		dmi_mult[4] = dmi_mult[1];
@@ -1087,7 +1087,7 @@ static int fschmd_probe(struct i2c_client *client,
 	struct fschmd_data *data;
 	const char * const names[7] = { "Poseidon", "Hermes", "Scylla",
 				"Heracles", "Heimdall", "Hades", "Syleus" };
-	const int watchdog_minors[] = { WATCHDOG_MINOR, 212, 213, 214, 215 };
+	const int watchdog_miyesrs[] = { WATCHDOG_MINOR, 212, 213, 214, 215 };
 	int i, err;
 	enum chips kind = id->driver_data;
 
@@ -1204,23 +1204,23 @@ static int fschmd_probe(struct i2c_client *client,
 	}
 
 	/*
-	 * We take the data_mutex lock early so that watchdog_open() cannot
-	 * run when misc_register() has completed, but we've not yet added
+	 * We take the data_mutex lock early so that watchdog_open() canyest
+	 * run when misc_register() has completed, but we've yest yet added
 	 * our data to the watchdog_data_list (and set the default timeout)
 	 */
 	mutex_lock(&watchdog_data_mutex);
-	for (i = 0; i < ARRAY_SIZE(watchdog_minors); i++) {
+	for (i = 0; i < ARRAY_SIZE(watchdog_miyesrs); i++) {
 		/* Register our watchdog part */
 		snprintf(data->watchdog_name, sizeof(data->watchdog_name),
 			"watchdog%c", (i == 0) ? '\0' : ('0' + i));
 		data->watchdog_miscdev.name = data->watchdog_name;
 		data->watchdog_miscdev.fops = &watchdog_fops;
-		data->watchdog_miscdev.minor = watchdog_minors[i];
+		data->watchdog_miscdev.miyesr = watchdog_miyesrs[i];
 		err = misc_register(&data->watchdog_miscdev);
 		if (err == -EBUSY)
 			continue;
 		if (err) {
-			data->watchdog_miscdev.minor = 0;
+			data->watchdog_miscdev.miyesr = 0;
 			dev_err(&client->dev,
 				"Registering watchdog chardev: %d\n", err);
 			break;
@@ -1229,14 +1229,14 @@ static int fschmd_probe(struct i2c_client *client,
 		list_add(&data->list, &watchdog_data_list);
 		watchdog_set_timeout(data, 60);
 		dev_info(&client->dev,
-			"Registered watchdog chardev major 10, minor: %d\n",
-			watchdog_minors[i]);
+			"Registered watchdog chardev major 10, miyesr: %d\n",
+			watchdog_miyesrs[i]);
 		break;
 	}
-	if (i == ARRAY_SIZE(watchdog_minors)) {
-		data->watchdog_miscdev.minor = 0;
+	if (i == ARRAY_SIZE(watchdog_miyesrs)) {
+		data->watchdog_miscdev.miyesr = 0;
 		dev_warn(&client->dev,
-			 "Couldn't register watchdog chardev (due to no free minor)\n");
+			 "Couldn't register watchdog chardev (due to yes free miyesr)\n");
 	}
 	mutex_unlock(&watchdog_data_mutex);
 
@@ -1256,7 +1256,7 @@ static int fschmd_remove(struct i2c_client *client)
 	int i;
 
 	/* Unregister the watchdog (if registered) */
-	if (data->watchdog_miscdev.minor) {
+	if (data->watchdog_miscdev.miyesr) {
 		misc_deregister(&data->watchdog_miscdev);
 		if (data->watchdog_is_open) {
 			dev_warn(&client->dev,

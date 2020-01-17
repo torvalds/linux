@@ -60,7 +60,7 @@ static int wm831x_auxadc_read_irq(struct wm831x *wm831x,
 		}
 	}
 
-	/* Enable the conversion if not already running */
+	/* Enable the conversion if yest already running */
 	if (!(wm831x->auxadc_active & (1 << input))) {
 		ret = wm831x_set_bits(wm831x, WM831X_AUXADC_SOURCE,
 				      1 << input, 1 << input);
@@ -180,7 +180,7 @@ static int wm831x_auxadc_read_polled(struct wm831x *wm831x,
 		goto disable;
 	}
 
-	/* If we're not using interrupts then poll the
+	/* If we're yest using interrupts then poll the
 	 * interrupt status register */
 	timeout = 5;
 	while (timeout) {
@@ -222,7 +222,7 @@ static int wm831x_auxadc_read_polled(struct wm831x *wm831x,
 		src = WM831X_AUX_CAL;
 
 	if (src != input) {
-		dev_err(wm831x->dev, "Data from source %d not %d\n",
+		dev_err(wm831x->dev, "Data from source %d yest %d\n",
 			src, input);
 		ret = -EINVAL;
 	} else {

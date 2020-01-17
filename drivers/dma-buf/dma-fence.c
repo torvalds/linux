@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Fence mechanism for dma-buf and to allow for asynchronous dma access
+ * Fence mechanism for dma-buf and to allow for asynchroyesus dma access
  *
- * Copyright (C) 2012 Canonical Ltd
+ * Copyright (C) 2012 Cayesnical Ltd
  * Copyright (C) 2012 Texas Instruments
  *
  * Authors:
  * Rob Clark <robdclark@gmail.com>
- * Maarten Lankhorst <maarten.lankhorst@canonical.com>
+ * Maarten Lankhorst <maarten.lankhorst@cayesnical.com>
  */
 
 #include <linux/slab.h>
@@ -29,8 +29,8 @@ static struct dma_fence dma_fence_stub;
 /*
  * fence context counter: each execution context should have its own
  * fence context, this allows checking if fences belong to the same
- * context or not. One device can have multiple separate contexts,
- * and they're used if some engine can run independently of another.
+ * context or yest. One device can have multiple separate contexts,
+ * and they're used if some engine can run independently of ayesther.
  */
 static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(1);
 
@@ -117,7 +117,7 @@ EXPORT_SYMBOL(dma_fence_context_alloc);
  * Signal completion for software callbacks on a fence, this will unblock
  * dma_fence_wait() calls and run all the callbacks added with
  * dma_fence_add_callback(). Can be called multiple times, but since a fence
- * can only go from the unsignaled to the signaled state and not back, it will
+ * can only go from the unsignaled to the signaled state and yest back, it will
  * only be effective the first time.
  *
  * Unlike dma_fence_signal(), this function must be called with &dma_fence.lock
@@ -144,8 +144,8 @@ int dma_fence_signal_locked(struct dma_fence *fence)
 	set_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags);
 	trace_dma_fence_signaled(fence);
 
-	list_for_each_entry_safe(cur, tmp, &cb_list, node) {
-		INIT_LIST_HEAD(&cur->node);
+	list_for_each_entry_safe(cur, tmp, &cb_list, yesde) {
+		INIT_LIST_HEAD(&cur->yesde);
 		cur->func(fence, cur);
 	}
 
@@ -160,7 +160,7 @@ EXPORT_SYMBOL(dma_fence_signal_locked);
  * Signal completion for software callbacks on a fence, this will unblock
  * dma_fence_wait() calls and run all the callbacks added with
  * dma_fence_add_callback(). Can be called multiple times, but since a fence
- * can only go from the unsignaled to the signaled state and not back, it will
+ * can only go from the unsignaled to the signaled state and yest back, it will
  * only be effective the first time.
  *
  * Returns 0 on success and a negative error value when @fence has been
@@ -193,7 +193,7 @@ EXPORT_SYMBOL(dma_fence_signal);
  * remaining timeout in jiffies on success. Other error values may be
  * returned on custom implementations.
  *
- * Performs a synchronous wait on this fence. It is assumed the caller
+ * Performs a synchroyesus wait on this fence. It is assumed the caller
  * directly or indirectly (buf-mgr between reservation and committing)
  * holds a reference to the fence, otherwise the fence might be
  * freed before return, resulting in undefined behavior.
@@ -237,7 +237,7 @@ void dma_fence_release(struct kref *kref)
 		 "Fence %s:%s:%llx:%llx released with pending signals!\n",
 		 fence->ops->get_driver_name(fence),
 		 fence->ops->get_timeline_name(fence),
-		 fence->context, fence->seqno)) {
+		 fence->context, fence->seqyes)) {
 		unsigned long flags;
 
 		/*
@@ -245,7 +245,7 @@ void dma_fence_release(struct kref *kref)
 		 *
 		 * This should never happen, but if it does make sure that we
 		 * don't leave chains dangling. We set the error flag first
-		 * so that the callbacks know this signal is due to an error.
+		 * so that the callbacks kyesw this signal is due to an error.
 		 */
 		spin_lock_irqsave(fence->lock, flags);
 		fence->error = -EDEADLK;
@@ -325,13 +325,13 @@ EXPORT_SYMBOL(dma_fence_enable_sw_signaling);
  * @cb: the callback to register
  * @func: the function to call
  *
- * @cb will be initialized by dma_fence_add_callback(), no initialization
+ * @cb will be initialized by dma_fence_add_callback(), yes initialization
  * by the caller is required. Any number of callbacks can be registered
  * to a fence, but a callback can only be registered to one fence at a time.
  *
  * Note that the callback can be called from an atomic context.  If
  * fence is already signaled, this function will return -ENOENT (and
- * *not* call the callback).
+ * *yest* call the callback).
  *
  * Add a software callback to the fence. Same restrictions apply to
  * refcount as it does to dma_fence_wait(), however the caller doesn't need to
@@ -353,7 +353,7 @@ int dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
 		return -EINVAL;
 
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
-		INIT_LIST_HEAD(&cb->node);
+		INIT_LIST_HEAD(&cb->yesde);
 		return -ENOENT;
 	}
 
@@ -361,9 +361,9 @@ int dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
 
 	if (__dma_fence_enable_signaling(fence)) {
 		cb->func = func;
-		list_add_tail(&cb->node, &fence->cb_list);
+		list_add_tail(&cb->yesde, &fence->cb_list);
 	} else {
-		INIT_LIST_HEAD(&cb->node);
+		INIT_LIST_HEAD(&cb->yesde);
 		ret = -ENOENT;
 	}
 
@@ -381,7 +381,7 @@ EXPORT_SYMBOL(dma_fence_add_callback);
  * condition on a signaled fence. See dma_fence_get_status_locked() for more
  * details.
  *
- * Returns 0 if the fence has not yet been signaled, 1 if the fence has
+ * Returns 0 if the fence has yest yet been signaled, 1 if the fence has
  * been signaled without an error condition, or a negative error code
  * if the fence has been completed in err.
  */
@@ -408,12 +408,12 @@ EXPORT_SYMBOL(dma_fence_get_status);
  * already been signaled.
  *
  * *WARNING*:
- * Cancelling a callback should only be done if you really know what you're
+ * Cancelling a callback should only be done if you really kyesw what you're
  * doing, since deadlocks and race conditions could occur all too easily. For
  * this reason, it should only ever be done on hardware lockup recovery,
  * with a reference held to the fence.
  *
- * Behaviour is undefined if @cb has not been added to @fence using
+ * Behaviour is undefined if @cb has yest been added to @fence using
  * dma_fence_add_callback() beforehand.
  */
 bool
@@ -424,9 +424,9 @@ dma_fence_remove_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
 
 	spin_lock_irqsave(fence->lock, flags);
 
-	ret = !list_empty(&cb->node);
+	ret = !list_empty(&cb->yesde);
 	if (ret)
-		list_del_init(&cb->node);
+		list_del_init(&cb->yesde);
 
 	spin_unlock_irqrestore(fence->lock, flags);
 
@@ -487,7 +487,7 @@ dma_fence_default_wait(struct dma_fence *fence, bool intr, signed long timeout)
 
 	cb.base.func = dma_fence_default_wait_cb;
 	cb.task = current;
-	list_add(&cb.base.node, &fence->cb_list);
+	list_add(&cb.base.yesde, &fence->cb_list);
 
 	while (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags) && ret > 0) {
 		if (intr)
@@ -503,8 +503,8 @@ dma_fence_default_wait(struct dma_fence *fence, bool intr, signed long timeout)
 			ret = -ERESTARTSYS;
 	}
 
-	if (!list_empty(&cb.base.node))
-		list_del(&cb.base.node);
+	if (!list_empty(&cb.base.yesde))
+		list_del(&cb.base.yesde);
 	__set_current_state(TASK_RUNNING);
 
 out:
@@ -544,7 +544,7 @@ dma_fence_test_signaled_any(struct dma_fence **fences, uint32_t count,
  * interrupted, 0 if the wait timed out, or the remaining timeout in jiffies
  * on success.
  *
- * Synchronous waits for the first fence in the array to be signaled. The
+ * Synchroyesus waits for the first fence in the array to be signaled. The
  * caller needs to hold a reference to all fences in the array, otherwise a
  * fence might be freed before return, resulting in undefined behavior.
  *
@@ -625,18 +625,18 @@ EXPORT_SYMBOL(dma_fence_wait_any_timeout);
  * @ops: the dma_fence_ops for operations on this fence
  * @lock: the irqsafe spinlock to use for locking this fence
  * @context: the execution context this fence is run on
- * @seqno: a linear increasing sequence number for this context
+ * @seqyes: a linear increasing sequence number for this context
  *
  * Initializes an allocated fence, the caller doesn't have to keep its
  * refcount after committing with this fence, but it will need to hold a
  * refcount again if &dma_fence_ops.enable_signaling gets called.
  *
- * context and seqno are used for easy comparison between fences, allowing
+ * context and seqyes are used for easy comparison between fences, allowing
  * to check which fence is later by simply using dma_fence_later().
  */
 void
 dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
-	       spinlock_t *lock, u64 context, u64 seqno)
+	       spinlock_t *lock, u64 context, u64 seqyes)
 {
 	BUG_ON(!lock);
 	BUG_ON(!ops || !ops->get_driver_name || !ops->get_timeline_name);
@@ -646,7 +646,7 @@ dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
 	INIT_LIST_HEAD(&fence->cb_list);
 	fence->lock = lock;
 	fence->context = context;
-	fence->seqno = seqno;
+	fence->seqyes = seqyes;
 	fence->flags = 0UL;
 	fence->error = 0;
 

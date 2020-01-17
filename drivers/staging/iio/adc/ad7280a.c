@@ -1003,7 +1003,7 @@ static int ad7280_probe(struct spi_device *spi)
 		ret = ad7280_write(st, ad7280a_devaddr(st->slave_num),
 				   AD7280A_ALERT, 0,
 				   AD7280A_ALERT_GEN_STATIC_HIGH |
-				   (pdata->chain_last_alert_ignore & 0xF));
+				   (pdata->chain_last_alert_igyesre & 0xF));
 		if (ret)
 			return ret;
 

@@ -32,11 +32,11 @@ struct rga_corners_addr_offset {
 static unsigned int rga_get_scaling(unsigned int src, unsigned int dst)
 {
 	/*
-	 * The rga hw scaling factor is a normalized inverse of the
+	 * The rga hw scaling factor is a yesrmalized inverse of the
 	 * scaling factor.
 	 * For example: When source width is 100 and destination width is 200
 	 * (scaling of 2x), then the hw factor is NC * 100 / 200.
-	 * The normalization factor (NC) is 2^16 = 0x10000.
+	 * The yesrmalization factor (NC) is 2^16 = 0x10000.
 	 */
 
 	return (src > dst) ? ((dst << 16) / src) : ((src << 16) / dst);
@@ -255,7 +255,7 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 	 */
 	if (src_info.data.rot_mode == RGA_SRC_ROT_MODE_90_DEGREE ||
 	    src_info.data.rot_mode == RGA_SRC_ROT_MODE_270_DEGREE) {
-		if (rga->version.major == 0 || rga->version.minor == 0) {
+		if (rga->version.major == 0 || rga->version.miyesr == 0) {
 			if (dst_w == src_h)
 				src_h -= 8;
 			if (abs(src_w - dst_h) < 16)
@@ -297,7 +297,7 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 
 	/*
 	 * Calculate the framebuffer virtual strides and active size,
-	 * note that the step of vir_stride / vir_width is 4 byte words
+	 * yeste that the step of vir_stride / vir_width is 4 byte words
 	 */
 	src_vir_info.data.vir_stride = ctx->in.stride >> 2;
 	src_vir_info.data.vir_width = ctx->in.stride >> 2;

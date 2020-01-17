@@ -2,7 +2,7 @@
 /*
  * Detection routine for the NCR53c710 based Amiga SCSI Controllers for Linux.
  *		Amiga MacroSystemUS WarpEngine SCSI controller.
- *		Amiga Technologies/DKB A4091 SCSI controller.
+ *		Amiga Techyeslogies/DKB A4091 SCSI controller.
  *
  * Written 1997 by Alan Hourihane <alanh@fairlite.demon.co.uk>
  * plus modifications of the 53c7xx.c driver to support the Amiga.
@@ -90,7 +90,7 @@ static int zorro7xx_init_one(struct zorro_dev *z,
 	}
 
 	if (!zorro_request_device(z, zdd->name)) {
-		printk(KERN_ERR "zorro7xx: cannot reserve region 0x%lx, abort\n",
+		printk(KERN_ERR "zorro7xx: canyest reserve region 0x%lx, abort\n",
 		       board);
 		return -EBUSY;
 	}

@@ -99,7 +99,7 @@ static inline void mb862xx_i2c_exit(struct mb862xxfb_par *par) { }
 #endif
 
 #if defined(CONFIG_FB_MB862XX_LIME) && defined(CONFIG_FB_MB862XX_PCI_GDC)
-#error	"Select Lime GDC or CoralP/Carmine support, but not both together"
+#error	"Select Lime GDC or CoralP/Carmine support, but yest both together"
 #endif
 #if defined(CONFIG_FB_MB862XX_LIME)
 #define gdc_read	__raw_readl

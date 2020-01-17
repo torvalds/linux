@@ -68,9 +68,9 @@ int mxl1x1sf_set_device_mode(struct mxl111sf_state *state, int mode)
 
 	ret = mxl111sf_write_reg_mask(state,
 				      0x7d, 0x40, MXL_SOC_MODE == mode ?
-				      0x00 : /* enable impulse noise filter,
+				      0x00 : /* enable impulse yesise filter,
 						INF_BYP = 0 */
-				      0x40); /* disable impulse noise filter,
+				      0x40); /* disable impulse yesise filter,
 						INF_BYP = 1 */
 	if (mxl_fail(ret))
 		goto fail;
@@ -81,11 +81,11 @@ fail:
 }
 
 /* power up tuner */
-int mxl1x1sf_top_master_ctrl(struct mxl111sf_state *state, int onoff)
+int mxl1x1sf_top_master_ctrl(struct mxl111sf_state *state, int oyesff)
 {
-	mxl_debug("(%d)", onoff);
+	mxl_debug("(%d)", oyesff);
 
-	return mxl111sf_write_reg(state, 0x01, onoff ? 0x01 : 0x00);
+	return mxl111sf_write_reg(state, 0x01, oyesff ? 0x01 : 0x00);
 }
 
 int mxl111sf_disable_656_port(struct mxl111sf_state *state)
@@ -258,12 +258,12 @@ fail:
 	return ret;
 }
 
-int mxl111sf_config_spi(struct mxl111sf_state *state, int onoff)
+int mxl111sf_config_spi(struct mxl111sf_state *state, int oyesff)
 {
 	u8 val;
 	int ret;
 
-	mxl_debug("(%d)", onoff);
+	mxl_debug("(%d)", oyesff);
 
 	ret = mxl111sf_write_reg(state, 0x00, 0x02);
 	if (mxl_fail(ret))
@@ -273,7 +273,7 @@ int mxl111sf_config_spi(struct mxl111sf_state *state, int onoff)
 	if (mxl_fail(ret))
 		goto fail;
 
-	if (onoff)
+	if (oyesff)
 		val |= 0x04;
 	else
 		val &= ~0x04;

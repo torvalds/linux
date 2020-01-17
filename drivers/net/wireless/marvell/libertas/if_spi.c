@@ -131,8 +131,8 @@ static void spu_transaction_init(struct if_spi_card *card)
 	if (!time_after(jiffies, card->prev_xfer_time + 1)) {
 		/* Unfortunately, the SPU requires a delay between successive
 		 * transactions. If our last transaction was more than a jiffy
-		 * ago, we have obviously already delayed enough.
-		 * If not, we have to busy-wait to be on the safe side. */
+		 * ago, we have obviously already delayed eyesugh.
+		 * If yest, we have to busy-wait to be on the safe side. */
 		ndelay(400);
 	}
 }
@@ -279,7 +279,7 @@ static int spu_read_u32(struct if_spi_card *card, u16 reg, u32 *val)
 /*
  * Keep reading 16 bits from an SPI register until you get the correct result.
  *
- * If mask = 0, the correct result is any non-zero number.
+ * If mask = 0, the correct result is any yesn-zero number.
  * If mask != 0, the correct result is any number where
  * number & target_mask == target
  *
@@ -433,7 +433,7 @@ static int spu_init(struct if_spi_card *card, int use_dummy_writes)
 	card->spu_port_delay = delay & 0x0000ffff;
 	card->spu_reg_delay = (delay & 0xffff0000) >> 16;
 
-	/* If dummy clock delay mode has been requested, switch to it now */
+	/* If dummy clock delay mode has been requested, switch to it yesw */
 	if (use_dummy_writes) {
 		card->use_dummy_writes = 1;
 		err = spu_set_bus_mode(card,
@@ -605,7 +605,7 @@ static int if_spi_prog_main_firmware(struct if_spi_card *card,
 		}
 		if (bytes < 0) {
 			/*
-			 * If there are no more bytes left, we would normally
+			 * If there are yes more bytes left, we would yesrmally
 			 * expect to have terminated with len = 0
 			 */
 			netdev_err(priv->dev,
@@ -665,7 +665,7 @@ out:
 /*
  * SPI Transfer Thread
  *
- * The SPI worker handles all SPI transfers, so there is no need for a lock.
+ * The SPI worker handles all SPI transfers, so there is yes need for a lock.
  */
 
 /* Move a command from the card to the host */
@@ -678,14 +678,14 @@ static int if_spi_c2h_cmd(struct if_spi_card *card)
 	u8 i;
 
 	/*
-	 * We need a buffer big enough to handle whatever people send to
+	 * We need a buffer big eyesugh to handle whatever people send to
 	 * hw_host_to_card
 	 */
 	BUILD_BUG_ON(IF_SPI_CMD_BUF_SIZE < LBS_CMD_BUFFER_SIZE);
 	BUILD_BUG_ON(IF_SPI_CMD_BUF_SIZE < LBS_UPLD_SIZE);
 
 	/*
-	 * It's just annoying if the buffer size isn't a multiple of 4, because
+	 * It's just anyesying if the buffer size isn't a multiple of 4, because
 	 * then we might have len < IF_SPI_CMD_BUF_SIZE but
 	 * ALIGN(len, 4) > IF_SPI_CMD_BUF_SIZE
 	 */
@@ -696,7 +696,7 @@ static int if_spi_c2h_cmd(struct if_spi_card *card)
 	if (err)
 		goto out;
 	if (!len) {
-		netdev_err(priv->dev, "%s: error: card has no data for host\n",
+		netdev_err(priv->dev, "%s: error: card has yes data for host\n",
 			   __func__);
 		err = -EINVAL;
 		goto out;
@@ -719,7 +719,7 @@ static int if_spi_c2h_cmd(struct if_spi_card *card)
 	BUG_ON(priv->resp_len[i]);
 	priv->resp_len[i] = len;
 	memcpy(priv->resp_buf[i], card->cmd_buffer, len);
-	lbs_notify_command_response(priv, i);
+	lbs_yestify_command_response(priv, i);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 out:
@@ -743,7 +743,7 @@ static int if_spi_c2h_data(struct if_spi_card *card)
 	if (err)
 		goto out;
 	if (!len) {
-		netdev_err(priv->dev, "%s: error: card has no data for host\n",
+		netdev_err(priv->dev, "%s: error: card has yes data for host\n",
 			   __func__);
 		err = -EINVAL;
 		goto out;
@@ -875,7 +875,7 @@ static void if_spi_host_to_card_worker(struct work_struct *work)
 	}
 
 	/*
-	 * workaround: in PS mode, the card does not set the Command
+	 * workaround: in PS mode, the card does yest set the Command
 	 * Download Ready bit, but it sets TX Download Ready.
 	 */
 	if (hiStatus & IF_SPI_HIST_CMD_DOWNLOAD_RDY ||
@@ -885,7 +885,7 @@ static void if_spi_host_to_card_worker(struct work_struct *work)
 		 * This means two things. First of all,
 		 * if there was a previous command sent, the card has
 		 * successfully received it.
-		 * Secondly, it is now ready to download another
+		 * Secondly, it is yesw ready to download ayesther
 		 * command.
 		 */
 		lbs_host_to_card_done(card->priv);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2000 MIPS Techyeslogies, Inc.  All rights reserved.
  */
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -59,7 +59,7 @@ const char *get_system_type(void)
 		}
 		/* fall through */
 	default:
-		return "TI AR7 (unknown)";
+		return "TI AR7 (unkyeswn)";
 	}
 }
 

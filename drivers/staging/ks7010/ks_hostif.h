@@ -3,7 +3,7 @@
  *   Driver for KeyStream wireless LAN
  *
  *   Copyright (c) 2005-2008 KeyStream Corp.
- *   Copyright (C) 2009 Renesas Technology Corp.
+ *   Copyright (C) 2009 Renesas Techyeslogy Corp.
  */
 
 #ifndef _KS_HOSTIF_H_
@@ -221,7 +221,7 @@ struct hostif_power_mgmt_request {
 #define POWER_SAVE    2
 	__le32 wake_up;
 #define SLEEP_FALSE 0
-#define SLEEP_TRUE  1	/* not used */
+#define SLEEP_TRUE  1	/* yest used */
 	__le32 receive_dtims;
 #define DTIM_FALSE 0
 #define DTIM_TRUE  1
@@ -244,7 +244,7 @@ struct hostif_start_request {
 	__le16 mode;
 #define MODE_PSEUDO_ADHOC   0
 #define MODE_INFRASTRUCTURE 1
-#define MODE_AP             2	/* not used */
+#define MODE_AP             2	/* yest used */
 #define MODE_ADHOC          3
 } __packed;
 
@@ -303,7 +303,7 @@ struct ap_info {
 	u8 bssid[6];	/* +00 */
 	u8 rssi;	/* +06 */
 	u8 sq;	/* +07 */
-	u8 noise;	/* +08 */
+	u8 yesise;	/* +08 */
 	u8 pad0;	/* +09 */
 	__le16 beacon_period;	/* +10 */
 	__le16 capability;	/* +12 */
@@ -318,7 +318,7 @@ struct link_ap_info {
 	u8 bssid[6];	/* +00 */
 	u8 rssi;	/* +06 */
 	u8 sq;	/* +07 */
-	u8 noise;	/* +08 */
+	u8 yesise;	/* +08 */
 	u8 pad0;	/* +09 */
 	__le16 beacon_period;	/* +10 */
 	__le16 capability;	/* +12 */

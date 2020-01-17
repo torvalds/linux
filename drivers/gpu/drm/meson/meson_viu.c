@@ -15,23 +15,23 @@
 /**
  * DOC: Video Input Unit
  *
- * VIU Handles the Pixel scanout and the basic Colorspace conversions
+ * VIU Handles the Pixel scayesut and the basic Colorspace conversions
  * We handle the following features :
  *
- * - OSD1 RGB565/RGB888/xRGB8888 scanout
+ * - OSD1 RGB565/RGB888/xRGB8888 scayesut
  * - RGB conversion to x/cb/cr
- * - Progressive or Interlace buffer scanout
+ * - Progressive or Interlace buffer scayesut
  * - OSD1 Commit on Vsync
  * - HDR OSD matrix for GXL/GXM
  *
  * What is missing :
  *
  * - BGR888/xBGR8888/BGRx8888/BGRx8888 modes
- * - YUV4:2:2 Y0CbY1Cr scanout
+ * - YUV4:2:2 Y0CbY1Cr scayesut
  * - Conversion to YUV 4:4:4 from 4:2:2 input
  * - Colorkey Alpha matching
- * - Big endian scanout
- * - X/Y reverse scanout
+ * - Big endian scayesut
+ * - X/Y reverse scayesut
  * - Global alpha setup
  * - OSD2 support, would need interlace switching on vsync
  * - OSD1 full scaling to support TV overscan

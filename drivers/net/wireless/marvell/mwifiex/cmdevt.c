@@ -29,59 +29,59 @@
 static void mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter);
 
 /*
- * This function initializes a command node.
+ * This function initializes a command yesde.
  *
- * The actual allocation of the node is not done by this function. It only
- * initiates a node by filling it with default parameters. Similarly,
+ * The actual allocation of the yesde is yest done by this function. It only
+ * initiates a yesde by filling it with default parameters. Similarly,
  * allocation of the different buffers used (IOCTL buffer, data buffer) are
- * not done by this function either.
+ * yest done by this function either.
  */
 static void
-mwifiex_init_cmd_node(struct mwifiex_private *priv,
-		      struct cmd_ctrl_node *cmd_node,
-		      u32 cmd_no, void *data_buf, bool sync)
+mwifiex_init_cmd_yesde(struct mwifiex_private *priv,
+		      struct cmd_ctrl_yesde *cmd_yesde,
+		      u32 cmd_yes, void *data_buf, bool sync)
 {
-	cmd_node->priv = priv;
-	cmd_node->cmd_no = cmd_no;
+	cmd_yesde->priv = priv;
+	cmd_yesde->cmd_yes = cmd_yes;
 
 	if (sync) {
-		cmd_node->wait_q_enabled = true;
-		cmd_node->cmd_wait_q_woken = false;
-		cmd_node->condition = &cmd_node->cmd_wait_q_woken;
+		cmd_yesde->wait_q_enabled = true;
+		cmd_yesde->cmd_wait_q_woken = false;
+		cmd_yesde->condition = &cmd_yesde->cmd_wait_q_woken;
 	}
-	cmd_node->data_buf = data_buf;
-	cmd_node->cmd_skb = cmd_node->skb;
+	cmd_yesde->data_buf = data_buf;
+	cmd_yesde->cmd_skb = cmd_yesde->skb;
 }
 
 /*
- * This function returns a command node from the free queue depending upon
+ * This function returns a command yesde from the free queue depending upon
  * availability.
  */
-static struct cmd_ctrl_node *
-mwifiex_get_cmd_node(struct mwifiex_adapter *adapter)
+static struct cmd_ctrl_yesde *
+mwifiex_get_cmd_yesde(struct mwifiex_adapter *adapter)
 {
-	struct cmd_ctrl_node *cmd_node;
+	struct cmd_ctrl_yesde *cmd_yesde;
 
 	spin_lock_bh(&adapter->cmd_free_q_lock);
 	if (list_empty(&adapter->cmd_free_q)) {
 		mwifiex_dbg(adapter, ERROR,
-			    "GET_CMD_NODE: cmd node not available\n");
+			    "GET_CMD_NODE: cmd yesde yest available\n");
 		spin_unlock_bh(&adapter->cmd_free_q_lock);
 		return NULL;
 	}
-	cmd_node = list_first_entry(&adapter->cmd_free_q,
-				    struct cmd_ctrl_node, list);
-	list_del(&cmd_node->list);
+	cmd_yesde = list_first_entry(&adapter->cmd_free_q,
+				    struct cmd_ctrl_yesde, list);
+	list_del(&cmd_yesde->list);
 	spin_unlock_bh(&adapter->cmd_free_q_lock);
 
-	return cmd_node;
+	return cmd_yesde;
 }
 
 /*
- * This function cleans up a command node.
+ * This function cleans up a command yesde.
  *
  * The function resets the fields including the buffer pointers.
- * This function does not try to free the buffers. They must be
+ * This function does yest try to free the buffers. They must be
  * freed before calling this function.
  *
  * This function will however call the receive completion callback
@@ -89,20 +89,20 @@ mwifiex_get_cmd_node(struct mwifiex_adapter *adapter)
  * the pointer.
  */
 static void
-mwifiex_clean_cmd_node(struct mwifiex_adapter *adapter,
-		       struct cmd_ctrl_node *cmd_node)
+mwifiex_clean_cmd_yesde(struct mwifiex_adapter *adapter,
+		       struct cmd_ctrl_yesde *cmd_yesde)
 {
-	cmd_node->cmd_no = 0;
-	cmd_node->cmd_flag = 0;
-	cmd_node->data_buf = NULL;
-	cmd_node->wait_q_enabled = false;
+	cmd_yesde->cmd_yes = 0;
+	cmd_yesde->cmd_flag = 0;
+	cmd_yesde->data_buf = NULL;
+	cmd_yesde->wait_q_enabled = false;
 
-	if (cmd_node->cmd_skb)
-		skb_trim(cmd_node->cmd_skb, 0);
+	if (cmd_yesde->cmd_skb)
+		skb_trim(cmd_yesde->cmd_skb, 0);
 
-	if (cmd_node->resp_skb) {
-		adapter->if_ops.cmdrsp_complete(adapter, cmd_node->resp_skb);
-		cmd_node->resp_skb = NULL;
+	if (cmd_yesde->resp_skb) {
+		adapter->if_ops.cmdrsp_complete(adapter, cmd_yesde->resp_skb);
+		cmd_yesde->resp_skb = NULL;
 	}
 }
 
@@ -110,33 +110,33 @@ mwifiex_clean_cmd_node(struct mwifiex_adapter *adapter,
  * This function returns a command to the command free queue.
  *
  * The function also calls the completion callback if required, before
- * cleaning the command node and re-inserting it into the free queue.
+ * cleaning the command yesde and re-inserting it into the free queue.
  */
 static void
 mwifiex_insert_cmd_to_free_q(struct mwifiex_adapter *adapter,
-			     struct cmd_ctrl_node *cmd_node)
+			     struct cmd_ctrl_yesde *cmd_yesde)
 {
-	if (!cmd_node)
+	if (!cmd_yesde)
 		return;
 
-	if (cmd_node->wait_q_enabled)
-		mwifiex_complete_cmd(adapter, cmd_node);
-	/* Clean the node */
-	mwifiex_clean_cmd_node(adapter, cmd_node);
+	if (cmd_yesde->wait_q_enabled)
+		mwifiex_complete_cmd(adapter, cmd_yesde);
+	/* Clean the yesde */
+	mwifiex_clean_cmd_yesde(adapter, cmd_yesde);
 
-	/* Insert node into cmd_free_q */
+	/* Insert yesde into cmd_free_q */
 	spin_lock_bh(&adapter->cmd_free_q_lock);
-	list_add_tail(&cmd_node->list, &adapter->cmd_free_q);
+	list_add_tail(&cmd_yesde->list, &adapter->cmd_free_q);
 	spin_unlock_bh(&adapter->cmd_free_q_lock);
 }
 
-/* This function reuses a command node. */
-void mwifiex_recycle_cmd_node(struct mwifiex_adapter *adapter,
-			      struct cmd_ctrl_node *cmd_node)
+/* This function reuses a command yesde. */
+void mwifiex_recycle_cmd_yesde(struct mwifiex_adapter *adapter,
+			      struct cmd_ctrl_yesde *cmd_yesde)
 {
-	struct host_cmd_ds_command *host_cmd = (void *)cmd_node->cmd_skb->data;
+	struct host_cmd_ds_command *host_cmd = (void *)cmd_yesde->cmd_skb->data;
 
-	mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
+	mwifiex_insert_cmd_to_free_q(adapter, cmd_yesde);
 
 	atomic_dec(&adapter->cmd_pending);
 	mwifiex_dbg(adapter, CMD,
@@ -172,7 +172,7 @@ static int mwifiex_cmd_host_cmd(struct mwifiex_private *priv,
  * and sets up the command timeout timer.
  */
 static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
-				  struct cmd_ctrl_node *cmd_node)
+				  struct cmd_ctrl_yesde *cmd_yesde)
 {
 
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -181,33 +181,33 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	uint16_t cmd_code;
 	uint16_t cmd_size;
 
-	if (!adapter || !cmd_node)
+	if (!adapter || !cmd_yesde)
 		return -1;
 
-	host_cmd = (struct host_cmd_ds_command *) (cmd_node->cmd_skb->data);
+	host_cmd = (struct host_cmd_ds_command *) (cmd_yesde->cmd_skb->data);
 
 	/* Sanity test */
 	if (host_cmd == NULL || host_cmd->size == 0) {
 		mwifiex_dbg(adapter, ERROR,
 			    "DNLD_CMD: host_cmd is null\t"
-			    "or cmd size is 0, not sending\n");
-		if (cmd_node->wait_q_enabled)
+			    "or cmd size is 0, yest sending\n");
+		if (cmd_yesde->wait_q_enabled)
 			adapter->cmd_wait_q.status = -1;
-		mwifiex_recycle_cmd_node(adapter, cmd_node);
+		mwifiex_recycle_cmd_yesde(adapter, cmd_yesde);
 		return -1;
 	}
 
 	cmd_code = le16_to_cpu(host_cmd->command);
-	cmd_node->cmd_no = cmd_code;
+	cmd_yesde->cmd_yes = cmd_code;
 	cmd_size = le16_to_cpu(host_cmd->size);
 
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_RESET &&
 	    cmd_code != HostCmd_CMD_FUNC_SHUTDOWN &&
 	    cmd_code != HostCmd_CMD_FUNC_INIT) {
 		mwifiex_dbg(adapter, ERROR,
-			    "DNLD_CMD: FW in reset state, ignore cmd %#x\n",
+			    "DNLD_CMD: FW in reset state, igyesre cmd %#x\n",
 			cmd_code);
-		mwifiex_recycle_cmd_node(adapter, cmd_node);
+		mwifiex_recycle_cmd_yesde(adapter, cmd_yesde);
 		queue_work(adapter->workqueue, &adapter->main_work);
 		return -1;
 	}
@@ -216,51 +216,51 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	adapter->seq_num++;
 	host_cmd->seq_num = cpu_to_le16(HostCmd_SET_SEQ_NO_BSS_INFO
 					(adapter->seq_num,
-					 cmd_node->priv->bss_num,
-					 cmd_node->priv->bss_type));
+					 cmd_yesde->priv->bss_num,
+					 cmd_yesde->priv->bss_type));
 
 	spin_lock_bh(&adapter->mwifiex_cmd_lock);
-	adapter->curr_cmd = cmd_node;
+	adapter->curr_cmd = cmd_yesde;
 	spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 
 	/* Adjust skb length */
-	if (cmd_node->cmd_skb->len > cmd_size)
+	if (cmd_yesde->cmd_skb->len > cmd_size)
 		/*
 		 * cmd_size is less than sizeof(struct host_cmd_ds_command).
 		 * Trim off the unused portion.
 		 */
-		skb_trim(cmd_node->cmd_skb, cmd_size);
-	else if (cmd_node->cmd_skb->len < cmd_size)
+		skb_trim(cmd_yesde->cmd_skb, cmd_size);
+	else if (cmd_yesde->cmd_skb->len < cmd_size)
 		/*
 		 * cmd_size is larger than sizeof(struct host_cmd_ds_command)
 		 * because we have appended custom IE TLV. Increase skb length
 		 * accordingly.
 		 */
-		skb_put(cmd_node->cmd_skb, cmd_size - cmd_node->cmd_skb->len);
+		skb_put(cmd_yesde->cmd_skb, cmd_size - cmd_yesde->cmd_skb->len);
 
 	mwifiex_dbg(adapter, CMD,
-		    "cmd: DNLD_CMD: %#x, act %#x, len %d, seqno %#x\n",
+		    "cmd: DNLD_CMD: %#x, act %#x, len %d, seqyes %#x\n",
 		    cmd_code,
 		    get_unaligned_le16((u8 *)host_cmd + S_DS_GEN),
 		    cmd_size, le16_to_cpu(host_cmd->seq_num));
 	mwifiex_dbg_dump(adapter, CMD_D, "cmd buffer:", host_cmd, cmd_size);
 
 	if (adapter->iface_type == MWIFIEX_USB) {
-		skb_push(cmd_node->cmd_skb, MWIFIEX_TYPE_LEN);
+		skb_push(cmd_yesde->cmd_skb, MWIFIEX_TYPE_LEN);
 		put_unaligned_le32(MWIFIEX_USB_TYPE_CMD,
-				   cmd_node->cmd_skb->data);
+				   cmd_yesde->cmd_skb->data);
 		adapter->cmd_sent = true;
 		ret = adapter->if_ops.host_to_card(adapter,
 						   MWIFIEX_USB_EP_CMD_EVENT,
-						   cmd_node->cmd_skb, NULL);
-		skb_pull(cmd_node->cmd_skb, MWIFIEX_TYPE_LEN);
+						   cmd_yesde->cmd_skb, NULL);
+		skb_pull(cmd_yesde->cmd_skb, MWIFIEX_TYPE_LEN);
 		if (ret == -EBUSY)
-			cmd_node->cmd_skb = NULL;
+			cmd_yesde->cmd_skb = NULL;
 	} else {
-		skb_push(cmd_node->cmd_skb, adapter->intf_hdr_len);
+		skb_push(cmd_yesde->cmd_skb, adapter->intf_hdr_len);
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_CMD,
-						   cmd_node->cmd_skb, NULL);
-		skb_pull(cmd_node->cmd_skb, adapter->intf_hdr_len);
+						   cmd_yesde->cmd_skb, NULL);
+		skb_pull(cmd_yesde->cmd_skb, adapter->intf_hdr_len);
 	}
 
 	if (ret == -1) {
@@ -268,9 +268,9 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 			    "DNLD_CMD: host to card failed\n");
 		if (adapter->iface_type == MWIFIEX_USB)
 			adapter->cmd_sent = false;
-		if (cmd_node->wait_q_enabled)
+		if (cmd_yesde->wait_q_enabled)
 			adapter->cmd_wait_q.status = -1;
-		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
+		mwifiex_recycle_cmd_yesde(adapter, adapter->curr_cmd);
 
 		spin_lock_bh(&adapter->mwifiex_cmd_lock);
 		adapter->curr_cmd = NULL;
@@ -288,7 +288,7 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 			get_unaligned_le16((u8 *)host_cmd + S_DS_GEN);
 
 	/* Setup the timer after transmit command, except that specific
-	 * command might not have command response.
+	 * command might yest have command response.
 	 */
 	if (cmd_code != HostCmd_CMD_FW_DUMP_EVENT)
 		mod_timer(&adapter->cmd_timer,
@@ -327,7 +327,7 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 					 priv->bss_type)));
 
 	mwifiex_dbg(adapter, CMD,
-		    "cmd: DNLD_CMD: %#x, act %#x, len %d, seqno %#x\n",
+		    "cmd: DNLD_CMD: %#x, act %#x, len %d, seqyes %#x\n",
 		le16_to_cpu(sleep_cfm_buf->command),
 		le16_to_cpu(sleep_cfm_buf->action),
 		le16_to_cpu(sleep_cfm_buf->size),
@@ -370,7 +370,7 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 	}
 
 	if (!le16_to_cpu(sleep_cfm_buf->resp_ctrl))
-		/* Response is not needed for sleep confirm command */
+		/* Response is yest needed for sleep confirm command */
 		adapter->ps_state = PS_STATE_SLEEP;
 	else
 		adapter->ps_state = PS_STATE_SLEEP_CFM;
@@ -400,12 +400,12 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
  */
 int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter)
 {
-	struct cmd_ctrl_node *cmd_array;
+	struct cmd_ctrl_yesde *cmd_array;
 	u32 i;
 
-	/* Allocate and initialize struct cmd_ctrl_node */
+	/* Allocate and initialize struct cmd_ctrl_yesde */
 	cmd_array = kcalloc(MWIFIEX_NUM_OF_CMD_BUFFER,
-			    sizeof(struct cmd_ctrl_node), GFP_KERNEL);
+			    sizeof(struct cmd_ctrl_yesde), GFP_KERNEL);
 	if (!cmd_array)
 		return -ENOMEM;
 
@@ -435,10 +435,10 @@ int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter)
  */
 void mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
 {
-	struct cmd_ctrl_node *cmd_array;
+	struct cmd_ctrl_yesde *cmd_array;
 	u32 i;
 
-	/* Need to check if cmd pool is allocated or not */
+	/* Need to check if cmd pool is allocated or yest */
 	if (!adapter->cmd_pool) {
 		mwifiex_dbg(adapter, FATAL,
 			    "info: FREE_CMD_BUF: cmd_pool is null\n");
@@ -463,7 +463,7 @@ void mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
 		else
 			dev_kfree_skb_any(cmd_array[i].resp_skb);
 	}
-	/* Release struct cmd_ctrl_node */
+	/* Release struct cmd_ctrl_yesde */
 	if (adapter->cmd_pool) {
 		mwifiex_dbg(adapter, CMD,
 			    "cmd: free cmd pool\n");
@@ -475,7 +475,7 @@ void mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
 /*
  * This function handles events generated by firmware.
  *
- * Event body of events received from firmware are not used (though they are
+ * Event body of events received from firmware are yest used (though they are
  * saved), only the event ID is used. Some events are re-invoked by
  * the driver, with a new event body.
  *
@@ -549,18 +549,18 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
  *
  * Preparation includes -
  *      - Sanity tests to make sure the card is still present or the FW
- *        is not reset
- *      - Getting a new command node from the command free queue
- *      - Initializing the command node for default parameters
- *      - Fill up the non-default parameters and buffer pointers
+ *        is yest reset
+ *      - Getting a new command yesde from the command free queue
+ *      - Initializing the command yesde for default parameters
+ *      - Fill up the yesn-default parameters and buffer pointers
  *      - Add the command to pending queue
  */
-int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
+int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_yes,
 		     u16 cmd_action, u32 cmd_oid, void *data_buf, bool sync)
 {
 	int ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct cmd_ctrl_node *cmd_node;
+	struct cmd_ctrl_yesde *cmd_yesde;
 	struct host_cmd_ds_command *cmd_ptr;
 
 	if (!adapter) {
@@ -575,7 +575,7 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	}
 
 	if (test_bit(MWIFIEX_IS_HS_ENABLING, &adapter->work_flags) &&
-	    cmd_no != HostCmd_CMD_802_11_HS_CFG_ENH) {
+	    cmd_yes != HostCmd_CMD_802_11_HS_CFG_ENH) {
 		mwifiex_dbg(adapter, ERROR,
 			    "PREP_CMD: host entering sleep state\n");
 		return -1;
@@ -594,7 +594,7 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	}
 
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_RESET) {
-		if (cmd_no != HostCmd_CMD_FUNC_INIT) {
+		if (cmd_yes != HostCmd_CMD_FUNC_INIT) {
 			mwifiex_dbg(adapter, ERROR,
 				    "PREP_CMD: FW in reset state\n");
 			return -1;
@@ -603,78 +603,78 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	/* We don't expect commands in manufacturing mode. They are cooked
 	 * in application and ready to download buffer is passed to the driver
 	 */
-	if (adapter->mfg_mode && cmd_no) {
-		dev_dbg(adapter->dev, "Ignoring commands in manufacturing mode\n");
+	if (adapter->mfg_mode && cmd_yes) {
+		dev_dbg(adapter->dev, "Igyesring commands in manufacturing mode\n");
 		return -1;
 	}
 
 
-	/* Get a new command node */
-	cmd_node = mwifiex_get_cmd_node(adapter);
+	/* Get a new command yesde */
+	cmd_yesde = mwifiex_get_cmd_yesde(adapter);
 
-	if (!cmd_node) {
+	if (!cmd_yesde) {
 		mwifiex_dbg(adapter, ERROR,
-			    "PREP_CMD: no free cmd node\n");
+			    "PREP_CMD: yes free cmd yesde\n");
 		return -1;
 	}
 
-	/* Initialize the command node */
-	mwifiex_init_cmd_node(priv, cmd_node, cmd_no, data_buf, sync);
+	/* Initialize the command yesde */
+	mwifiex_init_cmd_yesde(priv, cmd_yesde, cmd_yes, data_buf, sync);
 
-	if (!cmd_node->cmd_skb) {
+	if (!cmd_yesde->cmd_skb) {
 		mwifiex_dbg(adapter, ERROR,
-			    "PREP_CMD: no free cmd buf\n");
+			    "PREP_CMD: yes free cmd buf\n");
 		return -1;
 	}
 
-	skb_put_zero(cmd_node->cmd_skb, sizeof(struct host_cmd_ds_command));
+	skb_put_zero(cmd_yesde->cmd_skb, sizeof(struct host_cmd_ds_command));
 
-	cmd_ptr = (struct host_cmd_ds_command *) (cmd_node->cmd_skb->data);
-	cmd_ptr->command = cpu_to_le16(cmd_no);
+	cmd_ptr = (struct host_cmd_ds_command *) (cmd_yesde->cmd_skb->data);
+	cmd_ptr->command = cpu_to_le16(cmd_yes);
 	cmd_ptr->result = 0;
 
 	/* Prepare command */
-	if (cmd_no) {
-		switch (cmd_no) {
+	if (cmd_yes) {
+		switch (cmd_yes) {
 		case HostCmd_CMD_UAP_SYS_CONFIG:
 		case HostCmd_CMD_UAP_BSS_START:
 		case HostCmd_CMD_UAP_BSS_STOP:
 		case HostCmd_CMD_UAP_STA_DEAUTH:
 		case HOST_CMD_APCMD_SYS_RESET:
 		case HOST_CMD_APCMD_STA_LIST:
-			ret = mwifiex_uap_prepare_cmd(priv, cmd_no, cmd_action,
+			ret = mwifiex_uap_prepare_cmd(priv, cmd_yes, cmd_action,
 						      cmd_oid, data_buf,
 						      cmd_ptr);
 			break;
 		default:
-			ret = mwifiex_sta_prepare_cmd(priv, cmd_no, cmd_action,
+			ret = mwifiex_sta_prepare_cmd(priv, cmd_yes, cmd_action,
 						      cmd_oid, data_buf,
 						      cmd_ptr);
 			break;
 		}
 	} else {
 		ret = mwifiex_cmd_host_cmd(priv, cmd_ptr, data_buf);
-		cmd_node->cmd_flag |= CMD_F_HOSTCMD;
+		cmd_yesde->cmd_flag |= CMD_F_HOSTCMD;
 	}
 
 	/* Return error, since the command preparation failed */
 	if (ret) {
 		mwifiex_dbg(adapter, ERROR,
 			    "PREP_CMD: cmd %#x preparation failed\n",
-			cmd_no);
-		mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
+			cmd_yes);
+		mwifiex_insert_cmd_to_free_q(adapter, cmd_yesde);
 		return -1;
 	}
 
 	/* Send command */
-	if (cmd_no == HostCmd_CMD_802_11_SCAN ||
-	    cmd_no == HostCmd_CMD_802_11_SCAN_EXT) {
-		mwifiex_queue_scan_cmd(priv, cmd_node);
+	if (cmd_yes == HostCmd_CMD_802_11_SCAN ||
+	    cmd_yes == HostCmd_CMD_802_11_SCAN_EXT) {
+		mwifiex_queue_scan_cmd(priv, cmd_yesde);
 	} else {
-		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node);
+		mwifiex_insert_cmd_to_pending_q(adapter, cmd_yesde);
 		queue_work(adapter->workqueue, &adapter->main_work);
-		if (cmd_node->wait_q_enabled)
-			ret = mwifiex_wait_queue_complete(adapter, cmd_node);
+		if (cmd_yesde->wait_q_enabled)
+			ret = mwifiex_wait_queue_complete(adapter, cmd_yesde);
 	}
 
 	return ret;
@@ -689,13 +689,13 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
  */
 void
 mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
-				struct cmd_ctrl_node *cmd_node)
+				struct cmd_ctrl_yesde *cmd_yesde)
 {
 	struct host_cmd_ds_command *host_cmd = NULL;
 	u16 command;
 	bool add_tail = true;
 
-	host_cmd = (struct host_cmd_ds_command *) (cmd_node->cmd_skb->data);
+	host_cmd = (struct host_cmd_ds_command *) (cmd_yesde->cmd_skb->data);
 	if (!host_cmd) {
 		mwifiex_dbg(adapter, ERROR, "QUEUE_CMD: host_cmd is NULL\n");
 		return;
@@ -716,9 +716,9 @@ mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
 
 	spin_lock_bh(&adapter->cmd_pending_q_lock);
 	if (add_tail)
-		list_add_tail(&cmd_node->list, &adapter->cmd_pending_q);
+		list_add_tail(&cmd_yesde->list, &adapter->cmd_pending_q);
 	else
-		list_add(&cmd_node->list, &adapter->cmd_pending_q);
+		list_add(&cmd_yesde->list, &adapter->cmd_pending_q);
 	spin_unlock_bh(&adapter->cmd_pending_q_lock);
 
 	atomic_inc(&adapter->cmd_pending);
@@ -741,7 +741,7 @@ mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
 int mwifiex_exec_next_cmd(struct mwifiex_adapter *adapter)
 {
 	struct mwifiex_private *priv;
-	struct cmd_ctrl_node *cmd_node;
+	struct cmd_ctrl_yesde *cmd_yesde;
 	int ret = 0;
 	struct host_cmd_ds_command *host_cmd;
 
@@ -760,26 +760,26 @@ int mwifiex_exec_next_cmd(struct mwifiex_adapter *adapter)
 		spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 		return 0;
 	}
-	cmd_node = list_first_entry(&adapter->cmd_pending_q,
-				    struct cmd_ctrl_node, list);
+	cmd_yesde = list_first_entry(&adapter->cmd_pending_q,
+				    struct cmd_ctrl_yesde, list);
 
-	host_cmd = (struct host_cmd_ds_command *) (cmd_node->cmd_skb->data);
-	priv = cmd_node->priv;
+	host_cmd = (struct host_cmd_ds_command *) (cmd_yesde->cmd_skb->data);
+	priv = cmd_yesde->priv;
 
 	if (adapter->ps_state != PS_STATE_AWAKE) {
 		mwifiex_dbg(adapter, ERROR,
-			    "%s: cannot send cmd in sleep state,\t"
-			    "this should not happen\n", __func__);
+			    "%s: canyest send cmd in sleep state,\t"
+			    "this should yest happen\n", __func__);
 		spin_unlock_bh(&adapter->cmd_pending_q_lock);
 		spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 		return ret;
 	}
 
-	list_del(&cmd_node->list);
+	list_del(&cmd_yesde->list);
 	spin_unlock_bh(&adapter->cmd_pending_q_lock);
 
 	spin_unlock_bh(&adapter->mwifiex_cmd_lock);
-	ret = mwifiex_dnld_cmd_to_fw(priv, cmd_node);
+	ret = mwifiex_dnld_cmd_to_fw(priv, cmd_yesde);
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	/* Any command sent to the firmware when host is in sleep
 	 * mode should de-configure host sleep. We should skip the
@@ -800,7 +800,7 @@ int mwifiex_exec_next_cmd(struct mwifiex_adapter *adapter)
 /*
  * This function handles the command response.
  *
- * After processing, the function cleans the command node and puts
+ * After processing, the function cleans the command yesde and puts
  * it back to the command free queue.
  */
 int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
@@ -809,8 +809,8 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 	struct mwifiex_private *priv =
 		mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	int ret = 0;
-	uint16_t orig_cmdresp_no;
-	uint16_t cmdresp_no;
+	uint16_t orig_cmdresp_yes;
+	uint16_t cmdresp_yes;
 	uint16_t cmdresp_result;
 
 	if (!adapter->curr_cmd || !adapter->curr_cmd->resp_skb) {
@@ -822,13 +822,13 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 	}
 
 	resp = (struct host_cmd_ds_command *)adapter->curr_cmd->resp_skb->data;
-	orig_cmdresp_no = le16_to_cpu(resp->command);
-	cmdresp_no = (orig_cmdresp_no & HostCmd_CMD_ID_MASK);
+	orig_cmdresp_yes = le16_to_cpu(resp->command);
+	cmdresp_yes = (orig_cmdresp_yes & HostCmd_CMD_ID_MASK);
 
-	if (adapter->curr_cmd->cmd_no != cmdresp_no) {
+	if (adapter->curr_cmd->cmd_yes != cmdresp_yes) {
 		mwifiex_dbg(adapter, ERROR,
 			    "cmdresp error: cmd=0x%x cmd_resp=0x%x\n",
-			    adapter->curr_cmd->cmd_no, cmdresp_no);
+			    adapter->curr_cmd->cmd_yes, cmdresp_yes);
 		return -1;
 	}
 	/* Now we got response from FW, cancel the command timer */
@@ -856,30 +856,30 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 	if (!priv)
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	/* Clear RET_BIT from HostCmd */
-	resp->command = cpu_to_le16(orig_cmdresp_no & HostCmd_CMD_ID_MASK);
+	resp->command = cpu_to_le16(orig_cmdresp_yes & HostCmd_CMD_ID_MASK);
 
-	cmdresp_no = le16_to_cpu(resp->command);
+	cmdresp_yes = le16_to_cpu(resp->command);
 	cmdresp_result = le16_to_cpu(resp->result);
 
 	/* Save the last command response to debug log */
 	adapter->dbg.last_cmd_resp_index =
 			(adapter->dbg.last_cmd_resp_index + 1) % DBG_CMD_NUM;
 	adapter->dbg.last_cmd_resp_id[adapter->dbg.last_cmd_resp_index] =
-								orig_cmdresp_no;
+								orig_cmdresp_yes;
 
 	mwifiex_dbg(adapter, CMD,
-		    "cmd: CMD_RESP: 0x%x, result %d, len %d, seqno 0x%x\n",
-		    orig_cmdresp_no, cmdresp_result,
+		    "cmd: CMD_RESP: 0x%x, result %d, len %d, seqyes 0x%x\n",
+		    orig_cmdresp_yes, cmdresp_result,
 		    le16_to_cpu(resp->size), le16_to_cpu(resp->seq_num));
 	mwifiex_dbg_dump(adapter, CMD_D, "CMD_RESP buffer:", resp,
 			 le16_to_cpu(resp->size));
 
-	if (!(orig_cmdresp_no & HostCmd_RET_BIT)) {
+	if (!(orig_cmdresp_yes & HostCmd_RET_BIT)) {
 		mwifiex_dbg(adapter, ERROR, "CMD_RESP: invalid cmd resp\n");
 		if (adapter->curr_cmd->wait_q_enabled)
 			adapter->cmd_wait_q.status = -1;
 
-		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
+		mwifiex_recycle_cmd_yesde(adapter, adapter->curr_cmd);
 		spin_lock_bh(&adapter->mwifiex_cmd_lock);
 		adapter->curr_cmd = NULL;
 		spin_unlock_bh(&adapter->mwifiex_cmd_lock);
@@ -889,11 +889,11 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 	if (adapter->curr_cmd->cmd_flag & CMD_F_HOSTCMD) {
 		adapter->curr_cmd->cmd_flag &= ~CMD_F_HOSTCMD;
 		if ((cmdresp_result == HostCmd_RESULT_OK) &&
-		    (cmdresp_no == HostCmd_CMD_802_11_HS_CFG_ENH))
+		    (cmdresp_yes == HostCmd_CMD_802_11_HS_CFG_ENH))
 			ret = mwifiex_ret_802_11_hs_cfg(priv, resp);
 	} else {
 		/* handle response */
-		ret = mwifiex_process_sta_cmdresp(priv, cmdresp_no, resp);
+		ret = mwifiex_process_sta_cmdresp(priv, cmdresp_yes, resp);
 	}
 
 	/* Check init command response */
@@ -901,10 +901,10 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 		if (ret) {
 			mwifiex_dbg(adapter, ERROR,
 				    "%s: cmd %#x failed during\t"
-				    "initialization\n", __func__, cmdresp_no);
+				    "initialization\n", __func__, cmdresp_yes);
 			mwifiex_init_fw_complete(adapter);
 			return -1;
-		} else if (adapter->last_init_cmd == cmdresp_no)
+		} else if (adapter->last_init_cmd == cmdresp_yes)
 			adapter->hw_status = MWIFIEX_HW_STATUS_INIT_DONE;
 	}
 
@@ -912,7 +912,7 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 		if (adapter->curr_cmd->wait_q_enabled)
 			adapter->cmd_wait_q.status = ret;
 
-		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
+		mwifiex_recycle_cmd_yesde(adapter, adapter->curr_cmd);
 
 		spin_lock_bh(&adapter->mwifiex_cmd_lock);
 		adapter->curr_cmd = NULL;
@@ -931,7 +931,7 @@ void
 mwifiex_cmd_timeout_func(struct timer_list *t)
 {
 	struct mwifiex_adapter *adapter = from_timer(adapter, t, cmd_timer);
-	struct cmd_ctrl_node *cmd_node;
+	struct cmd_ctrl_yesde *cmd_yesde;
 
 	set_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags);
 	if (!adapter->curr_cmd) {
@@ -939,8 +939,8 @@ mwifiex_cmd_timeout_func(struct timer_list *t)
 			    "cmd: empty curr_cmd\n");
 		return;
 	}
-	cmd_node = adapter->curr_cmd;
-	if (cmd_node) {
+	cmd_yesde = adapter->curr_cmd;
+	if (cmd_yesde) {
 		adapter->dbg.timeout_cmd_id =
 			adapter->dbg.last_cmd_id[adapter->dbg.last_cmd_index];
 		adapter->dbg.timeout_cmd_act =
@@ -1001,7 +1001,7 @@ mwifiex_cmd_timeout_func(struct timer_list *t)
 			    "ps_mode=%d ps_state=%d\n",
 			    adapter->ps_mode, adapter->ps_state);
 
-		if (cmd_node->wait_q_enabled) {
+		if (cmd_yesde->wait_q_enabled) {
 			adapter->cmd_wait_q.status = -ETIMEDOUT;
 			mwifiex_cancel_pending_ioctl(adapter);
 		}
@@ -1021,15 +1021,15 @@ mwifiex_cmd_timeout_func(struct timer_list *t)
 void
 mwifiex_cancel_pending_scan_cmd(struct mwifiex_adapter *adapter)
 {
-	struct cmd_ctrl_node *cmd_node = NULL, *tmp_node;
+	struct cmd_ctrl_yesde *cmd_yesde = NULL, *tmp_yesde;
 
 	/* Cancel all pending scan command */
 	spin_lock_bh(&adapter->scan_pending_q_lock);
-	list_for_each_entry_safe(cmd_node, tmp_node,
+	list_for_each_entry_safe(cmd_yesde, tmp_yesde,
 				 &adapter->scan_pending_q, list) {
-		list_del(&cmd_node->list);
-		cmd_node->wait_q_enabled = false;
-		mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
+		list_del(&cmd_yesde->list);
+		cmd_yesde->wait_q_enabled = false;
+		mwifiex_insert_cmd_to_free_q(adapter, cmd_yesde);
 	}
 	spin_unlock_bh(&adapter->scan_pending_q_lock);
 }
@@ -1044,7 +1044,7 @@ mwifiex_cancel_pending_scan_cmd(struct mwifiex_adapter *adapter)
 void
 mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
 {
-	struct cmd_ctrl_node *cmd_node = NULL, *tmp_node;
+	struct cmd_ctrl_yesde *cmd_yesde = NULL, *tmp_yesde;
 
 	spin_lock_bh(&adapter->mwifiex_cmd_lock);
 	/* Cancel current cmd */
@@ -1052,17 +1052,17 @@ mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
 		adapter->cmd_wait_q.status = -1;
 		mwifiex_complete_cmd(adapter, adapter->curr_cmd);
 		adapter->curr_cmd->wait_q_enabled = false;
-		/* no recycle probably wait for response */
+		/* yes recycle probably wait for response */
 	}
 	/* Cancel all pending command */
 	spin_lock_bh(&adapter->cmd_pending_q_lock);
-	list_for_each_entry_safe(cmd_node, tmp_node,
+	list_for_each_entry_safe(cmd_yesde, tmp_yesde,
 				 &adapter->cmd_pending_q, list) {
-		list_del(&cmd_node->list);
+		list_del(&cmd_yesde->list);
 
-		if (cmd_node->wait_q_enabled)
+		if (cmd_yesde->wait_q_enabled)
 			adapter->cmd_wait_q.status = -1;
-		mwifiex_recycle_cmd_node(adapter, cmd_node);
+		mwifiex_recycle_cmd_yesde(adapter, cmd_yesde);
 	}
 	spin_unlock_bh(&adapter->cmd_pending_q_lock);
 	spin_unlock_bh(&adapter->mwifiex_cmd_lock);
@@ -1083,12 +1083,12 @@ mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
 static void
 mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 {
-	struct cmd_ctrl_node *cmd_node = NULL;
+	struct cmd_ctrl_yesde *cmd_yesde = NULL;
 
 	if ((adapter->curr_cmd) &&
 	    (adapter->curr_cmd->wait_q_enabled)) {
 		spin_lock_bh(&adapter->mwifiex_cmd_lock);
-		cmd_node = adapter->curr_cmd;
+		cmd_yesde = adapter->curr_cmd;
 		/* setting curr_cmd to NULL is quite dangerous, because
 		 * mwifiex_process_cmdresp checks curr_cmd to be != NULL
 		 * at the beginning then relies on it and dereferences
@@ -1100,7 +1100,7 @@ mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 		adapter->curr_cmd = NULL;
 		spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 
-		mwifiex_recycle_cmd_node(adapter, cmd_node);
+		mwifiex_recycle_cmd_yesde(adapter, cmd_yesde);
 	}
 
 	mwifiex_cancel_scan(adapter);
@@ -1110,7 +1110,7 @@ mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
  * This function sends the sleep confirm command to firmware, if
  * possible.
  *
- * The sleep confirm command cannot be issued if command response,
+ * The sleep confirm command canyest be issued if command response,
  * data response or event response is awaiting handling, or if we
  * are in the middle of sending a command, or expecting a command
  * response.
@@ -1151,7 +1151,7 @@ mwifiex_hs_activated_event(struct mwifiex_private *priv, u8 activated)
 				&priv->adapter->hs_activate_wait_q);
 		} else {
 			mwifiex_dbg(priv->adapter, EVENT,
-				    "event: HS not configured\n");
+				    "event: HS yest configured\n");
 		}
 	} else {
 		mwifiex_dbg(priv->adapter, EVENT,
@@ -1168,7 +1168,7 @@ mwifiex_hs_activated_event(struct mwifiex_private *priv, u8 activated)
  * and setting the current host sleep activation status in driver.
  *
  * In case host sleep status change, the function generates an event to
- * notify the applications.
+ * yestify the applications.
  */
 int mwifiex_ret_802_11_hs_cfg(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp)
@@ -1248,7 +1248,7 @@ mwifiex_process_sleep_confirm_resp(struct mwifiex_adapter *adapter,
 	}
 
 	mwifiex_dbg(adapter, CMD,
-		    "cmd: CMD_RESP: 0x%x, result %d, len %d, seqno 0x%x\n",
+		    "cmd: CMD_RESP: 0x%x, result %d, len %d, seqyes 0x%x\n",
 		    command, result, le16_to_cpu(cmd->size), seq_num);
 
 	/* Get BSS number and corresponding priv */
@@ -1570,12 +1570,12 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 				case KEY_API_VER_ID:
 					adapter->key_api_major_ver =
 							api_rev->major_ver;
-					adapter->key_api_minor_ver =
-							api_rev->minor_ver;
+					adapter->key_api_miyesr_ver =
+							api_rev->miyesr_ver;
 					mwifiex_dbg(adapter, INFO,
 						    "key_api v%d.%d\n",
 						    adapter->key_api_major_ver,
-						    adapter->key_api_minor_ver);
+						    adapter->key_api_miyesr_ver);
 					break;
 				case FW_API_VER_ID:
 					adapter->fw_api_ver =
@@ -1586,14 +1586,14 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 					break;
 				default:
 					mwifiex_dbg(adapter, FATAL,
-						    "Unknown api_id: %d\n",
+						    "Unkyeswn api_id: %d\n",
 						    api_id);
 					break;
 				}
 				break;
 			default:
 				mwifiex_dbg(adapter, FATAL,
-					    "Unknown GET_HW_SPEC TLV type: %#x\n",
+					    "Unkyeswn GET_HW_SPEC TLV type: %#x\n",
 					    le16_to_cpu(tlv->type));
 				break;
 			}
@@ -1627,7 +1627,7 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 	if (i >= MWIFIEX_MAX_REGION_CODE) {
 		adapter->region_code = 0x00;
 		mwifiex_dbg(adapter, WARN,
-			    "cmd: unknown region code, use default (USA)\n");
+			    "cmd: unkyeswn region code, use default (USA)\n");
 	}
 
 	adapter->hw_dot_11n_dev_cap = le32_to_cpu(hw_spec->dot_11n_dev_cap);

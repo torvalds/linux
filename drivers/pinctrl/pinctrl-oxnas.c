@@ -6,7 +6,7 @@
  *
  * Based on pinctrl-pic32.c
  * Joshua Henderson, <joshua.henderson@microchip.com>
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techyeslogy Inc.  All rights reserved.
  */
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
@@ -552,7 +552,7 @@ static const struct pinctrl_ops oxnas_pinctrl_ops = {
 	.get_groups_count = oxnas_pinctrl_get_groups_count,
 	.get_group_name = oxnas_pinctrl_get_group_name,
 	.get_group_pins = oxnas_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -629,7 +629,7 @@ static int oxnas_ox810se_pinmux_enable(struct pinctrl_dev *pctldev,
 		functions++;
 	}
 
-	dev_err(pctl->dev, "cannot mux pin %u to function %u\n", group, func);
+	dev_err(pctl->dev, "canyest mux pin %u to function %u\n", group, func);
 
 	return -EINVAL;
 }
@@ -684,7 +684,7 @@ static int oxnas_ox820_pinmux_enable(struct pinctrl_dev *pctldev,
 		functions++;
 	}
 
-	dev_err(pctl->dev, "cannot mux pin %u to function %u\n", group, func);
+	dev_err(pctl->dev, "canyest mux pin %u to function %u\n", group, func);
 
 	return -EINVAL;
 }
@@ -922,7 +922,7 @@ static int oxnas_ox810se_pinconf_set(struct pinctrl_dev *pctldev,
 					  mask, mask);
 			break;
 		default:
-			dev_err(pctl->dev, "Property %u not supported\n",
+			dev_err(pctl->dev, "Property %u yest supported\n",
 				param);
 			return -ENOTSUPP;
 		}
@@ -957,7 +957,7 @@ static int oxnas_ox820_pinconf_set(struct pinctrl_dev *pctldev,
 					  mask, mask);
 			break;
 		default:
-			dev_err(pctl->dev, "Property %u not supported\n",
+			dev_err(pctl->dev, "Property %u yest supported\n",
 				param);
 			return -ENOTSUPP;
 		}
@@ -1152,7 +1152,7 @@ static int oxnas_pinctrl_probe(struct platform_device *pdev)
 	const struct oxnas_pinctrl_data *data;
 	struct oxnas_pinctrl *pctl;
 
-	id = of_match_node(oxnas_pinctrl_of_match, pdev->dev.of_node);
+	id = of_match_yesde(oxnas_pinctrl_of_match, pdev->dev.of_yesde);
 	if (!id)
 		return -ENODEV;
 
@@ -1166,7 +1166,7 @@ static int oxnas_pinctrl_probe(struct platform_device *pdev)
 	pctl->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, pctl);
 
-	pctl->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	pctl->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 						       "oxsemi,sys-ctrl");
 	if (IS_ERR(pctl->regmap)) {
 		dev_err(&pdev->dev, "failed to get sys ctrl regmap\n");
@@ -1191,7 +1191,7 @@ static int oxnas_pinctrl_probe(struct platform_device *pdev)
 
 static int oxnas_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct of_phandle_args pinspec;
 	struct oxnas_gpio_bank *bank;
 	unsigned int id, ngpios;
@@ -1200,7 +1200,7 @@ static int oxnas_gpio_probe(struct platform_device *pdev)
 
 	if (of_parse_phandle_with_fixed_args(np, "gpio-ranges",
 					     3, 0, &pinspec)) {
-		dev_err(&pdev->dev, "gpio-ranges property not found\n");
+		dev_err(&pdev->dev, "gpio-ranges property yest found\n");
 		return -EINVAL;
 	}
 
@@ -1229,7 +1229,7 @@ static int oxnas_gpio_probe(struct platform_device *pdev)
 
 	bank->id = id;
 	bank->gpio_chip.parent = &pdev->dev;
-	bank->gpio_chip.of_node = np;
+	bank->gpio_chip.of_yesde = np;
 	bank->gpio_chip.ngpio = ngpios;
 	girq = &bank->gpio_chip.irq;
 	girq->chip = &bank->irq_chip;

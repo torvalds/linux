@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -91,7 +91,7 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 			return -EINVAL;
 		if (TC_ACT_EXT_CMP(p_parm->paction, TC_ACT_GOTO_CHAIN)) {
 			NL_SET_ERR_MSG(extack,
-				       "goto chain not allowed on fallback");
+				       "goto chain yest allowed on fallback");
 			return -EINVAL;
 		}
 	}

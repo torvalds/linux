@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * (C) Copyright 2008
- * Stefano Babic, DENX Software Engineering, sbabic@denx.de.
+ * Stefayes Babic, DENX Software Engineering, sbabic@denx.de.
  *
  * This driver implements a lcd device for the ILITEK 922x display
  * controller. The interface to the display is SPI and the display's
@@ -10,7 +10,7 @@
 
 #include <linux/fb.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/lcd.h>
@@ -65,7 +65,7 @@
 
 /*
  * maximum frequency for register access
- * (not for the GRAM access)
+ * (yest for the GRAM access)
  */
 #define ILITEK_MAX_FREQ_REG	4000000
 
@@ -357,7 +357,7 @@ static int ili922x_poweron(struct spi_device *spi)
 	msleep(40);
 	ret += ili922x_write(spi, REG_POWER_CONTROL_4, 0x0000);
 	msleep(40);
-	/* register 0x56 is not documented in the datasheet */
+	/* register 0x56 is yest documented in the datasheet */
 	ret += ili922x_write(spi, 0x56, 0x080F);
 	ret += ili922x_write(spi, REG_POWER_CONTROL_1, 0x4240);
 	usleep_range(10000, 10500);
@@ -487,7 +487,7 @@ static int ili922x_probe(struct spi_device *spi)
 	ret = ili922x_read(spi, REG_DRIVER_CODE_READ, &reg);
 	if (ret || ((reg & ILITEK_DEVICE_ID_MASK) != ILITEK_DEVICE_ID)) {
 		dev_err(&spi->dev,
-			"no LCD found: Chip ID 0x%x, ret %d\n",
+			"yes LCD found: Chip ID 0x%x, ret %d\n",
 			reg, ret);
 		return -ENODEV;
 	}
@@ -510,7 +510,7 @@ static int ili922x_probe(struct spi_device *spi)
 	lcd = devm_lcd_device_register(&spi->dev, "ili922xlcd", &spi->dev, ili,
 					&ili922x_ops);
 	if (IS_ERR(lcd)) {
-		dev_err(&spi->dev, "cannot register LCD\n");
+		dev_err(&spi->dev, "canyest register LCD\n");
 		return PTR_ERR(lcd);
 	}
 
@@ -538,7 +538,7 @@ static struct spi_driver ili922x_driver = {
 
 module_spi_driver(ili922x_driver);
 
-MODULE_AUTHOR("Stefano Babic <sbabic@denx.de>");
+MODULE_AUTHOR("Stefayes Babic <sbabic@denx.de>");
 MODULE_DESCRIPTION("ILI9221/9222 LCD driver");
 MODULE_LICENSE("GPL");
 MODULE_PARM_DESC(ili922x_id, "set controller identifier (default=1)");

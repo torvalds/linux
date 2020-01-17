@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _func-poll:
 
@@ -19,7 +19,7 @@ Name
 v4l2-poll - Wait for some event on a file descriptor
 
 
-Synopsis
+Syyespsis
 ========
 
 .. code-block:: c
@@ -54,11 +54,11 @@ returns immediately.
 On success :ref:`poll() <func-poll>` returns the number of file descriptors
 that have been selected (that is, file descriptors for which the
 ``revents`` field of the respective :c:func:`struct pollfd` structure
-is non-zero). Capture devices set the ``POLLIN`` and ``POLLRDNORM``
+is yesn-zero). Capture devices set the ``POLLIN`` and ``POLLRDNORM``
 flags in the ``revents`` field, output devices the ``POLLOUT`` and
 ``POLLWRNORM`` flags. When the function timed out it returns a value of
-zero, on failure it returns -1 and the ``errno`` variable is set
-appropriately. When the application did not call
+zero, on failure it returns -1 and the ``erryes`` variable is set
+appropriately. When the application did yest call
 :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` the :ref:`poll() <func-poll>`
 function succeeds, but sets the ``POLLERR`` flag in the ``revents``
 field. When the application has called
@@ -74,22 +74,22 @@ then ``POLLPRI`` will be set in the ``revents`` field and
 :ref:`poll() <func-poll>` will return.
 
 When use of the :ref:`read() <func-read>` function has been negotiated and the
-driver does not capture yet, the :ref:`poll() <func-poll>` function starts
+driver does yest capture yet, the :ref:`poll() <func-poll>` function starts
 capturing. When that fails it returns a ``POLLERR`` as above. Otherwise
 it waits until data has been captured and can be read. When the driver
 captures continuously (as opposed to, for example, still images) the
 function may return immediately.
 
 When use of the :ref:`write() <func-write>` function has been negotiated and the
-driver does not stream yet, the :ref:`poll() <func-poll>` function starts
+driver does yest stream yet, the :ref:`poll() <func-poll>` function starts
 streaming. When that fails it returns a ``POLLERR`` as above. Otherwise
-it waits until the driver is ready for a non-blocking
+it waits until the driver is ready for a yesn-blocking
 :ref:`write() <func-write>` call.
 
 If the caller is only interested in events (just ``POLLPRI`` is set in
-the ``events`` field), then :ref:`poll() <func-poll>` will *not* start
-streaming if the driver does not stream yet. This makes it possible to
-just poll for events and not for buffers.
+the ``events`` field), then :ref:`poll() <func-poll>` will *yest* start
+streaming if the driver does yest stream yet. This makes it possible to
+just poll for events and yest for buffers.
 
 All drivers implementing the :ref:`read() <func-read>` or :ref:`write() <func-write>`
 function or streaming I/O must also support the :ref:`poll() <func-poll>`
@@ -102,15 +102,15 @@ Return Value
 ============
 
 On success, :ref:`poll() <func-poll>` returns the number structures which have
-non-zero ``revents`` fields, or zero if the call timed out. On error -1
-is returned, and the ``errno`` variable is set appropriately:
+yesn-zero ``revents`` fields, or zero if the call timed out. On error -1
+is returned, and the ``erryes`` variable is set appropriately:
 
 EBADF
     One or more of the ``ufds`` members specify an invalid file
     descriptor.
 
 EBUSY
-    The driver does not support multiple read or write streams and the
+    The driver does yest support multiple read or write streams and the
     device is already in use.
 
 EFAULT

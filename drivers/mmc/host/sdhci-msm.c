@@ -149,7 +149,7 @@ struct sdhci_msm_offset {
 	u32 core_vendor_spec3;
 	u32 core_dll_config_2;
 	u32 core_dll_config_3;
-	u32 core_ddr_config_old; /* Applicable to sdcc minor ver < 0x49 */
+	u32 core_ddr_config_old; /* Applicable to sdcc miyesr ver < 0x49 */
 	u32 core_ddr_config;
 };
 
@@ -355,7 +355,7 @@ static inline int msm_dll_poll_ck_out_en(struct sdhci_host *host, u8 poll)
 
 	while (ck_out_en != poll) {
 		if (--wait_cnt == 0) {
-			dev_err(mmc_dev(mmc), "%s: CK_OUT_EN bit is not %d\n",
+			dev_err(mmc_dev(mmc), "%s: CK_OUT_EN bit is yest %d\n",
 			       mmc_hostname(mmc), poll);
 			return -ETIMEDOUT;
 		}
@@ -462,7 +462,7 @@ static int msm_find_most_appropriate_phase(struct sdhci_host *host,
 
 		if ((cnt + 1) == total_phases) {
 			continue;
-		/* check if next phase in phase_table is consecutive or not */
+		/* check if next phase in phase_table is consecutive or yest */
 		} else if ((phase_table[cnt] + 1) != phase_table[cnt + 1]) {
 			row_index++;
 			col_index = 0;
@@ -500,7 +500,7 @@ static int msm_find_most_appropriate_phase(struct sdhci_host *host,
 		if (phases_0 + phases_15 >= MAX_PHASES)
 			/*
 			 * If there are more than 1 phase windows then total
-			 * number of phases in both the windows should not be
+			 * number of phases in both the windows should yest be
 			 * more than or equal to MAX_PHASES.
 			 */
 			return -EINVAL;
@@ -900,7 +900,7 @@ static int sdhci_msm_cdclp533_calibration(struct sdhci_host *host)
 					 1, 50);
 
 	if (ret == -ETIMEDOUT) {
-		pr_err("%s: %s: CDC calibration was not completed\n",
+		pr_err("%s: %s: CDC calibration was yest completed\n",
 		       mmc_hostname(host->mmc), __func__);
 		goto out;
 	}
@@ -967,7 +967,7 @@ static int sdhci_msm_cm_dll_sdc4_calibration(struct sdhci_host *host)
 					10, 1000);
 
 	if (ret == -ETIMEDOUT) {
-		pr_err("%s: %s: CM_DLL_SDC4 calibration was not completed\n",
+		pr_err("%s: %s: CM_DLL_SDC4 calibration was yest completed\n",
 		       mmc_hostname(host->mmc), __func__);
 		goto out;
 	}
@@ -1238,7 +1238,7 @@ static void sdhci_msm_set_uhs_signaling(struct sdhci_host *host,
 
 	/*
 	 * When clock frequency is less than 100MHz, the feedback clock must be
-	 * provided and DLL must not be used so that tuning can be skipped. To
+	 * provided and DLL must yest be used so that tuning can be skipped. To
 	 * provide feedback clock, the mode selection can be any value less
 	 * than 3'b011 in bits [2:0] of HOST CONTROL2 register.
 	 */
@@ -1248,8 +1248,8 @@ static void sdhci_msm_set_uhs_signaling(struct sdhci_host *host,
 		    uhs == MMC_TIMING_UHS_SDR104)
 			ctrl_2 &= ~SDHCI_CTRL_UHS_MASK;
 		/*
-		 * DLL is not required for clock <= 100MHz
-		 * Thus, make sure DLL it is disabled when not required
+		 * DLL is yest required for clock <= 100MHz
+		 * Thus, make sure DLL it is disabled when yest required
 		 */
 		config = readl_relaxed(host->ioaddr +
 				msm_offset->core_dll_config);
@@ -1312,8 +1312,8 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 			msm_host->curr_pwr_state, msm_host->curr_io_level);
 
 	/*
-	 * The power interrupt will not be generated for signal voltage
-	 * switches if SWITCHABLE_SIGNALING_VOLTAGE in MCI_GENERICS is not set.
+	 * The power interrupt will yest be generated for signal voltage
+	 * switches if SWITCHABLE_SIGNALING_VOLTAGE in MCI_GENERICS is yest set.
 	 * Since sdhci-msm-v5, this bit has been removed and SW must consider
 	 * it as always set.
 	 */
@@ -1331,14 +1331,14 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 	 * SDHCI_HOST_CONTROL2 register. The reset state of that bit is 0
 	 * which indicates 3.3V IO voltage. So, when MMC core layer tries
 	 * to set it to 3.3V before card detection happens, the
-	 * IRQ doesn't get triggered as there is no state change in this bit.
+	 * IRQ doesn't get triggered as there is yes state change in this bit.
 	 * The driver already handles this case by changing the IO voltage
 	 * level to high as part of controller power up sequence. Hence, check
 	 * for host->pwr to handle a case where IO voltage high request is
 	 * issued even before controller power up.
 	 */
 	if ((req_type & REQ_IO_HIGH) && !host->pwr) {
-		pr_debug("%s: do not wait for power IRQ that never comes, req_type: %d\n",
+		pr_debug("%s: do yest wait for power IRQ that never comes, req_type: %d\n",
 				mmc_hostname(host->mmc), req_type);
 		return;
 	}
@@ -1347,9 +1347,9 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 		done = true;
 	/*
 	 * This is needed here to handle cases where register writes will
-	 * not change the current bus state or io level of the controller.
-	 * In this case, no power irq will be triggerred and we should
-	 * not wait.
+	 * yest change the current bus state or io level of the controller.
+	 * In this case, yes power irq will be triggerred and we should
+	 * yest wait.
 	 */
 	if (!done) {
 		if (!wait_event_timeout(msm_host->pwr_irq_wait,
@@ -1438,8 +1438,8 @@ static void sdhci_msm_handle_pwr_irq(struct sdhci_host *host, int irq)
 	}
 
 	/*
-	 * The driver has to acknowledge the interrupt, switch voltages and
-	 * report back if it succeded or not to this register. The voltage
+	 * The driver has to ackyeswledge the interrupt, switch voltages and
+	 * report back if it succeded or yest to this register. The voltage
 	 * switches are handled by the sdhci core, so just report success.
 	 */
 	msm_host_writel(msm_host, irq_ack, host,
@@ -1520,7 +1520,7 @@ static unsigned int sdhci_msm_get_min_clock(struct sdhci_host *host)
  * __sdhci_msm_set_clock - sdhci_msm clock control.
  *
  * Description:
- * MSM controller does not use internal divider and
+ * MSM controller does yest use internal divider and
  * instead directly control the GCC clock as per
  * HW recommendation.
  **/
@@ -1529,7 +1529,7 @@ static void __sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
 	u16 clk;
 	/*
 	 * Keep actual_clock as zero -
-	 * - since there is no divider used so no need of having actual_clock.
+	 * - since there is yes divider used so yes need of having actual_clock.
 	 * - MSM controller uses SDCLK for data timeout calculation. If
 	 *   actual_clock is zero, host->clock is taken for calculation.
 	 */
@@ -1541,9 +1541,9 @@ static void __sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
 		return;
 
 	/*
-	 * MSM controller do not use clock divider.
+	 * MSM controller do yest use clock divider.
 	 * Thus read SDHCI_CLOCK_CONTROL and only enable
-	 * clock with no divider value programmed.
+	 * clock with yes divider value programmed.
 	 */
 	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
 	sdhci_enable_clk(host, clk);
@@ -1572,7 +1572,7 @@ out:
  * register write needs to be followed up by platform specific actions,
  * they can be added here. These functions can go to sleep when writes
  * to certain registers are done.
- * These functions are relying on sdhci_set_ios not using spinlock.
+ * These functions are relying on sdhci_set_ios yest using spinlock.
  */
 static int __sdhci_msm_check_write(struct sdhci_host *host, u16 val, int reg)
 {
@@ -1658,7 +1658,7 @@ static void sdhci_msm_set_regulator_caps(struct sdhci_msm_host *msm_host)
 			caps |= CORE_3_0V_SUPPORT;
 
 		if (!caps)
-			pr_warn("%s: 1.8/3V not supported for vqmmc\n",
+			pr_warn("%s: 1.8/3V yest supported for vqmmc\n",
 					mmc_hostname(mmc));
 	}
 
@@ -1749,7 +1749,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	struct resource *core_memres;
 	struct clk *clk;
 	int ret;
-	u16 host_version, core_minor;
+	u16 host_version, core_miyesr;
 	u32 core_version, config;
 	u8 core_major;
 	const struct sdhci_msm_offset *msm_offset;
@@ -1838,12 +1838,12 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 
 	/*
 	 * xo clock is needed for FLL feature of cm_dll.
-	 * In case if xo clock is not mentioned in DT, warn and proceed.
+	 * In case if xo clock is yest mentioned in DT, warn and proceed.
 	 */
 	msm_host->xo_clk = devm_clk_get(&pdev->dev, "xo");
 	if (IS_ERR(msm_host->xo_clk)) {
 		ret = PTR_ERR(msm_host->xo_clk);
-		dev_warn(&pdev->dev, "TCXO clk not present (%d)\n", ret);
+		dev_warn(&pdev->dev, "TCXO clk yest present (%d)\n", ret);
 	}
 
 	if (!msm_host->mci_removed) {
@@ -1881,39 +1881,39 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 			msm_offset->core_mci_version);
 	core_major = (core_version & CORE_VERSION_MAJOR_MASK) >>
 		      CORE_VERSION_MAJOR_SHIFT;
-	core_minor = core_version & CORE_VERSION_MINOR_MASK;
-	dev_dbg(&pdev->dev, "MCI Version: 0x%08x, major: 0x%04x, minor: 0x%02x\n",
-		core_version, core_major, core_minor);
+	core_miyesr = core_version & CORE_VERSION_MINOR_MASK;
+	dev_dbg(&pdev->dev, "MCI Version: 0x%08x, major: 0x%04x, miyesr: 0x%02x\n",
+		core_version, core_major, core_miyesr);
 
-	if (core_major == 1 && core_minor >= 0x42)
+	if (core_major == 1 && core_miyesr >= 0x42)
 		msm_host->use_14lpp_dll_reset = true;
 
 	/*
-	 * SDCC 5 controller with major version 1, minor version 0x34 and later
+	 * SDCC 5 controller with major version 1, miyesr version 0x34 and later
 	 * with HS 400 mode support will use CM DLL instead of CDC LP 533 DLL.
 	 */
-	if (core_major == 1 && core_minor < 0x34)
+	if (core_major == 1 && core_miyesr < 0x34)
 		msm_host->use_cdclp533 = true;
 
 	/*
-	 * Support for some capabilities is not advertised by newer
+	 * Support for some capabilities is yest advertised by newer
 	 * controller versions and must be explicitly enabled.
 	 */
-	if (core_major >= 1 && core_minor != 0x11 && core_minor != 0x12) {
+	if (core_major >= 1 && core_miyesr != 0x11 && core_miyesr != 0x12) {
 		config = readl_relaxed(host->ioaddr + SDHCI_CAPABILITIES);
 		config |= SDHCI_CAN_VDD_300 | SDHCI_CAN_DO_8BIT;
 		writel_relaxed(config, host->ioaddr +
 				msm_offset->core_vendor_spec_capabilities0);
 	}
 
-	if (core_major == 1 && core_minor >= 0x49)
+	if (core_major == 1 && core_miyesr >= 0x49)
 		msm_host->updated_ddr_cfg = true;
 
 	/*
 	 * Power on reset state may trigger power irq if previous status of
 	 * PWRCTL was either BUS_ON or IO_HIGH_V. So before enabling pwr irq
 	 * interrupt in GIC, any pending power irq interrupt should be
-	 * acknowledged. Otherwise power irq interrupt handler would be
+	 * ackyeswledged. Otherwise power irq interrupt handler would be
 	 * fired prematurely.
 	 */
 	sdhci_msm_handle_pwr_irq(host, 0);
@@ -1944,7 +1944,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		goto clk_disable;
 	}
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev,
@@ -1965,7 +1965,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 pm_runtime_disable:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 clk_disable:
 	clk_bulk_disable_unprepare(ARRAY_SIZE(msm_host->bulk_clks),
 				   msm_host->bulk_clks);
@@ -1989,7 +1989,7 @@ static int sdhci_msm_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 
 	clk_bulk_disable_unprepare(ARRAY_SIZE(msm_host->bulk_clks),
 				   msm_host->bulk_clks);

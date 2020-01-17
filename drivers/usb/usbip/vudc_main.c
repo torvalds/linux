@@ -38,7 +38,7 @@ static int __init init(void)
 		return -ENODEV;
 
 	if (vudc_number < 1) {
-		pr_err("Number of emulated UDC must be no less than 1");
+		pr_err("Number of emulated UDC must be yes less than 1");
 		return -EINVAL;
 	}
 

@@ -27,7 +27,7 @@ const char * const cosm_state_string[] = {
  * readable state via sysfs. Always keep in sync with enum cosm_shutdown_status
  */
 const char * const cosm_shutdown_status_string[] = {
-	[MIC_NOP] = "nop",
+	[MIC_NOP] = "yesp",
 	[MIC_CRASHED] = "crashed",
 	[MIC_HALTED] = "halted",
 	[MIC_POWER_OFF] = "poweroff",
@@ -48,7 +48,7 @@ void cosm_set_state(struct cosm_device *cdev, u8 state)
 		cosm_state_string[cdev->state],
 		cosm_state_string[state]);
 	cdev->state = state;
-	sysfs_notify_dirent(cdev->state_sysfs);
+	sysfs_yestify_dirent(cdev->state_sysfs);
 }
 
 static ssize_t
@@ -161,7 +161,7 @@ heartbeat_enable_store(struct device *dev,
 		goto unlock;
 
 	cdev->sysfs_heartbeat_enable = enable;
-	/* if state is not online, cdev->heartbeat_watchdog_enable is 0 */
+	/* if state is yest online, cdev->heartbeat_watchdog_enable is 0 */
 	if (cdev->state == MIC_ONLINE)
 		cdev->heartbeat_watchdog_enable = enable;
 	ret = count;

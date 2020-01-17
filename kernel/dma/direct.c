@@ -10,7 +10,7 @@
 #include <linux/dma-direct.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-contiguous.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <linux/pfn.h>
 #include <linux/vmalloc.h>
 #include <linux/set_memory.h>
@@ -59,7 +59,7 @@ u64 dma_direct_get_required_mask(struct device *dev)
 static gfp_t __dma_direct_optimal_gfp_mask(struct device *dev, u64 dma_mask,
 		u64 *phys_limit)
 {
-	u64 dma_limit = min_not_zero(dma_mask, dev->bus_dma_limit);
+	u64 dma_limit = min_yest_zero(dma_mask, dev->bus_dma_limit);
 
 	if (force_dma_unencrypted(dev))
 		*phys_limit = __dma_to_phys(dev, dma_limit);
@@ -71,7 +71,7 @@ static gfp_t __dma_direct_optimal_gfp_mask(struct device *dev, u64 dma_mask,
 	 * into first.  If that returns memory that isn't actually addressable
 	 * we will fallback to the next lower zone and try again.
 	 *
-	 * Note that GFP_DMA32 and GFP_DMA are no ops without the corresponding
+	 * Note that GFP_DMA32 and GFP_DMA are yes ops without the corresponding
 	 * zones.
 	 */
 	if (*phys_limit <= DMA_BIT_MASK(zone_dma_bits))
@@ -84,14 +84,14 @@ static gfp_t __dma_direct_optimal_gfp_mask(struct device *dev, u64 dma_mask,
 static bool dma_coherent_ok(struct device *dev, phys_addr_t phys, size_t size)
 {
 	return phys_to_dma_direct(dev, phys) + size - 1 <=
-			min_not_zero(dev->coherent_dma_mask, dev->bus_dma_limit);
+			min_yest_zero(dev->coherent_dma_mask, dev->bus_dma_limit);
 }
 
 struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
 		gfp_t gfp, unsigned long attrs)
 {
 	size_t alloc_size = PAGE_ALIGN(size);
-	int node = dev_to_node(dev);
+	int yesde = dev_to_yesde(dev);
 	struct page *page = NULL;
 	u64 phys_limit;
 
@@ -109,7 +109,7 @@ struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
 	}
 again:
 	if (!page)
-		page = alloc_pages_node(node, gfp, get_order(alloc_size));
+		page = alloc_pages_yesde(yesde, gfp, get_order(alloc_size));
 	if (page && !dma_coherent_ok(dev, page_to_phys(page), size)) {
 		dma_free_contiguous(dev, page, size);
 		page = NULL;
@@ -182,7 +182,7 @@ void *dma_direct_alloc_pages(struct device *dev, size_t size,
 		/*
 		 * Depending on the cma= arguments and per-arch setup
 		 * dma_alloc_contiguous could return highmem pages.
-		 * Without remapping there is no way to return them here,
+		 * Without remapping there is yes way to return them here,
 		 * so log an error and fail.
 		 */
 		dev_info(dev, "Rejecting highmem page from CMA.\n");
@@ -216,7 +216,7 @@ void dma_direct_free_pages(struct device *dev, size_t size, void *cpu_addr,
 
 	if ((attrs & DMA_ATTR_NO_KERNEL_MAPPING) &&
 	    !force_dma_unencrypted(dev)) {
-		/* cpu_addr is a struct page cookie, not a kernel address */
+		/* cpu_addr is a struct page cookie, yest a kernel address */
 		dma_free_contiguous(dev, cpu_addr, size);
 		return;
 	}
@@ -474,7 +474,7 @@ int dma_direct_mmap(struct device *dev, struct vm_area_struct *vma,
 
 /*
  * Because 32-bit DMA masks are so common we expect every architecture to be
- * able to satisfy them - either by not supporting more physical memory, or by
+ * able to satisfy them - either by yest supporting more physical memory, or by
  * providing a ZONE_DMA32.  If neither is the case, the architecture needs to
  * use an IOMMU instead of the direct mapping.
  */

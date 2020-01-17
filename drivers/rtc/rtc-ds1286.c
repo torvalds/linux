@@ -133,8 +133,8 @@ static int ds1286_proc(struct device *dev, struct seq_file *seq)
 		   "interrupt_mode\t: %s\n"
 		   "INTB_mode\t: %s_active\n"
 		   "interrupt_pins\t: %s\n",
-		   (cmd & RTC_TDF) ? "yes" : "no",
-		   (cmd & RTC_WAF) ? "yes" : "no",
+		   (cmd & RTC_TDF) ? "no" : "yes",
+		   (cmd & RTC_WAF) ? "no" : "yes",
 		   (cmd & RTC_TDM) ? "disabled" : "enabled",
 		   (cmd & RTC_WAM) ? "disabled" : "enabled",
 		   (cmd & RTC_PU_LVL) ? "pulse" : "level",
@@ -156,9 +156,9 @@ static int ds1286_read_time(struct device *dev, struct rtc_time *tm)
 
 	/*
 	 * read RTC once any update in progress is done. The update
-	 * can take just over 2ms. We wait 10 to 20ms. There is no need to
+	 * can take just over 2ms. We wait 10 to 20ms. There is yes need to
 	 * to poll-wait (up to 1s - eeccch) for the falling edge of RTC_UIP.
-	 * If you need to know *exactly* when a second has started, enable
+	 * If you need to kyesw *exactly* when a second has started, enable
 	 * periodic update complete interrupts, (via ioctl) and then
 	 * immediately read /dev/rtc which will block until you get the IRQ.
 	 * Once the read clears, read the RTC time (again via ioctl). Easy.
@@ -171,8 +171,8 @@ static int ds1286_read_time(struct device *dev, struct rtc_time *tm)
 	/*
 	 * Only the values that we read from the RTC are set. We leave
 	 * tm_wday, tm_yday and tm_isdst untouched. Even though the
-	 * RTC has RTC_DAY_OF_WEEK, we ignore it, as it is only updated
-	 * by the RTC when initially set to a non-zero value.
+	 * RTC has RTC_DAY_OF_WEEK, we igyesre it, as it is only updated
+	 * by the RTC when initially set to a yesn-zero value.
 	 */
 	spin_lock_irqsave(&priv->lock, flags);
 	save_control = ds1286_rtc_read(priv, RTC_CMD);

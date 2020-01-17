@@ -53,7 +53,7 @@ struct snd_dg00x {
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
 
-	/* For asynchronous messages. */
+	/* For asynchroyesus messages. */
 	struct fw_address_handler async_handler;
 	u32 msg;
 
@@ -67,27 +67,27 @@ struct snd_dg00x {
 
 #define DG00X_OFFSET_STREAMING_STATE	0x0000
 #define DG00X_OFFSET_STREAMING_SET	0x0004
-/* unknown but address in host space	0x0008 */
+/* unkyeswn but address in host space	0x0008 */
 /* For LSB of the address		0x000c */
-/* unknown				0x0010 */
+/* unkyeswn				0x0010 */
 #define DG00X_OFFSET_MESSAGE_ADDR	0x0014
 /* For LSB of the address		0x0018 */
-/* unknown				0x001c */
-/* unknown				0x0020 */
-/* not used			0x0024--0x00ff */
+/* unkyeswn				0x001c */
+/* unkyeswn				0x0020 */
+/* yest used			0x0024--0x00ff */
 #define DG00X_OFFSET_ISOC_CHANNELS	0x0100
-/* unknown				0x0104 */
-/* unknown				0x0108 */
-/* unknown				0x010c */
+/* unkyeswn				0x0104 */
+/* unkyeswn				0x0108 */
+/* unkyeswn				0x010c */
 #define DG00X_OFFSET_LOCAL_RATE		0x0110
 #define DG00X_OFFSET_EXTERNAL_RATE	0x0114
 #define DG00X_OFFSET_CLOCK_SOURCE	0x0118
 #define DG00X_OFFSET_OPT_IFACE_MODE	0x011c
-/* unknown				0x0120 */
+/* unkyeswn				0x0120 */
 /* Mixer control on/off			0x0124 */
-/* unknown				0x0128 */
+/* unkyeswn				0x0128 */
 #define DG00X_OFFSET_DETECT_EXTERNAL	0x012c
-/* unknown				0x0138 */
+/* unkyeswn				0x0138 */
 #define DG00X_OFFSET_MMC		0x0400
 
 enum snd_dg00x_rate {

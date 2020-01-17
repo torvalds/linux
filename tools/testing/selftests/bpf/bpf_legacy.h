@@ -3,7 +3,7 @@
 #define __BPF_LEGACY__
 
 /*
- * legacy bpf_map_def with extra fields supported only by bpf_load(), do not
+ * legacy bpf_map_def with extra fields supported only by bpf_load(), do yest
  * use outside of samples/bpf
  */
 struct bpf_map_def_legacy {
@@ -13,7 +13,7 @@ struct bpf_map_def_legacy {
 	unsigned int max_entries;
 	unsigned int map_flags;
 	unsigned int inner_map_idx;
-	unsigned int numa_node;
+	unsigned int numa_yesde;
 };
 
 #define BPF_ANNOTATE_KV_PAIR(name, type_key, type_val)		\

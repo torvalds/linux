@@ -18,9 +18,9 @@
  * Written to support the PCIM-DAS1602/16 and PCIe-DAS1602/16.
  *
  * Configuration Options:
- *   none
+ *   yesne
  *
- * Manual configuration of PCI(e) cards is not supported; they are configured
+ * Manual configuration of PCI(e) cards is yest supported; they are configured
  * automatically.
  *
  * Developed from cb_pcidas and skel by Richard Bytheway (mocelet@sucs.org).
@@ -128,8 +128,8 @@ static const struct comedi_lrange cb_pcimdas_ai_uni_range = {
 };
 
 /*
- * The Analog Output range is not programmable. The DAC ranges are
- * jumper-settable on the board. The settings are not software-readable.
+ * The Analog Output range is yest programmable. The DAC ranges are
+ * jumper-settable on the board. The settings are yest software-readable.
  */
 static const struct comedi_lrange cb_pcimdas_ao_range = {
 	6, {

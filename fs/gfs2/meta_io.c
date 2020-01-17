@@ -21,7 +21,7 @@
 #include "incore.h"
 #include "glock.h"
 #include "glops.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "log.h"
 #include "lops.h"
 #include "meta_io.h"
@@ -46,7 +46,7 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 		if (!buffer_mapped(bh))
 			continue;
 		/*
-		 * If it's a fully non-blocking write attempt and we cannot
+		 * If it's a fully yesn-blocking write attempt and we canyest
 		 * lock the buffer then redirty the page.  Note that this can
 		 * potentially cause a busy-wait loop from flusher thread and kswapd
 		 * activity, but those code paths have their own higher-level
@@ -101,13 +101,13 @@ const struct address_space_operations gfs2_rgrp_aops = {
 /**
  * gfs2_getbuf - Get a buffer with a given address space
  * @gl: the glock
- * @blkno: the block number (filesystem scope)
+ * @blkyes: the block number (filesystem scope)
  * @create: 1 if the buffer should be created
  *
  * Returns: the buffer
  */
 
-struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
+struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkyes, int create)
 {
 	struct address_space *mapping = gfs2_glock2aspace(gl);
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
@@ -121,8 +121,8 @@ struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 		mapping = &sdp->sd_aspace;
 
 	shift = PAGE_SHIFT - sdp->sd_sb.sb_bsize_shift;
-	index = blkno >> shift;             /* convert block to page */
-	bufnum = blkno - (index << shift);  /* block buf index within page */
+	index = blkyes >> shift;             /* convert block to page */
+	bufnum = blkyes - (index << shift);  /* block buf index within page */
 
 	if (create) {
 		for (;;) {
@@ -143,11 +143,11 @@ struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 
 	/* Locate header for our buffer within our page */
 	for (bh = page_buffers(page); bufnum--; bh = bh->b_this_page)
-		/* Do nothing */;
+		/* Do yesthing */;
 	get_bh(bh);
 
 	if (!buffer_mapped(bh))
-		map_bh(bh, sdp->sd_vfs, blkno);
+		map_bh(bh, sdp->sd_vfs, blkyes);
 
 	unlock_page(page);
 	put_page(page);
@@ -170,15 +170,15 @@ static void meta_prep_new(struct buffer_head *bh)
 /**
  * gfs2_meta_new - Get a block
  * @gl: The glock associated with this block
- * @blkno: The block number
+ * @blkyes: The block number
  *
  * Returns: The buffer
  */
 
-struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
+struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkyes)
 {
 	struct buffer_head *bh;
-	bh = gfs2_getbuf(gl, blkno, CREATE);
+	bh = gfs2_getbuf(gl, blkyes, CREATE);
 	meta_prep_new(bh);
 	return bh;
 }
@@ -237,14 +237,14 @@ static void gfs2_submit_bhs(int op, int op_flags, struct buffer_head *bhs[],
 /**
  * gfs2_meta_read - Read a block from disk
  * @gl: The glock covering the block
- * @blkno: The block number
+ * @blkyes: The block number
  * @flags: flags
  * @bhp: the place where the buffer is returned (NULL on failure)
  *
- * Returns: errno
+ * Returns: erryes
  */
 
-int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
+int gfs2_meta_read(struct gfs2_glock *gl, u64 blkyes, int flags,
 		   int rahead, struct buffer_head **bhp)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
@@ -256,7 +256,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 		return -EIO;
 	}
 
-	*bhp = bh = gfs2_getbuf(gl, blkno, CREATE);
+	*bhp = bh = gfs2_getbuf(gl, blkyes, CREATE);
 
 	lock_buffer(bh);
 	if (buffer_uptodate(bh)) {
@@ -269,7 +269,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 	}
 
 	if (rahead) {
-		bh = gfs2_getbuf(gl, blkno + 1, CREATE);
+		bh = gfs2_getbuf(gl, blkyes + 1, CREATE);
 
 		lock_buffer(bh);
 		if (buffer_uptodate(bh)) {
@@ -304,7 +304,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
  * @sdp: the filesystem
  * @bh: The block to wait for
  *
- * Returns: errno
+ * Returns: erryes
  */
 
 int gfs2_meta_wait(struct gfs2_sbd *sdp, struct buffer_head *bh)
@@ -361,16 +361,16 @@ void gfs2_remove_from_journal(struct buffer_head *bh, int meta)
 }
 
 /**
- * gfs2_meta_wipe - make inode's buffers so they aren't dirty/pinned anymore
- * @ip: the inode who owns the buffers
+ * gfs2_meta_wipe - make iyesde's buffers so they aren't dirty/pinned anymore
+ * @ip: the iyesde who owns the buffers
  * @bstart: the first buffer in the run
  * @blen: the number of buffers in the run
  *
  */
 
-void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
+void gfs2_meta_wipe(struct gfs2_iyesde *ip, u64 bstart, u32 blen)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_iyesde);
 	struct buffer_head *bh;
 
 	while (blen) {
@@ -391,25 +391,25 @@ void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
 
 /**
  * gfs2_meta_indirect_buffer - Get a metadata buffer
- * @ip: The GFS2 inode
+ * @ip: The GFS2 iyesde
  * @height: The level of this buf in the metadata (indir addr) tree (if any)
  * @num: The block number (device relative) of the buffer
  * @bhp: the buffer is returned here
  *
- * Returns: errno
+ * Returns: erryes
  */
 
-int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
+int gfs2_meta_indirect_buffer(struct gfs2_iyesde *ip, int height, u64 num,
 			      struct buffer_head **bhp)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_iyesde);
 	struct gfs2_glock *gl = ip->i_gl;
 	struct buffer_head *bh;
 	int ret = 0;
 	u32 mtype = height ? GFS2_METATYPE_IN : GFS2_METATYPE_DI;
 	int rahead = 0;
 
-	if (num == ip->i_no_addr)
+	if (num == ip->i_yes_addr)
 		rahead = ip->i_rahead;
 
 	ret = gfs2_meta_read(gl, num, DIO_WAIT, rahead, &bh);

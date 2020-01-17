@@ -18,9 +18,9 @@
 
 /*
  * Post a call for attention by the socket or kernel service.  Further
- * notifications are suppressed by putting recvmsg_link on a dummy queue.
+ * yestifications are suppressed by putting recvmsg_link on a dummy queue.
  */
-void rxrpc_notify_socket(struct rxrpc_call *call)
+void rxrpc_yestify_socket(struct rxrpc_call *call)
 {
 	struct rxrpc_sock *rx;
 	struct sock *sk;
@@ -35,10 +35,10 @@ void rxrpc_notify_socket(struct rxrpc_call *call)
 	rx = rcu_dereference(call->socket);
 	sk = &rx->sk;
 	if (rx && sk->sk_state < RXRPC_CLOSE) {
-		if (call->notify_rx) {
-			spin_lock_bh(&call->notify_lock);
-			call->notify_rx(sk, call, call->user_call_ID);
-			spin_unlock_bh(&call->notify_lock);
+		if (call->yestify_rx) {
+			spin_lock_bh(&call->yestify_lock);
+			call->yestify_rx(sk, call, call->user_call_ID);
+			spin_unlock_bh(&call->yestify_lock);
 		} else {
 			write_lock_bh(&rx->recvmsg_lock);
 			if (list_empty(&call->recvmsg_link)) {
@@ -100,11 +100,11 @@ static int rxrpc_recvmsg_term(struct rxrpc_call *call, struct msghdr *msg)
 }
 
 /*
- * Pass back notification of a new call.  The call is added to the
- * to-be-accepted list.  This means that the next call to be accepted might not
+ * Pass back yestification of a new call.  The call is added to the
+ * to-be-accepted list.  This means that the next call to be accepted might yest
  * be the last call seen awaiting acceptance, but unless we leave this on the
  * front of the queue and block all other messages until someone gives us a
- * user_ID for it, there's not a lot we can do.
+ * user_ID for it, there's yest a lot we can do.
  */
 static int rxrpc_recvmsg_new_call(struct rxrpc_sock *rx,
 				  struct rxrpc_call *call,
@@ -193,7 +193,7 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 	rxrpc_see_skb(skb, rxrpc_skb_rotated);
 	sp = rxrpc_skb(skb);
 
-	subpacket = call->rxtx_annotations[ix] & RXRPC_RX_ANNO_SUBPACKET;
+	subpacket = call->rxtx_anyestations[ix] & RXRPC_RX_ANNO_SUBPACKET;
 	serial = sp->hdr.serial + subpacket;
 
 	if (subpacket == sp->nr_subpackets - 1 &&
@@ -201,7 +201,7 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 		last = true;
 
 	call->rxtx_buffer[ix] = NULL;
-	call->rxtx_annotations[ix] = 0;
+	call->rxtx_anyestations[ix] = 0;
 	/* Barrier against rxrpc_input_data(). */
 	smp_store_release(&call->rx_hard_ack, hard_ack);
 
@@ -230,13 +230,13 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
  * be the home to multiple subpackets.
  */
 static int rxrpc_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
-			       u8 annotation,
+			       u8 anyestation,
 			       unsigned int offset, unsigned int len)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	rxrpc_seq_t seq = sp->hdr.seq;
 	u16 cksum = sp->hdr.cksum;
-	u8 subpacket = annotation & RXRPC_RX_ANNO_SUBPACKET;
+	u8 subpacket = anyestation & RXRPC_RX_ANNO_SUBPACKET;
 
 	_enter("");
 
@@ -266,7 +266,7 @@ static int rxrpc_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
  *     excluding any encrypted padding.
  */
 static int rxrpc_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
-			     u8 *_annotation,
+			     u8 *_anyestation,
 			     unsigned int *_offset, unsigned int *_len,
 			     bool *_last)
 {
@@ -275,8 +275,8 @@ static int rxrpc_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
 	unsigned int len;
 	bool last = false;
 	int ret;
-	u8 annotation = *_annotation;
-	u8 subpacket = annotation & RXRPC_RX_ANNO_SUBPACKET;
+	u8 anyestation = *_anyestation;
+	u8 subpacket = anyestation & RXRPC_RX_ANNO_SUBPACKET;
 
 	/* Locate the subpacket */
 	offset += subpacket * RXRPC_JUMBO_SUBPKTLEN;
@@ -286,11 +286,11 @@ static int rxrpc_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
 	else if (sp->rx_flags & RXRPC_SKB_INCL_LAST)
 		last = true;
 
-	if (!(annotation & RXRPC_RX_ANNO_VERIFIED)) {
-		ret = rxrpc_verify_packet(call, skb, annotation, offset, len);
+	if (!(anyestation & RXRPC_RX_ANNO_VERIFIED)) {
+		ret = rxrpc_verify_packet(call, skb, anyestation, offset, len);
 		if (ret < 0)
 			return ret;
-		*_annotation |= RXRPC_RX_ANNO_VERIFIED;
+		*_anyestation |= RXRPC_RX_ANNO_VERIFIED;
 	}
 
 	*_offset = offset;
@@ -352,7 +352,7 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 
 		if (!(flags & MSG_PEEK)) {
 			serial = sp->hdr.serial;
-			serial += call->rxtx_annotations[ix] & RXRPC_RX_ANNO_SUBPACKET;
+			serial += call->rxtx_anyestations[ix] & RXRPC_RX_ANNO_SUBPACKET;
 			trace_rxrpc_receive(call, rxrpc_receive_front,
 					    serial, seq);
 		}
@@ -362,7 +362,7 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 
 		if (rx_pkt_offset == 0) {
 			ret2 = rxrpc_locate_data(call, skb,
-						 &call->rxtx_annotations[ix],
+						 &call->rxtx_anyestations[ix],
 						 &rx_pkt_offset, &rx_pkt_len,
 						 &rx_pkt_last);
 			trace_rxrpc_recvmsg(call, rxrpc_recvmsg_next, seq,
@@ -459,7 +459,7 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 try_again:
 	lock_sock(&rx->sk);
 
-	/* Return immediately if a client socket has no outstanding calls */
+	/* Return immediately if a client socket has yes outstanding calls */
 	if (RB_EMPTY_ROOT(&rx->calls) &&
 	    list_empty(&rx->recvmsg_q) &&
 	    rx->sk.sk_state != RXRPC_SERVER_LISTENING) {
@@ -471,7 +471,7 @@ try_again:
 		ret = -EWOULDBLOCK;
 		if (timeo == 0) {
 			call = NULL;
-			goto error_no_call;
+			goto error_yes_call;
 		}
 
 		release_sock(&rx->sk);
@@ -494,7 +494,7 @@ try_again:
 		goto try_again;
 	}
 
-	/* Find the next call and dequeue it if we're not just peeking.  If we
+	/* Find the next call and dequeue it if we're yest just peeking.  If we
 	 * do dequeue it, that comes with a ref that we will need to release.
 	 */
 	write_lock_bh(&rx->recvmsg_lock);
@@ -564,7 +564,7 @@ try_again:
 
 		if (after(call->rx_top, call->rx_hard_ack) &&
 		    call->rxtx_buffer[(call->rx_hard_ack + 1) & RXRPC_RXTX_BUFF_MASK])
-			rxrpc_notify_socket(call);
+			rxrpc_yestify_socket(call);
 		break;
 	default:
 		ret = 0;
@@ -605,14 +605,14 @@ error_requeue_call:
 	} else {
 		rxrpc_put_call(call, rxrpc_call_put);
 	}
-error_no_call:
+error_yes_call:
 	release_sock(&rx->sk);
 error_trace:
 	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_return, 0, 0, 0, ret);
 	return ret;
 
 wait_interrupted:
-	ret = sock_intr_errno(timeo);
+	ret = sock_intr_erryes(timeo);
 wait_error:
 	finish_wait(sk_sleep(&rx->sk), &wait);
 	call = NULL;
@@ -735,7 +735,7 @@ EXPORT_SYMBOL(rxrpc_kernel_recv_data);
  * @_ts: Where to put the timestamp
  *
  * Retrieve the timestamp from the first DATA packet of the reply if it is
- * in the ring.  Returns true if successful, false if not.
+ * in the ring.  Returns true if successful, false if yest.
  */
 bool rxrpc_kernel_get_reply_time(struct socket *sock, struct rxrpc_call *call,
 				 ktime_t *_ts)

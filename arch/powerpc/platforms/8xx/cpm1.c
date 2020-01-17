@@ -11,17 +11,17 @@
  * Buffer descriptors must be allocated from the dual ported memory
  * space.  The allocator for that is here.  When the communication
  * process is reset, we reclaim the memory available.  There is
- * currently no deallocator for this memory.
+ * currently yes deallocator for this memory.
  * The amount of space available is platform dependent.  On the
  * MBX, the EPPC software loads additional microcode into the
  * communication processor, and uses some of the DP ram for this
  * purpose.  Current, the first 512 bytes and the last 256 bytes of
- * memory are used.  Right now I am conservative and only use the
+ * memory are used.  Right yesw I am conservative and only use the
  * memory that can never be used for microcode.  If there are
  * applications that require more DP ram, we can expand the boundaries
  * but then we have to be careful of any downloaded microcode.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
@@ -112,7 +112,7 @@ static int cpm_pic_host_map(struct irq_domain *h, unsigned int virq,
 /*
  * The CPM can generate the error interrupt when there is a race condition
  * between generating and masking interrupts.  All we have to do is ACK it
- * and return.  This is a no-op function so we don't need any special
+ * and return.  This is a yes-op function so we don't need any special
  * tests in the interrupt handler.
  */
 static irqreturn_t cpm_error_interrupt(int irq, void *dev)
@@ -132,18 +132,18 @@ static const struct irq_domain_ops cpm_pic_host_ops = {
 
 unsigned int __init cpm_pic_init(void)
 {
-	struct device_node *np = NULL;
+	struct device_yesde *np = NULL;
 	struct resource res;
 	unsigned int sirq = 0, hwirq, eirq;
 	int ret;
 
 	pr_debug("cpm_pic_init\n");
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,cpm1-pic");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,cpm1-pic");
 	if (np == NULL)
-		np = of_find_compatible_node(NULL, "cpm-pic", "CPM");
+		np = of_find_compatible_yesde(NULL, "cpm-pic", "CPM");
 	if (np == NULL) {
-		printk(KERN_ERR "CPM PIC init: can not find cpm-pic node\n");
+		printk(KERN_ERR "CPM PIC init: can yest find cpm-pic yesde\n");
 		return sirq;
 	}
 
@@ -175,11 +175,11 @@ unsigned int __init cpm_pic_init(void)
 	}
 
 	/* Install our own error handler. */
-	np = of_find_compatible_node(NULL, NULL, "fsl,cpm1");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,cpm1");
 	if (np == NULL)
-		np = of_find_node_by_type(NULL, "cpm");
+		np = of_find_yesde_by_type(NULL, "cpm");
 	if (np == NULL) {
-		printk(KERN_ERR "CPM PIC init: can not find cpm node\n");
+		printk(KERN_ERR "CPM PIC init: can yest find cpm yesde\n");
 		goto end;
 	}
 
@@ -188,12 +188,12 @@ unsigned int __init cpm_pic_init(void)
 		goto end;
 
 	if (setup_irq(eirq, &cpm_error_irqaction))
-		printk(KERN_ERR "Could not allocate CPM error IRQ!");
+		printk(KERN_ERR "Could yest allocate CPM error IRQ!");
 
 	setbits32(&cpic_reg->cpic_cicr, CICR_IEN);
 
 end:
-	of_node_put(np);
+	of_yesde_put(np);
 	return sirq;
 }
 
@@ -217,7 +217,7 @@ void __init cpm_reset(void)
 
 	/*
 	 * Set SDMA Bus Request priority 5.
-	 * On 860T, this also enables FEC priority 6.  I am not sure
+	 * On 860T, this also enables FEC priority 6.  I am yest sure
 	 * this is what we really want for some applications, but the
 	 * manual recommends it.
 	 * Bit 25, FAM can also be set to use FEC aggressive mode (860T).
@@ -273,7 +273,7 @@ cpm_setbrg(uint brg, uint rate)
 {
 	u32 __iomem *bp;
 
-	/* This is good enough to get SMCs running..... */
+	/* This is good eyesugh to get SMCs running..... */
 	bp = &cpmp->cp_brgc1;
 	bp += brg;
 	/*
@@ -626,7 +626,7 @@ static int cpm1_gpio16_dir_in(struct gpio_chip *gc, unsigned int gpio)
 
 int cpm1_gpiochip_add16(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct cpm1_gpio16_chip *cpm1_gc;
 	struct of_mm_gpio_chip *mm_gc;
 	struct gpio_chip *gc;
@@ -755,7 +755,7 @@ static int cpm1_gpio32_dir_in(struct gpio_chip *gc, unsigned int gpio)
 
 int cpm1_gpiochip_add32(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct cpm1_gpio32_chip *cpm1_gc;
 	struct of_mm_gpio_chip *mm_gc;
 	struct gpio_chip *gc;

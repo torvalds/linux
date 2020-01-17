@@ -28,7 +28,7 @@
  *
  * There is an implementation limit on the number of concurrently
  * persisting-faulty blocks. When a new fault is requested that would
- * exceed the limit, it is ignored.
+ * exceed the limit, it is igyesred.
  * All current faults can be clear using a layout of "0".
  *
  * Requests are always sent to the device.  If they are to fail,
@@ -86,7 +86,7 @@ static int check_mode(struct faulty_conf *conf, int mode)
 {
 	if (conf->period[mode] == 0 &&
 	    atomic_read(&conf->counters[mode]) <= 0)
-		return 0; /* no failure, no decrement */
+		return 0; /* yes failure, yes decrement */
 
 
 	if (atomic_dec_and_test(&conf->counters[mode])) {
@@ -283,7 +283,7 @@ static int faulty_reshape(struct mddev *mddev)
 static sector_t faulty_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 {
 	WARN_ONCE(raid_disks,
-		  "%s does not support generic reshape\n", __func__);
+		  "%s does yest support generic reshape\n", __func__);
 
 	if (sectors == 0)
 		return mddev->dev_sectors;
@@ -297,7 +297,7 @@ static int faulty_run(struct mddev *mddev)
 	int i;
 	struct faulty_conf *conf;
 
-	if (md_check_no_bitmap(mddev))
+	if (md_check_yes_bitmap(mddev))
 		return -EINVAL;
 
 	conf = kmalloc(sizeof(*conf), GFP_KERNEL);

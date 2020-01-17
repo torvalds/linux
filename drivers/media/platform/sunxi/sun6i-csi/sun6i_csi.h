@@ -10,7 +10,7 @@
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 
 #include "sun6i_video.h"
 
@@ -38,10 +38,10 @@ struct sun6i_csi {
 	struct v4l2_device		v4l2_dev;
 	struct media_device		media_dev;
 
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_yestifier	yestifier;
 
 	/* video port settings */
-	struct v4l2_fwnode_endpoint	v4l2_ep;
+	struct v4l2_fwyesde_endpoint	v4l2_ep;
 
 	struct sun6i_csi_config		config;
 

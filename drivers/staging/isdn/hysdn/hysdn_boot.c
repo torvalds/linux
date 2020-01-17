@@ -62,7 +62,7 @@ StartDecryption(struct boot_data *boot)
 
 /***************************************************************/
 /* decrypt complete BootBuf                                    */
-/* NOTE: decryption must be applied to all or none boot tags - */
+/* NOTE: decryption must be applied to all or yesne boot tags - */
 /*       to HI and LO boot loader and (all) seq tags, because  */
 /*       global Cryptor is started for whole POF.              */
 /***************************************************************/
@@ -120,7 +120,7 @@ pof_handle_data(hysdn_card *card, int datlen)
 			imgp += l;	/* advance pointer */
 			img_len -= l;	/* adjust len */
 		}
-		/* at this point no special handling for data wrapping over buffer */
+		/* at this point yes special handling for data wrapping over buffer */
 		/* is necessary, because the boot image always will be adjusted to */
 		/* match a page boundary inside the buffer.                        */
 		/* The buffer for the boot image on the card is filled in 2 cycles */
@@ -200,7 +200,7 @@ pof_write_buffer(hysdn_card *card, int datlen)
 		}
 		/* Setup the new state and vars */
 		boot->Nrecs = (unsigned short)(boot->buf.PofFileHdr.N_PofRecs);	/* limited to 65535 */
-		boot->pof_state = POF_READ_TAG_HEAD;	/* now start with single tags */
+		boot->pof_state = POF_READ_TAG_HEAD;	/* yesw start with single tags */
 		boot->last_error = sizeof(tPofRecHdr);	/* new length */
 		break;
 
@@ -214,20 +214,20 @@ pof_write_buffer(hysdn_card *card, int datlen)
 		}
 		boot->pof_recid = boot->buf.PofRecHdr.PofRecId;		/* actual pof recid */
 		boot->pof_reclen = boot->buf.PofRecHdr.PofRecDataLen;	/* total length */
-		boot->pof_recoffset = 0;	/* no starting offset */
+		boot->pof_recoffset = 0;	/* yes starting offset */
 
 		if (card->debug_flags & LOG_POF_RECORD)
 			hysdn_addlog(card, "POF: got record id=0x%lx length=%ld ",
 				     boot->pof_recid, boot->pof_reclen);
 
-		boot->pof_state = POF_READ_TAG_DATA;	/* now start with tag data */
+		boot->pof_state = POF_READ_TAG_DATA;	/* yesw start with tag data */
 		if (boot->pof_reclen < BOOT_BUF_SIZE)
 			boot->last_error = boot->pof_reclen;	/* limit size */
 		else
 			boot->last_error = BOOT_BUF_SIZE;	/* maximum */
 
-		if (!boot->last_error) {	/* no data inside record */
-			boot->pof_state = POF_READ_TAG_HEAD;	/* now start with single tags */
+		if (!boot->last_error) {	/* yes data inside record */
+			boot->pof_state = POF_READ_TAG_HEAD;	/* yesw start with single tags */
 			boot->last_error = sizeof(tPofRecHdr);	/* new length */
 		}
 		break;
@@ -244,7 +244,7 @@ pof_write_buffer(hysdn_card *card, int datlen)
 			return (boot->last_error);	/* an error occurred */
 		boot->pof_recoffset += datlen;
 		if (boot->pof_recoffset >= boot->pof_reclen) {
-			boot->pof_state = POF_READ_TAG_HEAD;	/* now start with single tags */
+			boot->pof_state = POF_READ_TAG_HEAD;	/* yesw start with single tags */
 			boot->last_error = sizeof(tPofRecHdr);	/* new length */
 		} else {
 			if (boot->pof_reclen - boot->pof_recoffset < BOOT_BUF_SIZE)
@@ -255,7 +255,7 @@ pof_write_buffer(hysdn_card *card, int datlen)
 		break;
 
 	default:
-		boot->last_error = -EPOF_INTERNAL;	/* unknown state */
+		boot->last_error = -EPOF_INTERNAL;	/* unkyeswn state */
 		break;
 	}			/* switch (boot->pof_state) */
 
@@ -279,7 +279,7 @@ pof_write_open(hysdn_card *card, unsigned char **bufp)
 			hysdn_addlog(card, "POF open: already opened for boot");
 		return (-ERR_ALREADY_BOOT);	/* boot already active */
 	}
-	/* error no mem available */
+	/* error yes mem available */
 	if (!(boot = kzalloc(sizeof(struct boot_data), GFP_KERNEL))) {
 		if (card->debug_flags & LOG_MEM_ERR)
 			hysdn_addlog(card, "POF open: unable to allocate mem");
@@ -319,7 +319,7 @@ pof_write_close(hysdn_card *card)
 	if (!boot)
 		return (-EFAULT);	/* invalid call */
 
-	card->boot = NULL;	/* no boot active */
+	card->boot = NULL;	/* yes boot active */
 	kfree(boot);
 
 	if (card->state == CARD_STATE_RUN)
@@ -333,7 +333,7 @@ pof_write_close(hysdn_card *card)
 
 /*********************************************************************************/
 /* EvalSysrTokData checks additional records delivered with the Sysready Message */
-/* when POF has been booted. A return value of 0 is used if no error occurred.    */
+/* when POF has been booted. A return value of 0 is used if yes error occurred.    */
 /*********************************************************************************/
 int
 EvalSysrTokData(hysdn_card *card, unsigned char *cp, int len)
@@ -388,13 +388,13 @@ EvalSysrTokData(hysdn_card *card, unsigned char *cp, int len)
 			break;
 
 		default:
-			hysdn_addlog(card, "unknown token 0x%02x length %d", *cp, *(cp + 1));
+			hysdn_addlog(card, "unkyeswn token 0x%02x length %d", *cp, *(cp + 1));
 			break;
 		}
 		len -= (*(cp + 1) + 2);		/* adjust len */
 		cp += (*(cp + 1) + 2);	/* and pointer */
 	}
 
-	hysdn_addlog(card, "no end token found");
+	hysdn_addlog(card, "yes end token found");
 	return (1);
 }				/* EvalSysrTokData */

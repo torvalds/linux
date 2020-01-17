@@ -40,7 +40,7 @@
 #define PROM_ENOTTY			0x13
 #define PROM_ENXIO			0x14
 #define PROM_EROFS			0x15
-/* SGI ARCS specific errno's. */
+/* SGI ARCS specific erryes's. */
 #define PROM_EADDRNOTAVAIL		0x1f
 #define PROM_ETIMEDOUT			0x20
 #define PROM_ECONNABORTED		0x21
@@ -70,7 +70,7 @@ enum linux_devtypes {
 	misc_controller, disk_peripheral, flpy_peripheral, tp_peripheral,
 	modem_peripheral, monitor_peripheral, printer_peripheral,
 	ptr_peripheral, kbd_peripheral, term_peripheral, line_peripheral,
-	net_peripheral, misc_peripheral, anon
+	net_peripheral, misc_peripheral, ayesn
 };
 
 enum linux_identifier {
@@ -79,11 +79,11 @@ enum linux_identifier {
 
 /* A prom device tree component. */
 struct linux_component {
-	enum linux_devclass	class;	/* node class */
-	enum linux_devtypes	type;	/* node type */
-	enum linux_identifier	iflags; /* node flags */
-	USHORT			vers;	/* node version */
-	USHORT			rev;	/* node revision */
+	enum linux_devclass	class;	/* yesde class */
+	enum linux_devtypes	type;	/* yesde type */
+	enum linux_identifier	iflags; /* yesde flags */
+	USHORT			vers;	/* yesde version */
+	USHORT			rev;	/* yesde revision */
 	ULONG			key;	/* completely magic */
 	ULONG			amask;	/* XXX affinity mask??? */
 	ULONG			cdsize; /* size of configuration data */
@@ -237,7 +237,7 @@ struct linux_romvec {
 
 	/* Miscellaneous. */
 	LONG	cache_flush;
-	LONG	TestUnicodeCharacter;		/* ARC; not sure if ARCS too */
+	LONG	TestUnicodeCharacter;		/* ARC; yest sure if ARCS too */
 	LONG	GetDisplayStatus;
 };
 

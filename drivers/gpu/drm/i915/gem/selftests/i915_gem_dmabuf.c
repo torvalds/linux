@@ -98,7 +98,7 @@ static int igt_dmabuf_import(void *arg)
 	}
 
 	if (obj->base.dev != &i915->drm) {
-		pr_err("i915_gem_prime_import created a non-i915 object!\n");
+		pr_err("i915_gem_prime_import created a yesn-i915 object!\n");
 		err = -EINVAL;
 		goto out_obj;
 	}
@@ -117,7 +117,7 @@ static int igt_dmabuf_import(void *arg)
 		goto out_obj;
 	}
 
-	if (0) { /* Can not yet map dmabuf */
+	if (0) { /* Can yest yet map dmabuf */
 		obj_map = i915_gem_object_pin_map(obj, I915_MAP_WB);
 		if (IS_ERR(obj_map)) {
 			err = PTR_ERR(obj_map);
@@ -129,7 +129,7 @@ static int igt_dmabuf_import(void *arg)
 			memset(dma_map, pattern[i], PAGE_SIZE);
 			if (memchr_inv(obj_map, pattern[i], PAGE_SIZE)) {
 				err = -EINVAL;
-				pr_err("imported vmap not all set to %x!\n", pattern[i]);
+				pr_err("imported vmap yest all set to %x!\n", pattern[i]);
 				i915_gem_object_unpin_map(obj);
 				goto out_dma_map;
 			}
@@ -139,7 +139,7 @@ static int igt_dmabuf_import(void *arg)
 			memset(obj_map, pattern[i], PAGE_SIZE);
 			if (memchr_inv(dma_map, pattern[i], PAGE_SIZE)) {
 				err = -EINVAL;
-				pr_err("exported vmap not all set to %x!\n", pattern[i]);
+				pr_err("exported vmap yest all set to %x!\n", pattern[i]);
 				i915_gem_object_unpin_map(obj);
 				goto out_dma_map;
 			}
@@ -236,7 +236,7 @@ static int igt_dmabuf_export_vmap(void *arg)
 	}
 
 	if (memchr_inv(ptr, 0, dmabuf->size)) {
-		pr_err("Exported object not initialiased to zero!\n");
+		pr_err("Exported object yest initialiased to zero!\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -283,7 +283,7 @@ static int igt_dmabuf_export_kmap(void *arg)
 
 	if (memchr_inv(ptr, 0, PAGE_SIZE)) {
 		dma_buf_kunmap(dmabuf, 0, ptr);
-		pr_err("Exported page[0] not initialiased to zero!\n");
+		pr_err("Exported page[0] yest initialiased to zero!\n");
 		err = -EINVAL;
 		goto err;
 	}
@@ -310,7 +310,7 @@ static int igt_dmabuf_export_kmap(void *arg)
 
 	if (memchr_inv(ptr, 0xaa, PAGE_SIZE)) {
 		dma_buf_kunmap(dmabuf, 1, ptr);
-		pr_err("Exported page[1] not set to 0xaa!\n");
+		pr_err("Exported page[1] yest set to 0xaa!\n");
 		err = -EINVAL;
 		goto err;
 	}
@@ -326,7 +326,7 @@ static int igt_dmabuf_export_kmap(void *arg)
 	}
 	if (memchr_inv(ptr, 0xc5, PAGE_SIZE)) {
 		dma_buf_kunmap(dmabuf, 0, ptr);
-		pr_err("Exported page[0] did not retain 0xc5!\n");
+		pr_err("Exported page[0] did yest retain 0xc5!\n");
 		err = -EINVAL;
 		goto err;
 	}

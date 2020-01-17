@@ -118,7 +118,7 @@ struct mt7621_pcie_port {
  * struct mt7621_pcie - PCIe host information
  * @base: IO Mapped Register Base
  * @io: IO resource
- * @mem: non-prefetchable memory resource
+ * @mem: yesn-prefetchable memory resource
  * @busn: bus range
  * @offset: IO / Memory offset
  * @dev: Pointer to PCIe device
@@ -281,12 +281,12 @@ static void setup_cm_memory_region(struct mt7621_pcie *pcie)
 static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct of_pci_range_parser parser;
 	struct of_pci_range range;
 	int err;
 
-	if (of_pci_range_parser_init(&parser, node)) {
+	if (of_pci_range_parser_init(&parser, yesde)) {
 		dev_err(dev, "missing \"ranges\" property\n");
 		return -EINVAL;
 	}
@@ -307,13 +307,13 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
 		}
 
 		if (res)
-			of_pci_range_to_resource(&range, node, res);
+			of_pci_range_to_resource(&range, yesde, res);
 	}
 
-	err = of_pci_parse_bus_range(node, &pcie->busn);
+	err = of_pci_parse_bus_range(yesde, &pcie->busn);
 	if (err < 0) {
 		dev_err(dev, "failed to parse bus ranges property: %d\n", err);
-		pcie->busn.name = node->name;
+		pcie->busn.name = yesde->name;
 		pcie->busn.start = 0;
 		pcie->busn.end = 0xff;
 		pcie->busn.flags = IORESOURCE_BUS;
@@ -323,12 +323,12 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
 }
 
 static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
-				  struct device_node *node,
+				  struct device_yesde *yesde,
 				  int slot)
 {
 	struct mt7621_pcie_port *port;
 	struct device *dev = pcie->dev;
-	struct device_node *pnode = dev->of_node;
+	struct device_yesde *pyesde = dev->of_yesde;
 	struct resource regs;
 	char name[10];
 	int err;
@@ -337,7 +337,7 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 	if (!port)
 		return -ENOMEM;
 
-	err = of_address_to_resource(pnode, slot + 1, &regs);
+	err = of_address_to_resource(pyesde, slot + 1, &regs);
 	if (err) {
 		dev_err(dev, "missing \"reg\" property\n");
 		return err;
@@ -371,7 +371,7 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
-	struct device_node *node = dev->of_node, *child;
+	struct device_yesde *yesde = dev->of_yesde, *child;
 	struct resource regs;
 	int err;
 
@@ -381,7 +381,7 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 		return PTR_ERR(pcie->perst);
 	}
 
-	err = of_address_to_resource(node, 0, &regs);
+	err = of_address_to_resource(yesde, 0, &regs);
 	if (err) {
 		dev_err(dev, "missing \"reg\" property\n");
 		return err;
@@ -397,12 +397,12 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 		return PTR_ERR(pcie->rst);
 	}
 
-	for_each_available_child_of_node(node, child) {
+	for_each_available_child_of_yesde(yesde, child) {
 		int slot;
 
 		err = of_pci_get_devfn(child);
 		if (err < 0) {
-			of_node_put(child);
+			of_yesde_put(child);
 			dev_err(dev, "failed to parse devfn: %d\n", err);
 			return err;
 		}
@@ -411,7 +411,7 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 
 		err = mt7621_pcie_parse_port(pcie, child, slot);
 		if (err) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return err;
 		}
 	}
@@ -483,7 +483,7 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 		u32 slot = port->slot;
 
 		if (!mt7621_pcie_port_is_linkup(port)) {
-			dev_err(dev, "pcie%d no card, disable it (RST & CLK)\n",
+			dev_err(dev, "pcie%d yes card, disable it (RST & CLK)\n",
 				slot);
 			phy_power_off(port->phy);
 			mt7621_control_assert(port);
@@ -656,7 +656,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	int err;
 	LIST_HEAD(res);
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return -ENODEV;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
@@ -680,9 +680,9 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 
 	/* set resources limits */
 	iomem_resource.start = 0;
-	iomem_resource.end = ~0UL; /* no limit */
+	iomem_resource.end = ~0UL; /* yes limit */
 	ioport_resource.start = 0;
-	ioport_resource.end = ~0UL; /* no limit */
+	ioport_resource.end = ~0UL; /* yes limit */
 
 	mt7621_pcie_init_ports(pcie);
 

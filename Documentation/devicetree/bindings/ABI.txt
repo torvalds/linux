@@ -5,7 +5,7 @@ I. Regarding stable bindings/ABI, we quote from the 2013 ARM mini-summit
    summary document:
 
      "That still leaves the question of, what does a stable binding look
-     like?  Certainly a stable binding means that a newer kernel will not
+     like?  Certainly a stable binding means that a newer kernel will yest
      break on an older device tree, but that doesn't mean the binding is
      frozen for all time. Grant said there are ways to change bindings that
      don't result in breakage. For instance, if a new property is added,

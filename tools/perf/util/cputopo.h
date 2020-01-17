@@ -13,16 +13,16 @@ struct cpu_topology {
 	char	**thread_siblings;
 };
 
-struct numa_topology_node {
+struct numa_topology_yesde {
 	char		*cpus;
-	u32		 node;
+	u32		 yesde;
 	u64		 mem_total;
 	u64		 mem_free;
 };
 
 struct numa_topology {
 	u32				nr;
-	struct numa_topology_node	nodes[0];
+	struct numa_topology_yesde	yesdes[0];
 };
 
 struct cpu_topology *cpu_topology__new(void);

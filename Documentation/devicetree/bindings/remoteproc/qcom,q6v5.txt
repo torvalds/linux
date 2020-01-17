@@ -64,20 +64,20 @@ on the Qualcomm Hexagon core.
 	Value type: <stringlist>
 	Definition: The clocks needed depend on the compatible string:
 	qcom,ipq8074-wcss-pil:
-		    no clock names required
+		    yes clock names required
 	qcom,q6v5-pil:
 	qcom,msm8916-mss-pil:
 	qcom,msm8974-mss-pil:
 		    must be "iface", "bus", "mem", "xo"
 	qcom,msm8996-mss-pil:
 		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
-		    "snoc_axi", "mnoc_axi", "pnoc", "qdss"
+		    "syesc_axi", "myesc_axi", "pyesc", "qdss"
 	qcom,msm8998-mss-pil:
 		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
-		    "snoc_axi", "mnoc_axi", "qdss"
+		    "syesc_axi", "myesc_axi", "qdss"
 	qcom,sdm845-mss-pil:
 		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
-		    "snoc_axi", "mnoc_axi", "prng"
+		    "syesc_axi", "myesc_axi", "prng"
 
 - resets:
 	Usage: required
@@ -140,7 +140,7 @@ For the compatible string below the following supplies are required:
 	qcom,ipq8074-wcss-pil:
 	qcom,msm8916-mss-pil:
 	qcom,msm8974-mss-pil:
-		    no power-domain names required
+		    yes power-domain names required
 	qcom,msm8996-mss-pil:
 	qcom,msm8998-mss-pil:
 		    must be "cx", "mx"
@@ -166,15 +166,15 @@ For the compatible string below the following supplies are required:
 		    halt registers.
 
 = SUBNODES:
-The Hexagon node must contain two subnodes, named "mba" and "mpss" representing
-the memory regions used by the Hexagon firmware. Each sub-node must contain:
+The Hexagon yesde must contain two subyesdes, named "mba" and "mpss" representing
+the memory regions used by the Hexagon firmware. Each sub-yesde must contain:
 
 - memory-region:
 	Usage: required
 	Value type: <phandle>
 	Definition: reference to the reserved-memory for the region
 
-The Hexagon node may also have an subnode named either "smd-edge" or
+The Hexagon yesde may also have an subyesde named either "smd-edge" or
 "glink-edge" that describes the communication edge, channels and devices
 related to the Hexagon.  See ../soc/qcom/qcom,smd.txt and
 ../soc/qcom/qcom,glink.txt for details on how to describe these.

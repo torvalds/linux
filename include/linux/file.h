@@ -18,9 +18,9 @@ extern void fput_many(struct file *, unsigned int);
 struct file_operations;
 struct vfsmount;
 struct dentry;
-struct inode;
+struct iyesde;
 struct path;
-extern struct file *alloc_file_pseudo(struct inode *, struct vfsmount *,
+extern struct file *alloc_file_pseudo(struct iyesde *, struct vfsmount *,
 	const char *, int flags, const struct file_operations *);
 extern struct file *alloc_file_clone(struct file *, int flags,
 	const struct file_operations *);

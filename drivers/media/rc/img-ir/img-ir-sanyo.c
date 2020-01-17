@@ -2,7 +2,7 @@
 /*
  * ImgTec IR Decoder setup for Sanyo protocol.
  *
- * Copyright 2012-2014 Imagination Technologies Ltd.
+ * Copyright 2012-2014 Imagination Techyeslogies Ltd.
  *
  * From ir-sanyo-decoder.c:
  *
@@ -12,7 +12,7 @@
  *	8 bits Key data
  *	8 bits NOT(Key data)
  *
- * According with LIRC, this protocol is used on Sanyo, Aiwa and Chinon
+ * According with LIRC, this protocol is used on Sanyo, Aiwa and Chiyesn
  * Information for this protocol is available at the Sanyo LC7461 datasheet.
  */
 
@@ -23,7 +23,7 @@ static int img_ir_sanyo_scancode(int len, u64 raw, u64 enabled_protocols,
 				 struct img_ir_scancode_req *request)
 {
 	unsigned int addr, addr_inv, data, data_inv;
-	/* a repeat code has no data */
+	/* a repeat code has yes data */
 	if (!len)
 		return IMG_IR_REPEATCODE;
 	if (len != 42)
@@ -115,7 +115,7 @@ struct img_ir_decoder img_ir_sanyo = {
 		},
 		/* free time */
 		.ft = {
-			.minlen = 0,	/* repeat code has no data */
+			.minlen = 0,	/* repeat code has yes data */
 			.maxlen = 0,
 		},
 	},

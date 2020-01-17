@@ -67,7 +67,7 @@ struct orion_mdio_dev {
 	struct clk *clk[4];
 	/*
 	 * If we have access to the error interrupt pin (which is
-	 * somewhat misnamed as it not only reflects internal errors
+	 * somewhat misnamed as it yest only reflects internal errors
 	 * but also reflects SMI completion), use that to wait for
 	 * SMI access completion instead of polling the SMI busy bit.
 	 */
@@ -86,7 +86,7 @@ struct orion_mdio_ops {
 	unsigned int poll_interval_max;
 };
 
-/* Wait for the SMI unit to be ready for another operation
+/* Wait for the SMI unit to be ready for ayesther operation
  */
 static int orion_mdio_wait_ready(const struct orion_mdio_ops *ops,
 				 struct mii_bus *bus)
@@ -109,8 +109,8 @@ static int orion_mdio_wait_ready(const struct orion_mdio_ops *ops,
 			if (time_is_before_jiffies(end))
 				++timedout;
 	        } else {
-			/* wait_event_timeout does not guarantee a delay of at
-			 * least one whole jiffie, so timeout must be no less
+			/* wait_event_timeout does yest guarantee a delay of at
+			 * least one whole jiffie, so timeout must be yes less
 			 * than two.
 			 */
 			if (timeout < 2)
@@ -162,7 +162,7 @@ static int orion_mdio_smi_read(struct mii_bus *bus, int mii_id,
 
 	val = readl(dev->regs);
 	if (!(val & MVMDIO_SMI_READ_VALID)) {
-		dev_err(bus->parent, "SMI bus read not valid\n");
+		dev_err(bus->parent, "SMI bus read yest valid\n");
 		return -ENODEV;
 	}
 
@@ -228,7 +228,7 @@ static int orion_mdio_xsmi_read(struct mii_bus *bus, int mii_id,
 
 	if (!(readl(dev->regs + MVMDIO_XSMI_MGNT_REG) &
 	      MVMDIO_XSMI_READ_VALID)) {
-		dev_err(bus->parent, "XSMI bus read not valid\n");
+		dev_err(bus->parent, "XSMI bus read yest valid\n");
 		return -ENODEV;
 	}
 
@@ -319,9 +319,9 @@ static int orion_mdio_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&dev->smi_busy_wait);
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		for (i = 0; i < ARRAY_SIZE(dev->clk); i++) {
-			dev->clk[i] = of_clk_get(pdev->dev.of_node, i);
+			dev->clk[i] = of_clk_get(pdev->dev.of_yesde, i);
 			if (PTR_ERR(dev->clk[i]) == -EPROBE_DEFER) {
 				ret = -EPROBE_DEFER;
 				goto out_clk;
@@ -331,7 +331,7 @@ static int orion_mdio_probe(struct platform_device *pdev)
 			clk_prepare_enable(dev->clk[i]);
 		}
 
-		if (!IS_ERR(of_clk_get(pdev->dev.of_node,
+		if (!IS_ERR(of_clk_get(pdev->dev.of_yesde,
 				       ARRAY_SIZE(dev->clk))))
 			dev_warn(&pdev->dev,
 				 "unsupported number of clocks, limiting to the first "
@@ -369,9 +369,9 @@ static int orion_mdio_probe(struct platform_device *pdev)
 		goto out_mdio;
 	}
 
-	ret = of_mdiobus_register(bus, pdev->dev.of_node);
+	ret = of_mdiobus_register(bus, pdev->dev.of_yesde);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot register MDIO bus (%d)\n", ret);
+		dev_err(&pdev->dev, "Canyest register MDIO bus (%d)\n", ret);
 		goto out_mdio;
 	}
 

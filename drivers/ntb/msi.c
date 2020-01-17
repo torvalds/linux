@@ -202,7 +202,7 @@ static int ntb_msi_set_desc(struct ntb_dev *ntb, struct msi_desc *entry,
 
 	if (addr < ntb->msi->base_addr || addr >= ntb->msi->end_addr) {
 		dev_warn_once(&ntb->dev,
-			      "IRQ %d: MSI Address not within the memory window (%llx, [%llx %llx])\n",
+			      "IRQ %d: MSI Address yest within the memory window (%llx, [%llx %llx])\n",
 			      entry->irq, addr, ntb->msi->base_addr,
 			      ntb->msi->end_addr);
 		return -EFAULT;

@@ -61,7 +61,7 @@ struct snd_ps3_card_info {
 
 	/* irq */
 	u64 audio_irq_outlet;
-	unsigned int irq_no;
+	unsigned int irq_yes;
 
 	/* remember avsetting */
 	struct snd_ps3_avsetting_info avs;

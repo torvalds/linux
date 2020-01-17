@@ -5,7 +5,7 @@
  * mapping, vmalloc & vmemmap) for x86_64. This security feature mitigates
  * exploits relying on predictable kernel addresses.
  *
- * Entropy is generated using the KASLR early boot functions now shared in
+ * Entropy is generated using the KASLR early boot functions yesw shared in
  * the lib directory (originally written by Kees Cook). Randomization is
  * done on PGD & P4D/PUD page table levels to increase possible addresses.
  * The physical memory mapping code was adapted to support P4D/PUD level
@@ -14,7 +14,7 @@
  * An additional low memory page is used to ensure each CPU can start with
  * a PGD aligned virtual address (for realmode).
  *
- * The order of each memory region is not changed. The feature looks at
+ * The order of each memory region is yest changed. The feature looks at
  * the available space for the regions based on different configuration
  * options and randomizes the base and space between each. The size of the
  * physical memory mapping is the available physical memory.
@@ -62,7 +62,7 @@ static inline unsigned long get_padding(struct kaslr_memory_region *region)
 }
 
 /*
- * Apply no randomization if KASLR was disabled at boot or if KASAN
+ * Apply yes randomization if KASLR was disabled at boot or if KASAN
  * is enabled. KASAN shadow mappings rely on regions being PGD aligned.
  */
 static inline bool kaslr_memory_enabled(void)

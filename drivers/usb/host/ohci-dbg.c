@@ -31,7 +31,7 @@
 	} while (0);
 
 /* Version for use where "next" is the address of a local variable */
-#define ohci_dbg_nosw(ohci, next, size, format, arg...) \
+#define ohci_dbg_yessw(ohci, next, size, format, arg...) \
 	do { \
 		unsigned s_len; \
 		s_len = scnprintf(*next, *size, format, ## arg); \
@@ -241,11 +241,11 @@ static void ohci_dump(struct ohci_hcd *controller)
 {
 	ohci_dbg (controller, "OHCI controller state\n");
 
-	// dumps some of the state we know about
+	// dumps some of the state we kyesw about
 	ohci_dump_status (controller, NULL, NULL);
 	if (controller->hcca)
 		ohci_dbg (controller,
-			"hcca frame #%04x\n", ohci_frame_no(controller));
+			"hcca frame #%04x\n", ohci_frame_yes(controller));
 	ohci_dump_roothub (controller, 1, NULL, NULL);
 }
 
@@ -340,7 +340,7 @@ ohci_dump_ed (const struct ohci_hcd *ohci, const char *label,
 		(tmp & ED_C) ? data1 : data0,
 		(tmp & ED_H) ? " HALT" : "",
 		hc32_to_cpup (ohci, &ed->hwTailP),
-		verbose ? "" : " (not listing)");
+		verbose ? "" : " (yest listing)");
 	if (verbose) {
 		struct list_head	*tmp;
 
@@ -357,12 +357,12 @@ ohci_dump_ed (const struct ohci_hcd *ohci, const char *label,
 
 /*-------------------------------------------------------------------------*/
 
-static int debug_async_open(struct inode *, struct file *);
-static int debug_periodic_open(struct inode *, struct file *);
-static int debug_registers_open(struct inode *, struct file *);
-static int debug_async_open(struct inode *, struct file *);
+static int debug_async_open(struct iyesde *, struct file *);
+static int debug_periodic_open(struct iyesde *, struct file *);
+static int debug_registers_open(struct iyesde *, struct file *);
+static int debug_async_open(struct iyesde *, struct file *);
 static ssize_t debug_output(struct file*, char __user*, size_t, loff_t*);
-static int debug_close(struct inode *, struct file *);
+static int debug_close(struct iyesde *, struct file *);
 
 static const struct file_operations debug_async_fops = {
 	.owner		= THIS_MODULE,
@@ -532,7 +532,7 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 				struct list_head	*entry;
 				unsigned		qlen = 0;
 
-				/* qlen measured here in TDs, not urbs */
+				/* qlen measured here in TDs, yest urbs */
 				list_for_each (entry, &ed->td_list)
 					qlen++;
 
@@ -598,7 +598,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 	/* dump driver info, then registers in spec order */
 
-	ohci_dbg_nosw(ohci, &next, &size,
+	ohci_dbg_yessw(ohci, &next, &size,
 		"bus %s, device %s\n"
 		"%s\n"
 		"%s\n",
@@ -609,7 +609,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		size -= scnprintf (next, size,
-			"SUSPENDED (no register access)\n");
+			"SUSPENDED (yes register access)\n");
 		goto done;
 	}
 
@@ -617,8 +617,8 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 	/* hcca */
 	if (ohci->hcca)
-		ohci_dbg_nosw(ohci, &next, &size,
-			"hcca frame 0x%04x\n", ohci_frame_no(ohci));
+		ohci_dbg_yessw(ohci, &next, &size,
+			"hcca frame 0x%04x\n", ohci_frame_yes(ohci));
 
 	/* other registers mostly affect frame timings */
 	rdata = ohci_readl (ohci, &regs->fminterval);
@@ -725,7 +725,7 @@ out:
 
 }
 
-static int debug_close(struct inode *inode, struct file *file)
+static int debug_close(struct iyesde *iyesde, struct file *file)
 {
 	struct debug_buffer *buf = file->private_data;
 
@@ -737,24 +737,24 @@ static int debug_close(struct inode *inode, struct file *file)
 
 	return 0;
 }
-static int debug_async_open(struct inode *inode, struct file *file)
+static int debug_async_open(struct iyesde *iyesde, struct file *file)
 {
-	file->private_data = alloc_buffer(inode->i_private, fill_async_buffer);
+	file->private_data = alloc_buffer(iyesde->i_private, fill_async_buffer);
 
 	return file->private_data ? 0 : -ENOMEM;
 }
 
-static int debug_periodic_open(struct inode *inode, struct file *file)
+static int debug_periodic_open(struct iyesde *iyesde, struct file *file)
 {
-	file->private_data = alloc_buffer(inode->i_private,
+	file->private_data = alloc_buffer(iyesde->i_private,
 					  fill_periodic_buffer);
 
 	return file->private_data ? 0 : -ENOMEM;
 }
 
-static int debug_registers_open(struct inode *inode, struct file *file)
+static int debug_registers_open(struct iyesde *iyesde, struct file *file)
 {
-	file->private_data = alloc_buffer(inode->i_private,
+	file->private_data = alloc_buffer(iyesde->i_private,
 					  fill_registers_buffer);
 
 	return file->private_data ? 0 : -ENOMEM;

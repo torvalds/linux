@@ -19,7 +19,7 @@ static inline void __lse_atomic_##op(int i, atomic_t *v)			\
 	: "r" (v));							\
 }
 
-ATOMIC_OP(andnot, stclr)
+ATOMIC_OP(andyest, stclr)
 ATOMIC_OP(or, stset)
 ATOMIC_OP(xor, steor)
 ATOMIC_OP(add, stadd)
@@ -44,7 +44,7 @@ static inline int __lse_atomic_fetch_##op##name(int i, atomic_t *v)	\
 	ATOMIC_FETCH_OP(_release,  l, op, asm_op, "memory")		\
 	ATOMIC_FETCH_OP(        , al, op, asm_op, "memory")
 
-ATOMIC_FETCH_OPS(andnot, ldclr)
+ATOMIC_FETCH_OPS(andyest, ldclr)
 ATOMIC_FETCH_OPS(or, ldset)
 ATOMIC_FETCH_OPS(xor, ldeor)
 ATOMIC_FETCH_OPS(add, ldadd)
@@ -164,7 +164,7 @@ static inline void __lse_atomic64_##op(s64 i, atomic64_t *v)		\
 	: "r" (v));							\
 }
 
-ATOMIC64_OP(andnot, stclr)
+ATOMIC64_OP(andyest, stclr)
 ATOMIC64_OP(or, stset)
 ATOMIC64_OP(xor, steor)
 ATOMIC64_OP(add, stadd)
@@ -189,7 +189,7 @@ static inline long __lse_atomic64_fetch_##op##name(s64 i, atomic64_t *v)\
 	ATOMIC64_FETCH_OP(_release,  l, op, asm_op, "memory")		\
 	ATOMIC64_FETCH_OP(        , al, op, asm_op, "memory")
 
-ATOMIC64_FETCH_OPS(andnot, ldclr)
+ATOMIC64_FETCH_OPS(andyest, ldclr)
 ATOMIC64_FETCH_OPS(or, ldset)
 ATOMIC64_FETCH_OPS(xor, ldeor)
 ATOMIC64_FETCH_OPS(add, ldadd)

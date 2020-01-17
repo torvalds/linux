@@ -487,7 +487,7 @@ static struct drm_driver rcar_du_driver = {
 	.desc			= "Renesas R-Car Display Unit",
 	.date			= "20130110",
 	.major			= 1,
-	.minor			= 0,
+	.miyesr			= 0,
 };
 
 /* -----------------------------------------------------------------------------

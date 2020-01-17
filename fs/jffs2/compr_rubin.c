@@ -15,7 +15,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/jffs2.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include "compr.h"
 
 

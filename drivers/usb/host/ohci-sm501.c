@@ -99,7 +99,7 @@ static int ohci_hcd_sm501_drv_probe(struct platform_device *pdev)
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (mem == NULL) {
-		dev_err(dev, "no resource definition for memory\n");
+		dev_err(dev, "yes resource definition for memory\n");
 		retval = -ENOENT;
 		goto err0;
 	}
@@ -113,7 +113,7 @@ static int ohci_hcd_sm501_drv_probe(struct platform_device *pdev)
 	/* allocate, reserve and remap resources for registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(dev, "no resource definition for registers\n");
+		dev_err(dev, "yes resource definition for registers\n");
 		retval = -ENOENT;
 		goto err1;
 	}
@@ -135,7 +135,7 @@ static int ohci_hcd_sm501_drv_probe(struct platform_device *pdev)
 
 	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
 	if (hcd->regs == NULL) {
-		dev_err(dev, "cannot remap registers\n");
+		dev_err(dev, "canyest remap registers\n");
 		retval = -ENXIO;
 		goto err4;
 	}
@@ -150,10 +150,10 @@ static int ohci_hcd_sm501_drv_probe(struct platform_device *pdev)
 	 * for the first local memory byte.
 	 *
 	 * So as long as data is allocated using gen_pool_dma_alloc() all is
-	 * fine. This is however not always the case - buffers may be allocated
+	 * fine. This is however yest always the case - buffers may be allocated
 	 * using kmalloc() - so the usb core needs to be told that it must copy
 	 * data into our local memory if the buffers happen to be placed in
-	 * regular memory. A non-null hcd->localmem_pool initialized by the
+	 * regular memory. A yesn-null hcd->localmem_pool initialized by the
 	 * the call to usb_hcd_setup_local_mem() below does just that.
 	 */
 

@@ -100,7 +100,7 @@ static struct exception_info iexcept_table[10] = {
 	{ "Oops - privilege", SIGILL, ILL_PRVOPC },
 	{ "Oops - loops buffer", SIGILL, ILL_ILLOPC },
 	{ "Oops - software exception", SIGILL, ILL_ILLTRP },
-	{ "Oops - unknown exception", SIGILL, ILL_ILLOPC }
+	{ "Oops - unkyeswn exception", SIGILL, ILL_ILLOPC }
 };
 
 /* External exceptions */
@@ -243,18 +243,18 @@ static void do_trap(struct exception_info *except_info, struct pt_regs *regs)
 	unsigned long addr = instruction_pointer(regs);
 
 	if (except_info->code != TRAP_BRKPT)
-		pr_err("TRAP: %s PC[0x%lx] signo[%d] code[%d]\n",
+		pr_err("TRAP: %s PC[0x%lx] sigyes[%d] code[%d]\n",
 		       except_info->kernel_str, regs->pc,
-		       except_info->signo, except_info->code);
+		       except_info->sigyes, except_info->code);
 
 	die_if_kernel(except_info->kernel_str, regs, addr);
 
-	force_sig_fault(except_info->signo, except_info->code,
+	force_sig_fault(except_info->sigyes, except_info->code,
 			(void __user *)addr);
 }
 
 /*
- * Process an internal exception (non maskable)
+ * Process an internal exception (yesn maskable)
  */
 static int process_iexcept(struct pt_regs *regs)
 {
@@ -308,7 +308,7 @@ asmlinkage int process_exception(struct pt_regs *regs)
 {
 	unsigned int type;
 	unsigned int type_num;
-	unsigned int ie_num = 9; /* default is unknown exception */
+	unsigned int ie_num = 9; /* default is unkyeswn exception */
 
 	while ((type = get_except_type()) != 0) {
 		type_num = fls(type) - 1;
@@ -380,7 +380,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 
 	if (!stack) {
 		if (task && task != current)
-			/* We know this is a kernel stack,
+			/* We kyesw this is a kernel stack,
 			   so this is the start/end */
 			stack = (unsigned long *)thread_saved_ksp(task);
 		else

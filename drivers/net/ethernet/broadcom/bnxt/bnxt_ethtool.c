@@ -1618,7 +1618,7 @@ static int bnxt_set_link_ksettings(struct net_device *dev,
 			goto set_setting_exit;
 		}
 		if (base->duplex == DUPLEX_HALF) {
-			netdev_err(dev, "HALF DUPLEX is not supported!\n");
+			netdev_err(dev, "HALF DUPLEX is yest supported!\n");
 			rc = -EINVAL;
 			goto set_setting_exit;
 		}
@@ -1703,7 +1703,7 @@ static u32 bnxt_get_link(struct net_device *dev)
 
 static void bnxt_print_admin_err(struct bnxt *bp)
 {
-	netdev_info(bp->dev, "PF does not have admin privileges to flash or reset the device\n");
+	netdev_info(bp->dev, "PF does yest have admin privileges to flash or reset the device\n");
 }
 
 static int bnxt_find_nvram_item(struct net_device *dev, u16 type, u16 ordinal,
@@ -1870,7 +1870,7 @@ static int bnxt_flash_firmware(struct net_device *dev,
 					     sizeof(stored_crc)));
 	calculated_crc = ~crc32(~0, fw_data, fw_size - sizeof(stored_crc));
 	if (calculated_crc != stored_crc) {
-		netdev_err(dev, "Firmware file CRC32 checksum (%08lX) does not match calculated checksum (%08lX)\n",
+		netdev_err(dev, "Firmware file CRC32 checksum (%08lX) does yest match calculated checksum (%08lX)\n",
 			   (unsigned long)stored_crc,
 			   (unsigned long)calculated_crc);
 		return -EINVAL;
@@ -1923,7 +1923,7 @@ static int bnxt_flash_microcode(struct net_device *dev,
 	calculated_crc = ~crc32(~0, fw_data, fw_size - sizeof(stored_crc));
 	if (calculated_crc != stored_crc) {
 		netdev_err(dev,
-			   "CRC32 (%08lX) does not match calculated: %08lX\n",
+			   "CRC32 (%08lX) does yest match calculated: %08lX\n",
 			   (unsigned long)stored_crc,
 			   (unsigned long)calculated_crc);
 		return -EINVAL;
@@ -2016,7 +2016,7 @@ int bnxt_flash_package_from_file(struct net_device *dev, const char *filename,
 	if (bnxt_find_nvram_item(dev, BNX_DIR_TYPE_UPDATE,
 				 BNX_DIR_ORDINAL_FIRST, BNX_DIR_EXT_NONE,
 				 &index, &item_len, NULL) != 0) {
-		netdev_err(dev, "PKG update area not created in nvram\n");
+		netdev_err(dev, "PKG update area yest created in nvram\n");
 		return -ENOBUFS;
 	}
 
@@ -2103,7 +2103,7 @@ static int bnxt_flash_device(struct net_device *dev,
 			     struct ethtool_flash *flash)
 {
 	if (!BNXT_PF((struct bnxt *)netdev_priv(dev))) {
-		netdev_err(dev, "flashdev not supported from a virtual function\n");
+		netdev_err(dev, "flashdev yest supported from a virtual function\n");
 		return -EINVAL;
 	}
 
@@ -2358,7 +2358,7 @@ static int bnxt_set_eeprom(struct net_device *dev,
 	u16 type, ext, ordinal, attr;
 
 	if (!BNXT_PF(bp)) {
-		netdev_err(dev, "NVM write not supported from a virtual function\n");
+		netdev_err(dev, "NVM write yest supported from a virtual function\n");
 		return -EINVAL;
 	}
 
@@ -2505,14 +2505,14 @@ static int bnxt_get_module_info(struct net_device *dev,
 	int rc;
 
 	/* No point in going further if phy status indicates
-	 * module is not inserted or if it is powered down or
+	 * module is yest inserted or if it is powered down or
 	 * if it is of type 10GBase-T
 	 */
 	if (bp->link_info.module_status >
 		PORT_PHY_QCFG_RESP_MODULE_STATUS_WARNINGMSG)
 		return -EOPNOTSUPP;
 
-	/* This feature is not supported in older firmware versions */
+	/* This feature is yest supported in older firmware versions */
 	if (bp->hwrm_spec_code < 0x10202)
 		return -EOPNOTSUPP;
 
@@ -2906,7 +2906,7 @@ static void bnxt_self_test(struct net_device *dev, struct ethtool_test *etest,
 	if (etest->flags & ETH_TEST_FL_OFFLINE) {
 		if (bp->pf.active_vfs) {
 			etest->flags |= ETH_TEST_FL_FAILED;
-			netdev_warn(dev, "Offline tests cannot be run with active VFs\n");
+			netdev_warn(dev, "Offline tests canyest be run with active VFs\n");
 			return;
 		}
 		offline = true;
@@ -2982,19 +2982,19 @@ static int bnxt_reset(struct net_device *dev, u32 *flags)
 	int rc = 0;
 
 	if (!BNXT_PF(bp)) {
-		netdev_err(dev, "Reset is not supported from a VF\n");
+		netdev_err(dev, "Reset is yest supported from a VF\n");
 		return -EOPNOTSUPP;
 	}
 
 	if (pci_vfs_assigned(bp->pdev) &&
 	    !(bp->fw_cap & BNXT_FW_CAP_HOT_RESET)) {
 		netdev_err(dev,
-			   "Reset not allowed when VFs are assigned to VMs\n");
+			   "Reset yest allowed when VFs are assigned to VMs\n");
 		return -EBUSY;
 	}
 
 	if (*flags == ETH_RESET_ALL) {
-		/* This feature is not supported in older firmware versions */
+		/* This feature is yest supported in older firmware versions */
 		if (bp->hwrm_spec_code < 0x10803)
 			return -EOPNOTSUPP;
 
@@ -3006,7 +3006,7 @@ static int bnxt_reset(struct net_device *dev, u32 *flags)
 			*flags = 0;
 		}
 	} else if (*flags == ETH_RESET_AP) {
-		/* This feature is not supported in older firmware versions */
+		/* This feature is yest supported in older firmware versions */
 		if (bp->hwrm_spec_code < 0x10803)
 			return -EOPNOTSUPP;
 
@@ -3106,7 +3106,7 @@ static int bnxt_hwrm_dbg_coredump_list(struct bnxt *bp,
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_DBG_COREDUMP_LIST, -1, -1);
 
 	info.dma_len = COREDUMP_LIST_BUF_LEN;
-	info.seq_off = offsetof(struct hwrm_dbg_coredump_list_input, seq_no);
+	info.seq_off = offsetof(struct hwrm_dbg_coredump_list_input, seq_yes);
 	info.data_len_off = offsetof(struct hwrm_dbg_coredump_list_output,
 				     data_len);
 
@@ -3145,7 +3145,7 @@ static int bnxt_hwrm_dbg_coredump_retrieve(struct bnxt *bp, u16 component_id,
 
 	info.dma_len = COREDUMP_RETRIEVE_BUF_LEN;
 	info.seq_off = offsetof(struct hwrm_dbg_coredump_retrieve_input,
-				seq_no);
+				seq_yes);
 	info.data_len_off = offsetof(struct hwrm_dbg_coredump_retrieve_output,
 				     data_len);
 	if (buf) {
@@ -3195,7 +3195,7 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 			  int status)
 {
 	time64_t end = ktime_get_real_seconds();
-	u32 os_ver_major = 0, os_ver_minor = 0;
+	u32 os_ver_major = 0, os_ver_miyesr = 0;
 	struct tm tm;
 
 	time64_to_tm(start, 0, &tm);
@@ -3205,7 +3205,7 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 	record->low_version = 0;
 	record->high_version = 1;
 	record->asic_state = 0;
-	strlcpy(record->system_name, utsname()->nodename,
+	strlcpy(record->system_name, utsname()->yesdename,
 		sizeof(record->system_name));
 	record->year = cpu_to_le16(tm.tm_year + 1900);
 	record->month = cpu_to_le16(tm.tm_mon + 1);
@@ -3217,9 +3217,9 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 	strcpy(record->commandline, "ethtool -w");
 	record->total_segments = cpu_to_le32(total_segs);
 
-	sscanf(utsname()->release, "%u.%u", &os_ver_major, &os_ver_minor);
+	sscanf(utsname()->release, "%u.%u", &os_ver_major, &os_ver_miyesr);
 	record->os_ver_major = cpu_to_le32(os_ver_major);
-	record->os_ver_minor = cpu_to_le32(os_ver_minor);
+	record->os_ver_miyesr = cpu_to_le32(os_ver_miyesr);
 
 	strlcpy(record->os_name, utsname()->sysname, 32);
 	time64_to_tm(end, 0, &tm);
@@ -3352,7 +3352,7 @@ static int bnxt_set_dump(struct net_device *dev, struct ethtool_dump *dump)
 	}
 
 	if (!IS_ENABLED(CONFIG_TEE_BNXT_FW) && dump->flag == BNXT_DUMP_CRASH) {
-		netdev_info(dev, "Cannot collect crash dump as TEE_BNXT_FW config option is not enabled.\n");
+		netdev_info(dev, "Canyest collect crash dump as TEE_BNXT_FW config option is yest enabled.\n");
 		return -EOPNOTSUPP;
 	}
 

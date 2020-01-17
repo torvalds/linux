@@ -204,8 +204,8 @@ static int rockchip_pcie_phy_power_on(struct phy *phy)
 
 	/*
 	 * No documented timeout value for phy operation below,
-	 * so we make it large enough here. And we use loop-break
-	 * method which should not be harmful.
+	 * so we make it large eyesugh here. And we use loop-break
+	 * method which should yest be harmful.
 	 */
 	timeout = jiffies + msecs_to_jiffies(1000);
 
@@ -369,9 +369,9 @@ static int rockchip_pcie_phy_probe(struct platform_device *pdev)
 	int i;
 	u32 phy_num;
 
-	grf = syscon_node_to_regmap(dev->parent->of_node);
+	grf = syscon_yesde_to_regmap(dev->parent->of_yesde);
 	if (IS_ERR(grf)) {
-		dev_err(dev, "Cannot find GRF syscon\n");
+		dev_err(dev, "Canyest find GRF syscon\n");
 		return PTR_ERR(grf);
 	}
 
@@ -398,19 +398,19 @@ static int rockchip_pcie_phy_probe(struct platform_device *pdev)
 
 	rk_phy->clk_pciephy_ref = devm_clk_get(dev, "refclk");
 	if (IS_ERR(rk_phy->clk_pciephy_ref)) {
-		dev_err(dev, "refclk not found.\n");
+		dev_err(dev, "refclk yest found.\n");
 		return PTR_ERR(rk_phy->clk_pciephy_ref);
 	}
 
 	/* parse #phy-cells to see if it's legacy PHY model */
-	if (of_property_read_u32(dev->of_node, "#phy-cells", &phy_num))
+	if (of_property_read_u32(dev->of_yesde, "#phy-cells", &phy_num))
 		return -ENOENT;
 
 	phy_num = (phy_num == 0) ? 1 : PHY_MAX_LANE_NUM;
 	dev_dbg(dev, "phy number is %d\n", phy_num);
 
 	for (i = 0; i < phy_num; i++) {
-		rk_phy->phys[i].phy = devm_phy_create(dev, dev->of_node, &ops);
+		rk_phy->phys[i].phy = devm_phy_create(dev, dev->of_yesde, &ops);
 		if (IS_ERR(rk_phy->phys[i].phy)) {
 			dev_err(dev, "failed to create PHY%d\n", i);
 			return PTR_ERR(rk_phy->phys[i].phy);

@@ -1259,13 +1259,13 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 
 	ret = sun4i_i2s_init_regmap_fields(&pdev->dev, i2s);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not initialise regmap fields\n");
+		dev_err(&pdev->dev, "Could yest initialise regmap fields\n");
 		goto err_suspend;
 	}
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM\n");
+		dev_err(&pdev->dev, "Could yest register PCM\n");
 		goto err_suspend;
 	}
 
@@ -1273,7 +1273,7 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 					      &sun4i_i2s_component,
 					      &sun4i_i2s_dai, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI\n");
+		dev_err(&pdev->dev, "Could yest register DAI\n");
 		goto err_suspend;
 	}
 

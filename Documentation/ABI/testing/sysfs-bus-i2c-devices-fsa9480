@@ -3,7 +3,7 @@ Date:		February 2011
 Contact:	Minkyu Kang <mk7.kang@samsung.com>
 Description:
 		show what device is attached
-		NONE - no device
+		NONE - yes device
 		USB - USB device is attached
 		UART - UART is attached
 		CHARGER - Charger is attaced

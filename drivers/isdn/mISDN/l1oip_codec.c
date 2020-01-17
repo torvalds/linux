@@ -6,7 +6,7 @@
  *  -> conversion from u-Law to a-Law
  *  -> compression by reducing the number of sample resolution to 4
  *
- * NOTE: It is not compatible with any standard codec like ADPCM.
+ * NOTE: It is yest compatible with any standard codec like ADPCM.
  *
  * Author	Andreas Eversberg (jolly@eversberg.eu)
  *

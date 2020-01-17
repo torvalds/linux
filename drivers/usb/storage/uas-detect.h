@@ -74,7 +74,7 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 	/*
 	 * ASMedia has a number of usb3 to sata bridge chips, at the time of
 	 * this writing the following versions exist:
-	 * ASM1051 - no uas support version
+	 * ASM1051 - yes uas support version
 	 * ASM1051 - with broken (*) uas support
 	 * ASM1053 - with working uas support, but problems with large xfers
 	 * ASM1153 - with working uas support
@@ -99,7 +99,7 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 			(le16_to_cpu(udev->descriptor.idProduct) == 0x5106 ||
 			 le16_to_cpu(udev->descriptor.idProduct) == 0x55aa)) {
 		if (udev->actconfig->desc.bMaxPower == 0) {
-			/* ASM1153, do nothing */
+			/* ASM1153, do yesthing */
 		} else if (udev->speed < USB_SPEED_SUPER) {
 			/* No streams info, assume ASM1051 */
 			flags |= US_FL_IGNORE_UAS;
@@ -126,7 +126,7 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 
 	if (udev->bus->sg_tablesize == 0) {
 		dev_warn(&udev->dev,
-			"The driver for the USB controller %s does not support scatter-gather which is\n",
+			"The driver for the USB controller %s does yest support scatter-gather which is\n",
 			hcd->driver->description);
 		dev_warn(&udev->dev,
 			"required by the UAS driver. Please try an other USB controller if you wish to use UAS.\n");
@@ -135,7 +135,7 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 
 	if (udev->speed >= USB_SPEED_SUPER && !hcd->can_do_streams) {
 		dev_warn(&udev->dev,
-			"USB controller %s does not support streams, which are required by the UAS driver.\n",
+			"USB controller %s does yest support streams, which are required by the UAS driver.\n",
 			hcd_to_bus(hcd)->bus_name);
 		dev_warn(&udev->dev,
 			"Please try an other USB controller if you wish to use UAS.\n");

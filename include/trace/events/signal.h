@@ -12,13 +12,13 @@
 #define TP_STORE_SIGINFO(__entry, info)				\
 	do {							\
 		if (info == SEND_SIG_NOINFO) {			\
-			__entry->errno	= 0;			\
+			__entry->erryes	= 0;			\
 			__entry->code	= SI_USER;		\
 		} else if (info == SEND_SIG_PRIV) {		\
-			__entry->errno	= 0;			\
+			__entry->erryes	= 0;			\
 			__entry->code	= SI_KERNEL;		\
 		} else {					\
-			__entry->errno	= info->si_errno;	\
+			__entry->erryes	= info->si_erryes;	\
 			__entry->code	= info->si_code;	\
 		}						\
 	} while (0)
@@ -43,7 +43,7 @@ enum {
  *
  * Current process sends a 'sig' signal to 'task' process with
  * 'info' siginfo. If 'info' is SEND_SIG_NOINFO or SEND_SIG_PRIV,
- * 'info' is not a pointer and you can't access its field. Instead,
+ * 'info' is yest a pointer and you can't access its field. Instead,
  * SEND_SIG_NOINFO means that si_code is SI_USER, and SEND_SIG_PRIV
  * means that si_code is SI_KERNEL.
  */
@@ -56,7 +56,7 @@ TRACE_EVENT(signal_generate,
 
 	TP_STRUCT__entry(
 		__field(	int,	sig			)
-		__field(	int,	errno			)
+		__field(	int,	erryes			)
 		__field(	int,	code			)
 		__array(	char,	comm,	TASK_COMM_LEN	)
 		__field(	pid_t,	pid			)
@@ -73,8 +73,8 @@ TRACE_EVENT(signal_generate,
 		__entry->result	= result;
 	),
 
-	TP_printk("sig=%d errno=%d code=%d comm=%s pid=%d grp=%d res=%d",
-		  __entry->sig, __entry->errno, __entry->code,
+	TP_printk("sig=%d erryes=%d code=%d comm=%s pid=%d grp=%d res=%d",
+		  __entry->sig, __entry->erryes, __entry->code,
 		  __entry->comm, __entry->pid, __entry->group,
 		  __entry->result)
 );
@@ -89,9 +89,9 @@ TRACE_EVENT(signal_generate,
  * and it will be handled by 'ka'. ka->sa.sa_handler can be SIG_IGN or
  * SIG_DFL.
  * Note that some signals reported by signal_generate tracepoint can be
- * lost, ignored or modified (by debugger) before hitting this tracepoint.
+ * lost, igyesred or modified (by debugger) before hitting this tracepoint.
  * This means, this can show which signals are actually delivered, but
- * matching generated signals and delivered signals may not be correct.
+ * matching generated signals and delivered signals may yest be correct.
  */
 TRACE_EVENT(signal_deliver,
 
@@ -101,7 +101,7 @@ TRACE_EVENT(signal_deliver,
 
 	TP_STRUCT__entry(
 		__field(	int,		sig		)
-		__field(	int,		errno		)
+		__field(	int,		erryes		)
 		__field(	int,		code		)
 		__field(	unsigned long,	sa_handler	)
 		__field(	unsigned long,	sa_flags	)
@@ -114,8 +114,8 @@ TRACE_EVENT(signal_deliver,
 		__entry->sa_flags	= ka->sa.sa_flags;
 	),
 
-	TP_printk("sig=%d errno=%d code=%d sa_handler=%lx sa_flags=%lx",
-		  __entry->sig, __entry->errno, __entry->code,
+	TP_printk("sig=%d erryes=%d code=%d sa_handler=%lx sa_flags=%lx",
+		  __entry->sig, __entry->erryes, __entry->code,
 		  __entry->sa_handler, __entry->sa_flags)
 );
 

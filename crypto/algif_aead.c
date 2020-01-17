@@ -2,7 +2,7 @@
 /*
  * algif_aead: User-space interface for AEAD algorithms
  *
- * Copyright (C) 2014, Stephan Mueller <smueller@chronox.de>
+ * Copyright (C) 2014, Stephan Mueller <smueller@chroyesx.de>
  *
  * This file provides the user-space API for AEAD ciphers.
  *
@@ -10,7 +10,7 @@
  *
  * The kernel maintains two SGLs, the TX SGL and the RX SGL. The TX SGL is
  * filled by user space with the data submitted via sendpage/sendmsg. Filling
- * up the TX SGL does not cause a crypto operation -- the data will only be
+ * up the TX SGL does yest cause a crypto operation -- the data will only be
  * tracked by the kernel. Upon receipt of one recvmsg call, the caller must
  * provide a buffer which is tracked with the RX SGL.
  *
@@ -86,7 +86,7 @@ static int crypto_aead_copy_sgl(struct crypto_sync_skcipher *null_tfm,
 }
 
 static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
-			 size_t ignored, int flags)
+			 size_t igyesred, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
@@ -113,17 +113,17 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	}
 
 	/*
-	 * Data length provided by caller via sendmsg/sendpage that has not
+	 * Data length provided by caller via sendmsg/sendpage that has yest
 	 * yet been processed.
 	 */
 	used = ctx->used;
 
 	/*
-	 * Make sure sufficient data is present -- note, the same check is
+	 * Make sure sufficient data is present -- yeste, the same check is
 	 * is also present in sendmsg/sendpage. The checks in sendpage/sendmsg
 	 * shall provide an information to the data sender that something is
 	 * wrong, but they are irrelevant to maintain the kernel integrity.
-	 * We need this check here too in case user space decides to not honor
+	 * We need this check here too in case user space decides to yest hoyesr
 	 * the error message in sendmsg/sendpage and still call recvmsg. This
 	 * check here protects the kernel integrity.
 	 */
@@ -201,7 +201,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	 *
 	 * The AAD is copied to the destination buffer without change. Even
 	 * when user space uses an in-place cipher operation, the kernel
-	 * will copy the data as it does not see whether such in-place operation
+	 * will copy the data as it does yest see whether such in-place operation
 	 * is initiated.
 	 *
 	 * To ensure efficiency, the following implementation ensure that the
@@ -272,7 +272,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 			sg_chain(sgl_prev->sg, sgl_prev->npages + 1,
 				 areq->tsgl);
 		} else
-			/* no RX SGL present (e.g. authentication only) */
+			/* yes RX SGL present (e.g. authentication only) */
 			rsgl_src = areq->tsgl;
 	}
 
@@ -302,7 +302,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 
 		sock_put(sk);
 	} else {
-		/* Synchronous operation */
+		/* Synchroyesus operation */
 		aead_request_set_callback(&areq->cra_u.aead_req,
 					  CRYPTO_TFM_REQ_MAY_BACKLOG,
 					  crypto_req_done, &ctx->wait);
@@ -320,14 +320,14 @@ free:
 }
 
 static int aead_recvmsg(struct socket *sock, struct msghdr *msg,
-			size_t ignored, int flags)
+			size_t igyesred, int flags)
 {
 	struct sock *sk = sock->sk;
 	int ret = 0;
 
 	lock_sock(sk);
 	while (msg_data_left(msg)) {
-		int err = _aead_recvmsg(sock, msg, ignored, flags);
+		int err = _aead_recvmsg(sock, msg, igyesred, flags);
 
 		/*
 		 * This error covers -EIOCBQUEUED which implies that we can
@@ -335,7 +335,7 @@ static int aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		 * multiple AIO requests in parallel, he must make multiple
 		 * separate AIO calls.
 		 *
-		 * Also return the error if no data has been processed so far.
+		 * Also return the error if yes data has been processed so far.
 		 */
 		if (err <= 0) {
 			if (err == -EIOCBQUEUED || err == -EBADMSG || !ret)
@@ -355,17 +355,17 @@ out:
 static struct proto_ops algif_aead_ops = {
 	.family		=	PF_ALG,
 
-	.connect	=	sock_no_connect,
-	.socketpair	=	sock_no_socketpair,
-	.getname	=	sock_no_getname,
-	.ioctl		=	sock_no_ioctl,
-	.listen		=	sock_no_listen,
-	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
-	.mmap		=	sock_no_mmap,
-	.bind		=	sock_no_bind,
-	.accept		=	sock_no_accept,
-	.setsockopt	=	sock_no_setsockopt,
+	.connect	=	sock_yes_connect,
+	.socketpair	=	sock_yes_socketpair,
+	.getname	=	sock_yes_getname,
+	.ioctl		=	sock_yes_ioctl,
+	.listen		=	sock_yes_listen,
+	.shutdown	=	sock_yes_shutdown,
+	.getsockopt	=	sock_yes_getsockopt,
+	.mmap		=	sock_yes_mmap,
+	.bind		=	sock_yes_bind,
+	.accept		=	sock_yes_accept,
+	.setsockopt	=	sock_yes_setsockopt,
 
 	.release	=	af_alg_release,
 	.sendmsg	=	aead_sendmsg,
@@ -412,7 +412,7 @@ unlock_child:
 	return err;
 }
 
-static int aead_sendmsg_nokey(struct socket *sock, struct msghdr *msg,
+static int aead_sendmsg_yeskey(struct socket *sock, struct msghdr *msg,
 				  size_t size)
 {
 	int err;
@@ -424,7 +424,7 @@ static int aead_sendmsg_nokey(struct socket *sock, struct msghdr *msg,
 	return aead_sendmsg(sock, msg, size);
 }
 
-static ssize_t aead_sendpage_nokey(struct socket *sock, struct page *page,
+static ssize_t aead_sendpage_yeskey(struct socket *sock, struct page *page,
 				       int offset, size_t size, int flags)
 {
 	int err;
@@ -436,8 +436,8 @@ static ssize_t aead_sendpage_nokey(struct socket *sock, struct page *page,
 	return af_alg_sendpage(sock, page, offset, size, flags);
 }
 
-static int aead_recvmsg_nokey(struct socket *sock, struct msghdr *msg,
-				  size_t ignored, int flags)
+static int aead_recvmsg_yeskey(struct socket *sock, struct msghdr *msg,
+				  size_t igyesred, int flags)
 {
 	int err;
 
@@ -445,28 +445,28 @@ static int aead_recvmsg_nokey(struct socket *sock, struct msghdr *msg,
 	if (err)
 		return err;
 
-	return aead_recvmsg(sock, msg, ignored, flags);
+	return aead_recvmsg(sock, msg, igyesred, flags);
 }
 
-static struct proto_ops algif_aead_ops_nokey = {
+static struct proto_ops algif_aead_ops_yeskey = {
 	.family		=	PF_ALG,
 
-	.connect	=	sock_no_connect,
-	.socketpair	=	sock_no_socketpair,
-	.getname	=	sock_no_getname,
-	.ioctl		=	sock_no_ioctl,
-	.listen		=	sock_no_listen,
-	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
-	.mmap		=	sock_no_mmap,
-	.bind		=	sock_no_bind,
-	.accept		=	sock_no_accept,
-	.setsockopt	=	sock_no_setsockopt,
+	.connect	=	sock_yes_connect,
+	.socketpair	=	sock_yes_socketpair,
+	.getname	=	sock_yes_getname,
+	.ioctl		=	sock_yes_ioctl,
+	.listen		=	sock_yes_listen,
+	.shutdown	=	sock_yes_shutdown,
+	.getsockopt	=	sock_yes_getsockopt,
+	.mmap		=	sock_yes_mmap,
+	.bind		=	sock_yes_bind,
+	.accept		=	sock_yes_accept,
+	.setsockopt	=	sock_yes_setsockopt,
 
 	.release	=	af_alg_release,
-	.sendmsg	=	aead_sendmsg_nokey,
-	.sendpage	=	aead_sendpage_nokey,
-	.recvmsg	=	aead_recvmsg_nokey,
+	.sendmsg	=	aead_sendmsg_yeskey,
+	.sendpage	=	aead_sendpage_yeskey,
+	.recvmsg	=	aead_recvmsg_yeskey,
 	.poll		=	af_alg_poll,
 };
 
@@ -538,7 +538,7 @@ static void aead_sock_destruct(struct sock *sk)
 	af_alg_release_parent(sk);
 }
 
-static int aead_accept_parent_nokey(void *private, struct sock *sk)
+static int aead_accept_parent_yeskey(void *private, struct sock *sk)
 {
 	struct af_alg_ctx *ctx;
 	struct alg_sock *ask = alg_sk(sk);
@@ -583,7 +583,7 @@ static int aead_accept_parent(void *private, struct sock *sk)
 	if (crypto_aead_get_flags(tfm->aead) & CRYPTO_TFM_NEED_KEY)
 		return -ENOKEY;
 
-	return aead_accept_parent_nokey(private, sk);
+	return aead_accept_parent_yeskey(private, sk);
 }
 
 static const struct af_alg_type algif_type_aead = {
@@ -592,9 +592,9 @@ static const struct af_alg_type algif_type_aead = {
 	.setkey		=	aead_setkey,
 	.setauthsize	=	aead_setauthsize,
 	.accept		=	aead_accept_parent,
-	.accept_nokey	=	aead_accept_parent_nokey,
+	.accept_yeskey	=	aead_accept_parent_yeskey,
 	.ops		=	&algif_aead_ops,
-	.ops_nokey	=	&algif_aead_ops_nokey,
+	.ops_yeskey	=	&algif_aead_ops_yeskey,
 	.name		=	"aead",
 	.owner		=	THIS_MODULE
 };
@@ -613,5 +613,5 @@ static void __exit algif_aead_exit(void)
 module_init(algif_aead_init);
 module_exit(algif_aead_exit);
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Stephan Mueller <smueller@chronox.de>");
+MODULE_AUTHOR("Stephan Mueller <smueller@chroyesx.de>");
 MODULE_DESCRIPTION("AEAD kernel crypto API user space interface");

@@ -8,9 +8,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -42,18 +42,18 @@
  *
  *	The hil_mlcs_tasklet processes the state machine for all MLCs
  *	each time it runs, checking each MLC's progress at the current
- *	node in the state machine, and moving the MLC to subsequent nodes
+ *	yesde in the state machine, and moving the MLC to subsequent yesdes
  *	in the state machine when appropriate.  It will reschedule
  *	itself if output is pending.  (This rescheduling should be replaced
  *	at some point with a sub-driver-specific mechanism.)
  *
  *	A timer task prods the tasklet once per second to prevent
- *	hangups when attached devices do not return expected data
+ *	hangups when attached devices do yest return expected data
  *	and to initiate probes of the loop for new devices.
  */
 
 #include <linux/hil_mlc.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -109,7 +109,7 @@ static int hil_mlc_match_di_scratch(hil_mlc *mlc)
 	for (idx = 0; idx < HIL_MLC_DEVMEM; idx++) {
 		int j, found = 0;
 
-		/* In-use slots are not eligible. */
+		/* In-use slots are yest eligible. */
 		for (j = 0; j < 7 ; j++)
 			if (mlc->di_map[j] == idx)
 				found++;
@@ -206,9 +206,9 @@ static void hil_mlc_send_polls(hil_mlc *mlc)
 
 #define HILSEN_SCHED	0x000100	/* Schedule the tasklet		*/
 #define HILSEN_BREAK	0x000200	/* Wait until next pass		*/
-#define HILSEN_UP	0x000400	/* relative node#, decrement	*/
-#define HILSEN_DOWN	0x000800	/* relative node#, increment	*/
-#define HILSEN_FOLLOW	0x001000	/* use retval as next node#	*/
+#define HILSEN_UP	0x000400	/* relative yesde#, decrement	*/
+#define HILSEN_DOWN	0x000800	/* relative yesde#, increment	*/
+#define HILSEN_FOLLOW	0x001000	/* use retval as next yesde#	*/
 
 #define HILSEN_MASK	0x0000ff
 #define HILSEN_START	0
@@ -274,12 +274,12 @@ static int hilse_match(hil_mlc *mlc, int unused)
 /* An LCV used to prevent runaway loops, forces 5 second sleep when reset. */
 static int hilse_init_lcv(hil_mlc *mlc, int unused)
 {
-	time64_t now = ktime_get_seconds();
+	time64_t yesw = ktime_get_seconds();
 
-	if (mlc->lcv && (now - mlc->lcv_time) < 5)
+	if (mlc->lcv && (yesw - mlc->lcv_time) < 5)
 		return -1;
 
-	mlc->lcv_time = now;
+	mlc->lcv_time = yesw;
 	mlc->lcv = 0;
 
 	return 0;
@@ -299,7 +299,7 @@ static int hilse_set_lcv(hil_mlc *mlc, int val)
 }
 #endif
 
-/* Management of the discovered device index (zero based, -1 means no devs) */
+/* Management of the discovered device index (zero based, -1 means yes devs) */
 static int hilse_set_ddi(hil_mlc *mlc, int val)
 {
 	mlc->ddi = val;
@@ -336,7 +336,7 @@ static int hilse_take_idd(hil_mlc *mlc, int unused)
 	/* Help the state engine:
 	 * Is this a real IDD response or just an echo?
 	 *
-	 * Real IDD response does not start with a command.
+	 * Real IDD response does yest start with a command.
 	 */
 	if (mlc->ipacket[0] & HIL_PKT_CMD)
 		goto bail;
@@ -458,7 +458,7 @@ static int hilse_operate(hil_mlc *mlc, int repoll)
 #define OUT_LAST(pack) \
 { HILSE_OUT_LAST,	{ .packet = pack }, 0, 0, 0, 0 },
 
-static const struct hilse_node hil_mlc_se[HILSEN_END] = {
+static const struct hilse_yesde hil_mlc_se[HILSEN_END] = {
 
 	/* 0  HILSEN_START */
 	FUNC(hilse_init_lcv, 0,	HILSEN_NEXT,	HILSEN_SLEEP,	0)
@@ -580,20 +580,20 @@ static const struct hilse_node hil_mlc_se[HILSEN_END] = {
 	/* 60 HILSEN_END */
 };
 
-static inline void hilse_setup_input(hil_mlc *mlc, const struct hilse_node *node)
+static inline void hilse_setup_input(hil_mlc *mlc, const struct hilse_yesde *yesde)
 {
 
-	switch (node->act) {
+	switch (yesde->act) {
 	case HILSE_EXPECT_DISC:
-		mlc->imatch = node->object.packet;
+		mlc->imatch = yesde->object.packet;
 		mlc->imatch |= ((mlc->ddi + 2) << HIL_PKT_ADDR_SHIFT);
 		break;
 	case HILSE_EXPECT_LAST:
-		mlc->imatch = node->object.packet;
+		mlc->imatch = yesde->object.packet;
 		mlc->imatch |= ((mlc->ddi + 1) << HIL_PKT_ADDR_SHIFT);
 		break;
 	case HILSE_EXPECT:
-		mlc->imatch = node->object.packet;
+		mlc->imatch = yesde->object.packet;
 		break;
 	case HILSE_IN:
 		mlc->imatch = 0;
@@ -602,7 +602,7 @@ static inline void hilse_setup_input(hil_mlc *mlc, const struct hilse_node *node
 		BUG();
 	}
 	mlc->istarted = 1;
-	mlc->intimeout = usecs_to_jiffies(node->arg);
+	mlc->intimeout = usecs_to_jiffies(yesde->arg);
 	mlc->instart = jiffies;
 	mlc->icount = 15;
 	memset(mlc->ipacket, 0, 16 * sizeof(hil_packet));
@@ -614,9 +614,9 @@ static int doze;
 static int seidx; /* For debug */
 #endif
 
-static int hilse_donode(hil_mlc *mlc)
+static int hilse_doyesde(hil_mlc *mlc)
 {
-	const struct hilse_node *node;
+	const struct hilse_yesde *yesde;
 	int nextidx = 0;
 	int sched_long = 0;
 	unsigned long flags;
@@ -630,17 +630,17 @@ static int hilse_donode(hil_mlc *mlc)
 
 	seidx = mlc->seidx;
 #endif
-	node = hil_mlc_se + mlc->seidx;
+	yesde = hil_mlc_se + mlc->seidx;
 
-	switch (node->act) {
+	switch (yesde->act) {
 		int rc;
 		hil_packet pack;
 
 	case HILSE_FUNC:
-		BUG_ON(node->object.func == NULL);
-		rc = node->object.func(mlc, node->arg);
-		nextidx = (rc > 0) ? node->ugly :
-			((rc < 0) ? node->bad : node->good);
+		BUG_ON(yesde->object.func == NULL);
+		rc = yesde->object.func(mlc, yesde->arg);
+		nextidx = (rc > 0) ? yesde->ugly :
+			((rc < 0) ? yesde->bad : yesde->good);
 		if (nextidx == HILSEN_FOLLOW)
 			nextidx = rc;
 		break;
@@ -651,7 +651,7 @@ static int hilse_donode(hil_mlc *mlc)
 	case HILSE_IN:
 		/* Already set up from previous HILSE_OUT_* */
 		write_lock_irqsave(&mlc->lock, flags);
-		rc = mlc->in(mlc, node->arg);
+		rc = mlc->in(mlc, yesde->arg);
 		if (rc == 2)  {
 			nextidx = HILSEN_DOZE;
 			sched_long = 1;
@@ -659,35 +659,35 @@ static int hilse_donode(hil_mlc *mlc)
 			break;
 		}
 		if (rc == 1)
-			nextidx = node->ugly;
+			nextidx = yesde->ugly;
 		else if (rc == 0)
-			nextidx = node->good;
+			nextidx = yesde->good;
 		else
-			nextidx = node->bad;
+			nextidx = yesde->bad;
 		mlc->istarted = 0;
 		write_unlock_irqrestore(&mlc->lock, flags);
 		break;
 
 	case HILSE_OUT_LAST:
 		write_lock_irqsave(&mlc->lock, flags);
-		pack = node->object.packet;
+		pack = yesde->object.packet;
 		pack |= ((mlc->ddi + 1) << HIL_PKT_ADDR_SHIFT);
 		goto out;
 
 	case HILSE_OUT_DISC:
 		write_lock_irqsave(&mlc->lock, flags);
-		pack = node->object.packet;
+		pack = yesde->object.packet;
 		pack |= ((mlc->ddi + 2) << HIL_PKT_ADDR_SHIFT);
 		goto out;
 
 	case HILSE_OUT:
 		write_lock_irqsave(&mlc->lock, flags);
-		pack = node->object.packet;
+		pack = yesde->object.packet;
 	out:
 		if (!mlc->istarted) {
 			/* Prepare to receive input */
-			if ((node + 1)->act & HILSE_IN)
-				hilse_setup_input(mlc, node + 1);
+			if ((yesde + 1)->act & HILSE_IN)
+				hilse_setup_input(mlc, yesde + 1);
 		}
 
 		write_unlock_irqrestore(&mlc->lock, flags);
@@ -715,7 +715,7 @@ static int hilse_donode(hil_mlc *mlc)
 
 	case HILSE_CTS:
 		write_lock_irqsave(&mlc->lock, flags);
-		nextidx = mlc->cts(mlc) ? node->bad : node->good;
+		nextidx = mlc->cts(mlc) ? yesde->bad : yesde->good;
 		write_unlock_irqrestore(&mlc->lock, flags);
 		break;
 
@@ -729,12 +729,12 @@ static int hilse_donode(hil_mlc *mlc)
 #endif
 
 	while (nextidx & HILSEN_SCHED) {
-		unsigned long now = jiffies;
+		unsigned long yesw = jiffies;
 
 		if (!sched_long)
 			goto sched;
 
-		if (time_after(now, mlc->instart + mlc->intimeout))
+		if (time_after(yesw, mlc->instart + mlc->intimeout))
 			 goto sched;
 		mod_timer(&hil_mlcs_kicker, mlc->instart + mlc->intimeout);
 		break;
@@ -764,7 +764,7 @@ static void hil_mlcs_process(unsigned long unused)
 	read_lock(&hil_mlcs_lock);
 	list_for_each(tmp, &hil_mlcs) {
 		struct hil_mlc *mlc = list_entry(tmp, hil_mlc, list);
-		while (hilse_donode(mlc) == 0) {
+		while (hilse_doyesde(mlc) == 0) {
 #ifdef HIL_MLC_DEBUG
 			if (mlc->seidx != 41 &&
 			    mlc->seidx != 42 &&
@@ -806,7 +806,7 @@ static int hil_mlc_serio_write(struct serio *serio, unsigned char c)
 		((hil_packet)c) << (8 * (3 - mlc->serio_oidx[map->didx]));
 
 	if (mlc->serio_oidx[map->didx] >= 3) {
-		/* for now only commands */
+		/* for yesw only commands */
 		if (!(mlc->serio_opacket[map->didx] & HIL_PKT_CMD))
 			return -EIO;
 		switch (mlc->serio_opacket[map->didx] & HIL_PKT_DATA_MASK) {
@@ -933,7 +933,7 @@ int hil_mlc_register(hil_mlc *mlc)
 		snprintf(mlc_serio->name, sizeof(mlc_serio->name)-1, "HIL_SERIO%d", i);
 		snprintf(mlc_serio->phys, sizeof(mlc_serio->phys)-1, "HIL%d", i);
 		mlc_serio->id			= hil_mlc_serio_id;
-		mlc_serio->id.id		= i; /* HIL port no. */
+		mlc_serio->id.id		= i; /* HIL port yes. */
 		mlc_serio->write		= hil_mlc_serio_write;
 		mlc_serio->open			= hil_mlc_serio_open;
 		mlc_serio->close		= hil_mlc_serio_close;
@@ -970,7 +970,7 @@ int hil_mlc_unregister(hil_mlc *mlc)
 		if (list_entry(tmp, hil_mlc, list) == mlc)
 			goto found;
 
-	/* not found in list */
+	/* yest found in list */
 	write_unlock_irqrestore(&hil_mlcs_lock, flags);
 	tasklet_schedule(&hil_mlcs_tasklet);
 	return -ENODEV;

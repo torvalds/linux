@@ -35,28 +35,28 @@ struct clock_topology {
 struct clk_hw *zynqmp_clk_register_pll(const char *name, u32 clk_id,
 				       const char * const *parents,
 				       u8 num_parents,
-				       const struct clock_topology *nodes);
+				       const struct clock_topology *yesdes);
 
 struct clk_hw *zynqmp_clk_register_gate(const char *name, u32 clk_id,
 					const char * const *parents,
 					u8 num_parents,
-					const struct clock_topology *nodes);
+					const struct clock_topology *yesdes);
 
 struct clk_hw *zynqmp_clk_register_divider(const char *name,
 					   u32 clk_id,
 					   const char * const *parents,
 					   u8 num_parents,
-					   const struct clock_topology *nodes);
+					   const struct clock_topology *yesdes);
 
 struct clk_hw *zynqmp_clk_register_mux(const char *name, u32 clk_id,
 				       const char * const *parents,
 				       u8 num_parents,
-				       const struct clock_topology *nodes);
+				       const struct clock_topology *yesdes);
 
 struct clk_hw *zynqmp_clk_register_fixed_factor(const char *name,
 					u32 clk_id,
 					const char * const *parents,
 					u8 num_parents,
-					const struct clock_topology *nodes);
+					const struct clock_topology *yesdes);
 
 #endif

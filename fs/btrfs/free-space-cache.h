@@ -7,7 +7,7 @@
 #define BTRFS_FREE_SPACE_CACHE_H
 
 struct btrfs_free_space {
-	struct rb_node offset_index;
+	struct rb_yesde offset_index;
 	u64 offset;
 	u64 bytes;
 	u64 max_extent_size;
@@ -41,7 +41,7 @@ struct btrfs_io_ctl {
 	struct page *page;
 	struct page **pages;
 	struct btrfs_fs_info *fs_info;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	unsigned long size;
 	int index;
 	int num_pages;
@@ -50,9 +50,9 @@ struct btrfs_io_ctl {
 	unsigned check_crcs:1;
 };
 
-struct inode *lookup_free_space_inode(struct btrfs_block_group *block_group,
+struct iyesde *lookup_free_space_iyesde(struct btrfs_block_group *block_group,
 		struct btrfs_path *path);
-int create_free_space_inode(struct btrfs_trans_handle *trans,
+int create_free_space_iyesde(struct btrfs_trans_handle *trans,
 			    struct btrfs_block_group *block_group,
 			    struct btrfs_path *path);
 
@@ -60,7 +60,7 @@ int btrfs_check_trunc_cache_free_space(struct btrfs_fs_info *fs_info,
 				       struct btrfs_block_rsv *rsv);
 int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 				    struct btrfs_block_group *block_group,
-				    struct inode *inode);
+				    struct iyesde *iyesde);
 int load_free_space_cache(struct btrfs_block_group *block_group);
 int btrfs_wait_cache_io(struct btrfs_trans_handle *trans,
 			struct btrfs_block_group *block_group,
@@ -68,17 +68,17 @@ int btrfs_wait_cache_io(struct btrfs_trans_handle *trans,
 int btrfs_write_out_cache(struct btrfs_trans_handle *trans,
 			  struct btrfs_block_group *block_group,
 			  struct btrfs_path *path);
-struct inode *lookup_free_ino_inode(struct btrfs_root *root,
+struct iyesde *lookup_free_iyes_iyesde(struct btrfs_root *root,
 				    struct btrfs_path *path);
-int create_free_ino_inode(struct btrfs_root *root,
+int create_free_iyes_iyesde(struct btrfs_root *root,
 			  struct btrfs_trans_handle *trans,
 			  struct btrfs_path *path);
-int load_free_ino_cache(struct btrfs_fs_info *fs_info,
+int load_free_iyes_cache(struct btrfs_fs_info *fs_info,
 			struct btrfs_root *root);
-int btrfs_write_out_ino_cache(struct btrfs_root *root,
+int btrfs_write_out_iyes_cache(struct btrfs_root *root,
 			      struct btrfs_trans_handle *trans,
 			      struct btrfs_path *path,
-			      struct inode *inode);
+			      struct iyesde *iyesde);
 
 void btrfs_init_free_space_ctl(struct btrfs_block_group *block_group);
 int __btrfs_add_free_space(struct btrfs_fs_info *fs_info,
@@ -93,7 +93,7 @@ void btrfs_remove_free_space_cache(struct btrfs_block_group *block_group);
 u64 btrfs_find_space_for_alloc(struct btrfs_block_group *block_group,
 			       u64 offset, u64 bytes, u64 empty_size,
 			       u64 *max_extent_size);
-u64 btrfs_find_ino_for_alloc(struct btrfs_root *fs_root);
+u64 btrfs_find_iyes_for_alloc(struct btrfs_root *fs_root);
 void btrfs_dump_free_space(struct btrfs_block_group *block_group,
 			   u64 bytes);
 int btrfs_find_space_cluster(struct btrfs_block_group *block_group,

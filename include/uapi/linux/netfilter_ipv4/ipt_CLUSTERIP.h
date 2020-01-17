@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _IPT_CLUSTERIP_H_target
 #define _IPT_CLUSTERIP_H_target
 
@@ -25,9 +25,9 @@ struct ipt_clusterip_tgt_info {
 
 	/* only relevant for new ones */
 	__u8 clustermac[ETH_ALEN];
-	__u16 num_total_nodes;
-	__u16 num_local_nodes;
-	__u16 local_nodes[CLUSTERIP_MAX_NODES];
+	__u16 num_total_yesdes;
+	__u16 num_local_yesdes;
+	__u16 local_yesdes[CLUSTERIP_MAX_NODES];
 	__u32 hash_mode;
 	__u32 hash_initval;
 

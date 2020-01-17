@@ -439,7 +439,7 @@ static int ath10k_sdio_mbox_rx_process_packets(struct ath10k *ar,
 		ep = &htc->endpoint[id];
 
 		if (ep->service_id == 0) {
-			ath10k_warn(ar, "ep %d is not connected\n", id);
+			ath10k_warn(ar, "ep %d is yest connected\n", id);
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -467,7 +467,7 @@ static int ath10k_sdio_mbox_rx_process_packets(struct ath10k *ar,
 		else
 			kfree_skb(pkt->skb);
 
-		/* The RX complete handler now owns the skb...*/
+		/* The RX complete handler yesw owns the skb...*/
 		pkt->skb = NULL;
 		pkt->alloc_len = 0;
 	}
@@ -475,7 +475,7 @@ static int ath10k_sdio_mbox_rx_process_packets(struct ath10k *ar,
 	ret = 0;
 
 out:
-	/* Free all packets that was not passed on to the RX completion
+	/* Free all packets that was yest passed on to the RX completion
 	 * handler...
 	 */
 	for (; i < ar_sdio->n_rx_pkts; i++)
@@ -504,7 +504,7 @@ static int ath10k_sdio_mbox_alloc_pkt_bundle(struct ath10k *ar,
 
 	/* Allocate bndl_cnt extra skb's for the bundle.
 	 * The package containing the
-	 * ATH10K_HTC_FLAG_BUNDLE_MASK flag is not included
+	 * ATH10K_HTC_FLAG_BUNDLE_MASK flag is yest included
 	 * in bndl_cnt. The skb for that packet will be
 	 * allocated separately.
 	 */
@@ -671,7 +671,7 @@ static int ath10k_sdio_mbox_rx_fetch(struct ath10k *ar)
 	return 0;
 
 err:
-	/* Free all packets that was not successfully fetched. */
+	/* Free all packets that was yest successfully fetched. */
 	for (; i < ar_sdio->n_rx_pkts; i++)
 		ath10k_sdio_mbox_free_rx_pkt(&ar_sdio->rx_pkts[i]);
 
@@ -895,11 +895,11 @@ static int ath10k_sdio_mbox_read_int_status(struct ath10k *ar,
 	*lookahead = 0;
 	*host_int_status = 0;
 
-	/* int_status_en is supposed to be non zero, otherwise interrupts
+	/* int_status_en is supposed to be yesn zero, otherwise interrupts
 	 * shouldn't be enabled. There is however a short time frame during
 	 * initialization between the irq register and int_status_en init
 	 * where this can happen.
-	 * We silently ignore this condition.
+	 * We silently igyesre this condition.
 	 */
 	if (!irq_en_reg->int_status_en) {
 		ret = 0;
@@ -982,7 +982,7 @@ static int ath10k_sdio_mbox_proc_pending_irqs(struct ath10k *ar,
 			goto out;
 	}
 
-	/* now, handle the rest of the interrupts */
+	/* yesw, handle the rest of the interrupts */
 	ath10k_dbg(ar, ATH10K_DBG_SDIO,
 		   "sdio host_int_status 0x%x\n", host_int_status);
 
@@ -1010,11 +1010,11 @@ out:
 	/* An optimization to bypass reading the IRQ status registers
 	 * unecessarily which can re-wake the target, if upper layers
 	 * determine that we are in a low-throughput mode, we can rely on
-	 * taking another interrupt rather than re-checking the status
+	 * taking ayesther interrupt rather than re-checking the status
 	 * registers which can re-wake the target.
 	 *
 	 * NOTE : for host interfaces that makes use of detecting pending
-	 * mbox messages at hif can not use this optimization due to
+	 * mbox messages at hif can yest use this optimization due to
 	 * possible side effects, SPI requires the host to drain all
 	 * messages from the mailbox before exiting the ISR routine.
 	 */
@@ -1086,7 +1086,7 @@ static int ath10k_sdio_bmi_credits(struct ath10k *ar)
 	while (time_before(jiffies, timeout) && !cmd_credits) {
 		/* Hit the credit counter with a 4-byte access, the first byte
 		 * read will hit the counter and cause a decrement, while the
-		 * remaining 3 bytes has no effect. The rationale behind this
+		 * remaining 3 bytes has yes effect. The rationale behind this
 		 * is to make all HIF accesses 4-byte aligned.
 		 */
 		ret = ath10k_sdio_read32(ar, addr, &cmd_credits);
@@ -1098,7 +1098,7 @@ static int ath10k_sdio_bmi_credits(struct ath10k *ar)
 		}
 
 		/* The counter is only 8 bits.
-		 * Ignore anything in the upper 3 bytes
+		 * Igyesre anything in the upper 3 bytes
 		 */
 		cmd_credits &= 0xFF;
 	}
@@ -1170,17 +1170,17 @@ static int ath10k_sdio_bmi_exchange_msg(struct ath10k *ar,
 		/* No response expected */
 		return 0;
 
-	/* During normal bootup, small reads may be required.
+	/* During yesrmal bootup, small reads may be required.
 	 * Rather than issue an HIF Read and then wait as the Target
 	 * adds successive bytes to the FIFO, we wait here until
-	 * we know that response data is available.
+	 * we kyesw that response data is available.
 	 *
 	 * This allows us to cleanly timeout on an unexpected
 	 * Target failure rather than risk problems at the HIF level.
 	 * In particular, this avoids SDIO timeouts and possibly garbage
 	 * data on some host controllers.  And on an interconnect
 	 * such as Compact Flash (as well as some SDIO masters) which
-	 * does not provide any indication on data timeout, it avoids
+	 * does yest provide any indication on data timeout, it avoids
 	 * a potential hang or garbage response.
 	 *
 	 * Synchronization is more difficult for reads larger than the
@@ -1189,11 +1189,11 @@ static int ath10k_sdio_bmi_exchange_msg(struct ath10k *ar,
 	 * HIF Read and removes some FIFO data.  So for large reads the
 	 * Host proceeds to post an HIF Read BEFORE all the data is
 	 * actually available to read.  Fortunately, large BMI reads do
-	 * not occur in practice -- they're supported for debug/development.
+	 * yest occur in practice -- they're supported for debug/development.
 	 *
 	 * So Host/Target BMI synchronization is divided into these cases:
 	 *  CASE 1: length < 4
-	 *        Should not happen
+	 *        Should yest happen
 	 *
 	 *  CASE 2: 4 <= length <= 128
 	 *        Wait for first 4 bytes to be in FIFO
@@ -1207,12 +1207,12 @@ static int ath10k_sdio_bmi_exchange_msg(struct ath10k *ar,
 	 * For most uses, a small timeout should be sufficient and we will
 	 * usually see a response quickly; but there may be some unusual
 	 * (debug) cases of BMI_EXECUTE where we want an larger timeout.
-	 * For now, we use an unbounded busy loop while waiting for
+	 * For yesw, we use an unbounded busy loop while waiting for
 	 * BMI_EXECUTE.
 	 *
 	 * If BMI_EXECUTE ever needs to support longer-latency execution,
 	 * especially in production, this code needs to be enhanced to sleep
-	 * and yield.  Also note that BMI_COMMUNICATION_TIMEOUT is currently
+	 * and yield.  Also yeste that BMI_COMMUNICATION_TIMEOUT is currently
 	 * a function of Host processor speed.
 	 */
 	ret = ath10k_sdio_bmi_get_rx_lookahead(ar);
@@ -1280,12 +1280,12 @@ static void __ath10k_sdio_write_async(struct ath10k *ar,
 	skb = req->skb;
 	ret = ath10k_sdio_write(ar, req->address, skb->data, skb->len);
 	if (ret)
-		ath10k_warn(ar, "failed to write skb to 0x%x asynchronously: %d",
+		ath10k_warn(ar, "failed to write skb to 0x%x asynchroyesusly: %d",
 			    req->address, ret);
 
 	if (req->htc_msg) {
 		ep = &ar->htc.endpoint[req->eid];
-		ath10k_htc_notify_tx_completion(ep, skb);
+		ath10k_htc_yestify_tx_completion(ep, skb);
 	} else if (req->comp) {
 		complete(req->comp);
 	}
@@ -1516,7 +1516,7 @@ static int ath10k_sdio_hif_enable_intrs(struct ath10k *ar)
 			      FIELD_PREP(MBOX_INT_STATUS_ENABLE_COUNTER_MASK, 1);
 
 	/* NOTE: There are some cases where HIF can do detection of
-	 * pending mbox messages which is disabled now.
+	 * pending mbox messages which is disabled yesw.
 	 */
 	regs->int_status_en |=
 		FIELD_PREP(MBOX_INT_STATUS_ENABLE_MBOX_DATA_MASK, 1);
@@ -1576,7 +1576,7 @@ static int ath10k_sdio_hif_set_mbox_sleep(struct ath10k *ar, bool enable_sleep)
 	return 0;
 }
 
-/* HIF diagnostics */
+/* HIF diagyesstics */
 
 static int ath10k_sdio_hif_diag_read(struct ath10k *ar, u32 address, void *buf,
 				     size_t buf_len)
@@ -1789,7 +1789,7 @@ static void ath10k_sdio_hif_stop(struct ath10k *ar)
 
 	spin_lock_bh(&ar_sdio->wr_async_lock);
 
-	/* Free all bus requests that have not been handled */
+	/* Free all bus requests that have yest been handled */
 	list_for_each_entry_safe(req, tmp_req, &ar_sdio->wr_asyncq, list) {
 		struct ath10k_htc_ep *ep;
 
@@ -1797,7 +1797,7 @@ static void ath10k_sdio_hif_stop(struct ath10k *ar)
 
 		if (req->htc_msg) {
 			ep = &ar->htc.endpoint[req->eid];
-			ath10k_htc_notify_tx_completion(ep, req->skb);
+			ath10k_htc_yestify_tx_completion(ep, req->skb);
 		} else if (req->skb) {
 			kfree_skb(req->skb);
 		}
@@ -1925,9 +1925,9 @@ static void ath10k_sdio_hif_get_default_pipe(struct ath10k *ar,
 }
 
 /* This op is currently only used by htc_wait_target if the HTC ready
- * message times out. It is not applicable for SDIO since there is nothing
- * we can do if the HTC ready message does not arrive in time.
- * TODO: Make this op non mandatory by introducing a NULL check in the
+ * message times out. It is yest applicable for SDIO since there is yesthing
+ * we can do if the HTC ready message does yest arrive in time.
+ * TODO: Make this op yesn mandatory by introducing a NULL check in the
  * hif op wrapper.
  */
 static void ath10k_sdio_hif_send_complete_check(struct ath10k *ar,
@@ -1991,9 +1991,9 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	int ret, i;
 
 	/* Assumption: All SDIO based chipsets (so far) are QCA6174 based.
-	 * If there will be newer chipsets that does not use the hw reg
+	 * If there will be newer chipsets that does yest use the hw reg
 	 * setup as defined in qca6174_regs and qca6174_values, this
-	 * assumption is no longer valid and hw_rev must be setup differently
+	 * assumption is yes longer valid and hw_rev must be setup differently
 	 * depending on chipset.
 	 */
 	hw_rev = ATH10K_HW_QCA6174;
@@ -2076,7 +2076,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	ath10k_sdio_set_mbox_info(ar);
 
 	bus_params.dev_type = ATH10K_DEV_TYPE_HL;
-	/* TODO: don't know yet how to get chip_id with SDIO */
+	/* TODO: don't kyesw yet how to get chip_id with SDIO */
 	bus_params.chip_id = 0;
 	bus_params.hl_msdu_ids = true;
 

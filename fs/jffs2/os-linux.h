@@ -12,15 +12,15 @@
 #ifndef __JFFS2_OS_LINUX_H__
 #define __JFFS2_OS_LINUX_H__
 
-/* JFFS2 uses Linux mode bits natively -- no need for conversion */
+/* JFFS2 uses Linux mode bits natively -- yes need for conversion */
 #define os_to_jffs2_mode(x) (x)
 #define jffs2_to_os_mode(x) (x)
 
 struct kstatfs;
 struct kvec;
 
-#define JFFS2_INODE_INFO(i) (container_of(i, struct jffs2_inode_info, vfs_inode))
-#define OFNI_EDONI_2SFFJ(f)  (&(f)->vfs_inode)
+#define JFFS2_INODE_INFO(i) (container_of(i, struct jffs2_iyesde_info, vfs_iyesde))
+#define OFNI_EDONI_2SFFJ(f)  (&(f)->vfs_iyesde)
 #define JFFS2_SB_INFO(sb) (sb->s_fs_info)
 #define OFNI_BS_2SFFJ(c)  ((struct super_block *)c->os_priv)
 
@@ -48,7 +48,7 @@ struct kvec;
 		remove_wait_queue((wq), &__wait);		\
 	} while(0)
 
-static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
+static inline void jffs2_init_iyesde_info(struct jffs2_iyesde_info *f)
 {
 	f->highest_version = 0;
 	f->fragtree = RB_ROOT;
@@ -90,9 +90,9 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #define jffs2_dataflash(c) (0)
 #define jffs2_dataflash_setup(c) (0)
 #define jffs2_dataflash_cleanup(c) do {} while (0)
-#define jffs2_nor_wbuf_flash(c) (0)
-#define jffs2_nor_wbuf_flash_setup(c) (0)
-#define jffs2_nor_wbuf_flash_cleanup(c) do {} while (0)
+#define jffs2_yesr_wbuf_flash(c) (0)
+#define jffs2_yesr_wbuf_flash_setup(c) (0)
+#define jffs2_yesr_wbuf_flash_cleanup(c) do {} while (0)
 #define jffs2_ubivol(c) (0)
 #define jffs2_ubivol_setup(c) (0)
 #define jffs2_ubivol_cleanup(c) do {} while (0)
@@ -113,7 +113,7 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #define jffs2_wbuf_dirty(c) (!!(c)->wbuf_len)
 
 /* wbuf.c */
-int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *vecs, unsigned long count, loff_t to, size_t *retlen, uint32_t ino);
+int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *vecs, unsigned long count, loff_t to, size_t *retlen, uint32_t iyes);
 int jffs2_flash_write(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *retlen, const u_char *buf);
 int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *retlen, u_char *buf);
 int jffs2_check_oob_empty(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,int mode);
@@ -122,7 +122,7 @@ int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c, struct jffs2_erasebloc
 int jffs2_write_nand_badblock(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb, uint32_t bad_offset);
 void jffs2_wbuf_timeout(unsigned long data);
 void jffs2_wbuf_process(void *data);
-int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino);
+int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t iyes);
 int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c);
 int jffs2_nand_flash_setup(struct jffs2_sb_info *c);
 void jffs2_nand_flash_cleanup(struct jffs2_sb_info *c);
@@ -134,9 +134,9 @@ void jffs2_dataflash_cleanup(struct jffs2_sb_info *c);
 int jffs2_ubivol_setup(struct jffs2_sb_info *c);
 void jffs2_ubivol_cleanup(struct jffs2_sb_info *c);
 
-#define jffs2_nor_wbuf_flash(c) (c->mtd->type == MTD_NORFLASH && ! (c->mtd->flags & MTD_BIT_WRITEABLE))
-int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c);
-void jffs2_nor_wbuf_flash_cleanup(struct jffs2_sb_info *c);
+#define jffs2_yesr_wbuf_flash(c) (c->mtd->type == MTD_NORFLASH && ! (c->mtd->flags & MTD_BIT_WRITEABLE))
+int jffs2_yesr_wbuf_flash_setup(struct jffs2_sb_info *c);
+void jffs2_yesr_wbuf_flash_cleanup(struct jffs2_sb_info *c);
 void jffs2_dirty_trigger(struct jffs2_sb_info *c);
 
 #endif /* WRITEBUFFER */
@@ -148,11 +148,11 @@ void jffs2_garbage_collect_trigger(struct jffs2_sb_info *c);
 
 /* dir.c */
 extern const struct file_operations jffs2_dir_operations;
-extern const struct inode_operations jffs2_dir_inode_operations;
+extern const struct iyesde_operations jffs2_dir_iyesde_operations;
 
 /* file.c */
 extern const struct file_operations jffs2_file_operations;
-extern const struct inode_operations jffs2_file_inode_operations;
+extern const struct iyesde_operations jffs2_file_iyesde_operations;
 extern const struct address_space_operations jffs2_file_address_operations;
 int jffs2_fsync(struct file *, loff_t, loff_t, int);
 int jffs2_do_readpage_unlock(void *data, struct page *pg);
@@ -161,26 +161,26 @@ int jffs2_do_readpage_unlock(void *data, struct page *pg);
 long jffs2_ioctl(struct file *, unsigned int, unsigned long);
 
 /* symlink.c */
-extern const struct inode_operations jffs2_symlink_inode_operations;
+extern const struct iyesde_operations jffs2_symlink_iyesde_operations;
 
 /* fs.c */
 int jffs2_setattr (struct dentry *, struct iattr *);
-int jffs2_do_setattr (struct inode *, struct iattr *);
-struct inode *jffs2_iget(struct super_block *, unsigned long);
-void jffs2_evict_inode (struct inode *);
-void jffs2_dirty_inode(struct inode *inode, int flags);
-struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode,
-			       struct jffs2_raw_inode *ri);
+int jffs2_do_setattr (struct iyesde *, struct iattr *);
+struct iyesde *jffs2_iget(struct super_block *, unsigned long);
+void jffs2_evict_iyesde (struct iyesde *);
+void jffs2_dirty_iyesde(struct iyesde *iyesde, int flags);
+struct iyesde *jffs2_new_iyesde (struct iyesde *dir_i, umode_t mode,
+			       struct jffs2_raw_iyesde *ri);
 int jffs2_statfs (struct dentry *, struct kstatfs *);
 int jffs2_do_remount_fs(struct super_block *sb, struct fs_context *fc);
 int jffs2_do_fill_super(struct super_block *sb, struct fs_context *fc);
-void jffs2_gc_release_inode(struct jffs2_sb_info *c,
-			    struct jffs2_inode_info *f);
-struct jffs2_inode_info *jffs2_gc_fetch_inode(struct jffs2_sb_info *c,
+void jffs2_gc_release_iyesde(struct jffs2_sb_info *c,
+			    struct jffs2_iyesde_info *f);
+struct jffs2_iyesde_info *jffs2_gc_fetch_iyesde(struct jffs2_sb_info *c,
 					      int inum, int unlinked);
 
 unsigned char *jffs2_gc_fetch_page(struct jffs2_sb_info *c,
-				   struct jffs2_inode_info *f,
+				   struct jffs2_iyesde_info *f,
 				   unsigned long offset,
 				   unsigned long *priv);
 void jffs2_flash_cleanup(struct jffs2_sb_info *c);

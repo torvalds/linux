@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -361,7 +361,7 @@ struct tv_mode {
  *  dda2 = dda1_ideal - dda1_inc
  *
  *  then pick a ratio for dda2 that gives the closest approximation. If
- *  you can't get close enough, you can play with dda3 as well. This
+ *  you can't get close eyesugh, you can play with dda3 as well. This
  *  seems likely to happen when dda2 is small as the jumps would be larger
  *
  * To invert this,
@@ -1032,7 +1032,7 @@ intel_tv_mode_to_mode(struct drm_display_mode *mode,
 			tv_mode->vi_end_f2 + 1;
 	}
 
-	/* TV has it's own notion of sync and other mode flags, so clear them. */
+	/* TV has it's own yestion of sync and other mode flags, so clear them. */
 	mode->flags = 0;
 
 	mode->vrefresh = 0;
@@ -1276,7 +1276,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	 * encoder stalls the pipe every few lines to keep it in
 	 * check. When the TV encoder reaches the bottom margin the
 	 * pipe simply stops. Once we reach the TV vblank the pipe is
-	 * no longer stalled and it runs at the max rate (apparently
+	 * yes longer stalled and it runs at the max rate (apparently
 	 * oversample clock on gen3, cdclk on gen4). Once the pipe
 	 * reaches the pipe vtotal the pipe stops for the remainder
 	 * of the TV vblank/top margin. The pipe starts up again when
@@ -1301,7 +1301,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	 * pipe always stops). Ie. this would eliminate the second
 	 * flat portion of the above graph. However this would also
 	 * complicate vblank timestamping as the pipe vtotal would
-	 * no longer match the average rate the pipe runs at during
+	 * yes longer match the average rate the pipe runs at during
 	 * the active portion. Hence following this formula seems
 	 * more trouble that it's worth.
 	 *
@@ -1439,7 +1439,7 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 
 	switch (intel_tv->type) {
 	default:
-	case DRM_MODE_CONNECTOR_Unknown:
+	case DRM_MODE_CONNECTOR_Unkyeswn:
 	case DRM_MODE_CONNECTOR_Composite:
 		tv_ctl |= TV_ENC_OUTPUT_COMPOSITE;
 		video_levels = tv_mode->composite_levels;
@@ -1641,7 +1641,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	I915_WRITE(TV_CTL, save_tv_ctl);
 	POSTING_READ(TV_CTL);
 
-	/* For unknown reasons the hw barfs if we don't do this vblank wait. */
+	/* For unkyeswn reasons the hw barfs if we don't do this vblank wait. */
 	intel_wait_for_vblank(dev_priv, intel_crtc->pipe);
 
 	/* Restore interrupt config */
@@ -1658,7 +1658,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 
 /*
  * Here we set accurate tv format according to connector type
- * i.e Component TV should not be assigned by NTSC or PAL
+ * i.e Component TV should yest be assigned by NTSC or PAL
  */
 static void intel_tv_find_better_format(struct drm_connector *connector)
 {
@@ -1712,7 +1712,7 @@ intel_tv_detect(struct drm_connector *connector,
 				connector_status_disconnected :
 				connector_status_connected;
 		} else
-			status = connector_status_unknown;
+			status = connector_status_unkyeswn;
 
 		if (status == connector_status_connected) {
 			intel_tv->type = type;
@@ -1776,7 +1776,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 		    !tv_mode->component_only)
 			continue;
 
-		/* no vertical scaling with wide sources on gen3 */
+		/* yes vertical scaling with wide sources on gen3 */
 		if (IS_GEN(dev_priv, 3) && input->w > 1024 &&
 		    input->h > intel_tv_mode_vdisplay(tv_mode))
 			continue;
@@ -1790,7 +1790,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 		 * like it had the expected h/vdisplay. This
 		 * provides the most information to userspace
 		 * about the actual timings of the mode. We
-		 * do ignore the margins though.
+		 * do igyesre the margins though.
 		 */
 		intel_tv_mode_to_mode(mode, tv_mode);
 		if (count == 0) {
@@ -1874,7 +1874,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 		return;
 
 	if (!intel_bios_is_tv_present(dev_priv)) {
-		DRM_DEBUG_KMS("Integrated TV is not present.\n");
+		DRM_DEBUG_KMS("Integrated TV is yest present.\n");
 		return;
 	}
 
@@ -1893,7 +1893,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	I915_WRITE(TV_DAC, save_tv_dac);
 
 	/*
-	 * If the register does not hold the state change enable
+	 * If the register does yest hold the state change enable
 	 * bit, (either as a 0 or a 1), assume it doesn't really
 	 * exist
 	 */
@@ -1949,7 +1949,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	intel_encoder->port = PORT_NONE;
 	intel_encoder->pipe_mask = ~0;
 	intel_encoder->cloneable = 0;
-	intel_tv->type = DRM_MODE_CONNECTOR_Unknown;
+	intel_tv->type = DRM_MODE_CONNECTOR_Unkyeswn;
 
 	/* BIOS margin values */
 	state->tv.margins.left = 54;
@@ -1965,7 +1965,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 
 	/* Create TV properties then attach current values */
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
-		/* 1080p50/1080p60 not supported on gen3 */
+		/* 1080p50/1080p60 yest supported on gen3 */
 		if (IS_GEN(dev_priv, 3) &&
 		    tv_modes[i].oversample == 1)
 			break;

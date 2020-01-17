@@ -20,7 +20,7 @@ KVM/MIPS Trap & Emulate Release Notes
     Both the host kernel and Guest kernel should have the page size set to 16K.
     This will be implemented in a future release.
 
-(4) KVM/MIPS does not have support for SMP Guests
+(4) KVM/MIPS does yest have support for SMP Guests
     Linux-3.7-rc2 based SMP guest hangs due to the following code sequence in the generated TLB handlers:
 	LL/TLBP/SC.  Since the TLBP instruction causes a trap the reservation gets cleared
 	when we ERET back to the guest. This causes the guest to hang in an infinite loop.

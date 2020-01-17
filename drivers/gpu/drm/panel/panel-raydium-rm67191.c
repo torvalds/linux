@@ -36,7 +36,7 @@ struct cmd_set_entry {
 };
 
 /*
- * There is no description in the Reference Manual about these commands.
+ * There is yes description in the Reference Manual about these commands.
  * We received them from vendor, so just use them as is.
  */
 static const struct cmd_set_entry manufacturer_cmd_set[] = {
@@ -540,7 +540,7 @@ static int rad_init_regulators(struct rad_panel *rad)
 static int rad_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct rad_panel *panel;
 	struct backlight_properties bl_props;
 	int ret;
@@ -566,10 +566,10 @@ static int rad_panel_probe(struct mipi_dsi_device *dsi)
 			dsi->mode_flags |= MIPI_DSI_MODE_VIDEO_BURST;
 			break;
 		case 1:
-			/* non-burst mode with sync event */
+			/* yesn-burst mode with sync event */
 			break;
 		case 2:
-			/* non-burst mode with sync pulse */
+			/* yesn-burst mode with sync pulse */
 			dsi->mode_flags |= MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
 			break;
 		default:

@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -20,7 +20,7 @@
 #define ATH_DYN_BUF	64
 
 struct ath_hw;
-struct ath_node;
+struct ath_yesde;
 
 /**
  * struct ath_dyn_rxbuf - ACK frame ring buffer
@@ -61,7 +61,7 @@ struct ath_dyn_txbuf {
  * @enabled: enable dyn ack processing
  * @ackto: current ACK timeout
  * @lto: last ACK timeout computation
- * @nodes: ath_node linked list
+ * @yesdes: ath_yesde linked list
  * @qlock: ts queue spinlock
  * @ack_rbf: ACK ts ring buffer
  * @st_rbf: status ts ring buffer
@@ -71,7 +71,7 @@ struct ath_dynack {
 	int ackto;
 	unsigned long lto;
 
-	struct list_head nodes;
+	struct list_head yesdes;
 
 	/* protect timestamp queue access */
 	spinlock_t qlock;
@@ -81,8 +81,8 @@ struct ath_dynack {
 
 #if defined(CONFIG_ATH9K_DYNACK)
 void ath_dynack_reset(struct ath_hw *ah);
-void ath_dynack_node_init(struct ath_hw *ah, struct ath_node *an);
-void ath_dynack_node_deinit(struct ath_hw *ah, struct ath_node *an);
+void ath_dynack_yesde_init(struct ath_hw *ah, struct ath_yesde *an);
+void ath_dynack_yesde_deinit(struct ath_hw *ah, struct ath_yesde *an);
 void ath_dynack_init(struct ath_hw *ah);
 void ath_dynack_sample_ack_ts(struct ath_hw *ah, struct sk_buff *skb, u32 ts);
 void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
@@ -90,10 +90,10 @@ void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
 			     struct ieee80211_sta *sta);
 #else
 static inline void ath_dynack_init(struct ath_hw *ah) {}
-static inline void ath_dynack_node_init(struct ath_hw *ah,
-					struct ath_node *an) {}
-static inline void ath_dynack_node_deinit(struct ath_hw *ah,
-					  struct ath_node *an) {}
+static inline void ath_dynack_yesde_init(struct ath_hw *ah,
+					struct ath_yesde *an) {}
+static inline void ath_dynack_yesde_deinit(struct ath_hw *ah,
+					  struct ath_yesde *an) {}
 static inline void ath_dynack_sample_ack_ts(struct ath_hw *ah,
 					    struct sk_buff *skb, u32 ts) {}
 static inline void ath_dynack_sample_tx_ts(struct ath_hw *ah,

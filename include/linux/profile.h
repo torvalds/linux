@@ -7,7 +7,7 @@
 #include <linux/cpumask.h>
 #include <linux/cache.h>
 
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 #define CPU_PROFILING	1
 #define SCHED_PROFILING	2
@@ -16,7 +16,7 @@
 
 struct proc_dir_entry;
 struct pt_regs;
-struct notifier_block;
+struct yestifier_block;
 
 #if defined(CONFIG_PROFILING) && defined(CONFIG_PROC_FS)
 void create_prof_cpu_mask(void);
@@ -58,7 +58,7 @@ void profile_hits(int type, void *ip, unsigned int nr_hits);
 static inline void profile_hit(int type, void *ip)
 {
 	/*
-	 * Speedup for the common (no profiling enabled) case:
+	 * Speedup for the common (yes profiling enabled) case:
 	 */
 	if (unlikely(prof_on == type))
 		profile_hits(type, ip, 1);
@@ -78,11 +78,11 @@ int profile_handoff_task(struct task_struct * task);
 /* sys_munmap */
 void profile_munmap(unsigned long addr);
 
-int task_handoff_register(struct notifier_block * n);
-int task_handoff_unregister(struct notifier_block * n);
+int task_handoff_register(struct yestifier_block * n);
+int task_handoff_unregister(struct yestifier_block * n);
 
-int profile_event_register(enum profile_type, struct notifier_block * n);
-int profile_event_unregister(enum profile_type, struct notifier_block * n);
+int profile_event_register(enum profile_type, struct yestifier_block * n);
+int profile_event_unregister(enum profile_type, struct yestifier_block * n);
 
 struct pt_regs;
 
@@ -110,22 +110,22 @@ static inline void profile_hit(int type, void *ip)
 	return;
 }
 
-static inline int task_handoff_register(struct notifier_block * n)
+static inline int task_handoff_register(struct yestifier_block * n)
 {
 	return -ENOSYS;
 }
 
-static inline int task_handoff_unregister(struct notifier_block * n)
+static inline int task_handoff_unregister(struct yestifier_block * n)
 {
 	return -ENOSYS;
 }
 
-static inline int profile_event_register(enum profile_type t, struct notifier_block * n)
+static inline int profile_event_register(enum profile_type t, struct yestifier_block * n)
 {
 	return -ENOSYS;
 }
 
-static inline int profile_event_unregister(enum profile_type t, struct notifier_block * n)
+static inline int profile_event_unregister(enum profile_type t, struct yestifier_block * n)
 {
 	return -ENOSYS;
 }

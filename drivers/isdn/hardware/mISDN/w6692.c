@@ -3,7 +3,7 @@
  * w6692.c     mISDN driver for Winbond w6692 based cards
  *
  * Author      Karsten Keil <kkeil@suse.de>
- *             based on the w6692 I4L driver from Petr Novak <petr.novak@i.cz>
+ *             based on the w6692 I4L driver from Petr Novak <petr.yesvak@i.cz>
  *
  * Copyright 2009  by Karsten Keil <keil@isdn4linux.de>
  */
@@ -154,7 +154,7 @@ W6692Version(struct w6692_hw *card)
 	int val;
 
 	val = ReadW6692(card, W_D_RBCH);
-	pr_notice("%s: Winbond W6692 version: %s\n", card->name,
+	pr_yestice("%s: Winbond W6692 version: %s\n", card->name,
 		  W6692Ver[(val >> 6) & 3]);
 }
 
@@ -231,7 +231,7 @@ W6692_ph_bh(struct dchannel *dch)
 		l1_event(dch->l1, INFO4_P10);
 		break;
 	default:
-		pr_debug("%s: TE unknown state %02x dch state %02x\n",
+		pr_debug("%s: TE unkyeswn state %02x dch state %02x\n",
 			 card->name, card->state, dch->state);
 		break;
 	}
@@ -319,13 +319,13 @@ d_retransmit(struct w6692_hw *card)
 		/* Restart frame */
 		dch->tx_idx = 0;
 		W6692_fill_Dfifo(card);
-	} else if (dch->tx_skb) { /* should not happen */
+	} else if (dch->tx_skb) { /* should yest happen */
 		pr_info("%s: %s without TX_BUSY\n", card->name, __func__);
 		test_and_set_bit(FLG_TX_BUSY, &dch->Flags);
 		dch->tx_idx = 0;
 		W6692_fill_Dfifo(card);
 	} else {
-		pr_info("%s: XDU no TX_BUSY\n", card->name);
+		pr_info("%s: XDU yes TX_BUSY\n", card->name);
 		if (get_next_dframe(dch))
 			W6692_fill_Dfifo(card);
 	}
@@ -404,7 +404,7 @@ handle_statusD(struct w6692_hw *card)
 	}
 	if (exval & W_D_EXI_TIN2)	/* TIN2 - never */
 		pr_debug("%s: spurious TIN2 interrupt\n", card->name);
-	if (exval & W_D_EXI_MOC) {	/* MOC - not supported */
+	if (exval & W_D_EXI_MOC) {	/* MOC - yest supported */
 		v1 = ReadW6692(card, W_MOSR);
 		pr_debug("%s: spurious MOC interrupt MOSR %02x\n",
 			 card->name, v1);
@@ -621,7 +621,7 @@ w6692_mode(struct w6692_ch *wch, u32 pr)
 		test_and_set_bit(FLG_HDLC, &wch->bch.Flags);
 		break;
 	default:
-		pr_info("%s: protocol %x not known\n", card->name, pr);
+		pr_info("%s: protocol %x yest kyeswn\n", card->name, pr);
 		return -ENOPROTOOPT;
 	}
 	wch->bch.state = pr;
@@ -711,7 +711,7 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 		}
 	}
 	if (stat & W_B_EXI_RDOV) {
-		/* only if it is not handled yet */
+		/* only if it is yest handled yet */
 		if (!(star & W_B_STAR_RDOV)) {
 			pr_debug("%s: B%d RDOV IRQ proto=%x\n", card->name,
 				 wch->bch.nr, wch->bch.state);
@@ -752,7 +752,7 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 #ifdef ERROR_STATISTIC
 		wch->bch.err_xdu++;
 #endif
-		/* resend - no XRST needed */
+		/* resend - yes XRST needed */
 		if (wch->bch.tx_skb) {
 			if (!test_bit(FLG_TRANSPARENT, &wch->bch.Flags))
 				wch->bch.tx_idx = 0;
@@ -764,7 +764,7 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 }
 
 static irqreturn_t
-w6692_irq(int intno, void *dev_id)
+w6692_irq(int intyes, void *dev_id)
 {
 	struct w6692_hw	*card = dev_id;
 	u8		ista;
@@ -820,7 +820,7 @@ dbusy_timer_handler(struct timer_list *t)
 			if (dch->tx_idx)
 				dch->tx_idx = 0;
 			else
-				pr_info("%s: W6692 D-Channel Busy no tx_idx\n",
+				pr_info("%s: W6692 D-Channel Busy yes tx_idx\n",
 					card->name);
 			/* Transmitter reset */
 			WriteW6692(card, W_D_CMDR, W_D_CMDR_XRST);
@@ -878,7 +878,7 @@ static void initW6692(struct w6692_hw *card)
 			WriteW6692(card, W_XDATA, card->xdata);
 			val = ReadW6692(card, W_XADDR);
 			if (debug & DEBUG_HW)
-				pr_notice("%s: W_XADDR=%02x\n",
+				pr_yestice("%s: W_XADDR=%02x\n",
 					  card->name, val);
 		}
 	}
@@ -914,10 +914,10 @@ init_card(struct w6692_hw *card)
 		/* Timeout 10ms */
 		msleep_interruptible(10);
 		if (debug & DEBUG_HW)
-			pr_notice("%s: IRQ %d count %d\n", card->name,
+			pr_yestice("%s: IRQ %d count %d\n", card->name,
 				  card->irq, card->irqcnt);
 		if (!card->irqcnt) {
-			pr_info("%s: IRQ(%d) getting no IRQs during init %d\n",
+			pr_info("%s: IRQ(%d) getting yes IRQs during init %d\n",
 				card->name, card->irq, 3 - cnt);
 			reset_w6692(card);
 		} else
@@ -968,7 +968,7 @@ w6692_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 		ret = 0;
 		break;
 	default:
-		pr_info("%s: %s unknown prim(%x,%x)\n",
+		pr_info("%s: %s unkyeswn prim(%x,%x)\n",
 			card->name, __func__, hh->prim, hh->id);
 		ret = -EINVAL;
 	}
@@ -1013,7 +1013,7 @@ channel_ctrl(struct w6692_hw *card, struct mISDN_ctrl_req *cq)
 		ret = l1_event(card->dch.l1, HW_TIMER3_VALUE | (cq->p1 & 0xff));
 		break;
 	default:
-		pr_info("%s: unknown CTRL OP %x\n", card->name, cq->op);
+		pr_info("%s: unkyeswn CTRL OP %x\n", card->name, cq->op);
 		ret = -EINVAL;
 		break;
 	}
@@ -1047,7 +1047,7 @@ w6692_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		ret = channel_bctrl(bch, arg);
 		break;
 	default:
-		pr_info("%s: %s unknown prim(%x)\n",
+		pr_info("%s: %s unkyeswn prim(%x)\n",
 			card->name, __func__, cmd);
 	}
 	return ret;
@@ -1147,7 +1147,7 @@ w6692_l1callback(struct dchannel *dch, u32 cmd)
 			    GFP_ATOMIC);
 		break;
 	default:
-		pr_debug("%s: %s unknown command %x\n", card->name,
+		pr_debug("%s: %s unkyeswn command %x\n", card->name,
 			 __func__, cmd);
 		return -1;
 	}
@@ -1162,7 +1162,7 @@ open_dchannel(struct w6692_hw *card, struct channel_req *rq, void *caller)
 	if (rq->protocol != ISDN_P_TE_S0)
 		return -EINVAL;
 	if (rq->adr.channel == 1)
-		/* E-Channel not supported */
+		/* E-Channel yest supported */
 		return -EINVAL;
 	rq->ch = &card->dch.dev.D;
 	rq->ch->protocol = rq->protocol;
@@ -1192,7 +1192,7 @@ w6692_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		if (err)
 			break;
 		if (!try_module_get(THIS_MODULE))
-			pr_info("%s: cannot get module\n", card->name);
+			pr_info("%s: canyest get module\n", card->name);
 		break;
 	case CLOSE_CHANNEL:
 		pr_debug("%s: dev(%d) close from %p\n", card->name,
@@ -1203,7 +1203,7 @@ w6692_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		err = channel_ctrl(card, arg);
 		break;
 	default:
-		pr_debug("%s: unknown DCTRL command %x\n", card->name, cmd);
+		pr_debug("%s: unkyeswn DCTRL command %x\n", card->name, cmd);
 		return -EINVAL;
 	}
 	return err;
@@ -1224,19 +1224,19 @@ setup_w6692(struct w6692_hw *card)
 	card->bc[1].addr = card->addr + 0x40;
 	val = ReadW6692(card, W_ISTA);
 	if (debug & DEBUG_HW)
-		pr_notice("%s ISTA=%02x\n", card->name, val);
+		pr_yestice("%s ISTA=%02x\n", card->name, val);
 	val = ReadW6692(card, W_IMASK);
 	if (debug & DEBUG_HW)
-		pr_notice("%s IMASK=%02x\n", card->name, val);
+		pr_yestice("%s IMASK=%02x\n", card->name, val);
 	val = ReadW6692(card, W_D_EXIR);
 	if (debug & DEBUG_HW)
-		pr_notice("%s D_EXIR=%02x\n", card->name, val);
+		pr_yestice("%s D_EXIR=%02x\n", card->name, val);
 	val = ReadW6692(card, W_D_EXIM);
 	if (debug & DEBUG_HW)
-		pr_notice("%s D_EXIM=%02x\n", card->name, val);
+		pr_yestice("%s D_EXIM=%02x\n", card->name, val);
 	val = ReadW6692(card, W_D_RSTA);
 	if (debug & DEBUG_HW)
-		pr_notice("%s D_RSTA=%02x\n", card->name, val);
+		pr_yestice("%s D_RSTA=%02x\n", card->name, val);
 	return 0;
 }
 
@@ -1314,7 +1314,7 @@ setup_instance(struct w6692_hw *card)
 	err = create_l1(&card->dch, w6692_l1callback);
 	if (!err) {
 		w6692_cnt++;
-		pr_notice("W6692 %d cards installed\n", w6692_cnt);
+		pr_yestice("W6692 %d cards installed\n", w6692_cnt);
 		return 0;
 	}
 
@@ -1375,7 +1375,7 @@ w6692_remove_pci(struct pci_dev *pdev)
 		release_card(card);
 	else
 		if (debug)
-			pr_notice("%s: drvdata already removed\n", __func__);
+			pr_yestice("%s: drvdata already removed\n", __func__);
 }
 
 static const struct pci_device_id w6692_ids[] = {
@@ -1401,7 +1401,7 @@ static int __init w6692_init(void)
 {
 	int err;
 
-	pr_notice("Winbond W6692 PCI driver Rev. %s\n", W6692_REV);
+	pr_yestice("Winbond W6692 PCI driver Rev. %s\n", W6692_REV);
 
 	err = pci_register_driver(&w6692_driver);
 	return err;

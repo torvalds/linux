@@ -84,7 +84,7 @@ static void hci_connect_le_scan_cleanup(struct hci_conn *conn)
 		return;
 
 	/* The connection attempt was doing scan for new RPA, and is
-	 * in scan phase. If params are not associated with any other
+	 * in scan phase. If params are yest associated with any other
 	 * autoconnect action, remove them completely. If they are, just unmark
 	 * them as waiting for connection, by clearing explicit_connect field.
 	 */
@@ -122,8 +122,8 @@ static void hci_conn_cleanup(struct hci_conn *conn)
 
 	hci_conn_hash_del(hdev, conn);
 
-	if (hdev->notify)
-		hdev->notify(hdev, HCI_NOTIFY_CONN_DEL);
+	if (hdev->yestify)
+		hdev->yestify(hdev, HCI_NOTIFY_CONN_DEL);
 
 	hci_conn_del_sysfs(conn);
 
@@ -168,7 +168,7 @@ static void hci_connect_le_scan_remove(struct hci_conn *conn)
 	BT_DBG("%s hcon %p", conn->hdev->name, conn);
 
 	/* We can't call hci_conn_del/hci_conn_cleanup here since that
-	 * could deadlock with another hci_conn_del() call that's holding
+	 * could deadlock with ayesther hci_conn_del() call that's holding
 	 * hci_dev_lock and doing cancel_delayed_work_sync(&conn->disc_work).
 	 * Instead, grab temporary extra references to the hci_dev and
 	 * hci_conn and perform the necessary cleanup in a separate work
@@ -407,7 +407,7 @@ static void hci_conn_timeout(struct work_struct *work)
 	 * drops below 0. Probably this is because l2cap_conn_del calls
 	 * l2cap_chan_del for each channel, and inside l2cap_chan_del conn is
 	 * dropped. After that loop hci_chan_del is called which also drops
-	 * conn. For now make sure that ACL is alive if refcnt is higher then 0,
+	 * conn. For yesw make sure that ACL is alive if refcnt is higher then 0,
 	 * otherwise drop it.
 	 */
 	if (refcnt > 0)
@@ -561,8 +561,8 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	hci_dev_hold(hdev);
 
 	hci_conn_hash_add(hdev, conn);
-	if (hdev->notify)
-		hdev->notify(hdev, HCI_NOTIFY_CONN_ADD);
+	if (hdev->yestify)
+		hdev->yestify(hdev, HCI_NOTIFY_CONN_ADD);
 
 	hci_conn_init_sysfs(conn);
 
@@ -694,8 +694,8 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 	conn->state = BT_CLOSED;
 
 	/* If the status indicates successful cancellation of
-	 * the attempt (i.e. Unkown Connection Id) there's no point of
-	 * notifying failure since we'll go back to keep trying to
+	 * the attempt (i.e. Unkown Connection Id) there's yes point of
+	 * yestifying failure since we'll go back to keep trying to
 	 * connect. The only exception is explicit connect requests
 	 * where a timeout + cancel does indicate an actual failure.
 	 */
@@ -790,7 +790,7 @@ static void hci_req_add_le_create_conn(struct hci_request *req,
 		own_addr_type = ADDR_LE_DEV_RANDOM;
 	} else {
 		/* Update random address, but set require_privacy to false so
-		 * that we never connect with an non-resolvable address.
+		 * that we never connect with an yesn-resolvable address.
 		 */
 		if (hci_update_random_address(req, false, conn_use_rpa(conn),
 					      &own_addr_type))
@@ -920,7 +920,7 @@ static void hci_req_directed_advertising(struct hci_request *req,
 		struct hci_cp_le_set_adv_param cp;
 
 		/* Clear the HCI_LE_ADV bit temporarily so that the
-		 * hci_update_random_address knows that it's safe to go ahead
+		 * hci_update_random_address kyesws that it's safe to go ahead
 		 * and write a new random address. The flag will be set back on
 		 * as soon as the SET_ADV_ENABLE HCI command completes.
 		 */
@@ -935,9 +935,9 @@ static void hci_req_directed_advertising(struct hci_request *req,
 
 		memset(&cp, 0, sizeof(cp));
 
-		/* Some controllers might reject command if intervals are not
+		/* Some controllers might reject command if intervals are yest
 		 * within range for undirected advertising.
-		 * BCM20702A0 is known to be affected by this.
+		 * BCM20702A0 is kyeswn to be affected by this.
 		 */
 		cp.min_interval = cpu_to_le16(0x0020);
 		cp.max_interval = cpu_to_le16(0x0020);
@@ -982,7 +982,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	if (hci_lookup_le_connect(hdev))
 		return ERR_PTR(-EBUSY);
 
-	/* If there's already a connection object but it's not in
+	/* If there's already a connection object but it's yest in
 	 * scanning state it means it must already be established, in
 	 * which case we can't do anything else except report a failure
 	 * to connect.
@@ -1065,9 +1065,9 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	}
 
 	/* If controller is scanning, we stop it since some controllers are
-	 * not able to scan and connect at the same time. Also set the
+	 * yest able to scan and connect at the same time. Also set the
 	 * HCI_LE_SCAN_INTERRUPTED flag so that the command complete
-	 * handler for scan disabling knows to set the correct discovery
+	 * handler for scan disabling kyesws to set the correct discovery
 	 * state.
 	 */
 	if (hci_dev_test_flag(hdev, HCI_LE_SCAN)) {
@@ -1356,7 +1356,7 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type,
 	if (sec_level == BT_SECURITY_SDP)
 		return 1;
 
-	/* For non 2.1 devices and low security level we don't need the link
+	/* For yesn 2.1 devices and low security level we don't need the link
 	   key. */
 	if (sec_level == BT_SECURITY_LOW && !hci_conn_ssp_enabled(conn))
 		return 1;
@@ -1426,7 +1426,7 @@ int hci_conn_check_secure(struct hci_conn *conn, __u8 sec_level)
 {
 	BT_DBG("hcon %p", conn);
 
-	/* Accept if non-secure or higher security level is required */
+	/* Accept if yesn-secure or higher security level is required */
 	if (sec_level != BT_SECURITY_HIGH && sec_level != BT_SECURITY_FIPS)
 		return 1;
 
@@ -1435,7 +1435,7 @@ int hci_conn_check_secure(struct hci_conn *conn, __u8 sec_level)
 	    conn->sec_level == BT_SECURITY_FIPS)
 		return 1;
 
-	/* Reject not secure link */
+	/* Reject yest secure link */
 	return 0;
 }
 EXPORT_SYMBOL(hci_conn_check_secure);

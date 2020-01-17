@@ -141,7 +141,7 @@ struct moxart_chan {
 	bool				allocated;
 	bool				error;
 	int				ch_num;
-	unsigned int			line_reqno;
+	unsigned int			line_reqyes;
 	unsigned int			sgidx;
 };
 
@@ -252,12 +252,12 @@ static int moxart_slave_config(struct dma_chan *chan,
 	if (ch->cfg.direction == DMA_MEM_TO_DEV) {
 		ctrl &= ~APB_DMA_DEST_SELECT;
 		ctrl |= APB_DMA_SOURCE_SELECT;
-		ctrl |= (ch->line_reqno << 16 &
+		ctrl |= (ch->line_reqyes << 16 &
 			 APB_DMA_DEST_REQ_NO_MASK);
 	} else {
 		ctrl |= APB_DMA_DEST_SELECT;
 		ctrl &= ~APB_DMA_SOURCE_SELECT;
-		ctrl |= (ch->line_reqno << 24 &
+		ctrl |= (ch->line_reqyes << 24 &
 			 APB_DMA_SOURCE_REQ_NO_MASK);
 	}
 
@@ -341,7 +341,7 @@ static struct dma_chan *moxart_of_xlate(struct of_phandle_args *dma_spec,
 		return NULL;
 
 	ch = to_moxart_dma_chan(chan);
-	ch->line_reqno = dma_spec->args[0];
+	ch->line_reqyes = dma_spec->args[0];
 
 	return chan;
 }
@@ -428,7 +428,7 @@ static void moxart_dma_start_desc(struct dma_chan *chan)
 		return;
 	}
 
-	list_del(&vd->node);
+	list_del(&vd->yesde);
 
 	ch->desc = to_moxart_dma_desc(&vd->tx);
 	ch->sgidx = 0;
@@ -566,7 +566,7 @@ static irqreturn_t moxart_dma_interrupt(int irq, void *devid)
 static int moxart_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct resource *res;
 	static void __iomem *dma_base_addr;
 	int ret, i;
@@ -578,9 +578,9 @@ static int moxart_probe(struct platform_device *pdev)
 	if (!mdc)
 		return -ENOMEM;
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (!irq) {
-		dev_err(dev, "no IRQ resource\n");
+		dev_err(dev, "yes IRQ resource\n");
 		return -EINVAL;
 	}
 
@@ -624,7 +624,7 @@ static int moxart_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_dma_controller_register(node, moxart_of_xlate, mdc);
+	ret = of_dma_controller_register(yesde, moxart_of_xlate, mdc);
 	if (ret) {
 		dev_err(dev, "of_dma_controller_register failed\n");
 		dma_async_device_unregister(&mdc->dma_slave);
@@ -644,8 +644,8 @@ static int moxart_remove(struct platform_device *pdev)
 
 	dma_async_device_unregister(&m->dma_slave);
 
-	if (pdev->dev.of_node)
-		of_dma_controller_free(pdev->dev.of_node);
+	if (pdev->dev.of_yesde)
+		of_dma_controller_free(pdev->dev.of_yesde);
 
 	return 0;
 }

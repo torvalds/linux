@@ -32,13 +32,13 @@ int btf_get_info_by_fd(const struct btf *btf,
  * @btf: struct btf object
  * @type_id: Find out the size of type_id. The type_id of the return
  *           type is set to *type_id.
- * @ret_size: It can be NULL.  If not NULL, the size of the return
+ * @ret_size: It can be NULL.  If yest NULL, the size of the return
  *            type is set to *ret_size.
- * Return: The btf_type (resolved to another type with size info if needed).
- *         NULL is returned if type_id itself does not have size info
- *         (e.g. void) or it cannot be resolved to another type that
+ * Return: The btf_type (resolved to ayesther type with size info if needed).
+ *         NULL is returned if type_id itself does yest have size info
+ *         (e.g. void) or it canyest be resolved to ayesther type that
  *         has size info.
- *         *type_id and *ret_size will not be changed in the
+ *         *type_id and *ret_size will yest be changed in the
  *         NULL return case.
  */
 const struct btf_type *btf_type_id_size(const struct btf *btf,

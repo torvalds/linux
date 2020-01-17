@@ -1,4 +1,4 @@
-digraph node_states {
+digraph yesde_states {
 	Secondary -> Primary           [ label = "ioctl_set_state()" ]
 	Primary   -> Secondary 	       [ label = "ioctl_set_state()" ]
 }
@@ -6,8 +6,8 @@ digraph node_states {
 digraph peer_states {
 	Secondary -> Primary           [ label = "recv state packet" ]
 	Primary   -> Secondary 	       [ label = "recv state packet" ]
-	Primary   -> Unknown 	       [ label = "connection lost" ]
-	Secondary  -> Unknown  	       [ label = "connection lost" ]
-	Unknown   -> Primary           [ label = "connected" ]
-	Unknown   -> Secondary         [ label = "connected" ]
+	Primary   -> Unkyeswn 	       [ label = "connection lost" ]
+	Secondary  -> Unkyeswn  	       [ label = "connection lost" ]
+	Unkyeswn   -> Primary           [ label = "connected" ]
+	Unkyeswn   -> Secondary         [ label = "connected" ]
 }

@@ -11,7 +11,7 @@ Optional properties:
   IRQ_TYPE_EDGE_FALLING.
 
 Refer to interrupt-controller/interrupts.txt for generic interrupt client
-node bindings.
+yesde bindings.
 
 Example:
 

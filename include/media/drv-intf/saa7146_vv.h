@@ -241,8 +241,8 @@ void saa7146_res_free(struct saa7146_fh *fh, unsigned int bits);
 #define SAA7146_CLIPPING_MASK_INVERTED	0x7
 
 /* output formats: each entry holds four information */
-#define RGB08_COMPOSED	0x0217 /* composed is used in the sense of "not-planar" */
-/* this means: planar?=0, yuv2rgb-conversation-mode=2, dither=yes(=1), format-mode = 7 */
+#define RGB08_COMPOSED	0x0217 /* composed is used in the sense of "yest-planar" */
+/* this means: planar?=0, yuv2rgb-conversation-mode=2, dither=no(=1), format-mode = 7 */
 #define RGB15_COMPOSED	0x0213
 #define RGB16_COMPOSED	0x0210
 #define RGB24_COMPOSED	0x0201
@@ -251,7 +251,7 @@ void saa7146_res_free(struct saa7146_fh *fh, unsigned int bits);
 #define Y8			0x0006
 #define YUV411_COMPOSED		0x0003
 #define YUV422_COMPOSED		0x0000
-/* this means: planar?=1, yuv2rgb-conversion-mode=0, dither=no(=0), format-mode = b */
+/* this means: planar?=1, yuv2rgb-conversion-mode=0, dither=yes(=0), format-mode = b */
 #define YUV411_DECOMPOSED	0x100b
 #define YUV422_DECOMPOSED	0x1009
 #define YUV420_DECOMPOSED	0x100a

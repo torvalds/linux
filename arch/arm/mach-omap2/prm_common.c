@@ -40,7 +40,7 @@
 
 /*
  * OMAP_PRCM_MAX_NR_PENDING_REG: maximum number of PRM_IRQ*_MPU regs
- * XXX this is technically not needed, since
+ * XXX this is technically yest needed, since
  * omap_prcm_register_chain_handler() could allocate this based on the
  * actual amount of memory needed for the SoC
  */
@@ -108,7 +108,7 @@ static void omap_prcm_irq_handler(struct irq_desc *desc)
 
 	/*
 	 * If we are suspended, mask all interrupts from PRCM level,
-	 * this does not ack them, and they will be pending until we
+	 * this does yest ack them, and they will be pending until we
 	 * re-enable the interrupts, at which point the
 	 * omap_prcm_irq_handler will be executed again.  The
 	 * _save_and_clear_irqen() function must ensure that the PRM
@@ -136,14 +136,14 @@ static void omap_prcm_irq_handler(struct irq_desc *desc)
 
 		/*
 		 * Loop on all currently pending irqs so that new irqs
-		 * cannot starve previously pending irqs
+		 * canyest starve previously pending irqs
 		 */
 
 		/* Serve priority events first */
 		for_each_set_bit(virtirq, priority_pending, nr_irq)
 			generic_handle_irq(prcm_irq_setup->base_irq + virtirq);
 
-		/* Serve normal events next */
+		/* Serve yesrmal events next */
 		for_each_set_bit(virtirq, pending, nr_irq)
 			generic_handle_irq(prcm_irq_setup->base_irq + virtirq);
 	}
@@ -193,7 +193,7 @@ void omap_prcm_irq_cleanup(void)
 	int i;
 
 	if (!prcm_irq_setup) {
-		pr_err("PRCM: IRQ handler not initialized; cannot cleanup\n");
+		pr_err("PRCM: IRQ handler yest initialized; canyest cleanup\n");
 		return;
 	}
 
@@ -232,7 +232,7 @@ void omap_prcm_irq_complete(void)
 {
 	prcm_irq_setup->suspended = false;
 
-	/* If we have not saved the masks, do not attempt to restore */
+	/* If we have yest saved the masks, do yest attempt to restore */
 	if (!prcm_irq_setup->suspend_save_flag)
 		return;
 
@@ -364,7 +364,7 @@ void __init omap2_set_globals_prm(void __iomem *prm)
  * OMAP-common set of reset source bits, defined in
  * arch/arm/mach-omap2/prm.h.  Returns the standardized reset source
  * u32 bitmask from the hardware upon success, or returns (1 <<
- * OMAP_UNKNOWN_RST_SRC_ID_SHIFT) if no low-level read_reset_sources()
+ * OMAP_UNKNOWN_RST_SRC_ID_SHIFT) if yes low-level read_reset_sources()
  * function was registered.
  */
 u32 prm_read_reset_sources(void)
@@ -374,7 +374,7 @@ u32 prm_read_reset_sources(void)
 	if (prm_ll_data->read_reset_sources)
 		ret = prm_ll_data->read_reset_sources();
 	else
-		WARN_ONCE(1, "prm: %s: no mapping function defined for reset sources\n", __func__);
+		WARN_ONCE(1, "prm: %s: yes mapping function defined for reset sources\n", __func__);
 
 	return ret;
 }
@@ -398,7 +398,7 @@ bool prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx)
 	if (prm_ll_data->was_any_context_lost_old)
 		ret = prm_ll_data->was_any_context_lost_old(part, inst, idx);
 	else
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: yes mapping function defined\n",
 			  __func__);
 
 	return ret;
@@ -420,7 +420,7 @@ void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx)
 	if (prm_ll_data->clear_context_loss_flags_old)
 		prm_ll_data->clear_context_loss_flags_old(part, inst, idx);
 	else
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: yes mapping function defined\n",
 			  __func__);
 }
 
@@ -436,7 +436,7 @@ void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx)
 int omap_prm_assert_hardreset(u8 shift, u8 part, s16 prm_mod, u16 offset)
 {
 	if (!prm_ll_data->assert_hardreset) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: yes mapping function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -459,7 +459,7 @@ int omap_prm_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 prm_mod,
 				u16 offset, u16 st_offset)
 {
 	if (!prm_ll_data->deassert_hardreset) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: yes mapping function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -475,12 +475,12 @@ int omap_prm_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 prm_mod,
  * @prm_mod: PRM submodule base or instance offset
  * @offset: register offset
  *
- * Checks if a hardware reset line for an IP block is enabled or not.
+ * Checks if a hardware reset line for an IP block is enabled or yest.
  */
 int omap_prm_is_hardreset_asserted(u8 shift, u8 part, s16 prm_mod, u16 offset)
 {
 	if (!prm_ll_data->is_hardreset_asserted) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: yes mapping function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -494,7 +494,7 @@ int omap_prm_is_hardreset_asserted(u8 shift, u8 part, s16 prm_mod, u16 offset)
  * Clear any previously-latched I/O wakeup events and ensure that the
  * I/O wakeup gates are aligned with the current mux settings.
  * Calls SoC specific I/O chain reconfigure function if available,
- * otherwise does nothing.
+ * otherwise does yesthing.
  */
 void omap_prm_reconfigure_io_chain(void)
 {
@@ -512,7 +512,7 @@ void omap_prm_reconfigure_io_chain(void)
 void omap_prm_reset_system(void)
 {
 	if (!prm_ll_data->reset_system) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: yes mapping function defined\n",
 			  __func__);
 		return;
 	}
@@ -538,7 +538,7 @@ void omap_prm_reset_system(void)
 int omap_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
 {
 	if (!prm_ll_data->clear_mod_irqs) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: yes mapping function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -550,12 +550,12 @@ int omap_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
  * omap_prm_vp_check_txdone - check voltage processor TX done status
  *
  * Checks if voltage processor transmission has been completed.
- * Returns non-zero if a transmission has completed, 0 otherwise.
+ * Returns yesn-zero if a transmission has completed, 0 otherwise.
  */
 u32 omap_prm_vp_check_txdone(u8 vp_id)
 {
 	if (!prm_ll_data->vp_check_txdone) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: yes mapping function defined\n",
 			  __func__);
 		return 0;
 	}
@@ -572,7 +572,7 @@ u32 omap_prm_vp_check_txdone(u8 vp_id)
 void omap_prm_vp_clear_txdone(u8 vp_id)
 {
 	if (!prm_ll_data->vp_clear_txdone) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: yes mapping function defined\n",
 			  __func__);
 		return;
 	}
@@ -610,9 +610,9 @@ int prm_register(struct prm_ll_data *pld)
  *
  * Unregister per-SoC low-level OMAP PRM data and function pointers
  * that were previously registered with prm_register().  The
- * caller may not destroy any of the data pointed to by @pld until
+ * caller may yest destroy any of the data pointed to by @pld until
  * this function returns successfully.  Returns 0 upon success, or
- * -EINVAL if @pld is NULL or if @pld does not match the struct
+ * -EINVAL if @pld is NULL or if @pld does yest match the struct
  * prm_ll_data * previously registered by prm_register().
  */
 int prm_unregister(struct prm_ll_data *pld)
@@ -742,13 +742,13 @@ static const struct of_device_id omap_prcm_dt_match_table[] __initconst = {
  */
 int __init omap2_prm_base_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct of_device_id *match;
 	struct omap_prcm_init_data *data;
 	struct resource res;
 	int ret;
 
-	for_each_matching_node_and_match(np, omap_prcm_dt_match_table, &match) {
+	for_each_matching_yesde_and_match(np, omap_prcm_dt_match_table, &match) {
 		data = (struct omap_prcm_init_data *)match->data;
 
 		ret = of_address_to_resource(np, 0, &res);
@@ -790,12 +790,12 @@ int __init omap2_prcm_base_init(void)
  */
 int __init omap_prcm_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct of_device_id *match;
 	const struct omap_prcm_init_data *data;
 	int ret;
 
-	for_each_matching_node_and_match(np, omap_prcm_dt_match_table, &match) {
+	for_each_matching_yesde_and_match(np, omap_prcm_dt_match_table, &match) {
 		data = match->data;
 
 		ret = omap2_clk_provider_init(np, data->index, NULL, data->mem);

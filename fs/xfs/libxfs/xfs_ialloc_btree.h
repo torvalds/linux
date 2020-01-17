@@ -7,7 +7,7 @@
 #define	__XFS_IALLOC_BTREE_H__
 
 /*
- * Inode map on-disk structures
+ * Iyesde map on-disk structures
  */
 
 struct xfs_buf;
@@ -24,48 +24,48 @@ struct xfs_mount;
 /*
  * Record, key, and pointer address macros for btree blocks.
  *
- * (note that some of these may appear unused, but they are used in userspace)
+ * (yeste that some of these may appear unused, but they are used in userspace)
  */
 #define XFS_INOBT_REC_ADDR(mp, block, index) \
-	((xfs_inobt_rec_t *) \
+	((xfs_iyesbt_rec_t *) \
 		((char *)(block) + \
 		 XFS_INOBT_BLOCK_LEN(mp) + \
-		 (((index) - 1) * sizeof(xfs_inobt_rec_t))))
+		 (((index) - 1) * sizeof(xfs_iyesbt_rec_t))))
 
 #define XFS_INOBT_KEY_ADDR(mp, block, index) \
-	((xfs_inobt_key_t *) \
+	((xfs_iyesbt_key_t *) \
 		((char *)(block) + \
 		 XFS_INOBT_BLOCK_LEN(mp) + \
-		 ((index) - 1) * sizeof(xfs_inobt_key_t)))
+		 ((index) - 1) * sizeof(xfs_iyesbt_key_t)))
 
 #define XFS_INOBT_PTR_ADDR(mp, block, index, maxrecs) \
-	((xfs_inobt_ptr_t *) \
+	((xfs_iyesbt_ptr_t *) \
 		((char *)(block) + \
 		 XFS_INOBT_BLOCK_LEN(mp) + \
-		 (maxrecs) * sizeof(xfs_inobt_key_t) + \
-		 ((index) - 1) * sizeof(xfs_inobt_ptr_t)))
+		 (maxrecs) * sizeof(xfs_iyesbt_key_t) + \
+		 ((index) - 1) * sizeof(xfs_iyesbt_ptr_t)))
 
-extern struct xfs_btree_cur *xfs_inobt_init_cursor(struct xfs_mount *,
+extern struct xfs_btree_cur *xfs_iyesbt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_buf *, xfs_agnumber_t,
 		xfs_btnum_t);
-extern int xfs_inobt_maxrecs(struct xfs_mount *, int, int);
+extern int xfs_iyesbt_maxrecs(struct xfs_mount *, int, int);
 
-/* ir_holemask to inode allocation bitmap conversion */
-uint64_t xfs_inobt_irec_to_allocmask(struct xfs_inobt_rec_incore *);
+/* ir_holemask to iyesde allocation bitmap conversion */
+uint64_t xfs_iyesbt_irec_to_allocmask(struct xfs_iyesbt_rec_incore *);
 
 #if defined(DEBUG) || defined(XFS_WARN)
-int xfs_inobt_rec_check_count(struct xfs_mount *,
-			      struct xfs_inobt_rec_incore *);
+int xfs_iyesbt_rec_check_count(struct xfs_mount *,
+			      struct xfs_iyesbt_rec_incore *);
 #else
-#define xfs_inobt_rec_check_count(mp, rec)	0
+#define xfs_iyesbt_rec_check_count(mp, rec)	0
 #endif	/* DEBUG */
 
-int xfs_finobt_calc_reserves(struct xfs_mount *mp, struct xfs_trans *tp,
-		xfs_agnumber_t agno, xfs_extlen_t *ask, xfs_extlen_t *used);
+int xfs_fiyesbt_calc_reserves(struct xfs_mount *mp, struct xfs_trans *tp,
+		xfs_agnumber_t agyes, xfs_extlen_t *ask, xfs_extlen_t *used);
 extern xfs_extlen_t xfs_iallocbt_calc_size(struct xfs_mount *mp,
 		unsigned long long len);
-int xfs_inobt_cur(struct xfs_mount *mp, struct xfs_trans *tp,
-		xfs_agnumber_t agno, xfs_btnum_t btnum,
+int xfs_iyesbt_cur(struct xfs_mount *mp, struct xfs_trans *tp,
+		xfs_agnumber_t agyes, xfs_btnum_t btnum,
 		struct xfs_btree_cur **curpp, struct xfs_buf **agi_bpp);
 
 #endif	/* __XFS_IALLOC_BTREE_H__ */

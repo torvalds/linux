@@ -20,7 +20,7 @@ want to use with a property containing a 'mux-ctrl-list':
 
 	mux-ctrl-list ::= <single-mux-ctrl> [mux-ctrl-list]
 	single-mux-ctrl ::= <mux-ctrl-phandle> [mux-ctrl-specifier]
-	mux-ctrl-phandle : phandle to mux controller node
+	mux-ctrl-phandle : phandle to mux controller yesde
 	mux-ctrl-specifier : array of #mux-control-cells specifying the
 			     given mux controller (controller specific)
 
@@ -61,7 +61,7 @@ Example:
 
 Note that in the example above, specifying the "mux-control-names" is redundant
 because there is only one mux controller in the list. However, if the driver
-for the consumer node in fact asks for a named mux controller, that name is of
+for the consumer yesde in fact asks for a named mux controller, that name is of
 course still required.
 
 	/*
@@ -117,15 +117,15 @@ course still required.
 	};
 
 
-Mux controller nodes
+Mux controller yesdes
 --------------------
 
-Mux controller nodes must specify the number of cells used for the
+Mux controller yesdes must specify the number of cells used for the
 specifier using the '#mux-control-cells' property.
 
-Optionally, mux controller nodes can also specify the state the mux should
+Optionally, mux controller yesdes can also specify the state the mux should
 have when it is idle. The idle-state property is used for this. If the
-idle-state is not present, the mux controller is typically left as is when
+idle-state is yest present, the mux controller is typically left as is when
 it is idle. For multiplexer chips that expose several mux controllers, the
 idle-state property is an array with one idle state for each mux controller.
 
@@ -145,7 +145,7 @@ These constants are available in
 
 as MUX_IDLE_AS_IS (-1) and MUX_IDLE_DISCONNECT (-2).
 
-An example mux controller node look like this (the adg972a chip is a triple
+An example mux controller yesde look like this (the adg972a chip is a triple
 4-way multiplexer):
 
 	mux: mux-controller@50 {

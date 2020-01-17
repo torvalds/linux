@@ -367,7 +367,7 @@ static int toneport_setup(struct usb_line6_toneport *toneport)
 		return -ENOMEM;
 
 	/* sync time on device with host: */
-	/* note: 32-bit timestamps overflow in year 2106 */
+	/* yeste: 32-bit timestamps overflow in year 2106 */
 	*ticks = (u32)ktime_get_real_seconds();
 	line6_write_data(line6, 0x80c6, ticks, 4);
 	kfree(ticks);
@@ -492,7 +492,7 @@ static const struct line6_properties toneport_properties_table[] = {
 		.name = "GuitarPort",
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* 1..4 seem to be ok */
-		/* no control channel */
+		/* yes control channel */
 		.ep_audio_r = 0x82,
 		.ep_audio_w = 0x01,
 	},
@@ -501,7 +501,7 @@ static const struct line6_properties toneport_properties_table[] = {
 		.name = "POD Studio GX",
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* 1..4 seem to be ok */
-		/* no control channel */
+		/* yes control channel */
 		.ep_audio_r = 0x82,
 		.ep_audio_w = 0x01,
 	},
@@ -510,7 +510,7 @@ static const struct line6_properties toneport_properties_table[] = {
 		.name = "POD Studio UX1",
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* 1..4 seem to be ok */
-		/* no control channel */
+		/* yes control channel */
 		.ep_audio_r = 0x82,
 		.ep_audio_w = 0x01,
 	},
@@ -519,7 +519,7 @@ static const struct line6_properties toneport_properties_table[] = {
 		.name = "POD Studio UX2",
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* defaults to 44.1kHz, 16-bit */
-		/* no control channel */
+		/* yes control channel */
 		.ep_audio_r = 0x82,
 		.ep_audio_w = 0x01,
 	},
@@ -528,7 +528,7 @@ static const struct line6_properties toneport_properties_table[] = {
 		.name = "TonePort GX",
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* 1..4 seem to be ok */
-		/* no control channel */
+		/* yes control channel */
 		.ep_audio_r = 0x82,
 		.ep_audio_w = 0x01,
 	},
@@ -537,7 +537,7 @@ static const struct line6_properties toneport_properties_table[] = {
 		.name = "TonePort UX1",
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* 1..4 seem to be ok */
-		/* no control channel */
+		/* yes control channel */
 		.ep_audio_r = 0x82,
 		.ep_audio_w = 0x01,
 	},
@@ -546,7 +546,7 @@ static const struct line6_properties toneport_properties_table[] = {
 		.name = "TonePort UX2",
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* defaults to 44.1kHz, 16-bit */
-		/* no control channel */
+		/* yes control channel */
 		.ep_audio_r = 0x82,
 		.ep_audio_w = 0x01,
 	},

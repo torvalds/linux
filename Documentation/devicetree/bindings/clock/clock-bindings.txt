@@ -1,21 +1,21 @@
 This binding is a work-in-progress, and are based on some experimental
 work by benh[1].
 
-Sources of clock signal can be represented by any node in the device
-tree.  Those nodes are designated as clock providers.  Clock consumer
-nodes use a phandle and clock specifier pair to connect clock provider
+Sources of clock signal can be represented by any yesde in the device
+tree.  Those yesdes are designated as clock providers.  Clock consumer
+yesdes use a phandle and clock specifier pair to connect clock provider
 outputs to clock inputs.  Similar to the gpio specifiers, a clock
 specifier is an array of zero, one or more cells identifying the clock
 output on a device.  The length of a clock specifier is defined by the
-value of a #clock-cells property in the clock provider node.
+value of a #clock-cells property in the clock provider yesde.
 
 [1] http://patchwork.ozlabs.org/patch/31551/
 
 ==Clock providers==
 
 Required properties:
-#clock-cells:	   Number of cells in a clock specifier; Typically 0 for nodes
-		   with a single clock output and 1 for nodes with multiple
+#clock-cells:	   Number of cells in a clock specifier; Typically 0 for yesdes
+		   with a single clock output and 1 for yesdes with multiple
 		   clock outputs.
 
 Optional properties:
@@ -24,12 +24,12 @@ clock-output-names: Recommended to be a list of strings of clock output signal
 		    However, the meaning of clock-output-names is domain
 		    specific to the clock provider, and is only provided to
 		    encourage using the same meaning for the majority of clock
-		    providers.  This format may not work for clock providers
+		    providers.  This format may yest work for clock providers
 		    using a complex clock specifier format.  In those cases it
 		    is recommended to omit this property and create a binding
 		    specific names property.
 
-		    Clock consumer nodes must never directly reference
+		    Clock consumer yesdes must never directly reference
 		    the provider's clock-output-names property.
 
 For example:
@@ -39,13 +39,13 @@ For example:
         clock-output-names = "ckil", "ckih";
     };
 
-- this node defines a device with two clock outputs, the first named
-  "ckil" and the second named "ckih".  Consumer nodes always reference
+- this yesde defines a device with two clock outputs, the first named
+  "ckil" and the second named "ckih".  Consumer yesdes always reference
   clocks by index. The names should reflect the clock output signal
   names for the device.
 
-clock-indices:	   If the identifying number for the clocks in the node
-		   is not linear from zero, then this allows the mapping of
+clock-indices:	   If the identifying number for the clocks in the yesde
+		   is yest linear from zero, then this allows the mapping of
 		   identifiers into the clock-output-names array.
 
 For example, if we have two clocks <&oscillator 1> and <&oscillator 3>:
@@ -57,7 +57,7 @@ For example, if we have two clocks <&oscillator 1> and <&oscillator 3>:
 		clock-output-names = "clka", "clkb";
 	}
 
-	This ensures we do not have any empty strings in clock-output-names
+	This ensures we do yest have any empty strings in clock-output-names
 
 
 ==Clock consumers==
@@ -73,8 +73,8 @@ clock-names:	List of clock input name strings sorted in the same
 		order as the clocks property.  Consumers drivers
 		will use clock-names to match clock input names
 		with clocks specifiers.
-clock-ranges:	Empty property indicating that child nodes can inherit named
-		clocks from this node. Useful for bus nodes to provide a
+clock-ranges:	Empty property indicating that child yesdes can inherit named
+		clocks from this yesde. Useful for bus yesdes to provide a
 		clock to their children.
 
 For example:
@@ -136,7 +136,7 @@ clock signal, and a UART.
 
 Some platforms may require initial configuration of default parent clocks
 and clock frequencies. Such a configuration can be specified in a device tree
-node through assigned-clocks, assigned-clock-parents and assigned-clock-rates
+yesde through assigned-clocks, assigned-clock-parents and assigned-clock-rates
 properties. The assigned-clock-parents property should contain a list of parent
 clocks in the form of a phandle and clock specifier pair and the
 assigned-clock-rates property should contain a list of frequencies in Hz. Both
@@ -144,7 +144,7 @@ these properties should correspond to the clocks listed in the assigned-clocks
 property.
 
 To skip setting parent or rate of a clock its corresponding entry should be
-set to 0, or can be omitted if it is not followed by any non-zero entry.
+set to 0, or can be omitted if it is yest followed by any yesn-zero entry.
 
     uart@a000 {
         compatible = "fsl,imx-uart";
@@ -161,21 +161,21 @@ set to 0, or can be omitted if it is not followed by any non-zero entry.
 In this example the <&pll 2> clock is set as parent of clock <&clkcon 0> and
 the <&pll 2> clock is assigned a frequency value of 460800 Hz.
 
-Configuring a clock's parent and rate through the device node that consumes
+Configuring a clock's parent and rate through the device yesde that consumes
 the clock can be done only for clocks that have a single user. Specifying
-conflicting parent or rate configuration in multiple consumer nodes for
+conflicting parent or rate configuration in multiple consumer yesdes for
 a shared clock is forbidden.
 
 Configuration of common clocks, which affect multiple consumer devices can
-be similarly specified in the clock provider node.
+be similarly specified in the clock provider yesde.
 
 ==Protected clocks==
 
-Some platforms or firmwares may not fully expose all the clocks to the OS, such
+Some platforms or firmwares may yest fully expose all the clocks to the OS, such
 as in situations where those clks are used by drivers running in ARM secure
 execution levels. Such a configuration can be specified in device tree with the
 protected-clocks property in the form of a clock specifier list. This property should
-only be specified in the node that is providing the clocks being protected:
+only be specified in the yesde that is providing the clocks being protected:
 
    clock-controller@a000f000 {
         compatible = "vendor,clk95;

@@ -56,11 +56,11 @@ unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
 unsigned int __read_mostly hardlockup_panic =
 			CONFIG_BOOTPARAM_HARDLOCKUP_PANIC_VALUE;
 /*
- * We may not want to enable hard lockup detection by default in all cases,
+ * We may yest want to enable hard lockup detection by default in all cases,
  * for example when running the kernel as a guest on a hypervisor. In these
  * cases this function can be called to disable hard lockup detection. This
  * function should only be executed once by the boot processor before the
- * kernel command line parameters are parsed, because otherwise it is not
+ * kernel command line parameters are parsed, because otherwise it is yest
  * possible to override this in hardlockup_panic_setup().
  */
 void __init hardlockup_detector_disable(void)
@@ -72,7 +72,7 @@ static int __init hardlockup_panic_setup(char *str)
 {
 	if (!strncmp(str, "panic", 5))
 		hardlockup_panic = 1;
-	else if (!strncmp(str, "nopanic", 7))
+	else if (!strncmp(str, "yespanic", 7))
 		hardlockup_panic = 0;
 	else if (!strncmp(str, "0", 1))
 		nmi_watchdog_user_enabled = 0;
@@ -185,19 +185,19 @@ static int __init softlockup_panic_setup(char *str)
 }
 __setup("softlockup_panic=", softlockup_panic_setup);
 
-static int __init nowatchdog_setup(char *str)
+static int __init yeswatchdog_setup(char *str)
 {
 	watchdog_user_enabled = 0;
 	return 1;
 }
-__setup("nowatchdog", nowatchdog_setup);
+__setup("yeswatchdog", yeswatchdog_setup);
 
-static int __init nosoftlockup_setup(char *str)
+static int __init yessoftlockup_setup(char *str)
 {
 	soft_watchdog_user_enabled = 0;
 	return 1;
 }
-__setup("nosoftlockup", nosoftlockup_setup);
+__setup("yessoftlockup", yessoftlockup_setup);
 
 static int __init watchdog_thresh_setup(char *str)
 {
@@ -232,7 +232,7 @@ static int get_softlockup_thresh(void)
 }
 
 /*
- * Returns seconds, approximately.  We don't need nanosecond
+ * Returns seconds, approximately.  We don't need nayessecond
  * resolution, and we don't need to waste time with a big divide when
  * 2^30ns == 1.074s.
  */
@@ -268,7 +268,7 @@ static void __touch_watchdog(void)
  * entering idle state.  This should only be used for scheduler events.
  * Use touch_softlockup_watchdog() for everything else.
  */
-notrace void touch_softlockup_watchdog_sched(void)
+yestrace void touch_softlockup_watchdog_sched(void)
 {
 	/*
 	 * Preemption can be enabled.  It doesn't matter which CPU's timestamp
@@ -277,7 +277,7 @@ notrace void touch_softlockup_watchdog_sched(void)
 	raw_cpu_write(watchdog_touch_ts, 0);
 }
 
-notrace void touch_softlockup_watchdog(void)
+yestrace void touch_softlockup_watchdog(void)
 {
 	touch_softlockup_watchdog_sched();
 	wq_watchdog_touch(raw_smp_processor_id());
@@ -310,12 +310,12 @@ void touch_softlockup_watchdog_sync(void)
 
 static int is_softlockup(unsigned long touch_ts)
 {
-	unsigned long now = get_timestamp();
+	unsigned long yesw = get_timestamp();
 
 	if ((watchdog_enabled & SOFT_WATCHDOG_ENABLED) && watchdog_thresh){
 		/* Warn about unreasonable delays. */
-		if (time_after(now, touch_ts + get_softlockup_thresh()))
-			return now - touch_ts;
+		if (time_after(yesw, touch_ts + get_softlockup_thresh()))
+			return yesw - touch_ts;
 	}
 	return 0;
 }
@@ -375,13 +375,13 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 	/* kick the softlockup detector */
 	if (completion_done(this_cpu_ptr(&softlockup_completion))) {
 		reinit_completion(this_cpu_ptr(&softlockup_completion));
-		stop_one_cpu_nowait(smp_processor_id(),
+		stop_one_cpu_yeswait(smp_processor_id(),
 				softlockup_fn, NULL,
 				this_cpu_ptr(&softlockup_stop_work));
 	}
 
 	/* .. and repeat */
-	hrtimer_forward_now(hrtimer, ns_to_ktime(sample_period));
+	hrtimer_forward_yesw(hrtimer, ns_to_ktime(sample_period));
 
 	if (touch_ts == 0) {
 		if (unlikely(__this_cpu_read(softlockup_touch_sync))) {
@@ -589,7 +589,7 @@ static void lockup_detector_reconfigure(void)
 /*
  * Create the watchdog thread infrastructure and configure the detector(s).
  *
- * The threads are not unparked as watchdog_allowed_mask is empty.  When
+ * The threads are yest unparked as watchdog_allowed_mask is empty.  When
  * the threads are successfully initialized, take the proper locks and
  * unpark the threads in the watchdog_cpumask if the watchdog is enabled.
  */
@@ -597,7 +597,7 @@ static __init void lockup_detector_setup(void)
 {
 	/*
 	 * If sysctl is off and watchdog got disabled on the command line,
-	 * nothing to do here.
+	 * yesthing to do here.
 	 */
 	lockup_detector_update_enable();
 
@@ -635,7 +635,7 @@ static void __lockup_detector_cleanup(void)
 /**
  * lockup_detector_cleanup - Cleanup after cpu hotplug or sysctl changes
  *
- * Caller must not hold the cpu hotplug rwsem.
+ * Caller must yest hold the cpu hotplug rwsem.
  */
 void lockup_detector_cleanup(void)
 {
@@ -755,8 +755,8 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
 
 /*
  * The cpumask is the mask of possible cpus that the watchdog can run
- * on, not the mask of cpus it is actually running on.  This allows the
- * user to specify a mask that will include cpus that have not yet
+ * on, yest the mask of cpus it is actually running on.  This allows the
+ * user to specify a mask that will include cpus that have yest yet
  * been brought online, if desired.
  */
 int proc_watchdog_cpumask(struct ctl_table *table, int write,
@@ -777,8 +777,8 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 
 void __init lockup_detector_init(void)
 {
-	if (tick_nohz_full_enabled())
-		pr_info("Disabling watchdog on nohz_full cores by default\n");
+	if (tick_yeshz_full_enabled())
+		pr_info("Disabling watchdog on yeshz_full cores by default\n");
 
 	cpumask_copy(&watchdog_cpumask,
 		     housekeeping_cpumask(HK_FLAG_TIMER));

@@ -40,7 +40,7 @@ static inline int isowbuf_freebytes(struct isowbuf_t *iwb)
 	write = iwb->write;
 	freebytes = read - write;
 	if (freebytes > 0) {
-		/* no wraparound: need padding space within regular area */
+		/* yes wraparound: need padding space within regular area */
 		return freebytes - BAS_OUTBUFPAD;
 	} else if (read < BAS_OUTBUFPAD) {
 		/* wraparound: can use space up to end of regular area */
@@ -152,7 +152,7 @@ int gigaset_isowbuf_getbytes(struct isowbuf_t *iwb, int size)
 #endif
 
 	if (read < write) {
-		/* no wraparound in valid data */
+		/* yes wraparound in valid data */
 		if (limit >= write) {
 			/* append idle frame */
 			if (isowbuf_startwrite(iwb) < 0)
@@ -516,7 +516,7 @@ static inline void hdlc_putbyte(unsigned char c, struct bc_state *bcs)
  */
 static inline void hdlc_flush(struct bc_state *bcs)
 {
-	/* clear skb or allocate new if not skipping */
+	/* clear skb or allocate new if yest skipping */
 	if (bcs->rx_skb != NULL)
 		skb_trim(bcs->rx_skb, 0);
 	else
@@ -535,8 +535,8 @@ static inline void hdlc_done(struct bc_state *bcs)
 	struct sk_buff *procskb;
 	unsigned int len;
 
-	if (unlikely(bcs->ignore)) {
-		bcs->ignore--;
+	if (unlikely(bcs->igyesre)) {
+		bcs->igyesre--;
 		hdlc_flush(bcs);
 		return;
 	}
@@ -546,13 +546,13 @@ static inline void hdlc_done(struct bc_state *bcs)
 		gig_dbg(DEBUG_ISO, "%s: skb=NULL", __func__);
 		gigaset_isdn_rcv_err(bcs);
 	} else if (procskb->len < 2) {
-		dev_notice(cs->dev, "received short frame (%d octets)\n",
+		dev_yestice(cs->dev, "received short frame (%d octets)\n",
 			   procskb->len);
 		bcs->hw.bas->runts++;
 		dev_kfree_skb_any(procskb);
 		gigaset_isdn_rcv_err(bcs);
 	} else if (bcs->rx_fcs != PPP_GOODFCS) {
-		dev_notice(cs->dev, "frame check error\n");
+		dev_yestice(cs->dev, "frame check error\n");
 		bcs->hw.bas->fcserrs++;
 		dev_kfree_skb_any(procskb);
 		gigaset_isdn_rcv_err(bcs);
@@ -570,17 +570,17 @@ static inline void hdlc_done(struct bc_state *bcs)
 }
 
 /* hdlc_frag
- * drop HDLC data packet with non-integral last byte
+ * drop HDLC data packet with yesn-integral last byte
  */
 static inline void hdlc_frag(struct bc_state *bcs, unsigned inbits)
 {
-	if (unlikely(bcs->ignore)) {
-		bcs->ignore--;
+	if (unlikely(bcs->igyesre)) {
+		bcs->igyesre--;
 		hdlc_flush(bcs);
 		return;
 	}
 
-	dev_notice(bcs->cs->dev, "received partial byte (%d bits)\n", inbits);
+	dev_yestice(bcs->cs->dev, "received partial byte (%d bits)\n", inbits);
 	bcs->hw.bas->alignerrs++;
 	gigaset_isdn_rcv_err(bcs);
 	__skb_trim(bcs->rx_skb, 0);
@@ -617,7 +617,7 @@ static const unsigned char bitcounts[256] = {
  * perform HDLC frame processing (bit unstuffing, flag detection, FCS
  * calculation) on a sequence of received data bytes (8 bits each, LSB first)
  * pass on successfully received, complete frames as SKBs via gigaset_skb_rcvd
- * notify of errors via gigaset_isdn_rcv_err
+ * yestify of errors via gigaset_isdn_rcv_err
  * tally frames, errors etc. in BC structure counters
  * parameters:
  *	src	received data
@@ -633,7 +633,7 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 
 	/* load previous state:
 	 * inputstate = set of flag bits:
-	 * - INS_flag_hunt: no complete opening flag received since connection
+	 * - INS_flag_hunt: yes complete opening flag received since connection
 	 *                  setup or last abort
 	 * - INS_have_data: at least one complete data byte received since last
 	 *                  flag
@@ -667,7 +667,7 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 				inbyte = 0;
 				inbits = 0;
 			} else if (seqlen == 6 && trail1 != 7) {
-				/* flag completed & not followed by abort */
+				/* flag completed & yest followed by abort */
 				inputstate &= ~(INS_flag_hunt | INS_have_data);
 				inbyte = c >> (lead1 + 1);
 				inbits = 7 - lead1;
@@ -686,7 +686,7 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 			}
 			/* else: continue flag-hunting */
 		} else if (likely(seqlen < 5 && trail1 < 7)) {
-			/* streamlined case: 8 data bits, no stuffing */
+			/* streamlined case: 8 data bits, yes stuffing */
 			inbyte |= c << inbits;
 			hdlc_putbyte(inbyte & 0xff, bcs);
 			inputstate |= INS_have_data;
@@ -765,7 +765,7 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 				/* stuffed data */
 				if (trail1 < 7) { /* => seqlen == 5 */
 					/* stuff bit at position lead1,
-					 * no interior stuffing */
+					 * yes interior stuffing */
 					unsigned char mask = (1 << lead1) - 1;
 					c = (c & mask) | ((c & ~mask) >> 1);
 					inbyte |= c << inbits;
@@ -837,8 +837,8 @@ static inline void trans_receive(unsigned char *src, unsigned count,
 	int dobytes;
 	unsigned char *dst;
 
-	if (unlikely(bcs->ignore)) {
-		bcs->ignore--;
+	if (unlikely(bcs->igyesre)) {
+		bcs->igyesre--;
 		return;
 	}
 	skb = bcs->rx_skb;

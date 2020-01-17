@@ -21,16 +21,16 @@ int mmc_retune(struct mmc_host *host);
 void mmc_retune_pause(struct mmc_host *host);
 void mmc_retune_unpause(struct mmc_host *host);
 
-static inline void mmc_retune_hold_now(struct mmc_host *host)
+static inline void mmc_retune_hold_yesw(struct mmc_host *host)
 {
-	host->retune_now = 0;
+	host->retune_yesw = 0;
 	host->hold_retune += 1;
 }
 
 static inline void mmc_retune_recheck(struct mmc_host *host)
 {
 	if (host->hold_retune <= 1)
-		host->retune_now = 1;
+		host->retune_yesw = 1;
 }
 
 static inline int mmc_host_cmd23(struct mmc_host *host)

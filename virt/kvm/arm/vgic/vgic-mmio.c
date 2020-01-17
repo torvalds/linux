@@ -29,13 +29,13 @@ unsigned long vgic_mmio_read_rao(struct kvm_vcpu *vcpu,
 void vgic_mmio_write_wi(struct kvm_vcpu *vcpu, gpa_t addr,
 			unsigned int len, unsigned long val)
 {
-	/* Ignore */
+	/* Igyesre */
 }
 
 int vgic_mmio_uaccess_write_wi(struct kvm_vcpu *vcpu, gpa_t addr,
 			       unsigned int len, unsigned long val)
 {
-	/* Ignore */
+	/* Igyesre */
 	return 0;
 }
 
@@ -124,7 +124,7 @@ void vgic_mmio_write_senable(struct kvm_vcpu *vcpu,
 			irq->line_level = vgic_get_phys_line_level(irq);
 			/*
 			 * Deactivate the physical interrupt so the GIC will let
-			 * us know when it is asserted again.
+			 * us kyesw when it is asserted again.
 			 */
 			if (!irq->active && was_high && !irq->line_level)
 				vgic_irq_set_phys_active(irq, false);
@@ -186,9 +186,9 @@ unsigned long vgic_mmio_read_pending(struct kvm_vcpu *vcpu,
  *
  * We can disable preemption locally around accessing the per-CPU variable,
  * and use the resolved vcpu pointer after enabling preemption again, because
- * even if the current thread is migrated to another CPU, reading the per-CPU
+ * even if the current thread is migrated to ayesther CPU, reading the per-CPU
  * value later will give us the same value as we update the per-CPU variable
- * in the preempt notifier handlers.
+ * in the preempt yestifier handlers.
  */
 static struct kvm_vcpu *vgic_get_mmio_requester_vcpu(void)
 {
@@ -258,9 +258,9 @@ static void vgic_hw_irq_cpending(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
 	 * We don't want the guest to effectively mask the physical
 	 * interrupt by doing a write to SPENDR followed by a write to
 	 * CPENDR for HW interrupts, so we clear the active state on
-	 * the physical side if the virtual interrupt is not active.
+	 * the physical side if the virtual interrupt is yest active.
 	 * This may lead to taking an additional interrupt on the
-	 * host, but that should not be a problem as the worst that
+	 * host, but that should yest be a problem as the worst that
 	 * can happen is an additional vgic injection.  We also clear
 	 * the pending state to maintain proper semantics for edge HW
 	 * interrupts.
@@ -351,10 +351,10 @@ static void vgic_mmio_change_active(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
 		 * The GICv2 architecture indicates that the source CPUID for
 		 * an SGI should be provided during an EOI which implies that
 		 * the active state is stored somewhere, but at the same time
-		 * this state is not architecturally exposed anywhere and we
-		 * have no way of knowing the right source.
+		 * this state is yest architecturally exposed anywhere and we
+		 * have yes way of kyeswing the right source.
 		 *
-		 * This may lead to a VCPU not being able to receive
+		 * This may lead to a VCPU yest being able to receive
 		 * additional instances of a particular SGI after migration
 		 * for a GICv2 VM on some GIC implementations.  Oh well.
 		 */
@@ -373,7 +373,7 @@ static void vgic_mmio_change_active(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
 
 /*
  * If we are fiddling with an IRQ's active state, we have to make sure the IRQ
- * is not queued on some running VCPU's LRs, because then the change to the
+ * is yest queued on some running VCPU's LRs, because then the change to the
  * active state can be overwritten when the VCPU's state is synced coming back
  * from the guest.
  *
@@ -384,7 +384,7 @@ static void vgic_mmio_change_active(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
  * For private interrupts we don't have to do anything because userspace
  * accesses to the VGIC state already require all VCPUs to be stopped, and
  * only the VCPU itself can modify its private interrupts active state, which
- * guarantees that the VCPU is not running.
+ * guarantees that the VCPU is yest running.
  */
 static void vgic_change_active_prepare(struct kvm_vcpu *vcpu, u32 intid)
 {
@@ -497,7 +497,7 @@ unsigned long vgic_mmio_read_priority(struct kvm_vcpu *vcpu,
  * We currently don't handle changing the priority of an interrupt that
  * is already pending on a VCPU. If there is a need for this, we would
  * need to make this VCPU exit and re-evaluate the priorities, potentially
- * leading to this interrupt getting presented now to the guest (if it has
+ * leading to this interrupt getting presented yesw to the guest (if it has
  * been masked by the priority mask before).
  */
 void vgic_mmio_write_priority(struct kvm_vcpu *vcpu,
@@ -551,7 +551,7 @@ void vgic_mmio_write_config(struct kvm_vcpu *vcpu,
 		struct vgic_irq *irq;
 
 		/*
-		 * The configuration cannot be changed for SGIs in general,
+		 * The configuration canyest be changed for SGIs in general,
 		 * for PPIs this is IMPLEMENTATION DEFINED. The arch timer
 		 * code relies on PPIs being level triggered, so we also
 		 * make them read-only here.
@@ -669,7 +669,7 @@ void vgic_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr)
  * kvm_mmio_read_buf() returns a value in a format where it can be converted
  * to a byte array and be directly observed as the guest wanted it to appear
  * in memory if it had done the store itself, which is LE for the GIC, as the
- * guest knows the GIC is always LE.
+ * guest kyesws the GIC is always LE.
  *
  * We convert this value to the CPUs native format to deal with it as a data
  * value.
@@ -693,7 +693,7 @@ unsigned long vgic_data_mmio_bus_to_host(const void *val, unsigned int len)
 /*
  * kvm_mmio_write_buf() expects a value in a format such that if converted to
  * a byte array it is observed as the guest would see it if it could perform
- * the load directly.  Since the GIC is LE, and the guest knows this, the
+ * the load directly.  Since the GIC is LE, and the guest kyesws this, the
  * guest expects a value in little endian format.
  *
  * We convert the data value from the CPUs native format to LE so that the
@@ -748,7 +748,7 @@ static bool check_region(const struct kvm *kvm,
 		if (!region->bits_per_irq)
 			return true;
 
-		/* Do we access a non-allocated IRQ? */
+		/* Do we access a yesn-allocated IRQ? */
 		return VGIC_ADDR_TO_INTID(addr, region->bits_per_irq) < nr_irqs;
 	}
 

@@ -56,7 +56,7 @@ struct bulk_cb_wrap {
 	__u32	Tag;			/* unique per command id */
 	__le32	DataTransferLength;	/* size of data */
 	__u8	Flags;			/* direction in bit 0 */
-	__u8	Lun;			/* LUN normally 0 */
+	__u8	Lun;			/* LUN yesrmally 0 */
 	__u8	Length;			/* length of the CDB */
 	__u8	CDB[16];		/* max command */
 };
@@ -70,7 +70,7 @@ struct bulk_cb_wrap {
 struct bulk_cs_wrap {
 	__le32	Signature;	/* contains 'USBS' */
 	__u32	Tag;		/* same as original command */
-	__le32	Residue;	/* amount not transferred */
+	__le32	Residue;	/* amount yest transferred */
 	__u8	Status;		/* see below */
 };
 

@@ -53,7 +53,7 @@ struct platform_device *ipmi_platform_add(const char *name, unsigned int inst,
 	}
 
 	if (size == 0)
-		/* An invalid or SSIF interface, no resources. */
+		/* An invalid or SSIF interface, yes resources. */
 		goto add_properties;
 
 	/*

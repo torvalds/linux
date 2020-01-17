@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_btree.h"
 #include "xfs_ialloc.h"
 #include "xfs_ialloc_btree.h"
@@ -24,8 +24,8 @@
  * Bulk Stat
  * =========
  *
- * Use the inode walking functions to fill out struct xfs_bulkstat for every
- * allocated inode, then pass the stat information to some externally provided
+ * Use the iyesde walking functions to fill out struct xfs_bulkstat for every
+ * allocated iyesde, then pass the stat information to some externally provided
  * iteration function.
  */
 
@@ -36,38 +36,38 @@ struct xfs_bstat_chunk {
 };
 
 /*
- * Fill out the bulkstat info for a single inode and report it somewhere.
+ * Fill out the bulkstat info for a single iyesde and report it somewhere.
  *
- * bc->breq->lastino is effectively the inode cursor as we walk through the
+ * bc->breq->lastiyes is effectively the iyesde cursor as we walk through the
  * filesystem.  Therefore, we update it any time we need to move the cursor
- * forward, regardless of whether or not we're sending any bstat information
- * back to userspace.  If the inode is internal metadata or, has been freed
+ * forward, regardless of whether or yest we're sending any bstat information
+ * back to userspace.  If the iyesde is internal metadata or, has been freed
  * out from under us, we just simply keep going.
  *
  * However, if any other type of error happens we want to stop right where we
- * are so that userspace will call back with exact number of the bad inode and
+ * are so that userspace will call back with exact number of the bad iyesde and
  * we can send back an error code.
  *
- * Note that if the formatter tells us there's no space left in the buffer we
+ * Note that if the formatter tells us there's yes space left in the buffer we
  * move the cursor forward and abort the walk.
  */
 STATIC int
 xfs_bulkstat_one_int(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	xfs_ino_t		ino,
+	xfs_iyes_t		iyes,
 	struct xfs_bstat_chunk	*bc)
 {
-	struct xfs_icdinode	*dic;		/* dinode core info pointer */
-	struct xfs_inode	*ip;		/* incore inode pointer */
-	struct inode		*inode;
+	struct xfs_icdiyesde	*dic;		/* diyesde core info pointer */
+	struct xfs_iyesde	*ip;		/* incore iyesde pointer */
+	struct iyesde		*iyesde;
 	struct xfs_bulkstat	*buf = bc->buf;
 	int			error = -EINVAL;
 
-	if (xfs_internal_inum(mp, ino))
+	if (xfs_internal_inum(mp, iyes))
 		goto out_advance;
 
-	error = xfs_iget(mp, tp, ino,
+	error = xfs_iget(mp, tp, iyes,
 			 (XFS_IGET_DONTCACHE | XFS_IGET_UNTRUSTED),
 			 XFS_ILOCK_SHARED, &ip);
 	if (error == -ENOENT || error == -EINVAL)
@@ -76,8 +76,8 @@ xfs_bulkstat_one_int(
 		goto out;
 
 	ASSERT(ip != NULL);
-	ASSERT(ip->i_imap.im_blkno != 0);
-	inode = VFS_I(ip);
+	ASSERT(ip->i_imap.im_blkyes != 0);
+	iyesde = VFS_I(ip);
 
 	dic = &ip->i_d;
 
@@ -85,22 +85,22 @@ xfs_bulkstat_one_int(
 	 * further change.
 	 */
 	buf->bs_projectid = ip->i_d.di_projid;
-	buf->bs_ino = ino;
+	buf->bs_iyes = iyes;
 	buf->bs_uid = dic->di_uid;
 	buf->bs_gid = dic->di_gid;
 	buf->bs_size = dic->di_size;
 
-	buf->bs_nlink = inode->i_nlink;
-	buf->bs_atime = inode->i_atime.tv_sec;
-	buf->bs_atime_nsec = inode->i_atime.tv_nsec;
-	buf->bs_mtime = inode->i_mtime.tv_sec;
-	buf->bs_mtime_nsec = inode->i_mtime.tv_nsec;
-	buf->bs_ctime = inode->i_ctime.tv_sec;
-	buf->bs_ctime_nsec = inode->i_ctime.tv_nsec;
+	buf->bs_nlink = iyesde->i_nlink;
+	buf->bs_atime = iyesde->i_atime.tv_sec;
+	buf->bs_atime_nsec = iyesde->i_atime.tv_nsec;
+	buf->bs_mtime = iyesde->i_mtime.tv_sec;
+	buf->bs_mtime_nsec = iyesde->i_mtime.tv_nsec;
+	buf->bs_ctime = iyesde->i_ctime.tv_sec;
+	buf->bs_ctime_nsec = iyesde->i_ctime.tv_nsec;
 	buf->bs_btime = dic->di_crtime.tv_sec;
 	buf->bs_btime_nsec = dic->di_crtime.tv_nsec;
-	buf->bs_gen = inode->i_generation;
-	buf->bs_mode = inode->i_mode;
+	buf->bs_gen = iyesde->i_generation;
+	buf->bs_mode = iyesde->i_mode;
 
 	buf->bs_xflags = xfs_ip2xflags(ip);
 	buf->bs_extsize_blks = dic->di_extsize;
@@ -117,7 +117,7 @@ xfs_bulkstat_one_int(
 
 	switch (dic->di_format) {
 	case XFS_DINODE_FMT_DEV:
-		buf->bs_rdev = sysv_encode_dev(inode->i_rdev);
+		buf->bs_rdev = sysv_encode_dev(iyesde->i_rdev);
 		buf->bs_blksize = BLKDEV_IOSIZE;
 		buf->bs_blocks = 0;
 		break;
@@ -144,17 +144,17 @@ xfs_bulkstat_one_int(
 
 out_advance:
 	/*
-	 * Advance the cursor to the inode that comes after the one we just
+	 * Advance the cursor to the iyesde that comes after the one we just
 	 * looked at.  We want the caller to move along if the bulkstat
-	 * information was copied successfully; if we tried to grab the inode
-	 * but it's no longer allocated; or if it's internal metadata.
+	 * information was copied successfully; if we tried to grab the iyesde
+	 * but it's yes longer allocated; or if it's internal metadata.
 	 */
-	bc->breq->startino = ino + 1;
+	bc->breq->startiyes = iyes + 1;
 out:
 	return error;
 }
 
-/* Bulkstat a single inode. */
+/* Bulkstat a single iyesde. */
 int
 xfs_bulkstat_one(
 	struct xfs_ibulk	*breq,
@@ -173,12 +173,12 @@ xfs_bulkstat_one(
 	if (!bc.buf)
 		return -ENOMEM;
 
-	error = xfs_bulkstat_one_int(breq->mp, NULL, breq->startino, &bc);
+	error = xfs_bulkstat_one_int(breq->mp, NULL, breq->startiyes, &bc);
 
 	kmem_free(bc.buf);
 
 	/*
-	 * If we reported one inode to userspace then we abort because we hit
+	 * If we reported one iyesde to userspace then we abort because we hit
 	 * the end of the buffer.  Don't leak that back to userspace.
 	 */
 	if (error == -ECANCELED)
@@ -191,43 +191,43 @@ static int
 xfs_bulkstat_iwalk(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	xfs_ino_t		ino,
+	xfs_iyes_t		iyes,
 	void			*data)
 {
 	int			error;
 
-	error = xfs_bulkstat_one_int(mp, tp, ino, data);
-	/* bulkstat just skips over missing inodes */
+	error = xfs_bulkstat_one_int(mp, tp, iyes, data);
+	/* bulkstat just skips over missing iyesdes */
 	if (error == -ENOENT || error == -EINVAL)
 		return 0;
 	return error;
 }
 
 /*
- * Check the incoming lastino parameter.
+ * Check the incoming lastiyes parameter.
  *
- * We allow any inode value that could map to physical space inside the
- * filesystem because if there are no inodes there, bulkstat moves on to the
- * next chunk.  In other words, the magic agino value of zero takes us to the
- * first chunk in the AG, and an agino value past the end of the AG takes us to
+ * We allow any iyesde value that could map to physical space inside the
+ * filesystem because if there are yes iyesdes there, bulkstat moves on to the
+ * next chunk.  In other words, the magic agiyes value of zero takes us to the
+ * first chunk in the AG, and an agiyes value past the end of the AG takes us to
  * the first chunk in the next AG.
  *
- * Therefore we can end early if the requested inode is beyond the end of the
+ * Therefore we can end early if the requested iyesde is beyond the end of the
  * filesystem or doesn't map properly.
  */
 static inline bool
 xfs_bulkstat_already_done(
 	struct xfs_mount	*mp,
-	xfs_ino_t		startino)
+	xfs_iyes_t		startiyes)
 {
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, startino);
-	xfs_agino_t		agino = XFS_INO_TO_AGINO(mp, startino);
+	xfs_agnumber_t		agyes = XFS_INO_TO_AGNO(mp, startiyes);
+	xfs_agiyes_t		agiyes = XFS_INO_TO_AGINO(mp, startiyes);
 
-	return agno >= mp->m_sb.sb_agcount ||
-	       startino != XFS_AGINO_TO_INO(mp, agno, agino);
+	return agyes >= mp->m_sb.sb_agcount ||
+	       startiyes != XFS_AGINO_TO_INO(mp, agyes, agiyes);
 }
 
-/* Return stat information in bulk (by-inode) for the filesystem. */
+/* Return stat information in bulk (by-iyesde) for the filesystem. */
 int
 xfs_bulkstat(
 	struct xfs_ibulk	*breq,
@@ -239,7 +239,7 @@ xfs_bulkstat(
 	};
 	int			error;
 
-	if (xfs_bulkstat_already_done(breq->mp, breq->startino))
+	if (xfs_bulkstat_already_done(breq->mp, breq->startiyes))
 		return 0;
 
 	bc.buf = kmem_zalloc(sizeof(struct xfs_bulkstat),
@@ -247,17 +247,17 @@ xfs_bulkstat(
 	if (!bc.buf)
 		return -ENOMEM;
 
-	error = xfs_iwalk(breq->mp, NULL, breq->startino, breq->flags,
+	error = xfs_iwalk(breq->mp, NULL, breq->startiyes, breq->flags,
 			xfs_bulkstat_iwalk, breq->icount, &bc);
 
 	kmem_free(bc.buf);
 
 	/*
-	 * We found some inodes, so clear the error status and return them.
-	 * The lastino pointer will point directly at the inode that triggered
+	 * We found some iyesdes, so clear the error status and return them.
+	 * The lastiyes pointer will point directly at the iyesde that triggered
 	 * any error that occurred, so on the next call the error will be
-	 * triggered again and propagated to userspace as there will be no
-	 * formatted inodes in the buffer.
+	 * triggered again and propagated to userspace as there will be yes
+	 * formatted iyesdes in the buffer.
 	 */
 	if (breq->ocount > 0)
 		error = 0;
@@ -274,7 +274,7 @@ xfs_bulkstat_to_bstat(
 {
 	/* memset is needed here because of padding holes in the structure. */
 	memset(bs1, 0, sizeof(struct xfs_bstat));
-	bs1->bs_ino = bstat->bs_ino;
+	bs1->bs_iyes = bstat->bs_iyes;
 	bs1->bs_mode = bstat->bs_mode;
 	bs1->bs_nlink = bstat->bs_nlink;
 	bs1->bs_uid = bstat->bs_uid;
@@ -312,28 +312,28 @@ struct xfs_inumbers_chunk {
 /*
  * INUMBERS
  * ========
- * This is how we export inode btree records to userspace, so that XFS tools
- * can figure out where inodes are allocated.
+ * This is how we export iyesde btree records to userspace, so that XFS tools
+ * can figure out where iyesdes are allocated.
  */
 
 /*
- * Format the inode group structure and report it somewhere.
+ * Format the iyesde group structure and report it somewhere.
  *
- * Similar to xfs_bulkstat_one_int, lastino is the inode cursor as we walk
+ * Similar to xfs_bulkstat_one_int, lastiyes is the iyesde cursor as we walk
  * through the filesystem so we move it forward unless there was a runtime
- * error.  If the formatter tells us the buffer is now full we also move the
+ * error.  If the formatter tells us the buffer is yesw full we also move the
  * cursor forward and abort the walk.
  */
 STATIC int
 xfs_inumbers_walk(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	xfs_agnumber_t		agno,
-	const struct xfs_inobt_rec_incore *irec,
+	xfs_agnumber_t		agyes,
+	const struct xfs_iyesbt_rec_incore *irec,
 	void			*data)
 {
-	struct xfs_inumbers	inogrp = {
-		.xi_startino	= XFS_AGINO_TO_INO(mp, agno, irec->ir_startino),
+	struct xfs_inumbers	iyesgrp = {
+		.xi_startiyes	= XFS_AGINO_TO_INO(mp, agyes, irec->ir_startiyes),
 		.xi_alloccount	= irec->ir_count - irec->ir_freecount,
 		.xi_allocmask	= ~irec->ir_free,
 		.xi_version	= XFS_INUMBERS_VERSION_V5,
@@ -341,17 +341,17 @@ xfs_inumbers_walk(
 	struct xfs_inumbers_chunk *ic = data;
 	int			error;
 
-	error = ic->formatter(ic->breq, &inogrp);
+	error = ic->formatter(ic->breq, &iyesgrp);
 	if (error && error != -ECANCELED)
 		return error;
 
-	ic->breq->startino = XFS_AGINO_TO_INO(mp, agno, irec->ir_startino) +
+	ic->breq->startiyes = XFS_AGINO_TO_INO(mp, agyes, irec->ir_startiyes) +
 			XFS_INODES_PER_CHUNK;
 	return error;
 }
 
 /*
- * Return inode number table for the filesystem.
+ * Return iyesde number table for the filesystem.
  */
 int
 xfs_inumbers(
@@ -364,18 +364,18 @@ xfs_inumbers(
 	};
 	int			error = 0;
 
-	if (xfs_bulkstat_already_done(breq->mp, breq->startino))
+	if (xfs_bulkstat_already_done(breq->mp, breq->startiyes))
 		return 0;
 
-	error = xfs_inobt_walk(breq->mp, NULL, breq->startino, breq->flags,
+	error = xfs_iyesbt_walk(breq->mp, NULL, breq->startiyes, breq->flags,
 			xfs_inumbers_walk, breq->icount, &ic);
 
 	/*
-	 * We found some inode groups, so clear the error status and return
-	 * them.  The lastino pointer will point directly at the inode that
+	 * We found some iyesde groups, so clear the error status and return
+	 * them.  The lastiyes pointer will point directly at the iyesde that
 	 * triggered any error that occurred, so on the next call the error
 	 * will be triggered again and propagated to userspace as there will be
-	 * no formatted inode groups in the buffer.
+	 * yes formatted iyesde groups in the buffer.
 	 */
 	if (breq->ocount > 0)
 		error = 0;
@@ -383,15 +383,15 @@ xfs_inumbers(
 	return error;
 }
 
-/* Convert an inumbers (v5) struct to a inogrp (v1) struct. */
+/* Convert an inumbers (v5) struct to a iyesgrp (v1) struct. */
 void
-xfs_inumbers_to_inogrp(
-	struct xfs_inogrp		*ig1,
+xfs_inumbers_to_iyesgrp(
+	struct xfs_iyesgrp		*ig1,
 	const struct xfs_inumbers	*ig)
 {
 	/* memset is needed here because of padding holes in the structure. */
-	memset(ig1, 0, sizeof(struct xfs_inogrp));
-	ig1->xi_startino = ig->xi_startino;
+	memset(ig1, 0, sizeof(struct xfs_iyesgrp));
+	ig1->xi_startiyes = ig->xi_startiyes;
 	ig1->xi_alloccount = ig->xi_alloccount;
 	ig1->xi_allocmask = ig->xi_allocmask;
 }

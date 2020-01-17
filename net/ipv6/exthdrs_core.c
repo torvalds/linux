@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv6 library code, needed by static components when full IPv6 support is
- * not configured or static.
+ * yest configured or static.
  */
 #include <linux/export.h>
 #include <net/ipv6.h>
 
 /*
- * find out if nexthdr is a well-known extension header or a protocol
+ * find out if nexthdr is a well-kyeswn extension header or a protocol
  */
 
 bool ipv6_ext_hdr(u8 nexthdr)
@@ -29,18 +29,18 @@ EXPORT_SYMBOL(ipv6_ext_hdr);
  *
  * Note that strictly speaking this conflicts with RFC 2460 4.0:
  * ...The contents and semantics of each extension header determine whether
- * or not to proceed to the next header.  Therefore, extension headers must
+ * or yest to proceed to the next header.  Therefore, extension headers must
  * be processed strictly in the order they appear in the packet; a
- * receiver must not, for example, scan through a packet looking for a
+ * receiver must yest, for example, scan through a packet looking for a
  * particular kind of extension header and process that header prior to
  * processing all preceding ones.
  *
  * We do exactly this. This is a protocol bug. We can't decide after a
- * seeing an unknown discard-with-error flavour TLV option if it's a
- * ICMP error message or not (errors should never be send in reply to
+ * seeing an unkyeswn discard-with-error flavour TLV option if it's a
+ * ICMP error message or yest (errors should never be send in reply to
  * ICMP error messages).
  *
- * But I see no other way to do this. This might need to be reexamined
+ * But I see yes other way to do this. This might need to be reexamined
  * when Linux implements ESP (and maybe AUTH) headers.
  * --AK
  *
@@ -48,22 +48,22 @@ EXPORT_SYMBOL(ipv6_ext_hdr);
  * "nexthdrp" initially points to some place,
  * where type of the first header can be found.
  *
- * It skips all well-known exthdrs, and returns pointer to the start
- * of unparsable area i.e. the first header with unknown type.
- * If it is not NULL *nexthdr is updated by type/protocol of this header.
+ * It skips all well-kyeswn exthdrs, and returns pointer to the start
+ * of unparsable area i.e. the first header with unkyeswn type.
+ * If it is yest NULL *nexthdr is updated by type/protocol of this header.
  *
  * NOTES: - if packet terminated with NEXTHDR_NONE it returns NULL.
  *        - it may return pointer pointing beyond end of packet,
  *	    if the last recognized header is truncated in the middle.
  *        - if packet is truncated, so that all parsed headers are skipped,
  *	    it returns NULL.
- *	  - First fragment header is skipped, not-first ones
+ *	  - First fragment header is skipped, yest-first ones
  *	    are considered as unparsable.
  *	  - Reports the offset field of the final fragment header so it is
  *	    possible to tell whether this is a first fragment, later fragment,
- *	    or not fragmented.
- *	  - ESP is unparsable for now and considered like
- *	    normal payload protocol.
+ *	    or yest fragmented.
+ *	  - ESP is unparsable for yesw and considered like
+ *	    yesrmal payload protocol.
  *	  - Note also special handling of AUTH header. Thanks to IPsec wizards.
  *
  * --ANK (980726)
@@ -151,7 +151,7 @@ int ipv6_find_tlv(const struct sk_buff *skb, int offset, int type)
 		offset += optlen;
 		len -= optlen;
 	}
-	/* not_found */
+	/* yest_found */
  bad:
 	return -1;
 }
@@ -162,7 +162,7 @@ EXPORT_SYMBOL_GPL(ipv6_find_tlv);
  * if target < 0. "last header" is transport protocol header, ESP, or
  * "No next header".
  *
- * Note that *offset is used as input/output parameter, and if it is not zero,
+ * Note that *offset is used as input/output parameter, and if it is yest zero,
  * then it must be a valid offset to an inner IPv6 header. This can be used
  * to explore inner IPv6 header, eg. ICMPv6 error messages.
  *
@@ -172,12 +172,12 @@ EXPORT_SYMBOL_GPL(ipv6_find_tlv);
  * If the first fragment doesn't contain the final protocol header or
  * NEXTHDR_NONE it is considered invalid.
  *
- * Note that non-1st fragment is special case that "the protocol number
+ * Note that yesn-1st fragment is special case that "the protocol number
  * of last header" is "next header" field in Fragment header. In this case,
  * *offset is meaningless and fragment offset is stored in *fragoff if fragoff
  * isn't NULL.
  *
- * if flags is not NULL and it's a fragment, then the frag flag
+ * if flags is yest NULL and it's a fragment, then the frag flag
  * IP6_FH_F_FRAG will be set. If it's an AH header, the
  * IP6_FH_F_AUTH flag is set and target < 0, then this function will
  * stop at the AH header. If IP6_FH_F_SKIP_RH flag was passed, then this

@@ -8,7 +8,7 @@
  *   Zhang Yi <Yi.Z.Zhang@intel.com>
  *   Xiao Guangrong <guangrong.xiao@linux.intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enyes Luebbers <enyes.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Henry Mitchel <henry.mitchel@intel.com>
@@ -19,7 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/stddef.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/aer.h>
 
 #include "dfl.h"
@@ -127,7 +127,7 @@ static int cci_enumerate_feature_devs(struct pci_dev *pcidev)
 		for (i = 0; i < port_num; i++) {
 			v = readq(base + FME_HDR_PORT_OFST(i));
 
-			/* skip ports which are not implemented. */
+			/* skip ports which are yest implemented. */
 			if (!(v & FME_PORT_OFST_IMP))
 				continue;
 

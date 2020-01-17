@@ -5,7 +5,7 @@
  * XDR support for lockd and the lock client.
  *
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
- * Copyright (C) 1999, Trond Myklebust <trond.myklebust@fys.uio.no>
+ * Copyright (C) 1999, Trond Myklebust <trond.myklebust@fys.uio.yes>
  */
 
 #include <linux/types.h>
@@ -300,7 +300,7 @@ nlm4svc_encode_res(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nlm4svc_decode_notify(struct svc_rqst *rqstp, __be32 *p)
+nlm4svc_decode_yestify(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nlm_args *argp = rqstp->rq_argp;
 	struct nlm_lock	*lock = &argp->lock;

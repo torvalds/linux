@@ -143,7 +143,7 @@ static inline int hi3660_thermal_temp_to_step(int temp)
  * interrupt is raised. It could be when the temperature is going
  * above the threshold or below. However, if the temperature is
  * fluctuating around this value due to the load, we can receive
- * several interrupts which may not desired.
+ * several interrupts which may yest desired.
  *
  * We can setup a temperature representing the delta between the
  * threshold and the current temperature when the temperature is
@@ -151,11 +151,11 @@ static inline int hi3660_thermal_temp_to_step(int temp)
  *
  * For instance: the lag register is 5°C, the threshold is 65°C, when
  * the temperature reaches 65°C an interrupt is raised and when the
- * temperature decrease to 65°C - 5°C another interrupt is raised.
+ * temperature decrease to 65°C - 5°C ayesther interrupt is raised.
  *
  * A very short lag can lead to an interrupt storm, a long lag
  * increase the latency to react to the temperature changes.  In our
- * case, that is not really a problem as we are polling the
+ * case, that is yest really a problem as we are polling the
  * temperature.
  *
  * [0:4] : lag register

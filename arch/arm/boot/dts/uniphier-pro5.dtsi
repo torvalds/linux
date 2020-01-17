@@ -292,7 +292,7 @@
 			clock-frequency = <100000>;
 		};
 
-		/* i2c4 does not exist */
+		/* i2c4 does yest exist */
 
 		/* chip-internal connection for DMD */
 		i2c5: i2c@58785000 {
@@ -481,7 +481,7 @@
 			bus-width = <8>;
 			cap-mmc-highspeed;
 			cap-mmc-hw-reset;
-			non-removable;
+			yesn-removable;
 		};
 
 		sd: sdhc@68800000 {

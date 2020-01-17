@@ -835,7 +835,7 @@ static int fsl_lpspi_init_rpm(struct fsl_lpspi_data *fsl_lpspi)
 
 static int fsl_lpspi_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct fsl_lpspi_data *fsl_lpspi;
 	struct spi_controller *controller;
 	struct spi_imx_master *lpspi_platform_info =
@@ -845,7 +845,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	u32 temp;
 	bool is_slave;
 
-	is_slave = of_property_read_bool((&pdev->dev)->of_node, "spi-slave");
+	is_slave = of_property_read_bool((&pdev->dev)->of_yesde, "spi-slave");
 	if (is_slave)
 		controller = spi_alloc_slave(&pdev->dev,
 					sizeof(struct fsl_lpspi_data));
@@ -891,7 +891,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	controller->unprepare_transfer_hardware = lpspi_unprepare_xfer_hardware;
 	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	controller->flags = SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX;
-	controller->dev.of_node = pdev->dev.of_node;
+	controller->dev.of_yesde = pdev->dev.of_yesde;
 	controller->bus_num = pdev->id;
 	controller->slave_abort = fsl_lpspi_slave_abort;
 

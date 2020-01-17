@@ -2,7 +2,7 @@
 /*
  * Nuvoton NPCM7xx driver for EHCI HCD
  *
- * Copyright (C) 2018 Nuvoton Technologies,
+ * Copyright (C) 2018 Nuvoton Techyeslogies,
  * Avi Fishman <avi.fishman@nuvoton.com> <avifishman70@gmail.com>
  * Tomer Maimon <tomer.maimon@nuvoton.com> <tmaimon77@gmail.com>
  *
@@ -118,8 +118,8 @@ static int npcm7xx_ehci_hcd_drv_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
+	 * Right yesw device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for yesw.
 	 * Once we have dma capability bindings this can go away.
 	 */
 	retval = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));

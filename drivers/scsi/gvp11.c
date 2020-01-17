@@ -197,8 +197,8 @@ static int check_wd33c93(struct gvp11_scsiregs *regs)
 
 	/*
 	 * These darn GVP boards are a problem - it can be tough to tell
-	 * whether or not they include a SCSI controller. This is the
-	 * ultimate Yet-Another-GVP-Detection-Hack in that it actually
+	 * whether or yest they include a SCSI controller. This is the
+	 * ultimate Yet-Ayesther-GVP-Detection-Hack in that it actually
 	 * probes for a WD33c93 chip: If we find one, it's extremely
 	 * likely that this card supports SCSI, regardless of Product_
 	 * Code, Board_Size, etc.
@@ -284,7 +284,7 @@ static int gvp11_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 	/*
 	 * Rumors state that some GVP ram boards use the same product
 	 * code as the SCSI controllers. Therefore if the board-size
-	 * is not 64KB we assume it is a ram board and bail out.
+	 * is yest 64KB we assume it is a ram board and bail out.
 	 */
 	if (zorro_resource_len(z) != 0x10000)
 		return -ENODEV;
@@ -326,7 +326,7 @@ static int gvp11_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 	else
 		hdata->wh.dma_xfer_mask = default_dma_xfer_mask;
 
-	hdata->wh.no_sync = 0xff;
+	hdata->wh.yes_sync = 0xff;
 	hdata->wh.fast = 0;
 	hdata->wh.dma_mode = CTRL_DMA;
 	hdata->regs = regs;

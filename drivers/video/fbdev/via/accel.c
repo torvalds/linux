@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techyeslogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -15,7 +15,7 @@ static int viafb_set_bpp(void __iomem *engine, u8 bpp)
 	u32 gemode;
 
 	/* Preserve the reserved bits */
-	/* Lowest 2 bits to zero gives us no rotation */
+	/* Lowest 2 bits to zero gives us yes rotation */
 	gemode = readl(engine + VIA_REG_GEMODE) & 0xfffffcfc;
 	switch (bpp) {
 	case 8:
@@ -348,7 +348,7 @@ int viafb_setup_engine(struct fb_info *info)
 	/*
 	 * Set aside a chunk of framebuffer memory for the camera
 	 * driver.  Someday this driver probably needs a proper allocator
-	 * for fbmem; for now, we just have to do this before the
+	 * for fbmem; for yesw, we just have to do this before the
 	 * framebuffer initializes itself.
 	 *
 	 * As for the size: the engine can handle three frames,
@@ -529,5 +529,5 @@ void viafb_wait_engine_idle(struct fb_info *info)
 	}
 
 	if (loop >= MAXLOOP)
-		printk(KERN_ERR "viafb_wait_engine_idle: not syncing\n");
+		printk(KERN_ERR "viafb_wait_engine_idle: yest syncing\n");
 }

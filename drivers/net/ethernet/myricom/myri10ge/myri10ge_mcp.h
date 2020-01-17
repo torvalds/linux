@@ -197,11 +197,11 @@ enum myri10ge_mcp_cmd_type {
 	MXGEFW_DISABLE_ALLMULTI = 27,
 
 	/* returns MXGEFW_CMD_ERROR_MULTICAST
-	 * if there is no room in the cache
+	 * if there is yes room in the cache
 	 * data0,MSH(data1) = multicast group address */
 	MXGEFW_JOIN_MULTICAST_GROUP = 28,
 	/* returns MXGEFW_CMD_ERROR_MULTICAST
-	 * if the address is not in the cache,
+	 * if the address is yest in the cache,
 	 * or is equal to FF-FF-FF-FF-FF-FF
 	 * data0,MSH(data1) = multicast group address */
 	MXGEFW_LEAVE_MULTICAST_GROUP = 29,
@@ -222,7 +222,7 @@ enum myri10ge_mcp_cmd_type {
 	 * chipset */
 
 	MXGEFW_CMD_UNALIGNED_STATUS = 33,
-	/* return data = boolean, true if the chipset is known to be unaligned */
+	/* return data = boolean, true if the chipset is kyeswn to be unaligned */
 
 	MXGEFW_CMD_ALWAYS_USE_N_BIG_BUFFERS = 34,
 	/* data0 = number of big buffers to use.  It must be 0 or a power of 2.
@@ -230,7 +230,7 @@ enum myri10ge_mcp_cmd_type {
 	 * for packet. This is the default behavior.
 	 * A power of 2 number indicates that the NIC always uses the specified
 	 * number of buffers for each big receive packet.
-	 * It is up to the driver to ensure that this value is big enough for
+	 * It is up to the driver to ensure that this value is big eyesugh for
 	 * the NIC to be able to receive maximum-sized packets.
 	 */
 
@@ -263,7 +263,7 @@ enum myri10ge_mcp_cmd_type {
 	/* tell nic that the secret key's been updated */
 	MXGEFW_CMD_SET_RSS_ENABLE = 43,
 	/* data0 = enable/disable rss
-	 * 0: disable rss.  nic does not distribute receive packets.
+	 * 0: disable rss.  nic does yest distribute receive packets.
 	 * 1: enable rss.  nic distributes receive packets among queues.
 	 * data1 = hash type
 	 * 1: IPV4            (required by RSS)
@@ -281,10 +281,10 @@ enum myri10ge_mcp_cmd_type {
 	MXGEFW_CMD_GET_MAX_TSO6_HDR_SIZE = 44,
 	/* Return data = the max. size of the entire headers of a IPv6 TSO packet.
 	 * If the header size of a IPv6 TSO packet is larger than the specified
-	 * value, then the driver must not use TSO.
+	 * value, then the driver must yest use TSO.
 	 * This size restriction only applies to IPv6 TSO.
 	 * For IPv4 TSO, the maximum size of the headers is fixed, and the NIC
-	 * always has enough header buffer to store maximum-sized headers.
+	 * always has eyesugh header buffer to store maximum-sized headers.
 	 */
 
 	MXGEFW_CMD_SET_TSO_MODE = 45,
@@ -417,8 +417,8 @@ struct mcp_irq_data {
 	__be32 dropped_link_error_or_filtered;
 	__be32 dropped_runt;
 	__be32 dropped_overrun;
-	__be32 dropped_no_small_buffer;
-	__be32 dropped_no_big_buffer;
+	__be32 dropped_yes_small_buffer;
+	__be32 dropped_yes_big_buffer;
 	__be32 rdma_tags_available;
 
 	u8 tx_stopped;

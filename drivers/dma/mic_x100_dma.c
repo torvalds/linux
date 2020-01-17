@@ -128,7 +128,7 @@ static int mic_dma_avail_desc_ring_space(struct mic_dma_chan *ch, int required)
 	}
 
 	if (count < required) {
-		dev_dbg(dev, "Not enough desc space");
+		dev_dbg(dev, "Not eyesugh desc space");
 		dev_dbg(dev, "%s %d required=%u, avail=%u\n",
 			__func__, __LINE__, required, count);
 		return -ENOMEM;
@@ -143,7 +143,7 @@ static int mic_dma_prog_memcpy_desc(struct mic_dma_chan *ch, dma_addr_t src,
 {
 	size_t current_transfer_len;
 	size_t max_xfer_size = to_mic_dma_dev(ch)->max_xfer_size;
-	/* 3 is added to make sure we have enough space for status desc */
+	/* 3 is added to make sure we have eyesugh space for status desc */
 	int num_desc = len / max_xfer_size + 3;
 	int ret;
 
@@ -190,7 +190,7 @@ static int mic_dma_do_dma(struct mic_dma_chan *ch, int flags, dma_addr_t src,
 			return ret;
 	}
 
-	/* Above mic_dma_prog_memcpy_desc() makes sure we have enough space */
+	/* Above mic_dma_prog_memcpy_desc() makes sure we have eyesugh space */
 	if (flags & DMA_PREP_FENCE) {
 		mic_dma_prep_status_desc(&ch->desc_ring[ch->head], 0,
 					 ch->status_dest_micpa, false);
@@ -219,7 +219,7 @@ static inline void mic_dma_issue_pending(struct dma_chan *ch)
 	mic_ch->issued = mic_ch->submitted;
 	/*
 	 * make descriptor updates visible before advancing head,
-	 * this is purposefully not smp_wmb() since we are also
+	 * this is purposefully yest smp_wmb() since we are also
 	 * publishing the descriptor updates to a dma device
 	 */
 	wmb();
@@ -243,7 +243,7 @@ static dma_cookie_t mic_dma_tx_submit_unlock(struct dma_async_tx_descriptor *tx)
 	dma_cookie_assign(tx);
 	cookie = tx->cookie;
 	/*
-	 * We need an smp write barrier here because another CPU might see
+	 * We need an smp write barrier here because ayesther CPU might see
 	 * an update to submitted and update h/w head even before we
 	 * assigned a cookie to this tx.
 	 */
@@ -588,7 +588,7 @@ static int mic_dma_register_dma_device(struct mic_dma_device *mic_dma_dev,
 
 	dma_cap_zero(mic_dma_dev->dma_dev.cap_mask);
 	/*
-	 * This dma engine is not capable of host memory to host memory
+	 * This dma engine is yest capable of host memory to host memory
 	 * transfers
 	 */
 	dma_cap_set(DMA_MEMCPY, mic_dma_dev->dma_dev.cap_mask);
@@ -611,7 +611,7 @@ static int mic_dma_register_dma_device(struct mic_dma_device *mic_dma_dev,
 	for (i = first_chan; i < first_chan + MIC_DMA_NUM_CHAN; i++) {
 		mic_dma_dev->mic_ch[i].api_ch.device = &mic_dma_dev->dma_dev;
 		dma_cookie_init(&mic_dma_dev->mic_ch[i].api_ch);
-		list_add_tail(&mic_dma_dev->mic_ch[i].api_ch.device_node,
+		list_add_tail(&mic_dma_dev->mic_ch[i].api_ch.device_yesde,
 			      &mic_dma_dev->dma_dev.channels);
 	}
 	return dmaenginem_async_device_register(&mic_dma_dev->dma_dev);

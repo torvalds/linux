@@ -14,7 +14,7 @@
 #endif
 
 #ifndef UTS_DOMAINNAME
-#define UTS_DOMAINNAME "(none)"	/* set by setdomainname() */
+#define UTS_DOMAINNAME "(yesne)"	/* set by setdomainname() */
 #endif
 
 #endif

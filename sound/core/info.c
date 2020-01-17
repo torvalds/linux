@@ -11,7 +11,7 @@
 #include <linux/string.h>
 #include <linux/module.h>
 #include <sound/core.h>
-#include <sound/minors.h>
+#include <sound/miyesrs.h>
 #include <sound/info.h>
 #include <linux/utsname.h>
 #include <linux/proc_fs.h>
@@ -219,7 +219,7 @@ static long snd_info_entry_ioctl(struct file *file, unsigned int cmd,
 
 static int snd_info_entry_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct snd_info_private_data *data;
 	struct snd_info_entry *entry;
 
@@ -230,12 +230,12 @@ static int snd_info_entry_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!entry->c.ops->mmap)
 		return -ENXIO;
 	return entry->c.ops->mmap(entry, data->file_private_data,
-				  inode, file, vma);
+				  iyesde, file, vma);
 }
 
-static int snd_info_entry_open(struct inode *inode, struct file *file)
+static int snd_info_entry_open(struct iyesde *iyesde, struct file *file)
 {
-	struct snd_info_entry *entry = PDE_DATA(inode);
+	struct snd_info_entry *entry = PDE_DATA(iyesde);
 	struct snd_info_private_data *data;
 	int mode, err;
 
@@ -269,7 +269,7 @@ static int snd_info_entry_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-static int snd_info_entry_release(struct inode *inode, struct file *file)
+static int snd_info_entry_release(struct iyesde *iyesde, struct file *file)
 {
 	struct snd_info_private_data *data = file->private_data;
 	struct snd_info_entry *entry = data->entry;
@@ -365,9 +365,9 @@ static int snd_info_seq_show(struct seq_file *seq, void *p)
 	return 0;
 }
 
-static int snd_info_text_entry_open(struct inode *inode, struct file *file)
+static int snd_info_text_entry_open(struct iyesde *iyesde, struct file *file)
 {
-	struct snd_info_entry *entry = PDE_DATA(inode);
+	struct snd_info_entry *entry = PDE_DATA(iyesde);
 	struct snd_info_private_data *data;
 	int err;
 
@@ -400,7 +400,7 @@ static int snd_info_text_entry_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-static int snd_info_text_entry_release(struct inode *inode, struct file *file)
+static int snd_info_text_entry_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 	struct snd_info_private_data *data = m->private;
@@ -409,7 +409,7 @@ static int snd_info_text_entry_release(struct inode *inode, struct file *file)
 	if (data->wbuffer && entry->c.text.write)
 		entry->c.text.write(entry, data->wbuffer);
 
-	single_release(inode, file);
+	single_release(iyesde, file);
 	kfree(data->rbuffer);
 	if (data->wbuffer) {
 		kvfree(data->wbuffer->buffer);
@@ -471,10 +471,10 @@ int __init snd_info_init(void)
 		goto error;
 #endif
 	if (snd_info_version_init() < 0 ||
-	    snd_minor_info_init() < 0 ||
-	    snd_minor_info_oss_init() < 0 ||
+	    snd_miyesr_info_init() < 0 ||
+	    snd_miyesr_info_oss_init() < 0 ||
 	    snd_card_info_init() < 0 ||
-	    snd_info_minor_register() < 0)
+	    snd_info_miyesr_register() < 0)
 		goto error;
 	return 0;
 

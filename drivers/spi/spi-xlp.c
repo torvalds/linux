@@ -99,7 +99,7 @@ struct xlp_spi_priv {
 	int			cs;		/* slave device chip select */
 	u32			spi_clk;	/* spi clock frequency */
 	bool			cmd_cont;	/* cs active */
-	struct completion	done;		/* completion notification */
+	struct completion	done;		/* completion yestification */
 };
 
 static inline u32 xlp_spi_reg_read(struct xlp_spi_priv *priv,
@@ -393,7 +393,7 @@ static int xlp_spi_probe(struct platform_device *pdev)
 
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "could not get spi clock\n");
+		dev_err(&pdev->dev, "could yest get spi clock\n");
 		return PTR_ERR(clk);
 	}
 
@@ -401,7 +401,7 @@ static int xlp_spi_probe(struct platform_device *pdev)
 
 	master = spi_alloc_master(&pdev->dev, 0);
 	if (!master) {
-		dev_err(&pdev->dev, "could not alloc master\n");
+		dev_err(&pdev->dev, "could yest alloc master\n");
 		return -ENOMEM;
 	}
 
@@ -410,7 +410,7 @@ static int xlp_spi_probe(struct platform_device *pdev)
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->setup = xlp_spi_setup;
 	master->transfer_one = xlp_spi_transfer_one;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 
 	init_completion(&xspi->done);
 	spi_master_set_devdata(master, xspi);

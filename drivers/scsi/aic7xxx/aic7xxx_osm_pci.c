@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -102,7 +102,7 @@ static const struct pci_device_id ahc_linux_pci_id_table[] = {
 	ID(ID_AHA_3960D),
 	ID(ID_AHA_3960D_CPQ),
 	ID(ID_AIC7899_ARO),
-	/* Generic chip probes for devices we don't know exactly. */
+	/* Generic chip probes for devices we don't kyesw exactly. */
 	ID(ID_AIC7850 & ID_DEV_VENDOR_MASK),
 	ID(ID_AIC7855 & ID_DEV_VENDOR_MASK),
 	ID(ID_AIC7859 & ID_DEV_VENDOR_MASK),
@@ -194,7 +194,7 @@ ahc_linux_pci_inherit_flags(struct ahc_softc *ahc)
 			ahc->flags &= ~AHC_PRIMARY_CHANNEL; 
 			ahc->flags |= master->flags & AHC_PRIMARY_CHANNEL;
 		} else
-			printk(KERN_ERR "aic7xxx: no multichannel peer found!\n");
+			printk(KERN_ERR "aic7xxx: yes multichannel peer found!\n");
 		pci_dev_put(master_pdev);
 	} 
 }
@@ -372,7 +372,7 @@ ahc_linux_pci_reserve_mem_region(struct ahc_softc *ahc,
 		if (!request_mem_region(start, 0x1000, "aic7xxx"))
 			error = ENOMEM;
 		if (error == 0) {
-			*maddr = ioremap_nocache(start, 256);
+			*maddr = ioremap_yescache(start, 256);
 			if (*maddr == NULL) {
 				error = ENOMEM;
 				release_mem_region(start, 0x1000);
@@ -426,7 +426,7 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 			command |= PCIM_CMD_MEMEN;
 	} else {
 		printk("aic7xxx: PCI%d:%d:%d MEM region 0x%llx "
-		       "unavailable. Cannot memory map device.\n",
+		       "unavailable. Canyest memory map device.\n",
 		       ahc_get_pci_bus(ahc->dev_softc),
 		       ahc_get_pci_slot(ahc->dev_softc),
 		       ahc_get_pci_function(ahc->dev_softc),
@@ -445,7 +445,7 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 			command |= PCIM_CMD_PORTEN;
 		} else {
 			printk("aic7xxx: PCI%d:%d:%d IO region 0x%llx[0..255] "
-			       "unavailable. Cannot map device.\n",
+			       "unavailable. Canyest map device.\n",
 			       ahc_get_pci_bus(ahc->dev_softc),
 			       ahc_get_pci_slot(ahc->dev_softc),
 			       ahc_get_pci_function(ahc->dev_softc),

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /* Copyright (c) 2018 Facebook */
 #ifndef _UAPI__LINUX_BTF_H__
 #define _UAPI__LINUX_BTF_H__
@@ -44,7 +44,7 @@ struct btf_type {
 	 *
 	 * "type" is used by PTR, TYPEDEF, VOLATILE, CONST, RESTRICT,
 	 * FUNC, FUNC_PROTO and VAR.
-	 * "type" is a type_id referring to another type.
+	 * "type" is a type_id referring to ayesther type.
 	 */
 	union {
 		__u32 size;
@@ -56,7 +56,7 @@ struct btf_type {
 #define BTF_INFO_VLEN(info)	((info) & 0xffff)
 #define BTF_INFO_KFLAG(info)	((info) >> 31)
 
-#define BTF_KIND_UNKN		0	/* Unknown	*/
+#define BTF_KIND_UNKN		0	/* Unkyeswn	*/
 #define BTF_KIND_INT		1	/* Integer	*/
 #define BTF_KIND_PTR		2	/* Pointer	*/
 #define BTF_KIND_ARRAY		3	/* Array	*/
@@ -118,7 +118,7 @@ struct btf_member {
 	/* If the type info kind_flag is set, the btf_member offset
 	 * contains both member bitfield size and bit offset. The
 	 * bitfield size is set for bitfield members. If the type
-	 * info kind_flag is not set, the offset contains only bit
+	 * info kind_flag is yest set, the offset contains only bit
 	 * offset.
 	 */
 	__u32	offset;

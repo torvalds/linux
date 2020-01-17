@@ -144,18 +144,18 @@ struct fastrpc_buf {
 	struct mutex lock;
 	struct list_head attachments;
 	/* mmap support */
-	struct list_head node; /* list of user requested mmaps */
+	struct list_head yesde; /* list of user requested mmaps */
 	uintptr_t raddr;
 };
 
 struct fastrpc_dma_buf_attachment {
 	struct device *dev;
 	struct sg_table sgt;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct fastrpc_map {
-	struct list_head node;
+	struct list_head yesde;
 	struct fastrpc_user *fl;
 	int fd;
 	struct dma_buf *buf;
@@ -179,7 +179,7 @@ struct fastrpc_invoke_ctx {
 	u64 ctxid;
 	u64 msg_sz;
 	struct kref refcount;
-	struct list_head node; /* list of ctxs */
+	struct list_head yesde; /* list of ctxs */
 	struct completion work;
 	struct work_struct put_work;
 	struct fastrpc_msg msg;
@@ -263,7 +263,7 @@ static int fastrpc_map_find(struct fastrpc_user *fl, int fd,
 	struct fastrpc_map *map = NULL;
 
 	mutex_lock(&fl->mutex);
-	list_for_each_entry(map, &fl->maps, node) {
+	list_for_each_entry(map, &fl->maps, yesde) {
 		if (map->fd == fd) {
 			fastrpc_map_get(map);
 			*ppmap = map;
@@ -293,7 +293,7 @@ static int fastrpc_buf_alloc(struct fastrpc_user *fl, struct device *dev,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&buf->attachments);
-	INIT_LIST_HEAD(&buf->node);
+	INIT_LIST_HEAD(&buf->yesde);
 	mutex_init(&buf->lock);
 
 	buf->fl = fl;
@@ -445,7 +445,7 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&ctx->node);
+	INIT_LIST_HEAD(&ctx->yesde);
 	ctx->fl = user;
 	ctx->nscalars = REMOTE_SCALARS_LENGTH(sc);
 	ctx->nbufs = REMOTE_SCALARS_INBUFS(sc) +
@@ -481,7 +481,7 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 	INIT_WORK(&ctx->put_work, fastrpc_context_put_wq);
 
 	spin_lock(&user->lock);
-	list_add_tail(&ctx->node, &user->pending);
+	list_add_tail(&ctx->yesde, &user->pending);
 	spin_unlock(&user->lock);
 
 	spin_lock_irqsave(&cctx->lock, flags);
@@ -499,7 +499,7 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 	return ctx;
 err_idr:
 	spin_lock(&user->lock);
-	list_del(&ctx->node);
+	list_del(&ctx->yesde);
 	spin_unlock(&user->lock);
 	fastrpc_channel_ctx_put(cctx);
 	kfree(ctx->maps);
@@ -558,11 +558,11 @@ static int fastrpc_dma_buf_attach(struct dma_buf *dmabuf,
 	}
 
 	a->dev = attachment->dev;
-	INIT_LIST_HEAD(&a->node);
+	INIT_LIST_HEAD(&a->yesde);
 	attachment->priv = a;
 
 	mutex_lock(&buffer->lock);
-	list_add(&a->node, &buffer->attachments);
+	list_add(&a->yesde, &buffer->attachments);
 	mutex_unlock(&buffer->lock);
 
 	return 0;
@@ -575,7 +575,7 @@ static void fastrpc_dma_buf_detatch(struct dma_buf *dmabuf,
 	struct fastrpc_buf *buffer = dmabuf->priv;
 
 	mutex_lock(&buffer->lock);
-	list_del(&a->node);
+	list_del(&a->yesde);
 	mutex_unlock(&buffer->lock);
 	sg_free_table(&a->sgt);
 	kfree(a);
@@ -630,7 +630,7 @@ static int fastrpc_map_create(struct fastrpc_user *fl, int fd,
 	if (!map)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&map->node);
+	INIT_LIST_HEAD(&map->yesde);
 	map->fl = fl;
 	map->fd = fd;
 	map->buf = dma_buf_get(fd);
@@ -660,7 +660,7 @@ static int fastrpc_map_create(struct fastrpc_user *fl, int fd,
 	kref_init(&map->refcount);
 
 	spin_lock(&fl->lock);
-	list_add_tail(&map->node, &fl->maps);
+	list_add_tail(&map->yesde, &fl->maps);
 	spin_unlock(&fl->lock);
 	*ppmap = map;
 
@@ -988,7 +988,7 @@ bail:
 	if (err != -ERESTARTSYS && err != -ETIMEDOUT) {
 		/* We are done with this compute context */
 		spin_lock(&fl->lock);
-		list_del(&ctx->node);
+		list_del(&ctx->yesde);
 		spin_unlock(&fl->lock);
 		fastrpc_context_put(ctx);
 	}
@@ -1100,7 +1100,7 @@ err_invoke:
 err_alloc:
 	if (map) {
 		spin_lock(&fl->lock);
-		list_del(&map->node);
+		list_del(&map->yesde);
 		spin_unlock(&fl->lock);
 		fastrpc_map_put(map);
 	}
@@ -1157,7 +1157,7 @@ static int fastrpc_release_current_dsp_process(struct fastrpc_user *fl)
 				       sc, &args[0]);
 }
 
-static int fastrpc_device_release(struct inode *inode, struct file *file)
+static int fastrpc_device_release(struct iyesde *iyesde, struct file *file)
 {
 	struct fastrpc_user *fl = (struct fastrpc_user *)file->private_data;
 	struct fastrpc_channel_ctx *cctx = fl->cctx;
@@ -1175,18 +1175,18 @@ static int fastrpc_device_release(struct inode *inode, struct file *file)
 	if (fl->init_mem)
 		fastrpc_buf_free(fl->init_mem);
 
-	list_for_each_entry_safe(ctx, n, &fl->pending, node) {
-		list_del(&ctx->node);
+	list_for_each_entry_safe(ctx, n, &fl->pending, yesde) {
+		list_del(&ctx->yesde);
 		fastrpc_context_put(ctx);
 	}
 
-	list_for_each_entry_safe(map, m, &fl->maps, node) {
-		list_del(&map->node);
+	list_for_each_entry_safe(map, m, &fl->maps, yesde) {
+		list_del(&map->yesde);
 		fastrpc_map_put(map);
 	}
 
-	list_for_each_entry_safe(buf, b, &fl->mmaps, node) {
-		list_del(&buf->node);
+	list_for_each_entry_safe(buf, b, &fl->mmaps, yesde) {
+		list_del(&buf->yesde);
 		fastrpc_buf_free(buf);
 	}
 
@@ -1200,7 +1200,7 @@ static int fastrpc_device_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int fastrpc_device_open(struct inode *inode, struct file *filp)
+static int fastrpc_device_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct fastrpc_channel_ctx *cctx = miscdev_to_cctx(filp->private_data);
 	struct fastrpc_user *fl = NULL;
@@ -1335,7 +1335,7 @@ static int fastrpc_req_munmap_impl(struct fastrpc_user *fl,
 	u32 sc;
 
 	spin_lock(&fl->lock);
-	list_for_each_entry_safe(buf, b, &fl->mmaps, node) {
+	list_for_each_entry_safe(buf, b, &fl->mmaps, yesde) {
 		if ((buf->raddr == req->vaddrout) && (buf->size == req->size))
 			break;
 		buf = NULL;
@@ -1343,7 +1343,7 @@ static int fastrpc_req_munmap_impl(struct fastrpc_user *fl,
 	spin_unlock(&fl->lock);
 
 	if (!buf) {
-		dev_err(dev, "mmap not in list\n");
+		dev_err(dev, "mmap yest in list\n");
 		return -EINVAL;
 	}
 
@@ -1360,7 +1360,7 @@ static int fastrpc_req_munmap_impl(struct fastrpc_user *fl,
 	if (!err) {
 		dev_dbg(dev, "unmmap\tpt 0x%09lx OK\n", buf->raddr);
 		spin_lock(&fl->lock);
-		list_del(&buf->node);
+		list_del(&buf->yesde);
 		spin_unlock(&fl->lock);
 		fastrpc_buf_free(buf);
 	} else {
@@ -1397,12 +1397,12 @@ static int fastrpc_req_mmap(struct fastrpc_user *fl, char __user *argp)
 		return -EFAULT;
 
 	if (req.flags != ADSP_MMAP_ADD_PAGES) {
-		dev_err(dev, "flag not supported 0x%x\n", req.flags);
+		dev_err(dev, "flag yest supported 0x%x\n", req.flags);
 		return -EINVAL;
 	}
 
 	if (req.vaddrin) {
-		dev_err(dev, "adding user allocated pages is not supported\n");
+		dev_err(dev, "adding user allocated pages is yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1440,11 +1440,11 @@ static int fastrpc_req_mmap(struct fastrpc_user *fl, char __user *argp)
 	/* update the buffer to be able to deallocate the memory on the DSP */
 	buf->raddr = (uintptr_t) rsp_msg.vaddr;
 
-	/* let the client know the address to use */
+	/* let the client kyesw the address to use */
 	req.vaddrout = rsp_msg.vaddr;
 
 	spin_lock(&fl->lock);
-	list_add_tail(&buf->node, &fl->mmaps);
+	list_add_tail(&buf->yesde, &fl->mmaps);
 	spin_unlock(&fl->lock);
 
 	if (copy_to_user((void __user *)argp, &req, sizeof(req))) {
@@ -1520,7 +1520,7 @@ static int fastrpc_cb_probe(struct platform_device *pdev)
 	if (!cctx)
 		return -EINVAL;
 
-	of_property_read_u32(dev->of_node, "qcom,nsessions", &sessions);
+	of_property_read_u32(dev->of_yesde, "qcom,nsessions", &sessions);
 
 	spin_lock_irqsave(&cctx->lock, flags);
 	sess = &cctx->session[cctx->sesscount];
@@ -1529,8 +1529,8 @@ static int fastrpc_cb_probe(struct platform_device *pdev)
 	sess->dev = dev;
 	dev_set_drvdata(dev, sess);
 
-	if (of_property_read_u32(dev->of_node, "reg", &sess->sid))
-		dev_info(dev, "FastRPC Session ID not specified in DT\n");
+	if (of_property_read_u32(dev->of_yesde, "reg", &sess->sid))
+		dev_info(dev, "FastRPC Session ID yest specified in DT\n");
 
 	if (sessions > 0) {
 		struct fastrpc_session_ctx *dup_sess;
@@ -1594,9 +1594,9 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 	int i, err, domain_id = -1;
 	const char *domain;
 
-	err = of_property_read_string(rdev->of_node, "label", &domain);
+	err = of_property_read_string(rdev->of_yesde, "label", &domain);
 	if (err) {
-		dev_info(rdev, "FastRPC Domain not specified in DT\n");
+		dev_info(rdev, "FastRPC Domain yest specified in DT\n");
 		return err;
 	}
 
@@ -1616,7 +1616,7 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 	if (!data)
 		return -ENOMEM;
 
-	data->miscdev.minor = MISC_DYNAMIC_MINOR;
+	data->miscdev.miyesr = MISC_DYNAMIC_MINOR;
 	data->miscdev.name = devm_kasprintf(rdev, GFP_KERNEL, "fastrpc-%s",
 					    domains[domain_id]);
 	data->miscdev.fops = &fastrpc_fops;
@@ -1634,15 +1634,15 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 	data->domain_id = domain_id;
 	data->rpdev = rpdev;
 
-	return of_platform_populate(rdev->of_node, NULL, NULL, rdev);
+	return of_platform_populate(rdev->of_yesde, NULL, NULL, rdev);
 }
 
-static void fastrpc_notify_users(struct fastrpc_user *user)
+static void fastrpc_yestify_users(struct fastrpc_user *user)
 {
 	struct fastrpc_invoke_ctx *ctx;
 
 	spin_lock(&user->lock);
-	list_for_each_entry(ctx, &user->pending, node)
+	list_for_each_entry(ctx, &user->pending, yesde)
 		complete(&ctx->work);
 	spin_unlock(&user->lock);
 }
@@ -1655,7 +1655,7 @@ static void fastrpc_rpmsg_remove(struct rpmsg_device *rpdev)
 
 	spin_lock_irqsave(&cctx->lock, flags);
 	list_for_each_entry(user, &cctx->users, user)
-		fastrpc_notify_users(user);
+		fastrpc_yestify_users(user);
 	spin_unlock_irqrestore(&cctx->lock, flags);
 
 	misc_deregister(&cctx->miscdev);
@@ -1692,7 +1692,7 @@ static int fastrpc_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
 	complete(&ctx->work);
 
 	/*
-	 * The DMA buffer associated with the context cannot be freed in
+	 * The DMA buffer associated with the context canyest be freed in
 	 * interrupt context so schedule it through a worker thread to
 	 * avoid a kernel BUG.
 	 */

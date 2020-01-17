@@ -120,7 +120,7 @@ struct si5341_reg_default {
 	u8 value;
 };
 
-/* Output configuration registers 0..9 are not quite logically organized */
+/* Output configuration registers 0..9 are yest quite logically organized */
 static const u16 si5341_reg_output_offset[] = {
 	0x0108,
 	0x010D,
@@ -165,7 +165,7 @@ static const u16 si5340_reg_rdiv_offset[] = {
  * Programming sequence from ClockBuilder, settings to initialize the system
  * using only the XTAL input, without pre-divider.
  * This also contains settings that aren't mentioned anywhere in the datasheet.
- * The "known" settings like synth and output configuration are done later.
+ * The "kyeswn" settings like synth and output configuration are done later.
  */
 static const struct si5341_reg_default si5341_reg_defaults[] = {
 	{ 0x0017, 0x3A }, /* INT mask (disable interrupts) */
@@ -303,7 +303,7 @@ static const struct si5341_reg_default si5341_reg_defaults[] = {
 	{ 0x0949, 0x00 }, /* IN_EN (disable input clocks) */
 	{ 0x094A, 0x00 }, /* INx_TO_PFD_EN (disabled) */
 	{ 0x0A02, 0x00 }, /* Not in datasheet */
-	{ 0x0B44, 0x0F }, /* PDIV_ENB (datasheet does not mention what it is) */
+	{ 0x0B44, 0x0F }, /* PDIV_ENB (datasheet does yest mention what it is) */
 };
 
 /* Read and interpret a 44-bit followed by a 32-bit value in the regmap */
@@ -339,7 +339,7 @@ static int si5341_encode_44_32(struct regmap *regmap, unsigned int reg,
 	put_unaligned_le32(n_num, r);
 	r[4] = (n_num >> 32) & 0xff;
 	r[5] = (n_num >> 40) & 0x0f;
-	/* 32 bits denominator */
+	/* 32 bits deyesminator */
 	put_unaligned_le32(n_den, &r[6]);
 
 	/* Program the fraction */
@@ -357,7 +357,7 @@ static unsigned long si5341_clk_recalc_rate(struct clk_hw *hw,
 	u32 m_den;
 	unsigned int shift;
 
-	/* Assume that PDIV is not being used, just read the PLL setting */
+	/* Assume that PDIV is yest being used, just read the PLL setting */
 	err = si5341_decode_44_32(data->regmap, SI5341_PLL_M_NUM,
 				&m_num, &m_den);
 	if (err < 0)
@@ -381,7 +381,7 @@ static unsigned long si5341_clk_recalc_rate(struct clk_hw *hw,
 	res *= parent_rate;
 	do_div(res, (m_den >> shift));
 
-	/* We cannot return the actual frequency in 32 bit, store it locally */
+	/* We canyest return the actual frequency in 32 bit, store it locally */
 	data->freq_vco = res;
 
 	/* Report kHz since the value is out of range */
@@ -667,7 +667,7 @@ static long si5341_output_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 
 	r = *parent_rate >> 1;
 
-	/* If rate is an even divisor, no changes to parent required */
+	/* If rate is an even divisor, yes changes to parent required */
 	if (r && !(r % rate))
 		return (long)rate;
 
@@ -681,7 +681,7 @@ static long si5341_output_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 		}
 		*parent_rate = r * rate;
 	} else {
-		/* We cannot change our parent's rate, report what we can do */
+		/* We canyest change our parent's rate, report what we can do */
 		r /= rate;
 		rate = *parent_rate / (r << 1);
 	}
@@ -773,7 +773,7 @@ static int si5341_is_programmed_already(struct clk_si5341 *data)
 	int err;
 	u8 r[4];
 
-	/* Read the PLL divider value, it must have a non-zero value */
+	/* Read the PLL divider value, it must have a yesn-zero value */
 	err = regmap_bulk_read(data->regmap, SI5341_PLL_M_DEN,
 			r, ARRAY_SIZE(r));
 	if (err < 0)
@@ -849,7 +849,7 @@ static int si5341_probe_chip_id(struct clk_si5341 *data)
 		data->reg_rdiv_offset = si5341_reg_rdiv_offset;
 		break;
 	default:
-		dev_err(&data->i2c_client->dev, "Model '%x' not supported\n",
+		dev_err(&data->i2c_client->dev, "Model '%x' yest supported\n",
 			model);
 		return -EINVAL;
 	}
@@ -969,7 +969,7 @@ static int si5341_finalize_defaults(struct clk_si5341 *data)
 	if (res < 0)
 		return res;
 
-	/* Datasheet does not explain these nameless registers */
+	/* Datasheet does yest explain these nameless registers */
 	res = regmap_write(data->regmap, 0xB24, revision < 2 ? 0xDB : 0xC3);
 	if (res < 0)
 		return res;
@@ -994,8 +994,8 @@ static const struct regmap_range si5341_regmap_volatile_range[] = {
 };
 
 static const struct regmap_access_table si5341_regmap_volatile = {
-	.yes_ranges = si5341_regmap_volatile_range,
-	.n_yes_ranges = ARRAY_SIZE(si5341_regmap_volatile_range),
+	.no_ranges = si5341_regmap_volatile_range,
+	.n_no_ranges = ARRAY_SIZE(si5341_regmap_volatile_range),
 };
 
 /* Pages 0, 1, 2, 3, 9, A, B are valid, so there are 12 pages */
@@ -1024,15 +1024,15 @@ static const struct regmap_config si5341_regmap_config = {
 static int si5341_dt_parse_dt(struct i2c_client *client,
 	struct clk_si5341_output_config *config)
 {
-	struct device_node *child;
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *child;
+	struct device_yesde *np = client->dev.of_yesde;
 	u32 num;
 	u32 val;
 
 	memset(config, 0, sizeof(struct clk_si5341_output_config) *
 				SI5341_MAX_NUM_OUTPUTS);
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		if (of_property_read_u32(child, "reg", &num)) {
 			dev_err(&client->dev, "missing reg property of %s\n",
 				child->name);
@@ -1047,7 +1047,7 @@ static int si5341_dt_parse_dt(struct i2c_client *client,
 		if (!of_property_read_u32(child, "silabs,format", &val)) {
 			/* Set cm and ampl conservatively to 3v3 settings */
 			switch (val) {
-			case 1: /* normal differential */
+			case 1: /* yesrmal differential */
 				config[num].out_cm_ampl_bits = 0x33;
 				break;
 			case 2: /* low-power differential */
@@ -1105,12 +1105,12 @@ static int si5341_dt_parse_dt(struct i2c_client *client,
 	return 0;
 
 put_child:
-	of_node_put(child);
+	of_yesde_put(child);
 	return -EINVAL;
 }
 
 /*
- * If not pre-configured, calculate and set the PLL configuration manually.
+ * If yest pre-configured, calculate and set the PLL configuration manually.
  * For low-jitter performance, the PLL should be set such that the synthesizers
  * only need integer division.
  * Without any user guidance, we'll set the PLL to 14GHz, which still allows
@@ -1119,7 +1119,7 @@ put_child:
  */
 static int si5341_initialize_pll(struct clk_si5341 *data)
 {
-	struct device_node *np = data->i2c_client->dev.of_node;
+	struct device_yesde *np = data->i2c_client->dev.of_yesde;
 	u32 m_num = 0;
 	u32 m_den = 0;
 
@@ -1173,9 +1173,9 @@ static int si5341_probe(struct i2c_client *client,
 	if (err)
 		return err;
 
-	if (of_property_read_string(client->dev.of_node, "clock-output-names",
+	if (of_property_read_string(client->dev.of_yesde, "clock-output-names",
 			&init.name))
-		init.name = client->dev.of_node->name;
+		init.name = client->dev.of_yesde->name;
 	root_clock_name = init.name;
 
 	data->regmap = devm_regmap_init_i2c(client, &si5341_regmap_config);
@@ -1191,7 +1191,7 @@ static int si5341_probe(struct i2c_client *client,
 	/* "Activate" the xtal (usually a fixed clock) */
 	clk_prepare_enable(data->pxtal);
 
-	if (of_property_read_bool(client->dev.of_node, "silabs,reprogram")) {
+	if (of_property_read_bool(client->dev.of_yesde, "silabs,reprogram")) {
 		initialization_required = true;
 	} else {
 		err = si5341_is_programmed_already(data);
@@ -1233,7 +1233,7 @@ static int si5341_probe(struct i2c_client *client,
 	/* Register the PLL */
 	data->pxtal_name = __clk_get_name(data->pxtal);
 	init.parent_names = &data->pxtal_name;
-	init.num_parents = 1; /* For now, only XTAL input supported */
+	init.num_parents = 1; /* For yesw, only XTAL input supported */
 	init.ops = &si5341_clk_ops;
 	init.flags = 0;
 	data->hw.init = &init;
@@ -1249,7 +1249,7 @@ static int si5341_probe(struct i2c_client *client,
 	init.ops = &si5341_synth_clk_ops;
 	for (i = 0; i < data->num_synth; ++i) {
 		synth_clock_names[i] = devm_kasprintf(&client->dev, GFP_KERNEL,
-				"%s.N%u", client->dev.of_node->name, i);
+				"%s.N%u", client->dev.of_yesde->name, i);
 		init.name = synth_clock_names[i];
 		data->synth[i].index = i;
 		data->synth[i].data = data;
@@ -1266,7 +1266,7 @@ static int si5341_probe(struct i2c_client *client,
 	init.ops = &si5341_output_clk_ops;
 	for (i = 0; i < data->num_outputs; ++i) {
 		init.name = kasprintf(GFP_KERNEL, "%s.%d",
-			client->dev.of_node->name, i);
+			client->dev.of_yesde->name, i);
 		init.flags = config[i].synth_master ? CLK_SET_RATE_PARENT : 0;
 		data->clk[i].index = i;
 		data->clk[i].data = data;
@@ -1290,7 +1290,7 @@ static int si5341_probe(struct i2c_client *client,
 			clk_prepare(data->clk[i].hw.clk);
 	}
 
-	err = of_clk_add_hw_provider(client->dev.of_node, of_clk_si5341_get,
+	err = of_clk_add_hw_provider(client->dev.of_yesde, of_clk_si5341_get,
 			data);
 	if (err) {
 		dev_err(&client->dev, "unable to add clk provider\n");

@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
- * Portions, notably calibration code:
+ * Portions, yestably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  * This driver was written as a replacement for the vendor provided
@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -395,7 +395,7 @@ static int rtl8192cu_parse_efuse(struct rtl8xxxu_priv *priv)
 		sprintf(priv->chip_name, "8188RU");
 		priv->rtl_chip = RTL8188R;
 		priv->hi_pa = 1;
-		priv->no_pape = 1;
+		priv->yes_pape = 1;
 		priv->power_base = &rtl8188r_power_base;
 	}
 
@@ -575,6 +575,6 @@ struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.total_page_num = TX_TOTAL_PAGE_NUM,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ,
 	.page_num_lo = TX_PAGE_NUM_LO_PQ,
-	.page_num_norm = TX_PAGE_NUM_NORM_PQ,
+	.page_num_yesrm = TX_PAGE_NUM_NORM_PQ,
 };
 #endif

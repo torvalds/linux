@@ -5,7 +5,7 @@
  * Author: Mark Nutter <mnutter@us.ibm.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -53,7 +53,7 @@ static __poll_t spu_hw_mbox_stat_poll(struct spu_context *ctx, __poll_t events)
 	stat = in_be32(&spu->problem->mb_stat_R);
 
 	/* if the requested event is there, return the poll
-	   mask, otherwise enable the interrupt to get notified,
+	   mask, otherwise enable the interrupt to get yestified,
 	   but first mark any pending interrupts as done so
 	   we don't get woken up unnecessarily */
 
@@ -123,12 +123,12 @@ static int spu_hw_wbox_write(struct spu_context *ctx, u32 data)
 
 static void spu_hw_signal1_write(struct spu_context *ctx, u32 data)
 {
-	out_be32(&ctx->spu->problem->signal_notify1, data);
+	out_be32(&ctx->spu->problem->signal_yestify1, data);
 }
 
 static void spu_hw_signal2_write(struct spu_context *ctx, u32 data)
 {
-	out_be32(&ctx->spu->problem->signal_notify2, data);
+	out_be32(&ctx->spu->problem->signal_yestify2, data);
 }
 
 static void spu_hw_signal1_type_set(struct spu_context *ctx, u64 val)

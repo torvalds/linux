@@ -201,7 +201,7 @@ int wl1251_hw_init_mem_config(struct wl1251 *wl)
 		return -ENOMEM;
 	}
 
-	/* we now ask for the firmware built memory map */
+	/* we yesw ask for the firmware built memory map */
 	ret = wl1251_acx_mem_map(wl, wl->target_mem_map,
 				 sizeof(struct wl1251_acx_mem_map));
 	if (ret < 0) {

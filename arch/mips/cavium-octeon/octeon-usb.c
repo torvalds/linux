@@ -43,12 +43,12 @@ union cvm_usbdrd_uctl_ctl {
 	 *	0x3 - 0x7 = Reserved
 	 */
 	__BITFIELD_FIELD(uint64_t ssc_range:3,
-	/* Enable non-standard oscillator frequencies:
+	/* Enable yesn-standard oscillator frequencies:
 	 *	[55:53] = modules -1
 	 *	[52:47] = 2's complement push amount, 0 = Feature disabled
 	 */
 	__BITFIELD_FIELD(uint64_t ssc_ref_clk_sel:9,
-	/* Reference clock multiplier for non-standard frequencies:
+	/* Reference clock multiplier for yesn-standard frequencies:
 	 *	0x19 = 100MHz on DLMC_REF_CLK* if REF_CLK_SEL = 0x0 or 0x1
 	 *	0x28 = 125MHz on DLMC_REF_CLK* if REF_CLK_SEL = 0x0 or 0x1
 	 *	0x32 =  50MHz on DLMC_REF_CLK* if REF_CLK_SEL = 0x0 or 0x1
@@ -64,7 +64,7 @@ union cvm_usbdrd_uctl_ctl {
 	 *	If REF_CLK_SEL = 0x0 or 0x1, then only 0x0 is legal
 	 *	If REF_CLK_SEL = 0x2 or 0x3, then:
 	 *		0x1 = DLMC_REF_CLK* is 125MHz
-	 *		0x0 = DLMC_REF_CLK* is another supported frequency
+	 *		0x0 = DLMC_REF_CLK* is ayesther supported frequency
 	 */
 	__BITFIELD_FIELD(uint64_t ref_clk_div2:1,
 	/* Select reference clock freqnuency for both PLL blocks:
@@ -232,16 +232,16 @@ static int dwc3_octeon_config_power(struct device *dev, u64 base)
 	union cvmx_gpio_bit_cfgx gpio_bit;
 	uint32_t gpio_pwr[3];
 	int gpio, len, power_active_low;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	int index = (base >> 24) & 1;
 
-	if (of_find_property(node, "power", &len) != NULL) {
+	if (of_find_property(yesde, "power", &len) != NULL) {
 		if (len == 12) {
-			of_property_read_u32_array(node, "power", gpio_pwr, 3);
+			of_property_read_u32_array(yesde, "power", gpio_pwr, 3);
 			power_active_low = gpio_pwr[2] & 0x01;
 			gpio = gpio_pwr[1];
 		} else if (len == 8) {
-			of_property_read_u32_array(node, "power", gpio_pwr, 2);
+			of_property_read_u32_array(yesde, "power", gpio_pwr, 2);
 			power_active_low = 0;
 			gpio = gpio_pwr[1];
 		} else {
@@ -294,23 +294,23 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 	u64 h_clk_rate;
 	u64 uctl_ctl_reg = base;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		const char *ss_clock_type;
 		const char *hs_clock_type;
 
-		i = of_property_read_u32(dev->of_node,
+		i = of_property_read_u32(dev->of_yesde,
 					 "refclk-frequency", &clock_rate);
 		if (i) {
 			pr_err("No UCTL \"refclk-frequency\"\n");
 			return -EINVAL;
 		}
-		i = of_property_read_string(dev->of_node,
+		i = of_property_read_string(dev->of_yesde,
 					    "refclk-type-ss", &ss_clock_type);
 		if (i) {
 			pr_err("No UCTL \"refclk-type-ss\"\n");
 			return -EINVAL;
 		}
-		i = of_property_read_string(dev->of_node,
+		i = of_property_read_string(dev->of_yesde,
 					    "refclk-type-hs", &hs_clock_type);
 		if (i) {
 			pr_err("No UCTL \"refclk-type-hs\"\n");
@@ -344,7 +344,7 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 			       clock_rate);
 
 	} else {
-		pr_err("No USB UCTL device node\n");
+		pr_err("No USB UCTL device yesde\n");
 		return -EINVAL;
 	}
 
@@ -495,24 +495,24 @@ static void __init dwc3_octeon_phy_reset(u64 base)
 
 static int __init dwc3_octeon_device_init(void)
 {
-	const char compat_node_name[] = "cavium,octeon-7130-usb-uctl";
+	const char compat_yesde_name[] = "cavium,octeon-7130-usb-uctl";
 	struct platform_device *pdev;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct resource *res;
 	void __iomem *base;
 
 	/*
 	 * There should only be three universal controllers, "uctl"
-	 * in the device tree. Two USB and a SATA, which we ignore.
+	 * in the device tree. Two USB and a SATA, which we igyesre.
 	 */
-	node = NULL;
+	yesde = NULL;
 	do {
-		node = of_find_node_by_name(node, "uctl");
-		if (!node)
+		yesde = of_find_yesde_by_name(yesde, "uctl");
+		if (!yesde)
 			return -ENODEV;
 
-		if (of_device_is_compatible(node, compat_node_name)) {
-			pdev = of_find_device_by_node(node);
+		if (of_device_is_compatible(yesde, compat_yesde_name)) {
+			pdev = of_find_device_by_yesde(yesde);
 			if (!pdev)
 				return -ENODEV;
 
@@ -526,7 +526,7 @@ static int __init dwc3_octeon_device_init(void)
 			 * The code below maps in the registers necessary for
 			 * setting up the clocks and reseting PHYs. We must
 			 * release the resources so the dwc3 subsystem doesn't
-			 * know the difference.
+			 * kyesw the difference.
 			 */
 			base = devm_ioremap_resource(&pdev->dev, res);
 			if (IS_ERR(base))
@@ -542,7 +542,7 @@ static int __init dwc3_octeon_device_init(void)
 			devm_release_mem_region(&pdev->dev, res->start,
 						resource_size(res));
 		}
-	} while (node != NULL);
+	} while (yesde != NULL);
 
 	return 0;
 }

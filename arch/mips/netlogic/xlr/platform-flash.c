@@ -31,7 +31,7 @@
 /*
  * Default NOR partition layout
  */
-static struct mtd_partition xlr_nor_parts[] = {
+static struct mtd_partition xlr_yesr_parts[] = {
 	{
 		.name = "User FS",
 		.offset = 0x800000,
@@ -56,33 +56,33 @@ static struct mtd_partition xlr_nand_parts[] = {
 };
 
 /* Use PHYSMAP flash for NOR */
-struct physmap_flash_data xlr_nor_data = {
+struct physmap_flash_data xlr_yesr_data = {
 	.width		= 2,
-	.parts		= xlr_nor_parts,
-	.nr_parts	= ARRAY_SIZE(xlr_nor_parts),
+	.parts		= xlr_yesr_parts,
+	.nr_parts	= ARRAY_SIZE(xlr_yesr_parts),
 };
 
-static struct resource xlr_nor_res[] = {
+static struct resource xlr_yesr_res[] = {
 	{
 		.flags	= IORESOURCE_MEM,
 	},
 };
 
-static struct platform_device xlr_nor_dev = {
+static struct platform_device xlr_yesr_dev = {
 	.name	= "physmap-flash",
 	.dev	= {
-		.platform_data	= &xlr_nor_data,
+		.platform_data	= &xlr_yesr_data,
 	},
-	.num_resources	= ARRAY_SIZE(xlr_nor_res),
-	.resource	= xlr_nor_res,
+	.num_resources	= ARRAY_SIZE(xlr_yesr_res),
+	.resource	= xlr_yesr_res,
 };
 
 /*
  * Use "gen_nand" driver for NAND flash
  *
- * There seems to be no way to store a private pointer containing
+ * There seems to be yes way to store a private pointer containing
  * platform specific info in gen_nand drivier. We will use a global
- * struct for now, since we currently have only one NAND chip per board.
+ * struct for yesw, since we currently have only one NAND chip per board.
  */
 struct xlr_nand_flash_priv {
 	int cs;
@@ -155,7 +155,7 @@ static int __init xlr_flash_init(void)
 {
 	uint64_t gpio_mmio, flash_mmio, flash_map_base;
 	u32 gpio_resetcfg, flash_bar;
-	int cs, boot_nand, boot_nor;
+	int cs, boot_nand, boot_yesr;
 
 	/* Flash address bits 39:24 is in bridge flash BAR */
 	flash_bar = nlm_read_reg(nlm_io_base, BRIDGE_FLASH_BAR);
@@ -168,7 +168,7 @@ static int __init xlr_flash_init(void)
 	gpio_resetcfg = nlm_read_reg(gpio_mmio, GPIO_PWRON_RESET_CFG_REG);
 
 	/* Check for boot flash type */
-	boot_nor = boot_nand = 0;
+	boot_yesr = boot_nand = 0;
 	if (nlm_chip_is_xls()) {
 		/* On XLS, check boot from NAND bit (GPIO reset reg bit 16) */
 		if (gpio_resetcfg & (1 << 16))
@@ -176,11 +176,11 @@ static int __init xlr_flash_init(void)
 
 		/* check boot from PCMCIA, (GPIO reset reg bit 15 */
 		if ((gpio_resetcfg & (1 << 15)) == 0)
-			boot_nor = 1;	/* not set, booted from NOR */
+			boot_yesr = 1;	/* yest set, booted from NOR */
 	} else { /* XLR */
 		/* check boot from PCMCIA (bit 16 in GPIO reset on XLR) */
 		if ((gpio_resetcfg & (1 << 16)) == 0)
-			boot_nor = 1;	/* not set, booted from NOR */
+			boot_yesr = 1;	/* yest set, booted from NOR */
 	}
 
 	/* boot flash at chip select 0 */
@@ -204,11 +204,11 @@ static int __init xlr_flash_init(void)
 		return platform_device_register(&xlr_nand_dev);
 	}
 
-	if (boot_nor) {
+	if (boot_yesr) {
 		setup_flash_resource(flash_mmio, flash_map_base, cs,
-			xlr_nor_res);
-		pr_info("ChipSelect %d: NOR Flash %pR\n", cs, xlr_nor_res);
-		return platform_device_register(&xlr_nor_dev);
+			xlr_yesr_res);
+		pr_info("ChipSelect %d: NOR Flash %pR\n", cs, xlr_yesr_res);
+		return platform_device_register(&xlr_yesr_dev);
 	}
 	return 0;
 }

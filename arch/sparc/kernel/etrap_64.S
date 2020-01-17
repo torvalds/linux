@@ -67,7 +67,7 @@ etrap_syscall:	TRAP_LOAD_THREAD_REG(%g6, %g1)
 
 		rdpr	%cansave, %g1
 		brnz,pt %g1, etrap_save
-		 nop
+		 yesp
 
 		rdpr	%cwp, %g1
 		add	%g1, 2, %g1
@@ -85,7 +85,7 @@ etrap_user_spill:
 		ldx	[%g6 + TI_FLAGS], %g3
 		and	%g3, _TIF_32BIT, %g3
 		brnz,pt	%g3, etrap_user_spill_32bit
-		 nop
+		 yesp
 		ba,a,pt	%xcc, etrap_user_spill_64bit
 
 etrap_save:	save	%g2, -STACK_BIAS, %sp
@@ -96,14 +96,14 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
 661:		rdpr	%canrestore, %g3
 		.section .fast_win_ctrl_1insn_patch, "ax"
 		.word	661b
-		nop
+		yesp
 		.previous
 
 		rdpr	%wstate, %g2
 661:		wrpr	%g0, 0, %canrestore
 		.section .fast_win_ctrl_1insn_patch, "ax"
 		.word	661b
-		nop
+		yesp
 		.previous
 		sll	%g2, 3, %g2
 
@@ -158,8 +158,8 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
 		 * would have already set TTE.mcd in an earlier call to
 		 * kernel and set the version tag for the address being
 		 * dereferenced. Setting PSTATE.mcde would ensure any
-		 * access to userspace data through a system call honors
-		 * ADI and does not allow a rogue app to bypass ADI by
+		 * access to userspace data through a system call hoyesrs
+		 * ADI and does yest allow a rogue app to bypass ADI by
 		 * using system calls. Setting PSTATE.mcde only affects
 		 * accesses to virtual addresses that have TTE.mcd set.
 		 * Set PMCDPER to ensure any exceptions caused by ADI
@@ -172,7 +172,7 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
 		.word	661b
 		sethi	%hi(TSTATE_TSO | TSTATE_PEF | TSTATE_MCDE), %l0
 		.previous
-661:		nop
+661:		yesp
 		.section .sun_m7_1insn_patch, "ax"
 		.word	661b
 		.word 0xaf902001	/* wrpr %g0, 1, %pmcdper */
@@ -203,7 +203,7 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
 		sth	%l5, [%l6 + TI_SYS_NOERROR]
 		ba,pt	%xcc, 2b
 		 stb	%g0, [%l4 + %l3]
-		nop
+		yesp
 
 etraptl1:	/* Save tstate/tpc/tnpc of TL 1-->4 and the tl register itself.
 		 * We place this right after pt_regs on the trap stack.
@@ -243,7 +243,7 @@ etraptl1:	/* Save tstate/tpc/tnpc of TL 1-->4 and the tl register itself.
 		sethi	%hi(is_sun4v), %g3
 		lduw	[%g3 + %lo(is_sun4v)], %g3
 		brnz,pn	%g3, finish_tl1_capture
-		 nop
+		 yesp
 
 		wrpr	%g0, 3, %tl
 		rdpr	%tstate, %g3
@@ -269,7 +269,7 @@ etraptl1:	/* Save tstate/tpc/tnpc of TL 1-->4 and the tl register itself.
 
 finish_tl1_capture:
 		wrpr	%g0, 1, %tl
-661:		nop
+661:		yesp
 		.section .sun4v_1insn_patch, "ax"
 		.word	661b
 		SET_GL(1)

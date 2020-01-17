@@ -182,22 +182,22 @@ static inline void clkdev_add_sys(const char *dev, unsigned int module,
 
 void __init ltq_soc_init(void)
 {
-	struct device_node *np_status =
-		of_find_compatible_node(NULL, NULL, "lantiq,status-falcon");
-	struct device_node *np_ebu =
-		of_find_compatible_node(NULL, NULL, "lantiq,ebu-falcon");
-	struct device_node *np_sys1 =
-		of_find_compatible_node(NULL, NULL, "lantiq,sys1-falcon");
-	struct device_node *np_syseth =
-		of_find_compatible_node(NULL, NULL, "lantiq,syseth-falcon");
-	struct device_node *np_sysgpe =
-		of_find_compatible_node(NULL, NULL, "lantiq,sysgpe-falcon");
+	struct device_yesde *np_status =
+		of_find_compatible_yesde(NULL, NULL, "lantiq,status-falcon");
+	struct device_yesde *np_ebu =
+		of_find_compatible_yesde(NULL, NULL, "lantiq,ebu-falcon");
+	struct device_yesde *np_sys1 =
+		of_find_compatible_yesde(NULL, NULL, "lantiq,sys1-falcon");
+	struct device_yesde *np_syseth =
+		of_find_compatible_yesde(NULL, NULL, "lantiq,syseth-falcon");
+	struct device_yesde *np_sysgpe =
+		of_find_compatible_yesde(NULL, NULL, "lantiq,sysgpe-falcon");
 	struct resource res_status, res_ebu, res_sys[3];
 	int i;
 
 	/* check if all the core register ranges are available */
 	if (!np_status || !np_ebu || !np_sys1 || !np_syseth || !np_sysgpe)
-		panic("Failed to load core nodes from devicetree");
+		panic("Failed to load core yesdes from devicetree");
 
 	if (of_address_to_resource(np_status, 0, &res_status) ||
 			of_address_to_resource(np_ebu, 0, &res_ebu) ||
@@ -221,16 +221,16 @@ void __init ltq_soc_init(void)
 				res_sys[2].name) < 0))
 		pr_err("Failed to request core resources");
 
-	status_membase = ioremap_nocache(res_status.start,
+	status_membase = ioremap_yescache(res_status.start,
 					resource_size(&res_status));
-	ltq_ebu_membase = ioremap_nocache(res_ebu.start,
+	ltq_ebu_membase = ioremap_yescache(res_ebu.start,
 					resource_size(&res_ebu));
 
 	if (!status_membase || !ltq_ebu_membase)
 		panic("Failed to remap core resources");
 
 	for (i = 0; i < 3; i++) {
-		sysctl_membase[i] = ioremap_nocache(res_sys[i].start,
+		sysctl_membase[i] = ioremap_yescache(res_sys[i].start,
 						resource_size(&res_sys[i]));
 		if (!sysctl_membase[i])
 			panic("Failed to remap sysctrl resources");

@@ -56,7 +56,7 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 		case ACPI_REFCLASS_ARG:
 		case ACPI_REFCLASS_DEBUG:
 
-			/* The referenced object is the pseudo-node for the local/arg */
+			/* The referenced object is the pseudo-yesde for the local/arg */
 
 			referenced_obj = obj_desc->reference.object;
 			break;
@@ -157,7 +157,7 @@ u64 acpi_ex_do_math_op(u16 opcode, u64 integer0, u64 integer1)
 
 		/*
 		 * We need to check if the shiftcount is larger than the integer bit
-		 * width since the behavior of this is not well-defined in the C language.
+		 * width since the behavior of this is yest well-defined in the C language.
 		 */
 		if (integer1 >= acpi_gbl_integer_bit_width) {
 			return (0);
@@ -168,7 +168,7 @@ u64 acpi_ex_do_math_op(u16 opcode, u64 integer0, u64 integer1)
 
 		/*
 		 * We need to check if the shiftcount is larger than the integer bit
-		 * width since the behavior of this is not well-defined in the C language.
+		 * width since the behavior of this is yest well-defined in the C language.
 		 */
 		if (integer1 >= acpi_gbl_integer_bit_width) {
 			return (0);

@@ -287,7 +287,7 @@ static void pch_spi_handler_sub(struct pch_spi_data *data, u32 reg_spsr_val,
 				iowrite32(pkt_tx_buff[tx_index++], spdwr);
 		}
 
-		/* disable RFI if not needed */
+		/* disable RFI if yest needed */
 		if ((bpw_len - rx_index) <= PCH_MAX_FIFO_DEPTH) {
 			reg_spcr_val = ioread32(io_remap_addr + PCH_SPCR);
 			reg_spcr_val &= ~SPCR_RFIE_BIT; /* disable RFI */
@@ -317,7 +317,7 @@ static void pch_spi_handler_sub(struct pch_spi_data *data, u32 reg_spsr_val,
 				wake_up(&data->wait);
 			} else {
 				dev_vdbg(&data->master->dev,
-					"%s : Transfer is not completed",
+					"%s : Transfer is yest completed",
 					__func__);
 			}
 		}
@@ -628,7 +628,7 @@ static void pch_spi_set_tx(struct pch_spi_data *data, int *bpw)
 	data->transfer_active = true;
 }
 
-static void pch_spi_nomore_transfer(struct pch_spi_data *data)
+static void pch_spi_yesmore_transfer(struct pch_spi_data *data)
 {
 	struct spi_message *pmsg, *tmp;
 	dev_dbg(&data->master->dev, "%s called\n", __func__);
@@ -651,7 +651,7 @@ static void pch_spi_nomore_transfer(struct pch_spi_data *data)
 	data->current_msg = NULL;
 	data->cur_trans = NULL;
 
-	/* check if we have items in list and not suspending
+	/* check if we have items in list and yest suspending
 	 * return 1 if list empty */
 	if ((list_empty(&data->queue) == 0) &&
 	    (!data->board_dat->suspend_sts) &&
@@ -1126,7 +1126,7 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 	dev_dbg(&data->master->dev, "%s data initialized\n", __func__);
 
 	spin_lock(&data->lock);
-	/* check if suspend has been initiated;if yes flush queue */
+	/* check if suspend has been initiated;if no flush queue */
 	if (data->board_dat->suspend_sts || (data->status == STATUS_EXITING)) {
 		dev_dbg(&data->master->dev,
 			"%s suspend/remove initiated, flushing queue\n", __func__);
@@ -1236,7 +1236,7 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 		/* No more transfer in this message. */
 		if ((data->cur_trans->transfer_list.next) ==
 		    &(data->current_msg->transfers)) {
-			pch_spi_nomore_transfer(data);
+			pch_spi_yesmore_transfer(data);
 		}
 
 		spin_unlock(&data->lock);
@@ -1423,13 +1423,13 @@ static int pch_spi_pd_remove(struct platform_device *plat_dev)
 	if (use_dma)
 		pch_free_dma_buf(board_dat, data);
 
-	/* check for any pending messages; no action is taken if the queue
+	/* check for any pending messages; yes action is taken if the queue
 	 * is still full; but at least we tried.  Unload anyway */
 	count = 500;
 	spin_lock_irqsave(&data->lock, flags);
 	data->status = STATUS_EXITING;
 	while ((list_empty(&data->queue) == 0) && --count) {
-		dev_dbg(&board_dat->pdev->dev, "%s :queue not empty\n",
+		dev_dbg(&board_dat->pdev->dev, "%s :queue yest empty\n",
 			__func__);
 		spin_unlock_irqrestore(&data->lock, flags);
 		msleep(PCH_SLEEP_TIME);
@@ -1550,7 +1550,7 @@ static int pch_spi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	board_dat = kzalloc(sizeof(*board_dat), GFP_KERNEL);
 	if (!board_dat) {
 		retval = -ENOMEM;
-		goto err_no_mem;
+		goto err_yes_mem;
 	}
 
 	retval = pci_request_regions(pdev, KBUILD_MODNAME);
@@ -1609,7 +1609,7 @@ pci_enable_device:
 	pci_release_regions(pdev);
 pci_request_regions:
 	kfree(board_dat);
-err_no_mem:
+err_yes_mem:
 	kfree(pd_dev_save);
 
 	return retval;

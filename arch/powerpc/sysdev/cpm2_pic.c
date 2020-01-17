@@ -1,7 +1,7 @@
 /*
  * Platform information definitions.
  *
- * Copied from arch/ppc/syslib/cpm2_pic.c with minor subsequent updates
+ * Copied from arch/ppc/syslib/cpm2_pic.c with miyesr subsequent updates
  * to make in work in arch/powerpc/. Original (c) belongs to Dan Malek.
  *
  * Author:  Vitaly Bordug <vbordug@ru.mvista.com>
@@ -21,7 +21,7 @@
  *
  * Now, the fun starts.....Interrupt Numbers DO NOT MAP
  * in a simple arithmetic fashion to mask or pending registers.
- * That is, interrupt 4 does not map to bit position 4.
+ * That is, interrupt 4 does yest map to bit position 4.
  * We create two tables, indexed by vector number, to indicate
  * which register to use and which bit in the register to use.
  */
@@ -63,7 +63,7 @@ static const u_char irq_to_siureg[] = {
 	0, 0, 0, 0, 0, 0, 0, 0
 };
 
-/* bit numbers do not match the docs, these are precomputed so the bit for
+/* bit numbers do yest match the docs, these are precomputed so the bit for
  * a given irq is (1 << irq_to_siubit[irq]) */
 static const u_char irq_to_siubit[] = {
 	 0, 15, 14, 13, 12, 11, 10,  9,
@@ -183,7 +183,7 @@ static int cpm2_set_irq_type(struct irq_data *d, unsigned int flow_type)
 	return IRQ_SET_MASK_OK_NOCOPY;
 
 err_sense:
-	pr_err("CPM2 PIC: sense type 0x%x not supported\n", flow_type);
+	pr_err("CPM2 PIC: sense type 0x%x yest supported\n", flow_type);
 	return -EINVAL;
 }
 
@@ -227,7 +227,7 @@ static const struct irq_domain_ops cpm2_pic_host_ops = {
 	.xlate = irq_domain_xlate_onetwocell,
 };
 
-void cpm2_pic_init(struct device_node *node)
+void cpm2_pic_init(struct device_yesde *yesde)
 {
 	int i;
 
@@ -261,7 +261,7 @@ void cpm2_pic_init(struct device_node *node)
 	out_be32(&cpm2_intctl->ic_scprrl, 0x05309770);
 
 	/* create a legacy host */
-	cpm2_pic_host = irq_domain_add_linear(node, 64, &cpm2_pic_host_ops, NULL);
+	cpm2_pic_host = irq_domain_add_linear(yesde, 64, &cpm2_pic_host_ops, NULL);
 	if (cpm2_pic_host == NULL) {
 		printk(KERN_ERR "CPM2 PIC: failed to allocate irq host!\n");
 		return;

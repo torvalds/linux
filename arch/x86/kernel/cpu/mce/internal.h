@@ -20,12 +20,12 @@ enum severity_level {
 	MCE_PANIC_SEVERITY,
 };
 
-extern struct blocking_notifier_head x86_mce_decoder_chain;
+extern struct blocking_yestifier_head x86_mce_decoder_chain;
 
 #define INITIAL_CHECK_INTERVAL	5 * 60 /* 5 minutes */
 
 struct mce_evt_llist {
-	struct llist_node llnode;
+	struct llist_yesde llyesde;
 	struct mce mce;
 };
 
@@ -33,7 +33,7 @@ void mce_gen_pool_process(struct work_struct *__unused);
 bool mce_gen_pool_empty(void);
 int mce_gen_pool_add(struct mce *mce);
 int mce_gen_pool_init(void);
-struct llist_node *mce_gen_pool_prepare_records(void);
+struct llist_yesde *mce_gen_pool_prepare_records(void);
 
 extern int (*mce_severity)(struct mce *a, int tolerant, char **msg, bool is_excp);
 struct dentry *mce_get_debugfs_dir(void);
@@ -90,7 +90,7 @@ void mce_inject_log(struct mce *m);
  * We consider records to be equivalent if bank+status+addr+misc all match.
  * This is only used when the system is going down because of a fatal error
  * to avoid cluttering the console log with essentially repeated information.
- * In normal processing all errors seen are logged.
+ * In yesrmal processing all errors seen are logged.
  */
 static inline bool mce_cmp(struct mce *m1, struct mce *m2)
 {
@@ -104,18 +104,18 @@ extern struct device_attribute dev_attr_trigger;
 
 #ifdef CONFIG_X86_MCELOG_LEGACY
 void mce_work_trigger(void);
-void mce_register_injector_chain(struct notifier_block *nb);
-void mce_unregister_injector_chain(struct notifier_block *nb);
+void mce_register_injector_chain(struct yestifier_block *nb);
+void mce_unregister_injector_chain(struct yestifier_block *nb);
 #else
 static inline void mce_work_trigger(void)	{ }
-static inline void mce_register_injector_chain(struct notifier_block *nb)	{ }
-static inline void mce_unregister_injector_chain(struct notifier_block *nb)	{ }
+static inline void mce_register_injector_chain(struct yestifier_block *nb)	{ }
+static inline void mce_unregister_injector_chain(struct yestifier_block *nb)	{ }
 #endif
 
 struct mca_config {
 	bool dont_log_ce;
 	bool cmci_disabled;
-	bool ignore_ce;
+	bool igyesre_ce;
 
 	__u64 lmce_disabled		: 1,
 	      disabled			: 1,
@@ -136,7 +136,7 @@ DECLARE_PER_CPU_READ_MOSTLY(unsigned int, mce_num_banks);
 
 struct mce_vendor_flags {
 	/*
-	 * Indicates that overflow conditions are not fatal, when set.
+	 * Indicates that overflow conditions are yest fatal, when set.
 	 */
 	__u64 overflow_recov	: 1,
 

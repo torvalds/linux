@@ -7,7 +7,7 @@
  * Based on ov772x camera driver:
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
  *
  * Based on ov7670 and soc_camera_platform driver,
  * transition from soc_camera to pxa_camera based on mt9m111
@@ -215,7 +215,7 @@ static int ov9640_reg_write(struct i2c_client *client, u8 reg, u8 val)
 		return ret;
 	}
 
-	/* we have to read the register back ... no idea why, maybe HW bug */
+	/* we have to read the register back ... yes idea why, maybe HW bug */
 	ret = ov9640_reg_read(client, reg, &_val);
 	if (ret)
 		dev_err(&client->dev,
@@ -249,7 +249,7 @@ static int ov9640_reg_rmw(struct i2c_client *client, u8 reg, u8 set, u8 unset)
 	return ret;
 }
 
-/* Soft reset the camera. This has nothing to do with the RESET pin! */
+/* Soft reset the camera. This has yesthing to do with the RESET pin! */
 static int ov9640_reset(struct i2c_client *client)
 {
 	int ret;
@@ -493,7 +493,7 @@ static int ov9640_prog_dflt(struct i2c_client *client)
 			return ret;
 	}
 
-	/* wait for the changes to actually happen, 140ms are not enough yet */
+	/* wait for the changes to actually happen, 140ms are yest eyesugh yet */
 	msleep(150);
 
 	return 0;

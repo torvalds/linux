@@ -18,8 +18,8 @@
 #define DEFAULT_TIMEOUT 60
 /*
  * Software timer tick implemented in scfw side, support 10ms to 0xffffffff ms
- * in theory, but for normal case, 1s~128s is enough, you can change this max
- * value in case it's not enough.
+ * in theory, but for yesrmal case, 1s~128s is eyesugh, you can change this max
+ * value in case it's yest eyesugh.
  */
 #define MAX_TIMEOUT 128
 
@@ -37,14 +37,14 @@
 #define SC_IRQ_WDOG			1
 #define SC_IRQ_GROUP_WDOG		1
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0000);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0000);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 struct imx_sc_wdt_device {
 	struct watchdog_device wdd;
-	struct notifier_block wdt_notifier;
+	struct yestifier_block wdt_yestifier;
 };
 
 static int imx_sc_wdt_ping(struct watchdog_device *wdog)
@@ -115,26 +115,26 @@ static int imx_sc_wdt_set_pretimeout(struct watchdog_device *wdog,
 	return 0;
 }
 
-static int imx_sc_wdt_notify(struct notifier_block *nb,
+static int imx_sc_wdt_yestify(struct yestifier_block *nb,
 			     unsigned long event, void *group)
 {
 	struct imx_sc_wdt_device *imx_sc_wdd =
 				 container_of(nb,
 					      struct imx_sc_wdt_device,
-					      wdt_notifier);
+					      wdt_yestifier);
 
 	if (event & SC_IRQ_WDOG &&
 	    *(u8 *)group == SC_IRQ_GROUP_WDOG)
-		watchdog_notify_pretimeout(&imx_sc_wdd->wdd);
+		watchdog_yestify_pretimeout(&imx_sc_wdd->wdd);
 
 	return 0;
 }
 
 static void imx_sc_wdt_action(void *data)
 {
-	struct notifier_block *wdt_notifier = data;
+	struct yestifier_block *wdt_yestifier = data;
 
-	imx_scu_irq_unregister_notifier(wdt_notifier);
+	imx_scu_irq_unregister_yestifier(wdt_yestifier);
 	imx_scu_irq_group_enable(SC_IRQ_GROUP_WDOG,
 				 SC_IRQ_WDOG,
 				 false);
@@ -192,19 +192,19 @@ static int imx_sc_wdt_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-	imx_sc_wdd->wdt_notifier.notifier_call = imx_sc_wdt_notify;
-	ret = imx_scu_irq_register_notifier(&imx_sc_wdd->wdt_notifier);
+	imx_sc_wdd->wdt_yestifier.yestifier_call = imx_sc_wdt_yestify;
+	ret = imx_scu_irq_register_yestifier(&imx_sc_wdd->wdt_yestifier);
 	if (ret) {
 		imx_scu_irq_group_enable(SC_IRQ_GROUP_WDOG,
 					 SC_IRQ_WDOG,
 					 false);
 		dev_warn(dev,
-			 "Register irq notifier failed, pretimeout NOT supported\n");
+			 "Register irq yestifier failed, pretimeout NOT supported\n");
 		return 0;
 	}
 
 	ret = devm_add_action_or_reset(dev, imx_sc_wdt_action,
-				       &imx_sc_wdd->wdt_notifier);
+				       &imx_sc_wdd->wdt_yestifier);
 	if (!ret)
 		imx_sc_wdt_info.options |= WDIOF_PRETIMEOUT;
 	else

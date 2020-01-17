@@ -6,9 +6,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -44,12 +44,12 @@
  * It is used for free space management and additionally includes
  * a hash for speeding up directory search (lookup).
  *
- * The hash may be empty and in fact we do not use it all in the
- * Linux driver for now.
+ * The hash may be empty and in fact we do yest use it all in the
+ * Linux driver for yesw.
  */
 struct vxfs_dirblk {
 	__fs16		d_free;		/* free space in dirblock */
-	__fs16		d_nhash;	/* no of hash chains */
+	__fs16		d_nhash;	/* yes of hash chains */
 	__fs16		d_hash[1];	/* hash chain */
 };
 
@@ -63,7 +63,7 @@ struct vxfs_dirblk {
  * VxFS directory entry.
  */
 struct vxfs_direct {
-	__fs32		d_ino;			/* inode number */
+	__fs32		d_iyes;			/* iyesde number */
 	__fs16		d_reclen;		/* record length */
 	__fs16		d_namelen;		/* d_name length */
 	__fs16		d_hashnext;		/* next hash entry */

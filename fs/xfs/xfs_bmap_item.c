@@ -12,7 +12,7 @@
 #include "xfs_shared.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_bmap_item.h"
@@ -40,7 +40,7 @@ xfs_bui_item_free(
 
 /*
  * Freeing the BUI requires that we remove it from the AIL if it has already
- * been placed there. However, the BUI may not yet have been placed in the AIL
+ * been placed there. However, the BUI may yest yet have been placed in the AIL
  * when called by xfs_bui_release() from BUD processing due to the ordering of
  * committed vs unpin operations in bulk insert operations. Hence the reference
  * count to ensure only the last caller frees the BUI.
@@ -100,7 +100,7 @@ xfs_bui_item_format(
  * either case, the BUI transaction has been successfully committed to make it
  * this far. Therefore, we expect whoever committed the BUI to either construct
  * and commit the BUD or drop the BUD's reference in the event of error. Simply
- * drop the log's BUI reference now that the log is done with it.
+ * drop the log's BUI reference yesw that the log is done with it.
  */
 STATIC void
 xfs_bui_item_unpin(
@@ -238,7 +238,7 @@ xfs_trans_log_finish_bmap_update(
 	struct xfs_trans		*tp,
 	struct xfs_bud_log_item		*budp,
 	enum xfs_bmap_intent_type	type,
-	struct xfs_inode		*ip,
+	struct xfs_iyesde		*ip,
 	int				whichfork,
 	xfs_fileoff_t			startoff,
 	xfs_fsblock_t			startblock,
@@ -263,7 +263,7 @@ xfs_trans_log_finish_bmap_update(
 	return error;
 }
 
-/* Sort bmap intents by inode. */
+/* Sort bmap intents by iyesde. */
 static int
 xfs_bmap_update_diff_items(
 	void				*priv,
@@ -275,7 +275,7 @@ xfs_bmap_update_diff_items(
 
 	ba = container_of(a, struct xfs_bmap_intent, bi_list);
 	bb = container_of(b, struct xfs_bmap_intent, bi_list);
-	return ba->bi_owner->i_ino - bb->bi_owner->i_ino;
+	return ba->bi_owner->i_iyes - bb->bi_owner->i_iyes;
 }
 
 /* Get an BUI. */
@@ -347,7 +347,7 @@ xfs_bmap_update_log_item(
 	next_extent = atomic_inc_return(&buip->bui_next_extent) - 1;
 	ASSERT(next_extent < buip->bui_format.bui_nextents);
 	map = &buip->bui_format.bui_extents[next_extent];
-	map->me_owner = bmap->bi_owner->i_ino;
+	map->me_owner = bmap->bi_owner->i_iyes;
 	map->me_startblock = bmap->bi_bmap.br_startblock;
 	map->me_startoff = bmap->bi_bmap.br_startoff;
 	map->me_len = bmap->bi_bmap.br_blockcount;
@@ -427,7 +427,7 @@ const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
 
 /*
  * Process a bmap update intent item that was recovered from the log.
- * We need to update some inode's bmbt.
+ * We need to update some iyesde's bmbt.
  */
 int
 xfs_bui_recover(
@@ -438,7 +438,7 @@ xfs_bui_recover(
 	unsigned int			bui_type;
 	struct xfs_map_extent		*bmap;
 	xfs_fsblock_t			startblock_fsb;
-	xfs_fsblock_t			inode_fsb;
+	xfs_fsblock_t			iyesde_fsb;
 	xfs_filblks_t			count;
 	bool				op_ok;
 	struct xfs_bud_log_item		*budp;
@@ -446,7 +446,7 @@ xfs_bui_recover(
 	int				whichfork;
 	xfs_exntst_t			state;
 	struct xfs_trans		*tp;
-	struct xfs_inode		*ip = NULL;
+	struct xfs_iyesde		*ip = NULL;
 	struct xfs_bmbt_irec		irec;
 	struct xfs_mount		*mp = parent_tp->t_mountp;
 
@@ -466,7 +466,7 @@ xfs_bui_recover(
 	bmap = &buip->bui_format.bui_extents[0];
 	startblock_fsb = XFS_BB_TO_FSB(mp,
 			   XFS_FSB_TO_DADDR(mp, bmap->me_startblock));
-	inode_fsb = XFS_BB_TO_FSB(mp, XFS_FSB_TO_DADDR(mp,
+	iyesde_fsb = XFS_BB_TO_FSB(mp, XFS_FSB_TO_DADDR(mp,
 			XFS_INO_TO_FSB(mp, bmap->me_owner)));
 	switch (bmap->me_flags & XFS_BMAP_EXTENT_TYPE_MASK) {
 	case XFS_BMAP_MAP:
@@ -479,10 +479,10 @@ xfs_bui_recover(
 	}
 	if (!op_ok || startblock_fsb == 0 ||
 	    bmap->me_len == 0 ||
-	    inode_fsb == 0 ||
+	    iyesde_fsb == 0 ||
 	    startblock_fsb >= mp->m_sb.sb_dblocks ||
 	    bmap->me_len >= mp->m_sb.sb_agblocks ||
-	    inode_fsb >= mp->m_sb.sb_dblocks ||
+	    iyesde_fsb >= mp->m_sb.sb_dblocks ||
 	    (bmap->me_flags & ~XFS_BMAP_EXTENT_FLAGS)) {
 		/*
 		 * This will pull the BUI from the AIL and
@@ -505,10 +505,10 @@ xfs_bui_recover(
 	xfs_defer_move(tp, parent_tp);
 	budp = xfs_trans_get_bud(tp, buip);
 
-	/* Grab the inode. */
+	/* Grab the iyesde. */
 	error = xfs_iget(mp, tp, bmap->me_owner, 0, XFS_ILOCK_EXCL, &ip);
 	if (error)
-		goto err_inode;
+		goto err_iyesde;
 
 	if (VFS_I(ip)->i_nlink == 0)
 		xfs_iflags_set(ip, XFS_IRECOVERY);
@@ -527,7 +527,7 @@ xfs_bui_recover(
 	default:
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
 		error = -EFSCORRUPTED;
-		goto err_inode;
+		goto err_iyesde;
 	}
 	xfs_trans_ijoin(tp, ip, 0);
 
@@ -535,7 +535,7 @@ xfs_bui_recover(
 	error = xfs_trans_log_finish_bmap_update(tp, budp, type, ip, whichfork,
 			bmap->me_startoff, bmap->me_startblock, &count, state);
 	if (error)
-		goto err_inode;
+		goto err_iyesde;
 
 	if (count > 0) {
 		ASSERT(type == XFS_BMAP_UNMAP);
@@ -554,7 +554,7 @@ xfs_bui_recover(
 
 	return error;
 
-err_inode:
+err_iyesde:
 	xfs_defer_move(parent_tp, tp);
 	xfs_trans_cancel(tp);
 	if (ip) {

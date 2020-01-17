@@ -1,7 +1,7 @@
 /*
- * Hardware info about DECstation 5000/2x0 systems (otherwise known as
- * 3max+) and DECsystem 5900 systems (otherwise known as bigmax) which
- * differ mechanically but are otherwise identical (both are known as
+ * Hardware info about DECstation 5000/2x0 systems (otherwise kyeswn as
+ * 3max+) and DECsystem 5900 systems (otherwise kyeswn as bigmax) which
+ * differ mechanically but are otherwise identical (both are kyeswn as
  * KN03).
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -30,7 +30,7 @@
 #define KN03_CPU_INR_CASCADE	2	/* I/O ASIC cascade */
 
 /*
- * I/O ASIC interrupt bits.  Star marks denote non-IRQ status bits.
+ * I/O ASIC interrupt bits.  Star marks deyeste yesn-IRQ status bits.
  */
 #define KN03_IO_INR_3MAXP	15	/* (*) 3max+/bigmax ID */
 #define KN03_IO_INR_NVRAM	14	/* (*) NVRAM clear jumper */
@@ -54,13 +54,13 @@
  * Memory Control Register bits.
  */
 #define KN03_MCR_RES_16		(0xffff<<16)	/* unused */
-#define KN03_MCR_DIAGCHK	(1<<15)		/* diagn/norml ECC reads */
-#define KN03_MCR_DIAGGEN	(1<<14)		/* diagn/norml ECC writes */
+#define KN03_MCR_DIAGCHK	(1<<15)		/* diagn/yesrml ECC reads */
+#define KN03_MCR_DIAGGEN	(1<<14)		/* diagn/yesrml ECC writes */
 #define KN03_MCR_CORRECT	(1<<13)		/* ECC correct/check */
 #define KN03_MCR_RES_11		(0x3<<12)	/* unused */
 #define KN03_MCR_BNK32M		(1<<10)		/* 32M/8M stride */
 #define KN03_MCR_RES_7		(0x7<<7)	/* unused */
-#define KN03_MCR_CHECK		(0x7f<<0)	/* diagnostic check bits */
+#define KN03_MCR_CHECK		(0x7f<<0)	/* diagyesstic check bits */
 
 /*
  * I/O ASIC System Support Register bits.
@@ -69,6 +69,6 @@
 #define KN03_IO_SSR_TXDIS0	(1<<13)		/* SCC0 transmit disable */
 #define KN03_IO_SSR_RES_12	(1<<12)		/* unused */
 
-#define KN03_IO_SSR_LEDS	(0xff<<0)	/* ~diagnostic LEDs */
+#define KN03_IO_SSR_LEDS	(0xff<<0)	/* ~diagyesstic LEDs */
 
 #endif /* __ASM_MIPS_DEC_KN03_H */

@@ -5,7 +5,7 @@
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
@@ -180,7 +180,7 @@ static int vivid_thread_sdr_cap(void *data)
 
 		/*
 		 * Calculate the number of samples streamed since we started,
-		 * not including the current buffer.
+		 * yest including the current buffer.
 		 */
 		samples_since_start = buffers_since_start * SDR_CAP_SAMPLES_PER_BUF;
 
@@ -233,7 +233,7 @@ static int sdr_cap_buf_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 	}
 	if (vb2_plane_size(vb, 0) < size) {
-		dprintk(dev, 1, "%s data will not fit into plane (%lu < %u)\n",
+		dprintk(dev, 1, "%s data will yest fit into plane (%lu < %u)\n",
 				__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -530,7 +530,7 @@ void vivid_sdr_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf)
 		/*
 		 * Transfer phase angle to [0, 2xPI] in order to avoid variable
 		 * overflow and make it suitable for cosine implementation
-		 * used, which does not support negative angles.
+		 * used, which does yest support negative angles.
 		 */
 		dev->sdr_fixp_src_phase %= FIXP_2PI;
 		dev->sdr_fixp_mod_phase %= FIXP_2PI;

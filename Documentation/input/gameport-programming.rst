@@ -24,7 +24,7 @@ addresses is preferred, because the likelihood of clashing with the standard
 Eg. if your driver supports addresses 0x200, 0x208, 0x210 and 0x218, then
 0x218 would be the address of first choice.
 
-If your hardware supports a gameport address that is not mapped to ISA io
+If your hardware supports a gameport address that is yest mapped to ISA io
 space (is above 0x1000), use that one, and don't map the ISA mirror.
 
 Also, always request_region() on the whole io space occupied by the
@@ -43,7 +43,7 @@ Memory mapped gameport
 
 When a gameport can be accessed through MMIO, this way is preferred, because
 it is faster, allowing more reads per second. Registering such a gameport
-isn't as easy as a basic IO one, but not so much complex::
+isn't as easy as a basic IO one, but yest so much complex::
 
 	struct gameport gameport;
 
@@ -92,10 +92,10 @@ the gameport. To register a cooked gameport::
 	gameport_register_port(&gameport);
 
 The only confusing thing here is the fuzz value. Best determined by
-experimentation, it is the amount of noise in the ADC data. Perfect
+experimentation, it is the amount of yesise in the ADC data. Perfect
 gameports can set this to zero, most common have fuzz between 8 and 32.
 See analog.c and input.c for handling of fuzz - the fuzz value determines
-the size of a gaussian filter window that is used to eliminate the noise
+the size of a gaussian filter window that is used to eliminate the yesise
 in the data.
 
 More complex gameports
@@ -117,7 +117,7 @@ Simple::
 The gameport structure
 ~~~~~~~~~~~~~~~~~~~~~~
 
-.. note::
+.. yeste::
 
     This section is outdated. There are several fields here that don't
     match what's there at include/linux/gameport.h.
@@ -155,7 +155,7 @@ Raw mode speed of the gameport reads in thousands of reads per second.
 	int fuzz;
 
 If the gameport supports cooked mode, this should be set to a value that
-represents the amount of noise in the data. See
+represents the amount of yesise in the data. See
 :ref:`gameport_pgm_cooked_mode`.
 
 ::
@@ -199,7 +199,7 @@ Open() serves two purposes. First a driver either opens the port in raw or
 in cooked mode, the open() callback can decide which modes are supported.
 Second, resource allocation can happen here. The port can also be enabled
 here. Prior to this call, other fields of the gameport struct (namely the io
-member) need not to be valid.
+member) need yest to be valid.
 
 ::
 

@@ -21,8 +21,8 @@ int cpufreq_has_boost_support(unsigned int cpu, int *support, int *active,
 	if (cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_CBP) {
 		*support = 1;
 
-		/* AMD Family 0x17 does not utilize PCI D18F4 like prior
-		 * families and has no fixed discrete boost states but
+		/* AMD Family 0x17 does yest utilize PCI D18F4 like prior
+		 * families and has yes fixed discrete boost states but
 		 * has Hardware determined variable increments instead.
 		 */
 

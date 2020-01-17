@@ -120,7 +120,7 @@ typedef struct user_fpu_struct elf_fpregset_t;
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports.  This could be done in user space,
-   but it's not easy, and we've already done it here.  */
+   but it's yest easy, and we've already done it here.  */
 
 #define ELF_HWCAP	(boot_cpu_data.flags)
 

@@ -6,7 +6,7 @@
  *
  *  Idea from x86 version, (C) Copyright 1998 Linus Torvalds
  *
- * These functions have a non-standard call interface to make them more
+ * These functions have a yesn-standard call interface to make them more
  * efficient, especially as they return an error value in addition to
  * the "real" return value.
  *
@@ -22,11 +22,11 @@
  * for specific ASM register usage).
  *
  * Note that ADDR_LIMIT is either 0 or 0xc0000000.
- * Note also that it is intended that __get_user_bad is not global.
+ * Note also that it is intended that __get_user_bad is yest global.
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/domain.h>
 
 ENTRY(__get_user_1)

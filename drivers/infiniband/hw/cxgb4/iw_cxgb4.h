@@ -12,10 +12,10 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *      - Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -246,7 +246,7 @@ static inline void _c4iw_wake_up(struct c4iw_wr_wait *wr_waitp, int ret,
 		c4iw_put_wr_wait(wr_waitp);
 }
 
-static inline void c4iw_wake_up_noref(struct c4iw_wr_wait *wr_waitp, int ret)
+static inline void c4iw_wake_up_yesref(struct c4iw_wr_wait *wr_waitp, int ret)
 {
 	_c4iw_wake_up(wr_waitp, ret, false);
 }
@@ -270,7 +270,7 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 
 	ret = wait_for_completion_timeout(&wr_waitp->completion, C4IW_WR_TO);
 	if (!ret) {
-		pr_err("%s - Device %s not responding (disabling device) - tid %u qpid %u\n",
+		pr_err("%s - Device %s yest responding (disabling device) - tid %u qpid %u\n",
 		       func, pci_name(rdev->lldi.pdev), hwtid, qpid);
 		rdev->flags |= T4_FATAL_ERROR;
 		wr_waitp->ret = -EIO;
@@ -995,7 +995,7 @@ int c4iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
 void c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata);
 int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		   struct ib_udata *udata);
-int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
+int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_yestify_flags flags);
 int c4iw_modify_srq(struct ib_srq *ib_srq, struct ib_srq_attr *attr,
 		    enum ib_srq_attr_mask srq_attr_mask,
 		    struct ib_udata *udata);

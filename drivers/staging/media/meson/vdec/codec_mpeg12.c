@@ -15,7 +15,7 @@
 /* Offset substracted by the firmware from the workspace paddr */
 #define WORKSPACE_OFFSET	(5 * SZ_1K)
 
-/* map firmware registers to known MPEG1/2 functions */
+/* map firmware registers to kyeswn MPEG1/2 functions */
 #define MREG_SEQ_INFO		AV_SCRATCH_4
 	#define MPEG2_SEQ_DAR_MASK	GENMASK(3, 0)
 	#define MPEG2_DAR_4_3		2
@@ -145,7 +145,7 @@ static void codec_mpeg12_update_dar(struct amvdec_session *sess)
 		break;
 	default:
 		sess->pixelaspect.numerator = 1;
-		sess->pixelaspect.denominator = 1;
+		sess->pixelaspect.deyesminator = 1;
 		break;
 	}
 }

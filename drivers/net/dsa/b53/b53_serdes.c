@@ -194,7 +194,7 @@ int b53_serdes_init(struct b53_device *dev, int port)
 	lsb = b53_serdes_read(dev, lane, B53_SERDES_MII_REG(MII_PHYSID2),
 			      SERDES_MII_BLK);
 	if (id0 == 0 || id0 == 0xffff) {
-		dev_err(dev->dev, "SerDes not initialized, check settings\n");
+		dev_err(dev->dev, "SerDes yest initialized, check settings\n");
 		return -ENODEV;
 	}
 

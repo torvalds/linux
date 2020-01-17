@@ -31,7 +31,7 @@ static int __cmd_kallsyms(int argc, const char **argv)
 		struct symbol *symbol = machine__find_kernel_symbol_by_name(machine, argv[i], &map);
 
 		if (symbol == NULL) {
-			printf("%s: not found\n", argv[i]);
+			printf("%s: yest found\n", argv[i]);
 			continue;
 		}
 

@@ -21,7 +21,7 @@
  * 08/2006 Alan Cox 	   <alan@redhat.com>
  *	Remove never finished and bogus 24/32bit support
  *	Clean up macro abuse
- *	Minor tidying for format.
+ *	Miyesr tidying for format.
  * 12/2006 Helge Deller    <deller@gmx.de>
  *	add /sys/class/graphics/fbX/vgapass sysfs-interface
  *	add module option "mode_option" to set initial screen mode
@@ -37,16 +37,16 @@
  */
 
 /*
- * misc notes, TODOs, toASKs, and deep thoughts
+ * misc yestes, TODOs, toASKs, and deep thoughts
 
--TODO: at one time or another test that the mode is acceptable by the monitor
+-TODO: at one time or ayesther test that the mode is acceptable by the monitor
 -ASK: Can I choose different ordering for the color bitfields (rgba argb ...)
       which one should i use ? is there any preferred one ? It seems ARGB is
       the one ...
 -TODO: in  set_var check the validity of timings (hsync vsync)...
 -TODO: check and recheck the use of sst_wait_idle : we don't flush the fifo via
-       a nop command. so it's ok as long as the commands we pass don't go
-       through the fifo. warning: issuing a nop command seems to need pci_fifo
+       a yesp command. so it's ok as long as the commands we pass don't go
+       through the fifo. warning: issuing a yesp command seems to need pci_fifo
 -FIXME: in case of failure in the init sequence, be sure we return to a safe
         state.
 - FIXME: Use accelerator for 2D scroll
@@ -57,16 +57,16 @@
  * debug info
  * SST_DEBUG : enable debugging
  * SST_DEBUG_REG : debug registers
- *   0 :  no debug
+ *   0 :  yes debug
  *   1 : dac calls, [un]set_bits, FbiInit
  *   2 : insane debug level (log every register read/write)
  * SST_DEBUG_FUNC : functions
- *   0 : no debug
+ *   0 : yes debug
  *   1 : function call / debug ioctl
  *   2 : variables
  *   3 : flood . you don't want to do that. trust me.
  * SST_DEBUG_VAR : debug display/var structs
- *   0 : no debug
+ *   0 : yes debug
  *   1 : dumps display, fb_var
  *
  * sstfb specific ioctls:
@@ -222,7 +222,7 @@ static int __sst_wait_idle(u8 __iomem *vbase)
 	while(1) {
 		if (__sst_read(vbase, STATUS) & STATUS_FBI_BUSY) {
 			f_dddprintk("status: busy\n");
-/* FIXME basically, this is a busy wait. maybe not that good. oh well;
+/* FIXME basically, this is a busy wait. maybe yest that good. oh well;
  * this is a small loop after all.
  * Or maybe we should use mdelay() or udelay() here instead ? */
 			count = 0;
@@ -286,7 +286,7 @@ static void __dac_i_write(u8 __iomem *vbase, u8 reg,u8 val)
  * range:
  * ti/att : 0 <= M <= 255; 0 <= P <= 3; 0<= N <= 63
  * ics    : 1 <= M <= 127; 0 <= P <= 3; 1<= N <= 31
- * we'll use the lowest limitation, should be precise enouth
+ * we'll use the lowest limitation, should be precise eyesuth
  */
 static int sst_calc_pll(const int freq, int *freq_out, struct pll_timing *t)
 {
@@ -317,7 +317,7 @@ static int sst_calc_pll(const int freq, int *freq_out, struct pll_timing *t)
 			if (200*best_err < freq) break;
 		}
 	}
-	if (best_n == -1)  /* unlikely, but who knows ? */
+	if (best_n == -1)  /* unlikely, but who kyesws ? */
 		return -EINVAL;
 	t->p = p;
 	t->n = best_n;
@@ -343,7 +343,7 @@ static void sstfb_clear_screen(struct fb_info *info)
  *      @var: frame buffer variable screen structure
  *      @info: frame buffer structure that represents a single frame buffer
  *
- *	Limit to the abilities of a single chip as SLI is not supported
+ *	Limit to the abilities of a single chip as SLI is yest supported
  *	by this driver.
  */
 
@@ -412,7 +412,7 @@ static int sstfb_check_var(struct fb_var_screeninfo *var,
 		tiles_in_X = (var->xres + 63 ) / 64;
 
 		if (var->vmode) {
-			printk(KERN_ERR "sstfb: Interlace/doublescan not supported %#x\n",
+			printk(KERN_ERR "sstfb: Interlace/doublescan yest supported %#x\n",
 				var->vmode);
 			return -EINVAL;
 		}
@@ -436,7 +436,7 @@ static int sstfb_check_var(struct fb_var_screeninfo *var,
 	              * ((var->bits_per_pixel == 16) ? 2 : 4);
 
 	if (real_length * yDim > info->fix.smem_len) {
-		printk(KERN_ERR "sstfb: Not enough video memory\n");
+		printk(KERN_ERR "sstfb: Not eyesugh video memory\n");
 		return -ENOMEM;
 	}
 
@@ -641,7 +641,7 @@ static int sstfb_set_par(struct fb_info *info)
 	 */
 	/* btw, it requires enabling pixel pipeline in LFBMODE .
 	   off screen read/writes will just wrap and read/print pixels
-	   on screen. Ugly but not that dangerous */
+	   on screen. Ugly but yest that dangerous */
 		f_ddprintk("setting clipping dimensions 0..%d, 0..%d\n",
 		            info->var.xres - 1, par->yDim - 1);
 
@@ -649,7 +649,7 @@ static int sstfb_set_par(struct fb_info *info)
 		sst_write(CLIP_LOWY_HIGHY, par->yDim);
 		sst_set_bits(FBZMODE, EN_CLIPPING | EN_RGB_WRITE);
 	} else {
-		/* no clipping : direct access, no pipeline */
+		/* yes clipping : direct access, yes pipeline */
 		sst_write(LFBMODE, lfbmode);
 	}
 	return 0;
@@ -657,14 +657,14 @@ static int sstfb_set_par(struct fb_info *info)
 
 /**
  *      sstfb_setcolreg - Optional function. Sets a color register.
- *      @regno: hardware colormap register
+ *      @regyes: hardware colormap register
  *      @red: frame buffer colormap structure
  *      @green: The green value which can be up to 16 bits wide
  *      @blue:  The blue value which can be up to 16 bits wide.
  *      @transp: If supported the alpha value which can be up to 16 bits wide.
  *      @info: frame buffer info structure
  */
-static int sstfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int sstfb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
                            u_int transp, struct fb_info *info)
 {
 	struct sstfb_par *par = info->par;
@@ -672,8 +672,8 @@ static int sstfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 	f_dddprintk("sstfb_setcolreg\n");
 	f_dddprintk("%-2d rgbt: %#x, %#x, %#x, %#x\n",
-	            regno, red, green, blue, transp);
-	if (regno > 15)
+	            regyes, red, green, blue, transp);
+	if (regyes > 15)
 		return 0;
 
 	red    >>= (16 - info->var.red.length);
@@ -685,7 +685,7 @@ static int sstfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	    | (blue  << info->var.blue.offset)
 	    | (transp << info->var.transp.offset);
 	
-	par->palette[regno] = col;
+	par->palette[regyes] = col;
 
 	return 0;
 }
@@ -919,7 +919,7 @@ static int sst_detect_ti(struct fb_info *info)
 /*
  * try to detect ICS5342  ramdac
  * we get the 1st byte (M value) of preset f1,f7 and fB
- * why those 3 ? mmmh... for now, i'll do it the glide way...
+ * why those 3 ? mmmh... for yesw, i'll do it the glide way...
  * and ask questions later. anyway, it seems that all the freq registers are
  * really at their default state (cf specs) so i ask again, why those 3 regs ?
  * mmmmh.. it seems that's much more ugly than i thought. we use f0 and fA for
@@ -986,7 +986,7 @@ static int sst_set_pll_att_ti(struct fb_info *info,
 	              | DACREG_CR0_EN_INDEXED
 	              | DACREG_CR0_8BIT
 	              | DACREG_CR0_PWDOWN );
-	/* so, now we are in indexed mode . dunno if its common, but
+	/* so, yesw we are in indexed mode . dunyes if its common, but
 	   i find this way of doing things a little bit weird :p */
 
 	udelay(300);
@@ -1011,7 +1011,7 @@ static int sst_set_pll_att_ti(struct fb_info *info,
 		}
 	udelay(300);
 
-	/* power up the dac & return to "normal" non-indexed mode */
+	/* power up the dac & return to "yesrmal" yesn-indexed mode */
 	dac_i_write(DACREG_CR0_I,
 	            cr0 & ~DACREG_CR0_PWDOWN & ~DACREG_CR0_EN_INDEXED);
 	return 1;
@@ -1183,8 +1183,8 @@ static int sst_init(struct fb_info *info, struct sstfb_par *par)
 				PCI_EN_INIT_WR | PCI_REMAP_DAC );
 	/* detect dac type */
 	if (!sst_detect_dactype(info, par)) {
-		printk(KERN_ERR "sstfb: unknown dac type.\n");
-		//FIXME watch it: we are not in a safe state, bad bad bad.
+		printk(KERN_ERR "sstfb: unkyeswn dac type.\n");
+		//FIXME watch it: we are yest in a safe state, bad bad bad.
 		return 0;
 	}
 
@@ -1284,13 +1284,13 @@ static int sstfb_setup(char *options)
 
 		f_ddprintk("option %s\n", this_opt);
 
-		if (!strcmp(this_opt, "vganopass"))
+		if (!strcmp(this_opt, "vgayespass"))
 			vgapass = 0;
 		else if (!strcmp(this_opt, "vgapass"))
 			vgapass = 1;
 		else if (!strcmp(this_opt, "clipping"))
 		        clipping = 1;
-		else if (!strcmp(this_opt, "noclipping"))
+		else if (!strcmp(this_opt, "yesclipping"))
 		        clipping = 0;
 		else if (!strcmp(this_opt, "fastpci"))
 		        slowpci = 0;
@@ -1328,7 +1328,7 @@ static int sstfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Enable device in PCI config. */
 	if ((err=pci_enable_device(pdev))) {
-		printk(KERN_ERR "cannot enable device\n");
+		printk(KERN_ERR "canyest enable device\n");
 		return err;
 	}
 
@@ -1354,25 +1354,25 @@ static int sstfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	fix->smem_start = fix->mmio_start + 0x400000;
 
 	if (!request_mem_region(fix->mmio_start, fix->mmio_len, "sstfb MMIO")) {
-		printk(KERN_ERR "sstfb: cannot reserve mmio memory\n");
+		printk(KERN_ERR "sstfb: canyest reserve mmio memory\n");
 		goto fail_mmio_mem;
 	}
 
 	if (!request_mem_region(fix->smem_start, 0x400000,"sstfb FB")) {
-		printk(KERN_ERR "sstfb: cannot reserve fb memory\n");
+		printk(KERN_ERR "sstfb: canyest reserve fb memory\n");
 		goto fail_fb_mem;
 	}
 
-	par->mmio_vbase = ioremap_nocache(fix->mmio_start,
+	par->mmio_vbase = ioremap_yescache(fix->mmio_start,
 					fix->mmio_len);
 	if (!par->mmio_vbase) {
-		printk(KERN_ERR "sstfb: cannot remap register area %#lx\n",
+		printk(KERN_ERR "sstfb: canyest remap register area %#lx\n",
 		        fix->mmio_start);
 		goto fail_mmio_remap;
 	}
-	info->screen_base = ioremap_nocache(fix->smem_start, 0x400000);
+	info->screen_base = ioremap_yescache(fix->smem_start, 0x400000);
 	if (!info->screen_base) {
-		printk(KERN_ERR "sstfb: cannot remap framebuffer %#lx\n",
+		printk(KERN_ERR "sstfb: canyest remap framebuffer %#lx\n",
 		        fix->smem_start);
 		goto fail_fb_remap;
 	}
@@ -1455,7 +1455,7 @@ fail_fb_mem:
 	release_mem_region(fix->mmio_start, info->fix.mmio_len);
 fail_mmio_mem:
 	framebuffer_release(info);
-	return -ENXIO; 	/* no voodoo detected */
+	return -ENXIO; 	/* yes voodoo detected */
 }
 
 static void sstfb_remove(struct pci_dev *pdev)

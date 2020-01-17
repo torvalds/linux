@@ -58,7 +58,7 @@ static struct key *nvdimm_request_key(struct nvdimm *nvdimm)
 	key = request_key(&key_type_encrypted, desc, "");
 	if (IS_ERR(key)) {
 		if (PTR_ERR(key) == -ENOKEY)
-			dev_dbg(dev, "request_key() found no key\n");
+			dev_dbg(dev, "request_key() found yes key\n");
 		else
 			dev_dbg(dev, "request_key() upcall failed\n");
 		key = NULL;
@@ -190,7 +190,7 @@ static int __nvdimm_security_unlock(struct nvdimm *nvdimm)
 	 * If the pre-OS has unlocked the DIMM, attempt to send the key
 	 * from request_key() to the hardware for verification.  Failure
 	 * to revalidate the key against the hardware results in a
-	 * freeze of the security configuration. I.e. if the OS does not
+	 * freeze of the security configuration. I.e. if the OS does yest
 	 * have the key, security is being managed pre-OS.
 	 */
 	if (test_bit(NVDIMM_SECURITY_UNLOCKED, &nvdimm->sec.flags)) {
@@ -423,7 +423,7 @@ void __nvdimm_security_overwrite_query(struct nvdimm *nvdimm)
 	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
 
 	/*
-	 * Abort and release device if we no longer have the overwrite
+	 * Abort and release device if we yes longer have the overwrite
 	 * flag set. It means the work has been canceled.
 	 */
 	if (!test_bit(NDD_WORK_PENDING, &nvdimm->flags))
@@ -451,7 +451,7 @@ void __nvdimm_security_overwrite_query(struct nvdimm *nvdimm)
 		dev_dbg(&nvdimm->dev, "overwrite completed\n");
 
 	if (nvdimm->sec.overwrite_state)
-		sysfs_notify_dirent(nvdimm->sec.overwrite_state);
+		sysfs_yestify_dirent(nvdimm->sec.overwrite_state);
 	nvdimm->sec.overwrite_tmo = 0;
 	clear_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags);
 	clear_bit(NDD_WORK_PENDING, &nvdimm->flags);

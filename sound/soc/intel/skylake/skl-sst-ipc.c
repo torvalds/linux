@@ -252,7 +252,7 @@ enum skl_ipc_glb_reply {
 	IPC_MAX_STATUS = ((1<<IPC_IXC_STATUS_BITS)-1)
 };
 
-enum skl_ipc_notification_type {
+enum skl_ipc_yestification_type {
 	IPC_GLB_NOTIFY_GLITCH = 0,
 	IPC_GLB_NOTIFY_OVERRUN = 1,
 	IPC_GLB_NOTIFY_UNDERRUN = 2,
@@ -342,7 +342,7 @@ out:
 
 }
 
-int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
+int skl_ipc_process_yestification(struct sst_generic_ipc *ipc,
 		struct skl_ipc_header header)
 {
 	struct skl_dev *skl = container_of(ipc, struct skl_dev, ipc);
@@ -466,7 +466,7 @@ void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 
 		}
 	} else {
-		msg->errno = skl_ipc_set_reply_error_code(ipc, reply);
+		msg->erryes = skl_ipc_set_reply_error_code(ipc, reply);
 		switch (IPC_GLB_NOTIFY_MSG_TYPE(header.primary)) {
 		case IPC_GLB_LOAD_MULTIPLE_MODS:
 		case IPC_GLB_LOAD_LIBRARY:
@@ -536,7 +536,7 @@ irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context)
 			skl_ipc_process_reply(ipc, header);
 		} else {
 			dev_dbg(dsp->dev, "IPC irq: Notification from firmware\n");
-			skl_ipc_process_notification(ipc, header);
+			skl_ipc_process_yestification(ipc, header);
 		}
 		/* clear  busy interrupt */
 		sst_dsp_shim_update_bits_forced(dsp, SKL_ADSP_REG_HIPCT,
@@ -880,7 +880,7 @@ int skl_ipc_load_modules(struct sst_generic_ipc *ipc,
 	request.data = data;
 	request.size = sizeof(u16) * module_cnt;
 
-	ret = sst_ipc_tx_message_nowait(ipc, request);
+	ret = sst_ipc_tx_message_yeswait(ipc, request);
 	if (ret < 0)
 		dev_err(ipc->dev, "ipc: load modules failed :%d\n", ret);
 
@@ -1029,7 +1029,7 @@ int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
 	if (wait)
 		ret = sst_ipc_tx_message_wait(ipc, request, NULL);
 	else
-		ret = sst_ipc_tx_message_nowait(ipc, request);
+		ret = sst_ipc_tx_message_yeswait(ipc, request);
 
 	if (ret < 0)
 		dev_err(ipc->dev, "ipc: load lib failed\n");
@@ -1058,9 +1058,9 @@ int skl_ipc_set_d0ix(struct sst_generic_ipc *ipc, struct skl_ipc_d0ix_msg *msg)
 			header.primary,	header.extension);
 
 	/*
-	 * Use the nopm IPC here as we dont want it checking for D0iX
+	 * Use the yespm IPC here as we dont want it checking for D0iX
 	 */
-	ret = sst_ipc_tx_message_nopm(ipc, request, NULL);
+	ret = sst_ipc_tx_message_yespm(ipc, request, NULL);
 	if (ret < 0)
 		dev_err(ipc->dev, "ipc: set d0ix failed, err %d\n", ret);
 

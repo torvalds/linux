@@ -11,7 +11,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 
@@ -44,7 +44,7 @@ module_param(debug_level, int, 0444);
 module_param(dumb_switch, int, 0444);
 
 MODULE_PARM_DESC(debug_level, "Number of NETIF_MSG bits to enable");
-MODULE_PARM_DESC(dumb_switch, "Assume switch is not connected to MDIO bus");
+MODULE_PARM_DESC(dumb_switch, "Assume switch is yest connected to MDIO bus");
 
 #define CPMAC_VERSION "0.5.2"
 /* frame size + 802.1q tag + FCS size */
@@ -324,7 +324,7 @@ static void cpmac_set_multicast_list(struct net_device *dev)
 			cpmac_write(priv->regs, CPMAC_MAC_HASH_HI, 0xffffffff);
 		} else {
 			/* cpmac uses some strange mac address hashing
-			 * (not crc32)
+			 * (yest crc32)
 			 */
 			netdev_for_each_mc_addr(ha, dev) {
 				bit = 0;
@@ -369,7 +369,7 @@ static struct sk_buff *cpmac_rx_one(struct cpmac_priv *priv,
 	if (likely(skb)) {
 		skb_put(desc->skb, desc->datalen);
 		desc->skb->protocol = eth_type_trans(desc->skb, priv->dev);
-		skb_checksum_none_assert(desc->skb);
+		skb_checksum_yesne_assert(desc->skb);
 		priv->dev->stats.rx_packets++;
 		priv->dev->stats.rx_bytes += desc->datalen;
 		result = desc->skb;
@@ -408,7 +408,7 @@ static int cpmac_poll(struct napi_struct *napi, int budget)
 	spin_lock(&priv->rx_lock);
 	if (unlikely(!priv->rx_head)) {
 		if (netif_msg_rx_err(priv) && net_ratelimit())
-			netdev_warn(priv->dev, "rx: polling, but no queue\n");
+			netdev_warn(priv->dev, "rx: polling, but yes queue\n");
 
 		spin_unlock(&priv->rx_lock);
 		napi_complete(napi);
@@ -422,7 +422,7 @@ static int cpmac_poll(struct napi_struct *napi, int budget)
 
 		if ((desc->dataflags & CPMAC_EOQ) != 0) {
 			/* The last update to eoq->hw_next didn't happen
-			 * soon enough, and the receiver stopped here.
+			 * soon eyesugh, and the receiver stopped here.
 			 * Remember this descriptor so we can restart
 			 * the receiver after freeing some space.
 			 */
@@ -446,14 +446,14 @@ static int cpmac_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (desc != priv->rx_head) {
-		/* We freed some buffers, but not the whole ring,
+		/* We freed some buffers, but yest the whole ring,
 		 * add what we did free to the rx list
 		 */
 		desc->prev->hw_next = (u32)0;
 		priv->rx_head->prev->hw_next = priv->rx_head->mapping;
 	}
 
-	/* Optimization: If we did not actually process an EOQ (perhaps because
+	/* Optimization: If we did yest actually process an EOQ (perhaps because
 	 * of quota limits), check to see if the tail of the queue has EOQ set.
 	 * We should immediately restart in that case so that the receiver can
 	 * restart and run in parallel with more packet processing.
@@ -482,7 +482,7 @@ static int cpmac_poll(struct napi_struct *napi, int budget)
 			if (netif_msg_drv(priv))
 				netdev_err(priv->dev, "cpmac_poll is trying "
 					"to restart rx from a descriptor "
-					"that's not free: %p\n", restart);
+					"that's yest free: %p\n", restart);
 			goto fatal_error;
 		}
 
@@ -1088,7 +1088,7 @@ static int cpmac_probe(struct platform_device *pdev)
 	}
 
 	if (phy_id == PHY_MAX_ADDR) {
-		dev_err(&pdev->dev, "no PHY present, falling back "
+		dev_err(&pdev->dev, "yes PHY present, falling back "
 			"to switch on MDIO bus 0\n");
 		strncpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE); /* fixed phys bus */
 		phy_id = pdev->id;
@@ -1132,7 +1132,7 @@ static int cpmac_probe(struct platform_device *pdev)
 
 	if (IS_ERR(phydev)) {
 		if (netif_msg_drv(priv))
-			dev_err(&pdev->dev, "Could not attach to PHY\n");
+			dev_err(&pdev->dev, "Could yest attach to PHY\n");
 
 		rc = PTR_ERR(phydev);
 		goto fail;
@@ -1140,7 +1140,7 @@ static int cpmac_probe(struct platform_device *pdev)
 
 	rc = register_netdev(dev);
 	if (rc) {
-		dev_err(&pdev->dev, "Could not register net device\n");
+		dev_err(&pdev->dev, "Could yest register net device\n");
 		goto fail;
 	}
 

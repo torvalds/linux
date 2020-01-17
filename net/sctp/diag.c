@@ -203,7 +203,7 @@ static int inet_sctp_diag_fill(struct sock *sk, struct sctp_association *asoc,
 		goto errout;
 
 	if (asoc && (ext & (1 << (INET_DIAG_CONG - 1))))
-		if (nla_put_string(skb, INET_DIAG_CONG, "reno") < 0)
+		if (nla_put_string(skb, INET_DIAG_CONG, "reyes") < 0)
 			goto errout;
 
 	if (asoc && inet_diag_msg_sctpaddrs_fill(skb, asoc))

@@ -19,7 +19,7 @@ enum ocmem_client {
 	/* GMEM clients */
 	OCMEM_GRAPHICS = 0x0,
 	/*
-	 * TODO add more once ocmem_allocate() is clever enough to
+	 * TODO add more once ocmem_allocate() is clever eyesugh to
 	 * deal with multiple clients.
 	 */
 	OCMEM_CLIENT_MAX,

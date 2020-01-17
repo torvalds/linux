@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* qlogicpti.c: Performance Technologies QlogicISP sbus card driver.
+/* qlogicpti.c: Performance Techyeslogies QlogicISP sbus card driver.
  *
  * Copyright (C) 1996, 2006, 2008 David S. Miller (davem@davemloft.net)
  *
  * A lot of this driver was directly stolen from Erik H. Moe's PCI
  * Qlogic ISP driver.  Mucho kudos to him for this code.
  *
- * An even bigger kudos to John Grana at Performance Technologies
+ * An even bigger kudos to John Grana at Performance Techyeslogies
  * for providing me with the hardware to write this driver, you rule
  * John you really do.
  *
@@ -153,9 +153,9 @@ static inline void set_sbus_cfg1(struct qlogicpti *qpti)
 	u16 val;
 	u8 bursts = qpti->bursts;
 
-#if 0	/* It appears that at least PTI cards do not support
+#if 0	/* It appears that at least PTI cards do yest support
 	 * 64-byte bursts and that setting the B64 bit actually
-	 * is a nop and the chip ends up using the smallest burst
+	 * is a yesp and the chip ends up using the smallest burst
 	 * size. -DaveM
 	 */
 	if (sbus_can_burst64() && (bursts & DMA_BURST64)) {
@@ -304,8 +304,8 @@ static inline void qlogicpti_set_hostdev_defaults(struct qlogicpti *qpti)
 
 	for(i = 0; i < MAX_TARGETS; i++) {
 		/*
-		 * disconnect, parity, arq, reneg on reset, and, oddly enough
-		 * tags...the midlayer's notion of tagged support has to match
+		 * disconnect, parity, arq, reneg on reset, and, oddly eyesugh
+		 * tags...the midlayer's yestion of tagged support has to match
 		 * our device settings, and since we base whether we enable a
 		 * tag on a  per-cmnd basis upon what the midlayer sez, we
 		 * actually enable the capability here.
@@ -313,11 +313,11 @@ static inline void qlogicpti_set_hostdev_defaults(struct qlogicpti *qpti)
 		qpti->dev_param[i].device_flags = 0xcd;
 		qpti->dev_param[i].execution_throttle = 16;
 		if (qpti->ultra) {
-			qpti->dev_param[i].synchronous_period = 12;
-			qpti->dev_param[i].synchronous_offset = 8;
+			qpti->dev_param[i].synchroyesus_period = 12;
+			qpti->dev_param[i].synchroyesus_offset = 8;
 		} else {
-			qpti->dev_param[i].synchronous_period = 25;
-			qpti->dev_param[i].synchronous_offset = 12;
+			qpti->dev_param[i].synchroyesus_period = 25;
+			qpti->dev_param[i].synchroyesus_offset = 12;
 		}
 		qpti->dev_param[i].device_enable = 1;
 	}
@@ -337,7 +337,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 
 	sbus_writew(HCCTRL_PAUSE, qpti->qregs + HCCTRL);
 
-	/* Only reset the scsi bus if it is not free. */
+	/* Only reset the scsi bus if it is yest free. */
 	if (sbus_readw(qpti->qregs + CPU_PCTRL) & CPU_PCTRL_BSY) {
 		sbus_writew(CPU_ORIDE_RMOD, qpti->qregs + CPU_ORIDE);
 		sbus_writew(CPU_CMD_BRESET, qpti->qregs + CPU_CMD);
@@ -380,7 +380,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 	param[0] = MBOX_EXEC_FIRMWARE;
 	param[1] = risc_code_addr;
 	if (qlogicpti_mbox_command(qpti, param, 1)) {
-		printk(KERN_EMERG "qlogicpti%d: Cannot execute ISP firmware.\n",
+		printk(KERN_EMERG "qlogicpti%d: Canyest execute ISP firmware.\n",
 		       qpti->qpti_id);
 		spin_unlock_irqrestore(host->host_lock, flags);
 		return 1;
@@ -391,7 +391,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 	param[1] = qpti->host_param.initiator_scsi_id;
 	if (qlogicpti_mbox_command(qpti, param, 1) ||
 	   (param[0] != MBOX_COMMAND_COMPLETE)) {
-		printk(KERN_EMERG "qlogicpti%d: Cannot set initiator SCSI ID.\n",
+		printk(KERN_EMERG "qlogicpti%d: Canyest set initiator SCSI ID.\n",
 		       qpti->qpti_id);
 		spin_unlock_irqrestore(host->host_lock, flags);
 		return 1;
@@ -406,7 +406,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 	param[3] = (u_short) (qpti->res_dvma & 0xffff);
 	param[4] = param[5] = 0;
 	if (qlogicpti_mbox_command(qpti, param, 1)) {
-		printk(KERN_EMERG "qlogicpti%d: Cannot init response queue.\n",
+		printk(KERN_EMERG "qlogicpti%d: Canyest init response queue.\n",
 		       qpti->qpti_id);
 		spin_unlock_irqrestore(host->host_lock, flags);
 		return 1;
@@ -418,7 +418,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 	param[3] = (u_short) (qpti->req_dvma & 0xffff);
 	param[4] = param[5] = 0;
 	if (qlogicpti_mbox_command(qpti, param, 1)) {
-		printk(KERN_EMERG "qlogicpti%d: Cannot init request queue.\n",
+		printk(KERN_EMERG "qlogicpti%d: Canyest init request queue.\n",
 		       qpti->qpti_id);
 		spin_unlock_irqrestore(host->host_lock, flags);
 		return 1;
@@ -451,10 +451,10 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 		param[1] = (i << 8);
 		param[2] = (qpti->dev_param[i].device_flags << 8);
 		/*
-		 * Since we're now loading 1.31 f/w, force narrow/async.
+		 * Since we're yesw loading 1.31 f/w, force narrow/async.
 		 */
 		param[2] |= 0xc0;
-		param[3] = 0;	/* no offset, we do not have sync mode yet */
+		param[3] = 0;	/* yes offset, we do yest have sync mode yet */
 		qlogicpti_mbox_command(qpti, param, 0);
 	}
 
@@ -521,7 +521,7 @@ static int qlogicpti_load_firmware(struct qlogicpti *qpti)
 	while (--timeout && (sbus_readw(qpti->qregs + SBUS_CTRL) & SBUS_CTRL_RESET))
 		udelay(20);
 	if (!timeout) {
-		printk(KERN_EMERG "qlogicpti%d: Cannot reset the ISP.", qpti->qpti_id);
+		printk(KERN_EMERG "qlogicpti%d: Canyest reset the ISP.", qpti->qpti_id);
 		err = 1;
 		goto out;
 	}
@@ -554,12 +554,12 @@ static int qlogicpti_load_firmware(struct qlogicpti *qpti)
 	sbus_writew(HCCTRL_REL, qpti->qregs + HCCTRL);
 
 	/* This shouldn't be necessary- we've reset things so we should be
-	   running from the ROM now.. */
+	   running from the ROM yesw.. */
 
 	param[0] = MBOX_STOP_FIRMWARE;
 	param[1] = param[2] = param[3] = param[4] = param[5] = 0;
 	if (qlogicpti_mbox_command(qpti, param, 1)) {
-		printk(KERN_EMERG "qlogicpti%d: Cannot stop firmware for reload.\n",
+		printk(KERN_EMERG "qlogicpti%d: Canyest stop firmware for reload.\n",
 		       qpti->qpti_id);
 		err = 1;
 		goto out;
@@ -612,7 +612,7 @@ static int qlogicpti_load_firmware(struct qlogicpti *qpti)
 		goto out;
 	}
 
-	/* Snag the major and minor revisions from the result. */
+	/* Snag the major and miyesr revisions from the result. */
 	qpti->fware_majrev = param[1];
 	qpti->fware_minrev = param[2];
 	qpti->fware_micrev = param[3];
@@ -622,7 +622,7 @@ static int qlogicpti_load_firmware(struct qlogicpti *qpti)
 	param[1] = qpti->clock;
 	if (qlogicpti_mbox_command(qpti, param, 1) ||
 	    (param[0] != MBOX_COMMAND_COMPLETE)) {
-		printk(KERN_EMERG "qlogicpti%d: could not set clock rate.\n",
+		printk(KERN_EMERG "qlogicpti%d: could yest set clock rate.\n",
 		       qpti->qpti_id);
 		err = 1;
 		goto out;
@@ -654,9 +654,9 @@ static int qlogicpti_verify_tmon(struct qlogicpti *qpti)
 
 	curstat &= 0xf0;
 	if (!(curstat & SREG_FUSE) && (qpti->swsreg & SREG_FUSE))
-		printk("qlogicpti%d: Fuse returned to normal state.\n", qpti->qpti_id);
+		printk("qlogicpti%d: Fuse returned to yesrmal state.\n", qpti->qpti_id);
 	if (!(curstat & SREG_TPOWER) && (qpti->swsreg & SREG_TPOWER))
-		printk("qlogicpti%d: termpwr back to normal state.\n", qpti->qpti_id);
+		printk("qlogicpti%d: termpwr back to yesrmal state.\n", qpti->qpti_id);
 	if (curstat != qpti->swsreg) {
 		int error = 0;
 		if (curstat & SREG_FUSE) {
@@ -756,16 +756,16 @@ static int qpti_register_irq(struct qlogicpti *qpti)
 	return 0;
 
 fail:
-	printk("qlogicpti%d: Cannot acquire irq line\n", qpti->qpti_id);
+	printk("qlogicpti%d: Canyest acquire irq line\n", qpti->qpti_id);
 	return -1;
 }
 
 static void qpti_get_scsi_id(struct qlogicpti *qpti)
 {
 	struct platform_device *op = qpti->op;
-	struct device_node *dp;
+	struct device_yesde *dp;
 
-	dp = op->dev.of_node;
+	dp = op->dev.of_yesde;
 
 	qpti->scsi_id = of_getintprop_default(dp, "initiator-id", -1);
 	if (qpti->scsi_id == -1)
@@ -786,8 +786,8 @@ static void qpti_get_bursts(struct qlogicpti *qpti)
 	struct platform_device *op = qpti->op;
 	u8 bursts, bmask;
 
-	bursts = of_getintprop_default(op->dev.of_node, "burst-sizes", 0xff);
-	bmask = of_getintprop_default(op->dev.of_node->parent, "burst-sizes", 0xff);
+	bursts = of_getintprop_default(op->dev.of_yesde, "burst-sizes", 0xff);
+	bmask = of_getintprop_default(op->dev.of_yesde->parent, "burst-sizes", 0xff);
 	if (bmask != 0xff)
 		bursts &= bmask;
 	if (bursts == 0xff ||
@@ -805,7 +805,7 @@ static void qpti_get_clock(struct qlogicpti *qpti)
 	/* Check for what the clock input to this card is.
 	 * Default to 40Mhz.
 	 */
-	cfreq = prom_getintdefault(qpti->prom_node,"clock-frequency",40000000);
+	cfreq = prom_getintdefault(qpti->prom_yesde,"clock-frequency",40000000);
 	qpti->clock = (cfreq + 500000)/1000000;
 	if (qpti->clock == 0) /* bullshit */
 		qpti->clock = 40;
@@ -824,7 +824,7 @@ static int qpti_map_queues(struct qlogicpti *qpti)
 					   &qpti->res_dvma, GFP_ATOMIC);
 	if (qpti->res_cpu == NULL ||
 	    qpti->res_dvma == 0) {
-		printk("QPTI: Cannot map response queue.\n");
+		printk("QPTI: Canyest map response queue.\n");
 		return -1;
 	}
 
@@ -835,7 +835,7 @@ static int qpti_map_queues(struct qlogicpti *qpti)
 	    qpti->req_dvma == 0) {
 		dma_free_coherent(&op->dev, QSIZE(RES_QUEUE_LEN),
 				  qpti->res_cpu, qpti->res_dvma);
-		printk("QPTI: Cannot map request queue.\n");
+		printk("QPTI: Canyest map request queue.\n");
 		return -1;
 	}
 	memset(qpti->res_cpu, 0, QSIZE(RES_QUEUE_LEN));
@@ -985,8 +985,8 @@ static int qlogicpti_slave_configure(struct scsi_device *sdev)
 	if (sdev->sdtr) {
 		qpti->dev_param[tgt].device_flags |= 0x10;
 	} else {
-		qpti->dev_param[tgt].synchronous_offset = 0;
-		qpti->dev_param[tgt].synchronous_period = 0;
+		qpti->dev_param[tgt].synchroyesus_offset = 0;
+		qpti->dev_param[tgt].synchroyesus_period = 0;
 	}
 	/* are we wide capable? */
 	if (sdev->wdtr)
@@ -996,8 +996,8 @@ static int qlogicpti_slave_configure(struct scsi_device *sdev)
 	param[1] = (tgt << 8);
 	param[2] = (qpti->dev_param[tgt].device_flags << 8);
 	if (qpti->dev_param[tgt].device_flags & 0x10) {
-		param[3] = (qpti->dev_param[tgt].synchronous_offset << 8) |
-			qpti->dev_param[tgt].synchronous_period;
+		param[3] = (qpti->dev_param[tgt].synchroyesus_offset << 8) |
+			qpti->dev_param[tgt].synchroyesus_period;
 	} else {
 		param[3] = 0;
 	}
@@ -1054,7 +1054,7 @@ toss_command:
 	       qpti->qpti_id);
 
 	/* Unfortunately, unless you use the new EH code, which
-	 * we don't, the midlayer will ignore the return value,
+	 * we don't, the midlayer will igyesre the return value,
 	 * which is insane.  We pick up the pieces like this.
 	 */
 	Cmnd->result = DID_BUS_BUSY;
@@ -1119,7 +1119,7 @@ static int qlogicpti_return_status(struct Status_Entry *sts, int id)
 		host_status = DID_OK;
 		break;
 	      default:
-		printk(KERN_EMERG "qlogicpti%d: unknown completion status 0x%04x\n",
+		printk(KERN_EMERG "qlogicpti%d: unkyeswn completion status 0x%04x\n",
 		       id, sts->completion_status);
 		host_status = DID_ERROR;
 		break;
@@ -1162,7 +1162,7 @@ static struct scsi_cmnd *qlogicpti_intr_handler(struct qlogicpti *qpti)
 		sts = (struct Status_Entry *) &qpti->res_cpu[out_ptr];
 		out_ptr = NEXT_RES_PTR(out_ptr);
 
-		/* We store an index in the handle, not the pointer in
+		/* We store an index in the handle, yest the pointer in
 		 * some form.  This avoids problems due to the fact
 		 * that the handle provided is only 32-bits. -DaveM
 		 */
@@ -1303,13 +1303,13 @@ static struct scsi_host_template qpti_template = {
 static const struct of_device_id qpti_match[];
 static int qpti_sbus_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	struct Scsi_Host *host;
 	struct qlogicpti *qpti;
 	static int nqptis;
 	const char *fcode;
 
-	/* Sometimes Antares cards come up not completely
+	/* Sometimes Antares cards come up yest completely
 	 * setup, and we get a report of a zero IRQ.
 	 */
 	if (op->archdata.irqs[0] == 0)
@@ -1325,7 +1325,7 @@ static int qpti_sbus_probe(struct platform_device *op)
 	qpti->qhost = host;
 	qpti->op = op;
 	qpti->qpti_id = nqptis;
-	qpti->is_pti = !of_node_name_eq(op->dev.of_node, "QLGC,isp");
+	qpti->is_pti = !of_yesde_name_eq(op->dev.of_yesde, "QLGC,isp");
 
 	if (qpti_map_regs(qpti) < 0)
 		goto fail_unlink;

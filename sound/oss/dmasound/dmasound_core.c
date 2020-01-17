@@ -45,7 +45,7 @@
  *
  *	1995/9/23	Torsten Scherer:
  *			  - Changed sq_interrupt() and sq_play() to pre-program
- *			    the DMA for another frame while there's still one
+ *			    the DMA for ayesther frame while there's still one
  *			    running. This allows the IRQ response to be
  *			    arbitrarily delayed and playing will still continue.
  *
@@ -59,12 +59,12 @@
  *	1995/11/06	Torsten Scherer:
  *			  - Started introducing a hardware abstraction scheme
  *			    (may perhaps also serve for Amigas?)
- *			  - Can now play samples at almost all frequencies by
+ *			  - Can yesw play samples at almost all frequencies by
  *			    means of a more generalized expand routine
  *			  - Takes a good deal of care to cut data only at
  *			    sample sizes
- *			  - Buffer size is now a kernel runtime option
- *			  - Implemented fsync() & several minor improvements
+ *			  - Buffer size is yesw a kernel runtime option
+ *			  - Implemented fsync() & several miyesr improvements
  *			Guenther Kelleter:
  *			  - Useful hints and bug fixes
  *			  - Cross-checked it for Falcons
@@ -80,8 +80,8 @@
  *	1996/6/13       Topi Kanerva:
  *			  - Fixed things that were broken (mainly the amiga
  *			    14-bit routines)
- *			  - /dev/sndstat shows now the real hardware frequency
- *			  - The lowpass filter is disabled by default now
+ *			  - /dev/sndstat shows yesw the real hardware frequency
+ *			  - The lowpass filter is disabled by default yesw
  *
  *	1996/9/25	Geert Uytterhoeven:
  *			  - Modularization
@@ -136,13 +136,13 @@
  *			  - fix bug where SNDCTL_DSP_POST was blocking.
  */
 
- /* Record capability notes 30/01/2001:
+ /* Record capability yestes 30/01/2001:
   * At present these observations apply only to pmac LL driver (the only one
   * that can do record, at present).  However, if other LL drivers for machines
   * with record are added they may apply.
   *
   * The fragment parameters for the record and play channels are separate.
-  * However, if the driver is opened O_RDWR there is no way (in the current OSS
+  * However, if the driver is opened O_RDWR there is yes way (in the current OSS
   * API) to specify their values independently for the record and playback
   * channels.  Since the only common factor between the input & output is the
   * sample rate (on pmac) it should be possible to open /dev/dspX O_WRONLY and
@@ -151,11 +151,11 @@
   * right to set it for ever).  As it stands, the format, channels, number of
   * bits & sample rate are assumed to be common.  In the future perhaps these
   * should be the responsibility of the LL driver - and then if a card really
-  * does not share items between record & playback they can be specified
+  * does yest share items between record & playback they can be specified
   * separately.
 */
 
-/* Thread-safeness of shared_resources notes: 31/01/2001
+/* Thread-safeness of shared_resources yestes: 31/01/2001
  * If the user opens O_RDWR and then splits record & play between two threads
  * both of which inherit the fd - and then starts changing things from both
  * - we will have difficulty telling.
@@ -244,7 +244,7 @@ static int sound_set_speed(int speed)
 	/* trap out-of-range speed settings.
 	   at present we allow (arbitrarily) low rates - using soft
 	   up-conversion - but we can't allow > max because there is
-	   no soft down-conversion.
+	   yes soft down-conversion.
 	*/
 	if (dmasound.mach.max_dsp_speed &&
 	   (speed > dmasound.mach.max_dsp_speed))
@@ -263,7 +263,7 @@ static int sound_set_stereo(int stereo)
 	if (stereo < 0)
 		return dmasound.soft.stereo;
 
-	stereo = !!stereo;    /* should be 0 or 1 now */
+	stereo = !!stereo;    /* should be 0 or 1 yesw */
 
 	dmasound.soft.stereo = stereo;
 	if (dmasound.minDev == SND_DEV_DSP)
@@ -306,7 +306,7 @@ static ssize_t sound_copy_translate(TRANS *trans, const u_char __user *userPtr,
 	    default:
 		return 0;
 	}
-	/* if the user has requested a non-existent translation don't try
+	/* if the user has requested a yesn-existent translation don't try
 	   to call it but just return 0 bytes moved
 	*/
 	if (ct_func)
@@ -323,7 +323,7 @@ static struct {
     int modify_counter;
 } mixer;
 
-static int mixer_open(struct inode *inode, struct file *file)
+static int mixer_open(struct iyesde *iyesde, struct file *file)
 {
 	mutex_lock(&dmasound_core_mutex);
 	if (!try_module_get(dmasound.mach.owner)) {
@@ -335,7 +335,7 @@ static int mixer_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int mixer_release(struct inode *inode, struct file *file)
+static int mixer_release(struct iyesde *iyesde, struct file *file)
 {
 	mutex_lock(&dmasound_core_mutex);
 	mixer.busy = 0;
@@ -382,7 +382,7 @@ static long mixer_unlocked_ioctl(struct file *file, u_int cmd, u_long arg)
 static const struct file_operations mixer_fops =
 {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.unlocked_ioctl	= mixer_unlocked_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= mixer_open,
@@ -455,7 +455,7 @@ static int sq_setup(struct sound_queue *sq)
 	int (*setup_func)(void) = NULL;
 	int hard_frame ;
 
-	if (sq->locked) { /* are we already set? - and not changeable */
+	if (sq->locked) { /* are we already set? - and yest changeable */
 #ifdef DEBUG_DMASOUND
 printk("dmasound_core: tried to sq_setup a locked queue\n") ;
 #endif
@@ -472,13 +472,13 @@ printk("dmasound_core: tried to sq_setup a locked queue\n") ;
 	/* OK.  If the user has set fragment parameters explicitly, then we
 	   should leave them alone... as long as they are valid.
 	   Invalid user fragment params can occur if we allow the whole buffer
-	   to be used when the user requests the fragments sizes (with no soft
+	   to be used when the user requests the fragments sizes (with yes soft
 	   x-lation) and then the user subsequently sets a soft x-lation that
 	   requires increased internal buffering.
 
-	   Othwerwise (if the user did not set them) OSS says that we should
+	   Othwerwise (if the user did yest set them) OSS says that we should
 	   select frag params on the basis of 0.5 s output & 0.1 s input
-	   latency. (TODO.  For now we will copy in the defaults.)
+	   latency. (TODO.  For yesw we will copy in the defaults.)
 	*/
 
 	if (sq->user_frags <= 0) {
@@ -555,13 +555,13 @@ static ssize_t sq_write(struct file *file, const char __user *src, size_t uLeft,
 
 	/* ++TeSche: Is something like this necessary?
 	 * Hey, that's an honest question! Or does any other part of the
-	 * filesystem already checks this situation? I really don't know.
+	 * filesystem already checks this situation? I really don't kyesw.
 	 */
 	if (uLeft == 0)
 		return 0;
 
 	/* implement any changes we have made to the soft/hard params.
-	   this is not satisfactory really, all we have done up to now is to
+	   this is yest satisfactory really, all we have done up to yesw is to
 	   say what we would like - there hasn't been any real checking of capability
 	*/
 
@@ -570,7 +570,7 @@ static ssize_t sq_write(struct file *file, const char __user *src, size_t uLeft,
 		shared_resources_initialised = 1 ;
 	}
 
-	/* set up the sq if it is not already done. This may seem a dumb place
+	/* set up the sq if it is yest already done. This may seem a dumb place
 	   to do it - but it is what OSS requires.  It means that write() can
 	   return memory allocation errors.  To avoid this possibility use the
 	   GETBLKSIZE or GETOSPACE ioctls (after you've fiddled with all the
@@ -596,10 +596,10 @@ static ssize_t sq_write(struct file *file, const char __user *src, size_t uLeft,
 	   this will mimic the behaviour of syncing and allow the sq_play() to
 	   queue a partial fragment.  Since sq_play() may/will be called from
 	   the IRQ handler - at least on Pmac we have to deal with it.
-	   The strategy - possibly not optimum - is to kill _POST status if we
+	   The strategy - possibly yest optimum - is to kill _POST status if we
 	   get here.  This seems, at least, reasonable - in the sense that POST
-	   is supposed to indicate that we might not write before the queue
-	   is drained - and if we get here in time then it does not apply.
+	   is supposed to indicate that we might yest write before the queue
+	   is drained - and if we get here in time then it does yest apply.
 	*/
 
 	spin_lock_irqsave(&dmasound.lock, flags);
@@ -616,7 +616,7 @@ static ssize_t sq_write(struct file *file, const char __user *src, size_t uLeft,
 			return uUsed;
 		src += uUsed;
 		uWritten += uUsed;
-		uLeft = (uUsed <= uLeft) ? (uLeft - uUsed) : 0 ; /* paranoia */
+		uLeft = (uUsed <= uLeft) ? (uLeft - uUsed) : 0 ; /* parayesia */
 		write_sq.rear_size = bUsed;
 	}
 
@@ -626,7 +626,7 @@ static ssize_t sq_write(struct file *file, const char __user *src, size_t uLeft,
 		while (write_sq.count >= write_sq.max_active) {
 			prepare_to_wait(&write_sq.action_queue, &wait, TASK_INTERRUPTIBLE);
 			sq_play();
-			if (write_sq.non_blocking) {
+			if (write_sq.yesn_blocking) {
 				finish_wait(&write_sq.action_queue, &wait);
 				return uWritten > 0 ? uWritten : -EAGAIN;
 			}
@@ -658,7 +658,7 @@ static ssize_t sq_write(struct file *file, const char __user *src, size_t uLeft,
 			break;
 		src += uUsed;
 		uWritten += uUsed;
-		uLeft = (uUsed <= uLeft) ? (uLeft - uUsed) : 0 ; /* paranoia */
+		uLeft = (uUsed <= uLeft) ? (uLeft - uUsed) : 0 ; /* parayesia */
 		if (bUsed) {
 			write_sq.rear = (write_sq.rear+1) % write_sq.max_count;
 			write_sq.rear_size = bUsed;
@@ -747,7 +747,7 @@ static int sq_open2(struct sound_queue *sq, struct file *file, fmode_t mode,
 			return rc;
 		}
 
-		sq->non_blocking = file->f_flags & O_NONBLOCK;
+		sq->yesn_blocking = file->f_flags & O_NONBLOCK;
 	}
 	return rc;
 }
@@ -760,7 +760,7 @@ static int sq_open2(struct sound_queue *sq, struct file *file, fmode_t mode,
 #define write_sq_open(file)	\
 	sq_open2(&write_sq, file, FMODE_WRITE, numWriteBufs, writeBufSize )
 
-static int sq_open(struct inode *inode, struct file *file)
+static int sq_open(struct iyesde *iyesde, struct file *file)
 {
 	int rc;
 
@@ -786,7 +786,7 @@ static int sq_open(struct inode *inode, struct file *file)
 	  O_RDONLY and dsp1 could be opened O_WRONLY
 	*/
 
-	dmasound.minDev = iminor(inode) & 0x0f;
+	dmasound.minDev = imiyesr(iyesde) & 0x0f;
 
 	/* OK. - we should make some attempt at consistency. At least the H'ware
 	   options should be set with a valid mode.  We will make it that the LL
@@ -794,7 +794,7 @@ static int sq_open(struct inode *inode, struct file *file)
 	*/
 
 	if (shared_resource_owner == 0) {
-		/* you can make this AFMT_U8/mono/8K if you want to mimic old
+		/* you can make this AFMT_U8/moyes/8K if you want to mimic old
 		   OSS behaviour - while we still have soft translations ;-) */
 		dmasound.soft = dmasound.mach.default_soft ;
 		dmasound.dsp = dmasound.mach.default_soft ;
@@ -802,8 +802,8 @@ static int sq_open(struct inode *inode, struct file *file)
 	}
 
 #ifndef DMASOUND_STRICT_OSS_COMPLIANCE
-	/* none of the current LL drivers can actually do this "native" at the moment
-	   OSS does not really require us to supply /dev/audio if we can't do it.
+	/* yesne of the current LL drivers can actually do this "native" at the moment
+	   OSS does yest really require us to supply /dev/audio if we can't do it.
 	*/
 	if (dmasound.minDev == SND_DEV_AUDIO) {
 		sound_set_speed(8000);
@@ -839,7 +839,7 @@ static void sq_reset(void)
 {
 	sq_reset_output() ;
 	/* we could consider resetting the shared_resources_owner here... but I
-	   think it is probably still rather non-obvious to application writer
+	   think it is probably still rather yesn-obvious to application writer
 	*/
 
 	/* we release everything else though */
@@ -873,12 +873,12 @@ static int sq_fsync(void)
 		}
 	}
 
-	/* flag no sync regardless of whether we had a DSP_POST or not */
+	/* flag yes sync regardless of whether we had a DSP_POST or yest */
 	write_sq.syncing = 0 ;
 	return rc;
 }
 
-static int sq_release(struct inode *inode, struct file *file)
+static int sq_release(struct iyesde *iyesde, struct file *file)
 {
 	int rc = 0;
 
@@ -919,7 +919,7 @@ static int sq_release(struct inode *inode, struct file *file)
 }
 
 /* here we see if we have a right to modify format, channels, size and so on
-   if no-one else has claimed it already then we do...
+   if yes-one else has claimed it already then we do...
 
    TODO: We might change this to mask O_RDWR such that only one or the other channel
    is the owner - if we have problems.
@@ -966,16 +966,16 @@ printk("dmasound_core: tried to set_queue_frags on a locked queue\n") ;
 
 	if ((size < MIN_FRAG_SIZE) || (size > MAX_FRAG_SIZE))
 		return -EINVAL ;
-	size = (1<<size) ; /* now in bytes */
+	size = (1<<size) ; /* yesw in bytes */
 	if (size > sq->bufSize)
-		return -EINVAL ; /* this might still not work */
+		return -EINVAL ; /* this might still yest work */
 
 	if (bufs <= 0)
 		return -EINVAL ;
 	if (bufs > sq->numBufs) /* the user is allowed say "don't care" with 0x7fff */
 		bufs = sq->numBufs ;
 
-	/* there is, currently, no way to specify max_active separately
+	/* there is, currently, yes way to specify max_active separately
 	   from max_count.  This could be a LL driver issue - I guess
 	   if there is a requirement for these values to be different then
 	  we will have to pass that info. up to this level.
@@ -1009,7 +1009,7 @@ static int sq_ioctl(struct file *file, u_int cmd, u_long arg)
 		   read/write - the app doesn't care about our internal buffers.
 		   We force sq_setup() here as per OSS 1.1 (which should
 		   compute the values necessary).
-		   Since there is no mechanism to specify read/write separately, for
+		   Since there is yes mechanism to specify read/write separately, for
 		   fds opened O_RDWR, the write_sq values will, arbitrarily, overwrite
 		   the read_sq ones.
 		*/
@@ -1105,7 +1105,7 @@ static int sq_ioctl(struct file *file, u_int cmd, u_long arg)
 		return -EINVAL ;
 	case SNDCTL_DSP_SETFRAGMENT:
 		/* we can do this independently for the two queues - with the
-		   proviso that for fds opened O_RDWR we cannot separate the
+		   proviso that for fds opened O_RDWR we canyest separate the
 		   actions and both queues will be set per the last call.
 		   NOTE: this does *NOT* actually set the queue up - merely
 		   registers our intentions.
@@ -1164,7 +1164,7 @@ static long sq_unlocked_ioctl(struct file *file, u_int cmd, u_long arg)
 static const struct file_operations sq_fops =
 {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= sq_write,
 	.poll		= sq_poll,
 	.unlocked_ioctl	= sq_unlocked_ioctl,
@@ -1190,7 +1190,7 @@ static int sq_init(void)
 
 	/* These parameters will be restored for every clean open()
 	 * in the case of multiple open()s (e.g. dsp0 & dsp1) they
-	 * will be set so long as the shared resources have no owner.
+	 * will be set so long as the shared resources have yes owner.
 	 */
 
 	if (shared_resource_owner == 0) {
@@ -1216,14 +1216,14 @@ static int sq_init(void)
 
 /* this is how much space we will allow the low-level driver to use
    in the stat buffer.  Currently, 2 * (80 character line + <NL>).
-   We do not police this (it is up to the ll driver to be honest).
+   We do yest police this (it is up to the ll driver to be honest).
 */
 
 #define LOW_LEVEL_STAT_ALLOC 162
 
 static struct {
     int busy;
-    char buf[STAT_BUFF_LEN];	/* state.buf should not overflow! */
+    char buf[STAT_BUFF_LEN];	/* state.buf should yest overflow! */
     int len, ptr;
 } state;
 
@@ -1257,7 +1257,7 @@ static char *get_afmt_string(int afmt)
                 return "unsigned 16 bit LE";
                 break;
 	    case 0:
-		return "format not set" ;
+		return "format yest set" ;
 		break ;
             default:
                 break ;
@@ -1265,7 +1265,7 @@ static char *get_afmt_string(int afmt)
         return "ERROR: Unsupported AFMT_XXXX code" ;
 }
 
-static int state_open(struct inode *inode, struct file *file)
+static int state_open(struct iyesde *iyesde, struct file *file)
 {
 	char *buffer = state.buf;
 	int len = 0;
@@ -1316,8 +1316,8 @@ static int state_open(struct inode *inode, struct file *file)
 		       dmasound.soft.speed, dmasound.hard.speed);
 
 	len += sprintf(buffer+len,"Channels :%20s%20s\n",
-		       dmasound.soft.stereo ? "stereo" : "mono",
-		       dmasound.hard.stereo ? "stereo" : "mono" );
+		       dmasound.soft.stereo ? "stereo" : "moyes",
+		       dmasound.hard.stereo ? "stereo" : "moyes" );
 
 	/* sound queue status */
 
@@ -1347,7 +1347,7 @@ out:
 	return ret;
 }
 
-static int state_release(struct inode *inode, struct file *file)
+static int state_release(struct iyesde *iyesde, struct file *file)
 {
 	mutex_lock(&dmasound_core_mutex);
 	state.busy = 0;
@@ -1372,7 +1372,7 @@ static ssize_t state_read(struct file *file, char __user *buf, size_t count,
 
 static const struct file_operations state_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.read		= state_read,
 	.open		= state_open,
 	.release	= state_release,
@@ -1468,8 +1468,8 @@ static int dmasound_setup(char *str)
 
 	/* check the bootstrap parameter for "dmasound=" */
 
-	/* FIXME: other than in the most naive of cases there is no sense in these
-	 *	  buffers being other than powers of two.  This is not checked yet.
+	/* FIXME: other than in the most naive of cases there is yes sense in these
+	 *	  buffers being other than powers of two.  This is yest checked yet.
 	 */
 
 	switch (ints[0]) {

@@ -70,7 +70,7 @@ union ks_tx_hdr {
  * @hw_addr	: start address of data register.
  * @hw_addr_cmd	: start address of command register.
  * @txh    	: temporaly buffer to save status/length.
- * @lock	: Lock to ensure that the device is not accessed when busy.
+ * @lock	: Lock to ensure that the device is yest accessed when busy.
  * @pdev	: Pointer to platform device.
  * @mii		: The MII state information for the mii calls.
  * @frame_head_info   	: frame header information for multi-pkt rx.
@@ -96,7 +96,7 @@ union ks_tx_hdr {
  *
  * The @lock ensures that the chip is protected when certain operations are
  * in progress. When the read or write packet transfer is in progress, most
- * of the chip registers are not accessible until the transfer is finished and
+ * of the chip registers are yest accessible until the transfer is finished and
  * the DMA has been de-asserted.
  *
  * The @statelock is used to protect information in the structure which may
@@ -356,7 +356,7 @@ static void ks_read_config(struct ks_net *ks)
  *
  * Note, the delays are in there as a caution to ensure that the reset
  * has time to take effect and then complete. Since the datasheet does
- * not currently specify the exact sequence, we have chosen something
+ * yest currently specify the exact sequence, we have chosen something
  * that seems to work with our device.
  */
 static void ks_soft_reset(struct ks_net *ks, unsigned op)
@@ -455,7 +455,7 @@ static inline void ks_read_qmu(struct ks_net *ks, u16 *buf, u32 len)
  * @netdev: The network device being opened.
  *
  * Read all of header information before reading pkt content.
- * It is not allowed only port of pkts in QMU after issuing
+ * It is yest allowed only port of pkts in QMU after issuing
  * interrupt ack.
  */
 static void ks_rcv(struct ks_net *ks, struct net_device *netdev)
@@ -541,7 +541,7 @@ static void ks_update_link_status(struct net_device *netdev, struct ks_net *ks)
  * This is the handler invoked to find out what happened
  *
  * Read the interrupt status, work out what needs to be done and then clear
- * any of the interrupts that are not needed.
+ * any of the interrupts that are yest needed.
  */
 
 static irqreturn_t ks_irq(int irq, void *pw)
@@ -598,7 +598,7 @@ static int ks_net_open(struct net_device *netdev)
 	int err;
 
 #define	KS_INT_FLAGS	IRQF_TRIGGER_LOW
-	/* lock the card, even if we may not actually do anything
+	/* lock the card, even if we may yest actually do anything
 	 * else at the moment.
 	 */
 
@@ -612,9 +612,9 @@ static int ks_net_open(struct net_device *netdev)
 		return err;
 	}
 
-	/* wake up powermode to normal mode */
+	/* wake up powermode to yesrmal mode */
 	ks_set_powermode(ks, PMECR_PM_NORMAL);
-	mdelay(1);	/* wait for normal mode to take effect */
+	mdelay(1);	/* wait for yesrmal mode to take effect */
 
 	ks_wrreg16(ks, KS_ISR, 0xffff);
 	ks_enable_int(ks);
@@ -632,7 +632,7 @@ static int ks_net_open(struct net_device *netdev)
  *
  * Called to close down a network device which has been active. Cancell any
  * work, shutdown the RX and TX process and then place the chip into a low
- * power state whilst it is not being used.
+ * power state whilst it is yest being used.
  */
 static int ks_net_stop(struct net_device *netdev)
 {
@@ -760,7 +760,7 @@ static void ks_stop_rx(struct ks_net *ks)
 
 }  /* ks_stop_rx */
 
-static unsigned long const ethernet_polynomial = CRC32_POLY_BE;
+static unsigned long const ethernet_polyyesmial = CRC32_POLY_BE;
 
 static unsigned long ether_gen_crc(int length, u8 *data)
 {
@@ -772,7 +772,7 @@ static unsigned long ether_gen_crc(int length, u8 *data)
 		for (bit = 0; bit < 8; bit++, current_octet >>= 1) {
 			crc = (crc << 1) ^
 				((crc < 0) ^ (current_octet & 1) ?
-			ethernet_polynomial : 0);
+			ethernet_polyyesmial : 0);
 		}
 	}
 	return (unsigned long)crc;
@@ -836,7 +836,7 @@ static void ks_set_promis(struct ks_net *ks, u16 promiscuous_mode)
 		/* Enable Promiscuous mode */
 		cntl |= RXCR1_RXAE | RXCR1_RXINVF;
 	else
-		/* Disable Promiscuous mode (default normal mode) */
+		/* Disable Promiscuous mode (default yesrmal mode) */
 		cntl |= RXCR1_RXPAFMA;
 
 	ks_wrreg16(ks, KS_RXCR1, cntl);
@@ -860,7 +860,7 @@ static void ks_set_mcast(struct ks_net *ks, u16 mcast)
 	else
 		/**
 		 * Disable "Perfect with Multicast address passed
-		 * mode" (normal mode).
+		 * mode" (yesrmal mode).
 		 */
 		cntl |= RXCR1_RXPAFMA;
 
@@ -1039,7 +1039,7 @@ static const struct ethtool_ops ks_ethtool_ops = {
  * @reg: MII register number.
  *
  * Return the KS8851 register number for the corresponding MII PHY register
- * if possible. Return zero if the MII register has no direct mapping to the
+ * if possible. Return zero if the MII register has yes direct mapping to the
  * KS8851 register set.
  */
 static int ks_phy_reg(int reg)
@@ -1065,14 +1065,14 @@ static int ks_phy_reg(int reg)
 /**
  * ks_phy_read - MII interface PHY register read.
  * @netdev: The network device the PHY is on.
- * @phy_addr: Address of PHY (ignored as we only have one)
+ * @phy_addr: Address of PHY (igyesred as we only have one)
  * @reg: The register to read.
  *
  * This call reads data from the PHY register specified in @reg. Since the
- * device does not support all the MII registers, the non-existent values
+ * device does yest support all the MII registers, the yesn-existent values
  * are always returned as zero.
  *
- * We return zero for unsupported registers as the MII code does not check
+ * We return zero for unsupported registers as the MII code does yest check
  * the value returned for any error status, and simply returns it to the
  * caller. The mii-tool that the driver was tested with takes any -ve error
  * as real PHY capabilities, thus displaying incorrect data to the user.
@@ -1085,7 +1085,7 @@ static int ks_phy_read(struct net_device *netdev, int phy_addr, int reg)
 
 	ksreg = ks_phy_reg(reg);
 	if (!ksreg)
-		return 0x0;	/* no error return allowed, so use zero */
+		return 0x0;	/* yes error return allowed, so use zero */
 
 	mutex_lock(&ks->lock);
 	result = ks_rdreg16(ks, ksreg);
@@ -1123,7 +1123,7 @@ static int ks_read_selftest(struct ks_net *ks)
 	rd = ks_rdreg16(ks, KS_MBIR);
 
 	if ((rd & both_done) != both_done) {
-		netdev_warn(ks->netdev, "Memory selftest not finished\n");
+		netdev_warn(ks->netdev, "Memory selftest yest finished\n");
 		return 0;
 	}
 
@@ -1310,8 +1310,8 @@ static int ks8851_probe(struct platform_device *pdev)
 	ks_wrreg16(ks, KS_OBCR, data | OBCR_ODS_16mA);
 
 	/* overwriting the default MAC address */
-	if (pdev->dev.of_node) {
-		mac = of_get_mac_address(pdev->dev.of_node);
+	if (pdev->dev.of_yesde) {
+		mac = of_get_mac_address(pdev->dev.of_yesde);
 		if (!IS_ERR(mac))
 			ether_addr_copy(ks->mac_addr, mac);
 	} else {
@@ -1326,7 +1326,7 @@ static int ks8851_probe(struct platform_device *pdev)
 		memcpy(ks->mac_addr, pdata->mac_addr, ETH_ALEN);
 	}
 	if (!is_valid_ether_addr(ks->mac_addr)) {
-		/* Use random MAC address if none passed */
+		/* Use random MAC address if yesne passed */
 		eth_random_addr(ks->mac_addr);
 		netdev_info(netdev, "Using random mac address\n");
 	}
@@ -1374,5 +1374,5 @@ MODULE_DESCRIPTION("KS8851 MLL Network driver");
 MODULE_AUTHOR("David Choi <david.choi@micrel.com>");
 MODULE_LICENSE("GPL");
 module_param_named(message, msg_enable, int, 0);
-MODULE_PARM_DESC(message, "Message verbosity level (0=none, 31=all)");
+MODULE_PARM_DESC(message, "Message verbosity level (0=yesne, 31=all)");
 

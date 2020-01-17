@@ -25,7 +25,7 @@ static LIST_HEAD(jffs2_compressor_list);
 static int jffs2_compression_mode = JFFS2_COMPR_MODE_PRIORITY;
 
 /* Statistics for blocks stored without compression */
-static uint32_t none_stat_compr_blocks=0,none_stat_decompr_blocks=0,none_stat_compr_size=0;
+static uint32_t yesne_stat_compr_blocks=0,yesne_stat_decompr_blocks=0,yesne_stat_compr_size=0;
 
 
 /*
@@ -68,7 +68,7 @@ static int jffs2_is_best_compression(struct jffs2_compressor *this,
  *	data.
  *
  * Returns: the compression type used.  Zero is used to show that the data
- * could not be compressed; probably because we couldn't find the requested
+ * could yest be compressed; probably because we couldn't find the requested
  * compression mode.
  */
 static int jffs2_selected_compress(u8 compr, unsigned char *data_in,
@@ -92,7 +92,7 @@ static int jffs2_selected_compress(u8 compr, unsigned char *data_in,
 		if (!this->compress || this->disabled)
 			continue;
 
-		/* Skip if not the desired compression type */
+		/* Skip if yest the desired compression type */
 		if (compr && (compr != this->compr))
 			continue;
 
@@ -137,15 +137,15 @@ static int jffs2_selected_compress(u8 compr, unsigned char *data_in,
  *	data.
  *
  * Returns: Lower byte to be stored with data indicating compression type used.
- * Zero is used to show that the data could not be compressed - the
+ * Zero is used to show that the data could yest be compressed - the
  * compressed version was actually larger than the original.
  * Upper byte will be used later. (soon)
  *
- * If the cdata buffer isn't large enough to hold all the uncompressed data,
+ * If the cdata buffer isn't large eyesugh to hold all the uncompressed data,
  * jffs2_compress should compress as much as will fit, and should set
  * *datalen accordingly to show the amount of data which were compressed.
  */
-uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
+uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_iyesde_info *f,
 			unsigned char *data_in, unsigned char **cpage_out,
 			uint32_t *datalen, uint32_t *cdatalen)
 {
@@ -238,26 +238,26 @@ uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 				cpage_out, datalen, cdatalen);
 		break;
 	default:
-		pr_err("unknown compression mode\n");
+		pr_err("unkyeswn compression mode\n");
 	}
 
 	if (ret == JFFS2_COMPR_NONE) {
 		*cpage_out = data_in;
 		*datalen = *cdatalen;
-		none_stat_compr_blocks++;
-		none_stat_compr_size += *datalen;
+		yesne_stat_compr_blocks++;
+		yesne_stat_compr_size += *datalen;
 	}
 	return ret;
 }
 
-int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
+int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_iyesde_info *f,
 		     uint16_t comprtype, unsigned char *cdata_in,
 		     unsigned char *data_out, uint32_t cdatalen, uint32_t datalen)
 {
 	struct jffs2_compressor *this;
 	int ret;
 
-	/* Older code had a bug where it would write non-zero 'usercompr'
+	/* Older code had a bug where it would write yesn-zero 'usercompr'
 	   fields. Deal with it. */
 	if ((comprtype & 0xff) <= JFFS2_COMPR_ZLIB)
 		comprtype &= 0xff;
@@ -266,7 +266,7 @@ int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 	case JFFS2_COMPR_NONE:
 		/* This should be special-cased elsewhere, but we might as well deal with it */
 		memcpy(data_out, cdata_in, datalen);
-		none_stat_decompr_blocks++;
+		yesne_stat_decompr_blocks++;
 		break;
 	case JFFS2_COMPR_ZERO:
 		memset(data_out, 0, datalen);
@@ -291,7 +291,7 @@ int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 				return ret;
 			}
 		}
-		pr_warn("compression type 0x%02x not available\n", comprtype);
+		pr_warn("compression type 0x%02x yest available\n", comprtype);
 		spin_unlock(&jffs2_compressor_list_lock);
 		return -EIO;
 	}
@@ -381,7 +381,7 @@ int __init jffs2_compressors_init(void)
 /* Setting default compression mode */
 #ifdef CONFIG_JFFS2_CMODE_NONE
 	jffs2_compression_mode = JFFS2_COMPR_MODE_NONE;
-	jffs2_dbg(1, "default compression mode: none\n");
+	jffs2_dbg(1, "default compression mode: yesne\n");
 #else
 #ifdef CONFIG_JFFS2_CMODE_SIZE
 	jffs2_compression_mode = JFFS2_COMPR_MODE_SIZE;

@@ -364,7 +364,7 @@ static int meson_size_to_payload(struct meson_pcie *mp, int size)
 
 	/*
 	 * dwc supports 2^(val+7) payload size, which val is 0~5 default to 1.
-	 * So if input size is not 2^order alignment or less than 2^7 or bigger
+	 * So if input size is yest 2^order alignment or less than 2^7 or bigger
 	 * than 2^12, just set to default size 2^(1+7).
 	 */
 	if (!is_power_of_2(size) || size < 128 || size > 4096) {
@@ -445,7 +445,7 @@ static int meson_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 
 	/*
 	 * There is a bug in the MESON AXG PCIe controller whereby software
-	 * cannot program the PCI_CLASS_DEVICE register, so we must fabricate
+	 * canyest program the PCI_CLASS_DEVICE register, so we must fabricate
 	 * the return value in the config accessors.
 	 */
 	if (where == PCI_CLASS_REVISION && size == 4)

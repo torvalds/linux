@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -43,7 +43,7 @@ enum DISPLAY_GAP {
 	DISPLAY_GAP_VBLANK_OR_WM = 0,   /* Wait for vblank or MCHG watermark. */
 	DISPLAY_GAP_VBLANK       = 1,   /* Wait for vblank. */
 	DISPLAY_GAP_WATERMARK    = 2,   /* Wait for MCHG watermark. (Note that HW may deassert WM in VBI depending on DC_STUTTER_CNTL.) */
-	DISPLAY_GAP_IGNORE       = 3    /* Do not wait. */
+	DISPLAY_GAP_IGNORE       = 3    /* Do yest wait. */
 };
 typedef enum DISPLAY_GAP DISPLAY_GAP;
 
@@ -265,7 +265,7 @@ struct pp_hwmgr_func {
 	uint32_t (*get_sclk)(struct pp_hwmgr *hwmgr, bool low);
 	int (*power_state_set)(struct pp_hwmgr *hwmgr,
 						const void *state);
-	int (*notify_smc_display_config_after_ps_adjustment)(struct pp_hwmgr *hwmgr);
+	int (*yestify_smc_display_config_after_ps_adjustment)(struct pp_hwmgr *hwmgr);
 	int (*pre_display_config_changed)(struct pp_hwmgr *hwmgr);
 	int (*display_config_changed)(struct pp_hwmgr *hwmgr);
 	int (*disable_clock_power_gating)(struct pp_hwmgr *hwmgr);
@@ -324,7 +324,7 @@ struct pp_hwmgr_func {
 	int (*set_active_display_count)(struct pp_hwmgr *hwmgr, uint32_t count);
 	int (*set_min_deep_sleep_dcefclk)(struct pp_hwmgr *hwmgr, uint32_t clock);
 	int (*start_thermal_controller)(struct pp_hwmgr *hwmgr, struct PP_TemperatureRange *range);
-	int (*notify_cac_buffer_info)(struct pp_hwmgr *hwmgr,
+	int (*yestify_cac_buffer_info)(struct pp_hwmgr *hwmgr,
 					uint32_t virtual_addr_low,
 					uint32_t virtual_addr_hi,
 					uint32_t mc_addr_low,
@@ -342,7 +342,7 @@ struct pp_hwmgr_func {
 					long *input, uint32_t size);
 	int (*set_power_limit)(struct pp_hwmgr *hwmgr, uint32_t n);
 	int (*powergate_mmhub)(struct pp_hwmgr *hwmgr);
-	int (*smus_notify_pwe)(struct pp_hwmgr *hwmgr);
+	int (*smus_yestify_pwe)(struct pp_hwmgr *hwmgr);
 	int (*powergate_sdma)(struct pp_hwmgr *hwmgr, bool bgate);
 	int (*enable_mgpu_fan_boost)(struct pp_hwmgr *hwmgr);
 	int (*set_hard_min_dcefclk_by_freq)(struct pp_hwmgr *hwmgr, uint32_t clock);
@@ -739,7 +739,7 @@ struct pp_hwmgr {
 	uint32_t chip_family;
 	uint32_t chip_id;
 	uint32_t smu_version;
-	bool not_vf;
+	bool yest_vf;
 	bool pm_en;
 	struct mutex smu_lock;
 

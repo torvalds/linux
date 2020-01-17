@@ -11,16 +11,16 @@
 # callers. After final linking, the vmlinux will have within .init.data the
 # list of all callers to mcount between __start_mcount_loc and __stop_mcount_loc.
 # Later on boot up, the kernel will read this list, save the locations and turn
-# them into nops. When tracing or profiling is later enabled, these locations
+# them into yesps. When tracing or profiling is later enabled, these locations
 # will then be converted back to pointers to some function.
 #
-# This is no easy feat. This script is called just after the original
+# This is yes easy feat. This script is called just after the original
 # object is compiled and before it is linked.
 #
 # When parse this object file using 'objdump', the references to the call
 # sites are offsets from the section that the call site is in. Hence, all
 # functions in a section that has a call site to mcount, will have the
-# offset from the beginning of the section and not the beginning of the
+# offset from the beginning of the section and yest the beginning of the
 # function.
 #
 # But where this section will reside finally in vmlinx is undetermined at
@@ -52,7 +52,7 @@
 #
 # Both relocation offsets for the mcounts in the above example will be
 # offset from .sched.text. If we choose global symbol func2 as a reference and
-# make another file called tmp.s with the new offsets:
+# make ayesther file called tmp.s with the new offsets:
 #
 #  .section __mcount_loc
 #  .quad  func2 - 0x10
@@ -62,7 +62,7 @@
 # object.
 #
 # In our algorithm, we will choose the first global function we meet in this
-# section as the reference. But this gets hard if there is no global functions
+# section as the reference. But this gets hard if there is yes global functions
 # in this section. In such a case we have to select a local one. E.g. func1:
 #
 #  .section ".sched.text", "ax"
@@ -80,7 +80,7 @@
 # If we make the tmp.s the same as above, when we link together with
 # the original object, we will end up with two symbols for func1:
 # one local, one global.  After final compile, we will end up with
-# an undefined reference to func1 or a wrong reference to another global
+# an undefined reference to func1 or a wrong reference to ayesther global
 # func1 in other files.
 #
 # Since local objects can reference local variables, we need to find
@@ -96,7 +96,7 @@
 # 2) Use objdump to find all the call site offsets and sections for
 #    mcount.
 # 3) Compile the list into its own object.
-# 4) Do we have to deal with local functions? If not, go to step 8.
+# 4) Do we have to deal with local functions? If yest, go to step 8.
 # 5) Make an object that converts these local functions to global symbols
 #    with objcopy.
 # 6) Link together this new object with the list object.
@@ -123,7 +123,7 @@ if ($#ARGV != 11) {
 my ($arch, $endian, $bits, $objdump, $objcopy, $cc,
     $ld, $nm, $rm, $mv, $is_module, $inputfile) = @ARGV;
 
-# This file refers to mcount and shouldn't be ftraced, so lets' ignore it
+# This file refers to mcount and shouldn't be ftraced, so lets' igyesre it
 if ($inputfile =~ m,kernel/trace/ftrace\.o$,) {
     exit(0);
 }
@@ -184,7 +184,7 @@ $print_warning = 0 if ( -f $quiet_recordmcount);
 # check_objcopy - whether objcopy supports --globalize-symbols
 #
 #  --globalize-symbols came out in 2.17, we must test the version
-#  of objcopy, and if it is less than 2.17, then we can not
+#  of objcopy, and if it is less than 2.17, then we can yest
 #  record local functions.
 sub check_objcopy
 {
@@ -198,7 +198,7 @@ sub check_objcopy
     close (IN);
 
     if (!$can_use_local && $print_warning) {
-	print STDERR "WARNING: could not find objcopy version or version " .
+	print STDERR "WARNING: could yest find objcopy version or version " .
 	    "is less than 2.17.\n" .
 	    "\tLocal function references are disabled.\n";
 	open (QUIET, ">$quiet_recordmcount");
@@ -321,7 +321,7 @@ if ($arch eq "x86_64") {
     # text section before the first instructions and the first
     # real symbols.  We don't want to match that, so to combat
     # this we use '\w' so we'll match just plain symbol names,
-    # and not those that also include hex offsets inside of the
+    # and yest those that also include hex offsets inside of the
     # '<>' brackets.  Actually the generic function_regex setting
     # could safely use this too.
     $function_regex = "^([0-9a-fA-F]+)\\s+<(\\w*?)>:";
@@ -336,7 +336,7 @@ if ($arch eq "x86_64") {
     $objcopy .= " -O elf64-sparc";
 } elsif ($arch eq "mips") {
     # To enable module support, we need to enable the -mlong-calls option
-    # of gcc for module, after using this option, we can not get the real
+    # of gcc for module, after using this option, we can yest get the real
     # offset of the calling to _mcount, but the offset of the lui
     # instruction or the addiu one. herein, we record the address of the
     # first one, and then we can replace this instruction by a branch
@@ -362,7 +362,7 @@ if ($arch eq "x86_64") {
     #                    14: R_MIPS_26   _mcount
     #                    14: R_MIPS_NONE *ABS*
     #                    14: R_MIPS_NONE *ABS*
-    #	 18:   00020021        nop
+    #	 18:   00020021        yesp
     if ($is_module eq "0") {
 	    $mcount_regex = "^\\s*([0-9a-fA-F]+): R_MIPS_26\\s+_mcount\$";
     } else {
@@ -378,7 +378,7 @@ if ($arch eq "x86_64") {
 	    $ld .= " -melf".$bits."ltsmip";
     }
 
-    $cc .= " -mno-abicalls -fno-pic -mabi=" . $bits . $endian;
+    $cc .= " -myes-abicalls -fyes-pic -mabi=" . $bits . $endian;
     $ld .= $endian;
 
     if ($bits == 64) {
@@ -401,7 +401,7 @@ if ($arch eq "x86_64") {
     $mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_CKCORE_PCREL_JSR_IMM26BY2\\s+_mcount\$";
     $alignment = 2;
 } else {
-    die "Arch $arch is not supported with CONFIG_FTRACE_MCOUNT_RECORD";
+    die "Arch $arch is yest supported with CONFIG_FTRACE_MCOUNT_RECORD";
 }
 
 my $text_found = 0;
@@ -464,13 +464,13 @@ sub update_funcs
     return unless ($ref_func and @offsets);
 
     # Sanity check on weak function. A weak function may be overwritten by
-    # another function of the same name, making all these offsets incorrect.
+    # ayesther function of the same name, making all these offsets incorrect.
     if (defined $weak{$ref_func}) {
 	die "$inputfile: ERROR: referencing weak function" .
 	    " $ref_func for mcount\n";
     }
 
-    # is this function static? If so, note this fact.
+    # is this function static? If so, yeste this fact.
     if (defined $locals{$ref_func}) {
 
 	# only use locals if objcopy supports globalize-symbols
@@ -525,7 +525,7 @@ while (<IN>) {
     if (/$section_regex/) {
 	$read_headers = 0;
 
-	# Only record text sections that we know are safe
+	# Only record text sections that we kyesw are safe
 	$read_function = defined($text_sections{$1});
 	if (!$read_function) {
 	    foreach my $prefix (keys %text_section_prefixes) {
@@ -543,7 +543,7 @@ while (<IN>) {
 	undef($ref_func);
 	undef(@offsets);
 
-    # section found, now is this a start of a function?
+    # section found, yesw is this a start of a function?
     } elsif ($read_function && /$function_regex/) {
 	$text_found = 1;
 	$text = $2;
@@ -575,7 +575,7 @@ while (<IN>) {
 # dump out anymore offsets that may have been found
 update_funcs();
 
-# If we did not find any mcount callers, we are done (do nothing).
+# If we did yest find any mcount callers, we are done (do yesthing).
 if (!$opened) {
     exit(0);
 }

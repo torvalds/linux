@@ -1,10 +1,10 @@
-* Samsung Exynos 5440 PCIe interface
+* Samsung Exyyess 5440 PCIe interface
 
-This PCIe host controller is based on the Synopsys DesignWare PCIe IP
+This PCIe host controller is based on the Syyespsys DesignWare PCIe IP
 and thus inherits all the common properties defined in designware-pcie.txt.
 
 Required properties:
-- compatible: "samsung,exynos5440-pcie"
+- compatible: "samsung,exyyess5440-pcie"
 - reg: base addresses and lengths of the PCIe controller,
 - reg-names : First name should be set to "elbi".
 	And use the "config" instead of getting the configuration address space
@@ -30,7 +30,7 @@ SoC-specific DT Entry (with using PHY framework):
 	};
 
 	pcie@290000 {
-		compatible = "samsung,exynos5440-pcie", "snps,dw-pcie";
+		compatible = "samsung,exyyess5440-pcie", "snps,dw-pcie";
 		reg = <0x290000 0x1000>, <0x40000000 0x1000>;
 		reg-names = "elbi", "config";
 		clocks = <&clock 28>, <&clock 27>;

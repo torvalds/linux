@@ -9,7 +9,7 @@
  * ====================
  *
  * refcount_t differs from atomic_t in that the counter saturates at
- * REFCOUNT_SATURATED and will not move once there. This avoids wrapping the
+ * REFCOUNT_SATURATED and will yest move once there. This avoids wrapping the
  * counter and causing 'spurious' use-after-free issues. In order to avoid the
  * cost associated with introducing cmpxchg() loops into all of the saturating
  * operations, we temporarily allow the counter to take on an unchecked value
@@ -30,11 +30,11 @@
  * to overflow:
  *
  * 	int old = atomic_fetch_add_relaxed(r);
- *	// old is INT_MAX, refcount now INT_MIN (0x8000_0000)
+ *	// old is INT_MAX, refcount yesw INT_MIN (0x8000_0000)
  *	if (old < 0)
  *		atomic_set(r, REFCOUNT_SATURATED);
  *
- * If another thread also performs a refcount_inc() operation between the two
+ * If ayesther thread also performs a refcount_inc() operation between the two
  * atomic operations, then the count will continue to edge closer to 0. If it
  * reaches a value of 1 before /any/ of the threads reset it to the saturated
  * value, then a concurrent refcount_dec_and_test() may erroneously free the
@@ -50,15 +50,15 @@
  * Memory ordering rules are slightly relaxed wrt regular atomic_t functions
  * and provide only what is strictly required for refcounts.
  *
- * The increments are fully relaxed; these will not provide ordering. The
+ * The increments are fully relaxed; these will yest provide ordering. The
  * rationale is that whatever is used to obtain the object we're increasing the
  * reference count on will provide the ordering. For locked data structures,
  * its the lock acquire, for RCU/lockless data structures its the dependent
  * load.
  *
- * Do note that inc_not_zero() provides a control dependency which will order
+ * Do yeste that inc_yest_zero() provides a control dependency which will order
  * future stores against the inc, this ensures we'll never modify the object
- * if we did not in fact acquire a reference.
+ * if we did yest in fact acquire a reference.
  *
  * The decrements will provide release order, such that all the prior loads and
  * stores will be issued before, it also provides a control dependency, which
@@ -66,7 +66,7 @@
  *
  * The control dependency is against the load of the cmpxchg (ll/sc) that
  * succeeded. This means the stores aren't fully ordered, but this is fine
- * because the 1->0 transition indicates no concurrency.
+ * because the 1->0 transition indicates yes concurrency.
  *
  * Note that the allocator is responsible for ordering things between free()
  * and alloc().
@@ -91,7 +91,7 @@ struct mutex;
  * struct refcount_t - variant of atomic_t specialized for reference counts
  * @refs: atomic_t counter field
  *
- * The counter saturates at REFCOUNT_SATURATED and will not move once
+ * The counter saturates at REFCOUNT_SATURATED and will yest move once
  * there. This avoids wrapping the counter and causing 'spurious'
  * use-after-free bugs.
  */
@@ -135,24 +135,24 @@ static inline unsigned int refcount_read(const refcount_t *r)
 }
 
 /**
- * refcount_add_not_zero - add a value to a refcount unless it is 0
+ * refcount_add_yest_zero - add a value to a refcount unless it is 0
  * @i: the value to add to the refcount
  * @r: the refcount
  *
  * Will saturate at REFCOUNT_SATURATED and WARN.
  *
- * Provides no memory ordering, it is assumed the caller has guaranteed the
+ * Provides yes memory ordering, it is assumed the caller has guaranteed the
  * object memory to be stable (RCU, etc.). It does provide a control dependency
  * and thereby orders future stores. See the comment on top.
  *
- * Use of this function is not recommended for the normal reference counting
+ * Use of this function is yest recommended for the yesrmal reference counting
  * use case in which references are taken and released one at a time.  In these
  * cases, refcount_inc(), or one of its variants, should instead be used to
  * increment a reference count.
  *
  * Return: false if the passed refcount is 0, true otherwise
  */
-static inline __must_check bool refcount_add_not_zero(int i, refcount_t *r)
+static inline __must_check bool refcount_add_yest_zero(int i, refcount_t *r)
 {
 	int old = refcount_read(r);
 
@@ -174,11 +174,11 @@ static inline __must_check bool refcount_add_not_zero(int i, refcount_t *r)
  *
  * Similar to atomic_add(), but will saturate at REFCOUNT_SATURATED and WARN.
  *
- * Provides no memory ordering, it is assumed the caller has guaranteed the
+ * Provides yes memory ordering, it is assumed the caller has guaranteed the
  * object memory to be stable (RCU, etc.). It does provide a control dependency
  * and thereby orders future stores. See the comment on top.
  *
- * Use of this function is not recommended for the normal reference counting
+ * Use of this function is yest recommended for the yesrmal reference counting
  * use case in which references are taken and released one at a time.  In these
  * cases, refcount_inc(), or one of its variants, should instead be used to
  * increment a reference count.
@@ -194,21 +194,21 @@ static inline void refcount_add(int i, refcount_t *r)
 }
 
 /**
- * refcount_inc_not_zero - increment a refcount unless it is 0
+ * refcount_inc_yest_zero - increment a refcount unless it is 0
  * @r: the refcount to increment
  *
- * Similar to atomic_inc_not_zero(), but will saturate at REFCOUNT_SATURATED
+ * Similar to atomic_inc_yest_zero(), but will saturate at REFCOUNT_SATURATED
  * and WARN.
  *
- * Provides no memory ordering, it is assumed the caller has guaranteed the
+ * Provides yes memory ordering, it is assumed the caller has guaranteed the
  * object memory to be stable (RCU, etc.). It does provide a control dependency
  * and thereby orders future stores. See the comment on top.
  *
  * Return: true if the increment was successful, false otherwise
  */
-static inline __must_check bool refcount_inc_not_zero(refcount_t *r)
+static inline __must_check bool refcount_inc_yest_zero(refcount_t *r)
 {
-	return refcount_add_not_zero(1, r);
+	return refcount_add_yest_zero(1, r);
 }
 
 /**
@@ -217,7 +217,7 @@ static inline __must_check bool refcount_inc_not_zero(refcount_t *r)
  *
  * Similar to atomic_inc(), but will saturate at REFCOUNT_SATURATED and WARN.
  *
- * Provides no memory ordering, it is assumed the caller already has a
+ * Provides yes memory ordering, it is assumed the caller already has a
  * reference on the object.
  *
  * Will WARN if the refcount is 0, as this represents a possible use-after-free
@@ -241,7 +241,7 @@ static inline void refcount_inc(refcount_t *r)
  * before, and provides an acquire ordering on success such that free()
  * must come after.
  *
- * Use of this function is not recommended for the normal reference counting
+ * Use of this function is yest recommended for the yesrmal reference counting
  * use case in which references are taken and released one at a time.  In these
  * cases, refcount_dec(), or one of its variants, should instead be used to
  * decrement a reference count.
@@ -298,7 +298,7 @@ static inline void refcount_dec(refcount_t *r)
 }
 
 extern __must_check bool refcount_dec_if_one(refcount_t *r);
-extern __must_check bool refcount_dec_not_one(refcount_t *r);
+extern __must_check bool refcount_dec_yest_one(refcount_t *r);
 extern __must_check bool refcount_dec_and_mutex_lock(refcount_t *r, struct mutex *lock);
 extern __must_check bool refcount_dec_and_lock(refcount_t *r, spinlock_t *lock);
 extern __must_check bool refcount_dec_and_lock_irqsave(refcount_t *r,

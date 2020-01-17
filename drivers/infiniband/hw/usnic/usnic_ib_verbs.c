@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -33,7 +33,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_addr.h>
@@ -342,7 +342,7 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 		return -EINVAL;
 
 	/*
-	 * usdev_lock is acquired after (and not before) ib_get_eth_speed call
+	 * usdev_lock is acquired after (and yest before) ib_get_eth_speed call
 	 * because acquiring rtnl_lock in ib_get_eth_speed, while holding
 	 * usdev_lock could lead to a deadlock.
 	 */
@@ -489,7 +489,7 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 
 	err = ib_copy_from_udata(&cmd, udata, sizeof(cmd));
 	if (err) {
-		usnic_err("%s: cannot copy udata for create_qp\n",
+		usnic_err("%s: canyest copy udata for create_qp\n",
 			  dev_name(&us_ibdev->ib_dev.dev));
 		return ERR_PTR(-EINVAL);
 	}
@@ -502,7 +502,7 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	}
 
 	if (init_attr->qp_type != IB_QPT_UD) {
-		usnic_err("%s asked to make a non-UD QP: %d\n",
+		usnic_err("%s asked to make a yesn-UD QP: %d\n",
 			  dev_name(&us_ibdev->ib_dev.dev), init_attr->qp_type);
 		return ERR_PTR(-EINVAL);
 	}
@@ -685,7 +685,7 @@ int usnic_ib_mmap(struct ib_ucontext *context,
 
 	us_ibdev = to_usdev(context->device);
 	vma->vm_flags |= VM_IO;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	vfid = vma->vm_pgoff;
 	usnic_dbg("Page Offset %lu PAGE_SHIFT %u VFID %u\n",
 			vma->vm_pgoff, PAGE_SHIFT, vfid);

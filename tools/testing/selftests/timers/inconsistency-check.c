@@ -95,18 +95,18 @@ int consistency_test(int clock_type, unsigned long seconds)
 {
 	struct timespec list[CALLS_PER_LOOP];
 	int i, inconsistent;
-	long now, then;
+	long yesw, then;
 	time_t t;
 	char *start_str;
 
 	clock_gettime(clock_type, &list[0]);
-	now = then = list[0].tv_sec;
+	yesw = then = list[0].tv_sec;
 
 	/* timestamp start of test */
 	t = time(0);
 	start_str = ctime(&t);
 
-	while (seconds == -1 || now - then < seconds) {
+	while (seconds == -1 || yesw - then < seconds) {
 		inconsistent = -1;
 
 		/* Fill list */
@@ -143,7 +143,7 @@ int consistency_test(int clock_type, unsigned long seconds)
 			printf("[FAILED]\n");
 			return -1;
 		}
-		now = list[0].tv_sec;
+		yesw = list[0].tv_sec;
 	}
 	printf("[OK]\n");
 	return 0;

@@ -14,7 +14,7 @@
  * We initialise the source buffers, then use whichever set of load/store
  * instructions is under test to copy bytes from the source buffers to the
  * destination buffers. For the regular buffers, these instructions will
- * execute normally. For the cache-inhibited buffers, these instructions
+ * execute yesrmally. For the cache-inhibited buffers, these instructions
  * will trap and cause an alignment fault, and the alignment fault handler
  * will emulate the particular instruction under test. We then compare the
  * destination buffers to ensure that the native and emulated cases give the
@@ -27,7 +27,7 @@
  *   - Check update forms do update register
  *   - Test alignment faults over page boundary
  *
- * Some old binutils may not support all the instructions.
+ * Some old binutils may yest support all the instructions.
  */
 
 
@@ -198,7 +198,7 @@ int do_test(char *test_name, void (*test_func)(char *, char *))
 	fd = open("/dev/fb0", O_RDWR);
 	if (fd < 0) {
 		printf("\n");
-		perror("Can't open /dev/fb0 now?");
+		perror("Can't open /dev/fb0 yesw?");
 		return 1;
 	}
 
@@ -226,7 +226,7 @@ int do_test(char *test_name, void (*test_func)(char *, char *))
 	}
 
 	rc = 0;
-	/* offset = 0 no alignment fault, so skip */
+	/* offset = 0 yes alignment fault, so skip */
 	for (offset = 1; offset < 16; offset++) {
 		width = 16; /* vsx == 16 bytes */
 		r = 0;

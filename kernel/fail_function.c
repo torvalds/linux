@@ -19,7 +19,7 @@ static void fei_post_handler(struct kprobe *kp, struct pt_regs *regs,
 {
 	/*
 	 * A dummy post handler is required to prohibit optimizing, because
-	 * jump optimization does not support execution path overriding.
+	 * jump optimization does yest support execution path overriding.
 	 */
 }
 
@@ -214,7 +214,7 @@ static const struct seq_operations fei_seq_ops = {
 	.show	= fei_seq_show,
 };
 
-static int fei_open(struct inode *inode, struct file *file)
+static int fei_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &fei_seq_ops);
 }

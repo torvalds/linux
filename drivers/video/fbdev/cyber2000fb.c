@@ -14,11 +14,11 @@
  *
  * Based on cyberfb.c.
  *
- * Note that we now use the new fbcon fix, var and cmap scheme.  We do
+ * Note that we yesw use the new fbcon fix, var and cmap scheme.  We do
  * still have to check which console is the currently displayed one
  * however, especially for the colourmap stuff.
  *
- * We also use the new hotplug PCI subsystem.  I'm not sure if there
+ * We also use the new hotplug PCI subsystem.  I'm yest sure if there
  * are any such cards, but I'm erring on the side of caution.  We don't
  * want to go pop just because someone does have one.
  *
@@ -35,7 +35,7 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -266,10 +266,10 @@ static inline u32 convert_bitfield(u_int val, struct fb_bitfield *bf)
 }
 
 /*
- *    Set a single color register. Return != 0 for invalid regno.
+ *    Set a single color register. Return != 0 for invalid regyes.
  */
 static int
-cyber2000fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+cyber2000fb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 		      u_int transp, struct fb_info *info)
 {
 	struct cfb_info *cfb = container_of(info, struct cfb_info, fb);
@@ -291,18 +291,18 @@ cyber2000fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	 *	      +--/-->  blue lut --> blue dac
 	 */
 	case FB_VISUAL_PSEUDOCOLOR:
-		if (regno >= NR_PALETTE)
+		if (regyes >= NR_PALETTE)
 			return 1;
 
 		red >>= 8;
 		green >>= 8;
 		blue >>= 8;
 
-		cfb->palette[regno].red = red;
-		cfb->palette[regno].green = green;
-		cfb->palette[regno].blue = blue;
+		cfb->palette[regyes].red = red;
+		cfb->palette[regyes].green = green;
+		cfb->palette[regyes].blue = blue;
 
-		cyber2000fb_writeb(regno, 0x3c8, cfb);
+		cyber2000fb_writeb(regyes, 0x3c8, cfb);
 		cyber2000fb_writeb(red, 0x3c9, cfb);
 		cyber2000fb_writeb(green, 0x3c9, cfb);
 		cyber2000fb_writeb(blue, 0x3c9, cfb);
@@ -323,51 +323,51 @@ cyber2000fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		green >>= 8;
 		blue >>= 8;
 
-		if (var->green.length == 6 && regno < 64) {
-			cfb->palette[regno << 2].green = green;
+		if (var->green.length == 6 && regyes < 64) {
+			cfb->palette[regyes << 2].green = green;
 
 			/*
 			 * The 6 bits of the green component are applied
 			 * to the high 6 bits of the LUT.
 			 */
-			cyber2000fb_writeb(regno << 2, 0x3c8, cfb);
-			cyber2000fb_writeb(cfb->palette[regno >> 1].red,
+			cyber2000fb_writeb(regyes << 2, 0x3c8, cfb);
+			cyber2000fb_writeb(cfb->palette[regyes >> 1].red,
 					   0x3c9, cfb);
 			cyber2000fb_writeb(green, 0x3c9, cfb);
-			cyber2000fb_writeb(cfb->palette[regno >> 1].blue,
+			cyber2000fb_writeb(cfb->palette[regyes >> 1].blue,
 					   0x3c9, cfb);
 
-			green = cfb->palette[regno << 3].green;
+			green = cfb->palette[regyes << 3].green;
 
 			ret = 0;
 		}
 
-		if (var->green.length >= 5 && regno < 32) {
-			cfb->palette[regno << 3].red = red;
-			cfb->palette[regno << 3].green = green;
-			cfb->palette[regno << 3].blue = blue;
+		if (var->green.length >= 5 && regyes < 32) {
+			cfb->palette[regyes << 3].red = red;
+			cfb->palette[regyes << 3].green = green;
+			cfb->palette[regyes << 3].blue = blue;
 
 			/*
 			 * The 5 bits of each colour component are
 			 * applied to the high 5 bits of the LUT.
 			 */
-			cyber2000fb_writeb(regno << 3, 0x3c8, cfb);
+			cyber2000fb_writeb(regyes << 3, 0x3c8, cfb);
 			cyber2000fb_writeb(red, 0x3c9, cfb);
 			cyber2000fb_writeb(green, 0x3c9, cfb);
 			cyber2000fb_writeb(blue, 0x3c9, cfb);
 			ret = 0;
 		}
 
-		if (var->green.length == 4 && regno < 16) {
-			cfb->palette[regno << 4].red = red;
-			cfb->palette[regno << 4].green = green;
-			cfb->palette[regno << 4].blue = blue;
+		if (var->green.length == 4 && regyes < 16) {
+			cfb->palette[regyes << 4].red = red;
+			cfb->palette[regyes << 4].green = green;
+			cfb->palette[regyes << 4].blue = blue;
 
 			/*
 			 * The 5 bits of each colour component are
 			 * applied to the high 5 bits of the LUT.
 			 */
-			cyber2000fb_writeb(regno << 4, 0x3c8, cfb);
+			cyber2000fb_writeb(regyes << 4, 0x3c8, cfb);
 			cyber2000fb_writeb(red, 0x3c9, cfb);
 			cyber2000fb_writeb(green, 0x3c9, cfb);
 			cyber2000fb_writeb(blue, 0x3c9, cfb);
@@ -376,11 +376,11 @@ cyber2000fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 		/*
 		 * Since this is only used for the first 16 colours, we
-		 * don't have to care about overflowing for regno >= 32
+		 * don't have to care about overflowing for regyes >= 32
 		 */
-		pseudo_val = regno << var->red.offset |
-			     regno << var->green.offset |
-			     regno << var->blue.offset;
+		pseudo_val = regyes << var->red.offset |
+			     regyes << var->green.offset |
+			     regyes << var->blue.offset;
 		break;
 
 	/*
@@ -405,8 +405,8 @@ cyber2000fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	/*
 	 * Now set our pseudo palette for the CFB16/24/32 drivers.
 	 */
-	if (regno < 16)
-		((u32 *)cfb->fb.pseudo_palette)[regno] = pseudo_val;
+	if (regyes < 16)
+		((u32 *)cfb->fb.pseudo_palette)[regyes] = pseudo_val;
 
 	return ret;
 }
@@ -727,7 +727,7 @@ cyber2000fb_decode_clock(struct par_info *hw, struct cfb_info *cfb,
 		}
 
 		/*
-		 * If we hit an exact value, there is no point in continuing.
+		 * If we hit an exact value, there is yes point in continuing.
 		 */
 		if (diff == 0)
 			break;
@@ -915,7 +915,7 @@ static int cyber2000fb_set_par(struct fb_info *info)
 	 * the way the fbcon developers want to separate out
 	 * the "checking" and the "setting" of the video mode.
 	 *
-	 * If the mode is not suitable for the hardware here,
+	 * If the mode is yest suitable for the hardware here,
 	 * we can't prevent it being set by returning an error.
 	 *
 	 * In theory, since NetWinders contain just one VGA card,
@@ -946,7 +946,7 @@ static int cyber2000fb_set_par(struct fb_info *info)
 	 * 8bpp displays are always pseudo colour.  16bpp and above
 	 * are direct colour or true colour, depending on whether
 	 * the RAMDAC palettes are bypassed.  (Direct colour has
-	 * palettes, true colour does not.)
+	 * palettes, true colour does yest.)
 	 */
 	if (var->bits_per_pixel == 8)
 		cfb->fb.fix.visual = FB_VISUAL_PSEUDOCOLOR;
@@ -1451,7 +1451,7 @@ static struct cfb_info *cyberpro_alloc_fb_info(unsigned int id, char *name)
 		break;
 	}
 
-	cfb->fb.var.nonstd	= 0;
+	cfb->fb.var.yesnstd	= 0;
 	cfb->fb.var.activate	= FB_ACTIVATE_NOW;
 	cfb->fb.var.height	= -1;
 	cfb->fb.var.width	= -1;
@@ -1505,7 +1505,7 @@ static int cyber2000fb_setup(char *options)
 			continue;
 		}
 
-		printk(KERN_ERR "CyberPro20x0: unknown parameter: %s\n", opt);
+		printk(KERN_ERR "CyberPro20x0: unkyeswn parameter: %s\n", opt);
 	}
 	return 0;
 }
@@ -1565,7 +1565,7 @@ static int cyberpro_common_probe(struct cfb_info *cfb)
 	err = -EINVAL;
 	if (!fb_find_mode(&cfb->fb.var, &cfb->fb, NULL, NULL, 0,
 			  &cyber2000fb_default_mode, 8)) {
-		printk(KERN_ERR "%s: no valid mode found\n", cfb->fb.fix.id);
+		printk(KERN_ERR "%s: yes valid mode found\n", cfb->fb.fix.id);
 		goto failed;
 	}
 
@@ -1644,7 +1644,7 @@ static void cyberpro_common_resume(struct cfb_info *cfb)
  *
  * On x86 and ARM, should we be initialising the CyberPro first via the
  * IO registers, and then the MMIO registers to catch all cases?  Can we
- * end up in the situation where the chip is in MMIO mode, but not awake
+ * end up in the situation where the chip is in MMIO mode, but yest awake
  * on an x86 system?
  */
 static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
@@ -1655,7 +1655,7 @@ static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
 #error "You lose, consult DaveM."
 #elif defined(__sparc__)
 	/*
-	 * SPARC does not have an "outb" instruction, so we generate
+	 * SPARC does yest have an "outb" instruction, so we generate
 	 * I/O cycles storing into a reserved memory space at
 	 * physical address 0x3000000
 	 */
@@ -1663,7 +1663,7 @@ static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
 
 	iop = ioremap(0x3000000, 0x5000);
 	if (iop == NULL) {
-		printk(KERN_ERR "iga5000: cannot map I/O\n");
+		printk(KERN_ERR "iga5000: canyest map I/O\n");
 		return -ENOMEM;
 	}
 
@@ -1676,7 +1676,7 @@ static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
 	iounmap(iop);
 #else
 	/*
-	 * Most other machine types are "normal", so
+	 * Most other machine types are "yesrmal", so
 	 * we use the standard IO-based wakeup.
 	 */
 	outb(0x18, 0x46e8);
@@ -1856,10 +1856,10 @@ static struct pci_driver cyberpro_driver = {
 
 /*
  * I don't think we can use the "module_init" stuff here because
- * the fbcon stuff may not be initialised yet.  Hence the #ifdef
+ * the fbcon stuff may yest be initialised yet.  Hence the #ifdef
  * around module_init.
  *
- * Tony: "module_init" is now required
+ * Tony: "module_init" is yesw required
  */
 static int __init cyber2000fb_init(void)
 {

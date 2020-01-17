@@ -8,22 +8,22 @@ Optional properties:
 	  subsystem.
 	- label: String, name of the input device.
 
-Each button (key) is represented as a sub-node of "gpio-keys":
-Subnode properties:
+Each button (key) is represented as a sub-yesde of "gpio-keys":
+Subyesde properties:
 
 	- gpios: OF device-tree gpio specification.
 	- interrupts: the interrupt line for that input.
 	- label: Descriptive name of the key.
 	- linux,code: Keycode to emit.
 
-Note that either "interrupts" or "gpios" properties can be omitted, but not
+Note that either "interrupts" or "gpios" properties can be omitted, but yest
 both at the same time. Specifying both properties is allowed.
 
-Optional subnode-properties:
+Optional subyesde-properties:
 	- linux,input-type: Specify event type this button/key generates.
-	  If not specified defaults to <1> == EV_KEY.
+	  If yest specified defaults to <1> == EV_KEY.
 	- debounce-interval: Debouncing interval time in milliseconds.
-	  If not specified defaults to 5.
+	  If yest specified defaults to 5.
 	- wakeup-source: Boolean, button can wake-up the system.
 			 (Legacy property supported: "gpio-key,wakeup")
 	- wakeup-event-action: Specifies whether the key should wake the
@@ -35,10 +35,10 @@ Optional subnode-properties:
 		EV_ACT_DEASSERTED	- deasserted
 		EV_ACT_ANY		- both asserted and deasserted
 	- linux,can-disable: Boolean, indicates that button is connected
-	  to dedicated (not shared) interrupt which can be disabled to
+	  to dedicated (yest shared) interrupt which can be disabled to
 	  suppress events from the button.
 
-Example nodes:
+Example yesdes:
 
 	gpio-keys {
 			compatible = "gpio-keys";

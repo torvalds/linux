@@ -20,12 +20,12 @@ EXPORT_SYMBOL(romvec);
 enum prom_major_version prom_vers;
 unsigned int prom_rev, prom_prev;
 
-/* The root node of the prom device tree. */
-phandle prom_root_node;
-EXPORT_SYMBOL(prom_root_node);
+/* The root yesde of the prom device tree. */
+phandle prom_root_yesde;
+EXPORT_SYMBOL(prom_root_yesde);
 
 /* Pointer to the device tree operations structure. */
-struct linux_nodeops *prom_nodeops;
+struct linux_yesdeops *prom_yesdeops;
 
 /* You must call prom_init() before you attempt to use any of the
  * routines in the prom library.
@@ -55,14 +55,14 @@ void __init prom_init(struct linux_romvec *rp)
 
 	prom_rev = romvec->pv_plugin_revision;
 	prom_prev = romvec->pv_printrev;
-	prom_nodeops = romvec->pv_nodeops;
+	prom_yesdeops = romvec->pv_yesdeops;
 
-	prom_root_node = prom_getsibling(0);
-	if ((prom_root_node == 0) || ((s32)prom_root_node == -1))
+	prom_root_yesde = prom_getsibling(0);
+	if ((prom_root_yesde == 0) || ((s32)prom_root_yesde == -1))
 		prom_halt();
 
-	if((((unsigned long) prom_nodeops) == 0) || 
-	   (((unsigned long) prom_nodeops) == -1))
+	if((((unsigned long) prom_yesdeops) == 0) || 
+	   (((unsigned long) prom_yesdeops) == -1))
 		prom_halt();
 
 	prom_meminit();

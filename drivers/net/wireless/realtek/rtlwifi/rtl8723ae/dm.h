@@ -105,6 +105,6 @@ void rtl8723e_dm_watchdog(struct ieee80211_hw *hw);
 void rtl8723e_dm_write_dig(struct ieee80211_hw *hw);
 void rtl8723e_dm_check_txpower_tracking(struct ieee80211_hw *hw);
 void rtl8723e_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw);
-void rtl8723e_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal);
+void rtl8723e_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_yesrmal);
 void rtl8723e_dm_bt_coexist(struct ieee80211_hw *hw);
 #endif

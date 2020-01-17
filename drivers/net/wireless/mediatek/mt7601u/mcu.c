@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * (c) Copyright 2002-2010, Ralink Technology, Inc.
+ * (c) Copyright 2002-2010, Ralink Techyeslogy, Inc.
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  */
@@ -54,7 +54,7 @@ static struct sk_buff *mt7601u_mcu_msg_alloc(const void *data, int len)
 {
 	struct sk_buff *skb;
 
-	WARN_ON(len % 4); /* if length is not divisible by 4 we need to pad */
+	WARN_ON(len % 4); /* if length is yest divisible by 4 we need to pad */
 
 	skb = alloc_skb(len + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
 	if (skb) {

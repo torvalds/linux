@@ -21,7 +21,7 @@ static DEFINE_MUTEX(syscore_ops_lock);
 void register_syscore_ops(struct syscore_ops *ops)
 {
 	mutex_lock(&syscore_ops_lock);
-	list_add_tail(&ops->node, &syscore_ops_list);
+	list_add_tail(&ops->yesde, &syscore_ops_list);
 	mutex_unlock(&syscore_ops_lock);
 }
 EXPORT_SYMBOL_GPL(register_syscore_ops);
@@ -33,7 +33,7 @@ EXPORT_SYMBOL_GPL(register_syscore_ops);
 void unregister_syscore_ops(struct syscore_ops *ops)
 {
 	mutex_lock(&syscore_ops_lock);
-	list_del(&ops->node);
+	list_del(&ops->yesde);
 	mutex_unlock(&syscore_ops_lock);
 }
 EXPORT_SYMBOL_GPL(unregister_syscore_ops);
@@ -59,7 +59,7 @@ int syscore_suspend(void)
 	WARN_ONCE(!irqs_disabled(),
 		"Interrupts enabled before system core suspend.\n");
 
-	list_for_each_entry_reverse(ops, &syscore_ops_list, node)
+	list_for_each_entry_reverse(ops, &syscore_ops_list, yesde)
 		if (ops->suspend) {
 			if (initcall_debug)
 				pr_info("PM: Calling %pS\n", ops->suspend);
@@ -76,7 +76,7 @@ int syscore_suspend(void)
  err_out:
 	pr_err("PM: System core suspend callback %pS failed.\n", ops->suspend);
 
-	list_for_each_entry_continue(ops, &syscore_ops_list, node)
+	list_for_each_entry_continue(ops, &syscore_ops_list, yesde)
 		if (ops->resume)
 			ops->resume();
 
@@ -97,7 +97,7 @@ void syscore_resume(void)
 	WARN_ONCE(!irqs_disabled(),
 		"Interrupts enabled before system core resume.\n");
 
-	list_for_each_entry(ops, &syscore_ops_list, node)
+	list_for_each_entry(ops, &syscore_ops_list, yesde)
 		if (ops->resume) {
 			if (initcall_debug)
 				pr_info("PM: Calling %pS\n", ops->resume);
@@ -119,7 +119,7 @@ void syscore_shutdown(void)
 
 	mutex_lock(&syscore_ops_lock);
 
-	list_for_each_entry_reverse(ops, &syscore_ops_list, node)
+	list_for_each_entry_reverse(ops, &syscore_ops_list, yesde)
 		if (ops->shutdown) {
 			if (initcall_debug)
 				pr_info("PM: Calling %pS\n", ops->shutdown);

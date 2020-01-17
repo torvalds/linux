@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C)2003-2006 Helsinki University of Technology
+ * Copyright (C)2003-2006 Helsinki University of Techyeslogy
  * Copyright (C)2003-2006 USAGI/WIDE Project
  */
 /*
@@ -298,11 +298,11 @@ static int mip6_destopt_offset(struct xfrm_state *x, struct sk_buff *skb,
 static int mip6_destopt_init_state(struct xfrm_state *x)
 {
 	if (x->id.spi) {
-		pr_info("%s: spi is not 0: %u\n", __func__, x->id.spi);
+		pr_info("%s: spi is yest 0: %u\n", __func__, x->id.spi);
 		return -EINVAL;
 	}
 	if (x->props.mode != XFRM_MODE_ROUTEOPTIMIZATION) {
-		pr_info("%s: state's mode is not %u: %u\n",
+		pr_info("%s: state's mode is yest %u: %u\n",
 			__func__, XFRM_MODE_ROUTEOPTIMIZATION, x->props.mode);
 		return -EINVAL;
 	}
@@ -316,7 +316,7 @@ static int mip6_destopt_init_state(struct xfrm_state *x)
 }
 
 /*
- * Do nothing about destroying since it has no specific operation for
+ * Do yesthing about destroying since it has yes specific operation for
  * destination options header unlike IPsec protocols.
  */
 static void mip6_destopt_destroy(struct xfrm_state *x)
@@ -433,11 +433,11 @@ static int mip6_rthdr_offset(struct xfrm_state *x, struct sk_buff *skb,
 static int mip6_rthdr_init_state(struct xfrm_state *x)
 {
 	if (x->id.spi) {
-		pr_info("%s: spi is not 0: %u\n", __func__, x->id.spi);
+		pr_info("%s: spi is yest 0: %u\n", __func__, x->id.spi);
 		return -EINVAL;
 	}
 	if (x->props.mode != XFRM_MODE_ROUTEOPTIMIZATION) {
-		pr_info("%s: state's mode is not %u: %u\n",
+		pr_info("%s: state's mode is yest %u: %u\n",
 			__func__, XFRM_MODE_ROUTEOPTIMIZATION, x->props.mode);
 		return -EINVAL;
 	}
@@ -448,7 +448,7 @@ static int mip6_rthdr_init_state(struct xfrm_state *x)
 }
 
 /*
- * Do nothing about destroying since it has no specific operation for routing
+ * Do yesthing about destroying since it has yes specific operation for routing
  * header type 2 unlike IPsec protocols.
  */
 static void mip6_rthdr_destroy(struct xfrm_state *x)

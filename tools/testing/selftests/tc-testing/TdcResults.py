@@ -3,7 +3,7 @@
 from enum import Enum
 
 class ResultState(Enum):
-    noresult = -1
+    yesresult = -1
     skip = 0
     success = 1
     fail = 2
@@ -12,7 +12,7 @@ class TestResult:
     def __init__(self, test_id="", test_name=""):
        self.test_id = test_id
        self.test_name = test_name
-       self.result = ResultState.noresult
+       self.result = ResultState.yesresult
        self.failmsg = ""
        self.errormsg = ""
        self.steps = []
@@ -22,7 +22,7 @@ class TestResult:
             self.result = result
             return True
         else:
-            raise TypeError('Unknown result type, must be type ResultState')
+            raise TypeError('Unkyeswn result type, must be type ResultState')
 
     def get_result(self):
         return self.result
@@ -92,9 +92,9 @@ class TestSuiteReport():
         index = 1
         for t in self._testsuite:
             if t.result == ResultState.fail:
-                ftap += 'not '
+                ftap += 'yest '
             ftap += 'ok {} {} - {}'.format(str(index), t.test_id, t.test_name)
-            if t.result == ResultState.skip or t.result == ResultState.noresult:
+            if t.result == ResultState.skip or t.result == ResultState.yesresult:
                 ftap += ' # skipped - {}\n'.format(t.errormsg)
             elif t.result == ResultState.fail:
                 if len(t.steps) > 0:

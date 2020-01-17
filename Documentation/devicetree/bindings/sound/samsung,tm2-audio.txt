@@ -1,13 +1,13 @@
-Samsung Exynos5433 TM2(E) audio complex with WM5110 codec
+Samsung Exyyess5433 TM2(E) audio complex with WM5110 codec
 
 Required properties:
 
  - compatible		 : "samsung,tm2-audio"
  - model		 : the user-visible name of this sound complex
  - audio-codec		 : the first entry should be phandle of the wm5110 audio
-			   codec node, as described in ../mfd/arizona.txt;
+			   codec yesde, as described in ../mfd/arizona.txt;
 			   the second entry should be phandle of the HDMI
-			   transmitter node
+			   transmitter yesde
  - i2s-controller	 : the list of phandle and argument tuples pointing to
 			   I2S controllers, the first entry should be I2S0 and
 			   the second one I2S1

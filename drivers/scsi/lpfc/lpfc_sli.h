@@ -74,8 +74,8 @@ struct lpfc_iocbq {
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
 	uint32_t iocb_flag;
 #define LPFC_IO_LIBDFC		1	/* libdfc iocb */
-#define LPFC_IO_WAKE		2	/* Synchronous I/O completed */
-#define LPFC_IO_WAKE_TMO	LPFC_IO_WAKE /* Synchronous I/O timed out */
+#define LPFC_IO_WAKE		2	/* Synchroyesus I/O completed */
+#define LPFC_IO_WAKE_TMO	LPFC_IO_WAKE /* Synchroyesus I/O timed out */
 #define LPFC_IO_FCP		4	/* FCP command -- iocbq in scsi_buf */
 #define LPFC_DRIVER_ABORTED	8	/* driver aborted this request */
 #define LPFC_IO_FABRIC		0x10	/* Iocb send using fabric scheduler */
@@ -89,7 +89,7 @@ struct lpfc_iocbq {
 #define LPFC_IO_DIF_INSERT	0x1000	/* T10 DIF IO insert prot */
 #define LPFC_IO_CMD_OUTSTANDING	0x2000 /* timeout handler abort window */
 
-#define LPFC_FIP_ELS_ID_MASK	0xc000	/* ELS_ID range 0-3, non-shifted mask */
+#define LPFC_FIP_ELS_ID_MASK	0xc000	/* ELS_ID range 0-3, yesn-shifted mask */
 #define LPFC_FIP_ELS_ID_SHIFT	14
 
 #define LPFC_IO_OAS		0x10000 /* OAS FCP IO */
@@ -110,8 +110,8 @@ struct lpfc_iocbq {
 		wait_queue_head_t    *wait_queue;
 		struct lpfc_iocbq    *rsp_iocb;
 		struct lpfcMboxq     *mbox;
-		struct lpfc_nodelist *ndlp;
-		struct lpfc_node_rrq *rrq;
+		struct lpfc_yesdelist *ndlp;
+		struct lpfc_yesde_rrq *rrq;
 	} context_un;
 
 	void (*fabric_iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
@@ -194,7 +194,7 @@ struct lpfc_sli_ring_stat {
 	uint64_t iocb_rsp;	 /* IOCB rsp received */
 	uint64_t iocb_cmd_delay; /* IOCB cmd ring delay */
 	uint64_t iocb_cmd_full;	 /* IOCB cmd ring full */
-	uint64_t iocb_cmd_empty; /* IOCB cmd ring is now empty */
+	uint64_t iocb_cmd_empty; /* IOCB cmd ring is yesw empty */
 	uint64_t iocb_rsp_full;	 /* IOCB rsp ring full */
 };
 
@@ -225,7 +225,7 @@ struct lpfc_sli_ring {
 	uint16_t abtsiotag;	/* tracks next iotag to use for ABTS */
 
 	uint8_t rsvd;
-	uint8_t ringno;		/* ring number */
+	uint8_t ringyes;		/* ring number */
 
 	spinlock_t ring_lock;	/* lock for issuing commands */
 
@@ -265,16 +265,16 @@ struct lpfc_sli_ring {
 
 /* Structure used for configuring rings to a specific profile or rctl / type */
 struct lpfc_hbq_init {
-	uint32_t rn;		/* Receive buffer notification */
+	uint32_t rn;		/* Receive buffer yestification */
 	uint32_t entry_count;	/* max # of entries in HBQ */
-	uint32_t headerLen;	/* 0 if not profile 4 or 5 */
+	uint32_t headerLen;	/* 0 if yest profile 4 or 5 */
 	uint32_t logEntry;	/* Set to 1 if this HBQ used for LogEntry */
 	uint32_t profile;	/* Selection profile 0=all, 7=logentry */
 	uint32_t ring_mask;	/* Binds HBQ to a ring e.g. Ring0=b0001,
 				 * ring2=b0100 */
 	uint32_t hbq_index;	/* index of this hbq in ring .HBQs[] */
 
-	uint32_t seqlenoff;
+	uint32_t seqleyesff;
 	uint32_t maxlen;
 	uint32_t seqlenbcnt;
 	uint32_t cmdcodeoff;
@@ -352,9 +352,9 @@ struct lpfc_sli {
 	struct lpfc_lnk_stat lnk_stat_offsets;
 };
 
-/* Timeout for normal outstanding mbox command (Seconds) */
+/* Timeout for yesrmal outstanding mbox command (Seconds) */
 #define LPFC_MBOX_TMO				30
-/* Timeout for non-flash-based outstanding sli_config mbox command (Seconds) */
+/* Timeout for yesn-flash-based outstanding sli_config mbox command (Seconds) */
 #define LPFC_MBOX_SLI4_CONFIG_TMO		60
 /* Timeout for flash-based outstanding sli_config mbox command (Seconds) */
 #define LPFC_MBOX_SLI4_CONFIG_EXTENDED_TMO	300
@@ -379,16 +379,16 @@ struct lpfc_io_buf {
 
 	struct lpfc_iocbq cur_iocbq;
 	struct lpfc_sli4_hdw_queue *hdwq;
-	uint16_t hdwq_no;
+	uint16_t hdwq_yes;
 	uint16_t cpu;
 
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	uint32_t timeout;
 	uint16_t flags;
 #define LPFC_SBUF_XBUSY		0x1	/* SLI4 hba reported XB on WCQE cmpl */
 #define LPFC_SBUF_BUMP_QDEPTH	0x2	/* bumped queue depth counter */
 					/* External DIF device IO conversions */
-#define LPFC_SBUF_NORMAL_DIF	0x4	/* normal mode to insert/strip */
+#define LPFC_SBUF_NORMAL_DIF	0x4	/* yesrmal mode to insert/strip */
 #define LPFC_SBUF_PASS_DIF	0x8	/* insert/strip mode to passthru */
 #define LPFC_SBUF_NOT_POSTED    0x10    /* SGL failed post to FW. */
 	uint16_t status;	/* From IOCB Word 7- ulpStatus */

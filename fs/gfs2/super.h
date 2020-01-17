@@ -28,14 +28,14 @@ extern struct gfs2_jdesc *gfs2_jdesc_find(struct gfs2_sbd *sdp, unsigned int jid
 extern int gfs2_jdesc_check(struct gfs2_jdesc *jd);
 
 extern int gfs2_lookup_in_master_dir(struct gfs2_sbd *sdp, char *filename,
-				     struct gfs2_inode **ipp);
+				     struct gfs2_iyesde **ipp);
 
 extern int gfs2_make_fs_rw(struct gfs2_sbd *sdp);
 extern int gfs2_make_fs_ro(struct gfs2_sbd *sdp);
 extern void gfs2_online_uevent(struct gfs2_sbd *sdp);
 extern int gfs2_statfs_init(struct gfs2_sbd *sdp);
 extern void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
-			       s64 dinodes);
+			       s64 diyesdes);
 extern void gfs2_statfs_change_in(struct gfs2_statfs_change_host *sc,
 				  const void *buf);
 extern void update_statfs(struct gfs2_sbd *sdp, struct buffer_head *m_bh,

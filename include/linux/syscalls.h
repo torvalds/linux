@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * syscalls.h - Linux syscall interfaces (non-arch-specific)
+ * syscalls.h - Linux syscall interfaces (yesn-arch-specific)
  *
  * Copyright (c) 2004 Randy Dunlap
  * Copyright (c) 2004 Open Source Development Labs
@@ -12,7 +12,7 @@
 struct __aio_sigset;
 struct epoll_event;
 struct iattr;
-struct inode;
+struct iyesde;
 struct iocb;
 struct io_event;
 struct iovec;
@@ -89,7 +89,7 @@ struct clone_args;
  * It may be useful for an architecture to override the definitions of the
  * SYSCALL_DEFINE0() and __SYSCALL_DEFINEx() macros, in particular to use a
  * different calling convention for syscalls. To allow for that, the prototypes
- * for the sys_*() functions below will *not* be included if
+ * for the sys_*() functions below will *yest* be included if
  * CONFIG_ARCH_HAS_SYSCALL_WRAPPER is enabled.
  */
 #include <asm/syscall_wrapper.h>
@@ -234,7 +234,7 @@ static inline int is_syscall_trace_event(struct trace_event_call *tp_event)
 #ifndef __SYSCALL_DEFINEx
 #define __SYSCALL_DEFINEx(x, name, ...)					\
 	__diag_push();							\
-	__diag_ignore(GCC, 8, "-Wattribute-alias",			\
+	__diag_igyesre(GCC, 8, "-Wattribute-alias",			\
 		      "Type aliasing is used to sanitize syscall arguments");\
 	asmlinkage long sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
 		__attribute__((alias(__stringify(__se_sys##name))));	\
@@ -277,12 +277,12 @@ static inline void addr_limit_user_check(void)
  * include/uapi/asm-generic/unistd.h. Architecture specific entries go below,
  * followed by deprecated or obsolete system calls.
  *
- * Please note that these prototypes here are only provided for information
+ * Please yeste that these prototypes here are only provided for information
  * purposes, for static analysis, and for linking from the syscall table.
- * These functions should not be called elsewhere from kernel code.
+ * These functions should yest be called elsewhere from kernel code.
  *
  * As the syscall calling convention may be different from the default
- * for architectures overriding the syscall calling convention, do not
+ * for architectures overriding the syscall calling convention, do yest
  * include the prototypes if CONFIG_ARCH_HAS_SYSCALL_WRAPPER is enabled.
  */
 #ifndef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
@@ -373,11 +373,11 @@ asmlinkage long sys_fcntl64(unsigned int fd,
 				unsigned int cmd, unsigned long arg);
 #endif
 
-/* fs/inotify_user.c */
-asmlinkage long sys_inotify_init1(int flags);
-asmlinkage long sys_inotify_add_watch(int fd, const char __user *path,
+/* fs/iyestify_user.c */
+asmlinkage long sys_iyestify_init1(int flags);
+asmlinkage long sys_iyestify_add_watch(int fd, const char __user *path,
 					u32 mask);
-asmlinkage long sys_inotify_rm_watch(int fd, __s32 wd);
+asmlinkage long sys_iyestify_rm_watch(int fd, __s32 wd);
 
 /* fs/ioctl.c */
 asmlinkage long sys_ioctl(unsigned int fd, unsigned int cmd,
@@ -391,7 +391,7 @@ asmlinkage long sys_ioprio_get(int which, int who);
 asmlinkage long sys_flock(unsigned int fd, unsigned int cmd);
 
 /* fs/namei.c */
-asmlinkage long sys_mknodat(int dfd, const char __user * filename, umode_t mode,
+asmlinkage long sys_mkyesdat(int dfd, const char __user * filename, umode_t mode,
 			    unsigned dev);
 asmlinkage long sys_mkdirat(int dfd, const char __user * pathname, umode_t mode);
 asmlinkage long sys_unlinkat(int dfd, const char __user * pathname, int flag);
@@ -585,9 +585,9 @@ asmlinkage long sys_set_robust_list(struct robust_list_head __user *head,
 				    size_t len);
 
 /* kernel/hrtimer.c */
-asmlinkage long sys_nanosleep(struct __kernel_timespec __user *rqtp,
+asmlinkage long sys_nayessleep(struct __kernel_timespec __user *rqtp,
 			      struct __kernel_timespec __user *rmtp);
-asmlinkage long sys_nanosleep_time32(struct old_timespec32 __user *rqtp,
+asmlinkage long sys_nayessleep_time32(struct old_timespec32 __user *rqtp,
 				     struct old_timespec32 __user *rmtp);
 
 /* kernel/itimer.c */
@@ -624,7 +624,7 @@ asmlinkage long sys_clock_gettime(clockid_t which_clock,
 				struct __kernel_timespec __user *tp);
 asmlinkage long sys_clock_getres(clockid_t which_clock,
 				struct __kernel_timespec __user *tp);
-asmlinkage long sys_clock_nanosleep(clockid_t which_clock, int flags,
+asmlinkage long sys_clock_nayessleep(clockid_t which_clock, int flags,
 				const struct __kernel_timespec __user *rqtp,
 				struct __kernel_timespec __user *rmtp);
 asmlinkage long sys_timer_gettime32(timer_t timer_id,
@@ -638,7 +638,7 @@ asmlinkage long sys_clock_gettime32(clockid_t which_clock,
 				struct old_timespec32 __user *tp);
 asmlinkage long sys_clock_getres_time32(clockid_t which_clock,
 				struct old_timespec32 __user *tp);
-asmlinkage long sys_clock_nanosleep_time32(clockid_t which_clock, int flags,
+asmlinkage long sys_clock_nayessleep_time32(clockid_t which_clock, int flags,
 				struct old_timespec32 __user *rqtp,
 				struct old_timespec32 __user *rmtp);
 
@@ -729,7 +729,7 @@ asmlinkage long sys_getrusage(int who, struct rusage __user *ru);
 asmlinkage long sys_umask(int mask);
 asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 			unsigned long arg4, unsigned long arg5);
-asmlinkage long sys_getcpu(unsigned __user *cpu, unsigned __user *node, struct getcpu_cache __user *cache);
+asmlinkage long sys_getcpu(unsigned __user *cpu, unsigned __user *yesde, struct getcpu_cache __user *cache);
 
 /* kernel/time.c */
 asmlinkage long sys_gettimeofday(struct __kernel_old_timeval __user *tv,
@@ -754,7 +754,7 @@ asmlinkage long sys_mq_open(const char __user *name, int oflag, umode_t mode, st
 asmlinkage long sys_mq_unlink(const char __user *name);
 asmlinkage long sys_mq_timedsend(mqd_t mqdes, const char __user *msg_ptr, size_t msg_len, unsigned int msg_prio, const struct __kernel_timespec __user *abs_timeout);
 asmlinkage long sys_mq_timedreceive(mqd_t mqdes, char __user *msg_ptr, size_t msg_len, unsigned int __user *msg_prio, const struct __kernel_timespec __user *abs_timeout);
-asmlinkage long sys_mq_notify(mqd_t mqdes, const struct sigevent __user *notification);
+asmlinkage long sys_mq_yestify(mqd_t mqdes, const struct sigevent __user *yestification);
 asmlinkage long sys_mq_getsetattr(mqd_t mqdes, const struct mq_attr __user *mqstat, struct mq_attr __user *omqstat);
 asmlinkage long sys_mq_timedreceive_time32(mqd_t mqdes,
 			char __user *u_msg_ptr,
@@ -818,7 +818,7 @@ asmlinkage long sys_recvmsg(int fd, struct user_msghdr __user *msg, unsigned fla
 /* mm/filemap.c */
 asmlinkage long sys_readahead(int fd, loff_t offset, size_t count);
 
-/* mm/nommu.c, also with MMU */
+/* mm/yesmmu.c, also with MMU */
 asmlinkage long sys_brk(unsigned long brk);
 asmlinkage long sys_munmap(unsigned long addr, size_t len);
 asmlinkage long sys_mremap(unsigned long addr,
@@ -880,20 +880,20 @@ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 asmlinkage long sys_mbind(unsigned long start, unsigned long len,
 				unsigned long mode,
 				const unsigned long __user *nmask,
-				unsigned long maxnode,
+				unsigned long maxyesde,
 				unsigned flags);
 asmlinkage long sys_get_mempolicy(int __user *policy,
 				unsigned long __user *nmask,
-				unsigned long maxnode,
+				unsigned long maxyesde,
 				unsigned long addr, unsigned long flags);
 asmlinkage long sys_set_mempolicy(int mode, const unsigned long __user *nmask,
-				unsigned long maxnode);
-asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
+				unsigned long maxyesde);
+asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxyesde,
 				const unsigned long __user *from,
 				const unsigned long __user *to);
 asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
 				const void __user * __user *pages,
-				const int __user *nodes,
+				const int __user *yesdes,
 				int __user *status,
 				int flags);
 
@@ -915,8 +915,8 @@ asmlinkage long sys_wait4(pid_t pid, int __user *stat_addr,
 asmlinkage long sys_prlimit64(pid_t pid, unsigned int resource,
 				const struct rlimit64 __user *new_rlim,
 				struct rlimit64 __user *old_rlim);
-asmlinkage long sys_fanotify_init(unsigned int flags, unsigned int event_f_flags);
-asmlinkage long sys_fanotify_mark(int fanotify_fd, unsigned int flags,
+asmlinkage long sys_fayestify_init(unsigned int flags, unsigned int event_f_flags);
+asmlinkage long sys_fayestify_mark(int fayestify_fd, unsigned int flags,
 				  u64 mask, int fd,
 				  const char  __user *pathname);
 asmlinkage long sys_name_to_handle_at(int dfd, const char __user *name,
@@ -1035,7 +1035,7 @@ asmlinkage long sys_open(const char __user *filename,
 asmlinkage long sys_link(const char __user *oldname,
 				const char __user *newname);
 asmlinkage long sys_unlink(const char __user *pathname);
-asmlinkage long sys_mknod(const char __user *filename, umode_t mode,
+asmlinkage long sys_mkyesd(const char __user *filename, umode_t mode,
 				unsigned dev);
 asmlinkage long sys_chmod(const char __user *filename, umode_t mode);
 asmlinkage long sys_chown(const char __user *filename,
@@ -1059,7 +1059,7 @@ asmlinkage long sys_lstat64(const char __user *filename,
 asmlinkage long sys_pipe(int __user *fildes);
 asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd);
 asmlinkage long sys_epoll_create(int size);
-asmlinkage long sys_inotify_init(void);
+asmlinkage long sys_iyestify_init(void);
 asmlinkage long sys_eventfd(unsigned int count);
 asmlinkage long sys_signalfd(int ufd, sigset_t __user *user_mask, size_t sizemask);
 
@@ -1218,7 +1218,7 @@ asmlinkage long sys_old_mmap(struct mmap_arg_struct __user *arg);
 
 /*
  * Not a real system call, but a placeholder for syscalls which are
- * not implemented -- see kernel/sys_ni.c
+ * yest implemented -- see kernel/sys_ni.c
  */
 asmlinkage long sys_ni_syscall(void);
 
@@ -1226,7 +1226,7 @@ asmlinkage long sys_ni_syscall(void);
 
 
 /*
- * Kernel code should not call syscalls (i.e., sys_xyzyyz()) directly.
+ * Kernel code should yest call syscalls (i.e., sys_xyzyyz()) directly.
  * Instead, use one of the functions which work equivalently, such as
  * the ksys_xyzyyz() functions prototyped below.
  */
@@ -1305,13 +1305,13 @@ static inline long ksys_symlink(const char __user *oldname,
 	return do_symlinkat(oldname, AT_FDCWD, newname);
 }
 
-extern long do_mknodat(int dfd, const char __user *filename, umode_t mode,
+extern long do_mkyesdat(int dfd, const char __user *filename, umode_t mode,
 		       unsigned int dev);
 
-static inline long ksys_mknod(const char __user *filename, umode_t mode,
+static inline long ksys_mkyesd(const char __user *filename, umode_t mode,
 			      unsigned int dev)
 {
-	return do_mknodat(AT_FDCWD, filename, mode, dev);
+	return do_mkyesdat(AT_FDCWD, filename, mode, dev);
 }
 
 extern int do_linkat(int olddfd, const char __user *oldname, int newdfd,
@@ -1363,8 +1363,8 @@ static inline long ksys_ftruncate(unsigned int fd, unsigned long length)
 extern int __close_fd(struct files_struct *files, unsigned int fd);
 
 /*
- * In contrast to sys_close(), this stub does not check whether the syscall
- * should or should not be restarted, but returns the raw error codes from
+ * In contrast to sys_close(), this stub does yest check whether the syscall
+ * should or should yest be restarted, but returns the raw error codes from
  * __close_fd().
  */
 static inline int ksys_close(unsigned int fd)

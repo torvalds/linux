@@ -84,13 +84,13 @@ enum ionic_status_code {
 	IONIC_RC_ERANGE		= 16,	/* Parameter out of range */
 	IONIC_RC_BAD_ADDR	= 17,	/* Descriptor contains a bad ptr */
 	IONIC_RC_DEV_CMD	= 18,	/* Device cmd attempted on AdminQ */
-	IONIC_RC_ENOSUPP	= 19,	/* Operation not supported */
+	IONIC_RC_ENOSUPP	= 19,	/* Operation yest supported */
 	IONIC_RC_ERROR		= 29,	/* Generic error */
 
 	IONIC_RC_ERDMA		= 30,	/* Generic RDMA error */
 };
 
-enum ionic_notifyq_opcode {
+enum ionic_yestifyq_opcode {
 	IONIC_EVENT_LINK_CHANGE		= 1,
 	IONIC_EVENT_RESET		= 2,
 	IONIC_EVENT_HEARTBEAT		= 3,
@@ -134,19 +134,19 @@ static inline u8 color_match(u8 color, u8 done_color)
 }
 
 /**
- * struct ionic_nop_cmd - NOP command
+ * struct ionic_yesp_cmd - NOP command
  * @opcode: opcode
  */
-struct ionic_nop_cmd {
+struct ionic_yesp_cmd {
 	u8 opcode;
 	u8 rsvd[63];
 };
 
 /**
- * struct ionic_nop_comp - NOP command completion
+ * struct ionic_yesp_comp - NOP command completion
  * @status: The status of the command (enum status_code)
  */
-struct ionic_nop_comp {
+struct ionic_yesp_comp {
 	u8 status;
 	u8 rsvd[15];
 };
@@ -246,7 +246,7 @@ union ionic_drv_identity {
 /**
  * union dev_identity - device identity information
  * @version:          Version of device identify
- * @type:             Identify type (0 for now)
+ * @type:             Identify type (0 for yesw)
  * @nports:           Number of ports provisioned
  * @nlifs:            Number of LIFs provisioned
  * @nintrs:           Number of interrupts provisioned
@@ -565,7 +565,7 @@ enum ionic_txq_desc_opcode {
  *                      fragmentation or checksum calc/insertion is
  *                      performed by device; packet is prepared
  *                      to send by software stack and requires
- *                      no further manipulation from device.
+ *                      yes further manipulation from device.
  *
  *                   IONIC_TXQ_DESC_OPCODE_CSUM_PARTIAL:
  *
@@ -590,7 +590,7 @@ enum ionic_txq_desc_opcode {
  *                      @csum_offset refer to the inner L4
  *                      header.  Supported tunnels encapsulations
  *                      are: IPIP, GRE, and UDP.  If the @encap
- *                      is clear, no further processing by the
+ *                      is clear, yes further processing by the
  *                      device is required; software will
  *                      calculate the outer header checksums.  If
  *                      the @encap is set, the device will
@@ -811,22 +811,22 @@ struct ionic_rxq_sg_desc {
  * @csum:         16-bit sum of the packet's L2 payload.
  *                If the packet's L2 payload is odd length, an extra
  *                zero-value byte is included in the @csum calculation but
- *                not included in @len.
+ *                yest included in @len.
  * @vlan_tci:     VLAN tag stripped from the packet.  Valid if @VLAN is
  *                set.  Includes .1p and .1q tags.
  * @len:          Received packet length, in bytes.  Excludes FCS.
- * @csum_calc     L2 payload checksum is computed or not
+ * @csum_calc     L2 payload checksum is computed or yest
  * @csum_tcp_ok:  The TCP checksum calculated by the device
  *                matched the checksum in the receive packet's
  *                TCP header
  * @csum_tcp_bad: The TCP checksum calculated by the device did
- *                not match the checksum in the receive packet's
+ *                yest match the checksum in the receive packet's
  *                TCP header.
  * @csum_udp_ok:  The UDP checksum calculated by the device
  *                matched the checksum in the receive packet's
  *                UDP header
  * @csum_udp_bad: The UDP checksum calculated by the device did
- *                not match the checksum in the receive packet's
+ *                yest match the checksum in the receive packet's
  *                UDP header.
  * @csum_ip_ok:   The IPv4 checksum calculated by the device
  *                matched the checksum in the receive packet's
@@ -835,7 +835,7 @@ struct ionic_rxq_sg_desc {
  *                transport IPv4 header, the device validates the
  *                checksum for the both IPv4 headers.
  * @csum_ip_bad:  The IPv4 checksum calculated by the device did
- *                not match the checksum in the receive packet's
+ *                yest match the checksum in the receive packet's
  *                first IPv4 header. If the receive packet
  *                contains both a tunnel IPv4 header and a
  *                transport IPv4 header, the device validates the
@@ -981,7 +981,7 @@ enum ionic_xcvr_pid {
  * Port types
  */
 enum ionic_port_type {
-	IONIC_PORT_TYPE_NONE = 0,  /* port type not configured */
+	IONIC_PORT_TYPE_NONE = 0,  /* port type yest configured */
 	IONIC_PORT_TYPE_ETH  = 1,  /* port carries ethernet traffic (inband) */
 	IONIC_PORT_TYPE_MGMT = 2,  /* port carries mgmt traffic (out-of-band) */
 };
@@ -990,7 +990,7 @@ enum ionic_port_type {
  * Port config state
  */
 enum ionic_port_admin_state {
-	IONIC_PORT_ADMIN_STATE_NONE = 0,   /* port admin state not configured */
+	IONIC_PORT_ADMIN_STATE_NONE = 0,   /* port admin state yest configured */
 	IONIC_PORT_ADMIN_STATE_DOWN = 1,   /* port is admin disabled */
 	IONIC_PORT_ADMIN_STATE_UP   = 2,   /* port is admin enabled */
 };
@@ -1496,8 +1496,8 @@ enum ionic_rx_mode {
  * @opcode:     opcode
  * @lif_index:  LIF index
  * @rx_mode:    Rx mode flags:
- *                  IONIC_RX_MODE_F_UNICAST: Accept known unicast packets.
- *                  IONIC_RX_MODE_F_MULTICAST: Accept known multicast packets.
+ *                  IONIC_RX_MODE_F_UNICAST: Accept kyeswn unicast packets.
+ *                  IONIC_RX_MODE_F_MULTICAST: Accept kyeswn multicast packets.
  *                  IONIC_RX_MODE_F_BROADCAST: Accept broadcast packets.
  *                  IONIC_RX_MODE_F_PROMISC: Accept any packets.
  *                  IONIC_RX_MODE_F_ALLMULTI: Accept any multicast packets.
@@ -1643,7 +1643,7 @@ enum ionic_qos_sched_type {
  * union ionic_qos_config - Qos configuration structure
  * @flags:		Configuration flags
  *	IONIC_QOS_CONFIG_F_ENABLE		enable
- *	IONIC_QOS_CONFIG_F_DROP			drop/nodrop
+ *	IONIC_QOS_CONFIG_F_DROP			drop/yesdrop
  *	IONIC_QOS_CONFIG_F_RW_DOT1Q_PCP		enable dot1q pcp rewrite
  *	IONIC_QOS_CONFIG_F_RW_IP_DSCP		enable ip dscp rewrite
  * @sched_type:		Qos class scheduling type (enum ionic_qos_sched_type)
@@ -1801,9 +1801,9 @@ struct ionic_fw_control_comp {
  * @opcode:        opcode
  * @lif_index:     lif index
  *
- * There is no rdma specific dev command completion struct.  Completion uses
+ * There is yes rdma specific dev command completion struct.  Completion uses
  * the common struct ionic_admin_comp.  Only the status is indicated.
- * Nonzero status means the LIF does not support rdma.
+ * Nonzero status means the LIF does yest support rdma.
  **/
 struct ionic_rdma_reset_cmd {
 	u8     opcode;
@@ -1822,7 +1822,7 @@ struct ionic_rdma_reset_cmd {
  * @depth_log2:    log base two of queue depth
  * @stride_log2:   log base two of queue stride
  * @dma_addr:      address of the queue memory
- * @xxx_table_index: temporary, but should not need pgtbl for contig. queues.
+ * @xxx_table_index: temporary, but should yest need pgtbl for contig. queues.
  *
  * The same command struct is used to create an rdma event queue, completion
  * queue, or rdma admin queue.  The cid is an interrupt number for an event
@@ -1838,7 +1838,7 @@ struct ionic_rdma_reset_cmd {
  * providing scatter gather lists for larger, scattered queue buffers and
  * memory registration.
  *
- * There is no rdma specific dev command completion struct.  Completion uses
+ * There is yes rdma specific dev command completion struct.  Completion uses
  * the common struct ionic_admin_comp.  Only the status is indicated.
  **/
 struct ionic_rdma_queue_cmd {
@@ -1860,7 +1860,7 @@ struct ionic_rdma_queue_cmd {
  ******************************************************************/
 
 /**
- * struct ionic_notifyq_event
+ * struct ionic_yestifyq_event
  * @eid:   event number
  * @ecode: event code
  * @data:  unspecified data about the event
@@ -1868,7 +1868,7 @@ struct ionic_rdma_queue_cmd {
  * This is the generic event report struct from which the other
  * actual events will be formed.
  */
-struct ionic_notifyq_event {
+struct ionic_yestifyq_event {
 	__le64 eid;
 	__le16 ecode;
 	u8     data[54];
@@ -1928,7 +1928,7 @@ struct ionic_heartbeat_event {
  * @ecode:	event code = EVENT_OPCODE_LOG
  * @data:	log data
  *
- * Sent to notify the driver of an internal error.
+ * Sent to yestify the driver of an internal error.
  */
 struct ionic_log_event {
 	__le64 eid;
@@ -2275,7 +2275,7 @@ struct ionic_lif_info {
 union ionic_dev_cmd {
 	u32 words[16];
 	struct ionic_admin_cmd cmd;
-	struct ionic_nop_cmd nop;
+	struct ionic_yesp_cmd yesp;
 
 	struct ionic_dev_identify_cmd identify;
 	struct ionic_dev_init_cmd init;
@@ -2304,7 +2304,7 @@ union ionic_dev_cmd_comp {
 	u32 words[4];
 	u8 status;
 	struct ionic_admin_comp comp;
-	struct ionic_nop_comp nop;
+	struct ionic_yesp_comp yesp;
 
 	struct ionic_dev_identify_comp identify;
 	struct ionic_dev_init_comp init;
@@ -2393,7 +2393,7 @@ union ionic_dev_regs {
 
 union ionic_adminq_cmd {
 	struct ionic_admin_cmd cmd;
-	struct ionic_nop_cmd nop;
+	struct ionic_yesp_cmd yesp;
 	struct ionic_q_init_cmd q_init;
 	struct ionic_q_control_cmd q_control;
 	struct ionic_lif_setattr_cmd lif_setattr;
@@ -2409,7 +2409,7 @@ union ionic_adminq_cmd {
 
 union ionic_adminq_comp {
 	struct ionic_admin_comp comp;
-	struct ionic_nop_comp nop;
+	struct ionic_yesp_comp yesp;
 	struct ionic_q_init_comp q_init;
 	struct ionic_lif_setattr_comp lif_setattr;
 	struct ionic_lif_getattr_comp lif_getattr;
@@ -2456,12 +2456,12 @@ struct ionic_intr_status {
 	u32 status[2];
 };
 
-struct ionic_notifyq_cmd {
+struct ionic_yestifyq_cmd {
 	__le32 data;	/* Not used but needed for qcq structure */
 };
 
-union ionic_notifyq_comp {
-	struct ionic_notifyq_event event;
+union ionic_yestifyq_comp {
+	struct ionic_yestifyq_event event;
 	struct ionic_link_change_event link_change;
 	struct ionic_reset_event reset;
 	struct ionic_heartbeat_event heartbeat;

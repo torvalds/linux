@@ -51,7 +51,7 @@
 /* Receive Descriptor bit definitions */
 #define E1000_RXD_STAT_DD       0x01    /* Descriptor Done */
 #define E1000_RXD_STAT_EOP      0x02    /* End of Packet */
-#define E1000_RXD_STAT_IXSM     0x04    /* Ignore checksum */
+#define E1000_RXD_STAT_IXSM     0x04    /* Igyesre checksum */
 #define E1000_RXD_STAT_VP       0x08    /* IEEE VLAN Packet */
 #define E1000_RXD_STAT_UDPCS    0x10    /* UDP xsum calculated */
 #define E1000_RXD_STAT_TCPCS    0x20    /* TCP xsum calculated */
@@ -118,7 +118,7 @@
 #define E1000_RCTL_UPE            0x00000008    /* unicast promiscuous enable */
 #define E1000_RCTL_MPE            0x00000010    /* multicast promiscuous enab */
 #define E1000_RCTL_LPE            0x00000020    /* long packet enable */
-#define E1000_RCTL_LBM_NO         0x00000000    /* no loopback mode */
+#define E1000_RCTL_LBM_NO         0x00000000    /* yes loopback mode */
 #define E1000_RCTL_LBM_MAC        0x00000040    /* MAC loopback mode */
 #define E1000_RCTL_LBM_TCVR       0x000000C0    /* tcvr loopback mode */
 #define E1000_RCTL_DTYP_PS        0x00000400    /* Packet Split descriptor */
@@ -137,8 +137,8 @@
 #define E1000_RCTL_SZ_8192        0x00020000    /* Rx buffer size 8192 */
 #define E1000_RCTL_SZ_4096        0x00030000    /* Rx buffer size 4096 */
 #define E1000_RCTL_VFE            0x00040000    /* vlan filter enable */
-#define E1000_RCTL_CFIEN          0x00080000    /* canonical form enable */
-#define E1000_RCTL_CFI            0x00100000    /* canonical form indicator */
+#define E1000_RCTL_CFIEN          0x00080000    /* cayesnical form enable */
+#define E1000_RCTL_CFI            0x00100000    /* cayesnical form indicator */
 #define E1000_RCTL_DPF            0x00400000    /* Discard Pause Frames */
 #define E1000_RCTL_PMCF           0x00800000    /* pass MAC control frames */
 #define E1000_RCTL_BSEX           0x02000000    /* Buffer size extension */
@@ -179,7 +179,7 @@
 /* Device Control */
 #define E1000_CTRL_FD       0x00000001  /* Full duplex.0=half; 1=full */
 #define E1000_CTRL_GIO_MASTER_DISABLE 0x00000004 /*Blocks new Master requests */
-#define E1000_CTRL_LRST     0x00000008  /* Link reset. 0=normal,1=reset */
+#define E1000_CTRL_LRST     0x00000008  /* Link reset. 0=yesrmal,1=reset */
 #define E1000_CTRL_ASDE     0x00000020  /* Auto-speed detect enable */
 #define E1000_CTRL_SLU      0x00000040  /* Set link up (Force Link) */
 #define E1000_CTRL_ILOS     0x00000080  /* Invert Loss-Of Signal */
@@ -209,7 +209,7 @@
 
 /* Device Status */
 #define E1000_STATUS_FD         0x00000001      /* Full duplex.0=half,1=full */
-#define E1000_STATUS_LU         0x00000002      /* Link up.0=no,1=link */
+#define E1000_STATUS_LU         0x00000002      /* Link up.0=yes,1=link */
 #define E1000_STATUS_FUNC_MASK  0x0000000C      /* PCI Function Mask */
 #define E1000_STATUS_FUNC_SHIFT 2
 #define E1000_STATUS_FUNC_1     0x00000004      /* Function 1 */
@@ -235,7 +235,7 @@
 #define ADVERTISE_1000_HALF               0x0010 /* Not used, just FYI */
 #define ADVERTISE_1000_FULL               0x0020
 
-/* 1000/H is not supported, nor spec-compliant. */
+/* 1000/H is yest supported, yesr spec-compliant. */
 #define E1000_ALL_SPEED_DUPLEX	( \
 	ADVERTISE_10_HALF | ADVERTISE_10_FULL | ADVERTISE_100_HALF | \
 	ADVERTISE_100_FULL | ADVERTISE_1000_FULL)
@@ -591,7 +591,7 @@
 #define E1000_EECD_SIZE_EX_MASK     0x00007800  /* NVM Size */
 #define E1000_EECD_SIZE_EX_SHIFT     11
 #define E1000_EECD_FLUPD     0x00080000 /* Update FLASH */
-#define E1000_EECD_AUPDEN    0x00100000 /* Enable Autonomous FLASH update */
+#define E1000_EECD_AUPDEN    0x00100000 /* Enable Autoyesmous FLASH update */
 #define E1000_EECD_SEC1VAL   0x00400000 /* Sector One Valid */
 #define E1000_EECD_SEC1VAL_VALID_MASK (E1000_EECD_AUTO_RD | E1000_EECD_PRES)
 

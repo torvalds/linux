@@ -52,7 +52,7 @@ LIST_HEAD(microcode_cache);
 /*
  * Synchronization.
  *
- * All non cpu-hotplug-callback call sites use:
+ * All yesn cpu-hotplug-callback call sites use:
  *
  * - microcode_mutex to synchronize with each other;
  * - get/put_online_cpus() to synchronize with
@@ -71,7 +71,7 @@ struct cpu_info_ctx {
 };
 
 /*
- * Those patch levels cannot be updated to newer ones and thus should be final.
+ * Those patch levels canyest be updated to newer ones and thus should be final.
  */
 static u32 final_levels[] = {
 	0x01000098,
@@ -95,7 +95,7 @@ static bool amd_check_current_patch_level(void)
 	native_rdmsr(MSR_AMD64_PATCH_LEVEL, lvl, dummy);
 
 	if (IS_ENABLED(CONFIG_X86_32))
-		levels = (u32 *)__pa_nodebug(&final_levels);
+		levels = (u32 *)__pa_yesdebug(&final_levels);
 	else
 		levels = final_levels;
 
@@ -111,9 +111,9 @@ static bool __init check_loader_disabled_bsp(void)
 	static const char *__dis_opt_str = "dis_ucode_ldr";
 
 #ifdef CONFIG_X86_32
-	const char *cmdline = (const char *)__pa_nodebug(boot_command_line);
-	const char *option  = (const char *)__pa_nodebug(__dis_opt_str);
-	bool *res = (bool *)__pa_nodebug(&dis_ucode_ldr);
+	const char *cmdline = (const char *)__pa_yesdebug(boot_command_line);
+	const char *option  = (const char *)__pa_yesdebug(__dis_opt_str);
+	bool *res = (bool *)__pa_yesdebug(&dis_ucode_ldr);
 
 #else /* CONFIG_X86_64 */
 	const char *cmdline = boot_command_line;
@@ -122,9 +122,9 @@ static bool __init check_loader_disabled_bsp(void)
 #endif
 
 	/*
-	 * CPUID(1).ECX[31]: reserved for hypervisor use. This is still not
+	 * CPUID(1).ECX[31]: reserved for hypervisor use. This is still yest
 	 * completely accurate as xen pv guests don't see that CPUID bit set but
-	 * that's good enough as they don't land on the BSP path anyway.
+	 * that's good eyesugh as they don't land on the BSP path anyway.
 	 */
 	if (native_cpuid_ecx(1) & BIT(31))
 		return *res;
@@ -197,7 +197,7 @@ void __init load_ucode_bsp(void)
 static bool check_loader_disabled_ap(void)
 {
 #ifdef CONFIG_X86_32
-	return *((bool *)__pa_nodebug(&dis_ucode_ldr));
+	return *((bool *)__pa_yesdebug(&dis_ucode_ldr));
 #else
 	return dis_ucode_ldr;
 #endif
@@ -259,15 +259,15 @@ struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
 	struct boot_params *params;
 
 	if (use_pa)
-		params = (struct boot_params *)__pa_nodebug(&boot_params);
+		params = (struct boot_params *)__pa_yesdebug(&boot_params);
 	else
 		params = &boot_params;
 
 	size = params->hdr.ramdisk_size;
 
 	/*
-	 * Set start only if we have an initrd image. We cannot use initrd_start
-	 * because it is not set that early yet.
+	 * Set start only if we have an initrd image. We canyest use initrd_start
+	 * because it is yest set that early yet.
 	 */
 	if (size)
 		start = params->hdr.ramdisk_image;
@@ -302,11 +302,11 @@ struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
 		/*
 		 * The picture with physical addresses is a bit different: we
 		 * need to get the *physical* address to which the ramdisk was
-		 * relocated, i.e., relocated_ramdisk (not initrd_start) and
+		 * relocated, i.e., relocated_ramdisk (yest initrd_start) and
 		 * since we're running from physical addresses, we need to access
 		 * relocated_ramdisk through its *physical* address too.
 		 */
-		u64 *rr = (u64 *)__pa_nodebug(&relocated_ramdisk);
+		u64 *rr = (u64 *)__pa_yesdebug(&relocated_ramdisk);
 		if (*rr)
 			start = *rr;
 	}
@@ -417,9 +417,9 @@ static int do_microcode_update(const void __user *buf, size_t size)
 	return error;
 }
 
-static int microcode_open(struct inode *inode, struct file *file)
+static int microcode_open(struct iyesde *iyesde, struct file *file)
 {
-	return capable(CAP_SYS_RAWIO) ? stream_open(inode, file) : -EPERM;
+	return capable(CAP_SYS_RAWIO) ? stream_open(iyesde, file) : -EPERM;
 }
 
 static ssize_t microcode_write(struct file *file, const char __user *buf,
@@ -452,13 +452,13 @@ static const struct file_operations microcode_fops = {
 	.owner			= THIS_MODULE,
 	.write			= microcode_write,
 	.open			= microcode_open,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice microcode_dev = {
-	.minor			= MICROCODE_MINOR,
+	.miyesr			= MICROCODE_MINOR,
 	.name			= "microcode",
-	.nodename		= "cpu/microcode",
+	.yesdename		= "cpu/microcode",
 	.fops			= &microcode_fops,
 };
 
@@ -468,7 +468,7 @@ static int __init microcode_dev_init(void)
 
 	error = misc_register(&microcode_dev);
 	if (error) {
-		pr_err("can't misc_register on minor=%d\n", MICROCODE_MINOR);
+		pr_err("can't misc_register on miyesr=%d\n", MICROCODE_MINOR);
 		return error;
 	}
 
@@ -490,12 +490,12 @@ static struct platform_device	*microcode_pdev;
 /*
  * Late loading dance. Why the heavy-handed stomp_machine effort?
  *
- * - HT siblings must be idle and not execute other code while the other sibling
+ * - HT siblings must be idle and yest execute other code while the other sibling
  *   is loading microcode in order to avoid any negative interactions caused by
  *   the loading.
  *
  * - In addition, microcode update on the cores must be serialized until this
- *   requirement can be relaxed in the future. Right now, this is conservative
+ *   requirement can be relaxed in the future. Right yesw, this is conservative
  *   and good.
  */
 #define SPINUNIT 100 /* 100 nsec */
@@ -545,7 +545,7 @@ static int __wait_for_cpus(atomic_t *t, long long timeout)
 /*
  * Returns:
  * < 0 - on error
- *   0 - no update done
+ *   0 - yes update done
  *   1 - microcode was updated
  */
 static int __reload_late(void *info)
@@ -555,7 +555,7 @@ static int __reload_late(void *info)
 	int ret = 0;
 
 	/*
-	 * Wait for all CPUs to arrive. A load will not be attempted unless all
+	 * Wait for all CPUs to arrive. A load will yest be attempted unless all
 	 * CPUs show up.
 	 * */
 	if (__wait_for_cpus(&late_cpus_in, NSEC_PER_SEC))
@@ -564,7 +564,7 @@ static int __reload_late(void *info)
 	/*
 	 * On an SMT system, it suffices to load the microcode on one sibling of
 	 * the core because the microcode engine is shared between the threads.
-	 * Synchronization still needs to take place so that no concurrent
+	 * Synchronization still needs to take place so that yes concurrent
 	 * loading attempts happen on multiple threads of an SMT core. See
 	 * below.
 	 */
@@ -846,7 +846,7 @@ int __init microcode_init(void)
 	else if (c->x86_vendor == X86_VENDOR_AMD)
 		microcode_ops = init_amd_microcode();
 	else
-		pr_err("no support for this CPU vendor\n");
+		pr_err("yes support for this CPU vendor\n");
 
 	if (!microcode_ops)
 		return -ENODEV;
@@ -881,9 +881,9 @@ int __init microcode_init(void)
 		goto out_ucode_group;
 
 	register_syscore_ops(&mc_syscore_ops);
-	cpuhp_setup_state_nocalls(CPUHP_AP_MICROCODE_LOADER, "x86/microcode:starting",
+	cpuhp_setup_state_yescalls(CPUHP_AP_MICROCODE_LOADER, "x86/microcode:starting",
 				  mc_cpu_starting, NULL);
-	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "x86/microcode:online",
+	cpuhp_setup_state_yescalls(CPUHP_AP_ONLINE_DYN, "x86/microcode:online",
 				  mc_cpu_online, mc_cpu_down_prep);
 
 	pr_info("Microcode Update Driver: v%s.", DRIVER_VERSION);

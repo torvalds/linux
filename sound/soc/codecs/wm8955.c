@@ -65,8 +65,8 @@ static const struct reg_default wm8955_reg_defaults[] = {
 	{ 35, 0x0050 },     /* R35 - Left out Mix (2) */
 	{ 36, 0x0050 },     /* R36 - Right out Mix (1) */
 	{ 37, 0x0050 },     /* R37 - Right Out Mix (2) */
-	{ 38, 0x0050 },     /* R38 - Mono out Mix (1) */
-	{ 39, 0x0050 },     /* R39 - Mono out Mix (2) */
+	{ 38, 0x0050 },     /* R38 - Moyes out Mix (1) */
+	{ 39, 0x0050 },     /* R39 - Moyes out Mix (2) */
 	{ 40, 0x0079 },     /* R40 - LOUT2 volume */
 	{ 41, 0x0079 },     /* R41 - ROUT2 volume */
 	{ 42, 0x0079 },     /* R42 - MONOOUT volume */
@@ -181,7 +181,7 @@ static int wm8955_pll_factors(struct device *dev,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range yesw rounding is done */
 	pll->k = K / 10;
 
 	dev_dbg(dev, "N=%x K=%x OUTDIV=%x\n", pll->n, pll->k, pll->outdiv);
@@ -248,7 +248,7 @@ static int wm8955_configure_clocking(struct snd_soc_component *component)
 	int sr = -1;
 	struct pll_factors pll;
 
-	/* If we're not running a sample rate currently just pick one */
+	/* If we're yest running a sample rate currently just pick one */
 	if (wm8955->fs == 0)
 		wm8955->fs = 8000;
 
@@ -432,7 +432,7 @@ static SOC_ENUM_SINGLE_DECL(treble_cutoff, WM8955_TREBLE_CONTROL, 2,
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -12750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(atten_tlv, -600, 600, 0);
 static const DECLARE_TLV_DB_SCALE(bypass_tlv, -1500, 300, 0);
-static const DECLARE_TLV_DB_SCALE(mono_tlv, -2100, 300, 0);
+static const DECLARE_TLV_DB_SCALE(moyes_tlv, -2100, 300, 0);
 static const DECLARE_TLV_DB_SCALE(out_tlv, -12100, 100, 1);
 static const DECLARE_TLV_DB_SCALE(treble_tlv, -1200, 150, 1);
 
@@ -453,19 +453,19 @@ SOC_SINGLE_TLV("Treble Volume", WM8955_TREBLE_CONTROL, 0, 14, 1, treble_tlv),
 
 SOC_SINGLE_TLV("Left Bypass Volume", WM8955_LEFT_OUT_MIX_1, 4, 7, 1,
 	       bypass_tlv),
-SOC_SINGLE_TLV("Left Mono Volume", WM8955_LEFT_OUT_MIX_2, 4, 7, 1,
+SOC_SINGLE_TLV("Left Moyes Volume", WM8955_LEFT_OUT_MIX_2, 4, 7, 1,
 	       bypass_tlv),
 
-SOC_SINGLE_TLV("Right Mono Volume", WM8955_RIGHT_OUT_MIX_1, 4, 7, 1,
+SOC_SINGLE_TLV("Right Moyes Volume", WM8955_RIGHT_OUT_MIX_1, 4, 7, 1,
 	       bypass_tlv),
 SOC_SINGLE_TLV("Right Bypass Volume", WM8955_RIGHT_OUT_MIX_2, 4, 7, 1,
 	       bypass_tlv),
 
 /* Not a stereo pair so they line up with the DAPM switches */
-SOC_SINGLE_TLV("Mono Left Bypass Volume", WM8955_MONO_OUT_MIX_1, 4, 7, 1,
-	       mono_tlv),
-SOC_SINGLE_TLV("Mono Right Bypass Volume", WM8955_MONO_OUT_MIX_2, 4, 7, 1,
-	       mono_tlv),
+SOC_SINGLE_TLV("Moyes Left Bypass Volume", WM8955_MONO_OUT_MIX_1, 4, 7, 1,
+	       moyes_tlv),
+SOC_SINGLE_TLV("Moyes Right Bypass Volume", WM8955_MONO_OUT_MIX_2, 4, 7, 1,
+	       moyes_tlv),
 
 SOC_DOUBLE_R_TLV("Headphone Volume", WM8955_LOUT1_VOLUME,
 		 WM8955_ROUT1_VOLUME, 0, 127, 0, out_tlv),
@@ -477,20 +477,20 @@ SOC_DOUBLE_R_TLV("Speaker Volume", WM8955_LOUT2_VOLUME,
 SOC_DOUBLE_R("Speaker ZC Switch", WM8955_LOUT2_VOLUME,
 	     WM8955_ROUT2_VOLUME, 7, 1, 0),
 
-SOC_SINGLE_TLV("Mono Volume", WM8955_MONOOUT_VOLUME, 0, 127, 0, out_tlv),
-SOC_SINGLE("Mono ZC Switch", WM8955_MONOOUT_VOLUME, 7, 1, 0),
+SOC_SINGLE_TLV("Moyes Volume", WM8955_MONOOUT_VOLUME, 0, 127, 0, out_tlv),
+SOC_SINGLE("Moyes ZC Switch", WM8955_MONOOUT_VOLUME, 7, 1, 0),
 };
 
 static const struct snd_kcontrol_new lmixer[] = {
 SOC_DAPM_SINGLE("Playback Switch", WM8955_LEFT_OUT_MIX_1, 8, 1, 0),
 SOC_DAPM_SINGLE("Bypass Switch", WM8955_LEFT_OUT_MIX_1, 7, 1, 0),
 SOC_DAPM_SINGLE("Right Playback Switch", WM8955_LEFT_OUT_MIX_2, 8, 1, 0),
-SOC_DAPM_SINGLE("Mono Switch", WM8955_LEFT_OUT_MIX_2, 7, 1, 0),
+SOC_DAPM_SINGLE("Moyes Switch", WM8955_LEFT_OUT_MIX_2, 7, 1, 0),
 };
 
 static const struct snd_kcontrol_new rmixer[] = {
 SOC_DAPM_SINGLE("Left Playback Switch", WM8955_RIGHT_OUT_MIX_1, 8, 1, 0),
-SOC_DAPM_SINGLE("Mono Switch", WM8955_RIGHT_OUT_MIX_1, 7, 1, 0),
+SOC_DAPM_SINGLE("Moyes Switch", WM8955_RIGHT_OUT_MIX_1, 7, 1, 0),
 SOC_DAPM_SINGLE("Playback Switch", WM8955_RIGHT_OUT_MIX_2, 8, 1, 0),
 SOC_DAPM_SINGLE("Bypass Switch", WM8955_RIGHT_OUT_MIX_2, 7, 1, 0),
 };
@@ -508,7 +508,7 @@ SND_SOC_DAPM_INPUT("MONOIN+"),
 SND_SOC_DAPM_INPUT("LINEINR"),
 SND_SOC_DAPM_INPUT("LINEINL"),
 
-SND_SOC_DAPM_PGA("Mono Input", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Moyes Input", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 SND_SOC_DAPM_SUPPLY("SYSCLK", WM8955_POWER_MANAGEMENT_1, 0, 1, wm8955_sysclk,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
@@ -529,7 +529,7 @@ SND_SOC_DAPM_MIXER("Left", SND_SOC_NOPM, 0, 0,
 		   lmixer, ARRAY_SIZE(lmixer)),
 SND_SOC_DAPM_MIXER("Right", SND_SOC_NOPM, 0, 0,
 		   rmixer, ARRAY_SIZE(rmixer)),
-SND_SOC_DAPM_MIXER("Mono", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("Moyes", SND_SOC_NOPM, 0, 0,
 		   mmixer, ARRAY_SIZE(mmixer)),
 
 SND_SOC_DAPM_OUTPUT("LOUT1"),
@@ -544,23 +544,23 @@ static const struct snd_soc_dapm_route wm8955_dapm_routes[] = {
 	{ "DACL", NULL, "SYSCLK" },
 	{ "DACR", NULL, "SYSCLK" },
 
-	{ "Mono Input", NULL, "MONOIN-" },
-	{ "Mono Input", NULL, "MONOIN+" },
+	{ "Moyes Input", NULL, "MONOIN-" },
+	{ "Moyes Input", NULL, "MONOIN+" },
 
 	{ "Left", "Playback Switch", "DACL" },
 	{ "Left", "Right Playback Switch", "DACR" },
 	{ "Left", "Bypass Switch", "LINEINL" },
-	{ "Left", "Mono Switch", "Mono Input" },
+	{ "Left", "Moyes Switch", "Moyes Input" },
 
 	{ "Right", "Playback Switch", "DACR" },
 	{ "Right", "Left Playback Switch", "DACL" },
 	{ "Right", "Bypass Switch", "LINEINR" },
-	{ "Right", "Mono Switch", "Mono Input" },
+	{ "Right", "Moyes Switch", "Moyes Input" },
 
-	{ "Mono", "Left Playback Switch", "DACL" },
-	{ "Mono", "Right Playback Switch", "DACR" },
-	{ "Mono", "Left Bypass Switch", "LINEINL" },
-	{ "Mono", "Right Bypass Switch", "LINEINR" },
+	{ "Moyes", "Left Playback Switch", "DACL" },
+	{ "Moyes", "Right Playback Switch", "DACR" },
+	{ "Moyes", "Left Bypass Switch", "LINEINL" },
+	{ "Moyes", "Right Bypass Switch", "LINEINR" },
 
 	{ "LOUT1 PGA", NULL, "Left" },
 	{ "LOUT1", NULL, "TSDEN" },
@@ -578,10 +578,10 @@ static const struct snd_soc_dapm_route wm8955_dapm_routes[] = {
 	{ "ROUT2", NULL, "TSDEN" },
 	{ "ROUT2", NULL, "ROUT2 PGA" },
 
-	{ "MOUT PGA", NULL, "Mono" },
+	{ "MOUT PGA", NULL, "Moyes" },
 	{ "MONOOUT", NULL, "MOUT PGA" },
 
-	/* OUT3 not currently implemented */
+	/* OUT3 yest currently implemented */
 	{ "OUT3", NULL, "OUT3 PGA" },
 };
 
@@ -702,7 +702,7 @@ static int wm8955_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion yest valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -921,7 +921,7 @@ static int wm8955_probe(struct snd_soc_component *component)
 			snd_soc_component_update_bits(component, WM8955_ADDITIONAL_CONTROL_2,
 					    WM8955_ROUT2INV, WM8955_ROUT2INV);
 
-		if (pdata->monoin_diff)
+		if (pdata->moyesin_diff)
 			snd_soc_component_update_bits(component, WM8955_MONO_OUT_MIX_1,
 					    WM8955_DMEN, WM8955_DMEN);
 	}
@@ -951,7 +951,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8955 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8955_regmap = {

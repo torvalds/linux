@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -493,9 +493,9 @@ struct ib_sa_multicast {
  * multicast group.  If the join operation is started successfully, it returns
  * an ib_sa_multicast structure that is used to track the multicast operation.
  * Users must free this structure by calling ib_free_multicast, even if the
- * join operation later fails.  (The callback status is non-zero.)
+ * join operation later fails.  (The callback status is yesn-zero.)
  *
- * If the join operation fails; status will be non-zero, with the following
+ * If the join operation fails; status will be yesn-zero, with the following
  * failures possible:
  * -ETIMEDOUT: The request timed out.
  * -EIO: An error occurred sending the query.
@@ -518,7 +518,7 @@ struct ib_sa_multicast *ib_sa_join_multicast(struct ib_sa_client *client,
  * @multicast: Multicast tracking structure allocated by ib_join_multicast.
  *
  * This call blocks until the multicast identifier is destroyed.  It may
- * not be called from within the multicast callback; however, returning a non-
+ * yest be called from within the multicast callback; however, returning a yesn-
  * zero value from the callback will result in destroying the multicast
  * tracking structure.
  */

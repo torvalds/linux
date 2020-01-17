@@ -222,7 +222,7 @@ static bool _rtl92e_ps_set_mode(struct net_device *dev, u8 rtPsMode)
 
 		spin_lock_irqsave(&(priv->rtllib->mgmt_tx_lock), flags);
 		RT_TRACE(COMP_DBG,
-			 "LPS leave: notify AP we are awaked ++++++++++ SendNullFunctionData\n");
+			 "LPS leave: yestify AP we are awaked ++++++++++ SendNullFunctionData\n");
 		rtllib_sta_ps_send_null_frame(priv->rtllib, 0);
 		spin_unlock_irqrestore(&(priv->rtllib->mgmt_tx_lock), flags);
 	}

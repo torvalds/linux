@@ -54,20 +54,20 @@ static inline void i2c_gate_ctrl(struct au0828_dev *dev, int val)
 static inline void print_err_status(struct au0828_dev *dev,
 				    int packet, int status)
 {
-	char *errmsg = "Unknown";
+	char *errmsg = "Unkyeswn";
 
 	switch (status) {
 	case -ENOENT:
-		errmsg = "unlinked synchronously";
+		errmsg = "unlinked synchroyesusly";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronously";
+		errmsg = "unlinked asynchroyesusly";
 		break;
 	case -ENOSR:
 		errmsg = "Buffer error (overrun)";
 		break;
 	case -EPIPE:
-		errmsg = "Stalled (device not responding)";
+		errmsg = "Stalled (device yest responding)";
 		break;
 	case -EOVERFLOW:
 		errmsg = "Babble (bad cable?)";
@@ -79,7 +79,7 @@ static inline void print_err_status(struct au0828_dev *dev,
 		errmsg = "CRC/Timeout (could be anything)";
 		break;
 	case -ETIME:
-		errmsg = "Device does not respond";
+		errmsg = "Device does yest respond";
 		break;
 	}
 	if (packet < 0) {
@@ -93,7 +93,7 @@ static inline void print_err_status(struct au0828_dev *dev,
 static int check_dev(struct au0828_dev *dev)
 {
 	if (test_bit(DEV_DISCONNECTED, &dev->dev_state)) {
-		pr_info("v4l2 ioctl: device not present\n");
+		pr_info("v4l2 ioctl: device yest present\n");
 		return -ENODEV;
 	}
 
@@ -123,7 +123,7 @@ static void au0828_irq_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		au0828_isocdbg("au0828_irq_callback called: status kill\n");
 		return;
-	default:            /* unknown error */
+	default:            /* unkyeswn error */
 		au0828_isocdbg("urb completion error %d.\n", urb->status);
 		break;
 	}
@@ -210,14 +210,14 @@ static int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
 
 	dev->isoc_ctl.urb = kcalloc(num_bufs, sizeof(void *),  GFP_KERNEL);
 	if (!dev->isoc_ctl.urb) {
-		au0828_isocdbg("cannot alloc memory for usb buffers\n");
+		au0828_isocdbg("canyest alloc memory for usb buffers\n");
 		return -ENOMEM;
 	}
 
 	dev->isoc_ctl.transfer_buffer = kcalloc(num_bufs, sizeof(void *),
 						GFP_KERNEL);
 	if (!dev->isoc_ctl.transfer_buffer) {
-		au0828_isocdbg("cannot allocate memory for usb transfer\n");
+		au0828_isocdbg("canyest allocate memory for usb transfer\n");
 		kfree(dev->isoc_ctl.urb);
 		return -ENOMEM;
 	}
@@ -281,7 +281,7 @@ static int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
 }
 
 /*
- * Announces that a buffer were filled and request the next
+ * Anyesunces that a buffer were filled and request the next
  */
 static inline void buffer_filled(struct au0828_dev *dev,
 				 struct au0828_dmaqueue *dma_q,
@@ -376,7 +376,7 @@ static void au0828_copy_video(struct au0828_dev *dev,
 	}
 
 	if (offset > 1440) {
-		/* We have enough data to check for greenscreen */
+		/* We have eyesugh data to check for greenscreen */
 		if (outp[0] < 0x60 && outp[1440] < 0x60)
 			dev->greenscreen_detected = 1;
 	}
@@ -705,7 +705,7 @@ buffer_prepare(struct vb2_buffer *vb)
 	buf->length = dev->height * dev->bytesperline;
 
 	if (vb2_plane_size(vb, 0) < buf->length) {
-		pr_err("%s data will not fit into plane (%lu < %lu)\n",
+		pr_err("%s data will yest fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0), buf->length);
 		return -EINVAL;
 	}
@@ -1068,7 +1068,7 @@ static int au0828_v4l2_close(struct file *filp)
 		 * a separate audio output jack. The devices that have
 		 * a separate audio output jack have analog tuners,
 		 * like Philips FM1236. Those devices are always on,
-		 * so the s_power callback are silently ignored.
+		 * so the s_power callback are silently igyesred.
 		 * So, the current logic here does the following:
 		 * Disable (put tuner to sleep) when
 		 * - ALSA and DVB aren't streaming.
@@ -1120,7 +1120,7 @@ static void au0828_init_tuner(struct au0828_dev *dev)
 		return;
 	dev->std_set_in_tuner_core = 1;
 	i2c_gate_ctrl(dev, 1);
-	/* If we've never sent the standard in tuner core, do so now.
+	/* If we've never sent the standard in tuner core, do so yesw.
 	   We don't do this at device probe because we don't want to
 	   incur the cost of a firmware load */
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, dev->std);
@@ -1264,20 +1264,20 @@ out:
 	return rc;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id yesrm)
 {
 	struct au0828_dev *dev = video_drvdata(file);
 
 	dprintk(1, "%s called std_set %d dev_state %ld\n", __func__,
 		dev->std_set_in_tuner_core, dev->dev_state);
 
-	if (norm == dev->std)
+	if (yesrm == dev->std)
 		return 0;
 
 	if (dev->streaming_users > 0)
 		return -EBUSY;
 
-	dev->std = norm;
+	dev->std = yesrm;
 
 	au0828_init_tuner(dev);
 
@@ -1289,21 +1289,21 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	 * of its capture buffer, which is currently hardcoded at 720x480
 	 */
 
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, yesrm);
 
 	i2c_gate_ctrl(dev, 0);
 
 	return 0;
 }
 
-static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *yesrm)
 {
 	struct au0828_dev *dev = video_drvdata(file);
 
 	dprintk(1, "%s called std_set %d dev_state %ld\n", __func__,
 		dev->std_set_in_tuner_core, dev->dev_state);
 
-	*norm = dev->std;
+	*yesrm = dev->std;
 	return 0;
 }
 
@@ -1343,7 +1343,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		input->audioset = 2;
 	}
 
-	input->std = dev->vdev.tvnorms;
+	input->std = dev->vdev.tvyesrms;
 
 	return 0;
 }
@@ -1380,7 +1380,7 @@ static void au0828_s_input(struct au0828_dev *dev, int index)
 		dev->ctrl_ainput = 0;
 		break;
 	default:
-		dprintk(1, "unknown input type set [%d]\n",
+		dprintk(1, "unkyeswn input type set [%d]\n",
 			AUVI_INPUT(index).type);
 		return;
 	}
@@ -1612,7 +1612,7 @@ static int vidioc_g_pixelaspect(struct file *file, void *priv,
 		dev->std_set_in_tuner_core, dev->dev_state);
 
 	f->numerator = 54;
-	f->denominator = 59;
+	f->deyesminator = 59;
 
 	return 0;
 }
@@ -1798,7 +1798,7 @@ static const struct video_device au0828_video_template = {
 	.fops                       = &au0828_v4l_fops,
 	.release                    = video_device_release_empty,
 	.ioctl_ops		    = &video_ioctl_ops,
-	.tvnorms                    = V4L2_STD_NTSC_M | V4L2_STD_PAL_M,
+	.tvyesrms                    = V4L2_STD_NTSC_M | V4L2_STD_PAL_M,
 };
 
 static int au0828_vb2_setup(struct au0828_dev *dev)
@@ -1942,7 +1942,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 		}
 	}
 	if (!(dev->isoc_in_endpointaddr)) {
-		pr_info("Could not locate isoc endpoint\n");
+		pr_info("Could yest locate isoc endpoint\n");
 		return -ENODEV;
 	}
 

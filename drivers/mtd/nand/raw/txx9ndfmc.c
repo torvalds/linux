@@ -26,7 +26,7 @@
 #define TXX9_NDFISR	0x0c
 #define TXX9_NDFIMR	0x10
 #define TXX9_NDFSPR	0x14
-#define TXX9_NDFRSTR	0x18	/* not TX4939 */
+#define TXX9_NDFRSTR	0x18	/* yest TX4939 */
 
 /* NDFMCR : NDFMC Mode Control */
 #define TXX9_NDFMCR_WE	0x80
@@ -224,7 +224,7 @@ static void txx9ndfmc_initialize(struct platform_device *dev)
 	int tmout = 100;
 
 	if (plat->flags & NDFMC_PLAT_FLAG_NO_RSTR)
-		; /* no NDFRSTR.  Write to NDFSPR resets the NDFMC. */
+		; /* yes NDFRSTR.  Write to NDFSPR resets the NDFMC. */
 	else {
 		/* reset NDFMC */
 		txx9ndfmc_write(dev,

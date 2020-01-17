@@ -450,7 +450,7 @@ static int tmp007_probe(struct i2c_client *client,
 		return -EOPNOTSUPP;
 
 	if (!tmp007_identify(client)) {
-		dev_err(&client->dev, "TMP007 not found\n");
+		dev_err(&client->dev, "TMP007 yest found\n");
 		return -ENODEV;
 	}
 

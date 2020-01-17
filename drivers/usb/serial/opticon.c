@@ -91,7 +91,7 @@ static void opticon_process_read_urb(struct urb *urb)
 	} else if ((hdr[0] == 0x00) && (hdr[1] == 0x01)) {
 		opticon_process_status_packet(port, data, data_len);
 	} else {
-		dev_dbg(&port->dev, "unknown packet received: %02x %02x\n",
+		dev_dbg(&port->dev, "unkyeswn packet received: %02x %02x\n",
 							hdr[0], hdr[1]);
 	}
 }
@@ -156,7 +156,7 @@ static void opticon_write_control_callback(struct urb *urb)
 	int status = urb->status;
 	unsigned long flags;
 
-	/* free up the transfer buffer, as usb_free_urb() does not do this */
+	/* free up the transfer buffer, as usb_free_urb() does yest do this */
 	kfree(urb->transfer_buffer);
 
 	/* setup packet may be set if we're using it for writing */
@@ -164,7 +164,7 @@ static void opticon_write_control_callback(struct urb *urb)
 
 	if (status)
 		dev_dbg(&port->dev,
-			"%s - non-zero urb status received: %d\n",
+			"%s - yesn-zero urb status received: %d\n",
 			__func__, status);
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -197,25 +197,25 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	buffer = kmalloc(count, GFP_ATOMIC);
 	if (!buffer) {
 		count = -ENOMEM;
-		goto error_no_buffer;
+		goto error_yes_buffer;
 	}
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		count = -ENOMEM;
-		goto error_no_urb;
+		goto error_yes_urb;
 	}
 
 	memcpy(buffer, buf, count);
 
 	usb_serial_debug_data(&port->dev, __func__, count, buffer);
 
-	/* The connected devices do not have a bulk write endpoint,
+	/* The connected devices do yest have a bulk write endpoint,
 	 * to transmit data to de barcode device the control endpoint is used */
 	dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_ATOMIC);
 	if (!dr) {
 		count = -ENOMEM;
-		goto error_no_dr;
+		goto error_yes_dr;
 	}
 
 	dr->bRequestType = USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT;
@@ -246,11 +246,11 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	return count;
 error:
 	kfree(dr);
-error_no_dr:
+error_yes_dr:
 	usb_free_urb(urb);
-error_no_urb:
+error_yes_urb:
 	kfree(buffer);
-error_no_buffer:
+error_yes_buffer:
 	spin_lock_irqsave(&priv->lock, flags);
 	--priv->outstanding_urbs;
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -335,7 +335,7 @@ static int get_serial_info(struct tty_struct *tty,
 
 	/* fake emulate a 16550 uart to make userspace code happy */
 	ss->type		= PORT_16550A;
-	ss->line		= port->minor;
+	ss->line		= port->miyesr;
 	ss->port		= 0;
 	ss->irq			= 0;
 	ss->xmit_fifo_size	= 1024;

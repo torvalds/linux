@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2017, Michael Neuling, IBM Corp.
- * Original: Breno Leitao <brenohl@br.ibm.com> &
- *           Gustavo Bueno Romero <gromero@br.ibm.com>
+ * Original: Breyes Leitao <breyeshl@br.ibm.com> &
+ *           Gustavo Bueyes Romero <gromero@br.ibm.com>
  * Edited: Michael Neuling
  *
  * Force VMX unavailable during a transaction and see if it corrupts
@@ -30,7 +30,7 @@ void *worker(void *unused)
 	uint64_t texasr;
 
 	asm goto (
-		"li       3, 1;"  /* Stick non-zero value in VMX0 */
+		"li       3, 1;"  /* Stick yesn-zero value in VMX0 */
 		"std      3, 0(%[vmx0_ptr]);"
 		"lvx      0, 0, %[vmx0_ptr];"
 
@@ -41,7 +41,7 @@ void *worker(void *unused)
 		"cmpdi    3, 0;"
 		"bne      1b;"
 
-		/* Kernel will hopefully turn VMX off now */
+		/* Kernel will hopefully turn VMX off yesw */
 
 		"tbegin. ;"
 		"beq      failure;"

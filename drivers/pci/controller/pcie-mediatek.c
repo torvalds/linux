@@ -141,8 +141,8 @@ struct mtk_pcie_port;
 
 /**
  * struct mtk_pcie_soc - differentiate between host generations
- * @need_fix_class_id: whether this host's class ID needed to be fixed or not
- * @need_fix_device_id: whether this host's device ID needed to be fixed or not
+ * @need_fix_class_id: whether this host's class ID needed to be fixed or yest
+ * @need_fix_device_id: whether this host's device ID needed to be fixed or yest
  * @device_id: device ID which this host need to be fixed
  * @ops: pointer to configuration access functions
  * @startup: pointer to controller setting functions
@@ -154,7 +154,7 @@ struct mtk_pcie_soc {
 	unsigned int device_id;
 	struct pci_ops *ops;
 	int (*startup)(struct mtk_pcie_port *port);
-	int (*setup_irq)(struct mtk_pcie_port *port, struct device_node *node);
+	int (*setup_irq)(struct mtk_pcie_port *port, struct device_yesde *yesde);
 };
 
 /**
@@ -206,7 +206,7 @@ struct mtk_pcie_port {
  * @dev: pointer to PCIe device
  * @base: IO mapped register base
  * @free_ck: free-run reference clock
- * @mem: non-prefetchable memory resource
+ * @mem: yesn-prefetchable memory resource
  * @ports: pointer to PCIe port information
  * @soc: pointer to SoC-dependent operations
  * @busnr: root bus number
@@ -496,18 +496,18 @@ static struct msi_domain_info mtk_msi_domain_info = {
 
 static int mtk_pcie_allocate_msi_domains(struct mtk_pcie_port *port)
 {
-	struct fwnode_handle *fwnode = of_node_to_fwnode(port->pcie->dev->of_node);
+	struct fwyesde_handle *fwyesde = of_yesde_to_fwyesde(port->pcie->dev->of_yesde);
 
 	mutex_init(&port->lock);
 
-	port->inner_domain = irq_domain_create_linear(fwnode, MTK_MSI_IRQS_NUM,
+	port->inner_domain = irq_domain_create_linear(fwyesde, MTK_MSI_IRQS_NUM,
 						      &msi_domain_ops, port);
 	if (!port->inner_domain) {
 		dev_err(port->pcie->dev, "failed to create IRQ domain\n");
 		return -ENOMEM;
 	}
 
-	port->msi_domain = pci_msi_create_irq_domain(fwnode, &mtk_msi_domain_info,
+	port->msi_domain = pci_msi_create_irq_domain(fwyesde, &mtk_msi_domain_info,
 						     port->inner_domain);
 	if (!port->msi_domain) {
 		dev_err(port->pcie->dev, "failed to create MSI domain\n");
@@ -567,22 +567,22 @@ static const struct irq_domain_ops intx_domain_ops = {
 };
 
 static int mtk_pcie_init_irq_domain(struct mtk_pcie_port *port,
-				    struct device_node *node)
+				    struct device_yesde *yesde)
 {
 	struct device *dev = port->pcie->dev;
-	struct device_node *pcie_intc_node;
+	struct device_yesde *pcie_intc_yesde;
 	int ret;
 
 	/* Setup INTx */
-	pcie_intc_node = of_get_next_child(node, NULL);
-	if (!pcie_intc_node) {
-		dev_err(dev, "no PCIe Intc node found\n");
+	pcie_intc_yesde = of_get_next_child(yesde, NULL);
+	if (!pcie_intc_yesde) {
+		dev_err(dev, "yes PCIe Intc yesde found\n");
 		return -ENODEV;
 	}
 
-	port->irq_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
+	port->irq_domain = irq_domain_add_linear(pcie_intc_yesde, PCI_NUM_INTX,
 						 &intx_domain_ops, port);
-	of_node_put(pcie_intc_node);
+	of_yesde_put(pcie_intc_yesde);
 	if (!port->irq_domain) {
 		dev_err(dev, "failed to get INTx IRQ domain\n");
 		return -ENODEV;
@@ -637,14 +637,14 @@ static void mtk_pcie_intr_handler(struct irq_desc *desc)
 }
 
 static int mtk_pcie_setup_irq(struct mtk_pcie_port *port,
-			      struct device_node *node)
+			      struct device_yesde *yesde)
 {
 	struct mtk_pcie *pcie = port->pcie;
 	struct device *dev = pcie->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	int err;
 
-	err = mtk_pcie_init_irq_domain(port, node);
+	err = mtk_pcie_init_irq_domain(port, yesde);
 	if (err) {
 		dev_err(dev, "failed to init PCIe IRQ domain\n");
 		return err;
@@ -709,7 +709,7 @@ static int mtk_pcie_startup_port_v2(struct mtk_pcie_port *port)
 	if (soc->need_fix_device_id)
 		writew(soc->device_id, port->base + PCIE_CONF_DEVICE_ID);
 
-	/* 100ms timeout value should be enough for Gen1/2 training */
+	/* 100ms timeout value should be eyesugh for Gen1/2 training */
 	err = readl_poll_timeout(port->base + PCIE_LINK_STATUS_V2, val,
 				 !!(val & PCIE_PORT_LINKUP_V2), 20,
 				 100 * USEC_PER_MSEC);
@@ -774,7 +774,7 @@ static int mtk_pcie_startup_port(struct mtk_pcie_port *port)
 	val &= ~PCIE_PORT_PERST(port->slot);
 	writel(val, pcie->base + PCIE_SYS_CFG);
 
-	/* 100ms timeout value should be enough for Gen1/2 training */
+	/* 100ms timeout value should be eyesugh for Gen1/2 training */
 	err = readl_poll_timeout(port->base + PCIE_LINK_STATUS, val,
 				 !!(val & PCIE_PORT_LINKUP), 20,
 				 100 * USEC_PER_MSEC);
@@ -898,7 +898,7 @@ err_sys_clk:
 }
 
 static int mtk_pcie_parse_port(struct mtk_pcie *pcie,
-			       struct device_node *node,
+			       struct device_yesde *yesde,
 			       int slot)
 {
 	struct mtk_pcie_port *port;
@@ -968,7 +968,7 @@ static int mtk_pcie_parse_port(struct mtk_pcie *pcie,
 	port->pcie = pcie;
 
 	if (pcie->soc->setup_irq) {
-		err = pcie->soc->setup_irq(port, node);
+		err = pcie->soc->setup_irq(port, yesde);
 		if (err)
 			return err;
 	}
@@ -1026,7 +1026,7 @@ err_free_ck:
 static int mtk_pcie_setup(struct mtk_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
-	struct device_node *node = dev->of_node, *child;
+	struct device_yesde *yesde = dev->of_yesde, *child;
 	struct mtk_pcie_port *port, *tmp;
 	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
 	struct list_head *windows = &host->windows;
@@ -1040,7 +1040,7 @@ static int mtk_pcie_setup(struct mtk_pcie *pcie)
 
 	pcie->busnr = bus->start;
 
-	for_each_available_child_of_node(node, child) {
+	for_each_available_child_of_yesde(yesde, child) {
 		int slot;
 
 		err = of_pci_get_devfn(child);
@@ -1138,7 +1138,7 @@ static int mtk_pcie_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused mtk_pcie_suspend_noirq(struct device *dev)
+static int __maybe_unused mtk_pcie_suspend_yesirq(struct device *dev)
 {
 	struct mtk_pcie *pcie = dev_get_drvdata(dev);
 	struct mtk_pcie_port *port;
@@ -1162,7 +1162,7 @@ static int __maybe_unused mtk_pcie_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mtk_pcie_resume_noirq(struct device *dev)
+static int __maybe_unused mtk_pcie_resume_yesirq(struct device *dev)
 {
 	struct mtk_pcie *pcie = dev_get_drvdata(dev);
 	struct mtk_pcie_port *port, *tmp;
@@ -1183,8 +1183,8 @@ static int __maybe_unused mtk_pcie_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops mtk_pcie_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(mtk_pcie_suspend_noirq,
-				      mtk_pcie_resume_noirq)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(mtk_pcie_suspend_yesirq,
+				      mtk_pcie_resume_yesirq)
 };
 
 static const struct mtk_pcie_soc mtk_pcie_soc_v1 = {

@@ -182,7 +182,7 @@ struct {unsigned short size, byte_cnt, threshold; } SR9800_BULKIN_SIZE[] = {
 	{32768, 0x8700, 0x8A3D},
 };
 
-/* This structure cannot exceed sizeof(unsigned long [5]) AKA 20 bytes */
+/* This structure canyest exceed sizeof(unsigned long [5]) AKA 20 bytes */
 struct sr_data {
 	u8 multi_filter[SR_MCAST_FILTER_SIZE];
 	u8 mac_addr[ETH_ALEN];

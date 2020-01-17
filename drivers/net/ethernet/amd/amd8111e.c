@@ -10,7 +10,7 @@
  * Copyright 1993 United States Government as represented by the
  *	Director, National Security Agency.[ pcnet32.c ]
  * Carsten Langgaard, carstenl@mips.com [ pcnet32.c ]
- * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2000 MIPS Techyeslogies, Inc.  All rights reserved.
  *
 
 Module Name:
@@ -293,7 +293,7 @@ static int amd8111e_init_ring(struct net_device *dev)
 			sizeof(struct amd8111e_tx_dr)*NUM_TX_RING_DR,
 			&lp->tx_ring_dma_addr)) == NULL)
 
-			goto err_no_mem;
+			goto err_yes_mem;
 
 	     	if((lp->rx_ring = pci_alloc_consistent(lp->pci_dev,
 			sizeof(struct amd8111e_rx_dr)*NUM_RX_RING_DR,
@@ -349,7 +349,7 @@ err_free_tx_ring:
 		 sizeof(struct amd8111e_tx_dr)*NUM_TX_RING_DR,lp->tx_ring,
 		 lp->tx_ring_dma_addr);
 
-err_no_mem:
+err_yes_mem:
 	return -ENOMEM;
 }
 
@@ -460,7 +460,7 @@ static int amd8111e_restart(struct net_device *dev)
 		writel((u32)VAL2|JUMBO, mmio + CMD3);
 		/* Reset REX_UFLO */
 		writel( REX_UFLO, mmio + CMD2);
-		/* Should not set REX_UFLO for jumbo frames */
+		/* Should yest set REX_UFLO for jumbo frames */
 		writel( VAL0 | APAD_XMT|REX_RTRY , mmio + CMD2);
 	}else{
 		writel( VAL0 | APAD_XMT | REX_RTRY|REX_UFLO, mmio + CMD2);
@@ -665,7 +665,7 @@ static int amd8111e_tx(struct net_device *dev)
 
 		if (netif_queue_stopped(dev) &&
 			lp->tx_complete_idx > lp->tx_idx - NUM_TX_BUFFERS +2){
-			/* The ring is no longer full, clear tbusy. */
+			/* The ring is yes longer full, clear tbusy. */
 			/* lp->tx_full = 0; */
 			netif_wake_queue (dev);
 		}
@@ -693,11 +693,11 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 		if (status & OWN_BIT)
 			break;
 
-		/* There is a tricky error noted by John Murphy,
+		/* There is a tricky error yested by John Murphy,
 		 * <murf@perftech.com> to Russ Nelson: Even with
 		 * full-sized * buffers it's possible for a
 		 * jabber packet to use two buffers, with only
-		 * the last correctly noting the error.
+		 * the last correctly yesting the error.
 		 */
 		if (status & ERR_BIT) {
 			/* resetting flags */
@@ -729,7 +729,7 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 		new_skb = netdev_alloc_skb(dev, lp->rx_buff_len);
 		if (!new_skb) {
 			/* if allocation fail,
-			 * ignore that pkt and go to next one
+			 * igyesre that pkt and go to next one
 			 */
 			lp->rx_ring[rx_index].rx_flags &= RESET_RX_FLAGS;
 			lp->drv_rx_errors++;
@@ -774,7 +774,7 @@ err_next_pkt:
 	if (num_rx_pkt < budget && napi_complete_done(napi, num_rx_pkt)) {
 		unsigned long flags;
 
-		/* Receive descriptor is empty now */
+		/* Receive descriptor is empty yesw */
 		spin_lock_irqsave(&lp->lock, flags);
 		writel(VAL0|RINTEN0, mmio + INTEN0);
 		writel(VAL2 | RDMD0, mmio + CMD0);
@@ -1102,7 +1102,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 
 	if (!(intr0 & INTR)){
 		handled = 0;
-		goto err_no_interrupt;
+		goto err_yes_interrupt;
 	}
 
 	/* Current driver processes 4 interrupts : RINT,TINT,LCINT,STINT */
@@ -1134,7 +1134,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 	if (intr0 & STINT)
 		amd8111e_calc_coalesce(dev);
 
-err_no_interrupt:
+err_yes_interrupt:
 	writel( VAL0 | INTREN,mmio + CMD0);
 
 	spin_unlock(&lp->lock);
@@ -1491,7 +1491,7 @@ static int amd8111e_ioctl(struct net_device *dev , struct ifreq *ifr, int cmd)
 		return err;
 
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 	return -EOPNOTSUPP;
@@ -1758,19 +1758,19 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if(err){
-		dev_err(&pdev->dev, "Cannot enable new PCI device\n");
+		dev_err(&pdev->dev, "Canyest enable new PCI device\n");
 		return err;
 	}
 
 	if(!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)){
-		dev_err(&pdev->dev, "Cannot find PCI base address\n");
+		dev_err(&pdev->dev, "Canyest find PCI base address\n");
 		err = -ENODEV;
 		goto err_disable_pdev;
 	}
 
 	err = pci_request_regions(pdev, MODULE_NAME);
 	if(err){
-		dev_err(&pdev->dev, "Cannot obtain PCI resources\n");
+		dev_err(&pdev->dev, "Canyest obtain PCI resources\n");
 		goto err_disable_pdev;
 	}
 
@@ -1785,7 +1785,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	/* Initialize DMA */
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) < 0) {
-		dev_err(&pdev->dev, "DMA not supported\n");
+		dev_err(&pdev->dev, "DMA yest supported\n");
 		err = -ENODEV;
 		goto err_free_reg;
 	}
@@ -1814,7 +1814,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	lp->mmio = devm_ioremap(&pdev->dev, reg_addr, reg_len);
 	if (!lp->mmio) {
-		dev_err(&pdev->dev, "Cannot map device registers\n");
+		dev_err(&pdev->dev, "Canyest map device registers\n");
 		err = -ENOMEM;
 		goto err_free_dev;
 	}
@@ -1858,7 +1858,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	err = register_netdev(dev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot register net device\n");
+		dev_err(&pdev->dev, "Canyest register net device\n");
 		goto err_free_dev;
 	}
 

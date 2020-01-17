@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -36,7 +36,7 @@
 #include <linux/termios.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <net/rose.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -50,7 +50,7 @@ int sysctl_rose_restart_request_timeout = ROSE_DEFAULT_T0;
 int sysctl_rose_call_request_timeout    = ROSE_DEFAULT_T1;
 int sysctl_rose_reset_request_timeout   = ROSE_DEFAULT_T2;
 int sysctl_rose_clear_request_timeout   = ROSE_DEFAULT_T3;
-int sysctl_rose_no_activity_timeout     = ROSE_DEFAULT_IDLE;
+int sysctl_rose_yes_activity_timeout     = ROSE_DEFAULT_IDLE;
 int sysctl_rose_ack_hold_back_timeout   = ROSE_DEFAULT_HB;
 int sysctl_rose_routing_control         = ROSE_DEFAULT_ROUTING;
 int sysctl_rose_link_fail_timeout       = ROSE_DEFAULT_FAIL_TIMEOUT;
@@ -124,12 +124,12 @@ int rosecmpm(rose_address *addr1, rose_address *addr2, unsigned short mask)
 }
 
 /*
- *	Socket removal during an interrupt is now safe.
+ *	Socket removal during an interrupt is yesw safe.
  */
 static void rose_remove_socket(struct sock *sk)
 {
 	spin_lock_bh(&rose_list_lock);
-	sk_del_node_init(sk);
+	sk_del_yesde_init(sk);
 	spin_unlock_bh(&rose_list_lock);
 }
 
@@ -178,10 +178,10 @@ static void rose_kill_by_device(struct net_device *dev)
 /*
  *	Handle device status changes.
  */
-static int rose_device_event(struct notifier_block *this,
+static int rose_device_event(struct yestifier_block *this,
 			     unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
@@ -209,7 +209,7 @@ static void rose_insert_socket(struct sock *sk)
 {
 
 	spin_lock_bh(&rose_list_lock);
-	sk_add_node(sk, &rose_list);
+	sk_add_yesde(sk, &rose_list);
 	spin_unlock_bh(&rose_list_lock);
 }
 
@@ -303,7 +303,7 @@ static void rose_destroy_timer(struct timer_list *t)
 /*
  *	This is called from user mode and the timers. Thus it protects itself
  *	against interrupt users but doesn't worry about being called during
- *	work.  Once it is removed from the queue no interrupt or bottom half
+ *	work.  Once it is removed from the queue yes interrupt or bottom half
  *	will touch it and we are (fairly 8-) ) safe.
  */
 void rose_destroy_socket(struct sock *sk)
@@ -521,7 +521,7 @@ static int rose_create(struct net *net, struct socket *sock, int protocol,
 	rose->t2   = msecs_to_jiffies(sysctl_rose_reset_request_timeout);
 	rose->t3   = msecs_to_jiffies(sysctl_rose_clear_request_timeout);
 	rose->hb   = msecs_to_jiffies(sysctl_rose_ack_hold_back_timeout);
-	rose->idle = msecs_to_jiffies(sysctl_rose_no_activity_timeout);
+	rose->idle = msecs_to_jiffies(sysctl_rose_yes_activity_timeout);
 
 	rose->state = ROSE_STATE_0;
 
@@ -697,7 +697,7 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 	struct sock *sk = sock->sk;
 	struct rose_sock *rose = rose_sk(sk);
 	struct sockaddr_rose *addr = (struct sockaddr_rose *)uaddr;
-	unsigned char cause, diagnostic;
+	unsigned char cause, diagyesstic;
 	struct net_device *dev;
 	ax25_uid_assoc *user;
 	int n, err = 0;
@@ -714,7 +714,7 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 	if ((unsigned int) addr->srose_ndigis > ROSE_MAX_DIGIS)
 		return -EINVAL;
 
-	/* Source + Destination digis should not exceed ROSE_MAX_DIGIS */
+	/* Source + Destination digis should yest exceed ROSE_MAX_DIGIS */
 	if ((rose->source_ndigis + addr->srose_ndigis) > ROSE_MAX_DIGIS)
 		return -EINVAL;
 
@@ -742,7 +742,7 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 	sock->state = SS_UNCONNECTED;
 
 	rose->neighbour = rose_get_neigh(&addr->srose_addr, &cause,
-					 &diagnostic, 0);
+					 &diagyesstic, 0);
 	if (!rose->neighbour) {
 		err = -ENETUNREACH;
 		goto out_release;
@@ -754,7 +754,7 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 		goto out_release;
 	}
 
-	if (sock_flag(sk, SOCK_ZAPPED)) {	/* Must bind first - autobinding in this may or may not work */
+	if (sock_flag(sk, SOCK_ZAPPED)) {	/* Must bind first - autobinding in this may or may yest work */
 		sock_reset_flag(sk, SOCK_ZAPPED);
 
 		if ((dev = rose_dev_first()) == NULL) {
@@ -952,7 +952,7 @@ int rose_rx_call_request(struct sk_buff *skb, struct net_device *dev, struct ros
 	struct rose_facilities_struct facilities;
 	int n;
 
-	skb->sk = NULL;		/* Initially we don't know who it's for */
+	skb->sk = NULL;		/* Initially we don't kyesw who it's for */
 
 	/*
 	 *	skb->data points to the rose frame start
@@ -1298,7 +1298,7 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	case SIOCRSGCAUSE: {
 		struct rose_cause_struct rose_cause;
 		rose_cause.cause      = rose->cause;
-		rose_cause.diagnostic = rose->diagnostic;
+		rose_cause.diagyesstic = rose->diagyesstic;
 		return copy_to_user(argp, &rose_cause, sizeof(struct rose_cause_struct)) ? -EFAULT : 0;
 	}
 
@@ -1307,7 +1307,7 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&rose_cause, argp, sizeof(struct rose_cause_struct)))
 			return -EFAULT;
 		rose->cause      = rose_cause.cause;
-		rose->diagnostic = rose_cause.diagnostic;
+		rose->diagyesstic = rose_cause.diagyesstic;
 		return 0;
 	}
 
@@ -1370,7 +1370,7 @@ static int rose_info_show(struct seq_file *seq, void *v)
 
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq,
-			 "dest_addr  dest_call src_addr   src_call  dev   lci neigh st vs vr va   t  t1  t2  t3  hb    idle Snd-Q Rcv-Q inode\n");
+			 "dest_addr  dest_call src_addr   src_call  dev   lci neigh st vs vr va   t  t1  t2  t3  hb    idle Snd-Q Rcv-Q iyesde\n");
 
 	else {
 		struct sock *s = sk_entry(v);
@@ -1412,7 +1412,7 @@ static int rose_info_show(struct seq_file *seq, void *v)
 			rose->idle / (60 * HZ),
 			sk_wmem_alloc_get(s),
 			sk_rmem_alloc_get(s),
-			s->sk_socket ? SOCK_INODE(s->sk_socket)->i_ino : 0L);
+			s->sk_socket ? SOCK_INODE(s->sk_socket)->i_iyes : 0L);
 	}
 
 	return 0;
@@ -1438,24 +1438,24 @@ static const struct proto_ops rose_proto_ops = {
 	.release	=	rose_release,
 	.bind		=	rose_bind,
 	.connect	=	rose_connect,
-	.socketpair	=	sock_no_socketpair,
+	.socketpair	=	sock_yes_socketpair,
 	.accept		=	rose_accept,
 	.getname	=	rose_getname,
 	.poll		=	datagram_poll,
 	.ioctl		=	rose_ioctl,
 	.gettstamp	=	sock_gettstamp,
 	.listen		=	rose_listen,
-	.shutdown	=	sock_no_shutdown,
+	.shutdown	=	sock_yes_shutdown,
 	.setsockopt	=	rose_setsockopt,
 	.getsockopt	=	rose_getsockopt,
 	.sendmsg	=	rose_sendmsg,
 	.recvmsg	=	rose_recvmsg,
-	.mmap		=	sock_no_mmap,
-	.sendpage	=	sock_no_sendpage,
+	.mmap		=	sock_yes_mmap,
+	.sendpage	=	sock_yes_sendpage,
 };
 
-static struct notifier_block rose_dev_notifier = {
-	.notifier_call	=	rose_device_event,
+static struct yestifier_block rose_dev_yestifier = {
+	.yestifier_call	=	rose_device_event,
 };
 
 static struct net_device **dev_rose;
@@ -1465,7 +1465,7 @@ static struct ax25_protocol rose_pid = {
 	.func	= rose_route_frame
 };
 
-static struct ax25_linkfail rose_linkfail_notifier = {
+static struct ax25_linkfail rose_linkfail_yestifier = {
 	.func	= rose_link_failed
 };
 
@@ -1515,10 +1515,10 @@ static int __init rose_proto_init(void)
 	}
 
 	sock_register(&rose_family_ops);
-	register_netdevice_notifier(&rose_dev_notifier);
+	register_netdevice_yestifier(&rose_dev_yestifier);
 
 	ax25_register_pid(&rose_pid);
-	ax25_linkfail_register(&rose_linkfail_notifier);
+	ax25_linkfail_register(&rose_linkfail_yestifier);
 
 #ifdef CONFIG_SYSCTL
 	rose_register_sysctl();
@@ -1530,8 +1530,8 @@ static int __init rose_proto_init(void)
 	proc_create_seq("rose", 0444, init_net.proc_net, &rose_info_seqops);
 	proc_create_seq("rose_neigh", 0444, init_net.proc_net,
 		    &rose_neigh_seqops);
-	proc_create_seq("rose_nodes", 0444, init_net.proc_net,
-		    &rose_node_seqops);
+	proc_create_seq("rose_yesdes", 0444, init_net.proc_net,
+		    &rose_yesde_seqops);
 	proc_create_seq("rose_routes", 0444, init_net.proc_net,
 		    &rose_route_seqops);
 out:
@@ -1562,14 +1562,14 @@ static void __exit rose_exit(void)
 
 	remove_proc_entry("rose", init_net.proc_net);
 	remove_proc_entry("rose_neigh", init_net.proc_net);
-	remove_proc_entry("rose_nodes", init_net.proc_net);
+	remove_proc_entry("rose_yesdes", init_net.proc_net);
 	remove_proc_entry("rose_routes", init_net.proc_net);
 	rose_loopback_clear();
 
 	rose_rt_free();
 
 	ax25_protocol_release(AX25_P_ROSE);
-	ax25_linkfail_release(&rose_linkfail_notifier);
+	ax25_linkfail_release(&rose_linkfail_yestifier);
 
 	if (ax25cmp(&rose_callsign, &null_ax25_address) != 0)
 		ax25_listen_release(&rose_callsign, NULL);
@@ -1577,7 +1577,7 @@ static void __exit rose_exit(void)
 #ifdef CONFIG_SYSCTL
 	rose_unregister_sysctl();
 #endif
-	unregister_netdevice_notifier(&rose_dev_notifier);
+	unregister_netdevice_yestifier(&rose_dev_yestifier);
 
 	sock_unregister(PF_ROSE);
 

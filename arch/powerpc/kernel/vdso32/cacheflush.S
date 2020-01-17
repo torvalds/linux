@@ -33,11 +33,11 @@ V_FUNCTION_BEGIN(__kernel_sync_dicache)
 	addi	r5,r7,-1
 	andc	r6,r11,r5		/* round low to line bdy */
 	subf	r8,r6,r4		/* compute length */
-	add	r8,r8,r5		/* ensure we get enough */
+	add	r8,r8,r5		/* ensure we get eyesugh */
 	lwz	r9,CFG_DCACHE_LOGBLOCKSZ(r10)
 	srw.	r8,r8,r9		/* compute line count */
 	crclr	cr0*4+so
-	beqlr				/* nothing to do? */
+	beqlr				/* yesthing to do? */
 	mtctr	r8
 1:	dcbst	0,r6
 	add	r6,r6,r7
@@ -54,7 +54,7 @@ V_FUNCTION_BEGIN(__kernel_sync_dicache)
 	lwz	r9,CFG_ICACHE_LOGBLOCKSZ(r10)
 	srw.	r8,r8,r9		/* compute line count */
 	crclr	cr0*4+so
-	beqlr				/* nothing to do? */
+	beqlr				/* yesthing to do? */
 	mtctr	r8
 2:	icbi	0,r6
 	add	r6,r6,r7

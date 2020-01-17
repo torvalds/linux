@@ -46,7 +46,7 @@
  * +--------+--------+--------+--------+--------+--------+--------+--------+
  * |   0    |   0    |  CALIB |  INTRM |   0    |   0    |   0    |   0    |
  * +--------+--------+--------+--------+--------+--------+--------+--------+
- * CALIB: 0 = not to use calibration result (*)
+ * CALIB: 0 = yest to use calibration result (*)
  *        1 = use calibration result
  * INTRM: 0 = INT output depend on "pen down" (*)
  *        1 = INT output always "0"
@@ -101,7 +101,7 @@
  *        1 = internal pull-up resistance for touch detection is ~90kohms
  * DUAL: 0 = dual touch detection off (*)
  *       1 = dual touch detection on
- * PIDAC_OFS: dual touch detection circuit adjustment, it is not necessary
+ * PIDAC_OFS: dual touch detection circuit adjustment, it is yest necessary
  *            to change this from initial value
  */
 #define BU21029_CFR3_REG	(0x0B << 3)
@@ -343,7 +343,7 @@ static int bu21029_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA |
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
 		dev_err(&client->dev,
-			"i2c functionality support is not sufficient\n");
+			"i2c functionality support is yest sufficient\n");
 		return -EIO;
 	}
 

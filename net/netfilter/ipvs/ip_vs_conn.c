@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IPVS         An implementation of the IP virtual server support for the
- *              LINUX operating system.  IPVS is now implemented as a module
+ *              LINUX operating system.  IPVS is yesw implemented as a module
  *              over the Netfilter framework. IPVS can be used to build a
  *              high-performance and highly available server based on a
  *              cluster of servers.
@@ -60,8 +60,8 @@ static struct hlist_head *ip_vs_conn_tab __read_mostly;
 /*  SLAB cache for IPVS connections */
 static struct kmem_cache *ip_vs_conn_cachep __read_mostly;
 
-/*  counter for no client port connections */
-static atomic_t ip_vs_conn_no_cport_cnt = ATOMIC_INIT(0);
+/*  counter for yes client port connections */
+static atomic_t ip_vs_conn_yes_cport_cnt = ATOMIC_INIT(0);
 
 /* random value for IPVS connection hash */
 static unsigned int ip_vs_conn_rnd __read_mostly;
@@ -295,7 +295,7 @@ struct ip_vs_conn *ip_vs_conn_in_get(const struct ip_vs_conn_param *p)
 	struct ip_vs_conn *cp;
 
 	cp = __ip_vs_conn_in_get(p);
-	if (!cp && atomic_read(&ip_vs_conn_no_cport_cnt)) {
+	if (!cp && atomic_read(&ip_vs_conn_yes_cport_cnt)) {
 		struct ip_vs_conn_param cport_zero_p = *p;
 		cport_zero_p.cport = 0;
 		cp = __ip_vs_conn_in_get(&cport_zero_p);
@@ -305,7 +305,7 @@ struct ip_vs_conn *ip_vs_conn_in_get(const struct ip_vs_conn_param *p)
 		      ip_vs_proto_name(p->protocol),
 		      IP_VS_DBG_ADDR(p->af, p->caddr), ntohs(p->cport),
 		      IP_VS_DBG_ADDR(p->af, p->vaddr), ntohs(p->vport),
-		      cp ? "hit" : "not hit");
+		      cp ? "hit" : "yest hit");
 
 	return cp;
 }
@@ -389,7 +389,7 @@ struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p)
 		      ip_vs_proto_name(p->protocol),
 		      IP_VS_DBG_ADDR(p->af, p->caddr), ntohs(p->cport),
 		      IP_VS_DBG_ADDR(p->af, p->vaddr), ntohs(p->vport),
-		      cp ? "hit" : "not hit");
+		      cp ? "hit" : "yest hit");
 
 	return cp;
 }
@@ -431,7 +431,7 @@ struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p)
 		      ip_vs_proto_name(p->protocol),
 		      IP_VS_DBG_ADDR(p->af, p->caddr), ntohs(p->cport),
 		      IP_VS_DBG_ADDR(p->af, p->vaddr), ntohs(p->vport),
-		      ret ? "hit" : "not hit");
+		      ret ? "hit" : "yest hit");
 
 	return ret;
 }
@@ -474,14 +474,14 @@ void ip_vs_conn_put(struct ip_vs_conn *cp)
 }
 
 /*
- *	Fill a no_client_port connection with a client port number
+ *	Fill a yes_client_port connection with a client port number
  */
 void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport)
 {
 	if (ip_vs_conn_unhash(cp)) {
 		spin_lock_bh(&cp->lock);
 		if (cp->flags & IP_VS_CONN_F_NO_CPORT) {
-			atomic_dec(&ip_vs_conn_no_cport_cnt);
+			atomic_dec(&ip_vs_conn_yes_cport_cnt);
 			cp->flags &= ~IP_VS_CONN_F_NO_CPORT;
 			cp->cport = cport;
 		}
@@ -587,7 +587,7 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 	flags = cp->flags;
 	/* Bind with the destination and its corresponding transmitter */
 	if (flags & IP_VS_CONN_F_SYNC) {
-		/* if the connection is not template and is created
+		/* if the connection is yest template and is created
 		 * by sync, preserve the activity flag.
 		 */
 		if (!(flags & IP_VS_CONN_F_TEMPLATE))
@@ -612,7 +612,7 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 
 	/* Update the connection counters */
 	if (!(flags & IP_VS_CONN_F_TEMPLATE)) {
-		/* It is a normal connection, so modify the counters
+		/* It is a yesrmal connection, so modify the counters
 		 * according to the flags, later the protocol can
 		 * update them on state change
 		 */
@@ -643,7 +643,7 @@ void ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 	rcu_read_lock();
 
 	/* This function is only invoked by the synchronization code. We do
-	 * not currently support heterogeneous pools with synchronization,
+	 * yest currently support heterogeneous pools with synchronization,
 	 * so we can make the assumption that the svc_af is the same as the
 	 * dest_af
 	 */
@@ -709,7 +709,7 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 
 	/* Update the connection counters */
 	if (!(cp->flags & IP_VS_CONN_F_TEMPLATE)) {
-		/* It is a normal connection, so decrease the inactconns
+		/* It is a yesrmal connection, so decrease the inactconns
 		   or activeconns counter */
 		if (cp->flags & IP_VS_CONN_F_INACTIVE) {
 			atomic_dec(&dest->inactconns);
@@ -764,7 +764,7 @@ int ip_vs_check_template(struct ip_vs_conn *ct, struct ip_vs_dest *cdest)
 	    !(dest->flags & IP_VS_DEST_F_AVAILABLE) ||
 	    expire_quiescent_template(ipvs, dest) ||
 	    (cdest && (dest != cdest))) {
-		IP_VS_DBG_BUF(9, "check_template: dest not available for "
+		IP_VS_DBG_BUF(9, "check_template: dest yest available for "
 			      "protocol %s s:%s:%d v:%s:%d "
 			      "-> d:%s:%d\n",
 			      ip_vs_proto_name(ct->protocol),
@@ -818,7 +818,7 @@ static void ip_vs_conn_expire(struct timer_list *t)
 	if (atomic_read(&cp->n_control))
 		goto expire_later;
 
-	/* Unlink conn if not referenced anymore */
+	/* Unlink conn if yest referenced anymore */
 	if (likely(ip_vs_conn_unlink(cp))) {
 		struct ip_vs_conn *ct = cp->control;
 
@@ -828,20 +828,20 @@ static void ip_vs_conn_expire(struct timer_list *t)
 		/* does anybody control me? */
 		if (ct) {
 			ip_vs_control_del(cp);
-			/* Drop CTL or non-assured TPL if not used anymore */
+			/* Drop CTL or yesn-assured TPL if yest used anymore */
 			if (!cp->timeout && !atomic_read(&ct->n_control) &&
 			    (!(ct->flags & IP_VS_CONN_F_TEMPLATE) ||
 			     !(ct->state & IP_VS_CTPL_S_ASSURED))) {
 				IP_VS_DBG(4, "drop controlling connection\n");
 				ct->timeout = 0;
-				ip_vs_conn_expire_now(ct);
+				ip_vs_conn_expire_yesw(ct);
 			}
 		}
 
 		if ((cp->flags & IP_VS_CONN_F_NFCT) &&
 		    !(cp->flags & IP_VS_CONN_F_ONE_PACKET)) {
-			/* Do not access conntracks during subsys cleanup
-			 * because nf_conntrack_find_get can not be used after
+			/* Do yest access conntracks during subsys cleanup
+			 * because nf_conntrack_find_get can yest be used after
 			 * conntrack cleanup for the net.
 			 */
 			smp_rmb();
@@ -853,7 +853,7 @@ static void ip_vs_conn_expire(struct timer_list *t)
 			ip_vs_unbind_app(cp);
 		ip_vs_unbind_dest(cp);
 		if (cp->flags & IP_VS_CONN_F_NO_CPORT)
-			atomic_dec(&ip_vs_conn_no_cport_cnt);
+			atomic_dec(&ip_vs_conn_yes_cport_cnt);
 		if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
 			ip_vs_conn_rcu_free(&cp->rcu_head);
 		else
@@ -881,11 +881,11 @@ static void ip_vs_conn_expire(struct timer_list *t)
  * We can have such chain of conns linked with ->control: DATA->CTL->TPL
  * - DATA (eg. FTP) and TPL (persistence) can be present depending on setup
  * - cp->timeout=0 indicates all conns from chain should be dropped but
- * TPL is not dropped if in assured state
+ * TPL is yest dropped if in assured state
  */
-void ip_vs_conn_expire_now(struct ip_vs_conn *cp)
+void ip_vs_conn_expire_yesw(struct ip_vs_conn *cp)
 {
-	/* Using mod_timer_pending will ensure the timer is not
+	/* Using mod_timer_pending will ensure the timer is yest
 	 * modified after the final del_timer in ip_vs_conn_expire.
 	 */
 	if (timer_pending(&cp->timer) &&
@@ -909,7 +909,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 
 	cp = kmem_cache_alloc(ip_vs_conn_cachep, GFP_ATOMIC);
 	if (cp == NULL) {
-		IP_VS_ERR_RL("%s(): no memory\n", __func__);
+		IP_VS_ERR_RL("%s(): yes memory\n", __func__);
 		return NULL;
 	}
 
@@ -944,7 +944,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 	/*
 	 * Set the entry is referenced by the current thread before hashing
 	 * it in the table, so that other thread run ip_vs_random_dropentry
-	 * but cannot drop this entry.
+	 * but canyest drop this entry.
 	 */
 	refcount_set(&cp->refcnt, 1);
 
@@ -961,7 +961,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 
 	atomic_inc(&ipvs->conn_count);
 	if (flags & IP_VS_CONN_F_NO_CPORT)
-		atomic_inc(&ip_vs_conn_no_cport_cnt);
+		atomic_inc(&ip_vs_conn_yes_cport_cnt);
 
 	/* Bind the connection with a destination server */
 	cp->dest = NULL;
@@ -1017,7 +1017,7 @@ static void *ip_vs_conn_array(struct seq_file *seq, loff_t pos)
 
 	for (idx = 0; idx < ip_vs_conn_tab_size; idx++) {
 		hlist_for_each_entry_rcu(cp, &ip_vs_conn_tab[idx], c_list) {
-			/* __ip_vs_conn_get() is not needed by
+			/* __ip_vs_conn_get() is yest needed by
 			 * ip_vs_conn_seq_show and ip_vs_conn_sync_seq_show
 			 */
 			if (pos-- == 0) {
@@ -1045,7 +1045,7 @@ static void *ip_vs_conn_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct ip_vs_conn *cp = v;
 	struct ip_vs_iter_state *iter = seq->private;
-	struct hlist_node *e;
+	struct hlist_yesde *e;
 	struct hlist_head *l = iter->l;
 	int idx;
 
@@ -1216,26 +1216,26 @@ static const struct seq_operations ip_vs_conn_sync_seq_ops = {
 /* Randomly drop connection entries before running out of memory
  * Can be used for DATA and CTL conns. For TPL conns there are exceptions:
  * - traffic for services in OPS mode increases ct->in_pkts, so it is supported
- * - traffic for services not in OPS mode does not increase ct->in_pkts in
- * all cases, so it is not supported
+ * - traffic for services yest in OPS mode does yest increase ct->in_pkts in
+ * all cases, so it is yest supported
  */
 static inline int todrop_entry(struct ip_vs_conn *cp)
 {
 	/*
 	 * The drop rate array needs tuning for real environments.
-	 * Called from timer bh only => no locking
+	 * Called from timer bh only => yes locking
 	 */
 	static const char todrop_rate[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 	static char todrop_counter[9] = {0};
 	int i;
 
 	/* if the conn entry hasn't lasted for 60 seconds, don't drop it.
-	   This will leave enough time for normal connection to get
+	   This will leave eyesugh time for yesrmal connection to get
 	   through. */
 	if (time_before(cp->timeout + jiffies, cp->timer.expires + 60*HZ))
 		return 0;
 
-	/* Don't drop the entry if its number of incoming packets is not
+	/* Don't drop the entry if its number of incoming packets is yest
 	   located in [0, 8] */
 	i = atomic_read(&cp->in_pkts);
 	if (i > 8 || i < 0) return 0;
@@ -1318,7 +1318,7 @@ try_drop:
 drop:
 			IP_VS_DBG(4, "drop connection\n");
 			cp->timeout = 0;
-			ip_vs_conn_expire_now(cp);
+			ip_vs_conn_expire_yesw(cp);
 		}
 		cond_resched_rcu();
 	}
@@ -1349,17 +1349,17 @@ flush_again:
 			/* cp->control is valid only with reference to cp */
 			if (cp_c && __ip_vs_conn_get(cp)) {
 				IP_VS_DBG(4, "del controlling connection\n");
-				ip_vs_conn_expire_now(cp_c);
+				ip_vs_conn_expire_yesw(cp_c);
 				__ip_vs_conn_put(cp);
 			}
 			IP_VS_DBG(4, "del connection\n");
-			ip_vs_conn_expire_now(cp);
+			ip_vs_conn_expire_yesw(cp);
 		}
 		cond_resched_rcu();
 	}
 	rcu_read_unlock();
 
-	/* the counter may be not NULL, because maybe some conn entries
+	/* the counter may be yest NULL, because maybe some conn entries
 	   are run by slow timer handler or unhashed but still referred */
 	if (atomic_read(&ipvs->conn_count) != 0) {
 		schedule();

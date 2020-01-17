@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/linkage.h>
 #include <asm/unistd.h>
@@ -54,7 +54,7 @@
 	cmovn	$sp, $p0, $p0
 
 	iret
-	nop
+	yesp
 
 	.endm
 
@@ -80,7 +80,7 @@
 	setgie.d
 	isb
 	.endm
-#define	resume_kernel	no_work_pending
+#define	resume_kernel	yes_work_pending
 #endif
 
 ENTRY(ret_from_exception)
@@ -121,11 +121,11 @@ work_pending:
 	bnez	$p1, work_resched
 
 	andi	$p1, $r1, #_TIF_SIGPENDING|#_TIF_NOTIFY_RESUME
-	beqz	$p1, no_work_pending
+	beqz	$p1, yes_work_pending
 
 	move	$r0, $sp			! 'regs'
 	gie_enable
-	bal	do_notify_resume
+	bal	do_yestify_resume
 	b       ret_slow_syscall
 work_resched:
 	bal	schedule			! path, return to user mode
@@ -138,12 +138,12 @@ ENTRY(ret_slow_syscall)
 	gie_disable
 	lwi	$p0, [$sp+(#IPSW_OFFSET)]	! Check if in nested interrupt
 	andi	$p0, $p0, #PSW_mskINTL
-	bnez	$p0, no_work_pending		! done with iret
+	bnez	$p0, yes_work_pending		! done with iret
 	lwi	$r1, [tsk+#TSK_TI_FLAGS]
 	andi	$p1, $r1, #_TIF_WORK_MASK
 	bnez	$p1, work_pending		! handle work_resched, sig_pend
 
-no_work_pending:
+yes_work_pending:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	lwi	$p0, [$sp+(#IPSW_OFFSET)]
 	andi	$p0, $p0, #0x1
@@ -162,18 +162,18 @@ no_work_pending:
 resume_kernel:
 	gie_disable
 	lwi	$t0, [tsk+#TSK_TI_PREEMPT]
-	bnez	$t0, no_work_pending
+	bnez	$t0, yes_work_pending
 
 	lwi	$t0, [tsk+#TSK_TI_FLAGS]
 	andi	$p1, $t0, #_TIF_NEED_RESCHED
-	beqz	$p1, no_work_pending
+	beqz	$p1, yes_work_pending
 
 	lwi	$t0, [$sp+(#IPSW_OFFSET)]	! Interrupts off?
 	andi	$t0, $t0, #1
-	beqz	$t0, no_work_pending
+	beqz	$t0, yes_work_pending
 
 	jal	preempt_schedule_irq
-	b	no_work_pending
+	b	yes_work_pending
 #endif
 
 /*

@@ -29,7 +29,7 @@
 
 #define TFC_SESS_DBG(lport, fmt, args...) \
 	pr_debug("host%u: rport %6.6x: " fmt,	   \
-		 (lport)->host->host_no,	   \
+		 (lport)->host->host_yes,	   \
 		 (lport)->port_id, ##args )
 
 static void ft_sess_delete_all(struct ft_tport *);
@@ -127,7 +127,7 @@ void ft_lport_del(struct fc_lport *lport, void *arg)
  * Notification of local port change from libfc.
  * Create or delete local port and associated tport.
  */
-int ft_lport_notify(struct notifier_block *nb, unsigned long event, void *arg)
+int ft_lport_yestify(struct yestifier_block *nb, unsigned long event, void *arg)
 {
 	struct fc_lport *lport = arg;
 
@@ -160,12 +160,12 @@ static struct ft_sess *ft_sess_get(struct fc_lport *lport, u32 port_id)
 	struct ft_tport *tport;
 	struct hlist_head *head;
 	struct ft_sess *sess;
-	char *reason = "no session created";
+	char *reason = "yes session created";
 
 	rcu_read_lock();
 	tport = rcu_dereference(lport->prov[FC_TYPE_FCP]);
 	if (!tport) {
-		reason = "not an FCP port";
+		reason = "yest an FCP port";
 		goto out;
 	}
 
@@ -181,7 +181,7 @@ static struct ft_sess *ft_sess_get(struct fc_lport *lport, u32 port_id)
 	}
 out:
 	rcu_read_unlock();
-	TFC_SESS_DBG(lport, "port_id %x not found, %s\n",
+	TFC_SESS_DBG(lport, "port_id %x yest found, %s\n",
 		     port_id, reason);
 	return NULL;
 }
@@ -329,7 +329,7 @@ u32 ft_sess_get_index(struct se_session *se_sess)
 {
 	struct ft_sess *sess = se_sess->fabric_sess_ptr;
 
-	return sess->port_id;	/* XXX TBD probably not what is needed */
+	return sess->port_id;	/* XXX TBD probably yest what is needed */
 }
 
 u32 ft_sess_get_port_name(struct se_session *se_sess,
@@ -353,7 +353,7 @@ static int ft_prli_locked(struct fc_rport_priv *rdata, u32 spp_len,
 
 	tport = ft_tport_get(rdata->local_port);
 	if (!tport)
-		goto not_target;	/* not a target for this local port */
+		goto yest_target;	/* yest a target for this local port */
 
 	if (!rspp)
 		goto fill;
@@ -402,7 +402,7 @@ fill:
 	spp->spp_params = htonl(fcp_parm | FCP_SPPF_TARG_FCN);
 	return FC_SPP_RESP_ACK;
 
-not_target:
+yest_target:
 	fcp_parm = ntohl(spp->spp_params);
 	fcp_parm &= ~FCP_SPPF_TARG_FCN;
 	spp->spp_params = htonl(fcp_parm);

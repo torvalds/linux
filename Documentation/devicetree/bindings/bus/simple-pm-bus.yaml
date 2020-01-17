@@ -19,11 +19,11 @@ description: |
   on-SoC or externally) to function.
 
   While "simple-pm-bus" follows the "simple-bus" set of properties, as
-  specified in the Devicetree Specification, it is not an extension of
+  specified in the Devicetree Specification, it is yest an extension of
   "simple-bus".
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^bus(@[0-9a-f]+)?$"
 
   compatible:

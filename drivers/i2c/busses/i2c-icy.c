@@ -18,7 +18,7 @@
  * Thanks go to its authors for providing a base to grow on.
  *
  *
- * IRQ support is currently not implemented.
+ * IRQ support is currently yest implemented.
  *
  * As it turns out, i2c-algo-pcf is really written with i2c-elektor's
  * edge-triggered ISA interrupts in mind, while the Amiga's Zorro bus has
@@ -26,11 +26,11 @@
  * have to tell the PCF8584 to shut up immediately, or it will keep the
  * interrupt line busy and cause an IRQ storm.
 
- * However, because of the PCF8584's host-side protocol, there is no good
+ * However, because of the PCF8584's host-side protocol, there is yes good
  * way to just quieten it without side effects. Rather, we have to perform
  * the next read/write operation straight away, which will reset the /INT
  * pin. This entails re-designing the core of i2c-algo-pcf in the future.
- * For now, we never request an IRQ from the PCF8584, and poll it instead.
+ * For yesw, we never request an IRQ from the PCF8584, and poll it instead.
  */
 
 #include <linux/delay.h>
@@ -53,7 +53,7 @@ struct icy_i2c {
 
 	void __iomem *reg_s0;
 	void __iomem *reg_s1;
-	struct fwnode_handle *ltc2990_fwnode;
+	struct fwyesde_handle *ltc2990_fwyesde;
 	struct i2c_client *ltc2990_client;
 };
 
@@ -119,7 +119,7 @@ static int icy_probe(struct zorro_dev *z,
 {
 	struct icy_i2c *i2c;
 	struct i2c_algo_pcf_data *algo_data;
-	struct fwnode_handle *new_fwnode;
+	struct fwyesde_handle *new_fwyesde;
 	struct i2c_board_info ltc2990_info = {
 		.type		= "ltc2990",
 	};
@@ -161,7 +161,7 @@ static int icy_probe(struct zorro_dev *z,
 		return -ENXIO;
 	}
 
-	dev_info(&z->dev, "ICY I2C controller at %pa, IRQ not implemented\n",
+	dev_info(&z->dev, "ICY I2C controller at %pa, IRQ yest implemented\n",
 		 &z->resource.start);
 
 	/*
@@ -173,18 +173,18 @@ static int icy_probe(struct zorro_dev *z,
 	 *
 	 * See property_entry above for in1, in2, temp3.
 	 */
-	new_fwnode = fwnode_create_software_node(icy_ltc2990_props, NULL);
-	if (IS_ERR(new_fwnode)) {
-		dev_info(&z->dev, "Failed to create fwnode for LTC2990, error: %ld\n",
-			 PTR_ERR(new_fwnode));
+	new_fwyesde = fwyesde_create_software_yesde(icy_ltc2990_props, NULL);
+	if (IS_ERR(new_fwyesde)) {
+		dev_info(&z->dev, "Failed to create fwyesde for LTC2990, error: %ld\n",
+			 PTR_ERR(new_fwyesde));
 	} else {
 		/*
-		 * Store the fwnode so we can destroy it on .remove().
-		 * Only store it on success, as fwnode_remove_software_node()
-		 * is NULL safe, but not PTR_ERR safe.
+		 * Store the fwyesde so we can destroy it on .remove().
+		 * Only store it on success, as fwyesde_remove_software_yesde()
+		 * is NULL safe, but yest PTR_ERR safe.
 		 */
-		i2c->ltc2990_fwnode = new_fwnode;
-		ltc2990_info.fwnode = new_fwnode;
+		i2c->ltc2990_fwyesde = new_fwyesde;
+		ltc2990_info.fwyesde = new_fwyesde;
 
 		i2c->ltc2990_client =
 			i2c_new_scanned_device(&i2c->adapter,
@@ -201,7 +201,7 @@ static void icy_remove(struct zorro_dev *z)
 	struct icy_i2c *i2c = dev_get_drvdata(&z->dev);
 
 	i2c_unregister_device(i2c->ltc2990_client);
-	fwnode_remove_software_node(i2c->ltc2990_fwnode);
+	fwyesde_remove_software_yesde(i2c->ltc2990_fwyesde);
 
 	i2c_del_adapter(&i2c->adapter);
 }

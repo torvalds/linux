@@ -24,9 +24,9 @@
 
 static DEFINE_SPINLOCK(die_lock);
 
-static void _send_sig(int signo, int code, unsigned long addr)
+static void _send_sig(int sigyes, int code, unsigned long addr)
 {
-	force_sig_fault(signo, code, (void __user *) addr);
+	force_sig_fault(sigyes, code, (void __user *) addr);
 }
 
 void die(const char *str, struct pt_regs *regs, long err)
@@ -43,16 +43,16 @@ void die(const char *str, struct pt_regs *regs, long err)
 	do_exit(err);
 }
 
-void _exception(int signo, struct pt_regs *regs, int code, unsigned long addr)
+void _exception(int sigyes, struct pt_regs *regs, int code, unsigned long addr)
 {
 	if (!user_mode(regs))
-		die("Exception in kernel mode", regs, signo);
+		die("Exception in kernel mode", regs, sigyes);
 
-	_send_sig(signo, code, addr);
+	_send_sig(sigyes, code, addr);
 }
 
 /*
- * The show_stack is an external API which we do not use ourselves.
+ * The show_stack is an external API which we do yest use ourselves.
  */
 
 int kstack_depth_to_print = 48;

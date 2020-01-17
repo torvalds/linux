@@ -122,7 +122,7 @@ static int wmt_ge_rops_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "no I/O memory resource defined\n");
+		dev_err(&pdev->dev, "yes I/O memory resource defined\n");
 		return -ENODEV;
 	}
 

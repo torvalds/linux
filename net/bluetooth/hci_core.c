@@ -139,8 +139,8 @@ static ssize_t vendor_diag_write(struct file *file, const char __user *user_buf,
 	if (err)
 		return err;
 
-	/* When the diagnostic flags are not persistent and the transport
-	 * is not active or in user channel operation, then there is no need
+	/* When the diagyesstic flags are yest persistent and the transport
+	 * is yest active or in user channel operation, then there is yes need
 	 * for the vendor callback. Instead just store the desired value and
 	 * the setting will be programmed when the controller gets powered on.
 	 */
@@ -259,7 +259,7 @@ static int hci_init1_req(struct hci_request *req, unsigned long opt)
 		amp_init1(req);
 		break;
 	default:
-		bt_dev_err(hdev, "Unknown device type %d", hdev->dev_type);
+		bt_dev_err(hdev, "Unkyeswn device type %d", hdev->dev_type);
 		break;
 	}
 
@@ -326,7 +326,7 @@ static void hci_setup_event_mask(struct hci_request *req)
 	 */
 	u8 events[8] = { 0xff, 0xff, 0xfb, 0xff, 0x00, 0x00, 0x00, 0x00 };
 
-	/* CSR 1.1 dongles does not accept any bitfield so don't try to set
+	/* CSR 1.1 dongles does yest accept any bitfield so don't try to set
 	 * any event mask for pre 1.2 devices.
 	 */
 	if (hdev->hci_ver < BLUETOOTH_VER_1_2)
@@ -373,8 +373,8 @@ static void hci_setup_event_mask(struct hci_request *req)
 		events[4] |= 0x04; /* Read Remote Extended Features Complete */
 
 	if (lmp_esco_capable(hdev)) {
-		events[5] |= 0x08; /* Synchronous Connection Complete */
-		events[5] |= 0x10; /* Synchronous Connection Changed */
+		events[5] |= 0x08; /* Synchroyesus Connection Complete */
+		events[5] |= 0x10; /* Synchroyesus Connection Changed */
 	}
 
 	if (lmp_sniffsubr_capable(hdev))
@@ -386,7 +386,7 @@ static void hci_setup_event_mask(struct hci_request *req)
 	if (lmp_ext_inq_capable(hdev))
 		events[5] |= 0x40; /* Extended Inquiry Result */
 
-	if (lmp_no_flush_capable(hdev))
+	if (lmp_yes_flush_capable(hdev))
 		events[7] |= 0x01; /* Enhanced Flush Complete */
 
 	if (lmp_lsto_capable(hdev))
@@ -431,7 +431,7 @@ static int hci_init2_req(struct hci_request *req, unsigned long opt)
 	 * HCI command for reading the local supported commands.
 	 *
 	 * Unfortunately some controllers indicate Bluetooth 1.2 support,
-	 * but do not have support for this command. If that is the case,
+	 * but do yest have support for this command. If that is the case,
 	 * the driver can quirk the behavior and skip reading the local
 	 * supported commands.
 	 */
@@ -443,7 +443,7 @@ static int hci_init2_req(struct hci_request *req, unsigned long opt)
 		/* When SSP is available, then the host features page
 		 * should also be available as well. However some
 		 * controllers list the max_page as 0 as long as SSP
-		 * has not been enabled. To achieve proper debugging
+		 * has yest been enabled. To achieve proper debugging
 		 * output, force the minimum max_page to 1 at least.
 		 */
 		hdev->max_page = 0x01;
@@ -520,7 +520,7 @@ static void hci_set_le_support(struct hci_request *req)
 	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_write_le_host_supported cp;
 
-	/* LE-only devices do not support explicit enablement */
+	/* LE-only devices do yest support explicit enablement */
 	if (!lmp_bredr_capable(hdev))
 		return;
 
@@ -571,9 +571,9 @@ static void hci_set_event_mask_page_2(struct hci_request *req)
 	}
 
 	/* Some Broadcom based controllers indicate support for Set Event
-	 * Mask Page 2 command, but then actually do not support it. Since
+	 * Mask Page 2 command, but then actually do yest support it. Since
 	 * the default value is all bits set to zero, the command is only
-	 * required if the event mask has to be changed. In case no change
+	 * required if the event mask has to be changed. In case yes change
 	 * to the event mask is needed, skip this command.
 	 */
 	if (changed)
@@ -603,7 +603,7 @@ static int hci_init3_req(struct hci_request *req, unsigned long opt)
 	if (hdev->commands[8] & 0x01)
 		hci_req_add(req, HCI_OP_READ_PAGE_SCAN_ACTIVITY, 0, NULL);
 
-	/* Some older Broadcom based Bluetooth 1.2 controllers do not
+	/* Some older Broadcom based Bluetooth 1.2 controllers do yest
 	 * support the Read Page Scan Type command. Check support for
 	 * this command in the bit mask of supported commands.
 	 */
@@ -728,7 +728,7 @@ static int hci_init3_req(struct hci_request *req, unsigned long opt)
 		if ((hdev->commands[25] & 0x40) && !ext_adv_capable(hdev)) {
 			/* HCI TS spec forbids mixing of legacy and extended
 			 * advertising commands wherein READ_ADV_TX_POWER is
-			 * also included. So do not call it if extended adv
+			 * also included. So do yest call it if extended adv
 			 * is supported otherwise controller will return
 			 * COMMAND_DISALLOWED for extended commands.
 			 */
@@ -790,13 +790,13 @@ static int hci_init4_req(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
 
-	/* Some Broadcom based Bluetooth controllers do not support the
+	/* Some Broadcom based Bluetooth controllers do yest support the
 	 * Delete Stored Link Key command. They are clearly indicating its
 	 * absence in the bit mask of supported commands.
 	 *
 	 * Check the supported commands and only if the the command is marked
-	 * as supported send it. If not supported assume that the controller
-	 * does not have actual support for stored link keys which makes this
+	 * as supported send it. If yest supported assume that the controller
+	 * does yest have actual support for stored link keys which makes this
 	 * command redundant anyway.
 	 *
 	 * Some controllers indicate that they support handling deleting
@@ -893,11 +893,11 @@ static int __hci_init(struct hci_dev *hdev)
 
 	/* This function is only called when the controller is actually in
 	 * configured state. When the controller is marked as unconfigured,
-	 * this initialization procedure is not run.
+	 * this initialization procedure is yest run.
 	 *
 	 * It means that it is possible that a controller runs through its
 	 * setup phase and then discovers missing settings. If that is the
-	 * case, then this function will not be called. It then will only
+	 * case, then this function will yest be called. It then will only
 	 * be called during the config phase.
 	 *
 	 * So only when in setup phase or config phase, create the debugfs
@@ -1077,7 +1077,7 @@ void hci_inquiry_cache_flush(struct hci_dev *hdev)
 		kfree(p);
 	}
 
-	INIT_LIST_HEAD(&cache->unknown);
+	INIT_LIST_HEAD(&cache->unkyeswn);
 	INIT_LIST_HEAD(&cache->resolve);
 }
 
@@ -1097,7 +1097,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev,
 	return NULL;
 }
 
-struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
+struct inquiry_entry *hci_inquiry_cache_lookup_unkyeswn(struct hci_dev *hdev,
 						       bdaddr_t *bdaddr)
 {
 	struct discovery_state *cache = &hdev->discovery;
@@ -1105,7 +1105,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
 
 	BT_DBG("cache %p, %pMR", cache, bdaddr);
 
-	list_for_each_entry(e, &cache->unknown, list) {
+	list_for_each_entry(e, &cache->unkyeswn, list) {
 		if (!bacmp(&e->data.bdaddr, bdaddr))
 			return e;
 	}
@@ -1152,7 +1152,7 @@ void hci_inquiry_cache_update_resolve(struct hci_dev *hdev,
 }
 
 u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
-			     bool name_known)
+			     bool name_kyeswn)
 {
 	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *ie;
@@ -1179,7 +1179,7 @@ u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 		goto update;
 	}
 
-	/* Entry not in the cache. Add new one. */
+	/* Entry yest in the cache. Add new one. */
 	ie = kzalloc(sizeof(*ie), GFP_KERNEL);
 	if (!ie) {
 		flags |= MGMT_DEV_FOUND_CONFIRM_NAME;
@@ -1188,15 +1188,15 @@ u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 
 	list_add(&ie->all, &cache->all);
 
-	if (name_known) {
+	if (name_kyeswn) {
 		ie->name_state = NAME_KNOWN;
 	} else {
 		ie->name_state = NAME_NOT_KNOWN;
-		list_add(&ie->list, &cache->unknown);
+		list_add(&ie->list, &cache->unkyeswn);
 	}
 
 update:
-	if (name_known && ie->name_state != NAME_KNOWN &&
+	if (name_kyeswn && ie->name_state != NAME_KNOWN &&
 	    ie->name_state != NAME_PENDING) {
 		ie->name_state = NAME_KNOWN;
 		list_del(&ie->list);
@@ -1359,22 +1359,22 @@ done:
 /**
  * hci_dev_get_bd_addr_from_property - Get the Bluetooth Device Address
  *				       (BD_ADDR) for a HCI device from
- *				       a firmware node property.
+ *				       a firmware yesde property.
  * @hdev:	The HCI device
  *
- * Search the firmware node for 'local-bd-address'.
+ * Search the firmware yesde for 'local-bd-address'.
  *
  * All-zero BD addresses are rejected, because those could be properties
- * that exist in the firmware tables, but were not updated by the firmware. For
+ * that exist in the firmware tables, but were yest updated by the firmware. For
  * example, the DTS could define 'local-bd-address', with zero BD addresses.
  */
 static void hci_dev_get_bd_addr_from_property(struct hci_dev *hdev)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(hdev->dev.parent);
+	struct fwyesde_handle *fwyesde = dev_fwyesde(hdev->dev.parent);
 	bdaddr_t ba;
 	int ret;
 
-	ret = fwnode_property_read_u8_array(fwnode, "local-bd-address",
+	ret = fwyesde_property_read_u8_array(fwyesde, "local-bd-address",
 					    (u8 *)&ba, sizeof(ba));
 	if (ret < 0 || !bacmp(&ba, BDADDR_ANY))
 		return;
@@ -1408,14 +1408,14 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		/* Check for valid public address or a configured static
 		 * random adddress, but let the HCI setup proceed to
 		 * be able to determine if there is a public address
-		 * or not.
+		 * or yest.
 		 *
-		 * In case of user channel usage, it is not important
+		 * In case of user channel usage, it is yest important
 		 * if a public address or static random address is
 		 * available.
 		 *
 		 * This check is only valid for BR/EDR controllers
-		 * since AMP controllers do not have an address.
+		 * since AMP controllers do yest have an address.
 		 */
 		if (!hci_dev_test_flag(hdev, HCI_USER_CHANNEL) &&
 		    hdev->dev_type == HCI_PRIMARY &&
@@ -1509,7 +1509,7 @@ setup_failed:
 
 	if (hci_dev_test_flag(hdev, HCI_CONFIG)) {
 		/* If public address change is configured, ensure that
-		 * the address gets programmed. If the driver does not
+		 * the address gets programmed. If the driver does yest
 		 * support changing the public address, fail the power
 		 * on procedure.
 		 */
@@ -1529,7 +1529,7 @@ setup_failed:
 		}
 	}
 
-	/* If the HCI Reset command is clearing all diagnostic settings,
+	/* If the HCI Reset command is clearing all diagyesstic settings,
 	 * then they need to be reprogrammed after the init procedure
 	 * completed.
 	 */
@@ -1597,7 +1597,7 @@ int hci_dev_open(__u16 dev)
 		return -ENODEV;
 
 	/* Devices that are marked as unconfigured can only be powered
-	 * up as user channel. Trying to bring them up as normal devices
+	 * up as user channel. Trying to bring them up as yesrmal devices
 	 * will result into a failure. Only user channel operation is
 	 * possible.
 	 *
@@ -1611,9 +1611,9 @@ int hci_dev_open(__u16 dev)
 		goto done;
 	}
 
-	/* We need to ensure that no other power on/off work is pending
+	/* We need to ensure that yes other power on/off work is pending
 	 * before proceeding to call hci_dev_do_open. This is
-	 * particularly important if the setup procedure has not yet
+	 * particularly important if the setup procedure has yest yet
 	 * completed.
 	 */
 	if (hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF))
@@ -1621,11 +1621,11 @@ int hci_dev_open(__u16 dev)
 
 	/* After this call it is guaranteed that the setup procedure
 	 * has finished. This means that error conditions like RFKILL
-	 * or no valid public or static random address apply.
+	 * or yes valid public or static random address apply.
 	 */
 	flush_workqueue(hdev->req_workqueue);
 
-	/* For controllers not using the management interface and that
+	/* For controllers yest using the management interface and that
 	 * are brought up using legacy ioctl, set the HCI_BONDABLE bit
 	 * so that pairing works for them. Once the management interface
 	 * is in use this bit will be cleared again and userspace has
@@ -1765,7 +1765,7 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	hci_sock_dev_event(hdev, HCI_DEV_CLOSE);
 
 	/* After this point our queues are empty
-	 * and no tasks are scheduled. */
+	 * and yes tasks are scheduled. */
 	hdev->close(hdev);
 
 	/* Clear flags */
@@ -1998,7 +1998,7 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 				   HCI_INIT_TIMEOUT, NULL);
 
 		/* Ensure that the connectable and discoverable states
-		 * get correctly modified as this was a non-mgmt change.
+		 * get correctly modified as this was a yesn-mgmt change.
 		 */
 		if (!err)
 			hci_update_scan_state(hdev, dr.dev_opt);
@@ -2199,7 +2199,7 @@ static void hci_power_on(struct work_struct *work)
 	}
 
 	/* During the HCI setup phase, a few error conditions are
-	 * ignored and they need to be checked now. If they are still
+	 * igyesred and they need to be checked yesw. If they are still
 	 * valid, it is important to turn the device back off.
 	 */
 	if (hci_dev_test_flag(hdev, HCI_RFKILLED) ||
@@ -2225,12 +2225,12 @@ static void hci_power_on(struct work_struct *work)
 		 * the Index Added event. For unconfigured devices,
 		 * it will send Unconfigued Index Added event.
 		 *
-		 * Devices with HCI_QUIRK_RAW_DEVICE are ignored
-		 * and no event will be send.
+		 * Devices with HCI_QUIRK_RAW_DEVICE are igyesred
+		 * and yes event will be send.
 		 */
 		mgmt_index_added(hdev);
 	} else if (hci_dev_test_and_clear_flag(hdev, HCI_CONFIG)) {
-		/* When the controller is now configured, then it
+		/* When the controller is yesw configured, then it
 		 * is important to clear the HCI_RAW flag.
 		 */
 		if (!hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
@@ -2338,7 +2338,7 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 	if (key_type == HCI_LK_DEBUG_COMBINATION)
 		return false;
 
-	/* Changed combination key and there's no previous one */
+	/* Changed combination key and there's yes previous one */
 	if (key_type == HCI_LK_CHANGED_COMBINATION && old_key_type == 0xff)
 		return false;
 
@@ -2350,7 +2350,7 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 	if (conn->type == LE_LINK)
 		return true;
 
-	/* Neither local nor remote side had no-bonding as requirement */
+	/* Neither local yesr remote side had yes-bonding as requirement */
 	if (conn->auth_type > 0x01 && conn->remote_auth > 0x01)
 		return true;
 
@@ -2362,7 +2362,7 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 	if (conn->remote_auth == 0x02 || conn->remote_auth == 0x03)
 		return true;
 
-	/* If none of the above criteria match, then don't store the key
+	/* If yesne of the above criteria match, then don't store the key
 	 * persistently */
 	return false;
 }
@@ -2463,7 +2463,7 @@ struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
 	BT_DBG("%s key for %pMR type %u", hdev->name, bdaddr, type);
 
 	/* Some buggy controller combinations generate a changed
-	 * combination key for legacy pairing even when there's no
+	 * combination key for legacy pairing even when there's yes
 	 * previous key */
 	if (type == HCI_LK_CHANGED_COMBINATION &&
 	    (!conn || conn->remote_auth == 0xff) && old_key_type == 0xff) {
@@ -3286,7 +3286,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (!hdev->open || !hdev->close || !hdev->send)
 		return -EINVAL;
 
-	/* Do not allow HCI_AMP devices to register at index 0,
+	/* Do yest allow HCI_AMP devices to register at index 0,
 	 * so the index can be used as the AMP controller ID.
 	 */
 	switch (hdev->dev_type) {
@@ -3361,7 +3361,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	write_unlock(&hci_dev_list_lock);
 
 	/* Devices that are marked for raw-only usage are unconfigured
-	 * and should not be included in normal operation.
+	 * and should yest be included in yesrmal operation.
 	 */
 	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 		hci_dev_set_flag(hdev, HCI_UNCONFIGURED);
@@ -3514,10 +3514,10 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(hci_recv_frame);
 
-/* Receive diagnostic message from HCI drivers */
+/* Receive diagyesstic message from HCI drivers */
 int hci_recv_diag(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	/* Mark as diagnostic packet */
+	/* Mark as diagyesstic packet */
 	hci_skb_pkt_type(skb) = HCI_DIAG_PKT;
 
 	/* Time stamp */
@@ -3621,7 +3621,7 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen,
 
 	skb = hci_prepare_cmd(hdev, opcode, plen, param);
 	if (!skb) {
-		bt_dev_err(hdev, "no memory for command");
+		bt_dev_err(hdev, "yes memory for command");
 		return -ENOMEM;
 	}
 
@@ -3646,17 +3646,17 @@ int __hci_cmd_send(struct hci_dev *hdev, u16 opcode, u32 plen,
 		 * a Command Status Event or a Command Complete Event.
 		 * Therefore, all standard HCI commands must be sent via the
 		 * standard API, using hci_send_cmd or hci_cmd_sync helpers.
-		 * Some vendors do not comply with this rule for vendor-specific
-		 * commands and do not return any event. We want to support
+		 * Some vendors do yest comply with this rule for vendor-specific
+		 * commands and do yest return any event. We want to support
 		 * unresponded commands for such cases only.
 		 */
-		bt_dev_err(hdev, "unresponded command not supported");
+		bt_dev_err(hdev, "unresponded command yest supported");
 		return -EINVAL;
 	}
 
 	skb = hci_prepare_cmd(hdev, opcode, plen, param);
 	if (!skb) {
-		bt_dev_err(hdev, "no memory for command (opcode 0x%4.4x)",
+		bt_dev_err(hdev, "yes memory for command (opcode 0x%4.4x)",
 			   opcode);
 		return -ENOMEM;
 	}
@@ -3737,14 +3737,14 @@ static void hci_queue_acl(struct hci_chan *chan, struct sk_buff_head *queue,
 		hci_add_acl_hdr(skb, chan->handle, flags);
 		break;
 	default:
-		bt_dev_err(hdev, "unknown dev_type %d", hdev->dev_type);
+		bt_dev_err(hdev, "unkyeswn dev_type %d", hdev->dev_type);
 		return;
 	}
 
 	list = skb_shinfo(skb)->frag_list;
 	if (!list) {
 		/* Non fragmented */
-		BT_DBG("%s nonfrag skb %p len %d", hdev->name, skb, skb->len);
+		BT_DBG("%s yesnfrag skb %p len %d", hdev->name, skb, skb->len);
 
 		skb_queue_tail(queue, skb);
 	} else {
@@ -3755,7 +3755,7 @@ static void hci_queue_acl(struct hci_chan *chan, struct sk_buff_head *queue,
 
 		/* Queue all fragments atomically. We need to use spin_lock_bh
 		 * here because of 6LoWPAN links, as there this function is
-		 * called from softirq and using normal spin lock could cause
+		 * called from softirq and using yesrmal spin lock could cause
 		 * deadlocks.
 		 */
 		spin_lock_bh(&queue->lock);
@@ -3862,7 +3862,7 @@ static struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type,
 			break;
 		default:
 			cnt = 0;
-			bt_dev_err(hdev, "unknown link type %d", conn->type);
+			bt_dev_err(hdev, "unkyeswn link type %d", conn->type);
 		}
 
 		q = cnt / num;
@@ -3968,7 +3968,7 @@ static struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 		break;
 	default:
 		cnt = 0;
-		bt_dev_err(hdev, "unknown link type %d", chan->conn->type);
+		bt_dev_err(hdev, "unkyeswn link type %d", chan->conn->type);
 	}
 
 	q = cnt / num;
@@ -4274,7 +4274,7 @@ static void hci_tx_work(struct work_struct *work)
 		hci_sched_le(hdev);
 	}
 
-	/* Send next queued raw (unknown type) packet */
+	/* Send next queued raw (unkyeswn type) packet */
 	while ((skb = skb_dequeue(&hdev->raw_q)))
 		hci_send_frame(hdev, skb);
 }
@@ -4310,7 +4310,7 @@ static void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		l2cap_recv_acldata(conn, skb, flags);
 		return;
 	} else {
-		bt_dev_err(hdev, "ACL packet for unknown connection handle %d",
+		bt_dev_err(hdev, "ACL packet for unkyeswn connection handle %d",
 			   handle);
 	}
 
@@ -4341,7 +4341,7 @@ static void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		sco_recv_scodata(conn, skb);
 		return;
 	} else {
-		bt_dev_err(hdev, "SCO packet for unknown connection handle %d",
+		bt_dev_err(hdev, "SCO packet for unkyeswn connection handle %d",
 			   handle);
 	}
 
@@ -4410,7 +4410,7 @@ void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status,
 	hci_dev_clear_flag(hdev, HCI_CMD_PENDING);
 
 	/* If the command succeeded and there's still more commands in
-	 * this request the request is not yet complete.
+	 * this request the request is yest yet complete.
 	 */
 	if (!status && !hci_req_is_complete(hdev))
 		return;

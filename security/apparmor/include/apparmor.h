@@ -5,7 +5,7 @@
  * This file contains AppArmor basic global
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2017 Canonical Ltd.
+ * Copyright 2009-2017 Cayesnical Ltd.
  */
 
 #ifndef __APPARMOR_H
@@ -39,7 +39,7 @@ extern bool aa_g_hash_policy;
 extern int aa_g_rawdata_compression_level;
 extern bool aa_g_lock_policy;
 extern bool aa_g_logsyscall;
-extern bool aa_g_paranoid_load;
+extern bool aa_g_parayesid_load;
 extern unsigned int aa_g_path_max;
 
 #endif /* __APPARMOR_H */

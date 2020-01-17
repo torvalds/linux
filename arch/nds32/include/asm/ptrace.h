@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef __ASM_NDS32_PTRACE_H
 #define __ASM_NDS32_PTRACE_H
@@ -7,9 +7,9 @@
 #include <uapi/asm/ptrace.h>
 
 /*
- * If pt_regs.syscallno == NO_SYSCALL, then the thread is not executing
+ * If pt_regs.syscallyes == NO_SYSCALL, then the thread is yest executing
  * a syscall -- i.e., its most recent entry into the kernel from
- * userspace was not via syscall, or otherwise a tracer cancelled the
+ * userspace was yest via syscall, or otherwise a tracer cancelled the
  * syscall.
  *
  * This must have the value -1, for ABI compatibility with ptrace etc.
@@ -35,7 +35,7 @@ struct pt_regs {
 #else
 			long dummy[3];
 #endif
-			long syscallno;
+			long syscallyes;
 		};
 	};
 	long orig_r0;
@@ -51,12 +51,12 @@ struct pt_regs {
 
 static inline bool in_syscall(struct pt_regs const *regs)
 {
-	return regs->syscallno != NO_SYSCALL;
+	return regs->syscallyes != NO_SYSCALL;
 }
 
 static inline void forget_syscall(struct pt_regs *regs)
 {
-	regs->syscallno = NO_SYSCALL;
+	regs->syscallyes = NO_SYSCALL;
 }
 static inline unsigned long regs_return_value(struct pt_regs *regs)
 {

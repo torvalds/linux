@@ -1,7 +1,7 @@
 Broadcom BCM43xx Fullmac wireless SDIO devices
 
-This node provides properties for controlling the Broadcom wireless device. The
-node is expected to be specified as a child node to the SDIO controller that
+This yesde provides properties for controlling the Broadcom wireless device. The
+yesde is expected to be specified as a child yesde to the SDIO controller that
 connects the device to the system.
 
 Required properties:
@@ -12,7 +12,7 @@ Optional properties:
  - brcm,drive-strength : drive strength used for SDIO pins on device in mA
 	(default = 6).
  - interrupts : specifies attributes for the out-of-band interrupt (host-wake).
-	When not specified the device will use in-band SDIO interrupts.
+	When yest specified the device will use in-band SDIO interrupts.
  - interrupt-names : name of the out-of-band interrupt, which must be set
 	to "host-wake".
 
@@ -26,7 +26,7 @@ mmc3: mmc@1c12000 {
 	pinctrl-0 = <&mmc3_pins_a>;
 	vmmc-supply = <&reg_vmmc3>;
 	bus-width = <4>;
-	non-removable;
+	yesn-removable;
 
 	brcmf: wifi@1 {
 		reg = <1>;

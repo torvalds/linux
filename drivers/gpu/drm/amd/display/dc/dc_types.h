@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -56,10 +56,10 @@ enum dce_environment {
 	DCE_ENV_PRODUCTION_DRV = 0,
 	/* Emulation on FPGA, in "Maximus" System.
 	 * This environment enforces that *only* DC registers accessed.
-	 * (access to non-DC registers will hang FPGA) */
+	 * (access to yesn-DC registers will hang FPGA) */
 	DCE_ENV_FPGA_MAXIMUS,
-	/* Emulation on real HW or on FPGA. Used by Diagnostics, enforces
-	 * requirements of Diagnostics team. */
+	/* Emulation on real HW or on FPGA. Used by Diagyesstics, enforces
+	 * requirements of Diagyesstics team. */
 	DCE_ENV_DIAG
 };
 
@@ -195,7 +195,7 @@ struct dc_edid {
 	uint8_t raw_edid[DC_MAX_EDID_BUFFER_SIZE];
 };
 
-/* When speaker location data block is not available, DEFAULT_SPEAKER_LOCATION
+/* When speaker location data block is yest available, DEFAULT_SPEAKER_LOCATION
  * is used. In this case we assume speaker location are: front left, front
  * right and front center. */
 #define DEFAULT_SPEAKER_LOCATION 5
@@ -259,16 +259,16 @@ struct view {
 };
 
 struct dc_mode_flags {
-	/* note: part of refresh rate flag*/
+	/* yeste: part of refresh rate flag*/
 	uint32_t INTERLACE :1;
 	/* native display timing*/
 	uint32_t NATIVE :1;
 	/* preferred is the recommended mode, one per display */
 	uint32_t PREFERRED :1;
 	/* true if this mode should use reduced blanking timings
-	 *_not_ related to the Reduced Blanking adjustment*/
+	 *_yest_ related to the Reduced Blanking adjustment*/
 	uint32_t REDUCED_BLANKING :1;
-	/* note: part of refreshrate flag*/
+	/* yeste: part of refreshrate flag*/
 	uint32_t VIDEO_OPTIMIZED_RATE :1;
 	/* should be reported to upper layers as mode_flags*/
 	uint32_t PACKED_PIXEL_FORMAT :1;
@@ -279,7 +279,7 @@ struct dc_mode_flags {
 	uint32_t DSE_MODE :1;
 	/* Refresh rate divider when Miracast sink is using a
 	 different rate than the output display device
-	 Must be zero for wired displays and non-zero for
+	 Must be zero for wired displays and yesn-zero for
 	 Miracast displays*/
 	uint32_t MIRACAST_REFRESH_DIVIDER;
 };
@@ -315,7 +315,7 @@ enum dc_timing_source {
 	/* only used for custom base modes */
 	TIMING_SOURCE_CUSTOM_BASE,
 
-	/* these timing might not work, least important*/
+	/* these timing might yest work, least important*/
 	TIMING_SOURCE_RANGELIMIT,
 	TIMING_SOURCE_OS_FORCED,
 	TIMING_SOURCE_IMPLICIT,
@@ -383,7 +383,7 @@ enum dc_acpi_cm_power_state {
 };
 
 enum dc_connection_type {
-	dc_connection_none,
+	dc_connection_yesne,
 	dc_connection_single,
 	dc_connection_mst_branch,
 	dc_connection_active_dongle
@@ -443,7 +443,7 @@ enum display_content_type {
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 /* writeback */
 struct dwb_stereo_params {
-	bool				stereo_enabled;		/* false: normal mode, true: 3D stereo */
+	bool				stereo_enabled;		/* false: yesrmal mode, true: 3D stereo */
 	enum dwb_stereo_type		stereo_type;		/* indicates stereo format */
 	bool				stereo_polarity;	/* indicates left eye or right eye comes first in stereo mode */
 	enum dwb_stereo_eye_select	stereo_eye_select;	/* indicate which eye should be captured */
@@ -683,7 +683,7 @@ struct psr_context {
 	/* Whether fast link training is supported by the panel */
 	bool psrExitLinkTrainingRequired;
 	/* If RFB setup time is greater than the total VBLANK time,
-	 * it is not possible for the sink to capture the video frame
+	 * it is yest possible for the sink to capture the video frame
 	 * in the same frame the SDP is sent. In this case,
 	 * the frame capture indication bit should be set and an extra
 	 * static frame should be transmitted to the sink.
@@ -758,7 +758,7 @@ struct dc_clock_config {
 };
 
 #endif /*AMD_EDID_UTILITY*/
-//AMD EDID UTILITY does not need any of the above structures
+//AMD EDID UTILITY does yest need any of the above structures
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 /* DSC DPCD capabilities */

@@ -14,18 +14,18 @@ int ufs_qcom_phy_qmp_20nm_phy_calibrate(struct ufs_qcom_phy *ufs_qcom_phy,
 	struct ufs_qcom_phy_calibration *tbl_A, *tbl_B;
 	int tbl_size_A, tbl_size_B;
 	u8 major = ufs_qcom_phy->host_ctrl_rev_major;
-	u16 minor = ufs_qcom_phy->host_ctrl_rev_minor;
+	u16 miyesr = ufs_qcom_phy->host_ctrl_rev_miyesr;
 	u16 step = ufs_qcom_phy->host_ctrl_rev_step;
 	int err;
 
-	if ((major == 0x1) && (minor == 0x002) && (step == 0x0000)) {
+	if ((major == 0x1) && (miyesr == 0x002) && (step == 0x0000)) {
 		tbl_size_A = ARRAY_SIZE(phy_cal_table_rate_A_1_2_0);
 		tbl_A = phy_cal_table_rate_A_1_2_0;
-	} else if ((major == 0x1) && (minor == 0x003) && (step == 0x0000)) {
+	} else if ((major == 0x1) && (miyesr == 0x003) && (step == 0x0000)) {
 		tbl_size_A = ARRAY_SIZE(phy_cal_table_rate_A_1_3_0);
 		tbl_A = phy_cal_table_rate_A_1_3_0;
 	} else {
-		dev_err(ufs_qcom_phy->dev, "%s: Unknown UFS-PHY version, no calibration values\n",
+		dev_err(ufs_qcom_phy->dev, "%s: Unkyeswn UFS-PHY version, yes calibration values\n",
 			__func__);
 		err = -ENODEV;
 		goto out;
@@ -75,7 +75,7 @@ void ufs_qcom_phy_qmp_20nm_power_control(struct ufs_qcom_phy *phy, bool val)
 	if (val) {
 		writel_relaxed(0x1, phy->mmio + UFS_PHY_POWER_DOWN_CONTROL);
 		/*
-		 * Before any transactions involving PHY, ensure PHY knows
+		 * Before any transactions involving PHY, ensure PHY kyesws
 		 * that it's analog rail is powered ON.
 		 */
 		mb();
@@ -92,7 +92,7 @@ void ufs_qcom_phy_qmp_20nm_power_control(struct ufs_qcom_phy *phy, bool val)
 				       QSERDES_COM_SYSCLK_EN_SEL_TXBAND);
 			/*
 			 * Make sure workaround is deactivated before proceeding
-			 * with normal PHY operations.
+			 * with yesrmal PHY operations.
 			 */
 			mb();
 		}
@@ -111,7 +111,7 @@ void ufs_qcom_phy_qmp_20nm_power_control(struct ufs_qcom_phy *phy, bool val)
 
 		writel_relaxed(0x0, phy->mmio + UFS_PHY_POWER_DOWN_CONTROL);
 		/*
-		 * ensure that PHY knows its PHY analog rail is going
+		 * ensure that PHY kyesws its PHY analog rail is going
 		 * to be powered down
 		 */
 		mb();

@@ -386,7 +386,7 @@ ENTRY(at91_sramc_self_refresh)
 	 */
 
 	 /*
-	  * For exiting the self-refresh mode, do nothing,
+	  * For exiting the self-refresh mode, do yesthing,
 	  * automatically exit the self-refresh mode.
 	  */
 	tst	r0, #SRAMC_SELF_FRESH_ACTIVE
@@ -427,7 +427,7 @@ ddrc_sf:
 	/* If using the 2nd ddr controller */
 	ldr	r2, .sramc1_base
 	cmp	r2, #0
-	beq	no_2nd_ddrc
+	beq	yes_2nd_ddrc
 
 	ldr	r3, [r2, #AT91_DDRSDRC_MDR]
 	str	r3, .saved_sam9_mdr1
@@ -445,7 +445,7 @@ ddrc_sf:
 	orr	r3, r3, #AT91_DDRSDRC_LPCB_SELF_REFRESH
 	str	r3, [r2, #AT91_DDRSDRC_LPR]
 
-no_2nd_ddrc:
+yes_2nd_ddrc:
 	b	exit_sramc_sf
 
 ddrc_exit_sf:

@@ -2,7 +2,7 @@
 
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <linux/limits.h>
 #include <signal.h>
@@ -198,7 +198,7 @@ int cg_find_unified_root(char *root, size_t len)
 
 	/*
 	 * Example:
-	 * cgroup /sys/fs/cgroup cgroup2 rw,seclabel,noexec,relatime 0 0
+	 * cgroup /sys/fs/cgroup cgroup2 rw,seclabel,yesexec,relatime 0 0
 	 */
 	for (fs = strtok(buf, delim); fs; fs = strtok(NULL, delim)) {
 		mount = strtok(NULL, delim);
@@ -276,13 +276,13 @@ int cg_destroy(const char *cgroup)
 
 retry:
 	ret = rmdir(cgroup);
-	if (ret && errno == EBUSY) {
+	if (ret && erryes == EBUSY) {
 		cg_killall(cgroup);
 		usleep(100);
 		goto retry;
 	}
 
-	if (ret && errno == ENOENT)
+	if (ret && erryes == ENOENT)
 		ret = 0;
 
 	return ret;
@@ -331,7 +331,7 @@ int cg_run(const char *cgroup,
 	}
 }
 
-int cg_run_nowait(const char *cgroup,
+int cg_run_yeswait(const char *cgroup,
 		  int (*fn)(const char *cgroup, void *arg),
 		  void *arg)
 {
@@ -378,7 +378,7 @@ cleanup:
 	return -1;
 }
 
-int alloc_anon(const char *cgroup, void *arg)
+int alloc_ayesn(const char *cgroup, void *arg)
 {
 	size_t size = (unsigned long)arg;
 	char *buf, *ptr;

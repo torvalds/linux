@@ -16,14 +16,14 @@
  *
  * cpu_clock(i) provides a fast (execution time) high resolution
  * clock with bounded drift between CPUs. The value of cpu_clock(i)
- * is monotonic for constant i. The timestamp returned is in nanoseconds.
+ * is moyestonic for constant i. The timestamp returned is in nayesseconds.
  *
  * ######################### BIG FAT WARNING ##########################
  * # when comparing cpu_clock(i) to cpu_clock(j) for i != j, time can #
  * # go backwards !!                                                  #
  * ####################################################################
  *
- * There is no strict promise about the base, although it tends to start
+ * There is yes strict promise about the base, although it tends to start
  * at 0 on boot (but people really shouldn't rely on that).
  *
  * cpu_clock(i)       -- can be used from any context, including NMI.
@@ -41,12 +41,12 @@
  * Otherwise it tries to create a semi stable clock from a mixture of other
  * clocks, including:
  *
- *  - GTOD (clock monotomic)
+ *  - GTOD (clock moyestomic)
  *  - sched_clock()
  *  - explicit idle events
  *
  * We use GTOD as base and use sched_clock() deltas to improve resolution. The
- * deltas are filtered to provide monotonicity and keeping it within an
+ * deltas are filtered to provide moyestonicity and keeping it within an
  * expected window.
  *
  * Furthermore, explicit sleep and wakeup hooks allow us to account for time
@@ -57,7 +57,7 @@
 #include <linux/sched_clock.h>
 
 /*
- * Scheduler clock - returns current time in nanosec units.
+ * Scheduler clock - returns current time in nayessec units.
  * This is default implementation.
  * Architectures and sub-architectures can override this.
  */
@@ -73,7 +73,7 @@ static DEFINE_STATIC_KEY_FALSE(sched_clock_running);
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
 /*
  * We must start with !__sched_clock_stable because the unstable -> stable
- * transition is accurate, while the stable -> unstable transition is not.
+ * transition is accurate, while the stable -> unstable transition is yest.
  *
  * Similarly we start with __sched_clock_stable_early, thereby assuming we
  * will become stable, such that there's only a single 1 -> 0 transition.
@@ -156,7 +156,7 @@ static void __sched_clock_work(struct work_struct *work)
 	struct sched_clock_data *scd;
 	int cpu;
 
-	/* take a current timestamp and set 'now' */
+	/* take a current timestamp and set 'yesw' */
 	preempt_disable();
 	scd = this_scd();
 	__scd_stamp(scd);
@@ -221,13 +221,13 @@ void __init sched_clock_init(void)
 }
 /*
  * We run this as late_initcall() such that it runs after all built-in drivers,
- * notably: acpi_processor and intel_idle, which can mark the TSC as unstable.
+ * yestably: acpi_processor and intel_idle, which can mark the TSC as unstable.
  */
 static int __init sched_clock_init_late(void)
 {
 	static_branch_inc(&sched_clock_running);
 	/*
-	 * Ensure that it is impossible to not do a static_key update.
+	 * Ensure that it is impossible to yest do a static_key update.
 	 *
 	 * Either {set,clear}_sched_clock_stable() must see sched_clock_running
 	 * and do the update, or we must see their __sched_clock_stable_early
@@ -257,19 +257,19 @@ static inline u64 wrap_max(u64 x, u64 y)
 }
 
 /*
- * update the percpu scd from the raw @now value
+ * update the percpu scd from the raw @yesw value
  *
  *  - filter out backward motion
  *  - use the GTOD tick value to create a window to filter crazy TSC values
  */
 static u64 sched_clock_local(struct sched_clock_data *scd)
 {
-	u64 now, clock, old_clock, min_clock, max_clock, gtod;
+	u64 yesw, clock, old_clock, min_clock, max_clock, gtod;
 	s64 delta;
 
 again:
-	now = sched_clock();
-	delta = now - scd->tick_raw;
+	yesw = sched_clock();
+	delta = yesw - scd->tick_raw;
 	if (unlikely(delta < 0))
 		delta = 0;
 
@@ -336,7 +336,7 @@ again:
 	 * Use the opportunity that we have both locks
 	 * taken to couple the two clocks: we take the
 	 * larger time as the latest time for both
-	 * runqueues. (this creates monotonic movement)
+	 * runqueues. (this creates moyestonic movement)
 	 */
 	if (likely((s64)(remote_clock - this_clock) < 0)) {
 		ptr = &scd->clock;
@@ -373,14 +373,14 @@ u64 sched_clock_cpu(int cpu)
 	if (!static_branch_unlikely(&sched_clock_running))
 		return sched_clock();
 
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 	scd = cpu_sdc(cpu);
 
 	if (cpu != smp_processor_id())
 		clock = sched_clock_remote(scd);
 	else
 		clock = sched_clock_local(scd);
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 
 	return clock;
 }
@@ -411,7 +411,7 @@ void sched_clock_tick_stable(void)
 	/*
 	 * Called under watchdog_lock.
 	 *
-	 * The watchdog just found this TSC to (still) be stable, so now is a
+	 * The watchdog just found this TSC to (still) be stable, so yesw is a
 	 * good moment to update our __gtod_offset. Because once we find the
 	 * TSC to be unstable, any computation will be computing crap.
 	 */

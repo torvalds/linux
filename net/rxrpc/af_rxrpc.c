@@ -264,12 +264,12 @@ static int rxrpc_listen(struct socket *sock, int backlog)
  * @user_call_ID: The ID to use
  * @tx_total_len: Total length of data to transmit during the call (or -1)
  * @gfp: The allocation constraints
- * @notify_rx: Where to send notifications instead of socket queue
+ * @yestify_rx: Where to send yestifications instead of socket queue
  * @upgrade: Request service upgrade for call
  * @intr: The call is interruptible
  * @debug_id: The debug ID for tracing to be assigned to the call
  *
- * Allow a kernel service to begin a call on the nominated socket.  This just
+ * Allow a kernel service to begin a call on the yesminated socket.  This just
  * sets up all the internal tracking structures and allocates connection and
  * call IDs as appropriate.  The call to be used is returned.
  *
@@ -282,7 +282,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   unsigned long user_call_ID,
 					   s64 tx_total_len,
 					   gfp_t gfp,
-					   rxrpc_notify_rx_t notify_rx,
+					   rxrpc_yestify_rx_t yestify_rx,
 					   bool upgrade,
 					   bool intr,
 					   unsigned int debug_id)
@@ -304,7 +304,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	if (!key)
 		key = rx->key;
 	if (key && !key->payload.data[0])
-		key = NULL; /* a no-security key */
+		key = NULL; /* a yes-security key */
 
 	memset(&p, 0, sizeof(p));
 	p.user_call_ID = user_call_ID;
@@ -321,7 +321,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	call = rxrpc_new_client_call(rx, &cp, srx, &p, gfp, debug_id);
 	/* The socket has been unlocked. */
 	if (!IS_ERR(call)) {
-		call->notify_rx = notify_rx;
+		call->yestify_rx = yestify_rx;
 		mutex_unlock(&call->user_mutex);
 	}
 
@@ -332,9 +332,9 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 EXPORT_SYMBOL(rxrpc_kernel_begin_call);
 
 /*
- * Dummy function used to stop the notifier talking to recvmsg().
+ * Dummy function used to stop the yestifier talking to recvmsg().
  */
-static void rxrpc_dummy_notify_rx(struct sock *sk, struct rxrpc_call *rxcall,
+static void rxrpc_dummy_yestify_rx(struct sock *sk, struct rxrpc_call *rxcall,
 				  unsigned long call_user_ID)
 {
 }
@@ -354,11 +354,11 @@ void rxrpc_kernel_end_call(struct socket *sock, struct rxrpc_call *call)
 	mutex_lock(&call->user_mutex);
 	rxrpc_release_call(rxrpc_sk(sock->sk), call);
 
-	/* Make sure we're not going to call back into a kernel service */
-	if (call->notify_rx) {
-		spin_lock_bh(&call->notify_lock);
-		call->notify_rx = rxrpc_dummy_notify_rx;
-		spin_unlock_bh(&call->notify_lock);
+	/* Make sure we're yest going to call back into a kernel service */
+	if (call->yestify_rx) {
+		spin_lock_bh(&call->yestify_lock);
+		call->yestify_rx = rxrpc_dummy_yestify_rx;
+		spin_unlock_bh(&call->yestify_lock);
 	}
 
 	mutex_unlock(&call->user_mutex);
@@ -423,24 +423,24 @@ u32 rxrpc_kernel_get_epoch(struct socket *sock, struct rxrpc_call *call)
 EXPORT_SYMBOL(rxrpc_kernel_get_epoch);
 
 /**
- * rxrpc_kernel_new_call_notification - Get notifications of new calls
+ * rxrpc_kernel_new_call_yestification - Get yestifications of new calls
  * @sock: The socket to intercept received messages on
- * @notify_new_call: Function to be called when new calls appear
+ * @yestify_new_call: Function to be called when new calls appear
  * @discard_new_call: Function to discard preallocated calls
  *
- * Allow a kernel service to be given notifications about new calls.
+ * Allow a kernel service to be given yestifications about new calls.
  */
-void rxrpc_kernel_new_call_notification(
+void rxrpc_kernel_new_call_yestification(
 	struct socket *sock,
-	rxrpc_notify_new_call_t notify_new_call,
+	rxrpc_yestify_new_call_t yestify_new_call,
 	rxrpc_discard_new_call_t discard_new_call)
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 
-	rx->notify_new_call = notify_new_call;
+	rx->yestify_new_call = yestify_new_call;
 	rx->discard_new_call = discard_new_call;
 }
-EXPORT_SYMBOL(rxrpc_kernel_new_call_notification);
+EXPORT_SYMBOL(rxrpc_kernel_new_call_yestification);
 
 /**
  * rxrpc_kernel_set_max_life - Set maximum lifespan on a call
@@ -454,14 +454,14 @@ EXPORT_SYMBOL(rxrpc_kernel_new_call_notification);
 void rxrpc_kernel_set_max_life(struct socket *sock, struct rxrpc_call *call,
 			       unsigned long hard_timeout)
 {
-	unsigned long now;
+	unsigned long yesw;
 
 	mutex_lock(&call->user_mutex);
 
-	now = jiffies;
-	hard_timeout += now;
+	yesw = jiffies;
+	hard_timeout += yesw;
 	WRITE_ONCE(call->expect_term_by, hard_timeout);
-	rxrpc_reduce_call_timer(call, hard_timeout, now, rxrpc_timer_set_for_hard);
+	rxrpc_reduce_call_timer(call, hard_timeout, yesw, rxrpc_timer_set_for_hard);
 
 	mutex_unlock(&call->user_mutex);
 }
@@ -469,7 +469,7 @@ EXPORT_SYMBOL(rxrpc_kernel_set_max_life);
 
 /*
  * connect an RxRPC socket
- * - this just targets it at a specific destination; no actual connection
+ * - this just targets it at a specific destination; yes actual connection
  *   negotiation takes place
  */
 static int rxrpc_connect(struct socket *sock, struct sockaddr *addr,
@@ -518,7 +518,7 @@ error:
  * - in a client this does a number of things:
  *   - finds/sets up a connection for the security specified (if any)
  *   - initiates a call (ID in control data)
- *   - ends the request phase of a call (if MSG_MORE is not set)
+ *   - ends the request phase of a call (if MSG_MORE is yest set)
  *   - sends a call data packet
  *   - may send an abort (abort code in control data)
  */
@@ -743,7 +743,7 @@ static __poll_t rxrpc_poll(struct file *file, struct socket *sock,
 		mask |= EPOLLIN | EPOLLRDNORM;
 
 	/* the socket is writable if there is space to add new data to the
-	 * socket; there is no guarantee that any particular call in progress
+	 * socket; there is yes guarantee that any particular call in progress
 	 * on the socket may have space in the Tx ACK window */
 	if (rxrpc_writable(sk))
 		mask |= EPOLLOUT | EPOLLWRNORM;
@@ -936,19 +936,19 @@ static const struct proto_ops rxrpc_rpc_ops = {
 	.release	= rxrpc_release,
 	.bind		= rxrpc_bind,
 	.connect	= rxrpc_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
-	.getname	= sock_no_getname,
+	.socketpair	= sock_yes_socketpair,
+	.accept		= sock_yes_accept,
+	.getname	= sock_yes_getname,
 	.poll		= rxrpc_poll,
-	.ioctl		= sock_no_ioctl,
+	.ioctl		= sock_yes_ioctl,
 	.listen		= rxrpc_listen,
 	.shutdown	= rxrpc_shutdown,
 	.setsockopt	= rxrpc_setsockopt,
 	.getsockopt	= rxrpc_getsockopt,
 	.sendmsg	= rxrpc_sendmsg,
 	.recvmsg	= rxrpc_recvmsg,
-	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
+	.mmap		= sock_yes_mmap,
+	.sendpage	= sock_yes_sendpage,
 };
 
 static struct proto rxrpc_proto = {
@@ -985,19 +985,19 @@ static int __init af_rxrpc_init(void)
 		"rxrpc_call_jar", sizeof(struct rxrpc_call), 0,
 		SLAB_HWCACHE_ALIGN, NULL);
 	if (!rxrpc_call_jar) {
-		pr_notice("Failed to allocate call jar\n");
+		pr_yestice("Failed to allocate call jar\n");
 		goto error_call_jar;
 	}
 
 	rxrpc_workqueue = alloc_workqueue("krxrpcd", 0, 1);
 	if (!rxrpc_workqueue) {
-		pr_notice("Failed to allocate work queue\n");
+		pr_yestice("Failed to allocate work queue\n");
 		goto error_work_queue;
 	}
 
 	ret = rxrpc_init_security();
 	if (ret < 0) {
-		pr_crit("Cannot initialise security\n");
+		pr_crit("Canyest initialise security\n");
 		goto error_security;
 	}
 
@@ -1007,31 +1007,31 @@ static int __init af_rxrpc_init(void)
 
 	ret = proto_register(&rxrpc_proto, 1);
 	if (ret < 0) {
-		pr_crit("Cannot register protocol\n");
+		pr_crit("Canyest register protocol\n");
 		goto error_proto;
 	}
 
 	ret = sock_register(&rxrpc_family_ops);
 	if (ret < 0) {
-		pr_crit("Cannot register socket family\n");
+		pr_crit("Canyest register socket family\n");
 		goto error_sock;
 	}
 
 	ret = register_key_type(&key_type_rxrpc);
 	if (ret < 0) {
-		pr_crit("Cannot register client key type\n");
+		pr_crit("Canyest register client key type\n");
 		goto error_key_type;
 	}
 
 	ret = register_key_type(&key_type_rxrpc_s);
 	if (ret < 0) {
-		pr_crit("Cannot register server key type\n");
+		pr_crit("Canyest register server key type\n");
 		goto error_key_type_s;
 	}
 
 	ret = rxrpc_sysctl_init();
 	if (ret < 0) {
-		pr_crit("Cannot register sysctls\n");
+		pr_crit("Canyest register sysctls\n");
 		goto error_sysctls;
 	}
 

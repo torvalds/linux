@@ -9,7 +9,7 @@
  * based on ixdp425-setup.c:
  *      Copyright (C) 2003-2004 MontaVista Software, Inc.
  * based on nas100d-power.c:
- *	Copyright (C) 2005 Tower Technologies
+ *	Copyright (C) 2005 Tower Techyeslogies
  * based on nas100d-io.c
  *	Copyright (C) 2004 Karen Spearel
  *
@@ -254,7 +254,7 @@ static int __init nas100d_gpio_init(void)
 
 	/*
 	 * The power button on the Iomega NAS100d is on GPIO 14, but
-	 * it cannot handle interrupts on that GPIO line.  So we'll
+	 * it canyest handle interrupts on that GPIO line.  So we'll
 	 * have to poll it with a kernel timer.
 	 */
 
@@ -292,7 +292,7 @@ static void __init nas100d_init(void)
 	/*
 	 * This is only useful on a modified machine, but it is valuable
 	 * to have it first in order to see debug messages, and so that
-	 * it does *not* get removed if platform_add_devices fails!
+	 * it does *yest* get removed if platform_add_devices fails!
 	 */
 	(void)platform_device_register(&nas100d_uart);
 
@@ -303,7 +303,7 @@ static void __init nas100d_init(void)
 	if (request_irq(gpio_to_irq(NAS100D_RB_GPIO), &nas100d_reset_handler,
 		IRQF_TRIGGER_LOW, "NAS100D reset button", NULL) < 0) {
 
-		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
+		printk(KERN_DEBUG "Reset Button IRQ %d yest available\n",
 			gpio_to_irq(NAS100D_RB_GPIO));
 	}
 

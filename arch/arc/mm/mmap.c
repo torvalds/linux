@@ -4,7 +4,7 @@
  *
  * (started from arm version - for VIPT alias handling)
  *
- * Copyright (C) 2013 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2013 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <linux/fs.h>

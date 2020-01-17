@@ -337,8 +337,8 @@ static void renesas_sdhi_sys_dmac_request_dma(struct tmio_mmc_host *host,
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
 
-	/* We can only either use DMA for both Tx and Rx or not use it at all */
-	if (!host->pdev->dev.of_node &&
+	/* We can only either use DMA for both Tx and Rx or yest use it at all */
+	if (!host->pdev->dev.of_yesde &&
 	    (!pdata->chan_priv_tx || !pdata->chan_priv_rx))
 		return;
 

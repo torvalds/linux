@@ -2,16 +2,16 @@
 /*
  * NUMA support for s390
  *
- * NUMA emulation (aka fake NUMA) distributes the available memory to nodes
+ * NUMA emulation (aka fake NUMA) distributes the available memory to yesdes
  * without using real topology information about the physical memory of the
  * machine.
  *
- * It distributes the available CPUs to nodes while respecting the original
+ * It distributes the available CPUs to yesdes while respecting the original
  * machine topology information. This is done by trying to avoid to separate
  * CPUs which reside on the same book or even on the same MC.
  *
- * Because the current Linux scheduler code requires a stable cpu to node
- * mapping, cores are pinned to nodes when the first CPU thread is set online.
+ * Because the current Linux scheduler code requires a stable cpu to yesde
+ * mapping, cores are pinned to yesdes when the first CPU thread is set online.
  *
  * Copyright IBM Corp. 2015
  */
@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/cpumask.h>
 #include <linux/memblock.h>
-#include <linux/node.h>
+#include <linux/yesde.h>
 #include <linux/memory.h>
 #include <linux/slab.h>
 #include <asm/smp.h>
@@ -41,7 +41,7 @@
 /* Node distance reported to common code */
 #define EMU_NODE_DIST	10
 
-/* Node ID for free (not yet pinned) cores */
+/* Node ID for free (yest yet pinned) cores */
 #define NODE_ID_FREE	-1
 
 /* Different levels of toptree */
@@ -50,8 +50,8 @@ enum toptree_level {CORE, MC, BOOK, DRAWER, NODE, TOPOLOGY};
 /* The two toptree IDs */
 enum {TOPTREE_ID_PHYS, TOPTREE_ID_NUMA};
 
-/* Number of NUMA nodes */
-static int emu_nodes = 1;
+/* Number of NUMA yesdes */
+static int emu_yesdes = 1;
 /* NUMA stripe size */
 static unsigned long emu_size;
 
@@ -60,44 +60,44 @@ static unsigned long emu_size;
  * "sched_domains_mutex".
  */
 static struct {
-	s32 to_node_id[CONFIG_NR_CPUS];	/* Pinned core to node mapping */
+	s32 to_yesde_id[CONFIG_NR_CPUS];	/* Pinned core to yesde mapping */
 	int total;			/* Total number of pinned cores */
-	int per_node_target;		/* Cores per node without extra cores */
-	int per_node[MAX_NUMNODES];	/* Number of cores pinned to node */
+	int per_yesde_target;		/* Cores per yesde without extra cores */
+	int per_yesde[MAX_NUMNODES];	/* Number of cores pinned to yesde */
 } *emu_cores;
 
 /*
- * Pin a core to a node
+ * Pin a core to a yesde
  */
-static void pin_core_to_node(int core_id, int node_id)
+static void pin_core_to_yesde(int core_id, int yesde_id)
 {
-	if (emu_cores->to_node_id[core_id] == NODE_ID_FREE) {
-		emu_cores->per_node[node_id]++;
-		emu_cores->to_node_id[core_id] = node_id;
+	if (emu_cores->to_yesde_id[core_id] == NODE_ID_FREE) {
+		emu_cores->per_yesde[yesde_id]++;
+		emu_cores->to_yesde_id[core_id] = yesde_id;
 		emu_cores->total++;
 	} else {
-		WARN_ON(emu_cores->to_node_id[core_id] != node_id);
+		WARN_ON(emu_cores->to_yesde_id[core_id] != yesde_id);
 	}
 }
 
 /*
- * Number of pinned cores of a node
+ * Number of pinned cores of a yesde
  */
-static int cores_pinned(struct toptree *node)
+static int cores_pinned(struct toptree *yesde)
 {
-	return emu_cores->per_node[node->id];
+	return emu_cores->per_yesde[yesde->id];
 }
 
 /*
- * ID of the node where the core is pinned (or NODE_ID_FREE)
+ * ID of the yesde where the core is pinned (or NODE_ID_FREE)
  */
-static int core_pinned_to_node_id(struct toptree *core)
+static int core_pinned_to_yesde_id(struct toptree *core)
 {
-	return emu_cores->to_node_id[core->id];
+	return emu_cores->to_yesde_id[core->id];
 }
 
 /*
- * Number of cores in the tree that are not yet pinned
+ * Number of cores in the tree that are yest yet pinned
  */
 static int cores_free(struct toptree *tree)
 {
@@ -105,16 +105,16 @@ static int cores_free(struct toptree *tree)
 	int count = 0;
 
 	toptree_for_each(core, tree, CORE) {
-		if (core_pinned_to_node_id(core) == NODE_ID_FREE)
+		if (core_pinned_to_yesde_id(core) == NODE_ID_FREE)
 			count++;
 	}
 	return count;
 }
 
 /*
- * Return node of core
+ * Return yesde of core
  */
-static struct toptree *core_node(struct toptree *core)
+static struct toptree *core_yesde(struct toptree *core)
 {
 	return core->parent->parent->parent->parent;
 }
@@ -159,111 +159,111 @@ static int dist_core_to_core(struct toptree *core1, struct toptree *core2)
 }
 
 /*
- * Distance of a node to a core
+ * Distance of a yesde to a core
  */
-static int dist_node_to_core(struct toptree *node, struct toptree *core)
+static int dist_yesde_to_core(struct toptree *yesde, struct toptree *core)
 {
-	struct toptree *core_node;
+	struct toptree *core_yesde;
 	int dist_min = DIST_MAX;
 
-	toptree_for_each(core_node, node, CORE)
-		dist_min = min(dist_min, dist_core_to_core(core_node, core));
+	toptree_for_each(core_yesde, yesde, CORE)
+		dist_min = min(dist_min, dist_core_to_core(core_yesde, core));
 	return dist_min == DIST_MAX ? DIST_EMPTY : dist_min;
 }
 
 /*
- * Unify will delete empty nodes, therefore recreate nodes.
+ * Unify will delete empty yesdes, therefore recreate yesdes.
  */
 static void toptree_unify_tree(struct toptree *tree)
 {
 	int nid;
 
 	toptree_unify(tree);
-	for (nid = 0; nid < emu_nodes; nid++)
+	for (nid = 0; nid < emu_yesdes; nid++)
 		toptree_get_child(tree, nid);
 }
 
 /*
- * Find the best/nearest node for a given core and ensure that no node
- * gets more than "emu_cores->per_node_target + extra" cores.
+ * Find the best/nearest yesde for a given core and ensure that yes yesde
+ * gets more than "emu_cores->per_yesde_target + extra" cores.
  */
-static struct toptree *node_for_core(struct toptree *numa, struct toptree *core,
+static struct toptree *yesde_for_core(struct toptree *numa, struct toptree *core,
 				     int extra)
 {
-	struct toptree *node, *node_best = NULL;
+	struct toptree *yesde, *yesde_best = NULL;
 	int dist_cur, dist_best, cores_target;
 
-	cores_target = emu_cores->per_node_target + extra;
+	cores_target = emu_cores->per_yesde_target + extra;
 	dist_best = DIST_MAX;
-	node_best = NULL;
-	toptree_for_each(node, numa, NODE) {
-		/* Already pinned cores must use their nodes */
-		if (core_pinned_to_node_id(core) == node->id) {
-			node_best = node;
+	yesde_best = NULL;
+	toptree_for_each(yesde, numa, NODE) {
+		/* Already pinned cores must use their yesdes */
+		if (core_pinned_to_yesde_id(core) == yesde->id) {
+			yesde_best = yesde;
 			break;
 		}
-		/* Skip nodes that already have enough cores */
-		if (cores_pinned(node) >= cores_target)
+		/* Skip yesdes that already have eyesugh cores */
+		if (cores_pinned(yesde) >= cores_target)
 			continue;
-		dist_cur = dist_node_to_core(node, core);
+		dist_cur = dist_yesde_to_core(yesde, core);
 		if (dist_cur < dist_best) {
 			dist_best = dist_cur;
-			node_best = node;
+			yesde_best = yesde;
 		}
 	}
-	return node_best;
+	return yesde_best;
 }
 
 /*
- * Find the best node for each core with respect to "extra" core count
+ * Find the best yesde for each core with respect to "extra" core count
  */
 static void toptree_to_numa_single(struct toptree *numa, struct toptree *phys,
 				   int extra)
 {
-	struct toptree *node, *core, *tmp;
+	struct toptree *yesde, *core, *tmp;
 
 	toptree_for_each_safe(core, tmp, phys, CORE) {
-		node = node_for_core(numa, core, extra);
-		if (!node)
+		yesde = yesde_for_core(numa, core, extra);
+		if (!yesde)
 			return;
-		toptree_move(core, node);
-		pin_core_to_node(core->id, node->id);
+		toptree_move(core, yesde);
+		pin_core_to_yesde(core->id, yesde->id);
 	}
 }
 
 /*
- * Move structures of given level to specified NUMA node
+ * Move structures of given level to specified NUMA yesde
  */
-static void move_level_to_numa_node(struct toptree *node, struct toptree *phys,
+static void move_level_to_numa_yesde(struct toptree *yesde, struct toptree *phys,
 				    enum toptree_level level, bool perfect)
 {
-	int cores_free, cores_target = emu_cores->per_node_target;
+	int cores_free, cores_target = emu_cores->per_yesde_target;
 	struct toptree *cur, *tmp;
 
 	toptree_for_each_safe(cur, tmp, phys, level) {
-		cores_free = cores_target - toptree_count(node, CORE);
+		cores_free = cores_target - toptree_count(yesde, CORE);
 		if (perfect) {
 			if (cores_free == toptree_count(cur, CORE))
-				toptree_move(cur, node);
+				toptree_move(cur, yesde);
 		} else {
 			if (cores_free >= toptree_count(cur, CORE))
-				toptree_move(cur, node);
+				toptree_move(cur, yesde);
 		}
 	}
 }
 
 /*
- * Move structures of a given level to NUMA nodes. If "perfect" is specified
+ * Move structures of a given level to NUMA yesdes. If "perfect" is specified
  * move only perfectly fitting structures. Otherwise move also smaller
  * than needed structures.
  */
 static void move_level_to_numa(struct toptree *numa, struct toptree *phys,
 			       enum toptree_level level, bool perfect)
 {
-	struct toptree *node;
+	struct toptree *yesde;
 
-	toptree_for_each(node, numa, NODE)
-		move_level_to_numa_node(node, phys, level, perfect);
+	toptree_for_each(yesde, numa, NODE)
+		move_level_to_numa_yesde(yesde, phys, level, perfect);
 }
 
 /*
@@ -282,13 +282,13 @@ static void toptree_to_numa_first(struct toptree *numa, struct toptree *phys)
 	move_level_to_numa(numa, phys, MC, false);
 	/* Now pin all the moved cores */
 	toptree_for_each(core, numa, CORE)
-		pin_core_to_node(core->id, core_node(core)->id);
+		pin_core_to_yesde(core->id, core_yesde(core)->id);
 }
 
 /*
- * Allocate new topology and create required nodes
+ * Allocate new topology and create required yesdes
  */
-static struct toptree *toptree_new(int id, int nodes)
+static struct toptree *toptree_new(int id, int yesdes)
 {
 	struct toptree *tree;
 	int nid;
@@ -296,19 +296,19 @@ static struct toptree *toptree_new(int id, int nodes)
 	tree = toptree_alloc(TOPOLOGY, id);
 	if (!tree)
 		goto fail;
-	for (nid = 0; nid < nodes; nid++) {
+	for (nid = 0; nid < yesdes; nid++) {
 		if (!toptree_get_child(tree, nid))
 			goto fail;
 	}
 	return tree;
 fail:
-	panic("NUMA emulation could not allocate topology");
+	panic("NUMA emulation could yest allocate topology");
 }
 
 /*
- * Allocate and initialize core to node mapping
+ * Allocate and initialize core to yesde mapping
  */
-static void __ref create_core_to_node_map(void)
+static void __ref create_core_to_yesde_map(void)
 {
 	int i;
 
@@ -316,8 +316,8 @@ static void __ref create_core_to_node_map(void)
 	if (!emu_cores)
 		panic("%s: Failed to allocate %zu bytes align=0x%x\n",
 		      __func__, sizeof(*emu_cores), 8);
-	for (i = 0; i < ARRAY_SIZE(emu_cores->to_node_id); i++)
-		emu_cores->to_node_id[i] = NODE_ID_FREE;
+	for (i = 0; i < ARRAY_SIZE(emu_cores->to_yesde_id); i++)
+		emu_cores->to_yesde_id[i] = NODE_ID_FREE;
 }
 
 /*
@@ -331,8 +331,8 @@ static struct toptree *toptree_to_numa(struct toptree *phys)
 	int cores_total;
 
 	cores_total = emu_cores->total + cores_free(phys);
-	emu_cores->per_node_target = cores_total / emu_nodes;
-	numa = toptree_new(TOPTREE_ID_NUMA, emu_nodes);
+	emu_cores->per_yesde_target = cores_total / emu_yesdes;
+	numa = toptree_new(TOPTREE_ID_NUMA, emu_yesdes);
 	if (first) {
 		toptree_to_numa_first(numa, phys);
 		first = 0;
@@ -350,7 +350,7 @@ static struct toptree *toptree_to_numa(struct toptree *phys)
  */
 static struct toptree *toptree_from_topology(void)
 {
-	struct toptree *phys, *node, *drawer, *book, *mc, *core;
+	struct toptree *phys, *yesde, *drawer, *book, *mc, *core;
 	struct cpu_topology_s390 *top;
 	int cpu;
 
@@ -358,13 +358,13 @@ static struct toptree *toptree_from_topology(void)
 
 	for_each_cpu(cpu, &cpus_with_topology) {
 		top = &cpu_topology[cpu];
-		node = toptree_get_child(phys, 0);
-		drawer = toptree_get_child(node, top->drawer_id);
+		yesde = toptree_get_child(phys, 0);
+		drawer = toptree_get_child(yesde, top->drawer_id);
 		book = toptree_get_child(drawer, top->book_id);
 		mc = toptree_get_child(book, top->socket_id);
 		core = toptree_get_child(mc, smp_get_base_cpu(cpu));
 		if (!drawer || !book || !mc || !core)
-			panic("NUMA emulation could not allocate memory");
+			panic("NUMA emulation could yest allocate memory");
 		cpumask_set_cpu(cpu, &core->mask);
 		toptree_update_mask(mc);
 	}
@@ -385,8 +385,8 @@ static void topology_add_core(struct toptree *core)
 		cpumask_copy(&top->core_mask, &core_mc(core)->mask);
 		cpumask_copy(&top->book_mask, &core_book(core)->mask);
 		cpumask_copy(&top->drawer_mask, &core_drawer(core)->mask);
-		cpumask_set_cpu(cpu, &node_to_cpumask_map[core_node(core)->id]);
-		top->node_id = core_node(core)->id;
+		cpumask_set_cpu(cpu, &yesde_to_cpumask_map[core_yesde(core)->id]);
+		top->yesde_id = core_yesde(core)->id;
 	}
 }
 
@@ -398,9 +398,9 @@ static void toptree_to_topology(struct toptree *numa)
 	struct toptree *core;
 	int i;
 
-	/* Clear all node masks */
+	/* Clear all yesde masks */
 	for (i = 0; i < MAX_NUMNODES; i++)
-		cpumask_clear(&node_to_cpumask_map[i]);
+		cpumask_clear(&yesde_to_cpumask_map[i]);
 
 	/* Rebuild all masks */
 	toptree_for_each(core, numa, CORE)
@@ -408,19 +408,19 @@ static void toptree_to_topology(struct toptree *numa)
 }
 
 /*
- * Show the node to core mapping
+ * Show the yesde to core mapping
  */
-static void print_node_to_core_map(void)
+static void print_yesde_to_core_map(void)
 {
 	int nid, cid;
 
 	if (!numa_debug_enabled)
 		return;
-	printk(KERN_DEBUG "NUMA node to core mapping\n");
-	for (nid = 0; nid < emu_nodes; nid++) {
-		printk(KERN_DEBUG "  node %3d: ", nid);
-		for (cid = 0; cid < ARRAY_SIZE(emu_cores->to_node_id); cid++) {
-			if (emu_cores->to_node_id[cid] == nid)
+	printk(KERN_DEBUG "NUMA yesde to core mapping\n");
+	for (nid = 0; nid < emu_yesdes; nid++) {
+		printk(KERN_DEBUG "  yesde %3d: ", nid);
+		for (cid = 0; cid < ARRAY_SIZE(emu_cores->to_yesde_id); cid++) {
+			if (emu_cores->to_yesde_id[cid] == nid)
 				printk(KERN_CONT "%d ", cid);
 		}
 		printk(KERN_CONT "\n");
@@ -429,22 +429,22 @@ static void print_node_to_core_map(void)
 
 static void pin_all_possible_cpus(void)
 {
-	int core_id, node_id, cpu;
+	int core_id, yesde_id, cpu;
 	static int initialized;
 
 	if (initialized)
 		return;
-	print_node_to_core_map();
-	node_id = 0;
+	print_yesde_to_core_map();
+	yesde_id = 0;
 	for_each_possible_cpu(cpu) {
 		core_id = smp_get_base_cpu(cpu);
-		if (emu_cores->to_node_id[core_id] != NODE_ID_FREE)
+		if (emu_cores->to_yesde_id[core_id] != NODE_ID_FREE)
 			continue;
-		pin_core_to_node(core_id, node_id);
-		cpu_topology[cpu].node_id = node_id;
-		node_id = (node_id + 1) % emu_nodes;
+		pin_core_to_yesde(core_id, yesde_id);
+		cpu_topology[cpu].yesde_id = yesde_id;
+		yesde_id = (yesde_id + 1) % emu_yesdes;
 	}
-	print_node_to_core_map();
+	print_yesde_to_core_map();
 	initialized = 1;
 }
 
@@ -459,7 +459,7 @@ static void emu_update_cpu_topology(void)
 	struct toptree *phys, *numa;
 
 	if (emu_cores == NULL)
-		create_core_to_node_map();
+		create_core_to_yesde_map();
 	phys = toptree_from_topology();
 	numa = toptree_to_numa(phys);
 	toptree_free(phys);
@@ -469,7 +469,7 @@ static void emu_update_cpu_topology(void)
 }
 
 /*
- * If emu_size is not set, use CONFIG_EMU_SIZE. Then round to minimum
+ * If emu_size is yest set, use CONFIG_EMU_SIZE. Then round to minimum
  * alignment (needed for memory hotplug).
  */
 static unsigned long emu_setup_size_adjust(unsigned long size)
@@ -486,18 +486,18 @@ static unsigned long emu_setup_size_adjust(unsigned long size)
 }
 
 /*
- * If we have not enough memory for the specified nodes, reduce the node count.
+ * If we have yest eyesugh memory for the specified yesdes, reduce the yesde count.
  */
-static int emu_setup_nodes_adjust(int nodes)
+static int emu_setup_yesdes_adjust(int yesdes)
 {
-	int nodes_max;
+	int yesdes_max;
 
-	nodes_max = memblock.memory.total_size / emu_size;
-	nodes_max = max(nodes_max, 1);
-	if (nodes_max >= nodes)
-		return nodes;
-	pr_warn("Not enough memory for %d nodes, reducing node count\n", nodes);
-	return nodes_max;
+	yesdes_max = memblock.memory.total_size / emu_size;
+	yesdes_max = max(yesdes_max, 1);
+	if (yesdes_max >= yesdes)
+		return yesdes;
+	pr_warn("Not eyesugh memory for %d yesdes, reducing yesde count\n", yesdes);
+	return yesdes_max;
 }
 
 /*
@@ -508,19 +508,19 @@ static void emu_setup(void)
 	int nid;
 
 	emu_size = emu_setup_size_adjust(emu_size);
-	emu_nodes = emu_setup_nodes_adjust(emu_nodes);
-	for (nid = 0; nid < emu_nodes; nid++)
-		node_set(nid, node_possible_map);
-	pr_info("Creating %d nodes with memory stripe size %ld MB\n",
-		emu_nodes, emu_size >> 20);
+	emu_yesdes = emu_setup_yesdes_adjust(emu_yesdes);
+	for (nid = 0; nid < emu_yesdes; nid++)
+		yesde_set(nid, yesde_possible_map);
+	pr_info("Creating %d yesdes with memory stripe size %ld MB\n",
+		emu_yesdes, emu_size >> 20);
 }
 
 /*
- * Return node id for given page number
+ * Return yesde id for given page number
  */
 static int emu_pfn_to_nid(unsigned long pfn)
 {
-	return (pfn / (emu_size >> PAGE_SHIFT)) % emu_nodes;
+	return (pfn / (emu_size >> PAGE_SHIFT)) % emu_yesdes;
 }
 
 /*
@@ -532,11 +532,11 @@ static unsigned long emu_align(void)
 }
 
 /*
- * Return distance between two nodes
+ * Return distance between two yesdes
  */
-static int emu_distance(int node1, int node2)
+static int emu_distance(int yesde1, int yesde2)
 {
-	return (node1 != node2) * EMU_NODE_DIST;
+	return (yesde1 != yesde2) * EMU_NODE_DIST;
 }
 
 /*
@@ -552,18 +552,18 @@ const struct numa_mode numa_mode_emu = {
 };
 
 /*
- * Kernel parameter: emu_nodes=<n>
+ * Kernel parameter: emu_yesdes=<n>
  */
-static int __init early_parse_emu_nodes(char *p)
+static int __init early_parse_emu_yesdes(char *p)
 {
 	int count;
 
 	if (!p || kstrtoint(p, 0, &count) != 0 || count <= 0)
 		return 0;
-	emu_nodes = min(count, MAX_NUMNODES);
+	emu_yesdes = min(count, MAX_NUMNODES);
 	return 0;
 }
-early_param("emu_nodes", early_parse_emu_nodes);
+early_param("emu_yesdes", early_parse_emu_yesdes);
 
 /*
  * Kernel parameter: emu_size=[<n>[k|M|G|T]]

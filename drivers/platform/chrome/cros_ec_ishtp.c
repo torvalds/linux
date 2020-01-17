@@ -216,12 +216,12 @@ static void process_recv(struct ishtp_cl *cros_ish_cl,
 	struct cros_ish_in_msg *in_msg =
 		(struct cros_ish_in_msg *)rb_in_proc->buffer.data;
 
-	/* Proceed only if reset or init is not in progress */
+	/* Proceed only if reset or init is yest in progress */
 	if (!down_read_trylock(&init_lock)) {
 		/* Free the buffer */
 		ishtp_cl_io_rb_recycle(rb_in_proc);
 		dev_warn(dev,
-			 "Host is not ready to receive incoming messages\n");
+			 "Host is yest ready to receive incoming messages\n");
 		return;
 	}
 
@@ -257,7 +257,7 @@ static void process_recv(struct ishtp_cl *cros_ish_cl,
 
 		if (client_data->response.received) {
 			dev_err(dev,
-				"Previous firmware message not yet processed\n");
+				"Previous firmware message yest yet processed\n");
 			client_data->response.error = -EINVAL;
 			goto error_wake_up;
 		}
@@ -373,7 +373,7 @@ static int cros_ish_init(struct ishtp_cl *cros_ish_cl)
 	fw_client = ishtp_fw_cl_get_client(dev, &cros_ish_guid);
 	if (!fw_client) {
 		dev_err(cl_data_to_dev(client_data),
-			"ish client uuid not found\n");
+			"ish client uuid yest found\n");
 		rv = -ENOENT;
 		goto err_cl_unlink;
 	}
@@ -487,10 +487,10 @@ static int cros_ec_pkt_xfer_ish(struct cros_ec_device *ec_dev,
 		return -EMSGSIZE;
 	}
 
-	/* Proceed only if reset-init is not in progress */
+	/* Proceed only if reset-init is yest in progress */
 	if (!down_read_trylock(&init_lock)) {
 		dev_warn(dev,
-			 "Host is not ready to send messages to ISH. Try again\n");
+			 "Host is yest ready to send messages to ISH. Try again\n");
 		return -EAGAIN;
 	}
 

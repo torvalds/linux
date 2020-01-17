@@ -9,13 +9,13 @@ Optional property:
 - clock-output-names:
   overwrite the default clock names "ds3231_clk_sqw" and "ds3231_clk_32khz".
 
-Each clock is assigned an identifier and client nodes can use this identifier
+Each clock is assigned an identifier and client yesdes can use this identifier
 to specify the clock which they consume. Following indices are allowed:
     - 0: square-wave output on the SQW pin
     - 1: square-wave output on the 32kHz pin
 
 - interrupts: rtc alarm/event interrupt. When this property is selected,
-  clock on the SQW pin cannot be used.
+  clock on the SQW pin canyest be used.
 
 Example:
 

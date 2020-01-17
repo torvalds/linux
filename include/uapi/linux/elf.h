@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_ELF_H
 #define _UAPI_LINUX_ELF_H
 
@@ -320,7 +320,7 @@ typedef struct elf64_shdr {
   Elf64_Addr sh_addr;		/* Section virtual addr at execution */
   Elf64_Off sh_offset;		/* Section file offset */
   Elf64_Xword sh_size;		/* Size of section in bytes */
-  Elf64_Word sh_link;		/* Index of another section */
+  Elf64_Word sh_link;		/* Index of ayesther section */
   Elf64_Word sh_info;		/* Additional section information */
   Elf64_Xword sh_addralign;	/* Section alignment */
   Elf64_Xword sh_entsize;	/* Entry size if section holds table */
@@ -365,7 +365,7 @@ typedef struct elf64_shdr {
 
 /*
  * Notes used in ET_CORE. Architectures export some of the arch register sets
- * using the corresponding note types via the PTRACE_GETREGSET and
+ * using the corresponding yeste types via the PTRACE_GETREGSET and
  * PTRACE_SETREGSET requests.
  */
 #define NT_PRSTATUS	1
@@ -374,7 +374,7 @@ typedef struct elf64_shdr {
 #define NT_TASKSTRUCT	4
 #define NT_AUXV		6
 /*
- * Note to userspace developers: size of NT_SIGINFO note may increase
+ * Note to userspace developers: size of NT_SIGINFO yeste may increase
  * in the future to accomodate more fields, don't assume it is fixed!
  */
 #define NT_SIGINFO      0x53494749
@@ -408,7 +408,7 @@ typedef struct elf64_shdr {
 #define NT_S390_PREFIX	0x305		/* s390 prefix register */
 #define NT_S390_LAST_BREAK	0x306	/* s390 breaking event address */
 #define NT_S390_SYSTEM_CALL	0x307	/* s390 system call restart data */
-#define NT_S390_TDB	0x308		/* s390 transaction diagnostic block */
+#define NT_S390_TDB	0x308		/* s390 transaction diagyesstic block */
 #define NT_S390_VXRS_LOW	0x309	/* s390 vector registers 0-15 upper half */
 #define NT_S390_VXRS_HIGH	0x30a	/* s390 vector registers 16-31 */
 #define NT_S390_GS_CB	0x30b		/* s390 guarded storage registers */
@@ -430,14 +430,14 @@ typedef struct elf64_shdr {
 #define NT_MIPS_MSA	0x802		/* MIPS SIMD registers */
 
 /* Note header in a PT_NOTE section */
-typedef struct elf32_note {
+typedef struct elf32_yeste {
   Elf32_Word	n_namesz;	/* Name size */
   Elf32_Word	n_descsz;	/* Content size */
   Elf32_Word	n_type;		/* Content type */
 } Elf32_Nhdr;
 
 /* Note header in a PT_NOTE section */
-typedef struct elf64_note {
+typedef struct elf64_yeste {
   Elf64_Word n_namesz;	/* Name size */
   Elf64_Word n_descsz;	/* Content size */
   Elf64_Word n_type;	/* Content type */

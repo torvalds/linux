@@ -97,7 +97,7 @@ struct eqbr_pin_bank {
 
 /**
  * struct eqbr_gpio_ctrl: represent a gpio controller.
- * @node: device node of gpio controller.
+ * @yesde: device yesde of gpio controller.
  * @bank: pointer to corresponding pin bank.
  * @membase: base address of the gpio controller.
  * @chip: gpio chip.
@@ -107,7 +107,7 @@ struct eqbr_pin_bank {
  * @lock: spin lock to protect gpio register write.
  */
 struct eqbr_gpio_ctrl {
-	struct device_node	*node;
+	struct device_yesde	*yesde;
 	struct eqbr_pin_bank	*bank;
 	void __iomem		*membase;
 	struct gpio_chip	chip;

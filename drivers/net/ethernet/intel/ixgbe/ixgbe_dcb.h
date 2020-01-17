@@ -29,9 +29,9 @@
 #define DCB_ERR_TC_BW           -4
 /* Traffic class has both link strict and group strict enabled */
 #define DCB_ERR_LS_GS           -5
-/* Link strict traffic class has non zero bandwidth */
+/* Link strict traffic class has yesn zero bandwidth */
 #define DCB_ERR_LS_BW_NONZERO   -6
-/* Link strict bandwidth group has non zero bandwidth */
+/* Link strict bandwidth group has yesn zero bandwidth */
 #define DCB_ERR_LS_BWG_NONZERO  -7
 /*  Traffic class has zero bandwidth */
 #define DCB_ERR_TC_BW_ZERO      -8
@@ -45,7 +45,7 @@ struct dcb_pfc_tc_debug {
 };
 
 enum strict_prio_type {
-	prio_none = 0,
+	prio_yesne = 0,
 	prio_group,
 	prio_link
 };

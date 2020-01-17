@@ -6,20 +6,20 @@ ARM multi-cluster systems maintain intra-cluster coherency through a
 cache coherent interconnect (CCI) that is capable of monitoring bus
 transactions and manage coherency, TLB invalidations and memory barriers.
 
-It allows snooping and distributed virtual memory message broadcast across
+It allows syesoping and distributed virtual memory message broadcast across
 clusters, through memory mapped interface, with a global control register
 space and multiple sets of interface control registers, one per slave
 interface.
 
-* CCI interconnect node
+* CCI interconnect yesde
 
 	Description: Describes a CCI cache coherent Interconnect component
 
 	Node name must be "cci".
-	Node's parent must be the root node /, and the address space visible
+	Node's parent must be the root yesde /, and the address space visible
 	through the CCI interconnect is the same as the one seen from the
-	root node (ie from CPUs perspective as per DT standard).
-	Every CCI node has to define the following properties:
+	root yesde (ie from CPUs perspective as per DT standard).
+	Every CCI yesde has to define the following properties:
 
 	- compatible
 		Usage: required
@@ -45,17 +45,17 @@ interface.
 			    child address space.
 		Definition: A standard property. Follow rules in the Devicetree
 			    Specification for hierarchical bus addressing. CCI
-			    interfaces addresses refer to the parent node
+			    interfaces addresses refer to the parent yesde
 			    addressing scheme to declare their register bases.
 
-	CCI interconnect node can define the following child nodes:
+	CCI interconnect yesde can define the following child yesdes:
 
-	- CCI control interface nodes
+	- CCI control interface yesdes
 
 		Node name must be "slave-if".
-		Parent node must be CCI interconnect node.
+		Parent yesde must be CCI interconnect yesde.
 
-		A CCI control interface node must contain the following
+		A CCI control interface yesde must contain the following
 		properties:
 
 		- compatible
@@ -68,7 +68,7 @@ interface.
 			Usage: required
 			Value type: <string>
 			Definition: must be set to one of {"ace", "ace-lite"}
-				    depending on the interface type the node
+				    depending on the interface type the yesde
 				    represents.
 
 		- reg:
@@ -80,11 +80,11 @@ interface.
 				    corresponding interface programming
 				    registers.
 
-	- CCI PMU node
+	- CCI PMU yesde
 
-		Parent node must be CCI interconnect node.
+		Parent yesde must be CCI interconnect yesde.
 
-		A CCI pmu node must contain the following properties:
+		A CCI pmu yesde must contain the following properties:
 
 		- compatible
 			Usage: required
@@ -124,15 +124,15 @@ interface.
 * CCI interconnect bus masters
 
 	Description: masters in the device tree connected to a CCI port
-		     (inclusive of CPUs and their cpu nodes).
+		     (inclusive of CPUs and their cpu yesdes).
 
-	A CCI interconnect bus master node must contain the following
+	A CCI interconnect bus master yesde must contain the following
 	properties:
 
 	- cci-control-port:
 		Usage: required
 		Value type: <phandle>
-		Definition: a phandle containing the CCI control interface node
+		Definition: a phandle containing the CCI control interface yesde
 			    the master is connected to.
 
 Example:
@@ -217,7 +217,7 @@ Example:
 		};
 	};
 
-This CCI node corresponds to a CCI component whose control registers sits
+This CCI yesde corresponds to a CCI component whose control registers sits
 at address 0x000000002c090000.
 CCI slave interface @0x000000002c091000 is connected to dma controller dma0.
 CCI slave interface @0x000000002c094000 is connected to CPUs {CPU0, CPU1};

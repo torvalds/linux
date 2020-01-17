@@ -18,10 +18,10 @@
  *	  specify KERNEL_VXR_HIGH.
  *
  *     If you adhere to these guidelines, an interrupted process context
- *     does not require to save and restore vector registers because of
+ *     does yest require to save and restore vector registers because of
  *     disjoint register ranges.
  *
- *     Also note that the __kernel_fpu_begin()/__kernel_fpu_end() functions
+ *     Also yeste that the __kernel_fpu_begin()/__kernel_fpu_end() functions
  *     includes logic to save and restore up to 16 vector registers at once.
  *
  *  3. You can nest kernel_fpu_begin()/kernel_fpu_end() by using different
@@ -82,7 +82,7 @@ struct kernel_fpu;
 
 /*
  * Note the functions below must be called with preemption disabled.
- * Do not enable preemption before calling __kernel_fpu_end() to prevent
+ * Do yest enable preemption before calling __kernel_fpu_end() to prevent
  * an corruption of an existing kernel FPU state.
  *
  * Prefer using the kernel_fpu_begin()/kernel_fpu_end() pair of functions.

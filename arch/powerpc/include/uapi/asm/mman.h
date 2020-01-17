@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -13,7 +13,7 @@
 
 #define PROT_SAO	0x10		/* Strong Access Ordering */
 
-#define MAP_RENAME      MAP_ANONYMOUS   /* In SunOS terminology */
+#define MAP_RENAME      MAP_ANONYMOUS   /* In SunOS termiyeslogy */
 #define MAP_NORESERVE   0x40            /* don't reserve swap pages */
 #define MAP_LOCKED	0x80
 

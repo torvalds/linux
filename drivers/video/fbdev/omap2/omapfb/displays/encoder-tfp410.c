@@ -165,11 +165,11 @@ static const struct omapdss_dvi_ops tfp410_dvi_ops = {
 static int tfp410_probe_of(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct omap_dss_device *in;
 	int gpio;
 
-	gpio = of_get_named_gpio(node, "powerdown-gpios", 0);
+	gpio = of_get_named_gpio(yesde, "powerdown-gpios", 0);
 
 	if (gpio_is_valid(gpio) || gpio == -ENOENT) {
 		ddata->pd_gpio = gpio;
@@ -178,7 +178,7 @@ static int tfp410_probe_of(struct platform_device *pdev)
 		return gpio;
 	}
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(yesde);
 	if (IS_ERR(in)) {
 		dev_err(&pdev->dev, "failed to find video source\n");
 		return PTR_ERR(in);
@@ -195,7 +195,7 @@ static int tfp410_probe(struct platform_device *pdev)
 	struct omap_dss_device *dssdev;
 	int r;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);

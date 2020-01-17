@@ -37,8 +37,8 @@ These values shall be obtained from the device data-sheet.
 - tCKESR-min-tck
 - tMRD-min-tck
 
-Child nodes:
-- The lpddr3 node may have one or more child nodes of type "lpddr3-timings".
+Child yesdes:
+- The lpddr3 yesde may have one or more child yesdes of type "lpddr3-timings".
   "lpddr3-timings" provides AC timing parameters of the device for
   a given speed-bin. Please see Documentation/devicetree/
   bindings/ddr/lpddr3-timings.txt for more information on "lpddr3-timings"

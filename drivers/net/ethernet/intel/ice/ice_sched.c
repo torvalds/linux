@@ -4,18 +4,18 @@
 #include "ice_sched.h"
 
 /**
- * ice_sched_add_root_node - Insert the Tx scheduler root node in SW DB
+ * ice_sched_add_root_yesde - Insert the Tx scheduler root yesde in SW DB
  * @pi: port information structure
  * @info: Scheduler element information from firmware
  *
- * This function inserts the root node of the scheduling tree topology
+ * This function inserts the root yesde of the scheduling tree topology
  * to the SW DB.
  */
 static enum ice_status
-ice_sched_add_root_node(struct ice_port_info *pi,
+ice_sched_add_root_yesde(struct ice_port_info *pi,
 			struct ice_aqc_txsched_elem_data *info)
 {
-	struct ice_sched_node *root;
+	struct ice_sched_yesde *root;
 	struct ice_hw *hw;
 
 	if (!pi)
@@ -41,41 +41,41 @@ ice_sched_add_root_node(struct ice_port_info *pi,
 }
 
 /**
- * ice_sched_find_node_by_teid - Find the Tx scheduler node in SW DB
- * @start_node: pointer to the starting ice_sched_node struct in a sub-tree
- * @teid: node TEID to search
+ * ice_sched_find_yesde_by_teid - Find the Tx scheduler yesde in SW DB
+ * @start_yesde: pointer to the starting ice_sched_yesde struct in a sub-tree
+ * @teid: yesde TEID to search
  *
- * This function searches for a node matching the TEID in the scheduling tree
+ * This function searches for a yesde matching the TEID in the scheduling tree
  * from the SW DB. The search is recursive and is restricted by the number of
  * layers it has searched through; stopping at the max supported layer.
  *
  * This function needs to be called when holding the port_info->sched_lock
  */
-struct ice_sched_node *
-ice_sched_find_node_by_teid(struct ice_sched_node *start_node, u32 teid)
+struct ice_sched_yesde *
+ice_sched_find_yesde_by_teid(struct ice_sched_yesde *start_yesde, u32 teid)
 {
 	u16 i;
 
-	/* The TEID is same as that of the start_node */
-	if (ICE_TXSCHED_GET_NODE_TEID(start_node) == teid)
-		return start_node;
+	/* The TEID is same as that of the start_yesde */
+	if (ICE_TXSCHED_GET_NODE_TEID(start_yesde) == teid)
+		return start_yesde;
 
-	/* The node has no children or is at the max layer */
-	if (!start_node->num_children ||
-	    start_node->tx_sched_layer >= ICE_AQC_TOPO_MAX_LEVEL_NUM ||
-	    start_node->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF)
+	/* The yesde has yes children or is at the max layer */
+	if (!start_yesde->num_children ||
+	    start_yesde->tx_sched_layer >= ICE_AQC_TOPO_MAX_LEVEL_NUM ||
+	    start_yesde->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF)
 		return NULL;
 
-	/* Check if TEID matches to any of the children nodes */
-	for (i = 0; i < start_node->num_children; i++)
-		if (ICE_TXSCHED_GET_NODE_TEID(start_node->children[i]) == teid)
-			return start_node->children[i];
+	/* Check if TEID matches to any of the children yesdes */
+	for (i = 0; i < start_yesde->num_children; i++)
+		if (ICE_TXSCHED_GET_NODE_TEID(start_yesde->children[i]) == teid)
+			return start_yesde->children[i];
 
 	/* Search within each child's sub-tree */
-	for (i = 0; i < start_node->num_children; i++) {
-		struct ice_sched_node *tmp;
+	for (i = 0; i < start_yesde->num_children; i++) {
+		struct ice_sched_yesde *tmp;
 
-		tmp = ice_sched_find_node_by_teid(start_node->children[i],
+		tmp = ice_sched_find_yesde_by_teid(start_yesde->children[i],
 						  teid);
 		if (tmp)
 			return tmp;
@@ -138,20 +138,20 @@ ice_aq_query_sched_elems(struct ice_hw *hw, u16 elems_req,
 }
 
 /**
- * ice_sched_add_node - Insert the Tx scheduler node in SW DB
+ * ice_sched_add_yesde - Insert the Tx scheduler yesde in SW DB
  * @pi: port information structure
- * @layer: Scheduler layer of the node
+ * @layer: Scheduler layer of the yesde
  * @info: Scheduler element information from firmware
  *
- * This function inserts a scheduler node to the SW DB.
+ * This function inserts a scheduler yesde to the SW DB.
  */
 enum ice_status
-ice_sched_add_node(struct ice_port_info *pi, u8 layer,
+ice_sched_add_yesde(struct ice_port_info *pi, u8 layer,
 		   struct ice_aqc_txsched_elem_data *info)
 {
-	struct ice_sched_node *parent;
+	struct ice_sched_yesde *parent;
 	struct ice_aqc_get_elem elem;
-	struct ice_sched_node *node;
+	struct ice_sched_yesde *yesde;
 	enum ice_status status;
 	struct ice_hw *hw;
 
@@ -160,42 +160,42 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 
 	hw = pi->hw;
 
-	/* A valid parent node should be there */
-	parent = ice_sched_find_node_by_teid(pi->root,
+	/* A valid parent yesde should be there */
+	parent = ice_sched_find_yesde_by_teid(pi->root,
 					     le32_to_cpu(info->parent_teid));
 	if (!parent) {
 		ice_debug(hw, ICE_DBG_SCHED,
-			  "Parent Node not found for parent_teid=0x%x\n",
+			  "Parent Node yest found for parent_teid=0x%x\n",
 			  le32_to_cpu(info->parent_teid));
 		return ICE_ERR_PARAM;
 	}
 
-	/* query the current node information from FW  before additing it
+	/* query the current yesde information from FW  before additing it
 	 * to the SW DB
 	 */
-	status = ice_sched_query_elem(hw, le32_to_cpu(info->node_teid), &elem);
+	status = ice_sched_query_elem(hw, le32_to_cpu(info->yesde_teid), &elem);
 	if (status)
 		return status;
 
-	node = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*node), GFP_KERNEL);
-	if (!node)
+	yesde = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*yesde), GFP_KERNEL);
+	if (!yesde)
 		return ICE_ERR_NO_MEMORY;
 	if (hw->max_children[layer]) {
 		/* coverity[suspicious_sizeof] */
-		node->children = devm_kcalloc(ice_hw_to_dev(hw),
+		yesde->children = devm_kcalloc(ice_hw_to_dev(hw),
 					      hw->max_children[layer],
-					      sizeof(*node), GFP_KERNEL);
-		if (!node->children) {
-			devm_kfree(ice_hw_to_dev(hw), node);
+					      sizeof(*yesde), GFP_KERNEL);
+		if (!yesde->children) {
+			devm_kfree(ice_hw_to_dev(hw), yesde);
 			return ICE_ERR_NO_MEMORY;
 		}
 	}
 
-	node->in_use = true;
-	node->parent = parent;
-	node->tx_sched_layer = layer;
-	parent->children[parent->num_children++] = node;
-	memcpy(&node->info, &elem.generic[0], sizeof(node->info));
+	yesde->in_use = true;
+	yesde->parent = parent;
+	yesde->tx_sched_layer = layer;
+	parent->children[parent->num_children++] = yesde;
+	memcpy(&yesde->info, &elem.generic[0], sizeof(yesde->info));
 	return 0;
 }
 
@@ -221,37 +221,37 @@ ice_aq_delete_sched_elems(struct ice_hw *hw, u16 grps_req,
 }
 
 /**
- * ice_sched_remove_elems - remove nodes from HW
+ * ice_sched_remove_elems - remove yesdes from HW
  * @hw: pointer to the HW struct
- * @parent: pointer to the parent node
- * @num_nodes: number of nodes
- * @node_teids: array of node teids to be deleted
+ * @parent: pointer to the parent yesde
+ * @num_yesdes: number of yesdes
+ * @yesde_teids: array of yesde teids to be deleted
  *
- * This function remove nodes from HW
+ * This function remove yesdes from HW
  */
 static enum ice_status
-ice_sched_remove_elems(struct ice_hw *hw, struct ice_sched_node *parent,
-		       u16 num_nodes, u32 *node_teids)
+ice_sched_remove_elems(struct ice_hw *hw, struct ice_sched_yesde *parent,
+		       u16 num_yesdes, u32 *yesde_teids)
 {
 	struct ice_aqc_delete_elem *buf;
 	u16 i, num_groups_removed = 0;
 	enum ice_status status;
 	u16 buf_size;
 
-	buf_size = sizeof(*buf) + sizeof(u32) * (num_nodes - 1);
+	buf_size = sizeof(*buf) + sizeof(u32) * (num_yesdes - 1);
 	buf = devm_kzalloc(ice_hw_to_dev(hw), buf_size, GFP_KERNEL);
 	if (!buf)
 		return ICE_ERR_NO_MEMORY;
 
-	buf->hdr.parent_teid = parent->info.node_teid;
-	buf->hdr.num_elems = cpu_to_le16(num_nodes);
-	for (i = 0; i < num_nodes; i++)
-		buf->teid[i] = cpu_to_le32(node_teids[i]);
+	buf->hdr.parent_teid = parent->info.yesde_teid;
+	buf->hdr.num_elems = cpu_to_le16(num_yesdes);
+	for (i = 0; i < num_yesdes; i++)
+		buf->teid[i] = cpu_to_le32(yesde_teids[i]);
 
 	status = ice_aq_delete_sched_elems(hw, 1, buf, buf_size,
 					   &num_groups_removed, NULL);
 	if (status || num_groups_removed != 1)
-		ice_debug(hw, ICE_DBG_SCHED, "remove node failed FW error %d\n",
+		ice_debug(hw, ICE_DBG_SCHED, "remove yesde failed FW error %d\n",
 			  hw->adminq.sq_last_status);
 
 	devm_kfree(ice_hw_to_dev(hw), buf);
@@ -259,28 +259,28 @@ ice_sched_remove_elems(struct ice_hw *hw, struct ice_sched_node *parent,
 }
 
 /**
- * ice_sched_get_first_node - get the first node of the given layer
+ * ice_sched_get_first_yesde - get the first yesde of the given layer
  * @pi: port information structure
- * @parent: pointer the base node of the subtree
+ * @parent: pointer the base yesde of the subtree
  * @layer: layer number
  *
- * This function retrieves the first node of the given layer from the subtree
+ * This function retrieves the first yesde of the given layer from the subtree
  */
-static struct ice_sched_node *
-ice_sched_get_first_node(struct ice_port_info *pi,
-			 struct ice_sched_node *parent, u8 layer)
+static struct ice_sched_yesde *
+ice_sched_get_first_yesde(struct ice_port_info *pi,
+			 struct ice_sched_yesde *parent, u8 layer)
 {
 	return pi->sib_head[parent->tc_num][layer];
 }
 
 /**
- * ice_sched_get_tc_node - get pointer to TC node
+ * ice_sched_get_tc_yesde - get pointer to TC yesde
  * @pi: port information structure
  * @tc: TC number
  *
- * This function returns the TC node pointer
+ * This function returns the TC yesde pointer
  */
-struct ice_sched_node *ice_sched_get_tc_node(struct ice_port_info *pi, u8 tc)
+struct ice_sched_yesde *ice_sched_get_tc_yesde(struct ice_port_info *pi, u8 tc)
 {
 	u8 i;
 
@@ -293,44 +293,44 @@ struct ice_sched_node *ice_sched_get_tc_node(struct ice_port_info *pi, u8 tc)
 }
 
 /**
- * ice_free_sched_node - Free a Tx scheduler node from SW DB
+ * ice_free_sched_yesde - Free a Tx scheduler yesde from SW DB
  * @pi: port information structure
- * @node: pointer to the ice_sched_node struct
+ * @yesde: pointer to the ice_sched_yesde struct
  *
- * This function frees up a node from SW DB as well as from HW
+ * This function frees up a yesde from SW DB as well as from HW
  *
  * This function needs to be called with the port_info->sched_lock held
  */
-void ice_free_sched_node(struct ice_port_info *pi, struct ice_sched_node *node)
+void ice_free_sched_yesde(struct ice_port_info *pi, struct ice_sched_yesde *yesde)
 {
-	struct ice_sched_node *parent;
+	struct ice_sched_yesde *parent;
 	struct ice_hw *hw = pi->hw;
 	u8 i, j;
 
-	/* Free the children before freeing up the parent node
-	 * The parent array is updated below and that shifts the nodes
+	/* Free the children before freeing up the parent yesde
+	 * The parent array is updated below and that shifts the yesdes
 	 * in the array. So always pick the first child if num children > 0
 	 */
-	while (node->num_children)
-		ice_free_sched_node(pi, node->children[0]);
+	while (yesde->num_children)
+		ice_free_sched_yesde(pi, yesde->children[0]);
 
-	/* Leaf, TC and root nodes can't be deleted by SW */
-	if (node->tx_sched_layer >= hw->sw_entry_point_layer &&
-	    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_TC &&
-	    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_ROOT_PORT &&
-	    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_LEAF) {
-		u32 teid = le32_to_cpu(node->info.node_teid);
+	/* Leaf, TC and root yesdes can't be deleted by SW */
+	if (yesde->tx_sched_layer >= hw->sw_entry_point_layer &&
+	    yesde->info.data.elem_type != ICE_AQC_ELEM_TYPE_TC &&
+	    yesde->info.data.elem_type != ICE_AQC_ELEM_TYPE_ROOT_PORT &&
+	    yesde->info.data.elem_type != ICE_AQC_ELEM_TYPE_LEAF) {
+		u32 teid = le32_to_cpu(yesde->info.yesde_teid);
 
-		ice_sched_remove_elems(hw, node->parent, 1, &teid);
+		ice_sched_remove_elems(hw, yesde->parent, 1, &teid);
 	}
-	parent = node->parent;
-	/* root has no parent */
+	parent = yesde->parent;
+	/* root has yes parent */
 	if (parent) {
-		struct ice_sched_node *p;
+		struct ice_sched_yesde *p;
 
 		/* update the parent */
 		for (i = 0; i < parent->num_children; i++)
-			if (parent->children[i] == node) {
+			if (parent->children[i] == yesde) {
 				for (j = i + 1; j < parent->num_children; j++)
 					parent->children[j - 1] =
 						parent->children[j];
@@ -338,25 +338,25 @@ void ice_free_sched_node(struct ice_port_info *pi, struct ice_sched_node *node)
 				break;
 			}
 
-		p = ice_sched_get_first_node(pi, node, node->tx_sched_layer);
+		p = ice_sched_get_first_yesde(pi, yesde, yesde->tx_sched_layer);
 		while (p) {
-			if (p->sibling == node) {
-				p->sibling = node->sibling;
+			if (p->sibling == yesde) {
+				p->sibling = yesde->sibling;
 				break;
 			}
 			p = p->sibling;
 		}
 
 		/* update the sibling head if head is getting removed */
-		if (pi->sib_head[node->tc_num][node->tx_sched_layer] == node)
-			pi->sib_head[node->tc_num][node->tx_sched_layer] =
-				node->sibling;
+		if (pi->sib_head[yesde->tc_num][yesde->tx_sched_layer] == yesde)
+			pi->sib_head[yesde->tc_num][yesde->tx_sched_layer] =
+				yesde->sibling;
 	}
 
-	/* leaf nodes have no children */
-	if (node->children)
-		devm_kfree(ice_hw_to_dev(hw), node->children);
-	devm_kfree(ice_hw_to_dev(hw), node);
+	/* leaf yesdes have yes children */
+	if (yesde->children)
+		devm_kfree(ice_hw_to_dev(hw), yesde->children);
+	devm_kfree(ice_hw_to_dev(hw), yesde);
 }
 
 /**
@@ -494,39 +494,39 @@ ice_aq_query_sched_res(struct ice_hw *hw, u16 buf_size,
 }
 
 /**
- * ice_sched_suspend_resume_elems - suspend or resume HW nodes
+ * ice_sched_suspend_resume_elems - suspend or resume HW yesdes
  * @hw: pointer to the HW struct
- * @num_nodes: number of nodes
- * @node_teids: array of node teids to be suspended or resumed
+ * @num_yesdes: number of yesdes
+ * @yesde_teids: array of yesde teids to be suspended or resumed
  * @suspend: true means suspend / false means resume
  *
- * This function suspends or resumes HW nodes
+ * This function suspends or resumes HW yesdes
  */
 static enum ice_status
-ice_sched_suspend_resume_elems(struct ice_hw *hw, u8 num_nodes, u32 *node_teids,
+ice_sched_suspend_resume_elems(struct ice_hw *hw, u8 num_yesdes, u32 *yesde_teids,
 			       bool suspend)
 {
 	struct ice_aqc_suspend_resume_elem *buf;
 	u16 i, buf_size, num_elem_ret = 0;
 	enum ice_status status;
 
-	buf_size = sizeof(*buf) * num_nodes;
+	buf_size = sizeof(*buf) * num_yesdes;
 	buf = devm_kzalloc(ice_hw_to_dev(hw), buf_size, GFP_KERNEL);
 	if (!buf)
 		return ICE_ERR_NO_MEMORY;
 
-	for (i = 0; i < num_nodes; i++)
-		buf->teid[i] = cpu_to_le32(node_teids[i]);
+	for (i = 0; i < num_yesdes; i++)
+		buf->teid[i] = cpu_to_le32(yesde_teids[i]);
 
 	if (suspend)
-		status = ice_aq_suspend_sched_elems(hw, num_nodes, buf,
+		status = ice_aq_suspend_sched_elems(hw, num_yesdes, buf,
 						    buf_size, &num_elem_ret,
 						    NULL);
 	else
-		status = ice_aq_resume_sched_elems(hw, num_nodes, buf,
+		status = ice_aq_resume_sched_elems(hw, num_yesdes, buf,
 						   buf_size, &num_elem_ret,
 						   NULL);
-	if (status || num_elem_ret != num_nodes)
+	if (status || num_elem_ret != num_yesdes)
 		ice_debug(hw, ICE_DBG_SCHED, "suspend/resume failed\n");
 
 	devm_kfree(ice_hw_to_dev(hw), buf);
@@ -658,7 +658,7 @@ ice_aq_remove_rl_profile(struct ice_hw *hw, u16 num_profiles,
  * @hw: pointer to the HW struct
  * @rl_info: rate limit profile information
  *
- * If the profile ID is not referenced anymore, it removes profile ID with
+ * If the profile ID is yest referenced anymore, it removes profile ID with
  * its associated parameters from HW DB,and locally. The caller needs to
  * hold scheduler lock.
  */
@@ -682,7 +682,7 @@ ice_sched_del_rl_profile(struct ice_hw *hw,
 	if (status || num_profiles_removed != num_profiles)
 		return ICE_ERR_CFG;
 
-	/* Delete stale entry now */
+	/* Delete stale entry yesw */
 	list_del(&rl_info->list_entry);
 	devm_kfree(ice_hw_to_dev(hw), rl_info);
 	return status;
@@ -747,10 +747,10 @@ void ice_sched_clear_agg(struct ice_hw *hw)
 }
 
 /**
- * ice_sched_clear_tx_topo - clears the scheduler tree nodes
+ * ice_sched_clear_tx_topo - clears the scheduler tree yesdes
  * @pi: port information structure
  *
- * This function removes all the nodes from HW as well as from SW DB.
+ * This function removes all the yesdes from HW as well as from SW DB.
  */
 static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
 {
@@ -759,7 +759,7 @@ static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
 	/* remove RL profiles related lists */
 	ice_sched_clear_rl_prof(pi);
 	if (pi->root) {
-		ice_free_sched_node(pi, pi->root);
+		ice_free_sched_yesde(pi, pi->root);
 		pi->root = NULL;
 	}
 }
@@ -807,23 +807,23 @@ void ice_sched_cleanup_all(struct ice_hw *hw)
 }
 
 /**
- * ice_sched_add_elems - add nodes to HW and SW DB
+ * ice_sched_add_elems - add yesdes to HW and SW DB
  * @pi: port information structure
- * @tc_node: pointer to the branch node
- * @parent: pointer to the parent node
- * @layer: layer number to add nodes
- * @num_nodes: number of nodes
- * @num_nodes_added: pointer to num nodes added
- * @first_node_teid: if new nodes are added then return the TEID of first node
+ * @tc_yesde: pointer to the branch yesde
+ * @parent: pointer to the parent yesde
+ * @layer: layer number to add yesdes
+ * @num_yesdes: number of yesdes
+ * @num_yesdes_added: pointer to num yesdes added
+ * @first_yesde_teid: if new yesdes are added then return the TEID of first yesde
  *
- * This function add nodes to HW as well as to SW DB for a given layer
+ * This function add yesdes to HW as well as to SW DB for a given layer
  */
 static enum ice_status
-ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
-		    struct ice_sched_node *parent, u8 layer, u16 num_nodes,
-		    u16 *num_nodes_added, u32 *first_node_teid)
+ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_yesde *tc_yesde,
+		    struct ice_sched_yesde *parent, u8 layer, u16 num_yesdes,
+		    u16 *num_yesdes_added, u32 *first_yesde_teid)
 {
-	struct ice_sched_node *prev, *new_node;
+	struct ice_sched_yesde *prev, *new_yesde;
 	struct ice_aqc_add_elem *buf;
 	u16 i, num_groups_added = 0;
 	enum ice_status status = 0;
@@ -831,15 +831,15 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 	size_t buf_size;
 	u32 teid;
 
-	buf_size = struct_size(buf, generic, num_nodes - 1);
+	buf_size = struct_size(buf, generic, num_yesdes - 1);
 	buf = devm_kzalloc(ice_hw_to_dev(hw), buf_size, GFP_KERNEL);
 	if (!buf)
 		return ICE_ERR_NO_MEMORY;
 
-	buf->hdr.parent_teid = parent->info.node_teid;
-	buf->hdr.num_elems = cpu_to_le16(num_nodes);
-	for (i = 0; i < num_nodes; i++) {
-		buf->generic[i].parent_teid = parent->info.node_teid;
+	buf->hdr.parent_teid = parent->info.yesde_teid;
+	buf->hdr.num_elems = cpu_to_le16(num_yesdes);
+	for (i = 0; i < num_yesdes; i++) {
+		buf->generic[i].parent_teid = parent->info.yesde_teid;
 		buf->generic[i].data.elem_type = ICE_AQC_ELEM_TYPE_SE_GENERIC;
 		buf->generic[i].data.valid_sections =
 			ICE_AQC_ELEM_VALID_GENERIC | ICE_AQC_ELEM_VALID_CIR |
@@ -858,49 +858,49 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 	status = ice_aq_add_sched_elems(hw, 1, buf, buf_size,
 					&num_groups_added, NULL);
 	if (status || num_groups_added != 1) {
-		ice_debug(hw, ICE_DBG_SCHED, "add node failed FW Error %d\n",
+		ice_debug(hw, ICE_DBG_SCHED, "add yesde failed FW Error %d\n",
 			  hw->adminq.sq_last_status);
 		devm_kfree(ice_hw_to_dev(hw), buf);
 		return ICE_ERR_CFG;
 	}
 
-	*num_nodes_added = num_nodes;
-	/* add nodes to the SW DB */
-	for (i = 0; i < num_nodes; i++) {
-		status = ice_sched_add_node(pi, layer, &buf->generic[i]);
+	*num_yesdes_added = num_yesdes;
+	/* add yesdes to the SW DB */
+	for (i = 0; i < num_yesdes; i++) {
+		status = ice_sched_add_yesde(pi, layer, &buf->generic[i]);
 		if (status) {
 			ice_debug(hw, ICE_DBG_SCHED,
-				  "add nodes in SW DB failed status =%d\n",
+				  "add yesdes in SW DB failed status =%d\n",
 				  status);
 			break;
 		}
 
-		teid = le32_to_cpu(buf->generic[i].node_teid);
-		new_node = ice_sched_find_node_by_teid(parent, teid);
-		if (!new_node) {
+		teid = le32_to_cpu(buf->generic[i].yesde_teid);
+		new_yesde = ice_sched_find_yesde_by_teid(parent, teid);
+		if (!new_yesde) {
 			ice_debug(hw, ICE_DBG_SCHED,
 				  "Node is missing for teid =%d\n", teid);
 			break;
 		}
 
-		new_node->sibling = NULL;
-		new_node->tc_num = tc_node->tc_num;
+		new_yesde->sibling = NULL;
+		new_yesde->tc_num = tc_yesde->tc_num;
 
-		/* add it to previous node sibling pointer */
-		/* Note: siblings are not linked across branches */
-		prev = ice_sched_get_first_node(pi, tc_node, layer);
-		if (prev && prev != new_node) {
+		/* add it to previous yesde sibling pointer */
+		/* Note: siblings are yest linked across branches */
+		prev = ice_sched_get_first_yesde(pi, tc_yesde, layer);
+		if (prev && prev != new_yesde) {
 			while (prev->sibling)
 				prev = prev->sibling;
-			prev->sibling = new_node;
+			prev->sibling = new_yesde;
 		}
 
 		/* initialize the sibling head */
-		if (!pi->sib_head[tc_node->tc_num][layer])
-			pi->sib_head[tc_node->tc_num][layer] = new_node;
+		if (!pi->sib_head[tc_yesde->tc_num][layer])
+			pi->sib_head[tc_yesde->tc_num][layer] = new_yesde;
 
 		if (i == 0)
-			*first_node_teid = teid;
+			*first_yesde_teid = teid;
 	}
 
 	devm_kfree(ice_hw_to_dev(hw), buf);
@@ -908,91 +908,91 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 }
 
 /**
- * ice_sched_add_nodes_to_layer - Add nodes to a given layer
+ * ice_sched_add_yesdes_to_layer - Add yesdes to a given layer
  * @pi: port information structure
- * @tc_node: pointer to TC node
- * @parent: pointer to parent node
- * @layer: layer number to add nodes
- * @num_nodes: number of nodes to be added
- * @first_node_teid: pointer to the first node TEID
- * @num_nodes_added: pointer to number of nodes added
+ * @tc_yesde: pointer to TC yesde
+ * @parent: pointer to parent yesde
+ * @layer: layer number to add yesdes
+ * @num_yesdes: number of yesdes to be added
+ * @first_yesde_teid: pointer to the first yesde TEID
+ * @num_yesdes_added: pointer to number of yesdes added
  *
- * This function add nodes to a given layer.
+ * This function add yesdes to a given layer.
  */
 static enum ice_status
-ice_sched_add_nodes_to_layer(struct ice_port_info *pi,
-			     struct ice_sched_node *tc_node,
-			     struct ice_sched_node *parent, u8 layer,
-			     u16 num_nodes, u32 *first_node_teid,
-			     u16 *num_nodes_added)
+ice_sched_add_yesdes_to_layer(struct ice_port_info *pi,
+			     struct ice_sched_yesde *tc_yesde,
+			     struct ice_sched_yesde *parent, u8 layer,
+			     u16 num_yesdes, u32 *first_yesde_teid,
+			     u16 *num_yesdes_added)
 {
-	u32 *first_teid_ptr = first_node_teid;
-	u16 new_num_nodes, max_child_nodes;
+	u32 *first_teid_ptr = first_yesde_teid;
+	u16 new_num_yesdes, max_child_yesdes;
 	enum ice_status status = 0;
 	struct ice_hw *hw = pi->hw;
 	u16 num_added = 0;
 	u32 temp;
 
-	*num_nodes_added = 0;
+	*num_yesdes_added = 0;
 
-	if (!num_nodes)
+	if (!num_yesdes)
 		return status;
 
 	if (!parent || layer < hw->sw_entry_point_layer)
 		return ICE_ERR_PARAM;
 
-	/* max children per node per layer */
-	max_child_nodes = hw->max_children[parent->tx_sched_layer];
+	/* max children per yesde per layer */
+	max_child_yesdes = hw->max_children[parent->tx_sched_layer];
 
-	/* current number of children + required nodes exceed max children ? */
-	if ((parent->num_children + num_nodes) > max_child_nodes) {
-		/* Fail if the parent is a TC node */
-		if (parent == tc_node)
+	/* current number of children + required yesdes exceed max children ? */
+	if ((parent->num_children + num_yesdes) > max_child_yesdes) {
+		/* Fail if the parent is a TC yesde */
+		if (parent == tc_yesde)
 			return ICE_ERR_CFG;
 
-		/* utilize all the spaces if the parent is not full */
-		if (parent->num_children < max_child_nodes) {
-			new_num_nodes = max_child_nodes - parent->num_children;
+		/* utilize all the spaces if the parent is yest full */
+		if (parent->num_children < max_child_yesdes) {
+			new_num_yesdes = max_child_yesdes - parent->num_children;
 			/* this recursion is intentional, and wouldn't
 			 * go more than 2 calls
 			 */
-			status = ice_sched_add_nodes_to_layer(pi, tc_node,
+			status = ice_sched_add_yesdes_to_layer(pi, tc_yesde,
 							      parent, layer,
-							      new_num_nodes,
-							      first_node_teid,
+							      new_num_yesdes,
+							      first_yesde_teid,
 							      &num_added);
 			if (status)
 				return status;
 
-			*num_nodes_added += num_added;
+			*num_yesdes_added += num_added;
 		}
-		/* Don't modify the first node TEID memory if the first node was
+		/* Don't modify the first yesde TEID memory if the first yesde was
 		 * added already in the above call. Instead send some temp
 		 * memory for all other recursive calls.
 		 */
 		if (num_added)
 			first_teid_ptr = &temp;
 
-		new_num_nodes = num_nodes - num_added;
+		new_num_yesdes = num_yesdes - num_added;
 
 		/* This parent is full, try the next sibling */
 		parent = parent->sibling;
 
 		/* this recursion is intentional, for 1024 queues
 		 * per VSI, it goes max of 16 iterations.
-		 * 1024 / 8 = 128 layer 8 nodes
-		 * 128 /8 = 16 (add 8 nodes per iteration)
+		 * 1024 / 8 = 128 layer 8 yesdes
+		 * 128 /8 = 16 (add 8 yesdes per iteration)
 		 */
-		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent,
-						      layer, new_num_nodes,
+		status = ice_sched_add_yesdes_to_layer(pi, tc_yesde, parent,
+						      layer, new_num_yesdes,
 						      first_teid_ptr,
 						      &num_added);
-		*num_nodes_added += num_added;
+		*num_yesdes_added += num_added;
 		return status;
 	}
 
-	status = ice_sched_add_elems(pi, tc_node, parent, layer, num_nodes,
-				     num_nodes_added, first_node_teid);
+	status = ice_sched_add_elems(pi, tc_yesde, parent, layer, num_yesdes,
+				     num_yesdes_added, first_yesde_teid);
 	return status;
 }
 
@@ -1032,59 +1032,59 @@ static u8 ice_sched_get_vsi_layer(struct ice_hw *hw)
 }
 
 /**
- * ice_rm_dflt_leaf_node - remove the default leaf node in the tree
+ * ice_rm_dflt_leaf_yesde - remove the default leaf yesde in the tree
  * @pi: port information structure
  *
- * This function removes the leaf node that was created by the FW
+ * This function removes the leaf yesde that was created by the FW
  * during initialization
  */
-static void ice_rm_dflt_leaf_node(struct ice_port_info *pi)
+static void ice_rm_dflt_leaf_yesde(struct ice_port_info *pi)
 {
-	struct ice_sched_node *node;
+	struct ice_sched_yesde *yesde;
 
-	node = pi->root;
-	while (node) {
-		if (!node->num_children)
+	yesde = pi->root;
+	while (yesde) {
+		if (!yesde->num_children)
 			break;
-		node = node->children[0];
+		yesde = yesde->children[0];
 	}
-	if (node && node->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF) {
-		u32 teid = le32_to_cpu(node->info.node_teid);
+	if (yesde && yesde->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF) {
+		u32 teid = le32_to_cpu(yesde->info.yesde_teid);
 		enum ice_status status;
 
-		/* remove the default leaf node */
-		status = ice_sched_remove_elems(pi->hw, node->parent, 1, &teid);
+		/* remove the default leaf yesde */
+		status = ice_sched_remove_elems(pi->hw, yesde->parent, 1, &teid);
 		if (!status)
-			ice_free_sched_node(pi, node);
+			ice_free_sched_yesde(pi, yesde);
 	}
 }
 
 /**
- * ice_sched_rm_dflt_nodes - free the default nodes in the tree
+ * ice_sched_rm_dflt_yesdes - free the default yesdes in the tree
  * @pi: port information structure
  *
- * This function frees all the nodes except root and TC that were created by
+ * This function frees all the yesdes except root and TC that were created by
  * the FW during initialization
  */
-static void ice_sched_rm_dflt_nodes(struct ice_port_info *pi)
+static void ice_sched_rm_dflt_yesdes(struct ice_port_info *pi)
 {
-	struct ice_sched_node *node;
+	struct ice_sched_yesde *yesde;
 
-	ice_rm_dflt_leaf_node(pi);
+	ice_rm_dflt_leaf_yesde(pi);
 
-	/* remove the default nodes except TC and root nodes */
-	node = pi->root;
-	while (node) {
-		if (node->tx_sched_layer >= pi->hw->sw_entry_point_layer &&
-		    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_TC &&
-		    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_ROOT_PORT) {
-			ice_free_sched_node(pi, node);
+	/* remove the default yesdes except TC and root yesdes */
+	yesde = pi->root;
+	while (yesde) {
+		if (yesde->tx_sched_layer >= pi->hw->sw_entry_point_layer &&
+		    yesde->info.data.elem_type != ICE_AQC_ELEM_TYPE_TC &&
+		    yesde->info.data.elem_type != ICE_AQC_ELEM_TYPE_ROOT_PORT) {
+			ice_free_sched_yesde(pi, yesde);
 			break;
 		}
 
-		if (!node->num_children)
+		if (!yesde->num_children)
 			break;
-		node = node->children[0];
+		yesde = yesde->children[0];
 	}
 }
 
@@ -1139,19 +1139,19 @@ enum ice_status ice_sched_init_port(struct ice_port_info *pi)
 		goto err_init_port;
 	}
 
-	/* If the last node is a leaf node then the index of the queue group
+	/* If the last yesde is a leaf yesde then the index of the queue group
 	 * layer is two less than the number of elements.
 	 */
 	if (num_elems > 2 && buf[0].generic[num_elems - 1].data.elem_type ==
 	    ICE_AQC_ELEM_TYPE_LEAF)
-		pi->last_node_teid =
-			le32_to_cpu(buf[0].generic[num_elems - 2].node_teid);
+		pi->last_yesde_teid =
+			le32_to_cpu(buf[0].generic[num_elems - 2].yesde_teid);
 	else
-		pi->last_node_teid =
-			le32_to_cpu(buf[0].generic[num_elems - 1].node_teid);
+		pi->last_yesde_teid =
+			le32_to_cpu(buf[0].generic[num_elems - 1].yesde_teid);
 
-	/* Insert the Tx Sched root node */
-	status = ice_sched_add_root_node(pi, &buf[0].generic[0]);
+	/* Insert the Tx Sched root yesde */
+	status = ice_sched_add_root_yesde(pi, &buf[0].generic[0]);
 	if (status)
 		goto err_init_port;
 
@@ -1166,15 +1166,15 @@ enum ice_status ice_sched_init_port(struct ice_port_info *pi)
 			    ICE_AQC_ELEM_TYPE_ENTRY_POINT)
 				hw->sw_entry_point_layer = j;
 
-			status = ice_sched_add_node(pi, j, &buf[i].generic[j]);
+			status = ice_sched_add_yesde(pi, j, &buf[i].generic[j]);
 			if (status)
 				goto err_init_port;
 		}
 	}
 
-	/* Remove the default nodes. */
+	/* Remove the default yesdes. */
 	if (pi->root)
-		ice_sched_rm_dflt_nodes(pi);
+		ice_sched_rm_dflt_yesdes(pi);
 
 	/* initialize the port for handling the scheduler tree */
 	pi->port_state = ICE_SCHED_PORT_STATE_READY;
@@ -1184,7 +1184,7 @@ enum ice_status ice_sched_init_port(struct ice_port_info *pi)
 
 err_init_port:
 	if (status && pi->root) {
-		ice_free_sched_node(pi, pi->root);
+		ice_free_sched_yesde(pi, pi->root);
 		pi->root = NULL;
 	}
 
@@ -1223,11 +1223,11 @@ enum ice_status ice_sched_query_res_alloc(struct ice_hw *hw)
 	hw->max_cgds = buf->sched_props.max_pf_cgds;
 
 	/* max sibling group size of current layer refers to the max children
-	 * of the below layer node.
-	 * layer 1 node max children will be layer 2 max sibling group size
-	 * layer 2 node max children will be layer 3 max sibling group size
+	 * of the below layer yesde.
+	 * layer 1 yesde max children will be layer 2 max sibling group size
+	 * layer 2 yesde max children will be layer 3 max sibling group size
 	 * and so on. This array will be populated from root (index 0) to
-	 * qgroup layer 7. Leaf node has no children.
+	 * qgroup layer 7. Leaf yesde has yes children.
 	 */
 	for (i = 0; i < hw->num_tx_sched_layers - 1; i++) {
 		max_sibl = buf->layer_props[i + 1].max_sibl_grp_sz;
@@ -1249,52 +1249,52 @@ sched_query_out:
 }
 
 /**
- * ice_sched_find_node_in_subtree - Find node in part of base node subtree
+ * ice_sched_find_yesde_in_subtree - Find yesde in part of base yesde subtree
  * @hw: pointer to the HW struct
- * @base: pointer to the base node
- * @node: pointer to the node to search
+ * @base: pointer to the base yesde
+ * @yesde: pointer to the yesde to search
  *
- * This function checks whether a given node is part of the base node
- * subtree or not
+ * This function checks whether a given yesde is part of the base yesde
+ * subtree or yest
  */
 static bool
-ice_sched_find_node_in_subtree(struct ice_hw *hw, struct ice_sched_node *base,
-			       struct ice_sched_node *node)
+ice_sched_find_yesde_in_subtree(struct ice_hw *hw, struct ice_sched_yesde *base,
+			       struct ice_sched_yesde *yesde)
 {
 	u8 i;
 
 	for (i = 0; i < base->num_children; i++) {
-		struct ice_sched_node *child = base->children[i];
+		struct ice_sched_yesde *child = base->children[i];
 
-		if (node == child)
+		if (yesde == child)
 			return true;
 
-		if (child->tx_sched_layer > node->tx_sched_layer)
+		if (child->tx_sched_layer > yesde->tx_sched_layer)
 			return false;
 
 		/* this recursion is intentional, and wouldn't
 		 * go more than 8 calls
 		 */
-		if (ice_sched_find_node_in_subtree(hw, child, node))
+		if (ice_sched_find_yesde_in_subtree(hw, child, yesde))
 			return true;
 	}
 	return false;
 }
 
 /**
- * ice_sched_get_free_qparent - Get a free LAN or RDMA queue group node
+ * ice_sched_get_free_qparent - Get a free LAN or RDMA queue group yesde
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  * @tc: branch number
  * @owner: LAN or RDMA
  *
- * This function retrieves a free LAN or RDMA queue group node
+ * This function retrieves a free LAN or RDMA queue group yesde
  */
-struct ice_sched_node *
+struct ice_sched_yesde *
 ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 			   u8 owner)
 {
-	struct ice_sched_node *vsi_node, *qgrp_node = NULL;
+	struct ice_sched_yesde *vsi_yesde, *qgrp_yesde = NULL;
 	struct ice_vsi_ctx *vsi_ctx;
 	u16 max_children;
 	u8 qgrp_layer;
@@ -1305,66 +1305,66 @@ ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 	vsi_ctx = ice_get_vsi_ctx(pi->hw, vsi_handle);
 	if (!vsi_ctx)
 		return NULL;
-	vsi_node = vsi_ctx->sched.vsi_node[tc];
+	vsi_yesde = vsi_ctx->sched.vsi_yesde[tc];
 	/* validate invalid VSI ID */
-	if (!vsi_node)
+	if (!vsi_yesde)
 		goto lan_q_exit;
 
-	/* get the first queue group node from VSI sub-tree */
-	qgrp_node = ice_sched_get_first_node(pi, vsi_node, qgrp_layer);
-	while (qgrp_node) {
-		/* make sure the qgroup node is part of the VSI subtree */
-		if (ice_sched_find_node_in_subtree(pi->hw, vsi_node, qgrp_node))
-			if (qgrp_node->num_children < max_children &&
-			    qgrp_node->owner == owner)
+	/* get the first queue group yesde from VSI sub-tree */
+	qgrp_yesde = ice_sched_get_first_yesde(pi, vsi_yesde, qgrp_layer);
+	while (qgrp_yesde) {
+		/* make sure the qgroup yesde is part of the VSI subtree */
+		if (ice_sched_find_yesde_in_subtree(pi->hw, vsi_yesde, qgrp_yesde))
+			if (qgrp_yesde->num_children < max_children &&
+			    qgrp_yesde->owner == owner)
 				break;
-		qgrp_node = qgrp_node->sibling;
+		qgrp_yesde = qgrp_yesde->sibling;
 	}
 
 lan_q_exit:
-	return qgrp_node;
+	return qgrp_yesde;
 }
 
 /**
- * ice_sched_get_vsi_node - Get a VSI node based on VSI ID
+ * ice_sched_get_vsi_yesde - Get a VSI yesde based on VSI ID
  * @hw: pointer to the HW struct
- * @tc_node: pointer to the TC node
+ * @tc_yesde: pointer to the TC yesde
  * @vsi_handle: software VSI handle
  *
- * This function retrieves a VSI node for a given VSI ID from a given
+ * This function retrieves a VSI yesde for a given VSI ID from a given
  * TC branch
  */
-static struct ice_sched_node *
-ice_sched_get_vsi_node(struct ice_hw *hw, struct ice_sched_node *tc_node,
+static struct ice_sched_yesde *
+ice_sched_get_vsi_yesde(struct ice_hw *hw, struct ice_sched_yesde *tc_yesde,
 		       u16 vsi_handle)
 {
-	struct ice_sched_node *node;
+	struct ice_sched_yesde *yesde;
 	u8 vsi_layer;
 
 	vsi_layer = ice_sched_get_vsi_layer(hw);
-	node = ice_sched_get_first_node(hw->port_info, tc_node, vsi_layer);
+	yesde = ice_sched_get_first_yesde(hw->port_info, tc_yesde, vsi_layer);
 
 	/* Check whether it already exists */
-	while (node) {
-		if (node->vsi_handle == vsi_handle)
-			return node;
-		node = node->sibling;
+	while (yesde) {
+		if (yesde->vsi_handle == vsi_handle)
+			return yesde;
+		yesde = yesde->sibling;
 	}
 
-	return node;
+	return yesde;
 }
 
 /**
- * ice_sched_calc_vsi_child_nodes - calculate number of VSI child nodes
+ * ice_sched_calc_vsi_child_yesdes - calculate number of VSI child yesdes
  * @hw: pointer to the HW struct
  * @num_qs: number of queues
- * @num_nodes: num nodes array
+ * @num_yesdes: num yesdes array
  *
- * This function calculates the number of VSI child nodes based on the
+ * This function calculates the number of VSI child yesdes based on the
  * number of queues.
  */
 static void
-ice_sched_calc_vsi_child_nodes(struct ice_hw *hw, u16 num_qs, u16 *num_nodes)
+ice_sched_calc_vsi_child_yesdes(struct ice_hw *hw, u16 num_qs, u16 *num_yesdes)
 {
 	u16 num = num_qs;
 	u8 i, qgl, vsil;
@@ -1372,63 +1372,63 @@ ice_sched_calc_vsi_child_nodes(struct ice_hw *hw, u16 num_qs, u16 *num_nodes)
 	qgl = ice_sched_get_qgrp_layer(hw);
 	vsil = ice_sched_get_vsi_layer(hw);
 
-	/* calculate num nodes from queue group to VSI layer */
+	/* calculate num yesdes from queue group to VSI layer */
 	for (i = qgl; i > vsil; i--) {
 		/* round to the next integer if there is a remainder */
 		num = DIV_ROUND_UP(num, hw->max_children[i]);
 
-		/* need at least one node */
-		num_nodes[i] = num ? num : 1;
+		/* need at least one yesde */
+		num_yesdes[i] = num ? num : 1;
 	}
 }
 
 /**
- * ice_sched_add_vsi_child_nodes - add VSI child nodes to tree
+ * ice_sched_add_vsi_child_yesdes - add VSI child yesdes to tree
  * @pi: port information structure
  * @vsi_handle: software VSI handle
- * @tc_node: pointer to the TC node
- * @num_nodes: pointer to the num nodes that needs to be added per layer
- * @owner: node owner (LAN or RDMA)
+ * @tc_yesde: pointer to the TC yesde
+ * @num_yesdes: pointer to the num yesdes that needs to be added per layer
+ * @owner: yesde owner (LAN or RDMA)
  *
- * This function adds the VSI child nodes to tree. It gets called for
+ * This function adds the VSI child yesdes to tree. It gets called for
  * LAN and RDMA separately.
  */
 static enum ice_status
-ice_sched_add_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
-			      struct ice_sched_node *tc_node, u16 *num_nodes,
+ice_sched_add_vsi_child_yesdes(struct ice_port_info *pi, u16 vsi_handle,
+			      struct ice_sched_yesde *tc_yesde, u16 *num_yesdes,
 			      u8 owner)
 {
-	struct ice_sched_node *parent, *node;
+	struct ice_sched_yesde *parent, *yesde;
 	struct ice_hw *hw = pi->hw;
 	enum ice_status status;
-	u32 first_node_teid;
+	u32 first_yesde_teid;
 	u16 num_added = 0;
 	u8 i, qgl, vsil;
 
 	qgl = ice_sched_get_qgrp_layer(hw);
 	vsil = ice_sched_get_vsi_layer(hw);
-	parent = ice_sched_get_vsi_node(hw, tc_node, vsi_handle);
+	parent = ice_sched_get_vsi_yesde(hw, tc_yesde, vsi_handle);
 	for (i = vsil + 1; i <= qgl; i++) {
 		if (!parent)
 			return ICE_ERR_CFG;
 
-		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent, i,
-						      num_nodes[i],
-						      &first_node_teid,
+		status = ice_sched_add_yesdes_to_layer(pi, tc_yesde, parent, i,
+						      num_yesdes[i],
+						      &first_yesde_teid,
 						      &num_added);
-		if (status || num_nodes[i] != num_added)
+		if (status || num_yesdes[i] != num_added)
 			return ICE_ERR_CFG;
 
-		/* The newly added node can be a new parent for the next
-		 * layer nodes
+		/* The newly added yesde can be a new parent for the next
+		 * layer yesdes
 		 */
 		if (num_added) {
-			parent = ice_sched_find_node_by_teid(tc_node,
-							     first_node_teid);
-			node = parent;
-			while (node) {
-				node->owner = owner;
-				node = node->sibling;
+			parent = ice_sched_find_yesde_by_teid(tc_yesde,
+							     first_yesde_teid);
+			yesde = parent;
+			while (yesde) {
+				yesde->owner = owner;
+				yesde = yesde->sibling;
 			}
 		} else {
 			parent = parent->children[0];
@@ -1439,71 +1439,71 @@ ice_sched_add_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 }
 
 /**
- * ice_sched_calc_vsi_support_nodes - calculate number of VSI support nodes
+ * ice_sched_calc_vsi_support_yesdes - calculate number of VSI support yesdes
  * @hw: pointer to the HW struct
- * @tc_node: pointer to TC node
- * @num_nodes: pointer to num nodes array
+ * @tc_yesde: pointer to TC yesde
+ * @num_yesdes: pointer to num yesdes array
  *
- * This function calculates the number of supported nodes needed to add this
- * VSI into Tx tree including the VSI, parent and intermediate nodes in below
+ * This function calculates the number of supported yesdes needed to add this
+ * VSI into Tx tree including the VSI, parent and intermediate yesdes in below
  * layers
  */
 static void
-ice_sched_calc_vsi_support_nodes(struct ice_hw *hw,
-				 struct ice_sched_node *tc_node, u16 *num_nodes)
+ice_sched_calc_vsi_support_yesdes(struct ice_hw *hw,
+				 struct ice_sched_yesde *tc_yesde, u16 *num_yesdes)
 {
-	struct ice_sched_node *node;
+	struct ice_sched_yesde *yesde;
 	u8 vsil;
 	int i;
 
 	vsil = ice_sched_get_vsi_layer(hw);
 	for (i = vsil; i >= hw->sw_entry_point_layer; i--)
-		/* Add intermediate nodes if TC has no children and
-		 * need at least one node for VSI
+		/* Add intermediate yesdes if TC has yes children and
+		 * need at least one yesde for VSI
 		 */
-		if (!tc_node->num_children || i == vsil) {
-			num_nodes[i]++;
+		if (!tc_yesde->num_children || i == vsil) {
+			num_yesdes[i]++;
 		} else {
-			/* If intermediate nodes are reached max children
+			/* If intermediate yesdes are reached max children
 			 * then add a new one.
 			 */
-			node = ice_sched_get_first_node(hw->port_info, tc_node,
+			yesde = ice_sched_get_first_yesde(hw->port_info, tc_yesde,
 							(u8)i);
 			/* scan all the siblings */
-			while (node) {
-				if (node->num_children < hw->max_children[i])
+			while (yesde) {
+				if (yesde->num_children < hw->max_children[i])
 					break;
-				node = node->sibling;
+				yesde = yesde->sibling;
 			}
 
-			/* tree has one intermediate node to add this new VSI.
-			 * So no need to calculate supported nodes for below
+			/* tree has one intermediate yesde to add this new VSI.
+			 * So yes need to calculate supported yesdes for below
 			 * layers.
 			 */
-			if (node)
+			if (yesde)
 				break;
-			/* all the nodes are full, allocate a new one */
-			num_nodes[i]++;
+			/* all the yesdes are full, allocate a new one */
+			num_yesdes[i]++;
 		}
 }
 
 /**
- * ice_sched_add_vsi_support_nodes - add VSI supported nodes into Tx tree
+ * ice_sched_add_vsi_support_yesdes - add VSI supported yesdes into Tx tree
  * @pi: port information structure
  * @vsi_handle: software VSI handle
- * @tc_node: pointer to TC node
- * @num_nodes: pointer to num nodes array
+ * @tc_yesde: pointer to TC yesde
+ * @num_yesdes: pointer to num yesdes array
  *
- * This function adds the VSI supported nodes into Tx tree including the
- * VSI, its parent and intermediate nodes in below layers
+ * This function adds the VSI supported yesdes into Tx tree including the
+ * VSI, its parent and intermediate yesdes in below layers
  */
 static enum ice_status
-ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_handle,
-				struct ice_sched_node *tc_node, u16 *num_nodes)
+ice_sched_add_vsi_support_yesdes(struct ice_port_info *pi, u16 vsi_handle,
+				struct ice_sched_yesde *tc_yesde, u16 *num_yesdes)
 {
-	struct ice_sched_node *parent = tc_node;
+	struct ice_sched_yesde *parent = tc_yesde;
 	enum ice_status status;
-	u32 first_node_teid;
+	u32 first_yesde_teid;
 	u16 num_added = 0;
 	u8 i, vsil;
 
@@ -1512,19 +1512,19 @@ ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_handle,
 
 	vsil = ice_sched_get_vsi_layer(pi->hw);
 	for (i = pi->hw->sw_entry_point_layer; i <= vsil; i++) {
-		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent,
-						      i, num_nodes[i],
-						      &first_node_teid,
+		status = ice_sched_add_yesdes_to_layer(pi, tc_yesde, parent,
+						      i, num_yesdes[i],
+						      &first_yesde_teid,
 						      &num_added);
-		if (status || num_nodes[i] != num_added)
+		if (status || num_yesdes[i] != num_added)
 			return ICE_ERR_CFG;
 
-		/* The newly added node can be a new parent for the next
-		 * layer nodes
+		/* The newly added yesde can be a new parent for the next
+		 * layer yesdes
 		 */
 		if (num_added)
-			parent = ice_sched_find_node_by_teid(tc_node,
-							     first_node_teid);
+			parent = ice_sched_find_yesde_by_teid(tc_yesde,
+							     first_yesde_teid);
 		else
 			parent = parent->children[0];
 
@@ -1549,50 +1549,50 @@ ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_handle,
 static enum ice_status
 ice_sched_add_vsi_to_topo(struct ice_port_info *pi, u16 vsi_handle, u8 tc)
 {
-	u16 num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
-	struct ice_sched_node *tc_node;
+	u16 num_yesdes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
+	struct ice_sched_yesde *tc_yesde;
 	struct ice_hw *hw = pi->hw;
 
-	tc_node = ice_sched_get_tc_node(pi, tc);
-	if (!tc_node)
+	tc_yesde = ice_sched_get_tc_yesde(pi, tc);
+	if (!tc_yesde)
 		return ICE_ERR_PARAM;
 
-	/* calculate number of supported nodes needed for this VSI */
-	ice_sched_calc_vsi_support_nodes(hw, tc_node, num_nodes);
+	/* calculate number of supported yesdes needed for this VSI */
+	ice_sched_calc_vsi_support_yesdes(hw, tc_yesde, num_yesdes);
 
-	/* add VSI supported nodes to TC subtree */
-	return ice_sched_add_vsi_support_nodes(pi, vsi_handle, tc_node,
-					       num_nodes);
+	/* add VSI supported yesdes to TC subtree */
+	return ice_sched_add_vsi_support_yesdes(pi, vsi_handle, tc_yesde,
+					       num_yesdes);
 }
 
 /**
- * ice_sched_update_vsi_child_nodes - update VSI child nodes
+ * ice_sched_update_vsi_child_yesdes - update VSI child yesdes
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  * @tc: TC number
  * @new_numqs: new number of max queues
  * @owner: owner of this subtree
  *
- * This function updates the VSI child nodes based on the number of queues
+ * This function updates the VSI child yesdes based on the number of queues
  */
 static enum ice_status
-ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
+ice_sched_update_vsi_child_yesdes(struct ice_port_info *pi, u16 vsi_handle,
 				 u8 tc, u16 new_numqs, u8 owner)
 {
-	u16 new_num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
-	struct ice_sched_node *vsi_node;
-	struct ice_sched_node *tc_node;
+	u16 new_num_yesdes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
+	struct ice_sched_yesde *vsi_yesde;
+	struct ice_sched_yesde *tc_yesde;
 	struct ice_vsi_ctx *vsi_ctx;
 	enum ice_status status = 0;
 	struct ice_hw *hw = pi->hw;
 	u16 prev_numqs;
 
-	tc_node = ice_sched_get_tc_node(pi, tc);
-	if (!tc_node)
+	tc_yesde = ice_sched_get_tc_yesde(pi, tc);
+	if (!tc_yesde)
 		return ICE_ERR_CFG;
 
-	vsi_node = ice_sched_get_vsi_node(hw, tc_node, vsi_handle);
-	if (!vsi_node)
+	vsi_yesde = ice_sched_get_vsi_yesde(hw, tc_yesde, vsi_handle);
+	if (!vsi_yesde)
 		return ICE_ERR_CFG;
 
 	vsi_ctx = ice_get_vsi_ctx(hw, vsi_handle);
@@ -1600,7 +1600,7 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 		return ICE_ERR_PARAM;
 
 	prev_numqs = vsi_ctx->sched.max_lanq[tc];
-	/* num queues are not changed or less than the previous number */
+	/* num queues are yest changed or less than the previous number */
 	if (new_numqs <= prev_numqs)
 		return status;
 	status = ice_alloc_lan_q_ctx(hw, vsi_handle, tc, new_numqs);
@@ -1608,16 +1608,16 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 		return status;
 
 	if (new_numqs)
-		ice_sched_calc_vsi_child_nodes(hw, new_numqs, new_num_nodes);
+		ice_sched_calc_vsi_child_yesdes(hw, new_numqs, new_num_yesdes);
 	/* Keep the max number of queue configuration all the time. Update the
 	 * tree only if number of queues > previous number of queues. This may
-	 * leave some extra nodes in the tree if number of queues < previous
-	 * number but that wouldn't harm anything. Removing those extra nodes
-	 * may complicate the code if those nodes are part of SRL or
+	 * leave some extra yesdes in the tree if number of queues < previous
+	 * number but that wouldn't harm anything. Removing those extra yesdes
+	 * may complicate the code if those yesdes are part of SRL or
 	 * individually rate limited.
 	 */
-	status = ice_sched_add_vsi_child_nodes(pi, vsi_handle, tc_node,
-					       new_num_nodes, owner);
+	status = ice_sched_add_vsi_child_yesdes(pi, vsi_handle, tc_yesde,
+					       new_num_yesdes, owner);
 	if (status)
 		return status;
 	vsi_ctx->sched.max_lanq[tc] = new_numqs;
@@ -1634,73 +1634,73 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
  * @owner: LAN or RDMA
  * @enable: TC enabled or disabled
  *
- * This function adds/updates VSI nodes based on the number of queues. If TC is
+ * This function adds/updates VSI yesdes based on the number of queues. If TC is
  * enabled and VSI is in suspended state then resume the VSI back. If TC is
- * disabled then suspend the VSI if it is not already.
+ * disabled then suspend the VSI if it is yest already.
  */
 enum ice_status
 ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 		  u8 owner, bool enable)
 {
-	struct ice_sched_node *vsi_node, *tc_node;
+	struct ice_sched_yesde *vsi_yesde, *tc_yesde;
 	struct ice_vsi_ctx *vsi_ctx;
 	enum ice_status status = 0;
 	struct ice_hw *hw = pi->hw;
 
 	ice_debug(pi->hw, ICE_DBG_SCHED, "add/config VSI %d\n", vsi_handle);
-	tc_node = ice_sched_get_tc_node(pi, tc);
-	if (!tc_node)
+	tc_yesde = ice_sched_get_tc_yesde(pi, tc);
+	if (!tc_yesde)
 		return ICE_ERR_PARAM;
 	vsi_ctx = ice_get_vsi_ctx(hw, vsi_handle);
 	if (!vsi_ctx)
 		return ICE_ERR_PARAM;
-	vsi_node = ice_sched_get_vsi_node(hw, tc_node, vsi_handle);
+	vsi_yesde = ice_sched_get_vsi_yesde(hw, tc_yesde, vsi_handle);
 
-	/* suspend the VSI if TC is not enabled */
+	/* suspend the VSI if TC is yest enabled */
 	if (!enable) {
-		if (vsi_node && vsi_node->in_use) {
-			u32 teid = le32_to_cpu(vsi_node->info.node_teid);
+		if (vsi_yesde && vsi_yesde->in_use) {
+			u32 teid = le32_to_cpu(vsi_yesde->info.yesde_teid);
 
 			status = ice_sched_suspend_resume_elems(hw, 1, &teid,
 								true);
 			if (!status)
-				vsi_node->in_use = false;
+				vsi_yesde->in_use = false;
 		}
 		return status;
 	}
 
 	/* TC is enabled, if it is a new VSI then add it to the tree */
-	if (!vsi_node) {
+	if (!vsi_yesde) {
 		status = ice_sched_add_vsi_to_topo(pi, vsi_handle, tc);
 		if (status)
 			return status;
 
-		vsi_node = ice_sched_get_vsi_node(hw, tc_node, vsi_handle);
-		if (!vsi_node)
+		vsi_yesde = ice_sched_get_vsi_yesde(hw, tc_yesde, vsi_handle);
+		if (!vsi_yesde)
 			return ICE_ERR_CFG;
 
-		vsi_ctx->sched.vsi_node[tc] = vsi_node;
-		vsi_node->in_use = true;
+		vsi_ctx->sched.vsi_yesde[tc] = vsi_yesde;
+		vsi_yesde->in_use = true;
 		/* invalidate the max queues whenever VSI gets added first time
 		 * into the scheduler tree (boot or after reset). We need to
-		 * recreate the child nodes all the time in these cases.
+		 * recreate the child yesdes all the time in these cases.
 		 */
 		vsi_ctx->sched.max_lanq[tc] = 0;
 	}
 
-	/* update the VSI child nodes */
-	status = ice_sched_update_vsi_child_nodes(pi, vsi_handle, tc, maxqs,
+	/* update the VSI child yesdes */
+	status = ice_sched_update_vsi_child_yesdes(pi, vsi_handle, tc, maxqs,
 						  owner);
 	if (status)
 		return status;
 
 	/* TC is enabled, resume the VSI if it is in the suspend state */
-	if (!vsi_node->in_use) {
-		u32 teid = le32_to_cpu(vsi_node->info.node_teid);
+	if (!vsi_yesde->in_use) {
+		u32 teid = le32_to_cpu(vsi_yesde->info.yesde_teid);
 
 		status = ice_sched_suspend_resume_elems(hw, 1, &teid, false);
 		if (!status)
-			vsi_node->in_use = true;
+			vsi_yesde->in_use = true;
 	}
 
 	return status;
@@ -1737,29 +1737,29 @@ ice_sched_rm_agg_vsi_info(struct ice_port_info *pi, u16 vsi_handle)
 }
 
 /**
- * ice_sched_is_leaf_node_present - check for a leaf node in the sub-tree
- * @node: pointer to the sub-tree node
+ * ice_sched_is_leaf_yesde_present - check for a leaf yesde in the sub-tree
+ * @yesde: pointer to the sub-tree yesde
  *
- * This function checks for a leaf node presence in a given sub-tree node.
+ * This function checks for a leaf yesde presence in a given sub-tree yesde.
  */
-static bool ice_sched_is_leaf_node_present(struct ice_sched_node *node)
+static bool ice_sched_is_leaf_yesde_present(struct ice_sched_yesde *yesde)
 {
 	u8 i;
 
-	for (i = 0; i < node->num_children; i++)
-		if (ice_sched_is_leaf_node_present(node->children[i]))
+	for (i = 0; i < yesde->num_children; i++)
+		if (ice_sched_is_leaf_yesde_present(yesde->children[i]))
 			return true;
-	/* check for a leaf node */
-	return (node->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF);
+	/* check for a leaf yesde */
+	return (yesde->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF);
 }
 
 /**
- * ice_sched_rm_vsi_cfg - remove the VSI and its children nodes
+ * ice_sched_rm_vsi_cfg - remove the VSI and its children yesdes
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  * @owner: LAN or RDMA
  *
- * This function removes the VSI and its LAN or RDMA children nodes from the
+ * This function removes the VSI and its LAN or RDMA children yesdes from the
  * scheduler tree.
  */
 static enum ice_status
@@ -1778,39 +1778,39 @@ ice_sched_rm_vsi_cfg(struct ice_port_info *pi, u16 vsi_handle, u8 owner)
 		goto exit_sched_rm_vsi_cfg;
 
 	ice_for_each_traffic_class(i) {
-		struct ice_sched_node *vsi_node, *tc_node;
+		struct ice_sched_yesde *vsi_yesde, *tc_yesde;
 		u8 j = 0;
 
-		tc_node = ice_sched_get_tc_node(pi, i);
-		if (!tc_node)
+		tc_yesde = ice_sched_get_tc_yesde(pi, i);
+		if (!tc_yesde)
 			continue;
 
-		vsi_node = ice_sched_get_vsi_node(pi->hw, tc_node, vsi_handle);
-		if (!vsi_node)
+		vsi_yesde = ice_sched_get_vsi_yesde(pi->hw, tc_yesde, vsi_handle);
+		if (!vsi_yesde)
 			continue;
 
-		if (ice_sched_is_leaf_node_present(vsi_node)) {
+		if (ice_sched_is_leaf_yesde_present(vsi_yesde)) {
 			ice_debug(pi->hw, ICE_DBG_SCHED,
-				  "VSI has leaf nodes in TC %d\n", i);
+				  "VSI has leaf yesdes in TC %d\n", i);
 			status = ICE_ERR_IN_USE;
 			goto exit_sched_rm_vsi_cfg;
 		}
-		while (j < vsi_node->num_children) {
-			if (vsi_node->children[j]->owner == owner) {
-				ice_free_sched_node(pi, vsi_node->children[j]);
+		while (j < vsi_yesde->num_children) {
+			if (vsi_yesde->children[j]->owner == owner) {
+				ice_free_sched_yesde(pi, vsi_yesde->children[j]);
 
 				/* reset the counter again since the num
-				 * children will be updated after node removal
+				 * children will be updated after yesde removal
 				 */
 				j = 0;
 			} else {
 				j++;
 			}
 		}
-		/* remove the VSI if it has no children */
-		if (!vsi_node->num_children) {
-			ice_free_sched_node(pi, vsi_node);
-			vsi_ctx->sched.vsi_node[i] = NULL;
+		/* remove the VSI if it has yes children */
+		if (!vsi_yesde->num_children) {
+			ice_free_sched_yesde(pi, vsi_yesde);
+			vsi_ctx->sched.vsi_yesde[i] = NULL;
 
 			/* clean up aggregator related VSI info if any */
 			ice_sched_rm_agg_vsi_info(pi, vsi_handle);
@@ -1826,11 +1826,11 @@ exit_sched_rm_vsi_cfg:
 }
 
 /**
- * ice_rm_vsi_lan_cfg - remove VSI and its LAN children nodes
+ * ice_rm_vsi_lan_cfg - remove VSI and its LAN children yesdes
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  *
- * This function clears the VSI and its LAN children nodes from scheduler tree
+ * This function clears the VSI and its LAN children yesdes from scheduler tree
  * for all TCs.
  */
 enum ice_status ice_rm_vsi_lan_cfg(struct ice_port_info *pi, u16 vsi_handle)
@@ -1865,16 +1865,16 @@ static void ice_sched_rm_unused_rl_prof(struct ice_port_info *pi)
 /**
  * ice_sched_update_elem - update element
  * @hw: pointer to the HW struct
- * @node: pointer to node
- * @info: node info to update
+ * @yesde: pointer to yesde
+ * @info: yesde info to update
  *
- * It updates the HW DB, and local SW DB of node. It updates the scheduling
- * parameters of node from argument info data buffer (Info->data buf) and
+ * It updates the HW DB, and local SW DB of yesde. It updates the scheduling
+ * parameters of yesde from argument info data buffer (Info->data buf) and
  * returns success or error on config sched element failure. The caller
  * needs to hold scheduler lock.
  */
 static enum ice_status
-ice_sched_update_elem(struct ice_hw *hw, struct ice_sched_node *node,
+ice_sched_update_elem(struct ice_hw *hw, struct ice_sched_yesde *yesde,
 		      struct ice_aqc_txsched_elem_data *info)
 {
 	struct ice_aqc_conf_elem buf;
@@ -1891,7 +1891,7 @@ ice_sched_update_elem(struct ice_hw *hw, struct ice_sched_node *node,
 	buf.generic[0].data.flags = 0;
 
 	/* Update HW DB */
-	/* Configure element node */
+	/* Configure element yesde */
 	status = ice_aq_cfg_sched_elems(hw, num_elems, &buf, sizeof(buf),
 					&elem_cfgd, NULL);
 	if (status || elem_cfgd != num_elems) {
@@ -1902,28 +1902,28 @@ ice_sched_update_elem(struct ice_hw *hw, struct ice_sched_node *node,
 	/* Config success case */
 	/* Now update local SW DB */
 	/* Only copy the data portion of info buffer */
-	node->info.data = info->data;
+	yesde->info.data = info->data;
 	return status;
 }
 
 /**
- * ice_sched_cfg_node_bw_alloc - configure node BW weight/alloc params
+ * ice_sched_cfg_yesde_bw_alloc - configure yesde BW weight/alloc params
  * @hw: pointer to the HW struct
- * @node: sched node to configure
+ * @yesde: sched yesde to configure
  * @rl_type: rate limit type CIR, EIR, or shared
  * @bw_alloc: BW weight/allocation
  *
- * This function configures node element's BW allocation.
+ * This function configures yesde element's BW allocation.
  */
 static enum ice_status
-ice_sched_cfg_node_bw_alloc(struct ice_hw *hw, struct ice_sched_node *node,
+ice_sched_cfg_yesde_bw_alloc(struct ice_hw *hw, struct ice_sched_yesde *yesde,
 			    enum ice_rl_type rl_type, u8 bw_alloc)
 {
 	struct ice_aqc_txsched_elem_data buf;
 	struct ice_aqc_txsched_elem *data;
 	enum ice_status status;
 
-	buf = node->info;
+	buf = yesde->info;
 	data = &buf.data;
 	if (rl_type == ICE_MIN_BW) {
 		data->valid_sections |= ICE_AQC_ELEM_VALID_CIR;
@@ -1936,7 +1936,7 @@ ice_sched_cfg_node_bw_alloc(struct ice_hw *hw, struct ice_sched_node *node,
 	}
 
 	/* Configure element */
-	status = ice_sched_update_elem(hw, node, &buf);
+	status = ice_sched_update_elem(hw, yesde, &buf);
 	return status;
 }
 
@@ -2204,22 +2204,22 @@ exit_add_rl_prof:
 }
 
 /**
- * ice_sched_cfg_node_bw_lmt - configure node sched params
+ * ice_sched_cfg_yesde_bw_lmt - configure yesde sched params
  * @hw: pointer to the HW struct
- * @node: sched node to configure
+ * @yesde: sched yesde to configure
  * @rl_type: rate limit type CIR, EIR, or shared
  * @rl_prof_id: rate limit profile ID
  *
- * This function configures node element's BW limit.
+ * This function configures yesde element's BW limit.
  */
 static enum ice_status
-ice_sched_cfg_node_bw_lmt(struct ice_hw *hw, struct ice_sched_node *node,
+ice_sched_cfg_yesde_bw_lmt(struct ice_hw *hw, struct ice_sched_yesde *yesde,
 			  enum ice_rl_type rl_type, u16 rl_prof_id)
 {
 	struct ice_aqc_txsched_elem_data buf;
 	struct ice_aqc_txsched_elem *data;
 
-	buf = node->info;
+	buf = yesde->info;
 	data = &buf.data;
 	switch (rl_type) {
 	case ICE_MIN_BW:
@@ -2257,35 +2257,35 @@ ice_sched_cfg_node_bw_lmt(struct ice_hw *hw, struct ice_sched_node *node,
 			return ICE_ERR_CFG;
 		/* EIR BW is set to default, disable it */
 		data->valid_sections &= ~ICE_AQC_ELEM_VALID_EIR;
-		/* Okay to enable shared BW now */
+		/* Okay to enable shared BW yesw */
 		data->valid_sections |= ICE_AQC_ELEM_VALID_SHARED;
 		data->srl_id = cpu_to_le16(rl_prof_id);
 		break;
 	default:
-		/* Unknown rate limit type */
+		/* Unkyeswn rate limit type */
 		return ICE_ERR_PARAM;
 	}
 
 	/* Configure element */
-	return ice_sched_update_elem(hw, node, &buf);
+	return ice_sched_update_elem(hw, yesde, &buf);
 }
 
 /**
- * ice_sched_get_node_rl_prof_id - get node's rate limit profile ID
- * @node: sched node
+ * ice_sched_get_yesde_rl_prof_id - get yesde's rate limit profile ID
+ * @yesde: sched yesde
  * @rl_type: rate limit type
  *
  * If existing profile matches, it returns the corresponding rate
  * limit profile ID, otherwise it returns an invalid ID as error.
  */
 static u16
-ice_sched_get_node_rl_prof_id(struct ice_sched_node *node,
+ice_sched_get_yesde_rl_prof_id(struct ice_sched_yesde *yesde,
 			      enum ice_rl_type rl_type)
 {
 	u16 rl_prof_id = ICE_SCHED_INVAL_PROF_ID;
 	struct ice_aqc_txsched_elem *data;
 
-	data = &node->info.data;
+	data = &yesde->info.data;
 	switch (rl_type) {
 	case ICE_MIN_BW:
 		if (data->valid_sections & ICE_AQC_ELEM_VALID_CIR)
@@ -2351,25 +2351,25 @@ ice_sched_get_rl_prof_layer(struct ice_port_info *pi, enum ice_rl_type rl_type,
 }
 
 /**
- * ice_sched_get_srl_node - get shared rate limit node
- * @node: tree node
+ * ice_sched_get_srl_yesde - get shared rate limit yesde
+ * @yesde: tree yesde
  * @srl_layer: shared rate limit layer
  *
- * This function returns SRL node to be used for shared rate limit purpose.
+ * This function returns SRL yesde to be used for shared rate limit purpose.
  * The caller needs to hold scheduler lock.
  */
-static struct ice_sched_node *
-ice_sched_get_srl_node(struct ice_sched_node *node, u8 srl_layer)
+static struct ice_sched_yesde *
+ice_sched_get_srl_yesde(struct ice_sched_yesde *yesde, u8 srl_layer)
 {
-	if (srl_layer > node->tx_sched_layer)
-		return node->children[0];
-	else if (srl_layer < node->tx_sched_layer)
+	if (srl_layer > yesde->tx_sched_layer)
+		return yesde->children[0];
+	else if (srl_layer < yesde->tx_sched_layer)
 		/* Node can't be created without a parent. It will always
-		 * have a valid parent except root node.
+		 * have a valid parent except root yesde.
 		 */
-		return node->parent;
+		return yesde->parent;
 	else
-		return node;
+		return yesde;
 }
 
 /**
@@ -2414,19 +2414,19 @@ ice_sched_rm_rl_profile(struct ice_port_info *pi, u8 layer_num, u8 profile_type,
 }
 
 /**
- * ice_sched_set_node_bw_dflt - set node's bandwidth limit to default
+ * ice_sched_set_yesde_bw_dflt - set yesde's bandwidth limit to default
  * @pi: port information structure
- * @node: pointer to node structure
+ * @yesde: pointer to yesde structure
  * @rl_type: rate limit type min, max, or shared
  * @layer_num: layer number where RL profiles are saved
  *
- * This function configures node element's BW rate limit profile ID of
+ * This function configures yesde element's BW rate limit profile ID of
  * type CIR, EIR, or SRL to default. This function needs to be called
  * with the scheduler lock held.
  */
 static enum ice_status
-ice_sched_set_node_bw_dflt(struct ice_port_info *pi,
-			   struct ice_sched_node *node,
+ice_sched_set_yesde_bw_dflt(struct ice_port_info *pi,
+			   struct ice_sched_yesde *yesde,
 			   enum ice_rl_type rl_type, u8 layer_num)
 {
 	enum ice_status status;
@@ -2454,9 +2454,9 @@ ice_sched_set_node_bw_dflt(struct ice_port_info *pi,
 		return ICE_ERR_PARAM;
 	}
 	/* Save existing RL prof ID for later clean up */
-	old_id = ice_sched_get_node_rl_prof_id(node, rl_type);
+	old_id = ice_sched_get_yesde_rl_prof_id(yesde, rl_type);
 	/* Configure BW scheduling parameters */
-	status = ice_sched_cfg_node_bw_lmt(hw, node, rl_type, rl_prof_id);
+	status = ice_sched_cfg_yesde_bw_lmt(hw, yesde, rl_type, rl_prof_id);
 	if (status)
 		return status;
 
@@ -2471,42 +2471,42 @@ ice_sched_set_node_bw_dflt(struct ice_port_info *pi,
 /**
  * ice_sched_set_eir_srl_excl - set EIR/SRL exclusiveness
  * @pi: port information structure
- * @node: pointer to node structure
+ * @yesde: pointer to yesde structure
  * @layer_num: layer number where rate limit profiles are saved
  * @rl_type: rate limit type min, max, or shared
  * @bw: bandwidth value
  *
- * This function prepares node element's bandwidth to SRL or EIR exclusively.
+ * This function prepares yesde element's bandwidth to SRL or EIR exclusively.
  * EIR BW and Shared BW profiles are mutually exclusive and hence only one of
  * them may be set for any given element. This function needs to be called
  * with the scheduler lock held.
  */
 static enum ice_status
 ice_sched_set_eir_srl_excl(struct ice_port_info *pi,
-			   struct ice_sched_node *node,
+			   struct ice_sched_yesde *yesde,
 			   u8 layer_num, enum ice_rl_type rl_type, u32 bw)
 {
 	if (rl_type == ICE_SHARED_BW) {
-		/* SRL node passed in this case, it may be different node */
+		/* SRL yesde passed in this case, it may be different yesde */
 		if (bw == ICE_SCHED_DFLT_BW)
-			/* SRL being removed, ice_sched_cfg_node_bw_lmt()
-			 * enables EIR to default. EIR is not set in this
-			 * case, so no additional action is required.
+			/* SRL being removed, ice_sched_cfg_yesde_bw_lmt()
+			 * enables EIR to default. EIR is yest set in this
+			 * case, so yes additional action is required.
 			 */
 			return 0;
 
 		/* SRL being configured, set EIR to default here.
-		 * ice_sched_cfg_node_bw_lmt() disables EIR when it
+		 * ice_sched_cfg_yesde_bw_lmt() disables EIR when it
 		 * configures SRL
 		 */
-		return ice_sched_set_node_bw_dflt(pi, node, ICE_MAX_BW,
+		return ice_sched_set_yesde_bw_dflt(pi, yesde, ICE_MAX_BW,
 						  layer_num);
 	} else if (rl_type == ICE_MAX_BW &&
-		   node->info.data.valid_sections & ICE_AQC_ELEM_VALID_SHARED) {
+		   yesde->info.data.valid_sections & ICE_AQC_ELEM_VALID_SHARED) {
 		/* Remove Shared profile. Set default shared BW call
-		 * removes shared profile for a node.
+		 * removes shared profile for a yesde.
 		 */
-		return ice_sched_set_node_bw_dflt(pi, node,
+		return ice_sched_set_yesde_bw_dflt(pi, yesde,
 						  ICE_SHARED_BW,
 						  layer_num);
 	}
@@ -2514,19 +2514,19 @@ ice_sched_set_eir_srl_excl(struct ice_port_info *pi,
 }
 
 /**
- * ice_sched_set_node_bw - set node's bandwidth
+ * ice_sched_set_yesde_bw - set yesde's bandwidth
  * @pi: port information structure
- * @node: tree node
+ * @yesde: tree yesde
  * @rl_type: rate limit type min, max, or shared
  * @bw: bandwidth in Kbps - Kilo bits per sec
  * @layer_num: layer number
  *
  * This function adds new profile corresponding to requested BW, configures
- * node's RL profile ID of type CIR, EIR, or SRL, and removes old profile
+ * yesde's RL profile ID of type CIR, EIR, or SRL, and removes old profile
  * ID from local database. The caller needs to hold scheduler lock.
  */
 static enum ice_status
-ice_sched_set_node_bw(struct ice_port_info *pi, struct ice_sched_node *node,
+ice_sched_set_yesde_bw(struct ice_port_info *pi, struct ice_sched_yesde *yesde,
 		      enum ice_rl_type rl_type, u32 bw, u8 layer_num)
 {
 	struct ice_aqc_rl_profile_info *rl_prof_info;
@@ -2541,9 +2541,9 @@ ice_sched_set_node_bw(struct ice_port_info *pi, struct ice_sched_node *node,
 	rl_prof_id = le16_to_cpu(rl_prof_info->profile.profile_id);
 
 	/* Save existing RL prof ID for later clean up */
-	old_id = ice_sched_get_node_rl_prof_id(node, rl_type);
+	old_id = ice_sched_get_yesde_rl_prof_id(yesde, rl_type);
 	/* Configure BW scheduling parameters */
-	status = ice_sched_cfg_node_bw_lmt(hw, node, rl_type, rl_prof_id);
+	status = ice_sched_cfg_yesde_bw_lmt(hw, yesde, rl_type, rl_prof_id);
 	if (status)
 		return status;
 
@@ -2562,20 +2562,20 @@ ice_sched_set_node_bw(struct ice_port_info *pi, struct ice_sched_node *node,
 }
 
 /**
- * ice_sched_set_node_bw_lmt - set node's BW limit
+ * ice_sched_set_yesde_bw_lmt - set yesde's BW limit
  * @pi: port information structure
- * @node: tree node
+ * @yesde: tree yesde
  * @rl_type: rate limit type min, max, or shared
  * @bw: bandwidth in Kbps - Kilo bits per sec
  *
- * It updates node's BW limit parameters like BW RL profile ID of type CIR,
+ * It updates yesde's BW limit parameters like BW RL profile ID of type CIR,
  * EIR, or SRL. The caller needs to hold scheduler lock.
  */
 static enum ice_status
-ice_sched_set_node_bw_lmt(struct ice_port_info *pi, struct ice_sched_node *node,
+ice_sched_set_yesde_bw_lmt(struct ice_port_info *pi, struct ice_sched_yesde *yesde,
 			  enum ice_rl_type rl_type, u32 bw)
 {
-	struct ice_sched_node *cfg_node = node;
+	struct ice_sched_yesde *cfg_yesde = yesde;
 	enum ice_status status;
 
 	struct ice_hw *hw;
@@ -2587,82 +2587,82 @@ ice_sched_set_node_bw_lmt(struct ice_port_info *pi, struct ice_sched_node *node,
 	/* Remove unused RL profile IDs from HW and SW DB */
 	ice_sched_rm_unused_rl_prof(pi);
 	layer_num = ice_sched_get_rl_prof_layer(pi, rl_type,
-						node->tx_sched_layer);
+						yesde->tx_sched_layer);
 	if (layer_num >= hw->num_tx_sched_layers)
 		return ICE_ERR_PARAM;
 
 	if (rl_type == ICE_SHARED_BW) {
-		/* SRL node may be different */
-		cfg_node = ice_sched_get_srl_node(node, layer_num);
-		if (!cfg_node)
+		/* SRL yesde may be different */
+		cfg_yesde = ice_sched_get_srl_yesde(yesde, layer_num);
+		if (!cfg_yesde)
 			return ICE_ERR_CFG;
 	}
 	/* EIR BW and Shared BW profiles are mutually exclusive and
 	 * hence only one of them may be set for any given element
 	 */
-	status = ice_sched_set_eir_srl_excl(pi, cfg_node, layer_num, rl_type,
+	status = ice_sched_set_eir_srl_excl(pi, cfg_yesde, layer_num, rl_type,
 					    bw);
 	if (status)
 		return status;
 	if (bw == ICE_SCHED_DFLT_BW)
-		return ice_sched_set_node_bw_dflt(pi, cfg_node, rl_type,
+		return ice_sched_set_yesde_bw_dflt(pi, cfg_yesde, rl_type,
 						  layer_num);
-	return ice_sched_set_node_bw(pi, cfg_node, rl_type, bw, layer_num);
+	return ice_sched_set_yesde_bw(pi, cfg_yesde, rl_type, bw, layer_num);
 }
 
 /**
- * ice_sched_set_node_bw_dflt_lmt - set node's BW limit to default
+ * ice_sched_set_yesde_bw_dflt_lmt - set yesde's BW limit to default
  * @pi: port information structure
- * @node: pointer to node structure
+ * @yesde: pointer to yesde structure
  * @rl_type: rate limit type min, max, or shared
  *
- * This function configures node element's BW rate limit profile ID of
+ * This function configures yesde element's BW rate limit profile ID of
  * type CIR, EIR, or SRL to default. This function needs to be called
  * with the scheduler lock held.
  */
 static enum ice_status
-ice_sched_set_node_bw_dflt_lmt(struct ice_port_info *pi,
-			       struct ice_sched_node *node,
+ice_sched_set_yesde_bw_dflt_lmt(struct ice_port_info *pi,
+			       struct ice_sched_yesde *yesde,
 			       enum ice_rl_type rl_type)
 {
-	return ice_sched_set_node_bw_lmt(pi, node, rl_type,
+	return ice_sched_set_yesde_bw_lmt(pi, yesde, rl_type,
 					 ICE_SCHED_DFLT_BW);
 }
 
 /**
- * ice_sched_validate_srl_node - Check node for SRL applicability
- * @node: sched node to configure
+ * ice_sched_validate_srl_yesde - Check yesde for SRL applicability
+ * @yesde: sched yesde to configure
  * @sel_layer: selected SRL layer
  *
- * This function checks if the SRL can be applied to a selected layer node on
- * behalf of the requested node (first argument). This function needs to be
+ * This function checks if the SRL can be applied to a selected layer yesde on
+ * behalf of the requested yesde (first argument). This function needs to be
  * called with scheduler lock held.
  */
 static enum ice_status
-ice_sched_validate_srl_node(struct ice_sched_node *node, u8 sel_layer)
+ice_sched_validate_srl_yesde(struct ice_sched_yesde *yesde, u8 sel_layer)
 {
-	/* SRL profiles are not available on all layers. Check if the
-	 * SRL profile can be applied to a node above or below the
-	 * requested node. SRL configuration is possible only if the
-	 * selected layer's node has single child.
+	/* SRL profiles are yest available on all layers. Check if the
+	 * SRL profile can be applied to a yesde above or below the
+	 * requested yesde. SRL configuration is possible only if the
+	 * selected layer's yesde has single child.
 	 */
-	if (sel_layer == node->tx_sched_layer ||
-	    ((sel_layer == node->tx_sched_layer + 1) &&
-	    node->num_children == 1) ||
-	    ((sel_layer == node->tx_sched_layer - 1) &&
-	    (node->parent && node->parent->num_children == 1)))
+	if (sel_layer == yesde->tx_sched_layer ||
+	    ((sel_layer == yesde->tx_sched_layer + 1) &&
+	    yesde->num_children == 1) ||
+	    ((sel_layer == yesde->tx_sched_layer - 1) &&
+	    (yesde->parent && yesde->parent->num_children == 1)))
 		return 0;
 
 	return ICE_ERR_CFG;
 }
 
 /**
- * ice_sched_save_q_bw - save queue node's BW information
+ * ice_sched_save_q_bw - save queue yesde's BW information
  * @q_ctx: queue context structure
  * @rl_type: rate limit type min, max, or shared
  * @bw: bandwidth in Kbps - Kilo bits per sec
  *
- * Save BW information of queue type node for post replay use.
+ * Save BW information of queue type yesde for post replay use.
  */
 static enum ice_status
 ice_sched_save_q_bw(struct ice_q_ctx *q_ctx, enum ice_rl_type rl_type, u32 bw)
@@ -2692,14 +2692,14 @@ ice_sched_save_q_bw(struct ice_q_ctx *q_ctx, enum ice_rl_type rl_type, u32 bw)
  * @rl_type: min, max, or shared
  * @bw: bandwidth in Kbps
  *
- * This function sets BW limit of queue scheduling node.
+ * This function sets BW limit of queue scheduling yesde.
  */
 static enum ice_status
 ice_sched_set_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 		       u16 q_handle, enum ice_rl_type rl_type, u32 bw)
 {
 	enum ice_status status = ICE_ERR_PARAM;
-	struct ice_sched_node *node;
+	struct ice_sched_yesde *yesde;
 	struct ice_q_ctx *q_ctx;
 
 	if (!ice_is_vsi_valid(pi->hw, vsi_handle))
@@ -2708,14 +2708,14 @@ ice_sched_set_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 	q_ctx = ice_get_lan_q_ctx(pi->hw, vsi_handle, tc, q_handle);
 	if (!q_ctx)
 		goto exit_q_bw_lmt;
-	node = ice_sched_find_node_by_teid(pi->root, q_ctx->q_teid);
-	if (!node) {
+	yesde = ice_sched_find_yesde_by_teid(pi->root, q_ctx->q_teid);
+	if (!yesde) {
 		ice_debug(pi->hw, ICE_DBG_SCHED, "Wrong q_teid\n");
 		goto exit_q_bw_lmt;
 	}
 
-	/* Return error if it is not a leaf node */
-	if (node->info.data.elem_type != ICE_AQC_ELEM_TYPE_LEAF)
+	/* Return error if it is yest a leaf yesde */
+	if (yesde->info.data.elem_type != ICE_AQC_ELEM_TYPE_LEAF)
 		goto exit_q_bw_lmt;
 
 	/* SRL bandwidth layer selection */
@@ -2723,20 +2723,20 @@ ice_sched_set_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 		u8 sel_layer; /* selected layer */
 
 		sel_layer = ice_sched_get_rl_prof_layer(pi, rl_type,
-							node->tx_sched_layer);
+							yesde->tx_sched_layer);
 		if (sel_layer >= pi->hw->num_tx_sched_layers) {
 			status = ICE_ERR_PARAM;
 			goto exit_q_bw_lmt;
 		}
-		status = ice_sched_validate_srl_node(node, sel_layer);
+		status = ice_sched_validate_srl_yesde(yesde, sel_layer);
 		if (status)
 			goto exit_q_bw_lmt;
 	}
 
 	if (bw == ICE_SCHED_DFLT_BW)
-		status = ice_sched_set_node_bw_dflt_lmt(pi, node, rl_type);
+		status = ice_sched_set_yesde_bw_dflt_lmt(pi, yesde, rl_type);
 	else
-		status = ice_sched_set_node_bw_lmt(pi, node, rl_type, bw);
+		status = ice_sched_set_yesde_bw_lmt(pi, yesde, rl_type, bw);
 
 	if (!status)
 		status = ice_sched_save_q_bw(q_ctx, rl_type, bw);
@@ -2755,7 +2755,7 @@ exit_q_bw_lmt:
  * @rl_type: min, max, or shared
  * @bw: bandwidth in Kbps
  *
- * This function configures BW limit of queue scheduling node.
+ * This function configures BW limit of queue scheduling yesde.
  */
 enum ice_status
 ice_cfg_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
@@ -2773,7 +2773,7 @@ ice_cfg_q_bw_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
  * @q_handle: software queue handle
  * @rl_type: min, max, or shared
  *
- * This function configures BW default limit of queue scheduling node.
+ * This function configures BW default limit of queue scheduling yesde.
  */
 enum ice_status
 ice_cfg_q_bw_dflt_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
@@ -2825,107 +2825,107 @@ enum ice_status ice_cfg_rl_burst_size(struct ice_hw *hw, u32 bytes)
 }
 
 /**
- * ice_sched_replay_node_prio - re-configure node priority
+ * ice_sched_replay_yesde_prio - re-configure yesde priority
  * @hw: pointer to the HW struct
- * @node: sched node to configure
+ * @yesde: sched yesde to configure
  * @priority: priority value
  *
- * This function configures node element's priority value. It
+ * This function configures yesde element's priority value. It
  * needs to be called with scheduler lock held.
  */
 static enum ice_status
-ice_sched_replay_node_prio(struct ice_hw *hw, struct ice_sched_node *node,
+ice_sched_replay_yesde_prio(struct ice_hw *hw, struct ice_sched_yesde *yesde,
 			   u8 priority)
 {
 	struct ice_aqc_txsched_elem_data buf;
 	struct ice_aqc_txsched_elem *data;
 	enum ice_status status;
 
-	buf = node->info;
+	buf = yesde->info;
 	data = &buf.data;
 	data->valid_sections |= ICE_AQC_ELEM_VALID_GENERIC;
 	data->generic = priority;
 
 	/* Configure element */
-	status = ice_sched_update_elem(hw, node, &buf);
+	status = ice_sched_update_elem(hw, yesde, &buf);
 	return status;
 }
 
 /**
- * ice_sched_replay_node_bw - replay node(s) BW
+ * ice_sched_replay_yesde_bw - replay yesde(s) BW
  * @hw: pointer to the HW struct
- * @node: sched node to configure
+ * @yesde: sched yesde to configure
  * @bw_t_info: BW type information
  *
- * This function restores node's BW from bw_t_info. The caller needs
+ * This function restores yesde's BW from bw_t_info. The caller needs
  * to hold the scheduler lock.
  */
 static enum ice_status
-ice_sched_replay_node_bw(struct ice_hw *hw, struct ice_sched_node *node,
+ice_sched_replay_yesde_bw(struct ice_hw *hw, struct ice_sched_yesde *yesde,
 			 struct ice_bw_type_info *bw_t_info)
 {
 	struct ice_port_info *pi = hw->port_info;
 	enum ice_status status = ICE_ERR_PARAM;
 	u16 bw_alloc;
 
-	if (!node)
+	if (!yesde)
 		return status;
 	if (bitmap_empty(bw_t_info->bw_t_bitmap, ICE_BW_TYPE_CNT))
 		return 0;
 	if (test_bit(ICE_BW_TYPE_PRIO, bw_t_info->bw_t_bitmap)) {
-		status = ice_sched_replay_node_prio(hw, node,
+		status = ice_sched_replay_yesde_prio(hw, yesde,
 						    bw_t_info->generic);
 		if (status)
 			return status;
 	}
 	if (test_bit(ICE_BW_TYPE_CIR, bw_t_info->bw_t_bitmap)) {
-		status = ice_sched_set_node_bw_lmt(pi, node, ICE_MIN_BW,
+		status = ice_sched_set_yesde_bw_lmt(pi, yesde, ICE_MIN_BW,
 						   bw_t_info->cir_bw.bw);
 		if (status)
 			return status;
 	}
 	if (test_bit(ICE_BW_TYPE_CIR_WT, bw_t_info->bw_t_bitmap)) {
 		bw_alloc = bw_t_info->cir_bw.bw_alloc;
-		status = ice_sched_cfg_node_bw_alloc(hw, node, ICE_MIN_BW,
+		status = ice_sched_cfg_yesde_bw_alloc(hw, yesde, ICE_MIN_BW,
 						     bw_alloc);
 		if (status)
 			return status;
 	}
 	if (test_bit(ICE_BW_TYPE_EIR, bw_t_info->bw_t_bitmap)) {
-		status = ice_sched_set_node_bw_lmt(pi, node, ICE_MAX_BW,
+		status = ice_sched_set_yesde_bw_lmt(pi, yesde, ICE_MAX_BW,
 						   bw_t_info->eir_bw.bw);
 		if (status)
 			return status;
 	}
 	if (test_bit(ICE_BW_TYPE_EIR_WT, bw_t_info->bw_t_bitmap)) {
 		bw_alloc = bw_t_info->eir_bw.bw_alloc;
-		status = ice_sched_cfg_node_bw_alloc(hw, node, ICE_MAX_BW,
+		status = ice_sched_cfg_yesde_bw_alloc(hw, yesde, ICE_MAX_BW,
 						     bw_alloc);
 		if (status)
 			return status;
 	}
 	if (test_bit(ICE_BW_TYPE_SHARED, bw_t_info->bw_t_bitmap))
-		status = ice_sched_set_node_bw_lmt(pi, node, ICE_SHARED_BW,
+		status = ice_sched_set_yesde_bw_lmt(pi, yesde, ICE_SHARED_BW,
 						   bw_t_info->shared_bw);
 	return status;
 }
 
 /**
- * ice_sched_replay_q_bw - replay queue type node BW
+ * ice_sched_replay_q_bw - replay queue type yesde BW
  * @pi: port information structure
  * @q_ctx: queue context structure
  *
- * This function replays queue type node bandwidth. This function needs to be
+ * This function replays queue type yesde bandwidth. This function needs to be
  * called with scheduler lock held.
  */
 enum ice_status
 ice_sched_replay_q_bw(struct ice_port_info *pi, struct ice_q_ctx *q_ctx)
 {
-	struct ice_sched_node *q_node;
+	struct ice_sched_yesde *q_yesde;
 
-	/* Following also checks the presence of node in tree */
-	q_node = ice_sched_find_node_by_teid(pi->root, q_ctx->q_teid);
-	if (!q_node)
+	/* Following also checks the presence of yesde in tree */
+	q_yesde = ice_sched_find_yesde_by_teid(pi->root, q_ctx->q_teid);
+	if (!q_yesde)
 		return ICE_ERR_PARAM;
-	return ice_sched_replay_node_bw(pi->hw, q_node, &q_ctx->bw_t_info);
+	return ice_sched_replay_yesde_bw(pi->hw, q_yesde, &q_ctx->bw_t_info);
 }

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -145,16 +145,16 @@ static struct drm_plane *create_primary_plane(struct drm_device *dev)
  * @crtc: CRTC object to init
  * @funcs: callbacks for the new CRTC
  *
- * Initialize a CRTC object with a default helper-provided primary plane and no
+ * Initialize a CRTC object with a default helper-provided primary plane and yes
  * cursor plane.
  *
- * Note that we make some assumptions about hardware limitations that may not be
+ * Note that we make some assumptions about hardware limitations that may yest be
  * true for all hardware:
  *
- * 1. Primary plane cannot be repositioned.
- * 2. Primary plane cannot be scaled.
+ * 1. Primary plane canyest be repositioned.
+ * 2. Primary plane canyest be scaled.
  * 3. Primary plane must cover the entire CRTC.
- * 4. Subpixel positioning is not supported.
+ * 4. Subpixel positioning is yest supported.
  * 5. The primary plane must always be on if the CRTC is enabled.
  *
  * This is purely a backwards compatibility helper for old drivers. Drivers

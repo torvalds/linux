@@ -28,7 +28,7 @@ MODULE_LICENSE("GPL");
 
 #define TEA575X_BIT_SEARCH	(1<<24)		/* 1 = search action, 0 = tuned */
 #define TEA575X_BIT_UPDOWN	(1<<23)		/* 0 = search down, 1 = search up */
-#define TEA575X_BIT_MONO	(1<<22)		/* 0 = stereo, 1 = mono */
+#define TEA575X_BIT_MONO	(1<<22)		/* 0 = stereo, 1 = moyes */
 #define TEA575X_BIT_BAND_MASK	(3<<20)
 #define TEA575X_BIT_BAND_FM	(0<<20)
 #define TEA575X_BIT_BAND_MW	(1<<20)
@@ -255,7 +255,7 @@ int snd_tea575x_enum_freq_bands(struct snd_tea575x *tea,
 	}
 
 	*band = bands[index];
-	if (!tea->cannot_read_data)
+	if (!tea->canyest_read_data)
 		band->capability |= V4L2_TUNER_CAP_HWSEEK_BOUNDED;
 
 	return 0;
@@ -359,7 +359,7 @@ int snd_tea575x_s_hw_freq_seek(struct file *file, struct snd_tea575x *tea,
 	unsigned long timeout;
 	int i, spacing;
 
-	if (tea->cannot_read_data)
+	if (tea->canyest_read_data)
 		return -ENOTTY;
 	if (a->tuner || a->wrap_around)
 		return -EINVAL;
@@ -496,9 +496,9 @@ int snd_tea575x_hw_init(struct snd_tea575x *tea)
 {
 	tea->mute = true;
 
-	/* Not all devices can or know how to read the data back.
-	   Such devices can set cannot_read_data to true. */
-	if (!tea->cannot_read_data) {
+	/* Not all devices can or kyesw how to read the data back.
+	   Such devices can set canyest_read_data to true. */
+	if (!tea->canyest_read_data) {
 		snd_tea575x_write(tea, 0x55AA);
 		if (snd_tea575x_read(tea) != 0x55AA)
 			return -ENODEV;
@@ -526,16 +526,16 @@ int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner)
 	tea->vd.lock = &tea->mutex;
 	tea->vd.v4l2_dev = tea->v4l2_dev;
 	tea->vd.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
-	if (!tea->cannot_read_data)
+	if (!tea->canyest_read_data)
 		tea->vd.device_caps |= V4L2_CAP_HW_FREQ_SEEK;
 	tea->fops = tea575x_fops;
 	tea->fops.owner = owner;
 	tea->vd.fops = &tea->fops;
 	/* disable hw_freq_seek if we can't use it */
-	if (tea->cannot_read_data)
+	if (tea->canyest_read_data)
 		v4l2_disable_ioctl(&tea->vd, VIDIOC_S_HW_FREQ_SEEK);
 
-	if (!tea->cannot_mute) {
+	if (!tea->canyest_mute) {
 		tea->vd.ctrl_handler = &tea->ctrl_handler;
 		v4l2_ctrl_handler_init(&tea->ctrl_handler, 1);
 		v4l2_ctrl_new_std(&tea->ctrl_handler, &tea575x_ctrl_ops,

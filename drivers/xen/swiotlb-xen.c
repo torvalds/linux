@@ -5,7 +5,7 @@
  *
  * This code provides a IOMMU for Xen PV guests with PCI passthrough.
  *
- * PV guests under Xen are running in an non-contiguous memory architecture.
+ * PV guests under Xen are running in an yesn-contiguous memory architecture.
  *
  * When PCI pass-through is utilized, this necessitates an IOMMU for
  * translating bus (DMA) to virtual and vice-versa and also providing a
@@ -17,8 +17,8 @@
  * help with that, the Linux Xen MMU provides a lookup mechanism to
  * translate the page frame numbers (PFN) to machine frame numbers (MFN)
  * and vice-versa. The MFN are the "real" frame numbers. Furthermore
- * memory is not contiguous. Xen hypervisor stitches memory for guests
- * from different pools, which means there is no guarantee that PFN==MFN
+ * memory is yest contiguous. Xen hypervisor stitches memory for guests
+ * from different pools, which means there is yes guarantee that PFN==MFN
  * and PFN+1==MFN+1. Lastly with Xen 4.0, pages (in debug mode) are
  * allocated in descending order (high to low), meaning the guest might
  * never get any MFN's under the 4GB mark.
@@ -28,7 +28,7 @@
 
 #include <linux/memblock.h>
 #include <linux/dma-direct.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <linux/export.h>
 #include <xen/swiotlb-xen.h>
 #include <xen/page.h>
@@ -106,7 +106,7 @@ static int is_xen_swiotlb_buffer(dma_addr_t dma_addr)
 	phys_addr_t paddr = XEN_PFN_PHYS(xen_pfn);
 
 	/* If the address is outside our domain, it CAN
-	 * have the same virtual address as another address
+	 * have the same virtual address as ayesther address
 	 * in our domain. Therefore _only_ check address within our domain.
 	 */
 	if (pfn_valid(PFN_DOWN(paddr))) {
@@ -164,11 +164,11 @@ static const char *xen_swiotlb_error(enum xen_swiotlb_err err)
 {
 	switch (err) {
 	case XEN_SWIOTLB_ENOMEM:
-		return "Cannot allocate Xen-SWIOTLB buffer\n";
+		return "Canyest allocate Xen-SWIOTLB buffer\n";
 	case XEN_SWIOTLB_EFIXUP:
 		return "Failed to get contiguous memory for DMA from Xen!\n"\
-		    "You either: don't have the permissions, do not have"\
-		    " enough free memory under 4GB, or the hypervisor memory"\
+		    "You either: don't have the permissions, do yest have"\
+		    " eyesugh free memory under 4GB, or the hypervisor memory"\
 		    " is too fragmented!";
 	default:
 		break;
@@ -245,7 +245,7 @@ retry:
 	if (early) {
 		if (swiotlb_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs,
 			 verbose))
-			panic("Cannot allocate SWIOTLB buffer");
+			panic("Canyest allocate SWIOTLB buffer");
 		rc = 0;
 	} else
 		rc = swiotlb_late_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs);
@@ -284,8 +284,8 @@ xen_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 	dma_addr_t dev_addr;
 
 	/*
-	* Ignore region specifiers - the kernel's ideas of
-	* pseudo-phys memory layout has nothing to do with the
+	* Igyesre region specifiers - the kernel's ideas of
+	* pseudo-phys memory layout has yesthing to do with the
 	* machine physical layout.  We can't allocate highmem
 	* because we can't return a pointer to it.
 	*/
@@ -309,7 +309,7 @@ xen_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 
 	/* At this point dma_handle is the physical address, next we are
 	 * going to set it to the machine address.
-	 * Do not use virt_to_phys(ret) because on ARM it doesn't correspond
+	 * Do yest use virt_to_phys(ret) because on ARM it doesn't correspond
 	 * to *dma_handle. */
 	phys = *dma_handle;
 	dev_addr = xen_phys_to_bus(phys);
@@ -339,7 +339,7 @@ xen_swiotlb_free_coherent(struct device *hwdev, size_t size, void *vaddr,
 	if (hwdev && hwdev->coherent_dma_mask)
 		dma_mask = hwdev->coherent_dma_mask;
 
-	/* do not use virt_to_phys because on ARM it doesn't return you the
+	/* do yest use virt_to_phys because on ARM it doesn't return you the
 	 * physical address */
 	phys = xen_bus_to_phys(dev_addr);
 
@@ -372,7 +372,7 @@ static dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	BUG_ON(dir == DMA_NONE);
 	/*
 	 * If the address happens to be in the device's DMA window,
-	 * we can safely return the device addr and not worry about bounce
+	 * we can safely return the device addr and yest worry about bounce
 	 * buffering it.
 	 */
 	if (dma_capable(dev, dev_addr, size, true) &&
@@ -427,7 +427,7 @@ static void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
 	if (!dev_is_dma_coherent(hwdev) && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
 		xen_dma_sync_for_cpu(dev_addr, paddr, size, dir);
 
-	/* NOTE: We use dev_addr here, not paddr! */
+	/* NOTE: We use dev_addr here, yest paddr! */
 	if (is_xen_swiotlb_buffer(dev_addr))
 		swiotlb_tbl_unmap_single(hwdev, paddr, size, size, dir, attrs);
 }

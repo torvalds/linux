@@ -90,21 +90,21 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 	pages4k = pages1m = pages2g = 0;
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
-		if (pgd_none(*pg_dir)) {
+		if (pgd_yesne(*pg_dir)) {
 			p4_dir = vmem_crst_alloc(_REGION2_ENTRY_EMPTY);
 			if (!p4_dir)
 				goto out;
 			pgd_populate(&init_mm, pg_dir, p4_dir);
 		}
 		p4_dir = p4d_offset(pg_dir, address);
-		if (p4d_none(*p4_dir)) {
+		if (p4d_yesne(*p4_dir)) {
 			pu_dir = vmem_crst_alloc(_REGION3_ENTRY_EMPTY);
 			if (!pu_dir)
 				goto out;
 			p4d_populate(&init_mm, p4_dir, pu_dir);
 		}
 		pu_dir = pud_offset(p4_dir, address);
-		if (MACHINE_HAS_EDAT2 && pud_none(*pu_dir) && address &&
+		if (MACHINE_HAS_EDAT2 && pud_yesne(*pu_dir) && address &&
 		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end) &&
 		     !debug_pagealloc_enabled()) {
 			pud_val(*pu_dir) = address | r3_prot;
@@ -112,14 +112,14 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 			pages2g++;
 			continue;
 		}
-		if (pud_none(*pu_dir)) {
+		if (pud_yesne(*pu_dir)) {
 			pm_dir = vmem_crst_alloc(_SEGMENT_ENTRY_EMPTY);
 			if (!pm_dir)
 				goto out;
 			pud_populate(&init_mm, pu_dir, pm_dir);
 		}
 		pm_dir = pmd_offset(pu_dir, address);
-		if (MACHINE_HAS_EDAT1 && pmd_none(*pm_dir) && address &&
+		if (MACHINE_HAS_EDAT1 && pmd_yesne(*pm_dir) && address &&
 		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end) &&
 		    !debug_pagealloc_enabled()) {
 			pmd_val(*pm_dir) = address | sgt_prot;
@@ -127,7 +127,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 			pages1m++;
 			continue;
 		}
-		if (pmd_none(*pm_dir)) {
+		if (pmd_yesne(*pm_dir)) {
 			pt_dir = vmem_pte_alloc();
 			if (!pt_dir)
 				goto out;
@@ -165,17 +165,17 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 	pages4k = pages1m = pages2g = 0;
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
-		if (pgd_none(*pg_dir)) {
+		if (pgd_yesne(*pg_dir)) {
 			address += PGDIR_SIZE;
 			continue;
 		}
 		p4_dir = p4d_offset(pg_dir, address);
-		if (p4d_none(*p4_dir)) {
+		if (p4d_yesne(*p4_dir)) {
 			address += P4D_SIZE;
 			continue;
 		}
 		pu_dir = pud_offset(p4_dir, address);
-		if (pud_none(*pu_dir)) {
+		if (pud_yesne(*pu_dir)) {
 			address += PUD_SIZE;
 			continue;
 		}
@@ -186,7 +186,7 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 			continue;
 		}
 		pm_dir = pmd_offset(pu_dir, address);
-		if (pmd_none(*pm_dir)) {
+		if (pmd_yesne(*pm_dir)) {
 			address += PMD_SIZE;
 			continue;
 		}
@@ -210,7 +210,7 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 /*
  * Add a backed mem_map array to the virtual mem_map array.
  */
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int yesde,
 		struct vmem_altmap *altmap)
 {
 	unsigned long pgt_prot, sgt_prot;
@@ -230,7 +230,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 	}
 	for (address = start; address < end;) {
 		pg_dir = pgd_offset_k(address);
-		if (pgd_none(*pg_dir)) {
+		if (pgd_yesne(*pg_dir)) {
 			p4_dir = vmem_crst_alloc(_REGION2_ENTRY_EMPTY);
 			if (!p4_dir)
 				goto out;
@@ -238,7 +238,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		}
 
 		p4_dir = p4d_offset(pg_dir, address);
-		if (p4d_none(*p4_dir)) {
+		if (p4d_yesne(*p4_dir)) {
 			pu_dir = vmem_crst_alloc(_REGION3_ENTRY_EMPTY);
 			if (!pu_dir)
 				goto out;
@@ -246,7 +246,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		}
 
 		pu_dir = pud_offset(p4_dir, address);
-		if (pud_none(*pu_dir)) {
+		if (pud_yesne(*pu_dir)) {
 			pm_dir = vmem_crst_alloc(_SEGMENT_ENTRY_EMPTY);
 			if (!pm_dir)
 				goto out;
@@ -254,7 +254,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		}
 
 		pm_dir = pmd_offset(pu_dir, address);
-		if (pmd_none(*pm_dir)) {
+		if (pmd_yesne(*pm_dir)) {
 			/* Use 1MB frames for vmemmap if available. We always
 			 * use large frames even if they are only partially
 			 * used.
@@ -264,7 +264,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 			if (MACHINE_HAS_EDAT1) {
 				void *new_page;
 
-				new_page = vmemmap_alloc_block(PMD_SIZE, node);
+				new_page = vmemmap_alloc_block(PMD_SIZE, yesde);
 				if (!new_page)
 					goto out;
 				pmd_val(*pm_dir) = __pa(new_page) | sgt_prot;
@@ -281,10 +281,10 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		}
 
 		pt_dir = pte_offset_kernel(pm_dir, address);
-		if (pte_none(*pt_dir)) {
+		if (pte_yesne(*pt_dir)) {
 			void *new_page;
 
-			new_page = vmemmap_alloc_block(PAGE_SIZE, node);
+			new_page = vmemmap_alloc_block(PAGE_SIZE, yesde);
 			if (!new_page)
 				goto out;
 			pte_val(*pt_dir) = __pa(new_page) | pgt_prot;
@@ -395,7 +395,7 @@ out:
 
 /*
  * map whole physical memory to virtual memory (identity mapping)
- * we reserve enough space in the vmalloc area for vmemmap to hotplug
+ * we reserve eyesugh space in the vmalloc area for vmemmap to hotplug
  * additional memory segments.
  */
 void __init vmem_map_init(void)

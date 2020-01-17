@@ -11,7 +11,7 @@ Optional properties:
 - vcc-supply: phandle of regulator that will be used to enable power to the display
 - backlight: phandle of the backlight device
 
-Required nodes:
+Required yesdes:
 - "panel-timing" containing video timings
   (Documentation/devicetree/bindings/display/panel/display-timing.txt)
 - Video port for DPI input

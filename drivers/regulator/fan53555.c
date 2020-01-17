@@ -5,7 +5,7 @@
 // Supported Part Numbers:
 // FAN53555UC00X/01X/03X/04X/05X
 //
-// Copyright (c) 2012 Marvell Technology Ltd.
+// Copyright (c) 2012 Marvell Techyeslogy Ltd.
 // Yunfan Zhang <yfzhang@marvell.com>
 
 #include <linux/module.h>
@@ -123,7 +123,7 @@ static int fan53555_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 	if (ret < 0)
 		return ret;
 	/* Cache the sleep voltage setting.
-	 * Might not be the real voltage which is rounded */
+	 * Might yest be the real voltage which is rounded */
 	di->sleep_vol_cache = uV;
 
 	return 0;
@@ -239,14 +239,14 @@ static int fan53526_voltages_setup_fairchild(struct fan53555_device_info *di)
 			break;
 		default:
 			dev_err(di->dev,
-				"Chip ID %d with rev %d not supported!\n",
+				"Chip ID %d with rev %d yest supported!\n",
 				di->chip_id, di->chip_rev);
 			return -EINVAL;
 		}
 		break;
 	default:
 		dev_err(di->dev,
-			"Chip ID %d not supported!\n", di->chip_id);
+			"Chip ID %d yest supported!\n", di->chip_id);
 		return -EINVAL;
 	}
 
@@ -271,7 +271,7 @@ static int fan53555_voltages_setup_fairchild(struct fan53555_device_info *di)
 			break;
 		default:
 			dev_err(di->dev,
-				"Chip ID %d with rev %d not supported!\n",
+				"Chip ID %d with rev %d yest supported!\n",
 				di->chip_id, di->chip_rev);
 			return -EINVAL;
 		}
@@ -289,7 +289,7 @@ static int fan53555_voltages_setup_fairchild(struct fan53555_device_info *di)
 		break;
 	default:
 		dev_err(di->dev,
-			"Chip ID %d not supported!\n", di->chip_id);
+			"Chip ID %d yest supported!\n", di->chip_id);
 		return -EINVAL;
 	}
 
@@ -309,7 +309,7 @@ static int fan53555_voltages_setup_silergy(struct fan53555_device_info *di)
 		break;
 	default:
 		dev_err(di->dev,
-			"Chip ID %d not supported!\n", di->chip_id);
+			"Chip ID %d yest supported!\n", di->chip_id);
 		return -EINVAL;
 	}
 
@@ -363,7 +363,7 @@ static int fan53555_device_setup(struct fan53555_device_info *di,
 		di->mode_mask = VSEL_MODE;
 		break;
 	default:
-		dev_err(di->dev, "vendor %d not supported!\n", di->vendor);
+		dev_err(di->dev, "vendor %d yest supported!\n", di->vendor);
 		return -EINVAL;
 	}
 
@@ -379,7 +379,7 @@ static int fan53555_device_setup(struct fan53555_device_info *di,
 		ret = fan53555_voltages_setup_silergy(di);
 		break;
 	default:
-		dev_err(di->dev, "vendor %d not supported!\n", di->vendor);
+		dev_err(di->dev, "vendor %d yest supported!\n", di->vendor);
 		return -EINVAL;
 	}
 
@@ -415,7 +415,7 @@ static const struct regmap_config fan53555_regmap_config = {
 };
 
 static struct fan53555_platform_data *fan53555_parse_dt(struct device *dev,
-					      struct device_node *np,
+					      struct device_yesde *np,
 					      const struct regulator_desc *desc)
 {
 	struct fan53555_platform_data *pdata;
@@ -457,7 +457,7 @@ MODULE_DEVICE_TABLE(of, fan53555_dt_ids);
 static int fan53555_regulator_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	struct fan53555_device_info *di;
 	struct fan53555_platform_data *pdata;
 	struct regulator_config config = { };
@@ -475,16 +475,16 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 		pdata = fan53555_parse_dt(&client->dev, np, &di->desc);
 
 	if (!pdata || !pdata->regulator) {
-		dev_err(&client->dev, "Platform data not found!\n");
+		dev_err(&client->dev, "Platform data yest found!\n");
 		return -ENODEV;
 	}
 
 	di->regulator = pdata->regulator;
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		di->vendor =
 			(unsigned long)of_device_get_match_data(&client->dev);
 	} else {
-		/* if no ramp constraint set, get the pdata ramp_delay */
+		/* if yes ramp constraint set, get the pdata ramp_delay */
 		if (!di->regulator->constraints.ramp_delay) {
 			if (pdata->slew_rate >= ARRAY_SIZE(slew_rates)) {
 				dev_err(&client->dev, "Invalid slew_rate\n");
@@ -532,7 +532,7 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 	config.init_data = di->regulator;
 	config.regmap = regmap;
 	config.driver_data = di;
-	config.of_node = np;
+	config.of_yesde = np;
 
 	ret = fan53555_regulator_register(di, &config);
 	if (ret < 0)

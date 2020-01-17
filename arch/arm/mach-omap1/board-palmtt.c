@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/clk.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -214,7 +214,7 @@ static int palmtt_get_pendown_state(void)
 
 static const struct ads7846_platform_data palmtt_ts_info = {
 	.model			= 7846,
-	.vref_delay_usecs	= 100,	/* internal, no capacitor */
+	.vref_delay_usecs	= 100,	/* internal, yes capacitor */
 	.x_plate_ohms		= 419,
 	.y_plate_ohms		= 486,
 	.get_pendown_state	= palmtt_get_pendown_state,

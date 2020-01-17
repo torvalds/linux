@@ -21,7 +21,7 @@ static void __ap_flush_queue(struct ap_queue *aq);
 /**
  * ap_queue_enable_interruption(): Enable interruption on an AP queue.
  * @qid: The AP queue number
- * @ind: the notification indicator byte
+ * @ind: the yestification indicator byte
  *
  * Enables interruption on AP queue via ap_aqic(). Based on the return
  * value it waits a while and tests the AP queue if interrupts
@@ -119,14 +119,14 @@ EXPORT_SYMBOL(ap_recv);
 
 /* State machine definitions and helpers */
 
-static enum ap_wait ap_sm_nop(struct ap_queue *aq)
+static enum ap_wait ap_sm_yesp(struct ap_queue *aq)
 {
 	return AP_WAIT_NONE;
 }
 
 /**
  * ap_sm_recv(): Receive pending reply messages from an AP queue but do
- *	not change the state of the device.
+ *	yest change the state of the device.
  * @aq: pointer to the AP queue
  *
  * Returns AP_WAIT_NONE, AP_WAIT_AGAIN, or AP_WAIT_INTERRUPT
@@ -156,7 +156,7 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 	case AP_RESPONSE_NO_PENDING_REPLY:
 		if (!status.queue_empty || aq->queue_count <= 0)
 			break;
-		/* The card shouldn't forget requests but who knows. */
+		/* The card shouldn't forget requests but who kyesws. */
 		aq->queue_count = 0;
 		list_splice_init(&aq->pendingq, &aq->requestq);
 		aq->requestq_count += aq->pendingq_count;
@@ -370,7 +370,7 @@ static enum ap_wait ap_sm_setirq_wait(struct ap_queue *aq)
 		status = ap_tapq(aq->qid, NULL);
 
 	if (status.irq_enabled == 1) {
-		/* Irqs are now enabled */
+		/* Irqs are yesw enabled */
 		aq->interrupt = AP_INTR_ENABLED;
 		aq->state = (aq->queue_count > 0) ?
 			AP_STATE_WORKING : AP_STATE_IDLE;
@@ -395,19 +395,19 @@ static enum ap_wait ap_sm_setirq_wait(struct ap_queue *aq)
 static ap_func_t *ap_jumptable[NR_AP_STATES][NR_AP_EVENTS] = {
 	[AP_STATE_RESET_START] = {
 		[AP_EVENT_POLL] = ap_sm_reset,
-		[AP_EVENT_TIMEOUT] = ap_sm_nop,
+		[AP_EVENT_TIMEOUT] = ap_sm_yesp,
 	},
 	[AP_STATE_RESET_WAIT] = {
 		[AP_EVENT_POLL] = ap_sm_reset_wait,
-		[AP_EVENT_TIMEOUT] = ap_sm_nop,
+		[AP_EVENT_TIMEOUT] = ap_sm_yesp,
 	},
 	[AP_STATE_SETIRQ_WAIT] = {
 		[AP_EVENT_POLL] = ap_sm_setirq_wait,
-		[AP_EVENT_TIMEOUT] = ap_sm_nop,
+		[AP_EVENT_TIMEOUT] = ap_sm_yesp,
 	},
 	[AP_STATE_IDLE] = {
 		[AP_EVENT_POLL] = ap_sm_write,
-		[AP_EVENT_TIMEOUT] = ap_sm_nop,
+		[AP_EVENT_TIMEOUT] = ap_sm_yesp,
 	},
 	[AP_STATE_WORKING] = {
 		[AP_EVENT_POLL] = ap_sm_read_write,
@@ -419,19 +419,19 @@ static ap_func_t *ap_jumptable[NR_AP_STATES][NR_AP_EVENTS] = {
 	},
 	[AP_STATE_SUSPEND_WAIT] = {
 		[AP_EVENT_POLL] = ap_sm_suspend_read,
-		[AP_EVENT_TIMEOUT] = ap_sm_nop,
+		[AP_EVENT_TIMEOUT] = ap_sm_yesp,
 	},
 	[AP_STATE_REMOVE] = {
-		[AP_EVENT_POLL] = ap_sm_nop,
-		[AP_EVENT_TIMEOUT] = ap_sm_nop,
+		[AP_EVENT_POLL] = ap_sm_yesp,
+		[AP_EVENT_TIMEOUT] = ap_sm_yesp,
 	},
 	[AP_STATE_UNBOUND] = {
-		[AP_EVENT_POLL] = ap_sm_nop,
-		[AP_EVENT_TIMEOUT] = ap_sm_nop,
+		[AP_EVENT_POLL] = ap_sm_yesp,
+		[AP_EVENT_TIMEOUT] = ap_sm_yesp,
 	},
 	[AP_STATE_BORKED] = {
-		[AP_EVENT_POLL] = ap_sm_nop,
-		[AP_EVENT_TIMEOUT] = ap_sm_nop,
+		[AP_EVENT_POLL] = ap_sm_yesp,
+		[AP_EVENT_TIMEOUT] = ap_sm_yesp,
 	},
 };
 
@@ -666,7 +666,7 @@ EXPORT_SYMBOL(ap_queue_init_reply);
  */
 void ap_queue_message(struct ap_queue *aq, struct ap_message *ap_msg)
 {
-	/* For asynchronous message handling a valid receive-callback
+	/* For asynchroyesus message handling a valid receive-callback
 	 * is required.
 	 */
 	BUG_ON(!ap_msg->receive);
@@ -763,7 +763,7 @@ void ap_queue_remove(struct ap_queue *aq)
 	 * AP_STATE_REMOVE. Now reset with zero which also
 	 * clears the irq registration and move the state
 	 * to AP_STATE_UNBOUND to signal that this queue
-	 * is not used by any driver currently.
+	 * is yest used by any driver currently.
 	 */
 	spin_lock_bh(&aq->lock);
 	ap_zapq(aq->qid);

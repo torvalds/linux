@@ -7,19 +7,19 @@
 #define __XFS_FILESTREAM_H__
 
 struct xfs_mount;
-struct xfs_inode;
+struct xfs_iyesde;
 struct xfs_bmalloca;
 
 int xfs_filestream_mount(struct xfs_mount *mp);
 void xfs_filestream_unmount(struct xfs_mount *mp);
-void xfs_filestream_deassociate(struct xfs_inode *ip);
-xfs_agnumber_t xfs_filestream_lookup_ag(struct xfs_inode *ip);
+void xfs_filestream_deassociate(struct xfs_iyesde *ip);
+xfs_agnumber_t xfs_filestream_lookup_ag(struct xfs_iyesde *ip);
 int xfs_filestream_new_ag(struct xfs_bmalloca *ap, xfs_agnumber_t *agp);
-int xfs_filestream_peek_ag(struct xfs_mount *mp, xfs_agnumber_t agno);
+int xfs_filestream_peek_ag(struct xfs_mount *mp, xfs_agnumber_t agyes);
 
 static inline int
-xfs_inode_is_filestream(
-	struct xfs_inode	*ip)
+xfs_iyesde_is_filestream(
+	struct xfs_iyesde	*ip)
 {
 	return (ip->i_mount->m_flags & XFS_MOUNT_FILESTREAMS) ||
 		(ip->i_d.di_flags & XFS_DIFLAG_FILESTREAM);

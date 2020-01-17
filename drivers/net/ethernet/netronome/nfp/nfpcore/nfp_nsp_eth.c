@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2017 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2017 Netroyesme Systems, Inc. */
 
-/* Authors: David Brunecz <david.brunecz@netronome.com>
- *          Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason Mcmullan <jason.mcmullan@netronome.com>
+/* Authors: David Brunecz <david.brunecz@netroyesme.com>
+ *          Jakub Kicinski <jakub.kicinski@netroyesme.com>
+ *          Jason Mcmullan <jason.mcmullan@netroyesme.com>
  */
 
 #include <linux/bitfield.h>
@@ -153,13 +153,13 @@ nfp_eth_port_translate(struct nfp_nsp *nsp, const union eth_table_entry *src,
 	dst->label_port = FIELD_GET(NSP_ETH_PORT_PHYLABEL, port);
 	dst->label_subport = FIELD_GET(NSP_ETH_PORT_LABEL, port);
 
-	if (nfp_nsp_get_abi_ver_minor(nsp) < 17)
+	if (nfp_nsp_get_abi_ver_miyesr(nsp) < 17)
 		return;
 
 	dst->override_changed = FIELD_GET(NSP_ETH_STATE_OVRD_CHNG, state);
 	dst->aneg = FIELD_GET(NSP_ETH_STATE_ANEG, state);
 
-	if (nfp_nsp_get_abi_ver_minor(nsp) < 22)
+	if (nfp_nsp_get_abi_ver_miyesr(nsp) < 22)
 		return;
 
 	fec = FIELD_GET(NSP_ETH_PORT_FEC_SUPP_BASER, port);
@@ -222,7 +222,7 @@ nfp_eth_calc_port_type(struct nfp_cpp *cpp, struct nfp_eth_table_port *entry)
  * @cpp:	NFP CPP handle
  *
  * Read the port information from the device.  Returned structure should
- * be freed with kfree() once no longer needed.
+ * be freed with kfree() once yes longer needed.
  *
  * Return: populated ETH table or NULL on error.
  */
@@ -267,7 +267,7 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 	 * calculated above.
 	 */
 	if (ret && ret != cnt) {
-		nfp_err(cpp, "table entry count reported (%d) does not match entries present (%d)\n",
+		nfp_err(cpp, "table entry count reported (%d) does yest match entries present (%d)\n",
 			ret, cnt);
 		goto err;
 	}
@@ -348,12 +348,12 @@ void nfp_eth_config_cleanup_end(struct nfp_nsp *nsp)
  *
  * Perform the configuration which was requested with __nfp_eth_set_*()
  * helpers and recorded in @nsp state.  If device was already configured
- * as requested or no __nfp_eth_set_*() operations were made no NSP command
+ * as requested or yes __nfp_eth_set_*() operations were made yes NSP command
  * will be performed.
  *
  * Return:
  * 0 - configuration successful;
- * 1 - no changes were needed;
+ * 1 - yes changes were needed;
  * -ERRNO - configuration failed.
  */
 int nfp_eth_config_commit_end(struct nfp_nsp *nsp)
@@ -382,7 +382,7 @@ int nfp_eth_config_commit_end(struct nfp_nsp *nsp)
  *
  * Return:
  * 0 - configuration successful;
- * 1 - no changes were needed;
+ * 1 - yes changes were needed;
  * -ERRNO - configuration failed.
  */
 int nfp_eth_set_mod_enable(struct nfp_cpp *cpp, unsigned int idx, bool enable)
@@ -421,7 +421,7 @@ int nfp_eth_set_mod_enable(struct nfp_cpp *cpp, unsigned int idx, bool enable)
  *
  * Return:
  * 0 - configuration successful;
- * 1 - no changes were needed;
+ * 1 - yes changes were needed;
  * -ERRNO - configuration failed.
  */
 int nfp_eth_set_configured(struct nfp_cpp *cpp, unsigned int idx, bool configed)
@@ -437,7 +437,7 @@ int nfp_eth_set_configured(struct nfp_cpp *cpp, unsigned int idx, bool configed)
 	/* Older ABI versions did support this feature, however this has only
 	 * been reliable since ABI 20.
 	 */
-	if (nfp_nsp_get_abi_ver_minor(nsp) < 20) {
+	if (nfp_nsp_get_abi_ver_miyesr(nsp) < 20) {
 		nfp_eth_config_cleanup_end(nsp);
 		return -EOPNOTSUPP;
 	}
@@ -468,11 +468,11 @@ nfp_eth_set_bit_config(struct nfp_nsp *nsp, unsigned int raw_idx,
 	u64 reg;
 
 	/* Note: set features were added in ABI 0.14 but the error
-	 *	 codes were initially not populated correctly.
+	 *	 codes were initially yest populated correctly.
 	 */
-	if (nfp_nsp_get_abi_ver_minor(nsp) < 17) {
+	if (nfp_nsp_get_abi_ver_miyesr(nsp) < 17) {
 		nfp_err(nfp_nsp_cpp(nsp),
-			"set operations not supported, please update flash\n");
+			"set operations yest supported, please update flash\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -541,7 +541,7 @@ static int __nfp_eth_set_fec(struct nfp_nsp *nsp, enum nfp_eth_fec mode)
  *
  * Return:
  * 0 - configuration successful;
- * 1 - no changes were needed;
+ * 1 - yes changes were needed;
  * -ERRNO - configuration failed.
  */
 int
@@ -582,7 +582,7 @@ int __nfp_eth_set_speed(struct nfp_nsp *nsp, unsigned int speed)
 	rate = nfp_eth_speed2rate(speed);
 	if (rate == RATE_INVALID) {
 		nfp_warn(nfp_nsp_cpp(nsp),
-			 "could not find matching lane rate for speed %u\n",
+			 "could yest find matching lane rate for speed %u\n",
 			 speed);
 		return -EINVAL;
 	}

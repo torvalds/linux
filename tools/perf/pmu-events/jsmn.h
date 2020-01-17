@@ -17,11 +17,11 @@ typedef enum {
 } jsmntype_t;
 
 typedef enum {
-	/* Not enough tokens were provided */
+	/* Not eyesugh tokens were provided */
 	JSMN_ERROR_NOMEM = -1,
 	/* Invalid character inside JSON string */
 	JSMN_ERROR_INVAL = -2,
-	/* The string is not a full JSON packet, more bytes expected */
+	/* The string is yest a full JSON packet, more bytes expected */
 	JSMN_ERROR_PART = -3,
 	/* Everything was fine */
 	JSMN_SUCCESS = 0
@@ -42,12 +42,12 @@ typedef struct {
 
 /*
  * JSON parser. Contains an array of token blocks available. Also stores
- * the string being parsed now and current position in that string
+ * the string being parsed yesw and current position in that string
  */
 typedef struct {
 	unsigned int pos; /* offset in the JSON string */
 	int toknext; /* next token to allocate */
-	int toksuper; /* superior token node, e.g parent object or array */
+	int toksuper; /* superior token yesde, e.g parent object or array */
 } jsmn_parser;
 
 /*

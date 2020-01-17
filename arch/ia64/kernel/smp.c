@@ -13,7 +13,7 @@
  * calibration on each CPU.
  * 00/08/23 Asit Mallick <asit.k.mallick@intel.com> fixed logical processor id
  * 00/03/31 Rohit Seth <rohit.seth@intel.com>	Fixes for Bootstrap Processor
- * & cpu_online_map now gets done here (instead of setup.c)
+ * & cpu_online_map yesw gets done here (instead of setup.c)
  * 99/10/05 davidm	Update to bring it in sync with new command-line processing
  *  scheme.
  * 10/13/00 Goutham Rao <goutham.rao@intel.com> Updated smp_call_function and
@@ -125,7 +125,7 @@ handle_IPI (int irq, void *dev_id)
 				break;
 #endif
 			default:
-				printk(KERN_CRIT "Unknown IPI on CPU %d: %lu\n",
+				printk(KERN_CRIT "Unkyeswn IPI on CPU %d: %lu\n",
 						this_cpu, which);
 				break;
 			}

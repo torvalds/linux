@@ -27,7 +27,7 @@ struct max9850_priv {
 	unsigned int sysclk;
 };
 
-/* these registers are not used at the moment but provided for the sake of
+/* these registers are yest used at the moment but provided for the sake of
  * completeness */
 static bool max9850_volatile_register(struct device *dev, unsigned int reg)
 {
@@ -59,7 +59,7 @@ static const DECLARE_TLV_DB_RANGE(max9850_tlv,
 static const struct snd_kcontrol_new max9850_controls[] = {
 SOC_SINGLE_TLV("Headphone Volume", MAX9850_VOLUME, 0, 0x3f, 1, max9850_tlv),
 SOC_SINGLE("Headphone Switch", MAX9850_VOLUME, 7, 1, 1),
-SOC_SINGLE("Mono Switch", MAX9850_GENERAL_PURPOSE, 2, 1, 0),
+SOC_SINGLE("Moyes Switch", MAX9850_GENERAL_PURPOSE, 2, 1, 0),
 };
 
 static const struct snd_kcontrol_new max9850_mixer_controls[] = {
@@ -296,7 +296,7 @@ static const struct snd_soc_component_driver soc_component_dev_max9850 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int max9850_i2c_probe(struct i2c_client *i2c,

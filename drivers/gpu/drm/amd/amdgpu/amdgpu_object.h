@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -31,7 +31,7 @@
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #ifdef CONFIG_MMU_NOTIFIER
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #endif
 
 #define AMDGPU_BO_INVALID_OFFSET	LONG_MAX
@@ -44,7 +44,7 @@ struct amdgpu_bo_param {
 	u32				preferred_domain;
 	u64				flags;
 	enum ttm_bo_type		type;
-	bool				no_wait_gpu;
+	bool				yes_wait_gpu;
 	struct dma_resv	*resv;
 };
 
@@ -52,7 +52,7 @@ struct amdgpu_bo_param {
 struct amdgpu_bo_va_mapping {
 	struct amdgpu_bo_va		*bo_va;
 	struct list_head		list;
-	struct rb_node			rb;
+	struct rb_yesde			rb;
 	uint64_t			start;
 	uint64_t			last;
 	uint64_t			__subtree_last;
@@ -106,7 +106,7 @@ struct amdgpu_bo {
 
 
 #ifdef CONFIG_MMU_NOTIFIER
-	struct mmu_interval_notifier	notifier;
+	struct mmu_interval_yestifier	yestifier;
 #endif
 
 	struct list_head		shadow_list;
@@ -149,18 +149,18 @@ static inline unsigned amdgpu_mem_type_to_domain(u32 mem_type)
 /**
  * amdgpu_bo_reserve - reserve bo
  * @bo:		bo structure
- * @no_intr:	don't return -ERESTARTSYS on pending signal
+ * @yes_intr:	don't return -ERESTARTSYS on pending signal
  *
  * Returns:
  * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
  */
-static inline int amdgpu_bo_reserve(struct amdgpu_bo *bo, bool no_intr)
+static inline int amdgpu_bo_reserve(struct amdgpu_bo *bo, bool yes_intr)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	int r;
 
-	r = __ttm_bo_reserve(&bo->tbo, !no_intr, false, NULL);
+	r = __ttm_bo_reserve(&bo->tbo, !yes_intr, false, NULL);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(adev->dev, "%p reserve failed\n", bo);
@@ -197,7 +197,7 @@ static inline unsigned amdgpu_bo_gpu_page_alignment(struct amdgpu_bo *bo)
  */
 static inline u64 amdgpu_bo_mmap_offset(struct amdgpu_bo *bo)
 {
-	return drm_vma_node_offset_addr(&bo->tbo.base.vma_node);
+	return drm_vma_yesde_offset_addr(&bo->tbo.base.vma_yesde);
 }
 
 /**
@@ -207,15 +207,15 @@ static inline bool amdgpu_bo_in_cpu_visible_vram(struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	unsigned fpfn = adev->gmc.visible_vram_size >> PAGE_SHIFT;
-	struct drm_mm_node *node = bo->tbo.mem.mm_node;
+	struct drm_mm_yesde *yesde = bo->tbo.mem.mm_yesde;
 	unsigned long pages_left;
 
 	if (bo->tbo.mem.mem_type != TTM_PL_VRAM)
 		return false;
 
 	for (pages_left = bo->tbo.mem.num_pages; pages_left;
-	     pages_left -= node->size, node++)
-		if (node->start < fpfn)
+	     pages_left -= yesde->size, yesde++)
+		if (yesde->start < fpfn)
 			return true;
 
 	return false;
@@ -270,11 +270,11 @@ int amdgpu_bo_set_metadata (struct amdgpu_bo *bo, void *metadata,
 int amdgpu_bo_get_metadata(struct amdgpu_bo *bo, void *buffer,
 			   size_t buffer_size, uint32_t *metadata_size,
 			   uint64_t *flags);
-void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
+void amdgpu_bo_move_yestify(struct ttm_buffer_object *bo,
 			   bool evict,
 			   struct ttm_mem_reg *new_mem);
-void amdgpu_bo_release_notify(struct ttm_buffer_object *bo);
-int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
+void amdgpu_bo_release_yestify(struct ttm_buffer_object *bo);
+int amdgpu_bo_fault_reserve_yestify(struct ttm_buffer_object *bo);
 void amdgpu_bo_fence(struct amdgpu_bo *bo, struct dma_fence *fence,
 		     bool shared);
 int amdgpu_bo_sync_wait(struct amdgpu_bo *bo, void *owner, bool intr);

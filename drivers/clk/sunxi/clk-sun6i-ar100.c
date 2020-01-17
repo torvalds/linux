@@ -70,7 +70,7 @@ static DEFINE_SPINLOCK(sun6i_ar100_lock);
 
 static int sun6i_a31_ar100_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct resource *r;
 	void __iomem *reg;
 	struct clk *clk;

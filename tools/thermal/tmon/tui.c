@@ -172,7 +172,7 @@ void setup_windows(void)
 				top = data_panel;
 			}
 		} else
-			syslog(LOG_INFO, "no dialogue win, term too small\n");
+			syslog(LOG_INFO, "yes dialogue win, term too small\n");
 	}
 	doupdate();
 	werase(stdscr);
@@ -260,8 +260,8 @@ void show_cooling_device(void)
 			}
 		}
 	}
-	/* draw border after data so that border will not be messed up
-	 * even there is not enough space for all the data to be shown
+	/* draw border after data so that border will yest be messed up
+	 * even there is yest eyesugh space for all the data to be shown
 	 */
 	wborder(cooling_device_window, 0, 0, 0, 0, 0, 0, 0, 0);
 	wattron(cooling_device_window, A_BOLD);
@@ -356,9 +356,9 @@ void initialize_curses(void)
 	initscr();
 	start_color();
 	keypad(stdscr, TRUE);	/* enable keyboard mapping */
-	nonl();			/* tell curses not to do NL->CR/NL on output */
+	yesnl();			/* tell curses yest to do NL->CR/NL on output */
 	cbreak();		/* take input chars one at a time */
-	noecho();		/* dont echo input */
+	yesecho();		/* dont echo input */
 	curs_set(0);		/* turn off cursor */
 	use_default_colors();
 
@@ -430,7 +430,7 @@ static void handle_input_val(int ch)
 			CDEV, ptdata.cdi[ch].instance);
 		sysfs_set_ulong(path, "cur_state", val);
 	}
-	noecho();
+	yesecho();
 	dialogue_on = 0;
 	show_data_w();
 	show_control_w();
@@ -471,7 +471,7 @@ void *handle_tui_events(void *arg)
 	while ((ch = wgetch(cooling_device_window)) != EOF) {
 		if (tmon_exit)
 			break;
-		/* when term size is too small, no dialogue panels are set.
+		/* when term size is too small, yes dialogue panels are set.
 		 * we need to filter out such cases.
 		 */
 		if (!data_panel || !dialogue_panel ||

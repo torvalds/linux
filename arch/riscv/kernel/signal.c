@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2009 Sunplus Core Technology Co., Ltd.
+ * Copyright (C) 2009 Sunplus Core Techyeslogy Co., Ltd.
  *  Chen Liqin <liqin.chen@sunplusct.com>
- *  Lennox Wu <lennox.wu@sunplusct.com>
+ *  Lenyesx Wu <lenyesx.wu@sunplusct.com>
  * Copyright (C) 2012 Regents of the University of California
  */
 
@@ -43,7 +43,7 @@ static long restore_fp_state(struct pt_regs *regs,
 
 	fstate_restore(current, regs);
 
-	/* We support no other extension state at this time. */
+	/* We support yes other extension state at this time. */
 	for (i = 0; i < ARRAY_SIZE(sc_fpregs->q.reserved); i++) {
 		u32 value;
 
@@ -69,7 +69,7 @@ static long save_fp_state(struct pt_regs *regs,
 	if (unlikely(err))
 		return err;
 
-	/* We support no other extension state at this time. */
+	/* We support yes other extension state at this time. */
 	for (i = 0; i < ARRAY_SIZE(sc_fpregs->q.reserved); i++) {
 		err = __put_user(0, &sc_fpregs->q.reserved[i]);
 		if (unlikely(err))
@@ -103,7 +103,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	sigset_t set;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	frame = (struct rt_sigframe __user *)regs->sp;
 
@@ -152,7 +152,7 @@ static inline void __user *get_sigframe(struct ksignal *ksig,
 	struct pt_regs *regs, size_t framesize)
 {
 	unsigned long sp;
-	/* Default to using normal stack */
+	/* Default to using yesrmal stack */
 	sp = regs->sp;
 
 	/*
@@ -198,7 +198,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 		current->mm->context.vdso, rt_sigreturn);
 #else
 	/*
-	 * For the nommu case we don't have a VDSO.  Instead we push two
+	 * For the yesmmu case we don't have a VDSO.  Instead we push two
 	 * instructions to call the rt_sigreturn syscall onto the user stack.
 	 */
 	if (copy_to_user(&frame->sigreturn_code, __user_rt_sigreturn,
@@ -279,7 +279,7 @@ static void do_signal(struct pt_regs *regs)
 		/* Avoid additional syscall restarting via ret_from_exception */
 		regs->cause = -1UL;
 
-		/* Restart the system call - no handlers present */
+		/* Restart the system call - yes handlers present */
 		switch (regs->a0) {
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
@@ -296,17 +296,17 @@ static void do_signal(struct pt_regs *regs)
 	}
 
 	/*
-	 * If there is no signal to deliver, we just put the saved
+	 * If there is yes signal to deliver, we just put the saved
 	 * sigmask back.
 	 */
 	restore_saved_sigmask();
 }
 
 /*
- * notification of userspace execution resumption
+ * yestification of userspace execution resumption
  * - triggered by the _TIF_WORK_MASK flags
  */
-asmlinkage __visible void do_notify_resume(struct pt_regs *regs,
+asmlinkage __visible void do_yestify_resume(struct pt_regs *regs,
 					   unsigned long thread_info_flags)
 {
 	/* Handle pending signal delivery */
@@ -315,6 +315,6 @@ asmlinkage __visible void do_notify_resume(struct pt_regs *regs,
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 	}
 }

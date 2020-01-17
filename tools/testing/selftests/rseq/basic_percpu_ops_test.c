@@ -31,13 +31,13 @@ struct spinlock_test_data {
 	int reps;
 };
 
-struct percpu_list_node {
+struct percpu_list_yesde {
 	intptr_t data;
-	struct percpu_list_node *next;
+	struct percpu_list_yesde *next;
 };
 
 struct percpu_list_entry {
-	struct percpu_list_node *head;
+	struct percpu_list_yesde *head;
 } __attribute__((aligned(128)));
 
 struct percpu_list {
@@ -84,7 +84,7 @@ void *test_percpu_spinlock_thread(void *arg)
 
 	if (rseq_register_current_thread()) {
 		fprintf(stderr, "Error: rseq_register_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 		abort();
 	}
 	for (i = 0; i < data->reps; i++) {
@@ -94,7 +94,7 @@ void *test_percpu_spinlock_thread(void *arg)
 	}
 	if (rseq_unregister_current_thread()) {
 		fprintf(stderr, "Error: rseq_unregister_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 		abort();
 	}
 
@@ -133,7 +133,7 @@ void test_percpu_spinlock(void)
 }
 
 void this_cpu_list_push(struct percpu_list *list,
-			struct percpu_list_node *node,
+			struct percpu_list_yesde *yesde,
 			int *_cpu)
 {
 	int cpu;
@@ -145,9 +145,9 @@ void this_cpu_list_push(struct percpu_list *list,
 		cpu = rseq_cpu_start();
 		/* Load list->c[cpu].head with single-copy atomicity. */
 		expect = (intptr_t)RSEQ_READ_ONCE(list->c[cpu].head);
-		newval = (intptr_t)node;
+		newval = (intptr_t)yesde;
 		targetptr = (intptr_t *)&list->c[cpu].head;
-		node->next = (struct percpu_list_node *)expect;
+		yesde->next = (struct percpu_list_yesde *)expect;
 		ret = rseq_cmpeqv_storev(targetptr, expect, newval, cpu);
 		if (rseq_likely(!ret))
 			break;
@@ -162,21 +162,21 @@ void this_cpu_list_push(struct percpu_list *list,
  * rseq primitive allows us to implement pop without concerns over
  * ABA-type races.
  */
-struct percpu_list_node *this_cpu_list_pop(struct percpu_list *list,
+struct percpu_list_yesde *this_cpu_list_pop(struct percpu_list *list,
 					   int *_cpu)
 {
 	for (;;) {
-		struct percpu_list_node *head;
-		intptr_t *targetptr, expectnot, *load;
+		struct percpu_list_yesde *head;
+		intptr_t *targetptr, expectyest, *load;
 		off_t offset;
 		int ret, cpu;
 
 		cpu = rseq_cpu_start();
 		targetptr = (intptr_t *)&list->c[cpu].head;
-		expectnot = (intptr_t)NULL;
-		offset = offsetof(struct percpu_list_node, next);
+		expectyest = (intptr_t)NULL;
+		offset = offsetof(struct percpu_list_yesde, next);
 		load = (intptr_t *)&head;
-		ret = rseq_cmpnev_storeoffp_load(targetptr, expectnot,
+		ret = rseq_cmpnev_storeoffp_load(targetptr, expectyest,
 						 offset, load, cpu);
 		if (rseq_likely(!ret)) {
 			if (_cpu)
@@ -190,18 +190,18 @@ struct percpu_list_node *this_cpu_list_pop(struct percpu_list *list,
 }
 
 /*
- * __percpu_list_pop is not safe against concurrent accesses. Should
- * only be used on lists that are not concurrently modified.
+ * __percpu_list_pop is yest safe against concurrent accesses. Should
+ * only be used on lists that are yest concurrently modified.
  */
-struct percpu_list_node *__percpu_list_pop(struct percpu_list *list, int cpu)
+struct percpu_list_yesde *__percpu_list_pop(struct percpu_list *list, int cpu)
 {
-	struct percpu_list_node *node;
+	struct percpu_list_yesde *yesde;
 
-	node = list->c[cpu].head;
-	if (!node)
+	yesde = list->c[cpu].head;
+	if (!yesde)
 		return NULL;
-	list->c[cpu].head = node->next;
-	return node;
+	list->c[cpu].head = yesde->next;
+	return yesde;
 }
 
 void *test_percpu_list_thread(void *arg)
@@ -211,22 +211,22 @@ void *test_percpu_list_thread(void *arg)
 
 	if (rseq_register_current_thread()) {
 		fprintf(stderr, "Error: rseq_register_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 		abort();
 	}
 
 	for (i = 0; i < 100000; i++) {
-		struct percpu_list_node *node;
+		struct percpu_list_yesde *yesde;
 
-		node = this_cpu_list_pop(list, NULL);
+		yesde = this_cpu_list_pop(list, NULL);
 		sched_yield();  /* encourage shuffling */
-		if (node)
-			this_cpu_list_push(list, node, NULL);
+		if (yesde)
+			this_cpu_list_push(list, yesde, NULL);
 	}
 
 	if (rseq_unregister_current_thread()) {
 		fprintf(stderr, "Error: rseq_unregister_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 		abort();
 	}
 
@@ -250,15 +250,15 @@ void test_percpu_list(void)
 		if (!CPU_ISSET(i, &allowed_cpus))
 			continue;
 		for (j = 1; j <= 100; j++) {
-			struct percpu_list_node *node;
+			struct percpu_list_yesde *yesde;
 
 			expected_sum += j;
 
-			node = malloc(sizeof(*node));
-			assert(node);
-			node->data = j;
-			node->next = list.c[i].head;
-			list.c[i].head = node;
+			yesde = malloc(sizeof(*yesde));
+			assert(yesde);
+			yesde->data = j;
+			yesde->next = list.c[i].head;
+			list.c[i].head = yesde;
 		}
 	}
 
@@ -270,19 +270,19 @@ void test_percpu_list(void)
 		pthread_join(test_threads[i], NULL);
 
 	for (i = 0; i < CPU_SETSIZE; i++) {
-		struct percpu_list_node *node;
+		struct percpu_list_yesde *yesde;
 
 		if (!CPU_ISSET(i, &allowed_cpus))
 			continue;
 
-		while ((node = __percpu_list_pop(&list, i))) {
-			sum += node->data;
-			free(node);
+		while ((yesde = __percpu_list_pop(&list, i))) {
+			sum += yesde->data;
+			free(yesde);
 		}
 	}
 
 	/*
-	 * All entries should now be accounted for (unless some external
+	 * All entries should yesw be accounted for (unless some external
 	 * actor is interfering with our allowed affinity while this
 	 * test is running).
 	 */
@@ -293,7 +293,7 @@ int main(int argc, char **argv)
 {
 	if (rseq_register_current_thread()) {
 		fprintf(stderr, "Error: rseq_register_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 		goto error;
 	}
 	printf("spinlock\n");
@@ -302,7 +302,7 @@ int main(int argc, char **argv)
 	test_percpu_list();
 	if (rseq_unregister_current_thread()) {
 		fprintf(stderr, "Error: rseq_unregister_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 		goto error;
 	}
 	return 0;

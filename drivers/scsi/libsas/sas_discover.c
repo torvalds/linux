@@ -24,7 +24,7 @@ void sas_init_dev(struct domain_device *dev)
 {
 	switch (dev->dev_type) {
 	case SAS_END_DEVICE:
-		INIT_LIST_HEAD(&dev->ssp_dev.eh_list_node);
+		INIT_LIST_HEAD(&dev->ssp_dev.eh_list_yesde);
 		break;
 	case SAS_EDGE_EXPANDER_DEVICE:
 	case SAS_FANOUT_EXPANDER_DEVICE:
@@ -42,8 +42,8 @@ void sas_init_dev(struct domain_device *dev)
  * sas_get_port_device - Discover devices which caused port creation
  * @port: pointer to struct sas_port of interest
  *
- * Devices directly attached to a HA port, have no parent.  This is
- * how we know they are (domain) "root" devices.  All other devices
+ * Devices directly attached to a HA port, have yes parent.  This is
+ * how we kyesw they are (domain) "root" devices.  All other devices
  * do, and should have their "parent" pointer set appropriately as
  * soon as a child device is discovered.
  */
@@ -89,7 +89,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		dev->tproto = id->target_bits;
 	} else {
 		/* If the oob mode is OOB_NOT_CONNECTED, the port is
-		 * disconnected due to race with PHY down. We cannot
+		 * disconnected due to race with PHY down. We canyest
 		 * continue to discover this port
 		 */
 		sas_put_device(dev);
@@ -140,7 +140,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	dev->min_linkrate = port->linkrate;
 	dev->max_linkrate = port->linkrate;
 	dev->pathways = port->num_phys;
-	memset(port->disc.fanout_sas_addr, 0, SAS_ADDR_SIZE);
+	memset(port->disc.fayesut_sas_addr, 0, SAS_ADDR_SIZE);
 	memset(port->disc.eeds_a, 0, SAS_ADDR_SIZE);
 	memset(port->disc.eeds_b, 0, SAS_ADDR_SIZE);
 	port->disc.max_level = 0;
@@ -150,10 +150,10 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	get_device(&dev->rphy->dev);
 
 	if (dev_is_sata(dev) || dev->dev_type == SAS_END_DEVICE)
-		list_add_tail(&dev->disco_list_node, &port->disco_list);
+		list_add_tail(&dev->disco_list_yesde, &port->disco_list);
 	else {
 		spin_lock_irq(&port->dev_list_lock);
-		list_add_tail(&dev->dev_list_node, &port->dev_list);
+		list_add_tail(&dev->dev_list_yesde, &port->dev_list);
 		spin_unlock_irq(&port->dev_list_lock);
 	}
 
@@ -167,7 +167,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 
 /* ---------- Discover and Revalidate ---------- */
 
-int sas_notify_lldd_dev_found(struct domain_device *dev)
+int sas_yestify_lldd_dev_found(struct domain_device *dev)
 {
 	int res = 0;
 	struct sas_ha_struct *sas_ha = dev->port->ha;
@@ -179,7 +179,7 @@ int sas_notify_lldd_dev_found(struct domain_device *dev)
 
 	res = i->dft->lldd_dev_found(dev);
 	if (res) {
-		pr_warn("driver on host %s cannot handle device %llx, error:%d\n",
+		pr_warn("driver on host %s canyest handle device %llx, error:%d\n",
 			dev_name(sas_ha->dev),
 			SAS_ADDR(dev->sas_addr), res);
 	}
@@ -189,7 +189,7 @@ int sas_notify_lldd_dev_found(struct domain_device *dev)
 }
 
 
-void sas_notify_lldd_dev_gone(struct domain_device *dev)
+void sas_yestify_lldd_dev_gone(struct domain_device *dev)
 {
 	struct sas_ha_struct *sas_ha = dev->port->ha;
 	struct Scsi_Host *shost = sas_ha->core.shost;
@@ -209,22 +209,22 @@ static void sas_probe_devices(struct asd_sas_port *port)
 	struct domain_device *dev, *n;
 
 	/* devices must be domain members before link recovery and probe */
-	list_for_each_entry(dev, &port->disco_list, disco_list_node) {
+	list_for_each_entry(dev, &port->disco_list, disco_list_yesde) {
 		spin_lock_irq(&port->dev_list_lock);
-		list_add_tail(&dev->dev_list_node, &port->dev_list);
+		list_add_tail(&dev->dev_list_yesde, &port->dev_list);
 		spin_unlock_irq(&port->dev_list_lock);
 	}
 
 	sas_probe_sata(port);
 
-	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_node) {
+	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_yesde) {
 		int err;
 
 		err = sas_rphy_add(dev->rphy);
 		if (err)
 			sas_fail_probe(dev, __func__, err);
 		else
-			list_del_init(&dev->disco_list_node);
+			list_del_init(&dev->disco_list_yesde);
 	}
 }
 
@@ -245,11 +245,11 @@ static void sas_suspend_devices(struct work_struct *work)
 	 * suspension, we force the issue here to keep the reference
 	 * counts aligned
 	 */
-	list_for_each_entry(dev, &port->dev_list, dev_list_node)
-		sas_notify_lldd_dev_gone(dev);
+	list_for_each_entry(dev, &port->dev_list, dev_list_yesde)
+		sas_yestify_lldd_dev_gone(dev);
 
-	/* we are suspending, so we know events are disabled and
-	 * phy_list is not being mutated
+	/* we are suspending, so we kyesw events are disabled and
+	 * phy_list is yest being mutated
 	 */
 	list_for_each_entry(phy, &port->phy_list, port_phy_el) {
 		if (si->dft->lldd_port_deformed)
@@ -279,7 +279,7 @@ int sas_discover_end_dev(struct domain_device *dev)
 {
 	int res;
 
-	res = sas_notify_lldd_dev_found(dev);
+	res = sas_yestify_lldd_dev_found(dev);
 	if (res)
 		return res;
 
@@ -320,22 +320,22 @@ static void sas_unregister_common_dev(struct asd_sas_port *port, struct domain_d
 {
 	struct sas_ha_struct *ha = port->ha;
 
-	sas_notify_lldd_dev_gone(dev);
+	sas_yestify_lldd_dev_gone(dev);
 	if (!dev->parent)
 		dev->port->port_dev = NULL;
 	else
 		list_del_init(&dev->siblings);
 
 	spin_lock_irq(&port->dev_list_lock);
-	list_del_init(&dev->dev_list_node);
+	list_del_init(&dev->dev_list_yesde);
 	if (dev_is_sata(dev))
 		sas_ata_end_eh(dev->sata_dev.ap);
 	spin_unlock_irq(&port->dev_list_lock);
 
 	spin_lock_irq(&ha->lock);
 	if (dev->dev_type == SAS_END_DEVICE &&
-	    !list_empty(&dev->ssp_dev.eh_list_node)) {
-		list_del_init(&dev->ssp_dev.eh_list_node);
+	    !list_empty(&dev->ssp_dev.eh_list_yesde)) {
+		list_del_init(&dev->ssp_dev.eh_list_yesde);
 		ha->eh_active--;
 	}
 	spin_unlock_irq(&ha->lock);
@@ -347,8 +347,8 @@ void sas_destruct_devices(struct asd_sas_port *port)
 {
 	struct domain_device *dev, *n;
 
-	list_for_each_entry_safe(dev, n, &port->destroy_list, disco_list_node) {
-		list_del_init(&dev->disco_list_node);
+	list_for_each_entry_safe(dev, n, &port->destroy_list, disco_list_yesde) {
+		list_del_init(&dev->disco_list_yesde);
 
 		sas_remove_children(&dev->rphy->dev);
 		sas_rphy_delete(dev->rphy);
@@ -369,9 +369,9 @@ static void sas_destruct_ports(struct asd_sas_port *port)
 void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *dev)
 {
 	if (!test_bit(SAS_DEV_DESTROY, &dev->state) &&
-	    !list_empty(&dev->disco_list_node)) {
+	    !list_empty(&dev->disco_list_yesde)) {
 		/* this rphy never saw sas_rphy_add */
-		list_del_init(&dev->disco_list_node);
+		list_del_init(&dev->disco_list_yesde);
 		sas_rphy_free(dev->rphy);
 		sas_unregister_common_dev(port, dev);
 		return;
@@ -379,7 +379,7 @@ void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *dev)
 
 	if (!test_and_set_bit(SAS_DEV_DESTROY, &dev->state)) {
 		sas_rphy_unlink(dev->rphy);
-		list_move_tail(&dev->disco_list_node, &port->destroy_list);
+		list_move_tail(&dev->disco_list_yesde, &port->destroy_list);
 	}
 }
 
@@ -387,13 +387,13 @@ void sas_unregister_domain_devices(struct asd_sas_port *port, int gone)
 {
 	struct domain_device *dev, *n;
 
-	list_for_each_entry_safe_reverse(dev, n, &port->dev_list, dev_list_node) {
+	list_for_each_entry_safe_reverse(dev, n, &port->dev_list, dev_list_yesde) {
 		if (gone)
 			set_bit(SAS_DEV_GONE, &dev->state);
 		sas_unregister_dev(port, dev);
 	}
 
-	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_node)
+	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_yesde)
 		sas_unregister_dev(port, dev);
 
 	port->port->rphy = NULL;
@@ -465,7 +465,7 @@ static void sas_discover_domain(struct work_struct *work)
 		error = sas_discover_sata(dev);
 		break;
 #else
-		pr_notice("ATA device seen but CONFIG_SCSI_SAS_ATA=N so cannot attach\n");
+		pr_yestice("ATA device seen but CONFIG_SCSI_SAS_ATA=N so canyest attach\n");
 		/* Fall through */
 #endif
 		/* Fall through - only for the #else condition above. */
@@ -477,9 +477,9 @@ static void sas_discover_domain(struct work_struct *work)
 
 	if (error) {
 		sas_rphy_free(dev->rphy);
-		list_del_init(&dev->disco_list_node);
+		list_del_init(&dev->disco_list_yesde);
 		spin_lock_irq(&port->dev_list_lock);
-		list_del_init(&dev->dev_list_node);
+		list_del_init(&dev->dev_list_yesde);
 		spin_unlock_irq(&port->dev_list_lock);
 
 		sas_put_device(dev);
@@ -530,10 +530,10 @@ static void sas_revalidate_domain(struct work_struct *work)
 
 static void sas_chain_work(struct sas_ha_struct *ha, struct sas_work *sw)
 {
-	/* chained work is not subject to SA_HA_DRAINING or
+	/* chained work is yest subject to SA_HA_DRAINING or
 	 * SAS_HA_REGISTERED, because it is either submitted in the
-	 * workqueue, or known to be submitted from a context that is
-	 * not racing against draining
+	 * workqueue, or kyeswn to be submitted from a context that is
+	 * yest racing against draining
 	 */
 	queue_work(ha->disco_q, &sw->work);
 }

@@ -12,7 +12,7 @@
  * CTRL+C will exit.
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
@@ -46,8 +46,8 @@ int main(int argc, char const *argv[])
 	}
 
 	/*
-	 * read may fail if no hw brightness change has occurred so far,
-	 * but it is required to avoid spurious poll notifications in
+	 * read may fail if yes hw brightness change has occurred so far,
+	 * but it is required to avoid spurious poll yestifications in
 	 * the opposite case.
 	 */
 	read(fd, buf, sizeof(buf));

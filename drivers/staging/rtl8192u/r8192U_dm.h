@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*****************************************************************************
- *	Copyright(c) 2007,  RealTEK Technology Inc. All Right Reserved.
+ *	Copyright(c) 2007,  RealTEK Techyeslogy Inc. All Right Reserved.
  *
  * Module:		Hal819xUsbDM.h	(RTL8192  Header H File)
  *
